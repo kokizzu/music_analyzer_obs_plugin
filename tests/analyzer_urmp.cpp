@@ -1126,6 +1126,16 @@ int resolve_positive_int_env(const char *name, int fallback)
 	return parsed > 0 ? parsed : fallback;
 }
 
+int resolve_percent_env(const char *name, int fallback)
+{
+	const char *value = std::getenv(name);
+	if (!value || !*value)
+		return fallback;
+
+	const int parsed = std::atoi(value);
+	return parsed >= 0 && parsed <= 100 ? parsed : fallback;
+}
+
 bool env_truthy(const char *name)
 {
 	const char *value = std::getenv(name);
@@ -1189,6 +1199,14 @@ int main()
 	const int default_required_windows = std::min(required_pieces * 4, max_windows_per_piece * required_pieces);
 	const int required_windows =
 		resolve_positive_int_env("MUSIC_ANALYZER_URMP_REQUIRED_WINDOWS", default_required_windows);
+	const int min_window_recall_percent =
+		resolve_percent_env("MUSIC_ANALYZER_URMP_MIN_WINDOW_RECALL_PERCENT", 50);
+	const int min_track_recall_percent =
+		resolve_percent_env("MUSIC_ANALYZER_URMP_MIN_TRACK_RECALL_PERCENT", 70);
+	const int min_mix_recall_percent = resolve_percent_env("MUSIC_ANALYZER_URMP_MIN_MIX_RECALL_PERCENT", 55);
+	const int min_chord_recall_percent =
+		resolve_percent_env("MUSIC_ANALYZER_URMP_MIN_CHORD_RECALL_PERCENT", 35);
+	const int min_chord_checks = resolve_positive_int_env("MUSIC_ANALYZER_URMP_MIN_CHORD_CHECKS", 5);
 
 	Runner runner;
 	DatasetCoverageStats coverage;
@@ -1254,7 +1272,7 @@ int main()
 				std::string("URMP ") + basename_of(piece_dir) + " at " + std::to_string(candidate.time) +
 				"s";
 			check_mix_recall(runner, mix_snapshot, candidate, window_context + " provided mix",
-					 provided_mix_stats, 50);
+					 provided_mix_stats, min_window_recall_percent);
 
 			const mao::AnalysisSnapshot summed_snapshot = analyze_summed_track_window(
 				piece, candidate.time, "URMP summed separated tracks", ok, error);
@@ -1263,7 +1281,8 @@ int main()
 				runner.expect(false, window_context + " summed separated tracks: " + error);
 			} else {
 				check_mix_recall(runner, summed_snapshot, candidate,
-						 window_context + " summed separated tracks", summed_mix_stats, 50);
+						 window_context + " summed separated tracks", summed_mix_stats,
+						 min_window_recall_percent);
 			}
 
 			for (const ActiveNote &active : candidate.active) {
@@ -1317,27 +1336,35 @@ int main()
 		      "URMP real-audio coverage: expected at least " + std::to_string(required_windows) +
 			      " tested windows, got " +
 			      std::to_string(tested_windows));
-	runner.expect(track_checks > 0 && track_hits * 100 >= track_checks * 70,
-		      "URMP separated-track recall: expected >=70%, got " + std::to_string(track_hits) + "/" +
+	runner.expect(track_checks > 0 && track_hits * 100 >= track_checks * min_track_recall_percent,
+		      "URMP separated-track recall: expected >=" + std::to_string(min_track_recall_percent) +
+			      "%, got " + std::to_string(track_hits) + "/" +
 			      std::to_string(track_checks));
 	runner.expect(provided_mix_stats.expected > 0 &&
-			      provided_mix_stats.hits * 100 >= provided_mix_stats.expected * 55,
-		      "URMP provided full-mix pitch-class recall: expected >=55%, got " +
+			      provided_mix_stats.hits * 100 >= provided_mix_stats.expected * min_mix_recall_percent,
+		      "URMP provided full-mix pitch-class recall: expected >=" +
+			      std::to_string(min_mix_recall_percent) + "%, got " +
 			      std::to_string(provided_mix_stats.hits) + "/" +
 			      std::to_string(provided_mix_stats.expected));
-	runner.expect(summed_mix_stats.expected > 0 && summed_mix_stats.hits * 100 >= summed_mix_stats.expected * 55,
-		      "URMP summed separated-track mix pitch-class recall: expected >=55%, got " +
+	runner.expect(summed_mix_stats.expected > 0 &&
+			      summed_mix_stats.hits * 100 >= summed_mix_stats.expected * min_mix_recall_percent,
+		      "URMP summed separated-track mix pitch-class recall: expected >=" +
+			      std::to_string(min_mix_recall_percent) + "%, got " +
 			      std::to_string(summed_mix_stats.hits) + "/" +
 			      std::to_string(summed_mix_stats.expected));
-	if (provided_mix_stats.chord_checks >= 5) {
-		runner.expect(provided_mix_stats.chord_hits * 100 >= provided_mix_stats.chord_checks * 35,
-			      "URMP provided full-mix chord recall: expected >=35%, got " +
+	if (provided_mix_stats.chord_checks >= min_chord_checks) {
+		runner.expect(
+			provided_mix_stats.chord_hits * 100 >= provided_mix_stats.chord_checks * min_chord_recall_percent,
+			"URMP provided full-mix chord recall: expected >=" +
+				std::to_string(min_chord_recall_percent) + "%, got " +
 				      std::to_string(provided_mix_stats.chord_hits) + "/" +
 				      std::to_string(provided_mix_stats.chord_checks));
 	}
-	if (summed_mix_stats.chord_checks >= 5) {
-		runner.expect(summed_mix_stats.chord_hits * 100 >= summed_mix_stats.chord_checks * 35,
-			      "URMP summed separated-track mix chord recall: expected >=35%, got " +
+	if (summed_mix_stats.chord_checks >= min_chord_checks) {
+		runner.expect(
+			summed_mix_stats.chord_hits * 100 >= summed_mix_stats.chord_checks * min_chord_recall_percent,
+			"URMP summed separated-track mix chord recall: expected >=" +
+				std::to_string(min_chord_recall_percent) + "%, got " +
 				      std::to_string(summed_mix_stats.chord_hits) + "/" +
 				      std::to_string(summed_mix_stats.chord_checks));
 	}
