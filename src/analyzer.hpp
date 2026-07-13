@@ -1,0 +1,81 @@
+#pragma once
+
+#include <array>
+#include <cstddef>
+#include <cstdint>
+
+namespace mao {
+
+constexpr std::size_t kAnalysisWindow = 4096;
+constexpr std::size_t kDrumCount = 6;
+
+enum DrumIndex : std::size_t {
+	Kick = 0,
+	Snare = 1,
+	HiHat = 2,
+	Crash = 3,
+	Tom = 4,
+	Ride = 5,
+};
+
+struct AnalysisSettings {
+	uint32_t sample_rate = 48000;
+	float sensitivity = 1.0f;
+};
+
+struct DrumState {
+	char label[12] = {};
+	float level = 0.0f;
+	bool active = false;
+};
+
+struct InstrumentState {
+	char label[24] = {};
+	float confidence = 0.0f;
+};
+
+struct AnalysisSnapshot {
+	uint64_t sequence = 0;
+	char source[64] = {};
+	float rms = 0.0f;
+	float peak = 0.0f;
+	float low_energy = 0.0f;
+	float mid_energy = 0.0f;
+	float high_energy = 0.0f;
+	uint64_t dropped_windows = 0;
+	std::array<DrumState, kDrumCount> drums = {};
+	InstrumentState bass = {};
+	InstrumentState guitar = {};
+	InstrumentState keyboard = {};
+	InstrumentState vocal = {};
+	InstrumentState other = {};
+};
+
+class AnalysisEngine {
+public:
+	AnalysisEngine();
+
+	void configure(uint32_t sample_rate);
+	AnalysisSnapshot analyze(const float *samples, std::size_t count, const AnalysisSettings &settings,
+				  const char *source_name, uint64_t dropped_windows);
+
+private:
+	struct Probe {
+		int midi = 0;
+		float freq = 0.0f;
+		float coeff = 0.0f;
+	};
+
+	std::array<float, kAnalysisWindow> window_ = {};
+	std::array<Probe, 69> note_probes_ = {};
+	std::array<Probe, 15> drum_probes_ = {};
+	uint32_t sample_rate_ = 0;
+	float previous_rms_ = 0.0f;
+	std::array<float, kDrumCount> drum_average_ = {};
+	std::array<float, kDrumCount> drum_level_ = {};
+
+	void rebuild_plans(uint32_t sample_rate);
+	float goertzel_power(const float *samples, std::size_t count, float mean, const Probe &probe) const;
+};
+
+} // namespace mao

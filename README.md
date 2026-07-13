@@ -1,1 +1,58 @@
-# music_analysis_obs_plugin
+# Music Analysis OBS Plugin
+
+Native OBS Studio plugin that analyzes a music mix and displays an instrument-oriented overlay:
+
+- Drums: bass drum/kick, snare, hi-hat, crash, tom, and ride hit indicators
+- Bass: detected note
+- Guitar, keyboard, vocal, and other instruments: detected note or chord label
+
+The analyzer is designed for real-time OBS use. It uses bounded DSP heuristics rather than a large ML stem-separation model: audio is downmixed into a fixed ring buffer, analysis windows are copied to a worker thread at a configurable interval, and the OBS audio callback returns immediately after lightweight buffering. The visualizer source renders a single reusable RGBA texture.
+
+## OBS Usage
+
+1. Build the plugin.
+2. Copy `build/music-analysis-obs.so` to an OBS plugin directory, for example:
+
+   ```sh
+   mkdir -p ~/.config/obs-studio/plugins/music-analysis-obs/bin/64bit
+   cp build/music-analysis-obs.so ~/.config/obs-studio/plugins/music-analysis-obs/bin/64bit/
+   ```
+
+3. Restart OBS.
+4. Add the `Music Analysis Filter` audio filter to the music/audio source you want analyzed.
+5. Add the `Music Analysis Visualizer` source to the scene to show the overlay.
+
+## Build
+
+With the Makefile:
+
+```sh
+make
+```
+
+If the system OBS headers require SIMDe and `libsimde-dev` is not installed, `make` fetches and extracts that header-only package under `build/deps` without using sudo.
+
+Run the analyzer smoke tests:
+
+```sh
+make test
+```
+
+Optional CMake build, assuming the OBS development dependencies are installed system-wide:
+
+```sh
+/usr/bin/cmake -S . -B build-cmake -DCMAKE_BUILD_TYPE=Release
+/usr/bin/cmake --build build-cmake
+```
+
+## Performance Notes
+
+The plugin intentionally avoids expensive per-frame work:
+
+- No allocation in the OBS audio callback after source creation.
+- Analysis runs on a worker thread and drops stale windows instead of queueing unbounded work.
+- Fixed 4096-sample windows and configurable update intervals bound CPU use.
+- Notes/chords use precomputed Goertzel probes instead of per-callback FFT allocation.
+- The visualizer updates a single texture at a capped frame rate.
+
+This is approximate mix analysis, not true isolated stem separation. For precise separation of crowded mixes, an offline or GPU-backed ML stem separator would be needed before OBS receives the audio.
