@@ -60,7 +60,7 @@ separate from URMP's mixed-instrument gate.
 
 | Dataset | Use | Notes |
 | --- | --- | --- |
-| [Vocal Ensemble F0 Aggregate](https://arxiv.org/abs/2009.04172) | 20+ real vocal quartet F0 analyzer gate with optional `make inspect-real-polyvocal` and `make test-real-polyvocal-20` | The ISMIR paper aggregates multi-track vocal datasets with F0 annotations. The 20+ subset comes from 22 Barbershop Quartet songs and 26 Bach Chorales; the companion code at [helenacuesta/multif0-estimation-vocals](https://github.com/helenacuesta/multif0-estimation-vocals) generates mixture WAV files plus `mtracks_info.json` from per-voice annotations. The PG Music source pages state the Barbershop Quartet product has separate tenor/lead/baritone/bass tracks and over 20 songs, and the Bach Chorales product has over 25 songs. The audio is commercial/local, so this repository supports a prepared local layout rather than downloading it. |
+| [Vocal Ensemble F0 Aggregate](https://arxiv.org/abs/2009.04172) | 20+ real vocal quartet F0 analyzer gate with optional `make inspect-real-polyvocal` and `make test-real-polyvocal-20` | The ISMIR paper aggregates multi-track vocal datasets with F0 annotations. The 20+ subset comes from 22 Barbershop Quartet songs and 26 Bach Chorales; the companion code at [helenacuesta/multif0-estimation-vocals](https://github.com/helenacuesta/multif0-estimation-vocals) generates mixture WAV files plus `mtracks_info.json` from per-voice annotations. This repository also supports `source_audio_folder` plus `source_audio_files` entries and can sum those source voices before analysis. The PG Music source pages state the Barbershop Quartet product has separate tenor/lead/baritone/bass tracks and over 20 songs, and the Bach Chorales product has over 25 songs. The audio is commercial/local, so this repository supports a prepared local layout rather than downloading it. |
 
 ## Real Audio With MIDI Or Note Truth But No Isolated Stems
 
@@ -216,12 +216,15 @@ without additional annotation.
   the vocal ensemble data with the companion workflow from
   `helenacuesta/multif0-estimation-vocals`. The preflight expects
   `mtracks_info.json`, mixture audio, and four or more per-voice F0 CSV/JAMS
-  annotations per piece. Use `make test-real-polyvocal-20` to convert selected
-  F0 contours into a temporary MusicNet-shaped WAV/CSV layout, then run the
-  existing analyzer pitch-class and chord recall gate. This provides 20+ real
-  vocal same-song multi-source F0 cases and chord opportunities, but it does
-  not replace URMP because it is vocal-only and does not exercise mixed
-  instrument timbre/source assignment.
+  annotations per piece. When the metadata also provides `source_audio_folder`
+  and `source_audio_files`, use `MUSIC_ANALYZER_POLYVOCAL_REQUIRE_SOURCE_AUDIO=1`
+  to require those per-voice audio tracks. Use `make test-real-polyvocal-20` to
+  convert selected F0 contours into a temporary MusicNet-shaped WAV/CSV layout;
+  it sums source voices when available before running the existing analyzer
+  pitch-class and chord recall gate. This provides 20+ real vocal same-song
+  multi-source F0 cases and chord opportunities, but it does not replace URMP
+  because it is vocal-only and does not exercise mixed instrument
+  timbre/source assignment.
 - Use `make inspect-real-multtipop` with
   `MUSIC_ANALYZER_MULTTIPOP_ROOT=/path/to/multtipop` after cloning or
   extracting the Hugging Face dataset. The preflight expects the official

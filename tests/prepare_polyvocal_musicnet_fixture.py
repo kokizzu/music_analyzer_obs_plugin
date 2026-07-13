@@ -5,7 +5,9 @@ import math
 import os
 import shutil
 import subprocess
+import struct
 import sys
+import tempfile
 import wave
 
 import inspect_polyvocal_dataset
@@ -151,6 +153,91 @@ def read_wav_sample_rate(path):
         return 0
 
 
+def read_wav_float_mono(path):
+    with wave.open(path, "rb") as audio:
+        sample_rate = audio.getframerate()
+        channels = audio.getnchannels()
+        width = audio.getsampwidth()
+        frames = audio.getnframes()
+        if sample_rate <= 0 or channels <= 0 or width != 2:
+            raise wave.Error("expected 16-bit PCM WAV audio")
+        raw = audio.readframes(frames)
+    values = struct.unpack("<" + "h" * (len(raw) // 2), raw)
+    samples = []
+    for index in range(0, len(values), channels):
+        frame_values = values[index : index + channels]
+        samples.append(sum(frame_values) / float(32767 * max(1, len(frame_values))))
+    return sample_rate, samples
+
+
+def write_wav_float_mono(path, sample_rate, samples):
+    os.makedirs(os.path.dirname(path), exist_ok=True)
+    with wave.open(path, "wb") as audio:
+        audio.setnchannels(1)
+        audio.setsampwidth(2)
+        audio.setframerate(sample_rate)
+        frames = bytearray()
+        for sample in samples:
+            frames.extend(struct.pack("<h", int(max(-0.95, min(0.95, sample)) * 32767.0)))
+        audio.writeframes(bytes(frames))
+
+
+def decode_to_mono_wav(input_path, output_path, ffmpeg):
+    command = [
+        ffmpeg,
+        "-nostdin",
+        "-hide_banner",
+        "-loglevel",
+        "error",
+        "-y",
+        "-i",
+        input_path,
+        "-ac",
+        "1",
+        "-ar",
+        str(DEFAULT_OUTPUT_SAMPLE_RATE),
+        output_path,
+    ]
+    subprocess.check_call(command)
+
+
+def read_source_track(path, ffmpeg, temp_dir, index):
+    try:
+        sample_rate, samples = read_wav_float_mono(path)
+        if sample_rate == DEFAULT_OUTPUT_SAMPLE_RATE:
+            return samples
+    except (OSError, EOFError, wave.Error, struct.error):
+        pass
+
+    decoded = inspect_polyvocal_dataset.join_path(temp_dir, f"source{index:02d}.wav")
+    decode_to_mono_wav(path, decoded, ffmpeg)
+    _, samples = read_wav_float_mono(decoded)
+    return samples
+
+
+def prepare_summed_source_audio(source_paths, output_path, ffmpeg):
+    os.makedirs(os.path.dirname(output_path), exist_ok=True)
+    with tempfile.TemporaryDirectory() as temp_dir:
+        tracks = [
+            read_source_track(path, ffmpeg, temp_dir, index)
+            for index, path in enumerate(source_paths, start=1)
+        ]
+    if not tracks:
+        raise ValueError("no source audio tracks to sum")
+
+    frame_count = max(len(track) for track in tracks)
+    gain = 1.0 / math.sqrt(len(tracks))
+    mixed = []
+    for frame in range(frame_count):
+        sample = 0.0
+        for track in tracks:
+            if frame < len(track):
+                sample += track[frame]
+        mixed.append(sample * gain)
+    write_wav_float_mono(output_path, DEFAULT_OUTPUT_SAMPLE_RATE, mixed)
+    return DEFAULT_OUTPUT_SAMPLE_RATE
+
+
 def prepare_audio(input_path, output_path, ffmpeg):
     os.makedirs(os.path.dirname(output_path), exist_ok=True)
     if inspect_polyvocal_dataset.lower_name(input_path).endswith((".wav", ".wave")):
@@ -195,7 +282,15 @@ def prepare_entry(entry, output_root, output_id, ffmpeg):
 
     audio_out = inspect_polyvocal_dataset.join_path(output_root, "train_data", f"{output_id}.wav")
     label_out = inspect_polyvocal_dataset.join_path(output_root, "train_labels", f"{output_id}.csv")
-    sample_rate = prepare_audio(entry["audio_path"], audio_out, ffmpeg)
+    source_paths = [
+        path
+        for path in entry.get("source_audio_paths", [])
+        if os.path.isfile(path) and inspect_polyvocal_dataset.is_audio(path)
+    ]
+    if len(source_paths) >= len(entry["annotations"]):
+        sample_rate = prepare_summed_source_audio(source_paths, audio_out, ffmpeg)
+    else:
+        sample_rate = prepare_audio(entry["audio_path"], audio_out, ffmpeg)
     write_labels(label_out, notes, sample_rate)
     return True, ""
 

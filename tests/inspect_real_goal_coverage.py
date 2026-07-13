@@ -64,6 +64,7 @@ def main():
         cocochorales_prepare = read_text("tests/prepare_cocochorales_musicnet_fixture.py")
         polyvocal_inspector = read_text("tests/inspect_polyvocal_dataset.py")
         polyvocal_prepare = read_text("tests/prepare_polyvocal_musicnet_fixture.py")
+        polyvocal_fixture = read_text("tests/generate_polyvocal_fixture.py")
         multtipop_inspector = read_text("tests/inspect_multtipop_dataset.py")
         multtipop_fixture = read_text("tests/generate_multtipop_fixture.py")
         spheres_inspector = read_text("tests/inspect_spheres_dataset.py")
@@ -228,6 +229,7 @@ def main():
         (makefile, "test-real-cocochorales-20", "Makefile optional CocoChorales analyzer gate"),
         (makefile, "inspect-real-polyvocal", "Makefile optional Vocal Ensemble F0 preflight"),
         (makefile, "test-real-polyvocal-20", "Makefile optional Vocal Ensemble F0 analyzer gate"),
+        (makefile, "MUSIC_ANALYZER_POLYVOCAL_REQUIRE_SOURCE_AUDIO=1", "Makefile generated Vocal Ensemble F0 source-audio requirement"),
         (source_printer, "real_vocal_multitrack_truth", "source printer Vocal Ensemble F0 category"),
         (makefile, "test-real-multtipop-20", "Makefile optional MulTTiPop analyzer gate"),
         (makefile, "test-multtipop-audio-root-fixture", "Makefile MulTTiPop external audio-root fixture target"),
@@ -331,7 +333,11 @@ def main():
         (cocochorales_prepare, "train_labels", "CocoChorales generated MusicNet labels"),
         (polyvocal_inspector, "mtracks_info.json", "Vocal Ensemble F0 prepared metadata check"),
         (polyvocal_inspector, "usable F0 annotations per mix", "Vocal Ensemble F0 annotation coverage report"),
+        (polyvocal_inspector, "source audio tracks per mix", "Vocal Ensemble F0 source-audio coverage report"),
+        (polyvocal_inspector, "MUSIC_ANALYZER_POLYVOCAL_REQUIRE_SOURCE_AUDIO", "Vocal Ensemble F0 source-audio requirement"),
+        (polyvocal_fixture, "source_audio_files", "Vocal Ensemble F0 generated source-audio metadata"),
         (polyvocal_prepare, "points_to_notes", "Vocal Ensemble F0 contour-to-note conversion"),
+        (polyvocal_prepare, "prepare_summed_source_audio", "Vocal Ensemble F0 summed source-audio preparation"),
         (polyvocal_prepare, "real vocal-F0 recordings", "Vocal Ensemble F0 MusicNet-shaped preparation"),
         (maestro_harness, "read_maestro_midi", "MAESTRO aligned-MIDI parser"),
         (maestro_harness, "MAESTRO piano pitch-class recall", "MAESTRO real-audio recall gate"),
@@ -365,6 +371,7 @@ def main():
         (readme, "make test-real-cocochorales-20", "README CocoChorales analyzer instructions"),
         (readme, "make inspect-real-polyvocal", "README Vocal Ensemble F0 preflight instructions"),
         (readme, "make test-real-polyvocal-20", "README Vocal Ensemble F0 analyzer instructions"),
+        (readme, "MUSIC_ANALYZER_POLYVOCAL_REQUIRE_SOURCE_AUDIO=1", "README Vocal Ensemble F0 source-audio instructions"),
         (readme, "make test-real-multtipop-20", "README MulTTiPop analyzer instructions"),
         (readme, "make test-multtipop-audio-root-fixture", "README MulTTiPop external audio-root fixture instructions"),
         (readme, "make inspect-real-spheres", "README Spheres preflight instructions"),
@@ -389,6 +396,7 @@ def main():
         (docs, "make test-real-cocochorales-20", "dataset docs CocoChorales analyzer instructions"),
         (docs, "make inspect-real-polyvocal", "dataset docs Vocal Ensemble F0 preflight instructions"),
         (docs, "make test-real-polyvocal-20", "dataset docs Vocal Ensemble F0 analyzer instructions"),
+        (docs, "MUSIC_ANALYZER_POLYVOCAL_REQUIRE_SOURCE_AUDIO=1", "dataset docs Vocal Ensemble F0 source-audio instructions"),
         (docs, "make test-real-multtipop-20", "dataset docs MulTTiPop analyzer instructions"),
         (docs, "make test-multtipop-audio-root-fixture", "dataset docs MulTTiPop external audio-root fixture instructions"),
         (docs, "make inspect-real-spheres", "dataset docs Spheres preflight instructions"),
@@ -426,7 +434,7 @@ def main():
     print(
         "inspect_real_goal_coverage: "
         "catalog=URMP+direct-fit-small+MusicNet+MedleyDB+MUSDB18+Slakh2100+ChoralSynth+CocoChorales+PolyVocal+MulTTiPop+Spheres+GuitarSet+MAESTRO+E-GMD, target=test-real-goal-20, "
-        "fixture=URMP+Bach10-style+direct-fit-small+MusicNet+MedleyDB+MUSDB18+Slakh2100+ChoralSynth+CocoChorales+PolyVocal+MulTTiPop-audio+Spheres+GuitarSet+MAESTRO+E-GMD, "
+        "fixture=URMP+Bach10-style+direct-fit-small+MusicNet+MedleyDB+MUSDB18+Slakh2100+ChoralSynth+CocoChorales+PolyVocal-source+MulTTiPop-audio+Spheres+GuitarSet+MAESTRO+E-GMD, "
         "summed_mix=yes, chord_checks=yes"
     )
     return 0

@@ -184,7 +184,7 @@
       "source_url": "https://arxiv.org/abs/2009.04172",
       "download_url": "https://github.com/helenacuesta/multif0-estimation-vocals",
       "download_note": "The companion repository provides data-generation code and trained models. The 20+ real-song Barbershop Quartet and Bach Chorale source audio comes from PG Music commercial releases, so this repository supports a local prepared mtracks_info.json layout rather than downloading audio.",
-      "evidence": "ISMIR 2020 paper describes an aggregate of multi-track vocal datasets with F0 annotations, including 22 Barbershop Quartet songs and 26 Bach Chorales with individual quartet voices; companion setup code generates mixture WAV files plus mtracks_info.json from per-voice F0 annotations."
+      "evidence": "ISMIR 2020 paper describes an aggregate of multi-track vocal datasets with F0 annotations, including 22 Barbershop Quartet songs and 26 Bach Chorales with individual quartet voices; companion setup code generates mixture WAV files plus mtracks_info.json from per-voice F0 annotations, and this harness can require source_audio_files/source_audio_folder entries to sum the voice tracks before analysis."
     },
     {
       "id": "pop909",

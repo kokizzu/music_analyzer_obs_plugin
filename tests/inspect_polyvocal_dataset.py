@@ -40,6 +40,10 @@ def positive_float_env(name, fallback):
     return parsed if parsed > 0.0 else fallback
 
 
+def truthy_env(name):
+    return os.environ.get(name, "").strip().lower() in ("1", "true", "yes", "on")
+
+
 def join_path(lhs, *children):
     path = lhs
     for child in children:
@@ -285,6 +289,53 @@ def annotation_paths(root, base, entry):
     return resolved
 
 
+def list_entry_paths(entry, names):
+    for name in names:
+        value = entry.get(name)
+        if isinstance(value, list):
+            return value
+        if isinstance(value, dict):
+            return list(value.values())
+    return []
+
+
+def source_audio_paths(root, base, entry):
+    source_files = list_entry_paths(
+        entry,
+        (
+            "source_audio_files",
+            "source_files",
+            "stem_files",
+            "voice_files",
+            "audio_sources",
+            "sources",
+        ),
+    )
+    source_folder = (
+        entry.get("source_audio_folder")
+        or entry.get("source_folder")
+        or entry.get("stem_folder")
+        or entry.get("voice_folder")
+        or ""
+    )
+    source_base = resolve_existing_path(root, base, source_folder) if source_folder else base
+
+    resolved = []
+    for item in source_files:
+        path = ""
+        if isinstance(item, str):
+            path = item
+        elif isinstance(item, dict):
+            for key in ("audio_file", "audio", "path", "file"):
+                value = item.get(key)
+                if isinstance(value, str) and value:
+                    path = value
+                    break
+        if path:
+            resolved.append(resolve_existing_path(root, source_base, path))
+    return resolved
+
+
 def audio_path_for_entry(root, base, audio_name, entry):
     explicit = entry.get("audio_file") or entry.get("audio") or entry.get("mix_audio")
     if isinstance(explicit, str) and explicit:
@@ -301,9 +352,18 @@ def inspect_entry(root, info_path, audio_name, entry, min_voices, min_audio_seco
         entry = {}
     audio_path = audio_path_for_entry(root, base, audio_name, entry)
     annotations = annotation_paths(root, base, entry)
+    source_paths = source_audio_paths(root, base, entry)
     audio_readable = os.path.isfile(audio_path) and is_audio(audio_path)
     summary = audio_summary(audio_path) if audio_readable else None
     compressed_audio = audio_readable and summary is None and lower_name(audio_path).endswith((".mp3", ".m4a", ".ogg"))
+    source_audio_count = sum(
+        1
+        for path in source_paths
+        if os.path.isfile(path)
+        and is_audio(path)
+        and (audio_summary(path) is not None or lower_name(path).endswith((".mp3", ".m4a", ".ogg")))
+    )
+    require_source_audio = truthy_env("MUSIC_ANALYZER_POLYVOCAL_REQUIRE_SOURCE_AUDIO")
     previews = [f0_preview_points(path, min_f0_points) for path in annotations if os.path.isfile(path)]
     usable_annotations = sum(1 for preview in previews if len(preview) >= min_f0_points)
     complete = (
@@ -312,6 +372,7 @@ def inspect_entry(root, info_path, audio_name, entry, min_voices, min_audio_seco
         and (summary is None or summary["duration"] >= min_audio_seconds)
         and len(annotations) >= min_voices
         and usable_annotations >= min_voices
+        and (not require_source_audio or source_audio_count >= min_voices)
     )
 
     return {
@@ -321,6 +382,8 @@ def inspect_entry(root, info_path, audio_name, entry, min_voices, min_audio_seco
         "audio_summary": summary,
         "compressed_audio": compressed_audio,
         "annotations": annotations,
+        "source_audio_paths": source_paths,
+        "source_audio_count": source_audio_count,
         "usable_annotations": usable_annotations,
         "preview_points": [len(preview) for preview in previews],
     }
@@ -385,6 +448,7 @@ def main():
         if entry["audio_summary"] is not None
     ]
     voice_counts = [len(entry["annotations"]) for entry in complete]
+    source_counts = [entry["source_audio_count"] for entry in complete]
     usable_counts = [entry["usable_annotations"] for entry in complete]
     compressed = sum(1 for entry in complete if entry["compressed_audio"])
 
@@ -400,6 +464,7 @@ def main():
         "inspect_polyvocal_dataset: "
         f"complete={len(complete)}/{len(inspected)} mtracks={info_path} compressed_audio={compressed}, "
         f"{range_summary(voice_counts, 'voices per mix')}, "
+        f"{range_summary(source_counts, 'source audio tracks per mix')}, "
         f"{range_summary(usable_counts, 'usable F0 annotations per mix')}, "
         f"{float_range_summary(durations, 'audio seconds')}"
     )

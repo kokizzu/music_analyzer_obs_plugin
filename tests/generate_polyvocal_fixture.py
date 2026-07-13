@@ -106,23 +106,32 @@ def main(argv):
 
     root = argv[1]
     audio_dir = join_path(root, "audiomixtures")
+    source_audio_dir = join_path(root, "voice_audio")
     annotation_dir = join_path(root, "annotations")
     os.makedirs(audio_dir, exist_ok=True)
+    os.makedirs(source_audio_dir, exist_ok=True)
     os.makedirs(annotation_dir, exist_ok=True)
 
     mtracks = {}
     for piece in range(1, PIECE_COUNT + 1):
         base = f"PV{piece:03d}_satb.wav"
         voices = []
+        source_audio_files = []
         annotation_files = []
         for voice_index, voice_name in enumerate(VOICE_NAMES):
-            voices.append(voice_samples(piece - 1, voice_index))
+            voice = voice_samples(piece - 1, voice_index)
+            voices.append(voice)
+            source_audio_name = f"PV{piece:03d}_{voice_name}.wav"
+            source_audio_files.append(source_audio_name)
+            write_wav(join_path(source_audio_dir, source_audio_name), voice)
             annotation_name = f"PV{piece:03d}_{voice_name}.csv"
             annotation_files.append(annotation_name)
             write_f0_csv(join_path(annotation_dir, annotation_name), piece - 1, voice_index)
         write_wav(join_path(audio_dir, base), mix_voices(voices))
         mtracks[base] = {
             "audiopath": "audiomixtures",
+            "source_audio_folder": "voice_audio",
+            "source_audio_files": source_audio_files,
             "annot_folder": "annotations",
             "annot_files": annotation_files,
             "source": "generated-polyvocal-fixture",

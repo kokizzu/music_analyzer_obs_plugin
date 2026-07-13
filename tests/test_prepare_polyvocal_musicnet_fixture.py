@@ -2,7 +2,9 @@
 import contextlib
 import csv
 import os
+import struct
 import tempfile
+import wave
 from pathlib import Path
 
 import generate_polyvocal_fixture
@@ -34,7 +36,7 @@ def write_fixture(root):
         raise AssertionError("fixture generation failed")
 
 
-def run_prepare(root, output, required_pieces=20):
+def run_prepare(root, output, required_pieces=20, require_source_audio=False):
     with patched_env(
         {
             "MUSIC_ANALYZER_POLYVOCAL_ROOT": str(root),
@@ -42,11 +44,32 @@ def run_prepare(root, output, required_pieces=20):
             "MUSIC_ANALYZER_DATASET_ROOT": None,
             "MUSIC_ANALYZER_POLYVOCAL_REQUIRED_PIECES": str(required_pieces),
             "MUSIC_ANALYZER_POLYVOCAL_PREPARE_PIECES": str(required_pieces),
+            "MUSIC_ANALYZER_POLYVOCAL_REQUIRE_SOURCE_AUDIO": "1" if require_source_audio else None,
         }
     ):
         return prepare_polyvocal_musicnet_fixture.main(
             ["prepare_polyvocal_musicnet_fixture.py", str(output)]
         )
+
+
+def overwrite_wav_with_silence(path):
+    with wave.open(str(path), "rb") as audio:
+        channels = audio.getnchannels()
+        width = audio.getsampwidth()
+        sample_rate = audio.getframerate()
+        frames = audio.getnframes()
+    with wave.open(str(path), "wb") as audio:
+        audio.setnchannels(channels)
+        audio.setsampwidth(width)
+        audio.setframerate(sample_rate)
+        audio.writeframes(b"\0" * frames * channels * width)
+
+
+def wav_peak(path):
+    with wave.open(str(path), "rb") as audio:
+        raw = audio.readframes(audio.getnframes())
+    values = struct.unpack("<" + "h" * (len(raw) // 2), raw)
+    return max((abs(value) for value in values), default=0)
 
 
 def test_prepare_polyvocal_fixture_writes_musicnet_shape():
@@ -81,6 +104,18 @@ def test_prepare_polyvocal_fixture_requires_f0_annotations():
             raise AssertionError("preparation should fail when a selected mix has missing F0 annotations")
 
 
+def test_prepare_polyvocal_fixture_sums_source_audio_when_available():
+    with tempfile.TemporaryDirectory() as temp:
+        root = Path(temp) / "polyvocal"
+        output = Path(temp) / "musicnet"
+        write_fixture(root)
+        overwrite_wav_with_silence(root / "audiomixtures" / "PV001_satb.wav")
+        if run_prepare(root, output, required_pieces=1, require_source_audio=True) != 0:
+            raise AssertionError("PolyVocal source-audio preparation failed")
+        if wav_peak(output / "train_data" / "1.wav") <= 0:
+            raise AssertionError("prepared audio should come from summed source voices, not silent mix audio")
+
+
 def test_points_to_notes_splits_gaps_and_notes():
     points = [(0.00, 261.625565), (0.05, 261.625565), (0.10, 261.625565), (0.40, 329.627557), (0.45, 329.627557)]
     notes = prepare_polyvocal_musicnet_fixture.points_to_notes(points, 97)
@@ -94,8 +129,9 @@ def test_points_to_notes_splits_gaps_and_notes():
 def main():
     test_prepare_polyvocal_fixture_writes_musicnet_shape()
     test_prepare_polyvocal_fixture_requires_f0_annotations()
+    test_prepare_polyvocal_fixture_sums_source_audio_when_available()
     test_points_to_notes_splits_gaps_and_notes()
-    print("test_prepare_polyvocal_musicnet_fixture: 3 checks passed")
+    print("test_prepare_polyvocal_musicnet_fixture: 4 checks passed")
     return 0
 
 
