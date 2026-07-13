@@ -29,7 +29,7 @@ constexpr int kOtherMaxMidi = 108;
 constexpr float kSilenceRms = 0.0025f;
 constexpr float kNoteRmsFloor = 0.012f;
 constexpr float kFullNoteRms = 0.080f;
-constexpr float kNoteRelativeFloor = 0.40f;
+constexpr float kNoteRelativeFloor = 0.36f;
 constexpr float kHarmonicMaskRatio = 0.62f;
 constexpr int kChromaticTuneMinMidi = kGuitarMinMidi;
 constexpr float kChromaticTuneToleranceCents = 9.0f;
@@ -372,6 +372,30 @@ std::array<bool, kNoteProbeCount> timbre_midi_filter(const std::array<float, kNo
 				allowed[lower_index] = true;
 		}
 	}
+	return allowed;
+}
+
+std::array<bool, kNoteProbeCount> mixed_source_midi_filter(const std::array<float, kNoteProbeCount> &powers,
+							   const std::array<float, kNoteProbeCount> &tuned_powers,
+							   int min_midi, int max_midi, TimbreKind kind)
+{
+	std::array<bool, kNoteProbeCount> allowed = timbre_midi_filter(powers, min_midi, max_midi, kind);
+	float strongest = 0.0f;
+	min_midi = std::max(min_midi, kFirstMidi);
+	max_midi = std::min(max_midi, kLastMidi);
+
+	for (int midi = min_midi; midi <= max_midi; ++midi)
+		strongest = std::max(strongest, std::sqrt(std::max(tuned_powers[midi - kFirstMidi], 0.0f)));
+
+	if (strongest <= 1.0e-6f)
+		return allowed;
+
+	for (int midi = min_midi; midi <= max_midi; ++midi) {
+		const float score = std::sqrt(std::max(tuned_powers[midi - kFirstMidi], 0.0f));
+		if (score >= strongest * 0.22f)
+			allowed[midi - kFirstMidi] = true;
+	}
+
 	return allowed;
 }
 
@@ -1421,6 +1445,7 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 
 	const SourceHint source_hint = infer_source_hint(source_name);
 	const bool mixed_source = source_hint == SourceHint::None || source_hint == SourceHint::Bass;
+	int mixed_bass_pitch_class = -1;
 
 	if (source_hint == SourceHint::None || source_hint == SourceHint::Bass) {
 		const int bass_max_midi = source_hint == SourceHint::Bass ? kBassMaxMidi : kDefaultBassMaxMidi;
@@ -1436,6 +1461,8 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 			bass_note.score >= broad_bass_note.score * kMixedBassFallbackScoreRatio;
 		if (mixed_bass_supported) {
 			set_single_note_grid(snapshot.bass_notes, snapshot.bass, bass_note, bass_energy, rms);
+			if (bass_note.midi >= 0)
+				mixed_bass_pitch_class = ((bass_note.midi % 12) + 12) % 12;
 		} else {
 			clear_note_grid(snapshot.bass_notes);
 			copy_text(snapshot.bass.label, sizeof(snapshot.bass.label), "--");
@@ -1453,17 +1480,20 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 		const bool allow_extensions = !mixed_source;
 		const bool suppress_adjacent = mixed_source;
 		const std::array<bool, kNoteProbeCount> timbre_filter =
-			timbre_midi_filter(note_powers, min_midi, max_midi, TimbreKind::Keyboard);
+			mixed_source ? mixed_source_midi_filter(note_powers, tuned_note_powers, min_midi, max_midi,
+								TimbreKind::Keyboard) :
+				       timbre_midi_filter(note_powers, min_midi, max_midi, TimbreKind::Keyboard);
 		const std::array<bool, kNoteProbeCount> *allowed_midis = mixed_source ? &timbre_filter : nullptr;
 		const std::array<float, 12> chroma =
 			peak_chroma_for_range(tuned_note_powers, min_midi, max_midi, nullptr, suppress_adjacent,
 					      allowed_midis);
-		const int preferred_root =
-			lowest_peak_pitch_class(tuned_note_powers, min_midi, max_midi, nullptr, suppress_adjacent,
-						allowed_midis);
+		const int preferred_root = mixed_source && mixed_bass_pitch_class >= 0 ?
+						   mixed_bass_pitch_class :
+						   lowest_peak_pitch_class(tuned_note_powers, min_midi, max_midi,
+									   nullptr, suppress_adjacent, allowed_midis);
 		const ChordResult chord = detect_chord(chroma, preferred_root, allow_extensions);
-		const std::array<bool, 12> *allowed = mixed_source && chord.root >= 0 ? &chord.tones : nullptr;
-		const int max_notes = mixed_source && !allowed ? 4 : 10;
+		const std::array<bool, 12> *allowed = nullptr;
+		const int max_notes = 10;
 		set_instrument_note_set(snapshot.keyboard_notes, snapshot.keyboard, tuned_note_powers, min_midi, max_midi,
 					chord.root >= 0 ? chord.root : preferred_root, keyboard_energy, rms,
 					max_notes, nullptr, allowed, suppress_adjacent, allowed_midis);
@@ -1475,17 +1505,21 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 		const bool allow_extensions = !mixed_source;
 		const bool suppress_adjacent = mixed_source;
 		const std::array<bool, kNoteProbeCount> timbre_filter =
-			timbre_midi_filter(note_powers, min_midi, kGuitarMaxMidi, TimbreKind::Guitar);
+			mixed_source ? mixed_source_midi_filter(note_powers, tuned_note_powers, min_midi,
+								kGuitarMaxMidi, TimbreKind::Guitar) :
+				       timbre_midi_filter(note_powers, min_midi, kGuitarMaxMidi, TimbreKind::Guitar);
 		const std::array<bool, kNoteProbeCount> *allowed_midis = mixed_source ? &timbre_filter : nullptr;
 		const std::array<float, 12> chroma =
 			peak_chroma_for_range(tuned_note_powers, min_midi, kGuitarMaxMidi, nullptr, suppress_adjacent,
 					      allowed_midis);
-		const int preferred_root =
-			lowest_peak_pitch_class(tuned_note_powers, min_midi, kGuitarMaxMidi, nullptr,
-						suppress_adjacent, allowed_midis);
+		const int preferred_root = mixed_source && mixed_bass_pitch_class >= 0 ?
+						   mixed_bass_pitch_class :
+						   lowest_peak_pitch_class(tuned_note_powers, min_midi,
+									   kGuitarMaxMidi, nullptr, suppress_adjacent,
+									   allowed_midis);
 		const ChordResult chord = detect_chord(chroma, preferred_root, allow_extensions);
 		const std::array<bool, 12> *allowed = nullptr;
-		const int max_notes = mixed_source ? 3 : 8;
+		const int max_notes = mixed_source ? 12 : 8;
 		set_instrument_note_set(snapshot.guitar_notes, snapshot.guitar, tuned_note_powers, min_midi,
 					kGuitarMaxMidi, chord.root >= 0 ? chord.root : preferred_root, guitar_energy, rms,
 					max_notes, nullptr, allowed, suppress_adjacent, allowed_midis);
@@ -1508,7 +1542,9 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 		const bool allow_extensions = !mixed_source;
 		const bool suppress_adjacent = mixed_source;
 		std::array<bool, kNoteProbeCount> timbre_filter =
-			timbre_midi_filter(note_powers, min_midi, kOtherMaxMidi, TimbreKind::Other);
+			mixed_source ? mixed_source_midi_filter(note_powers, tuned_note_powers, min_midi,
+								kOtherMaxMidi, TimbreKind::Other) :
+				       timbre_midi_filter(note_powers, min_midi, kOtherMaxMidi, TimbreKind::Other);
 		if (mixed_source) {
 			for (int midi = 73; midi <= kOtherMaxMidi; ++midi)
 				timbre_filter[midi - kFirstMidi] = true;
@@ -1517,9 +1553,11 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 		const std::array<float, 12> chroma =
 			peak_chroma_for_range(tuned_note_powers, min_midi, kOtherMaxMidi, nullptr,
 					      suppress_adjacent, allowed_midis);
-		const int preferred_root =
-			lowest_peak_pitch_class(tuned_note_powers, min_midi, kOtherMaxMidi, nullptr,
-						suppress_adjacent, allowed_midis);
+		const int preferred_root = mixed_source && mixed_bass_pitch_class >= 0 ?
+						   mixed_bass_pitch_class :
+						   lowest_peak_pitch_class(tuned_note_powers, min_midi,
+									   kOtherMaxMidi, nullptr, suppress_adjacent,
+									   allowed_midis);
 		const ChordResult chord = detect_chord(chroma, preferred_root, allow_extensions);
 		set_instrument_note_set(snapshot.other_notes, snapshot.other, tuned_note_powers, min_midi, kOtherMaxMidi,
 					chord.root >= 0 ? chord.root : preferred_root, other_energy, rms, 8,
@@ -1591,9 +1629,9 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 
 	if (harmonic_processed) {
 		smooth_note_grid_envelope(snapshot.keyboard_notes, snapshot.keyboard, keyboard_note_envelope_, -1,
-					  interval_seconds, mixed_source ? 4 : 10, keyboard_new_notes);
+					  interval_seconds, 10, keyboard_new_notes);
 		smooth_note_grid_envelope(snapshot.guitar_notes, snapshot.guitar, guitar_note_envelope_, -1,
-					  interval_seconds, mixed_source ? 4 : 8, guitar_new_notes);
+					  interval_seconds, mixed_source ? 12 : 8, guitar_new_notes);
 		smooth_note_grid_envelope(snapshot.vocal_notes, snapshot.vocal, vocal_note_envelope_, -1,
 					  interval_seconds, 1);
 		if (!keyboard_raw_notes)

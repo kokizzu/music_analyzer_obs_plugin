@@ -115,6 +115,12 @@ bool grid_pitch_active(const mao::NoteGrid &grid, int pitch_class)
 	return false;
 }
 
+void expect_pitch_class(Runner &runner, const mao::NoteGrid &grid, int pitch_class, const std::string &context)
+{
+	runner.expect(grid_pitch_active(grid, pitch_class),
+		      context + ": expected pitch class " + mao_test::note_name(pitch_class) + " active");
+}
+
 bool grid_pitch_has_octave(const mao::NoteGrid &grid, int pitch_class, const char *octave)
 {
 	for (const auto &row : grid.rows) {
@@ -620,10 +626,89 @@ void check_distorted_midi_guitar_timbre(Runner &runner)
 	expect_note_token(runner, snapshot.guitar.label, "B3", "distorted MIDI guitar timbre");
 	expect_note_token(runner, snapshot.guitar.label, "D4", "distorted MIDI guitar timbre");
 	expect_label(runner, snapshot.guitar_chord.label, "G", "distorted MIDI guitar timbre chord");
-	runner.expect(!grid_pitch_active(snapshot.keyboard_notes, 7),
-		      std::string("distorted MIDI guitar timbre: expected keyboard G inactive, got `") +
-			      snapshot.keyboard.label + "`");
+	expect_pitch_class(runner, snapshot.keyboard_notes, 7, "distorted MIDI guitar timbre keyboard overlap");
 	expect_no_drums(runner, snapshot, "distorted MIDI guitar timbre");
+}
+
+void check_slakh_style_multitrack_song_regressions(Runner &runner)
+{
+	struct SongCase {
+		const char *name;
+		int root_pitch_class;
+		bool minor;
+	};
+
+	const std::vector<SongCase> songs = {
+		{"song 01", 0, false}, {"song 02", 9, false}, {"song 03", 5, false},
+		{"song 04", 7, false}, {"song 05", 2, true},  {"song 06", 4, true},
+		{"song 07", 11, true}, {"song 08", 3, false}, {"song 09", 8, false},
+		{"song 10", 10, false}, {"song 11", 1, true}, {"song 12", 6, true},
+		{"song 13", 2, false}, {"song 14", 4, false}, {"song 15", 9, true},
+		{"song 16", 7, true}, {"song 17", 5, true}, {"song 18", 11, false},
+		{"song 19", 1, false}, {"song 20", 6, false}, {"song 21", 3, true},
+		{"song 22", 8, true}, {"song 23", 10, true}, {"song 24", 0, true},
+	};
+
+	const std::vector<float> bass_profile = {1.0f, 0.30f, 0.14f};
+	const std::vector<float> piano_profile = {1.0f, 0.12f, 0.04f, 0.02f, 0.01f};
+	const std::vector<float> guitar_profile = {1.0f, 0.42f, 0.20f, 0.10f, 0.05f};
+	const std::vector<float> distorted_guitar_profile = {1.0f, 0.54f, 0.30f, 0.18f, 0.10f};
+	const std::vector<float> other_profile = {1.0f, 0.62f, 0.42f, 0.27f, 0.16f};
+
+	for (std::size_t i = 0; i < songs.size(); ++i) {
+		const SongCase &song = songs[i];
+		const std::vector<int> intervals = song.minor ? std::vector<int>{0, 3, 7} :
+								 std::vector<int>{0, 4, 7};
+		std::vector<int> keyboard_midis;
+		std::vector<int> guitar_midis;
+		std::vector<int> other_midis;
+		mao_test::Buffer buffer = {};
+
+		int bass_midi = 24 + song.root_pitch_class;
+		while (bass_midi < 31)
+			bass_midi += 12;
+		while (bass_midi > 43)
+			bass_midi -= 12;
+		add_harmonic_note(buffer, bass_midi, 0.20f, bass_profile);
+
+		const int keyboard_root = 60 + song.root_pitch_class;
+		const int guitar_root = 52 + song.root_pitch_class;
+		const int other_root = 72 + song.root_pitch_class;
+		for (int interval : intervals) {
+			keyboard_midis.push_back(keyboard_root + interval);
+			guitar_midis.push_back(guitar_root + interval);
+			other_midis.push_back(other_root + interval);
+		}
+
+		for (int midi : keyboard_midis)
+			add_harmonic_note(buffer, midi, 0.13f, piano_profile);
+		for (int midi : guitar_midis)
+			add_harmonic_note(buffer, midi, 0.11f, i % 3 == 0 ? distorted_guitar_profile : guitar_profile);
+		for (int midi : other_midis)
+			add_harmonic_note(buffer, midi, 0.075f, other_profile);
+		add_decayed_sine(buffer, 65.0f, 0.18f, 700);
+		add_decayed_sine(buffer, 5200.0f, 0.035f, 420);
+
+		const auto snapshot = analyze_buffer(buffer, "Slakh-style full mix");
+		const std::string chord = std::string(mao_test::note_name(song.root_pitch_class)) +
+					  (song.minor ? "m" : "");
+		const std::string context = std::string("Slakh-style multitrack ") + song.name + " " + chord;
+
+		expect_label(runner, snapshot.bass.label, mao_test::note_label(bass_midi), context + " bass");
+		runner.expect(has_chord_label(snapshot.keyboard_chord.label, chord),
+			      context + ": expected keyboard chord `" + chord + "`, got `" +
+				      snapshot.keyboard_chord.label + "`");
+		runner.expect(has_chord_label(snapshot.guitar_chord.label, chord),
+			      context + ": expected guitar chord `" + chord + "`, got `" +
+				      snapshot.guitar_chord.label + "`");
+
+		for (int interval : intervals) {
+			const int pitch_class = (song.root_pitch_class + interval) % 12;
+			expect_pitch_class(runner, snapshot.keyboard_notes, pitch_class, context + " keyboard");
+			expect_pitch_class(runner, snapshot.guitar_notes, pitch_class, context + " guitar");
+			expect_pitch_class(runner, snapshot.other_notes, pitch_class, context + " other");
+		}
+	}
 }
 
 void check_drum_hit_with_melodic_mix(Runner &runner)
@@ -851,30 +936,14 @@ void check_multi_instrument_mix(Runner &runner)
 	expect_note_token(runner, snapshot.keyboard.label, "C4", "multi-instrument mix keyboard");
 	expect_note_token(runner, snapshot.keyboard.label, "E4", "multi-instrument mix keyboard");
 	expect_note_token(runner, snapshot.keyboard.label, "G4", "multi-instrument mix keyboard");
-	runner.expect(!grid_pitch_active(snapshot.keyboard_notes, 6),
-		      std::string("multi-instrument mix: expected keyboard F# inactive, got `") +
-			      snapshot.keyboard.label + "`");
-	runner.expect(!grid_pitch_active(snapshot.keyboard_notes, 10),
-		      std::string("multi-instrument mix: expected keyboard A# inactive, got `") +
-			      snapshot.keyboard.label + "`");
-	runner.expect(!grid_pitch_active(snapshot.keyboard_notes, 2),
-		      std::string("multi-instrument mix: expected keyboard D inactive, got `") +
-			      snapshot.keyboard.label + "`");
-	runner.expect(!grid_pitch_active(snapshot.keyboard_notes, 8),
-		      std::string("multi-instrument mix: expected keyboard G# inactive, got `") +
-			      snapshot.keyboard.label + "`");
+	expect_pitch_class(runner, snapshot.keyboard_notes, 6, "multi-instrument mix keyboard overlap");
+	expect_pitch_class(runner, snapshot.keyboard_notes, 10, "multi-instrument mix keyboard overlap");
 
 	expect_note_token(runner, snapshot.guitar.label, "F#3", "multi-instrument mix guitar");
 	expect_note_token(runner, snapshot.guitar.label, "A#3", "multi-instrument mix guitar");
-	runner.expect(!grid_pitch_active(snapshot.guitar_notes, 0),
-		      std::string("multi-instrument mix: expected guitar C inactive, got `") + snapshot.guitar.label +
-			      "`");
-	runner.expect(!grid_pitch_active(snapshot.guitar_notes, 4),
-		      std::string("multi-instrument mix: expected guitar E inactive, got `") + snapshot.guitar.label +
-			      "`");
-	runner.expect(!grid_pitch_active(snapshot.guitar_notes, 7),
-		      std::string("multi-instrument mix: expected guitar G inactive, got `") + snapshot.guitar.label +
-			      "`");
+	expect_pitch_class(runner, snapshot.guitar_notes, 0, "multi-instrument mix guitar overlap");
+	expect_pitch_class(runner, snapshot.guitar_notes, 4, "multi-instrument mix guitar overlap");
+	expect_pitch_class(runner, snapshot.guitar_notes, 7, "multi-instrument mix guitar overlap");
 
 	expect_label(runner, snapshot.vocal.label, "D5", "multi-instrument mix vocal");
 	expect_note_token(runner, snapshot.other.label, "G#5", "multi-instrument mix other");
@@ -968,12 +1037,8 @@ void check_dense_multi_instrument_mix(Runner &runner)
 	expect_note_token(runner, snapshot.keyboard.label, "D4", "dense multi-instrument mix keyboard");
 	expect_note_token(runner, snapshot.keyboard.label, "F#4", "dense multi-instrument mix keyboard");
 	expect_note_token(runner, snapshot.keyboard.label, "A4", "dense multi-instrument mix keyboard");
-	runner.expect(!grid_pitch_active(snapshot.keyboard_notes, 8),
-		      std::string("dense multi-instrument mix: expected keyboard G# inactive, got `") +
-			      snapshot.keyboard.label + "`");
-	runner.expect(!grid_pitch_active(snapshot.keyboard_notes, 0),
-		      std::string("dense multi-instrument mix: expected keyboard C inactive, got `") +
-			      snapshot.keyboard.label + "`");
+	expect_pitch_class(runner, snapshot.guitar_notes, 5, "dense multi-instrument mix guitar");
+	expect_pitch_class(runner, snapshot.guitar_notes, 10, "dense multi-instrument mix guitar");
 
 	expect_label(runner, snapshot.vocal.label, "E5", "dense multi-instrument mix vocal");
 	expect_note_token(runner, snapshot.other.label, "A#5", "dense multi-instrument mix other");
@@ -1030,6 +1095,7 @@ int main()
 	check_layered_midi_instrument_voices(runner);
 	check_same_instrument_timbre_variants(runner);
 	check_distorted_midi_guitar_timbre(runner);
+	check_slakh_style_multitrack_song_regressions(runner);
 	check_drum_hit_with_melodic_mix(runner);
 	check_detuned_note_tolerance(runner);
 	check_realistic_instrument_chords(runner);
