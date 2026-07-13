@@ -7,6 +7,7 @@ Native OBS Studio plugin that analyzes a music mix and displays an instrument-or
 - Keyboard: three-row piano view covering C1-B6 in two-octave bands, with lower notes folded into octave 1, higher notes folded into octave 6, and detected keys highlighted
 - Vocal and other instruments: two-row 12-note octave matrix with active octaves shown as colored text
 - Guitar: standard-tuning six-string fretboard view with open string plus frets 1-15 highlighted from detected notes
+- Note highlights fade with detected velocity/amplitude so quiet or sustaining notes are dimmer instead of full intensity
 - Keyboard, guitar, and other instruments: compact chord labels; vocal stays note-only
 - Instrument ownership: mixed sources claim duplicated pitches in bass, keyboard, guitar, vocal, then other order, while explicit source names such as `guitar` or `keyboard` bias that row first
 - Root: rolling 15-second root candidates with confidence, with the primary root held until sustained modulation or silence

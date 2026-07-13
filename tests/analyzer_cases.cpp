@@ -1,6 +1,7 @@
 #include "analyzer.hpp"
 #include "analyzer_test_utils.hpp"
 
+#include <algorithm>
 #include <cstdio>
 #include <cstring>
 #include <string>
@@ -77,6 +78,18 @@ bool grid_pitch_has_octave(const mao::NoteGrid &grid, int pitch_class, const cha
 			return true;
 	}
 	return false;
+}
+
+float grid_level_for_midi(const mao::NoteGrid &grid, int midi)
+{
+	float level = 0.0f;
+	for (const auto &row : grid.rows) {
+		for (const mao::NoteCell &cell : row) {
+			if (cell.active && cell.midi == midi)
+				level = std::max(level, cell.level);
+		}
+	}
+	return level;
 }
 
 void check_bass_notes(Runner &runner)
@@ -295,6 +308,34 @@ void check_quiet_standalone_rejection(Runner &runner)
 	}
 }
 
+void check_note_level_fade(Runner &runner)
+{
+	{
+		mao_test::Buffer buffer = {};
+		mao_test::add_midi_note(buffer, 60, 0.34f);
+		mao_test::add_midi_note(buffer, 64, 0.20f);
+		mao_test::add_midi_note(buffer, 67, 0.34f);
+		const auto snapshot = analyze_buffer(buffer, "keyboard");
+		const float c_level = grid_level_for_midi(snapshot.keyboard_notes, 60);
+		const float e_level = grid_level_for_midi(snapshot.keyboard_notes, 64);
+		const float g_level = grid_level_for_midi(snapshot.keyboard_notes, 67);
+		runner.expect(c_level > 0.90f && g_level > 0.90f,
+			      "note level fade: expected strong chord tones near full level");
+		runner.expect(e_level > 0.20f && e_level < c_level * 0.80f,
+			      "note level fade: expected lower velocity E4 to remain detected but faded");
+	}
+
+	{
+		mao_test::Buffer buffer = {};
+		mao_test::add_midi_note(buffer, 60, 0.035f);
+		const auto snapshot = analyze_buffer(buffer, "keyboard");
+		const float c_level = grid_level_for_midi(snapshot.keyboard_notes, 60);
+		expect_note_token(runner, snapshot.keyboard.label, "C4", "quiet sustained keyboard note");
+		runner.expect(c_level > 0.0f && c_level < 0.45f,
+			      "note level fade: expected quiet sustained C4 to be visible but not full level");
+	}
+}
+
 void check_realistic_instrument_chords(Runner &runner)
 {
 	const std::vector<float> guitar_profile = {1.0f, 0.34f, 0.16f, 0.08f};
@@ -406,6 +447,43 @@ void check_multi_instrument_mix(Runner &runner)
 	expect_note_token(runner, snapshot.other.label, "G#5", "multi-instrument mix other");
 }
 
+void check_dense_multi_instrument_mix(Runner &runner)
+{
+	mao_test::Buffer buffer = {};
+	const std::vector<float> bass_profile = {1.0f, 0.30f, 0.14f};
+	const std::vector<float> key_profile = {1.0f, 0.16f, 0.08f};
+	const std::vector<float> guitar_profile = {1.0f, 0.24f, 0.10f};
+
+	add_harmonic_note(buffer, 37, 0.50f, bass_profile);
+	add_harmonic_note(buffer, 62, 0.32f, key_profile);
+	add_harmonic_note(buffer, 66, 0.32f, key_profile);
+	add_harmonic_note(buffer, 69, 0.32f, key_profile);
+	add_harmonic_note(buffer, 56, 0.20f, guitar_profile);
+	add_harmonic_note(buffer, 60, 0.20f, guitar_profile);
+	add_harmonic_note(buffer, 63, 0.20f, guitar_profile);
+	mao_test::add_midi_note(buffer, 76, 0.15f);
+	mao_test::add_midi_note(buffer, 82, 0.13f);
+
+	const auto snapshot = analyze_buffer(buffer, "full mix");
+	expect_label(runner, snapshot.bass.label, "C#2", "dense multi-instrument mix bass");
+	expect_label(runner, snapshot.keyboard_chord.label, "D", "dense multi-instrument mix keyboard chord");
+	expect_note_token(runner, snapshot.keyboard.label, "D4", "dense multi-instrument mix keyboard");
+	expect_note_token(runner, snapshot.keyboard.label, "F#4", "dense multi-instrument mix keyboard");
+	expect_note_token(runner, snapshot.keyboard.label, "A4", "dense multi-instrument mix keyboard");
+	runner.expect(!grid_pitch_active(snapshot.keyboard_notes, 8),
+		      std::string("dense multi-instrument mix: expected keyboard G# inactive, got `") +
+			      snapshot.keyboard.label + "`");
+	runner.expect(!grid_pitch_active(snapshot.keyboard_notes, 0),
+		      std::string("dense multi-instrument mix: expected keyboard C inactive, got `") +
+			      snapshot.keyboard.label + "`");
+
+	expect_note_token(runner, snapshot.guitar.label, "G#3", "dense multi-instrument mix guitar");
+	expect_note_token(runner, snapshot.guitar.label, "C4", "dense multi-instrument mix guitar");
+	expect_note_token(runner, snapshot.guitar.label, "D#4", "dense multi-instrument mix guitar");
+	expect_label(runner, snapshot.vocal.label, "E5", "dense multi-instrument mix vocal");
+	expect_note_token(runner, snapshot.other.label, "A#5", "dense multi-instrument mix other");
+}
+
 void check_root_candidates(Runner &runner)
 {
 	mao::AnalysisEngine engine;
@@ -449,10 +527,12 @@ int main()
 	check_extended_chords(runner);
 	check_quiet_note_rejection(runner);
 	check_quiet_standalone_rejection(runner);
+	check_note_level_fade(runner);
 	check_realistic_instrument_chords(runner);
 	check_note_sub_rows(runner);
 	check_bass_priority_suppresses_overlap(runner);
 	check_multi_instrument_mix(runner);
+	check_dense_multi_instrument_mix(runner);
 	check_root_candidates(runner);
 
 	if (runner.failures != 0) {

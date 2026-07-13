@@ -28,6 +28,7 @@ constexpr int kOtherMinMidi = 21;
 constexpr int kOtherMaxMidi = 108;
 constexpr float kSilenceRms = 0.0025f;
 constexpr float kNoteRmsFloor = 0.012f;
+constexpr float kFullNoteRms = 0.080f;
 constexpr float kNoteRelativeFloor = 0.40f;
 constexpr float kHarmonicMaskRatio = 0.62f;
 
@@ -427,6 +428,11 @@ float sum_notes(const std::array<float, kNoteProbeCount> &powers, int min_midi, 
 	return sum;
 }
 
+float note_visual_loudness(float rms)
+{
+	return std::clamp((rms - kNoteRmsFloor) / (kFullNoteRms - kNoteRmsFloor), 0.0f, 1.0f);
+}
+
 void set_instrument_note(InstrumentState &state, const RangeResult &note, float energy, float rms)
 {
 	if (rms < kNoteRmsFloor || energy < 1.0e-5f || note.confidence < 0.08f) {
@@ -436,7 +442,7 @@ void set_instrument_note(InstrumentState &state, const RangeResult &note, float 
 	}
 
 	write_note(state.label, sizeof(state.label), note.midi);
-	state.confidence = std::clamp(note.confidence * 1.8f, 0.0f, 1.0f);
+	state.confidence = std::clamp(note.confidence * 1.8f * note_visual_loudness(rms), 0.0f, 1.0f);
 }
 
 void clear_note_grid(NoteGrid &grid)
@@ -449,12 +455,14 @@ void clear_note_grid(NoteGrid &grid)
 	}
 }
 
-void write_note_grid_cell(NoteGrid &grid, const NoteCandidate &candidate, float strongest_score)
+void write_note_grid_cell(NoteGrid &grid, const NoteCandidate &candidate, float strongest_score, float visual_loudness)
 {
 	const int pitch_class = ((candidate.midi % 12) + 12) % 12;
 	NoteCell cell;
 	write_octave(cell.label, sizeof(cell.label), candidate.midi);
-	cell.level = strongest_score > 1.0e-6f ? std::clamp(candidate.score / strongest_score, 0.0f, 1.0f) : 0.0f;
+	cell.level = strongest_score > 1.0e-6f ?
+			     std::clamp(candidate.score / strongest_score * visual_loudness, 0.0f, 1.0f) :
+			     0.0f;
 	cell.midi = candidate.midi;
 	cell.active = true;
 
@@ -552,7 +560,7 @@ void set_instrument_note_set(NoteGrid &grid, InstrumentState &state, const std::
 	}
 
 	for (const NoteCandidate &candidate : candidates)
-		write_note_grid_cell(grid, candidate, strongest_score);
+		write_note_grid_cell(grid, candidate, strongest_score, note_visual_loudness(rms));
 
 	write_note_grid_label(state, grid, preferred_root);
 }
@@ -951,7 +959,7 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 
 	auto process_keyboard = [&]() {
 		const int min_midi = mixed_source ? 48 : kKeyboardMinMidi;
-		const int max_midi = mixed_source ? 96 : kKeyboardMaxMidi;
+		const int max_midi = mixed_source ? 83 : kKeyboardMaxMidi;
 		const std::array<float, 12> chroma =
 			peak_chroma_for_range(note_powers, min_midi, max_midi, &claimed_pitch_classes);
 		const int preferred_root =

@@ -389,6 +389,19 @@ struct Color {
 	uint8_t a = 255;
 };
 
+uint8_t blend_channel(uint8_t from, uint8_t to, float amount)
+{
+	const float value = static_cast<float>(from) + (static_cast<float>(to) - static_cast<float>(from)) * amount;
+	return static_cast<uint8_t>(std::clamp(static_cast<int>(value + 0.5f), 0, 255));
+}
+
+Color blend_color(Color from, Color to, float amount)
+{
+	amount = std::clamp(amount, 0.0f, 1.0f);
+	return Color{blend_channel(from.r, to.r, amount), blend_channel(from.g, to.g, amount),
+		     blend_channel(from.b, to.b, amount), blend_channel(from.a, to.a, amount)};
+}
+
 struct DrumBar {
 	float age = 0.0f;
 	float level = 0.0f;
@@ -624,7 +637,7 @@ void draw_note_cell(VisualizerData *visualizer, int x, int y, int w, int h, cons
 	const int text_width = static_cast<int>(std::strlen(cell.label)) * 12;
 	draw_text(visualizer, x + std::max(2, (w - text_width) / 2), y + std::max(2, (h - 14) / 2),
 		  cell.label, 2,
-		  cell.active ? accent : idle_text);
+		  cell.active ? blend_color(idle_text, accent, cell.level) : idle_text);
 }
 
 int draw_instrument_rows(VisualizerData *visualizer, int y, const char *name, const mao::NoteGrid &notes,
@@ -653,15 +666,16 @@ int draw_instrument_rows(VisualizerData *visualizer, int y, const char *name, co
 	return y + static_cast<int>(row_count) * row_pitch + 4;
 }
 
-bool note_grid_has_midi(const mao::NoteGrid &notes, int midi)
+float note_grid_midi_level(const mao::NoteGrid &notes, int midi)
 {
+	float level = 0.0f;
 	for (const auto &row : notes.rows) {
 		for (const mao::NoteCell &cell : row) {
 			if (cell.active && cell.midi == midi)
-				return true;
+				level = std::max(level, cell.level);
 		}
 	}
-	return false;
+	return std::clamp(level, 0.0f, 1.0f);
 }
 
 int fold_midi_to_piano_range(int midi)
@@ -677,15 +691,16 @@ int fold_midi_to_piano_range(int midi)
 	return midi;
 }
 
-bool piano_key_active(const mao::NoteGrid &notes, int midi)
+float piano_key_level(const mao::NoteGrid &notes, int midi)
 {
+	float level = 0.0f;
 	for (const auto &row : notes.rows) {
 		for (const mao::NoteCell &cell : row) {
 			if (cell.active && cell.midi >= 0 && fold_midi_to_piano_range(cell.midi) == midi)
-				return true;
+				level = std::max(level, cell.level);
 		}
 	}
-	return false;
+	return std::clamp(level, 0.0f, 1.0f);
 }
 
 int draw_piano_keyboard(VisualizerData *visualizer, int y, const mao::NoteGrid &notes,
@@ -732,9 +747,9 @@ int draw_piano_keyboard(VisualizerData *visualizer, int y, const mao::NoteGrid &
 
 		for (int i = 0; i < kWhiteKeysPerRow; ++i) {
 			const int midi = base_midi + kWhiteOffsets[i];
-			const bool active_key = piano_key_active(notes, midi);
+			const float level = piano_key_level(notes, midi);
 			const int x = key_x + i * white_w;
-			fill_rect(visualizer, x, row_y, white_w - 1, white_h, active_key ? active : white_key);
+			fill_rect(visualizer, x, row_y, white_w - 1, white_h, blend_color(white_key, active, level));
 			fill_rect(visualizer, x, row_y, white_w - 1, 1, border);
 			fill_rect(visualizer, x, row_y + white_h - 1, white_w - 1, 1, border);
 			fill_rect(visualizer, x, row_y, 1, white_h, border);
@@ -743,9 +758,9 @@ int draw_piano_keyboard(VisualizerData *visualizer, int y, const mao::NoteGrid &
 
 		for (std::size_t i = 0; i < sizeof(kBlackOffsets) / sizeof(kBlackOffsets[0]); ++i) {
 			const int midi = base_midi + kBlackOffsets[i];
-			const bool active_key = piano_key_active(notes, midi);
+			const float level = piano_key_level(notes, midi);
 			const int x = key_x + (kBlackAfterWhite[i] + 1) * white_w - black_w / 2;
-			fill_rect(visualizer, x, row_y, black_w, black_h, active_key ? active : black_key);
+			fill_rect(visualizer, x, row_y, black_w, black_h, blend_color(black_key, active, level));
 			fill_rect(visualizer, x, row_y, black_w, 1, border);
 			fill_rect(visualizer, x, row_y + black_h - 1, black_w, 1, border);
 			fill_rect(visualizer, x, row_y, 1, black_h, border);
@@ -799,8 +814,8 @@ int draw_guitar_fretboard(VisualizerData *visualizer, int y, const mao::NoteGrid
 		draw_text(visualizer, fret_x - 22, cell_y + 2, kStringNames[string], 1, text);
 		for (int fret = 0; fret < kFretCount; ++fret) {
 			const int cell_x = fret_x + fret * fret_w;
-			const bool active = note_grid_has_midi(notes, kOpenMidis[string] + fret);
-			fill_rect(visualizer, cell_x, cell_y, fret_w - 1, cell_h, active ? accent : fret_bg);
+			const float level = note_grid_midi_level(notes, kOpenMidis[string] + fret);
+			fill_rect(visualizer, cell_x, cell_y, fret_w - 1, cell_h, blend_color(fret_bg, accent, level));
 			fill_rect(visualizer, cell_x, cell_y, fret_w - 1, 1, border);
 			fill_rect(visualizer, cell_x, cell_y + cell_h - 1, fret_w - 1, 1, border);
 			fill_rect(visualizer, cell_x, cell_y, 1, cell_h, fret == 1 ? nut : border);
