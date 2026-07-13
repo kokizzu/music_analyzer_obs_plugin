@@ -71,6 +71,9 @@ without additional annotation.
 - Real-audio tests should skip with a clear message when the dataset is absent.
 - URMP should be the first automated target because it gives enough pieces for
   20+ full-mix tests and has both isolated tracks and note truth.
+- Current analyzer regressions already model all 44 URMP same-song
+  instrumentations as generated per-track fixtures; they do not download or
+  decode URMP audio yet.
 - Bach10 is the next best add-on for a compact, fast regression set.
 - Single-instrument datasets should drive focused checks: Guitar-TECHS/GAPS for
   guitar, MAESTRO/PianoVAM for keyboard, E-GMD for drums.

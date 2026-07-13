@@ -651,6 +651,186 @@ int bass_midi_for_pitch_class(int pitch_class)
 	return midi;
 }
 
+bool is_foundation_instrument(const char *instrument)
+{
+	return std::strcmp(instrument, "Db") == 0 || std::strcmp(instrument, "Tba") == 0;
+}
+
+int urmp_instrument_floor(const char *instrument)
+{
+	if (std::strcmp(instrument, "Vn") == 0 || std::strcmp(instrument, "Fl") == 0 ||
+	    std::strcmp(instrument, "Ob") == 0 || std::strcmp(instrument, "Tpt") == 0)
+		return 72;
+	if (std::strcmp(instrument, "Va") == 0 || std::strcmp(instrument, "Cl") == 0 ||
+	    std::strcmp(instrument, "Sax") == 0)
+		return 67;
+	if (std::strcmp(instrument, "Vc") == 0 || std::strcmp(instrument, "Hn") == 0 ||
+	    std::strcmp(instrument, "Tbn") == 0 || std::strcmp(instrument, "Bn") == 0)
+		return 60;
+	return 60;
+}
+
+const char *urmp_source_hint(const char *instrument)
+{
+	if (is_foundation_instrument(instrument))
+		return "bass track";
+	if (std::strcmp(instrument, "Vn") == 0 || std::strcmp(instrument, "Va") == 0 ||
+	    std::strcmp(instrument, "Vc") == 0 || std::strcmp(instrument, "Db") == 0)
+		return "string track";
+	if (std::strcmp(instrument, "Tpt") == 0 || std::strcmp(instrument, "Hn") == 0 ||
+	    std::strcmp(instrument, "Tbn") == 0 || std::strcmp(instrument, "Tba") == 0)
+		return "brass track";
+	return "wind track";
+}
+
+void add_urmp_instrument_track(mao_test::Buffer &buffer, const char *instrument, int midi)
+{
+	const std::vector<float> string_profile = {1.0f, 0.52f, 0.31f, 0.18f, 0.10f};
+	const std::vector<float> wind_profile = {1.0f, 0.46f, 0.25f, 0.13f, 0.07f};
+	const std::vector<float> brass_profile = {1.0f, 0.62f, 0.38f, 0.22f, 0.13f};
+	const std::vector<float> bass_profile = {1.0f, 0.30f, 0.14f};
+
+	if (is_foundation_instrument(instrument)) {
+		add_harmonic_note(buffer, midi, 0.22f, bass_profile);
+		return;
+	}
+	if (std::strcmp(instrument, "Vn") == 0 || std::strcmp(instrument, "Va") == 0 ||
+	    std::strcmp(instrument, "Vc") == 0) {
+		add_harmonic_note(buffer, midi, 0.13f, string_profile);
+		return;
+	}
+	if (std::strcmp(instrument, "Tpt") == 0 || std::strcmp(instrument, "Hn") == 0 ||
+	    std::strcmp(instrument, "Tbn") == 0) {
+		add_harmonic_note(buffer, midi, 0.12f, brass_profile);
+		return;
+	}
+
+	add_harmonic_note(buffer, midi, 0.13f, wind_profile);
+}
+
+void append_pitch_class(std::vector<int> &pitch_classes, int midi)
+{
+	const int pitch_class = ((midi % 12) + 12) % 12;
+	if (std::find(pitch_classes.begin(), pitch_classes.end(), pitch_class) == pitch_classes.end())
+		pitch_classes.push_back(pitch_class);
+}
+
+void check_urmp_real_piece_metadata_regressions(Runner &runner)
+{
+	struct UrmpPieceCase {
+		const char *id;
+		const char *title;
+		std::vector<const char *> instruments;
+		int root_pitch_class;
+		bool minor;
+	};
+
+	// Piece titles and instrumentations mirror the official URMP documentation.
+	const std::vector<UrmpPieceCase> pieces = {
+		{"01_Jupiter", "Jupiter", {"Vn", "Vc"}, 0, false},
+		{"02_Sonata", "Sonata", {"Vn", "Vn"}, 7, false},
+		{"03_Dance", "Dance of the Sugar Plum Fairy", {"Fl", "Cl"}, 4, true},
+		{"04_Allegro", "Allegro for Musical Clock", {"Fl", "Fl"}, 2, false},
+		{"05_Entertainer", "The Entertainer", {"Tpt", "Tpt"}, 0, false},
+		{"06_Entertainer", "The Entertainer", {"Sax", "Sax"}, 5, false},
+		{"07_GString", "Air on the G string", {"Tpt", "Tbn"}, 9, true},
+		{"08_Spring", "Spring from the Four Seasons", {"Fl", "Vn"}, 4, false},
+		{"09_Jesus", "Jesus Bleibet Meine Freude", {"Tpt", "Vn"}, 7, false},
+		{"10_March", "March from Occasional Oratorio", {"Tpt", "Sax"}, 2, false},
+		{"11_Maria", "Ave Maria", {"Ob", "Vc"}, 8, false},
+		{"12_Spring", "Spring from the Four Seasons", {"Vn", "Vn", "Vc"}, 4, false},
+		{"13_Hark", "Hark the herald angels sing", {"Vn", "Vn", "Va"}, 7, false},
+		{"14_Waltz", "Waltz from Sleeping Beauty", {"Fl", "Fl", "Cl"}, 3, false},
+		{"15_Surprise", "Theme from Surprise Symphony", {"Tpt", "Tpt", "Tbn"}, 0, false},
+		{"16_Surprise", "Theme from Surprise Symphony", {"Tpt", "Tpt", "Sax"}, 0, false},
+		{"17_Nocturne", "Nocturne", {"Vn", "Fl", "Cl"}, 1, true},
+		{"18_Nocturne", "Nocturne", {"Vn", "Fl", "Tpt"}, 1, true},
+		{"19_Pavane", "Pavane", {"Cl", "Vn", "Vc"}, 6, true},
+		{"20_Pavane", "Pavane", {"Tpt", "Vn", "Vc"}, 6, true},
+		{"21_Rejouissance", "La Rejouissance", {"Cl", "Tbn", "Tba"}, 2, false},
+		{"22_Rejouissance", "La Rejouissance", {"Sax", "Tbn", "Tba"}, 2, false},
+		{"23_Rejouissance", "La Rejouissance", {"Cl", "Sax", "Tba"}, 2, false},
+		{"24_Pirates", "Pirates of the Aegean", {"Vn", "Vn", "Va", "Vc"}, 9, true},
+		{"25_Pirates", "Pirates of the Aegean", {"Vn", "Vn", "Va", "Sax"}, 9, true},
+		{"26_King", "In the Hall of the Mountain King", {"Vn", "Vn", "Va", "Vc"}, 11, true},
+		{"27_King", "In the Hall of the Mountain King", {"Vn", "Vn", "Va", "Sax"}, 11, true},
+		{"28_Fugue", "The Art of the Fugue", {"Fl", "Ob", "Cl", "Bn"}, 2, true},
+		{"29_Fugue", "The Art of the Fugue", {"Fl", "Fl", "Ob", "Cl"}, 2, true},
+		{"30_Fugue", "The Art of the Fugue", {"Fl", "Fl", "Ob", "Sax"}, 2, true},
+		{"31_Slavonic", "Slavonic Dance", {"Tpt", "Tpt", "Hn", "Tbn"}, 4, false},
+		{"32_Fugue", "The Art of the Fugue", {"Vn", "Vn", "Va", "Vc"}, 2, true},
+		{"33_Elise", "Fur Elise", {"Tpt", "Tpt", "Hn", "Tbn"}, 9, true},
+		{"34_Fugue", "The Art of the Fugue", {"Tpt", "Tpt", "Hn", "Tbn"}, 2, true},
+		{"35_Rondeau", "Rondeau from Abdelazer", {"Vn", "Vn", "Va", "Db"}, 2, false},
+		{"36_Rondeau", "Rondeau from Abdelazer", {"Vn", "Vn", "Va", "Vc"}, 2, false},
+		{"37_Rondeau", "Rondeau from Abdelazer", {"Fl", "Vn", "Va", "Cl"}, 2, false},
+		{"38_Jerusalem", "Jerusalem", {"Vn", "Vn", "Va", "Vc", "Db"}, 10, false},
+		{"39_Jerusalem", "Jerusalem", {"Vn", "Vn", "Va", "Sax", "Db"}, 10, false},
+		{"40_Miserere", "Miserere Mei Deus", {"Fl", "Fl", "Ob", "Cl", "Bn"}, 5, true},
+		{"41_Miserere", "Miserere Mei Deus", {"Fl", "Fl", "Ob", "Sax", "Bn"}, 5, true},
+		{"42_Arioso", "Arioso", {"Tpt", "Tpt", "Hn", "Tbn", "Tba"}, 7, false},
+		{"43_Chorale", "Chorale", {"Tpt", "Tpt", "Hn", "Tbn", "Tba"}, 0, false},
+		{"44_K515", "String Quintet K515", {"Vn", "Vn", "Va", "Va", "Db"}, 3, false},
+	};
+
+	for (const UrmpPieceCase &piece : pieces) {
+		const std::vector<int> intervals = piece.minor ? std::vector<int>{0, 3, 7} :
+								 std::vector<int>{0, 4, 7};
+		const std::string chord = std::string(mao_test::note_name(piece.root_pitch_class)) +
+					  (piece.minor ? "m" : "");
+		const std::string context = std::string("URMP same-song multitrack ") + piece.id + " " +
+					    piece.title + " " + chord;
+		std::vector<int> expected_other_pitch_classes;
+		int expected_bass_midi = -1;
+		mao_test::Buffer mix = {};
+		std::size_t harmonic_track_index = 0;
+
+		for (const char *instrument : piece.instruments) {
+			int midi = 0;
+			if (is_foundation_instrument(instrument)) {
+				midi = bass_midi_for_pitch_class(piece.root_pitch_class);
+				expected_bass_midi = midi;
+			} else {
+				const int interval = intervals[harmonic_track_index % intervals.size()];
+				midi = midi_at_or_above(urmp_instrument_floor(instrument),
+							(piece.root_pitch_class + interval) % 12);
+				append_pitch_class(expected_other_pitch_classes, midi);
+				++harmonic_track_index;
+			}
+
+			mao_test::Buffer track_buffer = {};
+			add_urmp_instrument_track(track_buffer, instrument, midi);
+			for (std::size_t i = 0; i < mix.size(); ++i)
+				mix[i] += track_buffer[i];
+
+			const auto track_snapshot = analyze_buffer(track_buffer, urmp_source_hint(instrument));
+			const std::string track_context = context + " track " + instrument;
+			if (is_foundation_instrument(instrument)) {
+				expect_label(runner, track_snapshot.bass.label, mao_test::note_label(midi),
+					     track_context);
+			} else {
+				expect_note_token(runner, track_snapshot.other.label,
+						  mao_test::note_label(midi).c_str(), track_context);
+			}
+		}
+
+		const auto snapshot = analyze_buffer(mix, "URMP same-song full mix");
+
+		if (expected_bass_midi >= 0)
+			expect_label(runner, snapshot.bass.label, mao_test::note_label(expected_bass_midi),
+				     context + " bass foundation");
+
+		for (int pitch_class : expected_other_pitch_classes)
+			expect_pitch_class(runner, snapshot.other_notes, pitch_class, context + " other notes");
+
+		if (expected_other_pitch_classes.size() >= 3) {
+			runner.expect(has_chord_label(snapshot.other_chord.label, chord),
+				      context + ": expected other chord `" + chord + "`, got `" +
+					      snapshot.other_chord.label + "`");
+		}
+	}
+}
+
 void check_slakh_style_multitrack_song_regressions(Runner &runner)
 {
 	struct SongCase {
@@ -1350,6 +1530,7 @@ int main()
 	check_layered_midi_instrument_voices(runner);
 	check_same_instrument_timbre_variants(runner);
 	check_distorted_midi_guitar_timbre(runner);
+	check_urmp_real_piece_metadata_regressions(runner);
 	check_slakh_style_multitrack_song_regressions(runner);
 	check_public_multitrack_dataset_style_regressions(runner);
 	check_drum_hit_with_melodic_mix(runner);
