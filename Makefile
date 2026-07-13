@@ -25,7 +25,7 @@ PLUGIN_OBJS := $(BUILD_DIR)/analyzer.o $(BUILD_DIR)/plugin.o
 ANALYZER_TEST_OBJ := $(BUILD_DIR)/analyzer_test.o
 TEST_BINS := $(BUILD_DIR)/analyzer_smoke $(BUILD_DIR)/analyzer_cases $(BUILD_DIR)/analyzer_urmp
 
-.PHONY: all clean deps install-user test test-urmp-fixture test-real-urmp inspect-real-urmp inspect-urmp-fixture decode-urmp-fixture update-urmp-fixture
+.PHONY: all clean deps install-user test inspect-real-dataset-catalog test-urmp-fixture test-real-urmp inspect-real-urmp inspect-urmp-fixture decode-urmp-fixture update-urmp-fixture
 
 all: $(SIMDE_DEP) $(BUILD_DIR)/music-analyzer-obs.so
 
@@ -72,10 +72,14 @@ $(BUILD_DIR)/analyzer_urmp: $(ANALYZER_TEST_OBJ) $(BUILD_DIR)/analyzer_urmp.o
 	$(CXX) -o $@ $^ -lm -pthread
 
 test: $(TEST_BINS)
+	$(MAKE) inspect-real-dataset-catalog
 	$(BUILD_DIR)/analyzer_smoke
 	$(BUILD_DIR)/analyzer_cases
 	$(BUILD_DIR)/analyzer_urmp
 	$(MAKE) test-urmp-fixture
+
+inspect-real-dataset-catalog: tests/inspect_real_dataset_catalog.py tests/real_dataset_catalog.json docs/real_audio_dataset_candidates.md
+	$(PYTHON) tests/inspect_real_dataset_catalog.py
 
 test-urmp-fixture: $(BUILD_DIR)/analyzer_urmp $(URMP_FIXTURE_ARCHIVE) | $(BUILD_DIR)
 	rm -rf $(URMP_FIXTURE_DIR)

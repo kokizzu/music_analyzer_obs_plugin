@@ -1,6 +1,6 @@
 # Real Audio Dataset Candidates
 
-Last checked: 2026-07-13.
+Last checked: 2026-07-14.
 
 This project needs real recorded audio for stronger tests. The strict target is:
 
@@ -11,6 +11,12 @@ This project needs real recorded audio for stronger tests. The strict target is:
 Very few public datasets have all three. The practical path is to automate the
 direct-fit datasets first, then use single-instrument and partial-label datasets
 for focused row-level tests.
+
+The checked catalog for this decision lives in
+`tests/real_dataset_catalog.json` and is validated by
+`make inspect-real-dataset-catalog`. That validator requires at least one
+20-piece direct-fit dataset and currently pins URMP as the only automated
+20+ real-audio gate.
 
 ## Direct Fit
 
@@ -26,7 +32,9 @@ These are the best candidates for full-mix and per-instrument verification.
 
 Recommendation: start with URMP. It satisfies the user's requested 20+ real
 multi-instrument cases by itself and is the clearest source for verifying
-mixtures, per-instrument notes, and source assignment.
+mixtures, per-instrument notes, and source assignment. The other direct-fit
+datasets found so far are useful add-ons, but they are too small to satisfy the
+20-song gate without combining datasets.
 
 ## Real Audio With MIDI Or Note Truth But No Isolated Stems
 
