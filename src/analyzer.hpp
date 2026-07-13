@@ -82,6 +82,22 @@ struct AnalysisSnapshot {
 	InstrumentState other_chord = {};
 };
 
+struct NoteTrackingState {
+	int consecutive_hits = 0;
+	int consecutive_misses = 0;
+	float envelope = 0.0f;
+	bool confirmed = false;
+};
+
+struct ChordTrackingState {
+	char displayed_label[64] = {};
+	float displayed_confidence = 0.0f;
+	char pending_label[64] = {};
+	float pending_confidence = 0.0f;
+	int pending_frames = 0;
+	float missing_seconds = 0.0f;
+};
+
 class AnalysisEngine {
 public:
 	AnalysisEngine();
@@ -113,11 +129,14 @@ private:
 	std::array<float, kDrumCount> drum_level_ = {};
 	std::array<RootVote, kMaxRootVotes> root_votes_ = {};
 	std::array<float, 12> root_sum_ = {};
-	std::array<float, kNoteProbeCount> bass_note_envelope_ = {};
-	std::array<float, kNoteProbeCount> guitar_note_envelope_ = {};
-	std::array<float, kNoteProbeCount> keyboard_note_envelope_ = {};
-	std::array<float, kNoteProbeCount> vocal_note_envelope_ = {};
-	std::array<float, kNoteProbeCount> other_note_envelope_ = {};
+	std::array<NoteTrackingState, kNoteProbeCount> bass_note_tracking_ = {};
+	std::array<NoteTrackingState, kNoteProbeCount> guitar_note_tracking_ = {};
+	std::array<NoteTrackingState, kNoteProbeCount> keyboard_note_tracking_ = {};
+	std::array<NoteTrackingState, kNoteProbeCount> vocal_note_tracking_ = {};
+	std::array<NoteTrackingState, kNoteProbeCount> other_note_tracking_ = {};
+	ChordTrackingState guitar_chord_tracking_ = {};
+	ChordTrackingState keyboard_chord_tracking_ = {};
+	ChordTrackingState other_chord_tracking_ = {};
 	std::size_t root_vote_pos_ = 0;
 	std::size_t root_vote_count_ = 0;
 	std::size_t root_vote_target_ = 0;
@@ -128,7 +147,9 @@ private:
 	void reset_note_envelopes();
 	float goertzel_power(const float *samples, std::size_t count, float mean, const Probe &probe) const;
 	float goertzel_power_at_frequency(const float *samples, std::size_t count, float mean, float freq) const;
-	bool chromatic_tuning_match(const float *samples, std::size_t count, float mean, int midi) const;
+	bool chromatic_tuning_match(const float *samples, std::size_t count, float mean, int midi,
+				    float tolerance_cents) const;
+	bool tracked_note_active(int midi) const;
 	void reset_root_window();
 	void add_root_vote(const RootVote &vote);
 	InstrumentState track_root(const std::array<float, kNoteProbeCount> &powers, float rms,

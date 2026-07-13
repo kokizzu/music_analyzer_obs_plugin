@@ -419,9 +419,12 @@ void check_note_level_fade(Runner &runner)
 	}
 
 	{
+		mao::AnalysisEngine engine;
+		const mao::AnalysisSettings settings = mao_test::default_settings();
 		mao_test::Buffer buffer = {};
 		mao_test::add_midi_note(buffer, 60, 0.035f);
-		const auto snapshot = analyze_buffer(buffer, "keyboard");
+		(void)engine.analyze(buffer.data(), buffer.size(), settings, "keyboard", 0);
+		const auto snapshot = engine.analyze(buffer.data(), buffer.size(), settings, "keyboard", 0);
 		const float c_level = grid_level_for_midi(snapshot.keyboard_notes, 60);
 		expect_note_token(runner, snapshot.keyboard.label, "C4", "quiet sustained keyboard note");
 		runner.expect(c_level > 0.0f && c_level < 0.45f,
@@ -450,7 +453,7 @@ void check_sustained_note_envelope(Runner &runner)
 	mao_test::Buffer missed_window = {};
 	snapshot = engine.analyze(missed_window.data(), missed_window.size(), settings, "guitar", 0);
 	const float held_g = grid_level_for_midi(snapshot.guitar_notes, 55);
-	runner.expect(held_g > 0.75f && held_g < initial_g,
+	runner.expect(held_g > 0.55f && held_g < initial_g,
 		      "sustained note envelope: expected missed frame to dim G3 instead of clearing it");
 	expect_note_token(runner, snapshot.guitar.label, "G3", "sustained note envelope missed frame");
 	expect_note_token(runner, snapshot.guitar.label, "B3", "sustained note envelope missed frame");
@@ -458,29 +461,125 @@ void check_sustained_note_envelope(Runner &runner)
 	expect_label(runner, snapshot.guitar_chord.label, "G", "sustained note envelope missed frame chord");
 
 	float previous_g = held_g;
-	for (int i = 0; i < 4; ++i) {
+	for (int i = 0; i < 2; ++i) {
 		snapshot = engine.analyze(missed_window.data(), missed_window.size(), settings, "guitar", 0);
 		const float current_g = grid_level_for_midi(snapshot.guitar_notes, 55);
 		runner.expect(current_g <= previous_g + 0.001f,
 			      "sustained note envelope: expected G3 release to be monotonic");
 		previous_g = current_g;
 	}
-	runner.expect(previous_g > 0.40f, "sustained note envelope: expected G3 visible through short gaps");
+	runner.expect(previous_g <= 0.40f, "sustained note envelope: expected G3 to decay within short release");
 
-	for (int i = 0; i < 12; ++i)
+	for (int i = 0; i < 4; ++i)
 		snapshot = engine.analyze(missed_window.data(), missed_window.size(), settings, "guitar", 0);
 	expect_label(runner, snapshot.guitar.label, "--", "sustained note envelope release");
 	expect_no_chord(runner, snapshot.guitar_chord, "sustained note envelope release chord");
 }
 
+void check_temporal_note_stability(Runner &runner)
+{
+	mao::AnalysisSettings settings = mao_test::default_settings();
+	settings.analysis_interval_seconds = 0.05f;
+
+	{
+		mao::AnalysisEngine engine;
+		mao_test::Buffer c = {};
+		mao_test::add_midi_note(c, 60, 0.035f);
+		auto snapshot = engine.analyze(c.data(), c.size(), settings, "keyboard", 0);
+		expect_label(runner, snapshot.keyboard.label, "--", "temporal note one-frame rejection");
+
+		snapshot = engine.analyze(c.data(), c.size(), settings, "keyboard", 0);
+		expect_note_token(runner, snapshot.keyboard.label, "C4", "temporal note two-frame confirmation");
+
+		mao_test::Buffer silence = {};
+		snapshot = engine.analyze(silence.data(), silence.size(), settings, "keyboard", 0);
+		expect_note_token(runner, snapshot.keyboard.label, "C4", "temporal note missed-frame grace");
+
+		for (int i = 0; i < 20; ++i)
+			snapshot = engine.analyze(silence.data(), silence.size(), settings, "keyboard", 0);
+		expect_label(runner, snapshot.keyboard.label, "--", "temporal note short release");
+	}
+
+	{
+		mao::AnalysisEngine engine;
+		mao_test::Buffer tuned = {};
+		mao_test::add_midi_note(tuned, 60, 0.20f);
+		auto snapshot = engine.analyze(tuned.data(), tuned.size(), settings, "keyboard", 0);
+		expect_note_token(runner, snapshot.keyboard.label, "C4", "temporal note tuning seed");
+
+		mao_test::Buffer detuned = {};
+		mao_test::add_sine(detuned, detuned_midi_frequency(60, 16.0f), 0.20f);
+		snapshot = engine.analyze(detuned.data(), detuned.size(), settings, "keyboard", 0);
+		expect_note_token(runner, snapshot.keyboard.label, "C4", "temporal note tuning hysteresis");
+	}
+
+	{
+		mao::AnalysisEngine engine;
+		mao_test::Buffer c = {};
+		mao_test::Buffer d = {};
+		mao_test::add_midi_note(c, 60, 0.035f);
+		mao_test::add_midi_note(d, 62, 0.035f);
+		(void)engine.analyze(c.data(), c.size(), settings, "keyboard", 0);
+		auto snapshot = engine.analyze(c.data(), c.size(), settings, "keyboard", 0);
+		expect_note_token(runner, snapshot.keyboard.label, "C4", "temporal note replacement seed");
+
+		(void)engine.analyze(d.data(), d.size(), settings, "keyboard", 0);
+		snapshot = engine.analyze(d.data(), d.size(), settings, "keyboard", 0);
+		expect_note_token(runner, snapshot.keyboard.label, "D4", "temporal note replacement confirmed");
+		for (int i = 0; i < 12; ++i)
+			snapshot = engine.analyze(d.data(), d.size(), settings, "keyboard", 0);
+		runner.expect(!mao_test::has_note_token(snapshot.keyboard.label, "C4"),
+			      std::string("temporal note replacement: expected old C4 released, got `") +
+				      snapshot.keyboard.label + "`");
+		expect_note_token(runner, snapshot.keyboard.label, "D4", "temporal note replacement final");
+	}
+}
+
+void check_temporal_chord_stability(Runner &runner)
+{
+	mao::AnalysisEngine engine;
+	mao::AnalysisSettings settings = mao_test::default_settings();
+	settings.analysis_interval_seconds = 0.05f;
+	const auto c_major = mao_test::make_midi_notes({60, 64, 67}, 0.34f);
+	const auto c_without_e = mao_test::make_midi_notes({60, 67}, 0.34f);
+	const auto c_without_c = mao_test::make_midi_notes({64, 67}, 0.34f);
+	const auto g_major = mao_test::make_midi_notes({67, 71, 74}, 0.34f);
+	mao_test::Buffer silence = {};
+
+	auto snapshot = engine.analyze(c_major.data(), c_major.size(), settings, "keyboard", 0);
+	expect_label(runner, snapshot.keyboard_chord.label, "C", "temporal chord initial C");
+
+	snapshot = engine.analyze(c_without_e.data(), c_without_e.size(), settings, "keyboard", 0);
+	expect_label(runner, snapshot.keyboard_chord.label, "C", "temporal chord survives missing E");
+
+	snapshot = engine.analyze(c_without_c.data(), c_without_c.size(), settings, "keyboard", 0);
+	expect_label(runner, snapshot.keyboard_chord.label, "C", "temporal chord survives incomplete raw notes");
+
+	snapshot = engine.analyze(c_major.data(), c_major.size(), settings, "keyboard", 0);
+	expect_label(runner, snapshot.keyboard_chord.label, "C", "temporal chord no C/-- blinking");
+
+	snapshot = engine.analyze(g_major.data(), g_major.size(), settings, "keyboard", 0);
+	expect_label(runner, snapshot.keyboard_chord.label, "C", "temporal chord rejects one-frame replacement");
+
+	snapshot = engine.analyze(g_major.data(), g_major.size(), settings, "keyboard", 0);
+	expect_label(runner, snapshot.keyboard_chord.label, "G", "temporal chord switches after confirmation");
+
+	for (int i = 0; i < 20; ++i)
+		snapshot = engine.analyze(silence.data(), silence.size(), settings, "keyboard", 0);
+	expect_no_chord(runner, snapshot.keyboard_chord, "temporal chord silence clear");
+}
+
 void check_low_level_mixed_notes(Runner &runner)
 {
+	mao::AnalysisEngine engine;
+	const mao::AnalysisSettings settings = mao_test::default_settings();
 	mao_test::Buffer buffer = {};
 	mao_test::add_midi_note(buffer, 60, 0.016f);
 	mao_test::add_midi_note(buffer, 64, 0.016f);
 	mao_test::add_midi_note(buffer, 67, 0.016f);
 
-	const auto snapshot = analyze_buffer(buffer, "full mix");
+	(void)engine.analyze(buffer.data(), buffer.size(), settings, "full mix", 0);
+	const auto snapshot = engine.analyze(buffer.data(), buffer.size(), settings, "full mix", 0);
 	const float c_level = grid_level_for_midi(snapshot.keyboard_notes, 60);
 	const float e_level = grid_level_for_midi(snapshot.keyboard_notes, 64);
 	const float g_level = grid_level_for_midi(snapshot.keyboard_notes, 67);
@@ -1430,9 +1529,12 @@ void check_bass_survives_low_mid_mix(Runner &runner)
 void check_low_level_mic_aux_parts(Runner &runner)
 {
 	{
+		mao::AnalysisEngine engine;
+		const mao::AnalysisSettings settings = mao_test::default_settings();
 		mao_test::Buffer buffer = {};
 		mao_test::add_midi_note(buffer, 64, 0.035f);
-		const auto snapshot = analyze_buffer(buffer, "Mic/Aux");
+		(void)engine.analyze(buffer.data(), buffer.size(), settings, "Mic/Aux", 0);
+		const auto snapshot = engine.analyze(buffer.data(), buffer.size(), settings, "Mic/Aux", 0);
 		expect_note_token(runner, snapshot.keyboard.label, "E4", "low-level Mic/Aux keyboard part");
 		expect_no_drums(runner, snapshot, "low-level Mic/Aux keyboard part");
 	}
@@ -1525,6 +1627,8 @@ int main()
 	check_quiet_standalone_rejection(runner);
 	check_note_level_fade(runner);
 	check_sustained_note_envelope(runner);
+	check_temporal_note_stability(runner);
+	check_temporal_chord_stability(runner);
 	check_low_level_mixed_notes(runner);
 	check_melodic_sources_do_not_trigger_drums(runner);
 	check_layered_midi_instrument_voices(runner);
