@@ -6,6 +6,7 @@
 #include <cmath>
 #include <cstdio>
 #include <cstring>
+#include <initializer_list>
 #include <vector>
 
 namespace mao {
@@ -187,9 +188,10 @@ bool likely_selected_harmonic(const NoteCandidate &fundamental, const NoteCandid
 	return false;
 }
 
-std::vector<NoteCandidate> note_peak_candidates(const std::array<float, kNoteProbeCount> &powers, int min_midi, int max_midi,
-						int max_notes,
-						const std::array<bool, 12> *blocked_pitch_classes = nullptr)
+std::vector<NoteCandidate> note_peak_candidates(const std::array<float, kNoteProbeCount> &powers, int min_midi,
+						int max_midi, int max_notes,
+						const std::array<bool, 12> *blocked_pitch_classes = nullptr,
+						const std::array<bool, 12> *allowed_pitch_classes = nullptr)
 {
 	std::array<float, kNoteProbeCount> scores = {};
 	float strongest_score = 0.0f;
@@ -199,6 +201,8 @@ std::vector<NoteCandidate> note_peak_candidates(const std::array<float, kNotePro
 	for (int midi = min_midi; midi <= max_midi; ++midi) {
 		const int pitch_class = ((midi % 12) + 12) % 12;
 		if (blocked_pitch_classes && (*blocked_pitch_classes)[pitch_class])
+			continue;
+		if (allowed_pitch_classes && !(*allowed_pitch_classes)[pitch_class])
 			continue;
 		const float score = std::sqrt(std::max(powers[midi - kFirstMidi], 0.0f));
 		scores[midi - kFirstMidi] = score;
@@ -275,6 +279,7 @@ int lowest_peak_pitch_class(const std::array<float, kNoteProbeCount> &powers, in
 
 struct ChordResult {
 	char label[24] = {};
+	std::array<bool, 12> tones = {};
 	int root = -1;
 	float confidence = 0.0f;
 };
@@ -288,13 +293,16 @@ ChordResult detect_chord(const std::array<float, 12> &chroma, int bass_pitch_cla
 
 	auto tone = [&](int root, int offset) -> float { return chroma[(root + offset) % 12]; };
 	auto present = [&](int root, int offset) -> bool { return tone(root, offset) >= kToneThreshold; };
-	auto consider = [&](int root, const char *suffix, float score) {
+	auto consider = [&](int root, const char *suffix, float score, std::initializer_list<int> intervals) {
 		if (root == bass_pitch_class)
 			score += 0.40f;
 		if (score <= best_score)
 			return;
 		best_score = score;
 		best.root = root;
+		best.tones.fill(false);
+		for (int interval : intervals)
+			best.tones[(root + interval) % 12] = true;
 		std::snprintf(best.label, sizeof(best.label), "%s%s", note_name(root), suffix);
 	};
 
@@ -312,28 +320,35 @@ ChordResult detect_chord(const std::array<float, 12> &chroma, int bass_pitch_cla
 
 		if (present(root, 4) && tone(root, 10) >= kSeventhThreshold)
 			consider(root, "7", root_power * 1.20f + major_third_power + fifth_power * 0.90f +
-						 minor_seventh_power * 1.10f - minor_third_power * 0.35f);
+						 minor_seventh_power * 1.10f - minor_third_power * 0.35f,
+				 {0, 4, 7, 10});
 		if (present(root, 4) && tone(root, 11) >= kSeventhThreshold)
 			consider(root, "maj7", root_power * 1.20f + major_third_power + fifth_power * 0.90f +
-						    major_seventh_power * 1.10f - minor_seventh_power * 0.25f);
+						    major_seventh_power * 1.10f - minor_seventh_power * 0.25f,
+				 {0, 4, 7, 11});
 		if (present(root, 3) && tone(root, 10) >= kSeventhThreshold)
 			consider(root, "m7", root_power * 1.20f + minor_third_power + fifth_power * 0.90f +
-						    minor_seventh_power * 1.10f - major_third_power * 0.35f);
+						    minor_seventh_power * 1.10f - major_third_power * 0.35f,
+				 {0, 3, 7, 10});
 		if (present(root, 4))
 			consider(root, "", root_power * 1.15f + major_third_power + fifth_power * 0.90f -
-						    minor_third_power * 0.35f);
+						    minor_third_power * 0.35f,
+				 {0, 4, 7});
 		if (present(root, 3))
 			consider(root, "m", root_power * 1.15f + minor_third_power + fifth_power * 0.90f -
-						    major_third_power * 0.35f);
+						    major_third_power * 0.35f,
+				 {0, 3, 7});
 		if (present(root, 2))
 			consider(root, "sus2", root_power * 1.12f + second_power + fifth_power * 0.90f -
-						     major_third_power * 0.25f - minor_third_power * 0.25f);
+						     major_third_power * 0.25f - minor_third_power * 0.25f,
+				 {0, 2, 7});
 		if (present(root, 5))
 			consider(root, "sus4", root_power * 1.12f + fourth_power + fifth_power * 0.90f -
-						     major_third_power * 0.25f - minor_third_power * 0.25f);
+						     major_third_power * 0.25f - minor_third_power * 0.25f,
+				 {0, 5, 7});
 		if (!present(root, 2) && !present(root, 3) && !present(root, 4) && !present(root, 5) &&
 		    tone(root, 10) < kSeventhThreshold && tone(root, 11) < kSeventhThreshold)
-			consider(root, "pow", root_power * 1.10f + fifth_power * 0.95f);
+			consider(root, "pow", root_power * 1.10f + fifth_power * 0.95f, {0, 7});
 	}
 
 	float chroma_sum = 0.0f;
@@ -343,6 +358,7 @@ ChordResult detect_chord(const std::array<float, 12> &chroma, int bass_pitch_cla
 	best.confidence = chroma_sum > 0.0f ? std::clamp(best_score / (chroma_sum + 1.0e-6f), 0.0f, 1.0f) : 0.0f;
 	if (best.confidence < 0.34f) {
 		best.root = -1;
+		best.tones.fill(false);
 		copy_text(best.label, sizeof(best.label), "--");
 	}
 	return best;
@@ -512,7 +528,8 @@ void set_single_note_grid(NoteGrid &grid, InstrumentState &state, const RangeRes
 
 void set_instrument_note_set(NoteGrid &grid, InstrumentState &state, const std::array<float, kNoteProbeCount> &powers,
 			     int min_midi, int max_midi, int preferred_root, float energy, float rms, int max_notes,
-			     const std::array<bool, 12> *blocked_pitch_classes = nullptr)
+			     const std::array<bool, 12> *blocked_pitch_classes = nullptr,
+			     const std::array<bool, 12> *allowed_pitch_classes = nullptr)
 {
 	clear_note_grid(grid);
 	if (rms < kNoteRmsFloor || energy < 1.0e-5f) {
@@ -523,7 +540,8 @@ void set_instrument_note_set(NoteGrid &grid, InstrumentState &state, const std::
 
 	float strongest_score = 0.0f;
 	const std::vector<NoteCandidate> candidates =
-		note_peak_candidates(powers, min_midi, max_midi, max_notes, blocked_pitch_classes);
+		note_peak_candidates(powers, min_midi, max_midi, max_notes, blocked_pitch_classes,
+				     allowed_pitch_classes);
 	for (const NoteCandidate &candidate : candidates)
 		strongest_score = std::max(strongest_score, candidate.score);
 
@@ -913,6 +931,7 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 
 	std::array<bool, 12> claimed_pitch_classes = {};
 	const SourceHint source_hint = infer_source_hint(source_name);
+	const bool mixed_source = source_hint == SourceHint::None || source_hint == SourceHint::Bass;
 
 	if (source_hint == SourceHint::None || source_hint == SourceHint::Bass) {
 		const RangeResult bass_note = dominant_note(note_powers, kBassMinMidi, kBassMaxMidi, true);
@@ -931,14 +950,18 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 	}
 
 	auto process_keyboard = [&]() {
+		const int min_midi = mixed_source ? 48 : kKeyboardMinMidi;
+		const int max_midi = mixed_source ? 96 : kKeyboardMaxMidi;
 		const std::array<float, 12> chroma =
-			peak_chroma_for_range(note_powers, kKeyboardMinMidi, kKeyboardMaxMidi, &claimed_pitch_classes);
-		const int preferred_root = lowest_peak_pitch_class(note_powers, kKeyboardMinMidi, kKeyboardMaxMidi,
-								   &claimed_pitch_classes);
+			peak_chroma_for_range(note_powers, min_midi, max_midi, &claimed_pitch_classes);
+		const int preferred_root =
+			lowest_peak_pitch_class(note_powers, min_midi, max_midi, &claimed_pitch_classes);
 		const ChordResult chord = detect_chord(chroma, preferred_root);
-		set_instrument_note_set(snapshot.keyboard_notes, snapshot.keyboard, note_powers, kKeyboardMinMidi,
-					kKeyboardMaxMidi, chord.root >= 0 ? chord.root : preferred_root,
-					keyboard_energy, rms, 10, &claimed_pitch_classes);
+		const std::array<bool, 12> *allowed = mixed_source && chord.root >= 0 ? &chord.tones : nullptr;
+		const int max_notes = mixed_source && !allowed ? 4 : 10;
+		set_instrument_note_set(snapshot.keyboard_notes, snapshot.keyboard, note_powers, min_midi, max_midi,
+					chord.root >= 0 ? chord.root : preferred_root, keyboard_energy, rms,
+					max_notes, &claimed_pitch_classes, allowed);
 		set_instrument_chord(snapshot.keyboard_chord, chord, keyboard_energy, rms);
 		claim_note_grid_pitch_classes(snapshot.keyboard_notes, claimed_pitch_classes);
 	};
@@ -949,28 +972,32 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 		const int preferred_root =
 			lowest_peak_pitch_class(note_powers, kGuitarMinMidi, kGuitarMaxMidi, &claimed_pitch_classes);
 		const ChordResult chord = detect_chord(chroma, preferred_root);
+		const std::array<bool, 12> *allowed = mixed_source && chord.root >= 0 ? &chord.tones : nullptr;
+		const int max_notes = mixed_source && !allowed ? 2 : 8;
 		set_instrument_note_set(snapshot.guitar_notes, snapshot.guitar, note_powers, kGuitarMinMidi,
-					kGuitarMaxMidi, chord.root >= 0 ? chord.root : preferred_root, guitar_energy, rms, 8,
-					&claimed_pitch_classes);
+					kGuitarMaxMidi, chord.root >= 0 ? chord.root : preferred_root, guitar_energy, rms,
+					max_notes, &claimed_pitch_classes, allowed);
 		set_instrument_chord(snapshot.guitar_chord, chord, guitar_energy, rms);
 		claim_note_grid_pitch_classes(snapshot.guitar_notes, claimed_pitch_classes);
 	};
 
 	auto process_vocal = [&]() {
+		const int min_midi = mixed_source ? 60 : kVocalMinMidi;
 		const int preferred_root =
-			lowest_peak_pitch_class(note_powers, kVocalMinMidi, kVocalMaxMidi, &claimed_pitch_classes);
-		set_instrument_note_set(snapshot.vocal_notes, snapshot.vocal, note_powers, kVocalMinMidi,
+			lowest_peak_pitch_class(note_powers, min_midi, kVocalMaxMidi, &claimed_pitch_classes);
+		set_instrument_note_set(snapshot.vocal_notes, snapshot.vocal, note_powers, min_midi,
 					kVocalMaxMidi, preferred_root, vocal_energy, rms, 1, &claimed_pitch_classes);
 		claim_note_grid_pitch_classes(snapshot.vocal_notes, claimed_pitch_classes);
 	};
 
 	auto process_other = [&]() {
+		const int min_midi = mixed_source ? 72 : kOtherMinMidi;
 		const std::array<float, 12> chroma =
-			peak_chroma_for_range(note_powers, kOtherMinMidi, kOtherMaxMidi, &claimed_pitch_classes);
+			peak_chroma_for_range(note_powers, min_midi, kOtherMaxMidi, &claimed_pitch_classes);
 		const int preferred_root =
-			lowest_peak_pitch_class(note_powers, kOtherMinMidi, kOtherMaxMidi, &claimed_pitch_classes);
+			lowest_peak_pitch_class(note_powers, min_midi, kOtherMaxMidi, &claimed_pitch_classes);
 		const ChordResult chord = detect_chord(chroma, preferred_root);
-		set_instrument_note_set(snapshot.other_notes, snapshot.other, note_powers, kOtherMinMidi, kOtherMaxMidi,
+		set_instrument_note_set(snapshot.other_notes, snapshot.other, note_powers, min_midi, kOtherMaxMidi,
 					chord.root >= 0 ? chord.root : preferred_root, other_energy, rms, 8,
 					&claimed_pitch_classes);
 		set_instrument_chord(snapshot.other_chord, chord, other_energy, rms);

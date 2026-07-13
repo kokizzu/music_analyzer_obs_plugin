@@ -50,7 +50,7 @@ Run the analyzer tests:
 make test
 ```
 
-`make test` builds standalone analyzer executables outside OBS. `analyzer_smoke` covers the basic signal path, and `analyzer_cases` runs broad synthetic note, instrument, chord, note-matrix, quiet-note rejection, realistic harmonic chord, hierarchy, and root-candidate cases, including bass B0-G4, guitar E2-E6, keyboard/other A0-C8, and vocal E2-C6.
+`make test` builds standalone analyzer executables outside OBS. `analyzer_smoke` covers the basic signal path, and `analyzer_cases` runs broad synthetic note, instrument, chord, note-matrix, quiet-note rejection, realistic harmonic chord, multi-instrument mix, hierarchy, and root-candidate cases, including bass B0-G4, guitar E2-E6, keyboard/other A0-C8, and vocal E2-C6.
 
 Optional CMake build, assuming the OBS development dependencies are installed system-wide:
 
