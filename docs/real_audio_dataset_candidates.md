@@ -69,7 +69,7 @@ without additional annotation.
 | [MoisesDB](https://arxiv.org/abs/2307.15913) | Fine-grained real stems beyond 4-stem separation | MIDI/note truth. |
 | [RawStems](https://arxiv.org/abs/2505.21827) | Large unprocessed stem corpus and stem categories | MIDI/note truth. |
 | [ACMID](https://arxiv.org/abs/2510.07840) | Seven-stem instrument source-separation labels | MIDI/note truth and manually verified note labels. |
-| [Spheres](https://arxiv.org/abs/2511.21247) | Real orchestral isolated stems, sections, scales, solo material | Verified MIDI/note annotations. It can still help timbre/stem tests. |
+| [The Spheres Dataset](https://arxiv.org/abs/2511.21247) | Real orchestral isolated stems, section stems, stereo/main mixes, room impulse responses, scales, and solo material | Full MIDI/note truth and 20+ same-song pieces. It has two full orchestral works, so it can help timbre/stem tests but cannot replace URMP. |
 
 ## Implementation Notes
 

@@ -244,6 +244,22 @@
       "automation_target": "",
       "source_url": "https://arxiv.org/abs/2307.15913",
       "evidence": "Paper describes 240 tracks with individual audio sources in a hierarchical stem taxonomy, but no MIDI/note truth."
+    },
+    {
+      "id": "spheres",
+      "name": "The Spheres Dataset",
+      "category": "real_stems_weak_truth",
+      "piece_count": 2,
+      "real_audio": true,
+      "isolated_sources": true,
+      "assembled_mix": true,
+      "aligned_symbolic_truth": false,
+      "truth": "isolated orchestral stems, microphone signals, stereo/main mixes, room impulse responses, scales, and solo excerpts",
+      "automation_target": "",
+      "source_url": "https://arxiv.org/abs/2511.21247",
+      "download_url": "https://doi.org/10.5281/zenodo.17347681",
+      "download_note": "The paper describes a public Zenodo release with two full orchestral works plus chromatic scales and solo excerpts; it does not describe full MIDI/note ground truth for the pieces.",
+      "evidence": "Paper describes over one hour of real orchestral multitrack recordings, 23 microphones, isolated instrument/part recordings, derived realistic mixes, and stems whose sum equals the main mixture; it is too small and lacks full note/MIDI truth for the 20-song detector gate."
     }
   ]
 }
