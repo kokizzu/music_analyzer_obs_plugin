@@ -940,6 +940,176 @@ int lowest_note_grid_pitch_class(const NoteGrid &grid)
 	return lowest_midi <= kLastMidi ? ((lowest_midi % 12) + 12) % 12 : -1;
 }
 
+std::vector<NoteCandidate> note_grid_candidates(const NoteGrid &grid)
+{
+	std::vector<NoteCandidate> candidates;
+	for (const auto &row : grid.rows) {
+		for (const NoteCell &cell : row) {
+			if (!cell.active || cell.midi < kFirstMidi || cell.midi > kLastMidi)
+				continue;
+			candidates.push_back(NoteCandidate{cell.midi, cell.level});
+		}
+	}
+	std::sort(candidates.begin(), candidates.end(), [](const NoteCandidate &a, const NoteCandidate &b) {
+		if (a.midi != b.midi)
+			return a.midi < b.midi;
+		return a.score > b.score;
+	});
+	candidates.erase(std::unique(candidates.begin(), candidates.end(),
+				     [](const NoteCandidate &a, const NoteCandidate &b) {
+					     return a.midi == b.midi;
+				     }),
+			 candidates.end());
+	return candidates;
+}
+
+std::vector<NoteCandidate> prune_adjacent_keyboard_candidates(const std::vector<NoteCandidate> &notes)
+{
+	std::vector<NoteCandidate> pruned;
+	for (std::size_t i = 0; i < notes.size(); ++i) {
+		bool weaker_neighbor = false;
+		for (std::size_t j = 0; j < notes.size(); ++j) {
+			if (i == j || std::abs(notes[i].midi - notes[j].midi) > 1)
+				continue;
+			if (notes[j].score > notes[i].score * 1.18f) {
+				weaker_neighbor = true;
+				break;
+			}
+		}
+		if (!weaker_neighbor)
+			pruned.push_back(notes[i]);
+	}
+	return pruned;
+}
+
+int longest_chromatic_run(const std::array<float, 12> &chroma)
+{
+	int longest = 0;
+	int run = 0;
+	for (int i = 0; i < 24; ++i) {
+		if (chroma[i % 12] > 0.0f) {
+			++run;
+			longest = std::max(longest, run);
+		} else {
+			run = 0;
+		}
+	}
+	return std::min(longest, 12);
+}
+
+bool chord_label_has_keyboard_ninth(const char *label)
+{
+	return label && (std::strstr(label, "9") || std::strstr(label, "add"));
+}
+
+ChordResult simplify_weak_keyboard_ninth(const std::array<float, 12> &chroma, const ChordResult &chord,
+					 bool allow_extensions)
+{
+	if (chord.root < 0 || !chord_label_has_keyboard_ninth(chord.label))
+		return chord;
+
+	const int ninth = (chord.root + 2) % 12;
+	float core_sum = 0.0f;
+	int core_count = 0;
+	for (int pitch_class = 0; pitch_class < 12; ++pitch_class) {
+		if (!chord.tones[pitch_class] || pitch_class == ninth)
+			continue;
+		core_sum += chroma[pitch_class];
+		++core_count;
+	}
+
+	if (core_count == 0 || chroma[ninth] >= (core_sum / static_cast<float>(core_count)) * 0.82f)
+		return chord;
+
+	std::array<float, 12> simplified_chroma = chroma;
+	simplified_chroma[ninth] = 0.0f;
+	const ChordResult simplified = detect_chord(simplified_chroma, chord.root, allow_extensions);
+	if (simplified.root == chord.root && simplified.confidence >= 0.34f &&
+	    !chord_label_has_keyboard_ninth(simplified.label))
+		return simplified;
+
+	return chord;
+}
+
+ChordResult detect_keyboard_chord_from_grid(const NoteGrid &grid, bool allow_extensions, int preferred_root = -1)
+{
+	static constexpr int kKeyboardHandSpanSemitones = 16;
+	const std::vector<NoteCandidate> notes = prune_adjacent_keyboard_candidates(note_grid_candidates(grid));
+	ChordResult best;
+	float best_score = 0.0f;
+
+	for (std::size_t start = 0; start < notes.size(); ++start) {
+		std::size_t last = start;
+		float strongest = 0.0f;
+		for (; last < notes.size(); ++last) {
+			if (notes[last].midi - notes[start].midi > kKeyboardHandSpanSemitones)
+				break;
+			strongest = std::max(strongest, notes[last].score);
+		}
+
+		if (strongest <= 1.0e-6f)
+			continue;
+
+		std::array<float, 12> chroma = {};
+		float level_sum = 0.0f;
+		int distinct_pitch_classes = 0;
+		const float relative_level_floor = notes[start].midi < 40 ? 0.62f : 0.50f;
+		for (std::size_t i = start; i < last; ++i) {
+			if (notes[i].score < strongest * relative_level_floor)
+				continue;
+
+			const int pitch_class = ((notes[i].midi % 12) + 12) % 12;
+			if (chroma[pitch_class] <= 0.0f)
+				++distinct_pitch_classes;
+			chroma[pitch_class] = std::max(chroma[pitch_class], notes[i].score);
+			level_sum += notes[i].score;
+		}
+
+		if (distinct_pitch_classes < 2)
+			continue;
+		if (longest_chromatic_run(chroma) >= 4)
+			continue;
+
+		const int cluster_root = preferred_root >= 0 && chroma[preferred_root % 12] > 0.0f ?
+						 preferred_root :
+						 ((notes[start].midi % 12) + 12) % 12;
+		const ChordResult chord =
+			simplify_weak_keyboard_ninth(chroma, detect_chord(chroma, cluster_root, allow_extensions),
+						    allow_extensions);
+		if (chord.root < 0)
+			continue;
+		bool lower_conflict = false;
+		for (std::size_t i = 0; i < start; ++i) {
+			if (notes[start].midi - notes[i].midi > kKeyboardHandSpanSemitones)
+				continue;
+			if (notes[i].score < strongest * 0.78f)
+				continue;
+			const int pitch_class = ((notes[i].midi % 12) + 12) % 12;
+			if (!chord.tones[pitch_class]) {
+				lower_conflict = true;
+				break;
+			}
+		}
+		if (lower_conflict)
+			continue;
+
+		const float preferred_bonus =
+			preferred_root >= 0 && chord.root == preferred_root % 12 && chroma[chord.root] > 0.0f ? 0.35f :
+												  0.0f;
+		const float score = chord.confidence + level_sum * 0.30f +
+				    static_cast<float>(distinct_pitch_classes) * 0.10f + preferred_bonus -
+				    static_cast<float>(start) * 0.02f;
+		if (score > best_score) {
+			best_score = score;
+			best = chord;
+		}
+	}
+
+	if (best.root < 0)
+		copy_text(best.label, sizeof(best.label), "--");
+	return best;
+}
+
 ChordResult detect_caged_guitar_chord(const std::array<float, 12> &chroma, int preferred_root)
 {
 	ChordResult best;
@@ -1584,19 +1754,19 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 								TimbreKind::Keyboard) :
 				       timbre_midi_filter(note_powers, min_midi, max_midi, TimbreKind::Keyboard);
 		const std::array<bool, kNoteProbeCount> *allowed_midis = mixed_source ? &timbre_filter : nullptr;
-		const std::array<float, 12> chroma =
-			peak_chroma_for_range(tuned_note_powers, min_midi, max_midi, nullptr, suppress_adjacent,
-					      allowed_midis);
 		const int preferred_root = mixed_source && mixed_bass_pitch_class >= 0 ?
 						   mixed_bass_pitch_class :
 						   lowest_peak_pitch_class(tuned_note_powers, min_midi, max_midi,
 									   nullptr, suppress_adjacent, allowed_midis);
-		const ChordResult chord = detect_chord(chroma, preferred_root, allow_extensions);
 		const std::array<bool, 12> *allowed = nullptr;
 		const int max_notes = 10;
 		set_instrument_note_set(snapshot.keyboard_notes, snapshot.keyboard, tuned_note_powers, min_midi, max_midi,
-					chord.root >= 0 ? chord.root : preferred_root, keyboard_energy, rms,
-					max_notes, nullptr, allowed, suppress_adjacent, allowed_midis);
+					preferred_root, keyboard_energy, rms, max_notes, nullptr, allowed,
+					suppress_adjacent, allowed_midis);
+		const int keyboard_chord_root_hint = mixed_source ? preferred_root : -1;
+		const ChordResult chord =
+			detect_keyboard_chord_from_grid(snapshot.keyboard_notes, allow_extensions,
+							keyboard_chord_root_hint);
 		set_instrument_chord(snapshot.keyboard_chord, chord, keyboard_energy, rms);
 	};
 
@@ -1697,8 +1867,7 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 	const bool harmonic_processed = source_hint != SourceHint::Other;
 	const bool allow_smoothed_extensions = !mixed_source;
 	const ChordResult keyboard_seed_chord =
-		detect_chord(note_grid_chroma(snapshot.keyboard_notes),
-			     lowest_note_grid_pitch_class(snapshot.keyboard_notes), allow_smoothed_extensions);
+		detect_keyboard_chord_from_grid(snapshot.keyboard_notes, allow_smoothed_extensions);
 	const ChordResult guitar_seed_chord =
 		detect_guitar_chord_from_grid(snapshot.guitar_notes, allow_smoothed_extensions);
 	const ChordResult other_seed_chord =
@@ -1728,10 +1897,17 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 					  interval_seconds, mixed_source ? 12 : 8, guitar_new_notes);
 		smooth_note_grid_envelope(snapshot.vocal_notes, snapshot.vocal, vocal_note_envelope_, -1,
 					  interval_seconds, 1);
-		if (!keyboard_raw_notes)
-			set_chord_from_smoothed_grid(snapshot.keyboard_chord, snapshot.keyboard_notes,
-						    allow_smoothed_extensions);
-		else if (!keyboard_raw_chord)
+		if (!keyboard_raw_notes) {
+			const ChordResult smoothed_keyboard_chord =
+				detect_keyboard_chord_from_grid(snapshot.keyboard_notes, allow_smoothed_extensions);
+			if (smoothed_keyboard_chord.confidence >= 0.36f) {
+				copy_text(snapshot.keyboard_chord.label, sizeof(snapshot.keyboard_chord.label),
+					  smoothed_keyboard_chord.label);
+				snapshot.keyboard_chord.confidence = smoothed_keyboard_chord.confidence;
+			} else {
+				clear_instrument_state(snapshot.keyboard_chord);
+			}
+		} else if (!keyboard_raw_chord)
 			clear_instrument_state(snapshot.keyboard_chord);
 		if (!guitar_raw_notes) {
 			const ChordResult smoothed_guitar_chord =

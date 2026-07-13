@@ -238,7 +238,6 @@ void check_harmonic_single_notes(Runner &runner)
 			mao_test::add_midi_note(buffer, midi, 0.46f);
 			const auto snapshot = analyze_buffer(buffer, instrument.name);
 			const std::string context = std::string(instrument.name) + " single " + mao_test::note_label(midi);
-
 			const std::string expected_note = mao_test::note_label(midi);
 			expect_note_token(runner, instrument.notes(snapshot).label, expected_note.c_str(), context);
 			runner.expect(!mao_test::contains(instrument.notes(snapshot).label, "MAJ") &&
@@ -857,6 +856,40 @@ void check_realistic_instrument_chords(Runner &runner)
 	expect_note_token(runner, other_snapshot.other.label, "F4", "realistic other G7 chord");
 }
 
+void check_keyboard_hand_span_chords(Runner &runner)
+{
+	{
+		const auto buffer = mao_test::make_midi_notes({60, 64, 67}, 0.34f);
+		const auto snapshot = analyze_buffer(buffer, "keyboard");
+		expect_label(runner, snapshot.keyboard_chord.label, "C", "keyboard hand-span compact C");
+	}
+
+	{
+		const auto buffer = mao_test::make_midi_notes({48, 76, 91}, 0.34f);
+		const auto snapshot = analyze_buffer(buffer, "keyboard");
+		expect_no_chord_label(runner, snapshot.keyboard_chord.label, "C", "keyboard hand-span impossible C");
+		expect_label(runner, snapshot.keyboard_chord.label, "--", "keyboard hand-span impossible spread");
+	}
+
+	{
+		const auto buffer = mao_test::make_midi_notes({36, 72, 76, 79}, 0.32f);
+		const auto snapshot = analyze_buffer(buffer, "keyboard");
+		expect_label(runner, snapshot.keyboard_chord.label, "C", "keyboard hand-span compact upper C");
+	}
+
+	{
+		mao_test::Buffer buffer = {};
+		mao_test::add_midi_note(buffer, 36, 0.56f);
+		mao_test::add_midi_note(buffer, 67, 0.28f);
+		mao_test::add_midi_note(buffer, 71, 0.28f);
+		mao_test::add_midi_note(buffer, 74, 0.28f);
+		const auto snapshot = analyze_buffer(buffer, "full mix");
+		expect_label(runner, snapshot.bass.label, "C2", "keyboard hand-span mixed bass");
+		expect_label(runner, snapshot.keyboard_chord.label, "G", "keyboard hand-span mixed right hand");
+		expect_no_chord_label(runner, snapshot.keyboard_chord.label, "C", "keyboard hand-span mixed right hand");
+	}
+}
+
 void check_guitar_caged_voicings(Runner &runner)
 {
 	struct GuitarShape {
@@ -1166,6 +1199,7 @@ int main()
 	check_drum_hit_with_melodic_mix(runner);
 	check_detuned_note_tolerance(runner);
 	check_realistic_instrument_chords(runner);
+	check_keyboard_hand_span_chords(runner);
 	check_guitar_caged_voicings(runner);
 	check_guitar_caged_mix_root_independence(runner);
 	check_same_note_timbre_split(runner);
