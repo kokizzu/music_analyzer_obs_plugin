@@ -24,7 +24,7 @@ namespace {
 constexpr const char *kFilterId = "music_analyzer_filter";
 constexpr const char *kVisualizerId = "music_analyzer_overlay";
 constexpr uint32_t kDefaultWidth = 960;
-constexpr uint32_t kDefaultHeight = 360;
+constexpr uint32_t kDefaultHeight = 460;
 static_assert((mao::kAnalysisWindow & (mao::kAnalysisWindow - 1)) == 0, "analysis window must be a power of two");
 
 std::mutex g_snapshot_mutex;
@@ -652,6 +652,72 @@ int draw_instrument_rows(VisualizerData *visualizer, int y, const char *name, co
 	return y + static_cast<int>(row_count) * row_pitch + 4;
 }
 
+bool note_grid_has_midi(const mao::NoteGrid &notes, int midi)
+{
+	for (const auto &row : notes.rows) {
+		for (const mao::NoteCell &cell : row) {
+			if (cell.active && cell.midi == midi)
+				return true;
+		}
+	}
+	return false;
+}
+
+int draw_guitar_fretboard(VisualizerData *visualizer, int y, const mao::NoteGrid &notes,
+			  const mao::InstrumentState &chord)
+{
+	static constexpr int kStringCount = 6;
+	static constexpr int kFretCount = 16;
+	static constexpr int kOpenMidis[kStringCount] = {64, 59, 55, 50, 45, 40};
+	static constexpr const char *kStringNames[kStringCount] = {"E", "B", "G", "D", "A", "E"};
+
+	const int label_x = 28;
+	const int fret_x = 150;
+	const int row_pitch = 15;
+	const int cell_h = 14;
+	const int header_h = 15;
+	const int max_board_w = std::max(288, static_cast<int>(visualizer->width) - fret_x - 220);
+	const int fret_w = std::clamp(max_board_w / kFretCount, 18, 38);
+	const int board_w = fret_w * kFretCount;
+	const int chord_x = std::max(fret_x + board_w + 24, static_cast<int>(visualizer->width) - 190);
+	const int row_y = y + header_h;
+	const Color dim{130, 145, 163, 255};
+	const Color fret_bg{24, 30, 38, 210};
+	const Color border{58, 68, 82, 220};
+	const Color nut{148, 163, 184, 230};
+	const Color text{148, 163, 184, 255};
+	const Color accent{52, 199, 89, 245};
+	const Color chord_text{199, 210, 224, 255};
+	const char *chord_label = chord.label[0] ? chord.label : "--";
+
+	draw_text(visualizer, label_x, y + 24, "GUITAR", 2, dim);
+	for (int fret = 0; fret < kFretCount; ++fret) {
+		char fret_label[4] = {};
+		std::snprintf(fret_label, sizeof(fret_label), "%d", fret);
+		const int label_w = static_cast<int>(std::strlen(fret_label)) * 6;
+		draw_text(visualizer, fret_x + fret * fret_w + std::max(1, (fret_w - label_w) / 2), y,
+			  fret_label, 1, text);
+	}
+	draw_text(visualizer, chord_x, y, "CHORD", 1, text);
+	draw_chord_text(visualizer, chord_x, y + 16, chord_label, 2, chord_text);
+
+	for (int string = 0; string < kStringCount; ++string) {
+		const int cell_y = row_y + string * row_pitch;
+		draw_text(visualizer, fret_x - 22, cell_y + 2, kStringNames[string], 1, text);
+		for (int fret = 0; fret < kFretCount; ++fret) {
+			const int cell_x = fret_x + fret * fret_w;
+			const bool active = note_grid_has_midi(notes, kOpenMidis[string] + fret);
+			fill_rect(visualizer, cell_x, cell_y, fret_w - 1, cell_h, active ? accent : fret_bg);
+			fill_rect(visualizer, cell_x, cell_y, fret_w - 1, 1, border);
+			fill_rect(visualizer, cell_x, cell_y + cell_h - 1, fret_w - 1, 1, border);
+			fill_rect(visualizer, cell_x, cell_y, 1, cell_h, fret == 1 ? nut : border);
+			fill_rect(visualizer, cell_x + fret_w - 2, cell_y, 1, cell_h, border);
+		}
+	}
+
+	return row_y + kStringCount * row_pitch + 8;
+}
+
 void render_pixels(VisualizerData *visualizer, const mao::AnalysisSnapshot &snapshot, float snapshot_age)
 {
 	visualizer->pixels.assign(static_cast<std::size_t>(visualizer->width) * visualizer->height * 4, 0);
@@ -696,17 +762,16 @@ void render_pixels(VisualizerData *visualizer, const mao::AnalysisSnapshot &snap
 				     Color{255, 59, 48, 245}, 1);
 	row_y = draw_instrument_rows(visualizer, row_y, "KEYS", snapshot.keyboard_notes, &snapshot.keyboard_chord,
 				     Color{255, 204, 0, 245}, mao::kNoteRowCount);
-	row_y = draw_instrument_rows(visualizer, row_y, "GUITAR", snapshot.guitar_notes, &snapshot.guitar_chord,
-				     Color{52, 199, 89, 245}, mao::kNoteRowCount);
 	row_y = draw_instrument_rows(visualizer, row_y, "VOCAL", snapshot.vocal_notes, nullptr,
 				     Color{10, 132, 255, 245}, mao::kNoteRowCount);
 	row_y = draw_instrument_rows(visualizer, row_y, "OTHERS", snapshot.other_notes, &snapshot.other_chord,
 				     Color{191, 90, 242, 245}, mao::kNoteRowCount);
+	row_y = draw_guitar_fretboard(visualizer, row_y + 4, snapshot.guitar_notes, snapshot.guitar_chord);
 
 	char root_label[96];
 	std::snprintf(root_label, sizeof(root_label), "ROOT %s",
 		      snapshot.root_candidates[0] ? snapshot.root_candidates : "-- 0%");
-	draw_text(visualizer, 28, std::max(132, static_cast<int>(visualizer->height) - 20), root_label, 2,
+	draw_text(visualizer, 28, std::max(row_y + 4, static_cast<int>(visualizer->height) - 20), root_label, 2,
 		  Color{199, 210, 224, 255});
 
 	if (snapshot.sequence == 0)
@@ -760,7 +825,7 @@ void *visualizer_create(obs_data_t *settings, obs_source_t *)
 {
 	auto *visualizer = new VisualizerData();
 	visualizer->width = static_cast<uint32_t>(std::clamp<long long>(obs_data_get_int(settings, "width"), 320, 1920));
-	visualizer->height = static_cast<uint32_t>(std::clamp<long long>(obs_data_get_int(settings, "height"), 160, 1080));
+	visualizer->height = static_cast<uint32_t>(std::clamp<long long>(obs_data_get_int(settings, "height"), 450, 1080));
 	visualizer->update_fps = static_cast<uint32_t>(std::clamp<long long>(obs_data_get_int(settings, "update_fps"), 1, 30));
 	visualizer->pixels.resize(static_cast<std::size_t>(visualizer->width) * visualizer->height * 4);
 	render_pixels(visualizer, read_snapshot(), 0.0f);
@@ -797,7 +862,7 @@ obs_properties_t *visualizer_properties(void *)
 {
 	obs_properties_t *props = obs_properties_create();
 	obs_properties_add_int(props, "width", "Width", 320, 1920, 10);
-	obs_properties_add_int(props, "height", "Height", 160, 1080, 10);
+	obs_properties_add_int(props, "height", "Height", 450, 1080, 10);
 	obs_properties_add_int_slider(props, "update_fps", "Visualizer update FPS", 1, 30, 1);
 	return props;
 }
@@ -810,7 +875,7 @@ void visualizer_update(void *data, obs_data_t *settings)
 
 	std::lock_guard<std::mutex> lock(visualizer->mutex);
 	const uint32_t width = static_cast<uint32_t>(std::clamp<long long>(obs_data_get_int(settings, "width"), 320, 1920));
-	const uint32_t height = static_cast<uint32_t>(std::clamp<long long>(obs_data_get_int(settings, "height"), 160, 1080));
+	const uint32_t height = static_cast<uint32_t>(std::clamp<long long>(obs_data_get_int(settings, "height"), 450, 1080));
 	visualizer->update_fps = static_cast<uint32_t>(std::clamp<long long>(obs_data_get_int(settings, "update_fps"), 1, 30));
 	if (width != visualizer->width || height != visualizer->height) {
 		visualizer->width = width;
