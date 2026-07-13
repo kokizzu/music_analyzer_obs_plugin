@@ -43,6 +43,12 @@ bool is_directory(const std::string &path)
 	return ::stat(path.c_str(), &st) == 0 && S_ISDIR(st.st_mode);
 }
 
+bool file_exists(const std::string &path)
+{
+	struct stat st = {};
+	return ::stat(path.c_str(), &st) == 0 && S_ISREG(st.st_mode);
+}
+
 std::string join_path(const std::string &lhs, const std::string &rhs)
 {
 	if (lhs.empty() || lhs[lhs.size() - 1] == '/')
@@ -820,6 +826,11 @@ bool env_truthy(const char *name)
 	       std::strcmp(value, "FALSE") != 0;
 }
 
+bool is_generated_fixture_root(const std::string &root)
+{
+	return file_exists(join_path(root, ".music_analyzer_generated_urmp_fixture"));
+}
+
 std::string coverage_summary(const DatasetCoverageStats &coverage, int tested_pieces, int tested_windows)
 {
 	return "discovered " + std::to_string(coverage.discovered_piece_dirs) + " piece dirs, loadable " +
@@ -850,6 +861,13 @@ int main()
 	}
 	if (!is_directory(root)) {
 		std::fprintf(stderr, "analyzer_urmp: `%s` is not a directory\n", root.c_str());
+		return 1;
+	}
+	if (is_generated_fixture_root(root) && !env_truthy("MUSIC_ANALYZER_URMP_ALLOW_GENERATED_FIXTURE")) {
+		std::fprintf(stderr,
+			     "analyzer_urmp: `%s` is a generated fixture, not the real URMP dataset; set "
+			     "MUSIC_ANALYZER_URMP_ALLOW_GENERATED_FIXTURE=1 only for fixture tests\n",
+			     root.c_str());
 		return 1;
 	}
 
