@@ -61,14 +61,21 @@ struct FilterData {
 	std::atomic<uint32_t> hop_samples{2400};
 	std::atomic<uint32_t> sensitivity_percent{100};
 	std::atomic<bool> parent_name_resolved{false};
+	std::atomic<uint64_t> direct_audio_frames_seen{0};
 	uint32_t samples_until_analysis = 2400;
 	char source_name[64] = {};
+	char pending_source_name[64] = {};
 	uint64_t dropped_windows = 0;
 	uint64_t audio_frames_seen = 0;
 	uint64_t analyzed_windows = 0;
 	uint64_t pending_audio_frames = 0;
 	uint64_t pending_analyzed_windows = 0;
+	uint64_t master_last_direct_frames = 0;
+	uint32_t master_callbacks_since_direct = 0;
+	audio_t *master_audio = nullptr;
+	bool master_audio_connected = false;
 
+	std::mutex audio_mutex;
 	std::mutex worker_mutex;
 	std::condition_variable worker_cv;
 	std::thread worker;
@@ -78,7 +85,9 @@ struct FilterData {
 	mao::AnalysisEngine engine;
 };
 
-void copy_ring_to_pending(FilterData *filter)
+void master_audio_callback(void *param, size_t, struct audio_data *audio);
+
+void copy_ring_to_pending(FilterData *filter, const char *source_label)
 {
 	std::unique_lock<std::mutex> lock(filter->worker_mutex);
 	if (filter->pending) {
@@ -93,6 +102,8 @@ void copy_ring_to_pending(FilterData *filter)
 	filter->pending_settings.sample_rate = filter->sample_rate.load(std::memory_order_relaxed);
 	filter->pending_settings.sensitivity =
 		static_cast<float>(filter->sensitivity_percent.load(std::memory_order_relaxed)) / 100.0f;
+	copy_text(filter->pending_source_name, sizeof(filter->pending_source_name),
+		  source_label && *source_label ? source_label : filter->source_name);
 	filter->pending_audio_frames = filter->audio_frames_seen;
 	filter->pending_analyzed_windows = ++filter->analyzed_windows;
 	filter->pending = true;
@@ -128,6 +139,90 @@ void publish_filter_ready(FilterData *filter)
 	auto snapshot = status_engine.analyze(nullptr, 0, settings, source_name, dropped_windows);
 	snapshot.audio_seen = false;
 	publish_snapshot(snapshot);
+}
+
+void connect_master_audio(FilterData *filter)
+{
+	audio_t *audio = obs_get_audio();
+	if (!audio)
+		return;
+
+	audio_convert_info conversion = {};
+	conversion.samples_per_sec = filter->sample_rate.load(std::memory_order_relaxed);
+	conversion.format = AUDIO_FORMAT_FLOAT_PLANAR;
+	conversion.speakers = SPEAKERS_STEREO;
+	conversion.allow_clipping = false;
+
+	filter->master_audio_connected = audio_output_connect(audio, 0, &conversion, master_audio_callback, filter);
+	if (filter->master_audio_connected)
+		filter->master_audio = audio;
+}
+
+void disconnect_master_audio(FilterData *filter)
+{
+	if (!filter->master_audio_connected || !filter->master_audio)
+		return;
+
+	audio_output_disconnect(filter->master_audio, 0, master_audio_callback, filter);
+	filter->master_audio_connected = false;
+	filter->master_audio = nullptr;
+}
+
+void process_audio_planes(FilterData *filter, const float *const *planes, uint32_t channels, uint32_t frames,
+			  const char *source_label)
+{
+	if (!planes || channels == 0 || frames == 0)
+		return;
+
+	std::lock_guard<std::mutex> audio_lock(filter->audio_mutex);
+
+	for (uint32_t frame = 0; frame < frames; ++frame) {
+		float mixed = 0.0f;
+		uint32_t valid_planes = 0;
+
+		for (uint32_t ch = 0; ch < channels; ++ch) {
+			if (!planes[ch])
+				continue;
+			mixed += planes[ch][frame];
+			++valid_planes;
+		}
+
+		if (valid_planes == 0)
+			continue;
+
+		mixed /= static_cast<float>(valid_planes);
+		filter->ring[filter->write_pos] = std::clamp(mixed, -2.0f, 2.0f);
+		filter->write_pos = (filter->write_pos + 1) & (mao::kAnalysisWindow - 1);
+		++filter->audio_frames_seen;
+
+		if (--filter->samples_until_analysis == 0) {
+			filter->samples_until_analysis =
+				std::max<uint32_t>(1, filter->hop_samples.load(std::memory_order_relaxed));
+			copy_ring_to_pending(filter, source_label);
+		}
+	}
+}
+
+void master_audio_callback(void *param, size_t, struct audio_data *audio)
+{
+	auto *filter = static_cast<FilterData *>(param);
+	if (!filter || !audio)
+		return;
+
+	const uint64_t direct_frames = filter->direct_audio_frames_seen.load(std::memory_order_relaxed);
+	if (direct_frames != filter->master_last_direct_frames) {
+		filter->master_last_direct_frames = direct_frames;
+		filter->master_callbacks_since_direct = 0;
+		return;
+	}
+	if (direct_frames > 0 && filter->master_callbacks_since_direct++ < 30)
+		return;
+
+	std::array<const float *, 2> planes = {
+		reinterpret_cast<const float *>(audio->data[0]),
+		reinterpret_cast<const float *>(audio->data[1]),
+	};
+	process_audio_planes(filter, planes.data(), static_cast<uint32_t>(planes.size()), audio->frames, "OBS MIX");
 }
 
 void analyzer_worker(FilterData *filter)
@@ -191,6 +286,7 @@ void *filter_create(obs_data_t *settings, obs_source_t *source)
 					  std::memory_order_relaxed);
 
 	publish_filter_ready(filter);
+	connect_master_audio(filter);
 	filter->worker = std::thread(analyzer_worker, filter);
 	return filter;
 }
@@ -200,6 +296,8 @@ void filter_destroy(void *data)
 	auto *filter = static_cast<FilterData *>(data);
 	if (!filter)
 		return;
+
+	disconnect_master_audio(filter);
 
 	{
 		std::lock_guard<std::mutex> lock(filter->worker_mutex);
@@ -265,24 +363,8 @@ obs_audio_data *filter_audio(void *data, obs_audio_data *audio)
 	if (valid_planes == 0)
 		return audio;
 
-	for (uint32_t frame = 0; frame < audio->frames; ++frame) {
-		float mixed = 0.0f;
-		for (uint32_t ch = 0; ch < channels; ++ch) {
-			if (planes[ch])
-				mixed += planes[ch][frame];
-		}
-		mixed /= static_cast<float>(valid_planes);
-
-		filter->ring[filter->write_pos] = std::clamp(mixed, -2.0f, 2.0f);
-		filter->write_pos = (filter->write_pos + 1) & (mao::kAnalysisWindow - 1);
-		++filter->audio_frames_seen;
-
-		if (--filter->samples_until_analysis == 0) {
-			filter->samples_until_analysis =
-				std::max<uint32_t>(1, filter->hop_samples.load(std::memory_order_relaxed));
-			copy_ring_to_pending(filter);
-		}
-	}
+	filter->direct_audio_frames_seen.fetch_add(audio->frames, std::memory_order_relaxed);
+	process_audio_planes(filter, planes.data(), channels, audio->frames, nullptr);
 
 	return audio;
 }
@@ -305,6 +387,7 @@ struct VisualizerData {
 	uint32_t height = kDefaultHeight;
 	uint32_t update_fps = 10;
 	float elapsed = 1.0f;
+	float snapshot_age = 0.0f;
 	uint64_t rendered_sequence = 0;
 	bool dirty = true;
 	bool texture_size_dirty = true;
@@ -494,7 +577,7 @@ void draw_instrument_row(VisualizerData *visualizer, int y, const char *name, co
 		  accent);
 }
 
-void render_pixels(VisualizerData *visualizer, const mao::AnalysisSnapshot &snapshot)
+void render_pixels(VisualizerData *visualizer, const mao::AnalysisSnapshot &snapshot, float snapshot_age)
 {
 	visualizer->pixels.assign(static_cast<std::size_t>(visualizer->width) * visualizer->height * 4, 0);
 
@@ -530,6 +613,11 @@ void render_pixels(VisualizerData *visualizer, const mao::AnalysisSnapshot &snap
 			  Color{248, 250, 252, 255});
 	else if (!snapshot.audio_seen)
 		draw_text(visualizer, 230, 145, "FILTER READY - WAITING FOR AUDIO", 2, Color{248, 250, 252, 255});
+	else if (snapshot_age > 1.5f) {
+		char stale[96];
+		std::snprintf(stale, sizeof(stale), "STALE %.1FS - FILTER NOT RECEIVING AUDIO", snapshot_age);
+		draw_text(visualizer, 230, 145, stale, 2, Color{248, 250, 252, 255});
+	}
 }
 
 void *visualizer_create(obs_data_t *settings, obs_source_t *)
@@ -539,7 +627,7 @@ void *visualizer_create(obs_data_t *settings, obs_source_t *)
 	visualizer->height = static_cast<uint32_t>(std::clamp<long long>(obs_data_get_int(settings, "height"), 160, 1080));
 	visualizer->update_fps = static_cast<uint32_t>(std::clamp<long long>(obs_data_get_int(settings, "update_fps"), 1, 30));
 	visualizer->pixels.resize(static_cast<std::size_t>(visualizer->width) * visualizer->height * 4);
-	render_pixels(visualizer, read_snapshot());
+	render_pixels(visualizer, read_snapshot(), 0.0f);
 	return visualizer;
 }
 
@@ -606,14 +694,20 @@ void visualizer_tick(void *data, float seconds)
 
 	std::lock_guard<std::mutex> lock(visualizer->mutex);
 	visualizer->elapsed += seconds;
+	visualizer->snapshot_age += seconds;
 	const float interval = 1.0f / static_cast<float>(std::max<uint32_t>(1, visualizer->update_fps));
 	if (visualizer->elapsed < interval && !visualizer->dirty)
 		return;
 	visualizer->elapsed = 0.0f;
 
 	const auto snapshot = read_snapshot();
-	if (snapshot.sequence != visualizer->rendered_sequence || visualizer->dirty) {
-		render_pixels(visualizer, snapshot);
+	if (snapshot.sequence != visualizer->rendered_sequence) {
+		visualizer->snapshot_age = 0.0f;
+		render_pixels(visualizer, snapshot, visualizer->snapshot_age);
+		visualizer->rendered_sequence = snapshot.sequence;
+		visualizer->dirty = true;
+	} else if (visualizer->dirty || (snapshot.sequence > 0 && visualizer->snapshot_age > 1.5f)) {
+		render_pixels(visualizer, snapshot, visualizer->snapshot_age);
 		visualizer->rendered_sequence = snapshot.sequence;
 		visualizer->dirty = true;
 	}
