@@ -44,6 +44,7 @@ def main():
         urmp_harness = read_text("tests/analyzer_urmp.cpp")
         urmp_inspector = read_text("tests/inspect_urmp_dataset.py")
         bach10_fixture = read_text("tests/generate_bach10_fixture.py")
+        direct_fit_small_fixture = read_text("tests/generate_direct_fit_small_fixture.py")
         musicnet_harness = read_text("tests/analyzer_musicnet.cpp")
         multtipop_harness = read_text("tests/analyzer_multtipop.cpp")
         maestro_harness = read_text("tests/analyzer_maestro.cpp")
@@ -58,6 +59,9 @@ def main():
     target_minimum = int(catalog.get("criteria", {}).get("target_minimum_pieces", 20))
     urmp = dataset_by_id(catalog, "urmp")
     bach10 = dataset_by_id(catalog, "bach10")
+    trios = dataset_by_id(catalog, "trios")
+    wwq = dataset_by_id(catalog, "wwq")
+    phenicx = dataset_by_id(catalog, "phenicx_anechoic")
     musicnet = dataset_by_id(catalog, "musicnet")
     multtipop = dataset_by_id(catalog, "multtipop")
     medleydb = dataset_by_id(catalog, "medleydb")
@@ -69,6 +73,12 @@ def main():
         return fail("catalog missing URMP")
     if not bach10:
         return fail("catalog missing Bach10")
+    if not trios:
+        return fail("catalog missing TRIOS")
+    if not wwq:
+        return fail("catalog missing MIREX Woodwind Quintet")
+    if not phenicx:
+        return fail("catalog missing PHENICX-Anechoic")
     if not musicnet:
         return fail("catalog missing MusicNet")
     if not multtipop:
@@ -95,6 +105,16 @@ def main():
         problems.append("URMP automation target must remain test-real-multitrack-20")
     if bach10.get("fixture_target") != "test-bach10-fixture":
         problems.append("Bach10 generated fixture target must remain test-bach10-fixture")
+    if bach10.get("suite_fixture_target") != "test-direct-fit-small-fixture":
+        problems.append("Bach10 must remain represented in test-direct-fit-small-fixture")
+    for dataset, name in ((trios, "TRIOS"), (wwq, "MIREX Woodwind Quintet"), (phenicx, "PHENICX-Anechoic")):
+        if dataset.get("fixture_target") != "test-direct-fit-small-fixture":
+            problems.append(f"{name} must remain represented in test-direct-fit-small-fixture")
+    direct_fit_small_count = sum(
+        dataset.get("piece_count", 0) for dataset in (bach10, trios, wwq, phenicx)
+    )
+    if direct_fit_small_count < target_minimum:
+        problems.append("combined direct-fit-small catalog entries must provide at least 20 pieces")
     if musicnet.get("automation_target") != "test-real-musicnet-20":
         problems.append("MusicNet automation target must remain test-real-musicnet-20")
     if multtipop.get("automation_target") != "inspect-real-multtipop":
@@ -118,6 +138,7 @@ def main():
         (makefile, "tests/inspect_urmp_dataset.py", "Makefile URMP preflight audit dependency"),
         (makefile, "tests/generate_musicnet_fixture.py", "Makefile MusicNet fixture"),
         (makefile, "tests/generate_bach10_fixture.py", "Makefile Bach10-style fixture"),
+        (makefile, "tests/generate_direct_fit_small_fixture.py", "Makefile direct-fit-small fixture"),
         (makefile, "tests/generate_medleydb_fixture.py", "Makefile MedleyDB fixture"),
         (makefile, "tests/generate_multtipop_fixture.py", "Makefile MulTTiPop fixture"),
         (makefile, "tests/generate_spheres_fixture.py", "Makefile Spheres fixture"),
@@ -125,6 +146,8 @@ def main():
         (makefile, "tests/generate_maestro_fixture.py", "Makefile MAESTRO fixture"),
         (makefile, "tests/generate_egmd_fixture.py", "Makefile E-GMD fixture"),
         (makefile, "test-bach10-fixture", "Makefile Bach10-style fixture target"),
+        (makefile, "test-direct-fit-small-fixture", "Makefile direct-fit-small fixture target"),
+        (makefile, "MUSIC_ANALYZER_URMP_REQUIRED_PIECES=20", "Makefile direct-fit-small 20-piece gate"),
         (makefile, "inspect-real-multtipop", "Makefile optional MulTTiPop preflight"),
         (makefile, "test-real-multtipop-20", "Makefile optional MulTTiPop analyzer gate"),
         (makefile, "$(BUILD_DIR)/analyzer_multtipop", "Makefile MulTTiPop analyzer binary"),
@@ -161,6 +184,10 @@ def main():
         (urmp_harness, "require_chord_recall", "URMP explicit chord coverage requirement"),
         (bach10_fixture, "Bach10-style", "Bach10 generated fixture report"),
         (bach10_fixture, "bs_as_cl_vn", "Bach10 generated fixture instrumentation"),
+        (direct_fit_small_fixture, "Bach10", "direct-fit-small fixture Bach10 coverage"),
+        (direct_fit_small_fixture, "TRIOS", "direct-fit-small fixture TRIOS coverage"),
+        (direct_fit_small_fixture, "PHENICX", "direct-fit-small fixture PHENICX coverage"),
+        (direct_fit_small_fixture, "WWQ", "direct-fit-small fixture WWQ coverage"),
         (urmp_inspector, "matched_track_stats.summary", "URMP preflight track-density report"),
         (urmp_inspector, "candidate active tracks", "URMP preflight active-density report"),
         (urmp_inspector, "candidate pitch classes", "URMP preflight pitch-class density report"),
@@ -194,6 +221,7 @@ def main():
         (readme, "make test-real-maestro-20", "README MAESTRO analyzer instructions"),
         (readme, "make test-real-egmd-20", "README E-GMD analyzer instructions"),
         (readme, "make test-bach10-fixture", "README Bach10 fixture instructions"),
+        (readme, "make test-direct-fit-small-fixture", "README direct-fit-small fixture instructions"),
         (docs, "make test-real-goal-20", "dataset docs combined gate instructions"),
         (docs, "make inspect-real-goal-20", "dataset docs combined preflight instructions"),
         (docs, "make inspect-real-multtipop", "dataset docs MulTTiPop preflight instructions"),
@@ -203,12 +231,16 @@ def main():
         (docs, "make test-real-maestro-20", "dataset docs MAESTRO analyzer instructions"),
         (docs, "make test-real-egmd-20", "dataset docs E-GMD analyzer instructions"),
         (docs, "make test-bach10-fixture", "dataset docs Bach10 fixture instructions"),
+        (docs, "make test-direct-fit-small-fixture", "dataset docs direct-fit-small fixture instructions"),
         (docs, "MulTTiPop", "dataset docs MulTTiPop candidate"),
         (docs, "The Spheres Dataset", "dataset docs Spheres candidate"),
         (docs, "GuitarSet", "dataset docs GuitarSet candidate"),
         (docs, "MAESTRO", "dataset docs MAESTRO candidate"),
         (docs, "E-GMD", "dataset docs E-GMD candidate"),
         (docs, "Bach10", "dataset docs Bach10 candidate"),
+        (docs, "TRIOS", "dataset docs TRIOS candidate"),
+        (docs, "PHENICX-Anechoic", "dataset docs PHENICX-Anechoic candidate"),
+        (docs, "MIREX Woodwind Quintet", "dataset docs WWQ candidate"),
         (docs, "URMP should be the first automated target", "dataset docs URMP priority"),
     ):
         problem = require(text, needle, context)
@@ -222,8 +254,8 @@ def main():
 
     print(
         "inspect_real_goal_coverage: "
-        "catalog=URMP+Bach10+MusicNet+MedleyDB+MulTTiPop+Spheres+GuitarSet+MAESTRO+E-GMD, target=test-real-goal-20, "
-        "fixture=URMP+Bach10-style+MusicNet+MedleyDB+MulTTiPop-audio+Spheres+GuitarSet+MAESTRO+E-GMD, "
+        "catalog=URMP+direct-fit-small+MusicNet+MedleyDB+MulTTiPop+Spheres+GuitarSet+MAESTRO+E-GMD, target=test-real-goal-20, "
+        "fixture=URMP+Bach10-style+direct-fit-small+MusicNet+MedleyDB+MulTTiPop-audio+Spheres+GuitarSet+MAESTRO+E-GMD, "
         "summed_mix=yes, chord_checks=yes"
     )
     return 0

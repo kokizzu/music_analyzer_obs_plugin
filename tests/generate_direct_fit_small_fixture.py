@@ -1,0 +1,156 @@
+#!/usr/bin/env python3
+import math
+import os
+import shutil
+import struct
+import sys
+import wave
+
+
+SAMPLE_RATE = 48000
+SECONDS = 4
+FIXTURE_MARKER = ".music_analyzer_generated_urmp_fixture"
+WINDOWS = (
+    (0.25, 0.62, False),
+    (1.05, 0.62, False),
+    (1.85, 0.62, False),
+    (2.65, 0.62, False),
+)
+CHORD_ROOT_OFFSETS = (0, 5, 9, 7)
+DATASETS = (
+    ("Bach10", 10, (("bs", 43), ("as", 55), ("cl", 60), ("vn", 67))),
+    ("TRIOS", 5, (("vn", 67), ("vc", 48), ("cl", 60))),
+    (
+        "PHENICX",
+        4,
+        (("fl", 72), ("ob", 67), ("cl", 60), ("bn", 43), ("vn", 67), ("va", 55), ("vc", 48), ("db", 36)),
+    ),
+    ("WWQ", 1, (("fl", 72), ("ob", 67), ("cl", 60), ("hn", 48), ("bn", 43))),
+)
+
+
+def midi_frequency(midi):
+    return 440.0 * (2.0 ** ((midi - 69) / 12.0))
+
+
+def midi_at_or_above(min_midi, pitch_class):
+    return min_midi + ((pitch_class - min_midi % 12 + 12) % 12)
+
+
+def instrument_profile(instrument):
+    if instrument in ("vn", "va", "vc", "db"):
+        return ((1, 1.0), (2, 0.34), (3, 0.25), (4, 0.16), (5, 0.07))
+    if instrument in ("tpt", "hn", "tbn"):
+        return ((1, 1.0), (2, 0.30), (3, 0.35), (4, 0.16), (5, 0.10))
+    if instrument in ("cl", "ob"):
+        return ((1, 1.0), (3, 0.36), (5, 0.14), (7, 0.07))
+    if instrument in ("as", "fl"):
+        return ((1, 1.0), (2, 0.22), (3, 0.30), (4, 0.11), (5, 0.08))
+    return ((1, 1.0), (2, 0.44), (3, 0.17), (4, 0.10))
+
+
+def harmonic_sample(midi, amp, index, profile):
+    value = 0.0
+    for harmonic, scale in profile:
+        value += (
+            amp
+            * scale
+            * math.sin(
+                2.0
+                * math.pi
+                * midi_frequency(midi)
+                * harmonic
+                * index
+                / SAMPLE_RATE
+            )
+        )
+    return value
+
+
+def write_wav(path, channels):
+    os.makedirs(os.path.dirname(path), exist_ok=True)
+    frames = bytearray()
+    for index in range(SAMPLE_RATE * SECONDS):
+        value = sum(channel[index] for channel in channels)
+        value = max(-0.95, min(0.95, value))
+        frames.extend(struct.pack("<h", int(value * 32767.0)))
+
+    with wave.open(path, "wb") as wav:
+        wav.setnchannels(1)
+        wav.setsampwidth(2)
+        wav.setframerate(SAMPLE_RATE)
+        wav.writeframes(bytes(frames))
+
+
+def chord_interval(track_index, minor):
+    intervals = (0, 3 if minor else 4, 7)
+    octave = (track_index // len(intervals)) * 12
+    return intervals[track_index % len(intervals)] + octave
+
+
+def write_piece(root, dataset_name, dataset_index, global_index, instruments):
+    root_pitch_class = 0 if dataset_name == "TRIOS" else (global_index * 5) % 12
+    piece_name = f"{dataset_name}_{dataset_index:02d}_" + "_".join(instrument for instrument, _floor in instruments)
+    piece_dir = os.path.join(root, piece_name)
+    os.makedirs(piece_dir, exist_ok=True)
+
+    parts = []
+    for track_index, (instrument, floor) in enumerate(instruments, start=1):
+        channel = [0.0 for _ in range(SAMPLE_RATE * SECONDS)]
+        note_rows = []
+        profile = instrument_profile(instrument)
+        amplitude = 0.22 / math.sqrt(len(instruments))
+        for window_index, (onset, duration, minor) in enumerate(WINDOWS):
+            pitch_class = (
+                root_pitch_class
+                + CHORD_ROOT_OFFSETS[window_index]
+                + chord_interval(track_index - 1, minor)
+            ) % 12
+            midi = midi_at_or_above(floor, pitch_class)
+            start = int(onset * SAMPLE_RATE)
+            end = int((onset + duration) * SAMPLE_RATE)
+            for sample_index in range(start, min(end, len(channel))):
+                rel = (sample_index - start) / max(1, end - start)
+                envelope = min(1.0, rel * 18.0) * (1.0 - 0.18 * rel)
+                channel[sample_index] += harmonic_sample(midi, amplitude * envelope, sample_index, profile)
+            note_rows.append((onset, duration, midi))
+        parts.append(channel)
+
+        write_wav(
+            os.path.join(piece_dir, f"AuSep_{track_index}_{instrument}_{dataset_index:02d}_{dataset_name}.wav"),
+            [channel],
+        )
+        with open(
+            os.path.join(piece_dir, f"Notes_{track_index}_{instrument}_{dataset_index:02d}_{dataset_name}.txt"),
+            "w",
+            encoding="utf-8",
+        ) as notes_file:
+            for onset, duration, midi in note_rows:
+                notes_file.write(f"{onset:.3f} {midi_frequency(midi):.6f} {duration:.3f}\n")
+
+    write_wav(os.path.join(piece_dir, f"AuMix_{dataset_index:02d}_{dataset_name}.wav"), parts)
+
+
+def main(argv):
+    if len(argv) != 2:
+        print("usage: generate_direct_fit_small_fixture.py OUTPUT_DIR", file=sys.stderr)
+        return 2
+
+    output_dir = argv[1]
+    shutil.rmtree(output_dir, ignore_errors=True)
+    os.makedirs(output_dir)
+    with open(os.path.join(output_dir, FIXTURE_MARKER), "w", encoding="utf-8") as marker:
+        marker.write("generated by tests/generate_direct_fit_small_fixture.py\n")
+
+    global_index = 0
+    for dataset_name, count, instruments in DATASETS:
+        for dataset_index in range(1, count + 1):
+            global_index += 1
+            write_piece(output_dir, dataset_name, dataset_index, global_index, instruments)
+
+    print(f"generate_direct_fit_small_fixture: wrote {global_index} direct-fit-small pieces to {output_dir}")
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main(sys.argv))

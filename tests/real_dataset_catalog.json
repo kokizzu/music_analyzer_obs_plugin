@@ -39,6 +39,7 @@
       "truth": "pitch and note transcriptions plus audio-score alignment",
       "automation_target": "",
       "fixture_target": "test-bach10-fixture",
+      "suite_fixture_target": "test-direct-fit-small-fixture",
       "source_url": "https://arxiv.org/pdf/1612.08727",
       "evidence": "URMP survey table and text describe 10 Bach chorale multitrack recordings with pitch/note transcription and audio-score alignment."
     },
@@ -53,6 +54,7 @@
       "aligned_symbolic_truth": true,
       "truth": "MIDI transcriptions",
       "automation_target": "",
+      "fixture_target": "test-direct-fit-small-fixture",
       "source_url": "https://arxiv.org/pdf/1612.08727",
       "evidence": "URMP survey table and text describe 5 multitrack trio recordings with MIDI transcriptions."
     },
@@ -67,6 +69,7 @@
       "aligned_symbolic_truth": true,
       "truth": "note annotations",
       "automation_target": "",
+      "fixture_target": "test-direct-fit-small-fixture",
       "source_url": "https://arxiv.org/pdf/1612.08727",
       "evidence": "URMP survey describes a woodwind quintet with individual recordings and note annotations, with only a short public excerpt."
     },
@@ -81,6 +84,7 @@
       "aligned_symbolic_truth": true,
       "truth": "note annotations",
       "automation_target": "",
+      "fixture_target": "test-direct-fit-small-fixture",
       "source_url": "https://arxiv.org/pdf/1612.08727",
       "evidence": "URMP survey describes four anechoic orchestral pieces with 8-10 isolated parts each and denoised note annotations."
     },

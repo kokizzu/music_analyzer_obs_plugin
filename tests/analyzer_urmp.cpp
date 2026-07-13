@@ -927,6 +927,13 @@ CandidateWindow candidate_window_at(const std::vector<TrackData> &tracks, double
 	return candidate;
 }
 
+bool verbose_chord_misses_enabled()
+{
+	const char *value = std::getenv("MUSIC_ANALYZER_URMP_VERBOSE_CHORD_MISSES");
+	return value && *value && std::strcmp(value, "0") != 0 && std::strcmp(value, "false") != 0 &&
+	       std::strcmp(value, "FALSE") != 0;
+}
+
 void check_mix_recall(Runner &runner, const mao::AnalysisSnapshot &snapshot, const CandidateWindow &candidate,
 		      const std::string &context, MixRecallStats &stats, int min_recall_percent)
 {
@@ -955,7 +962,7 @@ void check_mix_recall(Runner &runner, const mao::AnalysisSnapshot &snapshot, con
 				    [&](const std::string &label) { return snapshot_has_chord_label(snapshot, label); });
 		if (chord_hit) {
 			++stats.chord_hits;
-		} else {
+		} else if (verbose_chord_misses_enabled()) {
 			std::fprintf(stderr,
 				     "%s: chord opportunity `%s`, detected key `%s`, guitar `%s`, other `%s`\n",
 				     context.c_str(), join_labels(candidate.chord_labels).c_str(),
