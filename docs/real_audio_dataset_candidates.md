@@ -53,7 +53,7 @@ not provide clean per-instrument audio stems for each mixture.
 | [Guitar-TECHS](https://arxiv.org/abs/2501.03720) | Electric guitar notes, chords, scales, techniques | Over 5 hours, DI/mic/amp perspectives, synchronized six-track MIDI labels. Single instrument only. |
 | [GAPS](https://arxiv.org/abs/2408.08653) | Classical guitar note/fretboard tests | 14 hours of real guitar audio with high-resolution note-level MIDI alignments. Single instrument only. |
 | [GOAT](https://arxiv.org/abs/2509.22655) | Electric guitar tablature/fret checks | 5.9 hours of DI electric guitar plus tablature/symbolic labels and augmented tones. Single instrument only. |
-| [E-GMD](https://arxiv.org/abs/2004.00188) | Drum hit and velocity tests | 444 hours of drum audio from 43 kits with paired MIDI and human velocity annotations. Drum-only. |
+| [E-GMD](https://magenta.tensorflow.org/datasets/e-gmd) | Drum hit and velocity tests with optional `make test-real-egmd-20` analyzer gate | 45,537 paired drum WAV/MIDI recordings, 444.5 hours, 43 drum kits, human velocity annotations, and about 2 ms audio/MIDI alignment. Drum-only. |
 | [Vocal quartet F0 datasets](https://arxiv.org/abs/2009.04172) | Vocal row and multiple-F0 checks | Multi-track vocal quartets with F0 annotations. Vocal-only, not instrumental. |
 
 ## Real Stems With Weak Or No MIDI Truth
@@ -77,13 +77,15 @@ without additional annotation.
   the exact local real-data commands. Use `make inspect-real-goal-20` as the
   combined setup preflight for the requested 20+ real same-song multitrack
   test. It requires the URMP layout preflight and then runs configured optional
-  preflights such as MusicNet and MedleyDB. The URMP preflight applies the same
+  gates such as MusicNet, MedleyDB, MulTTiPop, Spheres, GuitarSet, MAESTRO, and
+  E-GMD. The URMP preflight applies the same
   `MUSIC_ANALYZER_URMP_MIN_ACTIVE_TRACKS_PER_WINDOW` and
   `MUSIC_ANALYZER_URMP_MIN_PITCH_CLASSES_PER_WINDOW` density thresholds as the
   analyzer gate, then reports matched-track, candidate active-track, and
   candidate pitch-class min/average/max values. Use `make test-real-goal-20` as
   the combined analyzer acceptance gate. It requires the URMP multitrack gate
-  and then runs configured optional add-on gates such as MusicNet and MedleyDB.
+  and then runs configured optional add-on gates such as MusicNet, MedleyDB,
+  MulTTiPop, Spheres, GuitarSet, MAESTRO, and E-GMD.
   The official URMP full package is distributed through a registration form
   rather than a stable direct archive URL, so this repository intentionally does
   not try to download the 12.5 GB package automatically.
@@ -164,6 +166,14 @@ without additional annotation.
   recall. MAESTRO is a focused keyboard/piano real-audio add-on; it does not
   replace URMP because it is a single-instrument dataset, but it gives much
   stronger piano sustain and chord coverage than generated fixtures alone.
+- Use `make test-real-egmd-20` with
+  `MUSIC_ANALYZER_EGMD_ROOT=/path/to/e-gmd-v1.0.0` after extracting the official
+  E-GMD archive. The analyzer gate expects the official metadata CSV with
+  `audio_filename` and `midi_filename`, reads the paired WAV/MIDI files, parses
+  MIDI drum hit and velocity events, selects drum-hit windows, and checks
+  drum-category recall. E-GMD is a focused drum real-audio add-on; it does not
+  replace URMP because it is drum-only, but it gives much stronger
+  bass-drum/snare/hi-hat/tom/cymbal coverage than generated fixtures alone.
 - Use `make inspect-real-musicnet` and `make test-real-musicnet-20` with
   `MUSIC_ANALYZER_MUSICNET_ROOT=/path/to/musicnet` after extracting the open
   Zenodo MusicNet archive. The target expects `train_data`/`test_data` WAV
@@ -183,8 +193,9 @@ without additional annotation.
   `tests/fixtures/urmp-mini.tar.gz`, decodes it to disposable WAV files under
   `build/` with `ffmpeg`, generates 20-recording MusicNet-shaped WAV/CSV and
   MedleyDB-shaped stem-layout, audio-backed MulTTiPop-shaped multitrack-MIDI
-  metadata, Spheres-shaped stem-layout, GuitarSet-shaped JAMS/hex-audio, and
-  MAESTRO-shaped MIDI/WAV fixtures, sends all configured roots through the
+  metadata, Spheres-shaped stem-layout, GuitarSet-shaped JAMS/hex-audio,
+  MAESTRO-shaped MIDI/WAV, and E-GMD-shaped MIDI/WAV fixtures, sends all
+  configured roots through the
   combined setup preflight, and then sends them through the combined goal gate.
   The URMP fixture is marker-file tagged and is rejected by the real-data gate
   unless fixture mode is explicitly allowed. Override the decoder with
@@ -193,6 +204,6 @@ without additional annotation.
   `tests/generate_urmp_fixture.py`.
 - Bach10 is the next best add-on for a compact, fast regression set.
 - Single-instrument datasets should drive focused checks: GuitarSet now has a
-  local preflight, MAESTRO now has a local analyzer gate, Guitar-TECHS/GAPS are
-  next guitar add-ons, PianoVAM is a keyboard add-on, and E-GMD is the next drum
-  add-on.
+  local preflight, MAESTRO now has a local analyzer gate, E-GMD now has a local
+  drum analyzer gate, Guitar-TECHS/GAPS are next guitar add-ons, and PianoVAM is
+  a keyboard add-on.

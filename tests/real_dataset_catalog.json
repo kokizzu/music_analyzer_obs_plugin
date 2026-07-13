@@ -198,9 +198,11 @@
       "assembled_mix": false,
       "aligned_symbolic_truth": true,
       "truth": "paired drum MIDI and human velocity annotations",
-      "automation_target": "",
-      "source_url": "https://arxiv.org/abs/2004.00188",
-      "evidence": "Paper describes 444 hours of drum audio from 43 kits with MIDI and velocity annotations."
+      "automation_target": "test-real-egmd-20",
+      "source_url": "https://magenta.tensorflow.org/datasets/e-gmd",
+      "download_url": "https://storage.googleapis.com/magentadata/datasets/e-gmd/v1.0.0/e-gmd-v1.0.0.zip",
+      "download_note": "Official v1.0.0 archive is about 90 GB compressed and 132 GB uncompressed; MIDI-only and metadata-only downloads are also available.",
+      "evidence": "Official page describes 45,537 audio/MIDI recordings, 444.5 hours, 43 drum kits, MIDI annotations with human velocity, and about 2 ms alignment."
     },
     {
       "id": "medleydb",

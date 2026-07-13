@@ -161,6 +161,20 @@ def configured_maestro(env):
     return False
 
 
+def configured_egmd(env):
+    if env_has_any(env, ("MUSIC_ANALYZER_EGMD_ROOT", "EGMD_PATH")):
+        return True
+
+    dataset_root = env.get("MUSIC_ANALYZER_DATASET_ROOT", "")
+    if not dataset_root:
+        return False
+
+    for child in ("e-gmd-v1.0.0", "e-gmd", "EGMD", "E-GMD"):
+        if is_dir(child_path(dataset_root, child)):
+            return True
+    return False
+
+
 TARGET_PLANS = {
     "20": {
         "inspect_only": False,
@@ -172,6 +186,7 @@ TARGET_PLANS = {
         "spheres_target": "inspect-real-spheres",
         "guitarset_target": "inspect-real-guitarset",
         "maestro_target": "test-real-maestro-20",
+        "egmd_target": "test-real-egmd-20",
     },
     "full": {
         "inspect_only": False,
@@ -183,6 +198,7 @@ TARGET_PLANS = {
         "spheres_target": "inspect-real-spheres",
         "guitarset_target": "inspect-real-guitarset",
         "maestro_target": "test-real-maestro-full",
+        "egmd_target": "test-real-egmd-full",
     },
     "inspect-20": {
         "inspect_only": True,
@@ -194,6 +210,7 @@ TARGET_PLANS = {
         "spheres_target": "inspect-real-spheres",
         "guitarset_target": "inspect-real-guitarset",
         "maestro_target": "inspect-real-maestro",
+        "egmd_target": "inspect-real-egmd",
     },
     "inspect-full": {
         "inspect_only": True,
@@ -205,6 +222,7 @@ TARGET_PLANS = {
         "spheres_target": "inspect-real-spheres",
         "guitarset_target": "inspect-real-guitarset",
         "maestro_target": "inspect-real-maestro",
+        "egmd_target": "inspect-real-egmd",
     },
 }
 
@@ -300,6 +318,17 @@ def main(argv):
         print(
             "run_real_goal_gate: skipping optional MAESTRO piano analyzer gate; set "
             "MUSIC_ANALYZER_MAESTRO_ROOT/MAESTRO_PATH or place a MAESTRO directory under "
+            "MUSIC_ANALYZER_DATASET_ROOT"
+        )
+
+    if configured_egmd(env):
+        failed = run(make_cmd, plan["egmd_target"])
+        if failed:
+            return failed
+    else:
+        print(
+            "run_real_goal_gate: skipping optional E-GMD drum analyzer gate; set "
+            "MUSIC_ANALYZER_EGMD_ROOT/EGMD_PATH or place an E-GMD directory under "
             "MUSIC_ANALYZER_DATASET_ROOT"
         )
 
