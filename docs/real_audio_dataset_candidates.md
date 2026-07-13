@@ -84,7 +84,12 @@ without additional annotation.
   track. By default it samples up to 12 annotated windows per piece and requires
   at least 80 windows; it also prints discovered/loadable piece and window counts
   to diagnose incomplete dataset layouts. Set
-  `MUSIC_ANALYZER_URMP_MAX_WINDOWS_PER_PIECE` for quicker or deeper runs.
+  `MUSIC_ANALYZER_URMP_MAX_WINDOWS_PER_PIECE`,
+  `MUSIC_ANALYZER_URMP_REQUIRED_PIECES`, and
+  `MUSIC_ANALYZER_URMP_REQUIRED_WINDOWS` for quicker or deeper runs.
+- Use `make inspect-real-urmp-full` and `make test-real-urmp-full` when the full
+  URMP package is available. Those targets require all 44 official pieces and at
+  least 176 annotated test windows.
 - Real-audio tests should skip with a clear message when the dataset is absent.
 - URMP should be the first automated target because it gives enough pieces for
   20+ full-mix tests and has both isolated tracks and note truth.

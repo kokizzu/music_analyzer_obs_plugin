@@ -1116,6 +1116,16 @@ int resolve_max_windows_per_piece()
 	return parsed > 0 ? parsed : 12;
 }
 
+int resolve_positive_int_env(const char *name, int fallback)
+{
+	const char *value = std::getenv(name);
+	if (!value || !*value)
+		return fallback;
+
+	const int parsed = std::atoi(value);
+	return parsed > 0 ? parsed : fallback;
+}
+
 bool env_truthy(const char *name)
 {
 	const char *value = std::getenv(name);
@@ -1175,6 +1185,10 @@ int main()
 	collect_piece_dirs(root, 4, piece_dirs);
 	std::sort(piece_dirs.begin(), piece_dirs.end());
 	const int max_windows_per_piece = resolve_max_windows_per_piece();
+	const int required_pieces = resolve_positive_int_env("MUSIC_ANALYZER_URMP_REQUIRED_PIECES", 20);
+	const int default_required_windows = std::min(required_pieces * 4, max_windows_per_piece * required_pieces);
+	const int required_windows =
+		resolve_positive_int_env("MUSIC_ANALYZER_URMP_REQUIRED_WINDOWS", default_required_windows);
 
 	Runner runner;
 	DatasetCoverageStats coverage;
@@ -1295,12 +1309,12 @@ int main()
 		return 1;
 	}
 
-	runner.expect(tested_pieces >= 20,
-		      "URMP real-audio coverage: expected at least 20 usable pieces, got " +
+	runner.expect(tested_pieces >= required_pieces,
+		      "URMP real-audio coverage: expected at least " + std::to_string(required_pieces) +
+			      " usable pieces, got " +
 			      std::to_string(tested_pieces));
-	const int min_required_windows = std::min(80, max_windows_per_piece * 20);
-	runner.expect(tested_windows >= min_required_windows,
-		      "URMP real-audio coverage: expected at least " + std::to_string(min_required_windows) +
+	runner.expect(tested_windows >= required_windows,
+		      "URMP real-audio coverage: expected at least " + std::to_string(required_windows) +
 			      " tested windows, got " +
 			      std::to_string(tested_windows));
 	runner.expect(track_checks > 0 && track_hits * 100 >= track_checks * 70,

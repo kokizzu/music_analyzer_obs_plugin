@@ -25,7 +25,7 @@ PLUGIN_OBJS := $(BUILD_DIR)/analyzer.o $(BUILD_DIR)/plugin.o
 ANALYZER_TEST_OBJ := $(BUILD_DIR)/analyzer_test.o
 TEST_BINS := $(BUILD_DIR)/analyzer_smoke $(BUILD_DIR)/analyzer_cases $(BUILD_DIR)/analyzer_urmp
 
-.PHONY: all clean deps install-user test inspect-real-dataset-catalog test-urmp-fixture test-real-urmp inspect-real-urmp inspect-urmp-fixture decode-urmp-fixture update-urmp-fixture
+.PHONY: all clean deps install-user test inspect-real-dataset-catalog test-urmp-fixture test-real-urmp test-real-urmp-full inspect-real-urmp inspect-real-urmp-full inspect-urmp-fixture decode-urmp-fixture update-urmp-fixture
 
 all: $(SIMDE_DEP) $(BUILD_DIR)/music-analyzer-obs.so
 
@@ -90,8 +90,14 @@ test-urmp-fixture: $(BUILD_DIR)/analyzer_urmp $(URMP_FIXTURE_ARCHIVE) | $(BUILD_
 test-real-urmp: $(BUILD_DIR)/analyzer_urmp
 	MUSIC_ANALYZER_URMP_REQUIRED=1 $(BUILD_DIR)/analyzer_urmp
 
+test-real-urmp-full: $(BUILD_DIR)/analyzer_urmp
+	MUSIC_ANALYZER_URMP_REQUIRED=1 MUSIC_ANALYZER_URMP_REQUIRED_PIECES=44 MUSIC_ANALYZER_URMP_REQUIRED_WINDOWS=176 $(BUILD_DIR)/analyzer_urmp
+
 inspect-real-urmp: tests/inspect_urmp_dataset.py
 	$(PYTHON) tests/inspect_urmp_dataset.py
+
+inspect-real-urmp-full: tests/inspect_urmp_dataset.py
+	MUSIC_ANALYZER_URMP_REQUIRED_PIECES=44 MUSIC_ANALYZER_URMP_REQUIRED_WINDOWS=176 $(PYTHON) tests/inspect_urmp_dataset.py
 
 inspect-urmp-fixture: $(URMP_FIXTURE_ARCHIVE) tests/inspect_urmp_dataset.py | $(BUILD_DIR)
 	rm -rf $(URMP_FIXTURE_DIR)

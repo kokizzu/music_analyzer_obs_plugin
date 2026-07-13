@@ -107,14 +107,18 @@ def midi_from_frequency(freq):
 
 
 def resolve_max_windows_per_piece():
-    value = os.environ.get("MUSIC_ANALYZER_URMP_MAX_WINDOWS_PER_PIECE", "")
+    return resolve_positive_int_env("MUSIC_ANALYZER_URMP_MAX_WINDOWS_PER_PIECE", 12)
+
+
+def resolve_positive_int_env(name, fallback):
+    value = os.environ.get(name, "")
     if not value:
-        return 12
+        return fallback
     try:
         parsed = int(value)
     except ValueError:
-        return 12
-    return parsed if parsed > 0 else 12
+        return fallback
+    return parsed if parsed > 0 else fallback
 
 
 def read_notes(path):
@@ -289,6 +293,10 @@ def main():
 
     require_official = not allow_fixture
     max_windows = resolve_max_windows_per_piece()
+    required = resolve_positive_int_env("MUSIC_ANALYZER_URMP_REQUIRED_PIECES", 20)
+    required_windows = resolve_positive_int_env(
+        "MUSIC_ANALYZER_URMP_REQUIRED_WINDOWS", min(required * 4, max_windows * required)
+    )
     pieces = collect_piece_dirs(root)
     ok_count = 0
     official_count = 0
@@ -312,14 +320,12 @@ def main():
     for name, detail in failures:
         print(f"inspect_urmp_dataset: skip {name}: {detail}", file=sys.stderr)
 
-    required = 20
     if ok_count < required:
         print(
             f"inspect_urmp_dataset: expected at least {required} complete pieces, got {ok_count}",
             file=sys.stderr,
         )
         return 1
-    required_windows = min(80, max_windows * required)
     if candidate_windows < required_windows:
         print(
             f"inspect_urmp_dataset: expected at least {required_windows} candidate windows, got {candidate_windows}",
