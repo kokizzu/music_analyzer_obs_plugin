@@ -10,8 +10,8 @@ Native OBS Studio plugin that analyzes a music mix and displays an instrument-or
 - Note highlights fade with detected velocity/amplitude so quiet or sustaining notes are dimmer instead of full intensity
 - Notes outside the chromatic tuning window, about +/-9 cents from the equal-tempered center, are ignored instead of rounded to the nearest note
 - Keyboard, guitar, and other instruments: compact chord labels; vocal stays note-only
-- Instrument ownership: mixed sources claim duplicated pitches in bass, keyboard, guitar, vocal, then other order, with harmonic-profile checks allowing same-note keyboard/guitar/other overlaps when the timbre supports it
-- Source-name hints: `guitar`, `key`, `piano`, `synth`, `brass`, and `violin` route detection toward the matching row
+- Mixed-source routing: duplicated pitches are not claimed by row order; keyboard, guitar, and other rows use harmonic timbre masks, while bass and vocal use conservative range gates
+- Source-name hints: `guitar`, `key`, `piano`, `organ`, `synth`, `brass`, `horn`, `violin`, and `string` route detection toward the matching row
 - Root: rolling 15-second root candidates with confidence, with the primary root held until sustained modulation or silence
 - Chords: compact major, minor, power, sus2, sus4, diminished, augmented, 6, minor 6, dominant 7, major 7, minor 7, diminished 7, half-diminished, add9, 9, major 9, and minor 9 labels such as `C`, `Dm`, `Cdim`, `Caug`, `C6`, `Dm6`, `G7`, `Cmaj7`, `Dm7`, `Cdim7`, `Bm7b5`, `Cadd9`, `G9`, `Cmaj9`, and `Dm9`
 - Equivalent chord names for the same detected pitch classes are shown together, such as `Csus2=Gsus4` or `Dm7=F6`
@@ -57,7 +57,7 @@ Run the analyzer tests:
 make test
 ```
 
-`make test` builds standalone analyzer executables outside OBS. `analyzer_smoke` covers the basic signal path, and `analyzer_cases` runs broad synthetic note, instrument, chord, note-matrix, quiet-note rejection, realistic harmonic chord, same-note timbre split, multi-instrument mix, hierarchy, and root-candidate cases, including bass B0-G4, guitar E2-E6, keyboard/other A0-C8, and vocal E2-C6.
+`make test` builds standalone analyzer executables outside OBS. `analyzer_smoke` covers the basic signal path, and `analyzer_cases` runs broad synthetic note, instrument, chord, note-matrix, quiet-note rejection, realistic harmonic chord, same-note timbre split, mixed-source timbre routing, multi-instrument mix, and root-candidate cases, including bass B0-G4, guitar E2-E6, keyboard/other A0-C8, and vocal E2-C6.
 
 Optional CMake build, assuming the OBS development dependencies are installed system-wide:
 

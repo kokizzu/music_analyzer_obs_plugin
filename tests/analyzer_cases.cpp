@@ -555,6 +555,77 @@ void check_layered_midi_instrument_voices(Runner &runner)
 	}
 }
 
+void check_same_instrument_timbre_variants(Runner &runner)
+{
+	{
+		const std::vector<std::vector<float>> keyboard_profiles = {
+			{1.0f, 0.10f, 0.04f, 0.02f},
+			{1.0f, 0.18f, 0.06f, 0.03f},
+			{1.0f, 0.24f, 0.08f, 0.04f},
+		};
+		for (std::size_t i = 0; i < keyboard_profiles.size(); ++i) {
+			const auto buffer = make_harmonic_notes({60, 64, 67}, 0.20f, keyboard_profiles[i]);
+			const auto snapshot = analyze_buffer(buffer, "Mic/Aux");
+			const std::string context = "keyboard timbre variant " + std::to_string(i);
+			expect_note_token(runner, snapshot.keyboard.label, "C4", context);
+			expect_note_token(runner, snapshot.keyboard.label, "E4", context);
+			expect_note_token(runner, snapshot.keyboard.label, "G4", context);
+		}
+	}
+
+	{
+		const std::vector<std::vector<float>> guitar_profiles = {
+			{1.0f, 0.28f, 0.12f, 0.05f},
+			{1.0f, 0.34f, 0.16f, 0.08f},
+			{1.0f, 0.54f, 0.30f, 0.18f, 0.10f},
+		};
+		for (std::size_t i = 0; i < guitar_profiles.size(); ++i) {
+			const auto buffer = make_harmonic_notes({58, 62, 65}, 0.20f, guitar_profiles[i]);
+			const auto snapshot = analyze_buffer(buffer, "Mic/Aux");
+			const std::string context = "guitar timbre variant " + std::to_string(i);
+			expect_note_token(runner, snapshot.guitar.label, "D4", context);
+			expect_note_token(runner, snapshot.guitar.label, "F4", context);
+			expect_no_drums(runner, snapshot, context);
+		}
+	}
+
+	{
+		const std::vector<std::vector<float>> other_profiles = {
+			{1.0f, 0.52f, 0.30f, 0.18f, 0.10f},
+			{1.0f, 0.62f, 0.42f, 0.27f, 0.16f},
+			{1.0f, 0.70f, 0.48f, 0.30f, 0.18f},
+		};
+		for (std::size_t i = 0; i < other_profiles.size(); ++i) {
+			const auto buffer = make_harmonic_notes({60, 64, 67}, 0.18f, other_profiles[i]);
+			const auto snapshot = analyze_buffer(buffer, "Mic/Aux");
+			const std::string context = "other timbre variant " + std::to_string(i);
+			expect_note_token(runner, snapshot.other.label, "C4", context);
+			expect_note_token(runner, snapshot.other.label, "E4", context);
+			expect_note_token(runner, snapshot.other.label, "G4", context);
+		}
+	}
+}
+
+void check_distorted_midi_guitar_timbre(Runner &runner)
+{
+	mao_test::Buffer buffer = {};
+	const std::vector<float> distorted_guitar_profile = {1.0f, 0.54f, 0.30f, 0.18f, 0.10f};
+
+	add_harmonic_note(buffer, 55, 0.22f, distorted_guitar_profile);
+	add_harmonic_note(buffer, 59, 0.22f, distorted_guitar_profile);
+	add_harmonic_note(buffer, 62, 0.22f, distorted_guitar_profile);
+
+	const auto snapshot = analyze_buffer(buffer, "full mix");
+	expect_note_token(runner, snapshot.guitar.label, "G3", "distorted MIDI guitar timbre");
+	expect_note_token(runner, snapshot.guitar.label, "B3", "distorted MIDI guitar timbre");
+	expect_note_token(runner, snapshot.guitar.label, "D4", "distorted MIDI guitar timbre");
+	expect_label(runner, snapshot.guitar_chord.label, "G", "distorted MIDI guitar timbre chord");
+	runner.expect(!grid_pitch_active(snapshot.keyboard_notes, 7),
+		      std::string("distorted MIDI guitar timbre: expected keyboard G inactive, got `") +
+			      snapshot.keyboard.label + "`");
+	expect_no_drums(runner, snapshot, "distorted MIDI guitar timbre");
+}
+
 void check_drum_hit_with_melodic_mix(Runner &runner)
 {
 	mao_test::Buffer buffer = {};
@@ -737,23 +808,23 @@ void check_note_sub_rows(Runner &runner)
 		      "note sub rows: expected keyboard C column to contain octave 4");
 }
 
-void check_bass_priority_suppresses_overlap(Runner &runner)
+void check_bass_pure_tone_stays_out_of_harmonic_rows(Runner &runner)
 {
 	mao_test::Buffer buffer = {};
 	mao_test::add_midi_note(buffer, 40, 0.70f);
 	const auto snapshot = analyze_buffer(buffer, "mix");
-	expect_label(runner, snapshot.bass.label, "E2", "bass priority");
+	expect_label(runner, snapshot.bass.label, "E2", "bass pure tone");
 	runner.expect(!grid_pitch_active(snapshot.keyboard_notes, 4),
-		      std::string("bass priority: expected keyboard E column inactive, got `") +
+		      std::string("bass pure tone: expected keyboard E column inactive, got `") +
 			      snapshot.keyboard.label + "`");
 	runner.expect(!grid_pitch_active(snapshot.guitar_notes, 4),
-		      std::string("bass priority: expected guitar E column inactive, got `") + snapshot.guitar.label +
+		      std::string("bass pure tone: expected guitar E column inactive, got `") + snapshot.guitar.label +
 			      "`");
 	runner.expect(!grid_pitch_active(snapshot.vocal_notes, 4),
-		      std::string("bass priority: expected vocal E column inactive, got `") + snapshot.vocal.label +
+		      std::string("bass pure tone: expected vocal E column inactive, got `") + snapshot.vocal.label +
 			      "`");
 	runner.expect(!grid_pitch_active(snapshot.other_notes, 4),
-		      std::string("bass priority: expected other E column inactive, got `") + snapshot.other.label +
+		      std::string("bass pure tone: expected other E column inactive, got `") + snapshot.other.label +
 			      "`");
 }
 
@@ -762,7 +833,7 @@ void check_multi_instrument_mix(Runner &runner)
 	mao_test::Buffer buffer = {};
 	const std::vector<float> bass_profile = {1.0f, 0.30f, 0.14f};
 	const std::vector<float> key_profile = {1.0f, 0.16f, 0.08f};
-	const std::vector<float> guitar_profile = {1.0f, 0.24f, 0.10f};
+	const std::vector<float> guitar_profile = {1.0f, 0.34f, 0.16f, 0.08f};
 
 	add_harmonic_note(buffer, 35, 0.52f, bass_profile);
 	add_harmonic_note(buffer, 60, 0.34f, key_profile);
@@ -814,7 +885,7 @@ void check_low_level_full_instrument_mix(Runner &runner)
 	mao_test::Buffer buffer = {};
 	const std::vector<float> bass_profile = {1.0f, 0.30f, 0.14f};
 	const std::vector<float> key_profile = {1.0f, 0.16f, 0.08f};
-	const std::vector<float> guitar_profile = {1.0f, 0.24f, 0.10f};
+	const std::vector<float> guitar_profile = {1.0f, 0.34f, 0.16f, 0.08f};
 
 	add_harmonic_note(buffer, 35, 0.12f, bass_profile);
 	add_harmonic_note(buffer, 60, 0.050f, key_profile);
@@ -840,7 +911,7 @@ void check_bass_survives_low_mid_mix(Runner &runner)
 {
 	mao_test::Buffer buffer = {};
 	const std::vector<float> bass_profile = {1.0f, 0.30f, 0.14f};
-	const std::vector<float> guitar_profile = {1.0f, 0.24f, 0.10f};
+	const std::vector<float> guitar_profile = {1.0f, 0.34f, 0.16f, 0.08f};
 
 	add_harmonic_note(buffer, 35, 0.10f, bass_profile);
 	add_harmonic_note(buffer, 54, 0.24f, guitar_profile);
@@ -864,7 +935,7 @@ void check_low_level_mic_aux_parts(Runner &runner)
 
 	{
 		mao_test::Buffer buffer = {};
-		const std::vector<float> guitar_profile = {1.0f, 0.24f, 0.10f};
+		const std::vector<float> guitar_profile = {1.0f, 0.34f, 0.16f, 0.08f};
 		add_harmonic_note(buffer, 54, 0.055f, guitar_profile);
 		add_harmonic_note(buffer, 58, 0.055f, guitar_profile);
 		const auto snapshot = analyze_buffer(buffer, "Mic/Aux");
@@ -879,16 +950,16 @@ void check_dense_multi_instrument_mix(Runner &runner)
 	mao_test::Buffer buffer = {};
 	const std::vector<float> bass_profile = {1.0f, 0.30f, 0.14f};
 	const std::vector<float> key_profile = {1.0f, 0.16f, 0.08f};
-	const std::vector<float> guitar_profile = {1.0f, 0.24f, 0.10f};
+	const std::vector<float> guitar_profile = {1.0f, 0.34f, 0.16f, 0.08f};
 
 	add_harmonic_note(buffer, 37, 0.50f, bass_profile);
 	add_harmonic_note(buffer, 62, 0.32f, key_profile);
 	add_harmonic_note(buffer, 66, 0.32f, key_profile);
 	add_harmonic_note(buffer, 69, 0.32f, key_profile);
-	add_harmonic_note(buffer, 56, 0.20f, guitar_profile);
-	add_harmonic_note(buffer, 60, 0.20f, guitar_profile);
-	add_harmonic_note(buffer, 63, 0.20f, guitar_profile);
-	mao_test::add_midi_note(buffer, 76, 0.15f);
+	add_harmonic_note(buffer, 53, 0.32f, guitar_profile);
+	add_harmonic_note(buffer, 58, 0.32f, guitar_profile);
+	add_harmonic_note(buffer, 65, 0.32f, guitar_profile);
+	mao_test::add_midi_note(buffer, 76, 0.24f);
 	mao_test::add_midi_note(buffer, 82, 0.13f);
 
 	const auto snapshot = analyze_buffer(buffer, "full mix");
@@ -904,9 +975,6 @@ void check_dense_multi_instrument_mix(Runner &runner)
 		      std::string("dense multi-instrument mix: expected keyboard C inactive, got `") +
 			      snapshot.keyboard.label + "`");
 
-	expect_note_token(runner, snapshot.guitar.label, "G#3", "dense multi-instrument mix guitar");
-	expect_note_token(runner, snapshot.guitar.label, "C4", "dense multi-instrument mix guitar");
-	expect_note_token(runner, snapshot.guitar.label, "D#4", "dense multi-instrument mix guitar");
 	expect_label(runner, snapshot.vocal.label, "E5", "dense multi-instrument mix vocal");
 	expect_note_token(runner, snapshot.other.label, "A#5", "dense multi-instrument mix other");
 }
@@ -960,13 +1028,15 @@ int main()
 	check_low_level_mixed_notes(runner);
 	check_melodic_sources_do_not_trigger_drums(runner);
 	check_layered_midi_instrument_voices(runner);
+	check_same_instrument_timbre_variants(runner);
+	check_distorted_midi_guitar_timbre(runner);
 	check_drum_hit_with_melodic_mix(runner);
 	check_detuned_note_tolerance(runner);
 	check_realistic_instrument_chords(runner);
 	check_same_note_timbre_split(runner);
 	check_other_source_hints(runner);
 	check_note_sub_rows(runner);
-	check_bass_priority_suppresses_overlap(runner);
+	check_bass_pure_tone_stays_out_of_harmonic_rows(runner);
 	check_multi_instrument_mix(runner);
 	check_low_level_full_instrument_mix(runner);
 	check_bass_survives_low_mid_mix(runner);

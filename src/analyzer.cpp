@@ -329,6 +329,8 @@ bool timbre_supports_kind(const std::array<float, kNoteProbeCount> &powers, int 
 	const std::size_t kind_index = static_cast<std::size_t>(kind);
 	const float weight = mix.weights[kind_index];
 	const float relative_weight = weight / fundamental;
+	const float keyboard_weight = mix.weights[static_cast<std::size_t>(TimbreKind::Keyboard)] / fundamental;
+	const float guitar_weight = mix.weights[static_cast<std::size_t>(TimbreKind::Guitar)] / fundamental;
 	const float second = mix.bands[1] / fundamental;
 	const float third = mix.bands[2] / fundamental;
 	const float fourth = mix.bands[3] / fundamental;
@@ -338,7 +340,11 @@ bool timbre_supports_kind(const std::array<float, kNoteProbeCount> &powers, int 
 	case TimbreKind::Keyboard:
 		return relative_weight >= 0.14f && second <= 0.48f;
 	case TimbreKind::Guitar:
-		return relative_weight >= 0.14f && second >= 0.20f && third >= 0.08f;
+		return (guitar_weight >= 0.14f && second >= 0.20f && third >= 0.08f) ||
+		       (guitar_weight >= 0.12f && guitar_weight > keyboard_weight * 1.15f && second >= 0.14f &&
+			third >= 0.05f) ||
+		       (relative_weight >= 0.08f && guitar_weight > keyboard_weight * 0.75f && second >= 0.20f &&
+			second <= 0.72f && third >= 0.08f && fourth <= 0.32f);
 	case TimbreKind::Other:
 		return relative_weight >= 0.17f && second >= 0.26f && (fourth >= 0.07f || fifth >= 0.04f);
 	}
@@ -346,15 +352,27 @@ bool timbre_supports_kind(const std::array<float, kNoteProbeCount> &powers, int 
 	return false;
 }
 
-void claim_note_grid_midis(const NoteGrid &grid, std::array<bool, kNoteProbeCount> &claimed_midis)
+std::array<bool, kNoteProbeCount> timbre_midi_filter(const std::array<float, kNoteProbeCount> &powers,
+						     int min_midi, int max_midi, TimbreKind kind)
 {
-	for (const auto &row : grid.rows) {
-		for (const NoteCell &cell : row) {
-			if (!cell.active || cell.midi < kFirstMidi || cell.midi > kLastMidi)
+	std::array<bool, kNoteProbeCount> allowed = {};
+	min_midi = std::max(min_midi, kFirstMidi);
+	max_midi = std::min(max_midi, kLastMidi);
+	for (int midi = min_midi; midi <= max_midi; ++midi)
+		allowed[midi - kFirstMidi] = timbre_supports_kind(powers, midi, kind);
+	if (kind == TimbreKind::Guitar) {
+		for (int midi = min_midi; midi + 12 <= max_midi; ++midi) {
+			const int lower_index = midi - kFirstMidi;
+			const int upper_index = midi + 12 - kFirstMidi;
+			if (allowed[lower_index] || !allowed[upper_index])
 				continue;
-			claimed_midis[cell.midi - kFirstMidi] = true;
+			const float lower = std::sqrt(std::max(powers[lower_index], 0.0f));
+			const float upper = std::sqrt(std::max(powers[upper_index], 0.0f));
+			if (lower > upper * 1.15f)
+				allowed[lower_index] = true;
 		}
 	}
+	return allowed;
 }
 
 bool likely_selected_harmonic(const NoteCandidate &fundamental, const NoteCandidate &candidate)
@@ -371,8 +389,11 @@ bool likely_selected_harmonic(const NoteCandidate &fundamental, const NoteCandid
 }
 
 bool pitch_class_available(int midi, const std::array<bool, 12> *blocked_pitch_classes,
-			   const std::array<bool, 12> *allowed_pitch_classes)
+			   const std::array<bool, 12> *allowed_pitch_classes,
+			   const std::array<bool, kNoteProbeCount> *allowed_midis)
 {
+	if (allowed_midis && (midi < kFirstMidi || midi > kLastMidi || !(*allowed_midis)[midi - kFirstMidi]))
+		return false;
 	const int pitch_class = ((midi % 12) + 12) % 12;
 	if (blocked_pitch_classes && (*blocked_pitch_classes)[pitch_class])
 		return false;
@@ -385,7 +406,8 @@ std::vector<NoteCandidate> note_peak_candidates(const std::array<float, kNotePro
 						int max_midi, int max_notes,
 						const std::array<bool, 12> *blocked_pitch_classes = nullptr,
 						const std::array<bool, 12> *allowed_pitch_classes = nullptr,
-						bool suppress_adjacent_neighbors = false)
+						bool suppress_adjacent_neighbors = false,
+						const std::array<bool, kNoteProbeCount> *allowed_midis = nullptr)
 {
 	std::array<float, kNoteProbeCount> scores = {};
 	float strongest_score = 0.0f;
@@ -393,7 +415,7 @@ std::vector<NoteCandidate> note_peak_candidates(const std::array<float, kNotePro
 	max_midi = std::min(max_midi, kLastMidi);
 
 	for (int midi = min_midi; midi <= max_midi; ++midi) {
-		if (!pitch_class_available(midi, blocked_pitch_classes, allowed_pitch_classes))
+		if (!pitch_class_available(midi, blocked_pitch_classes, allowed_pitch_classes, allowed_midis))
 			continue;
 		const float score = std::sqrt(std::max(powers[midi - kFirstMidi], 0.0f));
 		scores[midi - kFirstMidi] = score;
@@ -437,12 +459,13 @@ std::vector<NoteCandidate> note_peak_candidates(const std::array<float, kNotePro
 std::array<float, 12> peak_chroma_for_range(const std::array<float, kNoteProbeCount> &powers, int min_midi,
 					    int max_midi,
 					    const std::array<bool, 12> *blocked_pitch_classes = nullptr,
-					    bool suppress_adjacent_neighbors = false)
+					    bool suppress_adjacent_neighbors = false,
+					    const std::array<bool, kNoteProbeCount> *allowed_midis = nullptr)
 {
 	std::array<float, 12> chroma = {};
 	for (const NoteCandidate &candidate : note_peak_candidates(powers, min_midi, max_midi, 6,
 								   blocked_pitch_classes, nullptr,
-								   suppress_adjacent_neighbors)) {
+								   suppress_adjacent_neighbors, allowed_midis)) {
 		const int pitch_class = ((candidate.midi % 12) + 12) % 12;
 		chroma[pitch_class] = std::max(chroma[pitch_class], candidate.score);
 	}
@@ -458,11 +481,12 @@ std::array<float, 12> peak_chroma_for_range(const std::array<float, kNoteProbeCo
 
 int lowest_peak_pitch_class(const std::array<float, kNoteProbeCount> &powers, int min_midi, int max_midi,
 			    const std::array<bool, 12> *blocked_pitch_classes = nullptr,
-			    bool suppress_adjacent_neighbors = false)
+			    bool suppress_adjacent_neighbors = false,
+			    const std::array<bool, kNoteProbeCount> *allowed_midis = nullptr)
 {
 	const std::vector<NoteCandidate> candidates =
 		note_peak_candidates(powers, min_midi, max_midi, 6, blocked_pitch_classes, nullptr,
-				     suppress_adjacent_neighbors);
+				     suppress_adjacent_neighbors, allowed_midis);
 	if (candidates.empty())
 		return -1;
 
@@ -733,16 +757,6 @@ void clear_instrument_state(InstrumentState &state)
 	state.confidence = 0.0f;
 }
 
-void clear_note_grid_pitch_class(NoteGrid &grid, int pitch_class)
-{
-	if (pitch_class < 0)
-		return;
-	pitch_class %= 12;
-	grid.cells[pitch_class] = {};
-	for (auto &row : grid.rows)
-		row[pitch_class] = {};
-}
-
 void write_note_grid_cell(NoteGrid &grid, const NoteCandidate &candidate, float strongest_score, float visual_loudness)
 {
 	const int pitch_class = ((candidate.midi % 12) + 12) % 12;
@@ -914,41 +928,6 @@ void set_chord_from_smoothed_grid(InstrumentState &state, const NoteGrid &grid, 
 	clear_instrument_state(state);
 }
 
-void add_shared_timbre_notes(NoteGrid &grid, InstrumentState &state, const std::array<float, kNoteProbeCount> &powers,
-			     const std::array<float, kNoteProbeCount> &tuned_powers, int min_midi, int max_midi,
-			     int preferred_root,
-			     const std::array<bool, kNoteProbeCount> &claimed_midis,
-			     TimbreKind kind, float rms)
-{
-	const float visual_loudness = note_visual_loudness(rms);
-	if (visual_loudness <= 0.0f)
-		return;
-
-	min_midi = std::max(min_midi, kFirstMidi);
-	max_midi = std::min(max_midi, kLastMidi);
-	for (int midi = min_midi; midi <= max_midi; ++midi) {
-		if (!claimed_midis[midi - kFirstMidi])
-			continue;
-		const int pitch_class = ((midi % 12) + 12) % 12;
-		if (grid.cells[pitch_class].active)
-			continue;
-		if (!timbre_supports_kind(powers, midi, kind))
-			continue;
-		const float score = std::sqrt(std::max(tuned_powers[midi - kFirstMidi], 0.0f));
-		if (score <= 1.0e-6f)
-			continue;
-
-		for (int neighbor : {midi - 1, midi + 1}) {
-			if (neighbor >= min_midi && neighbor <= max_midi)
-				clear_note_grid_pitch_class(grid, ((neighbor % 12) + 12) % 12);
-		}
-		write_note_grid_cell(grid, NoteCandidate{midi, score}, score, visual_loudness);
-	}
-
-	if (strongest_note_grid_level(grid) > 0.0f)
-		write_note_grid_label(state, grid, preferred_root);
-}
-
 void set_single_note_grid(NoteGrid &grid, InstrumentState &state, const RangeResult &note, float energy, float rms)
 {
 	clear_note_grid(grid);
@@ -969,7 +948,8 @@ void set_instrument_note_set(NoteGrid &grid, InstrumentState &state, const std::
 			     int min_midi, int max_midi, int preferred_root, float energy, float rms, int max_notes,
 			     const std::array<bool, 12> *blocked_pitch_classes = nullptr,
 			     const std::array<bool, 12> *allowed_pitch_classes = nullptr,
-			     bool suppress_adjacent_neighbors = false)
+			     bool suppress_adjacent_neighbors = false,
+			     const std::array<bool, kNoteProbeCount> *allowed_midis = nullptr)
 {
 	clear_note_grid(grid);
 	if (rms < kNoteRmsFloor || energy < 1.0e-5f) {
@@ -981,7 +961,7 @@ void set_instrument_note_set(NoteGrid &grid, InstrumentState &state, const std::
 	float strongest_score = 0.0f;
 	const std::vector<NoteCandidate> candidates =
 		note_peak_candidates(powers, min_midi, max_midi, max_notes, blocked_pitch_classes,
-				     allowed_pitch_classes, suppress_adjacent_neighbors);
+				     allowed_pitch_classes, suppress_adjacent_neighbors, allowed_midis);
 	for (const NoteCandidate &candidate : candidates)
 		strongest_score = std::max(strongest_score, candidate.score);
 
@@ -1013,18 +993,6 @@ void set_instrument_chord(InstrumentState &state, const ChordResult &chord, floa
 
 	copy_text(state.label, sizeof(state.label), "--");
 	state.confidence = 0.0f;
-}
-
-void claim_note_grid_pitch_classes(const NoteGrid &grid, std::array<bool, 12> &claimed_pitch_classes)
-{
-	for (const auto &row : grid.rows) {
-		for (const NoteCell &cell : row) {
-			if (!cell.active || cell.midi < 0)
-				continue;
-			const int pitch_class = ((cell.midi % 12) + 12) % 12;
-			claimed_pitch_classes[pitch_class] = true;
-		}
-	}
 }
 
 void append_text(char *dst, std::size_t dst_size, const char *text)
@@ -1451,8 +1419,6 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 
 	snapshot.root = track_root(tuned_note_powers, rms, settings, snapshot.root_candidates, sizeof(snapshot.root_candidates));
 
-	std::array<bool, 12> claimed_pitch_classes = {};
-	std::array<bool, kNoteProbeCount> claimed_midis = {};
 	const SourceHint source_hint = infer_source_hint(source_name);
 	const bool mixed_source = source_hint == SourceHint::None || source_hint == SourceHint::Bass;
 
@@ -1470,8 +1436,6 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 			bass_note.score >= broad_bass_note.score * kMixedBassFallbackScoreRatio;
 		if (mixed_bass_supported) {
 			set_single_note_grid(snapshot.bass_notes, snapshot.bass, bass_note, bass_energy, rms);
-			claim_note_grid_pitch_classes(snapshot.bass_notes, claimed_pitch_classes);
-			claim_note_grid_midis(snapshot.bass_notes, claimed_midis);
 		} else {
 			clear_note_grid(snapshot.bass_notes);
 			copy_text(snapshot.bass.label, sizeof(snapshot.bass.label), "--");
@@ -1488,89 +1452,79 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 		const int max_midi = mixed_source ? 83 : kKeyboardMaxMidi;
 		const bool allow_extensions = !mixed_source;
 		const bool suppress_adjacent = mixed_source;
-		const std::array<bool, 12> blocked_pitch_classes = claimed_pitch_classes;
+		const std::array<bool, kNoteProbeCount> timbre_filter =
+			timbre_midi_filter(note_powers, min_midi, max_midi, TimbreKind::Keyboard);
+		const std::array<bool, kNoteProbeCount> *allowed_midis = mixed_source ? &timbre_filter : nullptr;
 		const std::array<float, 12> chroma =
-			peak_chroma_for_range(tuned_note_powers, min_midi, max_midi, &blocked_pitch_classes,
-					      suppress_adjacent);
+			peak_chroma_for_range(tuned_note_powers, min_midi, max_midi, nullptr, suppress_adjacent,
+					      allowed_midis);
 		const int preferred_root =
-			lowest_peak_pitch_class(tuned_note_powers, min_midi, max_midi, &blocked_pitch_classes,
-						suppress_adjacent);
+			lowest_peak_pitch_class(tuned_note_powers, min_midi, max_midi, nullptr, suppress_adjacent,
+						allowed_midis);
 		const ChordResult chord = detect_chord(chroma, preferred_root, allow_extensions);
 		const std::array<bool, 12> *allowed = mixed_source && chord.root >= 0 ? &chord.tones : nullptr;
 		const int max_notes = mixed_source && !allowed ? 4 : 10;
 		set_instrument_note_set(snapshot.keyboard_notes, snapshot.keyboard, tuned_note_powers, min_midi, max_midi,
 					chord.root >= 0 ? chord.root : preferred_root, keyboard_energy, rms,
-					max_notes, &blocked_pitch_classes, allowed, suppress_adjacent);
+					max_notes, nullptr, allowed, suppress_adjacent, allowed_midis);
 		set_instrument_chord(snapshot.keyboard_chord, chord, keyboard_energy, rms);
-		claim_note_grid_pitch_classes(snapshot.keyboard_notes, claimed_pitch_classes);
-		claim_note_grid_midis(snapshot.keyboard_notes, claimed_midis);
 	};
 
 	auto process_guitar = [&]() {
+		const int min_midi = mixed_source ? 52 : kGuitarMinMidi;
 		const bool allow_extensions = !mixed_source;
 		const bool suppress_adjacent = mixed_source;
-		const std::array<bool, 12> blocked_pitch_classes = claimed_pitch_classes;
+		const std::array<bool, kNoteProbeCount> timbre_filter =
+			timbre_midi_filter(note_powers, min_midi, kGuitarMaxMidi, TimbreKind::Guitar);
+		const std::array<bool, kNoteProbeCount> *allowed_midis = mixed_source ? &timbre_filter : nullptr;
 		const std::array<float, 12> chroma =
-			peak_chroma_for_range(tuned_note_powers, kGuitarMinMidi, kGuitarMaxMidi, &blocked_pitch_classes,
-					      suppress_adjacent);
+			peak_chroma_for_range(tuned_note_powers, min_midi, kGuitarMaxMidi, nullptr, suppress_adjacent,
+					      allowed_midis);
 		const int preferred_root =
-			lowest_peak_pitch_class(tuned_note_powers, kGuitarMinMidi, kGuitarMaxMidi,
-						&blocked_pitch_classes, suppress_adjacent);
+			lowest_peak_pitch_class(tuned_note_powers, min_midi, kGuitarMaxMidi, nullptr,
+						suppress_adjacent, allowed_midis);
 		const ChordResult chord = detect_chord(chroma, preferred_root, allow_extensions);
-		const std::array<bool, 12> *allowed = mixed_source && chord.root >= 0 ? &chord.tones : nullptr;
-		const int max_notes = mixed_source && !allowed ? 2 : 8;
-		set_instrument_note_set(snapshot.guitar_notes, snapshot.guitar, tuned_note_powers, kGuitarMinMidi,
+		const std::array<bool, 12> *allowed = nullptr;
+		const int max_notes = mixed_source ? 3 : 8;
+		set_instrument_note_set(snapshot.guitar_notes, snapshot.guitar, tuned_note_powers, min_midi,
 					kGuitarMaxMidi, chord.root >= 0 ? chord.root : preferred_root, guitar_energy, rms,
-					max_notes, &blocked_pitch_classes, allowed, suppress_adjacent);
-		if (mixed_source) {
-			add_shared_timbre_notes(snapshot.guitar_notes, snapshot.guitar, note_powers, tuned_note_powers,
-						kGuitarMinMidi,
-						kGuitarMaxMidi, chord.root >= 0 ? chord.root : preferred_root,
-						claimed_midis, TimbreKind::Guitar, rms);
-		}
+					max_notes, nullptr, allowed, suppress_adjacent, allowed_midis);
 		set_instrument_chord(snapshot.guitar_chord, chord, guitar_energy, rms);
-		claim_note_grid_pitch_classes(snapshot.guitar_notes, claimed_pitch_classes);
-		claim_note_grid_midis(snapshot.guitar_notes, claimed_midis);
 	};
 
 	auto process_vocal = [&]() {
-		const int min_midi = mixed_source ? 60 : kVocalMinMidi;
+		const int min_midi = mixed_source ? 72 : kVocalMinMidi;
 		const bool suppress_adjacent = mixed_source;
-		const std::array<bool, 12> blocked_pitch_classes = claimed_pitch_classes;
 		const int preferred_root =
-			lowest_peak_pitch_class(tuned_note_powers, min_midi, kVocalMaxMidi, &blocked_pitch_classes,
+			lowest_peak_pitch_class(tuned_note_powers, min_midi, kVocalMaxMidi, nullptr,
 						suppress_adjacent);
 		set_instrument_note_set(snapshot.vocal_notes, snapshot.vocal, tuned_note_powers, min_midi,
-					kVocalMaxMidi, preferred_root, vocal_energy, rms, 1, &blocked_pitch_classes,
+					kVocalMaxMidi, preferred_root, vocal_energy, rms, 1, nullptr,
 					nullptr, suppress_adjacent);
-		claim_note_grid_pitch_classes(snapshot.vocal_notes, claimed_pitch_classes);
-		claim_note_grid_midis(snapshot.vocal_notes, claimed_midis);
 	};
 
 	auto process_other = [&]() {
-		const int min_midi = mixed_source ? 72 : kOtherMinMidi;
+		const int min_midi = mixed_source ? 60 : kOtherMinMidi;
 		const bool allow_extensions = !mixed_source;
 		const bool suppress_adjacent = mixed_source;
-		const std::array<bool, 12> blocked_pitch_classes = claimed_pitch_classes;
+		std::array<bool, kNoteProbeCount> timbre_filter =
+			timbre_midi_filter(note_powers, min_midi, kOtherMaxMidi, TimbreKind::Other);
+		if (mixed_source) {
+			for (int midi = 73; midi <= kOtherMaxMidi; ++midi)
+				timbre_filter[midi - kFirstMidi] = true;
+		}
+		const std::array<bool, kNoteProbeCount> *allowed_midis = mixed_source ? &timbre_filter : nullptr;
 		const std::array<float, 12> chroma =
-			peak_chroma_for_range(tuned_note_powers, min_midi, kOtherMaxMidi, &blocked_pitch_classes,
-					      suppress_adjacent);
+			peak_chroma_for_range(tuned_note_powers, min_midi, kOtherMaxMidi, nullptr,
+					      suppress_adjacent, allowed_midis);
 		const int preferred_root =
-			lowest_peak_pitch_class(tuned_note_powers, min_midi, kOtherMaxMidi, &blocked_pitch_classes,
-						suppress_adjacent);
+			lowest_peak_pitch_class(tuned_note_powers, min_midi, kOtherMaxMidi, nullptr,
+						suppress_adjacent, allowed_midis);
 		const ChordResult chord = detect_chord(chroma, preferred_root, allow_extensions);
 		set_instrument_note_set(snapshot.other_notes, snapshot.other, tuned_note_powers, min_midi, kOtherMaxMidi,
 					chord.root >= 0 ? chord.root : preferred_root, other_energy, rms, 8,
-					&blocked_pitch_classes, nullptr, suppress_adjacent);
-		if (mixed_source) {
-			add_shared_timbre_notes(snapshot.other_notes, snapshot.other, note_powers, tuned_note_powers, 60,
-						min_midi - 1,
-						chord.root >= 0 ? chord.root : preferred_root, claimed_midis,
-						TimbreKind::Other, rms);
-		}
+					nullptr, nullptr, suppress_adjacent, allowed_midis);
 		set_instrument_chord(snapshot.other_chord, chord, other_energy, rms);
-		claim_note_grid_pitch_classes(snapshot.other_notes, claimed_pitch_classes);
-		claim_note_grid_midis(snapshot.other_notes, claimed_midis);
 	};
 
 	switch (source_hint) {
