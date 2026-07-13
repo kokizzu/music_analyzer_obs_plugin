@@ -32,7 +32,7 @@ PLUGIN_OBJS := $(BUILD_DIR)/analyzer.o $(BUILD_DIR)/plugin.o
 ANALYZER_TEST_OBJ := $(BUILD_DIR)/analyzer_test.o
 TEST_BINS := $(BUILD_DIR)/analyzer_smoke $(BUILD_DIR)/analyzer_cases $(BUILD_DIR)/analyzer_urmp $(BUILD_DIR)/analyzer_musicnet
 
-.PHONY: all clean clean-pycache deps install-user test real-dataset-sources inspect-real-dataset-catalog inspect-real-medleydb inspect-real-musicnet inspect-real-musicnet-full test-medleydb-inspector test-real-goal-script test-real-goal-fixture test-musicnet-fixture test-urmp-fixture test-real-goal-20 test-real-goal-full test-real-multitrack-20 test-real-multitrack-full test-real-urmp test-real-urmp-full test-real-musicnet-20 test-real-musicnet-full inspect-real-multitrack-20 inspect-real-multitrack-full inspect-real-urmp inspect-real-urmp-full inspect-urmp-fixture decode-urmp-fixture update-urmp-fixture
+.PHONY: all clean clean-pycache deps install-user test real-dataset-sources inspect-real-dataset-catalog inspect-real-goal-coverage inspect-real-medleydb inspect-real-musicnet inspect-real-musicnet-full test-medleydb-inspector test-real-goal-script test-real-goal-fixture test-musicnet-fixture test-urmp-fixture test-real-goal-20 test-real-goal-full test-real-multitrack-20 test-real-multitrack-full test-real-urmp test-real-urmp-full test-real-musicnet-20 test-real-musicnet-full inspect-real-multitrack-20 inspect-real-multitrack-full inspect-real-urmp inspect-real-urmp-full inspect-urmp-fixture decode-urmp-fixture update-urmp-fixture
 
 all: $(SIMDE_DEP) $(BUILD_DIR)/music-analyzer-obs.so
 
@@ -86,6 +86,7 @@ $(BUILD_DIR)/analyzer_musicnet: $(ANALYZER_TEST_OBJ) $(BUILD_DIR)/analyzer_music
 
 test: $(TEST_BINS)
 	$(MAKE) inspect-real-dataset-catalog
+	$(MAKE) inspect-real-goal-coverage
 	$(MAKE) test-medleydb-inspector
 	$(MAKE) test-real-goal-script
 	$(BUILD_DIR)/analyzer_smoke
@@ -96,6 +97,9 @@ test: $(TEST_BINS)
 
 inspect-real-dataset-catalog: tests/inspect_real_dataset_catalog.py tests/real_dataset_catalog.json docs/real_audio_dataset_candidates.md
 	$(PYTHON) tests/inspect_real_dataset_catalog.py
+
+inspect-real-goal-coverage: tests/inspect_real_goal_coverage.py tests/real_dataset_catalog.json docs/real_audio_dataset_candidates.md README.md Makefile tests/analyzer_urmp.cpp tests/analyzer_musicnet.cpp tests/run_real_goal_gate.py
+	$(PYTHON) tests/inspect_real_goal_coverage.py
 
 real-dataset-sources: tests/print_real_dataset_sources.py tests/real_dataset_catalog.json docs/real_audio_dataset_candidates.md
 	$(PYTHON) tests/print_real_dataset_sources.py
