@@ -8,6 +8,7 @@ DEPS_DIR ?= $(BUILD_DIR)/deps
 OBS_USER_PLUGIN_DIR ?= $(HOME)/.config/obs-studio/plugins/music-analyzer-obs/bin/64bit
 URMP_FIXTURE_ARCHIVE := tests/fixtures/urmp-mini.tar.gz
 URMP_FIXTURE_DIR := $(BUILD_DIR)/urmp-fixture
+MUSICNET_FIXTURE_DIR := $(BUILD_DIR)/musicnet-fixture
 
 OBS_CFLAGS_RAW := $(shell $(PKG_CONFIG) --cflags libobs)
 OBS_CFLAGS := $(filter-out -std=gnu17 -Werror,$(OBS_CFLAGS_RAW))
@@ -23,9 +24,9 @@ CXXFLAGS += -std=c++17 -fPIC -Wall -Wextra
 
 PLUGIN_OBJS := $(BUILD_DIR)/analyzer.o $(BUILD_DIR)/plugin.o
 ANALYZER_TEST_OBJ := $(BUILD_DIR)/analyzer_test.o
-TEST_BINS := $(BUILD_DIR)/analyzer_smoke $(BUILD_DIR)/analyzer_cases $(BUILD_DIR)/analyzer_urmp
+TEST_BINS := $(BUILD_DIR)/analyzer_smoke $(BUILD_DIR)/analyzer_cases $(BUILD_DIR)/analyzer_urmp $(BUILD_DIR)/analyzer_musicnet
 
-.PHONY: all clean clean-pycache deps install-user test real-dataset-sources inspect-real-dataset-catalog inspect-real-medleydb test-medleydb-inspector test-urmp-fixture test-real-multitrack-20 test-real-multitrack-full test-real-urmp test-real-urmp-full inspect-real-multitrack-20 inspect-real-multitrack-full inspect-real-urmp inspect-real-urmp-full inspect-urmp-fixture decode-urmp-fixture update-urmp-fixture
+.PHONY: all clean clean-pycache deps install-user test real-dataset-sources inspect-real-dataset-catalog inspect-real-medleydb inspect-real-musicnet inspect-real-musicnet-full test-medleydb-inspector test-musicnet-fixture test-urmp-fixture test-real-multitrack-20 test-real-multitrack-full test-real-urmp test-real-urmp-full test-real-musicnet-20 test-real-musicnet-full inspect-real-multitrack-20 inspect-real-multitrack-full inspect-real-urmp inspect-real-urmp-full inspect-urmp-fixture decode-urmp-fixture update-urmp-fixture
 
 all: $(SIMDE_DEP) $(BUILD_DIR)/music-analyzer-obs.so
 
@@ -62,6 +63,9 @@ $(BUILD_DIR)/analyzer_cases.o: tests/analyzer_cases.cpp src/analyzer.hpp tests/a
 $(BUILD_DIR)/analyzer_urmp.o: tests/analyzer_urmp.cpp src/analyzer.hpp tests/analyzer_test_utils.hpp | $(BUILD_DIR)
 	$(CXX) $(CXXFLAGS) -Isrc -Itests -c $< -o $@
 
+$(BUILD_DIR)/analyzer_musicnet.o: tests/analyzer_musicnet.cpp src/analyzer.hpp tests/analyzer_test_utils.hpp | $(BUILD_DIR)
+	$(CXX) $(CXXFLAGS) -Isrc -Itests -c $< -o $@
+
 $(BUILD_DIR)/analyzer_smoke: $(ANALYZER_TEST_OBJ) $(BUILD_DIR)/analyzer_smoke.o
 	$(CXX) -o $@ $^ -lm -pthread
 
@@ -71,12 +75,17 @@ $(BUILD_DIR)/analyzer_cases: $(ANALYZER_TEST_OBJ) $(BUILD_DIR)/analyzer_cases.o
 $(BUILD_DIR)/analyzer_urmp: $(ANALYZER_TEST_OBJ) $(BUILD_DIR)/analyzer_urmp.o
 	$(CXX) -o $@ $^ -lm -pthread
 
+$(BUILD_DIR)/analyzer_musicnet: $(ANALYZER_TEST_OBJ) $(BUILD_DIR)/analyzer_musicnet.o
+	$(CXX) -o $@ $^ -lm -pthread
+
 test: $(TEST_BINS)
 	$(MAKE) inspect-real-dataset-catalog
 	$(MAKE) test-medleydb-inspector
 	$(BUILD_DIR)/analyzer_smoke
 	$(BUILD_DIR)/analyzer_cases
 	$(BUILD_DIR)/analyzer_urmp
+	$(BUILD_DIR)/analyzer_musicnet
+	$(MAKE) test-musicnet-fixture
 	$(MAKE) test-urmp-fixture
 
 inspect-real-dataset-catalog: tests/inspect_real_dataset_catalog.py tests/real_dataset_catalog.json docs/real_audio_dataset_candidates.md
@@ -88,8 +97,19 @@ real-dataset-sources: tests/print_real_dataset_sources.py tests/real_dataset_cat
 inspect-real-medleydb: tests/inspect_medleydb_dataset.py
 	$(PYTHON) tests/inspect_medleydb_dataset.py
 
+inspect-real-musicnet: $(BUILD_DIR)/analyzer_musicnet
+	MUSIC_ANALYZER_MUSICNET_REQUIRED=1 MUSIC_ANALYZER_MUSICNET_INSPECT_ONLY=1 $(BUILD_DIR)/analyzer_musicnet
+
+inspect-real-musicnet-full: $(BUILD_DIR)/analyzer_musicnet
+	MUSIC_ANALYZER_MUSICNET_REQUIRED=1 MUSIC_ANALYZER_MUSICNET_REQUIRED_RECORDINGS=330 MUSIC_ANALYZER_MUSICNET_REQUIRED_WINDOWS=1320 MUSIC_ANALYZER_MUSICNET_INSPECT_ONLY=1 $(BUILD_DIR)/analyzer_musicnet
+
 test-medleydb-inspector: tests/test_inspect_medleydb_dataset.py tests/inspect_medleydb_dataset.py
 	$(PYTHON) tests/test_inspect_medleydb_dataset.py
+
+test-musicnet-fixture: $(BUILD_DIR)/analyzer_musicnet tests/generate_musicnet_fixture.py | $(BUILD_DIR)
+	rm -rf $(MUSICNET_FIXTURE_DIR)
+	$(PYTHON) tests/generate_musicnet_fixture.py $(MUSICNET_FIXTURE_DIR)
+	MUSIC_ANALYZER_MUSICNET_ROOT=$(MUSICNET_FIXTURE_DIR) MUSIC_ANALYZER_MUSICNET_REQUIRED=1 $(BUILD_DIR)/analyzer_musicnet
 
 test-urmp-fixture: $(BUILD_DIR)/analyzer_urmp $(URMP_FIXTURE_ARCHIVE) | $(BUILD_DIR)
 	rm -rf $(URMP_FIXTURE_DIR)
@@ -106,6 +126,12 @@ test-real-urmp-full: $(BUILD_DIR)/analyzer_urmp
 test-real-multitrack-20: test-real-urmp
 
 test-real-multitrack-full: test-real-urmp-full
+
+test-real-musicnet-20: $(BUILD_DIR)/analyzer_musicnet
+	MUSIC_ANALYZER_MUSICNET_REQUIRED=1 $(BUILD_DIR)/analyzer_musicnet
+
+test-real-musicnet-full: $(BUILD_DIR)/analyzer_musicnet
+	MUSIC_ANALYZER_MUSICNET_REQUIRED=1 MUSIC_ANALYZER_MUSICNET_REQUIRED_RECORDINGS=330 MUSIC_ANALYZER_MUSICNET_REQUIRED_WINDOWS=1320 $(BUILD_DIR)/analyzer_musicnet
 
 inspect-real-urmp: tests/inspect_urmp_dataset.py
 	$(PYTHON) tests/inspect_urmp_dataset.py

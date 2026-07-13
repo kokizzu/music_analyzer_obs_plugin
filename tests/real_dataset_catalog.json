@@ -93,9 +93,11 @@
       "assembled_mix": true,
       "aligned_symbolic_truth": true,
       "truth": "temporal note and instrument labels",
-      "automation_target": "",
+      "automation_target": "test-real-musicnet-20",
       "source_url": "https://arxiv.org/abs/1611.09827",
-      "evidence": "Paper describes 34 hours of classical recordings with over 1M temporal labels, but not separated same-song source tracks."
+      "download_url": "https://zenodo.org/records/5120004",
+      "download_note": "Open Zenodo archive contains 11.1 GB of WAV audio plus CSV labels and reference MIDI files; it has no isolated stems.",
+      "evidence": "Zenodo record describes 330 freely licensed classical recordings with over 1M note labels including precise time, instrument, and note, but not separated same-song source tracks."
     },
     {
       "id": "multtipop",

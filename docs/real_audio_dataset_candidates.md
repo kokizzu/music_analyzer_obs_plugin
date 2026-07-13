@@ -43,7 +43,7 @@ not provide clean per-instrument audio stems for each mixture.
 
 | Dataset | Use | Notes |
 | --- | --- | --- |
-| [MusicNet](https://arxiv.org/abs/1611.09827) | Mixed classical note/instrument detection | 34 hours, 330 recordings, 11 instruments, over 1M temporal note labels. No isolated stems. |
+| [MusicNet](https://arxiv.org/abs/1611.09827) | Mixed classical note/instrument detection with optional `make test-real-musicnet-20` real-mix gate | 34 hours, 330 recordings, 11 instruments, over 1M temporal note labels. No isolated stems. |
 | [MulTTiPop](https://gclef-cmu.org/multtipop/) | Real pop mix note/instrument stress tests | 572 commercial-pop segments with aligned multitrack MIDI metadata, published at [HuggingFace](https://huggingface.co/datasets/gclef-cmu/multtipop). Audio is sourced via YouTube IDs/timestamps; recommended for evaluation, not training. |
 | RWC-Pop | Real pop mix transcription | Cited by MulTTiPop as 100 original pop recordings with multitrack MIDI. Access/licensing needs verification. |
 | [POP909](https://arxiv.org/abs/2008.07142) | Pop melody, lead, piano, chord checks | 909 popular-song arrangements with MIDI aligned to original audio plus tempo, beat, key, and chord annotations. Not per-instrument stems. |
@@ -113,6 +113,14 @@ without additional annotation.
   with mix plus stems and at least 20 melody-annotated multitracks by default.
   This is a partial real-stem/melody-F0 check and does not replace the URMP
   per-source note/chord gate.
+- Use `make inspect-real-musicnet` and `make test-real-musicnet-20` with
+  `MUSIC_ANALYZER_MUSICNET_ROOT=/path/to/musicnet` after extracting the open
+  Zenodo MusicNet archive. The target expects `train_data`/`test_data` WAV
+  folders and matching `train_labels`/`test_labels` CSV folders, selects windows
+  with at least two active notes, two labeled instruments, and two pitch classes
+  by default, then checks real-mix pitch-class and chord recall. This strengthens
+  real audio note/chord coverage, but because MusicNet has no isolated stems it
+  remains complementary to the URMP multitrack gate.
 - Real-audio tests should skip with a clear message when the dataset is absent.
 - URMP should be the first automated target because it gives enough pieces for
   20+ full-mix tests and has both isolated tracks and note truth.
