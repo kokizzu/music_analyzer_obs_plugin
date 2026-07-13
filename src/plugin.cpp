@@ -60,9 +60,14 @@ struct FilterData {
 	std::atomic<uint32_t> channels{2};
 	std::atomic<uint32_t> hop_samples{2400};
 	std::atomic<uint32_t> sensitivity_percent{100};
+	std::atomic<bool> parent_name_resolved{false};
 	uint32_t samples_until_analysis = 2400;
 	char source_name[64] = {};
 	uint64_t dropped_windows = 0;
+	uint64_t audio_frames_seen = 0;
+	uint64_t analyzed_windows = 0;
+	uint64_t pending_audio_frames = 0;
+	uint64_t pending_analyzed_windows = 0;
 
 	std::mutex worker_mutex;
 	std::condition_variable worker_cv;
@@ -88,17 +93,41 @@ void copy_ring_to_pending(FilterData *filter)
 	filter->pending_settings.sample_rate = filter->sample_rate.load(std::memory_order_relaxed);
 	filter->pending_settings.sensitivity =
 		static_cast<float>(filter->sensitivity_percent.load(std::memory_order_relaxed)) / 100.0f;
+	filter->pending_audio_frames = filter->audio_frames_seen;
+	filter->pending_analyzed_windows = ++filter->analyzed_windows;
 	filter->pending = true;
 	lock.unlock();
 	filter->worker_cv.notify_one();
 }
 
-void refresh_source_name(FilterData *filter)
+bool refresh_source_name(FilterData *filter)
 {
 	obs_source_t *parent = obs_filter_get_parent(filter->source);
 	const char *name = parent ? obs_source_get_name(parent) : obs_source_get_name(filter->source);
 	std::lock_guard<std::mutex> lock(filter->worker_mutex);
 	copy_text(filter->source_name, sizeof(filter->source_name), name);
+	return parent != nullptr;
+}
+
+void publish_filter_ready(FilterData *filter)
+{
+	mao::AnalysisSettings settings;
+	mao::AnalysisEngine status_engine;
+	char source_name[64] = {};
+	uint64_t dropped_windows = 0;
+
+	settings.sample_rate = filter->sample_rate.load(std::memory_order_relaxed);
+	settings.sensitivity = static_cast<float>(filter->sensitivity_percent.load(std::memory_order_relaxed)) / 100.0f;
+
+	{
+		std::lock_guard<std::mutex> lock(filter->worker_mutex);
+		copy_text(source_name, sizeof(source_name), filter->source_name);
+		dropped_windows = filter->dropped_windows;
+	}
+
+	auto snapshot = status_engine.analyze(nullptr, 0, settings, source_name, dropped_windows);
+	snapshot.audio_seen = false;
+	publish_snapshot(snapshot);
 }
 
 void analyzer_worker(FilterData *filter)
@@ -109,6 +138,8 @@ void analyzer_worker(FilterData *filter)
 		mao::AnalysisSettings settings;
 		char source_name[64] = {};
 		uint64_t dropped = 0;
+		uint64_t audio_frames = 0;
+		uint64_t analyzed_windows = 0;
 
 		{
 			std::unique_lock<std::mutex> lock(filter->worker_mutex);
@@ -120,10 +151,15 @@ void analyzer_worker(FilterData *filter)
 			settings = filter->pending_settings;
 			copy_text(source_name, sizeof(source_name), filter->source_name);
 			dropped = filter->dropped_windows;
+			audio_frames = filter->pending_audio_frames;
+			analyzed_windows = filter->pending_analyzed_windows;
 			filter->pending = false;
 		}
 
 		auto snapshot = filter->engine.analyze(local_window.data(), local_window.size(), settings, source_name, dropped);
+		snapshot.audio_seen = true;
+		snapshot.audio_frames = audio_frames;
+		snapshot.analyzed_windows = analyzed_windows;
 		publish_snapshot(snapshot);
 	}
 }
@@ -142,7 +178,7 @@ void *filter_create(obs_data_t *settings, obs_source_t *source)
 {
 	auto *filter = new FilterData();
 	filter->source = source;
-	refresh_source_name(filter);
+	filter->parent_name_resolved.store(refresh_source_name(filter), std::memory_order_relaxed);
 	refresh_audio_config(filter);
 
 	const long long update_ms = obs_data_get_int(settings, "update_ms");
@@ -154,6 +190,7 @@ void *filter_create(obs_data_t *settings, obs_source_t *source)
 	filter->sensitivity_percent.store(static_cast<uint32_t>(std::clamp<long long>(obs_data_get_int(settings, "sensitivity"), 50, 200)),
 					  std::memory_order_relaxed);
 
+	publish_filter_ready(filter);
 	filter->worker = std::thread(analyzer_worker, filter);
 	return filter;
 }
@@ -202,7 +239,8 @@ void filter_update(void *data, obs_data_t *settings)
 				  std::memory_order_relaxed);
 	filter->sensitivity_percent.store(static_cast<uint32_t>(std::clamp<long long>(obs_data_get_int(settings, "sensitivity"), 50, 200)),
 					  std::memory_order_relaxed);
-	refresh_source_name(filter);
+	filter->parent_name_resolved.store(refresh_source_name(filter), std::memory_order_relaxed);
+	publish_filter_ready(filter);
 }
 
 obs_audio_data *filter_audio(void *data, obs_audio_data *audio)
@@ -210,6 +248,9 @@ obs_audio_data *filter_audio(void *data, obs_audio_data *audio)
 	auto *filter = static_cast<FilterData *>(data);
 	if (!filter || !audio || audio->frames == 0)
 		return audio;
+
+	if (!filter->parent_name_resolved.load(std::memory_order_relaxed))
+		filter->parent_name_resolved.store(refresh_source_name(filter), std::memory_order_relaxed);
 
 	const uint32_t channels =
 		std::clamp<uint32_t>(filter->channels.load(std::memory_order_relaxed), 1, MAX_AUDIO_CHANNELS);
@@ -234,6 +275,7 @@ obs_audio_data *filter_audio(void *data, obs_audio_data *audio)
 
 		filter->ring[filter->write_pos] = std::clamp(mixed, -2.0f, 2.0f);
 		filter->write_pos = (filter->write_pos + 1) & (mao::kAnalysisWindow - 1);
+		++filter->audio_frames_seen;
 
 		if (--filter->samples_until_analysis == 0) {
 			filter->samples_until_analysis =
@@ -464,8 +506,10 @@ void render_pixels(VisualizerData *visualizer, const mao::AnalysisSnapshot &snap
 	draw_text(visualizer, 28, 24, title, 3, Color{246, 248, 251, 255});
 
 	char level[96];
-	std::snprintf(level, sizeof(level), "RMS %.2f  LOW %.0f%% MID %.0f%% HIGH %.0f%%", snapshot.rms,
-		      snapshot.low_energy * 100.0f, snapshot.mid_energy * 100.0f, snapshot.high_energy * 100.0f);
+	std::snprintf(level, sizeof(level), "RMS %.2f LOW %.0f%% MID %.0f%% HIGH %.0f%% UPD %llu DROP %llu",
+		      snapshot.rms, snapshot.low_energy * 100.0f, snapshot.mid_energy * 100.0f,
+		      snapshot.high_energy * 100.0f, static_cast<unsigned long long>(snapshot.analyzed_windows),
+		      static_cast<unsigned long long>(snapshot.dropped_windows));
 	draw_text(visualizer, 28, 58, level, 2, Color{148, 163, 184, 255});
 
 	draw_text(visualizer, 28, 96, "DRUMS", 3, Color{148, 163, 184, 255});
@@ -484,6 +528,8 @@ void render_pixels(VisualizerData *visualizer, const mao::AnalysisSnapshot &snap
 	if (snapshot.sequence == 0)
 		draw_text(visualizer, 230, 145, "ADD MUSIC ANALYZER FILTER TO AN AUDIO SOURCE", 2,
 			  Color{248, 250, 252, 255});
+	else if (!snapshot.audio_seen)
+		draw_text(visualizer, 230, 145, "FILTER READY - WAITING FOR AUDIO", 2, Color{248, 250, 252, 255});
 }
 
 void *visualizer_create(obs_data_t *settings, obs_source_t *)

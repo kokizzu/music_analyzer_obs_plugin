@@ -43,6 +43,9 @@ struct AnalysisSnapshot {
 	float mid_energy = 0.0f;
 	float high_energy = 0.0f;
 	uint64_t dropped_windows = 0;
+	uint64_t audio_frames = 0;
+	uint64_t analyzed_windows = 0;
+	bool audio_seen = false;
 	std::array<DrumState, kDrumCount> drums = {};
 	InstrumentState bass = {};
 	InstrumentState guitar = {};
