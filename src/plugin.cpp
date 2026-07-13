@@ -404,7 +404,7 @@ Color blend_color(Color from, Color to, float amount)
 
 float display_highlight_level(float level)
 {
-	constexpr float kFullHighlightLevel = 0.50f;
+	constexpr float kFullHighlightLevel = 0.25f;
 	return std::clamp(level / kFullHighlightLevel, 0.0f, 1.0f);
 }
 
@@ -770,8 +770,36 @@ Color pitch_class_color(int pitch_class)
 	return kColors[((pitch_class % 12) + 12) % 12];
 }
 
+void write_scale_degree(char *dst, std::size_t dst_size, int root_pitch_class, int pitch_class)
+{
+	if (!dst || dst_size == 0) {
+		return;
+	}
+	dst[0] = '\0';
+	if (root_pitch_class < 0) {
+		return;
+	}
+
+	static constexpr const char *kDegrees[12] = {
+		"1", "1#", "2", "2#", "3", "4", "4#", "5", "5#", "6", "6#", "7",
+	};
+	const int offset = (pitch_class - root_pitch_class + 12) % 12;
+	std::snprintf(dst, dst_size, "%s", kDegrees[offset]);
+}
+
+void draw_centered_text(VisualizerData *visualizer, int x, int y, int w, int h, const char *text, uint32_t scale,
+			Color color)
+{
+	if (!text || !text[0])
+		return;
+	const int text_width = static_cast<int>(std::strlen(text)) * static_cast<int>(scale) * 6;
+	const int text_height = static_cast<int>(scale) * 7;
+	draw_text(visualizer, x + std::max(1, (w - text_width) / 2), y + std::max(1, (h - text_height) / 2), text,
+		  scale, color);
+}
+
 int draw_piano_keyboard(VisualizerData *visualizer, int y, const mao::NoteGrid &notes,
-			const mao::InstrumentState &chord)
+			const mao::InstrumentState &chord, int degree_root_pitch_class)
 {
 	static constexpr int kRowCount = 3;
 	static constexpr int kOctavesPerRow = 2;
@@ -797,10 +825,11 @@ int draw_piano_keyboard(VisualizerData *visualizer, int y, const mao::NoteGrid &
 	const Color white_key{218, 225, 235, 235};
 	const Color black_key{20, 25, 32, 245};
 	const Color border{58, 68, 82, 230};
-	const Color active{255, 229, 48, 255};
-	const Color active_hot{255, 250, 150, 255};
 	const Color chord_text{199, 210, 224, 255};
+	const Color active_text{10, 15, 22, 255};
 	const char *chord_label = chord.label[0] ? chord.label : "--";
+	if (degree_root_pitch_class < 0)
+		degree_root_pitch_class = pitch_class_from_note_label(chord_label);
 
 	draw_text(visualizer, label_x, y + 38, "KEYS", 2, dim);
 	draw_text(visualizer, chord_x, y, "CHORD", 1, label_text);
@@ -818,14 +847,22 @@ int draw_piano_keyboard(VisualizerData *visualizer, int y, const mao::NoteGrid &
 			const float raw_level = piano_key_level(notes, midi);
 			const float level = display_highlight_level(raw_level);
 			const int x = key_x + i * white_w;
-			Color fill = blend_color(white_key, active, level);
+			const int pitch_class = ((midi % 12) + 12) % 12;
+			const Color note_color = pitch_class_color(pitch_class);
+			Color fill = blend_color(white_key, note_color, level);
 			if (raw_level > 0.0f)
-				fill = blend_color(fill, active_hot, level * 0.42f);
+				fill = blend_color(fill, Color{255, 255, 255, 255}, level * 0.26f);
 			fill_rect(visualizer, x, row_y, white_w - 1, white_h, fill);
 			fill_rect(visualizer, x, row_y, white_w - 1, 1, border);
 			fill_rect(visualizer, x, row_y + white_h - 1, white_w - 1, 1, border);
 			fill_rect(visualizer, x, row_y, 1, white_h, border);
 			fill_rect(visualizer, x + white_w - 2, row_y, 1, white_h, border);
+			if (raw_level > 0.0f) {
+				char degree[4] = {};
+				write_scale_degree(degree, sizeof(degree), degree_root_pitch_class, pitch_class);
+				draw_centered_text(visualizer, x, row_y + 8, white_w - 1, white_h - 8, degree, 1,
+						   active_text);
+			}
 		}
 
 		for (std::size_t i = 0; i < sizeof(kBlackOffsets) / sizeof(kBlackOffsets[0]); ++i) {
@@ -833,14 +870,22 @@ int draw_piano_keyboard(VisualizerData *visualizer, int y, const mao::NoteGrid &
 			const float raw_level = piano_key_level(notes, midi);
 			const float level = display_highlight_level(raw_level);
 			const int x = key_x + (kBlackAfterWhite[i] + 1) * white_w - black_w / 2;
-			Color fill = blend_color(black_key, active, level);
+			const int pitch_class = ((midi % 12) + 12) % 12;
+			const Color note_color = pitch_class_color(pitch_class);
+			Color fill = blend_color(black_key, note_color, level);
 			if (raw_level > 0.0f)
-				fill = blend_color(fill, active_hot, level * 0.38f);
+				fill = blend_color(fill, Color{255, 255, 255, 255}, level * 0.18f);
 			fill_rect(visualizer, x, row_y, black_w, black_h, fill);
 			fill_rect(visualizer, x, row_y, black_w, 1, border);
 			fill_rect(visualizer, x, row_y + black_h - 1, black_w, 1, border);
 			fill_rect(visualizer, x, row_y, 1, black_h, border);
 			fill_rect(visualizer, x + black_w - 1, row_y, 1, black_h, border);
+			if (raw_level > 0.0f) {
+				char degree[4] = {};
+				write_scale_degree(degree, sizeof(degree), degree_root_pitch_class, pitch_class);
+				draw_centered_text(visualizer, x, row_y + 1, black_w, black_h, degree, 1,
+						   Color{248, 250, 252, 255});
+			}
 		}
 	}
 
@@ -848,7 +893,7 @@ int draw_piano_keyboard(VisualizerData *visualizer, int y, const mao::NoteGrid &
 }
 
 int draw_guitar_fretboard(VisualizerData *visualizer, int y, const mao::NoteGrid &notes,
-			  const mao::InstrumentState &chord)
+			  const mao::InstrumentState &chord, int degree_root_pitch_class)
 {
 	static constexpr int kStringCount = 6;
 	static constexpr int kFretCount = 16;
@@ -871,8 +916,10 @@ int draw_guitar_fretboard(VisualizerData *visualizer, int y, const mao::NoteGrid
 	const Color nut{148, 163, 184, 230};
 	const Color text{148, 163, 184, 255};
 	const Color chord_text{199, 210, 224, 255};
+	const Color active_text{10, 15, 22, 255};
 	const char *chord_label = chord.label[0] ? chord.label : "--";
-	const int root_pitch_class = pitch_class_from_note_label(chord_label);
+	if (degree_root_pitch_class < 0)
+		degree_root_pitch_class = pitch_class_from_note_label(chord_label);
 
 	draw_text(visualizer, label_x, y + 24, "GUITAR", 2, dim);
 	for (int fret = 0; fret < kFretCount; ++fret) {
@@ -896,15 +943,19 @@ int draw_guitar_fretboard(VisualizerData *visualizer, int y, const mao::NoteGrid
 			const float level = display_highlight_level(raw_level);
 			fill_rect(visualizer, cell_x, cell_y, fret_w - 1, cell_h, fret_bg);
 			if (raw_level > 0.0f) {
-				const Color note_color = pitch_class == root_pitch_class ? Color{255, 59, 48, 255} :
+				const Color note_color = pitch_class == degree_root_pitch_class ? Color{255, 59, 48, 255} :
 										    pitch_class_color(pitch_class);
 				Color marker = blend_color(fret_bg, note_color, level);
-				marker = blend_color(marker, Color{255, 255, 255, 255}, level * 0.18f);
-				const int radius = std::max(3, std::min((fret_w - 5) / 2, (cell_h - 3) / 2));
+				marker = blend_color(marker, Color{255, 255, 255, 255}, level * 0.26f);
+				const int radius = std::max(4, std::min((fret_w - 4) / 2, (cell_h - 2) / 2));
 				const int cx = cell_x + fret_w / 2;
 				const int cy = cell_y + cell_h / 2;
 				fill_circle(visualizer, cx, cy, radius + 1, Color{8, 12, 18, 245});
 				fill_circle(visualizer, cx, cy, radius, marker);
+				char degree[4] = {};
+				write_scale_degree(degree, sizeof(degree), degree_root_pitch_class, pitch_class);
+				draw_centered_text(visualizer, cell_x, cell_y, fret_w - 1, cell_h, degree, 1,
+						   active_text);
 			}
 			fill_rect(visualizer, cell_x, cell_y, fret_w - 1, 1, border);
 			fill_rect(visualizer, cell_x, cell_y + cell_h - 1, fret_w - 1, 1, border);
@@ -962,8 +1013,11 @@ void render_pixels(VisualizerData *visualizer, const mao::AnalysisSnapshot &snap
 				     Color{10, 132, 255, 245}, kMatrixRowCount);
 	row_y = draw_instrument_rows(visualizer, row_y, "OTHERS", snapshot.other_notes, &snapshot.other_chord,
 				     Color{191, 90, 242, 245}, kMatrixRowCount);
-	row_y = draw_piano_keyboard(visualizer, row_y + 4, snapshot.keyboard_notes, snapshot.keyboard_chord);
-	row_y = draw_guitar_fretboard(visualizer, row_y + 4, snapshot.guitar_notes, snapshot.guitar_chord);
+	const int degree_root_pitch_class = pitch_class_from_note_label(snapshot.root.label);
+	row_y = draw_piano_keyboard(visualizer, row_y + 4, snapshot.keyboard_notes, snapshot.keyboard_chord,
+				    degree_root_pitch_class);
+	row_y = draw_guitar_fretboard(visualizer, row_y + 4, snapshot.guitar_notes, snapshot.guitar_chord,
+				      degree_root_pitch_class);
 
 	char root_label[96];
 	std::snprintf(root_label, sizeof(root_label), "ROOT %s",
