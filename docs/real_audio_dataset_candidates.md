@@ -86,9 +86,12 @@ without additional annotation.
   The harness requires official URMP piece folder IDs, validates that MIDI score
   pitch classes agree with note annotations, checks each separated track, the
   provided `AuMix`, and a synthesized full mix made by summing every separated
-  track. By default it samples up to 12 annotated windows per piece and requires
-  at least 80 windows; it also prints discovered/loadable piece and window counts
-  to diagnose incomplete dataset layouts. Set
+  track. It also replays each selected provided and summed full-mix window
+  through a short multi-frame analyzer sequence so note/chord smoothing is
+  checked against same-song mixed audio. By default it samples up to 12
+  annotated windows per piece and requires at least 80 windows; it also prints
+  discovered/loadable piece and window counts to diagnose incomplete dataset
+  layouts. Set
   `MUSIC_ANALYZER_URMP_MAX_WINDOWS_PER_PIECE`,
   `MUSIC_ANALYZER_URMP_REQUIRED_PIECES`, and
   `MUSIC_ANALYZER_URMP_REQUIRED_WINDOWS` for quicker or deeper runs.

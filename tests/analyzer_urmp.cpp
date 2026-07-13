@@ -730,7 +730,9 @@ struct DatasetCoverageStats {
 	int pieces_without_candidates = 0;
 	int selected_window_opportunities = 0;
 	int mix_read_failures = 0;
+	int mix_stream_failures = 0;
 	int summed_mix_failures = 0;
+	int summed_stream_failures = 0;
 	int track_read_failures = 0;
 };
 
@@ -1014,11 +1016,38 @@ mao::AnalysisSnapshot analyze_wav_window(const std::string &path, double time, c
 	return engine.analyze(buffer.data(), buffer.size(), settings, source_name.c_str(), 0);
 }
 
-mao::AnalysisSnapshot analyze_summed_track_window(const PieceFiles &piece, double time, const std::string &source_name,
-						  bool &ok, std::string &error)
+mao::AnalysisSnapshot analyze_confirmed_buffer(const mao_test::Buffer &buffer, uint32_t sample_rate,
+					       const std::string &source_name)
 {
-	mao_test::Buffer summed = {};
+	mao::AnalysisEngine engine;
+	mao::AnalysisSettings settings = mao_test::default_settings();
+	settings.sample_rate = sample_rate;
+	settings.analysis_interval_seconds = 0.05f;
+
+	mao::AnalysisSnapshot snapshot = {};
+	for (int frame = 0; frame < 3; ++frame)
+		snapshot = engine.analyze(buffer.data(), buffer.size(), settings, source_name.c_str(), 0);
+	return snapshot;
+}
+
+mao::AnalysisSnapshot analyze_wav_confirmed_window(const std::string &path, double time,
+						   const std::string &source_name, bool &ok,
+						   std::string &error)
+{
+	mao_test::Buffer buffer = {};
 	uint32_t sample_rate = 0;
+	ok = read_wav_window(path, time, buffer, sample_rate, error);
+	if (!ok)
+		return {};
+
+	return analyze_confirmed_buffer(buffer, sample_rate, source_name);
+}
+
+bool read_summed_track_window(const PieceFiles &piece, double time, mao_test::Buffer &summed,
+			      uint32_t &sample_rate, std::string &error)
+{
+	summed = {};
+	sample_rate = 0;
 
 	for (const TrackData &track : piece.tracks) {
 		mao_test::Buffer track_buffer = {};
@@ -1026,15 +1055,13 @@ mao::AnalysisSnapshot analyze_summed_track_window(const PieceFiles &piece, doubl
 		std::string track_error;
 		if (!read_wav_window(track.audio_path, time, track_buffer, track_sample_rate, track_error)) {
 			error = "track " + std::to_string(track.number) + " read failed: " + track_error;
-			ok = false;
-			return {};
+			return false;
 		}
 		if (sample_rate == 0) {
 			sample_rate = track_sample_rate;
 		} else if (track_sample_rate != sample_rate) {
 			error = "track " + std::to_string(track.number) + " sample-rate mismatch";
-			ok = false;
-			return {};
+			return false;
 		}
 		for (std::size_t i = 0; i < summed.size(); ++i)
 			summed[i] += track_buffer[i];
@@ -1043,16 +1070,39 @@ mao::AnalysisSnapshot analyze_summed_track_window(const PieceFiles &piece, doubl
 	for (float &sample : summed)
 		sample = std::clamp(sample, -1.0f, 1.0f);
 
-	ok = sample_rate != 0;
-	if (!ok) {
+	if (sample_rate == 0) {
 		error = "no separated tracks";
-		return {};
+		return false;
 	}
+	return true;
+}
+
+mao::AnalysisSnapshot analyze_summed_track_window(const PieceFiles &piece, double time, const std::string &source_name,
+						  bool &ok, std::string &error)
+{
+	mao_test::Buffer summed = {};
+	uint32_t sample_rate = 0;
+	ok = read_summed_track_window(piece, time, summed, sample_rate, error);
+	if (!ok)
+		return {};
 
 	mao::AnalysisEngine engine;
 	mao::AnalysisSettings settings = mao_test::default_settings();
 	settings.sample_rate = sample_rate;
 	return engine.analyze(summed.data(), summed.size(), settings, source_name.c_str(), 0);
+}
+
+mao::AnalysisSnapshot analyze_summed_confirmed_window(const PieceFiles &piece, double time,
+						      const std::string &source_name, bool &ok,
+						      std::string &error)
+{
+	mao_test::Buffer summed = {};
+	uint32_t sample_rate = 0;
+	ok = read_summed_track_window(piece, time, summed, sample_rate, error);
+	if (!ok)
+		return {};
+
+	return analyze_confirmed_buffer(summed, sample_rate, source_name);
 }
 
 std::string basename_of(const std::string &path)
@@ -1157,7 +1207,9 @@ std::string coverage_summary(const DatasetCoverageStats &coverage, int tested_pi
 	       std::to_string(coverage.selected_window_opportunities) + " candidate windows, tested " +
 	       std::to_string(tested_windows) + " windows across " + std::to_string(tested_pieces) +
 	       " pieces, mix-read failures " + std::to_string(coverage.mix_read_failures) +
+	       ", mix-stream failures " + std::to_string(coverage.mix_stream_failures) +
 	       ", summed-mix failures " + std::to_string(coverage.summed_mix_failures) +
+	       ", summed-stream failures " + std::to_string(coverage.summed_stream_failures) +
 	       ", track-read failures " + std::to_string(coverage.track_read_failures);
 }
 
@@ -1216,6 +1268,8 @@ int main()
 	int track_checks = 0;
 	MixRecallStats provided_mix_stats;
 	MixRecallStats summed_mix_stats;
+	MixRecallStats provided_stream_stats;
+	MixRecallStats summed_stream_stats;
 	int tested_windows = 0;
 
 	for (const std::string &piece_dir : piece_dirs) {
@@ -1274,6 +1328,17 @@ int main()
 			check_mix_recall(runner, mix_snapshot, candidate, window_context + " provided mix",
 					 provided_mix_stats, min_window_recall_percent);
 
+			const mao::AnalysisSnapshot mix_stream_snapshot = analyze_wav_confirmed_window(
+				piece.mix_path, candidate.time, "URMP real full mix stream", ok, error);
+			if (!ok) {
+				++coverage.mix_stream_failures;
+				runner.expect(false, window_context + " provided mix stream: " + error);
+			} else {
+				check_mix_recall(runner, mix_stream_snapshot,
+						 candidate, window_context + " provided mix stream",
+						 provided_stream_stats, min_window_recall_percent);
+			}
+
 			const mao::AnalysisSnapshot summed_snapshot = analyze_summed_track_window(
 				piece, candidate.time, "URMP summed separated tracks", ok, error);
 			if (!ok) {
@@ -1283,6 +1348,17 @@ int main()
 				check_mix_recall(runner, summed_snapshot, candidate,
 						 window_context + " summed separated tracks", summed_mix_stats,
 						 min_window_recall_percent);
+			}
+
+			const mao::AnalysisSnapshot summed_stream_snapshot = analyze_summed_confirmed_window(
+				piece, candidate.time, "URMP summed separated tracks stream", ok, error);
+			if (!ok) {
+				++coverage.summed_stream_failures;
+				runner.expect(false, window_context + " summed separated tracks stream: " + error);
+			} else {
+				check_mix_recall(runner, summed_stream_snapshot, candidate,
+						 window_context + " summed separated tracks stream",
+						 summed_stream_stats, min_window_recall_percent);
 			}
 
 			for (const ActiveNote &active : candidate.active) {
@@ -1352,6 +1428,20 @@ int main()
 			      std::to_string(min_mix_recall_percent) + "%, got " +
 			      std::to_string(summed_mix_stats.hits) + "/" +
 			      std::to_string(summed_mix_stats.expected));
+	runner.expect(provided_stream_stats.expected > 0 &&
+			      provided_stream_stats.hits * 100 >=
+				      provided_stream_stats.expected * min_mix_recall_percent,
+		      "URMP streaming provided full-mix pitch-class recall: expected >=" +
+			      std::to_string(min_mix_recall_percent) + "%, got " +
+			      std::to_string(provided_stream_stats.hits) + "/" +
+			      std::to_string(provided_stream_stats.expected));
+	runner.expect(summed_stream_stats.expected > 0 &&
+			      summed_stream_stats.hits * 100 >=
+				      summed_stream_stats.expected * min_mix_recall_percent,
+		      "URMP streaming summed separated-track mix pitch-class recall: expected >=" +
+			      std::to_string(min_mix_recall_percent) + "%, got " +
+			      std::to_string(summed_stream_stats.hits) + "/" +
+			      std::to_string(summed_stream_stats.expected));
 	if (provided_mix_stats.chord_checks >= min_chord_checks) {
 		runner.expect(
 			provided_mix_stats.chord_hits * 100 >= provided_mix_stats.chord_checks * min_chord_recall_percent,
@@ -1368,29 +1458,54 @@ int main()
 				      std::to_string(summed_mix_stats.chord_hits) + "/" +
 				      std::to_string(summed_mix_stats.chord_checks));
 	}
+	if (provided_stream_stats.chord_checks >= min_chord_checks) {
+		runner.expect(
+			provided_stream_stats.chord_hits * 100 >=
+				provided_stream_stats.chord_checks * min_chord_recall_percent,
+			"URMP streaming provided full-mix chord recall: expected >=" +
+				std::to_string(min_chord_recall_percent) + "%, got " +
+				      std::to_string(provided_stream_stats.chord_hits) + "/" +
+				      std::to_string(provided_stream_stats.chord_checks));
+	}
+	if (summed_stream_stats.chord_checks >= min_chord_checks) {
+		runner.expect(
+			summed_stream_stats.chord_hits * 100 >=
+				summed_stream_stats.chord_checks * min_chord_recall_percent,
+			"URMP streaming summed separated-track mix chord recall: expected >=" +
+				std::to_string(min_chord_recall_percent) + "%, got " +
+				      std::to_string(summed_stream_stats.chord_hits) + "/" +
+				      std::to_string(summed_stream_stats.chord_checks));
+	}
 
 	if (runner.failures != 0) {
 		std::fprintf(stderr,
 			     "analyzer_urmp: %d/%d checks failed (%d pieces, %d windows, %d track hits/%d, "
-			     "%d provided mix hits/%d, %d summed mix hits/%d, %d provided chord hits/%d, "
-			     "%d summed chord hits/%d)\n",
+			     "%d provided mix hits/%d, %d summed mix hits/%d, %d provided stream hits/%d, "
+			     "%d summed stream hits/%d, %d provided chord hits/%d, %d summed chord hits/%d, "
+			     "%d provided stream chord hits/%d, %d summed stream chord hits/%d)\n",
 			     runner.failures, runner.checks, tested_pieces, tested_windows, track_hits,
 			     track_checks, provided_mix_stats.hits, provided_mix_stats.expected, summed_mix_stats.hits,
-			     summed_mix_stats.expected, provided_mix_stats.chord_hits,
-			     provided_mix_stats.chord_checks, summed_mix_stats.chord_hits,
-			     summed_mix_stats.chord_checks);
+			     summed_mix_stats.expected, provided_stream_stats.hits, provided_stream_stats.expected,
+			     summed_stream_stats.hits, summed_stream_stats.expected, provided_mix_stats.chord_hits,
+			     provided_mix_stats.chord_checks, summed_mix_stats.chord_hits, summed_mix_stats.chord_checks,
+			     provided_stream_stats.chord_hits, provided_stream_stats.chord_checks,
+			     summed_stream_stats.chord_hits, summed_stream_stats.chord_checks);
 		std::fprintf(stderr, "analyzer_urmp: coverage: %s\n",
 			     coverage_summary(coverage, tested_pieces, tested_windows).c_str());
 		return 1;
 	}
 
 	std::printf("analyzer_urmp: %d checks passed (%d pieces, %d windows, %d track hits/%d, "
-		    "%d provided mix hits/%d, %d summed mix hits/%d, %d provided chord hits/%d, "
-		    "%d summed chord hits/%d)\n",
+		    "%d provided mix hits/%d, %d summed mix hits/%d, %d provided stream hits/%d, "
+		    "%d summed stream hits/%d, %d provided chord hits/%d, %d summed chord hits/%d, "
+		    "%d provided stream chord hits/%d, %d summed stream chord hits/%d)\n",
 		    runner.checks, tested_pieces, tested_windows, track_hits, track_checks,
 		    provided_mix_stats.hits, provided_mix_stats.expected, summed_mix_stats.hits,
-		    summed_mix_stats.expected, provided_mix_stats.chord_hits, provided_mix_stats.chord_checks,
-		    summed_mix_stats.chord_hits, summed_mix_stats.chord_checks);
+		    summed_mix_stats.expected, provided_stream_stats.hits, provided_stream_stats.expected,
+		    summed_stream_stats.hits, summed_stream_stats.expected, provided_mix_stats.chord_hits,
+		    provided_mix_stats.chord_checks, summed_mix_stats.chord_hits, summed_mix_stats.chord_checks,
+		    provided_stream_stats.chord_hits, provided_stream_stats.chord_checks,
+		    summed_stream_stats.chord_hits, summed_stream_stats.chord_checks);
 	std::printf("analyzer_urmp: coverage: %s\n", coverage_summary(coverage, tested_pieces, tested_windows).c_str());
 	return 0;
 }
