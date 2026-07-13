@@ -454,6 +454,13 @@ struct CandidateWindow {
 	double score = 0.0;
 };
 
+struct MixRecallStats {
+	int hits = 0;
+	int expected = 0;
+	int chord_hits = 0;
+	int chord_checks = 0;
+};
+
 int pitch_class_count(const std::array<bool, 12> &pitch_classes)
 {
 	int count = 0;
@@ -485,6 +492,40 @@ CandidateWindow candidate_window_at(const std::vector<TrackData> &tracks, double
 			  static_cast<double>(pitch_class_count(candidate.pitch_classes)) * 10.0 +
 			  (candidate.chord_label.empty() ? 0.0 : 50.0);
 	return candidate;
+}
+
+void check_mix_recall(Runner &runner, const mao::AnalysisSnapshot &snapshot, const CandidateWindow &candidate,
+		      const std::string &context, MixRecallStats &stats, int min_recall_percent)
+{
+	const std::array<bool, 12> detected = detected_pitch_classes(snapshot);
+	int expected = 0;
+	int hits = 0;
+	for (int pitch_class = 0; pitch_class < 12; ++pitch_class) {
+		if (!candidate.pitch_classes[pitch_class])
+			continue;
+		++expected;
+		if (detected[pitch_class])
+			++hits;
+	}
+
+	stats.hits += hits;
+	stats.expected += expected;
+	runner.expect(expected > 0 && hits * 100 >= expected * min_recall_percent,
+		      context + ": expected at least " + std::to_string(min_recall_percent) +
+			      "% pitch-class recall, got " + std::to_string(hits) + "/" +
+			      std::to_string(expected));
+
+	if (!candidate.chord_label.empty()) {
+		++stats.chord_checks;
+		if (snapshot_has_chord_label(snapshot, candidate.chord_label)) {
+			++stats.chord_hits;
+		} else {
+			std::fprintf(stderr,
+				     "%s: chord opportunity `%s`, detected key `%s`, guitar `%s`, other `%s`\n",
+				     context.c_str(), candidate.chord_label.c_str(), snapshot.keyboard_chord.label,
+				     snapshot.guitar_chord.label, snapshot.other_chord.label);
+		}
+	}
 }
 
 std::vector<CandidateWindow> select_candidate_windows(const std::vector<TrackData> &tracks, int max_windows)
@@ -603,6 +644,47 @@ mao::AnalysisSnapshot analyze_wav_window(const std::string &path, double time, c
 	return engine.analyze(buffer.data(), buffer.size(), settings, source_name.c_str(), 0);
 }
 
+mao::AnalysisSnapshot analyze_summed_track_window(const PieceFiles &piece, double time, const std::string &source_name,
+						  bool &ok, std::string &error)
+{
+	mao_test::Buffer summed = {};
+	uint32_t sample_rate = 0;
+
+	for (const TrackData &track : piece.tracks) {
+		mao_test::Buffer track_buffer = {};
+		uint32_t track_sample_rate = 0;
+		std::string track_error;
+		if (!read_wav_window(track.audio_path, time, track_buffer, track_sample_rate, track_error)) {
+			error = "track " + std::to_string(track.number) + " read failed: " + track_error;
+			ok = false;
+			return {};
+		}
+		if (sample_rate == 0) {
+			sample_rate = track_sample_rate;
+		} else if (track_sample_rate != sample_rate) {
+			error = "track " + std::to_string(track.number) + " sample-rate mismatch";
+			ok = false;
+			return {};
+		}
+		for (std::size_t i = 0; i < summed.size(); ++i)
+			summed[i] += track_buffer[i];
+	}
+
+	for (float &sample : summed)
+		sample = std::clamp(sample, -1.0f, 1.0f);
+
+	ok = sample_rate != 0;
+	if (!ok) {
+		error = "no separated tracks";
+		return {};
+	}
+
+	mao::AnalysisEngine engine;
+	mao::AnalysisSettings settings = mao_test::default_settings();
+	settings.sample_rate = sample_rate;
+	return engine.analyze(summed.data(), summed.size(), settings, source_name.c_str(), 0);
+}
+
 std::string basename_of(const std::string &path)
 {
 	const std::size_t pos = path.find_last_of('/');
@@ -653,10 +735,8 @@ int main()
 	int tested_pieces = 0;
 	int track_hits = 0;
 	int track_checks = 0;
-	int mix_hits = 0;
-	int mix_expected = 0;
-	int chord_hits = 0;
-	int chord_checks = 0;
+	MixRecallStats provided_mix_stats;
+	MixRecallStats summed_mix_stats;
 	int tested_windows = 0;
 
 	for (const std::string &piece_dir : piece_dirs) {
@@ -680,39 +760,22 @@ int main()
 				continue;
 			}
 
-			const std::array<bool, 12> mix_detected = detected_pitch_classes(mix_snapshot);
-			int window_expected = 0;
-			int window_hits = 0;
-			for (int pitch_class = 0; pitch_class < 12; ++pitch_class) {
-				if (!candidate.pitch_classes[pitch_class])
-					continue;
-				++window_expected;
-				if (mix_detected[pitch_class])
-					++window_hits;
-			}
-
 			++piece_windows;
 			++tested_windows;
-			mix_hits += window_hits;
-			mix_expected += window_expected;
-			runner.expect(window_expected > 0 && window_hits * 2 >= window_expected,
-				      std::string("URMP mix ") + basename_of(piece_dir) + " at " +
-					      std::to_string(candidate.time) +
-					      "s: expected at least 50% pitch-class recall, got " +
-					      std::to_string(window_hits) + "/" + std::to_string(window_expected));
 
-			if (!candidate.chord_label.empty()) {
-				++chord_checks;
-				if (snapshot_has_chord_label(mix_snapshot, candidate.chord_label)) {
-					++chord_hits;
-				} else {
-					std::fprintf(stderr,
-						     "URMP mix %s at %.3fs: chord opportunity `%s`, detected key `%s`, "
-						     "guitar `%s`, other `%s`\n",
-						     basename_of(piece_dir).c_str(), candidate.time,
-						     candidate.chord_label.c_str(), mix_snapshot.keyboard_chord.label,
-						     mix_snapshot.guitar_chord.label, mix_snapshot.other_chord.label);
-				}
+			const std::string window_context =
+				std::string("URMP ") + basename_of(piece_dir) + " at " + std::to_string(candidate.time) +
+				"s";
+			check_mix_recall(runner, mix_snapshot, candidate, window_context + " provided mix",
+					 provided_mix_stats, 50);
+
+			const mao::AnalysisSnapshot summed_snapshot = analyze_summed_track_window(
+				piece, candidate.time, "URMP summed separated tracks", ok, error);
+			if (!ok) {
+				runner.expect(false, window_context + " summed separated tracks: " + error);
+			} else {
+				check_mix_recall(runner, summed_snapshot, candidate,
+						 window_context + " summed separated tracks", summed_mix_stats, 50);
 			}
 
 			for (const ActiveNote &active : candidate.active) {
@@ -764,25 +827,47 @@ int main()
 	runner.expect(track_checks > 0 && track_hits * 100 >= track_checks * 70,
 		      "URMP separated-track recall: expected >=70%, got " + std::to_string(track_hits) + "/" +
 			      std::to_string(track_checks));
-	runner.expect(mix_expected > 0 && mix_hits * 100 >= mix_expected * 55,
-		      "URMP full-mix pitch-class recall: expected >=55%, got " + std::to_string(mix_hits) + "/" +
-			      std::to_string(mix_expected));
-	if (chord_checks >= 5) {
-		runner.expect(chord_hits * 100 >= chord_checks * 35,
-			      "URMP full-mix chord recall: expected >=35%, got " + std::to_string(chord_hits) +
-				      "/" + std::to_string(chord_checks));
+	runner.expect(provided_mix_stats.expected > 0 &&
+			      provided_mix_stats.hits * 100 >= provided_mix_stats.expected * 55,
+		      "URMP provided full-mix pitch-class recall: expected >=55%, got " +
+			      std::to_string(provided_mix_stats.hits) + "/" +
+			      std::to_string(provided_mix_stats.expected));
+	runner.expect(summed_mix_stats.expected > 0 && summed_mix_stats.hits * 100 >= summed_mix_stats.expected * 55,
+		      "URMP summed separated-track mix pitch-class recall: expected >=55%, got " +
+			      std::to_string(summed_mix_stats.hits) + "/" +
+			      std::to_string(summed_mix_stats.expected));
+	if (provided_mix_stats.chord_checks >= 5) {
+		runner.expect(provided_mix_stats.chord_hits * 100 >= provided_mix_stats.chord_checks * 35,
+			      "URMP provided full-mix chord recall: expected >=35%, got " +
+				      std::to_string(provided_mix_stats.chord_hits) + "/" +
+				      std::to_string(provided_mix_stats.chord_checks));
+	}
+	if (summed_mix_stats.chord_checks >= 5) {
+		runner.expect(summed_mix_stats.chord_hits * 100 >= summed_mix_stats.chord_checks * 35,
+			      "URMP summed separated-track mix chord recall: expected >=35%, got " +
+				      std::to_string(summed_mix_stats.chord_hits) + "/" +
+				      std::to_string(summed_mix_stats.chord_checks));
 	}
 
 	if (runner.failures != 0) {
-		std::fprintf(stderr, "analyzer_urmp: %d/%d checks failed (%d pieces, %d windows, %d track hits/%d, %d mix hits/%d, "
-				     "%d chord hits/%d)\n",
-			     runner.failures, runner.checks, tested_pieces, tested_windows, track_hits, track_checks,
-			     mix_hits, mix_expected, chord_hits, chord_checks);
+		std::fprintf(stderr,
+			     "analyzer_urmp: %d/%d checks failed (%d pieces, %d windows, %d track hits/%d, "
+			     "%d provided mix hits/%d, %d summed mix hits/%d, %d provided chord hits/%d, "
+			     "%d summed chord hits/%d)\n",
+			     runner.failures, runner.checks, tested_pieces, tested_windows, track_hits,
+			     track_checks, provided_mix_stats.hits, provided_mix_stats.expected, summed_mix_stats.hits,
+			     summed_mix_stats.expected, provided_mix_stats.chord_hits,
+			     provided_mix_stats.chord_checks, summed_mix_stats.chord_hits,
+			     summed_mix_stats.chord_checks);
 		return 1;
 	}
 
-	std::printf("analyzer_urmp: %d checks passed (%d pieces, %d windows, %d track hits/%d, %d mix hits/%d, %d chord hits/%d)\n",
-		    runner.checks, tested_pieces, tested_windows, track_hits, track_checks, mix_hits, mix_expected,
-		    chord_hits, chord_checks);
+	std::printf("analyzer_urmp: %d checks passed (%d pieces, %d windows, %d track hits/%d, "
+		    "%d provided mix hits/%d, %d summed mix hits/%d, %d provided chord hits/%d, "
+		    "%d summed chord hits/%d)\n",
+		    runner.checks, tested_pieces, tested_windows, track_hits, track_checks,
+		    provided_mix_stats.hits, provided_mix_stats.expected, summed_mix_stats.hits,
+		    summed_mix_stats.expected, provided_mix_stats.chord_hits, provided_mix_stats.chord_checks,
+		    summed_mix_stats.chord_hits, summed_mix_stats.chord_checks);
 	return 0;
 }
