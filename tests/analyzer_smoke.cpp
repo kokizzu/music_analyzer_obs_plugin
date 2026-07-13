@@ -36,6 +36,10 @@ int main()
 		std::fprintf(stderr, "expected bass A2, got %s\n", bass_snapshot.bass.label);
 		return 1;
 	}
+	if (!contains(bass_snapshot.root.label, "A")) {
+		std::fprintf(stderr, "expected root A, got %s\n", bass_snapshot.root.label);
+		return 1;
+	}
 
 	std::array<float, mao::kAnalysisWindow> chord = {};
 	add_sine(chord, 261.6256f, 0.35f, 48000.0f);

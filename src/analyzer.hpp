@@ -47,6 +47,7 @@ struct AnalysisSnapshot {
 	uint64_t analyzed_windows = 0;
 	bool audio_seen = false;
 	std::array<DrumState, kDrumCount> drums = {};
+	InstrumentState root = {};
 	InstrumentState bass = {};
 	InstrumentState guitar = {};
 	InstrumentState keyboard = {};

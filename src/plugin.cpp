@@ -588,6 +588,12 @@ void render_pixels(VisualizerData *visualizer, const mao::AnalysisSnapshot &snap
 	std::snprintf(title, sizeof(title), "MUSIC ANALYZER  %s", snapshot.source[0] ? snapshot.source : "WAITING");
 	draw_text(visualizer, 28, 24, title, 3, Color{246, 248, 251, 255});
 
+	char root_label[32];
+	std::snprintf(root_label, sizeof(root_label), "ROOT %s", snapshot.root.label[0] ? snapshot.root.label : "--");
+	const int root_width = static_cast<int>(std::strlen(root_label)) * 18;
+	draw_text(visualizer, std::max(28, static_cast<int>(visualizer->width) - root_width - 28), 24, root_label, 3,
+		  Color{246, 248, 251, 255});
+
 	char level[128];
 	std::snprintf(level, sizeof(level), "RMS %.2f LOW %.0f%% MID %.0f%% HIGH %.0f%% UPD %llu DROP %llu",
 		      snapshot.rms, snapshot.low_energy * 100.0f, snapshot.mid_energy * 100.0f,

@@ -131,6 +131,50 @@ ChordResult detect_chord(const std::array<float, 12> &chroma)
 	return best;
 }
 
+InstrumentState detect_root(const std::array<float, 69> &powers, float rms)
+{
+	InstrumentState state;
+	if (rms < kSilenceRms) {
+		copy_text(state.label, sizeof(state.label), "--");
+		return state;
+	}
+
+	std::array<float, 12> root_scores = {};
+	for (int midi = 28; midi <= 84; ++midi) {
+		const int pitch_class = ((midi % 12) + 12) % 12;
+		float octave_weight = 0.25f;
+		if (midi <= 47)
+			octave_weight = 1.0f;
+		else if (midi <= 59)
+			octave_weight = 0.68f;
+		else if (midi <= 72)
+			octave_weight = 0.36f;
+
+		root_scores[pitch_class] += std::sqrt(std::max(powers[midi - kFirstMidi], 0.0f)) * octave_weight;
+	}
+
+	int best = 0;
+	float best_score = 0.0f;
+	float total = 0.0f;
+	for (int i = 0; i < 12; ++i) {
+		const float score = root_scores[i];
+		total += score;
+		if (score > best_score) {
+			best = i;
+			best_score = score;
+		}
+	}
+
+	if (total <= 1.0e-6f || best_score / total < 0.12f) {
+		copy_text(state.label, sizeof(state.label), "--");
+		return state;
+	}
+
+	copy_text(state.label, sizeof(state.label), note_name(best));
+	state.confidence = std::clamp(best_score / total * 2.6f, 0.0f, 1.0f);
+	return state;
+}
+
 float sum_notes(const std::array<float, 69> &powers, int min_midi, int max_midi)
 {
 	float sum = 0.0f;
@@ -245,6 +289,7 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 
 	if (!samples || count == 0) {
 		copy_text(snapshot.bass.label, sizeof(snapshot.bass.label), "--");
+		copy_text(snapshot.root.label, sizeof(snapshot.root.label), "--");
 		copy_text(snapshot.guitar.label, sizeof(snapshot.guitar.label), "--");
 		copy_text(snapshot.keyboard.label, sizeof(snapshot.keyboard.label), "--");
 		copy_text(snapshot.vocal.label, sizeof(snapshot.vocal.label), "--");
@@ -333,6 +378,7 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 	const ChordResult keyboard_chord = detect_chord(chroma_for_range(note_powers, 48, 88));
 	const ChordResult other_chord = detect_chord(chroma_for_range(note_powers, 60, 96));
 
+	snapshot.root = detect_root(note_powers, rms);
 	set_instrument_note(snapshot.bass, bass_note, low, rms);
 	set_instrument_chord_or_note(snapshot.guitar, guitar_chord, guitar_note, mid, rms);
 	set_instrument_chord_or_note(snapshot.keyboard, keyboard_chord, keyboard_note, mid + low * 0.25f, rms);
