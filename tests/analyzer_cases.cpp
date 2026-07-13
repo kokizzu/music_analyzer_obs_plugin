@@ -48,6 +48,14 @@ void expect_no_chord(Runner &runner, const mao::InstrumentState &chord, const st
 	runner.expect(std::strcmp(chord.label, "--") == 0, context + ": expected no chord, got `" + chord.label + "`");
 }
 
+void expect_no_drums(Runner &runner, const mao::AnalysisSnapshot &snapshot, const std::string &context)
+{
+	for (const mao::DrumState &drum : snapshot.drums) {
+		runner.expect(!drum.active, context + ": expected " + drum.label + " inactive, level " +
+					   std::to_string(drum.level));
+	}
+}
+
 bool has_chord_label(const char *actual, const std::string &expected)
 {
 	if (!actual)
@@ -72,6 +80,17 @@ void add_harmonic_note(mao_test::Buffer &buffer, int midi, float amp, const std:
 	const float base = mao_test::midi_frequency(midi);
 	for (std::size_t harmonic = 0; harmonic < profile.size(); ++harmonic)
 		mao_test::add_sine(buffer, base * static_cast<float>(harmonic + 1), amp * profile[harmonic]);
+}
+
+void add_decayed_sine(mao_test::Buffer &buffer, float freq, float amp, std::size_t samples = 900)
+{
+	samples = std::min(samples, buffer.size());
+	for (std::size_t i = 0; i < samples; ++i) {
+		const float decay = 1.0f - static_cast<float>(i) / static_cast<float>(samples);
+		buffer[i] += amp * decay *
+			     std::sin(2.0f * mao_test::kPi * freq * static_cast<float>(i) /
+				      mao_test::kSampleRate);
+	}
 }
 
 float detuned_midi_frequency(int midi, float cents)
@@ -442,6 +461,117 @@ void check_sustained_note_envelope(Runner &runner)
 	expect_no_chord(runner, snapshot.guitar_chord, "sustained note envelope release chord");
 }
 
+void check_low_level_mixed_notes(Runner &runner)
+{
+	mao_test::Buffer buffer = {};
+	mao_test::add_midi_note(buffer, 60, 0.016f);
+	mao_test::add_midi_note(buffer, 64, 0.016f);
+	mao_test::add_midi_note(buffer, 67, 0.016f);
+
+	const auto snapshot = analyze_buffer(buffer, "full mix");
+	const float c_level = grid_level_for_midi(snapshot.keyboard_notes, 60);
+	const float e_level = grid_level_for_midi(snapshot.keyboard_notes, 64);
+	const float g_level = grid_level_for_midi(snapshot.keyboard_notes, 67);
+	expect_note_token(runner, snapshot.keyboard.label, "C4", "low-level mixed notes");
+	expect_note_token(runner, snapshot.keyboard.label, "E4", "low-level mixed notes");
+	expect_note_token(runner, snapshot.keyboard.label, "G4", "low-level mixed notes");
+	runner.expect(c_level > 0.0f && c_level < 0.25f,
+		      "low-level mixed notes: expected C4 visible but dim");
+	runner.expect(e_level > 0.0f && e_level < 0.25f,
+		      "low-level mixed notes: expected E4 visible but dim");
+	runner.expect(g_level > 0.0f && g_level < 0.25f,
+		      "low-level mixed notes: expected G4 visible but dim");
+}
+
+void check_melodic_sources_do_not_trigger_drums(Runner &runner)
+{
+	{
+		const auto buffer = mao_test::make_midi_notes({48, 52, 55, 60, 64, 67, 72, 76, 79}, 0.24f);
+		const auto snapshot = analyze_buffer(buffer, "keyboard");
+		expect_no_drums(runner, snapshot, "layered keyboard no drums");
+	}
+
+	{
+		const std::vector<float> guitar_profile = {1.0f, 0.34f, 0.16f, 0.08f};
+		const auto buffer = make_harmonic_notes({43, 47, 50, 55, 59, 62}, 0.20f, guitar_profile);
+		const auto snapshot = analyze_buffer(buffer, "guitar");
+		expect_no_drums(runner, snapshot, "layered guitar no drums");
+	}
+
+	{
+		const std::vector<float> other_profile = {1.0f, 0.55f, 0.36f, 0.20f, 0.11f};
+		const auto buffer = make_harmonic_notes({55, 59, 62, 65, 67, 71, 74, 77}, 0.16f, other_profile);
+		const auto snapshot = analyze_buffer(buffer, "synth pad");
+		expect_no_drums(runner, snapshot, "layered other no drums");
+	}
+
+	{
+		mao_test::Buffer buffer = {};
+		const std::vector<float> key_profile = {1.0f, 0.16f, 0.08f};
+		const std::vector<float> guitar_profile = {1.0f, 0.24f, 0.10f};
+		add_harmonic_note(buffer, 60, 0.28f, key_profile);
+		add_harmonic_note(buffer, 64, 0.28f, key_profile);
+		add_harmonic_note(buffer, 67, 0.28f, key_profile);
+		add_harmonic_note(buffer, 54, 0.18f, guitar_profile);
+		add_harmonic_note(buffer, 58, 0.18f, guitar_profile);
+		mao_test::add_midi_note(buffer, 74, 0.12f);
+		const auto snapshot = analyze_buffer(buffer, "full mix");
+		expect_no_drums(runner, snapshot, "melodic full mix no drums");
+	}
+}
+
+void check_layered_midi_instrument_voices(Runner &runner)
+{
+	{
+		const auto buffer = mao_test::make_midi_notes({48, 52, 55, 60, 64, 67, 72, 76, 79}, 0.24f);
+		const auto snapshot = analyze_buffer(buffer, "keyboard");
+		expect_label(runner, snapshot.keyboard_chord.label, "C", "layered keyboard voices chord");
+		for (const char *note : {"C3", "E3", "G3", "C4", "E4", "G4", "C5", "E5", "G5"})
+			expect_note_token(runner, snapshot.keyboard.label, note, "layered keyboard voices");
+		runner.expect(grid_pitch_has_octave(snapshot.keyboard_notes, 0, "3") &&
+				      grid_pitch_has_octave(snapshot.keyboard_notes, 0, "4") &&
+				      grid_pitch_has_octave(snapshot.keyboard_notes, 0, "5"),
+			      "layered keyboard voices: expected C across three octaves");
+	}
+
+	{
+		const auto buffer = mao_test::make_midi_notes({55, 59, 62, 67, 71, 74}, 0.26f);
+		const auto snapshot = analyze_buffer(buffer, "guitar");
+		expect_label(runner, snapshot.guitar_chord.label, "G", "layered guitar voices chord");
+		for (const char *note : {"G3", "B3", "D4", "G4", "B4", "D5"})
+			expect_note_token(runner, snapshot.guitar.label, note, "layered guitar voices");
+		runner.expect(grid_pitch_has_octave(snapshot.guitar_notes, 7, "3") &&
+				      grid_pitch_has_octave(snapshot.guitar_notes, 7, "4"),
+			      "layered guitar voices: expected G across two octaves");
+	}
+
+	{
+		const std::vector<float> other_profile = {1.0f, 0.55f, 0.36f, 0.20f, 0.11f};
+		const auto buffer = make_harmonic_notes({55, 59, 62, 65, 67, 71, 74, 77}, 0.16f, other_profile);
+		const auto snapshot = analyze_buffer(buffer, "synth pad");
+		expect_label(runner, snapshot.other_chord.label, "G7", "layered other voices chord");
+		for (const char *note : {"G3", "B3", "D4", "F4", "G4", "B4", "D5", "F5"})
+			expect_note_token(runner, snapshot.other.label, note, "layered other voices");
+	}
+}
+
+void check_drum_hit_with_melodic_mix(Runner &runner)
+{
+	mao_test::Buffer buffer = {};
+	add_decayed_sine(buffer, 65.0f, 0.85f);
+	add_harmonic_note(buffer, 60, 0.20f, {1.0f, 0.16f, 0.08f});
+	add_harmonic_note(buffer, 64, 0.20f, {1.0f, 0.16f, 0.08f});
+	add_harmonic_note(buffer, 67, 0.20f, {1.0f, 0.16f, 0.08f});
+
+	const auto snapshot = analyze_buffer(buffer, "full mix");
+	runner.expect(snapshot.drums[mao::Kick].active,
+		      "drum hit with melodic mix: expected kick active, level " +
+			      std::to_string(snapshot.drums[mao::Kick].level));
+	expect_note_token(runner, snapshot.keyboard.label, "C4", "drum hit with melodic mix");
+	expect_note_token(runner, snapshot.keyboard.label, "E4", "drum hit with melodic mix");
+	expect_note_token(runner, snapshot.keyboard.label, "G4", "drum hit with melodic mix");
+}
+
 void check_detuned_note_tolerance(Runner &runner)
 {
 	{
@@ -762,6 +892,10 @@ int main()
 	check_quiet_standalone_rejection(runner);
 	check_note_level_fade(runner);
 	check_sustained_note_envelope(runner);
+	check_low_level_mixed_notes(runner);
+	check_melodic_sources_do_not_trigger_drums(runner);
+	check_layered_midi_instrument_voices(runner);
+	check_drum_hit_with_melodic_mix(runner);
 	check_detuned_note_tolerance(runner);
 	check_realistic_instrument_chords(runner);
 	check_same_note_timbre_split(runner);

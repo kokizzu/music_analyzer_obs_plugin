@@ -37,8 +37,10 @@ constexpr float kChromaticTuneEstimatorSlackCents = 0.5f;
 constexpr float kChromaticCenterAdjacentRatio = 0.985f;
 constexpr float kChromaticCenterEdgeRatio = 0.90f;
 constexpr float kNoteEnvelopeReleaseSeconds = 3.0f;
-constexpr float kNoteEnvelopeVisibleFloor = 0.045f;
-constexpr float kNoteEnvelopeNewNoteFloor = 0.14f;
+constexpr float kNoteEnvelopeVisibleFloor = 0.015f;
+constexpr float kNoteEnvelopeNewNoteFloor = 0.025f;
+constexpr std::size_t kDrumTransientSegments = 8;
+constexpr float kDrumTransientRatio = 1.55f;
 
 enum class SourceHint {
 	None,
@@ -1370,16 +1372,33 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 	const std::size_t usable = std::min(count, kAnalysisWindow);
 	double sum = 0.0;
 	double square_sum = 0.0;
+	std::array<double, kDrumTransientSegments> segment_square_sum = {};
+	std::array<std::size_t, kDrumTransientSegments> segment_counts = {};
 	float peak = 0.0f;
 	for (std::size_t i = 0; i < usable; ++i) {
 		const float sample = std::clamp(samples[i], -4.0f, 4.0f);
 		sum += sample;
 		square_sum += static_cast<double>(sample) * sample;
+		const std::size_t segment =
+			std::min<std::size_t>(kDrumTransientSegments - 1, i * kDrumTransientSegments / usable);
+		segment_square_sum[segment] += static_cast<double>(sample) * sample;
+		++segment_counts[segment];
 		peak = std::max(peak, std::abs(sample));
 	}
 
 	const float mean = static_cast<float>(sum / static_cast<double>(usable));
 	const float rms = std::sqrt(static_cast<float>(square_sum / static_cast<double>(usable)));
+	float strongest_segment_rms = 0.0f;
+	for (std::size_t i = 0; i < kDrumTransientSegments; ++i) {
+		if (segment_counts[i] == 0)
+			continue;
+		strongest_segment_rms =
+			std::max(strongest_segment_rms,
+				 std::sqrt(static_cast<float>(segment_square_sum[i] /
+							      static_cast<double>(segment_counts[i]))));
+	}
+	const float drum_transient_ratio = rms > 1.0e-6f ? strongest_segment_rms / rms : 0.0f;
+	const bool drum_transient = drum_transient_ratio >= kDrumTransientRatio;
 	snapshot.rms = rms;
 	snapshot.peak = peak;
 
@@ -1437,7 +1456,7 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 		if (i == Snare)
 			score *= 1.0f + snapshot.mid_energy * 0.45f;
 
-		if (rms > kSilenceRms && score > trigger_threshold) {
+		if (rms > kSilenceRms && drum_transient && score > trigger_threshold) {
 			const float level = std::clamp((score - trigger_threshold) * 0.85f, 0.35f, 1.0f);
 			drum_level_[i] = std::max(drum_level_[i], level);
 		} else {

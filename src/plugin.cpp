@@ -559,6 +559,19 @@ void fill_rect(VisualizerData *visualizer, int x, int y, int w, int h, Color col
 	}
 }
 
+void fill_circle(VisualizerData *visualizer, int cx, int cy, int radius, Color color)
+{
+	const int r2 = radius * radius;
+	for (int yy = cy - radius; yy <= cy + radius; ++yy) {
+		for (int xx = cx - radius; xx <= cx + radius; ++xx) {
+			const int dx = xx - cx;
+			const int dy = yy - cy;
+			if (dx * dx + dy * dy <= r2)
+				put_pixel(visualizer, xx, yy, color);
+		}
+	}
+}
+
 void draw_text_impl(VisualizerData *visualizer, int x, int y, const char *text, uint32_t scale, Color color,
 		    bool preserve_chord_lowercase)
 {
@@ -710,6 +723,54 @@ float piano_key_level(const mao::NoteGrid &notes, int midi)
 	return std::clamp(level, 0.0f, 1.0f);
 }
 
+int pitch_class_from_note_label(const char *label)
+{
+	if (!label || !label[0] || label[0] == '-')
+		return -1;
+
+	int pitch_class = -1;
+	switch (label[0]) {
+	case 'C':
+		pitch_class = 0;
+		break;
+	case 'D':
+		pitch_class = 2;
+		break;
+	case 'E':
+		pitch_class = 4;
+		break;
+	case 'F':
+		pitch_class = 5;
+		break;
+	case 'G':
+		pitch_class = 7;
+		break;
+	case 'A':
+		pitch_class = 9;
+		break;
+	case 'B':
+		pitch_class = 11;
+		break;
+	default:
+		return -1;
+	}
+
+	if (label[1] == '#')
+		pitch_class = (pitch_class + 1) % 12;
+	return pitch_class;
+}
+
+Color pitch_class_color(int pitch_class)
+{
+	static constexpr Color kColors[12] = {
+		{255, 59, 48, 255},	{255, 128, 0, 255},    {255, 214, 10, 255},
+		{180, 255, 30, 255},	{48, 209, 88, 255},    {0, 220, 190, 255},
+		{64, 200, 255, 255},	{10, 132, 255, 255},   {94, 92, 230, 255},
+		{191, 90, 242, 255},	{255, 55, 180, 255},   {255, 105, 120, 255},
+	};
+	return kColors[((pitch_class % 12) + 12) % 12];
+}
+
 int draw_piano_keyboard(VisualizerData *visualizer, int y, const mao::NoteGrid &notes,
 			const mao::InstrumentState &chord)
 {
@@ -758,10 +819,10 @@ int draw_piano_keyboard(VisualizerData *visualizer, int y, const mao::NoteGrid &
 			const float raw_level = piano_key_level(notes, midi);
 			const float level = display_highlight_level(raw_level);
 			const int x = key_x + i * white_w;
-			fill_rect(visualizer, x, row_y, white_w - 1, white_h, blend_color(white_key, active, level));
+			Color fill = blend_color(white_key, active, level);
 			if (raw_level > 0.0f)
-				fill_rect(visualizer, x + 2, row_y + white_h - 5, std::max(1, white_w - 5), 3,
-					  blend_color(active, active_hot, level));
+				fill = blend_color(fill, active_hot, level * 0.42f);
+			fill_rect(visualizer, x, row_y, white_w - 1, white_h, fill);
 			fill_rect(visualizer, x, row_y, white_w - 1, 1, border);
 			fill_rect(visualizer, x, row_y + white_h - 1, white_w - 1, 1, border);
 			fill_rect(visualizer, x, row_y, 1, white_h, border);
@@ -773,10 +834,10 @@ int draw_piano_keyboard(VisualizerData *visualizer, int y, const mao::NoteGrid &
 			const float raw_level = piano_key_level(notes, midi);
 			const float level = display_highlight_level(raw_level);
 			const int x = key_x + (kBlackAfterWhite[i] + 1) * white_w - black_w / 2;
-			fill_rect(visualizer, x, row_y, black_w, black_h, blend_color(black_key, active, level));
+			Color fill = blend_color(black_key, active, level);
 			if (raw_level > 0.0f)
-				fill_rect(visualizer, x + 2, row_y + 2, std::max(1, black_w - 4), 3,
-					  blend_color(active, active_hot, level));
+				fill = blend_color(fill, active_hot, level * 0.38f);
+			fill_rect(visualizer, x, row_y, black_w, black_h, fill);
 			fill_rect(visualizer, x, row_y, black_w, 1, border);
 			fill_rect(visualizer, x, row_y + black_h - 1, black_w, 1, border);
 			fill_rect(visualizer, x, row_y, 1, black_h, border);
@@ -810,10 +871,9 @@ int draw_guitar_fretboard(VisualizerData *visualizer, int y, const mao::NoteGrid
 	const Color border{58, 68, 82, 220};
 	const Color nut{148, 163, 184, 230};
 	const Color text{148, 163, 184, 255};
-	const Color accent{70, 255, 130, 255};
-	const Color accent_hot{185, 255, 210, 255};
 	const Color chord_text{199, 210, 224, 255};
 	const char *chord_label = chord.label[0] ? chord.label : "--";
+	const int root_pitch_class = pitch_class_from_note_label(chord_label);
 
 	draw_text(visualizer, label_x, y + 24, "GUITAR", 2, dim);
 	for (int fret = 0; fret < kFretCount; ++fret) {
@@ -831,13 +891,22 @@ int draw_guitar_fretboard(VisualizerData *visualizer, int y, const mao::NoteGrid
 		draw_text(visualizer, fret_x - 22, cell_y + 2, kStringNames[string], 1, text);
 		for (int fret = 0; fret < kFretCount; ++fret) {
 			const int cell_x = fret_x + fret * fret_w;
-			const float raw_level = note_grid_midi_level(notes, kOpenMidis[string] + fret);
+			const int midi = kOpenMidis[string] + fret;
+			const int pitch_class = ((midi % 12) + 12) % 12;
+			const float raw_level = note_grid_midi_level(notes, midi);
 			const float level = display_highlight_level(raw_level);
-			const Color fill = blend_color(fret_bg, accent, level);
-			fill_rect(visualizer, cell_x, cell_y, fret_w - 1, cell_h, fill);
-			if (raw_level > 0.0f)
-				fill_rect(visualizer, cell_x + 2, cell_y + 2, std::max(1, fret_w - 5),
-					  std::max(1, cell_h - 4), blend_color(fill, accent_hot, level * 0.45f));
+			fill_rect(visualizer, cell_x, cell_y, fret_w - 1, cell_h, fret_bg);
+			if (raw_level > 0.0f) {
+				const Color note_color = pitch_class == root_pitch_class ? Color{255, 59, 48, 255} :
+										    pitch_class_color(pitch_class);
+				Color marker = blend_color(fret_bg, note_color, level);
+				marker = blend_color(marker, Color{255, 255, 255, 255}, level * 0.18f);
+				const int radius = std::max(3, std::min((fret_w - 5) / 2, (cell_h - 3) / 2));
+				const int cx = cell_x + fret_w / 2;
+				const int cy = cell_y + cell_h / 2;
+				fill_circle(visualizer, cx, cy, radius + 1, Color{8, 12, 18, 245});
+				fill_circle(visualizer, cx, cy, radius, marker);
+			}
 			fill_rect(visualizer, cell_x, cell_y, fret_w - 1, 1, border);
 			fill_rect(visualizer, cell_x, cell_y + cell_h - 1, fret_w - 1, 1, border);
 			fill_rect(visualizer, cell_x, cell_y, 1, cell_h, fret == 1 ? nut : border);
