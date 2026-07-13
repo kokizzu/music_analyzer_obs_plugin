@@ -2,10 +2,15 @@
 import csv
 import os
 import shutil
+import struct
 import subprocess
 import sys
+import wave
 
 import inspect_slakh_dataset
+
+
+DEFAULT_OUTPUT_SAMPLE_RATE = 44100
 
 
 def read_be_u16(data, offset):
@@ -194,6 +199,102 @@ def wav_audio(path):
     return lower_name(path).endswith((".wav", ".wave"))
 
 
+def read_wav_samples(path):
+    try:
+        with wave.open(path, "rb") as audio:
+            if audio.getsampwidth() != 2:
+                return None
+            sample_rate = audio.getframerate()
+            channels = audio.getnchannels()
+            frame_count = audio.getnframes()
+            data = audio.readframes(frame_count)
+    except (OSError, EOFError, wave.Error):
+        return None
+
+    samples = []
+    stride = channels * 2
+    for offset in range(0, len(data), stride):
+        total = 0.0
+        for channel in range(channels):
+            sample_offset = offset + channel * 2
+            if sample_offset + 2 > len(data):
+                break
+            value = struct.unpack_from("<h", data, sample_offset)[0]
+            total += value / 32768.0
+        samples.append(total / float(max(1, channels)))
+    return sample_rate, samples
+
+
+def write_wav_samples(path, samples, sample_rate):
+    os.makedirs(os.path.dirname(path), exist_ok=True)
+    frames = bytearray()
+    for sample in samples:
+        frames.extend(struct.pack("<h", int(max(-0.95, min(0.95, sample)) * 32767.0)))
+    with wave.open(path, "wb") as audio:
+        audio.setnchannels(1)
+        audio.setsampwidth(2)
+        audio.setframerate(sample_rate)
+        audio.writeframes(bytes(frames))
+
+
+def mix_wav_stems(stem_audio, output_path):
+    decoded = []
+    sample_rate = 0
+    for path in stem_audio:
+        result = read_wav_samples(path)
+        if not result:
+            return 0
+        current_rate, samples = result
+        if sample_rate and current_rate != sample_rate:
+            return 0
+        sample_rate = current_rate
+        decoded.append(samples)
+
+    if not decoded:
+        return 0
+
+    frame_count = max(len(samples) for samples in decoded)
+    gain = 1.0 / max(1.0, len(decoded) ** 0.5)
+    mixed = []
+    for index in range(frame_count):
+        sample = 0.0
+        for stem in decoded:
+            if index < len(stem):
+                sample += stem[index]
+        mixed.append(sample * gain)
+    write_wav_samples(output_path, mixed, sample_rate)
+    return sample_rate
+
+
+def mix_stems_with_ffmpeg(stem_audio, output_path, ffmpeg):
+    os.makedirs(os.path.dirname(output_path), exist_ok=True)
+    command = [ffmpeg, "-nostdin", "-hide_banner", "-loglevel", "error", "-y"]
+    for audio in stem_audio:
+        command.extend(["-i", audio])
+    gain = 1.0 / max(1.0, len(stem_audio) ** 0.5)
+    command.extend(
+        [
+            "-filter_complex",
+            f"amix=inputs={len(stem_audio)}:duration=longest:normalize=0,volume={gain:.6f}",
+            "-ac",
+            "1",
+            "-ar",
+            str(DEFAULT_OUTPUT_SAMPLE_RATE),
+            output_path,
+        ]
+    )
+    subprocess.check_call(command)
+    return DEFAULT_OUTPUT_SAMPLE_RATE
+
+
+def prepare_summed_stem_audio(stem_audio, output_path, ffmpeg):
+    if all(wav_audio(path) for path in stem_audio):
+        sample_rate = mix_wav_stems(stem_audio, output_path)
+        if sample_rate:
+            return sample_rate
+    return mix_stems_with_ffmpeg(stem_audio, output_path, ffmpeg)
+
+
 def collect_midi_sources(track_dir):
     midi_dir = inspect_slakh_dataset.join_path(track_dir, "MIDI")
     if os.path.isdir(midi_dir):
@@ -206,14 +307,6 @@ def collect_midi_sources(track_dir):
         return [all_src]
 
     return sorted(item for item in inspect_slakh_dataset.find_midi_files(track_dir) if os.path.basename(item) != "all_src.mid")
-
-
-def prepare_audio(input_path, output_path, ffmpeg):
-    os.makedirs(os.path.dirname(output_path), exist_ok=True)
-    if wav_audio(input_path):
-        shutil.copyfile(input_path, output_path)
-        return
-    subprocess.check_call([ffmpeg, "-nostdin", "-hide_banner", "-loglevel", "error", "-y", "-i", input_path, output_path])
 
 
 def write_labels(path, notes, sample_rate):
@@ -246,9 +339,9 @@ def prepare_track(track, output_root, output_id, ffmpeg):
     mix_audio = inspect_slakh_dataset.find_mix_audio(audio_files)
     if not mix_audio:
         return False, "missing mix audio"
-    summary = inspect_slakh_dataset.audio_summary(mix_audio)
-    if not summary:
-        return False, "unreadable mix audio"
+    stem_audio = inspect_slakh_dataset.find_stem_audio(track["path"], audio_files, mix_audio)
+    if not stem_audio:
+        return False, "missing stem audio"
 
     midi_sources = collect_midi_sources(track["path"])
     if not midi_sources:
@@ -265,8 +358,8 @@ def prepare_track(track, output_root, output_id, ffmpeg):
 
     audio_out = inspect_slakh_dataset.join_path(output_root, "train_data", f"{output_id}.wav")
     label_out = inspect_slakh_dataset.join_path(output_root, "train_labels", f"{output_id}.csv")
-    prepare_audio(mix_audio, audio_out, ffmpeg)
-    write_labels(label_out, notes, summary["sample_rate"])
+    sample_rate = prepare_summed_stem_audio(stem_audio, audio_out, ffmpeg)
+    write_labels(label_out, notes, sample_rate)
     return True, ""
 
 
@@ -333,7 +426,7 @@ def main(argv):
         return 1
 
     print(
-        f"prepare_slakh_musicnet_fixture: wrote {prepared} MusicNet-shaped Slakh recordings to {output_root}"
+        f"prepare_slakh_musicnet_fixture: wrote {prepared} MusicNet-shaped summed-stem Slakh recordings to {output_root}"
     )
     return 0
 

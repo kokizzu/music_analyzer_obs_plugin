@@ -2,7 +2,9 @@
 import contextlib
 import csv
 import os
+import struct
 import tempfile
+import wave
 from pathlib import Path
 
 import generate_slakh_fixture
@@ -32,6 +34,32 @@ def patched_env(values):
 def write_fixture(root):
     if generate_slakh_fixture.main(["generate_slakh_fixture.py", str(root)]) != 0:
         raise AssertionError("fixture generation failed")
+
+
+def silence_wav(path):
+    with wave.open(str(path), "rb") as audio:
+        channels = audio.getnchannels()
+        sample_width = audio.getsampwidth()
+        sample_rate = audio.getframerate()
+        frame_count = audio.getnframes()
+    with wave.open(str(path), "wb") as audio:
+        audio.setnchannels(channels)
+        audio.setsampwidth(sample_width)
+        audio.setframerate(sample_rate)
+        audio.writeframes(bytes(frame_count * channels * sample_width))
+
+
+def wav_peak(path):
+    with wave.open(str(path), "rb") as audio:
+        if audio.getsampwidth() != 2:
+            return 0.0
+        data = audio.readframes(audio.getnframes())
+    peak = 0.0
+    for offset in range(0, len(data), 2):
+        if offset + 2 > len(data):
+            break
+        peak = max(peak, abs(struct.unpack_from("<h", data, offset)[0]) / 32768.0)
+    return peak
 
 
 def run_prepare(root, output, required_tracks=20):
@@ -69,6 +97,19 @@ def test_prepare_slakh_fixture_writes_musicnet_shape():
             raise AssertionError("prepared labels should preserve multiple instruments and notes")
 
 
+def test_prepare_slakh_fixture_sums_stems_not_provided_mix():
+    with tempfile.TemporaryDirectory() as temp:
+        root = Path(temp) / "slakh"
+        output = Path(temp) / "musicnet"
+        write_fixture(root)
+        for mix in root.glob("*/*/mix.wav"):
+            silence_wav(mix)
+        if run_prepare(root, output) != 0:
+            raise AssertionError("Slakh-to-MusicNet preparation failed with silent provided mixes")
+        if wav_peak(output / "train_data" / "1.wav") < 0.05:
+            raise AssertionError("prepared Slakh playback should be built from audible summed stems")
+
+
 def test_prepare_slakh_fixture_requires_midi_notes():
     with tempfile.TemporaryDirectory() as temp:
         root = Path(temp) / "slakh"
@@ -83,8 +124,9 @@ def test_prepare_slakh_fixture_requires_midi_notes():
 
 def main():
     test_prepare_slakh_fixture_writes_musicnet_shape()
+    test_prepare_slakh_fixture_sums_stems_not_provided_mix()
     test_prepare_slakh_fixture_requires_midi_notes()
-    print("test_prepare_slakh_musicnet_fixture: 2 checks passed")
+    print("test_prepare_slakh_musicnet_fixture: 3 checks passed")
     return 0
 
 

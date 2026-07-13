@@ -173,8 +173,9 @@ without additional annotation.
   bass, guitar, and drum classes by default. It reports stem count, readable
   MIDI count, channel/sample-rate coverage, and audio duration. Use
   `make test-real-slakh-20` to convert selected Slakh tracks into a temporary
-  MusicNet-shaped WAV/CSV layout and run the existing analyzer pitch-class and
-  chord recall gate on the rendered same-song mix audio. Slakh2100 gives large
+  MusicNet-shaped WAV/CSV layout by summing the per-source stem audio, then run
+  the existing analyzer pitch-class and chord recall gate on the played-together
+  stem mix. Slakh2100 gives large
   coherent stem/MIDI truth coverage, but it does not replace URMP because its
   audio is MIDI-rendered rather than real recorded.
 - Use `make inspect-real-choralsynth` with
