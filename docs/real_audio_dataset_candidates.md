@@ -69,24 +69,26 @@ without additional annotation.
 - Set `MUSIC_ANALYZER_URMP_ROOT=/path/to/URMP` and run `make test-real-urmp`
   to require the real-audio URMP regression harness against local `AuMix`,
   `AuSep`, `Notes`, and `Sco` MIDI files.
-  The harness checks each separated track, the provided `AuMix`, and a
-  synthesized full mix made by summing every separated track. By default it
-  samples up to 12 annotated windows per piece and requires at least 80 windows;
-  it also prints discovered/loadable piece and window counts to diagnose
-  incomplete dataset layouts. Set `MUSIC_ANALYZER_URMP_MAX_WINDOWS_PER_PIECE`
-  for quicker or deeper runs.
+  The harness requires official URMP piece folder IDs, validates that MIDI score
+  pitch classes agree with note annotations, checks each separated track, the
+  provided `AuMix`, and a synthesized full mix made by summing every separated
+  track. By default it samples up to 12 annotated windows per piece and requires
+  at least 80 windows; it also prints discovered/loadable piece and window counts
+  to diagnose incomplete dataset layouts. Set
+  `MUSIC_ANALYZER_URMP_MAX_WINDOWS_PER_PIECE` for quicker or deeper runs.
 - Real-audio tests should skip with a clear message when the dataset is absent.
 - URMP should be the first automated target because it gives enough pieces for
   20+ full-mix tests and has both isolated tracks and note truth.
 - Current analyzer regressions already model all 44 URMP same-song
   instrumentations as generated per-track fixtures; they do not download or
   decode URMP audio yet.
-- `make test` also unpacks the committed compact 20-piece URMP-shaped WAV/Notes
-  fixture from `tests/fixtures/urmp-mini.tar.gz` to exercise the optional
-  real-audio parser and full-mix path across multiple annotated windows without
-  requiring the full dataset. The fixture is marker-file tagged and is rejected
-  by the real-data gate unless fixture mode is explicitly allowed. Refresh it
-  with `make update-urmp-fixture` after changing `tests/generate_urmp_fixture.py`.
+- `make test` also unpacks the committed compact 20-piece URMP-shaped
+  WAV/Notes/MIDI fixture from `tests/fixtures/urmp-mini.tar.gz` to exercise the
+  optional real-audio parser and full-mix path across multiple annotated windows
+  without requiring the full dataset. The fixture is marker-file tagged and is
+  rejected by the real-data gate unless fixture mode is explicitly allowed.
+  Refresh it with `make update-urmp-fixture` after changing
+  `tests/generate_urmp_fixture.py`.
 - Bach10 is the next best add-on for a compact, fast regression set.
 - Single-instrument datasets should drive focused checks: Guitar-TECHS/GAPS for
   guitar, MAESTRO/PianoVAM for keyboard, E-GMD for drums.

@@ -133,6 +133,40 @@ uint32_t read_u32(std::ifstream &file)
 	       (static_cast<uint32_t>(b[2]) << 16) | (static_cast<uint32_t>(b[3]) << 24);
 }
 
+uint16_t read_be_u16(const std::vector<unsigned char> &bytes, std::size_t offset)
+{
+	return static_cast<uint16_t>(bytes[offset] << 8) | static_cast<uint16_t>(bytes[offset + 1]);
+}
+
+uint32_t read_be_u32(const std::vector<unsigned char> &bytes, std::size_t offset)
+{
+	return (static_cast<uint32_t>(bytes[offset]) << 24) | (static_cast<uint32_t>(bytes[offset + 1]) << 16) |
+	       (static_cast<uint32_t>(bytes[offset + 2]) << 8) | static_cast<uint32_t>(bytes[offset + 3]);
+}
+
+bool read_file_bytes(const std::string &path, std::vector<unsigned char> &bytes, std::string &error)
+{
+	std::ifstream file(path, std::ios::binary);
+	if (!file) {
+		error = "open failed";
+		return false;
+	}
+	file.seekg(0, std::ios::end);
+	const std::streamoff size = file.tellg();
+	if (size <= 0) {
+		error = "empty file";
+		return false;
+	}
+	file.seekg(0, std::ios::beg);
+	bytes.resize(static_cast<std::size_t>(size));
+	file.read(reinterpret_cast<char *>(bytes.data()), static_cast<std::streamsize>(bytes.size()));
+	if (file.gcount() != static_cast<std::streamsize>(bytes.size())) {
+		error = "short read";
+		return false;
+	}
+	return true;
+}
+
 struct WavFormat {
 	uint16_t audio_format = 0;
 	uint16_t channels = 0;
@@ -191,6 +225,174 @@ bool read_wav_format(const std::string &path, WavFormat &format, std::string &er
 	}
 	if (format.audio_format != 1 && format.audio_format != 3) {
 		error = "unsupported WAV format";
+		return false;
+	}
+	return true;
+}
+
+bool read_midi_var_len(const std::vector<unsigned char> &bytes, std::size_t end, std::size_t &pos,
+		       uint32_t &value, std::string &error)
+{
+	value = 0;
+	for (int i = 0; i < 4; ++i) {
+		if (pos >= end) {
+			error = "truncated variable-length value";
+			return false;
+		}
+		const unsigned char byte = bytes[pos++];
+		value = (value << 7) | static_cast<uint32_t>(byte & 0x7f);
+		if ((byte & 0x80) == 0)
+			return true;
+	}
+	error = "variable-length value is too long";
+	return false;
+}
+
+bool midi_read_data_byte(const std::vector<unsigned char> &bytes, std::size_t end, std::size_t &pos, int &value,
+			 std::string &error)
+{
+	if (pos >= end) {
+		error = "truncated MIDI event";
+		return false;
+	}
+	if (bytes[pos] & 0x80) {
+		error = "expected MIDI data byte";
+		return false;
+	}
+	value = bytes[pos++];
+	return true;
+}
+
+bool parse_midi_track_notes(const std::vector<unsigned char> &bytes, std::size_t start, std::size_t end,
+			    std::array<bool, 12> &pitch_classes, int &note_count, std::string &error)
+{
+	std::size_t pos = start;
+	unsigned char running_status = 0;
+	while (pos < end) {
+		uint32_t delta = 0;
+		if (!read_midi_var_len(bytes, end, pos, delta, error))
+			return false;
+		(void)delta;
+		if (pos >= end)
+			break;
+
+		unsigned char status = bytes[pos++];
+		int first_data = -1;
+		if (status & 0x80) {
+			if (status < 0xf0)
+				running_status = status;
+		} else {
+			if (running_status == 0) {
+				error = "MIDI running status used before channel status";
+				return false;
+			}
+			first_data = status;
+			status = running_status;
+		}
+
+		if (status == 0xff) {
+			if (first_data >= 0) {
+				error = "running status used for MIDI meta event";
+				return false;
+			}
+			int type = 0;
+			if (!midi_read_data_byte(bytes, end, pos, type, error))
+				return false;
+			(void)type;
+			uint32_t length = 0;
+			if (!read_midi_var_len(bytes, end, pos, length, error))
+				return false;
+			if (pos + length > end) {
+				error = "truncated MIDI meta event";
+				return false;
+			}
+			pos += length;
+			continue;
+		}
+
+		if (status == 0xf0 || status == 0xf7) {
+			if (first_data >= 0) {
+				error = "running status used for MIDI sysex event";
+				return false;
+			}
+			uint32_t length = 0;
+			if (!read_midi_var_len(bytes, end, pos, length, error))
+				return false;
+			if (pos + length > end) {
+				error = "truncated MIDI sysex event";
+				return false;
+			}
+			pos += length;
+			continue;
+		}
+
+		if (status < 0x80 || status > 0xef) {
+			error = "unsupported MIDI event status";
+			return false;
+		}
+
+		const unsigned char event_type = status & 0xf0;
+		const int data_len = (event_type == 0xc0 || event_type == 0xd0) ? 1 : 2;
+		int data1 = first_data;
+		if (data1 < 0 && !midi_read_data_byte(bytes, end, pos, data1, error))
+			return false;
+		int data2 = 0;
+		if (data_len == 2 && !midi_read_data_byte(bytes, end, pos, data2, error))
+			return false;
+
+		if (event_type == 0x90 && data2 > 0 && data1 >= 0 && data1 <= 127) {
+			pitch_classes[data1 % 12] = true;
+			++note_count;
+		}
+	}
+	return true;
+}
+
+bool read_midi_score_pitch_classes(const std::string &path, std::array<bool, 12> &pitch_classes,
+				   int &note_count, std::string &error)
+{
+	pitch_classes.fill(false);
+	note_count = 0;
+
+	std::vector<unsigned char> bytes;
+	if (!read_file_bytes(path, bytes, error))
+		return false;
+	if (bytes.size() < 14 || std::memcmp(bytes.data(), "MThd", 4) != 0) {
+		error = "missing MIDI MThd header";
+		return false;
+	}
+
+	const uint32_t header_size = read_be_u32(bytes, 4);
+	if (header_size < 6 || 8u + header_size > bytes.size()) {
+		error = "invalid MIDI header size";
+		return false;
+	}
+	const uint16_t track_count = read_be_u16(bytes, 10);
+	std::size_t pos = 8u + header_size;
+	int parsed_tracks = 0;
+	while (pos + 8 <= bytes.size()) {
+		const bool is_track = std::memcmp(bytes.data() + pos, "MTrk", 4) == 0;
+		const uint32_t chunk_size = read_be_u32(bytes, pos + 4);
+		const std::size_t chunk_start = pos + 8;
+		const std::size_t chunk_end = chunk_start + chunk_size;
+		if (chunk_end > bytes.size()) {
+			error = "truncated MIDI chunk";
+			return false;
+		}
+		if (is_track) {
+			++parsed_tracks;
+			if (!parse_midi_track_notes(bytes, chunk_start, chunk_end, pitch_classes, note_count, error))
+				return false;
+		}
+		pos = chunk_end;
+	}
+
+	if (track_count == 0 || parsed_tracks == 0) {
+		error = "MIDI score has no tracks";
+		return false;
+	}
+	if (note_count == 0) {
+		error = "MIDI score has no note-on events";
 		return false;
 	}
 	return true;
@@ -283,6 +485,16 @@ int midi_from_frequency(double freq)
 	return static_cast<int>(std::llround(69.0 + 12.0 * std::log2(freq / 440.0)));
 }
 
+int pitch_class_count_bool(const std::array<bool, 12> &pitch_classes)
+{
+	int count = 0;
+	for (bool active : pitch_classes) {
+		if (active)
+			++count;
+	}
+	return count;
+}
+
 struct NoteAnnotation {
 	double onset = 0.0;
 	double frequency = 0.0;
@@ -344,6 +556,57 @@ bool read_notes(const std::string &path, std::vector<NoteAnnotation> &notes)
 		notes.push_back(NoteAnnotation{onset, frequency, duration, midi});
 	}
 	return !notes.empty();
+}
+
+std::array<bool, 12> annotated_pitch_classes(const std::vector<TrackData> &tracks)
+{
+	std::array<bool, 12> pitch_classes = {};
+	for (const TrackData &track : tracks) {
+		for (const NoteAnnotation &note : track.notes)
+			pitch_classes[((note.midi % 12) + 12) % 12] = true;
+	}
+	return pitch_classes;
+}
+
+int best_transposed_pitch_class_overlap(const std::array<bool, 12> &source, const std::array<bool, 12> &target)
+{
+	int best = 0;
+	for (int shift = 0; shift < 12; ++shift) {
+		int overlap = 0;
+		for (int pitch_class = 0; pitch_class < 12; ++pitch_class) {
+			if (source[pitch_class] && target[(pitch_class + shift) % 12])
+				++overlap;
+		}
+		best = std::max(best, overlap);
+	}
+	return best;
+}
+
+bool validate_score_matches_annotations(const std::string &score_path, const std::vector<TrackData> &tracks,
+					std::string &reason)
+{
+	std::array<bool, 12> score_pitch_classes = {};
+	int score_notes = 0;
+	std::string midi_error;
+	if (!read_midi_score_pitch_classes(score_path, score_pitch_classes, score_notes, midi_error)) {
+		reason = "invalid Sco_*.mid score file: " + midi_error;
+		return false;
+	}
+
+	const std::array<bool, 12> note_pitch_classes = annotated_pitch_classes(tracks);
+	const int annotation_count = pitch_class_count_bool(note_pitch_classes);
+	const int score_count = pitch_class_count_bool(score_pitch_classes);
+	if (annotation_count == 0 || score_count == 0) {
+		reason = "score/annotation pitch-class set is empty";
+		return false;
+	}
+
+	const int overlap = best_transposed_pitch_class_overlap(note_pitch_classes, score_pitch_classes);
+	if (overlap * 100 < annotation_count * 60) {
+		reason = "Sco_*.mid pitch classes disagree with Notes_*.txt annotations";
+		return false;
+	}
+	return true;
 }
 
 std::string source_hint_for_instrument(const std::string &instrument)
@@ -730,6 +993,8 @@ bool load_piece_files(const std::string &dir, PieceFiles &piece, bool require_sc
 		reason = "fewer than two tracks with matching AuSep_*.wav and readable Notes_*.txt";
 		return false;
 	}
+	if (!piece.score_path.empty() && !validate_score_matches_annotations(piece.score_path, piece.tracks, reason))
+		return false;
 	reason.clear();
 	return true;
 }
@@ -794,6 +1059,29 @@ std::string basename_of(const std::string &path)
 {
 	const std::size_t pos = path.find_last_of('/');
 	return pos == std::string::npos ? path : path.substr(pos + 1);
+}
+
+bool has_official_urmp_piece_id(const std::string &piece_dir)
+{
+	const std::string name = basename_of(piece_dir);
+	static constexpr const char *kOfficialIds[] = {
+		"01_Jupiter",	    "02_Sonata",     "03_Dance",	 "04_Allegro",
+		"05_Entertainer",   "06_Entertainer", "07_GString",	 "08_Spring",
+		"09_Jesus",	    "10_March",      "11_Maria",	 "12_Spring",
+		"13_Hark",	    "14_Waltz",      "15_Surprise",	 "16_Surprise",
+		"17_Nocturne",	    "18_Nocturne",   "19_Pavane",	 "20_Pavane",
+		"21_Rejouissance",  "22_Rejouissance", "23_Rejouissance", "24_Pirates",
+		"25_Pirates",	    "26_King",	     "27_King",	 "28_Fugue",
+		"29_Fugue",	    "30_Fugue",      "31_Slavonic",	 "32_Fugue",
+		"33_Elise",	    "34_Fugue",      "35_Rondeau",	 "36_Rondeau",
+		"37_Rondeau",	    "38_Jerusalem",  "39_Jerusalem",	 "40_Miserere",
+		"41_Miserere",	    "42_Arioso",     "43_Chorale",	 "44_K515",
+	};
+	for (const char *id : kOfficialIds) {
+		if (starts_with(name, id))
+			return true;
+	}
+	return false;
 }
 
 std::string resolve_urmp_root()
@@ -899,6 +1187,15 @@ int main()
 	int tested_windows = 0;
 
 	for (const std::string &piece_dir : piece_dirs) {
+		if (require_official_layout && !has_official_urmp_piece_id(piece_dir)) {
+			++coverage.unusable_pieces;
+			if (coverage.unusable_pieces <= 5) {
+				std::fprintf(stderr, "analyzer_urmp: skipping %s: not an official URMP piece folder\n",
+					     basename_of(piece_dir).c_str());
+			}
+			continue;
+		}
+
 		PieceFiles piece;
 		std::string load_reason;
 		if (!load_piece_files(piece_dir, piece, require_official_layout, load_reason)) {

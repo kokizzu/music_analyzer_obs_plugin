@@ -59,6 +59,46 @@ def write_wav(path, channels):
         wav.writeframes(b"".join(frames))
 
 
+def write_var_len(value):
+    bytes_out = [value & 0x7F]
+    value >>= 7
+    while value:
+        bytes_out.append(0x80 | (value & 0x7F))
+        value >>= 7
+    return bytes(reversed(bytes_out))
+
+
+def write_score_midi(path, events):
+    ticks_per_quarter = 480
+    ticks_per_second = 960
+    midi_events = []
+    for onset, duration, midi in events:
+        start_tick = int(round(onset * ticks_per_second))
+        end_tick = int(round((onset + duration) * ticks_per_second))
+        midi_events.append((start_tick, 1, midi))
+        midi_events.append((end_tick, 0, midi))
+    midi_events.sort()
+
+    track = bytearray()
+    last_tick = 0
+    for tick, on, midi in midi_events:
+        track.extend(write_var_len(tick - last_tick))
+        last_tick = tick
+        if on:
+            track.extend((0x90, midi, 72))
+        else:
+            track.extend((0x80, midi, 0))
+    track.extend(write_var_len(0))
+    track.extend((0xFF, 0x2F, 0x00))
+
+    with open(path, "wb") as midi_file:
+        midi_file.write(b"MThd")
+        midi_file.write(struct.pack(">IHHH", 6, 0, 1, ticks_per_quarter))
+        midi_file.write(b"MTrk")
+        midi_file.write(struct.pack(">I", len(track)))
+        midi_file.write(track)
+
+
 def write_piece(root, index):
     root_pitch_class = (index * 5) % 12
     instruments = ["vn", "va", "vc"]
@@ -68,6 +108,7 @@ def write_piece(root, index):
     os.makedirs(piece_dir, exist_ok=True)
 
     parts = []
+    score_events = []
     for track_index, (instrument, floor) in enumerate(zip(instruments, floors), start=1):
         channel = [0.0 for _ in range(SAMPLE_RATE * SECONDS)]
         note_rows = []
@@ -81,6 +122,7 @@ def write_piece(root, index):
             for sample_index in range(start, min(end, len(channel))):
                 channel[sample_index] += harmonic_sample(midi, 0.13, sample_index)
             note_rows.append((onset, duration, midi))
+            score_events.append((onset, duration, midi))
         parts.append(channel)
 
         write_wav(
@@ -102,6 +144,7 @@ def write_piece(root, index):
                 notes_file.write(f"{onset:.3f} {midi_frequency(midi):.6f} {duration:.3f}\n")
 
     write_wav(os.path.join(piece_dir, f"AuMix_{index:02d}_Fixture_vn_va_vc.wav"), parts)
+    write_score_midi(os.path.join(piece_dir, f"Sco_{index:02d}_Fixture_vn_va_vc.mid"), score_events)
 
 
 def main():
