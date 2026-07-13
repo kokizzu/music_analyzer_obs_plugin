@@ -66,8 +66,8 @@ without additional annotation.
 ## Implementation Notes
 
 - Do not vendor dataset audio into this repository.
-- Add an optional `MUSIC_ANALYZER_DATASET_ROOT` or similar path for local
-  datasets.
+- Set `MUSIC_ANALYZER_URMP_ROOT=/path/to/URMP` to run the optional real-audio
+  URMP regression harness against local `AuMix`, `AuSep`, and `Notes` files.
 - Real-audio tests should skip with a clear message when the dataset is absent.
 - URMP should be the first automated target because it gives enough pieces for
   20+ full-mix tests and has both isolated tracks and note truth.

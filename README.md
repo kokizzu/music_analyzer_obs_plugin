@@ -63,6 +63,14 @@ make test
 
 The full-mix regression cases model public multitrack dataset layouts without downloading dataset audio. They include 20+ Slakh2100-style MIDI-rendered song fixtures plus additional MUSDB18/MUSDB18-HQ, DSD100/Mixing Secrets, MedleyDB/2.0, MoisesDB, URMP, RawStems, MulTTiPop, ACMID, Spheres, MDX, and Open Multitrack Testbed-style fixtures. See [docs/real_audio_dataset_candidates.md](docs/real_audio_dataset_candidates.md) for real recorded dataset candidates that can verify notes and instruments.
 
+Optional real-audio URMP regression coverage runs when a local URMP dataset is available:
+
+```sh
+MUSIC_ANALYZER_URMP_ROOT=/path/to/URMP make test
+```
+
+Without `MUSIC_ANALYZER_URMP_ROOT`, this check is built but skipped. When enabled, it reads URMP `AuMix`, `AuSep`, and `Notes` files, requires at least 20 usable same-song pieces, checks separated tracks, then checks the summed/full mix.
+
 Optional CMake build, assuming the OBS development dependencies are installed system-wide:
 
 ```sh
