@@ -8,7 +8,7 @@ namespace mao {
 
 constexpr std::size_t kAnalysisWindow = 4096;
 constexpr std::size_t kDrumCount = 6;
-constexpr std::size_t kNoteRowCount = 2;
+constexpr std::size_t kNoteRowCount = 3;
 constexpr int kFirstAnalyzedMidi = 21;
 constexpr int kLastAnalyzedMidi = 108;
 constexpr std::size_t kNoteProbeCount = static_cast<std::size_t>(kLastAnalyzedMidi - kFirstAnalyzedMidi + 1);

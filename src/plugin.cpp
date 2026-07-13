@@ -24,7 +24,8 @@ namespace {
 constexpr const char *kFilterId = "music_analyzer_filter";
 constexpr const char *kVisualizerId = "music_analyzer_overlay";
 constexpr uint32_t kDefaultWidth = 960;
-constexpr uint32_t kDefaultHeight = 460;
+constexpr uint32_t kDefaultHeight = 540;
+constexpr std::size_t kMatrixRowCount = 2;
 static_assert((mao::kAnalysisWindow & (mao::kAnalysisWindow - 1)) == 0, "analysis window must be a power of two");
 
 std::mutex g_snapshot_mutex;
@@ -663,6 +664,74 @@ bool note_grid_has_midi(const mao::NoteGrid &notes, int midi)
 	return false;
 }
 
+int draw_piano_keyboard(VisualizerData *visualizer, int y, const mao::NoteGrid &notes,
+			const mao::InstrumentState &chord)
+{
+	static constexpr int kRowCount = 3;
+	static constexpr int kOctavesPerRow = 2;
+	static constexpr int kWhiteKeysPerRow = 14;
+	static constexpr int kWhiteOffsets[kWhiteKeysPerRow] = {0, 2, 4, 5, 7, 9, 11, 12, 14, 16, 17, 19, 21, 23};
+	static constexpr int kBlackOffsets[10] = {1, 3, 6, 8, 10, 13, 15, 18, 20, 22};
+	static constexpr int kBlackAfterWhite[10] = {0, 1, 3, 4, 5, 7, 8, 10, 11, 12};
+
+	const int label_x = 28;
+	const int key_x = 150;
+	const int header_h = 16;
+	const int row_h = 30;
+	const int row_gap = 6;
+	const int max_keyboard_w = std::max(280, static_cast<int>(visualizer->width) - key_x - 220);
+	const int white_w = std::clamp(max_keyboard_w / kWhiteKeysPerRow, 18, 42);
+	const int white_h = 28;
+	const int black_w = std::max(10, white_w * 3 / 5);
+	const int black_h = 16;
+	const int keyboard_w = white_w * kWhiteKeysPerRow;
+	const int chord_x = std::max(key_x + keyboard_w + 24, static_cast<int>(visualizer->width) - 190);
+	const Color dim{130, 145, 163, 255};
+	const Color label_text{148, 163, 184, 255};
+	const Color white_key{218, 225, 235, 235};
+	const Color black_key{20, 25, 32, 245};
+	const Color border{58, 68, 82, 230};
+	const Color active{255, 204, 0, 245};
+	const Color chord_text{199, 210, 224, 255};
+	const char *chord_label = chord.label[0] ? chord.label : "--";
+
+	draw_text(visualizer, label_x, y + 38, "KEYS", 2, dim);
+	draw_text(visualizer, chord_x, y, "CHORD", 1, label_text);
+	draw_chord_text(visualizer, chord_x, y + 16, chord_label, 2, chord_text);
+
+	for (int row = 0; row < kRowCount; ++row) {
+		const int base_midi = 24 + row * kOctavesPerRow * 12;
+		const int row_y = y + header_h + row * (row_h + row_gap);
+		char range_label[8] = {};
+		std::snprintf(range_label, sizeof(range_label), "C%d-B%d", row * 2 + 1, row * 2 + 2);
+		draw_text(visualizer, key_x - 48, row_y + 10, range_label, 1, label_text);
+
+		for (int i = 0; i < kWhiteKeysPerRow; ++i) {
+			const int midi = base_midi + kWhiteOffsets[i];
+			const bool active_key = note_grid_has_midi(notes, midi);
+			const int x = key_x + i * white_w;
+			fill_rect(visualizer, x, row_y, white_w - 1, white_h, active_key ? active : white_key);
+			fill_rect(visualizer, x, row_y, white_w - 1, 1, border);
+			fill_rect(visualizer, x, row_y + white_h - 1, white_w - 1, 1, border);
+			fill_rect(visualizer, x, row_y, 1, white_h, border);
+			fill_rect(visualizer, x + white_w - 2, row_y, 1, white_h, border);
+		}
+
+		for (std::size_t i = 0; i < sizeof(kBlackOffsets) / sizeof(kBlackOffsets[0]); ++i) {
+			const int midi = base_midi + kBlackOffsets[i];
+			const bool active_key = note_grid_has_midi(notes, midi);
+			const int x = key_x + (kBlackAfterWhite[i] + 1) * white_w - black_w / 2;
+			fill_rect(visualizer, x, row_y, black_w, black_h, active_key ? active : black_key);
+			fill_rect(visualizer, x, row_y, black_w, 1, border);
+			fill_rect(visualizer, x, row_y + black_h - 1, black_w, 1, border);
+			fill_rect(visualizer, x, row_y, 1, black_h, border);
+			fill_rect(visualizer, x + black_w - 1, row_y, 1, black_h, border);
+		}
+	}
+
+	return y + header_h + kRowCount * row_h + (kRowCount - 1) * row_gap + 10;
+}
+
 int draw_guitar_fretboard(VisualizerData *visualizer, int y, const mao::NoteGrid &notes,
 			  const mao::InstrumentState &chord)
 {
@@ -760,12 +829,11 @@ void render_pixels(VisualizerData *visualizer, const mao::AnalysisSnapshot &snap
 	int row_y = 164;
 	row_y = draw_instrument_rows(visualizer, row_y, "BASS", snapshot.bass_notes, nullptr,
 				     Color{255, 59, 48, 245}, 1);
-	row_y = draw_instrument_rows(visualizer, row_y, "KEYS", snapshot.keyboard_notes, &snapshot.keyboard_chord,
-				     Color{255, 204, 0, 245}, mao::kNoteRowCount);
 	row_y = draw_instrument_rows(visualizer, row_y, "VOCAL", snapshot.vocal_notes, nullptr,
-				     Color{10, 132, 255, 245}, mao::kNoteRowCount);
+				     Color{10, 132, 255, 245}, kMatrixRowCount);
 	row_y = draw_instrument_rows(visualizer, row_y, "OTHERS", snapshot.other_notes, &snapshot.other_chord,
-				     Color{191, 90, 242, 245}, mao::kNoteRowCount);
+				     Color{191, 90, 242, 245}, kMatrixRowCount);
+	row_y = draw_piano_keyboard(visualizer, row_y + 4, snapshot.keyboard_notes, snapshot.keyboard_chord);
 	row_y = draw_guitar_fretboard(visualizer, row_y + 4, snapshot.guitar_notes, snapshot.guitar_chord);
 
 	char root_label[96];
@@ -825,7 +893,7 @@ void *visualizer_create(obs_data_t *settings, obs_source_t *)
 {
 	auto *visualizer = new VisualizerData();
 	visualizer->width = static_cast<uint32_t>(std::clamp<long long>(obs_data_get_int(settings, "width"), 320, 1920));
-	visualizer->height = static_cast<uint32_t>(std::clamp<long long>(obs_data_get_int(settings, "height"), 450, 1080));
+	visualizer->height = static_cast<uint32_t>(std::clamp<long long>(obs_data_get_int(settings, "height"), 520, 1080));
 	visualizer->update_fps = static_cast<uint32_t>(std::clamp<long long>(obs_data_get_int(settings, "update_fps"), 1, 30));
 	visualizer->pixels.resize(static_cast<std::size_t>(visualizer->width) * visualizer->height * 4);
 	render_pixels(visualizer, read_snapshot(), 0.0f);
@@ -862,7 +930,7 @@ obs_properties_t *visualizer_properties(void *)
 {
 	obs_properties_t *props = obs_properties_create();
 	obs_properties_add_int(props, "width", "Width", 320, 1920, 10);
-	obs_properties_add_int(props, "height", "Height", 450, 1080, 10);
+	obs_properties_add_int(props, "height", "Height", 520, 1080, 10);
 	obs_properties_add_int_slider(props, "update_fps", "Visualizer update FPS", 1, 30, 1);
 	return props;
 }
@@ -875,7 +943,7 @@ void visualizer_update(void *data, obs_data_t *settings)
 
 	std::lock_guard<std::mutex> lock(visualizer->mutex);
 	const uint32_t width = static_cast<uint32_t>(std::clamp<long long>(obs_data_get_int(settings, "width"), 320, 1920));
-	const uint32_t height = static_cast<uint32_t>(std::clamp<long long>(obs_data_get_int(settings, "height"), 450, 1080));
+	const uint32_t height = static_cast<uint32_t>(std::clamp<long long>(obs_data_get_int(settings, "height"), 520, 1080));
 	visualizer->update_fps = static_cast<uint32_t>(std::clamp<long long>(obs_data_get_int(settings, "update_fps"), 1, 30));
 	if (width != visualizer->width || height != visualizer->height) {
 		visualizer->width = width;
