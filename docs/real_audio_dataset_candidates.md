@@ -123,6 +123,14 @@ without additional annotation.
   with mix plus stems and at least 20 melody-annotated multitracks by default.
   This is a partial real-stem/melody-F0 check and does not replace the URMP
   per-source note/chord gate.
+- Use `make inspect-real-spheres` with
+  `MUSIC_ANALYZER_SPHERES_ROOT=/path/to/TheSpheresDataset` to preflight The
+  Spheres Dataset when it is available. This checks the real orchestral
+  stem/mix folder layout only: each accepted piece needs a mix/stereo folder
+  and multiple reconstructable microphone or mix folders with multiple source
+  audio files. Spheres has two full works and no full MIDI/note truth for those
+  works, so it is an optional timbre/stem-layout add-on and does not replace
+  URMP for the 20+ note/chord gate.
 - Use `make inspect-real-musicnet` and `make test-real-musicnet-20` with
   `MUSIC_ANALYZER_MUSICNET_ROOT=/path/to/musicnet` after extracting the open
   Zenodo MusicNet archive. The target expects `train_data`/`test_data` WAV
@@ -141,8 +149,9 @@ without additional annotation.
   committed compact 20-piece URMP-shaped lossless FLAC/Notes/MIDI fixture from
   `tests/fixtures/urmp-mini.tar.gz`, decodes it to disposable WAV files under
   `build/` with `ffmpeg`, generates 20-recording MusicNet-shaped WAV/CSV and
-  MedleyDB-shaped stem-layout fixtures, sends all configured roots through the
-  combined setup preflight, and then sends them through the combined goal gate.
+  MedleyDB-shaped and Spheres-shaped stem-layout fixtures, sends all configured
+  roots through the combined setup preflight, and then sends them through the
+  combined goal gate.
   The URMP fixture is marker-file tagged and is rejected by the real-data gate
   unless fixture mode is explicitly allowed. Override the decoder with
   `FFMPEG=/path/to/ffmpeg` if needed. Refresh it with

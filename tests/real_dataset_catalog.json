@@ -255,7 +255,7 @@
       "assembled_mix": true,
       "aligned_symbolic_truth": false,
       "truth": "isolated orchestral stems, microphone signals, stereo/main mixes, room impulse responses, scales, and solo excerpts",
-      "automation_target": "",
+      "automation_target": "inspect-real-spheres",
       "source_url": "https://arxiv.org/abs/2511.21247",
       "download_url": "https://doi.org/10.5281/zenodo.17347681",
       "download_note": "The paper describes a public Zenodo release with two full orchestral works plus chromatic scales and solo excerpts; it does not describe full MIDI/note ground truth for the pieces.",

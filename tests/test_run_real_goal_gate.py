@@ -46,6 +46,23 @@ def test_generic_dataset_root_without_medleydb_child_is_not_medleydb():
         assert not run_real_goal_gate.configured_medleydb({"MUSIC_ANALYZER_DATASET_ROOT": temp})
 
 
+def test_explicit_spheres_root_is_configured():
+    assert run_real_goal_gate.configured_spheres({"MUSIC_ANALYZER_SPHERES_ROOT": "/tmp/Spheres"})
+    assert run_real_goal_gate.configured_spheres({"SPHERES_PATH": "/tmp/Spheres"})
+
+
+def test_generic_dataset_root_with_spheres_child_is_spheres():
+    with tempfile.TemporaryDirectory() as temp:
+        touch_dir(os.path.join(temp, "TheSpheresDataset"))
+        assert run_real_goal_gate.configured_spheres({"MUSIC_ANALYZER_DATASET_ROOT": temp})
+
+
+def test_generic_dataset_root_without_spheres_child_is_not_spheres():
+    with tempfile.TemporaryDirectory() as temp:
+        touch_dir(os.path.join(temp, "URMP", "01_Jupiter"))
+        assert not run_real_goal_gate.configured_spheres({"MUSIC_ANALYZER_DATASET_ROOT": temp})
+
+
 def test_twenty_piece_test_plan_targets_real_gates():
     plan = run_real_goal_gate.resolve_plan("20")
     assert plan
@@ -53,6 +70,7 @@ def test_twenty_piece_test_plan_targets_real_gates():
     assert plan["multitrack_target"] == "test-real-multitrack-20"
     assert plan["musicnet_target"] == "test-real-musicnet-20"
     assert plan["medleydb_target"] == "inspect-real-medleydb"
+    assert plan["spheres_target"] == "inspect-real-spheres"
 
 
 def test_full_test_plan_targets_full_real_gates():
@@ -62,6 +80,7 @@ def test_full_test_plan_targets_full_real_gates():
     assert plan["multitrack_target"] == "test-real-multitrack-full"
     assert plan["musicnet_target"] == "test-real-musicnet-full"
     assert plan["medleydb_target"] == "inspect-real-medleydb"
+    assert plan["spheres_target"] == "inspect-real-spheres"
 
 
 def test_twenty_piece_inspect_plan_targets_preflights():
@@ -71,6 +90,7 @@ def test_twenty_piece_inspect_plan_targets_preflights():
     assert plan["multitrack_target"] == "inspect-real-multitrack-20"
     assert plan["musicnet_target"] == "inspect-real-musicnet"
     assert plan["medleydb_target"] == "inspect-real-medleydb"
+    assert plan["spheres_target"] == "inspect-real-spheres"
 
 
 def test_full_inspect_plan_targets_full_preflights():
@@ -80,6 +100,7 @@ def test_full_inspect_plan_targets_full_preflights():
     assert plan["multitrack_target"] == "inspect-real-multitrack-full"
     assert plan["musicnet_target"] == "inspect-real-musicnet-full"
     assert plan["medleydb_target"] == "inspect-real-medleydb"
+    assert plan["spheres_target"] == "inspect-real-spheres"
 
 
 def test_invalid_plan_is_rejected():
@@ -94,12 +115,15 @@ def main():
     test_explicit_medleydb_root_is_configured()
     test_generic_dataset_root_with_medleydb_child_is_medleydb()
     test_generic_dataset_root_without_medleydb_child_is_not_medleydb()
+    test_explicit_spheres_root_is_configured()
+    test_generic_dataset_root_with_spheres_child_is_spheres()
+    test_generic_dataset_root_without_spheres_child_is_not_spheres()
     test_twenty_piece_test_plan_targets_real_gates()
     test_full_test_plan_targets_full_real_gates()
     test_twenty_piece_inspect_plan_targets_preflights()
     test_full_inspect_plan_targets_full_preflights()
     test_invalid_plan_is_rejected()
-    print("test_run_real_goal_gate: 11 checks passed")
+    print("test_run_real_goal_gate: 14 checks passed")
     return 0
 
 

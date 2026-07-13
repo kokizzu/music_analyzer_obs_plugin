@@ -60,30 +60,48 @@ def configured_medleydb(env):
     return False
 
 
+def configured_spheres(env):
+    if env_has_any(env, ("MUSIC_ANALYZER_SPHERES_ROOT", "SPHERES_PATH")):
+        return True
+
+    dataset_root = env.get("MUSIC_ANALYZER_DATASET_ROOT", "")
+    if not dataset_root:
+        return False
+
+    for child in ("TheSpheresDataset", "The_Spheres_Dataset", "Spheres", "spheres", "TheSpheres"):
+        if is_dir(child_path(dataset_root, child)):
+            return True
+    return False
+
+
 TARGET_PLANS = {
     "20": {
         "inspect_only": False,
         "multitrack_target": "test-real-multitrack-20",
         "musicnet_target": "test-real-musicnet-20",
         "medleydb_target": "inspect-real-medleydb",
+        "spheres_target": "inspect-real-spheres",
     },
     "full": {
         "inspect_only": False,
         "multitrack_target": "test-real-multitrack-full",
         "musicnet_target": "test-real-musicnet-full",
         "medleydb_target": "inspect-real-medleydb",
+        "spheres_target": "inspect-real-spheres",
     },
     "inspect-20": {
         "inspect_only": True,
         "multitrack_target": "inspect-real-multitrack-20",
         "musicnet_target": "inspect-real-musicnet",
         "medleydb_target": "inspect-real-medleydb",
+        "spheres_target": "inspect-real-spheres",
     },
     "inspect-full": {
         "inspect_only": True,
         "multitrack_target": "inspect-real-multitrack-full",
         "musicnet_target": "inspect-real-musicnet-full",
         "medleydb_target": "inspect-real-medleydb",
+        "spheres_target": "inspect-real-spheres",
     },
 }
 
@@ -134,6 +152,17 @@ def main(argv):
         print(
             "run_real_goal_gate: skipping optional MedleyDB stem preflight; set "
             "MUSIC_ANALYZER_MEDLEYDB_ROOT/MEDLEYDB_PATH or place a MedleyDB directory under "
+            "MUSIC_ANALYZER_DATASET_ROOT"
+        )
+
+    if configured_spheres(env):
+        failed = run(make_cmd, plan["spheres_target"])
+        if failed:
+            return failed
+    else:
+        print(
+            "run_real_goal_gate: skipping optional Spheres stem preflight; set "
+            "MUSIC_ANALYZER_SPHERES_ROOT/SPHERES_PATH or place a Spheres directory under "
             "MUSIC_ANALYZER_DATASET_ROOT"
         )
 
