@@ -53,7 +53,7 @@ def test_explicit_multtipop_root_is_configured():
 
 def test_generic_dataset_root_with_multtipop_child_is_multtipop():
     with tempfile.TemporaryDirectory() as temp:
-        touch_dir(os.path.join(temp, "gclef-cmu", "multtipop"))
+        touch_dir(os.path.join(temp, "gclef-cmu", "multtipop", "dev"))
         assert run_real_goal_gate.configured_multtipop({"MUSIC_ANALYZER_DATASET_ROOT": temp})
 
 
@@ -61,6 +61,21 @@ def test_generic_dataset_root_without_multtipop_child_is_not_multtipop():
     with tempfile.TemporaryDirectory() as temp:
         touch_dir(os.path.join(temp, "URMP", "01_Jupiter"))
         assert not run_real_goal_gate.configured_multtipop({"MUSIC_ANALYZER_DATASET_ROOT": temp})
+
+
+def test_multtipop_audio_is_configured_by_env_or_local_wav():
+    assert run_real_goal_gate.multtipop_audio_configured({"MUSIC_ANALYZER_MULTTIPOP_REQUIRE_AUDIO": "1"})
+    assert run_real_goal_gate.multtipop_audio_configured({"MUSIC_ANALYZER_MULTTIPOP_AUDIO_ROOT": "/tmp/audio"})
+
+    with tempfile.TemporaryDirectory() as temp:
+        touch_dir(os.path.join(temp, "dev", "fixture001"))
+        with open(os.path.join(temp, "dev", "fixture001", "audio.wav"), "wb") as audio_file:
+            audio_file.write(b"")
+        assert run_real_goal_gate.multtipop_audio_configured({"MUSIC_ANALYZER_MULTTIPOP_ROOT": temp})
+
+    with tempfile.TemporaryDirectory() as temp:
+        touch_dir(os.path.join(temp, "dev", "fixture001"))
+        assert not run_real_goal_gate.multtipop_audio_configured({"MUSIC_ANALYZER_MULTTIPOP_ROOT": temp})
 
 
 def test_explicit_spheres_root_is_configured():
@@ -88,6 +103,7 @@ def test_twenty_piece_test_plan_targets_real_gates():
     assert plan["musicnet_target"] == "test-real-musicnet-20"
     assert plan["medleydb_target"] == "inspect-real-medleydb"
     assert plan["multtipop_target"] == "inspect-real-multtipop"
+    assert plan["multtipop_audio_target"] == "test-real-multtipop-20"
     assert plan["spheres_target"] == "inspect-real-spheres"
 
 
@@ -99,6 +115,7 @@ def test_full_test_plan_targets_full_real_gates():
     assert plan["musicnet_target"] == "test-real-musicnet-full"
     assert plan["medleydb_target"] == "inspect-real-medleydb"
     assert plan["multtipop_target"] == "inspect-real-multtipop"
+    assert plan["multtipop_audio_target"] == "test-real-multtipop-full"
     assert plan["spheres_target"] == "inspect-real-spheres"
 
 
@@ -110,6 +127,7 @@ def test_twenty_piece_inspect_plan_targets_preflights():
     assert plan["musicnet_target"] == "inspect-real-musicnet"
     assert plan["medleydb_target"] == "inspect-real-medleydb"
     assert plan["multtipop_target"] == "inspect-real-multtipop"
+    assert plan["multtipop_audio_target"] == "inspect-real-multtipop"
     assert plan["spheres_target"] == "inspect-real-spheres"
 
 
@@ -121,6 +139,7 @@ def test_full_inspect_plan_targets_full_preflights():
     assert plan["musicnet_target"] == "inspect-real-musicnet-full"
     assert plan["medleydb_target"] == "inspect-real-medleydb"
     assert plan["multtipop_target"] == "inspect-real-multtipop"
+    assert plan["multtipop_audio_target"] == "inspect-real-multtipop"
     assert plan["spheres_target"] == "inspect-real-spheres"
 
 
@@ -139,6 +158,7 @@ def main():
     test_explicit_multtipop_root_is_configured()
     test_generic_dataset_root_with_multtipop_child_is_multtipop()
     test_generic_dataset_root_without_multtipop_child_is_not_multtipop()
+    test_multtipop_audio_is_configured_by_env_or_local_wav()
     test_explicit_spheres_root_is_configured()
     test_generic_dataset_root_with_spheres_child_is_spheres()
     test_generic_dataset_root_without_spheres_child_is_not_spheres()
@@ -147,7 +167,7 @@ def main():
     test_twenty_piece_inspect_plan_targets_preflights()
     test_full_inspect_plan_targets_full_preflights()
     test_invalid_plan_is_rejected()
-    print("test_run_real_goal_gate: 17 checks passed")
+    print("test_run_real_goal_gate: 18 checks passed")
     return 0
 
 

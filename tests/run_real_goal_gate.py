@@ -60,19 +60,61 @@ def configured_medleydb(env):
     return False
 
 
+def multtipop_candidate_roots(env):
+    roots = []
+    if env_has_any(env, ("MUSIC_ANALYZER_MULTTIPOP_ROOT", "MULTTIPOP_PATH")):
+        roots.extend(
+            root for root in (env.get("MUSIC_ANALYZER_MULTTIPOP_ROOT"), env.get("MULTTIPOP_PATH")) if root
+        )
+
+    dataset_root = env.get("MUSIC_ANALYZER_DATASET_ROOT", "")
+    if dataset_root:
+        roots.extend(
+            [
+                child_path(dataset_root, "MulTTiPop"),
+                child_path(dataset_root, "multtipop"),
+                child_path(dataset_root, "gclef-cmu-multtipop"),
+                child_path(dataset_root, "gclef-cmu_multtipop"),
+                child_path(dataset_root, "gclef-cmu", "multtipop"),
+            ]
+        )
+    return roots
+
+
+def has_multtipop_layout(root):
+    return is_dir(child_path(root, "dev")) or is_dir(child_path(root, "test"))
+
+
 def configured_multtipop(env):
     if env_has_any(env, ("MUSIC_ANALYZER_MULTTIPOP_ROOT", "MULTTIPOP_PATH")):
         return True
 
-    dataset_root = env.get("MUSIC_ANALYZER_DATASET_ROOT", "")
-    if not dataset_root:
-        return False
-
-    for child in ("MulTTiPop", "multtipop", "gclef-cmu-multtipop", "gclef-cmu_multtipop"):
-        if is_dir(child_path(dataset_root, child)):
+    for root in multtipop_candidate_roots(env):
+        if has_multtipop_layout(root):
             return True
-    if is_dir(child_path(dataset_root, "gclef-cmu", "multtipop")):
+    return False
+
+
+def multtipop_audio_configured(env):
+    if env_has_any(env, ("MUSIC_ANALYZER_MULTTIPOP_REQUIRE_AUDIO", "MUSIC_ANALYZER_MULTTIPOP_AUDIO_ROOT")):
         return True
+
+    for root in multtipop_candidate_roots(env):
+        for split in ("dev", "test"):
+            split_dir = child_path(root, split)
+            if not is_dir(split_dir):
+                continue
+            try:
+                segment_names = sorted(os.listdir(split_dir))[:8]
+            except OSError:
+                continue
+            for segment_name in segment_names:
+                segment_dir = child_path(split_dir, segment_name)
+                if not is_dir(segment_dir):
+                    continue
+                for filename in ("audio.wav", "segment.wav", f"{segment_name}.wav"):
+                    if os.path.isfile(child_path(segment_dir, filename)):
+                        return True
     return False
 
 
@@ -97,6 +139,7 @@ TARGET_PLANS = {
         "musicnet_target": "test-real-musicnet-20",
         "medleydb_target": "inspect-real-medleydb",
         "multtipop_target": "inspect-real-multtipop",
+        "multtipop_audio_target": "test-real-multtipop-20",
         "spheres_target": "inspect-real-spheres",
     },
     "full": {
@@ -105,6 +148,7 @@ TARGET_PLANS = {
         "musicnet_target": "test-real-musicnet-full",
         "medleydb_target": "inspect-real-medleydb",
         "multtipop_target": "inspect-real-multtipop",
+        "multtipop_audio_target": "test-real-multtipop-full",
         "spheres_target": "inspect-real-spheres",
     },
     "inspect-20": {
@@ -113,6 +157,7 @@ TARGET_PLANS = {
         "musicnet_target": "inspect-real-musicnet",
         "medleydb_target": "inspect-real-medleydb",
         "multtipop_target": "inspect-real-multtipop",
+        "multtipop_audio_target": "inspect-real-multtipop",
         "spheres_target": "inspect-real-spheres",
     },
     "inspect-full": {
@@ -121,6 +166,7 @@ TARGET_PLANS = {
         "musicnet_target": "inspect-real-musicnet-full",
         "medleydb_target": "inspect-real-medleydb",
         "multtipop_target": "inspect-real-multtipop",
+        "multtipop_audio_target": "inspect-real-multtipop",
         "spheres_target": "inspect-real-spheres",
     },
 }
@@ -176,7 +222,8 @@ def main(argv):
         )
 
     if configured_multtipop(env):
-        failed = run(make_cmd, plan["multtipop_target"])
+        target = plan["multtipop_audio_target"] if multtipop_audio_configured(env) else plan["multtipop_target"]
+        failed = run(make_cmd, target)
         if failed:
             return failed
     else:

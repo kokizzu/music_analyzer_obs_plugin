@@ -326,8 +326,8 @@ def main():
 
     if require_audio:
         print(
-            "inspect_multtipop_dataset: local audio segments are present; this can support "
-            "real-pop note/chord evaluation once an analyzer harness consumes them"
+            "inspect_multtipop_dataset: local audio segments are present; run "
+            "make test-real-multtipop-20 for audio-backed real-pop note/chord evaluation"
         )
     else:
         print(
