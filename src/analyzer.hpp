@@ -8,6 +8,7 @@ namespace mao {
 
 constexpr std::size_t kAnalysisWindow = 4096;
 constexpr std::size_t kDrumCount = 6;
+constexpr std::size_t kNoteRowCount = 2;
 constexpr int kFirstAnalyzedMidi = 21;
 constexpr int kLastAnalyzedMidi = 108;
 constexpr std::size_t kNoteProbeCount = static_cast<std::size_t>(kLastAnalyzedMidi - kFirstAnalyzedMidi + 1);
@@ -35,7 +36,7 @@ struct DrumState {
 };
 
 struct InstrumentState {
-	char label[24] = {};
+	char label[64] = {};
 	float confidence = 0.0f;
 };
 
@@ -48,6 +49,7 @@ struct NoteCell {
 
 struct NoteGrid {
 	std::array<NoteCell, 12> cells = {};
+	std::array<std::array<NoteCell, 12>, kNoteRowCount> rows = {};
 };
 
 struct AnalysisSnapshot {

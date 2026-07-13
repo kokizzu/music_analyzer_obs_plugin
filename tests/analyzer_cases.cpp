@@ -46,6 +46,39 @@ void expect_no_chord(Runner &runner, const mao::InstrumentState &chord, const st
 	runner.expect(std::strcmp(chord.label, "--") == 0, context + ": expected no chord, got `" + chord.label + "`");
 }
 
+void add_harmonic_note(mao_test::Buffer &buffer, int midi, float amp, const std::vector<float> &profile)
+{
+	const float base = mao_test::midi_frequency(midi);
+	for (std::size_t harmonic = 0; harmonic < profile.size(); ++harmonic)
+		mao_test::add_sine(buffer, base * static_cast<float>(harmonic + 1), amp * profile[harmonic]);
+}
+
+mao_test::Buffer make_harmonic_notes(const std::vector<int> &midis, float amp, const std::vector<float> &profile)
+{
+	mao_test::Buffer buffer = {};
+	for (int midi : midis)
+		add_harmonic_note(buffer, midi, amp, profile);
+	return buffer;
+}
+
+bool grid_pitch_active(const mao::NoteGrid &grid, int pitch_class)
+{
+	for (const auto &row : grid.rows) {
+		if (row[pitch_class].active)
+			return true;
+	}
+	return false;
+}
+
+bool grid_pitch_has_octave(const mao::NoteGrid &grid, int pitch_class, const char *octave)
+{
+	for (const auto &row : grid.rows) {
+		if (row[pitch_class].active && std::strcmp(row[pitch_class].label, octave) == 0)
+			return true;
+	}
+	return false;
+}
+
 void check_bass_notes(Runner &runner)
 {
 	for (int midi = 23; midi <= 67; ++midi) {
@@ -220,13 +253,105 @@ void check_quiet_note_rejection(Runner &runner)
 	mao_test::add_midi_note(buffer, 60, 0.34f);
 	mao_test::add_midi_note(buffer, 64, 0.34f);
 	mao_test::add_midi_note(buffer, 67, 0.34f);
-	mao_test::add_midi_note(buffer, 66, 0.035f);
+	mao_test::add_midi_note(buffer, 66, 0.12f);
 
 	const auto snapshot = analyze_buffer(buffer, "keyboard");
 	runner.expect(!mao_test::has_note_token(snapshot.keyboard.label, "F#4"),
 		      std::string("quiet note rejection: expected no F#4 token, got `") + snapshot.keyboard.label + "`");
 	runner.expect(!snapshot.keyboard_notes.cells[6].active,
 		      "quiet note rejection: expected F# cell inactive for low-velocity note");
+	expect_label(runner, snapshot.keyboard_chord.label, "C", "quiet note rejection chord");
+}
+
+void check_quiet_standalone_rejection(Runner &runner)
+{
+	struct QuietCase {
+		const char *name;
+		int midi;
+		const mao::InstrumentState &(*notes)(const mao::AnalysisSnapshot &);
+		const mao::InstrumentState &(*chord)(const mao::AnalysisSnapshot &);
+	};
+
+	const std::vector<QuietCase> cases = {
+		{"bass", 40, [](const mao::AnalysisSnapshot &snapshot) -> const mao::InstrumentState & {
+			 return snapshot.bass;
+		 }, nullptr},
+		{"keyboard", 60, keyboard_notes, keyboard_chord},
+		{"guitar", 52, guitar_notes, guitar_chord},
+		{"vocal", 60, [](const mao::AnalysisSnapshot &snapshot) -> const mao::InstrumentState & {
+			 return snapshot.vocal;
+		 }, nullptr},
+		{"other", 72, other_notes, other_chord},
+	};
+
+	for (const QuietCase &quiet_case : cases) {
+		mao_test::Buffer buffer = {};
+		mao_test::add_midi_note(buffer, quiet_case.midi, 0.015f);
+		const auto snapshot = analyze_buffer(buffer, quiet_case.name);
+		const std::string context = std::string("quiet standalone ") + quiet_case.name;
+		expect_label(runner, quiet_case.notes(snapshot).label, "--", context);
+		if (quiet_case.chord)
+			expect_no_chord(runner, quiet_case.chord(snapshot), context);
+	}
+}
+
+void check_realistic_instrument_chords(Runner &runner)
+{
+	const std::vector<float> guitar_profile = {1.0f, 0.34f, 0.16f, 0.08f};
+	const auto guitar_buffer = make_harmonic_notes({48, 52, 55, 60, 64}, 0.17f, guitar_profile);
+	const auto guitar_snapshot = analyze_buffer(guitar_buffer, "guitar");
+	expect_label(runner, guitar_snapshot.guitar_chord.label, "C", "realistic guitar C chord");
+	expect_note_token(runner, guitar_snapshot.guitar.label, "C3", "realistic guitar C chord");
+	expect_note_token(runner, guitar_snapshot.guitar.label, "E3", "realistic guitar C chord");
+	expect_note_token(runner, guitar_snapshot.guitar.label, "G3", "realistic guitar C chord");
+
+	const std::vector<float> keyboard_profile = {1.0f, 0.18f, 0.08f};
+	const auto keyboard_buffer = make_harmonic_notes({50, 53, 57, 60}, 0.20f, keyboard_profile);
+	const auto keyboard_snapshot = analyze_buffer(keyboard_buffer, "keyboard");
+	expect_label(runner, keyboard_snapshot.keyboard_chord.label, "Dm7", "realistic keyboard Dm7 chord");
+	expect_note_token(runner, keyboard_snapshot.keyboard.label, "D3", "realistic keyboard Dm7 chord");
+	expect_note_token(runner, keyboard_snapshot.keyboard.label, "F3", "realistic keyboard Dm7 chord");
+	expect_note_token(runner, keyboard_snapshot.keyboard.label, "A3", "realistic keyboard Dm7 chord");
+	expect_note_token(runner, keyboard_snapshot.keyboard.label, "C4", "realistic keyboard Dm7 chord");
+
+	const std::vector<float> other_profile = {1.0f, 0.24f, 0.12f, 0.06f};
+	const auto other_buffer = make_harmonic_notes({55, 59, 62, 65}, 0.18f, other_profile);
+	const auto other_snapshot = analyze_buffer(other_buffer, "other");
+	expect_label(runner, other_snapshot.other_chord.label, "G7", "realistic other G7 chord");
+	expect_note_token(runner, other_snapshot.other.label, "G3", "realistic other G7 chord");
+	expect_note_token(runner, other_snapshot.other.label, "B3", "realistic other G7 chord");
+	expect_note_token(runner, other_snapshot.other.label, "D4", "realistic other G7 chord");
+	expect_note_token(runner, other_snapshot.other.label, "F4", "realistic other G7 chord");
+}
+
+void check_note_sub_rows(Runner &runner)
+{
+	const auto buffer = mao_test::make_midi_notes({48, 60, 64, 67}, 0.32f);
+	const auto snapshot = analyze_buffer(buffer, "keyboard");
+	runner.expect(grid_pitch_has_octave(snapshot.keyboard_notes, 0, "3"),
+		      "note sub rows: expected keyboard C column to contain octave 3");
+	runner.expect(grid_pitch_has_octave(snapshot.keyboard_notes, 0, "4"),
+		      "note sub rows: expected keyboard C column to contain octave 4");
+}
+
+void check_bass_priority_suppresses_overlap(Runner &runner)
+{
+	mao_test::Buffer buffer = {};
+	mao_test::add_midi_note(buffer, 40, 0.70f);
+	const auto snapshot = analyze_buffer(buffer, "mix");
+	expect_label(runner, snapshot.bass.label, "E2", "bass priority");
+	runner.expect(!grid_pitch_active(snapshot.keyboard_notes, 4),
+		      std::string("bass priority: expected keyboard E column inactive, got `") +
+			      snapshot.keyboard.label + "`");
+	runner.expect(!grid_pitch_active(snapshot.guitar_notes, 4),
+		      std::string("bass priority: expected guitar E column inactive, got `") + snapshot.guitar.label +
+			      "`");
+	runner.expect(!grid_pitch_active(snapshot.vocal_notes, 4),
+		      std::string("bass priority: expected vocal E column inactive, got `") + snapshot.vocal.label +
+			      "`");
+	runner.expect(!grid_pitch_active(snapshot.other_notes, 4),
+		      std::string("bass priority: expected other E column inactive, got `") + snapshot.other.label +
+			      "`");
 }
 
 void check_root_candidates(Runner &runner)
@@ -271,6 +396,10 @@ int main()
 	check_harmonic_chords(runner);
 	check_extended_chords(runner);
 	check_quiet_note_rejection(runner);
+	check_quiet_standalone_rejection(runner);
+	check_realistic_instrument_chords(runner);
+	check_note_sub_rows(runner);
+	check_bass_priority_suppresses_overlap(runner);
 	check_root_candidates(runner);
 
 	if (runner.failures != 0) {

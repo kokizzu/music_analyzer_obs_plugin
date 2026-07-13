@@ -2,6 +2,7 @@
 
 #include <algorithm>
 #include <array>
+#include <cctype>
 #include <cmath>
 #include <cstdio>
 #include <cstring>
@@ -15,6 +16,7 @@ constexpr int kFirstMidi = kFirstAnalyzedMidi;
 constexpr int kLastMidi = kLastAnalyzedMidi;
 constexpr int kBassMinMidi = 23;
 constexpr int kBassMaxMidi = 67;
+constexpr int kDefaultBassMaxMidi = 52;
 constexpr int kGuitarMinMidi = 40;
 constexpr int kGuitarMaxMidi = 88;
 constexpr int kKeyboardMinMidi = 21;
@@ -24,6 +26,56 @@ constexpr int kVocalMaxMidi = 84;
 constexpr int kOtherMinMidi = 21;
 constexpr int kOtherMaxMidi = 108;
 constexpr float kSilenceRms = 0.0025f;
+constexpr float kNoteRmsFloor = 0.012f;
+constexpr float kNoteRelativeFloor = 0.40f;
+constexpr float kHarmonicMaskRatio = 0.62f;
+
+enum class SourceHint {
+	None,
+	Bass,
+	Keyboard,
+	Guitar,
+	Vocal,
+	Other,
+};
+
+bool contains_case_insensitive(const char *text, const char *needle)
+{
+	if (!text || !needle || !*needle)
+		return false;
+
+	const std::size_t needle_len = std::strlen(needle);
+	for (const char *cursor = text; *cursor; ++cursor) {
+		std::size_t matched = 0;
+		while (matched < needle_len && cursor[matched]) {
+			const unsigned char lhs = static_cast<unsigned char>(cursor[matched]);
+			const unsigned char rhs = static_cast<unsigned char>(needle[matched]);
+			if (std::tolower(lhs) != std::tolower(rhs))
+				break;
+			++matched;
+		}
+		if (matched == needle_len)
+			return true;
+	}
+	return false;
+}
+
+SourceHint infer_source_hint(const char *source_name)
+{
+	if (contains_case_insensitive(source_name, "bass"))
+		return SourceHint::Bass;
+	if (contains_case_insensitive(source_name, "key") || contains_case_insensitive(source_name, "piano") ||
+	    contains_case_insensitive(source_name, "synth"))
+		return SourceHint::Keyboard;
+	if (contains_case_insensitive(source_name, "guitar"))
+		return SourceHint::Guitar;
+	if (contains_case_insensitive(source_name, "vocal") || contains_case_insensitive(source_name, "voice") ||
+	    contains_case_insensitive(source_name, "sing"))
+		return SourceHint::Vocal;
+	if (contains_case_insensitive(source_name, "other"))
+		return SourceHint::Other;
+	return SourceHint::None;
+}
 
 const char *note_name(int midi)
 {
@@ -109,8 +161,35 @@ struct NoteCandidate {
 	float score = 0.0f;
 };
 
+bool likely_lower_harmonic(const std::array<float, kNoteProbeCount> &scores, int min_midi, int midi, float score)
+{
+	static constexpr int kHarmonicIntervals[] = {12, 19, 24, 28, 31, 36};
+	for (int interval : kHarmonicIntervals) {
+		const int lower = midi - interval;
+		if (lower < min_midi || lower < kFirstMidi)
+			continue;
+		if (scores[lower - kFirstMidi] > score / kHarmonicMaskRatio)
+			return true;
+	}
+	return false;
+}
+
+bool likely_selected_harmonic(const NoteCandidate &fundamental, const NoteCandidate &candidate)
+{
+	if (candidate.midi <= fundamental.midi)
+		return false;
+	static constexpr int kHarmonicIntervals[] = {12, 19, 24, 28, 31, 36};
+	const int interval = candidate.midi - fundamental.midi;
+	for (int harmonic_interval : kHarmonicIntervals) {
+		if (interval == harmonic_interval && candidate.score <= fundamental.score * kHarmonicMaskRatio)
+			return true;
+	}
+	return false;
+}
+
 std::vector<NoteCandidate> note_peak_candidates(const std::array<float, kNoteProbeCount> &powers, int min_midi, int max_midi,
-						int max_notes)
+						int max_notes,
+						const std::array<bool, 12> *blocked_pitch_classes = nullptr)
 {
 	std::array<float, kNoteProbeCount> scores = {};
 	float strongest_score = 0.0f;
@@ -118,6 +197,9 @@ std::vector<NoteCandidate> note_peak_candidates(const std::array<float, kNotePro
 	max_midi = std::min(max_midi, kLastMidi);
 
 	for (int midi = min_midi; midi <= max_midi; ++midi) {
+		const int pitch_class = ((midi % 12) + 12) % 12;
+		if (blocked_pitch_classes && (*blocked_pitch_classes)[pitch_class])
+			continue;
 		const float score = std::sqrt(std::max(powers[midi - kFirstMidi], 0.0f));
 		scores[midi - kFirstMidi] = score;
 		strongest_score = std::max(strongest_score, score);
@@ -129,7 +211,8 @@ std::vector<NoteCandidate> note_peak_candidates(const std::array<float, kNotePro
 
 	for (int midi = min_midi; midi <= max_midi; ++midi) {
 		const float score = scores[midi - kFirstMidi];
-		if (score >= strongest_score * 0.30f)
+		if (score >= strongest_score * kNoteRelativeFloor &&
+		    !likely_lower_harmonic(scores, min_midi, midi, score))
 			candidates.push_back(NoteCandidate{midi, score});
 	}
 
@@ -141,7 +224,7 @@ std::vector<NoteCandidate> note_peak_candidates(const std::array<float, kNotePro
 		bool masked = false;
 		for (const NoteCandidate &existing : selected) {
 			if (std::abs(existing.midi - candidate.midi) <= 1 ||
-			    ((existing.midi % 12) + 12) % 12 == ((candidate.midi % 12) + 12) % 12) {
+			    likely_selected_harmonic(existing, candidate)) {
 				masked = true;
 				break;
 			}
@@ -156,10 +239,13 @@ std::vector<NoteCandidate> note_peak_candidates(const std::array<float, kNotePro
 	return selected;
 }
 
-std::array<float, 12> peak_chroma_for_range(const std::array<float, kNoteProbeCount> &powers, int min_midi, int max_midi)
+std::array<float, 12> peak_chroma_for_range(const std::array<float, kNoteProbeCount> &powers, int min_midi,
+					    int max_midi,
+					    const std::array<bool, 12> *blocked_pitch_classes = nullptr)
 {
 	std::array<float, 12> chroma = {};
-	for (const NoteCandidate &candidate : note_peak_candidates(powers, min_midi, max_midi, 6)) {
+	for (const NoteCandidate &candidate : note_peak_candidates(powers, min_midi, max_midi, 6,
+								   blocked_pitch_classes)) {
 		const int pitch_class = ((candidate.midi % 12) + 12) % 12;
 		chroma[pitch_class] = std::max(chroma[pitch_class], candidate.score);
 	}
@@ -173,9 +259,11 @@ std::array<float, 12> peak_chroma_for_range(const std::array<float, kNoteProbeCo
 	return chroma;
 }
 
-int lowest_peak_pitch_class(const std::array<float, kNoteProbeCount> &powers, int min_midi, int max_midi)
+int lowest_peak_pitch_class(const std::array<float, kNoteProbeCount> &powers, int min_midi, int max_midi,
+			    const std::array<bool, 12> *blocked_pitch_classes = nullptr)
 {
-	const std::vector<NoteCandidate> candidates = note_peak_candidates(powers, min_midi, max_midi, 6);
+	const std::vector<NoteCandidate> candidates =
+		note_peak_candidates(powers, min_midi, max_midi, 6, blocked_pitch_classes);
 	if (candidates.empty())
 		return -1;
 
@@ -325,7 +413,7 @@ float sum_notes(const std::array<float, kNoteProbeCount> &powers, int min_midi, 
 
 void set_instrument_note(InstrumentState &state, const RangeResult &note, float energy, float rms)
 {
-	if (rms < kSilenceRms || energy < 1.0e-5f || note.confidence < 0.08f) {
+	if (rms < kNoteRmsFloor || energy < 1.0e-5f || note.confidence < 0.08f) {
 		copy_text(state.label, sizeof(state.label), "--");
 		state.confidence = 0.0f;
 		return;
@@ -339,33 +427,60 @@ void clear_note_grid(NoteGrid &grid)
 {
 	for (NoteCell &cell : grid.cells)
 		cell = {};
+	for (auto &row : grid.rows) {
+		for (NoteCell &cell : row)
+			cell = {};
+	}
+}
+
+void write_note_grid_cell(NoteGrid &grid, const NoteCandidate &candidate, float strongest_score)
+{
+	const int pitch_class = ((candidate.midi % 12) + 12) % 12;
+	NoteCell cell;
+	write_octave(cell.label, sizeof(cell.label), candidate.midi);
+	cell.level = strongest_score > 1.0e-6f ? std::clamp(candidate.score / strongest_score, 0.0f, 1.0f) : 0.0f;
+	cell.midi = candidate.midi;
+	cell.active = true;
+
+	for (auto &row : grid.rows) {
+		if (row[pitch_class].active)
+			continue;
+		row[pitch_class] = cell;
+		break;
+	}
+
+	if (!grid.cells[pitch_class].active || cell.level > grid.cells[pitch_class].level)
+		grid.cells[pitch_class] = cell;
 }
 
 void write_note_grid_label(InstrumentState &state, const NoteGrid &grid, int preferred_root)
 {
-	char label[24] = {};
+	char label[64] = {};
 	const int start = preferred_root >= 0 ? preferred_root % 12 : 0;
 	for (int offset = 0; offset < 12; ++offset) {
 		const int pitch_class = (start + offset) % 12;
-		const NoteCell &cell = grid.cells[pitch_class];
-		if (!cell.active || cell.midi < 0)
-			continue;
+		for (const auto &row : grid.rows) {
+			const NoteCell &cell = row[pitch_class];
+			if (!cell.active || cell.midi < 0)
+				continue;
 
-		char note[8] = {};
-		write_note(note, sizeof(note), cell.midi);
-		const std::size_t used = std::strlen(label);
-		const std::size_t needed = std::strlen(note) + (used > 0 ? 1 : 0);
-		if (used + needed + 1 > sizeof(label))
-			break;
+			char note[8] = {};
+			write_note(note, sizeof(note), cell.midi);
+			const std::size_t used = std::strlen(label);
+			const std::size_t needed = std::strlen(note) + (used > 0 ? 1 : 0);
+			if (used + needed + 1 > sizeof(label))
+				goto done;
 
-		std::size_t cursor = used;
-		if (cursor > 0)
-			label[cursor++] = ' ';
-		for (const char *p = note; *p && cursor + 1 < sizeof(label); ++p)
-			label[cursor++] = *p;
-		label[cursor] = '\0';
+			std::size_t cursor = used;
+			if (cursor > 0)
+				label[cursor++] = ' ';
+			for (const char *p = note; *p && cursor + 1 < sizeof(label); ++p)
+				label[cursor++] = *p;
+			label[cursor] = '\0';
+		}
 	}
 
+done:
 	if (!label[0]) {
 		copy_text(state.label, sizeof(state.label), "--");
 		state.confidence = 0.0f;
@@ -392,20 +507,23 @@ void set_single_note_grid(NoteGrid &grid, InstrumentState &state, const RangeRes
 	cell.level = state.confidence;
 	cell.midi = note.midi;
 	cell.active = true;
+	grid.rows[0][pitch_class] = cell;
 }
 
 void set_instrument_note_set(NoteGrid &grid, InstrumentState &state, const std::array<float, kNoteProbeCount> &powers,
-			     int min_midi, int max_midi, int preferred_root, float energy, float rms)
+			     int min_midi, int max_midi, int preferred_root, float energy, float rms, int max_notes,
+			     const std::array<bool, 12> *blocked_pitch_classes = nullptr)
 {
 	clear_note_grid(grid);
-	if (rms < kSilenceRms || energy < 1.0e-5f) {
+	if (rms < kNoteRmsFloor || energy < 1.0e-5f) {
 		copy_text(state.label, sizeof(state.label), "--");
 		state.confidence = 0.0f;
 		return;
 	}
 
 	float strongest_score = 0.0f;
-	const std::vector<NoteCandidate> candidates = note_peak_candidates(powers, min_midi, max_midi, 6);
+	const std::vector<NoteCandidate> candidates =
+		note_peak_candidates(powers, min_midi, max_midi, max_notes, blocked_pitch_classes);
 	for (const NoteCandidate &candidate : candidates)
 		strongest_score = std::max(strongest_score, candidate.score);
 
@@ -415,21 +533,15 @@ void set_instrument_note_set(NoteGrid &grid, InstrumentState &state, const std::
 		return;
 	}
 
-	for (const NoteCandidate &candidate : candidates) {
-		const int pitch_class = ((candidate.midi % 12) + 12) % 12;
-		NoteCell &cell = grid.cells[pitch_class];
-		write_octave(cell.label, sizeof(cell.label), candidate.midi);
-		cell.level = std::clamp(candidate.score / strongest_score, 0.0f, 1.0f);
-		cell.midi = candidate.midi;
-		cell.active = true;
-	}
+	for (const NoteCandidate &candidate : candidates)
+		write_note_grid_cell(grid, candidate, strongest_score);
 
 	write_note_grid_label(state, grid, preferred_root);
 }
 
 void set_instrument_chord(InstrumentState &state, const ChordResult &chord, float energy, float rms)
 {
-	if (rms < kSilenceRms || energy < 1.0e-5f) {
+	if (rms < kNoteRmsFloor || energy < 1.0e-5f) {
 		copy_text(state.label, sizeof(state.label), "--");
 		state.confidence = 0.0f;
 		return;
@@ -443,6 +555,18 @@ void set_instrument_chord(InstrumentState &state, const ChordResult &chord, floa
 
 	copy_text(state.label, sizeof(state.label), "--");
 	state.confidence = 0.0f;
+}
+
+void claim_note_grid_pitch_classes(const NoteGrid &grid, std::array<bool, 12> &claimed_pitch_classes)
+{
+	for (const auto &row : grid.rows) {
+		for (const NoteCell &cell : row) {
+			if (!cell.active || cell.midi < 0)
+				continue;
+			const int pitch_class = ((cell.midi % 12) + 12) % 12;
+			claimed_pitch_classes[pitch_class] = true;
+		}
+	}
 }
 
 void append_text(char *dst, std::size_t dst_size, const char *text)
@@ -736,6 +860,11 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 	const float low = sum_notes(note_powers, kBassMinMidi, 47);
 	const float mid = sum_notes(note_powers, 48, 72);
 	const float high = sum_notes(note_powers, 73, kLastMidi) + drum_powers[11] + drum_powers[12] + drum_powers[13];
+	const float bass_energy = sum_notes(note_powers, kBassMinMidi, kBassMaxMidi);
+	const float guitar_energy = sum_notes(note_powers, kGuitarMinMidi, kGuitarMaxMidi);
+	const float keyboard_energy = sum_notes(note_powers, kKeyboardMinMidi, kKeyboardMaxMidi);
+	const float vocal_energy = sum_notes(note_powers, kVocalMinMidi, kVocalMaxMidi);
+	const float other_energy = sum_notes(note_powers, kOtherMinMidi, kOtherMaxMidi);
 	const float total = low + mid + high + 1.0e-6f;
 	snapshot.low_energy = low / total;
 	snapshot.mid_energy = mid / total;
@@ -780,40 +909,103 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 		snapshot.drums[i].active = drum_level_[i] > 0.30f;
 	}
 
-	const RangeResult bass_note = dominant_note(note_powers, kBassMinMidi, kBassMaxMidi, true);
-	const RangeResult guitar_note = dominant_note(note_powers, kGuitarMinMidi, kGuitarMaxMidi, true);
-	const RangeResult keyboard_note = dominant_note(note_powers, kKeyboardMinMidi, kKeyboardMaxMidi, true);
-	const RangeResult vocal_note = dominant_note(note_powers, kVocalMinMidi, kVocalMaxMidi, false);
-	const RangeResult other_note = dominant_note(note_powers, kOtherMinMidi, kOtherMaxMidi, false);
-
-	const std::array<float, 12> guitar_chroma = peak_chroma_for_range(note_powers, kGuitarMinMidi, kGuitarMaxMidi);
-	const std::array<float, 12> keyboard_chroma = peak_chroma_for_range(note_powers, kKeyboardMinMidi, kKeyboardMaxMidi);
-	const std::array<float, 12> other_chroma = peak_chroma_for_range(note_powers, kOtherMinMidi, kOtherMaxMidi);
-	const ChordResult guitar_chord =
-		detect_chord(guitar_chroma, lowest_peak_pitch_class(note_powers, kGuitarMinMidi, kGuitarMaxMidi));
-	const ChordResult keyboard_chord =
-		detect_chord(keyboard_chroma, lowest_peak_pitch_class(note_powers, kKeyboardMinMidi, kKeyboardMaxMidi));
-	const ChordResult other_chord =
-		detect_chord(other_chroma, lowest_peak_pitch_class(note_powers, kOtherMinMidi, kOtherMaxMidi));
-
 	snapshot.root = track_root(note_powers, rms, settings, snapshot.root_candidates, sizeof(snapshot.root_candidates));
-	set_single_note_grid(snapshot.bass_notes, snapshot.bass, bass_note, low, rms);
-	set_instrument_note_set(snapshot.guitar_notes, snapshot.guitar, note_powers, kGuitarMinMidi, kGuitarMaxMidi,
-				guitar_chord.root >= 0 ? guitar_chord.root :
-							 (guitar_note.confidence >= 0.08f ? guitar_note.midi : -1),
-				mid, rms);
-	set_instrument_chord(snapshot.guitar_chord, guitar_chord, mid, rms);
-	set_instrument_note_set(snapshot.keyboard_notes, snapshot.keyboard, note_powers, kKeyboardMinMidi, kKeyboardMaxMidi,
-				keyboard_chord.root >= 0 ? keyboard_chord.root :
-							   (keyboard_note.confidence >= 0.08f ? keyboard_note.midi : -1),
-				mid + low * 0.25f, rms);
-	set_instrument_chord(snapshot.keyboard_chord, keyboard_chord, mid + low * 0.25f, rms);
-	set_single_note_grid(snapshot.vocal_notes, snapshot.vocal, vocal_note, mid, rms);
-	set_instrument_note_set(snapshot.other_notes, snapshot.other, note_powers, kOtherMinMidi, kOtherMaxMidi,
-				other_chord.root >= 0 ? other_chord.root :
-							 (other_note.confidence >= 0.08f ? other_note.midi : -1),
-				high, rms);
-	set_instrument_chord(snapshot.other_chord, other_chord, high, rms);
+
+	std::array<bool, 12> claimed_pitch_classes = {};
+	const SourceHint source_hint = infer_source_hint(source_name);
+
+	if (source_hint == SourceHint::None || source_hint == SourceHint::Bass) {
+		const RangeResult bass_note = dominant_note(note_powers, kBassMinMidi, kBassMaxMidi, true);
+		if (source_hint == SourceHint::Bass || bass_note.midi <= kDefaultBassMaxMidi) {
+			set_single_note_grid(snapshot.bass_notes, snapshot.bass, bass_note, bass_energy, rms);
+			claim_note_grid_pitch_classes(snapshot.bass_notes, claimed_pitch_classes);
+		} else {
+			clear_note_grid(snapshot.bass_notes);
+			copy_text(snapshot.bass.label, sizeof(snapshot.bass.label), "--");
+			snapshot.bass.confidence = 0.0f;
+		}
+	} else {
+		clear_note_grid(snapshot.bass_notes);
+		copy_text(snapshot.bass.label, sizeof(snapshot.bass.label), "--");
+		snapshot.bass.confidence = 0.0f;
+	}
+
+	auto process_keyboard = [&]() {
+		const std::array<float, 12> chroma =
+			peak_chroma_for_range(note_powers, kKeyboardMinMidi, kKeyboardMaxMidi, &claimed_pitch_classes);
+		const int preferred_root = lowest_peak_pitch_class(note_powers, kKeyboardMinMidi, kKeyboardMaxMidi,
+								   &claimed_pitch_classes);
+		const ChordResult chord = detect_chord(chroma, preferred_root);
+		set_instrument_note_set(snapshot.keyboard_notes, snapshot.keyboard, note_powers, kKeyboardMinMidi,
+					kKeyboardMaxMidi, chord.root >= 0 ? chord.root : preferred_root,
+					keyboard_energy, rms, 10, &claimed_pitch_classes);
+		set_instrument_chord(snapshot.keyboard_chord, chord, keyboard_energy, rms);
+		claim_note_grid_pitch_classes(snapshot.keyboard_notes, claimed_pitch_classes);
+	};
+
+	auto process_guitar = [&]() {
+		const std::array<float, 12> chroma =
+			peak_chroma_for_range(note_powers, kGuitarMinMidi, kGuitarMaxMidi, &claimed_pitch_classes);
+		const int preferred_root =
+			lowest_peak_pitch_class(note_powers, kGuitarMinMidi, kGuitarMaxMidi, &claimed_pitch_classes);
+		const ChordResult chord = detect_chord(chroma, preferred_root);
+		set_instrument_note_set(snapshot.guitar_notes, snapshot.guitar, note_powers, kGuitarMinMidi,
+					kGuitarMaxMidi, chord.root >= 0 ? chord.root : preferred_root, guitar_energy, rms, 8,
+					&claimed_pitch_classes);
+		set_instrument_chord(snapshot.guitar_chord, chord, guitar_energy, rms);
+		claim_note_grid_pitch_classes(snapshot.guitar_notes, claimed_pitch_classes);
+	};
+
+	auto process_vocal = [&]() {
+		const int preferred_root =
+			lowest_peak_pitch_class(note_powers, kVocalMinMidi, kVocalMaxMidi, &claimed_pitch_classes);
+		set_instrument_note_set(snapshot.vocal_notes, snapshot.vocal, note_powers, kVocalMinMidi,
+					kVocalMaxMidi, preferred_root, vocal_energy, rms, 1, &claimed_pitch_classes);
+		claim_note_grid_pitch_classes(snapshot.vocal_notes, claimed_pitch_classes);
+	};
+
+	auto process_other = [&]() {
+		const std::array<float, 12> chroma =
+			peak_chroma_for_range(note_powers, kOtherMinMidi, kOtherMaxMidi, &claimed_pitch_classes);
+		const int preferred_root =
+			lowest_peak_pitch_class(note_powers, kOtherMinMidi, kOtherMaxMidi, &claimed_pitch_classes);
+		const ChordResult chord = detect_chord(chroma, preferred_root);
+		set_instrument_note_set(snapshot.other_notes, snapshot.other, note_powers, kOtherMinMidi, kOtherMaxMidi,
+					chord.root >= 0 ? chord.root : preferred_root, other_energy, rms, 8,
+					&claimed_pitch_classes);
+		set_instrument_chord(snapshot.other_chord, chord, other_energy, rms);
+		claim_note_grid_pitch_classes(snapshot.other_notes, claimed_pitch_classes);
+	};
+
+	switch (source_hint) {
+	case SourceHint::Guitar:
+		process_guitar();
+		process_keyboard();
+		process_vocal();
+		process_other();
+		break;
+	case SourceHint::Vocal:
+		process_vocal();
+		process_keyboard();
+		process_guitar();
+		process_other();
+		break;
+	case SourceHint::Other:
+		process_other();
+		process_keyboard();
+		process_guitar();
+		process_vocal();
+		break;
+	case SourceHint::None:
+	case SourceHint::Bass:
+	case SourceHint::Keyboard:
+	default:
+		process_keyboard();
+		process_guitar();
+		process_vocal();
+		process_other();
+		break;
+	}
 
 	return snapshot;
 }

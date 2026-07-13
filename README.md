@@ -4,8 +4,9 @@ Native OBS Studio plugin that analyzes a music mix and displays an instrument-or
 
 - Drums: bass drum/kick, snare, hi-hat, crash, toms, and ride one-second scrolling hit charts
 - Bass: detected note
-- Guitar, keyboard, and other instruments: 12-note octave matrix with active octaves shown as colored text plus chord labels
-- Vocal: detected note
+- Keyboard, guitar, vocal, and other instruments: two-row 12-note octave matrix with active octaves shown as colored text
+- Keyboard, guitar, and other instruments: compact chord labels; vocal stays note-only
+- Instrument ownership: mixed sources claim duplicated pitches in bass, keyboard, guitar, vocal, then other order, while explicit source names such as `guitar` or `keyboard` bias that row first
 - Root: rolling 15-second root candidates with confidence, with the primary root held until sustained modulation or silence
 - Chords: compact major, minor, power, sus2, sus4, dominant 7, major 7, and minor 7 labels such as `C`, `Dm`, `Cpow`, `Csus4`, `G7`, `Cmaj7`, and `Dm7`
 
@@ -49,7 +50,7 @@ Run the analyzer tests:
 make test
 ```
 
-`make test` builds standalone analyzer executables outside OBS. `analyzer_smoke` covers the basic signal path, and `analyzer_cases` runs broad synthetic note, instrument, chord, note-matrix, and root-candidate cases, including bass B0-G4, guitar E2-E6, keyboard/other A0-C8, and vocal E2-C6.
+`make test` builds standalone analyzer executables outside OBS. `analyzer_smoke` covers the basic signal path, and `analyzer_cases` runs broad synthetic note, instrument, chord, note-matrix, quiet-note rejection, realistic harmonic chord, hierarchy, and root-candidate cases, including bass B0-G4, guitar E2-E6, keyboard/other A0-C8, and vocal E2-C6.
 
 Optional CMake build, assuming the OBS development dependencies are installed system-wide:
 

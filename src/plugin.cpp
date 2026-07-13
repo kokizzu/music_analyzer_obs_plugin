@@ -621,26 +621,35 @@ void draw_note_cell(VisualizerData *visualizer, int x, int y, int w, int h, cons
 		return;
 
 	const int text_width = static_cast<int>(std::strlen(cell.label)) * 12;
-	draw_text(visualizer, x + std::max(2, (w - text_width) / 2), y + 6, cell.label, 2,
+	draw_text(visualizer, x + std::max(2, (w - text_width) / 2), y + std::max(2, (h - 14) / 2),
+		  cell.label, 2,
 		  cell.active ? accent : idle_text);
 }
 
-void draw_instrument_row(VisualizerData *visualizer, int y, const char *name, const mao::NoteGrid &notes,
-			 const mao::InstrumentState *chord, Color accent)
+int draw_instrument_rows(VisualizerData *visualizer, int y, const char *name, const mao::NoteGrid &notes,
+			 const mao::InstrumentState *chord, Color accent, std::size_t row_count)
 {
 	const int label_x = 28;
 	const int matrix_x = 150;
 	const int cell_w = 40;
-	const int cell_h = 26;
+	const int cell_h = 17;
+	const int row_pitch = 18;
 	const int chord_x = std::max(matrix_x + cell_w * 12 + 24, static_cast<int>(visualizer->width) - 190);
 	const Color dim{130, 145, 163, 255};
 	const Color chord_text{199, 210, 224, 255};
 	const char *chord_label = chord && chord->label[0] ? chord->label : "--";
 
-	draw_text(visualizer, label_x, y, name, 3, dim);
-	for (int i = 0; i < 12; ++i)
-		draw_note_cell(visualizer, matrix_x + i * cell_w, y, cell_w - 2, cell_h, notes.cells[i], accent);
-	draw_chord_text(visualizer, chord_x, y + 2, chord_label, 3, chord_text);
+	draw_text(visualizer, label_x, y + 2, name, 2, dim);
+	row_count = std::clamp<std::size_t>(row_count, 1, notes.rows.size());
+	for (std::size_t row = 0; row < row_count; ++row) {
+		for (int i = 0; i < 12; ++i) {
+			draw_note_cell(visualizer, matrix_x + i * cell_w, y + static_cast<int>(row) * row_pitch,
+				       cell_w - 2, cell_h, notes.rows[row][i], accent);
+		}
+	}
+	if (chord)
+		draw_chord_text(visualizer, chord_x, y + 2, chord_label, 2, chord_text);
+	return y + static_cast<int>(row_count) * row_pitch + 4;
 }
 
 void render_pixels(VisualizerData *visualizer, const mao::AnalysisSnapshot &snapshot, float snapshot_age)
@@ -679,22 +688,25 @@ void render_pixels(VisualizerData *visualizer, const mao::AnalysisSnapshot &snap
 	const int cell_w = 40;
 	const int chord_x = std::max(matrix_x + cell_w * 12 + 24, static_cast<int>(visualizer->width) - 190);
 	for (int i = 0; i < 12; ++i)
-		draw_text(visualizer, matrix_x + i * cell_w + 7, 150, kNoteNames[i], 2,
+		draw_text(visualizer, matrix_x + i * cell_w + 7, 144, kNoteNames[i], 2,
 			  Color{148, 163, 184, 255});
-	draw_text(visualizer, chord_x, 150, "CHORD", 2, Color{148, 163, 184, 255});
-	draw_instrument_row(visualizer, 174, "BASS", snapshot.bass_notes, nullptr, Color{35, 197, 94, 245});
-	draw_instrument_row(visualizer, 204, "GUITAR", snapshot.guitar_notes, &snapshot.guitar_chord,
-			    Color{249, 115, 22, 245});
-	draw_instrument_row(visualizer, 234, "KEYS", snapshot.keyboard_notes, &snapshot.keyboard_chord,
-			    Color{56, 189, 248, 245});
-	draw_instrument_row(visualizer, 264, "VOCAL", snapshot.vocal_notes, nullptr, Color{244, 114, 182, 245});
-	draw_instrument_row(visualizer, 294, "OTHERS", snapshot.other_notes, &snapshot.other_chord,
-			    Color{168, 85, 247, 245});
+	draw_text(visualizer, chord_x, 144, "CHORD", 2, Color{148, 163, 184, 255});
+	int row_y = 164;
+	row_y = draw_instrument_rows(visualizer, row_y, "BASS", snapshot.bass_notes, nullptr,
+				     Color{255, 59, 48, 245}, 1);
+	row_y = draw_instrument_rows(visualizer, row_y, "KEYS", snapshot.keyboard_notes, &snapshot.keyboard_chord,
+				     Color{255, 204, 0, 245}, mao::kNoteRowCount);
+	row_y = draw_instrument_rows(visualizer, row_y, "GUITAR", snapshot.guitar_notes, &snapshot.guitar_chord,
+				     Color{52, 199, 89, 245}, mao::kNoteRowCount);
+	row_y = draw_instrument_rows(visualizer, row_y, "VOCAL", snapshot.vocal_notes, nullptr,
+				     Color{10, 132, 255, 245}, mao::kNoteRowCount);
+	row_y = draw_instrument_rows(visualizer, row_y, "OTHERS", snapshot.other_notes, &snapshot.other_chord,
+				     Color{191, 90, 242, 245}, mao::kNoteRowCount);
 
 	char root_label[96];
 	std::snprintf(root_label, sizeof(root_label), "ROOT %s",
 		      snapshot.root_candidates[0] ? snapshot.root_candidates : "-- 0%");
-	draw_text(visualizer, 28, std::max(132, static_cast<int>(visualizer->height) - 28), root_label, 3,
+	draw_text(visualizer, 28, std::max(132, static_cast<int>(visualizer->height) - 20), root_label, 2,
 		  Color{199, 210, 224, 255});
 
 	if (snapshot.sequence == 0)
