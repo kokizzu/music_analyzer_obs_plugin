@@ -60,6 +60,8 @@ def main():
         slakh_prepare = read_text("tests/prepare_slakh_musicnet_fixture.py")
         choralsynth_inspector = read_text("tests/inspect_choralsynth_dataset.py")
         choralsynth_prepare = read_text("tests/prepare_choralsynth_musicnet_fixture.py")
+        cocochorales_inspector = read_text("tests/inspect_cocochorales_dataset.py")
+        cocochorales_prepare = read_text("tests/prepare_cocochorales_musicnet_fixture.py")
         polyvocal_inspector = read_text("tests/inspect_polyvocal_dataset.py")
         polyvocal_prepare = read_text("tests/prepare_polyvocal_musicnet_fixture.py")
         multtipop_inspector = read_text("tests/inspect_multtipop_dataset.py")
@@ -80,6 +82,7 @@ def main():
     musdb = dataset_by_id(catalog, "musdb18")
     slakh = dataset_by_id(catalog, "slakh2100")
     choralsynth = dataset_by_id(catalog, "choralsynth")
+    cocochorales = dataset_by_id(catalog, "cocochorales")
     polyvocal = dataset_by_id(catalog, "polyvocal_f0")
     spheres = dataset_by_id(catalog, "spheres")
     guitarset = dataset_by_id(catalog, "guitarset")
@@ -107,6 +110,8 @@ def main():
         return fail("catalog missing Slakh2100")
     if not choralsynth:
         return fail("catalog missing ChoralSynth")
+    if not cocochorales:
+        return fail("catalog missing CocoChorales")
     if not polyvocal:
         return fail("catalog missing Vocal Ensemble F0 Aggregate")
     if not spheres:
@@ -151,6 +156,17 @@ def main():
         problems.append("Slakh2100 automation target must remain test-real-slakh-20")
     if choralsynth.get("automation_target") != "test-real-choralsynth-20":
         problems.append("ChoralSynth automation target must remain test-real-choralsynth-20")
+    if cocochorales.get("automation_target") != "test-real-cocochorales-20":
+        problems.append("CocoChorales automation target must remain test-real-cocochorales-20")
+    if cocochorales.get("piece_count", 0) < target_minimum:
+        problems.append("CocoChorales must provide at least 20 generated pieces")
+    if not (
+        (not cocochorales.get("real_audio"))
+        and cocochorales.get("isolated_sources")
+        and cocochorales.get("assembled_mix")
+        and cocochorales.get("aligned_symbolic_truth")
+    ):
+        problems.append("CocoChorales must remain synthetic multitrack stem/MIDI truth")
     if polyvocal.get("automation_target") != "test-real-polyvocal-20":
         problems.append("Vocal Ensemble F0 Aggregate automation target must remain test-real-polyvocal-20")
     if polyvocal.get("piece_count", 0) < target_minimum:
@@ -188,6 +204,8 @@ def main():
         (makefile, "tests/prepare_slakh_musicnet_fixture.py", "Makefile Slakh2100 analyzer preparation"),
         (makefile, "tests/generate_choralsynth_fixture.py", "Makefile ChoralSynth fixture"),
         (makefile, "tests/prepare_choralsynth_musicnet_fixture.py", "Makefile ChoralSynth analyzer preparation"),
+        (makefile, "tests/generate_cocochorales_fixture.py", "Makefile CocoChorales fixture"),
+        (makefile, "tests/prepare_cocochorales_musicnet_fixture.py", "Makefile CocoChorales analyzer preparation"),
         (makefile, "tests/generate_polyvocal_fixture.py", "Makefile Vocal Ensemble F0 fixture"),
         (makefile, "tests/prepare_polyvocal_musicnet_fixture.py", "Makefile Vocal Ensemble F0 analyzer preparation"),
         (makefile, "tests/generate_multtipop_fixture.py", "Makefile MulTTiPop fixture"),
@@ -205,6 +223,8 @@ def main():
         (makefile, "test-real-slakh-20", "Makefile optional Slakh2100 analyzer gate"),
         (makefile, "inspect-real-choralsynth", "Makefile optional ChoralSynth preflight"),
         (makefile, "test-real-choralsynth-20", "Makefile optional ChoralSynth analyzer gate"),
+        (makefile, "inspect-real-cocochorales", "Makefile optional CocoChorales preflight"),
+        (makefile, "test-real-cocochorales-20", "Makefile optional CocoChorales analyzer gate"),
         (makefile, "inspect-real-polyvocal", "Makefile optional Vocal Ensemble F0 preflight"),
         (makefile, "test-real-polyvocal-20", "Makefile optional Vocal Ensemble F0 analyzer gate"),
         (source_printer, "real_vocal_multitrack_truth", "source printer Vocal Ensemble F0 category"),
@@ -232,6 +252,9 @@ def main():
         (goal_gate, "configured_choralsynth", "combined gate optional ChoralSynth root detection"),
         (goal_gate, "inspect-real-choralsynth", "combined gate optional ChoralSynth preflight target"),
         (goal_gate, "test-real-choralsynth-20", "combined gate optional ChoralSynth analyzer target"),
+        (goal_gate, "configured_cocochorales", "combined gate optional CocoChorales root detection"),
+        (goal_gate, "inspect-real-cocochorales", "combined gate optional CocoChorales preflight target"),
+        (goal_gate, "test-real-cocochorales-20", "combined gate optional CocoChorales analyzer target"),
         (goal_gate, "configured_polyvocal", "combined gate optional Vocal Ensemble F0 root detection"),
         (goal_gate, "inspect-real-polyvocal", "combined gate optional Vocal Ensemble F0 preflight target"),
         (goal_gate, "test-real-polyvocal-20", "combined gate optional Vocal Ensemble F0 analyzer target"),
@@ -293,6 +316,13 @@ def main():
         (choralsynth_prepare, "prepare_choralsynth_musicnet_fixture", "ChoralSynth MusicNet-shaped analyzer preparation"),
         (choralsynth_prepare, "parse_midi_notes", "ChoralSynth MIDI note parser"),
         (choralsynth_prepare, "train_labels", "ChoralSynth generated MusicNet labels"),
+        (cocochorales_inspector, "MUSIC_ANALYZER_COCOCHORALES_REQUIRED_PIECES", "CocoChorales preflight piece threshold"),
+        (cocochorales_inspector, "stems per piece", "CocoChorales stem coverage report"),
+        (cocochorales_inspector, "mix audio", "CocoChorales mix file check"),
+        (cocochorales_prepare, "prepare_cocochorales_musicnet_fixture", "CocoChorales MusicNet-shaped analyzer preparation"),
+        (cocochorales_prepare, "prepare_summed_stem_audio", "CocoChorales summed-stem playback preparation"),
+        (cocochorales_prepare, "parse_midi_notes", "CocoChorales MIDI note parser"),
+        (cocochorales_prepare, "train_labels", "CocoChorales generated MusicNet labels"),
         (polyvocal_inspector, "mtracks_info.json", "Vocal Ensemble F0 prepared metadata check"),
         (polyvocal_inspector, "usable F0 annotations per mix", "Vocal Ensemble F0 annotation coverage report"),
         (polyvocal_prepare, "points_to_notes", "Vocal Ensemble F0 contour-to-note conversion"),
@@ -325,6 +355,8 @@ def main():
         (readme, "summing the per-source stem audio", "README Slakh2100 summed-stem playback instructions"),
         (readme, "make inspect-real-choralsynth", "README ChoralSynth preflight instructions"),
         (readme, "make test-real-choralsynth-20", "README ChoralSynth analyzer instructions"),
+        (readme, "make inspect-real-cocochorales", "README CocoChorales preflight instructions"),
+        (readme, "make test-real-cocochorales-20", "README CocoChorales analyzer instructions"),
         (readme, "make inspect-real-polyvocal", "README Vocal Ensemble F0 preflight instructions"),
         (readme, "make test-real-polyvocal-20", "README Vocal Ensemble F0 analyzer instructions"),
         (readme, "make test-real-multtipop-20", "README MulTTiPop analyzer instructions"),
@@ -346,6 +378,8 @@ def main():
         (docs, "summing the per-source stem audio", "dataset docs Slakh2100 summed-stem playback instructions"),
         (docs, "make inspect-real-choralsynth", "dataset docs ChoralSynth preflight instructions"),
         (docs, "make test-real-choralsynth-20", "dataset docs ChoralSynth analyzer instructions"),
+        (docs, "make inspect-real-cocochorales", "dataset docs CocoChorales preflight instructions"),
+        (docs, "make test-real-cocochorales-20", "dataset docs CocoChorales analyzer instructions"),
         (docs, "make inspect-real-polyvocal", "dataset docs Vocal Ensemble F0 preflight instructions"),
         (docs, "make test-real-polyvocal-20", "dataset docs Vocal Ensemble F0 analyzer instructions"),
         (docs, "make test-real-multtipop-20", "dataset docs MulTTiPop analyzer instructions"),
@@ -361,6 +395,7 @@ def main():
         (docs, "MUSDB18", "dataset docs MUSDB18 candidate"),
         (docs, "Slakh2100", "dataset docs Slakh2100 candidate"),
         (docs, "ChoralSynth", "dataset docs ChoralSynth candidate"),
+        (docs, "CocoChorales", "dataset docs CocoChorales candidate"),
         (docs, "Vocal Ensemble F0 Aggregate", "dataset docs Vocal Ensemble F0 candidate"),
         (docs, "GuitarSet", "dataset docs GuitarSet candidate"),
         (docs, "MAESTRO", "dataset docs MAESTRO candidate"),
@@ -382,8 +417,8 @@ def main():
 
     print(
         "inspect_real_goal_coverage: "
-        "catalog=URMP+direct-fit-small+MusicNet+MedleyDB+MUSDB18+Slakh2100+ChoralSynth+PolyVocal+MulTTiPop+Spheres+GuitarSet+MAESTRO+E-GMD, target=test-real-goal-20, "
-        "fixture=URMP+Bach10-style+direct-fit-small+MusicNet+MedleyDB+MUSDB18+Slakh2100+ChoralSynth+PolyVocal+MulTTiPop-audio+Spheres+GuitarSet+MAESTRO+E-GMD, "
+        "catalog=URMP+direct-fit-small+MusicNet+MedleyDB+MUSDB18+Slakh2100+ChoralSynth+CocoChorales+PolyVocal+MulTTiPop+Spheres+GuitarSet+MAESTRO+E-GMD, target=test-real-goal-20, "
+        "fixture=URMP+Bach10-style+direct-fit-small+MusicNet+MedleyDB+MUSDB18+Slakh2100+ChoralSynth+CocoChorales+PolyVocal+MulTTiPop-audio+Spheres+GuitarSet+MAESTRO+E-GMD, "
         "summed_mix=yes, chord_checks=yes"
     )
     return 0

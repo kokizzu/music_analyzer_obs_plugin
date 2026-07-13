@@ -97,6 +97,23 @@ def test_generic_dataset_root_without_choralsynth_child_is_not_choralsynth():
         assert not run_real_goal_gate.configured_choralsynth({"MUSIC_ANALYZER_DATASET_ROOT": temp})
 
 
+def test_explicit_cocochorales_root_is_configured():
+    assert run_real_goal_gate.configured_cocochorales({"MUSIC_ANALYZER_COCOCHORALES_ROOT": "/tmp/CocoChorales"})
+    assert run_real_goal_gate.configured_cocochorales({"COCOCHORALES_PATH": "/tmp/CocoChorales"})
+
+
+def test_generic_dataset_root_with_cocochorales_child_is_cocochorales():
+    with tempfile.TemporaryDirectory() as temp:
+        touch_dir(os.path.join(temp, "CocoChorales"))
+        assert run_real_goal_gate.configured_cocochorales({"MUSIC_ANALYZER_DATASET_ROOT": temp})
+
+
+def test_generic_dataset_root_without_cocochorales_child_is_not_cocochorales():
+    with tempfile.TemporaryDirectory() as temp:
+        touch_dir(os.path.join(temp, "URMP", "01_Jupiter"))
+        assert not run_real_goal_gate.configured_cocochorales({"MUSIC_ANALYZER_DATASET_ROOT": temp})
+
+
 def test_explicit_polyvocal_root_is_configured():
     assert run_real_goal_gate.configured_polyvocal({"MUSIC_ANALYZER_POLYVOCAL_ROOT": "/tmp/polyvocal"})
     assert run_real_goal_gate.configured_polyvocal({"POLYVOCAL_PATH": "/tmp/polyvocal"})
@@ -224,6 +241,7 @@ def test_twenty_piece_test_plan_targets_real_gates():
     assert plan["musdb_target"] == "inspect-real-musdb"
     assert plan["slakh_target"] == "test-real-slakh-20"
     assert plan["choralsynth_target"] == "test-real-choralsynth-20"
+    assert plan["cocochorales_target"] == "test-real-cocochorales-20"
     assert plan["polyvocal_target"] == "test-real-polyvocal-20"
     assert plan["multtipop_target"] == "inspect-real-multtipop"
     assert plan["multtipop_audio_target"] == "test-real-multtipop-20"
@@ -243,6 +261,7 @@ def test_full_test_plan_targets_full_real_gates():
     assert plan["musdb_target"] == "inspect-real-musdb"
     assert plan["slakh_target"] == "test-real-slakh-full"
     assert plan["choralsynth_target"] == "test-real-choralsynth-20"
+    assert plan["cocochorales_target"] == "test-real-cocochorales-20"
     assert plan["polyvocal_target"] == "test-real-polyvocal-20"
     assert plan["multtipop_target"] == "inspect-real-multtipop"
     assert plan["multtipop_audio_target"] == "test-real-multtipop-full"
@@ -262,6 +281,7 @@ def test_twenty_piece_inspect_plan_targets_preflights():
     assert plan["musdb_target"] == "inspect-real-musdb"
     assert plan["slakh_target"] == "inspect-real-slakh"
     assert plan["choralsynth_target"] == "inspect-real-choralsynth"
+    assert plan["cocochorales_target"] == "inspect-real-cocochorales"
     assert plan["polyvocal_target"] == "inspect-real-polyvocal"
     assert plan["multtipop_target"] == "inspect-real-multtipop"
     assert plan["multtipop_audio_target"] == "inspect-real-multtipop"
@@ -281,6 +301,7 @@ def test_full_inspect_plan_targets_full_preflights():
     assert plan["musdb_target"] == "inspect-real-musdb"
     assert plan["slakh_target"] == "inspect-real-slakh"
     assert plan["choralsynth_target"] == "inspect-real-choralsynth"
+    assert plan["cocochorales_target"] == "inspect-real-cocochorales"
     assert plan["polyvocal_target"] == "inspect-real-polyvocal"
     assert plan["multtipop_target"] == "inspect-real-multtipop"
     assert plan["multtipop_audio_target"] == "inspect-real-multtipop"
@@ -311,6 +332,9 @@ def main():
     test_explicit_choralsynth_root_is_configured()
     test_generic_dataset_root_with_choralsynth_child_is_choralsynth()
     test_generic_dataset_root_without_choralsynth_child_is_not_choralsynth()
+    test_explicit_cocochorales_root_is_configured()
+    test_generic_dataset_root_with_cocochorales_child_is_cocochorales()
+    test_generic_dataset_root_without_cocochorales_child_is_not_cocochorales()
     test_explicit_polyvocal_root_is_configured()
     test_generic_dataset_root_with_polyvocal_child_is_polyvocal()
     test_generic_dataset_root_without_polyvocal_child_is_not_polyvocal()
@@ -335,7 +359,7 @@ def main():
     test_twenty_piece_inspect_plan_targets_preflights()
     test_full_inspect_plan_targets_full_preflights()
     test_invalid_plan_is_rejected()
-    print("test_run_real_goal_gate: 39 checks passed")
+    print("test_run_real_goal_gate: 42 checks passed")
     return 0
 
 

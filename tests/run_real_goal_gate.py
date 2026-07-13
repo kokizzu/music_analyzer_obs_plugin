@@ -105,6 +105,21 @@ def configured_choralsynth(env):
     return False
 
 
+def configured_cocochorales(env):
+    if env_has_any(env, ("MUSIC_ANALYZER_COCOCHORALES_ROOT", "COCOCHORALES_PATH")):
+        return True
+
+    dataset_root = env.get("MUSIC_ANALYZER_DATASET_ROOT", "")
+    if not dataset_root:
+        return False
+
+    for child in ("CocoChorales", "cocochorales", "CocoChorales-v1", "coco_chorales", "ceg-cocochorales"):
+        candidate = child_path(dataset_root, child)
+        if is_dir(candidate):
+            return True
+    return False
+
+
 def configured_polyvocal(env):
     if env_has_any(env, ("MUSIC_ANALYZER_POLYVOCAL_ROOT", "POLYVOCAL_PATH")):
         return True
@@ -251,6 +266,7 @@ TARGET_PLANS = {
         "musdb_target": "inspect-real-musdb",
         "slakh_target": "test-real-slakh-20",
         "choralsynth_target": "test-real-choralsynth-20",
+        "cocochorales_target": "test-real-cocochorales-20",
         "polyvocal_target": "test-real-polyvocal-20",
         "multtipop_target": "inspect-real-multtipop",
         "multtipop_audio_target": "test-real-multtipop-20",
@@ -267,6 +283,7 @@ TARGET_PLANS = {
         "musdb_target": "inspect-real-musdb",
         "slakh_target": "test-real-slakh-full",
         "choralsynth_target": "test-real-choralsynth-20",
+        "cocochorales_target": "test-real-cocochorales-20",
         "polyvocal_target": "test-real-polyvocal-20",
         "multtipop_target": "inspect-real-multtipop",
         "multtipop_audio_target": "test-real-multtipop-full",
@@ -283,6 +300,7 @@ TARGET_PLANS = {
         "musdb_target": "inspect-real-musdb",
         "slakh_target": "inspect-real-slakh",
         "choralsynth_target": "inspect-real-choralsynth",
+        "cocochorales_target": "inspect-real-cocochorales",
         "polyvocal_target": "inspect-real-polyvocal",
         "multtipop_target": "inspect-real-multtipop",
         "multtipop_audio_target": "inspect-real-multtipop",
@@ -299,6 +317,7 @@ TARGET_PLANS = {
         "musdb_target": "inspect-real-musdb",
         "slakh_target": "inspect-real-slakh",
         "choralsynth_target": "inspect-real-choralsynth",
+        "cocochorales_target": "inspect-real-cocochorales",
         "polyvocal_target": "inspect-real-polyvocal",
         "multtipop_target": "inspect-real-multtipop",
         "multtipop_audio_target": "inspect-real-multtipop",
@@ -389,6 +408,17 @@ def main(argv):
         print(
             "run_real_goal_gate: skipping optional ChoralSynth vocal multitrack analyzer gate; set "
             "MUSIC_ANALYZER_CHORALSYNTH_ROOT/CHORALSYNTH_PATH or place a ChoralSynth directory under "
+            "MUSIC_ANALYZER_DATASET_ROOT"
+        )
+
+    if configured_cocochorales(env):
+        failed = run(make_cmd, plan["cocochorales_target"])
+        if failed:
+            return failed
+    else:
+        print(
+            "run_real_goal_gate: skipping optional CocoChorales chamber-ensemble analyzer gate; set "
+            "MUSIC_ANALYZER_COCOCHORALES_ROOT/COCOCHORALES_PATH or place a CocoChorales directory under "
             "MUSIC_ANALYZER_DATASET_ROOT"
         )
 
