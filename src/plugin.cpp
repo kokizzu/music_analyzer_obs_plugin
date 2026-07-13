@@ -738,7 +738,8 @@ void visualizer_render(void *data, gs_effect_t *)
 
 	if (!visualizer->texture) {
 		const uint8_t *data_ptr = visualizer->pixels.data();
-		visualizer->texture = gs_texture_create(visualizer->width, visualizer->height, GS_RGBA, 1, &data_ptr, 0);
+		visualizer->texture =
+			gs_texture_create(visualizer->width, visualizer->height, GS_RGBA, 1, &data_ptr, GS_DYNAMIC);
 		visualizer->texture_size_dirty = false;
 		visualizer->dirty = false;
 	} else if (visualizer->dirty) {
