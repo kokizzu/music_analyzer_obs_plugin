@@ -77,12 +77,16 @@ without additional annotation.
   the exact local real-data commands. Use `make inspect-real-goal-20` as the
   combined setup preflight for the requested 20+ real same-song multitrack
   test. It requires the URMP layout preflight and then runs configured optional
-  preflights such as MusicNet and MedleyDB. Use `make test-real-goal-20` as the
-  combined analyzer acceptance gate. It requires the URMP multitrack gate and
-  then runs configured optional add-on gates such as MusicNet and MedleyDB. The
-  official URMP full package is distributed through a registration form rather
-  than a stable direct archive URL, so this repository intentionally does not
-  try to download the 12.5 GB package automatically.
+  preflights such as MusicNet and MedleyDB. The URMP preflight applies the same
+  `MUSIC_ANALYZER_URMP_MIN_ACTIVE_TRACKS_PER_WINDOW` and
+  `MUSIC_ANALYZER_URMP_MIN_PITCH_CLASSES_PER_WINDOW` density thresholds as the
+  analyzer gate, then reports matched-track, candidate active-track, and
+  candidate pitch-class min/average/max values. Use `make test-real-goal-20` as
+  the combined analyzer acceptance gate. It requires the URMP multitrack gate
+  and then runs configured optional add-on gates such as MusicNet and MedleyDB.
+  The official URMP full package is distributed through a registration form
+  rather than a stable direct archive URL, so this repository intentionally does
+  not try to download the 12.5 GB package automatically.
 - Do not vendor dataset audio into this repository.
 - Set `MUSIC_ANALYZER_URMP_ROOT=/path/to/URMP`, run
   `make inspect-real-multitrack-20` to preflight the local layout, then run
@@ -136,10 +140,11 @@ without additional annotation.
   committed compact 20-piece URMP-shaped lossless FLAC/Notes/MIDI fixture from
   `tests/fixtures/urmp-mini.tar.gz`, decodes it to disposable WAV files under
   `build/` with `ffmpeg`, generates 20-recording MusicNet-shaped WAV/CSV and
-  MedleyDB-shaped stem-layout fixtures, and sends all configured roots through
-  the combined goal gate. The URMP fixture is marker-file tagged and is rejected
-  by the real-data gate unless fixture mode is explicitly allowed. Override the
-  decoder with `FFMPEG=/path/to/ffmpeg` if needed. Refresh it with
+  MedleyDB-shaped stem-layout fixtures, sends all configured roots through the
+  combined setup preflight, and then sends them through the combined goal gate.
+  The URMP fixture is marker-file tagged and is rejected by the real-data gate
+  unless fixture mode is explicitly allowed. Override the decoder with
+  `FFMPEG=/path/to/ffmpeg` if needed. Refresh it with
   `make update-urmp-fixture` after changing
   `tests/generate_urmp_fixture.py`.
 - Bach10 is the next best add-on for a compact, fast regression set.

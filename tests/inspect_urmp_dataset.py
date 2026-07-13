@@ -121,6 +121,32 @@ def resolve_positive_int_env(name, fallback):
     return parsed if parsed > 0 else fallback
 
 
+class RangeStats:
+    def __init__(self):
+        self.count = 0
+        self.total = 0
+        self.minimum = 0
+        self.maximum = 0
+
+    def add(self, value):
+        self.count += 1
+        self.total += value
+        if self.count == 1:
+            self.minimum = value
+            self.maximum = value
+        else:
+            self.minimum = min(self.minimum, value)
+            self.maximum = max(self.maximum, value)
+
+    def summary(self, label):
+        if self.count == 0:
+            return f"{label} min/avg/max 0/0.00/0"
+        return (
+            f"{label} min/avg/max {self.minimum}/"
+            f"{self.total / self.count:.2f}/{self.maximum}"
+        )
+
+
 def read_notes(path):
     notes = []
     try:
@@ -161,7 +187,7 @@ def active_note_at(notes, time):
     return best
 
 
-def candidate_window_at(track_notes, time):
+def candidate_window_at(track_notes, time, min_active_tracks, min_pitch_classes):
     active = []
     pitch_classes = set()
     for notes in track_notes:
@@ -170,29 +196,39 @@ def candidate_window_at(track_notes, time):
             continue
         active.append(midi)
         pitch_classes.add(midi % 12)
-    if len(active) < 2:
+    if len(active) < min_active_tracks or len(pitch_classes) < min_pitch_classes:
         return None
     score = len(active) * 100 + len(pitch_classes) * 10
-    return time, score
+    return {
+        "time": time,
+        "score": score,
+        "active_tracks": len(active),
+        "pitch_classes": len(pitch_classes),
+    }
 
 
-def select_candidate_windows(track_notes, max_windows):
+def select_candidate_windows(track_notes, max_windows, min_active_tracks=2, min_pitch_classes=2):
     candidates = []
     for notes in track_notes:
         for onset, duration, _midi in notes:
-            candidate = candidate_window_at(track_notes, onset + duration * 0.5)
+            candidate = candidate_window_at(
+                track_notes,
+                onset + duration * 0.5,
+                min_active_tracks,
+                min_pitch_classes,
+            )
             if candidate is not None:
                 candidates.append(candidate)
 
-    candidates.sort(key=lambda item: (-item[1], item[0]))
+    candidates.sort(key=lambda item: (-item["score"], item["time"]))
     selected = []
-    for time, score in candidates:
-        if any(abs(existing_time - time) < 0.20 for existing_time, _ in selected):
+    for candidate in candidates:
+        if any(abs(existing["time"] - candidate["time"]) < 0.20 for existing in selected):
             continue
-        selected.append((time, score))
+        selected.append(candidate)
         if len(selected) >= max_windows:
             break
-    selected.sort()
+    selected.sort(key=lambda item: item["time"])
     return selected
 
 
@@ -224,15 +260,33 @@ def collect_piece_dirs(path, depth=4):
     return pieces
 
 
-def inspect_piece(path, require_official, max_windows):
+def empty_piece_stats(matched_tracks=0):
+    return {
+        "matched_tracks": matched_tracks,
+        "candidate_windows": 0,
+        "active_tracks": [],
+        "pitch_classes": [],
+    }
+
+
+def piece_stats(matched_tracks, candidate_windows):
+    return {
+        "matched_tracks": matched_tracks,
+        "candidate_windows": len(candidate_windows),
+        "active_tracks": [candidate["active_tracks"] for candidate in candidate_windows],
+        "pitch_classes": [candidate["pitch_classes"] for candidate in candidate_windows],
+    }
+
+
+def inspect_piece(path, require_official, max_windows, min_active_tracks, min_pitch_classes):
     basename = os.path.basename(path)
     if require_official and not starts_with_any(basename, OFFICIAL_IDS):
-        return False, "not an official URMP piece folder", 0
+        return False, "not an official URMP piece folder", empty_piece_stats()
 
     try:
         names = os.listdir(path)
     except OSError as exc:
-        return False, f"cannot list directory: {exc}", 0
+        return False, f"cannot list directory: {exc}", empty_piece_stats()
 
     mixes = [name for name in names if name.startswith("AuMix_") and is_audio_file(name)]
     scores = [name for name in names if name.startswith("Sco_") and name.endswith(".mid")]
@@ -250,11 +304,11 @@ def inspect_piece(path, require_official, max_windows):
     matched_tracks = sep_tracks & set(note_files.keys())
 
     if not mixes:
-        return False, "missing AuMix audio", 0
+        return False, "missing AuMix audio", empty_piece_stats()
     if require_official and not scores:
-        return False, "missing Sco_*.mid", 0
+        return False, "missing Sco_*.mid", empty_piece_stats()
     if len(matched_tracks) < 2:
-        return False, "fewer than two matched AuSep/Notes tracks", 0
+        return False, "fewer than two matched AuSep/Notes tracks", empty_piece_stats(len(matched_tracks))
 
     track_notes = []
     for track in sorted(matched_tracks):
@@ -262,12 +316,23 @@ def inspect_piece(path, require_official, max_windows):
         if notes:
             track_notes.append(notes)
     if len(track_notes) < 2:
-        return False, "fewer than two matched tracks with readable note annotations", 0
+        return False, "fewer than two matched tracks with readable note annotations", empty_piece_stats(len(track_notes))
 
-    candidate_windows = select_candidate_windows(track_notes, max_windows)
+    candidate_windows = select_candidate_windows(
+        track_notes, max_windows, min_active_tracks, min_pitch_classes
+    )
     if not candidate_windows:
-        return False, "no overlapping multi-track note windows", 0
-    return True, f"{len(track_notes)} matched tracks, {len(candidate_windows)} candidate windows", len(candidate_windows)
+        return (
+            False,
+            f"no overlapping window with {min_active_tracks}+ active tracks and "
+            f"{min_pitch_classes}+ pitch classes",
+            empty_piece_stats(len(track_notes)),
+        )
+    return (
+        True,
+        f"{len(track_notes)} matched tracks, {len(candidate_windows)} candidate windows",
+        piece_stats(len(track_notes), candidate_windows),
+    )
 
 
 def main():
@@ -293,6 +358,8 @@ def main():
 
     require_official = not allow_fixture
     max_windows = resolve_max_windows_per_piece()
+    min_active_tracks = resolve_positive_int_env("MUSIC_ANALYZER_URMP_MIN_ACTIVE_TRACKS_PER_WINDOW", 2)
+    min_pitch_classes = resolve_positive_int_env("MUSIC_ANALYZER_URMP_MIN_PITCH_CLASSES_PER_WINDOW", 2)
     required = resolve_positive_int_env("MUSIC_ANALYZER_URMP_REQUIRED_PIECES", 20)
     required_windows = resolve_positive_int_env(
         "MUSIC_ANALYZER_URMP_REQUIRED_WINDOWS", min(required * 4, max_windows * required)
@@ -301,21 +368,38 @@ def main():
     ok_count = 0
     official_count = 0
     candidate_windows = 0
+    matched_track_stats = RangeStats()
+    active_track_stats = RangeStats()
+    pitch_class_stats = RangeStats()
     failures = []
     for piece in pieces:
         if starts_with_any(os.path.basename(piece), OFFICIAL_IDS):
             official_count += 1
-        ok, detail, windows = inspect_piece(piece, require_official, max_windows)
+        ok, detail, stats = inspect_piece(
+            piece,
+            require_official,
+            max_windows,
+            min_active_tracks,
+            min_pitch_classes,
+        )
         if ok:
             ok_count += 1
-            candidate_windows += windows
+            candidate_windows += stats["candidate_windows"]
+            matched_track_stats.add(stats["matched_tracks"])
+            for value in stats["active_tracks"]:
+                active_track_stats.add(value)
+            for value in stats["pitch_classes"]:
+                pitch_class_stats.add(value)
         elif len(failures) < 8:
             failures.append((os.path.basename(piece), detail))
 
     print(
         "inspect_urmp_dataset: "
         f"root={root} discovered={len(pieces)} official={official_count} complete={ok_count} "
-        f"candidate_windows={candidate_windows} mode={'fixture' if allow_fixture else 'real'}"
+        f"candidate_windows={candidate_windows} mode={'fixture' if allow_fixture else 'real'} "
+        f"{matched_track_stats.summary('matched tracks')} "
+        f"{active_track_stats.summary('candidate active tracks')} "
+        f"{pitch_class_stats.summary('candidate pitch classes')}"
     )
     for name, detail in failures:
         print(f"inspect_urmp_dataset: skip {name}: {detail}", file=sys.stderr)

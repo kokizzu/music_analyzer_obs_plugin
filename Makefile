@@ -32,7 +32,7 @@ PLUGIN_OBJS := $(BUILD_DIR)/analyzer.o $(BUILD_DIR)/plugin.o
 ANALYZER_TEST_OBJ := $(BUILD_DIR)/analyzer_test.o
 TEST_BINS := $(BUILD_DIR)/analyzer_smoke $(BUILD_DIR)/analyzer_cases $(BUILD_DIR)/analyzer_urmp $(BUILD_DIR)/analyzer_musicnet
 
-.PHONY: all clean clean-pycache deps install-user test real-dataset-sources inspect-real-dataset-catalog inspect-real-goal-coverage inspect-real-goal-20 inspect-real-goal-full inspect-real-medleydb inspect-real-musicnet inspect-real-musicnet-full test-medleydb-inspector test-real-goal-script test-real-goal-fixture test-musicnet-fixture test-urmp-fixture test-real-goal-20 test-real-goal-full test-real-multitrack-20 test-real-multitrack-full test-real-urmp test-real-urmp-full test-real-musicnet-20 test-real-musicnet-full inspect-real-multitrack-20 inspect-real-multitrack-full inspect-real-urmp inspect-real-urmp-full inspect-urmp-fixture decode-urmp-fixture update-urmp-fixture
+.PHONY: all clean clean-pycache deps install-user test real-dataset-sources inspect-real-dataset-catalog inspect-real-goal-coverage inspect-real-goal-20 inspect-real-goal-full inspect-real-medleydb inspect-real-musicnet inspect-real-musicnet-full test-medleydb-inspector test-urmp-inspector test-real-goal-script test-real-goal-fixture test-musicnet-fixture test-urmp-fixture test-real-goal-20 test-real-goal-full test-real-multitrack-20 test-real-multitrack-full test-real-urmp test-real-urmp-full test-real-musicnet-20 test-real-musicnet-full inspect-real-multitrack-20 inspect-real-multitrack-full inspect-real-urmp inspect-real-urmp-full inspect-urmp-fixture decode-urmp-fixture update-urmp-fixture
 
 all: $(SIMDE_DEP) $(BUILD_DIR)/music-analyzer-obs.so
 
@@ -88,6 +88,7 @@ test: $(TEST_BINS)
 	$(MAKE) inspect-real-dataset-catalog
 	$(MAKE) inspect-real-goal-coverage
 	$(MAKE) test-medleydb-inspector
+	$(MAKE) test-urmp-inspector
 	$(MAKE) test-real-goal-script
 	$(BUILD_DIR)/analyzer_smoke
 	$(BUILD_DIR)/analyzer_cases
@@ -116,6 +117,9 @@ inspect-real-musicnet-full: $(BUILD_DIR)/analyzer_musicnet
 test-medleydb-inspector: tests/test_inspect_medleydb_dataset.py tests/inspect_medleydb_dataset.py
 	$(PYTHON) tests/test_inspect_medleydb_dataset.py
 
+test-urmp-inspector: tests/test_inspect_urmp_dataset.py tests/inspect_urmp_dataset.py
+	$(PYTHON) tests/test_inspect_urmp_dataset.py
+
 test-real-goal-script: tests/test_run_real_goal_gate.py tests/run_real_goal_gate.py
 	$(PYTHON) tests/test_run_real_goal_gate.py
 
@@ -126,6 +130,7 @@ test-real-goal-fixture: $(BUILD_DIR)/analyzer_urmp $(BUILD_DIR)/analyzer_musicne
 	$(MAKE) decode-urmp-fixture URMP_FIXTURE_DIR=$(REAL_GOAL_URMP_FIXTURE_DIR)
 	$(PYTHON) tests/generate_musicnet_fixture.py $(REAL_GOAL_MUSICNET_FIXTURE_DIR)
 	$(PYTHON) tests/generate_medleydb_fixture.py $(REAL_GOAL_MEDLEYDB_FIXTURE_DIR)
+	MUSIC_ANALYZER_URMP_ROOT=$(REAL_GOAL_URMP_FIXTURE_DIR) MUSIC_ANALYZER_URMP_ALLOW_GENERATED_FIXTURE=1 MUSIC_ANALYZER_MUSICNET_ROOT=$(REAL_GOAL_MUSICNET_FIXTURE_DIR) MUSIC_ANALYZER_MEDLEYDB_ROOT=$(REAL_GOAL_MEDLEYDB_AUDIO_DIR) MUSIC_ANALYZER_MEDLEYDB_ANNOTATIONS_ROOT=$(REAL_GOAL_MEDLEYDB_ANNOTATION_DIR) $(PYTHON) tests/run_real_goal_gate.py inspect-20 "$(MAKE)"
 	MUSIC_ANALYZER_URMP_ROOT=$(REAL_GOAL_URMP_FIXTURE_DIR) MUSIC_ANALYZER_URMP_ALLOW_GENERATED_FIXTURE=1 MUSIC_ANALYZER_MUSICNET_ROOT=$(REAL_GOAL_MUSICNET_FIXTURE_DIR) MUSIC_ANALYZER_MEDLEYDB_ROOT=$(REAL_GOAL_MEDLEYDB_AUDIO_DIR) MUSIC_ANALYZER_MEDLEYDB_ANNOTATIONS_ROOT=$(REAL_GOAL_MEDLEYDB_ANNOTATION_DIR) $(PYTHON) tests/run_real_goal_gate.py 20 "$(MAKE)"
 
 test-musicnet-fixture: $(BUILD_DIR)/analyzer_musicnet tests/generate_musicnet_fixture.py | $(BUILD_DIR)

@@ -42,6 +42,7 @@ def main():
         readme = read_text("README.md")
         docs = read_text("docs/real_audio_dataset_candidates.md")
         urmp_harness = read_text("tests/analyzer_urmp.cpp")
+        urmp_inspector = read_text("tests/inspect_urmp_dataset.py")
         musicnet_harness = read_text("tests/analyzer_musicnet.cpp")
         goal_gate = read_text("tests/run_real_goal_gate.py")
     except (OSError, json.JSONDecodeError) as exc:
@@ -76,6 +77,7 @@ def main():
         (makefile, "test-real-goal-20", "Makefile combined real-data target"),
         (makefile, "inspect-real-goal-20", "Makefile combined real-data preflight"),
         (makefile, "test-real-goal-fixture", "Makefile combined fixture target"),
+        (makefile, "tests/run_real_goal_gate.py inspect-20", "Makefile combined fixture preflight"),
         (makefile, "tests/generate_musicnet_fixture.py", "Makefile MusicNet fixture"),
         (makefile, "tests/generate_medleydb_fixture.py", "Makefile MedleyDB fixture"),
         (goal_gate, "test-real-multitrack-20", "combined gate required URMP target"),
@@ -88,6 +90,11 @@ def main():
         (urmp_harness, "stateful summed separated-track mix", "URMP stateful summed-mix check"),
         (urmp_harness, "active tracks min/avg/max", "URMP window-density report"),
         (urmp_harness, "chord hits", "URMP chord recall report"),
+        (urmp_inspector, "matched_track_stats.summary", "URMP preflight track-density report"),
+        (urmp_inspector, "candidate active tracks", "URMP preflight active-density report"),
+        (urmp_inspector, "candidate pitch classes", "URMP preflight pitch-class density report"),
+        (urmp_inspector, "MUSIC_ANALYZER_URMP_MIN_ACTIVE_TRACKS_PER_WINDOW", "URMP preflight active-track threshold"),
+        (urmp_inspector, "MUSIC_ANALYZER_URMP_MIN_PITCH_CLASSES_PER_WINDOW", "URMP preflight pitch-class threshold"),
         (musicnet_harness, "active instruments min/avg/max", "MusicNet multi-instrument report"),
         (musicnet_harness, "chord hits", "MusicNet chord recall report"),
         (readme, "make test-real-goal-20", "README combined gate instructions"),
