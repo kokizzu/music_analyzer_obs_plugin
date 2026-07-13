@@ -156,7 +156,7 @@ def test_twenty_piece_test_plan_targets_real_gates():
     assert plan["multtipop_target"] == "inspect-real-multtipop"
     assert plan["multtipop_audio_target"] == "test-real-multtipop-20"
     assert plan["spheres_target"] == "inspect-real-spheres"
-    assert plan["guitarset_target"] == "inspect-real-guitarset"
+    assert plan["guitarset_target"] == "test-real-guitarset-20"
     assert plan["maestro_target"] == "test-real-maestro-20"
     assert plan["egmd_target"] == "test-real-egmd-20"
 
@@ -171,7 +171,7 @@ def test_full_test_plan_targets_full_real_gates():
     assert plan["multtipop_target"] == "inspect-real-multtipop"
     assert plan["multtipop_audio_target"] == "test-real-multtipop-full"
     assert plan["spheres_target"] == "inspect-real-spheres"
-    assert plan["guitarset_target"] == "inspect-real-guitarset"
+    assert plan["guitarset_target"] == "test-real-guitarset-full"
     assert plan["maestro_target"] == "test-real-maestro-full"
     assert plan["egmd_target"] == "test-real-egmd-full"
 

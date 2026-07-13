@@ -52,7 +52,7 @@ not provide clean per-instrument audio stems for each mixture.
 | [POP909](https://arxiv.org/abs/2008.07142) | Pop melody, lead, piano, chord checks | 909 popular-song arrangements with MIDI aligned to original audio plus tempo, beat, key, and chord annotations. Not per-instrument stems. |
 | [MAESTRO](https://magenta.tensorflow.org/datasets/maestro) | Keyboard row, sustain, and chord tests with optional `make test-real-maestro-20` analyzer gate | 1,276 real Disklavier piano performances, 198.7 hours, paired WAV/MIDI with about 3 ms alignment, official metadata CSV/JSON, and over 7M note labels. Single instrument only. |
 | [PianoVAM](https://arxiv.org/abs/2509.08800) | Keyboard row, fingering/hand plausibility | Piano audio, MIDI, video, hand landmarks, and fingering labels. Single instrument only. |
-| [GuitarSet](https://guitarset.weebly.com/) | Guitar fretboard tests with optional `make inspect-real-guitarset` local preflight | 360 live guitar excerpts with hexaphonic pickup, per-string audio, microphone audio, JAMS MIDI-note/fret/chord annotations, and Zenodo download at [10.5281/zenodo.3371780](https://zenodo.org/records/3371780). Single instrument only. |
+| [GuitarSet](https://guitarset.weebly.com/) | Guitar fretboard tests with optional `make inspect-real-guitarset` preflight and `make test-real-guitarset-20` analyzer gate | 360 live guitar excerpts with hexaphonic pickup, per-string audio, microphone audio, JAMS MIDI-note/fret/chord annotations, and Zenodo download at [10.5281/zenodo.3371780](https://zenodo.org/records/3371780). Single instrument only. |
 | [Guitar-TECHS](https://arxiv.org/abs/2501.03720) | Electric guitar notes, chords, scales, techniques | Over 5 hours, DI/mic/amp perspectives, synchronized six-track MIDI labels. Single instrument only. |
 | [GAPS](https://arxiv.org/abs/2408.08653) | Classical guitar note/fretboard tests | 14 hours of real guitar audio with high-resolution note-level MIDI alignments. Single instrument only. |
 | [GOAT](https://arxiv.org/abs/2509.22655) | Electric guitar tablature/fret checks | 5.9 hours of DI electric guitar plus tablature/symbolic labels and augmented tones. Single instrument only. |
@@ -175,10 +175,12 @@ without additional annotation.
   `MUSIC_ANALYZER_GUITARSET_ROOT=/path/to/GuitarSet` after extracting the
   GuitarSet annotation and audio archives from Zenodo. The preflight requires
   20+ JAMS files with 6+ `note_midi` annotations, 2+ chord annotations, 12+
-  note events, and 6-channel hex pickup WAV audio by default. GuitarSet is a
-  focused guitar/fretboard real-audio add-on; it should improve coverage for
-  guitar note/fret/chord-shape behavior, but it does not replace URMP because
-  it is a single-instrument dataset.
+  note events, and 6-channel hex pickup WAV audio by default. Use
+  `make test-real-guitarset-20` to prepare a temporary JAMS-derived manifest,
+  read selected real WAV windows, and check analyzer pitch-class plus chord
+  recall. GuitarSet is a focused guitar/fretboard real-audio add-on; it should
+  improve coverage for guitar note/fret/chord-shape behavior, but it does not
+  replace URMP because it is a single-instrument dataset.
 - Use `make test-real-maestro-20` with
   `MUSIC_ANALYZER_MAESTRO_ROOT=/path/to/maestro-v3.0.0` after extracting the
   official MAESTRO archive. The analyzer gate expects the official metadata CSV

@@ -47,6 +47,8 @@ def main():
         direct_fit_small_fixture = read_text("tests/generate_direct_fit_small_fixture.py")
         musicnet_harness = read_text("tests/analyzer_musicnet.cpp")
         multtipop_harness = read_text("tests/analyzer_multtipop.cpp")
+        guitarset_harness = read_text("tests/analyzer_guitarset.cpp")
+        guitarset_manifest = read_text("tests/prepare_guitarset_manifest.py")
         maestro_harness = read_text("tests/analyzer_maestro.cpp")
         egmd_harness = read_text("tests/analyzer_egmd.cpp")
         goal_gate = read_text("tests/run_real_goal_gate.py")
@@ -123,8 +125,8 @@ def main():
         problems.append("MedleyDB automation target must remain inspect-real-medleydb")
     if spheres.get("automation_target") != "inspect-real-spheres":
         problems.append("Spheres automation target must remain inspect-real-spheres")
-    if guitarset.get("automation_target") != "inspect-real-guitarset":
-        problems.append("GuitarSet automation target must remain inspect-real-guitarset")
+    if guitarset.get("automation_target") != "test-real-guitarset-20":
+        problems.append("GuitarSet automation target must remain test-real-guitarset-20")
     if maestro.get("automation_target") != "test-real-maestro-20":
         problems.append("MAESTRO automation target must remain test-real-maestro-20")
     if egmd.get("automation_target") != "test-real-egmd-20":
@@ -153,10 +155,12 @@ def main():
         (makefile, "inspect-real-multtipop", "Makefile optional MulTTiPop preflight"),
         (makefile, "test-real-multtipop-20", "Makefile optional MulTTiPop analyzer gate"),
         (makefile, "$(BUILD_DIR)/analyzer_multtipop", "Makefile MulTTiPop analyzer binary"),
+        (makefile, "$(BUILD_DIR)/analyzer_guitarset", "Makefile GuitarSet analyzer binary"),
         (makefile, "$(BUILD_DIR)/analyzer_maestro", "Makefile MAESTRO analyzer binary"),
         (makefile, "$(BUILD_DIR)/analyzer_egmd", "Makefile E-GMD analyzer binary"),
         (makefile, "inspect-real-spheres", "Makefile optional Spheres preflight"),
         (makefile, "inspect-real-guitarset", "Makefile optional GuitarSet preflight"),
+        (makefile, "test-real-guitarset-20", "Makefile optional GuitarSet analyzer gate"),
         (makefile, "test-real-maestro-20", "Makefile optional MAESTRO analyzer gate"),
         (makefile, "test-real-egmd-20", "Makefile optional E-GMD analyzer gate"),
         (goal_gate, "test-real-multitrack-20", "combined gate required URMP target"),
@@ -171,7 +175,7 @@ def main():
         (goal_gate, "configured_spheres", "combined gate optional Spheres root detection"),
         (goal_gate, "inspect-real-spheres", "combined gate optional Spheres target"),
         (goal_gate, "configured_guitarset", "combined gate optional GuitarSet root detection"),
-        (goal_gate, "inspect-real-guitarset", "combined gate optional GuitarSet target"),
+        (goal_gate, "test-real-guitarset-20", "combined gate optional GuitarSet analyzer target"),
         (goal_gate, "configured_maestro", "combined gate optional MAESTRO root detection"),
         (goal_gate, "test-real-maestro-20", "combined gate optional MAESTRO target"),
         (goal_gate, "configured_egmd", "combined gate optional E-GMD root detection"),
@@ -214,12 +218,17 @@ def main():
         (guitarset_inspector, "MUSIC_ANALYZER_GUITARSET_REQUIRE_HEX_AUDIO", "GuitarSet hex-audio requirement"),
         (guitarset_inspector, "note_midi", "GuitarSet note annotation check"),
         (guitarset_inspector, "hex audio files", "GuitarSet hex-audio coverage report"),
+        (guitarset_manifest, "note_midi", "GuitarSet manifest note parser"),
+        (guitarset_manifest, "midi_note", "GuitarSet manifest MIDI-note parser"),
+        (guitarset_harness, "GuitarSet guitar pitch-class recall", "GuitarSet analyzer recall gate"),
+        (guitarset_harness, "chord hits", "GuitarSet analyzer chord recall report"),
         (readme, "make test-real-goal-20", "README combined gate instructions"),
         (readme, "make inspect-real-goal-20", "README combined preflight instructions"),
         (readme, "make inspect-real-multtipop", "README MulTTiPop preflight instructions"),
         (readme, "make test-real-multtipop-20", "README MulTTiPop analyzer instructions"),
         (readme, "make inspect-real-spheres", "README Spheres preflight instructions"),
         (readme, "make inspect-real-guitarset", "README GuitarSet preflight instructions"),
+        (readme, "make test-real-guitarset-20", "README GuitarSet analyzer instructions"),
         (readme, "make test-real-maestro-20", "README MAESTRO analyzer instructions"),
         (readme, "make test-real-egmd-20", "README E-GMD analyzer instructions"),
         (readme, "make test-bach10-fixture", "README Bach10 fixture instructions"),
@@ -230,6 +239,7 @@ def main():
         (docs, "make test-real-multtipop-20", "dataset docs MulTTiPop analyzer instructions"),
         (docs, "make inspect-real-spheres", "dataset docs Spheres preflight instructions"),
         (docs, "make inspect-real-guitarset", "dataset docs GuitarSet preflight instructions"),
+        (docs, "make test-real-guitarset-20", "dataset docs GuitarSet analyzer instructions"),
         (docs, "make test-real-maestro-20", "dataset docs MAESTRO analyzer instructions"),
         (docs, "make test-real-egmd-20", "dataset docs E-GMD analyzer instructions"),
         (docs, "make test-bach10-fixture", "dataset docs Bach10 fixture instructions"),

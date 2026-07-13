@@ -80,6 +80,7 @@ MUSIC_ANALYZER_MULTTIPOP_ROOT=/path/to/multtipop make inspect-real-multtipop
 MUSIC_ANALYZER_MULTTIPOP_ROOT=/path/to/multtipop MUSIC_ANALYZER_MULTTIPOP_REQUIRE_AUDIO=1 make test-real-multtipop-20
 MUSIC_ANALYZER_SPHERES_ROOT=/path/to/TheSpheresDataset make inspect-real-spheres
 MUSIC_ANALYZER_GUITARSET_ROOT=/path/to/GuitarSet make inspect-real-guitarset
+MUSIC_ANALYZER_GUITARSET_ROOT=/path/to/GuitarSet make test-real-guitarset-20
 MUSIC_ANALYZER_MAESTRO_ROOT=/path/to/maestro-v3.0.0 make test-real-maestro-20
 MUSIC_ANALYZER_EGMD_ROOT=/path/to/e-gmd-v1.0.0 make test-real-egmd-20
 ```
@@ -92,7 +93,7 @@ MUSIC_ANALYZER_EGMD_ROOT=/path/to/e-gmd-v1.0.0 make test-real-egmd-20
 
 `make inspect-real-spheres` is an optional weak-truth preflight for The Spheres Dataset. It checks that the local release exposes the expected real orchestral piece folders with stereo/mix folders and reconstructable source-audio folders. Spheres adds timbre and stem-layout coverage, but it has only two full works and no full MIDI/note truth, so it does not replace the URMP or MusicNet note/chord checks.
 
-`make inspect-real-guitarset` is an optional focused preflight for GuitarSet. It requires 20+ local GuitarSet excerpts with JAMS note/chord annotations and 6-channel hex pickup WAV audio by default. GuitarSet is useful for guitar row, fretboard, and chord-shape regressions, but it is a single-instrument dataset and does not replace the URMP mixed-source gate.
+`make inspect-real-guitarset` is an optional focused preflight for GuitarSet. It requires 20+ local GuitarSet excerpts with JAMS note/chord annotations and 6-channel hex pickup WAV audio by default. `make test-real-guitarset-20` turns those JAMS files into a temporary manifest, reads the selected real WAV windows, and checks analyzer pitch-class plus chord recall. GuitarSet is useful for guitar row, fretboard, and chord-shape regressions, but it is a single-instrument dataset and does not replace the URMP mixed-source gate.
 
 `make test-real-maestro-20` is an optional focused analyzer gate for MAESTRO. It expects the official metadata CSV plus paired WAV/MIDI files, parses the aligned MIDI, selects polyphonic piano/chord windows, and checks analyzer pitch-class and chord recall on real piano audio. MAESTRO is useful for keyboard row, sustain, and chord regressions, but it is a single-instrument dataset and does not replace the URMP mixed-source gate.
 

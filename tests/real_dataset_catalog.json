@@ -160,7 +160,7 @@
       "assembled_mix": false,
       "aligned_symbolic_truth": true,
       "truth": "per-string MIDI-note annotations, pitch contours, chords, beats, and styles",
-      "automation_target": "inspect-real-guitarset",
+      "automation_target": "test-real-guitarset-20",
       "source_url": "https://guitarset.weebly.com/",
       "download_url": "https://zenodo.org/records/3371780",
       "evidence": "Official page and Zenodo record describe 360 hexaphonic guitar excerpts with per-string audio, microphone audio, JAMS note/chord/fret annotations, and rich time-aligned metadata."
