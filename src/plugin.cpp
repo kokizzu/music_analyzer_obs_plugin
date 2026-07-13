@@ -402,6 +402,13 @@ Color blend_color(Color from, Color to, float amount)
 		     blend_channel(from.b, to.b, amount), blend_channel(from.a, to.a, amount)};
 }
 
+float display_highlight_level(float level)
+{
+	level = std::clamp(level, 0.0f, 1.0f);
+	const float eased = level * (2.0f - level);
+	return std::clamp(eased * 1.08f, 0.0f, 1.0f);
+}
+
 struct DrumBar {
 	float age = 0.0f;
 	float level = 0.0f;
@@ -730,7 +737,8 @@ int draw_piano_keyboard(VisualizerData *visualizer, int y, const mao::NoteGrid &
 	const Color white_key{218, 225, 235, 235};
 	const Color black_key{20, 25, 32, 245};
 	const Color border{58, 68, 82, 230};
-	const Color active{255, 204, 0, 245};
+	const Color active{255, 229, 48, 255};
+	const Color active_hot{255, 250, 150, 255};
 	const Color chord_text{199, 210, 224, 255};
 	const char *chord_label = chord.label[0] ? chord.label : "--";
 
@@ -747,9 +755,13 @@ int draw_piano_keyboard(VisualizerData *visualizer, int y, const mao::NoteGrid &
 
 		for (int i = 0; i < kWhiteKeysPerRow; ++i) {
 			const int midi = base_midi + kWhiteOffsets[i];
-			const float level = piano_key_level(notes, midi);
+			const float raw_level = piano_key_level(notes, midi);
+			const float level = display_highlight_level(raw_level);
 			const int x = key_x + i * white_w;
 			fill_rect(visualizer, x, row_y, white_w - 1, white_h, blend_color(white_key, active, level));
+			if (raw_level > 0.0f)
+				fill_rect(visualizer, x + 2, row_y + white_h - 5, std::max(1, white_w - 5), 3,
+					  blend_color(active, active_hot, level));
 			fill_rect(visualizer, x, row_y, white_w - 1, 1, border);
 			fill_rect(visualizer, x, row_y + white_h - 1, white_w - 1, 1, border);
 			fill_rect(visualizer, x, row_y, 1, white_h, border);
@@ -758,9 +770,13 @@ int draw_piano_keyboard(VisualizerData *visualizer, int y, const mao::NoteGrid &
 
 		for (std::size_t i = 0; i < sizeof(kBlackOffsets) / sizeof(kBlackOffsets[0]); ++i) {
 			const int midi = base_midi + kBlackOffsets[i];
-			const float level = piano_key_level(notes, midi);
+			const float raw_level = piano_key_level(notes, midi);
+			const float level = display_highlight_level(raw_level);
 			const int x = key_x + (kBlackAfterWhite[i] + 1) * white_w - black_w / 2;
 			fill_rect(visualizer, x, row_y, black_w, black_h, blend_color(black_key, active, level));
+			if (raw_level > 0.0f)
+				fill_rect(visualizer, x + 2, row_y + 2, std::max(1, black_w - 4), 3,
+					  blend_color(active, active_hot, level));
 			fill_rect(visualizer, x, row_y, black_w, 1, border);
 			fill_rect(visualizer, x, row_y + black_h - 1, black_w, 1, border);
 			fill_rect(visualizer, x, row_y, 1, black_h, border);
@@ -794,7 +810,8 @@ int draw_guitar_fretboard(VisualizerData *visualizer, int y, const mao::NoteGrid
 	const Color border{58, 68, 82, 220};
 	const Color nut{148, 163, 184, 230};
 	const Color text{148, 163, 184, 255};
-	const Color accent{52, 199, 89, 245};
+	const Color accent{70, 255, 130, 255};
+	const Color accent_hot{185, 255, 210, 255};
 	const Color chord_text{199, 210, 224, 255};
 	const char *chord_label = chord.label[0] ? chord.label : "--";
 
@@ -814,8 +831,13 @@ int draw_guitar_fretboard(VisualizerData *visualizer, int y, const mao::NoteGrid
 		draw_text(visualizer, fret_x - 22, cell_y + 2, kStringNames[string], 1, text);
 		for (int fret = 0; fret < kFretCount; ++fret) {
 			const int cell_x = fret_x + fret * fret_w;
-			const float level = note_grid_midi_level(notes, kOpenMidis[string] + fret);
-			fill_rect(visualizer, cell_x, cell_y, fret_w - 1, cell_h, blend_color(fret_bg, accent, level));
+			const float raw_level = note_grid_midi_level(notes, kOpenMidis[string] + fret);
+			const float level = display_highlight_level(raw_level);
+			const Color fill = blend_color(fret_bg, accent, level);
+			fill_rect(visualizer, cell_x, cell_y, fret_w - 1, cell_h, fill);
+			if (raw_level > 0.0f)
+				fill_rect(visualizer, cell_x + 2, cell_y + 2, std::max(1, fret_w - 5),
+					  std::max(1, cell_h - 4), blend_color(fill, accent_hot, level * 0.45f));
 			fill_rect(visualizer, cell_x, cell_y, fret_w - 1, 1, border);
 			fill_rect(visualizer, cell_x, cell_y + cell_h - 1, fret_w - 1, 1, border);
 			fill_rect(visualizer, cell_x, cell_y, 1, cell_h, fret == 1 ? nut : border);
