@@ -388,6 +388,11 @@ struct Color {
 	uint8_t a = 255;
 };
 
+struct DrumBar {
+	float age = 0.0f;
+	float level = 0.0f;
+};
+
 struct VisualizerData {
 	mutable std::mutex mutex;
 	uint32_t width = kDefaultWidth;
@@ -398,6 +403,8 @@ struct VisualizerData {
 	uint64_t rendered_sequence = 0;
 	bool dirty = true;
 	bool texture_size_dirty = true;
+	uint64_t drum_history_sequence = 0;
+	std::array<std::vector<DrumBar>, mao::kDrumCount> drum_history = {};
 	std::vector<uint8_t> pixels;
 	gs_texture_t *texture = nullptr;
 };
@@ -405,6 +412,16 @@ struct VisualizerData {
 const std::array<const char *, 7> glyph_rows(char c)
 {
 	switch (c) {
+	case 'a':
+		return {"00000", "00000", "01110", "00001", "01111", "10001", "01111"};
+	case 'j':
+		return {"00010", "00000", "00110", "00010", "00010", "10010", "01100"};
+	case 'm':
+		return {"00000", "00000", "11010", "10101", "10101", "10101", "10101"};
+	case 's':
+		return {"00000", "00000", "01111", "10000", "01110", "00001", "11110"};
+	case 'u':
+		return {"00000", "00000", "10001", "10001", "10001", "10011", "01101"};
 	case 'A':
 		return {"01110", "10001", "10001", "11111", "10001", "10001", "10001"};
 	case 'B':
@@ -521,7 +538,8 @@ void fill_rect(VisualizerData *visualizer, int x, int y, int w, int h, Color col
 	}
 }
 
-void draw_text(VisualizerData *visualizer, int x, int y, const char *text, uint32_t scale, Color color)
+void draw_text_impl(VisualizerData *visualizer, int x, int y, const char *text, uint32_t scale, Color color,
+		    bool preserve_chord_lowercase)
 {
 	if (!text)
 		return;
@@ -529,7 +547,8 @@ void draw_text(VisualizerData *visualizer, int x, int y, const char *text, uint3
 	int cursor = x;
 	for (const char *p = text; *p; ++p) {
 		char c = *p;
-		if (c >= 'a' && c <= 'z')
+		const bool chord_lowercase = c == 'a' || c == 'j' || c == 'm' || c == 's' || c == 'u';
+		if (c >= 'a' && c <= 'z' && (!preserve_chord_lowercase || !chord_lowercase))
 			c = static_cast<char>(c - 'a' + 'A');
 
 		const auto rows = glyph_rows(c);
@@ -546,23 +565,44 @@ void draw_text(VisualizerData *visualizer, int x, int y, const char *text, uint3
 	}
 }
 
-void draw_tag(VisualizerData *visualizer, int x, int y, int w, const char *label, float level)
+void draw_text(VisualizerData *visualizer, int x, int y, const char *text, uint32_t scale, Color color)
 {
-	const Color idle_bg{34, 41, 50, 210};
+	draw_text_impl(visualizer, x, y, text, scale, color, false);
+}
+
+void draw_chord_text(VisualizerData *visualizer, int x, int y, const char *text, uint32_t scale, Color color)
+{
+	draw_text_impl(visualizer, x, y, text, scale, color, true);
+}
+
+void draw_drum_chart(VisualizerData *visualizer, int x, int y, int w, const mao::DrumState &drum,
+		     const std::vector<DrumBar> &history)
+{
+	const int label_h = 18;
+	const int chart_y = y + label_h + 4;
+	const int chart_h = 28;
+	const Color bg{24, 30, 38, 210};
 	const Color active_bg{242, 149, 40, 235};
 	const Color border{86, 96, 111, 230};
 	const Color text{240, 244, 248, 255};
 	const Color dark_text{24, 26, 30, 255};
-	const bool active = level > 0.30f;
+	const bool active = drum.level > 0.30f;
 
-	fill_rect(visualizer, x, y, w, 30, active ? active_bg : idle_bg);
-	fill_rect(visualizer, x, y, w, 2, border);
-	fill_rect(visualizer, x, y + 28, w, 2, border);
-	draw_text(visualizer, x + 8, y + 7, label, 2, active ? dark_text : text);
+	fill_rect(visualizer, x, y, w, label_h, active ? active_bg : bg);
+	fill_rect(visualizer, x, y, w, 1, border);
+	fill_rect(visualizer, x, y + label_h - 1, w, 1, border);
+	draw_text(visualizer, x + 5, y + 3, drum.label, 2, active ? dark_text : text);
 
-	if (active) {
-		const int meter = std::clamp(static_cast<int>(level * static_cast<float>(w - 4)), 0, w - 4);
-		fill_rect(visualizer, x + 2, y + 25, meter, 3, Color{255, 238, 167, 255});
+	fill_rect(visualizer, x, chart_y, w, chart_h, bg);
+	fill_rect(visualizer, x, chart_y, w, 1, border);
+	fill_rect(visualizer, x, chart_y + chart_h - 1, w, 1, border);
+
+	for (const DrumBar &bar : history) {
+		if (bar.age < 0.0f || bar.age > 1.0f || bar.level <= 0.0f)
+			continue;
+		const int bar_x = x + std::clamp(static_cast<int>((1.0f - bar.age) * static_cast<float>(w - 4)), 0, w - 4);
+		const int bar_h = std::clamp(static_cast<int>(bar.level * static_cast<float>(chart_h - 4)), 2, chart_h - 4);
+		fill_rect(visualizer, bar_x, chart_y + chart_h - 2 - bar_h, 3, bar_h, active_bg);
 	}
 }
 
@@ -601,7 +641,7 @@ void draw_instrument_row(VisualizerData *visualizer, int y, const char *name, co
 	draw_text(visualizer, label_x, y, name, 3, dim);
 	for (int i = 0; i < 12; ++i)
 		draw_note_cell(visualizer, matrix_x + i * cell_w, y, cell_w - 2, cell_h, notes.cells[i], accent);
-	draw_text(visualizer, chord_x, y + 2, chord_label, 3, chord_text);
+	draw_chord_text(visualizer, chord_x, y + 2, chord_label, 3, chord_text);
 }
 
 void render_pixels(VisualizerData *visualizer, const mao::AnalysisSnapshot &snapshot, float snapshot_age)
@@ -629,8 +669,8 @@ void render_pixels(VisualizerData *visualizer, const mao::AnalysisSnapshot &snap
 
 	draw_text(visualizer, 28, 96, "DRUMS", 3, Color{148, 163, 184, 255});
 	int tag_x = 150;
-	for (const auto &drum : snapshot.drums) {
-		draw_tag(visualizer, tag_x, 88, 118, drum.label, drum.level);
+	for (std::size_t i = 0; i < snapshot.drums.size(); ++i) {
+		draw_drum_chart(visualizer, tag_x, 88, 118, snapshot.drums[i], visualizer->drum_history[i]);
 		tag_x += 126;
 	}
 
@@ -640,22 +680,22 @@ void render_pixels(VisualizerData *visualizer, const mao::AnalysisSnapshot &snap
 	const int cell_w = 40;
 	const int chord_x = std::max(matrix_x + cell_w * 12 + 24, static_cast<int>(visualizer->width) - 190);
 	for (int i = 0; i < 12; ++i)
-		draw_text(visualizer, matrix_x + i * cell_w + 7, 122, kNoteNames[i], 2,
+		draw_text(visualizer, matrix_x + i * cell_w + 7, 150, kNoteNames[i], 2,
 			  Color{148, 163, 184, 255});
-	draw_text(visualizer, chord_x, 122, "CHORD", 2, Color{148, 163, 184, 255});
-	draw_instrument_row(visualizer, 146, "BASS", snapshot.bass_notes, nullptr, Color{35, 197, 94, 245});
-	draw_instrument_row(visualizer, 182, "GUITAR", snapshot.guitar_notes, &snapshot.guitar_chord,
+	draw_text(visualizer, chord_x, 150, "CHORD", 2, Color{148, 163, 184, 255});
+	draw_instrument_row(visualizer, 174, "BASS", snapshot.bass_notes, nullptr, Color{35, 197, 94, 245});
+	draw_instrument_row(visualizer, 204, "GUITAR", snapshot.guitar_notes, &snapshot.guitar_chord,
 			    Color{249, 115, 22, 245});
-	draw_instrument_row(visualizer, 218, "KEYS", snapshot.keyboard_notes, &snapshot.keyboard_chord,
+	draw_instrument_row(visualizer, 234, "KEYS", snapshot.keyboard_notes, &snapshot.keyboard_chord,
 			    Color{56, 189, 248, 245});
-	draw_instrument_row(visualizer, 254, "VOCAL", snapshot.vocal_notes, nullptr, Color{244, 114, 182, 245});
-	draw_instrument_row(visualizer, 290, "OTHERS", snapshot.other_notes, &snapshot.other_chord,
+	draw_instrument_row(visualizer, 264, "VOCAL", snapshot.vocal_notes, nullptr, Color{244, 114, 182, 245});
+	draw_instrument_row(visualizer, 294, "OTHERS", snapshot.other_notes, &snapshot.other_chord,
 			    Color{168, 85, 247, 245});
 
 	char root_label[96];
 	std::snprintf(root_label, sizeof(root_label), "ROOT %s",
 		      snapshot.root_candidates[0] ? snapshot.root_candidates : "-- 0%");
-	draw_text(visualizer, 28, std::max(132, static_cast<int>(visualizer->height) - 30), root_label, 3,
+	draw_text(visualizer, 28, std::max(132, static_cast<int>(visualizer->height) - 28), root_label, 3,
 		  Color{199, 210, 224, 255});
 
 	if (snapshot.sequence == 0)
@@ -668,6 +708,41 @@ void render_pixels(VisualizerData *visualizer, const mao::AnalysisSnapshot &snap
 		std::snprintf(stale, sizeof(stale), "STALE %.1FS - FILTER NOT RECEIVING AUDIO", snapshot_age);
 		draw_text(visualizer, 230, 145, stale, 2, Color{248, 250, 252, 255});
 	}
+}
+
+bool advance_drum_history(VisualizerData *visualizer, float seconds)
+{
+	bool has_history = false;
+	for (auto &history : visualizer->drum_history) {
+		for (DrumBar &bar : history)
+			bar.age += seconds;
+		history.erase(std::remove_if(history.begin(), history.end(),
+					     [](const DrumBar &bar) { return bar.age > 1.0f; }),
+			      history.end());
+		has_history = has_history || !history.empty();
+	}
+	return has_history;
+}
+
+bool append_drum_hits(VisualizerData *visualizer, const mao::AnalysisSnapshot &snapshot)
+{
+	if (snapshot.sequence == 0 || snapshot.sequence == visualizer->drum_history_sequence)
+		return false;
+
+	visualizer->drum_history_sequence = snapshot.sequence;
+	bool appended = false;
+	for (std::size_t i = 0; i < snapshot.drums.size(); ++i) {
+		const mao::DrumState &drum = snapshot.drums[i];
+		if (drum.level <= 0.30f)
+			continue;
+
+		auto &history = visualizer->drum_history[i];
+		history.push_back(DrumBar{0.0f, std::clamp(drum.level, 0.0f, 1.0f)});
+		if (history.size() > 64)
+			history.erase(history.begin());
+		appended = true;
+	}
+	return appended;
 }
 
 void *visualizer_create(obs_data_t *settings, obs_source_t *)
@@ -746,11 +821,20 @@ void visualizer_tick(void *data, float seconds)
 	visualizer->elapsed += seconds;
 	visualizer->snapshot_age += seconds;
 	const float interval = 1.0f / static_cast<float>(std::max<uint32_t>(1, visualizer->update_fps));
-	if (visualizer->elapsed < interval && !visualizer->dirty)
-		return;
-	visualizer->elapsed = 0.0f;
-
+	const bool interval_ready = visualizer->elapsed >= interval;
+	const bool history_active = advance_drum_history(visualizer, seconds);
 	const auto snapshot = read_snapshot();
+
+	if (append_drum_hits(visualizer, snapshot))
+		visualizer->dirty = true;
+	if (history_active && interval_ready)
+		visualizer->dirty = true;
+
+	if (!interval_ready && !visualizer->dirty)
+		return;
+	if (interval_ready)
+		visualizer->elapsed = 0.0f;
+
 	if (snapshot.sequence != visualizer->rendered_sequence) {
 		visualizer->snapshot_age = 0.0f;
 		render_pixels(visualizer, snapshot, visualizer->snapshot_age);

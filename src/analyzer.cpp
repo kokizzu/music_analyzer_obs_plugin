@@ -216,22 +216,22 @@ ChordResult detect_chord(const std::array<float, 12> &chroma, int bass_pitch_cla
 			consider(root, "7", root_power * 1.20f + major_third_power + fifth_power * 0.90f +
 						 minor_seventh_power * 1.10f - minor_third_power * 0.35f);
 		if (present(root, 4) && tone(root, 11) >= kSeventhThreshold)
-			consider(root, " MAJ7", root_power * 1.20f + major_third_power + fifth_power * 0.90f +
+			consider(root, "maj7", root_power * 1.20f + major_third_power + fifth_power * 0.90f +
 						    major_seventh_power * 1.10f - minor_seventh_power * 0.25f);
 		if (present(root, 3) && tone(root, 10) >= kSeventhThreshold)
-			consider(root, " MIN7", root_power * 1.20f + minor_third_power + fifth_power * 0.90f +
+			consider(root, "m7", root_power * 1.20f + minor_third_power + fifth_power * 0.90f +
 						    minor_seventh_power * 1.10f - major_third_power * 0.35f);
 		if (present(root, 4))
-			consider(root, " MAJ", root_power * 1.15f + major_third_power + fifth_power * 0.90f -
+			consider(root, "", root_power * 1.15f + major_third_power + fifth_power * 0.90f -
 						    minor_third_power * 0.35f);
 		if (present(root, 3))
-			consider(root, " MIN", root_power * 1.15f + minor_third_power + fifth_power * 0.90f -
+			consider(root, "m", root_power * 1.15f + minor_third_power + fifth_power * 0.90f -
 						    major_third_power * 0.35f);
 		if (present(root, 2))
-			consider(root, " SUS2", root_power * 1.12f + second_power + fifth_power * 0.90f -
+			consider(root, "sus2", root_power * 1.12f + second_power + fifth_power * 0.90f -
 						     major_third_power * 0.25f - minor_third_power * 0.25f);
 		if (present(root, 5))
-			consider(root, " SUS4", root_power * 1.12f + fourth_power + fifth_power * 0.90f -
+			consider(root, "sus4", root_power * 1.12f + fourth_power + fifth_power * 0.90f -
 						     major_third_power * 0.25f - minor_third_power * 0.25f);
 	}
 
@@ -674,11 +674,11 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 
 	AnalysisSnapshot snapshot;
 	copy_text(snapshot.source, sizeof(snapshot.source), source_name && *source_name ? source_name : "Music");
-	copy_text(snapshot.drums[Kick].label, sizeof(snapshot.drums[Kick].label), "BASSDRUM");
+	copy_text(snapshot.drums[Kick].label, sizeof(snapshot.drums[Kick].label), "BASS DRUM");
 	copy_text(snapshot.drums[Snare].label, sizeof(snapshot.drums[Snare].label), "SNARE");
 	copy_text(snapshot.drums[HiHat].label, sizeof(snapshot.drums[HiHat].label), "HIHAT");
 	copy_text(snapshot.drums[Crash].label, sizeof(snapshot.drums[Crash].label), "CRASH");
-	copy_text(snapshot.drums[Tom].label, sizeof(snapshot.drums[Tom].label), "TOM");
+	copy_text(snapshot.drums[Tom].label, sizeof(snapshot.drums[Tom].label), "TOMS");
 	copy_text(snapshot.drums[Ride].label, sizeof(snapshot.drums[Ride].label), "RIDE");
 	snapshot.dropped_windows = dropped_windows;
 

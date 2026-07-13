@@ -154,8 +154,8 @@ void check_harmonic_chords(Runner &runner)
 				const int fifth = root + 7;
 				const auto buffer = mao_test::make_midi_notes({root, third, fifth}, 0.34f);
 				const auto snapshot = analyze_buffer(buffer, instrument.name);
-				const std::string mode = major ? "MAJ" : "MIN";
-				const std::string expected_chord = std::string(mao_test::note_name(root)) + " " + mode;
+				const std::string expected_chord =
+					std::string(mao_test::note_name(root)) + (major ? "" : "m");
 				const std::string context = std::string(instrument.name) + " chord " + expected_chord;
 
 				const std::string root_note = mao_test::note_label(root);
@@ -178,11 +178,11 @@ struct ChordTemplate {
 void check_extended_chords(Runner &runner)
 {
 	const std::vector<ChordTemplate> templates = {
-		{" SUS2", {0, 2, 7}},
-		{" SUS4", {0, 5, 7}},
+		{"sus2", {0, 2, 7}},
+		{"sus4", {0, 5, 7}},
 		{"7", {0, 4, 7, 10}},
-		{" MAJ7", {0, 4, 7, 11}},
-		{" MIN7", {0, 3, 7, 10}},
+		{"maj7", {0, 4, 7, 11}},
+		{"m7", {0, 3, 7, 10}},
 	};
 
 	for (const HarmonicInstrument &instrument : harmonic_instruments()) {

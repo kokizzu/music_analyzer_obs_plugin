@@ -49,8 +49,8 @@ int main()
 		std::fprintf(stderr, "expected keyboard notes C4 E4 G4, got %s\n", chord_snapshot.keyboard.label);
 		return 1;
 	}
-	if (!mao_test::contains(chord_snapshot.keyboard_chord.label, "C MAJ")) {
-		std::fprintf(stderr, "expected C MAJ keyboard chord, got %s\n", chord_snapshot.keyboard_chord.label);
+	if (std::strcmp(chord_snapshot.keyboard_chord.label, "C") != 0) {
+		std::fprintf(stderr, "expected C keyboard chord, got %s\n", chord_snapshot.keyboard_chord.label);
 		return 1;
 	}
 	if (!is_root(chord_snapshot, "A")) {
