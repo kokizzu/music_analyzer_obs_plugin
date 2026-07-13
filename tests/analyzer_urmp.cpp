@@ -662,10 +662,11 @@ std::vector<CandidateWindow> select_candidate_windows(const std::vector<TrackDat
 struct PieceFiles {
 	std::string dir;
 	std::string mix_path;
+	std::string score_path;
 	std::vector<TrackData> tracks;
 };
 
-bool load_piece_files(const std::string &dir, PieceFiles &piece, std::string &reason)
+bool load_piece_files(const std::string &dir, PieceFiles &piece, bool require_score, std::string &reason)
 {
 	piece.dir = dir;
 	std::map<int, std::string> audio_by_track;
@@ -678,6 +679,10 @@ bool load_piece_files(const std::string &dir, PieceFiles &piece, std::string &re
 		const std::string path = join_path(dir, entry.name);
 		if (starts_with(entry.name, "AuMix_") && ends_with(entry.name, ".wav")) {
 			piece.mix_path = path;
+			continue;
+		}
+		if (starts_with(entry.name, "Sco_") && ends_with(entry.name, ".mid")) {
+			piece.score_path = path;
 			continue;
 		}
 		if (starts_with(entry.name, "AuSep_") && ends_with(entry.name, ".wav")) {
@@ -697,6 +702,10 @@ bool load_piece_files(const std::string &dir, PieceFiles &piece, std::string &re
 
 	if (piece.mix_path.empty()) {
 		reason = "missing AuMix_*.wav";
+		return false;
+	}
+	if (require_score && piece.score_path.empty()) {
+		reason = "missing official URMP Sco_*.mid score file";
 		return false;
 	}
 
@@ -863,13 +872,16 @@ int main()
 		std::fprintf(stderr, "analyzer_urmp: `%s` is not a directory\n", root.c_str());
 		return 1;
 	}
-	if (is_generated_fixture_root(root) && !env_truthy("MUSIC_ANALYZER_URMP_ALLOW_GENERATED_FIXTURE")) {
+	const bool generated_fixture = is_generated_fixture_root(root);
+	const bool allow_generated_fixture = env_truthy("MUSIC_ANALYZER_URMP_ALLOW_GENERATED_FIXTURE");
+	if (generated_fixture && !allow_generated_fixture) {
 		std::fprintf(stderr,
 			     "analyzer_urmp: `%s` is a generated fixture, not the real URMP dataset; set "
 			     "MUSIC_ANALYZER_URMP_ALLOW_GENERATED_FIXTURE=1 only for fixture tests\n",
 			     root.c_str());
 		return 1;
 	}
+	const bool require_official_layout = !allow_generated_fixture;
 
 	std::vector<std::string> piece_dirs;
 	collect_piece_dirs(root, 4, piece_dirs);
@@ -889,7 +901,7 @@ int main()
 	for (const std::string &piece_dir : piece_dirs) {
 		PieceFiles piece;
 		std::string load_reason;
-		if (!load_piece_files(piece_dir, piece, load_reason)) {
+		if (!load_piece_files(piece_dir, piece, require_official_layout, load_reason)) {
 			++coverage.unusable_pieces;
 			if (coverage.unusable_pieces <= 5) {
 				std::fprintf(stderr, "analyzer_urmp: skipping %s: %s\n",
