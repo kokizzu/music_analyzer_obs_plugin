@@ -133,11 +133,12 @@ without additional annotation.
 - `make test` also runs `make test-real-goal-fixture`, which unpacks the
   committed compact 20-piece URMP-shaped lossless FLAC/Notes/MIDI fixture from
   `tests/fixtures/urmp-mini.tar.gz`, decodes it to disposable WAV files under
-  `build/` with `ffmpeg`, generates a 20-recording MusicNet-shaped WAV/CSV
-  fixture, and sends both through the combined goal gate. The URMP fixture is
-  marker-file tagged and is rejected by the real-data gate unless fixture mode
-  is explicitly allowed. Override the decoder with `FFMPEG=/path/to/ffmpeg` if
-  needed. Refresh it with `make update-urmp-fixture` after changing
+  `build/` with `ffmpeg`, generates 20-recording MusicNet-shaped WAV/CSV and
+  MedleyDB-shaped stem-layout fixtures, and sends all configured roots through
+  the combined goal gate. The URMP fixture is marker-file tagged and is rejected
+  by the real-data gate unless fixture mode is explicitly allowed. Override the
+  decoder with `FFMPEG=/path/to/ffmpeg` if needed. Refresh it with
+  `make update-urmp-fixture` after changing
   `tests/generate_urmp_fixture.py`.
 - Bach10 is the next best add-on for a compact, fast regression set.
 - Single-instrument datasets should drive focused checks: Guitar-TECHS/GAPS for
