@@ -14,6 +14,7 @@ Native OBS Studio plugin that analyzes a music mix and displays an instrument-or
 - Source-name hints: `guitar`, `key`, `piano`, `synth`, `brass`, and `violin` route detection toward the matching row
 - Root: rolling 15-second root candidates with confidence, with the primary root held until sustained modulation or silence
 - Chords: compact major, minor, power, sus2, sus4, diminished, augmented, 6, minor 6, dominant 7, major 7, minor 7, diminished 7, half-diminished, add9, 9, major 9, and minor 9 labels such as `C`, `Dm`, `Cdim`, `Caug`, `C6`, `Dm6`, `G7`, `Cmaj7`, `Dm7`, `Cdim7`, `Bm7b5`, `Cadd9`, `G9`, `Cmaj9`, and `Dm9`
+- Equivalent chord names for the same detected pitch classes are shown together, such as `Csus2=Gsus4` or `Dm7=F6`
 - Explicit instrument sources use the full chord template set; mixed sources keep conservative chord labels to avoid false extensions from other instruments
 
 The analyzer is designed for real-time OBS use. It uses bounded DSP heuristics rather than a large ML stem-separation model: audio is downmixed into a fixed ring buffer, analyzer windows are copied to a worker thread at a configurable interval, and the OBS audio callback returns immediately after lightweight buffering. The overlay source renders a single reusable RGBA texture.

@@ -48,6 +48,25 @@ void expect_no_chord(Runner &runner, const mao::InstrumentState &chord, const st
 	runner.expect(std::strcmp(chord.label, "--") == 0, context + ": expected no chord, got `" + chord.label + "`");
 }
 
+bool has_chord_label(const char *actual, const std::string &expected)
+{
+	if (!actual)
+		return false;
+
+	const char *cursor = actual;
+	while (*cursor) {
+		const char *end = cursor;
+		while (*end && *end != '=')
+			++end;
+		if (static_cast<std::size_t>(end - cursor) == expected.size() &&
+		    std::strncmp(cursor, expected.c_str(), expected.size()) == 0)
+			return true;
+		cursor = *end == '=' ? end + 1 : end;
+	}
+
+	return false;
+}
+
 void add_harmonic_note(mao_test::Buffer &buffer, int midi, float amp, const std::vector<float> &profile)
 {
 	const float base = mao_test::midi_frequency(midi);
@@ -270,9 +289,36 @@ void check_extended_chords(Runner &runner)
 					expect_note_token(runner, instrument.notes(snapshot).label, expected_note.c_str(),
 							  context);
 				}
-				expect_label(runner, instrument.chord(snapshot).label, expected_chord, context);
+				runner.expect(has_chord_label(instrument.chord(snapshot).label, expected_chord),
+					      context + ": expected chord label `" + expected_chord + "`, got `" +
+						      instrument.chord(snapshot).label + "`");
 			}
 		}
+	}
+}
+
+void check_equivalent_chord_labels(Runner &runner)
+{
+	{
+		const auto snapshot = analyze_buffer(mao_test::make_midi_notes({60, 62, 67}, 0.31f), "keyboard");
+		const std::string context = "equivalent chord labels Csus2 Gsus4";
+		runner.expect(has_chord_label(snapshot.keyboard_chord.label, "Csus2"),
+			      context + ": expected Csus2, got `" + snapshot.keyboard_chord.label + "`");
+		runner.expect(has_chord_label(snapshot.keyboard_chord.label, "Gsus4"),
+			      context + ": expected Gsus4, got `" + snapshot.keyboard_chord.label + "`");
+		runner.expect(mao_test::contains(snapshot.keyboard_chord.label, "="),
+			      context + ": expected multiple labels, got `" + snapshot.keyboard_chord.label + "`");
+	}
+
+	{
+		const auto snapshot = analyze_buffer(mao_test::make_midi_notes({62, 67, 69}, 0.31f), "keyboard");
+		const std::string context = "equivalent chord labels Dsus4 Gsus2";
+		runner.expect(has_chord_label(snapshot.keyboard_chord.label, "Dsus4"),
+			      context + ": expected Dsus4, got `" + snapshot.keyboard_chord.label + "`");
+		runner.expect(has_chord_label(snapshot.keyboard_chord.label, "Gsus2"),
+			      context + ": expected Gsus2, got `" + snapshot.keyboard_chord.label + "`");
+		runner.expect(mao_test::contains(snapshot.keyboard_chord.label, "="),
+			      context + ": expected multiple labels, got `" + snapshot.keyboard_chord.label + "`");
 	}
 }
 
@@ -453,7 +499,9 @@ void check_realistic_instrument_chords(Runner &runner)
 	const std::vector<float> keyboard_profile = {1.0f, 0.18f, 0.08f};
 	const auto keyboard_buffer = make_harmonic_notes({50, 53, 57, 60}, 0.20f, keyboard_profile);
 	const auto keyboard_snapshot = analyze_buffer(keyboard_buffer, "keyboard");
-	expect_label(runner, keyboard_snapshot.keyboard_chord.label, "Dm7", "realistic keyboard Dm7 chord");
+	runner.expect(has_chord_label(keyboard_snapshot.keyboard_chord.label, "Dm7"),
+		      std::string("realistic keyboard Dm7 chord: expected Dm7, got `") +
+			      keyboard_snapshot.keyboard_chord.label + "`");
 	expect_note_token(runner, keyboard_snapshot.keyboard.label, "D3", "realistic keyboard Dm7 chord");
 	expect_note_token(runner, keyboard_snapshot.keyboard.label, "F3", "realistic keyboard Dm7 chord");
 	expect_note_token(runner, keyboard_snapshot.keyboard.label, "A3", "realistic keyboard Dm7 chord");
@@ -665,6 +713,7 @@ int main()
 	check_harmonic_single_notes(runner);
 	check_harmonic_chords(runner);
 	check_extended_chords(runner);
+	check_equivalent_chord_labels(runner);
 	check_quiet_note_rejection(runner);
 	check_quiet_standalone_rejection(runner);
 	check_note_level_fade(runner);

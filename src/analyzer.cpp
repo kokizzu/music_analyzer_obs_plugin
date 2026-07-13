@@ -133,6 +133,8 @@ void write_octave(char *dst, std::size_t dst_size, int midi)
 		dst[1] = '\0';
 }
 
+void append_text(char *dst, std::size_t dst_size, const char *text);
+
 struct RangeResult {
 	int midi = 0;
 	float confidence = 0.0f;
@@ -465,16 +467,26 @@ int lowest_peak_pitch_class(const std::array<float, kNoteProbeCount> &powers, in
 }
 
 struct ChordResult {
-	char label[24] = {};
+	char label[64] = {};
 	std::array<bool, 12> tones = {};
 	int root = -1;
 	float confidence = 0.0f;
+};
+
+struct ChordCandidate {
+	char label[16] = {};
+	std::array<bool, 12> tones = {};
+	uint16_t mask = 0;
+	int root = -1;
+	float score = 0.0f;
 };
 
 ChordResult detect_chord(const std::array<float, 12> &chroma, int bass_pitch_class = -1, bool allow_extensions = true)
 {
 	ChordResult best;
 	float best_score = 0.0f;
+	uint16_t best_mask = 0;
+	std::vector<ChordCandidate> candidates;
 	static constexpr float kToneThreshold = 0.24f;
 
 	auto tone = [&](int root, int offset) -> float { return chroma[(root + offset) % 12]; };
@@ -506,14 +518,24 @@ ChordResult detect_chord(const std::array<float, 12> &chroma, int bass_pitch_cla
 	auto consider = [&](int root, const char *suffix, float score, std::initializer_list<int> intervals) {
 		if (root == bass_pitch_class)
 			score += 0.40f;
-		if (score <= best_score)
-			return;
-		best_score = score;
-		best.root = root;
-		best.tones.fill(false);
-		for (int interval : intervals)
-			best.tones[(root + interval) % 12] = true;
-		std::snprintf(best.label, sizeof(best.label), "%s%s", note_name(root), suffix);
+
+		ChordCandidate candidate;
+		candidate.root = root;
+		candidate.score = score;
+		std::snprintf(candidate.label, sizeof(candidate.label), "%s%s", note_name(root), suffix);
+		for (int interval : intervals) {
+			const int pitch_class = (root + interval) % 12;
+			candidate.tones[pitch_class] = true;
+			candidate.mask |= static_cast<uint16_t>(1u << pitch_class);
+		}
+		candidates.push_back(candidate);
+
+		if (score > best_score) {
+			best_score = score;
+			best_mask = candidate.mask;
+			best.root = root;
+			best.tones = candidate.tones;
+		}
 	};
 	auto consider_template = [&](int root, const char *suffix, std::initializer_list<int> intervals, float priority) {
 		float score = priority;
@@ -574,6 +596,30 @@ ChordResult detect_chord(const std::array<float, 12> &chroma, int bass_pitch_cla
 		best.root = -1;
 		best.tones.fill(false);
 		copy_text(best.label, sizeof(best.label), "--");
+		return best;
+	}
+
+	std::vector<ChordCandidate> aliases;
+	for (const ChordCandidate &candidate : candidates) {
+		if (candidate.mask == best_mask)
+			aliases.push_back(candidate);
+	}
+
+	std::sort(aliases.begin(), aliases.end(), [](const ChordCandidate &a, const ChordCandidate &b) {
+		if (a.score != b.score)
+			return a.score > b.score;
+		return a.root < b.root;
+	});
+
+	best.label[0] = '\0';
+	for (const ChordCandidate &candidate : aliases) {
+		if (std::strstr(best.label, candidate.label))
+			continue;
+		if (best.label[0])
+			append_text(best.label, sizeof(best.label), "=");
+		append_text(best.label, sizeof(best.label), candidate.label);
+		if (std::strlen(best.label) + 1 >= sizeof(best.label))
+			break;
 	}
 	return best;
 }
