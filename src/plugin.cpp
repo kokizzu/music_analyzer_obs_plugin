@@ -244,7 +244,7 @@ void analyzer_worker(FilterData *filter)
 
 			local_window = filter->pending_window;
 			settings = filter->pending_settings;
-			copy_text(source_name, sizeof(source_name), filter->source_name);
+			copy_text(source_name, sizeof(source_name), filter->pending_source_name);
 			dropped = filter->dropped_windows;
 			audio_frames = filter->pending_audio_frames;
 			analyzed_windows = filter->pending_analyzed_windows;
@@ -588,12 +588,17 @@ void render_pixels(VisualizerData *visualizer, const mao::AnalysisSnapshot &snap
 	std::snprintf(title, sizeof(title), "MUSIC ANALYZER  %s", snapshot.source[0] ? snapshot.source : "WAITING");
 	draw_text(visualizer, 28, 24, title, 3, Color{246, 248, 251, 255});
 
-	char level[96];
+	char level[128];
 	std::snprintf(level, sizeof(level), "RMS %.2f LOW %.0f%% MID %.0f%% HIGH %.0f%% UPD %llu DROP %llu",
 		      snapshot.rms, snapshot.low_energy * 100.0f, snapshot.mid_energy * 100.0f,
 		      snapshot.high_energy * 100.0f, static_cast<unsigned long long>(snapshot.analyzed_windows),
 		      static_cast<unsigned long long>(snapshot.dropped_windows));
 	draw_text(visualizer, 28, 58, level, 2, Color{148, 163, 184, 255});
+
+	char debug[96];
+	std::snprintf(debug, sizeof(debug), "FRAMES %llu AGE %.1FS",
+		      static_cast<unsigned long long>(snapshot.audio_frames), snapshot_age);
+	draw_text(visualizer, 28, 78, debug, 1, Color{148, 163, 184, 255});
 
 	draw_text(visualizer, 28, 96, "DRUMS", 3, Color{148, 163, 184, 255});
 	int tag_x = 150;
