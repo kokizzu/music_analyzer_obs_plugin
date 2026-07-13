@@ -2,6 +2,7 @@ CXX ?= g++
 PKG_CONFIG ?= pkg-config
 BUILD_DIR ?= build
 DEPS_DIR ?= $(BUILD_DIR)/deps
+OBS_USER_PLUGIN_DIR ?= $(HOME)/.config/obs-studio/plugins/music-analyzer-obs/bin/64bit
 
 OBS_CFLAGS_RAW := $(shell $(PKG_CONFIG) --cflags libobs)
 OBS_CFLAGS := $(filter-out -std=gnu17 -Werror,$(OBS_CFLAGS_RAW))
@@ -18,7 +19,7 @@ CXXFLAGS += -std=c++17 -fPIC -Wall -Wextra
 PLUGIN_OBJS := $(BUILD_DIR)/analyzer.o $(BUILD_DIR)/plugin.o
 TEST_OBJS := $(BUILD_DIR)/analyzer_test.o $(BUILD_DIR)/analyzer_smoke.o
 
-.PHONY: all clean deps test
+.PHONY: all clean deps install-user test
 
 all: $(SIMDE_DEP) $(BUILD_DIR)/music-analyzer-obs.so
 
@@ -54,6 +55,10 @@ $(BUILD_DIR)/analyzer_smoke: $(TEST_OBJS)
 
 test: $(BUILD_DIR)/analyzer_smoke
 	$(BUILD_DIR)/analyzer_smoke
+
+install-user: all
+	mkdir -p $(OBS_USER_PLUGIN_DIR)
+	cp $(BUILD_DIR)/music-analyzer-obs.so $(OBS_USER_PLUGIN_DIR)/
 
 clean:
 	rm -rf $(BUILD_DIR)

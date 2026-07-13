@@ -10,12 +10,10 @@ The analyzer is designed for real-time OBS use. It uses bounded DSP heuristics r
 
 ## OBS Usage
 
-1. Build the plugin.
-2. Copy `build/music-analyzer-obs.so` to an OBS plugin directory, for example:
+1. Build and install the plugin to your OBS user plugin directory:
 
    ```sh
-   mkdir -p ~/.config/obs-studio/plugins/music-analyzer-obs/bin/64bit
-   cp build/music-analyzer-obs.so ~/.config/obs-studio/plugins/music-analyzer-obs/bin/64bit/
+   make install-user
    ```
 
 3. Restart OBS.
