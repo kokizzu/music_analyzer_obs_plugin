@@ -409,19 +409,6 @@ bool snapshot_has_chord_label(const mao::AnalysisSnapshot &snapshot, const std::
 	       has_chord_label(snapshot.guitar_chord.label, label) || has_chord_label(snapshot.other_chord.label, label);
 }
 
-std::string expected_basic_chord_label(const std::array<bool, 12> &pitch_classes)
-{
-	for (int root = 0; root < 12; ++root) {
-		if (has_pitch_class(pitch_classes, root) && has_pitch_class(pitch_classes, root + 4) &&
-		    has_pitch_class(pitch_classes, root + 7))
-			return mao_test::note_name(root);
-		if (has_pitch_class(pitch_classes, root) && has_pitch_class(pitch_classes, root + 3) &&
-		    has_pitch_class(pitch_classes, root + 7))
-			return std::string(mao_test::note_name(root)) + "m";
-	}
-	return "";
-}
-
 const NoteAnnotation *active_note_at(const TrackData &track, double time)
 {
 	const NoteAnnotation *best = nullptr;
@@ -446,11 +433,17 @@ struct ActiveNote {
 	int midi = 0;
 };
 
+struct ChordTemplate {
+	const char *suffix = "";
+	std::vector<int> intervals;
+};
+
 struct CandidateWindow {
 	double time = 0.0;
 	std::vector<ActiveNote> active;
 	std::array<bool, 12> pitch_classes = {};
-	std::string chord_label;
+	std::vector<std::string> chord_labels;
+	int chord_tone_count = 0;
 	double score = 0.0;
 };
 
@@ -471,6 +464,80 @@ int pitch_class_count(const std::array<bool, 12> &pitch_classes)
 	return count;
 }
 
+const std::vector<ChordTemplate> &common_chord_templates()
+{
+	static const std::vector<ChordTemplate> kTemplates = {
+		{"9", {0, 2, 4, 7, 10}},   {"maj9", {0, 2, 4, 7, 11}},
+		{"m9", {0, 2, 3, 7, 10}},  {"dim7", {0, 3, 6, 9}},
+		{"m7b5", {0, 3, 6, 10}},   {"7", {0, 4, 7, 10}},
+		{"maj7", {0, 4, 7, 11}},   {"m7", {0, 3, 7, 10}},
+		{"6", {0, 4, 7, 9}},       {"m6", {0, 3, 7, 9}},
+		{"add9", {0, 2, 4, 7}},    {"", {0, 4, 7}},
+		{"m", {0, 3, 7}},          {"dim", {0, 3, 6}},
+		{"aug", {0, 4, 8}},        {"sus2", {0, 2, 7}},
+		{"sus4", {0, 5, 7}},       {"pow", {0, 7}},
+	};
+	return kTemplates;
+}
+
+bool template_matches_pitch_classes(const std::array<bool, 12> &pitch_classes, int root,
+				    const ChordTemplate &chord_template)
+{
+	for (int interval : chord_template.intervals) {
+		if (!has_pitch_class(pitch_classes, root + interval))
+			return false;
+	}
+
+	if (std::strcmp(chord_template.suffix, "pow") == 0) {
+		static constexpr int kNonPowerIntervals[] = {2, 3, 4, 5, 6, 8, 9, 10, 11};
+		for (int interval : kNonPowerIntervals) {
+			if (has_pitch_class(pitch_classes, root + interval))
+				return false;
+		}
+	}
+
+	return true;
+}
+
+std::vector<std::string> expected_common_chord_labels(const std::array<bool, 12> &pitch_classes,
+						      int &best_tone_count)
+{
+	std::vector<std::string> labels;
+	best_tone_count = 0;
+
+	for (int root = 0; root < 12; ++root) {
+		if (!has_pitch_class(pitch_classes, root))
+			continue;
+		for (const ChordTemplate &chord_template : common_chord_templates()) {
+			if (!template_matches_pitch_classes(pitch_classes, root, chord_template))
+				continue;
+			const int tone_count = static_cast<int>(chord_template.intervals.size());
+			if (tone_count < best_tone_count)
+				continue;
+			const std::string label = std::string(mao_test::note_name(root)) + chord_template.suffix;
+			if (tone_count > best_tone_count) {
+				best_tone_count = tone_count;
+				labels.clear();
+			}
+			if (std::find(labels.begin(), labels.end(), label) == labels.end())
+				labels.push_back(label);
+		}
+	}
+
+	return labels;
+}
+
+std::string join_labels(const std::vector<std::string> &labels)
+{
+	std::string joined;
+	for (const std::string &label : labels) {
+		if (!joined.empty())
+			joined += "/";
+		joined += label;
+	}
+	return joined;
+}
+
 CandidateWindow candidate_window_at(const std::vector<TrackData> &tracks, double time)
 {
 	CandidateWindow candidate;
@@ -487,10 +554,11 @@ CandidateWindow candidate_window_at(const std::vector<TrackData> &tracks, double
 	if (candidate.active.size() < 2)
 		return candidate;
 
-	candidate.chord_label = expected_basic_chord_label(candidate.pitch_classes);
+	candidate.chord_labels = expected_common_chord_labels(candidate.pitch_classes, candidate.chord_tone_count);
 	candidate.score = static_cast<double>(candidate.active.size()) * 100.0 +
 			  static_cast<double>(pitch_class_count(candidate.pitch_classes)) * 10.0 +
-			  (candidate.chord_label.empty() ? 0.0 : 50.0);
+			  static_cast<double>(candidate.chord_tone_count) * 20.0 +
+			  (candidate.chord_labels.empty() ? 0.0 : 50.0);
 	return candidate;
 }
 
@@ -515,14 +583,18 @@ void check_mix_recall(Runner &runner, const mao::AnalysisSnapshot &snapshot, con
 			      "% pitch-class recall, got " + std::to_string(hits) + "/" +
 			      std::to_string(expected));
 
-	if (!candidate.chord_label.empty()) {
+	if (!candidate.chord_labels.empty()) {
 		++stats.chord_checks;
-		if (snapshot_has_chord_label(snapshot, candidate.chord_label)) {
+		const bool chord_hit =
+			std::any_of(candidate.chord_labels.begin(), candidate.chord_labels.end(),
+				    [&](const std::string &label) { return snapshot_has_chord_label(snapshot, label); });
+		if (chord_hit) {
 			++stats.chord_hits;
 		} else {
 			std::fprintf(stderr,
 				     "%s: chord opportunity `%s`, detected key `%s`, guitar `%s`, other `%s`\n",
-				     context.c_str(), candidate.chord_label.c_str(), snapshot.keyboard_chord.label,
+				     context.c_str(), join_labels(candidate.chord_labels).c_str(),
+				     snapshot.keyboard_chord.label,
 				     snapshot.guitar_chord.label, snapshot.other_chord.label);
 		}
 	}
@@ -713,6 +785,16 @@ std::string resolve_urmp_root()
 	return dataset_root;
 }
 
+int resolve_max_windows_per_piece()
+{
+	const char *value = std::getenv("MUSIC_ANALYZER_URMP_MAX_WINDOWS_PER_PIECE");
+	if (!value || !*value)
+		return 12;
+
+	const int parsed = std::atoi(value);
+	return parsed > 0 ? parsed : 12;
+}
+
 } // namespace
 
 int main()
@@ -730,6 +812,7 @@ int main()
 	std::vector<std::string> piece_dirs;
 	collect_piece_dirs(root, 4, piece_dirs);
 	std::sort(piece_dirs.begin(), piece_dirs.end());
+	const int max_windows_per_piece = resolve_max_windows_per_piece();
 
 	Runner runner;
 	int tested_pieces = 0;
@@ -744,7 +827,8 @@ int main()
 		if (!load_piece_files(piece_dir, piece))
 			continue;
 
-		const std::vector<CandidateWindow> candidates = select_candidate_windows(piece.tracks, 4);
+		const std::vector<CandidateWindow> candidates =
+			select_candidate_windows(piece.tracks, max_windows_per_piece);
 		if (candidates.empty())
 			continue;
 
@@ -821,8 +905,10 @@ int main()
 	runner.expect(tested_pieces >= 20,
 		      "URMP real-audio coverage: expected at least 20 usable pieces, got " +
 			      std::to_string(tested_pieces));
-	runner.expect(tested_windows >= 40,
-		      "URMP real-audio coverage: expected at least 40 tested windows, got " +
+	const int min_required_windows = std::min(80, max_windows_per_piece * 20);
+	runner.expect(tested_windows >= min_required_windows,
+		      "URMP real-audio coverage: expected at least " + std::to_string(min_required_windows) +
+			      " tested windows, got " +
 			      std::to_string(tested_windows));
 	runner.expect(track_checks > 0 && track_hits * 100 >= track_checks * 70,
 		      "URMP separated-track recall: expected >=70%, got " + std::to_string(track_hits) + "/" +
