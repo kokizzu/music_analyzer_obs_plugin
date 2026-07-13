@@ -53,6 +53,8 @@ def main():
         egmd_harness = read_text("tests/analyzer_egmd.cpp")
         goal_gate = read_text("tests/run_real_goal_gate.py")
         source_printer = read_text("tests/print_real_dataset_sources.py")
+        medleydb_inspector = read_text("tests/inspect_medleydb_dataset.py")
+        medleydb_prepare = read_text("tests/prepare_medleydb_musicnet_fixture.py")
         musdb_inspector = read_text("tests/inspect_musdb_dataset.py")
         slakh_inspector = read_text("tests/inspect_slakh_dataset.py")
         slakh_prepare = read_text("tests/prepare_slakh_musicnet_fixture.py")
@@ -141,8 +143,8 @@ def main():
         problems.append("MusicNet automation target must remain test-real-musicnet-20")
     if multtipop.get("automation_target") != "inspect-real-multtipop":
         problems.append("MulTTiPop automation target must remain inspect-real-multtipop")
-    if medleydb.get("automation_target") != "inspect-real-medleydb":
-        problems.append("MedleyDB automation target must remain inspect-real-medleydb")
+    if medleydb.get("automation_target") != "test-real-medleydb-20":
+        problems.append("MedleyDB automation target must remain test-real-medleydb-20")
     if musdb.get("automation_target") != "inspect-real-musdb":
         problems.append("MUSDB18 automation target must remain inspect-real-musdb")
     if slakh.get("automation_target") != "test-real-slakh-20":
@@ -180,6 +182,7 @@ def main():
         (makefile, "tests/generate_direct_fit_small_fixture.py", "Makefile direct-fit-small fixture"),
         (makefile, "DIRECT_FIT_SMALL_FIXTURE_ARCHIVE", "Makefile direct-fit-small fixture archive"),
         (makefile, "tests/generate_medleydb_fixture.py", "Makefile MedleyDB fixture"),
+        (makefile, "tests/prepare_medleydb_musicnet_fixture.py", "Makefile MedleyDB analyzer preparation"),
         (makefile, "tests/generate_musdb_fixture.py", "Makefile MUSDB18 fixture"),
         (makefile, "tests/generate_slakh_fixture.py", "Makefile Slakh2100 fixture"),
         (makefile, "tests/prepare_slakh_musicnet_fixture.py", "Makefile Slakh2100 analyzer preparation"),
@@ -219,7 +222,7 @@ def main():
         (goal_gate, "inspect-real-multitrack-20", "combined preflight required URMP target"),
         (goal_gate, "test-real-musicnet-20", "combined gate optional MusicNet target"),
         (goal_gate, "inspect-real-musicnet", "combined preflight optional MusicNet target"),
-        (goal_gate, "inspect-real-medleydb", "combined gate optional MedleyDB target"),
+        (goal_gate, "test-real-medleydb-20", "combined gate optional MedleyDB analyzer target"),
         (goal_gate, "configured_multtipop", "combined gate optional MulTTiPop root detection"),
         (goal_gate, "configured_musdb", "combined gate optional MUSDB18 root detection"),
         (goal_gate, "inspect-real-musdb", "combined gate optional MUSDB18 preflight target"),
@@ -264,6 +267,10 @@ def main():
         (urmp_inspector, "MUSIC_ANALYZER_URMP_MIN_PITCH_CLASSES_PER_WINDOW", "URMP preflight pitch-class threshold"),
         (musicnet_harness, "active instruments min/avg/max", "MusicNet multi-instrument report"),
         (musicnet_harness, "chord hits", "MusicNet chord recall report"),
+        (medleydb_inspector, "melody_annotated_multitracks", "MedleyDB melody coverage report"),
+        (medleydb_prepare, "prepare_medleydb_musicnet_fixture", "MedleyDB MusicNet-shaped analyzer preparation"),
+        (medleydb_prepare, "prepare_summed_stem_audio", "MedleyDB summed-stem playback preparation"),
+        (medleydb_prepare, "summed-stem MedleyDB melody recordings", "MedleyDB generated MusicNet labels"),
         (multtipop_inspector, "midi note parts", "MulTTiPop MIDI part-density report"),
         (multtipop_inspector, "MUSIC_ANALYZER_MULTTIPOP_REQUIRE_AUDIO", "MulTTiPop optional audio threshold"),
         (multtipop_inspector, "valid_youtube_metadata", "MulTTiPop YouTube timing validation"),
@@ -309,6 +316,8 @@ def main():
         (guitarset_harness, "chord hits", "GuitarSet analyzer chord recall report"),
         (readme, "make test-real-goal-20", "README combined gate instructions"),
         (readme, "make inspect-real-goal-20", "README combined preflight instructions"),
+        (readme, "make inspect-real-medleydb", "README MedleyDB preflight instructions"),
+        (readme, "make test-real-medleydb-20", "README MedleyDB analyzer instructions"),
         (readme, "make inspect-real-multtipop", "README MulTTiPop preflight instructions"),
         (readme, "make inspect-real-musdb", "README MUSDB18 preflight instructions"),
         (readme, "make inspect-real-slakh", "README Slakh2100 preflight instructions"),
@@ -328,6 +337,8 @@ def main():
         (readme, "make test-direct-fit-small-fixture", "README direct-fit-small fixture instructions"),
         (docs, "make test-real-goal-20", "dataset docs combined gate instructions"),
         (docs, "make inspect-real-goal-20", "dataset docs combined preflight instructions"),
+        (docs, "make inspect-real-medleydb", "dataset docs MedleyDB preflight instructions"),
+        (docs, "make test-real-medleydb-20", "dataset docs MedleyDB analyzer instructions"),
         (docs, "make inspect-real-multtipop", "dataset docs MulTTiPop preflight instructions"),
         (docs, "make inspect-real-musdb", "dataset docs MUSDB18 preflight instructions"),
         (docs, "make inspect-real-slakh", "dataset docs Slakh2100 preflight instructions"),

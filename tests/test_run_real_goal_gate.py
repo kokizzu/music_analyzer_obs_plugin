@@ -220,7 +220,7 @@ def test_twenty_piece_test_plan_targets_real_gates():
     assert not plan["inspect_only"]
     assert plan["multitrack_target"] == "test-real-multitrack-20"
     assert plan["musicnet_target"] == "test-real-musicnet-20"
-    assert plan["medleydb_target"] == "inspect-real-medleydb"
+    assert plan["medleydb_target"] == "test-real-medleydb-20"
     assert plan["musdb_target"] == "inspect-real-musdb"
     assert plan["slakh_target"] == "test-real-slakh-20"
     assert plan["choralsynth_target"] == "test-real-choralsynth-20"
@@ -239,7 +239,7 @@ def test_full_test_plan_targets_full_real_gates():
     assert not plan["inspect_only"]
     assert plan["multitrack_target"] == "test-real-multitrack-full"
     assert plan["musicnet_target"] == "test-real-musicnet-full"
-    assert plan["medleydb_target"] == "inspect-real-medleydb"
+    assert plan["medleydb_target"] == "test-real-medleydb-20"
     assert plan["musdb_target"] == "inspect-real-musdb"
     assert plan["slakh_target"] == "test-real-slakh-full"
     assert plan["choralsynth_target"] == "test-real-choralsynth-20"

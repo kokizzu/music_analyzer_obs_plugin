@@ -268,13 +268,13 @@
       "assembled_mix": true,
       "aligned_symbolic_truth": false,
       "truth": "melody F0 and instrument activation annotations",
-      "automation_target": "inspect-real-medleydb",
+      "automation_target": "test-real-medleydb-20",
       "source_url": "https://medleydb.weebly.com/",
       "download_url": "https://zenodo.org/records/1649325",
       "annotation_url": "https://github.com/marl/medleydb/tree/master/medleydb/data/Annotations",
       "metadata_url": "https://github.com/marl/medleydb/tree/master/medleydb/data/Metadata",
       "download_note": "Audio files are on restricted Zenodo records with quick permission request; annotations and metadata are public on GitHub.",
-      "evidence": "Official page describes 196 multitracks total, with melody F0 annotations and instrument activations, but not full MIDI/note truth for every source."
+      "evidence": "Official page describes 196 multitracks total, with melody F0 annotations and instrument activations. The analyzer gate sums local stems and checks melody pitch recall, but this still is not full MIDI/note truth for every source."
     },
     {
       "id": "musdb18",

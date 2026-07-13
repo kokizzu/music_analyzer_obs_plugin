@@ -88,7 +88,7 @@ without additional annotation.
 
 | Dataset | Useful for | Missing for this project |
 | --- | --- | --- |
-| [MedleyDB / MedleyDB 2.0](https://medleydb.weebly.com/) | Real multitrack songs, melody F0, instrument activation | Full multitrack MIDI/note truth. Audio is on restricted [Zenodo](https://zenodo.org/records/1649325) records; annotations and metadata are public on [GitHub](https://github.com/marl/medleydb). |
+| [MedleyDB / MedleyDB 2.0](https://medleydb.weebly.com/) | Real multitrack songs, melody F0, instrument activation, optional `make test-real-medleydb-20` melody analyzer gate | Full multitrack MIDI/note truth. Audio is on restricted [Zenodo](https://zenodo.org/records/1649325) records; annotations and metadata are public on [GitHub](https://github.com/marl/medleydb). |
 | [MUSDB18 / MUSDB18-HQ](https://sigsep.github.io/datasets/musdb.html) | Drums, bass, vocals, other stem layout with optional `make inspect-real-musdb` preflight | MIDI/note truth and fine instrument classes. |
 | [MoisesDB](https://arxiv.org/abs/2307.15913) | Fine-grained real stems beyond 4-stem separation | MIDI/note truth. |
 | [RawStems](https://arxiv.org/abs/2505.21827) | Large unprocessed stem corpus and stem categories | MIDI/note truth. |
@@ -166,8 +166,11 @@ without additional annotation.
   `MUSIC_ANALYZER_MEDLEYDB_ANNOTATIONS_ROOT=/path/to/medleydb/medleydb/data/Annotations`
   to preflight the second real multitrack source. It requires at least 20 songs
   with mix plus stems and at least 20 melody-annotated multitracks by default.
-  This is a partial real-stem/melody-F0 check and does not replace the URMP
-  per-source note/chord gate.
+  Use `make test-real-medleydb-20` to convert selected melody F0 annotations
+  into a temporary MusicNet-shaped label set, sum the local source stems into
+  playback audio, and check analyzer melody pitch-class recall. This is a
+  partial real-stem/melody-F0 check and does not replace the URMP per-source
+  note/chord gate.
 - Use `make inspect-real-musdb` with
   `MUSIC_ANALYZER_MUSDB_ROOT=/path/to/MUSDB18-HQ` after extracting the
   uncompressed MUSDB18-HQ archive or decoding MUSDB18 STEMS files to WAV. The
@@ -278,7 +281,7 @@ without additional annotation.
   committed compact 20-piece URMP-shaped lossless FLAC/Notes/MIDI fixture from
   `tests/fixtures/urmp-mini.tar.gz`, decodes it to disposable WAV files under
   `build/` with `ffmpeg`, generates 20-recording MusicNet-shaped WAV/CSV and
-  MedleyDB-shaped stem-layout, MUSDB18-shaped five-stem, Slakh2100-shaped
+  MedleyDB-shaped summed-stem melody-F0, MUSDB18-shaped five-stem, Slakh2100-shaped
   rendered stem/MIDI, ChoralSynth-shaped vocal score/voice-track,
   audio-backed MulTTiPop-shaped multitrack-MIDI
   metadata, Spheres-shaped stem-layout, GuitarSet-shaped JAMS/hex-audio,

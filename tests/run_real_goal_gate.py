@@ -247,7 +247,7 @@ TARGET_PLANS = {
         "inspect_only": False,
         "multitrack_target": "test-real-multitrack-20",
         "musicnet_target": "test-real-musicnet-20",
-        "medleydb_target": "inspect-real-medleydb",
+        "medleydb_target": "test-real-medleydb-20",
         "musdb_target": "inspect-real-musdb",
         "slakh_target": "test-real-slakh-20",
         "choralsynth_target": "test-real-choralsynth-20",
@@ -263,7 +263,7 @@ TARGET_PLANS = {
         "inspect_only": False,
         "multitrack_target": "test-real-multitrack-full",
         "musicnet_target": "test-real-musicnet-full",
-        "medleydb_target": "inspect-real-medleydb",
+        "medleydb_target": "test-real-medleydb-20",
         "musdb_target": "inspect-real-musdb",
         "slakh_target": "test-real-slakh-full",
         "choralsynth_target": "test-real-choralsynth-20",
@@ -354,7 +354,7 @@ def main(argv):
             return failed
     else:
         print(
-            "run_real_goal_gate: skipping optional MedleyDB stem preflight; set "
+            "run_real_goal_gate: skipping optional MedleyDB summed-stem melody-F0 analyzer gate; set "
             "MUSIC_ANALYZER_MEDLEYDB_ROOT/MEDLEYDB_PATH or place a MedleyDB directory under "
             "MUSIC_ANALYZER_DATASET_ROOT"
         )
