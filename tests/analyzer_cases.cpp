@@ -357,14 +357,18 @@ void check_bass_priority_suppresses_overlap(Runner &runner)
 void check_multi_instrument_mix(Runner &runner)
 {
 	mao_test::Buffer buffer = {};
-	mao_test::add_midi_note(buffer, 35, 0.52f);
-	mao_test::add_midi_note(buffer, 60, 0.32f);
-	mao_test::add_midi_note(buffer, 64, 0.32f);
-	mao_test::add_midi_note(buffer, 67, 0.32f);
-	mao_test::add_midi_note(buffer, 54, 0.20f);
-	mao_test::add_midi_note(buffer, 49, 0.20f);
+	const std::vector<float> bass_profile = {1.0f, 0.30f, 0.14f};
+	const std::vector<float> key_profile = {1.0f, 0.16f, 0.08f};
+	const std::vector<float> guitar_profile = {1.0f, 0.24f, 0.10f};
+
+	add_harmonic_note(buffer, 35, 0.52f, bass_profile);
+	add_harmonic_note(buffer, 60, 0.34f, key_profile);
+	add_harmonic_note(buffer, 64, 0.34f, key_profile);
+	add_harmonic_note(buffer, 67, 0.34f, key_profile);
+	add_harmonic_note(buffer, 54, 0.20f, guitar_profile);
+	add_harmonic_note(buffer, 58, 0.20f, guitar_profile);
 	mao_test::add_midi_note(buffer, 74, 0.15f);
-	mao_test::add_midi_note(buffer, 92, 0.13f);
+	mao_test::add_midi_note(buffer, 80, 0.13f);
 
 	const auto snapshot = analyze_buffer(buffer, "full mix");
 	expect_label(runner, snapshot.bass.label, "B1", "multi-instrument mix bass");
@@ -376,8 +380,8 @@ void check_multi_instrument_mix(Runner &runner)
 	runner.expect(!grid_pitch_active(snapshot.keyboard_notes, 6),
 		      std::string("multi-instrument mix: expected keyboard F# inactive, got `") +
 			      snapshot.keyboard.label + "`");
-	runner.expect(!grid_pitch_active(snapshot.keyboard_notes, 1),
-		      std::string("multi-instrument mix: expected keyboard C# inactive, got `") +
+	runner.expect(!grid_pitch_active(snapshot.keyboard_notes, 10),
+		      std::string("multi-instrument mix: expected keyboard A# inactive, got `") +
 			      snapshot.keyboard.label + "`");
 	runner.expect(!grid_pitch_active(snapshot.keyboard_notes, 2),
 		      std::string("multi-instrument mix: expected keyboard D inactive, got `") +
@@ -387,7 +391,7 @@ void check_multi_instrument_mix(Runner &runner)
 			      snapshot.keyboard.label + "`");
 
 	expect_note_token(runner, snapshot.guitar.label, "F#3", "multi-instrument mix guitar");
-	expect_note_token(runner, snapshot.guitar.label, "C#3", "multi-instrument mix guitar");
+	expect_note_token(runner, snapshot.guitar.label, "A#3", "multi-instrument mix guitar");
 	runner.expect(!grid_pitch_active(snapshot.guitar_notes, 0),
 		      std::string("multi-instrument mix: expected guitar C inactive, got `") + snapshot.guitar.label +
 			      "`");
@@ -399,7 +403,7 @@ void check_multi_instrument_mix(Runner &runner)
 			      "`");
 
 	expect_label(runner, snapshot.vocal.label, "D5", "multi-instrument mix vocal");
-	expect_note_token(runner, snapshot.other.label, "G#6", "multi-instrument mix other");
+	expect_note_token(runner, snapshot.other.label, "G#5", "multi-instrument mix other");
 }
 
 void check_root_candidates(Runner &runner)
