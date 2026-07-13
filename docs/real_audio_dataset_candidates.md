@@ -66,9 +66,10 @@ without additional annotation.
 ## Implementation Notes
 
 - Do not vendor dataset audio into this repository.
-- Set `MUSIC_ANALYZER_URMP_ROOT=/path/to/URMP` and run `make test-real-urmp`
-  to require the real-audio URMP regression harness against local `AuMix`,
-  `AuSep`, `Notes`, and `Sco` MIDI files.
+- Set `MUSIC_ANALYZER_URMP_ROOT=/path/to/URMP`, run `make inspect-real-urmp`
+  to preflight the local layout, then run `make test-real-urmp` to require the
+  real-audio URMP regression harness against local `AuMix`, `AuSep`, `Notes`,
+  and `Sco` MIDI files.
   The harness requires official URMP piece folder IDs, validates that MIDI score
   pitch classes agree with note annotations, checks each separated track, the
   provided `AuMix`, and a synthesized full mix made by summing every separated
