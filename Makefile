@@ -1,4 +1,5 @@
 CXX ?= g++
+PYTHON ?= python3
 PKG_CONFIG ?= pkg-config
 BUILD_DIR ?= build
 DEPS_DIR ?= $(BUILD_DIR)/deps
@@ -20,7 +21,7 @@ PLUGIN_OBJS := $(BUILD_DIR)/analyzer.o $(BUILD_DIR)/plugin.o
 ANALYZER_TEST_OBJ := $(BUILD_DIR)/analyzer_test.o
 TEST_BINS := $(BUILD_DIR)/analyzer_smoke $(BUILD_DIR)/analyzer_cases $(BUILD_DIR)/analyzer_urmp
 
-.PHONY: all clean deps install-user test
+.PHONY: all clean deps install-user test test-urmp-fixture
 
 all: $(SIMDE_DEP) $(BUILD_DIR)/music-analyzer-obs.so
 
@@ -70,6 +71,11 @@ test: $(TEST_BINS)
 	$(BUILD_DIR)/analyzer_smoke
 	$(BUILD_DIR)/analyzer_cases
 	$(BUILD_DIR)/analyzer_urmp
+	$(MAKE) test-urmp-fixture
+
+test-urmp-fixture: $(BUILD_DIR)/analyzer_urmp tests/generate_urmp_fixture.py | $(BUILD_DIR)
+	$(PYTHON) tests/generate_urmp_fixture.py $(BUILD_DIR)/urmp-fixture
+	MUSIC_ANALYZER_URMP_ROOT=$(BUILD_DIR)/urmp-fixture $(BUILD_DIR)/analyzer_urmp
 
 install-user: all
 	mkdir -p $(OBS_USER_PLUGIN_DIR)
