@@ -22,7 +22,7 @@ OBS_DECLARE_MODULE()
 namespace {
 
 constexpr const char *kFilterId = "music_analyzer_filter";
-constexpr const char *kVisualizerId = "music_analyzer_visualizer";
+constexpr const char *kVisualizerId = "music_analyzer_overlay";
 constexpr uint32_t kDefaultWidth = 960;
 constexpr uint32_t kDefaultHeight = 360;
 static_assert((mao::kAnalysisWindow & (mao::kAnalysisWindow - 1)) == 0, "analysis window must be a power of two");
@@ -184,7 +184,7 @@ void filter_defaults(obs_data_t *settings)
 obs_properties_t *filter_properties(void *)
 {
 	obs_properties_t *props = obs_properties_create();
-	obs_properties_add_int_slider(props, "update_ms", "Analysis interval (ms)", 20, 250, 5);
+	obs_properties_add_int_slider(props, "update_ms", "Analyzer interval (ms)", 20, 250, 5);
 	obs_properties_add_int_slider(props, "sensitivity", "Drum sensitivity (%)", 50, 200, 5);
 	return props;
 }
@@ -247,7 +247,7 @@ obs_audio_data *filter_audio(void *data, obs_audio_data *audio)
 
 const char *filter_name(void *)
 {
-	return "Music Analysis Filter";
+	return "Music Analyzer Filter";
 }
 
 struct Color {
@@ -460,7 +460,7 @@ void render_pixels(VisualizerData *visualizer, const mao::AnalysisSnapshot &snap
 	fill_rect(visualizer, 0, 0, visualizer->width, 8, Color{59, 130, 246, 240});
 
 	char title[128];
-	std::snprintf(title, sizeof(title), "MUSIC ANALYSIS  %s", snapshot.source[0] ? snapshot.source : "WAITING");
+	std::snprintf(title, sizeof(title), "MUSIC ANALYZER  %s", snapshot.source[0] ? snapshot.source : "WAITING");
 	draw_text(visualizer, 28, 24, title, 3, Color{246, 248, 251, 255});
 
 	char level[96];
@@ -482,7 +482,7 @@ void render_pixels(VisualizerData *visualizer, const mao::AnalysisSnapshot &snap
 	draw_instrument_row(visualizer, 305, "OTHERS", snapshot.other, Color{168, 85, 247, 245});
 
 	if (snapshot.sequence == 0)
-		draw_text(visualizer, 230, 145, "ADD MUSIC ANALYSIS FILTER TO AN AUDIO SOURCE", 2,
+		draw_text(visualizer, 230, 145, "ADD MUSIC ANALYZER FILTER TO AN AUDIO SOURCE", 2,
 			  Color{248, 250, 252, 255});
 }
 
@@ -621,7 +621,7 @@ uint32_t visualizer_height(void *data)
 
 const char *visualizer_name(void *)
 {
-	return "Music Analysis Visualizer";
+	return "Music Analyzer Overlay";
 }
 
 } // namespace
