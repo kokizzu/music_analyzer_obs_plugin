@@ -60,6 +60,21 @@ def configured_medleydb(env):
     return False
 
 
+def configured_musdb(env):
+    if env_has_any(env, ("MUSIC_ANALYZER_MUSDB_ROOT", "MUSDB_PATH")):
+        return True
+
+    dataset_root = env.get("MUSIC_ANALYZER_DATASET_ROOT", "")
+    if not dataset_root:
+        return False
+
+    for child in ("MUSDB18-HQ", "musdb18-hq", "musdb18hq", "MUSDB18", "musdb18"):
+        candidate = child_path(dataset_root, child)
+        if is_dir(candidate):
+            return True
+    return False
+
+
 def multtipop_candidate_roots(env):
     roots = []
     if env_has_any(env, ("MUSIC_ANALYZER_MULTTIPOP_ROOT", "MULTTIPOP_PATH")):
@@ -181,6 +196,7 @@ TARGET_PLANS = {
         "multitrack_target": "test-real-multitrack-20",
         "musicnet_target": "test-real-musicnet-20",
         "medleydb_target": "inspect-real-medleydb",
+        "musdb_target": "inspect-real-musdb",
         "multtipop_target": "inspect-real-multtipop",
         "multtipop_audio_target": "test-real-multtipop-20",
         "spheres_target": "inspect-real-spheres",
@@ -193,6 +209,7 @@ TARGET_PLANS = {
         "multitrack_target": "test-real-multitrack-full",
         "musicnet_target": "test-real-musicnet-full",
         "medleydb_target": "inspect-real-medleydb",
+        "musdb_target": "inspect-real-musdb",
         "multtipop_target": "inspect-real-multtipop",
         "multtipop_audio_target": "test-real-multtipop-full",
         "spheres_target": "inspect-real-spheres",
@@ -205,6 +222,7 @@ TARGET_PLANS = {
         "multitrack_target": "inspect-real-multitrack-20",
         "musicnet_target": "inspect-real-musicnet",
         "medleydb_target": "inspect-real-medleydb",
+        "musdb_target": "inspect-real-musdb",
         "multtipop_target": "inspect-real-multtipop",
         "multtipop_audio_target": "inspect-real-multtipop",
         "spheres_target": "inspect-real-spheres",
@@ -217,6 +235,7 @@ TARGET_PLANS = {
         "multitrack_target": "inspect-real-multitrack-full",
         "musicnet_target": "inspect-real-musicnet-full",
         "medleydb_target": "inspect-real-medleydb",
+        "musdb_target": "inspect-real-musdb",
         "multtipop_target": "inspect-real-multtipop",
         "multtipop_audio_target": "inspect-real-multtipop",
         "spheres_target": "inspect-real-spheres",
@@ -273,6 +292,17 @@ def main(argv):
         print(
             "run_real_goal_gate: skipping optional MedleyDB stem preflight; set "
             "MUSIC_ANALYZER_MEDLEYDB_ROOT/MEDLEYDB_PATH or place a MedleyDB directory under "
+            "MUSIC_ANALYZER_DATASET_ROOT"
+        )
+
+    if configured_musdb(env):
+        failed = run(make_cmd, plan["musdb_target"])
+        if failed:
+            return failed
+    else:
+        print(
+            "run_real_goal_gate: skipping optional MUSDB18 stem preflight; set "
+            "MUSIC_ANALYZER_MUSDB_ROOT/MUSDB_PATH or place a MUSDB18/MUSDB18-HQ directory under "
             "MUSIC_ANALYZER_DATASET_ROOT"
         )
 

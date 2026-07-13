@@ -52,6 +52,7 @@ def main():
         maestro_harness = read_text("tests/analyzer_maestro.cpp")
         egmd_harness = read_text("tests/analyzer_egmd.cpp")
         goal_gate = read_text("tests/run_real_goal_gate.py")
+        musdb_inspector = read_text("tests/inspect_musdb_dataset.py")
         multtipop_inspector = read_text("tests/inspect_multtipop_dataset.py")
         spheres_inspector = read_text("tests/inspect_spheres_dataset.py")
         guitarset_inspector = read_text("tests/inspect_guitarset_dataset.py")
@@ -67,6 +68,7 @@ def main():
     musicnet = dataset_by_id(catalog, "musicnet")
     multtipop = dataset_by_id(catalog, "multtipop")
     medleydb = dataset_by_id(catalog, "medleydb")
+    musdb = dataset_by_id(catalog, "musdb18")
     spheres = dataset_by_id(catalog, "spheres")
     guitarset = dataset_by_id(catalog, "guitarset")
     maestro = dataset_by_id(catalog, "maestro")
@@ -87,6 +89,8 @@ def main():
         return fail("catalog missing MulTTiPop")
     if not medleydb:
         return fail("catalog missing MedleyDB")
+    if not musdb:
+        return fail("catalog missing MUSDB18")
     if not spheres:
         return fail("catalog missing Spheres")
     if not guitarset:
@@ -123,6 +127,8 @@ def main():
         problems.append("MulTTiPop automation target must remain inspect-real-multtipop")
     if medleydb.get("automation_target") != "inspect-real-medleydb":
         problems.append("MedleyDB automation target must remain inspect-real-medleydb")
+    if musdb.get("automation_target") != "inspect-real-musdb":
+        problems.append("MUSDB18 automation target must remain inspect-real-musdb")
     if spheres.get("automation_target") != "inspect-real-spheres":
         problems.append("Spheres automation target must remain inspect-real-spheres")
     if guitarset.get("automation_target") != "test-real-guitarset-20":
@@ -143,6 +149,7 @@ def main():
         (makefile, "tests/generate_direct_fit_small_fixture.py", "Makefile direct-fit-small fixture"),
         (makefile, "DIRECT_FIT_SMALL_FIXTURE_ARCHIVE", "Makefile direct-fit-small fixture archive"),
         (makefile, "tests/generate_medleydb_fixture.py", "Makefile MedleyDB fixture"),
+        (makefile, "tests/generate_musdb_fixture.py", "Makefile MUSDB18 fixture"),
         (makefile, "tests/generate_multtipop_fixture.py", "Makefile MulTTiPop fixture"),
         (makefile, "tests/generate_spheres_fixture.py", "Makefile Spheres fixture"),
         (makefile, "tests/generate_guitarset_fixture.py", "Makefile GuitarSet fixture"),
@@ -153,6 +160,7 @@ def main():
         (makefile, "update-direct-fit-small-fixture", "Makefile direct-fit-small fixture update target"),
         (makefile, "MUSIC_ANALYZER_URMP_REQUIRED_PIECES=20", "Makefile direct-fit-small 20-piece gate"),
         (makefile, "inspect-real-multtipop", "Makefile optional MulTTiPop preflight"),
+        (makefile, "inspect-real-musdb", "Makefile optional MUSDB18 preflight"),
         (makefile, "test-real-multtipop-20", "Makefile optional MulTTiPop analyzer gate"),
         (makefile, "$(BUILD_DIR)/analyzer_multtipop", "Makefile MulTTiPop analyzer binary"),
         (makefile, "$(BUILD_DIR)/analyzer_guitarset", "Makefile GuitarSet analyzer binary"),
@@ -169,6 +177,8 @@ def main():
         (goal_gate, "inspect-real-musicnet", "combined preflight optional MusicNet target"),
         (goal_gate, "inspect-real-medleydb", "combined gate optional MedleyDB target"),
         (goal_gate, "configured_multtipop", "combined gate optional MulTTiPop root detection"),
+        (goal_gate, "configured_musdb", "combined gate optional MUSDB18 root detection"),
+        (goal_gate, "inspect-real-musdb", "combined gate optional MUSDB18 preflight target"),
         (goal_gate, "inspect-real-multtipop", "combined gate optional MulTTiPop target"),
         (goal_gate, "multtipop_audio_configured", "combined gate optional MulTTiPop audio detection"),
         (goal_gate, "test-real-multtipop-20", "combined gate optional MulTTiPop analyzer target"),
@@ -207,6 +217,9 @@ def main():
         (multtipop_harness, "read_multtipop_midi", "MulTTiPop aligned-MIDI parser"),
         (multtipop_harness, "MulTTiPop real-pop pitch-class recall", "MulTTiPop real-audio recall gate"),
         (multtipop_harness, "chord hits", "MulTTiPop chord recall report"),
+        (musdb_inspector, "EXPECTED_STEMS", "MUSDB18 expected stem list"),
+        (musdb_inspector, "MUSIC_ANALYZER_MUSDB_REQUIRED_TRACKS", "MUSDB18 preflight track threshold"),
+        (musdb_inspector, "audio seconds per stem", "MUSDB18 audio-duration coverage report"),
         (maestro_harness, "read_maestro_midi", "MAESTRO aligned-MIDI parser"),
         (maestro_harness, "MAESTRO piano pitch-class recall", "MAESTRO real-audio recall gate"),
         (maestro_harness, "chord hits", "MAESTRO chord recall report"),
@@ -227,6 +240,7 @@ def main():
         (readme, "make test-real-goal-20", "README combined gate instructions"),
         (readme, "make inspect-real-goal-20", "README combined preflight instructions"),
         (readme, "make inspect-real-multtipop", "README MulTTiPop preflight instructions"),
+        (readme, "make inspect-real-musdb", "README MUSDB18 preflight instructions"),
         (readme, "make test-real-multtipop-20", "README MulTTiPop analyzer instructions"),
         (readme, "make inspect-real-spheres", "README Spheres preflight instructions"),
         (readme, "make inspect-real-guitarset", "README GuitarSet preflight instructions"),
@@ -238,6 +252,7 @@ def main():
         (docs, "make test-real-goal-20", "dataset docs combined gate instructions"),
         (docs, "make inspect-real-goal-20", "dataset docs combined preflight instructions"),
         (docs, "make inspect-real-multtipop", "dataset docs MulTTiPop preflight instructions"),
+        (docs, "make inspect-real-musdb", "dataset docs MUSDB18 preflight instructions"),
         (docs, "make test-real-multtipop-20", "dataset docs MulTTiPop analyzer instructions"),
         (docs, "make inspect-real-spheres", "dataset docs Spheres preflight instructions"),
         (docs, "make inspect-real-guitarset", "dataset docs GuitarSet preflight instructions"),
@@ -248,6 +263,7 @@ def main():
         (docs, "make test-direct-fit-small-fixture", "dataset docs direct-fit-small fixture instructions"),
         (docs, "MulTTiPop", "dataset docs MulTTiPop candidate"),
         (docs, "The Spheres Dataset", "dataset docs Spheres candidate"),
+        (docs, "MUSDB18", "dataset docs MUSDB18 candidate"),
         (docs, "GuitarSet", "dataset docs GuitarSet candidate"),
         (docs, "MAESTRO", "dataset docs MAESTRO candidate"),
         (docs, "E-GMD", "dataset docs E-GMD candidate"),
@@ -268,8 +284,8 @@ def main():
 
     print(
         "inspect_real_goal_coverage: "
-        "catalog=URMP+direct-fit-small+MusicNet+MedleyDB+MulTTiPop+Spheres+GuitarSet+MAESTRO+E-GMD, target=test-real-goal-20, "
-        "fixture=URMP+Bach10-style+direct-fit-small+MusicNet+MedleyDB+MulTTiPop-audio+Spheres+GuitarSet+MAESTRO+E-GMD, "
+        "catalog=URMP+direct-fit-small+MusicNet+MedleyDB+MUSDB18+MulTTiPop+Spheres+GuitarSet+MAESTRO+E-GMD, target=test-real-goal-20, "
+        "fixture=URMP+Bach10-style+direct-fit-small+MusicNet+MedleyDB+MUSDB18+MulTTiPop-audio+Spheres+GuitarSet+MAESTRO+E-GMD, "
         "summed_mix=yes, chord_checks=yes"
     )
     return 0

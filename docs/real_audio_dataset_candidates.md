@@ -68,7 +68,7 @@ without additional annotation.
 | Dataset | Useful for | Missing for this project |
 | --- | --- | --- |
 | [MedleyDB / MedleyDB 2.0](https://medleydb.weebly.com/) | Real multitrack songs, melody F0, instrument activation | Full multitrack MIDI/note truth. Audio is on restricted [Zenodo](https://zenodo.org/records/1649325) records; annotations and metadata are public on [GitHub](https://github.com/marl/medleydb). |
-| [MUSDB18 / MUSDB18-HQ](https://sigsep.github.io/datasets/musdb.html) | Drums, bass, vocals, other stem layout | MIDI/note truth and fine instrument classes. |
+| [MUSDB18 / MUSDB18-HQ](https://sigsep.github.io/datasets/musdb.html) | Drums, bass, vocals, other stem layout with optional `make inspect-real-musdb` preflight | MIDI/note truth and fine instrument classes. |
 | [MoisesDB](https://arxiv.org/abs/2307.15913) | Fine-grained real stems beyond 4-stem separation | MIDI/note truth. |
 | [RawStems](https://arxiv.org/abs/2505.21827) | Large unprocessed stem corpus and stem categories | MIDI/note truth. |
 | [ACMID](https://arxiv.org/abs/2510.07840) | Seven-stem instrument source-separation labels | MIDI/note truth and manually verified note labels. |
@@ -80,15 +80,15 @@ without additional annotation.
   the exact local real-data commands. Use `make inspect-real-goal-20` as the
   combined setup preflight for the requested 20+ real same-song multitrack
   test. It requires the URMP layout preflight and then runs configured optional
-  gates such as MusicNet, MedleyDB, MulTTiPop, Spheres, GuitarSet, MAESTRO, and
-  E-GMD. The URMP preflight applies the same
+  gates such as MusicNet, MedleyDB, MUSDB18, MulTTiPop, Spheres, GuitarSet,
+  MAESTRO, and E-GMD. The URMP preflight applies the same
   `MUSIC_ANALYZER_URMP_MIN_ACTIVE_TRACKS_PER_WINDOW` and
   `MUSIC_ANALYZER_URMP_MIN_PITCH_CLASSES_PER_WINDOW` density thresholds as the
   analyzer gate, then reports matched-track, candidate active-track, and
   candidate pitch-class min/average/max values. Use `make test-real-goal-20` as
   the combined analyzer acceptance gate. It requires the URMP multitrack gate
   and then runs configured optional add-on gates such as MusicNet, MedleyDB,
-  MulTTiPop, Spheres, GuitarSet, MAESTRO, and E-GMD.
+  MUSDB18, MulTTiPop, Spheres, GuitarSet, MAESTRO, and E-GMD.
   The official URMP full package is distributed through a registration form
   rather than a stable direct archive URL, so this repository intentionally does
   not try to download the 12.5 GB package automatically.
@@ -146,6 +146,14 @@ without additional annotation.
   with mix plus stems and at least 20 melody-annotated multitracks by default.
   This is a partial real-stem/melody-F0 check and does not replace the URMP
   per-source note/chord gate.
+- Use `make inspect-real-musdb` with
+  `MUSIC_ANALYZER_MUSDB_ROOT=/path/to/MUSDB18-HQ` after extracting the
+  uncompressed MUSDB18-HQ archive or decoding MUSDB18 STEMS files to WAV. The
+  preflight requires 20+ same-song tracks with readable `mixture`, `drums`,
+  `bass`, `other`, and `vocals` WAV stems by default and reports stem count,
+  channels, sample-rate variants, and audio duration. MUSDB18 strengthens real
+  full-song stem playback and broad timbre routing coverage, but it does not
+  replace URMP because it lacks per-source MIDI/note/chord truth.
 - Use `make inspect-real-multtipop` with
   `MUSIC_ANALYZER_MULTTIPOP_ROOT=/path/to/multtipop` after cloning or
   extracting the Hugging Face dataset. The preflight expects the official
@@ -216,7 +224,8 @@ without additional annotation.
   committed compact 20-piece URMP-shaped lossless FLAC/Notes/MIDI fixture from
   `tests/fixtures/urmp-mini.tar.gz`, decodes it to disposable WAV files under
   `build/` with `ffmpeg`, generates 20-recording MusicNet-shaped WAV/CSV and
-  MedleyDB-shaped stem-layout, audio-backed MulTTiPop-shaped multitrack-MIDI
+  MedleyDB-shaped stem-layout, MUSDB18-shaped five-stem,
+  audio-backed MulTTiPop-shaped multitrack-MIDI
   metadata, Spheres-shaped stem-layout, GuitarSet-shaped JAMS/hex-audio,
   MAESTRO-shaped MIDI/WAV, and E-GMD-shaped MIDI/WAV fixtures, sends all
   configured roots through the

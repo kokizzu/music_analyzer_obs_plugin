@@ -237,9 +237,11 @@
       "assembled_mix": true,
       "aligned_symbolic_truth": false,
       "truth": "four-stem source labels",
-      "automation_target": "",
+      "automation_target": "inspect-real-musdb",
       "source_url": "https://sigsep.github.io/datasets/musdb.html",
-      "evidence": "Official page describes 150 tracks with mixture, drums, bass, vocals, and other stems, but no MIDI/note truth."
+      "download_url": "https://zenodo.org/records/1117372",
+      "download_note": "The compressed MUSDB18 release is about 4.4 GB and requires Zenodo access approval for academic use; MUSDB18-HQ is an equivalent uncompressed WAV release.",
+      "evidence": "Official page describes 150 full-length tracks with mixture, drums, bass, vocals, and other stems; the mixture corresponds to the sum of the source stems, but there is no MIDI/note truth."
     },
     {
       "id": "moisesdb",
