@@ -420,6 +420,42 @@ void check_realistic_instrument_chords(Runner &runner)
 	expect_note_token(runner, other_snapshot.other.label, "F4", "realistic other G7 chord");
 }
 
+void check_same_note_timbre_split(Runner &runner)
+{
+	mao_test::Buffer buffer = {};
+	const std::vector<float> piano_profile = {1.0f, 0.12f, 0.04f, 0.02f, 0.01f};
+	const std::vector<float> guitar_profile = {1.0f, 0.36f, 0.17f, 0.07f, 0.03f};
+	const std::vector<float> other_profile = {1.0f, 0.62f, 0.42f, 0.27f, 0.16f};
+
+	add_harmonic_note(buffer, 60, 0.28f, piano_profile);
+	add_harmonic_note(buffer, 60, 0.22f, guitar_profile);
+	add_harmonic_note(buffer, 60, 0.18f, other_profile);
+
+	const auto snapshot = analyze_buffer(buffer, "full mix");
+	expect_note_token(runner, snapshot.keyboard.label, "C4", "same-note timbre split keyboard");
+	expect_note_token(runner, snapshot.guitar.label, "C4", "same-note timbre split guitar");
+	expect_note_token(runner, snapshot.other.label, "C4", "same-note timbre split other");
+	runner.expect(grid_level_for_midi(snapshot.keyboard_notes, 60) > 0.0f,
+		      "same-note timbre split: expected C4 in keyboard grid");
+	runner.expect(grid_level_for_midi(snapshot.guitar_notes, 60) > 0.0f,
+		      "same-note timbre split: expected C4 in guitar grid");
+	runner.expect(grid_level_for_midi(snapshot.other_notes, 60) > 0.0f,
+		      "same-note timbre split: expected C4 in other grid");
+}
+
+void check_other_source_hints(Runner &runner)
+{
+	for (const char *source : {"synth lead", "brass section", "violin bus"}) {
+		mao_test::Buffer buffer = {};
+		mao_test::add_midi_note(buffer, 60, 0.42f);
+		const auto snapshot = analyze_buffer(buffer, source);
+		const std::string context = std::string("other source hint ") + source;
+		expect_note_token(runner, snapshot.other.label, "C4", context);
+		expect_label(runner, snapshot.keyboard.label, "--", context + " keyboard");
+		expect_label(runner, snapshot.guitar.label, "--", context + " guitar");
+	}
+}
+
 void check_note_sub_rows(Runner &runner)
 {
 	const auto buffer = mao_test::make_midi_notes({48, 60, 64, 67}, 0.32f);
@@ -585,6 +621,8 @@ int main()
 	check_note_level_fade(runner);
 	check_detuned_note_tolerance(runner);
 	check_realistic_instrument_chords(runner);
+	check_same_note_timbre_split(runner);
+	check_other_source_hints(runner);
 	check_note_sub_rows(runner);
 	check_bass_priority_suppresses_overlap(runner);
 	check_multi_instrument_mix(runner);

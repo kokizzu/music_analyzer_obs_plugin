@@ -10,7 +10,8 @@ Native OBS Studio plugin that analyzes a music mix and displays an instrument-or
 - Note highlights fade with detected velocity/amplitude so quiet or sustaining notes are dimmer instead of full intensity
 - Detuned tones near the midpoint between neighboring semitones are treated as ambiguous instead of lighting a full note
 - Keyboard, guitar, and other instruments: compact chord labels; vocal stays note-only
-- Instrument ownership: mixed sources claim duplicated pitches in bass, keyboard, guitar, vocal, then other order, while explicit source names such as `guitar` or `keyboard` bias that row first
+- Instrument ownership: mixed sources claim duplicated pitches in bass, keyboard, guitar, vocal, then other order, with harmonic-profile checks allowing same-note keyboard/guitar/other overlaps when the timbre supports it
+- Source-name hints: `guitar`, `key`, `piano`, `synth`, `brass`, and `violin` route detection toward the matching row
 - Root: rolling 15-second root candidates with confidence, with the primary root held until sustained modulation or silence
 - Chords: compact major, minor, power, sus2, sus4, dominant 7, major 7, and minor 7 labels such as `C`, `Dm`, `Cpow`, `Csus4`, `G7`, `Cmaj7`, and `Dm7`
 
@@ -54,7 +55,7 @@ Run the analyzer tests:
 make test
 ```
 
-`make test` builds standalone analyzer executables outside OBS. `analyzer_smoke` covers the basic signal path, and `analyzer_cases` runs broad synthetic note, instrument, chord, note-matrix, quiet-note rejection, realistic harmonic chord, multi-instrument mix, hierarchy, and root-candidate cases, including bass B0-G4, guitar E2-E6, keyboard/other A0-C8, and vocal E2-C6.
+`make test` builds standalone analyzer executables outside OBS. `analyzer_smoke` covers the basic signal path, and `analyzer_cases` runs broad synthetic note, instrument, chord, note-matrix, quiet-note rejection, realistic harmonic chord, same-note timbre split, multi-instrument mix, hierarchy, and root-candidate cases, including bass B0-G4, guitar E2-E6, keyboard/other A0-C8, and vocal E2-C6.
 
 Optional CMake build, assuming the OBS development dependencies are installed system-wide:
 
