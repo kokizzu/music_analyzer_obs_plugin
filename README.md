@@ -61,7 +61,7 @@ make test
 
 `make test` builds standalone analyzer executables outside OBS. `analyzer_smoke` covers the basic signal path, and `analyzer_cases` runs broad synthetic note, instrument, chord, note-matrix, quiet-note rejection, realistic harmonic chord, same-note timbre split, mixed-source timbre routing, multi-instrument mix, and root-candidate cases, including bass B0-G4, guitar E2-E6, keyboard/other A0-C8, and vocal E2-C6.
 
-The 20+ full-mix song regression cases are modeled after the public Slakh2100 multitrack dataset structure, which renders Lakh MIDI songs into separate stems and mixes them coherently. The tests synthesize compact local fixtures instead of downloading dataset audio: https://arxiv.org/abs/1909.08494
+The full-mix regression cases model public multitrack dataset layouts without downloading dataset audio. They include 20+ Slakh2100-style MIDI-rendered song fixtures plus additional MUSDB18/MUSDB18-HQ, DSD100/Mixing Secrets, MedleyDB/2.0, MoisesDB, URMP, RawStems, MulTTiPop, ACMID, Spheres, MDX, and Open Multitrack Testbed-style fixtures.
 
 Optional CMake build, assuming the OBS development dependencies are installed system-wide:
 

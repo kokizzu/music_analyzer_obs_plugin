@@ -636,6 +636,21 @@ void check_distorted_midi_guitar_timbre(Runner &runner)
 	expect_no_drums(runner, snapshot, "distorted MIDI guitar timbre");
 }
 
+int midi_at_or_above(int min_midi, int pitch_class)
+{
+	return min_midi + ((pitch_class - min_midi % 12 + 12) % 12);
+}
+
+int bass_midi_for_pitch_class(int pitch_class)
+{
+	int midi = 24 + pitch_class;
+	while (midi < 31)
+		midi += 12;
+	while (midi > 43)
+		midi -= 12;
+	return midi;
+}
+
 void check_slakh_style_multitrack_song_regressions(Runner &runner)
 {
 	struct SongCase {
@@ -665,19 +680,12 @@ void check_slakh_style_multitrack_song_regressions(Runner &runner)
 		const SongCase &song = songs[i];
 		const std::vector<int> intervals = song.minor ? std::vector<int>{0, 3, 7} :
 								 std::vector<int>{0, 4, 7};
-		auto midi_at_or_above = [](int min_midi, int pitch_class) {
-			return min_midi + ((pitch_class - min_midi % 12 + 12) % 12);
-		};
 		std::vector<int> keyboard_midis;
 		std::vector<int> guitar_midis;
 		std::vector<int> other_midis;
 		mao_test::Buffer buffer = {};
 
-		int bass_midi = 24 + song.root_pitch_class;
-		while (bass_midi < 31)
-			bass_midi += 12;
-		while (bass_midi > 43)
-			bass_midi -= 12;
+		const int bass_midi = bass_midi_for_pitch_class(song.root_pitch_class);
 		add_harmonic_note(buffer, bass_midi, 0.20f, bass_profile);
 
 		const int keyboard_root = 60 + song.root_pitch_class;
@@ -717,6 +725,153 @@ void check_slakh_style_multitrack_song_regressions(Runner &runner)
 			expect_pitch_class(runner, snapshot.guitar_notes, pitch_class, context + " guitar");
 			expect_pitch_class(runner, snapshot.other_notes, pitch_class, context + " other");
 		}
+	}
+}
+
+void check_public_multitrack_dataset_style_regressions(Runner &runner)
+{
+	struct DatasetCase {
+		const char *name;
+		int root_pitch_class;
+		bool minor;
+		bool drums;
+		bool bass;
+		bool keyboard;
+		bool guitar;
+		bool vocal;
+		bool other;
+		bool distorted_guitar;
+	};
+
+	const std::vector<DatasetCase> datasets = {
+		{"MUSDB18 four-stem rock", 0, false, true, true, true, true, true, true, false},
+		{"MUSDB18-HQ four-stem pop", 9, false, true, true, true, true, true, true, false},
+		{"DSD100 Mixing Secrets band", 5, false, true, true, true, true, true, true, false},
+		{"Cambridge MT guitar session", 7, false, true, true, true, true, true, true, true},
+		{"MedleyDB full band", 2, true, true, true, true, true, true, true, false},
+		{"MedleyDB 2.0 fusion", 4, true, true, true, true, true, false, true, false},
+		{"MoisesDB five-stem guitar piano", 11, true, true, true, true, true, true, true, false},
+		{"MoisesDB six-stem pop", 3, false, true, true, true, true, true, true, false},
+		{"URMP string quartet style", 8, false, false, false, true, false, false, true, false},
+		{"URMP chamber piano strings", 10, false, false, true, true, false, false, true, false},
+		{"RawStems eight-group clean", 1, true, true, true, true, true, true, true, false},
+		{"RawStems restored distorted", 6, true, true, true, true, true, true, true, true},
+		{"MulTTiPop MIDI pop", 2, false, true, true, true, true, true, true, false},
+		{"ACMID seven-stem piano guitar strings", 4, false, true, true, true, true, false, true, false},
+		{"Spheres orchestral brass strings", 9, true, false, true, true, false, false, true, false},
+		{"MDX challenge four-stem", 7, true, true, true, true, true, true, true, false},
+		{"Open Multitrack Testbed indie", 5, true, true, true, true, true, true, true, false},
+		{"Native Instruments stems pack", 0, true, true, true, true, true, true, true, true},
+		{"Heise remix stems", 11, false, true, true, true, true, true, true, true},
+		{"Slakh MIDI rendered ensemble", 3, true, true, true, true, true, false, true, false},
+		{"MUSDB18 sparse vocal other", 6, false, true, true, true, false, true, true, false},
+		{"MedleyDB instrumental no vocal", 8, true, true, true, true, true, false, true, false},
+		{"MoisesDB guitar focus", 10, true, true, true, true, true, true, true, true},
+		{"RawStems keyboard focus", 1, false, true, true, true, false, true, true, false},
+		{"MulTTiPop piano roll dense", 4, true, true, true, true, true, true, true, false},
+		{"ACMID acoustic guitar", 0, false, true, true, true, true, false, true, false},
+		{"ACMID electric guitar", 2, true, true, true, true, true, false, true, true},
+		{"Spheres low strings bass support", 5, false, false, true, true, false, false, true, false},
+		{"URMP violin cello piano", 7, false, false, true, true, false, false, true, false},
+		{"DSD100 vocal band alternate", 9, true, true, true, true, true, true, true, false},
+		{"Cambridge MT dense rock", 11, true, true, true, true, true, true, true, true},
+		{"MedleyDB jazz fusion", 3, false, true, true, true, true, false, true, false},
+		{"MoisesDB stem taxonomy broad", 6, true, true, true, true, true, true, true, false},
+		{"RawStems hierarchical groups", 8, false, true, true, true, true, true, true, true},
+		{"Open Multitrack Testbed live", 10, false, true, true, true, true, true, true, false},
+		{"Slakh orchestral MIDI", 1, true, false, true, true, false, false, true, false},
+	};
+
+	const std::vector<float> bass_profile = {1.0f, 0.30f, 0.14f};
+	const std::vector<float> piano_profile = {1.0f, 0.12f, 0.04f, 0.02f, 0.01f};
+	const std::vector<float> guitar_profile = {1.0f, 0.42f, 0.20f, 0.10f, 0.05f};
+	const std::vector<float> distorted_guitar_profile = {1.0f, 0.54f, 0.30f, 0.18f, 0.10f};
+	const std::vector<float> other_profile = {1.0f, 0.62f, 0.42f, 0.27f, 0.16f};
+	const std::vector<float> vocal_profile = {1.0f, 0.04f, 0.015f};
+
+	for (std::size_t i = 0; i < datasets.size(); ++i) {
+		const DatasetCase &dataset = datasets[i];
+		const std::vector<int> intervals = dataset.minor ? std::vector<int>{0, 3, 7} :
+								   std::vector<int>{0, 4, 7};
+		const std::string chord = std::string(mao_test::note_name(dataset.root_pitch_class)) +
+					  (dataset.minor ? "m" : "");
+		const std::string context = std::string("public multitrack dataset fixture ") + dataset.name +
+					    " " + chord;
+		std::vector<int> keyboard_midis;
+		std::vector<int> guitar_midis;
+		std::vector<int> other_midis;
+		mao_test::Buffer buffer = {};
+
+		if (dataset.bass)
+			add_harmonic_note(buffer, bass_midi_for_pitch_class(dataset.root_pitch_class), 0.19f,
+					  bass_profile);
+
+		const int keyboard_root = 60 + dataset.root_pitch_class;
+		const int guitar_root = midi_at_or_above(52, dataset.root_pitch_class);
+		const int other_root = 72 + dataset.root_pitch_class;
+		for (int interval : intervals) {
+			keyboard_midis.push_back(keyboard_root + interval);
+			guitar_midis.push_back(guitar_root + interval);
+			other_midis.push_back(other_root + interval);
+		}
+
+		if (dataset.keyboard) {
+			for (int midi : keyboard_midis)
+				add_harmonic_note(buffer, midi, 0.14f, piano_profile);
+		}
+		if (dataset.guitar) {
+			const std::vector<float> &profile =
+				dataset.distorted_guitar ? distorted_guitar_profile : guitar_profile;
+			for (int midi : guitar_midis)
+				add_harmonic_note(buffer, midi, 0.105f, profile);
+		}
+		if (dataset.other) {
+			for (int midi : other_midis)
+				add_harmonic_note(buffer, midi, 0.075f, other_profile);
+		}
+		if (dataset.vocal) {
+			int vocal_midi = 72 + dataset.root_pitch_class;
+			if (vocal_midi > 84)
+				vocal_midi -= 12;
+			add_harmonic_note(buffer, vocal_midi, 0.16f, vocal_profile);
+		}
+		if (dataset.drums) {
+			add_decayed_sine(buffer, 65.0f, 0.15f, 700);
+			add_decayed_sine(buffer, 220.0f, 0.06f, 520);
+			add_decayed_sine(buffer, 5200.0f, 0.028f, 420);
+		}
+
+		const auto snapshot = analyze_buffer(buffer, "public dataset full mix");
+
+		if (dataset.bass) {
+			expect_label(runner, snapshot.bass.label,
+				     mao_test::note_label(bass_midi_for_pitch_class(dataset.root_pitch_class)),
+				     context + " bass");
+		}
+		if (dataset.keyboard) {
+			runner.expect(has_chord_label(snapshot.keyboard_chord.label, chord),
+				      context + ": expected keyboard chord `" + chord + "`, got `" +
+					      snapshot.keyboard_chord.label + "`");
+		}
+		if (dataset.guitar) {
+			runner.expect(has_chord_label(snapshot.guitar_chord.label, chord),
+				      context + ": expected guitar chord `" + chord + "`, got `" +
+					      snapshot.guitar_chord.label + "`");
+		}
+
+		for (int interval : intervals) {
+			const int pitch_class = (dataset.root_pitch_class + interval) % 12;
+			if (dataset.keyboard)
+				expect_pitch_class(runner, snapshot.keyboard_notes, pitch_class,
+						   context + " keyboard");
+			if (dataset.guitar)
+				expect_pitch_class(runner, snapshot.guitar_notes, pitch_class,
+						   context + " guitar");
+			if (dataset.other)
+				expect_pitch_class(runner, snapshot.other_notes, pitch_class, context + " other");
+		}
+		if (dataset.vocal)
+			expect_pitch_class(runner, snapshot.vocal_notes, dataset.root_pitch_class, context + " vocal");
 	}
 }
 
@@ -1196,6 +1351,7 @@ int main()
 	check_same_instrument_timbre_variants(runner);
 	check_distorted_midi_guitar_timbre(runner);
 	check_slakh_style_multitrack_song_regressions(runner);
+	check_public_multitrack_dataset_style_regressions(runner);
 	check_drum_hit_with_melodic_mix(runner);
 	check_detuned_note_tolerance(runner);
 	check_realistic_instrument_chords(runner);
