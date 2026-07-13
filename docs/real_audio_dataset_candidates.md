@@ -90,12 +90,17 @@ without additional annotation.
   through a short multi-frame analyzer sequence, and keeps one stateful provided
   mix analyzer plus one stateful summed mix analyzer per piece across selected
   windows, so note/chord smoothing is checked against same-song mixed audio. By
-  default it samples up to 12 annotated windows per piece and requires at least
-  80 windows; it also prints discovered/loadable piece and window counts to
-  diagnose incomplete dataset layouts. Set
+  default it samples up to 12 annotated windows per piece, requires at least 80
+  windows, and only selects windows with at least two active source tracks and
+  two pitch classes. The coverage summary prints active-track and pitch-class
+  min/average/max values, so the run proves that the selected windows are
+  actually multi-instrument, multi-note mixes. Set
   `MUSIC_ANALYZER_URMP_MAX_WINDOWS_PER_PIECE`,
   `MUSIC_ANALYZER_URMP_REQUIRED_PIECES`, and
-  `MUSIC_ANALYZER_URMP_REQUIRED_WINDOWS` for quicker or deeper runs.
+  `MUSIC_ANALYZER_URMP_REQUIRED_WINDOWS` for quicker or deeper runs. Set
+  `MUSIC_ANALYZER_URMP_MIN_ACTIVE_TRACKS_PER_WINDOW` and
+  `MUSIC_ANALYZER_URMP_MIN_PITCH_CLASSES_PER_WINDOW` to adjust the selected
+  window density.
 - Use `make inspect-real-multitrack-full` and
   `make test-real-multitrack-full` when the full URMP package is available.
   Those targets require all 44 official pieces and at least 176 annotated test
