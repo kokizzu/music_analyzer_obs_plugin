@@ -795,12 +795,25 @@ int resolve_max_windows_per_piece()
 	return parsed > 0 ? parsed : 12;
 }
 
+bool env_truthy(const char *name)
+{
+	const char *value = std::getenv(name);
+	return value && *value && std::strcmp(value, "0") != 0 && std::strcmp(value, "false") != 0 &&
+	       std::strcmp(value, "FALSE") != 0;
+}
+
 } // namespace
 
 int main()
 {
 	const std::string root = resolve_urmp_root();
 	if (root.empty()) {
+		if (env_truthy("MUSIC_ANALYZER_URMP_REQUIRED")) {
+			std::fprintf(stderr,
+				     "analyzer_urmp: real URMP dataset required; set MUSIC_ANALYZER_URMP_ROOT "
+				     "or MUSIC_ANALYZER_DATASET_ROOT\n");
+			return 1;
+		}
 		std::printf("analyzer_urmp: skipped, set MUSIC_ANALYZER_URMP_ROOT to a local URMP dataset\n");
 		return 0;
 	}

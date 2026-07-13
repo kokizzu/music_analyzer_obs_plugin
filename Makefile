@@ -24,7 +24,7 @@ PLUGIN_OBJS := $(BUILD_DIR)/analyzer.o $(BUILD_DIR)/plugin.o
 ANALYZER_TEST_OBJ := $(BUILD_DIR)/analyzer_test.o
 TEST_BINS := $(BUILD_DIR)/analyzer_smoke $(BUILD_DIR)/analyzer_cases $(BUILD_DIR)/analyzer_urmp
 
-.PHONY: all clean deps install-user test test-urmp-fixture update-urmp-fixture
+.PHONY: all clean deps install-user test test-urmp-fixture test-real-urmp update-urmp-fixture
 
 all: $(SIMDE_DEP) $(BUILD_DIR)/music-analyzer-obs.so
 
@@ -80,6 +80,9 @@ test-urmp-fixture: $(BUILD_DIR)/analyzer_urmp $(URMP_FIXTURE_ARCHIVE) | $(BUILD_
 	rm -rf $(URMP_FIXTURE_DIR)
 	$(TAR) -xzf $(URMP_FIXTURE_ARCHIVE) -C $(BUILD_DIR)
 	MUSIC_ANALYZER_URMP_ROOT=$(URMP_FIXTURE_DIR) $(BUILD_DIR)/analyzer_urmp
+
+test-real-urmp: $(BUILD_DIR)/analyzer_urmp
+	MUSIC_ANALYZER_URMP_REQUIRED=1 $(BUILD_DIR)/analyzer_urmp
 
 update-urmp-fixture: tests/generate_urmp_fixture.py | $(BUILD_DIR)
 	$(PYTHON) tests/generate_urmp_fixture.py $(URMP_FIXTURE_DIR)

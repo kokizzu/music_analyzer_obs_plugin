@@ -66,8 +66,9 @@ without additional annotation.
 ## Implementation Notes
 
 - Do not vendor dataset audio into this repository.
-- Set `MUSIC_ANALYZER_URMP_ROOT=/path/to/URMP` to run the optional real-audio
-  URMP regression harness against local `AuMix`, `AuSep`, and `Notes` files.
+- Set `MUSIC_ANALYZER_URMP_ROOT=/path/to/URMP` and run `make test-real-urmp`
+  to require the real-audio URMP regression harness against local `AuMix`,
+  `AuSep`, and `Notes` files.
   The harness checks each separated track, the provided `AuMix`, and a
   synthesized full mix made by summing every separated track. By default it
   samples up to 12 annotated windows per piece and requires at least 80 windows;
