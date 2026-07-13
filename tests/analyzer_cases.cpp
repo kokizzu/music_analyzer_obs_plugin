@@ -2,6 +2,7 @@
 #include "analyzer_test_utils.hpp"
 
 #include <algorithm>
+#include <cmath>
 #include <cstdio>
 #include <cstring>
 #include <string>
@@ -52,6 +53,11 @@ void add_harmonic_note(mao_test::Buffer &buffer, int midi, float amp, const std:
 	const float base = mao_test::midi_frequency(midi);
 	for (std::size_t harmonic = 0; harmonic < profile.size(); ++harmonic)
 		mao_test::add_sine(buffer, base * static_cast<float>(harmonic + 1), amp * profile[harmonic]);
+}
+
+float detuned_midi_frequency(int midi, float cents)
+{
+	return mao_test::midi_frequency(midi) * std::pow(2.0f, cents / 1200.0f);
 }
 
 mao_test::Buffer make_harmonic_notes(const std::vector<int> &midis, float amp, const std::vector<float> &profile)
@@ -336,6 +342,55 @@ void check_note_level_fade(Runner &runner)
 	}
 }
 
+void check_detuned_note_tolerance(Runner &runner)
+{
+	{
+		mao_test::Buffer buffer = {};
+		mao_test::add_sine(buffer, detuned_midi_frequency(69, 0.0f), 0.42f);
+		const auto snapshot = analyze_buffer(buffer, "keyboard");
+		expect_note_token(runner, snapshot.keyboard.label, "A4", "detuned note tolerance: exact A440");
+		runner.expect(!mao_test::has_note_token(snapshot.keyboard.label, "A#4"),
+			      std::string("detuned note tolerance: exact A440 should not report A#4, got `") +
+				      snapshot.keyboard.label + "`");
+	}
+
+	{
+		mao_test::Buffer buffer = {};
+		mao_test::add_sine(buffer, detuned_midi_frequency(69, 20.0f), 0.42f);
+		const auto snapshot = analyze_buffer(buffer, "keyboard");
+		expect_note_token(runner, snapshot.keyboard.label, "A4", "detuned note tolerance: A4 plus 20 cents");
+		runner.expect(!mao_test::has_note_token(snapshot.keyboard.label, "A#4"),
+			      std::string("detuned note tolerance: +20 cents should stay A4 only, got `") +
+				      snapshot.keyboard.label + "`");
+	}
+
+	{
+		mao_test::Buffer buffer = {};
+		mao_test::add_sine(buffer, detuned_midi_frequency(69, 50.0f), 0.42f);
+		const auto snapshot = analyze_buffer(buffer, "keyboard");
+		runner.expect(!mao_test::has_note_token(snapshot.keyboard.label, "A4") &&
+				      !mao_test::has_note_token(snapshot.keyboard.label, "A#4"),
+			      std::string("detuned note tolerance: +50 cents should be ambiguous, got `") +
+				      snapshot.keyboard.label + "`");
+		runner.expect(!grid_pitch_active(snapshot.keyboard_notes, 9) &&
+				      !grid_pitch_active(snapshot.keyboard_notes, 10),
+			      "detuned note tolerance: +50 cents should not light A or A# keys");
+	}
+
+	{
+		mao_test::Buffer buffer = {};
+		mao_test::add_sine(buffer, detuned_midi_frequency(69, -50.0f), 0.42f);
+		const auto snapshot = analyze_buffer(buffer, "keyboard");
+		runner.expect(!mao_test::has_note_token(snapshot.keyboard.label, "G#4") &&
+				      !mao_test::has_note_token(snapshot.keyboard.label, "A4"),
+			      std::string("detuned note tolerance: -50 cents should be ambiguous, got `") +
+				      snapshot.keyboard.label + "`");
+		runner.expect(!grid_pitch_active(snapshot.keyboard_notes, 8) &&
+				      !grid_pitch_active(snapshot.keyboard_notes, 9),
+			      "detuned note tolerance: -50 cents should not light G# or A keys");
+	}
+}
+
 void check_realistic_instrument_chords(Runner &runner)
 {
 	const std::vector<float> guitar_profile = {1.0f, 0.34f, 0.16f, 0.08f};
@@ -528,6 +583,7 @@ int main()
 	check_quiet_note_rejection(runner);
 	check_quiet_standalone_rejection(runner);
 	check_note_level_fade(runner);
+	check_detuned_note_tolerance(runner);
 	check_realistic_instrument_chords(runner);
 	check_note_sub_rows(runner);
 	check_bass_priority_suppresses_overlap(runner);

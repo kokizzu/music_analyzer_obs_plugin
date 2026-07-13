@@ -31,6 +31,8 @@ constexpr float kNoteRmsFloor = 0.012f;
 constexpr float kFullNoteRms = 0.080f;
 constexpr float kNoteRelativeFloor = 0.40f;
 constexpr float kHarmonicMaskRatio = 0.62f;
+constexpr float kAdjacentAmbiguityRatio = 0.93f;
+constexpr int kDetuneGateMinMidi = kGuitarMinMidi;
 
 enum class SourceHint {
 	None,
@@ -189,6 +191,40 @@ bool likely_selected_harmonic(const NoteCandidate &fundamental, const NoteCandid
 	return false;
 }
 
+bool pitch_class_available(int midi, const std::array<bool, 12> *blocked_pitch_classes,
+			   const std::array<bool, 12> *allowed_pitch_classes)
+{
+	const int pitch_class = ((midi % 12) + 12) % 12;
+	if (blocked_pitch_classes && (*blocked_pitch_classes)[pitch_class])
+		return false;
+	if (allowed_pitch_classes && !(*allowed_pitch_classes)[pitch_class])
+		return false;
+	return true;
+}
+
+bool detune_ambiguous(const std::array<float, kNoteProbeCount> &powers, int midi, float score,
+		      const std::array<bool, 12> *blocked_pitch_classes,
+		      const std::array<bool, 12> *allowed_pitch_classes)
+{
+	if (midi < kDetuneGateMinMidi)
+		return false;
+	if (score <= 1.0e-6f)
+		return true;
+
+	for (int neighbor : {midi - 1, midi + 1}) {
+		if (neighbor < kFirstMidi || neighbor > kLastMidi)
+			continue;
+		if (!pitch_class_available(neighbor, blocked_pitch_classes, allowed_pitch_classes))
+			continue;
+
+		const float neighbor_score = std::sqrt(std::max(powers[neighbor - kFirstMidi], 0.0f));
+		if (neighbor_score >= score * kAdjacentAmbiguityRatio)
+			return true;
+	}
+
+	return false;
+}
+
 std::vector<NoteCandidate> note_peak_candidates(const std::array<float, kNoteProbeCount> &powers, int min_midi,
 						int max_midi, int max_notes,
 						const std::array<bool, 12> *blocked_pitch_classes = nullptr,
@@ -200,10 +236,7 @@ std::vector<NoteCandidate> note_peak_candidates(const std::array<float, kNotePro
 	max_midi = std::min(max_midi, kLastMidi);
 
 	for (int midi = min_midi; midi <= max_midi; ++midi) {
-		const int pitch_class = ((midi % 12) + 12) % 12;
-		if (blocked_pitch_classes && (*blocked_pitch_classes)[pitch_class])
-			continue;
-		if (allowed_pitch_classes && !(*allowed_pitch_classes)[pitch_class])
+		if (!pitch_class_available(midi, blocked_pitch_classes, allowed_pitch_classes))
 			continue;
 		const float score = std::sqrt(std::max(powers[midi - kFirstMidi], 0.0f));
 		scores[midi - kFirstMidi] = score;
@@ -217,7 +250,8 @@ std::vector<NoteCandidate> note_peak_candidates(const std::array<float, kNotePro
 	for (int midi = min_midi; midi <= max_midi; ++midi) {
 		const float score = scores[midi - kFirstMidi];
 		if (score >= strongest_score * kNoteRelativeFloor &&
-		    !likely_lower_harmonic(scores, min_midi, midi, score))
+		    !likely_lower_harmonic(scores, min_midi, midi, score) &&
+		    !detune_ambiguous(powers, midi, score, blocked_pitch_classes, allowed_pitch_classes))
 			candidates.push_back(NoteCandidate{midi, score});
 	}
 
