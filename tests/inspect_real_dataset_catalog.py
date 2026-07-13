@@ -31,6 +31,11 @@ REQUIRED_FIELDS = {
     "evidence",
 }
 
+OPTIONAL_URL_FIELDS = {
+    "download_url",
+    "documentation_url",
+}
+
 
 def fail(message):
     print(f"inspect_real_dataset_catalog: {message}", file=sys.stderr)
@@ -64,6 +69,11 @@ def check_dataset_shape(dataset, index):
             return f"{dataset['id']}: {key} must be a string"
     if not dataset["source_url"].startswith("https://"):
         return f"{dataset['id']}: source_url must be https"
+    for key in OPTIONAL_URL_FIELDS:
+        if key in dataset and not isinstance(dataset[key], str):
+            return f"{dataset['id']}: {key} must be a string"
+        if key in dataset and dataset[key] and not dataset[key].startswith("https://"):
+            return f"{dataset['id']}: {key} must be https"
     return ""
 
 

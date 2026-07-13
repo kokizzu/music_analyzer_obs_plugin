@@ -22,6 +22,9 @@
       "truth": "MIDI score plus frame-level and note-level pitch annotations",
       "automation_target": "test-real-urmp",
       "source_url": "https://labsites.rochester.edu/air/projects/URMP.html",
+      "documentation_url": "https://labsites.rochester.edu/air/projects/URMP/URMP_doc.pdf",
+      "download_url": "https://docs.google.com/forms/d/e/1FAIpQLSdGQx4Q0G4yIT0WDj1cAlfcAq8VZNcV7ZGKqRj8ijgCOzd1lg/viewform?usp=send_form",
+      "download_note": "The official site routes the full 12.5 GB package through dataset download registration rather than a stable direct archive URL.",
       "evidence": "Official page and paper describe 44 multi-instrument pieces with individual audio tracks, assembled mixtures, MIDI scores, and annotations."
     },
     {

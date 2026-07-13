@@ -73,6 +73,11 @@ without additional annotation.
 
 ## Implementation Notes
 
+- Run `make real-dataset-sources` to print the checked dataset source URLs and
+  the exact local URMP preflight/test commands. The official URMP full package
+  is distributed through a registration form rather than a stable direct archive
+  URL, so this repository intentionally does not try to download the 12.5 GB
+  package automatically.
 - Do not vendor dataset audio into this repository.
 - Set `MUSIC_ANALYZER_URMP_ROOT=/path/to/URMP`, run `make inspect-real-urmp`
   to preflight the local layout, then run `make test-real-urmp` to require the
