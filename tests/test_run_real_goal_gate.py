@@ -63,6 +63,23 @@ def test_generic_dataset_root_without_musdb_child_is_not_musdb():
         assert not run_real_goal_gate.configured_musdb({"MUSIC_ANALYZER_DATASET_ROOT": temp})
 
 
+def test_explicit_slakh_root_is_configured():
+    assert run_real_goal_gate.configured_slakh({"MUSIC_ANALYZER_SLAKH_ROOT": "/tmp/Slakh2100"})
+    assert run_real_goal_gate.configured_slakh({"SLAKH_PATH": "/tmp/Slakh2100"})
+
+
+def test_generic_dataset_root_with_slakh_child_is_slakh():
+    with tempfile.TemporaryDirectory() as temp:
+        touch_dir(os.path.join(temp, "Slakh2100_flac_redux"))
+        assert run_real_goal_gate.configured_slakh({"MUSIC_ANALYZER_DATASET_ROOT": temp})
+
+
+def test_generic_dataset_root_without_slakh_child_is_not_slakh():
+    with tempfile.TemporaryDirectory() as temp:
+        touch_dir(os.path.join(temp, "URMP", "01_Jupiter"))
+        assert not run_real_goal_gate.configured_slakh({"MUSIC_ANALYZER_DATASET_ROOT": temp})
+
+
 def test_explicit_multtipop_root_is_configured():
     assert run_real_goal_gate.configured_multtipop({"MUSIC_ANALYZER_MULTTIPOP_ROOT": "/tmp/multtipop"})
     assert run_real_goal_gate.configured_multtipop({"MULTTIPOP_PATH": "/tmp/multtipop"})
@@ -171,6 +188,7 @@ def test_twenty_piece_test_plan_targets_real_gates():
     assert plan["musicnet_target"] == "test-real-musicnet-20"
     assert plan["medleydb_target"] == "inspect-real-medleydb"
     assert plan["musdb_target"] == "inspect-real-musdb"
+    assert plan["slakh_target"] == "inspect-real-slakh"
     assert plan["multtipop_target"] == "inspect-real-multtipop"
     assert plan["multtipop_audio_target"] == "test-real-multtipop-20"
     assert plan["spheres_target"] == "inspect-real-spheres"
@@ -187,6 +205,7 @@ def test_full_test_plan_targets_full_real_gates():
     assert plan["musicnet_target"] == "test-real-musicnet-full"
     assert plan["medleydb_target"] == "inspect-real-medleydb"
     assert plan["musdb_target"] == "inspect-real-musdb"
+    assert plan["slakh_target"] == "inspect-real-slakh"
     assert plan["multtipop_target"] == "inspect-real-multtipop"
     assert plan["multtipop_audio_target"] == "test-real-multtipop-full"
     assert plan["spheres_target"] == "inspect-real-spheres"
@@ -203,6 +222,7 @@ def test_twenty_piece_inspect_plan_targets_preflights():
     assert plan["musicnet_target"] == "inspect-real-musicnet"
     assert plan["medleydb_target"] == "inspect-real-medleydb"
     assert plan["musdb_target"] == "inspect-real-musdb"
+    assert plan["slakh_target"] == "inspect-real-slakh"
     assert plan["multtipop_target"] == "inspect-real-multtipop"
     assert plan["multtipop_audio_target"] == "inspect-real-multtipop"
     assert plan["spheres_target"] == "inspect-real-spheres"
@@ -219,6 +239,7 @@ def test_full_inspect_plan_targets_full_preflights():
     assert plan["musicnet_target"] == "inspect-real-musicnet-full"
     assert plan["medleydb_target"] == "inspect-real-medleydb"
     assert plan["musdb_target"] == "inspect-real-musdb"
+    assert plan["slakh_target"] == "inspect-real-slakh"
     assert plan["multtipop_target"] == "inspect-real-multtipop"
     assert plan["multtipop_audio_target"] == "inspect-real-multtipop"
     assert plan["spheres_target"] == "inspect-real-spheres"
@@ -242,6 +263,9 @@ def main():
     test_explicit_musdb_root_is_configured()
     test_generic_dataset_root_with_musdb_child_is_musdb()
     test_generic_dataset_root_without_musdb_child_is_not_musdb()
+    test_explicit_slakh_root_is_configured()
+    test_generic_dataset_root_with_slakh_child_is_slakh()
+    test_generic_dataset_root_without_slakh_child_is_not_slakh()
     test_explicit_multtipop_root_is_configured()
     test_generic_dataset_root_with_multtipop_child_is_multtipop()
     test_generic_dataset_root_without_multtipop_child_is_not_multtipop()
@@ -263,7 +287,7 @@ def main():
     test_twenty_piece_inspect_plan_targets_preflights()
     test_full_inspect_plan_targets_full_preflights()
     test_invalid_plan_is_rejected()
-    print("test_run_real_goal_gate: 30 checks passed")
+    print("test_run_real_goal_gate: 33 checks passed")
     return 0
 
 

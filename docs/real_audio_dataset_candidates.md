@@ -39,6 +39,17 @@ now covers that combined instrumentation with `make test-direct-fit-small-fixtur
 as a generated regression while real-audio access/layout automation remains a
 future add-on.
 
+## Synthesized Multitrack Truth
+
+These datasets have same-song stems and symbolic truth, but the audio is
+rendered from MIDI rather than real recorded performances. They are useful for
+large note/chord regression coverage and should stay separate from the strict
+real-audio target.
+
+| Dataset | Use | Notes |
+| --- | --- | --- |
+| [Slakh2100](https://arxiv.org/abs/1909.08494) | 20+ same-song stem/MIDI preflight with optional `make inspect-real-slakh` | 2100 rendered songs, 145 hours of mixtures, train/validation/test splits, stems, accompanying MIDI files, and piano/bass/guitar/drum classes in every mixture. Audio is synthesized from Lakh MIDI with virtual instruments, so it does not replace URMP. |
+
 ## Real Audio With MIDI Or Note Truth But No Isolated Stems
 
 These are still useful, but they cannot verify source separation because they do
@@ -80,15 +91,15 @@ without additional annotation.
   the exact local real-data commands. Use `make inspect-real-goal-20` as the
   combined setup preflight for the requested 20+ real same-song multitrack
   test. It requires the URMP layout preflight and then runs configured optional
-  gates such as MusicNet, MedleyDB, MUSDB18, MulTTiPop, Spheres, GuitarSet,
-  MAESTRO, and E-GMD. The URMP preflight applies the same
+  gates such as MusicNet, MedleyDB, MUSDB18, Slakh2100, MulTTiPop, Spheres,
+  GuitarSet, MAESTRO, and E-GMD. The URMP preflight applies the same
   `MUSIC_ANALYZER_URMP_MIN_ACTIVE_TRACKS_PER_WINDOW` and
   `MUSIC_ANALYZER_URMP_MIN_PITCH_CLASSES_PER_WINDOW` density thresholds as the
   analyzer gate, then reports matched-track, candidate active-track, and
   candidate pitch-class min/average/max values. Use `make test-real-goal-20` as
   the combined analyzer acceptance gate. It requires the URMP multitrack gate
   and then runs configured optional add-on gates such as MusicNet, MedleyDB,
-  MUSDB18, MulTTiPop, Spheres, GuitarSet, MAESTRO, and E-GMD.
+  MUSDB18, Slakh2100, MulTTiPop, Spheres, GuitarSet, MAESTRO, and E-GMD.
   The official URMP full package is distributed through a registration form
   rather than a stable direct archive URL, so this repository intentionally does
   not try to download the 12.5 GB package automatically.
@@ -154,6 +165,14 @@ without additional annotation.
   channels, sample-rate variants, and audio duration. MUSDB18 strengthens real
   full-song stem playback and broad timbre routing coverage, but it does not
   replace URMP because it lacks per-source MIDI/note/chord truth.
+- Use `make inspect-real-slakh` with
+  `MUSIC_ANALYZER_SLAKH_ROOT=/path/to/Slakh2100_flac_redux` after extracting
+  Slakh2100. The preflight requires 20+ same-song rendered tracks with mix
+  audio, 4+ stem audio files, readable MIDI, and metadata containing piano,
+  bass, guitar, and drum classes by default. It reports stem count, readable
+  MIDI count, channel/sample-rate coverage, and audio duration. Slakh2100 gives
+  large coherent stem/MIDI truth coverage, but it does not replace URMP because
+  its audio is MIDI-rendered rather than real recorded.
 - Use `make inspect-real-multtipop` with
   `MUSIC_ANALYZER_MULTTIPOP_ROOT=/path/to/multtipop` after cloning or
   extracting the Hugging Face dataset. The preflight expects the official
@@ -224,7 +243,8 @@ without additional annotation.
   committed compact 20-piece URMP-shaped lossless FLAC/Notes/MIDI fixture from
   `tests/fixtures/urmp-mini.tar.gz`, decodes it to disposable WAV files under
   `build/` with `ffmpeg`, generates 20-recording MusicNet-shaped WAV/CSV and
-  MedleyDB-shaped stem-layout, MUSDB18-shaped five-stem,
+  MedleyDB-shaped stem-layout, MUSDB18-shaped five-stem, Slakh2100-shaped
+  rendered stem/MIDI,
   audio-backed MulTTiPop-shaped multitrack-MIDI
   metadata, Spheres-shaped stem-layout, GuitarSet-shaped JAMS/hex-audio,
   MAESTRO-shaped MIDI/WAV, and E-GMD-shaped MIDI/WAV fixtures, sends all

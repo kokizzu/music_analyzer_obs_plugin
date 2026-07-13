@@ -12,6 +12,7 @@ ALLOWED_CATEGORIES = {
     "direct_fit",
     "direct_fit_small",
     "truth_no_isolated_stems",
+    "synth_multitrack_truth",
     "single_instrument_truth",
     "real_stems_weak_truth",
 }

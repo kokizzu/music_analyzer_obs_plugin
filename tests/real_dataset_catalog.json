@@ -121,6 +121,22 @@
       "evidence": "Official preview and paper describe 572 real pop audio segments with associated aligned multitrack MIDI; audio is not released as isolated stems."
     },
     {
+      "id": "slakh2100",
+      "name": "Slakh2100",
+      "category": "synth_multitrack_truth",
+      "piece_count": 2100,
+      "real_audio": false,
+      "isolated_sources": true,
+      "assembled_mix": true,
+      "aligned_symbolic_truth": true,
+      "truth": "rendered stems and mixtures generated from source-separated MIDI tracks",
+      "automation_target": "inspect-real-slakh",
+      "source_url": "https://arxiv.org/abs/1909.08494",
+      "download_url": "https://www.slakh.com",
+      "download_note": "The official page hosts the Slakh2100 release; audio is rendered from MIDI with virtual instruments, not real recorded performances.",
+      "evidence": "Paper describes 2100 train/validation/test songs, 145 hours of mixtures, separated stems, accompanying MIDI files, and every mixture containing piano, bass, guitar, and drums."
+    },
+    {
       "id": "pop909",
       "name": "POP909",
       "category": "truth_no_isolated_stems",

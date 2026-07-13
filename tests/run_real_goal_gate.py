@@ -75,6 +75,21 @@ def configured_musdb(env):
     return False
 
 
+def configured_slakh(env):
+    if env_has_any(env, ("MUSIC_ANALYZER_SLAKH_ROOT", "SLAKH_PATH")):
+        return True
+
+    dataset_root = env.get("MUSIC_ANALYZER_DATASET_ROOT", "")
+    if not dataset_root:
+        return False
+
+    for child in ("Slakh2100_flac_redux", "slakh2100_flac_redux", "Slakh2100", "slakh2100", "Slakh", "slakh"):
+        candidate = child_path(dataset_root, child)
+        if is_dir(candidate):
+            return True
+    return False
+
+
 def multtipop_candidate_roots(env):
     roots = []
     if env_has_any(env, ("MUSIC_ANALYZER_MULTTIPOP_ROOT", "MULTTIPOP_PATH")):
@@ -197,6 +212,7 @@ TARGET_PLANS = {
         "musicnet_target": "test-real-musicnet-20",
         "medleydb_target": "inspect-real-medleydb",
         "musdb_target": "inspect-real-musdb",
+        "slakh_target": "inspect-real-slakh",
         "multtipop_target": "inspect-real-multtipop",
         "multtipop_audio_target": "test-real-multtipop-20",
         "spheres_target": "inspect-real-spheres",
@@ -210,6 +226,7 @@ TARGET_PLANS = {
         "musicnet_target": "test-real-musicnet-full",
         "medleydb_target": "inspect-real-medleydb",
         "musdb_target": "inspect-real-musdb",
+        "slakh_target": "inspect-real-slakh",
         "multtipop_target": "inspect-real-multtipop",
         "multtipop_audio_target": "test-real-multtipop-full",
         "spheres_target": "inspect-real-spheres",
@@ -223,6 +240,7 @@ TARGET_PLANS = {
         "musicnet_target": "inspect-real-musicnet",
         "medleydb_target": "inspect-real-medleydb",
         "musdb_target": "inspect-real-musdb",
+        "slakh_target": "inspect-real-slakh",
         "multtipop_target": "inspect-real-multtipop",
         "multtipop_audio_target": "inspect-real-multtipop",
         "spheres_target": "inspect-real-spheres",
@@ -236,6 +254,7 @@ TARGET_PLANS = {
         "musicnet_target": "inspect-real-musicnet-full",
         "medleydb_target": "inspect-real-medleydb",
         "musdb_target": "inspect-real-musdb",
+        "slakh_target": "inspect-real-slakh",
         "multtipop_target": "inspect-real-multtipop",
         "multtipop_audio_target": "inspect-real-multtipop",
         "spheres_target": "inspect-real-spheres",
@@ -303,6 +322,17 @@ def main(argv):
         print(
             "run_real_goal_gate: skipping optional MUSDB18 stem preflight; set "
             "MUSIC_ANALYZER_MUSDB_ROOT/MUSDB_PATH or place a MUSDB18/MUSDB18-HQ directory under "
+            "MUSIC_ANALYZER_DATASET_ROOT"
+        )
+
+    if configured_slakh(env):
+        failed = run(make_cmd, plan["slakh_target"])
+        if failed:
+            return failed
+    else:
+        print(
+            "run_real_goal_gate: skipping optional Slakh2100 rendered multitrack preflight; set "
+            "MUSIC_ANALYZER_SLAKH_ROOT/SLAKH_PATH or place a Slakh2100 directory under "
             "MUSIC_ANALYZER_DATASET_ROOT"
         )
 
