@@ -166,11 +166,12 @@ without additional annotation.
 - Use `make inspect-real-spheres` with
   `MUSIC_ANALYZER_SPHERES_ROOT=/path/to/TheSpheresDataset` to preflight The
   Spheres Dataset when it is available. This checks the real orchestral
-  stem/mix folder layout only: each accepted piece needs a mix/stereo folder
-  and multiple reconstructable microphone or mix folders with multiple source
-  audio files. Spheres has two full works and no full MIDI/note truth for those
-  works, so it is an optional timbre/stem-layout add-on and does not replace
-  URMP for the 20+ note/chord gate.
+  stem/mix folder layout only: each accepted piece needs readable mix/stereo
+  audio, separate source-audio folders, multiple source files, and enough audio
+  duration to make summed-stem playback meaningful. Spheres has two full works
+  and no full MIDI/note truth for those works, so it is an optional
+  timbre/stem-layout add-on and does not replace URMP for the 20+ note/chord
+  gate.
 - Use `make inspect-real-guitarset` with
   `MUSIC_ANALYZER_GUITARSET_ROOT=/path/to/GuitarSet` after extracting the
   GuitarSet annotation and audio archives from Zenodo. The preflight requires

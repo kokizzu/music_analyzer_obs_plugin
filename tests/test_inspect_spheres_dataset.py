@@ -2,7 +2,9 @@
 import contextlib
 import io
 import os
+import struct
 import tempfile
+import wave
 from pathlib import Path
 
 import inspect_spheres_dataset
@@ -28,9 +30,15 @@ def patched_env(values):
                 os.environ[key] = value
 
 
-def write_audio_marker(path):
+def write_audio_marker(path, seconds=1.0):
     path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_bytes(b"audio")
+    sample_rate = 8000
+    frame_count = int(sample_rate * seconds)
+    with wave.open(str(path), "wb") as audio:
+        audio.setnchannels(1)
+        audio.setsampwidth(2)
+        audio.setframerate(sample_rate)
+        audio.writeframes(b"".join(struct.pack("<h", 0) for _ in range(frame_count)))
 
 
 def create_complete_spheres_shape(root):
@@ -40,7 +48,7 @@ def create_complete_spheres_shape(root):
             write_audio_marker(root / piece / folder / "Cello.wav")
 
 
-def run_with_env(root, required_pieces=2, required_folders=2, min_audio_files=2):
+def run_with_env(root, required_pieces=2, required_folders=2, min_audio_files=2, min_audio_seconds=0.5):
     with patched_env(
         {
             "MUSIC_ANALYZER_SPHERES_ROOT": str(root),
@@ -48,7 +56,9 @@ def run_with_env(root, required_pieces=2, required_folders=2, min_audio_files=2)
             "MUSIC_ANALYZER_DATASET_ROOT": None,
             "MUSIC_ANALYZER_SPHERES_REQUIRED_PIECES": str(required_pieces),
             "MUSIC_ANALYZER_SPHERES_REQUIRED_RECONSTRUCTABLE_FOLDERS": str(required_folders),
+            "MUSIC_ANALYZER_SPHERES_REQUIRED_SOURCE_FOLDERS": "1",
             "MUSIC_ANALYZER_SPHERES_MIN_AUDIO_FILES_PER_FOLDER": str(min_audio_files),
+            "MUSIC_ANALYZER_SPHERES_MIN_AUDIO_SECONDS": str(min_audio_seconds),
         }
     ):
         output = io.StringIO()
@@ -73,10 +83,21 @@ def test_incomplete_spheres_shape_fails():
             raise AssertionError("incomplete Spheres-shaped fixture should fail")
 
 
+def test_too_short_spheres_audio_fails():
+    with tempfile.TemporaryDirectory() as temp:
+        root = Path(temp)
+        create_complete_spheres_shape(root)
+        for path in root.rglob("*.wav"):
+            write_audio_marker(path, seconds=0.1)
+        if run_with_env(root) == 0:
+            raise AssertionError("too-short Spheres-shaped audio should fail")
+
+
 def main():
     test_complete_spheres_shape_passes()
     test_incomplete_spheres_shape_fails()
-    print("test_inspect_spheres_dataset: 2 checks passed")
+    test_too_short_spheres_audio_fails()
+    print("test_inspect_spheres_dataset: 3 checks passed")
     return 0
 
 

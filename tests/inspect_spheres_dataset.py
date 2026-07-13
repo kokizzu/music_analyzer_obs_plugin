@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 import os
 import sys
+import wave
 
 
 AUDIO_EXTENSIONS = (".wav", ".wave", ".flac", ".aiff", ".aif", ".mp3", ".m4a")
@@ -22,6 +23,17 @@ def positive_int_env(name, fallback):
     except ValueError:
         return fallback
     return parsed if parsed > 0 else fallback
+
+
+def positive_float_env(name, fallback):
+    value = os.environ.get(name, "")
+    if not value:
+        return fallback
+    try:
+        parsed = float(value)
+    except ValueError:
+        return fallback
+    return parsed if parsed > 0.0 else fallback
 
 
 def join_path(lhs, rhs):
@@ -63,6 +75,23 @@ def range_summary(values, label):
     return f"{label} min/avg/max {min(values)}/{sum(values) / len(values):.2f}/{max(values)}"
 
 
+def float_range_summary(values, label):
+    if not values:
+        return f"{label} min/avg/max 0.00/0.00/0.00"
+    return f"{label} min/avg/max {min(values):.2f}/{sum(values) / len(values):.2f}/{max(values):.2f}"
+
+
+def audio_duration_seconds(path):
+    lowered = lower_name(path)
+    if not lowered.endswith((".wav", ".wave")):
+        return 0.0
+    try:
+        with wave.open(path, "rb") as audio:
+            return audio.getnframes() / float(max(1, audio.getframerate()))
+    except (OSError, EOFError, wave.Error):
+        return 0.0
+
+
 def audio_files_below(root, max_depth):
     root = os.path.abspath(root)
     files = []
@@ -93,24 +122,45 @@ def candidate_piece_dirs(root, max_depth=3):
     return candidates
 
 
-def inspect_piece_dir(path, min_audio_files_per_folder, required_reconstructable_folders):
+def inspect_piece_dir(
+    path,
+    min_audio_files_per_folder,
+    min_audio_seconds,
+    required_reconstructable_folders,
+    required_source_folders,
+):
     reconstructable_counts = []
-    has_mix_folder = False
+    source_folder_count = 0
+    mix_folder_count = 0
+    folder_durations = []
     for entry in sorted(os.scandir(path), key=lambda item: item.name):
         if not entry.is_dir():
             continue
         audio_files = audio_files_below(entry.path, max_depth=2)
         if len(audio_files) < min_audio_files_per_folder:
             continue
+        duration = max((audio_duration_seconds(audio_file) for audio_file in audio_files), default=0.0)
+        if duration < min_audio_seconds:
+            continue
         reconstructable_counts.append(len(audio_files))
+        folder_durations.append(duration)
         if is_mix_like_folder(entry.path):
-            has_mix_folder = True
+            mix_folder_count += 1
+        else:
+            source_folder_count += 1
 
     return {
         "path": path,
         "reconstructable_folders": len(reconstructable_counts),
+        "source_folders": source_folder_count,
+        "mix_folders": mix_folder_count,
         "audio_counts": reconstructable_counts,
-        "complete": has_mix_folder and len(reconstructable_counts) >= required_reconstructable_folders,
+        "folder_durations": folder_durations,
+        "complete": (
+            mix_folder_count >= 1
+            and source_folder_count >= required_source_folders
+            and len(reconstructable_counts) >= required_reconstructable_folders
+        ),
     }
 
 
@@ -131,34 +181,53 @@ def main():
     required_reconstructable_folders = positive_int_env(
         "MUSIC_ANALYZER_SPHERES_REQUIRED_RECONSTRUCTABLE_FOLDERS", 2
     )
+    required_source_folders = positive_int_env("MUSIC_ANALYZER_SPHERES_REQUIRED_SOURCE_FOLDERS", 1)
     min_audio_files_per_folder = positive_int_env(
         "MUSIC_ANALYZER_SPHERES_MIN_AUDIO_FILES_PER_FOLDER", 2
     )
+    min_audio_seconds = positive_float_env("MUSIC_ANALYZER_SPHERES_MIN_AUDIO_SECONDS", 0.5)
 
     inspected = [
-        inspect_piece_dir(path, min_audio_files_per_folder, required_reconstructable_folders)
+        inspect_piece_dir(
+            path,
+            min_audio_files_per_folder,
+            min_audio_seconds,
+            required_reconstructable_folders,
+            required_source_folders,
+        )
         for path in candidate_piece_dirs(root)
     ]
     complete = [piece for piece in inspected if piece["complete"]]
     reconstructable_folder_counts = [piece["reconstructable_folders"] for piece in complete]
+    source_folder_counts = [piece["source_folders"] for piece in complete]
+    mix_folder_counts = [piece["mix_folders"] for piece in complete]
     audio_counts = [
         audio_count
         for piece in complete
         for audio_count in piece["audio_counts"]
+    ]
+    durations = [
+        duration
+        for piece in complete
+        for duration in piece["folder_durations"]
     ]
 
     print(
         "inspect_spheres_dataset: "
         f"root={root} discovered_piece_candidates={len(inspected)} complete_pieces={len(complete)} "
         f"{range_summary(reconstructable_folder_counts, 'reconstructable folders')} "
-        f"{range_summary(audio_counts, 'audio files per folder')}"
+        f"{range_summary(source_folder_counts, 'source folders')} "
+        f"{range_summary(mix_folder_counts, 'mix folders')} "
+        f"{range_summary(audio_counts, 'audio files per folder')} "
+        f"{float_range_summary(durations, 'audio seconds per folder')}"
     )
 
     if len(complete) < required_pieces:
         print(
             f"inspect_spheres_dataset: expected at least {required_pieces} complete pieces "
-            f"with a mix/stereo folder and {required_reconstructable_folders}+ reconstructable "
-            f"folders containing {min_audio_files_per_folder}+ source audio files",
+            f"with a readable mix/stereo folder, {required_source_folders}+ source folders, "
+            f"and {required_reconstructable_folders}+ reconstructable folders containing "
+            f"{min_audio_files_per_folder}+ audio files of at least {min_audio_seconds:.2f}s",
             file=sys.stderr,
         )
         return 1

@@ -13,7 +13,7 @@ SOURCES = ("Violin_I", "Cello")
 def write_wav(path):
     os.makedirs(os.path.dirname(path), exist_ok=True)
     sample_rate = 8000
-    frame_count = sample_rate // 20
+    frame_count = sample_rate
     with wave.open(path, "wb") as output:
         output.setnchannels(1)
         output.setsampwidth(2)

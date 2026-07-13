@@ -215,6 +215,8 @@ def main():
         (egmd_harness, "drum hits", "E-GMD drum recall report"),
         (spheres_inspector, "range_summary(reconstructable_folder_counts, 'reconstructable folders')", "Spheres stem-layout coverage report"),
         (spheres_inspector, "MUSIC_ANALYZER_SPHERES_REQUIRED_PIECES", "Spheres preflight piece threshold"),
+        (spheres_inspector, "MUSIC_ANALYZER_SPHERES_REQUIRED_SOURCE_FOLDERS", "Spheres source-folder threshold"),
+        (spheres_inspector, "MUSIC_ANALYZER_SPHERES_MIN_AUDIO_SECONDS", "Spheres audio-duration threshold"),
         (guitarset_inspector, "MUSIC_ANALYZER_GUITARSET_REQUIRE_HEX_AUDIO", "GuitarSet hex-audio requirement"),
         (guitarset_inspector, "note_midi", "GuitarSet note annotation check"),
         (guitarset_inspector, "hex audio files", "GuitarSet hex-audio coverage report"),
