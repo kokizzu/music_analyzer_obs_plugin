@@ -48,7 +48,7 @@ real-audio target.
 
 | Dataset | Use | Notes |
 | --- | --- | --- |
-| [Slakh2100](https://arxiv.org/abs/1909.08494) | 20+ same-song stem/MIDI preflight with optional `make inspect-real-slakh` | 2100 rendered songs, 145 hours of mixtures, train/validation/test splits, stems, accompanying MIDI files, and piano/bass/guitar/drum classes in every mixture. Audio is synthesized from Lakh MIDI with virtual instruments, so it does not replace URMP. |
+| [Slakh2100](https://arxiv.org/abs/1909.08494) | 20+ same-song stem/MIDI analyzer gate with optional `make inspect-real-slakh` and `make test-real-slakh-20` | 2100 rendered songs, 145 hours of mixtures, train/validation/test splits, stems, accompanying MIDI files, and piano/bass/guitar/drum classes in every mixture. Audio is synthesized from Lakh MIDI with virtual instruments, so it does not replace URMP. |
 
 ## Real Audio With MIDI Or Note Truth But No Isolated Stems
 
@@ -170,9 +170,12 @@ without additional annotation.
   Slakh2100. The preflight requires 20+ same-song rendered tracks with mix
   audio, 4+ stem audio files, readable MIDI, and metadata containing piano,
   bass, guitar, and drum classes by default. It reports stem count, readable
-  MIDI count, channel/sample-rate coverage, and audio duration. Slakh2100 gives
-  large coherent stem/MIDI truth coverage, but it does not replace URMP because
-  its audio is MIDI-rendered rather than real recorded.
+  MIDI count, channel/sample-rate coverage, and audio duration. Use
+  `make test-real-slakh-20` to convert selected Slakh tracks into a temporary
+  MusicNet-shaped WAV/CSV layout and run the existing analyzer pitch-class and
+  chord recall gate on the rendered same-song mix audio. Slakh2100 gives large
+  coherent stem/MIDI truth coverage, but it does not replace URMP because its
+  audio is MIDI-rendered rather than real recorded.
 - Use `make inspect-real-multtipop` with
   `MUSIC_ANALYZER_MULTTIPOP_ROOT=/path/to/multtipop` after cloning or
   extracting the Hugging Face dataset. The preflight expects the official

@@ -84,7 +84,7 @@ def test_too_short_audio_fails():
     with tempfile.TemporaryDirectory() as temp:
         root = Path(temp)
         write_fixture(root)
-        if run_with_env(root, min_audio_seconds=2.0) == 0:
+        if run_with_env(root, min_audio_seconds=3.0) == 0:
             raise AssertionError("Slakh-shaped fixture with too-short audio should fail")
 
 

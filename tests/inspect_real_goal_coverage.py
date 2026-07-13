@@ -54,6 +54,7 @@ def main():
         goal_gate = read_text("tests/run_real_goal_gate.py")
         musdb_inspector = read_text("tests/inspect_musdb_dataset.py")
         slakh_inspector = read_text("tests/inspect_slakh_dataset.py")
+        slakh_prepare = read_text("tests/prepare_slakh_musicnet_fixture.py")
         multtipop_inspector = read_text("tests/inspect_multtipop_dataset.py")
         spheres_inspector = read_text("tests/inspect_spheres_dataset.py")
         guitarset_inspector = read_text("tests/inspect_guitarset_dataset.py")
@@ -133,8 +134,8 @@ def main():
         problems.append("MedleyDB automation target must remain inspect-real-medleydb")
     if musdb.get("automation_target") != "inspect-real-musdb":
         problems.append("MUSDB18 automation target must remain inspect-real-musdb")
-    if slakh.get("automation_target") != "inspect-real-slakh":
-        problems.append("Slakh2100 automation target must remain inspect-real-slakh")
+    if slakh.get("automation_target") != "test-real-slakh-20":
+        problems.append("Slakh2100 automation target must remain test-real-slakh-20")
     if spheres.get("automation_target") != "inspect-real-spheres":
         problems.append("Spheres automation target must remain inspect-real-spheres")
     if guitarset.get("automation_target") != "test-real-guitarset-20":
@@ -157,6 +158,7 @@ def main():
         (makefile, "tests/generate_medleydb_fixture.py", "Makefile MedleyDB fixture"),
         (makefile, "tests/generate_musdb_fixture.py", "Makefile MUSDB18 fixture"),
         (makefile, "tests/generate_slakh_fixture.py", "Makefile Slakh2100 fixture"),
+        (makefile, "tests/prepare_slakh_musicnet_fixture.py", "Makefile Slakh2100 analyzer preparation"),
         (makefile, "tests/generate_multtipop_fixture.py", "Makefile MulTTiPop fixture"),
         (makefile, "tests/generate_spheres_fixture.py", "Makefile Spheres fixture"),
         (makefile, "tests/generate_guitarset_fixture.py", "Makefile GuitarSet fixture"),
@@ -169,6 +171,7 @@ def main():
         (makefile, "inspect-real-multtipop", "Makefile optional MulTTiPop preflight"),
         (makefile, "inspect-real-musdb", "Makefile optional MUSDB18 preflight"),
         (makefile, "inspect-real-slakh", "Makefile optional Slakh2100 preflight"),
+        (makefile, "test-real-slakh-20", "Makefile optional Slakh2100 analyzer gate"),
         (makefile, "test-real-multtipop-20", "Makefile optional MulTTiPop analyzer gate"),
         (makefile, "$(BUILD_DIR)/analyzer_multtipop", "Makefile MulTTiPop analyzer binary"),
         (makefile, "$(BUILD_DIR)/analyzer_guitarset", "Makefile GuitarSet analyzer binary"),
@@ -189,6 +192,7 @@ def main():
         (goal_gate, "inspect-real-musdb", "combined gate optional MUSDB18 preflight target"),
         (goal_gate, "configured_slakh", "combined gate optional Slakh2100 root detection"),
         (goal_gate, "inspect-real-slakh", "combined gate optional Slakh2100 preflight target"),
+        (goal_gate, "test-real-slakh-20", "combined gate optional Slakh2100 analyzer target"),
         (goal_gate, "inspect-real-multtipop", "combined gate optional MulTTiPop target"),
         (goal_gate, "multtipop_audio_configured", "combined gate optional MulTTiPop audio detection"),
         (goal_gate, "test-real-multtipop-20", "combined gate optional MulTTiPop analyzer target"),
@@ -233,6 +237,9 @@ def main():
         (slakh_inspector, "DEFAULT_REQUIRED_CLASSES", "Slakh2100 required instrument class list"),
         (slakh_inspector, "MUSIC_ANALYZER_SLAKH_REQUIRED_TRACKS", "Slakh2100 preflight track threshold"),
         (slakh_inspector, "readable MIDI files per track", "Slakh2100 MIDI coverage report"),
+        (slakh_prepare, "prepare_slakh_musicnet_fixture", "Slakh2100 MusicNet-shaped analyzer preparation"),
+        (slakh_prepare, "parse_midi_notes", "Slakh2100 MIDI note parser"),
+        (slakh_prepare, "train_labels", "Slakh2100 generated MusicNet labels"),
         (maestro_harness, "read_maestro_midi", "MAESTRO aligned-MIDI parser"),
         (maestro_harness, "MAESTRO piano pitch-class recall", "MAESTRO real-audio recall gate"),
         (maestro_harness, "chord hits", "MAESTRO chord recall report"),
@@ -255,6 +262,7 @@ def main():
         (readme, "make inspect-real-multtipop", "README MulTTiPop preflight instructions"),
         (readme, "make inspect-real-musdb", "README MUSDB18 preflight instructions"),
         (readme, "make inspect-real-slakh", "README Slakh2100 preflight instructions"),
+        (readme, "make test-real-slakh-20", "README Slakh2100 analyzer instructions"),
         (readme, "make test-real-multtipop-20", "README MulTTiPop analyzer instructions"),
         (readme, "make inspect-real-spheres", "README Spheres preflight instructions"),
         (readme, "make inspect-real-guitarset", "README GuitarSet preflight instructions"),
@@ -268,6 +276,7 @@ def main():
         (docs, "make inspect-real-multtipop", "dataset docs MulTTiPop preflight instructions"),
         (docs, "make inspect-real-musdb", "dataset docs MUSDB18 preflight instructions"),
         (docs, "make inspect-real-slakh", "dataset docs Slakh2100 preflight instructions"),
+        (docs, "make test-real-slakh-20", "dataset docs Slakh2100 analyzer instructions"),
         (docs, "make test-real-multtipop-20", "dataset docs MulTTiPop analyzer instructions"),
         (docs, "make inspect-real-spheres", "dataset docs Spheres preflight instructions"),
         (docs, "make inspect-real-guitarset", "dataset docs GuitarSet preflight instructions"),

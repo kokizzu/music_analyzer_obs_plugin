@@ -212,7 +212,7 @@ TARGET_PLANS = {
         "musicnet_target": "test-real-musicnet-20",
         "medleydb_target": "inspect-real-medleydb",
         "musdb_target": "inspect-real-musdb",
-        "slakh_target": "inspect-real-slakh",
+        "slakh_target": "test-real-slakh-20",
         "multtipop_target": "inspect-real-multtipop",
         "multtipop_audio_target": "test-real-multtipop-20",
         "spheres_target": "inspect-real-spheres",
@@ -226,7 +226,7 @@ TARGET_PLANS = {
         "musicnet_target": "test-real-musicnet-full",
         "medleydb_target": "inspect-real-medleydb",
         "musdb_target": "inspect-real-musdb",
-        "slakh_target": "inspect-real-slakh",
+        "slakh_target": "test-real-slakh-full",
         "multtipop_target": "inspect-real-multtipop",
         "multtipop_audio_target": "test-real-multtipop-full",
         "spheres_target": "inspect-real-spheres",
@@ -331,7 +331,7 @@ def main(argv):
             return failed
     else:
         print(
-            "run_real_goal_gate: skipping optional Slakh2100 rendered multitrack preflight; set "
+            "run_real_goal_gate: skipping optional Slakh2100 rendered multitrack analyzer gate; set "
             "MUSIC_ANALYZER_SLAKH_ROOT/SLAKH_PATH or place a Slakh2100 directory under "
             "MUSIC_ANALYZER_DATASET_ROOT"
         )
