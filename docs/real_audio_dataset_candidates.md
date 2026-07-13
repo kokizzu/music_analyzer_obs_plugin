@@ -128,13 +128,16 @@ without additional annotation.
   the real Bach10 dataset, but it keeps that direct-fit instrumentation covered
   in normal `make test`.
 - Use `make test-direct-fit-small-fixture` for the broader generated
-  direct-fit-small suite. It creates 20 URMP-compatible pieces shaped after the
-  public Bach10, TRIOS, PHENICX-Anechoic, and MIREX Woodwind Quintet layouts,
-  then runs the same separated-source, provided-mix, summed-mix, streaming,
-  stateful sequence, and chord recall checks. This does not vendor or replace
-  the real datasets; it keeps the combined 20-piece direct-fit-small
-  instrumentation under regression coverage while access and licensing remain
-  unresolved.
+  direct-fit-small suite. It unpacks the committed compact FLAC archive at
+  `tests/fixtures/direct-fit-small.tar.gz`, decodes it under `build/`, and
+  runs 20 URMP-compatible pieces shaped after the public Bach10, TRIOS,
+  PHENICX-Anechoic, and MIREX Woodwind Quintet layouts through the same
+  separated-source, provided-mix, summed-mix, streaming, stateful sequence, and
+  chord recall checks. Refresh the archive with
+  `make update-direct-fit-small-fixture` after changing
+  `tests/generate_direct_fit_small_fixture.py`. This does not replace the real
+  datasets; it keeps the combined 20-piece direct-fit-small instrumentation
+  under regression coverage while access and licensing remain unresolved.
 - Use `make inspect-real-medleydb` with
   `MUSIC_ANALYZER_MEDLEYDB_ROOT=/path/to/MedleyDB` and, if annotations are not
   inside that tree,
