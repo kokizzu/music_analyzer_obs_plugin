@@ -54,6 +54,8 @@ int main()
 	mao::AnalysisSettings settings;
 	settings.sample_rate = 48000;
 	settings.sensitivity = 1.0f;
+	settings.analysis_interval_seconds = 0.25f;
+	settings.root_window_seconds = 15.0f;
 
 	std::array<float, mao::kAnalysisWindow> bass = {};
 	add_sine(bass, 110.0f, 0.7f, 48000.0f);
@@ -97,11 +99,26 @@ int main()
 		std::fprintf(stderr, "expected root A before sustained modulation, got %s\n", chord_snapshot.root.label);
 		return 1;
 	}
+	if (!contains(chord_snapshot.root_candidates, "C ")) {
+		std::fprintf(stderr, "expected root candidates to include C during modulation, got %s\n",
+			     chord_snapshot.root_candidates);
+		return 1;
+	}
 
 	for (int i = 0; i < 120; ++i)
 		chord_snapshot = engine.analyze(chord.data(), chord.size(), settings, "test", 0);
 	if (!is_root(chord_snapshot, "C")) {
 		std::fprintf(stderr, "expected sustained C modulation to switch root, got %s\n", chord_snapshot.root.label);
+		return 1;
+	}
+	if (!contains(chord_snapshot.root_candidates, "C ")) {
+		std::fprintf(stderr, "expected sustained root candidates to include C, got %s\n",
+			     chord_snapshot.root_candidates);
+		return 1;
+	}
+	if (chord_snapshot.root.confidence < 0.40f) {
+		std::fprintf(stderr, "expected C root confidence >= 40%%, got %.0f%%\n",
+			     chord_snapshot.root.confidence * 100.0f);
 		return 1;
 	}
 

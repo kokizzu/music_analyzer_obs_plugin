@@ -167,7 +167,7 @@ RootCandidate detect_root_candidate(const std::array<float, 69> &powers, float r
 		float seed_total = 0.0f;
 		for (float score : candidate.scores)
 			seed_total += score;
-		candidate.scores[chord.root] += seed_total * chord.confidence * 0.55f;
+		candidate.scores[chord.root] += seed_total * chord.confidence * 1.10f;
 	}
 
 	float best_score = 0.0f;
@@ -282,6 +282,65 @@ void set_instrument_chord(InstrumentState &state, const ChordResult &chord, floa
 	state.confidence = 0.0f;
 }
 
+void append_text(char *dst, std::size_t dst_size, const char *text)
+{
+	if (!dst || dst_size == 0 || !text)
+		return;
+
+	std::size_t used = std::strlen(dst);
+	while (*text && used + 1 < dst_size)
+		dst[used++] = *text++;
+	dst[used] = '\0';
+}
+
+void append_root_candidate(char *dst, std::size_t dst_size, int pitch_class, float confidence)
+{
+	if (!dst || dst_size == 0 || pitch_class < 0)
+		return;
+
+	if (dst[0])
+		append_text(dst, dst_size, "  ");
+	append_text(dst, dst_size, note_name(pitch_class));
+	append_text(dst, dst_size, " ");
+
+	char percentage[8] = {};
+	std::snprintf(percentage, sizeof(percentage), "%d%%",
+		      std::clamp(static_cast<int>(confidence * 100.0f + 0.5f), 0, 100));
+	append_text(dst, dst_size, percentage);
+}
+
+void write_root_candidates(char *dst, std::size_t dst_size, const std::array<float, 12> &scores, float total)
+{
+	if (!dst || dst_size == 0)
+		return;
+
+	dst[0] = '\0';
+	if (total <= 1.0e-6f) {
+		copy_text(dst, dst_size, "-- 0%");
+		return;
+	}
+
+	std::array<int, 12> order = {};
+	for (int i = 0; i < 12; ++i)
+		order[i] = i;
+	std::sort(order.begin(), order.end(), [&](int a, int b) { return scores[a] > scores[b]; });
+
+	for (int i = 0, written = 0; i < 12 && written < 3; ++i) {
+		const int pitch_class = order[i];
+		const float confidence = std::max(scores[pitch_class], 0.0f) / total;
+		if (written > 0 && confidence < 0.10f)
+			break;
+		if (confidence < 0.04f)
+			break;
+
+		append_root_candidate(dst, dst_size, pitch_class, confidence);
+		++written;
+	}
+
+	if (!dst[0])
+		copy_text(dst, dst_size, "-- 0%");
+}
+
 } // namespace
 
 AnalysisEngine::AnalysisEngine()
@@ -339,85 +398,118 @@ float AnalysisEngine::goertzel_power(const float *samples, std::size_t count, fl
 	return std::max(0.0f, s1 * s1 + s2 * s2 - probe.coeff * s1 * s2);
 }
 
-InstrumentState AnalysisEngine::track_root(const std::array<float, 69> &powers, float rms)
+void AnalysisEngine::reset_root_window()
 {
-	constexpr uint32_t kSilenceResetWindows = 18;
-	constexpr uint32_t kModulationWindows = 48;
-	constexpr float kRootMemoryDecay = 0.996f;
-	constexpr float kModulationLead = 1.35f;
+	for (RootVote &vote : root_votes_)
+		vote = {};
+	root_sum_.fill(0.0f);
+	root_vote_pos_ = 0;
+	root_vote_count_ = 0;
+	locked_root_ = -1;
+}
+
+void AnalysisEngine::add_root_vote(const RootVote &vote)
+{
+	if (root_vote_target_ == 0)
+		return;
+
+	if (root_vote_count_ == root_vote_target_) {
+		const RootVote &old_vote = root_votes_[root_vote_pos_];
+		if (old_vote.valid) {
+			for (int i = 0; i < 12; ++i)
+				root_sum_[i] -= old_vote.scores[i];
+		}
+	} else {
+		++root_vote_count_;
+	}
+
+	root_votes_[root_vote_pos_] = vote;
+	if (vote.valid) {
+		for (int i = 0; i < 12; ++i)
+			root_sum_[i] += vote.scores[i];
+	}
+
+	root_vote_pos_ = (root_vote_pos_ + 1) % root_vote_target_;
+}
+
+InstrumentState AnalysisEngine::track_root(const std::array<float, 69> &powers, float rms,
+					   const AnalysisSettings &settings, char *root_candidates,
+					   std::size_t root_candidates_size)
+{
+	constexpr float kMinimumRootWindowSeconds = 15.0f;
+	constexpr float kSilenceResetSeconds = 2.0f;
+	constexpr float kModulationLead = 1.12f;
 
 	InstrumentState state;
+	const float interval_seconds = std::clamp(settings.analysis_interval_seconds, 0.01f, 1.0f);
+	const float requested_window_seconds = std::max(settings.root_window_seconds, kMinimumRootWindowSeconds);
+	const std::size_t target_votes = std::clamp<std::size_t>(
+		static_cast<std::size_t>(std::ceil(requested_window_seconds / interval_seconds)), 1, kMaxRootVotes);
+
+	if (target_votes != root_vote_target_) {
+		root_vote_target_ = target_votes;
+		reset_root_window();
+	}
+
 	const RootCandidate candidate = detect_root_candidate(powers, rms);
 
-	if (rms < kSilenceRms || candidate.pitch_class < 0) {
-		if (++silence_windows_ >= kSilenceResetWindows) {
-			root_memory_.fill(0.0f);
-			locked_root_ = -1;
-			pending_root_ = -1;
-			pending_root_windows_ = 0;
-		}
+	if (rms < kSilenceRms) {
+		silence_seconds_ += interval_seconds;
+		if (silence_seconds_ >= kSilenceResetSeconds)
+			reset_root_window();
+
+		float total = 0.0f;
+		for (float score : root_sum_)
+			total += std::max(score, 0.0f);
+		write_root_candidates(root_candidates, root_candidates_size, root_sum_, total);
 
 		if (locked_root_ >= 0) {
 			copy_text(state.label, sizeof(state.label), note_name(locked_root_));
-			state.confidence = 0.15f;
+			state.confidence = 0.0f;
 		} else {
 			copy_text(state.label, sizeof(state.label), "--");
 		}
 		return state;
 	}
 
-	silence_windows_ = 0;
-
-	for (int i = 0; i < 12; ++i)
-		root_memory_[i] = root_memory_[i] * kRootMemoryDecay + candidate.scores[i] * candidate.confidence;
+	silence_seconds_ = 0.0f;
+	if (candidate.pitch_class >= 0 && candidate.total > 1.0e-6f) {
+		RootVote vote;
+		vote.valid = true;
+		for (int i = 0; i < 12; ++i)
+			vote.scores[i] = candidate.scores[i] / candidate.total * candidate.confidence;
+		add_root_vote(vote);
+	}
 
 	int best = -1;
 	float best_score = 0.0f;
 	float total = 0.0f;
 	for (int i = 0; i < 12; ++i) {
-		total += root_memory_[i];
-		if (root_memory_[i] > best_score) {
+		const float score = std::max(root_sum_[i], 0.0f);
+		total += score;
+		if (score > best_score) {
 			best = i;
-			best_score = root_memory_[i];
+			best_score = score;
 		}
 	}
 
-	if (locked_root_ < 0 && best >= 0 && total > 1.0e-6f) {
+	write_root_candidates(root_candidates, root_candidates_size, root_sum_, total);
+
+	if (locked_root_ < 0 && best >= 0 && total > 1.0e-6f)
 		locked_root_ = best;
-		pending_root_ = -1;
-		pending_root_windows_ = 0;
-	}
 
 	if (locked_root_ >= 0 && best >= 0 && best != locked_root_) {
-		const float locked_score = root_memory_[locked_root_];
-		const bool modulation =
-			candidate.pitch_class == best && best_score > locked_score * kModulationLead && candidate.confidence > 0.42f;
-		if (modulation) {
-			if (pending_root_ != best) {
-				pending_root_ = best;
-				pending_root_windows_ = 1;
-			} else {
-				++pending_root_windows_;
-			}
-
-			if (pending_root_windows_ >= kModulationWindows) {
-				locked_root_ = best;
-				pending_root_ = -1;
-				pending_root_windows_ = 0;
-			}
-		} else {
-			pending_root_ = -1;
-			pending_root_windows_ = 0;
-		}
-	} else {
-		pending_root_ = -1;
-		pending_root_windows_ = 0;
+		const float locked_score = std::max(root_sum_[locked_root_], 0.0f);
+		const float confidence = total > 1.0e-6f ? best_score / total : 0.0f;
+		const bool window_ready = root_vote_count_ >= root_vote_target_;
+		if (window_ready && confidence >= 0.34f && best_score > locked_score * kModulationLead)
+			locked_root_ = best;
 	}
 
 	if (locked_root_ >= 0) {
-		const float confidence = total > 1.0e-6f ? root_memory_[locked_root_] / total : 0.0f;
+		const float confidence = total > 1.0e-6f ? std::max(root_sum_[locked_root_], 0.0f) / total : 0.0f;
 		copy_text(state.label, sizeof(state.label), note_name(locked_root_));
-		state.confidence = std::clamp(confidence * 2.6f, 0.0f, 1.0f);
+		state.confidence = std::clamp(confidence, 0.0f, 1.0f);
 	} else {
 		copy_text(state.label, sizeof(state.label), "--");
 	}
@@ -443,6 +535,7 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 	if (!samples || count == 0) {
 		copy_text(snapshot.bass.label, sizeof(snapshot.bass.label), "--");
 		copy_text(snapshot.root.label, sizeof(snapshot.root.label), "--");
+		copy_text(snapshot.root_candidates, sizeof(snapshot.root_candidates), "-- 0%");
 		copy_text(snapshot.guitar.label, sizeof(snapshot.guitar.label), "--");
 		copy_text(snapshot.guitar_chord.label, sizeof(snapshot.guitar_chord.label), "--");
 		copy_text(snapshot.keyboard.label, sizeof(snapshot.keyboard.label), "--");
@@ -537,7 +630,7 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 	const ChordResult keyboard_chord = detect_chord(keyboard_chroma);
 	const ChordResult other_chord = detect_chord(other_chroma);
 
-	snapshot.root = track_root(note_powers, rms);
+	snapshot.root = track_root(note_powers, rms, settings, snapshot.root_candidates, sizeof(snapshot.root_candidates));
 	set_instrument_note(snapshot.bass, bass_note, low, rms);
 	set_instrument_note_set(snapshot.guitar, guitar_chroma,
 				guitar_chord.root >= 0 ? guitar_chord.root :

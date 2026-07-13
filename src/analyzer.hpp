@@ -21,6 +21,8 @@ enum DrumIndex : std::size_t {
 struct AnalysisSettings {
 	uint32_t sample_rate = 48000;
 	float sensitivity = 1.0f;
+	float analysis_interval_seconds = 0.05f;
+	float root_window_seconds = 15.0f;
 };
 
 struct DrumState {
@@ -48,6 +50,7 @@ struct AnalysisSnapshot {
 	bool audio_seen = false;
 	std::array<DrumState, kDrumCount> drums = {};
 	InstrumentState root = {};
+	char root_candidates[64] = {};
 	InstrumentState bass = {};
 	InstrumentState guitar = {};
 	InstrumentState guitar_chord = {};
@@ -73,6 +76,13 @@ private:
 		float coeff = 0.0f;
 	};
 
+	struct RootVote {
+		std::array<float, 12> scores = {};
+		bool valid = false;
+	};
+
+	static constexpr std::size_t kMaxRootVotes = 1500;
+
 	std::array<float, kAnalysisWindow> window_ = {};
 	std::array<Probe, 69> note_probes_ = {};
 	std::array<Probe, 15> drum_probes_ = {};
@@ -80,15 +90,20 @@ private:
 	float previous_rms_ = 0.0f;
 	std::array<float, kDrumCount> drum_average_ = {};
 	std::array<float, kDrumCount> drum_level_ = {};
-	std::array<float, 12> root_memory_ = {};
+	std::array<RootVote, kMaxRootVotes> root_votes_ = {};
+	std::array<float, 12> root_sum_ = {};
+	std::size_t root_vote_pos_ = 0;
+	std::size_t root_vote_count_ = 0;
+	std::size_t root_vote_target_ = 0;
 	int locked_root_ = -1;
-	int pending_root_ = -1;
-	uint32_t pending_root_windows_ = 0;
-	uint32_t silence_windows_ = 0;
+	float silence_seconds_ = 0.0f;
 
 	void rebuild_plans(uint32_t sample_rate);
 	float goertzel_power(const float *samples, std::size_t count, float mean, const Probe &probe) const;
-	InstrumentState track_root(const std::array<float, 69> &powers, float rms);
+	void reset_root_window();
+	void add_root_vote(const RootVote &vote);
+	InstrumentState track_root(const std::array<float, 69> &powers, float rms, const AnalysisSettings &settings,
+				   char *root_candidates, std::size_t root_candidates_size);
 };
 
 } // namespace mao

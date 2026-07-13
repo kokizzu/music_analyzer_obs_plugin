@@ -99,9 +99,13 @@ void copy_ring_to_pending(FilterData *filter, const char *source_label)
 		const std::size_t idx = (filter->write_pos + i) & (mao::kAnalysisWindow - 1);
 		filter->pending_window[i] = filter->ring[idx];
 	}
-	filter->pending_settings.sample_rate = filter->sample_rate.load(std::memory_order_relaxed);
+	const uint32_t sample_rate = filter->sample_rate.load(std::memory_order_relaxed);
+	const uint32_t hop_samples = std::max<uint32_t>(1, filter->hop_samples.load(std::memory_order_relaxed));
+	filter->pending_settings.sample_rate = sample_rate;
 	filter->pending_settings.sensitivity =
 		static_cast<float>(filter->sensitivity_percent.load(std::memory_order_relaxed)) / 100.0f;
+	filter->pending_settings.analysis_interval_seconds =
+		static_cast<float>(hop_samples) / static_cast<float>(std::max<uint32_t>(1, sample_rate));
 	copy_text(filter->pending_source_name, sizeof(filter->pending_source_name),
 		  source_label && *source_label ? source_label : filter->source_name);
 	filter->pending_audio_frames = filter->audio_frames_seen;
@@ -129,6 +133,9 @@ void publish_filter_ready(FilterData *filter)
 
 	settings.sample_rate = filter->sample_rate.load(std::memory_order_relaxed);
 	settings.sensitivity = static_cast<float>(filter->sensitivity_percent.load(std::memory_order_relaxed)) / 100.0f;
+	settings.analysis_interval_seconds =
+		static_cast<float>(std::max<uint32_t>(1, filter->hop_samples.load(std::memory_order_relaxed))) /
+		static_cast<float>(std::max<uint32_t>(1, settings.sample_rate));
 
 	{
 		std::lock_guard<std::mutex> lock(filter->worker_mutex);
@@ -587,12 +594,6 @@ void render_pixels(VisualizerData *visualizer, const mao::AnalysisSnapshot &snap
 	std::snprintf(title, sizeof(title), "MUSIC ANALYZER  %s", snapshot.source[0] ? snapshot.source : "WAITING");
 	draw_text(visualizer, 28, 24, title, 3, Color{246, 248, 251, 255});
 
-	char root_label[32];
-	std::snprintf(root_label, sizeof(root_label), "ROOT %s", snapshot.root.label[0] ? snapshot.root.label : "--");
-	const int root_width = static_cast<int>(std::strlen(root_label)) * 18;
-	draw_text(visualizer, std::max(28, static_cast<int>(visualizer->width) - root_width - 28), 24, root_label, 3,
-		  Color{246, 248, 251, 255});
-
 	char level[128];
 	std::snprintf(level, sizeof(level), "RMS %.2f LOW %.0f%% MID %.0f%% HIGH %.0f%% UPD %llu DROP %llu",
 		      snapshot.rms, snapshot.low_energy * 100.0f, snapshot.mid_energy * 100.0f,
@@ -619,6 +620,12 @@ void render_pixels(VisualizerData *visualizer, const mao::AnalysisSnapshot &snap
 	draw_instrument_row(visualizer, 230, "KEYS", snapshot.keyboard, &snapshot.keyboard_chord);
 	draw_instrument_row(visualizer, 270, "VOCAL", snapshot.vocal, nullptr);
 	draw_instrument_row(visualizer, 310, "OTHERS", snapshot.other, &snapshot.other_chord);
+
+	char root_label[80];
+	std::snprintf(root_label, sizeof(root_label), "ROOT %s",
+		      snapshot.root_candidates[0] ? snapshot.root_candidates : "-- 0%");
+	draw_text(visualizer, 28, std::max(132, static_cast<int>(visualizer->height) - 24), root_label, 2,
+		  Color{199, 210, 224, 255});
 
 	if (snapshot.sequence == 0)
 		draw_text(visualizer, 230, 145, "ADD MUSIC ANALYZER FILTER TO AN AUDIO SOURCE", 2,
