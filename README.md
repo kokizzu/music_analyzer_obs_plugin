@@ -10,6 +10,7 @@ Native OBS Studio plugin that analyzes a music mix and displays an instrument-or
 - Note highlights fade with detected velocity/amplitude so quiet or sustaining notes are dimmer instead of full intensity
 - Notes outside the chromatic tuning window, about +/-9 cents from the equal-tempered center, are ignored instead of rounded to the nearest note
 - Keyboard, guitar, and other instruments: compact chord labels; vocal stays note-only
+- Guitar chord labels are resolved from the filtered fretboard notes with CAGED-style voicing preference, so full-mix bass/root hints do not rename the guitar shape
 - Mixed-source routing: duplicated pitches are not claimed by row order; keyboard, guitar, and other rows use harmonic timbre masks, while bass and vocal use conservative range gates
 - Source-name hints: `guitar`, `key`, `piano`, `organ`, `synth`, `brass`, `horn`, `violin`, and `string` route detection toward the matching row
 - Root: rolling 15-second root candidates with confidence, with the primary root held until sustained modulation or silence

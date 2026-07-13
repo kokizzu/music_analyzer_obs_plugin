@@ -940,6 +940,106 @@ int lowest_note_grid_pitch_class(const NoteGrid &grid)
 	return lowest_midi <= kLastMidi ? ((lowest_midi % 12) + 12) % 12 : -1;
 }
 
+ChordResult detect_caged_guitar_chord(const std::array<float, 12> &chroma, int preferred_root)
+{
+	ChordResult best;
+	float best_score = 0.0f;
+	static constexpr float kToneThreshold = 0.24f;
+
+	auto consider = [&](int root, const char *suffix, std::initializer_list<int> intervals, float priority) {
+		float score = priority;
+		std::array<bool, 12> tones = {};
+		for (int interval : intervals) {
+			const int pitch_class = (root + interval) % 12;
+			const float value = chroma[pitch_class];
+			if (value < kToneThreshold)
+				return;
+			tones[pitch_class] = true;
+			score += value;
+		}
+
+		if (root == preferred_root)
+			score += 0.60f;
+		for (int pitch_class = 0; pitch_class < 12; ++pitch_class) {
+			if (!tones[pitch_class])
+				score -= chroma[pitch_class] * 0.08f;
+		}
+
+		if (score <= best_score)
+			return;
+
+		best_score = score;
+		best.root = root;
+		best.tones = tones;
+		best.confidence = std::clamp(score / 4.2f, 0.0f, 1.0f);
+		std::snprintf(best.label, sizeof(best.label), "%s%s", note_name(root), suffix);
+	};
+
+	for (int root = 0; root < 12; ++root) {
+		consider(root, "", {0, 4, 7}, 0.16f);
+		consider(root, "m", {0, 3, 7}, 0.16f);
+		consider(root, "sus2", {0, 2, 7}, 0.12f);
+		consider(root, "sus4", {0, 5, 7}, 0.12f);
+		consider(root, "pow", {0, 7}, 0.04f);
+	}
+
+	if (best.root < 0)
+		copy_text(best.label, sizeof(best.label), "--");
+	return best;
+}
+
+bool chord_label_has_guitar_extension_or_alteration(const char *label)
+{
+	if (!label)
+		return false;
+	return std::strstr(label, "7") || std::strstr(label, "9") || std::strstr(label, "6") ||
+	       std::strstr(label, "add") || std::strstr(label, "aug") || std::strstr(label, "dim");
+}
+
+ChordResult detect_guitar_chord_from_grid(const NoteGrid &grid, bool allow_extensions)
+{
+	const std::array<float, 12> chroma = note_grid_chroma(grid);
+	const int preferred_root = lowest_note_grid_pitch_class(grid);
+	ChordResult chord = detect_chord(chroma, preferred_root, allow_extensions);
+	const ChordResult caged = detect_caged_guitar_chord(chroma, preferred_root);
+
+	if (caged.root < 0)
+		return chord;
+	if (chord.root < 0)
+		return caged;
+
+	int caged_tone_cells = 0;
+	int non_caged_chord_tone_cells = 0;
+	for (const auto &row : grid.rows) {
+		for (const NoteCell &cell : row) {
+			if (!cell.active || cell.midi < 0)
+				continue;
+			const int pitch_class = ((cell.midi % 12) + 12) % 12;
+			if (caged.tones[pitch_class])
+				++caged_tone_cells;
+			else if (chord.tones[pitch_class])
+				++non_caged_chord_tone_cells;
+		}
+	}
+
+	bool weak_guitar_tone = false;
+	for (int pitch_class = 0; pitch_class < 12; ++pitch_class) {
+		if (chord.tones[pitch_class] && chroma[pitch_class] < 0.55f) {
+			weak_guitar_tone = true;
+			break;
+		}
+	}
+
+	if (chord_label_has_guitar_extension_or_alteration(chord.label) && caged.confidence >= 0.58f &&
+	    weak_guitar_tone)
+		return caged;
+	if (chord_label_has_guitar_extension_or_alteration(chord.label) && caged.confidence >= 0.50f &&
+	    caged_tone_cells >= 4 && non_caged_chord_tone_cells <= 2)
+		return caged;
+
+	return chord;
+}
+
 void set_chord_from_smoothed_grid(InstrumentState &state, const NoteGrid &grid, bool allow_extensions)
 {
 	const ChordResult chord = detect_chord(note_grid_chroma(grid), lowest_note_grid_pitch_class(grid), allow_extensions);
@@ -1509,20 +1609,15 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 								kGuitarMaxMidi, TimbreKind::Guitar) :
 				       timbre_midi_filter(note_powers, min_midi, kGuitarMaxMidi, TimbreKind::Guitar);
 		const std::array<bool, kNoteProbeCount> *allowed_midis = mixed_source ? &timbre_filter : nullptr;
-		const std::array<float, 12> chroma =
-			peak_chroma_for_range(tuned_note_powers, min_midi, kGuitarMaxMidi, nullptr, suppress_adjacent,
-					      allowed_midis);
-		const int preferred_root = mixed_source && mixed_bass_pitch_class >= 0 ?
-						   mixed_bass_pitch_class :
-						   lowest_peak_pitch_class(tuned_note_powers, min_midi,
-									   kGuitarMaxMidi, nullptr, suppress_adjacent,
-									   allowed_midis);
-		const ChordResult chord = detect_chord(chroma, preferred_root, allow_extensions);
+		const int preferred_root =
+			lowest_peak_pitch_class(tuned_note_powers, min_midi, kGuitarMaxMidi, nullptr,
+						suppress_adjacent, allowed_midis);
 		const std::array<bool, 12> *allowed = nullptr;
 		const int max_notes = mixed_source ? 12 : 8;
 		set_instrument_note_set(snapshot.guitar_notes, snapshot.guitar, tuned_note_powers, min_midi,
-					kGuitarMaxMidi, chord.root >= 0 ? chord.root : preferred_root, guitar_energy, rms,
-					max_notes, nullptr, allowed, suppress_adjacent, allowed_midis);
+					kGuitarMaxMidi, preferred_root, guitar_energy, rms, max_notes, nullptr, allowed,
+					suppress_adjacent, allowed_midis);
+		const ChordResult chord = detect_guitar_chord_from_grid(snapshot.guitar_notes, allow_extensions);
 		set_instrument_chord(snapshot.guitar_chord, chord, guitar_energy, rms);
 	};
 
@@ -1605,8 +1700,7 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 		detect_chord(note_grid_chroma(snapshot.keyboard_notes),
 			     lowest_note_grid_pitch_class(snapshot.keyboard_notes), allow_smoothed_extensions);
 	const ChordResult guitar_seed_chord =
-		detect_chord(note_grid_chroma(snapshot.guitar_notes),
-			     lowest_note_grid_pitch_class(snapshot.guitar_notes), allow_smoothed_extensions);
+		detect_guitar_chord_from_grid(snapshot.guitar_notes, allow_smoothed_extensions);
 	const ChordResult other_seed_chord =
 		detect_chord(note_grid_chroma(snapshot.other_notes),
 			     lowest_note_grid_pitch_class(snapshot.other_notes), allow_smoothed_extensions);
@@ -1639,10 +1733,17 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 						    allow_smoothed_extensions);
 		else if (!keyboard_raw_chord)
 			clear_instrument_state(snapshot.keyboard_chord);
-		if (!guitar_raw_notes)
-			set_chord_from_smoothed_grid(snapshot.guitar_chord, snapshot.guitar_notes,
-						    allow_smoothed_extensions);
-		else if (!guitar_raw_chord)
+		if (!guitar_raw_notes) {
+			const ChordResult smoothed_guitar_chord =
+				detect_guitar_chord_from_grid(snapshot.guitar_notes, allow_smoothed_extensions);
+			if (smoothed_guitar_chord.confidence >= 0.36f) {
+				copy_text(snapshot.guitar_chord.label, sizeof(snapshot.guitar_chord.label),
+					  smoothed_guitar_chord.label);
+				snapshot.guitar_chord.confidence = smoothed_guitar_chord.confidence;
+			} else {
+				clear_instrument_state(snapshot.guitar_chord);
+			}
+		} else if (!guitar_raw_chord)
 			clear_instrument_state(snapshot.guitar_chord);
 	} else {
 		reset_note_grid_envelope(snapshot.keyboard_notes, snapshot.keyboard, keyboard_note_envelope_);

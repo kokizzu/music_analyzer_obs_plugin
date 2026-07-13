@@ -75,6 +75,13 @@ bool has_chord_label(const char *actual, const std::string &expected)
 	return false;
 }
 
+void expect_no_chord_label(Runner &runner, const char *actual, const std::string &unexpected,
+			   const std::string &context)
+{
+	runner.expect(!has_chord_label(actual, unexpected),
+		      context + ": expected no chord label `" + unexpected + "`, got `" + actual + "`");
+}
+
 void add_harmonic_note(mao_test::Buffer &buffer, int midi, float amp, const std::vector<float> &profile)
 {
 	const float base = mao_test::midi_frequency(midi);
@@ -659,6 +666,9 @@ void check_slakh_style_multitrack_song_regressions(Runner &runner)
 		const SongCase &song = songs[i];
 		const std::vector<int> intervals = song.minor ? std::vector<int>{0, 3, 7} :
 								 std::vector<int>{0, 4, 7};
+		auto midi_at_or_above = [](int min_midi, int pitch_class) {
+			return min_midi + ((pitch_class - min_midi % 12 + 12) % 12);
+		};
 		std::vector<int> keyboard_midis;
 		std::vector<int> guitar_midis;
 		std::vector<int> other_midis;
@@ -672,7 +682,7 @@ void check_slakh_style_multitrack_song_regressions(Runner &runner)
 		add_harmonic_note(buffer, bass_midi, 0.20f, bass_profile);
 
 		const int keyboard_root = 60 + song.root_pitch_class;
-		const int guitar_root = 52 + song.root_pitch_class;
+		const int guitar_root = midi_at_or_above(52, song.root_pitch_class);
 		const int other_root = 72 + song.root_pitch_class;
 		for (int interval : intervals) {
 			keyboard_midis.push_back(keyboard_root + interval);
@@ -845,6 +855,63 @@ void check_realistic_instrument_chords(Runner &runner)
 	expect_note_token(runner, other_snapshot.other.label, "B3", "realistic other G7 chord");
 	expect_note_token(runner, other_snapshot.other.label, "D4", "realistic other G7 chord");
 	expect_note_token(runner, other_snapshot.other.label, "F4", "realistic other G7 chord");
+}
+
+void check_guitar_caged_voicings(Runner &runner)
+{
+	struct GuitarShape {
+		const char *name;
+		std::vector<int> midis;
+		const char *chord;
+	};
+
+	const std::vector<float> guitar_profile = {1.0f, 0.34f, 0.16f, 0.08f};
+	const std::vector<GuitarShape> shapes = {
+		{"C open shape", {48, 52, 55, 60, 64}, "C"},
+		{"A open shape", {45, 52, 57, 61, 64}, "A"},
+		{"G open shape", {43, 47, 50, 55, 59, 67}, "G"},
+		{"E open shape", {40, 47, 52, 56, 59, 64}, "E"},
+		{"D open shape", {50, 57, 62, 66}, "D"},
+		{"A minor shape", {45, 52, 57, 60, 64}, "Am"},
+		{"E minor shape", {40, 47, 52, 55, 59, 64}, "Em"},
+		{"D minor shape", {50, 57, 62, 65}, "Dm"},
+		{"F E-shape barre", {41, 48, 53, 57, 60, 65}, "F"},
+		{"Bm A-shape barre", {47, 54, 59, 62, 66}, "Bm"},
+	};
+
+	for (const GuitarShape &shape : shapes) {
+		const auto buffer = make_harmonic_notes(shape.midis, 0.17f, guitar_profile);
+		const auto snapshot = analyze_buffer(buffer, "guitar");
+		const std::string context = std::string("CAGED guitar ") + shape.name;
+		expect_label(runner, snapshot.guitar_chord.label, shape.chord, context);
+		for (int midi : shape.midis) {
+			const std::string expected_note = mao_test::note_label(midi);
+			expect_note_token(runner, snapshot.guitar.label, expected_note.c_str(), context);
+		}
+	}
+}
+
+void check_guitar_caged_mix_root_independence(Runner &runner)
+{
+	mao_test::Buffer buffer = {};
+	const std::vector<float> bass_profile = {1.0f, 0.30f, 0.14f};
+	const std::vector<float> keyboard_profile = {1.0f, 0.16f, 0.08f};
+	const std::vector<float> guitar_profile = {1.0f, 0.34f, 0.16f, 0.08f};
+
+	add_harmonic_note(buffer, 31, 0.42f, bass_profile);
+	add_harmonic_note(buffer, 55, 0.22f, keyboard_profile);
+	add_harmonic_note(buffer, 59, 0.22f, keyboard_profile);
+	add_harmonic_note(buffer, 62, 0.22f, keyboard_profile);
+	for (int midi : {48, 52, 55, 60, 64})
+		add_harmonic_note(buffer, midi, 0.20f, guitar_profile);
+
+	const auto snapshot = analyze_buffer(buffer, "full mix");
+	expect_label(runner, snapshot.bass.label, "G1", "CAGED mix root independence bass");
+	expect_label(runner, snapshot.guitar_chord.label, "C", "CAGED mix root independence guitar");
+	expect_no_chord_label(runner, snapshot.guitar_chord.label, "G", "CAGED mix root independence guitar");
+	expect_pitch_class(runner, snapshot.guitar_notes, 0, "CAGED mix root independence guitar C");
+	expect_pitch_class(runner, snapshot.guitar_notes, 4, "CAGED mix root independence guitar E");
+	expect_pitch_class(runner, snapshot.guitar_notes, 7, "CAGED mix root independence guitar G");
 }
 
 void check_same_note_timbre_split(Runner &runner)
@@ -1099,6 +1166,8 @@ int main()
 	check_drum_hit_with_melodic_mix(runner);
 	check_detuned_note_tolerance(runner);
 	check_realistic_instrument_chords(runner);
+	check_guitar_caged_voicings(runner);
+	check_guitar_caged_mix_root_independence(runner);
 	check_same_note_timbre_split(runner);
 	check_other_source_hints(runner);
 	check_note_sub_rows(runner);
