@@ -20,6 +20,11 @@ bool contains(const char *text, const char *needle)
 	return std::strstr(text, needle) != nullptr;
 }
 
+bool is_root(const mao::AnalysisSnapshot &snapshot, const char *root)
+{
+	return std::strcmp(snapshot.root.label, root) == 0;
+}
+
 } // namespace
 
 int main()
@@ -46,8 +51,39 @@ int main()
 	add_sine(chord, 329.6276f, 0.35f, 48000.0f);
 	add_sine(chord, 391.9954f, 0.35f, 48000.0f);
 	auto chord_snapshot = engine.analyze(chord.data(), chord.size(), settings, "test", 0);
-	if (!contains(chord_snapshot.keyboard.label, "C")) {
-		std::fprintf(stderr, "expected C keyboard chord/note, got %s\n", chord_snapshot.keyboard.label);
+	if (contains(chord_snapshot.keyboard.label, "MAJ") || contains(chord_snapshot.keyboard.label, "MIN")) {
+		std::fprintf(stderr, "expected keyboard note field without chord text, got %s\n",
+			     chord_snapshot.keyboard.label);
+		return 1;
+	}
+	if (!contains(chord_snapshot.keyboard_chord.label, "C MAJ")) {
+		std::fprintf(stderr, "expected C MAJ keyboard chord, got %s\n", chord_snapshot.keyboard_chord.label);
+		return 1;
+	}
+	if (!is_root(chord_snapshot, "A")) {
+		std::fprintf(stderr, "expected short chord change to preserve root A, got %s\n", chord_snapshot.root.label);
+		return 1;
+	}
+
+	for (int i = 0; i < 20; ++i)
+		chord_snapshot = engine.analyze(chord.data(), chord.size(), settings, "test", 0);
+	if (!is_root(chord_snapshot, "A")) {
+		std::fprintf(stderr, "expected root A before sustained modulation, got %s\n", chord_snapshot.root.label);
+		return 1;
+	}
+
+	for (int i = 0; i < 120; ++i)
+		chord_snapshot = engine.analyze(chord.data(), chord.size(), settings, "test", 0);
+	if (!is_root(chord_snapshot, "C")) {
+		std::fprintf(stderr, "expected sustained C modulation to switch root, got %s\n", chord_snapshot.root.label);
+		return 1;
+	}
+
+	std::array<float, mao::kAnalysisWindow> silence = {};
+	for (int i = 0; i < 20; ++i)
+		chord_snapshot = engine.analyze(silence.data(), silence.size(), settings, "test", 0);
+	if (!is_root(chord_snapshot, "--")) {
+		std::fprintf(stderr, "expected silence to clear root, got %s\n", chord_snapshot.root.label);
 		return 1;
 	}
 

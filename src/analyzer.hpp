@@ -50,9 +50,12 @@ struct AnalysisSnapshot {
 	InstrumentState root = {};
 	InstrumentState bass = {};
 	InstrumentState guitar = {};
+	InstrumentState guitar_chord = {};
 	InstrumentState keyboard = {};
+	InstrumentState keyboard_chord = {};
 	InstrumentState vocal = {};
 	InstrumentState other = {};
+	InstrumentState other_chord = {};
 };
 
 class AnalysisEngine {
@@ -77,9 +80,15 @@ private:
 	float previous_rms_ = 0.0f;
 	std::array<float, kDrumCount> drum_average_ = {};
 	std::array<float, kDrumCount> drum_level_ = {};
+	std::array<float, 12> root_memory_ = {};
+	int locked_root_ = -1;
+	int pending_root_ = -1;
+	uint32_t pending_root_windows_ = 0;
+	uint32_t silence_windows_ = 0;
 
 	void rebuild_plans(uint32_t sample_rate);
 	float goertzel_power(const float *samples, std::size_t count, float mean, const Probe &probe) const;
+	InstrumentState track_root(const std::array<float, 69> &powers, float rms);
 };
 
 } // namespace mao

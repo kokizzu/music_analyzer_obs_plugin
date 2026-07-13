@@ -559,22 +559,21 @@ void draw_tag(VisualizerData *visualizer, int x, int y, int w, const char *label
 	}
 }
 
-void draw_instrument_row(VisualizerData *visualizer, int y, const char *name, const mao::InstrumentState &state,
-			 Color accent)
+void draw_instrument_row(VisualizerData *visualizer, int y, const char *name, const mao::InstrumentState &note,
+			 const mao::InstrumentState *chord)
 {
 	const int label_x = 28;
-	const int value_x = 230;
-	const int meter_x = 520;
-	const int meter_w = std::max(80, static_cast<int>(visualizer->width) - meter_x - 36);
+	const int note_x = 230;
+	const int chord_x = 360;
 	const Color text{232, 237, 243, 255};
 	const Color dim{130, 145, 163, 255};
-	const Color meter_bg{39, 47, 57, 220};
+	const Color chord_text{199, 210, 224, 255};
+	const char *note_label = note.label[0] ? note.label : "--";
+	const char *chord_label = chord && chord->label[0] ? chord->label : "--";
 
 	draw_text(visualizer, label_x, y, name, 3, dim);
-	draw_text(visualizer, value_x, y, state.label, 3, text);
-	fill_rect(visualizer, meter_x, y + 6, meter_w, 14, meter_bg);
-	fill_rect(visualizer, meter_x, y + 6, std::clamp(static_cast<int>(state.confidence * meter_w), 0, meter_w), 14,
-		  accent);
+	draw_text(visualizer, note_x, y, note_label, 3, text);
+	draw_text(visualizer, chord_x, y, chord_label, 3, chord_text);
 }
 
 void render_pixels(VisualizerData *visualizer, const mao::AnalysisSnapshot &snapshot, float snapshot_age)
@@ -613,11 +612,13 @@ void render_pixels(VisualizerData *visualizer, const mao::AnalysisSnapshot &snap
 		tag_x += 126;
 	}
 
-	draw_instrument_row(visualizer, 145, "BASS", snapshot.bass, Color{35, 197, 94, 245});
-	draw_instrument_row(visualizer, 185, "GUITAR", snapshot.guitar, Color{249, 115, 22, 245});
-	draw_instrument_row(visualizer, 225, "KEYS", snapshot.keyboard, Color{56, 189, 248, 245});
-	draw_instrument_row(visualizer, 265, "VOCAL", snapshot.vocal, Color{244, 114, 182, 245});
-	draw_instrument_row(visualizer, 305, "OTHERS", snapshot.other, Color{168, 85, 247, 245});
+	draw_text(visualizer, 230, 125, "NOTE", 2, Color{148, 163, 184, 255});
+	draw_text(visualizer, 360, 125, "CHORD", 2, Color{148, 163, 184, 255});
+	draw_instrument_row(visualizer, 150, "BASS", snapshot.bass, nullptr);
+	draw_instrument_row(visualizer, 190, "GUITAR", snapshot.guitar, &snapshot.guitar_chord);
+	draw_instrument_row(visualizer, 230, "KEYS", snapshot.keyboard, &snapshot.keyboard_chord);
+	draw_instrument_row(visualizer, 270, "VOCAL", snapshot.vocal, nullptr);
+	draw_instrument_row(visualizer, 310, "OTHERS", snapshot.other, &snapshot.other_chord);
 
 	if (snapshot.sequence == 0)
 		draw_text(visualizer, 230, 145, "ADD MUSIC ANALYZER FILTER TO AN AUDIO SOURCE", 2,

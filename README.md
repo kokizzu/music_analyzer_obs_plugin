@@ -4,7 +4,9 @@ Native OBS Studio plugin that analyzes a music mix and displays an instrument-or
 
 - Drums: bass drum/kick, snare, hi-hat, crash, tom, and ride hit indicators
 - Bass: detected note
-- Guitar, keyboard, vocal, and other instruments: detected note or chord label
+- Guitar, keyboard, and other instruments: separate detected note and chord labels
+- Vocal: detected note
+- Root: a held song-root estimate that changes only after sustained modulation or silence
 
 The analyzer is designed for real-time OBS use. It uses bounded DSP heuristics rather than a large ML stem-separation model: audio is downmixed into a fixed ring buffer, analyzer windows are copied to a worker thread at a configurable interval, and the OBS audio callback returns immediately after lightweight buffering. The overlay source renders a single reusable RGBA texture.
 
