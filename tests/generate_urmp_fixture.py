@@ -8,8 +8,14 @@ import wave
 
 
 SAMPLE_RATE = 48000
-SECONDS = 1
+SECONDS = 4
 PIECES = 20
+WINDOWS = (
+    (0.20, 0.60, 0, False),
+    (1.05, 0.60, 5, False),
+    (1.90, 0.60, 9, True),
+    (2.75, 0.60, 7, False),
+)
 
 
 def midi_frequency(midi):
@@ -54,8 +60,6 @@ def write_wav(path, channels):
 
 def write_piece(root, index):
     root_pitch_class = (index * 5) % 12
-    minor = index % 4 == 0
-    intervals = [0, 3 if minor else 4, 7]
     instruments = ["vn", "va", "vc"]
     floors = [72, 67, 60]
     piece_name = f"{index:02d}_Fixture_vn_va_vc"
@@ -63,14 +67,19 @@ def write_piece(root, index):
     os.makedirs(piece_dir, exist_ok=True)
 
     parts = []
-    for track_index, (instrument, interval, floor) in enumerate(
-        zip(instruments, intervals, floors), start=1
-    ):
-        midi = midi_at_or_above(floor, (root_pitch_class + interval) % 12)
-        channel = [
-            harmonic_sample(midi, 0.13, sample_index)
-            for sample_index in range(SAMPLE_RATE * SECONDS)
-        ]
+    for track_index, (instrument, floor) in enumerate(zip(instruments, floors), start=1):
+        channel = [0.0 for _ in range(SAMPLE_RATE * SECONDS)]
+        note_rows = []
+        for onset, duration, root_offset, minor in WINDOWS:
+            intervals = [0, 3 if minor else 4, 7]
+            midi = midi_at_or_above(
+                floor, (root_pitch_class + root_offset + intervals[track_index - 1]) % 12
+            )
+            start = int(onset * SAMPLE_RATE)
+            end = int((onset + duration) * SAMPLE_RATE)
+            for sample_index in range(start, min(end, len(channel))):
+                channel[sample_index] += harmonic_sample(midi, 0.13, sample_index)
+            note_rows.append((onset, duration, midi))
         parts.append(channel)
 
         write_wav(
@@ -87,8 +96,9 @@ def write_piece(root, index):
             ),
             "w",
             encoding="utf-8",
-        ) as notes:
-            notes.write(f"0.000 {midi_frequency(midi):.6f} 1.000\n")
+        ) as notes_file:
+            for onset, duration, midi in note_rows:
+                notes_file.write(f"{onset:.3f} {midi_frequency(midi):.6f} {duration:.3f}\n")
 
     write_wav(os.path.join(piece_dir, f"AuMix_{index:02d}_Fixture_vn_va_vc.wav"), parts)
 

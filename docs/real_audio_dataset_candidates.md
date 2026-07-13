@@ -76,7 +76,7 @@ without additional annotation.
   decode URMP audio yet.
 - `make test` also generates a compact 20-piece URMP-shaped WAV/Notes fixture
   under `build/` to exercise the optional real-audio parser and full-mix path
-  without requiring the full dataset.
+  across multiple annotated windows without requiring the full dataset.
 - Bach10 is the next best add-on for a compact, fast regression set.
 - Single-instrument datasets should drive focused checks: Guitar-TECHS/GAPS for
   guitar, MAESTRO/PianoVAM for keyboard, E-GMD for drums.

@@ -451,48 +451,82 @@ struct CandidateWindow {
 	std::vector<ActiveNote> active;
 	std::array<bool, 12> pitch_classes = {};
 	std::string chord_label;
+	double score = 0.0;
 };
 
-CandidateWindow select_candidate_window(const std::vector<TrackData> &tracks)
+int pitch_class_count(const std::array<bool, 12> &pitch_classes)
 {
-	CandidateWindow best;
-	double best_score = -1.0;
+	int count = 0;
+	for (bool active : pitch_classes) {
+		if (active)
+			++count;
+	}
+	return count;
+}
+
+CandidateWindow candidate_window_at(const std::vector<TrackData> &tracks, double time)
+{
+	CandidateWindow candidate;
+	candidate.time = time;
+
+	for (std::size_t track_index = 0; track_index < tracks.size(); ++track_index) {
+		const NoteAnnotation *note = active_note_at(tracks[track_index], time);
+		if (!note)
+			continue;
+		candidate.active.push_back(ActiveNote{track_index, note->midi});
+		candidate.pitch_classes[((note->midi % 12) + 12) % 12] = true;
+	}
+
+	if (candidate.active.size() < 2)
+		return candidate;
+
+	candidate.chord_label = expected_basic_chord_label(candidate.pitch_classes);
+	candidate.score = static_cast<double>(candidate.active.size()) * 100.0 +
+			  static_cast<double>(pitch_class_count(candidate.pitch_classes)) * 10.0 +
+			  (candidate.chord_label.empty() ? 0.0 : 50.0);
+	return candidate;
+}
+
+std::vector<CandidateWindow> select_candidate_windows(const std::vector<TrackData> &tracks, int max_windows)
+{
+	std::vector<CandidateWindow> candidates;
 
 	for (std::size_t seed_track = 0; seed_track < tracks.size(); ++seed_track) {
 		for (const NoteAnnotation &seed_note : tracks[seed_track].notes) {
 			const double time = seed_note.onset + seed_note.duration * 0.5;
-			CandidateWindow candidate;
-			candidate.time = time;
-
-			for (std::size_t track_index = 0; track_index < tracks.size(); ++track_index) {
-				const NoteAnnotation *note = active_note_at(tracks[track_index], time);
-				if (!note)
-					continue;
-				candidate.active.push_back(ActiveNote{track_index, note->midi});
-				candidate.pitch_classes[((note->midi % 12) + 12) % 12] = true;
-			}
-
+			CandidateWindow candidate = candidate_window_at(tracks, time);
 			if (candidate.active.size() < 2)
 				continue;
-
-			candidate.chord_label = expected_basic_chord_label(candidate.pitch_classes);
-			int pitch_class_count = 0;
-			for (bool active : candidate.pitch_classes) {
-				if (active)
-					++pitch_class_count;
-			}
-
-			const double score = static_cast<double>(candidate.active.size()) * 100.0 +
-					     static_cast<double>(pitch_class_count) * 10.0 +
-					     (candidate.chord_label.empty() ? 0.0 : 50.0);
-			if (score > best_score) {
-				best_score = score;
-				best = candidate;
-			}
+			candidates.push_back(candidate);
 		}
 	}
 
-	return best;
+	std::sort(candidates.begin(), candidates.end(), [](const CandidateWindow &a, const CandidateWindow &b) {
+		if (a.score != b.score)
+			return a.score > b.score;
+		return a.time < b.time;
+	});
+
+	std::vector<CandidateWindow> selected;
+	for (const CandidateWindow &candidate : candidates) {
+		bool duplicate = false;
+		for (const CandidateWindow &existing : selected) {
+			if (std::abs(existing.time - candidate.time) < 0.20) {
+				duplicate = true;
+				break;
+			}
+		}
+		if (duplicate)
+			continue;
+		selected.push_back(candidate);
+		if (static_cast<int>(selected.size()) >= max_windows)
+			break;
+	}
+
+	std::sort(selected.begin(), selected.end(), [](const CandidateWindow &a, const CandidateWindow &b) {
+		return a.time < b.time;
+	});
+	return selected;
 }
 
 struct PieceFiles {
@@ -623,83 +657,97 @@ int main()
 	int mix_expected = 0;
 	int chord_hits = 0;
 	int chord_checks = 0;
+	int tested_windows = 0;
 
 	for (const std::string &piece_dir : piece_dirs) {
 		PieceFiles piece;
 		if (!load_piece_files(piece_dir, piece))
 			continue;
 
-		const CandidateWindow candidate = select_candidate_window(piece.tracks);
-		if (candidate.active.size() < 2)
+		const std::vector<CandidateWindow> candidates = select_candidate_windows(piece.tracks, 4);
+		if (candidates.empty())
 			continue;
 
-		std::string error;
-		bool ok = false;
-		const mao::AnalysisSnapshot mix_snapshot =
-			analyze_wav_window(piece.mix_path, candidate.time, "URMP real full mix", ok, error);
-		if (!ok) {
-			std::fprintf(stderr, "analyzer_urmp: skipping %s mix: %s\n", basename_of(piece_dir).c_str(),
-				     error.c_str());
-			continue;
-		}
-
-		const std::array<bool, 12> mix_detected = detected_pitch_classes(mix_snapshot);
-		int piece_expected = 0;
-		int piece_hits = 0;
-		for (int pitch_class = 0; pitch_class < 12; ++pitch_class) {
-			if (!candidate.pitch_classes[pitch_class])
-				continue;
-			++piece_expected;
-			if (mix_detected[pitch_class])
-				++piece_hits;
-		}
-
-		++tested_pieces;
-		mix_hits += piece_hits;
-		mix_expected += piece_expected;
-		runner.expect(piece_expected > 0 && piece_hits * 2 >= piece_expected,
-			      std::string("URMP mix ") + basename_of(piece_dir) + ": expected at least 50% pitch-class " +
-				      "recall, got " + std::to_string(piece_hits) + "/" +
-				      std::to_string(piece_expected));
-
-		if (!candidate.chord_label.empty()) {
-			++chord_checks;
-			if (snapshot_has_chord_label(mix_snapshot, candidate.chord_label)) {
-				++chord_hits;
-			} else {
-				std::fprintf(stderr, "URMP mix %s: chord opportunity `%s`, detected key `%s`, guitar `%s`, "
-						     "other `%s`\n",
-					     basename_of(piece_dir).c_str(), candidate.chord_label.c_str(),
-					     mix_snapshot.keyboard_chord.label, mix_snapshot.guitar_chord.label,
-					     mix_snapshot.other_chord.label);
-			}
-		}
-
-		for (const ActiveNote &active : candidate.active) {
-			const TrackData &track = piece.tracks[active.track_index];
-			const std::string source = source_hint_for_instrument(track.instrument);
-			const mao::AnalysisSnapshot track_snapshot =
-				analyze_wav_window(track.audio_path, candidate.time, source, ok, error);
+		int piece_windows = 0;
+		for (const CandidateWindow &candidate : candidates) {
+			std::string error;
+			bool ok = false;
+			const mao::AnalysisSnapshot mix_snapshot =
+				analyze_wav_window(piece.mix_path, candidate.time, "URMP real full mix", ok, error);
 			if (!ok) {
-				std::fprintf(stderr, "analyzer_urmp: skipping %s track %d: %s\n",
-					     basename_of(piece_dir).c_str(), track.number, error.c_str());
+				std::fprintf(stderr, "analyzer_urmp: skipping %s mix at %.3fs: %s\n",
+					     basename_of(piece_dir).c_str(), candidate.time, error.c_str());
 				continue;
 			}
 
-			const int pitch_class = ((active.midi % 12) + 12) % 12;
-			const bool hit = has_pitch_class(detected_pitch_classes(track_snapshot), pitch_class);
-			++track_checks;
-			if (hit) {
-				++track_hits;
-			} else {
-				std::fprintf(stderr, "URMP track %s #%d %s: expected %s, detected bass `%s`, key `%s`, "
-						     "guitar `%s`, vocal `%s`, other `%s`\n",
-					     basename_of(piece_dir).c_str(), track.number, track.instrument.c_str(),
-					     mao_test::note_label(active.midi).c_str(), track_snapshot.bass.label,
-					     track_snapshot.keyboard.label, track_snapshot.guitar.label,
-					     track_snapshot.vocal.label, track_snapshot.other.label);
+			const std::array<bool, 12> mix_detected = detected_pitch_classes(mix_snapshot);
+			int window_expected = 0;
+			int window_hits = 0;
+			for (int pitch_class = 0; pitch_class < 12; ++pitch_class) {
+				if (!candidate.pitch_classes[pitch_class])
+					continue;
+				++window_expected;
+				if (mix_detected[pitch_class])
+					++window_hits;
+			}
+
+			++piece_windows;
+			++tested_windows;
+			mix_hits += window_hits;
+			mix_expected += window_expected;
+			runner.expect(window_expected > 0 && window_hits * 2 >= window_expected,
+				      std::string("URMP mix ") + basename_of(piece_dir) + " at " +
+					      std::to_string(candidate.time) +
+					      "s: expected at least 50% pitch-class recall, got " +
+					      std::to_string(window_hits) + "/" + std::to_string(window_expected));
+
+			if (!candidate.chord_label.empty()) {
+				++chord_checks;
+				if (snapshot_has_chord_label(mix_snapshot, candidate.chord_label)) {
+					++chord_hits;
+				} else {
+					std::fprintf(stderr,
+						     "URMP mix %s at %.3fs: chord opportunity `%s`, detected key `%s`, "
+						     "guitar `%s`, other `%s`\n",
+						     basename_of(piece_dir).c_str(), candidate.time,
+						     candidate.chord_label.c_str(), mix_snapshot.keyboard_chord.label,
+						     mix_snapshot.guitar_chord.label, mix_snapshot.other_chord.label);
+				}
+			}
+
+			for (const ActiveNote &active : candidate.active) {
+				const TrackData &track = piece.tracks[active.track_index];
+				const std::string source = source_hint_for_instrument(track.instrument);
+				const mao::AnalysisSnapshot track_snapshot =
+					analyze_wav_window(track.audio_path, candidate.time, source, ok, error);
+				if (!ok) {
+					std::fprintf(stderr, "analyzer_urmp: skipping %s track %d at %.3fs: %s\n",
+						     basename_of(piece_dir).c_str(), track.number, candidate.time,
+						     error.c_str());
+					continue;
+				}
+
+				const int pitch_class = ((active.midi % 12) + 12) % 12;
+				const bool hit = has_pitch_class(detected_pitch_classes(track_snapshot), pitch_class);
+				++track_checks;
+				if (hit) {
+					++track_hits;
+				} else {
+					std::fprintf(stderr,
+						     "URMP track %s #%d %s at %.3fs: expected %s, detected bass `%s`, "
+						     "key `%s`, guitar `%s`, vocal `%s`, other `%s`\n",
+						     basename_of(piece_dir).c_str(), track.number,
+						     track.instrument.c_str(), candidate.time,
+						     mao_test::note_label(active.midi).c_str(),
+						     track_snapshot.bass.label, track_snapshot.keyboard.label,
+						     track_snapshot.guitar.label, track_snapshot.vocal.label,
+						     track_snapshot.other.label);
+				}
 			}
 		}
+
+		if (piece_windows > 0)
+			++tested_pieces;
 	}
 
 	if (tested_pieces == 0) {
@@ -710,6 +758,9 @@ int main()
 	runner.expect(tested_pieces >= 20,
 		      "URMP real-audio coverage: expected at least 20 usable pieces, got " +
 			      std::to_string(tested_pieces));
+	runner.expect(tested_windows >= 40,
+		      "URMP real-audio coverage: expected at least 40 tested windows, got " +
+			      std::to_string(tested_windows));
 	runner.expect(track_checks > 0 && track_hits * 100 >= track_checks * 70,
 		      "URMP separated-track recall: expected >=70%, got " + std::to_string(track_hits) + "/" +
 			      std::to_string(track_checks));
@@ -723,15 +774,15 @@ int main()
 	}
 
 	if (runner.failures != 0) {
-		std::fprintf(stderr, "analyzer_urmp: %d/%d checks failed (%d pieces, %d track hits/%d, %d mix hits/%d, "
+		std::fprintf(stderr, "analyzer_urmp: %d/%d checks failed (%d pieces, %d windows, %d track hits/%d, %d mix hits/%d, "
 				     "%d chord hits/%d)\n",
-			     runner.failures, runner.checks, tested_pieces, track_hits, track_checks, mix_hits,
-			     mix_expected, chord_hits, chord_checks);
+			     runner.failures, runner.checks, tested_pieces, tested_windows, track_hits, track_checks,
+			     mix_hits, mix_expected, chord_hits, chord_checks);
 		return 1;
 	}
 
-	std::printf("analyzer_urmp: %d checks passed (%d pieces, %d track hits/%d, %d mix hits/%d, %d chord hits/%d)\n",
-		    runner.checks, tested_pieces, track_hits, track_checks, mix_hits, mix_expected, chord_hits,
-		    chord_checks);
+	std::printf("analyzer_urmp: %d checks passed (%d pieces, %d windows, %d track hits/%d, %d mix hits/%d, %d chord hits/%d)\n",
+		    runner.checks, tested_pieces, tested_windows, track_hits, track_checks, mix_hits, mix_expected,
+		    chord_hits, chord_checks);
 	return 0;
 }

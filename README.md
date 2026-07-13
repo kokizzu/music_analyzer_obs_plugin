@@ -69,7 +69,7 @@ Optional real-audio URMP regression coverage runs when a local URMP dataset is a
 MUSIC_ANALYZER_URMP_ROOT=/path/to/URMP make test
 ```
 
-Without `MUSIC_ANALYZER_URMP_ROOT`, this check is built but skipped for external data. `make test` also generates a small URMP-shaped 20-piece fixture under `build/` and runs the same harness against it, so the WAV/Notes parser and full-mix path are exercised even without downloading the 12.5 GB URMP package. When pointed at a real URMP dataset, the harness reads URMP `AuMix`, `AuSep`, and `Notes` files, requires at least 20 usable same-song pieces, checks separated tracks, then checks the summed/full mix.
+Without `MUSIC_ANALYZER_URMP_ROOT`, this check is built but skipped for external data. `make test` also generates a small URMP-shaped 20-piece fixture under `build/` and runs the same harness against it, so the WAV/Notes parser and full-mix path are exercised even without downloading the 12.5 GB URMP package. When pointed at a real URMP dataset, the harness reads URMP `AuMix`, `AuSep`, and `Notes` files, requires at least 20 usable same-song pieces and 40 annotated note windows, checks separated tracks, then checks the summed/full mix.
 
 Optional CMake build, assuming the OBS development dependencies are installed system-wide:
 
