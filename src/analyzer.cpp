@@ -41,6 +41,7 @@ constexpr float kNoteEnvelopeVisibleFloor = 0.015f;
 constexpr float kNoteEnvelopeNewNoteFloor = 0.025f;
 constexpr std::size_t kDrumTransientSegments = 8;
 constexpr float kDrumTransientRatio = 1.55f;
+constexpr float kMixedBassFallbackScoreRatio = 0.08f;
 
 enum class SourceHint {
 	None,
@@ -875,26 +876,6 @@ void reset_note_grid_envelope(NoteGrid &grid, InstrumentState &state,
 	clear_instrument_note_grid(grid, state);
 }
 
-std::array<bool, kNoteProbeCount> mixed_note_seed_filter(const NoteGrid &grid,
-							 const ChordResult &seed_chord,
-							 const std::array<float, kNoteProbeCount> &powers,
-							 TimbreKind kind)
-{
-	std::array<bool, kNoteProbeCount> allowed = {};
-	for (const auto &row : grid.rows) {
-		for (const NoteCell &cell : row) {
-			if (!cell.active || cell.midi < kFirstMidi || cell.midi > kLastMidi)
-				continue;
-
-			const int pitch_class = ((cell.midi % 12) + 12) % 12;
-			const bool chord_tone = seed_chord.root >= 0 && seed_chord.tones[pitch_class];
-			if (chord_tone || timbre_supports_kind(powers, cell.midi, kind))
-				allowed[cell.midi - kFirstMidi] = true;
-		}
-	}
-	return allowed;
-}
-
 std::array<float, 12> note_grid_chroma(const NoteGrid &grid)
 {
 	std::array<float, 12> chroma = {};
@@ -1476,8 +1457,18 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 	const bool mixed_source = source_hint == SourceHint::None || source_hint == SourceHint::Bass;
 
 	if (source_hint == SourceHint::None || source_hint == SourceHint::Bass) {
-		const RangeResult bass_note = dominant_note(tuned_note_powers, kBassMinMidi, kBassMaxMidi, true);
-		if (source_hint == SourceHint::Bass || bass_note.midi <= kDefaultBassMaxMidi) {
+		const int bass_max_midi = source_hint == SourceHint::Bass ? kBassMaxMidi : kDefaultBassMaxMidi;
+		const bool include_bass_harmonics = source_hint == SourceHint::Bass;
+		const RangeResult bass_note =
+			dominant_note(tuned_note_powers, kBassMinMidi, bass_max_midi, include_bass_harmonics);
+		const RangeResult broad_bass_note = source_hint == SourceHint::Bass ?
+							    bass_note :
+							    dominant_note(tuned_note_powers, kBassMinMidi,
+									  kBassMaxMidi, include_bass_harmonics);
+		const bool mixed_bass_supported =
+			source_hint == SourceHint::Bass || broad_bass_note.midi <= kDefaultBassMaxMidi ||
+			bass_note.score >= broad_bass_note.score * kMixedBassFallbackScoreRatio;
+		if (mixed_bass_supported) {
 			set_single_note_grid(snapshot.bass_notes, snapshot.bass, bass_note, bass_energy, rms);
 			claim_note_grid_pitch_classes(snapshot.bass_notes, claimed_pitch_classes);
 			claim_note_grid_midis(snapshot.bass_notes, claimed_midis);
@@ -1633,9 +1624,7 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 	const bool keyboard_raw_notes = strongest_note_grid_level(snapshot.keyboard_notes) > 0.0f;
 	const bool guitar_raw_notes = strongest_note_grid_level(snapshot.guitar_notes) > 0.0f;
 	const bool other_raw_notes = strongest_note_grid_level(snapshot.other_notes) > 0.0f;
-	const std::array<bool, kNoteProbeCount> keyboard_seed_filter =
-		mixed_note_seed_filter(snapshot.keyboard_notes, keyboard_seed_chord, note_powers, TimbreKind::Keyboard);
-	const std::array<bool, kNoteProbeCount> *keyboard_new_notes = mixed_source ? &keyboard_seed_filter : nullptr;
+	const std::array<bool, kNoteProbeCount> *keyboard_new_notes = nullptr;
 	const std::array<bool, kNoteProbeCount> *guitar_new_notes = nullptr;
 	const std::array<bool, kNoteProbeCount> *other_new_notes = nullptr;
 

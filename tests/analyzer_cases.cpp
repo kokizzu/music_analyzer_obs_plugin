@@ -809,6 +809,71 @@ void check_multi_instrument_mix(Runner &runner)
 	expect_note_token(runner, snapshot.other.label, "G#5", "multi-instrument mix other");
 }
 
+void check_low_level_full_instrument_mix(Runner &runner)
+{
+	mao_test::Buffer buffer = {};
+	const std::vector<float> bass_profile = {1.0f, 0.30f, 0.14f};
+	const std::vector<float> key_profile = {1.0f, 0.16f, 0.08f};
+	const std::vector<float> guitar_profile = {1.0f, 0.24f, 0.10f};
+
+	add_harmonic_note(buffer, 35, 0.12f, bass_profile);
+	add_harmonic_note(buffer, 60, 0.050f, key_profile);
+	add_harmonic_note(buffer, 64, 0.050f, key_profile);
+	add_harmonic_note(buffer, 67, 0.050f, key_profile);
+	add_harmonic_note(buffer, 54, 0.038f, guitar_profile);
+	add_harmonic_note(buffer, 58, 0.038f, guitar_profile);
+	mao_test::add_midi_note(buffer, 74, 0.028f);
+	mao_test::add_midi_note(buffer, 80, 0.026f);
+
+	const auto snapshot = analyze_buffer(buffer, "Mic/Aux");
+	expect_label(runner, snapshot.bass.label, "B1", "low-level full mix bass");
+	expect_note_token(runner, snapshot.keyboard.label, "C4", "low-level full mix keyboard");
+	expect_note_token(runner, snapshot.keyboard.label, "E4", "low-level full mix keyboard");
+	expect_note_token(runner, snapshot.keyboard.label, "G4", "low-level full mix keyboard");
+	expect_note_token(runner, snapshot.guitar.label, "F#3", "low-level full mix guitar");
+	expect_note_token(runner, snapshot.guitar.label, "A#3", "low-level full mix guitar");
+	expect_label(runner, snapshot.vocal.label, "D5", "low-level full mix vocal");
+	expect_note_token(runner, snapshot.other.label, "G#5", "low-level full mix other");
+}
+
+void check_bass_survives_low_mid_mix(Runner &runner)
+{
+	mao_test::Buffer buffer = {};
+	const std::vector<float> bass_profile = {1.0f, 0.30f, 0.14f};
+	const std::vector<float> guitar_profile = {1.0f, 0.24f, 0.10f};
+
+	add_harmonic_note(buffer, 35, 0.10f, bass_profile);
+	add_harmonic_note(buffer, 54, 0.24f, guitar_profile);
+	add_harmonic_note(buffer, 58, 0.24f, guitar_profile);
+
+	const auto snapshot = analyze_buffer(buffer, "Mic/Aux");
+	expect_label(runner, snapshot.bass.label, "B1", "bass survives low-mid mix");
+	expect_note_token(runner, snapshot.guitar.label, "F#3", "bass survives low-mid mix guitar");
+	expect_note_token(runner, snapshot.guitar.label, "A#3", "bass survives low-mid mix guitar");
+}
+
+void check_low_level_mic_aux_parts(Runner &runner)
+{
+	{
+		mao_test::Buffer buffer = {};
+		mao_test::add_midi_note(buffer, 64, 0.035f);
+		const auto snapshot = analyze_buffer(buffer, "Mic/Aux");
+		expect_note_token(runner, snapshot.keyboard.label, "E4", "low-level Mic/Aux keyboard part");
+		expect_no_drums(runner, snapshot, "low-level Mic/Aux keyboard part");
+	}
+
+	{
+		mao_test::Buffer buffer = {};
+		const std::vector<float> guitar_profile = {1.0f, 0.24f, 0.10f};
+		add_harmonic_note(buffer, 54, 0.055f, guitar_profile);
+		add_harmonic_note(buffer, 58, 0.055f, guitar_profile);
+		const auto snapshot = analyze_buffer(buffer, "Mic/Aux");
+		expect_note_token(runner, snapshot.guitar.label, "F#3", "low-level Mic/Aux guitar part");
+		expect_note_token(runner, snapshot.guitar.label, "A#3", "low-level Mic/Aux guitar part");
+		expect_no_drums(runner, snapshot, "low-level Mic/Aux guitar part");
+	}
+}
+
 void check_dense_multi_instrument_mix(Runner &runner)
 {
 	mao_test::Buffer buffer = {};
@@ -903,6 +968,9 @@ int main()
 	check_note_sub_rows(runner);
 	check_bass_priority_suppresses_overlap(runner);
 	check_multi_instrument_mix(runner);
+	check_low_level_full_instrument_mix(runner);
+	check_bass_survives_low_mid_mix(runner);
+	check_low_level_mic_aux_parts(runner);
 	check_dense_multi_instrument_mix(runner);
 	check_root_candidates(runner);
 
