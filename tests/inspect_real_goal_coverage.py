@@ -74,11 +74,14 @@ def main():
 
     for text, needle, context in (
         (makefile, "test-real-goal-20", "Makefile combined real-data target"),
+        (makefile, "inspect-real-goal-20", "Makefile combined real-data preflight"),
         (makefile, "test-real-goal-fixture", "Makefile combined fixture target"),
         (makefile, "tests/generate_musicnet_fixture.py", "Makefile MusicNet fixture"),
         (makefile, "tests/generate_medleydb_fixture.py", "Makefile MedleyDB fixture"),
         (goal_gate, "test-real-multitrack-20", "combined gate required URMP target"),
+        (goal_gate, "inspect-real-multitrack-20", "combined preflight required URMP target"),
         (goal_gate, "test-real-musicnet-20", "combined gate optional MusicNet target"),
+        (goal_gate, "inspect-real-musicnet", "combined preflight optional MusicNet target"),
         (goal_gate, "inspect-real-medleydb", "combined gate optional MedleyDB target"),
         (urmp_harness, "summed separated tracks", "URMP summed-stem playback check"),
         (urmp_harness, "provided mix", "URMP provided-mix check"),
@@ -88,7 +91,9 @@ def main():
         (musicnet_harness, "active instruments min/avg/max", "MusicNet multi-instrument report"),
         (musicnet_harness, "chord hits", "MusicNet chord recall report"),
         (readme, "make test-real-goal-20", "README combined gate instructions"),
+        (readme, "make inspect-real-goal-20", "README combined preflight instructions"),
         (docs, "make test-real-goal-20", "dataset docs combined gate instructions"),
+        (docs, "make inspect-real-goal-20", "dataset docs combined preflight instructions"),
         (docs, "URMP should be the first automated target", "dataset docs URMP priority"),
     ):
         problem = require(text, needle, context)

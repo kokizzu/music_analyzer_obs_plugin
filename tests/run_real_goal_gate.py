@@ -60,28 +60,63 @@ def configured_medleydb(env):
     return False
 
 
+TARGET_PLANS = {
+    "20": {
+        "inspect_only": False,
+        "multitrack_target": "test-real-multitrack-20",
+        "musicnet_target": "test-real-musicnet-20",
+        "medleydb_target": "inspect-real-medleydb",
+    },
+    "full": {
+        "inspect_only": False,
+        "multitrack_target": "test-real-multitrack-full",
+        "musicnet_target": "test-real-musicnet-full",
+        "medleydb_target": "inspect-real-medleydb",
+    },
+    "inspect-20": {
+        "inspect_only": True,
+        "multitrack_target": "inspect-real-multitrack-20",
+        "musicnet_target": "inspect-real-musicnet",
+        "medleydb_target": "inspect-real-medleydb",
+    },
+    "inspect-full": {
+        "inspect_only": True,
+        "multitrack_target": "inspect-real-multitrack-full",
+        "musicnet_target": "inspect-real-musicnet-full",
+        "medleydb_target": "inspect-real-medleydb",
+    },
+}
+
+
+def resolve_plan(mode):
+    plan = TARGET_PLANS.get(mode)
+    return dict(plan) if plan else None
+
+
 def run(make_cmd, target):
     print(f"run_real_goal_gate: running {make_cmd} {target}", flush=True)
     return subprocess.call([make_cmd, target])
 
 
 def main(argv):
-    if len(argv) != 3 or argv[1] not in ("20", "full"):
-        print("usage: run_real_goal_gate.py 20|full MAKE", file=sys.stderr)
+    if len(argv) != 3:
+        print("usage: run_real_goal_gate.py 20|full|inspect-20|inspect-full MAKE", file=sys.stderr)
         return 2
 
-    mode = argv[1]
+    plan = resolve_plan(argv[1])
+    if not plan:
+        print("usage: run_real_goal_gate.py 20|full|inspect-20|inspect-full MAKE", file=sys.stderr)
+        return 2
+
     make_cmd = argv[2]
     env = os.environ
-    multitrack_target = "test-real-multitrack-full" if mode == "full" else "test-real-multitrack-20"
-    musicnet_target = "test-real-musicnet-full" if mode == "full" else "test-real-musicnet-20"
 
-    failed = run(make_cmd, multitrack_target)
+    failed = run(make_cmd, plan["multitrack_target"])
     if failed:
         return failed
 
     if configured_musicnet(env):
-        failed = run(make_cmd, musicnet_target)
+        failed = run(make_cmd, plan["musicnet_target"])
         if failed:
             return failed
     else:
@@ -92,7 +127,7 @@ def main(argv):
         )
 
     if configured_medleydb(env):
-        failed = run(make_cmd, "inspect-real-medleydb")
+        failed = run(make_cmd, plan["medleydb_target"])
         if failed:
             return failed
     else:
@@ -102,7 +137,10 @@ def main(argv):
             "MUSIC_ANALYZER_DATASET_ROOT"
         )
 
-    print("run_real_goal_gate: passed required URMP multitrack gate and all configured optional gates")
+    if plan["inspect_only"]:
+        print("run_real_goal_gate: passed required URMP multitrack preflight and all configured optional preflights")
+    else:
+        print("run_real_goal_gate: passed required URMP multitrack gate and all configured optional gates")
     return 0
 
 

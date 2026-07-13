@@ -55,8 +55,9 @@ def print_primary(dataset):
         print(f"  note: {note}")
     print("  expected root: a directory containing official URMP piece folders")
     print("  expected files: AuMix_*, AuSep_*, Notes_*, and Sco_*.mid")
+    print("  combined preflight: MUSIC_ANALYZER_URMP_ROOT=/path/to/URMP make inspect-real-goal-20")
     print("  combined 20-piece gate: MUSIC_ANALYZER_URMP_ROOT=/path/to/URMP make test-real-goal-20")
-    print("  preflight: MUSIC_ANALYZER_URMP_ROOT=/path/to/URMP make inspect-real-multitrack-20")
+    print("  URMP-only preflight: MUSIC_ANALYZER_URMP_ROOT=/path/to/URMP make inspect-real-multitrack-20")
     print("  20-piece goal gate: MUSIC_ANALYZER_URMP_ROOT=/path/to/URMP make test-real-multitrack-20")
     print("  full 44-piece gate: MUSIC_ANALYZER_URMP_ROOT=/path/to/URMP make test-real-multitrack-full")
 

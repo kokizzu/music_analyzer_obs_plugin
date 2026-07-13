@@ -32,7 +32,7 @@ PLUGIN_OBJS := $(BUILD_DIR)/analyzer.o $(BUILD_DIR)/plugin.o
 ANALYZER_TEST_OBJ := $(BUILD_DIR)/analyzer_test.o
 TEST_BINS := $(BUILD_DIR)/analyzer_smoke $(BUILD_DIR)/analyzer_cases $(BUILD_DIR)/analyzer_urmp $(BUILD_DIR)/analyzer_musicnet
 
-.PHONY: all clean clean-pycache deps install-user test real-dataset-sources inspect-real-dataset-catalog inspect-real-goal-coverage inspect-real-medleydb inspect-real-musicnet inspect-real-musicnet-full test-medleydb-inspector test-real-goal-script test-real-goal-fixture test-musicnet-fixture test-urmp-fixture test-real-goal-20 test-real-goal-full test-real-multitrack-20 test-real-multitrack-full test-real-urmp test-real-urmp-full test-real-musicnet-20 test-real-musicnet-full inspect-real-multitrack-20 inspect-real-multitrack-full inspect-real-urmp inspect-real-urmp-full inspect-urmp-fixture decode-urmp-fixture update-urmp-fixture
+.PHONY: all clean clean-pycache deps install-user test real-dataset-sources inspect-real-dataset-catalog inspect-real-goal-coverage inspect-real-goal-20 inspect-real-goal-full inspect-real-medleydb inspect-real-musicnet inspect-real-musicnet-full test-medleydb-inspector test-real-goal-script test-real-goal-fixture test-musicnet-fixture test-urmp-fixture test-real-goal-20 test-real-goal-full test-real-multitrack-20 test-real-multitrack-full test-real-urmp test-real-urmp-full test-real-musicnet-20 test-real-musicnet-full inspect-real-multitrack-20 inspect-real-multitrack-full inspect-real-urmp inspect-real-urmp-full inspect-urmp-fixture decode-urmp-fixture update-urmp-fixture
 
 all: $(SIMDE_DEP) $(BUILD_DIR)/music-analyzer-obs.so
 
@@ -154,6 +154,12 @@ test-real-goal-20: tests/run_real_goal_gate.py
 
 test-real-goal-full: tests/run_real_goal_gate.py
 	$(PYTHON) tests/run_real_goal_gate.py full "$(MAKE)"
+
+inspect-real-goal-20: tests/run_real_goal_gate.py
+	$(PYTHON) tests/run_real_goal_gate.py inspect-20 "$(MAKE)"
+
+inspect-real-goal-full: tests/run_real_goal_gate.py
+	$(PYTHON) tests/run_real_goal_gate.py inspect-full "$(MAKE)"
 
 test-real-musicnet-20: $(BUILD_DIR)/analyzer_musicnet
 	MUSIC_ANALYZER_MUSICNET_REQUIRED=1 $(BUILD_DIR)/analyzer_musicnet

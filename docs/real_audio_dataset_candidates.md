@@ -74,13 +74,15 @@ without additional annotation.
 ## Implementation Notes
 
 - Run `make real-dataset-sources` to print the checked dataset source URLs and
-  the exact local real-data commands. Use `make test-real-goal-20` as the
-  combined acceptance gate for the requested 20+ real same-song multitrack
-  test. It requires the URMP multitrack gate and then runs configured optional
-  add-on gates such as MusicNet and MedleyDB. The official URMP full package is
-  distributed through a registration form rather than a stable direct archive
-  URL, so this repository intentionally does not try to download the 12.5 GB
-  package automatically.
+  the exact local real-data commands. Use `make inspect-real-goal-20` as the
+  combined setup preflight for the requested 20+ real same-song multitrack
+  test. It requires the URMP layout preflight and then runs configured optional
+  preflights such as MusicNet and MedleyDB. Use `make test-real-goal-20` as the
+  combined analyzer acceptance gate. It requires the URMP multitrack gate and
+  then runs configured optional add-on gates such as MusicNet and MedleyDB. The
+  official URMP full package is distributed through a registration form rather
+  than a stable direct archive URL, so this repository intentionally does not
+  try to download the 12.5 GB package automatically.
 - Do not vendor dataset audio into this repository.
 - Set `MUSIC_ANALYZER_URMP_ROOT=/path/to/URMP`, run
   `make inspect-real-multitrack-20` to preflight the local layout, then run
