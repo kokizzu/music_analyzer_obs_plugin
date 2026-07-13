@@ -4,7 +4,7 @@ Native OBS Studio plugin that analyzes a music mix and displays an instrument-or
 
 - Drums: bass drum/kick, snare, hi-hat, crash, tom, and ride hit indicators
 - Bass: detected note
-- Guitar, keyboard, and other instruments: separate detected note and chord labels
+- Guitar, keyboard, and other instruments: separate detected note-set and chord labels
 - Vocal: detected note
 - Root: a held song-root estimate that changes only after sustained modulation or silence
 

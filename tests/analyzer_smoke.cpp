@@ -20,6 +20,27 @@ bool contains(const char *text, const char *needle)
 	return std::strstr(text, needle) != nullptr;
 }
 
+bool has_note_token(const char *text, const char *note)
+{
+	if (!text || !note)
+		return false;
+
+	const std::size_t note_len = std::strlen(note);
+	const char *cursor = text;
+	while (*cursor) {
+		while (*cursor == ' ')
+			++cursor;
+		const char *end = cursor;
+		while (*end && *end != ' ')
+			++end;
+		if (static_cast<std::size_t>(end - cursor) == note_len && std::strncmp(cursor, note, note_len) == 0)
+			return true;
+		cursor = end;
+	}
+
+	return false;
+}
+
 bool is_root(const mao::AnalysisSnapshot &snapshot, const char *root)
 {
 	return std::strcmp(snapshot.root.label, root) == 0;
@@ -52,8 +73,13 @@ int main()
 	add_sine(chord, 391.9954f, 0.35f, 48000.0f);
 	auto chord_snapshot = engine.analyze(chord.data(), chord.size(), settings, "test", 0);
 	if (contains(chord_snapshot.keyboard.label, "MAJ") || contains(chord_snapshot.keyboard.label, "MIN")) {
-		std::fprintf(stderr, "expected keyboard note field without chord text, got %s\n",
+		std::fprintf(stderr, "expected keyboard notes field without chord text, got %s\n",
 			     chord_snapshot.keyboard.label);
+		return 1;
+	}
+	if (!has_note_token(chord_snapshot.keyboard.label, "C") || !has_note_token(chord_snapshot.keyboard.label, "E") ||
+	    !has_note_token(chord_snapshot.keyboard.label, "G")) {
+		std::fprintf(stderr, "expected keyboard notes C E G, got %s\n", chord_snapshot.keyboard.label);
 		return 1;
 	}
 	if (!contains(chord_snapshot.keyboard_chord.label, "C MAJ")) {

@@ -211,6 +211,59 @@ void set_instrument_note(InstrumentState &state, const RangeResult &note, float 
 	state.confidence = std::clamp(note.confidence * 1.8f, 0.0f, 1.0f);
 }
 
+void set_instrument_note_set(InstrumentState &state, const std::array<float, 12> &chroma, int preferred_root,
+			     float energy, float rms)
+{
+	if (rms < kSilenceRms || energy < 1.0e-5f) {
+		copy_text(state.label, sizeof(state.label), "--");
+		state.confidence = 0.0f;
+		return;
+	}
+
+	int strongest = -1;
+	float strongest_score = 0.0f;
+	for (int i = 0; i < 12; ++i) {
+		if (chroma[i] > strongest_score) {
+			strongest = i;
+			strongest_score = chroma[i];
+		}
+	}
+
+	if (strongest < 0 || strongest_score < 0.18f) {
+		copy_text(state.label, sizeof(state.label), "--");
+		state.confidence = 0.0f;
+		return;
+	}
+
+	const int start = preferred_root >= 0 ? preferred_root % 12 : strongest;
+	char label[24] = {};
+	for (int offset = 0, written = 0; offset < 12 && written < 5; ++offset) {
+		const int pitch_class = (start + offset) % 12;
+		if (chroma[pitch_class] < 0.36f)
+			continue;
+
+		const char *name = note_name(pitch_class);
+		const std::size_t used = std::strlen(label);
+		const std::size_t needed = std::strlen(name) + (used > 0 ? 1 : 0);
+		if (used + needed + 1 > sizeof(label))
+			break;
+
+		std::size_t cursor = used;
+		if (cursor > 0)
+			label[cursor++] = ' ';
+		for (const char *p = name; *p && cursor + 1 < sizeof(label); ++p)
+			label[cursor++] = *p;
+		label[cursor] = '\0';
+		++written;
+	}
+
+	if (!label[0])
+		copy_text(label, sizeof(label), note_name(strongest));
+
+	copy_text(state.label, sizeof(state.label), label);
+	state.confidence = std::clamp(strongest_score, 0.0f, 1.0f);
+}
+
 void set_instrument_chord(InstrumentState &state, const ChordResult &chord, float energy, float rms)
 {
 	if (rms < kSilenceRms || energy < 1.0e-5f) {
@@ -477,18 +530,30 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 	const RangeResult vocal_note = dominant_note(note_powers, 48, 84, false);
 	const RangeResult other_note = dominant_note(note_powers, 60, 96, false);
 
-	const ChordResult guitar_chord = detect_chord(chroma_for_range(note_powers, 40, 76));
-	const ChordResult keyboard_chord = detect_chord(chroma_for_range(note_powers, 48, 88));
-	const ChordResult other_chord = detect_chord(chroma_for_range(note_powers, 60, 96));
+	const std::array<float, 12> guitar_chroma = chroma_for_range(note_powers, 40, 76);
+	const std::array<float, 12> keyboard_chroma = chroma_for_range(note_powers, 48, 88);
+	const std::array<float, 12> other_chroma = chroma_for_range(note_powers, 60, 96);
+	const ChordResult guitar_chord = detect_chord(guitar_chroma);
+	const ChordResult keyboard_chord = detect_chord(keyboard_chroma);
+	const ChordResult other_chord = detect_chord(other_chroma);
 
 	snapshot.root = track_root(note_powers, rms);
 	set_instrument_note(snapshot.bass, bass_note, low, rms);
-	set_instrument_note(snapshot.guitar, guitar_note, mid, rms);
+	set_instrument_note_set(snapshot.guitar, guitar_chroma,
+				guitar_chord.root >= 0 ? guitar_chord.root :
+							 (guitar_note.confidence >= 0.08f ? guitar_note.midi : -1),
+				mid, rms);
 	set_instrument_chord(snapshot.guitar_chord, guitar_chord, mid, rms);
-	set_instrument_note(snapshot.keyboard, keyboard_note, mid + low * 0.25f, rms);
+	set_instrument_note_set(snapshot.keyboard, keyboard_chroma,
+				keyboard_chord.root >= 0 ? keyboard_chord.root :
+							   (keyboard_note.confidence >= 0.08f ? keyboard_note.midi : -1),
+				mid + low * 0.25f, rms);
 	set_instrument_chord(snapshot.keyboard_chord, keyboard_chord, mid + low * 0.25f, rms);
 	set_instrument_note(snapshot.vocal, vocal_note, mid, rms);
-	set_instrument_note(snapshot.other, other_note, high, rms);
+	set_instrument_note_set(snapshot.other, other_chroma,
+				other_chord.root >= 0 ? other_chord.root :
+							 (other_note.confidence >= 0.08f ? other_note.midi : -1),
+				high, rms);
 	set_instrument_chord(snapshot.other_chord, other_chord, high, rms);
 
 	return snapshot;

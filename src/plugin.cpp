@@ -563,8 +563,8 @@ void draw_instrument_row(VisualizerData *visualizer, int y, const char *name, co
 			 const mao::InstrumentState *chord)
 {
 	const int label_x = 28;
-	const int note_x = 230;
-	const int chord_x = 360;
+	const int note_x = 220;
+	const int chord_x = 520;
 	const Color text{232, 237, 243, 255};
 	const Color dim{130, 145, 163, 255};
 	const Color chord_text{199, 210, 224, 255};
@@ -612,8 +612,8 @@ void render_pixels(VisualizerData *visualizer, const mao::AnalysisSnapshot &snap
 		tag_x += 126;
 	}
 
-	draw_text(visualizer, 230, 125, "NOTE", 2, Color{148, 163, 184, 255});
-	draw_text(visualizer, 360, 125, "CHORD", 2, Color{148, 163, 184, 255});
+	draw_text(visualizer, 220, 125, "NOTES", 2, Color{148, 163, 184, 255});
+	draw_text(visualizer, 520, 125, "CHORD", 2, Color{148, 163, 184, 255});
 	draw_instrument_row(visualizer, 150, "BASS", snapshot.bass, nullptr);
 	draw_instrument_row(visualizer, 190, "GUITAR", snapshot.guitar, &snapshot.guitar_chord);
 	draw_instrument_row(visualizer, 230, "KEYS", snapshot.keyboard, &snapshot.keyboard_chord);
