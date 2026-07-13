@@ -153,9 +153,10 @@
       "assembled_mix": false,
       "aligned_symbolic_truth": true,
       "truth": "per-string MIDI-note annotations, pitch contours, chords, beats, and styles",
-      "automation_target": "",
+      "automation_target": "inspect-real-guitarset",
       "source_url": "https://guitarset.weebly.com/",
-      "evidence": "Official page describes hexaphonic guitar recordings with per-string audio and rich time-aligned annotations."
+      "download_url": "https://zenodo.org/records/3371780",
+      "evidence": "Official page and Zenodo record describe 360 hexaphonic guitar excerpts with per-string audio, microphone audio, JAMS note/chord/fret annotations, and rich time-aligned metadata."
     },
     {
       "id": "guitar_techs",

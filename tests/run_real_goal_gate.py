@@ -132,6 +132,20 @@ def configured_spheres(env):
     return False
 
 
+def configured_guitarset(env):
+    if env_has_any(env, ("MUSIC_ANALYZER_GUITARSET_ROOT", "GUITARSET_PATH")):
+        return True
+
+    dataset_root = env.get("MUSIC_ANALYZER_DATASET_ROOT", "")
+    if not dataset_root:
+        return False
+
+    for child in ("GuitarSet", "guitarset", "GuitarSet-1.1.0", "guitarset-1.1.0"):
+        if is_dir(child_path(dataset_root, child)):
+            return True
+    return False
+
+
 TARGET_PLANS = {
     "20": {
         "inspect_only": False,
@@ -141,6 +155,7 @@ TARGET_PLANS = {
         "multtipop_target": "inspect-real-multtipop",
         "multtipop_audio_target": "test-real-multtipop-20",
         "spheres_target": "inspect-real-spheres",
+        "guitarset_target": "inspect-real-guitarset",
     },
     "full": {
         "inspect_only": False,
@@ -150,6 +165,7 @@ TARGET_PLANS = {
         "multtipop_target": "inspect-real-multtipop",
         "multtipop_audio_target": "test-real-multtipop-full",
         "spheres_target": "inspect-real-spheres",
+        "guitarset_target": "inspect-real-guitarset",
     },
     "inspect-20": {
         "inspect_only": True,
@@ -159,6 +175,7 @@ TARGET_PLANS = {
         "multtipop_target": "inspect-real-multtipop",
         "multtipop_audio_target": "inspect-real-multtipop",
         "spheres_target": "inspect-real-spheres",
+        "guitarset_target": "inspect-real-guitarset",
     },
     "inspect-full": {
         "inspect_only": True,
@@ -168,6 +185,7 @@ TARGET_PLANS = {
         "multtipop_target": "inspect-real-multtipop",
         "multtipop_audio_target": "inspect-real-multtipop",
         "spheres_target": "inspect-real-spheres",
+        "guitarset_target": "inspect-real-guitarset",
     },
 }
 
@@ -241,6 +259,17 @@ def main(argv):
         print(
             "run_real_goal_gate: skipping optional Spheres stem preflight; set "
             "MUSIC_ANALYZER_SPHERES_ROOT/SPHERES_PATH or place a Spheres directory under "
+            "MUSIC_ANALYZER_DATASET_ROOT"
+        )
+
+    if configured_guitarset(env):
+        failed = run(make_cmd, plan["guitarset_target"])
+        if failed:
+            return failed
+    else:
+        print(
+            "run_real_goal_gate: skipping optional GuitarSet guitar/fretboard preflight; set "
+            "MUSIC_ANALYZER_GUITARSET_ROOT/GUITARSET_PATH or place a GuitarSet directory under "
             "MUSIC_ANALYZER_DATASET_ROOT"
         )
 

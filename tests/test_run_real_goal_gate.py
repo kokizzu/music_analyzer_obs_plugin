@@ -95,6 +95,23 @@ def test_generic_dataset_root_without_spheres_child_is_not_spheres():
         assert not run_real_goal_gate.configured_spheres({"MUSIC_ANALYZER_DATASET_ROOT": temp})
 
 
+def test_explicit_guitarset_root_is_configured():
+    assert run_real_goal_gate.configured_guitarset({"MUSIC_ANALYZER_GUITARSET_ROOT": "/tmp/GuitarSet"})
+    assert run_real_goal_gate.configured_guitarset({"GUITARSET_PATH": "/tmp/GuitarSet"})
+
+
+def test_generic_dataset_root_with_guitarset_child_is_guitarset():
+    with tempfile.TemporaryDirectory() as temp:
+        touch_dir(os.path.join(temp, "GuitarSet"))
+        assert run_real_goal_gate.configured_guitarset({"MUSIC_ANALYZER_DATASET_ROOT": temp})
+
+
+def test_generic_dataset_root_without_guitarset_child_is_not_guitarset():
+    with tempfile.TemporaryDirectory() as temp:
+        touch_dir(os.path.join(temp, "URMP", "01_Jupiter"))
+        assert not run_real_goal_gate.configured_guitarset({"MUSIC_ANALYZER_DATASET_ROOT": temp})
+
+
 def test_twenty_piece_test_plan_targets_real_gates():
     plan = run_real_goal_gate.resolve_plan("20")
     assert plan
@@ -105,6 +122,7 @@ def test_twenty_piece_test_plan_targets_real_gates():
     assert plan["multtipop_target"] == "inspect-real-multtipop"
     assert plan["multtipop_audio_target"] == "test-real-multtipop-20"
     assert plan["spheres_target"] == "inspect-real-spheres"
+    assert plan["guitarset_target"] == "inspect-real-guitarset"
 
 
 def test_full_test_plan_targets_full_real_gates():
@@ -117,6 +135,7 @@ def test_full_test_plan_targets_full_real_gates():
     assert plan["multtipop_target"] == "inspect-real-multtipop"
     assert plan["multtipop_audio_target"] == "test-real-multtipop-full"
     assert plan["spheres_target"] == "inspect-real-spheres"
+    assert plan["guitarset_target"] == "inspect-real-guitarset"
 
 
 def test_twenty_piece_inspect_plan_targets_preflights():
@@ -129,6 +148,7 @@ def test_twenty_piece_inspect_plan_targets_preflights():
     assert plan["multtipop_target"] == "inspect-real-multtipop"
     assert plan["multtipop_audio_target"] == "inspect-real-multtipop"
     assert plan["spheres_target"] == "inspect-real-spheres"
+    assert plan["guitarset_target"] == "inspect-real-guitarset"
 
 
 def test_full_inspect_plan_targets_full_preflights():
@@ -141,6 +161,7 @@ def test_full_inspect_plan_targets_full_preflights():
     assert plan["multtipop_target"] == "inspect-real-multtipop"
     assert plan["multtipop_audio_target"] == "inspect-real-multtipop"
     assert plan["spheres_target"] == "inspect-real-spheres"
+    assert plan["guitarset_target"] == "inspect-real-guitarset"
 
 
 def test_invalid_plan_is_rejected():
@@ -162,12 +183,15 @@ def main():
     test_explicit_spheres_root_is_configured()
     test_generic_dataset_root_with_spheres_child_is_spheres()
     test_generic_dataset_root_without_spheres_child_is_not_spheres()
+    test_explicit_guitarset_root_is_configured()
+    test_generic_dataset_root_with_guitarset_child_is_guitarset()
+    test_generic_dataset_root_without_guitarset_child_is_not_guitarset()
     test_twenty_piece_test_plan_targets_real_gates()
     test_full_test_plan_targets_full_real_gates()
     test_twenty_piece_inspect_plan_targets_preflights()
     test_full_inspect_plan_targets_full_preflights()
     test_invalid_plan_is_rejected()
-    print("test_run_real_goal_gate: 18 checks passed")
+    print("test_run_real_goal_gate: 21 checks passed")
     return 0
 
 

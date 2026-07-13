@@ -48,6 +48,7 @@ def main():
         goal_gate = read_text("tests/run_real_goal_gate.py")
         multtipop_inspector = read_text("tests/inspect_multtipop_dataset.py")
         spheres_inspector = read_text("tests/inspect_spheres_dataset.py")
+        guitarset_inspector = read_text("tests/inspect_guitarset_dataset.py")
     except (OSError, json.JSONDecodeError) as exc:
         return fail(str(exc))
 
@@ -57,6 +58,7 @@ def main():
     multtipop = dataset_by_id(catalog, "multtipop")
     medleydb = dataset_by_id(catalog, "medleydb")
     spheres = dataset_by_id(catalog, "spheres")
+    guitarset = dataset_by_id(catalog, "guitarset")
     if not urmp:
         return fail("catalog missing URMP")
     if not musicnet:
@@ -67,6 +69,8 @@ def main():
         return fail("catalog missing MedleyDB")
     if not spheres:
         return fail("catalog missing Spheres")
+    if not guitarset:
+        return fail("catalog missing GuitarSet")
 
     problems = []
     if urmp.get("piece_count", 0) < target_minimum:
@@ -85,6 +89,8 @@ def main():
         problems.append("MedleyDB automation target must remain inspect-real-medleydb")
     if spheres.get("automation_target") != "inspect-real-spheres":
         problems.append("Spheres automation target must remain inspect-real-spheres")
+    if guitarset.get("automation_target") != "inspect-real-guitarset":
+        problems.append("GuitarSet automation target must remain inspect-real-guitarset")
 
     for text, needle, context in (
         (makefile, "test-real-goal-20", "Makefile combined real-data target"),
@@ -96,10 +102,12 @@ def main():
         (makefile, "tests/generate_medleydb_fixture.py", "Makefile MedleyDB fixture"),
         (makefile, "tests/generate_multtipop_fixture.py", "Makefile MulTTiPop fixture"),
         (makefile, "tests/generate_spheres_fixture.py", "Makefile Spheres fixture"),
+        (makefile, "tests/generate_guitarset_fixture.py", "Makefile GuitarSet fixture"),
         (makefile, "inspect-real-multtipop", "Makefile optional MulTTiPop preflight"),
         (makefile, "test-real-multtipop-20", "Makefile optional MulTTiPop analyzer gate"),
         (makefile, "$(BUILD_DIR)/analyzer_multtipop", "Makefile MulTTiPop analyzer binary"),
         (makefile, "inspect-real-spheres", "Makefile optional Spheres preflight"),
+        (makefile, "inspect-real-guitarset", "Makefile optional GuitarSet preflight"),
         (goal_gate, "test-real-multitrack-20", "combined gate required URMP target"),
         (goal_gate, "inspect-real-multitrack-20", "combined preflight required URMP target"),
         (goal_gate, "test-real-musicnet-20", "combined gate optional MusicNet target"),
@@ -111,6 +119,8 @@ def main():
         (goal_gate, "test-real-multtipop-20", "combined gate optional MulTTiPop analyzer target"),
         (goal_gate, "configured_spheres", "combined gate optional Spheres root detection"),
         (goal_gate, "inspect-real-spheres", "combined gate optional Spheres target"),
+        (goal_gate, "configured_guitarset", "combined gate optional GuitarSet root detection"),
+        (goal_gate, "inspect-real-guitarset", "combined gate optional GuitarSet target"),
         (urmp_harness, "summed separated tracks", "URMP summed-stem playback check"),
         (urmp_harness, "provided mix", "URMP provided-mix check"),
         (urmp_harness, "stateful summed separated-track mix", "URMP stateful summed-mix check"),
@@ -133,18 +143,24 @@ def main():
         (multtipop_harness, "chord hits", "MulTTiPop chord recall report"),
         (spheres_inspector, "range_summary(reconstructable_folder_counts, 'reconstructable folders')", "Spheres stem-layout coverage report"),
         (spheres_inspector, "MUSIC_ANALYZER_SPHERES_REQUIRED_PIECES", "Spheres preflight piece threshold"),
+        (guitarset_inspector, "MUSIC_ANALYZER_GUITARSET_REQUIRE_HEX_AUDIO", "GuitarSet hex-audio requirement"),
+        (guitarset_inspector, "note_midi", "GuitarSet note annotation check"),
+        (guitarset_inspector, "hex audio files", "GuitarSet hex-audio coverage report"),
         (readme, "make test-real-goal-20", "README combined gate instructions"),
         (readme, "make inspect-real-goal-20", "README combined preflight instructions"),
         (readme, "make inspect-real-multtipop", "README MulTTiPop preflight instructions"),
         (readme, "make test-real-multtipop-20", "README MulTTiPop analyzer instructions"),
         (readme, "make inspect-real-spheres", "README Spheres preflight instructions"),
+        (readme, "make inspect-real-guitarset", "README GuitarSet preflight instructions"),
         (docs, "make test-real-goal-20", "dataset docs combined gate instructions"),
         (docs, "make inspect-real-goal-20", "dataset docs combined preflight instructions"),
         (docs, "make inspect-real-multtipop", "dataset docs MulTTiPop preflight instructions"),
         (docs, "make test-real-multtipop-20", "dataset docs MulTTiPop analyzer instructions"),
         (docs, "make inspect-real-spheres", "dataset docs Spheres preflight instructions"),
+        (docs, "make inspect-real-guitarset", "dataset docs GuitarSet preflight instructions"),
         (docs, "MulTTiPop", "dataset docs MulTTiPop candidate"),
         (docs, "The Spheres Dataset", "dataset docs Spheres candidate"),
+        (docs, "GuitarSet", "dataset docs GuitarSet candidate"),
         (docs, "URMP should be the first automated target", "dataset docs URMP priority"),
     ):
         problem = require(text, needle, context)
@@ -158,8 +174,9 @@ def main():
 
     print(
         "inspect_real_goal_coverage: "
-        "catalog=URMP+MusicNet+MedleyDB+MulTTiPop+Spheres, target=test-real-goal-20, "
-        "fixture=URMP+MusicNet+MedleyDB+MulTTiPop-audio+Spheres, summed_mix=yes, chord_checks=yes"
+        "catalog=URMP+MusicNet+MedleyDB+MulTTiPop+Spheres+GuitarSet, target=test-real-goal-20, "
+        "fixture=URMP+MusicNet+MedleyDB+MulTTiPop-audio+Spheres+GuitarSet, "
+        "summed_mix=yes, chord_checks=yes"
     )
     return 0
 

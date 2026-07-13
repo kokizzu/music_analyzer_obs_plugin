@@ -49,7 +49,7 @@ not provide clean per-instrument audio stems for each mixture.
 | [POP909](https://arxiv.org/abs/2008.07142) | Pop melody, lead, piano, chord checks | 909 popular-song arrangements with MIDI aligned to original audio plus tempo, beat, key, and chord annotations. Not per-instrument stems. |
 | [MAESTRO](https://arxiv.org/abs/1810.12247) | Keyboard row and sustain tests | Real Disklavier piano audio with tightly aligned MIDI. Single instrument only. |
 | [PianoVAM](https://arxiv.org/abs/2509.08800) | Keyboard row, fingering/hand plausibility | Piano audio, MIDI, video, hand landmarks, and fingering labels. Single instrument only. |
-| [GuitarSet](https://guitarset.weebly.com/) | Guitar fretboard tests | Live guitar recordings with hexaphonic pickup, per-string audio, and MIDI-note annotations. Single instrument only. |
+| [GuitarSet](https://guitarset.weebly.com/) | Guitar fretboard tests with optional `make inspect-real-guitarset` local preflight | 360 live guitar excerpts with hexaphonic pickup, per-string audio, microphone audio, JAMS MIDI-note/fret/chord annotations, and Zenodo download at [10.5281/zenodo.3371780](https://zenodo.org/records/3371780). Single instrument only. |
 | [Guitar-TECHS](https://arxiv.org/abs/2501.03720) | Electric guitar notes, chords, scales, techniques | Over 5 hours, DI/mic/amp perspectives, synchronized six-track MIDI labels. Single instrument only. |
 | [GAPS](https://arxiv.org/abs/2408.08653) | Classical guitar note/fretboard tests | 14 hours of real guitar audio with high-resolution note-level MIDI alignments. Single instrument only. |
 | [GOAT](https://arxiv.org/abs/2509.22655) | Electric guitar tablature/fret checks | 5.9 hours of DI electric guitar plus tablature/symbolic labels and augmented tones. Single instrument only. |
@@ -148,6 +148,14 @@ without additional annotation.
   audio files. Spheres has two full works and no full MIDI/note truth for those
   works, so it is an optional timbre/stem-layout add-on and does not replace
   URMP for the 20+ note/chord gate.
+- Use `make inspect-real-guitarset` with
+  `MUSIC_ANALYZER_GUITARSET_ROOT=/path/to/GuitarSet` after extracting the
+  GuitarSet annotation and audio archives from Zenodo. The preflight requires
+  20+ JAMS files with 6+ `note_midi` annotations, 2+ chord annotations, 12+
+  note events, and 6-channel hex pickup WAV audio by default. GuitarSet is a
+  focused guitar/fretboard real-audio add-on; it should improve coverage for
+  guitar note/fret/chord-shape behavior, but it does not replace URMP because
+  it is a single-instrument dataset.
 - Use `make inspect-real-musicnet` and `make test-real-musicnet-20` with
   `MUSIC_ANALYZER_MUSICNET_ROOT=/path/to/musicnet` after extracting the open
   Zenodo MusicNet archive. The target expects `train_data`/`test_data` WAV
@@ -167,14 +175,15 @@ without additional annotation.
   `tests/fixtures/urmp-mini.tar.gz`, decodes it to disposable WAV files under
   `build/` with `ffmpeg`, generates 20-recording MusicNet-shaped WAV/CSV and
   MedleyDB-shaped stem-layout, audio-backed MulTTiPop-shaped multitrack-MIDI
-  metadata, and Spheres-shaped stem-layout fixtures, sends all configured roots
-  through the combined setup preflight, and then sends them through the combined
-  goal gate.
+  metadata, Spheres-shaped stem-layout, and GuitarSet-shaped JAMS/hex-audio
+  fixtures, sends all configured roots through the combined setup preflight,
+  and then sends them through the combined goal gate.
   The URMP fixture is marker-file tagged and is rejected by the real-data gate
   unless fixture mode is explicitly allowed. Override the decoder with
   `FFMPEG=/path/to/ffmpeg` if needed. Refresh it with
   `make update-urmp-fixture` after changing
   `tests/generate_urmp_fixture.py`.
 - Bach10 is the next best add-on for a compact, fast regression set.
-- Single-instrument datasets should drive focused checks: Guitar-TECHS/GAPS for
-  guitar, MAESTRO/PianoVAM for keyboard, E-GMD for drums.
+- Single-instrument datasets should drive focused checks: GuitarSet now has a
+  local preflight, Guitar-TECHS/GAPS are next guitar add-ons, MAESTRO/PianoVAM
+  for keyboard, and E-GMD for drums.
