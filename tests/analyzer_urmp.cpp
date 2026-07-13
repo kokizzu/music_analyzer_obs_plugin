@@ -748,6 +748,13 @@ struct WindowCompositionStats {
 	int max_pitch_classes = 0;
 };
 
+struct RangeStats {
+	int count = 0;
+	int sum = 0;
+	int min_value = 0;
+	int max_value = 0;
+};
+
 int pitch_class_count(const std::array<bool, 12> &pitch_classes)
 {
 	int count = 0;
@@ -854,6 +861,19 @@ void add_window_composition(WindowCompositionStats &stats, const CandidateWindow
 	stats.max_pitch_classes = std::max(stats.max_pitch_classes, pitch_classes);
 }
 
+void add_range_value(RangeStats &stats, int value)
+{
+	++stats.count;
+	stats.sum += value;
+	if (stats.count == 1) {
+		stats.min_value = value;
+		stats.max_value = value;
+		return;
+	}
+	stats.min_value = std::min(stats.min_value, value);
+	stats.max_value = std::max(stats.max_value, value);
+}
+
 std::string average_string(int sum, int count)
 {
 	char buffer[32] = {};
@@ -872,6 +892,15 @@ std::string window_composition_summary(const WindowCompositionStats &stats)
 	       std::to_string(stats.min_pitch_classes) + "/" +
 	       average_string(stats.pitch_class_sum, stats.windows) + "/" +
 	       std::to_string(stats.max_pitch_classes);
+}
+
+std::string range_summary(const RangeStats &stats, const char *label)
+{
+	if (stats.count == 0)
+		return std::string(label) + " min/avg/max 0/0.00/0";
+
+	return std::string(label) + " min/avg/max " + std::to_string(stats.min_value) + "/" +
+	       average_string(stats.sum, stats.count) + "/" + std::to_string(stats.max_value);
 }
 
 CandidateWindow candidate_window_at(const std::vector<TrackData> &tracks, double time)
@@ -1263,7 +1292,7 @@ bool is_generated_fixture_root(const std::string &root)
 }
 
 std::string coverage_summary(const DatasetCoverageStats &coverage, int tested_pieces, int tested_windows,
-			     const WindowCompositionStats &composition)
+			     const WindowCompositionStats &composition, const RangeStats &source_tracks)
 {
 	return "discovered " + std::to_string(coverage.discovered_piece_dirs) + " piece dirs, loadable " +
 	       std::to_string(coverage.loadable_pieces) + ", unusable " +
@@ -1278,7 +1307,7 @@ std::string coverage_summary(const DatasetCoverageStats &coverage, int tested_pi
 	       ", summed-stream failures " + std::to_string(coverage.summed_stream_failures) +
 	       ", summed-sequence failures " + std::to_string(coverage.summed_sequence_failures) +
 	       ", track-read failures " + std::to_string(coverage.track_read_failures) + ", " +
-	       window_composition_summary(composition);
+	       range_summary(source_tracks, "source tracks") + ", " + window_composition_summary(composition);
 }
 
 } // namespace
@@ -1345,6 +1374,7 @@ int main()
 	MixRecallStats provided_sequence_stats;
 	MixRecallStats summed_sequence_stats;
 	WindowCompositionStats composition_stats;
+	RangeStats source_track_stats;
 	int tested_windows = 0;
 
 	for (const std::string &piece_dir : piece_dirs) {
@@ -1507,14 +1537,18 @@ int main()
 			}
 		}
 
-		if (piece_windows > 0)
+		if (piece_windows > 0) {
+			add_range_value(source_track_stats, static_cast<int>(piece.tracks.size()));
 			++tested_pieces;
+		}
 	}
 
 	if (tested_pieces == 0) {
 		std::fprintf(stderr, "analyzer_urmp: no usable URMP pieces found under `%s`\n", root.c_str());
 		std::fprintf(stderr, "analyzer_urmp: coverage: %s\n",
-			     coverage_summary(coverage, tested_pieces, tested_windows, composition_stats).c_str());
+			     coverage_summary(coverage, tested_pieces, tested_windows, composition_stats,
+					      source_track_stats)
+				     .c_str());
 		return 1;
 	}
 
@@ -1529,6 +1563,9 @@ int main()
 	runner.expect(composition_stats.windows == tested_windows,
 		      "URMP window composition: expected composition stats for every tested window, got " +
 			      std::to_string(composition_stats.windows) + "/" + std::to_string(tested_windows));
+	runner.expect(source_track_stats.count == tested_pieces,
+		      "URMP source-track composition: expected source track stats for every tested piece, got " +
+			      std::to_string(source_track_stats.count) + "/" + std::to_string(tested_pieces));
 	runner.expect(composition_stats.min_active_tracks >= min_active_tracks_per_window,
 		      "URMP window composition: expected every tested window to contain at least " +
 			      std::to_string(min_active_tracks_per_window) + " active tracks, got min " +
@@ -1654,7 +1691,9 @@ int main()
 			     provided_sequence_stats.chord_hits, provided_sequence_stats.chord_checks,
 			     summed_sequence_stats.chord_hits, summed_sequence_stats.chord_checks);
 		std::fprintf(stderr, "analyzer_urmp: coverage: %s\n",
-			     coverage_summary(coverage, tested_pieces, tested_windows, composition_stats).c_str());
+			     coverage_summary(coverage, tested_pieces, tested_windows, composition_stats,
+					      source_track_stats)
+				     .c_str());
 		return 1;
 	}
 
@@ -1676,6 +1715,7 @@ int main()
 		    provided_sequence_stats.chord_checks, summed_sequence_stats.chord_hits,
 		    summed_sequence_stats.chord_checks);
 	std::printf("analyzer_urmp: coverage: %s\n",
-		    coverage_summary(coverage, tested_pieces, tested_windows, composition_stats).c_str());
+		    coverage_summary(coverage, tested_pieces, tested_windows, composition_stats, source_track_stats)
+			    .c_str());
 	return 0;
 }

@@ -101,9 +101,10 @@ without additional annotation.
   windows, so note/chord smoothing is checked against same-song mixed audio. By
   default it samples up to 12 annotated windows per piece, requires at least 80
   windows, and only selects windows with at least two active source tracks and
-  two pitch classes. The coverage summary prints active-track and pitch-class
-  min/average/max values, so the run proves that the selected windows are
-  actually multi-instrument, multi-note mixes. Set
+  two pitch classes. The coverage summary prints source-track, active-track,
+  and pitch-class min/average/max values, so the run proves that the selected
+  windows are actually multi-instrument, multi-note mixes and that the summed
+  path used the loaded separated source tracks. Set
   `MUSIC_ANALYZER_URMP_MAX_WINDOWS_PER_PIECE`,
   `MUSIC_ANALYZER_URMP_REQUIRED_PIECES`, and
   `MUSIC_ANALYZER_URMP_REQUIRED_WINDOWS` for quicker or deeper runs. Set
