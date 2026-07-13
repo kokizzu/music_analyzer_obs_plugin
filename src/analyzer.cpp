@@ -33,6 +33,10 @@ constexpr float kNoteRelativeFloor = 0.40f;
 constexpr float kHarmonicMaskRatio = 0.62f;
 constexpr float kAdjacentAmbiguityRatio = 0.93f;
 constexpr int kDetuneGateMinMidi = kGuitarMinMidi;
+constexpr int kChromaticTuneMinMidi = kGuitarMinMidi;
+constexpr float kChromaticTuneToleranceCents = 9.0f;
+constexpr float kChromaticTuneEstimatorSlackCents = 0.5f;
+constexpr float kChromaticCenterEdgeRatio = 0.90f;
 
 enum class SourceHint {
 	None,
@@ -752,7 +756,8 @@ float strongest_note_grid_level(const NoteGrid &grid)
 }
 
 void add_shared_timbre_notes(NoteGrid &grid, InstrumentState &state, const std::array<float, kNoteProbeCount> &powers,
-			     int min_midi, int max_midi, int preferred_root,
+			     const std::array<float, kNoteProbeCount> &tuned_powers, int min_midi, int max_midi,
+			     int preferred_root,
 			     const std::array<bool, kNoteProbeCount> &claimed_midis,
 			     TimbreKind kind, float rms)
 {
@@ -770,12 +775,14 @@ void add_shared_timbre_notes(NoteGrid &grid, InstrumentState &state, const std::
 			continue;
 		if (!timbre_supports_kind(powers, midi, kind))
 			continue;
+		const float score = std::sqrt(std::max(tuned_powers[midi - kFirstMidi], 0.0f));
+		if (score <= 1.0e-6f)
+			continue;
 
 		for (int neighbor : {midi - 1, midi + 1}) {
 			if (neighbor >= min_midi && neighbor <= max_midi)
 				clear_note_grid_pitch_class(grid, ((neighbor % 12) + 12) % 12);
 		}
-		const float score = std::sqrt(std::max(powers[midi - kFirstMidi], 0.0f));
 		write_note_grid_cell(grid, NoteCandidate{midi, score}, score, visual_loudness);
 	}
 
@@ -976,6 +983,50 @@ float AnalysisEngine::goertzel_power(const float *samples, std::size_t count, fl
 	return std::max(0.0f, s1 * s1 + s2 * s2 - probe.coeff * s1 * s2);
 }
 
+float AnalysisEngine::goertzel_power_at_frequency(const float *samples, std::size_t count, float mean, float freq) const
+{
+	Probe probe;
+	probe.freq = freq;
+	probe.coeff = 2.0f * std::cos(2.0f * kPi * freq / static_cast<float>(sample_rate_));
+	return goertzel_power(samples, count, mean, probe);
+}
+
+bool AnalysisEngine::chromatic_tuning_match(const float *samples, std::size_t count, float mean, int midi) const
+{
+	static constexpr std::array<float, 5> kProbeCents = {-18.0f, -9.0f, 0.0f, 9.0f, 18.0f};
+	std::array<float, kProbeCents.size()> scores = {};
+	const float center_freq = midi_frequency(midi);
+
+	std::size_t best = 0;
+	for (std::size_t i = 0; i < kProbeCents.size(); ++i) {
+		const float freq = center_freq * std::pow(2.0f, kProbeCents[i] / 1200.0f);
+		scores[i] = std::sqrt(std::max(goertzel_power_at_frequency(samples, count, mean, freq), 0.0f));
+		if (scores[i] > scores[best])
+			best = i;
+	}
+
+	const float center_score = scores[kProbeCents.size() / 2];
+	const float best_score = scores[best];
+	float cents = kProbeCents[best];
+	if (best > 0 && best + 1 < kProbeCents.size()) {
+		const float previous = scores[best - 1];
+		const float current = scores[best];
+		const float next = scores[best + 1];
+		const float denominator = previous - 2.0f * current + next;
+		if (std::abs(denominator) > 1.0e-9f) {
+			const float step = kProbeCents[best] - kProbeCents[best - 1];
+			cents += 0.5f * (previous - next) / denominator * step;
+		}
+	}
+
+	cents = std::clamp(cents, kProbeCents.front(), kProbeCents.back());
+	if (std::abs(cents) <= kChromaticTuneToleranceCents + kChromaticTuneEstimatorSlackCents)
+		return true;
+
+	const bool edge_peak = best == 0 || best + 1 == kProbeCents.size();
+	return edge_peak && best_score > 1.0e-6f && center_score >= best_score * kChromaticCenterEdgeRatio;
+}
+
 void AnalysisEngine::reset_root_window()
 {
 	for (RootVote &vote : root_votes_)
@@ -1144,18 +1195,24 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 	for (std::size_t i = 0; i < note_probes_.size(); ++i)
 		note_powers[i] = goertzel_power(samples, usable, mean, note_probes_[i]);
 
+	std::array<float, kNoteProbeCount> tuned_note_powers = note_powers;
+	for (int midi = kFirstMidi; midi <= kLastMidi; ++midi) {
+		if (midi >= kChromaticTuneMinMidi && !chromatic_tuning_match(samples, usable, mean, midi))
+			tuned_note_powers[midi - kFirstMidi] = 0.0f;
+	}
+
 	std::array<float, 15> drum_powers = {};
 	for (std::size_t i = 0; i < drum_probes_.size(); ++i)
 		drum_powers[i] = std::sqrt(goertzel_power(samples, usable, mean, drum_probes_[i]));
 
-	const float low = sum_notes(note_powers, kBassMinMidi, 47);
-	const float mid = sum_notes(note_powers, 48, 72);
-	const float high = sum_notes(note_powers, 73, kLastMidi) + drum_powers[11] + drum_powers[12] + drum_powers[13];
-	const float bass_energy = sum_notes(note_powers, kBassMinMidi, kBassMaxMidi);
-	const float guitar_energy = sum_notes(note_powers, kGuitarMinMidi, kGuitarMaxMidi);
-	const float keyboard_energy = sum_notes(note_powers, kKeyboardMinMidi, kKeyboardMaxMidi);
-	const float vocal_energy = sum_notes(note_powers, kVocalMinMidi, kVocalMaxMidi);
-	const float other_energy = sum_notes(note_powers, kOtherMinMidi, kOtherMaxMidi);
+	const float low = sum_notes(tuned_note_powers, kBassMinMidi, 47);
+	const float mid = sum_notes(tuned_note_powers, 48, 72);
+	const float high = sum_notes(tuned_note_powers, 73, kLastMidi) + drum_powers[11] + drum_powers[12] + drum_powers[13];
+	const float bass_energy = sum_notes(tuned_note_powers, kBassMinMidi, kBassMaxMidi);
+	const float guitar_energy = sum_notes(tuned_note_powers, kGuitarMinMidi, kGuitarMaxMidi);
+	const float keyboard_energy = sum_notes(tuned_note_powers, kKeyboardMinMidi, kKeyboardMaxMidi);
+	const float vocal_energy = sum_notes(tuned_note_powers, kVocalMinMidi, kVocalMaxMidi);
+	const float other_energy = sum_notes(tuned_note_powers, kOtherMinMidi, kOtherMaxMidi);
 	const float total = low + mid + high + 1.0e-6f;
 	snapshot.low_energy = low / total;
 	snapshot.mid_energy = mid / total;
@@ -1200,7 +1257,7 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 		snapshot.drums[i].active = drum_level_[i] > 0.30f;
 	}
 
-	snapshot.root = track_root(note_powers, rms, settings, snapshot.root_candidates, sizeof(snapshot.root_candidates));
+	snapshot.root = track_root(tuned_note_powers, rms, settings, snapshot.root_candidates, sizeof(snapshot.root_candidates));
 
 	std::array<bool, 12> claimed_pitch_classes = {};
 	std::array<bool, kNoteProbeCount> claimed_midis = {};
@@ -1208,7 +1265,7 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 	const bool mixed_source = source_hint == SourceHint::None || source_hint == SourceHint::Bass;
 
 	if (source_hint == SourceHint::None || source_hint == SourceHint::Bass) {
-		const RangeResult bass_note = dominant_note(note_powers, kBassMinMidi, kBassMaxMidi, true);
+		const RangeResult bass_note = dominant_note(tuned_note_powers, kBassMinMidi, kBassMaxMidi, true);
 		if (source_hint == SourceHint::Bass || bass_note.midi <= kDefaultBassMaxMidi) {
 			set_single_note_grid(snapshot.bass_notes, snapshot.bass, bass_note, bass_energy, rms);
 			claim_note_grid_pitch_classes(snapshot.bass_notes, claimed_pitch_classes);
@@ -1229,13 +1286,13 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 		const int max_midi = mixed_source ? 83 : kKeyboardMaxMidi;
 		const std::array<bool, 12> blocked_pitch_classes = claimed_pitch_classes;
 		const std::array<float, 12> chroma =
-			peak_chroma_for_range(note_powers, min_midi, max_midi, &blocked_pitch_classes);
+			peak_chroma_for_range(tuned_note_powers, min_midi, max_midi, &blocked_pitch_classes);
 		const int preferred_root =
-			lowest_peak_pitch_class(note_powers, min_midi, max_midi, &blocked_pitch_classes);
+			lowest_peak_pitch_class(tuned_note_powers, min_midi, max_midi, &blocked_pitch_classes);
 		const ChordResult chord = detect_chord(chroma, preferred_root);
 		const std::array<bool, 12> *allowed = mixed_source && chord.root >= 0 ? &chord.tones : nullptr;
 		const int max_notes = mixed_source && !allowed ? 4 : 10;
-		set_instrument_note_set(snapshot.keyboard_notes, snapshot.keyboard, note_powers, min_midi, max_midi,
+		set_instrument_note_set(snapshot.keyboard_notes, snapshot.keyboard, tuned_note_powers, min_midi, max_midi,
 					chord.root >= 0 ? chord.root : preferred_root, keyboard_energy, rms,
 					max_notes, &blocked_pitch_classes, allowed);
 		set_instrument_chord(snapshot.keyboard_chord, chord, keyboard_energy, rms);
@@ -1246,17 +1303,18 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 	auto process_guitar = [&]() {
 		const std::array<bool, 12> blocked_pitch_classes = claimed_pitch_classes;
 		const std::array<float, 12> chroma =
-			peak_chroma_for_range(note_powers, kGuitarMinMidi, kGuitarMaxMidi, &blocked_pitch_classes);
+			peak_chroma_for_range(tuned_note_powers, kGuitarMinMidi, kGuitarMaxMidi, &blocked_pitch_classes);
 		const int preferred_root =
-			lowest_peak_pitch_class(note_powers, kGuitarMinMidi, kGuitarMaxMidi, &blocked_pitch_classes);
+			lowest_peak_pitch_class(tuned_note_powers, kGuitarMinMidi, kGuitarMaxMidi, &blocked_pitch_classes);
 		const ChordResult chord = detect_chord(chroma, preferred_root);
 		const std::array<bool, 12> *allowed = mixed_source && chord.root >= 0 ? &chord.tones : nullptr;
 		const int max_notes = mixed_source && !allowed ? 2 : 8;
-		set_instrument_note_set(snapshot.guitar_notes, snapshot.guitar, note_powers, kGuitarMinMidi,
+		set_instrument_note_set(snapshot.guitar_notes, snapshot.guitar, tuned_note_powers, kGuitarMinMidi,
 					kGuitarMaxMidi, chord.root >= 0 ? chord.root : preferred_root, guitar_energy, rms,
 					max_notes, &blocked_pitch_classes, allowed);
 		if (mixed_source) {
-			add_shared_timbre_notes(snapshot.guitar_notes, snapshot.guitar, note_powers, kGuitarMinMidi,
+			add_shared_timbre_notes(snapshot.guitar_notes, snapshot.guitar, note_powers, tuned_note_powers,
+						kGuitarMinMidi,
 						kGuitarMaxMidi, chord.root >= 0 ? chord.root : preferred_root,
 						claimed_midis, TimbreKind::Guitar, rms);
 		}
@@ -1269,8 +1327,8 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 		const int min_midi = mixed_source ? 60 : kVocalMinMidi;
 		const std::array<bool, 12> blocked_pitch_classes = claimed_pitch_classes;
 		const int preferred_root =
-			lowest_peak_pitch_class(note_powers, min_midi, kVocalMaxMidi, &blocked_pitch_classes);
-		set_instrument_note_set(snapshot.vocal_notes, snapshot.vocal, note_powers, min_midi,
+			lowest_peak_pitch_class(tuned_note_powers, min_midi, kVocalMaxMidi, &blocked_pitch_classes);
+		set_instrument_note_set(snapshot.vocal_notes, snapshot.vocal, tuned_note_powers, min_midi,
 					kVocalMaxMidi, preferred_root, vocal_energy, rms, 1, &blocked_pitch_classes);
 		claim_note_grid_pitch_classes(snapshot.vocal_notes, claimed_pitch_classes);
 		claim_note_grid_midis(snapshot.vocal_notes, claimed_midis);
@@ -1280,15 +1338,16 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 		const int min_midi = mixed_source ? 72 : kOtherMinMidi;
 		const std::array<bool, 12> blocked_pitch_classes = claimed_pitch_classes;
 		const std::array<float, 12> chroma =
-			peak_chroma_for_range(note_powers, min_midi, kOtherMaxMidi, &blocked_pitch_classes);
+			peak_chroma_for_range(tuned_note_powers, min_midi, kOtherMaxMidi, &blocked_pitch_classes);
 		const int preferred_root =
-			lowest_peak_pitch_class(note_powers, min_midi, kOtherMaxMidi, &blocked_pitch_classes);
+			lowest_peak_pitch_class(tuned_note_powers, min_midi, kOtherMaxMidi, &blocked_pitch_classes);
 		const ChordResult chord = detect_chord(chroma, preferred_root);
-		set_instrument_note_set(snapshot.other_notes, snapshot.other, note_powers, min_midi, kOtherMaxMidi,
+		set_instrument_note_set(snapshot.other_notes, snapshot.other, tuned_note_powers, min_midi, kOtherMaxMidi,
 					chord.root >= 0 ? chord.root : preferred_root, other_energy, rms, 8,
 					&blocked_pitch_classes);
 		if (mixed_source) {
-			add_shared_timbre_notes(snapshot.other_notes, snapshot.other, note_powers, 60, min_midi - 1,
+			add_shared_timbre_notes(snapshot.other_notes, snapshot.other, note_powers, tuned_note_powers, 60,
+						min_midi - 1,
 						chord.root >= 0 ? chord.root : preferred_root, claimed_midis,
 						TimbreKind::Other, rms);
 		}

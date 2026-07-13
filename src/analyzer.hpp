@@ -121,6 +121,8 @@ private:
 
 	void rebuild_plans(uint32_t sample_rate);
 	float goertzel_power(const float *samples, std::size_t count, float mean, const Probe &probe) const;
+	float goertzel_power_at_frequency(const float *samples, std::size_t count, float mean, float freq) const;
+	bool chromatic_tuning_match(const float *samples, std::size_t count, float mean, int midi) const;
 	void reset_root_window();
 	void add_root_vote(const RootVote &vote);
 	InstrumentState track_root(const std::array<float, kNoteProbeCount> &powers, float rms,

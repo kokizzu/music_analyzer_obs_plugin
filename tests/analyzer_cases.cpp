@@ -356,12 +356,38 @@ void check_detuned_note_tolerance(Runner &runner)
 
 	{
 		mao_test::Buffer buffer = {};
+		mao_test::add_sine(buffer, detuned_midi_frequency(69, 9.0f), 0.42f);
+		const auto snapshot = analyze_buffer(buffer, "keyboard");
+		expect_note_token(runner, snapshot.keyboard.label, "A4", "detuned note tolerance: A4 plus 9 cents");
+		runner.expect(!mao_test::has_note_token(snapshot.keyboard.label, "A#4"),
+			      std::string("detuned note tolerance: +9 cents should stay A4 only, got `") +
+				      snapshot.keyboard.label + "`");
+	}
+
+	{
+		mao_test::Buffer buffer = {};
+		mao_test::add_sine(buffer, detuned_midi_frequency(69, 10.0f), 0.42f);
+		const auto snapshot = analyze_buffer(buffer, "keyboard");
+		runner.expect(!mao_test::has_note_token(snapshot.keyboard.label, "A4") &&
+				      !mao_test::has_note_token(snapshot.keyboard.label, "A#4"),
+			      std::string("detuned note tolerance: +10 cents should be ignored, got `") +
+				      snapshot.keyboard.label + "`");
+		runner.expect(!grid_pitch_active(snapshot.keyboard_notes, 9) &&
+				      !grid_pitch_active(snapshot.keyboard_notes, 10),
+			      "detuned note tolerance: +10 cents should not light A or A# keys");
+	}
+
+	{
+		mao_test::Buffer buffer = {};
 		mao_test::add_sine(buffer, detuned_midi_frequency(69, 20.0f), 0.42f);
 		const auto snapshot = analyze_buffer(buffer, "keyboard");
-		expect_note_token(runner, snapshot.keyboard.label, "A4", "detuned note tolerance: A4 plus 20 cents");
-		runner.expect(!mao_test::has_note_token(snapshot.keyboard.label, "A#4"),
-			      std::string("detuned note tolerance: +20 cents should stay A4 only, got `") +
+		runner.expect(!mao_test::has_note_token(snapshot.keyboard.label, "A4") &&
+				      !mao_test::has_note_token(snapshot.keyboard.label, "A#4"),
+			      std::string("detuned note tolerance: +20 cents should be ignored, got `") +
 				      snapshot.keyboard.label + "`");
+		runner.expect(!grid_pitch_active(snapshot.keyboard_notes, 9) &&
+				      !grid_pitch_active(snapshot.keyboard_notes, 10),
+			      "detuned note tolerance: +20 cents should not light A or A# keys");
 	}
 
 	{
@@ -375,6 +401,19 @@ void check_detuned_note_tolerance(Runner &runner)
 		runner.expect(!grid_pitch_active(snapshot.keyboard_notes, 9) &&
 				      !grid_pitch_active(snapshot.keyboard_notes, 10),
 			      "detuned note tolerance: +50 cents should not light A or A# keys");
+	}
+
+	{
+		mao_test::Buffer buffer = {};
+		mao_test::add_sine(buffer, detuned_midi_frequency(69, -10.0f), 0.42f);
+		const auto snapshot = analyze_buffer(buffer, "keyboard");
+		runner.expect(!mao_test::has_note_token(snapshot.keyboard.label, "G#4") &&
+				      !mao_test::has_note_token(snapshot.keyboard.label, "A4"),
+			      std::string("detuned note tolerance: -10 cents should be ignored, got `") +
+				      snapshot.keyboard.label + "`");
+		runner.expect(!grid_pitch_active(snapshot.keyboard_notes, 8) &&
+				      !grid_pitch_active(snapshot.keyboard_notes, 9),
+			      "detuned note tolerance: -10 cents should not light G# or A keys");
 	}
 
 	{
