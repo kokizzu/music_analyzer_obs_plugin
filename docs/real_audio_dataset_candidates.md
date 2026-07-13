@@ -87,11 +87,12 @@ without additional annotation.
   pitch classes agree with note annotations, checks each separated track, the
   provided `AuMix`, and a synthesized full mix made by summing every separated
   track. It also replays each selected provided and summed full-mix window
-  through a short multi-frame analyzer sequence so note/chord smoothing is
-  checked against same-song mixed audio. By default it samples up to 12
-  annotated windows per piece and requires at least 80 windows; it also prints
-  discovered/loadable piece and window counts to diagnose incomplete dataset
-  layouts. Set
+  through a short multi-frame analyzer sequence, and keeps one stateful provided
+  mix analyzer plus one stateful summed mix analyzer per piece across selected
+  windows, so note/chord smoothing is checked against same-song mixed audio. By
+  default it samples up to 12 annotated windows per piece and requires at least
+  80 windows; it also prints discovered/loadable piece and window counts to
+  diagnose incomplete dataset layouts. Set
   `MUSIC_ANALYZER_URMP_MAX_WINDOWS_PER_PIECE`,
   `MUSIC_ANALYZER_URMP_REQUIRED_PIECES`, and
   `MUSIC_ANALYZER_URMP_REQUIRED_WINDOWS` for quicker or deeper runs.
