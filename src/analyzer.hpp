@@ -113,6 +113,11 @@ private:
 	std::array<float, kDrumCount> drum_level_ = {};
 	std::array<RootVote, kMaxRootVotes> root_votes_ = {};
 	std::array<float, 12> root_sum_ = {};
+	std::array<float, kNoteProbeCount> bass_note_envelope_ = {};
+	std::array<float, kNoteProbeCount> guitar_note_envelope_ = {};
+	std::array<float, kNoteProbeCount> keyboard_note_envelope_ = {};
+	std::array<float, kNoteProbeCount> vocal_note_envelope_ = {};
+	std::array<float, kNoteProbeCount> other_note_envelope_ = {};
 	std::size_t root_vote_pos_ = 0;
 	std::size_t root_vote_count_ = 0;
 	std::size_t root_vote_target_ = 0;
@@ -120,6 +125,7 @@ private:
 	float silence_seconds_ = 0.0f;
 
 	void rebuild_plans(uint32_t sample_rate);
+	void reset_note_envelopes();
 	float goertzel_power(const float *samples, std::size_t count, float mean, const Probe &probe) const;
 	float goertzel_power_at_frequency(const float *samples, std::size_t count, float mean, float freq) const;
 	bool chromatic_tuning_match(const float *samples, std::size_t count, float mean, int midi) const;

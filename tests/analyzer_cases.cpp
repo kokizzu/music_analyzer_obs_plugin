@@ -398,6 +398,50 @@ void check_note_level_fade(Runner &runner)
 	}
 }
 
+void check_sustained_note_envelope(Runner &runner)
+{
+	mao::AnalysisEngine engine;
+	mao::AnalysisSettings settings = mao_test::default_settings();
+	settings.analysis_interval_seconds = 0.25f;
+
+	mao_test::Buffer g_chord = {};
+	mao_test::add_midi_note(g_chord, 55, 0.34f);
+	mao_test::add_midi_note(g_chord, 59, 0.34f);
+	mao_test::add_midi_note(g_chord, 62, 0.34f);
+	auto snapshot = engine.analyze(g_chord.data(), g_chord.size(), settings, "guitar", 0);
+	const float initial_g = grid_level_for_midi(snapshot.guitar_notes, 55);
+	runner.expect(initial_g > 0.90f, "sustained note envelope: expected initial G3 near full level");
+	expect_note_token(runner, snapshot.guitar.label, "G3", "sustained note envelope initial");
+	expect_note_token(runner, snapshot.guitar.label, "B3", "sustained note envelope initial");
+	expect_note_token(runner, snapshot.guitar.label, "D4", "sustained note envelope initial");
+	expect_label(runner, snapshot.guitar_chord.label, "G", "sustained note envelope initial chord");
+
+	mao_test::Buffer missed_window = {};
+	snapshot = engine.analyze(missed_window.data(), missed_window.size(), settings, "guitar", 0);
+	const float held_g = grid_level_for_midi(snapshot.guitar_notes, 55);
+	runner.expect(held_g > 0.75f && held_g < initial_g,
+		      "sustained note envelope: expected missed frame to dim G3 instead of clearing it");
+	expect_note_token(runner, snapshot.guitar.label, "G3", "sustained note envelope missed frame");
+	expect_note_token(runner, snapshot.guitar.label, "B3", "sustained note envelope missed frame");
+	expect_note_token(runner, snapshot.guitar.label, "D4", "sustained note envelope missed frame");
+	expect_label(runner, snapshot.guitar_chord.label, "G", "sustained note envelope missed frame chord");
+
+	float previous_g = held_g;
+	for (int i = 0; i < 4; ++i) {
+		snapshot = engine.analyze(missed_window.data(), missed_window.size(), settings, "guitar", 0);
+		const float current_g = grid_level_for_midi(snapshot.guitar_notes, 55);
+		runner.expect(current_g <= previous_g + 0.001f,
+			      "sustained note envelope: expected G3 release to be monotonic");
+		previous_g = current_g;
+	}
+	runner.expect(previous_g > 0.40f, "sustained note envelope: expected G3 visible through short gaps");
+
+	for (int i = 0; i < 12; ++i)
+		snapshot = engine.analyze(missed_window.data(), missed_window.size(), settings, "guitar", 0);
+	expect_label(runner, snapshot.guitar.label, "--", "sustained note envelope release");
+	expect_no_chord(runner, snapshot.guitar_chord, "sustained note envelope release chord");
+}
+
 void check_detuned_note_tolerance(Runner &runner)
 {
 	{
@@ -717,6 +761,7 @@ int main()
 	check_quiet_note_rejection(runner);
 	check_quiet_standalone_rejection(runner);
 	check_note_level_fade(runner);
+	check_sustained_note_envelope(runner);
 	check_detuned_note_tolerance(runner);
 	check_realistic_instrument_chords(runner);
 	check_same_note_timbre_split(runner);

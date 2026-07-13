@@ -36,6 +36,9 @@ constexpr float kChromaticTuneToleranceCents = 9.0f;
 constexpr float kChromaticTuneEstimatorSlackCents = 0.5f;
 constexpr float kChromaticCenterAdjacentRatio = 0.985f;
 constexpr float kChromaticCenterEdgeRatio = 0.90f;
+constexpr float kNoteEnvelopeReleaseSeconds = 3.0f;
+constexpr float kNoteEnvelopeVisibleFloor = 0.045f;
+constexpr float kNoteEnvelopeNewNoteFloor = 0.14f;
 
 enum class SourceHint {
 	None,
@@ -808,6 +811,126 @@ float strongest_note_grid_level(const NoteGrid &grid)
 	return strongest;
 }
 
+void collect_note_grid_levels(const NoteGrid &grid, std::array<float, kNoteProbeCount> &levels)
+{
+	levels.fill(0.0f);
+	for (const auto &row : grid.rows) {
+		for (const NoteCell &cell : row) {
+			if (!cell.active || cell.midi < kFirstMidi || cell.midi > kLastMidi)
+				continue;
+			levels[cell.midi - kFirstMidi] = std::max(levels[cell.midi - kFirstMidi], cell.level);
+		}
+	}
+}
+
+void smooth_note_grid_envelope(NoteGrid &grid, InstrumentState &state, std::array<float, kNoteProbeCount> &envelope,
+			       int preferred_root, float interval_seconds, int max_notes,
+			       const std::array<bool, kNoteProbeCount> *new_note_midi_filter = nullptr)
+{
+	std::array<float, kNoteProbeCount> raw_levels = {};
+	collect_note_grid_levels(grid, raw_levels);
+
+	const float release_step =
+		std::clamp(interval_seconds, 0.01f, 1.0f) / std::max(kNoteEnvelopeReleaseSeconds, 0.01f);
+	for (std::size_t i = 0; i < envelope.size(); ++i) {
+		float raw_level = std::clamp(raw_levels[i], 0.0f, 1.0f);
+		if (envelope[i] <= 0.0f && raw_level > 0.0f && new_note_midi_filter &&
+		    !(*new_note_midi_filter)[i])
+			raw_level = 0.0f;
+		if (envelope[i] <= 0.0f && raw_level > 0.0f && raw_level < kNoteEnvelopeNewNoteFloor)
+			raw_level = 0.0f;
+
+		float level = raw_level >= envelope[i] ? raw_level : std::max(raw_level, envelope[i] - release_step);
+		if (level < kNoteEnvelopeVisibleFloor)
+			level = 0.0f;
+		envelope[i] = std::clamp(level, 0.0f, 1.0f);
+	}
+
+	clear_note_grid(grid);
+	std::vector<NoteCandidate> candidates;
+	for (int midi = kFirstMidi; midi <= kLastMidi; ++midi) {
+		const float level = envelope[midi - kFirstMidi];
+		if (level > 0.0f)
+			candidates.push_back(NoteCandidate{midi, level});
+	}
+	std::sort(candidates.begin(), candidates.end(),
+		  [](const NoteCandidate &a, const NoteCandidate &b) { return a.score > b.score; });
+
+	int written = 0;
+	for (const NoteCandidate &candidate : candidates) {
+		write_note_grid_cell(grid, candidate, 1.0f, 1.0f);
+		if (++written >= std::max(1, max_notes))
+			break;
+	}
+
+	write_note_grid_label(state, grid, preferred_root);
+}
+
+void reset_note_grid_envelope(NoteGrid &grid, InstrumentState &state,
+			      std::array<float, kNoteProbeCount> &envelope)
+{
+	envelope.fill(0.0f);
+	clear_instrument_note_grid(grid, state);
+}
+
+std::array<bool, kNoteProbeCount> mixed_note_seed_filter(const NoteGrid &grid,
+							 const ChordResult &seed_chord,
+							 const std::array<float, kNoteProbeCount> &powers,
+							 TimbreKind kind)
+{
+	std::array<bool, kNoteProbeCount> allowed = {};
+	for (const auto &row : grid.rows) {
+		for (const NoteCell &cell : row) {
+			if (!cell.active || cell.midi < kFirstMidi || cell.midi > kLastMidi)
+				continue;
+
+			const int pitch_class = ((cell.midi % 12) + 12) % 12;
+			const bool chord_tone = seed_chord.root >= 0 && seed_chord.tones[pitch_class];
+			if (chord_tone || timbre_supports_kind(powers, cell.midi, kind))
+				allowed[cell.midi - kFirstMidi] = true;
+		}
+	}
+	return allowed;
+}
+
+std::array<float, 12> note_grid_chroma(const NoteGrid &grid)
+{
+	std::array<float, 12> chroma = {};
+	for (const auto &row : grid.rows) {
+		for (const NoteCell &cell : row) {
+			if (!cell.active || cell.midi < 0)
+				continue;
+			const int pitch_class = ((cell.midi % 12) + 12) % 12;
+			chroma[pitch_class] = std::max(chroma[pitch_class], cell.level);
+		}
+	}
+	return chroma;
+}
+
+int lowest_note_grid_pitch_class(const NoteGrid &grid)
+{
+	int lowest_midi = kLastMidi + 1;
+	for (const auto &row : grid.rows) {
+		for (const NoteCell &cell : row) {
+			if (cell.active && cell.midi >= kFirstMidi && cell.midi < lowest_midi)
+				lowest_midi = cell.midi;
+		}
+	}
+	return lowest_midi <= kLastMidi ? ((lowest_midi % 12) + 12) % 12 : -1;
+}
+
+void set_chord_from_smoothed_grid(InstrumentState &state, const NoteGrid &grid, bool allow_extensions)
+{
+	const ChordResult chord = detect_chord(note_grid_chroma(grid), lowest_note_grid_pitch_class(grid), allow_extensions);
+	if (chord.confidence >= 0.36f) {
+		copy_text(state.label, sizeof(state.label), chord.label);
+		state.confidence = chord.confidence;
+		return;
+	}
+
+	clear_instrument_state(state);
+}
+
 void add_shared_timbre_notes(NoteGrid &grid, InstrumentState &state, const std::array<float, kNoteProbeCount> &powers,
 			     const std::array<float, kNoteProbeCount> &tuned_powers, int min_midi, int max_midi,
 			     int preferred_root,
@@ -996,8 +1119,10 @@ void AnalysisEngine::configure(uint32_t sample_rate)
 {
 	if (sample_rate == 0)
 		sample_rate = 48000;
-	if (sample_rate != sample_rate_)
+	if (sample_rate != sample_rate_) {
 		rebuild_plans(sample_rate);
+		reset_note_envelopes();
+	}
 }
 
 void AnalysisEngine::rebuild_plans(uint32_t sample_rate)
@@ -1019,6 +1144,15 @@ void AnalysisEngine::rebuild_plans(uint32_t sample_rate)
 		probe.freq = std::min(kDrumFreqs[i], static_cast<float>(sample_rate_) * 0.45f);
 		probe.coeff = 2.0f * std::cos(2.0f * kPi * probe.freq / static_cast<float>(sample_rate_));
 	}
+}
+
+void AnalysisEngine::reset_note_envelopes()
+{
+	bass_note_envelope_.fill(0.0f);
+	guitar_note_envelope_.fill(0.0f);
+	keyboard_note_envelope_.fill(0.0f);
+	vocal_note_envelope_.fill(0.0f);
+	other_note_envelope_.fill(0.0f);
 }
 
 float AnalysisEngine::goertzel_power(const float *samples, std::size_t count, float mean, const Probe &probe) const
@@ -1219,6 +1353,7 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 	snapshot.dropped_windows = dropped_windows;
 
 	if (!samples || count == 0) {
+		reset_note_envelopes();
 		copy_text(snapshot.bass.label, sizeof(snapshot.bass.label), "--");
 		copy_text(snapshot.root.label, sizeof(snapshot.root.label), "--");
 		copy_text(snapshot.root_candidates, sizeof(snapshot.root_candidates), "-- 0%");
@@ -1459,6 +1594,70 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 		process_other();
 		break;
 	}
+
+	const float interval_seconds = std::clamp(settings.analysis_interval_seconds, 0.01f, 1.0f);
+	const bool bass_processed = source_hint == SourceHint::None || source_hint == SourceHint::Bass;
+	const bool harmonic_processed = source_hint != SourceHint::Other;
+	const bool allow_smoothed_extensions = !mixed_source;
+	const ChordResult keyboard_seed_chord =
+		detect_chord(note_grid_chroma(snapshot.keyboard_notes),
+			     lowest_note_grid_pitch_class(snapshot.keyboard_notes), allow_smoothed_extensions);
+	const ChordResult guitar_seed_chord =
+		detect_chord(note_grid_chroma(snapshot.guitar_notes),
+			     lowest_note_grid_pitch_class(snapshot.guitar_notes), allow_smoothed_extensions);
+	const ChordResult other_seed_chord =
+		detect_chord(note_grid_chroma(snapshot.other_notes),
+			     lowest_note_grid_pitch_class(snapshot.other_notes), allow_smoothed_extensions);
+	const bool keyboard_raw_chord = keyboard_seed_chord.root >= 0 && snapshot.keyboard_chord.label[0] != '-';
+	const bool guitar_raw_chord = guitar_seed_chord.root >= 0 && snapshot.guitar_chord.label[0] != '-';
+	const bool other_raw_chord = other_seed_chord.root >= 0 && snapshot.other_chord.label[0] != '-';
+	const bool keyboard_raw_notes = strongest_note_grid_level(snapshot.keyboard_notes) > 0.0f;
+	const bool guitar_raw_notes = strongest_note_grid_level(snapshot.guitar_notes) > 0.0f;
+	const bool other_raw_notes = strongest_note_grid_level(snapshot.other_notes) > 0.0f;
+	const std::array<bool, kNoteProbeCount> keyboard_seed_filter =
+		mixed_note_seed_filter(snapshot.keyboard_notes, keyboard_seed_chord, note_powers, TimbreKind::Keyboard);
+	const std::array<bool, kNoteProbeCount> *keyboard_new_notes = mixed_source ? &keyboard_seed_filter : nullptr;
+	const std::array<bool, kNoteProbeCount> *guitar_new_notes = nullptr;
+	const std::array<bool, kNoteProbeCount> *other_new_notes = nullptr;
+
+	if (bass_processed) {
+		smooth_note_grid_envelope(snapshot.bass_notes, snapshot.bass, bass_note_envelope_, -1,
+					  interval_seconds, 1);
+	} else {
+		reset_note_grid_envelope(snapshot.bass_notes, snapshot.bass, bass_note_envelope_);
+	}
+
+	if (harmonic_processed) {
+		smooth_note_grid_envelope(snapshot.keyboard_notes, snapshot.keyboard, keyboard_note_envelope_, -1,
+					  interval_seconds, mixed_source ? 4 : 10, keyboard_new_notes);
+		smooth_note_grid_envelope(snapshot.guitar_notes, snapshot.guitar, guitar_note_envelope_, -1,
+					  interval_seconds, mixed_source ? 4 : 8, guitar_new_notes);
+		smooth_note_grid_envelope(snapshot.vocal_notes, snapshot.vocal, vocal_note_envelope_, -1,
+					  interval_seconds, 1);
+		if (!keyboard_raw_notes)
+			set_chord_from_smoothed_grid(snapshot.keyboard_chord, snapshot.keyboard_notes,
+						    allow_smoothed_extensions);
+		else if (!keyboard_raw_chord)
+			clear_instrument_state(snapshot.keyboard_chord);
+		if (!guitar_raw_notes)
+			set_chord_from_smoothed_grid(snapshot.guitar_chord, snapshot.guitar_notes,
+						    allow_smoothed_extensions);
+		else if (!guitar_raw_chord)
+			clear_instrument_state(snapshot.guitar_chord);
+	} else {
+		reset_note_grid_envelope(snapshot.keyboard_notes, snapshot.keyboard, keyboard_note_envelope_);
+		clear_instrument_state(snapshot.keyboard_chord);
+		reset_note_grid_envelope(snapshot.guitar_notes, snapshot.guitar, guitar_note_envelope_);
+		clear_instrument_state(snapshot.guitar_chord);
+		reset_note_grid_envelope(snapshot.vocal_notes, snapshot.vocal, vocal_note_envelope_);
+	}
+
+	smooth_note_grid_envelope(snapshot.other_notes, snapshot.other, other_note_envelope_, -1,
+				  interval_seconds, 8, other_new_notes);
+	if (!other_raw_notes)
+		set_chord_from_smoothed_grid(snapshot.other_chord, snapshot.other_notes, allow_smoothed_extensions);
+	else if (!other_raw_chord)
+		clear_instrument_state(snapshot.other_chord);
 
 	return snapshot;
 }
