@@ -404,9 +404,8 @@ Color blend_color(Color from, Color to, float amount)
 
 float display_highlight_level(float level)
 {
-	level = std::clamp(level, 0.0f, 1.0f);
-	const float eased = level * (2.0f - level);
-	return std::clamp(eased * 1.08f, 0.0f, 1.0f);
+	constexpr float kFullHighlightLevel = 0.50f;
+	return std::clamp(level / kFullHighlightLevel, 0.0f, 1.0f);
 }
 
 struct DrumBar {
@@ -655,9 +654,9 @@ void draw_note_cell(VisualizerData *visualizer, int x, int y, int w, int h, cons
 		return;
 
 	const int text_width = static_cast<int>(std::strlen(cell.label)) * 12;
+	const float level = display_highlight_level(cell.level);
 	draw_text(visualizer, x + std::max(2, (w - text_width) / 2), y + std::max(2, (h - 14) / 2),
-		  cell.label, 2,
-		  cell.active ? blend_color(idle_text, accent, cell.level) : idle_text);
+		  cell.label, 2, cell.active ? blend_color(idle_text, accent, level) : idle_text);
 }
 
 int draw_instrument_rows(VisualizerData *visualizer, int y, const char *name, const mao::NoteGrid &notes,
