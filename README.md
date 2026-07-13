@@ -19,13 +19,12 @@ The analyzer is designed for real-time OBS use. It uses bounded DSP heuristics r
    ```
 
 3. Restart OBS.
-4. Add or select the audio source that carries the music:
-   - `Audio Output Capture` for desktop/music playback
-   - `Audio Input Capture` for microphone or instrument input
-   - `Media Source` for a music file played inside OBS
-5. Add the analyzer filter to that audio source:
-   - In `Sources`, right-click the audio source and choose `Filters`
-   - Or in `Audio Mixer`, open the gear/three-dots menu for that audio channel and choose `Filters`
+4. Pick the OBS audio channel that carries the music.
+   - If you use the default OBS mixer, use `Desktop Audio`, `Mic/Aux`, or whichever mixer channel meter moves with the music.
+   - If you use a source in the `Sources` list, use `Audio Output Capture`, `Audio Input Capture`, or `Media Source`.
+5. Add the analyzer filter to that audio channel:
+   - In `Audio Mixer`, open the gear/three-dots menu for the channel, then choose `Filters`.
+   - Or in `Sources`, right-click an audio source and choose `Filters`.
    - Under `Audio Filters`, click `+`, choose `Music Analyzer Filter`, then click `OK`
 6. Add the on-screen overlay:
    - In `Sources`, click `+`
