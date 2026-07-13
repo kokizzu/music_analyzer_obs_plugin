@@ -5,6 +5,7 @@
 #include <cmath>
 #include <cstdio>
 #include <cstring>
+#include <vector>
 
 namespace mao {
 namespace {
@@ -35,8 +36,28 @@ void copy_text(char *dst, std::size_t dst_size, const char *src)
 
 void write_note(char *dst, std::size_t dst_size, int midi)
 {
-	const int octave = midi / 12 - 1;
-	std::snprintf(dst, dst_size, "%s%d", note_name(midi), octave);
+	if (!dst || dst_size == 0)
+		return;
+
+	std::size_t cursor = 0;
+	const char *name = note_name(midi);
+	while (*name && cursor + 1 < dst_size)
+		dst[cursor++] = *name++;
+
+	const int octave = std::clamp(midi / 12 - 1, 0, 9);
+	if (cursor + 1 < dst_size)
+		dst[cursor++] = static_cast<char>('0' + octave);
+	dst[cursor] = '\0';
+}
+
+void write_octave(char *dst, std::size_t dst_size, int midi)
+{
+	if (!dst || dst_size == 0)
+		return;
+	const int octave = std::clamp(midi / 12 - 1, 0, 9);
+	dst[0] = static_cast<char>('0' + octave);
+	if (dst_size > 1)
+		dst[1] = '\0';
 }
 
 struct RangeResult {
@@ -73,15 +94,64 @@ RangeResult dominant_note(const std::array<float, 69> &powers, int min_midi, int
 	return result;
 }
 
-std::array<float, 12> chroma_for_range(const std::array<float, 69> &powers, int min_midi, int max_midi)
+struct NoteCandidate {
+	int midi = -1;
+	float score = 0.0f;
+};
+
+std::vector<NoteCandidate> note_peak_candidates(const std::array<float, 69> &powers, int min_midi, int max_midi,
+						int max_notes)
 {
-	std::array<float, 12> chroma = {};
+	std::array<float, 69> scores = {};
+	float strongest_score = 0.0f;
 	min_midi = std::max(min_midi, kFirstMidi);
 	max_midi = std::min(max_midi, kLastMidi);
 
 	for (int midi = min_midi; midi <= max_midi; ++midi) {
-		const float compressed = std::sqrt(std::max(powers[midi - kFirstMidi], 0.0f));
-		chroma[((midi % 12) + 12) % 12] += compressed;
+		const float score = std::sqrt(std::max(powers[midi - kFirstMidi], 0.0f));
+		scores[midi - kFirstMidi] = score;
+		strongest_score = std::max(strongest_score, score);
+	}
+
+	std::vector<NoteCandidate> candidates;
+	if (strongest_score <= 1.0e-6f)
+		return candidates;
+
+	for (int midi = min_midi; midi <= max_midi; ++midi) {
+		const float score = scores[midi - kFirstMidi];
+		if (score >= strongest_score * 0.30f)
+			candidates.push_back(NoteCandidate{midi, score});
+	}
+
+	std::sort(candidates.begin(), candidates.end(),
+		  [](const NoteCandidate &a, const NoteCandidate &b) { return a.score > b.score; });
+
+	std::vector<NoteCandidate> selected;
+	for (const NoteCandidate &candidate : candidates) {
+		bool masked = false;
+		for (const NoteCandidate &existing : selected) {
+			if (std::abs(existing.midi - candidate.midi) <= 1 ||
+			    ((existing.midi % 12) + 12) % 12 == ((candidate.midi % 12) + 12) % 12) {
+				masked = true;
+				break;
+			}
+		}
+		if (masked)
+			continue;
+		selected.push_back(candidate);
+		if (static_cast<int>(selected.size()) >= max_notes)
+			break;
+	}
+
+	return selected;
+}
+
+std::array<float, 12> peak_chroma_for_range(const std::array<float, 69> &powers, int min_midi, int max_midi)
+{
+	std::array<float, 12> chroma = {};
+	for (const NoteCandidate &candidate : note_peak_candidates(powers, min_midi, max_midi, 6)) {
+		const int pitch_class = ((candidate.midi % 12) + 12) % 12;
+		chroma[pitch_class] = std::max(chroma[pitch_class], candidate.score);
 	}
 
 	const float max_value = *std::max_element(chroma.begin(), chroma.end());
@@ -93,35 +163,76 @@ std::array<float, 12> chroma_for_range(const std::array<float, 69> &powers, int 
 	return chroma;
 }
 
+int lowest_peak_pitch_class(const std::array<float, 69> &powers, int min_midi, int max_midi)
+{
+	const std::vector<NoteCandidate> candidates = note_peak_candidates(powers, min_midi, max_midi, 6);
+	if (candidates.empty())
+		return -1;
+
+	int lowest_midi = candidates.front().midi;
+	for (const NoteCandidate &candidate : candidates)
+		lowest_midi = std::min(lowest_midi, candidate.midi);
+	return ((lowest_midi % 12) + 12) % 12;
+}
+
 struct ChordResult {
 	char label[24] = {};
 	int root = -1;
 	float confidence = 0.0f;
 };
 
-ChordResult detect_chord(const std::array<float, 12> &chroma)
+ChordResult detect_chord(const std::array<float, 12> &chroma, int bass_pitch_class = -1)
 {
 	ChordResult best;
 	float best_score = 0.0f;
+	static constexpr float kToneThreshold = 0.24f;
+	static constexpr float kSeventhThreshold = 0.50f;
+
+	auto tone = [&](int root, int offset) -> float { return chroma[(root + offset) % 12]; };
+	auto present = [&](int root, int offset) -> bool { return tone(root, offset) >= kToneThreshold; };
+	auto consider = [&](int root, const char *suffix, float score) {
+		if (root == bass_pitch_class)
+			score += 0.40f;
+		if (score <= best_score)
+			return;
+		best_score = score;
+		best.root = root;
+		std::snprintf(best.label, sizeof(best.label), "%s%s", note_name(root), suffix);
+	};
 
 	for (int root = 0; root < 12; ++root) {
 		const float root_power = chroma[root];
-		const float fifth_power = chroma[(root + 7) % 12];
-		const float major_score = root_power * 1.15f + chroma[(root + 4) % 12] + fifth_power * 0.9f -
-					  chroma[(root + 3) % 12] * 0.35f;
-		const float minor_score = root_power * 1.15f + chroma[(root + 3) % 12] + fifth_power * 0.9f -
-					  chroma[(root + 4) % 12] * 0.35f;
+		const float second_power = tone(root, 2);
+		const float minor_third_power = tone(root, 3);
+		const float major_third_power = tone(root, 4);
+		const float fourth_power = tone(root, 5);
+		const float fifth_power = tone(root, 7);
+		const float minor_seventh_power = tone(root, 10);
+		const float major_seventh_power = tone(root, 11);
+		if (root_power < kToneThreshold || fifth_power < kToneThreshold)
+			continue;
 
-		if (major_score > best_score) {
-			best_score = major_score;
-			best.root = root;
-			std::snprintf(best.label, sizeof(best.label), "%s MAJ", note_name(root));
-		}
-		if (minor_score > best_score) {
-			best_score = minor_score;
-			best.root = root;
-			std::snprintf(best.label, sizeof(best.label), "%s MIN", note_name(root));
-		}
+		if (present(root, 4) && tone(root, 10) >= kSeventhThreshold)
+			consider(root, "7", root_power * 1.20f + major_third_power + fifth_power * 0.90f +
+						 minor_seventh_power * 1.10f - minor_third_power * 0.35f);
+		if (present(root, 4) && tone(root, 11) >= kSeventhThreshold)
+			consider(root, " MAJ7", root_power * 1.20f + major_third_power + fifth_power * 0.90f +
+						    major_seventh_power * 1.10f - minor_seventh_power * 0.25f);
+		if (present(root, 3) && tone(root, 10) >= kSeventhThreshold)
+			consider(root, " MIN7", root_power * 1.20f + minor_third_power + fifth_power * 0.90f +
+						    minor_seventh_power * 1.10f - major_third_power * 0.35f);
+		if (present(root, 4))
+			consider(root, " MAJ", root_power * 1.15f + major_third_power + fifth_power * 0.90f -
+						    minor_third_power * 0.35f);
+		if (present(root, 3))
+			consider(root, " MIN", root_power * 1.15f + minor_third_power + fifth_power * 0.90f -
+						    major_third_power * 0.35f);
+		if (present(root, 2))
+			consider(root, " SUS2", root_power * 1.12f + second_power + fifth_power * 0.90f -
+						     major_third_power * 0.25f - minor_third_power * 0.25f);
+		if (present(root, 5))
+			consider(root, " SUS4", root_power * 1.12f + fourth_power + fifth_power * 0.90f -
+						     major_third_power * 0.25f - minor_third_power * 0.25f);
 	}
 
 	float chroma_sum = 0.0f;
@@ -162,7 +273,7 @@ RootCandidate detect_root_candidate(const std::array<float, 69> &powers, float r
 		candidate.scores[pitch_class] += std::sqrt(std::max(powers[midi - kFirstMidi], 0.0f)) * octave_weight;
 	}
 
-	const ChordResult chord = detect_chord(chroma_for_range(powers, 40, 84));
+	const ChordResult chord = detect_chord(peak_chroma_for_range(powers, 40, 84));
 	if (chord.root >= 0 && chord.confidence >= 0.36f) {
 		float seed_total = 0.0f;
 		for (float score : candidate.scores)
@@ -211,57 +322,96 @@ void set_instrument_note(InstrumentState &state, const RangeResult &note, float 
 	state.confidence = std::clamp(note.confidence * 1.8f, 0.0f, 1.0f);
 }
 
-void set_instrument_note_set(InstrumentState &state, const std::array<float, 12> &chroma, int preferred_root,
-			     float energy, float rms)
+void clear_note_grid(NoteGrid &grid)
 {
-	if (rms < kSilenceRms || energy < 1.0e-5f) {
-		copy_text(state.label, sizeof(state.label), "--");
-		state.confidence = 0.0f;
-		return;
-	}
+	for (NoteCell &cell : grid.cells)
+		cell = {};
+}
 
-	int strongest = -1;
-	float strongest_score = 0.0f;
-	for (int i = 0; i < 12; ++i) {
-		if (chroma[i] > strongest_score) {
-			strongest = i;
-			strongest_score = chroma[i];
-		}
-	}
-
-	if (strongest < 0 || strongest_score < 0.18f) {
-		copy_text(state.label, sizeof(state.label), "--");
-		state.confidence = 0.0f;
-		return;
-	}
-
-	const int start = preferred_root >= 0 ? preferred_root % 12 : strongest;
+void write_note_grid_label(InstrumentState &state, const NoteGrid &grid, int preferred_root)
+{
 	char label[24] = {};
-	for (int offset = 0, written = 0; offset < 12 && written < 5; ++offset) {
+	const int start = preferred_root >= 0 ? preferred_root % 12 : 0;
+	for (int offset = 0; offset < 12; ++offset) {
 		const int pitch_class = (start + offset) % 12;
-		if (chroma[pitch_class] < 0.36f)
+		const NoteCell &cell = grid.cells[pitch_class];
+		if (!cell.active || cell.midi < 0)
 			continue;
 
-		const char *name = note_name(pitch_class);
+		char note[8] = {};
+		write_note(note, sizeof(note), cell.midi);
 		const std::size_t used = std::strlen(label);
-		const std::size_t needed = std::strlen(name) + (used > 0 ? 1 : 0);
+		const std::size_t needed = std::strlen(note) + (used > 0 ? 1 : 0);
 		if (used + needed + 1 > sizeof(label))
 			break;
 
 		std::size_t cursor = used;
 		if (cursor > 0)
 			label[cursor++] = ' ';
-		for (const char *p = name; *p && cursor + 1 < sizeof(label); ++p)
+		for (const char *p = note; *p && cursor + 1 < sizeof(label); ++p)
 			label[cursor++] = *p;
 		label[cursor] = '\0';
-		++written;
 	}
 
-	if (!label[0])
-		copy_text(label, sizeof(label), note_name(strongest));
+	if (!label[0]) {
+		copy_text(state.label, sizeof(state.label), "--");
+		state.confidence = 0.0f;
+		return;
+	}
 
 	copy_text(state.label, sizeof(state.label), label);
-	state.confidence = std::clamp(strongest_score, 0.0f, 1.0f);
+	float confidence = 0.0f;
+	for (const NoteCell &cell : grid.cells)
+		confidence = std::max(confidence, cell.level);
+	state.confidence = confidence;
+}
+
+void set_single_note_grid(NoteGrid &grid, InstrumentState &state, const RangeResult &note, float energy, float rms)
+{
+	clear_note_grid(grid);
+	set_instrument_note(state, note, energy, rms);
+	if (state.label[0] == '-' || note.midi < 0)
+		return;
+
+	const int pitch_class = ((note.midi % 12) + 12) % 12;
+	NoteCell &cell = grid.cells[pitch_class];
+	write_octave(cell.label, sizeof(cell.label), note.midi);
+	cell.level = state.confidence;
+	cell.midi = note.midi;
+	cell.active = true;
+}
+
+void set_instrument_note_set(NoteGrid &grid, InstrumentState &state, const std::array<float, 69> &powers,
+			     int min_midi, int max_midi, int preferred_root, float energy, float rms)
+{
+	clear_note_grid(grid);
+	if (rms < kSilenceRms || energy < 1.0e-5f) {
+		copy_text(state.label, sizeof(state.label), "--");
+		state.confidence = 0.0f;
+		return;
+	}
+
+	float strongest_score = 0.0f;
+	const std::vector<NoteCandidate> candidates = note_peak_candidates(powers, min_midi, max_midi, 6);
+	for (const NoteCandidate &candidate : candidates)
+		strongest_score = std::max(strongest_score, candidate.score);
+
+	if (strongest_score <= 1.0e-6f) {
+		copy_text(state.label, sizeof(state.label), "--");
+		state.confidence = 0.0f;
+		return;
+	}
+
+	for (const NoteCandidate &candidate : candidates) {
+		const int pitch_class = ((candidate.midi % 12) + 12) % 12;
+		NoteCell &cell = grid.cells[pitch_class];
+		write_octave(cell.label, sizeof(cell.label), candidate.midi);
+		cell.level = std::clamp(candidate.score / strongest_score, 0.0f, 1.0f);
+		cell.midi = candidate.midi;
+		cell.active = true;
+	}
+
+	write_note_grid_label(state, grid, preferred_root);
 }
 
 void set_instrument_chord(InstrumentState &state, const ChordResult &chord, float energy, float rms)
@@ -623,27 +773,27 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 	const RangeResult vocal_note = dominant_note(note_powers, 48, 84, false);
 	const RangeResult other_note = dominant_note(note_powers, 60, 96, false);
 
-	const std::array<float, 12> guitar_chroma = chroma_for_range(note_powers, 40, 76);
-	const std::array<float, 12> keyboard_chroma = chroma_for_range(note_powers, 48, 88);
-	const std::array<float, 12> other_chroma = chroma_for_range(note_powers, 60, 96);
-	const ChordResult guitar_chord = detect_chord(guitar_chroma);
-	const ChordResult keyboard_chord = detect_chord(keyboard_chroma);
-	const ChordResult other_chord = detect_chord(other_chroma);
+	const std::array<float, 12> guitar_chroma = peak_chroma_for_range(note_powers, 40, 76);
+	const std::array<float, 12> keyboard_chroma = peak_chroma_for_range(note_powers, 48, 88);
+	const std::array<float, 12> other_chroma = peak_chroma_for_range(note_powers, 60, 96);
+	const ChordResult guitar_chord = detect_chord(guitar_chroma, lowest_peak_pitch_class(note_powers, 40, 76));
+	const ChordResult keyboard_chord = detect_chord(keyboard_chroma, lowest_peak_pitch_class(note_powers, 48, 88));
+	const ChordResult other_chord = detect_chord(other_chroma, lowest_peak_pitch_class(note_powers, 60, 96));
 
 	snapshot.root = track_root(note_powers, rms, settings, snapshot.root_candidates, sizeof(snapshot.root_candidates));
-	set_instrument_note(snapshot.bass, bass_note, low, rms);
-	set_instrument_note_set(snapshot.guitar, guitar_chroma,
+	set_single_note_grid(snapshot.bass_notes, snapshot.bass, bass_note, low, rms);
+	set_instrument_note_set(snapshot.guitar_notes, snapshot.guitar, note_powers, 40, 76,
 				guitar_chord.root >= 0 ? guitar_chord.root :
 							 (guitar_note.confidence >= 0.08f ? guitar_note.midi : -1),
 				mid, rms);
 	set_instrument_chord(snapshot.guitar_chord, guitar_chord, mid, rms);
-	set_instrument_note_set(snapshot.keyboard, keyboard_chroma,
+	set_instrument_note_set(snapshot.keyboard_notes, snapshot.keyboard, note_powers, 48, 88,
 				keyboard_chord.root >= 0 ? keyboard_chord.root :
 							   (keyboard_note.confidence >= 0.08f ? keyboard_note.midi : -1),
 				mid + low * 0.25f, rms);
 	set_instrument_chord(snapshot.keyboard_chord, keyboard_chord, mid + low * 0.25f, rms);
-	set_instrument_note(snapshot.vocal, vocal_note, mid, rms);
-	set_instrument_note_set(snapshot.other, other_chroma,
+	set_single_note_grid(snapshot.vocal_notes, snapshot.vocal, vocal_note, mid, rms);
+	set_instrument_note_set(snapshot.other_notes, snapshot.other, note_powers, 60, 96,
 				other_chord.root >= 0 ? other_chord.root :
 							 (other_note.confidence >= 0.08f ? other_note.midi : -1),
 				high, rms);

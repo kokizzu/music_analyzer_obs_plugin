@@ -35,8 +35,19 @@ target_link_libraries(music-analyzer-obs PRIVATE ${LIBOBS_LIBRARIES} pthread)
 set_target_properties(music-analyzer-obs PROPERTIES PREFIX "")
 
 add_executable(analyzer_smoke tests/analyzer_smoke.cpp src/analyzer.cpp)
-target_include_directories(analyzer_smoke PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/src)
+target_include_directories(analyzer_smoke PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}/src
+    ${CMAKE_CURRENT_SOURCE_DIR}/tests
+)
 target_compile_options(analyzer_smoke PRIVATE -Wall -Wextra)
+
+add_executable(analyzer_cases tests/analyzer_cases.cpp src/analyzer.cpp)
+target_include_directories(analyzer_cases PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}/src
+    ${CMAKE_CURRENT_SOURCE_DIR}/tests
+)
+target_compile_options(analyzer_cases PRIVATE -Wall -Wextra)
 
 enable_testing()
 add_test(NAME analyzer_smoke COMMAND analyzer_smoke)
+add_test(NAME analyzer_cases COMMAND analyzer_cases)

@@ -36,6 +36,17 @@ struct InstrumentState {
 	float confidence = 0.0f;
 };
 
+struct NoteCell {
+	char label[8] = {};
+	float level = 0.0f;
+	int midi = -1;
+	bool active = false;
+};
+
+struct NoteGrid {
+	std::array<NoteCell, 12> cells = {};
+};
+
 struct AnalysisSnapshot {
 	uint64_t sequence = 0;
 	char source[64] = {};
@@ -52,12 +63,17 @@ struct AnalysisSnapshot {
 	InstrumentState root = {};
 	char root_candidates[64] = {};
 	InstrumentState bass = {};
+	NoteGrid bass_notes = {};
 	InstrumentState guitar = {};
+	NoteGrid guitar_notes = {};
 	InstrumentState guitar_chord = {};
 	InstrumentState keyboard = {};
+	NoteGrid keyboard_notes = {};
 	InstrumentState keyboard_chord = {};
 	InstrumentState vocal = {};
+	NoteGrid vocal_notes = {};
 	InstrumentState other = {};
+	NoteGrid other_notes = {};
 	InstrumentState other_chord = {};
 };
 
