@@ -610,10 +610,9 @@ void draw_note_cell(VisualizerData *visualizer, int x, int y, int w, int h, cons
 {
 	const Color idle_bg{24, 30, 38, 210};
 	const Color border{58, 68, 82, 220};
-	const Color active_text{13, 17, 23, 255};
 	const Color idle_text{91, 106, 124, 255};
 
-	fill_rect(visualizer, x, y, w, h, cell.active ? accent : idle_bg);
+	fill_rect(visualizer, x, y, w, h, idle_bg);
 	fill_rect(visualizer, x, y, w, 1, border);
 	fill_rect(visualizer, x, y + h - 1, w, 1, border);
 	fill_rect(visualizer, x, y, 1, h, border);
@@ -623,7 +622,7 @@ void draw_note_cell(VisualizerData *visualizer, int x, int y, int w, int h, cons
 
 	const int text_width = static_cast<int>(std::strlen(cell.label)) * 12;
 	draw_text(visualizer, x + std::max(2, (w - text_width) / 2), y + 6, cell.label, 2,
-		  cell.active ? active_text : idle_text);
+		  cell.active ? accent : idle_text);
 }
 
 void draw_instrument_row(VisualizerData *visualizer, int y, const char *name, const mao::NoteGrid &notes,

@@ -4,10 +4,10 @@ Native OBS Studio plugin that analyzes a music mix and displays an instrument-or
 
 - Drums: bass drum/kick, snare, hi-hat, crash, toms, and ride one-second scrolling hit charts
 - Bass: detected note
-- Guitar, keyboard, and other instruments: 12-note octave matrix plus chord labels
+- Guitar, keyboard, and other instruments: 12-note octave matrix with active octaves shown as colored text plus chord labels
 - Vocal: detected note
 - Root: rolling 15-second root candidates with confidence, with the primary root held until sustained modulation or silence
-- Chords: compact major, minor, sus2, sus4, dominant 7, major 7, and minor 7 labels such as `C`, `Dm`, `Csus4`, `G7`, `Cmaj7`, and `Dm7`
+- Chords: compact major, minor, power, sus2, sus4, dominant 7, major 7, and minor 7 labels such as `C`, `Dm`, `Cpow`, `Csus4`, `G7`, `Cmaj7`, and `Dm7`
 
 The analyzer is designed for real-time OBS use. It uses bounded DSP heuristics rather than a large ML stem-separation model: audio is downmixed into a fixed ring buffer, analyzer windows are copied to a worker thread at a configurable interval, and the OBS audio callback returns immediately after lightweight buffering. The overlay source renders a single reusable RGBA texture.
 
@@ -49,7 +49,7 @@ Run the analyzer tests:
 make test
 ```
 
-`make test` builds standalone analyzer executables outside OBS. `analyzer_smoke` covers the basic signal path, and `analyzer_cases` runs broad synthetic note, instrument, chord, note-matrix, and root-candidate cases.
+`make test` builds standalone analyzer executables outside OBS. `analyzer_smoke` covers the basic signal path, and `analyzer_cases` runs broad synthetic note, instrument, chord, note-matrix, and root-candidate cases, including bass B0-G4, guitar E2-E6, keyboard/other A0-C8, and vocal E2-C6.
 
 Optional CMake build, assuming the OBS development dependencies are installed system-wide:
 

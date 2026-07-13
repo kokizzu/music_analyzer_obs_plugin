@@ -8,6 +8,9 @@ namespace mao {
 
 constexpr std::size_t kAnalysisWindow = 4096;
 constexpr std::size_t kDrumCount = 6;
+constexpr int kFirstAnalyzedMidi = 21;
+constexpr int kLastAnalyzedMidi = 108;
+constexpr std::size_t kNoteProbeCount = static_cast<std::size_t>(kLastAnalyzedMidi - kFirstAnalyzedMidi + 1);
 
 enum DrumIndex : std::size_t {
 	Kick = 0,
@@ -100,7 +103,7 @@ private:
 	static constexpr std::size_t kMaxRootVotes = 1500;
 
 	std::array<float, kAnalysisWindow> window_ = {};
-	std::array<Probe, 69> note_probes_ = {};
+	std::array<Probe, kNoteProbeCount> note_probes_ = {};
 	std::array<Probe, 15> drum_probes_ = {};
 	uint32_t sample_rate_ = 0;
 	float previous_rms_ = 0.0f;
@@ -118,8 +121,9 @@ private:
 	float goertzel_power(const float *samples, std::size_t count, float mean, const Probe &probe) const;
 	void reset_root_window();
 	void add_root_vote(const RootVote &vote);
-	InstrumentState track_root(const std::array<float, 69> &powers, float rms, const AnalysisSettings &settings,
-				   char *root_candidates, std::size_t root_candidates_size);
+	InstrumentState track_root(const std::array<float, kNoteProbeCount> &powers, float rms,
+				   const AnalysisSettings &settings, char *root_candidates,
+				   std::size_t root_candidates_size);
 };
 
 } // namespace mao

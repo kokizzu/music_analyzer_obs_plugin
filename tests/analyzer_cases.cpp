@@ -48,7 +48,7 @@ void expect_no_chord(Runner &runner, const mao::InstrumentState &chord, const st
 
 void check_bass_notes(Runner &runner)
 {
-	for (int midi = 28; midi <= 52; ++midi) {
+	for (int midi = 23; midi <= 67; ++midi) {
 		mao_test::Buffer buffer = {};
 		mao_test::add_midi_note(buffer, midi, 0.70f);
 		const auto snapshot = analyze_buffer(buffer, "bass");
@@ -59,7 +59,7 @@ void check_bass_notes(Runner &runner)
 
 void check_vocal_notes(Runner &runner)
 {
-	for (int midi = 48; midi <= 72; ++midi) {
+	for (int midi = 40; midi <= 84; ++midi) {
 		mao_test::Buffer buffer = {};
 		mao_test::add_midi_note(buffer, midi, 0.48f);
 		const auto snapshot = analyze_buffer(buffer, "vocal");
@@ -70,8 +70,9 @@ void check_vocal_notes(Runner &runner)
 
 struct HarmonicInstrument {
 	const char *name = "";
-	int base_midi = 60;
+	int min_midi = 60;
 	int max_midi = 88;
+	int chord_base_midi = 60;
 	const mao::InstrumentState &(*notes)(const mao::AnalysisSnapshot &) = nullptr;
 	const mao::InstrumentState &(*chord)(const mao::AnalysisSnapshot &) = nullptr;
 };
@@ -109,26 +110,27 @@ const mao::InstrumentState &other_chord(const mao::AnalysisSnapshot &snapshot)
 const std::vector<HarmonicInstrument> &harmonic_instruments()
 {
 	static const std::vector<HarmonicInstrument> kInstruments = {
-		{"guitar", 60, 76, guitar_notes, guitar_chord},
-		{"keyboard", 60, 88, keyboard_notes, keyboard_chord},
-		{"other", 72, 96, other_notes, other_chord},
+		{"guitar", 40, 88, 60, guitar_notes, guitar_chord},
+		{"keyboard", 21, 108, 60, keyboard_notes, keyboard_chord},
+		{"other", 21, 108, 72, other_notes, other_chord},
 	};
 	return kInstruments;
 }
 
 int root_for_template(const HarmonicInstrument &instrument, int pitch_class, int max_interval)
 {
-	int root = instrument.base_midi + pitch_class;
+	int root = instrument.chord_base_midi + pitch_class;
 	while (root + max_interval > instrument.max_midi)
 		root -= 12;
+	while (root < instrument.min_midi)
+		root += 12;
 	return root;
 }
 
 void check_harmonic_single_notes(Runner &runner)
 {
 	for (const HarmonicInstrument &instrument : harmonic_instruments()) {
-		for (int pitch_class = 0; pitch_class < 12; ++pitch_class) {
-			const int midi = instrument.base_midi + pitch_class;
+		for (int midi = instrument.min_midi; midi <= instrument.max_midi; ++midi) {
 			mao_test::Buffer buffer = {};
 			mao_test::add_midi_note(buffer, midi, 0.46f);
 			const auto snapshot = analyze_buffer(buffer, instrument.name);
@@ -178,6 +180,7 @@ struct ChordTemplate {
 void check_extended_chords(Runner &runner)
 {
 	const std::vector<ChordTemplate> templates = {
+		{"pow", {0, 7}},
 		{"sus2", {0, 2, 7}},
 		{"sus4", {0, 5, 7}},
 		{"7", {0, 4, 7, 10}},
@@ -209,6 +212,21 @@ void check_extended_chords(Runner &runner)
 			}
 		}
 	}
+}
+
+void check_quiet_note_rejection(Runner &runner)
+{
+	mao_test::Buffer buffer = {};
+	mao_test::add_midi_note(buffer, 60, 0.34f);
+	mao_test::add_midi_note(buffer, 64, 0.34f);
+	mao_test::add_midi_note(buffer, 67, 0.34f);
+	mao_test::add_midi_note(buffer, 66, 0.035f);
+
+	const auto snapshot = analyze_buffer(buffer, "keyboard");
+	runner.expect(!mao_test::has_note_token(snapshot.keyboard.label, "F#4"),
+		      std::string("quiet note rejection: expected no F#4 token, got `") + snapshot.keyboard.label + "`");
+	runner.expect(!snapshot.keyboard_notes.cells[6].active,
+		      "quiet note rejection: expected F# cell inactive for low-velocity note");
 }
 
 void check_root_candidates(Runner &runner)
@@ -252,6 +270,7 @@ int main()
 	check_harmonic_single_notes(runner);
 	check_harmonic_chords(runner);
 	check_extended_chords(runner);
+	check_quiet_note_rejection(runner);
 	check_root_candidates(runner);
 
 	if (runner.failures != 0) {
