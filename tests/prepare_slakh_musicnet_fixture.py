@@ -67,7 +67,7 @@ def tick_to_seconds(points, tick, division):
     return point_seconds + (tick - point_tick) * tempo / (division * 1000000.0)
 
 
-def parse_midi_notes(path, instrument):
+def parse_midi_notes(path, instrument, track_stride=0):
     with open(path, "rb") as midi:
         data = midi.read()
     if len(data) < 14 or data[:4] != b"MThd":
@@ -99,6 +99,7 @@ def parse_midi_notes(path, instrument):
             continue
 
         parsed_tracks += 1
+        track_index = parsed_tracks - 1
         tick = 0
         running_status = 0
         active_notes = {}
@@ -155,7 +156,7 @@ def parse_midi_notes(path, instrument):
             elif event_type == 0x80 or (event_type == 0x90 and second == 0):
                 start_tick = active_notes.pop(key, None)
                 if start_tick is not None and tick > start_tick:
-                    raw_notes.append((start_tick, tick, first, instrument + channel))
+                    raw_notes.append((start_tick, tick, first, instrument + channel + track_index * track_stride))
         pos = chunk_end
 
     if not raw_notes:

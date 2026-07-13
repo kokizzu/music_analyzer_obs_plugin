@@ -49,6 +49,7 @@ real-audio target.
 | Dataset | Use | Notes |
 | --- | --- | --- |
 | [Slakh2100](https://arxiv.org/abs/1909.08494) | 20+ same-song stem/MIDI analyzer gate with optional `make inspect-real-slakh` and `make test-real-slakh-20` | 2100 rendered songs, 145 hours of mixtures, train/validation/test splits, stems, accompanying MIDI files, and piano/bass/guitar/drum classes in every mixture. Audio is synthesized from Lakh MIDI with virtual instruments, so it does not replace URMP. |
+| [ChoralSynth](https://arxiv.org/abs/2311.08350) | 20-piece synthetic vocal multitrack analyzer gate with optional `make inspect-real-choralsynth` and `make test-real-choralsynth-20` | 20 choral pieces, each with MusicXML score, score MIDI, one audio track per voice, beat positions, and metadata. Audio is generated with singing synthesis, so it helps vocal/polyphonic note and chord coverage but does not replace URMP. |
 
 ## Real Audio With MIDI Or Note Truth But No Isolated Stems
 
@@ -91,15 +92,15 @@ without additional annotation.
   the exact local real-data commands. Use `make inspect-real-goal-20` as the
   combined setup preflight for the requested 20+ real same-song multitrack
   test. It requires the URMP layout preflight and then runs configured optional
-  gates such as MusicNet, MedleyDB, MUSDB18, Slakh2100, MulTTiPop, Spheres,
-  GuitarSet, MAESTRO, and E-GMD. The URMP preflight applies the same
+  gates such as MusicNet, MedleyDB, MUSDB18, Slakh2100, ChoralSynth,
+  MulTTiPop, Spheres, GuitarSet, MAESTRO, and E-GMD. The URMP preflight applies the same
   `MUSIC_ANALYZER_URMP_MIN_ACTIVE_TRACKS_PER_WINDOW` and
   `MUSIC_ANALYZER_URMP_MIN_PITCH_CLASSES_PER_WINDOW` density thresholds as the
   analyzer gate, then reports matched-track, candidate active-track, and
   candidate pitch-class min/average/max values. Use `make test-real-goal-20` as
   the combined analyzer acceptance gate. It requires the URMP multitrack gate
   and then runs configured optional add-on gates such as MusicNet, MedleyDB,
-  MUSDB18, Slakh2100, MulTTiPop, Spheres, GuitarSet, MAESTRO, and E-GMD.
+  MUSDB18, Slakh2100, ChoralSynth, MulTTiPop, Spheres, GuitarSet, MAESTRO, and E-GMD.
   The official URMP full package is distributed through a registration form
   rather than a stable direct archive URL, so this repository intentionally does
   not try to download the 12.5 GB package automatically.
@@ -176,6 +177,15 @@ without additional annotation.
   chord recall gate on the rendered same-song mix audio. Slakh2100 gives large
   coherent stem/MIDI truth coverage, but it does not replace URMP because its
   audio is MIDI-rendered rather than real recorded.
+- Use `make inspect-real-choralsynth` with
+  `MUSIC_ANALYZER_CHORALSYNTH_ROOT=/path/to/ChoralSynth` after extracting the
+  ChoralSynth release. The preflight requires 20 pieces with `score.musicxml`,
+  readable `score.midi`, and 4+ voice audio files by default. Use
+  `make test-real-choralsynth-20` to mix the voice tracks into a temporary
+  MusicNet-shaped WAV/CSV layout, parse the score MIDI as note truth, and run
+  the existing analyzer pitch-class and chord recall gate. ChoralSynth adds
+  synthetic vocal multitrack coverage, but it does not replace URMP because its
+  audio is singing-synthesized rather than real recorded.
 - Use `make inspect-real-multtipop` with
   `MUSIC_ANALYZER_MULTTIPOP_ROOT=/path/to/multtipop` after cloning or
   extracting the Hugging Face dataset. The preflight expects the official
@@ -247,7 +257,7 @@ without additional annotation.
   `tests/fixtures/urmp-mini.tar.gz`, decodes it to disposable WAV files under
   `build/` with `ffmpeg`, generates 20-recording MusicNet-shaped WAV/CSV and
   MedleyDB-shaped stem-layout, MUSDB18-shaped five-stem, Slakh2100-shaped
-  rendered stem/MIDI,
+  rendered stem/MIDI, ChoralSynth-shaped vocal score/voice-track,
   audio-backed MulTTiPop-shaped multitrack-MIDI
   metadata, Spheres-shaped stem-layout, GuitarSet-shaped JAMS/hex-audio,
   MAESTRO-shaped MIDI/WAV, and E-GMD-shaped MIDI/WAV fixtures, sends all

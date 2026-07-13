@@ -80,6 +80,23 @@ def test_generic_dataset_root_without_slakh_child_is_not_slakh():
         assert not run_real_goal_gate.configured_slakh({"MUSIC_ANALYZER_DATASET_ROOT": temp})
 
 
+def test_explicit_choralsynth_root_is_configured():
+    assert run_real_goal_gate.configured_choralsynth({"MUSIC_ANALYZER_CHORALSYNTH_ROOT": "/tmp/ChoralSynth"})
+    assert run_real_goal_gate.configured_choralsynth({"CHORALSYNTH_PATH": "/tmp/ChoralSynth"})
+
+
+def test_generic_dataset_root_with_choralsynth_child_is_choralsynth():
+    with tempfile.TemporaryDirectory() as temp:
+        touch_dir(os.path.join(temp, "ChoralSynth"))
+        assert run_real_goal_gate.configured_choralsynth({"MUSIC_ANALYZER_DATASET_ROOT": temp})
+
+
+def test_generic_dataset_root_without_choralsynth_child_is_not_choralsynth():
+    with tempfile.TemporaryDirectory() as temp:
+        touch_dir(os.path.join(temp, "URMP", "01_Jupiter"))
+        assert not run_real_goal_gate.configured_choralsynth({"MUSIC_ANALYZER_DATASET_ROOT": temp})
+
+
 def test_explicit_multtipop_root_is_configured():
     assert run_real_goal_gate.configured_multtipop({"MUSIC_ANALYZER_MULTTIPOP_ROOT": "/tmp/multtipop"})
     assert run_real_goal_gate.configured_multtipop({"MULTTIPOP_PATH": "/tmp/multtipop"})
@@ -189,6 +206,7 @@ def test_twenty_piece_test_plan_targets_real_gates():
     assert plan["medleydb_target"] == "inspect-real-medleydb"
     assert plan["musdb_target"] == "inspect-real-musdb"
     assert plan["slakh_target"] == "test-real-slakh-20"
+    assert plan["choralsynth_target"] == "test-real-choralsynth-20"
     assert plan["multtipop_target"] == "inspect-real-multtipop"
     assert plan["multtipop_audio_target"] == "test-real-multtipop-20"
     assert plan["spheres_target"] == "inspect-real-spheres"
@@ -206,6 +224,7 @@ def test_full_test_plan_targets_full_real_gates():
     assert plan["medleydb_target"] == "inspect-real-medleydb"
     assert plan["musdb_target"] == "inspect-real-musdb"
     assert plan["slakh_target"] == "test-real-slakh-full"
+    assert plan["choralsynth_target"] == "test-real-choralsynth-20"
     assert plan["multtipop_target"] == "inspect-real-multtipop"
     assert plan["multtipop_audio_target"] == "test-real-multtipop-full"
     assert plan["spheres_target"] == "inspect-real-spheres"
@@ -223,6 +242,7 @@ def test_twenty_piece_inspect_plan_targets_preflights():
     assert plan["medleydb_target"] == "inspect-real-medleydb"
     assert plan["musdb_target"] == "inspect-real-musdb"
     assert plan["slakh_target"] == "inspect-real-slakh"
+    assert plan["choralsynth_target"] == "inspect-real-choralsynth"
     assert plan["multtipop_target"] == "inspect-real-multtipop"
     assert plan["multtipop_audio_target"] == "inspect-real-multtipop"
     assert plan["spheres_target"] == "inspect-real-spheres"
@@ -240,6 +260,7 @@ def test_full_inspect_plan_targets_full_preflights():
     assert plan["medleydb_target"] == "inspect-real-medleydb"
     assert plan["musdb_target"] == "inspect-real-musdb"
     assert plan["slakh_target"] == "inspect-real-slakh"
+    assert plan["choralsynth_target"] == "inspect-real-choralsynth"
     assert plan["multtipop_target"] == "inspect-real-multtipop"
     assert plan["multtipop_audio_target"] == "inspect-real-multtipop"
     assert plan["spheres_target"] == "inspect-real-spheres"
@@ -266,6 +287,9 @@ def main():
     test_explicit_slakh_root_is_configured()
     test_generic_dataset_root_with_slakh_child_is_slakh()
     test_generic_dataset_root_without_slakh_child_is_not_slakh()
+    test_explicit_choralsynth_root_is_configured()
+    test_generic_dataset_root_with_choralsynth_child_is_choralsynth()
+    test_generic_dataset_root_without_choralsynth_child_is_not_choralsynth()
     test_explicit_multtipop_root_is_configured()
     test_generic_dataset_root_with_multtipop_child_is_multtipop()
     test_generic_dataset_root_without_multtipop_child_is_not_multtipop()
@@ -287,7 +311,7 @@ def main():
     test_twenty_piece_inspect_plan_targets_preflights()
     test_full_inspect_plan_targets_full_preflights()
     test_invalid_plan_is_rejected()
-    print("test_run_real_goal_gate: 33 checks passed")
+    print("test_run_real_goal_gate: 36 checks passed")
     return 0
 
 

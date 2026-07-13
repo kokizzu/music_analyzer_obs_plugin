@@ -55,6 +55,8 @@ def main():
         musdb_inspector = read_text("tests/inspect_musdb_dataset.py")
         slakh_inspector = read_text("tests/inspect_slakh_dataset.py")
         slakh_prepare = read_text("tests/prepare_slakh_musicnet_fixture.py")
+        choralsynth_inspector = read_text("tests/inspect_choralsynth_dataset.py")
+        choralsynth_prepare = read_text("tests/prepare_choralsynth_musicnet_fixture.py")
         multtipop_inspector = read_text("tests/inspect_multtipop_dataset.py")
         spheres_inspector = read_text("tests/inspect_spheres_dataset.py")
         guitarset_inspector = read_text("tests/inspect_guitarset_dataset.py")
@@ -72,6 +74,7 @@ def main():
     medleydb = dataset_by_id(catalog, "medleydb")
     musdb = dataset_by_id(catalog, "musdb18")
     slakh = dataset_by_id(catalog, "slakh2100")
+    choralsynth = dataset_by_id(catalog, "choralsynth")
     spheres = dataset_by_id(catalog, "spheres")
     guitarset = dataset_by_id(catalog, "guitarset")
     maestro = dataset_by_id(catalog, "maestro")
@@ -96,6 +99,8 @@ def main():
         return fail("catalog missing MUSDB18")
     if not slakh:
         return fail("catalog missing Slakh2100")
+    if not choralsynth:
+        return fail("catalog missing ChoralSynth")
     if not spheres:
         return fail("catalog missing Spheres")
     if not guitarset:
@@ -136,6 +141,8 @@ def main():
         problems.append("MUSDB18 automation target must remain inspect-real-musdb")
     if slakh.get("automation_target") != "test-real-slakh-20":
         problems.append("Slakh2100 automation target must remain test-real-slakh-20")
+    if choralsynth.get("automation_target") != "test-real-choralsynth-20":
+        problems.append("ChoralSynth automation target must remain test-real-choralsynth-20")
     if spheres.get("automation_target") != "inspect-real-spheres":
         problems.append("Spheres automation target must remain inspect-real-spheres")
     if guitarset.get("automation_target") != "test-real-guitarset-20":
@@ -159,6 +166,8 @@ def main():
         (makefile, "tests/generate_musdb_fixture.py", "Makefile MUSDB18 fixture"),
         (makefile, "tests/generate_slakh_fixture.py", "Makefile Slakh2100 fixture"),
         (makefile, "tests/prepare_slakh_musicnet_fixture.py", "Makefile Slakh2100 analyzer preparation"),
+        (makefile, "tests/generate_choralsynth_fixture.py", "Makefile ChoralSynth fixture"),
+        (makefile, "tests/prepare_choralsynth_musicnet_fixture.py", "Makefile ChoralSynth analyzer preparation"),
         (makefile, "tests/generate_multtipop_fixture.py", "Makefile MulTTiPop fixture"),
         (makefile, "tests/generate_spheres_fixture.py", "Makefile Spheres fixture"),
         (makefile, "tests/generate_guitarset_fixture.py", "Makefile GuitarSet fixture"),
@@ -172,6 +181,8 @@ def main():
         (makefile, "inspect-real-musdb", "Makefile optional MUSDB18 preflight"),
         (makefile, "inspect-real-slakh", "Makefile optional Slakh2100 preflight"),
         (makefile, "test-real-slakh-20", "Makefile optional Slakh2100 analyzer gate"),
+        (makefile, "inspect-real-choralsynth", "Makefile optional ChoralSynth preflight"),
+        (makefile, "test-real-choralsynth-20", "Makefile optional ChoralSynth analyzer gate"),
         (makefile, "test-real-multtipop-20", "Makefile optional MulTTiPop analyzer gate"),
         (makefile, "$(BUILD_DIR)/analyzer_multtipop", "Makefile MulTTiPop analyzer binary"),
         (makefile, "$(BUILD_DIR)/analyzer_guitarset", "Makefile GuitarSet analyzer binary"),
@@ -193,6 +204,9 @@ def main():
         (goal_gate, "configured_slakh", "combined gate optional Slakh2100 root detection"),
         (goal_gate, "inspect-real-slakh", "combined gate optional Slakh2100 preflight target"),
         (goal_gate, "test-real-slakh-20", "combined gate optional Slakh2100 analyzer target"),
+        (goal_gate, "configured_choralsynth", "combined gate optional ChoralSynth root detection"),
+        (goal_gate, "inspect-real-choralsynth", "combined gate optional ChoralSynth preflight target"),
+        (goal_gate, "test-real-choralsynth-20", "combined gate optional ChoralSynth analyzer target"),
         (goal_gate, "inspect-real-multtipop", "combined gate optional MulTTiPop target"),
         (goal_gate, "multtipop_audio_configured", "combined gate optional MulTTiPop audio detection"),
         (goal_gate, "test-real-multtipop-20", "combined gate optional MulTTiPop analyzer target"),
@@ -240,6 +254,12 @@ def main():
         (slakh_prepare, "prepare_slakh_musicnet_fixture", "Slakh2100 MusicNet-shaped analyzer preparation"),
         (slakh_prepare, "parse_midi_notes", "Slakh2100 MIDI note parser"),
         (slakh_prepare, "train_labels", "Slakh2100 generated MusicNet labels"),
+        (choralsynth_inspector, "MUSIC_ANALYZER_CHORALSYNTH_REQUIRED_PIECES", "ChoralSynth preflight piece threshold"),
+        (choralsynth_inspector, "voices per piece", "ChoralSynth voice coverage report"),
+        (choralsynth_inspector, "score.musicxml", "ChoralSynth score file check"),
+        (choralsynth_prepare, "prepare_choralsynth_musicnet_fixture", "ChoralSynth MusicNet-shaped analyzer preparation"),
+        (choralsynth_prepare, "parse_midi_notes", "ChoralSynth MIDI note parser"),
+        (choralsynth_prepare, "train_labels", "ChoralSynth generated MusicNet labels"),
         (maestro_harness, "read_maestro_midi", "MAESTRO aligned-MIDI parser"),
         (maestro_harness, "MAESTRO piano pitch-class recall", "MAESTRO real-audio recall gate"),
         (maestro_harness, "chord hits", "MAESTRO chord recall report"),
@@ -263,6 +283,8 @@ def main():
         (readme, "make inspect-real-musdb", "README MUSDB18 preflight instructions"),
         (readme, "make inspect-real-slakh", "README Slakh2100 preflight instructions"),
         (readme, "make test-real-slakh-20", "README Slakh2100 analyzer instructions"),
+        (readme, "make inspect-real-choralsynth", "README ChoralSynth preflight instructions"),
+        (readme, "make test-real-choralsynth-20", "README ChoralSynth analyzer instructions"),
         (readme, "make test-real-multtipop-20", "README MulTTiPop analyzer instructions"),
         (readme, "make inspect-real-spheres", "README Spheres preflight instructions"),
         (readme, "make inspect-real-guitarset", "README GuitarSet preflight instructions"),
@@ -277,6 +299,8 @@ def main():
         (docs, "make inspect-real-musdb", "dataset docs MUSDB18 preflight instructions"),
         (docs, "make inspect-real-slakh", "dataset docs Slakh2100 preflight instructions"),
         (docs, "make test-real-slakh-20", "dataset docs Slakh2100 analyzer instructions"),
+        (docs, "make inspect-real-choralsynth", "dataset docs ChoralSynth preflight instructions"),
+        (docs, "make test-real-choralsynth-20", "dataset docs ChoralSynth analyzer instructions"),
         (docs, "make test-real-multtipop-20", "dataset docs MulTTiPop analyzer instructions"),
         (docs, "make inspect-real-spheres", "dataset docs Spheres preflight instructions"),
         (docs, "make inspect-real-guitarset", "dataset docs GuitarSet preflight instructions"),
@@ -289,6 +313,7 @@ def main():
         (docs, "The Spheres Dataset", "dataset docs Spheres candidate"),
         (docs, "MUSDB18", "dataset docs MUSDB18 candidate"),
         (docs, "Slakh2100", "dataset docs Slakh2100 candidate"),
+        (docs, "ChoralSynth", "dataset docs ChoralSynth candidate"),
         (docs, "GuitarSet", "dataset docs GuitarSet candidate"),
         (docs, "MAESTRO", "dataset docs MAESTRO candidate"),
         (docs, "E-GMD", "dataset docs E-GMD candidate"),
@@ -309,8 +334,8 @@ def main():
 
     print(
         "inspect_real_goal_coverage: "
-        "catalog=URMP+direct-fit-small+MusicNet+MedleyDB+MUSDB18+Slakh2100+MulTTiPop+Spheres+GuitarSet+MAESTRO+E-GMD, target=test-real-goal-20, "
-        "fixture=URMP+Bach10-style+direct-fit-small+MusicNet+MedleyDB+MUSDB18+Slakh2100+MulTTiPop-audio+Spheres+GuitarSet+MAESTRO+E-GMD, "
+        "catalog=URMP+direct-fit-small+MusicNet+MedleyDB+MUSDB18+Slakh2100+ChoralSynth+MulTTiPop+Spheres+GuitarSet+MAESTRO+E-GMD, target=test-real-goal-20, "
+        "fixture=URMP+Bach10-style+direct-fit-small+MusicNet+MedleyDB+MUSDB18+Slakh2100+ChoralSynth+MulTTiPop-audio+Spheres+GuitarSet+MAESTRO+E-GMD, "
         "summed_mix=yes, chord_checks=yes"
     )
     return 0

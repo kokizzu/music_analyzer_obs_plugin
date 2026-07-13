@@ -137,6 +137,23 @@
       "evidence": "Paper describes 2100 train/validation/test songs, 145 hours of mixtures, separated stems, accompanying MIDI files, and every mixture containing piano, bass, guitar, and drums."
     },
     {
+      "id": "choralsynth",
+      "name": "ChoralSynth",
+      "category": "synth_multitrack_truth",
+      "piece_count": 20,
+      "real_audio": false,
+      "isolated_sources": true,
+      "assembled_mix": true,
+      "aligned_symbolic_truth": true,
+      "truth": "synthetic voice tracks plus score MusicXML and MIDI with all voices",
+      "automation_target": "test-real-choralsynth-20",
+      "source_url": "https://arxiv.org/abs/2311.08350",
+      "download_url": "https://github.com/MTG/ChoralSynth",
+      "metadata_url": "https://doi.org/10.5281/zenodo.10137883",
+      "download_note": "The released data contains MP3 voice tracks and score files; audio is generated with singing synthesis rather than live choir recording.",
+      "evidence": "Paper describes 20 choral pieces, each with a MusicXML score, MIDI with all voices, one audio track per voice, beat positions, and metadata; it explicitly presents the dataset as synthetic choral singing data."
+    },
+    {
       "id": "pop909",
       "name": "POP909",
       "category": "truth_no_isolated_stems",

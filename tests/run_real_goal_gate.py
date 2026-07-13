@@ -90,6 +90,21 @@ def configured_slakh(env):
     return False
 
 
+def configured_choralsynth(env):
+    if env_has_any(env, ("MUSIC_ANALYZER_CHORALSYNTH_ROOT", "CHORALSYNTH_PATH")):
+        return True
+
+    dataset_root = env.get("MUSIC_ANALYZER_DATASET_ROOT", "")
+    if not dataset_root:
+        return False
+
+    for child in ("ChoralSynth", "choralsynth", "MTG-ChoralSynth", "ChoralSynth-main", "ChoralSynth-master"):
+        candidate = child_path(dataset_root, child)
+        if is_dir(candidate):
+            return True
+    return False
+
+
 def multtipop_candidate_roots(env):
     roots = []
     if env_has_any(env, ("MUSIC_ANALYZER_MULTTIPOP_ROOT", "MULTTIPOP_PATH")):
@@ -213,6 +228,7 @@ TARGET_PLANS = {
         "medleydb_target": "inspect-real-medleydb",
         "musdb_target": "inspect-real-musdb",
         "slakh_target": "test-real-slakh-20",
+        "choralsynth_target": "test-real-choralsynth-20",
         "multtipop_target": "inspect-real-multtipop",
         "multtipop_audio_target": "test-real-multtipop-20",
         "spheres_target": "inspect-real-spheres",
@@ -227,6 +243,7 @@ TARGET_PLANS = {
         "medleydb_target": "inspect-real-medleydb",
         "musdb_target": "inspect-real-musdb",
         "slakh_target": "test-real-slakh-full",
+        "choralsynth_target": "test-real-choralsynth-20",
         "multtipop_target": "inspect-real-multtipop",
         "multtipop_audio_target": "test-real-multtipop-full",
         "spheres_target": "inspect-real-spheres",
@@ -241,6 +258,7 @@ TARGET_PLANS = {
         "medleydb_target": "inspect-real-medleydb",
         "musdb_target": "inspect-real-musdb",
         "slakh_target": "inspect-real-slakh",
+        "choralsynth_target": "inspect-real-choralsynth",
         "multtipop_target": "inspect-real-multtipop",
         "multtipop_audio_target": "inspect-real-multtipop",
         "spheres_target": "inspect-real-spheres",
@@ -255,6 +273,7 @@ TARGET_PLANS = {
         "medleydb_target": "inspect-real-medleydb",
         "musdb_target": "inspect-real-musdb",
         "slakh_target": "inspect-real-slakh",
+        "choralsynth_target": "inspect-real-choralsynth",
         "multtipop_target": "inspect-real-multtipop",
         "multtipop_audio_target": "inspect-real-multtipop",
         "spheres_target": "inspect-real-spheres",
@@ -333,6 +352,17 @@ def main(argv):
         print(
             "run_real_goal_gate: skipping optional Slakh2100 rendered multitrack analyzer gate; set "
             "MUSIC_ANALYZER_SLAKH_ROOT/SLAKH_PATH or place a Slakh2100 directory under "
+            "MUSIC_ANALYZER_DATASET_ROOT"
+        )
+
+    if configured_choralsynth(env):
+        failed = run(make_cmd, plan["choralsynth_target"])
+        if failed:
+            return failed
+    else:
+        print(
+            "run_real_goal_gate: skipping optional ChoralSynth vocal multitrack analyzer gate; set "
+            "MUSIC_ANALYZER_CHORALSYNTH_ROOT/CHORALSYNTH_PATH or place a ChoralSynth directory under "
             "MUSIC_ANALYZER_DATASET_ROOT"
         )
 
