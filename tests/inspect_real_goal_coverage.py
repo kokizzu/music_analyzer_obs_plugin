@@ -150,6 +150,7 @@ def main():
         (urmp_harness, "source_track_stats.count == tested_pieces", "URMP source-track coverage assertion"),
         (urmp_harness, "active tracks min/avg/max", "URMP window-density report"),
         (urmp_harness, "chord hits", "URMP chord recall report"),
+        (urmp_harness, "require_chord_recall", "URMP explicit chord coverage requirement"),
         (urmp_inspector, "matched_track_stats.summary", "URMP preflight track-density report"),
         (urmp_inspector, "candidate active tracks", "URMP preflight active-density report"),
         (urmp_inspector, "candidate pitch classes", "URMP preflight pitch-class density report"),

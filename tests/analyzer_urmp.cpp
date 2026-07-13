@@ -965,6 +965,21 @@ void check_mix_recall(Runner &runner, const mao::AnalysisSnapshot &snapshot, con
 	}
 }
 
+void require_chord_recall(Runner &runner, const MixRecallStats &stats, const std::string &context,
+			  int min_chord_checks, int min_chord_recall_percent)
+{
+	runner.expect(stats.chord_checks >= min_chord_checks,
+		      context + " chord coverage: expected at least " + std::to_string(min_chord_checks) +
+			      " chord-checkable windows, got " + std::to_string(stats.chord_checks));
+	if (stats.chord_checks < min_chord_checks)
+		return;
+
+	runner.expect(stats.chord_hits * 100 >= stats.chord_checks * min_chord_recall_percent,
+		      context + " chord recall: expected >=" + std::to_string(min_chord_recall_percent) +
+			      "%, got " + std::to_string(stats.chord_hits) + "/" +
+			      std::to_string(stats.chord_checks));
+}
+
 std::vector<CandidateWindow> select_candidate_windows(const std::vector<TrackData> &tracks, int max_windows,
 						      int min_active_tracks, int min_pitch_classes)
 {
@@ -1618,58 +1633,18 @@ int main()
 			      std::to_string(min_mix_recall_percent) + "%, got " +
 			      std::to_string(summed_sequence_stats.hits) + "/" +
 			      std::to_string(summed_sequence_stats.expected));
-	if (provided_mix_stats.chord_checks >= min_chord_checks) {
-		runner.expect(
-			provided_mix_stats.chord_hits * 100 >= provided_mix_stats.chord_checks * min_chord_recall_percent,
-			"URMP provided full-mix chord recall: expected >=" +
-				std::to_string(min_chord_recall_percent) + "%, got " +
-				      std::to_string(provided_mix_stats.chord_hits) + "/" +
-				      std::to_string(provided_mix_stats.chord_checks));
-	}
-	if (summed_mix_stats.chord_checks >= min_chord_checks) {
-		runner.expect(
-			summed_mix_stats.chord_hits * 100 >= summed_mix_stats.chord_checks * min_chord_recall_percent,
-			"URMP summed separated-track mix chord recall: expected >=" +
-				std::to_string(min_chord_recall_percent) + "%, got " +
-				      std::to_string(summed_mix_stats.chord_hits) + "/" +
-				      std::to_string(summed_mix_stats.chord_checks));
-	}
-	if (provided_stream_stats.chord_checks >= min_chord_checks) {
-		runner.expect(
-			provided_stream_stats.chord_hits * 100 >=
-				provided_stream_stats.chord_checks * min_chord_recall_percent,
-			"URMP streaming provided full-mix chord recall: expected >=" +
-				std::to_string(min_chord_recall_percent) + "%, got " +
-				      std::to_string(provided_stream_stats.chord_hits) + "/" +
-				      std::to_string(provided_stream_stats.chord_checks));
-	}
-	if (summed_stream_stats.chord_checks >= min_chord_checks) {
-		runner.expect(
-			summed_stream_stats.chord_hits * 100 >=
-				summed_stream_stats.chord_checks * min_chord_recall_percent,
-			"URMP streaming summed separated-track mix chord recall: expected >=" +
-				std::to_string(min_chord_recall_percent) + "%, got " +
-				      std::to_string(summed_stream_stats.chord_hits) + "/" +
-				      std::to_string(summed_stream_stats.chord_checks));
-	}
-	if (provided_sequence_stats.chord_checks >= min_chord_checks) {
-		runner.expect(
-			provided_sequence_stats.chord_hits * 100 >=
-				provided_sequence_stats.chord_checks * min_chord_recall_percent,
-			"URMP stateful provided full-mix chord recall: expected >=" +
-				std::to_string(min_chord_recall_percent) + "%, got " +
-				      std::to_string(provided_sequence_stats.chord_hits) + "/" +
-				      std::to_string(provided_sequence_stats.chord_checks));
-	}
-	if (summed_sequence_stats.chord_checks >= min_chord_checks) {
-		runner.expect(
-			summed_sequence_stats.chord_hits * 100 >=
-				summed_sequence_stats.chord_checks * min_chord_recall_percent,
-			"URMP stateful summed separated-track mix chord recall: expected >=" +
-				std::to_string(min_chord_recall_percent) + "%, got " +
-				      std::to_string(summed_sequence_stats.chord_hits) + "/" +
-				      std::to_string(summed_sequence_stats.chord_checks));
-	}
+	require_chord_recall(runner, provided_mix_stats, "URMP provided full-mix", min_chord_checks,
+			     min_chord_recall_percent);
+	require_chord_recall(runner, summed_mix_stats, "URMP summed separated-track mix", min_chord_checks,
+			     min_chord_recall_percent);
+	require_chord_recall(runner, provided_stream_stats, "URMP streaming provided full-mix", min_chord_checks,
+			     min_chord_recall_percent);
+	require_chord_recall(runner, summed_stream_stats, "URMP streaming summed separated-track mix",
+			     min_chord_checks, min_chord_recall_percent);
+	require_chord_recall(runner, provided_sequence_stats, "URMP stateful provided full-mix",
+			     min_chord_checks, min_chord_recall_percent);
+	require_chord_recall(runner, summed_sequence_stats, "URMP stateful summed separated-track mix",
+			     min_chord_checks, min_chord_recall_percent);
 
 	if (runner.failures != 0) {
 		std::fprintf(stderr,
