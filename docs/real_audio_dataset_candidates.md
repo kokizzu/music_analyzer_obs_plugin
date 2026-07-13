@@ -25,7 +25,7 @@ These are the best candidates for full-mix and per-instrument verification.
 | Dataset | Size | Why it fits | Caveat |
 | --- | ---: | --- | --- |
 | [URMP](https://labsites.rochester.edu/air/projects/URMP.html) | 44 pieces | Real classical duets, trios, quartets, and quintets. Each piece has isolated instrument audio, assembled mixture, MIDI score, and frame/note annotations. | Large download, about 12.5 GB. Classical chamber instruments, not pop rhythm-section stems. |
-| [Bach10](https://arxiv.org/abs/2505.17823) | 10 pieces | Four-part Bach chorales with isolated anechoic recordings for bassoon, alto saxophone, clarinet, and violin. The literature describes pitch/note transcriptions and audio-score alignment. | Small; useful as a regression add-on, not enough alone for 20+ cases. |
+| [Bach10](https://arxiv.org/abs/2505.17823) | 10 pieces | Four-part Bach chorales with isolated anechoic recordings for bassoon, alto saxophone, clarinet, and violin. The literature describes pitch/note transcriptions and audio-score alignment. `make test-bach10-fixture` now mirrors this instrumentation as a compact generated regression add-on. | Small; useful as a regression add-on, not enough alone for 20+ cases. |
 | TRIOS | 5 pieces | URMP survey describes 5 multitrack trio recordings with MIDI transcriptions. | Need to locate current download and license before automation. |
 | MIREX Woodwind Quintet / WWQ | 1 piece | URMP survey describes individual recordings and note annotations for a classical quintet. | Only a 54-second excerpt is publicly available according to the URMP survey. |
 | PHENICX-Anechoic / Aalto Anechoic Orchestra | 4 pieces | URMP survey describes 8-10 isolated orchestral parts per piece with denoised recordings and note annotations. | Need to verify current access, license, and annotation format. |
@@ -117,6 +117,13 @@ without additional annotation.
   `make test-real-multitrack-full` when the full URMP package is available.
   Those targets require all 44 official pieces and at least 176 annotated test
   windows.
+- Use `make test-bach10-fixture` for a compact Bach10-style generated
+  regression. It creates 10 four-part pieces with bassoon, alto saxophone,
+  clarinet, and violin source WAV files plus note annotations, then reuses the
+  URMP analyzer harness to check separated-source, provided-mix, summed-mix,
+  streaming, stateful sequence, and chord recall. This does not replace URMP or
+  the real Bach10 dataset, but it keeps that direct-fit instrumentation covered
+  in normal `make test`.
 - Use `make inspect-real-medleydb` with
   `MUSIC_ANALYZER_MEDLEYDB_ROOT=/path/to/MedleyDB` and, if annotations are not
   inside that tree,
@@ -202,7 +209,9 @@ without additional annotation.
   `FFMPEG=/path/to/ffmpeg` if needed. Refresh it with
   `make update-urmp-fixture` after changing
   `tests/generate_urmp_fixture.py`.
-- Bach10 is the next best add-on for a compact, fast regression set.
+- Bach10 is represented by `make test-bach10-fixture` as a compact, fast
+  generated regression set while real Bach10 access/layout automation remains a
+  future add-on.
 - Single-instrument datasets should drive focused checks: GuitarSet now has a
   local preflight, MAESTRO now has a local analyzer gate, E-GMD now has a local
   drum analyzer gate, Guitar-TECHS/GAPS are next guitar add-ons, and PianoVAM is

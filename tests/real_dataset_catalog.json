@@ -38,6 +38,7 @@
       "aligned_symbolic_truth": true,
       "truth": "pitch and note transcriptions plus audio-score alignment",
       "automation_target": "",
+      "fixture_target": "test-bach10-fixture",
       "source_url": "https://arxiv.org/pdf/1612.08727",
       "evidence": "URMP survey table and text describe 10 Bach chorale multitrack recordings with pitch/note transcription and audio-score alignment."
     },
