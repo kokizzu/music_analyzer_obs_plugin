@@ -60,6 +60,22 @@ def configured_medleydb(env):
     return False
 
 
+def configured_multtipop(env):
+    if env_has_any(env, ("MUSIC_ANALYZER_MULTTIPOP_ROOT", "MULTTIPOP_PATH")):
+        return True
+
+    dataset_root = env.get("MUSIC_ANALYZER_DATASET_ROOT", "")
+    if not dataset_root:
+        return False
+
+    for child in ("MulTTiPop", "multtipop", "gclef-cmu-multtipop", "gclef-cmu_multtipop"):
+        if is_dir(child_path(dataset_root, child)):
+            return True
+    if is_dir(child_path(dataset_root, "gclef-cmu", "multtipop")):
+        return True
+    return False
+
+
 def configured_spheres(env):
     if env_has_any(env, ("MUSIC_ANALYZER_SPHERES_ROOT", "SPHERES_PATH")):
         return True
@@ -80,6 +96,7 @@ TARGET_PLANS = {
         "multitrack_target": "test-real-multitrack-20",
         "musicnet_target": "test-real-musicnet-20",
         "medleydb_target": "inspect-real-medleydb",
+        "multtipop_target": "inspect-real-multtipop",
         "spheres_target": "inspect-real-spheres",
     },
     "full": {
@@ -87,6 +104,7 @@ TARGET_PLANS = {
         "multitrack_target": "test-real-multitrack-full",
         "musicnet_target": "test-real-musicnet-full",
         "medleydb_target": "inspect-real-medleydb",
+        "multtipop_target": "inspect-real-multtipop",
         "spheres_target": "inspect-real-spheres",
     },
     "inspect-20": {
@@ -94,6 +112,7 @@ TARGET_PLANS = {
         "multitrack_target": "inspect-real-multitrack-20",
         "musicnet_target": "inspect-real-musicnet",
         "medleydb_target": "inspect-real-medleydb",
+        "multtipop_target": "inspect-real-multtipop",
         "spheres_target": "inspect-real-spheres",
     },
     "inspect-full": {
@@ -101,6 +120,7 @@ TARGET_PLANS = {
         "multitrack_target": "inspect-real-multitrack-full",
         "musicnet_target": "inspect-real-musicnet-full",
         "medleydb_target": "inspect-real-medleydb",
+        "multtipop_target": "inspect-real-multtipop",
         "spheres_target": "inspect-real-spheres",
     },
 }
@@ -152,6 +172,17 @@ def main(argv):
         print(
             "run_real_goal_gate: skipping optional MedleyDB stem preflight; set "
             "MUSIC_ANALYZER_MEDLEYDB_ROOT/MEDLEYDB_PATH or place a MedleyDB directory under "
+            "MUSIC_ANALYZER_DATASET_ROOT"
+        )
+
+    if configured_multtipop(env):
+        failed = run(make_cmd, plan["multtipop_target"])
+        if failed:
+            return failed
+    else:
+        print(
+            "run_real_goal_gate: skipping optional MulTTiPop multitrack-MIDI preflight; set "
+            "MUSIC_ANALYZER_MULTTIPOP_ROOT/MULTTIPOP_PATH or place a MulTTiPop directory under "
             "MUSIC_ANALYZER_DATASET_ROOT"
         )
 

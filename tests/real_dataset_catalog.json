@@ -109,7 +109,7 @@
       "assembled_mix": true,
       "aligned_symbolic_truth": true,
       "truth": "warped multitrack MIDI aligned to commercial-pop audio segments",
-      "automation_target": "",
+      "automation_target": "inspect-real-multtipop",
       "source_url": "https://gclef-cmu.org/multtipop/",
       "download_url": "https://huggingface.co/datasets/gclef-cmu/multtipop",
       "download_note": "The released dataset contains aligned multitrack MIDI plus metadata with YouTube IDs/timestamps for the corresponding audio, not isolated audio stems.",
