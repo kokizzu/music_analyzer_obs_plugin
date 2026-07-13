@@ -36,6 +36,10 @@ OPTIONAL_URL_FIELDS = {
     "documentation_url",
 }
 
+OPTIONAL_STRING_FIELDS = {
+    "download_note",
+}
+
 
 def fail(message):
     print(f"inspect_real_dataset_catalog: {message}", file=sys.stderr)
@@ -74,6 +78,9 @@ def check_dataset_shape(dataset, index):
             return f"{dataset['id']}: {key} must be a string"
         if key in dataset and dataset[key] and not dataset[key].startswith("https://"):
             return f"{dataset['id']}: {key} must be https"
+    for key in OPTIONAL_STRING_FIELDS:
+        if key in dataset and not isinstance(dataset[key], str):
+            return f"{dataset['id']}: {key} must be a string"
     return ""
 
 
@@ -110,8 +117,8 @@ def main():
     automated = [item for item in direct_fit_20 if item["automation_target"]]
     if len(automated) != 1 or automated[0]["id"] != "urmp":
         return fail("URMP must be the single automated 20+ direct-fit real-audio gate")
-    if automated[0]["automation_target"] != "test-real-urmp":
-        return fail("URMP automation target must be test-real-urmp")
+    if automated[0]["automation_target"] != "test-real-multitrack-20":
+        return fail("URMP automation target must be test-real-multitrack-20")
 
     for item in direct_fit:
         if not item["real_audio"] or not item["isolated_sources"] or not item["assembled_mix"]:

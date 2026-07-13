@@ -44,7 +44,7 @@ not provide clean per-instrument audio stems for each mixture.
 | Dataset | Use | Notes |
 | --- | --- | --- |
 | [MusicNet](https://arxiv.org/abs/1611.09827) | Mixed classical note/instrument detection | 34 hours, 330 recordings, 11 instruments, over 1M temporal note labels. No isolated stems. |
-| [MulTTiPop](https://arxiv.org/abs/2607.08756) | Real pop mix note/instrument stress tests | 572 commercial-pop segments with aligned multitrack MIDI metadata. Audio is sourced via YouTube IDs/timestamps; recommended for evaluation, not training. |
+| [MulTTiPop](https://gclef-cmu.org/multtipop/) | Real pop mix note/instrument stress tests | 572 commercial-pop segments with aligned multitrack MIDI metadata, published at [HuggingFace](https://huggingface.co/datasets/gclef-cmu/multtipop). Audio is sourced via YouTube IDs/timestamps; recommended for evaluation, not training. |
 | RWC-Pop | Real pop mix transcription | Cited by MulTTiPop as 100 original pop recordings with multitrack MIDI. Access/licensing needs verification. |
 | [POP909](https://arxiv.org/abs/2008.07142) | Pop melody, lead, piano, chord checks | 909 popular-song arrangements with MIDI aligned to original audio plus tempo, beat, key, and chord annotations. Not per-instrument stems. |
 | [MAESTRO](https://arxiv.org/abs/1810.12247) | Keyboard row and sustain tests | Real Disklavier piano audio with tightly aligned MIDI. Single instrument only. |
@@ -79,10 +79,10 @@ without additional annotation.
   URL, so this repository intentionally does not try to download the 12.5 GB
   package automatically.
 - Do not vendor dataset audio into this repository.
-- Set `MUSIC_ANALYZER_URMP_ROOT=/path/to/URMP`, run `make inspect-real-urmp`
-  to preflight the local layout, then run `make test-real-urmp` to require the
-  real-audio URMP regression harness against local `AuMix`, `AuSep`, `Notes`,
-  and `Sco` MIDI files.
+- Set `MUSIC_ANALYZER_URMP_ROOT=/path/to/URMP`, run
+  `make inspect-real-multitrack-20` to preflight the local layout, then run
+  `make test-real-multitrack-20` to require the real-audio URMP regression
+  harness against local `AuMix`, `AuSep`, `Notes`, and `Sco` MIDI files.
   The harness requires official URMP piece folder IDs, validates that MIDI score
   pitch classes agree with note annotations, checks each separated track, the
   provided `AuMix`, and a synthesized full mix made by summing every separated
@@ -92,9 +92,10 @@ without additional annotation.
   `MUSIC_ANALYZER_URMP_MAX_WINDOWS_PER_PIECE`,
   `MUSIC_ANALYZER_URMP_REQUIRED_PIECES`, and
   `MUSIC_ANALYZER_URMP_REQUIRED_WINDOWS` for quicker or deeper runs.
-- Use `make inspect-real-urmp-full` and `make test-real-urmp-full` when the full
-  URMP package is available. Those targets require all 44 official pieces and at
-  least 176 annotated test windows.
+- Use `make inspect-real-multitrack-full` and
+  `make test-real-multitrack-full` when the full URMP package is available.
+  Those targets require all 44 official pieces and at least 176 annotated test
+  windows.
 - Real-audio tests should skip with a clear message when the dataset is absent.
 - URMP should be the first automated target because it gives enough pieces for
   20+ full-mix tests and has both isolated tracks and note truth.

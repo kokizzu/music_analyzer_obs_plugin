@@ -20,7 +20,7 @@
       "assembled_mix": true,
       "aligned_symbolic_truth": true,
       "truth": "MIDI score plus frame-level and note-level pitch annotations",
-      "automation_target": "test-real-urmp",
+      "automation_target": "test-real-multitrack-20",
       "source_url": "https://labsites.rochester.edu/air/projects/URMP.html",
       "documentation_url": "https://labsites.rochester.edu/air/projects/URMP/URMP_doc.pdf",
       "download_url": "https://docs.google.com/forms/d/e/1FAIpQLSdGQx4Q0G4yIT0WDj1cAlfcAq8VZNcV7ZGKqRj8ijgCOzd1lg/viewform?usp=send_form",
@@ -108,8 +108,10 @@
       "aligned_symbolic_truth": true,
       "truth": "warped multitrack MIDI aligned to commercial-pop audio segments",
       "automation_target": "",
-      "source_url": "https://arxiv.org/abs/2607.08756",
-      "evidence": "Paper describes 572 real pop audio segments with associated aligned multitrack MIDI; audio is not released as isolated stems."
+      "source_url": "https://gclef-cmu.org/multtipop/",
+      "download_url": "https://huggingface.co/datasets/gclef-cmu/multtipop",
+      "download_note": "The released dataset contains aligned multitrack MIDI plus metadata with YouTube IDs/timestamps for the corresponding audio, not isolated audio stems.",
+      "evidence": "Official preview and paper describe 572 real pop audio segments with associated aligned multitrack MIDI; audio is not released as isolated stems."
     },
     {
       "id": "pop909",
