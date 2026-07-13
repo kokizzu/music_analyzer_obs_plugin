@@ -21,8 +21,8 @@ OBS_DECLARE_MODULE()
 
 namespace {
 
-constexpr const char *kFilterId = "music_analysis_filter";
-constexpr const char *kVisualizerId = "music_analysis_visualizer";
+constexpr const char *kFilterId = "music_analyzer_filter";
+constexpr const char *kVisualizerId = "music_analyzer_visualizer";
 constexpr uint32_t kDefaultWidth = 960;
 constexpr uint32_t kDefaultHeight = 360;
 static_assert((mao::kAnalysisWindow & (mao::kAnalysisWindow - 1)) == 0, "analysis window must be a power of two");

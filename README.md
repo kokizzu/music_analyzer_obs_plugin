@@ -1,4 +1,4 @@
-# Music Analysis OBS Plugin
+# Music Analyzer OBS Plugin
 
 Native OBS Studio plugin that analyzes a music mix and displays an instrument-oriented overlay:
 
@@ -11,11 +11,11 @@ The analyzer is designed for real-time OBS use. It uses bounded DSP heuristics r
 ## OBS Usage
 
 1. Build the plugin.
-2. Copy `build/music-analysis-obs.so` to an OBS plugin directory, for example:
+2. Copy `build/music-analyzer-obs.so` to an OBS plugin directory, for example:
 
    ```sh
-   mkdir -p ~/.config/obs-studio/plugins/music-analysis-obs/bin/64bit
-   cp build/music-analysis-obs.so ~/.config/obs-studio/plugins/music-analysis-obs/bin/64bit/
+   mkdir -p ~/.config/obs-studio/plugins/music-analyzer-obs/bin/64bit
+   cp build/music-analyzer-obs.so ~/.config/obs-studio/plugins/music-analyzer-obs/bin/64bit/
    ```
 
 3. Restart OBS.

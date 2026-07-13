@@ -20,7 +20,7 @@ TEST_OBJS := $(BUILD_DIR)/analyzer_test.o $(BUILD_DIR)/analyzer_smoke.o
 
 .PHONY: all clean deps test
 
-all: $(SIMDE_DEP) $(BUILD_DIR)/music-analysis-obs.so
+all: $(SIMDE_DEP) $(BUILD_DIR)/music-analyzer-obs.so
 
 deps: $(SIMDE_LOCAL_HEADER)
 
@@ -34,7 +34,7 @@ $(BUILD_DIR):
 $(DEPS_DIR): | $(BUILD_DIR)
 	mkdir -p $(DEPS_DIR)
 
-$(BUILD_DIR)/music-analysis-obs.so: $(PLUGIN_OBJS)
+$(BUILD_DIR)/music-analyzer-obs.so: $(PLUGIN_OBJS)
 	$(CXX) -shared -o $@ $^ $(OBS_LIBS) -pthread
 
 $(BUILD_DIR)/plugin.o: src/plugin.cpp src/analyzer.hpp $(SIMDE_DEP) | $(BUILD_DIR)
