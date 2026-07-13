@@ -1,9 +1,12 @@
 CXX ?= g++
 PYTHON ?= python3
 PKG_CONFIG ?= pkg-config
+TAR ?= tar
 BUILD_DIR ?= build
 DEPS_DIR ?= $(BUILD_DIR)/deps
 OBS_USER_PLUGIN_DIR ?= $(HOME)/.config/obs-studio/plugins/music-analyzer-obs/bin/64bit
+URMP_FIXTURE_ARCHIVE := tests/fixtures/urmp-mini.tar.gz
+URMP_FIXTURE_DIR := $(BUILD_DIR)/urmp-fixture
 
 OBS_CFLAGS_RAW := $(shell $(PKG_CONFIG) --cflags libobs)
 OBS_CFLAGS := $(filter-out -std=gnu17 -Werror,$(OBS_CFLAGS_RAW))
@@ -21,7 +24,7 @@ PLUGIN_OBJS := $(BUILD_DIR)/analyzer.o $(BUILD_DIR)/plugin.o
 ANALYZER_TEST_OBJ := $(BUILD_DIR)/analyzer_test.o
 TEST_BINS := $(BUILD_DIR)/analyzer_smoke $(BUILD_DIR)/analyzer_cases $(BUILD_DIR)/analyzer_urmp
 
-.PHONY: all clean deps install-user test test-urmp-fixture
+.PHONY: all clean deps install-user test test-urmp-fixture update-urmp-fixture
 
 all: $(SIMDE_DEP) $(BUILD_DIR)/music-analyzer-obs.so
 
@@ -73,9 +76,15 @@ test: $(TEST_BINS)
 	$(BUILD_DIR)/analyzer_urmp
 	$(MAKE) test-urmp-fixture
 
-test-urmp-fixture: $(BUILD_DIR)/analyzer_urmp tests/generate_urmp_fixture.py | $(BUILD_DIR)
-	$(PYTHON) tests/generate_urmp_fixture.py $(BUILD_DIR)/urmp-fixture
-	MUSIC_ANALYZER_URMP_ROOT=$(BUILD_DIR)/urmp-fixture $(BUILD_DIR)/analyzer_urmp
+test-urmp-fixture: $(BUILD_DIR)/analyzer_urmp $(URMP_FIXTURE_ARCHIVE) | $(BUILD_DIR)
+	rm -rf $(URMP_FIXTURE_DIR)
+	$(TAR) -xzf $(URMP_FIXTURE_ARCHIVE) -C $(BUILD_DIR)
+	MUSIC_ANALYZER_URMP_ROOT=$(URMP_FIXTURE_DIR) $(BUILD_DIR)/analyzer_urmp
+
+update-urmp-fixture: tests/generate_urmp_fixture.py | $(BUILD_DIR)
+	$(PYTHON) tests/generate_urmp_fixture.py $(URMP_FIXTURE_DIR)
+	mkdir -p tests/fixtures
+	$(TAR) --sort=name --mtime='UTC 2026-01-01' --owner=0 --group=0 --numeric-owner -czf $(URMP_FIXTURE_ARCHIVE) -C $(BUILD_DIR) urmp-fixture
 
 install-user: all
 	mkdir -p $(OBS_USER_PLUGIN_DIR)

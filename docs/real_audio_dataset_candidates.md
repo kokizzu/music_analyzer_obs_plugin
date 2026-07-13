@@ -74,9 +74,11 @@ without additional annotation.
 - Current analyzer regressions already model all 44 URMP same-song
   instrumentations as generated per-track fixtures; they do not download or
   decode URMP audio yet.
-- `make test` also generates a compact 20-piece URMP-shaped WAV/Notes fixture
-  under `build/` to exercise the optional real-audio parser and full-mix path
-  across multiple annotated windows without requiring the full dataset.
+- `make test` also unpacks the committed compact 20-piece URMP-shaped WAV/Notes
+  fixture from `tests/fixtures/urmp-mini.tar.gz` to exercise the optional
+  real-audio parser and full-mix path across multiple annotated windows without
+  requiring the full dataset. Refresh it with `make update-urmp-fixture` after
+  changing `tests/generate_urmp_fixture.py`.
 - Bach10 is the next best add-on for a compact, fast regression set.
 - Single-instrument datasets should drive focused checks: Guitar-TECHS/GAPS for
   guitar, MAESTRO/PianoVAM for keyboard, E-GMD for drums.
