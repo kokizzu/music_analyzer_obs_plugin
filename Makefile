@@ -25,7 +25,7 @@ PLUGIN_OBJS := $(BUILD_DIR)/analyzer.o $(BUILD_DIR)/plugin.o
 ANALYZER_TEST_OBJ := $(BUILD_DIR)/analyzer_test.o
 TEST_BINS := $(BUILD_DIR)/analyzer_smoke $(BUILD_DIR)/analyzer_cases $(BUILD_DIR)/analyzer_urmp
 
-.PHONY: all clean deps install-user test real-dataset-sources inspect-real-dataset-catalog test-urmp-fixture test-real-multitrack-20 test-real-multitrack-full test-real-urmp test-real-urmp-full inspect-real-multitrack-20 inspect-real-multitrack-full inspect-real-urmp inspect-real-urmp-full inspect-urmp-fixture decode-urmp-fixture update-urmp-fixture
+.PHONY: all clean clean-pycache deps install-user test real-dataset-sources inspect-real-dataset-catalog inspect-real-medleydb test-medleydb-inspector test-urmp-fixture test-real-multitrack-20 test-real-multitrack-full test-real-urmp test-real-urmp-full inspect-real-multitrack-20 inspect-real-multitrack-full inspect-real-urmp inspect-real-urmp-full inspect-urmp-fixture decode-urmp-fixture update-urmp-fixture
 
 all: $(SIMDE_DEP) $(BUILD_DIR)/music-analyzer-obs.so
 
@@ -73,6 +73,7 @@ $(BUILD_DIR)/analyzer_urmp: $(ANALYZER_TEST_OBJ) $(BUILD_DIR)/analyzer_urmp.o
 
 test: $(TEST_BINS)
 	$(MAKE) inspect-real-dataset-catalog
+	$(MAKE) test-medleydb-inspector
 	$(BUILD_DIR)/analyzer_smoke
 	$(BUILD_DIR)/analyzer_cases
 	$(BUILD_DIR)/analyzer_urmp
@@ -83,6 +84,12 @@ inspect-real-dataset-catalog: tests/inspect_real_dataset_catalog.py tests/real_d
 
 real-dataset-sources: tests/print_real_dataset_sources.py tests/real_dataset_catalog.json docs/real_audio_dataset_candidates.md
 	$(PYTHON) tests/print_real_dataset_sources.py
+
+inspect-real-medleydb: tests/inspect_medleydb_dataset.py
+	$(PYTHON) tests/inspect_medleydb_dataset.py
+
+test-medleydb-inspector: tests/test_inspect_medleydb_dataset.py tests/inspect_medleydb_dataset.py
+	$(PYTHON) tests/test_inspect_medleydb_dataset.py
 
 test-urmp-fixture: $(BUILD_DIR)/analyzer_urmp $(URMP_FIXTURE_ARCHIVE) | $(BUILD_DIR)
 	rm -rf $(URMP_FIXTURE_DIR)
@@ -134,3 +141,6 @@ install-user: all
 
 clean:
 	rm -rf $(BUILD_DIR)
+
+clean-pycache:
+	find tests -type d -name '__pycache__' -prune -exec rm -rf {} +

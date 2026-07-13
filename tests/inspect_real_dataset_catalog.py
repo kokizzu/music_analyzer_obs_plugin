@@ -32,8 +32,10 @@ REQUIRED_FIELDS = {
 }
 
 OPTIONAL_URL_FIELDS = {
+    "annotation_url",
     "download_url",
     "documentation_url",
+    "metadata_url",
 }
 
 OPTIONAL_STRING_FIELDS = {

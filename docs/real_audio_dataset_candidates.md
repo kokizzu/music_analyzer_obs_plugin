@@ -64,7 +64,7 @@ without additional annotation.
 
 | Dataset | Useful for | Missing for this project |
 | --- | --- | --- |
-| [MedleyDB / MedleyDB 2.0](https://medleydb.weebly.com/) | Real multitrack songs, melody F0, instrument activation | Full multitrack MIDI/note truth. |
+| [MedleyDB / MedleyDB 2.0](https://medleydb.weebly.com/) | Real multitrack songs, melody F0, instrument activation | Full multitrack MIDI/note truth. Audio is on restricted [Zenodo](https://zenodo.org/records/1649325) records; annotations and metadata are public on [GitHub](https://github.com/marl/medleydb). |
 | [MUSDB18 / MUSDB18-HQ](https://sigsep.github.io/datasets/musdb.html) | Drums, bass, vocals, other stem layout | MIDI/note truth and fine instrument classes. |
 | [MoisesDB](https://arxiv.org/abs/2307.15913) | Fine-grained real stems beyond 4-stem separation | MIDI/note truth. |
 | [RawStems](https://arxiv.org/abs/2505.21827) | Large unprocessed stem corpus and stem categories | MIDI/note truth. |
@@ -100,6 +100,14 @@ without additional annotation.
   `make test-real-multitrack-full` when the full URMP package is available.
   Those targets require all 44 official pieces and at least 176 annotated test
   windows.
+- Use `make inspect-real-medleydb` with
+  `MUSIC_ANALYZER_MEDLEYDB_ROOT=/path/to/MedleyDB` and, if annotations are not
+  inside that tree,
+  `MUSIC_ANALYZER_MEDLEYDB_ANNOTATIONS_ROOT=/path/to/medleydb/medleydb/data/Annotations`
+  to preflight the second real multitrack source. It requires at least 20 songs
+  with mix plus stems and at least 20 melody-annotated multitracks by default.
+  This is a partial real-stem/melody-F0 check and does not replace the URMP
+  per-source note/chord gate.
 - Real-audio tests should skip with a clear message when the dataset is absent.
 - URMP should be the first automated target because it gives enough pieces for
   20+ full-mix tests and has both isolated tracks and note truth.

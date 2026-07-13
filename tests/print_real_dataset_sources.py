@@ -76,6 +76,10 @@ def print_catalog_summary(catalog):
             print(f"    source: {item['source_url']}")
             if item.get("download_url", ""):
                 print(f"    data: {item['download_url']}")
+            if item.get("annotation_url", ""):
+                print(f"    annotations: {item['annotation_url']}")
+            if item.get("metadata_url", ""):
+                print(f"    metadata: {item['metadata_url']}")
             if item.get("download_note", ""):
                 print(f"    note: {item['download_note']}")
 
