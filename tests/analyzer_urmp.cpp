@@ -454,6 +454,17 @@ struct MixRecallStats {
 	int chord_checks = 0;
 };
 
+struct DatasetCoverageStats {
+	int discovered_piece_dirs = 0;
+	int loadable_pieces = 0;
+	int unusable_pieces = 0;
+	int pieces_without_candidates = 0;
+	int selected_window_opportunities = 0;
+	int mix_read_failures = 0;
+	int summed_mix_failures = 0;
+	int track_read_failures = 0;
+};
+
 int pitch_class_count(const std::array<bool, 12> &pitch_classes)
 {
 	int count = 0;
@@ -648,7 +659,7 @@ struct PieceFiles {
 	std::vector<TrackData> tracks;
 };
 
-bool load_piece_files(const std::string &dir, PieceFiles &piece)
+bool load_piece_files(const std::string &dir, PieceFiles &piece, std::string &reason)
 {
 	piece.dir = dir;
 	std::map<int, std::string> audio_by_track;
@@ -678,8 +689,10 @@ bool load_piece_files(const std::string &dir, PieceFiles &piece)
 		}
 	}
 
-	if (piece.mix_path.empty())
+	if (piece.mix_path.empty()) {
+		reason = "missing AuMix_*.wav";
 		return false;
+	}
 
 	for (const auto &item : notes_by_track) {
 		const int track = item.first;
@@ -698,7 +711,12 @@ bool load_piece_files(const std::string &dir, PieceFiles &piece)
 	std::sort(piece.tracks.begin(), piece.tracks.end(), [](const TrackData &a, const TrackData &b) {
 		return a.number < b.number;
 	});
-	return piece.tracks.size() >= 2;
+	if (piece.tracks.size() < 2) {
+		reason = "fewer than two tracks with matching AuSep_*.wav and readable Notes_*.txt";
+		return false;
+	}
+	reason.clear();
+	return true;
 }
 
 mao::AnalysisSnapshot analyze_wav_window(const std::string &path, double time, const std::string &source_name,
@@ -802,6 +820,19 @@ bool env_truthy(const char *name)
 	       std::strcmp(value, "FALSE") != 0;
 }
 
+std::string coverage_summary(const DatasetCoverageStats &coverage, int tested_pieces, int tested_windows)
+{
+	return "discovered " + std::to_string(coverage.discovered_piece_dirs) + " piece dirs, loadable " +
+	       std::to_string(coverage.loadable_pieces) + ", unusable " +
+	       std::to_string(coverage.unusable_pieces) + ", no-candidate " +
+	       std::to_string(coverage.pieces_without_candidates) + ", selected " +
+	       std::to_string(coverage.selected_window_opportunities) + " candidate windows, tested " +
+	       std::to_string(tested_windows) + " windows across " + std::to_string(tested_pieces) +
+	       " pieces, mix-read failures " + std::to_string(coverage.mix_read_failures) +
+	       ", summed-mix failures " + std::to_string(coverage.summed_mix_failures) +
+	       ", track-read failures " + std::to_string(coverage.track_read_failures);
+}
+
 } // namespace
 
 int main()
@@ -828,6 +859,8 @@ int main()
 	const int max_windows_per_piece = resolve_max_windows_per_piece();
 
 	Runner runner;
+	DatasetCoverageStats coverage;
+	coverage.discovered_piece_dirs = static_cast<int>(piece_dirs.size());
 	int tested_pieces = 0;
 	int track_hits = 0;
 	int track_checks = 0;
@@ -837,13 +870,28 @@ int main()
 
 	for (const std::string &piece_dir : piece_dirs) {
 		PieceFiles piece;
-		if (!load_piece_files(piece_dir, piece))
+		std::string load_reason;
+		if (!load_piece_files(piece_dir, piece, load_reason)) {
+			++coverage.unusable_pieces;
+			if (coverage.unusable_pieces <= 5) {
+				std::fprintf(stderr, "analyzer_urmp: skipping %s: %s\n",
+					     basename_of(piece_dir).c_str(), load_reason.c_str());
+			}
 			continue;
+		}
+		++coverage.loadable_pieces;
 
 		const std::vector<CandidateWindow> candidates =
 			select_candidate_windows(piece.tracks, max_windows_per_piece);
-		if (candidates.empty())
+		if (candidates.empty()) {
+			++coverage.pieces_without_candidates;
+			if (coverage.pieces_without_candidates <= 5) {
+				std::fprintf(stderr, "analyzer_urmp: skipping %s: no overlapping multi-track note window\n",
+					     basename_of(piece_dir).c_str());
+			}
 			continue;
+		}
+		coverage.selected_window_opportunities += static_cast<int>(candidates.size());
 
 		int piece_windows = 0;
 		for (const CandidateWindow &candidate : candidates) {
@@ -852,6 +900,7 @@ int main()
 			const mao::AnalysisSnapshot mix_snapshot =
 				analyze_wav_window(piece.mix_path, candidate.time, "URMP real full mix", ok, error);
 			if (!ok) {
+				++coverage.mix_read_failures;
 				std::fprintf(stderr, "analyzer_urmp: skipping %s mix at %.3fs: %s\n",
 					     basename_of(piece_dir).c_str(), candidate.time, error.c_str());
 				continue;
@@ -869,6 +918,7 @@ int main()
 			const mao::AnalysisSnapshot summed_snapshot = analyze_summed_track_window(
 				piece, candidate.time, "URMP summed separated tracks", ok, error);
 			if (!ok) {
+				++coverage.summed_mix_failures;
 				runner.expect(false, window_context + " summed separated tracks: " + error);
 			} else {
 				check_mix_recall(runner, summed_snapshot, candidate,
@@ -881,6 +931,7 @@ int main()
 				const mao::AnalysisSnapshot track_snapshot =
 					analyze_wav_window(track.audio_path, candidate.time, source, ok, error);
 				if (!ok) {
+					++coverage.track_read_failures;
 					std::fprintf(stderr, "analyzer_urmp: skipping %s track %d at %.3fs: %s\n",
 						     basename_of(piece_dir).c_str(), track.number, candidate.time,
 						     error.c_str());
@@ -912,6 +963,8 @@ int main()
 
 	if (tested_pieces == 0) {
 		std::fprintf(stderr, "analyzer_urmp: no usable URMP pieces found under `%s`\n", root.c_str());
+		std::fprintf(stderr, "analyzer_urmp: coverage: %s\n",
+			     coverage_summary(coverage, tested_pieces, tested_windows).c_str());
 		return 1;
 	}
 
@@ -958,6 +1011,8 @@ int main()
 			     summed_mix_stats.expected, provided_mix_stats.chord_hits,
 			     provided_mix_stats.chord_checks, summed_mix_stats.chord_hits,
 			     summed_mix_stats.chord_checks);
+		std::fprintf(stderr, "analyzer_urmp: coverage: %s\n",
+			     coverage_summary(coverage, tested_pieces, tested_windows).c_str());
 		return 1;
 	}
 
@@ -968,5 +1023,6 @@ int main()
 		    provided_mix_stats.hits, provided_mix_stats.expected, summed_mix_stats.hits,
 		    summed_mix_stats.expected, provided_mix_stats.chord_hits, provided_mix_stats.chord_checks,
 		    summed_mix_stats.chord_hits, summed_mix_stats.chord_checks);
+	std::printf("analyzer_urmp: coverage: %s\n", coverage_summary(coverage, tested_pieces, tested_windows).c_str());
 	return 0;
 }

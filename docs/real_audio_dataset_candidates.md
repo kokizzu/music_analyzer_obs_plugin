@@ -72,7 +72,9 @@ without additional annotation.
   The harness checks each separated track, the provided `AuMix`, and a
   synthesized full mix made by summing every separated track. By default it
   samples up to 12 annotated windows per piece and requires at least 80 windows;
-  set `MUSIC_ANALYZER_URMP_MAX_WINDOWS_PER_PIECE` for quicker or deeper runs.
+  it also prints discovered/loadable piece and window counts to diagnose
+  incomplete dataset layouts. Set `MUSIC_ANALYZER_URMP_MAX_WINDOWS_PER_PIECE`
+  for quicker or deeper runs.
 - Real-audio tests should skip with a clear message when the dataset is absent.
 - URMP should be the first automated target because it gives enough pieces for
   20+ full-mix tests and has both isolated tracks and note truth.
