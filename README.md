@@ -4,7 +4,7 @@ Native OBS Studio plugin that analyzes a music mix and displays an instrument-or
 
 - Drums: bass drum/kick, snare, hi-hat, crash, toms, and ride one-second scrolling hit charts
 - Bass: detected note
-- Keyboard: three-row piano view covering C1-B6 in two-octave bands, with detected keys highlighted
+- Keyboard: three-row piano view covering C1-B6 in two-octave bands, with lower notes folded into octave 1, higher notes folded into octave 6, and detected keys highlighted
 - Vocal and other instruments: two-row 12-note octave matrix with active octaves shown as colored text
 - Guitar: standard-tuning six-string fretboard view with open string plus frets 1-15 highlighted from detected notes
 - Keyboard, guitar, and other instruments: compact chord labels; vocal stays note-only

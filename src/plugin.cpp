@@ -664,6 +664,30 @@ bool note_grid_has_midi(const mao::NoteGrid &notes, int midi)
 	return false;
 }
 
+int fold_midi_to_piano_range(int midi)
+{
+	constexpr int kFirstPianoMidi = 24;
+	constexpr int kLastPianoMidi = 95;
+	constexpr int kFirstHighOctaveMidi = 84;
+	const int pitch_class = ((midi % 12) + 12) % 12;
+	if (midi < kFirstPianoMidi)
+		return kFirstPianoMidi + pitch_class;
+	if (midi > kLastPianoMidi)
+		return kFirstHighOctaveMidi + pitch_class;
+	return midi;
+}
+
+bool piano_key_active(const mao::NoteGrid &notes, int midi)
+{
+	for (const auto &row : notes.rows) {
+		for (const mao::NoteCell &cell : row) {
+			if (cell.active && cell.midi >= 0 && fold_midi_to_piano_range(cell.midi) == midi)
+				return true;
+		}
+	}
+	return false;
+}
+
 int draw_piano_keyboard(VisualizerData *visualizer, int y, const mao::NoteGrid &notes,
 			const mao::InstrumentState &chord)
 {
@@ -708,7 +732,7 @@ int draw_piano_keyboard(VisualizerData *visualizer, int y, const mao::NoteGrid &
 
 		for (int i = 0; i < kWhiteKeysPerRow; ++i) {
 			const int midi = base_midi + kWhiteOffsets[i];
-			const bool active_key = note_grid_has_midi(notes, midi);
+			const bool active_key = piano_key_active(notes, midi);
 			const int x = key_x + i * white_w;
 			fill_rect(visualizer, x, row_y, white_w - 1, white_h, active_key ? active : white_key);
 			fill_rect(visualizer, x, row_y, white_w - 1, 1, border);
@@ -719,7 +743,7 @@ int draw_piano_keyboard(VisualizerData *visualizer, int y, const mao::NoteGrid &
 
 		for (std::size_t i = 0; i < sizeof(kBlackOffsets) / sizeof(kBlackOffsets[0]); ++i) {
 			const int midi = base_midi + kBlackOffsets[i];
-			const bool active_key = note_grid_has_midi(notes, midi);
+			const bool active_key = piano_key_active(notes, midi);
 			const int x = key_x + (kBlackAfterWhite[i] + 1) * white_w - black_w / 2;
 			fill_rect(visualizer, x, row_y, black_w, black_h, active_key ? active : black_key);
 			fill_rect(visualizer, x, row_y, black_w, 1, border);
