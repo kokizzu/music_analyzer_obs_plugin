@@ -78,6 +78,7 @@ def main():
         (makefile, "inspect-real-goal-20", "Makefile combined real-data preflight"),
         (makefile, "test-real-goal-fixture", "Makefile combined fixture target"),
         (makefile, "tests/run_real_goal_gate.py inspect-20", "Makefile combined fixture preflight"),
+        (makefile, "tests/inspect_urmp_dataset.py", "Makefile URMP preflight audit dependency"),
         (makefile, "tests/generate_musicnet_fixture.py", "Makefile MusicNet fixture"),
         (makefile, "tests/generate_medleydb_fixture.py", "Makefile MedleyDB fixture"),
         (goal_gate, "test-real-multitrack-20", "combined gate required URMP target"),
