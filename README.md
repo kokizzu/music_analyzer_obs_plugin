@@ -19,8 +19,19 @@ The analyzer is designed for real-time OBS use. It uses bounded DSP heuristics r
    ```
 
 3. Restart OBS.
-4. Add the `Music Analyzer Filter` audio filter to the music/audio source you want analyzed.
-5. Add the `Music Analyzer Overlay` source to the scene to show the overlay.
+4. Add or select the audio source that carries the music:
+   - `Audio Output Capture` for desktop/music playback
+   - `Audio Input Capture` for microphone or instrument input
+   - `Media Source` for a music file played inside OBS
+5. Add the analyzer filter to that audio source:
+   - In `Sources`, right-click the audio source and choose `Filters`
+   - Or in `Audio Mixer`, open the gear/three-dots menu for that audio channel and choose `Filters`
+   - Under `Audio Filters`, click `+`, choose `Music Analyzer Filter`, then click `OK`
+6. Add the on-screen overlay:
+   - In `Sources`, click `+`
+   - Choose `Music Analyzer Overlay`
+
+If the overlay says `ADD MUSIC ANALYZER FILTER TO AN AUDIO SOURCE`, the overlay is loaded but it has not received analyzer data yet. Add `Music Analyzer Filter` to the actual music/audio source, not to the overlay source.
 
 ## Build
 
