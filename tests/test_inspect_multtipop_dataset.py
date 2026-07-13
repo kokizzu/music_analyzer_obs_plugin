@@ -29,7 +29,7 @@ def patched_env(values):
                 os.environ[key] = value
 
 
-def run_with_env(root, required_segments=20, require_audio=False):
+def run_with_env(root, required_segments=20, require_audio=False, audio_root=None):
     with patched_env(
         {
             "MUSIC_ANALYZER_MULTTIPOP_ROOT": str(root),
@@ -39,7 +39,7 @@ def run_with_env(root, required_segments=20, require_audio=False):
             "MUSIC_ANALYZER_MULTTIPOP_MIN_NOTE_PARTS": "2",
             "MUSIC_ANALYZER_MULTTIPOP_MIN_PITCH_CLASSES": "2",
             "MUSIC_ANALYZER_MULTTIPOP_REQUIRE_AUDIO": "1" if require_audio else None,
-            "MUSIC_ANALYZER_MULTTIPOP_AUDIO_ROOT": None,
+            "MUSIC_ANALYZER_MULTTIPOP_AUDIO_ROOT": str(audio_root) if audio_root else None,
         }
     ):
         output = io.StringIO()
@@ -77,11 +77,25 @@ def test_audio_required_mode_checks_local_audio():
             raise AssertionError("audio-required MulTTiPop fixture with audio should pass")
 
 
+def test_audio_required_mode_checks_external_audio_root():
+    with tempfile.TemporaryDirectory() as temp:
+        root = Path(temp) / "metadata"
+        audio_root = Path(temp) / "audio"
+        generate_multtipop_fixture.write_fixture(
+            str(root), segment_count=20, write_audio=True, audio_root=str(audio_root)
+        )
+        if run_with_env(root, required_segments=20, require_audio=True) == 0:
+            raise AssertionError("audio-required fixture should fail without MUSIC_ANALYZER_MULTTIPOP_AUDIO_ROOT")
+        if run_with_env(root, required_segments=20, require_audio=True, audio_root=audio_root) != 0:
+            raise AssertionError("audio-required fixture should pass with external MulTTiPop audio root")
+
+
 def main():
     test_complete_multtipop_shape_passes()
     test_incomplete_multtipop_shape_fails()
     test_audio_required_mode_checks_local_audio()
-    print("test_inspect_multtipop_dataset: 3 checks passed")
+    test_audio_required_mode_checks_external_audio_root()
+    print("test_inspect_multtipop_dataset: 4 checks passed")
     return 0
 
 

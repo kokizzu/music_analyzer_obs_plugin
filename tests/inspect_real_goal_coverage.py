@@ -65,6 +65,7 @@ def main():
         polyvocal_inspector = read_text("tests/inspect_polyvocal_dataset.py")
         polyvocal_prepare = read_text("tests/prepare_polyvocal_musicnet_fixture.py")
         multtipop_inspector = read_text("tests/inspect_multtipop_dataset.py")
+        multtipop_fixture = read_text("tests/generate_multtipop_fixture.py")
         spheres_inspector = read_text("tests/inspect_spheres_dataset.py")
         guitarset_inspector = read_text("tests/inspect_guitarset_dataset.py")
     except (OSError, json.JSONDecodeError) as exc:
@@ -229,6 +230,8 @@ def main():
         (makefile, "test-real-polyvocal-20", "Makefile optional Vocal Ensemble F0 analyzer gate"),
         (source_printer, "real_vocal_multitrack_truth", "source printer Vocal Ensemble F0 category"),
         (makefile, "test-real-multtipop-20", "Makefile optional MulTTiPop analyzer gate"),
+        (makefile, "test-multtipop-audio-root-fixture", "Makefile MulTTiPop external audio-root fixture target"),
+        (makefile, "MUSIC_ANALYZER_MULTTIPOP_AUDIO_ROOT=$(REAL_GOAL_MULTTIPOP_AUDIO_DIR)", "Makefile MulTTiPop external audio-root analyzer gate"),
         (makefile, "$(BUILD_DIR)/analyzer_multtipop", "Makefile MulTTiPop analyzer binary"),
         (makefile, "$(BUILD_DIR)/analyzer_guitarset", "Makefile GuitarSet analyzer binary"),
         (makefile, "$(BUILD_DIR)/analyzer_maestro", "Makefile MAESTRO analyzer binary"),
@@ -296,8 +299,11 @@ def main():
         (medleydb_prepare, "summed-stem MedleyDB melody recordings", "MedleyDB generated MusicNet labels"),
         (multtipop_inspector, "midi note parts", "MulTTiPop MIDI part-density report"),
         (multtipop_inspector, "MUSIC_ANALYZER_MULTTIPOP_REQUIRE_AUDIO", "MulTTiPop optional audio threshold"),
+        (multtipop_inspector, "MUSIC_ANALYZER_MULTTIPOP_AUDIO_ROOT", "MulTTiPop external audio-root preflight"),
         (multtipop_inspector, "valid_youtube_metadata", "MulTTiPop YouTube timing validation"),
+        (multtipop_fixture, "audio_root", "MulTTiPop fixture external audio-root mode"),
         (multtipop_harness, "read_multtipop_midi", "MulTTiPop aligned-MIDI parser"),
+        (multtipop_harness, "MUSIC_ANALYZER_MULTTIPOP_AUDIO_ROOT", "MulTTiPop analyzer external audio-root lookup"),
         (multtipop_harness, "MulTTiPop real-pop pitch-class recall", "MulTTiPop real-audio recall gate"),
         (multtipop_harness, "chord hits", "MulTTiPop chord recall report"),
         (musdb_inspector, "EXPECTED_STEMS", "MUSDB18 expected stem list"),
@@ -360,6 +366,7 @@ def main():
         (readme, "make inspect-real-polyvocal", "README Vocal Ensemble F0 preflight instructions"),
         (readme, "make test-real-polyvocal-20", "README Vocal Ensemble F0 analyzer instructions"),
         (readme, "make test-real-multtipop-20", "README MulTTiPop analyzer instructions"),
+        (readme, "make test-multtipop-audio-root-fixture", "README MulTTiPop external audio-root fixture instructions"),
         (readme, "make inspect-real-spheres", "README Spheres preflight instructions"),
         (readme, "make inspect-real-guitarset", "README GuitarSet preflight instructions"),
         (readme, "make test-real-guitarset-20", "README GuitarSet analyzer instructions"),
@@ -383,6 +390,7 @@ def main():
         (docs, "make inspect-real-polyvocal", "dataset docs Vocal Ensemble F0 preflight instructions"),
         (docs, "make test-real-polyvocal-20", "dataset docs Vocal Ensemble F0 analyzer instructions"),
         (docs, "make test-real-multtipop-20", "dataset docs MulTTiPop analyzer instructions"),
+        (docs, "make test-multtipop-audio-root-fixture", "dataset docs MulTTiPop external audio-root fixture instructions"),
         (docs, "make inspect-real-spheres", "dataset docs Spheres preflight instructions"),
         (docs, "make inspect-real-guitarset", "dataset docs GuitarSet preflight instructions"),
         (docs, "make test-real-guitarset-20", "dataset docs GuitarSet analyzer instructions"),

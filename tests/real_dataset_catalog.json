@@ -116,6 +116,7 @@
       "truth": "warped multitrack MIDI aligned to commercial-pop audio segments",
       "automation_target": "inspect-real-multtipop",
       "source_url": "https://gclef-cmu.org/multtipop/",
+      "documentation_url": "https://arxiv.org/abs/2607.08756",
       "download_url": "https://huggingface.co/datasets/gclef-cmu/multtipop",
       "download_note": "The released dataset contains aligned multitrack MIDI plus metadata with YouTube IDs/timestamps for the corresponding audio, not isolated audio stems.",
       "evidence": "Official preview and paper describe 572 real pop audio segments with associated aligned multitrack MIDI; audio is not released as isolated stems."

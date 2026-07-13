@@ -70,7 +70,7 @@ not provide clean per-instrument audio stems for each mixture.
 | Dataset | Use | Notes |
 | --- | --- | --- |
 | [MusicNet](https://arxiv.org/abs/1611.09827) | Mixed classical note/instrument detection with optional `make test-real-musicnet-20` real-mix gate | 34 hours, 330 recordings, 11 instruments, over 1M temporal note labels. No isolated stems. |
-| [MulTTiPop](https://gclef-cmu.org/multtipop/) | Real pop mix note/instrument stress tests with optional `make inspect-real-multtipop` metadata/MIDI preflight and `make test-real-multtipop-20` local-audio analyzer gate | 572 commercial-pop segments with aligned multitrack MIDI metadata, published at [HuggingFace](https://huggingface.co/datasets/gclef-cmu/multtipop). Audio is sourced via YouTube IDs/timestamps; recommended for evaluation, not training. |
+| [MulTTiPop](https://gclef-cmu.org/multtipop/) | Real pop mix note/instrument stress tests with optional `make inspect-real-multtipop` metadata/MIDI preflight and `make test-real-multtipop-20` local-audio analyzer gate | 572 commercial-pop segments with aligned multitrack MIDI metadata, published at [HuggingFace](https://huggingface.co/datasets/gclef-cmu/multtipop) and described in the [2026 paper](https://arxiv.org/abs/2607.08756). Audio is sourced via YouTube IDs/timestamps; recommended for evaluation, not training. |
 | RWC-Pop | Real pop mix transcription | Cited by MulTTiPop as 100 original pop recordings with multitrack MIDI. Access/licensing needs verification. |
 | [POP909](https://arxiv.org/abs/2008.07142) | Pop melody, lead, piano, chord checks | 909 popular-song arrangements with MIDI aligned to original audio plus tempo, beat, key, and chord annotations. Not per-instrument stems. |
 | [MAESTRO](https://magenta.tensorflow.org/datasets/maestro) | Keyboard row, sustain, and chord tests with optional `make test-real-maestro-20` analyzer gate | 1,276 real Disklavier piano performances, 198.7 hours, paired WAV/MIDI with about 3 ms alignment, official metadata CSV/JSON, and over 7M note labels. Single instrument only. |
@@ -233,11 +233,14 @@ without additional annotation.
   `MUSIC_ANALYZER_MULTTIPOP_AUDIO_ROOT=/path/to/segments` to require locally
   obtained audio segments beside the metadata. Use
   `make test-real-multtipop-20` when those WAV segments are available as
-  `audio.wav`, `segment.wav`, or `<id>.wav`; that target parses `aligned.mid`,
-  selects windows with multiple active MIDI parts and pitch classes, and checks
-  analyzer pitch-class and chord recall against the local real-pop mix segment.
-  MulTTiPop strengthens real-pop note/chord coverage once local audio segments
-  are available, but it does not replace URMP because the official release
+  `audio.wav`, `segment.wav`, or `<id>.wav` beside each segment, or under a
+  separate `MUSIC_ANALYZER_MULTTIPOP_AUDIO_ROOT`; that target parses
+  `aligned.mid`, selects windows with multiple active MIDI parts and pitch
+  classes, and checks analyzer pitch-class and chord recall against the local
+  real-pop mix segment. `make test-multtipop-audio-root-fixture` is the
+  generated regression for that separate-audio-root layout. MulTTiPop
+  strengthens real-pop note/chord coverage once local audio segments are
+  available, but it does not replace URMP because the official release
   references commercial audio instead of shipping isolated stems.
 - Use `make inspect-real-spheres` with
   `MUSIC_ANALYZER_SPHERES_ROOT=/path/to/TheSpheresDataset` to preflight The

@@ -106,7 +106,7 @@ def write_audio(path, transpose):
     write_wav(path, samples)
 
 
-def write_segment(root, index, write_audio_files, split_at):
+def write_segment(root, index, write_audio_files, split_at, audio_root=None):
     split = "dev" if index <= split_at else "test"
     segment_id = f"fixture{index:03d}"
     segment_dir = os.path.join(root, split, segment_id)
@@ -137,26 +137,35 @@ def write_segment(root, index, write_audio_files, split_at):
         json.dump(meta, meta_file, sort_keys=True)
         meta_file.write("\n")
     if write_audio_files:
-        write_audio(os.path.join(segment_dir, "audio.wav"), index)
+        audio_dir = os.path.join(audio_root, split, segment_id) if audio_root else segment_dir
+        os.makedirs(audio_dir, exist_ok=True)
+        write_audio(os.path.join(audio_dir, "audio.wav"), index)
 
 
-def write_fixture(root, segment_count=DEFAULT_SEGMENT_COUNT, write_audio=False):
+def write_fixture(root, segment_count=DEFAULT_SEGMENT_COUNT, write_audio=False, audio_root=None):
     os.makedirs(root, exist_ok=True)
+    if audio_root:
+        os.makedirs(audio_root, exist_ok=True)
     split_at = max(1, segment_count // 2)
     for index in range(1, segment_count + 1):
-        write_segment(root, index, write_audio, split_at)
+        write_segment(root, index, write_audio, split_at, audio_root=audio_root)
 
 
 def main(argv):
-    if len(argv) not in (2, 3):
-        print("usage: generate_multtipop_fixture.py OUT_DIR [--with-audio]", file=sys.stderr)
+    if len(argv) not in (2, 3, 4):
+        print("usage: generate_multtipop_fixture.py OUT_DIR [--with-audio [AUDIO_ROOT]]", file=sys.stderr)
         return 2
     write_audio = len(argv) == 3 and argv[2] == "--with-audio"
-    if len(argv) == 3 and not write_audio:
-        print("usage: generate_multtipop_fixture.py OUT_DIR [--with-audio]", file=sys.stderr)
+    if len(argv) == 4:
+        write_audio = argv[2] == "--with-audio"
+    if len(argv) >= 3 and not write_audio:
+        print("usage: generate_multtipop_fixture.py OUT_DIR [--with-audio [AUDIO_ROOT]]", file=sys.stderr)
         return 2
-    write_fixture(argv[1], write_audio=write_audio)
+    audio_root = argv[3] if len(argv) == 4 else None
+    write_fixture(argv[1], write_audio=write_audio, audio_root=audio_root)
     suffix = " with WAV audio" if write_audio else ""
+    if audio_root:
+        suffix += f" under {audio_root}"
     print(f"generate_multtipop_fixture: wrote {DEFAULT_SEGMENT_COUNT} MulTTiPop-shaped segments{suffix} to {argv[1]}")
     return 0
 

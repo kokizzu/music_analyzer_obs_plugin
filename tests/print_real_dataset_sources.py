@@ -78,6 +78,8 @@ def print_catalog_summary(catalog):
             suffix = f", make {automation}" if automation else ""
             print(f"  - {item['name']}: {piece_label(item['piece_count'])}{suffix}")
             print(f"    source: {item['source_url']}")
+            if item.get("documentation_url", ""):
+                print(f"    documentation: {item['documentation_url']}")
             if item.get("download_url", ""):
                 print(f"    data: {item['download_url']}")
             if item.get("annotation_url", ""):
