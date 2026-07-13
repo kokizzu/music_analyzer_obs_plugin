@@ -2,6 +2,7 @@ CXX ?= g++
 PYTHON ?= python3
 PKG_CONFIG ?= pkg-config
 TAR ?= tar
+FFMPEG ?= ffmpeg
 BUILD_DIR ?= build
 DEPS_DIR ?= $(BUILD_DIR)/deps
 OBS_USER_PLUGIN_DIR ?= $(HOME)/.config/obs-studio/plugins/music-analyzer-obs/bin/64bit
@@ -24,7 +25,7 @@ PLUGIN_OBJS := $(BUILD_DIR)/analyzer.o $(BUILD_DIR)/plugin.o
 ANALYZER_TEST_OBJ := $(BUILD_DIR)/analyzer_test.o
 TEST_BINS := $(BUILD_DIR)/analyzer_smoke $(BUILD_DIR)/analyzer_cases $(BUILD_DIR)/analyzer_urmp
 
-.PHONY: all clean deps install-user test test-urmp-fixture test-real-urmp inspect-real-urmp inspect-urmp-fixture update-urmp-fixture
+.PHONY: all clean deps install-user test test-urmp-fixture test-real-urmp inspect-real-urmp inspect-urmp-fixture decode-urmp-fixture update-urmp-fixture
 
 all: $(SIMDE_DEP) $(BUILD_DIR)/music-analyzer-obs.so
 
@@ -79,6 +80,7 @@ test: $(TEST_BINS)
 test-urmp-fixture: $(BUILD_DIR)/analyzer_urmp $(URMP_FIXTURE_ARCHIVE) | $(BUILD_DIR)
 	rm -rf $(URMP_FIXTURE_DIR)
 	$(TAR) -xzf $(URMP_FIXTURE_ARCHIVE) -C $(BUILD_DIR)
+	$(MAKE) decode-urmp-fixture
 	MUSIC_ANALYZER_URMP_ROOT=$(URMP_FIXTURE_DIR) MUSIC_ANALYZER_URMP_ALLOW_GENERATED_FIXTURE=1 $(BUILD_DIR)/analyzer_urmp
 
 test-real-urmp: $(BUILD_DIR)/analyzer_urmp
@@ -90,7 +92,15 @@ inspect-real-urmp: tests/inspect_urmp_dataset.py
 inspect-urmp-fixture: $(URMP_FIXTURE_ARCHIVE) tests/inspect_urmp_dataset.py | $(BUILD_DIR)
 	rm -rf $(URMP_FIXTURE_DIR)
 	$(TAR) -xzf $(URMP_FIXTURE_ARCHIVE) -C $(BUILD_DIR)
+	$(MAKE) decode-urmp-fixture
 	MUSIC_ANALYZER_URMP_ROOT=$(URMP_FIXTURE_DIR) MUSIC_ANALYZER_URMP_ALLOW_GENERATED_FIXTURE=1 $(PYTHON) tests/inspect_urmp_dataset.py
+
+decode-urmp-fixture:
+	$(FFMPEG) -version >/dev/null
+	find $(URMP_FIXTURE_DIR) -type f -name '*.flac' -print | while IFS= read -r flac; do \
+		wav=$${flac%.flac}.wav; \
+		$(FFMPEG) -nostdin -hide_banner -loglevel error -y -i "$$flac" "$$wav"; \
+	done
 
 update-urmp-fixture: tests/generate_urmp_fixture.py | $(BUILD_DIR)
 	$(PYTHON) tests/generate_urmp_fixture.py $(URMP_FIXTURE_DIR)

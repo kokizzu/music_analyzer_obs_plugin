@@ -1,9 +1,11 @@
 #!/usr/bin/env python3
 import os
 import sys
+import math
 
 
 FIXTURE_MARKER = ".music_analyzer_generated_urmp_fixture"
+AUDIO_EXTENSIONS = (".wav", ".flac")
 OFFICIAL_IDS = (
     "01_Jupiter",
     "02_Sonata",
@@ -96,12 +98,106 @@ def parse_track_number(name, prefix):
     return int("".join(digits)) if digits else None
 
 
+def is_audio_file(name):
+    return name.endswith(AUDIO_EXTENSIONS)
+
+
+def midi_from_frequency(freq):
+    return int(round(69.0 + 12.0 * math.log2(freq / 440.0)))
+
+
+def resolve_max_windows_per_piece():
+    value = os.environ.get("MUSIC_ANALYZER_URMP_MAX_WINDOWS_PER_PIECE", "")
+    if not value:
+        return 12
+    try:
+        parsed = int(value)
+    except ValueError:
+        return 12
+    return parsed if parsed > 0 else 12
+
+
+def read_notes(path):
+    notes = []
+    try:
+        with open(path, "r", encoding="utf-8") as notes_file:
+            for line in notes_file:
+                fields = line.split()
+                if len(fields) < 3:
+                    continue
+                try:
+                    onset = float(fields[0])
+                    frequency = float(fields[1])
+                    duration = float(fields[2])
+                except ValueError:
+                    continue
+                if frequency <= 0.0 or duration <= 0.0:
+                    continue
+                midi = midi_from_frequency(frequency)
+                if 21 <= midi <= 108:
+                    notes.append((onset, duration, midi))
+    except OSError:
+        return []
+    return notes
+
+
+def active_note_at(notes, time):
+    best = None
+    best_margin = -1.0
+    for onset, duration, midi in notes:
+        edge = min(0.035, duration * 0.20)
+        start = onset + edge
+        end = onset + duration - edge
+        if time < start or time > end:
+            continue
+        margin = min(time - onset, onset + duration - time)
+        if margin > best_margin:
+            best_margin = margin
+            best = midi
+    return best
+
+
+def candidate_window_at(track_notes, time):
+    active = []
+    pitch_classes = set()
+    for notes in track_notes:
+        midi = active_note_at(notes, time)
+        if midi is None:
+            continue
+        active.append(midi)
+        pitch_classes.add(midi % 12)
+    if len(active) < 2:
+        return None
+    score = len(active) * 100 + len(pitch_classes) * 10
+    return time, score
+
+
+def select_candidate_windows(track_notes, max_windows):
+    candidates = []
+    for notes in track_notes:
+        for onset, duration, _midi in notes:
+            candidate = candidate_window_at(track_notes, onset + duration * 0.5)
+            if candidate is not None:
+                candidates.append(candidate)
+
+    candidates.sort(key=lambda item: (-item[1], item[0]))
+    selected = []
+    for time, score in candidates:
+        if any(abs(existing_time - time) < 0.20 for existing_time, _ in selected):
+            continue
+        selected.append((time, score))
+        if len(selected) >= max_windows:
+            break
+    selected.sort()
+    return selected
+
+
 def has_piece_markers(path):
     try:
         names = os.listdir(path)
     except OSError:
         return False
-    return any(name.startswith("AuMix_") and name.endswith(".wav") for name in names) and any(
+    return any(name.startswith("AuMix_") and is_audio_file(name) for name in names) and any(
         name.startswith("Notes_") and name.endswith(".txt") for name in names
     )
 
@@ -124,37 +220,50 @@ def collect_piece_dirs(path, depth=4):
     return pieces
 
 
-def inspect_piece(path, require_official):
+def inspect_piece(path, require_official, max_windows):
     basename = os.path.basename(path)
     if require_official and not starts_with_any(basename, OFFICIAL_IDS):
-        return False, "not an official URMP piece folder"
+        return False, "not an official URMP piece folder", 0
 
     try:
         names = os.listdir(path)
     except OSError as exc:
-        return False, f"cannot list directory: {exc}"
+        return False, f"cannot list directory: {exc}", 0
 
-    mixes = [name for name in names if name.startswith("AuMix_") and name.endswith(".wav")]
+    mixes = [name for name in names if name.startswith("AuMix_") and is_audio_file(name)]
     scores = [name for name in names if name.startswith("Sco_") and name.endswith(".mid")]
-    sep_tracks = {
-        track
-        for track in (parse_track_number(name, "AuSep_") for name in names if name.endswith(".wav"))
-        if track is not None
-    }
-    note_tracks = {
-        track
-        for track in (parse_track_number(name, "Notes_") for name in names if name.endswith(".txt"))
-        if track is not None
-    }
-    matched_tracks = sep_tracks & note_tracks
+    sep_tracks = set()
+    note_files = {}
+    for name in names:
+        if is_audio_file(name):
+            track = parse_track_number(name, "AuSep_")
+            if track is not None:
+                sep_tracks.add(track)
+        if name.endswith(".txt"):
+            track = parse_track_number(name, "Notes_")
+            if track is not None:
+                note_files[track] = join_path(path, name)
+    matched_tracks = sep_tracks & set(note_files.keys())
 
     if not mixes:
-        return False, "missing AuMix_*.wav"
+        return False, "missing AuMix audio", 0
     if require_official and not scores:
-        return False, "missing Sco_*.mid"
+        return False, "missing Sco_*.mid", 0
     if len(matched_tracks) < 2:
-        return False, "fewer than two matched AuSep/Notes tracks"
-    return True, f"{len(matched_tracks)} matched tracks"
+        return False, "fewer than two matched AuSep/Notes tracks", 0
+
+    track_notes = []
+    for track in sorted(matched_tracks):
+        notes = read_notes(note_files[track])
+        if notes:
+            track_notes.append(notes)
+    if len(track_notes) < 2:
+        return False, "fewer than two matched tracks with readable note annotations", 0
+
+    candidate_windows = select_candidate_windows(track_notes, max_windows)
+    if not candidate_windows:
+        return False, "no overlapping multi-track note windows", 0
+    return True, f"{len(track_notes)} matched tracks, {len(candidate_windows)} candidate windows", len(candidate_windows)
 
 
 def main():
@@ -179,23 +288,26 @@ def main():
         return 1
 
     require_official = not allow_fixture
+    max_windows = resolve_max_windows_per_piece()
     pieces = collect_piece_dirs(root)
     ok_count = 0
     official_count = 0
+    candidate_windows = 0
     failures = []
     for piece in pieces:
         if starts_with_any(os.path.basename(piece), OFFICIAL_IDS):
             official_count += 1
-        ok, detail = inspect_piece(piece, require_official)
+        ok, detail, windows = inspect_piece(piece, require_official, max_windows)
         if ok:
             ok_count += 1
+            candidate_windows += windows
         elif len(failures) < 8:
             failures.append((os.path.basename(piece), detail))
 
     print(
         "inspect_urmp_dataset: "
         f"root={root} discovered={len(pieces)} official={official_count} complete={ok_count} "
-        f"mode={'fixture' if allow_fixture else 'real'}"
+        f"candidate_windows={candidate_windows} mode={'fixture' if allow_fixture else 'real'}"
     )
     for name, detail in failures:
         print(f"inspect_urmp_dataset: skip {name}: {detail}", file=sys.stderr)
@@ -204,6 +316,13 @@ def main():
     if ok_count < required:
         print(
             f"inspect_urmp_dataset: expected at least {required} complete pieces, got {ok_count}",
+            file=sys.stderr,
+        )
+        return 1
+    required_windows = min(80, max_windows * required)
+    if candidate_windows < required_windows:
+        print(
+            f"inspect_urmp_dataset: expected at least {required_windows} candidate windows, got {candidate_windows}",
             file=sys.stderr,
         )
         return 1

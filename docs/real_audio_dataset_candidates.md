@@ -84,11 +84,13 @@ without additional annotation.
   instrumentations as generated per-track fixtures; they do not download or
   decode URMP audio yet.
 - `make test` also unpacks the committed compact 20-piece URMP-shaped
-  WAV/Notes/MIDI fixture from `tests/fixtures/urmp-mini.tar.gz` to exercise the
-  optional real-audio parser and full-mix path across multiple annotated windows
-  without requiring the full dataset. The fixture is marker-file tagged and is
-  rejected by the real-data gate unless fixture mode is explicitly allowed.
-  Refresh it with `make update-urmp-fixture` after changing
+  lossless FLAC/Notes/MIDI fixture from `tests/fixtures/urmp-mini.tar.gz`,
+  decodes it to disposable WAV files under `build/` with `ffmpeg`, and exercises
+  the optional real-audio parser and full-mix path across multiple annotated
+  windows without requiring the full dataset. The fixture is marker-file tagged
+  and is rejected by the real-data gate unless fixture mode is explicitly
+  allowed. Override the decoder with `FFMPEG=/path/to/ffmpeg` if needed. Refresh
+  it with `make update-urmp-fixture` after changing
   `tests/generate_urmp_fixture.py`.
 - Bach10 is the next best add-on for a compact, fast regression set.
 - Single-instrument datasets should drive focused checks: Guitar-TECHS/GAPS for
