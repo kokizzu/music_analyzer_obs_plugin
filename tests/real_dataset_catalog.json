@@ -139,9 +139,11 @@
       "assembled_mix": false,
       "aligned_symbolic_truth": true,
       "truth": "aligned piano MIDI with velocities and pedal controls",
-      "automation_target": "",
+      "automation_target": "test-real-maestro-20",
       "source_url": "https://magenta.tensorflow.org/datasets/maestro",
-      "evidence": "Official page describes about 200 hours of paired piano audio and MIDI with about 3 ms alignment."
+      "download_url": "https://storage.googleapis.com/magentadata/datasets/maestro/v3.0.0/maestro-v3.0.0.zip",
+      "download_note": "Official v3.0.0 archive is about 101 GB compressed and 120 GB uncompressed; MIDI-only and metadata-only downloads are also available.",
+      "evidence": "Official page describes 1,276 performances, 198.7 hours of paired piano WAV/MIDI data, about 3 ms alignment, metadata CSV/JSON, and over 7M notes."
     },
     {
       "id": "guitarset",

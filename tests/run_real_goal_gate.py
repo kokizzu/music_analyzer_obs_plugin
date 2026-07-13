@@ -146,6 +146,21 @@ def configured_guitarset(env):
     return False
 
 
+def configured_maestro(env):
+    if env_has_any(env, ("MUSIC_ANALYZER_MAESTRO_ROOT", "MAESTRO_PATH")):
+        return True
+
+    dataset_root = env.get("MUSIC_ANALYZER_DATASET_ROOT", "")
+    if not dataset_root:
+        return False
+
+    for child in ("maestro-v3.0.0", "maestro-v2.0.0", "MAESTRO", "maestro"):
+        candidate = child_path(dataset_root, child)
+        if is_dir(candidate):
+            return True
+    return False
+
+
 TARGET_PLANS = {
     "20": {
         "inspect_only": False,
@@ -156,6 +171,7 @@ TARGET_PLANS = {
         "multtipop_audio_target": "test-real-multtipop-20",
         "spheres_target": "inspect-real-spheres",
         "guitarset_target": "inspect-real-guitarset",
+        "maestro_target": "test-real-maestro-20",
     },
     "full": {
         "inspect_only": False,
@@ -166,6 +182,7 @@ TARGET_PLANS = {
         "multtipop_audio_target": "test-real-multtipop-full",
         "spheres_target": "inspect-real-spheres",
         "guitarset_target": "inspect-real-guitarset",
+        "maestro_target": "test-real-maestro-full",
     },
     "inspect-20": {
         "inspect_only": True,
@@ -176,6 +193,7 @@ TARGET_PLANS = {
         "multtipop_audio_target": "inspect-real-multtipop",
         "spheres_target": "inspect-real-spheres",
         "guitarset_target": "inspect-real-guitarset",
+        "maestro_target": "inspect-real-maestro",
     },
     "inspect-full": {
         "inspect_only": True,
@@ -186,6 +204,7 @@ TARGET_PLANS = {
         "multtipop_audio_target": "inspect-real-multtipop",
         "spheres_target": "inspect-real-spheres",
         "guitarset_target": "inspect-real-guitarset",
+        "maestro_target": "inspect-real-maestro",
     },
 }
 
@@ -270,6 +289,17 @@ def main(argv):
         print(
             "run_real_goal_gate: skipping optional GuitarSet guitar/fretboard preflight; set "
             "MUSIC_ANALYZER_GUITARSET_ROOT/GUITARSET_PATH or place a GuitarSet directory under "
+            "MUSIC_ANALYZER_DATASET_ROOT"
+        )
+
+    if configured_maestro(env):
+        failed = run(make_cmd, plan["maestro_target"])
+        if failed:
+            return failed
+    else:
+        print(
+            "run_real_goal_gate: skipping optional MAESTRO piano analyzer gate; set "
+            "MUSIC_ANALYZER_MAESTRO_ROOT/MAESTRO_PATH or place a MAESTRO directory under "
             "MUSIC_ANALYZER_DATASET_ROOT"
         )
 
