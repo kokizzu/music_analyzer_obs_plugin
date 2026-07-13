@@ -66,6 +66,15 @@ def wav_peak(path):
         return peak / 32768.0
 
 
+def silence_wav(path):
+    with wave.open(str(path), "rb") as audio:
+        params = audio.getparams()
+    frame_bytes = params.nchannels * params.sampwidth
+    with wave.open(str(path), "wb") as audio:
+        audio.setparams(params)
+        audio.writeframes(b"\0" * params.nframes * frame_bytes)
+
+
 def test_prepare_medleydb_fixture_writes_musicnet_shape():
     with tempfile.TemporaryDirectory() as temp:
         root = Path(temp) / "medleydb"
@@ -89,6 +98,24 @@ def test_prepare_medleydb_fixture_writes_musicnet_shape():
             raise AssertionError("prepared labels should preserve melody pitch changes")
 
 
+def test_prepare_medleydb_fixture_sums_stems_not_mix():
+    with tempfile.TemporaryDirectory() as temp:
+        root = Path(temp) / "medleydb"
+        output = Path(temp) / "musicnet"
+        write_fixture(root)
+        for mix_path in (root / "MedleyDB").glob("*/*_MIX.wav"):
+            silence_wav(mix_path)
+
+        if run_prepare(root, output) != 0:
+            raise AssertionError("MedleyDB-to-MusicNet preparation failed")
+
+        wavs = sorted((output / "train_data").glob("*.wav"))
+        if len(wavs) != 20:
+            raise AssertionError("prepared layout should contain 20 WAV files")
+        if wav_peak(wavs[0]) < 0.05:
+            raise AssertionError("prepared audio should keep summed stem signal when source mix is silent")
+
+
 def test_prepare_medleydb_fixture_requires_melody_annotations():
     with tempfile.TemporaryDirectory() as temp:
         root = Path(temp) / "medleydb"
@@ -101,8 +128,9 @@ def test_prepare_medleydb_fixture_requires_melody_annotations():
 
 def main():
     test_prepare_medleydb_fixture_writes_musicnet_shape()
+    test_prepare_medleydb_fixture_sums_stems_not_mix()
     test_prepare_medleydb_fixture_requires_melody_annotations()
-    print("test_prepare_medleydb_musicnet_fixture: 2 checks passed")
+    print("test_prepare_medleydb_musicnet_fixture: 3 checks passed")
     return 0
 
 
