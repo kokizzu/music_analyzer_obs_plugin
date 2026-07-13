@@ -12,6 +12,7 @@ CATEGORY_TITLES = {
     "direct_fit_small": "smaller direct-fit add-ons",
     "truth_no_isolated_stems": "real mixes with symbolic truth but no stems",
     "synth_multitrack_truth": "synthesized multitrack truth",
+    "real_vocal_multitrack_truth": "real vocal multitrack F0 truth",
     "single_instrument_truth": "single-instrument truth",
     "real_stems_weak_truth": "real stems with weak/no note truth",
 }

@@ -51,6 +51,16 @@ real-audio target.
 | [Slakh2100](https://arxiv.org/abs/1909.08494) | 20+ same-song stem/MIDI analyzer gate with optional `make inspect-real-slakh` and `make test-real-slakh-20` | 2100 rendered songs, 145 hours of mixtures, train/validation/test splits, stems, accompanying MIDI files, and piano/bass/guitar/drum classes in every mixture. Audio is synthesized from Lakh MIDI with virtual instruments, so it does not replace URMP. |
 | [ChoralSynth](https://arxiv.org/abs/2311.08350) | 20-piece synthetic vocal multitrack analyzer gate with optional `make inspect-real-choralsynth` and `make test-real-choralsynth-20` | 20 choral pieces, each with MusicXML score, score MIDI, one audio track per voice, beat positions, and metadata. Audio is generated with singing synthesis, so it helps vocal/polyphonic note and chord coverage but does not replace URMP. |
 
+## Real Vocal Multitrack F0 Truth
+
+These datasets have real same-song source recordings and aligned F0 truth, but
+they are vocal-only. They add useful note/chord stress coverage while remaining
+separate from URMP's mixed-instrument gate.
+
+| Dataset | Use | Notes |
+| --- | --- | --- |
+| [Vocal Ensemble F0 Aggregate](https://arxiv.org/abs/2009.04172) | 20+ real vocal quartet F0 analyzer gate with optional `make inspect-real-polyvocal` and `make test-real-polyvocal-20` | The ISMIR paper aggregates multi-track vocal datasets with F0 annotations. The 20+ subset comes from 22 Barbershop Quartet songs and 26 Bach Chorales; the companion code at [helenacuesta/multif0-estimation-vocals](https://github.com/helenacuesta/multif0-estimation-vocals) generates mixture WAV files plus `mtracks_info.json` from per-voice annotations. The PG Music source pages state the Barbershop Quartet product has separate tenor/lead/baritone/bass tracks and over 20 songs, and the Bach Chorales product has over 25 songs. The audio is commercial/local, so this repository supports a prepared local layout rather than downloading it. |
+
 ## Real Audio With MIDI Or Note Truth But No Isolated Stems
 
 These are still useful, but they cannot verify source separation because they do
@@ -69,7 +79,6 @@ not provide clean per-instrument audio stems for each mixture.
 | [GAPS](https://arxiv.org/abs/2408.08653) | Classical guitar note/fretboard tests | 14 hours of real guitar audio with high-resolution note-level MIDI alignments. Single instrument only. |
 | [GOAT](https://arxiv.org/abs/2509.22655) | Electric guitar tablature/fret checks | 5.9 hours of DI electric guitar plus tablature/symbolic labels and augmented tones. Single instrument only. |
 | [E-GMD](https://magenta.tensorflow.org/datasets/e-gmd) | Drum hit and velocity tests with optional `make test-real-egmd-20` analyzer gate | 45,537 paired drum WAV/MIDI recordings, 444.5 hours, 43 drum kits, human velocity annotations, and about 2 ms audio/MIDI alignment. Drum-only. |
-| [Vocal quartet F0 datasets](https://arxiv.org/abs/2009.04172) | Vocal row and multiple-F0 checks | Multi-track vocal quartets with F0 annotations. Vocal-only, not instrumental. |
 
 ## Real Stems With Weak Or No MIDI Truth
 
@@ -93,14 +102,15 @@ without additional annotation.
   combined setup preflight for the requested 20+ real same-song multitrack
   test. It requires the URMP layout preflight and then runs configured optional
   gates such as MusicNet, MedleyDB, MUSDB18, Slakh2100, ChoralSynth,
-  MulTTiPop, Spheres, GuitarSet, MAESTRO, and E-GMD. The URMP preflight applies the same
+  Vocal Ensemble F0 Aggregate, MulTTiPop, Spheres, GuitarSet, MAESTRO, and E-GMD. The URMP preflight applies the same
   `MUSIC_ANALYZER_URMP_MIN_ACTIVE_TRACKS_PER_WINDOW` and
   `MUSIC_ANALYZER_URMP_MIN_PITCH_CLASSES_PER_WINDOW` density thresholds as the
   analyzer gate, then reports matched-track, candidate active-track, and
   candidate pitch-class min/average/max values. Use `make test-real-goal-20` as
   the combined analyzer acceptance gate. It requires the URMP multitrack gate
   and then runs configured optional add-on gates such as MusicNet, MedleyDB,
-  MUSDB18, Slakh2100, ChoralSynth, MulTTiPop, Spheres, GuitarSet, MAESTRO, and E-GMD.
+  MUSDB18, Slakh2100, ChoralSynth, Vocal Ensemble F0 Aggregate, MulTTiPop,
+  Spheres, GuitarSet, MAESTRO, and E-GMD.
   The official URMP full package is distributed through a registration form
   rather than a stable direct archive URL, so this repository intentionally does
   not try to download the 12.5 GB package automatically.
@@ -187,6 +197,17 @@ without additional annotation.
   the existing analyzer pitch-class and chord recall gate. ChoralSynth adds
   synthetic vocal multitrack coverage, but it does not replace URMP because its
   audio is singing-synthesized rather than real recorded.
+- Use `make inspect-real-polyvocal` with
+  `MUSIC_ANALYZER_POLYVOCAL_ROOT=/path/to/prepared-vocal-f0` after preparing
+  the vocal ensemble data with the companion workflow from
+  `helenacuesta/multif0-estimation-vocals`. The preflight expects
+  `mtracks_info.json`, mixture audio, and four or more per-voice F0 CSV/JAMS
+  annotations per piece. Use `make test-real-polyvocal-20` to convert selected
+  F0 contours into a temporary MusicNet-shaped WAV/CSV layout, then run the
+  existing analyzer pitch-class and chord recall gate. This provides 20+ real
+  vocal same-song multi-source F0 cases and chord opportunities, but it does
+  not replace URMP because it is vocal-only and does not exercise mixed
+  instrument timbre/source assignment.
 - Use `make inspect-real-multtipop` with
   `MUSIC_ANALYZER_MULTTIPOP_ROOT=/path/to/multtipop` after cloning or
   extracting the Hugging Face dataset. The preflight expects the official

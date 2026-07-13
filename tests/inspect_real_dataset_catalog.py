@@ -13,6 +13,7 @@ ALLOWED_CATEGORIES = {
     "direct_fit_small",
     "truth_no_isolated_stems",
     "synth_multitrack_truth",
+    "real_vocal_multitrack_truth",
     "single_instrument_truth",
     "real_stems_weak_truth",
 }
@@ -138,6 +139,11 @@ def main():
             return fail(f"{item['id']}: weak-truth stem dataset cannot claim aligned symbolic truth")
         if item["category"] == "single_instrument_truth" and item["assembled_mix"]:
             return fail(f"{item['id']}: single-instrument truth datasets should not claim full mixtures")
+        if item["category"] == "real_vocal_multitrack_truth":
+            if not (item["real_audio"] and item["isolated_sources"] and item["assembled_mix"]):
+                return fail(f"{item['id']}: vocal multitrack datasets require real audio, sources, and mix")
+            if not item["aligned_symbolic_truth"]:
+                return fail(f"{item['id']}: vocal multitrack datasets require aligned F0 truth")
 
     print(
         "inspect_real_dataset_catalog: "

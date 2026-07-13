@@ -105,6 +105,28 @@ def configured_choralsynth(env):
     return False
 
 
+def configured_polyvocal(env):
+    if env_has_any(env, ("MUSIC_ANALYZER_POLYVOCAL_ROOT", "POLYVOCAL_PATH")):
+        return True
+
+    dataset_root = env.get("MUSIC_ANALYZER_DATASET_ROOT", "")
+    if not dataset_root:
+        return False
+
+    for child in (
+        "polyvocal",
+        "PolyVocal",
+        "vocal_ensemble_f0",
+        "vocal-ensemble-f0",
+        "multif0-estimation-vocals-data",
+        "multif0-estimation-vocals",
+    ):
+        candidate = child_path(dataset_root, child)
+        if is_dir(candidate):
+            return True
+    return False
+
+
 def multtipop_candidate_roots(env):
     roots = []
     if env_has_any(env, ("MUSIC_ANALYZER_MULTTIPOP_ROOT", "MULTTIPOP_PATH")):
@@ -229,6 +251,7 @@ TARGET_PLANS = {
         "musdb_target": "inspect-real-musdb",
         "slakh_target": "test-real-slakh-20",
         "choralsynth_target": "test-real-choralsynth-20",
+        "polyvocal_target": "test-real-polyvocal-20",
         "multtipop_target": "inspect-real-multtipop",
         "multtipop_audio_target": "test-real-multtipop-20",
         "spheres_target": "inspect-real-spheres",
@@ -244,6 +267,7 @@ TARGET_PLANS = {
         "musdb_target": "inspect-real-musdb",
         "slakh_target": "test-real-slakh-full",
         "choralsynth_target": "test-real-choralsynth-20",
+        "polyvocal_target": "test-real-polyvocal-20",
         "multtipop_target": "inspect-real-multtipop",
         "multtipop_audio_target": "test-real-multtipop-full",
         "spheres_target": "inspect-real-spheres",
@@ -259,6 +283,7 @@ TARGET_PLANS = {
         "musdb_target": "inspect-real-musdb",
         "slakh_target": "inspect-real-slakh",
         "choralsynth_target": "inspect-real-choralsynth",
+        "polyvocal_target": "inspect-real-polyvocal",
         "multtipop_target": "inspect-real-multtipop",
         "multtipop_audio_target": "inspect-real-multtipop",
         "spheres_target": "inspect-real-spheres",
@@ -274,6 +299,7 @@ TARGET_PLANS = {
         "musdb_target": "inspect-real-musdb",
         "slakh_target": "inspect-real-slakh",
         "choralsynth_target": "inspect-real-choralsynth",
+        "polyvocal_target": "inspect-real-polyvocal",
         "multtipop_target": "inspect-real-multtipop",
         "multtipop_audio_target": "inspect-real-multtipop",
         "spheres_target": "inspect-real-spheres",
@@ -363,6 +389,17 @@ def main(argv):
         print(
             "run_real_goal_gate: skipping optional ChoralSynth vocal multitrack analyzer gate; set "
             "MUSIC_ANALYZER_CHORALSYNTH_ROOT/CHORALSYNTH_PATH or place a ChoralSynth directory under "
+            "MUSIC_ANALYZER_DATASET_ROOT"
+        )
+
+    if configured_polyvocal(env):
+        failed = run(make_cmd, plan["polyvocal_target"])
+        if failed:
+            return failed
+    else:
+        print(
+            "run_real_goal_gate: skipping optional vocal-ensemble F0 analyzer gate; set "
+            "MUSIC_ANALYZER_POLYVOCAL_ROOT/POLYVOCAL_PATH or place a polyvocal directory under "
             "MUSIC_ANALYZER_DATASET_ROOT"
         )
 

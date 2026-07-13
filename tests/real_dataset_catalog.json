@@ -154,6 +154,22 @@
       "evidence": "Paper describes 20 choral pieces, each with a MusicXML score, MIDI with all voices, one audio track per voice, beat positions, and metadata; it explicitly presents the dataset as synthetic choral singing data."
     },
     {
+      "id": "polyvocal_f0",
+      "name": "Vocal Ensemble F0 Aggregate",
+      "category": "real_vocal_multitrack_truth",
+      "piece_count": 48,
+      "real_audio": true,
+      "isolated_sources": true,
+      "assembled_mix": true,
+      "aligned_symbolic_truth": true,
+      "truth": "per-singer F0 annotations for vocal quartet mixtures",
+      "automation_target": "test-real-polyvocal-20",
+      "source_url": "https://arxiv.org/abs/2009.04172",
+      "download_url": "https://github.com/helenacuesta/multif0-estimation-vocals",
+      "download_note": "The companion repository provides data-generation code and trained models. The 20+ real-song Barbershop Quartet and Bach Chorale source audio comes from PG Music commercial releases, so this repository supports a local prepared mtracks_info.json layout rather than downloading audio.",
+      "evidence": "ISMIR 2020 paper describes an aggregate of multi-track vocal datasets with F0 annotations, including 22 Barbershop Quartet songs and 26 Bach Chorales with individual quartet voices; companion setup code generates mixture WAV files plus mtracks_info.json from per-voice F0 annotations."
+    },
+    {
       "id": "pop909",
       "name": "POP909",
       "category": "truth_no_isolated_stems",

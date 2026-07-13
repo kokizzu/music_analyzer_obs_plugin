@@ -52,11 +52,14 @@ def main():
         maestro_harness = read_text("tests/analyzer_maestro.cpp")
         egmd_harness = read_text("tests/analyzer_egmd.cpp")
         goal_gate = read_text("tests/run_real_goal_gate.py")
+        source_printer = read_text("tests/print_real_dataset_sources.py")
         musdb_inspector = read_text("tests/inspect_musdb_dataset.py")
         slakh_inspector = read_text("tests/inspect_slakh_dataset.py")
         slakh_prepare = read_text("tests/prepare_slakh_musicnet_fixture.py")
         choralsynth_inspector = read_text("tests/inspect_choralsynth_dataset.py")
         choralsynth_prepare = read_text("tests/prepare_choralsynth_musicnet_fixture.py")
+        polyvocal_inspector = read_text("tests/inspect_polyvocal_dataset.py")
+        polyvocal_prepare = read_text("tests/prepare_polyvocal_musicnet_fixture.py")
         multtipop_inspector = read_text("tests/inspect_multtipop_dataset.py")
         spheres_inspector = read_text("tests/inspect_spheres_dataset.py")
         guitarset_inspector = read_text("tests/inspect_guitarset_dataset.py")
@@ -75,6 +78,7 @@ def main():
     musdb = dataset_by_id(catalog, "musdb18")
     slakh = dataset_by_id(catalog, "slakh2100")
     choralsynth = dataset_by_id(catalog, "choralsynth")
+    polyvocal = dataset_by_id(catalog, "polyvocal_f0")
     spheres = dataset_by_id(catalog, "spheres")
     guitarset = dataset_by_id(catalog, "guitarset")
     maestro = dataset_by_id(catalog, "maestro")
@@ -101,6 +105,8 @@ def main():
         return fail("catalog missing Slakh2100")
     if not choralsynth:
         return fail("catalog missing ChoralSynth")
+    if not polyvocal:
+        return fail("catalog missing Vocal Ensemble F0 Aggregate")
     if not spheres:
         return fail("catalog missing Spheres")
     if not guitarset:
@@ -143,6 +149,17 @@ def main():
         problems.append("Slakh2100 automation target must remain test-real-slakh-20")
     if choralsynth.get("automation_target") != "test-real-choralsynth-20":
         problems.append("ChoralSynth automation target must remain test-real-choralsynth-20")
+    if polyvocal.get("automation_target") != "test-real-polyvocal-20":
+        problems.append("Vocal Ensemble F0 Aggregate automation target must remain test-real-polyvocal-20")
+    if polyvocal.get("piece_count", 0) < target_minimum:
+        problems.append("Vocal Ensemble F0 Aggregate must provide at least 20 vocal pieces")
+    if not (
+        polyvocal.get("real_audio")
+        and polyvocal.get("isolated_sources")
+        and polyvocal.get("assembled_mix")
+        and polyvocal.get("aligned_symbolic_truth")
+    ):
+        problems.append("Vocal Ensemble F0 Aggregate must remain real multitrack F0 truth")
     if spheres.get("automation_target") != "inspect-real-spheres":
         problems.append("Spheres automation target must remain inspect-real-spheres")
     if guitarset.get("automation_target") != "test-real-guitarset-20":
@@ -168,6 +185,8 @@ def main():
         (makefile, "tests/prepare_slakh_musicnet_fixture.py", "Makefile Slakh2100 analyzer preparation"),
         (makefile, "tests/generate_choralsynth_fixture.py", "Makefile ChoralSynth fixture"),
         (makefile, "tests/prepare_choralsynth_musicnet_fixture.py", "Makefile ChoralSynth analyzer preparation"),
+        (makefile, "tests/generate_polyvocal_fixture.py", "Makefile Vocal Ensemble F0 fixture"),
+        (makefile, "tests/prepare_polyvocal_musicnet_fixture.py", "Makefile Vocal Ensemble F0 analyzer preparation"),
         (makefile, "tests/generate_multtipop_fixture.py", "Makefile MulTTiPop fixture"),
         (makefile, "tests/generate_spheres_fixture.py", "Makefile Spheres fixture"),
         (makefile, "tests/generate_guitarset_fixture.py", "Makefile GuitarSet fixture"),
@@ -183,6 +202,9 @@ def main():
         (makefile, "test-real-slakh-20", "Makefile optional Slakh2100 analyzer gate"),
         (makefile, "inspect-real-choralsynth", "Makefile optional ChoralSynth preflight"),
         (makefile, "test-real-choralsynth-20", "Makefile optional ChoralSynth analyzer gate"),
+        (makefile, "inspect-real-polyvocal", "Makefile optional Vocal Ensemble F0 preflight"),
+        (makefile, "test-real-polyvocal-20", "Makefile optional Vocal Ensemble F0 analyzer gate"),
+        (source_printer, "real_vocal_multitrack_truth", "source printer Vocal Ensemble F0 category"),
         (makefile, "test-real-multtipop-20", "Makefile optional MulTTiPop analyzer gate"),
         (makefile, "$(BUILD_DIR)/analyzer_multtipop", "Makefile MulTTiPop analyzer binary"),
         (makefile, "$(BUILD_DIR)/analyzer_guitarset", "Makefile GuitarSet analyzer binary"),
@@ -207,6 +229,9 @@ def main():
         (goal_gate, "configured_choralsynth", "combined gate optional ChoralSynth root detection"),
         (goal_gate, "inspect-real-choralsynth", "combined gate optional ChoralSynth preflight target"),
         (goal_gate, "test-real-choralsynth-20", "combined gate optional ChoralSynth analyzer target"),
+        (goal_gate, "configured_polyvocal", "combined gate optional Vocal Ensemble F0 root detection"),
+        (goal_gate, "inspect-real-polyvocal", "combined gate optional Vocal Ensemble F0 preflight target"),
+        (goal_gate, "test-real-polyvocal-20", "combined gate optional Vocal Ensemble F0 analyzer target"),
         (goal_gate, "inspect-real-multtipop", "combined gate optional MulTTiPop target"),
         (goal_gate, "multtipop_audio_configured", "combined gate optional MulTTiPop audio detection"),
         (goal_gate, "test-real-multtipop-20", "combined gate optional MulTTiPop analyzer target"),
@@ -261,6 +286,10 @@ def main():
         (choralsynth_prepare, "prepare_choralsynth_musicnet_fixture", "ChoralSynth MusicNet-shaped analyzer preparation"),
         (choralsynth_prepare, "parse_midi_notes", "ChoralSynth MIDI note parser"),
         (choralsynth_prepare, "train_labels", "ChoralSynth generated MusicNet labels"),
+        (polyvocal_inspector, "mtracks_info.json", "Vocal Ensemble F0 prepared metadata check"),
+        (polyvocal_inspector, "usable F0 annotations per mix", "Vocal Ensemble F0 annotation coverage report"),
+        (polyvocal_prepare, "points_to_notes", "Vocal Ensemble F0 contour-to-note conversion"),
+        (polyvocal_prepare, "real vocal-F0 recordings", "Vocal Ensemble F0 MusicNet-shaped preparation"),
         (maestro_harness, "read_maestro_midi", "MAESTRO aligned-MIDI parser"),
         (maestro_harness, "MAESTRO piano pitch-class recall", "MAESTRO real-audio recall gate"),
         (maestro_harness, "chord hits", "MAESTRO chord recall report"),
@@ -287,6 +316,8 @@ def main():
         (readme, "summing the per-source stem audio", "README Slakh2100 summed-stem playback instructions"),
         (readme, "make inspect-real-choralsynth", "README ChoralSynth preflight instructions"),
         (readme, "make test-real-choralsynth-20", "README ChoralSynth analyzer instructions"),
+        (readme, "make inspect-real-polyvocal", "README Vocal Ensemble F0 preflight instructions"),
+        (readme, "make test-real-polyvocal-20", "README Vocal Ensemble F0 analyzer instructions"),
         (readme, "make test-real-multtipop-20", "README MulTTiPop analyzer instructions"),
         (readme, "make inspect-real-spheres", "README Spheres preflight instructions"),
         (readme, "make inspect-real-guitarset", "README GuitarSet preflight instructions"),
@@ -304,6 +335,8 @@ def main():
         (docs, "summing the per-source stem audio", "dataset docs Slakh2100 summed-stem playback instructions"),
         (docs, "make inspect-real-choralsynth", "dataset docs ChoralSynth preflight instructions"),
         (docs, "make test-real-choralsynth-20", "dataset docs ChoralSynth analyzer instructions"),
+        (docs, "make inspect-real-polyvocal", "dataset docs Vocal Ensemble F0 preflight instructions"),
+        (docs, "make test-real-polyvocal-20", "dataset docs Vocal Ensemble F0 analyzer instructions"),
         (docs, "make test-real-multtipop-20", "dataset docs MulTTiPop analyzer instructions"),
         (docs, "make inspect-real-spheres", "dataset docs Spheres preflight instructions"),
         (docs, "make inspect-real-guitarset", "dataset docs GuitarSet preflight instructions"),
@@ -317,6 +350,7 @@ def main():
         (docs, "MUSDB18", "dataset docs MUSDB18 candidate"),
         (docs, "Slakh2100", "dataset docs Slakh2100 candidate"),
         (docs, "ChoralSynth", "dataset docs ChoralSynth candidate"),
+        (docs, "Vocal Ensemble F0 Aggregate", "dataset docs Vocal Ensemble F0 candidate"),
         (docs, "GuitarSet", "dataset docs GuitarSet candidate"),
         (docs, "MAESTRO", "dataset docs MAESTRO candidate"),
         (docs, "E-GMD", "dataset docs E-GMD candidate"),
@@ -337,8 +371,8 @@ def main():
 
     print(
         "inspect_real_goal_coverage: "
-        "catalog=URMP+direct-fit-small+MusicNet+MedleyDB+MUSDB18+Slakh2100+ChoralSynth+MulTTiPop+Spheres+GuitarSet+MAESTRO+E-GMD, target=test-real-goal-20, "
-        "fixture=URMP+Bach10-style+direct-fit-small+MusicNet+MedleyDB+MUSDB18+Slakh2100+ChoralSynth+MulTTiPop-audio+Spheres+GuitarSet+MAESTRO+E-GMD, "
+        "catalog=URMP+direct-fit-small+MusicNet+MedleyDB+MUSDB18+Slakh2100+ChoralSynth+PolyVocal+MulTTiPop+Spheres+GuitarSet+MAESTRO+E-GMD, target=test-real-goal-20, "
+        "fixture=URMP+Bach10-style+direct-fit-small+MusicNet+MedleyDB+MUSDB18+Slakh2100+ChoralSynth+PolyVocal+MulTTiPop-audio+Spheres+GuitarSet+MAESTRO+E-GMD, "
         "summed_mix=yes, chord_checks=yes"
     )
     return 0
