@@ -245,6 +245,7 @@ bool full_mix_bass_supported(const std::array<float, kNoteProbeCount> &powers, c
 struct NoteCandidate {
 	int midi = -1;
 	float score = 0.0f;
+	float ownership_confidence = 1.0f;
 };
 
 template <typename T, std::size_t Capacity> struct FixedList {
@@ -287,6 +288,14 @@ struct NoteEvidence {
 	InstrumentKind owner = InstrumentKind::Ambiguous;
 	float ownership_confidence = 0.0f;
 };
+
+NoteCandidate ownership_weighted_candidate(const NoteCandidate &candidate, const NoteEvidence &evidence)
+{
+	NoteCandidate weighted = candidate;
+	weighted.ownership_confidence = std::clamp(evidence.ownership_confidence, 0.0f, 1.0f);
+	weighted.score *= weighted.ownership_confidence;
+	return weighted;
+}
 
 enum class TimbreKind : std::size_t {
 	Keyboard = 0,
@@ -946,19 +955,19 @@ FullMixOwnership build_full_mix_ownership(const std::array<float, kNoteProbeCoun
 		switch (owner) {
 		case InstrumentKind::Keyboard:
 			ownership.keyboard[index] = true;
-			ownership.keyboard_candidates.push_back(candidate);
+			ownership.keyboard_candidates.push_back(ownership_weighted_candidate(candidate, evidence));
 			break;
 		case InstrumentKind::Guitar:
 			ownership.guitar[index] = true;
-			ownership.guitar_candidates.push_back(candidate);
+			ownership.guitar_candidates.push_back(ownership_weighted_candidate(candidate, evidence));
 			break;
 		case InstrumentKind::Vocal:
 			ownership.vocal[index] = true;
-			ownership.vocal_candidates.push_back(candidate);
+			ownership.vocal_candidates.push_back(ownership_weighted_candidate(candidate, evidence));
 			break;
 		case InstrumentKind::Other:
 			ownership.other[index] = true;
-			ownership.other_candidates.push_back(candidate);
+			ownership.other_candidates.push_back(ownership_weighted_candidate(candidate, evidence));
 			break;
 		case InstrumentKind::Bass:
 		case InstrumentKind::Ambiguous:
