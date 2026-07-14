@@ -187,6 +187,24 @@
       "evidence": "Paper describes 240,000 generated chamber-ensemble performances across string, brass, woodwind, and random ensembles, with audio mixtures, stems, MIDI, note-level performance attributes, F0 curves, loudness, and synthesis parameters."
     },
     {
+      "id": "synthsod",
+      "name": "SynthSOD",
+      "category": "synth_multitrack_truth",
+      "piece_count": 596,
+      "real_audio": false,
+      "isolated_sources": true,
+      "assembled_mix": true,
+      "aligned_symbolic_truth": true,
+      "truth": "synthesized orchestra/ensemble close-mic stems plus aligned note text from source MIDI",
+      "automation_target": "test-real-synthsod-20",
+      "source_url": "https://arxiv.org/abs/2409.10995",
+      "download_url": "https://doi.org/10.5281/zenodo.13759492",
+      "annotation_url": "https://doi.org/10.5281/zenodo.14971533",
+      "metadata_url": "https://github.com/repertorium/HQ-SOD-generator",
+      "download_note": "Zenodo hosts a 45 GB full SynthSOD audio archive plus a 2 GB sample archive; aligned score text is a separate 16.4 MB Zenodo release covering about 85% of the songs. Audio is synthesized with BBC Symphony Orchestra sounds, not live recorded.",
+      "evidence": "Paper describes a 47+ hour synthesized orchestral multitrack dataset from 596 selected SOD MIDI files, with close-mic source signals; Zenodo documents SynthSOD-data/<song>/Close Mic FLAC stems, metadata JSON, and a separate aligned-score release with start/end time, MIDI pitch, and MIDI instrument for each note."
+    },
+    {
       "id": "polyvocal_f0",
       "name": "Vocal Ensemble F0 Aggregate",
       "category": "real_vocal_multitrack_truth",
