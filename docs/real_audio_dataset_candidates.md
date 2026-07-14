@@ -339,9 +339,14 @@ without additional annotation.
   Zenodo MusicNet archive. The target expects `train_data`/`test_data` WAV
   folders and matching `train_labels`/`test_labels` CSV folders, selects windows
   with at least two active notes, two labeled instruments, and two pitch classes
-  by default, then checks real-mix pitch-class and chord recall. This strengthens
-  real audio note/chord coverage, but because MusicNet has no isolated stems it
-  remains complementary to the URMP multitrack gate.
+  by default, then checks real-mix pitch-class recall/precision/F1 and global
+  chord recall/precision/F1. The default gates are
+  `MUSIC_ANALYZER_MUSICNET_MIN_RECALL_PERCENT=40`,
+  `MUSIC_ANALYZER_MUSICNET_MIN_PRECISION_PERCENT=35`,
+  `MUSIC_ANALYZER_MUSICNET_MIN_CHORD_RECALL_PERCENT=20`, and
+  `MUSIC_ANALYZER_MUSICNET_MIN_GLOBAL_CHORD_PRECISION_PERCENT=20`. This
+  strengthens real audio note/chord coverage, but because MusicNet has no
+  isolated stems it remains complementary to the URMP multitrack gate.
 - Real-audio tests should skip with a clear message when the dataset is absent.
 - URMP should be the first automated target because it gives enough pieces for
   20+ full-mix tests and has both isolated tracks and note truth.

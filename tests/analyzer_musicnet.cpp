@@ -739,6 +739,133 @@ struct RecallStats {
 	int chord_checks = 0;
 };
 
+struct PitchPrecisionStats {
+	int windows = 0;
+	int true_positives = 0;
+	int false_positives = 0;
+	int false_negatives = 0;
+};
+
+struct ChordPrecisionStats {
+	int expected_windows = 0;
+	int predicted_windows = 0;
+	int true_positives = 0;
+	int false_positives = 0;
+	int false_negatives = 0;
+};
+
+std::vector<std::string> split_chord_labels(const char *label)
+{
+	std::vector<std::string> labels;
+	if (!label || !*label || std::strcmp(label, "--") == 0)
+		return labels;
+
+	const char *cursor = label;
+	while (*cursor) {
+		const char *end = cursor;
+		while (*end && *end != '=')
+			++end;
+		if (end > cursor) {
+			const std::string component(cursor, static_cast<std::size_t>(end - cursor));
+			if (component != "--")
+				labels.push_back(component);
+		}
+		cursor = *end == '=' ? end + 1 : end;
+	}
+
+	return labels;
+}
+
+void add_pitch_precision_metrics(PitchPrecisionStats &stats, const mao::AnalysisSnapshot &snapshot,
+				 const CandidateWindow &candidate)
+{
+	++stats.windows;
+	const std::array<bool, 12> detected = detected_pitch_classes(snapshot);
+	for (int pitch_class = 0; pitch_class < 12; ++pitch_class) {
+		const bool expected = candidate.pitch_classes[pitch_class];
+		if (expected && detected[pitch_class])
+			++stats.true_positives;
+		else if (!expected && detected[pitch_class])
+			++stats.false_positives;
+		else if (expected && !detected[pitch_class])
+			++stats.false_negatives;
+	}
+}
+
+void add_global_chord_precision_metrics(ChordPrecisionStats &stats, const mao::AnalysisSnapshot &snapshot,
+					const CandidateWindow &candidate)
+{
+	const bool expected = !candidate.chord_labels.empty();
+	const std::vector<std::string> predicted = split_chord_labels(snapshot.global_chord.label);
+	const bool predicted_any = !predicted.empty();
+	bool matched = false;
+	for (const std::string &label : predicted) {
+		if (std::find(candidate.chord_labels.begin(), candidate.chord_labels.end(), label) !=
+		    candidate.chord_labels.end()) {
+			matched = true;
+			break;
+		}
+	}
+
+	if (expected)
+		++stats.expected_windows;
+	if (predicted_any)
+		++stats.predicted_windows;
+	if (matched) {
+		++stats.true_positives;
+		return;
+	}
+	if (predicted_any)
+		++stats.false_positives;
+	if (expected)
+		++stats.false_negatives;
+}
+
+int percentage_floor(int numerator, int denominator)
+{
+	return denominator > 0 ? numerator * 100 / denominator : 0;
+}
+
+std::string percent_string(int numerator, int denominator)
+{
+	char buffer[32] = {};
+	std::snprintf(buffer, sizeof(buffer), "%.2f%%",
+		      denominator > 0 ? static_cast<double>(numerator) * 100.0 / static_cast<double>(denominator) :
+				       0.0);
+	return buffer;
+}
+
+std::string f1_string(int true_positives, int false_positives, int false_negatives)
+{
+	const int denominator = 2 * true_positives + false_positives + false_negatives;
+	char buffer[32] = {};
+	std::snprintf(buffer, sizeof(buffer), "%.2f%%",
+		      denominator > 0 ?
+			      static_cast<double>(2 * true_positives) * 100.0 / static_cast<double>(denominator) :
+			      0.0);
+	return buffer;
+}
+
+std::string pitch_precision_summary(const PitchPrecisionStats &stats)
+{
+	return "pitch precision " +
+	       percent_string(stats.true_positives, stats.true_positives + stats.false_positives) +
+	       ", pitch recall " +
+	       percent_string(stats.true_positives, stats.true_positives + stats.false_negatives) +
+	       ", F1 " + f1_string(stats.true_positives, stats.false_positives, stats.false_negatives) +
+	       ", tp/fp/fn " + std::to_string(stats.true_positives) + "/" +
+	       std::to_string(stats.false_positives) + "/" + std::to_string(stats.false_negatives);
+}
+
+std::string chord_precision_summary(const ChordPrecisionStats &stats)
+{
+	return "global chord precision " + percent_string(stats.true_positives, stats.predicted_windows) +
+	       ", global chord recall " + percent_string(stats.true_positives, stats.expected_windows) +
+	       ", F1 " + f1_string(stats.true_positives, stats.false_positives, stats.false_negatives) +
+	       ", tp/fp/fn " + std::to_string(stats.true_positives) + "/" +
+	       std::to_string(stats.false_positives) + "/" + std::to_string(stats.false_negatives);
+}
+
 void check_recall(Runner &runner, const mao::AnalysisSnapshot &snapshot, const CandidateWindow &candidate,
 		  const std::string &context, RecallStats &stats, int min_recall_percent)
 {
@@ -886,13 +1013,19 @@ int main()
 		resolve_positive_int_env("MUSIC_ANALYZER_MUSICNET_MIN_PITCH_CLASSES_PER_WINDOW", 2);
 	const int min_recall_percent =
 		resolve_percent_env("MUSIC_ANALYZER_MUSICNET_MIN_RECALL_PERCENT", 40);
+	const int min_precision_percent =
+		resolve_percent_env("MUSIC_ANALYZER_MUSICNET_MIN_PRECISION_PERCENT", 35);
 	const int min_chord_recall_percent =
 		resolve_percent_env("MUSIC_ANALYZER_MUSICNET_MIN_CHORD_RECALL_PERCENT", 20);
+	const int min_global_chord_precision_percent =
+		resolve_percent_env("MUSIC_ANALYZER_MUSICNET_MIN_GLOBAL_CHORD_PRECISION_PERCENT", 20);
 	const int min_chord_checks = resolve_positive_int_env("MUSIC_ANALYZER_MUSICNET_MIN_CHORD_CHECKS", 5);
 	const bool inspect_only = env_truthy("MUSIC_ANALYZER_MUSICNET_INSPECT_ONLY");
 
 	Runner runner;
 	RecallStats recall;
+	PitchPrecisionStats pitch_precision;
+	ChordPrecisionStats global_chord_precision;
 	CompositionStats composition;
 	int recordings_with_windows = 0;
 	int tested_windows = 0;
@@ -931,6 +1064,8 @@ int main()
 				     "MusicNet " + std::to_string(recording.id) + " at sample " +
 					     std::to_string(candidate.center_sample),
 				     recall, min_recall_percent);
+			add_pitch_precision_metrics(pitch_precision, snapshot, candidate);
+			add_global_chord_precision_metrics(global_chord_precision, snapshot, candidate);
 		}
 
 		if (recording_windows > 0)
@@ -960,12 +1095,35 @@ int main()
 			      "MusicNet real-mix pitch-class recall: expected >=" +
 				      std::to_string(min_recall_percent) + "%, got " +
 				      std::to_string(recall.hits) + "/" + std::to_string(recall.expected));
+		runner.expect(pitch_precision.true_positives + pitch_precision.false_negatives > 0,
+			      "MusicNet real-mix pitch precision: expected at least one pitch-class check");
+		if (pitch_precision.true_positives + pitch_precision.false_negatives > 0) {
+			runner.expect(
+				percentage_floor(pitch_precision.true_positives,
+						 pitch_precision.true_positives +
+							 pitch_precision.false_positives) >= min_precision_percent,
+				"MusicNet real-mix pitch precision: expected >=" +
+					std::to_string(min_precision_percent) + "%, got " +
+					percent_string(pitch_precision.true_positives,
+						       pitch_precision.true_positives +
+							       pitch_precision.false_positives) +
+					" (" + pitch_precision_summary(pitch_precision) + ")");
+		}
 		if (recall.chord_checks >= min_chord_checks) {
 			runner.expect(recall.chord_hits * 100 >= recall.chord_checks * min_chord_recall_percent,
 				      "MusicNet real-mix chord recall: expected >=" +
 					      std::to_string(min_chord_recall_percent) + "%, got " +
 					      std::to_string(recall.chord_hits) + "/" +
 					      std::to_string(recall.chord_checks));
+			runner.expect(percentage_floor(global_chord_precision.true_positives,
+						       global_chord_precision.predicted_windows) >=
+					      min_global_chord_precision_percent,
+				      "MusicNet real-mix global chord precision: expected >=" +
+					      std::to_string(min_global_chord_precision_percent) +
+					      "%, got " +
+					      percent_string(global_chord_precision.true_positives,
+							     global_chord_precision.predicted_windows) +
+					      " (" + chord_precision_summary(global_chord_precision) + ")");
 		}
 	}
 
@@ -973,10 +1131,12 @@ int main()
 		std::fprintf(stderr,
 			     "analyzer_musicnet: %d/%d checks failed (recordings %d/%zu, windows %d, "
 			     "read failures %d, no-candidate recordings %d, unusable %d, note hits %d/%d, "
-			     "chord hits %d/%d, %s)\n",
+			     "chord hits %d/%d, %s, %s, %s)\n",
 			     runner.failures, runner.checks, recordings_with_windows, recordings.size(), tested_windows,
 			     read_failures, no_candidate_recordings, unusable_recordings, recall.hits, recall.expected,
-			     recall.chord_hits, recall.chord_checks, composition_summary(composition).c_str());
+			     recall.chord_hits, recall.chord_checks, pitch_precision_summary(pitch_precision).c_str(),
+			     chord_precision_summary(global_chord_precision).c_str(),
+			     composition_summary(composition).c_str());
 		return 1;
 	}
 
@@ -988,10 +1148,12 @@ int main()
 	} else {
 		std::printf("analyzer_musicnet: %d checks passed (recordings %d/%zu, windows %d, "
 			    "read failures %d, no-candidate recordings %d, unusable %d, note hits %d/%d, "
-			    "chord hits %d/%d, %s)\n",
+			    "chord hits %d/%d, %s, %s, %s)\n",
 			    runner.checks, recordings_with_windows, recordings.size(), tested_windows, read_failures,
 			    no_candidate_recordings, unusable_recordings, recall.hits, recall.expected,
-			    recall.chord_hits, recall.chord_checks, composition_summary(composition).c_str());
+			    recall.chord_hits, recall.chord_checks, pitch_precision_summary(pitch_precision).c_str(),
+			    chord_precision_summary(global_chord_precision).c_str(),
+			    composition_summary(composition).c_str());
 	}
 	return 0;
 }
