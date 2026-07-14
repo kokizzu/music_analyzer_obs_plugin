@@ -841,6 +841,32 @@ void check_temporal_chord_stability(Runner &runner)
 	expect_no_chord(runner, snapshot.keyboard_chord, "temporal chord silence clear");
 }
 
+void check_full_mix_global_chord_uses_analytical_tracking(Runner &runner)
+{
+	mao::AnalysisEngine engine;
+	mao::AnalysisSettings settings = mao_test::default_settings();
+	settings.input_mode = mao::AnalysisInputMode::FullMix;
+	settings.analysis_interval_seconds = 0.05f;
+
+	const auto c_major = mao_test::make_midi_notes({60, 64, 67}, 0.34f);
+	const auto c_without_e = mao_test::make_midi_notes({60, 67}, 0.34f);
+	mao_test::Buffer silence = {};
+
+	mao::AnalysisSnapshot snapshot = {};
+	for (int i = 0; i < 2; ++i)
+		snapshot = engine.analyze(c_major.data(), c_major.size(), settings, "full mix", 0);
+	expect_label(runner, snapshot.global_chord.label, "C", "full-mix analytical chord seed");
+
+	for (int i = 0; i < 4; ++i)
+		snapshot = engine.analyze(c_without_e.data(), c_without_e.size(), settings, "full mix", 0);
+	expect_label(runner, snapshot.global_chord.label, "C",
+		     "full-mix analytical chord survives repeated incomplete raw frames");
+
+	for (int i = 0; i < 14; ++i)
+		snapshot = engine.analyze(silence.data(), silence.size(), settings, "full mix", 0);
+	expect_no_chord(runner, snapshot.global_chord, "full-mix analytical chord silence clear");
+}
+
 mao_test::Buffer make_interval_chord(int root_midi, const std::vector<int> &intervals, float amp = 0.34f)
 {
 	mao_test::Buffer buffer = {};
@@ -2682,6 +2708,7 @@ int main()
 	check_temporal_note_stability(runner);
 	check_full_mix_tuning_hysteresis_uses_global_tracking(runner);
 	check_temporal_chord_stability(runner);
+	check_full_mix_global_chord_uses_analytical_tracking(runner);
 	check_required_chord_transitions(runner);
 	check_chord_margin_and_simplification(runner);
 	check_chord_evidence_separate_from_visual_fade(runner);

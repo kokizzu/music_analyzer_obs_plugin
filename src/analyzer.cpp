@@ -1760,6 +1760,19 @@ void update_note_tracking_from_levels(std::array<NoteTrackingState, kNoteProbeCo
 	}
 }
 
+std::array<float, 12> tracked_note_chroma(const std::array<NoteTrackingState, kNoteProbeCount> &tracking)
+{
+	std::array<float, 12> chroma = {};
+	for (int midi = kFirstMidi; midi <= kLastMidi; ++midi) {
+		const NoteTrackingState &note = tracking[midi - kFirstMidi];
+		if (!note.confirmed || note.envelope <= 0.0f)
+			continue;
+		const int pitch_class = ((midi % 12) + 12) % 12;
+		chroma[pitch_class] = std::max(chroma[pitch_class], note.envelope);
+	}
+	return chroma;
+}
+
 void reset_note_grid_envelope(NoteGrid &grid, InstrumentState &state,
 			      std::array<NoteTrackingState, kNoteProbeCount> &tracking)
 {
@@ -2269,7 +2282,8 @@ void write_tracked_chord(InstrumentState &state, const ChordTrackingState &track
 }
 
 void stabilize_chord(InstrumentState &state, ChordTrackingState &tracking, const ChordResult &raw,
-		     const ChordResult &smoothed, bool enabled, float interval_seconds, bool allow_smoothed_initial = true)
+		     const ChordResult &smoothed, bool enabled, float interval_seconds,
+		     bool allow_smoothed_initial = true, bool prefer_displayed_smoothed = false)
 {
 	if (!enabled) {
 		reset_chord_tracking(tracking, state);
@@ -2278,6 +2292,10 @@ void stabilize_chord(InstrumentState &state, ChordTrackingState &tracking, const
 
 	ChordResult candidate = choose_chord_candidate(raw, smoothed);
 	const bool has_displayed = tracking.displayed_label[0] && tracking.displayed_label[0] != '-';
+	if (prefer_displayed_smoothed && has_displayed && valid_chord_result(smoothed) &&
+	    std::strcmp(tracking.displayed_label, smoothed.label) == 0 &&
+	    (!valid_chord_result(raw) || std::strcmp(raw.label, smoothed.label) != 0))
+		candidate = smoothed;
 	if (!allow_smoothed_initial && !valid_chord_result(raw) && valid_chord_result(smoothed) && !has_displayed) {
 		candidate = {};
 		copy_text(candidate.label, sizeof(candidate.label), "--");
@@ -3107,6 +3125,7 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 	ChordResult raw_guitar_chord;
 	ChordResult raw_other_chord;
 	ChordResult raw_global_chord;
+	ChordResult smoothed_global_chord;
 	FullMixOwnership full_mix_ownership;
 	const bool monophonic_other_source =
 		input_mode == AnalysisInputMode::IsolatedOther && is_monophonic_other_track_source(resolved_source_name);
@@ -3164,6 +3183,16 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 			if (valid_chord_result(bass_hint_chord) &&
 			    !valid_chord_result(raw_global_chord))
 				raw_global_chord = bass_hint_chord;
+		}
+
+		const std::array<float, 12> smoothed_global_chroma = tracked_note_chroma(full_mix_note_tracking_);
+		smoothed_global_chord = detect_chord(smoothed_global_chroma, -1, false);
+		if (strong_bass_hint) {
+			const ChordResult smoothed_bass_hint_chord =
+				detect_chord(smoothed_global_chroma, mixed_bass_pitch_class, false);
+			if (valid_chord_result(smoothed_bass_hint_chord) &&
+			    !valid_chord_result(smoothed_global_chord))
+				smoothed_global_chord = smoothed_bass_hint_chord;
 		}
 	}
 
@@ -3407,8 +3436,8 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 	}
 
 	if (mixed_source) {
-		stabilize_chord(snapshot.global_chord, global_chord_tracking_, raw_global_chord, raw_global_chord,
-				true, interval_seconds, true);
+		stabilize_chord(snapshot.global_chord, global_chord_tracking_, raw_global_chord, smoothed_global_chord,
+				true, interval_seconds, true, true);
 	} else {
 		reset_chord_tracking(global_chord_tracking_, snapshot.global_chord);
 	}

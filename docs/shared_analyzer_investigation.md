@@ -175,6 +175,9 @@ baseline paths:
 * `AnalysisSnapshot` exposes `global_chord` and `ambiguous_notes`. Full-mix
   chord detection uses global chroma, while instrument-specific chords are
   secondary and are based on owned notes.
+  The full-mix global chord stabilizer receives both current-frame chroma and
+  the short-lived analytical global note tracker, so brief missing chord tones
+  do not turn a held chord into a power-chord or empty-label flicker.
 * Full-mix bass detection now uses a bass-specific candidate score with
   harmonic support, octave-error suppression, and a confidence gate against the
   strongest low-mid candidate. A bass pitch class is exposed to global chord and
