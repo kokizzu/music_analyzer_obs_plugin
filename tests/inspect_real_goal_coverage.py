@@ -215,14 +215,16 @@ def main():
         problems.append("MAESTRO automation target must remain test-real-maestro-20")
     if egmd.get("automation_target") != "test-real-egmd-20":
         problems.append("E-GMD automation target must remain test-real-egmd-20")
-    if "std::vector<NoteCandidate>" in analyzer_impl or "vector<NoteCandidate>" in analyzer_impl:
-        problems.append("note candidate extraction must stay on fixed storage, not std::vector")
+    if "std::vector" in analyzer_impl or "#include <vector>" in analyzer_impl:
+        problems.append("per-frame analyzer candidate storage must stay fixed-size, not std::vector-backed")
 
     for text, needle, context in (
         (analyzer_impl, "using NoteCandidateList = FixedList<NoteCandidate, kNoteProbeCount>",
          "analyzer fixed-storage note candidate list"),
         (analyzer_impl, "NoteCandidateList note_peak_candidates",
          "analyzer bounded note candidate extraction"),
+        (analyzer_impl, "using ChordCandidateList = FixedList<ChordCandidate, 256>",
+         "analyzer fixed-storage chord candidate list"),
         (makefile, "test-real-goal-20", "Makefile combined real-data target"),
         (makefile, "inspect-real-goal-20", "Makefile combined real-data preflight"),
         (makefile, "test-real-goal-fixture", "Makefile combined fixture target"),

@@ -7,7 +7,6 @@
 #include <cstdio>
 #include <cstring>
 #include <initializer_list>
-#include <vector>
 
 namespace mao {
 namespace {
@@ -1071,6 +1070,8 @@ struct ChordCandidate {
 	float score = 0.0f;
 };
 
+using ChordCandidateList = FixedList<ChordCandidate, 256>;
+
 bool chord_candidate_compatible(const ChordCandidate &lhs, const ChordCandidate &rhs)
 {
 	if (lhs.mask == rhs.mask)
@@ -1086,7 +1087,7 @@ ChordResult detect_chord(const std::array<float, 12> &chroma, int bass_pitch_cla
 	float best_score = 0.0f;
 	uint16_t best_mask = 0;
 	ChordCandidate best_candidate;
-	std::vector<ChordCandidate> candidates;
+	ChordCandidateList candidates;
 	static constexpr float kToneThreshold = 0.24f;
 
 	auto tone = [&](int root, int offset) -> float { return chroma[(root + offset) % 12]; };
@@ -1240,7 +1241,7 @@ ChordResult detect_chord(const std::array<float, 12> &chroma, int bass_pitch_cla
 		return best;
 	}
 
-	std::vector<ChordCandidate> aliases;
+	ChordCandidateList aliases;
 	for (const ChordCandidate &candidate : candidates) {
 		if (candidate.mask == best_mask)
 			aliases.push_back(candidate);
