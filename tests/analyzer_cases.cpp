@@ -1990,6 +1990,41 @@ void check_ambiguous_same_note_full_mix_chord_ownership(Runner &runner)
 		expect_midi_ambiguous_only(runner, snapshot, midi, "ambiguous same-note full mix ownership");
 }
 
+void check_full_mix_global_chord_guides_root_with_inversion(Runner &runner)
+{
+	mao::AnalysisEngine engine;
+	mao::AnalysisSettings settings = mao_test::default_settings();
+	settings.input_mode = mao::AnalysisInputMode::FullMix;
+	settings.analysis_interval_seconds = 0.25f;
+	settings.root_window_seconds = 15.0f;
+
+	const std::vector<float> bass_profile = {1.0f, 0.30f, 0.14f};
+	const std::vector<float> piano_profile = {1.0f, 0.12f, 0.04f, 0.02f, 0.01f};
+	const std::vector<float> guitar_profile = {1.0f, 0.36f, 0.17f, 0.07f, 0.03f};
+	const std::vector<float> other_profile = {1.0f, 0.62f, 0.42f, 0.27f, 0.16f};
+
+	mao_test::Buffer buffer = {};
+	add_harmonic_note(buffer, 40, 0.34f, bass_profile);
+	for (int midi : {60, 64, 67}) {
+		add_harmonic_note(buffer, midi, 0.20f, piano_profile);
+		add_harmonic_note(buffer, midi, 0.18f, guitar_profile);
+		add_harmonic_note(buffer, midi, 0.16f, other_profile);
+	}
+
+	mao::AnalysisSnapshot snapshot = {};
+	for (int frame = 0; frame < 72; ++frame)
+		snapshot = engine.analyze(buffer.data(), buffer.size(), settings, "full mix inversion", 0);
+
+	expect_label(runner, snapshot.bass.label, "E2", "full-mix inversion bass");
+	expect_label(runner, snapshot.global_chord.label, "C", "full-mix inversion global chord");
+	expect_no_chord(runner, snapshot.keyboard_chord, "full-mix inversion keyboard chord");
+	expect_no_chord(runner, snapshot.guitar_chord, "full-mix inversion guitar chord");
+	expect_no_chord(runner, snapshot.other_chord, "full-mix inversion other chord");
+	runner.expect(std::strcmp(snapshot.root.label, "C") == 0,
+		      std::string("full-mix inversion: expected root C from global chord despite E bass, got `") +
+			      snapshot.root.label + "` candidates `" + snapshot.root_candidates + "`");
+}
+
 void check_other_source_hints(Runner &runner)
 {
 	for (const char *source : {"synth lead", "brass section", "violin bus"}) {
@@ -2485,6 +2520,7 @@ int main()
 	check_guitar_caged_mix_root_independence(runner);
 	check_same_note_timbre_split(runner);
 	check_ambiguous_same_note_full_mix_chord_ownership(runner);
+	check_full_mix_global_chord_guides_root_with_inversion(runner);
 	check_other_source_hints(runner);
 	check_note_sub_rows(runner);
 	check_bass_pure_tone_stays_out_of_harmonic_rows(runner);

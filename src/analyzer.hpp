@@ -196,6 +196,7 @@ private:
 	InstrumentState track_root(const std::array<float, kNoteProbeCount> &powers, float rms,
 				   const AnalysisSettings &settings, char *root_candidates,
 				   std::size_t root_candidates_size, const NoteGrid &bass_notes,
+				   const InstrumentState &global_chord,
 				   const InstrumentState &keyboard_chord, const InstrumentState &guitar_chord,
 				   const InstrumentState &other_chord);
 };

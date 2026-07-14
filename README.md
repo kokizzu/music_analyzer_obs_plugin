@@ -18,7 +18,7 @@ Native OBS Studio plugin that analyzes a music mix and displays an instrument-or
 - Explicit isolated input modes keep single-instrument sources in their matching row instead of filling unrelated keyboard, guitar, vocal, or other rows
 - Full-mix ownership uses shared note evidence with harmonic fit, harmonic balance, spectral centroid/slope, local spectral noise, and simultaneous high-note context before assigning a note to an instrument row
 - Source-name hints remain as a compatibility adapter for tests and direct analyzer use: `guitar`, `key`, `piano`, `organ`, `synth`, `brass`, `horn`, `violin`, and `string` resolve to isolated modes when the caller does not set an input mode explicitly
-- Root: rolling 15-second root candidates with confidence, with the primary root held until sustained modulation or silence
+- Root: rolling 15-second root candidates with confidence, using the full-mix global chord plus confidence-gated bass evidence so inversions do not rename the harmonic root; the primary root is held until sustained modulation or silence
 - BPM: estimated tempo and confidence are shown at the bottom right when rhythmic transients provide enough evidence
 - Chords: compact major, minor, lowercase power-chord `pow`, sus2, sus4, diminished, augmented, 6, minor 6, dominant 7, major 7, minor 7, diminished 7, half-diminished, add9, 9, major 9, and minor 9 labels such as `C`, `Dm`, `Cpow`, `Cdim`, `Caug`, `C6`, `Dm6`, `G7`, `Cmaj7`, `Dm7`, `Cdim7`, `Bm7b5`, `Cadd9`, `G9`, `Cmaj9`, and `Dm9`
 - Equivalent chord names for the same detected pitch classes are shown together, such as `Csus2=Gsus4` or `Dm7=F6`

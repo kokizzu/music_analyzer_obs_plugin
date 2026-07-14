@@ -181,6 +181,10 @@ baseline paths:
   root logic only after the displayed bass note is accepted, and the bass-root
   hint only recovers a missing global chord rather than replacing a valid
   no-hint harmonic-context chord.
+* Root tracking now consumes the stabilized full-mix `global_chord` in addition
+  to confidence-gated bass and owned per-instrument chords. This keeps
+  ambiguous full-mix inversions such as C/E from locking the root to the bass
+  note when the global harmonic context is clearly C.
 * Tuning hysteresis checks the active input mode, so a note tracked in one
   isolated mode does not relax tuning thresholds for unrelated instrument rows.
 * Empty input/status snapshots reset the full analyzer state for the current

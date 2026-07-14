@@ -1479,6 +1479,7 @@ void add_bass_key_evidence(std::array<float, 12> &scores, const NoteGrid &bass_n
 
 RootCandidate detect_root_candidate_with_context(const std::array<float, kNoteProbeCount> &powers, float rms,
 						 const NoteGrid &bass_notes,
+						 const InstrumentState &global_chord,
 						 const InstrumentState &keyboard_chord,
 						 const InstrumentState &guitar_chord,
 						 const InstrumentState &other_chord)
@@ -1489,6 +1490,7 @@ RootCandidate detect_root_candidate_with_context(const std::array<float, kNotePr
 
 	const RootCandidate spectral = detect_root_candidate(powers, rms);
 	add_bass_key_evidence(candidate.scores, bass_notes);
+	add_chord_key_evidence(candidate.scores, global_chord, 1.35f);
 	add_chord_key_evidence(candidate.scores, keyboard_chord, 1.05f);
 	add_chord_key_evidence(candidate.scores, guitar_chord, 1.05f);
 	add_chord_key_evidence(candidate.scores, other_chord, 0.80f);
@@ -2684,6 +2686,7 @@ void AnalysisEngine::add_root_vote(const RootVote &vote)
 InstrumentState AnalysisEngine::track_root(const std::array<float, kNoteProbeCount> &powers, float rms,
 					   const AnalysisSettings &settings, char *root_candidates,
 					   std::size_t root_candidates_size, const NoteGrid &bass_notes,
+					   const InstrumentState &global_chord,
 					   const InstrumentState &keyboard_chord,
 					   const InstrumentState &guitar_chord,
 					   const InstrumentState &other_chord)
@@ -2705,7 +2708,8 @@ InstrumentState AnalysisEngine::track_root(const std::array<float, kNoteProbeCou
 	}
 
 	const RootCandidate candidate =
-		detect_root_candidate_with_context(powers, rms, bass_notes, keyboard_chord, guitar_chord, other_chord);
+		detect_root_candidate_with_context(powers, rms, bass_notes, global_chord, keyboard_chord,
+						   guitar_chord, other_chord);
 
 	if (rms < kSilenceRms) {
 		silence_seconds_ += interval_seconds;
@@ -3361,7 +3365,7 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 	}
 
 	snapshot.root = track_root(detection_note_powers, rms, settings, snapshot.root_candidates,
-				   sizeof(snapshot.root_candidates), snapshot.bass_notes,
+				   sizeof(snapshot.root_candidates), snapshot.bass_notes, snapshot.global_chord,
 				   snapshot.keyboard_chord, snapshot.guitar_chord, snapshot.other_chord);
 
 	return snapshot;
