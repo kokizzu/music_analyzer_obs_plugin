@@ -248,6 +248,32 @@ struct NoteCandidate {
 	float score = 0.0f;
 };
 
+template <typename T, std::size_t Capacity> struct FixedList {
+	std::array<T, Capacity> items = {};
+	std::size_t count = 0;
+
+	bool push_back(const T &value)
+	{
+		if (count >= Capacity)
+			return false;
+		items[count++] = value;
+		return true;
+	}
+
+	bool empty() const { return count == 0; }
+	std::size_t size() const { return count; }
+	T &operator[](std::size_t index) { return items[index]; }
+	const T &operator[](std::size_t index) const { return items[index]; }
+	T &front() { return items[0]; }
+	const T &front() const { return items[0]; }
+	T *begin() { return items.data(); }
+	T *end() { return items.data() + count; }
+	const T *begin() const { return items.data(); }
+	const T *end() const { return items.data() + count; }
+};
+
+using NoteCandidateList = FixedList<NoteCandidate, kNoteProbeCount>;
+
 struct NoteEvidence {
 	int midi = -1;
 	float spectral_level = 0.0f;
@@ -585,13 +611,13 @@ bool pitch_class_available(int midi, const std::array<bool, 12> *blocked_pitch_c
 	return true;
 }
 
-std::vector<NoteCandidate> note_peak_candidates(const std::array<float, kNoteProbeCount> &powers, int min_midi,
-						int max_midi, int max_notes,
-						const std::array<bool, 12> *blocked_pitch_classes = nullptr,
-						const std::array<bool, 12> *allowed_pitch_classes = nullptr,
-						bool suppress_adjacent_neighbors = false,
-						const std::array<bool, kNoteProbeCount> *allowed_midis = nullptr,
-						float relative_floor = kNoteRelativeFloor)
+NoteCandidateList note_peak_candidates(const std::array<float, kNoteProbeCount> &powers, int min_midi,
+				       int max_midi, int max_notes,
+				       const std::array<bool, 12> *blocked_pitch_classes = nullptr,
+				       const std::array<bool, 12> *allowed_pitch_classes = nullptr,
+				       bool suppress_adjacent_neighbors = false,
+				       const std::array<bool, kNoteProbeCount> *allowed_midis = nullptr,
+				       float relative_floor = kNoteRelativeFloor)
 {
 	std::array<float, kNoteProbeCount> scores = {};
 	float strongest_score = 0.0f;
@@ -606,7 +632,7 @@ std::vector<NoteCandidate> note_peak_candidates(const std::array<float, kNotePro
 		strongest_score = std::max(strongest_score, score);
 	}
 
-	std::vector<NoteCandidate> candidates;
+	NoteCandidateList candidates;
 	if (strongest_score <= 1.0e-6f)
 		return candidates;
 
@@ -620,7 +646,7 @@ std::vector<NoteCandidate> note_peak_candidates(const std::array<float, kNotePro
 	std::sort(candidates.begin(), candidates.end(),
 		  [](const NoteCandidate &a, const NoteCandidate &b) { return a.score > b.score; });
 
-	std::vector<NoteCandidate> selected;
+	NoteCandidateList selected;
 	for (const NoteCandidate &candidate : candidates) {
 		bool masked = false;
 		for (const NoteCandidate &existing : selected) {
@@ -670,7 +696,7 @@ int lowest_peak_pitch_class(const std::array<float, kNoteProbeCount> &powers, in
 			    bool suppress_adjacent_neighbors = false,
 			    const std::array<bool, kNoteProbeCount> *allowed_midis = nullptr)
 {
-	const std::vector<NoteCandidate> candidates =
+	const NoteCandidateList candidates =
 		note_peak_candidates(powers, min_midi, max_midi, 6, blocked_pitch_classes, nullptr,
 				     suppress_adjacent_neighbors, allowed_midis);
 	if (candidates.empty())
@@ -690,7 +716,7 @@ struct FullMixOwnership {
 	std::array<bool, kNoteProbeCount> ambiguous = {};
 	std::array<float, kNoteProbeCount> global_note_levels = {};
 	std::array<float, 12> global_chroma = {};
-	std::vector<NoteCandidate> ambiguous_candidates;
+	NoteCandidateList ambiguous_candidates;
 };
 
 int count_owned_notes(const std::array<bool, kNoteProbeCount> &mask)
@@ -923,7 +949,7 @@ FullMixOwnership build_full_mix_ownership(const std::array<float, kNoteProbeCoun
 	if (rms < kNoteRmsFloor)
 		return ownership;
 
-	const std::vector<NoteCandidate> candidates =
+	const NoteCandidateList candidates =
 		note_peak_candidates(detection_powers, kGuitarMinMidi, kLastMidi, 24, nullptr, nullptr, true,
 				     nullptr, kMixedNoteRelativeFloor);
 	std::array<float, kNoteProbeCount> candidate_scores = {};
@@ -986,8 +1012,7 @@ FullMixOwnership build_full_mix_ownership(const std::array<float, kNoteProbeCoun
 	return ownership;
 }
 
-void set_note_grid_from_candidates(NoteGrid &grid, const std::vector<NoteCandidate> &candidates, float rms,
-				   int max_notes)
+void set_note_grid_from_candidates(NoteGrid &grid, const NoteCandidateList &candidates, float rms, int max_notes)
 {
 	for (NoteCell &cell : grid.cells)
 		cell = {};
@@ -1701,7 +1726,7 @@ void smooth_note_grid_envelope(NoteGrid &grid, InstrumentState &state,
 	}
 
 	clear_note_grid(grid);
-	std::vector<NoteCandidate> candidates;
+	NoteCandidateList candidates;
 	for (int midi = kFirstMidi; midi <= kLastMidi; ++midi) {
 		const float level = tracking[midi - kFirstMidi].envelope;
 		if (level > 0.0f)
@@ -1807,9 +1832,9 @@ int lowest_note_grid_pitch_class(const NoteGrid &grid)
 	return lowest_midi <= kLastMidi ? ((lowest_midi % 12) + 12) % 12 : -1;
 }
 
-std::vector<NoteCandidate> note_grid_candidates(const NoteGrid &grid)
+NoteCandidateList note_grid_candidates(const NoteGrid &grid)
 {
-	std::vector<NoteCandidate> candidates;
+	NoteCandidateList candidates;
 	for (const auto &row : grid.rows) {
 		for (const NoteCell &cell : row) {
 			if (!cell.active || cell.midi < kFirstMidi || cell.midi > kLastMidi)
@@ -1822,11 +1847,13 @@ std::vector<NoteCandidate> note_grid_candidates(const NoteGrid &grid)
 			return a.midi < b.midi;
 		return a.score > b.score;
 	});
-	candidates.erase(std::unique(candidates.begin(), candidates.end(),
-				     [](const NoteCandidate &a, const NoteCandidate &b) {
-					     return a.midi == b.midi;
-				     }),
-			 candidates.end());
+	std::size_t write = 0;
+	for (std::size_t read = 0; read < candidates.size(); ++read) {
+		if (write > 0 && candidates[read].midi == candidates[write - 1].midi)
+			continue;
+		candidates[write++] = candidates[read];
+	}
+	candidates.count = write;
 	return candidates;
 }
 
@@ -1857,7 +1884,7 @@ void prune_note_grid_to_chord_tones(NoteGrid &grid, InstrumentState &state, cons
 	if (active_tone_pitch_classes < 3)
 		return;
 
-	std::vector<NoteCandidate> candidates;
+	NoteCandidateList candidates;
 	for (const NoteCandidate &candidate : note_grid_candidates(grid)) {
 		const int pitch_class = ((candidate.midi % 12) + 12) % 12;
 		if (chord.tones[pitch_class])
@@ -1882,9 +1909,9 @@ void prune_note_grid_to_chord_tones(NoteGrid &grid, InstrumentState &state, cons
 	write_note_grid_label(state, grid, preferred_root);
 }
 
-std::vector<NoteCandidate> prune_adjacent_keyboard_candidates(const std::vector<NoteCandidate> &notes)
+NoteCandidateList prune_adjacent_keyboard_candidates(const NoteCandidateList &notes)
 {
-	std::vector<NoteCandidate> pruned;
+	NoteCandidateList pruned;
 	for (std::size_t i = 0; i < notes.size(); ++i) {
 		bool weaker_neighbor = false;
 		for (std::size_t j = 0; j < notes.size(); ++j) {
@@ -1953,7 +1980,7 @@ ChordResult simplify_weak_keyboard_ninth(const std::array<float, 12> &chroma, co
 ChordResult detect_keyboard_chord_from_grid(const NoteGrid &grid, bool allow_extensions, int preferred_root = -1)
 {
 	static constexpr int kKeyboardHandSpanSemitones = 16;
-	const std::vector<NoteCandidate> notes = prune_adjacent_keyboard_candidates(note_grid_candidates(grid));
+	const NoteCandidateList notes = prune_adjacent_keyboard_candidates(note_grid_candidates(grid));
 	ChordResult best;
 	float best_score = 0.0f;
 
@@ -2161,7 +2188,7 @@ void set_instrument_note_set(NoteGrid &grid, InstrumentState &state, const std::
 	}
 
 	float strongest_score = 0.0f;
-	const std::vector<NoteCandidate> candidates =
+	const NoteCandidateList candidates =
 		note_peak_candidates(powers, min_midi, max_midi, max_notes, blocked_pitch_classes,
 				     allowed_pitch_classes, suppress_adjacent_neighbors, allowed_midis,
 				     relative_floor);

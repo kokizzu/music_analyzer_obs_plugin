@@ -41,6 +41,7 @@ def main():
         makefile = read_text("Makefile")
         readme = read_text("README.md")
         docs = read_text("docs/real_audio_dataset_candidates.md")
+        analyzer_impl = read_text("src/analyzer.cpp")
         urmp_harness = read_text("tests/analyzer_urmp.cpp")
         urmp_inspector = read_text("tests/inspect_urmp_dataset.py")
         bach10_fixture = read_text("tests/generate_bach10_fixture.py")
@@ -214,8 +215,14 @@ def main():
         problems.append("MAESTRO automation target must remain test-real-maestro-20")
     if egmd.get("automation_target") != "test-real-egmd-20":
         problems.append("E-GMD automation target must remain test-real-egmd-20")
+    if "std::vector<NoteCandidate>" in analyzer_impl or "vector<NoteCandidate>" in analyzer_impl:
+        problems.append("note candidate extraction must stay on fixed storage, not std::vector")
 
     for text, needle, context in (
+        (analyzer_impl, "using NoteCandidateList = FixedList<NoteCandidate, kNoteProbeCount>",
+         "analyzer fixed-storage note candidate list"),
+        (analyzer_impl, "NoteCandidateList note_peak_candidates",
+         "analyzer bounded note candidate extraction"),
         (makefile, "test-real-goal-20", "Makefile combined real-data target"),
         (makefile, "inspect-real-goal-20", "Makefile combined real-data preflight"),
         (makefile, "test-real-goal-fixture", "Makefile combined fixture target"),
