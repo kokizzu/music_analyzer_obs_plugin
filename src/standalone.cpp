@@ -37,6 +37,7 @@
 #include <cstring>
 #include <fcntl.h>
 #include <poll.h>
+#include <csignal>
 #include <string>
 #include <sys/types.h>
 #include <sys/wait.h>
@@ -46,6 +47,7 @@
 namespace {
 
 constexpr float kPi = 3.14159265358979323846f;
+constexpr const char *kFfmpegLogLevel = "fatal";
 
 struct Options {
 	std::string input_path;
@@ -527,6 +529,12 @@ bool run_self_test()
 		}
 	}
 	{
+		if (std::strcmp(kFfmpegLogLevel, "fatal") != 0) {
+			std::fprintf(stderr, "standalone self-test: ffmpeg loglevel should suppress broken-pipe exit noise\n");
+			return false;
+		}
+	}
+	{
 		Options options;
 		const std::vector<std::string> devices = {"Built-in Microphone", "Monitor of Built-in Audio Analog Stereo"};
 		const std::string chosen = choose_capture_device_name(devices, options);
@@ -643,14 +651,31 @@ struct ChildProcess {
 
 	void close_process()
 	{
+		if (pid > 0) {
+			int status = 0;
+			pid_t result = waitpid(pid, &status, WNOHANG);
+			if (result == 0) {
+				(void)kill(pid, SIGTERM);
+				for (int attempt = 0; attempt < 20; ++attempt) {
+					result = waitpid(pid, &status, WNOHANG);
+					if (result != 0)
+						break;
+					usleep(10000);
+				}
+			}
+			if (result == 0) {
+				if (read_fd >= 0) {
+					close(read_fd);
+					read_fd = -1;
+				}
+				(void)kill(pid, SIGKILL);
+				(void)waitpid(pid, &status, 0);
+			}
+			pid = -1;
+		}
 		if (read_fd >= 0) {
 			close(read_fd);
 			read_fd = -1;
-		}
-		if (pid > 0) {
-			int status = 0;
-			(void)waitpid(pid, &status, WNOHANG);
-			pid = -1;
 		}
 	}
 };
@@ -658,7 +683,7 @@ struct ChildProcess {
 std::vector<std::string> ffmpeg_args(const Options &options)
 {
 	return {
-		"ffmpeg", "-hide_banner", "-loglevel", "error", "-nostdin", "-re", "-i", options.input_path,
+		"ffmpeg", "-hide_banner", "-loglevel", kFfmpegLogLevel, "-nostdin", "-re", "-i", options.input_path,
 		"-f", "f32le", "-ac", "1", "-ar", std::to_string(options.sample_rate), "-",
 	};
 }
@@ -666,7 +691,7 @@ std::vector<std::string> ffmpeg_args(const Options &options)
 std::vector<std::string> ffmpeg_pulse_monitor_args(const Options &options)
 {
 	return {
-		"ffmpeg", "-hide_banner", "-loglevel", "error", "-nostdin", "-f", "pulse", "-i",
+		"ffmpeg", "-hide_banner", "-loglevel", kFfmpegLogLevel, "-nostdin", "-f", "pulse", "-i",
 		"@DEFAULT_MONITOR@", "-f", "f32le", "-ac", "1", "-ar", std::to_string(options.sample_rate), "-",
 	};
 }
@@ -677,8 +702,13 @@ struct FileAudioInput {
 
 	~FileAudioInput()
 	{
-		if (fd >= 0 && fd != STDIN_FILENO)
+		if (fd >= 0 && fd == child.read_fd) {
+			child.close_process();
+			fd = -1;
+		} else if (fd >= 0 && fd != STDIN_FILENO) {
 			close(fd);
+			fd = -1;
+		}
 	}
 
 	bool open_input(const Options &options)
