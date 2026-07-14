@@ -28,6 +28,16 @@ The analyzer is designed for real-time OBS use. It uses bounded DSP heuristics r
 
 OBS and the standalone speaker-monitor executable explicitly analyze their inputs as `FullMix`, because they receive finished mixer/speaker audio. The shared analyzer still supports isolated modes for direct analyzer callers and tests; those modes are intended for real isolated bass, guitar, keyboard, vocal, or other-instrument stems.
 
+## Analyzer Modes and Limits
+
+`FullMix` is the mode used by the OBS plugin and the standalone speaker monitor. It expects a finished music mix from an OBS mixer channel, source filter, speaker monitor, file, or raw PCM stream. In this mode, the analyzer extracts pitch candidates once, assigns each candidate to at most one confident instrument owner, or marks it as ambiguous when the evidence is not strong enough. Ambiguous notes can still support the global chord, but they are not duplicated into keyboard, guitar, vocal, and other rows just to improve recall.
+
+Full-mix per-instrument rows are conservative estimates. A finished stereo mix cannot always be separated reliably with bounded real-time DSP, so a missing uncertain row note is preferred over a confident wrong instrument. For precise per-instrument transcription of crowded mixes, run a separate stem separator before the analyzer and feed real isolated stems to analyzer callers that support isolated modes.
+
+The primary chord for OBS and standalone output is the shared global chord. Keyboard, guitar, and other chord labels are secondary and require confidently owned notes for that row. Full-mix chord labels intentionally stay simpler than isolated-source labels when extension evidence could come from another instrument, so a full-mix `G7` may be displayed as `G` while isolated keyboard/guitar/other stems can use the full template set.
+
+`IsolatedBass`, `IsolatedGuitar`, `IsolatedKeyboard`, `IsolatedVocal`, and `IsolatedOther` are for real single-instrument stems. In isolated modes, only the matching row is populated, vocal remains note-only, and input-mode changes reset incompatible tracking state. Source-name hints such as `guitar`, `piano`, or `vocal` are only a compatibility adapter when a direct analyzer caller leaves the input mode on `Auto`; OBS and standalone do not rely on those labels for speaker/mixer audio.
+
 ## OBS Usage
 
 1. Build and install the plugin to your OBS user plugin directory:
