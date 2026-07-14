@@ -173,6 +173,7 @@ private:
 	std::array<NoteTrackingState, kNoteProbeCount> vocal_note_tracking_ = {};
 	std::array<NoteTrackingState, kNoteProbeCount> other_note_tracking_ = {};
 	std::array<NoteTrackingState, kNoteProbeCount> full_mix_note_tracking_ = {};
+	std::array<NoteTrackingState, kNoteProbeCount> full_mix_other_ownership_tracking_ = {};
 	std::array<float, kNoteProbeCount> previous_full_mix_note_levels_ = {};
 	std::array<NoteTrackingState, kNoteProbeCount> guitar_chord_note_tracking_ = {};
 	std::array<NoteTrackingState, kNoteProbeCount> keyboard_chord_note_tracking_ = {};

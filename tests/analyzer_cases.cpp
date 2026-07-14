@@ -1331,6 +1331,28 @@ void check_full_mix_vocal_requires_temporal_confirmation(Runner &runner)
 	expect_midi_not_duplicated_across_rows(runner, snapshot, 84, "full-mix vocal confirmation ownership");
 }
 
+void check_sparse_full_mix_other_requires_temporal_confirmation(Runner &runner)
+{
+	mao::AnalysisEngine engine;
+	mao::AnalysisSettings settings = mao_test::default_settings();
+	settings.input_mode = mao::AnalysisInputMode::FullMix;
+	settings.analysis_interval_seconds = 0.05f;
+
+	mao_test::Buffer buffer = {};
+	const std::vector<float> other_profile = {1.0f, 0.62f, 0.42f, 0.27f, 0.16f};
+	add_harmonic_note(buffer, 74, 0.24f, other_profile);
+
+	mao::AnalysisSnapshot snapshot = engine.analyze(buffer.data(), buffer.size(), settings, "Mic/Aux", 0);
+	expect_global_pitch_class(runner, snapshot, 2, "sparse full-mix other confirmation first-frame global");
+	expect_no_pitch_class(runner, snapshot.other_notes, 2, "sparse full-mix other confirmation first-frame other");
+	runner.expect(grid_pitch_active(snapshot.ambiguous_notes, 2),
+		      "sparse full-mix other confirmation: expected first D5 candidate to stay ambiguous");
+
+	snapshot = engine.analyze(buffer.data(), buffer.size(), settings, "Mic/Aux", 0);
+	expect_pitch_class(runner, snapshot.other_notes, 2, "sparse full-mix other confirmation second-frame other");
+	expect_midi_not_duplicated_across_rows(runner, snapshot, 74, "sparse full-mix other confirmation ownership");
+}
+
 void check_explicit_input_mode_and_bpm(Runner &runner)
 {
 	{
@@ -2821,6 +2843,7 @@ int main()
 	check_high_full_mix_cluster_not_vocal_or_other(runner);
 	check_simultaneous_onset_group_rejects_vocal_spillover(runner);
 	check_full_mix_vocal_requires_temporal_confirmation(runner);
+	check_sparse_full_mix_other_requires_temporal_confirmation(runner);
 	check_explicit_input_mode_and_bpm(runner);
 	check_frontend_full_mix_equivalence(runner);
 	check_urmp_real_piece_metadata_regressions(runner);

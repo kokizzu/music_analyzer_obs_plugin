@@ -795,6 +795,18 @@ void demote_full_mix_vocal_candidate(FullMixOwnership &ownership, const NoteCand
 	ownership.ambiguous_candidates.push_back(candidate);
 }
 
+void demote_full_mix_other_candidate(FullMixOwnership &ownership, const NoteCandidate &candidate)
+{
+	if (candidate.midi < kFirstMidi || candidate.midi > kLastMidi)
+		return;
+
+	const std::size_t index = static_cast<std::size_t>(candidate.midi - kFirstMidi);
+	ownership.other[index] = false;
+	remove_candidate_midi(ownership.other_candidates, candidate.midi);
+	ownership.ambiguous[index] = true;
+	ownership.ambiguous_candidates.push_back(candidate);
+}
+
 void stabilize_full_mix_vocal_ownership(FullMixOwnership &ownership, int &tracked_midi, int &pending_midi,
 					int &pending_hits, int &tracked_misses, float &tracked_score)
 {
@@ -838,6 +850,45 @@ void stabilize_full_mix_vocal_ownership(FullMixOwnership &ownership, int &tracke
 	}
 
 	demote_full_mix_vocal_candidate(ownership, candidate);
+}
+
+void stabilize_sparse_full_mix_other_ownership(FullMixOwnership &ownership,
+					       std::array<NoteTrackingState, kNoteProbeCount> &tracking)
+{
+	std::array<bool, kNoteProbeCount> current = {};
+	for (const NoteCandidate &candidate : ownership.other_candidates) {
+		if (candidate.midi < kFirstMidi || candidate.midi > kLastMidi)
+			continue;
+		current[candidate.midi - kFirstMidi] = true;
+	}
+
+	for (std::size_t i = 0; i < tracking.size(); ++i) {
+		NoteTrackingState &note = tracking[i];
+		if (current[i]) {
+			note.consecutive_hits = std::min(note.consecutive_hits + 1, 1000);
+			note.consecutive_misses = 0;
+			if (note.consecutive_hits >= kNoteAttackConfirmFrames)
+				note.confirmed = true;
+			note.envelope = 1.0f;
+		} else {
+			note.consecutive_hits = 0;
+			note.consecutive_misses = std::min(note.consecutive_misses + 1, 1000);
+			note.envelope = std::max(0.0f, note.envelope - 0.34f);
+			if (note.consecutive_misses > 2 || note.envelope <= 0.0f)
+				note = {};
+		}
+	}
+
+	if (ownership.other_candidates.size() != 1)
+		return;
+
+	const NoteCandidate candidate = ownership.other_candidates.front();
+	if (candidate.midi < kFirstMidi || candidate.midi > kLastMidi)
+		return;
+	if (tracking[candidate.midi - kFirstMidi].confirmed)
+		return;
+
+	demote_full_mix_other_candidate(ownership, candidate);
 }
 
 float relative_timbre_weight(const TimbreMix &mix, TimbreKind kind)
@@ -2711,6 +2762,8 @@ void AnalysisEngine::reset_note_envelopes()
 		note = {};
 	for (NoteTrackingState &note : full_mix_note_tracking_)
 		note = {};
+	for (NoteTrackingState &note : full_mix_other_ownership_tracking_)
+		note = {};
 	previous_full_mix_note_levels_.fill(0.0f);
 	for (NoteTrackingState &note : guitar_chord_note_tracking_)
 		note = {};
@@ -3380,6 +3433,8 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 		stabilize_full_mix_vocal_ownership(full_mix_ownership, tracked_vocal_midi_,
 						   pending_vocal_midi_, pending_vocal_hits_,
 						   tracked_vocal_misses_, tracked_vocal_score_);
+		stabilize_sparse_full_mix_other_ownership(full_mix_ownership,
+							  full_mix_other_ownership_tracking_);
 		previous_full_mix_note_levels_ = current_full_mix_note_levels;
 		update_note_tracking_from_levels(full_mix_note_tracking_, full_mix_ownership.global_note_levels,
 						 interval_seconds, kNoteAttackConfirmFrames,
@@ -3393,6 +3448,8 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 		pending_vocal_hits_ = 0;
 		tracked_vocal_misses_ = 0;
 		tracked_vocal_score_ = 0.0f;
+		for (NoteTrackingState &note : full_mix_other_ownership_tracking_)
+			note = {};
 		clear_note_grid(snapshot.ambiguous_notes);
 	}
 
