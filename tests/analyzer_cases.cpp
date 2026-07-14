@@ -2373,10 +2373,10 @@ void check_full_mix_bass_harmonic_note_not_duplicated(Runner &runner)
 	expect_label(runner, snapshot.bass.label, "E2", "full-mix bass harmonic ownership");
 	expect_midi_not_duplicated_across_instruments(runner, snapshot, 40,
 						      "full-mix bass harmonic ownership");
-	expect_no_pitch_class(runner, snapshot.keyboard_notes, 4, "full-mix bass harmonic keyboard spillover");
-	expect_no_pitch_class(runner, snapshot.guitar_notes, 4, "full-mix bass harmonic guitar spillover");
-	expect_no_pitch_class(runner, snapshot.vocal_notes, 4, "full-mix bass harmonic vocal spillover");
-	expect_no_pitch_class(runner, snapshot.other_notes, 4, "full-mix bass harmonic other spillover");
+	expect_empty_note_grid(runner, snapshot.keyboard_notes, "full-mix bass harmonic keyboard spillover");
+	expect_empty_note_grid(runner, snapshot.guitar_notes, "full-mix bass harmonic guitar spillover");
+	expect_empty_note_grid(runner, snapshot.vocal_notes, "full-mix bass harmonic vocal spillover");
+	expect_empty_note_grid(runner, snapshot.other_notes, "full-mix bass harmonic other spillover");
 }
 
 void check_multi_instrument_mix(Runner &runner)
