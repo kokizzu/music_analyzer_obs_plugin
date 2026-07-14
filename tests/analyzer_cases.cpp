@@ -327,6 +327,15 @@ void check_bass_notes(Runner &runner)
 	}
 }
 
+void check_bass_octave_suppression(Runner &runner)
+{
+	mao_test::Buffer buffer = {};
+	const std::vector<float> hollow_bass_profile = {0.22f, 1.0f, 0.25f, 0.10f};
+	add_harmonic_note(buffer, 35, 0.34f, hollow_bass_profile);
+	const auto snapshot = analyze_buffer(buffer, "bass");
+	expect_label(runner, snapshot.bass.label, "B1", "bass octave suppression");
+}
+
 void check_vocal_notes(Runner &runner)
 {
 	for (int midi = 40; midi <= 84; ++midi) {
@@ -1076,6 +1085,7 @@ void check_spillover_regressions(Runner &runner)
 		add_harmonic_note(buffer, 31, 0.035f, bass_profile);
 
 		const auto snapshot = analyze_buffer(buffer, "full mix");
+		expect_label(runner, snapshot.bass.label, "--", "spillover weak bass root bass candidate");
 		expect_label(runner, snapshot.global_chord.label, "C", "spillover weak bass root global chord");
 		expect_no_chord_label(runner, snapshot.global_chord.label, "G", "spillover weak bass root global chord");
 	}
@@ -2353,6 +2363,7 @@ int main()
 {
 	Runner runner;
 	check_bass_notes(runner);
+	check_bass_octave_suppression(runner);
 	check_vocal_notes(runner);
 	check_harmonic_single_notes(runner);
 	check_harmonic_chords(runner);

@@ -164,6 +164,12 @@ baseline paths:
 * `AnalysisSnapshot` exposes `global_chord` and `ambiguous_notes`. Full-mix
   chord detection uses global chroma, while instrument-specific chords are
   secondary and are based on owned notes.
+* Full-mix bass detection now uses a bass-specific candidate score with
+  harmonic support, octave-error suppression, and a confidence gate against the
+  strongest low-mid candidate. A bass pitch class is exposed to global chord and
+  root logic only after the displayed bass note is accepted, and the bass-root
+  hint only recovers a missing global chord rather than replacing a valid
+  no-hint harmonic-context chord.
 * Tuning hysteresis checks the active input mode, so a note tracked in one
   isolated mode does not relax tuning thresholds for unrelated instrument rows.
 * Instrument-specific chord recovery uses short-lived analytical chord-note

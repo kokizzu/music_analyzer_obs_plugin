@@ -57,7 +57,8 @@ constexpr float kChordMarginConfidenceCeiling = 0.40f;
 constexpr float kChordWeakExtensionMargin = 0.16f;
 constexpr std::size_t kDrumTransientSegments = 8;
 constexpr float kDrumTransientRatio = 1.55f;
-constexpr float kMixedBassFallbackScoreRatio = 0.08f;
+constexpr float kMixedBassMinBroadScoreRatio = 0.22f;
+constexpr float kMixedBassMinConfidence = 0.025f;
 
 bool contains_case_insensitive(const char *text, const char *needle)
 {
@@ -171,32 +172,76 @@ struct RangeResult {
 	float score = 0.0f;
 };
 
-RangeResult dominant_note(const std::array<float, kNoteProbeCount> &powers, int min_midi, int max_midi, bool include_harmonics)
+float probe_level(const std::array<float, kNoteProbeCount> &powers, int midi)
+{
+	if (midi < kFirstMidi || midi > kLastMidi)
+		return 0.0f;
+	return std::sqrt(std::max(powers[midi - kFirstMidi], 0.0f));
+}
+
+float bass_candidate_score(const std::array<float, kNoteProbeCount> &powers, int midi, bool include_harmonics)
+{
+	float score = probe_level(powers, midi);
+	if (include_harmonics) {
+		score += probe_level(powers, midi + 12) * 0.38f;
+		score += probe_level(powers, midi + 19) * 0.22f;
+		score += probe_level(powers, midi + 24) * 0.12f;
+	}
+	return score;
+}
+
+RangeResult dominant_bass_note(const std::array<float, kNoteProbeCount> &powers, int min_midi, int max_midi,
+			       bool include_harmonics)
 {
 	float total = 0.0f;
+	float second_score = 0.0f;
 	RangeResult result;
 
 	min_midi = std::max(min_midi, kFirstMidi);
 	max_midi = std::min(max_midi, kLastMidi);
-
 	for (int midi = min_midi; midi <= max_midi; ++midi) {
-		const int idx = midi - kFirstMidi;
-		float score = powers[idx];
-		if (include_harmonics) {
-			if (midi + 12 <= kLastMidi)
-				score += powers[midi + 12 - kFirstMidi] * 0.35f;
-			if (midi + 24 <= kLastMidi)
-				score += powers[midi + 24 - kFirstMidi] * 0.18f;
-		}
+		const float score = bass_candidate_score(powers, midi, include_harmonics);
 		total += std::max(score, 0.0f);
 		if (score > result.score) {
+			second_score = result.score;
 			result.score = score;
 			result.midi = midi;
+		} else {
+			second_score = std::max(second_score, score);
 		}
 	}
 
-	result.confidence = total > 1.0e-9f ? std::clamp(result.score / total, 0.0f, 1.0f) : 0.0f;
+	if (include_harmonics && result.score > 1.0e-6f) {
+		for (int lower = result.midi - 12; lower >= min_midi; lower -= 12) {
+			const float lower_fundamental = probe_level(powers, lower);
+			const float current_fundamental = probe_level(powers, result.midi);
+			const float lower_score = bass_candidate_score(powers, lower, true);
+			if (lower_fundamental < current_fundamental * 0.14f || lower_score < result.score * 0.55f)
+				break;
+			result.midi = lower;
+			result.score = lower_score;
+		}
+	}
+
+	const float total_confidence = total > 1.0e-6f ? result.score / total : 0.0f;
+	const float runner_up_confidence =
+		result.score + second_score > 1.0e-6f ? result.score / (result.score + second_score) : 0.0f;
+	result.confidence = std::clamp(std::max(total_confidence, runner_up_confidence * 0.55f), 0.0f, 1.0f);
 	return result;
+}
+
+bool full_mix_bass_supported(const std::array<float, kNoteProbeCount> &powers, const RangeResult &low_note,
+			     const RangeResult &broad_note)
+{
+	if (low_note.midi < kFirstMidi || low_note.score <= 1.0e-6f || low_note.confidence < kMixedBassMinConfidence)
+		return false;
+
+	const float fundamental = probe_level(powers, low_note.midi);
+	const float broad_level = broad_note.midi >= kFirstMidi ? probe_level(powers, broad_note.midi) : 0.0f;
+	const float broad_ratio_floor = fundamental >= broad_level * 0.35f ? 0.12f : kMixedBassMinBroadScoreRatio;
+	if (broad_note.score > 1.0e-6f && low_note.score < broad_note.score * broad_ratio_floor)
+		return false;
+	return fundamental > 1.0e-6f && (broad_level <= 1.0e-6f || fundamental >= broad_level * 0.075f);
 }
 
 struct NoteCandidate {
@@ -2923,19 +2968,19 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 	if (input_mode == AnalysisInputMode::FullMix || input_mode == AnalysisInputMode::IsolatedBass) {
 		const bool isolated_bass = input_mode == AnalysisInputMode::IsolatedBass;
 		const int bass_max_midi = isolated_bass ? kBassMaxMidi : kDefaultBassMaxMidi;
-		const bool include_bass_harmonics = isolated_bass;
+		const bool include_bass_harmonics = true;
 		const RangeResult bass_note =
-			dominant_note(detection_note_powers, kBassMinMidi, bass_max_midi, include_bass_harmonics);
+			dominant_bass_note(detection_note_powers, kBassMinMidi, bass_max_midi,
+					   include_bass_harmonics);
 		const RangeResult broad_bass_note = isolated_bass ?
 							    bass_note :
-							    dominant_note(detection_note_powers, kBassMinMidi,
-									  kBassMaxMidi, include_bass_harmonics);
+							    dominant_bass_note(detection_note_powers, kBassMinMidi,
+									       kBassMaxMidi, include_bass_harmonics);
 		const bool mixed_bass_supported =
-			isolated_bass || broad_bass_note.midi <= kDefaultBassMaxMidi ||
-			bass_note.score >= broad_bass_note.score * kMixedBassFallbackScoreRatio;
+			isolated_bass || full_mix_bass_supported(detection_note_powers, bass_note, broad_bass_note);
 		if (mixed_bass_supported) {
 			set_single_note_grid(snapshot.bass_notes, snapshot.bass, bass_note, bass_energy, rms);
-			if (bass_note.midi >= 0)
+			if (bass_note.midi >= 0 && snapshot.bass.confidence > 0.0f)
 				mixed_bass_pitch_class = ((bass_note.midi % 12) + 12) % 12;
 		} else {
 			clear_note_grid(snapshot.bass_notes);
@@ -2950,13 +2995,18 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 
 	if (mixed_source) {
 		const bool strong_bass_hint = mixed_bass_pitch_class >= 0 && snapshot.bass.confidence >= 0.32f;
-		if (strong_bass_hint)
+		if (strong_bass_hint && full_mix_ownership.global_chroma[mixed_bass_pitch_class] < 0.20f)
 			full_mix_ownership.global_chroma[mixed_bass_pitch_class] =
 				std::max(full_mix_ownership.global_chroma[mixed_bass_pitch_class],
-					 snapshot.bass.confidence * 0.72f);
-		raw_global_chord =
-			detect_chord(full_mix_ownership.global_chroma,
-				     strong_bass_hint ? mixed_bass_pitch_class : -1, false);
+					 snapshot.bass.confidence * 0.55f);
+		raw_global_chord = detect_chord(full_mix_ownership.global_chroma, -1, false);
+		if (strong_bass_hint) {
+			const ChordResult bass_hint_chord =
+				detect_chord(full_mix_ownership.global_chroma, mixed_bass_pitch_class, false);
+			if (valid_chord_result(bass_hint_chord) &&
+			    !valid_chord_result(raw_global_chord))
+				raw_global_chord = bass_hint_chord;
+		}
 	}
 
 	auto process_keyboard = [&]() {
