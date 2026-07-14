@@ -160,7 +160,10 @@ baseline paths:
   pitch confidence, harmonicity, harmonic-fit residual, spectral centroid,
   spectral slope, local spectral noise, normalized ownership scores, and final
   owner confidence. Simultaneous high-note clusters suppress vocal ownership so
-  instrumental chords do not become monophonic vocal guesses.
+  instrumental chords do not become monophonic vocal guesses. Single high notes
+  also require a clean sustained vocal-like partial profile before they can
+  enter the vocal row, so piano-like upper notes remain global or ambiguous
+  evidence instead of automatic vocal detections.
 * `AnalysisSnapshot` exposes `global_chord` and `ambiguous_notes`. Full-mix
   chord detection uses global chroma, while instrument-specific chords are
   secondary and are based on owned notes.

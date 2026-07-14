@@ -701,6 +701,25 @@ float relative_timbre_weight(const TimbreMix &mix, TimbreKind kind)
 	return mix.weights[static_cast<std::size_t>(kind)] / fundamental;
 }
 
+bool full_mix_vocal_profile_supported(const NoteEvidence &evidence, float second, float third, float fourth,
+				      bool polyphonic_vocal_context)
+{
+	if (polyphonic_vocal_context)
+		return false;
+	if (evidence.spectral_level < 0.38f)
+		return false;
+	if (evidence.local_noise_level > 0.22f || evidence.harmonic_fit_error > 0.40f)
+		return false;
+	if (evidence.spectral_centroid > 0.24f)
+		return false;
+
+	const bool clean_sustained_like_partials =
+		second <= 0.10f && third <= 0.065f && fourth <= 0.050f;
+	const bool near_pure_tone_voice =
+		second <= 0.045f && third <= 0.025f && fourth <= 0.018f && evidence.spectral_slope <= 0.10f;
+	return clean_sustained_like_partials || near_pure_tone_voice;
+}
+
 InstrumentKind choose_full_mix_owner(const std::array<float, kNoteProbeCount> &powers,
 				     const NoteCandidate &candidate, float strongest_score,
 				     bool polyphonic_vocal_context, NoteEvidence &evidence)
@@ -743,18 +762,12 @@ InstrumentKind choose_full_mix_owner(const std::array<float, kNoteProbeCount> &p
 		if (second > 0.75f || fourth > 0.36f)
 			scores[1] *= 0.72f;
 	}
-	if (candidate.midi >= 72 && candidate.midi <= kVocalMaxMidi && second <= 0.13f && third <= 0.075f &&
-	    fourth <= 0.055f) {
-		scores[2] = 0.74f + std::max(0.0f, 0.13f - second) * 1.6f +
-			    std::max(0.0f, 0.075f - third) * 1.2f;
-		if (note_strength < 0.38f)
-			scores[2] *= 0.70f;
-		if (evidence.local_noise_level > 0.22f || evidence.harmonic_fit_error > 0.40f)
-			scores[2] *= 0.62f;
-		if (evidence.spectral_centroid > 0.24f)
-			scores[2] *= 0.72f;
-		if (polyphonic_vocal_context)
-			scores[2] *= 0.35f;
+	if (candidate.midi >= 72 && candidate.midi <= kVocalMaxMidi &&
+	    full_mix_vocal_profile_supported(evidence, second, third, fourth, polyphonic_vocal_context)) {
+		scores[2] = 0.74f + std::max(0.0f, 0.10f - second) * 1.8f +
+			    std::max(0.0f, 0.065f - third) * 1.3f;
+		if (note_strength < 0.52f)
+			scores[2] *= 0.82f;
 	}
 	if (candidate.midi >= 60 && candidate.midi <= kOtherMaxMidi && second >= 0.24f &&
 	    (fourth >= 0.06f || fifth >= 0.035f)) {

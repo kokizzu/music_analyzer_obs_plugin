@@ -1120,19 +1120,29 @@ void check_spillover_regressions(Runner &runner)
 
 void check_high_full_mix_cluster_not_vocal_or_other(Runner &runner)
 {
-	mao_test::Buffer buffer = {};
 	const std::vector<float> piano_profile = {1.0f, 0.12f, 0.04f, 0.015f};
-	for (int midi : {76, 79, 83})
-		add_harmonic_note(buffer, midi, 0.22f, piano_profile);
+	{
+		mao_test::Buffer buffer = {};
+		for (int midi : {76, 79, 83})
+			add_harmonic_note(buffer, midi, 0.22f, piano_profile);
 
-	const auto snapshot = analyze_buffer(buffer, "full mix");
-	for (int pitch_class : {4, 7, 11}) {
-		expect_global_pitch_class(runner, snapshot, pitch_class, "high full-mix cluster global");
-		expect_no_pitch_class(runner, snapshot.vocal_notes, pitch_class, "high full-mix cluster vocal");
-		expect_no_pitch_class(runner, snapshot.other_notes, pitch_class, "high full-mix cluster other");
-		runner.expect(grid_pitch_active(snapshot.keyboard_notes, pitch_class) ||
-				      grid_pitch_active(snapshot.ambiguous_notes, pitch_class),
-			      "high full-mix cluster: expected keyboard or ambiguous evidence");
+		const auto snapshot = analyze_buffer(buffer, "full mix");
+		for (int pitch_class : {4, 7, 11}) {
+			expect_global_pitch_class(runner, snapshot, pitch_class, "high full-mix cluster global");
+			expect_no_pitch_class(runner, snapshot.vocal_notes, pitch_class, "high full-mix cluster vocal");
+			expect_no_pitch_class(runner, snapshot.other_notes, pitch_class, "high full-mix cluster other");
+			runner.expect(grid_pitch_active(snapshot.keyboard_notes, pitch_class) ||
+					      grid_pitch_active(snapshot.ambiguous_notes, pitch_class),
+				      "high full-mix cluster: expected keyboard or ambiguous evidence");
+		}
+	}
+	{
+		mao_test::Buffer buffer = {};
+		add_harmonic_note(buffer, 84, 0.24f, piano_profile);
+		const auto snapshot = analyze_buffer(buffer, "full mix");
+		expect_global_pitch_class(runner, snapshot, 0, "single high piano global");
+		expect_no_pitch_class(runner, snapshot.vocal_notes, 0, "single high piano vocal");
+		expect_no_pitch_class(runner, snapshot.other_notes, 0, "single high piano other");
 	}
 }
 
