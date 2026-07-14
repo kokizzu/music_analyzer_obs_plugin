@@ -812,6 +812,24 @@ void check_required_chord_transitions(Runner &runner)
 					 {"G6", "Gmaj7", "G7", "Gadd9", "Em7", "Em9", "Edim", "Eaug"});
 }
 
+void check_chord_margin_and_simplification(Runner &runner)
+{
+	{
+		mao_test::Buffer weak_ninth = {};
+		mao_test::add_midi_note(weak_ninth, 60, 0.34f);
+		mao_test::add_midi_note(weak_ninth, 64, 0.34f);
+		mao_test::add_midi_note(weak_ninth, 67, 0.34f);
+		mao_test::add_midi_note(weak_ninth, 62, 0.09f);
+		const auto snapshot = analyze_buffer(weak_ninth, "keyboard");
+		expect_label(runner, snapshot.keyboard_chord.label, "C",
+			     "chord simplification: weak ninth keeps simple triad");
+		expect_no_chord_label(runner, snapshot.keyboard_chord.label, "Cadd9",
+				      "chord simplification: weak ninth");
+		expect_no_chord_label(runner, snapshot.keyboard_chord.label, "C9",
+				      "chord simplification: weak ninth");
+	}
+}
+
 void check_chord_evidence_separate_from_visual_fade(Runner &runner)
 {
 	mao::AnalysisEngine engine;
@@ -2347,6 +2365,7 @@ int main()
 	check_temporal_note_stability(runner);
 	check_temporal_chord_stability(runner);
 	check_required_chord_transitions(runner);
+	check_chord_margin_and_simplification(runner);
 	check_chord_evidence_separate_from_visual_fade(runner);
 	check_low_level_mixed_notes(runner);
 	check_melodic_sources_do_not_trigger_drums(runner);

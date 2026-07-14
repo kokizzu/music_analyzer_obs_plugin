@@ -169,6 +169,10 @@ baseline paths:
 * Instrument-specific chord recovery uses short-lived analytical chord-note
   trackers. Those trackers are separate from the longer visual note envelopes,
   so a fading note highlight does not keep producing chord evidence.
+* Chord scoring now records a candidate margin and uncertainty flag. Barely
+  valid low-confidence candidates are suppressed when an incompatible template
+  is too close, and same-root extensions only replace a simpler chord when the
+  added tone has enough analytical weight.
 * Dataset gates now report precision, contamination, confusion, octave-error,
   false-row, and global/per-instrument chord metrics instead of union recall
   alone for the configured real-data paths that have enough truth data.

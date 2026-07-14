@@ -52,6 +52,9 @@ constexpr int kNoteAttackConfirmFrames = 2;
 constexpr int kChordSwitchConfirmFrames = 2;
 constexpr float kChordHoldSeconds = 0.35f;
 constexpr float kChordConfidenceFloor = 0.36f;
+constexpr float kChordCandidateMarginFloor = 0.025f;
+constexpr float kChordMarginConfidenceCeiling = 0.40f;
+constexpr float kChordWeakExtensionMargin = 0.16f;
 constexpr std::size_t kDrumTransientSegments = 8;
 constexpr float kDrumTransientRatio = 1.55f;
 constexpr float kMixedBassFallbackScoreRatio = 0.08f;
@@ -879,6 +882,8 @@ struct ChordResult {
 	std::array<bool, 12> tones = {};
 	int root = -1;
 	float confidence = 0.0f;
+	float margin = 0.0f;
+	bool uncertain = true;
 };
 
 struct ChordCandidate {
@@ -886,14 +891,25 @@ struct ChordCandidate {
 	std::array<bool, 12> tones = {};
 	uint16_t mask = 0;
 	int root = -1;
+	int tone_count = 0;
 	float score = 0.0f;
 };
+
+bool chord_candidate_compatible(const ChordCandidate &lhs, const ChordCandidate &rhs)
+{
+	if (lhs.mask == rhs.mask)
+		return true;
+	if (lhs.root != rhs.root)
+		return false;
+	return (lhs.mask & ~rhs.mask) == 0 || (rhs.mask & ~lhs.mask) == 0;
+}
 
 ChordResult detect_chord(const std::array<float, 12> &chroma, int bass_pitch_class = -1, bool allow_extensions = true)
 {
 	ChordResult best;
 	float best_score = 0.0f;
 	uint16_t best_mask = 0;
+	ChordCandidate best_candidate;
 	std::vector<ChordCandidate> candidates;
 	static constexpr float kToneThreshold = 0.24f;
 
@@ -936,11 +952,13 @@ ChordResult detect_chord(const std::array<float, 12> &chroma, int bass_pitch_cla
 			candidate.tones[pitch_class] = true;
 			candidate.mask |= static_cast<uint16_t>(1u << pitch_class);
 		}
+		candidate.tone_count = static_cast<int>(intervals.size());
 		candidates.push_back(candidate);
 
 		if (score > best_score) {
 			best_score = score;
 			best_mask = candidate.mask;
+			best_candidate = candidate;
 			best.root = root;
 			best.tones = candidate.tones;
 		}
@@ -999,8 +1017,47 @@ ChordResult detect_chord(const std::array<float, 12> &chroma, int bass_pitch_cla
 	for (float value : chroma)
 		chroma_sum += value;
 
+	if (best_candidate.tone_count > 3 && chroma_sum > 1.0e-6f) {
+		ChordCandidate simpler;
+		float simpler_score = 0.0f;
+		for (const ChordCandidate &candidate : candidates) {
+			if (candidate.root != best_candidate.root || candidate.tone_count < 3 ||
+			    candidate.tone_count >= best_candidate.tone_count)
+				continue;
+			if ((candidate.mask & ~best_candidate.mask) != 0)
+				continue;
+			const float normalized_gap = (best_score - candidate.score) / (chroma_sum + 1.0e-6f);
+			if (normalized_gap > kChordWeakExtensionMargin)
+				continue;
+			if (candidate.score > simpler_score) {
+				simpler_score = candidate.score;
+				simpler = candidate;
+			}
+		}
+		if (simpler_score > 0.0f) {
+			best_score = simpler_score;
+			best_mask = simpler.mask;
+			best_candidate = simpler;
+			best.root = simpler.root;
+			best.tones = simpler.tones;
+		}
+	}
+
+	float competing_score = 0.0f;
+	for (const ChordCandidate &candidate : candidates) {
+		if (chord_candidate_compatible(candidate, best_candidate))
+			continue;
+		competing_score = std::max(competing_score, candidate.score);
+	}
+
 	best.confidence = chroma_sum > 0.0f ? std::clamp(best_score / (chroma_sum + 1.0e-6f), 0.0f, 1.0f) : 0.0f;
-	if (best.confidence < 0.34f) {
+	best.margin = chroma_sum > 0.0f ?
+			      std::clamp((best_score - competing_score) / (chroma_sum + 1.0e-6f), 0.0f, 1.0f) :
+			      0.0f;
+	best.uncertain = best.confidence < 0.34f ||
+			 (competing_score > 0.0f && best.confidence < kChordMarginConfidenceCeiling &&
+			  best.margin < kChordCandidateMarginFloor);
+	if (best.uncertain) {
 		best.root = -1;
 		best.tones.fill(false);
 		copy_text(best.label, sizeof(best.label), "--");
@@ -1925,7 +1982,7 @@ void set_instrument_chord(InstrumentState &state, const ChordResult &chord, floa
 		return;
 	}
 
-	if (chord.confidence >= 0.36f) {
+	if (chord.confidence >= 0.36f && !chord.uncertain) {
 		copy_text(state.label, sizeof(state.label), chord.label);
 		state.confidence = chord.confidence;
 		return;
@@ -1937,7 +1994,8 @@ void set_instrument_chord(InstrumentState &state, const ChordResult &chord, floa
 
 bool valid_chord_result(const ChordResult &chord)
 {
-	return chord.root >= 0 && chord.confidence >= kChordConfidenceFloor && chord.label[0] && chord.label[0] != '-';
+	return chord.root >= 0 && chord.confidence >= kChordConfidenceFloor && !chord.uncertain &&
+	       chord.label[0] && chord.label[0] != '-';
 }
 
 std::array<float, 12> strongest_chord_chroma(const std::array<float, 12> &chroma)
@@ -1974,7 +2032,9 @@ ChordResult stronger_chord(const ChordResult &lhs, const ChordResult &rhs)
 		return rhs;
 	if (!valid_chord_result(rhs))
 		return lhs;
-	return rhs.confidence > lhs.confidence ? rhs : lhs;
+	if (rhs.confidence != lhs.confidence)
+		return rhs.confidence > lhs.confidence ? rhs : lhs;
+	return rhs.margin > lhs.margin ? rhs : lhs;
 }
 
 ChordResult detect_mixed_chord_from_grid(const NoteGrid &grid, int preferred_root, bool allow_extensions)
