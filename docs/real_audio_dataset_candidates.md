@@ -315,10 +315,12 @@ without additional annotation.
   `MUSIC_ANALYZER_MAESTRO_ROOT=/path/to/maestro-v3.0.0` after extracting the
   official MAESTRO archive. The analyzer gate expects the official metadata CSV
   with `audio_filename` and `midi_filename`, reads the paired WAV/MIDI files,
-  selects polyphonic piano/chord windows, and checks pitch-class plus chord
-  recall. MAESTRO is a focused keyboard/piano real-audio add-on; it does not
-  replace URMP because it is a single-instrument dataset, but it gives much
-  stronger piano sustain and chord coverage than generated fixtures alone.
+  selects polyphonic piano/chord windows in explicit isolated-keyboard mode, and
+  checks pitch-class recall, keyboard-row precision/recall/F1, cross-row
+  contamination, false non-keyboard windows, and isolated keyboard-chord
+  precision/recall. MAESTRO is a focused keyboard/piano real-audio add-on; it
+  does not replace URMP because it is a single-instrument dataset, but it gives
+  much stronger piano sustain and chord coverage than generated fixtures alone.
 - Use `make test-real-egmd-20` with
   `MUSIC_ANALYZER_EGMD_ROOT=/path/to/e-gmd-v1.0.0` after extracting the official
   E-GMD archive. The analyzer gate expects the official metadata CSV with

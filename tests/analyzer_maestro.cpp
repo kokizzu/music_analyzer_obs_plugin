@@ -996,6 +996,7 @@ mao::AnalysisSnapshot analyze_confirmed_buffer(const mao_test::Buffer &buffer, u
 	mao::AnalysisSettings settings = mao_test::default_settings();
 	settings.sample_rate = sample_rate;
 	settings.analysis_interval_seconds = 0.05f;
+	settings.input_mode = mao::AnalysisInputMode::IsolatedKeyboard;
 
 	mao::AnalysisSnapshot snapshot = {};
 	for (int frame = 0; frame < 3; ++frame)
@@ -1009,6 +1010,201 @@ struct RecallStats {
 	int chord_hits = 0;
 	int chord_checks = 0;
 };
+
+std::array<bool, 12> grid_pitch_classes(const mao::NoteGrid &grid)
+{
+	std::array<bool, 12> pitch_classes = {};
+	add_detected_pitch_classes(grid, pitch_classes);
+	return pitch_classes;
+}
+
+bool grid_has_any_active_pitch_class(const mao::NoteGrid &grid)
+{
+	for (int pitch_class = 0; pitch_class < 12; ++pitch_class) {
+		if (grid_has_pitch_class(grid, pitch_class))
+			return true;
+	}
+	return false;
+}
+
+struct KeyboardPrecisionStats {
+	int windows = 0;
+	int expected_pitch_classes = 0;
+	int true_positives = 0;
+	int false_positives = 0;
+	int false_negatives = 0;
+	int contaminated_pitch_classes = 0;
+	int bass_contamination = 0;
+	int guitar_contamination = 0;
+	int vocal_contamination = 0;
+	int other_contamination = 0;
+	int ambiguous_pitch_classes = 0;
+	int false_non_keyboard_windows = 0;
+};
+
+struct ChordPrecisionStats {
+	int expected_windows = 0;
+	int predicted_windows = 0;
+	int true_positives = 0;
+	int false_positives = 0;
+	int false_negatives = 0;
+};
+
+std::vector<std::string> split_chord_labels(const char *label)
+{
+	std::vector<std::string> labels;
+	if (!label || !*label || std::strcmp(label, "--") == 0)
+		return labels;
+
+	const char *cursor = label;
+	while (*cursor) {
+		const char *end = cursor;
+		while (*end && *end != '=')
+			++end;
+		if (end > cursor) {
+			const std::string component(cursor, static_cast<std::size_t>(end - cursor));
+			if (component != "--")
+				labels.push_back(component);
+		}
+		cursor = *end == '=' ? end + 1 : end;
+	}
+
+	return labels;
+}
+
+void add_keyboard_precision_metrics(KeyboardPrecisionStats &stats, const mao::AnalysisSnapshot &snapshot,
+				    const CandidateWindow &candidate)
+{
+	++stats.windows;
+	const std::array<bool, 12> keyboard = grid_pitch_classes(snapshot.keyboard_notes);
+	const std::array<bool, 12> bass = grid_pitch_classes(snapshot.bass_notes);
+	const std::array<bool, 12> guitar = grid_pitch_classes(snapshot.guitar_notes);
+	const std::array<bool, 12> vocal = grid_pitch_classes(snapshot.vocal_notes);
+	const std::array<bool, 12> other = grid_pitch_classes(snapshot.other_notes);
+	const std::array<bool, 12> ambiguous = grid_pitch_classes(snapshot.ambiguous_notes);
+
+	if (grid_has_any_active_pitch_class(snapshot.bass_notes) ||
+	    grid_has_any_active_pitch_class(snapshot.guitar_notes) ||
+	    grid_has_any_active_pitch_class(snapshot.vocal_notes) ||
+	    grid_has_any_active_pitch_class(snapshot.other_notes))
+		++stats.false_non_keyboard_windows;
+
+	for (int pitch_class = 0; pitch_class < 12; ++pitch_class) {
+		const bool expected = candidate.pitch_classes[pitch_class];
+		if (expected) {
+			++stats.expected_pitch_classes;
+			if (keyboard[pitch_class])
+				++stats.true_positives;
+			else
+				++stats.false_negatives;
+
+			bool contaminated = false;
+			if (bass[pitch_class]) {
+				++stats.bass_contamination;
+				contaminated = true;
+			}
+			if (guitar[pitch_class]) {
+				++stats.guitar_contamination;
+				contaminated = true;
+			}
+			if (vocal[pitch_class]) {
+				++stats.vocal_contamination;
+				contaminated = true;
+			}
+			if (other[pitch_class]) {
+				++stats.other_contamination;
+				contaminated = true;
+			}
+			if (contaminated)
+				++stats.contaminated_pitch_classes;
+			if (ambiguous[pitch_class])
+				++stats.ambiguous_pitch_classes;
+		} else if (keyboard[pitch_class]) {
+			++stats.false_positives;
+		}
+	}
+}
+
+void add_keyboard_chord_precision_metrics(ChordPrecisionStats &stats, const mao::AnalysisSnapshot &snapshot,
+					  const CandidateWindow &candidate)
+{
+	const bool expected = !candidate.chord_labels.empty();
+	const std::vector<std::string> predicted = split_chord_labels(snapshot.keyboard_chord.label);
+	const bool predicted_any = !predicted.empty();
+	bool matched = false;
+	for (const std::string &label : predicted) {
+		if (std::find(candidate.chord_labels.begin(), candidate.chord_labels.end(), label) !=
+		    candidate.chord_labels.end()) {
+			matched = true;
+			break;
+		}
+	}
+
+	if (expected)
+		++stats.expected_windows;
+	if (predicted_any)
+		++stats.predicted_windows;
+	if (matched) {
+		++stats.true_positives;
+		return;
+	}
+	if (predicted_any)
+		++stats.false_positives;
+	if (expected)
+		++stats.false_negatives;
+}
+
+int percentage_floor(int numerator, int denominator)
+{
+	return denominator > 0 ? numerator * 100 / denominator : 0;
+}
+
+std::string percent_string(int numerator, int denominator)
+{
+	char buffer[32] = {};
+	std::snprintf(buffer, sizeof(buffer), "%.2f%%",
+		      denominator > 0 ? static_cast<double>(numerator) * 100.0 / static_cast<double>(denominator) :
+				       0.0);
+	return buffer;
+}
+
+std::string f1_string(int true_positives, int false_positives, int false_negatives)
+{
+	const int denominator = 2 * true_positives + false_positives + false_negatives;
+	char buffer[32] = {};
+	std::snprintf(buffer, sizeof(buffer), "%.2f%%",
+		      denominator > 0 ?
+			      static_cast<double>(2 * true_positives) * 100.0 / static_cast<double>(denominator) :
+			      0.0);
+	return buffer;
+}
+
+std::string keyboard_precision_summary(const KeyboardPrecisionStats &stats)
+{
+	return "keyboard precision " +
+	       percent_string(stats.true_positives, stats.true_positives + stats.false_positives) +
+	       ", keyboard recall " +
+	       percent_string(stats.true_positives, stats.true_positives + stats.false_negatives) +
+	       ", F1 " + f1_string(stats.true_positives, stats.false_positives, stats.false_negatives) +
+	       ", contamination " + percent_string(stats.contaminated_pitch_classes, stats.expected_pitch_classes) +
+	       ", false non-keyboard windows " + percent_string(stats.false_non_keyboard_windows, stats.windows) +
+	       ", ambiguous " + std::to_string(stats.ambiguous_pitch_classes) + "/" +
+	       std::to_string(stats.expected_pitch_classes) + ", row leaks bass/guitar/vocal/other " +
+	       std::to_string(stats.bass_contamination) + "/" + std::to_string(stats.guitar_contamination) +
+	       "/" + std::to_string(stats.vocal_contamination) + "/" +
+	       std::to_string(stats.other_contamination) + ", tp/fp/fn " +
+	       std::to_string(stats.true_positives) + "/" + std::to_string(stats.false_positives) + "/" +
+	       std::to_string(stats.false_negatives);
+}
+
+std::string chord_precision_summary(const ChordPrecisionStats &stats)
+{
+	return "keyboard chord precision " + percent_string(stats.true_positives, stats.predicted_windows) +
+	       ", keyboard chord recall " + percent_string(stats.true_positives, stats.expected_windows) +
+	       ", F1 " + f1_string(stats.true_positives, stats.false_positives, stats.false_negatives) +
+	       ", tp/fp/fn " + std::to_string(stats.true_positives) + "/" +
+	       std::to_string(stats.false_positives) + "/" + std::to_string(stats.false_negatives);
+}
 
 void check_recall(Runner &runner, const mao::AnalysisSnapshot &snapshot, const CandidateWindow &candidate,
 		  const std::string &context, RecallStats &stats, int min_recall_percent)
@@ -1140,13 +1336,25 @@ int main()
 	const int min_pitch_classes =
 		resolve_positive_int_env("MUSIC_ANALYZER_MAESTRO_MIN_PITCH_CLASSES_PER_WINDOW", 2);
 	const int min_recall_percent = resolve_percent_env("MUSIC_ANALYZER_MAESTRO_MIN_RECALL_PERCENT", 40);
+	const int min_keyboard_precision_percent =
+		resolve_percent_env("MUSIC_ANALYZER_MAESTRO_MIN_PRECISION_PERCENT", 90);
+	const int min_keyboard_row_recall_percent =
+		resolve_percent_env("MUSIC_ANALYZER_MAESTRO_MIN_KEYBOARD_RECALL_PERCENT", 90);
+	const int max_keyboard_contamination_percent =
+		resolve_percent_env("MUSIC_ANALYZER_MAESTRO_MAX_CONTAMINATION_PERCENT", 5);
+	const int max_false_non_keyboard_percent =
+		resolve_percent_env("MUSIC_ANALYZER_MAESTRO_MAX_FALSE_NON_KEYBOARD_PERCENT", 5);
 	const int min_chord_recall_percent =
 		resolve_percent_env("MUSIC_ANALYZER_MAESTRO_MIN_CHORD_RECALL_PERCENT", 20);
+	const int min_chord_precision_percent =
+		resolve_percent_env("MUSIC_ANALYZER_MAESTRO_MIN_CHORD_PRECISION_PERCENT", 85);
 	const int min_chord_checks = resolve_positive_int_env("MUSIC_ANALYZER_MAESTRO_MIN_CHORD_CHECKS", 5);
 	const bool inspect_only = env_truthy("MUSIC_ANALYZER_MAESTRO_INSPECT_ONLY");
 
 	Runner runner;
 	RecallStats recall;
+	KeyboardPrecisionStats precision;
+	ChordPrecisionStats keyboard_chord_precision;
 	CompositionStats composition;
 	int recordings_with_windows = 0;
 	int tested_windows = 0;
@@ -1185,6 +1393,8 @@ int main()
 				     "MAESTRO " + recording.id + " at sample " +
 					     std::to_string(candidate.center_sample),
 				     recall, min_recall_percent);
+			add_keyboard_precision_metrics(precision, snapshot, candidate);
+			add_keyboard_chord_precision_metrics(keyboard_chord_precision, snapshot, candidate);
 		}
 
 		if (recording_windows > 0)
@@ -1214,12 +1424,59 @@ int main()
 			      "MAESTRO piano pitch-class recall: expected >=" +
 				      std::to_string(min_recall_percent) + "%, got " +
 				      std::to_string(recall.hits) + "/" + std::to_string(recall.expected));
+		runner.expect(precision.expected_pitch_classes > 0,
+			      "MAESTRO keyboard precision: expected at least one pitch-class check");
+		if (precision.expected_pitch_classes > 0) {
+			runner.expect(
+				percentage_floor(precision.true_positives,
+						 precision.true_positives + precision.false_positives) >=
+					min_keyboard_precision_percent,
+				"MAESTRO keyboard precision: expected >=" +
+					std::to_string(min_keyboard_precision_percent) + "%, got " +
+					percent_string(precision.true_positives,
+						       precision.true_positives + precision.false_positives) +
+					" (" + keyboard_precision_summary(precision) + ")");
+			runner.expect(
+				percentage_floor(precision.true_positives,
+						 precision.true_positives + precision.false_negatives) >=
+					min_keyboard_row_recall_percent,
+				"MAESTRO keyboard row recall: expected >=" +
+					std::to_string(min_keyboard_row_recall_percent) + "%, got " +
+					percent_string(precision.true_positives,
+						       precision.true_positives + precision.false_negatives) +
+					" (" + keyboard_precision_summary(precision) + ")");
+			runner.expect(
+				percentage_floor(precision.contaminated_pitch_classes,
+						 precision.expected_pitch_classes) <=
+					max_keyboard_contamination_percent,
+				"MAESTRO cross-row contamination: expected <=" +
+					std::to_string(max_keyboard_contamination_percent) + "%, got " +
+					percent_string(precision.contaminated_pitch_classes,
+						       precision.expected_pitch_classes) +
+					" (" + keyboard_precision_summary(precision) + ")");
+			runner.expect(percentage_floor(precision.false_non_keyboard_windows,
+						       precision.windows) <= max_false_non_keyboard_percent,
+				      "MAESTRO false non-keyboard detection: expected <=" +
+					      std::to_string(max_false_non_keyboard_percent) +
+					      "% of windows, got " +
+					      percent_string(precision.false_non_keyboard_windows,
+							     precision.windows) +
+					      " (" + keyboard_precision_summary(precision) + ")");
+		}
 		if (recall.chord_checks >= min_chord_checks) {
 			runner.expect(recall.chord_hits * 100 >= recall.chord_checks * min_chord_recall_percent,
 				      "MAESTRO piano chord recall: expected >=" +
 					      std::to_string(min_chord_recall_percent) + "%, got " +
 					      std::to_string(recall.chord_hits) + "/" +
 					      std::to_string(recall.chord_checks));
+			runner.expect(percentage_floor(keyboard_chord_precision.true_positives,
+						       keyboard_chord_precision.predicted_windows) >=
+					      min_chord_precision_percent,
+				      "MAESTRO keyboard chord precision: expected >=" +
+					      std::to_string(min_chord_precision_percent) + "%, got " +
+					      percent_string(keyboard_chord_precision.true_positives,
+							     keyboard_chord_precision.predicted_windows) +
+					      " (" + chord_precision_summary(keyboard_chord_precision) + ")");
 		}
 	}
 
@@ -1227,10 +1484,12 @@ int main()
 		std::fprintf(stderr,
 			     "analyzer_maestro: %d/%d checks failed (recordings %d/%zu, windows %d, "
 			     "read failures %d, no-candidate recordings %d, unusable %d, "
-			     "note hits %d/%d, chord hits %d/%d, %s)\n",
+			     "note hits %d/%d, chord hits %d/%d, %s, %s, %s)\n",
 			     runner.failures, runner.checks, recordings_with_windows, recordings.size(),
 			     tested_windows, read_failures, no_candidate_recordings, unusable, recall.hits,
 			     recall.expected, recall.chord_hits, recall.chord_checks,
+			     keyboard_precision_summary(precision).c_str(),
+			     chord_precision_summary(keyboard_chord_precision).c_str(),
 			     composition_summary(composition).c_str());
 		return 1;
 	}
@@ -1243,10 +1502,13 @@ int main()
 	} else {
 		std::printf("analyzer_maestro: %d checks passed (recordings %d/%zu, windows %d, "
 			    "read failures %d, no-candidate recordings %d, unusable %d, "
-			    "note hits %d/%d, chord hits %d/%d, %s)\n",
+			    "note hits %d/%d, chord hits %d/%d, %s, %s, %s)\n",
 			    runner.checks, recordings_with_windows, recordings.size(), tested_windows,
 			    read_failures, no_candidate_recordings, unusable, recall.hits, recall.expected,
-			    recall.chord_hits, recall.chord_checks, composition_summary(composition).c_str());
+			    recall.chord_hits, recall.chord_checks,
+			    keyboard_precision_summary(precision).c_str(),
+			    chord_precision_summary(keyboard_chord_precision).c_str(),
+			    composition_summary(composition).c_str());
 	}
 	return 0;
 }
