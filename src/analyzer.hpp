@@ -32,6 +32,15 @@ enum class AnalysisInputMode {
 	IsolatedOther,
 };
 
+enum class InstrumentKind {
+	Bass,
+	Guitar,
+	Keyboard,
+	Vocal,
+	Other,
+	Ambiguous,
+};
+
 struct AnalysisSettings {
 	uint32_t sample_rate = 48000;
 	float sensitivity = 1.0f;

@@ -801,6 +801,7 @@ std::array<bool, 12> detected_pitch_classes(const mao::AnalysisSnapshot &snapsho
 	add_detected_pitch_classes(snapshot.guitar_notes, pitch_classes);
 	add_detected_pitch_classes(snapshot.vocal_notes, pitch_classes);
 	add_detected_pitch_classes(snapshot.other_notes, pitch_classes);
+	add_detected_pitch_classes(snapshot.ambiguous_notes, pitch_classes);
 	return pitch_classes;
 }
 
@@ -823,7 +824,8 @@ bool has_chord_label(const char *actual, const std::string &expected)
 
 bool snapshot_has_chord_label(const mao::AnalysisSnapshot &snapshot, const std::string &label)
 {
-	return has_chord_label(snapshot.keyboard_chord.label, label) ||
+	return has_chord_label(snapshot.global_chord.label, label) ||
+	       has_chord_label(snapshot.keyboard_chord.label, label) ||
 	       has_chord_label(snapshot.guitar_chord.label, label) || has_chord_label(snapshot.other_chord.label, label);
 }
 
@@ -1037,10 +1039,12 @@ void check_recall(Runner &runner, const mao::AnalysisSnapshot &snapshot, const C
 		if (chord_hit) {
 			++stats.chord_hits;
 		} else {
-			std::fprintf(stderr, "%s: chord opportunity `%s`, detected key `%s`, guitar `%s`, other `%s`\n",
+			std::fprintf(stderr,
+				     "%s: chord opportunity `%s`, detected global `%s`, key `%s`, guitar `%s`, "
+				     "other `%s`\n",
 				     context.c_str(), join_labels(candidate.chord_labels).c_str(),
-				     snapshot.keyboard_chord.label, snapshot.guitar_chord.label,
-				     snapshot.other_chord.label);
+				     snapshot.global_chord.label, snapshot.keyboard_chord.label,
+				     snapshot.guitar_chord.label, snapshot.other_chord.label);
 		}
 	}
 }

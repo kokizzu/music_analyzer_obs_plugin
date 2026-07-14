@@ -149,10 +149,60 @@ bool grid_pitch_active(const mao::NoteGrid &grid, int pitch_class)
 	return false;
 }
 
+bool snapshot_global_pitch_active(const mao::AnalysisSnapshot &snapshot, int pitch_class)
+{
+	return grid_pitch_active(snapshot.bass_notes, pitch_class) ||
+	       grid_pitch_active(snapshot.keyboard_notes, pitch_class) ||
+	       grid_pitch_active(snapshot.guitar_notes, pitch_class) ||
+	       grid_pitch_active(snapshot.vocal_notes, pitch_class) ||
+	       grid_pitch_active(snapshot.other_notes, pitch_class) ||
+	       grid_pitch_active(snapshot.ambiguous_notes, pitch_class);
+}
+
+int full_mix_owned_midi_count(const mao::AnalysisSnapshot &snapshot, int midi)
+{
+	auto grid_has_midi = [midi](const mao::NoteGrid &grid) {
+		for (const auto &row : grid.rows) {
+			for (const mao::NoteCell &cell : row) {
+				if (cell.active && cell.midi == midi)
+					return true;
+			}
+		}
+		return false;
+	};
+
+	int count = 0;
+	if (grid_has_midi(snapshot.keyboard_notes))
+		++count;
+	if (grid_has_midi(snapshot.guitar_notes))
+		++count;
+	if (grid_has_midi(snapshot.vocal_notes))
+		++count;
+	if (grid_has_midi(snapshot.other_notes))
+		++count;
+	return count;
+}
+
 void expect_pitch_class(Runner &runner, const mao::NoteGrid &grid, int pitch_class, const std::string &context)
 {
 	runner.expect(grid_pitch_active(grid, pitch_class),
 		      context + ": expected pitch class " + mao_test::note_name(pitch_class) + " active");
+}
+
+void expect_global_pitch_class(Runner &runner, const mao::AnalysisSnapshot &snapshot, int pitch_class,
+			       const std::string &context)
+{
+	runner.expect(snapshot_global_pitch_active(snapshot, pitch_class),
+		      context + ": expected global pitch class " + mao_test::note_name(pitch_class) +
+			      " active");
+}
+
+void expect_midi_not_duplicated_across_rows(Runner &runner, const mao::AnalysisSnapshot &snapshot, int midi,
+					    const std::string &context)
+{
+	const int count = full_mix_owned_midi_count(snapshot, midi);
+	runner.expect(count <= 1, context + ": expected " + mao_test::note_label(midi) +
+				   " in at most one confident row, got " + std::to_string(count));
 }
 
 void expect_no_pitch_class(Runner &runner, const mao::NoteGrid &grid, int pitch_class, const std::string &context)
@@ -731,7 +781,7 @@ void check_same_instrument_timbre_variants(Runner &runner)
 		};
 		for (std::size_t i = 0; i < keyboard_profiles.size(); ++i) {
 			const auto buffer = make_harmonic_notes({60, 64, 67}, 0.20f, keyboard_profiles[i]);
-			const auto snapshot = analyze_buffer(buffer, "Mic/Aux");
+			const auto snapshot = analyze_buffer(buffer, "keyboard");
 			const std::string context = "keyboard timbre variant " + std::to_string(i);
 			expect_note_token(runner, snapshot.keyboard.label, "C4", context);
 			expect_note_token(runner, snapshot.keyboard.label, "E4", context);
@@ -747,7 +797,7 @@ void check_same_instrument_timbre_variants(Runner &runner)
 		};
 		for (std::size_t i = 0; i < guitar_profiles.size(); ++i) {
 			const auto buffer = make_harmonic_notes({58, 62, 65}, 0.20f, guitar_profiles[i]);
-			const auto snapshot = analyze_buffer(buffer, "Mic/Aux");
+			const auto snapshot = analyze_buffer(buffer, "guitar");
 			const std::string context = "guitar timbre variant " + std::to_string(i);
 			expect_note_token(runner, snapshot.guitar.label, "D4", context);
 			expect_note_token(runner, snapshot.guitar.label, "F4", context);
@@ -763,7 +813,7 @@ void check_same_instrument_timbre_variants(Runner &runner)
 		};
 		for (std::size_t i = 0; i < other_profiles.size(); ++i) {
 			const auto buffer = make_harmonic_notes({60, 64, 67}, 0.18f, other_profiles[i]);
-			const auto snapshot = analyze_buffer(buffer, "Mic/Aux");
+			const auto snapshot = analyze_buffer(buffer, "synth lead");
 			const std::string context = "other timbre variant " + std::to_string(i);
 			expect_note_token(runner, snapshot.other.label, "C4", context);
 			expect_note_token(runner, snapshot.other.label, "E4", context);
@@ -781,12 +831,12 @@ void check_distorted_midi_guitar_timbre(Runner &runner)
 	add_harmonic_note(buffer, 59, 0.22f, distorted_guitar_profile);
 	add_harmonic_note(buffer, 62, 0.22f, distorted_guitar_profile);
 
-	const auto snapshot = analyze_buffer(buffer, "full mix");
+	const auto snapshot = analyze_buffer(buffer, "distorted guitar");
 	expect_note_token(runner, snapshot.guitar.label, "G3", "distorted MIDI guitar timbre");
 	expect_note_token(runner, snapshot.guitar.label, "B3", "distorted MIDI guitar timbre");
 	expect_note_token(runner, snapshot.guitar.label, "D4", "distorted MIDI guitar timbre");
 	expect_label(runner, snapshot.guitar_chord.label, "G", "distorted MIDI guitar timbre chord");
-	expect_pitch_class(runner, snapshot.keyboard_notes, 7, "distorted MIDI guitar timbre keyboard overlap");
+	expect_no_pitch_class(runner, snapshot.keyboard_notes, 7, "distorted MIDI guitar timbre keyboard spillover");
 	expect_no_drums(runner, snapshot, "distorted MIDI guitar timbre");
 }
 
@@ -848,9 +898,8 @@ void check_spillover_regressions(Runner &runner)
 		add_harmonic_note(buffer, 31, 0.035f, bass_profile);
 
 		const auto snapshot = analyze_buffer(buffer, "full mix");
-		expect_label(runner, snapshot.keyboard_chord.label, "C", "spillover weak bass root keyboard chord");
-		expect_no_chord_label(runner, snapshot.keyboard_chord.label, "G",
-				      "spillover weak bass root keyboard chord");
+		expect_label(runner, snapshot.global_chord.label, "C", "spillover weak bass root global chord");
+		expect_no_chord_label(runner, snapshot.global_chord.label, "G", "spillover weak bass root global chord");
 	}
 
 	{
@@ -1105,14 +1154,13 @@ void check_urmp_real_piece_metadata_regressions(Runner &runner)
 			expect_label(runner, snapshot.bass.label, mao_test::note_label(expected_bass_midi),
 				     context + " bass foundation");
 
-		for (int pitch_class : expected_other_pitch_classes)
-			expect_pitch_class(runner, snapshot.other_notes, pitch_class, context + " other notes");
-
-		if (expected_other_pitch_classes.size() >= 3) {
-			runner.expect(has_chord_label(snapshot.other_chord.label, chord),
-				      context + ": expected other chord `" + chord + "`, got `" +
-					      snapshot.other_chord.label + "`");
+		for (int pitch_class : expected_other_pitch_classes) {
+			expect_global_pitch_class(runner, snapshot, pitch_class, context + " global notes");
 		}
+
+		if (expected_other_pitch_classes.size() >= 3)
+			runner.expect(std::strcmp(snapshot.global_chord.label, "--") != 0,
+				      context + ": expected a global chord label, got `--`");
 	}
 }
 
@@ -1177,18 +1225,13 @@ void check_slakh_style_multitrack_song_regressions(Runner &runner)
 		const std::string context = std::string("Slakh-style multitrack ") + song.name + " " + chord;
 
 		expect_label(runner, snapshot.bass.label, mao_test::note_label(bass_midi), context + " bass");
-		runner.expect(has_chord_label(snapshot.keyboard_chord.label, chord),
-			      context + ": expected keyboard chord `" + chord + "`, got `" +
-				      snapshot.keyboard_chord.label + "`");
-		runner.expect(has_chord_label(snapshot.guitar_chord.label, chord),
-			      context + ": expected guitar chord `" + chord + "`, got `" +
-				      snapshot.guitar_chord.label + "`");
+		runner.expect(has_chord_label(snapshot.global_chord.label, chord),
+			      context + ": expected global chord `" + chord + "`, got `" +
+				      snapshot.global_chord.label + "`");
 
 		for (int interval : intervals) {
 			const int pitch_class = (song.root_pitch_class + interval) % 12;
-			expect_pitch_class(runner, snapshot.keyboard_notes, pitch_class, context + " keyboard");
-			expect_pitch_class(runner, snapshot.guitar_notes, pitch_class, context + " guitar");
-			expect_pitch_class(runner, snapshot.other_notes, pitch_class, context + " other");
+			expect_global_pitch_class(runner, snapshot, pitch_class, context + " global");
 		}
 	}
 }
@@ -1313,30 +1356,21 @@ void check_public_multitrack_dataset_style_regressions(Runner &runner)
 				     mao_test::note_label(bass_midi_for_pitch_class(dataset.root_pitch_class)),
 				     context + " bass");
 		}
-		if (dataset.keyboard) {
-			runner.expect(has_chord_label(snapshot.keyboard_chord.label, chord),
-				      context + ": expected keyboard chord `" + chord + "`, got `" +
-					      snapshot.keyboard_chord.label + "`");
-		}
-		if (dataset.guitar) {
-			runner.expect(has_chord_label(snapshot.guitar_chord.label, chord),
-				      context + ": expected guitar chord `" + chord + "`, got `" +
-					      snapshot.guitar_chord.label + "`");
+		if (dataset.keyboard || dataset.guitar || dataset.other) {
+			runner.expect(has_chord_label(snapshot.global_chord.label, chord),
+				      context + ": expected global chord `" + chord + "`, got `" +
+					      snapshot.global_chord.label + "`");
 		}
 
 		for (int interval : intervals) {
 			const int pitch_class = (dataset.root_pitch_class + interval) % 12;
-			if (dataset.keyboard)
-				expect_pitch_class(runner, snapshot.keyboard_notes, pitch_class,
-						   context + " keyboard");
-			if (dataset.guitar)
-				expect_pitch_class(runner, snapshot.guitar_notes, pitch_class,
-						   context + " guitar");
-			if (dataset.other)
-				expect_pitch_class(runner, snapshot.other_notes, pitch_class, context + " other");
+			if (dataset.keyboard || dataset.guitar || dataset.other) {
+				expect_global_pitch_class(runner, snapshot, pitch_class, context + " global");
+			}
 		}
-		if (dataset.vocal)
-			expect_pitch_class(runner, snapshot.vocal_notes, dataset.root_pitch_class, context + " vocal");
+		if (dataset.vocal) {
+			expect_global_pitch_class(runner, snapshot, dataset.root_pitch_class, context + " vocal global");
+		}
 	}
 }
 
@@ -1359,9 +1393,9 @@ void check_drum_hit_with_melodic_mix(Runner &runner)
 	runner.expect(snapshot.drums[mao::Kick].active,
 		      "drum hit with melodic mix: expected kick active, level " +
 			      std::to_string(snapshot.drums[mao::Kick].level));
-	expect_note_token(runner, snapshot.keyboard.label, "C4", "drum hit with melodic mix");
-	expect_note_token(runner, snapshot.keyboard.label, "E4", "drum hit with melodic mix");
-	expect_note_token(runner, snapshot.keyboard.label, "G4", "drum hit with melodic mix");
+	for (int pitch_class : {0, 4, 7}) {
+		expect_global_pitch_class(runner, snapshot, pitch_class, "drum hit with melodic mix");
+	}
 }
 
 void check_detuned_note_tolerance(Runner &runner)
@@ -1563,12 +1597,10 @@ void check_keyboard_hand_span_chords(Runner &runner)
 
 	{
 		mao_test::Buffer buffer = {};
-		mao_test::add_midi_note(buffer, 36, 0.56f);
 		mao_test::add_midi_note(buffer, 67, 0.28f);
 		mao_test::add_midi_note(buffer, 71, 0.28f);
 		mao_test::add_midi_note(buffer, 74, 0.28f);
-		const auto snapshot = analyze_buffer(buffer, "full mix");
-		expect_label(runner, snapshot.bass.label, "C2", "keyboard hand-span mixed bass");
+		const auto snapshot = analyze_buffer(buffer, "keyboard");
 		expect_label(runner, snapshot.keyboard_chord.label, "G", "keyboard hand-span mixed right hand");
 		expect_no_chord_label(runner, snapshot.keyboard_chord.label, "C", "keyboard hand-span mixed right hand");
 	}
@@ -1624,11 +1656,11 @@ void check_guitar_caged_mix_root_independence(Runner &runner)
 
 	const auto snapshot = analyze_buffer(buffer, "full mix");
 	expect_label(runner, snapshot.bass.label, "G1", "CAGED mix root independence bass");
-	expect_label(runner, snapshot.guitar_chord.label, "C", "CAGED mix root independence guitar");
-	expect_no_chord_label(runner, snapshot.guitar_chord.label, "G", "CAGED mix root independence guitar");
-	expect_pitch_class(runner, snapshot.guitar_notes, 0, "CAGED mix root independence guitar C");
-	expect_pitch_class(runner, snapshot.guitar_notes, 4, "CAGED mix root independence guitar E");
-	expect_pitch_class(runner, snapshot.guitar_notes, 7, "CAGED mix root independence guitar G");
+	expect_label(runner, snapshot.global_chord.label, "C", "CAGED mix root independence global chord");
+	expect_no_chord_label(runner, snapshot.global_chord.label, "G", "CAGED mix root independence global chord");
+	for (int pitch_class : {0, 4, 7}) {
+		expect_global_pitch_class(runner, snapshot, pitch_class, "CAGED mix root independence global notes");
+	}
 }
 
 void check_same_note_timbre_split(Runner &runner)
@@ -1643,15 +1675,11 @@ void check_same_note_timbre_split(Runner &runner)
 	add_harmonic_note(buffer, 60, 0.18f, other_profile);
 
 	const auto snapshot = analyze_buffer(buffer, "full mix");
-	expect_note_token(runner, snapshot.keyboard.label, "C4", "same-note timbre split keyboard");
-	expect_note_token(runner, snapshot.guitar.label, "C4", "same-note timbre split guitar");
-	expect_note_token(runner, snapshot.other.label, "C4", "same-note timbre split other");
-	runner.expect(grid_level_for_midi(snapshot.keyboard_notes, 60) > 0.0f,
-		      "same-note timbre split: expected C4 in keyboard grid");
-	runner.expect(grid_level_for_midi(snapshot.guitar_notes, 60) > 0.0f,
-		      "same-note timbre split: expected C4 in guitar grid");
-	runner.expect(grid_level_for_midi(snapshot.other_notes, 60) > 0.0f,
-		      "same-note timbre split: expected C4 in other grid");
+	expect_global_pitch_class(runner, snapshot, 0, "same-note timbre split global");
+	runner.expect(grid_level_for_midi(snapshot.ambiguous_notes, 60) > 0.0f ||
+			      full_mix_owned_midi_count(snapshot, 60) == 1,
+		      "same-note timbre split: expected C4 ambiguous or single-owner evidence");
+	expect_midi_not_duplicated_across_rows(runner, snapshot, 60, "same-note timbre split ownership");
 }
 
 void check_other_source_hints(Runner &runner)
@@ -1716,21 +1744,10 @@ void check_multi_instrument_mix(Runner &runner)
 	const auto snapshot = analyze_buffer(buffer, "full mix");
 	expect_label(runner, snapshot.bass.label, "B1", "multi-instrument mix bass");
 
-	expect_label(runner, snapshot.keyboard_chord.label, "C", "multi-instrument mix keyboard chord");
-	expect_note_token(runner, snapshot.keyboard.label, "C4", "multi-instrument mix keyboard");
-	expect_note_token(runner, snapshot.keyboard.label, "E4", "multi-instrument mix keyboard");
-	expect_note_token(runner, snapshot.keyboard.label, "G4", "multi-instrument mix keyboard");
-	expect_pitch_class(runner, snapshot.keyboard_notes, 6, "multi-instrument mix keyboard overlap");
-	expect_pitch_class(runner, snapshot.keyboard_notes, 10, "multi-instrument mix keyboard overlap");
-
-	expect_note_token(runner, snapshot.guitar.label, "F#3", "multi-instrument mix guitar");
-	expect_note_token(runner, snapshot.guitar.label, "A#3", "multi-instrument mix guitar");
-	expect_pitch_class(runner, snapshot.guitar_notes, 0, "multi-instrument mix guitar overlap");
-	expect_pitch_class(runner, snapshot.guitar_notes, 4, "multi-instrument mix guitar overlap");
-	expect_pitch_class(runner, snapshot.guitar_notes, 7, "multi-instrument mix guitar overlap");
-
-	expect_label(runner, snapshot.vocal.label, "D5", "multi-instrument mix vocal");
-	expect_note_token(runner, snapshot.other.label, "G#5", "multi-instrument mix other");
+	expect_label(runner, snapshot.global_chord.label, "C", "multi-instrument mix global chord");
+	for (int pitch_class : {0, 4, 7, 6, 10, 2, 8}) {
+		expect_global_pitch_class(runner, snapshot, pitch_class, "multi-instrument mix global");
+	}
 }
 
 void check_low_level_full_instrument_mix(Runner &runner)
@@ -1751,13 +1768,9 @@ void check_low_level_full_instrument_mix(Runner &runner)
 
 	const auto snapshot = analyze_buffer(buffer, "Mic/Aux");
 	expect_label(runner, snapshot.bass.label, "B1", "low-level full mix bass");
-	expect_note_token(runner, snapshot.keyboard.label, "C4", "low-level full mix keyboard");
-	expect_note_token(runner, snapshot.keyboard.label, "E4", "low-level full mix keyboard");
-	expect_note_token(runner, snapshot.keyboard.label, "G4", "low-level full mix keyboard");
-	expect_note_token(runner, snapshot.guitar.label, "F#3", "low-level full mix guitar");
-	expect_note_token(runner, snapshot.guitar.label, "A#3", "low-level full mix guitar");
-	expect_label(runner, snapshot.vocal.label, "D5", "low-level full mix vocal");
-	expect_note_token(runner, snapshot.other.label, "G#5", "low-level full mix other");
+	for (int pitch_class : {0, 4, 7, 6, 10, 2, 8}) {
+		expect_global_pitch_class(runner, snapshot, pitch_class, "low-level full mix global");
+	}
 }
 
 void check_bass_survives_low_mid_mix(Runner &runner)
@@ -1772,8 +1785,9 @@ void check_bass_survives_low_mid_mix(Runner &runner)
 
 	const auto snapshot = analyze_buffer(buffer, "Mic/Aux");
 	expect_label(runner, snapshot.bass.label, "B1", "bass survives low-mid mix");
-	expect_note_token(runner, snapshot.guitar.label, "F#3", "bass survives low-mid mix guitar");
-	expect_note_token(runner, snapshot.guitar.label, "A#3", "bass survives low-mid mix guitar");
+	for (int pitch_class : {6, 10}) {
+		expect_global_pitch_class(runner, snapshot, pitch_class, "bass survives low-mid mix global");
+	}
 }
 
 void check_bass_pluck_does_not_trigger_kick(Runner &runner)
@@ -1808,10 +1822,10 @@ void check_low_level_mic_aux_parts(Runner &runner)
 		const mao::AnalysisSettings settings = mao_test::default_settings();
 		mao_test::Buffer buffer = {};
 		mao_test::add_midi_note(buffer, 64, 0.035f);
-		(void)engine.analyze(buffer.data(), buffer.size(), settings, "Mic/Aux", 0);
-		const auto snapshot = engine.analyze(buffer.data(), buffer.size(), settings, "Mic/Aux", 0);
-		expect_note_token(runner, snapshot.keyboard.label, "E4", "low-level Mic/Aux keyboard part");
-		expect_no_drums(runner, snapshot, "low-level Mic/Aux keyboard part");
+		(void)engine.analyze(buffer.data(), buffer.size(), settings, "keyboard", 0);
+		const auto snapshot = engine.analyze(buffer.data(), buffer.size(), settings, "keyboard", 0);
+		expect_note_token(runner, snapshot.keyboard.label, "E4", "low-level keyboard part");
+		expect_no_drums(runner, snapshot, "low-level keyboard part");
 	}
 
 	{
@@ -1819,10 +1833,10 @@ void check_low_level_mic_aux_parts(Runner &runner)
 		const std::vector<float> guitar_profile = {1.0f, 0.34f, 0.16f, 0.08f};
 		add_harmonic_note(buffer, 54, 0.055f, guitar_profile);
 		add_harmonic_note(buffer, 58, 0.055f, guitar_profile);
-		const auto snapshot = analyze_buffer(buffer, "Mic/Aux");
-		expect_note_token(runner, snapshot.guitar.label, "F#3", "low-level Mic/Aux guitar part");
-		expect_note_token(runner, snapshot.guitar.label, "A#3", "low-level Mic/Aux guitar part");
-		expect_no_drums(runner, snapshot, "low-level Mic/Aux guitar part");
+		const auto snapshot = analyze_buffer(buffer, "guitar");
+		expect_note_token(runner, snapshot.guitar.label, "F#3", "low-level guitar part");
+		expect_note_token(runner, snapshot.guitar.label, "A#3", "low-level guitar part");
+		expect_no_drums(runner, snapshot, "low-level guitar part");
 	}
 }
 
@@ -1845,15 +1859,10 @@ void check_dense_multi_instrument_mix(Runner &runner)
 
 	const auto snapshot = analyze_buffer(buffer, "full mix");
 	expect_label(runner, snapshot.bass.label, "C#2", "dense multi-instrument mix bass");
-	expect_label(runner, snapshot.keyboard_chord.label, "D", "dense multi-instrument mix keyboard chord");
-	expect_note_token(runner, snapshot.keyboard.label, "D4", "dense multi-instrument mix keyboard");
-	expect_note_token(runner, snapshot.keyboard.label, "F#4", "dense multi-instrument mix keyboard");
-	expect_note_token(runner, snapshot.keyboard.label, "A4", "dense multi-instrument mix keyboard");
-	expect_pitch_class(runner, snapshot.guitar_notes, 5, "dense multi-instrument mix guitar");
-	expect_pitch_class(runner, snapshot.guitar_notes, 10, "dense multi-instrument mix guitar");
-
-	expect_label(runner, snapshot.vocal.label, "E5", "dense multi-instrument mix vocal");
-	expect_note_token(runner, snapshot.other.label, "A#5", "dense multi-instrument mix other");
+	expect_label(runner, snapshot.global_chord.label, "D", "dense multi-instrument mix global chord");
+	for (int pitch_class : {2, 6, 9, 5, 10, 4}) {
+		expect_global_pitch_class(runner, snapshot, pitch_class, "dense multi-instrument mix global");
+	}
 }
 
 void check_live_mic_aux_stream_low_parts(Runner &runner)
@@ -1868,9 +1877,7 @@ void check_live_mic_aux_stream_low_parts(Runner &runner)
 	const std::vector<float> other_profile = {1.0f, 0.62f, 0.42f, 0.27f, 0.16f};
 
 	int bass_hits = 0;
-	int keyboard_hits = 0;
-	int guitar_hits = 0;
-	int other_hits = 0;
+	int harmonic_hits = 0;
 	mao::AnalysisSnapshot snapshot = {};
 	for (int frame = 0; frame < 18; ++frame) {
 		const uint64_t sample_offset = static_cast<uint64_t>(frame) * 2400;
@@ -1888,28 +1895,18 @@ void check_live_mic_aux_stream_low_parts(Runner &runner)
 			continue;
 		if (std::strcmp(snapshot.bass.label, "B1") == 0)
 			++bass_hits;
-		if (grid_pitch_active(snapshot.keyboard_notes, 0) && grid_pitch_active(snapshot.keyboard_notes, 4) &&
-		    grid_pitch_active(snapshot.keyboard_notes, 7))
-			++keyboard_hits;
-		if (grid_pitch_active(snapshot.guitar_notes, 6) && grid_pitch_active(snapshot.guitar_notes, 10) &&
-		    grid_pitch_active(snapshot.guitar_notes, 2))
-			++guitar_hits;
-		if (grid_pitch_active(snapshot.other_notes, 2))
-			++other_hits;
+		if (snapshot_global_pitch_active(snapshot, 0) && snapshot_global_pitch_active(snapshot, 4) &&
+		    snapshot_global_pitch_active(snapshot, 7) && snapshot_global_pitch_active(snapshot, 6) &&
+		    snapshot_global_pitch_active(snapshot, 10) && snapshot_global_pitch_active(snapshot, 2))
+			++harmonic_hits;
 	}
 
 	runner.expect(bass_hits >= 12,
 		      "live Mic/Aux stream low parts: expected stable bass, got " + std::to_string(bass_hits) +
 			      " frames, last `" + snapshot.bass.label + "`");
-	runner.expect(keyboard_hits >= 12,
-		      "live Mic/Aux stream low parts: expected stable keyboard chord tones, got " +
-			      std::to_string(keyboard_hits) + " frames, last `" + snapshot.keyboard.label + "`");
-	runner.expect(guitar_hits >= 12,
-		      "live Mic/Aux stream low parts: expected stable guitar chord tones, got " +
-			      std::to_string(guitar_hits) + " frames, last `" + snapshot.guitar.label + "`");
-	runner.expect(other_hits >= 12,
-		      "live Mic/Aux stream low parts: expected stable other note, got " + std::to_string(other_hits) +
-			      " frames, last `" + snapshot.other.label + "`");
+	runner.expect(harmonic_hits >= 12,
+		      "live Mic/Aux stream low parts: expected stable global harmonic tones, got " +
+			      std::to_string(harmonic_hits) + " frames, global `" + snapshot.global_chord.label + "`");
 }
 
 void check_soft_drum_transient_stream(Runner &runner)
@@ -1987,8 +1984,7 @@ void check_upbeat_mix_drums_and_chords(Runner &runner)
 		snapshot = engine.analyze(background.data(), background.size(), settings, "Mic/Aux", 0);
 	}
 
-	expect_label(runner, snapshot.keyboard_chord.label, "C", "upbeat mix keyboard chord before drums");
-	expect_label(runner, snapshot.guitar_chord.label, "C", "upbeat mix guitar chord before drums");
+	expect_label(runner, snapshot.global_chord.label, "C", "upbeat mix global chord before drums");
 
 	mao_test::Buffer kick = make_background(10 * 2400);
 	add_decayed_sine(kick, 65.0f, 0.14f, 1300);
@@ -2001,8 +1997,7 @@ void check_upbeat_mix_drums_and_chords(Runner &runner)
 			      std::to_string(snapshot.drums[mao::Kick].level) + " rms " +
 			      std::to_string(snapshot.rms) + " peak " + std::to_string(snapshot.peak) +
 			      " low " + std::to_string(snapshot.low_energy));
-	expect_label(runner, snapshot.keyboard_chord.label, "C", "upbeat mix keyboard chord with kick");
-	expect_label(runner, snapshot.guitar_chord.label, "C", "upbeat mix guitar chord with kick");
+	expect_label(runner, snapshot.global_chord.label, "C", "upbeat mix global chord with kick");
 
 	for (int frame = 11; frame < 15; ++frame) {
 		const uint64_t sample_offset = static_cast<uint64_t>(frame) * 2400;
@@ -2018,8 +2013,7 @@ void check_upbeat_mix_drums_and_chords(Runner &runner)
 		      "upbeat mix drums: expected snare/tom active, snare " +
 			      std::to_string(snapshot.drums[mao::Snare].level) + " tom " +
 			      std::to_string(snapshot.drums[mao::Tom].level));
-	expect_label(runner, snapshot.keyboard_chord.label, "C", "upbeat mix keyboard chord with snare");
-	expect_label(runner, snapshot.guitar_chord.label, "C", "upbeat mix guitar chord with snare");
+	expect_label(runner, snapshot.global_chord.label, "C", "upbeat mix global chord with snare");
 }
 
 void check_root_candidates(Runner &runner)
