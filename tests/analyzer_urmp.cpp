@@ -631,6 +631,220 @@ bool grid_has_pitch_class(const mao::NoteGrid &grid, int pitch_class)
 	return false;
 }
 
+bool grid_has_midi(const mao::NoteGrid &grid, int midi)
+{
+	for (const mao::NoteCell &cell : grid.cells) {
+		if (cell.active && cell.midi == midi)
+			return true;
+	}
+	return false;
+}
+
+enum class EvalInstrument : std::size_t {
+	Bass = 0,
+	Keyboard = 1,
+	Guitar = 2,
+	Vocal = 3,
+	Other = 4,
+	Ambiguous = 5,
+};
+
+constexpr std::size_t kConcreteEvalInstrumentCount = 5;
+constexpr std::size_t kEvalInstrumentCount = 6;
+
+const char *eval_instrument_name(EvalInstrument instrument)
+{
+	switch (instrument) {
+	case EvalInstrument::Bass:
+		return "bass";
+	case EvalInstrument::Keyboard:
+		return "keyboard";
+	case EvalInstrument::Guitar:
+		return "guitar";
+	case EvalInstrument::Vocal:
+		return "vocal";
+	case EvalInstrument::Other:
+		return "other";
+	case EvalInstrument::Ambiguous:
+	default:
+		return "ambiguous";
+	}
+}
+
+EvalInstrument expected_instrument_for_urmp(const std::string &instrument)
+{
+	if (instrument == "db" || instrument == "tba")
+		return EvalInstrument::Bass;
+	return EvalInstrument::Other;
+}
+
+const mao::NoteGrid &grid_for_eval_instrument(const mao::AnalysisSnapshot &snapshot, EvalInstrument instrument)
+{
+	switch (instrument) {
+	case EvalInstrument::Bass:
+		return snapshot.bass_notes;
+	case EvalInstrument::Keyboard:
+		return snapshot.keyboard_notes;
+	case EvalInstrument::Guitar:
+		return snapshot.guitar_notes;
+	case EvalInstrument::Vocal:
+		return snapshot.vocal_notes;
+	case EvalInstrument::Other:
+		return snapshot.other_notes;
+	case EvalInstrument::Ambiguous:
+	default:
+		return snapshot.ambiguous_notes;
+	}
+}
+
+struct InstrumentPrecisionStats {
+	std::array<int, kConcreteEvalInstrumentCount> expected = {};
+	std::array<int, kConcreteEvalInstrumentCount> true_positives = {};
+	std::array<int, kConcreteEvalInstrumentCount> false_positives = {};
+	std::array<int, kConcreteEvalInstrumentCount> false_negatives = {};
+	std::array<int, kConcreteEvalInstrumentCount> octave_errors = {};
+	std::array<std::array<int, kEvalInstrumentCount>, kConcreteEvalInstrumentCount> confusion = {};
+	int evaluated_notes = 0;
+	int contaminated_notes = 0;
+	int ambiguous_notes = 0;
+};
+
+void add_isolated_track_metrics(InstrumentPrecisionStats &stats, EvalInstrument expected_instrument,
+				int expected_midi, const mao::AnalysisSnapshot &snapshot)
+{
+	const std::size_t expected_index = static_cast<std::size_t>(expected_instrument);
+	if (expected_index >= kConcreteEvalInstrumentCount)
+		return;
+
+	const int expected_pitch_class = ((expected_midi % 12) + 12) % 12;
+	++stats.evaluated_notes;
+	++stats.expected[expected_index];
+
+	bool exact_expected_hit = false;
+	for (std::size_t actual_index = 0; actual_index < kConcreteEvalInstrumentCount; ++actual_index) {
+		const EvalInstrument actual = static_cast<EvalInstrument>(actual_index);
+		const mao::NoteGrid &grid = grid_for_eval_instrument(snapshot, actual);
+		for (const mao::NoteCell &cell : grid.cells) {
+			if (!cell.active || cell.midi < mao::kFirstAnalyzedMidi || cell.midi > mao::kLastAnalyzedMidi)
+				continue;
+			if (actual_index == expected_index && cell.midi == expected_midi) {
+				exact_expected_hit = true;
+				++stats.true_positives[actual_index];
+			} else {
+				++stats.false_positives[actual_index];
+			}
+		}
+	}
+
+	if (!exact_expected_hit) {
+		++stats.false_negatives[expected_index];
+		const mao::NoteGrid &expected_grid = grid_for_eval_instrument(snapshot, expected_instrument);
+		if (grid_has_pitch_class(expected_grid, expected_pitch_class) &&
+		    !grid_has_midi(expected_grid, expected_midi))
+			++stats.octave_errors[expected_index];
+	}
+
+	bool contaminated = false;
+	for (std::size_t actual_index = 0; actual_index < kConcreteEvalInstrumentCount; ++actual_index) {
+		if (actual_index == expected_index)
+			continue;
+		const EvalInstrument actual = static_cast<EvalInstrument>(actual_index);
+		if (grid_has_pitch_class(grid_for_eval_instrument(snapshot, actual), expected_pitch_class)) {
+			++stats.confusion[expected_index][actual_index];
+			contaminated = true;
+		}
+	}
+
+	if (grid_has_pitch_class(snapshot.ambiguous_notes, expected_pitch_class)) {
+		++stats.confusion[expected_index][static_cast<std::size_t>(EvalInstrument::Ambiguous)];
+		++stats.ambiguous_notes;
+	}
+	if (contaminated)
+		++stats.contaminated_notes;
+}
+
+int array_sum(const std::array<int, kConcreteEvalInstrumentCount> &values)
+{
+	int sum = 0;
+	for (int value : values)
+		sum += value;
+	return sum;
+}
+
+int percentage_floor(int numerator, int denominator)
+{
+	return denominator > 0 ? numerator * 100 / denominator : 0;
+}
+
+std::string percent_string(int numerator, int denominator)
+{
+	char buffer[32] = {};
+	std::snprintf(buffer, sizeof(buffer), "%.2f%%",
+		      denominator > 0 ? static_cast<double>(numerator) * 100.0 / static_cast<double>(denominator) :
+				       0.0);
+	return buffer;
+}
+
+std::string confusion_summary(const InstrumentPrecisionStats &stats)
+{
+	std::string summary;
+	for (std::size_t expected = 0; expected < kConcreteEvalInstrumentCount; ++expected) {
+		int row_total = 0;
+		for (int value : stats.confusion[expected])
+			row_total += value;
+		if (row_total == 0)
+			continue;
+
+		if (!summary.empty())
+			summary += "; ";
+		summary += eval_instrument_name(static_cast<EvalInstrument>(expected));
+		summary += "->";
+		bool any = false;
+		for (std::size_t actual = 0; actual < kEvalInstrumentCount; ++actual) {
+			const int value = stats.confusion[expected][actual];
+			if (value == 0)
+				continue;
+			if (any)
+				summary += ",";
+			summary += eval_instrument_name(static_cast<EvalInstrument>(actual));
+			summary += ":";
+			summary += std::to_string(value);
+			any = true;
+		}
+	}
+	return summary.empty() ? "none" : summary;
+}
+
+std::string instrument_precision_summary(const InstrumentPrecisionStats &stats)
+{
+	const int tp = array_sum(stats.true_positives);
+	const int fp = array_sum(stats.false_positives);
+	const int fn = array_sum(stats.false_negatives);
+	const int octave_errors = array_sum(stats.octave_errors);
+	std::string by_row;
+	for (std::size_t i = 0; i < kConcreteEvalInstrumentCount; ++i) {
+		if (stats.expected[i] == 0 && stats.true_positives[i] == 0 && stats.false_positives[i] == 0 &&
+		    stats.false_negatives[i] == 0)
+			continue;
+		if (!by_row.empty())
+			by_row += "; ";
+		by_row += eval_instrument_name(static_cast<EvalInstrument>(i));
+		by_row += " tp/fp/fn ";
+		by_row += std::to_string(stats.true_positives[i]);
+		by_row += "/";
+		by_row += std::to_string(stats.false_positives[i]);
+		by_row += "/";
+		by_row += std::to_string(stats.false_negatives[i]);
+	}
+	return "isolated precision " + percent_string(tp, tp + fp) + ", recall " +
+	       percent_string(tp, tp + fn) + ", contamination " +
+	       percent_string(stats.contaminated_notes, stats.evaluated_notes) + ", octave-error " +
+	       percent_string(octave_errors, stats.evaluated_notes) + ", ambiguous " +
+	       std::to_string(stats.ambiguous_notes) + "/" + std::to_string(stats.evaluated_notes) +
+	       ", by-row " + (by_row.empty() ? "none" : by_row) + ", confusion " +
+	       confusion_summary(stats);
+}
+
 void add_detected_pitch_classes(const mao::NoteGrid &grid, std::array<bool, 12> &pitch_classes)
 {
 	for (int pitch_class = 0; pitch_class < 12; ++pitch_class) {
@@ -1377,6 +1591,12 @@ int main()
 		resolve_percent_env("MUSIC_ANALYZER_URMP_MIN_WINDOW_RECALL_PERCENT", 50);
 	const int min_track_recall_percent =
 		resolve_percent_env("MUSIC_ANALYZER_URMP_MIN_TRACK_RECALL_PERCENT", 70);
+	const int min_track_precision_percent =
+		resolve_percent_env("MUSIC_ANALYZER_URMP_MIN_TRACK_PRECISION_PERCENT", 90);
+	const int max_track_contamination_percent =
+		resolve_percent_env("MUSIC_ANALYZER_URMP_MAX_TRACK_CONTAMINATION_PERCENT", 5);
+	const int max_track_octave_error_percent =
+		resolve_percent_env("MUSIC_ANALYZER_URMP_MAX_TRACK_OCTAVE_ERROR_PERCENT", 5);
 	const int min_mix_recall_percent = resolve_percent_env("MUSIC_ANALYZER_URMP_MIN_MIX_RECALL_PERCENT", 55);
 	const int min_chord_recall_percent =
 		resolve_percent_env("MUSIC_ANALYZER_URMP_MIN_CHORD_RECALL_PERCENT", 35);
@@ -1398,6 +1618,7 @@ int main()
 	MixRecallStats summed_stream_stats;
 	MixRecallStats provided_sequence_stats;
 	MixRecallStats summed_sequence_stats;
+	InstrumentPrecisionStats isolated_track_metrics;
 	WindowCompositionStats composition_stats;
 	RangeStats source_track_stats;
 	int tested_windows = 0;
@@ -1545,6 +1766,9 @@ int main()
 
 				const int pitch_class = ((active.midi % 12) + 12) % 12;
 				const bool hit = has_pitch_class(detected_pitch_classes(track_snapshot), pitch_class);
+				add_isolated_track_metrics(isolated_track_metrics,
+							   expected_instrument_for_urmp(track.instrument),
+							   active.midi, track_snapshot);
 				++track_checks;
 				if (hit) {
 					++track_hits;
@@ -1603,6 +1827,46 @@ int main()
 		      "URMP separated-track recall: expected >=" + std::to_string(min_track_recall_percent) +
 			      "%, got " + std::to_string(track_hits) + "/" +
 			      std::to_string(track_checks));
+	const int track_metric_tp = array_sum(isolated_track_metrics.true_positives);
+	const int track_metric_fp = array_sum(isolated_track_metrics.false_positives);
+	const int track_metric_fn = array_sum(isolated_track_metrics.false_negatives);
+	const int track_metric_octave_errors = array_sum(isolated_track_metrics.octave_errors);
+	runner.expect(isolated_track_metrics.evaluated_notes == track_checks,
+		      "URMP separated-track metrics: expected one metric row for every track check, got " +
+			      std::to_string(isolated_track_metrics.evaluated_notes) + "/" +
+			      std::to_string(track_checks));
+	runner.expect(track_metric_tp > 0 &&
+			      percentage_floor(track_metric_tp, track_metric_tp + track_metric_fp) >=
+				      min_track_precision_percent,
+		      "URMP separated-track precision: expected >=" +
+			      std::to_string(min_track_precision_percent) + "%, got " +
+			      std::to_string(track_metric_tp) + "/" +
+			      std::to_string(track_metric_tp + track_metric_fp) + " (" +
+			      instrument_precision_summary(isolated_track_metrics) + ")");
+	runner.expect(track_metric_tp > 0 &&
+			      percentage_floor(track_metric_tp, track_metric_tp + track_metric_fn) >=
+				      min_track_recall_percent,
+		      "URMP separated-track exact recall: expected >=" +
+			      std::to_string(min_track_recall_percent) + "%, got " +
+			      std::to_string(track_metric_tp) + "/" +
+			      std::to_string(track_metric_tp + track_metric_fn) + " (" +
+			      instrument_precision_summary(isolated_track_metrics) + ")");
+	runner.expect(percentage_floor(isolated_track_metrics.contaminated_notes,
+				       isolated_track_metrics.evaluated_notes) <=
+			      max_track_contamination_percent,
+		      "URMP separated-track contamination: expected <=" +
+			      std::to_string(max_track_contamination_percent) + "%, got " +
+			      std::to_string(isolated_track_metrics.contaminated_notes) + "/" +
+			      std::to_string(isolated_track_metrics.evaluated_notes) + " (" +
+			      instrument_precision_summary(isolated_track_metrics) + ")");
+	runner.expect(percentage_floor(track_metric_octave_errors,
+				       isolated_track_metrics.evaluated_notes) <=
+			      max_track_octave_error_percent,
+		      "URMP separated-track octave-error rate: expected <=" +
+			      std::to_string(max_track_octave_error_percent) + "%, got " +
+			      std::to_string(track_metric_octave_errors) + "/" +
+			      std::to_string(isolated_track_metrics.evaluated_notes) + " (" +
+			      instrument_precision_summary(isolated_track_metrics) + ")");
 	runner.expect(provided_mix_stats.expected > 0 &&
 			      provided_mix_stats.hits * 100 >= provided_mix_stats.expected * min_mix_recall_percent,
 		      "URMP provided full-mix pitch-class recall: expected >=" +
@@ -1679,6 +1943,8 @@ int main()
 			     coverage_summary(coverage, tested_pieces, tested_windows, composition_stats,
 					      source_track_stats)
 				     .c_str());
+		std::fprintf(stderr, "analyzer_urmp: metrics: %s\n",
+			     instrument_precision_summary(isolated_track_metrics).c_str());
 		return 1;
 	}
 
@@ -1702,5 +1968,7 @@ int main()
 	std::printf("analyzer_urmp: coverage: %s\n",
 		    coverage_summary(coverage, tested_pieces, tested_windows, composition_stats, source_track_stats)
 			    .c_str());
+	std::printf("analyzer_urmp: metrics: %s\n",
+		    instrument_precision_summary(isolated_track_metrics).c_str());
 	return 0;
 }

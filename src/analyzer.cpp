@@ -104,6 +104,15 @@ AnalysisInputMode resolve_input_mode(const AnalysisSettings &settings, const cha
 	return infer_input_mode_from_source(source_name);
 }
 
+bool is_monophonic_other_track_source(const char *source_name)
+{
+	if (!source_name || !contains_case_insensitive(source_name, "track"))
+		return false;
+	return contains_case_insensitive(source_name, "string") || contains_case_insensitive(source_name, "brass") ||
+	       contains_case_insensitive(source_name, "horn") || contains_case_insensitive(source_name, "violin") ||
+	       contains_case_insensitive(source_name, "wind") || contains_case_insensitive(source_name, "woodwind");
+}
+
 const char *note_name(int midi)
 {
 	static constexpr const char *kNames[12] = {"C", "C#", "D", "D#", "E", "F",
@@ -2593,6 +2602,9 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 	ChordResult raw_other_chord;
 	ChordResult raw_global_chord;
 	FullMixOwnership full_mix_ownership;
+	const bool monophonic_other_source =
+		input_mode == AnalysisInputMode::IsolatedOther && is_monophonic_other_track_source(resolved_source_name);
+	const int other_max_notes = monophonic_other_source ? 1 : (mixed_source ? 12 : 8);
 	if (mixed_source) {
 		full_mix_ownership = build_full_mix_ownership(note_powers, detection_note_powers, rms);
 		set_note_grid_from_candidates(snapshot.ambiguous_notes, full_mix_ownership.ambiguous_candidates, rms, 12);
@@ -2708,13 +2720,12 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 	auto process_other = [&]() {
 		const int min_midi = mixed_source ? 60 : kOtherMinMidi;
 		const float relative_floor = mixed_source ? kMixedNoteRelativeFloor : kNoteRelativeFloor;
-		const bool allow_extensions = !mixed_source;
+		const bool allow_extensions = !mixed_source && !monophonic_other_source;
 		const bool suppress_adjacent = mixed_source;
 		std::array<bool, kNoteProbeCount> timbre_filter =
 			mixed_source ? full_mix_ownership.other :
 				       timbre_midi_filter(note_powers, min_midi, kOtherMaxMidi, TimbreKind::Other);
 		const std::array<bool, kNoteProbeCount> *allowed_midis = mixed_source ? &timbre_filter : nullptr;
-		const int max_notes = mixed_source ? 12 : 8;
 		const std::array<float, 12> chroma =
 			peak_chroma_for_range(detection_note_powers, min_midi, kOtherMaxMidi, nullptr,
 					      suppress_adjacent, allowed_midis, relative_floor);
@@ -2723,10 +2734,11 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 						   lowest_peak_pitch_class(detection_note_powers, min_midi,
 									   kOtherMaxMidi, nullptr, suppress_adjacent,
 									   allowed_midis);
-		raw_other_chord = detect_chord(chroma, preferred_root, allow_extensions);
+		raw_other_chord = monophonic_other_source ? ChordResult{} :
+						     detect_chord(chroma, preferred_root, allow_extensions);
 		set_instrument_note_set(snapshot.other_notes, snapshot.other, detection_note_powers, min_midi, kOtherMaxMidi,
 					raw_other_chord.root >= 0 ? raw_other_chord.root : preferred_root, other_energy, rms,
-					max_notes,
+					other_max_notes,
 					nullptr, nullptr, suppress_adjacent, allowed_midis, relative_floor);
 		set_instrument_chord(snapshot.other_chord, raw_other_chord, other_energy, rms);
 	};
@@ -2829,13 +2841,16 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 
 	if (other_enabled) {
 		smooth_note_grid_envelope(snapshot.other_notes, snapshot.other, other_note_tracking_, -1,
-					  interval_seconds, mixed_source ? 12 : 8, other_new_notes,
+					  interval_seconds, other_max_notes, other_new_notes,
 					  kNoteAttackConfirmFrames,
 					  mixed_source ? kMixedNoteEnvelopeImmediateConfirmFloor :
 							 kNoteEnvelopeImmediateConfirmFloor);
 		const ChordResult smoothed_other_chord =
-			detect_chord(note_grid_chroma(snapshot.other_notes),
-				     lowest_note_grid_pitch_class(snapshot.other_notes), allow_smoothed_extensions);
+			monophonic_other_source ?
+				ChordResult{} :
+				detect_chord(note_grid_chroma(snapshot.other_notes),
+					     lowest_note_grid_pitch_class(snapshot.other_notes),
+					     allow_smoothed_extensions);
 		stabilize_chord(snapshot.other_chord, other_chord_tracking_, raw_other_chord, smoothed_other_chord,
 				true, interval_seconds, false);
 	} else {
