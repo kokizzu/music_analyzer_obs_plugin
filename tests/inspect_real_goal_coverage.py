@@ -253,6 +253,8 @@ def main():
          "full-mix ownership keeps fixed-size temporal history"),
         (analyzer_impl, "previous_full_mix_note_levels_.fill(0.0f)",
          "full-mix temporal history resets with analyzer state"),
+        (analyzer_cases, "check_input_mode_change_resets_state",
+         "input-mode changes clear incompatible analyzer state"),
         (analyzer_header, "tracked_bass_midi_",
          "bass detection keeps monophonic continuity state"),
         (analyzer_header, "pending_bass_hits_",

@@ -2943,6 +2943,51 @@ void check_source_and_sample_rate_changes_reset_state(Runner &runner)
 	}
 }
 
+void check_input_mode_change_resets_state(Runner &runner)
+{
+	{
+		mao::AnalysisEngine engine;
+		mao::AnalysisSettings settings = mao_test::default_settings();
+		settings.input_mode = mao::AnalysisInputMode::IsolatedKeyboard;
+		settings.analysis_interval_seconds = 0.05f;
+		const mao_test::Buffer chord = mao_test::make_midi_notes({60, 64, 67}, 0.34f);
+		mao::AnalysisSnapshot snapshot = {};
+		for (int i = 0; i < 4; ++i)
+			snapshot = engine.analyze(chord.data(), chord.size(), settings, "shared bus", 0);
+		expect_chord_label_present(runner, snapshot.keyboard_chord.label, "C",
+					   "input-mode reset seeded keyboard chord");
+		expect_pitch_class(runner, snapshot.keyboard_notes, 0, "input-mode reset seeded keyboard notes");
+
+		settings.input_mode = mao::AnalysisInputMode::FullMix;
+		const mao_test::Buffer silence = {};
+		snapshot = engine.analyze(silence.data(), silence.size(), settings, "shared bus", 0);
+		expect_label(runner, snapshot.keyboard_chord.label, "--", "input-mode reset keyboard chord");
+		expect_label(runner, snapshot.global_chord.label, "--", "input-mode reset global chord");
+		expect_empty_note_grid(runner, snapshot.keyboard_notes, "input-mode reset keyboard notes");
+		expect_empty_note_grid(runner, snapshot.ambiguous_notes, "input-mode reset ambiguous notes");
+	}
+
+	{
+		mao::AnalysisEngine engine;
+		mao::AnalysisSettings settings = mao_test::default_settings();
+		settings.input_mode = mao::AnalysisInputMode::FullMix;
+		settings.analysis_interval_seconds = 0.05f;
+		const mao_test::Buffer chord = mao_test::make_midi_notes({60, 64, 67}, 0.34f);
+		mao::AnalysisSnapshot snapshot = {};
+		for (int i = 0; i < 8; ++i)
+			snapshot = engine.analyze(chord.data(), chord.size(), settings, "shared bus", 0);
+		expect_label(runner, snapshot.global_chord.label, "C", "input-mode reset seeded global chord");
+
+		settings.input_mode = mao::AnalysisInputMode::IsolatedGuitar;
+		const mao_test::Buffer silence = {};
+		snapshot = engine.analyze(silence.data(), silence.size(), settings, "shared bus", 0);
+		expect_label(runner, snapshot.global_chord.label, "--", "input-mode reset isolated global chord");
+		expect_label(runner, snapshot.guitar_chord.label, "--", "input-mode reset isolated guitar chord");
+		expect_empty_note_grid(runner, snapshot.guitar_notes, "input-mode reset isolated guitar notes");
+		expect_empty_note_grid(runner, snapshot.ambiguous_notes, "input-mode reset isolated ambiguous notes");
+	}
+}
+
 } // namespace
 
 int main()
@@ -3014,6 +3059,7 @@ int main()
 	check_empty_input_resets_same_source_state(runner);
 	check_explicit_analysis_reset(runner);
 	check_source_and_sample_rate_changes_reset_state(runner);
+	check_input_mode_change_resets_state(runner);
 
 	if (runner.failures != 0) {
 		std::fprintf(stderr, "analyzer_cases: %d/%d checks failed\n", runner.failures, runner.checks);

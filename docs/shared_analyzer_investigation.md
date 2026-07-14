@@ -220,7 +220,9 @@ baseline paths:
 * Empty input/status snapshots reset the full analyzer state for the current
   source, including root, tempo, drum, note, and chord history. This prevents a
   restarted frontend from inheriting stale analysis from the previous capture
-  stream.
+  stream. Regression coverage also switches one `AnalysisEngine` between
+  isolated and full-mix input modes with the same source name, proving the mode
+  change itself clears incompatible note and chord history.
   `AnalysisEngine::reset()` exposes the same reset path explicitly for
   frontends that switch devices or restart a capture stream without first
   producing an empty analysis window.
