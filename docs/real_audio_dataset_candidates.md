@@ -326,9 +326,13 @@ without additional annotation.
   E-GMD archive. The analyzer gate expects the official metadata CSV with
   `audio_filename` and `midi_filename`, reads the paired WAV/MIDI files, parses
   MIDI drum hit and velocity events, selects drum-hit windows, and checks
-  drum-category recall. E-GMD is a focused drum real-audio add-on; it does not
-  replace URMP because it is drum-only, but it gives much stronger
-  bass-drum/snare/hi-hat/tom/cymbal coverage than generated fixtures alone.
+  drum-category recall/precision/F1 plus false-positive drum windows. The
+  default gates are `MUSIC_ANALYZER_EGMD_MIN_RECALL_PERCENT=35`,
+  `MUSIC_ANALYZER_EGMD_MIN_PRECISION_PERCENT=50`, and
+  `MUSIC_ANALYZER_EGMD_MAX_FALSE_POSITIVE_WINDOWS_PERCENT=75`. E-GMD is a
+  focused drum real-audio add-on; it does not replace URMP because it is
+  drum-only, but it gives much stronger bass-drum/snare/hi-hat/tom/cymbal
+  coverage than generated fixtures alone.
 - Use `make inspect-real-musicnet-remote` before downloading MusicNet to verify
   the current Zenodo metadata. It checks the open CC-BY-4.0 record, the
   `musicnet.tar.gz` WAV/CSV audio-label archive, `musicnet_metadata.csv`,

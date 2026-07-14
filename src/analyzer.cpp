@@ -2580,6 +2580,56 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 			drum_segment_peaks[5] * 0.5f,
 		drum_segment_peaks[10] + drum_segment_peaks[11] + drum_segment_peaks[12] * 0.75f,
 	};
+	const float strongest_body_drum =
+		std::max(drum_segment_bands[Kick], std::max(drum_segment_bands[Snare], drum_segment_bands[Tom]));
+	const float kick_body = drum_segment_peaks[0] + drum_segment_peaks[1] + drum_segment_peaks[2] * 0.45f;
+	const float snare_body =
+		drum_segment_peaks[4] + drum_segment_peaks[5] + drum_segment_peaks[8] * 0.45f;
+	const float tom_body = drum_segment_peaks[2] + drum_segment_peaks[3] + drum_segment_peaks[4];
+	const bool kick_shape = strongest_body_drum <= 0.0f ||
+				(drum_segment_bands[Kick] >= strongest_body_drum * 0.58f &&
+				 kick_body >= std::max(snare_body, tom_body) * 0.50f);
+	const bool snare_shape = strongest_body_drum <= 0.0f ||
+				 (drum_segment_bands[Snare] >= strongest_body_drum * 0.58f &&
+				  snare_body >= kick_body * 0.38f && snare_body >= tom_body * 0.46f);
+	const bool tom_shape = strongest_body_drum <= 0.0f ||
+			       (drum_segment_bands[Tom] >= strongest_body_drum * 0.58f &&
+				tom_body >= kick_body * 0.42f && tom_body >= snare_body * 0.40f);
+	const float cymbal_low = drum_segment_peaks[10] + drum_segment_peaks[11];
+	const float cymbal_mid = drum_segment_peaks[11] + drum_segment_peaks[12];
+	const float cymbal_high = drum_segment_peaks[13] + drum_segment_peaks[14];
+	const std::array<float, 3> body_shape_scores = {
+		kick_body * (1.0f + snapshot.low_energy * 0.90f),
+		snare_body * (1.0f + snapshot.mid_energy * 0.45f),
+		tom_body,
+	};
+	std::size_t body_shape = Kick;
+	if (body_shape_scores[1] > body_shape_scores[0] && body_shape_scores[1] >= body_shape_scores[2])
+		body_shape = Snare;
+	else if (body_shape_scores[2] > body_shape_scores[0] && body_shape_scores[2] > body_shape_scores[1])
+		body_shape = Tom;
+	const float strongest_cymbal_drum =
+		std::max(drum_segment_bands[HiHat], std::max(drum_segment_bands[Crash], drum_segment_bands[Ride]));
+	std::size_t cymbal_shape = HiHat;
+	if (drum_segment_peaks[14] > (drum_segment_peaks[12] + drum_segment_peaks[13]) * 0.65f)
+		cymbal_shape = Crash;
+	else if (cymbal_low > cymbal_mid * 1.15f && cymbal_low > cymbal_high * 1.15f)
+		cymbal_shape = Ride;
+	const bool cymbal_shape_allowed =
+		strongest_cymbal_drum > 0.0f &&
+		(snapshot.high_energy >= 0.03f || strongest_cymbal_drum >= strongest_body_drum * 0.10f);
+	const bool body_shape_allowed =
+		strongest_body_drum > 0.0f &&
+		(!cymbal_shape_allowed || snapshot.high_energy < 0.62f ||
+		 strongest_body_drum >= strongest_cymbal_drum * 0.45f);
+	const std::array<bool, kDrumCount> drum_shape_supported = {
+		body_shape_allowed && body_shape == Kick && kick_shape,
+		body_shape_allowed && body_shape == Snare && snare_shape,
+		cymbal_shape_allowed && cymbal_shape == HiHat,
+		cymbal_shape_allowed && cymbal_shape == Crash,
+		body_shape_allowed && body_shape == Tom && tom_shape,
+		cymbal_shape_allowed && cymbal_shape == Ride,
+	};
 
 	const float sensitivity = std::clamp(settings.sensitivity, 0.25f, 4.0f);
 	const float trigger_threshold = 1.42f / sensitivity;
@@ -2616,20 +2666,27 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 		if (i == Snare)
 			score *= 1.0f + snapshot.mid_energy * 0.45f;
 
-		const bool soft_cymbal_transient = had_previous_audio && cymbal && transient_ratio >= 1.35f;
+		const bool cymbal_family_evidence =
+			strongest_cymbal_drum >= strongest_body_drum * 0.10f || snapshot.high_energy >= 0.03f;
+		const bool soft_cymbal_transient =
+			had_previous_audio && cymbal && cymbal_family_evidence && transient_ratio >= 0.65f;
 		const bool soft_kick_transient =
 			had_previous_audio && kick && kick_click_transient && transient_ratio >= 1.00f;
 		const bool soft_snare_transient = had_previous_audio && snare && transient_ratio >= 1.10f;
 		const bool soft_tom_transient = had_previous_audio && tom && transient_ratio >= 1.18f;
 		const bool soft_body_transient = soft_kick_transient || soft_snare_transient || soft_tom_transient;
-		const float threshold_scale = soft_cymbal_transient ? 0.62f :
+		const bool shape_supported = drum_shape_supported[i];
+		const bool quiet_cymbal_shape =
+			had_previous_audio && cymbal && shape_supported && cymbal_family_evidence &&
+			strongest_cymbal_drum >= strongest_body_drum * 0.10f;
+		const float threshold_scale = (soft_cymbal_transient || quiet_cymbal_shape) ? 0.26f :
 					      soft_kick_transient ? 0.25f :
 					      soft_snare_transient ? 0.48f :
 					      soft_tom_transient ? 0.60f :
 								     1.0f;
 		const float effective_threshold = trigger_threshold * threshold_scale;
-		if (rms > kSilenceRms && (!kick || kick_click_transient) &&
-		    (drum_transient || soft_cymbal_transient || soft_body_transient) &&
+		if (rms > kSilenceRms && shape_supported && (!kick || kick_click_transient) &&
+		    (drum_transient || soft_cymbal_transient || quiet_cymbal_shape || soft_body_transient) &&
 		    score > effective_threshold) {
 			const float level = std::clamp((score - effective_threshold) * 0.85f, 0.35f, 1.0f);
 			drum_level_[i] = std::max(drum_level_[i], level);

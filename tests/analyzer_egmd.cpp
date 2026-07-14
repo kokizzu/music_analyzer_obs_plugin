@@ -890,6 +890,17 @@ struct RecallStats {
 	int expected = 0;
 };
 
+struct DrumPrecisionStats {
+	int windows = 0;
+	int true_positives = 0;
+	int false_positives = 0;
+	int false_negatives = 0;
+	int expected_categories = 0;
+	int predicted_categories = 0;
+	int false_positive_windows = 0;
+	std::array<int, mao::kDrumCount> false_positives_by_category = {};
+};
+
 std::string drum_snapshot_details(const mao::AnalysisSnapshot &snapshot)
 {
 	std::string details = " levels";
@@ -900,6 +911,78 @@ std::string drum_snapshot_details(const mao::AnalysisSnapshot &snapshot)
 		details += part;
 	}
 	return details;
+}
+
+int percentage_floor(int numerator, int denominator)
+{
+	return denominator > 0 ? numerator * 100 / denominator : 0;
+}
+
+std::string percent_string(int numerator, int denominator)
+{
+	char buffer[32] = {};
+	std::snprintf(buffer, sizeof(buffer), "%.2f%%",
+		      denominator > 0 ? static_cast<double>(numerator) * 100.0 / static_cast<double>(denominator) :
+				       0.0);
+	return buffer;
+}
+
+std::string f1_string(int true_positives, int false_positives, int false_negatives)
+{
+	const int denominator = 2 * true_positives + false_positives + false_negatives;
+	char buffer[32] = {};
+	std::snprintf(buffer, sizeof(buffer), "%.2f%%",
+		      denominator > 0 ?
+			      static_cast<double>(2 * true_positives) * 100.0 / static_cast<double>(denominator) :
+			      0.0);
+	return buffer;
+}
+
+void add_drum_precision_metrics(DrumPrecisionStats &stats, const mao::AnalysisSnapshot &snapshot,
+				const CandidateWindow &candidate)
+{
+	++stats.windows;
+	bool false_positive_window = false;
+	for (std::size_t i = 0; i < mao::kDrumCount; ++i) {
+		const bool expected = candidate.categories[i];
+		const bool predicted = snapshot.drums[i].active;
+		if (expected)
+			++stats.expected_categories;
+		if (predicted)
+			++stats.predicted_categories;
+
+		if (expected && predicted) {
+			++stats.true_positives;
+		} else if (expected && !predicted) {
+			++stats.false_negatives;
+		} else if (!expected && predicted) {
+			++stats.false_positives;
+			++stats.false_positives_by_category[i];
+			false_positive_window = true;
+		}
+	}
+	if (false_positive_window)
+		++stats.false_positive_windows;
+}
+
+std::string drum_precision_summary(const DrumPrecisionStats &stats)
+{
+	static constexpr const char *kLabels[mao::kDrumCount] = {"kick", "snare", "hihat", "crash", "tom", "ride"};
+	std::string by_category;
+	for (std::size_t i = 0; i < mao::kDrumCount; ++i) {
+		if (!by_category.empty())
+			by_category += "/";
+		by_category += std::string(kLabels[i]) + ":" + std::to_string(stats.false_positives_by_category[i]);
+	}
+
+	return "drum precision " +
+	       percent_string(stats.true_positives, stats.true_positives + stats.false_positives) +
+	       ", drum recall " +
+	       percent_string(stats.true_positives, stats.true_positives + stats.false_negatives) +
+	       ", F1 " + f1_string(stats.true_positives, stats.false_positives, stats.false_negatives) +
+	       ", false-positive windows " + percent_string(stats.false_positive_windows, stats.windows) +
+	       ", fp by category " + by_category + ", tp/fp/fn " + std::to_string(stats.true_positives) +
+	       "/" + std::to_string(stats.false_positives) + "/" + std::to_string(stats.false_negatives);
 }
 
 void check_recall(Runner &runner, const mao::AnalysisSnapshot &snapshot, const CandidateWindow &candidate,
@@ -1004,10 +1087,14 @@ int main()
 	const int required_windows =
 		resolve_positive_int_env("MUSIC_ANALYZER_EGMD_REQUIRED_WINDOWS", default_required_windows);
 	const int min_recall_percent = resolve_percent_env("MUSIC_ANALYZER_EGMD_MIN_RECALL_PERCENT", 35);
+	const int min_precision_percent = resolve_percent_env("MUSIC_ANALYZER_EGMD_MIN_PRECISION_PERCENT", 50);
+	const int max_false_positive_windows_percent =
+		resolve_percent_env("MUSIC_ANALYZER_EGMD_MAX_FALSE_POSITIVE_WINDOWS_PERCENT", 75);
 	const bool inspect_only = env_truthy("MUSIC_ANALYZER_EGMD_INSPECT_ONLY");
 
 	Runner runner;
 	RecallStats recall;
+	DrumPrecisionStats precision;
 	CompositionStats composition;
 	int recordings_with_windows = 0;
 	int tested_windows = 0;
@@ -1045,6 +1132,7 @@ int main()
 				     "E-GMD " + recording.id + " at sample " +
 					     std::to_string(candidate.center_sample),
 				     recall, min_recall_percent);
+			add_drum_precision_metrics(precision, snapshot, candidate);
 		}
 
 		if (recording_windows > 0)
@@ -1074,16 +1162,36 @@ int main()
 			      "E-GMD drum-category recall: expected >=" + std::to_string(min_recall_percent) +
 				      "%, got " + std::to_string(recall.hits) + "/" +
 				      std::to_string(recall.expected));
+		runner.expect(precision.expected_categories > 0,
+			      "E-GMD drum precision: expected at least one category check");
+		if (precision.expected_categories > 0) {
+			runner.expect(percentage_floor(precision.true_positives,
+						       precision.true_positives + precision.false_positives) >=
+					      min_precision_percent,
+				      "E-GMD drum precision: expected >=" +
+					      std::to_string(min_precision_percent) + "%, got " +
+					      percent_string(precision.true_positives,
+							     precision.true_positives +
+								     precision.false_positives) +
+					      " (" + drum_precision_summary(precision) + ")");
+			runner.expect(percentage_floor(precision.false_positive_windows, precision.windows) <=
+					      max_false_positive_windows_percent,
+				      "E-GMD drum false-positive windows: expected <=" +
+					      std::to_string(max_false_positive_windows_percent) + "%, got " +
+					      percent_string(precision.false_positive_windows, precision.windows) +
+					      " (" + drum_precision_summary(precision) + ")");
+		}
 	}
 
 	if (runner.failures != 0) {
 		std::fprintf(stderr,
 			     "analyzer_egmd: %d/%d checks failed (recordings %d/%zu, windows %d, "
 			     "read failures %d, no-candidate recordings %d, unusable %d, "
-			     "drum hits %d/%d, %s)\n",
+			     "drum hits %d/%d, %s, %s)\n",
 			     runner.failures, runner.checks, recordings_with_windows, recordings.size(),
 			     tested_windows, read_failures, no_candidate_recordings, unusable, recall.hits,
-			     recall.expected, composition_summary(composition).c_str());
+			     recall.expected, drum_precision_summary(precision).c_str(),
+			     composition_summary(composition).c_str());
 		return 1;
 	}
 
@@ -1095,10 +1203,10 @@ int main()
 	} else {
 		std::printf("analyzer_egmd: %d checks passed (recordings %d/%zu, windows %d, "
 			    "read failures %d, no-candidate recordings %d, unusable %d, "
-			    "drum hits %d/%d, %s)\n",
+			    "drum hits %d/%d, %s, %s)\n",
 			    runner.checks, recordings_with_windows, recordings.size(), tested_windows,
 			    read_failures, no_candidate_recordings, unusable, recall.hits, recall.expected,
-			    composition_summary(composition).c_str());
+			    drum_precision_summary(precision).c_str(), composition_summary(composition).c_str());
 	}
 	return 0;
 }
