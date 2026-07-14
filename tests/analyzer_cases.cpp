@@ -973,6 +973,38 @@ void expect_keyboard_chord_transition(Runner &runner, const std::string &name, c
 	expect_no_false_transition_labels(runner, snapshot.keyboard_chord.label, forbidden, name + " stable target");
 }
 
+void expect_full_mix_global_chord_transition(Runner &runner, const std::string &name, const mao_test::Buffer &from,
+					     const std::string &from_label, const mao_test::Buffer &to,
+					     const std::string &to_label,
+					     const std::vector<std::string> &forbidden)
+{
+	mao::AnalysisEngine engine;
+	mao::AnalysisSettings settings = mao_test::default_settings();
+	settings.input_mode = mao::AnalysisInputMode::FullMix;
+	settings.analysis_interval_seconds = 0.05f;
+
+	auto snapshot = engine.analyze(from.data(), from.size(), settings, "speaker mix", 0);
+	(void)snapshot;
+	snapshot = engine.analyze(from.data(), from.size(), settings, "speaker mix", 0);
+	expect_chord_label_present(runner, snapshot.global_chord.label, from_label, name + " full-mix seed");
+
+	snapshot = engine.analyze(to.data(), to.size(), settings, "speaker mix", 0);
+	expect_chord_label_present(runner, snapshot.global_chord.label, from_label,
+				  name + " full-mix rejects one-frame replacement");
+
+	snapshot = engine.analyze(to.data(), to.size(), settings, "speaker mix", 0);
+	expect_chord_label_present(runner, snapshot.global_chord.label, to_label,
+				  name + " full-mix confirmed target");
+	expect_no_false_transition_labels(runner, snapshot.global_chord.label, forbidden,
+					  name + " full-mix confirmed target");
+
+	snapshot = engine.analyze(to.data(), to.size(), settings, "speaker mix", 0);
+	expect_chord_label_present(runner, snapshot.global_chord.label, to_label,
+				  name + " full-mix stable target");
+	expect_no_false_transition_labels(runner, snapshot.global_chord.label, forbidden,
+					  name + " full-mix stable target");
+}
+
 void check_required_chord_transitions(Runner &runner)
 {
 	const auto c = make_interval_chord(60, {0, 4, 7});
@@ -998,6 +1030,39 @@ void check_required_chord_transitions(Runner &runner)
 					 {"Cmaj7", "C7", "C9", "Cadd9", "Cdim", "Caug"});
 	expect_keyboard_chord_transition(runner, "required transition G to Em", g, "G", em, "Em",
 					 {"G6", "Gmaj7", "G7", "Gadd9", "Em7", "Em9", "Edim", "Eaug"});
+}
+
+void check_full_mix_global_chord_transitions(Runner &runner)
+{
+	const auto c = make_interval_chord(60, {0, 4, 7});
+	const auto g = make_interval_chord(67, {0, 4, 7});
+	const auto am = make_interval_chord(69, {0, 3, 7});
+	const auto dm7 = make_interval_chord(62, {0, 3, 7, 10});
+	const auto g7 = make_interval_chord(67, {0, 4, 7, 10});
+	const auto csus4 = make_interval_chord(60, {0, 5, 7});
+	const auto cmaj7 = make_interval_chord(60, {0, 4, 7, 11});
+	const auto em = make_interval_chord(64, {0, 3, 7});
+
+	expect_full_mix_global_chord_transition(runner, "required transition C to G", c, "C", g, "G",
+						{"Cmaj7", "C7", "Cadd9", "C9", "Gadd9", "Gmaj9", "Gaug",
+						 "Gdim"});
+	expect_full_mix_global_chord_transition(runner, "required transition C to Am", c, "C", am, "Am",
+						{"C6", "Cmaj7", "C7", "Cadd9", "Am7", "Am9", "Aaug",
+						 "Adim"});
+	expect_full_mix_global_chord_transition(runner, "required transition Dm7 to G7", dm7, "Dm", g7,
+						"G", {"Dm7", "Dm9", "Ddim", "Daug", "G7", "G9",
+						      "Gmaj7", "Gdim", "Gaug"});
+	expect_full_mix_global_chord_transition(runner, "required transition Csus4 to C", csus4,
+						"Csus4", c, "C",
+						{"C7", "Cmaj7", "Cadd9", "C9", "Cdim", "Caug"});
+	expect_full_mix_global_chord_transition(runner, "required transition C to Cmaj7", c, "C",
+						cmaj7, "C", {"Cmaj7", "C7", "C9", "Cadd9", "Cdim", "Caug"});
+	expect_full_mix_global_chord_transition(runner, "required transition Cmaj7 to C", cmaj7,
+						"C", c, "C",
+						{"Cmaj7", "C7", "C9", "Cadd9", "Cdim", "Caug"});
+	expect_full_mix_global_chord_transition(runner, "required transition G to Em", g, "G", em, "Em",
+						{"G6", "Gmaj7", "G7", "Gadd9", "Em7", "Em9", "Edim",
+						 "Eaug"});
 }
 
 void check_chord_margin_and_simplification(Runner &runner)
@@ -3010,6 +3075,7 @@ int main()
 	check_temporal_chord_stability(runner);
 	check_full_mix_global_chord_uses_analytical_tracking(runner);
 	check_required_chord_transitions(runner);
+	check_full_mix_global_chord_transitions(runner);
 	check_chord_margin_and_simplification(runner);
 	check_chord_evidence_separate_from_visual_fade(runner);
 	check_low_level_mixed_notes(runner);

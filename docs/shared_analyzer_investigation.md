@@ -233,6 +233,11 @@ baseline paths:
   valid low-confidence candidates are suppressed when an incompatible template
   is too close, and same-root extensions only replace a simpler chord when the
   added tone has enough analytical weight.
+* Transition regressions now cover the required C/G/Am/Dm7/G7/Csus4/Cmaj7/Em
+  changes in both isolated keyboard mode and the full-mix global-chord path.
+  Full-mix assertions preserve the documented conservative policy by accepting
+  simplified labels such as `Dm` or `G` for extension chords while rejecting
+  false intermediate extension, diminished, or augmented labels.
 * Dataset gates now report precision, contamination, confusion, octave-error,
   false-row, and global/per-instrument chord metrics instead of union recall
   alone for the configured real-data paths that have enough truth data.

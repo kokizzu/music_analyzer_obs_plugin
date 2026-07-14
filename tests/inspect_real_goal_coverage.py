@@ -229,6 +229,8 @@ def main():
          "analyzer bounded note candidate extraction"),
         (analyzer_impl, "using ChordCandidateList = FixedList<ChordCandidate, 256>",
          "analyzer fixed-storage chord candidate list"),
+        (analyzer_cases, "check_full_mix_global_chord_transitions",
+         "full-mix global chord transition regression"),
         (analyzer_impl, "float ownership_confidence = 1.0f",
          "note candidates carry ownership confidence"),
         (analyzer_impl, "ownership_weighted_candidate(candidate, evidence)",
