@@ -245,6 +245,17 @@ bool grid_pitch_active(const mao::NoteGrid &grid, int pitch_class)
 	return false;
 }
 
+bool grid_has_any_active(const mao::NoteGrid &grid)
+{
+	for (const auto &row : grid.rows) {
+		for (const mao::NoteCell &cell : row) {
+			if (cell.active)
+				return true;
+		}
+	}
+	return false;
+}
+
 bool snapshot_global_pitch_active(const mao::AnalysisSnapshot &snapshot, int pitch_class)
 {
 	return grid_pitch_active(snapshot.bass_notes, pitch_class) ||
@@ -305,6 +316,11 @@ void expect_no_pitch_class(Runner &runner, const mao::NoteGrid &grid, int pitch_
 {
 	runner.expect(!grid_pitch_active(grid, pitch_class),
 		      context + ": expected pitch class " + mao_test::note_name(pitch_class) + " inactive");
+}
+
+void expect_empty_note_grid(Runner &runner, const mao::NoteGrid &grid, const std::string &context)
+{
+	runner.expect(!grid_has_any_active(grid), context + ": expected no active notes");
 }
 
 bool grid_pitch_has_octave(const mao::NoteGrid &grid, int pitch_class, const char *octave)
@@ -2506,6 +2522,91 @@ void check_empty_input_resets_same_source_state(Runner &runner)
 			      std::to_string(snapshot.drums[mao::Kick].level));
 }
 
+void check_source_and_sample_rate_changes_reset_state(Runner &runner)
+{
+	auto seed_full_mix = [](mao::AnalysisEngine &engine, const mao::AnalysisSettings &settings,
+				const char *source) {
+		const mao_test::Buffer chord = mao_test::make_midi_notes({60, 64, 67}, 0.34f);
+		mao::AnalysisSnapshot snapshot = {};
+		for (int i = 0; i < 8; ++i)
+			snapshot = engine.analyze(chord.data(), chord.size(), settings, source, 0);
+
+		mao_test::Buffer kick = {};
+		add_decayed_sine(kick, 65.0f, 0.85f, 1400);
+		add_decayed_sine(kick, 1100.0f, 0.28f, 520);
+		snapshot = engine.analyze(kick.data(), kick.size(), settings, source, 0);
+		return snapshot;
+	};
+	auto expect_full_mix_reset = [&](const mao::AnalysisSnapshot &snapshot, const std::string &context) {
+		expect_label(runner, snapshot.root.label, "--", context + " root");
+		expect_label(runner, snapshot.global_chord.label, "--", context + " global chord");
+		expect_empty_note_grid(runner, snapshot.bass_notes, context + " bass notes");
+		expect_empty_note_grid(runner, snapshot.keyboard_notes, context + " keyboard notes");
+		expect_empty_note_grid(runner, snapshot.guitar_notes, context + " guitar notes");
+		expect_empty_note_grid(runner, snapshot.vocal_notes, context + " vocal notes");
+		expect_empty_note_grid(runner, snapshot.other_notes, context + " other notes");
+		expect_empty_note_grid(runner, snapshot.ambiguous_notes, context + " ambiguous notes");
+		runner.expect(!snapshot.drums[mao::Kick].active,
+			      context + ": expected kick inactive, level " +
+				      std::to_string(snapshot.drums[mao::Kick].level));
+	};
+
+	{
+		mao::AnalysisEngine engine;
+		mao::AnalysisSettings settings = mao_test::default_settings();
+		settings.input_mode = mao::AnalysisInputMode::FullMix;
+		settings.analysis_interval_seconds = 0.05f;
+		const mao::AnalysisSnapshot seeded = seed_full_mix(engine, settings, "OBS MIX");
+		expect_label(runner, seeded.root.label, "C", "source-change reset seeded root");
+		runner.expect(seeded.drums[mao::Kick].active,
+			      "source-change reset: expected seeded kick active, level " +
+				      std::to_string(seeded.drums[mao::Kick].level));
+
+		const mao_test::Buffer silence = {};
+		const mao::AnalysisSnapshot reset =
+			engine.analyze(silence.data(), silence.size(), settings, "SPEAKER MONITOR", 0);
+		expect_full_mix_reset(reset, "source-change reset");
+	}
+
+	{
+		mao::AnalysisEngine engine;
+		mao::AnalysisSettings settings = mao_test::default_settings();
+		settings.input_mode = mao::AnalysisInputMode::FullMix;
+		settings.analysis_interval_seconds = 0.05f;
+		const mao::AnalysisSnapshot seeded = seed_full_mix(engine, settings, "OBS MIX");
+		expect_label(runner, seeded.root.label, "C", "sample-rate reset seeded root");
+		runner.expect(seeded.drums[mao::Kick].active,
+			      "sample-rate reset: expected seeded kick active, level " +
+				      std::to_string(seeded.drums[mao::Kick].level));
+
+		settings.sample_rate = 44100;
+		const mao_test::Buffer silence = {};
+		const mao::AnalysisSnapshot reset =
+			engine.analyze(silence.data(), silence.size(), settings, "OBS MIX", 0);
+		expect_full_mix_reset(reset, "sample-rate reset");
+	}
+
+	{
+		mao::AnalysisEngine engine;
+		mao::AnalysisSettings settings = mao_test::default_settings();
+		settings.input_mode = mao::AnalysisInputMode::IsolatedKeyboard;
+		settings.analysis_interval_seconds = 0.05f;
+		const mao_test::Buffer chord = mao_test::make_midi_notes({60, 64, 67}, 0.34f);
+		mao::AnalysisSnapshot snapshot = {};
+		for (int i = 0; i < 4; ++i)
+			snapshot = engine.analyze(chord.data(), chord.size(), settings, "keyboard bus", 0);
+		expect_chord_label_present(runner, snapshot.keyboard_chord.label, "C",
+					   "sample-rate reset seeded keyboard chord");
+		expect_pitch_class(runner, snapshot.keyboard_notes, 0, "sample-rate reset seeded keyboard notes");
+
+		settings.sample_rate = 44100;
+		const mao_test::Buffer silence = {};
+		snapshot = engine.analyze(silence.data(), silence.size(), settings, "keyboard bus", 0);
+		expect_label(runner, snapshot.keyboard_chord.label, "--", "sample-rate reset keyboard chord");
+		expect_empty_note_grid(runner, snapshot.keyboard_notes, "sample-rate reset keyboard notes");
+	}
+}
+
 } // namespace
 
 int main()
@@ -2566,6 +2667,7 @@ int main()
 	check_root_from_chord_progression(runner);
 	check_root_from_bass_degrees(runner);
 	check_empty_input_resets_same_source_state(runner);
+	check_source_and_sample_rate_changes_reset_state(runner);
 
 	if (runner.failures != 0) {
 		std::fprintf(stderr, "analyzer_cases: %d/%d checks failed\n", runner.failures, runner.checks);
