@@ -197,6 +197,9 @@ baseline paths:
   source, including root, tempo, drum, note, and chord history. This prevents a
   restarted frontend from inheriting stale analysis from the previous capture
   stream.
+  `AnalysisEngine::reset()` exposes the same reset path explicitly for
+  frontends that switch devices or restart a capture stream without first
+  producing an empty analysis window.
 * Instrument-specific chord recovery uses short-lived analytical chord-note
   trackers. Those trackers are separate from the longer visual note envelopes,
   so a fading note highlight does not keep producing chord evidence.

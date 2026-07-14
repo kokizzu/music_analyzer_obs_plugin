@@ -2604,6 +2604,42 @@ void check_empty_input_resets_same_source_state(Runner &runner)
 			      std::to_string(snapshot.drums[mao::Kick].level));
 }
 
+void check_explicit_analysis_reset(Runner &runner)
+{
+	mao::AnalysisEngine engine;
+	mao::AnalysisSettings settings = mao_test::default_settings();
+	settings.input_mode = mao::AnalysisInputMode::FullMix;
+	settings.analysis_interval_seconds = 0.05f;
+
+	const mao_test::Buffer chord = mao_test::make_midi_notes({60, 64, 67}, 0.34f);
+	mao::AnalysisSnapshot snapshot = {};
+	for (int i = 0; i < 8; ++i)
+		snapshot = engine.analyze(chord.data(), chord.size(), settings, "SPEAKER MONITOR", 0);
+	expect_label(runner, snapshot.global_chord.label, "C", "explicit reset seeded global chord");
+	runner.expect(std::strcmp(snapshot.root.label, "C") == 0,
+		      std::string("explicit reset: expected seeded root C, got `") + snapshot.root.label + "`");
+
+	mao_test::Buffer kick = {};
+	add_decayed_sine(kick, 65.0f, 0.85f, 1400);
+	add_decayed_sine(kick, 1100.0f, 0.28f, 520);
+	snapshot = engine.analyze(kick.data(), kick.size(), settings, "SPEAKER MONITOR", 0);
+	runner.expect(snapshot.drums[mao::Kick].active,
+		      "explicit reset: expected seeded kick active, level " +
+			      std::to_string(snapshot.drums[mao::Kick].level));
+
+	engine.reset();
+	mao_test::Buffer silence = {};
+	snapshot = engine.analyze(silence.data(), silence.size(), settings, "SPEAKER MONITOR", 0);
+	expect_label(runner, snapshot.root.label, "--", "explicit reset root");
+	expect_label(runner, snapshot.global_chord.label, "--", "explicit reset global chord");
+	expect_empty_note_grid(runner, snapshot.keyboard_notes, "explicit reset keyboard notes");
+	expect_empty_note_grid(runner, snapshot.guitar_notes, "explicit reset guitar notes");
+	expect_empty_note_grid(runner, snapshot.ambiguous_notes, "explicit reset ambiguous notes");
+	runner.expect(!snapshot.drums[mao::Kick].active,
+		      "explicit reset: expected kick inactive, level " +
+			      std::to_string(snapshot.drums[mao::Kick].level));
+}
+
 void check_source_and_sample_rate_changes_reset_state(Runner &runner)
 {
 	auto seed_full_mix = [](mao::AnalysisEngine &engine, const mao::AnalysisSettings &settings,
@@ -2751,6 +2787,7 @@ int main()
 	check_root_from_chord_progression(runner);
 	check_root_from_bass_degrees(runner);
 	check_empty_input_resets_same_source_state(runner);
+	check_explicit_analysis_reset(runner);
 	check_source_and_sample_rate_changes_reset_state(runner);
 
 	if (runner.failures != 0) {

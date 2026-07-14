@@ -127,6 +127,7 @@ public:
 	AnalysisEngine();
 
 	void configure(uint32_t sample_rate);
+	void reset();
 	AnalysisSnapshot analyze(const float *samples, std::size_t count, const AnalysisSettings &settings,
 				  const char *source_name, uint64_t dropped_windows);
 

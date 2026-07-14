@@ -2435,6 +2435,13 @@ void AnalysisEngine::configure(uint32_t sample_rate)
 	}
 }
 
+void AnalysisEngine::reset()
+{
+	reset_analysis_state();
+	has_active_input_mode_ = false;
+	active_source_[0] = '\0';
+}
+
 void AnalysisEngine::rebuild_plans(uint32_t sample_rate)
 {
 	sample_rate_ = sample_rate ? sample_rate : 48000;
