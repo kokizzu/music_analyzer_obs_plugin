@@ -74,7 +74,7 @@ not provide clean per-instrument audio stems for each mixture.
 
 | Dataset | Use | Notes |
 | --- | --- | --- |
-| [MusicNet](https://arxiv.org/abs/1611.09827) | Mixed classical note/instrument detection with optional `make test-real-musicnet-20` real-mix gate | 34 hours, 330 recordings, 11 instruments, over 1M temporal note labels. No isolated stems. |
+| [MusicNet](https://arxiv.org/abs/1611.09827) | Mixed classical note/instrument detection with optional `make inspect-real-musicnet-remote` and `make test-real-musicnet-20` real-mix gates | 34 hours, 330 recordings, 11 instruments, over 1M temporal note labels. No isolated stems. |
 | [MulTTiPop](https://gclef-cmu.org/multtipop/) | Real pop mix note/instrument stress tests with optional `make inspect-real-multtipop` metadata/MIDI preflight and `make test-real-multtipop-20` local-audio analyzer gate | 572 commercial-pop segments with aligned multitrack MIDI metadata, published at [HuggingFace](https://huggingface.co/datasets/gclef-cmu/multtipop) and described in the [2026 paper](https://arxiv.org/abs/2607.08756). Audio is sourced via YouTube IDs/timestamps; recommended for evaluation, not training. |
 | RWC-Pop | Real pop mix transcription | Cited by MulTTiPop as 100 original pop recordings with multitrack MIDI. Access/licensing needs verification. |
 | [POP909](https://arxiv.org/abs/2008.07142) | Pop melody, lead, piano, chord checks | 909 popular-song arrangements with MIDI aligned to original audio plus tempo, beat, key, and chord annotations. Not per-instrument stems. |
@@ -325,6 +325,11 @@ without additional annotation.
   drum-category recall. E-GMD is a focused drum real-audio add-on; it does not
   replace URMP because it is drum-only, but it gives much stronger
   bass-drum/snare/hi-hat/tom/cymbal coverage than generated fixtures alone.
+- Use `make inspect-real-musicnet-remote` before downloading MusicNet to verify
+  the current Zenodo metadata. It checks the open CC-BY-4.0 record, the
+  `musicnet.tar.gz` WAV/CSV audio-label archive, `musicnet_metadata.csv`,
+  `musicnet_midis.tar.gz`, direct content URLs, and description text promising
+  note timing and instrument-label semantics.
 - Use `make inspect-real-musicnet` and `make test-real-musicnet-20` with
   `MUSIC_ANALYZER_MUSICNET_ROOT=/path/to/musicnet` after extracting the open
   Zenodo MusicNet archive. The target expects `train_data`/`test_data` WAV

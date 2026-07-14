@@ -73,6 +73,7 @@ MUSIC_ANALYZER_URMP_ROOT=/path/to/URMP make inspect-real-multitrack-20
 MUSIC_ANALYZER_URMP_ROOT=/path/to/URMP make test-real-multitrack-20
 MUSIC_ANALYZER_URMP_ROOT=/path/to/URMP make inspect-real-multitrack-full
 MUSIC_ANALYZER_URMP_ROOT=/path/to/URMP make test-real-multitrack-full
+make inspect-real-musicnet-remote
 MUSIC_ANALYZER_MUSICNET_ROOT=/path/to/musicnet make inspect-real-musicnet
 MUSIC_ANALYZER_MUSICNET_ROOT=/path/to/musicnet make test-real-musicnet-20
 MUSIC_ANALYZER_MEDLEYDB_ROOT=/path/to/MedleyDB MUSIC_ANALYZER_MEDLEYDB_ANNOTATIONS_ROOT=/path/to/medleydb/medleydb/data/Annotations make inspect-real-medleydb
@@ -139,7 +140,7 @@ The URMP fixture is marker-file tagged and rejected by the real-data gate unless
 
 `make test-real-egmd-20` is an optional focused analyzer gate for E-GMD. It expects the official metadata CSV plus paired WAV/MIDI files, parses drum MIDI and velocity hits, selects drum-hit windows, and checks analyzer drum-category recall on real drum audio. E-GMD is useful for bass drum/snare/hi-hat/tom/cymbal regressions, but it is a drum-only dataset and does not replace the URMP mixed-source gate.
 
-`make test-real-musicnet-20` is an optional complementary real-mix gate for MusicNet. MusicNet does not have isolated source audio, so it does not replace URMP's same-song stem/summed-mix gate, but it adds 20+ real chamber recordings with CSV note/instrument labels to stress note and chord detection on real mixed audio.
+`make inspect-real-musicnet-remote` checks the current Zenodo metadata for MusicNet before downloading the large archive. It verifies the open CC-BY-4.0 record, the `musicnet.tar.gz` WAV/CSV audio-label archive, `musicnet_metadata.csv`, `musicnet_midis.tar.gz`, and description text that promises note timing and instrument labels. `make test-real-musicnet-20` is an optional complementary real-mix gate for an extracted MusicNet dataset. MusicNet does not have isolated source audio, so it does not replace URMP's same-song stem/summed-mix gate, but it adds 20+ real chamber recordings with CSV note/instrument labels to stress note and chord detection on real mixed audio.
 
 Optional CMake build, assuming the OBS development dependencies are installed system-wide:
 

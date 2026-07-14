@@ -53,6 +53,7 @@ def main():
         egmd_harness = read_text("tests/analyzer_egmd.cpp")
         goal_gate = read_text("tests/run_real_goal_gate.py")
         source_printer = read_text("tests/print_real_dataset_sources.py")
+        musicnet_remote = read_text("tests/inspect_musicnet_remote.py")
         medleydb_inspector = read_text("tests/inspect_medleydb_dataset.py")
         medleydb_prepare = read_text("tests/prepare_medleydb_musicnet_fixture.py")
         musdb_inspector = read_text("tests/inspect_musdb_dataset.py")
@@ -220,6 +221,7 @@ def main():
         (makefile, "test-real-goal-fixture", "Makefile combined fixture target"),
         (makefile, "tests/run_real_goal_gate.py inspect-20", "Makefile combined fixture preflight"),
         (makefile, "tests/inspect_urmp_dataset.py", "Makefile URMP preflight audit dependency"),
+        (makefile, "tests/inspect_musicnet_remote.py", "Makefile MusicNet remote metadata preflight"),
         (makefile, "tests/generate_musicnet_fixture.py", "Makefile MusicNet fixture"),
         (makefile, "tests/generate_bach10_fixture.py", "Makefile Bach10-style fixture"),
         (makefile, "tests/generate_direct_fit_small_fixture.py", "Makefile direct-fit-small fixture"),
@@ -273,6 +275,8 @@ def main():
         (source_printer, "real_vocal_multitrack_truth", "source printer Vocal Ensemble F0 category"),
         (makefile, "test-real-multtipop-20", "Makefile optional MulTTiPop analyzer gate"),
         (makefile, "test-multtipop-audio-root-fixture", "Makefile MulTTiPop external audio-root fixture target"),
+        (makefile, "inspect-real-musicnet-remote", "Makefile optional MusicNet remote metadata preflight"),
+        (makefile, "test-musicnet-remote", "Makefile MusicNet remote fixture gate"),
         (makefile, "MUSIC_ANALYZER_MULTTIPOP_AUDIO_ROOT=$(REAL_GOAL_MULTTIPOP_AUDIO_DIR)", "Makefile MulTTiPop external audio-root analyzer gate"),
         (makefile, "$(BUILD_DIR)/analyzer_multtipop", "Makefile MulTTiPop analyzer binary"),
         (makefile, "$(BUILD_DIR)/analyzer_guitarset", "Makefile GuitarSet analyzer binary"),
@@ -339,6 +343,12 @@ def main():
         (urmp_inspector, "candidate pitch classes", "URMP preflight pitch-class density report"),
         (urmp_inspector, "MUSIC_ANALYZER_URMP_MIN_ACTIVE_TRACKS_PER_WINDOW", "URMP preflight active-track threshold"),
         (urmp_inspector, "MUSIC_ANALYZER_URMP_MIN_PITCH_CLASSES_PER_WINDOW", "URMP preflight pitch-class threshold"),
+        (musicnet_remote, "https://zenodo.org/api/records/5120004", "MusicNet remote record check"),
+        (musicnet_remote, "musicnet.tar.gz", "MusicNet remote audio/label archive check"),
+        (musicnet_remote, "musicnet_metadata.csv", "MusicNet remote metadata check"),
+        (musicnet_remote, "musicnet_midis.tar.gz", "MusicNet remote MIDI archive check"),
+        (musicnet_remote, "precise time of each note", "MusicNet remote note-timing semantics check"),
+        (musicnet_remote, "instrument that plays each note", "MusicNet remote instrument-label semantics check"),
         (musicnet_harness, "active instruments min/avg/max", "MusicNet multi-instrument report"),
         (musicnet_harness, "chord hits", "MusicNet chord recall report"),
         (medleydb_inspector, "melody_annotated_multitracks", "MedleyDB melody coverage report"),
@@ -427,6 +437,7 @@ def main():
         (guitarset_harness, "chord hits", "GuitarSet analyzer chord recall report"),
         (readme, "make test-real-goal-20", "README combined gate instructions"),
         (readme, "make inspect-real-goal-20", "README combined preflight instructions"),
+        (readme, "make inspect-real-musicnet-remote", "README MusicNet remote preflight instructions"),
         (readme, "make inspect-real-medleydb", "README MedleyDB preflight instructions"),
         (readme, "make test-real-medleydb-20", "README MedleyDB analyzer instructions"),
         (readme, "make inspect-real-multtipop", "README MulTTiPop preflight instructions"),
@@ -459,6 +470,7 @@ def main():
         (readme, "make test-direct-fit-small-fixture", "README direct-fit-small fixture instructions"),
         (docs, "make test-real-goal-20", "dataset docs combined gate instructions"),
         (docs, "make inspect-real-goal-20", "dataset docs combined preflight instructions"),
+        (docs, "make inspect-real-musicnet-remote", "dataset docs MusicNet remote preflight instructions"),
         (docs, "make inspect-real-medleydb", "dataset docs MedleyDB preflight instructions"),
         (docs, "make test-real-medleydb-20", "dataset docs MedleyDB analyzer instructions"),
         (docs, "make inspect-real-multtipop", "dataset docs MulTTiPop preflight instructions"),
