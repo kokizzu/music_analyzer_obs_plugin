@@ -956,16 +956,11 @@ void render_pixels(VisualizerRenderer *visualizer, const AnalysisSnapshot &snaps
 	draw_text(visualizer, 28, 24, title, 3, Color{246, 248, 251, 255});
 
 	char level[128];
-	std::snprintf(level, sizeof(level), "RMS %.2f LOW %.0f%% MID %.0f%% HIGH %.0f%% UPD %llu DROP %llu",
+	std::snprintf(level, sizeof(level), "RMS %.2f LOW %.0f%% MID %.0f%% HIGH %.0f%% AGE %.1FS DROP %llu",
 		      snapshot.rms, snapshot.low_energy * 100.0f, snapshot.mid_energy * 100.0f,
-		      snapshot.high_energy * 100.0f, static_cast<unsigned long long>(snapshot.analyzed_windows),
+		      snapshot.high_energy * 100.0f, snapshot_age,
 		      static_cast<unsigned long long>(snapshot.dropped_windows));
 	draw_text(visualizer, 28, 58, level, 2, kLabelColor);
-
-	char debug[96];
-	std::snprintf(debug, sizeof(debug), "FRAMES %llu AGE %.1FS",
-		      static_cast<unsigned long long>(snapshot.audio_frames), snapshot_age);
-	draw_text(visualizer, 28, 78, debug, 1, kLabelColor);
 
 	draw_text(visualizer, 28, 96, "DRUMS", 3, kLabelColor);
 	const int drum_start_x = 150;

@@ -725,6 +725,7 @@ mao::AnalysisSnapshot analyze_confirmed_buffer(const mao_test::Buffer &buffer, u
 	mao::AnalysisSettings settings = mao_test::default_settings();
 	settings.sample_rate = sample_rate;
 	settings.analysis_interval_seconds = 0.05f;
+	settings.input_mode = mao::AnalysisInputMode::FullMix;
 
 	mao::AnalysisSnapshot snapshot = {};
 	for (int frame = 0; frame < 3; ++frame)

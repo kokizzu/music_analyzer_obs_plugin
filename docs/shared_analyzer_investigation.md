@@ -107,9 +107,12 @@ Real/dataset harnesses also call the same shared analyzer:
 * `tests/analyzer_maestro.cpp`
 * `tests/analyzer_multtipop.cpp`
 
-Those harnesses read fixture WAV sample rates, set
-`settings.sample_rate` accordingly, and generally feed confirmed repeated
-windows with `analysis_interval_seconds = 0.05`.
+Those harnesses read fixture WAV sample rates and set `settings.sample_rate`
+accordingly. Full-mix truth gates such as URMP mix/summed-mix, MusicNet,
+MulTTiPop, and E-GMD now set `AnalysisInputMode::FullMix` explicitly. Focused
+single-instrument gates set isolated modes where available, such as GuitarSet
+using `IsolatedGuitar` and MAESTRO using `IsolatedKeyboard`. Older direct case
+tests still exercise `Auto` as the backward-compatible source-name adapter.
 
 ## Shared Logic Confirmation
 

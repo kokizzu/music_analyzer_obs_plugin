@@ -1443,7 +1443,8 @@ bool load_piece_files(const std::string &dir, PieceFiles &piece, bool require_sc
 }
 
 mao::AnalysisSnapshot analyze_wav_window(const std::string &path, double time, const std::string &source_name,
-					 bool &ok, std::string &error)
+					 bool &ok, std::string &error,
+					 mao::AnalysisInputMode input_mode = mao::AnalysisInputMode::Auto)
 {
 	mao_test::Buffer buffer = {};
 	uint32_t sample_rate = 0;
@@ -1454,16 +1455,19 @@ mao::AnalysisSnapshot analyze_wav_window(const std::string &path, double time, c
 	mao::AnalysisEngine engine;
 	mao::AnalysisSettings settings = mao_test::default_settings();
 	settings.sample_rate = sample_rate;
+	settings.input_mode = input_mode;
 	return engine.analyze(buffer.data(), buffer.size(), settings, source_name.c_str(), 0);
 }
 
 mao::AnalysisSnapshot analyze_confirmed_buffer_with_engine(mao::AnalysisEngine &engine,
 							   const mao_test::Buffer &buffer, uint32_t sample_rate,
-							   const std::string &source_name)
+							   const std::string &source_name,
+							   mao::AnalysisInputMode input_mode = mao::AnalysisInputMode::Auto)
 {
 	mao::AnalysisSettings settings = mao_test::default_settings();
 	settings.sample_rate = sample_rate;
 	settings.analysis_interval_seconds = 0.05f;
+	settings.input_mode = input_mode;
 
 	mao::AnalysisSnapshot snapshot = {};
 	for (int frame = 0; frame < 3; ++frame)
@@ -1472,15 +1476,17 @@ mao::AnalysisSnapshot analyze_confirmed_buffer_with_engine(mao::AnalysisEngine &
 }
 
 mao::AnalysisSnapshot analyze_confirmed_buffer(const mao_test::Buffer &buffer, uint32_t sample_rate,
-					       const std::string &source_name)
+					       const std::string &source_name,
+					       mao::AnalysisInputMode input_mode = mao::AnalysisInputMode::Auto)
 {
 	mao::AnalysisEngine engine;
-	return analyze_confirmed_buffer_with_engine(engine, buffer, sample_rate, source_name);
+	return analyze_confirmed_buffer_with_engine(engine, buffer, sample_rate, source_name, input_mode);
 }
 
 mao::AnalysisSnapshot analyze_wav_confirmed_window(const std::string &path, double time,
 						   const std::string &source_name, bool &ok,
-						   std::string &error)
+						   std::string &error,
+						   mao::AnalysisInputMode input_mode = mao::AnalysisInputMode::Auto)
 {
 	mao_test::Buffer buffer = {};
 	uint32_t sample_rate = 0;
@@ -1488,7 +1494,7 @@ mao::AnalysisSnapshot analyze_wav_confirmed_window(const std::string &path, doub
 	if (!ok)
 		return {};
 
-	return analyze_confirmed_buffer(buffer, sample_rate, source_name);
+	return analyze_confirmed_buffer(buffer, sample_rate, source_name, input_mode);
 }
 
 bool read_summed_track_window(const PieceFiles &piece, double time, mao_test::Buffer &summed,
@@ -1537,6 +1543,7 @@ mao::AnalysisSnapshot analyze_summed_track_window(const PieceFiles &piece, doubl
 	mao::AnalysisEngine engine;
 	mao::AnalysisSettings settings = mao_test::default_settings();
 	settings.sample_rate = sample_rate;
+	settings.input_mode = mao::AnalysisInputMode::FullMix;
 	return engine.analyze(summed.data(), summed.size(), settings, source_name.c_str(), 0);
 }
 
@@ -1550,7 +1557,7 @@ mao::AnalysisSnapshot analyze_summed_confirmed_window(const PieceFiles &piece, d
 	if (!ok)
 		return {};
 
-	return analyze_confirmed_buffer(summed, sample_rate, source_name);
+	return analyze_confirmed_buffer(summed, sample_rate, source_name, mao::AnalysisInputMode::FullMix);
 }
 
 std::string basename_of(const std::string &path)
@@ -1789,7 +1796,8 @@ int main()
 			std::string error;
 			bool ok = false;
 			const mao::AnalysisSnapshot mix_snapshot =
-				analyze_wav_window(piece.mix_path, candidate.time, "URMP real full mix", ok, error);
+				analyze_wav_window(piece.mix_path, candidate.time, "URMP real full mix", ok, error,
+						   mao::AnalysisInputMode::FullMix);
 			if (!ok) {
 				++coverage.mix_read_failures;
 				std::fprintf(stderr, "analyzer_urmp: skipping %s mix at %.3fs: %s\n",
@@ -1817,14 +1825,15 @@ int main()
 				const mao::AnalysisSnapshot mix_sequence_snapshot =
 					analyze_confirmed_buffer_with_engine(
 						provided_sequence_engine, mix_sequence_buffer, mix_sequence_sample_rate,
-						"URMP real full mix sequence");
+						"URMP real full mix sequence", mao::AnalysisInputMode::FullMix);
 				check_mix_recall(runner, mix_sequence_snapshot, candidate,
 						 window_context + " provided mix sequence",
 						 provided_sequence_stats, min_window_recall_percent);
 			}
 
 			const mao::AnalysisSnapshot mix_stream_snapshot = analyze_wav_confirmed_window(
-				piece.mix_path, candidate.time, "URMP real full mix stream", ok, error);
+				piece.mix_path, candidate.time, "URMP real full mix stream", ok, error,
+				mao::AnalysisInputMode::FullMix);
 			if (!ok) {
 				++coverage.mix_stream_failures;
 				runner.expect(false, window_context + " provided mix stream: " + error);
@@ -1855,7 +1864,7 @@ int main()
 				const mao::AnalysisSnapshot summed_sequence_snapshot =
 					analyze_confirmed_buffer_with_engine(
 						summed_sequence_engine, summed_sequence_buffer, summed_sequence_sample_rate,
-						"URMP summed separated tracks sequence");
+						"URMP summed separated tracks sequence", mao::AnalysisInputMode::FullMix);
 				check_mix_recall(runner, summed_sequence_snapshot, candidate,
 						 window_context + " summed separated tracks sequence",
 						 summed_sequence_stats, min_window_recall_percent);

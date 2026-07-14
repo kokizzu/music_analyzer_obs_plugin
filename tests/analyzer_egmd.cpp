@@ -870,6 +870,7 @@ bool analyze_drum_window_sequence(const std::string &audio_path, uint64_t center
 	mao::AnalysisEngine engine;
 	mao::AnalysisSettings settings = mao_test::default_settings();
 	settings.analysis_interval_seconds = 0.05f;
+	settings.input_mode = mao::AnalysisInputMode::FullMix;
 
 	mao_test::Buffer buffer = {};
 	const uint32_t interval_samples =
