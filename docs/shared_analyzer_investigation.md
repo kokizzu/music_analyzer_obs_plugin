@@ -203,7 +203,9 @@ baseline paths:
   A bass pitch class is exposed to global chord and root logic only after the
   displayed bass note is accepted, and the bass-root hint only recovers a
   missing global chord rather than replacing a valid no-hint harmonic-context
-  chord.
+  chord. Once a full-mix bass MIDI is accepted, that exact MIDI is removed from
+  non-bass owned rows before keyboard, guitar, vocal, and other notes are
+  displayed; global pitch/chord evidence still keeps the bass tone.
 * Root tracking now consumes the stabilized full-mix `global_chord` in addition
   to confidence-gated bass and owned per-instrument chords. This keeps
   ambiguous full-mix inversions such as C/E from locking the root to the bass

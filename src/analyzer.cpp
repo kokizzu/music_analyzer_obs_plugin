@@ -751,6 +751,23 @@ void remove_candidate_midi(NoteCandidateList &candidates, int midi)
 	candidates.count = write;
 }
 
+void remove_full_mix_row_midi(std::array<bool, kNoteProbeCount> &mask, NoteCandidateList &candidates, int midi)
+{
+	if (midi < kFirstMidi || midi > kLastMidi)
+		return;
+
+	mask[static_cast<std::size_t>(midi - kFirstMidi)] = false;
+	remove_candidate_midi(candidates, midi);
+}
+
+void suppress_full_mix_bass_duplicate_ownership(FullMixOwnership &ownership, int bass_midi)
+{
+	remove_full_mix_row_midi(ownership.keyboard, ownership.keyboard_candidates, bass_midi);
+	remove_full_mix_row_midi(ownership.guitar, ownership.guitar_candidates, bass_midi);
+	remove_full_mix_row_midi(ownership.vocal, ownership.vocal_candidates, bass_midi);
+	remove_full_mix_row_midi(ownership.other, ownership.other_candidates, bass_midi);
+}
+
 void demote_sparse_full_mix_owner(FullMixOwnership &ownership, std::array<bool, kNoteProbeCount> &mask,
 				  NoteCandidateList &owner_candidates,
 				  const std::array<float, kNoteProbeCount> &candidate_scores)
@@ -3516,8 +3533,12 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 			}
 
 			set_single_note_grid(snapshot.bass_notes, snapshot.bass, displayed_bass, bass_energy, rms);
-			if (displayed_bass.midi >= 0 && snapshot.bass.confidence > 0.0f)
+			if (displayed_bass.midi >= 0 && snapshot.bass.confidence > 0.0f) {
+				if (mixed_source)
+					suppress_full_mix_bass_duplicate_ownership(full_mix_ownership,
+										 displayed_bass.midi);
 				mixed_bass_pitch_class = ((displayed_bass.midi % 12) + 12) % 12;
+			}
 		} else {
 			if (!isolated_bass && tracked_bass_midi_ >= 0 && tracked_bass_misses_ < 2) {
 				RangeResult displayed_bass;
@@ -3528,8 +3549,12 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 				tracked_bass_score_ = displayed_bass.score;
 				++tracked_bass_misses_;
 				set_single_note_grid(snapshot.bass_notes, snapshot.bass, displayed_bass, bass_energy, rms);
-				if (displayed_bass.midi >= 0 && snapshot.bass.confidence > 0.0f)
+				if (displayed_bass.midi >= 0 && snapshot.bass.confidence > 0.0f) {
+					if (mixed_source)
+						suppress_full_mix_bass_duplicate_ownership(full_mix_ownership,
+											 displayed_bass.midi);
 					mixed_bass_pitch_class = ((displayed_bass.midi % 12) + 12) % 12;
+				}
 			} else {
 				tracked_bass_midi_ = -1;
 				pending_bass_midi_ = -1;

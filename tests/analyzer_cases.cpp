@@ -290,6 +290,32 @@ int full_mix_owned_midi_count(const mao::AnalysisSnapshot &snapshot, int midi)
 	return count;
 }
 
+int full_mix_confident_midi_count(const mao::AnalysisSnapshot &snapshot, int midi)
+{
+	auto grid_has_midi = [midi](const mao::NoteGrid &grid) {
+		for (const auto &row : grid.rows) {
+			for (const mao::NoteCell &cell : row) {
+				if (cell.active && cell.midi == midi)
+					return true;
+			}
+		}
+		return false;
+	};
+
+	int count = 0;
+	if (grid_has_midi(snapshot.bass_notes))
+		++count;
+	if (grid_has_midi(snapshot.keyboard_notes))
+		++count;
+	if (grid_has_midi(snapshot.guitar_notes))
+		++count;
+	if (grid_has_midi(snapshot.vocal_notes))
+		++count;
+	if (grid_has_midi(snapshot.other_notes))
+		++count;
+	return count;
+}
+
 void expect_pitch_class(Runner &runner, const mao::NoteGrid &grid, int pitch_class, const std::string &context)
 {
 	runner.expect(grid_pitch_active(grid, pitch_class),
@@ -310,6 +336,14 @@ void expect_midi_not_duplicated_across_rows(Runner &runner, const mao::AnalysisS
 	const int count = full_mix_owned_midi_count(snapshot, midi);
 	runner.expect(count <= 1, context + ": expected " + mao_test::note_label(midi) +
 				   " in at most one confident row, got " + std::to_string(count));
+}
+
+void expect_midi_not_duplicated_across_instruments(Runner &runner, const mao::AnalysisSnapshot &snapshot, int midi,
+						   const std::string &context)
+{
+	const int count = full_mix_confident_midi_count(snapshot, midi);
+	runner.expect(count <= 1, context + ": expected " + mao_test::note_label(midi) +
+				   " in at most one confident instrument, got " + std::to_string(count));
 }
 
 void expect_no_pitch_class(Runner &runner, const mao::NoteGrid &grid, int pitch_class, const std::string &context)
@@ -2328,6 +2362,23 @@ void check_bass_pure_tone_stays_out_of_harmonic_rows(Runner &runner)
 			      "`");
 }
 
+void check_full_mix_bass_harmonic_note_not_duplicated(Runner &runner)
+{
+	mao_test::Buffer buffer = {};
+	const std::vector<float> bass_profile = {1.0f, 0.42f, 0.22f, 0.10f};
+	add_harmonic_note(buffer, 40, 0.34f, bass_profile);
+
+	const auto snapshot =
+		analyze_buffer_with_mode(buffer, mao::AnalysisInputMode::FullMix, "speaker bass-only", 3);
+	expect_label(runner, snapshot.bass.label, "E2", "full-mix bass harmonic ownership");
+	expect_midi_not_duplicated_across_instruments(runner, snapshot, 40,
+						      "full-mix bass harmonic ownership");
+	expect_no_pitch_class(runner, snapshot.keyboard_notes, 4, "full-mix bass harmonic keyboard spillover");
+	expect_no_pitch_class(runner, snapshot.guitar_notes, 4, "full-mix bass harmonic guitar spillover");
+	expect_no_pitch_class(runner, snapshot.vocal_notes, 4, "full-mix bass harmonic vocal spillover");
+	expect_no_pitch_class(runner, snapshot.other_notes, 4, "full-mix bass harmonic other spillover");
+}
+
 void check_multi_instrument_mix(Runner &runner)
 {
 	mao_test::Buffer buffer = {};
@@ -2913,6 +2964,7 @@ int main()
 	check_other_source_hints(runner);
 	check_note_sub_rows(runner);
 	check_bass_pure_tone_stays_out_of_harmonic_rows(runner);
+	check_full_mix_bass_harmonic_note_not_duplicated(runner);
 	check_multi_instrument_mix(runner);
 	check_low_level_full_instrument_mix(runner);
 	check_bass_survives_low_mid_mix(runner);
