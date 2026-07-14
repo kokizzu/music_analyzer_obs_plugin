@@ -363,8 +363,9 @@ bool run_self_test()
 		mao::format_visualizer_status_line(status_line, sizeof(status_line), status_snapshot, 1.6f);
 		const char *age = std::strstr(status_line, "AGE ");
 		const char *drop = std::strstr(status_line, "DROP ");
+		const char *expected = "RMS 0.12 LOW 25% MID 50% HIGH 25% AGE 1.6S DROP 7";
 		if (std::strstr(status_line, "FRAMES") || std::strstr(status_line, "UPD") || !age || !drop ||
-		    age > drop) {
+		    age > drop || std::strcmp(status_line, expected) != 0) {
 			std::fprintf(stderr, "standalone self-test: unexpected status line '%s'\n", status_line);
 			return false;
 		}
