@@ -352,6 +352,31 @@ bool run_self_test()
 		std::fprintf(stderr, "standalone self-test: renderer produced too few visible pixels\n");
 		return false;
 	}
+	{
+		mao::VisualizerRenderer bpm_renderer;
+		mao::resize_visualizer(&bpm_renderer, 960, 540);
+		mao::AnalysisSnapshot bpm_snapshot = {};
+		bpm_snapshot.audio_seen = true;
+		bpm_snapshot.sequence = 42;
+		bpm_snapshot.estimated_bpm = 128.0f;
+		bpm_snapshot.bpm_confidence = 0.82f;
+		std::snprintf(bpm_snapshot.root_candidates, sizeof(bpm_snapshot.root_candidates), "-- 0%%");
+		mao::render_visualizer(&bpm_renderer, bpm_snapshot, 0.0f);
+
+		std::size_t bpm_pixels = 0;
+		for (int y = 520; y < 540; ++y) {
+			for (int x = 760; x < 940; ++x) {
+				const std::size_t offset = static_cast<std::size_t>((y * 960 + x) * 4);
+				if (offset + 2 < bpm_renderer.pixels.size() && bpm_renderer.pixels[offset] > 220 &&
+				    bpm_renderer.pixels[offset + 1] > 220 && bpm_renderer.pixels[offset + 2] > 220)
+					++bpm_pixels;
+			}
+		}
+		if (bpm_pixels < 20) {
+			std::fprintf(stderr, "standalone self-test: expected BPM text at bottom right\n");
+			return false;
+		}
+	}
 	if (std::strstr(snapshot.keyboard_chord.label, "C") == nullptr) {
 		std::fprintf(stderr, "standalone self-test: expected keyboard C chord, got '%s'\n",
 			     snapshot.keyboard_chord.label);

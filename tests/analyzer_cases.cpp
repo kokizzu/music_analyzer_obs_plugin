@@ -736,6 +736,82 @@ void check_temporal_chord_stability(Runner &runner)
 	expect_no_chord(runner, snapshot.keyboard_chord, "temporal chord silence clear");
 }
 
+mao_test::Buffer make_interval_chord(int root_midi, const std::vector<int> &intervals, float amp = 0.34f)
+{
+	mao_test::Buffer buffer = {};
+	for (int interval : intervals)
+		mao_test::add_midi_note(buffer, root_midi + interval, amp);
+	return buffer;
+}
+
+void expect_chord_label_present(Runner &runner, const char *actual, const std::string &expected,
+				const std::string &context)
+{
+	runner.expect(has_chord_label(actual, expected),
+		      context + ": expected chord label `" + expected + "`, got `" + actual + "`");
+}
+
+void expect_no_false_transition_labels(Runner &runner, const char *actual, const std::vector<std::string> &forbidden,
+				       const std::string &context)
+{
+	for (const std::string &label : forbidden)
+		expect_no_chord_label(runner, actual, label, context);
+}
+
+void expect_keyboard_chord_transition(Runner &runner, const std::string &name, const mao_test::Buffer &from,
+				      const std::string &from_label, const mao_test::Buffer &to,
+				      const std::string &to_label, const std::vector<std::string> &forbidden)
+{
+	mao::AnalysisEngine engine;
+	mao::AnalysisSettings settings = mao_test::default_settings();
+	settings.analysis_interval_seconds = 0.05f;
+
+	auto snapshot = engine.analyze(from.data(), from.size(), settings, "keyboard", 0);
+	expect_chord_label_present(runner, snapshot.keyboard_chord.label, from_label, name + " seed");
+
+	snapshot = engine.analyze(from.data(), from.size(), settings, "keyboard", 0);
+	expect_chord_label_present(runner, snapshot.keyboard_chord.label, from_label, name + " stable source");
+
+	snapshot = engine.analyze(to.data(), to.size(), settings, "keyboard", 0);
+	expect_chord_label_present(runner, snapshot.keyboard_chord.label, from_label,
+				  name + " rejects one-frame replacement");
+
+	snapshot = engine.analyze(to.data(), to.size(), settings, "keyboard", 0);
+	expect_chord_label_present(runner, snapshot.keyboard_chord.label, to_label, name + " confirmed target");
+	expect_no_false_transition_labels(runner, snapshot.keyboard_chord.label, forbidden, name + " confirmed target");
+
+	snapshot = engine.analyze(to.data(), to.size(), settings, "keyboard", 0);
+	expect_chord_label_present(runner, snapshot.keyboard_chord.label, to_label, name + " stable target");
+	expect_no_false_transition_labels(runner, snapshot.keyboard_chord.label, forbidden, name + " stable target");
+}
+
+void check_required_chord_transitions(Runner &runner)
+{
+	const auto c = make_interval_chord(60, {0, 4, 7});
+	const auto g = make_interval_chord(67, {0, 4, 7});
+	const auto am = make_interval_chord(69, {0, 3, 7});
+	const auto dm7 = make_interval_chord(62, {0, 3, 7, 10});
+	const auto g7 = make_interval_chord(67, {0, 4, 7, 10});
+	const auto csus4 = make_interval_chord(60, {0, 5, 7});
+	const auto cmaj7 = make_interval_chord(60, {0, 4, 7, 11});
+	const auto em = make_interval_chord(64, {0, 3, 7});
+
+	expect_keyboard_chord_transition(runner, "required transition C to G", c, "C", g, "G",
+					 {"Cmaj7", "C7", "Cadd9", "C9", "Gadd9", "Gmaj9", "Gaug", "Gdim"});
+	expect_keyboard_chord_transition(runner, "required transition C to Am", c, "C", am, "Am",
+					 {"C6", "Cmaj7", "C7", "Cadd9", "Am7", "Am9", "Aaug", "Adim"});
+	expect_keyboard_chord_transition(runner, "required transition Dm7 to G7", dm7, "Dm7", g7, "G7",
+					 {"Dm9", "Ddim", "Daug", "G9", "Gmaj7", "Gdim", "Gaug"});
+	expect_keyboard_chord_transition(runner, "required transition Csus4 to C", csus4, "Csus4", c, "C",
+					 {"C7", "Cmaj7", "Cadd9", "C9", "Cdim", "Caug"});
+	expect_keyboard_chord_transition(runner, "required transition C to Cmaj7", c, "C", cmaj7, "Cmaj7",
+					 {"C7", "C9", "Cadd9", "Cdim", "Caug"});
+	expect_keyboard_chord_transition(runner, "required transition Cmaj7 to C", cmaj7, "Cmaj7", c, "C",
+					 {"Cmaj7", "C7", "C9", "Cadd9", "Cdim", "Caug"});
+	expect_keyboard_chord_transition(runner, "required transition G to Em", g, "G", em, "Em",
+					 {"G6", "Gmaj7", "G7", "Gadd9", "Em7", "Em9", "Edim", "Eaug"});
+}
+
 void check_smoothed_only_chord_initializes(Runner &runner)
 {
 	mao::AnalysisEngine engine;
@@ -2252,6 +2328,7 @@ int main()
 	check_sustained_note_envelope(runner);
 	check_temporal_note_stability(runner);
 	check_temporal_chord_stability(runner);
+	check_required_chord_transitions(runner);
 	check_smoothed_only_chord_initializes(runner);
 	check_low_level_mixed_notes(runner);
 	check_melodic_sources_do_not_trigger_drums(runner);
