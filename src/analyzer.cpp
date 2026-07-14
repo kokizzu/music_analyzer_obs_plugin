@@ -201,6 +201,21 @@ struct NoteCandidate {
 	float score = 0.0f;
 };
 
+struct NoteEvidence {
+	int midi = -1;
+	float spectral_level = 0.0f;
+	float pitch_confidence = 0.0f;
+	float tuning_error_cents = 0.0f;
+	float harmonicity = 0.0f;
+	float harmonic_fit_error = 0.0f;
+	float spectral_centroid = 0.0f;
+	float spectral_slope = 0.0f;
+	float local_noise_level = 0.0f;
+	std::array<float, 5> ownership_scores = {};
+	InstrumentKind owner = InstrumentKind::Ambiguous;
+	float ownership_confidence = 0.0f;
+};
+
 enum class TimbreKind : std::size_t {
 	Keyboard = 0,
 	Guitar = 1,
@@ -366,6 +381,78 @@ TimbreMix timbre_mix_for_midi(const std::array<float, kNoteProbeCount> &powers, 
 	if (mix.bands[0] > 1.0e-6f)
 		mix.weights = fit_timbre_weights(mix.bands);
 	return mix;
+}
+
+float timbre_fit_residual(const TimbreMix &mix)
+{
+	const float fundamental = mix.bands[0];
+	if (fundamental <= 1.0e-6f)
+		return 1.0f;
+
+	float squared_error = 0.0f;
+	for (std::size_t band = 0; band < kTimbreBandCount; ++band) {
+		float predicted = 0.0f;
+		for (std::size_t kind = 0; kind < kTimbreKindCount; ++kind)
+			predicted += mix.weights[kind] * kTimbreTemplates[kind][band];
+		const float normalized_error = (predicted - mix.bands[band]) / fundamental;
+		squared_error += normalized_error * normalized_error;
+	}
+	return std::sqrt(squared_error / static_cast<float>(kTimbreBandCount));
+}
+
+float local_spectral_noise_ratio(const std::array<float, kNoteProbeCount> &powers, int midi, float fundamental)
+{
+	if (fundamental <= 1.0e-6f)
+		return 1.0f;
+
+	float noise_sum = 0.0f;
+	int noise_count = 0;
+	for (int offset : {-3, -2, -1, 1, 2, 3}) {
+		const int neighbor = midi + offset;
+		if (neighbor < kFirstMidi || neighbor > kLastMidi)
+			continue;
+		noise_sum += std::sqrt(std::max(powers[neighbor - kFirstMidi], 0.0f));
+		++noise_count;
+	}
+	return noise_count > 0 ? (noise_sum / static_cast<float>(noise_count)) / fundamental : 0.0f;
+}
+
+NoteEvidence build_note_evidence(const std::array<float, kNoteProbeCount> &powers,
+				 const NoteCandidate &candidate, float strongest_score, const TimbreMix &mix)
+{
+	NoteEvidence evidence;
+	evidence.midi = candidate.midi;
+	evidence.spectral_level =
+		strongest_score > 1.0e-6f ? std::clamp(candidate.score / strongest_score, 0.0f, 1.0f) : 0.0f;
+
+	const float fundamental = mix.bands[0];
+	if (fundamental <= 1.0e-6f)
+		return evidence;
+
+	float harmonic_sum = 0.0f;
+	float weighted_interval_sum = 0.0f;
+	for (std::size_t band = 1; band < kTimbreBandCount; ++band) {
+		harmonic_sum += mix.bands[band];
+		weighted_interval_sum += mix.bands[band] * static_cast<float>(kTimbreIntervals[band]);
+	}
+	const float total_band_energy = fundamental + harmonic_sum;
+	evidence.harmonicity = harmonic_sum / fundamental;
+	evidence.harmonic_fit_error = timbre_fit_residual(mix);
+	evidence.spectral_centroid =
+		total_band_energy > 1.0e-6f ?
+			std::clamp(weighted_interval_sum /
+					   (total_band_energy *
+					    static_cast<float>(kTimbreIntervals.back())),
+				   0.0f, 1.0f) :
+			0.0f;
+	const float low_partials = fundamental + mix.bands[1];
+	const float high_partials = mix.bands[2] + mix.bands[3] + mix.bands[4];
+	evidence.spectral_slope = high_partials / std::max(low_partials, 1.0e-6f);
+	evidence.local_noise_level = local_spectral_noise_ratio(powers, candidate.midi, fundamental);
+	const float noise_penalty = std::clamp(1.0f - evidence.local_noise_level * 0.45f, 0.35f, 1.0f);
+	const float fit_penalty = std::clamp(1.0f - evidence.harmonic_fit_error * 0.40f, 0.45f, 1.0f);
+	evidence.pitch_confidence = std::clamp(evidence.spectral_level * noise_penalty * fit_penalty, 0.0f, 1.0f);
+	return evidence;
 }
 
 bool timbre_supports_kind(const std::array<float, kNoteProbeCount> &powers, int midi, TimbreKind kind)
@@ -568,13 +655,13 @@ float relative_timbre_weight(const TimbreMix &mix, TimbreKind kind)
 
 InstrumentKind choose_full_mix_owner(const std::array<float, kNoteProbeCount> &powers,
 				     const NoteCandidate &candidate, float strongest_score,
-				     float &ownership_confidence)
+				     bool polyphonic_vocal_context, NoteEvidence &evidence)
 {
-	ownership_confidence = 0.0f;
 	if (candidate.midi < kFirstMidi || candidate.midi > kLastMidi || strongest_score <= 1.0e-6f)
 		return InstrumentKind::Ambiguous;
 
 	const TimbreMix mix = timbre_mix_for_midi(powers, candidate.midi);
+	evidence = build_note_evidence(powers, candidate, strongest_score, mix);
 	const float fundamental = mix.bands[0];
 	if (fundamental <= 1.0e-6f)
 		return InstrumentKind::Ambiguous;
@@ -586,16 +673,25 @@ InstrumentKind choose_full_mix_owner(const std::array<float, kNoteProbeCount> &p
 	const float keyboard_weight = relative_timbre_weight(mix, TimbreKind::Keyboard);
 	const float guitar_weight = relative_timbre_weight(mix, TimbreKind::Guitar);
 	const float other_weight = relative_timbre_weight(mix, TimbreKind::Other);
-	const float note_strength = std::clamp(candidate.score / strongest_score, 0.0f, 1.0f);
+	const float note_strength = evidence.spectral_level;
+	const float clean_pitch_bonus = evidence.pitch_confidence * 0.12f;
+	const float noise_penalty = std::clamp(1.0f - evidence.local_noise_level * 0.42f, 0.42f, 1.0f);
+	const float fit_penalty = std::clamp(1.0f - evidence.harmonic_fit_error * 0.32f, 0.52f, 1.0f);
 
 	std::array<float, 4> scores = {};
 	if (candidate.midi >= 48 && candidate.midi <= 83 && second <= 0.56f) {
 		scores[0] = keyboard_weight * 1.18f + std::max(0.0f, 0.50f - second) * 0.30f +
-			    std::max(0.0f, 0.16f - third) * 0.08f;
+			    std::max(0.0f, 0.16f - third) * 0.08f + clean_pitch_bonus;
+		if (evidence.spectral_centroid > 0.34f || evidence.spectral_slope > 0.18f)
+			scores[0] *= 0.78f;
 	}
 	if (candidate.midi >= kGuitarMinMidi && candidate.midi <= kGuitarMaxMidi && second >= 0.12f &&
 	    third >= 0.035f) {
 		scores[1] = guitar_weight * 1.18f + second * 0.24f + third * 0.16f;
+		if (evidence.spectral_centroid >= 0.10f && evidence.spectral_centroid <= 0.42f)
+			scores[1] += 0.08f;
+		if (evidence.spectral_slope >= 0.035f && evidence.spectral_slope <= 0.30f)
+			scores[1] += 0.05f;
 		if (second > 0.75f || fourth > 0.36f)
 			scores[1] *= 0.72f;
 	}
@@ -605,11 +701,21 @@ InstrumentKind choose_full_mix_owner(const std::array<float, kNoteProbeCount> &p
 			    std::max(0.0f, 0.075f - third) * 1.2f;
 		if (note_strength < 0.38f)
 			scores[2] *= 0.70f;
+		if (evidence.local_noise_level > 0.22f || evidence.harmonic_fit_error > 0.40f)
+			scores[2] *= 0.62f;
+		if (evidence.spectral_centroid > 0.24f)
+			scores[2] *= 0.72f;
+		if (polyphonic_vocal_context)
+			scores[2] *= 0.35f;
 	}
 	if (candidate.midi >= 60 && candidate.midi <= kOtherMaxMidi && second >= 0.24f &&
 	    (fourth >= 0.06f || fifth >= 0.035f)) {
 		scores[3] = other_weight * 1.12f + second * 0.18f + third * 0.14f + fourth * 0.10f;
+		if (evidence.harmonicity >= 0.62f || evidence.spectral_centroid >= 0.20f)
+			scores[3] += 0.10f;
 	}
+	for (float &score : scores)
+		score *= noise_penalty * fit_penalty;
 
 	float total = 0.0f;
 	for (float score : scores)
@@ -632,22 +738,36 @@ InstrumentKind choose_full_mix_owner(const std::array<float, kNoteProbeCount> &p
 
 	const float best_probability = scores[best] / total;
 	const float second_probability = scores[second_best] / total;
-	ownership_confidence = best_probability;
+	evidence.ownership_scores[static_cast<std::size_t>(InstrumentKind::Keyboard)] = scores[0] / total;
+	evidence.ownership_scores[static_cast<std::size_t>(InstrumentKind::Guitar)] = scores[1] / total;
+	evidence.ownership_scores[static_cast<std::size_t>(InstrumentKind::Vocal)] = scores[2] / total;
+	evidence.ownership_scores[static_cast<std::size_t>(InstrumentKind::Other)] = scores[3] / total;
+	evidence.ownership_confidence = best_probability;
+	if (best == 2 && polyphonic_vocal_context)
+		return InstrumentKind::Ambiguous;
 	if (best_probability < 0.65f || best_probability - second_probability < 0.20f)
 		return InstrumentKind::Ambiguous;
 
+	InstrumentKind owner = InstrumentKind::Ambiguous;
 	switch (best) {
 	case 0:
-		return InstrumentKind::Keyboard;
+		owner = InstrumentKind::Keyboard;
+		break;
 	case 1:
-		return InstrumentKind::Guitar;
+		owner = InstrumentKind::Guitar;
+		break;
 	case 2:
-		return InstrumentKind::Vocal;
+		owner = InstrumentKind::Vocal;
+		break;
 	case 3:
-		return InstrumentKind::Other;
+		owner = InstrumentKind::Other;
+		break;
 	default:
-		return InstrumentKind::Ambiguous;
+		owner = InstrumentKind::Ambiguous;
+		break;
 	}
+	evidence.owner = owner;
+	return owner;
 }
 
 FullMixOwnership build_full_mix_ownership(const std::array<float, kNoteProbeCount> &powers,
@@ -667,9 +787,18 @@ FullMixOwnership build_full_mix_ownership(const std::array<float, kNoteProbeCoun
 	if (strongest_score <= 1.0e-6f)
 		return ownership;
 
+	int vocal_range_candidate_count = 0;
 	for (const NoteCandidate &candidate : candidates) {
-		float confidence = 0.0f;
-		const InstrumentKind owner = choose_full_mix_owner(powers, candidate, strongest_score, confidence);
+		if (candidate.midi >= 72 && candidate.midi <= kVocalMaxMidi &&
+		    candidate.score >= strongest_score * 0.35f)
+			++vocal_range_candidate_count;
+	}
+	const bool polyphonic_vocal_context = vocal_range_candidate_count >= 2;
+
+	for (const NoteCandidate &candidate : candidates) {
+		NoteEvidence evidence;
+		const InstrumentKind owner =
+			choose_full_mix_owner(powers, candidate, strongest_score, polyphonic_vocal_context, evidence);
 		if (candidate.midi < kFirstMidi || candidate.midi > kLastMidi)
 			continue;
 

@@ -16,6 +16,7 @@ Native OBS Studio plugin that analyzes a music mix and displays an instrument-or
 - Guitar chord labels are resolved from the filtered fretboard notes with CAGED-style voicing preference, so full-mix bass/root hints do not rename the guitar shape
 - Full-mix routing exposes a primary global chord in the shared analyzer snapshot, while instrument rows remain conservative estimates
 - Explicit isolated input modes keep single-instrument sources in their matching row instead of filling unrelated keyboard, guitar, vocal, or other rows
+- Full-mix ownership uses shared note evidence with harmonic fit, harmonic balance, spectral centroid/slope, local spectral noise, and simultaneous high-note context before assigning a note to an instrument row
 - Source-name hints remain as a compatibility adapter for tests and direct analyzer use: `guitar`, `key`, `piano`, `organ`, `synth`, `brass`, `horn`, `violin`, and `string` resolve to isolated modes when the caller does not set an input mode explicitly
 - Root: rolling 15-second root candidates with confidence, with the primary root held until sustained modulation or silence
 - BPM: estimated tempo and confidence are shown at the bottom right when rhythmic transients provide enough evidence

@@ -156,6 +156,11 @@ baseline paths:
   candidates. Each candidate receives one confident owner or becomes
   `Ambiguous`; the same mixed-spectrum candidate is not intentionally copied
   into keyboard, guitar, vocal, and other rows.
+* Full-mix ownership now carries explicit per-note evidence: spectral level,
+  pitch confidence, harmonicity, harmonic-fit residual, spectral centroid,
+  spectral slope, local spectral noise, normalized ownership scores, and final
+  owner confidence. Simultaneous high-note clusters suppress vocal ownership so
+  instrumental chords do not become monophonic vocal guesses.
 * `AnalysisSnapshot` exposes `global_chord` and `ambiguous_notes`. Full-mix
   chord detection uses global chroma, while instrument-specific chords are
   secondary and are based on owned notes.
