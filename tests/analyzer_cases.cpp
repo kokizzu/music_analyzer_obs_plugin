@@ -1291,6 +1291,55 @@ void check_high_full_mix_cluster_not_vocal_or_other(Runner &runner)
 	}
 }
 
+void check_full_mix_single_instrument_precision(Runner &runner)
+{
+	{
+		mao_test::Buffer buffer = {};
+		const std::vector<float> piano_profile = {1.0f, 0.12f, 0.04f, 0.015f};
+		for (int midi : {60, 64, 67})
+			add_harmonic_note(buffer, midi, 0.24f, piano_profile);
+
+		const auto snapshot =
+			analyze_buffer_with_mode(buffer, mao::AnalysisInputMode::FullMix, "speaker piano-only", 3);
+		expect_label(runner, snapshot.global_chord.label, "C", "full-mix piano-only global chord");
+		for (int midi : {60, 64, 67}) {
+			const int pitch_class = ((midi % 12) + 12) % 12;
+			expect_global_pitch_class(runner, snapshot, pitch_class, "full-mix piano-only global");
+			expect_midi_not_duplicated_across_rows(runner, snapshot, midi,
+							       "full-mix piano-only ownership");
+			expect_no_pitch_class(runner, snapshot.guitar_notes, pitch_class,
+					      "full-mix piano-only guitar spillover");
+			expect_no_pitch_class(runner, snapshot.vocal_notes, pitch_class,
+					      "full-mix piano-only vocal spillover");
+			expect_no_pitch_class(runner, snapshot.other_notes, pitch_class,
+					      "full-mix piano-only other spillover");
+		}
+	}
+
+	{
+		mao_test::Buffer buffer = {};
+		const std::vector<float> guitar_profile = {1.0f, 0.36f, 0.17f, 0.07f, 0.03f};
+		for (int midi : {55, 59, 62})
+			add_harmonic_note(buffer, midi, 0.24f, guitar_profile);
+
+		const auto snapshot =
+			analyze_buffer_with_mode(buffer, mao::AnalysisInputMode::FullMix, "speaker guitar-only", 3);
+		expect_label(runner, snapshot.global_chord.label, "G", "full-mix guitar-only global chord");
+		for (int midi : {55, 59, 62}) {
+			const int pitch_class = ((midi % 12) + 12) % 12;
+			expect_global_pitch_class(runner, snapshot, pitch_class, "full-mix guitar-only global");
+			expect_midi_not_duplicated_across_rows(runner, snapshot, midi,
+							       "full-mix guitar-only ownership");
+			expect_no_pitch_class(runner, snapshot.keyboard_notes, pitch_class,
+					      "full-mix guitar-only keyboard spillover");
+			expect_no_pitch_class(runner, snapshot.vocal_notes, pitch_class,
+					      "full-mix guitar-only vocal spillover");
+			expect_no_pitch_class(runner, snapshot.other_notes, pitch_class,
+					      "full-mix guitar-only other spillover");
+		}
+	}
+}
+
 void check_simultaneous_onset_group_rejects_vocal_spillover(Runner &runner)
 {
 	mao_test::Buffer buffer = {};
@@ -2841,6 +2890,7 @@ int main()
 	check_distorted_midi_guitar_timbre(runner);
 	check_spillover_regressions(runner);
 	check_high_full_mix_cluster_not_vocal_or_other(runner);
+	check_full_mix_single_instrument_precision(runner);
 	check_simultaneous_onset_group_rejects_vocal_spillover(runner);
 	check_full_mix_vocal_requires_temporal_confirmation(runner);
 	check_sparse_full_mix_other_requires_temporal_confirmation(runner);

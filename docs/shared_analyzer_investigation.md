@@ -184,6 +184,11 @@ baseline paths:
   singleton owner inside an otherwise ambiguous full-mix harmonic cluster is
   demoted back to ambiguous, so it can support the global chord without creating
   a falsely confident per-instrument note or chord.
+* Direct regression coverage now includes piano-only and guitar-only material
+  analyzed explicitly as `FullMix`, matching the speaker-monitor/OBS path. These
+  cases require the global chord and global pitch evidence to survive while the
+  same MIDI candidates stay out of unrelated instrument rows and are not
+  duplicated across confident owners.
 * `AnalysisSnapshot` exposes `global_chord` and `ambiguous_notes`. Full-mix
   chord detection uses global chroma, while instrument-specific chords are
   secondary and are based on owned notes.

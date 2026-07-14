@@ -273,6 +273,8 @@ def main():
          "full-mix other sparse ownership requires temporal confirmation"),
         (analyzer_cases, "check_sparse_full_mix_other_requires_temporal_confirmation",
          "full-mix other sparse temporal confirmation regression"),
+        (analyzer_cases, "check_full_mix_single_instrument_precision",
+         "full-mix single-instrument precision spillover regression"),
         (analyzer_impl, "NoteCandidateList keyboard_candidates",
          "full-mix keyboard owned candidate list"),
         (analyzer_impl, "set_instrument_note_set_from_candidates(snapshot.keyboard_notes",
