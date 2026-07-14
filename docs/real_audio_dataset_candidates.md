@@ -29,15 +29,19 @@ These are the best candidates for full-mix and per-instrument verification.
 | TRIOS | 5 pieces | URMP survey describes 5 multitrack trio recordings with MIDI transcriptions. `make test-direct-fit-small-fixture` includes a generated trio-shaped fixture set. | Need to locate current download and license before real-audio automation. |
 | MIREX Woodwind Quintet / WWQ | 1 piece | URMP survey describes individual recordings and note annotations for a classical quintet. `make test-direct-fit-small-fixture` includes a generated woodwind-quintet-shaped fixture. | Only a 54-second excerpt is publicly available according to the URMP survey. |
 | PHENICX-Anechoic / Aalto Anechoic Orchestra | 4 pieces | URMP survey describes 8-10 isolated orchestral parts per piece with denoised recordings and note annotations. `make test-direct-fit-small-fixture` includes generated eight-part orchestral fixtures. | Need to verify current access, license, and annotation format before real-audio automation. |
+| Ensemble Expressive Performance / EEP | 23 pieces | URMP survey describes string-quartet audio, note annotations, and bow motion-capture data. The generic `make test-real-prepared-multitrack-20` gate can evaluate it once local source audio and note CSVs are mapped into `manifest.json`. | Need to verify current public archive access, license, and exact annotation layout. Contact microphones may not sound like normal isolated stems. |
 
 Recommendation: start with URMP. It satisfies the user's requested 20+ real
 multi-instrument cases by itself and is the clearest source for verifying
 mixtures, per-instrument notes, and source assignment. The other direct-fit
-datasets found so far are useful add-ons. Combined, Bach10, TRIOS, WWQ, and
-PHENICX-Anechoic account for 20 direct-fit-small pieces; normal `make test`
-now covers that combined instrumentation with `make test-direct-fit-small-fixture`
-as a generated regression while real-audio access/layout automation remains a
-future add-on.
+datasets found so far are useful add-ons. EEP reaches 20+ pieces in the
+literature, but current archive access/layout still needs verification, so it
+is supported through the generic prepared-multitrack manifest gate rather than a
+hard-coded downloader. Combined, Bach10, TRIOS, WWQ, and PHENICX-Anechoic
+account for 20 direct-fit-small pieces; normal `make test` now covers that
+combined instrumentation with `make test-direct-fit-small-fixture` as a
+generated regression while real-audio access/layout automation remains a future
+add-on.
 
 ## Synthesized Multitrack Truth
 
@@ -103,15 +107,17 @@ without additional annotation.
   combined setup preflight for the requested 20+ real same-song multitrack
   test. It requires the URMP layout preflight and then runs configured optional
   gates such as MusicNet, MedleyDB, MUSDB18, Slakh2100, ChoralSynth,
-  CocoChorales, Vocal Ensemble F0 Aggregate, MulTTiPop, Spheres, GuitarSet, MAESTRO, and E-GMD. The URMP preflight applies the same
+  CocoChorales, Vocal Ensemble F0 Aggregate, prepared multitrack note-truth,
+  MulTTiPop, Spheres, GuitarSet, MAESTRO, and E-GMD. The URMP preflight applies the same
   `MUSIC_ANALYZER_URMP_MIN_ACTIVE_TRACKS_PER_WINDOW` and
   `MUSIC_ANALYZER_URMP_MIN_PITCH_CLASSES_PER_WINDOW` density thresholds as the
   analyzer gate, then reports matched-track, candidate active-track, and
   candidate pitch-class min/average/max values. Use `make test-real-goal-20` as
   the combined analyzer acceptance gate. It requires the URMP multitrack gate
   and then runs configured optional add-on gates such as MusicNet, MedleyDB,
-  MUSDB18, Slakh2100, ChoralSynth, CocoChorales, Vocal Ensemble F0 Aggregate, MulTTiPop,
-  Spheres, GuitarSet, MAESTRO, and E-GMD.
+  MUSDB18, Slakh2100, ChoralSynth, CocoChorales, Vocal Ensemble F0 Aggregate,
+  prepared multitrack note-truth, MulTTiPop, Spheres, GuitarSet, MAESTRO, and
+  E-GMD.
   The official URMP full package is distributed through a registration form
   rather than a stable direct archive URL, so this repository intentionally does
   not try to download the 12.5 GB package automatically.
@@ -225,6 +231,18 @@ without additional annotation.
   multi-source F0 cases and chord opportunities, but it does not replace URMP
   because it is vocal-only and does not exercise mixed instrument
   timbre/source assignment.
+- Use `make inspect-real-prepared-multitrack` with
+  `MUSIC_ANALYZER_PREPARED_MULTITRACK_ROOT=/path/to/prepared-multitrack` for
+  local real datasets whose public archive layout is not stable enough to
+  hard-code, including EEP or a combined Bach10/TRIOS/PHENICX/WWQ preparation.
+  The root must contain a `manifest.json` with a `pieces` list. Each piece has
+  `sources`, and each source has `audio`, `notes`, and optional `instrument`.
+  Note CSV files use `start`, `end`, `note`, and optional `instrument` columns.
+  Use `make test-real-prepared-multitrack-20` to sum the source WAVs into a
+  temporary MusicNet-shaped WAV/CSV layout and run the analyzer pitch-class and
+  chord recall gate. Normal `make test` covers this path with
+  `make test-prepared-multitrack-fixture`, a 20-piece generated regression that
+  verifies four simultaneous source tracks per piece.
 - Use `make inspect-real-multtipop` with
   `MUSIC_ANALYZER_MULTTIPOP_ROOT=/path/to/multtipop` after cloning or
   extracting the Hugging Face dataset. The preflight expects the official
@@ -300,10 +318,11 @@ without additional annotation.
   `build/` with `ffmpeg`, generates 20-recording MusicNet-shaped WAV/CSV and
   MedleyDB-shaped summed-stem melody-F0, MUSDB18-shaped five-stem, Slakh2100-shaped
   rendered stem/MIDI, ChoralSynth-shaped vocal score/voice-track,
-  audio-backed MulTTiPop-shaped multitrack-MIDI
-  metadata, Spheres-shaped stem-layout, GuitarSet-shaped JAMS/hex-audio,
-  MAESTRO-shaped MIDI/WAV, and E-GMD-shaped MIDI/WAV fixtures, sends all
-  configured roots through the
+  CocoChorales-shaped chamber stem/MIDI, Vocal Ensemble F0-shaped per-voice F0,
+  prepared source-audio/note manifests, audio-backed MulTTiPop-shaped
+  multitrack-MIDI metadata, Spheres-shaped stem-layout, GuitarSet-shaped
+  JAMS/hex-audio, MAESTRO-shaped MIDI/WAV, and E-GMD-shaped MIDI/WAV fixtures,
+  sends all configured roots through the
   combined setup preflight, and then sends them through the combined goal gate.
   The URMP fixture is marker-file tagged and is rejected by the real-data gate
   unless fixture mode is explicitly allowed. Override the decoder with

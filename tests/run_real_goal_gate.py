@@ -142,6 +142,27 @@ def configured_polyvocal(env):
     return False
 
 
+def configured_prepared_multitrack(env):
+    if env_has_any(env, ("MUSIC_ANALYZER_PREPARED_MULTITRACK_ROOT", "PREPARED_MULTITRACK_PATH")):
+        return True
+
+    dataset_root = env.get("MUSIC_ANALYZER_DATASET_ROOT", "")
+    if not dataset_root:
+        return False
+
+    for child in (
+        "prepared-multitrack",
+        "prepared_multitrack",
+        "PreparedMultitrack",
+        "eep-prepared",
+        "direct-fit-small-prepared",
+    ):
+        candidate = child_path(dataset_root, child)
+        if os.path.isfile(child_path(candidate, "manifest.json")):
+            return True
+    return False
+
+
 def multtipop_candidate_roots(env):
     roots = []
     if env_has_any(env, ("MUSIC_ANALYZER_MULTTIPOP_ROOT", "MULTTIPOP_PATH")):
@@ -268,6 +289,7 @@ TARGET_PLANS = {
         "choralsynth_target": "test-real-choralsynth-20",
         "cocochorales_target": "test-real-cocochorales-20",
         "polyvocal_target": "test-real-polyvocal-20",
+        "prepared_multitrack_target": "test-real-prepared-multitrack-20",
         "multtipop_target": "inspect-real-multtipop",
         "multtipop_audio_target": "test-real-multtipop-20",
         "spheres_target": "inspect-real-spheres",
@@ -285,6 +307,7 @@ TARGET_PLANS = {
         "choralsynth_target": "test-real-choralsynth-20",
         "cocochorales_target": "test-real-cocochorales-20",
         "polyvocal_target": "test-real-polyvocal-20",
+        "prepared_multitrack_target": "test-real-prepared-multitrack-full",
         "multtipop_target": "inspect-real-multtipop",
         "multtipop_audio_target": "test-real-multtipop-full",
         "spheres_target": "inspect-real-spheres",
@@ -302,6 +325,7 @@ TARGET_PLANS = {
         "choralsynth_target": "inspect-real-choralsynth",
         "cocochorales_target": "inspect-real-cocochorales",
         "polyvocal_target": "inspect-real-polyvocal",
+        "prepared_multitrack_target": "inspect-real-prepared-multitrack",
         "multtipop_target": "inspect-real-multtipop",
         "multtipop_audio_target": "inspect-real-multtipop",
         "spheres_target": "inspect-real-spheres",
@@ -319,6 +343,7 @@ TARGET_PLANS = {
         "choralsynth_target": "inspect-real-choralsynth",
         "cocochorales_target": "inspect-real-cocochorales",
         "polyvocal_target": "inspect-real-polyvocal",
+        "prepared_multitrack_target": "inspect-real-prepared-multitrack",
         "multtipop_target": "inspect-real-multtipop",
         "multtipop_audio_target": "inspect-real-multtipop",
         "spheres_target": "inspect-real-spheres",
@@ -431,6 +456,17 @@ def main(argv):
             "run_real_goal_gate: skipping optional vocal-ensemble F0 analyzer gate; set "
             "MUSIC_ANALYZER_POLYVOCAL_ROOT/POLYVOCAL_PATH or place a polyvocal directory under "
             "MUSIC_ANALYZER_DATASET_ROOT"
+        )
+
+    if configured_prepared_multitrack(env):
+        failed = run(make_cmd, plan["prepared_multitrack_target"])
+        if failed:
+            return failed
+    else:
+        print(
+            "run_real_goal_gate: skipping optional prepared multitrack note-truth analyzer gate; set "
+            "MUSIC_ANALYZER_PREPARED_MULTITRACK_ROOT/PREPARED_MULTITRACK_PATH or place a prepared "
+            "multitrack manifest under MUSIC_ANALYZER_DATASET_ROOT"
         )
 
     if configured_multtipop(env):

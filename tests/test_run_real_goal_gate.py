@@ -131,6 +131,28 @@ def test_generic_dataset_root_without_polyvocal_child_is_not_polyvocal():
         assert not run_real_goal_gate.configured_polyvocal({"MUSIC_ANALYZER_DATASET_ROOT": temp})
 
 
+def test_explicit_prepared_multitrack_root_is_configured():
+    assert run_real_goal_gate.configured_prepared_multitrack(
+        {"MUSIC_ANALYZER_PREPARED_MULTITRACK_ROOT": "/tmp/prepared"}
+    )
+    assert run_real_goal_gate.configured_prepared_multitrack({"PREPARED_MULTITRACK_PATH": "/tmp/prepared"})
+
+
+def test_generic_dataset_root_with_prepared_multitrack_manifest_is_prepared_multitrack():
+    with tempfile.TemporaryDirectory() as temp:
+        root = os.path.join(temp, "prepared-multitrack")
+        touch_dir(root)
+        with open(os.path.join(root, "manifest.json"), "w", encoding="utf-8") as manifest:
+            manifest.write("{}\n")
+        assert run_real_goal_gate.configured_prepared_multitrack({"MUSIC_ANALYZER_DATASET_ROOT": temp})
+
+
+def test_generic_dataset_root_without_prepared_multitrack_manifest_is_not_prepared_multitrack():
+    with tempfile.TemporaryDirectory() as temp:
+        touch_dir(os.path.join(temp, "prepared-multitrack"))
+        assert not run_real_goal_gate.configured_prepared_multitrack({"MUSIC_ANALYZER_DATASET_ROOT": temp})
+
+
 def test_explicit_multtipop_root_is_configured():
     assert run_real_goal_gate.configured_multtipop({"MUSIC_ANALYZER_MULTTIPOP_ROOT": "/tmp/multtipop"})
     assert run_real_goal_gate.configured_multtipop({"MULTTIPOP_PATH": "/tmp/multtipop"})
@@ -243,6 +265,7 @@ def test_twenty_piece_test_plan_targets_real_gates():
     assert plan["choralsynth_target"] == "test-real-choralsynth-20"
     assert plan["cocochorales_target"] == "test-real-cocochorales-20"
     assert plan["polyvocal_target"] == "test-real-polyvocal-20"
+    assert plan["prepared_multitrack_target"] == "test-real-prepared-multitrack-20"
     assert plan["multtipop_target"] == "inspect-real-multtipop"
     assert plan["multtipop_audio_target"] == "test-real-multtipop-20"
     assert plan["spheres_target"] == "inspect-real-spheres"
@@ -263,6 +286,7 @@ def test_full_test_plan_targets_full_real_gates():
     assert plan["choralsynth_target"] == "test-real-choralsynth-20"
     assert plan["cocochorales_target"] == "test-real-cocochorales-20"
     assert plan["polyvocal_target"] == "test-real-polyvocal-20"
+    assert plan["prepared_multitrack_target"] == "test-real-prepared-multitrack-full"
     assert plan["multtipop_target"] == "inspect-real-multtipop"
     assert plan["multtipop_audio_target"] == "test-real-multtipop-full"
     assert plan["spheres_target"] == "inspect-real-spheres"
@@ -283,6 +307,7 @@ def test_twenty_piece_inspect_plan_targets_preflights():
     assert plan["choralsynth_target"] == "inspect-real-choralsynth"
     assert plan["cocochorales_target"] == "inspect-real-cocochorales"
     assert plan["polyvocal_target"] == "inspect-real-polyvocal"
+    assert plan["prepared_multitrack_target"] == "inspect-real-prepared-multitrack"
     assert plan["multtipop_target"] == "inspect-real-multtipop"
     assert plan["multtipop_audio_target"] == "inspect-real-multtipop"
     assert plan["spheres_target"] == "inspect-real-spheres"
@@ -303,6 +328,7 @@ def test_full_inspect_plan_targets_full_preflights():
     assert plan["choralsynth_target"] == "inspect-real-choralsynth"
     assert plan["cocochorales_target"] == "inspect-real-cocochorales"
     assert plan["polyvocal_target"] == "inspect-real-polyvocal"
+    assert plan["prepared_multitrack_target"] == "inspect-real-prepared-multitrack"
     assert plan["multtipop_target"] == "inspect-real-multtipop"
     assert plan["multtipop_audio_target"] == "inspect-real-multtipop"
     assert plan["spheres_target"] == "inspect-real-spheres"
@@ -338,6 +364,9 @@ def main():
     test_explicit_polyvocal_root_is_configured()
     test_generic_dataset_root_with_polyvocal_child_is_polyvocal()
     test_generic_dataset_root_without_polyvocal_child_is_not_polyvocal()
+    test_explicit_prepared_multitrack_root_is_configured()
+    test_generic_dataset_root_with_prepared_multitrack_manifest_is_prepared_multitrack()
+    test_generic_dataset_root_without_prepared_multitrack_manifest_is_not_prepared_multitrack()
     test_explicit_multtipop_root_is_configured()
     test_generic_dataset_root_with_multtipop_child_is_multtipop()
     test_generic_dataset_root_without_multtipop_child_is_not_multtipop()
@@ -359,7 +388,7 @@ def main():
     test_twenty_piece_inspect_plan_targets_preflights()
     test_full_inspect_plan_targets_full_preflights()
     test_invalid_plan_is_rejected()
-    print("test_run_real_goal_gate: 42 checks passed")
+    print("test_run_real_goal_gate: 45 checks passed")
     return 0
 
 

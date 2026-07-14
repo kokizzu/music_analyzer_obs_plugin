@@ -65,6 +65,9 @@ def main():
         polyvocal_inspector = read_text("tests/inspect_polyvocal_dataset.py")
         polyvocal_prepare = read_text("tests/prepare_polyvocal_musicnet_fixture.py")
         polyvocal_fixture = read_text("tests/generate_polyvocal_fixture.py")
+        prepared_multitrack_inspector = read_text("tests/inspect_prepared_multitrack_dataset.py")
+        prepared_multitrack_prepare = read_text("tests/prepare_prepared_multitrack_musicnet_fixture.py")
+        prepared_multitrack_fixture = read_text("tests/generate_prepared_multitrack_fixture.py")
         multtipop_inspector = read_text("tests/inspect_multtipop_dataset.py")
         multtipop_fixture = read_text("tests/generate_multtipop_fixture.py")
         spheres_inspector = read_text("tests/inspect_spheres_dataset.py")
@@ -78,6 +81,7 @@ def main():
     trios = dataset_by_id(catalog, "trios")
     wwq = dataset_by_id(catalog, "wwq")
     phenicx = dataset_by_id(catalog, "phenicx_anechoic")
+    eep = dataset_by_id(catalog, "eep")
     musicnet = dataset_by_id(catalog, "musicnet")
     multtipop = dataset_by_id(catalog, "multtipop")
     medleydb = dataset_by_id(catalog, "medleydb")
@@ -100,6 +104,8 @@ def main():
         return fail("catalog missing MIREX Woodwind Quintet")
     if not phenicx:
         return fail("catalog missing PHENICX-Anechoic")
+    if not eep:
+        return fail("catalog missing EEP")
     if not musicnet:
         return fail("catalog missing MusicNet")
     if not multtipop:
@@ -210,6 +216,8 @@ def main():
         (makefile, "tests/prepare_cocochorales_musicnet_fixture.py", "Makefile CocoChorales analyzer preparation"),
         (makefile, "tests/generate_polyvocal_fixture.py", "Makefile Vocal Ensemble F0 fixture"),
         (makefile, "tests/prepare_polyvocal_musicnet_fixture.py", "Makefile Vocal Ensemble F0 analyzer preparation"),
+        (makefile, "tests/generate_prepared_multitrack_fixture.py", "Makefile prepared multitrack fixture"),
+        (makefile, "tests/prepare_prepared_multitrack_musicnet_fixture.py", "Makefile prepared multitrack analyzer preparation"),
         (makefile, "tests/generate_multtipop_fixture.py", "Makefile MulTTiPop fixture"),
         (makefile, "tests/generate_spheres_fixture.py", "Makefile Spheres fixture"),
         (makefile, "tests/generate_guitarset_fixture.py", "Makefile GuitarSet fixture"),
@@ -230,6 +238,9 @@ def main():
         (makefile, "inspect-real-polyvocal", "Makefile optional Vocal Ensemble F0 preflight"),
         (makefile, "test-real-polyvocal-20", "Makefile optional Vocal Ensemble F0 analyzer gate"),
         (makefile, "MUSIC_ANALYZER_POLYVOCAL_REQUIRE_SOURCE_AUDIO=1", "Makefile generated Vocal Ensemble F0 source-audio requirement"),
+        (makefile, "inspect-real-prepared-multitrack", "Makefile optional prepared multitrack preflight"),
+        (makefile, "test-real-prepared-multitrack-20", "Makefile optional prepared multitrack analyzer gate"),
+        (makefile, "test-prepared-multitrack-fixture", "Makefile prepared multitrack fixture gate"),
         (source_printer, "real_vocal_multitrack_truth", "source printer Vocal Ensemble F0 category"),
         (makefile, "test-real-multtipop-20", "Makefile optional MulTTiPop analyzer gate"),
         (makefile, "test-multtipop-audio-root-fixture", "Makefile MulTTiPop external audio-root fixture target"),
@@ -263,6 +274,9 @@ def main():
         (goal_gate, "configured_polyvocal", "combined gate optional Vocal Ensemble F0 root detection"),
         (goal_gate, "inspect-real-polyvocal", "combined gate optional Vocal Ensemble F0 preflight target"),
         (goal_gate, "test-real-polyvocal-20", "combined gate optional Vocal Ensemble F0 analyzer target"),
+        (goal_gate, "configured_prepared_multitrack", "combined gate optional prepared multitrack root detection"),
+        (goal_gate, "inspect-real-prepared-multitrack", "combined gate optional prepared multitrack preflight target"),
+        (goal_gate, "test-real-prepared-multitrack-20", "combined gate optional prepared multitrack analyzer target"),
         (goal_gate, "inspect-real-multtipop", "combined gate optional MulTTiPop target"),
         (goal_gate, "multtipop_audio_configured", "combined gate optional MulTTiPop audio detection"),
         (goal_gate, "test-real-multtipop-20", "combined gate optional MulTTiPop analyzer target"),
@@ -339,6 +353,13 @@ def main():
         (polyvocal_prepare, "points_to_notes", "Vocal Ensemble F0 contour-to-note conversion"),
         (polyvocal_prepare, "prepare_summed_source_audio", "Vocal Ensemble F0 summed source-audio preparation"),
         (polyvocal_prepare, "real vocal-F0 recordings", "Vocal Ensemble F0 MusicNet-shaped preparation"),
+        (prepared_multitrack_inspector, "manifest.json", "prepared multitrack manifest check"),
+        (prepared_multitrack_inspector, "source audio tracks per piece", "prepared multitrack source-audio coverage report"),
+        (prepared_multitrack_inspector, "note-bearing sources per piece", "prepared multitrack per-source note coverage report"),
+        (prepared_multitrack_inspector, "pitch classes per piece", "prepared multitrack pitch-class coverage report"),
+        (prepared_multitrack_fixture, "SOURCE_NAMES", "prepared multitrack generated source metadata"),
+        (prepared_multitrack_prepare, "prepare_summed_stem_audio", "prepared multitrack summed-source playback preparation"),
+        (prepared_multitrack_prepare, "summed-source prepared multitrack recordings", "prepared multitrack MusicNet-shaped preparation"),
         (maestro_harness, "read_maestro_midi", "MAESTRO aligned-MIDI parser"),
         (maestro_harness, "MAESTRO piano pitch-class recall", "MAESTRO real-audio recall gate"),
         (maestro_harness, "chord hits", "MAESTRO chord recall report"),
@@ -372,6 +393,7 @@ def main():
         (readme, "make inspect-real-polyvocal", "README Vocal Ensemble F0 preflight instructions"),
         (readme, "make test-real-polyvocal-20", "README Vocal Ensemble F0 analyzer instructions"),
         (readme, "MUSIC_ANALYZER_POLYVOCAL_REQUIRE_SOURCE_AUDIO=1", "README Vocal Ensemble F0 source-audio instructions"),
+        (readme, "make test-real-prepared-multitrack-20", "README prepared multitrack analyzer instructions"),
         (readme, "make test-real-multtipop-20", "README MulTTiPop analyzer instructions"),
         (readme, "make test-multtipop-audio-root-fixture", "README MulTTiPop external audio-root fixture instructions"),
         (readme, "make inspect-real-spheres", "README Spheres preflight instructions"),
@@ -397,6 +419,7 @@ def main():
         (docs, "make inspect-real-polyvocal", "dataset docs Vocal Ensemble F0 preflight instructions"),
         (docs, "make test-real-polyvocal-20", "dataset docs Vocal Ensemble F0 analyzer instructions"),
         (docs, "MUSIC_ANALYZER_POLYVOCAL_REQUIRE_SOURCE_AUDIO=1", "dataset docs Vocal Ensemble F0 source-audio instructions"),
+        (docs, "make test-real-prepared-multitrack-20", "dataset docs prepared multitrack analyzer instructions"),
         (docs, "make test-real-multtipop-20", "dataset docs MulTTiPop analyzer instructions"),
         (docs, "make test-multtipop-audio-root-fixture", "dataset docs MulTTiPop external audio-root fixture instructions"),
         (docs, "make inspect-real-spheres", "dataset docs Spheres preflight instructions"),
@@ -420,6 +443,7 @@ def main():
         (docs, "TRIOS", "dataset docs TRIOS candidate"),
         (docs, "PHENICX-Anechoic", "dataset docs PHENICX-Anechoic candidate"),
         (docs, "MIREX Woodwind Quintet", "dataset docs WWQ candidate"),
+        (docs, "Ensemble Expressive Performance", "dataset docs EEP candidate"),
         (docs, "URMP should be the first automated target", "dataset docs URMP priority"),
     ):
         problem = require(text, needle, context)
@@ -433,8 +457,8 @@ def main():
 
     print(
         "inspect_real_goal_coverage: "
-        "catalog=URMP+direct-fit-small+MusicNet+MedleyDB+MUSDB18+Slakh2100+ChoralSynth+CocoChorales+PolyVocal+MulTTiPop+Spheres+GuitarSet+MAESTRO+E-GMD, target=test-real-goal-20, "
-        "fixture=URMP+Bach10-style+direct-fit-small+MusicNet+MedleyDB+MUSDB18+Slakh2100+ChoralSynth+CocoChorales+PolyVocal-source+MulTTiPop-audio+Spheres+GuitarSet+MAESTRO+E-GMD, "
+        "catalog=URMP+EEP+direct-fit-small+MusicNet+MedleyDB+MUSDB18+Slakh2100+ChoralSynth+CocoChorales+PolyVocal+PreparedMultitrack+MulTTiPop+Spheres+GuitarSet+MAESTRO+E-GMD, target=test-real-goal-20, "
+        "fixture=URMP+Bach10-style+direct-fit-small+MusicNet+MedleyDB+MUSDB18+Slakh2100+ChoralSynth+CocoChorales+PolyVocal-source+PreparedMultitrack+MulTTiPop-audio+Spheres+GuitarSet+MAESTRO+E-GMD, "
         "summed_mix=yes, chord_checks=yes"
     )
     return 0

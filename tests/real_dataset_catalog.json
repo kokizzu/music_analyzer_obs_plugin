@@ -89,6 +89,22 @@
       "evidence": "URMP survey describes four anechoic orchestral pieces with 8-10 isolated parts each and denoised note annotations."
     },
     {
+      "id": "eep",
+      "name": "Ensemble Expressive Performance",
+      "category": "direct_fit",
+      "piece_count": 23,
+      "real_audio": true,
+      "isolated_sources": true,
+      "assembled_mix": true,
+      "aligned_symbolic_truth": true,
+      "truth": "string-quartet note annotations plus per-player audio/contact-microphone tracks",
+      "automation_target": "",
+      "fixture_target": "test-prepared-multitrack-fixture",
+      "source_url": "https://arxiv.org/abs/1612.08727",
+      "download_note": "The URMP survey lists EEP as a 23-piece string-quartet dataset with audio, note annotations, and bow motion-capture data. Current public archive layout and licensing still need verification, so this repository supports a prepared manifest path instead of a hard-coded downloader.",
+      "evidence": "URMP survey table describes Ensemble Expressive Performance as 23 string-quartet pieces with audio, note annotations, and bow MoCap; the prepared-multitrack gate can evaluate such data once local source audio and note CSVs are mapped into manifest.json."
+    },
+    {
       "id": "musicnet",
       "name": "MusicNet",
       "category": "truth_no_isolated_stems",
