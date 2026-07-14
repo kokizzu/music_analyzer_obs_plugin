@@ -2,6 +2,7 @@
 #include "analyzer_test_utils.hpp"
 
 #include <algorithm>
+#include <array>
 #include <cmath>
 #include <cstdio>
 #include <cstring>
@@ -54,6 +55,89 @@ void expect_no_drums(Runner &runner, const mao::AnalysisSnapshot &snapshot, cons
 		runner.expect(!drum.active, context + ": expected " + drum.label + " inactive, level " +
 					   std::to_string(drum.level));
 	}
+}
+
+void expect_float_close(Runner &runner, float lhs, float rhs, float tolerance, const std::string &context)
+{
+	runner.expect(std::fabs(lhs - rhs) <= tolerance,
+		      context + ": expected " + std::to_string(lhs) + " close to " + std::to_string(rhs));
+}
+
+void expect_instrument_equal(Runner &runner, const mao::InstrumentState &lhs, const mao::InstrumentState &rhs,
+			     const std::string &context)
+{
+	runner.expect(std::strcmp(lhs.label, rhs.label) == 0,
+		      context + ": expected labels equal, got `" + lhs.label + "` and `" + rhs.label + "`");
+	expect_float_close(runner, lhs.confidence, rhs.confidence, 1.0e-6f, context + " confidence");
+}
+
+void expect_note_cell_equal(Runner &runner, const mao::NoteCell &lhs, const mao::NoteCell &rhs,
+			    const std::string &context)
+{
+	runner.expect(lhs.active == rhs.active, context + ": expected active flags equal");
+	runner.expect(lhs.midi == rhs.midi,
+		      context + ": expected MIDI " + std::to_string(lhs.midi) + " == " + std::to_string(rhs.midi));
+	runner.expect(std::strcmp(lhs.label, rhs.label) == 0,
+		      context + ": expected labels equal, got `" + lhs.label + "` and `" + rhs.label + "`");
+	expect_float_close(runner, lhs.level, rhs.level, 1.0e-6f, context + " level");
+}
+
+void expect_note_grid_equal(Runner &runner, const mao::NoteGrid &lhs, const mao::NoteGrid &rhs,
+			    const std::string &context)
+{
+	for (std::size_t pitch = 0; pitch < lhs.cells.size(); ++pitch)
+		expect_note_cell_equal(runner, lhs.cells[pitch], rhs.cells[pitch],
+				       context + " cell " + std::to_string(pitch));
+	for (std::size_t row = 0; row < lhs.rows.size(); ++row) {
+		for (std::size_t pitch = 0; pitch < lhs.rows[row].size(); ++pitch) {
+			expect_note_cell_equal(runner, lhs.rows[row][pitch], rhs.rows[row][pitch],
+					       context + " row " + std::to_string(row) + " pitch " +
+						       std::to_string(pitch));
+		}
+	}
+}
+
+void expect_drum_equal(Runner &runner, const mao::DrumState &lhs, const mao::DrumState &rhs,
+		       const std::string &context)
+{
+	runner.expect(lhs.active == rhs.active, context + ": expected active flags equal");
+	runner.expect(std::strcmp(lhs.label, rhs.label) == 0,
+		      context + ": expected labels equal, got `" + lhs.label + "` and `" + rhs.label + "`");
+	expect_float_close(runner, lhs.level, rhs.level, 1.0e-6f, context + " level");
+}
+
+void expect_frontend_equivalent_snapshot(Runner &runner, const mao::AnalysisSnapshot &obs,
+					 const mao::AnalysisSnapshot &standalone, const std::string &context)
+{
+	expect_float_close(runner, obs.rms, standalone.rms, 1.0e-6f, context + " rms");
+	expect_float_close(runner, obs.peak, standalone.peak, 1.0e-6f, context + " peak");
+	expect_float_close(runner, obs.low_energy, standalone.low_energy, 1.0e-6f, context + " low");
+	expect_float_close(runner, obs.mid_energy, standalone.mid_energy, 1.0e-6f, context + " mid");
+	expect_float_close(runner, obs.high_energy, standalone.high_energy, 1.0e-6f, context + " high");
+	expect_float_close(runner, obs.estimated_bpm, standalone.estimated_bpm, 1.0e-6f, context + " bpm");
+	expect_float_close(runner, obs.bpm_confidence, standalone.bpm_confidence, 1.0e-6f,
+			   context + " bpm confidence");
+	for (std::size_t i = 0; i < obs.drums.size(); ++i)
+		expect_drum_equal(runner, obs.drums[i], standalone.drums[i], context + " drum " + std::to_string(i));
+	expect_instrument_equal(runner, obs.root, standalone.root, context + " root");
+	runner.expect(std::strcmp(obs.root_candidates, standalone.root_candidates) == 0,
+		      context + ": expected root candidates equal, got `" + obs.root_candidates + "` and `" +
+			      standalone.root_candidates + "`");
+	expect_instrument_equal(runner, obs.global_chord, standalone.global_chord, context + " global chord");
+	expect_note_grid_equal(runner, obs.ambiguous_notes, standalone.ambiguous_notes, context + " ambiguous notes");
+	expect_instrument_equal(runner, obs.bass, standalone.bass, context + " bass");
+	expect_note_grid_equal(runner, obs.bass_notes, standalone.bass_notes, context + " bass notes");
+	expect_instrument_equal(runner, obs.guitar, standalone.guitar, context + " guitar");
+	expect_note_grid_equal(runner, obs.guitar_notes, standalone.guitar_notes, context + " guitar notes");
+	expect_instrument_equal(runner, obs.guitar_chord, standalone.guitar_chord, context + " guitar chord");
+	expect_instrument_equal(runner, obs.keyboard, standalone.keyboard, context + " keyboard");
+	expect_note_grid_equal(runner, obs.keyboard_notes, standalone.keyboard_notes, context + " keyboard notes");
+	expect_instrument_equal(runner, obs.keyboard_chord, standalone.keyboard_chord, context + " keyboard chord");
+	expect_instrument_equal(runner, obs.vocal, standalone.vocal, context + " vocal");
+	expect_note_grid_equal(runner, obs.vocal_notes, standalone.vocal_notes, context + " vocal notes");
+	expect_instrument_equal(runner, obs.other, standalone.other, context + " other");
+	expect_note_grid_equal(runner, obs.other_notes, standalone.other_notes, context + " other notes");
+	expect_instrument_equal(runner, obs.other_chord, standalone.other_chord, context + " other chord");
 }
 
 bool has_chord_label(const char *actual, const std::string &expected)
@@ -967,6 +1051,53 @@ void check_explicit_input_mode_and_bpm(Runner &runner)
 		runner.expect(snapshot.bpm_confidence >= 0.20f,
 			      "BPM estimate: expected confidence >= 20%, got " +
 				      std::to_string(snapshot.bpm_confidence));
+	}
+}
+
+void check_frontend_full_mix_equivalence(Runner &runner)
+{
+	mao::AnalysisEngine obs_engine;
+	mao::AnalysisEngine standalone_engine;
+	mao::AnalysisSettings settings = mao_test::default_settings();
+	settings.analysis_interval_seconds = 0.05f;
+	settings.input_mode = mao::AnalysisInputMode::FullMix;
+
+	const auto obs_ready = obs_engine.analyze(nullptr, 0, settings, "OBS MIX", 0);
+	const auto standalone_ready = standalone_engine.analyze(nullptr, 0, settings, "SPEAKER MONITOR", 0);
+	expect_frontend_equivalent_snapshot(runner, obs_ready, standalone_ready, "frontend equivalence ready");
+
+	const std::vector<float> bass_profile = {1.0f, 0.30f, 0.14f};
+	const std::vector<float> key_profile = {1.0f, 0.16f, 0.08f};
+	const std::vector<float> guitar_profile = {1.0f, 0.34f, 0.16f, 0.08f};
+	const std::vector<float> other_profile = {1.0f, 0.58f, 0.34f, 0.20f};
+
+	for (int frame = 0; frame < 12; ++frame) {
+		const uint64_t sample_offset = static_cast<uint64_t>(frame) * 2400;
+		mao_test::Buffer buffer = {};
+		if (frame < 6) {
+			add_harmonic_note_at_offset(buffer, 36, 0.18f, bass_profile, sample_offset);
+			for (int midi : {60, 64, 67})
+				add_harmonic_note_at_offset(buffer, midi, 0.10f, key_profile, sample_offset);
+			for (int midi : {48, 52, 55})
+				add_harmonic_note_at_offset(buffer, midi, 0.075f, guitar_profile, sample_offset);
+		} else {
+			add_harmonic_note_at_offset(buffer, 43, 0.18f, bass_profile, sample_offset);
+			for (int midi : {55, 59, 62})
+				add_harmonic_note_at_offset(buffer, midi, 0.11f, key_profile, sample_offset);
+			for (int midi : {50, 55, 59})
+				add_harmonic_note_at_offset(buffer, midi, 0.075f, guitar_profile, sample_offset);
+		}
+		add_harmonic_note_at_offset(buffer, frame < 6 ? 76 : 74, 0.055f, other_profile, sample_offset);
+		if (frame == 2 || frame == 8) {
+			add_decayed_sine(buffer, 65.0f, 0.24f, 1400);
+			add_decayed_sine(buffer, 1100.0f, 0.22f, 520);
+		}
+
+		const auto obs_snapshot = obs_engine.analyze(buffer.data(), buffer.size(), settings, "OBS MIX", 0);
+		const auto standalone_snapshot =
+			standalone_engine.analyze(buffer.data(), buffer.size(), settings, "SPEAKER MONITOR", 0);
+		expect_frontend_equivalent_snapshot(runner, obs_snapshot, standalone_snapshot,
+						    "frontend equivalence frame " + std::to_string(frame));
 	}
 }
 
@@ -2129,6 +2260,7 @@ int main()
 	check_distorted_midi_guitar_timbre(runner);
 	check_spillover_regressions(runner);
 	check_explicit_input_mode_and_bpm(runner);
+	check_frontend_full_mix_equivalence(runner);
 	check_urmp_real_piece_metadata_regressions(runner);
 	check_slakh_style_multitrack_song_regressions(runner);
 	check_public_multitrack_dataset_style_regressions(runner);
