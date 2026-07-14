@@ -620,6 +620,13 @@ std::string source_hint_for_instrument(const std::string &instrument)
 	return "wind track";
 }
 
+mao::AnalysisInputMode input_mode_for_instrument(const std::string &instrument)
+{
+	if (instrument == "db" || instrument == "tba")
+		return mao::AnalysisInputMode::IsolatedBass;
+	return mao::AnalysisInputMode::IsolatedOther;
+}
+
 bool grid_has_pitch_class(const mao::NoteGrid &grid, int pitch_class)
 {
 	if (grid.cells[pitch_class].active)
@@ -1444,7 +1451,7 @@ bool load_piece_files(const std::string &dir, PieceFiles &piece, bool require_sc
 
 mao::AnalysisSnapshot analyze_wav_window(const std::string &path, double time, const std::string &source_name,
 					 bool &ok, std::string &error,
-					 mao::AnalysisInputMode input_mode = mao::AnalysisInputMode::Auto)
+					 mao::AnalysisInputMode input_mode = mao::AnalysisInputMode::FullMix)
 {
 	mao_test::Buffer buffer = {};
 	uint32_t sample_rate = 0;
@@ -1462,7 +1469,7 @@ mao::AnalysisSnapshot analyze_wav_window(const std::string &path, double time, c
 mao::AnalysisSnapshot analyze_confirmed_buffer_with_engine(mao::AnalysisEngine &engine,
 							   const mao_test::Buffer &buffer, uint32_t sample_rate,
 							   const std::string &source_name,
-							   mao::AnalysisInputMode input_mode = mao::AnalysisInputMode::Auto)
+							   mao::AnalysisInputMode input_mode = mao::AnalysisInputMode::FullMix)
 {
 	mao::AnalysisSettings settings = mao_test::default_settings();
 	settings.sample_rate = sample_rate;
@@ -1477,7 +1484,7 @@ mao::AnalysisSnapshot analyze_confirmed_buffer_with_engine(mao::AnalysisEngine &
 
 mao::AnalysisSnapshot analyze_confirmed_buffer(const mao_test::Buffer &buffer, uint32_t sample_rate,
 					       const std::string &source_name,
-					       mao::AnalysisInputMode input_mode = mao::AnalysisInputMode::Auto)
+					       mao::AnalysisInputMode input_mode = mao::AnalysisInputMode::FullMix)
 {
 	mao::AnalysisEngine engine;
 	return analyze_confirmed_buffer_with_engine(engine, buffer, sample_rate, source_name, input_mode);
@@ -1486,7 +1493,7 @@ mao::AnalysisSnapshot analyze_confirmed_buffer(const mao_test::Buffer &buffer, u
 mao::AnalysisSnapshot analyze_wav_confirmed_window(const std::string &path, double time,
 						   const std::string &source_name, bool &ok,
 						   std::string &error,
-						   mao::AnalysisInputMode input_mode = mao::AnalysisInputMode::Auto)
+						   mao::AnalysisInputMode input_mode = mao::AnalysisInputMode::FullMix)
 {
 	mao_test::Buffer buffer = {};
 	uint32_t sample_rate = 0;
@@ -1884,8 +1891,10 @@ int main()
 			for (const ActiveNote &active : candidate.active) {
 				const TrackData &track = piece.tracks[active.track_index];
 				const std::string source = source_hint_for_instrument(track.instrument);
+				const mao::AnalysisInputMode input_mode = input_mode_for_instrument(track.instrument);
 				const mao::AnalysisSnapshot track_snapshot =
-					analyze_wav_window(track.audio_path, candidate.time, source, ok, error);
+					analyze_wav_window(track.audio_path, candidate.time, source, ok, error,
+							   input_mode);
 				if (!ok) {
 					++coverage.track_read_failures;
 					std::fprintf(stderr, "analyzer_urmp: skipping %s track %d at %.3fs: %s\n",

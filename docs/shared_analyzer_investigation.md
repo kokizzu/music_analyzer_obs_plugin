@@ -111,8 +111,10 @@ Those harnesses read fixture WAV sample rates and set `settings.sample_rate`
 accordingly. Full-mix truth gates such as URMP mix/summed-mix, MusicNet,
 MulTTiPop, and E-GMD now set `AnalysisInputMode::FullMix` explicitly. Focused
 single-instrument gates set isolated modes where available, such as GuitarSet
-using `IsolatedGuitar` and MAESTRO using `IsolatedKeyboard`. Older direct case
-tests still exercise `Auto` as the backward-compatible source-name adapter.
+using `IsolatedGuitar`, MAESTRO using `IsolatedKeyboard`, and URMP separated
+source tracks mapping bass stems to `IsolatedBass` and orchestral stems to
+`IsolatedOther`. Older direct case tests still exercise `Auto` as the
+backward-compatible source-name adapter.
 
 ## Shared Logic Confirmation
 

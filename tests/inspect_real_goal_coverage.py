@@ -329,6 +329,8 @@ def main():
         (urmp_harness, "stateful summed separated-track mix", "URMP stateful summed-mix check"),
         (urmp_harness, "range_summary(source_tracks, \"source tracks\")", "URMP source-track coverage report"),
         (urmp_harness, "source_track_stats.count == tested_pieces", "URMP source-track coverage assertion"),
+        (urmp_harness, "input_mode_for_instrument", "URMP explicit isolated-source input-mode mapper"),
+        (urmp_harness, "input_mode = input_mode_for_instrument(track.instrument)", "URMP isolated tracks avoid source-name mode inference"),
         (urmp_harness, "active tracks min/avg/max", "URMP window-density report"),
         (urmp_harness, "chord hits", "URMP chord recall report"),
         (urmp_harness, "require_chord_recall", "URMP explicit chord coverage requirement"),
