@@ -693,6 +693,51 @@ struct FullMixOwnership {
 	std::vector<NoteCandidate> ambiguous_candidates;
 };
 
+int count_owned_notes(const std::array<bool, kNoteProbeCount> &mask)
+{
+	int count = 0;
+	for (bool owned : mask) {
+		if (owned)
+			++count;
+	}
+	return count;
+}
+
+int count_ambiguous_pitch_classes(const FullMixOwnership &ownership)
+{
+	std::array<bool, 12> pitch_classes = {};
+	for (int midi = kFirstMidi; midi <= kLastMidi; ++midi) {
+		if (!ownership.ambiguous[midi - kFirstMidi])
+			continue;
+		const int pitch_class = ((midi % 12) + 12) % 12;
+		pitch_classes[pitch_class] = true;
+	}
+
+	int count = 0;
+	for (bool active : pitch_classes) {
+		if (active)
+			++count;
+	}
+	return count;
+}
+
+void demote_sparse_full_mix_owner(FullMixOwnership &ownership, std::array<bool, kNoteProbeCount> &mask,
+				  const std::array<float, kNoteProbeCount> &candidate_scores)
+{
+	if (count_owned_notes(mask) != 1 || count_ambiguous_pitch_classes(ownership) < 2)
+		return;
+
+	for (int midi = kFirstMidi; midi <= kLastMidi; ++midi) {
+		const std::size_t index = static_cast<std::size_t>(midi - kFirstMidi);
+		if (!mask[index])
+			continue;
+		mask[index] = false;
+		ownership.ambiguous[index] = true;
+		ownership.ambiguous_candidates.push_back(NoteCandidate{midi, candidate_scores[index]});
+		return;
+	}
+}
+
 float relative_timbre_weight(const TimbreMix &mix, TimbreKind kind)
 {
 	const float fundamental = mix.bands[0];
@@ -718,6 +763,31 @@ bool full_mix_vocal_profile_supported(const NoteEvidence &evidence, float second
 	const bool near_pure_tone_voice =
 		second <= 0.045f && third <= 0.025f && fourth <= 0.018f && evidence.spectral_slope <= 0.10f;
 	return clean_sustained_like_partials || near_pure_tone_voice;
+}
+
+bool competing_full_mix_timbres(float keyboard_weight, float guitar_weight, float other_weight)
+{
+	const float total = keyboard_weight + guitar_weight + other_weight;
+	if (total <= 1.0e-6f)
+		return false;
+
+	std::array<float, 3> weights = {keyboard_weight, guitar_weight, other_weight};
+	std::sort(weights.begin(), weights.end(), [](float lhs, float rhs) { return lhs > rhs; });
+	const float best_share = weights[0] / total;
+	const float second_share = weights[1] / total;
+	const float third_share = weights[2] / total;
+
+	if (weights[1] >= 0.055f && best_share <= 0.76f && second_share >= 0.18f)
+		return true;
+	if (weights[2] >= 0.035f && best_share <= 0.82f && third_share >= 0.10f)
+		return true;
+	return false;
+}
+
+bool blended_full_mix_upper_partials(float second, float third, float fourth, float fifth)
+{
+	return second >= 0.22f && second <= 0.58f && third >= 0.10f && fourth >= 0.085f &&
+	       fifth >= 0.040f;
 }
 
 InstrumentKind choose_full_mix_owner(const std::array<float, kNoteProbeCount> &powers,
@@ -746,6 +816,20 @@ InstrumentKind choose_full_mix_owner(const std::array<float, kNoteProbeCount> &p
 	const float fit_penalty = std::clamp(1.0f - evidence.harmonic_fit_error * 0.32f, 0.52f, 1.0f);
 
 	std::array<float, 4> scores = {};
+	if (competing_full_mix_timbres(keyboard_weight, guitar_weight, other_weight)) {
+		const float total = keyboard_weight + guitar_weight + other_weight;
+		evidence.ownership_scores[static_cast<std::size_t>(InstrumentKind::Keyboard)] =
+			keyboard_weight / total;
+		evidence.ownership_scores[static_cast<std::size_t>(InstrumentKind::Guitar)] =
+			guitar_weight / total;
+		evidence.ownership_scores[static_cast<std::size_t>(InstrumentKind::Other)] = other_weight / total;
+		evidence.ownership_confidence =
+			std::max({keyboard_weight, guitar_weight, other_weight}) / total;
+		return InstrumentKind::Ambiguous;
+	}
+	if (blended_full_mix_upper_partials(second, third, fourth, fifth))
+		return InstrumentKind::Ambiguous;
+
 	if (candidate.midi >= 48 && candidate.midi <= 83 && second <= 0.56f) {
 		scores[0] = keyboard_weight * 1.18f + std::max(0.0f, 0.50f - second) * 0.30f +
 			    std::max(0.0f, 0.16f - third) * 0.08f + clean_pitch_bonus;
@@ -842,9 +926,13 @@ FullMixOwnership build_full_mix_ownership(const std::array<float, kNoteProbeCoun
 	const std::vector<NoteCandidate> candidates =
 		note_peak_candidates(detection_powers, kGuitarMinMidi, kLastMidi, 24, nullptr, nullptr, true,
 				     nullptr, kMixedNoteRelativeFloor);
+	std::array<float, kNoteProbeCount> candidate_scores = {};
 	float strongest_score = 0.0f;
-	for (const NoteCandidate &candidate : candidates)
+	for (const NoteCandidate &candidate : candidates) {
 		strongest_score = std::max(strongest_score, candidate.score);
+		if (candidate.midi >= kFirstMidi && candidate.midi <= kLastMidi)
+			candidate_scores[candidate.midi - kFirstMidi] = candidate.score;
+	}
 	if (strongest_score <= 1.0e-6f)
 		return ownership;
 
@@ -889,6 +977,10 @@ FullMixOwnership build_full_mix_ownership(const std::array<float, kNoteProbeCoun
 			break;
 		}
 	}
+
+	demote_sparse_full_mix_owner(ownership, ownership.keyboard, candidate_scores);
+	demote_sparse_full_mix_owner(ownership, ownership.guitar, candidate_scores);
+	demote_sparse_full_mix_owner(ownership, ownership.other, candidate_scores);
 
 	return ownership;
 }

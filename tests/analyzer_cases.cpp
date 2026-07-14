@@ -32,6 +32,18 @@ mao::AnalysisSnapshot analyze_buffer(const mao_test::Buffer &buffer, const char 
 	return engine.analyze(buffer.data(), buffer.size(), settings, source, 0);
 }
 
+mao::AnalysisSnapshot analyze_buffer_with_mode(const mao_test::Buffer &buffer, mao::AnalysisInputMode input_mode,
+					       const char *source = "cases", int frames = 1)
+{
+	mao::AnalysisEngine engine;
+	mao::AnalysisSettings settings = mao_test::default_settings();
+	settings.input_mode = input_mode;
+	mao::AnalysisSnapshot snapshot = {};
+	for (int frame = 0; frame < std::max(1, frames); ++frame)
+		snapshot = engine.analyze(buffer.data(), buffer.size(), settings, source, 0);
+	return snapshot;
+}
+
 void expect_label(Runner &runner, const char *actual, const std::string &expected, const std::string &context)
 {
 	runner.expect(std::strcmp(actual, expected.c_str()) == 0,
@@ -314,6 +326,18 @@ float grid_level_for_midi(const mao::NoteGrid &grid, int midi)
 		}
 	}
 	return level;
+}
+
+void expect_midi_ambiguous_only(Runner &runner, const mao::AnalysisSnapshot &snapshot, int midi,
+				const std::string &context)
+{
+	runner.expect(grid_level_for_midi(snapshot.ambiguous_notes, midi) > 0.0f,
+		      context + ": expected " + mao_test::note_label(midi) + " ambiguous, got keyboard `" +
+			      snapshot.keyboard.label + "`, guitar `" + snapshot.guitar.label + "`, vocal `" +
+			      snapshot.vocal.label + "`, other `" + snapshot.other.label + "`");
+	runner.expect(full_mix_owned_midi_count(snapshot, midi) == 0,
+		      context + ": expected no confident owner for " + mao_test::note_label(midi) + ", got " +
+			      std::to_string(full_mix_owned_midi_count(snapshot, midi)) + " owner rows");
 }
 
 void check_bass_notes(Runner &runner)
@@ -1939,10 +1963,31 @@ void check_same_note_timbre_split(Runner &runner)
 
 	const auto snapshot = analyze_buffer(buffer, "full mix");
 	expect_global_pitch_class(runner, snapshot, 0, "same-note timbre split global");
-	runner.expect(grid_level_for_midi(snapshot.ambiguous_notes, 60) > 0.0f ||
-			      full_mix_owned_midi_count(snapshot, 60) == 1,
-		      "same-note timbre split: expected C4 ambiguous or single-owner evidence");
+	expect_midi_ambiguous_only(runner, snapshot, 60, "same-note timbre split");
 	expect_midi_not_duplicated_across_rows(runner, snapshot, 60, "same-note timbre split ownership");
+}
+
+void check_ambiguous_same_note_full_mix_chord_ownership(Runner &runner)
+{
+	mao_test::Buffer buffer = {};
+	const std::vector<float> piano_profile = {1.0f, 0.12f, 0.04f, 0.02f, 0.01f};
+	const std::vector<float> guitar_profile = {1.0f, 0.36f, 0.17f, 0.07f, 0.03f};
+	const std::vector<float> other_profile = {1.0f, 0.62f, 0.42f, 0.27f, 0.16f};
+
+	for (int midi : {60, 64, 67}) {
+		add_harmonic_note(buffer, midi, 0.24f, piano_profile);
+		add_harmonic_note(buffer, midi, 0.22f, guitar_profile);
+		add_harmonic_note(buffer, midi, 0.20f, other_profile);
+	}
+
+	const auto snapshot =
+		analyze_buffer_with_mode(buffer, mao::AnalysisInputMode::FullMix, "ambiguous same-note full mix", 3);
+	expect_label(runner, snapshot.global_chord.label, "C", "ambiguous same-note full mix global chord");
+	expect_no_chord(runner, snapshot.keyboard_chord, "ambiguous same-note full mix keyboard chord");
+	expect_no_chord(runner, snapshot.guitar_chord, "ambiguous same-note full mix guitar chord");
+	expect_no_chord(runner, snapshot.other_chord, "ambiguous same-note full mix other chord");
+	for (int midi : {60, 64, 67})
+		expect_midi_ambiguous_only(runner, snapshot, midi, "ambiguous same-note full mix ownership");
 }
 
 void check_other_source_hints(Runner &runner)
@@ -2439,6 +2484,7 @@ int main()
 	check_guitar_caged_voicings(runner);
 	check_guitar_caged_mix_root_independence(runner);
 	check_same_note_timbre_split(runner);
+	check_ambiguous_same_note_full_mix_chord_ownership(runner);
 	check_other_source_hints(runner);
 	check_note_sub_rows(runner);
 	check_bass_pure_tone_stays_out_of_harmonic_rows(runner);

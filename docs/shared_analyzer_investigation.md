@@ -167,6 +167,11 @@ baseline paths:
   also require a clean sustained vocal-like partial profile before they can
   enter the vocal row, so piano-like upper notes remain global or ambiguous
   evidence instead of automatic vocal detections.
+* Same-MIDI mixed-timbre chord tones are kept ambiguous when competing template
+  weights or blended upper partials make the source uncertain. A sparse
+  singleton owner inside an otherwise ambiguous full-mix harmonic cluster is
+  demoted back to ambiguous, so it can support the global chord without creating
+  a falsely confident per-instrument note or chord.
 * `AnalysisSnapshot` exposes `global_chord` and `ambiguous_notes`. Full-mix
   chord detection uses global chroma, while instrument-specific chords are
   secondary and are based on owned notes.
