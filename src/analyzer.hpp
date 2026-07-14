@@ -160,6 +160,7 @@ private:
 	std::array<NoteTrackingState, kNoteProbeCount> keyboard_note_tracking_ = {};
 	std::array<NoteTrackingState, kNoteProbeCount> vocal_note_tracking_ = {};
 	std::array<NoteTrackingState, kNoteProbeCount> other_note_tracking_ = {};
+	std::array<NoteTrackingState, kNoteProbeCount> full_mix_note_tracking_ = {};
 	std::array<NoteTrackingState, kNoteProbeCount> guitar_chord_note_tracking_ = {};
 	std::array<NoteTrackingState, kNoteProbeCount> keyboard_chord_note_tracking_ = {};
 	std::array<NoteTrackingState, kNoteProbeCount> other_chord_note_tracking_ = {};
@@ -189,7 +190,7 @@ private:
 	float goertzel_power(const float *samples, std::size_t count, float mean, const Probe &probe) const;
 	float goertzel_power_at_frequency(const float *samples, std::size_t count, float mean, float freq) const;
 	bool chromatic_tuning_match(const float *samples, std::size_t count, float mean, int midi,
-				    float tolerance_cents) const;
+				    float tolerance_cents, bool allow_ratio_rescue) const;
 	bool tracked_note_active(AnalysisInputMode input_mode, int midi) const;
 	void reset_root_window();
 	void add_root_vote(const RootVote &vote);

@@ -187,6 +187,9 @@ baseline paths:
   note when the global harmonic context is clearly C.
 * Tuning hysteresis checks the active input mode, so a note tracked in one
   isolated mode does not relax tuning thresholds for unrelated instrument rows.
+  Full-mix tuning uses a separate short-lived global candidate tracker instead
+  of the longer per-row visual note envelopes, so stale row highlights do not
+  keep loosening chromatic acceptance for new notes.
 * Empty input/status snapshots reset the full analyzer state for the current
   source, including root, tempo, drum, note, and chord history. This prevents a
   restarted frontend from inheriting stale analysis from the previous capture

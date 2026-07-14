@@ -344,6 +344,16 @@ float grid_level_for_midi(const mao::NoteGrid &grid, int midi)
 	return level;
 }
 
+float snapshot_owned_level_for_midi(const mao::AnalysisSnapshot &snapshot, int midi)
+{
+	float level = grid_level_for_midi(snapshot.bass_notes, midi);
+	level = std::max(level, grid_level_for_midi(snapshot.keyboard_notes, midi));
+	level = std::max(level, grid_level_for_midi(snapshot.guitar_notes, midi));
+	level = std::max(level, grid_level_for_midi(snapshot.vocal_notes, midi));
+	level = std::max(level, grid_level_for_midi(snapshot.other_notes, midi));
+	return level;
+}
+
 void expect_midi_ambiguous_only(Runner &runner, const mao::AnalysisSnapshot &snapshot, int midi,
 				const std::string &context)
 {
@@ -749,6 +759,52 @@ void check_temporal_note_stability(Runner &runner)
 				      snapshot.keyboard.label + "`");
 		expect_note_token(runner, snapshot.keyboard.label, "D4", "temporal note replacement final");
 	}
+}
+
+void check_full_mix_tuning_hysteresis_uses_global_tracking(Runner &runner)
+{
+	mao::AnalysisEngine engine;
+	mao::AnalysisSettings settings = mao_test::default_settings();
+	settings.input_mode = mao::AnalysisInputMode::FullMix;
+	settings.analysis_interval_seconds = 0.05f;
+
+	constexpr int kMidi = 69;
+	mao_test::Buffer tuned = {};
+	mao_test::add_midi_note(tuned, kMidi, 0.28f);
+	mao::AnalysisSnapshot snapshot = {};
+	for (int i = 0; i < 3; ++i)
+		snapshot = engine.analyze(tuned.data(), tuned.size(), settings, "full mix", 0);
+	runner.expect(snapshot_owned_level_for_midi(snapshot, kMidi) > 0.85f,
+		      "full-mix tuning hysteresis: expected strong seeded A4 level, got " +
+			      std::to_string(snapshot_owned_level_for_midi(snapshot, kMidi)));
+
+	mao_test::Buffer detuned = {};
+	mao_test::add_sine(detuned, detuned_midi_frequency(kMidi, 16.0f), 0.28f);
+	{
+		mao::AnalysisEngine fresh_engine;
+		const mao::AnalysisSnapshot fresh =
+			fresh_engine.analyze(detuned.data(), detuned.size(), settings, "full mix", 0);
+		runner.expect(snapshot_owned_level_for_midi(fresh, kMidi) < 0.85f,
+			      "full-mix tuning hysteresis: fresh detuned A4 should not start at full level, got " +
+				      std::to_string(snapshot_owned_level_for_midi(fresh, kMidi)));
+	}
+	snapshot = engine.analyze(detuned.data(), detuned.size(), settings, "full mix", 0);
+	runner.expect(snapshot_owned_level_for_midi(snapshot, kMidi) > 0.85f,
+		      "full-mix tuning hysteresis: fresh global evidence should keep detuned A4 strong, got " +
+			      std::to_string(snapshot_owned_level_for_midi(snapshot, kMidi)));
+
+	mao_test::Buffer silence = {};
+	for (int i = 0; i < 10; ++i)
+		snapshot = engine.analyze(silence.data(), silence.size(), settings, "full mix", 0);
+	const float faded_visual_level = snapshot_owned_level_for_midi(snapshot, kMidi);
+	runner.expect(faded_visual_level > 0.0f && faded_visual_level < 0.85f,
+		      "full-mix tuning hysteresis: expected visual fade without fresh global evidence, got " +
+			      std::to_string(faded_visual_level));
+
+	snapshot = engine.analyze(detuned.data(), detuned.size(), settings, "full mix", 0);
+	runner.expect(snapshot_owned_level_for_midi(snapshot, kMidi) < 0.85f,
+		      "full-mix tuning hysteresis: visual row fade must not restore active tuning, got " +
+			      std::to_string(snapshot_owned_level_for_midi(snapshot, kMidi)));
 }
 
 void check_temporal_chord_stability(Runner &runner)
@@ -2624,6 +2680,7 @@ int main()
 	check_note_level_fade(runner);
 	check_sustained_note_envelope(runner);
 	check_temporal_note_stability(runner);
+	check_full_mix_tuning_hysteresis_uses_global_tracking(runner);
 	check_temporal_chord_stability(runner);
 	check_required_chord_transitions(runner);
 	check_chord_margin_and_simplification(runner);

@@ -32,7 +32,6 @@ constexpr float kFullNoteRms = 0.035f;
 constexpr float kNoteRelativeFloor = 0.36f;
 constexpr float kMixedNoteRelativeFloor = 0.08f;
 constexpr float kMixedTimbreFallbackRatio = 0.055f;
-constexpr float kMixedUntunedFallbackScale = 0.60f;
 constexpr float kComplexTuningFallbackScale = 0.38f;
 constexpr float kHarmonicMaskRatio = 0.62f;
 constexpr int kChromaticTuneMinMidi = kGuitarMinMidi;
@@ -689,6 +688,7 @@ struct FullMixOwnership {
 	std::array<bool, kNoteProbeCount> vocal = {};
 	std::array<bool, kNoteProbeCount> other = {};
 	std::array<bool, kNoteProbeCount> ambiguous = {};
+	std::array<float, kNoteProbeCount> global_note_levels = {};
 	std::array<float, 12> global_chroma = {};
 	std::vector<NoteCandidate> ambiguous_candidates;
 };
@@ -954,6 +954,7 @@ FullMixOwnership build_full_mix_ownership(const std::array<float, kNoteProbeCoun
 		const std::size_t index = static_cast<std::size_t>(candidate.midi - kFirstMidi);
 		const int pitch_class = ((candidate.midi % 12) + 12) % 12;
 		const float chroma_level = std::clamp(candidate.score / strongest_score, 0.0f, 1.0f);
+		ownership.global_note_levels[index] = std::max(ownership.global_note_levels[index], chroma_level);
 		ownership.global_chroma[pitch_class] = std::max(ownership.global_chroma[pitch_class], chroma_level);
 
 		switch (owner) {
@@ -1719,6 +1720,46 @@ void smooth_note_grid_envelope(NoteGrid &grid, InstrumentState &state,
 	write_note_grid_label(state, grid, preferred_root);
 }
 
+void update_note_tracking_from_levels(std::array<NoteTrackingState, kNoteProbeCount> &tracking,
+				      const std::array<float, kNoteProbeCount> &raw_levels,
+				      float interval_seconds,
+				      int attack_confirm_frames = kNoteAttackConfirmFrames,
+				      float immediate_confirm_floor = kNoteEnvelopeImmediateConfirmFloor,
+				      float release_seconds = kNoteEnvelopeReleaseSeconds,
+				      float visible_floor = kNoteEnvelopeVisibleFloor)
+{
+	const float release_step =
+		std::clamp(interval_seconds, 0.01f, 1.0f) / std::max(release_seconds, 0.01f);
+	for (std::size_t i = 0; i < tracking.size(); ++i) {
+		NoteTrackingState &note = tracking[i];
+		const float raw_level = std::clamp(raw_levels[i], 0.0f, 1.0f);
+
+		if (raw_level > 0.0f) {
+			note.consecutive_hits = std::min(note.consecutive_hits + 1, 1000);
+			note.consecutive_misses = 0;
+			if (!note.confirmed &&
+			    (note.consecutive_hits >= std::max(1, attack_confirm_frames) ||
+			     raw_level >= immediate_confirm_floor))
+				note.confirmed = true;
+		} else {
+			note.consecutive_hits = 0;
+			note.consecutive_misses = std::min(note.consecutive_misses + 1, 1000);
+		}
+
+		if (!note.confirmed) {
+			note.envelope = 0.0f;
+			continue;
+		}
+
+		const float level = raw_level >= note.envelope ?
+					    raw_level :
+					    std::max(raw_level, note.envelope - release_step);
+		note.envelope = std::clamp(level, 0.0f, 1.0f);
+		if (note.envelope < visible_floor)
+			note = {};
+	}
+}
+
 void reset_note_grid_envelope(NoteGrid &grid, InstrumentState &state,
 			      std::array<NoteTrackingState, kNoteProbeCount> &tracking)
 {
@@ -2409,6 +2450,8 @@ void AnalysisEngine::reset_note_envelopes()
 		note = {};
 	for (NoteTrackingState &note : other_note_tracking_)
 		note = {};
+	for (NoteTrackingState &note : full_mix_note_tracking_)
+		note = {};
 	for (NoteTrackingState &note : guitar_chord_note_tracking_)
 		note = {};
 	for (NoteTrackingState &note : keyboard_chord_note_tracking_)
@@ -2581,7 +2624,7 @@ float AnalysisEngine::goertzel_power_at_frequency(const float *samples, std::siz
 }
 
 bool AnalysisEngine::chromatic_tuning_match(const float *samples, std::size_t count, float mean, int midi,
-					    float tolerance_cents) const
+					    float tolerance_cents, bool allow_ratio_rescue) const
 {
 	static constexpr std::array<float, 5> kProbeCents = {-18.0f, -9.0f, 0.0f, 9.0f, 18.0f};
 	std::array<float, kProbeCents.size()> scores = {};
@@ -2612,6 +2655,8 @@ bool AnalysisEngine::chromatic_tuning_match(const float *samples, std::size_t co
 	cents = std::clamp(cents, kProbeCents.front(), kProbeCents.back());
 	if (std::abs(cents) <= tolerance_cents + kChromaticTuneEstimatorSlackCents)
 		return true;
+	if (!allow_ratio_rescue)
+		return false;
 	if (std::abs(cents) <= kProbeCents.back() && best_score > 1.0e-6f &&
 	    center_score >= best_score * kChromaticCenterAdjacentRatio)
 		return true;
@@ -2643,9 +2688,7 @@ bool AnalysisEngine::tracked_note_active(AnalysisInputMode input_mode, int midi)
 	case AnalysisInputMode::Auto:
 	case AnalysisInputMode::FullMix:
 	default:
-		return active(bass_note_tracking_) || active(guitar_note_tracking_) ||
-		       active(keyboard_note_tracking_) || active(vocal_note_tracking_) ||
-		       active(other_note_tracking_);
+		return active(full_mix_note_tracking_);
 	}
 }
 
@@ -2859,15 +2902,16 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 	for (int midi = kFirstMidi; midi <= kLastMidi; ++midi) {
 		if (midi < kChromaticTuneMinMidi)
 			continue;
-		if (chromatic_tuning_match(samples, usable, mean, midi, kChromaticTuneToleranceCents))
+		const bool complex_harmonic_support = has_complex_harmonic_support(note_powers, midi);
+		const bool strict_ratio_rescue_allowed = !mixed_source || complex_harmonic_support;
+		if (chromatic_tuning_match(samples, usable, mean, midi, kChromaticTuneToleranceCents,
+					   strict_ratio_rescue_allowed))
 			continue;
 		if (tracked_note_active(input_mode, midi) &&
-		    chromatic_tuning_match(samples, usable, mean, midi, kChromaticActiveTuneToleranceCents))
+		    chromatic_tuning_match(samples, usable, mean, midi, kChromaticActiveTuneToleranceCents, true))
 			continue;
 		tuned_note_powers[midi - kFirstMidi] = 0.0f;
-		const float fallback_scale = has_complex_harmonic_support(note_powers, midi) ?
-						     kComplexTuningFallbackScale :
-						     (mixed_source ? kMixedUntunedFallbackScale : 0.0f);
+		const float fallback_scale = complex_harmonic_support ? kComplexTuningFallbackScale : 0.0f;
 		detection_note_powers[midi - kFirstMidi] = note_powers[midi - kFirstMidi] * fallback_scale;
 	}
 
@@ -3069,6 +3113,11 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 	const int other_max_notes = monophonic_other_source ? 1 : (mixed_source ? 12 : 8);
 	if (mixed_source) {
 		full_mix_ownership = build_full_mix_ownership(note_powers, detection_note_powers, rms);
+		update_note_tracking_from_levels(full_mix_note_tracking_, full_mix_ownership.global_note_levels,
+						 interval_seconds, kNoteAttackConfirmFrames,
+						 kMixedNoteEnvelopeImmediateConfirmFloor,
+						 kAnalyticalChordNoteReleaseSeconds,
+						 kAnalyticalChordNoteVisibleFloor);
 		set_note_grid_from_candidates(snapshot.ambiguous_notes, full_mix_ownership.ambiguous_candidates, rms, 12);
 	} else {
 		clear_note_grid(snapshot.ambiguous_notes);
