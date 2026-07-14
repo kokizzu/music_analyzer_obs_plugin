@@ -63,6 +63,7 @@ def main():
         cocochorales_inspector = read_text("tests/inspect_cocochorales_dataset.py")
         cocochorales_prepare = read_text("tests/prepare_cocochorales_musicnet_fixture.py")
         synthsod_remote = read_text("tests/inspect_synthsod_remote.py")
+        synthsod_archives = read_text("tests/prepare_synthsod_archives.py")
         synthsod_inspector = read_text("tests/inspect_synthsod_dataset.py")
         synthsod_prepare = read_text("tests/prepare_synthsod_musicnet_fixture.py")
         synthsod_fixture = read_text("tests/generate_synthsod_fixture.py")
@@ -234,6 +235,7 @@ def main():
         (makefile, "tests/prepare_cocochorales_musicnet_fixture.py", "Makefile CocoChorales analyzer preparation"),
         (makefile, "tests/generate_synthsod_fixture.py", "Makefile SynthSOD fixture"),
         (makefile, "tests/inspect_synthsod_remote.py", "Makefile SynthSOD remote metadata preflight"),
+        (makefile, "tests/prepare_synthsod_archives.py", "Makefile SynthSOD archive extraction"),
         (makefile, "tests/prepare_synthsod_musicnet_fixture.py", "Makefile SynthSOD analyzer preparation"),
         (makefile, "tests/generate_polyvocal_fixture.py", "Makefile Vocal Ensemble F0 fixture"),
         (makefile, "tests/prepare_polyvocal_musicnet_fixture.py", "Makefile Vocal Ensemble F0 analyzer preparation"),
@@ -258,7 +260,9 @@ def main():
         (makefile, "test-real-cocochorales-20", "Makefile optional CocoChorales analyzer gate"),
         (makefile, "inspect-real-synthsod", "Makefile optional SynthSOD preflight"),
         (makefile, "inspect-real-synthsod-remote", "Makefile optional SynthSOD remote metadata preflight"),
+        (makefile, "extract-real-synthsod-archives", "Makefile optional SynthSOD archive extraction"),
         (makefile, "test-real-synthsod-20", "Makefile optional SynthSOD analyzer gate"),
+        (makefile, "test-synthsod-archive-extract", "Makefile SynthSOD archive fixture gate"),
         (makefile, "test-synthsod-fixture", "Makefile SynthSOD fixture gate"),
         (makefile, "inspect-real-polyvocal", "Makefile optional Vocal Ensemble F0 preflight"),
         (makefile, "test-real-polyvocal-20", "Makefile optional Vocal Ensemble F0 analyzer gate"),
@@ -381,6 +385,11 @@ def main():
         (synthsod_remote, "SynthSOD-sample.zip", "SynthSOD remote sample archive check"),
         (synthsod_remote, "SynthSOD_aligned_scores.zip", "SynthSOD remote aligned-score archive check"),
         (synthsod_remote, "start and end time", "SynthSOD remote aligned-note timing semantics check"),
+        (synthsod_archives, "MUSIC_ANALYZER_SYNTHSOD_AUDIO_ZIP", "SynthSOD archive audio zip environment"),
+        (synthsod_archives, "MUSIC_ANALYZER_SYNTHSOD_SCORES_ZIP", "SynthSOD archive score zip environment"),
+        (synthsod_archives, "safe_extract", "SynthSOD archive safe extraction"),
+        (synthsod_archives, "unsafe archive member", "SynthSOD archive traversal rejection"),
+        (synthsod_archives, "find_audio_root", "SynthSOD archive extracted audio root discovery"),
         (synthsod_fixture, "SynthSOD-aligned-scores", "SynthSOD generated aligned-score fixture"),
         (synthsod_prepare, "prepare_summed_stem_audio", "SynthSOD summed-stem playback preparation"),
         (synthsod_prepare, "summed-stem SynthSOD recordings", "SynthSOD MusicNet-shaped preparation"),
@@ -431,7 +440,9 @@ def main():
         (readme, "make test-real-cocochorales-20", "README CocoChorales analyzer instructions"),
         (readme, "make inspect-real-synthsod", "README SynthSOD preflight instructions"),
         (readme, "make inspect-real-synthsod-remote", "README SynthSOD remote preflight instructions"),
+        (readme, "make extract-real-synthsod-archives", "README SynthSOD archive extraction instructions"),
         (readme, "make test-real-synthsod-20", "README SynthSOD analyzer instructions"),
+        (readme, "MUSIC_ANALYZER_SYNTHSOD_AUDIO_ZIP", "README SynthSOD audio zip instructions"),
         (readme, "MUSIC_ANALYZER_SYNTHSOD_SCORES_ROOT", "README SynthSOD aligned-score instructions"),
         (readme, "make inspect-real-polyvocal", "README Vocal Ensemble F0 preflight instructions"),
         (readme, "make test-real-polyvocal-20", "README Vocal Ensemble F0 analyzer instructions"),
@@ -461,7 +472,9 @@ def main():
         (docs, "make test-real-cocochorales-20", "dataset docs CocoChorales analyzer instructions"),
         (docs, "make inspect-real-synthsod", "dataset docs SynthSOD preflight instructions"),
         (docs, "make inspect-real-synthsod-remote", "dataset docs SynthSOD remote preflight instructions"),
+        (docs, "make extract-real-synthsod-archives", "dataset docs SynthSOD archive extraction instructions"),
         (docs, "make test-real-synthsod-20", "dataset docs SynthSOD analyzer instructions"),
+        (docs, "MUSIC_ANALYZER_SYNTHSOD_AUDIO_ZIP", "dataset docs SynthSOD audio zip instructions"),
         (docs, "MUSIC_ANALYZER_SYNTHSOD_SCORES_ROOT", "dataset docs SynthSOD aligned-score instructions"),
         (docs, "make inspect-real-polyvocal", "dataset docs Vocal Ensemble F0 preflight instructions"),
         (docs, "make test-real-polyvocal-20", "dataset docs Vocal Ensemble F0 analyzer instructions"),

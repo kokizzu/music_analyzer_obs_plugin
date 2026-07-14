@@ -224,6 +224,13 @@ without additional annotation.
   separate `SynthSOD_aligned_scores.zip` release, licenses, sizes, direct
   content URLs, and whether the aligned-score description still promises note
   start/end time, MIDI pitch, and MIDI instrument fields.
+- After downloading the sample or full audio ZIP plus
+  `SynthSOD_aligned_scores.zip`, use `make extract-real-synthsod-archives` with
+  `MUSIC_ANALYZER_SYNTHSOD_AUDIO_ZIP=/path/to/SynthSOD-sample.zip` and
+  `MUSIC_ANALYZER_SYNTHSOD_SCORES_ZIP=/path/to/SynthSOD_aligned_scores.zip`.
+  The extractor validates ZIP paths, rejects unsafe archive members, extracts
+  into `build/synthsod-archives`, discovers the `SynthSOD-data` and aligned
+  score roots, and prints the exact preflight/analyzer commands to run next.
 - Use `make inspect-real-synthsod` with
   `MUSIC_ANALYZER_SYNTHSOD_ROOT=/path/to/SynthSOD-data` and
   `MUSIC_ANALYZER_SYNTHSOD_SCORES_ROOT=/path/to/SynthSOD-aligned-scores` after

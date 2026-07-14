@@ -108,6 +108,12 @@ def main():
     print(f"inspect_synthsod_remote: full_url={file_url(audio_full)}")
     print(f"inspect_synthsod_remote: scores_url={file_url(scores_zip)}")
     print(
+        "inspect_synthsod_remote: after downloading sample/full audio and scores zip files, run "
+        "MUSIC_ANALYZER_SYNTHSOD_AUDIO_ZIP=/path/to/SynthSOD-sample.zip "
+        "MUSIC_ANALYZER_SYNTHSOD_SCORES_ZIP=/path/to/SynthSOD_aligned_scores.zip "
+        "make extract-real-synthsod-archives"
+    )
+    print(
         "inspect_synthsod_remote: after extracting audio and scores, run "
         "MUSIC_ANALYZER_SYNTHSOD_ROOT=/path/to/SynthSOD-data "
         "MUSIC_ANALYZER_SYNTHSOD_SCORES_ROOT=/path/to/SynthSOD-aligned-scores "
