@@ -1434,6 +1434,58 @@ std::vector<NoteCandidate> note_grid_candidates(const NoteGrid &grid)
 	return candidates;
 }
 
+void prune_note_grid_to_chord_tones(NoteGrid &grid, InstrumentState &state, const ChordResult &chord,
+				    int max_notes, int preferred_root)
+{
+	if (chord.root < 0 || !chord.label[0] || chord.label[0] == '-')
+		return;
+
+	int tone_count = 0;
+	for (bool tone : chord.tones) {
+		if (tone)
+			++tone_count;
+	}
+	if (tone_count < 2)
+		return;
+
+	int active_tone_pitch_classes = 0;
+	for (int pitch_class = 0; pitch_class < 12; ++pitch_class) {
+		if (!chord.tones[pitch_class])
+			continue;
+		bool active = grid.cells[pitch_class].active;
+		for (const auto &row : grid.rows)
+			active = active || row[pitch_class].active;
+		if (active)
+			++active_tone_pitch_classes;
+	}
+	if (active_tone_pitch_classes < 3)
+		return;
+
+	std::vector<NoteCandidate> candidates;
+	for (const NoteCandidate &candidate : note_grid_candidates(grid)) {
+		const int pitch_class = ((candidate.midi % 12) + 12) % 12;
+		if (chord.tones[pitch_class])
+			candidates.push_back(candidate);
+	}
+	if (candidates.empty())
+		return;
+
+	std::sort(candidates.begin(), candidates.end(), [](const NoteCandidate &a, const NoteCandidate &b) {
+		if (a.score != b.score)
+			return a.score > b.score;
+		return a.midi < b.midi;
+	});
+
+	clear_note_grid(grid);
+	int written = 0;
+	for (const NoteCandidate &candidate : candidates) {
+		write_note_grid_cell(grid, candidate, 1.0f, 1.0f);
+		if (++written >= std::max(1, max_notes))
+			break;
+	}
+	write_note_grid_label(state, grid, preferred_root);
+}
+
 std::vector<NoteCandidate> prune_adjacent_keyboard_candidates(const std::vector<NoteCandidate> &notes)
 {
 	std::vector<NoteCandidate> pruned;
@@ -2698,6 +2750,11 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 					kGuitarMaxMidi, preferred_root, guitar_energy, rms, max_notes, nullptr, allowed,
 					suppress_adjacent, allowed_midis, relative_floor);
 		raw_guitar_chord = detect_guitar_chord_from_grid(snapshot.guitar_notes, allow_extensions);
+		if (!mixed_source && raw_guitar_chord.root >= 0) {
+			prune_note_grid_to_chord_tones(snapshot.guitar_notes, snapshot.guitar, raw_guitar_chord, 6,
+						      preferred_root);
+			raw_guitar_chord = detect_guitar_chord_from_grid(snapshot.guitar_notes, allow_extensions);
+		}
 		if (mixed_source && !valid_chord_result(raw_guitar_chord))
 			raw_guitar_chord =
 				detect_mixed_chord_from_grid(snapshot.guitar_notes, preferred_root, allow_extensions);
@@ -2814,7 +2871,7 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 
 	if (guitar_enabled) {
 		smooth_note_grid_envelope(snapshot.guitar_notes, snapshot.guitar, guitar_note_tracking_, -1,
-					  interval_seconds, mixed_source ? 12 : 8, guitar_new_notes,
+					  interval_seconds, mixed_source ? 12 : 6, guitar_new_notes,
 					  kNoteAttackConfirmFrames,
 					  mixed_source ? kMixedNoteEnvelopeImmediateConfirmFloor :
 							 kNoteEnvelopeImmediateConfirmFloor);

@@ -305,10 +305,12 @@ without additional annotation.
   20+ JAMS files with 6+ `note_midi` annotations, 2+ chord annotations, 12+
   note events, and 6-channel hex pickup WAV audio by default. Use
   `make test-real-guitarset-20` to prepare a temporary JAMS-derived manifest,
-  read selected real WAV windows, and check analyzer pitch-class plus chord
-  recall. GuitarSet is a focused guitar/fretboard real-audio add-on; it should
-  improve coverage for guitar note/fret/chord-shape behavior, but it does not
-  replace URMP because it is a single-instrument dataset.
+  read selected real WAV windows in explicit isolated-guitar mode, and check
+  analyzer pitch-class recall, guitar-row precision/recall/F1, cross-row
+  contamination, false-vocal windows, and isolated guitar-chord
+  precision/recall. GuitarSet is a focused guitar/fretboard real-audio add-on;
+  it should improve coverage for guitar note/fret/chord-shape behavior, but it
+  does not replace URMP because it is a single-instrument dataset.
 - Use `make test-real-maestro-20` with
   `MUSIC_ANALYZER_MAESTRO_ROOT=/path/to/maestro-v3.0.0` after extracting the
   official MAESTRO archive. The analyzer gate expects the official metadata CSV
