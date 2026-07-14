@@ -43,6 +43,7 @@ def main():
         docs = read_text("docs/real_audio_dataset_candidates.md")
         analyzer_header = read_text("src/analyzer.hpp")
         analyzer_impl = read_text("src/analyzer.cpp")
+        analyzer_cases = read_text("tests/analyzer_cases.cpp")
         urmp_harness = read_text("tests/analyzer_urmp.cpp")
         urmp_inspector = read_text("tests/inspect_urmp_dataset.py")
         bach10_fixture = read_text("tests/generate_bach10_fixture.py")
@@ -240,6 +241,14 @@ def main():
          "note evidence carries decay rate"),
         (analyzer_impl, "float pitch_stability = 0.0f",
          "note evidence carries pitch stability"),
+        (analyzer_impl, "float simultaneous_onset = 0.0f",
+         "note evidence carries simultaneous-onset context"),
+        (analyzer_impl, "float periodicity = 0.0f",
+         "note evidence carries periodicity proxy"),
+        (analyzer_impl, "simultaneous_onset_count",
+         "full-mix ownership builds simultaneous-onset groups"),
+        (analyzer_cases, "check_simultaneous_onset_group_rejects_vocal_spillover",
+         "simultaneous-onset vocal spillover regression"),
         (analyzer_header, "previous_full_mix_note_levels_",
          "full-mix ownership keeps fixed-size temporal history"),
         (analyzer_impl, "previous_full_mix_note_levels_.fill(0.0f)",

@@ -282,6 +282,8 @@ struct NoteEvidence {
 	float onset_strength = 0.0f;
 	float decay_rate = 0.0f;
 	float pitch_stability = 0.0f;
+	float simultaneous_onset = 0.0f;
+	float periodicity = 0.0f;
 	float harmonicity = 0.0f;
 	float harmonic_fit_error = 0.0f;
 	float spectral_centroid = 0.0f;
@@ -296,6 +298,7 @@ struct TemporalNoteFeatures {
 	float onset_strength = 0.0f;
 	float decay_rate = 0.0f;
 	float pitch_stability = 0.0f;
+	float simultaneous_onset = 0.0f;
 };
 
 NoteCandidate ownership_weighted_candidate(const NoteCandidate &candidate, const NoteEvidence &evidence)
@@ -533,6 +536,7 @@ NoteEvidence build_note_evidence(const std::array<float, kNoteProbeCount> &power
 	evidence.onset_strength = temporal.onset_strength;
 	evidence.decay_rate = temporal.decay_rate;
 	evidence.pitch_stability = temporal.pitch_stability;
+	evidence.simultaneous_onset = temporal.simultaneous_onset;
 
 	const float fundamental = mix.bands[0];
 	if (fundamental <= 1.0e-6f)
@@ -558,9 +562,14 @@ NoteEvidence build_note_evidence(const std::array<float, kNoteProbeCount> &power
 	const float high_partials = mix.bands[2] + mix.bands[3] + mix.bands[4];
 	evidence.spectral_slope = high_partials / std::max(low_partials, 1.0e-6f);
 	evidence.local_noise_level = local_spectral_noise_ratio(powers, candidate.midi, fundamental);
+	const float harmonic_support = std::clamp(harmonic_sum / std::max(fundamental, 1.0e-6f), 0.0f, 1.0f);
 	const float noise_penalty = std::clamp(1.0f - evidence.local_noise_level * 0.45f, 0.35f, 1.0f);
 	const float fit_penalty = std::clamp(1.0f - evidence.harmonic_fit_error * 0.40f, 0.45f, 1.0f);
-	evidence.pitch_confidence = std::clamp(evidence.spectral_level * noise_penalty * fit_penalty, 0.0f, 1.0f);
+	evidence.periodicity = std::clamp(noise_penalty * fit_penalty * (0.72f + harmonic_support * 0.28f),
+					  0.0f, 1.0f);
+	evidence.pitch_confidence = std::clamp(evidence.spectral_level * noise_penalty * fit_penalty *
+						       (0.85f + evidence.periodicity * 0.15f),
+					       0.0f, 1.0f);
 	return evidence;
 }
 
@@ -774,7 +783,11 @@ bool full_mix_vocal_profile_supported(const NoteEvidence &evidence, float second
 {
 	if (polyphonic_vocal_context)
 		return false;
+	if (evidence.simultaneous_onset > 0.35f)
+		return false;
 	if (evidence.spectral_level < 0.38f)
+		return false;
+	if (evidence.periodicity < 0.42f)
 		return false;
 	if (evidence.local_noise_level > 0.22f || evidence.harmonic_fit_error > 0.40f)
 		return false;
@@ -859,6 +872,8 @@ InstrumentKind choose_full_mix_owner(const std::array<float, kNoteProbeCount> &p
 			    std::max(0.0f, 0.16f - third) * 0.08f + clean_pitch_bonus;
 		if (evidence.pitch_stability >= 0.62f && evidence.onset_strength <= 0.45f)
 			scores[0] += 0.06f;
+		if (evidence.simultaneous_onset > 0.0f)
+			scores[0] += evidence.simultaneous_onset * 0.08f;
 		if (evidence.spectral_centroid > 0.34f || evidence.spectral_slope > 0.18f)
 			scores[0] *= 0.78f;
 	}
@@ -869,6 +884,8 @@ InstrumentKind choose_full_mix_owner(const std::array<float, kNoteProbeCount> &p
 			scores[1] += evidence.onset_strength * 0.08f;
 		if (evidence.decay_rate >= 0.18f)
 			scores[1] += evidence.decay_rate * 0.05f;
+		if (evidence.simultaneous_onset > 0.0f)
+			scores[1] += evidence.simultaneous_onset * 0.04f;
 		if (evidence.spectral_centroid >= 0.10f && evidence.spectral_centroid <= 0.42f)
 			scores[1] += 0.08f;
 		if (evidence.spectral_slope >= 0.035f && evidence.spectral_slope <= 0.30f)
@@ -882,6 +899,8 @@ InstrumentKind choose_full_mix_owner(const std::array<float, kNoteProbeCount> &p
 			    std::max(0.0f, 0.065f - third) * 1.3f;
 		if (evidence.onset_strength > 0.72f && evidence.pitch_stability < 0.30f)
 			scores[2] *= 0.80f;
+		if (evidence.simultaneous_onset > 0.0f)
+			scores[2] *= std::clamp(1.0f - evidence.simultaneous_onset * 0.32f, 0.55f, 1.0f);
 		if (evidence.pitch_stability >= 0.55f)
 			scores[2] += 0.05f;
 		if (note_strength < 0.52f)
@@ -982,6 +1001,21 @@ FullMixOwnership build_full_mix_ownership(const std::array<float, kNoteProbeCoun
 				 std::clamp(candidate.score / strongest_score, 0.0f, 1.0f));
 	}
 
+	int simultaneous_onset_count = 0;
+	for (const NoteCandidate &candidate : candidates) {
+		if (candidate.midi < kFirstMidi || candidate.midi > kLastMidi)
+			continue;
+		const std::size_t index = static_cast<std::size_t>(candidate.midi - kFirstMidi);
+		const TemporalNoteFeatures temporal =
+			temporal_note_features(current_note_levels[index], previous_note_levels[index]);
+		if (current_note_levels[index] >= 0.20f && temporal.onset_strength >= 0.28f)
+			++simultaneous_onset_count;
+	}
+	const float simultaneous_onset_context =
+		simultaneous_onset_count >= 2 ?
+			std::clamp(static_cast<float>(simultaneous_onset_count - 1) / 4.0f, 0.0f, 1.0f) :
+			0.0f;
+
 	int vocal_range_candidate_count = 0;
 	for (const NoteCandidate &candidate : candidates) {
 		if (candidate.midi >= 72 && candidate.midi <= kVocalMaxMidi &&
@@ -996,8 +1030,10 @@ FullMixOwnership build_full_mix_ownership(const std::array<float, kNoteProbeCoun
 
 		NoteEvidence evidence;
 		const std::size_t note_index = static_cast<std::size_t>(candidate.midi - kFirstMidi);
-		const TemporalNoteFeatures temporal =
+		TemporalNoteFeatures temporal =
 			temporal_note_features(current_note_levels[note_index], previous_note_levels[note_index]);
+		if (temporal.onset_strength >= 0.18f)
+			temporal.simultaneous_onset = simultaneous_onset_context;
 		const InstrumentKind owner =
 			choose_full_mix_owner(powers, candidate, strongest_score, polyphonic_vocal_context,
 					      temporal, evidence);

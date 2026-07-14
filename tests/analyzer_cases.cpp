@@ -1268,6 +1268,24 @@ void check_high_full_mix_cluster_not_vocal_or_other(Runner &runner)
 	}
 }
 
+void check_simultaneous_onset_group_rejects_vocal_spillover(Runner &runner)
+{
+	mao_test::Buffer buffer = {};
+	const std::vector<float> piano_profile = {1.0f, 0.14f, 0.05f, 0.02f};
+	const std::vector<float> vocal_like_profile = {1.0f, 0.035f, 0.018f, 0.010f};
+	for (int midi : {60, 64, 67})
+		add_harmonic_note(buffer, midi, 0.22f, piano_profile);
+	add_harmonic_note(buffer, 84, 0.24f, vocal_like_profile);
+
+	const auto snapshot = analyze_buffer(buffer, "full mix");
+	expect_label(runner, snapshot.global_chord.label, "C", "simultaneous-onset group global chord");
+	expect_global_pitch_class(runner, snapshot, 0, "simultaneous-onset group global C");
+	expect_no_pitch_class(runner, snapshot.vocal_notes, 0, "simultaneous-onset group vocal spillover");
+	runner.expect(grid_pitch_active(snapshot.keyboard_notes, 0) ||
+			      grid_pitch_active(snapshot.ambiguous_notes, 0),
+		      "simultaneous-onset group: expected C to stay keyboard or ambiguous");
+}
+
 void check_explicit_input_mode_and_bpm(Runner &runner)
 {
 	{
@@ -2755,6 +2773,7 @@ int main()
 	check_distorted_midi_guitar_timbre(runner);
 	check_spillover_regressions(runner);
 	check_high_full_mix_cluster_not_vocal_or_other(runner);
+	check_simultaneous_onset_group_rejects_vocal_spillover(runner);
 	check_explicit_input_mode_and_bpm(runner);
 	check_frontend_full_mix_equivalence(runner);
 	check_urmp_real_piece_metadata_regressions(runner);
