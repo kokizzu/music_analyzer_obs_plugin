@@ -1,7 +1,9 @@
 # Shared Analyzer Investigation
 
-This note documents the current shared analyzer integration before the spillover
-rewrite. It is intentionally about the code as it exists at the `v0.1` baseline.
+This note started as the shared analyzer integration baseline before the
+spillover rewrite. It now records both that baseline investigation and the
+current shared-engine checkpoint so future changes can be audited against the
+same root cause.
 
 ## Shared API
 
@@ -15,10 +17,10 @@ mao::AnalysisEngine::analyze(const float *samples,
                              uint64_t dropped_windows)
 ```
 
-`AnalysisSettings` currently contains sample rate, drum sensitivity, analyzer
-interval, and root-window length only. Instrument behavior is inferred inside
-`src/analyzer.cpp` from `source_name` using string matches such as `bass`,
-`piano`, `key`, `guitar`, `vocal`, `synth`, `brass`, `violin`, and `other`.
+`AnalysisSettings` now contains an explicit `AnalysisInputMode`. `Auto` remains
+as a backward-compatible source-name adapter for direct analyzer callers and
+older tests, but OBS and the standalone monitor set `FullMix` explicitly because
+they analyze finished mixer/speaker audio.
 
 The fixed analysis window is `mao::kAnalysisWindow == 4096` samples.
 
@@ -121,9 +123,9 @@ overlay selection, and standalone capture device choice can change which audio
 is fed into the analyzer, but they do not explain identical spillover behavior
 when both paths analyze the same mixed audio.
 
-## Baseline Spillover Paths
+## Original Baseline Spillover Paths
 
-The current analyzer still has the architecture targeted by the rewrite:
+The `v0.1` baseline had the architecture targeted by the rewrite:
 
 * Input mode is inferred from free-form `source_name` strings.
 * One shared pitch-power array is scanned independently by bass, keyboard,
@@ -141,7 +143,33 @@ The current analyzer still has the architecture targeted by the rewrite:
 * Root detection consumes bass notes and instrument chord labels from the
   current snapshot, so weak or duplicated low-note evidence can bias the root.
 
-The next implementation steps should preserve the shared frontend path while
-replacing this with explicit input mode, one candidate extraction pass,
-centralized ownership, instrument-local tracking, global full-mix chord output,
-and precision-oriented tests.
+## Current Rewrite Checkpoint
+
+The current shared analyzer has moved the central architecture away from those
+baseline paths:
+
+* `AnalysisSettings::input_mode` selects `FullMix` or an isolated instrument
+  mode before any note routing happens.
+* `src/plugin.cpp` and `src/standalone.cpp` set `FullMix` explicitly for OBS
+  filter/master audio and live/file standalone analysis.
+* Full-mix analysis builds one `FullMixOwnership` result from shared pitch
+  candidates. Each candidate receives one confident owner or becomes
+  `Ambiguous`; the same mixed-spectrum candidate is not intentionally copied
+  into keyboard, guitar, vocal, and other rows.
+* `AnalysisSnapshot` exposes `global_chord` and `ambiguous_notes`. Full-mix
+  chord detection uses global chroma, while instrument-specific chords are
+  secondary and are based on owned notes.
+* Tuning hysteresis checks the active input mode, so a note tracked in one
+  isolated mode does not relax tuning thresholds for unrelated instrument rows.
+* Instrument-specific chord recovery uses short-lived analytical chord-note
+  trackers. Those trackers are separate from the longer visual note envelopes,
+  so a fading note highlight does not keep producing chord evidence.
+* Dataset gates now report precision, contamination, confusion, octave-error,
+  false-row, and global/per-instrument chord metrics instead of union recall
+  alone for the configured real-data paths that have enough truth data.
+
+Remaining limitations are still heuristic: reliable per-instrument
+transcription from a finished stereo mix cannot always be achieved without
+optional delayed source separation. The current real-time path keeps separation
+bounded and deterministic, and ambiguous ownership is preferred over confident
+cross-row duplication.

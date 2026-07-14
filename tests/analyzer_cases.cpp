@@ -812,26 +812,26 @@ void check_required_chord_transitions(Runner &runner)
 					 {"G6", "Gmaj7", "G7", "Gadd9", "Em7", "Em9", "Edim", "Eaug"});
 }
 
-void check_smoothed_only_chord_initializes(Runner &runner)
+void check_chord_evidence_separate_from_visual_fade(Runner &runner)
 {
 	mao::AnalysisEngine engine;
 	mao::AnalysisSettings settings = mao_test::default_settings();
 	settings.analysis_interval_seconds = 0.05f;
-	const auto c = mao_test::make_midi_notes({60}, 0.34f);
-	const auto e = mao_test::make_midi_notes({64}, 0.34f);
-	const auto g = mao_test::make_midi_notes({67}, 0.34f);
+	const auto c_major = mao_test::make_midi_notes({60, 64, 67}, 0.34f);
+	mao_test::Buffer silence = {};
 
-	(void)engine.analyze(c.data(), c.size(), settings, "keyboard", 0);
-	auto snapshot = engine.analyze(c.data(), c.size(), settings, "keyboard", 0);
-	expect_no_chord(runner, snapshot.keyboard_chord, "smoothed-only chord C seed");
+	(void)engine.analyze(c_major.data(), c_major.size(), settings, "keyboard", 0);
+	auto snapshot = engine.analyze(c_major.data(), c_major.size(), settings, "keyboard", 0);
+	expect_label(runner, snapshot.keyboard_chord.label, "C", "chord evidence visual separation seed");
 
-	(void)engine.analyze(e.data(), e.size(), settings, "keyboard", 0);
-	snapshot = engine.analyze(e.data(), e.size(), settings, "keyboard", 0);
-	expect_no_chord(runner, snapshot.keyboard_chord, "smoothed-only chord C/E partial");
+	for (int i = 0; i < 12; ++i)
+		snapshot = engine.analyze(silence.data(), silence.size(), settings, "keyboard", 0);
 
-	(void)engine.analyze(g.data(), g.size(), settings, "keyboard", 0);
-	snapshot = engine.analyze(g.data(), g.size(), settings, "keyboard", 0);
-	expect_label(runner, snapshot.keyboard_chord.label, "C", "smoothed-only chord initializes from held notes");
+	const float visual_c = grid_level_for_midi(snapshot.keyboard_notes, 60);
+	runner.expect(visual_c > 0.0f,
+		      "chord evidence visual separation: expected visual C4 fade to remain visible");
+	expect_no_chord(runner, snapshot.keyboard_chord,
+			"chord evidence visual separation: chord should expire before visual notes");
 }
 
 void check_low_level_mixed_notes(Runner &runner)
@@ -2329,7 +2329,7 @@ int main()
 	check_temporal_note_stability(runner);
 	check_temporal_chord_stability(runner);
 	check_required_chord_transitions(runner);
-	check_smoothed_only_chord_initializes(runner);
+	check_chord_evidence_separate_from_visual_fade(runner);
 	check_low_level_mixed_notes(runner);
 	check_melodic_sources_do_not_trigger_drums(runner);
 	check_layered_midi_instrument_voices(runner);

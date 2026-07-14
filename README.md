@@ -8,6 +8,7 @@ Native OBS Studio plugin that analyzes a music mix and displays an instrument-or
 - Vocal and other instruments: two-row 12-note octave matrix with active octaves shown as colored text
 - Guitar: standard-tuning six-string fretboard view with open string plus frets 1-15 highlighted from detected notes
 - Note highlights fade with detected velocity/amplitude so quiet or sustaining notes are dimmer instead of full intensity
+- Chord labels use short-lived analytical note evidence separate from the longer visual note fade, so old highlights do not keep forming chords
 - Notes outside the chromatic tuning window, about +/-9 cents from the equal-tempered center, are ignored instead of rounded to the nearest note
 - Keyboard, guitar, and other instruments: compact chord labels; vocal stays note-only
 - `SUSTAIN` keeps the recent sustained/high-confidence chord or note; chord sustain is simplified to plain major/minor labels such as `C` or `Dm`, and low-level decaying highlights do not refresh it

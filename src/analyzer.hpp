@@ -160,6 +160,9 @@ private:
 	std::array<NoteTrackingState, kNoteProbeCount> keyboard_note_tracking_ = {};
 	std::array<NoteTrackingState, kNoteProbeCount> vocal_note_tracking_ = {};
 	std::array<NoteTrackingState, kNoteProbeCount> other_note_tracking_ = {};
+	std::array<NoteTrackingState, kNoteProbeCount> guitar_chord_note_tracking_ = {};
+	std::array<NoteTrackingState, kNoteProbeCount> keyboard_chord_note_tracking_ = {};
+	std::array<NoteTrackingState, kNoteProbeCount> other_chord_note_tracking_ = {};
 	ChordTrackingState guitar_chord_tracking_ = {};
 	ChordTrackingState keyboard_chord_tracking_ = {};
 	ChordTrackingState other_chord_tracking_ = {};
