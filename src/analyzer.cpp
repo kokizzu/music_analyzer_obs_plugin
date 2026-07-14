@@ -279,6 +279,9 @@ struct NoteEvidence {
 	float spectral_level = 0.0f;
 	float pitch_confidence = 0.0f;
 	float tuning_error_cents = 0.0f;
+	float onset_strength = 0.0f;
+	float decay_rate = 0.0f;
+	float pitch_stability = 0.0f;
 	float harmonicity = 0.0f;
 	float harmonic_fit_error = 0.0f;
 	float spectral_centroid = 0.0f;
@@ -287,6 +290,12 @@ struct NoteEvidence {
 	std::array<float, 5> ownership_scores = {};
 	InstrumentKind owner = InstrumentKind::Ambiguous;
 	float ownership_confidence = 0.0f;
+};
+
+struct TemporalNoteFeatures {
+	float onset_strength = 0.0f;
+	float decay_rate = 0.0f;
+	float pitch_stability = 0.0f;
 };
 
 NoteCandidate ownership_weighted_candidate(const NoteCandidate &candidate, const NoteEvidence &evidence)
@@ -498,13 +507,32 @@ float local_spectral_noise_ratio(const std::array<float, kNoteProbeCount> &power
 	return noise_count > 0 ? (noise_sum / static_cast<float>(noise_count)) / fundamental : 0.0f;
 }
 
+TemporalNoteFeatures temporal_note_features(float current_level, float previous_level)
+{
+	TemporalNoteFeatures features;
+	const float current = std::clamp(current_level, 0.0f, 1.0f);
+	const float previous = std::clamp(previous_level, 0.0f, 1.0f);
+	const float larger = std::max(current, previous);
+	features.onset_strength =
+		std::clamp((current - previous) / std::max(previous, 0.08f), 0.0f, 1.0f);
+	features.decay_rate =
+		std::clamp((previous - current) / std::max(previous, 0.08f), 0.0f, 1.0f);
+	features.pitch_stability =
+		larger > 1.0e-6f ? std::clamp(1.0f - std::abs(current - previous) / larger, 0.0f, 1.0f) : 0.0f;
+	return features;
+}
+
 NoteEvidence build_note_evidence(const std::array<float, kNoteProbeCount> &powers,
-				 const NoteCandidate &candidate, float strongest_score, const TimbreMix &mix)
+				 const NoteCandidate &candidate, float strongest_score, const TimbreMix &mix,
+				 const TemporalNoteFeatures &temporal)
 {
 	NoteEvidence evidence;
 	evidence.midi = candidate.midi;
 	evidence.spectral_level =
 		strongest_score > 1.0e-6f ? std::clamp(candidate.score / strongest_score, 0.0f, 1.0f) : 0.0f;
+	evidence.onset_strength = temporal.onset_strength;
+	evidence.decay_rate = temporal.decay_rate;
+	evidence.pitch_stability = temporal.pitch_stability;
 
 	const float fundamental = mix.bands[0];
 	if (fundamental <= 1.0e-6f)
@@ -787,13 +815,14 @@ bool blended_full_mix_upper_partials(float second, float third, float fourth, fl
 
 InstrumentKind choose_full_mix_owner(const std::array<float, kNoteProbeCount> &powers,
 				     const NoteCandidate &candidate, float strongest_score,
-				     bool polyphonic_vocal_context, NoteEvidence &evidence)
+				     bool polyphonic_vocal_context, const TemporalNoteFeatures &temporal,
+				     NoteEvidence &evidence)
 {
 	if (candidate.midi < kFirstMidi || candidate.midi > kLastMidi || strongest_score <= 1.0e-6f)
 		return InstrumentKind::Ambiguous;
 
 	const TimbreMix mix = timbre_mix_for_midi(powers, candidate.midi);
-	evidence = build_note_evidence(powers, candidate, strongest_score, mix);
+	evidence = build_note_evidence(powers, candidate, strongest_score, mix, temporal);
 	const float fundamental = mix.bands[0];
 	if (fundamental <= 1.0e-6f)
 		return InstrumentKind::Ambiguous;
@@ -828,12 +857,18 @@ InstrumentKind choose_full_mix_owner(const std::array<float, kNoteProbeCount> &p
 	if (candidate.midi >= 48 && candidate.midi <= 83 && second <= 0.56f) {
 		scores[0] = keyboard_weight * 1.18f + std::max(0.0f, 0.50f - second) * 0.30f +
 			    std::max(0.0f, 0.16f - third) * 0.08f + clean_pitch_bonus;
+		if (evidence.pitch_stability >= 0.62f && evidence.onset_strength <= 0.45f)
+			scores[0] += 0.06f;
 		if (evidence.spectral_centroid > 0.34f || evidence.spectral_slope > 0.18f)
 			scores[0] *= 0.78f;
 	}
 	if (candidate.midi >= kGuitarMinMidi && candidate.midi <= kGuitarMaxMidi && second >= 0.12f &&
 	    third >= 0.035f) {
 		scores[1] = guitar_weight * 1.18f + second * 0.24f + third * 0.16f;
+		if (evidence.onset_strength >= 0.35f)
+			scores[1] += evidence.onset_strength * 0.08f;
+		if (evidence.decay_rate >= 0.18f)
+			scores[1] += evidence.decay_rate * 0.05f;
 		if (evidence.spectral_centroid >= 0.10f && evidence.spectral_centroid <= 0.42f)
 			scores[1] += 0.08f;
 		if (evidence.spectral_slope >= 0.035f && evidence.spectral_slope <= 0.30f)
@@ -845,12 +880,18 @@ InstrumentKind choose_full_mix_owner(const std::array<float, kNoteProbeCount> &p
 	    full_mix_vocal_profile_supported(evidence, second, third, fourth, polyphonic_vocal_context)) {
 		scores[2] = 0.74f + std::max(0.0f, 0.10f - second) * 1.8f +
 			    std::max(0.0f, 0.065f - third) * 1.3f;
+		if (evidence.onset_strength > 0.72f && evidence.pitch_stability < 0.30f)
+			scores[2] *= 0.80f;
+		if (evidence.pitch_stability >= 0.55f)
+			scores[2] += 0.05f;
 		if (note_strength < 0.52f)
 			scores[2] *= 0.82f;
 	}
 	if (candidate.midi >= 60 && candidate.midi <= kOtherMaxMidi && second >= 0.24f &&
 	    (fourth >= 0.06f || fifth >= 0.035f)) {
 		scores[3] = other_weight * 1.12f + second * 0.18f + third * 0.14f + fourth * 0.10f;
+		if (evidence.pitch_stability >= 0.45f)
+			scores[3] += 0.04f;
 		if (evidence.harmonicity >= 0.62f || evidence.spectral_centroid >= 0.20f)
 			scores[3] += 0.10f;
 	}
@@ -912,9 +953,12 @@ InstrumentKind choose_full_mix_owner(const std::array<float, kNoteProbeCount> &p
 
 FullMixOwnership build_full_mix_ownership(const std::array<float, kNoteProbeCount> &powers,
 					  const std::array<float, kNoteProbeCount> &detection_powers,
-					  float rms)
+					  float rms,
+					  const std::array<float, kNoteProbeCount> &previous_note_levels,
+					  std::array<float, kNoteProbeCount> &current_note_levels)
 {
 	FullMixOwnership ownership;
+	current_note_levels.fill(0.0f);
 	if (rms < kNoteRmsFloor)
 		return ownership;
 
@@ -930,6 +974,13 @@ FullMixOwnership build_full_mix_ownership(const std::array<float, kNoteProbeCoun
 	}
 	if (strongest_score <= 1.0e-6f)
 		return ownership;
+	for (const NoteCandidate &candidate : candidates) {
+		if (candidate.midi < kFirstMidi || candidate.midi > kLastMidi)
+			continue;
+		current_note_levels[candidate.midi - kFirstMidi] =
+			std::max(current_note_levels[candidate.midi - kFirstMidi],
+				 std::clamp(candidate.score / strongest_score, 0.0f, 1.0f));
+	}
 
 	int vocal_range_candidate_count = 0;
 	for (const NoteCandidate &candidate : candidates) {
@@ -940,11 +991,16 @@ FullMixOwnership build_full_mix_ownership(const std::array<float, kNoteProbeCoun
 	const bool polyphonic_vocal_context = vocal_range_candidate_count >= 2;
 
 	for (const NoteCandidate &candidate : candidates) {
-		NoteEvidence evidence;
-		const InstrumentKind owner =
-			choose_full_mix_owner(powers, candidate, strongest_score, polyphonic_vocal_context, evidence);
 		if (candidate.midi < kFirstMidi || candidate.midi > kLastMidi)
 			continue;
+
+		NoteEvidence evidence;
+		const std::size_t note_index = static_cast<std::size_t>(candidate.midi - kFirstMidi);
+		const TemporalNoteFeatures temporal =
+			temporal_note_features(current_note_levels[note_index], previous_note_levels[note_index]);
+		const InstrumentKind owner =
+			choose_full_mix_owner(powers, candidate, strongest_score, polyphonic_vocal_context,
+					      temporal, evidence);
 
 		const std::size_t index = static_cast<std::size_t>(candidate.midi - kFirstMidi);
 		const int pitch_class = ((candidate.midi % 12) + 12) % 12;
@@ -2538,6 +2594,7 @@ void AnalysisEngine::reset_note_envelopes()
 		note = {};
 	for (NoteTrackingState &note : full_mix_note_tracking_)
 		note = {};
+	previous_full_mix_note_levels_.fill(0.0f);
 	for (NoteTrackingState &note : guitar_chord_note_tracking_)
 		note = {};
 	for (NoteTrackingState &note : keyboard_chord_note_tracking_)
@@ -3199,7 +3256,11 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 		input_mode == AnalysisInputMode::IsolatedOther && is_monophonic_other_track_source(resolved_source_name);
 	const int other_max_notes = monophonic_other_source ? 1 : (mixed_source ? 12 : 8);
 	if (mixed_source) {
-		full_mix_ownership = build_full_mix_ownership(note_powers, detection_note_powers, rms);
+		std::array<float, kNoteProbeCount> current_full_mix_note_levels = {};
+		full_mix_ownership = build_full_mix_ownership(note_powers, detection_note_powers, rms,
+							      previous_full_mix_note_levels_,
+							      current_full_mix_note_levels);
+		previous_full_mix_note_levels_ = current_full_mix_note_levels;
 		update_note_tracking_from_levels(full_mix_note_tracking_, full_mix_ownership.global_note_levels,
 						 interval_seconds, kNoteAttackConfirmFrames,
 						 kMixedNoteEnvelopeImmediateConfirmFloor,

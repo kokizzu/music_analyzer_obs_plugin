@@ -41,6 +41,7 @@ def main():
         makefile = read_text("Makefile")
         readme = read_text("README.md")
         docs = read_text("docs/real_audio_dataset_candidates.md")
+        analyzer_header = read_text("src/analyzer.hpp")
         analyzer_impl = read_text("src/analyzer.cpp")
         urmp_harness = read_text("tests/analyzer_urmp.cpp")
         urmp_inspector = read_text("tests/inspect_urmp_dataset.py")
@@ -231,6 +232,18 @@ def main():
          "note candidates carry ownership confidence"),
         (analyzer_impl, "ownership_weighted_candidate(candidate, evidence)",
          "full-mix owned candidates are weighted by ownership confidence"),
+        (analyzer_impl, "struct TemporalNoteFeatures",
+         "analyzer extracts temporal note ownership features"),
+        (analyzer_impl, "float onset_strength = 0.0f",
+         "note evidence carries onset strength"),
+        (analyzer_impl, "float decay_rate = 0.0f",
+         "note evidence carries decay rate"),
+        (analyzer_impl, "float pitch_stability = 0.0f",
+         "note evidence carries pitch stability"),
+        (analyzer_header, "previous_full_mix_note_levels_",
+         "full-mix ownership keeps fixed-size temporal history"),
+        (analyzer_impl, "previous_full_mix_note_levels_.fill(0.0f)",
+         "full-mix temporal history resets with analyzer state"),
         (analyzer_impl, "NoteCandidateList keyboard_candidates",
          "full-mix keyboard owned candidate list"),
         (analyzer_impl, "set_instrument_note_set_from_candidates(snapshot.keyboard_notes",

@@ -163,12 +163,15 @@ baseline paths:
   into keyboard, guitar, vocal, and other rows.
 * Full-mix ownership now carries explicit per-note evidence: spectral level,
   pitch confidence, harmonicity, harmonic-fit residual, spectral centroid,
-  spectral slope, local spectral noise, normalized ownership scores, and final
-  owner confidence. Simultaneous high-note clusters suppress vocal ownership so
-  instrumental chords do not become monophonic vocal guesses. Single high notes
-  also require a clean sustained vocal-like partial profile before they can
-  enter the vocal row, so piano-like upper notes remain global or ambiguous
-  evidence instead of automatic vocal detections.
+  spectral slope, local spectral noise, onset strength, decay rate, pitch
+  stability, normalized ownership scores, and final owner confidence. The
+  temporal features come from fixed-size full-mix per-MIDI history that resets
+  with analyzer state, source changes, and input-mode changes. Simultaneous
+  high-note clusters suppress vocal ownership so instrumental chords do not
+  become monophonic vocal guesses. Single high notes also require a clean
+  sustained vocal-like partial profile before they can enter the vocal row, so
+  piano-like upper notes remain global or ambiguous evidence instead of
+  automatic vocal detections.
 * Same-MIDI mixed-timbre chord tones are kept ambiguous when competing template
   weights or blended upper partials make the source uncertain. A sparse
   singleton owner inside an otherwise ambiguous full-mix harmonic cluster is
