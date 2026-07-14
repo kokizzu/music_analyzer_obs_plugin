@@ -155,6 +155,12 @@ void expect_pitch_class(Runner &runner, const mao::NoteGrid &grid, int pitch_cla
 		      context + ": expected pitch class " + mao_test::note_name(pitch_class) + " active");
 }
 
+void expect_no_pitch_class(Runner &runner, const mao::NoteGrid &grid, int pitch_class, const std::string &context)
+{
+	runner.expect(!grid_pitch_active(grid, pitch_class),
+		      context + ": expected pitch class " + mao_test::note_name(pitch_class) + " inactive");
+}
+
 bool grid_pitch_has_octave(const mao::NoteGrid &grid, int pitch_class, const char *octave)
 {
 	for (const auto &row : grid.rows) {
@@ -782,6 +788,137 @@ void check_distorted_midi_guitar_timbre(Runner &runner)
 	expect_label(runner, snapshot.guitar_chord.label, "G", "distorted MIDI guitar timbre chord");
 	expect_pitch_class(runner, snapshot.keyboard_notes, 7, "distorted MIDI guitar timbre keyboard overlap");
 	expect_no_drums(runner, snapshot, "distorted MIDI guitar timbre");
+}
+
+void check_spillover_regressions(Runner &runner)
+{
+	{
+		mao_test::Buffer buffer = {};
+		const std::vector<float> piano_profile = {1.0f, 0.14f, 0.05f, 0.02f};
+		for (int midi : {60, 64, 67})
+			add_harmonic_note(buffer, midi, 0.24f, piano_profile);
+
+		const auto snapshot = analyze_buffer(buffer, "piano");
+		expect_label(runner, snapshot.keyboard_chord.label, "C", "spillover piano-only keyboard chord");
+		for (int pitch_class : {0, 4, 7}) {
+			expect_pitch_class(runner, snapshot.keyboard_notes, pitch_class, "spillover piano-only keyboard");
+			expect_no_pitch_class(runner, snapshot.guitar_notes, pitch_class, "spillover piano-only guitar");
+			expect_no_pitch_class(runner, snapshot.vocal_notes, pitch_class, "spillover piano-only vocal");
+			expect_no_pitch_class(runner, snapshot.other_notes, pitch_class, "spillover piano-only other");
+		}
+	}
+
+	{
+		mao_test::Buffer buffer = {};
+		const std::vector<float> guitar_profile = {1.0f, 0.36f, 0.17f, 0.07f, 0.03f};
+		for (int midi : {55, 59, 62})
+			add_harmonic_note(buffer, midi, 0.24f, guitar_profile);
+
+		const auto snapshot = analyze_buffer(buffer, "guitar");
+		expect_label(runner, snapshot.guitar_chord.label, "G", "spillover guitar-only guitar chord");
+		for (int pitch_class : {7, 11, 2}) {
+			expect_pitch_class(runner, snapshot.guitar_notes, pitch_class, "spillover guitar-only guitar");
+			expect_no_pitch_class(runner, snapshot.keyboard_notes, pitch_class, "spillover guitar-only keyboard");
+			expect_no_pitch_class(runner, snapshot.vocal_notes, pitch_class, "spillover guitar-only vocal");
+			expect_no_pitch_class(runner, snapshot.other_notes, pitch_class, "spillover guitar-only other");
+		}
+	}
+
+	{
+		mao_test::Buffer buffer = {};
+		const std::vector<float> piano_profile = {1.0f, 0.12f, 0.04f, 0.015f};
+		for (int midi : {84, 88, 91})
+			add_harmonic_note(buffer, midi, 0.22f, piano_profile);
+
+		const auto snapshot = analyze_buffer(buffer, "piano");
+		expect_label(runner, snapshot.keyboard_chord.label, "C", "spillover high piano keyboard chord");
+		for (int pitch_class : {0, 4, 7}) {
+			expect_pitch_class(runner, snapshot.keyboard_notes, pitch_class, "spillover high piano keyboard");
+			expect_no_pitch_class(runner, snapshot.vocal_notes, pitch_class, "spillover high piano vocal");
+			expect_no_pitch_class(runner, snapshot.other_notes, pitch_class, "spillover high piano other");
+		}
+	}
+
+	{
+		mao_test::Buffer buffer = {};
+		const std::vector<float> keyboard_profile = {1.0f, 0.16f, 0.08f};
+		const std::vector<float> bass_profile = {1.0f, 0.28f, 0.12f};
+		for (int midi : {60, 64, 67})
+			add_harmonic_note(buffer, midi, 0.28f, keyboard_profile);
+		add_harmonic_note(buffer, 31, 0.035f, bass_profile);
+
+		const auto snapshot = analyze_buffer(buffer, "full mix");
+		expect_label(runner, snapshot.keyboard_chord.label, "C", "spillover weak bass root keyboard chord");
+		expect_no_chord_label(runner, snapshot.keyboard_chord.label, "G",
+				      "spillover weak bass root keyboard chord");
+	}
+
+	{
+		mao::AnalysisEngine engine;
+		mao::AnalysisSettings settings = mao_test::default_settings();
+		settings.analysis_interval_seconds = 0.05f;
+		const std::vector<float> keyboard_profile = {1.0f, 0.16f, 0.08f};
+		mao_test::Buffer c = {};
+		mao_test::Buffer g = {};
+		for (int midi : {60, 64, 67})
+			add_harmonic_note(c, midi, 0.24f, keyboard_profile);
+		for (int midi : {55, 59, 62})
+			add_harmonic_note(g, midi, 0.24f, keyboard_profile);
+
+		mao::AnalysisSnapshot snapshot = {};
+		for (int i = 0; i < 3; ++i)
+			snapshot = engine.analyze(c.data(), c.size(), settings, "piano", 0);
+		for (int i = 0; i < 3; ++i)
+			snapshot = engine.analyze(g.data(), g.size(), settings, "piano", 0);
+
+		expect_label(runner, snapshot.keyboard_chord.label, "G", "spillover chord transition keyboard chord");
+		expect_no_chord_label(runner, snapshot.keyboard_chord.label, "Cmaj7",
+				      "spillover chord transition false extension");
+		expect_no_chord_label(runner, snapshot.keyboard_chord.label, "C7",
+				      "spillover chord transition false extension");
+		expect_no_chord_label(runner, snapshot.keyboard_chord.label, "Cadd9",
+				      "spillover chord transition false extension");
+	}
+}
+
+void check_explicit_input_mode_and_bpm(Runner &runner)
+{
+	{
+		mao_test::Buffer buffer = {};
+		const std::vector<float> piano_profile = {1.0f, 0.14f, 0.05f, 0.02f};
+		for (int midi : {60, 64, 67})
+			add_harmonic_note(buffer, midi, 0.24f, piano_profile);
+
+		mao::AnalysisEngine engine;
+		mao::AnalysisSettings settings = mao_test::default_settings();
+		settings.input_mode = mao::AnalysisInputMode::FullMix;
+		const auto snapshot = engine.analyze(buffer.data(), buffer.size(), settings, "piano", 0);
+		expect_label(runner, snapshot.global_chord.label, "C",
+			     "explicit input mode: FullMix should override piano source-name isolation");
+	}
+
+	{
+		mao::AnalysisEngine engine;
+		mao::AnalysisSettings settings = mao_test::default_settings();
+		settings.analysis_interval_seconds = 0.05f;
+		settings.input_mode = mao::AnalysisInputMode::FullMix;
+		mao::AnalysisSnapshot snapshot = {};
+		for (int frame = 0; frame < 108; ++frame) {
+			mao_test::Buffer buffer = {};
+			if (frame % 12 == 0) {
+				add_decayed_sine(buffer, 65.0f, 0.90f, 1400);
+				add_decayed_sine(buffer, 1100.0f, 0.30f, 520);
+			}
+			snapshot = engine.analyze(buffer.data(), buffer.size(), settings, "tempo test", 0);
+		}
+
+		runner.expect(snapshot.estimated_bpm >= 70.0f && snapshot.estimated_bpm <= 130.0f,
+			      "BPM estimate: expected plausible tempo from synthetic pulse, got " +
+				      std::to_string(snapshot.estimated_bpm));
+		runner.expect(snapshot.bpm_confidence >= 0.20f,
+			      "BPM estimate: expected confidence >= 20%, got " +
+				      std::to_string(snapshot.bpm_confidence));
+	}
 }
 
 int midi_at_or_above(int min_midi, int pitch_class)
@@ -1996,6 +2133,8 @@ int main()
 	check_layered_midi_instrument_voices(runner);
 	check_same_instrument_timbre_variants(runner);
 	check_distorted_midi_guitar_timbre(runner);
+	check_spillover_regressions(runner);
+	check_explicit_input_mode_and_bpm(runner);
 	check_urmp_real_piece_metadata_regressions(runner);
 	check_slakh_style_multitrack_song_regressions(runner);
 	check_public_multitrack_dataset_style_regressions(runner);

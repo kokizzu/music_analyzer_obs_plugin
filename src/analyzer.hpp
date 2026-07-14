@@ -22,11 +22,22 @@ enum DrumIndex : std::size_t {
 	Ride = 5,
 };
 
+enum class AnalysisInputMode {
+	Auto,
+	FullMix,
+	IsolatedBass,
+	IsolatedGuitar,
+	IsolatedKeyboard,
+	IsolatedVocal,
+	IsolatedOther,
+};
+
 struct AnalysisSettings {
 	uint32_t sample_rate = 48000;
 	float sensitivity = 1.0f;
 	float analysis_interval_seconds = 0.05f;
 	float root_window_seconds = 15.0f;
+	AnalysisInputMode input_mode = AnalysisInputMode::Auto;
 };
 
 struct DrumState {
@@ -60,6 +71,8 @@ struct AnalysisSnapshot {
 	float low_energy = 0.0f;
 	float mid_energy = 0.0f;
 	float high_energy = 0.0f;
+	float estimated_bpm = 0.0f;
+	float bpm_confidence = 0.0f;
 	uint64_t dropped_windows = 0;
 	uint64_t audio_frames = 0;
 	uint64_t analyzed_windows = 0;
@@ -67,6 +80,8 @@ struct AnalysisSnapshot {
 	std::array<DrumState, kDrumCount> drums = {};
 	InstrumentState root = {};
 	char root_candidates[64] = {};
+	InstrumentState global_chord = {};
+	NoteGrid ambiguous_notes = {};
 	InstrumentState bass = {};
 	NoteGrid bass_notes = {};
 	InstrumentState guitar = {};
@@ -119,6 +134,7 @@ private:
 	};
 
 	static constexpr std::size_t kMaxRootVotes = 1500;
+	static constexpr std::size_t kMaxTempoEvents = 64;
 
 	std::array<float, kAnalysisWindow> window_ = {};
 	std::array<Probe, kNoteProbeCount> note_probes_ = {};
@@ -129,6 +145,7 @@ private:
 	std::array<float, kDrumCount> drum_level_ = {};
 	std::array<RootVote, kMaxRootVotes> root_votes_ = {};
 	std::array<float, 12> root_sum_ = {};
+	std::array<float, kMaxTempoEvents> tempo_events_ = {};
 	std::array<NoteTrackingState, kNoteProbeCount> bass_note_tracking_ = {};
 	std::array<NoteTrackingState, kNoteProbeCount> guitar_note_tracking_ = {};
 	std::array<NoteTrackingState, kNoteProbeCount> keyboard_note_tracking_ = {};
@@ -137,19 +154,31 @@ private:
 	ChordTrackingState guitar_chord_tracking_ = {};
 	ChordTrackingState keyboard_chord_tracking_ = {};
 	ChordTrackingState other_chord_tracking_ = {};
+	ChordTrackingState global_chord_tracking_ = {};
 	std::size_t root_vote_pos_ = 0;
 	std::size_t root_vote_count_ = 0;
 	std::size_t root_vote_target_ = 0;
+	std::size_t tempo_event_pos_ = 0;
+	std::size_t tempo_event_count_ = 0;
 	int locked_root_ = -1;
 	float silence_seconds_ = 0.0f;
+	float tempo_clock_seconds_ = 0.0f;
+	float last_tempo_event_seconds_ = -10.0f;
+	float estimated_bpm_ = 0.0f;
+	float bpm_confidence_ = 0.0f;
+	AnalysisInputMode active_input_mode_ = AnalysisInputMode::Auto;
+	bool has_active_input_mode_ = false;
+	char active_source_[64] = {};
 
 	void rebuild_plans(uint32_t sample_rate);
 	void reset_note_envelopes();
+	void reset_analysis_state();
+	void update_tempo(bool transient_event, float interval_seconds, float rms);
 	float goertzel_power(const float *samples, std::size_t count, float mean, const Probe &probe) const;
 	float goertzel_power_at_frequency(const float *samples, std::size_t count, float mean, float freq) const;
 	bool chromatic_tuning_match(const float *samples, std::size_t count, float mean, int midi,
 				    float tolerance_cents) const;
-	bool tracked_note_active(int midi) const;
+	bool tracked_note_active(AnalysisInputMode input_mode, int midi) const;
 	void reset_root_window();
 	void add_root_vote(const RootVote &vote);
 	InstrumentState track_root(const std::array<float, kNoteProbeCount> &powers, float rms,

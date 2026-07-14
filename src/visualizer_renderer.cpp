@@ -1017,6 +1017,17 @@ void render_pixels(VisualizerRenderer *visualizer, const AnalysisSnapshot &snaps
 	const int root_y = std::min(row_y + 6, std::max(0, static_cast<int>(visualizer->height) - 14));
 	draw_root_candidates(visualizer, 28, root_y, snapshot.root_candidates);
 
+	char bpm[32];
+	if (snapshot.estimated_bpm > 0.0f && snapshot.bpm_confidence > 0.05f) {
+		std::snprintf(bpm, sizeof(bpm), "BPM %.0f %.0f%%", snapshot.estimated_bpm,
+			      snapshot.bpm_confidence * 100.0f);
+	} else {
+		std::snprintf(bpm, sizeof(bpm), "BPM --");
+	}
+	const int bpm_y = std::max(0, static_cast<int>(visualizer->height) - 18);
+	const int bpm_x = std::max(28, static_cast<int>(visualizer->width) - 28 - text_width(bpm, 2));
+	draw_text(visualizer, bpm_x, bpm_y, bpm, 2, kWhiteTextColor);
+
 	if (snapshot.sequence == 0)
 		draw_text(visualizer, 230, 145, "ADD MUSIC ANALYZER FILTER TO AN AUDIO SOURCE", 2,
 			  Color{248, 250, 252, 255});

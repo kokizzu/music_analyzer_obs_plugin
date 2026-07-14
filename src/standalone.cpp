@@ -320,6 +320,7 @@ bool run_self_test()
 	settings.sample_rate = 48000;
 	settings.sensitivity = 1.0f;
 	settings.analysis_interval_seconds = 0.05f;
+	settings.input_mode = mao::AnalysisInputMode::IsolatedKeyboard;
 
 	mao::AnalysisEngine engine;
 	mao::AnalysisSnapshot snapshot;
@@ -677,6 +678,7 @@ public:
 		settings_.sensitivity = options.sensitivity;
 		settings_.analysis_interval_seconds = static_cast<float>(options.update_ms) / 1000.0f;
 		settings_.root_window_seconds = 15.0f;
+		settings_.input_mode = mao::AnalysisInputMode::FullMix;
 		hop_samples_ = std::max<uint32_t>(1, options.sample_rate * options.update_ms / 1000);
 		samples_until_analysis_ = hop_samples_;
 		source_name_ = options.source_name;

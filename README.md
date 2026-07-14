@@ -13,14 +13,18 @@ Native OBS Studio plugin that analyzes a music mix and displays an instrument-or
 - `SUSTAIN` keeps the recent sustained/high-confidence chord or note; chord sustain is simplified to plain major/minor labels such as `C` or `Dm`, and low-level decaying highlights do not refresh it
 - Keyboard chord labels are resolved from filtered notes inside a plausible hand-span cluster, so far-apart bass/melody notes are not collapsed into impossible hand chords
 - Guitar chord labels are resolved from the filtered fretboard notes with CAGED-style voicing preference, so full-mix bass/root hints do not rename the guitar shape
-- Mixed-source routing: duplicated pitches are not claimed by row order; keyboard, guitar, and other rows use harmonic timbre masks, while bass and vocal use conservative range gates
-- Source-name hints: `guitar`, `key`, `piano`, `organ`, `synth`, `brass`, `horn`, `violin`, and `string` route detection toward the matching row
+- Full-mix routing exposes a primary global chord in the shared analyzer snapshot, while instrument rows remain conservative estimates
+- Explicit isolated input modes keep single-instrument sources in their matching row instead of filling unrelated keyboard, guitar, vocal, or other rows
+- Source-name hints remain as a compatibility adapter for tests and direct analyzer use: `guitar`, `key`, `piano`, `organ`, `synth`, `brass`, `horn`, `violin`, and `string` resolve to isolated modes when the caller does not set an input mode explicitly
 - Root: rolling 15-second root candidates with confidence, with the primary root held until sustained modulation or silence
+- BPM: estimated tempo and confidence are shown at the bottom right when rhythmic transients provide enough evidence
 - Chords: compact major, minor, lowercase power-chord `pow`, sus2, sus4, diminished, augmented, 6, minor 6, dominant 7, major 7, minor 7, diminished 7, half-diminished, add9, 9, major 9, and minor 9 labels such as `C`, `Dm`, `Cpow`, `Cdim`, `Caug`, `C6`, `Dm6`, `G7`, `Cmaj7`, `Dm7`, `Cdim7`, `Bm7b5`, `Cadd9`, `G9`, `Cmaj9`, and `Dm9`
 - Equivalent chord names for the same detected pitch classes are shown together, such as `Csus2=Gsus4` or `Dm7=F6`
 - Explicit instrument sources use the full chord template set; mixed sources keep conservative chord labels to avoid false extensions from other instruments
 
 The analyzer is designed for real-time OBS use. It uses bounded DSP heuristics rather than a large ML stem-separation model: audio is downmixed into a fixed ring buffer, analyzer windows are copied to a worker thread at a configurable interval, and the OBS audio callback returns immediately after lightweight buffering. The overlay source renders a single reusable RGBA texture.
+
+OBS and the standalone speaker-monitor executable explicitly analyze their inputs as `FullMix`, because they receive finished mixer/speaker audio. The shared analyzer still supports isolated modes for direct analyzer callers and tests; those modes are intended for real isolated bass, guitar, keyboard, vocal, or other-instrument stems.
 
 ## OBS Usage
 
@@ -54,6 +58,7 @@ The small status text at the top is for checking whether the analyzer is receivi
 - `DROP`: analyzer windows skipped because a newer audio window arrived before the worker consumed the previous one.
 - `FRAMES`: audio sample frames received by the analyzer input.
 - `AGE`: seconds since the overlay last received a new analyzer snapshot. If this keeps increasing while music is playing, the visualizer is not receiving fresh analyzer data.
+- `BPM`: bottom-right estimated tempo. The percentage is confidence from recent transient timing, so sparse intros, rubato, or weak drums may show `BPM --` or a low-confidence estimate.
 
 ## Standalone Usage
 
@@ -124,7 +129,7 @@ Run the analyzer tests:
 make test
 ```
 
-`make test` builds standalone analyzer executables outside OBS and also runs `make test-standalone`, which verifies the SDL standalone target, the shared renderer, and the Makefile/CMake isolation that keeps SDL out of the OBS plugin target. It first validates the checked real-dataset catalog used to decide which public datasets can provide note-ground-truth coverage. `analyzer_smoke` covers the basic signal path, and `analyzer_cases` runs broad synthetic note, instrument, chord, note-matrix, quiet-note rejection, realistic harmonic chord, same-note timbre split, mixed-source timbre routing, multi-instrument mix, URMP same-song multitrack metadata fixtures, and root-candidate cases, including bass B0-G4, guitar E2-E6, keyboard/other A0-C8, and vocal E2-C6.
+`make test` builds standalone analyzer executables outside OBS and also runs `make test-standalone`, which verifies the SDL standalone target, the shared renderer, and the Makefile/CMake isolation that keeps SDL out of the OBS plugin target. It first validates the checked real-dataset catalog used to decide which public datasets can provide note-ground-truth coverage. `analyzer_smoke` covers the basic signal path, and `analyzer_cases` runs broad synthetic note, instrument, chord, note-matrix, quiet-note rejection, realistic harmonic chord, same-note timbre split, isolated-source spillover rejection, explicit input-mode behavior, BPM estimation, mixed-source timbre routing, multi-instrument mix, URMP same-song multitrack metadata fixtures, and root-candidate cases, including bass B0-G4, guitar E2-E6, keyboard/other A0-C8, and vocal E2-C6.
 
 The full-mix regression cases model public multitrack dataset layouts without downloading dataset audio. They include 20+ Slakh2100-style MIDI-rendered song fixtures, 20 ChoralSynth-style vocal multitrack fixtures, 20 CocoChorales-style chamber-ensemble fixtures, 20 SynthSOD-style orchestra/ensemble fixtures, 20 Vocal Ensemble F0 Aggregate-style real-vocal F0 fixtures, plus additional MUSDB18/MUSDB18-HQ, DSD100/Mixing Secrets, MedleyDB/2.0, MoisesDB, URMP, Bach10, TRIOS, PHENICX-Anechoic, MIREX Woodwind Quintet, RawStems, MulTTiPop, GuitarSet, MAESTRO, E-GMD, ACMID, Spheres, MDX, and Open Multitrack Testbed-style fixtures. See [docs/real_audio_dataset_candidates.md](docs/real_audio_dataset_candidates.md) for real recorded dataset candidates that can verify notes and instruments.
 

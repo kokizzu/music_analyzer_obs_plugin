@@ -106,6 +106,7 @@ void copy_ring_to_pending(FilterData *filter, const char *source_label)
 		static_cast<float>(filter->sensitivity_percent.load(std::memory_order_relaxed)) / 100.0f;
 	filter->pending_settings.analysis_interval_seconds =
 		static_cast<float>(hop_samples) / static_cast<float>(std::max<uint32_t>(1, sample_rate));
+	filter->pending_settings.input_mode = mao::AnalysisInputMode::FullMix;
 	copy_text(filter->pending_source_name, sizeof(filter->pending_source_name),
 		  source_label && *source_label ? source_label : filter->source_name);
 	filter->pending_audio_frames = filter->audio_frames_seen;
@@ -136,6 +137,7 @@ void publish_filter_ready(FilterData *filter)
 	settings.analysis_interval_seconds =
 		static_cast<float>(std::max<uint32_t>(1, filter->hop_samples.load(std::memory_order_relaxed))) /
 		static_cast<float>(std::max<uint32_t>(1, settings.sample_rate));
+	settings.input_mode = mao::AnalysisInputMode::FullMix;
 
 	{
 		std::lock_guard<std::mutex> lock(filter->worker_mutex);
