@@ -275,6 +275,8 @@ def main():
          "full-mix other sparse temporal confirmation regression"),
         (analyzer_cases, "check_full_mix_single_instrument_precision",
          "full-mix single-instrument precision spillover regression"),
+        (analyzer_cases, "check_full_mix_single_owned_note_has_no_instrument_chord",
+         "full-mix instrument-specific chords require more than one owned note"),
         (analyzer_cases, "check_full_mix_bass_harmonic_note_not_duplicated",
          "full-mix bass harmonic note duplicate-owner regression"),
         (analyzer_impl, "suppress_full_mix_bass_duplicate_ownership",

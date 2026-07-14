@@ -1374,6 +1374,39 @@ void check_full_mix_single_instrument_precision(Runner &runner)
 	}
 }
 
+void check_full_mix_single_owned_note_has_no_instrument_chord(Runner &runner)
+{
+	{
+		mao_test::Buffer buffer = {};
+		const std::vector<float> guitar_profile = {1.0f, 0.36f, 0.17f, 0.07f, 0.03f};
+		add_harmonic_note(buffer, 55, 0.28f, guitar_profile);
+
+		const auto snapshot =
+			analyze_buffer_with_mode(buffer, mao::AnalysisInputMode::FullMix, "single guitar note", 3);
+		expect_global_pitch_class(runner, snapshot, 7, "full-mix single guitar note global");
+		expect_midi_not_duplicated_across_rows(runner, snapshot, 55,
+						       "full-mix single guitar note ownership");
+		expect_no_chord(runner, snapshot.guitar_chord, "full-mix single guitar note chord");
+		expect_no_chord(runner, snapshot.keyboard_chord, "full-mix single guitar note keyboard chord");
+		expect_no_chord(runner, snapshot.other_chord, "full-mix single guitar note other chord");
+	}
+
+	{
+		mao_test::Buffer buffer = {};
+		const std::vector<float> other_profile = {1.0f, 0.62f, 0.42f, 0.27f, 0.16f};
+		add_harmonic_note(buffer, 74, 0.28f, other_profile);
+
+		const auto snapshot =
+			analyze_buffer_with_mode(buffer, mao::AnalysisInputMode::FullMix, "single other note", 3);
+		expect_global_pitch_class(runner, snapshot, 2, "full-mix single other note global");
+		expect_midi_not_duplicated_across_rows(runner, snapshot, 74,
+						       "full-mix single other note ownership");
+		expect_no_chord(runner, snapshot.other_chord, "full-mix single other note chord");
+		expect_no_chord(runner, snapshot.guitar_chord, "full-mix single other note guitar chord");
+		expect_no_chord(runner, snapshot.keyboard_chord, "full-mix single other note keyboard chord");
+	}
+}
+
 void check_simultaneous_onset_group_rejects_vocal_spillover(Runner &runner)
 {
 	mao_test::Buffer buffer = {};
@@ -2942,6 +2975,7 @@ int main()
 	check_spillover_regressions(runner);
 	check_high_full_mix_cluster_not_vocal_or_other(runner);
 	check_full_mix_single_instrument_precision(runner);
+	check_full_mix_single_owned_note_has_no_instrument_chord(runner);
 	check_simultaneous_onset_group_rejects_vocal_spillover(runner);
 	check_full_mix_vocal_requires_temporal_confirmation(runner);
 	check_sparse_full_mix_other_requires_temporal_confirmation(runner);

@@ -47,7 +47,7 @@
 namespace {
 
 constexpr float kPi = 3.14159265358979323846f;
-constexpr const char *kFfmpegLogLevel = "fatal";
+constexpr const char *kFfmpegLogLevel = "quiet";
 
 struct Options {
 	std::string input_path;
@@ -529,8 +529,9 @@ bool run_self_test()
 		}
 	}
 	{
-		if (std::strcmp(kFfmpegLogLevel, "fatal") != 0) {
-			std::fprintf(stderr, "standalone self-test: ffmpeg loglevel should suppress broken-pipe exit noise\n");
+		if (std::strcmp(kFfmpegLogLevel, "quiet") != 0) {
+			std::fprintf(stderr,
+				     "standalone self-test: ffmpeg loglevel should silence broken-pipe exit noise\n");
 			return false;
 		}
 	}

@@ -191,7 +191,9 @@ baseline paths:
   duplicated across confident owners.
 * `AnalysisSnapshot` exposes `global_chord` and `ambiguous_notes`. Full-mix
   chord detection uses global chroma, while instrument-specific chords are
-  secondary and are based on owned notes.
+  secondary and are based on owned notes. Single owned full-mix notes are
+  covered by regression tests that require guitar, keyboard, and other chord
+  labels to remain empty rather than inventing instrument-specific chords.
   The full-mix global chord stabilizer receives both current-frame chroma and
   the short-lived analytical global note tracker, so brief missing chord tones
   do not turn a held chord into a power-chord or empty-label flicker.
