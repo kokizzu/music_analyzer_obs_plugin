@@ -649,6 +649,24 @@ struct ChildProcess {
 		return true;
 	}
 
+	void drain_available_stdout()
+	{
+		if (read_fd < 0)
+			return;
+
+		for (int attempt = 0; attempt < 32; ++attempt) {
+			pollfd pfd = {read_fd, POLLIN, 0};
+			const int poll_result = poll(&pfd, 1, 0);
+			if (poll_result <= 0 || !(pfd.revents & POLLIN))
+				return;
+
+			std::array<uint8_t, 4096> buffer = {};
+			const ssize_t n = read(read_fd, buffer.data(), buffer.size());
+			if (n <= 0)
+				return;
+		}
+	}
+
 	void close_process()
 	{
 		if (pid > 0) {
@@ -656,7 +674,8 @@ struct ChildProcess {
 			pid_t result = waitpid(pid, &status, WNOHANG);
 			if (result == 0) {
 				(void)kill(pid, SIGTERM);
-				for (int attempt = 0; attempt < 20; ++attempt) {
+				for (int attempt = 0; attempt < 50; ++attempt) {
+					drain_available_stdout();
 					result = waitpid(pid, &status, WNOHANG);
 					if (result != 0)
 						break;
@@ -664,13 +683,10 @@ struct ChildProcess {
 				}
 			}
 			if (result == 0) {
-				if (read_fd >= 0) {
-					close(read_fd);
-					read_fd = -1;
-				}
 				(void)kill(pid, SIGKILL);
 				(void)waitpid(pid, &status, 0);
 			}
+			drain_available_stdout();
 			pid = -1;
 		}
 		if (read_fd >= 0) {

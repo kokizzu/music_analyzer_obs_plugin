@@ -186,10 +186,13 @@ baseline paths:
   do not turn a held chord into a power-chord or empty-label flicker.
 * Full-mix bass detection now uses a bass-specific candidate score with
   harmonic support, octave-error suppression, and a confidence gate against the
-  strongest low-mid candidate. A bass pitch class is exposed to global chord and
-  root logic only after the displayed bass note is accepted, and the bass-root
-  hint only recovers a missing global chord rather than replacing a valid
-  no-hint harmonic-context chord.
+  strongest low-mid candidate. Full-mix bass also keeps a monophonic continuity
+  state: a new bass pitch normally needs repeated evidence before replacing the
+  accepted bass note, while a much stronger candidate can still switch quickly.
+  A bass pitch class is exposed to global chord and root logic only after the
+  displayed bass note is accepted, and the bass-root hint only recovers a
+  missing global chord rather than replacing a valid no-hint harmonic-context
+  chord.
 * Root tracking now consumes the stabilized full-mix `global_chord` in addition
   to confidence-gated bass and owned per-instrument chords. This keeps
   ambiguous full-mix inversions such as C/E from locking the root to the bass

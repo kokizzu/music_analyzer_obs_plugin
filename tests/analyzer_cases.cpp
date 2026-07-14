@@ -386,6 +386,29 @@ void check_bass_octave_suppression(Runner &runner)
 	expect_label(runner, snapshot.bass.label, "B1", "bass octave suppression");
 }
 
+void check_full_mix_bass_conservative_switching(Runner &runner)
+{
+	mao::AnalysisEngine engine;
+	mao::AnalysisSettings settings = mao_test::default_settings();
+	settings.analysis_interval_seconds = 0.05f;
+	const std::vector<float> bass_profile = {1.0f, 0.30f, 0.14f};
+	mao_test::Buffer b1 = {};
+	mao_test::Buffer e2 = {};
+	add_harmonic_note(b1, 35, 0.18f, bass_profile);
+	add_harmonic_note(e2, 40, 0.18f, bass_profile);
+
+	mao::AnalysisSnapshot snapshot = {};
+	for (int i = 0; i < 2; ++i)
+		snapshot = engine.analyze(b1.data(), b1.size(), settings, "Mic/Aux", 0);
+	expect_label(runner, snapshot.bass.label, "B1", "full-mix bass switching seed");
+
+	snapshot = engine.analyze(e2.data(), e2.size(), settings, "Mic/Aux", 0);
+	expect_label(runner, snapshot.bass.label, "B1", "full-mix bass switching one-frame reject");
+
+	snapshot = engine.analyze(e2.data(), e2.size(), settings, "Mic/Aux", 0);
+	expect_label(runner, snapshot.bass.label, "E2", "full-mix bass switching confirmed");
+}
+
 void check_vocal_notes(Runner &runner)
 {
 	for (int midi = 40; midi <= 84; ++midi) {
@@ -2750,6 +2773,7 @@ int main()
 	Runner runner;
 	check_bass_notes(runner);
 	check_bass_octave_suppression(runner);
+	check_full_mix_bass_conservative_switching(runner);
 	check_vocal_notes(runner);
 	check_harmonic_single_notes(runner);
 	check_harmonic_chords(runner);

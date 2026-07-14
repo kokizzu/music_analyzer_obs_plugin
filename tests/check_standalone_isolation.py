@@ -44,6 +44,13 @@ def main():
     require("#pragma GCC diagnostic push" in standalone, "standalone SDL include must be warning-guarded")
     require("#pragma GCC diagnostic pop" in standalone, "standalone SDL include guard must be closed")
     require("MAO_STANDALONE_WITH_SDL" in standalone, "standalone compile guard missing")
+    close_process = standalone.split("void close_process()", 1)[1].split("\n\t}\n};", 1)[0]
+    sigkill_index = close_process.find("(void)kill(pid, SIGKILL);")
+    close_index = close_process.find("close(read_fd)")
+    require("drain_available_stdout();" in close_process,
+            "standalone ffmpeg shutdown must drain child stdout while waiting")
+    require(sigkill_index >= 0 and close_index > sigkill_index,
+            "standalone ffmpeg shutdown must not close stdout pipe before killing child")
 
     obs_cmake = cmake.split("add_library(music-analyzer-obs MODULE", 1)[1].split(")", 1)[0]
     require("src/visualizer_renderer.cpp" in obs_cmake, "CMake OBS target must use shared renderer")
