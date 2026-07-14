@@ -178,6 +178,10 @@ baseline paths:
   no-hint harmonic-context chord.
 * Tuning hysteresis checks the active input mode, so a note tracked in one
   isolated mode does not relax tuning thresholds for unrelated instrument rows.
+* Empty input/status snapshots reset the full analyzer state for the current
+  source, including root, tempo, drum, note, and chord history. This prevents a
+  restarted frontend from inheriting stale analysis from the previous capture
+  stream.
 * Instrument-specific chord recovery uses short-lived analytical chord-note
   trackers. Those trackers are separate from the longer visual note envelopes,
   so a fading note highlight does not keep producing chord evidence.

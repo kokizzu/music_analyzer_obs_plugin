@@ -2367,6 +2367,37 @@ void check_root_from_bass_degrees(Runner &runner)
 		      std::string("root bass degrees: expected D candidate, got `") + snapshot.root_candidates + "`");
 }
 
+void check_empty_input_resets_same_source_state(Runner &runner)
+{
+	mao::AnalysisEngine engine;
+	mao::AnalysisSettings settings = mao_test::default_settings();
+	settings.input_mode = mao::AnalysisInputMode::FullMix;
+	settings.analysis_interval_seconds = 0.05f;
+
+	const mao_test::Buffer chord = mao_test::make_midi_notes({60, 64, 67}, 0.34f);
+	mao::AnalysisSnapshot snapshot = {};
+	for (int i = 0; i < 8; ++i)
+		snapshot = engine.analyze(chord.data(), chord.size(), settings, "OBS MIX", 0);
+	runner.expect(std::strcmp(snapshot.root.label, "C") == 0,
+		      std::string("empty input reset: expected seeded root C, got `") + snapshot.root.label + "`");
+
+	mao_test::Buffer kick = {};
+	add_decayed_sine(kick, 65.0f, 0.85f, 1400);
+	add_decayed_sine(kick, 1100.0f, 0.28f, 520);
+	snapshot = engine.analyze(kick.data(), kick.size(), settings, "OBS MIX", 0);
+	runner.expect(snapshot.drums[mao::Kick].active,
+		      "empty input reset: expected seeded kick active, level " +
+			      std::to_string(snapshot.drums[mao::Kick].level));
+
+	(void)engine.analyze(nullptr, 0, settings, "OBS MIX", 0);
+	mao_test::Buffer silence = {};
+	snapshot = engine.analyze(silence.data(), silence.size(), settings, "OBS MIX", 0);
+	expect_label(runner, snapshot.root.label, "--", "empty input reset root state");
+	runner.expect(!snapshot.drums[mao::Kick].active,
+		      "empty input reset: expected kick inactive after restart, level " +
+			      std::to_string(snapshot.drums[mao::Kick].level));
+}
+
 } // namespace
 
 int main()
@@ -2423,6 +2454,7 @@ int main()
 	check_root_candidates(runner);
 	check_root_from_chord_progression(runner);
 	check_root_from_bass_degrees(runner);
+	check_empty_input_resets_same_source_state(runner);
 
 	if (runner.failures != 0) {
 		std::fprintf(stderr, "analyzer_cases: %d/%d checks failed\n", runner.failures, runner.checks);

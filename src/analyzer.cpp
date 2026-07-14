@@ -2705,7 +2705,7 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 	snapshot.dropped_windows = dropped_windows;
 
 	if (!samples || count == 0) {
-		reset_note_envelopes();
+		reset_analysis_state();
 		copy_text(snapshot.bass.label, sizeof(snapshot.bass.label), "--");
 		copy_text(snapshot.root.label, sizeof(snapshot.root.label), "--");
 		copy_text(snapshot.root_candidates, sizeof(snapshot.root_candidates), "-- 0%");
