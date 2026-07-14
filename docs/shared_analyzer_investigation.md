@@ -172,7 +172,10 @@ baseline paths:
   chords do not become monophonic vocal guesses. Single high notes also require
   periodic, clean sustained vocal-like partial evidence before they can enter
   the vocal row, so piano-like upper notes remain global or ambiguous evidence
-  instead of automatic vocal detections.
+  instead of automatic vocal detections. Full-mix vocal ownership now also keeps
+  a monophonic pending/confirmed state, so a one-frame clean high transient is
+  demoted to ambiguous evidence while a repeated sustained candidate can appear
+  after the short confirmation period.
 * Same-MIDI mixed-timbre chord tones are kept ambiguous when competing template
   weights or blended upper partials make the source uncertain. A sparse
   singleton owner inside an otherwise ambiguous full-mix harmonic cluster is

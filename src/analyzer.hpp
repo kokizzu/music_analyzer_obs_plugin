@@ -162,6 +162,11 @@ private:
 	int tracked_bass_misses_ = 0;
 	float tracked_bass_confidence_ = 0.0f;
 	float tracked_bass_score_ = 0.0f;
+	int tracked_vocal_midi_ = -1;
+	int pending_vocal_midi_ = -1;
+	int pending_vocal_hits_ = 0;
+	int tracked_vocal_misses_ = 0;
+	float tracked_vocal_score_ = 0.0f;
 	std::array<NoteTrackingState, kNoteProbeCount> bass_note_tracking_ = {};
 	std::array<NoteTrackingState, kNoteProbeCount> guitar_note_tracking_ = {};
 	std::array<NoteTrackingState, kNoteProbeCount> keyboard_note_tracking_ = {};

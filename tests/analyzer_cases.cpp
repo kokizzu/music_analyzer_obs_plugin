@@ -1309,6 +1309,28 @@ void check_simultaneous_onset_group_rejects_vocal_spillover(Runner &runner)
 		      "simultaneous-onset group: expected C to stay keyboard or ambiguous");
 }
 
+void check_full_mix_vocal_requires_temporal_confirmation(Runner &runner)
+{
+	mao::AnalysisEngine engine;
+	mao::AnalysisSettings settings = mao_test::default_settings();
+	settings.input_mode = mao::AnalysisInputMode::FullMix;
+	settings.analysis_interval_seconds = 0.05f;
+
+	mao_test::Buffer buffer = {};
+	const std::vector<float> vocal_like_profile = {1.0f, 0.035f, 0.018f, 0.010f};
+	add_harmonic_note(buffer, 84, 0.24f, vocal_like_profile);
+
+	mao::AnalysisSnapshot snapshot = engine.analyze(buffer.data(), buffer.size(), settings, "Mic/Aux", 0);
+	expect_global_pitch_class(runner, snapshot, 0, "full-mix vocal confirmation first-frame global");
+	expect_no_pitch_class(runner, snapshot.vocal_notes, 0, "full-mix vocal confirmation first-frame vocal");
+	runner.expect(grid_pitch_active(snapshot.ambiguous_notes, 0),
+		      "full-mix vocal confirmation: expected first C6 candidate to stay ambiguous");
+
+	snapshot = engine.analyze(buffer.data(), buffer.size(), settings, "Mic/Aux", 0);
+	expect_pitch_class(runner, snapshot.vocal_notes, 0, "full-mix vocal confirmation second-frame vocal");
+	expect_midi_not_duplicated_across_rows(runner, snapshot, 84, "full-mix vocal confirmation ownership");
+}
+
 void check_explicit_input_mode_and_bpm(Runner &runner)
 {
 	{
@@ -2798,6 +2820,7 @@ int main()
 	check_spillover_regressions(runner);
 	check_high_full_mix_cluster_not_vocal_or_other(runner);
 	check_simultaneous_onset_group_rejects_vocal_spillover(runner);
+	check_full_mix_vocal_requires_temporal_confirmation(runner);
 	check_explicit_input_mode_and_bpm(runner);
 	check_frontend_full_mix_equivalence(runner);
 	check_urmp_real_piece_metadata_regressions(runner);
