@@ -41,6 +41,7 @@ def main():
         makefile = read_text("Makefile")
         readme = read_text("README.md")
         docs = read_text("docs/real_audio_dataset_candidates.md")
+        shared_docs = read_text("docs/shared_analyzer_investigation.md")
         analyzer_header = read_text("src/analyzer.hpp")
         analyzer_impl = read_text("src/analyzer.cpp")
         analyzer_cases = read_text("tests/analyzer_cases.cpp")
@@ -546,6 +547,18 @@ def main():
         (readme, "MUSIC_ANALYZER_GUITARSET_MIN_PRECISION_PERCENT", "README GuitarSet precision knob"),
         (readme, "MUSIC_ANALYZER_GUITARSET_MAX_CONTAMINATION_PERCENT", "README GuitarSet contamination knob"),
         (docs, "guitar-row precision/recall/F1", "dataset docs GuitarSet precision metrics"),
+        (shared_docs, "## Implementation Summary", "shared analyzer implementation summary"),
+        (shared_docs, "Confirmed root causes:", "implementation summary root causes"),
+        (shared_docs, "Architecture changes:", "implementation summary architecture changes"),
+        (shared_docs, "Algorithms selected and why:", "implementation summary algorithm choices"),
+        (shared_docs, "Before-and-after measurement:", "implementation summary metrics"),
+        (shared_docs, "Remaining limitations:", "implementation summary limitations"),
+        (shared_docs, "one mixed-spectrum peak could appear in keyboard",
+         "implementation summary original cross-row duplication cause"),
+        (shared_docs, "Real-data gates now print per-instrument precision/recall/F1",
+         "implementation summary precision metrics"),
+        (shared_docs, "Optional delayed source separation can be added later",
+         "implementation summary source-separation limitation"),
         (readme, "`FullMix` is the mode used by the OBS plugin and the standalone speaker monitor",
          "README full-mix frontend mode explanation"),
         (readme, "Ambiguous notes can still support the global chord",

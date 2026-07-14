@@ -247,3 +247,77 @@ transcription from a finished stereo mix cannot always be achieved without
 optional delayed source separation. The current real-time path keeps separation
 bounded and deterministic, and ambiguous ownership is preferred over confident
 cross-row duplication.
+
+## Implementation Summary
+
+Confirmed root causes:
+
+* The baseline analyzer scanned one shared pitch-power array through independent
+  per-instrument masks, so one mixed-spectrum peak could appear in keyboard,
+  guitar, vocal, and other rows at the same time.
+* Source names selected instrument behavior implicitly, which made the OBS
+  filter, standalone speaker monitor, and direct tests depend on labels instead
+  of an explicit input contract.
+* Chord evidence was coupled too closely to row note grids that could contain
+  duplicated or visually fading notes, allowing old tones to combine with new
+  tones and produce false extensions or weak-root labels.
+* Bass and vocal paths used permissive range/strength guesses that could bias a
+  full-mix root or turn instrumental high notes into vocal/other output.
+
+Architecture changes:
+
+* `AnalysisSettings::input_mode` is the public mode selector, with `Auto` kept
+  only as a compatibility adapter for older direct callers.
+* `AnalysisSnapshot` now exposes `global_chord` and `ambiguous_notes`, and
+  full-mix frontends treat the global chord as primary.
+* Full-mix routing creates one shared `FullMixOwnership` result and writes each
+  candidate to at most one confident instrument row, or to the ambiguous grid.
+* Note tracking is split by input mode and instrument row, while chord trackers
+  use short analytical note state instead of the longer visual fade envelopes.
+* OBS and standalone both configure `FullMix` explicitly and keep analyzer work
+  outside the audio callback/capture callback path.
+
+Algorithms selected and why:
+
+* Ownership uses bounded DSP features available inside the existing analyzer:
+  harmonic-fit residual, fundamental-to-harmonic balance, spectral centroid,
+  spectral slope, local spectral noise, periodicity proxy, onset strength,
+  decay rate, pitch stability, and simultaneous-onset grouping. This keeps the
+  real-time path deterministic and avoids making stem separation mandatory.
+* Bass uses low-note confidence, harmonic validation, octave-error suppression,
+  monophonic continuity, and confidence-gated root hints so weak low-frequency
+  bins cannot rename a valid full-mix chord.
+* Vocal and sparse `Other` ownership require temporal confirmation and cleaner
+  sustained evidence, so a one-frame high transient remains ambiguous/global
+  evidence instead of becoming a confident row note.
+* Chord detection prefers current global analytical evidence in full-mix mode,
+  keeps instrument-specific chords secondary, suppresses low-margin templates,
+  and simplifies weak full-mix extensions when the added tone is not trusted.
+
+Before-and-after measurement:
+
+* Before the rewrite, the project had union-recall-style checks that could pass
+  even when a correct pitch was assigned to the wrong instrument row.
+* The current deterministic case suite includes the original spillover shapes:
+  keyboard-only full mix, guitar-only full mix, high instrumental notes,
+  same-MIDI mixed timbre, weak-bass root bias, fading-note chord evidence, and
+  the required chord transitions.
+* Real-data gates now print per-instrument precision/recall/F1, cross-row
+  contamination, octave-error rate, false-row/false-vocal windows, ambiguous
+  assignment counts, expected-to-detected confusion, and global/per-instrument
+  chord precision/recall/F1 where the dataset has enough truth.
+* The committed fixture gates exercise 20-recording or 20-piece paths for the
+  direct-fit/URMP-shaped multitrack fixtures plus MusicNet, MedleyDB, MUSDB18,
+  Slakh2100, ChoralSynth, CocoChorales, SynthSOD, Vocal Ensemble F0 Aggregate,
+  prepared multitrack, MulTTiPop, Spheres, GuitarSet, MAESTRO, and E-GMD
+  layouts. `make test` is the local regression gate; `make test-real-goal-20`
+  is the configured external real-data gate.
+
+Remaining limitations:
+
+* Full-mix per-instrument rows are conservative estimates from a finished mono
+  or stereo mix. The analyzer can refuse or mark uncertain ownership, but it
+  cannot guarantee true source separation from overlapping real instruments.
+* Optional delayed source separation can be added later ahead of the shared
+  isolated-mode analyzers, but it is intentionally not required by the normal
+  OBS plugin or standalone build.
