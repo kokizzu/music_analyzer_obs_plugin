@@ -404,6 +404,7 @@ struct VisualizerData {
 	uint32_t update_fps = 10;
 	float elapsed = 1.0f;
 	float snapshot_age = 0.0f;
+	float stale_status_elapsed = 0.0f;
 	uint64_t rendered_sequence = 0;
 	bool dirty = true;
 	bool texture_size_dirty = true;
@@ -483,10 +484,13 @@ void visualizer_tick(void *data, float seconds)
 	std::lock_guard<std::mutex> lock(visualizer->mutex);
 	visualizer->elapsed += seconds;
 	visualizer->snapshot_age += seconds;
+	visualizer->stale_status_elapsed += seconds;
 	const float interval = 1.0f / static_cast<float>(std::max<uint32_t>(1, visualizer->update_fps));
 	const bool interval_ready = visualizer->elapsed >= interval;
 	const bool history_active = mao::advance_visualizer_drum_history(&visualizer->renderer, seconds);
 	const auto snapshot = read_snapshot();
+	const bool stale_status_due =
+		snapshot.sequence > 0 && visualizer->snapshot_age > 1.5f && visualizer->stale_status_elapsed >= 1.0f;
 
 	if (mao::append_visualizer_drum_hits(&visualizer->renderer, snapshot))
 		visualizer->dirty = true;
@@ -500,10 +504,12 @@ void visualizer_tick(void *data, float seconds)
 
 	if (snapshot.sequence != visualizer->rendered_sequence) {
 		visualizer->snapshot_age = 0.0f;
+		visualizer->stale_status_elapsed = 0.0f;
 		mao::render_visualizer(&visualizer->renderer, snapshot, visualizer->snapshot_age);
 		visualizer->rendered_sequence = snapshot.sequence;
 		visualizer->dirty = true;
-	} else if (visualizer->dirty || (snapshot.sequence > 0 && visualizer->snapshot_age > 1.5f)) {
+	} else if (visualizer->dirty || stale_status_due) {
+		visualizer->stale_status_elapsed = 0.0f;
 		mao::render_visualizer(&visualizer->renderer, snapshot, visualizer->snapshot_age);
 		visualizer->rendered_sequence = snapshot.sequence;
 		visualizer->dirty = true;

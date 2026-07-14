@@ -353,6 +353,23 @@ bool run_self_test()
 		return false;
 	}
 	{
+		mao::AnalysisSnapshot status_snapshot = {};
+		status_snapshot.rms = 0.12f;
+		status_snapshot.low_energy = 0.25f;
+		status_snapshot.mid_energy = 0.50f;
+		status_snapshot.high_energy = 0.25f;
+		status_snapshot.dropped_windows = 7;
+		char status_line[128] = {};
+		mao::format_visualizer_status_line(status_line, sizeof(status_line), status_snapshot, 1.6f);
+		const char *age = std::strstr(status_line, "AGE ");
+		const char *drop = std::strstr(status_line, "DROP ");
+		if (std::strstr(status_line, "FRAMES") || std::strstr(status_line, "UPD") || !age || !drop ||
+		    age > drop) {
+			std::fprintf(stderr, "standalone self-test: unexpected status line '%s'\n", status_line);
+			return false;
+		}
+	}
+	{
 		mao::VisualizerRenderer bpm_renderer;
 		mao::resize_visualizer(&bpm_renderer, 960, 540);
 		mao::AnalysisSnapshot bpm_snapshot = {};

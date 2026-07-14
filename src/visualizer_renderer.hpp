@@ -3,6 +3,7 @@
 #include "analyzer.hpp"
 
 #include <array>
+#include <cstddef>
 #include <cstdint>
 #include <vector>
 
@@ -40,6 +41,8 @@ struct VisualizerRenderer {
 };
 
 void resize_visualizer(VisualizerRenderer *visualizer, uint32_t width, uint32_t height);
+void format_visualizer_status_line(char *output, std::size_t output_size, const AnalysisSnapshot &snapshot,
+				   float snapshot_age);
 void render_visualizer(VisualizerRenderer *visualizer, const AnalysisSnapshot &snapshot, float snapshot_age);
 bool advance_visualizer_drum_history(VisualizerRenderer *visualizer, float seconds);
 bool append_visualizer_drum_hits(VisualizerRenderer *visualizer, const AnalysisSnapshot &snapshot);

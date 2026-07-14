@@ -956,10 +956,7 @@ void render_pixels(VisualizerRenderer *visualizer, const AnalysisSnapshot &snaps
 	draw_text(visualizer, 28, 24, title, 3, Color{246, 248, 251, 255});
 
 	char level[128];
-	std::snprintf(level, sizeof(level), "RMS %.2f LOW %.0f%% MID %.0f%% HIGH %.0f%% AGE %.1FS DROP %llu",
-		      snapshot.rms, snapshot.low_energy * 100.0f, snapshot.mid_energy * 100.0f,
-		      snapshot.high_energy * 100.0f, snapshot_age,
-		      static_cast<unsigned long long>(snapshot.dropped_windows));
+	format_visualizer_status_line(level, sizeof(level), snapshot, snapshot_age);
 	draw_text(visualizer, 28, 58, level, 2, kLabelColor);
 
 	draw_text(visualizer, 28, 96, "DRUMS", 3, kLabelColor);
@@ -1071,6 +1068,18 @@ bool append_drum_hits(VisualizerRenderer *visualizer, const AnalysisSnapshot &sn
 }
 
 } // namespace
+
+void format_visualizer_status_line(char *output, std::size_t output_size, const AnalysisSnapshot &snapshot,
+				   float snapshot_age)
+{
+	if (!output || output_size == 0)
+		return;
+
+	std::snprintf(output, output_size, "RMS %.2f LOW %.0f%% MID %.0f%% HIGH %.0f%% AGE %.1FS DROP %llu",
+		      snapshot.rms, snapshot.low_energy * 100.0f, snapshot.mid_energy * 100.0f,
+		      snapshot.high_energy * 100.0f, snapshot_age,
+		      static_cast<unsigned long long>(snapshot.dropped_windows));
+}
 
 void resize_visualizer(VisualizerRenderer *visualizer, uint32_t width, uint32_t height)
 {

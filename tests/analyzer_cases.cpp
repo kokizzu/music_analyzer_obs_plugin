@@ -2025,6 +2025,34 @@ void check_full_mix_global_chord_guides_root_with_inversion(Runner &runner)
 			      snapshot.root.label + "` candidates `" + snapshot.root_candidates + "`");
 }
 
+void check_full_mix_keyboard_chord_ignores_bass_inversion(Runner &runner)
+{
+	mao::AnalysisEngine engine;
+	mao::AnalysisSettings settings = mao_test::default_settings();
+	settings.input_mode = mao::AnalysisInputMode::FullMix;
+
+	const std::vector<float> bass_profile = {1.0f, 0.30f, 0.14f};
+	const std::vector<float> keyboard_profile = {1.0f, 0.12f, 0.04f, 0.02f, 0.01f};
+
+	mao_test::Buffer buffer = {};
+	add_harmonic_note(buffer, 40, 0.34f, bass_profile);
+	for (int midi : {60, 64, 67})
+		add_harmonic_note(buffer, midi, 0.28f, keyboard_profile);
+
+	mao::AnalysisSnapshot snapshot = {};
+	for (int frame = 0; frame < 4; ++frame)
+		snapshot = engine.analyze(buffer.data(), buffer.size(), settings, "full mix keyboard inversion", 0);
+
+	expect_label(runner, snapshot.bass.label, "E2", "full-mix keyboard inversion bass");
+	expect_label(runner, snapshot.global_chord.label, "C", "full-mix keyboard inversion global chord");
+	expect_label(runner, snapshot.keyboard_chord.label, "C", "full-mix keyboard inversion keyboard chord");
+	expect_no_chord_label(runner, snapshot.keyboard_chord.label, "E",
+			      "full-mix keyboard inversion keyboard chord");
+	for (int pitch_class : {0, 4, 7})
+		expect_pitch_class(runner, snapshot.keyboard_notes, pitch_class,
+				   "full-mix keyboard inversion keyboard notes");
+}
+
 void check_other_source_hints(Runner &runner)
 {
 	for (const char *source : {"synth lead", "brass section", "violin bus"}) {
@@ -2521,6 +2549,7 @@ int main()
 	check_same_note_timbre_split(runner);
 	check_ambiguous_same_note_full_mix_chord_ownership(runner);
 	check_full_mix_global_chord_guides_root_with_inversion(runner);
+	check_full_mix_keyboard_chord_ignores_bass_inversion(runner);
 	check_other_source_hints(runner);
 	check_note_sub_rows(runner);
 	check_bass_pure_tone_stays_out_of_harmonic_rows(runner);
