@@ -16,6 +16,7 @@ set(LOCAL_SIMDE_INCLUDE "${CMAKE_CURRENT_SOURCE_DIR}/build/deps/usr/include")
 
 add_library(music-analyzer-obs MODULE
     src/analyzer.cpp
+    src/visualizer_renderer.cpp
     src/plugin.cpp
 )
 
@@ -48,6 +49,47 @@ target_include_directories(analyzer_cases PRIVATE
 )
 target_compile_options(analyzer_cases PRIVATE -Wall -Wextra)
 
+pkg_check_modules(SDL2 sdl2)
+if(SDL2_FOUND)
+    string(TIMESTAMP STANDALONE_BUILD_TIME "%Y.%m%d.%H%M")
+    execute_process(
+        COMMAND git rev-parse --short HEAD
+        WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
+        OUTPUT_VARIABLE STANDALONE_BUILD_COMMIT
+        OUTPUT_STRIP_TRAILING_WHITESPACE
+        ERROR_QUIET
+    )
+    if(NOT STANDALONE_BUILD_COMMIT)
+        set(STANDALONE_BUILD_COMMIT unknown)
+    endif()
+    set(STANDALONE_VERSION "${STANDALONE_BUILD_TIME}.${STANDALONE_BUILD_COMMIT}")
+
+    add_executable(music-analyzer-standalone
+        src/analyzer.cpp
+        src/visualizer_renderer.cpp
+        src/standalone.cpp
+    )
+    target_include_directories(music-analyzer-standalone PRIVATE
+        ${SDL2_INCLUDE_DIRS}
+        ${CMAKE_CURRENT_SOURCE_DIR}/src
+    )
+    target_compile_definitions(music-analyzer-standalone PRIVATE MAO_STANDALONE_WITH_SDL=1)
+    target_compile_definitions(music-analyzer-standalone PRIVATE MAO_STANDALONE_VERSION="${STANDALONE_VERSION}")
+    target_compile_options(music-analyzer-standalone PRIVATE
+        ${SDL2_CFLAGS_OTHER}
+        -Wall
+        -Wextra
+    )
+    target_link_directories(music-analyzer-standalone PRIVATE ${SDL2_LIBRARY_DIRS})
+    target_link_libraries(music-analyzer-standalone PRIVATE ${SDL2_LIBRARIES} pthread m)
+endif()
+
 enable_testing()
 add_test(NAME analyzer_smoke COMMAND analyzer_smoke)
 add_test(NAME analyzer_cases COMMAND analyzer_cases)
+if(SDL2_FOUND)
+    add_test(NAME standalone_self_test COMMAND music-analyzer-standalone --self-test)
+    set_tests_properties(standalone_self_test PROPERTIES
+        ENVIRONMENT "SDL_VIDEODRIVER=dummy;SDL_AUDIODRIVER=dummy"
+    )
+endif()

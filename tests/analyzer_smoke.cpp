@@ -95,11 +95,17 @@ int main()
 		return 1;
 	}
 
-	mao_test::Buffer kick = {};
+	mao_test::Buffer drum_background = mao_test::make_midi_notes({60, 64, 67}, 0.03f);
+	for (int i = 0; i < 4; ++i)
+		(void)engine.analyze(drum_background.data(), drum_background.size(), settings, "test", 0);
+
+	mao_test::Buffer kick = drum_background;
 	for (std::size_t i = 0; i < 900; ++i) {
 		const float decay = 1.0f - static_cast<float>(i) / 900.0f;
-		kick[i] = 0.85f * decay *
-			  std::sin(2.0f * mao_test::kPi * 65.0f * static_cast<float>(i) / mao_test::kSampleRate);
+		kick[i] += 0.85f * decay *
+			   std::sin(2.0f * mao_test::kPi * 65.0f * static_cast<float>(i) / mao_test::kSampleRate);
+		kick[i] += 0.24f * decay *
+			   std::sin(2.0f * mao_test::kPi * 1100.0f * static_cast<float>(i) / mao_test::kSampleRate);
 	}
 	auto kick_snapshot = engine.analyze(kick.data(), kick.size(), settings, "test", 0);
 	if (!kick_snapshot.drums[mao::Kick].active) {

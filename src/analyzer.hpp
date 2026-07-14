@@ -154,7 +154,9 @@ private:
 	void add_root_vote(const RootVote &vote);
 	InstrumentState track_root(const std::array<float, kNoteProbeCount> &powers, float rms,
 				   const AnalysisSettings &settings, char *root_candidates,
-				   std::size_t root_candidates_size);
+				   std::size_t root_candidates_size, const NoteGrid &bass_notes,
+				   const InstrumentState &keyboard_chord, const InstrumentState &guitar_chord,
+				   const InstrumentState &other_chord);
 };
 
 } // namespace mao

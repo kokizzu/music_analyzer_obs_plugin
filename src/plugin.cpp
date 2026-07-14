@@ -1,4 +1,5 @@
 #include "analyzer.hpp"
+#include "visualizer_renderer.hpp"
 
 #include <obs-module.h>
 #include <obs-source.h>
@@ -8,6 +9,7 @@
 #include <algorithm>
 #include <atomic>
 #include <array>
+#include <cmath>
 #include <condition_variable>
 #include <cstdint>
 #include <cstdio>
@@ -23,9 +25,6 @@ namespace {
 
 constexpr const char *kFilterId = "music_analyzer_filter";
 constexpr const char *kVisualizerId = "music_analyzer_overlay";
-constexpr uint32_t kDefaultWidth = 960;
-constexpr uint32_t kDefaultHeight = 540;
-constexpr std::size_t kMatrixRowCount = 2;
 static_assert((mao::kAnalysisWindow & (mao::kAnalysisWindow - 1)) == 0, "analysis window must be a power of two");
 
 std::mutex g_snapshot_mutex;
@@ -185,20 +184,35 @@ void process_audio_planes(FilterData *filter, const float *const *planes, uint32
 	std::lock_guard<std::mutex> audio_lock(filter->audio_mutex);
 
 	for (uint32_t frame = 0; frame < frames; ++frame) {
-		float mixed = 0.0f;
+		float mixed_sum = 0.0f;
+		float square_sum = 0.0f;
+		float strongest_sample = 0.0f;
+		float strongest_abs = 0.0f;
 		uint32_t valid_planes = 0;
 
 		for (uint32_t ch = 0; ch < channels; ++ch) {
 			if (!planes[ch])
 				continue;
-			mixed += planes[ch][frame];
+			const float sample = planes[ch][frame];
+			const float abs_sample = std::abs(sample);
+			mixed_sum += sample;
+			square_sum += sample * sample;
+			if (abs_sample > strongest_abs) {
+				strongest_abs = abs_sample;
+				strongest_sample = sample;
+			}
 			++valid_planes;
 		}
 
 		if (valid_planes == 0)
 			continue;
 
-		mixed /= static_cast<float>(valid_planes);
+		float mixed = mixed_sum / static_cast<float>(valid_planes);
+		if (valid_planes > 1) {
+			const float channel_rms = std::sqrt(square_sum / static_cast<float>(valid_planes));
+			if (channel_rms > 1.0e-8f && std::abs(mixed) < channel_rms * 0.75f)
+				mixed = std::copysign(channel_rms, strongest_sample);
+		}
 		filter->ring[filter->write_pos] = std::clamp(mixed, -2.0f, 2.0f);
 		filter->write_pos = (filter->write_pos + 1) & (mao::kAnalysisWindow - 1);
 		++filter->audio_frames_seen;
@@ -382,704 +396,26 @@ const char *filter_name(void *)
 	return "Music Analyzer Filter";
 }
 
-struct Color {
-	uint8_t r = 255;
-	uint8_t g = 255;
-	uint8_t b = 255;
-	uint8_t a = 255;
-};
-
-uint8_t blend_channel(uint8_t from, uint8_t to, float amount)
-{
-	const float value = static_cast<float>(from) + (static_cast<float>(to) - static_cast<float>(from)) * amount;
-	return static_cast<uint8_t>(std::clamp(static_cast<int>(value + 0.5f), 0, 255));
-}
-
-Color blend_color(Color from, Color to, float amount)
-{
-	amount = std::clamp(amount, 0.0f, 1.0f);
-	return Color{blend_channel(from.r, to.r, amount), blend_channel(from.g, to.g, amount),
-		     blend_channel(from.b, to.b, amount), blend_channel(from.a, to.a, amount)};
-}
-
-float display_highlight_level(float level)
-{
-	constexpr float kFullHighlightLevel = 0.25f;
-	return std::clamp(level / kFullHighlightLevel, 0.0f, 1.0f);
-}
-
-struct DrumBar {
-	float age = 0.0f;
-	float level = 0.0f;
-};
-
 struct VisualizerData {
 	mutable std::mutex mutex;
-	uint32_t width = kDefaultWidth;
-	uint32_t height = kDefaultHeight;
+	mao::VisualizerRenderer renderer;
 	uint32_t update_fps = 10;
 	float elapsed = 1.0f;
 	float snapshot_age = 0.0f;
 	uint64_t rendered_sequence = 0;
 	bool dirty = true;
 	bool texture_size_dirty = true;
-	uint64_t drum_history_sequence = 0;
-	std::array<std::vector<DrumBar>, mao::kDrumCount> drum_history = {};
-	std::vector<uint8_t> pixels;
 	gs_texture_t *texture = nullptr;
 };
-
-const std::array<const char *, 7> glyph_rows(char c)
-{
-	switch (c) {
-	case 'a':
-		return {"00000", "00000", "01110", "00001", "01111", "10001", "01111"};
-	case 'j':
-		return {"00010", "00000", "00110", "00010", "00010", "10010", "01100"};
-	case 'm':
-		return {"00000", "00000", "11010", "10101", "10101", "10101", "10101"};
-	case 's':
-		return {"00000", "00000", "01111", "10000", "01110", "00001", "11110"};
-	case 'u':
-		return {"00000", "00000", "10001", "10001", "10001", "10011", "01101"};
-	case 'A':
-		return {"01110", "10001", "10001", "11111", "10001", "10001", "10001"};
-	case 'B':
-		return {"11110", "10001", "10001", "11110", "10001", "10001", "11110"};
-	case 'C':
-		return {"01111", "10000", "10000", "10000", "10000", "10000", "01111"};
-	case 'D':
-		return {"11110", "10001", "10001", "10001", "10001", "10001", "11110"};
-	case 'E':
-		return {"11111", "10000", "10000", "11110", "10000", "10000", "11111"};
-	case 'F':
-		return {"11111", "10000", "10000", "11110", "10000", "10000", "10000"};
-	case 'G':
-		return {"01111", "10000", "10000", "10011", "10001", "10001", "01111"};
-	case 'H':
-		return {"10001", "10001", "10001", "11111", "10001", "10001", "10001"};
-	case 'I':
-		return {"11111", "00100", "00100", "00100", "00100", "00100", "11111"};
-	case 'J':
-		return {"00111", "00010", "00010", "00010", "00010", "10010", "01100"};
-	case 'K':
-		return {"10001", "10010", "10100", "11000", "10100", "10010", "10001"};
-	case 'L':
-		return {"10000", "10000", "10000", "10000", "10000", "10000", "11111"};
-	case 'M':
-		return {"10001", "11011", "10101", "10101", "10001", "10001", "10001"};
-	case 'N':
-		return {"10001", "11001", "10101", "10011", "10001", "10001", "10001"};
-	case 'O':
-		return {"01110", "10001", "10001", "10001", "10001", "10001", "01110"};
-	case 'P':
-		return {"11110", "10001", "10001", "11110", "10000", "10000", "10000"};
-	case 'Q':
-		return {"01110", "10001", "10001", "10001", "10101", "10010", "01101"};
-	case 'R':
-		return {"11110", "10001", "10001", "11110", "10100", "10010", "10001"};
-	case 'S':
-		return {"01111", "10000", "10000", "01110", "00001", "00001", "11110"};
-	case 'T':
-		return {"11111", "00100", "00100", "00100", "00100", "00100", "00100"};
-	case 'U':
-		return {"10001", "10001", "10001", "10001", "10001", "10001", "01110"};
-	case 'V':
-		return {"10001", "10001", "10001", "10001", "10001", "01010", "00100"};
-	case 'W':
-		return {"10001", "10001", "10001", "10101", "10101", "10101", "01010"};
-	case 'X':
-		return {"10001", "10001", "01010", "00100", "01010", "10001", "10001"};
-	case 'Y':
-		return {"10001", "10001", "01010", "00100", "00100", "00100", "00100"};
-	case 'Z':
-		return {"11111", "00001", "00010", "00100", "01000", "10000", "11111"};
-	case '0':
-		return {"01110", "10001", "10011", "10101", "11001", "10001", "01110"};
-	case '1':
-		return {"00100", "01100", "00100", "00100", "00100", "00100", "01110"};
-	case '2':
-		return {"01110", "10001", "00001", "00010", "00100", "01000", "11111"};
-	case '3':
-		return {"11110", "00001", "00001", "01110", "00001", "00001", "11110"};
-	case '4':
-		return {"00010", "00110", "01010", "10010", "11111", "00010", "00010"};
-	case '5':
-		return {"11111", "10000", "10000", "11110", "00001", "00001", "11110"};
-	case '6':
-		return {"01111", "10000", "10000", "11110", "10001", "10001", "01110"};
-	case '7':
-		return {"11111", "00001", "00010", "00100", "01000", "01000", "01000"};
-	case '8':
-		return {"01110", "10001", "10001", "01110", "10001", "10001", "01110"};
-	case '9':
-		return {"01110", "10001", "10001", "01111", "00001", "00001", "11110"};
-	case '#':
-		return {"01010", "01010", "11111", "01010", "11111", "01010", "01010"};
-	case '-':
-		return {"00000", "00000", "00000", "11111", "00000", "00000", "00000"};
-	case '.':
-		return {"00000", "00000", "00000", "00000", "00000", "01100", "01100"};
-	case ':':
-		return {"00000", "01100", "01100", "00000", "01100", "01100", "00000"};
-	case '%':
-		return {"11001", "11010", "00100", "01000", "10110", "00110", "00000"};
-	case '/':
-		return {"00001", "00010", "00010", "00100", "01000", "01000", "10000"};
-	case ' ':
-		return {"00000", "00000", "00000", "00000", "00000", "00000", "00000"};
-	default:
-		return {"11111", "00001", "00010", "00100", "00100", "00000", "00100"};
-	}
-}
-
-void put_pixel(VisualizerData *visualizer, int x, int y, Color color)
-{
-	if (x < 0 || y < 0 || x >= static_cast<int>(visualizer->width) || y >= static_cast<int>(visualizer->height))
-		return;
-
-	const std::size_t offset = (static_cast<std::size_t>(y) * visualizer->width + static_cast<std::size_t>(x)) * 4;
-	visualizer->pixels[offset + 0] = color.r;
-	visualizer->pixels[offset + 1] = color.g;
-	visualizer->pixels[offset + 2] = color.b;
-	visualizer->pixels[offset + 3] = color.a;
-}
-
-void fill_rect(VisualizerData *visualizer, int x, int y, int w, int h, Color color)
-{
-	const int x0 = std::max(0, x);
-	const int y0 = std::max(0, y);
-	const int x1 = std::min(static_cast<int>(visualizer->width), x + w);
-	const int y1 = std::min(static_cast<int>(visualizer->height), y + h);
-
-	for (int yy = y0; yy < y1; ++yy) {
-		for (int xx = x0; xx < x1; ++xx)
-			put_pixel(visualizer, xx, yy, color);
-	}
-}
-
-void fill_circle(VisualizerData *visualizer, int cx, int cy, int radius, Color color)
-{
-	const int r2 = radius * radius;
-	for (int yy = cy - radius; yy <= cy + radius; ++yy) {
-		for (int xx = cx - radius; xx <= cx + radius; ++xx) {
-			const int dx = xx - cx;
-			const int dy = yy - cy;
-			if (dx * dx + dy * dy <= r2)
-				put_pixel(visualizer, xx, yy, color);
-		}
-	}
-}
-
-void draw_text_impl(VisualizerData *visualizer, int x, int y, const char *text, uint32_t scale, Color color,
-		    bool preserve_chord_lowercase)
-{
-	if (!text)
-		return;
-
-	int cursor = x;
-	for (const char *p = text; *p; ++p) {
-		char c = *p;
-		const bool chord_lowercase = c == 'a' || c == 'j' || c == 'm' || c == 's' || c == 'u';
-		if (c >= 'a' && c <= 'z' && (!preserve_chord_lowercase || !chord_lowercase))
-			c = static_cast<char>(c - 'a' + 'A');
-
-		const auto rows = glyph_rows(c);
-		for (int row = 0; row < 7; ++row) {
-			for (int col = 0; col < 5; ++col) {
-				if (rows[row][col] != '1')
-					continue;
-				fill_rect(visualizer, cursor + col * static_cast<int>(scale),
-					  y + row * static_cast<int>(scale), static_cast<int>(scale),
-					  static_cast<int>(scale), color);
-			}
-		}
-		cursor += static_cast<int>(scale) * 6;
-	}
-}
-
-void draw_text(VisualizerData *visualizer, int x, int y, const char *text, uint32_t scale, Color color)
-{
-	draw_text_impl(visualizer, x, y, text, scale, color, false);
-}
-
-void draw_chord_text(VisualizerData *visualizer, int x, int y, const char *text, uint32_t scale, Color color)
-{
-	draw_text_impl(visualizer, x, y, text, scale, color, true);
-}
-
-void draw_drum_chart(VisualizerData *visualizer, int x, int y, int w, const mao::DrumState &drum,
-		     const std::vector<DrumBar> &history)
-{
-	const int label_h = 18;
-	const int chart_y = y + label_h + 4;
-	const int chart_h = 28;
-	const Color bg{24, 30, 38, 210};
-	const Color active_bg{242, 149, 40, 235};
-	const Color border{86, 96, 111, 230};
-	const Color text{240, 244, 248, 255};
-	const Color dark_text{24, 26, 30, 255};
-	const bool active = drum.level > 0.30f;
-
-	fill_rect(visualizer, x, y, w, label_h, active ? active_bg : bg);
-	fill_rect(visualizer, x, y, w, 1, border);
-	fill_rect(visualizer, x, y + label_h - 1, w, 1, border);
-	draw_text(visualizer, x + 5, y + 3, drum.label, 2, active ? dark_text : text);
-
-	fill_rect(visualizer, x, chart_y, w, chart_h, bg);
-	fill_rect(visualizer, x, chart_y, w, 1, border);
-	fill_rect(visualizer, x, chart_y + chart_h - 1, w, 1, border);
-
-	for (const DrumBar &bar : history) {
-		if (bar.age < 0.0f || bar.age > 1.0f || bar.level <= 0.0f)
-			continue;
-		const int bar_x = x + std::clamp(static_cast<int>((1.0f - bar.age) * static_cast<float>(w - 4)), 0, w - 4);
-		const int bar_h = std::clamp(static_cast<int>(bar.level * static_cast<float>(chart_h - 4)), 2, chart_h - 4);
-		fill_rect(visualizer, bar_x, chart_y + chart_h - 2 - bar_h, 3, bar_h, active_bg);
-	}
-}
-
-void draw_note_cell(VisualizerData *visualizer, int x, int y, int w, int h, const mao::NoteCell &cell, Color accent)
-{
-	const Color idle_bg{24, 30, 38, 210};
-	const Color border{58, 68, 82, 220};
-	const Color idle_text{91, 106, 124, 255};
-
-	fill_rect(visualizer, x, y, w, h, idle_bg);
-	fill_rect(visualizer, x, y, w, 1, border);
-	fill_rect(visualizer, x, y + h - 1, w, 1, border);
-	fill_rect(visualizer, x, y, 1, h, border);
-	fill_rect(visualizer, x + w - 1, y, 1, h, border);
-	if (!cell.label[0])
-		return;
-
-	const int text_width = static_cast<int>(std::strlen(cell.label)) * 12;
-	const float level = display_highlight_level(cell.level);
-	draw_text(visualizer, x + std::max(2, (w - text_width) / 2), y + std::max(2, (h - 14) / 2),
-		  cell.label, 2, cell.active ? blend_color(idle_text, accent, level) : idle_text);
-}
-
-int draw_instrument_rows(VisualizerData *visualizer, int y, const char *name, const mao::NoteGrid &notes,
-			 const mao::InstrumentState *chord, Color accent, std::size_t row_count)
-{
-	const int label_x = 28;
-	const int matrix_x = 150;
-	const int cell_w = 40;
-	const int cell_h = 17;
-	const int row_pitch = 18;
-	const int chord_x = std::max(matrix_x + cell_w * 12 + 24, static_cast<int>(visualizer->width) - 190);
-	const Color dim{130, 145, 163, 255};
-	const Color chord_text{199, 210, 224, 255};
-	const char *chord_label = chord && chord->label[0] ? chord->label : "--";
-
-	draw_text(visualizer, label_x, y + 2, name, 2, dim);
-	row_count = std::clamp<std::size_t>(row_count, 1, notes.rows.size());
-	for (std::size_t row = 0; row < row_count; ++row) {
-		for (int i = 0; i < 12; ++i) {
-			draw_note_cell(visualizer, matrix_x + i * cell_w, y + static_cast<int>(row) * row_pitch,
-				       cell_w - 2, cell_h, notes.rows[row][i], accent);
-		}
-	}
-	if (chord)
-		draw_chord_text(visualizer, chord_x, y + 2, chord_label, 2, chord_text);
-	return y + static_cast<int>(row_count) * row_pitch + 4;
-}
-
-float note_grid_midi_level(const mao::NoteGrid &notes, int midi)
-{
-	float level = 0.0f;
-	for (const auto &row : notes.rows) {
-		for (const mao::NoteCell &cell : row) {
-			if (cell.active && cell.midi == midi)
-				level = std::max(level, cell.level);
-		}
-	}
-	return std::clamp(level, 0.0f, 1.0f);
-}
-
-int fold_midi_to_piano_range(int midi)
-{
-	constexpr int kFirstPianoMidi = 24;
-	constexpr int kLastPianoMidi = 95;
-	constexpr int kFirstHighOctaveMidi = 84;
-	const int pitch_class = ((midi % 12) + 12) % 12;
-	if (midi < kFirstPianoMidi)
-		return kFirstPianoMidi + pitch_class;
-	if (midi > kLastPianoMidi)
-		return kFirstHighOctaveMidi + pitch_class;
-	return midi;
-}
-
-float piano_key_level(const mao::NoteGrid &notes, int midi)
-{
-	float level = 0.0f;
-	for (const auto &row : notes.rows) {
-		for (const mao::NoteCell &cell : row) {
-			if (cell.active && cell.midi >= 0 && fold_midi_to_piano_range(cell.midi) == midi)
-				level = std::max(level, cell.level);
-		}
-	}
-	return std::clamp(level, 0.0f, 1.0f);
-}
-
-int pitch_class_from_note_label(const char *label)
-{
-	if (!label || !label[0] || label[0] == '-')
-		return -1;
-
-	int pitch_class = -1;
-	switch (label[0]) {
-	case 'C':
-		pitch_class = 0;
-		break;
-	case 'D':
-		pitch_class = 2;
-		break;
-	case 'E':
-		pitch_class = 4;
-		break;
-	case 'F':
-		pitch_class = 5;
-		break;
-	case 'G':
-		pitch_class = 7;
-		break;
-	case 'A':
-		pitch_class = 9;
-		break;
-	case 'B':
-		pitch_class = 11;
-		break;
-	default:
-		return -1;
-	}
-
-	if (label[1] == '#')
-		pitch_class = (pitch_class + 1) % 12;
-	return pitch_class;
-}
-
-Color pitch_class_color(int pitch_class)
-{
-	static constexpr Color kColors[12] = {
-		{255, 59, 48, 255},	{255, 128, 0, 255},    {255, 214, 10, 255},
-		{180, 255, 30, 255},	{48, 209, 88, 255},    {0, 220, 190, 255},
-		{64, 200, 255, 255},	{10, 132, 255, 255},   {94, 92, 230, 255},
-		{191, 90, 242, 255},	{255, 55, 180, 255},   {255, 105, 120, 255},
-	};
-	return kColors[((pitch_class % 12) + 12) % 12];
-}
-
-void write_scale_degree(char *dst, std::size_t dst_size, int root_pitch_class, int pitch_class)
-{
-	if (!dst || dst_size == 0) {
-		return;
-	}
-	dst[0] = '\0';
-	if (root_pitch_class < 0) {
-		return;
-	}
-
-	static constexpr const char *kDegrees[12] = {
-		"1", "1#", "2", "2#", "3", "4", "4#", "5", "5#", "6", "6#", "7",
-	};
-	const int offset = (pitch_class - root_pitch_class + 12) % 12;
-	std::snprintf(dst, dst_size, "%s", kDegrees[offset]);
-}
-
-void draw_centered_text(VisualizerData *visualizer, int x, int y, int w, int h, const char *text, uint32_t scale,
-			Color color)
-{
-	if (!text || !text[0])
-		return;
-	const int text_width = static_cast<int>(std::strlen(text)) * static_cast<int>(scale) * 6;
-	const int text_height = static_cast<int>(scale) * 7;
-	draw_text(visualizer, x + std::max(1, (w - text_width) / 2), y + std::max(1, (h - text_height) / 2), text,
-		  scale, color);
-}
-
-int draw_piano_keyboard(VisualizerData *visualizer, int y, const mao::NoteGrid &notes,
-			const mao::InstrumentState &chord, int degree_root_pitch_class)
-{
-	static constexpr int kRowCount = 3;
-	static constexpr int kOctavesPerRow = 2;
-	static constexpr int kWhiteKeysPerRow = 14;
-	static constexpr int kWhiteOffsets[kWhiteKeysPerRow] = {0, 2, 4, 5, 7, 9, 11, 12, 14, 16, 17, 19, 21, 23};
-	static constexpr int kBlackOffsets[10] = {1, 3, 6, 8, 10, 13, 15, 18, 20, 22};
-	static constexpr int kBlackAfterWhite[10] = {0, 1, 3, 4, 5, 7, 8, 10, 11, 12};
-
-	const int label_x = 28;
-	const int key_x = 150;
-	const int header_h = 16;
-	const int row_h = 30;
-	const int row_gap = 6;
-	const int max_keyboard_w = std::max(280, static_cast<int>(visualizer->width) - key_x - 220);
-	const int white_w = std::clamp(max_keyboard_w / kWhiteKeysPerRow, 18, 42);
-	const int white_h = 28;
-	const int black_w = std::max(10, white_w * 3 / 5);
-	const int black_h = 16;
-	const int keyboard_w = white_w * kWhiteKeysPerRow;
-	const int chord_x = std::max(key_x + keyboard_w + 24, static_cast<int>(visualizer->width) - 190);
-	const Color dim{130, 145, 163, 255};
-	const Color label_text{148, 163, 184, 255};
-	const Color white_key{218, 225, 235, 235};
-	const Color black_key{20, 25, 32, 245};
-	const Color border{58, 68, 82, 230};
-	const Color chord_text{199, 210, 224, 255};
-	const Color active_text{10, 15, 22, 255};
-	const char *chord_label = chord.label[0] ? chord.label : "--";
-	if (degree_root_pitch_class < 0)
-		degree_root_pitch_class = pitch_class_from_note_label(chord_label);
-
-	draw_text(visualizer, label_x, y + 38, "KEYS", 2, dim);
-	draw_text(visualizer, chord_x, y, "CHORD", 1, label_text);
-	draw_chord_text(visualizer, chord_x, y + 16, chord_label, 2, chord_text);
-
-	for (int row = 0; row < kRowCount; ++row) {
-		const int base_midi = 24 + row * kOctavesPerRow * 12;
-		const int row_y = y + header_h + row * (row_h + row_gap);
-		char range_label[8] = {};
-		std::snprintf(range_label, sizeof(range_label), "C%d-B%d", row * 2 + 1, row * 2 + 2);
-		draw_text(visualizer, key_x - 48, row_y + 10, range_label, 1, label_text);
-
-		for (int i = 0; i < kWhiteKeysPerRow; ++i) {
-			const int midi = base_midi + kWhiteOffsets[i];
-			const float raw_level = piano_key_level(notes, midi);
-			const float level = display_highlight_level(raw_level);
-			const int x = key_x + i * white_w;
-			const int pitch_class = ((midi % 12) + 12) % 12;
-			const Color note_color = pitch_class_color(pitch_class);
-			Color fill = blend_color(white_key, note_color, level);
-			if (raw_level > 0.0f)
-				fill = blend_color(fill, Color{255, 255, 255, 255}, level * 0.26f);
-			fill_rect(visualizer, x, row_y, white_w - 1, white_h, fill);
-			fill_rect(visualizer, x, row_y, white_w - 1, 1, border);
-			fill_rect(visualizer, x, row_y + white_h - 1, white_w - 1, 1, border);
-			fill_rect(visualizer, x, row_y, 1, white_h, border);
-			fill_rect(visualizer, x + white_w - 2, row_y, 1, white_h, border);
-			if (raw_level > 0.0f) {
-				char degree[4] = {};
-				write_scale_degree(degree, sizeof(degree), degree_root_pitch_class, pitch_class);
-				draw_centered_text(visualizer, x, row_y + 8, white_w - 1, white_h - 8, degree, 1,
-						   active_text);
-			}
-		}
-
-		for (std::size_t i = 0; i < sizeof(kBlackOffsets) / sizeof(kBlackOffsets[0]); ++i) {
-			const int midi = base_midi + kBlackOffsets[i];
-			const float raw_level = piano_key_level(notes, midi);
-			const float level = display_highlight_level(raw_level);
-			const int x = key_x + (kBlackAfterWhite[i] + 1) * white_w - black_w / 2;
-			const int pitch_class = ((midi % 12) + 12) % 12;
-			const Color note_color = pitch_class_color(pitch_class);
-			Color fill = blend_color(black_key, note_color, level);
-			if (raw_level > 0.0f)
-				fill = blend_color(fill, Color{255, 255, 255, 255}, level * 0.18f);
-			fill_rect(visualizer, x, row_y, black_w, black_h, fill);
-			fill_rect(visualizer, x, row_y, black_w, 1, border);
-			fill_rect(visualizer, x, row_y + black_h - 1, black_w, 1, border);
-			fill_rect(visualizer, x, row_y, 1, black_h, border);
-			fill_rect(visualizer, x + black_w - 1, row_y, 1, black_h, border);
-			if (raw_level > 0.0f) {
-				char degree[4] = {};
-				write_scale_degree(degree, sizeof(degree), degree_root_pitch_class, pitch_class);
-				draw_centered_text(visualizer, x, row_y + 1, black_w, black_h, degree, 1,
-						   Color{248, 250, 252, 255});
-			}
-		}
-	}
-
-	return y + header_h + kRowCount * row_h + (kRowCount - 1) * row_gap + 10;
-}
-
-int draw_guitar_fretboard(VisualizerData *visualizer, int y, const mao::NoteGrid &notes,
-			  const mao::InstrumentState &chord, int degree_root_pitch_class)
-{
-	static constexpr int kStringCount = 6;
-	static constexpr int kFretCount = 16;
-	static constexpr int kOpenMidis[kStringCount] = {64, 59, 55, 50, 45, 40};
-	static constexpr const char *kStringNames[kStringCount] = {"E", "B", "G", "D", "A", "E"};
-
-	const int label_x = 28;
-	const int fret_x = 150;
-	const int row_pitch = 15;
-	const int cell_h = 14;
-	const int header_h = 15;
-	const int max_board_w = std::max(288, static_cast<int>(visualizer->width) - fret_x - 220);
-	const int fret_w = std::clamp(max_board_w / kFretCount, 18, 38);
-	const int board_w = fret_w * kFretCount;
-	const int chord_x = std::max(fret_x + board_w + 24, static_cast<int>(visualizer->width) - 190);
-	const int row_y = y + header_h;
-	const Color dim{130, 145, 163, 255};
-	const Color fret_bg{24, 30, 38, 210};
-	const Color border{58, 68, 82, 220};
-	const Color nut{148, 163, 184, 230};
-	const Color text{148, 163, 184, 255};
-	const Color chord_text{199, 210, 224, 255};
-	const Color active_text{10, 15, 22, 255};
-	const char *chord_label = chord.label[0] ? chord.label : "--";
-	if (degree_root_pitch_class < 0)
-		degree_root_pitch_class = pitch_class_from_note_label(chord_label);
-
-	draw_text(visualizer, label_x, y + 24, "GUITAR", 2, dim);
-	for (int fret = 0; fret < kFretCount; ++fret) {
-		char fret_label[4] = {};
-		std::snprintf(fret_label, sizeof(fret_label), "%d", fret);
-		const int label_w = static_cast<int>(std::strlen(fret_label)) * 6;
-		draw_text(visualizer, fret_x + fret * fret_w + std::max(1, (fret_w - label_w) / 2), y,
-			  fret_label, 1, text);
-	}
-	draw_text(visualizer, chord_x, y, "CHORD", 1, text);
-	draw_chord_text(visualizer, chord_x, y + 16, chord_label, 2, chord_text);
-
-	for (int string = 0; string < kStringCount; ++string) {
-		const int cell_y = row_y + string * row_pitch;
-		draw_text(visualizer, fret_x - 22, cell_y + 2, kStringNames[string], 1, text);
-		for (int fret = 0; fret < kFretCount; ++fret) {
-			const int cell_x = fret_x + fret * fret_w;
-			const int midi = kOpenMidis[string] + fret;
-			const int pitch_class = ((midi % 12) + 12) % 12;
-			const float raw_level = note_grid_midi_level(notes, midi);
-			const float level = display_highlight_level(raw_level);
-			fill_rect(visualizer, cell_x, cell_y, fret_w - 1, cell_h, fret_bg);
-			if (raw_level > 0.0f) {
-				const Color note_color = pitch_class == degree_root_pitch_class ? Color{255, 59, 48, 255} :
-										    pitch_class_color(pitch_class);
-				Color marker = blend_color(fret_bg, note_color, level);
-				marker = blend_color(marker, Color{255, 255, 255, 255}, level * 0.26f);
-				const int radius = std::max(4, std::min((fret_w - 4) / 2, (cell_h - 2) / 2));
-				const int cx = cell_x + fret_w / 2;
-				const int cy = cell_y + cell_h / 2;
-				fill_circle(visualizer, cx, cy, radius + 1, Color{8, 12, 18, 245});
-				fill_circle(visualizer, cx, cy, radius, marker);
-				char degree[4] = {};
-				write_scale_degree(degree, sizeof(degree), degree_root_pitch_class, pitch_class);
-				draw_centered_text(visualizer, cell_x, cell_y, fret_w - 1, cell_h, degree, 1,
-						   active_text);
-			}
-			fill_rect(visualizer, cell_x, cell_y, fret_w - 1, 1, border);
-			fill_rect(visualizer, cell_x, cell_y + cell_h - 1, fret_w - 1, 1, border);
-			fill_rect(visualizer, cell_x, cell_y, 1, cell_h, fret == 1 ? nut : border);
-			fill_rect(visualizer, cell_x + fret_w - 2, cell_y, 1, cell_h, border);
-		}
-	}
-
-	return row_y + kStringCount * row_pitch + 8;
-}
-
-void render_pixels(VisualizerData *visualizer, const mao::AnalysisSnapshot &snapshot, float snapshot_age)
-{
-	visualizer->pixels.assign(static_cast<std::size_t>(visualizer->width) * visualizer->height * 4, 0);
-
-	fill_rect(visualizer, 0, 0, visualizer->width, visualizer->height, Color{12, 16, 22, 205});
-	fill_rect(visualizer, 0, 0, visualizer->width, 8, Color{59, 130, 246, 240});
-
-	char title[128];
-	std::snprintf(title, sizeof(title), "MUSIC ANALYZER  %s", snapshot.source[0] ? snapshot.source : "WAITING");
-	draw_text(visualizer, 28, 24, title, 3, Color{246, 248, 251, 255});
-
-	char level[128];
-	std::snprintf(level, sizeof(level), "RMS %.2f LOW %.0f%% MID %.0f%% HIGH %.0f%% UPD %llu DROP %llu",
-		      snapshot.rms, snapshot.low_energy * 100.0f, snapshot.mid_energy * 100.0f,
-		      snapshot.high_energy * 100.0f, static_cast<unsigned long long>(snapshot.analyzed_windows),
-		      static_cast<unsigned long long>(snapshot.dropped_windows));
-	draw_text(visualizer, 28, 58, level, 2, Color{148, 163, 184, 255});
-
-	char debug[96];
-	std::snprintf(debug, sizeof(debug), "FRAMES %llu AGE %.1FS",
-		      static_cast<unsigned long long>(snapshot.audio_frames), snapshot_age);
-	draw_text(visualizer, 28, 78, debug, 1, Color{148, 163, 184, 255});
-
-	draw_text(visualizer, 28, 96, "DRUMS", 3, Color{148, 163, 184, 255});
-	int tag_x = 150;
-	for (std::size_t i = 0; i < snapshot.drums.size(); ++i) {
-		draw_drum_chart(visualizer, tag_x, 88, 118, snapshot.drums[i], visualizer->drum_history[i]);
-		tag_x += 126;
-	}
-
-	static constexpr const char *kNoteNames[12] = {"C", "C#", "D", "D#", "E", "F",
-						       "F#", "G", "G#", "A", "A#", "B"};
-	const int matrix_x = 150;
-	const int cell_w = 40;
-	const int chord_x = std::max(matrix_x + cell_w * 12 + 24, static_cast<int>(visualizer->width) - 190);
-	for (int i = 0; i < 12; ++i)
-		draw_text(visualizer, matrix_x + i * cell_w + 7, 144, kNoteNames[i], 2,
-			  Color{148, 163, 184, 255});
-	draw_text(visualizer, chord_x, 144, "CHORD", 2, Color{148, 163, 184, 255});
-	int row_y = 164;
-	row_y = draw_instrument_rows(visualizer, row_y, "BASS", snapshot.bass_notes, nullptr,
-				     Color{255, 59, 48, 245}, 1);
-	row_y = draw_instrument_rows(visualizer, row_y, "VOCAL", snapshot.vocal_notes, nullptr,
-				     Color{10, 132, 255, 245}, kMatrixRowCount);
-	row_y = draw_instrument_rows(visualizer, row_y, "OTHERS", snapshot.other_notes, &snapshot.other_chord,
-				     Color{191, 90, 242, 245}, kMatrixRowCount);
-	const int degree_root_pitch_class = pitch_class_from_note_label(snapshot.root.label);
-	row_y = draw_piano_keyboard(visualizer, row_y + 4, snapshot.keyboard_notes, snapshot.keyboard_chord,
-				    degree_root_pitch_class);
-	row_y = draw_guitar_fretboard(visualizer, row_y + 4, snapshot.guitar_notes, snapshot.guitar_chord,
-				      degree_root_pitch_class);
-
-	char root_label[96];
-	std::snprintf(root_label, sizeof(root_label), "ROOT %s",
-		      snapshot.root_candidates[0] ? snapshot.root_candidates : "-- 0%");
-	draw_text(visualizer, 28, std::max(row_y + 4, static_cast<int>(visualizer->height) - 20), root_label, 2,
-		  Color{199, 210, 224, 255});
-
-	if (snapshot.sequence == 0)
-		draw_text(visualizer, 230, 145, "ADD MUSIC ANALYZER FILTER TO AN AUDIO SOURCE", 2,
-			  Color{248, 250, 252, 255});
-	else if (!snapshot.audio_seen)
-		draw_text(visualizer, 230, 145, "FILTER READY - WAITING FOR AUDIO", 2, Color{248, 250, 252, 255});
-	else if (snapshot_age > 1.5f) {
-		char stale[96];
-		std::snprintf(stale, sizeof(stale), "STALE %.1FS - FILTER NOT RECEIVING AUDIO", snapshot_age);
-		draw_text(visualizer, 230, 145, stale, 2, Color{248, 250, 252, 255});
-	}
-}
-
-bool advance_drum_history(VisualizerData *visualizer, float seconds)
-{
-	bool has_history = false;
-	for (auto &history : visualizer->drum_history) {
-		for (DrumBar &bar : history)
-			bar.age += seconds;
-		history.erase(std::remove_if(history.begin(), history.end(),
-					     [](const DrumBar &bar) { return bar.age > 1.0f; }),
-			      history.end());
-		has_history = has_history || !history.empty();
-	}
-	return has_history;
-}
-
-bool append_drum_hits(VisualizerData *visualizer, const mao::AnalysisSnapshot &snapshot)
-{
-	if (snapshot.sequence == 0 || snapshot.sequence == visualizer->drum_history_sequence)
-		return false;
-
-	visualizer->drum_history_sequence = snapshot.sequence;
-	bool appended = false;
-	for (std::size_t i = 0; i < snapshot.drums.size(); ++i) {
-		const mao::DrumState &drum = snapshot.drums[i];
-		if (drum.level <= 0.30f)
-			continue;
-
-		auto &history = visualizer->drum_history[i];
-		history.push_back(DrumBar{0.0f, std::clamp(drum.level, 0.0f, 1.0f)});
-		if (history.size() > 64)
-			history.erase(history.begin());
-		appended = true;
-	}
-	return appended;
-}
 
 void *visualizer_create(obs_data_t *settings, obs_source_t *)
 {
 	auto *visualizer = new VisualizerData();
-	visualizer->width = static_cast<uint32_t>(std::clamp<long long>(obs_data_get_int(settings, "width"), 320, 1920));
-	visualizer->height = static_cast<uint32_t>(std::clamp<long long>(obs_data_get_int(settings, "height"), 520, 1080));
+	const uint32_t width = static_cast<uint32_t>(std::clamp<long long>(obs_data_get_int(settings, "width"), 320, 1920));
+	const uint32_t height = static_cast<uint32_t>(std::clamp<long long>(obs_data_get_int(settings, "height"), 520, 1080));
 	visualizer->update_fps = static_cast<uint32_t>(std::clamp<long long>(obs_data_get_int(settings, "update_fps"), 1, 30));
-	visualizer->pixels.resize(static_cast<std::size_t>(visualizer->width) * visualizer->height * 4);
-	render_pixels(visualizer, read_snapshot(), 0.0f);
+	mao::resize_visualizer(&visualizer->renderer, width, height);
+	mao::render_visualizer(&visualizer->renderer, read_snapshot(), 0.0f);
 	return visualizer;
 }
 
@@ -1104,8 +440,8 @@ void visualizer_destroy(void *data)
 
 void visualizer_defaults(obs_data_t *settings)
 {
-	obs_data_set_default_int(settings, "width", kDefaultWidth);
-	obs_data_set_default_int(settings, "height", kDefaultHeight);
+	obs_data_set_default_int(settings, "width", mao::kDefaultVisualizerWidth);
+	obs_data_set_default_int(settings, "height", mao::kDefaultVisualizerHeight);
 	obs_data_set_default_int(settings, "update_fps", 10);
 }
 
@@ -1128,10 +464,8 @@ void visualizer_update(void *data, obs_data_t *settings)
 	const uint32_t width = static_cast<uint32_t>(std::clamp<long long>(obs_data_get_int(settings, "width"), 320, 1920));
 	const uint32_t height = static_cast<uint32_t>(std::clamp<long long>(obs_data_get_int(settings, "height"), 520, 1080));
 	visualizer->update_fps = static_cast<uint32_t>(std::clamp<long long>(obs_data_get_int(settings, "update_fps"), 1, 30));
-	if (width != visualizer->width || height != visualizer->height) {
-		visualizer->width = width;
-		visualizer->height = height;
-		visualizer->pixels.resize(static_cast<std::size_t>(width) * height * 4);
+	if (width != visualizer->renderer.width || height != visualizer->renderer.height) {
+		mao::resize_visualizer(&visualizer->renderer, width, height);
 		visualizer->texture_size_dirty = true;
 	}
 
@@ -1149,10 +483,10 @@ void visualizer_tick(void *data, float seconds)
 	visualizer->snapshot_age += seconds;
 	const float interval = 1.0f / static_cast<float>(std::max<uint32_t>(1, visualizer->update_fps));
 	const bool interval_ready = visualizer->elapsed >= interval;
-	const bool history_active = advance_drum_history(visualizer, seconds);
+	const bool history_active = mao::advance_visualizer_drum_history(&visualizer->renderer, seconds);
 	const auto snapshot = read_snapshot();
 
-	if (append_drum_hits(visualizer, snapshot))
+	if (mao::append_visualizer_drum_hits(&visualizer->renderer, snapshot))
 		visualizer->dirty = true;
 	if (history_active && interval_ready)
 		visualizer->dirty = true;
@@ -1164,11 +498,11 @@ void visualizer_tick(void *data, float seconds)
 
 	if (snapshot.sequence != visualizer->rendered_sequence) {
 		visualizer->snapshot_age = 0.0f;
-		render_pixels(visualizer, snapshot, visualizer->snapshot_age);
+		mao::render_visualizer(&visualizer->renderer, snapshot, visualizer->snapshot_age);
 		visualizer->rendered_sequence = snapshot.sequence;
 		visualizer->dirty = true;
 	} else if (visualizer->dirty || (snapshot.sequence > 0 && visualizer->snapshot_age > 1.5f)) {
-		render_pixels(visualizer, snapshot, visualizer->snapshot_age);
+		mao::render_visualizer(&visualizer->renderer, snapshot, visualizer->snapshot_age);
 		visualizer->rendered_sequence = snapshot.sequence;
 		visualizer->dirty = true;
 	}
@@ -1187,38 +521,40 @@ void visualizer_render(void *data, gs_effect_t *)
 	}
 
 	if (!visualizer->texture) {
-		const uint8_t *data_ptr = visualizer->pixels.data();
+		const uint8_t *data_ptr = visualizer->renderer.pixels.data();
 		visualizer->texture =
-			gs_texture_create(visualizer->width, visualizer->height, GS_RGBA, 1, &data_ptr, GS_DYNAMIC);
+			gs_texture_create(visualizer->renderer.width, visualizer->renderer.height, GS_RGBA, 1, &data_ptr,
+					  GS_DYNAMIC);
 		visualizer->texture_size_dirty = false;
 		visualizer->dirty = false;
 	} else if (visualizer->dirty) {
-		gs_texture_set_image(visualizer->texture, visualizer->pixels.data(), visualizer->width * 4, false);
+		gs_texture_set_image(visualizer->texture, visualizer->renderer.pixels.data(),
+				     visualizer->renderer.width * 4, false);
 		visualizer->dirty = false;
 	}
 
 	if (visualizer->texture)
-		obs_source_draw(visualizer->texture, 0, 0, visualizer->width, visualizer->height, false);
+		obs_source_draw(visualizer->texture, 0, 0, visualizer->renderer.width, visualizer->renderer.height, false);
 }
 
 uint32_t visualizer_width(void *data)
 {
 	auto *visualizer = static_cast<VisualizerData *>(data);
 	if (!visualizer)
-		return kDefaultWidth;
+		return mao::kDefaultVisualizerWidth;
 
 	std::lock_guard<std::mutex> lock(visualizer->mutex);
-	return visualizer->width;
+	return visualizer->renderer.width;
 }
 
 uint32_t visualizer_height(void *data)
 {
 	auto *visualizer = static_cast<VisualizerData *>(data);
 	if (!visualizer)
-		return kDefaultHeight;
+		return mao::kDefaultVisualizerHeight;
 
 	std::lock_guard<std::mutex> lock(visualizer->mutex);
-	return visualizer->height;
+	return visualizer->renderer.height;
 }
 
 const char *visualizer_name(void *)

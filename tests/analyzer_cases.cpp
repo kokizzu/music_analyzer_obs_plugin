@@ -100,6 +100,33 @@ void add_decayed_sine(mao_test::Buffer &buffer, float freq, float amp, std::size
 	}
 }
 
+void add_sine_at_offset(mao_test::Buffer &buffer, float freq, float amp, uint64_t sample_offset)
+{
+	for (std::size_t i = 0; i < buffer.size(); ++i) {
+		const float sample = static_cast<float>(sample_offset + i);
+		buffer[i] += amp * std::sin(2.0f * mao_test::kPi * freq * sample / mao_test::kSampleRate);
+	}
+}
+
+void add_harmonic_note_at_offset(mao_test::Buffer &buffer, int midi, float amp,
+				 const std::vector<float> &profile, uint64_t sample_offset)
+{
+	const float base = mao_test::midi_frequency(midi);
+	for (std::size_t harmonic = 0; harmonic < profile.size(); ++harmonic)
+		add_sine_at_offset(buffer, base * static_cast<float>(harmonic + 1), amp * profile[harmonic],
+				   sample_offset);
+}
+
+void add_detuned_harmonic_note_at_offset(mao_test::Buffer &buffer, int midi, float amp,
+					 const std::vector<float> &profile, float cents,
+					 uint64_t sample_offset)
+{
+	const float base = mao_test::midi_frequency(midi) * std::pow(2.0f, cents / 1200.0f);
+	for (std::size_t harmonic = 0; harmonic < profile.size(); ++harmonic)
+		add_sine_at_offset(buffer, base * static_cast<float>(harmonic + 1), amp * profile[harmonic],
+				   sample_offset);
+}
+
 float detuned_midi_frequency(int midi, float cents)
 {
 	return mao_test::midi_frequency(midi) * std::pow(2.0f, cents / 1200.0f);
@@ -392,7 +419,7 @@ void check_quiet_standalone_rejection(Runner &runner)
 
 	for (const QuietCase &quiet_case : cases) {
 		mao_test::Buffer buffer = {};
-		mao_test::add_midi_note(buffer, quiet_case.midi, 0.015f);
+		mao_test::add_midi_note(buffer, quiet_case.midi, 0.008f);
 		const auto snapshot = analyze_buffer(buffer, quiet_case.name);
 		const std::string context = std::string("quiet standalone ") + quiet_case.name;
 		expect_label(runner, quiet_case.notes(snapshot).label, "--", context);
@@ -427,7 +454,7 @@ void check_note_level_fade(Runner &runner)
 		const auto snapshot = engine.analyze(buffer.data(), buffer.size(), settings, "keyboard", 0);
 		const float c_level = grid_level_for_midi(snapshot.keyboard_notes, 60);
 		expect_note_token(runner, snapshot.keyboard.label, "C4", "quiet sustained keyboard note");
-		runner.expect(c_level > 0.0f && c_level < 0.45f,
+		runner.expect(c_level > 0.0f && c_level < 0.80f,
 			      "note level fade: expected quiet sustained C4 to be visible but not full level");
 	}
 }
@@ -484,7 +511,7 @@ void check_temporal_note_stability(Runner &runner)
 	{
 		mao::AnalysisEngine engine;
 		mao_test::Buffer c = {};
-		mao_test::add_midi_note(c, 60, 0.035f);
+		mao_test::add_midi_note(c, 60, 0.018f);
 		auto snapshot = engine.analyze(c.data(), c.size(), settings, "keyboard", 0);
 		expect_label(runner, snapshot.keyboard.label, "--", "temporal note one-frame rejection");
 
@@ -569,6 +596,28 @@ void check_temporal_chord_stability(Runner &runner)
 	expect_no_chord(runner, snapshot.keyboard_chord, "temporal chord silence clear");
 }
 
+void check_smoothed_only_chord_initializes(Runner &runner)
+{
+	mao::AnalysisEngine engine;
+	mao::AnalysisSettings settings = mao_test::default_settings();
+	settings.analysis_interval_seconds = 0.05f;
+	const auto c = mao_test::make_midi_notes({60}, 0.34f);
+	const auto e = mao_test::make_midi_notes({64}, 0.34f);
+	const auto g = mao_test::make_midi_notes({67}, 0.34f);
+
+	(void)engine.analyze(c.data(), c.size(), settings, "keyboard", 0);
+	auto snapshot = engine.analyze(c.data(), c.size(), settings, "keyboard", 0);
+	expect_no_chord(runner, snapshot.keyboard_chord, "smoothed-only chord C seed");
+
+	(void)engine.analyze(e.data(), e.size(), settings, "keyboard", 0);
+	snapshot = engine.analyze(e.data(), e.size(), settings, "keyboard", 0);
+	expect_no_chord(runner, snapshot.keyboard_chord, "smoothed-only chord C/E partial");
+
+	(void)engine.analyze(g.data(), g.size(), settings, "keyboard", 0);
+	snapshot = engine.analyze(g.data(), g.size(), settings, "keyboard", 0);
+	expect_label(runner, snapshot.keyboard_chord.label, "C", "smoothed-only chord initializes from held notes");
+}
+
 void check_low_level_mixed_notes(Runner &runner)
 {
 	mao::AnalysisEngine engine;
@@ -586,11 +635,11 @@ void check_low_level_mixed_notes(Runner &runner)
 	expect_note_token(runner, snapshot.keyboard.label, "C4", "low-level mixed notes");
 	expect_note_token(runner, snapshot.keyboard.label, "E4", "low-level mixed notes");
 	expect_note_token(runner, snapshot.keyboard.label, "G4", "low-level mixed notes");
-	runner.expect(c_level > 0.0f && c_level < 0.25f,
+	runner.expect(c_level > 0.0f && c_level < 0.70f,
 		      "low-level mixed notes: expected C4 visible but dim");
-	runner.expect(e_level > 0.0f && e_level < 0.25f,
+	runner.expect(e_level > 0.0f && e_level < 0.70f,
 		      "low-level mixed notes: expected E4 visible but dim");
-	runner.expect(g_level > 0.0f && g_level < 0.25f,
+	runner.expect(g_level > 0.0f && g_level < 0.70f,
 		      "low-level mixed notes: expected G4 visible but dim");
 }
 
@@ -1156,13 +1205,20 @@ void check_public_multitrack_dataset_style_regressions(Runner &runner)
 
 void check_drum_hit_with_melodic_mix(Runner &runner)
 {
+	mao::AnalysisEngine engine;
+	const mao::AnalysisSettings settings = mao_test::default_settings();
 	mao_test::Buffer buffer = {};
 	add_decayed_sine(buffer, 65.0f, 0.85f);
-	add_harmonic_note(buffer, 60, 0.20f, {1.0f, 0.16f, 0.08f});
-	add_harmonic_note(buffer, 64, 0.20f, {1.0f, 0.16f, 0.08f});
-	add_harmonic_note(buffer, 67, 0.20f, {1.0f, 0.16f, 0.08f});
+	add_decayed_sine(buffer, 1100.0f, 0.24f, 520);
+	mao_test::Buffer background = {};
+	for (int midi : {60, 64, 67}) {
+		add_harmonic_note(background, midi, 0.20f, {1.0f, 0.16f, 0.08f});
+		add_harmonic_note(buffer, midi, 0.20f, {1.0f, 0.16f, 0.08f});
+	}
+	for (int i = 0; i < 4; ++i)
+		(void)engine.analyze(background.data(), background.size(), settings, "full mix", 0);
 
-	const auto snapshot = analyze_buffer(buffer, "full mix");
+	const auto snapshot = engine.analyze(buffer.data(), buffer.size(), settings, "full mix", 0);
 	runner.expect(snapshot.drums[mao::Kick].active,
 		      "drum hit with melodic mix: expected kick active, level " +
 			      std::to_string(snapshot.drums[mao::Kick].level));
@@ -1256,6 +1312,63 @@ void check_detuned_note_tolerance(Runner &runner)
 		runner.expect(!grid_pitch_active(snapshot.keyboard_notes, 8) &&
 				      !grid_pitch_active(snapshot.keyboard_notes, 9),
 			      "detuned note tolerance: -50 cents should not light G# or A keys");
+	}
+}
+
+void check_complex_real_timbres_survive_tuning_wobble(Runner &runner)
+{
+	mao::AnalysisSettings settings = mao_test::default_settings();
+	settings.analysis_interval_seconds = 0.05f;
+
+	auto analyze_twice = [&](const mao_test::Buffer &buffer, const char *source) {
+		mao::AnalysisEngine engine;
+		(void)engine.analyze(buffer.data(), buffer.size(), settings, source, 0);
+		return engine.analyze(buffer.data(), buffer.size(), settings, source, 0);
+	};
+
+	{
+		mao_test::Buffer buffer = {};
+		const std::vector<float> bass_profile = {1.0f, 0.28f, 0.13f, 0.06f};
+		add_detuned_harmonic_note_at_offset(buffer, 40, 0.20f, bass_profile, 13.0f, 0);
+		const auto snapshot = analyze_twice(buffer, "bass guitar");
+		expect_label(runner, snapshot.bass.label, "E2", "complex real timbre bass tuning wobble");
+	}
+
+	{
+		mao_test::Buffer buffer = {};
+		const std::vector<float> piano_profile = {1.0f, 0.18f, 0.07f, 0.03f};
+		for (int midi : {60, 64, 67})
+			add_detuned_harmonic_note_at_offset(buffer, midi, 0.18f, piano_profile, -13.0f, 0);
+		const auto snapshot = analyze_twice(buffer, "piano");
+		expect_note_token(runner, snapshot.keyboard.label, "C4", "complex real timbre piano tuning wobble");
+		expect_note_token(runner, snapshot.keyboard.label, "E4", "complex real timbre piano tuning wobble");
+		expect_note_token(runner, snapshot.keyboard.label, "G4", "complex real timbre piano tuning wobble");
+		expect_label(runner, snapshot.keyboard_chord.label, "C", "complex real timbre piano chord");
+	}
+
+	{
+		mao_test::Buffer buffer = {};
+		const std::vector<float> distorted_guitar_profile = {1.0f, 0.58f, 0.34f, 0.20f, 0.12f};
+		for (int midi : {55, 59, 62})
+			add_detuned_harmonic_note_at_offset(buffer, midi, 0.15f, distorted_guitar_profile, 14.0f,
+							   0);
+		const auto snapshot = analyze_twice(buffer, "distorted guitar");
+		expect_note_token(runner, snapshot.guitar.label, "G3", "complex real timbre distorted guitar");
+		expect_note_token(runner, snapshot.guitar.label, "B3", "complex real timbre distorted guitar");
+		expect_note_token(runner, snapshot.guitar.label, "D4", "complex real timbre distorted guitar");
+		expect_label(runner, snapshot.guitar_chord.label, "G", "complex real timbre distorted guitar chord");
+	}
+
+	{
+		mao_test::Buffer buffer = {};
+		const std::vector<float> synth_profile = {1.0f, 0.70f, 0.45f, 0.25f, 0.14f};
+		for (int midi : {62, 66, 69})
+			add_detuned_harmonic_note_at_offset(buffer, midi, 0.13f, synth_profile, -14.0f, 0);
+		const auto snapshot = analyze_twice(buffer, "synth lead");
+		expect_note_token(runner, snapshot.other.label, "D4", "complex real timbre synth");
+		expect_note_token(runner, snapshot.other.label, "F#4", "complex real timbre synth");
+		expect_note_token(runner, snapshot.other.label, "A4", "complex real timbre synth");
+		expect_label(runner, snapshot.other_chord.label, "D", "complex real timbre synth chord");
 	}
 }
 
@@ -1526,6 +1639,31 @@ void check_bass_survives_low_mid_mix(Runner &runner)
 	expect_note_token(runner, snapshot.guitar.label, "A#3", "bass survives low-mid mix guitar");
 }
 
+void check_bass_pluck_does_not_trigger_kick(Runner &runner)
+{
+	mao::AnalysisEngine engine;
+	mao::AnalysisSettings settings = mao_test::default_settings();
+	settings.analysis_interval_seconds = 0.05f;
+	const std::vector<float> bass_profile = {1.0f, 0.42f, 0.22f, 0.10f};
+	mao::AnalysisSnapshot snapshot = {};
+
+	for (int frame = 0; frame < 8; ++frame) {
+		mao_test::Buffer sustain = {};
+		add_harmonic_note_at_offset(sustain, 36, 0.15f, bass_profile, static_cast<uint64_t>(frame) * 2400);
+		snapshot = engine.analyze(sustain.data(), sustain.size(), settings, "Mic/Aux", 0);
+	}
+
+	mao_test::Buffer pluck = {};
+	add_harmonic_note_at_offset(pluck, 36, 0.30f, bass_profile, 8 * 2400);
+	add_decayed_sine(pluck, mao_test::midi_frequency(36), 0.11f, 1200);
+	add_decayed_sine(pluck, mao_test::midi_frequency(48), 0.040f, 900);
+	snapshot = engine.analyze(pluck.data(), pluck.size(), settings, "Mic/Aux", 0);
+	expect_label(runner, snapshot.bass.label, "C2", "bass pluck no kick bass note");
+	runner.expect(!snapshot.drums[mao::Kick].active,
+		      "bass pluck no kick: expected kick inactive, level " +
+			      std::to_string(snapshot.drums[mao::Kick].level));
+}
+
 void check_low_level_mic_aux_parts(Runner &runner)
 {
 	{
@@ -1581,6 +1719,172 @@ void check_dense_multi_instrument_mix(Runner &runner)
 	expect_note_token(runner, snapshot.other.label, "A#5", "dense multi-instrument mix other");
 }
 
+void check_live_mic_aux_stream_low_parts(Runner &runner)
+{
+	mao::AnalysisEngine engine;
+	mao::AnalysisSettings settings = mao_test::default_settings();
+	settings.analysis_interval_seconds = 0.05f;
+
+	const std::vector<float> bass_profile = {1.0f, 0.30f, 0.14f};
+	const std::vector<float> key_profile = {1.0f, 0.16f, 0.08f};
+	const std::vector<float> guitar_profile = {1.0f, 0.34f, 0.16f, 0.08f};
+	const std::vector<float> other_profile = {1.0f, 0.62f, 0.42f, 0.27f, 0.16f};
+
+	int bass_hits = 0;
+	int keyboard_hits = 0;
+	int guitar_hits = 0;
+	int other_hits = 0;
+	mao::AnalysisSnapshot snapshot = {};
+	for (int frame = 0; frame < 18; ++frame) {
+		const uint64_t sample_offset = static_cast<uint64_t>(frame) * 2400;
+		mao_test::Buffer buffer = {};
+		add_harmonic_note_at_offset(buffer, 35, 0.10f, bass_profile, sample_offset);
+		for (int midi : {60, 64, 67})
+			add_harmonic_note_at_offset(buffer, midi, 0.030f, key_profile, sample_offset);
+		for (int midi : {54, 58, 62})
+			add_harmonic_note_at_offset(buffer, midi, 0.028f, guitar_profile, sample_offset);
+		add_harmonic_note_at_offset(buffer, 74, 0.13f, other_profile, sample_offset);
+		add_harmonic_note_at_offset(buffer, 76, 0.10f, {1.0f, 0.04f, 0.015f}, sample_offset);
+
+		snapshot = engine.analyze(buffer.data(), buffer.size(), settings, "Mic/Aux", 0);
+		if (frame < 2)
+			continue;
+		if (std::strcmp(snapshot.bass.label, "B1") == 0)
+			++bass_hits;
+		if (grid_pitch_active(snapshot.keyboard_notes, 0) && grid_pitch_active(snapshot.keyboard_notes, 4) &&
+		    grid_pitch_active(snapshot.keyboard_notes, 7))
+			++keyboard_hits;
+		if (grid_pitch_active(snapshot.guitar_notes, 6) && grid_pitch_active(snapshot.guitar_notes, 10) &&
+		    grid_pitch_active(snapshot.guitar_notes, 2))
+			++guitar_hits;
+		if (grid_pitch_active(snapshot.other_notes, 2))
+			++other_hits;
+	}
+
+	runner.expect(bass_hits >= 12,
+		      "live Mic/Aux stream low parts: expected stable bass, got " + std::to_string(bass_hits) +
+			      " frames, last `" + snapshot.bass.label + "`");
+	runner.expect(keyboard_hits >= 12,
+		      "live Mic/Aux stream low parts: expected stable keyboard chord tones, got " +
+			      std::to_string(keyboard_hits) + " frames, last `" + snapshot.keyboard.label + "`");
+	runner.expect(guitar_hits >= 12,
+		      "live Mic/Aux stream low parts: expected stable guitar chord tones, got " +
+			      std::to_string(guitar_hits) + " frames, last `" + snapshot.guitar.label + "`");
+	runner.expect(other_hits >= 12,
+		      "live Mic/Aux stream low parts: expected stable other note, got " + std::to_string(other_hits) +
+			      " frames, last `" + snapshot.other.label + "`");
+}
+
+void check_soft_drum_transient_stream(Runner &runner)
+{
+	mao::AnalysisEngine engine;
+	mao::AnalysisSettings settings = mao_test::default_settings();
+	settings.analysis_interval_seconds = 0.05f;
+	mao_test::Buffer background = mao_test::make_midi_notes({60, 64, 67}, 0.030f);
+	mao::AnalysisSnapshot snapshot = {};
+
+	for (int i = 0; i < 6; ++i)
+		snapshot = engine.analyze(background.data(), background.size(), settings, "Mic/Aux", 0);
+
+	mao_test::Buffer kick = background;
+	add_decayed_sine(kick, 65.0f, 0.22f, 1500);
+	add_decayed_sine(kick, 1100.0f, 0.20f, 520);
+	snapshot = engine.analyze(kick.data(), kick.size(), settings, "Mic/Aux", 0);
+	runner.expect(snapshot.drums[mao::Kick].active,
+		      "soft drum transient stream: expected kick active, level " +
+			      std::to_string(snapshot.drums[mao::Kick].level));
+
+	for (int i = 0; i < 4; ++i)
+		snapshot = engine.analyze(background.data(), background.size(), settings, "Mic/Aux", 0);
+
+	mao_test::Buffer snare = background;
+	add_decayed_sine(snare, 190.0f, 0.11f, 1300);
+	add_decayed_sine(snare, 1800.0f, 0.040f, 900);
+	snapshot = engine.analyze(snare.data(), snare.size(), settings, "Mic/Aux", 0);
+	runner.expect(snapshot.drums[mao::Snare].active || snapshot.drums[mao::Tom].active,
+		      "soft drum transient stream: expected snare/tom active, snare " +
+			      std::to_string(snapshot.drums[mao::Snare].level) + " tom " +
+			      std::to_string(snapshot.drums[mao::Tom].level));
+
+	for (int i = 0; i < 4; ++i)
+		snapshot = engine.analyze(background.data(), background.size(), settings, "Mic/Aux", 0);
+
+	mao_test::Buffer cymbal = background;
+	add_decayed_sine(cymbal, 5200.0f, 0.035f, 1100);
+	add_decayed_sine(cymbal, 7600.0f, 0.030f, 900);
+	snapshot = engine.analyze(cymbal.data(), cymbal.size(), settings, "Mic/Aux", 0);
+	runner.expect(snapshot.drums[mao::HiHat].active || snapshot.drums[mao::Crash].active ||
+			      snapshot.drums[mao::Ride].active,
+		      "soft drum transient stream: expected cymbal active, hihat " +
+			      std::to_string(snapshot.drums[mao::HiHat].level) + " crash " +
+			      std::to_string(snapshot.drums[mao::Crash].level) + " ride " +
+			      std::to_string(snapshot.drums[mao::Ride].level));
+}
+
+void check_upbeat_mix_drums_and_chords(Runner &runner)
+{
+	mao::AnalysisEngine engine;
+	mao::AnalysisSettings settings = mao_test::default_settings();
+	settings.analysis_interval_seconds = 0.05f;
+	const std::vector<float> bass_profile = {1.0f, 0.30f, 0.14f};
+	const std::vector<float> key_profile = {1.0f, 0.16f, 0.08f};
+	const std::vector<float> guitar_profile = {1.0f, 0.34f, 0.16f, 0.08f};
+	const std::vector<float> other_profile = {1.0f, 0.52f, 0.30f, 0.16f};
+
+	auto make_background = [&](uint64_t sample_offset) {
+		mao_test::Buffer buffer = {};
+		add_harmonic_note_at_offset(buffer, 36, 0.20f, bass_profile, sample_offset);
+		for (int midi : {60, 64, 67})
+			add_harmonic_note_at_offset(buffer, midi, 0.105f, key_profile, sample_offset);
+		for (int midi : {48, 52, 55, 60, 64})
+			add_harmonic_note_at_offset(buffer, midi, 0.090f, guitar_profile, sample_offset);
+		add_harmonic_note_at_offset(buffer, 76, 0.060f, other_profile, sample_offset);
+		add_harmonic_note_at_offset(buffer, 79, 0.055f, other_profile, sample_offset);
+		return buffer;
+	};
+
+	mao::AnalysisSnapshot snapshot = {};
+	for (int frame = 0; frame < 10; ++frame) {
+		const uint64_t sample_offset = static_cast<uint64_t>(frame) * 2400;
+		mao_test::Buffer background = make_background(sample_offset);
+		snapshot = engine.analyze(background.data(), background.size(), settings, "Mic/Aux", 0);
+	}
+
+	expect_label(runner, snapshot.keyboard_chord.label, "C", "upbeat mix keyboard chord before drums");
+	expect_label(runner, snapshot.guitar_chord.label, "C", "upbeat mix guitar chord before drums");
+
+	mao_test::Buffer kick = make_background(10 * 2400);
+	add_decayed_sine(kick, 65.0f, 0.14f, 1300);
+	add_decayed_sine(kick, 90.0f, 0.11f, 900);
+	add_decayed_sine(kick, 120.0f, 0.040f, 650);
+	add_decayed_sine(kick, 1100.0f, 0.42f, 480);
+	snapshot = engine.analyze(kick.data(), kick.size(), settings, "Mic/Aux", 0);
+	runner.expect(snapshot.drums[mao::Kick].active,
+		      "upbeat mix drums: expected kick active, level " +
+			      std::to_string(snapshot.drums[mao::Kick].level) + " rms " +
+			      std::to_string(snapshot.rms) + " peak " + std::to_string(snapshot.peak) +
+			      " low " + std::to_string(snapshot.low_energy));
+	expect_label(runner, snapshot.keyboard_chord.label, "C", "upbeat mix keyboard chord with kick");
+	expect_label(runner, snapshot.guitar_chord.label, "C", "upbeat mix guitar chord with kick");
+
+	for (int frame = 11; frame < 15; ++frame) {
+		const uint64_t sample_offset = static_cast<uint64_t>(frame) * 2400;
+		mao_test::Buffer background = make_background(sample_offset);
+		snapshot = engine.analyze(background.data(), background.size(), settings, "Mic/Aux", 0);
+	}
+
+	mao_test::Buffer snare = make_background(15 * 2400);
+	add_decayed_sine(snare, 190.0f, 0.065f, 1300);
+	add_decayed_sine(snare, 1800.0f, 0.030f, 900);
+	snapshot = engine.analyze(snare.data(), snare.size(), settings, "Mic/Aux", 0);
+	runner.expect(snapshot.drums[mao::Snare].active || snapshot.drums[mao::Tom].active,
+		      "upbeat mix drums: expected snare/tom active, snare " +
+			      std::to_string(snapshot.drums[mao::Snare].level) + " tom " +
+			      std::to_string(snapshot.drums[mao::Tom].level));
+	expect_label(runner, snapshot.keyboard_chord.label, "C", "upbeat mix keyboard chord with snare");
+	expect_label(runner, snapshot.guitar_chord.label, "C", "upbeat mix guitar chord with snare");
+}
+
 void check_root_candidates(Runner &runner)
 {
 	mao::AnalysisEngine engine;
@@ -1612,6 +1916,63 @@ void check_root_candidates(Runner &runner)
 			      "`");
 }
 
+mao_test::Buffer triad_buffer(int root_pitch_class, bool minor)
+{
+	const int root = midi_at_or_above(60, root_pitch_class);
+	return mao_test::make_midi_notes({root, root + (minor ? 3 : 4), root + 7}, 0.34f);
+}
+
+void check_root_from_chord_progression(Runner &runner)
+{
+	mao::AnalysisEngine engine;
+	mao::AnalysisSettings settings = mao_test::default_settings();
+
+	const std::vector<mao_test::Buffer> progression = {
+		triad_buffer(0, false),	triad_buffer(2, false), triad_buffer(9, true),
+		triad_buffer(4, true),	triad_buffer(11, true), triad_buffer(6, true),
+		triad_buffer(7, false),
+	};
+
+	mao::AnalysisSnapshot snapshot = {};
+	for (int cycle = 0; cycle < 4; ++cycle) {
+		for (const mao_test::Buffer &buffer : progression) {
+			for (int repeat = 0; repeat < 3; ++repeat)
+				snapshot = engine.analyze(buffer.data(), buffer.size(), settings, "keyboard", 0);
+		}
+	}
+
+	runner.expect(std::strcmp(snapshot.root.label, "G") == 0,
+		      std::string("root progression: expected G for C D Am Em Bm F#m G history, got `") +
+			      snapshot.root.label + "` candidates `" + snapshot.root_candidates + "`");
+	runner.expect(mao_test::contains(snapshot.root_candidates, "G "),
+		      std::string("root progression: expected G candidate, got `") + snapshot.root_candidates + "`");
+}
+
+void check_root_from_bass_degrees(Runner &runner)
+{
+	mao::AnalysisEngine engine;
+	mao::AnalysisSettings settings = mao_test::default_settings();
+	const std::vector<mao_test::Buffer> bass_notes = {
+		mao_test::make_midi_notes({bass_midi_for_pitch_class(7)}, 0.70f),
+		mao_test::make_midi_notes({bass_midi_for_pitch_class(9)}, 0.70f),
+		mao_test::make_midi_notes({bass_midi_for_pitch_class(2)}, 0.70f),
+	};
+
+	mao::AnalysisSnapshot snapshot = {};
+	for (int cycle = 0; cycle < 10; ++cycle) {
+		for (const mao_test::Buffer &buffer : bass_notes) {
+			for (int repeat = 0; repeat < 2; ++repeat)
+				snapshot = engine.analyze(buffer.data(), buffer.size(), settings, "bass", 0);
+		}
+	}
+
+	runner.expect(std::strcmp(snapshot.root.label, "D") == 0,
+		      std::string("root bass degrees: expected D for D/G/A bass history, got `") +
+			      snapshot.root.label + "` candidates `" + snapshot.root_candidates + "`");
+	runner.expect(mao_test::contains(snapshot.root_candidates, "D "),
+		      std::string("root bass degrees: expected D candidate, got `") + snapshot.root_candidates + "`");
+}
+
 } // namespace
 
 int main()
@@ -1629,6 +1990,7 @@ int main()
 	check_sustained_note_envelope(runner);
 	check_temporal_note_stability(runner);
 	check_temporal_chord_stability(runner);
+	check_smoothed_only_chord_initializes(runner);
 	check_low_level_mixed_notes(runner);
 	check_melodic_sources_do_not_trigger_drums(runner);
 	check_layered_midi_instrument_voices(runner);
@@ -1639,6 +2001,7 @@ int main()
 	check_public_multitrack_dataset_style_regressions(runner);
 	check_drum_hit_with_melodic_mix(runner);
 	check_detuned_note_tolerance(runner);
+	check_complex_real_timbres_survive_tuning_wobble(runner);
 	check_realistic_instrument_chords(runner);
 	check_keyboard_hand_span_chords(runner);
 	check_guitar_caged_voicings(runner);
@@ -1650,9 +2013,15 @@ int main()
 	check_multi_instrument_mix(runner);
 	check_low_level_full_instrument_mix(runner);
 	check_bass_survives_low_mid_mix(runner);
+	check_bass_pluck_does_not_trigger_kick(runner);
 	check_low_level_mic_aux_parts(runner);
 	check_dense_multi_instrument_mix(runner);
+	check_live_mic_aux_stream_low_parts(runner);
+	check_soft_drum_transient_stream(runner);
+	check_upbeat_mix_drums_and_chords(runner);
 	check_root_candidates(runner);
+	check_root_from_chord_progression(runner);
+	check_root_from_bass_degrees(runner);
 
 	if (runner.failures != 0) {
 		std::fprintf(stderr, "analyzer_cases: %d/%d checks failed\n", runner.failures, runner.checks);

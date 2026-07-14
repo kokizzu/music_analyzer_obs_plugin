@@ -10,12 +10,13 @@ Native OBS Studio plugin that analyzes a music mix and displays an instrument-or
 - Note highlights fade with detected velocity/amplitude so quiet or sustaining notes are dimmer instead of full intensity
 - Notes outside the chromatic tuning window, about +/-9 cents from the equal-tempered center, are ignored instead of rounded to the nearest note
 - Keyboard, guitar, and other instruments: compact chord labels; vocal stays note-only
+- `SUSTAIN` keeps the recent sustained/high-confidence chord or note; chord sustain is simplified to plain major/minor labels such as `C` or `Dm`, and low-level decaying highlights do not refresh it
 - Keyboard chord labels are resolved from filtered notes inside a plausible hand-span cluster, so far-apart bass/melody notes are not collapsed into impossible hand chords
 - Guitar chord labels are resolved from the filtered fretboard notes with CAGED-style voicing preference, so full-mix bass/root hints do not rename the guitar shape
 - Mixed-source routing: duplicated pitches are not claimed by row order; keyboard, guitar, and other rows use harmonic timbre masks, while bass and vocal use conservative range gates
 - Source-name hints: `guitar`, `key`, `piano`, `organ`, `synth`, `brass`, `horn`, `violin`, and `string` route detection toward the matching row
 - Root: rolling 15-second root candidates with confidence, with the primary root held until sustained modulation or silence
-- Chords: compact major, minor, power, sus2, sus4, diminished, augmented, 6, minor 6, dominant 7, major 7, minor 7, diminished 7, half-diminished, add9, 9, major 9, and minor 9 labels such as `C`, `Dm`, `Cdim`, `Caug`, `C6`, `Dm6`, `G7`, `Cmaj7`, `Dm7`, `Cdim7`, `Bm7b5`, `Cadd9`, `G9`, `Cmaj9`, and `Dm9`
+- Chords: compact major, minor, lowercase power-chord `pow`, sus2, sus4, diminished, augmented, 6, minor 6, dominant 7, major 7, minor 7, diminished 7, half-diminished, add9, 9, major 9, and minor 9 labels such as `C`, `Dm`, `Cpow`, `Cdim`, `Caug`, `C6`, `Dm6`, `G7`, `Cmaj7`, `Dm7`, `Cdim7`, `Bm7b5`, `Cadd9`, `G9`, `Cmaj9`, and `Dm9`
 - Equivalent chord names for the same detected pitch classes are shown together, such as `Csus2=Gsus4` or `Dm7=F6`
 - Explicit instrument sources use the full chord template set; mixed sources keep conservative chord labels to avoid false extensions from other instruments
 
@@ -43,6 +44,64 @@ The analyzer is designed for real-time OBS use. It uses bounded DSP heuristics r
 
 If the overlay says `ADD MUSIC ANALYZER FILTER TO AN AUDIO SOURCE`, the overlay is loaded but it has not received analyzer data yet. Add `Music Analyzer Filter` to the actual music/audio source, not to the overlay source.
 
+## Overlay Diagnostics
+
+The small status text at the top is for checking whether the analyzer is receiving and processing audio:
+
+- `RMS`: current overall loudness of the analyzer window.
+- `LOW`, `MID`, `HIGH`: rough percentage split of detected low, mid, and high-frequency energy.
+- `UPD`: number of analyzer windows processed since the filter/standalone analyzer started.
+- `DROP`: analyzer windows skipped because a newer audio window arrived before the worker consumed the previous one.
+- `FRAMES`: audio sample frames received by the analyzer input.
+- `AGE`: seconds since the overlay last received a new analyzer snapshot. If this keeps increasing while music is playing, the visualizer is not receiving fresh analyzer data.
+
+## Standalone Usage
+
+Build the standalone executable:
+
+```sh
+make standalone
+```
+
+If SDL2 development headers are not installed system-wide, the Makefile downloads and extracts `libsdl2-dev` under `build/deps` for the standalone build. SDL2 is used only by `build/music-analyzer-standalone`; the OBS plugin target does not include or link SDL.
+
+Run live from speaker/system output. The window title includes the standalone build version as `YYYY.MMDD.HHMM.shortCommitHash`. On Linux PulseAudio/PipeWire this auto-prefers an SDL capture device named like an output `monitor` or `loopback`; if SDL does not expose one, it captures `@DEFAULT_MONITOR@` through `ffmpeg`:
+
+```sh
+build/music-analyzer-standalone
+```
+
+The standalone window is resizable. During resize or maximize, the SDL window snaps back to the configured overlay aspect ratio and the overlay scales uniformly, using letterbox/pillarbox bars as a fallback instead of stretching the UI.
+
+List capture devices and pick one explicitly. Output monitors are marked in the list:
+
+```sh
+build/music-analyzer-standalone --list-devices
+build/music-analyzer-standalone --device "device name"
+```
+
+Use `--default-input` if you intentionally want the default microphone/aux-in capture input instead of speaker/system output.
+
+Print the standalone build version:
+
+```sh
+build/music-analyzer-standalone --version
+```
+
+Analyze an audio file through `ffmpeg` while showing the same renderer in a standalone window:
+
+```sh
+build/music-analyzer-standalone --input /path/to/song.flac --source "song"
+```
+
+For direct float PCM input:
+
+```sh
+build/music-analyzer-standalone --raw-f32le /path/to/audio.f32 --sample-rate 48000
+```
+
+Useful options include `--width`, `--height`, `--update-ms`, `--fps`, `--sensitivity`, and `--hold`.
+
 ## Build
 
 With the Makefile:
@@ -53,13 +112,19 @@ make
 
 If the system OBS headers require SIMDe and `libsimde-dev` is not installed, `make` fetches and extracts that header-only package under `build/deps` without using sudo.
 
+Build only the standalone executable:
+
+```sh
+make standalone
+```
+
 Run the analyzer tests:
 
 ```sh
 make test
 ```
 
-`make test` builds standalone analyzer executables outside OBS. It first validates the checked real-dataset catalog used to decide which public datasets can provide note-ground-truth coverage. `analyzer_smoke` covers the basic signal path, and `analyzer_cases` runs broad synthetic note, instrument, chord, note-matrix, quiet-note rejection, realistic harmonic chord, same-note timbre split, mixed-source timbre routing, multi-instrument mix, URMP same-song multitrack metadata fixtures, and root-candidate cases, including bass B0-G4, guitar E2-E6, keyboard/other A0-C8, and vocal E2-C6.
+`make test` builds standalone analyzer executables outside OBS and also runs `make test-standalone`, which verifies the SDL standalone target, the shared renderer, and the Makefile/CMake isolation that keeps SDL out of the OBS plugin target. It first validates the checked real-dataset catalog used to decide which public datasets can provide note-ground-truth coverage. `analyzer_smoke` covers the basic signal path, and `analyzer_cases` runs broad synthetic note, instrument, chord, note-matrix, quiet-note rejection, realistic harmonic chord, same-note timbre split, mixed-source timbre routing, multi-instrument mix, URMP same-song multitrack metadata fixtures, and root-candidate cases, including bass B0-G4, guitar E2-E6, keyboard/other A0-C8, and vocal E2-C6.
 
 The full-mix regression cases model public multitrack dataset layouts without downloading dataset audio. They include 20+ Slakh2100-style MIDI-rendered song fixtures, 20 ChoralSynth-style vocal multitrack fixtures, 20 CocoChorales-style chamber-ensemble fixtures, 20 SynthSOD-style orchestra/ensemble fixtures, 20 Vocal Ensemble F0 Aggregate-style real-vocal F0 fixtures, plus additional MUSDB18/MUSDB18-HQ, DSD100/Mixing Secrets, MedleyDB/2.0, MoisesDB, URMP, Bach10, TRIOS, PHENICX-Anechoic, MIREX Woodwind Quintet, RawStems, MulTTiPop, GuitarSet, MAESTRO, E-GMD, ACMID, Spheres, MDX, and Open Multitrack Testbed-style fixtures. See [docs/real_audio_dataset_candidates.md](docs/real_audio_dataset_candidates.md) for real recorded dataset candidates that can verify notes and instruments.
 
