@@ -284,12 +284,17 @@ without additional annotation.
   `audio.wav`, `segment.wav`, or `<id>.wav` beside each segment, or under a
   separate `MUSIC_ANALYZER_MULTTIPOP_AUDIO_ROOT`; that target parses
   `aligned.mid`, selects windows with multiple active MIDI parts and pitch
-  classes, and checks analyzer pitch-class and chord recall against the local
-  real-pop mix segment. `make test-multtipop-audio-root-fixture` is the
-  generated regression for that separate-audio-root layout. MulTTiPop
-  strengthens real-pop note/chord coverage once local audio segments are
-  available, but it does not replace URMP because the official release
-  references commercial audio instead of shipping isolated stems.
+  classes, and checks analyzer pitch-class recall/precision/F1 and global chord
+  recall/precision/F1 against the local real-pop mix segment. The default gates
+  are `MUSIC_ANALYZER_MULTTIPOP_MIN_RECALL_PERCENT=40`,
+  `MUSIC_ANALYZER_MULTTIPOP_MIN_PRECISION_PERCENT=35`,
+  `MUSIC_ANALYZER_MULTTIPOP_MIN_CHORD_RECALL_PERCENT=20`, and
+  `MUSIC_ANALYZER_MULTTIPOP_MIN_GLOBAL_CHORD_PRECISION_PERCENT=20`.
+  `make test-multtipop-audio-root-fixture` is the generated regression for that
+  separate-audio-root layout. MulTTiPop strengthens real-pop note/chord coverage
+  once local audio segments are available, but it does not replace URMP because
+  the official release references commercial audio instead of shipping isolated
+  stems.
 - Use `make inspect-real-spheres` with
   `MUSIC_ANALYZER_SPHERES_ROOT=/path/to/TheSpheresDataset` to preflight The
   Spheres Dataset when it is available. This checks the real orchestral
