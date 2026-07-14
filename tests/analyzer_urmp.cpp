@@ -785,6 +785,17 @@ std::string percent_string(int numerator, int denominator)
 	return buffer;
 }
 
+std::string f1_string(int true_positives, int false_positives, int false_negatives)
+{
+	const int denominator = 2 * true_positives + false_positives + false_negatives;
+	char buffer[32] = {};
+	std::snprintf(buffer, sizeof(buffer), "%.2f%%",
+		      denominator > 0 ?
+			      static_cast<double>(2 * true_positives) * 100.0 / static_cast<double>(denominator) :
+			      0.0);
+	return buffer;
+}
+
 std::string confusion_summary(const InstrumentPrecisionStats &stats)
 {
 	std::string summary;
@@ -837,7 +848,7 @@ std::string instrument_precision_summary(const InstrumentPrecisionStats &stats)
 		by_row += std::to_string(stats.false_negatives[i]);
 	}
 	return "isolated precision " + percent_string(tp, tp + fp) + ", recall " +
-	       percent_string(tp, tp + fn) + ", contamination " +
+	       percent_string(tp, tp + fn) + ", F1 " + f1_string(tp, fp, fn) + ", contamination " +
 	       percent_string(stats.contaminated_notes, stats.evaluated_notes) + ", octave-error " +
 	       percent_string(octave_errors, stats.evaluated_notes) + ", ambiguous " +
 	       std::to_string(stats.ambiguous_notes) + "/" + std::to_string(stats.evaluated_notes) +
@@ -932,11 +943,20 @@ struct CandidateWindow {
 	double score = 0.0;
 };
 
+struct ChordPrecisionStats {
+	int expected_windows = 0;
+	int predicted_windows = 0;
+	int true_positives = 0;
+	int false_positives = 0;
+	int false_negatives = 0;
+};
+
 struct MixRecallStats {
 	int hits = 0;
 	int expected = 0;
 	int chord_hits = 0;
 	int chord_checks = 0;
+	ChordPrecisionStats global_chord;
 };
 
 struct DatasetCoverageStats {
@@ -1055,6 +1075,79 @@ std::string join_labels(const std::vector<std::string> &labels)
 	return joined;
 }
 
+std::vector<std::string> split_chord_labels(const char *label)
+{
+	std::vector<std::string> labels;
+	if (!label || !*label || std::strcmp(label, "--") == 0)
+		return labels;
+
+	const char *cursor = label;
+	while (*cursor) {
+		const char *end = cursor;
+		while (*end && *end != '=')
+			++end;
+		if (end > cursor) {
+			const std::string component(cursor, static_cast<std::size_t>(end - cursor));
+			if (component != "--")
+				labels.push_back(component);
+		}
+		cursor = *end == '=' ? end + 1 : end;
+	}
+
+	return labels;
+}
+
+void add_global_chord_metrics(ChordPrecisionStats &stats, const mao::AnalysisSnapshot &snapshot,
+			      const CandidateWindow &candidate)
+{
+	const bool expected = !candidate.chord_labels.empty();
+	const std::vector<std::string> predicted = split_chord_labels(snapshot.global_chord.label);
+	const bool predicted_any = !predicted.empty();
+	bool matched = false;
+	for (const std::string &label : predicted) {
+		if (std::find(candidate.chord_labels.begin(), candidate.chord_labels.end(), label) !=
+		    candidate.chord_labels.end()) {
+			matched = true;
+			break;
+		}
+	}
+
+	if (expected)
+		++stats.expected_windows;
+	if (predicted_any)
+		++stats.predicted_windows;
+
+	if (matched) {
+		++stats.true_positives;
+		return;
+	}
+	if (predicted_any)
+		++stats.false_positives;
+	if (expected)
+		++stats.false_negatives;
+}
+
+std::string chord_precision_summary(const ChordPrecisionStats &stats)
+{
+	return "precision " + percent_string(stats.true_positives, stats.predicted_windows) + ", recall " +
+	       percent_string(stats.true_positives, stats.expected_windows) + ", F1 " +
+	       f1_string(stats.true_positives, stats.false_positives, stats.false_negatives) + ", tp/fp/fn " +
+	       std::to_string(stats.true_positives) + "/" + std::to_string(stats.false_positives) + "/" +
+	       std::to_string(stats.false_negatives);
+}
+
+std::string chord_metrics_summary(const MixRecallStats &provided_mix, const MixRecallStats &summed_mix,
+				  const MixRecallStats &provided_stream, const MixRecallStats &summed_stream,
+				  const MixRecallStats &provided_sequence, const MixRecallStats &summed_sequence)
+{
+	return "provided global chord " + chord_precision_summary(provided_mix.global_chord) +
+	       "; summed global chord " + chord_precision_summary(summed_mix.global_chord) +
+	       "; provided stream global chord " + chord_precision_summary(provided_stream.global_chord) +
+	       "; summed stream global chord " + chord_precision_summary(summed_stream.global_chord) +
+	       "; provided sequence global chord " + chord_precision_summary(provided_sequence.global_chord) +
+	       "; summed sequence global chord " + chord_precision_summary(summed_sequence.global_chord);
+}
+
 void add_window_composition(WindowCompositionStats &stats, const CandidateWindow &candidate)
 {
 	const int active_tracks = static_cast<int>(candidate.active.size());
@@ -1171,6 +1264,8 @@ void check_mix_recall(Runner &runner, const mao::AnalysisSnapshot &snapshot, con
 			      "% pitch-class recall, got " + std::to_string(hits) + "/" +
 			      std::to_string(expected));
 
+	add_global_chord_metrics(stats.global_chord, snapshot, candidate);
+
 	if (!candidate.chord_labels.empty()) {
 		++stats.chord_checks;
 		const bool chord_hit =
@@ -1187,6 +1282,27 @@ void check_mix_recall(Runner &runner, const mao::AnalysisSnapshot &snapshot, con
 				     snapshot.guitar_chord.label, snapshot.other_chord.label);
 		}
 	}
+}
+
+void require_global_chord_metrics(Runner &runner, const MixRecallStats &stats, const std::string &context,
+				  int min_chord_checks, int min_precision_percent, int min_recall_percent)
+{
+	const ChordPrecisionStats &chord = stats.global_chord;
+	runner.expect(chord.expected_windows >= min_chord_checks,
+		      context + " global chord coverage: expected at least " +
+			      std::to_string(min_chord_checks) + " chord-checkable windows, got " +
+			      std::to_string(chord.expected_windows));
+	if (chord.expected_windows < min_chord_checks)
+		return;
+
+	runner.expect(chord.true_positives * 100 >= chord.predicted_windows * min_precision_percent,
+		      context + " global chord precision: expected >=" +
+			      std::to_string(min_precision_percent) + "%, got " +
+			      chord_precision_summary(chord));
+	runner.expect(chord.true_positives * 100 >= chord.expected_windows * min_recall_percent,
+		      context + " global chord recall: expected >=" +
+			      std::to_string(min_recall_percent) + "%, got " +
+			      chord_precision_summary(chord));
 }
 
 void require_chord_recall(Runner &runner, const MixRecallStats &stats, const std::string &context,
@@ -1600,6 +1716,11 @@ int main()
 	const int min_mix_recall_percent = resolve_percent_env("MUSIC_ANALYZER_URMP_MIN_MIX_RECALL_PERCENT", 55);
 	const int min_chord_recall_percent =
 		resolve_percent_env("MUSIC_ANALYZER_URMP_MIN_CHORD_RECALL_PERCENT", 35);
+	const int min_global_chord_precision_percent =
+		resolve_percent_env("MUSIC_ANALYZER_URMP_MIN_GLOBAL_CHORD_PRECISION_PERCENT", 35);
+	const int min_global_chord_recall_percent =
+		resolve_percent_env("MUSIC_ANALYZER_URMP_MIN_GLOBAL_CHORD_RECALL_PERCENT",
+				    min_chord_recall_percent);
 	const int min_chord_checks = resolve_positive_int_env("MUSIC_ANALYZER_URMP_MIN_CHORD_CHECKS", 5);
 	const int min_active_tracks_per_window =
 		resolve_positive_int_env("MUSIC_ANALYZER_URMP_MIN_ACTIVE_TRACKS_PER_WINDOW", 2);
@@ -1919,6 +2040,22 @@ int main()
 			     min_chord_checks, min_chord_recall_percent);
 	require_chord_recall(runner, summed_sequence_stats, "URMP stateful summed separated-track mix",
 			     min_chord_checks, min_chord_recall_percent);
+	require_global_chord_metrics(runner, provided_mix_stats, "URMP provided full-mix", min_chord_checks,
+				     min_global_chord_precision_percent, min_global_chord_recall_percent);
+	require_global_chord_metrics(runner, summed_mix_stats, "URMP summed separated-track mix", min_chord_checks,
+				     min_global_chord_precision_percent, min_global_chord_recall_percent);
+	require_global_chord_metrics(runner, provided_stream_stats, "URMP streaming provided full-mix",
+				     min_chord_checks, min_global_chord_precision_percent,
+				     min_global_chord_recall_percent);
+	require_global_chord_metrics(runner, summed_stream_stats, "URMP streaming summed separated-track mix",
+				     min_chord_checks, min_global_chord_precision_percent,
+				     min_global_chord_recall_percent);
+	require_global_chord_metrics(runner, provided_sequence_stats, "URMP stateful provided full-mix",
+				     min_chord_checks, min_global_chord_precision_percent,
+				     min_global_chord_recall_percent);
+	require_global_chord_metrics(runner, summed_sequence_stats,
+				     "URMP stateful summed separated-track mix", min_chord_checks,
+				     min_global_chord_precision_percent, min_global_chord_recall_percent);
 
 	if (runner.failures != 0) {
 		std::fprintf(stderr,
@@ -1945,6 +2082,11 @@ int main()
 				     .c_str());
 		std::fprintf(stderr, "analyzer_urmp: metrics: %s\n",
 			     instrument_precision_summary(isolated_track_metrics).c_str());
+		std::fprintf(stderr, "analyzer_urmp: chord metrics: %s\n",
+			     chord_metrics_summary(provided_mix_stats, summed_mix_stats, provided_stream_stats,
+						   summed_stream_stats, provided_sequence_stats,
+						   summed_sequence_stats)
+				     .c_str());
 		return 1;
 	}
 
@@ -1970,5 +2112,10 @@ int main()
 			    .c_str());
 	std::printf("analyzer_urmp: metrics: %s\n",
 		    instrument_precision_summary(isolated_track_metrics).c_str());
+	std::printf("analyzer_urmp: chord metrics: %s\n",
+		    chord_metrics_summary(provided_mix_stats, summed_mix_stats, provided_stream_stats,
+					  summed_stream_stats, provided_sequence_stats,
+					  summed_sequence_stats)
+			    .c_str());
 	return 0;
 }
