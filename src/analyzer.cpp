@@ -527,62 +527,6 @@ NoteEvidence build_note_evidence(const std::array<float, kNoteProbeCount> &power
 	return evidence;
 }
 
-bool timbre_supports_kind(const std::array<float, kNoteProbeCount> &powers, int midi, TimbreKind kind)
-{
-	const TimbreMix mix = timbre_mix_for_midi(powers, midi);
-	const float fundamental = mix.bands[0];
-	if (fundamental <= 1.0e-6f)
-		return false;
-
-	const std::size_t kind_index = static_cast<std::size_t>(kind);
-	const float weight = mix.weights[kind_index];
-	const float relative_weight = weight / fundamental;
-	const float keyboard_weight = mix.weights[static_cast<std::size_t>(TimbreKind::Keyboard)] / fundamental;
-	const float guitar_weight = mix.weights[static_cast<std::size_t>(TimbreKind::Guitar)] / fundamental;
-	const float second = mix.bands[1] / fundamental;
-	const float third = mix.bands[2] / fundamental;
-	const float fourth = mix.bands[3] / fundamental;
-	const float fifth = mix.bands[4] / fundamental;
-
-	switch (kind) {
-	case TimbreKind::Keyboard:
-		return relative_weight >= 0.14f && second <= 0.48f;
-	case TimbreKind::Guitar:
-		return (guitar_weight >= 0.14f && second >= 0.20f && third >= 0.08f) ||
-		       (guitar_weight >= 0.12f && guitar_weight > keyboard_weight * 1.15f && second >= 0.14f &&
-			third >= 0.05f) ||
-		       (relative_weight >= 0.08f && guitar_weight > keyboard_weight * 0.75f && second >= 0.20f &&
-			second <= 0.72f && third >= 0.08f && fourth <= 0.32f);
-	case TimbreKind::Other:
-		return relative_weight >= 0.17f && second >= 0.26f && (fourth >= 0.07f || fifth >= 0.04f);
-	}
-
-	return false;
-}
-
-std::array<bool, kNoteProbeCount> timbre_midi_filter(const std::array<float, kNoteProbeCount> &powers,
-						     int min_midi, int max_midi, TimbreKind kind)
-{
-	std::array<bool, kNoteProbeCount> allowed = {};
-	min_midi = std::max(min_midi, kFirstMidi);
-	max_midi = std::min(max_midi, kLastMidi);
-	for (int midi = min_midi; midi <= max_midi; ++midi)
-		allowed[midi - kFirstMidi] = timbre_supports_kind(powers, midi, kind);
-	if (kind == TimbreKind::Guitar) {
-		for (int midi = min_midi; midi + 12 <= max_midi; ++midi) {
-			const int lower_index = midi - kFirstMidi;
-			const int upper_index = midi + 12 - kFirstMidi;
-			if (allowed[lower_index] || !allowed[upper_index])
-				continue;
-			const float lower = std::sqrt(std::max(powers[lower_index], 0.0f));
-			const float upper = std::sqrt(std::max(powers[upper_index], 0.0f));
-			if (lower > upper * 1.15f)
-				allowed[lower_index] = true;
-		}
-	}
-	return allowed;
-}
-
 bool likely_selected_harmonic(const NoteCandidate &fundamental, const NoteCandidate &candidate)
 {
 	if (candidate.midi <= fundamental.midi)
@@ -715,6 +659,10 @@ struct FullMixOwnership {
 	std::array<bool, kNoteProbeCount> ambiguous = {};
 	std::array<float, kNoteProbeCount> global_note_levels = {};
 	std::array<float, 12> global_chroma = {};
+	NoteCandidateList keyboard_candidates;
+	NoteCandidateList guitar_candidates;
+	NoteCandidateList vocal_candidates;
+	NoteCandidateList other_candidates;
 	NoteCandidateList ambiguous_candidates;
 };
 
@@ -746,7 +694,19 @@ int count_ambiguous_pitch_classes(const FullMixOwnership &ownership)
 	return count;
 }
 
+void remove_candidate_midi(NoteCandidateList &candidates, int midi)
+{
+	std::size_t write = 0;
+	for (std::size_t read = 0; read < candidates.size(); ++read) {
+		if (candidates[read].midi == midi)
+			continue;
+		candidates[write++] = candidates[read];
+	}
+	candidates.count = write;
+}
+
 void demote_sparse_full_mix_owner(FullMixOwnership &ownership, std::array<bool, kNoteProbeCount> &mask,
+				  NoteCandidateList &owner_candidates,
 				  const std::array<float, kNoteProbeCount> &candidate_scores)
 {
 	if (count_owned_notes(mask) != 1 || count_ambiguous_pitch_classes(ownership) < 2)
@@ -757,6 +717,7 @@ void demote_sparse_full_mix_owner(FullMixOwnership &ownership, std::array<bool, 
 		if (!mask[index])
 			continue;
 		mask[index] = false;
+		remove_candidate_midi(owner_candidates, midi);
 		ownership.ambiguous[index] = true;
 		ownership.ambiguous_candidates.push_back(NoteCandidate{midi, candidate_scores[index]});
 		return;
@@ -985,15 +946,19 @@ FullMixOwnership build_full_mix_ownership(const std::array<float, kNoteProbeCoun
 		switch (owner) {
 		case InstrumentKind::Keyboard:
 			ownership.keyboard[index] = true;
+			ownership.keyboard_candidates.push_back(candidate);
 			break;
 		case InstrumentKind::Guitar:
 			ownership.guitar[index] = true;
+			ownership.guitar_candidates.push_back(candidate);
 			break;
 		case InstrumentKind::Vocal:
 			ownership.vocal[index] = true;
+			ownership.vocal_candidates.push_back(candidate);
 			break;
 		case InstrumentKind::Other:
 			ownership.other[index] = true;
+			ownership.other_candidates.push_back(candidate);
 			break;
 		case InstrumentKind::Bass:
 		case InstrumentKind::Ambiguous:
@@ -1004,9 +969,9 @@ FullMixOwnership build_full_mix_ownership(const std::array<float, kNoteProbeCoun
 		}
 	}
 
-	demote_sparse_full_mix_owner(ownership, ownership.keyboard, candidate_scores);
-	demote_sparse_full_mix_owner(ownership, ownership.guitar, candidate_scores);
-	demote_sparse_full_mix_owner(ownership, ownership.other, candidate_scores);
+	demote_sparse_full_mix_owner(ownership, ownership.keyboard, ownership.keyboard_candidates, candidate_scores);
+	demote_sparse_full_mix_owner(ownership, ownership.guitar, ownership.guitar_candidates, candidate_scores);
+	demote_sparse_full_mix_owner(ownership, ownership.other, ownership.other_candidates, candidate_scores);
 
 	return ownership;
 }
@@ -1663,6 +1628,65 @@ done:
 	for (const NoteCell &cell : grid.cells)
 		confidence = std::max(confidence, cell.level);
 	state.confidence = confidence;
+}
+
+int lowest_candidate_pitch_class(const NoteCandidateList &candidates)
+{
+	int lowest_midi = kLastMidi + 1;
+	for (const NoteCandidate &candidate : candidates) {
+		if (candidate.midi >= kFirstMidi && candidate.midi <= kLastMidi)
+			lowest_midi = std::min(lowest_midi, candidate.midi);
+	}
+	return lowest_midi <= kLastMidi ? ((lowest_midi % 12) + 12) % 12 : -1;
+}
+
+std::array<float, 12> candidate_chroma(const NoteCandidateList &candidates)
+{
+	std::array<float, 12> chroma = {};
+	float strongest_score = 0.0f;
+	for (const NoteCandidate &candidate : candidates)
+		strongest_score = std::max(strongest_score, candidate.score);
+	if (strongest_score <= 1.0e-6f)
+		return chroma;
+
+	for (const NoteCandidate &candidate : candidates) {
+		if (candidate.midi < kFirstMidi || candidate.midi > kLastMidi)
+			continue;
+		const int pitch_class = ((candidate.midi % 12) + 12) % 12;
+		chroma[pitch_class] =
+			std::max(chroma[pitch_class], std::clamp(candidate.score / strongest_score, 0.0f, 1.0f));
+	}
+	return chroma;
+}
+
+void set_instrument_note_set_from_candidates(NoteGrid &grid, InstrumentState &state,
+					     const NoteCandidateList &candidates, int preferred_root,
+					     float energy, float rms, int max_notes)
+{
+	clear_note_grid(grid);
+	if (rms < kNoteRmsFloor || energy < 1.0e-5f || candidates.empty()) {
+		copy_text(state.label, sizeof(state.label), "--");
+		state.confidence = 0.0f;
+		return;
+	}
+
+	float strongest_score = 0.0f;
+	for (const NoteCandidate &candidate : candidates)
+		strongest_score = std::max(strongest_score, candidate.score);
+	if (strongest_score <= 1.0e-6f) {
+		copy_text(state.label, sizeof(state.label), "--");
+		state.confidence = 0.0f;
+		return;
+	}
+
+	int written = 0;
+	for (const NoteCandidate &candidate : candidates) {
+		if (written >= std::max(1, max_notes))
+			break;
+		write_note_grid_cell(grid, candidate, strongest_score, note_visual_loudness(rms));
+		++written;
+	}
+	write_note_grid_label(state, grid, preferred_root);
 }
 
 void collect_note_grid_levels(const NoteGrid &grid, std::array<float, kNoteProbeCount> &levels)
@@ -3232,24 +3256,26 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 	}
 
 	auto process_keyboard = [&]() {
-		const int min_midi = mixed_source ? 48 : kKeyboardMinMidi;
-		const int max_midi = mixed_source ? 83 : kKeyboardMaxMidi;
-		const float relative_floor = mixed_source ? kMixedNoteRelativeFloor : kNoteRelativeFloor;
 		const bool allow_extensions = !mixed_source;
-		const bool suppress_adjacent = mixed_source;
-		const std::array<bool, kNoteProbeCount> timbre_filter =
-			mixed_source ? full_mix_ownership.keyboard :
-				       timbre_midi_filter(note_powers, min_midi, max_midi, TimbreKind::Keyboard);
-		const std::array<bool, kNoteProbeCount> *allowed_midis = mixed_source ? &timbre_filter : nullptr;
-		const int preferred_root = mixed_source && mixed_bass_pitch_class >= 0 ?
-						   mixed_bass_pitch_class :
-						   lowest_peak_pitch_class(detection_note_powers, min_midi, max_midi,
-									   nullptr, suppress_adjacent, allowed_midis);
-		const std::array<bool, 12> *allowed = nullptr;
+		int preferred_root = -1;
 		const int max_notes = 10;
-		set_instrument_note_set(snapshot.keyboard_notes, snapshot.keyboard, detection_note_powers, min_midi, max_midi,
-					preferred_root, keyboard_energy, rms, max_notes, nullptr, allowed,
-					suppress_adjacent, allowed_midis, relative_floor);
+		if (mixed_source) {
+			preferred_root = mixed_bass_pitch_class >= 0 ?
+						 mixed_bass_pitch_class :
+						 lowest_candidate_pitch_class(full_mix_ownership.keyboard_candidates);
+			set_instrument_note_set_from_candidates(snapshot.keyboard_notes, snapshot.keyboard,
+								full_mix_ownership.keyboard_candidates,
+								preferred_root, keyboard_energy, rms, max_notes);
+		} else {
+			const int min_midi = kKeyboardMinMidi;
+			const int max_midi = kKeyboardMaxMidi;
+			const int detected_root =
+				lowest_peak_pitch_class(detection_note_powers, min_midi, max_midi);
+			preferred_root = detected_root;
+			set_instrument_note_set(snapshot.keyboard_notes, snapshot.keyboard, detection_note_powers,
+						min_midi, max_midi, preferred_root, keyboard_energy, rms,
+						max_notes);
+		}
 		const int keyboard_chord_root_hint = mixed_source ? preferred_root : -1;
 		raw_keyboard_chord = detect_keyboard_chord_from_grid(snapshot.keyboard_notes, allow_extensions,
 								     keyboard_chord_root_hint);
@@ -3262,21 +3288,21 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 
 	auto process_guitar = [&]() {
 		const int min_midi = kGuitarMinMidi;
-		const float relative_floor = mixed_source ? kMixedNoteRelativeFloor : kNoteRelativeFloor;
 		const bool allow_extensions = !mixed_source;
-		const bool suppress_adjacent = mixed_source;
-		const std::array<bool, kNoteProbeCount> timbre_filter =
-			mixed_source ? full_mix_ownership.guitar :
-				       timbre_midi_filter(note_powers, min_midi, kGuitarMaxMidi, TimbreKind::Guitar);
-		const std::array<bool, kNoteProbeCount> *allowed_midis = mixed_source ? &timbre_filter : nullptr;
-		const int preferred_root =
-			lowest_peak_pitch_class(detection_note_powers, min_midi, kGuitarMaxMidi, nullptr,
-						suppress_adjacent, allowed_midis);
-		const std::array<bool, 12> *allowed = nullptr;
+		int preferred_root = -1;
 		const int max_notes = mixed_source ? 12 : 8;
-		set_instrument_note_set(snapshot.guitar_notes, snapshot.guitar, detection_note_powers, min_midi,
-					kGuitarMaxMidi, preferred_root, guitar_energy, rms, max_notes, nullptr, allowed,
-					suppress_adjacent, allowed_midis, relative_floor);
+		if (mixed_source) {
+			preferred_root = lowest_candidate_pitch_class(full_mix_ownership.guitar_candidates);
+			set_instrument_note_set_from_candidates(snapshot.guitar_notes, snapshot.guitar,
+								full_mix_ownership.guitar_candidates,
+								preferred_root, guitar_energy, rms, max_notes);
+		} else {
+			preferred_root =
+				lowest_peak_pitch_class(detection_note_powers, min_midi, kGuitarMaxMidi);
+			set_instrument_note_set(snapshot.guitar_notes, snapshot.guitar, detection_note_powers,
+						min_midi, kGuitarMaxMidi, preferred_root, guitar_energy, rms,
+						max_notes);
+		}
 		raw_guitar_chord = detect_guitar_chord_from_grid(snapshot.guitar_notes, allow_extensions);
 		if (!mixed_source && raw_guitar_chord.root >= 0) {
 			prune_note_grid_to_chord_tones(snapshot.guitar_notes, snapshot.guitar, raw_guitar_chord, 6,
@@ -3290,41 +3316,49 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 	};
 
 	auto process_vocal = [&]() {
-		const int min_midi = mixed_source ? 72 : kVocalMinMidi;
-		const bool suppress_adjacent = mixed_source;
-		const std::array<bool, kNoteProbeCount> *allowed_midis =
-			mixed_source ? &full_mix_ownership.vocal : nullptr;
-		const int preferred_root =
-			lowest_peak_pitch_class(detection_note_powers, min_midi, kVocalMaxMidi, nullptr,
-						suppress_adjacent, allowed_midis);
-		set_instrument_note_set(snapshot.vocal_notes, snapshot.vocal, detection_note_powers, min_midi,
-					kVocalMaxMidi, preferred_root, vocal_energy, rms, 1, nullptr,
-					nullptr, suppress_adjacent, allowed_midis);
+		if (mixed_source) {
+			const int preferred_root = lowest_candidate_pitch_class(full_mix_ownership.vocal_candidates);
+			set_instrument_note_set_from_candidates(snapshot.vocal_notes, snapshot.vocal,
+								full_mix_ownership.vocal_candidates,
+								preferred_root, vocal_energy, rms, 1);
+		} else {
+			const int preferred_root =
+				lowest_peak_pitch_class(detection_note_powers, kVocalMinMidi, kVocalMaxMidi);
+			set_instrument_note_set(snapshot.vocal_notes, snapshot.vocal, detection_note_powers,
+						kVocalMinMidi, kVocalMaxMidi, preferred_root, vocal_energy,
+						rms, 1);
+		}
 	};
 
 	auto process_other = [&]() {
-		const int min_midi = mixed_source ? 60 : kOtherMinMidi;
-		const float relative_floor = mixed_source ? kMixedNoteRelativeFloor : kNoteRelativeFloor;
 		const bool allow_extensions = !mixed_source && !monophonic_other_source;
-		const bool suppress_adjacent = mixed_source;
-		std::array<bool, kNoteProbeCount> timbre_filter =
-			mixed_source ? full_mix_ownership.other :
-				       timbre_midi_filter(note_powers, min_midi, kOtherMaxMidi, TimbreKind::Other);
-		const std::array<bool, kNoteProbeCount> *allowed_midis = mixed_source ? &timbre_filter : nullptr;
-		const std::array<float, 12> chroma =
-			peak_chroma_for_range(detection_note_powers, min_midi, kOtherMaxMidi, nullptr,
-					      suppress_adjacent, allowed_midis, relative_floor);
-		const int preferred_root = mixed_source && mixed_bass_pitch_class >= 0 ?
-						   mixed_bass_pitch_class :
-						   lowest_peak_pitch_class(detection_note_powers, min_midi,
-									   kOtherMaxMidi, nullptr, suppress_adjacent,
-									   allowed_midis);
+		std::array<float, 12> chroma = {};
+		int preferred_root = -1;
+		if (mixed_source) {
+			chroma = candidate_chroma(full_mix_ownership.other_candidates);
+			preferred_root = mixed_bass_pitch_class >= 0 ?
+						 mixed_bass_pitch_class :
+						 lowest_candidate_pitch_class(full_mix_ownership.other_candidates);
+		} else {
+			const int min_midi = kOtherMinMidi;
+			chroma = peak_chroma_for_range(detection_note_powers, min_midi, kOtherMaxMidi,
+						       nullptr, false, nullptr, kNoteRelativeFloor);
+			preferred_root =
+				lowest_peak_pitch_class(detection_note_powers, min_midi, kOtherMaxMidi);
+		}
 		raw_other_chord = monophonic_other_source ? ChordResult{} :
 						     detect_chord(chroma, preferred_root, allow_extensions);
-		set_instrument_note_set(snapshot.other_notes, snapshot.other, detection_note_powers, min_midi, kOtherMaxMidi,
-					raw_other_chord.root >= 0 ? raw_other_chord.root : preferred_root, other_energy, rms,
-					other_max_notes,
-					nullptr, nullptr, suppress_adjacent, allowed_midis, relative_floor);
+		const int note_root = raw_other_chord.root >= 0 ? raw_other_chord.root : preferred_root;
+		if (mixed_source) {
+			set_instrument_note_set_from_candidates(snapshot.other_notes, snapshot.other,
+								full_mix_ownership.other_candidates, note_root,
+								other_energy, rms, other_max_notes);
+		} else {
+			const int min_midi = kOtherMinMidi;
+			set_instrument_note_set(snapshot.other_notes, snapshot.other, detection_note_powers,
+						min_midi, kOtherMaxMidi, note_root, other_energy, rms,
+						other_max_notes);
+		}
 		set_instrument_chord(snapshot.other_chord, raw_other_chord, other_energy, rms);
 	};
 

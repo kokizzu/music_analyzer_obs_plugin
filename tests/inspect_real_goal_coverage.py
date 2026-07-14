@@ -217,6 +217,8 @@ def main():
         problems.append("E-GMD automation target must remain test-real-egmd-20")
     if "std::vector" in analyzer_impl or "#include <vector>" in analyzer_impl:
         problems.append("per-frame analyzer candidate storage must stay fixed-size, not std::vector-backed")
+    if "mixed_source ? full_mix_ownership" in analyzer_impl or "allowed_midis = mixed_source" in analyzer_impl:
+        problems.append("full-mix rows must consume central ownership candidates, not re-scan ownership masks")
 
     for text, needle, context in (
         (analyzer_impl, "using NoteCandidateList = FixedList<NoteCandidate, kNoteProbeCount>",
@@ -225,6 +227,16 @@ def main():
          "analyzer bounded note candidate extraction"),
         (analyzer_impl, "using ChordCandidateList = FixedList<ChordCandidate, 256>",
          "analyzer fixed-storage chord candidate list"),
+        (analyzer_impl, "NoteCandidateList keyboard_candidates",
+         "full-mix keyboard owned candidate list"),
+        (analyzer_impl, "set_instrument_note_set_from_candidates(snapshot.keyboard_notes",
+         "full-mix keyboard row consumes owned candidates"),
+        (analyzer_impl, "set_instrument_note_set_from_candidates(snapshot.guitar_notes",
+         "full-mix guitar row consumes owned candidates"),
+        (analyzer_impl, "set_instrument_note_set_from_candidates(snapshot.vocal_notes",
+         "full-mix vocal row consumes owned candidates"),
+        (analyzer_impl, "set_instrument_note_set_from_candidates(snapshot.other_notes",
+         "full-mix other row consumes owned candidates"),
         (makefile, "test-real-goal-20", "Makefile combined real-data target"),
         (makefile, "inspect-real-goal-20", "Makefile combined real-data preflight"),
         (makefile, "test-real-goal-fixture", "Makefile combined fixture target"),
