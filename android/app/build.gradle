@@ -1,0 +1,53 @@
+plugins {
+    id "com.android.application"
+}
+
+def compileSdkValue = providers.gradleProperty("android.compileSdk").orElse("35").get().toInteger()
+def targetSdkValue = providers.gradleProperty("android.targetSdk").orElse("35").get().toInteger()
+def minSdkValue = providers.gradleProperty("android.minSdk").orElse("26").get().toInteger()
+
+android {
+    namespace "dev.kyz.musicanalyzer"
+    compileSdk compileSdkValue
+
+    buildFeatures {
+        buildConfig true
+    }
+
+    defaultConfig {
+        applicationId "dev.kyz.musicanalyzer"
+        minSdk minSdkValue
+        targetSdk targetSdkValue
+        versionCode 1
+        versionName "0.1"
+
+        externalNativeBuild {
+            cmake {
+                cppFlags "-std=c++17 -Wall -Wextra"
+            }
+        }
+        ndkVersion "27.2.12479018"
+    }
+
+    flavorDimensions "layout"
+    productFlavors {
+        complete {
+            dimension "layout"
+            applicationIdSuffix ".complete"
+            resValue "string", "app_name", "Music Analyzer"
+            buildConfigField "String", "MAO_LAYOUT", "\"complete\""
+        }
+        bassGuitar {
+            dimension "layout"
+            applicationIdSuffix ".bassguitar"
+            resValue "string", "app_name", "Music Analyzer Bass + Guitar"
+            buildConfigField "String", "MAO_LAYOUT", "\"bass-guitar\""
+        }
+    }
+
+    externalNativeBuild {
+        cmake {
+            path file("src/main/cpp/CMakeLists.txt")
+        }
+    }
+}

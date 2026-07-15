@@ -1,5 +1,9 @@
 build/
 build-*/
+android/.gradle/
+android/local.properties
+android/app/.cxx/
+android/app/build/
 core
 core.*
 __pycache__/

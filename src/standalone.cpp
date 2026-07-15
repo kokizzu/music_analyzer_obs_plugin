@@ -53,14 +53,48 @@ constexpr float kStandaloneSilenceDrainSeconds = 2.2f;
 constexpr float kStandaloneIdleAnalysisSeconds = 1.0f;
 constexpr float kStandaloneIdleFrameSeconds = 0.5f;
 
+#ifndef MAO_STANDALONE_BASS_GUITAR
+#define MAO_STANDALONE_BASS_GUITAR 0
+#endif
+
+#if MAO_STANDALONE_BASS_GUITAR
+constexpr mao::VisualizerLayoutMode kStandaloneDefaultLayout = mao::VisualizerLayoutMode::BassGuitar;
+#else
+constexpr mao::VisualizerLayoutMode kStandaloneDefaultLayout = mao::VisualizerLayoutMode::Complete;
+#endif
+
+uint32_t default_width_for_layout(mao::VisualizerLayoutMode layout)
+{
+	return layout == mao::VisualizerLayoutMode::BassGuitar ? mao::kBassGuitarVisualizerWidth :
+								 mao::kDefaultVisualizerWidth;
+}
+
+uint32_t default_height_for_layout(mao::VisualizerLayoutMode layout)
+{
+	return layout == mao::VisualizerLayoutMode::BassGuitar ? mao::kBassGuitarVisualizerHeight :
+								  mao::kDefaultVisualizerHeight;
+}
+
+const char *layout_name(mao::VisualizerLayoutMode layout)
+{
+	return layout == mao::VisualizerLayoutMode::BassGuitar ? "bass-guitar" : "complete";
+}
+
+const char *layout_title(mao::VisualizerLayoutMode layout)
+{
+	return layout == mao::VisualizerLayoutMode::BassGuitar ? "Music Analyzer Bass + Guitar" :
+								  "Music Analyzer Standalone";
+}
+
 struct Options {
 	std::string input_path;
 	std::string raw_f32le_path;
 	std::string source_name = "STANDALONE";
 	std::string device_name;
 	uint32_t sample_rate = 48000;
-	uint32_t width = mao::kDefaultVisualizerWidth;
-	uint32_t height = mao::kDefaultVisualizerHeight;
+	mao::VisualizerLayoutMode layout_mode = kStandaloneDefaultLayout;
+	uint32_t width = default_width_for_layout(kStandaloneDefaultLayout);
+	uint32_t height = default_height_for_layout(kStandaloneDefaultLayout);
 	uint32_t update_ms = 50;
 	uint32_t window_ms = mao::kDefaultAnalysisWindowMs;
 	uint32_t fps = 30;
@@ -71,6 +105,8 @@ struct Options {
 	bool show_version = false;
 	bool prefer_output_monitor = true;
 	bool legacy_window = false;
+	bool width_set = false;
+	bool height_set = false;
 };
 
 struct AspectViewport {
@@ -150,7 +186,8 @@ void print_usage(const char *argv0)
 {
 	std::fprintf(stderr,
 		     "Usage: %s [--input audio-file] [--raw-f32le file|-] [--device name]\n"
-		     "       [--source name] [--width px] [--height px] [--update-ms ms] [--window-ms ms]\n"
+		     "       [--source name] [--layout complete|bass-guitar] [--width px] [--height px]\n"
+		     "       [--update-ms ms] [--window-ms ms]\n"
 		     "       [--fps fps] [--sample-rate hz] [--sensitivity percent]\n"
 		     "       [--legacy-window] [--list-devices] [--default-input] [--hold] [--version] [--self-test]\n\n"
 		     "No input option prefers an SDL output monitor/loopback device, then falls back to default input.\n",
@@ -167,6 +204,22 @@ bool parse_uint(const char *text, uint32_t min_value, uint32_t max_value, uint32
 		return false;
 	*out = static_cast<uint32_t>(value);
 	return true;
+}
+
+bool parse_layout(const char *text, mao::VisualizerLayoutMode *out)
+{
+	if (!text || !out)
+		return false;
+	if (std::strcmp(text, "complete") == 0 || std::strcmp(text, "full") == 0) {
+		*out = mao::VisualizerLayoutMode::Complete;
+		return true;
+	}
+	if (std::strcmp(text, "bass-guitar") == 0 || std::strcmp(text, "bass+guitar") == 0 ||
+	    std::strcmp(text, "guitar-bass") == 0) {
+		*out = mao::VisualizerLayoutMode::BassGuitar;
+		return true;
+	}
+	return false;
 }
 
 bool parse_options(int argc, char **argv, Options *options)
@@ -209,14 +262,24 @@ bool parse_options(int argc, char **argv, Options *options)
 			if (!value)
 				return false;
 			options->source_name = value;
+		} else if (arg == "--layout") {
+			const char *value = need_value("--layout");
+			if (!value || !parse_layout(value, &options->layout_mode)) {
+				std::fprintf(stderr, "--layout must be complete or bass-guitar\n");
+				return false;
+			}
+		} else if (arg == "--bass-guitar") {
+			options->layout_mode = mao::VisualizerLayoutMode::BassGuitar;
 		} else if (arg == "--width") {
 			const char *value = need_value("--width");
 			if (!value || !parse_uint(value, 320, 3840, &options->width))
 				return false;
+			options->width_set = true;
 		} else if (arg == "--height") {
 			const char *value = need_value("--height");
-			if (!value || !parse_uint(value, 520, 2160, &options->height))
+			if (!value || !parse_uint(value, 240, 2160, &options->height))
 				return false;
+			options->height_set = true;
 		} else if (arg == "--update-ms") {
 			const char *value = need_value("--update-ms");
 			if (!value || !parse_uint(value, 20, 250, &options->update_ms))
@@ -263,6 +326,11 @@ bool parse_options(int argc, char **argv, Options *options)
 		std::fprintf(stderr, "--device is only valid for live SDL capture\n");
 		return false;
 	}
+
+	if (!options->width_set)
+		options->width = default_width_for_layout(options->layout_mode);
+	if (!options->height_set)
+		options->height = default_height_for_layout(options->layout_mode);
 
 	return true;
 }
@@ -354,6 +422,7 @@ bool run_self_test()
 	}
 
 	mao::VisualizerRenderer renderer;
+	renderer.layout_mode = mao::VisualizerLayoutMode::Complete;
 	mao::resize_visualizer(&renderer, 960, 540);
 	mao::append_visualizer_drum_hits(&renderer, snapshot);
 	mao::render_visualizer(&renderer, snapshot, 0.0f);
@@ -427,6 +496,7 @@ bool run_self_test()
 	}
 	{
 		mao::VisualizerRenderer bpm_renderer;
+		bpm_renderer.layout_mode = mao::VisualizerLayoutMode::Complete;
 		mao::resize_visualizer(&bpm_renderer, 960, 540);
 		mao::AnalysisSnapshot bpm_snapshot = {};
 		bpm_snapshot.audio_seen = true;
@@ -462,6 +532,7 @@ bool run_self_test()
 	}
 	{
 		mao::VisualizerRenderer stable_renderer;
+		stable_renderer.layout_mode = mao::VisualizerLayoutMode::Complete;
 		mao::resize_visualizer(&stable_renderer, 960, 540);
 		mao::AnalysisSnapshot stable_snapshot;
 		stable_snapshot.audio_seen = true;
@@ -566,6 +637,7 @@ bool run_self_test()
 		}
 
 		mao::VisualizerRenderer power_renderer;
+		power_renderer.layout_mode = mao::VisualizerLayoutMode::Complete;
 		mao::resize_visualizer(&power_renderer, 960, 540);
 		stable_snapshot = {};
 		stable_snapshot.audio_seen = true;
@@ -578,6 +650,50 @@ bool run_self_test()
 		if (power_renderer.stable_labels[3].label[0]) {
 			std::fprintf(stderr, "standalone self-test: power chord populated sustain as '%s'\n",
 				     power_renderer.stable_labels[3].label);
+			return false;
+		}
+	}
+	{
+		Options options;
+		options.layout_mode = mao::VisualizerLayoutMode::BassGuitar;
+		options.width = default_width_for_layout(options.layout_mode);
+		options.height = default_height_for_layout(options.layout_mode);
+		if (options.width != mao::kBassGuitarVisualizerWidth ||
+		    options.height != mao::kBassGuitarVisualizerHeight ||
+		    std::strcmp(layout_name(options.layout_mode), "bass-guitar") != 0) {
+			std::fprintf(stderr, "standalone self-test: bad bass-guitar defaults\n");
+			return false;
+		}
+
+		mao::VisualizerRenderer compact_renderer;
+		compact_renderer.layout_mode = mao::VisualizerLayoutMode::BassGuitar;
+		mao::resize_visualizer(&compact_renderer, options.width, options.height);
+		mao::AnalysisSnapshot compact_snapshot = {};
+		compact_snapshot.audio_seen = true;
+		compact_snapshot.sequence = 77;
+		compact_snapshot.rms = 0.08f;
+		compact_snapshot.guitar_notes.rows[0][0].active = true;
+		compact_snapshot.guitar_notes.rows[0][0].midi = 40;
+		compact_snapshot.guitar_notes.rows[0][0].level = 0.85f;
+		std::snprintf(compact_snapshot.guitar_notes.rows[0][0].label,
+			      sizeof(compact_snapshot.guitar_notes.rows[0][0].label), "1");
+		std::snprintf(compact_snapshot.guitar_chord.label, sizeof(compact_snapshot.guitar_chord.label), "E");
+		compact_snapshot.guitar_chord.confidence = 0.9f;
+		std::snprintf(compact_snapshot.root_candidates, sizeof(compact_snapshot.root_candidates), "E 74%% A 12%%");
+		compact_snapshot.estimated_bpm = 120.0f;
+		compact_snapshot.bpm_confidence = 0.6f;
+		mao::render_visualizer(&compact_renderer, compact_snapshot, 0.0f);
+		std::size_t compact_pixels = 0;
+		for (std::size_t i = 0; i + 3 < compact_renderer.pixels.size(); i += 4) {
+			if (compact_renderer.pixels[i] > 24 || compact_renderer.pixels[i + 1] > 30 ||
+			    compact_renderer.pixels[i + 2] > 38)
+				++compact_pixels;
+		}
+		if (compact_renderer.pixels.size() !=
+			    static_cast<std::size_t>(mao::kBassGuitarVisualizerWidth) *
+				    mao::kBassGuitarVisualizerHeight * 4 ||
+		    compact_pixels < 1000) {
+			std::fprintf(stderr, "standalone self-test: compact renderer produced too few visible pixels\n");
 			return false;
 		}
 	}
@@ -1079,7 +1195,7 @@ struct SdlSession {
 bool create_window(SdlSession *session, const Options &options)
 {
 	char title[128] = {};
-	std::snprintf(title, sizeof(title), "Music Analyzer Standalone %s", MAO_STANDALONE_VERSION);
+	std::snprintf(title, sizeof(title), "%s %s", layout_title(options.layout_mode), MAO_STANDALONE_VERSION);
 	AspectPlacement placement{SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED,
 				  static_cast<int>(options.width), static_cast<int>(options.height)};
 	SDL_Rect bounds = {};
@@ -1259,6 +1375,7 @@ int main(int argc, char **argv)
 		return 1;
 
 	mao::VisualizerRenderer visualizer;
+	visualizer.layout_mode = options.layout_mode;
 	mao::resize_visualizer(&visualizer, options.width, options.height);
 
 	StandaloneAnalyzer analyzer(options);

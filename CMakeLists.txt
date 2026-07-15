@@ -64,24 +64,30 @@ if(SDL2_FOUND)
     endif()
     set(STANDALONE_VERSION "${STANDALONE_BUILD_TIME}.${STANDALONE_BUILD_COMMIT}")
 
-    add_executable(music-analyzer-standalone
-        src/analyzer.cpp
-        src/visualizer_renderer.cpp
-        src/standalone.cpp
-    )
-    target_include_directories(music-analyzer-standalone PRIVATE
-        ${SDL2_INCLUDE_DIRS}
-        ${CMAKE_CURRENT_SOURCE_DIR}/src
-    )
-    target_compile_definitions(music-analyzer-standalone PRIVATE MAO_STANDALONE_WITH_SDL=1)
-    target_compile_definitions(music-analyzer-standalone PRIVATE MAO_STANDALONE_VERSION="${STANDALONE_VERSION}")
-    target_compile_options(music-analyzer-standalone PRIVATE
-        ${SDL2_CFLAGS_OTHER}
-        -Wall
-        -Wextra
-    )
-    target_link_directories(music-analyzer-standalone PRIVATE ${SDL2_LIBRARY_DIRS})
-    target_link_libraries(music-analyzer-standalone PRIVATE ${SDL2_LIBRARIES} pthread m)
+    function(add_music_analyzer_standalone target_name)
+        add_executable(${target_name}
+            src/analyzer.cpp
+            src/visualizer_renderer.cpp
+            src/standalone.cpp
+        )
+        target_include_directories(${target_name} PRIVATE
+            ${SDL2_INCLUDE_DIRS}
+            ${CMAKE_CURRENT_SOURCE_DIR}/src
+        )
+        target_compile_definitions(${target_name} PRIVATE MAO_STANDALONE_WITH_SDL=1)
+        target_compile_definitions(${target_name} PRIVATE MAO_STANDALONE_VERSION="${STANDALONE_VERSION}")
+        target_compile_options(${target_name} PRIVATE
+            ${SDL2_CFLAGS_OTHER}
+            -Wall
+            -Wextra
+        )
+        target_link_directories(${target_name} PRIVATE ${SDL2_LIBRARY_DIRS})
+        target_link_libraries(${target_name} PRIVATE ${SDL2_LIBRARIES} pthread m)
+    endfunction()
+
+    add_music_analyzer_standalone(music-analyzer-standalone)
+    add_music_analyzer_standalone(music-analyzer-bass-guitar)
+    target_compile_definitions(music-analyzer-bass-guitar PRIVATE MAO_STANDALONE_BASS_GUITAR=1)
 endif()
 
 enable_testing()
@@ -90,6 +96,10 @@ add_test(NAME analyzer_cases COMMAND analyzer_cases)
 if(SDL2_FOUND)
     add_test(NAME standalone_self_test COMMAND music-analyzer-standalone --self-test)
     set_tests_properties(standalone_self_test PROPERTIES
+        ENVIRONMENT "SDL_VIDEODRIVER=dummy;SDL_AUDIODRIVER=dummy"
+    )
+    add_test(NAME standalone_bass_guitar_self_test COMMAND music-analyzer-bass-guitar --self-test)
+    set_tests_properties(standalone_bass_guitar_self_test PROPERTIES
         ENVIRONMENT "SDL_VIDEODRIVER=dummy;SDL_AUDIODRIVER=dummy"
     )
 endif()

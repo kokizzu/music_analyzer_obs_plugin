@@ -20,9 +20,11 @@ def main():
 
     require("SDL2_CFLAGS" in makefile and "SDL2_LIBS" in makefile, "Makefile must define SDL flags")
     require("$(BUILD_DIR)/standalone.o" in makefile, "standalone object rule missing")
+    require("$(BUILD_DIR)/standalone_bass_guitar.o" in makefile, "bass-guitar standalone object rule missing")
     require("$(SDL2_CFLAGS)" in makefile, "standalone compile rule must use SDL cflags")
     require("$(SDL2_LIBS)" in makefile, "standalone link rule must use SDL libs")
     require("MAO_STANDALONE_VERSION" in makefile, "Makefile standalone version macro missing")
+    require("MAO_STANDALONE_BASS_GUITAR=1" in makefile, "Makefile bass-guitar standalone macro missing")
 
     plugin_rule = makefile.split("$(BUILD_DIR)/plugin.o:", 1)[1].split("\n\n", 1)[0]
     plugin_link = makefile.split("$(BUILD_DIR)/music-analyzer-obs.so:", 1)[1].split("\n\n", 1)[0]
@@ -40,6 +42,10 @@ def main():
             "renderer must preserve lowercase pow chord suffix")
     require("simplify_major_minor_chord_label" in renderer,
             "sustain column must normalize to plain major/minor chords")
+    require('"BASS+GUITAR"' not in renderer,
+            "compact layout name should stay in the window title, not the rendered header")
+    require("cpu_percent" in renderer and "free_memory_percent" in renderer and '" FREE %.0f%%"' in renderer,
+            "renderer status line must expose optional CPU and free-memory metrics")
 
     require("#pragma GCC diagnostic push" in standalone, "standalone SDL include must be warning-guarded")
     require("#pragma GCC diagnostic pop" in standalone, "standalone SDL include guard must be closed")
@@ -57,7 +63,10 @@ def main():
     require("src/standalone.cpp" not in obs_cmake, "CMake OBS target must not include standalone source")
     require("SDL2_LIBRARIES" not in cmake.split("target_link_libraries(music-analyzer-obs", 1)[1].split(")", 1)[0],
             "CMake OBS target must not link SDL")
-    require("add_executable(music-analyzer-standalone" in cmake, "CMake standalone target missing")
+    require("add_music_analyzer_standalone(music-analyzer-standalone)" in cmake, "CMake standalone target missing")
+    require("add_music_analyzer_standalone(music-analyzer-bass-guitar)" in cmake,
+            "CMake bass-guitar standalone target missing")
+    require("MAO_STANDALONE_BASS_GUITAR=1" in cmake, "CMake bass-guitar standalone macro missing")
     require("MAO_STANDALONE_VERSION" in cmake, "CMake standalone version macro missing")
 
     print("check_standalone_isolation: ok")

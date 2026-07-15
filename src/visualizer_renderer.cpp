@@ -77,6 +77,19 @@ VisualLayout visual_layout(const VisualizerRenderer *visualizer)
 	return layout;
 }
 
+VisualLayout bass_guitar_visual_layout(const VisualizerRenderer *visualizer)
+{
+	VisualLayout layout;
+	const int width = static_cast<int>(visualizer->width);
+	static constexpr int kRightMargin = 28;
+	static constexpr int kNoteToCountGap = 24;
+	layout.count_x = std::max(layout.note_x + 540 + kNoteToCountGap, width - kRightMargin - layout.count_w);
+	layout.chord_x = layout.note_x;
+	layout.stable_x = layout.note_x + 452;
+	layout.note_w = std::max(540, layout.count_x - layout.note_x - kNoteToCountGap);
+	return layout;
+}
+
 const std::array<const char *, 7> glyph_rows(char c)
 {
 	switch (c) {
@@ -316,7 +329,7 @@ void draw_root_candidates(VisualizerRenderer *visualizer, int x, int y, const ch
 }
 
 void draw_drum_chart(VisualizerRenderer *visualizer, int x, int y, int w, const DrumState &drum,
-		     const std::vector<DrumBar> &history)
+		     const std::vector<DrumBar> &history, uint32_t label_scale = 2)
 {
 	const int label_h = 18;
 	const int chart_y = y + label_h + 4;
@@ -332,7 +345,7 @@ void draw_drum_chart(VisualizerRenderer *visualizer, int x, int y, int w, const 
 		fill_rect(visualizer, x, y, label_bar_w, label_h, active_bg);
 	fill_rect(visualizer, x, y, w, 1, border);
 	fill_rect(visualizer, x, y + label_h - 1, w, 1, border);
-	draw_text(visualizer, x + 5, y + 3, drum.label, 2, text);
+	draw_text(visualizer, x + 5, y + (label_scale == 1 ? 5 : 3), drum.label, label_scale, text);
 
 	fill_rect(visualizer, x, chart_y, w, chart_h, bg);
 	fill_rect(visualizer, x, chart_y, w, 1, border);
@@ -872,7 +885,8 @@ int draw_piano_keyboard(VisualizerRenderer *visualizer, const VisualLayout &layo
 }
 
 int draw_guitar_fretboard(VisualizerRenderer *visualizer, const VisualLayout &layout, int y, const NoteGrid &notes,
-			  const InstrumentState &chord, const char *stable_label, int degree_root_pitch_class)
+			  const InstrumentState &chord, const char *stable_label, int degree_root_pitch_class,
+			  bool draw_summary_columns = true)
 {
 	static constexpr int kStringCount = 6;
 	static constexpr int kFretCount = 16;
@@ -882,7 +896,8 @@ int draw_guitar_fretboard(VisualizerRenderer *visualizer, const VisualLayout &la
 	const int cell_h = 13;
 	const int header_h = 15;
 	const int max_board_w = std::max(288, layout.note_w);
-	const int fret_w = std::clamp(max_board_w / kFretCount, 18, 38);
+	const int max_fret_w = draw_summary_columns ? 38 : 96;
+	const int fret_w = std::clamp(max_board_w / kFretCount, 18, max_fret_w);
 	const int row_y = y + header_h;
 	const Color dim = kLabelColor;
 	const Color fret_bg{24, 30, 38, 210};
@@ -904,8 +919,10 @@ int draw_guitar_fretboard(VisualizerRenderer *visualizer, const VisualLayout &la
 		draw_text(visualizer, layout.note_x + fret * fret_w + std::max(1, (fret_w - label_w) / 2), y,
 			  fret_label, 1, text);
 	}
-	draw_chord_text(visualizer, layout.chord_x, y + 16, chord_label, 2, chord_text);
-	draw_stable_label(visualizer, layout, y + 14, stable_label, chord_text);
+	if (draw_summary_columns) {
+		draw_chord_text(visualizer, layout.chord_x, y + 16, chord_label, 2, chord_text);
+		draw_stable_label(visualizer, layout, y + 14, stable_label, chord_text);
+	}
 	char note_count[12] = {};
 	std::snprintf(note_count, sizeof(note_count), "%d", note_grid_active_count(notes));
 	draw_text(visualizer, layout.count_x, y + 16, note_count, 2, count_text);
@@ -946,49 +963,126 @@ int draw_guitar_fretboard(VisualizerRenderer *visualizer, const VisualLayout &la
 	return row_y + kStringCount * row_pitch + 6;
 }
 
-void render_pixels(VisualizerRenderer *visualizer, const AnalysisSnapshot &snapshot, float snapshot_age)
+void draw_visualizer_header(VisualizerRenderer *visualizer, const AnalysisSnapshot &snapshot, float snapshot_age,
+			    const char *mode_label)
 {
-	visualizer->pixels.assign(static_cast<std::size_t>(visualizer->width) * visualizer->height * 4, 0);
-
-	fill_rect(visualizer, 0, 0, visualizer->width, visualizer->height, Color{12, 16, 22, 205});
-
 	char title[128];
-	std::snprintf(title, sizeof(title), "MUSIC ANALYZER  %s", snapshot.source[0] ? snapshot.source : "WAITING");
+	if (mode_label && mode_label[0]) {
+		std::snprintf(title, sizeof(title), "MUSIC ANALYZER  %s  %s", mode_label,
+			      snapshot.source[0] ? snapshot.source : "WAITING");
+	} else {
+		std::snprintf(title, sizeof(title), "MUSIC ANALYZER  %s",
+			      snapshot.source[0] ? snapshot.source : "WAITING");
+	}
 	draw_text(visualizer, 28, 24, title, 3, Color{246, 248, 251, 255});
 
 	char level[128];
 	format_visualizer_status_line(level, sizeof(level), snapshot, snapshot_age);
 	draw_text(visualizer, 28, 58, level, 2, kLabelColor);
+}
 
-	draw_text(visualizer, 28, 96, "DRUMS", 3, kLabelColor);
+void draw_drum_row(VisualizerRenderer *visualizer, const AnalysisSnapshot &snapshot, int label_y, int chart_y,
+		   int min_drum_w = 118, int max_drum_w = 180, uint32_t label_scale = 2)
+{
+	draw_text(visualizer, 28, label_y, "DRUMS", 3, kLabelColor);
 	const int drum_start_x = 150;
 	const int drum_gap = 6;
 	const int drum_right_margin = 22;
 	const int drum_w = std::clamp((static_cast<int>(visualizer->width) - drum_start_x - drum_right_margin -
 				       static_cast<int>(snapshot.drums.size() - 1) * drum_gap) /
 					      static_cast<int>(snapshot.drums.size()),
-				      118, 180);
+				      min_drum_w, max_drum_w);
 	int tag_x = drum_start_x;
 	for (std::size_t i = 0; i < snapshot.drums.size(); ++i) {
-		draw_drum_chart(visualizer, tag_x, 88, drum_w, snapshot.drums[i], visualizer->drum_history[i]);
+		draw_drum_chart(visualizer, tag_x, chart_y, drum_w, snapshot.drums[i],
+				visualizer->drum_history[i], label_scale);
 		tag_x += drum_w + drum_gap;
 	}
+}
 
+void draw_note_column_headers(VisualizerRenderer *visualizer, const VisualLayout &layout, int y,
+			      bool draw_chord_columns = true)
+{
 	static constexpr const char *kNoteNames[12] = {"C", "C#", "D", "D#", "E", "F",
 						       "F#", "G", "G#", "A", "A#", "B"};
+	const int cell_w = std::max(30, layout.note_w / 12);
+	for (int i = 0; i < 12; ++i)
+		draw_text(visualizer, layout.note_x + i * cell_w + 7, y, kNoteNames[i], 2, kLabelColor);
+	if (draw_chord_columns) {
+		draw_text(visualizer, layout.chord_x, y, "CHORD", 2, kLabelColor);
+		draw_text(visualizer, layout.stable_x, y, "SUSTAIN", 2, kLabelColor);
+	}
+	draw_text(visualizer, layout.count_x, y, "NOTES", 2, kLabelColor);
+}
+
+void draw_compact_guitar_summary(VisualizerRenderer *visualizer, const VisualLayout &layout, int y,
+				 const InstrumentState &chord, const char *stable_label)
+{
+	const char *chord_label = chord.label[0] ? chord.label : "--";
+	draw_text(visualizer, layout.note_x, y, "CHORD", 2, kLabelColor);
+	draw_chord_text(visualizer, layout.note_x + 88, y, chord_label, 2, kWhiteTextColor);
+	draw_text(visualizer, layout.note_x + 350, y, "SUSTAIN", 2, kLabelColor);
+	draw_stable_label(visualizer, layout, y - 2, stable_label, kWhiteTextColor);
+}
+
+void draw_root_and_bpm(VisualizerRenderer *visualizer, const AnalysisSnapshot &snapshot, int root_y,
+		       int bpm_y_override = -1)
+{
+	draw_root_candidates(visualizer, 28, root_y, snapshot.root_candidates);
+
+	char bpm_value[16] = {};
+	char bpm_confidence[16] = {};
+	if (snapshot.estimated_bpm > 0.0f && snapshot.bpm_confidence > 0.05f) {
+		std::snprintf(bpm_value, sizeof(bpm_value), "%.0f", snapshot.estimated_bpm);
+		std::snprintf(bpm_confidence, sizeof(bpm_confidence), "%.0f%%",
+			      snapshot.bpm_confidence * 100.0f);
+	} else {
+		std::snprintf(bpm_value, sizeof(bpm_value), "--");
+		bpm_confidence[0] = '\0';
+	}
+	const int bpm_y = bpm_y_override >= 0 ? bpm_y_override : std::max(0, static_cast<int>(visualizer->height) - 18);
+	const int total_width = text_width("BPM ", 2) + text_width(bpm_value, 2) +
+				(bpm_confidence[0] ? text_width(" ", 2) + text_width(bpm_confidence, 2) : 0);
+	int bpm_x = std::max(28, static_cast<int>(visualizer->width) - 28 - total_width);
+	draw_text(visualizer, bpm_x, bpm_y, "BPM", 2, kLabelColor);
+	bpm_x += text_width("BPM ", 2);
+	draw_text(visualizer, bpm_x, bpm_y, bpm_value, 2, kWhiteTextColor);
+	bpm_x += text_width(bpm_value, 2);
+	if (bpm_confidence[0]) {
+		bpm_x += text_width(" ", 2);
+		draw_text(visualizer, bpm_x, bpm_y, bpm_confidence, 2, kLabelColor);
+	}
+}
+
+void draw_waiting_status(VisualizerRenderer *visualizer, const AnalysisSnapshot &snapshot, float snapshot_age, int x, int y)
+{
+	if (snapshot.sequence == 0)
+		draw_text(visualizer, x, y, "ADD MUSIC ANALYZER FILTER TO AN AUDIO SOURCE", 2,
+			  Color{248, 250, 252, 255});
+	else if (!snapshot.audio_seen)
+		draw_text(visualizer, x, y, "FILTER READY - WAITING FOR AUDIO", 2, Color{248, 250, 252, 255});
+	else if (snapshot_age > 1.5f) {
+		char stale[96];
+		if (snapshot_resets_visualizer_age(snapshot))
+			std::snprintf(stale, sizeof(stale), "STALE %.1FS - FILTER NOT RECEIVING AUDIO", snapshot_age);
+		else
+			std::snprintf(stale, sizeof(stale), "NO AUDIBLE INPUT %.1FS", snapshot_age);
+		draw_text(visualizer, x, y, stale, 2, Color{248, 250, 252, 255});
+	}
+}
+
+void render_complete_pixels(VisualizerRenderer *visualizer, const AnalysisSnapshot &snapshot, float snapshot_age)
+{
+	draw_visualizer_header(visualizer, snapshot, snapshot_age, nullptr);
+	draw_drum_row(visualizer, snapshot, 96, 88);
+
 	const VisualLayout layout = visual_layout(visualizer);
 	update_stable_label(visualizer, StableBass, snapshot, snapshot.bass_notes, nullptr, true);
 	update_stable_label(visualizer, StableVocal, snapshot, snapshot.vocal_notes, nullptr, true);
 	update_stable_label(visualizer, StableOther, snapshot, snapshot.other_notes, &snapshot.other_chord, false);
 	update_stable_label(visualizer, StableKeyboard, snapshot, snapshot.keyboard_notes, &snapshot.keyboard_chord, false);
 	update_stable_label(visualizer, StableGuitar, snapshot, snapshot.guitar_notes, &snapshot.guitar_chord, false);
-	const int cell_w = std::max(30, layout.note_w / 12);
-	for (int i = 0; i < 12; ++i)
-		draw_text(visualizer, layout.note_x + i * cell_w + 7, 144, kNoteNames[i], 2,
-			  kLabelColor);
-	draw_text(visualizer, layout.chord_x, 144, "CHORD", 2, kLabelColor);
-	draw_text(visualizer, layout.stable_x, 144, "SUSTAIN", 2, kLabelColor);
-	draw_text(visualizer, layout.count_x, 144, "NOTES", 2, kLabelColor);
+	draw_note_column_headers(visualizer, layout, 144);
 	int row_y = 164;
 	row_y = draw_instrument_rows(visualizer, layout, row_y, "BASS", snapshot.bass_notes, nullptr,
 				     visualizer->stable_labels[StableBass].label,
@@ -1008,32 +1102,46 @@ void render_pixels(VisualizerRenderer *visualizer, const AnalysisSnapshot &snaps
 				      visualizer->stable_labels[StableGuitar].label, degree_root_pitch_class);
 
 	const int root_y = std::min(row_y + 6, std::max(0, static_cast<int>(visualizer->height) - 14));
-	draw_root_candidates(visualizer, 28, root_y, snapshot.root_candidates);
+	draw_root_and_bpm(visualizer, snapshot, root_y);
 
-	char bpm[32];
-	if (snapshot.estimated_bpm > 0.0f && snapshot.bpm_confidence > 0.05f) {
-		std::snprintf(bpm, sizeof(bpm), "BPM %.0f %.0f%%", snapshot.estimated_bpm,
-			      snapshot.bpm_confidence * 100.0f);
-	} else {
-		std::snprintf(bpm, sizeof(bpm), "BPM --");
-	}
-	const int bpm_y = std::max(0, static_cast<int>(visualizer->height) - 18);
-	const int bpm_x = std::max(28, static_cast<int>(visualizer->width) - 28 - text_width(bpm, 2));
-	draw_text(visualizer, bpm_x, bpm_y, bpm, 2, kWhiteTextColor);
+	draw_waiting_status(visualizer, snapshot, snapshot_age, 230, 145);
+}
 
-	if (snapshot.sequence == 0)
-		draw_text(visualizer, 230, 145, "ADD MUSIC ANALYZER FILTER TO AN AUDIO SOURCE", 2,
-			  Color{248, 250, 252, 255});
-	else if (!snapshot.audio_seen)
-		draw_text(visualizer, 230, 145, "FILTER READY - WAITING FOR AUDIO", 2, Color{248, 250, 252, 255});
-	else if (snapshot_age > 1.5f) {
-		char stale[96];
-		if (snapshot_resets_visualizer_age(snapshot))
-			std::snprintf(stale, sizeof(stale), "STALE %.1FS - FILTER NOT RECEIVING AUDIO", snapshot_age);
-		else
-			std::snprintf(stale, sizeof(stale), "NO AUDIBLE INPUT %.1FS", snapshot_age);
-		draw_text(visualizer, 230, 145, stale, 2, Color{248, 250, 252, 255});
-	}
+void render_bass_guitar_pixels(VisualizerRenderer *visualizer, const AnalysisSnapshot &snapshot, float snapshot_age)
+{
+	draw_visualizer_header(visualizer, snapshot, snapshot_age, nullptr);
+	draw_drum_row(visualizer, snapshot, 84, 78, 118, 150, 2);
+
+	const VisualLayout layout = bass_guitar_visual_layout(visualizer);
+	update_stable_label(visualizer, StableBass, snapshot, snapshot.bass_notes, nullptr, true);
+	update_stable_label(visualizer, StableGuitar, snapshot, snapshot.guitar_notes, &snapshot.guitar_chord, false);
+	draw_note_column_headers(visualizer, layout, 138, false);
+
+	int row_y = 158;
+	row_y = draw_instrument_rows(visualizer, layout, row_y, "BASS", snapshot.bass_notes, nullptr,
+				     "", Color{255, 59, 48, 245}, 1);
+	const int degree_root_pitch_class = pitch_class_from_note_label(snapshot.root.label);
+	row_y = draw_guitar_fretboard(visualizer, layout, row_y + 8, snapshot.guitar_notes, snapshot.guitar_chord,
+				      visualizer->stable_labels[StableGuitar].label, degree_root_pitch_class, false);
+
+	const int summary_y = row_y + 12;
+	draw_compact_guitar_summary(visualizer, layout, summary_y, snapshot.guitar_chord,
+				    visualizer->stable_labels[StableGuitar].label);
+
+	const int root_y = std::max(summary_y + 34, static_cast<int>(visualizer->height) - 42);
+	draw_root_and_bpm(visualizer, snapshot, root_y, root_y);
+}
+
+void render_pixels(VisualizerRenderer *visualizer, const AnalysisSnapshot &snapshot, float snapshot_age)
+{
+	visualizer->pixels.assign(static_cast<std::size_t>(visualizer->width) * visualizer->height * 4, 0);
+
+	fill_rect(visualizer, 0, 0, visualizer->width, visualizer->height, Color{12, 16, 22, 205});
+
+	if (visualizer->layout_mode == VisualizerLayoutMode::BassGuitar)
+		render_bass_guitar_pixels(visualizer, snapshot, snapshot_age);
+	else
+		render_complete_pixels(visualizer, snapshot, snapshot_age);
 }
 
 bool advance_drum_history(VisualizerRenderer *visualizer, float seconds)
@@ -1079,10 +1187,24 @@ void format_visualizer_status_line(char *output, std::size_t output_size, const 
 	if (!output || output_size == 0)
 		return;
 
-	std::snprintf(output, output_size, "RMS %.2f LOW %.0f%% MID %.0f%% HIGH %.0f%% AGE %.1FS DROP %llu",
-		      snapshot.rms, snapshot.low_energy * 100.0f, snapshot.mid_energy * 100.0f,
-		      snapshot.high_energy * 100.0f, snapshot_age,
-		      static_cast<unsigned long long>(snapshot.dropped_windows));
+	int written = std::snprintf(output, output_size,
+				    "RMS %.2f LOW %.0f%% MID %.0f%% HIGH %.0f%% AGE %.1FS DROP %llu",
+				    snapshot.rms, snapshot.low_energy * 100.0f,
+				    snapshot.mid_energy * 100.0f, snapshot.high_energy * 100.0f,
+				    snapshot_age, static_cast<unsigned long long>(snapshot.dropped_windows));
+	if (written < 0)
+		return;
+	std::size_t used = std::min<std::size_t>(static_cast<std::size_t>(written), output_size - 1);
+	if (snapshot.cpu_percent >= 0.0f && used + 1 < output_size) {
+		written = std::snprintf(output + used, output_size - used, " CPU %.0f%%",
+					std::clamp(snapshot.cpu_percent, 0.0f, 999.0f));
+		if (written > 0)
+			used = std::min<std::size_t>(used + static_cast<std::size_t>(written), output_size - 1);
+	}
+	if (snapshot.free_memory_percent >= 0.0f && used + 1 < output_size) {
+		std::snprintf(output + used, output_size - used, " FREE %.0f%%",
+			      std::clamp(snapshot.free_memory_percent, 0.0f, 100.0f));
+	}
 }
 
 bool snapshot_resets_visualizer_age(const AnalysisSnapshot &snapshot)

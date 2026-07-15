@@ -11,6 +11,13 @@ namespace mao {
 
 constexpr uint32_t kDefaultVisualizerWidth = 960;
 constexpr uint32_t kDefaultVisualizerHeight = 540;
+constexpr uint32_t kBassGuitarVisualizerWidth = 960;
+constexpr uint32_t kBassGuitarVisualizerHeight = 420;
+
+enum class VisualizerLayoutMode {
+	Complete,
+	BassGuitar,
+};
 
 struct DrumBar {
 	float age = 0.0f;
@@ -34,6 +41,7 @@ struct StableDisplayState {
 struct VisualizerRenderer {
 	uint32_t width = kDefaultVisualizerWidth;
 	uint32_t height = kDefaultVisualizerHeight;
+	VisualizerLayoutMode layout_mode = VisualizerLayoutMode::Complete;
 	uint64_t drum_history_sequence = 0;
 	std::array<std::vector<DrumBar>, kDrumCount> drum_history = {};
 	std::array<StableDisplayState, 5> stable_labels = {};

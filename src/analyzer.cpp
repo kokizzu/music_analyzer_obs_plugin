@@ -31,7 +31,6 @@ constexpr float kNoteRmsFloor = 0.006f;
 constexpr float kFullNoteRms = 0.035f;
 constexpr float kNoteRelativeFloor = 0.36f;
 constexpr float kMixedNoteRelativeFloor = 0.08f;
-constexpr float kMixedTimbreFallbackRatio = 0.055f;
 constexpr float kComplexTuningFallbackScale = 0.38f;
 constexpr float kHarmonicMaskRatio = 0.62f;
 constexpr int kChromaticTuneMinMidi = kGuitarMinMidi;

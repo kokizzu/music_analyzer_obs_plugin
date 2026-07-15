@@ -23,6 +23,7 @@ Native OBS Studio plugin that analyzes a music mix and displays an instrument-or
 - Chords: compact major, minor, lowercase power-chord `pow`, sus2, sus4, diminished, augmented, 6, minor 6, dominant 7, major 7, minor 7, diminished 7, half-diminished, add9, 9, major 9, and minor 9 labels such as `C`, `Dm`, `Cpow`, `Cdim`, `Caug`, `C6`, `Dm6`, `G7`, `Cmaj7`, `Dm7`, `Cdim7`, `Bm7b5`, `Cadd9`, `G9`, `Cmaj9`, and `Dm9`
 - Equivalent chord names for the same detected pitch classes are shown together, such as `Csus2=Gsus4` or `Dm7=F6`
 - Explicit instrument sources use the full chord template set; mixed sources keep conservative chord labels to avoid false extensions from other instruments
+- Bass + Guitar layout: a smaller renderer that keeps drums, bass, guitar, root, and BPM while omitting keyboard, vocal, and other rows
 
 The analyzer is designed for real-time OBS use. It uses bounded DSP heuristics rather than a large ML stem-separation model: audio is downmixed into a fixed ring buffer, analyzer windows are copied to a worker thread at a configurable interval, and the OBS audio callback returns immediately after lightweight buffering. By default, OBS and standalone analyze a rolling 100 ms audio window every 50 ms. The old 4096-sample window is still available as a legacy option. The overlay source renders a single reusable RGBA texture.
 
@@ -68,6 +69,8 @@ The small status text at the top is for checking whether the analyzer is receivi
 - `LOW`, `MID`, `HIGH`: rough percentage split of detected low, mid, and high-frequency energy.
 - `AGE`: seconds since the overlay last received a new analyzer snapshot. If this keeps increasing while music is playing, the visualizer is not receiving fresh analyzer data. Stale-age redraws are throttled so the overlay does not repaint continuously only for this counter.
 - `DROP`: analyzer windows skipped because a newer audio window arrived before the worker consumed the previous one.
+- `CPU`: Android-only total device CPU usage, sampled about once per second when the Android app can read `/proc/stat`.
+- `FREE`: Android-only available memory percentage, sampled about once per second.
 - `BPM`: bottom-right estimated tempo. The percentage is confidence from recent transient timing, so sparse intros, rubato, or weak drums may show `BPM --` or a low-confidence estimate.
 
 `Analyzer interval (ms)` controls how often a new rolling window is evaluated. The default is 50 ms. `Analysis window (ms)` controls the amount of recent audio inside each evaluation window. The default is 100 ms, so consecutive evaluations overlap. Enable `Use legacy 4096-sample analysis window` to switch back to the original fixed-size window.
@@ -80,12 +83,24 @@ Build the standalone executable:
 make standalone
 ```
 
-If SDL2 development headers are not installed system-wide, the Makefile downloads and extracts `libsdl2-dev` under `build/deps` for the standalone build. SDL2 is used only by `build/music-analyzer-standalone`; the OBS plugin target does not include or link SDL.
+This builds both desktop standalone binaries:
+
+- `build/music-analyzer-standalone`: complete layout
+- `build/music-analyzer-bass-guitar`: smaller Bass + Guitar layout with drums, bass, guitar, root, and BPM
+
+To build only the compact binary:
+
+```sh
+make standalone-bass-guitar
+```
+
+If SDL2 development headers are not installed system-wide, the Makefile downloads and extracts `libsdl2-dev` under `build/deps` for the standalone build. SDL2 is used only by the standalone binaries; the OBS plugin target does not include or link SDL.
 
 Run live from speaker/system output. The window title includes the standalone build version as `YYYY.MMDD.HHMM.shortCommitHash`. On Linux PulseAudio/PipeWire this auto-prefers an SDL capture device named like an output `monitor` or `loopback`; if SDL does not expose one, it captures `@DEFAULT_MONITOR@` through `ffmpeg`:
 
 ```sh
 build/music-analyzer-standalone
+build/music-analyzer-bass-guitar
 ```
 
 The standalone window is resizable. During resize or maximize, the SDL window snaps back to the configured overlay aspect ratio and the overlay scales uniformly, using letterbox/pillarbox bars as a fallback instead of stretching the UI.
@@ -119,6 +134,115 @@ build/music-analyzer-standalone --raw-f32le /path/to/audio.f32 --sample-rate 480
 
 Useful options include `--width`, `--height`, `--update-ms`, `--window-ms`, `--legacy-window`, `--fps`, `--sensitivity`, and `--hold`. `--update-ms` controls how often analysis runs. `--window-ms` controls the rolling audio window length and defaults to 100 ms. `--legacy-window` switches back to the original 4096-sample analyzer window.
 
+The complete standalone can also render the compact layout with `--layout bass-guitar`; the compact binary uses that layout by default.
+
+## Android Usage
+
+The Android app shares `src/analyzer.cpp` and `src/visualizer_renderer.cpp` through JNI. It has two product flavors:
+
+- `complete`: original complete layout
+- `bassGuitar`: smaller Bass + Guitar layout
+
+Install the local Android SDK, NDK, CMake, build-tools, platform, and Gradle distribution under `build/`:
+
+```sh
+make setup-android
+```
+
+Build both APKs:
+
+```sh
+make android
+```
+
+Build one flavor:
+
+```sh
+make android-complete
+make android-bass-guitar
+```
+
+The debug APKs are written under `android/app/build/outputs/apk/complete/debug/` and `android/app/build/outputs/apk/bassGuitar/debug/`.
+
+Set up a local Android Emulator package, Android 35 Google APIs x86_64 system image, and repo-local AVD:
+
+```sh
+make setup-android-emulator
+```
+
+Start that AVD:
+
+```sh
+make android-emulator
+```
+
+Stop the emulator:
+
+```sh
+make android-emulator-stop
+```
+
+The default AVD is named `music_analyzer_api35_x86_64` and its files live under `build/android-avd`. Override `ANDROID_EMULATOR_API`, `ANDROID_EMULATOR_IMAGE`, `ANDROID_EMULATOR_ABI`, or `ANDROID_AVD_NAME` if you need a different image, for example:
+
+```sh
+ANDROID_EMULATOR_ABI=arm64-v8a make setup-android-emulator
+```
+
+Android uses `AudioRecord` with `RECORD_AUDIO`, so it captures microphone, aux-in, or USB audio input. It prefers Android's unprocessed audio source when available and falls back to default capture when the device/emulator does not expose it. Android does not generally allow ordinary apps to capture speaker/system playback directly without a separate media-projection workflow, so route speaker output into an input if you need the same behavior as the desktop speaker-monitor standalone.
+
+Mic/input pass-through is not automatic on Android. The app explicitly creates an `AudioTrack` monitor stream and sends captured input to a non-speaker output when Android exposes one, preferring USB audio, wired headphones/headset, line out, then Bluetooth/HDMI. If only the built-in speaker is available, monitoring is disabled to avoid feedback, but the analyzer still uses the microphone/input.
+
+Basic Android test flow:
+
+```sh
+make setup-android
+make android-bass-guitar
+adb install -r android/app/build/outputs/apk/bassGuitar/debug/app-bassGuitar-debug.apk
+```
+
+For the repo-local emulator, use:
+
+```sh
+make setup-android-emulator
+make android-emulator
+build/android-sdk/platform-tools/adb install -r android/app/build/outputs/apk/bassGuitar/debug/app-bassGuitar-debug.apk
+```
+
+Or build, install, and launch the compact app on the currently connected emulator/device:
+
+```sh
+make android-run
+```
+
+Explicit variants are also available:
+
+```sh
+make android-run-bass-guitar
+make android-run-complete
+```
+
+To feed current desktop/speaker audio into the Android emulator as microphone input on PipeWire/PulseAudio:
+
+```sh
+make android-route-desktop-audio
+```
+
+Run that after the emulator and app are open. If Android asks for microphone permission, grant it first, then rerun the command. By default it moves the emulator recording stream to the current default speaker monitor source, such as `<default-sink>.monitor`. To use a specific source:
+
+```sh
+ANDROID_MIC_SOURCE=alsa_output.pci-0000_12_00.4.analog-stereo.monitor make android-route-desktop-audio
+```
+
+If routing stops after a song changes, the emulator likely recreated its microphone recording stream. Leave the persistent route watcher running in a separate terminal while testing:
+
+```sh
+make android-route-desktop-audio-watch
+```
+
+The watcher checks once per second by default and moves any new emulator recording stream back to the desktop monitor source. Override the poll interval with `ANDROID_ROUTE_INTERVAL=0.25` if you need faster recovery.
+
+Connect headphones, a USB audio interface, or Bluetooth audio before launching the app. Grant microphone permission, play or speak into the selected input, and verify that the visualization updates. With a non-speaker output connected, the captured input should also be heard from that output. Without headphones or an external output, test the analyzer visually; passthrough will intentionally stay muted.
+
 ## Build
 
 With the Makefile:
@@ -129,10 +253,18 @@ make
 
 If the system OBS headers require SIMDe and `libsimde-dev` is not installed, `make` fetches and extracts that header-only package under `build/deps` without using sudo.
 
-Build only the standalone executable:
+Build only the standalone executables:
 
 ```sh
 make standalone
+make standalone-bass-guitar
+```
+
+Build Android after local SDK setup:
+
+```sh
+make setup-android
+make android
 ```
 
 Run the analyzer tests:
