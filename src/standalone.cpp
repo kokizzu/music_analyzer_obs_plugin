@@ -48,6 +48,10 @@ namespace {
 
 constexpr float kPi = 3.14159265358979323846f;
 constexpr const char *kFfmpegLogLevel = "quiet";
+constexpr float kStandaloneSilenceRms = 0.0025f;
+constexpr float kStandaloneSilenceDrainSeconds = 2.2f;
+constexpr float kStandaloneIdleAnalysisSeconds = 1.0f;
+constexpr float kStandaloneIdleFrameSeconds = 0.5f;
 
 struct Options {
 	std::string input_path;
@@ -315,6 +319,8 @@ void add_midi_note(std::array<float, mao::kAnalysisWindow> *buffer, int midi, fl
 			amp * std::sin(2.0f * kPi * frequency * static_cast<float>(i) / static_cast<float>(sample_rate));
 	}
 }
+
+bool run_idle_throttle_self_test();
 
 bool run_self_test()
 {
@@ -601,6 +607,8 @@ bool run_self_test()
 		std::fprintf(stderr, "standalone self-test: bad quit key mapping\n");
 		return false;
 	}
+	if (!run_idle_throttle_self_test())
+		return false;
 
 	std::puts("standalone self-test: ok");
 	return true;
@@ -771,6 +779,13 @@ public:
 		settings_.input_mode = mao::AnalysisInputMode::FullMix;
 		hop_samples_ = std::max<uint32_t>(1, options.sample_rate * options.update_ms / 1000);
 		samples_until_analysis_ = hop_samples_;
+		const float interval_seconds = std::max(0.001f, settings_.analysis_interval_seconds);
+		silence_drain_windows_ =
+			std::max<uint32_t>(1, static_cast<uint32_t>(std::ceil(kStandaloneSilenceDrainSeconds /
+									     interval_seconds)));
+		idle_analysis_windows_ =
+			std::max<uint32_t>(1, static_cast<uint32_t>(std::ceil(kStandaloneIdleAnalysisSeconds /
+									     interval_seconds)));
 		source_name_ = options.source_name;
 		snapshot_ = engine_.analyze(nullptr, 0, settings_, source_name_.c_str(), 0);
 		snapshot_.audio_seen = false;
@@ -791,11 +806,29 @@ public:
 			window_[i] = ring_[idx];
 		}
 
+		double square_sum = 0.0;
+		for (float value : window_)
+			square_sum += static_cast<double>(value) * static_cast<double>(value);
+		const float window_rms = std::sqrt(static_cast<float>(square_sum / window_.size()));
+		const bool silent_window = window_rms < kStandaloneSilenceRms;
+		if (silent_window) {
+			consecutive_silent_windows_ = std::min<uint32_t>(consecutive_silent_windows_ + 1, 1000000);
+		} else {
+			consecutive_silent_windows_ = 0;
+			silent_skip_windows_ = 0;
+			seen_nonsilent_audio_ = true;
+		}
+
+		if (silent_window && should_skip_silent_analysis())
+			return false;
+
 		snapshot_ = engine_.analyze(window_.data(), window_.size(), settings_, source_name_.c_str(), 0);
 		snapshot_.sequence = ++sequence_;
 		snapshot_.audio_seen = true;
 		snapshot_.audio_frames = audio_frames_;
 		snapshot_.analyzed_windows = ++analyzed_windows_;
+		if (silent_window)
+			silent_skip_windows_ = 0;
 		return true;
 	}
 
@@ -804,7 +837,29 @@ public:
 		return snapshot_;
 	}
 
+	bool idle_silence() const
+	{
+		if (!snapshot_.audio_seen)
+			return true;
+		if (snapshot_.rms >= kStandaloneSilenceRms)
+			return false;
+		return !seen_nonsilent_audio_ || consecutive_silent_windows_ > silence_drain_windows_;
+	}
+
 private:
+	bool should_skip_silent_analysis()
+	{
+		const bool draining_previous_audio =
+			seen_nonsilent_audio_ && consecutive_silent_windows_ <= silence_drain_windows_;
+		if (draining_previous_audio)
+			return false;
+		if (analyzed_windows_ == 0)
+			return false;
+
+		++silent_skip_windows_;
+		return silent_skip_windows_ < idle_analysis_windows_;
+	}
+
 	mao::AnalysisEngine engine_;
 	mao::AnalysisSettings settings_;
 	std::array<float, mao::kAnalysisWindow> ring_ = {};
@@ -812,12 +867,54 @@ private:
 	std::size_t write_pos_ = 0;
 	uint32_t hop_samples_ = 2400;
 	uint32_t samples_until_analysis_ = 2400;
+	uint32_t silence_drain_windows_ = 44;
+	uint32_t idle_analysis_windows_ = 20;
+	uint32_t consecutive_silent_windows_ = 0;
+	uint32_t silent_skip_windows_ = 0;
 	uint64_t sequence_ = 0;
 	uint64_t audio_frames_ = 0;
 	uint64_t analyzed_windows_ = 0;
+	bool seen_nonsilent_audio_ = false;
 	std::string source_name_;
 	mao::AnalysisSnapshot snapshot_ = {};
 };
+
+bool run_idle_throttle_self_test()
+{
+	Options options;
+	options.sample_rate = 48000;
+	options.update_ms = 50;
+	options.source_name = "idle self-test";
+
+	StandaloneAnalyzer idle(options);
+	const uint32_t hop_samples = std::max<uint32_t>(1, options.sample_rate * options.update_ms / 1000);
+	const int silent_windows = 60;
+	for (int window = 0; window < silent_windows; ++window) {
+		for (uint32_t i = 0; i < hop_samples; ++i)
+			(void)idle.process_sample(0.0f);
+	}
+
+	if (idle.snapshot().analyzed_windows > 5) {
+		std::fprintf(stderr,
+			     "standalone self-test: idle silence analyzed too often (%llu windows after %d silent hops)\n",
+			     static_cast<unsigned long long>(idle.snapshot().analyzed_windows), silent_windows);
+		return false;
+	}
+	if (!idle.idle_silence()) {
+		std::fprintf(stderr, "standalone self-test: idle silence state was not detected\n");
+		return false;
+	}
+
+	const uint64_t before_sound = idle.snapshot().sequence;
+	for (uint32_t i = 0; i < hop_samples; ++i)
+		(void)idle.process_sample(i % 2 == 0 ? 0.02f : -0.02f);
+	if (idle.snapshot().sequence <= before_sound || idle.idle_silence()) {
+		std::fprintf(stderr, "standalone self-test: sound did not wake idle analyzer\n");
+		return false;
+	}
+
+	return true;
+}
 
 bool feed_audio_bytes(StandaloneAnalyzer *analyzer, std::vector<uint8_t> *carry, const uint8_t *data,
 		      std::size_t byte_count, bool *snapshot_changed)
@@ -1124,6 +1221,7 @@ int main(int argc, char **argv)
 	auto last_present = last_tick;
 	const auto frame_interval =
 		std::chrono::duration<float>(1.0f / static_cast<float>(std::max<uint32_t>(1, options.fps)));
+	const auto idle_frame_interval = std::chrono::duration<float>(kStandaloneIdleFrameSeconds);
 
 	while (running) {
 		SDL_Event event;
@@ -1197,14 +1295,15 @@ int main(int argc, char **argv)
 		}
 
 		bool should_present = window_changed;
+		const bool idle_visual = analyzer.idle_silence() && !history_active;
+		const auto present_interval = idle_visual ? idle_frame_interval : frame_interval;
 		if (snapshot_changed || analyzer.snapshot().sequence != rendered_sequence) {
 			snapshot_age = 0.0f;
 			mao::append_visualizer_drum_hits(&visualizer, analyzer.snapshot());
 			mao::render_visualizer(&visualizer, analyzer.snapshot(), snapshot_age);
 			rendered_sequence = analyzer.snapshot().sequence;
 			should_present = true;
-		} else if (history_active || should_present ||
-			   std::chrono::steady_clock::now() - last_present >= frame_interval) {
+		} else if (should_present || std::chrono::steady_clock::now() - last_present >= present_interval) {
 			mao::render_visualizer(&visualizer, analyzer.snapshot(), snapshot_age);
 			should_present = true;
 		}
