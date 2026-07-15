@@ -23,6 +23,7 @@ constexpr int kKeyboardMinMidi = 21;
 constexpr int kKeyboardMaxMidi = 108;
 constexpr int kVocalMinMidi = 40;
 constexpr int kVocalMaxMidi = 84;
+constexpr int kFullMixVocalMinMidi = 55;
 constexpr int kOtherMinMidi = 21;
 constexpr int kOtherMaxMidi = 108;
 constexpr float kSilenceRms = 0.0025f;
@@ -916,27 +917,36 @@ float relative_timbre_weight(const TimbreMix &mix, TimbreKind kind)
 	return mix.weights[static_cast<std::size_t>(kind)] / fundamental;
 }
 
-bool full_mix_vocal_profile_supported(const NoteEvidence &evidence, float second, float third, float fourth,
-				      bool polyphonic_vocal_context)
+bool full_mix_vocal_profile_supported(const NoteEvidence &evidence, int midi, float second, float third,
+				      float fourth, bool polyphonic_vocal_context)
 {
 	if (polyphonic_vocal_context)
 		return false;
-	if (evidence.simultaneous_onset > 0.35f)
+	const bool high_register = midi >= 72;
+	if (evidence.simultaneous_onset > (high_register ? 0.35f : 0.42f))
 		return false;
-	if (evidence.spectral_level < 0.38f)
+	if (evidence.spectral_level < (high_register ? 0.38f : 0.28f))
 		return false;
-	if (evidence.periodicity < 0.42f)
+	if (evidence.periodicity < (high_register ? 0.42f : 0.34f))
 		return false;
-	if (evidence.local_noise_level > 0.22f || evidence.harmonic_fit_error > 0.40f)
+	if (evidence.local_noise_level > (high_register ? 0.22f : 0.34f) ||
+	    evidence.harmonic_fit_error > (high_register ? 0.40f : 0.58f))
 		return false;
-	if (evidence.spectral_centroid > 0.24f)
+	if (evidence.spectral_centroid > (high_register ? 0.24f : 0.36f))
+		return false;
+	if (!high_register && (second < 0.025f || third < 0.008f))
 		return false;
 
 	const bool clean_sustained_like_partials =
-		second <= 0.10f && third <= 0.065f && fourth <= 0.050f;
+		second <= (high_register ? 0.10f : 0.18f) &&
+		third <= (high_register ? 0.065f : 0.115f) &&
+		fourth <= (high_register ? 0.050f : 0.085f);
 	const bool near_pure_tone_voice =
 		second <= 0.045f && third <= 0.025f && fourth <= 0.018f && evidence.spectral_slope <= 0.10f;
-	return clean_sustained_like_partials || near_pure_tone_voice;
+	const bool midrange_sustained_voice =
+		!high_register && second <= 0.22f && third <= 0.13f && fourth <= 0.095f &&
+		evidence.pitch_stability >= 0.34f && evidence.spectral_slope <= 0.30f;
+	return clean_sustained_like_partials || near_pure_tone_voice || midrange_sustained_voice;
 }
 
 bool competing_full_mix_timbres(float keyboard_weight, float guitar_weight, float other_weight)
@@ -1031,18 +1041,30 @@ InstrumentKind choose_full_mix_owner(const std::array<float, kNoteProbeCount> &p
 		if (second > 0.75f || fourth > 0.36f)
 			scores[1] *= 0.72f;
 	}
-	if (candidate.midi >= 72 && candidate.midi <= kVocalMaxMidi &&
-	    full_mix_vocal_profile_supported(evidence, second, third, fourth, polyphonic_vocal_context)) {
-		scores[2] = 0.74f + std::max(0.0f, 0.10f - second) * 1.8f +
-			    std::max(0.0f, 0.065f - third) * 1.3f;
+	const bool vocal_supported =
+		candidate.midi >= kFullMixVocalMinMidi && candidate.midi <= kVocalMaxMidi &&
+		full_mix_vocal_profile_supported(evidence, candidate.midi, second, third, fourth,
+						 polyphonic_vocal_context);
+	if (vocal_supported) {
+		const bool high_register = candidate.midi >= 72;
+		const float second_target = high_register ? 0.10f : 0.18f;
+		const float third_target = high_register ? 0.065f : 0.115f;
+		scores[2] = (high_register ? 0.74f : 1.34f) +
+			    std::max(0.0f, second_target - second) * (high_register ? 1.8f : 1.25f) +
+			    std::max(0.0f, third_target - third) * (high_register ? 1.3f : 0.95f);
 		if (evidence.onset_strength > 0.72f && evidence.pitch_stability < 0.30f)
 			scores[2] *= 0.80f;
 		if (evidence.simultaneous_onset > 0.0f)
 			scores[2] *= std::clamp(1.0f - evidence.simultaneous_onset * 0.32f, 0.55f, 1.0f);
 		if (evidence.pitch_stability >= 0.55f)
-			scores[2] += 0.05f;
+			scores[2] += high_register ? 0.05f : 0.12f;
 		if (note_strength < 0.52f)
 			scores[2] *= 0.82f;
+		if (!high_register) {
+			scores[0] *= 0.28f;
+			if (second < 0.20f)
+				scores[1] *= 0.80f;
+		}
 	}
 	if (candidate.midi >= 60 && candidate.midi <= kOtherMaxMidi && second >= 0.24f &&
 	    (fourth >= 0.06f || fifth >= 0.035f)) {
@@ -1156,8 +1178,20 @@ FullMixOwnership build_full_mix_ownership(const std::array<float, kNoteProbeCoun
 
 	int vocal_range_candidate_count = 0;
 	for (const NoteCandidate &candidate : candidates) {
-		if (candidate.midi >= 72 && candidate.midi <= kVocalMaxMidi &&
-		    candidate.score >= strongest_score * 0.35f)
+		if (candidate.midi < kFullMixVocalMinMidi || candidate.midi > kVocalMaxMidi ||
+		    candidate.score < strongest_score * 0.35f)
+			continue;
+
+		bool upper_harmonic = false;
+		for (const NoteCandidate &lower : candidates) {
+			if (lower.midi >= candidate.midi)
+				continue;
+			if (likely_selected_harmonic(lower, candidate)) {
+				upper_harmonic = true;
+				break;
+			}
+		}
+		if (!upper_harmonic)
 			++vocal_range_candidate_count;
 	}
 	const bool polyphonic_vocal_context = vocal_range_candidate_count >= 2;
@@ -1900,7 +1934,7 @@ std::array<float, 12> candidate_chroma(const NoteCandidateList &candidates)
 
 void set_instrument_note_set_from_candidates(NoteGrid &grid, InstrumentState &state,
 					     const NoteCandidateList &candidates, int preferred_root,
-					     float energy, float rms, int max_notes)
+					     float energy, float rms, int max_notes, float relative_floor = 0.0f)
 {
 	clear_note_grid(grid);
 	if (rms < kNoteRmsFloor || energy < 1.0e-5f || candidates.empty()) {
@@ -1918,10 +1952,19 @@ void set_instrument_note_set_from_candidates(NoteGrid &grid, InstrumentState &st
 		return;
 	}
 
+	NoteCandidateList sorted = candidates;
+	std::sort(sorted.begin(), sorted.end(), [](const NoteCandidate &a, const NoteCandidate &b) {
+		if (a.score != b.score)
+			return a.score > b.score;
+		return a.midi < b.midi;
+	});
+	const float score_floor = strongest_score * std::clamp(relative_floor, 0.0f, 1.0f);
 	int written = 0;
-	for (const NoteCandidate &candidate : candidates) {
+	for (const NoteCandidate &candidate : sorted) {
 		if (written >= std::max(1, max_notes))
 			break;
+		if (candidate.score < score_floor)
+			continue;
 		write_note_grid_cell(grid, candidate, strongest_score, note_visual_loudness(rms));
 		++written;
 	}
@@ -3299,8 +3342,8 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 	};
 	const std::array<float, kDrumCount> drum_segment_bands = {
 		drum_segment_peaks[0] + drum_segment_peaks[1] + drum_segment_peaks[2] * 0.75f,
-		drum_segment_peaks[4] + drum_segment_peaks[5] + drum_segment_peaks[8] * 0.65f +
-			drum_segment_peaks[9] * 0.55f,
+		drum_segment_peaks[4] + drum_segment_peaks[5] + drum_segment_peaks[6] * 0.30f +
+			drum_segment_peaks[8] * 0.72f + drum_segment_peaks[9] * 0.62f,
 		drum_segment_peaks[11] + drum_segment_peaks[12] + drum_segment_peaks[13],
 		drum_segment_peaks[12] + drum_segment_peaks[13] + drum_segment_peaks[14],
 		drum_segment_peaks[2] + drum_segment_peaks[3] + drum_segment_peaks[4] +
@@ -3311,14 +3354,17 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 		std::max(drum_segment_bands[Kick], std::max(drum_segment_bands[Snare], drum_segment_bands[Tom]));
 	const float kick_body = drum_segment_peaks[0] + drum_segment_peaks[1] + drum_segment_peaks[2] * 0.45f;
 	const float snare_body =
-		drum_segment_peaks[4] + drum_segment_peaks[5] + drum_segment_peaks[8] * 0.45f;
+		drum_segment_peaks[4] + drum_segment_peaks[5] + drum_segment_peaks[6] * 0.20f +
+		drum_segment_peaks[8] * 0.50f + drum_segment_peaks[9] * 0.30f;
+	const float snare_crack = drum_segment_peaks[8] + drum_segment_peaks[9];
 	const float tom_body = drum_segment_peaks[2] + drum_segment_peaks[3] + drum_segment_peaks[4];
 	const bool kick_shape = strongest_body_drum <= 0.0f ||
 				(drum_segment_bands[Kick] >= strongest_body_drum * 0.58f &&
 				 kick_body >= std::max(snare_body, tom_body) * 0.50f);
 	const bool snare_shape = strongest_body_drum <= 0.0f ||
 				 (drum_segment_bands[Snare] >= strongest_body_drum * 0.58f &&
-				  snare_body >= kick_body * 0.38f && snare_body >= tom_body * 0.46f);
+				  snare_body >= kick_body * 0.38f && snare_body >= tom_body * 0.46f &&
+				  snare_crack >= snare_body * 0.035f);
 	const bool tom_shape = strongest_body_drum <= 0.0f ||
 			       (drum_segment_bands[Tom] >= strongest_body_drum * 0.58f &&
 				tom_body >= kick_body * 0.42f && tom_body >= snare_body * 0.40f);
@@ -3327,7 +3373,7 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 	const float cymbal_high = drum_segment_peaks[13] + drum_segment_peaks[14];
 	const std::array<float, 3> body_shape_scores = {
 		kick_body * (1.0f + snapshot.low_energy * 0.90f),
-		snare_body * (1.0f + snapshot.mid_energy * 0.45f),
+		snare_body * (1.0f + snapshot.mid_energy * 0.62f),
 		tom_body,
 	};
 	std::size_t body_shape = Kick;
@@ -3349,9 +3395,13 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 		strongest_body_drum > 0.0f &&
 		(!cymbal_shape_allowed || snapshot.high_energy < 0.62f ||
 		 strongest_body_drum >= strongest_cymbal_drum * 0.45f);
+	const bool snare_side_shape =
+		body_shape_allowed && snare_shape &&
+		drum_segment_bands[Snare] >= std::max(drum_segment_bands[Kick], drum_segment_bands[Tom]) * 0.78f &&
+		snare_crack >= snare_body * 0.10f;
 	const std::array<bool, kDrumCount> drum_shape_supported = {
 		body_shape_allowed && body_shape == Kick && kick_shape,
-		body_shape_allowed && body_shape == Snare && snare_shape,
+		body_shape_allowed && (body_shape == Snare || snare_side_shape) && snare_shape,
 		cymbal_shape_allowed && cymbal_shape == HiHat,
 		cymbal_shape_allowed && cymbal_shape == Crash,
 		body_shape_allowed && body_shape == Tom && tom_shape,
@@ -3360,6 +3410,7 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 
 	const float sensitivity = std::clamp(settings.sensitivity, 0.25f, 4.0f);
 	const float trigger_threshold = 1.42f / sensitivity;
+	const bool drum_detection_enabled = input_mode == AnalysisInputMode::FullMix;
 	bool tempo_event = false;
 	for (std::size_t i = 0; i < kDrumCount; ++i) {
 		if (drum_average_[i] <= 0.0f)
@@ -3399,7 +3450,7 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 			had_previous_audio && cymbal && cymbal_family_evidence && transient_ratio >= 0.65f;
 		const bool soft_kick_transient =
 			had_previous_audio && kick && kick_click_transient && transient_ratio >= 1.00f;
-		const bool soft_snare_transient = had_previous_audio && snare && transient_ratio >= 1.10f;
+		const bool soft_snare_transient = had_previous_audio && snare && snare_shape && transient_ratio >= 0.92f;
 		const bool soft_tom_transient = had_previous_audio && tom && transient_ratio >= 1.18f;
 		const bool soft_body_transient = soft_kick_transient || soft_snare_transient || soft_tom_transient;
 		const bool shape_supported = drum_shape_supported[i];
@@ -3408,18 +3459,18 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 			strongest_cymbal_drum >= strongest_body_drum * 0.10f;
 		const float threshold_scale = (soft_cymbal_transient || quiet_cymbal_shape) ? 0.26f :
 					      soft_kick_transient ? 0.25f :
-					      soft_snare_transient ? 0.48f :
+					      soft_snare_transient ? 0.36f :
 					      soft_tom_transient ? 0.60f :
 								     1.0f;
 		const float effective_threshold = trigger_threshold * threshold_scale;
-		if (rms > kSilenceRms && shape_supported && (!kick || kick_click_transient) &&
+		if (drum_detection_enabled && rms > kSilenceRms && shape_supported && (!kick || kick_click_transient) &&
 		    (drum_transient || soft_cymbal_transient || quiet_cymbal_shape || soft_body_transient) &&
 		    score > effective_threshold) {
 			const float level = std::clamp((score - effective_threshold) * 0.85f, 0.35f, 1.0f);
 			drum_level_[i] = std::max(drum_level_[i], level);
 			tempo_event = true;
 		} else {
-			drum_level_[i] *= 0.72f;
+			drum_level_[i] *= drum_detection_enabled ? 0.72f : 0.0f;
 		}
 
 		drum_average_[i] = drum_average_[i] * 0.92f + drum_bands[i] * 0.08f;
@@ -3427,7 +3478,8 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 		snapshot.drums[i].active = drum_level_[i] > 0.30f;
 	}
 	const bool onset_tempo_event =
-		rms > kSilenceRms && drum_transient && (had_previous_audio ? onset >= 1.25f : true);
+		drum_detection_enabled && rms > kSilenceRms && drum_transient &&
+		(had_previous_audio ? onset >= 1.25f : true);
 	update_tempo(tempo_event || onset_tempo_event, interval_seconds, rms);
 	snapshot.estimated_bpm = estimated_bpm_;
 	snapshot.bpm_confidence = bpm_confidence_;
@@ -3608,14 +3660,15 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 	auto process_keyboard = [&]() {
 		const bool allow_extensions = !mixed_source;
 		int preferred_root = -1;
-		const int max_notes = 10;
+		const int max_notes = mixed_source ? 8 : 10;
 		if (mixed_source) {
 			preferred_root = mixed_bass_pitch_class >= 0 ?
 						 mixed_bass_pitch_class :
 						 lowest_candidate_pitch_class(full_mix_ownership.keyboard_candidates);
 			set_instrument_note_set_from_candidates(snapshot.keyboard_notes, snapshot.keyboard,
 								full_mix_ownership.keyboard_candidates,
-								preferred_root, keyboard_energy, rms, max_notes);
+								preferred_root, keyboard_energy, rms, max_notes,
+								0.16f);
 		} else {
 			const int min_midi = kKeyboardMinMidi;
 			const int max_midi = kKeyboardMaxMidi;
@@ -3640,12 +3693,12 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 		const int min_midi = kGuitarMinMidi;
 		const bool allow_extensions = !mixed_source;
 		int preferred_root = -1;
-		const int max_notes = mixed_source ? 12 : 8;
+		const int max_notes = mixed_source ? 6 : 8;
 		if (mixed_source) {
 			preferred_root = lowest_candidate_pitch_class(full_mix_ownership.guitar_candidates);
 			set_instrument_note_set_from_candidates(snapshot.guitar_notes, snapshot.guitar,
 								full_mix_ownership.guitar_candidates,
-								preferred_root, guitar_energy, rms, max_notes);
+								preferred_root, guitar_energy, rms, max_notes, 0.22f);
 		} else {
 			preferred_root =
 				lowest_peak_pitch_class(detection_note_powers, min_midi, kGuitarMaxMidi);
@@ -3654,7 +3707,7 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 						max_notes);
 		}
 		raw_guitar_chord = detect_guitar_chord_from_grid(snapshot.guitar_notes, allow_extensions);
-		if (!mixed_source && raw_guitar_chord.root >= 0) {
+		if (raw_guitar_chord.root >= 0) {
 			prune_note_grid_to_chord_tones(snapshot.guitar_notes, snapshot.guitar, raw_guitar_chord, 6,
 						      preferred_root);
 			raw_guitar_chord = detect_guitar_chord_from_grid(snapshot.guitar_notes, allow_extensions);
@@ -3771,11 +3824,13 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 
 	if (keyboard_enabled) {
 		smooth_note_grid_envelope(snapshot.keyboard_notes, snapshot.keyboard, keyboard_note_tracking_, -1,
-					  interval_seconds, 10, keyboard_new_notes, kNoteAttackConfirmFrames,
+					  interval_seconds, mixed_source ? 8 : 10, keyboard_new_notes,
+					  kNoteAttackConfirmFrames,
 					  mixed_source ? kMixedNoteEnvelopeImmediateConfirmFloor :
 							 kNoteEnvelopeImmediateConfirmFloor);
 		smooth_note_grid_envelope(keyboard_chord_grid, keyboard_chord_note_state, keyboard_chord_note_tracking_,
-					  -1, interval_seconds, 10, keyboard_new_notes, kNoteAttackConfirmFrames,
+					  -1, interval_seconds, mixed_source ? 8 : 10, keyboard_new_notes,
+					  kNoteAttackConfirmFrames,
 					  mixed_source ? kMixedNoteEnvelopeImmediateConfirmFloor :
 							 kNoteEnvelopeImmediateConfirmFloor,
 					  kAnalyticalChordNoteReleaseSeconds, kAnalyticalChordNoteVisibleFloor);
@@ -3796,13 +3851,11 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 
 	if (guitar_enabled) {
 		smooth_note_grid_envelope(snapshot.guitar_notes, snapshot.guitar, guitar_note_tracking_, -1,
-					  interval_seconds, mixed_source ? 12 : 6, guitar_new_notes,
-					  kNoteAttackConfirmFrames,
+					  interval_seconds, 6, guitar_new_notes, kNoteAttackConfirmFrames,
 					  mixed_source ? kMixedNoteEnvelopeImmediateConfirmFloor :
 							 kNoteEnvelopeImmediateConfirmFloor);
 		smooth_note_grid_envelope(guitar_chord_grid, guitar_chord_note_state, guitar_chord_note_tracking_,
-					  -1, interval_seconds, mixed_source ? 12 : 6, guitar_new_notes,
-					  kNoteAttackConfirmFrames,
+					  -1, interval_seconds, 6, guitar_new_notes, kNoteAttackConfirmFrames,
 					  mixed_source ? kMixedNoteEnvelopeImmediateConfirmFloor :
 							 kNoteEnvelopeImmediateConfirmFloor,
 					  kAnalyticalChordNoteReleaseSeconds, kAnalyticalChordNoteVisibleFloor);

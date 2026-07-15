@@ -256,6 +256,18 @@ bool grid_has_any_active(const mao::NoteGrid &grid)
 	return false;
 }
 
+int grid_active_cell_count(const mao::NoteGrid &grid)
+{
+	int count = 0;
+	for (const auto &row : grid.rows) {
+		for (const mao::NoteCell &cell : row) {
+			if (cell.active)
+				++count;
+		}
+	}
+	return count;
+}
+
 bool snapshot_global_pitch_active(const mao::AnalysisSnapshot &snapshot, int pitch_class)
 {
 	return grid_pitch_active(snapshot.bass_notes, pitch_class) ||
@@ -1404,6 +1416,8 @@ void check_full_mix_single_instrument_precision(Runner &runner)
 		for (int midi : {60, 64, 67}) {
 			const int pitch_class = ((midi % 12) + 12) % 12;
 			expect_global_pitch_class(runner, snapshot, pitch_class, "full-mix piano-only global");
+			expect_pitch_class(runner, snapshot.keyboard_notes, pitch_class,
+					   "full-mix piano-only keyboard ownership");
 			expect_midi_not_duplicated_across_rows(runner, snapshot, midi,
 							       "full-mix piano-only ownership");
 			expect_no_pitch_class(runner, snapshot.guitar_notes, pitch_class,
@@ -1424,6 +1438,10 @@ void check_full_mix_single_instrument_precision(Runner &runner)
 		const auto snapshot =
 			analyze_buffer_with_mode(buffer, mao::AnalysisInputMode::FullMix, "speaker guitar-only", 3);
 		expect_label(runner, snapshot.global_chord.label, "G", "full-mix guitar-only global chord");
+		runner.expect(grid_active_cell_count(snapshot.guitar_notes) >= 2,
+			      "full-mix guitar-only ownership: expected at least two guitar notes, got " +
+				      std::to_string(grid_active_cell_count(snapshot.guitar_notes)) +
+				      " label `" + snapshot.guitar.label + "`");
 		for (int midi : {55, 59, 62}) {
 			const int pitch_class = ((midi % 12) + 12) % 12;
 			expect_global_pitch_class(runner, snapshot, pitch_class, "full-mix guitar-only global");
@@ -1510,6 +1528,70 @@ void check_full_mix_vocal_requires_temporal_confirmation(Runner &runner)
 	snapshot = engine.analyze(buffer.data(), buffer.size(), settings, "Mic/Aux", 0);
 	expect_pitch_class(runner, snapshot.vocal_notes, 0, "full-mix vocal confirmation second-frame vocal");
 	expect_midi_not_duplicated_across_rows(runner, snapshot, 84, "full-mix vocal confirmation ownership");
+}
+
+void check_full_mix_midrange_vocal_recall(Runner &runner)
+{
+	mao::AnalysisEngine engine;
+	mao::AnalysisSettings settings = mao_test::default_settings();
+	settings.input_mode = mao::AnalysisInputMode::FullMix;
+	settings.analysis_interval_seconds = 0.05f;
+
+	mao_test::Buffer buffer = {};
+	const std::vector<float> vocal_profile = {1.0f, 0.070f, 0.032f, 0.016f};
+	add_harmonic_note(buffer, 64, 0.24f, vocal_profile);
+
+	mao::AnalysisSnapshot snapshot = engine.analyze(buffer.data(), buffer.size(), settings, "Mic/Aux", 0);
+	expect_global_pitch_class(runner, snapshot, 4, "full-mix midrange vocal first-frame global");
+	expect_no_pitch_class(runner, snapshot.vocal_notes, 4, "full-mix midrange vocal first-frame vocal");
+
+	snapshot = engine.analyze(buffer.data(), buffer.size(), settings, "Mic/Aux", 0);
+	runner.expect(grid_pitch_active(snapshot.vocal_notes, 4),
+		      std::string("full-mix midrange vocal second-frame vocal: expected E active, got keyboard `") +
+			      snapshot.keyboard.label + "`, guitar `" + snapshot.guitar.label + "`, vocal `" +
+			      snapshot.vocal.label + "`, other `" + snapshot.other.label + "`, ambiguous `" +
+			      snapshot.global_chord.label + "`");
+	expect_midi_not_duplicated_across_rows(runner, snapshot, 64, "full-mix midrange vocal ownership");
+}
+
+void check_mixed_keyboard_guitar_note_bounds(Runner &runner)
+{
+	mao::AnalysisEngine engine;
+	mao::AnalysisSettings settings = mao_test::default_settings();
+	settings.input_mode = mao::AnalysisInputMode::FullMix;
+	settings.analysis_interval_seconds = 0.05f;
+
+	const std::vector<float> bass_profile = {1.0f, 0.30f, 0.14f};
+	const std::vector<float> key_profile = {1.0f, 0.16f, 0.08f, 0.03f};
+	const std::vector<float> guitar_profile = {1.0f, 0.54f, 0.30f, 0.18f, 0.10f};
+	const std::vector<float> other_profile = {1.0f, 0.62f, 0.42f, 0.27f, 0.16f};
+
+	mao::AnalysisSnapshot snapshot = {};
+	for (int frame = 0; frame < 5; ++frame) {
+		const uint64_t sample_offset = static_cast<uint64_t>(frame) * 2400;
+		mao_test::Buffer buffer = {};
+		add_harmonic_note_at_offset(buffer, 36, 0.18f, bass_profile, sample_offset);
+		for (int midi : {69, 73, 76})
+			add_harmonic_note_at_offset(buffer, midi, 0.12f, key_profile, sample_offset);
+		for (int midi : {48, 52, 55, 60, 64})
+			add_harmonic_note_at_offset(buffer, midi, 0.10f, guitar_profile, sample_offset);
+		for (int midi : {76, 79})
+			add_harmonic_note_at_offset(buffer, midi, 0.060f, other_profile, sample_offset);
+		snapshot = engine.analyze(buffer.data(), buffer.size(), settings, "Mic/Aux", 0);
+	}
+
+	runner.expect(grid_has_any_active(snapshot.keyboard_notes),
+		      "mixed keyboard/guitar bounds: expected keyboard notes active");
+	runner.expect(grid_has_any_active(snapshot.guitar_notes),
+		      "mixed keyboard/guitar bounds: expected guitar notes active");
+	runner.expect(grid_active_cell_count(snapshot.keyboard_notes) <= 8,
+		      "mixed keyboard/guitar bounds: expected keyboard grid <= 8 active cells, got " +
+			      std::to_string(grid_active_cell_count(snapshot.keyboard_notes)) + " label `" +
+			      snapshot.keyboard.label + "`");
+	runner.expect(grid_active_cell_count(snapshot.guitar_notes) <= 6,
+		      "mixed keyboard/guitar bounds: expected guitar grid <= 6 active cells, got " +
+			      std::to_string(grid_active_cell_count(snapshot.guitar_notes)) + " label `" +
+			      snapshot.guitar.label + "`");
 }
 
 void check_sparse_full_mix_other_requires_temporal_confirmation(Runner &runner)
@@ -2687,8 +2769,8 @@ void check_soft_drum_transient_stream(Runner &runner)
 	add_decayed_sine(snare, 190.0f, 0.11f, 1300);
 	add_decayed_sine(snare, 1800.0f, 0.040f, 900);
 	snapshot = engine.analyze(snare.data(), snare.size(), settings, "Mic/Aux", 0);
-	runner.expect(snapshot.drums[mao::Snare].active || snapshot.drums[mao::Tom].active,
-		      "soft drum transient stream: expected snare/tom active, snare " +
+	runner.expect(snapshot.drums[mao::Snare].active,
+		      "soft drum transient stream: expected snare active, snare " +
 			      std::to_string(snapshot.drums[mao::Snare].level) + " tom " +
 			      std::to_string(snapshot.drums[mao::Tom].level));
 
@@ -2761,8 +2843,8 @@ void check_upbeat_mix_drums_and_chords(Runner &runner)
 	add_decayed_sine(snare, 190.0f, 0.065f, 1300);
 	add_decayed_sine(snare, 1800.0f, 0.030f, 900);
 	snapshot = engine.analyze(snare.data(), snare.size(), settings, "Mic/Aux", 0);
-	runner.expect(snapshot.drums[mao::Snare].active || snapshot.drums[mao::Tom].active,
-		      "upbeat mix drums: expected snare/tom active, snare " +
+	runner.expect(snapshot.drums[mao::Snare].active,
+		      "upbeat mix drums: expected snare active, snare " +
 			      std::to_string(snapshot.drums[mao::Snare].level) + " tom " +
 			      std::to_string(snapshot.drums[mao::Tom].level));
 	expect_label(runner, snapshot.global_chord.label, "C", "upbeat mix global chord with snare");
@@ -3089,6 +3171,8 @@ int main()
 	check_full_mix_single_owned_note_has_no_instrument_chord(runner);
 	check_simultaneous_onset_group_rejects_vocal_spillover(runner);
 	check_full_mix_vocal_requires_temporal_confirmation(runner);
+	check_full_mix_midrange_vocal_recall(runner);
+	check_mixed_keyboard_guitar_note_bounds(runner);
 	check_sparse_full_mix_other_requires_temporal_confirmation(runner);
 	check_explicit_input_mode_and_bpm(runner);
 	check_frontend_full_mix_equivalence(runner);
