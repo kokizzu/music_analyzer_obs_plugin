@@ -23,7 +23,7 @@ constexpr int kKeyboardMinMidi = 21;
 constexpr int kKeyboardMaxMidi = 108;
 constexpr int kVocalMinMidi = 40;
 constexpr int kVocalMaxMidi = 84;
-constexpr int kFullMixVocalMinMidi = 55;
+constexpr int kFullMixVocalMinMidi = 53;
 constexpr int kOtherMinMidi = 21;
 constexpr int kOtherMaxMidi = 108;
 constexpr float kSilenceRms = 0.0025f;
@@ -918,7 +918,7 @@ float relative_timbre_weight(const TimbreMix &mix, TimbreKind kind)
 }
 
 bool full_mix_vocal_profile_supported(const NoteEvidence &evidence, int midi, float second, float third,
-				      float fourth, bool polyphonic_vocal_context)
+				      float fourth, float fifth, bool polyphonic_vocal_context)
 {
 	if (polyphonic_vocal_context)
 		return false;
@@ -946,7 +946,11 @@ bool full_mix_vocal_profile_supported(const NoteEvidence &evidence, int midi, fl
 	const bool midrange_sustained_voice =
 		!high_register && second <= 0.22f && third <= 0.13f && fourth <= 0.095f &&
 		evidence.pitch_stability >= 0.34f && evidence.spectral_slope <= 0.30f;
-	return clean_sustained_like_partials || near_pure_tone_voice || midrange_sustained_voice;
+	const bool rich_sustained_voice =
+		!high_register && second >= 0.08f && second <= 0.32f && third <= 0.22f &&
+		fourth <= 0.145f && fifth <= 0.085f && evidence.spectral_slope <= 0.42f;
+	return clean_sustained_like_partials || near_pure_tone_voice || midrange_sustained_voice ||
+	       rich_sustained_voice;
 }
 
 bool competing_full_mix_timbres(float keyboard_weight, float guitar_weight, float other_weight)
@@ -1001,7 +1005,11 @@ InstrumentKind choose_full_mix_owner(const std::array<float, kNoteProbeCount> &p
 	const float fit_penalty = std::clamp(1.0f - evidence.harmonic_fit_error * 0.32f, 0.52f, 1.0f);
 
 	std::array<float, 4> scores = {};
-	if (competing_full_mix_timbres(keyboard_weight, guitar_weight, other_weight)) {
+	const bool vocal_supported =
+		candidate.midi >= kFullMixVocalMinMidi && candidate.midi <= kVocalMaxMidi &&
+		full_mix_vocal_profile_supported(evidence, candidate.midi, second, third, fourth, fifth,
+						 polyphonic_vocal_context);
+	if (competing_full_mix_timbres(keyboard_weight, guitar_weight, other_weight) && !vocal_supported) {
 		const float total = keyboard_weight + guitar_weight + other_weight;
 		evidence.ownership_scores[static_cast<std::size_t>(InstrumentKind::Keyboard)] =
 			keyboard_weight / total;
@@ -1012,7 +1020,7 @@ InstrumentKind choose_full_mix_owner(const std::array<float, kNoteProbeCount> &p
 			std::max({keyboard_weight, guitar_weight, other_weight}) / total;
 		return InstrumentKind::Ambiguous;
 	}
-	if (blended_full_mix_upper_partials(second, third, fourth, fifth))
+	if (blended_full_mix_upper_partials(second, third, fourth, fifth) && !vocal_supported)
 		return InstrumentKind::Ambiguous;
 
 	if (candidate.midi >= 48 && candidate.midi <= 83 && second <= 0.56f) {
@@ -1041,10 +1049,6 @@ InstrumentKind choose_full_mix_owner(const std::array<float, kNoteProbeCount> &p
 		if (second > 0.75f || fourth > 0.36f)
 			scores[1] *= 0.72f;
 	}
-	const bool vocal_supported =
-		candidate.midi >= kFullMixVocalMinMidi && candidate.midi <= kVocalMaxMidi &&
-		full_mix_vocal_profile_supported(evidence, candidate.midi, second, third, fourth,
-						 polyphonic_vocal_context);
 	if (vocal_supported) {
 		const bool high_register = candidate.midi >= 72;
 		const float second_target = high_register ? 0.10f : 0.18f;
@@ -1105,7 +1109,10 @@ InstrumentKind choose_full_mix_owner(const std::array<float, kNoteProbeCount> &p
 	evidence.ownership_confidence = best_probability;
 	if (best == 2 && polyphonic_vocal_context)
 		return InstrumentKind::Ambiguous;
-	if (best_probability < 0.65f || best_probability - second_probability < 0.20f)
+	const bool supported_vocal_winner = best == 2 && vocal_supported;
+	const float probability_floor = supported_vocal_winner ? 0.44f : 0.65f;
+	const float margin_floor = supported_vocal_winner ? 0.12f : 0.20f;
+	if (best_probability < probability_floor || best_probability - second_probability < margin_floor)
 		return InstrumentKind::Ambiguous;
 
 	InstrumentKind owner = InstrumentKind::Ambiguous;
@@ -1177,6 +1184,9 @@ FullMixOwnership build_full_mix_ownership(const std::array<float, kNoteProbeCoun
 			0.0f;
 
 	int vocal_range_candidate_count = 0;
+	int dominant_vocal_candidate_midi = -1;
+	float dominant_vocal_candidate_score = 0.0f;
+	float second_vocal_candidate_score = 0.0f;
 	for (const NoteCandidate &candidate : candidates) {
 		if (candidate.midi < kFullMixVocalMinMidi || candidate.midi > kVocalMaxMidi ||
 		    candidate.score < strongest_score * 0.35f)
@@ -1191,10 +1201,22 @@ FullMixOwnership build_full_mix_ownership(const std::array<float, kNoteProbeCoun
 				break;
 			}
 		}
-		if (!upper_harmonic)
-			++vocal_range_candidate_count;
+		if (upper_harmonic)
+			continue;
+
+		++vocal_range_candidate_count;
+		if (candidate.score > dominant_vocal_candidate_score) {
+			second_vocal_candidate_score = dominant_vocal_candidate_score;
+			dominant_vocal_candidate_score = candidate.score;
+			dominant_vocal_candidate_midi = candidate.midi;
+		} else {
+			second_vocal_candidate_score = std::max(second_vocal_candidate_score, candidate.score);
+		}
 	}
-	const bool polyphonic_vocal_context = vocal_range_candidate_count >= 2;
+	const bool dominant_vocal_candidate =
+		dominant_vocal_candidate_midi >= 0 &&
+		(second_vocal_candidate_score <= 1.0e-6f ||
+		 dominant_vocal_candidate_score >= second_vocal_candidate_score * 1.20f);
 
 	for (const NoteCandidate &candidate : candidates) {
 		if (candidate.midi < kFirstMidi || candidate.midi > kLastMidi)
@@ -1206,9 +1228,12 @@ FullMixOwnership build_full_mix_ownership(const std::array<float, kNoteProbeCoun
 			temporal_note_features(current_note_levels[note_index], previous_note_levels[note_index]);
 		if (temporal.onset_strength >= 0.18f)
 			temporal.simultaneous_onset = simultaneous_onset_context;
+		const bool polyphonic_vocal_context =
+			vocal_range_candidate_count >= 2 &&
+			(!dominant_vocal_candidate || candidate.midi != dominant_vocal_candidate_midi);
 		const InstrumentKind owner =
-			choose_full_mix_owner(powers, candidate, strongest_score, polyphonic_vocal_context,
-					      temporal, evidence);
+			choose_full_mix_owner(powers, candidate, strongest_score, polyphonic_vocal_context, temporal,
+					      evidence);
 
 		const std::size_t index = static_cast<std::size_t>(candidate.midi - kFirstMidi);
 		const int pitch_class = ((candidate.midi % 12) + 12) % 12;

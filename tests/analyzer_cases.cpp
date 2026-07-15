@@ -1554,6 +1554,87 @@ void check_full_mix_midrange_vocal_recall(Runner &runner)
 	expect_midi_not_duplicated_across_rows(runner, snapshot, 64, "full-mix midrange vocal ownership");
 }
 
+void check_full_mix_realistic_vocal_recall(Runner &runner)
+{
+	{
+		mao::AnalysisEngine engine;
+		mao::AnalysisSettings settings = mao_test::default_settings();
+		settings.input_mode = mao::AnalysisInputMode::FullMix;
+		settings.analysis_interval_seconds = 0.05f;
+
+		mao_test::Buffer buffer = {};
+		const std::vector<float> low_vocal_profile = {1.0f, 0.22f, 0.12f, 0.055f, 0.025f};
+		add_harmonic_note(buffer, 53, 0.24f, low_vocal_profile);
+
+		mao::AnalysisSnapshot snapshot = engine.analyze(buffer.data(), buffer.size(), settings, "Mic/Aux", 0);
+		expect_global_pitch_class(runner, snapshot, 5, "full-mix lower vocal first-frame global");
+		expect_no_pitch_class(runner, snapshot.vocal_notes, 5, "full-mix lower vocal first-frame vocal");
+
+		snapshot = engine.analyze(buffer.data(), buffer.size(), settings, "Mic/Aux", 0);
+		runner.expect(grid_pitch_active(snapshot.vocal_notes, 5),
+			      std::string("full-mix lower vocal second-frame vocal: expected F active, got keyboard `") +
+				      snapshot.keyboard.label + "`, guitar `" + snapshot.guitar.label + "`, vocal `" +
+				      snapshot.vocal.label + "`, other `" + snapshot.other.label + "`, global `" +
+				      snapshot.global_chord.label + "`, ambiguous " +
+				      (grid_pitch_active(snapshot.ambiguous_notes, 5) ? "active" : "inactive"));
+		expect_midi_not_duplicated_across_rows(runner, snapshot, 53, "full-mix lower vocal ownership");
+	}
+
+	{
+		mao::AnalysisEngine engine;
+		mao::AnalysisSettings settings = mao_test::default_settings();
+		settings.input_mode = mao::AnalysisInputMode::FullMix;
+		settings.analysis_interval_seconds = 0.05f;
+
+		mao_test::Buffer buffer = {};
+		const std::vector<float> rich_vocal_profile = {1.0f, 0.30f, 0.18f, 0.10f, 0.045f};
+		add_harmonic_note(buffer, 64, 0.24f, rich_vocal_profile);
+
+		mao::AnalysisSnapshot snapshot = engine.analyze(buffer.data(), buffer.size(), settings, "Mic/Aux", 0);
+		expect_global_pitch_class(runner, snapshot, 4, "full-mix rich vocal first-frame global");
+		expect_no_pitch_class(runner, snapshot.vocal_notes, 4, "full-mix rich vocal first-frame vocal");
+
+		snapshot = engine.analyze(buffer.data(), buffer.size(), settings, "Mic/Aux", 0);
+		runner.expect(grid_pitch_active(snapshot.vocal_notes, 4),
+			      std::string("full-mix rich vocal second-frame vocal: expected E active, got keyboard `") +
+				      snapshot.keyboard.label + "`, guitar `" + snapshot.guitar.label + "`, vocal `" +
+				      snapshot.vocal.label + "`, other `" + snapshot.other.label + "`, global `" +
+				      snapshot.global_chord.label + "`, ambiguous " +
+				      (grid_pitch_active(snapshot.ambiguous_notes, 4) ? "active" : "inactive"));
+		expect_midi_not_duplicated_across_rows(runner, snapshot, 64, "full-mix rich vocal ownership");
+	}
+
+	{
+		mao::AnalysisEngine engine;
+		mao::AnalysisSettings settings = mao_test::default_settings();
+		settings.input_mode = mao::AnalysisInputMode::FullMix;
+		settings.analysis_interval_seconds = 0.05f;
+
+		const std::vector<float> bass_profile = {1.0f, 0.30f, 0.14f};
+		const std::vector<float> key_profile = {1.0f, 0.16f, 0.08f, 0.03f};
+		const std::vector<float> lead_vocal_profile = {1.0f, 0.24f, 0.14f, 0.08f, 0.035f};
+		mao::AnalysisSnapshot snapshot = {};
+		for (int frame = 0; frame < 3; ++frame) {
+			const uint64_t sample_offset = static_cast<uint64_t>(frame) * 2400;
+			mao_test::Buffer buffer = {};
+			add_harmonic_note_at_offset(buffer, 36, 0.15f, bass_profile, sample_offset);
+			for (int midi : {60, 64, 67})
+				add_harmonic_note_at_offset(buffer, midi, 0.050f, key_profile, sample_offset);
+			add_harmonic_note_at_offset(buffer, 69, 0.24f, lead_vocal_profile, sample_offset);
+			snapshot = engine.analyze(buffer.data(), buffer.size(), settings, "Mic/Aux", 0);
+		}
+
+		runner.expect(grid_pitch_active(snapshot.vocal_notes, 9),
+			      std::string("full-mix vocal-over-chord vocal: expected A active, got keyboard `") +
+				      snapshot.keyboard.label + "`, guitar `" + snapshot.guitar.label + "`, vocal `" +
+				      snapshot.vocal.label + "`, other `" + snapshot.other.label + "`, global `" +
+				      snapshot.global_chord.label + "`, ambiguous " +
+				      (grid_pitch_active(snapshot.ambiguous_notes, 9) ? "active" : "inactive"));
+		expect_global_pitch_class(runner, snapshot, 9, "full-mix vocal-over-chord global");
+		expect_midi_not_duplicated_across_rows(runner, snapshot, 69, "full-mix vocal-over-chord ownership");
+	}
+}
+
 void check_mixed_keyboard_guitar_note_bounds(Runner &runner)
 {
 	mao::AnalysisEngine engine;
@@ -3172,6 +3253,7 @@ int main()
 	check_simultaneous_onset_group_rejects_vocal_spillover(runner);
 	check_full_mix_vocal_requires_temporal_confirmation(runner);
 	check_full_mix_midrange_vocal_recall(runner);
+	check_full_mix_realistic_vocal_recall(runner);
 	check_mixed_keyboard_guitar_note_bounds(runner);
 	check_sparse_full_mix_other_requires_temporal_confirmation(runner);
 	check_explicit_input_mode_and_bpm(runner);
