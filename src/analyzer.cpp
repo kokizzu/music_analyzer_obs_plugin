@@ -2776,11 +2776,7 @@ void write_root_candidates(char *dst, std::size_t dst_size, const std::array<flo
 
 AnalysisEngine::AnalysisEngine()
 {
-	for (std::size_t i = 0; i < window_.size(); ++i) {
-		const float phase = 2.0f * kPi * static_cast<float>(i) / static_cast<float>(window_.size() - 1);
-		window_[i] = 0.5f - 0.5f * std::cos(phase);
-	}
-
+	rebuild_window(resolve_analysis_window_samples(AnalysisSettings{}));
 	rebuild_plans(48000);
 }
 
@@ -2819,6 +2815,43 @@ void AnalysisEngine::rebuild_plans(uint32_t sample_rate)
 		Probe &probe = drum_probes_[i];
 		probe.freq = std::min(kDrumFreqs[i], static_cast<float>(sample_rate_) * 0.45f);
 		probe.coeff = 2.0f * std::cos(2.0f * kPi * probe.freq / static_cast<float>(sample_rate_));
+	}
+}
+
+std::size_t resolve_analysis_window_samples(const AnalysisSettings &settings)
+{
+	const uint32_t sample_rate = settings.sample_rate ? settings.sample_rate : 48000;
+	std::size_t requested = 0;
+	if (settings.analysis_window_samples > 0) {
+		requested = settings.analysis_window_samples;
+	} else {
+		const float seconds =
+			settings.analysis_window_seconds > 0.0f ?
+				settings.analysis_window_seconds :
+				static_cast<float>(kDefaultAnalysisWindowMs) / 1000.0f;
+		requested = static_cast<std::size_t>(
+			std::lround(static_cast<double>(sample_rate) * static_cast<double>(seconds)));
+	}
+
+	return std::clamp<std::size_t>(requested, 1, kAnalysisWindow);
+}
+
+void AnalysisEngine::rebuild_window(std::size_t window_samples)
+{
+	window_samples = std::clamp<std::size_t>(window_samples, 1, kAnalysisWindow);
+	if (window_samples == analysis_window_samples_)
+		return;
+
+	analysis_window_samples_ = window_samples;
+	window_.fill(0.0f);
+	if (window_samples == 1) {
+		window_[0] = 1.0f;
+		return;
+	}
+
+	for (std::size_t i = 0; i < window_samples; ++i) {
+		const float phase = 2.0f * kPi * static_cast<float>(i) / static_cast<float>(window_samples - 1);
+		window_[i] = 0.5f - 0.5f * std::cos(phase);
 	}
 }
 
@@ -3220,6 +3253,11 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 					 const char *source_name, uint64_t dropped_windows)
 {
 	configure(settings.sample_rate);
+	const std::size_t requested_window_samples = resolve_analysis_window_samples(settings);
+	if (requested_window_samples != analysis_window_samples_) {
+		rebuild_window(requested_window_samples);
+		reset_analysis_state();
+	}
 
 	AnalysisSnapshot snapshot;
 	const char *resolved_source_name = source_name && *source_name ? source_name : "Music";
@@ -3257,7 +3295,7 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 		return snapshot;
 	}
 
-	const std::size_t usable = std::min(count, kAnalysisWindow);
+	const std::size_t usable = std::min(count, analysis_window_samples_);
 	double sum = 0.0;
 	double square_sum = 0.0;
 	std::array<double, kDrumTransientSegments> segment_square_sum = {};

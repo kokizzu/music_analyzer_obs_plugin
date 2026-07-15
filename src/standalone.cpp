@@ -62,6 +62,7 @@ struct Options {
 	uint32_t width = mao::kDefaultVisualizerWidth;
 	uint32_t height = mao::kDefaultVisualizerHeight;
 	uint32_t update_ms = 50;
+	uint32_t window_ms = mao::kDefaultAnalysisWindowMs;
 	uint32_t fps = 30;
 	float sensitivity = 1.0f;
 	bool hold_on_eof = false;
@@ -69,6 +70,7 @@ struct Options {
 	bool self_test = false;
 	bool show_version = false;
 	bool prefer_output_monitor = true;
+	bool legacy_window = false;
 };
 
 struct AspectViewport {
@@ -148,9 +150,9 @@ void print_usage(const char *argv0)
 {
 	std::fprintf(stderr,
 		     "Usage: %s [--input audio-file] [--raw-f32le file|-] [--device name]\n"
-		     "       [--source name] [--width px] [--height px] [--update-ms ms]\n"
+		     "       [--source name] [--width px] [--height px] [--update-ms ms] [--window-ms ms]\n"
 		     "       [--fps fps] [--sample-rate hz] [--sensitivity percent]\n"
-		     "       [--list-devices] [--default-input] [--hold] [--version] [--self-test]\n\n"
+		     "       [--legacy-window] [--list-devices] [--default-input] [--hold] [--version] [--self-test]\n\n"
 		     "No input option prefers an SDL output monitor/loopback device, then falls back to default input.\n",
 		     argv0);
 }
@@ -219,6 +221,10 @@ bool parse_options(int argc, char **argv, Options *options)
 			const char *value = need_value("--update-ms");
 			if (!value || !parse_uint(value, 20, 250, &options->update_ms))
 				return false;
+		} else if (arg == "--window-ms") {
+			const char *value = need_value("--window-ms");
+			if (!value || !parse_uint(value, 20, 170, &options->window_ms))
+				return false;
 		} else if (arg == "--fps") {
 			const char *value = need_value("--fps");
 			if (!value || !parse_uint(value, 1, 60, &options->fps))
@@ -237,6 +243,8 @@ bool parse_options(int argc, char **argv, Options *options)
 			options->list_devices = true;
 		} else if (arg == "--default-input") {
 			options->prefer_output_monitor = false;
+		} else if (arg == "--legacy-window") {
+			options->legacy_window = true;
 		} else if (arg == "--hold") {
 			options->hold_on_eof = true;
 		} else if (arg == "--self-test") {
@@ -375,6 +383,20 @@ bool run_self_test()
 		if (std::strstr(status_line, "FRAMES") || std::strstr(status_line, "UPD") || !age || !drop ||
 		    age > drop || std::strcmp(status_line, expected) != 0) {
 			std::fprintf(stderr, "standalone self-test: unexpected status line '%s'\n", status_line);
+			return false;
+		}
+	}
+	{
+		mao::AnalysisSettings window_settings;
+		window_settings.sample_rate = 48000;
+		if (mao::resolve_analysis_window_samples(window_settings) != 4800) {
+			std::fprintf(stderr, "standalone self-test: expected default 100ms window to be 4800 samples\n");
+			return false;
+		}
+
+		window_settings.analysis_window_samples = static_cast<uint32_t>(mao::kLegacyAnalysisWindow);
+		if (mao::resolve_analysis_window_samples(window_settings) != mao::kLegacyAnalysisWindow) {
+			std::fprintf(stderr, "standalone self-test: legacy window did not resolve to 4096 samples\n");
 			return false;
 		}
 	}
@@ -800,10 +822,14 @@ public:
 		settings_.sample_rate = options.sample_rate;
 		settings_.sensitivity = options.sensitivity;
 		settings_.analysis_interval_seconds = static_cast<float>(options.update_ms) / 1000.0f;
+		settings_.analysis_window_seconds = static_cast<float>(options.window_ms) / 1000.0f;
+		settings_.analysis_window_samples =
+			options.legacy_window ? static_cast<uint32_t>(mao::kLegacyAnalysisWindow) : 0;
 		settings_.root_window_seconds = 15.0f;
 		settings_.input_mode = mao::AnalysisInputMode::FullMix;
 		hop_samples_ = std::max<uint32_t>(1, options.sample_rate * options.update_ms / 1000);
 		samples_until_analysis_ = hop_samples_;
+		window_samples_ = mao::resolve_analysis_window_samples(settings_);
 		const float interval_seconds = std::max(0.001f, settings_.analysis_interval_seconds);
 		silence_drain_windows_ =
 			std::max<uint32_t>(1, static_cast<uint32_t>(std::ceil(kStandaloneSilenceDrainSeconds /
@@ -826,15 +852,16 @@ public:
 			return false;
 		samples_until_analysis_ = hop_samples_;
 
-		for (std::size_t i = 0; i < mao::kAnalysisWindow; ++i) {
-			const std::size_t idx = (write_pos_ + i) & (mao::kAnalysisWindow - 1);
+		for (std::size_t i = 0; i < window_samples_; ++i) {
+			const std::size_t idx = (write_pos_ + mao::kAnalysisWindow - window_samples_ + i) &
+						(mao::kAnalysisWindow - 1);
 			window_[i] = ring_[idx];
 		}
 
 		double square_sum = 0.0;
-		for (float value : window_)
-			square_sum += static_cast<double>(value) * static_cast<double>(value);
-		const float window_rms = std::sqrt(static_cast<float>(square_sum / window_.size()));
+		for (std::size_t i = 0; i < window_samples_; ++i)
+			square_sum += static_cast<double>(window_[i]) * static_cast<double>(window_[i]);
+		const float window_rms = std::sqrt(static_cast<float>(square_sum / static_cast<double>(window_samples_)));
 		const bool silent_window = window_rms < kStandaloneSilenceRms;
 		if (silent_window) {
 			consecutive_silent_windows_ = std::min<uint32_t>(consecutive_silent_windows_ + 1, 1000000);
@@ -847,7 +874,7 @@ public:
 		if (silent_window && should_skip_silent_analysis())
 			return false;
 
-		snapshot_ = engine_.analyze(window_.data(), window_.size(), settings_, source_name_.c_str(), 0);
+		snapshot_ = engine_.analyze(window_.data(), window_samples_, settings_, source_name_.c_str(), 0);
 		snapshot_.sequence = ++sequence_;
 		snapshot_.audio_seen = true;
 		snapshot_.audio_frames = audio_frames_;
@@ -892,6 +919,7 @@ private:
 	std::size_t write_pos_ = 0;
 	uint32_t hop_samples_ = 2400;
 	uint32_t samples_until_analysis_ = 2400;
+	std::size_t window_samples_ = mao::kLegacyAnalysisWindow;
 	uint32_t silence_drain_windows_ = 44;
 	uint32_t idle_analysis_windows_ = 20;
 	uint32_t consecutive_silent_windows_ = 0;

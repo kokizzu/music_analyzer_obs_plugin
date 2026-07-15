@@ -6,7 +6,9 @@
 
 namespace mao {
 
-constexpr std::size_t kAnalysisWindow = 4096;
+constexpr std::size_t kLegacyAnalysisWindow = 4096;
+constexpr std::size_t kAnalysisWindow = 8192;
+constexpr uint32_t kDefaultAnalysisWindowMs = 100;
 constexpr std::size_t kDrumCount = 6;
 constexpr std::size_t kNoteRowCount = 3;
 constexpr int kFirstAnalyzedMidi = 21;
@@ -45,6 +47,8 @@ struct AnalysisSettings {
 	uint32_t sample_rate = 48000;
 	float sensitivity = 1.0f;
 	float analysis_interval_seconds = 0.05f;
+	float analysis_window_seconds = static_cast<float>(kDefaultAnalysisWindowMs) / 1000.0f;
+	uint32_t analysis_window_samples = 0;
 	float root_window_seconds = 15.0f;
 	AnalysisInputMode input_mode = AnalysisInputMode::Auto;
 };
@@ -122,6 +126,8 @@ struct ChordTrackingState {
 	float missing_seconds = 0.0f;
 };
 
+std::size_t resolve_analysis_window_samples(const AnalysisSettings &settings);
+
 class AnalysisEngine {
 public:
 	AnalysisEngine();
@@ -193,11 +199,13 @@ private:
 	float last_tempo_event_seconds_ = -10.0f;
 	float estimated_bpm_ = 0.0f;
 	float bpm_confidence_ = 0.0f;
+	std::size_t analysis_window_samples_ = 0;
 	AnalysisInputMode active_input_mode_ = AnalysisInputMode::Auto;
 	bool has_active_input_mode_ = false;
 	char active_source_[64] = {};
 
 	void rebuild_plans(uint32_t sample_rate);
+	void rebuild_window(std::size_t window_samples);
 	void reset_note_envelopes();
 	void reset_analysis_state();
 	void update_tempo(bool transient_event, float interval_seconds, float rms);

@@ -59,12 +59,15 @@ struct FilterData {
 	std::atomic<uint32_t> sample_rate{48000};
 	std::atomic<uint32_t> channels{2};
 	std::atomic<uint32_t> hop_samples{2400};
+	std::atomic<uint32_t> window_ms{mao::kDefaultAnalysisWindowMs};
+	std::atomic<bool> legacy_window{false};
 	std::atomic<uint32_t> sensitivity_percent{100};
 	std::atomic<bool> parent_name_resolved{false};
 	std::atomic<uint64_t> direct_audio_frames_seen{0};
 	uint32_t samples_until_analysis = 2400;
 	char source_name[64] = {};
 	char pending_source_name[64] = {};
+	std::size_t pending_window_samples = mao::kLegacyAnalysisWindow;
 	uint64_t dropped_windows = 0;
 	uint64_t audio_frames_seen = 0;
 	uint64_t analyzed_windows = 0;
@@ -95,10 +98,6 @@ void copy_ring_to_pending(FilterData *filter, const char *source_label)
 		return;
 	}
 
-	for (std::size_t i = 0; i < mao::kAnalysisWindow; ++i) {
-		const std::size_t idx = (filter->write_pos + i) & (mao::kAnalysisWindow - 1);
-		filter->pending_window[i] = filter->ring[idx];
-	}
 	const uint32_t sample_rate = filter->sample_rate.load(std::memory_order_relaxed);
 	const uint32_t hop_samples = std::max<uint32_t>(1, filter->hop_samples.load(std::memory_order_relaxed));
 	filter->pending_settings.sample_rate = sample_rate;
@@ -106,11 +105,25 @@ void copy_ring_to_pending(FilterData *filter, const char *source_label)
 		static_cast<float>(filter->sensitivity_percent.load(std::memory_order_relaxed)) / 100.0f;
 	filter->pending_settings.analysis_interval_seconds =
 		static_cast<float>(hop_samples) / static_cast<float>(std::max<uint32_t>(1, sample_rate));
+	filter->pending_settings.analysis_window_seconds =
+		static_cast<float>(std::max<uint32_t>(20, filter->window_ms.load(std::memory_order_relaxed))) /
+		1000.0f;
+	filter->pending_settings.analysis_window_samples =
+		filter->legacy_window.load(std::memory_order_relaxed) ?
+			static_cast<uint32_t>(mao::kLegacyAnalysisWindow) :
+			0;
 	filter->pending_settings.input_mode = mao::AnalysisInputMode::FullMix;
+	const std::size_t window_samples = mao::resolve_analysis_window_samples(filter->pending_settings);
 	copy_text(filter->pending_source_name, sizeof(filter->pending_source_name),
 		  source_label && *source_label ? source_label : filter->source_name);
+	filter->pending_window_samples = window_samples;
 	filter->pending_audio_frames = filter->audio_frames_seen;
 	filter->pending_analyzed_windows = ++filter->analyzed_windows;
+	for (std::size_t i = 0; i < window_samples; ++i) {
+		const std::size_t idx = (filter->write_pos + mao::kAnalysisWindow - window_samples + i) &
+					(mao::kAnalysisWindow - 1);
+		filter->pending_window[i] = filter->ring[idx];
+	}
 	filter->pending = true;
 	lock.unlock();
 	filter->worker_cv.notify_one();
@@ -137,6 +150,13 @@ void publish_filter_ready(FilterData *filter)
 	settings.analysis_interval_seconds =
 		static_cast<float>(std::max<uint32_t>(1, filter->hop_samples.load(std::memory_order_relaxed))) /
 		static_cast<float>(std::max<uint32_t>(1, settings.sample_rate));
+	settings.analysis_window_seconds =
+		static_cast<float>(std::max<uint32_t>(20, filter->window_ms.load(std::memory_order_relaxed))) /
+		1000.0f;
+	settings.analysis_window_samples =
+		filter->legacy_window.load(std::memory_order_relaxed) ?
+			static_cast<uint32_t>(mao::kLegacyAnalysisWindow) :
+			0;
 	settings.input_mode = mao::AnalysisInputMode::FullMix;
 
 	{
@@ -259,6 +279,7 @@ void analyzer_worker(FilterData *filter)
 		uint64_t dropped = 0;
 		uint64_t audio_frames = 0;
 		uint64_t analyzed_windows = 0;
+		std::size_t window_samples = mao::kLegacyAnalysisWindow;
 
 		{
 			std::unique_lock<std::mutex> lock(filter->worker_mutex);
@@ -269,13 +290,14 @@ void analyzer_worker(FilterData *filter)
 			local_window = filter->pending_window;
 			settings = filter->pending_settings;
 			copy_text(source_name, sizeof(source_name), filter->pending_source_name);
+			window_samples = filter->pending_window_samples;
 			dropped = filter->dropped_windows;
 			audio_frames = filter->pending_audio_frames;
 			analyzed_windows = filter->pending_analyzed_windows;
 			filter->pending = false;
 		}
 
-		auto snapshot = filter->engine.analyze(local_window.data(), local_window.size(), settings, source_name, dropped);
+		auto snapshot = filter->engine.analyze(local_window.data(), window_samples, settings, source_name, dropped);
 		snapshot.audio_seen = true;
 		snapshot.audio_frames = audio_frames;
 		snapshot.analyzed_windows = analyzed_windows;
@@ -301,11 +323,16 @@ void *filter_create(obs_data_t *settings, obs_source_t *source)
 	refresh_audio_config(filter);
 
 	const long long update_ms = obs_data_get_int(settings, "update_ms");
+	const long long configured_window_ms = obs_data_get_int(settings, "window_ms");
+	const long long window_ms = configured_window_ms > 0 ? configured_window_ms : mao::kDefaultAnalysisWindowMs;
 	const uint32_t sample_rate = filter->sample_rate.load(std::memory_order_relaxed);
 	const uint32_t hop =
 		std::max<uint32_t>(1, sample_rate * static_cast<uint32_t>(std::max<long long>(20, update_ms)) / 1000);
 	filter->hop_samples.store(hop, std::memory_order_relaxed);
 	filter->samples_until_analysis = hop;
+	filter->window_ms.store(static_cast<uint32_t>(std::clamp<long long>(window_ms, 20, 170)),
+				std::memory_order_relaxed);
+	filter->legacy_window.store(obs_data_get_bool(settings, "legacy_window"), std::memory_order_relaxed);
 	filter->sensitivity_percent.store(static_cast<uint32_t>(std::clamp<long long>(obs_data_get_int(settings, "sensitivity"), 50, 200)),
 					  std::memory_order_relaxed);
 
@@ -337,6 +364,8 @@ void filter_destroy(void *data)
 void filter_defaults(obs_data_t *settings)
 {
 	obs_data_set_default_int(settings, "update_ms", 50);
+	obs_data_set_default_int(settings, "window_ms", mao::kDefaultAnalysisWindowMs);
+	obs_data_set_default_bool(settings, "legacy_window", false);
 	obs_data_set_default_int(settings, "sensitivity", 100);
 }
 
@@ -344,6 +373,8 @@ obs_properties_t *filter_properties(void *)
 {
 	obs_properties_t *props = obs_properties_create();
 	obs_properties_add_int_slider(props, "update_ms", "Analyzer interval (ms)", 20, 250, 5);
+	obs_properties_add_int_slider(props, "window_ms", "Analysis window (ms)", 20, 170, 5);
+	obs_properties_add_bool(props, "legacy_window", "Use legacy 4096-sample analysis window");
 	obs_properties_add_int_slider(props, "sensitivity", "Drum sensitivity (%)", 50, 200, 5);
 	return props;
 }
@@ -357,8 +388,13 @@ void filter_update(void *data, obs_data_t *settings)
 	refresh_audio_config(filter);
 	const uint32_t sample_rate = filter->sample_rate.load(std::memory_order_relaxed);
 	const long long update_ms = std::clamp<long long>(obs_data_get_int(settings, "update_ms"), 20, 250);
+	const long long configured_window_ms = obs_data_get_int(settings, "window_ms");
+	const long long window_ms = std::clamp<long long>(
+		configured_window_ms > 0 ? configured_window_ms : mao::kDefaultAnalysisWindowMs, 20, 170);
 	filter->hop_samples.store(std::max<uint32_t>(1, sample_rate * static_cast<uint32_t>(update_ms) / 1000),
 				  std::memory_order_relaxed);
+	filter->window_ms.store(static_cast<uint32_t>(window_ms), std::memory_order_relaxed);
+	filter->legacy_window.store(obs_data_get_bool(settings, "legacy_window"), std::memory_order_relaxed);
 	filter->sensitivity_percent.store(static_cast<uint32_t>(std::clamp<long long>(obs_data_get_int(settings, "sensitivity"), 50, 200)),
 					  std::memory_order_relaxed);
 	filter->parent_name_resolved.store(refresh_source_name(filter), std::memory_order_relaxed);

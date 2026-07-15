@@ -24,7 +24,7 @@ Native OBS Studio plugin that analyzes a music mix and displays an instrument-or
 - Equivalent chord names for the same detected pitch classes are shown together, such as `Csus2=Gsus4` or `Dm7=F6`
 - Explicit instrument sources use the full chord template set; mixed sources keep conservative chord labels to avoid false extensions from other instruments
 
-The analyzer is designed for real-time OBS use. It uses bounded DSP heuristics rather than a large ML stem-separation model: audio is downmixed into a fixed ring buffer, analyzer windows are copied to a worker thread at a configurable interval, and the OBS audio callback returns immediately after lightweight buffering. The overlay source renders a single reusable RGBA texture.
+The analyzer is designed for real-time OBS use. It uses bounded DSP heuristics rather than a large ML stem-separation model: audio is downmixed into a fixed ring buffer, analyzer windows are copied to a worker thread at a configurable interval, and the OBS audio callback returns immediately after lightweight buffering. By default, OBS and standalone analyze a rolling 100 ms audio window every 50 ms. The old 4096-sample window is still available as a legacy option. The overlay source renders a single reusable RGBA texture.
 
 OBS and the standalone speaker-monitor executable explicitly analyze their inputs as `FullMix`, because they receive finished mixer/speaker audio. The shared analyzer still supports isolated modes for direct analyzer callers and tests; those modes are intended for real isolated bass, guitar, keyboard, vocal, or other-instrument stems.
 
@@ -69,6 +69,8 @@ The small status text at the top is for checking whether the analyzer is receivi
 - `AGE`: seconds since the overlay last received a new analyzer snapshot. If this keeps increasing while music is playing, the visualizer is not receiving fresh analyzer data. Stale-age redraws are throttled so the overlay does not repaint continuously only for this counter.
 - `DROP`: analyzer windows skipped because a newer audio window arrived before the worker consumed the previous one.
 - `BPM`: bottom-right estimated tempo. The percentage is confidence from recent transient timing, so sparse intros, rubato, or weak drums may show `BPM --` or a low-confidence estimate.
+
+`Analyzer interval (ms)` controls how often a new rolling window is evaluated. The default is 50 ms. `Analysis window (ms)` controls the amount of recent audio inside each evaluation window. The default is 100 ms, so consecutive evaluations overlap. Enable `Use legacy 4096-sample analysis window` to switch back to the original fixed-size window.
 
 ## Standalone Usage
 
@@ -115,7 +117,7 @@ For direct float PCM input:
 build/music-analyzer-standalone --raw-f32le /path/to/audio.f32 --sample-rate 48000
 ```
 
-Useful options include `--width`, `--height`, `--update-ms`, `--fps`, `--sensitivity`, and `--hold`.
+Useful options include `--width`, `--height`, `--update-ms`, `--window-ms`, `--legacy-window`, `--fps`, `--sensitivity`, and `--hold`. `--update-ms` controls how often analysis runs. `--window-ms` controls the rolling audio window length and defaults to 100 ms. `--legacy-window` switches back to the original 4096-sample analyzer window.
 
 ## Build
 
@@ -235,7 +237,7 @@ The plugin intentionally avoids expensive per-frame work:
 
 - No allocation in the OBS audio callback after source creation.
 - Analyzer work runs on a worker thread and drops stale windows instead of queueing unbounded work.
-- Fixed 4096-sample windows and configurable update intervals bound CPU use.
+- A fixed maximum ring buffer, configurable analysis windows, and configurable update intervals bound CPU use.
 - Notes/chords use precomputed Goertzel probes instead of per-callback FFT allocation.
 - The overlay updates a single texture at a capped frame rate.
 

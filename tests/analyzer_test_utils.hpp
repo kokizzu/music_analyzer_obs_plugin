@@ -83,6 +83,7 @@ inline mao::AnalysisSettings default_settings()
 	settings.sample_rate = static_cast<uint32_t>(kSampleRate);
 	settings.sensitivity = 1.0f;
 	settings.analysis_interval_seconds = 0.25f;
+	settings.analysis_window_samples = static_cast<uint32_t>(mao::kLegacyAnalysisWindow);
 	settings.root_window_seconds = 15.0f;
 	return settings;
 }
