@@ -42,6 +42,7 @@ def main():
         readme = read_text("README.md")
         docs = read_text("docs/real_audio_dataset_candidates.md")
         shared_docs = read_text("docs/shared_analyzer_investigation.md")
+        completion_audit = read_text("docs/goal_completion_audit.md")
         analyzer_header = read_text("src/analyzer.hpp")
         analyzer_impl = read_text("src/analyzer.cpp")
         analyzer_cases = read_text("tests/analyzer_cases.cpp")
@@ -559,6 +560,17 @@ def main():
          "implementation summary precision metrics"),
         (shared_docs, "Optional delayed source separation can be added later",
          "implementation summary source-separation limitation"),
+        (completion_audit, "# Shared Analyzer Goal Completion Audit",
+         "goal completion audit document"),
+        (completion_audit, "## Scope And Investigation", "completion audit investigation section"),
+        (completion_audit, "## Architecture Requirements", "completion audit architecture section"),
+        (completion_audit, "## Removed Spillover Behavior", "completion audit spillover section"),
+        (completion_audit, "## Chord And Root Accuracy", "completion audit chord/root section"),
+        (completion_audit, "## Reset And Real-Time Safety", "completion audit reset/safety section"),
+        (completion_audit, "## Tests And Metrics", "completion audit tests/metrics section"),
+        (completion_audit, "## Documentation Deliverables", "completion audit docs section"),
+        (completion_audit, "make test", "completion audit test command evidence"),
+        (completion_audit, "remote `v0.1` tag", "completion audit tag workflow evidence"),
         (readme, "`FullMix` is the mode used by the OBS plugin and the standalone speaker monitor",
          "README full-mix frontend mode explanation"),
         (readme, "Ambiguous notes can still support the global chord",
