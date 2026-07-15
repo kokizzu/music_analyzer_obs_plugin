@@ -41,6 +41,7 @@ struct VisualizerRenderer {
 };
 
 void resize_visualizer(VisualizerRenderer *visualizer, uint32_t width, uint32_t height);
+bool snapshot_resets_visualizer_age(const AnalysisSnapshot &snapshot);
 void format_visualizer_status_line(char *output, std::size_t output_size, const AnalysisSnapshot &snapshot,
 				   float snapshot_age);
 void render_visualizer(VisualizerRenderer *visualizer, const AnalysisSnapshot &snapshot, float snapshot_age);

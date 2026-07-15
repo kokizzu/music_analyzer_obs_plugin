@@ -10,6 +10,7 @@ namespace mao {
 namespace {
 
 constexpr std::size_t kMatrixRowCount = 2;
+constexpr float kVisualizerAudibleRms = 0.0025f;
 
 struct Color {
 	uint8_t r = 255;
@@ -1027,7 +1028,10 @@ void render_pixels(VisualizerRenderer *visualizer, const AnalysisSnapshot &snaps
 		draw_text(visualizer, 230, 145, "FILTER READY - WAITING FOR AUDIO", 2, Color{248, 250, 252, 255});
 	else if (snapshot_age > 1.5f) {
 		char stale[96];
-		std::snprintf(stale, sizeof(stale), "STALE %.1FS - FILTER NOT RECEIVING AUDIO", snapshot_age);
+		if (snapshot_resets_visualizer_age(snapshot))
+			std::snprintf(stale, sizeof(stale), "STALE %.1FS - FILTER NOT RECEIVING AUDIO", snapshot_age);
+		else
+			std::snprintf(stale, sizeof(stale), "NO AUDIBLE INPUT %.1FS", snapshot_age);
 		draw_text(visualizer, 230, 145, stale, 2, Color{248, 250, 252, 255});
 	}
 }
@@ -1079,6 +1083,11 @@ void format_visualizer_status_line(char *output, std::size_t output_size, const 
 		      snapshot.rms, snapshot.low_energy * 100.0f, snapshot.mid_energy * 100.0f,
 		      snapshot.high_energy * 100.0f, snapshot_age,
 		      static_cast<unsigned long long>(snapshot.dropped_windows));
+}
+
+bool snapshot_resets_visualizer_age(const AnalysisSnapshot &snapshot)
+{
+	return snapshot.audio_seen && snapshot.rms >= kVisualizerAudibleRms;
 }
 
 void resize_visualizer(VisualizerRenderer *visualizer, uint32_t width, uint32_t height)

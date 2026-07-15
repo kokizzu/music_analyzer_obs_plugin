@@ -379,6 +379,31 @@ bool run_self_test()
 		}
 	}
 	{
+		mao::AnalysisSnapshot silent_snapshot = {};
+		silent_snapshot.audio_seen = true;
+		silent_snapshot.rms = 0.0f;
+		if (mao::snapshot_resets_visualizer_age(silent_snapshot)) {
+			std::fprintf(stderr, "standalone self-test: silent snapshot reset visualizer age\n");
+			return false;
+		}
+
+		mao::AnalysisSnapshot quiet_snapshot = {};
+		quiet_snapshot.audio_seen = true;
+		quiet_snapshot.rms = 0.00249f;
+		if (mao::snapshot_resets_visualizer_age(quiet_snapshot)) {
+			std::fprintf(stderr, "standalone self-test: quiet snapshot reset visualizer age\n");
+			return false;
+		}
+
+		mao::AnalysisSnapshot audible_snapshot = {};
+		audible_snapshot.audio_seen = true;
+		audible_snapshot.rms = 0.0025f;
+		if (!mao::snapshot_resets_visualizer_age(audible_snapshot)) {
+			std::fprintf(stderr, "standalone self-test: audible snapshot did not reset visualizer age\n");
+			return false;
+		}
+	}
+	{
 		mao::VisualizerRenderer bpm_renderer;
 		mao::resize_visualizer(&bpm_renderer, 960, 540);
 		mao::AnalysisSnapshot bpm_snapshot = {};
@@ -1298,7 +1323,8 @@ int main(int argc, char **argv)
 		const bool idle_visual = analyzer.idle_silence() && !history_active;
 		const auto present_interval = idle_visual ? idle_frame_interval : frame_interval;
 		if (snapshot_changed || analyzer.snapshot().sequence != rendered_sequence) {
-			snapshot_age = 0.0f;
+			if (mao::snapshot_resets_visualizer_age(analyzer.snapshot()))
+				snapshot_age = 0.0f;
 			mao::append_visualizer_drum_hits(&visualizer, analyzer.snapshot());
 			mao::render_visualizer(&visualizer, analyzer.snapshot(), snapshot_age);
 			rendered_sequence = analyzer.snapshot().sequence;

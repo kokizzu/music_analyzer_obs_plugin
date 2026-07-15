@@ -503,8 +503,10 @@ void visualizer_tick(void *data, float seconds)
 		visualizer->elapsed = 0.0f;
 
 	if (snapshot.sequence != visualizer->rendered_sequence) {
-		visualizer->snapshot_age = 0.0f;
-		visualizer->stale_status_elapsed = 0.0f;
+		if (mao::snapshot_resets_visualizer_age(snapshot)) {
+			visualizer->snapshot_age = 0.0f;
+			visualizer->stale_status_elapsed = 0.0f;
+		}
 		mao::render_visualizer(&visualizer->renderer, snapshot, visualizer->snapshot_age);
 		visualizer->rendered_sequence = snapshot.sequence;
 		visualizer->dirty = true;
