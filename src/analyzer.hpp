@@ -9,7 +9,7 @@ namespace mao {
 constexpr std::size_t kLegacyAnalysisWindow = 4096;
 constexpr std::size_t kAnalysisWindow = 8192;
 constexpr uint32_t kDefaultAnalysisWindowMs = 100;
-constexpr std::size_t kDrumCount = 6;
+constexpr std::size_t kDrumCount = 7;
 constexpr std::size_t kNoteRowCount = 3;
 constexpr int kFirstAnalyzedMidi = 21;
 constexpr int kLastAnalyzedMidi = 108;
@@ -22,6 +22,7 @@ enum DrumIndex : std::size_t {
 	Crash = 3,
 	Tom = 4,
 	Ride = 5,
+	Rim = 6,
 };
 
 enum class AnalysisInputMode {

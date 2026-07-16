@@ -9,6 +9,7 @@
 #include <algorithm>
 #include <atomic>
 #include <array>
+#include <chrono>
 #include <cmath>
 #include <condition_variable>
 #include <cstdint>
@@ -18,6 +19,11 @@
 #include <string>
 #include <thread>
 #include <vector>
+
+#if defined(__unix__) || defined(__APPLE__)
+#include <sys/resource.h>
+#include <unistd.h>
+#endif
 
 OBS_DECLARE_MODULE()
 
@@ -31,6 +37,94 @@ std::mutex g_snapshot_mutex;
 mao::AnalysisSnapshot g_snapshot;
 uint64_t g_snapshot_sequence = 0;
 
+struct ProcessMetricsState {
+	std::chrono::steady_clock::time_point last_wall = std::chrono::steady_clock::now();
+	double last_cpu_seconds = -1.0;
+	float cpu_percent = -1.0f;
+	float ram_mb = -1.0f;
+	bool initialized = false;
+};
+
+ProcessMetricsState g_process_metrics;
+
+double process_cpu_seconds()
+{
+#if defined(__unix__) || defined(__APPLE__)
+	rusage usage = {};
+	if (getrusage(RUSAGE_SELF, &usage) != 0)
+		return -1.0;
+	const double user = static_cast<double>(usage.ru_utime.tv_sec) +
+			    static_cast<double>(usage.ru_utime.tv_usec) / 1000000.0;
+	const double system = static_cast<double>(usage.ru_stime.tv_sec) +
+			      static_cast<double>(usage.ru_stime.tv_usec) / 1000000.0;
+	return user + system;
+#else
+	return -1.0;
+#endif
+}
+
+float process_ram_mb()
+{
+#if defined(__linux__)
+	FILE *file = std::fopen("/proc/self/statm", "r");
+	if (file) {
+		unsigned long size_pages = 0;
+		unsigned long resident_pages = 0;
+		const int parsed = std::fscanf(file, "%lu %lu", &size_pages, &resident_pages);
+		std::fclose(file);
+		const long page_size = sysconf(_SC_PAGESIZE);
+		if (parsed == 2 && page_size > 0) {
+			return static_cast<float>(static_cast<double>(resident_pages) *
+						  static_cast<double>(page_size) / (1024.0 * 1024.0));
+		}
+	}
+#endif
+#if defined(__unix__) || defined(__APPLE__)
+	rusage usage = {};
+	if (getrusage(RUSAGE_SELF, &usage) != 0)
+		return -1.0f;
+#if defined(__APPLE__)
+	return static_cast<float>(usage.ru_maxrss) / (1024.0f * 1024.0f);
+#else
+	return static_cast<float>(usage.ru_maxrss) / 1024.0f;
+#endif
+#else
+	return -1.0f;
+#endif
+}
+
+void apply_process_metrics(mao::AnalysisSnapshot *snapshot)
+{
+	if (!snapshot)
+		return;
+
+	constexpr float kMetricsIntervalSeconds = 1.0f;
+	const auto now = std::chrono::steady_clock::now();
+	if (!g_process_metrics.initialized) {
+		g_process_metrics.last_wall = now;
+		g_process_metrics.last_cpu_seconds = process_cpu_seconds();
+		g_process_metrics.cpu_percent = g_process_metrics.last_cpu_seconds >= 0.0 ? 0.0f : -1.0f;
+		g_process_metrics.ram_mb = process_ram_mb();
+		g_process_metrics.initialized = true;
+	} else {
+		const float elapsed = std::chrono::duration<float>(now - g_process_metrics.last_wall).count();
+		if (elapsed >= kMetricsIntervalSeconds) {
+			const double cpu_seconds = process_cpu_seconds();
+			if (cpu_seconds >= 0.0 && g_process_metrics.last_cpu_seconds >= 0.0 && elapsed > 0.0f) {
+				g_process_metrics.cpu_percent =
+					static_cast<float>((cpu_seconds - g_process_metrics.last_cpu_seconds) *
+							   100.0 / static_cast<double>(elapsed));
+			}
+			g_process_metrics.ram_mb = process_ram_mb();
+			g_process_metrics.last_wall = now;
+			g_process_metrics.last_cpu_seconds = cpu_seconds;
+		}
+	}
+
+	snapshot->cpu_percent = g_process_metrics.cpu_percent;
+	snapshot->ram_mb = g_process_metrics.ram_mb;
+}
+
 void copy_text(char *dst, std::size_t dst_size, const char *src)
 {
 	if (!dst || dst_size == 0)
@@ -41,6 +135,7 @@ void copy_text(char *dst, std::size_t dst_size, const char *src)
 void publish_snapshot(mao::AnalysisSnapshot snapshot)
 {
 	std::lock_guard<std::mutex> lock(g_snapshot_mutex);
+	apply_process_metrics(&snapshot);
 	snapshot.sequence = ++g_snapshot_sequence;
 	g_snapshot = snapshot;
 }

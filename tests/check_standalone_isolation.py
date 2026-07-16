@@ -49,11 +49,16 @@ def main():
     require("cpu_percent" in renderer and "ram_mb" in renderer and '" CPU %02.0f%%"' in renderer and
             '" RAM %03.0fMB"' in renderer and "draw_status_pair" in renderer,
             "renderer status line must expose optional CPU and app RAM metrics")
-    require('LOW %03.0f%% MID %03.0f%% HIGH %03.0f%%' in renderer and
-            'std::snprintf(low, sizeof(low), "%03.0f%%"' in renderer and
-            'std::snprintf(mid, sizeof(mid), "%03.0f%%"' in renderer and
-            'std::snprintf(high, sizeof(high), "%03.0f%%"' in renderer,
-            "LOW/MID/HIGH status percentages must be fixed-width to avoid text jitter")
+    require('LOW %3.0f%% MID %3.0f%% HIGH %3.0f%%' in renderer and
+            'std::snprintf(low, sizeof(low), "%3.0f%%"' in renderer and
+            'std::snprintf(mid, sizeof(mid), "%3.0f%%"' in renderer and
+            'std::snprintf(high, sizeof(high), "%3.0f%%"' in renderer,
+            "LOW/MID/HIGH status percentages must be fixed-width with spaces to avoid text jitter")
+    require('DROP %llu' in renderer and 'DROP %03llu' not in renderer,
+            "DROP status count must not be zero-padded")
+    require("apply_process_metrics(&snapshot)" in plugin and "snapshot->cpu_percent" in plugin and
+            "snapshot->ram_mb" in plugin and "process_ram_mb()" in plugin,
+            "OBS plugin snapshots must expose process CPU and RAM metrics")
     require("std::fill(visualizer->pixels.begin(), visualizer->pixels.end(), 0)" in renderer,
             "renderer must clear the preallocated pixel buffer without vector reassignment")
     require("history.reserve(64)" in renderer, "renderer must reserve drum-history storage up front")

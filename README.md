@@ -2,7 +2,7 @@
 
 Native OBS Studio plugin that analyzes a music mix and displays an instrument-oriented overlay:
 
-- Drums: bass drum/kick, snare, hi-hat, crash, toms, and ride one-second scrolling hit charts
+- Drums: bass drum/kick, snare, hi-hat, crash, toms, ride, and rightmost rim/side-stick one-second scrolling hit charts
 - Bass: detected note, with conservative full-mix switching so one-frame low-note spikes do not immediately replace the current bass
 - Keyboard: three-row piano view covering C1-B6 in two-octave bands, with lower notes folded into octave 1, higher notes folded into octave 6, and detected keys highlighted
 - Vocal and other instruments: two-row 12-note octave matrix with active octaves shown as colored text
@@ -69,8 +69,8 @@ The small status text at the top is for checking whether the analyzer is receivi
 - `LOW`, `MID`, `HIGH`: rough percentage split of detected low, mid, and high-frequency energy.
 - `AGE`: seconds since the overlay last received a new analyzer snapshot. If this keeps increasing while music is playing, the visualizer is not receiving fresh analyzer data. Stale-age redraws are throttled so the overlay does not repaint continuously only for this counter.
 - `DROP`: analyzer windows skipped because a newer audio window arrived before the worker consumed the previous one.
-- `CPU`: Android-only app process CPU usage, sampled about once per second from Android process CPU time. `100%` means roughly one full CPU core.
-- `RAM`: Android-only app RAM usage in MB, sampled about once per second from the process PSS value.
+- `CPU`: process CPU usage sampled about once per second. In OBS this is the OBS process, including the plugin; in standalone and Android this is the app process. `100%` means roughly one full CPU core.
+- `RAM`: process RAM usage in MB. In OBS this is the OBS process, including the plugin; in standalone and Android this is the app process.
 - `BPM`: bottom-right estimated tempo. The percentage is confidence from recent transient timing, so sparse intros, rubato, or weak drums may show `BPM --` or a low-confidence estimate.
 
 `Analyzer interval (ms)` controls how often a new rolling window is evaluated. The default is 50 ms. `Analysis window (ms)` controls the amount of recent audio inside each evaluation window. The default is 100 ms, so consecutive evaluations overlap. Enable `Use legacy 4096-sample analysis window` to switch back to the original fixed-size window.
@@ -277,6 +277,45 @@ Run the analyzer tests:
 make test
 ```
 
+Run the focused MIDI/synthetic range regression:
+
+```sh
+make test-midi-ranges
+```
+
+Prepare and test local one-shot drum samples, defaulting to `/media/kyz/sshflashtor/DrumSamples`:
+
+```sh
+make prepare-drum-samples
+make test-drum-samples
+```
+
+Override `DRUM_SAMPLE_SOURCE_DIR`, `DRUM_SAMPLE_BUILD_DIR`, or `DRUM_SAMPLE_LIMIT` if your sample library is elsewhere or you want a different per-category sample count. The default local one-shot gate now copies up to 160 samples per category, for 1,120 real drum samples when the configured library has enough material. The current local library audit found kick=4,273, snare=3,543, hihat=2,049, crash=595, tom=3,915, ride=352, and rim=491 usable one-shots, and the default 1,120-sample gate currently runs in about 24.37 seconds and passes with kick 154/160, snare 156/160, hihat 150/160, crash 137/160, tom 160/160, ride 134/160, and rim 139/160 active detections.
+
+Prepare and test MIDI-rendered single-note fixtures for piano, guitar, bass, synth, strings, vocals, and GM drum kits:
+
+```sh
+make prepare-instrument-samples
+make test-instrument-samples
+```
+
+This target renders build-local WAV fixtures under `build/piano_samples`, `build/guitar_samples`, `build/bass_samples`, `build/synth_samples`, `build/strings_samples`, `build/vocals_samples`, and `build/drum_kit_samples` using FluidSynth. By default it uses the system FluidR3 GM SoundFont, or downloads/extracts the internet-sourced `fluid-soundfont-gm` package into `build/instrument_sample_sources` if needed. The default fixture target is at least 1000 one-note files per family; the current FluidR3 GM set renders 1024 piano, 1040 guitar, 1030 bass, 1080 synth, 1116 strings, 1020 vocals, and 1008 GM drum-kit samples. Override `INSTRUMENT_SAMPLE_TARGET_PER_FAMILY`, `INSTRUMENT_SAMPLE_JOBS`, `INSTRUMENT_SAMPLE_SOUNDFONT`, `INSTRUMENT_SAMPLE_SOUNDFONT_PACKAGE`, `INSTRUMENT_SAMPLE_PROGRAMS_PER_FAMILY`, or `INSTRUMENT_SAMPLE_DRUM_KITS` to change the rendered fixture set. Known non-one-note SoundFont cells are excluded from the one-note manifests and recorded in `build/instrument_sample_exclusions.tsv` with reasons. FluidR3 GM is MIT-licensed; only generated files under `build/` are written.
+
+Download and test internet-sourced real-world sample fixtures:
+
+```sh
+make test-real-note-samples
+make test-downloaded-guitarset
+make test-philharmonia-samples
+make test-real-world-samples
+```
+
+`make test-real-note-samples` downloads the public [NSynth test split](https://magenta.tensorflow.org/datasets/nsynth) into `build/real_sample_sources`, prepares one-note real-audio fixtures under `build/real_note_samples`, and checks exact pitch/instrument-family detection. The current prepared set has 2,212 accepted samples: 137 bass, 346 guitar, 1,117 piano/keyboard, 22 vocal, and 590 other-instrument examples. It excludes out-of-range notes, synthetic-source examples, metadata-marked non-one-note qualities such as `multiphonic` and `tempo-synced`, plus seven exact unstable pitch-reference examples. The archive is about 333 MB, is cached under `build/`, and the cached local test currently runs in about 18.20 seconds.
+
+`make test-downloaded-guitarset` downloads [GuitarSet](https://zenodo.org/records/3371780) annotations plus the mono microphone audio into `build/real_sample_sources/guitarset`, prepares `build/guitarset-manifest.tsv`, and runs isolated-guitar note/chord regression over all usable annotated chord windows. The prepared manifest contains 360 excerpts; the current usable mono-mic gate covers 209 excerpts, 1,528 selected windows, and 1,491 chord-checkable windows, reporting pitch recall, guitar-row precision/recall/F1, cross-row contamination, chord precision/recall, and separate major/minor versus other chord hits. Current local results are 4,127/5,451 pitch-class hits, 60.09% guitar precision, 75.71% guitar recall, and 292/1,491 chord hits: 228/752 major/minor opportunities and 64/739 other-chord opportunities. This is a real-audio detector benchmark, not a perfect-truth pass/fail for every chord shape: major/minor chords are prioritized, while sus, diminished, augmented, seventh, ninth, add9, sixth, and power-chord templates are still counted and reported. The cached analyzer phase currently runs in about 20.36 seconds after extraction; first download is about 663 MB and can take much longer.
+
+`make test-philharmonia-samples` downloads the public [Philharmonia sound sample library](https://philharmonia.co.uk/resources/sound-samples/) Woodwind, Brass, and Strings archives into `build/real_sample_sources/philharmonia`, prepares balanced one-note fixtures under `build/philharmonia_samples`, and checks isolated guitar-family plus other-instrument pitch detection. The current prepared set has 1,499 decoded real samples: 70 banjo, 71 guitar, 39 mandolin, and 1,319 orchestral woodwind/brass/string examples. The importer skips undecodable archive members and banjo rows above C6 so the gate stays aligned with the analyzer's strict chromatic-note tuning model. The three archives are about 522 MB total, are cached under `build/`, and the cached local test currently runs in about 34.88 seconds.
+
 Measure standalone CPU and memory with a deterministic generated raw-audio profile:
 
 ```sh
@@ -298,9 +337,9 @@ Latest local profile from July 16, 2026:
 | Android Bass + Guitar emulator app | 22.1% app CPU, 27.6% total device CPU | 35,574 KB app PSS | `make android-profile-bass-guitar`; repo-local Android emulator |
 | Android complete emulator app | 19.5% app CPU, 24.8% total device CPU | 36,343 KB app PSS | `make android-profile-complete`; repo-local Android emulator |
 
-For `make profile-standalone`, `JobCPU` is the CPU used while processing the generated raw audio as fast as possible. `RealtimeCPU` is the estimated CPU if the same workload runs at live 1x audio speed, expressed as one-core CPU percentage. Android `app CPU` from `make android-profile*` is process CPU as a share of total emulator CPU capacity; the in-app `CPU` status is app process CPU used relative to one core, and `RAM` is app RAM usage in MB. Android numbers are emulator-specific; physical devices will vary by CPU, Android audio stack, screen refresh, and input route.
+For `make profile-standalone`, `JobCPU` is the CPU used while processing the generated raw audio as fast as possible. `RealtimeCPU` is the estimated CPU if the same workload runs at live 1x audio speed, expressed as one-core CPU percentage. Android `app CPU` from `make android-profile*` is process CPU as a share of total emulator CPU capacity; the in-app `CPU` status is app process CPU used relative to one core, and `RAM` is app RAM usage in MB. OBS overlay `CPU` and `RAM` are measured from the hosting OBS process, so they include OBS itself plus the plugin. Android numbers are emulator-specific; physical devices will vary by CPU, Android audio stack, screen refresh, and input route.
 
-`make test` builds standalone analyzer executables outside OBS and also runs `make test-standalone`, which verifies the SDL standalone target, the shared renderer, and the Makefile/CMake isolation that keeps SDL out of the OBS plugin target. It first validates the checked real-dataset catalog used to decide which public datasets can provide note-ground-truth coverage. `analyzer_smoke` covers the basic signal path, and `analyzer_cases` runs broad synthetic note, instrument, chord, note-matrix, quiet-note rejection, realistic harmonic chord, same-note timbre split, isolated-source spillover rejection, explicit input-mode behavior, BPM estimation, mixed-source timbre routing, multi-instrument mix, URMP same-song multitrack metadata fixtures, and root-candidate cases, including bass B0-G4, guitar E2-E6, keyboard/other A0-C8, and vocal E2-C6.
+`make test` builds standalone analyzer executables outside OBS and also runs `make test-standalone`, which verifies the SDL standalone target, the shared renderer, and the Makefile/CMake isolation that keeps SDL out of the OBS plugin target. It first validates the checked real-dataset catalog used to decide which public datasets can provide note-ground-truth coverage. Each core analyzer executable is run through `scripts/run_with_duration.sh`, so the test log includes wall-clock duration lines. `analyzer_smoke` covers the basic signal path. `analyzer_cases` runs broad synthetic note, instrument, chord, note-matrix, quiet-note rejection, realistic harmonic chord, same-note timbre split, isolated-source spillover rejection, explicit input-mode behavior, BPM estimation, mixed-source timbre routing, multi-instrument mix, URMP same-song multitrack metadata fixtures, and root-candidate cases, including bass B0-G4, guitar E2-E6, keyboard/other A0-C8, and vocal E2-C6. `analyzer_midi_ranges` covers GM drum MIDI notes, rim/side-stick detection, normal bass/piano/guitar/synth/string/vocal note ranges, and a combined full-mix MIDI arrangement. When `DRUM_SAMPLE_SOURCE_DIR` exists, `make test` also runs `make test-drum-samples`, which copies classified one-shot kick, snare, hi-hat, crash, tom, ride, and rim WAV samples into `build/drum_samples` and checks per-category recall. When FluidSynth is available, `make test` also runs `make test-instrument-samples`, which renders and verifies 1000+ SoundFont-backed fixtures per piano, guitar, bass, synth, string, vocal/choir, and GM drum-kit family, plus crowded-combination cases. The internet-downloaded NSynth, GuitarSet, and Philharmonia gates are intentionally separate because first-run downloads are hundreds of MB; run `make test-real-world-samples` when you want that real-audio benchmark.
 
 The full-mix regression cases model public multitrack dataset layouts without downloading dataset audio. They include 20+ Slakh2100-style MIDI-rendered song fixtures, 20 ChoralSynth-style vocal multitrack fixtures, 20 CocoChorales-style chamber-ensemble fixtures, 20 SynthSOD-style orchestra/ensemble fixtures, 20 Vocal Ensemble F0 Aggregate-style real-vocal F0 fixtures, plus additional MUSDB18/MUSDB18-HQ, DSD100/Mixing Secrets, MedleyDB/2.0, MoisesDB, URMP, Bach10, TRIOS, PHENICX-Anechoic, MIREX Woodwind Quintet, RawStems, MulTTiPop, GuitarSet, MAESTRO, E-GMD, ACMID, Spheres, MDX, and Open Multitrack Testbed-style fixtures. See [docs/real_audio_dataset_candidates.md](docs/real_audio_dataset_candidates.md) for real recorded dataset candidates that can verify notes and instruments.
 

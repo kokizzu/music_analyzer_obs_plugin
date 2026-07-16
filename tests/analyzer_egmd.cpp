@@ -378,8 +378,10 @@ bool drum_category_for_midi(int midi, mao::DrumIndex &category)
 		return true;
 	case 38:
 	case 40:
-	case 37:
 		category = mao::Snare;
+		return true;
+	case 37:
+		category = mao::Rim;
 		return true;
 	case 42:
 	case 44:
@@ -968,7 +970,8 @@ void add_drum_precision_metrics(DrumPrecisionStats &stats, const mao::AnalysisSn
 
 std::string drum_precision_summary(const DrumPrecisionStats &stats)
 {
-	static constexpr const char *kLabels[mao::kDrumCount] = {"kick", "snare", "hihat", "crash", "tom", "ride"};
+	static constexpr const char *kLabels[mao::kDrumCount] = {"kick", "snare", "hihat", "crash",
+								 "tom", "ride", "rim"};
 	std::string by_category;
 	for (std::size_t i = 0; i < mao::kDrumCount; ++i) {
 		if (!by_category.empty())

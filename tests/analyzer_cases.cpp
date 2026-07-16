@@ -2968,6 +2968,44 @@ mao_test::Buffer triad_buffer(int root_pitch_class, bool minor)
 	return mao_test::make_midi_notes({root, root + (minor ? 3 : 4), root + 7}, 0.34f);
 }
 
+mao::AnalysisSnapshot analyze_root_chord_loop(const std::vector<mao_test::Buffer> &progression, int cycles,
+					     int repeats_per_chord)
+{
+	mao::AnalysisEngine engine;
+	mao::AnalysisSettings settings = mao_test::default_settings();
+	mao::AnalysisSnapshot snapshot = {};
+	for (int cycle = 0; cycle < cycles; ++cycle) {
+		for (const mao_test::Buffer &buffer : progression) {
+			for (int repeat = 0; repeat < repeats_per_chord; ++repeat)
+				snapshot = engine.analyze(buffer.data(), buffer.size(), settings, "keyboard", 0);
+		}
+	}
+	return snapshot;
+}
+
+void check_root_from_common_major_degrees(Runner &runner)
+{
+	const mao::AnalysisSnapshot one_four_five =
+		analyze_root_chord_loop({triad_buffer(0, false), triad_buffer(5, false), triad_buffer(7, false)},
+					10, 3);
+	runner.expect(std::strcmp(one_four_five.root.label, "C") == 0,
+		      std::string("root 1/4/5: expected C for C/F/G history, got `") +
+			      one_four_five.root.label + "` candidates `" + one_four_five.root_candidates + "`");
+	runner.expect(mao_test::contains(one_four_five.root_candidates, "C "),
+		      std::string("root 1/4/5: expected C candidate, got `") +
+			      one_four_five.root_candidates + "`");
+
+	const mao::AnalysisSnapshot four_five_one =
+		analyze_root_chord_loop({triad_buffer(0, false), triad_buffer(2, false), triad_buffer(7, false)},
+					10, 3);
+	runner.expect(std::strcmp(four_five_one.root.label, "G") == 0,
+		      std::string("root 4/5/1: expected G for C/D/G history, got `") +
+			      four_five_one.root.label + "` candidates `" + four_five_one.root_candidates + "`");
+	runner.expect(mao_test::contains(four_five_one.root_candidates, "G "),
+		      std::string("root 4/5/1: expected G candidate, got `") +
+			      four_five_one.root_candidates + "`");
+}
+
 void check_root_from_chord_progression(Runner &runner)
 {
 	mao::AnalysisEngine engine;
@@ -3286,6 +3324,7 @@ int main()
 	check_soft_drum_transient_stream(runner);
 	check_upbeat_mix_drums_and_chords(runner);
 	check_root_candidates(runner);
+	check_root_from_common_major_degrees(runner);
 	check_root_from_chord_progression(runner);
 	check_root_from_bass_degrees(runner);
 	check_empty_input_resets_same_source_state(runner);

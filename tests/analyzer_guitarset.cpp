@@ -22,13 +22,20 @@ namespace {
 struct Runner {
 	int checks = 0;
 	int failures = 0;
+	int reported_failures = 0;
+	int max_reported_failures = 80;
 
 	void expect(bool ok, const std::string &message)
 	{
 		++checks;
 		if (!ok) {
 			++failures;
-			std::fprintf(stderr, "%s\n", message.c_str());
+			if (reported_failures < max_reported_failures) {
+				std::fprintf(stderr, "%s\n", message.c_str());
+			} else if (reported_failures == max_reported_failures) {
+				std::fprintf(stderr, "further analyzer_guitarset failures suppressed\n");
+			}
+			++reported_failures;
 		}
 	}
 };
@@ -543,6 +550,8 @@ mao::AnalysisSnapshot analyze_confirmed_buffer(const mao_test::Buffer &buffer, u
 	mao::AnalysisSettings settings = mao_test::default_settings();
 	settings.sample_rate = sample_rate;
 	settings.analysis_interval_seconds = 0.05f;
+	settings.analysis_window_samples = 0;
+	settings.analysis_window_seconds = static_cast<float>(mao::kDefaultAnalysisWindowMs) / 1000.0f;
 	settings.input_mode = mao::AnalysisInputMode::IsolatedGuitar;
 
 	mao::AnalysisSnapshot snapshot = {};
@@ -556,6 +565,10 @@ struct RecallStats {
 	int expected = 0;
 	int chord_hits = 0;
 	int chord_checks = 0;
+	int major_minor_chord_hits = 0;
+	int major_minor_chord_checks = 0;
+	int other_chord_hits = 0;
+	int other_chord_checks = 0;
 };
 
 std::array<bool, 12> grid_pitch_classes(const mao::NoteGrid &grid)
@@ -750,6 +763,20 @@ std::string chord_precision_summary(const ChordPrecisionStats &stats)
 	       std::to_string(stats.false_positives) + "/" + std::to_string(stats.false_negatives);
 }
 
+bool chord_label_is_plain_major_or_minor(const std::string &label)
+{
+	if (label.empty())
+		return false;
+	const char root = label[0];
+	if (root < 'A' || root > 'G')
+		return false;
+	std::size_t suffix = 1;
+	if (suffix < label.size() && label[suffix] == '#')
+		++suffix;
+	const std::string quality = label.substr(suffix);
+	return quality.empty() || quality == "m";
+}
+
 void check_recall(Runner &runner, const mao::AnalysisSnapshot &snapshot, const CandidateWindow &candidate,
 		  const std::string &context, RecallStats &stats, int min_recall_percent)
 {
@@ -773,6 +800,9 @@ void check_recall(Runner &runner, const mao::AnalysisSnapshot &snapshot, const C
 
 	if (!candidate.chord_labels.empty()) {
 		++stats.chord_checks;
+		const bool major_minor_opportunity =
+			std::any_of(candidate.chord_labels.begin(), candidate.chord_labels.end(),
+				    chord_label_is_plain_major_or_minor);
 		const bool chord_hit =
 			std::any_of(candidate.chord_labels.begin(), candidate.chord_labels.end(),
 				    [&](const std::string &label) { return snapshot_has_chord_label(snapshot, label); });
@@ -785,6 +815,15 @@ void check_recall(Runner &runner, const mao::AnalysisSnapshot &snapshot, const C
 				     context.c_str(), join_labels(candidate.chord_labels).c_str(),
 				     snapshot.global_chord.label, snapshot.keyboard_chord.label,
 				     snapshot.guitar_chord.label, snapshot.other_chord.label);
+		}
+		if (major_minor_opportunity) {
+			++stats.major_minor_chord_checks;
+			if (chord_hit)
+				++stats.major_minor_chord_hits;
+		} else {
+			++stats.other_chord_checks;
+			if (chord_hit)
+				++stats.other_chord_hits;
 		}
 	}
 }
@@ -963,6 +1002,8 @@ int main()
 	const int min_active_notes = resolve_positive_int_env("MUSIC_ANALYZER_GUITARSET_MIN_ACTIVE_NOTES", 3);
 	const int min_pitch_classes = resolve_positive_int_env("MUSIC_ANALYZER_GUITARSET_MIN_PITCH_CLASSES", 3);
 	const int min_recall_percent = resolve_percent_env("MUSIC_ANALYZER_GUITARSET_MIN_RECALL_PERCENT", 45);
+	const int min_window_recall_percent =
+		resolve_percent_env("MUSIC_ANALYZER_GUITARSET_MIN_WINDOW_RECALL_PERCENT", min_recall_percent);
 	const int min_guitar_precision_percent =
 		resolve_percent_env("MUSIC_ANALYZER_GUITARSET_MIN_PRECISION_PERCENT", 90);
 	const int min_guitar_row_recall_percent =
@@ -977,8 +1018,10 @@ int main()
 		resolve_percent_env("MUSIC_ANALYZER_GUITARSET_MIN_CHORD_PRECISION_PERCENT", 85);
 	const int min_chord_checks = resolve_positive_int_env("MUSIC_ANALYZER_GUITARSET_MIN_CHORD_CHECKS", 5);
 	const bool inspect_only = env_truthy("MUSIC_ANALYZER_GUITARSET_INSPECT_ONLY");
+	const bool use_all_recordings = env_truthy("MUSIC_ANALYZER_GUITARSET_USE_ALL");
 
 	Runner runner;
+	runner.max_reported_failures = resolve_positive_int_env("MUSIC_ANALYZER_GUITARSET_MAX_FAILURE_LINES", 80);
 	RecallStats recall;
 	GuitarPrecisionStats precision;
 	ChordPrecisionStats guitar_chord_precision;
@@ -990,7 +1033,7 @@ int main()
 	int unusable_recordings = 0;
 
 	for (const Recording &recording : recordings) {
-		if (tested_recordings >= required_recordings)
+		if (!use_all_recordings && tested_recordings >= required_recordings)
 			break;
 		WavFormat format;
 		if (!read_wav_format(recording.audio_path, format, error)) {
@@ -1019,7 +1062,7 @@ int main()
 				const mao::AnalysisSnapshot snapshot = analyze_confirmed_buffer(buffer, sample_rate);
 				check_recall(runner, snapshot, candidate,
 					     recording.id + " at " + std::to_string(candidate.center_seconds) + "s",
-					     recall, min_recall_percent);
+					     recall, min_window_recall_percent);
 				add_guitar_precision_metrics(precision, snapshot, candidate);
 				add_guitar_chord_precision_metrics(guitar_chord_precision, snapshot, candidate);
 			}
@@ -1050,11 +1093,14 @@ int main()
 		std::fprintf(stderr,
 			     "analyzer_guitarset: %d/%d checks failed (excerpts %d/%d, windows %d/%d, "
 			     "read failures %d, no-candidate excerpts %d, unusable %d, note hits %d/%d, "
-			     "chord hits %d/%d, %s, %s, %s)\n",
+			     "chord hits %d/%d, major/minor chord hits %d/%d, other chord hits %d/%d, "
+			     "%s, %s, %s)\n",
 			     runner.failures, runner.checks, tested_recordings, required_recordings,
 			     tested_windows, required_windows, read_failures, no_candidate_recordings,
 			     unusable_recordings, recall.hits, recall.expected, recall.chord_hits,
-			     recall.chord_checks, guitar_precision_summary(precision).c_str(),
+			     recall.chord_checks, recall.major_minor_chord_hits,
+			     recall.major_minor_chord_checks, recall.other_chord_hits,
+			     recall.other_chord_checks, guitar_precision_summary(precision).c_str(),
 			     chord_precision_summary(guitar_chord_precision).c_str(),
 			     composition_summary(composition).c_str());
 		return 1;
@@ -1073,7 +1119,11 @@ int main()
 			runner.checks, tested_recordings, required_recordings, tested_windows, read_failures,
 			no_candidate_recordings, unusable_recordings, recall.hits, recall.expected,
 			recall.chord_hits, recall.chord_checks,
-			(guitar_precision_summary(precision) + ", " +
+			("major/minor chord hits " + std::to_string(recall.major_minor_chord_hits) + "/" +
+			 std::to_string(recall.major_minor_chord_checks) + ", other chord hits " +
+			 std::to_string(recall.other_chord_hits) + "/" +
+			 std::to_string(recall.other_chord_checks) + ", " +
+			 guitar_precision_summary(precision) + ", " +
 			 chord_precision_summary(guitar_chord_precision) + ", " +
 			 composition_summary(composition))
 				.c_str());

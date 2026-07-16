@@ -1,0 +1,399 @@
+#include "analyzer.hpp"
+#include "analyzer_test_utils.hpp"
+
+#include <algorithm>
+#include <array>
+#include <cmath>
+#include <cstdint>
+#include <cstdio>
+#include <cstdlib>
+#include <cstring>
+#include <fstream>
+#include <map>
+#include <sstream>
+#include <string>
+#include <vector>
+
+namespace {
+
+constexpr float kDefaultWindowSeconds = static_cast<float>(mao::kDefaultAnalysisWindowMs) / 1000.0f;
+
+struct Runner {
+	int checks = 0;
+	int failures = 0;
+
+	void expect(bool ok, const std::string &message)
+	{
+		++checks;
+		if (!ok) {
+			++failures;
+			std::fprintf(stderr, "%s\n", message.c_str());
+		}
+	}
+};
+
+struct WavFormat {
+	uint16_t audio_format = 0;
+	uint16_t channels = 0;
+	uint32_t sample_rate = 0;
+	uint16_t block_align = 0;
+	uint16_t bits_per_sample = 0;
+	uint64_t data_offset = 0;
+	uint64_t data_size = 0;
+	uint64_t frame_count = 0;
+};
+
+uint16_t read_u16(std::ifstream &file)
+{
+	unsigned char b[2] = {};
+	file.read(reinterpret_cast<char *>(b), sizeof(b));
+	return static_cast<uint16_t>(b[0]) | static_cast<uint16_t>(b[1] << 8);
+}
+
+uint32_t read_u32(std::ifstream &file)
+{
+	unsigned char b[4] = {};
+	file.read(reinterpret_cast<char *>(b), sizeof(b));
+	return static_cast<uint32_t>(b[0]) | (static_cast<uint32_t>(b[1]) << 8) |
+	       (static_cast<uint32_t>(b[2]) << 16) | (static_cast<uint32_t>(b[3]) << 24);
+}
+
+bool read_wav_format(const std::string &path, WavFormat &format, std::string &error)
+{
+	std::ifstream file(path, std::ios::binary);
+	if (!file) {
+		error = "open failed";
+		return false;
+	}
+
+	char riff[4] = {};
+	char wave[4] = {};
+	file.read(riff, sizeof(riff));
+	(void)read_u32(file);
+	file.read(wave, sizeof(wave));
+	if (std::strncmp(riff, "RIFF", 4) != 0 || std::strncmp(wave, "WAVE", 4) != 0) {
+		error = "not a RIFF/WAVE file";
+		return false;
+	}
+
+	while (file) {
+		char id[4] = {};
+		file.read(id, sizeof(id));
+		if (!file)
+			break;
+		const uint32_t chunk_size = read_u32(file);
+		const std::streampos chunk_data = file.tellg();
+
+		if (std::strncmp(id, "fmt ", 4) == 0) {
+			format.audio_format = read_u16(file);
+			format.channels = read_u16(file);
+			format.sample_rate = read_u32(file);
+			(void)read_u32(file);
+			format.block_align = read_u16(file);
+			format.bits_per_sample = read_u16(file);
+		} else if (std::strncmp(id, "data", 4) == 0) {
+			format.data_offset = static_cast<uint64_t>(chunk_data);
+			format.data_size = chunk_size;
+		}
+
+		file.seekg(chunk_data + static_cast<std::streamoff>(chunk_size + (chunk_size & 1)));
+	}
+
+	if (format.channels == 0 || format.sample_rate == 0 || format.block_align == 0 ||
+	    format.bits_per_sample == 0 || format.data_offset == 0 || format.data_size == 0) {
+		error = "missing fmt or data chunk";
+		return false;
+	}
+	if (format.audio_format != 1 && format.audio_format != 3) {
+		error = "unsupported WAV format";
+		return false;
+	}
+	format.frame_count = format.data_size / format.block_align;
+	return true;
+}
+
+float decode_pcm_sample(const unsigned char *bytes, uint16_t bits_per_sample, uint16_t audio_format)
+{
+	if (audio_format == 3 && bits_per_sample == 32) {
+		float value = 0.0f;
+		std::memcpy(&value, bytes, sizeof(value));
+		return std::clamp(value, -1.0f, 1.0f);
+	}
+	if (bits_per_sample == 16) {
+		const int16_t value = static_cast<int16_t>(static_cast<uint16_t>(bytes[0]) |
+							  (static_cast<uint16_t>(bytes[1]) << 8));
+		return static_cast<float>(value) / 32768.0f;
+	}
+	if (bits_per_sample == 24) {
+		int32_t value = static_cast<int32_t>(bytes[0]) | (static_cast<int32_t>(bytes[1]) << 8) |
+				(static_cast<int32_t>(bytes[2]) << 16);
+		if (value & 0x00800000)
+			value |= ~0x00ffffff;
+		return static_cast<float>(value) / 8388608.0f;
+	}
+	if (bits_per_sample == 32) {
+		int32_t value = static_cast<int32_t>(bytes[0]) | (static_cast<int32_t>(bytes[1]) << 8) |
+				(static_cast<int32_t>(bytes[2]) << 16) |
+				(static_cast<int32_t>(bytes[3]) << 24);
+		return static_cast<float>(value) / 2147483648.0f;
+	}
+	return 0.0f;
+}
+
+bool read_wav_mono(const std::string &path, std::vector<float> &samples, uint32_t &sample_rate,
+		   std::string &error)
+{
+	WavFormat format;
+	if (!read_wav_format(path, format, error))
+		return false;
+
+	const uint16_t bytes_per_sample = static_cast<uint16_t>(format.bits_per_sample / 8);
+	if (bytes_per_sample == 0 || format.block_align < bytes_per_sample * format.channels) {
+		error = "invalid block alignment";
+		return false;
+	}
+
+	std::ifstream file(path, std::ios::binary);
+	if (!file) {
+		error = "open failed";
+		return false;
+	}
+	file.seekg(static_cast<std::streamoff>(format.data_offset));
+
+	std::vector<unsigned char> bytes(static_cast<std::size_t>(format.data_size));
+	file.read(reinterpret_cast<char *>(bytes.data()), static_cast<std::streamsize>(bytes.size()));
+	if (file.gcount() != static_cast<std::streamsize>(bytes.size())) {
+		error = "short read";
+		return false;
+	}
+
+	samples.assign(static_cast<std::size_t>(format.frame_count), 0.0f);
+	for (std::size_t frame = 0; frame < samples.size(); ++frame) {
+		const unsigned char *frame_bytes = bytes.data() + frame * format.block_align;
+		float sum = 0.0f;
+		for (uint16_t channel = 0; channel < format.channels; ++channel)
+			sum += decode_pcm_sample(frame_bytes + channel * bytes_per_sample, format.bits_per_sample,
+						 format.audio_format);
+		samples[frame] = sum / static_cast<float>(format.channels);
+	}
+
+	sample_rate = format.sample_rate;
+	return true;
+}
+
+std::string join_path(const std::string &lhs, const std::string &rhs)
+{
+	if (lhs.empty() || lhs[lhs.size() - 1] == '/')
+		return lhs + rhs;
+	return lhs + "/" + rhs;
+}
+
+std::vector<std::string> split_tab(const std::string &line)
+{
+	std::vector<std::string> parts;
+	std::string part;
+	std::istringstream input(line);
+	while (std::getline(input, part, '\t'))
+		parts.push_back(part);
+	return parts;
+}
+
+const char *category_name(std::size_t index)
+{
+	static constexpr const char *kNames[mao::kDrumCount] = {"kick", "snare", "hihat", "crash",
+								"tom", "ride", "rim"};
+	return index < mao::kDrumCount ? kNames[index] : "unknown";
+}
+
+bool category_index(const std::string &category, std::size_t &index)
+{
+	for (std::size_t i = 0; i < mao::kDrumCount; ++i) {
+		if (category == category_name(i)) {
+			index = i;
+			return true;
+		}
+	}
+	return false;
+}
+
+mao_test::Buffer make_warmup_buffer()
+{
+	mao_test::Buffer buffer = {};
+	mao_test::add_midi_note(buffer, 60, 0.006f);
+	mao_test::add_midi_note(buffer, 64, 0.004f);
+	mao_test::add_midi_note(buffer, 67, 0.003f);
+	return buffer;
+}
+
+bool make_sample_buffer(const std::vector<float> &samples, mao_test::Buffer &buffer)
+{
+	buffer.fill(0.0f);
+	if (samples.empty())
+		return false;
+
+	std::size_t peak_index = 0;
+	float peak = 0.0f;
+	for (std::size_t i = 0; i < samples.size(); ++i) {
+		const float abs_sample = std::abs(samples[i]);
+		if (abs_sample > peak) {
+			peak = abs_sample;
+			peak_index = i;
+		}
+	}
+	if (peak < 1.0e-5f)
+		return false;
+
+	std::size_t onset_index = peak_index;
+	const float onset_threshold = std::max(peak * 0.025f, 0.0015f);
+	for (std::size_t i = 0; i < samples.size(); ++i) {
+		if (std::abs(samples[i]) >= onset_threshold) {
+			onset_index = i;
+			break;
+		}
+	}
+	const std::size_t pre_roll = 16;
+	const std::size_t start = onset_index > pre_roll ? onset_index - pre_roll : 0;
+	const std::size_t insert = std::min<std::size_t>(1536, buffer.size() / 3);
+	const std::size_t count = std::min<std::size_t>(buffer.size() - insert, samples.size() - start);
+	const float gain = std::min(16.0f, 0.88f / peak);
+	for (std::size_t i = 0; i < count; ++i)
+		buffer[insert + i] = std::clamp(samples[start + i] * gain, -1.0f, 1.0f);
+	return true;
+}
+
+mao::AnalysisSnapshot analyze_sample(const mao_test::Buffer &sample, uint32_t sample_rate, float window_seconds)
+{
+	mao::AnalysisEngine engine;
+	mao::AnalysisSettings settings = mao_test::default_settings();
+	settings.sample_rate = sample_rate;
+	settings.analysis_interval_seconds = 0.05f;
+	settings.analysis_window_samples = 0;
+	settings.analysis_window_seconds = window_seconds;
+	settings.input_mode = mao::AnalysisInputMode::FullMix;
+
+	const mao_test::Buffer warmup = make_warmup_buffer();
+	mao::AnalysisSnapshot snapshot = {};
+	for (int i = 0; i < 4; ++i)
+		snapshot = engine.analyze(warmup.data(), warmup.size(), settings, "drum sample", 0);
+	snapshot = engine.analyze(sample.data(), sample.size(), settings, "drum sample", 0);
+	return snapshot;
+}
+
+std::string active_details(const mao::AnalysisSnapshot &snapshot)
+{
+	std::string text;
+	for (std::size_t i = 0; i < mao::kDrumCount; ++i) {
+		char part[96] = {};
+		std::snprintf(part, sizeof(part), "%s%s=%.2f%s", text.empty() ? "" : " ",
+			      category_name(i), snapshot.drums[i].level, snapshot.drums[i].active ? "*" : "");
+		text += part;
+	}
+	return text;
+}
+
+int resolve_percent_env(const char *name, int fallback)
+{
+	const char *value = std::getenv(name);
+	if (!value || !*value)
+		return fallback;
+	const int parsed = std::atoi(value);
+	return parsed >= 0 && parsed <= 100 ? parsed : fallback;
+}
+
+} // namespace
+
+int main()
+{
+	const char *dir_env = std::getenv("MUSIC_ANALYZER_DRUM_SAMPLES_DIR");
+	const std::string sample_dir = dir_env && *dir_env ? dir_env : "build/drum_samples";
+	const std::string manifest_path = join_path(sample_dir, "manifest.tsv");
+	const bool required = std::getenv("MUSIC_ANALYZER_DRUM_SAMPLES_REQUIRED") != nullptr;
+	const bool verbose_misses = std::getenv("MUSIC_ANALYZER_DRUM_SAMPLE_VERBOSE_MISSES") != nullptr;
+	const int min_recall_percent = resolve_percent_env("MUSIC_ANALYZER_DRUM_SAMPLE_MIN_RECALL_PERCENT", 45);
+
+	std::ifstream manifest(manifest_path);
+	if (!manifest) {
+		if (required) {
+			std::fprintf(stderr, "analyzer_drum_samples: missing manifest %s\n", manifest_path.c_str());
+			return 1;
+		}
+		std::printf("analyzer_drum_samples: skipped; no manifest at %s\n", manifest_path.c_str());
+		return 0;
+	}
+
+	Runner runner;
+	std::array<int, mao::kDrumCount> totals = {};
+	std::array<int, mao::kDrumCount> hits100 = {};
+	std::array<int, mao::kDrumCount> misses100 = {};
+	int usable = 0;
+	int skipped = 0;
+
+	std::string line;
+	bool header = true;
+	while (std::getline(manifest, line)) {
+		if (header) {
+			header = false;
+			continue;
+		}
+		if (line.empty())
+			continue;
+		const std::vector<std::string> fields = split_tab(line);
+		if (fields.size() < 2)
+			continue;
+		std::size_t expected = 0;
+		if (!category_index(fields[0], expected))
+			continue;
+
+		const std::string path = join_path(sample_dir, fields[1]);
+		std::vector<float> samples;
+		uint32_t sample_rate = 0;
+		std::string error;
+		if (!read_wav_mono(path, samples, sample_rate, error)) {
+			++skipped;
+			std::fprintf(stderr, "analyzer_drum_samples: skipping %s: %s\n", path.c_str(), error.c_str());
+			continue;
+		}
+
+		mao_test::Buffer buffer = {};
+		if (!make_sample_buffer(samples, buffer)) {
+			++skipped;
+			continue;
+		}
+
+		const mao::AnalysisSnapshot snapshot100 = analyze_sample(buffer, sample_rate, kDefaultWindowSeconds);
+		++totals[expected];
+		++usable;
+		if (snapshot100.drums[expected].active) {
+			++hits100[expected];
+		} else {
+			if (verbose_misses || misses100[expected] < 3) {
+				std::fprintf(stderr, "analyzer_drum_samples: miss 100ms %s expected %s (%s)\n",
+					     fields[1].c_str(), category_name(expected),
+					     active_details(snapshot100).c_str());
+			}
+			++misses100[expected];
+		}
+	}
+
+	for (std::size_t i = 0; i < mao::kDrumCount; ++i) {
+		runner.expect(totals[i] >= 2, std::string("expected at least two usable ") + category_name(i) +
+					     " samples, got " + std::to_string(totals[i]));
+		const int recall100 = totals[i] > 0 ? hits100[i] * 100 / totals[i] : 0;
+		runner.expect(recall100 >= min_recall_percent,
+			      std::string("expected 100ms ") + category_name(i) + " recall >= " +
+				      std::to_string(min_recall_percent) + "%, got " + std::to_string(recall100) +
+				      "% (" + std::to_string(hits100[i]) + "/" + std::to_string(totals[i]) + ")");
+	}
+
+	if (runner.failures) {
+		std::fprintf(stderr, "analyzer_drum_samples: %d failure(s), usable %d, skipped %d\n", runner.failures,
+			     usable, skipped);
+		return 1;
+	}
+
+	std::printf("analyzer_drum_samples: ok (usable %d, skipped %d", usable, skipped);
+	for (std::size_t i = 0; i < mao::kDrumCount; ++i)
+		std::printf(", %s 100ms %d/%d", category_name(i), hits100[i], totals[i]);
+	std::printf(")\n");
+	return 0;
+}
