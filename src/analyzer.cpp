@@ -3815,12 +3815,12 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 	const bool hihat_tom_body_backstop =
 		body_shape_allowed && body_shape == Tom && snapshot.high_energy >= 0.03f &&
 		strongest_cymbal_drum > 0.0f &&
-		drum_segment_bands[HiHat] >= strongest_cymbal_drum * 0.35f;
+		drum_segment_bands[HiHat] >= strongest_cymbal_drum * 0.42f;
 	const bool hihat_mixed_backstop =
 		drum_transient && snapshot.high_energy >= 0.05f &&
 		strongest_cymbal_drum > 0.0f &&
 		strongest_cymbal_drum >= strongest_body_drum * 0.04f &&
-		drum_segment_bands[HiHat] >= strongest_cymbal_drum * 0.35f;
+		drum_segment_bands[HiHat] >= strongest_cymbal_drum * 0.42f;
 	const bool tom_side_shape =
 		body_shape_allowed && tom_shape &&
 		drum_segment_bands[Tom] >= strongest_body_drum * 0.30f &&
