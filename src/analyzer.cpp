@@ -3805,9 +3805,9 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 		drum_segment_peaks[7] + drum_segment_peaks[8] * 0.70f + drum_segment_peaks[9] * 0.45f;
 	const bool kick_click_body_ratio = kick_click_peak >= kick_body * 0.035f;
 	const bool kick_click_body_shape =
-		kick_click_body_ratio && snapshot.low_energy >= 0.10f &&
-		drum_segment_bands[Kick] >= strongest_shell_drum * 0.12f &&
-		kick_body >= std::max(snare_body, tom_body) * 0.20f;
+		kick_click_body_ratio && snapshot.low_energy >= 0.18f &&
+		drum_segment_bands[Kick] >= strongest_shell_drum * 0.18f &&
+		kick_body >= std::max(snare_body, tom_body) * 0.35f;
 	const bool kick_body_shape_supported =
 		body_shape == Kick ||
 		(kick_energy_shape && kick_low_dominant_body) ||
@@ -3817,9 +3817,9 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 		strongest_cymbal_drum > 0.0f &&
 		drum_segment_bands[HiHat] >= strongest_cymbal_drum * 0.35f;
 	const bool hihat_mixed_backstop =
-		drum_transient && snapshot.high_energy >= 0.035f &&
+		drum_transient && snapshot.high_energy >= 0.05f &&
 		strongest_cymbal_drum > 0.0f &&
-		strongest_cymbal_drum >= strongest_body_drum * 0.025f &&
+		strongest_cymbal_drum >= strongest_body_drum * 0.04f &&
 		drum_segment_bands[HiHat] >= strongest_cymbal_drum * 0.35f;
 	const bool tom_side_shape =
 		body_shape_allowed && tom_shape &&
