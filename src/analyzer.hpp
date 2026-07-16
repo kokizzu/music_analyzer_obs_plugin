@@ -90,7 +90,7 @@ struct AnalysisSnapshot {
 	uint64_t audio_frames = 0;
 	uint64_t analyzed_windows = 0;
 	float cpu_percent = -1.0f;
-	float free_memory_percent = -1.0f;
+	float ram_mb = -1.0f;
 	bool audio_seen = false;
 	std::array<DrumState, kDrumCount> drums = {};
 	InstrumentState root = {};

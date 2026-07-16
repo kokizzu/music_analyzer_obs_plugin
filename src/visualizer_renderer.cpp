@@ -328,6 +328,52 @@ void draw_root_candidates(VisualizerRenderer *visualizer, int x, int y, const ch
 	}
 }
 
+int draw_status_pair(VisualizerRenderer *visualizer, int x, int y, const char *label, const char *value)
+{
+	constexpr uint32_t kScale = 2;
+	static constexpr Color kStatusLabelColor{104, 116, 132, 255};
+	draw_text(visualizer, x, y, label, kScale, kStatusLabelColor);
+	x += text_width(label, kScale);
+	draw_text(visualizer, x, y, value, kScale, kValueTextColor);
+	x += text_width(value, kScale);
+	return x + text_width(" ", kScale);
+}
+
+void draw_status_line(VisualizerRenderer *visualizer, const AnalysisSnapshot &snapshot, float snapshot_age)
+{
+	char rms[8] = {};
+	char low[8] = {};
+	char mid[8] = {};
+	char high[8] = {};
+	char age[8] = {};
+	char drop[8] = {};
+	std::snprintf(rms, sizeof(rms), "%4.2f", std::clamp(snapshot.rms, 0.0f, 9.99f));
+	std::snprintf(low, sizeof(low), "%03.0f%%", std::clamp(snapshot.low_energy * 100.0f, 0.0f, 100.0f));
+	std::snprintf(mid, sizeof(mid), "%03.0f%%", std::clamp(snapshot.mid_energy * 100.0f, 0.0f, 100.0f));
+	std::snprintf(high, sizeof(high), "%03.0f%%", std::clamp(snapshot.high_energy * 100.0f, 0.0f, 100.0f));
+	std::snprintf(age, sizeof(age), "%04.1fS", std::clamp(snapshot_age, 0.0f, 99.9f));
+	std::snprintf(drop, sizeof(drop), "%03llu",
+		      std::min<unsigned long long>(999, static_cast<unsigned long long>(snapshot.dropped_windows)));
+
+	int x = 28;
+	x = draw_status_pair(visualizer, x, 58, "RMS ", rms);
+	x = draw_status_pair(visualizer, x, 58, "LOW ", low);
+	x = draw_status_pair(visualizer, x, 58, "MID ", mid);
+	x = draw_status_pair(visualizer, x, 58, "HIGH ", high);
+	x = draw_status_pair(visualizer, x, 58, "AGE ", age);
+	x = draw_status_pair(visualizer, x, 58, "DROP ", drop);
+	if (snapshot.cpu_percent >= 0.0f) {
+		char cpu[8] = {};
+		std::snprintf(cpu, sizeof(cpu), "%02.0f%%", std::clamp(snapshot.cpu_percent, 0.0f, 99.0f));
+		x = draw_status_pair(visualizer, x, 58, "CPU ", cpu);
+	}
+	if (snapshot.ram_mb >= 0.0f) {
+		char ram[8] = {};
+		std::snprintf(ram, sizeof(ram), "%03.0fMB", std::clamp(snapshot.ram_mb, 0.0f, 999.0f));
+		(void)draw_status_pair(visualizer, x, 58, "RAM ", ram);
+	}
+}
+
 void draw_drum_chart(VisualizerRenderer *visualizer, int x, int y, int w, const DrumState &drum,
 		     const std::vector<DrumBar> &history, uint32_t label_scale = 2)
 {
@@ -976,9 +1022,7 @@ void draw_visualizer_header(VisualizerRenderer *visualizer, const AnalysisSnapsh
 	}
 	draw_text(visualizer, 28, 24, title, 3, Color{246, 248, 251, 255});
 
-	char level[128];
-	format_visualizer_status_line(level, sizeof(level), snapshot, snapshot_age);
-	draw_text(visualizer, 28, 58, level, 2, kLabelColor);
+	draw_status_line(visualizer, snapshot, snapshot_age);
 }
 
 void draw_drum_row(VisualizerRenderer *visualizer, const AnalysisSnapshot &snapshot, int label_y, int chart_y,
@@ -1134,7 +1178,7 @@ void render_bass_guitar_pixels(VisualizerRenderer *visualizer, const AnalysisSna
 
 void render_pixels(VisualizerRenderer *visualizer, const AnalysisSnapshot &snapshot, float snapshot_age)
 {
-	visualizer->pixels.assign(static_cast<std::size_t>(visualizer->width) * visualizer->height * 4, 0);
+	std::fill(visualizer->pixels.begin(), visualizer->pixels.end(), 0);
 
 	fill_rect(visualizer, 0, 0, visualizer->width, visualizer->height, Color{12, 16, 22, 205});
 
@@ -1188,22 +1232,26 @@ void format_visualizer_status_line(char *output, std::size_t output_size, const 
 		return;
 
 	int written = std::snprintf(output, output_size,
-				    "RMS %.2f LOW %.0f%% MID %.0f%% HIGH %.0f%% AGE %.1FS DROP %llu",
-				    snapshot.rms, snapshot.low_energy * 100.0f,
-				    snapshot.mid_energy * 100.0f, snapshot.high_energy * 100.0f,
-				    snapshot_age, static_cast<unsigned long long>(snapshot.dropped_windows));
+				    "RMS %4.2f LOW %03.0f%% MID %03.0f%% HIGH %03.0f%% AGE %04.1fS DROP %03llu",
+				    std::clamp(snapshot.rms, 0.0f, 9.99f),
+				    std::clamp(snapshot.low_energy * 100.0f, 0.0f, 100.0f),
+				    std::clamp(snapshot.mid_energy * 100.0f, 0.0f, 100.0f),
+				    std::clamp(snapshot.high_energy * 100.0f, 0.0f, 100.0f),
+				    std::clamp(snapshot_age, 0.0f, 99.9f),
+				    std::min<unsigned long long>(
+					    999, static_cast<unsigned long long>(snapshot.dropped_windows)));
 	if (written < 0)
 		return;
 	std::size_t used = std::min<std::size_t>(static_cast<std::size_t>(written), output_size - 1);
 	if (snapshot.cpu_percent >= 0.0f && used + 1 < output_size) {
-		written = std::snprintf(output + used, output_size - used, " CPU %.0f%%",
-					std::clamp(snapshot.cpu_percent, 0.0f, 999.0f));
+		written = std::snprintf(output + used, output_size - used, " CPU %02.0f%%",
+					std::clamp(snapshot.cpu_percent, 0.0f, 99.0f));
 		if (written > 0)
 			used = std::min<std::size_t>(used + static_cast<std::size_t>(written), output_size - 1);
 	}
-	if (snapshot.free_memory_percent >= 0.0f && used + 1 < output_size) {
-		std::snprintf(output + used, output_size - used, " FREE %.0f%%",
-			      std::clamp(snapshot.free_memory_percent, 0.0f, 100.0f));
+	if (snapshot.ram_mb >= 0.0f && used + 1 < output_size) {
+		std::snprintf(output + used, output_size - used, " RAM %03.0fMB",
+			      std::clamp(snapshot.ram_mb, 0.0f, 999.0f));
 	}
 }
 
@@ -1220,6 +1268,8 @@ void resize_visualizer(VisualizerRenderer *visualizer, uint32_t width, uint32_t 
 	visualizer->width = std::max<uint32_t>(1, width);
 	visualizer->height = std::max<uint32_t>(1, height);
 	visualizer->pixels.resize(static_cast<std::size_t>(visualizer->width) * visualizer->height * 4);
+	for (auto &history : visualizer->drum_history)
+		history.reserve(64);
 }
 
 void render_visualizer(VisualizerRenderer *visualizer, const AnalysisSnapshot &snapshot, float snapshot_age)

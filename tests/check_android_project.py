@@ -18,6 +18,8 @@ def main():
     setup_script = (ROOT / "scripts" / "setup_android.sh").read_text(encoding="utf-8")
     emulator_setup_script = (ROOT / "scripts" / "setup_android_emulator.sh").read_text(encoding="utf-8")
     route_audio_script = (ROOT / "scripts" / "route_android_emulator_audio.sh").read_text(encoding="utf-8")
+    android_profile_script = (ROOT / "scripts" / "profile_android_app.sh").read_text(encoding="utf-8")
+    android_audio_status_script = (ROOT / "scripts" / "android_audio_status.sh").read_text(encoding="utf-8")
     native_cmake = (ROOT / "android" / "app" / "src" / "main" / "cpp" / "CMakeLists.txt").read_text(
         encoding="utf-8"
     )
@@ -25,15 +27,21 @@ def main():
         encoding="utf-8"
     )
     activity = (
-        ROOT / "android" / "app" / "src" / "main" / "java" / "dev" / "kyz" / "musicanalyzer" / "MainActivity.java"
+        ROOT / "android" / "app" / "src" / "main" / "java" / "dev" / "benalu" / "musicanalyzer" / "MainActivity.java"
     ).read_text(encoding="utf-8")
 
     require("productFlavors" in app_gradle, "Android app must define product flavors")
     require("complete" in app_gradle, "complete Android flavor missing")
     require("bassGuitar" in app_gradle, "bassGuitar Android flavor missing")
+    require('namespace "dev.benalu.musicanalyzer"' in app_gradle and
+            'applicationId "dev.benalu.musicanalyzer"' in app_gradle,
+            "Android package namespace must use dev.benalu.musicanalyzer")
     require("bass-guitar" in app_gradle, "bass-guitar layout build config missing")
     require("MAO_LAYOUT" in app_gradle, "complete layout build config missing")
     require('ndkVersion "27.2.12479018"' in app_gradle, "Android app must pin the setup NDK version")
+    require("sourceCompatibility JavaVersion.VERSION_17" in app_gradle and
+            "targetCompatibility JavaVersion.VERSION_17" in app_gradle,
+            "Android app must compile Java without obsolete source/target warnings")
     require("android.javaCompile.suppressSourceTargetDeprecationWarning=true" in gradle_properties,
             "Android Gradle Java source/target deprecation warning must be suppressed")
 
@@ -41,15 +49,33 @@ def main():
     require("setup-android-emulator:" in makefile, "Makefile setup-android-emulator target missing")
     require("android-emulator:" in makefile, "Makefile android-emulator target missing")
     require("android-emulator-stop:" in makefile, "Makefile android-emulator-stop target missing")
+    require("android-stop-apps:" in makefile, "Makefile android-stop-apps target missing")
+    require("android-uninstall-old-packages:" in makefile,
+            "Makefile android-uninstall-old-packages target missing")
+    require("dev.kyz.musicanalyzer" in makefile,
+            "android-stop-apps must stop old package ids during the namespace migration")
     require("emu kill" in makefile, "Makefile must close the emulator through adb emu kill")
+    require("android-profile:" in makefile and "android-profile-complete:" in makefile and
+            "android-profile-bass-guitar:" in makefile and "scripts/profile_android_app.sh" in makefile,
+            "Makefile android-profile target missing")
+    require("ANDROID_PROFILE_PACKAGE ?= dev.benalu.musicanalyzer.bassguitar" in makefile,
+            "Makefile android-profile must default to the bass-guitar package")
+    require("android-audio-status:" in makefile and "scripts/android_audio_status.sh" in makefile,
+            "Makefile android-audio-status target missing")
     require("android-route-desktop-audio:" in makefile, "Makefile android-route-desktop-audio target missing")
     require("android-route-desktop-audio-watch:" in makefile,
             "Makefile android-route-desktop-audio-watch target missing")
     require("--watch" in makefile, "Makefile must expose persistent Android audio routing")
     require("android-install-bass-guitar:" in makefile, "Makefile android-install-bass-guitar target missing")
     require("android-run-bass-guitar:" in makefile, "Makefile android-run-bass-guitar target missing")
-    require("dev.kyz.musicanalyzer.bassguitar" in makefile,
+    require("dev.benalu.musicanalyzer.bassguitar" in makefile,
             "Makefile must launch bass-guitar Android package")
+    require("android-grant-permissions:" in makefile and "pm grant" in makefile and
+            "android.permission.RECORD_AUDIO" in makefile,
+            "Makefile must expose and use Android microphone permission grants")
+    require("am force-stop dev.benalu.musicanalyzer.complete" in makefile and
+            "am force-stop dev.benalu.musicanalyzer.bassguitar" in makefile,
+            "Makefile must stop the other Android flavor before launching")
     require("install -r" in makefile and "BASS_GUITAR_APK" in makefile,
             "Makefile must install Android APKs with adb install -r")
     require("monkey -p" in makefile, "Makefile must launch Android apps through monkey")
@@ -96,6 +122,12 @@ def main():
             "android-route-desktop-audio must allow explicit source override")
     require("qemu-system" in route_audio_script,
             "android-route-desktop-audio must target Android emulator recording streams")
+    require("/proc/stat" in android_profile_script and "dumpsys meminfo" in android_profile_script,
+            "android-profile must report app CPU and memory through adb")
+    require("dumpsys audio" in android_audio_status_script and "logcat" in android_audio_status_script and
+            "pactl list sink-inputs" in android_audio_status_script and
+            "pactl list source-outputs" in android_audio_status_script,
+            "android-audio-status must report Android and host capture routing")
 
     require("src/analyzer.cpp" in native_cmake, "Android native target must use shared analyzer.cpp")
     require("src/visualizer_renderer.cpp" in native_cmake, "Android native target must use shared renderer.cpp")
@@ -111,8 +143,21 @@ def main():
     require("AudioRecord" in activity, "Android app must capture device audio input")
     require("AudioSource.UNPROCESSED" in activity,
             "Android app must prefer unprocessed audio capture for music analysis")
-    require("/proc/stat" in activity, "Android app must sample total CPU usage")
-    require("ActivityManager.MemoryInfo" in activity, "Android app must sample free memory")
+    require("isProbablyEmulator" in activity and "AudioSource.DEFAULT" in activity and
+            "AudioSource.MIC" in activity,
+            "Android app must use emulator-friendly capture sources before UNPROCESSED on emulators")
+    require("GET_DEVICES_INPUTS" in activity and "setPreferredDevice(inputChoice.device)" in activity,
+            "Android app must enumerate and select input devices such as USB audio interfaces")
+    require("cycleInputDevice" in activity and "KEYCODE_SPACE" in activity and "setOnClickListener" in activity,
+            "Android app must expose input-device cycling through keyboard and touch")
+    require("nativeSetSourceName" in activity and "nativeSetSourceName" in bridge,
+            "Android selected input label must flow into the shared renderer")
+    require("using AudioRecord source" in activity and "capture source=" in activity,
+            "Android app must log capture source and capture RMS/peak in debug builds")
+    require("Process.getElapsedCpuTime()" in activity, "Android app must sample app process CPU usage")
+    require("readTotalCpu" not in activity and "/proc/stat" not in activity,
+            "Android app must not rely on restricted /proc/stat for on-screen CPU")
+    require("Debug.getPss()" in activity, "Android app must sample app RAM usage")
     require("nativeSetRuntimeMetrics" in activity and "nativeSetRuntimeMetrics" in bridge,
             "Android runtime metrics must flow into the shared renderer")
     require("postInvalidateDelayed" in activity, "Android rendering must be frame-rate bounded")
@@ -125,10 +170,21 @@ def main():
     require("BuildConfig.MAO_LAYOUT" in activity, "Android app must select layout from flavor")
     require("setKeepScreenOn(true)" in activity, "Android app must keep the analyzer screen awake")
     require("postInvalidateOnAnimation" in activity, "Android app must repaint continuously while running")
-    require("std::vector<float> local" not in bridge,
+    require("std::vector<float> local" not in bridge and "std::vector<float> samples" not in bridge,
             "Android JNI audio push must avoid per-callback temporary vectors")
-    require("input_buffer" in bridge and "std::memmove" in bridge,
-            "Android JNI audio buffer must reuse storage and compact without front erases")
+    require("std::array<float, mao::kAnalysisWindow> ring" in bridge and "analysis_window" in bridge,
+            "Android JNI audio buffer must use preallocated ring and analysis-window storage")
+    require("decimation_factor" in bridge and "decimated_buffer.resize" in bridge,
+            "Android analyzer must preallocate and use decimated analysis input")
+    require("analysis_interval_seconds = 0.10f" in bridge,
+            "Android analyzer must use the lower-CPU 100 ms analysis hop")
+    require("kAndroidIdleAnalysisSeconds" in bridge and "should_skip_silent_analysis" in bridge,
+            "Android analyzer must throttle expensive analysis during sustained silence")
+    require("append_visualizer_drum_hits(&state->renderer" not in bridge.split("nativePushSamples", 1)[1].split(
+        "nativeSetRuntimeMetrics", 1)[0],
+            "Android audio thread must not mutate renderer state")
+    require("snapshot_mutex" in bridge and "std::atomic<float>" in bridge,
+            "Android renderer must copy snapshots without blocking audio analysis")
 
     print("check_android_project: ok")
 

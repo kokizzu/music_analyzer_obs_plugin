@@ -25,6 +25,8 @@ def main():
     require("$(SDL2_LIBS)" in makefile, "standalone link rule must use SDL libs")
     require("MAO_STANDALONE_VERSION" in makefile, "Makefile standalone version macro missing")
     require("MAO_STANDALONE_BASS_GUITAR=1" in makefile, "Makefile bass-guitar standalone macro missing")
+    require("profile-standalone:" in makefile and "scripts/profile_standalone.sh" in makefile,
+            "Makefile standalone profile target missing")
 
     plugin_rule = makefile.split("$(BUILD_DIR)/plugin.o:", 1)[1].split("\n\n", 1)[0]
     plugin_link = makefile.split("$(BUILD_DIR)/music-analyzer-obs.so:", 1)[1].split("\n\n", 1)[0]
@@ -44,8 +46,17 @@ def main():
             "sustain column must normalize to plain major/minor chords")
     require('"BASS+GUITAR"' not in renderer,
             "compact layout name should stay in the window title, not the rendered header")
-    require("cpu_percent" in renderer and "free_memory_percent" in renderer and '" FREE %.0f%%"' in renderer,
-            "renderer status line must expose optional CPU and free-memory metrics")
+    require("cpu_percent" in renderer and "ram_mb" in renderer and '" CPU %02.0f%%"' in renderer and
+            '" RAM %03.0fMB"' in renderer and "draw_status_pair" in renderer,
+            "renderer status line must expose optional CPU and app RAM metrics")
+    require('LOW %03.0f%% MID %03.0f%% HIGH %03.0f%%' in renderer and
+            'std::snprintf(low, sizeof(low), "%03.0f%%"' in renderer and
+            'std::snprintf(mid, sizeof(mid), "%03.0f%%"' in renderer and
+            'std::snprintf(high, sizeof(high), "%03.0f%%"' in renderer,
+            "LOW/MID/HIGH status percentages must be fixed-width to avoid text jitter")
+    require("std::fill(visualizer->pixels.begin(), visualizer->pixels.end(), 0)" in renderer,
+            "renderer must clear the preallocated pixel buffer without vector reassignment")
+    require("history.reserve(64)" in renderer, "renderer must reserve drum-history storage up front")
 
     require("#pragma GCC diagnostic push" in standalone, "standalone SDL include must be warning-guarded")
     require("#pragma GCC diagnostic pop" in standalone, "standalone SDL include guard must be closed")
@@ -57,6 +68,18 @@ def main():
             "standalone ffmpeg shutdown must drain child stdout while waiting")
     require(sigkill_index >= 0 and close_index > sigkill_index,
             "standalone ffmpeg shutdown must not close stdout pipe before killing child")
+    require("std::vector<uint8_t> capture_bytes(65536)" in standalone,
+            "standalone SDL capture loop must reuse its audio byte buffer")
+    require("carry.reserve(sizeof(float))" in standalone,
+            "standalone audio byte carry must reserve partial-float storage")
+    require("key_requests_source_cycle" in standalone and "SDLK_SPACE" in standalone,
+            "standalone must use spacebar for live audio-source cycling")
+    require("source_display_label" in standalone and '"/"' in standalone,
+            "standalone must label live audio sources as X/Y when multiple sources exist")
+    require("build_live_audio_sources" in standalone and "open_live_source" in standalone,
+            "standalone must support cycling through live capture sources")
+    require("SDL_SetWindowTitle" in standalone,
+            "standalone must update the window title when the live source changes")
 
     obs_cmake = cmake.split("add_library(music-analyzer-obs MODULE", 1)[1].split(")", 1)[0]
     require("src/visualizer_renderer.cpp" in obs_cmake, "CMake OBS target must use shared renderer")

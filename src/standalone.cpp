@@ -39,6 +39,7 @@
 #include <poll.h>
 #include <csignal>
 #include <string>
+#include <sys/resource.h>
 #include <sys/types.h>
 #include <sys/wait.h>
 #include <unistd.h>
@@ -52,6 +53,7 @@ constexpr float kStandaloneSilenceRms = 0.0025f;
 constexpr float kStandaloneSilenceDrainSeconds = 2.2f;
 constexpr float kStandaloneIdleAnalysisSeconds = 1.0f;
 constexpr float kStandaloneIdleFrameSeconds = 0.5f;
+constexpr float kRuntimeMetricsIntervalSeconds = 1.0f;
 
 #ifndef MAO_STANDALONE_BASS_GUITAR
 #define MAO_STANDALONE_BASS_GUITAR 0
@@ -107,6 +109,22 @@ struct Options {
 	bool legacy_window = false;
 	bool width_set = false;
 	bool height_set = false;
+};
+
+struct ProcessMetrics {
+	float cpu_percent = -1.0f;
+	float ram_mb = -1.0f;
+};
+
+enum class LiveAudioSourceKind {
+	FfmpegPulseMonitor,
+	SdlDefault,
+	SdlNamed,
+};
+
+struct LiveAudioSource {
+	LiveAudioSourceKind kind = LiveAudioSourceKind::SdlDefault;
+	std::string name;
 };
 
 struct AspectViewport {
@@ -340,6 +358,81 @@ bool key_requests_exit(SDL_Keycode key)
 	return key == SDLK_ESCAPE || key == SDLK_q;
 }
 
+bool key_requests_source_cycle(SDL_Keycode key)
+{
+	return key == SDLK_SPACE;
+}
+
+double process_cpu_seconds()
+{
+	rusage usage = {};
+	if (getrusage(RUSAGE_SELF, &usage) != 0)
+		return -1.0;
+	const double user = static_cast<double>(usage.ru_utime.tv_sec) +
+			    static_cast<double>(usage.ru_utime.tv_usec) / 1000000.0;
+	const double system = static_cast<double>(usage.ru_stime.tv_sec) +
+			      static_cast<double>(usage.ru_stime.tv_usec) / 1000000.0;
+	return user + system;
+}
+
+float process_ram_mb()
+{
+#if defined(__linux__)
+	FILE *file = std::fopen("/proc/self/statm", "r");
+	if (file) {
+		unsigned long size_pages = 0;
+		unsigned long resident_pages = 0;
+		const int parsed = std::fscanf(file, "%lu %lu", &size_pages, &resident_pages);
+		std::fclose(file);
+		const long page_size = sysconf(_SC_PAGESIZE);
+		if (parsed == 2 && page_size > 0) {
+			return static_cast<float>(static_cast<double>(resident_pages) *
+						  static_cast<double>(page_size) / (1024.0 * 1024.0));
+		}
+	}
+#endif
+	rusage usage = {};
+	if (getrusage(RUSAGE_SELF, &usage) != 0)
+		return -1.0f;
+#if defined(__APPLE__)
+	return static_cast<float>(usage.ru_maxrss) / (1024.0f * 1024.0f);
+#else
+	return static_cast<float>(usage.ru_maxrss) / 1024.0f;
+#endif
+}
+
+class ProcessMetricsTracker {
+public:
+	ProcessMetricsTracker()
+	{
+		last_wall_ = std::chrono::steady_clock::now();
+		last_cpu_seconds_ = process_cpu_seconds();
+	}
+
+	bool update(ProcessMetrics *metrics)
+	{
+		if (!metrics)
+			return false;
+		const auto now = std::chrono::steady_clock::now();
+		const float elapsed = std::chrono::duration<float>(now - last_wall_).count();
+		if (elapsed < kRuntimeMetricsIntervalSeconds)
+			return false;
+
+		const double cpu_seconds = process_cpu_seconds();
+		if (cpu_seconds >= 0.0 && last_cpu_seconds_ >= 0.0 && elapsed > 0.0f)
+			metrics->cpu_percent =
+				static_cast<float>((cpu_seconds - last_cpu_seconds_) * 100.0 / elapsed);
+		metrics->ram_mb = process_ram_mb();
+		last_wall_ = now;
+		last_cpu_seconds_ = cpu_seconds;
+		return true;
+	}
+
+private:
+	std::chrono::steady_clock::time_point last_wall_ = std::chrono::steady_clock::now();
+	double last_cpu_seconds_ = -1.0;
+};
+
 std::string lowercase_ascii(const std::string &text)
 {
 	std::string out;
@@ -380,6 +473,61 @@ std::string choose_capture_device_name(const std::vector<std::string> &devices, 
 			return device;
 	}
 	return "";
+}
+
+std::string source_display_label(std::size_t index, std::size_t count, const std::string &name)
+{
+	if (count <= 1)
+		return name;
+	return std::to_string(index + 1) + "/" + std::to_string(count) + " " + name;
+}
+
+std::vector<LiveAudioSource> build_live_audio_sources(const std::vector<std::string> &devices,
+						      const Options &options)
+{
+	std::vector<LiveAudioSource> sources;
+	if (!options.device_name.empty()) {
+		sources.push_back(LiveAudioSource{LiveAudioSourceKind::SdlNamed, options.device_name});
+		return sources;
+	}
+
+	bool has_monitor = false;
+	for (const std::string &device : devices) {
+		if (looks_like_output_monitor_device(device)) {
+			has_monitor = true;
+			break;
+		}
+	}
+
+	if (options.prefer_output_monitor && !has_monitor)
+		sources.push_back(LiveAudioSource{LiveAudioSourceKind::FfmpegPulseMonitor, "SPEAKER MONITOR"});
+	if (!options.prefer_output_monitor)
+		sources.push_back(LiveAudioSource{LiveAudioSourceKind::SdlDefault, "SDL CAPTURE DEFAULT"});
+	for (const std::string &device : devices)
+		sources.push_back(LiveAudioSource{LiveAudioSourceKind::SdlNamed, device});
+	if (sources.empty())
+		sources.push_back(LiveAudioSource{LiveAudioSourceKind::SdlDefault, "SDL CAPTURE DEFAULT"});
+	return sources;
+}
+
+std::size_t initial_live_audio_source_index(const std::vector<LiveAudioSource> &sources, const Options &options)
+{
+	if (sources.empty())
+		return 0;
+	if (!options.device_name.empty()) {
+		for (std::size_t i = 0; i < sources.size(); ++i) {
+			if (sources[i].kind == LiveAudioSourceKind::SdlNamed && sources[i].name == options.device_name)
+				return i;
+		}
+	}
+	if (options.prefer_output_monitor) {
+		for (std::size_t i = 0; i < sources.size(); ++i) {
+			if (sources[i].kind == LiveAudioSourceKind::SdlNamed &&
+			    looks_like_output_monitor_device(sources[i].name))
+				return i;
+		}
+	}
+	return 0;
 }
 
 float midi_frequency(int midi)
@@ -448,7 +596,7 @@ bool run_self_test()
 		mao::format_visualizer_status_line(status_line, sizeof(status_line), status_snapshot, 1.6f);
 		const char *age = std::strstr(status_line, "AGE ");
 		const char *drop = std::strstr(status_line, "DROP ");
-		const char *expected = "RMS 0.12 LOW 25% MID 50% HIGH 25% AGE 1.6S DROP 7";
+		const char *expected = "RMS 0.12 LOW 025% MID 050% HIGH 025% AGE 01.6S DROP 007";
 		if (std::strstr(status_line, "FRAMES") || std::strstr(status_line, "UPD") || !age || !drop ||
 		    age > drop || std::strcmp(status_line, expected) != 0) {
 			std::fprintf(stderr, "standalone self-test: unexpected status line '%s'\n", status_line);
@@ -770,6 +918,32 @@ bool run_self_test()
 		std::fprintf(stderr, "standalone self-test: bad quit key mapping\n");
 		return false;
 	}
+	if (!key_requests_source_cycle(SDLK_SPACE) || key_requests_source_cycle(SDLK_ESCAPE)) {
+		std::fprintf(stderr, "standalone self-test: bad source-cycle key mapping\n");
+		return false;
+	}
+	if (source_display_label(1, 3, "Monitor") != "2/3 Monitor" ||
+	    source_display_label(0, 1, "Monitor") != "Monitor") {
+		std::fprintf(stderr, "standalone self-test: bad numbered source label\n");
+		return false;
+	}
+	{
+		Options options;
+		const std::vector<std::string> devices = {"Built-in Microphone",
+							  "Monitor of Built-in Audio Analog Stereo"};
+		const std::vector<LiveAudioSource> sources = build_live_audio_sources(devices, options);
+		if (sources.size() != 2 || initial_live_audio_source_index(sources, options) != 1) {
+			std::fprintf(stderr, "standalone self-test: bad live source order for monitor preference\n");
+			return false;
+		}
+		options.prefer_output_monitor = false;
+		const std::vector<LiveAudioSource> default_sources = build_live_audio_sources(devices, options);
+		if (default_sources.size() != 3 ||
+		    default_sources.front().kind != LiveAudioSourceKind::SdlDefault) {
+			std::fprintf(stderr, "standalone self-test: bad live source order for default input\n");
+			return false;
+		}
+	}
 	if (!run_idle_throttle_self_test())
 		return false;
 
@@ -899,6 +1073,16 @@ struct FileAudioInput {
 		}
 	}
 
+	void close_input()
+	{
+		if (fd >= 0 && fd == child.read_fd) {
+			child.close_process();
+		} else if (fd >= 0 && fd != STDIN_FILENO) {
+			close(fd);
+		}
+		fd = -1;
+	}
+
 	bool open_input(const Options &options)
 	{
 		if (!options.raw_f32le_path.empty()) {
@@ -956,6 +1140,7 @@ public:
 		source_name_ = options.source_name;
 		snapshot_ = engine_.analyze(nullptr, 0, settings_, source_name_.c_str(), 0);
 		snapshot_.audio_seen = false;
+		apply_runtime_metrics();
 	}
 
 	bool process_sample(float sample)
@@ -995,9 +1180,17 @@ public:
 		snapshot_.audio_seen = true;
 		snapshot_.audio_frames = audio_frames_;
 		snapshot_.analyzed_windows = ++analyzed_windows_;
+		apply_runtime_metrics();
 		if (silent_window)
 			silent_skip_windows_ = 0;
 		return true;
+	}
+
+	void set_runtime_metrics(float cpu_percent, float ram_mb)
+	{
+		cpu_percent_ = cpu_percent;
+		ram_mb_ = ram_mb;
+		apply_runtime_metrics();
 	}
 
 	const mao::AnalysisSnapshot &snapshot() const
@@ -1015,6 +1208,12 @@ public:
 	}
 
 private:
+	void apply_runtime_metrics()
+	{
+		snapshot_.cpu_percent = cpu_percent_;
+		snapshot_.ram_mb = ram_mb_;
+	}
+
 	bool should_skip_silent_analysis()
 	{
 		const bool draining_previous_audio =
@@ -1043,6 +1242,8 @@ private:
 	uint64_t sequence_ = 0;
 	uint64_t audio_frames_ = 0;
 	uint64_t analyzed_windows_ = 0;
+	float cpu_percent_ = -1.0f;
+	float ram_mb_ = -1.0f;
 	bool seen_nonsilent_audio_ = false;
 	std::string source_name_;
 	mao::AnalysisSnapshot snapshot_ = {};
@@ -1088,19 +1289,39 @@ bool run_idle_throttle_self_test()
 bool feed_audio_bytes(StandaloneAnalyzer *analyzer, std::vector<uint8_t> *carry, const uint8_t *data,
 		      std::size_t byte_count, bool *snapshot_changed)
 {
-	carry->insert(carry->end(), data, data + byte_count);
-	const std::size_t usable = (carry->size() / sizeof(float)) * sizeof(float);
-	for (std::size_t offset = 0; offset < usable; offset += sizeof(float)) {
+	if (!analyzer || !carry || !data || !snapshot_changed)
+		return false;
+
+	std::size_t offset = 0;
+	if (!carry->empty()) {
+		while (offset < byte_count && carry->size() < sizeof(float))
+			carry->push_back(data[offset++]);
+		if (carry->size() == sizeof(float)) {
+			float sample = 0.0f;
+			std::memcpy(&sample, carry->data(), sizeof(float));
+			if (!std::isfinite(sample))
+				sample = 0.0f;
+			if (analyzer->process_sample(sample))
+				*snapshot_changed = true;
+			carry->clear();
+		}
+	}
+
+	const std::size_t usable = ((byte_count - offset) / sizeof(float)) * sizeof(float);
+	for (std::size_t local = 0; local < usable; local += sizeof(float)) {
 		float sample = 0.0f;
-		std::memcpy(&sample, carry->data() + offset, sizeof(float));
+		std::memcpy(&sample, data + offset + local, sizeof(float));
 		if (!std::isfinite(sample))
 			sample = 0.0f;
 		if (analyzer->process_sample(sample))
 			*snapshot_changed = true;
 	}
 
-	if (usable > 0)
-		carry->erase(carry->begin(), carry->begin() + static_cast<std::ptrdiff_t>(usable));
+	offset += usable;
+	if (offset < byte_count) {
+		carry->clear();
+		carry->insert(carry->end(), data + offset, data + byte_count);
+	}
 	return true;
 }
 
@@ -1132,7 +1353,8 @@ std::vector<std::string> capture_device_names()
 	return devices;
 }
 
-SDL_AudioDeviceID open_capture_device(const Options &options, SDL_AudioSpec *obtained, std::string *opened_name)
+SDL_AudioDeviceID open_live_capture_device(const Options &options, const LiveAudioSource &source,
+					   SDL_AudioSpec *obtained, std::string *opened_name)
 {
 	SDL_AudioSpec desired = {};
 	desired.freq = static_cast<int>(options.sample_rate);
@@ -1141,33 +1363,20 @@ SDL_AudioDeviceID open_capture_device(const Options &options, SDL_AudioSpec *obt
 	desired.samples = 1024;
 	desired.callback = nullptr;
 
-	std::string selected = choose_capture_device_name(capture_device_names(), options);
-	const char *device = selected.empty() ? nullptr : selected.c_str();
+	const bool use_default = source.kind == LiveAudioSourceKind::SdlDefault;
+	const char *device = use_default ? nullptr : source.name.c_str();
 	const SDL_AudioDeviceID id =
 		SDL_OpenAudioDevice(device, SDL_TRUE, &desired, obtained, SDL_AUDIO_ALLOW_FREQUENCY_CHANGE);
-	if (id != 0) {
-		if (opened_name)
-			*opened_name = selected;
-		std::fprintf(stderr, "capturing audio from %s\n", selected.empty() ? "default SDL input" : selected.c_str());
-		return id;
+	if (id == 0) {
+		std::fprintf(stderr, "SDL_OpenAudioDevice failed for '%s': %s\n",
+			     use_default ? "default SDL input" : source.name.c_str(), SDL_GetError());
+		return 0;
 	}
 
-	if (!selected.empty() && options.device_name.empty()) {
-		std::fprintf(stderr, "SDL_OpenAudioDevice failed for '%s': %s; falling back to default SDL input\n",
-			     selected.c_str(), SDL_GetError());
-		const SDL_AudioDeviceID fallback =
-			SDL_OpenAudioDevice(nullptr, SDL_TRUE, &desired, obtained, SDL_AUDIO_ALLOW_FREQUENCY_CHANGE);
-		if (fallback != 0) {
-			if (opened_name)
-				*opened_name = "";
-			std::fprintf(stderr, "capturing audio from default SDL input\n");
-			return fallback;
-		}
-	}
-
-	if (id == 0)
-		std::fprintf(stderr, "SDL_OpenAudioDevice failed: %s\n", SDL_GetError());
-	return 0;
+	if (opened_name)
+		*opened_name = use_default ? "SDL CAPTURE DEFAULT" : source.name;
+	std::fprintf(stderr, "capturing audio from %s\n", use_default ? "default SDL input" : source.name.c_str());
+	return id;
 }
 
 struct SdlSession {
@@ -1195,7 +1404,11 @@ struct SdlSession {
 bool create_window(SdlSession *session, const Options &options)
 {
 	char title[128] = {};
-	std::snprintf(title, sizeof(title), "%s %s", layout_title(options.layout_mode), MAO_STANDALONE_VERSION);
+	if (!options.source_name.empty())
+		std::snprintf(title, sizeof(title), "%s %s - %s", layout_title(options.layout_mode),
+			      MAO_STANDALONE_VERSION, options.source_name.c_str());
+	else
+		std::snprintf(title, sizeof(title), "%s %s", layout_title(options.layout_mode), MAO_STANDALONE_VERSION);
 	AspectPlacement placement{SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED,
 				  static_cast<int>(options.width), static_cast<int>(options.height)};
 	SDL_Rect bounds = {};
@@ -1226,6 +1439,16 @@ bool create_window(SdlSession *session, const Options &options)
 		return false;
 	}
 	return true;
+}
+
+void update_window_title(SdlSession *session, const Options &options)
+{
+	if (!session || !session->window)
+		return;
+	char title[160] = {};
+	std::snprintf(title, sizeof(title), "%s %s - %s", layout_title(options.layout_mode), MAO_STANDALONE_VERSION,
+		      options.source_name.c_str());
+	SDL_SetWindowTitle(session->window, title);
 }
 
 void preserve_window_aspect(SdlSession *session, int window_w, int window_h, int aspect_w, int aspect_h)
@@ -1346,29 +1569,60 @@ int main(int argc, char **argv)
 	SDL_AudioSpec capture_spec = {};
 	const bool file_mode = !options.input_path.empty() || !options.raw_f32le_path.empty();
 	bool stream_fd_mode = file_mode;
+	std::vector<LiveAudioSource> live_sources;
+	std::size_t live_source_index = 0;
+	auto close_live_source = [&]() {
+		if (session.capture) {
+			SDL_CloseAudioDevice(session.capture);
+			session.capture = 0;
+		}
+		if (!file_mode)
+			file_input.close_input();
+	};
+	auto open_live_source = [&](std::size_t index) -> bool {
+		if (index >= live_sources.size())
+			return false;
+
+		close_live_source();
+		stream_fd_mode = false;
+		const LiveAudioSource &source = live_sources[index];
+		std::string opened_name = source.name;
+		if (source.kind == LiveAudioSourceKind::FfmpegPulseMonitor) {
+			if (!file_input.open_pulse_monitor(options))
+				return false;
+			stream_fd_mode = true;
+		} else {
+			session.capture = open_live_capture_device(options, source, &capture_spec, &opened_name);
+			if (!session.capture)
+				return false;
+			options.sample_rate = static_cast<uint32_t>(capture_spec.freq);
+			SDL_PauseAudioDevice(session.capture, 0);
+		}
+
+		live_source_index = index;
+		options.source_name = source_display_label(index, live_sources.size(), opened_name);
+		std::fprintf(stderr, "active audio source: %s\n", options.source_name.c_str());
+		return true;
+	};
+
 	if (file_mode) {
 		if (!file_input.open_input(options))
 			return 1;
 		if (options.source_name == "STANDALONE")
 			options.source_name = "STANDALONE FILE";
 	} else {
-		const std::string sdl_monitor = choose_capture_device_name(capture_device_names(), options);
-		if (options.prefer_output_monitor && sdl_monitor.empty()) {
-			stream_fd_mode = file_input.open_pulse_monitor(options);
-			if (stream_fd_mode && options.source_name == "STANDALONE")
-				options.source_name = "SPEAKER MONITOR";
+		live_sources = build_live_audio_sources(capture_device_names(), options);
+		const std::size_t preferred_index = initial_live_audio_source_index(live_sources, options);
+		bool opened = false;
+		for (std::size_t attempt = 0; attempt < live_sources.size(); ++attempt) {
+			const std::size_t index = (preferred_index + attempt) % live_sources.size();
+			if (open_live_source(index)) {
+				opened = true;
+				break;
+			}
 		}
-
-		if (!stream_fd_mode) {
-			std::string opened_capture_name;
-			session.capture = open_capture_device(options, &capture_spec, &opened_capture_name);
-			if (!session.capture)
-				return 1;
-			options.sample_rate = static_cast<uint32_t>(capture_spec.freq);
-			if (options.source_name == "STANDALONE")
-				options.source_name = opened_capture_name.empty() ? "SDL CAPTURE DEFAULT" : opened_capture_name;
-			SDL_PauseAudioDevice(session.capture, 0);
-		}
+		if (!opened)
+			return 1;
 	}
 
 	if (!create_window(&session, options))
@@ -1387,11 +1641,31 @@ int main(int argc, char **argv)
 	uint64_t rendered_sequence = analyzer.snapshot().sequence;
 	float snapshot_age = 0.0f;
 	std::vector<uint8_t> carry;
+	carry.reserve(sizeof(float));
+	std::vector<uint8_t> capture_bytes(65536);
+	ProcessMetricsTracker metrics_tracker;
+	ProcessMetrics process_metrics;
+	if (metrics_tracker.update(&process_metrics))
+		analyzer.set_runtime_metrics(process_metrics.cpu_percent, process_metrics.ram_mb);
 	auto last_tick = std::chrono::steady_clock::now();
 	auto last_present = last_tick;
 	const auto frame_interval =
 		std::chrono::duration<float>(1.0f / static_cast<float>(std::max<uint32_t>(1, options.fps)));
 	const auto idle_frame_interval = std::chrono::duration<float>(kStandaloneIdleFrameSeconds);
+	auto reset_visual_state = [&]() {
+		analyzer = StandaloneAnalyzer(options);
+		visualizer = mao::VisualizerRenderer();
+		visualizer.layout_mode = options.layout_mode;
+		mao::resize_visualizer(&visualizer, options.width, options.height);
+		mao::render_visualizer(&visualizer, analyzer.snapshot(), 0.0f);
+		rendered_sequence = analyzer.snapshot().sequence;
+		snapshot_age = 0.0f;
+		carry.clear();
+		eof = false;
+		update_window_title(&session, options);
+		present(&session, visualizer);
+		last_present = std::chrono::steady_clock::now();
+	};
 
 	while (running) {
 		SDL_Event event;
@@ -1401,6 +1675,17 @@ int main(int argc, char **argv)
 				running = false;
 			else if (event.type == SDL_KEYDOWN && key_requests_exit(event.key.keysym.sym))
 				running = false;
+			else if (!file_mode && event.type == SDL_KEYDOWN && event.key.repeat == 0 &&
+				 key_requests_source_cycle(event.key.keysym.sym) && live_sources.size() > 1) {
+				for (std::size_t attempt = 1; attempt <= live_sources.size(); ++attempt) {
+					const std::size_t next_index = (live_source_index + attempt) % live_sources.size();
+					if (!open_live_source(next_index))
+						continue;
+					reset_visual_state();
+					window_changed = true;
+					break;
+				}
+			}
 			else if (event.type == SDL_WINDOWEVENT) {
 				switch (event.window.event) {
 				case SDL_WINDOWEVENT_MAXIMIZED:
@@ -1433,6 +1718,9 @@ int main(int argc, char **argv)
 		last_tick = now;
 		snapshot_age += seconds;
 		const bool history_active = mao::advance_visualizer_drum_history(&visualizer, seconds);
+		const bool metrics_changed = metrics_tracker.update(&process_metrics);
+		if (metrics_changed)
+			analyzer.set_runtime_metrics(process_metrics.cpu_percent, process_metrics.ram_mb);
 
 		bool snapshot_changed = false;
 		if (stream_fd_mode && !eof) {
@@ -1456,18 +1744,18 @@ int main(int argc, char **argv)
 		} else if (!stream_fd_mode && session.capture) {
 			const uint32_t queued = SDL_GetQueuedAudioSize(session.capture);
 			if (queued >= sizeof(float)) {
-				std::vector<uint8_t> bytes(std::min<uint32_t>(queued, 65536));
-				const uint32_t got = SDL_DequeueAudio(session.capture, bytes.data(),
-								      static_cast<uint32_t>(bytes.size()));
+				const uint32_t wanted =
+					std::min<uint32_t>(queued, static_cast<uint32_t>(capture_bytes.size()));
+				const uint32_t got = SDL_DequeueAudio(session.capture, capture_bytes.data(), wanted);
 				if (got > 0)
-					feed_audio_bytes(&analyzer, &carry, bytes.data(), got, &snapshot_changed);
+					feed_audio_bytes(&analyzer, &carry, capture_bytes.data(), got, &snapshot_changed);
 			}
 		}
 
 		bool should_present = window_changed;
 		const bool idle_visual = analyzer.idle_silence() && !history_active;
 		const auto present_interval = idle_visual ? idle_frame_interval : frame_interval;
-		if (snapshot_changed || analyzer.snapshot().sequence != rendered_sequence) {
+		if (snapshot_changed || metrics_changed || analyzer.snapshot().sequence != rendered_sequence) {
 			if (mao::snapshot_resets_visualizer_age(analyzer.snapshot()))
 				snapshot_age = 0.0f;
 			mao::append_visualizer_drum_hits(&visualizer, analyzer.snapshot());

@@ -69,8 +69,8 @@ The small status text at the top is for checking whether the analyzer is receivi
 - `LOW`, `MID`, `HIGH`: rough percentage split of detected low, mid, and high-frequency energy.
 - `AGE`: seconds since the overlay last received a new analyzer snapshot. If this keeps increasing while music is playing, the visualizer is not receiving fresh analyzer data. Stale-age redraws are throttled so the overlay does not repaint continuously only for this counter.
 - `DROP`: analyzer windows skipped because a newer audio window arrived before the worker consumed the previous one.
-- `CPU`: Android-only total device CPU usage, sampled about once per second when the Android app can read `/proc/stat`.
-- `FREE`: Android-only available memory percentage, sampled about once per second.
+- `CPU`: Android-only app process CPU usage, sampled about once per second from Android process CPU time. `100%` means roughly one full CPU core.
+- `RAM`: Android-only app RAM usage in MB, sampled about once per second from the process PSS value.
 - `BPM`: bottom-right estimated tempo. The percentage is confidence from recent transient timing, so sparse intros, rubato, or weak drums may show `BPM --` or a low-confidence estimate.
 
 `Analyzer interval (ms)` controls how often a new rolling window is evaluated. The default is 50 ms. `Analysis window (ms)` controls the amount of recent audio inside each evaluation window. The default is 100 ms, so consecutive evaluations overlap. Enable `Use legacy 4096-sample analysis window` to switch back to the original fixed-size window.
@@ -102,6 +102,8 @@ Run live from speaker/system output. The window title includes the standalone bu
 build/music-analyzer-standalone
 build/music-analyzer-bass-guitar
 ```
+
+In live capture mode, press Space to switch to the next audio source. When more than one live source is available, the title/status source label is shown as `X/Y Name`, for example `2/4 Monitor of Built-in Audio Analog Stereo`.
 
 The standalone window is resizable. During resize or maximize, the SDL window snaps back to the configured overlay aspect ratio and the overlay scales uniformly, using letterbox/pillarbox bars as a fallback instead of stretching the UI.
 
@@ -190,6 +192,8 @@ ANDROID_EMULATOR_ABI=arm64-v8a make setup-android-emulator
 
 Android uses `AudioRecord` with `RECORD_AUDIO`, so it captures microphone, aux-in, or USB audio input. It prefers Android's unprocessed audio source when available and falls back to default capture when the device/emulator does not expose it. Android does not generally allow ordinary apps to capture speaker/system playback directly without a separate media-projection workflow, so route speaker output into an input if you need the same behavior as the desktop speaker-monitor standalone.
 
+Press Space or tap the Android analyzer view to cycle available Android recording inputs. The source label shows `X/Y Name` when multiple inputs are exposed by Android, for example `2/3 USB Scarlett Solo`. USB audio interfaces work when Android lists them as input devices through `AudioManager`; the app selects the active input with `AudioRecord.setPreferredDevice`.
+
 Mic/input pass-through is not automatic on Android. The app explicitly creates an `AudioTrack` monitor stream and sends captured input to a non-speaker output when Android exposes one, preferring USB audio, wired headphones/headset, line out, then Bluetooth/HDMI. If only the built-in speaker is available, monitoring is disabled to avoid feedback, but the analyzer still uses the microphone/input.
 
 Basic Android test flow:
@@ -272,6 +276,29 @@ Run the analyzer tests:
 ```sh
 make test
 ```
+
+Measure standalone CPU and memory with a deterministic generated raw-audio profile:
+
+```sh
+make profile-standalone
+```
+
+Measure the currently running Android app through adb:
+
+```sh
+make android-profile
+```
+
+Latest local profile from July 16, 2026:
+
+| Target | CPU | Memory | Notes |
+| --- | ---: | ---: | --- |
+| Standalone Bass + Guitar | 14.8% estimated real-time CPU | 14,792 KB max RSS | `make profile-standalone`; synthetic 20-second raw-audio profile; AMD Ryzen 9 5950X, 32 logical CPUs |
+| Standalone complete | 17.0% estimated real-time CPU | 15,992 KB max RSS | `make profile-standalone`; synthetic 20-second raw-audio profile; AMD Ryzen 9 5950X, 32 logical CPUs |
+| Android Bass + Guitar emulator app | 22.1% app CPU, 27.6% total device CPU | 35,574 KB app PSS | `make android-profile-bass-guitar`; repo-local Android emulator |
+| Android complete emulator app | 19.5% app CPU, 24.8% total device CPU | 36,343 KB app PSS | `make android-profile-complete`; repo-local Android emulator |
+
+For `make profile-standalone`, `JobCPU` is the CPU used while processing the generated raw audio as fast as possible. `RealtimeCPU` is the estimated CPU if the same workload runs at live 1x audio speed, expressed as one-core CPU percentage. Android `app CPU` from `make android-profile*` is process CPU as a share of total emulator CPU capacity; the in-app `CPU` status is app process CPU used relative to one core, and `RAM` is app RAM usage in MB. Android numbers are emulator-specific; physical devices will vary by CPU, Android audio stack, screen refresh, and input route.
 
 `make test` builds standalone analyzer executables outside OBS and also runs `make test-standalone`, which verifies the SDL standalone target, the shared renderer, and the Makefile/CMake isolation that keeps SDL out of the OBS plugin target. It first validates the checked real-dataset catalog used to decide which public datasets can provide note-ground-truth coverage. `analyzer_smoke` covers the basic signal path, and `analyzer_cases` runs broad synthetic note, instrument, chord, note-matrix, quiet-note rejection, realistic harmonic chord, same-note timbre split, isolated-source spillover rejection, explicit input-mode behavior, BPM estimation, mixed-source timbre routing, multi-instrument mix, URMP same-song multitrack metadata fixtures, and root-candidate cases, including bass B0-G4, guitar E2-E6, keyboard/other A0-C8, and vocal E2-C6.
 

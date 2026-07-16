@@ -7,15 +7,20 @@ def targetSdkValue = providers.gradleProperty("android.targetSdk").orElse("35").
 def minSdkValue = providers.gradleProperty("android.minSdk").orElse("26").get().toInteger()
 
 android {
-    namespace "dev.kyz.musicanalyzer"
+    namespace "dev.benalu.musicanalyzer"
     compileSdk compileSdkValue
 
     buildFeatures {
         buildConfig true
     }
 
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
+    }
+
     defaultConfig {
-        applicationId "dev.kyz.musicanalyzer"
+        applicationId "dev.benalu.musicanalyzer"
         minSdk minSdkValue
         targetSdk targetSdkValue
         versionCode 1
