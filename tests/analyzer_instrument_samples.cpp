@@ -508,8 +508,16 @@ void check_drum_kit_samples(Runner &runner, const std::string &root)
 	}
 }
 
+bool family_has_detected_note(const mao::AnalysisSnapshot &snapshot, const std::string &family, int midi)
+{
+	const std::string expected = mao_test::note_label(midi);
+	return mao_test::has_note_token(family_state(snapshot, family).label, expected.c_str()) ||
+	       std::strcmp(family_state(snapshot, family).label, expected.c_str()) == 0 ||
+	       grid_has_pitch_class(family_grid(snapshot, family), midi);
+}
+
 void add_sample_to_mix(const std::string &root, const std::string &family, const std::vector<SampleRow> &rows,
-		       int midi, mao_test::Buffer &mix, Runner &runner)
+		       int midi, mao_test::Buffer &mix, Runner &runner, float target_peak = 0.24f)
 {
 	const SampleRow *row = find_row(rows, family, midi);
 	runner.expect(row != nullptr, "missing combination sample " + family + " " + mao_test::note_label(midi));
@@ -519,12 +527,72 @@ void add_sample_to_mix(const std::string &root, const std::string &family, const
 	mao_test::Buffer part = {};
 	uint32_t sample_rate = 0;
 	std::string error;
-	if (!load_sample(root, family + "_samples", *row, part, sample_rate, 0.24f, false, error)) {
+	if (!load_sample(root, family + "_samples", *row, part, sample_rate, target_peak, false, error)) {
 		runner.expect(false, "failed to load combination sample " + row->path + ": " + error);
 		return;
 	}
 	for (std::size_t i = 0; i < mix.size(); ++i)
 		mix[i] = std::clamp(mix[i] + part[i], -1.0f, 1.0f);
+}
+
+void check_same_pitch_rendered_samples(Runner &runner, const std::string &root,
+				       const std::vector<SampleRow> &all_rows)
+{
+	static constexpr int kSharedMidi = 60;
+	for (const char *family_name : {"piano", "guitar", "bass", "synth", "strings", "vocals"}) {
+		const std::string family = family_name;
+		const SampleRow *row = find_row(all_rows, family, kSharedMidi);
+		runner.expect(row != nullptr,
+			      "missing same-pitch rendered sample " + family + " " +
+				      mao_test::note_label(kSharedMidi));
+		if (!row)
+			continue;
+
+		mao_test::Buffer buffer = {};
+		uint32_t sample_rate = 0;
+		std::string error;
+		if (!load_sample(root, family + "_samples", *row, buffer, sample_rate, 0.62f, false, error)) {
+			runner.expect(false, "failed to load same-pitch sample " + row->path + ": " + error);
+			continue;
+		}
+		const mao::AnalysisSnapshot snapshot =
+			analyze_buffer(buffer, sample_rate, family_mode(family), family.c_str(),
+				       kDefaultWindowSeconds);
+		runner.expect(family_has_detected_note(snapshot, family, kSharedMidi),
+			      "same-pitch rendered " + family + " " + row->program_name +
+				      ": expected " + mao_test::note_label(kSharedMidi) + ", got label `" +
+				      family_state(snapshot, family).label + "`");
+	}
+
+	mao_test::Buffer same_pitch_mix = {};
+	for (const char *family : {"piano", "guitar", "synth", "strings", "vocals"})
+		add_sample_to_mix(root, family, all_rows, kSharedMidi, same_pitch_mix, runner, 0.16f);
+	{
+		const mao::AnalysisSnapshot snapshot =
+			analyze_buffer(same_pitch_mix, static_cast<uint32_t>(mao_test::kSampleRate),
+				       mao::AnalysisInputMode::FullMix, "same-pitch rendered mix",
+				       kDefaultWindowSeconds, 5);
+		runner.expect(snapshot_has_pitch_class(snapshot, kSharedMidi),
+			      "same-pitch rendered mix: expected global " + mao_test::note_label(kSharedMidi) +
+				      " pitch class active");
+	}
+
+	mao_test::Buffer chord_mix = {};
+	for (int midi : {60, 64, 67}) {
+		for (const char *family : {"piano", "guitar", "strings", "vocals"})
+			add_sample_to_mix(root, family, all_rows, midi, chord_mix, runner, 0.09f);
+	}
+	const mao::AnalysisSnapshot snapshot =
+		analyze_buffer(chord_mix, static_cast<uint32_t>(mao_test::kSampleRate),
+			       mao::AnalysisInputMode::FullMix, "same-pitch rendered chord mix",
+			       kDefaultWindowSeconds, 5);
+	for (int midi : {60, 64, 67})
+		runner.expect(snapshot_has_pitch_class(snapshot, midi),
+			      "same-pitch rendered chord mix: expected " + mao_test::note_label(midi) +
+				      " pitch class active");
+	runner.expect(mao_test::contains(snapshot.global_chord.label, "C"),
+		      std::string("same-pitch rendered chord mix: expected C-family chord, got `") +
+			      snapshot.global_chord.label + "`");
 }
 
 void check_combined_samples(Runner &runner, const std::string &root)
@@ -563,6 +631,8 @@ void check_combined_samples(Runner &runner, const std::string &root)
 			      std::string("combined samples ") + window_label +
 				      ": expected C/Em/G-family chord, got `" + snapshot.global_chord.label + "`");
 	}
+
+	check_same_pitch_rendered_samples(runner, root, all_rows);
 }
 
 } // namespace
