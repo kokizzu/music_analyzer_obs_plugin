@@ -1088,6 +1088,19 @@ void require_chord_recall(Runner &runner, const RecallStats &stats, int min_chec
 			      std::to_string(stats.chord_checks));
 }
 
+void require_chord_bucket_recall(Runner &runner, const char *label, int hits, int checks, int min_percent)
+{
+	if (min_percent <= 0)
+		return;
+	runner.expect(checks > 0, std::string(label) + ": expected at least one chord check");
+	if (checks == 0)
+		return;
+	runner.expect(percentage_floor(hits, checks) >= min_percent,
+		      std::string(label) + ": expected >=" + std::to_string(min_percent) + "%, got " +
+			      percent_string(hits, checks) + " (" + std::to_string(hits) + "/" +
+			      std::to_string(checks) + ")");
+}
+
 void require_guitar_precision(Runner &runner, const GuitarPrecisionStats &stats, int min_precision_percent,
 			      int min_recall_percent, int max_contamination_percent,
 			      int max_false_vocal_percent)
@@ -1199,6 +1212,16 @@ int main()
 		resolve_percent_env("MUSIC_ANALYZER_GUITARSET_MIN_CHORD_RECALL_PERCENT", 30);
 	const int min_chord_precision_percent =
 		resolve_percent_env("MUSIC_ANALYZER_GUITARSET_MIN_CHORD_PRECISION_PERCENT", 85);
+	const int min_major_minor_chord_recall_percent =
+		resolve_percent_env("MUSIC_ANALYZER_GUITARSET_MIN_MAJOR_MINOR_CHORD_RECALL_PERCENT", 0);
+	const int min_other_chord_recall_percent =
+		resolve_percent_env("MUSIC_ANALYZER_GUITARSET_MIN_OTHER_CHORD_RECALL_PERCENT", 0);
+	const int min_simple_chord_recall_percent =
+		resolve_percent_env("MUSIC_ANALYZER_GUITARSET_MIN_SIMPLE_CHORD_RECALL_PERCENT", 0);
+	const int min_simple_major_minor_chord_recall_percent =
+		resolve_percent_env("MUSIC_ANALYZER_GUITARSET_MIN_SIMPLE_MAJOR_MINOR_CHORD_RECALL_PERCENT", 0);
+	const int min_simple_other_chord_recall_percent =
+		resolve_percent_env("MUSIC_ANALYZER_GUITARSET_MIN_SIMPLE_OTHER_CHORD_RECALL_PERCENT", 0);
 	const int min_chord_checks = resolve_positive_int_env("MUSIC_ANALYZER_GUITARSET_MIN_CHORD_CHECKS", 5);
 	const bool inspect_only = env_truthy("MUSIC_ANALYZER_GUITARSET_INSPECT_ONLY");
 	const bool use_all_recordings = env_truthy("MUSIC_ANALYZER_GUITARSET_USE_ALL");
@@ -1271,6 +1294,23 @@ int main()
 					 min_guitar_row_recall_percent, max_guitar_contamination_percent,
 					 max_false_vocal_percent);
 		require_chord_recall(runner, recall, min_chord_checks, min_chord_recall_percent);
+		require_chord_bucket_recall(runner, "GuitarSet major/minor chord recall",
+					    recall.major_minor_chord_hits,
+					    recall.major_minor_chord_checks,
+					    min_major_minor_chord_recall_percent);
+		require_chord_bucket_recall(runner, "GuitarSet other chord recall",
+					    recall.other_chord_hits, recall.other_chord_checks,
+					    min_other_chord_recall_percent);
+		require_chord_bucket_recall(runner, "GuitarSet simplified chord recall",
+					    recall.simple_chord_hits, recall.chord_checks,
+					    min_simple_chord_recall_percent);
+		require_chord_bucket_recall(runner, "GuitarSet simplified major/minor chord recall",
+					    recall.simple_major_minor_chord_hits,
+					    recall.major_minor_chord_checks,
+					    min_simple_major_minor_chord_recall_percent);
+		require_chord_bucket_recall(runner, "GuitarSet simplified other chord recall",
+					    recall.simple_other_chord_hits, recall.other_chord_checks,
+					    min_simple_other_chord_recall_percent);
 		require_guitar_chord_precision(runner, guitar_chord_precision, min_chord_checks,
 					       min_chord_precision_percent);
 	}
