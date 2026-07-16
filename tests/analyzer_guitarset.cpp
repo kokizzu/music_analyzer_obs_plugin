@@ -381,6 +381,40 @@ bool snapshot_has_chord_label(const mao::AnalysisSnapshot &snapshot, const std::
 	       has_chord_label(snapshot.guitar_chord.label, label) || has_chord_label(snapshot.other_chord.label, label);
 }
 
+std::string chord_root(const std::string &label)
+{
+	if (label.empty())
+		return "";
+	std::size_t suffix = 1;
+	if (suffix < label.size() && label[suffix] == '#')
+		++suffix;
+	return label.substr(0, suffix);
+}
+
+std::string chord_quality(const std::string &label)
+{
+	if (label.empty())
+		return "";
+	std::size_t suffix = 1;
+	if (suffix < label.size() && label[suffix] == '#')
+		++suffix;
+	return label.substr(suffix);
+}
+
+std::string simplified_chord_label(const std::string &label)
+{
+	const std::string root = chord_root(label);
+	const std::string quality = chord_quality(label);
+	if (root.empty())
+		return label;
+	if (quality.empty() || quality == "6" || quality == "7" || quality == "9" || quality == "add9" ||
+	    quality == "maj7" || quality == "maj9")
+		return root;
+	if (quality == "m" || quality == "m6" || quality == "m7" || quality == "m9")
+		return root + "m";
+	return label;
+}
+
 struct ChordTemplate {
 	const char *suffix = "";
 	std::vector<int> intervals;
@@ -565,12 +599,16 @@ struct RecallStats {
 	int expected = 0;
 	int chord_hits = 0;
 	int chord_checks = 0;
+	int simple_chord_hits = 0;
 	int major_minor_chord_hits = 0;
 	int major_minor_chord_checks = 0;
+	int simple_major_minor_chord_hits = 0;
 	int other_chord_hits = 0;
 	int other_chord_checks = 0;
+	int simple_other_chord_hits = 0;
 	struct ChordQualityStats {
 		int hits = 0;
+		int simple_hits = 0;
 		int checks = 0;
 	};
 	std::map<std::string, ChordQualityStats> chord_quality;
@@ -666,6 +704,27 @@ std::vector<std::string> split_chord_labels(const char *label)
 	}
 
 	return labels;
+}
+
+std::vector<std::string> snapshot_chord_labels(const mao::AnalysisSnapshot &snapshot)
+{
+	std::vector<std::string> labels;
+	for (const char *label : {snapshot.global_chord.label, snapshot.keyboard_chord.label,
+				  snapshot.guitar_chord.label, snapshot.other_chord.label}) {
+		std::vector<std::string> part = split_chord_labels(label);
+		labels.insert(labels.end(), part.begin(), part.end());
+	}
+	return labels;
+}
+
+bool snapshot_has_simplified_chord_label(const mao::AnalysisSnapshot &snapshot, const std::string &label)
+{
+	const std::string expected = simplified_chord_label(label);
+	for (const std::string &actual : snapshot_chord_labels(snapshot)) {
+		if (simplified_chord_label(actual) == expected)
+			return true;
+	}
+	return false;
 }
 
 void add_guitar_precision_metrics(GuitarPrecisionStats &stats, const mao::AnalysisSnapshot &snapshot,
@@ -833,10 +892,7 @@ std::string chord_quality_name(const std::string &label)
 {
 	if (label.empty())
 		return "unknown";
-	std::size_t suffix = 1;
-	if (suffix < label.size() && label[suffix] == '#')
-		++suffix;
-	const std::string quality = label.substr(suffix);
+	const std::string quality = chord_quality(label);
 	if (quality.empty())
 		return "maj";
 	if (quality == "m")
@@ -859,8 +915,29 @@ std::string chord_quality_summary(const RecallStats &stats)
 		text += std::to_string(entry.second.checks);
 		text += " ";
 		text += percent_string(entry.second.hits, entry.second.checks);
+		if (entry.second.simple_hits != entry.second.hits) {
+			text += " simple ";
+			text += std::to_string(entry.second.simple_hits);
+			text += "/";
+			text += std::to_string(entry.second.checks);
+			text += " ";
+			text += percent_string(entry.second.simple_hits, entry.second.checks);
+		}
 	}
 	return text;
+}
+
+std::string simplified_chord_summary(const RecallStats &stats)
+{
+	return "simple chord hits " + std::to_string(stats.simple_chord_hits) + "/" +
+	       std::to_string(stats.chord_checks) + " " +
+	       percent_string(stats.simple_chord_hits, stats.chord_checks) + ", simple major/minor hits " +
+	       std::to_string(stats.simple_major_minor_chord_hits) + "/" +
+	       std::to_string(stats.major_minor_chord_checks) + " " +
+	       percent_string(stats.simple_major_minor_chord_hits, stats.major_minor_chord_checks) +
+	       ", simple other hits " + std::to_string(stats.simple_other_chord_hits) + "/" +
+	       std::to_string(stats.other_chord_checks) + " " +
+	       percent_string(stats.simple_other_chord_hits, stats.other_chord_checks);
 }
 
 void check_recall(Runner &runner, const mao::AnalysisSnapshot &snapshot, const CandidateWindow &candidate,
@@ -892,6 +969,11 @@ void check_recall(Runner &runner, const mao::AnalysisSnapshot &snapshot, const C
 		const bool chord_hit =
 			std::any_of(candidate.chord_labels.begin(), candidate.chord_labels.end(),
 				    [&](const std::string &label) { return snapshot_has_chord_label(snapshot, label); });
+		const bool simple_chord_hit =
+			std::any_of(candidate.chord_labels.begin(), candidate.chord_labels.end(),
+				    [&](const std::string &label) {
+					    return snapshot_has_simplified_chord_label(snapshot, label);
+				    });
 		if (chord_hit) {
 			++stats.chord_hits;
 		} else if (env_truthy("MUSIC_ANALYZER_GUITARSET_VERBOSE_CHORD_MISSES")) {
@@ -902,14 +984,20 @@ void check_recall(Runner &runner, const mao::AnalysisSnapshot &snapshot, const C
 				     snapshot.global_chord.label, snapshot.keyboard_chord.label,
 				     snapshot.guitar_chord.label, snapshot.other_chord.label);
 		}
+		if (simple_chord_hit)
+			++stats.simple_chord_hits;
 		if (major_minor_opportunity) {
 			++stats.major_minor_chord_checks;
 			if (chord_hit)
 				++stats.major_minor_chord_hits;
+			if (simple_chord_hit)
+				++stats.simple_major_minor_chord_hits;
 		} else {
 			++stats.other_chord_checks;
 			if (chord_hit)
 				++stats.other_chord_hits;
+			if (simple_chord_hit)
+				++stats.simple_other_chord_hits;
 		}
 		for (const std::string &label : candidate.chord_labels) {
 			RecallStats::ChordQualityStats &quality_stats =
@@ -917,6 +1005,8 @@ void check_recall(Runner &runner, const mao::AnalysisSnapshot &snapshot, const C
 			++quality_stats.checks;
 			if (snapshot_has_chord_label(snapshot, label))
 				++quality_stats.hits;
+			if (snapshot_has_simplified_chord_label(snapshot, label))
+				++quality_stats.simple_hits;
 		}
 	}
 }
@@ -1199,7 +1289,7 @@ int main()
 			     recall.other_chord_checks, guitar_precision_summary(precision).c_str(),
 			     chord_precision_summary(guitar_chord_precision).c_str(),
 			     chord_quality_summary(recall).c_str(),
-			     composition_summary(composition).c_str());
+			     (simplified_chord_summary(recall) + ", " + composition_summary(composition)).c_str());
 		return 1;
 	}
 
@@ -1223,6 +1313,7 @@ int main()
 			 guitar_precision_summary(precision) + ", " +
 			 chord_precision_summary(guitar_chord_precision) + ", " +
 			 chord_quality_summary(recall) + ", " +
+			 simplified_chord_summary(recall) + ", " +
 			 composition_summary(composition))
 				.c_str());
 	}

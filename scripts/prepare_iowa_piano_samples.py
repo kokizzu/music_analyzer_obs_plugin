@@ -17,6 +17,7 @@ import urllib.request
 FIXTURE_VERSION = "iowa-piano-v1"
 NOTE_RE = re.compile(r"Piano\.(pp|mf|ff)\.([A-G](?:b)?[0-8])\.aiff$", re.IGNORECASE)
 DYNAMIC_ORDER = {"mf": 0, "ff": 1, "pp": 2}
+FLAT_NOTE_NAMES = ("C", "Db", "D", "Eb", "E", "F", "Gb", "G", "Ab", "A", "Bb", "B")
 NOTE_PITCH_CLASS = {
     "C": 0,
     "Db": 1,
@@ -38,29 +39,53 @@ def run(command):
 
 
 def find_command(name):
-	path = shutil.which(name)
-	if not path:
-		raise SystemExit(f"prepare_iowa_piano_samples: missing required tool `{name}`")
-	return path
+    path = shutil.which(name)
+    if not path:
+        raise SystemExit(f"prepare_iowa_piano_samples: missing required tool `{name}`")
+    return path
 
 
 def fetch_bytes(url):
-	request = urllib.request.Request(url, headers={"User-Agent": "music-analyzer-test-fixture/1.0"})
-	with urllib.request.urlopen(request, timeout=120) as response:
-		return response.read()
+    request = urllib.request.Request(url, headers={"User-Agent": "music-analyzer-test-fixture/1.0"})
+    with urllib.request.urlopen(request, timeout=120) as response:
+        return response.read()
 
 
 def escape_url(url):
-	parts = urllib.parse.urlsplit(url)
-	return urllib.parse.urlunsplit(
-		(
-			parts.scheme,
-			parts.netloc,
-			urllib.parse.quote(parts.path, safe="/%:"),
-			urllib.parse.quote(parts.query, safe="=&%:"),
-			urllib.parse.quote(parts.fragment, safe="%:"),
-		)
-	)
+    parts = urllib.parse.urlsplit(url)
+    return urllib.parse.urlunsplit(
+        (
+            parts.scheme,
+            parts.netloc,
+            urllib.parse.quote(parts.path, safe="/%:"),
+            urllib.parse.quote(parts.query, safe="=&%:"),
+            urllib.parse.quote(parts.fragment, safe="%:"),
+        )
+    )
+
+
+def download_file(curl, url, path, timeout_seconds):
+    if path.is_file() and path.stat().st_size > 0:
+        return
+    path.parent.mkdir(parents=True, exist_ok=True)
+    partial_path = path.with_suffix(path.suffix + ".part")
+    run([
+        curl,
+        "-L",
+        "--fail",
+        "--show-error",
+        "--silent",
+        "--connect-timeout",
+        "20",
+        "--max-time",
+        str(timeout_seconds),
+        "-C",
+        "-",
+        "-o",
+        str(partial_path),
+        url,
+    ])
+    partial_path.replace(path)
 
 
 def note_to_midi(note):
@@ -76,9 +101,17 @@ def note_name(midi):
     return f"{names[midi % 12]}{midi // 12 - 1}"
 
 
-def discover_samples(page_url):
-    page_bytes = fetch_bytes(page_url)
-    page = page_bytes.decode("utf-8", errors="replace")
+def row_for_file(filename, dynamic, source_note, midi, url):
+    return {
+        "filename": filename,
+        "dynamic": dynamic,
+        "source_note": source_note,
+        "midi": midi,
+        "url": escape_url(url),
+    }
+
+
+def discover_samples_from_page(page_url, page):
     seen = set()
     rows = []
     for href in re.findall(r'href=["\']([^"\']+\.aiff)["\']', page, flags=re.IGNORECASE):
@@ -93,17 +126,38 @@ def discover_samples(page_url):
         midi = note_to_midi(source_note)
         if midi < 21 or midi > 108:
             continue
-        rows.append(
-            {
-                "filename": filename,
-                "dynamic": dynamic,
-                "source_note": source_note,
-                "midi": midi,
-                "url": escape_url(urllib.parse.urljoin(page_url, href)),
-            }
-        )
+        rows.append(row_for_file(filename, dynamic, source_note, midi, urllib.parse.urljoin(page_url, href)))
     rows.sort(key=lambda row: (DYNAMIC_ORDER.get(row["dynamic"], 9), row["midi"], row["filename"]))
     return rows
+
+
+def fallback_samples(file_base_url):
+    rows = []
+    for dynamic in ("mf", "ff", "pp"):
+        for midi in range(21, 109):
+            note = FLAT_NOTE_NAMES[midi % 12]
+            octave = midi // 12 - 1
+            source_note = f"{note}{octave}"
+            filename = f"Piano.{dynamic}.{source_note}.aiff"
+            rows.append(row_for_file(filename, dynamic, source_note, midi,
+                                     urllib.parse.urljoin(file_base_url, filename)))
+    rows.sort(key=lambda row: (DYNAMIC_ORDER.get(row["dynamic"], 9), row["midi"], row["filename"]))
+    return rows
+
+
+def discover_samples(curl, page_url, file_base_url, source_dir, timeout_seconds, refresh):
+    page_path = source_dir / "MISpiano.html"
+    try:
+        if refresh and page_path.exists():
+            page_path.unlink()
+        download_file(curl, escape_url(page_url), page_path, timeout_seconds)
+        rows = discover_samples_from_page(page_url, page_path.read_text(encoding="utf-8", errors="replace"))
+        if rows:
+            return rows
+    except (subprocess.CalledProcessError, OSError) as exc:
+        print(f"prepare_iowa_piano_samples: page discovery failed, using URL-pattern fallback: {exc}",
+              file=sys.stderr)
+    return fallback_samples(file_base_url)
 
 
 def limited_rows(rows, limit):
@@ -112,8 +166,8 @@ def limited_rows(rows, limit):
     return rows[:limit]
 
 
-def signature_text(page_url, limit):
-    payload = f"{FIXTURE_VERSION}|{page_url}|limit={limit}"
+def signature_text(page_url, file_base_url, limit):
+    payload = f"{FIXTURE_VERSION}|{page_url}|base={file_base_url}|limit={limit}"
     return hashlib.sha256(payload.encode("utf-8")).hexdigest()[:16]
 
 
@@ -121,11 +175,13 @@ def manifest_complete(path, expected_signature):
     if not path.is_file():
         return False
     root = path.parent
+    rows = 0
     with path.open("r", encoding="utf-8") as file:
         header = file.readline()
         if "\tpath\t" not in header:
             return False
         for line in file:
+            rows += 1
             fields = line.rstrip("\n").split("\t")
             if len(fields) < 8:
                 return False
@@ -133,33 +189,12 @@ def manifest_complete(path, expected_signature):
                 return False
             if not (root / fields[6]).is_file():
                 return False
-    return True
-
-
-def download_file(curl, url, path, timeout_seconds):
-    if path.is_file() and path.stat().st_size > 0:
-        return
-    path.parent.mkdir(parents=True, exist_ok=True)
-    run([
-        curl,
-        "-L",
-        "--fail",
-        "--show-error",
-        "--silent",
-        "--connect-timeout",
-        "20",
-        "--max-time",
-        str(timeout_seconds),
-        "-C",
-        "-",
-        "-o",
-        str(path),
-        url,
-    ])
+    return rows > 0
 
 
 def convert_aiff(ffmpeg, source_path, output_path):
     output_path.parent.mkdir(parents=True, exist_ok=True)
+    temporary_path = output_path.with_suffix(output_path.suffix + ".tmp")
     run([
         ffmpeg,
         "-hide_banner",
@@ -172,14 +207,20 @@ def convert_aiff(ffmpeg, source_path, output_path):
         "1",
         "-ar",
         "48000",
-        str(output_path),
+        "-f",
+        "wav",
+        str(temporary_path),
     ])
+    temporary_path.replace(output_path)
 
 
 def main():
     parser = argparse.ArgumentParser(description="Prepare University of Iowa piano note WAV fixtures.")
     parser.add_argument("--page-url", default=os.environ.get("IOWA_PIANO_PAGE_URL",
                                                              "https://theremin.music.uiowa.edu/MISpiano.html"))
+    parser.add_argument("--file-base-url", default=os.environ.get(
+        "IOWA_PIANO_FILE_BASE_URL",
+        "https://theremin.music.uiowa.edu/sound files/MIS/Piano_Other/piano/"))
     parser.add_argument("--source-dir", default=os.environ.get("IOWA_PIANO_SOURCE_DIR",
                                                                "build/real_sample_sources/iowa_piano"))
     parser.add_argument("--output", default=os.environ.get("IOWA_PIANO_SAMPLE_DIR",
@@ -197,12 +238,15 @@ def main():
     source_dir = Path(args.source_dir)
     output_dir = Path(args.output)
     manifest_path = output_dir / "manifest.tsv"
-    signature = signature_text(args.page_url, args.limit)
+    signature = signature_text(args.page_url, args.file_base_url, args.limit)
     if not args.refresh and manifest_complete(manifest_path, signature):
         print(f"prepare_iowa_piano_samples: keeping existing {manifest_path}")
         return
 
-    rows = limited_rows(discover_samples(args.page_url), args.limit)
+    rows = limited_rows(
+        discover_samples(curl, args.page_url, args.file_base_url, source_dir, args.download_timeout, args.refresh),
+        args.limit,
+    )
     if not rows:
         raise SystemExit("prepare_iowa_piano_samples: no piano AIFF links discovered")
 
