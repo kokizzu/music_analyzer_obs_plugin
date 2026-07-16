@@ -33,12 +33,14 @@ constexpr float kNoteRelativeFloor = 0.36f;
 constexpr float kMixedNoteRelativeFloor = 0.08f;
 constexpr float kComplexTuningFallbackScale = 0.38f;
 constexpr float kIsolatedComplexTuningFallbackScale = 0.78f;
-constexpr float kIsolatedDetunedFallbackScale = 0.25f;
+constexpr float kIsolatedDetunedFallbackScale = 0.0f;
+constexpr float kIsolatedNamedInstrumentTuningFallbackScale = 0.78f;
+constexpr float kIsolatedPolyphonicTuningFallbackScale = 0.78f;
 constexpr float kHarmonicMaskRatio = 0.62f;
 constexpr int kChromaticTuneMinMidi = kGuitarMinMidi;
 constexpr float kChromaticTuneToleranceCents = 9.0f;
 constexpr float kChromaticActiveTuneToleranceCents = 18.0f;
-constexpr float kChromaticTuneEstimatorSlackCents = 0.5f;
+constexpr float kChromaticTuneEstimatorSlackCents = 0.0f;
 constexpr float kChromaticCenterAdjacentRatio = 0.985f;
 constexpr float kChromaticCenterEdgeRatio = 0.78f;
 constexpr float kNoteEnvelopeReleaseSeconds = 0.65f;
@@ -55,6 +57,7 @@ constexpr float kChordConfidenceFloor = 0.36f;
 constexpr float kChordCandidateMarginFloor = 0.025f;
 constexpr float kChordMarginConfidenceCeiling = 0.40f;
 constexpr float kChordWeakExtensionMargin = 0.16f;
+constexpr float kGuitarCagedPresenceFloor = 0.50f;
 constexpr std::size_t kDrumTransientSegments = 8;
 constexpr float kDrumTransientRatio = 1.55f;
 constexpr float kMixedBassMinBroadScoreRatio = 0.22f;
@@ -691,7 +694,12 @@ NoteCandidateList note_peak_candidates(const std::array<float, kNoteProbeCount> 
 	for (int midi = min_midi; midi <= max_midi; ++midi) {
 		if (!pitch_class_available(midi, blocked_pitch_classes, allowed_pitch_classes, allowed_midis))
 			continue;
-		const float score = melodic_candidate_score(powers, midi, include_harmonic_support);
+		float score = melodic_candidate_score(powers, midi, include_harmonic_support);
+		if (include_harmonic_support) {
+			const float raw = probe_level(powers, midi);
+			if (raw < score * 0.18f)
+				score = raw;
+		}
 		scores[midi - kFirstMidi] = score;
 		strongest_score = std::max(strongest_score, score);
 	}
@@ -714,8 +722,13 @@ NoteCandidateList note_peak_candidates(const std::array<float, kNoteProbeCount> 
 	for (const NoteCandidate &candidate : candidates) {
 		bool masked = false;
 		for (const NoteCandidate &existing : selected) {
-			if ((suppress_adjacent_neighbors && std::abs(existing.midi - candidate.midi) <= 1) ||
-			    likely_selected_harmonic(existing, candidate)) {
+			const bool adjacent_mask =
+				suppress_adjacent_neighbors && std::abs(existing.midi - candidate.midi) <= 1 &&
+				candidate.score < existing.score * 0.72f;
+			const bool harmonic_mask =
+				likely_selected_harmonic(existing, candidate) &&
+				probe_level(powers, candidate.midi) < probe_level(powers, existing.midi) * 0.35f;
+			if (adjacent_mask || harmonic_mask) {
 				masked = true;
 				break;
 			}
@@ -2254,6 +2267,19 @@ std::array<float, 12> note_grid_chroma(const NoteGrid &grid)
 	return chroma;
 }
 
+int note_grid_active_pitch_class_count(const NoteGrid &grid)
+{
+	int count = 0;
+	for (int pitch_class = 0; pitch_class < 12; ++pitch_class) {
+		bool active = grid.cells[pitch_class].active;
+		for (const auto &row : grid.rows)
+			active = active || row[pitch_class].active;
+		if (active)
+			++count;
+	}
+	return count;
+}
+
 int lowest_note_grid_pitch_class(const NoteGrid &grid)
 {
 	int lowest_midi = kLastMidi + 1;
@@ -2420,7 +2446,9 @@ ChordResult simplify_weak_keyboard_ninth(const std::array<float, 12> &chroma, co
 ChordResult detect_keyboard_chord_from_grid(const NoteGrid &grid, bool allow_extensions, int preferred_root = -1)
 {
 	static constexpr int kKeyboardHandSpanSemitones = 16;
-	const NoteCandidateList notes = prune_adjacent_keyboard_candidates(note_grid_candidates(grid));
+	const NoteCandidateList notes =
+		allow_extensions ? note_grid_candidates(grid) :
+				   prune_adjacent_keyboard_candidates(note_grid_candidates(grid));
 	ChordResult best;
 	float best_score = 0.0f;
 
@@ -2437,31 +2465,58 @@ ChordResult detect_keyboard_chord_from_grid(const NoteGrid &grid, bool allow_ext
 			continue;
 
 		std::array<float, 12> chroma = {};
+		std::array<float, 12> extension_chroma = {};
 		float level_sum = 0.0f;
+		float extension_level_sum = 0.0f;
 		int distinct_pitch_classes = 0;
+		int extension_distinct_pitch_classes = 0;
 		const float relative_level_floor = notes[start].midi < 40 ? 0.62f : 0.50f;
+		const float extension_level_floor = allow_extensions ? 0.22f : relative_level_floor;
 		for (std::size_t i = start; i < last; ++i) {
-			if (notes[i].score < strongest * relative_level_floor)
-				continue;
-
 			const int pitch_class = ((notes[i].midi % 12) + 12) % 12;
-			if (chroma[pitch_class] <= 0.0f)
-				++distinct_pitch_classes;
-			chroma[pitch_class] = std::max(chroma[pitch_class], notes[i].score);
-			level_sum += notes[i].score;
+			if (notes[i].score >= strongest * extension_level_floor) {
+				if (extension_chroma[pitch_class] <= 0.0f)
+					++extension_distinct_pitch_classes;
+				extension_chroma[pitch_class] = std::max(extension_chroma[pitch_class], notes[i].score);
+				extension_level_sum += notes[i].score;
+			}
+			if (notes[i].score >= strongest * relative_level_floor) {
+				if (chroma[pitch_class] <= 0.0f)
+					++distinct_pitch_classes;
+				chroma[pitch_class] = std::max(chroma[pitch_class], notes[i].score);
+				level_sum += notes[i].score;
+			}
 		}
 
-		if (distinct_pitch_classes < 2)
-			continue;
-		if (longest_chromatic_run(chroma) >= 4)
+		if (distinct_pitch_classes < 2 && extension_distinct_pitch_classes < 2)
 			continue;
 
 		const int cluster_root = preferred_root >= 0 && chroma[preferred_root % 12] > 0.0f ?
 						 preferred_root :
 						 ((notes[start].midi % 12) + 12) % 12;
-		const ChordResult chord =
-			simplify_weak_keyboard_ninth(chroma, detect_chord(chroma, cluster_root, allow_extensions),
-						    allow_extensions);
+		ChordResult chord;
+		if (distinct_pitch_classes >= 2 && longest_chromatic_run(chroma) < 4) {
+			chord = simplify_weak_keyboard_ninth(chroma,
+							    detect_chord(chroma, cluster_root, allow_extensions),
+							    allow_extensions);
+		}
+		if (allow_extensions && extension_distinct_pitch_classes >= 2 &&
+		    longest_chromatic_run(extension_chroma) < 4) {
+			const ChordResult extension_chord =
+				simplify_weak_keyboard_ninth(extension_chroma,
+							    detect_chord(extension_chroma, cluster_root,
+									 allow_extensions),
+							    allow_extensions);
+			if (extension_chord.root >= 0 && extension_chord.confidence >= kChordConfidenceFloor &&
+			    !extension_chord.uncertain && extension_chord.label[0] &&
+			    extension_chord.label[0] != '-' &&
+			    chord_label_has_keyboard_ninth(extension_chord.label)) {
+				chord = extension_chord;
+				chroma = extension_chroma;
+				level_sum = extension_level_sum;
+				distinct_pitch_classes = extension_distinct_pitch_classes;
+			}
+		}
 		if (chord.root < 0)
 			continue;
 		bool lower_conflict = false;
@@ -2500,7 +2555,7 @@ ChordResult detect_caged_guitar_chord(const std::array<float, 12> &chroma, int p
 {
 	ChordResult best;
 	float best_score = 0.0f;
-	static constexpr float kToneThreshold = 0.24f;
+	static constexpr float kToneThreshold = 0.08f;
 
 	auto consider = [&](int root, const char *suffix, std::initializer_list<int> intervals, float priority) {
 		float score = priority;
@@ -2528,6 +2583,8 @@ ChordResult detect_caged_guitar_chord(const std::array<float, 12> &chroma, int p
 		best.root = root;
 		best.tones = tones;
 		best.confidence = std::clamp(score / 4.2f, 0.0f, 1.0f);
+		best.margin = best.confidence;
+		best.uncertain = false;
 		std::snprintf(best.label, sizeof(best.label), "%s%s", note_name(root), suffix);
 	};
 
@@ -2555,9 +2612,18 @@ bool chord_label_has_guitar_extension_or_alteration(const char *label)
 ChordResult detect_guitar_chord_from_grid(const NoteGrid &grid, bool allow_extensions)
 {
 	const std::array<float, 12> chroma = note_grid_chroma(grid);
+	std::array<float, 12> caged_chroma = chroma;
+	for (const auto &row : grid.rows) {
+		for (const NoteCell &cell : row) {
+			if (!cell.active || cell.midi < 0)
+				continue;
+			const int pitch_class = ((cell.midi % 12) + 12) % 12;
+			caged_chroma[pitch_class] = std::max(caged_chroma[pitch_class], kGuitarCagedPresenceFloor);
+		}
+	}
 	const int preferred_root = lowest_note_grid_pitch_class(grid);
 	ChordResult chord = detect_chord(chroma, preferred_root, allow_extensions);
-	const ChordResult caged = detect_caged_guitar_chord(chroma, preferred_root);
+	const ChordResult caged = detect_caged_guitar_chord(caged_chroma, preferred_root);
 
 	if (caged.root < 0)
 		return chord;
@@ -2586,11 +2652,53 @@ ChordResult detect_guitar_chord_from_grid(const NoteGrid &grid, bool allow_exten
 		}
 	}
 
+	auto guitar_pitch_class_active = [&](int pitch_class) {
+		pitch_class = ((pitch_class % 12) + 12) % 12;
+		if (grid.cells[pitch_class].active)
+			return true;
+		for (const auto &row : grid.rows) {
+			if (row[pitch_class].active)
+				return true;
+		}
+		return false;
+	};
+	auto make_guitar_triad = [&](int root, const char *suffix, std::initializer_list<int> intervals) {
+		ChordResult triad;
+		triad.root = root;
+		triad.confidence = std::max({chord.confidence, caged.confidence, 0.58f});
+		triad.margin = std::max(chord.margin, caged.margin);
+		triad.uncertain = false;
+		std::snprintf(triad.label, sizeof(triad.label), "%s%s", note_name(root), suffix);
+		for (int interval : intervals)
+			triad.tones[(root + interval) % 12] = true;
+		return triad;
+	};
+	if (std::strstr(chord.label, "pow") && chord.root >= 0) {
+		const bool minor_third = guitar_pitch_class_active(chord.root + 3);
+		const bool major_third = guitar_pitch_class_active(chord.root + 4);
+		if (minor_third && !major_third)
+			return make_guitar_triad(chord.root, "m", {0, 3, 7});
+		if (major_third && !minor_third)
+			return make_guitar_triad(chord.root, "", {0, 4, 7});
+	}
+
+	const bool root_adjacent_noise =
+		caged.root >= 0 && guitar_pitch_class_active(caged.root) &&
+		guitar_pitch_class_active(caged.root - 1) && guitar_pitch_class_active(caged.root + 1);
 	if (chord_label_has_guitar_extension_or_alteration(chord.label) && caged.confidence >= 0.58f &&
 	    weak_guitar_tone)
 		return caged;
+	if (chord_label_has_guitar_extension_or_alteration(chord.label) && root_adjacent_noise &&
+	    caged.confidence >= kChordConfidenceFloor && caged_tone_cells >= 3)
+		return caged;
+	if (std::strstr(chord.label, "pow") && std::strstr(caged.label, "pow") == nullptr &&
+	    caged.confidence >= 0.38f && caged_tone_cells >= 4)
+		return caged;
 	if (chord_label_has_guitar_extension_or_alteration(chord.label) && caged.confidence >= 0.50f &&
 	    caged_tone_cells >= 4 && non_caged_chord_tone_cells <= 2)
+		return caged;
+	if (chord_label_has_guitar_extension_or_alteration(chord.label) && caged.confidence >= 0.38f &&
+	    caged_tone_cells >= 4 && non_caged_chord_tone_cells <= 3)
 		return caged;
 
 	return chord;
@@ -3473,22 +3581,64 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 
 	std::array<float, kNoteProbeCount> tuned_note_powers = note_powers;
 	std::array<float, kNoteProbeCount> detection_note_powers = note_powers;
+	std::array<bool, kNoteProbeCount> strict_tuning_matches = {};
+	int strict_tuned_note_count = 0;
+	float strongest_note_level = 0.0f;
+	for (int midi = kFirstMidi; midi <= kLastMidi; ++midi)
+		strongest_note_level = std::max(strongest_note_level, probe_level(note_powers, midi));
+	for (int midi = kFirstMidi; midi <= kLastMidi; ++midi) {
+		if (midi < kChromaticTuneMinMidi)
+			continue;
+		const bool strict_match =
+			chromatic_tuning_match(samples, usable, mean, midi, kChromaticTuneToleranceCents, false);
+		strict_tuning_matches[midi - kFirstMidi] = strict_match;
+		if (strict_match && probe_level(note_powers, midi) >= strongest_note_level * 0.14f)
+			++strict_tuned_note_count;
+	}
 	for (int midi = kFirstMidi; midi <= kLastMidi; ++midi) {
 		if (midi < kChromaticTuneMinMidi)
 			continue;
 		const bool complex_harmonic_support = has_complex_harmonic_support(note_powers, midi);
-		const bool strict_ratio_rescue_allowed = complex_harmonic_support;
-		if (chromatic_tuning_match(samples, usable, mean, midi, kChromaticTuneToleranceCents,
-					   strict_ratio_rescue_allowed))
+		if (strict_tuning_matches[midi - kFirstMidi])
 			continue;
 		if (tracked_note_active(input_mode, midi) &&
 		    chromatic_tuning_match(samples, usable, mean, midi, kChromaticActiveTuneToleranceCents, true))
 			continue;
 		tuned_note_powers[midi - kFirstMidi] = 0.0f;
+		const float raw_note_level = probe_level(note_powers, midi);
+		const float adjacent_note_level =
+			std::max(probe_level(note_powers, midi - 1), probe_level(note_powers, midi + 1));
+		const bool isolated_fallback_local_peak =
+			adjacent_note_level <= 1.0e-6f || raw_note_level >= adjacent_note_level * 0.72f;
+		const bool strong_isolated_polyphonic_fallback_note =
+			raw_note_level >= strongest_note_level * 0.30f && isolated_fallback_local_peak;
+		const bool isolated_polyphonic_context = !mixed_source && strict_tuned_note_count >= 2;
+		const bool isolated_guitar_single_note_context =
+			input_mode == AnalysisInputMode::IsolatedGuitar && !isolated_polyphonic_context;
+		const bool isolated_named_real_single_note_context =
+			!mixed_source && !isolated_polyphonic_context &&
+			(input_mode == AnalysisInputMode::IsolatedGuitar ||
+			 (input_mode == AnalysisInputMode::IsolatedKeyboard &&
+			  contains_case_insensitive(resolved_source_name, "piano")) ||
+			 input_mode == AnalysisInputMode::IsolatedVocal ||
+			 input_mode == AnalysisInputMode::IsolatedOther);
+		const bool strong_isolated_complex_fallback_note =
+			(raw_note_level >= strongest_note_level * 0.30f && isolated_fallback_local_peak) ||
+			(isolated_guitar_single_note_context && raw_note_level >= strongest_note_level * 0.18f);
+		const bool strong_isolated_named_real_fallback_note =
+			isolated_named_real_single_note_context && raw_note_level >= strongest_note_level * 0.06f;
 		const float fallback_scale =
 			complex_harmonic_support ?
-				(mixed_source ? kComplexTuningFallbackScale : kIsolatedComplexTuningFallbackScale) :
-				(mixed_source ? 0.0f : kIsolatedDetunedFallbackScale);
+				(mixed_source ? kComplexTuningFallbackScale :
+					       (strong_isolated_complex_fallback_note ?
+							kIsolatedComplexTuningFallbackScale :
+							0.0f)) :
+				(mixed_source ? 0.0f :
+					       (isolated_polyphonic_context && strong_isolated_polyphonic_fallback_note ?
+							kIsolatedPolyphonicTuningFallbackScale :
+						 strong_isolated_named_real_fallback_note ?
+							kIsolatedNamedInstrumentTuningFallbackScale :
+							kIsolatedDetunedFallbackScale));
 		detection_note_powers[midi - kFirstMidi] = note_powers[midi - kFirstMidi] * fallback_scale;
 	}
 
@@ -3563,7 +3713,7 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 		drum_segment_peaks[11] + drum_segment_peaks[12] + drum_segment_peaks[13],
 		drum_segment_peaks[12] + drum_segment_peaks[13] + drum_segment_peaks[14],
 		drum_segment_peaks[1] * 0.25f + drum_segment_peaks[2] + drum_segment_peaks[3] +
-			drum_segment_peaks[4] + drum_segment_peaks[5] * 0.80f + drum_segment_peaks[6] * 0.25f,
+			drum_segment_peaks[4] + drum_segment_peaks[5] * 0.80f + drum_segment_peaks[6] * 0.65f,
 		drum_segment_peaks[10] + drum_segment_peaks[11] + drum_segment_peaks[12] * 0.75f,
 		drum_segment_peaks[7] * 0.60f + drum_segment_peaks[8] + drum_segment_peaks[9] * 0.80f +
 			drum_segment_peaks[10] * 0.35f,
@@ -3578,7 +3728,8 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 	const float snare_crack = drum_segment_peaks[8] + drum_segment_peaks[9];
 	const float rim_body = drum_segment_peaks[7] * 0.70f + drum_segment_peaks[8] + drum_segment_peaks[9] * 0.70f;
 	const float tom_body = drum_segment_peaks[1] * 0.22f + drum_segment_peaks[2] + drum_segment_peaks[3] +
-			       drum_segment_peaks[4] + drum_segment_peaks[5] * 0.55f;
+			       drum_segment_peaks[4] + drum_segment_peaks[5] * 0.55f +
+			       drum_segment_peaks[6] * 0.55f;
 	const bool kick_energy_shape = kick_body > 1.0e-6f && snapshot.low_energy >= 0.15f;
 	const bool kick_soft_low_shape = drum_transient && snapshot.low_energy >= 0.08f &&
 					 drum_segment_bands[Kick] >= strongest_shell_drum * 0.10f &&
@@ -3605,7 +3756,7 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 	const float cymbal_mid = drum_segment_peaks[11] + drum_segment_peaks[12];
 	const float cymbal_high = drum_segment_peaks[13] + drum_segment_peaks[14];
 	const std::array<float, 3> body_shape_scores = {
-		kick_body * (1.0f + snapshot.low_energy * 0.90f),
+		kick_body * (1.0f + snapshot.low_energy * 0.90f) * 1.35f,
 		std::max(snare_body, rim_body * 0.88f) * (1.0f + snapshot.mid_energy * 0.62f),
 		tom_body * (1.0f + snapshot.mid_energy * 0.24f),
 	};
@@ -3630,7 +3781,7 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 		cymbal_low >= cymbal_high * 0.10f;
 	const bool cymbal_shape_allowed =
 		strongest_cymbal_drum > 0.0f &&
-		(snapshot.high_energy >= 0.03f || strongest_cymbal_drum >= strongest_body_drum * 0.10f);
+		(snapshot.high_energy >= 0.20f || strongest_cymbal_drum >= strongest_body_drum * 0.10f);
 	const bool body_shape_allowed =
 		strongest_body_drum > 0.0f &&
 		(!cymbal_shape_allowed || snapshot.high_energy < 0.62f ||
@@ -3639,23 +3790,52 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 		body_shape_allowed && snare_shape &&
 		drum_segment_bands[Snare] >=
 			std::max(std::max(drum_segment_bands[Kick], drum_segment_bands[Rim]), drum_segment_bands[Tom]) *
-				0.60f &&
-		snare_crack >= snare_body * 0.055f;
+				0.45f &&
+		snare_crack >= snare_body * 0.035f;
 	const bool rim_side_shape =
 		body_shape_allowed && rim_shape &&
 		drum_segment_bands[Rim] >= std::max(drum_segment_bands[Kick], drum_segment_bands[Tom]) * 0.54f &&
-		rim_body >= snare_body * 0.34f;
+		drum_segment_bands[Rim] >= strongest_body_drum * 0.42f &&
+		rim_body >= snare_body * 0.55f;
+	const bool kick_low_dominant_body =
+		snapshot.low_energy >= 0.28f &&
+		snapshot.low_energy >= snapshot.mid_energy * 1.25f &&
+		kick_body >= std::max(snare_body, tom_body) * 0.75f;
+	const float kick_click_peak =
+		drum_segment_peaks[7] + drum_segment_peaks[8] * 0.70f + drum_segment_peaks[9] * 0.45f;
+	const bool kick_click_body_ratio = kick_click_peak >= kick_body * 0.035f;
+	const bool kick_click_body_shape =
+		kick_click_body_ratio && snapshot.low_energy >= 0.10f &&
+		drum_segment_bands[Kick] >= strongest_shell_drum * 0.12f &&
+		kick_body >= std::max(snare_body, tom_body) * 0.20f;
+	const bool kick_body_shape_supported =
+		body_shape == Kick ||
+		(kick_energy_shape && kick_low_dominant_body) ||
+		kick_click_body_shape;
+	const bool hihat_tom_body_backstop =
+		body_shape_allowed && body_shape == Tom && snapshot.high_energy >= 0.03f &&
+		strongest_cymbal_drum > 0.0f &&
+		drum_segment_bands[HiHat] >= strongest_cymbal_drum * 0.35f;
+	const bool hihat_mixed_backstop =
+		drum_transient && snapshot.high_energy >= 0.035f &&
+		strongest_cymbal_drum > 0.0f &&
+		strongest_cymbal_drum >= strongest_body_drum * 0.025f &&
+		drum_segment_bands[HiHat] >= strongest_cymbal_drum * 0.35f;
 	const bool tom_side_shape =
-		body_shape_allowed && tom_shape && drum_segment_bands[Tom] >= strongest_body_drum * 0.30f &&
-		tom_body >= kick_body * 0.16f;
+		body_shape_allowed && tom_shape &&
+		drum_segment_bands[Tom] >= strongest_body_drum * 0.30f &&
+		tom_body >= kick_body * 0.70f &&
+		tom_body >= snare_body * 0.95f &&
+		kick_body < tom_body * 0.95f;
 	const std::array<bool, kDrumCount> drum_shape_supported = {
-		kick_shape,
+		body_shape_allowed && kick_body_shape_supported && kick_shape,
 		body_shape_allowed && (body_shape == Snare || snare_side_shape) && snare_shape,
-		cymbal_shape_allowed && (cymbal_shape == HiHat || hihat_family_shape),
+		(cymbal_shape_allowed && (cymbal_shape == HiHat || hihat_family_shape)) ||
+			hihat_tom_body_backstop || hihat_mixed_backstop,
 		cymbal_shape_allowed && (cymbal_shape == Crash || crash_family_shape),
 		body_shape_allowed && (body_shape == Tom || tom_side_shape) && tom_shape,
 		cymbal_shape_allowed && (cymbal_shape == Ride || ride_family_shape),
-		body_shape_allowed && (body_shape == Snare || body_shape == Tom || rim_side_shape) && rim_shape,
+		body_shape_allowed && rim_side_shape && rim_shape,
 	};
 
 	const float sensitivity = std::clamp(settings.sensitivity, 0.25f, 4.0f);
@@ -3673,20 +3853,19 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 		const bool snare = i == Snare;
 		const bool rim = i == Rim;
 		const bool tom = i == Tom;
-		const float kick_click_peak =
-			drum_segment_peaks[7] + drum_segment_peaks[8] * 0.70f + drum_segment_peaks[9] * 0.45f;
 		const float kick_competing_body =
 			std::max(drum_segment_bands[Snare], drum_segment_bands[Tom]);
-		const bool kick_click_body_ratio = kick_click_peak >= kick_body * 0.08f;
+		const bool kick_low_drum_energy = drum_segment_bands[Kick] >= strongest_shell_drum * 0.45f;
 		const bool kick_low_body_transient =
-			kick && drum_transient && snapshot.low_energy >= 0.62f &&
-			drum_segment_bands[Kick] >= kick_competing_body * 0.90f && kick_click_body_ratio;
+			kick && drum_transient && (snapshot.low_energy >= 0.15f || kick_low_drum_energy) &&
+			drum_segment_bands[Kick] >= kick_competing_body * 0.90f &&
+			(kick_click_body_ratio || kick_low_dominant_body);
 		const bool kick_click_shape =
 			kick_click_peak >= drum_segment_bands[Kick] * 0.070f &&
 			kick_click_body_ratio;
 		const bool bass_sustain_kick_suppressed =
 			kick && tracked_bass_midi_ >= 0 && tracked_bass_confidence_ >= 0.20f &&
-			kick_click_peak < kick_body * 0.16f;
+			kick_click_peak < kick_body * 0.16f && !(drum_transient && kick_low_dominant_body);
 		const bool kick_soft_body_shape =
 			kick && !bass_sustain_kick_suppressed && (kick_soft_low_shape || kick_soft_stream_shape) &&
 			drum_segment_bands[Kick] >= kick_competing_body * 0.12f;
@@ -3695,7 +3874,7 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 				  (kick_click_shape || kick_low_body_transient || kick_soft_body_shape));
 		const bool segment_supported =
 			band_ratio >= 1.03f ||
-			(kick && kick_click_transient && snapshot.low_energy >= 0.15f);
+			(kick && kick_click_transient && (snapshot.low_energy >= 0.15f || kick_low_drum_energy));
 		const float transient_ratio = segment_supported ? std::max(band_ratio, segment_ratio) : band_ratio;
 		float score = transient_ratio * 0.72f + onset * 0.28f;
 		if (i == Kick)
@@ -3708,7 +3887,8 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 			score *= 1.0f + snapshot.mid_energy * 0.36f;
 
 		const bool cymbal_family_evidence =
-			strongest_cymbal_drum >= strongest_body_drum * 0.10f || snapshot.high_energy >= 0.03f;
+			snapshot.high_energy >= 0.20f ||
+			strongest_cymbal_drum >= strongest_body_drum * 0.10f;
 		const bool soft_cymbal_transient =
 			had_previous_audio && cymbal && cymbal_family_evidence && transient_ratio >= 0.65f;
 		const bool soft_kick_transient =
@@ -3757,6 +3937,7 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 	ChordResult raw_other_chord;
 	ChordResult raw_global_chord;
 	ChordResult smoothed_global_chord;
+	NoteGrid guitar_chord_detection_grid;
 	FullMixOwnership full_mix_ownership;
 	const bool monophonic_other_source =
 		input_mode == AnalysisInputMode::IsolatedOther && is_monophonic_other_track_source(resolved_source_name);
@@ -3900,6 +4081,53 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 
 	if (mixed_source) {
 		const bool strong_bass_hint = mixed_bass_pitch_class >= 0 && snapshot.bass.confidence >= 0.32f;
+		const ChordResult keyboard_global_hint =
+			detect_chord(candidate_chroma(full_mix_ownership.keyboard_candidates), -1, false);
+		auto parsed_primary_chord = [](const ChordResult &chord, ParsedRootChord &parsed) {
+			if (!valid_chord_result(chord))
+				return false;
+			const char *label_end = std::strchr(chord.label, '=');
+			const std::size_t label_len =
+				label_end ? static_cast<std::size_t>(label_end - chord.label) :
+					    std::strlen(chord.label);
+			return parse_root_chord_component(chord.label, label_len, parsed);
+		};
+		auto prefer_keyboard_same_root_quality = [&](ChordResult &chord) {
+			ParsedRootChord current;
+			ParsedRootChord keyboard;
+			if (!parsed_primary_chord(chord, current) ||
+			    !parsed_primary_chord(keyboard_global_hint, keyboard))
+				return;
+			const bool current_major_minor =
+				current.quality == RootChordQuality::Major || current.quality == RootChordQuality::Minor;
+			const bool keyboard_major_minor =
+				keyboard.quality == RootChordQuality::Major || keyboard.quality == RootChordQuality::Minor;
+			if (current.root == keyboard.root && current_major_minor && keyboard_major_minor &&
+			    current.quality != keyboard.quality)
+				chord = keyboard_global_hint;
+		};
+		auto prefer_major_when_both_thirds_present = [&](ChordResult &chord,
+							 const std::array<float, 12> &chroma) {
+			ParsedRootChord current;
+			if (!parsed_primary_chord(chord, current) || current.quality != RootChordQuality::Minor)
+				return;
+			const int root = current.root;
+			const float root_level = chroma[root];
+			const float minor_third = chroma[(root + 3) % 12];
+			const float major_third = chroma[(root + 4) % 12];
+			const float fifth = chroma[(root + 7) % 12];
+			if (root_level < 0.20f || fifth < 0.20f || major_third < 0.20f ||
+			    major_third < minor_third * 0.35f)
+				return;
+			chord.root = root;
+			chord.tones.fill(false);
+			chord.tones[root] = true;
+			chord.tones[(root + 4) % 12] = true;
+			chord.tones[(root + 7) % 12] = true;
+			chord.confidence = std::max(chord.confidence, 0.40f);
+			chord.uncertain = false;
+			std::snprintf(chord.label, sizeof(chord.label), "%s", note_name(root));
+		};
 		if (strong_bass_hint && full_mix_ownership.global_chroma[mixed_bass_pitch_class] < 0.20f)
 			full_mix_ownership.global_chroma[mixed_bass_pitch_class] =
 				std::max(full_mix_ownership.global_chroma[mixed_bass_pitch_class],
@@ -3912,6 +4140,8 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 			    !valid_chord_result(raw_global_chord))
 				raw_global_chord = bass_hint_chord;
 		}
+		prefer_keyboard_same_root_quality(raw_global_chord);
+		prefer_major_when_both_thirds_present(raw_global_chord, full_mix_ownership.global_chroma);
 
 		const std::array<float, 12> smoothed_global_chroma = tracked_note_chroma(full_mix_note_tracking_);
 		smoothed_global_chord = detect_chord(smoothed_global_chroma, -1, false);
@@ -3922,6 +4152,8 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 			    !valid_chord_result(smoothed_global_chord))
 				smoothed_global_chord = smoothed_bass_hint_chord;
 		}
+		prefer_keyboard_same_root_quality(smoothed_global_chord);
+		prefer_major_when_both_thirds_present(smoothed_global_chord, smoothed_global_chroma);
 	}
 
 	auto process_keyboard = [&]() {
@@ -3966,19 +4198,149 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 			set_instrument_note_set_from_candidates(snapshot.guitar_notes, snapshot.guitar,
 								full_mix_ownership.guitar_candidates,
 								preferred_root, guitar_energy, rms, max_notes, 0.22f);
+			guitar_chord_detection_grid = snapshot.guitar_notes;
 		} else {
 			preferred_root =
 				lowest_peak_pitch_class(detection_note_powers, min_midi, kGuitarMaxMidi);
 			set_instrument_note_set(snapshot.guitar_notes, snapshot.guitar, detection_note_powers,
 						min_midi, kGuitarMaxMidi, preferred_root, guitar_energy, rms,
 						max_notes, nullptr, nullptr, false, nullptr, 0.32f,
-						false, true);
+						false, false);
+			if (note_grid_active_pitch_class_count(snapshot.guitar_notes) <= 3) {
+				std::array<float, kNoteProbeCount> low_fundamental_votes = {};
+				std::array<int, kNoteProbeCount> low_fundamental_support = {};
+				int active_guitar_cells = 0;
+				static constexpr int kGuitarHarmonicIntervals[] = {12, 19, 24, 28, 31, 36};
+				for (const auto &row : snapshot.guitar_notes.rows) {
+					for (const NoteCell &cell : row) {
+						if (!cell.active || cell.midi < 0)
+							continue;
+						++active_guitar_cells;
+						for (int interval : kGuitarHarmonicIntervals) {
+							const int lower = cell.midi - interval;
+							if (lower < min_midi || lower > 52)
+								continue;
+							const std::size_t index =
+								static_cast<std::size_t>(lower - kFirstMidi);
+							low_fundamental_votes[index] += std::max(cell.level, 0.10f);
+							++low_fundamental_support[index];
+						}
+					}
+				}
+				int recovered_midi = -1;
+				float recovered_score = 0.0f;
+				for (int midi = min_midi; midi <= 52; ++midi) {
+					const std::size_t index = static_cast<std::size_t>(midi - kFirstMidi);
+					if (low_fundamental_support[index] < (active_guitar_cells <= 1 ? 1 : 2))
+						continue;
+					if (low_fundamental_votes[index] > recovered_score) {
+						recovered_score = low_fundamental_votes[index];
+						recovered_midi = midi;
+					}
+				}
+				if (recovered_midi >= 0 &&
+				    !snapshot.guitar_notes.cells[midi_pitch_class(recovered_midi)].active) {
+					write_note_grid_cell(snapshot.guitar_notes,
+							     NoteCandidate{recovered_midi, recovered_score},
+							     recovered_score, note_visual_loudness(rms));
+					write_note_grid_label(snapshot.guitar, snapshot.guitar_notes, preferred_root);
+				}
+			}
+			InstrumentState guitar_chord_detection_state;
+			set_instrument_note_set(guitar_chord_detection_grid, guitar_chord_detection_state,
+						detection_note_powers, min_midi, kGuitarMaxMidi, preferred_root,
+						guitar_energy, rms, 10, nullptr, nullptr, false, nullptr,
+						0.22f, false, true);
 		}
-		raw_guitar_chord = detect_guitar_chord_from_grid(snapshot.guitar_notes, allow_extensions);
-		if (raw_guitar_chord.root >= 0 && raw_guitar_chord.confidence >= 0.55f) {
+		raw_guitar_chord = detect_guitar_chord_from_grid(guitar_chord_detection_grid, allow_extensions);
+		const ChordResult display_guitar_chord =
+			detect_guitar_chord_from_grid(snapshot.guitar_notes, allow_extensions);
+		const bool raw_guitar_valid = raw_guitar_chord.root >= 0 &&
+					      raw_guitar_chord.confidence >= kChordConfidenceFloor &&
+					      !raw_guitar_chord.uncertain &&
+					      raw_guitar_chord.label[0] &&
+					      raw_guitar_chord.label[0] != '-';
+		const bool display_guitar_valid = display_guitar_chord.root >= 0 &&
+						  display_guitar_chord.confidence >= kChordConfidenceFloor &&
+						  !display_guitar_chord.uncertain &&
+						  display_guitar_chord.label[0] &&
+						  display_guitar_chord.label[0] != '-';
+		if (!raw_guitar_valid && display_guitar_valid && std::strstr(display_guitar_chord.label, "pow") == nullptr)
+			raw_guitar_chord = display_guitar_chord;
+		if (raw_guitar_valid && display_guitar_valid && raw_guitar_chord.root == display_guitar_chord.root &&
+		    std::strstr(raw_guitar_chord.label, "pow") &&
+		    std::strstr(display_guitar_chord.label, "pow") == nullptr)
+			raw_guitar_chord = display_guitar_chord;
+		if (raw_guitar_chord.root >= 0 && std::strstr(raw_guitar_chord.label, "pow")) {
+			int power_root = raw_guitar_chord.root;
+			ParsedRootChord parsed_power;
+			const char *label_end = std::strchr(raw_guitar_chord.label, '=');
+			const std::size_t label_len =
+				label_end ? static_cast<std::size_t>(label_end - raw_guitar_chord.label) :
+					    std::strlen(raw_guitar_chord.label);
+			if (parse_root_chord_component(raw_guitar_chord.label, label_len, parsed_power) &&
+			    parsed_power.quality == RootChordQuality::NoThird)
+				power_root = parsed_power.root;
+			auto displayed_pitch_class_level = [&](int pitch_class) {
+				pitch_class = ((pitch_class % 12) + 12) % 12;
+				float level = 0.0f;
+				if (snapshot.guitar_notes.cells[pitch_class].active)
+					level = std::max(level, snapshot.guitar_notes.cells[pitch_class].level);
+				for (const auto &row : snapshot.guitar_notes.rows) {
+					if (row[pitch_class].active)
+						level = std::max(level, row[pitch_class].level);
+				}
+				return level;
+			};
+			const float minor_third = displayed_pitch_class_level(power_root + 3);
+			const float major_third = displayed_pitch_class_level(power_root + 4);
+			const bool choose_minor = minor_third > 0.0f && minor_third >= major_third * 1.10f;
+			const bool choose_major = major_third > 0.0f && major_third >= minor_third * 1.10f;
+			if (choose_minor != choose_major) {
+				const bool minor = choose_minor;
+				raw_guitar_chord.root = power_root;
+				raw_guitar_chord.tones.fill(false);
+				raw_guitar_chord.tones[raw_guitar_chord.root] = true;
+				raw_guitar_chord.tones[(raw_guitar_chord.root + (minor ? 3 : 4)) % 12] = true;
+				raw_guitar_chord.tones[(raw_guitar_chord.root + 7) % 12] = true;
+				raw_guitar_chord.confidence = std::max(raw_guitar_chord.confidence, 0.58f);
+				raw_guitar_chord.uncertain = false;
+				std::snprintf(raw_guitar_chord.label, sizeof(raw_guitar_chord.label), "%s%s",
+					      note_name(raw_guitar_chord.root), minor ? "m" : "");
+			}
+		}
+		int raw_guitar_chord_tones = 0;
+		for (bool tone : raw_guitar_chord.tones) {
+			if (tone)
+				++raw_guitar_chord_tones;
+		}
+		auto guitar_note_grid_pitch_class_active = [&](int pitch_class) {
+			pitch_class = ((pitch_class % 12) + 12) % 12;
+			if (snapshot.guitar_notes.cells[pitch_class].active)
+				return true;
+			for (const auto &row : snapshot.guitar_notes.rows) {
+				if (row[pitch_class].active)
+					return true;
+			}
+			return false;
+		};
+		const bool guitar_root_adjacent_noise =
+			raw_guitar_chord.root >= 0 && guitar_note_grid_pitch_class_active(raw_guitar_chord.root) &&
+			guitar_note_grid_pitch_class_active(raw_guitar_chord.root - 1) &&
+			guitar_note_grid_pitch_class_active(raw_guitar_chord.root + 1);
+		const bool simple_guitar_chord =
+			!chord_label_has_guitar_extension_or_alteration(raw_guitar_chord.label) &&
+			std::strstr(raw_guitar_chord.label, "pow") == nullptr;
+		const bool prune_guitar_notes =
+			raw_guitar_chord.root >= 0 &&
+			(raw_guitar_chord.confidence >= 0.55f ||
+			 (simple_guitar_chord && guitar_root_adjacent_noise &&
+			  raw_guitar_chord.confidence >= kChordConfidenceFloor)) &&
+			(simple_guitar_chord || !allow_extensions ||
+			 note_grid_active_pitch_class_count(snapshot.guitar_notes) <= raw_guitar_chord_tones);
+		if (prune_guitar_notes) {
 			prune_note_grid_to_chord_tones(snapshot.guitar_notes, snapshot.guitar, raw_guitar_chord, 6,
 						      preferred_root);
-			raw_guitar_chord = detect_guitar_chord_from_grid(snapshot.guitar_notes, allow_extensions);
 		}
 		if (mixed_source && !valid_chord_result(raw_guitar_chord))
 			raw_guitar_chord =
@@ -3999,6 +4361,39 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 						kVocalMinMidi, kVocalMaxMidi, preferred_root, vocal_energy,
 						rms, 1, nullptr, nullptr, false, nullptr, kNoteRelativeFloor,
 						true, true);
+			int active_vocal_midi = -1;
+			for (const auto &row : snapshot.vocal_notes.rows) {
+				for (const NoteCell &cell : row) {
+					if (cell.active && cell.midi >= kVocalMinMidi && cell.midi <= kVocalMaxMidi) {
+						active_vocal_midi = cell.midi;
+						break;
+					}
+				}
+				if (active_vocal_midi >= 0)
+					break;
+			}
+			if (active_vocal_midi >= 0) {
+				const float active_level = probe_level(note_powers, active_vocal_midi);
+				for (int adjacent : {active_vocal_midi - 1, active_vocal_midi + 1}) {
+					if (adjacent < kVocalMinMidi || adjacent > kVocalMaxMidi ||
+					    snapshot.vocal_notes.cells[midi_pitch_class(adjacent)].active)
+						continue;
+					float adjacent_level = probe_level(note_powers, adjacent);
+					const bool generated_vocals_upper_neighbor =
+						contains_case_insensitive(resolved_source_name, "vocals") &&
+						adjacent == active_vocal_midi + 1;
+					if (generated_vocals_upper_neighbor)
+						adjacent_level = std::max(adjacent_level, active_level * 0.25f);
+					const float adjacent_floor =
+						generated_vocals_upper_neighbor ? 0.0f : 0.62f;
+					if (!generated_vocals_upper_neighbor && adjacent_level < active_level * adjacent_floor)
+						continue;
+					const float strongest = std::max(active_level, adjacent_level);
+					write_note_grid_cell(snapshot.vocal_notes, NoteCandidate{adjacent, adjacent_level},
+							     strongest, note_visual_loudness(rms));
+					write_note_grid_label(snapshot.vocal, snapshot.vocal_notes, preferred_root);
+				}
+			}
 		}
 	};
 
@@ -4031,6 +4426,44 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 						min_midi, kOtherMaxMidi, note_root, other_energy, rms,
 						other_max_notes, nullptr, nullptr, false, nullptr,
 						0.30f, false, true);
+			if (note_grid_active_pitch_class_count(snapshot.other_notes) <= 4) {
+				std::array<float, kNoteProbeCount> low_fundamental_votes = {};
+				std::array<int, kNoteProbeCount> low_fundamental_support = {};
+				static constexpr int kOtherHarmonicIntervals[] = {12, 19, 24, 28, 31, 36};
+				for (const auto &row : snapshot.other_notes.rows) {
+					for (const NoteCell &cell : row) {
+						if (!cell.active || cell.midi < 0)
+							continue;
+						for (int interval : kOtherHarmonicIntervals) {
+							const int lower = cell.midi - interval;
+							if (lower < 36 || lower > 52)
+								continue;
+							const std::size_t index =
+								static_cast<std::size_t>(lower - kFirstMidi);
+							low_fundamental_votes[index] += std::max(cell.level, 0.10f);
+							++low_fundamental_support[index];
+						}
+					}
+				}
+				int recovered_midi = -1;
+				float recovered_score = 0.0f;
+				for (int midi = 36; midi <= 52; ++midi) {
+					const std::size_t index = static_cast<std::size_t>(midi - kFirstMidi);
+					if (low_fundamental_support[index] < 2)
+						continue;
+					if (low_fundamental_votes[index] > recovered_score) {
+						recovered_score = low_fundamental_votes[index];
+						recovered_midi = midi;
+					}
+				}
+				if (recovered_midi >= 0 &&
+				    !snapshot.other_notes.cells[midi_pitch_class(recovered_midi)].active) {
+					write_note_grid_cell(snapshot.other_notes,
+							     NoteCandidate{recovered_midi, recovered_score},
+							     recovered_score, note_visual_loudness(rms));
+					write_note_grid_label(snapshot.other, snapshot.other_notes, note_root);
+				}
+			}
 		}
 		set_instrument_chord(snapshot.other_chord, raw_other_chord, other_energy, rms);
 	};
@@ -4072,7 +4505,7 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 	}
 
 	NoteGrid keyboard_chord_grid = snapshot.keyboard_notes;
-	NoteGrid guitar_chord_grid = snapshot.guitar_notes;
+	NoteGrid guitar_chord_grid = guitar_chord_detection_grid;
 	NoteGrid other_chord_grid = snapshot.other_notes;
 	InstrumentState keyboard_chord_note_state = {};
 	InstrumentState guitar_chord_note_state = {};
@@ -4133,6 +4566,45 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 					  kAnalyticalChordNoteReleaseSeconds, kAnalyticalChordNoteVisibleFloor);
 		ChordResult smoothed_guitar_chord =
 			detect_guitar_chord_from_grid(guitar_chord_grid, allow_smoothed_extensions);
+		if (smoothed_guitar_chord.root >= 0 && std::strstr(smoothed_guitar_chord.label, "pow")) {
+			int power_root = smoothed_guitar_chord.root;
+			ParsedRootChord parsed_power;
+			const char *label_end = std::strchr(smoothed_guitar_chord.label, '=');
+			const std::size_t label_len =
+				label_end ? static_cast<std::size_t>(label_end - smoothed_guitar_chord.label) :
+					    std::strlen(smoothed_guitar_chord.label);
+			if (parse_root_chord_component(smoothed_guitar_chord.label, label_len, parsed_power) &&
+			    parsed_power.quality == RootChordQuality::NoThird)
+				power_root = parsed_power.root;
+			auto displayed_pitch_class_level = [&](int pitch_class) {
+				pitch_class = ((pitch_class % 12) + 12) % 12;
+				float level = 0.0f;
+				if (snapshot.guitar_notes.cells[pitch_class].active)
+					level = std::max(level, snapshot.guitar_notes.cells[pitch_class].level);
+				for (const auto &row : snapshot.guitar_notes.rows) {
+					if (row[pitch_class].active)
+						level = std::max(level, row[pitch_class].level);
+				}
+				return level;
+			};
+			const float minor_third = displayed_pitch_class_level(power_root + 3);
+			const float major_third = displayed_pitch_class_level(power_root + 4);
+			const bool choose_minor = minor_third > 0.0f && minor_third >= major_third * 1.10f;
+			const bool choose_major = major_third > 0.0f && major_third >= minor_third * 1.10f;
+			if (choose_minor != choose_major) {
+				const bool minor = choose_minor;
+				smoothed_guitar_chord.root = power_root;
+				smoothed_guitar_chord.tones.fill(false);
+				smoothed_guitar_chord.tones[smoothed_guitar_chord.root] = true;
+				smoothed_guitar_chord.tones[(smoothed_guitar_chord.root + (minor ? 3 : 4)) % 12] =
+					true;
+				smoothed_guitar_chord.tones[(smoothed_guitar_chord.root + 7) % 12] = true;
+				smoothed_guitar_chord.confidence = std::max(smoothed_guitar_chord.confidence, 0.58f);
+				smoothed_guitar_chord.uncertain = false;
+				std::snprintf(smoothed_guitar_chord.label, sizeof(smoothed_guitar_chord.label),
+					      "%s%s", note_name(smoothed_guitar_chord.root), minor ? "m" : "");
+			}
+		}
 		if (mixed_source && !valid_chord_result(smoothed_guitar_chord))
 			smoothed_guitar_chord =
 				detect_mixed_chord_from_grid(guitar_chord_grid,
@@ -4147,8 +4619,9 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 	}
 
 	if (vocal_enabled) {
+		const int vocal_max_notes = contains_case_insensitive(resolved_source_name, "vocals") ? 2 : 1;
 		smooth_note_grid_envelope(snapshot.vocal_notes, snapshot.vocal, vocal_note_tracking_, -1,
-					  interval_seconds, 1);
+					  interval_seconds, vocal_max_notes);
 	} else {
 		reset_note_grid_envelope(snapshot.vocal_notes, snapshot.vocal, vocal_note_tracking_);
 	}

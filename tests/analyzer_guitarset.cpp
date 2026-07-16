@@ -583,6 +583,37 @@ std::array<bool, 12> grid_pitch_classes(const mao::NoteGrid &grid)
 	return pitch_classes;
 }
 
+std::string pitch_class_list(const std::array<bool, 12> &pitch_classes)
+{
+	std::string text;
+	for (int pitch_class = 0; pitch_class < 12; ++pitch_class) {
+		if (!pitch_classes[pitch_class])
+			continue;
+		if (!text.empty())
+			text += ",";
+		text += mao_test::note_name(pitch_class);
+	}
+	return text.empty() ? "--" : text;
+}
+
+std::string grid_cell_list(const mao::NoteGrid &grid)
+{
+	std::string text;
+	for (const auto &row : grid.rows) {
+		for (const mao::NoteCell &cell : row) {
+			if (!cell.active || cell.midi < 0)
+				continue;
+			char item[32] = {};
+			std::snprintf(item, sizeof(item), "%s%d:%.2f", mao_test::note_name(cell.midi % 12),
+				      cell.midi / 12 - 1, cell.level);
+			if (!text.empty())
+				text += ",";
+			text += item;
+		}
+	}
+	return text.empty() ? "--" : text;
+}
+
 bool grid_has_any_active_pitch_class(const mao::NoteGrid &grid)
 {
 	for (int pitch_class = 0; pitch_class < 12; ++pitch_class) {
@@ -685,6 +716,22 @@ void add_guitar_precision_metrics(GuitarPrecisionStats &stats, const mao::Analys
 			++stats.false_positives;
 		}
 	}
+}
+
+void debug_guitar_window(const mao::AnalysisSnapshot &snapshot, const CandidateWindow &candidate,
+			 const std::string &context)
+{
+	if (!env_truthy("MUSIC_ANALYZER_GUITARSET_DEBUG_WINDOWS"))
+		return;
+
+	const std::array<bool, 12> guitar = grid_pitch_classes(snapshot.guitar_notes);
+	std::fprintf(stderr,
+		     "%s: expected pc `%s`, guitar pc `%s`, guitar cells `%s`, global `%s`, key `%s`, "
+		     "guitar `%s`, other `%s`\n",
+		     context.c_str(), pitch_class_list(candidate.pitch_classes).c_str(),
+		     pitch_class_list(guitar).c_str(), grid_cell_list(snapshot.guitar_notes).c_str(),
+		     snapshot.global_chord.label, snapshot.keyboard_chord.label, snapshot.guitar_chord.label,
+		     snapshot.other_chord.label);
 }
 
 void add_guitar_chord_precision_metrics(ChordPrecisionStats &stats, const mao::AnalysisSnapshot &snapshot,
@@ -1109,6 +1156,9 @@ int main()
 				check_recall(runner, snapshot, candidate,
 					     recording.id + " at " + std::to_string(candidate.center_seconds) + "s",
 					     recall, min_window_recall_percent);
+				debug_guitar_window(snapshot, candidate,
+						    recording.id + " at " +
+							    std::to_string(candidate.center_seconds) + "s");
 				add_guitar_precision_metrics(precision, snapshot, candidate);
 				add_guitar_chord_precision_metrics(guitar_chord_precision, snapshot, candidate);
 			}

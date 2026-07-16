@@ -84,8 +84,9 @@ def add_background_floor(samples):
 
 def add_hit(samples, midi, seconds):
     if midi in (35, 36):
-        add_decaying_sine(samples, 65.0, seconds, 0.12, 0.90)
-        add_decaying_sine(samples, 90.0, seconds, 0.08, 0.45)
+        add_decaying_sine(samples, 55.0, seconds, 0.13, 0.95)
+        add_decaying_sine(samples, 70.0, seconds, 0.09, 0.48)
+        add_decaying_sine(samples, 650.0, seconds, 0.018, 0.32)
     elif midi in (38, 40):
         add_decaying_sine(samples, 220.0, seconds, 0.10, 0.55)
         add_decaying_sine(samples, 1100.0, seconds, 0.08, 0.45)

@@ -875,12 +875,20 @@ bool analyze_drum_window_sequence(const std::string &audio_path, uint64_t center
 	settings.input_mode = mao::AnalysisInputMode::FullMix;
 
 	mao_test::Buffer buffer = {};
+	const uint64_t analyzer_window_samples = settings.analysis_window_samples > 0 ?
+						     settings.analysis_window_samples :
+						     static_cast<uint64_t>(buffer.size());
+	const uint64_t read_center_offset =
+		buffer.size() > analyzer_window_samples ? (buffer.size() - analyzer_window_samples) / 2 : 0;
 	const uint32_t interval_samples =
 		static_cast<uint32_t>(std::lround(0.05 * static_cast<double>(recording_sample_rate)));
-	for (int frame = 4; frame >= 0; --frame) {
-		const uint64_t offset = static_cast<uint64_t>(frame) * interval_samples;
-		const uint64_t frame_center = center_sample > offset ? center_sample - offset : 0;
-		if (!read_wav_window(audio_path, frame_center, buffer, sample_rate, error))
+	for (int frame = -2; frame <= 0; ++frame) {
+		const int64_t offset = static_cast<int64_t>(frame) * static_cast<int64_t>(interval_samples);
+		const uint64_t frame_center =
+			offset < 0 && center_sample < static_cast<uint64_t>(-offset) ?
+				0 :
+				static_cast<uint64_t>(static_cast<int64_t>(center_sample) + offset);
+		if (!read_wav_window(audio_path, frame_center + read_center_offset, buffer, sample_rate, error))
 			return false;
 		settings.sample_rate = sample_rate;
 		snapshot = engine.analyze(buffer.data(), buffer.size(), settings, "E-GMD drums", 0);
