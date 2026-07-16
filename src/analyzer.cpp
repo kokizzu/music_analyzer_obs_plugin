@@ -3622,13 +3622,12 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 	else if (cymbal_low > cymbal_mid * 1.15f && cymbal_low > cymbal_high * 1.15f)
 		cymbal_shape = Ride;
 	const bool hihat_family_shape =
-		strongest_cymbal_drum > 0.0f && drum_segment_bands[HiHat] >= strongest_cymbal_drum * 0.54f;
+		strongest_cymbal_drum > 0.0f && drum_segment_bands[HiHat] >= strongest_cymbal_drum * 0.58f;
 	const bool crash_family_shape =
-		strongest_cymbal_drum > 0.0f && drum_segment_bands[Crash] >= strongest_cymbal_drum * 0.34f &&
-		cymbal_high >= cymbal_low * 0.08f;
+		strongest_cymbal_drum > 0.0f && drum_segment_bands[Crash] >= strongest_cymbal_drum * 0.16f;
 	const bool ride_family_shape =
-		strongest_cymbal_drum > 0.0f && drum_segment_bands[Ride] >= strongest_cymbal_drum * 0.48f &&
-		cymbal_low >= cymbal_high * 0.16f;
+		strongest_cymbal_drum > 0.0f && drum_segment_bands[Ride] >= strongest_cymbal_drum * 0.42f &&
+		cymbal_low >= cymbal_high * 0.10f;
 	const bool cymbal_shape_allowed =
 		strongest_cymbal_drum > 0.0f &&
 		(snapshot.high_energy >= 0.03f || strongest_cymbal_drum >= strongest_body_drum * 0.10f);
@@ -3640,15 +3639,15 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 		body_shape_allowed && snare_shape &&
 		drum_segment_bands[Snare] >=
 			std::max(std::max(drum_segment_bands[Kick], drum_segment_bands[Rim]), drum_segment_bands[Tom]) *
-				0.58f &&
-		snare_crack >= snare_body * 0.06f;
+				0.60f &&
+		snare_crack >= snare_body * 0.055f;
 	const bool rim_side_shape =
 		body_shape_allowed && rim_shape &&
-		drum_segment_bands[Rim] >= std::max(drum_segment_bands[Kick], drum_segment_bands[Tom]) * 0.44f &&
-		rim_body >= snare_body * 0.26f;
+		drum_segment_bands[Rim] >= std::max(drum_segment_bands[Kick], drum_segment_bands[Tom]) * 0.54f &&
+		rim_body >= snare_body * 0.34f;
 	const bool tom_side_shape =
-		body_shape_allowed && tom_shape && drum_segment_bands[Tom] >= strongest_body_drum * 0.18f &&
-		tom_body >= kick_body * 0.10f;
+		body_shape_allowed && tom_shape && drum_segment_bands[Tom] >= strongest_body_drum * 0.30f &&
+		tom_body >= kick_body * 0.16f;
 	const std::array<bool, kDrumCount> drum_shape_supported = {
 		kick_shape,
 		body_shape_allowed && (body_shape == Snare || snare_side_shape) && snare_shape,

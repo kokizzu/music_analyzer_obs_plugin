@@ -219,9 +219,7 @@ bool category_index(const std::string &category, std::size_t &index)
 mao_test::Buffer make_warmup_buffer()
 {
 	mao_test::Buffer buffer = {};
-	mao_test::add_midi_note(buffer, 60, 0.006f);
-	mao_test::add_midi_note(buffer, 64, 0.004f);
-	mao_test::add_midi_note(buffer, 67, 0.003f);
+	buffer.fill(0.003f);
 	return buffer;
 }
 
@@ -310,6 +308,8 @@ int main()
 	const bool required = std::getenv("MUSIC_ANALYZER_DRUM_SAMPLES_REQUIRED") != nullptr;
 	const bool verbose_misses = std::getenv("MUSIC_ANALYZER_DRUM_SAMPLE_VERBOSE_MISSES") != nullptr;
 	const int min_recall_percent = resolve_percent_env("MUSIC_ANALYZER_DRUM_SAMPLE_MIN_RECALL_PERCENT", 45);
+	const int min_precision_percent =
+		resolve_percent_env("MUSIC_ANALYZER_DRUM_SAMPLE_MIN_PRECISION_PERCENT", 0);
 
 	std::ifstream manifest(manifest_path);
 	if (!manifest) {
@@ -325,6 +325,9 @@ int main()
 	std::array<int, mao::kDrumCount> totals = {};
 	std::array<int, mao::kDrumCount> hits100 = {};
 	std::array<int, mao::kDrumCount> misses100 = {};
+	std::array<int, mao::kDrumCount> active100 = {};
+	std::array<int, mao::kDrumCount> false100 = {};
+	std::array<std::array<int, mao::kDrumCount>, mao::kDrumCount> active_by_expected100 = {};
 	int usable = 0;
 	int skipped = 0;
 
@@ -363,6 +366,14 @@ int main()
 		const mao::AnalysisSnapshot snapshot100 = analyze_sample(buffer, sample_rate, kDefaultWindowSeconds);
 		++totals[expected];
 		++usable;
+		for (std::size_t i = 0; i < mao::kDrumCount; ++i) {
+			if (!snapshot100.drums[i].active)
+				continue;
+			++active100[i];
+			++active_by_expected100[expected][i];
+			if (i != expected)
+				++false100[i];
+		}
 		if (snapshot100.drums[expected].active) {
 			++hits100[expected];
 		} else {
@@ -379,11 +390,28 @@ int main()
 		runner.expect(totals[i] >= 2, std::string("expected at least two usable ") + category_name(i) +
 					     " samples, got " + std::to_string(totals[i]));
 		const int recall100 = totals[i] > 0 ? hits100[i] * 100 / totals[i] : 0;
+		const int precision100 = active100[i] > 0 ? hits100[i] * 100 / active100[i] : 0;
 		runner.expect(recall100 >= min_recall_percent,
 			      std::string("expected 100ms ") + category_name(i) + " recall >= " +
 				      std::to_string(min_recall_percent) + "%, got " + std::to_string(recall100) +
 				      "% (" + std::to_string(hits100[i]) + "/" + std::to_string(totals[i]) + ")");
+		if (min_precision_percent > 0) {
+			runner.expect(precision100 >= min_precision_percent,
+				      std::string("expected 100ms ") + category_name(i) + " precision >= " +
+					      std::to_string(min_precision_percent) + "%, got " +
+					      std::to_string(precision100) + "% (" + std::to_string(hits100[i]) +
+					      "/" + std::to_string(active100[i]) + ", false " +
+					      std::to_string(false100[i]) + ")");
+		}
 	}
+
+	std::printf("analyzer_drum_samples: active matrix");
+	for (std::size_t expected = 0; expected < mao::kDrumCount; ++expected) {
+		std::printf("\n  expected %-5s", category_name(expected));
+		for (std::size_t detected = 0; detected < mao::kDrumCount; ++detected)
+			std::printf(" %s=%d", category_name(detected), active_by_expected100[expected][detected]);
+	}
+	std::printf("\n");
 
 	if (runner.failures) {
 		std::fprintf(stderr, "analyzer_drum_samples: %d failure(s), usable %d, skipped %d\n", runner.failures,
@@ -392,8 +420,13 @@ int main()
 	}
 
 	std::printf("analyzer_drum_samples: ok (usable %d, skipped %d", usable, skipped);
-	for (std::size_t i = 0; i < mao::kDrumCount; ++i)
-		std::printf(", %s 100ms %d/%d", category_name(i), hits100[i], totals[i]);
+	for (std::size_t i = 0; i < mao::kDrumCount; ++i) {
+		const int precision100 = active100[i] > 0 ? hits100[i] * 100 / active100[i] : 0;
+		std::printf(", %s recall %d/%d precision %d/%d false %d", category_name(i), hits100[i],
+			    totals[i], hits100[i], active100[i], false100[i]);
+		if (active100[i] > 0)
+			std::printf(" %d%%", precision100);
+	}
 	std::printf(")\n");
 	return 0;
 }

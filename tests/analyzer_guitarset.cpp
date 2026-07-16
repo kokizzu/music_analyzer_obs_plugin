@@ -569,6 +569,11 @@ struct RecallStats {
 	int major_minor_chord_checks = 0;
 	int other_chord_hits = 0;
 	int other_chord_checks = 0;
+	struct ChordQualityStats {
+		int hits = 0;
+		int checks = 0;
+	};
+	std::map<std::string, ChordQualityStats> chord_quality;
 };
 
 std::array<bool, 12> grid_pitch_classes(const mao::NoteGrid &grid)
@@ -777,6 +782,40 @@ bool chord_label_is_plain_major_or_minor(const std::string &label)
 	return quality.empty() || quality == "m";
 }
 
+std::string chord_quality_name(const std::string &label)
+{
+	if (label.empty())
+		return "unknown";
+	std::size_t suffix = 1;
+	if (suffix < label.size() && label[suffix] == '#')
+		++suffix;
+	const std::string quality = label.substr(suffix);
+	if (quality.empty())
+		return "maj";
+	if (quality == "m")
+		return "min";
+	return quality;
+}
+
+std::string chord_quality_summary(const RecallStats &stats)
+{
+	if (stats.chord_quality.empty())
+		return "chord quality hits none";
+
+	std::string text = "chord quality hits";
+	for (const auto &entry : stats.chord_quality) {
+		text += " ";
+		text += entry.first;
+		text += " ";
+		text += std::to_string(entry.second.hits);
+		text += "/";
+		text += std::to_string(entry.second.checks);
+		text += " ";
+		text += percent_string(entry.second.hits, entry.second.checks);
+	}
+	return text;
+}
+
 void check_recall(Runner &runner, const mao::AnalysisSnapshot &snapshot, const CandidateWindow &candidate,
 		  const std::string &context, RecallStats &stats, int min_recall_percent)
 {
@@ -824,6 +863,13 @@ void check_recall(Runner &runner, const mao::AnalysisSnapshot &snapshot, const C
 			++stats.other_chord_checks;
 			if (chord_hit)
 				++stats.other_chord_hits;
+		}
+		for (const std::string &label : candidate.chord_labels) {
+			RecallStats::ChordQualityStats &quality_stats =
+				stats.chord_quality[chord_quality_name(label)];
+			++quality_stats.checks;
+			if (snapshot_has_chord_label(snapshot, label))
+				++quality_stats.hits;
 		}
 	}
 }
@@ -1094,7 +1140,7 @@ int main()
 			     "analyzer_guitarset: %d/%d checks failed (excerpts %d/%d, windows %d/%d, "
 			     "read failures %d, no-candidate excerpts %d, unusable %d, note hits %d/%d, "
 			     "chord hits %d/%d, major/minor chord hits %d/%d, other chord hits %d/%d, "
-			     "%s, %s, %s)\n",
+			     "%s, %s, %s, %s)\n",
 			     runner.failures, runner.checks, tested_recordings, required_recordings,
 			     tested_windows, required_windows, read_failures, no_candidate_recordings,
 			     unusable_recordings, recall.hits, recall.expected, recall.chord_hits,
@@ -1102,6 +1148,7 @@ int main()
 			     recall.major_minor_chord_checks, recall.other_chord_hits,
 			     recall.other_chord_checks, guitar_precision_summary(precision).c_str(),
 			     chord_precision_summary(guitar_chord_precision).c_str(),
+			     chord_quality_summary(recall).c_str(),
 			     composition_summary(composition).c_str());
 		return 1;
 	}
@@ -1125,6 +1172,7 @@ int main()
 			 std::to_string(recall.other_chord_checks) + ", " +
 			 guitar_precision_summary(precision) + ", " +
 			 chord_precision_summary(guitar_chord_precision) + ", " +
+			 chord_quality_summary(recall) + ", " +
 			 composition_summary(composition))
 				.c_str());
 	}
