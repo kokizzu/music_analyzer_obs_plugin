@@ -397,6 +397,15 @@ int positive_int_env(const char *name, int fallback)
 	return parsed > 0 ? parsed : fallback;
 }
 
+int nonnegative_int_env(const char *name, int fallback)
+{
+	const char *value = std::getenv(name);
+	if (!value || !*value)
+		return fallback;
+	const int parsed = std::atoi(value);
+	return parsed >= 0 ? parsed : fallback;
+}
+
 } // namespace
 
 int main()
@@ -470,6 +479,21 @@ int main()
 		++family_counts[index];
 		if (detected)
 			++family_hits[index];
+	}
+
+	const std::array<int, 5> minimum_family_counts = {
+		nonnegative_int_env("MUSIC_ANALYZER_REAL_NOTE_MIN_BASS", 0),
+		nonnegative_int_env("MUSIC_ANALYZER_REAL_NOTE_MIN_GUITAR", 0),
+		nonnegative_int_env("MUSIC_ANALYZER_REAL_NOTE_MIN_PIANO", 0),
+		nonnegative_int_env("MUSIC_ANALYZER_REAL_NOTE_MIN_VOCALS", 0),
+		nonnegative_int_env("MUSIC_ANALYZER_REAL_NOTE_MIN_OTHER", 0),
+	};
+	static constexpr const char *kFamilyNames[5] = {"bass", "guitar", "piano", "vocals", "other"};
+	for (std::size_t i = 0; i < minimum_family_counts.size(); ++i) {
+		runner.expect(family_counts[i] >= minimum_family_counts[i],
+			      std::string("expected at least ") + std::to_string(minimum_family_counts[i]) +
+				      " " + kFamilyNames[i] + " real note samples, got " +
+				      std::to_string(family_counts[i]));
 	}
 
 	if (runner.failures) {
