@@ -443,6 +443,7 @@ test: $(TEST_BINS) scripts/run_with_duration.sh
 	$(MAKE) test-spheres-inspector
 	$(MAKE) test-guitarset-inspector
 	$(MAKE) test-urmp-inspector
+	$(MAKE) test-drum-sample-prepare
 	$(MAKE) test-real-goal-script
 	$(RUN_WITH_DURATION) analyzer_smoke $(BUILD_DIR)/analyzer_smoke
 	$(RUN_WITH_DURATION) analyzer_cases $(BUILD_DIR)/analyzer_cases
@@ -589,6 +590,9 @@ test-guitarset-inspector: tests/test_inspect_guitarset_dataset.py tests/inspect_
 
 test-urmp-inspector: tests/test_inspect_urmp_dataset.py tests/inspect_urmp_dataset.py
 	$(PYTHON) tests/test_inspect_urmp_dataset.py
+
+test-drum-sample-prepare: tests/test_prepare_drum_samples.py scripts/prepare_drum_samples.py
+	$(PYTHON) tests/test_prepare_drum_samples.py
 
 test-real-goal-script: tests/test_run_real_goal_gate.py tests/run_real_goal_gate.py
 	$(PYTHON) tests/test_run_real_goal_gate.py

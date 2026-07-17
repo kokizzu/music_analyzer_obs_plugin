@@ -6,6 +6,7 @@ import os
 from pathlib import Path
 import re
 import shutil
+import subprocess
 import wave
 import zipfile
 
@@ -84,6 +85,14 @@ def one_shot_duration(duration):
     return duration is not None and 0.015 <= duration <= 3.0
 
 
+def archive_member_label(source, archive, member_name):
+    try:
+        archive_name = archive.relative_to(source)
+    except ValueError:
+        archive_name = archive.name
+    return Path(archive_name) / member_name
+
+
 def collect_plain_wavs(source):
     for path in sorted(source.rglob("*")):
         if not path.is_file() or path.suffix.lower() != ".wav":
@@ -104,7 +113,7 @@ def collect_zip_wavs(source):
                 for info in sorted(zf.infolist(), key=lambda item: item.filename):
                     if info.is_dir() or not info.filename.lower().endswith(".wav"):
                         continue
-                    category = category_for_path(Path(archive.name) / info.filename)
+                    category = category_for_path(archive_member_label(source, archive, info.filename))
                     if not category:
                         continue
                     data = zf.read(info)
@@ -114,6 +123,42 @@ def collect_zip_wavs(source):
                     yield category, archive, info.filename, duration, data
         except (zipfile.BadZipFile, OSError):
             continue
+
+
+def collect_rar_wavs(source, unrar):
+    if not unrar:
+        return
+    for archive in sorted(source.rglob("*.rar")):
+        try:
+            listing = subprocess.run(
+                [unrar, "lb", str(archive)],
+                check=True,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.DEVNULL,
+            )
+        except (OSError, subprocess.CalledProcessError):
+            continue
+        member_names = listing.stdout.decode("utf-8", errors="replace").splitlines()
+        for member_name in member_names:
+            if not member_name.lower().endswith(".wav"):
+                continue
+            category = category_for_path(archive_member_label(source, archive, member_name))
+            if not category:
+                continue
+            try:
+                extracted = subprocess.run(
+                    [unrar, "p", "-inul", str(archive), member_name],
+                    check=True,
+                    stdout=subprocess.PIPE,
+                    stderr=subprocess.DEVNULL,
+                )
+            except (OSError, subprocess.CalledProcessError):
+                continue
+            data = extracted.stdout
+            duration = wav_duration_from_bytes(data)
+            if not one_shot_duration(duration):
+                continue
+            yield category, archive, member_name, duration, data
 
 
 def ensure_dirs(output):
@@ -128,11 +173,17 @@ def clean_output(output):
     ensure_dirs(output)
 
 
-def copy_samples(source, output, limit_per_category):
+def reached_sample_limit(counts, limit_per_category):
+    return limit_per_category > 0 and all(counts[category] >= limit_per_category for category in CATEGORIES)
+
+
+def copy_samples(source, output, limit_per_category, unrar=None):
     counts = {category: 0 for category in CATEGORIES}
     manifest = []
 
     for category, path, original_name, duration in collect_plain_wavs(source):
+        if reached_sample_limit(counts, limit_per_category):
+            break
         if limit_per_category > 0 and counts[category] >= limit_per_category:
             continue
         counts[category] += 1
@@ -141,14 +192,29 @@ def copy_samples(source, output, limit_per_category):
         shutil.copy2(path, dest)
         manifest.append((category, str(dest.relative_to(output)), f"{duration:.6f}", str(path)))
 
-    for category, archive, member_name, duration, data in collect_zip_wavs(source):
-        if limit_per_category > 0 and counts[category] >= limit_per_category:
-            continue
-        counts[category] += 1
-        dest_name = f"{counts[category]:03d}_{sanitize_name(Path(member_name).name)}"
-        dest = output / category / dest_name
-        dest.write_bytes(data)
-        manifest.append((category, str(dest.relative_to(output)), f"{duration:.6f}", f"{archive}!{member_name}"))
+    if not reached_sample_limit(counts, limit_per_category):
+        for category, archive, member_name, duration, data in collect_zip_wavs(source):
+            if reached_sample_limit(counts, limit_per_category):
+                break
+            if limit_per_category > 0 and counts[category] >= limit_per_category:
+                continue
+            counts[category] += 1
+            dest_name = f"{counts[category]:03d}_{sanitize_name(Path(member_name).name)}"
+            dest = output / category / dest_name
+            dest.write_bytes(data)
+            manifest.append((category, str(dest.relative_to(output)), f"{duration:.6f}", f"{archive}!{member_name}"))
+
+    if not reached_sample_limit(counts, limit_per_category):
+        for category, archive, member_name, duration, data in collect_rar_wavs(source, unrar):
+            if reached_sample_limit(counts, limit_per_category):
+                break
+            if limit_per_category > 0 and counts[category] >= limit_per_category:
+                continue
+            counts[category] += 1
+            dest_name = f"{counts[category]:03d}_{sanitize_name(Path(member_name).name)}"
+            dest = output / category / dest_name
+            dest.write_bytes(data)
+            manifest.append((category, str(dest.relative_to(output)), f"{duration:.6f}", f"{archive}!{member_name}"))
 
     manifest.sort()
     manifest_path = output / "manifest.tsv"
@@ -165,6 +231,7 @@ def main():
     parser.add_argument("--source", default=os.environ.get("DRUM_SAMPLE_SOURCE_DIR", "/media/kyz/sshflashtor/DrumSamples"))
     parser.add_argument("--output", default=os.environ.get("DRUM_SAMPLE_BUILD_DIR", "build/drum_samples"))
     parser.add_argument("--limit-per-category", type=int, default=int(os.environ.get("DRUM_SAMPLE_LIMIT", "32")))
+    parser.add_argument("--unrar", default=os.environ.get("UNRAR", "unrar"))
     args = parser.parse_args()
 
     source = Path(args.source)
@@ -173,7 +240,8 @@ def main():
         raise SystemExit(f"prepare_drum_samples: source directory not found: {source}")
 
     clean_output(output)
-    counts, manifest_path = copy_samples(source, output, max(0, args.limit_per_category))
+    unrar = shutil.which(args.unrar) if args.unrar else None
+    counts, manifest_path = copy_samples(source, output, max(0, args.limit_per_category), unrar=unrar)
     summary = " ".join(f"{category}={counts[category]}" for category in CATEGORIES)
     print(f"prepare_drum_samples: wrote {manifest_path} ({summary})")
 
