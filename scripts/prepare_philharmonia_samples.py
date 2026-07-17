@@ -78,6 +78,8 @@ def note_label(note):
 
 def family_for_instrument(instrument):
     normalized = instrument.replace("_", "-").lower()
+    if normalized == "double-bass":
+        return "bass"
     if normalized in {"banjo", "guitar"}:
         return "guitar"
     return "other"
