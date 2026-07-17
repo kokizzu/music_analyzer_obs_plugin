@@ -66,7 +66,7 @@ DRUM_SAMPLE_SELECTION ?= first
 UNRAR ?= unrar
 DRUM_SAMPLE_SPREAD_BUILD_DIR ?= $(BUILD_DIR)/drum_samples_spread
 DRUM_SAMPLE_SPREAD_LIMIT ?= 160
-DRUM_SAMPLE_SPREAD_MIN_RECALL_PERCENT ?= 35
+DRUM_SAMPLE_SPREAD_MIN_RECALL_PERCENT ?= 40
 DRUM_SAMPLE_FULL_BUILD_DIR ?= $(BUILD_DIR)/drum_samples_full
 DRUM_SAMPLE_FULL_LIMIT ?= 0
 DRUM_SAMPLE_FULL_MIN_RECALL_PERCENT ?= 35
@@ -471,7 +471,7 @@ test: $(TEST_BINS) scripts/run_with_duration.sh
 	$(RUN_WITH_DURATION) analyzer_guitarset $(BUILD_DIR)/analyzer_guitarset
 	$(RUN_WITH_DURATION) analyzer_maestro $(BUILD_DIR)/analyzer_maestro
 	$(RUN_WITH_DURATION) analyzer_egmd $(BUILD_DIR)/analyzer_egmd
-	if [ -d "$(DRUM_SAMPLE_SOURCE_DIR)" ]; then $(MAKE) test-drum-samples; else printf '%s\n' "test-drum-samples: skipped; missing $(DRUM_SAMPLE_SOURCE_DIR)"; fi
+	if [ -d "$(DRUM_SAMPLE_SOURCE_DIR)" ]; then $(MAKE) test-drum-samples; $(MAKE) test-drum-samples-spread; else printf '%s\n' "test-drum-samples: skipped; missing $(DRUM_SAMPLE_SOURCE_DIR)"; fi
 	if command -v fluidsynth >/dev/null 2>&1; then $(MAKE) test-instrument-samples; else printf '%s\n' "test-instrument-samples: skipped; missing fluidsynth"; fi
 	$(MAKE) test-direct-fit-small-fixture
 	$(MAKE) test-synthsod-fixture
