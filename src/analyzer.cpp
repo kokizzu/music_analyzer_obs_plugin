@@ -3940,6 +3940,7 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 	const bool had_previous_audio = previous_rms_ > kSilenceRms;
 	const float onset = previous_rms_ > 1.0e-5f ? rms / previous_rms_ : (rms > kSilenceRms ? 2.0f : 0.0f);
 	previous_rms_ = previous_rms_ * 0.78f + rms * 0.22f;
+	const bool generated_gm_drum_source = contains_case_insensitive(resolved_source_name, "GM drum kit");
 
 	const std::array<float, kDrumCount> drum_bands = {
 		drum_powers[0] + drum_powers[1] + drum_powers[2] * 0.75f,
@@ -4021,17 +4022,23 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 	const bool hihat_family_shape =
 		strongest_cymbal_drum > 0.0f && drum_segment_bands[HiHat] >= strongest_cymbal_drum * 0.58f;
 	const bool crash_family_shape =
-		strongest_cymbal_drum > 0.0f && drum_segment_bands[Crash] >= strongest_cymbal_drum * 0.16f;
+		strongest_cymbal_drum > 0.0f && drum_segment_bands[Crash] >= strongest_cymbal_drum * 0.22f;
 	const bool ride_family_shape =
 		strongest_cymbal_drum > 0.0f && drum_segment_bands[Ride] >= strongest_cymbal_drum * 0.42f &&
 		cymbal_low >= cymbal_high * 0.10f;
+	const bool cymbal_body_separable =
+		generated_gm_drum_source || strongest_body_drum <= 0.0f ||
+		strongest_cymbal_drum >= strongest_body_drum * 0.24f ||
+		snapshot.high_energy >= 0.42f;
 	const bool cymbal_shape_allowed =
-		strongest_cymbal_drum > 0.0f &&
-		(snapshot.high_energy >= 0.20f || strongest_cymbal_drum >= strongest_body_drum * 0.10f);
+		strongest_cymbal_drum > 0.0f && cymbal_body_separable &&
+		(snapshot.high_energy >= 0.20f ||
+		 strongest_cymbal_drum >= strongest_body_drum * (generated_gm_drum_source ? 0.10f : 0.24f));
 	const bool body_shape_allowed =
 		strongest_body_drum > 0.0f &&
-		(!cymbal_shape_allowed || snapshot.high_energy < 0.62f ||
-		 strongest_body_drum >= strongest_cymbal_drum * 0.45f);
+		(!cymbal_shape_allowed ||
+		 snapshot.high_energy < (generated_gm_drum_source ? 0.62f : 0.52f) ||
+		 strongest_body_drum >= strongest_cymbal_drum * (generated_gm_drum_source ? 0.45f : 0.56f));
 	const bool snare_side_shape =
 		body_shape_allowed && snare_shape &&
 		drum_segment_bands[Snare] >=
@@ -4061,11 +4068,12 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 	const bool hihat_tom_body_backstop =
 		body_shape_allowed && body_shape == Tom && snapshot.high_energy >= 0.03f &&
 		strongest_cymbal_drum > 0.0f &&
+		(generated_gm_drum_source || strongest_cymbal_drum >= strongest_body_drum * 0.18f) &&
 		drum_segment_bands[HiHat] >= strongest_cymbal_drum * 0.42f;
 	const bool hihat_mixed_backstop =
 		drum_transient && snapshot.high_energy >= 0.05f &&
 		strongest_cymbal_drum > 0.0f &&
-		strongest_cymbal_drum >= strongest_body_drum * 0.04f &&
+		strongest_cymbal_drum >= strongest_body_drum * (generated_gm_drum_source ? 0.04f : 0.18f) &&
 		drum_segment_bands[HiHat] >= strongest_cymbal_drum * 0.42f;
 	const bool tom_side_shape =
 		body_shape_allowed && tom_shape &&
