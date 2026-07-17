@@ -115,6 +115,7 @@ def main() -> int:
     expected_tone_coverage_sum: collections.Counter[str] = collections.Counter()
     missing_tone_sets: collections.Counter[tuple[str, str]] = collections.Counter()
     plain_to_power = []
+    plain_to_power_third_state: collections.Counter[str] = collections.Counter()
     has_grid_diagnostics = False
 
     for opportunity, _global, _key, guitar, _other, _expected_pc, guitar_pc, _guitar_cells in misses:
@@ -166,6 +167,27 @@ def main() -> int:
             for detected_label in detected:
                 if detected_label == expected_power:
                     plain_to_power.append((expected_label, detected_label))
+                    expected_root = NOTE_TO_PC.get(root(expected_label))
+                    if expected_root is None:
+                        continue
+                    major_third = (expected_root + 4) % 12
+                    minor_third = (expected_root + 3) % 12
+                    if quality(expected_label) == "m":
+                        expected_third = minor_third
+                        competing_third = major_third
+                    else:
+                        expected_third = major_third
+                        competing_third = minor_third
+                    expected_present = expected_third in guitar_pitch_classes
+                    competing_present = competing_third in guitar_pitch_classes
+                    if expected_present and competing_present:
+                        plain_to_power_third_state["both_thirds_active"] += 1
+                    elif expected_present:
+                        plain_to_power_third_state["expected_third_active"] += 1
+                    elif competing_present:
+                        plain_to_power_third_state["wrong_third_active"] += 1
+                    else:
+                        plain_to_power_third_state["third_missing"] += 1
 
     print(f"misses {len(misses)}")
     print("by expected quality")
@@ -187,6 +209,10 @@ def main() -> int:
         for (expected_quality, missing), value in missing_tone_sets.most_common(20):
             print(f"{value} {expected_quality} missing {missing}")
     print(f"same_root_plain_major_minor_to_power {len(plain_to_power)}")
+    if plain_to_power_third_state:
+        print("plain_to_power_third_state")
+        for key, value in plain_to_power_third_state.most_common():
+            print(f"{key} {value}")
     for expected_label, detected_label in plain_to_power[:80]:
         print(f"{expected_label} -> {detected_label}")
     return 0
