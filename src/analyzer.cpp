@@ -4445,7 +4445,7 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 				lowest_peak_pitch_class(detection_note_powers, min_midi, kGuitarMaxMidi);
 			set_instrument_note_set(snapshot.guitar_notes, snapshot.guitar, detection_note_powers,
 						min_midi, kGuitarMaxMidi, preferred_root, guitar_energy, rms,
-						max_notes, nullptr, nullptr, false, nullptr, 0.32f,
+						max_notes, nullptr, nullptr, false, nullptr, 0.10f,
 						false, false);
 			if (note_grid_active_pitch_class_count(snapshot.guitar_notes) <= 3) {
 				std::array<float, kNoteProbeCount> low_fundamental_votes = {};
