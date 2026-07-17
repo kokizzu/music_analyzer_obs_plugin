@@ -2404,6 +2404,20 @@ void check_realistic_instrument_chords(Runner &runner)
 	expect_note_token(runner, guitar_snapshot.guitar.label, "E3", "realistic guitar C chord");
 	expect_note_token(runner, guitar_snapshot.guitar.label, "G3", "realistic guitar C chord");
 
+	{
+		mao_test::Buffer buffer = {};
+		add_harmonic_note(buffer, 48, 0.22f, guitar_profile);
+		add_harmonic_note(buffer, 55, 0.22f, guitar_profile);
+		add_harmonic_note(buffer, 52, 0.060f, guitar_profile);
+		const auto snapshot = analyze_buffer(buffer, "guitar");
+		expect_label(runner, snapshot.guitar_chord.label, "C", "weak guitar third hidden chord grid");
+		expect_note_token(runner, snapshot.guitar.label, "C3", "weak guitar third hidden chord grid");
+		expect_note_token(runner, snapshot.guitar.label, "G3", "weak guitar third hidden chord grid");
+		runner.expect(!mao_test::has_note_token(snapshot.guitar.label, "E3"),
+			      std::string("weak guitar third hidden chord grid: expected E3 hidden, got `") +
+				      snapshot.guitar.label + "`");
+	}
+
 	const std::vector<float> keyboard_profile = {1.0f, 0.18f, 0.08f};
 	const auto keyboard_buffer = make_harmonic_notes({50, 53, 57, 60}, 0.20f, keyboard_profile);
 	const auto keyboard_snapshot = analyze_buffer(keyboard_buffer, "keyboard");

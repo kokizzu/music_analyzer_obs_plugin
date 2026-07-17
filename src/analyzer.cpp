@@ -4420,7 +4420,7 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 			set_instrument_note_set(guitar_chord_detection_grid, guitar_chord_detection_state,
 						detection_note_powers, min_midi, kGuitarMaxMidi, preferred_root,
 						guitar_energy, rms, 10, nullptr, nullptr, false, nullptr,
-						0.22f, false, true);
+						0.10f, false, true);
 		}
 		raw_guitar_chord = detect_guitar_chord_from_grid(guitar_chord_detection_grid, allow_extensions);
 		const ChordResult display_guitar_chord =
