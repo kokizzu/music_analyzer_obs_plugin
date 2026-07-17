@@ -4154,7 +4154,9 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 		if (drum_detection_enabled && rms > kSilenceRms && shape_supported && (!kick || kick_click_transient) &&
 		    (drum_transient || soft_cymbal_transient || quiet_cymbal_shape || soft_body_transient) &&
 		    score > effective_threshold) {
-			const float level = std::clamp((score - effective_threshold) * 0.85f, 0.35f, 1.0f);
+			const float threshold_excess = score / (effective_threshold + 1.0e-6f) - 1.0f;
+			const float level = std::clamp(0.25f + 0.75f * threshold_excess / (threshold_excess + 3.5f),
+						       0.0f, 1.0f);
 			drum_level_[i] = std::max(drum_level_[i], level);
 			tempo_event = true;
 		} else {

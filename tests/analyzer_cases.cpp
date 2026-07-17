@@ -2949,6 +2949,25 @@ void check_high_crash_probe_counts_as_high_energy(Runner &runner)
 			      std::to_string(snapshot.drums[mao::Ride].level));
 }
 
+void check_strong_drum_levels_keep_headroom(Runner &runner)
+{
+	mao_test::Buffer buffer = {};
+	add_decayed_sine(buffer, 65.0f, 0.85f, 1400);
+	add_decayed_sine(buffer, 1100.0f, 0.28f, 520);
+	const auto snapshot = analyze_buffer(buffer, "Mic/Aux");
+
+	runner.expect(snapshot.drums[mao::Kick].active,
+		      "strong drum level headroom: expected kick active, level " +
+			      std::to_string(snapshot.drums[mao::Kick].level));
+	for (const mao::DrumState &drum : snapshot.drums) {
+		if (!drum.active)
+			continue;
+		runner.expect(drum.level < 0.98f,
+			      std::string("strong drum level headroom: expected active ") + drum.label +
+				      " below full-scale saturation, got " + std::to_string(drum.level));
+	}
+}
+
 void check_upbeat_mix_drums_and_chords(Runner &runner)
 {
 	mao::AnalysisEngine engine;
@@ -3404,6 +3423,7 @@ int main()
 	check_live_mic_aux_stream_low_parts(runner);
 	check_soft_drum_transient_stream(runner);
 	check_high_crash_probe_counts_as_high_energy(runner);
+	check_strong_drum_levels_keep_headroom(runner);
 	check_upbeat_mix_drums_and_chords(runner);
 	check_root_candidates(runner);
 	check_root_from_common_major_degrees(runner);
