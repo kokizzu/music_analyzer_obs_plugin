@@ -37,6 +37,18 @@ def wav_bytes():
     return buffer.getvalue()
 
 
+def populate_cached_manifest(root):
+    rows = []
+    for category in sorted(set(prep.LABEL_MAP.values())):
+        relative = Path(category) / f"cached_{category}.wav"
+        path = root / relative
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_bytes(wav_bytes())
+        rows.append((category, str(relative), "0.000000", f"cached:{category}"))
+    prep.write_manifest(root, rows)
+    return len(rows)
+
+
 def fake_urlopen(url, timeout=0):
     if url.startswith(prep.ROWS_ENDPOINT):
         labels = ("kick", "snare", "hat", "crash", "tom", "ride", "rim", "cymbal")
@@ -72,6 +84,15 @@ def main():
         assert (Path(tmp) / "kick/test_0000_kick_0001.wav").is_file()
         assert (Path(tmp) / "hihat/test_0002_hat_0001.wav").is_file()
         assert not (Path(tmp) / "crash/test_0007_cymbal_0001.wav").exists()
+
+    with tempfile.TemporaryDirectory() as tmp:
+        root = Path(tmp)
+        cached_count = populate_cached_manifest(root)
+        with mock.patch.object(prep.request, "urlopen", side_effect=AssertionError("network called")):
+            count = prep.prepare(root, splits=("test",), page_size=100, retries=1,
+                                 cache_min_per_category=1)
+
+        assert count == cached_count
 
 
 if __name__ == "__main__":

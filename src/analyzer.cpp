@@ -2711,7 +2711,8 @@ void append_supported_guitar_extension_aliases(ChordResult &chord, const NoteGri
 
 	const bool has_fifth = fifth >= kCoreFloor;
 	const bool has_major = major_third >= kCoreFloor && has_fifth;
-	const bool has_strong_major = major_third >= kRichMajorThirdFloor && has_fifth;
+	const bool has_strong_major =
+		has_major && major_third >= std::max(kRichMajorThirdFloor, std::min(root, fifth) * 0.45f);
 	const bool has_minor = minor_third >= kCoreFloor && has_fifth;
 	const bool has_dim = minor_third >= kCoreFloor && flat_fifth >= kCoreFloor;
 	const bool has_aug = major_third >= kCoreFloor && aug_fifth >= kCoreFloor && fifth < kCoreFloor;
@@ -2744,11 +2745,14 @@ void append_supported_guitar_extension_aliases(ChordResult &chord, const NoteGri
 	if (has_aug)
 		extend_core_range(chord.root + 8);
 	auto supported_extension = [&](int interval, float level) {
-		if (level >= kExtensionFloor)
-			return true;
-		return has_core_range && level >= kCompactExtensionFloor &&
-		       note_grid_pitch_in_midi_window(grid, chord.root + interval, core_min_midi - 2,
-						      core_max_midi + 9);
+		if (level < kCompactExtensionFloor)
+			return false;
+		if (!has_core_range)
+			return level >= kExtensionFloor;
+		if (!note_grid_pitch_in_midi_window(grid, chord.root + interval, core_min_midi - 2,
+						    core_max_midi + 9))
+			return false;
+		return level >= kExtensionFloor || level >= kCompactExtensionFloor;
 	};
 
 	if (has_major) {
@@ -3988,9 +3992,9 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 				  snare_body >= kick_body * 0.34f && snare_body >= tom_body * 0.38f &&
 				  snare_crack >= snare_body * 0.035f);
 	const bool rim_shape = strongest_body_drum <= 0.0f ||
-			       (drum_segment_bands[Rim] >= strongest_body_drum * 0.36f &&
-				rim_body >= kick_body * 0.24f && rim_body >= tom_body * 0.24f &&
-				rim_body >= snare_body * 0.24f);
+			       (drum_segment_bands[Rim] >= strongest_body_drum * 0.30f &&
+				rim_body >= kick_body * 0.20f && rim_body >= tom_body * 0.20f &&
+				rim_body >= snare_body * 0.20f);
 	const bool tom_shape = strongest_shell_drum <= 0.0f ||
 			       (drum_segment_bands[Tom] >= strongest_shell_drum * 0.22f &&
 				tom_body >= kick_body * 0.14f && tom_body >= snare_body * 0.12f);
@@ -4036,9 +4040,9 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 		snare_crack >= snare_body * 0.035f;
 	const bool rim_side_shape =
 		body_shape_allowed && rim_shape &&
-		drum_segment_bands[Rim] >= std::max(drum_segment_bands[Kick], drum_segment_bands[Tom]) * 0.42f &&
-		drum_segment_bands[Rim] >= strongest_body_drum * 0.34f &&
-		rim_body >= snare_body * 0.42f;
+		drum_segment_bands[Rim] >= std::max(drum_segment_bands[Kick], drum_segment_bands[Tom]) * 0.34f &&
+		drum_segment_bands[Rim] >= strongest_body_drum * 0.28f &&
+		rim_body >= snare_body * 0.34f;
 	const bool kick_low_dominant_body =
 		snapshot.low_energy >= 0.28f &&
 		snapshot.low_energy >= snapshot.mid_energy * 1.25f &&
@@ -4138,7 +4142,7 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 			had_previous_audio && kick && kick_click_transient &&
 			(transient_ratio >= 1.00f || kick_soft_body_shape);
 		const bool soft_snare_transient = had_previous_audio && snare && snare_shape && transient_ratio >= 0.82f;
-		const bool soft_rim_transient = had_previous_audio && rim && rim_shape && transient_ratio >= 0.72f;
+		const bool soft_rim_transient = had_previous_audio && rim && rim_shape && transient_ratio >= 0.62f;
 		const bool soft_tom_transient = had_previous_audio && tom && tom_shape && transient_ratio >= 0.72f;
 		const bool soft_body_transient =
 			soft_kick_transient || soft_snare_transient || soft_rim_transient || soft_tom_transient;
@@ -4149,7 +4153,7 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 		const float threshold_scale = (soft_cymbal_transient || quiet_cymbal_shape) ? 0.26f :
 					      soft_kick_transient ? 0.25f :
 					      soft_snare_transient ? 0.30f :
-					      soft_rim_transient ? 0.28f :
+					      soft_rim_transient ? 0.24f :
 					      soft_tom_transient ? 0.34f :
 								     1.0f;
 		const float effective_threshold = trigger_threshold * threshold_scale;
