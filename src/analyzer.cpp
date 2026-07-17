@@ -3918,7 +3918,8 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 
 	const float low = sum_notes(detection_note_powers, kBassMinMidi, 47);
 	const float mid = sum_notes(detection_note_powers, 48, 72);
-	const float high = sum_notes(detection_note_powers, 73, kLastMidi) + drum_powers[11] + drum_powers[12] + drum_powers[13];
+	const float high_drum_energy = drum_powers[11] + drum_powers[12] + drum_powers[13] + drum_powers[14];
+	const float high = sum_notes(detection_note_powers, 73, kLastMidi) + high_drum_energy;
 	const float bass_energy = sum_notes(detection_note_powers, kBassMinMidi, kBassMaxMidi);
 	const float guitar_energy = sum_notes(detection_note_powers, kGuitarMinMidi, kGuitarMaxMidi);
 	const float keyboard_energy = sum_notes(detection_note_powers, kKeyboardMinMidi, kKeyboardMaxMidi);

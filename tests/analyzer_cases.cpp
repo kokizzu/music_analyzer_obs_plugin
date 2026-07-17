@@ -2921,6 +2921,23 @@ void check_soft_drum_transient_stream(Runner &runner)
 			      std::to_string(snapshot.drums[mao::Ride].level));
 }
 
+void check_high_crash_probe_counts_as_high_energy(Runner &runner)
+{
+	mao_test::Buffer buffer = {};
+	add_decayed_sine(buffer, 12500.0f, 0.18f, 1100);
+
+	const auto snapshot = analyze_buffer(buffer, "Mic/Aux");
+	runner.expect(snapshot.high_energy >= 0.85f,
+		      "highest cymbal probe: expected high energy, got " +
+			      std::to_string(snapshot.high_energy));
+	runner.expect(snapshot.drums[mao::HiHat].active || snapshot.drums[mao::Crash].active ||
+			      snapshot.drums[mao::Ride].active,
+		      "highest cymbal probe: expected cymbal active, hihat " +
+			      std::to_string(snapshot.drums[mao::HiHat].level) + " crash " +
+			      std::to_string(snapshot.drums[mao::Crash].level) + " ride " +
+			      std::to_string(snapshot.drums[mao::Ride].level));
+}
+
 void check_upbeat_mix_drums_and_chords(Runner &runner)
 {
 	mao::AnalysisEngine engine;
@@ -3375,6 +3392,7 @@ int main()
 	check_dense_multi_instrument_mix(runner);
 	check_live_mic_aux_stream_low_parts(runner);
 	check_soft_drum_transient_stream(runner);
+	check_high_crash_probe_counts_as_high_energy(runner);
 	check_upbeat_mix_drums_and_chords(runner);
 	check_root_candidates(runner);
 	check_root_from_common_major_degrees(runner);
