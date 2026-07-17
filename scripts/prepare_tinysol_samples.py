@@ -17,9 +17,9 @@ def normalize_bool(value):
     return str(value).strip().lower() in {"true", "1", "yes", "y"}
 
 
-def family_for_row(row):
-    instrument = row["Instrument Name"].strip().lower()
-    family = row["Family"].strip().lower()
+def family_for_values(family, instrument_name):
+    instrument = instrument_name.strip().lower()
+    family = family.strip().lower()
     if instrument == "contrabass":
         return "bass"
     if family == "keyboards":
@@ -36,8 +36,8 @@ def sanitize_id(text):
     return re.sub(r"[^A-Za-z0-9_.-]+", "_", text).strip("_")
 
 
-def source_name(row):
-    name = row["Instrument Name"].strip().lower()
+def source_name_from_text(text):
+    name = text.strip().lower()
     return re.sub(r"[^a-z0-9]+", "-", name).strip("-")
 
 
@@ -48,41 +48,52 @@ def output_name(row):
 
 
 def read_metadata(path, include_resampled):
+    def value(row, *names):
+        for name in names:
+            if name in row:
+                return row[name]
+        return ""
+
     rows = []
     with path.open("r", encoding="utf-8", newline="") as file:
         reader = csv.DictReader(file)
-        required = {
-            "Path",
-            "Family",
-            "Instrument",
-            "Instrument Name",
-            "Pitch",
-            "Pitch ID",
-            "Dynamics",
-            "Resampled",
-        }
-        missing = sorted(required - set(reader.fieldnames or []))
+        required = [
+            ("Path",),
+            ("Family",),
+            ("Instrument", "Instrument (abbr.)"),
+            ("Instrument Name", "Instrument (in full)"),
+            ("Pitch",),
+            ("Pitch ID",),
+            ("Dynamics",),
+            ("Resampled",),
+        ]
+        fieldnames = set(reader.fieldnames or [])
+        missing = ["/".join(names) for names in required if not any(name in fieldnames for name in names)]
         if missing:
             raise SystemExit("prepare_tinysol_samples: missing metadata columns: " + ", ".join(missing))
         for row in reader:
-            if not include_resampled and normalize_bool(row["Resampled"]):
+            family = value(row, "Family").strip()
+            instrument = value(row, "Instrument", "Instrument (abbr.)").strip()
+            instrument_name = value(row, "Instrument Name", "Instrument (in full)").strip()
+            if not include_resampled and normalize_bool(value(row, "Resampled")):
                 continue
             try:
-                midi = int(row["Pitch ID"])
+                midi = int(value(row, "Pitch ID"))
             except ValueError:
                 continue
             if midi < 21 or midi > 108:
                 continue
             rows.append({
-                "archive_path": row["Path"].strip(),
-                "family": family_for_row(row),
-                "nsynth_family": row["Family"].strip().lower(),
-                "source": source_name(row),
-                "instrument": row["Instrument Name"].strip(),
+                "archive_path": value(row, "Path").strip(),
+                "family": family_for_values(family, instrument_name),
+                "nsynth_family": family.lower(),
+                "source": source_name_from_text(instrument_name),
+                "instrument": instrument_name,
+                "instrument_abbr": instrument,
                 "midi": midi,
                 "note": note_name_from_midi(midi),
-                "dynamics": row["Dynamics"].strip(),
-                "resampled": normalize_bool(row["Resampled"]),
+                "dynamics": value(row, "Dynamics").strip(),
+                "resampled": normalize_bool(value(row, "Resampled")),
             })
     rows.sort(key=lambda item: (item["family"], item["source"], item["midi"], item["dynamics"], item["archive_path"]))
     return rows

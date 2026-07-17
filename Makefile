@@ -491,13 +491,18 @@ test-iowa-bass-samples: $(BUILD_DIR)/analyzer_real_note_samples prepare-iowa-bas
 
 download-tinysol-samples: $(TINYSOL_METADATA_PATH) $(TINYSOL_ARCHIVE)
 
-$(TINYSOL_METADATA_PATH): | $(BUILD_DIR)
+$(TINYSOL_METADATA_PATH): FORCE | $(BUILD_DIR)
 	mkdir -p "$(TINYSOL_SOURCE_DIR)"
-	curl -L -C - -o "$(TINYSOL_METADATA_PATH)" "$(TINYSOL_METADATA_URL)"
+	if [ ! -s "$(TINYSOL_METADATA_PATH)" ] || ! head -n 1 "$(TINYSOL_METADATA_PATH)" | grep -q "Pitch ID"; then rm -f "$(TINYSOL_METADATA_PATH)"; curl -fL -C - -o "$(TINYSOL_METADATA_PATH)" "$(TINYSOL_METADATA_URL)"; fi
+	head -n 1 "$(TINYSOL_METADATA_PATH)" | grep -q "Pitch ID"
 
-$(TINYSOL_ARCHIVE): | $(BUILD_DIR)
+$(TINYSOL_ARCHIVE): FORCE | $(BUILD_DIR)
 	mkdir -p "$(TINYSOL_SOURCE_DIR)"
-	curl -L -C - -o "$(TINYSOL_ARCHIVE)" "$(TINYSOL_ARCHIVE_URL)"
+	if [ -s "$(TINYSOL_ARCHIVE)" ] && ! $(PYTHON) -m zipfile -t "$(TINYSOL_ARCHIVE)" >/dev/null 2>&1; then mv -f "$(TINYSOL_ARCHIVE)" "$(TINYSOL_ARCHIVE).part"; fi
+	if [ ! -s "$(TINYSOL_ARCHIVE)" ] && [ -s "$(TINYSOL_ARCHIVE).part" ] && $(PYTHON) -m zipfile -t "$(TINYSOL_ARCHIVE).part" >/dev/null 2>&1; then mv "$(TINYSOL_ARCHIVE).part" "$(TINYSOL_ARCHIVE)"; fi
+	if [ ! -s "$(TINYSOL_ARCHIVE)" ]; then curl -fL -C - -o "$(TINYSOL_ARCHIVE).part" "$(TINYSOL_ARCHIVE_URL)"; fi
+	if [ ! -s "$(TINYSOL_ARCHIVE)" ]; then $(PYTHON) -m zipfile -t "$(TINYSOL_ARCHIVE).part" >/dev/null && mv "$(TINYSOL_ARCHIVE).part" "$(TINYSOL_ARCHIVE)"; fi
+	$(PYTHON) -m zipfile -t "$(TINYSOL_ARCHIVE)" >/dev/null
 
 prepare-tinysol-samples: scripts/prepare_tinysol_samples.py download-tinysol-samples | $(BUILD_DIR)
 	TINYSOL_METADATA_PATH="$(TINYSOL_METADATA_PATH)" TINYSOL_ARCHIVE="$(TINYSOL_ARCHIVE)" TINYSOL_SAMPLE_DIR="$(TINYSOL_SAMPLE_DIR)" TINYSOL_SAMPLE_LIMIT="$(TINYSOL_SAMPLE_LIMIT)" TINYSOL_MIN_SAMPLES="$(TINYSOL_MIN_SAMPLES)" $(PYTHON) scripts/prepare_tinysol_samples.py --metadata "$(TINYSOL_METADATA_PATH)" --archive "$(TINYSOL_ARCHIVE)" --output "$(TINYSOL_SAMPLE_DIR)" --limit "$(TINYSOL_SAMPLE_LIMIT)" --min-samples "$(TINYSOL_MIN_SAMPLES)"

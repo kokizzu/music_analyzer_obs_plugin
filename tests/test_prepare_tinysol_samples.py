@@ -23,11 +23,21 @@ def write_wav_bytes():
     return data.getvalue()
 
 
-def make_fixture(root):
+def make_fixture(root, current_header=False):
     metadata = root / "TinySOL_metadata.csv"
+    if current_header:
+        header = (
+            "Path,Fold,Family,Instrument (abbr.),Instrument (in full),Technique (abbr.),"
+            "Technique (in full),Pitch,Pitch ID,Dynamics,Dynamics ID,Resampled,String ID"
+        )
+    else:
+        header = (
+            "Path,Fold,Family,Instrument,Instrument Name,Technique,Technique Name,Pitch,Pitch ID,"
+            "Dynamics,Dynamics ID,Resampled,String ID"
+        )
     metadata.write_text(
         "\n".join([
-            "Path,Fold,Family,Instrument,Instrument Name,Technique,Technique Name,Pitch,Pitch ID,Dynamics,Dynamics ID,Resampled,String ID",
+            header,
             "Strings/Contrabass/ordinario/Cb-ord-E2-ff-N.wav,0,Strings,Cb,Contrabass,ord,ordinario,E2,40,ff,4,False,",
             "Keyboards/Accordion/ordinario/Acc-ord-C4-mf-N.wav,0,Keyboards,Acc,Accordion,ord,ordinario,C4,60,mf,2,False,",
             "Winds/Flute/ordinario/Fl-ord-A4-pp-N.wav,0,Winds,Fl,Flute,ord,ordinario,A4,69,pp,0,False,",
@@ -53,8 +63,8 @@ def manifest_rows(path):
         return [line.rstrip("\n").split("\t") for line in file if line.strip()]
 
 
-def run_prepare(base, include_resampled=False, min_samples=3):
-    metadata, archive = make_fixture(base)
+def run_prepare(base, include_resampled=False, min_samples=3, current_header=False):
+    metadata, archive = make_fixture(base, current_header=current_header)
     output = base / "out"
     args = [
         "--metadata", str(metadata),
@@ -93,6 +103,18 @@ def test_resampled_rows_are_optional():
             raise AssertionError("expected resampled violin row to be retained")
 
 
+def test_current_tinysol_header_is_supported():
+    with tempfile.TemporaryDirectory() as temp:
+        output = run_prepare(Path(temp), current_header=True)
+        rows = manifest_rows(output / "manifest.tsv")
+        families = [row[1] for row in rows]
+        sources = [row[3] for row in rows]
+        if families != ["bass", "other", "piano"]:
+            raise AssertionError(f"unexpected family mapping with current header: {families}")
+        if sources != ["contrabass", "flute", "accordion"]:
+            raise AssertionError(f"unexpected sources with current header: {sources}")
+
+
 def test_minimum_failure_writes_partial_manifest():
     with tempfile.TemporaryDirectory() as temp:
         try:
@@ -108,8 +130,9 @@ def test_minimum_failure_writes_partial_manifest():
 def main():
     test_tinysol_families_and_manifest_paths()
     test_resampled_rows_are_optional()
+    test_current_tinysol_header_is_supported()
     test_minimum_failure_writes_partial_manifest()
-    print("test_prepare_tinysol_samples: 3 checks passed")
+    print("test_prepare_tinysol_samples: 4 checks passed")
     return 0
 
 
