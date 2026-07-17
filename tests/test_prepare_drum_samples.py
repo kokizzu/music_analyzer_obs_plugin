@@ -76,7 +76,7 @@ def test_plain_zip_and_optional_rar_samples():
         unrar = make_rar_archive(rar_source, source / "snare-pack.rar", rar_member)
 
         prepare_drum_samples.clean_output(output)
-        counts, manifest_path = prepare_drum_samples.copy_samples(source, output, 0, unrar=unrar)
+        counts, manifest_path = prepare_drum_samples.copy_samples(source, output, 0, "first", unrar=unrar)
         rows = rows_by_category(manifest_path)
 
         if counts["kick"] != 1:
@@ -105,15 +105,40 @@ def test_missing_unrar_skips_rar_without_failing():
             return
 
         prepare_drum_samples.clean_output(output)
-        counts, _manifest_path = prepare_drum_samples.copy_samples(source, output, 0, unrar=None)
+        counts, _manifest_path = prepare_drum_samples.copy_samples(source, output, 0, "first", unrar=None)
         if counts["snare"] != 0:
             raise AssertionError("RAR samples should be skipped when no unrar command is configured")
+
+
+def test_spread_selection_uses_later_buckets():
+    with tempfile.TemporaryDirectory() as temp:
+        base = Path(temp)
+        source = base / "source"
+        output = base / "out"
+
+        for index in range(6):
+            write_wav(source / "aaa-first" / f"Kick {index:02d}.wav", frequency=80.0 + index)
+        write_wav(source / "bbb-second" / "Kick Later.wav", frequency=95.0)
+        write_wav(source / "ccc-third" / "Kick Later.wav", frequency=105.0)
+
+        prepare_drum_samples.clean_output(output)
+        counts, manifest_path = prepare_drum_samples.copy_samples(source, output, 3, "spread", unrar=None)
+        rows = rows_by_category(manifest_path)
+        sources = [row[2] for row in rows["kick"]]
+
+        if counts["kick"] != 3:
+            raise AssertionError("spread fixture should honor per-category limit")
+        if not any("bbb-second" in source for source in sources):
+            raise AssertionError("spread fixture should include later source buckets")
+        if not any("ccc-third" in source for source in sources):
+            raise AssertionError("spread fixture should include third source bucket")
 
 
 def main():
     test_plain_zip_and_optional_rar_samples()
     test_missing_unrar_skips_rar_without_failing()
-    print("test_prepare_drum_samples: 2 checks passed")
+    test_spread_selection_uses_later_buckets()
+    print("test_prepare_drum_samples: 3 checks passed")
     return 0
 
 

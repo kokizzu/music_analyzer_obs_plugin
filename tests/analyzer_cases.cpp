@@ -654,7 +654,7 @@ void check_guitar_supported_extension_aliases(Runner &runner)
 	const std::vector<float> guitar_profile = {1.0f, 0.34f, 0.16f, 0.08f};
 	for (int midi : {48, 52, 55})
 		add_harmonic_note(buffer, midi, 0.24f, guitar_profile);
-	add_harmonic_note(buffer, 59, 0.10f, guitar_profile);
+	add_harmonic_note(buffer, 59, 0.065f, guitar_profile);
 
 	const auto snapshot = analyze_buffer(buffer, "guitar");
 	runner.expect(has_chord_label(snapshot.guitar_chord.label, "C"),

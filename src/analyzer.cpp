@@ -2640,6 +2640,40 @@ float note_grid_pitch_level(const NoteGrid &grid, int pitch_class)
 	return level;
 }
 
+bool note_grid_pitch_midi_range(const NoteGrid &grid, int pitch_class, int &min_midi, int &max_midi)
+{
+	pitch_class = ((pitch_class % 12) + 12) % 12;
+	bool found = false;
+	auto consider = [&](const NoteCell &cell) {
+		if (!cell.active || cell.midi < 0 || midi_pitch_class(cell.midi) != pitch_class)
+			return;
+		if (!found) {
+			min_midi = cell.midi;
+			max_midi = cell.midi;
+			found = true;
+		} else {
+			min_midi = std::min(min_midi, cell.midi);
+			max_midi = std::max(max_midi, cell.midi);
+		}
+	};
+
+	consider(grid.cells[pitch_class]);
+	for (const auto &row : grid.rows) {
+		for (const NoteCell &cell : row)
+			consider(cell);
+	}
+	return found;
+}
+
+bool note_grid_pitch_in_midi_window(const NoteGrid &grid, int pitch_class, int min_midi, int max_midi)
+{
+	int pitch_min = 0;
+	int pitch_max = 0;
+	if (!note_grid_pitch_midi_range(grid, pitch_class, pitch_min, pitch_max))
+		return false;
+	return pitch_max >= min_midi && pitch_min <= max_midi;
+}
+
 void append_guitar_chord_alias(ChordResult &chord, const char *suffix)
 {
 	if (chord.root < 0 || !suffix)
@@ -2670,6 +2704,7 @@ void append_supported_guitar_extension_aliases(ChordResult &chord, const NoteGri
 	const float ninth = note_grid_pitch_level(grid, chord.root + 2);
 	constexpr float kCoreFloor = 0.28f;
 	constexpr float kExtensionFloor = 0.16f;
+	constexpr float kCompactExtensionFloor = 0.10f;
 	if (root < kCoreFloor)
 		return;
 
@@ -2678,33 +2713,68 @@ void append_supported_guitar_extension_aliases(ChordResult &chord, const NoteGri
 	const bool has_minor = minor_third >= kCoreFloor && has_fifth;
 	const bool has_dim = minor_third >= kCoreFloor && flat_fifth >= kCoreFloor;
 	const bool has_aug = major_third >= kCoreFloor && aug_fifth >= kCoreFloor;
+	int core_min_midi = 0;
+	int core_max_midi = 0;
+	bool has_core_range = false;
+	auto extend_core_range = [&](int pitch_class) {
+		int pitch_min = 0;
+		int pitch_max = 0;
+		if (!note_grid_pitch_midi_range(grid, pitch_class, pitch_min, pitch_max))
+			return;
+		if (!has_core_range) {
+			core_min_midi = pitch_min;
+			core_max_midi = pitch_max;
+			has_core_range = true;
+		} else {
+			core_min_midi = std::min(core_min_midi, pitch_min);
+			core_max_midi = std::max(core_max_midi, pitch_max);
+		}
+	};
+	extend_core_range(chord.root);
+	if (has_major)
+		extend_core_range(chord.root + 4);
+	if (has_minor || has_dim)
+		extend_core_range(chord.root + 3);
+	if (has_fifth)
+		extend_core_range(chord.root + 7);
+	if (has_dim)
+		extend_core_range(chord.root + 6);
+	if (has_aug)
+		extend_core_range(chord.root + 8);
+	auto supported_extension = [&](int interval, float level) {
+		if (level >= kExtensionFloor)
+			return true;
+		return has_core_range && level >= kCompactExtensionFloor &&
+		       note_grid_pitch_in_midi_window(grid, chord.root + interval, core_min_midi - 2,
+						      core_max_midi + 9);
+	};
 
 	if (has_major) {
-		if (flat_seventh >= kExtensionFloor && ninth >= kExtensionFloor)
+		if (supported_extension(10, flat_seventh) && supported_extension(2, ninth))
 			append_guitar_chord_alias(chord, "9");
-		if (major_seventh >= kExtensionFloor && ninth >= kExtensionFloor)
+		if (supported_extension(11, major_seventh) && supported_extension(2, ninth))
 			append_guitar_chord_alias(chord, "maj9");
-		if (flat_seventh >= kExtensionFloor)
+		if (supported_extension(10, flat_seventh))
 			append_guitar_chord_alias(chord, "7");
-		if (major_seventh >= kExtensionFloor)
+		if (supported_extension(11, major_seventh))
 			append_guitar_chord_alias(chord, "maj7");
-		if (sixth >= kExtensionFloor)
+		if (supported_extension(9, sixth))
 			append_guitar_chord_alias(chord, "6");
-		if (ninth >= kExtensionFloor)
+		if (supported_extension(2, ninth))
 			append_guitar_chord_alias(chord, "add9");
 	}
 	if (has_minor) {
-		if (flat_seventh >= kExtensionFloor && ninth >= kExtensionFloor)
+		if (supported_extension(10, flat_seventh) && supported_extension(2, ninth))
 			append_guitar_chord_alias(chord, "m9");
-		if (flat_seventh >= kExtensionFloor)
+		if (supported_extension(10, flat_seventh))
 			append_guitar_chord_alias(chord, "m7");
-		if (sixth >= kExtensionFloor)
+		if (supported_extension(9, sixth))
 			append_guitar_chord_alias(chord, "m6");
 	}
 	if (has_dim) {
-		if (sixth >= kExtensionFloor)
+		if (supported_extension(9, sixth))
 			append_guitar_chord_alias(chord, "dim7");
-		if (flat_seventh >= kExtensionFloor)
+		if (supported_extension(10, flat_seventh))
 			append_guitar_chord_alias(chord, "m7b5");
 		append_guitar_chord_alias(chord, "dim");
 	}
