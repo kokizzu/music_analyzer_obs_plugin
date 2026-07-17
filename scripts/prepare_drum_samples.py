@@ -274,10 +274,12 @@ def copy_candidate(candidate, output, counts, manifest, unrar=None):
 def write_manifest(output, manifest):
     manifest.sort()
     manifest_path = output / "manifest.tsv"
-    with manifest_path.open("w", encoding="utf-8") as file:
+    tmp_path = output / "manifest.tsv.tmp"
+    with tmp_path.open("w", encoding="utf-8") as file:
         file.write("category\tpath\tduration_seconds\tsource\n")
         for row in manifest:
             file.write("\t".join(row) + "\n")
+    tmp_path.replace(manifest_path)
     return manifest_path
 
 
@@ -362,7 +364,7 @@ def main():
     if not source.is_dir():
         raise SystemExit(f"prepare_drum_samples: source directory not found: {source}")
 
-    clean_output(output)
+    ensure_dirs(output)
     unrar = shutil.which(args.unrar) if args.unrar else None
     counts, manifest_path = copy_samples(source, output, max(0, args.limit_per_category), args.selection,
                                          unrar=unrar, include_archives=not args.no_archives)

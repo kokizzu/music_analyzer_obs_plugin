@@ -2703,9 +2703,9 @@ void append_supported_guitar_extension_aliases(ChordResult &chord, const NoteGri
 	const float major_seventh = note_grid_pitch_level(grid, chord.root + 11);
 	const float ninth = note_grid_pitch_level(grid, chord.root + 2);
 	constexpr float kCoreFloor = 0.20f;
-	constexpr float kRichMajorThirdFloor = 0.26f;
-	constexpr float kExtensionFloor = 0.16f;
-	constexpr float kCompactExtensionFloor = 0.10f;
+	constexpr float kRichMajorThirdFloor = 0.20f;
+	constexpr float kExtensionFloor = 0.10f;
+	constexpr float kCompactExtensionFloor = 0.07f;
 	if (root < kCoreFloor)
 		return;
 

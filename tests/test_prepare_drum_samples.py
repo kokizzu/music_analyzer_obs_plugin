@@ -141,6 +141,54 @@ def test_no_archives_mode_skips_archives():
             raise AssertionError("ZIP samples should be skipped in no-archives mode")
 
 
+def test_cli_preserves_existing_output_until_manifest_replace():
+    with tempfile.TemporaryDirectory() as temp:
+        base = Path(temp)
+        source = base / "source"
+        output = base / "out"
+        stale_file = output / "stale.txt"
+        stale_file.parent.mkdir(parents=True, exist_ok=True)
+        stale_file.write_text("keep", encoding="utf-8")
+
+        examples = {
+            "kick": "Kick 01.wav",
+            "snare": "Snare 01.wav",
+            "hihat": "Hat Closed 01.wav",
+            "crash": "Crash 01.wav",
+            "tom": "Tom 01.wav",
+            "ride": "Ride 01.wav",
+            "rim": "Rim Shot 01.wav",
+        }
+        for index, (category, filename) in enumerate(examples.items()):
+            write_wav(source / category / filename, frequency=90.0 + index * 40.0)
+
+        subprocess.run(
+            [
+                sys.executable,
+                str(ROOT / "scripts" / "prepare_drum_samples.py"),
+                "--source",
+                str(source),
+                "--output",
+                str(output),
+                "--limit-per-category",
+                "1",
+                "--no-archives",
+            ],
+            check=True,
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+        )
+
+        if not stale_file.is_file():
+            raise AssertionError("CLI preparation should not delete an existing output directory up front")
+        if (output / "manifest.tsv.tmp").exists():
+            raise AssertionError("temporary drum manifest should be atomically replaced")
+        rows = rows_by_category(output / "manifest.tsv")
+        for category in examples:
+            if len(rows.get(category, [])) != 1:
+                raise AssertionError(f"expected one prepared {category} row")
+
+
 def test_hihat_aliases_win_over_generic_cymbal_folder():
     with tempfile.TemporaryDirectory() as temp:
         base = Path(temp)
@@ -197,9 +245,10 @@ def main():
     test_plain_zip_and_optional_rar_samples()
     test_missing_unrar_skips_rar_without_failing()
     test_no_archives_mode_skips_archives()
+    test_cli_preserves_existing_output_until_manifest_replace()
     test_hihat_aliases_win_over_generic_cymbal_folder()
     test_spread_selection_uses_later_buckets()
-    print("test_prepare_drum_samples: 5 checks passed")
+    print("test_prepare_drum_samples: 6 checks passed")
     return 0
 
 
