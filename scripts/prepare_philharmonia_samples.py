@@ -279,9 +279,10 @@ def pitch_reference_ok(path, midi):
     return expected >= adjacent * 0.90
 
 
-def write_manifest(rows, output_dir):
-    manifest = output_dir / "manifest.tsv"
-    with manifest.open("w", encoding="utf-8") as file:
+def write_manifest(rows, output_dir, partial=False):
+    manifest = output_dir / ("manifest.tsv.partial" if partial else "manifest.tsv")
+    tmp_manifest = output_dir / (manifest.name + ".tmp")
+    with tmp_manifest.open("w", encoding="utf-8") as file:
         file.write("id\tfamily\tnsynth_family\tsource\tmidi\tnote\tpath\tqualities\n")
         for row in rows:
             file.write(
@@ -299,6 +300,13 @@ def write_manifest(rows, output_dir):
                 )
                 + "\n"
             )
+    tmp_manifest.replace(manifest)
+    return manifest
+
+
+def preparation_summary(counts, skipped, skipped_pitch_reference):
+    summary = " ".join(f"{name}={counts[name]}" for name in sorted(counts))
+    return f"skipped {skipped}; skipped_pitch_reference {skipped_pitch_reference}; {summary}"
 
 
 def main():
@@ -306,6 +314,8 @@ def main():
     parser.add_argument("--source", required=True)
     parser.add_argument("--output", required=True)
     parser.add_argument("--limit", type=int, default=1500)
+    parser.add_argument("--min-samples", type=int, default=1000)
+    parser.add_argument("--progress-every", type=int, default=0)
     parser.add_argument("--ffmpeg", default="ffmpeg")
     args = parser.parse_args()
 
@@ -319,40 +329,61 @@ def main():
 
     grouped = collect_candidates(source_dir)
     selected = balanced_selection(grouped, args.limit)
-    if len(selected) < 1000:
+    min_samples = max(1, args.min_samples)
+    if len(selected) < min_samples:
         raise SystemExit(f"only found {len(selected)} usable Philharmonia one-note samples")
 
     rows = []
     counts = defaultdict(int)
     skipped = 0
     skipped_pitch_reference = 0
-    for candidate in selected:
-        try:
-            rel_path = convert_candidate(candidate, source_dir, output_dir, ffmpeg)
-        except subprocess.CalledProcessError:
-            skipped += 1
+    try:
+        for index, candidate in enumerate(selected, start=1):
+            try:
+                rel_path = convert_candidate(candidate, source_dir, output_dir, ffmpeg)
+            except subprocess.CalledProcessError:
+                skipped += 1
+                print(
+                    f"prepare_philharmonia_samples: skipped undecodable {candidate['member']}",
+                    file=sys.stderr,
+                )
+                continue
+            if not pitch_reference_ok(output_dir / rel_path, candidate["midi"]):
+                skipped_pitch_reference += 1
+                continue
+            row = dict(candidate)
+            row["id"] = sanitize_id(candidate)
+            row["path"] = str(rel_path)
+            rows.append(row)
+            counts[row["instrument"]] += 1
+
+            if args.progress_every > 0 and index % args.progress_every == 0:
+                print(
+                    f"prepare_philharmonia_samples: converted {index}/{len(selected)} "
+                    f"candidates, kept {len(rows)}",
+                    flush=True,
+                )
+    except KeyboardInterrupt:
+        if rows:
+            manifest = write_manifest(rows, output_dir, partial=True)
             print(
-                f"prepare_philharmonia_samples: skipped undecodable {candidate['member']}",
+                f"prepare_philharmonia_samples: interrupted after writing {len(rows)} rows to "
+                f"{manifest} ({preparation_summary(counts, skipped, skipped_pitch_reference)})",
                 file=sys.stderr,
             )
-            continue
-        if not pitch_reference_ok(output_dir / rel_path, candidate["midi"]):
-            skipped_pitch_reference += 1
-            continue
-        row = dict(candidate)
-        row["id"] = sanitize_id(candidate)
-        row["path"] = str(rel_path)
-        rows.append(row)
-        counts[row["instrument"]] += 1
+        raise
 
-    if len(rows) < 1000:
-        raise SystemExit(f"only prepared {len(rows)} decodable Philharmonia one-note samples")
+    if len(rows) < min_samples:
+        manifest = write_manifest(rows, output_dir, partial=True)
+        raise SystemExit(
+            f"only prepared {len(rows)} decodable Philharmonia one-note samples; "
+            f"wrote partial manifest {manifest}"
+        )
 
-    write_manifest(rows, output_dir)
-    summary = " ".join(f"{name}={counts[name]}" for name in sorted(counts))
+    manifest = write_manifest(rows, output_dir)
     print(
-        f"prepare_philharmonia_samples: wrote {len(rows)} rows to {output_dir / 'manifest.tsv'} "
-        f"(skipped {skipped}; skipped_pitch_reference {skipped_pitch_reference}; {summary})"
+        f"prepare_philharmonia_samples: wrote {len(rows)} rows to {manifest} "
+        f"({preparation_summary(counts, skipped, skipped_pitch_reference)})"
     )
 
 

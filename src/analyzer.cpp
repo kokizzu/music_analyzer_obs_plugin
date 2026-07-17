@@ -4683,7 +4683,7 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 							continue;
 						for (int interval : kOtherHarmonicIntervals) {
 							const int lower = cell.midi - interval;
-							if (lower < 36 || lower > 52)
+							if (lower < kOtherMinMidi || lower > 52)
 								continue;
 							const std::size_t index =
 								static_cast<std::size_t>(lower - kFirstMidi);
@@ -4694,7 +4694,7 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 				}
 				int recovered_midi = -1;
 				float recovered_score = 0.0f;
-				for (int midi = 36; midi <= 52; ++midi) {
+				for (int midi = kOtherMinMidi; midi <= 52; ++midi) {
 					const std::size_t index = static_cast<std::size_t>(midi - kFirstMidi);
 					if (low_fundamental_support[index] < 2)
 						continue;

@@ -414,6 +414,7 @@ int main()
 	const std::string root = root_env && *root_env ? root_env : "build/real_note_samples";
 	const bool required = std::getenv("MUSIC_ANALYZER_REAL_NOTE_SAMPLES_REQUIRED") != nullptr;
 	const int required_samples = positive_int_env("MUSIC_ANALYZER_REAL_NOTE_REQUIRED_SAMPLES", 1000);
+	const int max_failures = nonnegative_int_env("MUSIC_ANALYZER_REAL_NOTE_MAX_FAILURES", 0);
 
 	std::vector<SampleRow> rows;
 	const std::string manifest_path = join_path(root, "manifest.tsv");
@@ -503,7 +504,15 @@ int main()
 			     runner.failures, runner.checks, usable, family_hits[0], family_counts[0],
 			     family_hits[1], family_counts[1], family_hits[2], family_counts[2],
 			     family_hits[3], family_counts[3], family_hits[4], family_counts[4]);
-		return 1;
+		if (runner.failures > max_failures)
+			return 1;
+		std::printf(
+			"analyzer_real_note_samples: %d tolerated failures within limit %d (usable %d, bass "
+			"%d/%d, guitar %d/%d, piano %d/%d, vocals %d/%d, other %d/%d)\n",
+			runner.failures, max_failures, usable, family_hits[0], family_counts[0],
+			family_hits[1], family_counts[1], family_hits[2], family_counts[2],
+			family_hits[3], family_counts[3], family_hits[4], family_counts[4]);
+		return 0;
 	}
 
 	std::printf(
