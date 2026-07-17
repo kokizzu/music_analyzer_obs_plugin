@@ -339,7 +339,10 @@ void check_combined_midi_arrangement(Runner &runner)
 	runner.expect(snapshot.drums[mao::Snare].active, "combined MIDI arrangement: expected snare active");
 	runner.expect(snapshot.drums[mao::HiHat].active || snapshot.drums[mao::Crash].active ||
 			      snapshot.drums[mao::Ride].active,
-		      "combined MIDI arrangement: expected cymbal lane active");
+		      "combined MIDI arrangement: expected cymbal lane active, hihat " +
+			      std::to_string(snapshot.drums[mao::HiHat].level) + " crash " +
+			      std::to_string(snapshot.drums[mao::Crash].level) + " ride " +
+			      std::to_string(snapshot.drums[mao::Ride].level));
 	runner.expect(contains(snapshot.global_chord.label, "C") || contains(snapshot.global_chord.label, "Em"),
 		      std::string("combined MIDI arrangement: expected C/Em-family chord, got `") +
 			      snapshot.global_chord.label + "`");

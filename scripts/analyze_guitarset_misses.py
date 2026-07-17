@@ -114,6 +114,7 @@ def main() -> int:
     full_expected_tones_by_quality: collections.Counter[str] = collections.Counter()
     expected_tone_coverage_sum: collections.Counter[str] = collections.Counter()
     missing_tone_sets: collections.Counter[tuple[str, str]] = collections.Counter()
+    full_tone_miss_pairs: collections.Counter[tuple[str, str]] = collections.Counter()
     plain_to_power = []
     plain_to_power_third_state: collections.Counter[str] = collections.Counter()
     has_grid_diagnostics = False
@@ -148,6 +149,8 @@ def main() -> int:
                     continue
                 present = expected_pitch_classes & guitar_pitch_classes
                 coverage = len(present) / len(expected_pitch_classes)
+                if expected_pitch_classes <= guitar_pitch_classes and expected_label not in detected:
+                    full_tone_miss_pairs[(expected_label, guitar)] += 1
                 if coverage > best_coverage:
                     best_coverage = coverage
                     best_missing = expected_pitch_classes - guitar_pitch_classes
@@ -208,6 +211,9 @@ def main() -> int:
         print("top missing expected tone sets")
         for (expected_quality, missing), value in missing_tone_sets.most_common(20):
             print(f"{value} {expected_quality} missing {missing}")
+        print("top full-tone expected labels still missed")
+        for (expected_label, guitar), value in full_tone_miss_pairs.most_common(30):
+            print(f"{value} {expected_label} => {guitar}")
     print(f"same_root_plain_major_minor_to_power {len(plain_to_power)}")
     if plain_to_power_third_state:
         print("plain_to_power_third_state")

@@ -2702,10 +2702,10 @@ void append_supported_guitar_extension_aliases(ChordResult &chord, const NoteGri
 	const float flat_seventh = note_grid_pitch_level(grid, chord.root + 10);
 	const float major_seventh = note_grid_pitch_level(grid, chord.root + 11);
 	const float ninth = note_grid_pitch_level(grid, chord.root + 2);
-	constexpr float kCoreFloor = 0.20f;
-	constexpr float kRichMajorThirdFloor = 0.20f;
-	constexpr float kExtensionFloor = 0.10f;
-	constexpr float kCompactExtensionFloor = 0.07f;
+	constexpr float kCoreFloor = 0.16f;
+	constexpr float kRichMajorThirdFloor = 0.16f;
+	constexpr float kExtensionFloor = 0.08f;
+	constexpr float kCompactExtensionFloor = 0.05f;
 	if (root < kCoreFloor)
 		return;
 
@@ -4073,7 +4073,8 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 	const bool hihat_mixed_backstop =
 		drum_transient && snapshot.high_energy >= 0.05f &&
 		strongest_cymbal_drum > 0.0f &&
-		strongest_cymbal_drum >= strongest_body_drum * (generated_gm_drum_source ? 0.04f : 0.18f) &&
+		strongest_cymbal_drum >= strongest_body_drum *
+			(generated_gm_drum_source ? 0.04f : (snapshot.high_energy >= 0.12f ? 0.04f : 0.18f)) &&
 		drum_segment_bands[HiHat] >= strongest_cymbal_drum * 0.42f;
 	const bool tom_side_shape =
 		body_shape_allowed && tom_shape &&
@@ -4154,9 +4155,10 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 		const bool soft_tom_transient = had_previous_audio && tom && tom_shape && transient_ratio >= 0.72f;
 		const bool soft_body_transient =
 			soft_kick_transient || soft_snare_transient || soft_rim_transient || soft_tom_transient;
-		const bool shape_supported = drum_shape_supported[i];
+		const bool base_shape_supported = drum_shape_supported[i];
+		const bool shape_supported = base_shape_supported || soft_cymbal_transient;
 		const bool quiet_cymbal_shape =
-			had_previous_audio && cymbal && shape_supported && cymbal_family_evidence &&
+			had_previous_audio && cymbal && base_shape_supported && cymbal_family_evidence &&
 			strongest_cymbal_drum >= strongest_body_drum * 0.10f;
 		const float threshold_scale = (soft_cymbal_transient || quiet_cymbal_shape) ? 0.26f :
 					      soft_kick_transient ? 0.25f :
