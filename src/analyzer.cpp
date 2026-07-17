@@ -3645,10 +3645,69 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 	std::array<float, kNoteProbeCount> keyboard_detection_note_powers = detection_note_powers;
 	if (input_mode == AnalysisInputMode::IsolatedKeyboard &&
 	    usable >= static_cast<std::size_t>(static_cast<float>(sample_rate_) * 0.095f)) {
+		const bool isolated_real_piano_source = contains_case_insensitive(resolved_source_name, "piano");
+		std::array<float, kNoteProbeCount> low_piano_fundamental_scores = {};
+		float strongest_low_piano_fundamental_score = 0.0f;
+		if (isolated_real_piano_source) {
+			for (int midi = kKeyboardMinMidi; midi < kChromaticTuneMinMidi; ++midi) {
+				const float raw_note_level = probe_level(note_powers, midi);
+				const float adjacent_note_level = std::max(probe_level(note_powers, midi - 1),
+									  probe_level(note_powers, midi + 1));
+				const bool local_peak =
+					adjacent_note_level <= 1.0e-6f ||
+					raw_note_level >= adjacent_note_level * 0.72f;
+				const float partial_12 = probe_level(note_powers, midi + 12);
+				const float partial_19 = probe_level(note_powers, midi + 19);
+				const float partial_24 = probe_level(note_powers, midi + 24);
+				const float partial_28 = probe_level(note_powers, midi + 28);
+				const float partial_31 = probe_level(note_powers, midi + 31);
+				float harmonic_supported_level = raw_note_level;
+				harmonic_supported_level += partial_12 * 0.72f;
+				harmonic_supported_level += partial_19 * 0.62f;
+				harmonic_supported_level += partial_24 * 0.48f;
+				harmonic_supported_level += partial_28 * 0.34f;
+				harmonic_supported_level += partial_31 * 0.26f;
+				int partial_count = 0;
+				for (float partial : {partial_12, partial_19, partial_24, partial_28, partial_31}) {
+					if (partial >= strongest_note_level * 0.025f)
+						++partial_count;
+				}
+				const bool harmonic_supported_peak =
+					harmonic_supported_level >= strongest_note_level * 0.18f;
+				if (partial_count < 2 || (!local_peak && !harmonic_supported_peak))
+					continue;
+				const std::size_t index = static_cast<std::size_t>(midi - kFirstMidi);
+				low_piano_fundamental_scores[index] = harmonic_supported_level;
+				strongest_low_piano_fundamental_score =
+					std::max(strongest_low_piano_fundamental_score, harmonic_supported_level);
+			}
+		}
 		for (int midi = kKeyboardMinMidi; midi < kChromaticTuneMinMidi; ++midi) {
+			const std::size_t index = static_cast<std::size_t>(midi - kFirstMidi);
+			const float raw_note_level = probe_level(note_powers, midi);
+			const float adjacent_note_level =
+				std::max(probe_level(note_powers, midi - 1), probe_level(note_powers, midi + 1));
+			const bool local_peak =
+				adjacent_note_level <= 1.0e-6f || raw_note_level >= adjacent_note_level * 0.72f;
+			const float harmonic_supported_level = low_piano_fundamental_scores[index];
+			const bool real_piano_low_fundamental =
+				isolated_real_piano_source &&
+				strongest_low_piano_fundamental_score > 1.0e-6f &&
+				harmonic_supported_level >= strongest_low_piano_fundamental_score * 0.55f &&
+				(local_peak || harmonic_supported_level >= strongest_note_level * 0.18f);
+			if (real_piano_low_fundamental) {
+				const float boosted_level =
+					std::max(raw_note_level,
+						 std::min(strongest_note_level * 0.82f,
+							  harmonic_supported_level * 0.55f));
+				keyboard_detection_note_powers[index] =
+					std::max(keyboard_detection_note_powers[index],
+						 boosted_level * boosted_level);
+				continue;
+			}
 			if (chromatic_tuning_match(samples, usable, mean, midi, kChromaticTuneToleranceCents, false))
 				continue;
-			keyboard_detection_note_powers[midi - kFirstMidi] = 0.0f;
+			keyboard_detection_note_powers[index] = 0.0f;
 		}
 	}
 

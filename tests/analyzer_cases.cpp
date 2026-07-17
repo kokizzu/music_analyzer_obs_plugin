@@ -2357,6 +2357,26 @@ void check_complex_real_timbres_survive_tuning_wobble(Runner &runner)
 	}
 }
 
+void check_low_acoustic_piano_fundamental_survives_partial_dominance(Runner &runner)
+{
+	mao::AnalysisSettings settings = mao_test::default_settings();
+	settings.analysis_interval_seconds = 0.05f;
+
+	mao_test::Buffer buffer = {};
+	const std::vector<float> low_piano_profile = {0.55f, 0.72f, 1.0f, 0.46f, 0.26f, 0.14f};
+	add_harmonic_note(buffer, 25, 0.24f, low_piano_profile);
+
+	mao::AnalysisEngine engine;
+	(void)engine.analyze(buffer.data(), buffer.size(), settings, "iowa piano", 0);
+	const auto snapshot = engine.analyze(buffer.data(), buffer.size(), settings, "iowa piano", 0);
+	expect_note_token(runner, snapshot.keyboard.label, "C#1",
+			  "low acoustic piano fundamental partial-dominant timbre");
+	runner.expect(grid_level_for_midi(snapshot.keyboard_notes, 25) > 0.0f,
+		      std::string("low acoustic piano fundamental: expected C#1 cell active, got `") +
+			      snapshot.keyboard.label + "`");
+	expect_no_drums(runner, snapshot, "low acoustic piano fundamental");
+}
+
 void check_realistic_instrument_chords(Runner &runner)
 {
 	const std::vector<float> guitar_profile = {1.0f, 0.34f, 0.16f, 0.08f};
@@ -3302,6 +3322,7 @@ int main()
 	check_drum_hit_with_melodic_mix(runner);
 	check_detuned_note_tolerance(runner);
 	check_complex_real_timbres_survive_tuning_wobble(runner);
+	check_low_acoustic_piano_fundamental_survives_partial_dominance(runner);
 	check_realistic_instrument_chords(runner);
 	check_keyboard_hand_span_chords(runner);
 	check_guitar_caged_voicings(runner);

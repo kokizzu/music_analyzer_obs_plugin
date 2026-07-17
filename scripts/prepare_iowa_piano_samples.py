@@ -34,8 +34,8 @@ NOTE_PITCH_CLASS = {
 }
 
 
-def run(command):
-    subprocess.run(command, check=True)
+def run(command, timeout_seconds=None):
+    subprocess.run(command, check=True, timeout=timeout_seconds)
 
 
 def find_command(name):
@@ -84,7 +84,7 @@ def download_file(curl, url, path, timeout_seconds):
         "-o",
         str(partial_path),
         url,
-    ])
+    ], timeout_seconds=timeout_seconds + 30)
     partial_path.replace(path)
 
 
@@ -171,7 +171,7 @@ def signature_text(page_url, file_base_url, limit):
     return hashlib.sha256(payload.encode("utf-8")).hexdigest()[:16]
 
 
-def manifest_complete(path, expected_signature):
+def manifest_complete(path, expected_signature, min_rows):
     if not path.is_file():
         return False
     root = path.parent
@@ -189,7 +189,7 @@ def manifest_complete(path, expected_signature):
                 return False
             if not (root / fields[6]).is_file():
                 return False
-    return rows > 0
+    return rows >= max(1, min_rows)
 
 
 def convert_aiff(ffmpeg, source_path, output_path):
@@ -214,58 +214,8 @@ def convert_aiff(ffmpeg, source_path, output_path):
     temporary_path.replace(output_path)
 
 
-def main():
-    parser = argparse.ArgumentParser(description="Prepare University of Iowa piano note WAV fixtures.")
-    parser.add_argument("--page-url", default=os.environ.get("IOWA_PIANO_PAGE_URL",
-                                                             "https://theremin.music.uiowa.edu/MISpiano.html"))
-    parser.add_argument("--file-base-url", default=os.environ.get(
-        "IOWA_PIANO_FILE_BASE_URL",
-        "https://theremin.music.uiowa.edu/sound files/MIS/Piano_Other/piano/"))
-    parser.add_argument("--source-dir", default=os.environ.get("IOWA_PIANO_SOURCE_DIR",
-                                                               "build/real_sample_sources/iowa_piano"))
-    parser.add_argument("--output", default=os.environ.get("IOWA_PIANO_SAMPLE_DIR",
-                                                           "build/iowa_piano_samples"))
-    parser.add_argument("--limit", type=int, default=int(os.environ.get("IOWA_PIANO_SAMPLE_LIMIT", "84")))
-    parser.add_argument("--ffmpeg", default=os.environ.get("FFMPEG", "ffmpeg"))
-    parser.add_argument("--curl", default=os.environ.get("CURL", "curl"))
-    parser.add_argument("--download-timeout", type=int,
-                        default=int(os.environ.get("IOWA_PIANO_DOWNLOAD_TIMEOUT", "240")))
-    parser.add_argument("--refresh", action="store_true", default=os.environ.get("IOWA_PIANO_REFRESH") == "1")
-    args = parser.parse_args()
-
-    ffmpeg = find_command(args.ffmpeg)
-    curl = find_command(args.curl)
-    source_dir = Path(args.source_dir)
-    output_dir = Path(args.output)
-    manifest_path = output_dir / "manifest.tsv"
-    signature = signature_text(args.page_url, args.file_base_url, args.limit)
-    if not args.refresh and manifest_complete(manifest_path, signature):
-        print(f"prepare_iowa_piano_samples: keeping existing {manifest_path}")
-        return
-
-    rows = limited_rows(
-        discover_samples(curl, args.page_url, args.file_base_url, source_dir, args.download_timeout, args.refresh),
-        args.limit,
-    )
-    if not rows:
-        raise SystemExit("prepare_iowa_piano_samples: no piano AIFF links discovered")
-
-    output_dir.mkdir(parents=True, exist_ok=True)
-    prepared = []
-    skipped = []
-    for row in rows:
-        raw_path = source_dir / row["filename"]
-        wav_name = Path(row["filename"]).with_suffix(".wav").name
-        wav_path = output_dir / wav_name
-        try:
-            download_file(curl, row["url"], raw_path, args.download_timeout)
-            convert_aiff(ffmpeg, raw_path, wav_path)
-        except (urllib.error.URLError, subprocess.CalledProcessError, OSError) as exc:
-            skipped.append((row["filename"], str(exc)))
-            continue
-        prepared.append((row, wav_name))
-
-    with manifest_path.open("w", encoding="utf-8") as file:
+def write_manifest(path, prepared, signature):
+    with path.open("w", encoding="utf-8") as file:
         file.write("id\tfamily\tnsynth_family\tsource\tmidi\tnote\tpath\tsignature\n")
         for row, wav_name in prepared:
             sample_id = Path(row["filename"]).stem
@@ -282,6 +232,77 @@ def main():
                 ]) + "\n"
             )
 
+
+def main(argv=None):
+    parser = argparse.ArgumentParser(description="Prepare University of Iowa piano note WAV fixtures.")
+    parser.add_argument("--page-url", default=os.environ.get("IOWA_PIANO_PAGE_URL",
+                                                             "https://theremin.music.uiowa.edu/MISpiano.html"))
+    parser.add_argument("--file-base-url", default=os.environ.get(
+        "IOWA_PIANO_FILE_BASE_URL",
+        "https://theremin.music.uiowa.edu/sound files/MIS/Piano_Other/piano/"))
+    parser.add_argument("--source-dir", default=os.environ.get("IOWA_PIANO_SOURCE_DIR",
+                                                               "build/real_sample_sources/iowa_piano"))
+    parser.add_argument("--output", default=os.environ.get("IOWA_PIANO_SAMPLE_DIR",
+                                                           "build/iowa_piano_samples"))
+    parser.add_argument("--limit", type=int, default=int(os.environ.get("IOWA_PIANO_SAMPLE_LIMIT", "84")))
+    parser.add_argument("--ffmpeg", default=os.environ.get("FFMPEG", "ffmpeg"))
+    parser.add_argument("--curl", default=os.environ.get("CURL", "curl"))
+    parser.add_argument("--download-timeout", type=int,
+                        default=int(os.environ.get("IOWA_PIANO_DOWNLOAD_TIMEOUT", "240")))
+    parser.add_argument("--min-samples", type=int, default=int(os.environ.get("IOWA_PIANO_MIN_SAMPLES", "0")))
+    parser.add_argument("--refresh", action="store_true", default=os.environ.get("IOWA_PIANO_REFRESH") == "1")
+    args = parser.parse_args(argv)
+
+    ffmpeg = find_command(args.ffmpeg)
+    curl = find_command(args.curl)
+    source_dir = Path(args.source_dir)
+    output_dir = Path(args.output)
+    manifest_path = output_dir / "manifest.tsv"
+    signature = signature_text(args.page_url, args.file_base_url, args.limit)
+    min_samples = max(0, args.min_samples)
+    if not args.refresh and manifest_complete(manifest_path, signature, min_samples):
+        print(f"prepare_iowa_piano_samples: keeping existing {manifest_path}")
+        return
+
+    rows = limited_rows(
+        discover_samples(curl, args.page_url, args.file_base_url, source_dir, args.download_timeout, args.refresh),
+        args.limit,
+    )
+    if not rows:
+        raise SystemExit("prepare_iowa_piano_samples: no piano AIFF links discovered")
+
+    output_dir.mkdir(parents=True, exist_ok=True)
+    prepared = []
+    skipped = []
+    total = len(rows)
+    for index, row in enumerate(rows, start=1):
+        raw_path = source_dir / row["filename"]
+        wav_name = Path(row["filename"]).with_suffix(".wav").name
+        wav_path = output_dir / wav_name
+        try:
+            print(
+                f"prepare_iowa_piano_samples: [{index}/{total}] {row['filename']} -> {wav_name}",
+                file=sys.stderr,
+                flush=True,
+            )
+            download_file(curl, row["url"], raw_path, args.download_timeout)
+            convert_aiff(ffmpeg, raw_path, wav_path)
+        except (urllib.error.URLError, subprocess.CalledProcessError, subprocess.TimeoutExpired, OSError) as exc:
+            skipped.append((row["filename"], str(exc)))
+            continue
+        prepared.append((row, wav_name))
+
+    required_prepared = max(1, min_samples)
+    if len(prepared) < required_prepared:
+        partial_path = manifest_path.with_suffix(manifest_path.suffix + ".partial")
+        write_manifest(partial_path, prepared, signature)
+        print(f"prepare_iowa_piano_samples: wrote {len(prepared)} rows to {partial_path}", file=sys.stderr)
+        raise SystemExit(
+            f"prepare_iowa_piano_samples: expected at least {required_prepared} prepared piano samples, "
+            f"got {len(prepared)}"
+        )
+
+    write_manifest(manifest_path, prepared, signature)
     print(f"prepare_iowa_piano_samples: wrote {len(prepared)} rows to {manifest_path}")
     if skipped:
         print(f"prepare_iowa_piano_samples: skipped {len(skipped)} files", file=sys.stderr)
@@ -295,3 +316,6 @@ if __name__ == "__main__":
     except subprocess.CalledProcessError as exc:
         print(f"prepare_iowa_piano_samples: command failed: {' '.join(exc.cmd)}", file=sys.stderr)
         raise SystemExit(exc.returncode)
+    except subprocess.TimeoutExpired as exc:
+        print(f"prepare_iowa_piano_samples: command timed out: {' '.join(exc.cmd)}", file=sys.stderr)
+        raise SystemExit(124)
