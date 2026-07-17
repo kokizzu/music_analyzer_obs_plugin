@@ -2,8 +2,8 @@
 
 import argparse
 import math
+from pathlib import Path
 import struct
-import wave
 
 
 FIRST_MIDI = 21
@@ -24,12 +24,35 @@ def midi_frequency(midi):
 
 
 def read_wav_mono(path):
-    with wave.open(path, "rb") as wav:
-        channels = wav.getnchannels()
-        sample_width = wav.getsampwidth()
-        sample_rate = wav.getframerate()
-        frames = wav.readframes(wav.getnframes())
-    if sample_width != 2:
+    data = Path(path).read_bytes()
+    if len(data) < 12 or data[:4] != b"RIFF" or data[8:12] != b"WAVE":
+        raise SystemExit("not a RIFF/WAVE file")
+
+    audio_format = 0
+    channels = 0
+    sample_rate = 0
+    bits_per_sample = 0
+    frames = b""
+    offset = 12
+    while offset + 8 <= len(data):
+        chunk_id = data[offset:offset + 4]
+        chunk_size = struct.unpack_from("<I", data, offset + 4)[0]
+        chunk_start = offset + 8
+        chunk_end = min(len(data), chunk_start + chunk_size)
+        if chunk_id == b"fmt ":
+            if chunk_size < 16:
+                raise SystemExit("invalid fmt chunk")
+            audio_format, channels, sample_rate, _, _, bits_per_sample = struct.unpack_from(
+                "<HHIIHH", data, chunk_start
+            )
+        elif chunk_id == b"data":
+            frames = data[chunk_start:chunk_end]
+        offset = chunk_end + (chunk_size & 1)
+
+    if channels <= 0 or sample_rate <= 0 or bits_per_sample <= 0 or not frames:
+        raise SystemExit("missing fmt or data chunk")
+    sample_width = bits_per_sample // 8
+    if sample_width <= 0:
         raise SystemExit(f"unsupported sample width {sample_width}")
 
     values = []
@@ -37,7 +60,19 @@ def read_wav_mono(path):
         total = 0.0
         for channel in range(channels):
             start = offset + channel * sample_width
-            sample = struct.unpack_from("<h", frames, start)[0] / 32768.0
+            if audio_format == 3 and sample_width == 4:
+                sample = struct.unpack_from("<f", frames, start)[0]
+            elif audio_format == 1 and sample_width == 2:
+                sample = struct.unpack_from("<h", frames, start)[0] / 32768.0
+            elif audio_format == 1 and sample_width == 3:
+                raw = int.from_bytes(frames[start:start + 3], "little", signed=False)
+                if raw & 0x800000:
+                    raw -= 0x1000000
+                sample = raw / 8388608.0
+            elif audio_format == 1 and sample_width == 4:
+                sample = struct.unpack_from("<i", frames, start)[0] / 2147483648.0
+            else:
+                raise SystemExit(f"unsupported wav format {audio_format} width {sample_width}")
             total += sample
         values.append(total / channels)
     return sample_rate, values
