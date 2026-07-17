@@ -110,6 +110,7 @@ def main() -> int:
     by_expected_quality: collections.Counter[str] = collections.Counter()
     matching_root_by_quality: collections.Counter[str] = collections.Counter()
     quality_pairs: collections.Counter[tuple[str, str]] = collections.Counter()
+    same_root_label_pairs: collections.Counter[tuple[str, str]] = collections.Counter()
     full_expected_tones_by_quality: collections.Counter[str] = collections.Counter()
     expected_tone_coverage_sum: collections.Counter[str] = collections.Counter()
     missing_tone_sets: collections.Counter[tuple[str, str]] = collections.Counter()
@@ -129,6 +130,11 @@ def main() -> int:
             quality_pairs[
                 (expected_quality, ",".join(sorted({quality(label) for label in detected})))
             ] += 1
+            for expected_label in expected:
+                expected_root = root(expected_label)
+                for detected_label in detected:
+                    if root(detected_label) == expected_root:
+                        same_root_label_pairs[(expected_label, detected_label)] += 1
 
         guitar_pitch_classes = parse_pitch_classes(guitar_pc)
         if guitar_pc is not None:
@@ -168,6 +174,9 @@ def main() -> int:
     print("top expected->detected quality pairs with matching root")
     for (expected_quality, detected_quality), value in quality_pairs.most_common(30):
         print(f"{value} {expected_quality} => {detected_quality}")
+    print("top same-root expected->detected labels")
+    for (expected_label, detected_label), value in same_root_label_pairs.most_common(30):
+        print(f"{value} {expected_label} => {detected_label}")
     if has_grid_diagnostics:
         print("expected tones present in guitar grid")
         for key, total in by_expected_quality.most_common(20):

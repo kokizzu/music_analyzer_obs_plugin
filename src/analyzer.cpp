@@ -2702,7 +2702,8 @@ void append_supported_guitar_extension_aliases(ChordResult &chord, const NoteGri
 	const float flat_seventh = note_grid_pitch_level(grid, chord.root + 10);
 	const float major_seventh = note_grid_pitch_level(grid, chord.root + 11);
 	const float ninth = note_grid_pitch_level(grid, chord.root + 2);
-	constexpr float kCoreFloor = 0.26f;
+	constexpr float kCoreFloor = 0.20f;
+	constexpr float kRichMajorThirdFloor = 0.26f;
 	constexpr float kExtensionFloor = 0.16f;
 	constexpr float kCompactExtensionFloor = 0.10f;
 	if (root < kCoreFloor)
@@ -2710,9 +2711,10 @@ void append_supported_guitar_extension_aliases(ChordResult &chord, const NoteGri
 
 	const bool has_fifth = fifth >= kCoreFloor;
 	const bool has_major = major_third >= kCoreFloor && has_fifth;
+	const bool has_strong_major = major_third >= kRichMajorThirdFloor && has_fifth;
 	const bool has_minor = minor_third >= kCoreFloor && has_fifth;
 	const bool has_dim = minor_third >= kCoreFloor && flat_fifth >= kCoreFloor;
-	const bool has_aug = major_third >= kCoreFloor && aug_fifth >= kCoreFloor;
+	const bool has_aug = major_third >= kCoreFloor && aug_fifth >= kCoreFloor && fifth < kCoreFloor;
 	int core_min_midi = 0;
 	int core_max_midi = 0;
 	bool has_core_range = false;
@@ -2752,11 +2754,11 @@ void append_supported_guitar_extension_aliases(ChordResult &chord, const NoteGri
 	if (has_major) {
 		if (supported_extension(10, flat_seventh) && supported_extension(2, ninth))
 			append_guitar_chord_alias(chord, "9");
-		if (supported_extension(11, major_seventh) && supported_extension(2, ninth))
+		if (has_strong_major && supported_extension(11, major_seventh) && supported_extension(2, ninth))
 			append_guitar_chord_alias(chord, "maj9");
 		if (supported_extension(10, flat_seventh))
 			append_guitar_chord_alias(chord, "7");
-		if (supported_extension(11, major_seventh))
+		if (has_strong_major && supported_extension(11, major_seventh))
 			append_guitar_chord_alias(chord, "maj7");
 		if (supported_extension(9, sixth))
 			append_guitar_chord_alias(chord, "6");
