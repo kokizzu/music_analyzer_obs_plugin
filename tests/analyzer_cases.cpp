@@ -663,6 +663,17 @@ void check_guitar_supported_extension_aliases(Runner &runner)
 	runner.expect(has_chord_label(snapshot.guitar_chord.label, "Cmaj7"),
 		      std::string("guitar supported extension aliases: expected Cmaj7 alias, got `") +
 			      snapshot.guitar_chord.label + "`");
+
+	mao_test::Buffer low_core_buffer = {};
+	for (int midi : {48, 55})
+		add_harmonic_note(low_core_buffer, midi, 0.20f, guitar_profile);
+	for (int midi : {52, 59})
+		add_harmonic_note(low_core_buffer, midi, 0.11f, guitar_profile);
+
+	const auto low_core_snapshot = analyze_buffer(low_core_buffer, "guitar");
+	runner.expect(has_chord_label(low_core_snapshot.guitar_chord.label, "Cmaj7"),
+		      std::string("guitar low-core extension aliases: expected Cmaj7 alias, got `") +
+			      low_core_snapshot.guitar_chord.label + "`");
 }
 
 void check_quiet_note_rejection(Runner &runner)
