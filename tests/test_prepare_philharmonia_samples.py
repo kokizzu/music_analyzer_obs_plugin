@@ -22,14 +22,32 @@ def test_double_bass_is_real_bass_family():
 
 
 def test_guitar_family_mapping_is_preserved():
-    candidate = prepare_philharmonia_samples.parse_candidate(
+    guitar = prepare_philharmonia_samples.parse_candidate(
         "Strings.zip",
         "Strings/guitar/guitar_E3_1_forte_normal.mp3",
     )
-    if not candidate:
+    if not guitar:
         raise AssertionError("expected guitar one-note candidate")
-    if candidate["family"] != "guitar":
-        raise AssertionError(f"guitar must remain guitar, got {candidate['family']}")
+    if guitar["family"] != "guitar":
+        raise AssertionError(f"guitar must remain guitar, got {guitar['family']}")
+
+    mandolin = prepare_philharmonia_samples.parse_candidate(
+        "Strings.zip",
+        "Strings/mandolin/mandolin_G4_1_forte_normal.mp3",
+    )
+    if not mandolin:
+        raise AssertionError("expected mandolin one-note candidate")
+    if mandolin["family"] != "guitar":
+        raise AssertionError(f"mandolin must map to guitar-family, got {mandolin['family']}")
+
+    high_mandolin = prepare_philharmonia_samples.parse_candidate(
+        "Strings.zip",
+        "Strings/mandolin/mandolin_Fs6_1_piano_normal.mp3",
+    )
+    if not high_mandolin:
+        raise AssertionError("expected high mandolin one-note candidate")
+    if high_mandolin["family"] != "other":
+        raise AssertionError(f"mandolin above E6 must stay other, got {high_mandolin['family']}")
 
 
 def test_orchestral_strings_remain_other_family():

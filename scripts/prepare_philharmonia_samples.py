@@ -76,11 +76,13 @@ def note_label(note):
     return f"{DISPLAY_NOTE[name]}{octave}"
 
 
-def family_for_instrument(instrument):
+def family_for_instrument(instrument, midi=None):
     normalized = instrument.replace("_", "-").lower()
     if normalized == "double-bass":
         return "bass"
     if normalized in {"banjo", "guitar"}:
+        return "guitar"
+    if normalized == "mandolin" and (midi is None or midi <= 88):
         return "guitar"
     return "other"
 
@@ -125,7 +127,7 @@ def parse_candidate(archive_name, member):
         "member": member,
         "collection": collection,
         "instrument": instrument,
-        "family": family_for_instrument(instrument),
+        "family": family_for_instrument(instrument, midi),
         "midi": midi,
         "note": note_label(note),
         "qualities": ",".join(tokens),
