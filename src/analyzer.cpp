@@ -4036,9 +4036,9 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 		snare_crack >= snare_body * 0.035f;
 	const bool rim_side_shape =
 		body_shape_allowed && rim_shape &&
-		drum_segment_bands[Rim] >= std::max(drum_segment_bands[Kick], drum_segment_bands[Tom]) * 0.47f &&
-		drum_segment_bands[Rim] >= strongest_body_drum * 0.38f &&
-		rim_body >= snare_body * 0.50f;
+		drum_segment_bands[Rim] >= std::max(drum_segment_bands[Kick], drum_segment_bands[Tom]) * 0.42f &&
+		drum_segment_bands[Rim] >= strongest_body_drum * 0.34f &&
+		rim_body >= snare_body * 0.42f;
 	const bool kick_low_dominant_body =
 		snapshot.low_energy >= 0.28f &&
 		snapshot.low_energy >= snapshot.mid_energy * 1.25f &&
@@ -4127,7 +4127,7 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 		if (i == Snare)
 			score *= 1.0f + snapshot.mid_energy * 0.45f;
 		if (i == Rim)
-			score *= 1.0f + snapshot.mid_energy * 0.36f;
+			score *= 1.0f + snapshot.mid_energy * 0.56f;
 
 		const bool cymbal_family_evidence =
 			snapshot.high_energy >= 0.20f ||
