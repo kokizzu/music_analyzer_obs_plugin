@@ -289,7 +289,7 @@ def copy_selected_samples(candidates, output, unrar=None):
     return counts, write_manifest(output, manifest)
 
 
-def copy_samples_first(source, output, limit_per_category, unrar=None):
+def copy_samples_first(source, output, limit_per_category, unrar=None, include_archives=True):
     counts = {category: 0 for category in CATEGORIES}
     manifest = []
 
@@ -300,7 +300,7 @@ def copy_samples_first(source, output, limit_per_category, unrar=None):
             continue
         copy_candidate(candidate, output, counts, manifest, unrar=unrar)
 
-    if not reached_sample_limit(counts, limit_per_category):
+    if include_archives and not reached_sample_limit(counts, limit_per_category):
         for candidate in collect_zip_wavs(source, retain_data=True):
             if reached_sample_limit(counts, limit_per_category):
                 break
@@ -308,7 +308,7 @@ def copy_samples_first(source, output, limit_per_category, unrar=None):
                 continue
             copy_candidate(candidate, output, counts, manifest, unrar=unrar)
 
-    if not reached_sample_limit(counts, limit_per_category):
+    if include_archives and not reached_sample_limit(counts, limit_per_category):
         for candidate in collect_rar_wavs(source, unrar, retain_data=True):
             if reached_sample_limit(counts, limit_per_category):
                 break
@@ -319,7 +319,7 @@ def copy_samples_first(source, output, limit_per_category, unrar=None):
     return counts, write_manifest(output, manifest)
 
 
-def copy_samples_spread(source, output, limit_per_category, unrar=None):
+def copy_samples_spread(source, output, limit_per_category, unrar=None, include_archives=True):
     candidates = list(collect_plain_wavs(source))
     counts = {category: 0 for category in CATEGORIES}
     for candidate in candidates:
@@ -328,7 +328,7 @@ def copy_samples_spread(source, output, limit_per_category, unrar=None):
     needs_archives = limit_per_category <= 0 or any(
         counts[category] < limit_per_category for category in CATEGORIES
     )
-    if needs_archives:
+    if include_archives and needs_archives:
         candidates.extend(collect_zip_wavs(source, retain_data=False))
         candidates.extend(collect_rar_wavs(source, unrar, retain_data=False))
 
@@ -336,10 +336,12 @@ def copy_samples_spread(source, output, limit_per_category, unrar=None):
     return copy_selected_samples(selected, output, unrar=unrar)
 
 
-def copy_samples(source, output, limit_per_category, selection, unrar=None):
+def copy_samples(source, output, limit_per_category, selection, unrar=None, include_archives=True):
     if selection == "spread":
-        return copy_samples_spread(source, output, limit_per_category, unrar=unrar)
-    return copy_samples_first(source, output, limit_per_category, unrar=unrar)
+        return copy_samples_spread(source, output, limit_per_category, unrar=unrar,
+                                   include_archives=include_archives)
+    return copy_samples_first(source, output, limit_per_category, unrar=unrar,
+                              include_archives=include_archives)
 
 
 def main():
@@ -349,6 +351,8 @@ def main():
     parser.add_argument("--limit-per-category", type=int, default=int(os.environ.get("DRUM_SAMPLE_LIMIT", "32")))
     parser.add_argument("--selection", choices=("first", "spread"), default=os.environ.get("DRUM_SAMPLE_SELECTION", "first"))
     parser.add_argument("--unrar", default=os.environ.get("UNRAR", "unrar"))
+    parser.add_argument("--no-archives", action="store_true",
+                        help="copy only plain WAV files; ZIP/RAR archives are skipped")
     args = parser.parse_args()
 
     source = Path(args.source)
@@ -358,7 +362,8 @@ def main():
 
     clean_output(output)
     unrar = shutil.which(args.unrar) if args.unrar else None
-    counts, manifest_path = copy_samples(source, output, max(0, args.limit_per_category), args.selection, unrar=unrar)
+    counts, manifest_path = copy_samples(source, output, max(0, args.limit_per_category), args.selection,
+                                         unrar=unrar, include_archives=not args.no_archives)
     summary = " ".join(f"{category}={counts[category]}" for category in CATEGORIES)
     print(f"prepare_drum_samples: wrote {manifest_path} ({summary})")
 

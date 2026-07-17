@@ -223,6 +223,29 @@ bool category_index(const std::string &category, std::size_t &index)
 	return false;
 }
 
+int primary_drum_index(const mao::AnalysisSnapshot &snapshot)
+{
+	int primary = -1;
+	float primary_level = 0.0f;
+	for (std::size_t i = 0; i < mao::kDrumCount; ++i) {
+		if (!snapshot.drums[i].active || snapshot.drums[i].level <= primary_level)
+			continue;
+		primary = static_cast<int>(i);
+		primary_level = snapshot.drums[i].level;
+	}
+	if (primary < 0)
+		return primary;
+
+	int tied = 0;
+	for (std::size_t i = 0; i < mao::kDrumCount; ++i) {
+		if (snapshot.drums[i].active && std::abs(snapshot.drums[i].level - primary_level) <= 0.015f)
+			++tied;
+	}
+	if (tied > 1)
+		return -2;
+	return primary;
+}
+
 mao_test::Buffer make_warmup_buffer()
 {
 	mao_test::Buffer buffer = {};
@@ -335,6 +358,10 @@ int main()
 	std::array<int, mao::kDrumCount> active100 = {};
 	std::array<int, mao::kDrumCount> false100 = {};
 	std::array<std::array<int, mao::kDrumCount>, mao::kDrumCount> active_by_expected100 = {};
+	std::array<int, mao::kDrumCount> primary_hits100 = {};
+	std::array<int, mao::kDrumCount> primary_none100 = {};
+	std::array<int, mao::kDrumCount> primary_ambiguous100 = {};
+	std::array<std::array<int, mao::kDrumCount>, mao::kDrumCount> primary_by_expected100 = {};
 	int usable = 0;
 	int skipped = 0;
 
@@ -391,6 +418,18 @@ int main()
 			}
 			++misses100[expected];
 		}
+
+		const int primary = primary_drum_index(snapshot100);
+		if (primary < 0) {
+			if (primary == -2)
+				++primary_ambiguous100[expected];
+			else
+				++primary_none100[expected];
+		} else {
+			++primary_by_expected100[expected][static_cast<std::size_t>(primary)];
+			if (static_cast<std::size_t>(primary) == expected)
+				++primary_hits100[expected];
+		}
 	}
 
 	for (std::size_t i = 0; i < mao::kDrumCount; ++i) {
@@ -437,6 +476,15 @@ int main()
 	}
 	std::printf("\n");
 
+	std::printf("analyzer_drum_samples: primary matrix");
+	for (std::size_t expected = 0; expected < mao::kDrumCount; ++expected) {
+		std::printf("\n  expected %-5s", category_name(expected));
+		for (std::size_t detected = 0; detected < mao::kDrumCount; ++detected)
+			std::printf(" %s=%d", category_name(detected), primary_by_expected100[expected][detected]);
+		std::printf(" ambiguous=%d none=%d", primary_ambiguous100[expected], primary_none100[expected]);
+	}
+	std::printf("\n");
+
 	if (runner.failures) {
 		std::fprintf(stderr, "analyzer_drum_samples: %d failure(s), usable %d, skipped %d\n", runner.failures,
 			     usable, skipped);
@@ -446,8 +494,9 @@ int main()
 	std::printf("analyzer_drum_samples: ok (usable %d, skipped %d", usable, skipped);
 	for (std::size_t i = 0; i < mao::kDrumCount; ++i) {
 		const int precision100 = active100[i] > 0 ? hits100[i] * 100 / active100[i] : 0;
-		std::printf(", %s recall %d/%d precision %d/%d false %d", category_name(i), hits100[i],
-			    totals[i], hits100[i], active100[i], false100[i]);
+		std::printf(", %s recall %d/%d primary %d/%d precision %d/%d false %d",
+			    category_name(i), hits100[i], totals[i], primary_hits100[i], totals[i], hits100[i],
+			    active100[i], false100[i]);
 		if (active100[i] > 0)
 			std::printf(" %d%%", precision100);
 	}

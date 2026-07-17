@@ -116,6 +116,31 @@ def test_missing_unrar_skips_rar_without_failing():
             raise AssertionError("RAR samples should be skipped when no unrar command is configured")
 
 
+def test_no_archives_mode_skips_archives():
+    with tempfile.TemporaryDirectory() as temp:
+        base = Path(temp)
+        source = base / "source"
+        output = base / "out"
+
+        write_wav(source / "plain" / "Kick 01.wav", frequency=80.0)
+
+        zip_member = "pack/Snare 01.wav"
+        zip_wav = base / "zip-snare.wav"
+        write_wav(zip_wav, frequency=250.0)
+        with zipfile.ZipFile(source / "snare-pack.zip", "w") as archive:
+            archive.write(zip_wav, zip_member)
+
+        prepare_drum_samples.clean_output(output)
+        counts, _manifest_path = prepare_drum_samples.copy_samples(
+            source, output, 0, "first", unrar=None, include_archives=False
+        )
+
+        if counts["kick"] != 1:
+            raise AssertionError("plain WAVs should still be copied in no-archives mode")
+        if counts["snare"] != 0:
+            raise AssertionError("ZIP samples should be skipped in no-archives mode")
+
+
 def test_spread_selection_uses_later_buckets():
     with tempfile.TemporaryDirectory() as temp:
         base = Path(temp)
@@ -143,8 +168,9 @@ def test_spread_selection_uses_later_buckets():
 def main():
     test_plain_zip_and_optional_rar_samples()
     test_missing_unrar_skips_rar_without_failing()
+    test_no_archives_mode_skips_archives()
     test_spread_selection_uses_later_buckets()
-    print("test_prepare_drum_samples: 3 checks passed")
+    print("test_prepare_drum_samples: 4 checks passed")
     return 0
 
 
