@@ -238,7 +238,11 @@ def goertzel_level(samples, sample_rate, freq):
     return math.sqrt(max(0.0, s1 * s1 + s2 * s2 - coeff * s1 * s2))
 
 
-def read_probe_window(path):
+ANALYZER_PROBE_OFFSETS_SECONDS = (0.080, 0.180, 0.320, 0.520, 0.820, 1.200)
+TUNING_PROBE_CENTS = (-18.0, -9.0, 0.0, 9.0, 18.0)
+
+
+def read_wav_mono(path):
     with wave.open(str(path), "rb") as wav:
         channels = wav.getnchannels()
         sample_rate = wav.getframerate()
@@ -246,12 +250,7 @@ def read_probe_window(path):
         frame_count = wav.getnframes()
         if sample_width != 2:
             return sample_rate, []
-        start = min(frame_count, int(sample_rate * 0.18))
-        count = min(frame_count - start, int(sample_rate * 0.25))
-        if count <= 0:
-            return sample_rate, []
-        wav.setpos(start)
-        data = wav.readframes(count)
+        data = wav.readframes(frame_count)
 
     samples = []
     step = sample_width * channels
@@ -266,17 +265,90 @@ def read_probe_window(path):
     return sample_rate, samples
 
 
+def first_audible_sample(samples):
+    peak = max((abs(sample) for sample in samples), default=0.0)
+    if peak <= 1.0e-6:
+        return 0, peak
+    threshold = max(peak * 0.020, 0.0008)
+    for index, sample in enumerate(samples):
+        if abs(sample) >= threshold:
+            return index, peak
+    return 0, peak
+
+
+def probe_windows(samples, sample_rate):
+    if not samples or sample_rate <= 0:
+        return []
+    onset, peak = first_audible_sample(samples)
+    if peak <= 1.0e-6:
+        return []
+
+    windows = []
+    previous_start = -1
+    for offset_seconds in ANALYZER_PROBE_OFFSETS_SECONDS:
+        start = min(len(samples) - 1, onset + int(sample_rate * offset_seconds))
+        if start == previous_start:
+            continue
+        previous_start = start
+        count = min(len(samples) - start, int(sample_rate * 0.100))
+        if count <= 0:
+            continue
+        window = samples[start:start + count]
+        window_peak = max((abs(sample) for sample in window), default=0.0)
+        if window_peak <= 1.0e-6:
+            continue
+        gain = min(24.0, 0.62 / window_peak)
+        windows.append([max(-1.0, min(1.0, sample * gain)) for sample in window])
+    return windows
+
+
+def tuning_error_cents(window, sample_rate, midi):
+    center = midi_frequency(midi)
+    scores = [
+        goertzel_level(window, sample_rate, center * math.pow(2.0, cents / 1200.0))
+        for cents in TUNING_PROBE_CENTS
+    ]
+    best = max(range(len(scores)), key=scores.__getitem__)
+    cents = TUNING_PROBE_CENTS[best]
+    if 0 < best < len(scores) - 1:
+        previous = scores[best - 1]
+        current = scores[best]
+        next_score = scores[best + 1]
+        denominator = previous - 2.0 * current + next_score
+        if abs(denominator) > 1.0e-9:
+            step = TUNING_PROBE_CENTS[best] - TUNING_PROBE_CENTS[best - 1]
+            cents += 0.5 * (previous - next_score) / denominator * step
+    return max(TUNING_PROBE_CENTS[0], min(TUNING_PROBE_CENTS[-1], cents))
+
+
 def pitch_reference_ok(path, midi):
-    sample_rate, samples = read_probe_window(path)
+    sample_rate, samples = read_wav_mono(path)
     if not samples:
         return False
-    expected = goertzel_level(samples, sample_rate, midi_frequency(midi))
-    lower = goertzel_level(samples, sample_rate, midi_frequency(midi - 1)) if midi > 21 else 0.0
-    upper = goertzel_level(samples, sample_rate, midi_frequency(midi + 1)) if midi < 108 else 0.0
-    adjacent = max(lower, upper)
-    if adjacent <= 1.0e-6:
-        return True
-    return expected >= adjacent * 0.90
+    valid_windows = 0
+    for window in probe_windows(samples, sample_rate):
+        expected = goertzel_level(window, sample_rate, midi_frequency(midi))
+        lower = goertzel_level(window, sample_rate, midi_frequency(midi - 1)) if midi > 21 else 0.0
+        upper = goertzel_level(window, sample_rate, midi_frequency(midi + 1)) if midi < 108 else 0.0
+        adjacent = max(lower, upper)
+        if adjacent > 1.0e-6 and expected < adjacent * 0.72:
+            continue
+        if midi < 40 and adjacent > 1.0e-6 and expected < adjacent * 1.05:
+            continue
+        if abs(tuning_error_cents(window, sample_rate, midi)) > 15.0:
+            continue
+
+        if midi >= 84:
+            low_artifact = 0.0
+            for low_midi in range(21, 37):
+                low_artifact = max(
+                    low_artifact, goertzel_level(window, sample_rate, midi_frequency(low_midi))
+                )
+            if low_artifact > 1.0e-6 and expected < low_artifact * 0.20:
+                continue
+        valid_windows += 1
+    return valid_windows >= 2
+
 
 
 def write_manifest(rows, output_dir, partial=False):

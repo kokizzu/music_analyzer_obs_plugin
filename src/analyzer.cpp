@@ -4677,26 +4677,43 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 				std::array<float, kNoteProbeCount> low_fundamental_votes = {};
 				std::array<int, kNoteProbeCount> low_fundamental_support = {};
 				static constexpr int kOtherHarmonicIntervals[] = {12, 19, 24, 28, 31, 36};
+				static constexpr int kOtherLowRecoveryIntervals[] = {12, 19, 24, 28, 31, 36, 40, 43};
 				for (const auto &row : snapshot.other_notes.rows) {
 					for (const NoteCell &cell : row) {
 						if (!cell.active || cell.midi < 0)
 							continue;
+						if (cell.midi > 72)
+							continue;
 						for (int interval : kOtherHarmonicIntervals) {
 							const int lower = cell.midi - interval;
-							if (lower < kOtherMinMidi || lower > 52)
+							if (lower < 28 || lower > 52)
+								continue;
+							const float lower_raw = probe_level(note_powers, lower);
+							if (lower_raw < strongest_note_level * 0.018f)
+								continue;
+							int partial_count = 0;
+							for (int partial_interval : kOtherLowRecoveryIntervals) {
+								const float partial =
+									probe_level(note_powers, lower + partial_interval);
+								if (partial >= strongest_note_level * 0.035f)
+									++partial_count;
+							}
+							if (partial_count < 3)
 								continue;
 							const std::size_t index =
 								static_cast<std::size_t>(lower - kFirstMidi);
-							low_fundamental_votes[index] += std::max(cell.level, 0.10f);
+							low_fundamental_votes[index] +=
+								std::max(cell.level, 0.10f) *
+								(1.0f + static_cast<float>(partial_count) * 0.12f);
 							++low_fundamental_support[index];
 						}
 					}
 				}
 				int recovered_midi = -1;
 				float recovered_score = 0.0f;
-				for (int midi = kOtherMinMidi; midi <= 52; ++midi) {
+				for (int midi = 28; midi <= 52; ++midi) {
 					const std::size_t index = static_cast<std::size_t>(midi - kFirstMidi);
-					if (low_fundamental_support[index] < 2)
+					if (low_fundamental_support[index] < 1)
 						continue;
 					if (low_fundamental_votes[index] > recovered_score) {
 						recovered_score = low_fundamental_votes[index];

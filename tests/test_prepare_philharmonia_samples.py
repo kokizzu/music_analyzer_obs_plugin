@@ -1,12 +1,36 @@
 #!/usr/bin/env python3
 from pathlib import Path
+import math
+import struct
 import sys
 import tempfile
+import wave
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "scripts"))
 
 import prepare_philharmonia_samples
+
+
+def midi_frequency(midi):
+    return 440.0 * math.pow(2.0, (midi - 69) / 12.0)
+
+
+def write_sine_mix(path, components, sample_rate=48000, seconds=1.5):
+    frame_count = int(sample_rate * seconds)
+    with wave.open(str(path), "wb") as wav:
+        wav.setnchannels(1)
+        wav.setsampwidth(2)
+        wav.setframerate(sample_rate)
+        frames = bytearray()
+        for index in range(frame_count):
+            t = index / sample_rate
+            value = 0.0
+            for midi, amplitude in components:
+                value += amplitude * math.sin(2.0 * math.pi * midi_frequency(midi) * t)
+            value = max(-0.95, min(0.95, value))
+            frames.extend(struct.pack("<h", int(value * 32767.0)))
+        wav.writeframes(bytes(frames))
 
 
 def test_double_bass_is_real_bass_family():
@@ -92,12 +116,33 @@ def test_manifest_writer_supports_partial_and_final_outputs():
             raise AssertionError("final manifest should contain prepared rows")
 
 
+def test_pitch_reference_filter_uses_analyzer_style_windows():
+    with tempfile.TemporaryDirectory() as temp:
+        output = Path(temp)
+        clean = output / "clean_a4.wav"
+        shifted = output / "shifted_a4.wav"
+        low_artifact = output / "high_with_low_artifact.wav"
+
+        write_sine_mix(clean, [(69, 0.45)])
+        if not prepare_philharmonia_samples.pitch_reference_ok(clean, 69):
+            raise AssertionError("clean A4 reference should pass")
+
+        write_sine_mix(shifted, [(70, 0.45)])
+        if prepare_philharmonia_samples.pitch_reference_ok(shifted, 69):
+            raise AssertionError("adjacent-semitone A#4 should not pass as A4")
+
+        write_sine_mix(low_artifact, [(21, 0.60), (91, 0.05)])
+        if prepare_philharmonia_samples.pitch_reference_ok(low_artifact, 91):
+            raise AssertionError("high note dominated by low artifact should not pass")
+
+
 def main():
     test_double_bass_is_real_bass_family()
     test_guitar_family_mapping_is_preserved()
     test_orchestral_strings_remain_other_family()
     test_manifest_writer_supports_partial_and_final_outputs()
-    print("test_prepare_philharmonia_samples: 4 checks passed")
+    test_pitch_reference_filter_uses_analyzer_style_windows()
+    print("test_prepare_philharmonia_samples: 5 checks passed")
     return 0
 
 
