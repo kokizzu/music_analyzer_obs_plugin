@@ -648,6 +648,23 @@ void check_equivalent_chord_labels(Runner &runner)
 	}
 }
 
+void check_guitar_supported_extension_aliases(Runner &runner)
+{
+	mao_test::Buffer buffer = {};
+	const std::vector<float> guitar_profile = {1.0f, 0.34f, 0.16f, 0.08f};
+	for (int midi : {48, 52, 55})
+		add_harmonic_note(buffer, midi, 0.24f, guitar_profile);
+	add_harmonic_note(buffer, 59, 0.10f, guitar_profile);
+
+	const auto snapshot = analyze_buffer(buffer, "guitar");
+	runner.expect(has_chord_label(snapshot.guitar_chord.label, "C"),
+		      std::string("guitar supported extension aliases: expected C, got `") +
+			      snapshot.guitar_chord.label + "`");
+	runner.expect(has_chord_label(snapshot.guitar_chord.label, "Cmaj7"),
+		      std::string("guitar supported extension aliases: expected Cmaj7 alias, got `") +
+			      snapshot.guitar_chord.label + "`");
+}
+
 void check_quiet_note_rejection(Runner &runner)
 {
 	mao_test::Buffer buffer = {};
@@ -3287,6 +3304,7 @@ int main()
 	check_harmonic_chords(runner);
 	check_extended_chords(runner);
 	check_equivalent_chord_labels(runner);
+	check_guitar_supported_extension_aliases(runner);
 	check_quiet_note_rejection(runner);
 	check_quiet_standalone_rejection(runner);
 	check_note_level_fade(runner);
