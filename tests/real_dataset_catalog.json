@@ -275,12 +275,12 @@
       "assembled_mix": false,
       "aligned_symbolic_truth": true,
       "truth": "synchronized per-string MIDI labels for electric-guitar single notes, techniques, chords, scales, and musical excerpts",
-      "automation_target": "",
+      "automation_target": "test-guitar-techs-samples",
       "source_url": "https://guitar-techs.github.io/",
       "documentation_url": "https://arxiv.org/abs/2501.03720",
       "download_url": "https://zenodo.org/records/14963133",
-      "download_note": "Zenodo hosts separate multi-GB archives for single notes, techniques, chords, scales, and musical excerpts. This is a good future focused guitar gate, but not a normal smoke-test download.",
-      "evidence": "Official project and Zenodo pages describe 3,732 electric-guitar recordings across single notes, techniques, chords, scales, and excerpts, captured from DI, amplifier microphone, egocentric, and exocentric perspectives with synchronized MIDI labels."
+      "download_note": "The optional test-guitar-techs-samples target downloads the smaller P1/P2 single-note ZIPs, prepares DI and amplifier-mic note excerpts, and keeps the larger techniques/chords/scales/music archives out of normal smoke tests. The current default prep yields 547 tested clips after 11 pitch-reference skips.",
+      "evidence": "Official project and Zenodo pages describe 3,732 electric-guitar recordings across single notes, techniques, chords, scales, and excerpts, captured from DI, amplifier microphone, egocentric, and exocentric perspectives with synchronized MIDI labels; this repository currently gates the single-note subset through the shared real-note analyzer test, with 547/547 prepared clips detected in isolated-guitar mode."
     },
     {
       "id": "gaps",
