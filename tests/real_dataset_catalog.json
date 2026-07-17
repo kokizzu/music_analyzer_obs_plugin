@@ -283,6 +283,22 @@
       "evidence": "Official project and Zenodo pages describe 3,732 electric-guitar recordings across single notes, techniques, chords, scales, and excerpts, captured from DI, amplifier microphone, egocentric, and exocentric perspectives with synchronized MIDI labels; this repository currently gates the single-note subset through the shared real-note analyzer test, with 547/547 prepared clips detected in isolated-guitar mode."
     },
     {
+      "id": "guitar_chord_mix",
+      "name": "Guitar Chord Mix",
+      "category": "single_instrument_truth",
+      "piece_count": 158,
+      "real_audio": true,
+      "isolated_sources": false,
+      "assembled_mix": false,
+      "aligned_symbolic_truth": true,
+      "truth": "WAV clips paired with JAMS note_midi annotations, one note annotation per guitar string",
+      "automation_target": "test-guitar-chord-mix-samples",
+      "source_url": "https://huggingface.co/datasets/ryangowe/guitar-chord-mix",
+      "download_url": "https://huggingface.co/datasets/ryangowe/guitar-chord-mix/tree/main/clips",
+      "download_note": "The optional test-guitar-chord-mix-samples target downloads a bounded, diverse subset of WAV/JAMS chord clips into build/guitar_chord_mix_samples, writes a GuitarSet-shaped manifest, and runs the isolated-guitar note/chord harness. The default bound is 120 clips; set GUITAR_CHORD_MIX_LIMIT=0 for all matched pairs.",
+      "evidence": "The dataset card describes a soundfolder release of guitar chord clips with WAV audio and JAMS annotations, assembled from GuitarSet, Guitar-TECHS, EGFxSet, Isolated Guitar Chords, SFZ, and DEMAND sources; each clip includes six note_midi annotations, one per string."
+    },
+    {
       "id": "gaps",
       "name": "GAPS",
       "category": "single_instrument_truth",

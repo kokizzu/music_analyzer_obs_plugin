@@ -82,6 +82,7 @@ not provide clean per-instrument audio stems for each mixture.
 | [PianoVAM](https://arxiv.org/abs/2509.08800) | Keyboard row, fingering/hand plausibility | Piano audio, MIDI, video, hand landmarks, and fingering labels. Single instrument only. |
 | [GuitarSet](https://guitarset.weebly.com/) | Guitar fretboard tests with optional `make inspect-real-guitarset` preflight and `make test-real-guitarset-20` analyzer gate | 360 live guitar excerpts with hexaphonic pickup, per-string audio, microphone audio, JAMS MIDI-note/fret/chord annotations, and Zenodo download at [10.5281/zenodo.3371780](https://zenodo.org/records/3371780). Single instrument only. |
 | [Guitar-TECHS](https://guitar-techs.github.io/) | Electric guitar single-note gate with optional `make test-guitar-techs-samples`; chords, scales, and techniques remain future focused gates | 3,732 recordings across single notes, techniques, chords, scales, and excerpts; DI, amp-mic, egocentric, and exocentric perspectives; synchronized per-string MIDI labels; Zenodo download at [10.5281/zenodo.14963133](https://zenodo.org/records/14963133). The implemented target downloads the smaller P1/P2 single-note ZIPs and prepares DI/amp-mic excerpts for the shared real-note analyzer test. |
+| [Guitar Chord Mix](https://huggingface.co/datasets/ryangowe/guitar-chord-mix) | Real guitar chord gate with optional `make test-guitar-chord-mix-samples` | Hugging Face soundfolder of WAV guitar chord clips with JAMS `note_midi` annotations, assembled from GuitarSet, Guitar-TECHS, EGFxSet, Isolated Guitar Chords, SFZ, and DEMAND. The implemented target downloads a bounded, diverse subset and reuses the GuitarSet-shaped analyzer manifest path. Single instrument only. |
 | [GAPS](https://huggingface.co/datasets/xavriley/GAPS) | Classical guitar note/fretboard tests | 300 solo guitar performances, about 14 hours, with audio, MIDI, MusicXML, sync points, metadata, and high-resolution note-level MIDI alignments. Single instrument only and large, so it should become an explicit focused guitar gate. |
 | [GOAT](https://arxiv.org/abs/2509.22655) | Electric guitar tablature/fret checks | 5.9 hours of DI electric guitar plus tablature/symbolic labels and augmented tones. Single instrument only. |
 | [E-GMD](https://magenta.tensorflow.org/datasets/e-gmd) | Drum hit and velocity tests with optional `make test-real-egmd-20` analyzer gate | 45,537 paired drum WAV/MIDI recordings, 444.5 hours, 43 drum kits, human velocity annotations, and about 2 ms audio/MIDI alignment. Drum-only. |
@@ -325,6 +326,14 @@ without additional annotation.
   analyzer gate detected 547/547 guitar notes. It is focused real electric
   guitar note coverage; the Guitar-TECHS chord, scale, technique, and music
   archives still need separate chord/technique-aware gates.
+- Use `make test-guitar-chord-mix-samples` to download a bounded subset of the
+  public Hugging Face Guitar Chord Mix WAV/JAMS clips into
+  `build/guitar_chord_mix_samples`, write a GuitarSet-shaped `AUDIO`/`NOTE`
+  manifest, and run the isolated-guitar note/chord analyzer harness. The
+  default `GUITAR_CHORD_MIX_LIMIT=120` selection is spread across chord labels;
+  set `GUITAR_CHORD_MIX_LIMIT=0` for all matched WAV/JAMS pairs. This adds real
+  guitar chord audio to the regression set without pulling the much larger
+  Guitar-TECHS chord archives into the default workflow.
 - Use `make test-real-maestro-20` with
   `MUSIC_ANALYZER_MAESTRO_ROOT=/path/to/maestro-v3.0.0` after extracting the
   official MAESTRO archive. The analyzer gate expects the official metadata CSV
