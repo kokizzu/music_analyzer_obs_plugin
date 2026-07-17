@@ -48,10 +48,10 @@ def make_fixture(root, current_header=False):
     archive = root / "TinySOL.zip"
     wav = write_wav_bytes()
     with zipfile.ZipFile(archive, "w") as file:
-        file.writestr("TinySOL/Strings/Contrabass/ordinario/Cb-ord-E2-ff-N.wav", wav)
-        file.writestr("TinySOL/Keyboards/Accordion/ordinario/Acc-ord-C4-mf-N.wav", wav)
-        file.writestr("TinySOL/Winds/Flute/ordinario/Fl-ord-A4-pp-N.wav", wav)
-        file.writestr("TinySOL/Strings/Violin/ordinario/Vn-ord-G6-mf-1cR.wav", wav)
+        file.writestr("TinySOL/audio/Strings/Contrabass/ordinario/Cb-ord-E2-ff-N.wav", wav)
+        file.writestr("TinySOL/audio/Keyboards/Accordion/ordinario/Acc-ord-C4-mf-N.wav", wav)
+        file.writestr("TinySOL/audio/Winds/Flute/ordinario/Fl-ord-A4-pp-N.wav", wav)
+        file.writestr("TinySOL/audio/Strings/Violin/ordinario/Vn-ord-G6-mf-1cR.wav", wav)
     return metadata, archive
 
 

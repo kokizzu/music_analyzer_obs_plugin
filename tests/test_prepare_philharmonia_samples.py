@@ -116,6 +116,32 @@ def test_manifest_writer_supports_partial_and_final_outputs():
             raise AssertionError("final manifest should contain prepared rows")
 
 
+def test_manifest_complete_requires_existing_audio_and_minimum_rows():
+    row = {
+        "id": "philharmonia_test",
+        "family": "other",
+        "collection": "strings",
+        "instrument": "violin",
+        "midi": 69,
+        "note": "A4",
+        "path": "audio/violin_A4.wav",
+        "qualities": "normal",
+    }
+    with tempfile.TemporaryDirectory() as temp:
+        output = Path(temp)
+        manifest = prepare_philharmonia_samples.write_manifest([row], output)
+        if prepare_philharmonia_samples.manifest_complete(manifest, 1):
+            raise AssertionError("manifest without referenced audio must not be complete")
+
+        audio = output / row["path"]
+        audio.parent.mkdir(parents=True, exist_ok=True)
+        write_sine_mix(audio, [(69, 0.45)], seconds=0.1)
+        if not prepare_philharmonia_samples.manifest_complete(manifest, 1):
+            raise AssertionError("manifest with referenced audio should be complete")
+        if prepare_philharmonia_samples.manifest_complete(manifest, 2):
+            raise AssertionError("manifest below the requested minimum must not be complete")
+
+
 def test_pitch_reference_filter_uses_analyzer_style_windows():
     with tempfile.TemporaryDirectory() as temp:
         output = Path(temp)
@@ -141,8 +167,9 @@ def main():
     test_guitar_family_mapping_is_preserved()
     test_orchestral_strings_remain_other_family()
     test_manifest_writer_supports_partial_and_final_outputs()
+    test_manifest_complete_requires_existing_audio_and_minimum_rows()
     test_pitch_reference_filter_uses_analyzer_style_windows()
-    print("test_prepare_philharmonia_samples: 5 checks passed")
+    print("test_prepare_philharmonia_samples: 6 checks passed")
     return 0
 
 

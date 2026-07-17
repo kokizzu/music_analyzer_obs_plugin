@@ -47,6 +47,10 @@ def output_name(row):
     return f"tinysol_{source}_{sanitize_id(stem)}.wav"
 
 
+def archive_folder_name(text):
+    return re.sub(r"[^A-Za-z0-9]+", "_", text.strip()).strip("_")
+
+
 def read_metadata(path, include_resampled):
     def value(row, *names):
         for name in names:
@@ -62,6 +66,7 @@ def read_metadata(path, include_resampled):
             ("Family",),
             ("Instrument", "Instrument (abbr.)"),
             ("Instrument Name", "Instrument (in full)"),
+            ("Technique Name", "Technique (in full)"),
             ("Pitch",),
             ("Pitch ID",),
             ("Dynamics",),
@@ -75,6 +80,7 @@ def read_metadata(path, include_resampled):
             family = value(row, "Family").strip()
             instrument = value(row, "Instrument", "Instrument (abbr.)").strip()
             instrument_name = value(row, "Instrument Name", "Instrument (in full)").strip()
+            technique_name = value(row, "Technique Name", "Technique (in full)").strip()
             if not include_resampled and normalize_bool(value(row, "Resampled")):
                 continue
             try:
@@ -90,6 +96,7 @@ def read_metadata(path, include_resampled):
                 "source": source_name_from_text(instrument_name),
                 "instrument": instrument_name,
                 "instrument_abbr": instrument,
+                "technique": technique_name,
                 "midi": midi,
                 "note": note_name_from_midi(midi),
                 "dynamics": value(row, "Dynamics").strip(),
@@ -105,15 +112,43 @@ def limited_rows(rows, limit):
     return rows[:limit]
 
 
-def find_zip_member(archive, wanted):
+def find_zip_member(archive, row):
+    wanted = row["archive_path"]
+    raw_wanted = wanted
     wanted = wanted.lstrip("/")
     names = archive.namelist()
     if wanted in names:
         return wanted
-    suffix = "/" + wanted
-    for name in names:
-        if name.endswith(suffix):
-            return name
+    candidates = [
+        wanted,
+        f"TinySOL/audio/{wanted}",
+        "/".join([
+            "TinySOL",
+            "audio",
+            archive_folder_name(row["nsynth_family"]),
+            archive_folder_name(row["instrument"]),
+            archive_folder_name(row["technique"]),
+            Path(raw_wanted).name,
+        ]),
+    ]
+    seen = set()
+    for candidate in candidates:
+        if not candidate or candidate in seen:
+            continue
+        seen.add(candidate)
+        if candidate in names:
+            return candidate
+        suffix = "/" + candidate
+        for name in names:
+            if name.endswith(suffix) and not name.startswith("__MACOSX/") and "/._" not in name:
+                return name
+    filename = "/" + Path(raw_wanted).name
+    basename_matches = [
+        name for name in names
+        if name.endswith(filename) and not name.startswith("__MACOSX/") and "/._" not in name
+    ]
+    if len(basename_matches) == 1:
+        return basename_matches[0]
     return None
 
 
@@ -202,7 +237,7 @@ def main(argv=None):
     missing = []
     with zipfile.ZipFile(archive_path) as archive:
         for row in candidates:
-            member = find_zip_member(archive, row["archive_path"])
+            member = find_zip_member(archive, row)
             if not member:
                 missing.append(row["archive_path"])
                 continue

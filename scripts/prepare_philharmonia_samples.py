@@ -376,6 +376,25 @@ def write_manifest(rows, output_dir, partial=False):
     return manifest
 
 
+def manifest_complete(path, min_rows):
+    if not path.is_file():
+        return False
+    root = path.parent
+    rows = 0
+    with path.open("r", encoding="utf-8") as file:
+        header = file.readline().rstrip("\n").split("\t")
+        if header != ["id", "family", "nsynth_family", "source", "midi", "note", "path", "qualities"]:
+            return False
+        for line in file:
+            fields = line.rstrip("\n").split("\t")
+            if len(fields) < 8:
+                return False
+            if not (root / fields[6]).is_file():
+                return False
+            rows += 1
+    return rows >= max(1, min_rows)
+
+
 def preparation_summary(counts, skipped, skipped_pitch_reference):
     summary = " ".join(f"{name}={counts[name]}" for name in sorted(counts))
     return f"skipped {skipped}; skipped_pitch_reference {skipped_pitch_reference}; {summary}"
@@ -389,6 +408,7 @@ def main():
     parser.add_argument("--min-samples", type=int, default=1000)
     parser.add_argument("--progress-every", type=int, default=0)
     parser.add_argument("--ffmpeg", default="ffmpeg")
+    parser.add_argument("--refresh", action="store_true", default=os.environ.get("PHILHARMONIA_REFRESH") == "1")
     args = parser.parse_args()
 
     ffmpeg = shutil.which(args.ffmpeg) if os.path.sep not in args.ffmpeg else args.ffmpeg
@@ -398,10 +418,14 @@ def main():
     source_dir = Path(args.source)
     output_dir = Path(args.output)
     output_dir.mkdir(parents=True, exist_ok=True)
+    min_samples = max(1, args.min_samples)
+    manifest_path = output_dir / "manifest.tsv"
+    if not args.refresh and manifest_complete(manifest_path, min_samples):
+        print(f"prepare_philharmonia_samples: keeping existing {manifest_path}")
+        return
 
     grouped = collect_candidates(source_dir)
     selected = balanced_selection(grouped, args.limit)
-    min_samples = max(1, args.min_samples)
     if len(selected) < min_samples:
         raise SystemExit(f"only found {len(selected)} usable Philharmonia one-note samples")
 

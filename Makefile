@@ -4,6 +4,7 @@ PKG_CONFIG ?= pkg-config
 TAR ?= tar
 FFMPEG ?= ffmpeg
 CURL ?= curl
+ARIA2C ?= aria2c
 BUILD_DIR ?= build
 ANDROID_SDK_ROOT ?= $(CURDIR)/$(BUILD_DIR)/android-sdk
 ANDROID_GRADLE_VERSION ?= 8.10.2
@@ -134,6 +135,7 @@ TINYSOL_MIN_SAMPLES ?= 1000
 TINYSOL_MIN_BASS ?= 100
 TINYSOL_MIN_PIANO ?= 50
 TINYSOL_MIN_OTHER ?= 800
+TINYSOL_DOWNLOAD_CONNECTIONS ?= 8
 REAL_NOTE_MIN_BASS ?= 100
 REAL_NOTE_MIN_GUITAR ?= 300
 REAL_NOTE_MIN_PIANO ?= 1000
@@ -500,7 +502,7 @@ $(TINYSOL_ARCHIVE): FORCE | $(BUILD_DIR)
 	mkdir -p "$(TINYSOL_SOURCE_DIR)"
 	if [ -s "$(TINYSOL_ARCHIVE)" ] && ! $(PYTHON) -m zipfile -t "$(TINYSOL_ARCHIVE)" >/dev/null 2>&1; then mv -f "$(TINYSOL_ARCHIVE)" "$(TINYSOL_ARCHIVE).part"; fi
 	if [ ! -s "$(TINYSOL_ARCHIVE)" ] && [ -s "$(TINYSOL_ARCHIVE).part" ] && $(PYTHON) -m zipfile -t "$(TINYSOL_ARCHIVE).part" >/dev/null 2>&1; then mv "$(TINYSOL_ARCHIVE).part" "$(TINYSOL_ARCHIVE)"; fi
-	if [ ! -s "$(TINYSOL_ARCHIVE)" ]; then curl -fL -C - -o "$(TINYSOL_ARCHIVE).part" "$(TINYSOL_ARCHIVE_URL)"; fi
+	if [ ! -s "$(TINYSOL_ARCHIVE)" ]; then if command -v "$(ARIA2C)" >/dev/null 2>&1; then "$(ARIA2C)" -c -x "$(TINYSOL_DOWNLOAD_CONNECTIONS)" -s "$(TINYSOL_DOWNLOAD_CONNECTIONS)" -k 1M --file-allocation=none --allow-overwrite=true --auto-file-renaming=false --dir "$(TINYSOL_SOURCE_DIR)" --out "TinySOL.zip.part" "$(TINYSOL_ARCHIVE_URL)"; else curl -fL -C - -o "$(TINYSOL_ARCHIVE).part" "$(TINYSOL_ARCHIVE_URL)"; fi; fi
 	if [ ! -s "$(TINYSOL_ARCHIVE)" ]; then $(PYTHON) -m zipfile -t "$(TINYSOL_ARCHIVE).part" >/dev/null && mv "$(TINYSOL_ARCHIVE).part" "$(TINYSOL_ARCHIVE)"; fi
 	$(PYTHON) -m zipfile -t "$(TINYSOL_ARCHIVE)" >/dev/null
 
