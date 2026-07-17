@@ -18,7 +18,7 @@ EXCLUDE_RE = re.compile(r"(break|loop|groove|pattern|beat|fill|construction|song
 
 
 class Candidate:
-    def __init__(self, category, kind, path, original_name, duration, source_label, member_name=None):
+    def __init__(self, category, kind, path, original_name, duration, source_label, member_name=None, data=None):
         self.category = category
         self.kind = kind
         self.path = path
@@ -26,6 +26,7 @@ class Candidate:
         self.duration = duration
         self.source_label = source_label
         self.member_name = member_name
+        self.data = data
 
 
 def sanitize_name(text):
@@ -118,7 +119,7 @@ def collect_plain_wavs(source):
         yield Candidate(category, "plain", path, path.name, duration, str(path))
 
 
-def collect_zip_wavs(source):
+def collect_zip_wavs(source, retain_data=False):
     for archive in sorted(source.rglob("*.zip")):
         try:
             with zipfile.ZipFile(archive) as zf:
@@ -133,12 +134,13 @@ def collect_zip_wavs(source):
                     if not one_shot_duration(duration):
                         continue
                     yield Candidate(category, "zip", archive, Path(info.filename).name, duration,
-                                    f"{archive}!{info.filename}", member_name=info.filename)
+                                    f"{archive}!{info.filename}", member_name=info.filename,
+                                    data=data if retain_data else None)
         except (zipfile.BadZipFile, OSError):
             continue
 
 
-def collect_rar_wavs(source, unrar):
+def collect_rar_wavs(source, unrar, retain_data=False):
     if not unrar:
         return
     for archive in sorted(source.rglob("*.rar")):
@@ -172,7 +174,8 @@ def collect_rar_wavs(source, unrar):
             if not one_shot_duration(duration):
                 continue
             yield Candidate(category, "rar", archive, Path(member_name).name, duration,
-                            f"{archive}!{member_name}", member_name=member_name)
+                            f"{archive}!{member_name}", member_name=member_name,
+                            data=data if retain_data else None)
 
 
 def ensure_dirs(output):
@@ -235,6 +238,8 @@ def select_candidates(candidates, limit_per_category):
 
 
 def candidate_data(candidate, unrar=None):
+    if candidate.data is not None:
+        return candidate.data
     if candidate.kind == "plain":
         return None
     if candidate.kind == "zip":
@@ -259,6 +264,7 @@ def copy_candidate(candidate, output, counts, manifest, unrar=None):
         shutil.copy2(candidate.path, dest)
     else:
         dest.write_bytes(candidate_data(candidate, unrar=unrar))
+        candidate.data = None
     manifest.append((candidate.category, str(dest.relative_to(output)), f"{candidate.duration:.6f}",
                      candidate.source_label))
 
@@ -295,7 +301,7 @@ def copy_samples_first(source, output, limit_per_category, unrar=None):
         copy_candidate(candidate, output, counts, manifest, unrar=unrar)
 
     if not reached_sample_limit(counts, limit_per_category):
-        for candidate in collect_zip_wavs(source):
+        for candidate in collect_zip_wavs(source, retain_data=True):
             if reached_sample_limit(counts, limit_per_category):
                 break
             if limit_per_category > 0 and counts[candidate.category] >= limit_per_category:
@@ -303,7 +309,7 @@ def copy_samples_first(source, output, limit_per_category, unrar=None):
             copy_candidate(candidate, output, counts, manifest, unrar=unrar)
 
     if not reached_sample_limit(counts, limit_per_category):
-        for candidate in collect_rar_wavs(source, unrar):
+        for candidate in collect_rar_wavs(source, unrar, retain_data=True):
             if reached_sample_limit(counts, limit_per_category):
                 break
             if limit_per_category > 0 and counts[candidate.category] >= limit_per_category:
@@ -323,8 +329,8 @@ def copy_samples_spread(source, output, limit_per_category, unrar=None):
         counts[category] < limit_per_category for category in CATEGORIES
     )
     if needs_archives:
-        candidates.extend(collect_zip_wavs(source))
-        candidates.extend(collect_rar_wavs(source, unrar))
+        candidates.extend(collect_zip_wavs(source, retain_data=False))
+        candidates.extend(collect_rar_wavs(source, unrar, retain_data=False))
 
     selected = select_candidates(candidates, limit_per_category)
     return copy_selected_samples(selected, output, unrar=unrar)

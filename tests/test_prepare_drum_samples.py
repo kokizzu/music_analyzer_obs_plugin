@@ -69,6 +69,12 @@ def test_plain_zip_and_optional_rar_samples():
         write_wav(zip_wav, frequency=520.0)
         with zipfile.ZipFile(source / "hihat-pack.zip", "w") as archive:
             archive.write(zip_wav, zip_member)
+        retained_zip = list(prepare_drum_samples.collect_zip_wavs(source, retain_data=True))
+        if not retained_zip or retained_zip[0].data is None:
+            raise AssertionError("retain_data ZIP candidates should keep already-read archive bytes")
+        lazy_zip = list(prepare_drum_samples.collect_zip_wavs(source, retain_data=False))
+        if not lazy_zip or lazy_zip[0].data is not None:
+            raise AssertionError("non-retained ZIP candidates should not keep archive bytes")
 
         rar_source = base / "rar-src"
         rar_member = rar_source / "Snares" / "Snare 01.wav"
