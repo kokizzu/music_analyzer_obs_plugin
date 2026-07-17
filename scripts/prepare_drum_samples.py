@@ -51,7 +51,9 @@ def category_for_path(path):
         return "snare"
     if "roland tr-909 drum samples" in text and stem.startswith("st"):
         return "snare"
-    if re.search(r"hihat|hi\s*hat|hat\s*(closed|open|middle|reverse)|closed\s*hh|open\s*hh|closedhh|openhh|(^|[/ _-])hh[co]?", text):
+    if (re.search(r"hihat|hi\s*hat|hat\s*(closed|open|middle|pedal|reverse)|closed\s*hh|open\s*hh|closedhh|openhh|(^|[/ _-])hh[co]?", text) or
+            re.search(r"^(?:[0-9]{2,3}|real|room)?(?:ch|oh)[0-9]?$", stem) or
+            re.search(r"^hh[co]d?[0-9a-f]?$", stem)):
         return "hihat"
     if "roland tr-909 drum samples" in text and (stem.startswith("hhc") or stem.startswith("hho")):
         return "hihat"

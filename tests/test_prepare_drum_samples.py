@@ -141,6 +141,34 @@ def test_no_archives_mode_skips_archives():
             raise AssertionError("ZIP samples should be skipped in no-archives mode")
 
 
+def test_hihat_aliases_win_over_generic_cymbal_folder():
+    with tempfile.TemporaryDirectory() as temp:
+        base = Path(temp)
+        source = base / "source"
+        output = base / "out"
+
+        write_wav(source / "machine" / "Cymbals" / "707oh.wav", frequency=520.0)
+        write_wav(source / "machine" / "Cymbals" / "Realch1.wav", frequency=530.0)
+        write_wav(source / "machine" / "Cymbals" / "Hat Pedal.wav", frequency=540.0)
+        write_wav(source / "machine" / "Cymbals" / "CYMBAL_001.wav", frequency=650.0)
+
+        prepare_drum_samples.clean_output(output)
+        counts, manifest_path = prepare_drum_samples.copy_samples(source, output, 0, "first", unrar=None)
+        rows = rows_by_category(manifest_path)
+        hihat_sources = "\n".join(row[2] for row in rows.get("hihat", []))
+        crash_sources = "\n".join(row[2] for row in rows.get("crash", []))
+
+        if counts["hihat"] != 3:
+            raise AssertionError(f"expected three hi-hat aliases, got {counts['hihat']}:\n{hihat_sources}")
+        if counts["crash"] != 1:
+            raise AssertionError(f"expected generic cymbal to remain crash, got {counts['crash']}:\n{crash_sources}")
+        for expected in ("707oh.wav", "Realch1.wav", "Hat Pedal.wav"):
+            if expected not in hihat_sources:
+                raise AssertionError(f"expected {expected} to be labeled hihat")
+        if "CYMBAL_001.wav" not in crash_sources:
+            raise AssertionError("expected generic CYMBAL_001.wav to be labeled crash")
+
+
 def test_spread_selection_uses_later_buckets():
     with tempfile.TemporaryDirectory() as temp:
         base = Path(temp)
@@ -169,8 +197,9 @@ def main():
     test_plain_zip_and_optional_rar_samples()
     test_missing_unrar_skips_rar_without_failing()
     test_no_archives_mode_skips_archives()
+    test_hihat_aliases_win_over_generic_cymbal_folder()
     test_spread_selection_uses_later_buckets()
-    print("test_prepare_drum_samples: 4 checks passed")
+    print("test_prepare_drum_samples: 5 checks passed")
     return 0
 
 
