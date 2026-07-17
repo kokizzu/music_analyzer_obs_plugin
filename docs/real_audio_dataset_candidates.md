@@ -1,6 +1,6 @@
 # Real Audio Dataset Candidates
 
-Last checked: 2026-07-14.
+Last checked: 2026-07-18.
 
 This project needs real recorded audio for stronger tests. The strict target is:
 
@@ -81,8 +81,8 @@ not provide clean per-instrument audio stems for each mixture.
 | [MAESTRO](https://magenta.tensorflow.org/datasets/maestro) | Keyboard row, sustain, and chord tests with optional `make test-real-maestro-20` analyzer gate | 1,276 real Disklavier piano performances, 198.7 hours, paired WAV/MIDI with about 3 ms alignment, official metadata CSV/JSON, and over 7M note labels. Single instrument only. |
 | [PianoVAM](https://arxiv.org/abs/2509.08800) | Keyboard row, fingering/hand plausibility | Piano audio, MIDI, video, hand landmarks, and fingering labels. Single instrument only. |
 | [GuitarSet](https://guitarset.weebly.com/) | Guitar fretboard tests with optional `make inspect-real-guitarset` preflight and `make test-real-guitarset-20` analyzer gate | 360 live guitar excerpts with hexaphonic pickup, per-string audio, microphone audio, JAMS MIDI-note/fret/chord annotations, and Zenodo download at [10.5281/zenodo.3371780](https://zenodo.org/records/3371780). Single instrument only. |
-| [Guitar-TECHS](https://arxiv.org/abs/2501.03720) | Electric guitar notes, chords, scales, techniques | Over 5 hours, DI/mic/amp perspectives, synchronized six-track MIDI labels. Single instrument only. |
-| [GAPS](https://arxiv.org/abs/2408.08653) | Classical guitar note/fretboard tests | 14 hours of real guitar audio with high-resolution note-level MIDI alignments. Single instrument only. |
+| [Guitar-TECHS](https://guitar-techs.github.io/) | Electric guitar notes, chords, scales, techniques | 3,732 recordings across single notes, techniques, chords, scales, and excerpts; DI, amp-mic, egocentric, and exocentric perspectives; synchronized per-string MIDI labels; Zenodo download at [10.5281/zenodo.14963133](https://zenodo.org/records/14963133). Single instrument only and multi-GB, so it should become an explicit focused guitar gate rather than part of normal smoke tests. |
+| [GAPS](https://huggingface.co/datasets/xavriley/GAPS) | Classical guitar note/fretboard tests | 300 solo guitar performances, about 14 hours, with audio, MIDI, MusicXML, sync points, metadata, and high-resolution note-level MIDI alignments. Single instrument only and large, so it should become an explicit focused guitar gate. |
 | [GOAT](https://arxiv.org/abs/2509.22655) | Electric guitar tablature/fret checks | 5.9 hours of DI electric guitar plus tablature/symbolic labels and augmented tones. Single instrument only. |
 | [E-GMD](https://magenta.tensorflow.org/datasets/e-gmd) | Drum hit and velocity tests with optional `make test-real-egmd-20` analyzer gate | 45,537 paired drum WAV/MIDI recordings, 444.5 hours, 43 drum kits, human velocity annotations, and about 2 ms audio/MIDI alignment. Drum-only. |
 
@@ -384,6 +384,7 @@ without additional annotation.
   Quintet are represented together by `make test-direct-fit-small-fixture`
   while real access/layout automation remains a future add-on.
 - Single-instrument datasets should drive focused checks: GuitarSet now has a
-  local preflight, MAESTRO now has a local analyzer gate, E-GMD now has a local
-  drum analyzer gate, Guitar-TECHS/GAPS are next guitar add-ons, and PianoVAM is
-  a keyboard add-on.
+  local preflight and downloaded mono-mic analyzer gate, MAESTRO now has a local
+  analyzer gate, E-GMD now has a local drum analyzer gate, and Guitar-TECHS/GAPS
+  are the next best focused guitar add-ons because they add real electric and
+  classical guitar audio with aligned symbolic labels.

@@ -1,5 +1,5 @@
 {
-  "last_checked": "2026-07-14",
+  "last_checked": "2026-07-18",
   "criteria": {
     "direct_fit": [
       "real, non-MIDI-rendered audio",
@@ -269,29 +269,35 @@
       "id": "guitar_techs",
       "name": "Guitar-TECHS",
       "category": "single_instrument_truth",
-      "piece_count": 0,
+      "piece_count": 3732,
       "real_audio": true,
       "isolated_sources": false,
       "assembled_mix": false,
       "aligned_symbolic_truth": true,
-      "truth": "synchronized MIDI labels for guitar performances",
+      "truth": "synchronized per-string MIDI labels for electric-guitar single notes, techniques, chords, scales, and musical excerpts",
       "automation_target": "",
-      "source_url": "https://arxiv.org/abs/2501.03720",
-      "evidence": "Paper describes electric guitar recordings from several hardware perspectives with synchronized MIDI labels."
+      "source_url": "https://guitar-techs.github.io/",
+      "documentation_url": "https://arxiv.org/abs/2501.03720",
+      "download_url": "https://zenodo.org/records/14963133",
+      "download_note": "Zenodo hosts separate multi-GB archives for single notes, techniques, chords, scales, and musical excerpts. This is a good future focused guitar gate, but not a normal smoke-test download.",
+      "evidence": "Official project and Zenodo pages describe 3,732 electric-guitar recordings across single notes, techniques, chords, scales, and excerpts, captured from DI, amplifier microphone, egocentric, and exocentric perspectives with synchronized MIDI labels."
     },
     {
       "id": "gaps",
       "name": "GAPS",
       "category": "single_instrument_truth",
-      "piece_count": 0,
+      "piece_count": 300,
       "real_audio": true,
       "isolated_sources": false,
       "assembled_mix": false,
       "aligned_symbolic_truth": true,
       "truth": "high-resolution note-level MIDI alignments",
       "automation_target": "",
-      "source_url": "https://arxiv.org/abs/2408.08653",
-      "evidence": "Paper describes 14 hours of classical guitar audio-score aligned pairs with note-level MIDI alignments."
+      "source_url": "https://huggingface.co/datasets/xavriley/GAPS",
+      "documentation_url": "https://arxiv.org/abs/2408.08653",
+      "download_url": "https://huggingface.co/datasets/xavriley/GAPS/tree/main",
+      "download_note": "Hugging Face hosts audio, MIDI, MusicXML, sync-point, and metadata folders. The full repository is large enough to keep it as an explicit future focused guitar gate.",
+      "evidence": "Dataset card and paper describe 300 solo classical-guitar performances, about 14 hours of real audio, audio-score aligned pairs, and high-resolution note-level MIDI alignments."
     },
     {
       "id": "e_gmd",

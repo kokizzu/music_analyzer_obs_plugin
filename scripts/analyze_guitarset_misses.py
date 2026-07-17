@@ -98,6 +98,43 @@ def note_list(pitch_classes: set[int]) -> str:
     return ",".join(PC_TO_NOTE[pitch_class] for pitch_class in sorted(pitch_classes)) or "--"
 
 
+def miss_bucket(
+    expected_labels: list[str],
+    detected_labels: list[str],
+    guitar_pitch_classes: set[int],
+    full_tone_label: str | None,
+) -> str:
+    if not guitar_pitch_classes:
+        return "no_guitar_notes"
+
+    expected_roots = {root(label) for label in expected_labels}
+    detected_roots = {root(label) for label in detected_labels}
+    if full_tone_label is not None:
+        if root(full_tone_label) in detected_roots:
+            return "full_tones_present_same_root_wrong_quality"
+        if detected_labels:
+            return "full_tones_present_root_shift"
+        return "full_tones_present_no_chord"
+
+    if expected_roots & detected_roots:
+        return "same_root_but_expected_tones_missing"
+    if detected_labels:
+        return "root_shift_or_spurious_chord"
+    return "expected_tones_missing_no_chord"
+
+
+def coverage_bucket(coverage: float) -> str:
+    if coverage >= 1.0:
+        return "100%"
+    if coverage >= 0.75:
+        return "75-99%"
+    if coverage >= 0.50:
+        return "50-74%"
+    if coverage > 0.0:
+        return "1-49%"
+    return "0%"
+
+
 def main() -> int:
     path = sys.argv[1] if len(sys.argv) > 1 else "build/guitarset_verbose.log"
     misses = []
@@ -117,6 +154,9 @@ def main() -> int:
     full_tone_miss_pairs: collections.Counter[tuple[str, str]] = collections.Counter()
     plain_to_power = []
     plain_to_power_third_state: collections.Counter[str] = collections.Counter()
+    bucket_counts: collections.Counter[str] = collections.Counter()
+    bucket_by_quality: collections.Counter[tuple[str, str]] = collections.Counter()
+    coverage_buckets: collections.Counter[str] = collections.Counter()
     has_grid_diagnostics = False
 
     for opportunity, _global, _key, guitar, _other, _expected_pc, guitar_pc, _guitar_cells in misses:
@@ -139,6 +179,7 @@ def main() -> int:
                         same_root_label_pairs[(expected_label, detected_label)] += 1
 
         guitar_pitch_classes = parse_pitch_classes(guitar_pc)
+        full_tone_label = None
         if guitar_pc is not None:
             has_grid_diagnostics = True
             best_coverage = 0.0
@@ -151,6 +192,8 @@ def main() -> int:
                 coverage = len(present) / len(expected_pitch_classes)
                 if expected_pitch_classes <= guitar_pitch_classes and expected_label not in detected:
                     full_tone_miss_pairs[(expected_label, guitar)] += 1
+                    if full_tone_label is None:
+                        full_tone_label = expected_label
                 if coverage > best_coverage:
                     best_coverage = coverage
                     best_missing = expected_pitch_classes - guitar_pitch_classes
@@ -158,10 +201,16 @@ def main() -> int:
                     full_expected_tones_by_quality[expected_quality] += 1
                     best_coverage = 1.0
                     best_missing = set()
+                    if full_tone_label is None:
+                        full_tone_label = expected_label
                     break
             expected_tone_coverage_sum[expected_quality] += best_coverage
+            coverage_buckets[coverage_bucket(best_coverage)] += 1
             if best_missing:
                 missing_tone_sets[(expected_quality, note_list(best_missing))] += 1
+        bucket = miss_bucket(expected, detected, guitar_pitch_classes, full_tone_label)
+        bucket_counts[bucket] += 1
+        bucket_by_quality[(bucket, expected_quality)] += 1
 
         for expected_label in expected:
             if not plain_major_minor(expected_label):
@@ -203,6 +252,15 @@ def main() -> int:
     for (expected_label, detected_label), value in same_root_label_pairs.most_common(30):
         print(f"{value} {expected_label} => {detected_label}")
     if has_grid_diagnostics:
+        print("miss buckets")
+        for key, value in bucket_counts.most_common():
+            print(f"{value} {key}")
+        print("coverage buckets")
+        for key in ("100%", "75-99%", "50-74%", "1-49%", "0%"):
+            print(f"{coverage_buckets[key]} {key}")
+        print("top miss buckets by quality")
+        for (bucket, expected_quality), value in bucket_by_quality.most_common(30):
+            print(f"{value} {bucket} {expected_quality}")
         print("expected tones present in guitar grid")
         for key, total in by_expected_quality.most_common(20):
             full = full_expected_tones_by_quality[key]
