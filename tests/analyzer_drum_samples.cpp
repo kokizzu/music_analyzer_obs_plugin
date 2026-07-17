@@ -205,6 +205,13 @@ const char *category_name(std::size_t index)
 	return index < mao::kDrumCount ? kNames[index] : "unknown";
 }
 
+const char *category_env_name(std::size_t index)
+{
+	static constexpr const char *kNames[mao::kDrumCount] = {"KICK", "SNARE", "HIHAT", "CRASH",
+								"TOM", "RIDE", "RIM"};
+	return index < mao::kDrumCount ? kNames[index] : "UNKNOWN";
+}
+
 bool category_index(const std::string &category, std::size_t &index)
 {
 	for (std::size_t i = 0; i < mao::kDrumCount; ++i) {
@@ -391,6 +398,13 @@ int main()
 					     " samples, got " + std::to_string(totals[i]));
 		const int recall100 = totals[i] > 0 ? hits100[i] * 100 / totals[i] : 0;
 		const int precision100 = active100[i] > 0 ? hits100[i] * 100 / active100[i] : 0;
+		char max_false_env[96] = {};
+		std::snprintf(max_false_env, sizeof(max_false_env),
+			      "MUSIC_ANALYZER_DRUM_SAMPLE_MAX_%s_FALSE_PERCENT", category_env_name(i));
+		const int max_false_percent = resolve_percent_env(max_false_env, 100);
+		const int non_category_total = std::max(0, usable - totals[i]);
+		const int false_percent =
+			non_category_total > 0 ? false100[i] * 100 / non_category_total : 0;
 		runner.expect(recall100 >= min_recall_percent,
 			      std::string("expected 100ms ") + category_name(i) + " recall >= " +
 				      std::to_string(min_recall_percent) + "%, got " + std::to_string(recall100) +
@@ -403,6 +417,11 @@ int main()
 					      "/" + std::to_string(active100[i]) + ", false " +
 					      std::to_string(false100[i]) + ")");
 		}
+		runner.expect(false_percent <= max_false_percent,
+			      std::string("expected 100ms ") + category_name(i) + " false activations <= " +
+				      std::to_string(max_false_percent) + "%, got " +
+				      std::to_string(false_percent) + "% (" + std::to_string(false100[i]) +
+				      "/" + std::to_string(non_category_total) + ")");
 	}
 
 	std::printf("analyzer_drum_samples: active matrix");

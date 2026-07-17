@@ -3898,6 +3898,7 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 	const float tom_body = drum_segment_peaks[1] * 0.22f + drum_segment_peaks[2] + drum_segment_peaks[3] +
 			       drum_segment_peaks[4] + drum_segment_peaks[5] * 0.55f +
 			       drum_segment_peaks[6] * 0.55f;
+	const float upper_tom_body = drum_segment_peaks[5] * 0.85f + drum_segment_peaks[6];
 	const bool kick_energy_shape = kick_body > 1.0e-6f && snapshot.low_energy >= 0.15f;
 	const bool kick_soft_low_shape = drum_transient && snapshot.low_energy >= 0.08f &&
 					 drum_segment_bands[Kick] >= strongest_shell_drum * 0.10f &&
@@ -3991,10 +3992,11 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 		drum_segment_bands[HiHat] >= strongest_cymbal_drum * 0.42f;
 	const bool tom_side_shape =
 		body_shape_allowed && tom_shape &&
-		drum_segment_bands[Tom] >= strongest_body_drum * 0.30f &&
-		tom_body >= kick_body * 0.70f &&
-		tom_body >= snare_body * 0.95f &&
-		kick_body < tom_body * 0.95f;
+		drum_segment_bands[Tom] >= strongest_body_drum * 0.36f &&
+		tom_body >= kick_body * 0.90f &&
+		(tom_body >= snare_body * 1.00f ||
+		 (upper_tom_body >= kick_body * 0.45f && upper_tom_body >= snare_crack * 0.85f)) &&
+		kick_body < tom_body * 0.90f;
 	const std::array<bool, kDrumCount> drum_shape_supported = {
 		body_shape_allowed && kick_body_shape_supported && kick_shape,
 		body_shape_allowed && (body_shape == Snare || snare_side_shape) && snare_shape,
