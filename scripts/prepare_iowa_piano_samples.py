@@ -64,27 +64,44 @@ def escape_url(url):
     )
 
 
-def download_file(curl, url, path, timeout_seconds):
+def download_file(curl, url, path, timeout_seconds, retries):
     if path.is_file() and path.stat().st_size > 0:
         return
     path.parent.mkdir(parents=True, exist_ok=True)
     partial_path = path.with_suffix(path.suffix + ".part")
-    run([
-        curl,
-        "-L",
-        "--fail",
-        "--show-error",
-        "--silent",
-        "--connect-timeout",
-        "20",
-        "--max-time",
-        str(timeout_seconds),
-        "-C",
-        "-",
-        "-o",
-        str(partial_path),
-        url,
-    ], timeout_seconds=timeout_seconds + 30)
+    last_exc = None
+    for attempt in range(max(1, retries + 1)):
+        try:
+            run([
+                curl,
+                "-L",
+                "--fail",
+                "--show-error",
+                "--silent",
+                "--connect-timeout",
+                "20",
+                "--max-time",
+                str(timeout_seconds),
+                "-C",
+                "-",
+                "-o",
+                str(partial_path),
+                url,
+            ], timeout_seconds=timeout_seconds + 30)
+            break
+        except (subprocess.CalledProcessError, subprocess.TimeoutExpired) as exc:
+            last_exc = exc
+            if attempt >= retries:
+                raise
+            size = partial_path.stat().st_size if partial_path.exists() else 0
+            print(
+                f"prepare_iowa_piano_samples: retrying {path.name} after partial download "
+                f"({size} bytes, attempt {attempt + 1}/{retries + 1})",
+                file=sys.stderr,
+            )
+    else:
+        if last_exc:
+            raise last_exc
     partial_path.replace(path)
 
 
@@ -145,16 +162,16 @@ def fallback_samples(file_base_url):
     return rows
 
 
-def discover_samples(curl, page_url, file_base_url, source_dir, timeout_seconds, refresh):
+def discover_samples(curl, page_url, file_base_url, source_dir, timeout_seconds, retries, refresh):
     page_path = source_dir / "MISpiano.html"
     try:
         if refresh and page_path.exists():
             page_path.unlink()
-        download_file(curl, escape_url(page_url), page_path, timeout_seconds)
+        download_file(curl, escape_url(page_url), page_path, timeout_seconds, retries)
         rows = discover_samples_from_page(page_url, page_path.read_text(encoding="utf-8", errors="replace"))
         if rows:
             return rows
-    except (subprocess.CalledProcessError, OSError) as exc:
+    except (subprocess.CalledProcessError, subprocess.TimeoutExpired, OSError) as exc:
         print(f"prepare_iowa_piano_samples: page discovery failed, using URL-pattern fallback: {exc}",
               file=sys.stderr)
     return fallback_samples(file_base_url)
@@ -249,6 +266,8 @@ def main(argv=None):
     parser.add_argument("--curl", default=os.environ.get("CURL", "curl"))
     parser.add_argument("--download-timeout", type=int,
                         default=int(os.environ.get("IOWA_PIANO_DOWNLOAD_TIMEOUT", "240")))
+    parser.add_argument("--download-retries", type=int,
+                        default=int(os.environ.get("IOWA_PIANO_DOWNLOAD_RETRIES", "4")))
     parser.add_argument("--min-samples", type=int, default=int(os.environ.get("IOWA_PIANO_MIN_SAMPLES", "0")))
     parser.add_argument("--refresh", action="store_true", default=os.environ.get("IOWA_PIANO_REFRESH") == "1")
     args = parser.parse_args(argv)
@@ -265,7 +284,8 @@ def main(argv=None):
         return
 
     rows = limited_rows(
-        discover_samples(curl, args.page_url, args.file_base_url, source_dir, args.download_timeout, args.refresh),
+        discover_samples(curl, args.page_url, args.file_base_url, source_dir, args.download_timeout,
+                         max(0, args.download_retries), args.refresh),
         args.limit,
     )
     if not rows:
@@ -285,7 +305,7 @@ def main(argv=None):
                 file=sys.stderr,
                 flush=True,
             )
-            download_file(curl, row["url"], raw_path, args.download_timeout)
+            download_file(curl, row["url"], raw_path, args.download_timeout, max(0, args.download_retries))
             convert_aiff(ffmpeg, raw_path, wav_path)
         except (urllib.error.URLError, subprocess.CalledProcessError, subprocess.TimeoutExpired, OSError) as exc:
             skipped.append((row["filename"], str(exc)))
