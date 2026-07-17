@@ -398,6 +398,10 @@ int main()
 					     " samples, got " + std::to_string(totals[i]));
 		const int recall100 = totals[i] > 0 ? hits100[i] * 100 / totals[i] : 0;
 		const int precision100 = active100[i] > 0 ? hits100[i] * 100 / active100[i] : 0;
+		char min_recall_env[96] = {};
+		std::snprintf(min_recall_env, sizeof(min_recall_env),
+			      "MUSIC_ANALYZER_DRUM_SAMPLE_MIN_%s_RECALL_PERCENT", category_env_name(i));
+		const int category_min_recall_percent = resolve_percent_env(min_recall_env, min_recall_percent);
 		char max_false_env[96] = {};
 		std::snprintf(max_false_env, sizeof(max_false_env),
 			      "MUSIC_ANALYZER_DRUM_SAMPLE_MAX_%s_FALSE_PERCENT", category_env_name(i));
@@ -405,10 +409,11 @@ int main()
 		const int non_category_total = std::max(0, usable - totals[i]);
 		const int false_percent =
 			non_category_total > 0 ? false100[i] * 100 / non_category_total : 0;
-		runner.expect(recall100 >= min_recall_percent,
+		runner.expect(recall100 >= category_min_recall_percent,
 			      std::string("expected 100ms ") + category_name(i) + " recall >= " +
-				      std::to_string(min_recall_percent) + "%, got " + std::to_string(recall100) +
-				      "% (" + std::to_string(hits100[i]) + "/" + std::to_string(totals[i]) + ")");
+				      std::to_string(category_min_recall_percent) + "%, got " +
+				      std::to_string(recall100) + "% (" + std::to_string(hits100[i]) + "/" +
+				      std::to_string(totals[i]) + ")");
 		if (min_precision_percent > 0) {
 			runner.expect(precision100 >= min_precision_percent,
 				      std::string("expected 100ms ") + category_name(i) + " precision >= " +

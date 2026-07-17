@@ -3963,9 +3963,9 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 		snare_crack >= snare_body * 0.035f;
 	const bool rim_side_shape =
 		body_shape_allowed && rim_shape &&
-		drum_segment_bands[Rim] >= std::max(drum_segment_bands[Kick], drum_segment_bands[Tom]) * 0.54f &&
-		drum_segment_bands[Rim] >= strongest_body_drum * 0.42f &&
-		rim_body >= snare_body * 0.55f;
+		drum_segment_bands[Rim] >= std::max(drum_segment_bands[Kick], drum_segment_bands[Tom]) * 0.47f &&
+		drum_segment_bands[Rim] >= strongest_body_drum * 0.38f &&
+		rim_body >= snare_body * 0.50f;
 	const bool kick_low_dominant_body =
 		snapshot.low_energy >= 0.28f &&
 		snapshot.low_energy >= snapshot.mid_energy * 1.25f &&
