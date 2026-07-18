@@ -4542,13 +4542,13 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 		drum_segment_bands[HiHat] >= strongest_cymbal_drum * 0.42f;
 	const bool tom_side_shape =
 		body_shape_allowed && tom_shape &&
-		drum_segment_bands[Tom] >= strongest_body_drum * 0.36f &&
-		tom_body >= kick_body * 0.90f &&
-		(tom_body >= snare_body * 1.00f ||
-		 (upper_tom_body >= kick_body * 0.45f && upper_tom_body >= snare_crack * 0.85f)) &&
-		kick_body < tom_body * 0.90f;
-	const bool tom_primary_shape = body_shape == Tom && tom_body >= kick_body * 1.05f &&
-				       tom_body >= snare_body * 1.00f;
+		drum_segment_bands[Tom] >= strongest_body_drum * 0.45f &&
+		tom_body >= kick_body * 1.00f &&
+		(tom_body >= snare_body * 1.14f ||
+		 (upper_tom_body >= kick_body * 0.55f && upper_tom_body >= snare_crack * 1.20f)) &&
+		kick_body < tom_body * 0.82f;
+	const bool tom_primary_shape = body_shape == Tom && tom_body >= kick_body * 1.12f &&
+				       tom_body >= snare_body * 1.14f;
 	const std::array<bool, kDrumCount> drum_shape_supported = {
 		body_shape_allowed && kick_body_shape_supported && kick_shape,
 		body_shape_allowed && (body_shape == Snare || snare_side_shape) && snare_shape,
@@ -4647,10 +4647,10 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 			had_previous_audio && cymbal && base_shape_supported && cymbal_family_evidence &&
 			strongest_cymbal_drum >= strongest_body_drum * 0.10f;
 		const float threshold_scale = (soft_cymbal_transient || quiet_cymbal_shape) ? 0.26f :
-					      soft_kick_transient ? 0.25f :
+					      soft_kick_transient ? 0.32f :
 					      soft_snare_transient ? 0.30f :
 					      soft_rim_transient ? 0.24f :
-					      soft_tom_transient ? 0.34f :
+					      soft_tom_transient ? 0.44f :
 								     1.0f;
 		const float effective_threshold = trigger_threshold * threshold_scale;
 		snapshot.drum_debug_trigger_scores[i] = score;

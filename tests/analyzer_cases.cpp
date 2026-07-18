@@ -3057,6 +3057,10 @@ void check_soft_drum_transient_stream(Runner &runner)
 		      "soft drum transient stream: expected snare active, snare " +
 			      std::to_string(snapshot.drums[mao::Snare].level) + " tom " +
 			      std::to_string(snapshot.drums[mao::Tom].level));
+	runner.expect(snapshot.drums[mao::Snare].level >= snapshot.drums[mao::Tom].level + 0.02f,
+		      "soft drum transient stream: expected snare to outrank tom, snare " +
+			      std::to_string(snapshot.drums[mao::Snare].level) + " tom " +
+			      std::to_string(snapshot.drums[mao::Tom].level));
 
 	for (int i = 0; i < 4; ++i)
 		snapshot = engine.analyze(background.data(), background.size(), settings, "Mic/Aux", 0);
