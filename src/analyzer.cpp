@@ -4400,6 +4400,9 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 		drum_segment_peaks[8] * 0.50f + drum_segment_peaks[9] * 0.30f;
 	const float snare_crack = drum_segment_peaks[8] + drum_segment_peaks[9];
 	const float rim_body = drum_segment_peaks[7] * 0.70f + drum_segment_peaks[8] + drum_segment_peaks[9] * 0.70f;
+	const float rim_low_mid_body =
+		drum_segment_peaks[6] * 0.22f + drum_segment_peaks[7] +
+		drum_segment_peaks[8] * 0.72f + drum_segment_peaks[9] * 0.32f;
 	const float tom_body = drum_segment_peaks[1] * 0.22f + drum_segment_peaks[2] + drum_segment_peaks[3] +
 			       drum_segment_peaks[4] + drum_segment_peaks[5] * 0.55f +
 			       drum_segment_peaks[6] * 0.55f;
@@ -4484,6 +4487,15 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 		drum_segment_bands[Rim] >= std::max(drum_segment_bands[Kick], drum_segment_bands[Tom]) * 0.30f &&
 		drum_segment_bands[Rim] >= strongest_body_drum * 0.20f &&
 		rim_body >= snare_body * 0.30f;
+	const float rim_competing_shell_body = std::max(snare_body, tom_body);
+	const bool rim_embedded_side_stick_shape =
+		body_shape_allowed && rim_competing_shell_body > 0.0f &&
+		drum_segment_bands[Rim] >= strongest_body_drum * 0.10f &&
+		rim_low_mid_body >= rim_competing_shell_body * 0.24f &&
+		rim_low_mid_body >= kick_body * 0.18f &&
+		rim_body >= snare_body * 0.20f && rim_body >= tom_body * 0.16f &&
+		kick_body < rim_competing_shell_body * 1.05f &&
+		(strongest_cymbal_drum <= 1.0e-6f || strongest_cymbal_drum <= strongest_body_drum * 0.045f);
 	const bool kick_low_dominant_body =
 		snapshot.low_energy >= 0.28f &&
 		snapshot.low_energy >= snapshot.mid_energy * 1.25f &&
@@ -4557,7 +4569,8 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 		cymbal_shape_allowed && (cymbal_shape == Crash || crash_family_shape),
 		body_shape_allowed && (tom_primary_shape || tom_side_shape) && tom_shape,
 		cymbal_shape_allowed && (cymbal_shape == Ride || ride_family_shape),
-		body_shape_allowed && rim_side_shape && rim_shape,
+		body_shape_allowed && (rim_side_shape || rim_embedded_side_stick_shape) &&
+			(rim_shape || rim_embedded_side_stick_shape),
 	};
 	snapshot.drum_debug_bands = drum_bands;
 	snapshot.drum_debug_segment_bands = drum_segment_bands;
@@ -4668,15 +4681,21 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 										      1.0f;
 				level *= scale;
 			}
-			if (rim && rim_primary_evidence) {
-				const float shell_ratio = std::clamp(
-					rim_shape_score / (strongest_shell_shape_score + 1.0e-6f), 0.0f, 1.35f);
-				const float cymbal_ratio = strongest_cymbal_drum > 1.0e-6f ?
-					std::clamp(drum_segment_bands[Rim] / strongest_cymbal_drum, 0.0f, 1.0f) :
-					1.0f;
-				const float rim_level_bias =
-					1.05f + shell_ratio * 0.08f + cymbal_ratio * 0.04f;
-				level = std::clamp(level * rim_level_bias + 0.015f, 0.0f, 1.0f);
+			if (rim) {
+				if (rim_primary_evidence) {
+					const float shell_ratio = std::clamp(
+						rim_shape_score / (strongest_shell_shape_score + 1.0e-6f),
+						0.0f, 1.35f);
+					const float cymbal_ratio = strongest_cymbal_drum > 1.0e-6f ?
+						std::clamp(drum_segment_bands[Rim] / strongest_cymbal_drum,
+							   0.0f, 1.0f) :
+						1.0f;
+					const float rim_level_bias =
+						1.05f + shell_ratio * 0.08f + cymbal_ratio * 0.04f;
+					level = std::clamp(level * rim_level_bias + 0.015f, 0.0f, 1.0f);
+				} else if (rim_embedded_side_stick_shape && !rim_side_shape) {
+					level = std::min(level, 0.46f);
+				}
 			}
 			drum_level_[i] = std::max(drum_level_[i], level);
 			tempo_event = true;

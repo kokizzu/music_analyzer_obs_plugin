@@ -3077,6 +3077,34 @@ void check_soft_drum_transient_stream(Runner &runner)
 			      std::to_string(snapshot.drums[mao::Ride].level));
 }
 
+void check_embedded_rim_side_stick_transient(Runner &runner)
+{
+	mao::AnalysisEngine engine;
+	mao::AnalysisSettings settings = mao_test::default_settings();
+	settings.analysis_interval_seconds = 0.05f;
+	mao_test::Buffer background = mao_test::make_midi_notes({60, 64, 67}, 0.018f);
+	mao::AnalysisSnapshot snapshot = {};
+
+	for (int i = 0; i < 6; ++i)
+		snapshot = engine.analyze(background.data(), background.size(), settings, "Mic/Aux", 0);
+
+	mao_test::Buffer rim = background;
+	add_decayed_sine(rim, 160.0f, 0.045f, 1400);
+	add_decayed_sine(rim, 220.0f, 0.040f, 1150);
+	add_decayed_sine(rim, 650.0f, 0.034f, 520);
+	add_decayed_sine(rim, 1100.0f, 0.064f, 430);
+	add_decayed_sine(rim, 2200.0f, 0.024f, 360);
+	snapshot = engine.analyze(rim.data(), rim.size(), settings, "Mic/Aux", 0);
+	runner.expect(snapshot.drums[mao::Rim].active,
+		      "embedded rim side-stick transient: expected rim active, rim " +
+			      std::to_string(snapshot.drums[mao::Rim].level) + " snare " +
+			      std::to_string(snapshot.drums[mao::Snare].level) + " tom " +
+			      std::to_string(snapshot.drums[mao::Tom].level));
+	runner.expect(!snapshot.drums[mao::Kick].active,
+		      "embedded rim side-stick transient: expected no kick false positive, kick " +
+			      std::to_string(snapshot.drums[mao::Kick].level));
+}
+
 void check_high_crash_probe_counts_as_high_energy(Runner &runner)
 {
 	mao_test::Buffer buffer = {};
@@ -3583,6 +3611,7 @@ int main()
 	check_dense_multi_instrument_mix(runner);
 	check_live_mic_aux_stream_low_parts(runner);
 	check_soft_drum_transient_stream(runner);
+	check_embedded_rim_side_stick_transient(runner);
 	check_high_crash_probe_counts_as_high_energy(runner);
 	check_strong_drum_levels_keep_headroom(runner);
 	check_upbeat_mix_drums_and_chords(runner);
