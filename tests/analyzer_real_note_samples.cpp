@@ -9,6 +9,7 @@
 #include <cstdlib>
 #include <cstring>
 #include <fstream>
+#include <map>
 #include <sstream>
 #include <string>
 #include <vector>
@@ -57,6 +58,11 @@ struct SampleRow {
 	int midi = 0;
 	std::string note;
 	std::string path;
+};
+
+struct SourceStats {
+	int total = 0;
+	int hits = 0;
 };
 
 uint16_t read_u16(std::ifstream &file)
@@ -378,6 +384,55 @@ int family_index(const std::string &family)
 	return 4;
 }
 
+std::string source_summary_key(const SampleRow &row)
+{
+	if (!row.source.empty())
+		return row.family + "/" + row.source;
+	if (!row.nsynth_family.empty())
+		return row.family + "/" + row.nsynth_family;
+	return row.family + "/unknown";
+}
+
+std::string source_summary_text(const std::map<std::string, SourceStats> &stats, int max_entries)
+{
+	struct Row {
+		std::string source;
+		int total = 0;
+		int hits = 0;
+		int misses = 0;
+	};
+	std::vector<Row> rows;
+	for (const auto &entry : stats) {
+		const int misses = entry.second.total - entry.second.hits;
+		if (misses <= 0)
+			continue;
+		rows.push_back({entry.first, entry.second.total, entry.second.hits, misses});
+	}
+	std::sort(rows.begin(), rows.end(), [](const Row &lhs, const Row &rhs) {
+		if (lhs.misses != rhs.misses)
+			return lhs.misses > rhs.misses;
+		if (lhs.total != rhs.total)
+			return lhs.total > rhs.total;
+		return lhs.source < rhs.source;
+	});
+	if (rows.empty())
+		return "";
+
+	std::string text = " source misses";
+	const int count = std::min<int>(max_entries, static_cast<int>(rows.size()));
+	for (int i = 0; i < count; ++i) {
+		text += " ";
+		text += rows[i].source;
+		text += "=";
+		text += std::to_string(rows[i].hits);
+		text += "/";
+		text += std::to_string(rows[i].total);
+	}
+	if (static_cast<int>(rows.size()) > count)
+		text += " ...";
+	return text;
+}
+
 mao::AnalysisSnapshot analyze_buffer(const mao_test::Buffer &buffer, uint32_t sample_rate,
 				     mao::AnalysisInputMode mode, const char *source, int frames = 4)
 {
@@ -445,6 +500,7 @@ int main()
 
 	std::array<int, 5> family_counts = {};
 	std::array<int, 5> family_hits = {};
+	std::map<std::string, SourceStats> source_stats;
 	int usable = 0;
 	for (const SampleRow &row : rows) {
 		std::vector<float> samples;
@@ -513,8 +569,12 @@ int main()
 
 		const int index = family_index(row.family);
 		++family_counts[index];
-		if (detected)
+		SourceStats &source_stat = source_stats[source_summary_key(row)];
+		++source_stat.total;
+		if (detected) {
 			++family_hits[index];
+			++source_stat.hits;
+		}
 	}
 
 	const std::array<int, 5> minimum_family_counts = {
@@ -533,6 +593,9 @@ int main()
 	}
 
 	if (runner.failures) {
+		const std::string source_summary = source_summary_text(source_stats, 12);
+		if (!source_summary.empty())
+			std::fprintf(stderr, "analyzer_real_note_samples:%s\n", source_summary.c_str());
 		std::fprintf(stderr,
 			     "analyzer_real_note_samples: %d/%d checks failed (usable %d, bass %d/%d, guitar "
 			     "%d/%d, piano %d/%d, vocals %d/%d, other %d/%d)\n",

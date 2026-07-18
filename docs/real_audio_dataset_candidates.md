@@ -351,7 +351,7 @@ without additional annotation.
   expression-style `NO` electric-bass note clips from the 17 real bass lines,
   and run them through the shared isolated-bass real-note gate. The current
   default prepares 640 clips across 22 note names from E1-D3 and detects
-  573/640 with 67 tolerated misses. This adds real bass-line timing, plucking,
+  625/640 with 15 tolerated misses. This adds real bass-line timing, plucking,
   and transient coverage while keeping the remaining misses visible for future
   bass-detector tuning.
 - Use `make test-idmt-guitar-samples` to download the 1.3 GB
