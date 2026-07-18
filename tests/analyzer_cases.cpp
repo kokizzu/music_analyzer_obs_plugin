@@ -701,6 +701,16 @@ void check_guitar_supported_extension_aliases(Runner &runner)
 	runner.expect(has_chord_label(low_core_snapshot.guitar_chord.label, "Cmaj7"),
 		      std::string("guitar low-core extension aliases: expected Cmaj7 alias, got `") +
 			      low_core_snapshot.guitar_chord.label + "`");
+
+	mao_test::Buffer low_root_minor_seventh = {};
+	add_harmonic_note(low_root_minor_seventh, 49, 0.075f, guitar_profile);
+	for (int midi : {52, 56, 59})
+		add_harmonic_note(low_root_minor_seventh, midi, 0.16f, guitar_profile);
+
+	const auto low_root_minor_seventh_snapshot = analyze_buffer(low_root_minor_seventh, "guitar");
+	runner.expect(has_chord_label(low_root_minor_seventh_snapshot.guitar_chord.label, "C#m7"),
+		      std::string("guitar low-root extension aliases: expected C#m7 alias, got `") +
+			      low_root_minor_seventh_snapshot.guitar_chord.label + "`");
 }
 
 void check_quiet_note_rejection(Runner &runner)
