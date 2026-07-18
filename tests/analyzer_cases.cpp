@@ -782,6 +782,28 @@ void check_guitar_supported_extension_aliases(Runner &runner)
 	expect_no_chord_label(runner, weak_third_snapshot.guitar_chord.label, "Cpow",
 			      "guitar weak-third triad power alias");
 
+	mao_test::Buffer probe_weak_third_triad = {};
+	add_harmonic_note(probe_weak_third_triad, 48, 0.24f, guitar_profile);
+	add_harmonic_note(probe_weak_third_triad, 52, 0.034f, guitar_profile);
+	add_harmonic_note(probe_weak_third_triad, 55, 0.22f, guitar_profile);
+
+	const auto probe_weak_third_snapshot = analyze_buffer(probe_weak_third_triad, "guitar");
+	runner.expect(has_chord_label(probe_weak_third_snapshot.guitar_chord.label, "C"),
+		      std::string("guitar probe-weak third triad aliases: expected C, got `") +
+			      probe_weak_third_snapshot.guitar_chord.label + "`");
+
+	mao_test::Buffer ambiguous_weak_thirds = {};
+	add_harmonic_note(ambiguous_weak_thirds, 48, 0.24f, guitar_profile);
+	add_harmonic_note(ambiguous_weak_thirds, 51, 0.034f, guitar_profile);
+	add_harmonic_note(ambiguous_weak_thirds, 52, 0.034f, guitar_profile);
+	add_harmonic_note(ambiguous_weak_thirds, 55, 0.22f, guitar_profile);
+
+	const auto ambiguous_weak_thirds_snapshot = analyze_buffer(ambiguous_weak_thirds, "guitar");
+	expect_no_chord_label(runner, ambiguous_weak_thirds_snapshot.guitar_chord.label, "C",
+			      "guitar ambiguous weak thirds major alias");
+	expect_no_chord_label(runner, ambiguous_weak_thirds_snapshot.guitar_chord.label, "Cm",
+			      "guitar ambiguous weak thirds minor alias");
+
 	mao_test::Buffer weak_dim_shape = {};
 	add_harmonic_note(weak_dim_shape, 53, 0.24f, guitar_profile);
 	add_harmonic_note(weak_dim_shape, 56, 0.24f, guitar_profile);
