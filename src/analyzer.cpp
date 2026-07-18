@@ -3064,11 +3064,11 @@ void append_guitar_power_probe_third_aliases(ChordResult &chord, const NoteGrid 
 				const float anchor =
 					std::max({root_probe, fifth_probe, std::min(root_grid, fifth_grid) * 0.50f});
 				const float third_floor =
-					std::max({strongest_probe * 0.024f, anchor * 0.065f, 0.0035f});
+					std::max({strongest_probe * 0.020f, anchor * 0.055f, 0.0028f});
 				const bool choose_minor =
-					minor_third >= third_floor && minor_third >= major_third * 1.14f;
+					minor_third >= third_floor && minor_third >= major_third * 1.10f;
 				const bool choose_major =
-					major_third >= third_floor && major_third >= minor_third * 1.14f;
+					major_third >= third_floor && major_third >= minor_third * 1.10f;
 				if (choose_minor != choose_major)
 					append_chord_alias(chord, parsed.root, choose_minor ? "m" : "");
 			}
