@@ -298,7 +298,7 @@ std::vector<mao_test::Buffer> make_sample_buffers(const std::vector<float> &samp
 		return buffers;
 
 	const std::size_t onset = first_audible_sample(samples, peak);
-	static constexpr double kOffsetsSeconds[] = {0.080, 0.180, 0.320, 0.520, 0.820, 1.200};
+	static constexpr double kOffsetsSeconds[] = {0.025, 0.080, 0.180, 0.320, 0.520, 0.820, 1.200};
 	std::size_t previous_start = samples.size();
 	for (double offset_seconds : kOffsetsSeconds) {
 		const std::size_t offset =

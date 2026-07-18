@@ -207,6 +207,36 @@ float bass_candidate_score(const std::array<float, kNoteProbeCount> &powers, int
 	return score;
 }
 
+bool correct_isolated_bass_upper_partial_alias(const std::array<float, kNoteProbeCount> &powers, int max_midi,
+					       RangeResult &result, float &second_score)
+{
+	if (result.midi < kFirstMidi || result.midi > kIsolatedBassStrongHarmonicMaxMidi || result.score <= 1.0e-6f)
+		return false;
+
+	const int upper_midi = result.midi + 19;
+	if (upper_midi > max_midi || upper_midi > kLastMidi)
+		return false;
+
+	const float lower_fundamental = probe_level(powers, result.midi);
+	const float upper_fundamental = probe_level(powers, upper_midi);
+	const float octave_support =
+		std::max(probe_level(powers, result.midi + 12), probe_level(powers, result.midi + 24) * 0.80f);
+	const float upper_score = bass_candidate_score(powers, upper_midi, true, false);
+	const bool weak_same_pitch_chain =
+		octave_support < std::max(lower_fundamental * 1.45f, upper_fundamental * 0.42f);
+	const bool upper_dominant =
+		upper_fundamental >= lower_fundamental * 2.30f && upper_fundamental >= octave_support * 2.20f;
+	const bool upper_competitive =
+		upper_score >= result.score * 0.88f || upper_fundamental >= result.score * 0.82f;
+	if (!weak_same_pitch_chain || !upper_dominant || !upper_competitive)
+		return false;
+
+	second_score = std::max(second_score, result.score);
+	result.midi = upper_midi;
+	result.score = upper_score;
+	return true;
+}
+
 float melodic_candidate_score(const std::array<float, kNoteProbeCount> &powers, int midi, bool include_harmonics)
 {
 	float score = probe_level(powers, midi);
@@ -257,6 +287,8 @@ RangeResult dominant_bass_note(const std::array<float, kNoteProbeCount> &powers,
 			result.score = lower_score;
 		}
 	}
+	if (include_harmonics && isolated_harmonic_support)
+		correct_isolated_bass_upper_partial_alias(powers, max_midi, result, second_score);
 
 	const float total_confidence = total > 1.0e-6f ? result.score / total : 0.0f;
 	const float runner_up_confidence =
@@ -341,8 +373,14 @@ RangeResult periodic_bass_note(const float *samples, std::size_t count, float me
 									      1.0f;
 	const float spectral_score = bass_candidate_score(powers, result.midi, true,
 							  isolated_harmonic_support);
+	RangeResult corrected_spectral;
+	corrected_spectral.midi = result.midi;
+	corrected_spectral.score = spectral_score;
+	float alias_second_score = 0.0f;
+	if (correct_isolated_bass_upper_partial_alias(powers, max_midi, corrected_spectral, alias_second_score))
+		result.midi = corrected_spectral.midi;
 	result.confidence = std::clamp(std::max(best_periodicity * 0.85f, margin * 0.58f), 0.0f, 1.0f);
-	result.score = spectral_score;
+	result.score = bass_candidate_score(powers, result.midi, true, isolated_harmonic_support);
 	return result;
 }
 

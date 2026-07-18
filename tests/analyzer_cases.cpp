@@ -459,6 +459,17 @@ void check_isolated_bass_periodic_fundamental_rescue(Runner &runner)
 	expect_label(runner, snapshot.bass.label, "D2", "isolated picked bass periodic fundamental");
 }
 
+void check_isolated_bass_upper_note_not_third_partial_alias(Runner &runner)
+{
+	mao_test::Buffer buffer = {};
+	mao_test::add_midi_note(buffer, 29, 0.06f);
+	mao_test::add_midi_note(buffer, 48, 0.36f);
+	mao_test::add_midi_note(buffer, 60, 0.18f);
+	const auto snapshot = analyze_buffer_with_mode_window(buffer, mao::AnalysisInputMode::IsolatedBass,
+							      "idmt-bass-lines", 0.10f);
+	expect_label(runner, snapshot.bass.label, "C3", "isolated bass upper note third-partial alias");
+}
+
 void check_full_mix_bass_conservative_switching(Runner &runner)
 {
 	mao::AnalysisEngine engine;
@@ -3472,6 +3483,7 @@ int main()
 	check_bass_notes(runner);
 	check_bass_octave_suppression(runner);
 	check_isolated_bass_periodic_fundamental_rescue(runner);
+	check_isolated_bass_upper_note_not_third_partial_alias(runner);
 	check_full_mix_bass_conservative_switching(runner);
 	check_vocal_notes(runner);
 	check_harmonic_single_notes(runner);
