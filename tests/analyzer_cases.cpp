@@ -740,6 +740,24 @@ void check_guitar_supported_extension_aliases(Runner &runner)
 	runner.expect(has_chord_label(ambiguous_root_snapshot.guitar_chord.label, "Cmaj7"),
 		      std::string("guitar related-root extension aliases: expected Cmaj7 alias, got `") +
 			      ambiguous_root_snapshot.guitar_chord.label + "`");
+
+	mao_test::Buffer noisy_power = {};
+	add_harmonic_note(noisy_power, 48, 0.24f, guitar_profile);
+	add_harmonic_note(noisy_power, 55, 0.22f, guitar_profile);
+	add_harmonic_note(noisy_power, 50, 0.09f, guitar_profile);
+
+	const auto noisy_power_snapshot = analyze_buffer(noisy_power, "guitar");
+	runner.expect(has_chord_label(noisy_power_snapshot.guitar_chord.label, "Cpow"),
+		      std::string("guitar noisy power aliases: expected Cpow alias, got `") +
+			      noisy_power_snapshot.guitar_chord.label + "`");
+
+	mao_test::Buffer full_triad = {};
+	for (int midi : {48, 52, 55})
+		add_harmonic_note(full_triad, midi, 0.24f, guitar_profile);
+
+	const auto full_triad_snapshot = analyze_buffer(full_triad, "guitar");
+	expect_no_chord_label(runner, full_triad_snapshot.guitar_chord.label, "Cpow",
+			      "guitar power aliases full triad");
 }
 
 void check_quiet_note_rejection(Runner &runner)
