@@ -64,6 +64,8 @@ constexpr float kMixedBassMinBroadScoreRatio = 0.22f;
 constexpr float kMixedBassMinConfidence = 0.025f;
 constexpr float kIsolatedBassPeriodicityFloor = 0.34f;
 constexpr float kIsolatedBassPeriodicitySpectralRatio = 0.62f;
+constexpr int kIsolatedBassStrongHarmonicMaxMidi = 40;
+constexpr int kIsolatedBassPeriodicReplacementMaxMidi = 43;
 
 bool contains_case_insensitive(const char *text, const char *needle)
 {
@@ -184,13 +186,23 @@ float probe_level(const std::array<float, kNoteProbeCount> &powers, int midi)
 	return std::sqrt(std::max(powers[midi - kFirstMidi], 0.0f));
 }
 
-float bass_candidate_score(const std::array<float, kNoteProbeCount> &powers, int midi, bool include_harmonics)
+float bass_candidate_score(const std::array<float, kNoteProbeCount> &powers, int midi, bool include_harmonics,
+			   bool isolated_harmonic_support = false)
 {
-	float score = probe_level(powers, midi);
+	const float fundamental = probe_level(powers, midi);
+	float score = fundamental;
 	if (include_harmonics) {
-		score += probe_level(powers, midi + 12) * 0.38f;
-		score += probe_level(powers, midi + 19) * 0.22f;
-		score += probe_level(powers, midi + 24) * 0.12f;
+		if (isolated_harmonic_support && midi <= kIsolatedBassStrongHarmonicMaxMidi) {
+			score += probe_level(powers, midi + 12) * 0.54f;
+			score += probe_level(powers, midi + 19) * 0.96f;
+			score += probe_level(powers, midi + 24) * 0.68f;
+			score += probe_level(powers, midi + 28) * 0.20f;
+			score += probe_level(powers, midi + 31) * 0.16f;
+		} else {
+			score += probe_level(powers, midi + 12) * 0.38f;
+			score += probe_level(powers, midi + 19) * 0.22f;
+			score += probe_level(powers, midi + 24) * 0.12f;
+		}
 	}
 	return score;
 }
@@ -212,7 +224,7 @@ float melodic_candidate_score(const std::array<float, kNoteProbeCount> &powers, 
 }
 
 RangeResult dominant_bass_note(const std::array<float, kNoteProbeCount> &powers, int min_midi, int max_midi,
-			       bool include_harmonics)
+			       bool include_harmonics, bool isolated_harmonic_support = false)
 {
 	float total = 0.0f;
 	float second_score = 0.0f;
@@ -221,7 +233,8 @@ RangeResult dominant_bass_note(const std::array<float, kNoteProbeCount> &powers,
 	min_midi = std::max(min_midi, kFirstMidi);
 	max_midi = std::min(max_midi, kLastMidi);
 	for (int midi = min_midi; midi <= max_midi; ++midi) {
-		const float score = bass_candidate_score(powers, midi, include_harmonics);
+		const float score = bass_candidate_score(powers, midi, include_harmonics,
+							 isolated_harmonic_support);
 		total += std::max(score, 0.0f);
 		if (score > result.score) {
 			second_score = result.score;
@@ -236,7 +249,8 @@ RangeResult dominant_bass_note(const std::array<float, kNoteProbeCount> &powers,
 		for (int lower = result.midi - 12; lower >= min_midi; lower -= 12) {
 			const float lower_fundamental = probe_level(powers, lower);
 			const float current_fundamental = probe_level(powers, result.midi);
-			const float lower_score = bass_candidate_score(powers, lower, true);
+			const float lower_score = bass_candidate_score(powers, lower, true,
+								       isolated_harmonic_support);
 			if (lower_fundamental < current_fundamental * 0.14f || lower_score < result.score * 0.55f)
 				break;
 			result.midi = lower;
@@ -283,14 +297,17 @@ float normalized_bass_autocorrelation(const float *samples, std::size_t count, f
 }
 
 RangeResult periodic_bass_note(const float *samples, std::size_t count, float mean, uint32_t sample_rate,
-			       const std::array<float, kNoteProbeCount> &powers, int min_midi, int max_midi)
+			       const std::array<float, kNoteProbeCount> &powers, int min_midi, int max_midi,
+			       bool isolated_harmonic_support = false)
 {
 	RangeResult result;
 	float strongest_spectral = 0.0f;
 	min_midi = std::max(min_midi, kFirstMidi);
 	max_midi = std::min(max_midi, kLastMidi);
 	for (int midi = min_midi; midi <= max_midi; ++midi)
-		strongest_spectral = std::max(strongest_spectral, bass_candidate_score(powers, midi, true));
+		strongest_spectral = std::max(strongest_spectral,
+					      bass_candidate_score(powers, midi, true,
+								   isolated_harmonic_support));
 	if (strongest_spectral <= 1.0e-6f)
 		return result;
 
@@ -300,7 +317,8 @@ RangeResult periodic_bass_note(const float *samples, std::size_t count, float me
 		const float periodicity = normalized_bass_autocorrelation(samples, count, mean, sample_rate, midi);
 		if (periodicity < kIsolatedBassPeriodicityFloor)
 			continue;
-		const float spectral_score = bass_candidate_score(powers, midi, true);
+		const float spectral_score = bass_candidate_score(powers, midi, true,
+								  isolated_harmonic_support);
 		const float spectral_ratio = spectral_score / strongest_spectral;
 		if (spectral_ratio < kIsolatedBassPeriodicitySpectralRatio)
 			continue;
@@ -321,13 +339,15 @@ RangeResult periodic_bass_note(const float *samples, std::size_t count, float me
 
 	const float margin = result.score + second_score > 1.0e-6f ? result.score / (result.score + second_score) :
 									      1.0f;
-	const float spectral_score = bass_candidate_score(powers, result.midi, true);
+	const float spectral_score = bass_candidate_score(powers, result.midi, true,
+							  isolated_harmonic_support);
 	result.confidence = std::clamp(std::max(best_periodicity * 0.85f, margin * 0.58f), 0.0f, 1.0f);
 	result.score = spectral_score;
 	return result;
 }
 
-RangeResult choose_isolated_bass_note(const RangeResult &spectral_note, const RangeResult &periodic_note)
+RangeResult choose_isolated_bass_note(const RangeResult &spectral_note, const RangeResult &periodic_note,
+				      int periodic_replacement_max_midi)
 {
 	if (periodic_note.midi < kFirstMidi || periodic_note.confidence < kIsolatedBassPeriodicityFloor)
 		return spectral_note;
@@ -343,9 +363,13 @@ RangeResult choose_isolated_bass_note(const RangeResult &spectral_note, const Ra
 				     periodic_above_spectral == 31;
 	const bool neighboring_low_lobe = std::abs(periodic_note.midi - spectral_note.midi) <= 2;
 	const bool score_close = periodic_note.score >= spectral_note.score * kIsolatedBassPeriodicitySpectralRatio;
+	const bool strong_periodic_replacement =
+		periodic_above_spectral > 2 && periodic_note.midi <= periodic_replacement_max_midi &&
+		periodic_note.confidence >= 0.50f && periodic_note.score >= spectral_note.score * 0.82f &&
+		(spectral_note.confidence < 0.30f || periodic_note.score >= spectral_note.score * 1.08f);
 	const bool upward_low_lobe = periodic_above_spectral > 2 && periodic_above_spectral <= 5 &&
 				     !upward_harmonic && score_close && periodic_note.confidence >= 0.68f;
-	if (periodic_above_spectral > 2 && !upward_low_lobe)
+	if (periodic_above_spectral > 2 && !upward_low_lobe && !strong_periodic_replacement)
 		return spectral_note;
 	if (!same_note && !related_partial && !neighboring_low_lobe && !upward_low_lobe && !score_close)
 		return spectral_note;
@@ -3971,11 +3995,13 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 		const bool isolated_polyphonic_context = !mixed_source && strict_tuned_note_count >= 2;
 		const bool isolated_guitar_single_note_context =
 			input_mode == AnalysisInputMode::IsolatedGuitar && !isolated_polyphonic_context;
+		const bool isolated_real_piano_source =
+			input_mode == AnalysisInputMode::IsolatedKeyboard &&
+			contains_case_insensitive(resolved_source_name, "piano");
 		const bool isolated_named_real_single_note_context =
 			!mixed_source && !isolated_polyphonic_context &&
 			(input_mode == AnalysisInputMode::IsolatedGuitar ||
-			 (input_mode == AnalysisInputMode::IsolatedKeyboard &&
-			  contains_case_insensitive(resolved_source_name, "piano")) ||
+			 isolated_real_piano_source ||
 			 input_mode == AnalysisInputMode::IsolatedVocal ||
 			 input_mode == AnalysisInputMode::IsolatedOther);
 		const bool strong_isolated_complex_fallback_note =
@@ -4420,16 +4446,33 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 
 	if (input_mode == AnalysisInputMode::FullMix || input_mode == AnalysisInputMode::IsolatedBass) {
 		const bool isolated_bass = input_mode == AnalysisInputMode::IsolatedBass;
+		const bool upright_bass_source = contains_case_insensitive(resolved_source_name, "double") ||
+						 contains_case_insensitive(resolved_source_name, "upright") ||
+						 contains_case_insensitive(resolved_source_name, "contrabass");
 		const int bass_max_midi = isolated_bass ? kBassMaxMidi : kDefaultBassMaxMidi;
 		const bool include_bass_harmonics = true;
-		RangeResult bass_note = dominant_bass_note(detection_note_powers, kBassMinMidi, bass_max_midi,
-							   include_bass_harmonics);
+		const bool isolated_bass_harmonic_support = isolated_bass && !upright_bass_source;
+		const RangeResult spectral_bass_note = dominant_bass_note(detection_note_powers, kBassMinMidi,
+									  bass_max_midi,
+									  include_bass_harmonics,
+									  isolated_bass_harmonic_support);
+		RangeResult bass_note = spectral_bass_note;
 		if (isolated_bass) {
 			const RangeResult periodic_note =
 				periodic_bass_note(samples, usable, mean, sample_rate_, note_powers,
-						   kBassMinMidi, bass_max_midi);
-			bass_note = choose_isolated_bass_note(bass_note, periodic_note);
+						   kBassMinMidi, bass_max_midi,
+						   isolated_bass_harmonic_support);
+			snapshot.bass_debug_periodic_midi = periodic_note.midi;
+			snapshot.bass_debug_periodic_confidence = periodic_note.confidence;
+			snapshot.bass_debug_periodic_score = periodic_note.score;
+			const int periodic_replacement_max_midi =
+				upright_bass_source ? kIsolatedBassPeriodicReplacementMaxMidi : bass_max_midi;
+			bass_note = choose_isolated_bass_note(bass_note, periodic_note,
+							      periodic_replacement_max_midi);
 		}
+		snapshot.bass_debug_spectral_midi = spectral_bass_note.midi;
+		snapshot.bass_debug_spectral_confidence = spectral_bass_note.confidence;
+		snapshot.bass_debug_spectral_score = spectral_bass_note.score;
 		const RangeResult broad_bass_note = isolated_bass ?
 							    bass_note :
 							    dominant_bass_note(detection_note_powers, kBassMinMidi,
@@ -4485,6 +4528,9 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 				}
 			}
 
+			snapshot.bass_debug_displayed_midi = displayed_bass.midi;
+			snapshot.bass_debug_displayed_confidence = displayed_bass.confidence;
+			snapshot.bass_debug_displayed_score = displayed_bass.score;
 			set_single_note_grid(snapshot.bass_notes, snapshot.bass, displayed_bass, bass_energy, rms);
 			if (displayed_bass.midi >= 0 && snapshot.bass.confidence > 0.0f) {
 				if (mixed_source)
@@ -4501,6 +4547,9 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 				tracked_bass_confidence_ = displayed_bass.confidence;
 				tracked_bass_score_ = displayed_bass.score;
 				++tracked_bass_misses_;
+				snapshot.bass_debug_displayed_midi = displayed_bass.midi;
+				snapshot.bass_debug_displayed_confidence = displayed_bass.confidence;
+				snapshot.bass_debug_displayed_score = displayed_bass.score;
 				set_single_note_grid(snapshot.bass_notes, snapshot.bass, displayed_bass, bass_energy, rms);
 				if (displayed_bass.midi >= 0 && snapshot.bass.confidence > 0.0f) {
 					if (mixed_source)
@@ -4837,7 +4886,7 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 						continue;
 					float adjacent_level = probe_level(note_powers, adjacent);
 					const bool generated_vocals_upper_neighbor =
-						contains_case_insensitive(resolved_source_name, "vocals") &&
+						input_mode == AnalysisInputMode::IsolatedVocal &&
 						adjacent == active_vocal_midi + 1;
 					if (generated_vocals_upper_neighbor)
 						adjacent_level = std::max(adjacent_level, active_level * 0.25f);

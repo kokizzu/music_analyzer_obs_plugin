@@ -98,6 +98,15 @@ struct AnalysisSnapshot {
 	std::array<float, kDrumCount> drum_debug_segment_bands = {};
 	std::array<float, kDrumCount> drum_debug_shape_scores = {};
 	std::array<bool, kDrumCount> drum_debug_shape_supported = {};
+	int bass_debug_spectral_midi = -1;
+	float bass_debug_spectral_confidence = 0.0f;
+	float bass_debug_spectral_score = 0.0f;
+	int bass_debug_periodic_midi = -1;
+	float bass_debug_periodic_confidence = 0.0f;
+	float bass_debug_periodic_score = 0.0f;
+	int bass_debug_displayed_midi = -1;
+	float bass_debug_displayed_confidence = 0.0f;
+	float bass_debug_displayed_score = 0.0f;
 	InstrumentState root = {};
 	char root_candidates[64] = {};
 	InstrumentState global_chord = {};

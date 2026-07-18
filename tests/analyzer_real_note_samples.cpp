@@ -345,6 +345,13 @@ const mao::NoteGrid &family_grid(const mao::AnalysisSnapshot &snapshot, const st
 	return snapshot.other_notes;
 }
 
+std::string debug_note_label(int midi)
+{
+	if (midi < mao::kFirstAnalyzedMidi || midi > mao::kLastAnalyzedMidi)
+		return "--";
+	return mao_test::note_label(midi);
+}
+
 mao::AnalysisInputMode family_mode(const std::string &family)
 {
 	if (family == "bass")
@@ -413,6 +420,7 @@ int main()
 	const char *root_env = std::getenv("MUSIC_ANALYZER_REAL_NOTE_SAMPLE_ROOT");
 	const std::string root = root_env && *root_env ? root_env : "build/real_note_samples";
 	const bool required = std::getenv("MUSIC_ANALYZER_REAL_NOTE_SAMPLES_REQUIRED") != nullptr;
+	const bool verbose_misses = std::getenv("MUSIC_ANALYZER_REAL_NOTE_VERBOSE_MISSES") != nullptr;
 	const int required_samples = positive_int_env("MUSIC_ANALYZER_REAL_NOTE_REQUIRED_SAMPLES", 1000);
 	const int max_failures = nonnegative_int_env("MUSIC_ANALYZER_REAL_NOTE_MAX_FAILURES", 0);
 
@@ -457,9 +465,13 @@ int main()
 		const std::string expected = mao_test::note_label(row.midi);
 		bool detected = false;
 		std::string last_label = "--";
+		std::vector<std::string> debug_lines;
+		int buffer_index = 0;
+		const char *analysis_source =
+			row.family == "bass" && !row.source.empty() ? row.source.c_str() : row.family.c_str();
 		for (const mao_test::Buffer &buffer : buffers) {
 			const mao::AnalysisSnapshot snapshot =
-				analyze_buffer(buffer, sample_rate, family_mode(row.family), row.family.c_str());
+				analyze_buffer(buffer, sample_rate, family_mode(row.family), analysis_source);
 			last_label = family_state(snapshot, row.family).label;
 			const bool label_ok = mao_test::has_note_token(family_state(snapshot, row.family).label,
 								       expected.c_str()) ||
@@ -470,6 +482,29 @@ int main()
 				detected = true;
 				break;
 			}
+			if (verbose_misses && row.family == "bass") {
+				std::ostringstream line;
+				line << "  buffer " << buffer_index << " label=" << family_state(snapshot, row.family).label
+				     << " conf=" << family_state(snapshot, row.family).confidence
+				     << " grid=" << (grid_ok ? "yes" : "no")
+				     << " spectral=" << debug_note_label(snapshot.bass_debug_spectral_midi) << "/"
+				     << snapshot.bass_debug_spectral_confidence << "/"
+				     << snapshot.bass_debug_spectral_score
+				     << " periodic=" << debug_note_label(snapshot.bass_debug_periodic_midi) << "/"
+				     << snapshot.bass_debug_periodic_confidence << "/"
+				     << snapshot.bass_debug_periodic_score
+				     << " displayed=" << debug_note_label(snapshot.bass_debug_displayed_midi) << "/"
+				     << snapshot.bass_debug_displayed_confidence << "/"
+				     << snapshot.bass_debug_displayed_score << " rms=" << snapshot.rms
+				     << " low=" << snapshot.low_energy << " mid=" << snapshot.mid_energy
+				     << " high=" << snapshot.high_energy;
+				debug_lines.push_back(line.str());
+			}
+			++buffer_index;
+		}
+		if (!detected && verbose_misses) {
+			for (const std::string &line : debug_lines)
+				std::fprintf(stderr, "%s\n", line.c_str());
 		}
 		runner.expect(detected,
 			      row.id + " " + row.nsynth_family + "/" + row.source + " " + expected +
