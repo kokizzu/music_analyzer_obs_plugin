@@ -673,6 +673,20 @@ void check_equivalent_chord_labels(Runner &runner)
 		runner.expect(mao_test::contains(snapshot.keyboard_chord.label, "="),
 			      context + ": expected multiple labels, got `" + snapshot.keyboard_chord.label + "`");
 	}
+
+	{
+		mao_test::Buffer buffer = {};
+		const std::vector<float> guitar_profile = {1.0f, 0.34f, 0.16f, 0.08f};
+		add_harmonic_note(buffer, 48, 0.22f, guitar_profile);
+		add_harmonic_note(buffer, 51, 0.12f, guitar_profile);
+		add_harmonic_note(buffer, 55, 0.19f, guitar_profile);
+		add_harmonic_note(buffer, 47, 0.13f, guitar_profile);
+
+		const auto snapshot = analyze_buffer(buffer, "guitar");
+		const std::string context = "equivalent noisy guitar Cm triad";
+		runner.expect(has_chord_label(snapshot.guitar_chord.label, "Cm"),
+			      context + ": expected Cm alias, got `" + snapshot.guitar_chord.label + "`");
+	}
 }
 
 void check_guitar_supported_extension_aliases(Runner &runner)

@@ -263,7 +263,7 @@
       "automation_target": "test-idmt-bass-lines-samples",
       "source_url": "https://www.idmt.fraunhofer.de/en/publications/datasets/bass_lines.html",
       "download_url": "https://zenodo.org/api/records/7544099/files/IDMT-SMT-BASS-SINGLE-TRACKS.zip/content",
-      "download_note": "The test-idmt-bass-lines-samples target downloads the 20.5 MB ZIP, prepares stable expression-style NO note clips into build/idmt_bass_lines_samples, and runs the shared isolated-bass real-note analyzer gate. The current default prepares 640 clips and detects 573/640.",
+      "download_note": "The test-idmt-bass-lines-samples target downloads the 20.5 MB ZIP, prepares stable expression-style NO note clips into build/idmt_bass_lines_samples, and runs the shared isolated-bass real-note analyzer gate. The current default prepares 640 clips and detects 617/640.",
       "evidence": "Fraunhofer and Zenodo describe 17 real electric-bass lines with note-level onset, offset, pitch, string, fret, plucking-style, and expression-style annotations; the ZIP contains 17 WAV files plus note CSV/XML annotations."
     },
     {
