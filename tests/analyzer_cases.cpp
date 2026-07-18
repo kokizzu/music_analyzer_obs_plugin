@@ -3006,6 +3006,20 @@ void check_high_crash_probe_counts_as_high_energy(Runner &runner)
 			      std::to_string(snapshot.drums[mao::HiHat].level) + " crash " +
 			      std::to_string(snapshot.drums[mao::Crash].level) + " ride " +
 			      std::to_string(snapshot.drums[mao::Ride].level));
+	runner.expect(snapshot.drums[mao::Crash].level >= snapshot.drums[mao::HiHat].level &&
+			      snapshot.drums[mao::Crash].level >= snapshot.drums[mao::Ride].level,
+		      "highest cymbal probe: expected crash to be strongest, hihat " +
+			      std::to_string(snapshot.drums[mao::HiHat].level) + " crash " +
+			      std::to_string(snapshot.drums[mao::Crash].level) + " ride " +
+			      std::to_string(snapshot.drums[mao::Ride].level));
+	runner.expect(snapshot.drums[mao::Crash].level -
+				      std::min(snapshot.drums[mao::HiHat].level,
+					       snapshot.drums[mao::Ride].level) >=
+			      0.03f,
+		      "highest cymbal probe: expected separated cymbal levels, hihat " +
+			      std::to_string(snapshot.drums[mao::HiHat].level) + " crash " +
+			      std::to_string(snapshot.drums[mao::Crash].level) + " ride " +
+			      std::to_string(snapshot.drums[mao::Ride].level));
 }
 
 void check_strong_drum_levels_keep_headroom(Runner &runner)

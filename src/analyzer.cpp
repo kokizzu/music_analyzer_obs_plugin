@@ -4357,8 +4357,15 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 		    (drum_transient || soft_cymbal_transient || quiet_cymbal_shape || soft_body_transient) &&
 		    score > effective_threshold) {
 			const float threshold_excess = score / (effective_threshold + 1.0e-6f) - 1.0f;
-			const float level = std::clamp(0.25f + 0.75f * threshold_excess / (threshold_excess + 3.5f),
-						       0.0f, 1.0f);
+			float level = std::clamp(0.25f + 0.75f * threshold_excess / (threshold_excess + 3.5f),
+						 0.0f, 1.0f);
+			if (cymbal && strongest_cymbal_drum > 1.0e-6f) {
+				const float relative =
+					std::clamp(drum_segment_bands[i] / strongest_cymbal_drum, 0.0f, 1.0f);
+				const float scale = cymbal_shape == Crash && i != Crash ? 0.96f + relative * 0.04f :
+										      1.0f;
+				level *= scale;
+			}
 			drum_level_[i] = std::max(drum_level_[i], level);
 			tempo_event = true;
 		} else {
