@@ -34,6 +34,12 @@ struct Runner {
 	}
 };
 
+struct SourceStats {
+	std::array<int, mao::kDrumCount> total = {};
+	std::array<int, mao::kDrumCount> hits = {};
+	std::array<int, mao::kDrumCount> primary_hits = {};
+};
+
 struct WavFormat {
 	uint16_t audio_format = 0;
 	uint16_t channels = 0;
@@ -200,6 +206,25 @@ std::vector<std::string> split_tab(const std::string &line)
 	return parts;
 }
 
+std::vector<std::string> split_path_components(const std::string &path)
+{
+	std::vector<std::string> parts;
+	std::string part;
+	for (char c : path) {
+		if (c == '/' || c == '\\') {
+			if (!part.empty()) {
+				parts.push_back(part);
+				part.clear();
+			}
+			continue;
+		}
+		part.push_back(c);
+	}
+	if (!part.empty())
+		parts.push_back(part);
+	return parts;
+}
+
 const char *category_name(std::size_t index)
 {
 	static constexpr const char *kNames[mao::kDrumCount] = {"kick", "snare", "hihat", "crash",
@@ -223,6 +248,97 @@ bool category_index(const std::string &category, std::size_t &index)
 		}
 	}
 	return false;
+}
+
+std::string drum_source_bucket(const std::vector<std::string> &fields)
+{
+	std::string source = fields.size() >= 4 ? fields[3] : fields.size() >= 2 ? fields[1] : "unknown";
+	const std::size_t archive_separator = source.find('!');
+	if (archive_separator != std::string::npos) {
+		const std::string archive = source.substr(0, archive_separator);
+		const std::string member = source.substr(archive_separator + 1);
+		const std::vector<std::string> archive_parts = split_path_components(archive);
+		std::string archive_label = archive_parts.empty() ? "archive" : archive_parts.back();
+		const std::size_t extension = archive_label.find_last_of('.');
+		if (extension != std::string::npos)
+			archive_label.resize(extension);
+
+		const std::vector<std::string> member_parts = split_path_components(member);
+		if (!member_parts.empty()) {
+			std::size_t category = 0;
+			if (member_parts.size() >= 2 && !category_index(member_parts[0], category)) {
+				if (member_parts[0] == archive_label) {
+					if (member_parts.size() >= 3 && !category_index(member_parts[1], category))
+						return archive_label + "/" + member_parts[1];
+					return archive_label;
+				}
+				return archive_label + "/" + member_parts[0];
+			}
+		}
+		return archive_label;
+	}
+	const std::vector<std::string> parts = split_path_components(source);
+	if (parts.empty())
+		return "unknown";
+	for (std::size_t i = 0; i + 1 < parts.size(); ++i) {
+		if (parts[i] == "Drum Samples")
+			return parts[i + 1];
+	}
+	if (parts.size() >= 2)
+		return parts[parts.size() - 2];
+	return parts[0];
+}
+
+struct SourceSummaryRow {
+	std::string source;
+	std::size_t category = 0;
+	int total = 0;
+	int hits = 0;
+	int misses = 0;
+};
+
+std::string source_summary_text(const std::map<std::string, SourceStats> &stats, bool primary, int max_entries)
+{
+	std::vector<SourceSummaryRow> rows;
+	for (const auto &entry : stats) {
+		for (std::size_t category = 0; category < mao::kDrumCount; ++category) {
+			const int total = entry.second.total[category];
+			if (total <= 0)
+				continue;
+			const int hits = primary ? entry.second.primary_hits[category] : entry.second.hits[category];
+			const int misses = total - hits;
+			if (misses <= 0)
+				continue;
+			rows.push_back({entry.first, category, total, hits, misses});
+		}
+	}
+	std::sort(rows.begin(), rows.end(), [](const SourceSummaryRow &lhs, const SourceSummaryRow &rhs) {
+		if (lhs.misses != rhs.misses)
+			return lhs.misses > rhs.misses;
+		if (lhs.total != rhs.total)
+			return lhs.total > rhs.total;
+		if (lhs.category != rhs.category)
+			return lhs.category < rhs.category;
+		return lhs.source < rhs.source;
+	});
+	if (rows.empty())
+		return "";
+
+	std::string text = primary ? " source primary misses" : " source misses";
+	const int count = std::min<int>(max_entries, static_cast<int>(rows.size()));
+	for (int i = 0; i < count; ++i) {
+		text += " ";
+		text += category_name(rows[i].category);
+		text += "/";
+		text += rows[i].source;
+		text += "=";
+		text += std::to_string(rows[i].hits);
+		text += "/";
+		text += std::to_string(rows[i].total);
+	}
+	if (static_cast<int>(rows.size()) > count)
+		text += " ...";
+	return text;
 }
 
 std::string normalized_token(const std::string &text)
@@ -452,6 +568,7 @@ int main()
 	const bool required = std::getenv("MUSIC_ANALYZER_DRUM_SAMPLES_REQUIRED") != nullptr;
 	const bool verbose_misses = std::getenv("MUSIC_ANALYZER_DRUM_SAMPLE_VERBOSE_MISSES") != nullptr;
 	const bool verbose_primary = std::getenv("MUSIC_ANALYZER_DRUM_SAMPLE_VERBOSE_PRIMARY") != nullptr;
+	const bool source_summary = std::getenv("MUSIC_ANALYZER_DRUM_SAMPLE_SOURCE_SUMMARY") != nullptr;
 	const int verbose_primary_limit = resolve_percent_env("MUSIC_ANALYZER_DRUM_SAMPLE_VERBOSE_PRIMARY_LIMIT", 80);
 	const int min_recall_percent = resolve_percent_env("MUSIC_ANALYZER_DRUM_SAMPLE_MIN_RECALL_PERCENT", 45);
 	const int min_precision_percent =
@@ -481,6 +598,7 @@ int main()
 	std::array<int, mao::kDrumCount> primary_none100 = {};
 	std::array<int, mao::kDrumCount> primary_ambiguous100 = {};
 	std::array<std::array<int, mao::kDrumCount>, mao::kDrumCount> primary_by_expected100 = {};
+	std::map<std::string, SourceStats> source_stats;
 	int usable = 0;
 	int skipped = 0;
 	int verbose_primary_lines = 0;
@@ -521,6 +639,8 @@ int main()
 			analyze_sample(buffer, sample_rate, kDefaultWindowSeconds, expected);
 		++totals[expected];
 		++usable;
+		SourceStats &source_stat = source_stats[drum_source_bucket(fields)];
+		++source_stat.total[expected];
 		for (std::size_t i = 0; i < mao::kDrumCount; ++i) {
 			if (!snapshot100.drums[i].active)
 				continue;
@@ -531,6 +651,7 @@ int main()
 		}
 		if (snapshot100.drums[expected].active) {
 			++hits100[expected];
+			++source_stat.hits[expected];
 		} else {
 			if (verbose_misses || misses100[expected] < 3) {
 				std::fprintf(stderr, "analyzer_drum_samples: miss 100ms %s expected %s (%s)\n",
@@ -565,8 +686,10 @@ int main()
 				++primary_none100[expected];
 		} else {
 			++primary_by_expected100[expected][static_cast<std::size_t>(primary)];
-			if (static_cast<std::size_t>(primary) == expected)
+			if (static_cast<std::size_t>(primary) == expected) {
 				++primary_hits100[expected];
+				++source_stat.primary_hits[expected];
+			}
 		}
 	}
 
@@ -645,9 +768,24 @@ int main()
 	std::printf("\n");
 
 	if (runner.failures) {
+		const std::string miss_summary = source_summary_text(source_stats, false, 12);
+		const std::string primary_summary = source_summary_text(source_stats, true, 12);
+		if (!miss_summary.empty())
+			std::fprintf(stderr, "analyzer_drum_samples:%s\n", miss_summary.c_str());
+		if (!primary_summary.empty())
+			std::fprintf(stderr, "analyzer_drum_samples:%s\n", primary_summary.c_str());
 		std::fprintf(stderr, "analyzer_drum_samples: %d failure(s), usable %d, skipped %d\n", runner.failures,
 			     usable, skipped);
 		return 1;
+	}
+
+	if (source_summary) {
+		const std::string miss_summary = source_summary_text(source_stats, false, 12);
+		const std::string primary_summary = source_summary_text(source_stats, true, 12);
+		if (!miss_summary.empty())
+			std::printf("analyzer_drum_samples:%s\n", miss_summary.c_str());
+		if (!primary_summary.empty())
+			std::printf("analyzer_drum_samples:%s\n", primary_summary.c_str());
 	}
 
 	std::printf("analyzer_drum_samples: ok (usable %d, skipped %d", usable, skipped);
