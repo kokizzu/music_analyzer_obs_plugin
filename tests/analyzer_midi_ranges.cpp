@@ -89,6 +89,28 @@ bool snapshot_has_pitch_class(const mao::AnalysisSnapshot &snapshot, int midi)
 	       grid_has_pitch_class(snapshot.other_notes, midi);
 }
 
+const char *drum_name(std::size_t index)
+{
+	static constexpr const char *kNames[mao::kDrumCount] = {"kick", "snare", "hihat", "crash",
+								"tom", "ride", "rim"};
+	return index < mao::kDrumCount ? kNames[index] : "unknown";
+}
+
+std::string drum_debug_details(const mao::AnalysisSnapshot &snapshot)
+{
+	std::string text;
+	for (std::size_t i = 0; i < mao::kDrumCount; ++i) {
+		char part[160] = {};
+		std::snprintf(part, sizeof(part), "%s%s level=%.2f band=%.2f seg=%.2f score=%.2f shape=%d",
+			      text.empty() ? "" : " | ", drum_name(i), snapshot.drums[i].level,
+			      snapshot.drum_debug_bands[i], snapshot.drum_debug_segment_bands[i],
+			      snapshot.drum_debug_shape_scores[i],
+			      snapshot.drum_debug_shape_supported[i] ? 1 : 0);
+		text += part;
+	}
+	return text;
+}
+
 void add_harmonic_note(mao_test::Buffer &buffer, int midi, float amp, const std::vector<float> &profile)
 {
 	const float base = mao_test::midi_frequency(midi);
@@ -335,14 +357,17 @@ void check_combined_midi_arrangement(Runner &runner)
 		runner.expect(snapshot_has_pitch_class(snapshot, midi),
 			      "combined MIDI arrangement: expected pitch class " +
 				      std::string(mao_test::note_name(midi)) + " active");
-	runner.expect(snapshot.drums[mao::Kick].active, "combined MIDI arrangement: expected kick active");
-	runner.expect(snapshot.drums[mao::Snare].active, "combined MIDI arrangement: expected snare active");
+	const std::string drum_debug = drum_debug_details(snapshot);
+	runner.expect(snapshot.drums[mao::Kick].active,
+		      "combined MIDI arrangement: expected kick active; " + drum_debug);
+	runner.expect(snapshot.drums[mao::Snare].active,
+		      "combined MIDI arrangement: expected snare active; " + drum_debug);
 	runner.expect(snapshot.drums[mao::HiHat].active || snapshot.drums[mao::Crash].active ||
 			      snapshot.drums[mao::Ride].active,
 		      "combined MIDI arrangement: expected cymbal lane active, hihat " +
 			      std::to_string(snapshot.drums[mao::HiHat].level) + " crash " +
 			      std::to_string(snapshot.drums[mao::Crash].level) + " ride " +
-			      std::to_string(snapshot.drums[mao::Ride].level));
+			      std::to_string(snapshot.drums[mao::Ride].level) + "; " + drum_debug);
 	runner.expect(contains(snapshot.global_chord.label, "C") || contains(snapshot.global_chord.label, "Em"),
 		      std::string("combined MIDI arrangement: expected C/Em-family chord, got `") +
 			      snapshot.global_chord.label + "`");

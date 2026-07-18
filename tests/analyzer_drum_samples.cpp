@@ -350,6 +350,20 @@ std::string active_details(const mao::AnalysisSnapshot &snapshot)
 	return text;
 }
 
+std::string debug_details(const mao::AnalysisSnapshot &snapshot)
+{
+	std::string text;
+	for (std::size_t i = 0; i < mao::kDrumCount; ++i) {
+		char part[160] = {};
+		std::snprintf(part, sizeof(part), "%s%s band=%.2f seg=%.2f score=%.2f shape=%d level=%.2f",
+			      text.empty() ? "" : " | ", category_name(i), snapshot.drum_debug_bands[i],
+			      snapshot.drum_debug_segment_bands[i], snapshot.drum_debug_shape_scores[i],
+			      snapshot.drum_debug_shape_supported[i] ? 1 : 0, snapshot.drums[i].level);
+		text += part;
+	}
+	return text;
+}
+
 int resolve_percent_env(const char *name, int fallback)
 {
 	const char *value = std::getenv(name);
@@ -368,9 +382,13 @@ int main()
 	const std::string manifest_path = join_path(sample_dir, "manifest.tsv");
 	const bool required = std::getenv("MUSIC_ANALYZER_DRUM_SAMPLES_REQUIRED") != nullptr;
 	const bool verbose_misses = std::getenv("MUSIC_ANALYZER_DRUM_SAMPLE_VERBOSE_MISSES") != nullptr;
+	const bool verbose_primary = std::getenv("MUSIC_ANALYZER_DRUM_SAMPLE_VERBOSE_PRIMARY") != nullptr;
+	const int verbose_primary_limit = resolve_percent_env("MUSIC_ANALYZER_DRUM_SAMPLE_VERBOSE_PRIMARY_LIMIT", 80);
 	const int min_recall_percent = resolve_percent_env("MUSIC_ANALYZER_DRUM_SAMPLE_MIN_RECALL_PERCENT", 45);
 	const int min_precision_percent =
 		resolve_percent_env("MUSIC_ANALYZER_DRUM_SAMPLE_MIN_PRECISION_PERCENT", 0);
+	const int min_primary_percent =
+		resolve_percent_env("MUSIC_ANALYZER_DRUM_SAMPLE_MIN_PRIMARY_RECALL_PERCENT", 0);
 
 	std::ifstream manifest(manifest_path);
 	if (!manifest) {
@@ -395,6 +413,7 @@ int main()
 	std::array<std::array<int, mao::kDrumCount>, mao::kDrumCount> primary_by_expected100 = {};
 	int usable = 0;
 	int skipped = 0;
+	int verbose_primary_lines = 0;
 
 	std::string line;
 	bool header = true;
@@ -452,7 +471,24 @@ int main()
 		}
 
 		const int primary = primary_drum_index(snapshot100);
+		if (verbose_primary && primary >= 0 && static_cast<std::size_t>(primary) != expected &&
+		    verbose_primary_lines < verbose_primary_limit) {
+			++verbose_primary_lines;
+			std::fprintf(stderr,
+				     "analyzer_drum_samples: primary miss 100ms %s expected %s got %s (%s) [%s]\n",
+				     fields[1].c_str(), category_name(expected),
+				     category_name(static_cast<std::size_t>(primary)),
+				     active_details(snapshot100).c_str(), debug_details(snapshot100).c_str());
+		}
 		if (primary < 0) {
+			if (verbose_primary && verbose_primary_lines < verbose_primary_limit) {
+				++verbose_primary_lines;
+				std::fprintf(stderr,
+					     "analyzer_drum_samples: primary miss 100ms %s expected %s got %s (%s) [%s]\n",
+					     fields[1].c_str(), category_name(expected),
+					     primary == -2 ? "ambiguous" : "none",
+					     active_details(snapshot100).c_str(), debug_details(snapshot100).c_str());
+			}
 			if (primary == -2)
 				++primary_ambiguous100[expected];
 			else
@@ -468,11 +504,16 @@ int main()
 		runner.expect(totals[i] >= 2, std::string("expected at least two usable ") + category_name(i) +
 					     " samples, got " + std::to_string(totals[i]));
 		const int recall100 = totals[i] > 0 ? hits100[i] * 100 / totals[i] : 0;
+		const int primary_recall100 = totals[i] > 0 ? primary_hits100[i] * 100 / totals[i] : 0;
 		const int precision100 = active100[i] > 0 ? hits100[i] * 100 / active100[i] : 0;
 		char min_recall_env[96] = {};
 		std::snprintf(min_recall_env, sizeof(min_recall_env),
 			      "MUSIC_ANALYZER_DRUM_SAMPLE_MIN_%s_RECALL_PERCENT", category_env_name(i));
 		const int category_min_recall_percent = resolve_percent_env(min_recall_env, min_recall_percent);
+		char min_primary_env[112] = {};
+		std::snprintf(min_primary_env, sizeof(min_primary_env),
+			      "MUSIC_ANALYZER_DRUM_SAMPLE_MIN_%s_PRIMARY_RECALL_PERCENT", category_env_name(i));
+		const int category_min_primary_percent = resolve_percent_env(min_primary_env, min_primary_percent);
 		char max_false_env[96] = {};
 		std::snprintf(max_false_env, sizeof(max_false_env),
 			      "MUSIC_ANALYZER_DRUM_SAMPLE_MAX_%s_FALSE_PERCENT", category_env_name(i));
@@ -492,6 +533,15 @@ int main()
 					      std::to_string(precision100) + "% (" + std::to_string(hits100[i]) +
 					      "/" + std::to_string(active100[i]) + ", false " +
 					      std::to_string(false100[i]) + ")");
+		}
+		if (category_min_primary_percent > 0) {
+			runner.expect(primary_recall100 >= category_min_primary_percent,
+				      std::string("expected 100ms ") + category_name(i) +
+					      " primary recall >= " +
+					      std::to_string(category_min_primary_percent) + "%, got " +
+					      std::to_string(primary_recall100) + "% (" +
+					      std::to_string(primary_hits100[i]) + "/" +
+					      std::to_string(totals[i]) + ")");
 		}
 		runner.expect(false_percent <= max_false_percent,
 			      std::string("expected 100ms ") + category_name(i) + " false activations <= " +

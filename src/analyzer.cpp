@@ -4229,9 +4229,9 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 		drum_segment_peaks[7] + drum_segment_peaks[8] * 0.70f + drum_segment_peaks[9] * 0.45f;
 	const bool kick_click_body_ratio = kick_click_peak >= kick_body * 0.035f;
 	const bool kick_click_body_shape =
-		kick_click_body_ratio && snapshot.low_energy >= 0.18f &&
-		drum_segment_bands[Kick] >= strongest_shell_drum * 0.18f &&
-		kick_body >= std::max(snare_body, tom_body) * 0.35f;
+		kick_click_body_ratio && snapshot.low_energy >= 0.22f &&
+		drum_segment_bands[Kick] >= strongest_shell_drum * 0.28f &&
+		kick_body >= std::max(snare_body, tom_body) * 0.50f;
 	const bool kick_body_shape_supported =
 		body_shape == Kick ||
 		(kick_energy_shape && kick_low_dominant_body) ||
@@ -4239,13 +4239,17 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 	const bool hihat_tom_body_backstop =
 		body_shape_allowed && body_shape == Tom && snapshot.high_energy >= 0.03f &&
 		strongest_cymbal_drum > 0.0f &&
-		(generated_gm_drum_source || strongest_cymbal_drum >= strongest_body_drum * 0.18f) &&
+		(generated_gm_drum_source || strongest_cymbal_drum >= strongest_body_drum * 0.24f) &&
 		drum_segment_bands[HiHat] >= strongest_cymbal_drum * 0.42f;
 	const bool hihat_mixed_backstop =
 		drum_transient && snapshot.high_energy >= 0.05f &&
 		strongest_cymbal_drum > 0.0f &&
 		strongest_cymbal_drum >= strongest_body_drum *
-			(generated_gm_drum_source ? 0.04f : (snapshot.high_energy >= 0.12f ? 0.04f : 0.18f)) &&
+			(generated_gm_drum_source ? 0.04f : (snapshot.high_energy >= 0.12f ? 0.16f : 0.22f)) &&
+		drum_segment_bands[HiHat] >= strongest_cymbal_drum * 0.42f;
+	const bool embedded_cymbal_transient =
+		drum_transient && strongest_cymbal_drum >= 12.0f &&
+		strongest_cymbal_drum >= strongest_body_drum * 0.035f &&
 		drum_segment_bands[HiHat] >= strongest_cymbal_drum * 0.42f;
 	const bool tom_side_shape =
 		body_shape_allowed && tom_shape &&
@@ -4254,16 +4258,29 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 		(tom_body >= snare_body * 1.00f ||
 		 (upper_tom_body >= kick_body * 0.45f && upper_tom_body >= snare_crack * 0.85f)) &&
 		kick_body < tom_body * 0.90f;
+	const bool tom_primary_shape = body_shape == Tom && tom_body >= kick_body * 1.05f &&
+				       tom_body >= snare_body * 1.00f;
 	const std::array<bool, kDrumCount> drum_shape_supported = {
 		body_shape_allowed && kick_body_shape_supported && kick_shape,
 		body_shape_allowed && (body_shape == Snare || snare_side_shape) && snare_shape,
 		(cymbal_shape_allowed && (cymbal_shape == HiHat || hihat_family_shape)) ||
-			hihat_tom_body_backstop || hihat_mixed_backstop,
+			hihat_tom_body_backstop || hihat_mixed_backstop || embedded_cymbal_transient,
 		cymbal_shape_allowed && (cymbal_shape == Crash || crash_family_shape),
-		body_shape_allowed && (body_shape == Tom || tom_side_shape) && tom_shape,
+		body_shape_allowed && (tom_primary_shape || tom_side_shape) && tom_shape,
 		cymbal_shape_allowed && (cymbal_shape == Ride || ride_family_shape),
 		body_shape_allowed && rim_side_shape && rim_shape,
 	};
+	snapshot.drum_debug_bands = drum_bands;
+	snapshot.drum_debug_segment_bands = drum_segment_bands;
+	snapshot.drum_debug_shape_supported = drum_shape_supported;
+	snapshot.drum_debug_shape_scores = {};
+	snapshot.drum_debug_shape_scores[Kick] = body_shape_scores[0];
+	snapshot.drum_debug_shape_scores[Snare] = body_shape_scores[1];
+	snapshot.drum_debug_shape_scores[HiHat] = drum_segment_bands[HiHat];
+	snapshot.drum_debug_shape_scores[Crash] = drum_segment_bands[Crash];
+	snapshot.drum_debug_shape_scores[Tom] = body_shape_scores[2];
+	snapshot.drum_debug_shape_scores[Ride] = drum_segment_bands[Ride];
+	snapshot.drum_debug_shape_scores[Rim] = rim_body * (1.0f + snapshot.mid_energy * 0.56f);
 
 	const float sensitivity = std::clamp(settings.sensitivity, 0.25f, 4.0f);
 	const float trigger_threshold = 1.42f / sensitivity;
@@ -4292,7 +4309,8 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 			kick_click_body_ratio;
 		const bool bass_sustain_kick_suppressed =
 			kick && tracked_bass_midi_ >= 0 && tracked_bass_confidence_ >= 0.20f &&
-			kick_click_peak < kick_body * 0.16f && !(drum_transient && kick_low_dominant_body);
+			kick_click_peak < kick_body * 0.16f && !(drum_transient && kick_low_dominant_body) &&
+			!kick_low_body_transient;
 		const bool kick_soft_body_shape =
 			kick && !bass_sustain_kick_suppressed && (kick_soft_low_shape || kick_soft_stream_shape) &&
 			drum_segment_bands[Kick] >= kick_competing_body * 0.12f;

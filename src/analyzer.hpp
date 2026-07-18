@@ -94,6 +94,10 @@ struct AnalysisSnapshot {
 	float ram_mb = -1.0f;
 	bool audio_seen = false;
 	std::array<DrumState, kDrumCount> drums = {};
+	std::array<float, kDrumCount> drum_debug_bands = {};
+	std::array<float, kDrumCount> drum_debug_segment_bands = {};
+	std::array<float, kDrumCount> drum_debug_shape_scores = {};
+	std::array<bool, kDrumCount> drum_debug_shape_supported = {};
 	InstrumentState root = {};
 	char root_candidates[64] = {};
 	InstrumentState global_chord = {};
