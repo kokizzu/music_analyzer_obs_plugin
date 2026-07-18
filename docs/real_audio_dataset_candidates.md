@@ -85,7 +85,7 @@ not provide clean per-instrument audio stems for each mixture.
 | [Guitar-TECHS](https://guitar-techs.github.io/) | Electric guitar single-note gate with optional `make test-guitar-techs-samples`; chords, scales, and techniques remain future focused gates | 3,732 recordings across single notes, techniques, chords, scales, and excerpts; DI, amp-mic, egocentric, and exocentric perspectives; synchronized per-string MIDI labels; Zenodo download at [10.5281/zenodo.14963133](https://zenodo.org/records/14963133). The implemented target downloads the smaller P1/P2 single-note ZIPs and prepares DI/amp-mic excerpts for the shared real-note analyzer test. |
 | [Guitar Chord Mix](https://huggingface.co/datasets/ryangowe/guitar-chord-mix) | Real guitar chord gate with optional `make test-guitar-chord-mix-samples` | Hugging Face soundfolder of WAV guitar chord clips with JAMS `note_midi` annotations, assembled from GuitarSet, Guitar-TECHS, EGFxSet, Isolated Guitar Chords, SFZ, and DEMAND. The implemented target downloads a bounded, diverse subset and reuses the GuitarSet-shaped analyzer manifest path. Single instrument only. |
 | [Vocadito](https://zenodo.org/records/5578807) | Real vocal note gate with `make test-vocadito-samples` | 40 short solo monophonic vocal recordings with trained-musician F0, note, lyric, and language annotations. The implemented target extracts stable near-chromatic vocal note clips from the A1 note annotations into `build/vocadito_samples` and runs the shared isolated real-note gate. Single instrument only. |
-| [GAPS](https://huggingface.co/datasets/xavriley/GAPS) | Classical guitar note/fretboard tests | 300 solo guitar performances, about 14 hours, with audio, MIDI, MusicXML, sync points, metadata, and high-resolution note-level MIDI alignments. Single instrument only and large, so it should become an explicit focused guitar gate. |
+| [GAPS](https://huggingface.co/datasets/xavriley/GAPS) | Classical guitar note/fretboard tests with optional `make test-gaps-guitar-samples` | 300 solo guitar performances, about 14 hours, with audio, MIDI, MusicXML, sync points, metadata, and high-resolution note-level MIDI alignments. The implemented target downloads a bounded subset, parses `.match` note timing into a GuitarSet-shaped manifest, and runs the isolated-guitar analyzer gate. Single instrument only and large. |
 | [GOAT](https://arxiv.org/abs/2509.22655) | Electric guitar tablature/fret checks | 5.9 hours of DI electric guitar plus tablature/symbolic labels and augmented tones. Single instrument only. |
 | [E-GMD](https://magenta.tensorflow.org/datasets/e-gmd) | Drum hit and velocity tests with optional `make test-real-egmd-20` analyzer gate | 45,537 paired drum WAV/MIDI recordings, 444.5 hours, 43 drum kits, human velocity annotations, and about 2 ms audio/MIDI alignment. Drum-only. |
 
@@ -420,7 +420,6 @@ without additional annotation.
   while real access/layout automation remains a future add-on.
 - Single-instrument datasets should drive focused checks: GuitarSet now has a
   local preflight and downloaded mono-mic analyzer gate, Guitar-TECHS now has a
-  downloaded real electric-guitar single-note gate, MAESTRO now has a local
-  analyzer gate, E-GMD now has a local drum analyzer gate, and GAPS remains one
-  of the next best focused guitar add-ons because it adds real classical guitar
-  audio with aligned symbolic labels.
+  downloaded real electric-guitar single-note gate, GAPS now has a bounded real
+  classical-guitar note/chord gate, MAESTRO now has a local analyzer gate, and
+  E-GMD now has a local drum analyzer gate.

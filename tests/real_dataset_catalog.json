@@ -340,12 +340,12 @@
       "assembled_mix": false,
       "aligned_symbolic_truth": true,
       "truth": "high-resolution note-level MIDI alignments",
-      "automation_target": "",
+      "automation_target": "test-gaps-guitar-samples",
       "source_url": "https://huggingface.co/datasets/xavriley/GAPS",
       "documentation_url": "https://arxiv.org/abs/2408.08653",
       "download_url": "https://huggingface.co/datasets/xavriley/GAPS/tree/main",
-      "download_note": "Hugging Face hosts audio, MIDI, MusicXML, sync-point, and metadata folders. The full repository is large enough to keep it as an explicit future focused guitar gate.",
-      "evidence": "Dataset card and paper describe 300 solo classical-guitar performances, about 14 hours of real audio, audio-score aligned pairs, and high-resolution note-level MIDI alignments."
+      "download_note": "Hugging Face hosts audio, MIDI, MusicXML, match, sync-point, and metadata folders. The optional test-gaps-guitar-samples target downloads a bounded subset into build/gaps_guitar_samples, parses match files into a GuitarSet-shaped manifest, and runs the isolated-guitar note/chord harness.",
+      "evidence": "Dataset card and paper describe 300 solo classical-guitar performances, about 14 hours of real audio, audio-score aligned pairs, and high-resolution note-level MIDI alignments; the Hugging Face tree exposes audio, MIDI, MusicXML, match files, sync points, and metadata."
     },
     {
       "id": "e_gmd",

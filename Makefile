@@ -123,6 +123,21 @@ GUITAR_CHORD_MIX_MIN_CHORD_RECALL_PERCENT ?= 57
 GUITAR_CHORD_MIX_MIN_CHORD_PRECISION_PERCENT ?= 66
 GUITAR_CHORD_MIX_MAX_CONTAMINATION_PERCENT ?= 20
 GUITAR_CHORD_MIX_MAX_FALSE_VOCAL_PERCENT ?= 5
+GAPS_GUITAR_SOURCE_DIR ?= $(REAL_SAMPLE_SOURCE_DIR)/gaps
+GAPS_GUITAR_SAMPLE_DIR ?= $(BUILD_DIR)/gaps_guitar_samples
+GAPS_GUITAR_METADATA_URL ?= https://huggingface.co/datasets/xavriley/GAPS/raw/main/gaps_metadata_with_splits.csv
+GAPS_GUITAR_BASE_URL ?= https://huggingface.co/datasets/xavriley/GAPS/resolve/main
+GAPS_GUITAR_SAMPLE_LIMIT ?= 4
+GAPS_GUITAR_MIN_EXCERPTS ?= 4
+GAPS_GUITAR_MIN_NOTES ?= 12
+GAPS_GUITAR_MIN_WINDOWS ?= 20
+GAPS_GUITAR_MIN_RECALL_PERCENT ?= 65
+GAPS_GUITAR_MIN_PRECISION_PERCENT ?= 60
+GAPS_GUITAR_MIN_GUITAR_RECALL_PERCENT ?= 65
+GAPS_GUITAR_MIN_CHORD_RECALL_PERCENT ?= 45
+GAPS_GUITAR_MIN_CHORD_PRECISION_PERCENT ?= 50
+GAPS_GUITAR_MAX_CONTAMINATION_PERCENT ?= 35
+GAPS_GUITAR_MAX_FALSE_VOCAL_PERCENT ?= 10
 GUITARSET_SOURCE_DIR ?= $(REAL_SAMPLE_SOURCE_DIR)/guitarset
 GUITARSET_ROOT ?= $(BUILD_DIR)/guitarset
 GUITARSET_MISS_LOG ?= $(BUILD_DIR)/guitarset_verbose.log
@@ -525,6 +540,12 @@ prepare-guitar-chord-mix-samples: scripts/prepare_hf_guitar_chord_mix.py | $(BUI
 test-guitar-chord-mix-samples: $(BUILD_DIR)/analyzer_guitarset prepare-guitar-chord-mix-samples scripts/run_with_duration.sh
 	$(RUN_WITH_DURATION) analyzer_guitar_chord_mix_samples env MUSIC_ANALYZER_GUITARSET_MANIFEST="$(GUITAR_CHORD_MIX_SAMPLE_DIR)/manifest.tsv" MUSIC_ANALYZER_GUITARSET_REQUIRED=1 MUSIC_ANALYZER_GUITARSET_USE_ALL=1 MUSIC_ANALYZER_GUITARSET_REQUIRED_EXCERPTS="$(GUITAR_CHORD_MIX_MIN_EXCERPTS)" MUSIC_ANALYZER_GUITARSET_REQUIRED_WINDOWS="$(GUITAR_CHORD_MIX_MIN_WINDOWS)" MUSIC_ANALYZER_GUITARSET_MAX_WINDOWS_PER_EXCERPT=4 MUSIC_ANALYZER_GUITARSET_MIN_ACTIVE_NOTES=3 MUSIC_ANALYZER_GUITARSET_MIN_PITCH_CLASSES=3 MUSIC_ANALYZER_GUITARSET_MIN_WINDOW_RECALL_PERCENT=0 MUSIC_ANALYZER_GUITARSET_MIN_RECALL_PERCENT="$(GUITAR_CHORD_MIX_MIN_RECALL_PERCENT)" MUSIC_ANALYZER_GUITARSET_MIN_PRECISION_PERCENT="$(GUITAR_CHORD_MIX_MIN_PRECISION_PERCENT)" MUSIC_ANALYZER_GUITARSET_MIN_GUITAR_RECALL_PERCENT="$(GUITAR_CHORD_MIX_MIN_GUITAR_RECALL_PERCENT)" MUSIC_ANALYZER_GUITARSET_MAX_CONTAMINATION_PERCENT="$(GUITAR_CHORD_MIX_MAX_CONTAMINATION_PERCENT)" MUSIC_ANALYZER_GUITARSET_MAX_FALSE_VOCAL_PERCENT="$(GUITAR_CHORD_MIX_MAX_FALSE_VOCAL_PERCENT)" MUSIC_ANALYZER_GUITARSET_MIN_CHORD_RECALL_PERCENT="$(GUITAR_CHORD_MIX_MIN_CHORD_RECALL_PERCENT)" MUSIC_ANALYZER_GUITARSET_MIN_CHORD_PRECISION_PERCENT="$(GUITAR_CHORD_MIX_MIN_CHORD_PRECISION_PERCENT)" MUSIC_ANALYZER_GUITARSET_MIN_CHORD_CHECKS="$(GUITAR_CHORD_MIX_MIN_WINDOWS)" MUSIC_ANALYZER_GUITARSET_MAX_FAILURE_LINES=80 $(BUILD_DIR)/analyzer_guitarset
 
+prepare-gaps-guitar-samples: scripts/prepare_gaps_guitar_samples.py | $(BUILD_DIR)
+	GAPS_GUITAR_SOURCE_DIR="$(GAPS_GUITAR_SOURCE_DIR)" GAPS_GUITAR_SAMPLE_DIR="$(GAPS_GUITAR_SAMPLE_DIR)" GAPS_GUITAR_METADATA_URL="$(GAPS_GUITAR_METADATA_URL)" GAPS_GUITAR_BASE_URL="$(GAPS_GUITAR_BASE_URL)" GAPS_GUITAR_SAMPLE_LIMIT="$(GAPS_GUITAR_SAMPLE_LIMIT)" GAPS_GUITAR_MIN_EXCERPTS="$(GAPS_GUITAR_MIN_EXCERPTS)" GAPS_GUITAR_MIN_NOTES="$(GAPS_GUITAR_MIN_NOTES)" $(PYTHON) scripts/prepare_gaps_guitar_samples.py --source-dir "$(GAPS_GUITAR_SOURCE_DIR)" --output "$(GAPS_GUITAR_SAMPLE_DIR)" --metadata-url "$(GAPS_GUITAR_METADATA_URL)" --base-url "$(GAPS_GUITAR_BASE_URL)" --limit "$(GAPS_GUITAR_SAMPLE_LIMIT)" --min-samples "$(GAPS_GUITAR_MIN_EXCERPTS)" --min-notes "$(GAPS_GUITAR_MIN_NOTES)"
+
+test-gaps-guitar-samples: $(BUILD_DIR)/analyzer_guitarset prepare-gaps-guitar-samples scripts/run_with_duration.sh
+	$(RUN_WITH_DURATION) analyzer_gaps_guitar_samples env MUSIC_ANALYZER_GUITARSET_MANIFEST="$(GAPS_GUITAR_SAMPLE_DIR)/manifest.tsv" MUSIC_ANALYZER_GUITARSET_REQUIRED=1 MUSIC_ANALYZER_GUITARSET_USE_ALL=1 MUSIC_ANALYZER_GUITARSET_REQUIRED_EXCERPTS="$(GAPS_GUITAR_MIN_EXCERPTS)" MUSIC_ANALYZER_GUITARSET_REQUIRED_WINDOWS="$(GAPS_GUITAR_MIN_WINDOWS)" MUSIC_ANALYZER_GUITARSET_MAX_WINDOWS_PER_EXCERPT=6 MUSIC_ANALYZER_GUITARSET_MIN_ACTIVE_NOTES=2 MUSIC_ANALYZER_GUITARSET_MIN_PITCH_CLASSES=2 MUSIC_ANALYZER_GUITARSET_MIN_WINDOW_RECALL_PERCENT=0 MUSIC_ANALYZER_GUITARSET_MIN_RECALL_PERCENT="$(GAPS_GUITAR_MIN_RECALL_PERCENT)" MUSIC_ANALYZER_GUITARSET_MIN_PRECISION_PERCENT="$(GAPS_GUITAR_MIN_PRECISION_PERCENT)" MUSIC_ANALYZER_GUITARSET_MIN_GUITAR_RECALL_PERCENT="$(GAPS_GUITAR_MIN_GUITAR_RECALL_PERCENT)" MUSIC_ANALYZER_GUITARSET_MAX_CONTAMINATION_PERCENT="$(GAPS_GUITAR_MAX_CONTAMINATION_PERCENT)" MUSIC_ANALYZER_GUITARSET_MAX_FALSE_VOCAL_PERCENT="$(GAPS_GUITAR_MAX_FALSE_VOCAL_PERCENT)" MUSIC_ANALYZER_GUITARSET_MIN_CHORD_RECALL_PERCENT="$(GAPS_GUITAR_MIN_CHORD_RECALL_PERCENT)" MUSIC_ANALYZER_GUITARSET_MIN_CHORD_PRECISION_PERCENT="$(GAPS_GUITAR_MIN_CHORD_PRECISION_PERCENT)" MUSIC_ANALYZER_GUITARSET_MIN_CHORD_CHECKS="$(GAPS_GUITAR_MIN_WINDOWS)" MUSIC_ANALYZER_GUITARSET_MAX_FAILURE_LINES=80 $(BUILD_DIR)/analyzer_guitarset
+
 download-guitarset-samples: | $(BUILD_DIR)
 	mkdir -p "$(GUITARSET_SOURCE_DIR)"
 	test -f "$(GUITARSET_SOURCE_DIR)/annotation.zip" || curl -L -C - -o "$(GUITARSET_SOURCE_DIR)/annotation.zip" "$(GUITARSET_ANNOTATION_URL)"
@@ -622,7 +643,7 @@ test-vocadito-samples: $(BUILD_DIR)/analyzer_real_note_samples prepare-vocadito-
 
 test-real-world-samples: test-real-note-samples test-guitar-fretboard-note-samples test-hf-drum-kit-samples test-downloaded-guitarset test-philharmonia-samples test-iowa-piano-samples test-iowa-bass-samples test-idmt-bass-lines-samples test-vocadito-samples
 
-test-real-world-samples-full: test-real-world-samples test-guitar-techs-samples test-guitar-chord-mix-samples test-philharmonia-samples-full test-tinysol-samples
+test-real-world-samples-full: test-real-world-samples test-guitar-techs-samples test-guitar-chord-mix-samples test-gaps-guitar-samples test-philharmonia-samples-full test-tinysol-samples
 	if [ -d "$(DRUM_SAMPLE_SOURCE_DIR)" ]; then $(MAKE) test-drum-samples-full; else printf '%s\n' "test-drum-samples-full: skipped; missing $(DRUM_SAMPLE_SOURCE_DIR)"; fi
 
 test-midi-ranges: $(BUILD_DIR)/analyzer_midi_ranges scripts/run_with_duration.sh
@@ -665,6 +686,7 @@ test: $(TEST_BINS) scripts/run_with_duration.sh
 	$(MAKE) test-guitar-fretboard-note-prepare
 	$(MAKE) test-guitar-techs-prepare
 	$(MAKE) test-guitar-chord-mix-prepare
+	$(MAKE) test-gaps-guitar-prepare
 	$(MAKE) test-guitarset-miss-analysis
 	$(MAKE) test-real-goal-script
 	$(RUN_WITH_DURATION) analyzer_smoke $(BUILD_DIR)/analyzer_smoke
@@ -845,6 +867,9 @@ test-guitar-techs-prepare: tests/test_prepare_guitar_techs_samples.py scripts/pr
 
 test-guitar-chord-mix-prepare: tests/test_prepare_hf_guitar_chord_mix.py scripts/prepare_hf_guitar_chord_mix.py
 	$(PYTHON) tests/test_prepare_hf_guitar_chord_mix.py
+
+test-gaps-guitar-prepare: tests/test_prepare_gaps_guitar_samples.py scripts/prepare_gaps_guitar_samples.py
+	$(PYTHON) tests/test_prepare_gaps_guitar_samples.py
 
 test-guitarset-miss-analysis: tests/test_analyze_guitarset_misses.py scripts/analyze_guitarset_misses.py
 	$(PYTHON) tests/test_analyze_guitarset_misses.py
