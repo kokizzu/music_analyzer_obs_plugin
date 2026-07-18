@@ -283,6 +283,44 @@ def write_manifest(output, manifest):
     return manifest_path
 
 
+def manifest_counts_if_complete(output, limit_per_category):
+    manifest_path = output / "manifest.tsv"
+    if not manifest_path.is_file():
+        return None
+
+    counts = {category: 0 for category in CATEGORIES}
+    try:
+        with manifest_path.open("r", encoding="utf-8") as file:
+            header = file.readline().rstrip("\n").split("\t")
+            if header != ["category", "path", "duration_seconds", "source"]:
+                return None
+            for line in file:
+                if not line.strip():
+                    continue
+                fields = line.rstrip("\n").split("\t")
+                if len(fields) != 4:
+                    return None
+                category, relative_path, duration_text, _source = fields
+                if category not in counts:
+                    return None
+                try:
+                    duration = float(duration_text)
+                except ValueError:
+                    return None
+                if not one_shot_duration(duration):
+                    return None
+                if not (output / relative_path).is_file():
+                    return None
+                counts[category] += 1
+    except OSError:
+        return None
+
+    required = 1 if limit_per_category <= 0 else limit_per_category
+    if any(counts[category] < required for category in CATEGORIES):
+        return None
+    return counts
+
+
 def copy_selected_samples(candidates, output, unrar=None):
     counts = {category: 0 for category in CATEGORIES}
     manifest = []
@@ -357,6 +395,9 @@ def main():
     parser.add_argument("--unrar", default=os.environ.get("UNRAR", "unrar"))
     parser.add_argument("--no-archives", action="store_true",
                         help="copy only plain WAV files; ZIP/RAR archives are skipped")
+    parser.add_argument("--refresh", action="store_true",
+                        default=os.environ.get("DRUM_SAMPLE_REFRESH") == "1",
+                        help="rescan sources and rewrite the output manifest even when a complete manifest exists")
     args = parser.parse_args()
 
     source = Path(args.source)
@@ -365,8 +406,16 @@ def main():
         raise SystemExit(f"prepare_drum_samples: source directory not found: {source}")
 
     ensure_dirs(output)
+    limit_per_category = max(0, args.limit_per_category)
+    if not args.refresh:
+        counts = manifest_counts_if_complete(output, limit_per_category)
+        if counts is not None:
+            summary = " ".join(f"{category}={counts[category]}" for category in CATEGORIES)
+            print(f"prepare_drum_samples: reused {output / 'manifest.tsv'} ({summary})")
+            return
+
     unrar = shutil.which(args.unrar) if args.unrar else None
-    counts, manifest_path = copy_samples(source, output, max(0, args.limit_per_category), args.selection,
+    counts, manifest_path = copy_samples(source, output, limit_per_category, args.selection,
                                          unrar=unrar, include_archives=not args.no_archives)
     summary = " ".join(f"{category}={counts[category]}" for category in CATEGORIES)
     print(f"prepare_drum_samples: wrote {manifest_path} ({summary})")

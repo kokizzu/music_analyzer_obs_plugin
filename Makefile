@@ -616,6 +616,7 @@ test-vocadito-samples: $(BUILD_DIR)/analyzer_real_note_samples prepare-vocadito-
 test-real-world-samples: test-real-note-samples test-guitar-fretboard-note-samples test-hf-drum-kit-samples test-downloaded-guitarset test-philharmonia-samples test-iowa-piano-samples test-iowa-bass-samples test-idmt-bass-lines-samples test-vocadito-samples
 
 test-real-world-samples-full: test-real-world-samples test-guitar-techs-samples test-guitar-chord-mix-samples test-philharmonia-samples-full test-tinysol-samples
+	if [ -d "$(DRUM_SAMPLE_SOURCE_DIR)" ]; then $(MAKE) test-drum-samples-full; else printf '%s\n' "test-drum-samples-full: skipped; missing $(DRUM_SAMPLE_SOURCE_DIR)"; fi
 
 test-midi-ranges: $(BUILD_DIR)/analyzer_midi_ranges scripts/run_with_duration.sh
 	$(RUN_WITH_DURATION) analyzer_midi_ranges $(BUILD_DIR)/analyzer_midi_ranges

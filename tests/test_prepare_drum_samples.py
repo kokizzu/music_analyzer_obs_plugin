@@ -189,6 +189,53 @@ def test_cli_preserves_existing_output_until_manifest_replace():
                 raise AssertionError(f"expected one prepared {category} row")
 
 
+def test_cli_reuses_complete_manifest_until_refresh():
+    with tempfile.TemporaryDirectory() as temp:
+        base = Path(temp)
+        source = base / "source"
+        output = base / "out"
+
+        examples = {
+            "kick": "Kick 01.wav",
+            "snare": "Snare 01.wav",
+            "hihat": "Hat Closed 01.wav",
+            "crash": "Crash 01.wav",
+            "tom": "Tom 01.wav",
+            "ride": "Ride 01.wav",
+            "rim": "Rim Shot 01.wav",
+        }
+        for index, (category, filename) in enumerate(examples.items()):
+            write_wav(source / category / filename, frequency=90.0 + index * 40.0)
+
+        command = [
+            sys.executable,
+            str(ROOT / "scripts" / "prepare_drum_samples.py"),
+            "--source",
+            str(source),
+            "--output",
+            str(output),
+            "--limit-per-category",
+            "1",
+            "--no-archives",
+        ]
+        first = subprocess.run(command, check=True, text=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        second = subprocess.run(command, check=True, text=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        refreshed = subprocess.run(
+            command + ["--refresh"],
+            check=True,
+            text=True,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+        )
+
+        if "wrote" not in first.stdout:
+            raise AssertionError(f"first run should prepare samples, got: {first.stdout}")
+        if "reused" not in second.stdout:
+            raise AssertionError(f"second run should reuse complete manifest, got: {second.stdout}")
+        if "wrote" not in refreshed.stdout or "reused" in refreshed.stdout:
+            raise AssertionError(f"refresh run should rebuild samples, got: {refreshed.stdout}")
+
+
 def test_hihat_aliases_win_over_generic_cymbal_folder():
     with tempfile.TemporaryDirectory() as temp:
         base = Path(temp)
@@ -246,9 +293,10 @@ def main():
     test_missing_unrar_skips_rar_without_failing()
     test_no_archives_mode_skips_archives()
     test_cli_preserves_existing_output_until_manifest_replace()
+    test_cli_reuses_complete_manifest_until_refresh()
     test_hihat_aliases_win_over_generic_cymbal_folder()
     test_spread_selection_uses_later_buckets()
-    print("test_prepare_drum_samples: 6 checks passed")
+    print("test_prepare_drum_samples: 7 checks passed")
     return 0
 
 
