@@ -28,6 +28,7 @@ constexpr int kOtherMinMidi = 21;
 constexpr int kOtherMaxMidi = 108;
 constexpr float kSilenceRms = 0.0025f;
 constexpr float kNoteRmsFloor = 0.006f;
+constexpr float kPolyphonicNoteRmsFloor = 0.0030f;
 constexpr float kFullNoteRms = 0.035f;
 constexpr float kNoteRelativeFloor = 0.36f;
 constexpr float kMixedNoteRelativeFloor = 0.08f;
@@ -2110,9 +2111,9 @@ float sum_notes(const std::array<float, kNoteProbeCount> &powers, int min_midi, 
 	return sum;
 }
 
-float note_visual_loudness(float rms)
+float note_visual_loudness(float rms, float rms_floor = kNoteRmsFloor)
 {
-	return std::clamp((rms - kNoteRmsFloor) / (kFullNoteRms - kNoteRmsFloor), 0.0f, 1.0f);
+	return std::clamp((rms - rms_floor) / (kFullNoteRms - rms_floor), 0.0f, 1.0f);
 }
 
 void set_instrument_note(InstrumentState &state, const RangeResult &note, float energy, float rms)
@@ -3328,10 +3329,11 @@ void set_instrument_note_set(NoteGrid &grid, InstrumentState &state, const std::
 			     const std::array<bool, kNoteProbeCount> *allowed_midis = nullptr,
 			     float relative_floor = kNoteRelativeFloor,
 			     bool prefer_lower_harmonic_fundamental = false,
-			     bool include_harmonic_support = false)
+			     bool include_harmonic_support = false,
+			     float rms_floor = kNoteRmsFloor)
 {
 	clear_note_grid(grid);
-	if (rms < kNoteRmsFloor || energy < 1.0e-5f) {
+	if (rms < rms_floor || energy < 1.0e-5f) {
 		copy_text(state.label, sizeof(state.label), "--");
 		state.confidence = 0.0f;
 		return;
@@ -3377,16 +3379,22 @@ void set_instrument_note_set(NoteGrid &grid, InstrumentState &state, const std::
 		state.confidence = 0.0f;
 		return;
 	}
+	if (rms_floor < kNoteRmsFloor && rms < kNoteRmsFloor && candidates.size() < 2) {
+		copy_text(state.label, sizeof(state.label), "--");
+		state.confidence = 0.0f;
+		return;
+	}
 
 	for (const NoteCandidate &candidate : candidates)
-		write_note_grid_cell(grid, candidate, strongest_score, note_visual_loudness(rms));
+		write_note_grid_cell(grid, candidate, strongest_score, note_visual_loudness(rms, rms_floor));
 
 	write_note_grid_label(state, grid, preferred_root);
 }
 
-void set_instrument_chord(InstrumentState &state, const ChordResult &chord, float energy, float rms)
+void set_instrument_chord(InstrumentState &state, const ChordResult &chord, float energy, float rms,
+			  float rms_floor = kNoteRmsFloor)
 {
-	if (rms < kNoteRmsFloor || energy < 1.0e-5f) {
+	if (rms < rms_floor || energy < 1.0e-5f) {
 		copy_text(state.label, sizeof(state.label), "--");
 		state.confidence = 0.0f;
 		return;
@@ -4989,7 +4997,7 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 			set_instrument_note_set(snapshot.guitar_notes, snapshot.guitar, detection_note_powers,
 						min_midi, kGuitarMaxMidi, preferred_root, guitar_energy, rms,
 						max_notes, nullptr, nullptr, false, nullptr, 0.10f,
-						false, false);
+						false, false, kPolyphonicNoteRmsFloor);
 			if (note_grid_active_pitch_class_count(snapshot.guitar_notes) <= 3) {
 				std::array<float, kNoteProbeCount> low_fundamental_votes = {};
 				std::array<int, kNoteProbeCount> low_fundamental_support = {};
@@ -5036,7 +5044,8 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 			set_instrument_note_set(guitar_chord_detection_grid, guitar_chord_detection_state,
 						detection_note_powers, min_midi, kGuitarMaxMidi, preferred_root,
 						guitar_energy, rms, kGuitarChordAnalysisMaxNotes, nullptr, nullptr,
-						false, nullptr, kGuitarChordAnalysisRelativeFloor, false, true);
+						false, nullptr, kGuitarChordAnalysisRelativeFloor, false, true,
+						kPolyphonicNoteRmsFloor);
 		}
 		raw_guitar_chord = detect_guitar_chord_from_grid(guitar_chord_detection_grid, allow_extensions);
 		const ChordResult display_guitar_chord =
@@ -5140,7 +5149,8 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 			append_guitar_power_probe_third_aliases(raw_guitar_chord, guitar_chord_detection_grid,
 								detection_note_powers, min_midi, kGuitarMaxMidi);
 		}
-		set_instrument_chord(snapshot.guitar_chord, raw_guitar_chord, guitar_energy, rms);
+		set_instrument_chord(snapshot.guitar_chord, raw_guitar_chord, guitar_energy, rms,
+				     mixed_source ? kNoteRmsFloor : kPolyphonicNoteRmsFloor);
 	};
 
 	auto process_vocal = [&]() {
