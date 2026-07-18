@@ -781,6 +781,16 @@ void check_guitar_supported_extension_aliases(Runner &runner)
 			      weak_third_snapshot.guitar_chord.label + "`");
 	expect_no_chord_label(runner, weak_third_snapshot.guitar_chord.label, "Cpow",
 			      "guitar weak-third triad power alias");
+
+	mao_test::Buffer weak_dim_shape = {};
+	add_harmonic_note(weak_dim_shape, 53, 0.24f, guitar_profile);
+	add_harmonic_note(weak_dim_shape, 56, 0.24f, guitar_profile);
+	add_harmonic_note(weak_dim_shape, 59, 0.050f, guitar_profile);
+
+	const auto weak_dim_snapshot = analyze_buffer(weak_dim_shape, "guitar");
+	runner.expect(has_chord_label(weak_dim_snapshot.guitar_chord.label, "Fdim"),
+		      std::string("guitar weak-tone diminished CAGED fallback: expected Fdim, got `") +
+			      weak_dim_snapshot.guitar_chord.label + "`");
 }
 
 void check_quiet_note_rejection(Runner &runner)

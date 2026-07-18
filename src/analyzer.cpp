@@ -2721,7 +2721,8 @@ ChordResult detect_keyboard_chord_from_grid(const NoteGrid &grid, bool allow_ext
 	return best;
 }
 
-ChordResult detect_caged_guitar_chord(const std::array<float, 12> &chroma, int preferred_root)
+ChordResult detect_caged_guitar_chord(const std::array<float, 12> &chroma, int preferred_root,
+				      bool allow_altered = false)
 {
 	ChordResult best;
 	float best_score = 0.0f;
@@ -2764,6 +2765,10 @@ ChordResult detect_caged_guitar_chord(const std::array<float, 12> &chroma, int p
 		consider(root, "sus2", {0, 2, 7}, 0.12f);
 		consider(root, "sus4", {0, 5, 7}, 0.12f);
 		consider(root, "pow", {0, 7}, 0.04f);
+		if (allow_altered) {
+			consider(root, "dim", {0, 3, 6}, 0.10f);
+			consider(root, "aug", {0, 4, 8}, 0.10f);
+		}
 	}
 
 	if (best.root < 0)
@@ -3215,9 +3220,13 @@ ChordResult detect_guitar_chord_from_grid(const NoteGrid &grid, bool allow_exten
 	const int preferred_root = lowest_note_grid_pitch_class(grid);
 	ChordResult chord = detect_chord(chroma, preferred_root, allow_extensions);
 	const ChordResult caged = detect_caged_guitar_chord(caged_chroma, preferred_root);
+	const ChordResult caged_altered = detect_caged_guitar_chord(caged_chroma, preferred_root, true);
 
-	if (caged.root < 0)
+	if (caged.root < 0) {
+		if (chord.root < 0 && caged_altered.root >= 0)
+			return caged_altered;
 		return chord;
+	}
 	if (chord.root < 0)
 		return caged;
 
