@@ -267,6 +267,22 @@
       "evidence": "Fraunhofer and Zenodo describe 17 real electric-bass lines with note-level onset, offset, pitch, string, fret, plucking-style, and expression-style annotations; the ZIP contains 17 WAV files plus note CSV/XML annotations."
     },
     {
+      "id": "idmt_smt_guitar",
+      "name": "IDMT-SMT-Guitar",
+      "category": "single_instrument_truth",
+      "piece_count": 4700,
+      "real_audio": true,
+      "isolated_sources": false,
+      "assembled_mix": false,
+      "aligned_symbolic_truth": true,
+      "truth": "guitar note onset, offset, MIDI pitch, string, fret, excitation style, and expression style annotations",
+      "automation_target": "test-idmt-guitar-samples",
+      "source_url": "https://zenodo.org/records/7544110",
+      "download_url": "https://zenodo.org/api/records/7544110/files/IDMT-SMT-GUITAR_V2.zip/content",
+      "download_note": "The optional test-idmt-guitar-samples target downloads the 1.3 GB ZIP, prepares stable monophonic non-dead-note clips into build/idmt_guitar_samples, and runs the shared isolated-guitar real-note analyzer gate.",
+      "evidence": "Zenodo describes IDMT-SMT-Guitar as a real guitar dataset with isolated recordings and XML annotations. The repository importer reads XML note events with onset, offset, pitch, string, fret, excitation style, and expression style, then keeps monophonic chromatic note snippets as detector evidence."
+    },
+    {
       "id": "guitarset",
       "name": "GuitarSet",
       "category": "single_instrument_truth",

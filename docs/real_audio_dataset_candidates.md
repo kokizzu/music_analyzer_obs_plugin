@@ -81,8 +81,9 @@ not provide clean per-instrument audio stems for each mixture.
 | [MAESTRO](https://magenta.tensorflow.org/datasets/maestro) | Keyboard row, sustain, and chord tests with optional `make test-real-maestro-20` analyzer gate | 1,276 real Disklavier piano performances, 198.7 hours, paired WAV/MIDI with about 3 ms alignment, official metadata CSV/JSON, and over 7M note labels. Single instrument only. |
 | [PianoVAM](https://arxiv.org/abs/2509.08800) | Keyboard row, fingering/hand plausibility | Piano audio, MIDI, video, hand landmarks, and fingering labels. Single instrument only. |
 | [IDMT-SMT-Bass-Single-Track](https://zenodo.org/records/7544099) | Real electric bass-line note gate with `make test-idmt-bass-lines-samples` | 17 real electric-bass lines across styles with note onset, offset, MIDI pitch, string, fret, plucking-style, and expression-style annotations. The implemented target extracts stable expression-style `NO` note clips into `build/idmt_bass_lines_samples` and runs the shared isolated-bass real-note gate. Single instrument only. |
+| [IDMT-SMT-Guitar](https://zenodo.org/records/7544110) | Real guitar technique note gate with `make test-idmt-guitar-samples` | Seven real guitars with 44.1 kHz mono WAV recordings, XML note annotations, plucking styles, and expression styles including normal, bending, slide, vibrato, harmonics, and dead notes. The implemented target extracts stable monophonic non-dead-note clips into `build/idmt_guitar_samples`, pitch-checks them against the chromatic model, and runs the shared isolated-guitar real-note gate. Single instrument only. |
 | [GuitarSet](https://guitarset.weebly.com/) | Guitar fretboard tests with optional `make inspect-real-guitarset` preflight and `make test-real-guitarset-20` analyzer gate | 360 live guitar excerpts with hexaphonic pickup, per-string audio, microphone audio, JAMS MIDI-note/fret/chord annotations, and Zenodo download at [10.5281/zenodo.3371780](https://zenodo.org/records/3371780). Single instrument only. |
-| [Guitar-TECHS](https://guitar-techs.github.io/) | Electric guitar single-note gate with optional `make test-guitar-techs-samples`; chords, scales, and techniques remain future focused gates | 3,732 recordings across single notes, techniques, chords, scales, and excerpts; DI, amp-mic, egocentric, and exocentric perspectives; synchronized per-string MIDI labels; Zenodo download at [10.5281/zenodo.14963133](https://zenodo.org/records/14963133). The implemented target downloads the smaller P1/P2 single-note ZIPs and prepares DI/amp-mic excerpts for the shared real-note analyzer test. |
+| [Guitar-TECHS](https://guitar-techs.github.io/) | Electric guitar single-note and chord gates with optional `make test-guitar-techs-samples` and `make test-guitar-techs-chord-samples` | 3,732 recordings across single notes, techniques, chords, scales, and excerpts; DI, amp-mic, egocentric, and exocentric perspectives; synchronized per-string MIDI labels; Zenodo download at [10.5281/zenodo.14963133](https://zenodo.org/records/14963133). The implemented targets prepare DI/amp-mic single-note excerpts for the shared real-note analyzer test and chord-window manifests for the isolated-guitar note/chord harness. |
 | [Guitar Chord Mix](https://huggingface.co/datasets/ryangowe/guitar-chord-mix) | Real guitar chord gate with optional `make test-guitar-chord-mix-samples` | Hugging Face soundfolder of WAV guitar chord clips with JAMS `note_midi` annotations, assembled from GuitarSet, Guitar-TECHS, EGFxSet, Isolated Guitar Chords, SFZ, and DEMAND. The implemented target downloads a bounded, diverse subset and reuses the GuitarSet-shaped analyzer manifest path. Single instrument only. |
 | [Vocadito](https://zenodo.org/records/5578807) | Real vocal note gate with `make test-vocadito-samples` | 40 short solo monophonic vocal recordings with trained-musician F0, note, lyric, and language annotations. The implemented target extracts stable near-chromatic vocal note clips from the A1 note annotations into `build/vocadito_samples` and runs the shared isolated real-note gate. Single instrument only. |
 | [GAPS](https://huggingface.co/datasets/xavriley/GAPS) | Classical guitar note/fretboard tests with optional `make test-gaps-guitar-samples` | 300 solo guitar performances, about 14 hours, with audio, MIDI, MusicXML, sync points, metadata, and high-resolution note-level MIDI alignments. The implemented target downloads a bounded subset, parses `.match` note timing into a GuitarSet-shaped manifest, and runs the isolated-guitar analyzer gate. Single instrument only and large. |
@@ -325,9 +326,10 @@ without additional annotation.
   shared real-note analyzer in isolated-guitar mode and keeps all downloaded
   archives and generated clips under `build/`. On the current P1/P2 single-note
   archives it prepares 547 tested clips after 11 pitch-reference skips, and the
-  analyzer gate detected 547/547 guitar notes. It is focused real electric
-  guitar note coverage; the Guitar-TECHS chord, scale, technique, and music
-  archives still need separate chord/technique-aware gates.
+  analyzer gate detected 547/547 guitar notes. `make test-guitar-techs-chord-samples`
+  uses the P1/P2 chord ZIPs to write GuitarSet-shaped `AUDIO`/`NOTE` manifests
+  and run the isolated-guitar note/chord harness. Scales, techniques, and music
+  archives still need separate gates.
 - Use `make test-guitar-chord-mix-samples` to download a bounded subset of the
   public Hugging Face Guitar Chord Mix WAV/JAMS clips into
   `build/guitar_chord_mix_samples`, write a GuitarSet-shaped `AUDIO`/`NOTE`
@@ -351,6 +353,12 @@ without additional annotation.
   573/640 with 67 tolerated misses. This adds real bass-line timing, plucking,
   and transient coverage while keeping the remaining misses visible for future
   bass-detector tuning.
+- Use `make test-idmt-guitar-samples` to download the 1.3 GB
+  IDMT-SMT-Guitar ZIP from Zenodo, parse XML note events, keep stable
+  monophonic non-dead-note clips, pitch-check them against strict chromatic
+  tuning, and run them through the shared isolated-guitar real-note gate. This
+  adds real guitar technique and pickup/instrument variation coverage beyond
+  clean single-note and chord datasets.
 - Use `make test-real-maestro-20` with
   `MUSIC_ANALYZER_MAESTRO_ROOT=/path/to/maestro-v3.0.0` after extracting the
   official MAESTRO archive. The analyzer gate expects the official metadata CSV
