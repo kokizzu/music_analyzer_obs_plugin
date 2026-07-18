@@ -365,9 +365,10 @@ without additional annotation.
   balanced real hit windows from the isolated `#KD#train.wav`, `#SD#train.wav`,
   and `#HH#train.wav` tracks. The current default prepares 900 clips, 300 each
   for kick, snare, and hi-hat, and runs the shared drum analyzer gate with only
-  those three categories marked required. Current cached recall/precision is
-  kick 214/300 and 214/249, snare 216/300 and 216/425, and hi-hat 289/300 and
-  289/326. Crash/tom/ride/rim false activations remain printed as diagnostics
+  those three categories marked required. Current cached recall/primary/precision
+  is kick 299/300, 298/300, and 299/349; snare 275/300, 224/300, and 275/494;
+  and hi-hat 290/300, 152/300, and 290/327. Crash/tom/ride/rim false activations
+  remain printed as diagnostics
   because IDMT-SMT-Drums does not label those classes in this target.
 - Use `make test-real-maestro-20` with
   `MUSIC_ANALYZER_MAESTRO_ROOT=/path/to/maestro-v3.0.0` after extracting the

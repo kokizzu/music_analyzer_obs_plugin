@@ -4677,9 +4677,30 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 			if (cymbal && strongest_cymbal_drum > 1.0e-6f) {
 				const float relative =
 					std::clamp(drum_segment_bands[i] / strongest_cymbal_drum, 0.0f, 1.0f);
-				const float scale = cymbal_shape == Crash && i != Crash ? 0.96f + relative * 0.04f :
-										      1.0f;
-				level *= scale;
+				const bool shell_dominant_hihat_blend =
+					body_shape == Tom &&
+					body_shape_scores[1] >= drum_segment_bands[HiHat] * 4.50f &&
+					body_shape_scores[2] >= drum_segment_bands[HiHat] * 5.50f;
+				if (i == HiHat && cymbal_shape == HiHat &&
+				    drum_segment_bands[HiHat] >= strongest_cymbal_drum * 0.78f &&
+				    snapshot.high_energy >= 0.035f &&
+				    !shell_dominant_hihat_blend &&
+				    !(body_shape == Snare && snare_crack >= snare_body * 0.035f &&
+				      body_shape_scores[1] >= drum_segment_bands[HiHat] * 1.35f)) {
+					level = std::clamp(level * 1.020f + 0.006f, 0.0f, 1.0f);
+				} else {
+					const float scale = cymbal_shape == Crash && i != Crash ?
+									    0.96f + relative * 0.04f :
+									    1.0f;
+					level *= scale;
+				}
+			}
+			if (snare && snare_shape) {
+				const bool shell_centered_snare =
+					body_shape_scores[1] >= body_shape_scores[2] * 0.84f &&
+					body_shape_scores[1] >= drum_segment_bands[HiHat] * 3.0f;
+				if (shell_centered_snare)
+					level = std::clamp(level * 1.018f + 0.006f, 0.0f, 1.0f);
 			}
 			if (rim) {
 				if (rim_primary_evidence) {
