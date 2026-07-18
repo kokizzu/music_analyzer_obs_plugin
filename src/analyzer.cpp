@@ -4399,10 +4399,16 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 				kick_soft_low_shape || kick_soft_stream_shape ||
 				(drum_segment_bands[Kick] >= strongest_shell_drum * 0.18f &&
 				 kick_body >= std::max(snare_body, tom_body) * 0.10f);
-	const bool snare_shape = strongest_shell_drum <= 0.0f ||
-				 (drum_segment_bands[Snare] >= strongest_shell_drum * 0.58f &&
-				  snare_body >= kick_body * 0.34f && snare_body >= tom_body * 0.38f &&
-				  snare_crack >= snare_body * 0.035f);
+	const bool snare_crack_shape =
+		drum_segment_bands[Snare] >= strongest_shell_drum * 0.58f &&
+		snare_body >= kick_body * 0.34f && snare_body >= tom_body * 0.38f &&
+		snare_crack >= snare_body * 0.035f;
+	const bool snare_resonant_body_shape =
+		drum_segment_bands[Snare] >= strongest_shell_drum * 0.52f &&
+		snare_body >= kick_body * 0.30f && snare_body >= tom_body * 0.32f &&
+		snare_crack >= snare_body * 0.010f &&
+		snapshot.mid_energy >= snapshot.low_energy * 0.42f;
+	const bool snare_shape = strongest_shell_drum <= 0.0f || snare_crack_shape || snare_resonant_body_shape;
 	const bool rim_shape = strongest_body_drum <= 0.0f ||
 			       (drum_segment_bands[Rim] >= strongest_body_drum * 0.30f &&
 				rim_body >= kick_body * 0.20f && rim_body >= tom_body * 0.20f &&
