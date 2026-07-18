@@ -540,12 +540,19 @@ std::string debug_details(const mao::AnalysisSnapshot &snapshot)
 	std::string text;
 	for (std::size_t i = 0; i < mao::kDrumCount; ++i) {
 		char part[160] = {};
-		std::snprintf(part, sizeof(part), "%s%s band=%.2f seg=%.2f score=%.2f shape=%d level=%.2f",
+		std::snprintf(part, sizeof(part),
+			      "%s%s band=%.2f seg=%.2f shape_score=%.2f trigger=%.2f/%.2f shape=%d level=%.2f",
 			      text.empty() ? "" : " | ", category_name(i), snapshot.drum_debug_bands[i],
 			      snapshot.drum_debug_segment_bands[i], snapshot.drum_debug_shape_scores[i],
+			      snapshot.drum_debug_trigger_scores[i],
+			      snapshot.drum_debug_trigger_thresholds[i],
 			      snapshot.drum_debug_shape_supported[i] ? 1 : 0, snapshot.drums[i].level);
 		text += part;
 	}
+	char part[128] = {};
+	std::snprintf(part, sizeof(part), " | transient=%.2f onset=%.2f", snapshot.drum_debug_transient_ratio,
+		      snapshot.drum_debug_onset);
+	text += part;
 	return text;
 }
 
@@ -568,7 +575,16 @@ int main()
 	const bool required = std::getenv("MUSIC_ANALYZER_DRUM_SAMPLES_REQUIRED") != nullptr;
 	const bool verbose_misses = std::getenv("MUSIC_ANALYZER_DRUM_SAMPLE_VERBOSE_MISSES") != nullptr;
 	const bool verbose_primary = std::getenv("MUSIC_ANALYZER_DRUM_SAMPLE_VERBOSE_PRIMARY") != nullptr;
+	const bool verbose_all = std::getenv("MUSIC_ANALYZER_DRUM_SAMPLE_VERBOSE_ALL") != nullptr;
 	const bool source_summary = std::getenv("MUSIC_ANALYZER_DRUM_SAMPLE_SOURCE_SUMMARY") != nullptr;
+	const char *filter_category_env = std::getenv("MUSIC_ANALYZER_DRUM_SAMPLE_FILTER_CATEGORY");
+	const char *filter_source_env = std::getenv("MUSIC_ANALYZER_DRUM_SAMPLE_FILTER_SOURCE");
+	const std::string filter_source = filter_source_env && *filter_source_env ? filter_source_env : "";
+	std::size_t filter_category = mao::kDrumCount;
+	if (filter_category_env && *filter_category_env && !category_token_index(filter_category_env, filter_category)) {
+		std::fprintf(stderr, "analyzer_drum_samples: unknown filter category `%s`\n", filter_category_env);
+		return 1;
+	}
 	const int verbose_primary_limit = resolve_percent_env("MUSIC_ANALYZER_DRUM_SAMPLE_VERBOSE_PRIMARY_LIMIT", 80);
 	const int min_recall_percent = resolve_percent_env("MUSIC_ANALYZER_DRUM_SAMPLE_MIN_RECALL_PERCENT", 45);
 	const int min_precision_percent =
@@ -601,6 +617,7 @@ int main()
 	std::map<std::string, SourceStats> source_stats;
 	int usable = 0;
 	int skipped = 0;
+	int verbose_all_lines = 0;
 	int verbose_primary_lines = 0;
 
 	std::string line;
@@ -617,6 +634,11 @@ int main()
 			continue;
 		std::size_t expected = 0;
 		if (!category_index(fields[0], expected))
+			continue;
+		if (filter_category < mao::kDrumCount && expected != filter_category)
+			continue;
+		const std::string source_bucket = drum_source_bucket(fields);
+		if (!filter_source.empty() && source_bucket.find(filter_source) == std::string::npos)
 			continue;
 
 		const std::string path = join_path(sample_dir, fields[1]);
@@ -637,9 +659,15 @@ int main()
 
 		const mao::AnalysisSnapshot snapshot100 =
 			analyze_sample(buffer, sample_rate, kDefaultWindowSeconds, expected);
+		if (verbose_all && verbose_all_lines < verbose_primary_limit) {
+			++verbose_all_lines;
+			std::fprintf(stderr, "analyzer_drum_samples: debug 100ms %s expected %s (%s) [%s]\n",
+				     fields[1].c_str(), category_name(expected),
+				     active_details(snapshot100).c_str(), debug_details(snapshot100).c_str());
+		}
 		++totals[expected];
 		++usable;
-		SourceStats &source_stat = source_stats[drum_source_bucket(fields)];
+		SourceStats &source_stat = source_stats[source_bucket];
 		++source_stat.total[expected];
 		for (std::size_t i = 0; i < mao::kDrumCount; ++i) {
 			if (!snapshot100.drums[i].active)
