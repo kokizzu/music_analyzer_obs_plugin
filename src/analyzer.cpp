@@ -4467,7 +4467,11 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 			kick && (kick_low_onset_body_shape ||
 				 (had_previous_audio && kick_click_transient &&
 				  (transient_ratio >= 1.00f || kick_soft_body_shape)));
-		const bool soft_snare_transient = had_previous_audio && snare && snare_shape && transient_ratio >= 0.82f;
+		const bool soft_snare_onset_shape = had_previous_audio && snare && snare_shape && onset >= 1.25f &&
+						    score >= trigger_threshold * 1.15f;
+		const bool soft_snare_transient =
+			had_previous_audio && snare && snare_shape &&
+			(transient_ratio >= 0.82f || soft_snare_onset_shape);
 		const bool soft_rim_transient = had_previous_audio && rim && rim_shape && transient_ratio >= 0.62f;
 		const bool soft_tom_transient = had_previous_audio && tom && tom_shape && transient_ratio >= 0.72f;
 		const bool soft_body_transient =
