@@ -82,6 +82,7 @@ not provide clean per-instrument audio stems for each mixture.
 | [PianoVAM](https://arxiv.org/abs/2509.08800) | Keyboard row, fingering/hand plausibility | Piano audio, MIDI, video, hand landmarks, and fingering labels. Single instrument only. |
 | [IDMT-SMT-Bass-Single-Track](https://zenodo.org/records/7544099) | Real electric bass-line note gate with `make test-idmt-bass-lines-samples` | 17 real electric-bass lines across styles with note onset, offset, MIDI pitch, string, fret, plucking-style, and expression-style annotations. The implemented target extracts stable expression-style `NO` note clips into `build/idmt_bass_lines_samples` and runs the shared isolated-bass real-note gate. Single instrument only. |
 | [IDMT-SMT-Guitar](https://zenodo.org/records/7544110) | Real guitar technique note gate with `make test-idmt-guitar-samples` | Seven real guitars with 44.1 kHz mono WAV recordings, XML note annotations, plucking styles, and expression styles including normal, bending, slide, vibrato, harmonics, and dead notes. The implemented target extracts stable monophonic non-dead-note clips into `build/idmt_guitar_samples`, pitch-checks them against the chromatic model, and runs the shared isolated-guitar real-note gate. Single instrument only. |
+| [IDMT-SMT-Drums](https://zenodo.org/records/7544164) | Real kick/snare/hi-hat gate with `make test-idmt-drums-samples` | 608 real drum WAV files with manually annotated SVL/XML onsets for kick drum, snare drum, and hi-hat training tracks. The implemented target extracts balanced annotated hit windows into `build/idmt_drums_samples` and runs the shared drum analyzer gate with only kick/snare/hi-hat marked required. Drum-only. |
 | [GuitarSet](https://guitarset.weebly.com/) | Guitar fretboard tests with optional `make inspect-real-guitarset` preflight and `make test-real-guitarset-20` analyzer gate | 360 live guitar excerpts with hexaphonic pickup, per-string audio, microphone audio, JAMS MIDI-note/fret/chord annotations, and Zenodo download at [10.5281/zenodo.3371780](https://zenodo.org/records/3371780). Single instrument only. |
 | [Guitar-TECHS](https://guitar-techs.github.io/) | Electric guitar single-note and chord gates with optional `make test-guitar-techs-samples` and `make test-guitar-techs-chord-samples` | 3,732 recordings across single notes, techniques, chords, scales, and excerpts; DI, amp-mic, egocentric, and exocentric perspectives; synchronized per-string MIDI labels; Zenodo download at [10.5281/zenodo.14963133](https://zenodo.org/records/14963133). The implemented targets prepare DI/amp-mic single-note excerpts for the shared real-note analyzer test and chord-window manifests for the isolated-guitar note/chord harness. |
 | [Guitar Chord Mix](https://huggingface.co/datasets/ryangowe/guitar-chord-mix) | Real guitar chord gate with optional `make test-guitar-chord-mix-samples` | Hugging Face soundfolder of WAV guitar chord clips with JAMS `note_midi` annotations, assembled from GuitarSet, Guitar-TECHS, EGFxSet, Isolated Guitar Chords, SFZ, and DEMAND. The implemented target downloads a bounded, diverse subset and reuses the GuitarSet-shaped analyzer manifest path. Single instrument only. |
@@ -359,6 +360,15 @@ without additional annotation.
   tuning, and run them through the shared isolated-guitar real-note gate. This
   adds real guitar technique and pickup/instrument variation coverage beyond
   clean single-note and chord datasets.
+- Use `make test-idmt-drums-samples` to download the 287.1 MB
+  IDMT-SMT-Drums ZIP from Zenodo, parse the SVL frame annotations, and extract
+  balanced real hit windows from the isolated `#KD#train.wav`, `#SD#train.wav`,
+  and `#HH#train.wav` tracks. The current default prepares 900 clips, 300 each
+  for kick, snare, and hi-hat, and runs the shared drum analyzer gate with only
+  those three categories marked required. Current cached recall/precision is
+  kick 214/300 and 214/249, snare 216/300 and 216/425, and hi-hat 289/300 and
+  289/326. Crash/tom/ride/rim false activations remain printed as diagnostics
+  because IDMT-SMT-Drums does not label those classes in this target.
 - Use `make test-real-maestro-20` with
   `MUSIC_ANALYZER_MAESTRO_ROOT=/path/to/maestro-v3.0.0` after extracting the
   official MAESTRO archive. The analyzer gate expects the official metadata CSV

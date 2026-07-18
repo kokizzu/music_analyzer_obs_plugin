@@ -3,6 +3,7 @@
 
 #include <algorithm>
 #include <array>
+#include <cctype>
 #include <cmath>
 #include <cstddef>
 #include <cstdint>
@@ -224,6 +225,74 @@ bool category_index(const std::string &category, std::size_t &index)
 	return false;
 }
 
+std::string normalized_token(const std::string &text)
+{
+	std::string normalized;
+	for (unsigned char c : text) {
+		if (std::isalnum(c))
+			normalized.push_back(static_cast<char>(std::tolower(c)));
+	}
+	return normalized;
+}
+
+bool category_token_index(const std::string &category, std::size_t &index)
+{
+	const std::string normalized = normalized_token(category);
+	if (normalized == "bd" || normalized == "bassdrum" || normalized == "kickdrum") {
+		index = 0;
+		return true;
+	}
+	if (normalized == "hat" || normalized == "closedhat" || normalized == "openhihat") {
+		index = 2;
+		return true;
+	}
+	for (std::size_t i = 0; i < mao::kDrumCount; ++i) {
+		if (normalized == normalized_token(category_name(i))) {
+			index = i;
+			return true;
+		}
+	}
+	return false;
+}
+
+std::array<bool, mao::kDrumCount> required_categories_from_env()
+{
+	std::array<bool, mao::kDrumCount> required = {};
+	const char *env = std::getenv("MUSIC_ANALYZER_DRUM_SAMPLE_REQUIRED_CATEGORIES");
+	if (!env || !*env) {
+		required.fill(true);
+		return required;
+	}
+
+	std::istringstream input(env);
+	std::string token;
+	int accepted = 0;
+	while (std::getline(input, token, ',')) {
+		const std::string normalized = normalized_token(token);
+		if (normalized.empty())
+			continue;
+		if (normalized == "all") {
+			required.fill(true);
+			return required;
+		}
+		std::size_t index = 0;
+		if (!category_token_index(token, index)) {
+			std::fprintf(stderr,
+				     "analyzer_drum_samples: ignoring unknown required category `%s`\n",
+				     token.c_str());
+			continue;
+		}
+		required[index] = true;
+		++accepted;
+	}
+	if (accepted == 0) {
+		std::fprintf(stderr,
+			     "analyzer_drum_samples: no valid MUSIC_ANALYZER_DRUM_SAMPLE_REQUIRED_CATEGORIES; using all\n");
+		required.fill(true);
+	}
+	return required;
+}
+
 int primary_drum_index(const mao::AnalysisSnapshot &snapshot)
 {
 	int primary = -1;
@@ -389,6 +458,7 @@ int main()
 		resolve_percent_env("MUSIC_ANALYZER_DRUM_SAMPLE_MIN_PRECISION_PERCENT", 0);
 	const int min_primary_percent =
 		resolve_percent_env("MUSIC_ANALYZER_DRUM_SAMPLE_MIN_PRIMARY_RECALL_PERCENT", 0);
+	const std::array<bool, mao::kDrumCount> required_categories = required_categories_from_env();
 
 	std::ifstream manifest(manifest_path);
 	if (!manifest) {
@@ -501,8 +571,15 @@ int main()
 	}
 
 	for (std::size_t i = 0; i < mao::kDrumCount; ++i) {
-		runner.expect(totals[i] >= 2, std::string("expected at least two usable ") + category_name(i) +
-					     " samples, got " + std::to_string(totals[i]));
+		if (!required_categories[i] && totals[i] == 0)
+			continue;
+		if (required_categories[i]) {
+			runner.expect(totals[i] >= 2, std::string("expected at least two usable ") +
+							     category_name(i) + " samples, got " +
+							     std::to_string(totals[i]));
+		}
+		if (totals[i] == 0)
+			continue;
 		const int recall100 = totals[i] > 0 ? hits100[i] * 100 / totals[i] : 0;
 		const int primary_recall100 = totals[i] > 0 ? primary_hits100[i] * 100 / totals[i] : 0;
 		const int precision100 = active100[i] > 0 ? hits100[i] * 100 / active100[i] : 0;
@@ -575,6 +652,10 @@ int main()
 
 	std::printf("analyzer_drum_samples: ok (usable %d, skipped %d", usable, skipped);
 	for (std::size_t i = 0; i < mao::kDrumCount; ++i) {
+		if (!required_categories[i] && totals[i] == 0) {
+			std::printf(", %s optional absent false %d", category_name(i), false100[i]);
+			continue;
+		}
 		const int precision100 = active100[i] > 0 ? hits100[i] * 100 / active100[i] : 0;
 		std::printf(", %s recall %d/%d primary %d/%d precision %d/%d false %d",
 			    category_name(i), hits100[i], totals[i], primary_hits100[i], totals[i], hits100[i],
