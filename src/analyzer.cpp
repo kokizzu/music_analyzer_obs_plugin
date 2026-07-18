@@ -2979,6 +2979,101 @@ void append_supported_guitar_power_aliases(ChordResult &chord, const NoteGrid &g
 	}
 }
 
+bool parse_power_chord_component(const char *start, std::size_t len, ParsedRootChord &parsed)
+{
+	if (!parse_root_chord_component(start, len, parsed) || parsed.quality != RootChordQuality::NoThird)
+		return false;
+
+	std::size_t root_len = 1;
+	if (len > 1 && start[1] == '#')
+		root_len = 2;
+	const char *suffix = start + root_len;
+	const std::size_t suffix_len = len - root_len;
+	return suffix_is(suffix, suffix_len, "pow");
+}
+
+float strongest_probe_pitch_class_level(const std::array<float, kNoteProbeCount> &powers, int pitch_class,
+					int min_midi, int max_midi)
+{
+	pitch_class = ((pitch_class % 12) + 12) % 12;
+	min_midi = std::max(min_midi, kFirstMidi);
+	max_midi = std::min(max_midi, kLastMidi);
+
+	float level = 0.0f;
+	for (int midi = min_midi; midi <= max_midi; ++midi) {
+		if (midi_pitch_class(midi) == pitch_class)
+			level = std::max(level, probe_level(powers, midi));
+	}
+	return level;
+}
+
+float strongest_probe_level(const std::array<float, kNoteProbeCount> &powers, int min_midi, int max_midi)
+{
+	min_midi = std::max(min_midi, kFirstMidi);
+	max_midi = std::min(max_midi, kLastMidi);
+
+	float level = 0.0f;
+	for (int midi = min_midi; midi <= max_midi; ++midi)
+		level = std::max(level, probe_level(powers, midi));
+	return level;
+}
+
+void append_guitar_power_probe_third_aliases(ChordResult &chord, const NoteGrid &grid,
+					     const std::array<float, kNoteProbeCount> &powers, int min_midi,
+					     int max_midi)
+{
+	if (chord.root < 0 || !chord.label[0] || chord.label[0] == '-' || !std::strstr(chord.label, "pow"))
+		return;
+
+	float strongest_grid = 0.0f;
+	for (int pitch_class = 0; pitch_class < 12; ++pitch_class)
+		strongest_grid = std::max(strongest_grid, note_grid_pitch_level(grid, pitch_class));
+	const float strongest_probe = strongest_probe_level(powers, min_midi, max_midi);
+	if (strongest_grid <= 1.0e-6f || strongest_probe <= 1.0e-6f)
+		return;
+
+	constexpr float kActiveAliasFloor = 0.12f;
+	const char *cursor = chord.label;
+	while (*cursor) {
+		const char *end = std::strchr(cursor, '=');
+		const std::size_t len = end ? static_cast<std::size_t>(end - cursor) : std::strlen(cursor);
+
+		ParsedRootChord parsed;
+		if (parse_power_chord_component(cursor, len, parsed) &&
+		    !chord_label_has_root_third_component(chord.label, parsed.root)) {
+			const float root_grid =
+				note_grid_pitch_supported_level(grid, parsed.root, kActiveAliasFloor);
+			const float fifth_grid =
+				note_grid_pitch_supported_level(grid, parsed.root + 7, kActiveAliasFloor);
+			if (root_grid >= std::max(0.16f, strongest_grid * 0.20f) &&
+			    fifth_grid >= std::max(0.09f, strongest_grid * 0.10f)) {
+				const float root_probe =
+					strongest_probe_pitch_class_level(powers, parsed.root, min_midi, max_midi);
+				const float fifth_probe = strongest_probe_pitch_class_level(
+					powers, parsed.root + 7, min_midi, max_midi);
+				const float minor_third = strongest_probe_pitch_class_level(
+					powers, parsed.root + 3, min_midi, max_midi);
+				const float major_third = strongest_probe_pitch_class_level(
+					powers, parsed.root + 4, min_midi, max_midi);
+				const float anchor =
+					std::max({root_probe, fifth_probe, std::min(root_grid, fifth_grid) * 0.50f});
+				const float third_floor =
+					std::max({strongest_probe * 0.040f, anchor * 0.11f, 0.006f});
+				const bool choose_minor =
+					minor_third >= third_floor && minor_third >= major_third * 1.24f;
+				const bool choose_major =
+					major_third >= third_floor && major_third >= minor_third * 1.24f;
+				if (choose_minor != choose_major)
+					append_chord_alias(chord, parsed.root, choose_minor ? "m" : "");
+			}
+		}
+
+		if (!end)
+			break;
+		cursor = end + 1;
+	}
+}
+
 void append_supported_guitar_extension_aliases_for_root(ChordResult &chord, const NoteGrid &grid, int root_pitch_class)
 {
 	if (root_pitch_class < 0)
@@ -5027,6 +5122,8 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 				append_supported_guitar_plain_triad_aliases(raw_guitar_chord, guitar_chord_detection_grid);
 			append_supported_guitar_extension_aliases(raw_guitar_chord, guitar_chord_detection_grid);
 			append_supported_guitar_power_aliases(raw_guitar_chord, guitar_chord_detection_grid);
+			append_guitar_power_probe_third_aliases(raw_guitar_chord, guitar_chord_detection_grid,
+								detection_note_powers, min_midi, kGuitarMaxMidi);
 		}
 		set_instrument_chord(snapshot.guitar_chord, raw_guitar_chord, guitar_energy, rms);
 	};
@@ -5316,6 +5413,9 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 				append_supported_guitar_plain_triad_aliases(smoothed_guitar_chord, guitar_chord_grid);
 			append_supported_guitar_extension_aliases(smoothed_guitar_chord, guitar_chord_grid);
 			append_supported_guitar_power_aliases(smoothed_guitar_chord, guitar_chord_grid);
+			append_guitar_power_probe_third_aliases(smoothed_guitar_chord, guitar_chord_grid,
+								detection_note_powers, kGuitarMinMidi,
+								kGuitarMaxMidi);
 		}
 		stabilize_chord(snapshot.guitar_chord, guitar_chord_tracking_, raw_guitar_chord,
 				smoothed_guitar_chord, true, interval_seconds);
