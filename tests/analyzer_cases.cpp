@@ -44,6 +44,23 @@ mao::AnalysisSnapshot analyze_buffer_with_mode(const mao_test::Buffer &buffer, m
 	return snapshot;
 }
 
+mao::AnalysisSnapshot analyze_buffer_with_mode_window(const mao_test::Buffer &buffer,
+						      mao::AnalysisInputMode input_mode,
+						      const char *source,
+						      float window_seconds, int frames = 4)
+{
+	mao::AnalysisEngine engine;
+	mao::AnalysisSettings settings = mao_test::default_settings();
+	settings.input_mode = input_mode;
+	settings.analysis_interval_seconds = 0.05f;
+	settings.analysis_window_samples = 0;
+	settings.analysis_window_seconds = window_seconds;
+	mao::AnalysisSnapshot snapshot = {};
+	for (int frame = 0; frame < std::max(1, frames); ++frame)
+		snapshot = engine.analyze(buffer.data(), buffer.size(), settings, source, 0);
+	return snapshot;
+}
+
 void expect_label(Runner &runner, const char *actual, const std::string &expected, const std::string &context)
 {
 	runner.expect(std::strcmp(actual, expected.c_str()) == 0,
@@ -430,6 +447,16 @@ void check_bass_octave_suppression(Runner &runner)
 	add_harmonic_note(buffer, 35, 0.34f, hollow_bass_profile);
 	const auto snapshot = analyze_buffer(buffer, "bass");
 	expect_label(runner, snapshot.bass.label, "B1", "bass octave suppression");
+}
+
+void check_isolated_bass_periodic_fundamental_rescue(Runner &runner)
+{
+	mao_test::Buffer buffer = {};
+	const std::vector<float> picked_bass_profile = {0.34f, 0.58f, 1.0f, 0.64f, 0.26f};
+	add_harmonic_note(buffer, 38, 0.24f, picked_bass_profile);
+	const auto snapshot = analyze_buffer_with_mode_window(buffer, mao::AnalysisInputMode::IsolatedBass,
+							      "bass", 0.10f);
+	expect_label(runner, snapshot.bass.label, "D2", "isolated picked bass periodic fundamental");
 }
 
 void check_full_mix_bass_conservative_switching(Runner &runner)
@@ -3359,6 +3386,7 @@ int main()
 	Runner runner;
 	check_bass_notes(runner);
 	check_bass_octave_suppression(runner);
+	check_isolated_bass_periodic_fundamental_rescue(runner);
 	check_full_mix_bass_conservative_switching(runner);
 	check_vocal_notes(runner);
 	check_harmonic_single_notes(runner);
