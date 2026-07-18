@@ -758,6 +758,18 @@ void check_guitar_supported_extension_aliases(Runner &runner)
 	const auto full_triad_snapshot = analyze_buffer(full_triad, "guitar");
 	expect_no_chord_label(runner, full_triad_snapshot.guitar_chord.label, "Cpow",
 			      "guitar power aliases full triad");
+
+	mao_test::Buffer weak_third_triad = {};
+	add_harmonic_note(weak_third_triad, 48, 0.24f, guitar_profile);
+	add_harmonic_note(weak_third_triad, 52, 0.045f, guitar_profile);
+	add_harmonic_note(weak_third_triad, 55, 0.22f, guitar_profile);
+
+	const auto weak_third_snapshot = analyze_buffer(weak_third_triad, "guitar");
+	runner.expect(has_chord_label(weak_third_snapshot.guitar_chord.label, "C"),
+		      std::string("guitar weak-third triad aliases: expected C, got `") +
+			      weak_third_snapshot.guitar_chord.label + "`");
+	expect_no_chord_label(runner, weak_third_snapshot.guitar_chord.label, "Cpow",
+			      "guitar weak-third triad power alias");
 }
 
 void check_quiet_note_rejection(Runner &runner)
