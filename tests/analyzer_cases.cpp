@@ -731,6 +731,15 @@ void check_guitar_supported_extension_aliases(Runner &runner)
 	runner.expect(has_chord_label(low_root_minor_seventh_snapshot.guitar_chord.label, "C#m7"),
 		      std::string("guitar low-root extension aliases: expected C#m7 alias, got `") +
 			      low_root_minor_seventh_snapshot.guitar_chord.label + "`");
+
+	mao_test::Buffer ambiguous_root_extension = {};
+	for (int midi : {45, 48, 52, 55, 59})
+		add_harmonic_note(ambiguous_root_extension, midi, 0.18f, guitar_profile);
+
+	const auto ambiguous_root_snapshot = analyze_buffer(ambiguous_root_extension, "guitar");
+	runner.expect(has_chord_label(ambiguous_root_snapshot.guitar_chord.label, "Cmaj7"),
+		      std::string("guitar related-root extension aliases: expected Cmaj7 alias, got `") +
+			      ambiguous_root_snapshot.guitar_chord.label + "`");
 }
 
 void check_quiet_note_rejection(Runner &runner)
