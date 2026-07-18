@@ -590,7 +590,13 @@ void check_harmonic_chords(Runner &runner)
 				expect_note_token(runner, instrument.notes(snapshot).label, root_note.c_str(), context);
 				expect_note_token(runner, instrument.notes(snapshot).label, third_note.c_str(), context);
 				expect_note_token(runner, instrument.notes(snapshot).label, fifth_note.c_str(), context);
-				expect_label(runner, instrument.chord(snapshot).label, expected_chord, context);
+				if (std::strcmp(instrument.name, "guitar") == 0) {
+					runner.expect(has_chord_label(instrument.chord(snapshot).label, expected_chord),
+						      context + ": expected chord label `" + expected_chord +
+							      "`, got `" + instrument.chord(snapshot).label + "`");
+				} else {
+					expect_label(runner, instrument.chord(snapshot).label, expected_chord, context);
+				}
 			}
 		}
 	}
@@ -2559,7 +2565,9 @@ void check_guitar_caged_voicings(Runner &runner)
 		const auto buffer = make_harmonic_notes(shape.midis, 0.17f, guitar_profile);
 		const auto snapshot = analyze_buffer(buffer, "guitar");
 		const std::string context = std::string("CAGED guitar ") + shape.name;
-		expect_label(runner, snapshot.guitar_chord.label, shape.chord, context);
+		runner.expect(has_chord_label(snapshot.guitar_chord.label, shape.chord),
+			      context + ": expected chord label `" + shape.chord + "`, got `" +
+				      snapshot.guitar_chord.label + "`");
 		for (int midi : shape.midis) {
 			const std::string expected_note = mao_test::note_label(midi);
 			expect_note_token(runner, snapshot.guitar.label, expected_note.c_str(), context);

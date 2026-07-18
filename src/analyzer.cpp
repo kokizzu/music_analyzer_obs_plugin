@@ -2759,33 +2759,6 @@ bool chord_label_has_exact_component(const char *label, const char *component)
 	return false;
 }
 
-bool chord_label_has_plain_major_minor_component(const char *label)
-{
-	if (!label || !*label || std::strcmp(label, "--") == 0)
-		return false;
-
-	const char *cursor = label;
-	while (*cursor) {
-		const char *end = std::strchr(cursor, '=');
-		const std::size_t len = end ? static_cast<std::size_t>(end - cursor) : std::strlen(cursor);
-		if (len > 0 && note_letter_pitch_class(cursor[0]) >= 0) {
-			std::size_t root_len = 1;
-			if (len > 1 && cursor[1] == '#')
-				root_len = 2;
-			if (root_len <= len) {
-				const char *suffix = cursor + root_len;
-				const std::size_t suffix_len = len - root_len;
-				if (suffix_len == 0 || suffix_is(suffix, suffix_len, "m"))
-					return true;
-			}
-		}
-		if (!end)
-			break;
-		cursor = end + 1;
-	}
-	return false;
-}
-
 float note_grid_pitch_level(const NoteGrid &grid, int pitch_class)
 {
 	pitch_class = ((pitch_class % 12) + 12) % 12;
@@ -2854,8 +2827,6 @@ void append_guitar_chord_alias(ChordResult &chord, const char *suffix)
 void append_supported_guitar_plain_triad_aliases(ChordResult &chord, const NoteGrid &grid)
 {
 	if (chord.root < 0 || !chord.label[0] || chord.label[0] == '-')
-		return;
-	if (chord_label_has_plain_major_minor_component(chord.label))
 		return;
 
 	float strongest = 0.0f;
