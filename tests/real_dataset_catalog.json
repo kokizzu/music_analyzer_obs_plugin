@@ -251,6 +251,22 @@
       "evidence": "Official page describes 1,276 performances, 198.7 hours of paired piano WAV/MIDI data, about 3 ms alignment, metadata CSV/JSON, and over 7M notes."
     },
     {
+      "id": "idmt_smt_bass_single_track",
+      "name": "IDMT-SMT-Bass-Single-Track",
+      "category": "single_instrument_truth",
+      "piece_count": 17,
+      "real_audio": true,
+      "isolated_sources": false,
+      "assembled_mix": false,
+      "aligned_symbolic_truth": true,
+      "truth": "bass note onset, offset, MIDI pitch, string, fret, plucking style, and expression style annotations",
+      "automation_target": "test-idmt-bass-lines-samples",
+      "source_url": "https://www.idmt.fraunhofer.de/en/publications/datasets/bass_lines.html",
+      "download_url": "https://zenodo.org/api/records/7544099/files/IDMT-SMT-BASS-SINGLE-TRACKS.zip/content",
+      "download_note": "The test-idmt-bass-lines-samples target downloads the 20.5 MB ZIP, prepares stable expression-style NO note clips into build/idmt_bass_lines_samples, and runs the shared isolated-bass real-note analyzer gate. The current default prepares 640 clips and detects 573/640.",
+      "evidence": "Fraunhofer and Zenodo describe 17 real electric-bass lines with note-level onset, offset, pitch, string, fret, plucking-style, and expression-style annotations; the ZIP contains 17 WAV files plus note CSV/XML annotations."
+    },
+    {
       "id": "guitarset",
       "name": "GuitarSet",
       "category": "single_instrument_truth",
