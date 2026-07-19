@@ -318,9 +318,9 @@ def main(argv=None):
     parser.add_argument("--cache-dir", default=os.environ.get("GUITAR_TECHS_CHORD_CACHE_DIR", ""))
     parser.add_argument("--perspectives", default=os.environ.get("GUITAR_TECHS_CHORD_PERSPECTIVES",
                                                                  ",".join(single_notes.DEFAULT_PERSPECTIVES)))
-    parser.add_argument("--limit", type=int, default=int(os.environ.get("GUITAR_TECHS_CHORD_SAMPLE_LIMIT", "160")))
+    parser.add_argument("--limit", type=int, default=int(os.environ.get("GUITAR_TECHS_CHORD_SAMPLE_LIMIT", "0")))
     parser.add_argument("--min-samples", type=int,
-                        default=int(os.environ.get("GUITAR_TECHS_CHORD_MIN_EXCERPTS", "80")))
+                        default=int(os.environ.get("GUITAR_TECHS_CHORD_MIN_EXCERPTS", "7000")))
     parser.add_argument("--min-notes", type=int,
                         default=int(os.environ.get("GUITAR_TECHS_CHORD_MIN_NOTES", "3")))
     parser.add_argument("--min-pitch-classes", type=int,

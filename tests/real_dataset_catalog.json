@@ -327,8 +327,8 @@
       "source_url": "https://guitar-techs.github.io/",
       "documentation_url": "https://arxiv.org/abs/2501.03720",
       "download_url": "https://zenodo.org/records/14963133",
-      "download_note": "The optional test-guitar-techs-samples target downloads the smaller P1/P2 single-note ZIPs, prepares DI and amplifier-mic note excerpts, and keeps the larger techniques/chords/scales/music archives out of normal smoke tests. The current default prep yields 547 tested clips after 11 pitch-reference skips.",
-      "evidence": "Official project and Zenodo pages describe 3,732 electric-guitar recordings across single notes, techniques, chords, scales, and excerpts, captured from DI, amplifier microphone, egocentric, and exocentric perspectives with synchronized MIDI labels; this repository currently gates the single-note subset through the shared real-note analyzer test, with 547/547 prepared clips detected in isolated-guitar mode."
+      "download_note": "The optional test-guitar-techs-samples target downloads the smaller P1/P2 single-note ZIPs, prepares DI and amplifier-mic note excerpts, and keeps the larger techniques/chords/scales/music archives out of normal smoke tests. The current single-note default prep yields 547 tested clips after 11 pitch-reference skips. The optional test-guitar-techs-chord-samples target downloads the P1/P2 chord ZIPs and now uses the full current 7016-clip chord-window sweep by default.",
+      "evidence": "Official project and Zenodo pages describe 3,732 electric-guitar recordings across single notes, techniques, chords, scales, and excerpts, captured from DI, amplifier microphone, egocentric, and exocentric perspectives with synchronized MIDI labels; this repository gates the single-note subset through the shared real-note analyzer test, with 547/547 prepared clips detected in isolated-guitar mode, and gates the P1/P2 chord subset through the isolated-guitar note/chord harness, with 7016 prepared chord clips and 7788 analyzer windows."
     },
     {
       "id": "guitar_chord_mix",

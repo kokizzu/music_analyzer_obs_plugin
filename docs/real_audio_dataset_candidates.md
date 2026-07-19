@@ -328,9 +328,10 @@ without additional annotation.
   archives and generated clips under `build/`. On the current P1/P2 single-note
   archives it prepares 547 tested clips after 11 pitch-reference skips, and the
   analyzer gate detected 547/547 guitar notes. `make test-guitar-techs-chord-samples`
-  uses the P1/P2 chord ZIPs to write GuitarSet-shaped `AUDIO`/`NOTE` manifests
-  and run the isolated-guitar note/chord harness. Scales, techniques, and music
-  archives still need separate gates.
+  uses the full P1/P2 chord ZIP sweep by default, writes GuitarSet-shaped
+  `AUDIO`/`NOTE` manifests, and runs the isolated-guitar note/chord harness
+  over 7000+ real chord clips. Scales, techniques, and music archives still
+  need separate gates.
 - Use `make test-guitar-chord-mix-samples` to download all currently matched
   public Hugging Face Guitar Chord Mix WAV/JAMS clips into
   `build/guitar_chord_mix_samples`, write a GuitarSet-shaped `AUDIO`/`NOTE`
