@@ -3173,6 +3173,9 @@ void append_supported_guitar_extension_aliases_for_root(ChordResult &chord, cons
 	const bool has_major = major_third >= kCoreFloor && has_fifth;
 	const bool has_strong_major =
 		has_major && major_third >= std::max(kRichMajorThirdFloor, std::min(root, fifth) * 0.45f);
+	const bool has_clear_major_seventh =
+		has_major && major_third >= std::max(kCoreFloor, std::min(root, fifth) * 0.30f) &&
+		major_seventh >= std::max(kExtensionFloor, std::min(root, fifth) * 0.30f);
 	const bool has_minor = minor_third >= kCoreFloor && has_fifth;
 	const bool has_dim = minor_third >= kCoreFloor && flat_fifth >= kCoreFloor;
 	const bool has_aug = major_third >= kCoreFloor && aug_fifth >= kCoreFloor && fifth < kCoreFloor;
@@ -3222,7 +3225,7 @@ void append_supported_guitar_extension_aliases_for_root(ChordResult &chord, cons
 			append_chord_alias(chord, root_pitch_class, "maj9");
 		if (supported_extension(10, flat_seventh))
 			append_chord_alias(chord, root_pitch_class, "7");
-		if (has_strong_major && supported_extension(11, major_seventh))
+		if (has_clear_major_seventh && supported_extension(11, major_seventh))
 			append_chord_alias(chord, root_pitch_class, "maj7");
 		if (supported_extension(9, sixth))
 			append_chord_alias(chord, root_pitch_class, "6");
