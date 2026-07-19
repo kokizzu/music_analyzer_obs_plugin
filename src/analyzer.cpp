@@ -3113,6 +3113,42 @@ bool parse_power_chord_component(const char *start, std::size_t len, ParsedRootC
 	return suffix_is(suffix, suffix_len, "pow");
 }
 
+void remove_superseded_guitar_power_aliases(ChordResult &chord)
+{
+	if (chord.root < 0 || !chord.label[0] || chord.label[0] == '-')
+		return;
+
+	char filtered[sizeof(chord.label)] = {};
+	const char *cursor = chord.label;
+	while (*cursor) {
+		const char *end = std::strchr(cursor, '=');
+		const std::size_t len = end ? static_cast<std::size_t>(end - cursor) : std::strlen(cursor);
+
+		ParsedRootChord parsed;
+		const bool skip =
+			parse_power_chord_component(cursor, len, parsed) &&
+			chord_label_has_root_third_component(chord.label, parsed.root);
+		if (!skip) {
+			if (filtered[0])
+				append_text(filtered, sizeof(filtered), "=");
+			const std::size_t used = std::strlen(filtered);
+			const std::size_t copy_len = std::min(len, sizeof(filtered) - used - 1);
+			std::memcpy(filtered + used, cursor, copy_len);
+			filtered[used + copy_len] = '\0';
+		}
+
+		if (!end)
+			break;
+		cursor = end + 1;
+	}
+
+	if (!filtered[0]) {
+		chord = ChordResult{};
+		return;
+	}
+	copy_text(chord.label, sizeof(chord.label), filtered);
+}
+
 float strongest_probe_pitch_class_level(const std::array<float, kNoteProbeCount> &powers, int pitch_class,
 					int min_midi, int max_midi)
 {
@@ -5281,7 +5317,7 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 				float recovered_score = 0.0f;
 				for (int midi = min_midi; midi <= 52; ++midi) {
 					const std::size_t index = static_cast<std::size_t>(midi - kFirstMidi);
-					if (low_fundamental_support[index] < (active_guitar_cells <= 1 ? 1 : 2))
+					if (low_fundamental_support[index] < 2)
 						continue;
 					if (low_fundamental_votes[index] > recovered_score) {
 						recovered_score = low_fundamental_votes[index];
@@ -5325,6 +5361,13 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 			}
 			return false;
 		};
+		auto guitar_chord_supported_by_display_grid = [&](const ChordResult &chord) {
+			if (mixed_source || !valid_chord_result(chord))
+				return true;
+			const bool power_chord = std::strstr(chord.label, "pow") != nullptr;
+			return !power_chord || (guitar_note_grid_pitch_class_active(chord.root) &&
+						guitar_note_grid_pitch_class_active(chord.root + 7));
+		};
 		const bool display_guitar_root_active =
 			display_guitar_valid && guitar_note_grid_pitch_class_active(display_guitar_chord.root);
 		if (!mixed_source && raw_guitar_chord.root >= 0 &&
@@ -5345,6 +5388,10 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 		    std::strstr(display_guitar_chord.label, "pow") == nullptr) {
 			raw_guitar_chord = display_guitar_chord;
 			raw_guitar_valid = true;
+		}
+		if (!guitar_chord_supported_by_display_grid(raw_guitar_chord)) {
+			raw_guitar_chord = ChordResult{};
+			raw_guitar_valid = false;
 		}
 		if (raw_guitar_chord.root >= 0 && std::strstr(raw_guitar_chord.label, "pow")) {
 			int power_root = raw_guitar_chord.root;
@@ -5425,6 +5472,7 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 			append_supported_guitar_power_aliases(raw_guitar_chord, guitar_chord_detection_grid);
 			append_guitar_power_probe_third_aliases(raw_guitar_chord, guitar_chord_detection_grid,
 								detection_note_powers, min_midi, kGuitarMaxMidi);
+			remove_superseded_guitar_power_aliases(raw_guitar_chord);
 		}
 		set_instrument_chord(snapshot.guitar_chord, raw_guitar_chord, guitar_energy, rms,
 				     mixed_source ? kNoteRmsFloor : kPolyphonicNoteRmsFloor);
@@ -5665,6 +5713,25 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 					  kAnalyticalChordNoteReleaseSeconds, kAnalyticalChordNoteVisibleFloor);
 		ChordResult smoothed_guitar_chord =
 			detect_guitar_chord_from_grid(guitar_chord_grid, allow_smoothed_extensions);
+		auto smoothed_guitar_chord_supported_by_display_grid = [&](const ChordResult &chord) {
+			if (mixed_source || !valid_chord_result(chord))
+				return true;
+			const bool power_chord = std::strstr(chord.label, "pow") != nullptr;
+			auto displayed_pitch_class_active = [&](int pitch_class) {
+				pitch_class = ((pitch_class % 12) + 12) % 12;
+				if (snapshot.guitar_notes.cells[pitch_class].active)
+					return true;
+				for (const auto &row : snapshot.guitar_notes.rows) {
+					if (row[pitch_class].active)
+						return true;
+				}
+				return false;
+			};
+			return !power_chord || (displayed_pitch_class_active(chord.root) &&
+						displayed_pitch_class_active(chord.root + 7));
+		};
+		if (!smoothed_guitar_chord_supported_by_display_grid(smoothed_guitar_chord))
+			smoothed_guitar_chord = ChordResult{};
 		if (smoothed_guitar_chord.root >= 0 && std::strstr(smoothed_guitar_chord.label, "pow")) {
 			int power_root = smoothed_guitar_chord.root;
 			ParsedRootChord parsed_power;
@@ -5719,6 +5786,7 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 			append_guitar_power_probe_third_aliases(smoothed_guitar_chord, guitar_chord_grid,
 								detection_note_powers, kGuitarMinMidi,
 								kGuitarMaxMidi);
+			remove_superseded_guitar_power_aliases(smoothed_guitar_chord);
 		}
 		stabilize_chord(snapshot.guitar_chord, guitar_chord_tracking_, raw_guitar_chord,
 				smoothed_guitar_chord, true, interval_seconds);
