@@ -361,6 +361,22 @@
       "evidence": "Fraunhofer describes IDMT-SMT-Drums as 608 mono 44.1 kHz 16-bit WAV files with 104 polyphonic drum loops, per-loop training files for kick drum, snare drum, and hi-hat, and manually annotated onsets in XML/SVL; Zenodo hosts the 287.1 MB V2 ZIP."
     },
     {
+      "id": "star_drums",
+      "name": "STAR Drums",
+      "category": "synth_multitrack_truth",
+      "piece_count": 4,
+      "real_audio": false,
+      "isolated_sources": true,
+      "assembled_mix": true,
+      "aligned_symbolic_truth": true,
+      "truth": "18-class drum onset annotations and rendered MIDI for re-synthesized drum stems",
+      "automation_target": "test-star-drums-samples",
+      "source_url": "https://zenodo.org/records/15690078",
+      "download_url": "https://zenodo.org/records/15690078/files/STAR_Drums_preview.zip?download=1",
+      "download_note": "The test-star-drums-samples target downloads the 96.7 MB preview ZIP, maps supported drum labels to GM MIDI, prepares an E-GMD-shaped manifest under build/star_drums_preview_samples, and runs the shared drum analyzer gate. The preview automation currently covers 4 recordings and 16 evaluated hit windows.",
+      "evidence": "Zenodo describes STAR Drums as annotated synthesized drum sounds mixed with real melodic/vocal recordings, with 18 drum classes, audio stems, and MIDI files under train/validation/test splits; the full release is split into about 181.2 GB of files and the preview ZIP is 96.7 MB."
+    },
+    {
       "id": "guitarset",
       "name": "GuitarSet",
       "category": "single_instrument_truth",
