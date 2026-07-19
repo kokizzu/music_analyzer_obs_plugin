@@ -3049,6 +3049,57 @@ void append_supported_guitar_power_aliases(ChordResult &chord, const NoteGrid &g
 	}
 }
 
+ChordResult detect_preferred_guitar_root_third_dyad(const NoteGrid &grid, int preferred_root)
+{
+	ChordResult dyad;
+	if (preferred_root < 0 || note_grid_active_pitch_class_count(grid) > 5)
+		return dyad;
+
+	float strongest = 0.0f;
+	for (int pitch_class = 0; pitch_class < 12; ++pitch_class)
+		strongest = std::max(strongest, note_grid_pitch_level(grid, pitch_class));
+	if (strongest <= 1.0e-6f)
+		return dyad;
+
+	const float root = note_grid_pitch_level(grid, preferred_root);
+	const float major_third = note_grid_pitch_level(grid, preferred_root + 4);
+	const float minor_third = note_grid_pitch_level(grid, preferred_root + 3);
+	const float root_floor = std::max(0.14f, strongest * 0.20f);
+	const float third_floor = std::max(0.12f, strongest * 0.18f);
+	if (root < root_floor)
+		return dyad;
+
+	const bool choose_minor = minor_third >= third_floor && minor_third >= major_third * 1.10f;
+	const bool choose_major = major_third >= third_floor && major_third >= minor_third * 1.10f;
+	if (choose_minor == choose_major)
+		return dyad;
+
+	dyad.root = preferred_root;
+	dyad.confidence = std::clamp(0.38f + std::min(root, std::max(major_third, minor_third)) * 0.35f,
+				     kChordConfidenceFloor, 0.68f);
+	dyad.margin = dyad.confidence * 0.65f;
+	dyad.uncertain = false;
+	dyad.tones[((preferred_root % 12) + 12) % 12] = true;
+	dyad.tones[((preferred_root + (choose_minor ? 3 : 4)) % 12 + 12) % 12] = true;
+	std::snprintf(dyad.label, sizeof(dyad.label), "%s%s", note_name(preferred_root),
+		      choose_minor ? "m" : "");
+	return dyad;
+}
+
+void append_preferred_guitar_root_third_dyad_alias(ChordResult &chord, const ChordResult &dyad)
+{
+	if (chord.root < 0 || !chord.label[0] || chord.label[0] == '-')
+		return;
+	if (dyad.root < 0 || !dyad.label[0] || dyad.label[0] == '-')
+		return;
+	const char *suffix = "";
+	const char *root_end = dyad.label + 1;
+	if (dyad.label[1] == '#')
+		root_end = dyad.label + 2;
+	suffix = root_end;
+	append_chord_alias(chord, dyad.root, suffix);
+}
+
 bool parse_power_chord_component(const char *start, std::size_t len, ParsedRootChord &parsed)
 {
 	if (!parse_root_chord_component(start, len, parsed) || parsed.quality != RootChordQuality::NoThird)
@@ -3327,14 +3378,21 @@ ChordResult detect_guitar_chord_from_grid(const NoteGrid &grid, bool allow_exten
 	ChordResult chord = detect_chord(chroma, preferred_root, allow_extensions);
 	const ChordResult caged = detect_caged_guitar_chord(caged_chroma, preferred_root);
 	const ChordResult caged_altered = detect_caged_guitar_chord(caged_chroma, preferred_root, true);
+	const ChordResult root_third_dyad = detect_preferred_guitar_root_third_dyad(grid, preferred_root);
+	auto with_root_third_alias = [&](ChordResult selected) {
+		append_preferred_guitar_root_third_dyad_alias(selected, root_third_dyad);
+		return selected;
+	};
 
 	if (caged.root < 0) {
-		if (chord.root < 0 && caged_altered.root >= 0)
-			return caged_altered;
-		return chord;
+		if (chord.root < 0) {
+			if (caged_altered.root >= 0)
+				return caged_altered;
+		}
+		return with_root_third_alias(chord);
 	}
 	if (chord.root < 0)
-		return caged;
+		return with_root_third_alias(caged);
 
 	int caged_tone_cells = 0;
 	int non_caged_chord_tone_cells = 0;
@@ -3393,21 +3451,21 @@ ChordResult detect_guitar_chord_from_grid(const NoteGrid &grid, bool allow_exten
 		guitar_pitch_class_active(caged.root - 1) && guitar_pitch_class_active(caged.root + 1);
 	if (chord_label_has_guitar_extension_or_alteration(chord.label) && caged.confidence >= 0.58f &&
 	    weak_guitar_tone)
-		return caged;
+		return with_root_third_alias(caged);
 	if (chord_label_has_guitar_extension_or_alteration(chord.label) && root_adjacent_noise &&
 	    caged.confidence >= kChordConfidenceFloor && caged_tone_cells >= 3)
-		return caged;
+		return with_root_third_alias(caged);
 	if (std::strstr(chord.label, "pow") && std::strstr(caged.label, "pow") == nullptr &&
 	    caged.confidence >= 0.38f && caged_tone_cells >= 4)
-		return caged;
+		return with_root_third_alias(caged);
 	if (chord_label_has_guitar_extension_or_alteration(chord.label) && caged.confidence >= 0.50f &&
 	    caged_tone_cells >= 4 && non_caged_chord_tone_cells <= 2)
-		return caged;
+		return with_root_third_alias(caged);
 	if (chord_label_has_guitar_extension_or_alteration(chord.label) && caged.confidence >= 0.38f &&
 	    caged_tone_cells >= 4 && non_caged_chord_tone_cells <= 3)
-		return caged;
+		return with_root_third_alias(caged);
 
-	return chord;
+	return with_root_third_alias(chord);
 }
 
 void set_single_note_grid(NoteGrid &grid, InstrumentState &state, const RangeResult &note, float energy, float rms)
@@ -4776,7 +4834,16 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 			((had_previous_audio && (transient_ratio >= 0.82f || soft_snare_onset_shape)) ||
 			 clear_initial_snare_onset);
 		const bool soft_rim_transient = had_previous_audio && rim && rim_shape && transient_ratio >= 0.62f;
-		const bool soft_tom_transient = had_previous_audio && tom && tom_shape && transient_ratio >= 0.72f;
+		const bool strong_tom_onset_shape =
+			tom && tom_shape && onset >= 4.0f && score >= trigger_threshold * 1.70f &&
+			body_shape_scores[2] >= body_shape_scores[1] * 1.30f &&
+			body_shape_scores[2] >= body_shape_scores[0] * 1.40f &&
+			snapshot.mid_energy >= snapshot.low_energy * 0.90f &&
+			(snare_body <= 1.0e-6f || snare_crack <= snare_body * 0.10f ||
+			 upper_tom_body >= snare_crack * 8.0f);
+		const bool soft_tom_transient =
+			tom && tom_shape && ((had_previous_audio && transient_ratio >= 0.72f) ||
+					     strong_tom_onset_shape);
 		const bool soft_body_transient =
 			soft_kick_transient || soft_snare_transient || soft_rim_transient || soft_tom_transient;
 		const bool base_shape_supported = drum_shape_supported[i];
@@ -4788,6 +4855,7 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 					      soft_kick_transient ? 0.32f :
 					      soft_snare_transient ? 0.30f :
 					      soft_rim_transient ? 0.24f :
+					      strong_tom_onset_shape ? 0.30f :
 					      soft_tom_transient ? 0.44f :
 								     1.0f;
 		const float effective_threshold = trigger_threshold * threshold_scale;
@@ -4866,6 +4934,8 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 					level = std::min(level, 0.46f);
 				}
 			}
+			if (tom && strong_tom_onset_shape)
+				level = std::clamp(level * 1.01f + 0.005f, 0.0f, 1.0f);
 			drum_level_[i] = std::max(drum_level_[i], level);
 			tempo_event = true;
 		} else {
