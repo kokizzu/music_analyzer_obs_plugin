@@ -111,6 +111,39 @@ def run_prepare(base, min_samples=2, limit=0):
     return output
 
 
+def run_prepare_multi_source(base, min_samples=2, limit=2):
+    source_a = base / "source-a.zip"
+    source_b = base / "source-b.zip"
+    make_zip(source_a)
+    make_zip(source_b)
+    cache = base / "cache"
+    output = base / "out"
+    curl = base / "fake-curl"
+    ffmpeg = base / "fake-ffmpeg"
+    write_fake_curl(curl)
+    write_fake_ffmpeg(ffmpeg)
+    prepare_iowa_zip_samples.main([
+        "--spec",
+        f"other|woodwind|iowa-source-a|{source_a.resolve().as_uri()}",
+        "--spec",
+        f"other|brass|iowa-source-b|{source_b.resolve().as_uri()}",
+        "--source-dir",
+        str(cache),
+        "--output",
+        str(output),
+        "--limit",
+        str(limit),
+        "--min-samples",
+        str(min_samples),
+        "--ffmpeg",
+        str(ffmpeg),
+        "--curl",
+        str(curl),
+        "--skip-pitch-check",
+    ])
+    return output
+
+
 def test_zip_members_are_prepared_as_bass_notes():
     with tempfile.TemporaryDirectory() as temp:
         output = run_prepare(Path(temp))
@@ -134,6 +167,15 @@ def test_limit_is_enforced_before_manifest_write():
         rows = manifest_rows(output / "manifest.tsv")
         if len(rows) != 1:
             raise AssertionError(f"expected one limited row, got {len(rows)}")
+
+
+def test_limit_is_balanced_across_sources():
+    with tempfile.TemporaryDirectory() as temp:
+        output = run_prepare_multi_source(Path(temp))
+        rows = manifest_rows(output / "manifest.tsv")
+        sources = [row[3] for row in rows]
+        if sources != ["iowa-source-a", "iowa-source-b"]:
+            raise AssertionError(f"expected one row per source, got {sources}")
 
 
 def test_minimum_sample_failure_writes_partial_manifest():
@@ -190,6 +232,48 @@ def test_page_spec_expands_zip_links():
             raise AssertionError(f"expected page-derived sources, got {[row[3] for row in rows]}")
 
 
+def test_page_spec_can_limit_zip_links():
+    with tempfile.TemporaryDirectory() as temp:
+        base = Path(temp)
+        source_a = base / "source-a.zip"
+        source_b = base / "source-b.zip"
+        make_zip(source_a)
+        make_zip(source_b)
+        page = base / "page.html"
+        page.write_text(
+            f'<a href="{source_a.name}">source a</a>'
+            f'<a href="{source_b.name}">source b</a>',
+            encoding="utf-8",
+        )
+        cache = base / "cache"
+        output = base / "out"
+        curl = base / "fake-curl"
+        ffmpeg = base / "fake-ffmpeg"
+        write_fake_curl(curl)
+        write_fake_ffmpeg(ffmpeg)
+        prepare_iowa_zip_samples.main([
+            "--page-spec",
+            f"other|strings|iowa-page|{page.resolve().as_uri()}",
+            "--source-dir",
+            str(cache),
+            "--output",
+            str(output),
+            "--min-samples",
+            "2",
+            "--max-zips-per-page",
+            "1",
+            "--ffmpeg",
+            str(ffmpeg),
+            "--curl",
+            str(curl),
+            "--skip-pitch-check",
+        ])
+        rows = manifest_rows(output / "manifest.tsv")
+        sources = {row[3] for row in rows}
+        if sources != {"iowa-page-source-a"}:
+            raise AssertionError(f"expected only the first page ZIP source, got {sources}")
+
+
 def test_pitch_reference_filter_rejects_neighbor_note():
     with tempfile.TemporaryDirectory() as temp:
         path = Path(temp) / "e2.wav"
@@ -203,10 +287,12 @@ def test_pitch_reference_filter_rejects_neighbor_note():
 def main():
     test_zip_members_are_prepared_as_bass_notes()
     test_limit_is_enforced_before_manifest_write()
+    test_limit_is_balanced_across_sources()
     test_minimum_sample_failure_writes_partial_manifest()
     test_page_spec_expands_zip_links()
+    test_page_spec_can_limit_zip_links()
     test_pitch_reference_filter_rejects_neighbor_note()
-    print("test_prepare_iowa_zip_samples: 5 checks passed")
+    print("test_prepare_iowa_zip_samples: 7 checks passed")
     return 0
 
 

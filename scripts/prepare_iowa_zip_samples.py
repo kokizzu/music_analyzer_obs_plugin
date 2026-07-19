@@ -146,7 +146,7 @@ def source_suffix_from_url(url):
     return re.sub(r"[^A-Za-z0-9_.-]+", "-", stem).strip("-") or "zip"
 
 
-def specs_from_page_spec(page_spec, timeout_seconds):
+def specs_from_page_spec(page_spec, timeout_seconds, max_zips):
     with urllib.request.urlopen(page_spec["url"], timeout=timeout_seconds) as response:
         body = response.read().decode("latin1", "replace")
     specs = []
@@ -162,6 +162,8 @@ def specs_from_page_spec(page_spec, timeout_seconds):
             "source": f"{page_spec['source_prefix']}-{source_suffix_from_url(zip_url)}",
             "url": zip_url,
         })
+        if max_zips > 0 and len(specs) >= max_zips:
+            break
     if not specs:
         raise SystemExit(f"prepare_iowa_zip_samples: no ZIP links found on {page_spec['url']}")
     return specs
@@ -375,7 +377,24 @@ def write_manifest(path, rows, signature):
 def limited_rows(rows, limit):
     if limit <= 0 or len(rows) <= limit:
         return rows
-    return rows[:limit]
+    buckets = {}
+    for row in rows:
+        buckets.setdefault(row["spec"]["source"], []).append(row)
+    result = []
+    sources = sorted(buckets)
+    while len(result) < limit:
+        progressed = False
+        for source in sources:
+            bucket = buckets[source]
+            if not bucket:
+                continue
+            result.append(bucket.pop(0))
+            progressed = True
+            if len(result) >= limit:
+                break
+        if not progressed:
+            break
+    return sorted(result, key=lambda row: (row["spec"]["source"], row["midi"], row["member"]))
 
 
 def main(argv=None):
@@ -394,6 +413,8 @@ def main(argv=None):
                         default=int(os.environ.get("IOWA_ZIP_DOWNLOAD_TIMEOUT", "240")))
     parser.add_argument("--download-retries", type=int,
                         default=int(os.environ.get("IOWA_ZIP_DOWNLOAD_RETRIES", "4")))
+    parser.add_argument("--max-zips-per-page", type=int,
+                        default=int(os.environ.get("IOWA_ZIP_MAX_ZIPS_PER_PAGE", "0")))
     parser.add_argument("--skip-pitch-check", action="store_true",
                         default=os.environ.get("IOWA_ZIP_SKIP_PITCH_CHECK") == "1")
     parser.add_argument("--refresh", action="store_true", default=os.environ.get("IOWA_ZIP_REFRESH") == "1")
@@ -409,7 +430,8 @@ def main(argv=None):
     manifest_path = output_dir / "manifest.tsv"
     specs = [parse_spec(spec) for spec in args.spec]
     for page_spec_text in args.page_spec:
-        specs.extend(specs_from_page_spec(parse_page_spec(page_spec_text), args.download_timeout))
+        specs.extend(specs_from_page_spec(parse_page_spec(page_spec_text), args.download_timeout,
+                                          max(0, args.max_zips_per_page)))
     signature = signature_text(specs, f"{args.limit}|pitch={0 if args.skip_pitch_check else 1}")
     min_samples = max(0, args.min_samples)
     if not args.refresh and manifest_complete(manifest_path, signature, min_samples):
@@ -418,12 +440,9 @@ def main(argv=None):
 
     rows = []
     for spec in specs:
-        if args.limit > 0 and len(rows) >= args.limit:
-            break
         zip_path = source_dir / zip_filename(spec)
         download_file(curl, spec["url"], zip_path, args.download_timeout, max(0, args.download_retries))
         rows.extend(collect_zip_rows(spec, zip_path))
-        rows = limited_rows(rows, args.limit)
     rows = limited_rows(rows, args.limit)
     if not rows:
         raise SystemExit("prepare_iowa_zip_samples: no one-note AIF members discovered")
