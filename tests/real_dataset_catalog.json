@@ -275,11 +275,11 @@
       "assembled_mix": false,
       "aligned_symbolic_truth": true,
       "truth": "single-note labels plus tonal-quality metadata for real instrument recordings",
-      "automation_target": "",
+      "automation_target": "test-good-sounds-samples",
       "source_url": "https://www.upf.edu/web/mtg/good-sounds",
-      "download_url": "https://zenodo.org/records/820937",
-      "download_note": "The archive is about 13.9 GB, so it should be an optional real-note fixture rather than part of default tests.",
-      "evidence": "Official MTG page describes 12 instruments recorded by professional musicians, one note per 48 kHz mono FLAC for single notes, semitone coverage across each playable range, repeated examples, and metadata including instrument, note, dynamics, and tonal-quality annotations."
+      "download_url": "https://zenodo.org/api/records/820937/files/good-sounds.zip/content",
+      "download_note": "The archive is about 13.9 GB, so the implemented test-good-sounds-samples target is explicit; test-real-world-samples-full runs it only when the archive is already cached.",
+      "evidence": "Official MTG and Zenodo metadata describe 12 instruments recorded by professional musicians, one note per 48 kHz mono FLAC for single notes, semitone coverage across each playable range, repeated examples, and SQLite tables for sounds, takes, packs, and ratings. This repository imports that SQLite truth into the shared real-note analyzer harness."
     },
     {
       "id": "orchideasol",
