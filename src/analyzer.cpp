@@ -58,6 +58,8 @@ constexpr float kChordConfidenceFloor = 0.36f;
 constexpr float kChordCandidateMarginFloor = 0.025f;
 constexpr float kChordMarginConfidenceCeiling = 0.40f;
 constexpr float kChordWeakExtensionMargin = 0.16f;
+constexpr float kChordStrongExtensionToneFloor = 0.32f;
+constexpr float kChordStrongExtensionCoreRatio = 0.36f;
 constexpr float kGuitarCagedPresenceFloor = 0.50f;
 constexpr std::size_t kDrumTransientSegments = 8;
 constexpr float kDrumTransientRatio = 1.55f;
@@ -1630,6 +1632,28 @@ bool chord_candidate_compatible(const ChordCandidate &lhs, const ChordCandidate 
 	return (lhs.mask & ~rhs.mask) == 0 || (rhs.mask & ~lhs.mask) == 0;
 }
 
+float chroma_mask_max(const std::array<float, 12> &chroma, uint16_t mask)
+{
+	float result = 0.0f;
+	for (int pitch_class = 0; pitch_class < 12; ++pitch_class) {
+		if ((mask & static_cast<uint16_t>(1u << pitch_class)) != 0)
+			result = std::max(result, chroma[pitch_class]);
+	}
+	return result;
+}
+
+bool chord_extension_tones_are_strong(const std::array<float, 12> &chroma, uint16_t core_mask,
+				      uint16_t extension_mask)
+{
+	if (extension_mask == 0)
+		return false;
+
+	const float extension_max = chroma_mask_max(chroma, extension_mask);
+	const float core_max = chroma_mask_max(chroma, core_mask);
+	return extension_max >= kChordStrongExtensionToneFloor &&
+	       extension_max >= core_max * kChordStrongExtensionCoreRatio;
+}
+
 ChordResult detect_chord(const std::array<float, 12> &chroma, int bass_pitch_class = -1, bool allow_extensions = true)
 {
 	ChordResult best;
@@ -1751,6 +1775,9 @@ ChordResult detect_chord(const std::array<float, 12> &chroma, int bass_pitch_cla
 			    candidate.tone_count >= best_candidate.tone_count)
 				continue;
 			if ((candidate.mask & ~best_candidate.mask) != 0)
+				continue;
+			const uint16_t extension_mask = best_candidate.mask & ~candidate.mask;
+			if (chord_extension_tones_are_strong(chroma, candidate.mask, extension_mask))
 				continue;
 			const float normalized_gap = (best_score - candidate.score) / (chroma_sum + 1.0e-6f);
 			if (normalized_gap > kChordWeakExtensionMargin)

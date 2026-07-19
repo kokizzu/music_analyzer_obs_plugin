@@ -1260,6 +1260,28 @@ void check_chord_margin_and_simplification(Runner &runner)
 		expect_no_chord_label(runner, snapshot.keyboard_chord.label, "C9",
 				      "chord simplification: weak ninth");
 	}
+	{
+		mao_test::Buffer present_major_seventh = {};
+		mao_test::add_midi_note(present_major_seventh, 60, 0.34f);
+		mao_test::add_midi_note(present_major_seventh, 64, 0.34f);
+		mao_test::add_midi_note(present_major_seventh, 67, 0.34f);
+		mao_test::add_midi_note(present_major_seventh, 71, 0.24f);
+		const auto snapshot = analyze_buffer(present_major_seventh, "keyboard");
+		runner.expect(has_chord_label(snapshot.keyboard_chord.label, "Cmaj7"),
+			      std::string("chord simplification: present major seventh should not collapse, got `") +
+				      snapshot.keyboard_chord.label + "`");
+	}
+	{
+		mao_test::Buffer present_dominant_seventh = {};
+		mao_test::add_midi_note(present_dominant_seventh, 60, 0.34f);
+		mao_test::add_midi_note(present_dominant_seventh, 64, 0.34f);
+		mao_test::add_midi_note(present_dominant_seventh, 67, 0.34f);
+		mao_test::add_midi_note(present_dominant_seventh, 70, 0.24f);
+		const auto snapshot = analyze_buffer(present_dominant_seventh, "keyboard");
+		runner.expect(has_chord_label(snapshot.keyboard_chord.label, "C7"),
+			      std::string("chord simplification: present dominant seventh should not collapse, got `") +
+				      snapshot.keyboard_chord.label + "`");
+	}
 }
 
 void check_chord_evidence_separate_from_visual_fade(Runner &runner)
