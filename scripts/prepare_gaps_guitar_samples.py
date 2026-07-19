@@ -3,6 +3,7 @@
 import argparse
 import csv
 import hashlib
+import json
 import os
 from pathlib import Path
 import re
@@ -13,9 +14,12 @@ import urllib.parse
 import urllib.request
 
 
-FIXTURE_VERSION = "gaps-guitar-v1"
+FIXTURE_VERSION = "gaps-guitar-v2"
 GAPS_METADATA_URL = "https://huggingface.co/datasets/xavriley/GAPS/raw/main/gaps_metadata_with_splits.csv"
 GAPS_RESOLVE_BASE_URL = "https://huggingface.co/datasets/xavriley/GAPS/resolve/main"
+GAPS_MATCH_TREE_URL = (
+    "https://huggingface.co/api/datasets/xavriley/GAPS/tree/main/match?recursive=false&expand=false"
+)
 GUITAR_MIDI_RANGE = (40, 88)
 
 
@@ -27,6 +31,22 @@ def sanitize(text, limit=100):
 def is_url(text):
     lowered = str(text).lower()
     return lowered.startswith("http://") or lowered.startswith("https://") or lowered.startswith("file://")
+
+
+def is_http_url(text):
+    lowered = str(text).lower()
+    return lowered.startswith("http://") or lowered.startswith("https://")
+
+
+def read_json_resource(resource, timeout):
+    if is_url(resource):
+        request = urllib.request.Request(
+            resource,
+            headers={"User-Agent": "music-analyzer-obs-plugin-sample-prep/1.0"},
+        )
+        with urllib.request.urlopen(request, timeout=timeout) as response:
+            return json.loads(response.read().decode("utf-8"))
+    return json.loads(Path(resource).read_text(encoding="utf-8"))
 
 
 def resource_url(base_url, path):
@@ -171,6 +191,45 @@ def match_path_for_row(row):
     return f"match/{stem}.match"
 
 
+def normalize_repo_path(path):
+    return str(path).strip().replace("\\", "/").lstrip("/")
+
+
+def fetch_available_match_paths(args):
+    if args.no_match_tree:
+        return None
+    if not args.match_tree_json and not is_http_url(args.base_url):
+        return None
+
+    resource = args.match_tree_json or GAPS_MATCH_TREE_URL
+    try:
+        payload = read_json_resource(resource, args.timeout)
+    except (OSError, TimeoutError, urllib.error.URLError, json.JSONDecodeError) as exc:
+        print(f"prepare_gaps_guitar_samples: match-tree prefilter unavailable: {exc}", file=sys.stderr)
+        return None
+
+    if not isinstance(payload, list):
+        print("prepare_gaps_guitar_samples: match-tree prefilter unavailable: expected list JSON",
+              file=sys.stderr)
+        return None
+
+    available = set()
+    for entry in payload:
+        if not isinstance(entry, dict):
+            continue
+        if entry.get("type") not in (None, "file"):
+            continue
+        path = normalize_repo_path(entry.get("path", ""))
+        if path.lower().endswith(".match"):
+            available.add(path)
+
+    if not available:
+        print("prepare_gaps_guitar_samples: match-tree prefilter unavailable: no .match files",
+              file=sys.stderr)
+        return None
+    return available
+
+
 def signature_text(args):
     payload = "|".join([
         FIXTURE_VERSION,
@@ -179,6 +238,7 @@ def signature_text(args):
         f"splits={args.splits}",
         f"limit={args.limit}",
         f"min_note_duration={args.min_note_duration}",
+        f"match_tree={args.match_tree_json or ('off' if args.no_match_tree else 'auto')}",
     ])
     return hashlib.sha256(payload.encode("utf-8")).hexdigest()[:16]
 
@@ -244,11 +304,16 @@ def prepare(args):
     if not rows:
         raise SystemExit("prepare_gaps_guitar_samples: no metadata rows selected")
 
+    available_matches = fetch_available_match_paths(args)
+    skipped_unavailable_match = 0
     prepared = []
     for index, row in enumerate(rows, start=1):
         sample_id = sanitize(str(row.get("id", "")).strip())
         audio_rel = str(row.get("audio_path", "")).strip()
         match_rel = match_path_for_row(row)
+        if available_matches is not None and normalize_repo_path(match_rel) not in available_matches:
+            skipped_unavailable_match += 1
+            continue
         audio_path = audio_dir / Path(audio_rel).name
         match_path = match_dir / Path(match_rel).name
 
@@ -282,6 +347,8 @@ def prepare(args):
     print(
         f"prepare_gaps_guitar_samples: wrote {len(prepared)} clips and "
         f"{sum(len(row['notes']) for row in prepared)} notes to {manifest}"
+        + (f" (prefilter skipped unavailable matches={skipped_unavailable_match})"
+           if available_matches is not None else "")
     )
     return len(prepared)
 
@@ -293,6 +360,9 @@ def main(argv=None):
     parser.add_argument("--metadata", default=os.environ.get("GAPS_GUITAR_METADATA", ""))
     parser.add_argument("--metadata-url", default=os.environ.get("GAPS_GUITAR_METADATA_URL", GAPS_METADATA_URL))
     parser.add_argument("--base-url", default=os.environ.get("GAPS_GUITAR_BASE_URL", GAPS_RESOLVE_BASE_URL))
+    parser.add_argument("--match-tree-json", default=os.environ.get("GAPS_GUITAR_MATCH_TREE_JSON", ""))
+    parser.add_argument("--no-match-tree", action="store_true",
+                        default=os.environ.get("GAPS_GUITAR_NO_MATCH_TREE", "") not in ("", "0", "false", "FALSE"))
     parser.add_argument("--source-dir", default=os.environ.get("GAPS_GUITAR_SOURCE_DIR",
                                                               "build/real_sample_sources/gaps"))
     parser.add_argument("--output", default=os.environ.get("GAPS_GUITAR_SAMPLE_DIR",

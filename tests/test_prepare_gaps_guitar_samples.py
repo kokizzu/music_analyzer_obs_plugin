@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 
 import csv
+import json
 from pathlib import Path
 import sys
 import tempfile
@@ -51,7 +52,7 @@ def manifest_lines(path):
     return [line.rstrip("\n") for line in path.read_text(encoding="utf-8").splitlines() if line.strip()]
 
 
-def run_prepare(base, rows, limit=0, min_samples=1):
+def run_prepare(base, rows, limit=0, min_samples=1, match_tree=None):
     source = base / "source"
     for row in rows:
         sample_id = row["id"]
@@ -60,7 +61,7 @@ def run_prepare(base, rows, limit=0, min_samples=1):
     metadata = base / "metadata.csv"
     write_metadata(metadata, rows)
     output = base / "out"
-    prepare_gaps_guitar_samples.main([
+    args = [
         "--metadata",
         str(metadata),
         "--base-url",
@@ -77,7 +78,10 @@ def run_prepare(base, rows, limit=0, min_samples=1):
         "1",
         "--progress-every",
         "0",
-    ])
+    ]
+    if match_tree is not None:
+        args.extend(["--match-tree-json", str(match_tree)])
+    prepare_gaps_guitar_samples.main(args)
     return output
 
 
@@ -123,6 +127,26 @@ def test_gaps_limit_spreads_across_splits():
             raise AssertionError(f"expected split-spread rows, got {audio_ids}")
 
 
+def test_gaps_prefilters_unavailable_match_paths():
+    with tempfile.TemporaryDirectory() as temp:
+        base = Path(temp)
+        rows = [
+            {"id": "001_keep", "audio_path": "audio/001_keep.wav",
+             "midi_path": "midi/001_keep.mid", "split": "train"},
+            {"id": "002_skip", "audio_path": "audio/002_skip.wav",
+             "midi_path": "midi/002_skip.mid", "split": "train"},
+        ]
+        tree = base / "match_tree.json"
+        tree.write_text(json.dumps([
+            {"type": "file", "path": "match/001_keep.match"},
+        ]), encoding="utf-8")
+        output = run_prepare(base, rows, min_samples=1, match_tree=tree)
+        audio_ids = [line.split("\t")[1] for line in manifest_lines(output / "manifest.tsv")
+                     if line.startswith("AUDIO\t")]
+        if audio_ids != ["001_keep"]:
+            raise AssertionError(f"expected unavailable match row to be skipped, got {audio_ids}")
+
+
 def test_gaps_minimum_failure_writes_partial_manifest():
     with tempfile.TemporaryDirectory() as temp:
         base = Path(temp)
@@ -146,8 +170,9 @@ def test_gaps_minimum_failure_writes_partial_manifest():
 def main():
     test_gaps_manifest_is_prepared_from_match_notes()
     test_gaps_limit_spreads_across_splits()
+    test_gaps_prefilters_unavailable_match_paths()
     test_gaps_minimum_failure_writes_partial_manifest()
-    print("test_prepare_gaps_guitar_samples: 3 checks passed")
+    print("test_prepare_gaps_guitar_samples: 4 checks passed")
     return 0
 
 
