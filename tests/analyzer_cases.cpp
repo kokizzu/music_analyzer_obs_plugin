@@ -792,6 +792,20 @@ void check_guitar_supported_extension_aliases(Runner &runner)
 		      std::string("guitar probe-weak third triad aliases: expected C, got `") +
 			      probe_weak_third_snapshot.guitar_chord.label + "`");
 
+	mao_test::Buffer strong_ambiguous_thirds = {};
+	add_harmonic_note(strong_ambiguous_thirds, 52, 0.16f, guitar_profile);
+	add_harmonic_note(strong_ambiguous_thirds, 55, 0.24f, guitar_profile);
+	add_harmonic_note(strong_ambiguous_thirds, 56, 0.23f, guitar_profile);
+	add_harmonic_note(strong_ambiguous_thirds, 59, 0.14f, guitar_profile);
+
+	const auto strong_ambiguous_thirds_snapshot = analyze_buffer(strong_ambiguous_thirds, "guitar");
+	runner.expect(has_chord_label(strong_ambiguous_thirds_snapshot.guitar_chord.label, "E"),
+		      std::string("guitar strong ambiguous thirds: expected E alias, got `") +
+			      strong_ambiguous_thirds_snapshot.guitar_chord.label + "`");
+	runner.expect(has_chord_label(strong_ambiguous_thirds_snapshot.guitar_chord.label, "Em"),
+		      std::string("guitar strong ambiguous thirds: expected Em alias, got `") +
+			      strong_ambiguous_thirds_snapshot.guitar_chord.label + "`");
+
 	mao_test::Buffer ambiguous_weak_thirds = {};
 	add_harmonic_note(ambiguous_weak_thirds, 48, 0.24f, guitar_profile);
 	add_harmonic_note(ambiguous_weak_thirds, 51, 0.034f, guitar_profile);
