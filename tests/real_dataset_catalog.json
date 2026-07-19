@@ -1,5 +1,5 @@
 {
-  "last_checked": "2026-07-18",
+  "last_checked": "2026-07-20",
   "criteria": {
     "direct_fit": [
       "real, non-MIDI-rendered audio",
@@ -249,6 +249,68 @@
       "download_url": "https://storage.googleapis.com/magentadata/datasets/maestro/v3.0.0/maestro-v3.0.0.zip",
       "download_note": "Official v3.0.0 archive is about 101 GB compressed and 120 GB uncompressed; MIDI-only and metadata-only downloads are also available.",
       "evidence": "Official page describes 1,276 performances, 198.7 hours of paired piano WAV/MIDI data, about 3 ms alignment, metadata CSV/JSON, and over 7M notes."
+    },
+    {
+      "id": "maps",
+      "name": "MAPS",
+      "category": "single_instrument_truth",
+      "piece_count": 0,
+      "real_audio": true,
+      "isolated_sources": false,
+      "assembled_mix": false,
+      "aligned_symbolic_truth": true,
+      "truth": "MIDI-aligned piano notes, chords, and pieces",
+      "automation_target": "",
+      "source_url": "https://paperswithcode.com/dataset/maps",
+      "download_note": "Useful for future piano note/chord coverage, but access, license, and exact download layout need verification before adding an unattended target.",
+      "evidence": "Dataset summaries describe MIDI Aligned Piano Sounds as piano recordings with aligned MIDI, isolated notes, random-pitch chords, usual musical chords, and pieces across varied recording conditions."
+    },
+    {
+      "id": "good_sounds",
+      "name": "Good-sounds",
+      "category": "single_instrument_truth",
+      "piece_count": 0,
+      "real_audio": true,
+      "isolated_sources": false,
+      "assembled_mix": false,
+      "aligned_symbolic_truth": true,
+      "truth": "single-note labels plus tonal-quality metadata for real instrument recordings",
+      "automation_target": "",
+      "source_url": "https://www.upf.edu/web/mtg/good-sounds",
+      "download_url": "https://zenodo.org/records/820937",
+      "download_note": "The archive is about 13.9 GB, so it should be an optional real-note fixture rather than part of default tests.",
+      "evidence": "Official MTG page describes 12 instruments recorded by professional musicians, one note per 48 kHz mono FLAC for single notes, semitone coverage across each playable range, repeated examples, and metadata including instrument, note, dynamics, and tonal-quality annotations."
+    },
+    {
+      "id": "orchideasol",
+      "name": "OrchideaSOL",
+      "category": "single_instrument_truth",
+      "piece_count": 13265,
+      "real_audio": true,
+      "isolated_sources": false,
+      "assembled_mix": false,
+      "aligned_symbolic_truth": true,
+      "truth": "single-note sample metadata with pitch, instrument, dynamics, and technique labels",
+      "automation_target": "",
+      "source_url": "https://zenodo.org/records/3740399",
+      "download_url": "https://forum.ircam.fr/projects/detail/orchideasol/",
+      "download_note": "Zenodo hosts metadata, while audio access is governed by the Ircam Forum License, so this is not currently an unattended download target.",
+      "evidence": "Zenodo describes OrchideaSOL as 13,265 single-note samples across 14 instruments, derived from Studio On Line with normalized names and metadata for instrument, pitch, dynamics, and playing technique."
+    },
+    {
+      "id": "sndb",
+      "name": "SNDB",
+      "category": "single_instrument_truth",
+      "piece_count": 30883,
+      "real_audio": true,
+      "isolated_sources": false,
+      "assembled_mix": false,
+      "aligned_symbolic_truth": true,
+      "truth": "aggregated single-note metadata with instrument, MIDI pitch, dynamics, and articulation",
+      "automation_target": "",
+      "source_url": "https://github.com/audiolabs/SNDB",
+      "download_note": "SNDB is a metadata bridge across source libraries rather than a self-contained audio archive; use it only when the referenced local audio libraries are available.",
+      "evidence": "Project documentation describes the Single Note Database as 30,883 single tones from four datasets across 11 instruments, with metadata including instrument, MIDI pitch, dynamics, and articulation."
     },
     {
       "id": "idmt_smt_bass_single_track",

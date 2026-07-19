@@ -470,7 +470,7 @@ $(BASS_GUITAR_STANDALONE_BIN): $(ANALYZER_TEST_OBJ) $(RENDERER_OBJ) $(BUILD_DIR)
 	$(CXX) -o $@ $^ $(SDL2_LIBS) -lm -pthread
 
 $(BUILD_DIR)/analyzer_test.o: src/analyzer.cpp src/analyzer.hpp | $(BUILD_DIR)
-	$(CXX) $(CXXFLAGS) -Isrc -c $< -o $@
+	tmp="$@.$$$$.tmp"; $(CXX) $(CXXFLAGS) -Isrc -c $< -o "$$tmp"; mv "$$tmp" "$@"
 
 $(BUILD_DIR)/analyzer_smoke.o: tests/analyzer_smoke.cpp src/analyzer.hpp tests/analyzer_test_utils.hpp | $(BUILD_DIR)
 	$(CXX) $(CXXFLAGS) -Isrc -Itests -c $< -o $@

@@ -1,6 +1,6 @@
 # Real Audio Dataset Candidates
 
-Last checked: 2026-07-18.
+Last checked: 2026-07-20.
 
 This project needs real recorded audio for stronger tests. The strict target is:
 
@@ -79,6 +79,10 @@ not provide clean per-instrument audio stems for each mixture.
 | RWC-Pop | Real pop mix transcription | Cited by MulTTiPop as 100 original pop recordings with multitrack MIDI. Access/licensing needs verification. |
 | [POP909](https://arxiv.org/abs/2008.07142) | Pop melody, lead, piano, chord checks | 909 popular-song arrangements with MIDI aligned to original audio plus tempo, beat, key, and chord annotations. Not per-instrument stems. |
 | [MAESTRO](https://magenta.tensorflow.org/datasets/maestro) | Keyboard row, sustain, and chord tests with optional `make test-real-maestro-20` analyzer gate | 1,276 real Disklavier piano performances, 198.7 hours, paired WAV/MIDI with about 3 ms alignment, official metadata CSV/JSON, and over 7M note labels. Single instrument only. |
+| [MAPS](https://paperswithcode.com/dataset/maps) | Keyboard row, isolated-note, chord, and piano-piece tests | MIDI Aligned Piano Sounds contains MIDI-annotated piano recordings, isolated notes, random-pitch chords, usual musical chords, and pieces in varied recording conditions. Single instrument only; access/licensing/download shape needs verification before automation. |
+| [Good-sounds](https://www.upf.edu/web/mtg/good-sounds) | Real single-note and scale samples across common orchestral/band instruments | 12 instruments recorded by professional musicians, one note per 48 kHz mono FLAC for the single-note material, with playable semitones recorded multiple times and tonal-quality metadata. Large archive, about 13.9 GB, so it should be optional rather than a default smoke fixture. |
+| [OrchideaSOL](https://zenodo.org/records/3740399) | Large isolated-note orchestral sample coverage, especially extended techniques | 13,265 single-note samples across 14 instruments, with metadata on Zenodo and audio governed by the Ircam Forum License. Useful for future isolated-note/instrument gates, but not a direct unattended download target. |
+| [SNDB](https://github.com/audiolabs/SNDB) | Aggregated single-note metadata for broad orchestral note coverage | The Single Note Database indexes 30,883 single tones from four source datasets across 11 instruments, with MIDI pitch, dynamics, and articulation metadata. It is a bridge to local source libraries rather than a self-contained audio download. |
 | [PianoVAM](https://arxiv.org/abs/2509.08800) | Keyboard row, fingering/hand plausibility | Piano audio, MIDI, video, hand landmarks, and fingering labels. Single instrument only. |
 | [IDMT-SMT-Bass-Single-Track](https://zenodo.org/records/7544099) | Real electric bass-line note gate with `make test-idmt-bass-lines-samples` | 17 real electric-bass lines across styles with note onset, offset, MIDI pitch, string, fret, plucking-style, and expression-style annotations. The implemented target extracts stable expression-style `NO` note clips into `build/idmt_bass_lines_samples` and runs the shared isolated-bass real-note gate. Single instrument only. |
 | [IDMT-SMT-Guitar](https://zenodo.org/records/7544110) | Real guitar technique note gate with `make test-idmt-guitar-samples` | Seven real guitars with 44.1 kHz mono WAV recordings, XML note annotations, plucking styles, and expression styles including normal, bending, slide, vibrato, harmonics, and dead notes. The implemented target extracts stable monophonic non-dead-note clips into `build/idmt_guitar_samples`, pitch-checks them against the chromatic model, and runs the shared isolated-guitar real-note gate. Single instrument only. |
