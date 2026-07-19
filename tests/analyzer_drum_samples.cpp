@@ -550,8 +550,9 @@ std::string debug_details(const mao::AnalysisSnapshot &snapshot)
 		text += part;
 	}
 	char part[128] = {};
-	std::snprintf(part, sizeof(part), " | transient=%.2f onset=%.2f", snapshot.drum_debug_transient_ratio,
-		      snapshot.drum_debug_onset);
+	std::snprintf(part, sizeof(part), " | transient=%.2f onset=%.2f energy=%.2f/%.2f/%.2f",
+		      snapshot.drum_debug_transient_ratio, snapshot.drum_debug_onset,
+		      snapshot.low_energy, snapshot.mid_energy, snapshot.high_energy);
 	text += part;
 	return text;
 }
