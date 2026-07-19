@@ -23,7 +23,8 @@ DEFAULT_SYSTEM_SOUNDFONTS = (
     "/usr/share/sounds/sf2/default-GM.sf2",
 )
 
-FIXTURE_VERSION = "instrument-samples-v8-1000-per-family"
+FIXTURE_VERSION = "instrument-samples-v9-gm-drum-note-spread"
+DRUM_FIXTURE_VERSION = "drum-kit-samples-v4-gm-note-spread"
 
 PIANO_NOTES = (24, 28, 31, 36, 40, 43, 48, 52, 55, 60, 64, 67, 72, 76, 79, 84)
 GUITAR_NOTES = (40, 43, 45, 47, 52, 55, 59, 60, 64, 67, 71, 76, 79, 83, 88)
@@ -116,12 +117,24 @@ DRUM_VELOCITIES = (36, 40, 42, 48, 54, 60, 66, 72, 78, 84, 90, 96, 102, 108, 114
 
 DRUM_NOTES = (
     ("kick", 35, "acoustic_bass_drum"),
-    ("snare", 38, "acoustic_snare"),
+    ("kick", 36, "bass_drum_1"),
     ("rim", 37, "side_stick"),
+    ("snare", 38, "acoustic_snare"),
+    ("snare", 40, "electric_snare"),
     ("hihat", 42, "closed_hihat"),
+    ("hihat", 44, "pedal_hihat"),
+    ("hihat", 46, "open_hihat"),
+    ("crash", 49, "crash_cymbal_1"),
     ("crash", 57, "crash_cymbal_2"),
+    ("tom", 41, "low_floor_tom"),
+    ("tom", 43, "high_floor_tom"),
     ("tom", 45, "low_tom"),
+    ("tom", 47, "low_mid_tom"),
+    ("tom", 48, "hi_mid_tom"),
+    ("tom", 50, "high_tom"),
     ("ride", 51, "ride_cymbal_1"),
+    ("ride", 53, "ride_bell"),
+    ("ride", 59, "ride_cymbal_2"),
 )
 
 
@@ -253,6 +266,20 @@ def signature_text(soundfont, args):
     return hashlib.sha256(payload.encode("utf-8")).hexdigest()[:16]
 
 
+def drum_signature_text(soundfont, args):
+    try:
+        stat = soundfont.stat()
+        soundfont_key = f"{soundfont}:{stat.st_size}:{int(stat.st_mtime)}"
+    except OSError:
+        soundfont_key = str(soundfont)
+    payload = (
+        f"{DRUM_FIXTURE_VERSION}|{soundfont_key}|target={args.target_per_family}|"
+        f"drum_kits={args.drum_kits}|drum_duration={args.drum_duration:.3f}|"
+        f"drum_velocity={args.drum_velocity}|drum_gain={args.drum_gain:.3f}"
+    )
+    return hashlib.sha256(payload.encode("utf-8")).hexdigest()[:16]
+
+
 def render_one(fluidsynth, soundfont, midi_path, wav_path, gain):
     run([
         fluidsynth,
@@ -286,6 +313,12 @@ def render_many(tasks, jobs):
 
 def excluded_reason(family, program, midi_note):
     return ONE_NOTE_EXCLUSIONS.get((family, program, midi_note)) or ONE_NOTE_EXCLUSIONS.get((family, program, None))
+
+
+def excluded_drum_reason(kit_program, midi_note):
+    if kit_program == 48 and midi_note in (42, 44, 46):
+        return "fluidr3_orchestra_hihat_cells_are_shell_like"
+    return None
 
 
 def instrument_variants(args, base_count):
@@ -373,9 +406,16 @@ def prepare_drums(args, fluidsynth, soundfont, signature):
 
     rows = []
     tasks = []
+    exclusions = []
     kit_programs = DRUM_KITS if args.drum_kits <= 0 else DRUM_KITS[:args.drum_kits]
+    drum_note_cells = [
+        (kit_program, kit_name, category, midi_note, note_name_text)
+        for kit_program, kit_name in kit_programs
+        for category, midi_note, note_name_text in DRUM_NOTES
+        if not excluded_drum_reason(kit_program, midi_note)
+    ]
     target = max(0, args.target_per_family)
-    base_count = max(1, len(kit_programs) * len(DRUM_NOTES))
+    base_count = max(1, len(drum_note_cells))
     needed = len(DRUM_VELOCITIES) if target <= 0 else int(math.ceil(target / float(base_count)))
     if needed > len(DRUM_VELOCITIES):
         raise SystemExit(
@@ -385,6 +425,11 @@ def prepare_drums(args, fluidsynth, soundfont, signature):
     drum_velocities = DRUM_VELOCITIES[:needed]
     for kit_program, kit_name in kit_programs:
         for category, midi_note, note_name_text in DRUM_NOTES:
+            reason = excluded_drum_reason(kit_program, midi_note)
+            if reason:
+                exclusions.append(("drum_kit", str(kit_program), kit_name, str(midi_note),
+                                   note_name_text, reason))
+                continue
             for velocity in drum_velocities:
                 stem = f"{kit_program:03d}_{kit_name}_{midi_note:03d}_{category}_v{velocity:03d}"
                 midi_path = midi_dir / f"{stem}.mid"
@@ -402,6 +447,7 @@ def prepare_drums(args, fluidsynth, soundfont, signature):
         file.write("family\tprogram\tprogram_name\tmidi\tpath\tnote\tsoundfont\tsignature\n")
         for row in rows:
             file.write("\t".join(row) + "\n")
+    append_exclusions(args.output_root, exclusions)
     print(f"prepare_instrument_samples: wrote {manifest_path} ({len(rows)} samples)")
 
 
@@ -454,11 +500,12 @@ def main():
     fluidsynth = find_command("fluidsynth")
     soundfont = resolve_soundfont(args)
     signature = signature_text(soundfont, args)
+    drum_signature = drum_signature_text(soundfont, args)
 
     print(f"prepare_instrument_samples: using {soundfont}")
     for family, spec in FAMILIES.items():
         prepare_family(args, fluidsynth, soundfont, family, spec, signature)
-    prepare_drums(args, fluidsynth, soundfont, signature)
+    prepare_drums(args, fluidsynth, soundfont, drum_signature)
 
 
 if __name__ == "__main__":
