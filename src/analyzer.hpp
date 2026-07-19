@@ -102,6 +102,12 @@ struct AnalysisSnapshot {
 	std::array<bool, kDrumCount> drum_debug_shape_supported = {};
 	float drum_debug_transient_ratio = 0.0f;
 	float drum_debug_onset = 0.0f;
+	float drum_debug_kick_body = 0.0f;
+	float drum_debug_snare_body = 0.0f;
+	float drum_debug_snare_crack = 0.0f;
+	float drum_debug_tom_body = 0.0f;
+	float drum_debug_upper_tom_body = 0.0f;
+	int drum_debug_body_shape = -1;
 	int bass_debug_spectral_midi = -1;
 	float bass_debug_spectral_confidence = 0.0f;
 	float bass_debug_spectral_score = 0.0f;

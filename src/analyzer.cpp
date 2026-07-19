@@ -4562,6 +4562,12 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 		body_shape = Snare;
 	else if (body_shape_scores[2] > body_shape_scores[0] && body_shape_scores[2] > body_shape_scores[1])
 		body_shape = Tom;
+	snapshot.drum_debug_kick_body = kick_body;
+	snapshot.drum_debug_snare_body = snare_body;
+	snapshot.drum_debug_snare_crack = snare_crack;
+	snapshot.drum_debug_tom_body = tom_body;
+	snapshot.drum_debug_upper_tom_body = upper_tom_body;
+	snapshot.drum_debug_body_shape = static_cast<int>(body_shape);
 	const float strongest_cymbal_drum =
 		std::max(drum_segment_bands[HiHat], std::max(drum_segment_bands[Crash], drum_segment_bands[Ride]));
 	std::size_t cymbal_shape = HiHat;

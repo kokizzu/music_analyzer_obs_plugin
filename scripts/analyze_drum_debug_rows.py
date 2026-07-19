@@ -20,6 +20,11 @@ DETAIL_RE = re.compile(
     r"level=(?P<level>[0-9.]+)"
 )
 DEBUG_RE = re.compile(r"debug 100ms (?P<sample>\S+) expected (?P<expected>\w+)")
+BODY_RE = re.compile(
+    r"body=(?P<kick_body>[0-9.]+)/(?P<snare_body>[0-9.]+)/(?P<tom_body>[0-9.]+) "
+    r"crack=(?P<snare_crack>[0-9.]+) upper_tom=(?P<upper_tom_body>[0-9.]+) "
+    r"body_shape=(?P<body_shape>-?[0-9]+)"
+)
 
 
 def parse_debug_rows(path: pathlib.Path):
@@ -39,12 +44,24 @@ def parse_debug_rows(path: pathlib.Path):
                 "shape": float(match.group("shape")),
                 "level": float(match.group("level")),
             }
+        body_match = BODY_RE.search(line)
+        body = {}
+        if body_match:
+            body = {
+                "kick_body": float(body_match.group("kick_body")),
+                "snare_body": float(body_match.group("snare_body")),
+                "tom_body": float(body_match.group("tom_body")),
+                "snare_crack": float(body_match.group("snare_crack")),
+                "upper_tom_body": float(body_match.group("upper_tom_body")),
+                "body_shape": float(body_match.group("body_shape")),
+            }
         if metrics:
             rows.append(
                 {
                     "sample": debug_match.group("sample"),
                     "expected": debug_match.group("expected"),
                     "metrics": metrics,
+                    "body": body,
                 }
             )
     return rows
@@ -73,6 +90,10 @@ def primary(metrics):
 
 def ratio(metrics, lhs, rhs, key):
     return metrics[lhs][key] / (metrics[rhs][key] + 1.0e-9)
+
+
+def body_ratio(body, lhs, rhs):
+    return body[lhs] / (body[rhs] + 1.0e-9)
 
 
 def summarize_values(values):
@@ -123,6 +144,23 @@ def main() -> int:
                 f"  {focus} active: "
                 f"{sum(1 for metrics in complete if metrics[focus]['level'] > 0.30)}/{len(complete)}"
             )
+            body_rows = [row["body"] for row in group if row.get("body")]
+            if body_rows:
+                for lhs, rhs, label in (
+                    ("tom_body", "snare_body", "tom/snare body"),
+                    ("tom_body", "kick_body", "tom/kick body"),
+                    ("snare_crack", "snare_body", "crack/snare body"),
+                    ("upper_tom_body", "snare_crack", "upper_tom/crack"),
+                ):
+                    print(
+                        f"  {label}: "
+                        f"{summarize_values([body_ratio(body, lhs, rhs) for body in body_rows])}"
+                    )
+                body_shapes = Counter(int(body["body_shape"]) for body in body_rows)
+                print(
+                    "  body_shape: "
+                    + " ".join(f"{shape}={count}" for shape, count in sorted(body_shapes.items()))
+                )
             examples = [row["sample"] for row in group[: max(0, args.examples)]]
             if examples:
                 print(f"  examples: {', '.join(examples)}")

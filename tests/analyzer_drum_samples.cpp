@@ -549,10 +549,14 @@ std::string debug_details(const mao::AnalysisSnapshot &snapshot)
 			      snapshot.drum_debug_shape_supported[i] ? 1 : 0, snapshot.drums[i].level);
 		text += part;
 	}
-	char part[128] = {};
-	std::snprintf(part, sizeof(part), " | transient=%.2f onset=%.2f energy=%.2f/%.2f/%.2f",
+	char part[256] = {};
+	std::snprintf(part, sizeof(part),
+		      " | transient=%.2f onset=%.2f energy=%.2f/%.2f/%.2f body=%.2f/%.2f/%.2f crack=%.2f upper_tom=%.2f body_shape=%d",
 		      snapshot.drum_debug_transient_ratio, snapshot.drum_debug_onset,
-		      snapshot.low_energy, snapshot.mid_energy, snapshot.high_energy);
+		      snapshot.low_energy, snapshot.mid_energy, snapshot.high_energy,
+		      snapshot.drum_debug_kick_body, snapshot.drum_debug_snare_body,
+		      snapshot.drum_debug_tom_body, snapshot.drum_debug_snare_crack,
+		      snapshot.drum_debug_upper_tom_body, snapshot.drum_debug_body_shape);
 	text += part;
 	return text;
 }
