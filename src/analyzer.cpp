@@ -3217,13 +3217,25 @@ void append_supported_guitar_extension_aliases_for_root(ChordResult &chord, cons
 			return false;
 		return level >= kExtensionFloor || level >= kCompactExtensionFloor;
 	};
+	auto supported_flat_seventh = [&]() {
+		if (supported_extension(10, flat_seventh))
+			return true;
+		if (flat_seventh < kExtensionFloor || !has_core_range)
+			return false;
+		if (!note_grid_pitch_in_midi_window(grid, root_pitch_class + 10, core_min_midi - 14,
+						    core_max_midi + 9))
+			return false;
+		const float third = has_major ? major_third : has_minor ? minor_third : 0.0f;
+		const float core_anchor = std::min(root, std::min(third, fifth));
+		return flat_seventh >= std::max(kExtensionFloor, core_anchor * 0.30f);
+	};
 
 	if (has_major) {
-		if (supported_extension(10, flat_seventh) && supported_extension(2, ninth))
+		if (supported_flat_seventh() && supported_extension(2, ninth))
 			append_chord_alias(chord, root_pitch_class, "9");
 		if (has_strong_major && supported_extension(11, major_seventh) && supported_extension(2, ninth))
 			append_chord_alias(chord, root_pitch_class, "maj9");
-		if (supported_extension(10, flat_seventh))
+		if (supported_flat_seventh())
 			append_chord_alias(chord, root_pitch_class, "7");
 		if (has_clear_major_seventh && supported_extension(11, major_seventh))
 			append_chord_alias(chord, root_pitch_class, "maj7");
@@ -3233,9 +3245,9 @@ void append_supported_guitar_extension_aliases_for_root(ChordResult &chord, cons
 			append_chord_alias(chord, root_pitch_class, "add9");
 	}
 	if (has_minor) {
-		if (supported_extension(10, flat_seventh) && supported_extension(2, ninth))
+		if (supported_flat_seventh() && supported_extension(2, ninth))
 			append_chord_alias(chord, root_pitch_class, "m9");
-		if (supported_extension(10, flat_seventh))
+		if (supported_flat_seventh())
 			append_chord_alias(chord, root_pitch_class, "m7");
 		if (supported_extension(9, sixth))
 			append_chord_alias(chord, root_pitch_class, "m6");

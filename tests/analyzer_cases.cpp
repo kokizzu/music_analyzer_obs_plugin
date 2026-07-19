@@ -764,6 +764,17 @@ void check_guitar_supported_extension_aliases(Runner &runner)
 		      std::string("guitar moderate-third major seventh alias: expected Dmaj7, got `") +
 			      moderate_third_major_seventh_snapshot.guitar_chord.label + "`");
 
+	mao_test::Buffer lower_flat_seventh = {};
+	add_harmonic_note(lower_flat_seventh, 50, 0.13f, guitar_profile);
+	add_harmonic_note(lower_flat_seventh, 56, 0.24f, guitar_profile);
+	add_harmonic_note(lower_flat_seventh, 59, 0.23f, guitar_profile);
+	add_harmonic_note(lower_flat_seventh, 64, 0.14f, guitar_profile);
+
+	const auto lower_flat_seventh_snapshot = analyze_buffer(lower_flat_seventh, "guitar");
+	runner.expect(has_chord_label(lower_flat_seventh_snapshot.guitar_chord.label, "E7"),
+		      std::string("guitar lower flat-seventh aliases: expected E7, got `") +
+			      lower_flat_seventh_snapshot.guitar_chord.label + "`");
+
 	mao_test::Buffer noisy_power = {};
 	add_harmonic_note(noisy_power, 48, 0.24f, guitar_profile);
 	add_harmonic_note(noisy_power, 55, 0.22f, guitar_profile);
