@@ -424,7 +424,7 @@ int primary_drum_index(const mao::AnalysisSnapshot &snapshot)
 
 	int tied = 0;
 	for (std::size_t i = 0; i < mao::kDrumCount; ++i) {
-		if (snapshot.drums[i].active && std::abs(snapshot.drums[i].level - primary_level) <= 0.015f)
+		if (snapshot.drums[i].active && std::abs(snapshot.drums[i].level - primary_level) <= 0.005f)
 			++tied;
 	}
 	if (tied > 1)
@@ -566,6 +566,15 @@ int resolve_percent_env(const char *name, int fallback)
 	return parsed >= 0 && parsed <= 100 ? parsed : fallback;
 }
 
+int resolve_non_negative_env(const char *name, int fallback)
+{
+	const char *value = std::getenv(name);
+	if (!value || !*value)
+		return fallback;
+	const int parsed = std::atoi(value);
+	return parsed >= 0 ? parsed : fallback;
+}
+
 } // namespace
 
 int main()
@@ -586,7 +595,8 @@ int main()
 		std::fprintf(stderr, "analyzer_drum_samples: unknown filter category `%s`\n", filter_category_env);
 		return 1;
 	}
-	const int verbose_primary_limit = resolve_percent_env("MUSIC_ANALYZER_DRUM_SAMPLE_VERBOSE_PRIMARY_LIMIT", 80);
+	const int verbose_primary_limit =
+		resolve_non_negative_env("MUSIC_ANALYZER_DRUM_SAMPLE_VERBOSE_PRIMARY_LIMIT", 80);
 	const int min_recall_percent = resolve_percent_env("MUSIC_ANALYZER_DRUM_SAMPLE_MIN_RECALL_PERCENT", 45);
 	const int min_precision_percent =
 		resolve_percent_env("MUSIC_ANALYZER_DRUM_SAMPLE_MIN_PRECISION_PERCENT", 0);

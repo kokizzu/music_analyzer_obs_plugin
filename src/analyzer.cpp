@@ -4829,10 +4829,14 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 					strongest_cymbal_drum < strongest_body_drum * 0.16f &&
 					drum_segment_bands[HiHat] <
 						std::max(body_shape_scores[1], rim_shape_score) * 0.22f;
+				const bool clear_hihat_backed_snare =
+					snare_crack_shape && strongest_cymbal_drum > 1.0e-6f &&
+					drum_segment_bands[Snare] >= strongest_cymbal_drum * 2.50f &&
+					snapshot.mid_energy >= 0.30f;
 				const bool hihat_bleed_snare =
 					cymbal_backed_hihat && body_shape != Snare &&
 					strongest_cymbal_drum >= body_shape_scores[1] * 0.32f &&
-					!rim_hit_like_snare &&
+					!rim_hit_like_snare && !clear_hihat_backed_snare &&
 					body_shape_scores[1] < body_shape_scores[2] * 0.94f &&
 					body_shape_scores[1] < body_shape_scores[0] * 1.70f;
 				if (shell_centered_snare)
