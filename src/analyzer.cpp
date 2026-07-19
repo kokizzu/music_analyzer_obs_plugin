@@ -3253,6 +3253,7 @@ void append_supported_guitar_extension_aliases_for_root(ChordResult &chord, cons
 	const float kRichMajorThirdFloor = strict_levels ? 0.18f : 0.12f;
 	const float kExtensionFloor = strict_levels ? 0.12f : 0.08f;
 	const float kCompactExtensionFloor = strict_levels ? 0.10f : 0.05f;
+	const float kMajorSeventhRatioFloor = strict_levels ? 0.30f : 0.22f;
 	if (root < kRootAnchorFloor)
 		return;
 
@@ -3262,7 +3263,7 @@ void append_supported_guitar_extension_aliases_for_root(ChordResult &chord, cons
 		has_major && major_third >= std::max(kRichMajorThirdFloor, std::min(root, fifth) * 0.45f);
 	const bool has_clear_major_seventh =
 		has_major && major_third >= std::max(kCoreFloor, std::min(root, fifth) * 0.30f) &&
-		major_seventh >= std::max(kExtensionFloor, std::min(root, fifth) * 0.30f);
+		major_seventh >= std::max(kExtensionFloor, std::min(root, fifth) * kMajorSeventhRatioFloor);
 	const bool has_minor = minor_third >= kCoreFloor && has_fifth;
 	const bool has_dim = minor_third >= kCoreFloor && flat_fifth >= kCoreFloor;
 	const bool has_aug = major_third >= kCoreFloor && aug_fifth >= kCoreFloor && fifth < kCoreFloor;
