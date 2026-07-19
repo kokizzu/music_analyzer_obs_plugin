@@ -1604,7 +1604,7 @@ void set_note_grid_from_candidates(NoteGrid &grid, const NoteCandidateList &cand
 }
 
 struct ChordResult {
-	char label[64] = {};
+	char label[128] = {};
 	std::array<bool, 12> tones = {};
 	int root = -1;
 	float confidence = 0.0f;
