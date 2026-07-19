@@ -4890,9 +4890,17 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 			snapshot.mid_energy >= snapshot.low_energy * 0.90f &&
 			(snare_body <= 1.0e-6f || snare_crack <= snare_body * 0.10f ||
 			 upper_tom_body >= snare_crack * 8.0f);
+		const bool clear_initial_tom_onset =
+			!had_previous_audio && tom && tom_shape && onset >= 4.0f &&
+			score >= trigger_threshold * 1.70f &&
+			body_shape_scores[2] >= body_shape_scores[1] * 1.28f &&
+			body_shape_scores[2] >= body_shape_scores[0] * 1.20f &&
+			snapshot.mid_energy >= snapshot.low_energy * 0.90f &&
+			(snare_body <= 1.0e-6f || snare_crack <= snare_body * 0.10f ||
+			 upper_tom_body >= snare_crack * 8.0f);
 		const bool soft_tom_transient =
 			tom && tom_shape && ((had_previous_audio && transient_ratio >= 0.72f) ||
-					     strong_tom_onset_shape);
+					     strong_tom_onset_shape || clear_initial_tom_onset);
 		const bool soft_body_transient =
 			soft_kick_transient || soft_snare_transient || soft_rim_transient || soft_tom_transient;
 		const bool base_shape_supported = drum_shape_supported[i];
@@ -4904,7 +4912,7 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 					      soft_kick_transient ? 0.32f :
 					      soft_snare_transient ? 0.30f :
 					      soft_rim_transient ? 0.24f :
-					      strong_tom_onset_shape ? 0.30f :
+					      (strong_tom_onset_shape || clear_initial_tom_onset) ? 0.30f :
 					      soft_tom_transient ? 0.44f :
 								     1.0f;
 		const float effective_threshold = trigger_threshold * threshold_scale;
@@ -4983,7 +4991,7 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 					level = std::min(level, 0.46f);
 				}
 			}
-			if (tom && strong_tom_onset_shape)
+			if (tom && (strong_tom_onset_shape || clear_initial_tom_onset))
 				level = std::clamp(level * 1.01f + 0.005f, 0.0f, 1.0f);
 			drum_level_[i] = std::max(drum_level_[i], level);
 			tempo_event = true;
