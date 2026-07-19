@@ -15,6 +15,14 @@ import zipfile
 CATEGORIES = ("kick", "snare", "hihat", "crash", "tom", "ride", "rim")
 
 EXCLUDE_RE = re.compile(r"(break|loop|groove|pattern|beat|fill|construction|song)", re.I)
+UNSUPPORTED_PERCUSSION_NAME_RE = re.compile(
+    r"(clap|handclap|clave|claves|conga|bongo|cowbell|shaker|tambourine|tamb|maraca|agogo|woodblock|snap)",
+    re.I,
+)
+TOM_TOKEN_RE = re.compile(
+    r"(^|[/ _.-])(?:tom|toms|floor\s*tom|low\s*tom|mid\s*tom|hi\s*tom|hitom|lowtom|midtom|htom|mtom|ltom)([0-9 _.-]|$)",
+    re.I,
+)
 
 
 class Candidate:
@@ -61,7 +69,9 @@ def category_for_path(path):
         return "ride"
     if re.search(r"crash|crsh|cymbal|cymball|(^|[/ _-])csh", text):
         return "crash"
-    if re.search(r"tom|floor\s*tom|lowtom|midtom|hitom", text):
+    if UNSUPPORTED_PERCUSSION_NAME_RE.search(name) and not re.search(r"snare|snr|rim|side\s*stick|sidestick", name):
+        return None
+    if TOM_TOKEN_RE.search(text):
         return "tom"
     if "roland tr-909 drum samples" in text and stem[:2] in ("lt", "mt", "ht"):
         return "tom"

@@ -264,6 +264,33 @@ def test_hihat_aliases_win_over_generic_cymbal_folder():
             raise AssertionError("expected generic CYMBAL_001.wav to be labeled crash")
 
 
+def test_tom_label_requires_real_tom_token():
+    with tempfile.TemporaryDirectory() as temp:
+        base = Path(temp)
+        source = base / "source"
+        output = base / "out"
+
+        write_wav(source / "CustomDMX" / "DMX808_Conga_001.wav", frequency=180.0)
+        write_wav(source / "CustomDMX" / "DMX808_Clave1_A.wav", frequency=700.0)
+        write_wav(source / "Sequential Circuits TOM" / "Clap.wav", frequency=900.0)
+        write_wav(source / "kit" / "H_Tom_01.wav", frequency=160.0)
+        write_wav(source / "kit" / "Tom Low.wav", frequency=130.0)
+
+        prepare_drum_samples.clean_output(output)
+        counts, manifest_path = prepare_drum_samples.copy_samples(source, output, 0, "first", unrar=None)
+        rows = rows_by_category(manifest_path)
+        tom_sources = "\n".join(row[2] for row in rows.get("tom", []))
+
+        if counts["tom"] != 2:
+            raise AssertionError(f"expected only real tom tokens to be labeled tom, got {counts['tom']}:\n{tom_sources}")
+        for unexpected in ("CustomDMX", "Clap.wav", "Conga", "Clave"):
+            if unexpected in tom_sources:
+                raise AssertionError(f"unsupported percussion should not be labeled tom: {unexpected}")
+        for expected in ("H_Tom_01.wav", "Tom Low.wav"):
+            if expected not in tom_sources:
+                raise AssertionError(f"expected {expected} to remain labeled tom")
+
+
 def test_spread_selection_uses_later_buckets():
     with tempfile.TemporaryDirectory() as temp:
         base = Path(temp)
@@ -295,8 +322,9 @@ def main():
     test_cli_preserves_existing_output_until_manifest_replace()
     test_cli_reuses_complete_manifest_until_refresh()
     test_hihat_aliases_win_over_generic_cymbal_folder()
+    test_tom_label_requires_real_tom_token()
     test_spread_selection_uses_later_buckets()
-    print("test_prepare_drum_samples: 7 checks passed")
+    print("test_prepare_drum_samples: 8 checks passed")
     return 0
 
 
