@@ -95,6 +95,23 @@ def primary(levels: dict[str, float]) -> str:
     return "ambiguous" if ties > 1 else best
 
 
+def baseline_counts(rows):
+    by_expected: dict[str, Counter[str]] = {cat: Counter() for cat in CATEGORIES}
+    for row in rows:
+        metrics = row["metrics"]
+        levels = {cat: metrics[cat]["level"] for cat in CATEGORIES if cat in metrics}
+        by_expected[row["expected"]][primary(levels)] += 1
+    return by_expected
+
+
+def primary_hit_count(by_expected: dict[str, Counter[str]], category: str) -> int:
+    return by_expected[category][category]
+
+
+def shell_primary_total(by_expected: dict[str, Counter[str]]) -> int:
+    return sum(primary_hit_count(by_expected, category) for category in ("kick", "snare", "tom"))
+
+
 def simulate(
     rows,
     *,
@@ -160,12 +177,25 @@ def main() -> int:
     parser.add_argument("--active-bias", action="store_true")
     parser.add_argument("--max-crack-body", type=float, default=0.0)
     parser.add_argument("--min-upper-tom-crack", type=float, default=0.0)
+    parser.add_argument("--score-mode", choices=("net", "legacy"), default="net",
+                        help="net ranks by kick+snare+tom primary hits; legacy keeps the old tom-heavy score")
+    parser.add_argument("--min-tom-gain", type=int, default=-1000000)
+    parser.add_argument("--max-kick-loss", type=int, default=1000000)
+    parser.add_argument("--max-snare-loss", type=int, default=1000000)
+    parser.add_argument("--min-total-gain", type=int, default=-1000000)
     parser.add_argument("--top", type=int, default=20)
     args = parser.parse_args()
 
     rows = []
     for path in args.logs:
         rows.extend(parse_rows(path))
+
+    base = baseline_counts(rows)
+    base_tom = primary_hit_count(base, "tom")
+    base_kick = primary_hit_count(base, "kick")
+    base_snare = primary_hit_count(base, "snare")
+    base_total = shell_primary_total(base)
+    print(f"baseline tom={base_tom} kick={base_kick} snare={base_snare} total={base_total}")
 
     snare_ratios = [float(value) for value in args.snare_ratios.split(",") if value]
     kick_ratios = [float(value) for value in args.kick_ratios.split(",") if value]
@@ -190,13 +220,31 @@ def main() -> int:
                 tom_primary = by_expected["tom"]["tom"]
                 kick_primary = by_expected["kick"]["kick"]
                 snare_primary = by_expected["snare"]["snare"]
-                score = tom_primary * 10 + kick_primary + snare_primary
+                tom_delta = tom_primary - base_tom
+                kick_delta = kick_primary - base_kick
+                snare_delta = snare_primary - base_snare
+                total = tom_primary + kick_primary + snare_primary
+                total_delta = total - base_total
+                if tom_delta < args.min_tom_gain:
+                    continue
+                if -kick_delta > args.max_kick_loss:
+                    continue
+                if -snare_delta > args.max_snare_loss:
+                    continue
+                if total_delta < args.min_total_gain:
+                    continue
+                score = total if args.score_mode == "net" else tom_primary * 10 + kick_primary + snare_primary
                 scored.append(
                     (
                         score,
+                        total,
+                        total_delta,
                         tom_primary,
+                        tom_delta,
                         kick_primary,
+                        kick_delta,
                         snare_primary,
+                        snare_delta,
                         snare_ratio,
                         kick_ratio,
                         mid_low_ratio,
@@ -204,11 +252,20 @@ def main() -> int:
                     )
                 )
 
+    if not scored:
+        print("no candidates")
+        return 0
+
     for (
         _score,
+        total,
+        total_delta,
         tom_primary,
+        tom_delta,
         kick_primary,
+        kick_delta,
         snare_primary,
+        snare_delta,
         snare_ratio,
         kick_ratio,
         mid_low_ratio,
@@ -216,7 +273,8 @@ def main() -> int:
     ) in sorted(scored, reverse=True)[: max(0, args.top)]:
         changed_text = " ".join(f"{key}={value}" for key, value in sorted(changed.items()))
         print(
-            f"tom={tom_primary} kick={kick_primary} snare={snare_primary} "
+            f"tom={tom_primary} ({tom_delta:+d}) kick={kick_primary} ({kick_delta:+d}) "
+            f"snare={snare_primary} ({snare_delta:+d}) total={total} ({total_delta:+d}) "
             f"snare_ratio={snare_ratio:.2f} kick_ratio={kick_ratio:.2f} "
             f"mid_low={mid_low_ratio:.2f} changed=[{changed_text}]"
         )

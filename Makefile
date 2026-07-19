@@ -872,6 +872,7 @@ test-real-world-samples: test-real-note-samples test-guitar-fretboard-note-sampl
 test-real-world-samples-full: test-real-world-samples test-guitar-techs-samples test-guitar-techs-chord-samples test-guitar-chord-mix-samples test-egfxset-guitar-samples test-gaps-guitar-samples test-idmt-guitar-samples test-iowa-strings-samples test-iowa-orchestra-samples test-philharmonia-samples-full test-tinysol-samples
 	if [ -d "$(DRUM_SAMPLE_SOURCE_DIR)" ]; then $(MAKE) test-drum-samples-full; else printf '%s\n' "test-drum-samples-full: skipped; missing $(DRUM_SAMPLE_SOURCE_DIR)"; fi
 	if [ -s "$(GOOD_SOUNDS_ARCHIVE)" ]; then $(MAKE) test-good-sounds-samples; else printf '%s\n' "test-good-sounds-samples: skipped; missing $(GOOD_SOUNDS_ARCHIVE)"; fi
+	if [ -n "$${MUSIC_ANALYZER_EGMD_ROOT}$${EGMD_PATH}" ]; then $(MAKE) test-real-egmd-20; else printf '%s\n' "test-real-egmd-20: skipped; set MUSIC_ANALYZER_EGMD_ROOT or EGMD_PATH"; fi
 
 test-midi-ranges: $(BUILD_DIR)/analyzer_midi_ranges scripts/run_with_duration.sh
 	$(RUN_WITH_DURATION) analyzer_midi_ranges $(BUILD_DIR)/analyzer_midi_ranges
@@ -1118,8 +1119,9 @@ test-gaps-guitar-prepare: tests/test_prepare_gaps_guitar_samples.py scripts/prep
 test-guitarset-miss-analysis: tests/test_analyze_guitarset_misses.py scripts/analyze_guitarset_misses.py
 	$(PYTHON) tests/test_analyze_guitarset_misses.py
 
-test-drum-primary-analysis: tests/test_analyze_drum_primary_debug.py scripts/analyze_drum_primary_debug.py
+test-drum-primary-analysis: tests/test_analyze_drum_primary_debug.py tests/test_evaluate_drum_rule_grid.py scripts/analyze_drum_primary_debug.py scripts/evaluate_drum_rule_grid.py
 	$(PYTHON) tests/test_analyze_drum_primary_debug.py
+	$(PYTHON) tests/test_evaluate_drum_rule_grid.py
 
 test-real-goal-script: tests/test_run_real_goal_gate.py tests/run_real_goal_gate.py
 	$(PYTHON) tests/test_run_real_goal_gate.py
