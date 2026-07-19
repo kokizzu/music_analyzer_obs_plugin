@@ -1099,6 +1099,8 @@ int main()
 	const int required_windows =
 		resolve_positive_int_env("MUSIC_ANALYZER_EGMD_REQUIRED_WINDOWS", default_required_windows);
 	const int min_recall_percent = resolve_percent_env("MUSIC_ANALYZER_EGMD_MIN_RECALL_PERCENT", 35);
+	const int min_window_recall_percent =
+		resolve_percent_env("MUSIC_ANALYZER_EGMD_MIN_WINDOW_RECALL_PERCENT", min_recall_percent);
 	const int min_precision_percent = resolve_percent_env("MUSIC_ANALYZER_EGMD_MIN_PRECISION_PERCENT", 50);
 	const int max_false_positive_windows_percent =
 		resolve_percent_env("MUSIC_ANALYZER_EGMD_MAX_FALSE_POSITIVE_WINDOWS_PERCENT", 75);
@@ -1143,7 +1145,7 @@ int main()
 			check_recall(runner, snapshot, candidate,
 				     "E-GMD " + recording.id + " at sample " +
 					     std::to_string(candidate.center_sample),
-				     recall, min_recall_percent);
+				     recall, min_window_recall_percent);
 			add_drum_precision_metrics(precision, snapshot, candidate);
 		}
 
