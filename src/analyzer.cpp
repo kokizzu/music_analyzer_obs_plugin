@@ -5383,6 +5383,14 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 			}
 			return false;
 		};
+		auto displayed_chord_tone_count = [&](const ChordResult &chord) {
+			int count = 0;
+			for (int pitch_class = 0; pitch_class < 12; ++pitch_class) {
+				if (chord.tones[pitch_class] && guitar_note_grid_pitch_class_active(pitch_class))
+					++count;
+			}
+			return count;
+		};
 		auto guitar_chord_supported_by_display_grid = [&](const ChordResult &chord) {
 			if (mixed_source || !valid_chord_result(chord))
 				return true;
@@ -5394,7 +5402,12 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 			display_guitar_valid && guitar_note_grid_pitch_class_active(display_guitar_chord.root);
 		if (!mixed_source && raw_guitar_chord.root >= 0 &&
 		    !guitar_note_grid_pitch_class_active(raw_guitar_chord.root)) {
-			raw_guitar_chord = display_guitar_root_active ? display_guitar_chord : ChordResult{};
+			const bool analysis_chord_display_supported =
+				raw_guitar_valid && raw_guitar_chord.confidence >= 0.48f &&
+				displayed_chord_tone_count(raw_guitar_chord) >= 3 &&
+				std::strstr(raw_guitar_chord.label, "pow") == nullptr;
+			if (!analysis_chord_display_supported)
+				raw_guitar_chord = display_guitar_root_active ? display_guitar_chord : ChordResult{};
 			raw_guitar_valid = guitar_chord_valid_for_display(raw_guitar_chord);
 		}
 		if (!mixed_source && raw_guitar_valid && !display_guitar_valid && displayed_guitar_pitch_classes < 3) {
