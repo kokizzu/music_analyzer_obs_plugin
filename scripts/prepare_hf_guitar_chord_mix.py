@@ -355,9 +355,9 @@ def main(argv=None):
                                                             ",".join(DEFAULT_SOURCES)))
     parser.add_argument("--tree-json", default=os.environ.get("GUITAR_CHORD_MIX_TREE_JSON", ""))
     parser.add_argument("--base-url", default=os.environ.get("GUITAR_CHORD_MIX_BASE_URL", HF_RESOLVE_BASE_URL))
-    parser.add_argument("--limit", type=int, default=int(os.environ.get("GUITAR_CHORD_MIX_LIMIT", "120")))
+    parser.add_argument("--limit", type=int, default=int(os.environ.get("GUITAR_CHORD_MIX_LIMIT", "0")))
     parser.add_argument("--min-samples", type=int,
-                        default=int(os.environ.get("GUITAR_CHORD_MIX_MIN_EXCERPTS", "60")))
+                        default=int(os.environ.get("GUITAR_CHORD_MIX_MIN_EXCERPTS", "500")))
     parser.add_argument("--min-notes", type=int, default=int(os.environ.get("GUITAR_CHORD_MIX_MIN_NOTES", "3")))
     parser.add_argument("--min-pitch-classes", type=int,
                         default=int(os.environ.get("GUITAR_CHORD_MIX_MIN_PITCH_CLASSES", "3")))

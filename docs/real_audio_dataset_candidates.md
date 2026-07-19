@@ -85,7 +85,7 @@ not provide clean per-instrument audio stems for each mixture.
 | [IDMT-SMT-Drums](https://zenodo.org/records/7544164) | Real kick/snare/hi-hat gate with `make test-idmt-drums-samples` | 608 real drum WAV files with manually annotated SVL/XML onsets for kick drum, snare drum, and hi-hat training tracks. The implemented target extracts balanced annotated hit windows into `build/idmt_drums_samples` and runs the shared drum analyzer gate with only kick/snare/hi-hat marked required. Drum-only. |
 | [GuitarSet](https://guitarset.weebly.com/) | Guitar fretboard tests with optional `make inspect-real-guitarset` preflight and `make test-real-guitarset-20` analyzer gate | 360 live guitar excerpts with hexaphonic pickup, per-string audio, microphone audio, JAMS MIDI-note/fret/chord annotations, and Zenodo download at [10.5281/zenodo.3371780](https://zenodo.org/records/3371780). Single instrument only. |
 | [Guitar-TECHS](https://guitar-techs.github.io/) | Electric guitar single-note and chord gates with optional `make test-guitar-techs-samples` and `make test-guitar-techs-chord-samples` | 3,732 recordings across single notes, techniques, chords, scales, and excerpts; DI, amp-mic, egocentric, and exocentric perspectives; synchronized per-string MIDI labels; Zenodo download at [10.5281/zenodo.14963133](https://zenodo.org/records/14963133). The implemented targets prepare DI/amp-mic single-note excerpts for the shared real-note analyzer test and chord-window manifests for the isolated-guitar note/chord harness. |
-| [Guitar Chord Mix](https://huggingface.co/datasets/ryangowe/guitar-chord-mix) | Real guitar chord gate with optional `make test-guitar-chord-mix-samples` | Hugging Face soundfolder of WAV guitar chord clips with JAMS `note_midi` annotations, assembled from GuitarSet, Guitar-TECHS, EGFxSet, Isolated Guitar Chords, SFZ, and DEMAND. The implemented target downloads a bounded, diverse subset and reuses the GuitarSet-shaped analyzer manifest path. Single instrument only. |
+| [Guitar Chord Mix](https://huggingface.co/datasets/ryangowe/guitar-chord-mix) | Real guitar chord gate with optional `make test-guitar-chord-mix-samples` | Hugging Face soundfolder of WAV guitar chord clips with JAMS `note_midi` annotations, assembled from GuitarSet, Guitar-TECHS, EGFxSet, Isolated Guitar Chords, SFZ, and DEMAND. The implemented target downloads all currently matched WAV/JAMS pairs by default and reuses the GuitarSet-shaped analyzer manifest path. Single instrument only. |
 | [Vocadito](https://zenodo.org/records/5578807) | Real vocal note gate with `make test-vocadito-samples` | 40 short solo monophonic vocal recordings with trained-musician F0, note, lyric, and language annotations. The implemented target extracts stable near-chromatic vocal note clips from the A1 note annotations into `build/vocadito_samples` and runs the shared isolated real-note gate. Single instrument only. |
 | [GAPS](https://huggingface.co/datasets/xavriley/GAPS) | Classical guitar note/fretboard tests with optional `make test-gaps-guitar-samples` | 300 solo guitar performances, about 14 hours, with audio, MIDI, MusicXML, sync points, metadata, and high-resolution note-level MIDI alignments. The implemented target prefilters the Hugging Face `match/` tree, downloads a bounded subset of available aligned performances, parses `.match` note timing into a GuitarSet-shaped manifest, and runs the isolated-guitar analyzer gate. Single instrument only and large. |
 | [GOAT](https://arxiv.org/abs/2509.22655) | Electric guitar tablature/fret checks | 5.9 hours of DI electric guitar plus tablature/symbolic labels and augmented tones. Single instrument only. |
@@ -331,14 +331,14 @@ without additional annotation.
   uses the P1/P2 chord ZIPs to write GuitarSet-shaped `AUDIO`/`NOTE` manifests
   and run the isolated-guitar note/chord harness. Scales, techniques, and music
   archives still need separate gates.
-- Use `make test-guitar-chord-mix-samples` to download a bounded subset of the
+- Use `make test-guitar-chord-mix-samples` to download all currently matched
   public Hugging Face Guitar Chord Mix WAV/JAMS clips into
   `build/guitar_chord_mix_samples`, write a GuitarSet-shaped `AUDIO`/`NOTE`
   manifest, and run the isolated-guitar note/chord analyzer harness. The
-  default `GUITAR_CHORD_MIX_LIMIT=120` selection is spread across chord labels;
-  set `GUITAR_CHORD_MIX_LIMIT=0` for all matched WAV/JAMS pairs. This adds real
-  guitar chord audio to the regression set without pulling the much larger
-  Guitar-TECHS chord archives into the default workflow.
+  default `GUITAR_CHORD_MIX_LIMIT=0` uses all 500 matched pairs observed in the
+  current public tree; set a positive limit only for a smaller local tuning
+  loop. This adds real guitar chord audio to the regression set without pulling
+  the much larger Guitar-TECHS chord archives into the default workflow.
 - Use `make test-vocadito-samples` to download the 58.5 MB Vocadito ZIP from
   Zenodo, extract stable solo-vocal note clips from the trained-musician A1 note
   annotations, and run them through the shared isolated-vocal real-note gate.

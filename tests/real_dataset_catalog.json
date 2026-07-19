@@ -343,7 +343,7 @@
       "automation_target": "test-guitar-chord-mix-samples",
       "source_url": "https://huggingface.co/datasets/ryangowe/guitar-chord-mix",
       "download_url": "https://huggingface.co/datasets/ryangowe/guitar-chord-mix/tree/main/clips",
-      "download_note": "The optional test-guitar-chord-mix-samples target downloads a bounded, diverse subset of WAV/JAMS chord clips into build/guitar_chord_mix_samples, writes a GuitarSet-shaped manifest, and runs the isolated-guitar note/chord harness. The default bound is 120 clips; set GUITAR_CHORD_MIX_LIMIT=0 for all matched pairs.",
+      "download_note": "The optional test-guitar-chord-mix-samples target downloads all currently matched WAV/JAMS chord clips into build/guitar_chord_mix_samples, writes a GuitarSet-shaped manifest, and runs the isolated-guitar note/chord harness. The default bound is GUITAR_CHORD_MIX_LIMIT=0, which covered 500 matched pairs in the current public tree; set a positive limit for a smaller local tuning loop.",
       "evidence": "The dataset card describes a soundfolder release of guitar chord clips with WAV audio and JAMS annotations, assembled from GuitarSet, Guitar-TECHS, EGFxSet, Isolated Guitar Chords, SFZ, and DEMAND sources; each clip includes six note_midi annotations, one per string."
     },
     {
@@ -376,7 +376,7 @@
       "source_url": "https://huggingface.co/datasets/xavriley/GAPS",
       "documentation_url": "https://arxiv.org/abs/2408.08653",
       "download_url": "https://huggingface.co/datasets/xavriley/GAPS/tree/main",
-      "download_note": "Hugging Face hosts audio, MIDI, MusicXML, match, sync-point, and metadata folders. The optional test-gaps-guitar-samples target downloads a bounded subset into build/gaps_guitar_samples, parses match files into a GuitarSet-shaped manifest, and runs the isolated-guitar note/chord harness.",
+      "download_note": "Hugging Face hosts audio, MIDI, MusicXML, match, sync-point, and metadata folders. The optional test-gaps-guitar-samples target prefilters the public match-file tree, downloads a bounded subset of available aligned performances into build/gaps_guitar_samples, parses match files into a GuitarSet-shaped manifest, and runs the isolated-guitar note/chord harness.",
       "evidence": "Dataset card and paper describe 300 solo classical-guitar performances, about 14 hours of real audio, audio-score aligned pairs, and high-resolution note-level MIDI alignments; the Hugging Face tree exposes audio, MIDI, MusicXML, match files, sync points, and metadata."
     },
     {
