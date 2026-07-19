@@ -4748,11 +4748,20 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 		(strongest_cymbal_drum <= 1.0e-6f || strongest_cymbal_drum <= strongest_body_drum * 0.22f) &&
 		drum_segment_bands[Kick] >= strongest_shell_drum * 0.22f &&
 		kick_body >= kick_competing_body * 0.14f;
+	const bool kick_tonal_body_shape =
+		kick_soft_low_shape &&
+		snapshot.low_energy >= 0.50f &&
+		snapshot.low_energy >= snapshot.mid_energy * 1.35f &&
+		snapshot.high_energy <= 0.16f &&
+		kick_body >= kick_competing_body * 0.34f &&
+		drum_segment_bands[Kick] >= strongest_shell_drum * 0.20f &&
+		(strongest_cymbal_drum <= 1.0e-6f || strongest_cymbal_drum <= strongest_body_drum * 0.08f);
 	const bool kick_body_shape_supported =
 		body_shape == Kick ||
 		(kick_energy_shape && kick_low_dominant_body) ||
 		kick_click_body_shape ||
-		kick_low_onset_body_shape;
+		kick_low_onset_body_shape ||
+		kick_tonal_body_shape;
 	const bool hihat_tom_body_backstop =
 		body_shape_allowed && body_shape == Tom && snapshot.high_energy >= 0.03f &&
 		strongest_cymbal_drum > 0.0f &&
