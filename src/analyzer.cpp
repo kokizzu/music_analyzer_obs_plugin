@@ -1604,7 +1604,7 @@ void set_note_grid_from_candidates(NoteGrid &grid, const NoteCandidateList &cand
 }
 
 struct ChordResult {
-	char label[128] = {};
+	char label[256] = {};
 	std::array<bool, 12> tones = {};
 	int root = -1;
 	float confidence = 0.0f;
@@ -3128,11 +3128,11 @@ void append_guitar_power_probe_third_aliases(ChordResult &chord, const NoteGrid 
 				const float anchor =
 					std::max({root_probe, fifth_probe, std::min(root_grid, fifth_grid) * 0.50f});
 				const float third_floor =
-					std::max({strongest_probe * 0.020f, anchor * 0.055f, 0.0028f});
+					std::max({strongest_probe * 0.014f, anchor * 0.038f, 0.0019f});
 				const bool choose_minor =
-					minor_third >= third_floor && minor_third >= major_third * 1.10f;
+					minor_third >= third_floor && minor_third >= major_third * 1.08f;
 				const bool choose_major =
-					major_third >= third_floor && major_third >= minor_third * 1.10f;
+					major_third >= third_floor && major_third >= minor_third * 1.08f;
 				if (choose_minor != choose_major)
 					append_chord_alias(chord, parsed.root, choose_minor ? "m" : "");
 			}

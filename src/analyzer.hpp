@@ -61,7 +61,7 @@ struct DrumState {
 };
 
 struct InstrumentState {
-	char label[128] = {};
+	char label[256] = {};
 	float confidence = 0.0f;
 };
 
@@ -138,9 +138,9 @@ struct NoteTrackingState {
 };
 
 struct ChordTrackingState {
-	char displayed_label[128] = {};
+	char displayed_label[256] = {};
 	float displayed_confidence = 0.0f;
-	char pending_label[128] = {};
+	char pending_label[256] = {};
 	float pending_confidence = 0.0f;
 	int pending_frames = 0;
 	float missing_seconds = 0.0f;
