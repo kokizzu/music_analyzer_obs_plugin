@@ -26,6 +26,23 @@ def test_generic_dataset_root_with_musicnet_layout_is_musicnet():
         assert run_real_goal_gate.configured_musicnet({"MUSIC_ANALYZER_DATASET_ROOT": temp})
 
 
+def test_explicit_urmp_root_is_configured():
+    assert run_real_goal_gate.configured_urmp({"MUSIC_ANALYZER_URMP_ROOT": "/tmp/URMP"})
+    assert run_real_goal_gate.configured_urmp({"URMP_PATH": "/tmp/URMP"})
+
+
+def test_generic_dataset_root_with_urmp_child_is_urmp():
+    with tempfile.TemporaryDirectory() as temp:
+        touch_dir(os.path.join(temp, "URMP"))
+        assert run_real_goal_gate.configured_urmp({"MUSIC_ANALYZER_DATASET_ROOT": temp})
+
+
+def test_generic_dataset_root_without_urmp_child_is_not_urmp():
+    with tempfile.TemporaryDirectory() as temp:
+        touch_dir(os.path.join(temp, "MusicNet", "train_data"))
+        assert not run_real_goal_gate.configured_urmp({"MUSIC_ANALYZER_DATASET_ROOT": temp})
+
+
 def test_explicit_medleydb_root_is_configured():
     assert run_real_goal_gate.configured_medleydb({"MUSIC_ANALYZER_MEDLEYDB_ROOT": "/tmp/MedleyDB"})
     assert run_real_goal_gate.configured_medleydb({"MEDLEYDB_PATH": "/tmp/MedleyDB"})
@@ -317,6 +334,26 @@ def test_full_test_plan_targets_full_real_gates():
     assert plan["egmd_target"] == "test-real-egmd-full"
 
 
+def test_optional_twenty_piece_plan_skips_required_multitrack():
+    plan = run_real_goal_gate.resolve_plan("optional-20")
+    assert plan
+    assert not plan["inspect_only"]
+    assert not plan["requires_multitrack"]
+    assert plan["multitrack_target"] == "test-real-multitrack-20"
+    assert plan["maestro_target"] == "test-real-maestro-20"
+    assert plan["egmd_target"] == "test-real-egmd-20"
+
+
+def test_optional_full_plan_skips_required_multitrack():
+    plan = run_real_goal_gate.resolve_plan("optional-full")
+    assert plan
+    assert not plan["inspect_only"]
+    assert not plan["requires_multitrack"]
+    assert plan["multitrack_target"] == "test-real-multitrack-full"
+    assert plan["maestro_target"] == "test-real-maestro-full"
+    assert plan["egmd_target"] == "test-real-egmd-full"
+
+
 def test_twenty_piece_inspect_plan_targets_preflights():
     plan = run_real_goal_gate.resolve_plan("inspect-20")
     assert plan
@@ -370,6 +407,9 @@ def main():
     test_explicit_musicnet_root_is_configured()
     test_generic_dataset_root_without_musicnet_layout_is_not_musicnet()
     test_generic_dataset_root_with_musicnet_layout_is_musicnet()
+    test_explicit_urmp_root_is_configured()
+    test_generic_dataset_root_with_urmp_child_is_urmp()
+    test_generic_dataset_root_without_urmp_child_is_not_urmp()
     test_explicit_medleydb_root_is_configured()
     test_generic_dataset_root_with_medleydb_child_is_medleydb()
     test_generic_dataset_root_without_medleydb_child_is_not_medleydb()
@@ -412,10 +452,12 @@ def main():
     test_generic_dataset_root_without_egmd_child_is_not_egmd()
     test_twenty_piece_test_plan_targets_real_gates()
     test_full_test_plan_targets_full_real_gates()
+    test_optional_twenty_piece_plan_skips_required_multitrack()
+    test_optional_full_plan_skips_required_multitrack()
     test_twenty_piece_inspect_plan_targets_preflights()
     test_full_inspect_plan_targets_full_preflights()
     test_invalid_plan_is_rejected()
-    print("test_run_real_goal_gate: 48 checks passed")
+    print("test_run_real_goal_gate: 53 checks passed")
     return 0
 
 

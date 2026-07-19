@@ -38,6 +38,25 @@ def configured_musicnet(env):
     return any(has_musicnet_layout(candidate) for candidate in candidates)
 
 
+def configured_urmp(env):
+    if env_has_any(env, ("MUSIC_ANALYZER_URMP_ROOT", "URMP_PATH")):
+        return True
+
+    dataset_root = env.get("MUSIC_ANALYZER_DATASET_ROOT", "")
+    if not dataset_root:
+        return False
+
+    for child in (
+        "URMP",
+        "urmp",
+        "University_of_Rochester_Multi-Modal_Music_Performance",
+    ):
+        candidate = child_path(dataset_root, child)
+        if is_dir(candidate):
+            return True
+    return False
+
+
 def configured_medleydb(env):
     if env_has_any(
         env,
@@ -371,6 +390,8 @@ TARGET_PLANS = {
         "egmd_target": "inspect-real-egmd",
     },
 }
+TARGET_PLANS["optional-20"] = dict(TARGET_PLANS["20"], requires_multitrack=False)
+TARGET_PLANS["optional-full"] = dict(TARGET_PLANS["full"], requires_multitrack=False)
 
 
 def resolve_plan(mode):
@@ -385,20 +406,31 @@ def run(make_cmd, target):
 
 def main(argv):
     if len(argv) != 3:
-        print("usage: run_real_goal_gate.py 20|full|inspect-20|inspect-full MAKE", file=sys.stderr)
+        print("usage: run_real_goal_gate.py 20|full|optional-20|optional-full|inspect-20|inspect-full MAKE", file=sys.stderr)
         return 2
 
     plan = resolve_plan(argv[1])
     if not plan:
-        print("usage: run_real_goal_gate.py 20|full|inspect-20|inspect-full MAKE", file=sys.stderr)
+        print("usage: run_real_goal_gate.py 20|full|optional-20|optional-full|inspect-20|inspect-full MAKE", file=sys.stderr)
         return 2
 
     make_cmd = argv[2]
     env = os.environ
 
-    failed = run(make_cmd, plan["multitrack_target"])
-    if failed:
-        return failed
+    if plan.get("requires_multitrack", True):
+        failed = run(make_cmd, plan["multitrack_target"])
+        if failed:
+            return failed
+    elif configured_urmp(env):
+        failed = run(make_cmd, plan["multitrack_target"])
+        if failed:
+            return failed
+    else:
+        print(
+            "run_real_goal_gate: skipping optional URMP multitrack analyzer gate; set "
+            "MUSIC_ANALYZER_URMP_ROOT/URMP_PATH or place a URMP directory under "
+            "MUSIC_ANALYZER_DATASET_ROOT"
+        )
 
     if configured_musicnet(env):
         failed = run(make_cmd, plan["musicnet_target"])
@@ -557,6 +589,8 @@ def main(argv):
 
     if plan["inspect_only"]:
         print("run_real_goal_gate: passed required URMP multitrack preflight and all configured optional preflights")
+    elif not plan.get("requires_multitrack", True):
+        print("run_real_goal_gate: passed all configured optional real-data gates")
     else:
         print("run_real_goal_gate: passed required URMP multitrack gate and all configured optional gates")
     return 0
