@@ -39,8 +39,8 @@ def write_jams(path, notes):
     path.write_text(json.dumps(payload), encoding="utf-8")
 
 
-def write_source_clip(root, name, notes):
-    stem = Path("clips") / "isolated-chords" / name
+def write_source_clip(root, name, notes, source_name="isolated-chords"):
+    stem = Path("clips") / source_name / name
     write_wav(root / stem.with_suffix(".wav"))
     write_jams(root / stem.with_suffix(".jams"), notes)
     return stem
@@ -58,7 +58,8 @@ def manifest_lines(path):
     return [line.rstrip("\n") for line in path.read_text(encoding="utf-8").splitlines() if line.strip()]
 
 
-def run_prepare(base, stems, limit=0, min_samples=1):
+def run_prepare(base, stems, limit=0, min_samples=1, sources="isolated-chords",
+                min_notes=3, min_pitch_classes=3, jobs=1):
     tree = base / "tree.json"
     write_tree(tree, stems)
     output = base / "out"
@@ -73,10 +74,18 @@ def run_prepare(base, stems, limit=0, min_samples=1):
         str(limit),
         "--min-samples",
         str(min_samples),
+        "--sources",
+        sources,
+        "--min-notes",
+        str(min_notes),
+        "--min-pitch-classes",
+        str(min_pitch_classes),
         "--timeout",
         "5",
         "--progress-every",
         "0",
+        "--jobs",
+        str(jobs),
     ])
     return output
 
@@ -139,11 +148,31 @@ def test_minimum_failure_writes_partial_manifest():
             raise AssertionError("expected min-samples failure")
 
 
+def test_egfxset_single_note_source_is_prepared():
+    with tempfile.TemporaryDirectory() as temp:
+        base = Path(temp)
+        source = base / "source"
+        stems = [
+            write_source_clip(source, "BluesDriver/Bridge_1-0", [64], source_name="egfxset"),
+            write_source_clip(source, "TubeScreamer/Neck_1-1", [67], source_name="egfxset"),
+        ]
+        output = run_prepare(base, stems, min_samples=2, sources="egfxset",
+                             min_notes=1, min_pitch_classes=1, jobs=2)
+        lines = manifest_lines(output / "manifest.tsv")
+        audio = [line for line in lines if line.startswith("AUDIO\t")]
+        notes = [line for line in lines if line.startswith("NOTE\t")]
+        if len(audio) != 2:
+            raise AssertionError(f"expected 2 egfxset AUDIO rows, got {len(audio)}")
+        if len(notes) != 2:
+            raise AssertionError(f"expected 2 egfxset NOTE rows, got {len(notes)}")
+
+
 def main():
     test_hf_guitar_chord_mix_manifest_is_prepared()
     test_limit_spreads_across_chord_labels()
     test_minimum_failure_writes_partial_manifest()
-    print("test_prepare_hf_guitar_chord_mix: 3 checks passed")
+    test_egfxset_single_note_source_is_prepared()
+    print("test_prepare_hf_guitar_chord_mix: 4 checks passed")
     return 0
 
 

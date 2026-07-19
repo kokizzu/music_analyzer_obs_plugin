@@ -230,6 +230,16 @@ int resolve_positive_int_env(const char *name, int fallback)
 	return parsed > 0 ? parsed : fallback;
 }
 
+int resolve_nonnegative_int_env(const char *name, int fallback)
+{
+	const char *value = std::getenv(name);
+	if (!value || !*value)
+		return fallback;
+
+	const int parsed = std::atoi(value);
+	return parsed >= 0 ? parsed : fallback;
+}
+
 int resolve_percent_env(const char *name, int fallback)
 {
 	const char *value = std::getenv(name);
@@ -1080,6 +1090,8 @@ void require_recall(Runner &runner, const RecallStats &stats, const char *label,
 
 void require_chord_recall(Runner &runner, const RecallStats &stats, int min_checks, int min_percent)
 {
+	if (min_checks <= 0)
+		return;
 	runner.expect(stats.chord_checks >= min_checks,
 		      "GuitarSet chord coverage: expected at least " + std::to_string(min_checks) +
 			      " chord-checkable windows, got " + std::to_string(stats.chord_checks));
@@ -1144,6 +1156,8 @@ void require_guitar_precision(Runner &runner, const GuitarPrecisionStats &stats,
 void require_guitar_chord_precision(Runner &runner, const ChordPrecisionStats &stats, int min_checks,
 				    int min_precision_percent)
 {
+	if (min_checks <= 0)
+		return;
 	runner.expect(stats.expected_windows >= min_checks,
 		      "GuitarSet guitar chord precision coverage: expected at least " +
 			      std::to_string(min_checks) + " chord-checkable windows, got " +
@@ -1154,6 +1168,18 @@ void require_guitar_chord_precision(Runner &runner, const ChordPrecisionStats &s
 		      "GuitarSet guitar chord precision: expected >=" +
 			      std::to_string(min_precision_percent) + "%, got " +
 			      percent_string(stats.true_positives, stats.predicted_windows) + " (" +
+			      chord_precision_summary(stats) + ")");
+}
+
+void require_single_note_chord_false_rate(Runner &runner, const ChordPrecisionStats &stats, int windows,
+					  int max_percent)
+{
+	if (max_percent < 0 || windows <= 0 || stats.expected_windows > 0)
+		return;
+	runner.expect(percentage_floor(stats.predicted_windows, windows) <= max_percent,
+		      "GuitarSet single-note chord false positives: expected <=" +
+			      std::to_string(max_percent) + "%, got " +
+			      percent_string(stats.predicted_windows, windows) + " (" +
 			      chord_precision_summary(stats) + ")");
 }
 
@@ -1225,7 +1251,9 @@ int main()
 		resolve_percent_env("MUSIC_ANALYZER_GUITARSET_MIN_SIMPLE_MAJOR_MINOR_CHORD_RECALL_PERCENT", 0);
 	const int min_simple_other_chord_recall_percent =
 		resolve_percent_env("MUSIC_ANALYZER_GUITARSET_MIN_SIMPLE_OTHER_CHORD_RECALL_PERCENT", 0);
-	const int min_chord_checks = resolve_positive_int_env("MUSIC_ANALYZER_GUITARSET_MIN_CHORD_CHECKS", 5);
+	const int min_chord_checks = resolve_nonnegative_int_env("MUSIC_ANALYZER_GUITARSET_MIN_CHORD_CHECKS", 5);
+	const int max_single_note_chord_false_percent =
+		resolve_percent_env("MUSIC_ANALYZER_GUITARSET_MAX_SINGLE_NOTE_CHORD_FALSE_PERCENT", -1);
 	const bool inspect_only = env_truthy("MUSIC_ANALYZER_GUITARSET_INSPECT_ONLY");
 	const bool use_all_recordings = env_truthy("MUSIC_ANALYZER_GUITARSET_USE_ALL");
 
@@ -1316,6 +1344,8 @@ int main()
 					    min_simple_other_chord_recall_percent);
 		require_guitar_chord_precision(runner, guitar_chord_precision, min_chord_checks,
 					       min_chord_precision_percent);
+		require_single_note_chord_false_rate(runner, guitar_chord_precision, tested_windows,
+						     max_single_note_chord_false_percent);
 	}
 
 	if (runner.failures > 0) {

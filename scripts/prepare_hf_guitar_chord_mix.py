@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 
 import argparse
+import concurrent.futures
 import hashlib
 import json
 import os
@@ -258,6 +259,35 @@ def write_manifest(path, rows, signature):
                 output.write(f"NOTE\t{row['id']}\t{start:.6f}\t{end:.6f}\t{midi}\n")
 
 
+def prepare_pair(args, output_dir, pair):
+    jams_path = output_dir / pair["jams"]
+    wav_path = output_dir / pair["wav"]
+    try:
+        download_file(resource_url(args.base_url, pair["jams"]), jams_path, args.download_retries,
+                      args.timeout)
+        notes = parse_jams_notes(jams_path)
+        pitch_classes = {midi % 12 for _, _, midi in notes}
+        if len(notes) < args.min_notes or len(pitch_classes) < args.min_pitch_classes:
+            return {"status": "sparse", "stem": pair["stem"]}
+
+        download_file(resource_url(args.base_url, pair["wav"]), wav_path, args.download_retries,
+                      args.timeout)
+        if not args.skip_wav_check and not valid_wav(wav_path):
+            return {"status": "invalid", "stem": pair["stem"]}
+    except (OSError, json.JSONDecodeError, TypeError, ValueError) as exc:
+        return {"status": "error", "stem": pair["stem"], "reason": str(exc)}
+
+    return {
+        "status": "row",
+        "row": {
+            "id": pair["id"],
+            "audio_path": str(wav_path.resolve()),
+            "notes": notes,
+            "label": pair["label"],
+        },
+    }
+
+
 def prepare(args):
     sources = split_sources(args.sources)
     output_dir = Path(args.output)
@@ -278,44 +308,53 @@ def prepare(args):
     skipped_sparse = 0
     skipped_invalid = 0
     skipped_errors = []
+    processed = 0
+    last_reported_prepared = 0
+
+    def ordered_rows():
+        return [row for _, row in sorted(rows, key=lambda item: item[0])]
+
+    def record_result(index, result):
+        nonlocal skipped_sparse, skipped_invalid, processed, last_reported_prepared
+        processed += 1
+        status = result.get("status")
+        if status == "row":
+            rows.append((index, result["row"]))
+        elif status == "sparse":
+            skipped_sparse += 1
+        elif status == "invalid":
+            skipped_invalid += 1
+        elif status == "error":
+            skipped_errors.append((result.get("stem", "<unknown>"), result.get("reason", "unknown error")))
+        else:
+            skipped_errors.append((result.get("stem", "<unknown>"), f"unknown result status {status!r}"))
+
+        if args.progress_every > 0 and len(rows) >= last_reported_prepared + args.progress_every:
+            last_reported_prepared = len(rows)
+            print(
+                f"prepare_hf_guitar_chord_mix: prepared {len(rows)} clips "
+                f"({processed}/{len(pairs)} candidates)",
+                flush=True,
+            )
 
     try:
-        for index, pair in enumerate(pairs, start=1):
-            jams_path = output_dir / pair["jams"]
-            wav_path = output_dir / pair["wav"]
-            try:
-                download_file(resource_url(args.base_url, pair["jams"]), jams_path, args.download_retries,
-                              args.timeout)
-                notes = parse_jams_notes(jams_path)
-                pitch_classes = {midi % 12 for _, _, midi in notes}
-                if len(notes) < args.min_notes or len(pitch_classes) < args.min_pitch_classes:
-                    skipped_sparse += 1
-                    continue
-
-                download_file(resource_url(args.base_url, pair["wav"]), wav_path, args.download_retries,
-                              args.timeout)
-                if not args.skip_wav_check and not valid_wav(wav_path):
-                    skipped_invalid += 1
-                    continue
-            except (OSError, json.JSONDecodeError, TypeError, ValueError) as exc:
-                skipped_errors.append((pair["stem"], str(exc)))
-                continue
-
-            rows.append({
-                "id": pair["id"],
-                "audio_path": str(wav_path.resolve()),
-                "notes": notes,
-                "label": pair["label"],
-            })
-            if args.progress_every > 0 and len(rows) % args.progress_every == 0:
-                print(
-                    f"prepare_hf_guitar_chord_mix: prepared {len(rows)} clips ({index}/{len(pairs)} candidates)",
-                    flush=True,
-                )
+        jobs = max(1, args.jobs)
+        if jobs == 1:
+            for index, pair in enumerate(pairs, start=1):
+                record_result(index, prepare_pair(args, output_dir, pair))
+        else:
+            with concurrent.futures.ThreadPoolExecutor(max_workers=jobs) as executor:
+                futures = {
+                    executor.submit(prepare_pair, args, output_dir, pair): index
+                    for index, pair in enumerate(pairs, start=1)
+                }
+                for future in concurrent.futures.as_completed(futures):
+                    index = futures[future]
+                    record_result(index, future.result())
     except KeyboardInterrupt:
         if rows:
             partial_path = manifest_path.with_suffix(manifest_path.suffix + ".partial")
-            write_manifest(partial_path, rows, signature)
+            write_manifest(partial_path, ordered_rows(), signature)
             print(
                 f"prepare_hf_guitar_chord_mix: interrupted after {len(rows)} prepared clips; "
                 f"wrote partial manifest {partial_path}",
@@ -326,15 +365,16 @@ def prepare(args):
     required = max(1, min_samples)
     if len(rows) < required:
         partial_path = manifest_path.with_suffix(manifest_path.suffix + ".partial")
-        write_manifest(partial_path, rows, signature)
+        write_manifest(partial_path, ordered_rows(), signature)
         raise SystemExit(
             f"prepare_hf_guitar_chord_mix: expected at least {required} prepared clips, "
             f"got {len(rows)}; wrote partial manifest {partial_path}"
         )
 
-    write_manifest(manifest_path, rows, signature)
-    labels = len({row["label"] for row in rows})
-    note_count = sum(len(row["notes"]) for row in rows)
+    prepared_rows = ordered_rows()
+    write_manifest(manifest_path, prepared_rows, signature)
+    labels = len({row["label"] for row in prepared_rows})
+    note_count = sum(len(row["notes"]) for row in prepared_rows)
     print(
         f"prepare_hf_guitar_chord_mix: wrote {len(rows)} clips and {note_count} notes "
         f"across {labels} chord labels to {manifest_path} "
@@ -366,6 +406,7 @@ def main(argv=None):
     parser.add_argument("--timeout", type=float, default=float(os.environ.get("GUITAR_CHORD_MIX_TIMEOUT", "45")))
     parser.add_argument("--progress-every", type=int,
                         default=int(os.environ.get("GUITAR_CHORD_MIX_PROGRESS_EVERY", "25")))
+    parser.add_argument("--jobs", type=int, default=int(os.environ.get("GUITAR_CHORD_MIX_JOBS", "1")))
     parser.add_argument("--skip-wav-check", action="store_true",
                         default=os.environ.get("GUITAR_CHORD_MIX_SKIP_WAV_CHECK") == "1")
     parser.add_argument("--refresh", action="store_true",
