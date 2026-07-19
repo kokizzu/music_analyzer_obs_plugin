@@ -126,6 +126,8 @@ struct AnalysisSnapshot {
 	InstrumentState guitar = {};
 	NoteGrid guitar_notes = {};
 	InstrumentState guitar_chord = {};
+	NoteGrid guitar_chord_analysis_notes = {};
+	NoteGrid guitar_chord_smoothed_notes = {};
 	InstrumentState keyboard = {};
 	NoteGrid keyboard_notes = {};
 	InstrumentState keyboard_chord = {};

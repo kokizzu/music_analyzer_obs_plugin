@@ -7,7 +7,10 @@ import sys
 MISS_RE = re.compile(
     r"chord opportunity `([^`]*)`, detected global `([^`]*)`, key `([^`]*)`, "
     r"guitar `([^`]*)`, other `([^`]*)`"
-    r"(?:, expected pc `([^`]*)`, guitar pc `([^`]*)`, guitar cells `([^`]*)`)?"
+    r"(?:, expected pc `([^`]*)`, guitar pc `([^`]*)`, guitar cells `([^`]*)`"
+    r"(?:, guitar analysis pc `([^`]*)`, guitar analysis cells `([^`]*)`, "
+    r"guitar smooth pc `([^`]*)`, guitar smooth cells `([^`]*)`)?"
+    r")?"
 )
 ROOT_RE = re.compile(r"([A-G]#?)")
 NOTE_TO_PC = {
@@ -135,6 +138,44 @@ def coverage_bucket(coverage: float) -> str:
     return "0%"
 
 
+def expected_coverage(expected_labels: list[str], pitch_classes: set[int]) -> tuple[float, set[int], str | None]:
+    best_coverage = 0.0
+    best_missing: set[int] = set()
+    full_tone_label = None
+    for expected_label in expected_labels:
+        expected_pitch_classes = label_pitch_classes(expected_label)
+        if not expected_pitch_classes:
+            continue
+        present = expected_pitch_classes & pitch_classes
+        coverage = len(present) / len(expected_pitch_classes)
+        if coverage > best_coverage:
+            best_coverage = coverage
+            best_missing = expected_pitch_classes - pitch_classes
+        if expected_pitch_classes <= pitch_classes:
+            best_coverage = 1.0
+            best_missing = set()
+            full_tone_label = expected_label
+            break
+    return best_coverage, best_missing, full_tone_label
+
+
+def print_grid_coverage(
+    heading: str,
+    by_expected_quality: collections.Counter[str],
+    full_expected_tones_by_quality: collections.Counter[str],
+    expected_tone_coverage_sum: collections.Counter[str],
+    coverage_buckets: collections.Counter[str],
+) -> None:
+    print(heading)
+    for key in ("100%", "75-99%", "50-74%", "1-49%", "0%"):
+        print(f"{coverage_buckets[key]} {key}")
+    print(f"{heading} by quality")
+    for key, total in by_expected_quality.most_common(20):
+        full = full_expected_tones_by_quality[key]
+        average = expected_tone_coverage_sum[key] / total if total else 0.0
+        print(f"{full}/{total} {key} avg_tone_coverage {average:.2f}")
+
+
 def main() -> int:
     path = sys.argv[1] if len(sys.argv) > 1 else "build/guitarset_verbose.log"
     misses = []
@@ -150,16 +191,40 @@ def main() -> int:
     same_root_label_pairs: collections.Counter[tuple[str, str]] = collections.Counter()
     full_expected_tones_by_quality: collections.Counter[str] = collections.Counter()
     expected_tone_coverage_sum: collections.Counter[str] = collections.Counter()
+    analysis_full_expected_tones_by_quality: collections.Counter[str] = collections.Counter()
+    analysis_expected_tone_coverage_sum: collections.Counter[str] = collections.Counter()
+    smooth_full_expected_tones_by_quality: collections.Counter[str] = collections.Counter()
+    smooth_expected_tone_coverage_sum: collections.Counter[str] = collections.Counter()
     missing_tone_sets: collections.Counter[tuple[str, str]] = collections.Counter()
     full_tone_miss_pairs: collections.Counter[tuple[str, str]] = collections.Counter()
+    analysis_full_tone_miss_pairs: collections.Counter[tuple[str, str]] = collections.Counter()
+    smooth_full_tone_miss_pairs: collections.Counter[tuple[str, str]] = collections.Counter()
     plain_to_power = []
     plain_to_power_third_state: collections.Counter[str] = collections.Counter()
     bucket_counts: collections.Counter[str] = collections.Counter()
     bucket_by_quality: collections.Counter[tuple[str, str]] = collections.Counter()
     coverage_buckets: collections.Counter[str] = collections.Counter()
+    analysis_coverage_buckets: collections.Counter[str] = collections.Counter()
+    smooth_coverage_buckets: collections.Counter[str] = collections.Counter()
+    display_missing_analysis_full = 0
+    display_missing_smooth_full = 0
     has_grid_diagnostics = False
+    has_analysis_grid_diagnostics = False
 
-    for opportunity, _global, _key, guitar, _other, _expected_pc, guitar_pc, _guitar_cells in misses:
+    for (
+        opportunity,
+        _global,
+        _key,
+        guitar,
+        _other,
+        _expected_pc,
+        guitar_pc,
+        _guitar_cells,
+        guitar_analysis_pc,
+        _guitar_analysis_cells,
+        guitar_smooth_pc,
+        _guitar_smooth_cells,
+    ) in misses:
         expected = components(opportunity, "/")
         detected = components(guitar, "=")
         expected_quality = "/".join(sorted({quality(label) for label in expected}))
@@ -182,32 +247,41 @@ def main() -> int:
         full_tone_label = None
         if guitar_pc is not None:
             has_grid_diagnostics = True
-            best_coverage = 0.0
-            best_missing: set[int] = set()
-            for expected_label in expected:
-                expected_pitch_classes = label_pitch_classes(expected_label)
-                if not expected_pitch_classes:
-                    continue
-                present = expected_pitch_classes & guitar_pitch_classes
-                coverage = len(present) / len(expected_pitch_classes)
-                if expected_pitch_classes <= guitar_pitch_classes and expected_label not in detected:
-                    full_tone_miss_pairs[(expected_label, guitar)] += 1
-                    if full_tone_label is None:
-                        full_tone_label = expected_label
-                if coverage > best_coverage:
-                    best_coverage = coverage
-                    best_missing = expected_pitch_classes - guitar_pitch_classes
-                if expected_pitch_classes <= guitar_pitch_classes:
-                    full_expected_tones_by_quality[expected_quality] += 1
-                    best_coverage = 1.0
-                    best_missing = set()
-                    if full_tone_label is None:
-                        full_tone_label = expected_label
-                    break
+            best_coverage, best_missing, full_tone_label = expected_coverage(expected, guitar_pitch_classes)
+            if full_tone_label is not None:
+                full_expected_tones_by_quality[expected_quality] += 1
+                if full_tone_label not in detected:
+                    full_tone_miss_pairs[(full_tone_label, guitar)] += 1
             expected_tone_coverage_sum[expected_quality] += best_coverage
             coverage_buckets[coverage_bucket(best_coverage)] += 1
             if best_missing:
                 missing_tone_sets[(expected_quality, note_list(best_missing))] += 1
+        if guitar_analysis_pc is not None:
+            has_analysis_grid_diagnostics = True
+            analysis_pitch_classes = parse_pitch_classes(guitar_analysis_pc)
+            analysis_coverage, _analysis_missing, analysis_full_tone_label = expected_coverage(
+                expected, analysis_pitch_classes
+            )
+            if analysis_full_tone_label is not None:
+                analysis_full_expected_tones_by_quality[expected_quality] += 1
+                if full_tone_label is None:
+                    display_missing_analysis_full += 1
+                if analysis_full_tone_label not in detected:
+                    analysis_full_tone_miss_pairs[(analysis_full_tone_label, guitar)] += 1
+            analysis_expected_tone_coverage_sum[expected_quality] += analysis_coverage
+            analysis_coverage_buckets[coverage_bucket(analysis_coverage)] += 1
+            smooth_pitch_classes = parse_pitch_classes(guitar_smooth_pc)
+            smooth_coverage, _smooth_missing, smooth_full_tone_label = expected_coverage(
+                expected, smooth_pitch_classes
+            )
+            if smooth_full_tone_label is not None:
+                smooth_full_expected_tones_by_quality[expected_quality] += 1
+                if full_tone_label is None:
+                    display_missing_smooth_full += 1
+                if smooth_full_tone_label not in detected:
+                    smooth_full_tone_miss_pairs[(smooth_full_tone_label, guitar)] += 1
+            smooth_expected_tone_coverage_sum[expected_quality] += smooth_coverage
+            smooth_coverage_buckets[coverage_bucket(smooth_coverage)] += 1
         bucket = miss_bucket(expected, detected, guitar_pitch_classes, full_tone_label)
         bucket_counts[bucket] += 1
         bucket_by_quality[(bucket, expected_quality)] += 1
@@ -255,23 +329,46 @@ def main() -> int:
         print("miss buckets")
         for key, value in bucket_counts.most_common():
             print(f"{value} {key}")
-        print("coverage buckets")
-        for key in ("100%", "75-99%", "50-74%", "1-49%", "0%"):
-            print(f"{coverage_buckets[key]} {key}")
+        print_grid_coverage(
+            "visible guitar grid coverage buckets",
+            by_expected_quality,
+            full_expected_tones_by_quality,
+            expected_tone_coverage_sum,
+            coverage_buckets,
+        )
+        if has_analysis_grid_diagnostics:
+            print_grid_coverage(
+                "analysis guitar grid coverage buckets",
+                by_expected_quality,
+                analysis_full_expected_tones_by_quality,
+                analysis_expected_tone_coverage_sum,
+                analysis_coverage_buckets,
+            )
+            print_grid_coverage(
+                "smoothed guitar chord grid coverage buckets",
+                by_expected_quality,
+                smooth_full_expected_tones_by_quality,
+                smooth_expected_tone_coverage_sum,
+                smooth_coverage_buckets,
+            )
+            print(f"display_missing_analysis_full {display_missing_analysis_full}")
+            print(f"display_missing_smooth_full {display_missing_smooth_full}")
         print("top miss buckets by quality")
         for (bucket, expected_quality), value in bucket_by_quality.most_common(30):
             print(f"{value} {bucket} {expected_quality}")
-        print("expected tones present in guitar grid")
-        for key, total in by_expected_quality.most_common(20):
-            full = full_expected_tones_by_quality[key]
-            average = expected_tone_coverage_sum[key] / total if total else 0.0
-            print(f"{full}/{total} {key} avg_tone_coverage {average:.2f}")
         print("top missing expected tone sets")
         for (expected_quality, missing), value in missing_tone_sets.most_common(20):
             print(f"{value} {expected_quality} missing {missing}")
         print("top full-tone expected labels still missed")
         for (expected_label, guitar), value in full_tone_miss_pairs.most_common(30):
             print(f"{value} {expected_label} => {guitar}")
+        if has_analysis_grid_diagnostics:
+            print("top analysis-full-tone expected labels still missed")
+            for (expected_label, guitar), value in analysis_full_tone_miss_pairs.most_common(30):
+                print(f"{value} {expected_label} => {guitar}")
+            print("top smoothed-full-tone expected labels still missed")
+            for (expected_label, guitar), value in smooth_full_tone_miss_pairs.most_common(30):
+                print(f"{value} {expected_label} => {guitar}")
     print(f"same_root_plain_major_minor_to_power {len(plain_to_power)}")
     if plain_to_power_third_state:
         print("plain_to_power_third_state")

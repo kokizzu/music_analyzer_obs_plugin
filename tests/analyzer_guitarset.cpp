@@ -794,13 +794,19 @@ void debug_guitar_window(const mao::AnalysisSnapshot &snapshot, const CandidateW
 		return;
 
 	const std::array<bool, 12> guitar = grid_pitch_classes(snapshot.guitar_notes);
+	const std::array<bool, 12> guitar_analysis = grid_pitch_classes(snapshot.guitar_chord_analysis_notes);
+	const std::array<bool, 12> guitar_smoothed = grid_pitch_classes(snapshot.guitar_chord_smoothed_notes);
 	std::fprintf(stderr,
 		     "%s: expected pc `%s`, guitar pc `%s`, guitar cells `%s`, global `%s`, key `%s`, "
-		     "guitar `%s`, other `%s`\n",
+		     "guitar `%s`, other `%s`, guitar analysis pc `%s`, guitar analysis cells `%s`, "
+		     "guitar smooth pc `%s`, guitar smooth cells `%s`\n",
 		     context.c_str(), pitch_class_list(candidate.pitch_classes).c_str(),
 		     pitch_class_list(guitar).c_str(), grid_cell_list(snapshot.guitar_notes).c_str(),
 		     snapshot.global_chord.label, snapshot.keyboard_chord.label, snapshot.guitar_chord.label,
-		     snapshot.other_chord.label);
+		     snapshot.other_chord.label, pitch_class_list(guitar_analysis).c_str(),
+		     grid_cell_list(snapshot.guitar_chord_analysis_notes).c_str(),
+		     pitch_class_list(guitar_smoothed).c_str(),
+		     grid_cell_list(snapshot.guitar_chord_smoothed_notes).c_str());
 }
 
 void add_guitar_chord_precision_metrics(ChordPrecisionStats &stats, const mao::AnalysisSnapshot &snapshot,
@@ -988,14 +994,24 @@ void check_recall(Runner &runner, const mao::AnalysisSnapshot &snapshot, const C
 			++stats.chord_hits;
 		} else if (env_truthy("MUSIC_ANALYZER_GUITARSET_VERBOSE_CHORD_MISSES")) {
 			const std::array<bool, 12> guitar = grid_pitch_classes(snapshot.guitar_notes);
+			const std::array<bool, 12> guitar_analysis =
+				grid_pitch_classes(snapshot.guitar_chord_analysis_notes);
+			const std::array<bool, 12> guitar_smoothed =
+				grid_pitch_classes(snapshot.guitar_chord_smoothed_notes);
 			std::fprintf(stderr,
 				     "%s: chord opportunity `%s`, detected global `%s`, key `%s`, guitar `%s`, "
-				     "other `%s`, expected pc `%s`, guitar pc `%s`, guitar cells `%s`\n",
+				     "other `%s`, expected pc `%s`, guitar pc `%s`, guitar cells `%s`, "
+				     "guitar analysis pc `%s`, guitar analysis cells `%s`, guitar smooth pc `%s`, "
+				     "guitar smooth cells `%s`\n",
 				     context.c_str(), join_labels(candidate.chord_labels).c_str(),
 				     snapshot.global_chord.label, snapshot.keyboard_chord.label,
 				     snapshot.guitar_chord.label, snapshot.other_chord.label,
 				     pitch_class_list(candidate.pitch_classes).c_str(), pitch_class_list(guitar).c_str(),
-				     grid_cell_list(snapshot.guitar_notes).c_str());
+				     grid_cell_list(snapshot.guitar_notes).c_str(),
+				     pitch_class_list(guitar_analysis).c_str(),
+				     grid_cell_list(snapshot.guitar_chord_analysis_notes).c_str(),
+				     pitch_class_list(guitar_smoothed).c_str(),
+				     grid_cell_list(snapshot.guitar_chord_smoothed_notes).c_str());
 		}
 		if (simple_chord_hit)
 			++stats.simple_chord_hits;

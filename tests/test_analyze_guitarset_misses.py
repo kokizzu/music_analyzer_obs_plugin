@@ -48,19 +48,27 @@ def main() -> int:
                 "case5: chord opportunity `C`, detected global `--`, key `--`, "
                 "guitar `--`, other `--`, expected pc `C,E,G`, guitar pc `--`, "
                 "guitar cells `--`",
+                "case6: chord opportunity `G`, detected global `--`, key `--`, "
+                "guitar `--`, other `--`, expected pc `G,B,D`, guitar pc `G,D`, "
+                "guitar cells `G2:1.00,D3:0.70`, guitar analysis pc `G,B,D`, "
+                "guitar analysis cells `G2:1.00,B2:0.30,D3:0.70`, guitar smooth pc `G,B,D`, "
+                "guitar smooth cells `G2:0.85,B2:0.22,D3:0.64`",
             ]
         )
     )
-    require(output, "misses 5")
+    require(output, "misses 6")
     require(output, "1 full_tones_present_same_root_wrong_quality")
     require(output, "1 full_tones_present_root_shift")
     require(output, "1 same_root_but_expected_tones_missing")
-    require(output, "1 expected_tones_missing_no_chord")
+    require(output, "2 expected_tones_missing_no_chord")
     require(output, "1 no_guitar_notes")
     require(output, "2 100%")
     require(output, "1 75-99%")
-    require(output, "1 50-74%")
+    require(output, "2 50-74%")
     require(output, "1 0%")
+    require(output, "analysis guitar grid coverage buckets")
+    require(output, "display_missing_analysis_full 1")
+    require(output, "display_missing_smooth_full 1")
     print("test_analyze_guitarset_misses: ok")
     return 0
 
