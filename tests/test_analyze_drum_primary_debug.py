@@ -52,11 +52,15 @@ def main() -> int:
             ]
         )
     )
+    require(output, "overall primary misses")
+    require(output, "expected tom: ambiguous=1 kick=1")
     require(output, "drum: 2 primary misses")
     require(output, "tom -> ambiguous: 1")
     require(output, "tom -> kick: 1")
+    require(output, "examples: tom/001.wav")
     require(output, "band        expected/got avg=2.00")
     require(output, "expected shape supported: 1/1")
+    require(output, "expected active but lower: 1/1")
     require(output, "avg energy low/mid/high=0.58/0.32/0.10")
     print("test_analyze_drum_primary_debug: ok")
     return 0

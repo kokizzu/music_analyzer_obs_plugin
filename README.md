@@ -396,6 +396,8 @@ For `make profile-standalone`, `JobCPU` is the CPU used while processing the gen
 
 The full-mix regression cases model public multitrack dataset layouts without downloading dataset audio. They include 20+ Slakh2100-style MIDI-rendered song fixtures, 20 ChoralSynth-style vocal multitrack fixtures, 20 CocoChorales-style chamber-ensemble fixtures, 20 SynthSOD-style orchestra/ensemble fixtures, 20 Vocal Ensemble F0 Aggregate-style real-vocal F0 fixtures, plus additional MUSDB18/MUSDB18-HQ, DSD100/Mixing Secrets, MedleyDB/2.0, MoisesDB, URMP, Bach10, TRIOS, PHENICX-Anechoic, MIREX Woodwind Quintet, RawStems, MulTTiPop, GuitarSet, MAESTRO, E-GMD, ACMID, Spheres, MDX, and Open Multitrack Testbed-style fixtures. See [docs/real_audio_dataset_candidates.md](docs/real_audio_dataset_candidates.md) for real recorded dataset candidates that can verify notes and instruments.
 
+`make analyze-drum-primary-misses` now also prints an overall expected-vs-primary confusion summary and example sample filenames for each miss bucket, which helps compare tom/snare/rim scoring changes against real one-shot regressions.
+
 Optional real-audio URMP regression coverage runs when a local URMP dataset is available:
 
 ```sh
