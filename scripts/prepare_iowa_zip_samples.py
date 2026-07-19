@@ -2,6 +2,7 @@
 
 import argparse
 import hashlib
+import html
 import math
 import os
 from pathlib import Path
@@ -11,6 +12,7 @@ import subprocess
 import sys
 import tempfile
 import urllib.parse
+import urllib.request
 import wave
 import zipfile
 
@@ -18,6 +20,7 @@ import zipfile
 FIXTURE_VERSION = "iowa-zip-v1"
 SPEC_SEPARATOR = "|"
 NOTE_RE = re.compile(r"\.([A-G](?:b)?[0-8])(?:\.stereo)?\.aiff?$", re.IGNORECASE)
+ZIP_LINK_RE = re.compile(r"""href\s*=\s*["']([^"']+\.zip)["']""", re.IGNORECASE)
 NOTE_PITCH_CLASS = {
     "C": 0,
     "Db": 1,
@@ -116,6 +119,52 @@ def parse_spec(text):
         "source": source,
         "url": escape_url(url),
     }
+
+
+def parse_page_spec(text):
+    fields = text.split(SPEC_SEPARATOR)
+    if len(fields) != 4:
+        raise SystemExit(
+            "prepare_iowa_zip_samples: page spec must be family|nsynth_family|source_prefix|page_url"
+        )
+    family, nsynth_family, source_prefix, url = fields
+    if family not in {"bass", "guitar", "piano", "vocals", "other"}:
+        raise SystemExit(f"prepare_iowa_zip_samples: unsupported family `{family}`")
+    if not nsynth_family or not source_prefix or not url:
+        raise SystemExit("prepare_iowa_zip_samples: empty page spec field")
+    return {
+        "family": family,
+        "nsynth_family": nsynth_family,
+        "source_prefix": source_prefix,
+        "url": escape_url(url),
+    }
+
+
+def source_suffix_from_url(url):
+    parsed = urllib.parse.urlparse(url)
+    stem = Path(urllib.parse.unquote(parsed.path)).stem
+    return re.sub(r"[^A-Za-z0-9_.-]+", "-", stem).strip("-") or "zip"
+
+
+def specs_from_page_spec(page_spec, timeout_seconds):
+    with urllib.request.urlopen(page_spec["url"], timeout=timeout_seconds) as response:
+        body = response.read().decode("latin1", "replace")
+    specs = []
+    seen = set()
+    for raw_href in ZIP_LINK_RE.findall(body):
+        zip_url = escape_url(urllib.parse.urljoin(page_spec["url"], html.unescape(raw_href)))
+        if zip_url in seen:
+            continue
+        seen.add(zip_url)
+        specs.append({
+            "family": page_spec["family"],
+            "nsynth_family": page_spec["nsynth_family"],
+            "source": f"{page_spec['source_prefix']}-{source_suffix_from_url(zip_url)}",
+            "url": zip_url,
+        })
+    if not specs:
+        raise SystemExit(f"prepare_iowa_zip_samples: no ZIP links found on {page_spec['url']}")
+    return specs
 
 
 def note_to_midi(note):
@@ -332,6 +381,7 @@ def limited_rows(rows, limit):
 def main(argv=None):
     parser = argparse.ArgumentParser(description="Prepare one-note samples from Iowa post-2012 ZIP files.")
     parser.add_argument("--spec", action="append", default=[])
+    parser.add_argument("--page-spec", action="append", default=[])
     parser.add_argument("--source-dir", default=os.environ.get("IOWA_ZIP_SOURCE_DIR",
                                                                "build/real_sample_sources/iowa_zip"))
     parser.add_argument("--output", default=os.environ.get("IOWA_ZIP_SAMPLE_DIR",
@@ -349,8 +399,8 @@ def main(argv=None):
     parser.add_argument("--refresh", action="store_true", default=os.environ.get("IOWA_ZIP_REFRESH") == "1")
     args = parser.parse_args(argv)
 
-    if not args.spec:
-        raise SystemExit("prepare_iowa_zip_samples: at least one --spec is required")
+    if not args.spec and not args.page_spec:
+        raise SystemExit("prepare_iowa_zip_samples: at least one --spec or --page-spec is required")
 
     ffmpeg = find_command(args.ffmpeg)
     curl = find_command(args.curl)
@@ -358,6 +408,8 @@ def main(argv=None):
     output_dir = Path(args.output)
     manifest_path = output_dir / "manifest.tsv"
     specs = [parse_spec(spec) for spec in args.spec]
+    for page_spec_text in args.page_spec:
+        specs.extend(specs_from_page_spec(parse_page_spec(page_spec_text), args.download_timeout))
     signature = signature_text(specs, f"{args.limit}|pitch={0 if args.skip_pitch_check else 1}")
     min_samples = max(0, args.min_samples)
     if not args.refresh and manifest_complete(manifest_path, signature, min_samples):
@@ -366,9 +418,12 @@ def main(argv=None):
 
     rows = []
     for spec in specs:
+        if args.limit > 0 and len(rows) >= args.limit:
+            break
         zip_path = source_dir / zip_filename(spec)
         download_file(curl, spec["url"], zip_path, args.download_timeout, max(0, args.download_retries))
         rows.extend(collect_zip_rows(spec, zip_path))
+        rows = limited_rows(rows, args.limit)
     rows = limited_rows(rows, args.limit)
     if not rows:
         raise SystemExit("prepare_iowa_zip_samples: no one-note AIF members discovered")

@@ -149,6 +149,47 @@ def test_minimum_sample_failure_writes_partial_manifest():
             raise AssertionError("expected min-samples failure")
 
 
+def test_page_spec_expands_zip_links():
+    with tempfile.TemporaryDirectory() as temp:
+        base = Path(temp)
+        source_zip = base / "source.zip"
+        make_zip(source_zip)
+        page = base / "page.html"
+        page.write_text(
+            f'<a href="{source_zip.name}">source zip</a>'
+            f'<a href="{source_zip.name}">duplicate zip</a>',
+            encoding="utf-8",
+        )
+        cache = base / "cache"
+        output = base / "out"
+        curl = base / "fake-curl"
+        ffmpeg = base / "fake-ffmpeg"
+        write_fake_curl(curl)
+        write_fake_ffmpeg(ffmpeg)
+        prepare_iowa_zip_samples.main([
+            "--page-spec",
+            f"other|strings|iowa-page|{page.resolve().as_uri()}",
+            "--source-dir",
+            str(cache),
+            "--output",
+            str(output),
+            "--min-samples",
+            "2",
+            "--ffmpeg",
+            str(ffmpeg),
+            "--curl",
+            str(curl),
+            "--skip-pitch-check",
+        ])
+        rows = manifest_rows(output / "manifest.tsv")
+        if len(rows) != 2:
+            raise AssertionError(f"expected two page-spec rows, got {len(rows)}")
+        if any(row[1] != "other" for row in rows):
+            raise AssertionError(f"expected other-family rows, got {rows}")
+        if not all(row[3].startswith("iowa-page-source") for row in rows):
+            raise AssertionError(f"expected page-derived sources, got {[row[3] for row in rows]}")
+
+
 def test_pitch_reference_filter_rejects_neighbor_note():
     with tempfile.TemporaryDirectory() as temp:
         path = Path(temp) / "e2.wav"
@@ -163,8 +204,9 @@ def main():
     test_zip_members_are_prepared_as_bass_notes()
     test_limit_is_enforced_before_manifest_write()
     test_minimum_sample_failure_writes_partial_manifest()
+    test_page_spec_expands_zip_links()
     test_pitch_reference_filter_rejects_neighbor_note()
-    print("test_prepare_iowa_zip_samples: 4 checks passed")
+    print("test_prepare_iowa_zip_samples: 5 checks passed")
     return 0
 
 
