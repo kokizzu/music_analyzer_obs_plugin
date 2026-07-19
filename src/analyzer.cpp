@@ -4535,7 +4535,13 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 		snare_body >= kick_body * 0.30f && snare_body >= tom_body * 0.32f &&
 		snare_crack >= snare_body * 0.010f &&
 		snapshot.mid_energy >= snapshot.low_energy * 0.42f;
-	const bool snare_shape = strongest_shell_drum <= 0.0f || snare_crack_shape || snare_resonant_body_shape;
+	const bool low_cymbal_snare_body_shape =
+		drum_segment_bands[Snare] >= strongest_shell_drum * 0.44f &&
+		snare_body >= kick_body * 0.24f && snare_body >= tom_body * 0.24f &&
+		snare_crack >= snare_body * 0.006f &&
+		snapshot.mid_energy >= 0.52f && snapshot.high_energy <= 0.14f;
+	const bool snare_shape = strongest_shell_drum <= 0.0f || snare_crack_shape ||
+				 snare_resonant_body_shape || low_cymbal_snare_body_shape;
 	const bool rim_shape = strongest_body_drum <= 0.0f ||
 			       (drum_segment_bands[Rim] >= strongest_body_drum * 0.30f &&
 				rim_body >= kick_body * 0.20f && rim_body >= tom_body * 0.20f &&
@@ -4754,9 +4760,15 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 				  (transient_ratio >= 1.00f || kick_soft_body_shape)));
 		const bool soft_snare_onset_shape = had_previous_audio && snare && snare_shape && onset >= 1.25f &&
 						    score >= trigger_threshold * 1.15f;
+		const bool clear_initial_snare_onset =
+			!had_previous_audio && snare && snare_shape && onset >= 4.8f &&
+			score >= trigger_threshold * 1.70f &&
+			snapshot.mid_energy >= snapshot.low_energy * 1.20f &&
+			strongest_cymbal_drum <= strongest_body_drum * 0.14f;
 		const bool soft_snare_transient =
-			had_previous_audio && snare && snare_shape &&
-			(transient_ratio >= 0.82f || soft_snare_onset_shape);
+			snare && snare_shape &&
+			((had_previous_audio && (transient_ratio >= 0.82f || soft_snare_onset_shape)) ||
+			 clear_initial_snare_onset);
 		const bool soft_rim_transient = had_previous_audio && rim && rim_shape && transient_ratio >= 0.62f;
 		const bool soft_tom_transient = had_previous_audio && tom && tom_shape && transient_ratio >= 0.72f;
 		const bool soft_body_transient =
@@ -4806,8 +4818,27 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 				const bool shell_centered_snare =
 					body_shape_scores[1] >= body_shape_scores[2] * 0.84f &&
 					body_shape_scores[1] >= drum_segment_bands[HiHat] * 3.0f;
+				const bool cymbal_backed_hihat =
+					!generated_gm_drum_source &&
+					(cymbal_shape == HiHat || hihat_family_shape || drum_segment_bands[HiHat] >= strongest_cymbal_drum * 0.42f) &&
+					strongest_cymbal_drum > 0.0f &&
+					snapshot.high_energy >= 0.17f &&
+					strongest_cymbal_drum >= strongest_body_drum * 0.055f;
+				const bool rim_hit_like_snare =
+					rim_primary_evidence &&
+					strongest_cymbal_drum < strongest_body_drum * 0.16f &&
+					drum_segment_bands[HiHat] <
+						std::max(body_shape_scores[1], rim_shape_score) * 0.22f;
+				const bool hihat_bleed_snare =
+					cymbal_backed_hihat && body_shape != Snare &&
+					strongest_cymbal_drum >= body_shape_scores[1] * 0.32f &&
+					!rim_hit_like_snare &&
+					body_shape_scores[1] < body_shape_scores[2] * 0.94f &&
+					body_shape_scores[1] < body_shape_scores[0] * 1.70f;
 				if (shell_centered_snare)
 					level = std::clamp(level * 1.018f + 0.006f, 0.0f, 1.0f);
+				else if (hihat_bleed_snare)
+					level = std::min(level, 0.29f);
 			}
 			if (rim) {
 				if (rim_primary_evidence) {

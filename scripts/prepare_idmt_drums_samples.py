@@ -388,7 +388,7 @@ def main(argv=None):
     parser.add_argument("--output", default=os.environ.get("IDMT_DRUMS_SAMPLE_DIR",
                                                           "build/idmt_drums_samples"))
     parser.add_argument("--limit-per-category", type=int,
-                        default=int(os.environ.get("IDMT_DRUMS_LIMIT_PER_CATEGORY", "300")))
+                        default=int(os.environ.get("IDMT_DRUMS_LIMIT_PER_CATEGORY", "0")))
     parser.add_argument("--min-per-category", type=int,
                         default=int(os.environ.get("IDMT_DRUMS_MIN_PER_CATEGORY", "300")))
     parser.add_argument("--clip-seconds", type=float,

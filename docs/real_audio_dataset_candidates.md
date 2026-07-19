@@ -364,13 +364,14 @@ without additional annotation.
 - Use `make test-idmt-drums-samples` to download the 287.1 MB
   IDMT-SMT-Drums ZIP from Zenodo, parse the SVL frame annotations, and extract
   balanced real hit windows from the isolated `#KD#train.wav`, `#SD#train.wav`,
-  and `#HH#train.wav` tracks. The current default prepares 900 clips, 300 each
-  for kick, snare, and hi-hat, and runs the shared drum analyzer gate with only
-  those three categories marked required. Current cached recall/primary/precision
-  is kick 299/300, 298/300, and 299/349; snare 275/300, 224/300, and 275/494;
-  and hi-hat 290/300, 152/300, and 290/327. Crash/tom/ride/rim false activations
-  remain printed as diagnostics
-  because IDMT-SMT-Drums does not label those classes in this target.
+  and `#HH#train.wav` tracks. The current default prepares every usable
+  annotated hit window, currently 1,823 clips: kick=697, snare=345, and
+  hi-hat=781. It runs the shared drum analyzer gate with only those three
+  categories marked required. Current cached recall/primary/precision is
+  kick 692/697, 687/697, and 692/819; snare 331/345, 290/345, and 331/637;
+  and hi-hat 744/781, 404/781, and 744/784. Crash/tom/ride/rim false
+  activations remain printed as diagnostics because IDMT-SMT-Drums does not
+  label those classes in this target.
 - Use `make test-real-maestro-20` with
   `MUSIC_ANALYZER_MAESTRO_ROOT=/path/to/maestro-v3.0.0` after extracting the
   official MAESTRO archive. The analyzer gate expects the official metadata CSV
