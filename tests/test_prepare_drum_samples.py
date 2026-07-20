@@ -292,6 +292,33 @@ def test_tom_label_requires_real_tom_token():
                 raise AssertionError(f"expected {expected} to remain labeled tom")
 
 
+def test_side_stick_aliases_win_over_snare_folder():
+    with tempfile.TemporaryDirectory() as temp:
+        base = Path(temp)
+        source = base / "source"
+        output = base / "out"
+
+        write_wav(source / "kit" / "Snaredrums" / "Sideststick.wav", frequency=420.0)
+        write_wav(source / "kit" / "Snaredrums" / "Side-Stick 01.wav", frequency=430.0)
+        write_wav(source / "kit" / "Snaredrums" / "Snare 01.wav", frequency=260.0)
+
+        prepare_drum_samples.clean_output(output)
+        counts, manifest_path = prepare_drum_samples.copy_samples(source, output, 0, "first", unrar=None)
+        rows = rows_by_category(manifest_path)
+        rim_sources = "\n".join(row[2] for row in rows.get("rim", []))
+        snare_sources = "\n".join(row[2] for row in rows.get("snare", []))
+
+        if counts["rim"] != 2:
+            raise AssertionError(f"expected side-stick aliases to be labeled rim, got {counts['rim']}:\n{rim_sources}")
+        if counts["snare"] != 1:
+            raise AssertionError(f"expected only plain snare to be labeled snare, got {counts['snare']}:\n{snare_sources}")
+        for expected in ("Sideststick.wav", "Side-Stick 01.wav"):
+            if expected not in rim_sources:
+                raise AssertionError(f"expected {expected} to be labeled rim")
+        if "Sideststick.wav" in snare_sources or "Side-Stick 01.wav" in snare_sources:
+            raise AssertionError(f"side-stick aliases should not be labeled snare:\n{snare_sources}")
+
+
 def test_spread_selection_uses_later_buckets():
     with tempfile.TemporaryDirectory() as temp:
         base = Path(temp)
@@ -402,10 +429,11 @@ def main():
     test_cli_reuses_complete_manifest_until_refresh()
     test_hihat_aliases_win_over_generic_cymbal_folder()
     test_tom_label_requires_real_tom_token()
+    test_side_stick_aliases_win_over_snare_folder()
     test_spread_selection_uses_later_buckets()
     test_source_filter_limits_candidate_selection()
     test_cli_filter_rebuilds_mismatched_manifest()
-    print("test_prepare_drum_samples: 10 checks passed")
+    print("test_prepare_drum_samples: 11 checks passed")
     return 0
 
 

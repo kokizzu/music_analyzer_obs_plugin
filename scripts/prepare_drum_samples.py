@@ -49,7 +49,7 @@ def category_for_path(path):
 
     if EXCLUDE_RE.search(text):
         return None
-    if re.search(r"rim\s*shot|rimshot|(^|[/ _-])rim([0-9 _.-]|$)|side\s*stick|sidestick", text):
+    if re.search(r"rim\s*shot|rimshot|(^|[/ _-])rim([0-9 _.-]|$)|side[ _.-]*stick|sideststick", text):
         return "rim"
     if re.search(r"kick|bass\s*drum|bassdrum|bassdm|(^|[/ _-])bd([0-9 _.-]|$)", text):
         return "kick"
