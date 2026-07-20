@@ -774,10 +774,12 @@ int main()
 					first_detected_row = strongest_pitch_class_row(snapshot, row.midi);
 			}
 			if ((!full_mix && (label_ok || grid_ok)) ||
-			    (full_mix && any_grid_ok)) {
+			    (full_mix && detected_expected_row)) {
 				detected = true;
 				break;
 			}
+			if (full_mix && any_grid_ok)
+				detected = true;
 			if (verbose_misses) {
 				std::ostringstream line;
 				line << "  buffer " << buffer_index << " expected=" << expected
@@ -888,6 +890,12 @@ int main()
 				     "; any-row %d/%d, expected-row %d/%d, drum-active-windows %d/%d",
 				     any_hits, usable, row_hits, usable, active_drum_windows, analyzed_windows);
 			std::fprintf(stderr,
+				     ", expected-row-by-family bass=%d/%d guitar=%d/%d piano=%d/%d vocals=%d/%d other=%d/%d",
+				     family_row_hits[0], family_counts[0], family_row_hits[1],
+				     family_counts[1], family_row_hits[2], family_counts[2],
+				     family_row_hits[3], family_counts[3], family_row_hits[4],
+				     family_counts[4]);
+			std::fprintf(stderr,
 				     ", drums kick=%d snare=%d hihat=%d crash=%d tom=%d ride=%d rim=%d",
 				     active_drum_by_class[0], active_drum_by_class[1],
 				     active_drum_by_class[2], active_drum_by_class[3],
@@ -909,6 +917,11 @@ int main()
 		if (full_mix) {
 			std::printf("; any-row %d/%d, expected-row %d/%d, drum-active-windows %d/%d",
 				    any_hits, usable, row_hits, usable, active_drum_windows, analyzed_windows);
+			std::printf(
+				", expected-row-by-family bass=%d/%d guitar=%d/%d piano=%d/%d vocals=%d/%d other=%d/%d",
+				family_row_hits[0], family_counts[0], family_row_hits[1], family_counts[1],
+				family_row_hits[2], family_counts[2], family_row_hits[3], family_counts[3],
+				family_row_hits[4], family_counts[4]);
 			std::printf(", drums kick=%d snare=%d hihat=%d crash=%d tom=%d ride=%d rim=%d",
 				    active_drum_by_class[0], active_drum_by_class[1],
 				    active_drum_by_class[2], active_drum_by_class[3],
@@ -931,6 +944,11 @@ int main()
 	if (full_mix) {
 		std::printf("; any-row %d/%d, expected-row %d/%d, drum-active-windows %d/%d",
 			    any_hits, usable, row_hits, usable, active_drum_windows, analyzed_windows);
+		std::printf(
+			", expected-row-by-family bass=%d/%d guitar=%d/%d piano=%d/%d vocals=%d/%d other=%d/%d",
+			family_row_hits[0], family_counts[0], family_row_hits[1], family_counts[1],
+			family_row_hits[2], family_counts[2], family_row_hits[3], family_counts[3],
+			family_row_hits[4], family_counts[4]);
 		std::printf(", drums kick=%d snare=%d hihat=%d crash=%d tom=%d ride=%d rim=%d",
 			    active_drum_by_class[0], active_drum_by_class[1], active_drum_by_class[2],
 			    active_drum_by_class[3], active_drum_by_class[4], active_drum_by_class[5],

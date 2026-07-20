@@ -1013,24 +1013,6 @@ int count_owned_notes(const std::array<bool, kNoteProbeCount> &mask)
 	return count;
 }
 
-int count_ambiguous_pitch_classes(const FullMixOwnership &ownership)
-{
-	std::array<bool, 12> pitch_classes = {};
-	for (int midi = kFirstMidi; midi <= kLastMidi; ++midi) {
-		if (!ownership.ambiguous[midi - kFirstMidi])
-			continue;
-		const int pitch_class = ((midi % 12) + 12) % 12;
-		pitch_classes[pitch_class] = true;
-	}
-
-	int count = 0;
-	for (bool active : pitch_classes) {
-		if (active)
-			++count;
-	}
-	return count;
-}
-
 void remove_candidate_midi(NoteCandidateList &candidates, int midi)
 {
 	std::size_t write = 0;
@@ -1063,13 +1045,34 @@ void demote_sparse_full_mix_owner(FullMixOwnership &ownership, std::array<bool, 
 				  NoteCandidateList &owner_candidates,
 				  const std::array<float, kNoteProbeCount> &candidate_scores)
 {
-	if (count_owned_notes(mask) != 1 || count_ambiguous_pitch_classes(ownership) < 2)
+	if (count_owned_notes(mask) != 1)
+		return;
+
+	std::array<bool, 12> ambiguous_pitch_classes = {};
+	float strongest_ambiguous_score = 0.0f;
+	for (int midi = kFirstMidi; midi <= kLastMidi; ++midi) {
+		const std::size_t index = static_cast<std::size_t>(midi - kFirstMidi);
+		if (!ownership.ambiguous[index])
+			continue;
+		ambiguous_pitch_classes[midi_pitch_class(midi)] = true;
+		strongest_ambiguous_score = std::max(strongest_ambiguous_score, candidate_scores[index]);
+	}
+
+	int ambiguous_pitch_class_count = 0;
+	for (bool active : ambiguous_pitch_classes) {
+		if (active)
+			++ambiguous_pitch_class_count;
+	}
+	if (ambiguous_pitch_class_count < 2)
 		return;
 
 	for (int midi = kFirstMidi; midi <= kLastMidi; ++midi) {
 		const std::size_t index = static_cast<std::size_t>(midi - kFirstMidi);
 		if (!mask[index])
 			continue;
+		const float owner_score = candidate_scores[index];
+		if (ambiguous_pitch_class_count < 4 && strongest_ambiguous_score < owner_score * 0.62f)
+			return;
 		mask[index] = false;
 		remove_candidate_midi(owner_candidates, midi);
 		ownership.ambiguous[index] = true;
@@ -1299,7 +1302,11 @@ InstrumentKind choose_full_mix_owner(const std::array<float, kNoteProbeCount> &p
 		candidate.midi >= kFullMixVocalMinMidi && candidate.midi <= kVocalMaxMidi &&
 		full_mix_vocal_profile_supported(evidence, candidate.midi, second, third, fourth, fifth,
 						 polyphonic_vocal_context);
-	if (competing_full_mix_timbres(keyboard_weight, guitar_weight, other_weight) && !vocal_supported) {
+	const bool competing_timbres = competing_full_mix_timbres(keyboard_weight, guitar_weight, other_weight);
+	const bool blended_partials = blended_full_mix_upper_partials(second, third, fourth, fifth);
+	const bool force_blended_ambiguous =
+		!vocal_supported && (competing_timbres || blended_partials) && temporal.simultaneous_onset >= 0.18f;
+	if (force_blended_ambiguous && competing_timbres) {
 		const float total = keyboard_weight + guitar_weight + other_weight;
 		evidence.ownership_scores[static_cast<std::size_t>(InstrumentKind::Keyboard)] =
 			keyboard_weight / total;
@@ -1310,7 +1317,7 @@ InstrumentKind choose_full_mix_owner(const std::array<float, kNoteProbeCount> &p
 			std::max({keyboard_weight, guitar_weight, other_weight}) / total;
 		return InstrumentKind::Ambiguous;
 	}
-	if (blended_full_mix_upper_partials(second, third, fourth, fifth) && !vocal_supported)
+	if (force_blended_ambiguous && blended_partials)
 		return InstrumentKind::Ambiguous;
 
 	if (candidate.midi >= 48 && candidate.midi <= 83 && second <= 0.56f) {
@@ -1400,8 +1407,9 @@ InstrumentKind choose_full_mix_owner(const std::array<float, kNoteProbeCount> &p
 	if (best == 2 && polyphonic_vocal_context)
 		return InstrumentKind::Ambiguous;
 	const bool supported_vocal_winner = best == 2 && vocal_supported;
-	const float probability_floor = supported_vocal_winner ? 0.44f : 0.65f;
-	const float margin_floor = supported_vocal_winner ? 0.12f : 0.20f;
+	const bool blended_non_vocal = (competing_timbres || blended_partials) && !supported_vocal_winner;
+	const float probability_floor = supported_vocal_winner ? 0.44f : blended_non_vocal ? 0.68f : 0.65f;
+	const float margin_floor = supported_vocal_winner ? 0.12f : blended_non_vocal ? 0.24f : 0.20f;
 	if (best_probability < probability_floor || best_probability - second_probability < margin_floor)
 		return InstrumentKind::Ambiguous;
 
