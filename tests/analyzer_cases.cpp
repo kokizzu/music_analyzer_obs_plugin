@@ -775,6 +775,17 @@ void check_guitar_supported_extension_aliases(Runner &runner)
 		      std::string("guitar lower flat-seventh aliases: expected E7, got `") +
 			      lower_flat_seventh_snapshot.guitar_chord.label + "`");
 
+	mao_test::Buffer suspended_with_weak_third = {};
+	add_harmonic_note(suspended_with_weak_third, 45, 0.22f, guitar_profile);
+	add_harmonic_note(suspended_with_weak_third, 50, 0.19f, guitar_profile);
+	add_harmonic_note(suspended_with_weak_third, 52, 0.22f, guitar_profile);
+	add_harmonic_note(suspended_with_weak_third, 49, 0.060f, guitar_profile);
+
+	const auto suspended_with_weak_third_snapshot = analyze_buffer(suspended_with_weak_third, "guitar");
+	runner.expect(has_chord_label(suspended_with_weak_third_snapshot.guitar_chord.label, "Asus4"),
+		      std::string("guitar suspended alias with weak third: expected Asus4, got `") +
+			      suspended_with_weak_third_snapshot.guitar_chord.label + "`");
+
 	mao_test::Buffer noisy_power = {};
 	add_harmonic_note(noisy_power, 48, 0.24f, guitar_profile);
 	add_harmonic_note(noisy_power, 55, 0.22f, guitar_profile);

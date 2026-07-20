@@ -3333,6 +3333,11 @@ void append_supported_guitar_extension_aliases_for_root(ChordResult &chord, cons
 	const float flat_seventh = note_grid_pitch_supported_level(grid, root_pitch_class + 10, active_alias_floor);
 	const float major_seventh = note_grid_pitch_supported_level(grid, root_pitch_class + 11, active_alias_floor);
 	const float ninth = note_grid_pitch_supported_level(grid, root_pitch_class + 2, active_alias_floor);
+	const float fourth = note_grid_pitch_supported_level(grid, root_pitch_class + 5, active_alias_floor);
+	const float major_third_raw = note_grid_pitch_level(grid, root_pitch_class + 4);
+	const float minor_third_raw = note_grid_pitch_level(grid, root_pitch_class + 3);
+	const float ninth_raw = note_grid_pitch_level(grid, root_pitch_class + 2);
+	const float fourth_raw = note_grid_pitch_level(grid, root_pitch_class + 5);
 	const float kCoreFloor = strict_levels ? 0.16f : 0.12f;
 	const float kRootAnchorFloor = strict_levels ? 0.14f : 0.06f;
 	const float kRichMajorThirdFloor = strict_levels ? 0.18f : 0.12f;
@@ -3434,10 +3439,15 @@ void append_supported_guitar_extension_aliases_for_root(ChordResult &chord, cons
 	}
 	if (has_aug)
 		append_chord_alias(chord, root_pitch_class, "aug");
-	if (!has_major && !has_minor && has_fifth) {
-		if (ninth >= kCoreFloor)
+	if (has_fifth) {
+		const float third_raw = std::max(major_third_raw, minor_third_raw);
+		const float suspended_raw_floor = strict_levels ? 0.075f : 0.045f;
+		const bool weak_or_lower_third = third_raw < 0.040f;
+		if (ninth >= kCoreFloor && ninth_raw >= suspended_raw_floor &&
+		    ((!has_major && !has_minor) || weak_or_lower_third || ninth_raw >= third_raw * 1.18f))
 			append_chord_alias(chord, root_pitch_class, "sus2");
-		if (note_grid_pitch_supported_level(grid, root_pitch_class + 5, active_alias_floor) >= kCoreFloor)
+		if (fourth >= kCoreFloor && fourth_raw >= suspended_raw_floor &&
+		    ((!has_major && !has_minor) || weak_or_lower_third || fourth_raw >= third_raw * 1.18f))
 			append_chord_alias(chord, root_pitch_class, "sus4");
 	}
 }
