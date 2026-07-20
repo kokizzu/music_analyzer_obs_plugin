@@ -416,6 +416,63 @@ std::string debug_note_label(int midi)
 	return mao_test::note_label(midi);
 }
 
+const char *instrument_kind_name(mao::InstrumentKind kind)
+{
+	switch (kind) {
+	case mao::InstrumentKind::Bass:
+		return "bass";
+	case mao::InstrumentKind::Guitar:
+		return "guitar";
+	case mao::InstrumentKind::Keyboard:
+		return "piano";
+	case mao::InstrumentKind::Vocal:
+		return "vocals";
+	case mao::InstrumentKind::Other:
+		return "other";
+	case mao::InstrumentKind::Ambiguous:
+	default:
+		return "amb";
+	}
+}
+
+std::string full_mix_debug_line(const mao::AnalysisSnapshot &snapshot, int expected_midi)
+{
+	if (expected_midi < mao::kFirstAnalyzedMidi || expected_midi > mao::kLastAnalyzedMidi ||
+	    snapshot.full_mix_debug_candidate_count == 0)
+		return "";
+
+	const int expected_pitch = ((expected_midi % 12) + 12) % 12;
+	std::ostringstream line;
+	bool wrote = false;
+	const std::size_t count =
+		std::min<std::size_t>(snapshot.full_mix_debug_candidate_count,
+				      snapshot.full_mix_debug_candidates.size());
+	for (std::size_t i = 0; i < count; ++i) {
+		const mao::FullMixDebugCandidate &debug = snapshot.full_mix_debug_candidates[i];
+		if (debug.midi < mao::kFirstAnalyzedMidi || debug.midi > mao::kLastAnalyzedMidi ||
+		    ((debug.midi % 12) + 12) % 12 != expected_pitch)
+			continue;
+		if (!wrote) {
+			line << " own=";
+			wrote = true;
+		} else {
+			line << ";";
+		}
+		line << debug_note_label(debug.midi) << ":" << instrument_kind_name(debug.owner)
+		     << "/conf=" << debug.ownership_confidence
+		     << "/kgo=" << debug.keyboard_score << "," << debug.guitar_score << ","
+		     << debug.vocal_score << "," << debug.other_score
+		     << "/spec=" << debug.spectral_level << "/pitch=" << debug.pitch_confidence
+		     << "/per=" << debug.periodicity << "/harm=" << debug.harmonicity
+		     << "/fit=" << debug.harmonic_fit_error << "/cent=" << debug.spectral_centroid
+		     << "/slope=" << debug.spectral_slope << "/noise=" << debug.local_noise_level
+		     << "/partials=" << debug.harmonic_ratios[0] << "," << debug.harmonic_ratios[1]
+		     << "," << debug.harmonic_ratios[2] << "," << debug.harmonic_ratios[3]
+		     << "," << debug.harmonic_ratios[4];
+	}
+	return line.str();
+}
+
 std::string grid_debug_label(const mao::NoteGrid &grid)
 {
 	std::string text;
@@ -437,7 +494,7 @@ std::string grid_debug_label(const mao::NoteGrid &grid)
 	return text.empty() ? "--" : text;
 }
 
-std::string snapshot_note_debug_line(const mao::AnalysisSnapshot &snapshot)
+std::string snapshot_note_debug_line(const mao::AnalysisSnapshot &snapshot, int expected_midi = -1)
 {
 	std::ostringstream line;
 	line << "amb=" << grid_debug_label(snapshot.ambiguous_notes)
@@ -448,6 +505,7 @@ std::string snapshot_note_debug_line(const mao::AnalysisSnapshot &snapshot)
 	     << " other=" << snapshot.other.label << "[" << grid_debug_label(snapshot.other_notes) << "]"
 	     << " rms=" << snapshot.rms << " low=" << snapshot.low_energy << " mid=" << snapshot.mid_energy
 	     << " high=" << snapshot.high_energy;
+	line << full_mix_debug_line(snapshot, expected_midi);
 	return line.str();
 }
 
@@ -799,7 +857,7 @@ int main()
 				     << " row_conf=" << family_state(snapshot, row.family).confidence
 				     << " row_grid=" << (grid_ok ? "yes" : "no")
 				     << " any_grid=" << (any_grid_ok ? "yes" : "no") << " "
-				     << snapshot_note_debug_line(snapshot);
+				     << snapshot_note_debug_line(snapshot, row.midi);
 				if (row.family == "bass") {
 					line << " spectral=" << debug_note_label(snapshot.bass_debug_spectral_midi) << "/"
 					     << snapshot.bass_debug_spectral_confidence << "/"

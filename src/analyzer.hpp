@@ -11,6 +11,7 @@ constexpr std::size_t kAnalysisWindow = 8192;
 constexpr uint32_t kDefaultAnalysisWindowMs = 100;
 constexpr std::size_t kDrumCount = 7;
 constexpr std::size_t kNoteRowCount = 3;
+constexpr std::size_t kFullMixDebugCandidateCount = 24;
 constexpr int kFirstAnalyzedMidi = 21;
 constexpr int kLastAnalyzedMidi = 108;
 constexpr std::size_t kNoteProbeCount = static_cast<std::size_t>(kLastAnalyzedMidi - kFirstAnalyzedMidi + 1);
@@ -77,6 +78,25 @@ struct NoteGrid {
 	std::array<std::array<NoteCell, 12>, kNoteRowCount> rows = {};
 };
 
+struct FullMixDebugCandidate {
+	int midi = -1;
+	InstrumentKind owner = InstrumentKind::Ambiguous;
+	float ownership_confidence = 0.0f;
+	float keyboard_score = 0.0f;
+	float guitar_score = 0.0f;
+	float vocal_score = 0.0f;
+	float other_score = 0.0f;
+	float spectral_level = 0.0f;
+	float pitch_confidence = 0.0f;
+	float periodicity = 0.0f;
+	float harmonicity = 0.0f;
+	float harmonic_fit_error = 0.0f;
+	float spectral_centroid = 0.0f;
+	float spectral_slope = 0.0f;
+	float local_noise_level = 0.0f;
+	std::array<float, 5> harmonic_ratios = {};
+};
+
 struct AnalysisSnapshot {
 	uint64_t sequence = 0;
 	char source[64] = {};
@@ -117,6 +137,8 @@ struct AnalysisSnapshot {
 	int bass_debug_displayed_midi = -1;
 	float bass_debug_displayed_confidence = 0.0f;
 	float bass_debug_displayed_score = 0.0f;
+	std::size_t full_mix_debug_candidate_count = 0;
+	std::array<FullMixDebugCandidate, kFullMixDebugCandidateCount> full_mix_debug_candidates = {};
 	InstrumentState root = {};
 	char root_candidates[64] = {};
 	InstrumentState global_chord = {};
