@@ -3302,8 +3302,8 @@ void append_supported_guitar_extension_aliases_for_root(ChordResult &chord, cons
 			return false;
 		if (!has_core_range)
 			return level >= kExtensionFloor;
-		if (!note_grid_pitch_in_midi_window(grid, root_pitch_class + interval, core_min_midi - 2,
-						    core_max_midi + 9))
+		if (!note_grid_pitch_in_midi_window(grid, root_pitch_class + interval, core_min_midi - 14,
+						    core_max_midi + 16))
 			return false;
 		return level >= kExtensionFloor || level >= kCompactExtensionFloor;
 	};
@@ -3313,7 +3313,7 @@ void append_supported_guitar_extension_aliases_for_root(ChordResult &chord, cons
 		if (flat_seventh < kExtensionFloor || !has_core_range)
 			return false;
 		if (!note_grid_pitch_in_midi_window(grid, root_pitch_class + 10, core_min_midi - 14,
-						    core_max_midi + 9))
+						    core_max_midi + 16))
 			return false;
 		const float third = has_major ? major_third : has_minor ? minor_third : 0.0f;
 		const float core_anchor = std::min(root, std::min(third, fifth));
