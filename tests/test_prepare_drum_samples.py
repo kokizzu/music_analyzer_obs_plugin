@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 import math
+import re
 import shutil
 import struct
 import subprocess
@@ -315,6 +316,84 @@ def test_spread_selection_uses_later_buckets():
             raise AssertionError("spread fixture should include third source bucket")
 
 
+def test_source_filter_limits_candidate_selection():
+    with tempfile.TemporaryDirectory() as temp:
+        base = Path(temp)
+        source = base / "source"
+        output = base / "out"
+
+        write_wav(source / "Roland TR-909 Drum Samples" / "BT0A0D0.WAV", frequency=80.0)
+        write_wav(source / "Roland TR-909 Drum Samples" / "ST0T0S0.WAV", frequency=250.0)
+        write_wav(source / "Other Kit" / "Kick 01.wav", frequency=90.0)
+        write_wav(source / "Other Kit" / "Snare 01.wav", frequency=260.0)
+
+        prepare_drum_samples.clean_output(output)
+        counts, manifest_path = prepare_drum_samples.copy_samples(
+            source,
+            output,
+            0,
+            "spread",
+            unrar=None,
+            source_filter=re.compile("Roland TR-909", re.I),
+        )
+        rows = rows_by_category(manifest_path)
+        sources = "\n".join(row[2] for category_rows in rows.values() for row in category_rows)
+
+        if counts["kick"] != 1 or counts["snare"] != 1:
+            raise AssertionError(f"expected filtered 909 kick/snare rows, got {counts}")
+        if "Other Kit" in sources:
+            raise AssertionError(f"source filter should exclude other kits:\n{sources}")
+        if "Roland TR-909 Drum Samples" not in sources:
+            raise AssertionError(f"source filter should keep Roland TR-909 rows:\n{sources}")
+
+
+def test_cli_filter_rebuilds_mismatched_manifest():
+    with tempfile.TemporaryDirectory() as temp:
+        base = Path(temp)
+        source = base / "source"
+        output = base / "out"
+        examples = {
+            "kick": "Kick 01.wav",
+            "snare": "Snare 01.wav",
+            "hihat": "Hat Closed 01.wav",
+            "crash": "Crash 01.wav",
+            "tom": "Tom 01.wav",
+            "ride": "Ride 01.wav",
+            "rim": "Rim Shot 01.wav",
+        }
+
+        for index, filename in enumerate(examples.values()):
+            write_wav(source / "Kit A" / filename, frequency=90.0 + index * 40.0)
+            write_wav(source / "Kit B" / filename, frequency=95.0 + index * 40.0)
+
+        command = [
+            sys.executable,
+            str(ROOT / "scripts" / "prepare_drum_samples.py"),
+            "--source",
+            str(source),
+            "--output",
+            str(output),
+            "--limit-per-category",
+            "1",
+            "--selection",
+            "spread",
+            "--no-archives",
+        ]
+        first = subprocess.run(command + ["--source-filter", "Kit A"], check=True, text=True,
+                               stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        second = subprocess.run(command + ["--source-filter", "Kit B"], check=True, text=True,
+                                stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        rows = rows_by_category(output / "manifest.tsv")
+        sources = "\n".join(row[2] for category_rows in rows.values() for row in category_rows)
+
+        if "wrote" not in first.stdout:
+            raise AssertionError(f"first filtered run should write samples, got: {first.stdout}")
+        if "wrote" not in second.stdout or "reused" in second.stdout:
+            raise AssertionError(f"mismatched filter should rebuild manifest, got: {second.stdout}")
+        if "Kit A" in sources or "Kit B" not in sources:
+            raise AssertionError(f"rebuilt manifest should contain only Kit B rows:\n{sources}")
+
+
 def main():
     test_plain_zip_and_optional_rar_samples()
     test_missing_unrar_skips_rar_without_failing()
@@ -324,7 +403,9 @@ def main():
     test_hihat_aliases_win_over_generic_cymbal_folder()
     test_tom_label_requires_real_tom_token()
     test_spread_selection_uses_later_buckets()
-    print("test_prepare_drum_samples: 8 checks passed")
+    test_source_filter_limits_candidate_selection()
+    test_cli_filter_rebuilds_mismatched_manifest()
+    print("test_prepare_drum_samples: 10 checks passed")
     return 0
 
 
