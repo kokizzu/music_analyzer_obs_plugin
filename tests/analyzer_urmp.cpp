@@ -888,6 +888,80 @@ bool has_pitch_class(const std::array<bool, 12> &pitch_classes, int pitch_class)
 	return pitch_classes[((pitch_class % 12) + 12) % 12];
 }
 
+std::string pitch_class_list(const std::array<bool, 12> &pitch_classes)
+{
+	std::string text;
+	for (int pitch_class = 0; pitch_class < 12; ++pitch_class) {
+		if (!pitch_classes[pitch_class])
+			continue;
+		if (!text.empty())
+			text += ",";
+		text += mao_test::note_name(pitch_class);
+	}
+	return text.empty() ? "--" : text;
+}
+
+const char *owner_name(mao::InstrumentKind owner)
+{
+	switch (owner) {
+	case mao::InstrumentKind::Bass:
+		return "bass";
+	case mao::InstrumentKind::Keyboard:
+		return "keys";
+	case mao::InstrumentKind::Guitar:
+		return "guitar";
+	case mao::InstrumentKind::Vocal:
+		return "vocal";
+	case mao::InstrumentKind::Other:
+		return "other";
+	case mao::InstrumentKind::Ambiguous:
+	default:
+		return "amb";
+	}
+}
+
+std::string full_mix_candidate_list(const mao::AnalysisSnapshot &snapshot)
+{
+	std::string text;
+	const std::size_t count =
+		std::min<std::size_t>(snapshot.full_mix_debug_candidate_count,
+				      snapshot.full_mix_debug_candidates.size());
+	for (std::size_t i = 0; i < count; ++i) {
+		const mao::FullMixDebugCandidate &candidate = snapshot.full_mix_debug_candidates[i];
+		if (candidate.midi < 0)
+			continue;
+		if (!text.empty())
+			text += " ";
+		text += mao_test::note_name(candidate.midi);
+		text += std::to_string(candidate.midi / 12 - 1);
+		text += "/";
+		text += owner_name(candidate.owner);
+		text += ":";
+		text += std::to_string(static_cast<int>(candidate.ownership_confidence * 100.0f + 0.5f));
+		text += "%";
+		text += "@";
+		text += std::to_string(static_cast<int>(candidate.spectral_level * 1000.0f + 0.5f));
+	}
+	return text.empty() ? "--" : text;
+}
+
+std::string grid_pitch_class_list(const mao::NoteGrid &grid)
+{
+	std::array<bool, 12> pitch_classes = {};
+	add_detected_pitch_classes(grid, pitch_classes);
+	return pitch_class_list(pitch_classes);
+}
+
+std::string snapshot_grid_pitch_class_list(const mao::AnalysisSnapshot &snapshot)
+{
+	return "bass[" + grid_pitch_class_list(snapshot.bass_notes) + "] keys[" +
+	       grid_pitch_class_list(snapshot.keyboard_notes) + "] guitar[" +
+	       grid_pitch_class_list(snapshot.guitar_notes) + "] vocal[" +
+	       grid_pitch_class_list(snapshot.vocal_notes) + "] other[" +
+	       grid_pitch_class_list(snapshot.other_notes) + "] amb[" +
+	       grid_pitch_class_list(snapshot.ambiguous_notes) + "]";
+}
+
 bool has_chord_label(const char *actual, const std::string &expected)
 {
 	if (!actual)
@@ -1269,7 +1343,11 @@ void check_mix_recall(Runner &runner, const mao::AnalysisSnapshot &snapshot, con
 	runner.expect(expected > 0 && hits * 100 >= expected * min_recall_percent,
 		      context + ": expected at least " + std::to_string(min_recall_percent) +
 			      "% pitch-class recall, got " + std::to_string(hits) + "/" +
-			      std::to_string(expected));
+			      std::to_string(expected) + " expected " +
+			      pitch_class_list(candidate.pitch_classes) + " detected " +
+			      pitch_class_list(detected) + " candidates " +
+			      full_mix_candidate_list(snapshot) + " grids " +
+			      snapshot_grid_pitch_class_list(snapshot));
 
 	add_global_chord_metrics(stats.global_chord, snapshot, candidate);
 

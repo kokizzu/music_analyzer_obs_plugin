@@ -1112,6 +1112,24 @@ void suppress_full_mix_bass_duplicate_ownership(FullMixOwnership &ownership, int
 		remove_full_mix_row_midi(ownership.other, ownership.other_candidates, bass_midi);
 }
 
+float strongest_candidate_score_except_midi(const NoteCandidateList &candidates, int excluded_midi)
+{
+	float score = 0.0f;
+	for (const NoteCandidate &candidate : candidates) {
+		if (candidate.midi != excluded_midi)
+			score = std::max(score, candidate.score);
+	}
+	return score;
+}
+
+float capped_restored_low_owner_score(const NoteCandidateList &existing_candidates, int midi, float score)
+{
+	const float reference = strongest_candidate_score_except_midi(existing_candidates, midi);
+	if (reference <= 1.0e-6f)
+		return score;
+	return std::min(score, reference * 0.82f);
+}
+
 void restore_full_mix_low_guitar_from_bass(FullMixOwnership &ownership,
 					   const std::array<float, kNoteProbeCount> &powers,
 					   int bass_midi)
@@ -1144,7 +1162,9 @@ void restore_full_mix_low_guitar_from_bass(FullMixOwnership &ownership,
 	const float display_level = std::max(fundamental, octave * 0.72f);
 	NoteCandidate candidate;
 	candidate.midi = bass_midi;
-	candidate.score = display_level * display_level;
+	candidate.score =
+		capped_restored_low_owner_score(ownership.guitar_candidates, bass_midi,
+						display_level * display_level);
 	candidate.ownership_confidence = 0.52f;
 	ownership.guitar[static_cast<std::size_t>(bass_midi - kFirstMidi)] = true;
 	ownership.guitar_candidates.push_back(candidate);
@@ -1178,7 +1198,9 @@ void restore_full_mix_low_keyboard_from_bass(FullMixOwnership &ownership,
 	const float display_level = std::max(fundamental, std::max(octave * 0.68f, fifth * 0.76f));
 	NoteCandidate candidate;
 	candidate.midi = bass_midi;
-	candidate.score = display_level * display_level;
+	candidate.score =
+		capped_restored_low_owner_score(ownership.keyboard_candidates, bass_midi,
+						display_level * display_level);
 	candidate.ownership_confidence = 0.50f;
 	ownership.keyboard[static_cast<std::size_t>(bass_midi - kFirstMidi)] = true;
 	ownership.keyboard_candidates.push_back(candidate);
@@ -2681,18 +2703,30 @@ void smooth_note_grid_envelope(NoteGrid &grid, InstrumentState &state,
 	}
 
 	clear_note_grid(grid);
-	NoteCandidateList candidates;
+	struct TrackedDisplayCandidate {
+		int midi = -1;
+		float level = 0.0f;
+		bool current = false;
+	};
+	FixedList<TrackedDisplayCandidate, kNoteProbeCount> candidates;
 	for (int midi = kFirstMidi; midi <= kLastMidi; ++midi) {
-		const float level = tracking[midi - kFirstMidi].envelope;
+		const std::size_t index = static_cast<std::size_t>(midi - kFirstMidi);
+		const float level = tracking[index].envelope;
 		if (level > 0.0f)
-			candidates.push_back(NoteCandidate{midi, level});
+			candidates.push_back(TrackedDisplayCandidate{midi, level, raw_levels[index] > 0.0f});
 	}
 	std::sort(candidates.begin(), candidates.end(),
-		  [](const NoteCandidate &a, const NoteCandidate &b) { return a.score > b.score; });
+		  [](const TrackedDisplayCandidate &a, const TrackedDisplayCandidate &b) {
+			  if (a.current != b.current)
+				  return a.current;
+			  if (a.level != b.level)
+				  return a.level > b.level;
+			  return a.midi < b.midi;
+		  });
 
 	int written = 0;
-	for (const NoteCandidate &candidate : candidates) {
-		write_note_grid_cell(grid, candidate, 1.0f, 1.0f);
+	for (const TrackedDisplayCandidate &candidate : candidates) {
+		write_note_grid_cell(grid, NoteCandidate{candidate.midi, candidate.level}, 1.0f, 1.0f);
 		if (++written >= std::max(1, max_notes))
 			break;
 	}
