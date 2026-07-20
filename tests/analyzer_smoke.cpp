@@ -36,7 +36,9 @@ int main()
 	mao_test::add_sine(chord, 261.6256f, 0.35f);
 	mao_test::add_sine(chord, 329.6276f, 0.35f);
 	mao_test::add_sine(chord, 391.9954f, 0.35f);
-	auto chord_snapshot = engine.analyze(chord.data(), chord.size(), settings, "test", 0);
+	mao::AnalysisSnapshot chord_snapshot = {};
+	for (int i = 0; i < 6; ++i)
+		chord_snapshot = engine.analyze(chord.data(), chord.size(), settings, "test", 0);
 	if (mao_test::contains(chord_snapshot.keyboard.label, "MAJ") ||
 	    mao_test::contains(chord_snapshot.keyboard.label, "MIN")) {
 		std::fprintf(stderr, "expected keyboard notes field without chord text, got %s\n",
