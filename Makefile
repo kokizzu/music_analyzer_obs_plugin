@@ -1106,7 +1106,25 @@ test-real-world-samples-full: test-real-world-samples test-guitar-techs-samples 
 	if [ -n "$(BACH10_MF0_SYNTH_SOURCE_ROOT)" ] || [ -s "$(BACH10_MF0_SYNTH_ARCHIVE)" ]; then $(MAKE) test-bach10-mf0-synth-samples; else printf '%s\n' "test-bach10-mf0-synth-samples: skipped; missing $(BACH10_MF0_SYNTH_ARCHIVE)"; fi
 	$(MAKE) test-configured-real-world-samples
 
-test-real-world-samples-max: test-real-world-samples test-guitar-techs-samples test-guitar-techs-chord-samples test-guitar-chord-mix-samples test-egfxset-guitar-samples test-gaps-guitar-samples test-idmt-guitar-samples test-iowa-strings-samples test-iowa-orchestra-samples test-iowa-orchestra-full-samples test-philharmonia-samples-full test-tinysol-samples test-good-sounds-samples test-medley-solos-samples test-maps-piano-samples test-maps-piano-note-samples test-bach10-mf0-synth-samples
+test-real-world-samples-max:
+	$(MAKE) test-real-world-samples
+	$(MAKE) test-guitar-techs-samples
+	$(MAKE) test-guitar-techs-chord-samples
+	$(MAKE) test-guitar-chord-mix-samples
+	$(MAKE) test-egfxset-guitar-samples
+	$(MAKE) GAPS_GUITAR_SAMPLE_LIMIT=0 test-gaps-guitar-samples
+	$(MAKE) test-idmt-guitar-samples
+	$(MAKE) IOWA_PIANO_SAMPLE_LIMIT=0 test-iowa-piano-samples
+	$(MAKE) test-iowa-strings-samples
+	$(MAKE) test-iowa-orchestra-samples
+	$(MAKE) IOWA_ORCHESTRA_FULL_SAMPLE_LIMIT=0 IOWA_ORCHESTRA_FULL_MAX_ZIPS_PER_PAGE=0 test-iowa-orchestra-full-samples
+	$(MAKE) test-philharmonia-samples-full
+	$(MAKE) test-tinysol-samples
+	$(MAKE) GOOD_SOUNDS_SAMPLE_LIMIT=0 test-good-sounds-samples
+	$(MAKE) MEDLEY_SOLOS_LIMIT_PER_INSTRUMENT=0 test-medley-solos-samples
+	$(MAKE) MAPS_PIANO_RECORDING_LIMIT=0 test-maps-piano-samples
+	$(MAKE) MAPS_PIANO_NOTE_RECORDING_LIMIT=0 test-maps-piano-note-samples
+	$(MAKE) test-bach10-mf0-synth-samples
 	if [ -d "$(DRUM_SAMPLE_SOURCE_DIR)" ]; then $(MAKE) test-drum-machine-samples; else printf '%s\n' "test-drum-machine-samples: skipped; missing $(DRUM_SAMPLE_SOURCE_DIR)"; fi
 	if [ -d "$(DRUM_SAMPLE_SOURCE_DIR)" ]; then $(MAKE) test-drum-samples-full; else printf '%s\n' "test-drum-samples-full: skipped; missing $(DRUM_SAMPLE_SOURCE_DIR)"; fi
 	$(MAKE) test-configured-real-world-samples
