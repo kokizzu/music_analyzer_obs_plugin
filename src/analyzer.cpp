@@ -1139,7 +1139,7 @@ void restore_full_mix_low_keyboard_from_bass(FullMixOwnership &ownership,
 	const float upper_major_third = probe_level(powers, bass_midi + 28);
 	const float upper_stack = fifth + second_octave + upper_major_third;
 	const bool strong_electronic_stack =
-		octave >= fundamental * 0.70f &&
+		octave >= fundamental * 0.60f &&
 		(fifth >= fundamental * 0.26f || second_octave >= fundamental * 0.20f ||
 		 upper_major_third >= fundamental * 0.16f) &&
 		upper_stack >= fundamental * 0.42f;
@@ -1418,10 +1418,16 @@ InstrumentKind choose_full_mix_owner(const std::array<float, kNoteProbeCount> &p
 						 polyphonic_vocal_context);
 	const bool low_other_candidate = candidate.midi >= kGuitarMinMidi && candidate.midi < 55;
 	const bool lower_mid_other_candidate = candidate.midi >= 55 && candidate.midi < 60;
+	const bool lower_mid_bright_other_candidate =
+		lower_mid_other_candidate && second >= 0.14f && second <= 0.34f &&
+		third >= 0.075f && third <= 0.22f &&
+		fourth <= 0.12f && fifth <= 0.10f &&
+		evidence.spectral_centroid >= 0.18f;
 	const bool low_other_profile_supported =
 		(low_other_candidate && second >= 0.30f && third >= 0.12f &&
 		 (fourth >= 0.075f || fifth >= 0.045f) &&
 		 (other_weight >= guitar_weight * 1.05f || fourth >= 0.14f || fifth >= 0.075f)) ||
+		lower_mid_bright_other_candidate ||
 		(lower_mid_other_candidate && second >= 0.38f && third >= 0.18f &&
 		 (fourth >= 0.20f || fifth >= 0.12f || other_weight >= guitar_weight * 1.38f));
 	const bool competing_timbres = competing_full_mix_timbres(keyboard_weight, guitar_weight, other_weight);
@@ -1448,6 +1454,9 @@ InstrumentKind choose_full_mix_owner(const std::array<float, kNoteProbeCount> &p
 	const bool high_keyboard_profile_supported =
 		candidate.midi > kVocalMaxMidi && candidate.midi <= 95 && second <= 0.42f && third <= 0.20f &&
 		(other_weight <= keyboard_weight * 1.45f || second <= 0.20f);
+	const bool octave_stack_guitar_profile =
+		candidate.midi >= 48 && candidate.midi <= 76 &&
+		second >= 0.62f && third <= 0.08f && fourth >= 0.18f && fifth >= 0.06f;
 	if (normal_keyboard_profile_supported || high_keyboard_profile_supported) {
 		scores[0] = keyboard_weight * 1.18f + std::max(0.0f, 0.50f - second) * 0.30f +
 			    std::max(0.0f, 0.16f - third) * 0.08f + clean_pitch_bonus;
@@ -1460,9 +1469,11 @@ InstrumentKind choose_full_mix_owner(const std::array<float, kNoteProbeCount> &p
 		if (evidence.spectral_centroid > 0.34f || evidence.spectral_slope > 0.18f)
 			scores[0] *= 0.78f;
 	}
-	if (candidate.midi >= kGuitarMinMidi && candidate.midi <= kGuitarMaxMidi && second >= 0.12f &&
-	    third >= 0.035f) {
+	if (candidate.midi >= kGuitarMinMidi && candidate.midi <= kGuitarMaxMidi &&
+	    ((second >= 0.12f && third >= 0.035f) || octave_stack_guitar_profile)) {
 		scores[1] = guitar_weight * 1.18f + second * 0.24f + third * 0.16f;
+		if (octave_stack_guitar_profile)
+			scores[1] += 0.60f + fourth * 0.34f + fifth * 0.20f;
 		if (evidence.onset_strength >= 0.35f)
 			scores[1] += evidence.onset_strength * 0.08f;
 		if (evidence.decay_rate >= 0.18f)
@@ -1475,6 +1486,8 @@ InstrumentKind choose_full_mix_owner(const std::array<float, kNoteProbeCount> &p
 			scores[1] += 0.05f;
 		if (second > 0.75f || fourth > 0.36f)
 			scores[1] *= 0.72f;
+		if (lower_mid_bright_other_candidate && !octave_stack_guitar_profile)
+			scores[1] = 0.0f;
 	}
 	if (vocal_supported) {
 		const bool high_register = candidate.midi >= 72;
@@ -1495,6 +1508,8 @@ InstrumentKind choose_full_mix_owner(const std::array<float, kNoteProbeCount> &p
 			scores[0] *= 0.28f;
 			if (second < 0.20f)
 				scores[1] *= 0.80f;
+			if (lower_mid_bright_other_candidate)
+				scores[2] *= 0.65f;
 		}
 	}
 	const bool normal_other_profile_supported =
@@ -1502,12 +1517,16 @@ InstrumentKind choose_full_mix_owner(const std::array<float, kNoteProbeCount> &p
 		(fourth >= 0.06f || fifth >= 0.035f);
 	if (low_other_profile_supported || normal_other_profile_supported) {
 		scores[3] = other_weight * 1.12f + second * 0.18f + third * 0.14f + fourth * 0.10f;
+		if (octave_stack_guitar_profile)
+			scores[3] *= 0.40f;
 		if (evidence.pitch_stability >= 0.45f)
 			scores[3] += 0.04f;
 		if (evidence.harmonicity >= 0.62f || evidence.spectral_centroid >= 0.20f)
 			scores[3] += 0.10f;
 		if (low_other_profile_supported)
 			scores[3] += 0.24f;
+		if (lower_mid_bright_other_candidate)
+			scores[3] += 0.40f;
 	}
 	for (float &score : scores)
 		score *= noise_penalty * fit_penalty;
@@ -1541,13 +1560,19 @@ InstrumentKind choose_full_mix_owner(const std::array<float, kNoteProbeCount> &p
 	if (best == 2 && polyphonic_vocal_context)
 		return InstrumentKind::Ambiguous;
 	const bool supported_vocal_winner = best == 2 && vocal_supported;
+	const bool supported_octave_stack_guitar_winner = best == 1 && octave_stack_guitar_profile;
+	const bool supported_lower_mid_bright_other_winner = best == 3 && lower_mid_bright_other_candidate;
 	const bool supported_low_other_winner = best == 3 && low_other_profile_supported;
 	const bool blended_non_vocal = (competing_timbres || blended_partials) && !supported_vocal_winner;
 	const float probability_floor =
+		supported_octave_stack_guitar_winner ? 0.38f :
+		supported_lower_mid_bright_other_winner ? 0.34f :
 		(supported_vocal_winner || supported_low_other_winner) ? 0.44f :
 		blended_non_vocal ? 0.68f :
 				     0.65f;
 	const float margin_floor =
+		supported_octave_stack_guitar_winner ? 0.08f :
+		supported_lower_mid_bright_other_winner ? 0.04f :
 		(supported_vocal_winner || supported_low_other_winner) ? 0.12f :
 		blended_non_vocal ? 0.24f :
 				     0.20f;

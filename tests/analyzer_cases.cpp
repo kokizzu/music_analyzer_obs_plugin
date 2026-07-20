@@ -1778,6 +1778,21 @@ void check_full_mix_single_instrument_precision(Runner &runner)
 
 	{
 		mao_test::Buffer buffer = {};
+		const std::vector<float> moderate_low_keyboard_profile = {1.0f, 0.62f, 0.30f, 0.20f, 0.16f};
+		add_harmonic_note(buffer, 43, 0.27f, moderate_low_keyboard_profile);
+
+		const auto snapshot =
+			analyze_buffer_with_mode(buffer, mao::AnalysisInputMode::FullMix,
+						 "speaker moderate low electronic keyboard", 3);
+		expect_global_pitch_class(runner, snapshot, 7, "full-mix moderate low keyboard global");
+		runner.expect(grid_level_for_midi(snapshot.keyboard_notes, 43) > 0.0f,
+			      std::string("full-mix moderate low keyboard: expected keyboard G2 ownership, "
+					  "got keyboard `") +
+				      snapshot.keyboard.label + "`, bass `" + snapshot.bass.label + "`");
+	}
+
+	{
+		mao_test::Buffer buffer = {};
 		const std::vector<float> guitar_profile = {1.0f, 0.36f, 0.17f, 0.07f, 0.03f};
 		add_harmonic_note(buffer, 52, 0.26f, guitar_profile);
 
@@ -1787,6 +1802,22 @@ void check_full_mix_single_instrument_precision(Runner &runner)
 		runner.expect(grid_level_for_midi(snapshot.guitar_notes, 52) > 0.0f,
 			      std::string("full-mix mid guitar: expected guitar E3 ownership, got guitar `") +
 				      snapshot.guitar.label + "`, bass `" + snapshot.bass.label + "`");
+	}
+
+	{
+		mao_test::Buffer buffer = {};
+		const std::vector<float> octave_stack_guitar_profile = {1.0f, 1.00f, 0.02f, 0.45f, 0.18f};
+		add_harmonic_note(buffer, 60, 0.24f, octave_stack_guitar_profile);
+
+		const auto snapshot =
+			analyze_buffer_with_mode(buffer, mao::AnalysisInputMode::FullMix,
+						 "speaker octave-stack acoustic guitar", 3);
+		expect_global_pitch_class(runner, snapshot, 0, "full-mix octave-stack guitar global");
+		runner.expect(grid_level_for_midi(snapshot.guitar_notes, 60) > 0.0f,
+			      std::string("full-mix octave-stack guitar: expected guitar C4 ownership, "
+					  "got guitar `") +
+				      snapshot.guitar.label + "`, keyboard `" + snapshot.keyboard.label +
+				      "`, other `" + snapshot.other.label + "`");
 	}
 
 	{
