@@ -377,6 +377,23 @@
       "evidence": "Zenodo describes STAR Drums as annotated synthesized drum sounds mixed with real melodic/vocal recordings, with 18 drum classes, audio stems, and MIDI files under train/validation/test splits; the full release is split into about 181.2 GB of files and the preview ZIP is 96.7 MB."
     },
     {
+      "id": "medley_solos_db",
+      "name": "Medley-solos-DB",
+      "category": "real_stems_weak_truth",
+      "piece_count": 21571,
+      "real_audio": true,
+      "isolated_sources": true,
+      "assembled_mix": false,
+      "aligned_symbolic_truth": false,
+      "truth": "three-second solo audio clips with one of eight instrument-class labels",
+      "automation_target": "test-medley-solos-samples",
+      "source_url": "https://zenodo.org/records/3464194",
+      "download_url": "https://zenodo.org/api/records/3464194/files/Medley-solos-DB.tar.gz/content",
+      "metadata_url": "https://zenodo.org/api/records/3464194/files/Medley-solos-DB_metadata.csv/content",
+      "download_note": "The full audio archive is about 7.9 GB, so test-real-world-samples-full only runs this target when the archive is already cached. The target prepares bounded real solo clips by instrument and runs a full-mix row-family detector gate.",
+      "evidence": "Zenodo metadata has 21,571 rows across clarinet, distorted electric guitar, female singer, flute, piano, tenor saxophone, trumpet, and violin; this repository maps those labels to guitar, keyboard, vocals, and other for full-mix row-routing checks. The dataset has no pitch or chord labels, so it is timbre coverage only."
+    },
+    {
       "id": "guitarset",
       "name": "GuitarSet",
       "category": "single_instrument_truth",

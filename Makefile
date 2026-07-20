@@ -152,6 +152,16 @@ STAR_DRUMS_MIN_RECALL_PERCENT ?= 25
 STAR_DRUMS_MIN_WINDOW_RECALL_PERCENT ?= 0
 STAR_DRUMS_MIN_PRECISION_PERCENT ?= 20
 STAR_DRUMS_MAX_FALSE_POSITIVE_WINDOWS_PERCENT ?= 100
+MEDLEY_SOLOS_URL ?= https://zenodo.org/api/records/3464194/files/Medley-solos-DB.tar.gz/content
+MEDLEY_SOLOS_METADATA_URL ?= https://zenodo.org/api/records/3464194/files/Medley-solos-DB_metadata.csv/content
+MEDLEY_SOLOS_SOURCE_DIR ?= $(REAL_SAMPLE_SOURCE_DIR)/medley_solos
+MEDLEY_SOLOS_ARCHIVE ?= $(MEDLEY_SOLOS_SOURCE_DIR)/Medley-solos-DB.tar.gz
+MEDLEY_SOLOS_METADATA ?= $(MEDLEY_SOLOS_SOURCE_DIR)/Medley-solos-DB_metadata.csv
+MEDLEY_SOLOS_SAMPLE_DIR ?= $(BUILD_DIR)/medley_solos_samples
+MEDLEY_SOLOS_LIMIT_PER_INSTRUMENT ?= 120
+MEDLEY_SOLOS_MIN_SAMPLES ?= 600
+MEDLEY_SOLOS_MIN_COUNTS ?= guitar=100,piano=100,vocals=100,other=300
+MEDLEY_SOLOS_MIN_RECALL_PERCENT ?= 20
 INSTRUMENT_SAMPLE_BUILD_ROOT ?= $(BUILD_DIR)
 INSTRUMENT_SAMPLE_SOURCE_DIR ?= $(BUILD_DIR)/instrument_sample_sources
 INSTRUMENT_SAMPLE_SOUNDFONT ?=
@@ -374,13 +384,13 @@ CXXFLAGS += -std=c++17 -fPIC -Wall -Wextra
 RENDERER_OBJ := $(BUILD_DIR)/visualizer_renderer.o
 PLUGIN_OBJS := $(BUILD_DIR)/analyzer.o $(RENDERER_OBJ) $(BUILD_DIR)/plugin.o
 ANALYZER_TEST_OBJ := $(BUILD_DIR)/analyzer_test.o
-TEST_BINS := $(BUILD_DIR)/analyzer_smoke $(BUILD_DIR)/analyzer_cases $(BUILD_DIR)/analyzer_midi_ranges $(BUILD_DIR)/analyzer_urmp $(BUILD_DIR)/analyzer_musicnet $(BUILD_DIR)/analyzer_multtipop $(BUILD_DIR)/analyzer_guitarset $(BUILD_DIR)/analyzer_maestro $(BUILD_DIR)/analyzer_egmd $(BUILD_DIR)/analyzer_drum_samples $(BUILD_DIR)/analyzer_instrument_samples $(BUILD_DIR)/analyzer_real_note_samples
+TEST_BINS := $(BUILD_DIR)/analyzer_smoke $(BUILD_DIR)/analyzer_cases $(BUILD_DIR)/analyzer_midi_ranges $(BUILD_DIR)/analyzer_urmp $(BUILD_DIR)/analyzer_musicnet $(BUILD_DIR)/analyzer_multtipop $(BUILD_DIR)/analyzer_guitarset $(BUILD_DIR)/analyzer_maestro $(BUILD_DIR)/analyzer_egmd $(BUILD_DIR)/analyzer_drum_samples $(BUILD_DIR)/analyzer_instrument_samples $(BUILD_DIR)/analyzer_real_note_samples $(BUILD_DIR)/analyzer_instrument_family_samples
 STANDALONE_BIN := $(BUILD_DIR)/music-analyzer-standalone
 BASS_GUITAR_STANDALONE_BIN := $(BUILD_DIR)/music-analyzer-bass-guitar
 
-.PHONY: FORCE all standalone standalone-bass-guitar setup-android setup-android-emulator android-emulator android-emulator-stop android-stop-apps android-uninstall-old-packages android-profile android-profile-bass-guitar android-profile-complete android-audio-status android-route-desktop-audio android-route-desktop-audio-watch android-grant-permissions android-install-bass-guitar android-install-complete android-run android-run-bass-guitar android-run-complete android android-complete android-bass-guitar android-check check-standalone-deps install-standalone-deps test-standalone profile-standalone prepare-drum-samples test-drum-samples prepare-drum-samples-spread test-drum-samples-spread analyze-drum-primary-misses analyze-drum-rule-grid prepare-drum-samples-full test-drum-samples-full prepare-hf-drum-kit-samples test-hf-drum-kit-samples download-idmt-drums-samples prepare-idmt-drums-samples test-idmt-drums-samples prepare-mdb-drums-samples test-mdb-drums-samples download-star-drums-samples prepare-star-drums-samples test-star-drums-samples prepare-instrument-samples test-instrument-samples download-real-note-samples prepare-real-note-samples test-real-note-samples prepare-guitar-fretboard-note-samples test-guitar-fretboard-note-samples download-guitar-techs-samples prepare-guitar-techs-samples test-guitar-techs-samples download-guitar-techs-chord-samples prepare-guitar-techs-chord-samples test-guitar-techs-chord-samples prepare-guitar-chord-mix-samples test-guitar-chord-mix-samples prepare-egfxset-guitar-samples test-egfxset-guitar-samples download-guitarset-samples prepare-downloaded-guitarset test-downloaded-guitarset analyze-guitarset-misses download-philharmonia-samples prepare-philharmonia-samples test-philharmonia-samples prepare-philharmonia-samples-full test-philharmonia-samples-full download-good-sounds-samples prepare-good-sounds-samples test-good-sounds-samples prepare-iowa-piano-samples test-iowa-piano-samples prepare-iowa-bass-samples test-iowa-bass-samples prepare-iowa-strings-samples test-iowa-strings-samples prepare-iowa-orchestra-samples test-iowa-orchestra-samples download-idmt-bass-lines-samples prepare-idmt-bass-lines-samples test-idmt-bass-lines-samples download-idmt-guitar-samples prepare-idmt-guitar-samples test-idmt-guitar-samples download-tinysol-samples prepare-tinysol-samples test-tinysol-samples download-vocadito-samples prepare-vocadito-samples test-vocadito-samples test-configured-real-world-samples test-real-world-samples test-real-world-samples-full test-midi-ranges clean clean-pycache deps install-user test real-dataset-sources inspect-real-dataset-catalog inspect-real-goal-coverage inspect-real-goal-20 inspect-real-goal-full inspect-real-medleydb inspect-real-musdb inspect-real-slakh inspect-real-choralsynth inspect-real-cocochorales inspect-real-synthsod-remote inspect-real-synthsod extract-real-synthsod-archives inspect-real-polyvocal inspect-real-prepared-multitrack inspect-real-multtipop inspect-real-musicnet-remote inspect-real-musicnet inspect-real-musicnet-full inspect-real-spheres inspect-real-guitarset inspect-real-maestro inspect-real-egmd test-musicnet-remote test-medleydb-inspector test-medleydb-prepare test-musdb-inspector test-slakh-inspector test-slakh-prepare test-choralsynth-inspector test-choralsynth-prepare test-cocochorales-inspector test-cocochorales-prepare test-synthsod-remote test-synthsod-archive-extract test-synthsod-inspector test-synthsod-prepare test-polyvocal-inspector test-polyvocal-prepare test-prepared-multitrack-inspector test-prepared-multitrack-prepare test-multtipop-inspector test-spheres-inspector test-guitarset-inspector test-urmp-inspector test-drum-sample-prepare test-hf-drum-kit-prepare test-idmt-drums-prepare test-mdb-drums-prepare test-star-drums-prepare test-philharmonia-prepare test-good-sounds-prepare test-iowa-piano-prepare test-iowa-zip-prepare test-idmt-bass-lines-prepare test-idmt-guitar-prepare test-tinysol-prepare test-vocadito-prepare test-guitar-fretboard-note-prepare test-guitar-techs-prepare test-guitar-techs-chord-prepare test-guitar-chord-mix-prepare test-guitarset-miss-analysis test-drum-primary-analysis test-real-goal-script test-real-goal-fixture test-musicnet-fixture test-medleydb-fixture test-slakh-fixture test-choralsynth-fixture test-cocochorales-fixture test-synthsod-fixture test-polyvocal-fixture test-prepared-multitrack-fixture test-multtipop-audio-root-fixture test-guitarset-fixture test-maestro-fixture test-egmd-fixture test-bach10-fixture test-direct-fit-small-fixture test-urmp-fixture test-real-goal-20 test-real-goal-full test-real-multitrack-20 test-real-multitrack-full test-real-urmp test-real-urmp-full test-real-musicnet-20 test-real-musicnet-full test-real-medleydb-20 test-real-slakh-20 test-real-slakh-full test-real-choralsynth-20 test-real-cocochorales-20 test-real-synthsod-20 test-real-synthsod-full test-real-polyvocal-20 test-real-prepared-multitrack-20 test-real-prepared-multitrack-full test-real-multtipop-20 test-real-multtipop-full test-real-guitarset-20 test-real-guitarset-full test-real-maestro-20 test-real-maestro-full test-real-egmd-20 test-real-egmd-full inspect-real-multitrack-20 inspect-real-multitrack-full inspect-real-urmp inspect-real-urmp-full inspect-urmp-fixture decode-urmp-fixture decode-direct-fit-small-fixture update-urmp-fixture update-direct-fit-small-fixture
+.PHONY: FORCE all standalone standalone-bass-guitar setup-android setup-android-emulator android-emulator android-emulator-stop android-stop-apps android-uninstall-old-packages android-profile android-profile-bass-guitar android-profile-complete android-audio-status android-route-desktop-audio android-route-desktop-audio-watch android-grant-permissions android-install-bass-guitar android-install-complete android-run android-run-bass-guitar android-run-complete android android-complete android-bass-guitar android-check check-standalone-deps install-standalone-deps test-standalone profile-standalone prepare-drum-samples test-drum-samples prepare-drum-samples-spread test-drum-samples-spread analyze-drum-primary-misses analyze-drum-rule-grid prepare-drum-samples-full test-drum-samples-full prepare-hf-drum-kit-samples test-hf-drum-kit-samples download-idmt-drums-samples prepare-idmt-drums-samples test-idmt-drums-samples prepare-mdb-drums-samples test-mdb-drums-samples download-star-drums-samples prepare-star-drums-samples test-star-drums-samples download-medley-solos-samples prepare-medley-solos-samples test-medley-solos-samples prepare-instrument-samples test-instrument-samples download-real-note-samples prepare-real-note-samples test-real-note-samples prepare-guitar-fretboard-note-samples test-guitar-fretboard-note-samples download-guitar-techs-samples prepare-guitar-techs-samples test-guitar-techs-samples download-guitar-techs-chord-samples prepare-guitar-techs-chord-samples test-guitar-techs-chord-samples prepare-guitar-chord-mix-samples test-guitar-chord-mix-samples prepare-egfxset-guitar-samples test-egfxset-guitar-samples download-guitarset-samples prepare-downloaded-guitarset test-downloaded-guitarset analyze-guitarset-misses download-philharmonia-samples prepare-philharmonia-samples test-philharmonia-samples prepare-philharmonia-samples-full test-philharmonia-samples-full download-good-sounds-samples prepare-good-sounds-samples test-good-sounds-samples prepare-iowa-piano-samples test-iowa-piano-samples prepare-iowa-bass-samples test-iowa-bass-samples prepare-iowa-strings-samples test-iowa-strings-samples prepare-iowa-orchestra-samples test-iowa-orchestra-samples download-idmt-bass-lines-samples prepare-idmt-bass-lines-samples test-idmt-bass-lines-samples download-idmt-guitar-samples prepare-idmt-guitar-samples test-idmt-guitar-samples download-tinysol-samples prepare-tinysol-samples test-tinysol-samples download-vocadito-samples prepare-vocadito-samples test-vocadito-samples test-configured-real-world-samples test-real-world-samples test-real-world-samples-full test-midi-ranges clean clean-pycache deps install-user test real-dataset-sources inspect-real-dataset-catalog inspect-real-goal-coverage inspect-real-goal-20 inspect-real-goal-full inspect-real-medleydb inspect-real-musdb inspect-real-slakh inspect-real-choralsynth inspect-real-cocochorales inspect-real-synthsod-remote inspect-real-synthsod extract-real-synthsod-archives inspect-real-polyvocal inspect-real-prepared-multitrack inspect-real-multtipop inspect-real-musicnet-remote inspect-real-musicnet inspect-real-musicnet-full inspect-real-spheres inspect-real-guitarset inspect-real-maestro inspect-real-egmd test-musicnet-remote test-medleydb-inspector test-medleydb-prepare test-musdb-inspector test-slakh-inspector test-slakh-prepare test-choralsynth-inspector test-choralsynth-prepare test-cocochorales-inspector test-cocochorales-prepare test-synthsod-remote test-synthsod-archive-extract test-synthsod-inspector test-synthsod-prepare test-polyvocal-inspector test-polyvocal-prepare test-prepared-multitrack-inspector test-prepared-multitrack-prepare test-multtipop-inspector test-spheres-inspector test-guitarset-inspector test-urmp-inspector test-drum-sample-prepare test-hf-drum-kit-prepare test-idmt-drums-prepare test-mdb-drums-prepare test-star-drums-prepare test-medley-solos-prepare test-philharmonia-prepare test-good-sounds-prepare test-iowa-piano-prepare test-iowa-zip-prepare test-idmt-bass-lines-prepare test-idmt-guitar-prepare test-tinysol-prepare test-vocadito-prepare test-guitar-fretboard-note-prepare test-guitar-techs-prepare test-guitar-techs-chord-prepare test-guitar-chord-mix-prepare test-guitarset-miss-analysis test-drum-primary-analysis test-real-goal-script test-real-goal-fixture test-musicnet-fixture test-medleydb-fixture test-slakh-fixture test-choralsynth-fixture test-cocochorales-fixture test-synthsod-fixture test-polyvocal-fixture test-prepared-multitrack-fixture test-multtipop-audio-root-fixture test-guitarset-fixture test-maestro-fixture test-egmd-fixture test-bach10-fixture test-direct-fit-small-fixture test-urmp-fixture test-real-goal-20 test-real-goal-full test-real-multitrack-20 test-real-multitrack-full test-real-urmp test-real-urmp-full test-real-musicnet-20 test-real-musicnet-full test-real-medleydb-20 test-real-slakh-20 test-real-slakh-full test-real-choralsynth-20 test-real-cocochorales-20 test-real-synthsod-20 test-real-synthsod-full test-real-polyvocal-20 test-real-prepared-multitrack-20 test-real-prepared-multitrack-full test-real-multtipop-20 test-real-multtipop-full test-real-guitarset-20 test-real-guitarset-full test-real-maestro-20 test-real-maestro-full test-real-egmd-20 test-real-egmd-full inspect-real-multitrack-20 inspect-real-multitrack-full inspect-real-urmp inspect-real-urmp-full inspect-urmp-fixture decode-urmp-fixture decode-direct-fit-small-fixture update-urmp-fixture update-direct-fit-small-fixture
 
-.PRECIOUS: $(NSYNTH_SAMPLE_ARCHIVE) $(TINYSOL_ARCHIVE) $(GOOD_SOUNDS_ARCHIVE) $(GUITAR_TECHS_P1_SINGLENOTES_ARCHIVE) $(GUITAR_TECHS_P2_SINGLENOTES_ARCHIVE) $(GUITAR_TECHS_P1_CHORDS_ARCHIVE) $(GUITAR_TECHS_P2_CHORDS_ARCHIVE) $(IDMT_DRUMS_ARCHIVE) $(IDMT_GUITAR_ARCHIVE) $(STAR_DRUMS_ARCHIVE)
+.PRECIOUS: $(NSYNTH_SAMPLE_ARCHIVE) $(TINYSOL_ARCHIVE) $(GOOD_SOUNDS_ARCHIVE) $(GUITAR_TECHS_P1_SINGLENOTES_ARCHIVE) $(GUITAR_TECHS_P2_SINGLENOTES_ARCHIVE) $(GUITAR_TECHS_P1_CHORDS_ARCHIVE) $(GUITAR_TECHS_P2_CHORDS_ARCHIVE) $(IDMT_DRUMS_ARCHIVE) $(IDMT_GUITAR_ARCHIVE) $(STAR_DRUMS_ARCHIVE) $(MEDLEY_SOLOS_ARCHIVE)
 
 FORCE:
 
@@ -554,6 +564,9 @@ $(BUILD_DIR)/analyzer_instrument_samples.o: tests/analyzer_instrument_samples.cp
 $(BUILD_DIR)/analyzer_real_note_samples.o: tests/analyzer_real_note_samples.cpp src/analyzer.hpp tests/analyzer_test_utils.hpp | $(BUILD_DIR)
 	$(CXX) $(CXXFLAGS) -Isrc -Itests -c $< -o $@
 
+$(BUILD_DIR)/analyzer_instrument_family_samples.o: tests/analyzer_instrument_family_samples.cpp src/analyzer.hpp tests/analyzer_test_utils.hpp | $(BUILD_DIR)
+	$(CXX) $(CXXFLAGS) -Isrc -Itests -c $< -o $@
+
 $(BUILD_DIR)/analyzer_smoke: $(ANALYZER_TEST_OBJ) $(BUILD_DIR)/analyzer_smoke.o
 	$(CXX) -o $@ $^ -lm -pthread
 
@@ -588,6 +601,9 @@ $(BUILD_DIR)/analyzer_instrument_samples: $(ANALYZER_TEST_OBJ) $(BUILD_DIR)/anal
 	$(CXX) -o $@ $^ -lm -pthread
 
 $(BUILD_DIR)/analyzer_real_note_samples: $(ANALYZER_TEST_OBJ) $(BUILD_DIR)/analyzer_real_note_samples.o
+	$(CXX) -o $@ $^ -lm -pthread
+
+$(BUILD_DIR)/analyzer_instrument_family_samples: $(ANALYZER_TEST_OBJ) $(BUILD_DIR)/analyzer_instrument_family_samples.o
 	$(CXX) -o $@ $^ -lm -pthread
 
 test-standalone: $(STANDALONE_BIN) $(BASS_GUITAR_STANDALONE_BIN) tests/check_standalone_isolation.py android-check scripts/run_with_duration.sh
@@ -673,6 +689,23 @@ prepare-star-drums-samples: scripts/prepare_star_drums_samples.py download-star-
 
 test-star-drums-samples: $(BUILD_DIR)/analyzer_egmd prepare-star-drums-samples scripts/run_with_duration.sh
 	$(RUN_WITH_DURATION) analyzer_star_drums_samples env MUSIC_ANALYZER_EGMD_ROOT="$(STAR_DRUMS_SAMPLE_DIR)" MUSIC_ANALYZER_EGMD_REQUIRED=1 MUSIC_ANALYZER_EGMD_REQUIRED_RECORDINGS="$(STAR_DRUMS_MIN_RECORDINGS)" MUSIC_ANALYZER_EGMD_REQUIRED_WINDOWS="$(STAR_DRUMS_REQUIRED_WINDOWS)" MUSIC_ANALYZER_EGMD_MIN_RECALL_PERCENT="$(STAR_DRUMS_MIN_RECALL_PERCENT)" MUSIC_ANALYZER_EGMD_MIN_WINDOW_RECALL_PERCENT="$(STAR_DRUMS_MIN_WINDOW_RECALL_PERCENT)" MUSIC_ANALYZER_EGMD_MIN_PRECISION_PERCENT="$(STAR_DRUMS_MIN_PRECISION_PERCENT)" MUSIC_ANALYZER_EGMD_MAX_FALSE_POSITIVE_WINDOWS_PERCENT="$(STAR_DRUMS_MAX_FALSE_POSITIVE_WINDOWS_PERCENT)" $(BUILD_DIR)/analyzer_egmd
+
+download-medley-solos-samples: $(MEDLEY_SOLOS_METADATA) $(MEDLEY_SOLOS_ARCHIVE)
+
+$(MEDLEY_SOLOS_METADATA): | $(BUILD_DIR)
+	mkdir -p "$(MEDLEY_SOLOS_SOURCE_DIR)"
+	curl -fL -C - -o "$(MEDLEY_SOLOS_METADATA)" "$(MEDLEY_SOLOS_METADATA_URL)"
+
+$(MEDLEY_SOLOS_ARCHIVE): | $(BUILD_DIR)
+	mkdir -p "$(MEDLEY_SOLOS_SOURCE_DIR)"
+	curl -fL -C - -o "$(MEDLEY_SOLOS_ARCHIVE)" "$(MEDLEY_SOLOS_URL)"
+	$(TAR) -tzf "$(MEDLEY_SOLOS_ARCHIVE)" >/dev/null
+
+prepare-medley-solos-samples: scripts/prepare_medley_solos_samples.py download-medley-solos-samples | $(BUILD_DIR)
+	MEDLEY_SOLOS_METADATA="$(MEDLEY_SOLOS_METADATA)" MEDLEY_SOLOS_ARCHIVE="$(MEDLEY_SOLOS_ARCHIVE)" MEDLEY_SOLOS_SAMPLE_DIR="$(MEDLEY_SOLOS_SAMPLE_DIR)" MEDLEY_SOLOS_LIMIT_PER_INSTRUMENT="$(MEDLEY_SOLOS_LIMIT_PER_INSTRUMENT)" MEDLEY_SOLOS_MIN_SAMPLES="$(MEDLEY_SOLOS_MIN_SAMPLES)" MEDLEY_SOLOS_MIN_COUNTS="$(MEDLEY_SOLOS_MIN_COUNTS)" $(PYTHON) scripts/prepare_medley_solos_samples.py --metadata "$(MEDLEY_SOLOS_METADATA)" --archive "$(MEDLEY_SOLOS_ARCHIVE)" --output "$(MEDLEY_SOLOS_SAMPLE_DIR)" --limit-per-instrument "$(MEDLEY_SOLOS_LIMIT_PER_INSTRUMENT)" --min-samples "$(MEDLEY_SOLOS_MIN_SAMPLES)" --min-counts "$(MEDLEY_SOLOS_MIN_COUNTS)"
+
+test-medley-solos-samples: $(BUILD_DIR)/analyzer_instrument_family_samples prepare-medley-solos-samples scripts/run_with_duration.sh
+	$(RUN_WITH_DURATION) analyzer_medley_solos_samples env MUSIC_ANALYZER_INSTRUMENT_FAMILY_SAMPLES_REQUIRED=1 MUSIC_ANALYZER_INSTRUMENT_FAMILY_REQUIRED_SAMPLES="$(MEDLEY_SOLOS_MIN_SAMPLES)" MUSIC_ANALYZER_INSTRUMENT_FAMILY_SAMPLE_ROOT="$(MEDLEY_SOLOS_SAMPLE_DIR)" MUSIC_ANALYZER_INSTRUMENT_FAMILY_MIN_RECALL_PERCENT="$(MEDLEY_SOLOS_MIN_RECALL_PERCENT)" $(BUILD_DIR)/analyzer_instrument_family_samples
 
 prepare-instrument-samples: scripts/prepare_instrument_samples.py | $(BUILD_DIR)
 	INSTRUMENT_SAMPLE_BUILD_ROOT="$(INSTRUMENT_SAMPLE_BUILD_ROOT)" INSTRUMENT_SAMPLE_SOURCE_DIR="$(INSTRUMENT_SAMPLE_SOURCE_DIR)" INSTRUMENT_SAMPLE_SOUNDFONT="$(INSTRUMENT_SAMPLE_SOUNDFONT)" INSTRUMENT_SAMPLE_SOUNDFONT_PACKAGE="$(INSTRUMENT_SAMPLE_SOUNDFONT_PACKAGE)" INSTRUMENT_SAMPLE_PROGRAMS_PER_FAMILY="$(INSTRUMENT_SAMPLE_PROGRAMS_PER_FAMILY)" INSTRUMENT_SAMPLE_DRUM_KITS="$(INSTRUMENT_SAMPLE_DRUM_KITS)" INSTRUMENT_SAMPLE_TARGET_PER_FAMILY="$(INSTRUMENT_SAMPLE_TARGET_PER_FAMILY)" INSTRUMENT_SAMPLE_JOBS="$(INSTRUMENT_SAMPLE_JOBS)" $(PYTHON) scripts/prepare_instrument_samples.py --output-root "$(INSTRUMENT_SAMPLE_BUILD_ROOT)" --download-dir "$(INSTRUMENT_SAMPLE_SOURCE_DIR)"
@@ -915,6 +948,7 @@ test-configured-real-world-samples: tests/run_real_goal_gate.py
 test-real-world-samples-full: test-real-world-samples test-guitar-techs-samples test-guitar-techs-chord-samples test-guitar-chord-mix-samples test-egfxset-guitar-samples test-gaps-guitar-samples test-idmt-guitar-samples test-iowa-strings-samples test-iowa-orchestra-samples test-philharmonia-samples-full test-tinysol-samples
 	if [ -d "$(DRUM_SAMPLE_SOURCE_DIR)" ]; then $(MAKE) test-drum-samples-full; else printf '%s\n' "test-drum-samples-full: skipped; missing $(DRUM_SAMPLE_SOURCE_DIR)"; fi
 	if [ -s "$(GOOD_SOUNDS_ARCHIVE)" ]; then $(MAKE) test-good-sounds-samples; else printf '%s\n' "test-good-sounds-samples: skipped; missing $(GOOD_SOUNDS_ARCHIVE)"; fi
+	if [ -s "$(MEDLEY_SOLOS_ARCHIVE)" ]; then $(MAKE) test-medley-solos-samples; else printf '%s\n' "test-medley-solos-samples: skipped; missing $(MEDLEY_SOLOS_ARCHIVE)"; fi
 	$(MAKE) test-configured-real-world-samples
 
 test-midi-ranges: $(BUILD_DIR)/analyzer_midi_ranges scripts/run_with_duration.sh
@@ -951,6 +985,7 @@ test: $(TEST_BINS) scripts/run_with_duration.sh
 	$(MAKE) test-idmt-drums-prepare
 	$(MAKE) test-mdb-drums-prepare
 	$(MAKE) test-star-drums-prepare
+	$(MAKE) test-medley-solos-prepare
 	$(MAKE) test-philharmonia-prepare
 	$(MAKE) test-good-sounds-prepare
 	$(MAKE) test-iowa-piano-prepare
@@ -1127,6 +1162,9 @@ test-mdb-drums-prepare: tests/test_prepare_mdb_drums_samples.py scripts/prepare_
 
 test-star-drums-prepare: tests/test_prepare_star_drums_samples.py scripts/prepare_star_drums_samples.py
 	$(PYTHON) tests/test_prepare_star_drums_samples.py
+
+test-medley-solos-prepare: tests/test_prepare_medley_solos_samples.py scripts/prepare_medley_solos_samples.py
+	$(PYTHON) tests/test_prepare_medley_solos_samples.py
 
 test-philharmonia-prepare: tests/test_prepare_philharmonia_samples.py scripts/prepare_philharmonia_samples.py
 	$(PYTHON) tests/test_prepare_philharmonia_samples.py

@@ -105,6 +105,7 @@ without additional annotation.
 | Dataset | Useful for | Missing for this project |
 | --- | --- | --- |
 | [MedleyDB / MedleyDB 2.0](https://medleydb.weebly.com/) | Real multitrack songs, melody F0, instrument activation, optional `make test-real-medleydb-20` melody analyzer gate | Full multitrack MIDI/note truth. Audio is on restricted [Zenodo](https://zenodo.org/records/1649325) records; annotations and metadata are public on [GitHub](https://github.com/marl/medleydb). |
+| [Medley-solos-DB](https://zenodo.org/records/3464194) | Real solo-instrument timbre row-routing gate with `make test-medley-solos-samples` | Pitch/chord labels. It has 21,571 three-second real solo clips with one of eight instrument labels, so the implemented gate checks guitar, keyboard, vocal, and other row activity but cannot verify exact notes or chords. |
 | [MUSDB18 / MUSDB18-HQ](https://sigsep.github.io/datasets/musdb.html) | Drums, bass, vocals, other stem layout with optional `make inspect-real-musdb` preflight | MIDI/note truth and fine instrument classes. |
 | [MoisesDB](https://arxiv.org/abs/2307.15913) | Fine-grained real stems beyond 4-stem separation | MIDI/note truth. |
 | [RawStems](https://arxiv.org/abs/2505.21827) | Large unprocessed stem corpus and stem categories | MIDI/note truth. |
@@ -388,6 +389,15 @@ without additional annotation.
   mixes annotated drums with real non-drum recordings, but the annotated drum
   stem is re-synthesized from automatic transcription, so it is not a
   replacement for real-drum ground truth.
+- Use `make test-medley-solos-samples` to download Medley-solos-DB metadata
+  plus the full 7.9 GB audio archive from Zenodo, prepare a bounded
+  source-balanced set under `build/medley_solos_samples`, and run the
+  full-mix instrument-family harness. It maps distorted electric guitar,
+  piano, and female singer to guitar, keyboard, and vocal rows, and maps
+  clarinet, flute, tenor saxophone, trumpet, and violin to other. Because the
+  dataset has no pitch or chord labels, this is a timbre row-routing regression
+  gate only. `make test-real-world-samples-full` runs it only when the archive
+  is already cached.
 - Use `make test-real-maestro-20` with
   `MUSIC_ANALYZER_MAESTRO_ROOT=/path/to/maestro-v3.0.0` after extracting the
   official MAESTRO archive. The analyzer gate expects the official metadata CSV
