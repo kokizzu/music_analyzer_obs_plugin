@@ -827,6 +827,28 @@ void check_guitar_supported_extension_aliases(Runner &runner)
 		      std::string("guitar weak-root analysis support: expected C, got `") +
 			      weak_root_snapshot.guitar_chord.label + "`");
 
+	mao_test::Buffer major_dyad = {};
+	add_harmonic_note(major_dyad, 49, 0.22f, guitar_profile);
+	add_harmonic_note(major_dyad, 53, 0.20f, guitar_profile);
+
+	const auto major_dyad_snapshot = analyze_buffer(major_dyad, "guitar");
+	runner.expect(has_chord_label(major_dyad_snapshot.guitar_chord.label, "C#"),
+		      std::string("guitar root-third major dyad: expected C#, got `") +
+			      major_dyad_snapshot.guitar_chord.label + "`");
+	expect_no_chord_label(runner, major_dyad_snapshot.guitar_chord.label, "C#pow",
+			      "guitar root-third major dyad power alias");
+
+	mao_test::Buffer minor_dyad = {};
+	add_harmonic_note(minor_dyad, 51, 0.22f, guitar_profile);
+	add_harmonic_note(minor_dyad, 54, 0.20f, guitar_profile);
+
+	const auto minor_dyad_snapshot = analyze_buffer(minor_dyad, "guitar");
+	runner.expect(has_chord_label(minor_dyad_snapshot.guitar_chord.label, "D#m"),
+		      std::string("guitar root-third minor dyad: expected D#m, got `") +
+			      minor_dyad_snapshot.guitar_chord.label + "`");
+	expect_no_chord_label(runner, minor_dyad_snapshot.guitar_chord.label, "D#pow",
+			      "guitar root-third minor dyad power alias");
+
 	mao_test::Buffer strong_ambiguous_thirds = {};
 	add_harmonic_note(strong_ambiguous_thirds, 52, 0.16f, guitar_profile);
 	add_harmonic_note(strong_ambiguous_thirds, 55, 0.24f, guitar_profile);
