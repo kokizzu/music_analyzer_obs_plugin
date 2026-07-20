@@ -4780,13 +4780,13 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 		drum_segment_bands[HiHat] >= strongest_cymbal_drum * 0.42f;
 	const bool tom_side_shape =
 		body_shape_allowed && tom_shape &&
-		drum_segment_bands[Tom] >= strongest_body_drum * 0.45f &&
-		tom_body >= kick_body * 1.00f &&
-		(tom_body >= snare_body * 1.14f ||
+		drum_segment_bands[Tom] >= strongest_body_drum * 0.50f &&
+		tom_body >= kick_body * 1.05f &&
+		(tom_body >= snare_body * 1.50f ||
 		 (upper_tom_body >= kick_body * 0.55f && upper_tom_body >= snare_crack * 1.20f)) &&
 		kick_body < tom_body * 0.82f;
-	const bool tom_primary_shape = body_shape == Tom && tom_body >= kick_body * 1.12f &&
-				       tom_body >= snare_body * 1.14f;
+	const bool tom_primary_shape = body_shape == Tom && tom_body >= kick_body * 1.26f &&
+				       tom_body >= snare_body * 1.45f;
 	const std::array<bool, kDrumCount> drum_shape_supported = {
 		body_shape_allowed && kick_body_shape_supported && kick_shape,
 		body_shape_allowed && (body_shape == Snare || snare_side_shape) && snare_shape,
