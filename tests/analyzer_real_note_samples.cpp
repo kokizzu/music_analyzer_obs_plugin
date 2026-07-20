@@ -668,6 +668,18 @@ int main()
 	const int min_expected_row_percent =
 		std::clamp(nonnegative_int_env("MUSIC_ANALYZER_REAL_NOTE_MIN_EXPECTED_ROW_PERCENT", 0),
 			   0, 100);
+	const std::array<int, kFamilyCount> min_family_expected_row_percent = {
+		std::clamp(nonnegative_int_env("MUSIC_ANALYZER_REAL_NOTE_MIN_BASS_EXPECTED_ROW_PERCENT", 0),
+			   0, 100),
+		std::clamp(nonnegative_int_env("MUSIC_ANALYZER_REAL_NOTE_MIN_GUITAR_EXPECTED_ROW_PERCENT", 0),
+			   0, 100),
+		std::clamp(nonnegative_int_env("MUSIC_ANALYZER_REAL_NOTE_MIN_PIANO_EXPECTED_ROW_PERCENT", 0),
+			   0, 100),
+		std::clamp(nonnegative_int_env("MUSIC_ANALYZER_REAL_NOTE_MIN_VOCALS_EXPECTED_ROW_PERCENT", 0),
+			   0, 100),
+		std::clamp(nonnegative_int_env("MUSIC_ANALYZER_REAL_NOTE_MIN_OTHER_EXPECTED_ROW_PERCENT", 0),
+			   0, 100),
+	};
 	const int max_drum_active_percent =
 		std::clamp(nonnegative_int_env("MUSIC_ANALYZER_REAL_NOTE_MAX_DRUM_ACTIVE_PERCENT",
 					       full_mix ? 100 : 100),
@@ -859,6 +871,18 @@ int main()
 			      "expected at least " + std::to_string(min_expected_row_percent) +
 				      "% full-mix expected-row note recall, got " +
 				      std::to_string(row_hits) + "/" + std::to_string(usable));
+		for (std::size_t i = 0; i < min_family_expected_row_percent.size(); ++i) {
+			if (min_family_expected_row_percent[i] <= 0 || family_counts[i] <= 0)
+				continue;
+			const int family_expected_row_percent = family_row_hits[i] * 100 / family_counts[i];
+			runner.expect(family_expected_row_percent >= min_family_expected_row_percent[i],
+				      "expected at least " +
+					      std::to_string(min_family_expected_row_percent[i]) +
+					      "% full-mix " + kFamilyNames[i] +
+					      " expected-row note recall, got " +
+					      std::to_string(family_row_hits[i]) + "/" +
+					      std::to_string(family_counts[i]));
+		}
 		if (analyzed_windows > 0) {
 			const int drum_active_percent = active_drum_windows * 100 / analyzed_windows;
 			runner.expect(drum_active_percent <= max_drum_active_percent,
