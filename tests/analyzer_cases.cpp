@@ -1850,6 +1850,25 @@ void check_full_mix_single_instrument_precision(Runner &runner)
 				      snapshot.guitar.label + "`, bass `" + snapshot.bass.label + "`, other `" +
 				      snapshot.other.label + "`");
 	}
+
+	{
+		mao_test::Buffer buffer = {};
+		const std::vector<float> sparse_acoustic_guitar_profile = {1.0f, 0.32f, 0.030f, 0.020f, 0.010f};
+		add_harmonic_note(buffer, 54, 0.27f, sparse_acoustic_guitar_profile);
+
+		const auto snapshot =
+			analyze_buffer_with_mode(buffer, mao::AnalysisInputMode::FullMix,
+						 "speaker sparse acoustic guitar", 3);
+		expect_global_pitch_class(runner, snapshot, 6, "full-mix sparse acoustic guitar global");
+		runner.expect(grid_level_for_midi(snapshot.guitar_notes, 54) > 0.0f,
+			      std::string("full-mix sparse acoustic guitar: expected guitar F#3 ownership, "
+					  "got guitar `") +
+				      snapshot.guitar.label + "`, keyboard `" + snapshot.keyboard.label +
+				      "`, vocal `" + snapshot.vocal.label + "`, other `" +
+				      snapshot.other.label + "`");
+		expect_no_pitch_class(runner, snapshot.vocal_notes, 6,
+				      "full-mix sparse acoustic guitar vocal spillover");
+	}
 }
 
 void check_full_mix_single_owned_note_has_no_instrument_chord(Runner &runner)
