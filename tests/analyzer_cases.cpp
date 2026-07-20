@@ -1763,6 +1763,21 @@ void check_full_mix_single_instrument_precision(Runner &runner)
 
 	{
 		mao_test::Buffer buffer = {};
+		const std::vector<float> low_electronic_keyboard_profile = {1.0f, 0.82f, 0.38f, 0.24f, 0.18f};
+		add_harmonic_note(buffer, 43, 0.27f, low_electronic_keyboard_profile);
+
+		const auto snapshot =
+			analyze_buffer_with_mode(buffer, mao::AnalysisInputMode::FullMix,
+						 "speaker low electronic keyboard", 3);
+		expect_global_pitch_class(runner, snapshot, 7, "full-mix low electronic keyboard global");
+		runner.expect(grid_level_for_midi(snapshot.keyboard_notes, 43) > 0.0f,
+			      std::string("full-mix low electronic keyboard: expected keyboard G2 ownership, "
+					  "got keyboard `") +
+				      snapshot.keyboard.label + "`, bass `" + snapshot.bass.label + "`");
+	}
+
+	{
+		mao_test::Buffer buffer = {};
 		const std::vector<float> guitar_profile = {1.0f, 0.36f, 0.17f, 0.07f, 0.03f};
 		add_harmonic_note(buffer, 52, 0.26f, guitar_profile);
 
@@ -1771,6 +1786,21 @@ void check_full_mix_single_instrument_precision(Runner &runner)
 		expect_global_pitch_class(runner, snapshot, 4, "full-mix mid guitar global");
 		runner.expect(grid_level_for_midi(snapshot.guitar_notes, 52) > 0.0f,
 			      std::string("full-mix mid guitar: expected guitar E3 ownership, got guitar `") +
+				      snapshot.guitar.label + "`, bass `" + snapshot.bass.label + "`");
+	}
+
+	{
+		mao_test::Buffer buffer = {};
+		const std::vector<float> low_acoustic_guitar_profile = {1.0f, 0.78f, 0.30f, 0.09f, 0.04f};
+		add_harmonic_note(buffer, 42, 0.27f, low_acoustic_guitar_profile);
+
+		const auto snapshot =
+			analyze_buffer_with_mode(buffer, mao::AnalysisInputMode::FullMix,
+						 "speaker low acoustic guitar", 3);
+		expect_global_pitch_class(runner, snapshot, 6, "full-mix low acoustic guitar global");
+		runner.expect(grid_level_for_midi(snapshot.guitar_notes, 42) > 0.0f,
+			      std::string("full-mix low acoustic guitar: expected guitar F#2 ownership, got "
+					  "guitar `") +
 				      snapshot.guitar.label + "`, bass `" + snapshot.bass.label + "`");
 	}
 }
@@ -1820,6 +1850,23 @@ void check_full_mix_single_owned_note_has_no_instrument_chord(Runner &runner)
 				      snapshot.other.label + "`, guitar `" + snapshot.guitar.label + "`, bass `" +
 				      snapshot.bass.label + "`");
 		expect_no_chord(runner, snapshot.other_chord, "full-mix single low other note chord");
+	}
+
+	{
+		mao_test::Buffer buffer = {};
+		const std::vector<float> lower_mid_brass_profile = {1.0f, 0.62f, 0.42f, 0.24f, 0.14f};
+		add_harmonic_note(buffer, 59, 0.28f, lower_mid_brass_profile);
+
+		const auto snapshot =
+			analyze_buffer_with_mode(buffer, mao::AnalysisInputMode::FullMix,
+						 "single lower-mid other note", 3);
+		expect_global_pitch_class(runner, snapshot, 11, "full-mix single lower-mid other note global");
+		runner.expect(grid_pitch_active(snapshot.other_notes, 11),
+			      std::string("full-mix single lower-mid other note: expected other B ownership, "
+					  "got other `") +
+				      snapshot.other.label + "`, guitar `" + snapshot.guitar.label + "`, bass `" +
+				      snapshot.bass.label + "`");
+		expect_no_chord(runner, snapshot.other_chord, "full-mix single lower-mid other note chord");
 	}
 }
 

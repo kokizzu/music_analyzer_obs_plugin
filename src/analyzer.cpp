@@ -1050,6 +1050,13 @@ void remove_full_mix_row_midi(std::array<bool, kNoteProbeCount> &mask, NoteCandi
 	remove_candidate_midi(candidates, midi);
 }
 
+bool full_mix_row_midi_active(const std::array<bool, kNoteProbeCount> &mask, int midi)
+{
+	if (midi < kFirstMidi || midi > kLastMidi)
+		return false;
+	return mask[static_cast<std::size_t>(midi - kFirstMidi)];
+}
+
 void suppress_full_mix_bass_duplicate_ownership(FullMixOwnership &ownership, int bass_midi)
 {
 	static constexpr float kPreserveConfidentOwner = 0.78f;
@@ -1074,6 +1081,73 @@ void suppress_full_mix_bass_duplicate_ownership(FullMixOwnership &ownership, int
 	if (!confident_full_mix_row_midi(ownership.other, ownership.other_candidates, bass_midi,
 					 kPreserveSupportedOtherOwner))
 		remove_full_mix_row_midi(ownership.other, ownership.other_candidates, bass_midi);
+}
+
+void restore_full_mix_low_guitar_from_bass(FullMixOwnership &ownership,
+					   const std::array<float, kNoteProbeCount> &powers,
+					   int bass_midi)
+{
+	if (bass_midi < kGuitarMinMidi || bass_midi > kDefaultBassMaxMidi ||
+	    full_mix_row_midi_active(ownership.guitar, bass_midi))
+		return;
+
+	const float fundamental = probe_level(powers, bass_midi);
+	if (fundamental <= 1.0e-6f)
+		return;
+
+	const float octave = probe_level(powers, bass_midi + 12);
+	const float fifth = probe_level(powers, bass_midi + 19);
+	const float second_octave = probe_level(powers, bass_midi + 24);
+	const float upper_major_third = probe_level(powers, bass_midi + 28);
+	const bool dominant_guitar_octave = octave >= fundamental * 0.62f;
+	const bool supported_guitar_stack =
+		fifth >= fundamental * 0.16f && second_octave >= fundamental * 0.045f;
+	const bool too_bass_like = octave < fundamental * 0.58f &&
+				   (fifth + second_octave + upper_major_third) < fundamental * 0.34f;
+	if (!dominant_guitar_octave || !supported_guitar_stack || too_bass_like)
+		return;
+
+	const float display_level = std::max(fundamental, octave * 0.72f);
+	NoteCandidate candidate;
+	candidate.midi = bass_midi;
+	candidate.score = display_level * display_level;
+	candidate.ownership_confidence = 0.52f;
+	ownership.guitar[static_cast<std::size_t>(bass_midi - kFirstMidi)] = true;
+	ownership.guitar_candidates.push_back(candidate);
+}
+
+void restore_full_mix_low_keyboard_from_bass(FullMixOwnership &ownership,
+					     const std::array<float, kNoteProbeCount> &powers,
+					     int bass_midi)
+{
+	if (bass_midi < kKeyboardMinMidi || bass_midi >= 48 ||
+	    full_mix_row_midi_active(ownership.keyboard, bass_midi))
+		return;
+
+	const float fundamental = probe_level(powers, bass_midi);
+	if (fundamental <= 1.0e-6f)
+		return;
+
+	const float octave = probe_level(powers, bass_midi + 12);
+	const float fifth = probe_level(powers, bass_midi + 19);
+	const float second_octave = probe_level(powers, bass_midi + 24);
+	const float upper_major_third = probe_level(powers, bass_midi + 28);
+	const float upper_stack = fifth + second_octave + upper_major_third;
+	const bool strong_electronic_stack =
+		octave >= fundamental * 0.70f &&
+		(fifth >= fundamental * 0.26f || second_octave >= fundamental * 0.20f ||
+		 upper_major_third >= fundamental * 0.16f) &&
+		upper_stack >= fundamental * 0.42f;
+	if (!strong_electronic_stack)
+		return;
+
+	const float display_level = std::max(fundamental, std::max(octave * 0.68f, fifth * 0.76f));
+	NoteCandidate candidate;
+	candidate.midi = bass_midi;
+	candidate.score = display_level * display_level;
+	candidate.ownership_confidence = 0.50f;
+	ownership.keyboard[static_cast<std::size_t>(bass_midi - kFirstMidi)] = true;
+	ownership.keyboard_candidates.push_back(candidate);
 }
 
 void demote_sparse_full_mix_owner(FullMixOwnership &ownership, std::array<bool, kNoteProbeCount> &mask,
@@ -1338,10 +1412,13 @@ InstrumentKind choose_full_mix_owner(const std::array<float, kNoteProbeCount> &p
 		full_mix_vocal_profile_supported(evidence, candidate.midi, second, third, fourth, fifth,
 						 polyphonic_vocal_context);
 	const bool low_other_candidate = candidate.midi >= kGuitarMinMidi && candidate.midi < 55;
+	const bool lower_mid_other_candidate = candidate.midi >= 55 && candidate.midi < 60;
 	const bool low_other_profile_supported =
-		low_other_candidate && second >= 0.30f && third >= 0.12f &&
-		(fourth >= 0.075f || fifth >= 0.045f) &&
-		(other_weight >= guitar_weight * 1.05f || fourth >= 0.14f || fifth >= 0.075f);
+		(low_other_candidate && second >= 0.30f && third >= 0.12f &&
+		 (fourth >= 0.075f || fifth >= 0.045f) &&
+		 (other_weight >= guitar_weight * 1.05f || fourth >= 0.14f || fifth >= 0.075f)) ||
+		(lower_mid_other_candidate && second >= 0.38f && third >= 0.18f &&
+		 (fourth >= 0.20f || fifth >= 0.12f || other_weight >= guitar_weight * 1.38f));
 	const bool competing_timbres = competing_full_mix_timbres(keyboard_weight, guitar_weight, other_weight);
 	const bool blended_partials = blended_full_mix_upper_partials(second, third, fourth, fifth);
 	const bool force_blended_ambiguous =
@@ -5553,9 +5630,16 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 			snapshot.bass_debug_displayed_score = displayed_bass.score;
 			set_single_note_grid(snapshot.bass_notes, snapshot.bass, displayed_bass, bass_energy, rms);
 			if (displayed_bass.midi >= 0 && snapshot.bass.confidence > 0.0f) {
-				if (mixed_source)
+				if (mixed_source) {
 					suppress_full_mix_bass_duplicate_ownership(full_mix_ownership,
 										 displayed_bass.midi);
+					restore_full_mix_low_guitar_from_bass(full_mix_ownership,
+									      detection_note_powers,
+									      displayed_bass.midi);
+					restore_full_mix_low_keyboard_from_bass(full_mix_ownership,
+										detection_note_powers,
+										displayed_bass.midi);
+				}
 				mixed_bass_pitch_class = ((displayed_bass.midi % 12) + 12) % 12;
 			}
 		} else {
@@ -5572,9 +5656,16 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 				snapshot.bass_debug_displayed_score = displayed_bass.score;
 				set_single_note_grid(snapshot.bass_notes, snapshot.bass, displayed_bass, bass_energy, rms);
 				if (displayed_bass.midi >= 0 && snapshot.bass.confidence > 0.0f) {
-					if (mixed_source)
+					if (mixed_source) {
 						suppress_full_mix_bass_duplicate_ownership(full_mix_ownership,
 											 displayed_bass.midi);
+						restore_full_mix_low_guitar_from_bass(full_mix_ownership,
+										      detection_note_powers,
+										      displayed_bass.midi);
+						restore_full_mix_low_keyboard_from_bass(full_mix_ownership,
+											detection_note_powers,
+											displayed_bass.midi);
+					}
 					mixed_bass_pitch_class = ((displayed_bass.midi % 12) + 12) % 12;
 				}
 			} else {
