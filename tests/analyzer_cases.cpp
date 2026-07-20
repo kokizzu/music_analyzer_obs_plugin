@@ -1683,6 +1683,15 @@ void check_high_full_mix_cluster_not_vocal_or_other(Runner &runner)
 		expect_no_pitch_class(runner, snapshot.vocal_notes, 0, "single high piano vocal");
 		expect_no_pitch_class(runner, snapshot.other_notes, 0, "single high piano other");
 	}
+	{
+		mao_test::Buffer buffer = {};
+		add_harmonic_note(buffer, 93, 0.24f, piano_profile);
+		const auto snapshot = analyze_buffer(buffer, "full mix");
+		expect_global_pitch_class(runner, snapshot, 9, "single A6 piano global");
+		expect_pitch_class(runner, snapshot.keyboard_notes, 9, "single A6 piano keyboard");
+		expect_no_pitch_class(runner, snapshot.vocal_notes, 9, "single A6 piano vocal");
+		expect_no_pitch_class(runner, snapshot.other_notes, 9, "single A6 piano other");
+	}
 }
 
 void check_full_mix_single_instrument_precision(Runner &runner)

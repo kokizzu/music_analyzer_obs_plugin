@@ -1361,13 +1361,20 @@ InstrumentKind choose_full_mix_owner(const std::array<float, kNoteProbeCount> &p
 	if (force_blended_ambiguous && blended_partials)
 		return InstrumentKind::Ambiguous;
 
-	if (candidate.midi >= 48 && candidate.midi <= 83 && second <= 0.56f) {
+	const bool normal_keyboard_profile_supported =
+		candidate.midi >= 48 && candidate.midi <= 83 && second <= 0.56f;
+	const bool high_keyboard_profile_supported =
+		candidate.midi > kVocalMaxMidi && candidate.midi <= 95 && second <= 0.42f && third <= 0.20f &&
+		(other_weight <= keyboard_weight * 1.45f || second <= 0.20f);
+	if (normal_keyboard_profile_supported || high_keyboard_profile_supported) {
 		scores[0] = keyboard_weight * 1.18f + std::max(0.0f, 0.50f - second) * 0.30f +
 			    std::max(0.0f, 0.16f - third) * 0.08f + clean_pitch_bonus;
 		if (evidence.pitch_stability >= 0.62f && evidence.onset_strength <= 0.45f)
 			scores[0] += 0.06f;
 		if (evidence.simultaneous_onset > 0.0f)
 			scores[0] += evidence.simultaneous_onset * 0.08f;
+		if (high_keyboard_profile_supported)
+			scores[0] += 0.08f;
 		if (evidence.spectral_centroid > 0.34f || evidence.spectral_slope > 0.18f)
 			scores[0] *= 0.78f;
 	}
