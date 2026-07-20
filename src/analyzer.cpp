@@ -4780,6 +4780,13 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 		drum_transient && strongest_cymbal_drum >= 12.0f &&
 		strongest_cymbal_drum >= strongest_body_drum * 0.035f &&
 		drum_segment_bands[HiHat] >= strongest_cymbal_drum * 0.42f;
+	const bool embedded_snare_transient =
+		drum_transient && onset >= 1.35f &&
+		drum_segment_bands[Snare] >= strongest_shell_drum * 0.30f &&
+		snare_body >= kick_body * 0.32f && snare_body >= tom_body * 0.30f &&
+		snare_crack >= snare_body * 0.030f &&
+		snapshot.mid_energy >= snapshot.low_energy * 0.62f &&
+		(strongest_cymbal_drum <= 1.0e-6f || strongest_cymbal_drum <= strongest_body_drum * 0.24f);
 	const bool tom_side_shape =
 		body_shape_allowed && tom_shape &&
 		drum_segment_bands[Tom] >= strongest_body_drum * 0.50f &&
@@ -4791,7 +4798,9 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 				       tom_body >= snare_body * 1.45f;
 	const std::array<bool, kDrumCount> drum_shape_supported = {
 		body_shape_allowed && kick_body_shape_supported && kick_shape,
-		body_shape_allowed && (body_shape == Snare || snare_side_shape) && snare_shape,
+		body_shape_allowed &&
+			(((body_shape == Snare || snare_side_shape) && snare_shape) ||
+			 embedded_snare_transient),
 		(cymbal_shape_allowed && (cymbal_shape == HiHat || hihat_family_shape)) ||
 			hihat_tom_body_backstop || hihat_mixed_backstop || embedded_cymbal_transient,
 		cymbal_shape_allowed && (cymbal_shape == Crash || crash_family_shape),
@@ -4817,6 +4826,15 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 	const float sensitivity = std::clamp(settings.sensitivity, 0.25f, 4.0f);
 	const float trigger_threshold = 1.42f / sensitivity;
 	const bool drum_detection_enabled = input_mode == AnalysisInputMode::FullMix;
+	const RangeResult current_bass_drum_suppression_hint =
+		dominant_bass_note(detection_note_powers, kBassMinMidi, kDefaultBassMaxMidi, true);
+	const bool named_drum_source =
+		generated_gm_drum_source || contains_case_insensitive(resolved_source_name, "drum");
+	const bool tonal_soft_drum_suppressed =
+		!named_drum_source && !drum_transient && onset >= 1.60f &&
+		(strict_tuned_note_count > 0 ||
+		 current_bass_drum_suppression_hint.confidence >= 0.20f ||
+		 tracked_bass_confidence_ >= 0.20f);
 	bool tempo_event = false;
 	for (std::size_t i = 0; i < kDrumCount; ++i) {
 		if (drum_average_[i] <= 0.0f)
@@ -4867,13 +4885,21 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 		const bool cymbal_family_evidence =
 			snapshot.high_energy >= 0.20f ||
 			strongest_cymbal_drum >= strongest_body_drum * 0.10f;
+		const bool soft_cymbal_separable =
+			generated_gm_drum_source ||
+			strongest_body_drum <= 1.0e-6f ||
+			strongest_cymbal_drum >= strongest_body_drum * 0.055f ||
+			snapshot.high_energy >= 0.42f;
 		const bool soft_cymbal_transient =
-			had_previous_audio && cymbal && cymbal_family_evidence && transient_ratio >= 0.65f;
+			!tonal_soft_drum_suppressed && had_previous_audio && cymbal &&
+			cymbal_family_evidence && soft_cymbal_separable && transient_ratio >= 0.65f;
 		const bool soft_kick_transient =
-			kick && (kick_low_onset_body_shape ||
-				 (had_previous_audio && kick_click_transient &&
-				  (transient_ratio >= 1.00f || kick_soft_body_shape)));
+			kick && !tonal_soft_drum_suppressed &&
+			(kick_low_onset_body_shape ||
+			 (had_previous_audio && kick_click_transient &&
+			  (transient_ratio >= 1.00f || kick_soft_body_shape)));
 		const bool soft_snare_onset_shape = had_previous_audio && snare && snare_shape && onset >= 1.25f &&
+						    !tonal_soft_drum_suppressed &&
 						    score >= trigger_threshold * 1.15f;
 		const bool clear_initial_snare_onset =
 			!had_previous_audio && snare && snare_shape && onset >= 4.8f &&
@@ -4882,9 +4908,11 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 			strongest_cymbal_drum <= strongest_body_drum * 0.14f;
 		const bool soft_snare_transient =
 			snare && snare_shape &&
-			((had_previous_audio && (transient_ratio >= 0.82f || soft_snare_onset_shape)) ||
+			((!tonal_soft_drum_suppressed && had_previous_audio &&
+			  (transient_ratio >= 0.82f || soft_snare_onset_shape)) ||
 			 clear_initial_snare_onset);
-		const bool soft_rim_transient = had_previous_audio && rim && rim_shape && transient_ratio >= 0.62f;
+		const bool soft_rim_transient = !tonal_soft_drum_suppressed && had_previous_audio && rim &&
+						rim_shape && transient_ratio >= 0.62f;
 		const bool strong_tom_onset_shape =
 			tom && tom_shape && onset >= 4.0f && score >= trigger_threshold * 1.70f &&
 			body_shape_scores[2] >= body_shape_scores[1] * 1.30f &&
@@ -4901,15 +4929,16 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 			(snare_body <= 1.0e-6f || snare_crack <= snare_body * 0.10f ||
 			 upper_tom_body >= snare_crack * 8.0f);
 		const bool soft_tom_transient =
-			tom && tom_shape && ((had_previous_audio && transient_ratio >= 0.72f) ||
+			tom && tom_shape && ((!tonal_soft_drum_suppressed && had_previous_audio &&
+					      transient_ratio >= 0.72f) ||
 					     strong_tom_onset_shape || clear_initial_tom_onset);
 		const bool soft_body_transient =
 			soft_kick_transient || soft_snare_transient || soft_rim_transient || soft_tom_transient;
 		const bool base_shape_supported = drum_shape_supported[i];
 		const bool shape_supported = base_shape_supported || soft_cymbal_transient;
 		const bool quiet_cymbal_shape =
-			had_previous_audio && cymbal && base_shape_supported && cymbal_family_evidence &&
-			strongest_cymbal_drum >= strongest_body_drum * 0.10f;
+			!tonal_soft_drum_suppressed && had_previous_audio && cymbal && base_shape_supported &&
+			cymbal_family_evidence && strongest_cymbal_drum >= strongest_body_drum * 0.10f;
 		const float threshold_scale = (soft_cymbal_transient || quiet_cymbal_shape) ? 0.26f :
 					      soft_kick_transient ? 0.32f :
 					      soft_snare_transient ? 0.30f :

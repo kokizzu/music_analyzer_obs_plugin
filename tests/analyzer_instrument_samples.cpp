@@ -387,6 +387,30 @@ const char *category_name(std::size_t index)
 	return index < mao::kDrumCount ? kNames[index] : "unknown";
 }
 
+bool env_filter_active()
+{
+	return std::getenv("MUSIC_ANALYZER_INSTRUMENT_SAMPLE_FILTER_FAMILY") != nullptr ||
+	       std::getenv("MUSIC_ANALYZER_INSTRUMENT_SAMPLE_FILTER_PROGRAM") != nullptr ||
+	       std::getenv("MUSIC_ANALYZER_INSTRUMENT_SAMPLE_FILTER_PATH") != nullptr;
+}
+
+bool filter_matches(const std::string &suite_family, const SampleRow &row)
+{
+	if (const char *family = std::getenv("MUSIC_ANALYZER_INSTRUMENT_SAMPLE_FILTER_FAMILY")) {
+		if (suite_family != family && row.family != family)
+			return false;
+	}
+	if (const char *program = std::getenv("MUSIC_ANALYZER_INSTRUMENT_SAMPLE_FILTER_PROGRAM")) {
+		if (row.program_name != program)
+			return false;
+	}
+	if (const char *path = std::getenv("MUSIC_ANALYZER_INSTRUMENT_SAMPLE_FILTER_PATH")) {
+		if (row.path.find(path) == std::string::npos)
+			return false;
+	}
+	return true;
+}
+
 bool category_index(const std::string &category, std::size_t &index)
 {
 	for (std::size_t i = 0; i < mao::kDrumCount; ++i) {
@@ -402,11 +426,25 @@ std::string drum_details(const mao::AnalysisSnapshot &snapshot)
 {
 	std::string text;
 	for (std::size_t i = 0; i < mao::kDrumCount; ++i) {
-		char part[96] = {};
-		std::snprintf(part, sizeof(part), "%s%s=%.2f%s", text.empty() ? "" : " ",
-			      category_name(i), snapshot.drums[i].level, snapshot.drums[i].active ? "*" : "");
+		char part[192] = {};
+		std::snprintf(part, sizeof(part),
+			      "%s%s=%.2f%s band=%.2f seg=%.2f shape=%.2f trig=%.2f/%.2f sup=%d",
+			      text.empty() ? "" : " ", category_name(i), snapshot.drums[i].level,
+			      snapshot.drums[i].active ? "*" : "", snapshot.drum_debug_bands[i],
+			      snapshot.drum_debug_segment_bands[i], snapshot.drum_debug_shape_scores[i],
+			      snapshot.drum_debug_trigger_scores[i], snapshot.drum_debug_trigger_thresholds[i],
+			      snapshot.drum_debug_shape_supported[i] ? 1 : 0);
 		text += part;
 	}
+	char tail[320] = {};
+	std::snprintf(tail, sizeof(tail),
+		      " transient=%.2f onset=%.2f energy=%.2f/%.2f/%.2f body=%.2f/%.2f/%.2f crack=%.2f upperTom=%.2f bodyShape=%d",
+		      snapshot.drum_debug_transient_ratio, snapshot.drum_debug_onset, snapshot.low_energy,
+		      snapshot.mid_energy, snapshot.high_energy, snapshot.drum_debug_kick_body,
+		      snapshot.drum_debug_snare_body, snapshot.drum_debug_tom_body,
+		      snapshot.drum_debug_snare_crack, snapshot.drum_debug_upper_tom_body,
+		      snapshot.drum_debug_body_shape);
+	text += tail;
 	return text;
 }
 
@@ -443,9 +481,12 @@ void check_instrument_samples(Runner &runner, const std::string &root)
 		std::vector<SampleRow> rows;
 		runner.expect(read_manifest(join_path(join_path(root, family_dir), "manifest.tsv"), rows),
 			      "missing manifest for " + family);
-		runner.expect(rows.size() >= 1000, "expected at least 1000 " + family + " samples");
+		if (!env_filter_active())
+			runner.expect(rows.size() >= 1000, "expected at least 1000 " + family + " samples");
 
 		for (const SampleRow &row : rows) {
+			if (!filter_matches(family, row))
+				continue;
 			mao_test::Buffer buffer = {};
 			uint32_t sample_rate = 0;
 			std::string error;
@@ -482,9 +523,12 @@ void check_drum_kit_samples(Runner &runner, const std::string &root)
 	std::vector<SampleRow> rows;
 	runner.expect(read_manifest(join_path(join_path(root, family_dir), "manifest.tsv"), rows),
 		      "missing manifest for drum kit samples");
-	runner.expect(rows.size() >= 1000, "expected at least 1000 generated drum kit samples");
+	if (!env_filter_active())
+		runner.expect(rows.size() >= 1000, "expected at least 1000 generated drum kit samples");
 
 	for (const SampleRow &row : rows) {
+		if (!filter_matches("drum", row))
+			continue;
 		std::size_t expected = 0;
 		if (!category_index(row.family, expected))
 			continue;

@@ -101,13 +101,24 @@ std::string drum_debug_details(const mao::AnalysisSnapshot &snapshot)
 	std::string text;
 	for (std::size_t i = 0; i < mao::kDrumCount; ++i) {
 		char part[160] = {};
-		std::snprintf(part, sizeof(part), "%s%s level=%.2f band=%.2f seg=%.2f score=%.2f shape=%d",
+		std::snprintf(part, sizeof(part),
+			      "%s%s level=%.2f band=%.2f seg=%.2f shapeScore=%.2f trig=%.2f/%.2f shape=%d",
 			      text.empty() ? "" : " | ", drum_name(i), snapshot.drums[i].level,
 			      snapshot.drum_debug_bands[i], snapshot.drum_debug_segment_bands[i],
-			      snapshot.drum_debug_shape_scores[i],
+			      snapshot.drum_debug_shape_scores[i], snapshot.drum_debug_trigger_scores[i],
+			      snapshot.drum_debug_trigger_thresholds[i],
 			      snapshot.drum_debug_shape_supported[i] ? 1 : 0);
 		text += part;
 	}
+	char tail[240] = {};
+	std::snprintf(tail, sizeof(tail),
+		      " | transient=%.2f onset=%.2f energy=%.2f/%.2f/%.2f body=%.2f/%.2f/%.2f crack=%.2f upperTom=%.2f bodyShape=%d",
+		      snapshot.drum_debug_transient_ratio, snapshot.drum_debug_onset, snapshot.low_energy,
+		      snapshot.mid_energy, snapshot.high_energy, snapshot.drum_debug_kick_body,
+		      snapshot.drum_debug_snare_body, snapshot.drum_debug_tom_body,
+		      snapshot.drum_debug_snare_crack, snapshot.drum_debug_upper_tom_body,
+		      snapshot.drum_debug_body_shape);
+	text += tail;
 	return text;
 }
 

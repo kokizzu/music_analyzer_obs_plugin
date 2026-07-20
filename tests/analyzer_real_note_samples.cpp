@@ -63,6 +63,7 @@ struct SampleRow {
 struct SourceStats {
 	int total = 0;
 	int hits = 0;
+	int any_hits = 0;
 };
 
 uint16_t read_u16(std::ifstream &file)
@@ -325,6 +326,16 @@ bool grid_has_pitch_class(const mao::NoteGrid &grid, int midi)
 	return grid.cells[pitch_class].active;
 }
 
+bool snapshot_has_pitch_class(const mao::AnalysisSnapshot &snapshot, int midi)
+{
+	return grid_has_pitch_class(snapshot.ambiguous_notes, midi) ||
+	       grid_has_pitch_class(snapshot.bass_notes, midi) ||
+	       grid_has_pitch_class(snapshot.keyboard_notes, midi) ||
+	       grid_has_pitch_class(snapshot.guitar_notes, midi) ||
+	       grid_has_pitch_class(snapshot.vocal_notes, midi) ||
+	       grid_has_pitch_class(snapshot.other_notes, midi);
+}
+
 const mao::InstrumentState &family_state(const mao::AnalysisSnapshot &snapshot, const std::string &family)
 {
 	if (family == "bass")
@@ -356,6 +367,38 @@ std::string debug_note_label(int midi)
 	if (midi < mao::kFirstAnalyzedMidi || midi > mao::kLastAnalyzedMidi)
 		return "--";
 	return mao_test::note_label(midi);
+}
+
+const char *drum_name(std::size_t index)
+{
+	static constexpr const char *kNames[mao::kDrumCount] = {"kick", "snare", "hihat", "crash",
+								"tom", "ride", "rim"};
+	return index < mao::kDrumCount ? kNames[index] : "unknown";
+}
+
+std::string drum_debug_line(const mao::AnalysisSnapshot &snapshot)
+{
+	std::string text;
+	for (std::size_t i = 0; i < snapshot.drums.size(); ++i) {
+		char part[192] = {};
+		std::snprintf(part, sizeof(part), "%s%s=%.2f%s score=%.2f thr=%.2f band=%.2f seg=%.2f",
+			      text.empty() ? "" : " | ", drum_name(i), snapshot.drums[i].level,
+			      snapshot.drums[i].active ? "*" : "",
+			      snapshot.drum_debug_trigger_scores[i],
+			      snapshot.drum_debug_trigger_thresholds[i], snapshot.drum_debug_bands[i],
+			      snapshot.drum_debug_segment_bands[i]);
+		text += part;
+	}
+	char part[256] = {};
+	std::snprintf(part, sizeof(part),
+		      " | rms=%.4f low=%.2f mid=%.2f high=%.2f transient=%.2f onset=%.2f body=%.2f/%.2f/%.2f crack=%.2f shape=%d",
+		      snapshot.rms, snapshot.low_energy, snapshot.mid_energy, snapshot.high_energy,
+		      snapshot.drum_debug_transient_ratio, snapshot.drum_debug_onset,
+		      snapshot.drum_debug_kick_body, snapshot.drum_debug_snare_body,
+		      snapshot.drum_debug_tom_body, snapshot.drum_debug_snare_crack,
+		      snapshot.drum_debug_body_shape);
+	text += part;
+	return text;
 }
 
 mao::AnalysisInputMode family_mode(const std::string &family)
@@ -433,6 +476,46 @@ std::string source_summary_text(const std::map<std::string, SourceStats> &stats,
 	return text;
 }
 
+std::string source_any_summary_text(const std::map<std::string, SourceStats> &stats, int max_entries)
+{
+	struct Row {
+		std::string source;
+		int total = 0;
+		int hits = 0;
+		int misses = 0;
+	};
+	std::vector<Row> rows;
+	for (const auto &entry : stats) {
+		const int misses = entry.second.total - entry.second.any_hits;
+		if (misses <= 0)
+			continue;
+		rows.push_back({entry.first, entry.second.total, entry.second.any_hits, misses});
+	}
+	std::sort(rows.begin(), rows.end(), [](const Row &lhs, const Row &rhs) {
+		if (lhs.misses != rhs.misses)
+			return lhs.misses > rhs.misses;
+		if (lhs.total != rhs.total)
+			return lhs.total > rhs.total;
+		return lhs.source < rhs.source;
+	});
+	if (rows.empty())
+		return "";
+
+	std::string text = " source any-row misses";
+	const int count = std::min<int>(max_entries, static_cast<int>(rows.size()));
+	for (int i = 0; i < count; ++i) {
+		text += " ";
+		text += rows[i].source;
+		text += "=";
+		text += std::to_string(rows[i].hits);
+		text += "/";
+		text += std::to_string(rows[i].total);
+	}
+	if (static_cast<int>(rows.size()) > count)
+		text += " ...";
+	return text;
+}
+
 mao::AnalysisSnapshot analyze_buffer(const mao_test::Buffer &buffer, uint32_t sample_rate,
 				     mao::AnalysisInputMode mode, const char *source, int frames = 4)
 {
@@ -476,8 +559,18 @@ int main()
 	const std::string root = root_env && *root_env ? root_env : "build/real_note_samples";
 	const bool required = std::getenv("MUSIC_ANALYZER_REAL_NOTE_SAMPLES_REQUIRED") != nullptr;
 	const bool verbose_misses = std::getenv("MUSIC_ANALYZER_REAL_NOTE_VERBOSE_MISSES") != nullptr;
+	const bool verbose_drums = std::getenv("MUSIC_ANALYZER_REAL_NOTE_VERBOSE_DRUMS") != nullptr;
 	const int required_samples = positive_int_env("MUSIC_ANALYZER_REAL_NOTE_REQUIRED_SAMPLES", 1000);
 	const int max_failures = nonnegative_int_env("MUSIC_ANALYZER_REAL_NOTE_MAX_FAILURES", 0);
+	const bool full_mix = std::getenv("MUSIC_ANALYZER_REAL_NOTE_FULL_MIX") != nullptr;
+	const int min_any_hit_percent =
+		std::clamp(nonnegative_int_env("MUSIC_ANALYZER_REAL_NOTE_MIN_ANY_HIT_PERCENT",
+					       full_mix ? 80 : 0),
+			   0, 100);
+	const int max_drum_active_percent =
+		std::clamp(nonnegative_int_env("MUSIC_ANALYZER_REAL_NOTE_MAX_DRUM_ACTIVE_PERCENT",
+					       full_mix ? 100 : 100),
+			   0, 100);
 
 	std::vector<SampleRow> rows;
 	const std::string manifest_path = join_path(root, "manifest.tsv");
@@ -500,7 +593,16 @@ int main()
 
 	std::array<int, 5> family_counts = {};
 	std::array<int, 5> family_hits = {};
+	std::array<int, 5> family_any_hits = {};
+	std::array<int, 5> family_row_hits = {};
 	std::map<std::string, SourceStats> source_stats;
+	int any_hits = 0;
+	int row_hits = 0;
+	int active_drum_windows = 0;
+	std::array<int, mao::kDrumCount> active_drum_by_class = {};
+	int analyzed_windows = 0;
+	int verbose_drum_lines = 0;
+	const int verbose_drum_limit = positive_int_env("MUSIC_ANALYZER_REAL_NOTE_VERBOSE_DRUM_LIMIT", 24);
 	int usable = 0;
 	for (const SampleRow &row : rows) {
 		std::vector<float> samples;
@@ -520,21 +622,53 @@ int main()
 
 		const std::string expected = mao_test::note_label(row.midi);
 		bool detected = false;
+		bool detected_anywhere = false;
+		bool detected_expected_row = false;
 		std::string last_label = "--";
 		std::vector<std::string> debug_lines;
 		int buffer_index = 0;
 		const char *analysis_source =
-			row.family == "bass" && !row.source.empty() ? row.source.c_str() : row.family.c_str();
+			full_mix ? "Speaker Monitor" :
+				   row.family == "bass" && !row.source.empty() ? row.source.c_str() :
+										 row.family.c_str();
 		for (const mao_test::Buffer &buffer : buffers) {
 			const mao::AnalysisSnapshot snapshot =
-				analyze_buffer(buffer, sample_rate, family_mode(row.family), analysis_source);
+				analyze_buffer(buffer, sample_rate,
+					       full_mix ? mao::AnalysisInputMode::FullMix : family_mode(row.family),
+					       analysis_source);
 			last_label = family_state(snapshot, row.family).label;
 			const bool label_ok = mao_test::has_note_token(family_state(snapshot, row.family).label,
 								       expected.c_str()) ||
 					      std::strcmp(family_state(snapshot, row.family).label,
 							  expected.c_str()) == 0;
 			const bool grid_ok = grid_has_pitch_class(family_grid(snapshot, row.family), row.midi);
-			if (label_ok || grid_ok) {
+			const bool any_grid_ok = snapshot_has_pitch_class(snapshot, row.midi);
+			for (const mao::DrumState &drum : snapshot.drums) {
+				if (drum.active) {
+					++active_drum_windows;
+					break;
+				}
+			}
+			bool any_drum_active = false;
+			for (std::size_t i = 0; i < snapshot.drums.size(); ++i) {
+				if (snapshot.drums[i].active) {
+					++active_drum_by_class[i];
+					any_drum_active = true;
+				}
+			}
+			if (full_mix && verbose_drums && any_drum_active && verbose_drum_lines < verbose_drum_limit) {
+				std::fprintf(stderr, "%s %s/%s %s buffer %d false-drum: %s\n", row.id.c_str(),
+					     row.family.c_str(), row.source.c_str(), expected.c_str(), buffer_index,
+					     drum_debug_line(snapshot).c_str());
+				++verbose_drum_lines;
+			}
+			++analyzed_windows;
+			if (label_ok || grid_ok)
+				detected_expected_row = true;
+			if (any_grid_ok)
+				detected_anywhere = true;
+			if ((!full_mix && (label_ok || grid_ok)) ||
+			    (full_mix && any_grid_ok)) {
 				detected = true;
 				break;
 			}
@@ -575,6 +709,15 @@ int main()
 			++family_hits[index];
 			++source_stat.hits;
 		}
+		if (detected_anywhere) {
+			++family_any_hits[index];
+			++source_stat.any_hits;
+			++any_hits;
+		}
+		if (detected_expected_row) {
+			++family_row_hits[index];
+			++row_hits;
+		}
 	}
 
 	const std::array<int, 5> minimum_family_counts = {
@@ -591,33 +734,87 @@ int main()
 				      " " + kFamilyNames[i] + " real note samples, got " +
 				      std::to_string(family_counts[i]));
 	}
+	if (full_mix && usable > 0) {
+		const int any_hit_percent = any_hits * 100 / usable;
+		runner.expect(any_hit_percent >= min_any_hit_percent,
+			      "expected at least " + std::to_string(min_any_hit_percent) +
+				      "% full-mix any-row note recall, got " + std::to_string(any_hits) +
+				      "/" + std::to_string(usable));
+		if (analyzed_windows > 0) {
+			const int drum_active_percent = active_drum_windows * 100 / analyzed_windows;
+			runner.expect(drum_active_percent <= max_drum_active_percent,
+				      "expected at most " + std::to_string(max_drum_active_percent) +
+					      "% full-mix melodic drum-active windows, got " +
+					      std::to_string(active_drum_windows) + "/" +
+					      std::to_string(analyzed_windows));
+		}
+	}
 
 	if (runner.failures) {
 		const std::string source_summary = source_summary_text(source_stats, 12);
 		if (!source_summary.empty())
 			std::fprintf(stderr, "analyzer_real_note_samples:%s\n", source_summary.c_str());
+		if (full_mix) {
+			const std::string any_summary = source_any_summary_text(source_stats, 12);
+			if (!any_summary.empty())
+				std::fprintf(stderr, "analyzer_real_note_samples:%s\n", any_summary.c_str());
+		}
 		std::fprintf(stderr,
-			     "analyzer_real_note_samples: %d/%d checks failed (usable %d, bass %d/%d, guitar "
-			     "%d/%d, piano %d/%d, vocals %d/%d, other %d/%d)\n",
+			     "analyzer_real_note_samples%s: %d/%d checks failed (usable %d, bass %d/%d, guitar "
+			     "%d/%d, piano %d/%d, vocals %d/%d, other %d/%d",
+			     full_mix ? " full-mix" : "",
 			     runner.failures, runner.checks, usable, family_hits[0], family_counts[0],
 			     family_hits[1], family_counts[1], family_hits[2], family_counts[2],
 			     family_hits[3], family_counts[3], family_hits[4], family_counts[4]);
+		if (full_mix) {
+			std::fprintf(stderr,
+				     "; any-row %d/%d, expected-row %d/%d, drum-active-windows %d/%d",
+				     any_hits, usable, row_hits, usable, active_drum_windows, analyzed_windows);
+			std::fprintf(stderr,
+				     ", drums kick=%d snare=%d hihat=%d crash=%d tom=%d ride=%d rim=%d",
+				     active_drum_by_class[0], active_drum_by_class[1],
+				     active_drum_by_class[2], active_drum_by_class[3],
+				     active_drum_by_class[4], active_drum_by_class[5],
+				     active_drum_by_class[6]);
+		}
+		std::fprintf(stderr, ")\n");
 		if (runner.failures > max_failures)
 			return 1;
 		std::printf(
-			"analyzer_real_note_samples: %d tolerated failures within limit %d (usable %d, bass "
-			"%d/%d, guitar %d/%d, piano %d/%d, vocals %d/%d, other %d/%d)\n",
+			"analyzer_real_note_samples%s: %d tolerated failures within limit %d (usable %d, bass "
+			"%d/%d, guitar %d/%d, piano %d/%d, vocals %d/%d, other %d/%d",
+			full_mix ? " full-mix" : "",
 			runner.failures, max_failures, usable, family_hits[0], family_counts[0],
 			family_hits[1], family_counts[1], family_hits[2], family_counts[2],
 			family_hits[3], family_counts[3], family_hits[4], family_counts[4]);
+		if (full_mix) {
+			std::printf("; any-row %d/%d, expected-row %d/%d, drum-active-windows %d/%d",
+				    any_hits, usable, row_hits, usable, active_drum_windows, analyzed_windows);
+			std::printf(", drums kick=%d snare=%d hihat=%d crash=%d tom=%d ride=%d rim=%d",
+				    active_drum_by_class[0], active_drum_by_class[1],
+				    active_drum_by_class[2], active_drum_by_class[3],
+				    active_drum_by_class[4], active_drum_by_class[5],
+				    active_drum_by_class[6]);
+		}
+		std::printf(")\n");
 		return 0;
 	}
 
 	std::printf(
-		"analyzer_real_note_samples: %d checks passed (usable %d, bass %d/%d, guitar %d/%d, piano "
-		"%d/%d, vocals %d/%d, other %d/%d)\n",
+		"analyzer_real_note_samples%s: %d checks passed (usable %d, bass %d/%d, guitar %d/%d, piano "
+		"%d/%d, vocals %d/%d, other %d/%d",
+		full_mix ? " full-mix" : "",
 		runner.checks, usable, family_hits[0], family_counts[0], family_hits[1], family_counts[1],
 		family_hits[2], family_counts[2], family_hits[3], family_counts[3], family_hits[4],
 		family_counts[4]);
+	if (full_mix) {
+		std::printf("; any-row %d/%d, expected-row %d/%d, drum-active-windows %d/%d",
+			    any_hits, usable, row_hits, usable, active_drum_windows, analyzed_windows);
+		std::printf(", drums kick=%d snare=%d hihat=%d crash=%d tom=%d ride=%d rim=%d",
+			    active_drum_by_class[0], active_drum_by_class[1], active_drum_by_class[2],
+			    active_drum_by_class[3], active_drum_by_class[4], active_drum_by_class[5],
+			    active_drum_by_class[6]);
+	}
+	std::printf(")\n");
 	return 0;
 }
