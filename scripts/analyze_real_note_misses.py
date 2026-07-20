@@ -45,6 +45,14 @@ ROW_NAME = {
     "vocal": "vocals",
     "other": "other",
 }
+ROW_ORDER = {
+    "bass": 0,
+    "piano": 1,
+    "guitar": 2,
+    "vocals": 3,
+    "other": 4,
+    "amb": 5,
+}
 
 
 def split_note(note: str) -> tuple[str, int]:
@@ -73,6 +81,33 @@ def closest_pitch_offset(expected: str, detected: str) -> int:
     while raw < -6:
         raw += 12
     return raw
+
+
+def expected_pitch_rows(expected: str, row_notes: dict[str, list[tuple[str, float]]]) -> list[str]:
+    expected_pitch = pitch_name(expected)
+    rows = []
+    for row, notes in row_notes.items():
+        level = max((level for detected, level in notes if pitch_name(detected) == expected_pitch), default=0.0)
+        if level > 0.0:
+            rows.append((row, level))
+    rows.sort(key=lambda item: (-item[1], ROW_ORDER.get(item[0], 99), item[0]))
+    return [row for row, _level in rows]
+
+
+def collapsed_row_path(expected: str, buffers) -> tuple[str, ...]:
+    path = []
+    for _buffer_expected, _detected_notes, row_notes in buffers:
+        rows = expected_pitch_rows(expected, row_notes)
+        if not rows:
+            continue
+        token = "+".join(rows)
+        if not path or path[-1] != token:
+            path.append(token)
+    return tuple(path)
+
+
+def format_row_path(path: tuple[str, ...]) -> str:
+    return ">".join(path) if path else "none"
 
 
 def analyze(path: pathlib.Path) -> list[str]:
@@ -123,6 +158,8 @@ def analyze(path: pathlib.Path) -> list[str]:
         source_rows: collections.Counter[tuple[str, str]] = collections.Counter()
         expected_debug_rows: collections.Counter[str] = collections.Counter()
         expected_source_debug_rows: collections.Counter[tuple[str, str]] = collections.Counter()
+        expected_row_paths: collections.Counter[tuple[str, ...]] = collections.Counter()
+        expected_source_row_paths: collections.Counter[tuple[str, tuple[str, ...]]] = collections.Counter()
         source_examples: dict[str, list[str]] = collections.defaultdict(list)
         source_row_examples: dict[tuple[str, str], list[str]] = collections.defaultdict(list)
         missing_all_notes = 0
@@ -157,6 +194,10 @@ def analyze(path: pathlib.Path) -> list[str]:
                 for row, notes in row_notes.items():
                     if any(pitch_name(detected) == pitch_name(expected) for detected, _level in notes):
                         expected_seen_rows.add(row)
+            row_path = collapsed_row_path(expected, buffers)
+            if row_path:
+                expected_row_paths[row_path] += 1
+                expected_source_row_paths[(source, row_path)] += 1
             if expected_seen:
                 expected_present_in_debug += 1
             for row in sorted(expected_seen_rows):
@@ -176,6 +217,8 @@ def analyze(path: pathlib.Path) -> list[str]:
             "source_rows": source_rows,
             "expected_debug_rows": expected_debug_rows,
             "expected_source_debug_rows": expected_source_debug_rows,
+            "expected_row_paths": expected_row_paths,
+            "expected_source_row_paths": expected_source_row_paths,
             "source_examples": source_examples,
             "source_row_examples": source_row_examples,
             "missing_all_notes": missing_all_notes,
@@ -223,6 +266,8 @@ def analyze(path: pathlib.Path) -> list[str]:
         source_rows = summary["source_rows"]
         expected_debug_rows = summary["expected_debug_rows"]
         expected_source_debug_rows = summary["expected_source_debug_rows"]
+        expected_row_paths = summary["expected_row_paths"]
+        expected_source_row_paths = summary["expected_source_row_paths"]
         lines.append(f"analyze_real_note_misses: ownership misses {len(ownership)}")
         lines.append(
             "ownership by source "
@@ -250,6 +295,22 @@ def analyze(path: pathlib.Path) -> list[str]:
                 + " ".join(
                     f"{source}->{row}={count}"
                     for (source, row), count in expected_source_debug_rows.most_common(12)
+                )
+            )
+        if expected_row_paths:
+            lines.append(
+                "ownership expected row paths "
+                + " ".join(
+                    f"{format_row_path(path)}={count}"
+                    for path, count in expected_row_paths.most_common(12)
+                )
+            )
+        if expected_source_row_paths:
+            lines.append(
+                "ownership source row paths "
+                + " ".join(
+                    f"{source}:{format_row_path(path)}={count}"
+                    for (source, path), count in expected_source_row_paths.most_common(12)
                 )
             )
         lines.append(
