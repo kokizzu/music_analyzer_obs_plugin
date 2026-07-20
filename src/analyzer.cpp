@@ -3561,6 +3561,43 @@ void append_supported_guitar_extension_aliases(ChordResult &chord, const NoteGri
 	}
 }
 
+void append_supported_guitar_symmetric_altered_aliases(ChordResult &chord, const NoteGrid &grid)
+{
+	if (chord.root < 0 || !chord.label[0] || chord.label[0] == '-')
+		return;
+
+	float strongest = 0.0f;
+	for (int pitch_class = 0; pitch_class < 12; ++pitch_class)
+		strongest = std::max(strongest, note_grid_pitch_level(grid, pitch_class));
+	if (strongest <= 1.0e-6f)
+		return;
+
+	const float altered_floor = std::max(0.12f, strongest * 0.16f);
+	auto supported = [&](int pitch_class) {
+		return note_grid_pitch_level(grid, pitch_class) >= altered_floor;
+	};
+
+	for (int root = 0; root < 12; ++root) {
+		const float root_level = note_grid_pitch_level(grid, root);
+		const float third = note_grid_pitch_level(grid, root + 4);
+		const float aug_fifth = note_grid_pitch_level(grid, root + 8);
+		const float natural_fifth = note_grid_pitch_level(grid, root + 7);
+		if (root_level >= altered_floor && third >= altered_floor && aug_fifth >= altered_floor &&
+		    aug_fifth >= natural_fifth * 0.85f) {
+			append_chord_alias(chord, root, "aug");
+			append_chord_alias(chord, root + 4, "aug");
+			append_chord_alias(chord, root + 8, "aug");
+		}
+
+		if (supported(root) && supported(root + 3) && supported(root + 6) && supported(root + 9)) {
+			append_chord_alias(chord, root, "dim7");
+			append_chord_alias(chord, root + 3, "dim7");
+			append_chord_alias(chord, root + 6, "dim7");
+			append_chord_alias(chord, root + 9, "dim7");
+		}
+	}
+}
+
 ChordResult detect_guitar_chord_from_grid(const NoteGrid &grid, bool allow_extensions)
 {
 	const std::array<float, 12> chroma = note_grid_chroma(grid);
@@ -5802,6 +5839,8 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 				std::strstr(raw_guitar_chord.label, "pow") ? -1 : raw_guitar_chord.root);
 			append_supported_guitar_ambiguous_third_aliases(raw_guitar_chord, guitar_chord_detection_grid);
 			append_supported_guitar_extension_aliases(raw_guitar_chord, guitar_chord_detection_grid, true);
+			append_supported_guitar_symmetric_altered_aliases(raw_guitar_chord,
+									  guitar_chord_detection_grid);
 			append_supported_guitar_power_aliases(raw_guitar_chord, guitar_chord_detection_grid);
 			append_guitar_power_probe_third_aliases(raw_guitar_chord, guitar_chord_detection_grid,
 								detection_note_powers, min_midi, kGuitarMaxMidi);
@@ -6120,6 +6159,7 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 				std::strstr(smoothed_guitar_chord.label, "pow") ? -1 : smoothed_guitar_chord.root);
 			append_supported_guitar_ambiguous_third_aliases(smoothed_guitar_chord, guitar_chord_grid);
 			append_supported_guitar_extension_aliases(smoothed_guitar_chord, guitar_chord_grid, true);
+			append_supported_guitar_symmetric_altered_aliases(smoothed_guitar_chord, guitar_chord_grid);
 			append_supported_guitar_power_aliases(smoothed_guitar_chord, guitar_chord_grid);
 			append_guitar_power_probe_third_aliases(smoothed_guitar_chord, guitar_chord_grid,
 								detection_note_powers, kGuitarMinMidi,
