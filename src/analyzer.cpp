@@ -1024,6 +1024,23 @@ void remove_candidate_midi(NoteCandidateList &candidates, int midi)
 	candidates.count = write;
 }
 
+bool confident_full_mix_row_midi(const std::array<bool, kNoteProbeCount> &mask,
+				 const NoteCandidateList &candidates, int midi, float min_confidence)
+{
+	if (midi < kFirstMidi || midi > kLastMidi)
+		return false;
+
+	const std::size_t index = static_cast<std::size_t>(midi - kFirstMidi);
+	if (!mask[index])
+		return false;
+
+	for (const NoteCandidate &candidate : candidates) {
+		if (candidate.midi == midi && candidate.ownership_confidence >= min_confidence)
+			return true;
+	}
+	return false;
+}
+
 void remove_full_mix_row_midi(std::array<bool, kNoteProbeCount> &mask, NoteCandidateList &candidates, int midi)
 {
 	if (midi < kFirstMidi || midi > kLastMidi)
@@ -1035,10 +1052,27 @@ void remove_full_mix_row_midi(std::array<bool, kNoteProbeCount> &mask, NoteCandi
 
 void suppress_full_mix_bass_duplicate_ownership(FullMixOwnership &ownership, int bass_midi)
 {
-	remove_full_mix_row_midi(ownership.keyboard, ownership.keyboard_candidates, bass_midi);
-	remove_full_mix_row_midi(ownership.guitar, ownership.guitar_candidates, bass_midi);
-	remove_full_mix_row_midi(ownership.vocal, ownership.vocal_candidates, bass_midi);
-	remove_full_mix_row_midi(ownership.other, ownership.other_candidates, bass_midi);
+	static constexpr float kPreserveConfidentOwner = 0.78f;
+	static constexpr int kPreserveConfidentOwnerMinMidi = 48;
+	if (bass_midi < kPreserveConfidentOwnerMinMidi) {
+		remove_full_mix_row_midi(ownership.keyboard, ownership.keyboard_candidates, bass_midi);
+		remove_full_mix_row_midi(ownership.guitar, ownership.guitar_candidates, bass_midi);
+		remove_full_mix_row_midi(ownership.vocal, ownership.vocal_candidates, bass_midi);
+		remove_full_mix_row_midi(ownership.other, ownership.other_candidates, bass_midi);
+		return;
+	}
+	if (!confident_full_mix_row_midi(ownership.keyboard, ownership.keyboard_candidates, bass_midi,
+					 kPreserveConfidentOwner))
+		remove_full_mix_row_midi(ownership.keyboard, ownership.keyboard_candidates, bass_midi);
+	if (!confident_full_mix_row_midi(ownership.guitar, ownership.guitar_candidates, bass_midi,
+					 kPreserveConfidentOwner))
+		remove_full_mix_row_midi(ownership.guitar, ownership.guitar_candidates, bass_midi);
+	if (!confident_full_mix_row_midi(ownership.vocal, ownership.vocal_candidates, bass_midi,
+					 kPreserveConfidentOwner))
+		remove_full_mix_row_midi(ownership.vocal, ownership.vocal_candidates, bass_midi);
+	if (!confident_full_mix_row_midi(ownership.other, ownership.other_candidates, bass_midi,
+					 kPreserveConfidentOwner))
+		remove_full_mix_row_midi(ownership.other, ownership.other_candidates, bass_midi);
 }
 
 void demote_sparse_full_mix_owner(FullMixOwnership &ownership, std::array<bool, kNoteProbeCount> &mask,
