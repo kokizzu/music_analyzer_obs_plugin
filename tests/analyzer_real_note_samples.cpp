@@ -369,6 +369,41 @@ std::string debug_note_label(int midi)
 	return mao_test::note_label(midi);
 }
 
+std::string grid_debug_label(const mao::NoteGrid &grid)
+{
+	std::string text;
+	auto append_cell = [&](const mao::NoteCell &cell) {
+		if (!cell.active || cell.midi < mao::kFirstAnalyzedMidi || cell.midi > mao::kLastAnalyzedMidi)
+			return;
+		char part[48] = {};
+		std::snprintf(part, sizeof(part), "%s%s:%.2f", text.empty() ? "" : ",",
+			      debug_note_label(cell.midi).c_str(), cell.level);
+		text += part;
+	};
+
+	for (const mao::NoteCell &cell : grid.cells)
+		append_cell(cell);
+	for (const auto &row : grid.rows) {
+		for (const mao::NoteCell &cell : row)
+			append_cell(cell);
+	}
+	return text.empty() ? "--" : text;
+}
+
+std::string snapshot_note_debug_line(const mao::AnalysisSnapshot &snapshot)
+{
+	std::ostringstream line;
+	line << "amb=" << grid_debug_label(snapshot.ambiguous_notes)
+	     << " bass=" << snapshot.bass.label << "[" << grid_debug_label(snapshot.bass_notes) << "]"
+	     << " keys=" << snapshot.keyboard.label << "[" << grid_debug_label(snapshot.keyboard_notes) << "]"
+	     << " guitar=" << snapshot.guitar.label << "[" << grid_debug_label(snapshot.guitar_notes) << "]"
+	     << " vocal=" << snapshot.vocal.label << "[" << grid_debug_label(snapshot.vocal_notes) << "]"
+	     << " other=" << snapshot.other.label << "[" << grid_debug_label(snapshot.other_notes) << "]"
+	     << " rms=" << snapshot.rms << " low=" << snapshot.low_energy << " mid=" << snapshot.mid_energy
+	     << " high=" << snapshot.high_energy;
+	return line.str();
+}
+
 const char *drum_name(std::size_t index)
 {
 	static constexpr const char *kNames[mao::kDrumCount] = {"kick", "snare", "hihat", "crash",
@@ -672,22 +707,25 @@ int main()
 				detected = true;
 				break;
 			}
-			if (verbose_misses && row.family == "bass") {
+			if (verbose_misses) {
 				std::ostringstream line;
-				line << "  buffer " << buffer_index << " label=" << family_state(snapshot, row.family).label
-				     << " conf=" << family_state(snapshot, row.family).confidence
-				     << " grid=" << (grid_ok ? "yes" : "no")
-				     << " spectral=" << debug_note_label(snapshot.bass_debug_spectral_midi) << "/"
-				     << snapshot.bass_debug_spectral_confidence << "/"
-				     << snapshot.bass_debug_spectral_score
-				     << " periodic=" << debug_note_label(snapshot.bass_debug_periodic_midi) << "/"
-				     << snapshot.bass_debug_periodic_confidence << "/"
-				     << snapshot.bass_debug_periodic_score
-				     << " displayed=" << debug_note_label(snapshot.bass_debug_displayed_midi) << "/"
-				     << snapshot.bass_debug_displayed_confidence << "/"
-				     << snapshot.bass_debug_displayed_score << " rms=" << snapshot.rms
-				     << " low=" << snapshot.low_energy << " mid=" << snapshot.mid_energy
-				     << " high=" << snapshot.high_energy;
+				line << "  buffer " << buffer_index << " expected=" << expected
+				     << " row_label=" << family_state(snapshot, row.family).label
+				     << " row_conf=" << family_state(snapshot, row.family).confidence
+				     << " row_grid=" << (grid_ok ? "yes" : "no")
+				     << " any_grid=" << (any_grid_ok ? "yes" : "no") << " "
+				     << snapshot_note_debug_line(snapshot);
+				if (row.family == "bass") {
+					line << " spectral=" << debug_note_label(snapshot.bass_debug_spectral_midi) << "/"
+					     << snapshot.bass_debug_spectral_confidence << "/"
+					     << snapshot.bass_debug_spectral_score
+					     << " periodic=" << debug_note_label(snapshot.bass_debug_periodic_midi) << "/"
+					     << snapshot.bass_debug_periodic_confidence << "/"
+					     << snapshot.bass_debug_periodic_score
+					     << " displayed=" << debug_note_label(snapshot.bass_debug_displayed_midi) << "/"
+					     << snapshot.bass_debug_displayed_confidence << "/"
+					     << snapshot.bass_debug_displayed_score;
+				}
 				debug_lines.push_back(line.str());
 			}
 			++buffer_index;
