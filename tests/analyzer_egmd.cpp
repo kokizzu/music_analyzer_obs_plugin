@@ -909,6 +909,9 @@ struct DrumPrecisionStats {
 	int expected_categories = 0;
 	int predicted_categories = 0;
 	int false_positive_windows = 0;
+	std::array<int, mao::kDrumCount> true_positives_by_category = {};
+	std::array<int, mao::kDrumCount> false_negatives_by_category = {};
+	std::array<int, mao::kDrumCount> expected_by_category = {};
 	std::array<int, mao::kDrumCount> false_positives_by_category = {};
 };
 
@@ -988,11 +991,15 @@ void add_drum_precision_metrics(DrumPrecisionStats &stats, const mao::AnalysisSn
 			++stats.expected_categories;
 		if (predicted)
 			++stats.predicted_categories;
+		if (expected)
+			++stats.expected_by_category[i];
 
 		if (expected && predicted) {
 			++stats.true_positives;
+			++stats.true_positives_by_category[i];
 		} else if (expected && !predicted) {
 			++stats.false_negatives;
+			++stats.false_negatives_by_category[i];
 		} else if (!expected && predicted) {
 			++stats.false_positives;
 			++stats.false_positives_by_category[i];
@@ -1007,6 +1014,15 @@ bool has_false_positive(const mao::AnalysisSnapshot &snapshot, const CandidateWi
 {
 	for (std::size_t i = 0; i < mao::kDrumCount; ++i) {
 		if (!candidate.categories[i] && snapshot.drums[i].active)
+			return true;
+	}
+	return false;
+}
+
+bool has_false_negative(const mao::AnalysisSnapshot &snapshot, const CandidateWindow &candidate)
+{
+	for (std::size_t i = 0; i < mao::kDrumCount; ++i) {
+		if (candidate.categories[i] && !snapshot.drums[i].active)
 			return true;
 	}
 	return false;
@@ -1027,15 +1043,37 @@ std::string expected_categories_text(const CandidateWindow &candidate)
 	return text.empty() ? "-" : text;
 }
 
+std::string missing_categories_text(const mao::AnalysisSnapshot &snapshot, const CandidateWindow &candidate)
+{
+	static constexpr const char *kLabels[mao::kDrumCount] = {"kick", "snare", "hihat", "crash",
+								 "tom", "ride", "rim"};
+	std::string text;
+	for (std::size_t i = 0; i < mao::kDrumCount; ++i) {
+		if (!candidate.categories[i] || snapshot.drums[i].active)
+			continue;
+		if (!text.empty())
+			text += ",";
+		text += kLabels[i];
+	}
+	return text.empty() ? "-" : text;
+}
+
 std::string drum_precision_summary(const DrumPrecisionStats &stats)
 {
 	static constexpr const char *kLabels[mao::kDrumCount] = {"kick", "snare", "hihat", "crash",
 								 "tom", "ride", "rim"};
 	std::string by_category;
+	std::string recall_by_category;
 	for (std::size_t i = 0; i < mao::kDrumCount; ++i) {
 		if (!by_category.empty())
 			by_category += "/";
 		by_category += std::string(kLabels[i]) + ":" + std::to_string(stats.false_positives_by_category[i]);
+		if (!recall_by_category.empty())
+			recall_by_category += "/";
+		recall_by_category += std::string(kLabels[i]) + ":" +
+				      std::to_string(stats.true_positives_by_category[i]) + "/" +
+				      std::to_string(stats.expected_by_category[i]) + "-" +
+				      std::to_string(stats.false_negatives_by_category[i]);
 	}
 
 	return "drum precision " +
@@ -1044,6 +1082,7 @@ std::string drum_precision_summary(const DrumPrecisionStats &stats)
 	       percent_string(stats.true_positives, stats.true_positives + stats.false_negatives) +
 	       ", F1 " + f1_string(stats.true_positives, stats.false_positives, stats.false_negatives) +
 	       ", false-positive windows " + percent_string(stats.false_positive_windows, stats.windows) +
+	       ", recall by category " + recall_by_category +
 	       ", fp by category " + by_category + ", tp/fp/fn " + std::to_string(stats.true_positives) +
 	       "/" + std::to_string(stats.false_positives) + "/" + std::to_string(stats.false_negatives);
 }
@@ -1159,6 +1198,8 @@ int main()
 	const bool verbose_false_positives = env_truthy("MUSIC_ANALYZER_EGMD_VERBOSE_FALSE_POSITIVES");
 	const int verbose_false_positive_limit =
 		resolve_positive_int_env("MUSIC_ANALYZER_EGMD_VERBOSE_FALSE_POSITIVE_LIMIT", 24);
+	const bool verbose_misses = env_truthy("MUSIC_ANALYZER_EGMD_VERBOSE_MISSES");
+	const int verbose_miss_limit = resolve_positive_int_env("MUSIC_ANALYZER_EGMD_VERBOSE_MISS_LIMIT", 24);
 
 	Runner runner;
 	RecallStats recall;
@@ -1169,6 +1210,7 @@ int main()
 	int read_failures = 0;
 	int no_candidate_recordings = 0;
 	int verbose_false_positive_lines = 0;
+	int verbose_miss_lines = 0;
 
 	for (const Recording &recording : recordings) {
 		const std::vector<CandidateWindow> candidates =
@@ -1201,6 +1243,18 @@ int main()
 				     "E-GMD " + recording.id + " at sample " +
 					     std::to_string(candidate.center_sample),
 				     recall, min_window_recall_percent);
+			if (verbose_misses && verbose_miss_lines < verbose_miss_limit &&
+			    has_false_negative(snapshot, candidate)) {
+				std::fprintf(stderr,
+					     "E-GMD miss %s sample %llu expected %s missing %s: %s %s\n",
+					     recording.id.c_str(),
+					     static_cast<unsigned long long>(candidate.center_sample),
+					     expected_categories_text(candidate).c_str(),
+					     missing_categories_text(snapshot, candidate).c_str(),
+					     drum_snapshot_details(snapshot).c_str(),
+					     drum_debug_details(snapshot).c_str());
+				++verbose_miss_lines;
+			}
 			if (verbose_false_positives && verbose_false_positive_lines < verbose_false_positive_limit &&
 			    has_false_positive(snapshot, candidate)) {
 				std::fprintf(stderr,

@@ -5296,6 +5296,15 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 		kick_click_body_shape ||
 		kick_low_onset_body_shape ||
 		kick_tonal_body_shape;
+	const bool named_drum_source =
+		generated_gm_drum_source || contains_case_insensitive(resolved_source_name, "drum");
+	const bool one_shot_drum_source =
+		generated_gm_drum_source || contains_case_insensitive(resolved_source_name, "drum sample");
+	const bool real_drum_track_source = named_drum_source && !one_shot_drum_source;
+	const float mixed_hihat_body_ratio =
+		generated_gm_drum_source ? 0.04f :
+		real_drum_track_source ? (snapshot.high_energy >= 0.10f ? 0.045f : 0.075f) :
+		(snapshot.high_energy >= 0.12f ? 0.16f : 0.22f);
 	const bool hihat_tom_body_backstop =
 		body_shape_allowed && body_shape == Tom && snapshot.high_energy >= 0.03f &&
 		strongest_cymbal_drum > 0.0f &&
@@ -5304,8 +5313,7 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 	const bool hihat_mixed_backstop =
 		drum_transient && snapshot.high_energy >= 0.05f &&
 		strongest_cymbal_drum > 0.0f &&
-		strongest_cymbal_drum >= strongest_body_drum *
-			(generated_gm_drum_source ? 0.04f : (snapshot.high_energy >= 0.12f ? 0.16f : 0.22f)) &&
+		strongest_cymbal_drum >= strongest_body_drum * mixed_hihat_body_ratio &&
 		drum_segment_bands[HiHat] >= strongest_cymbal_drum * 0.42f;
 	const bool embedded_cymbal_transient =
 		drum_transient && strongest_cymbal_drum >= 12.0f &&
@@ -5318,8 +5326,6 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 		snare_crack >= snare_body * 0.030f &&
 		snapshot.mid_energy >= snapshot.low_energy * 0.62f &&
 		(strongest_cymbal_drum <= 1.0e-6f || strongest_cymbal_drum <= strongest_body_drum * 0.24f);
-	const bool one_shot_drum_source =
-		generated_gm_drum_source || contains_case_insensitive(resolved_source_name, "drum sample");
 	const bool tom_low_kick_bleed_shape =
 		!one_shot_drum_source && body_shape == Kick &&
 		snapshot.low_energy >= 0.68f &&
@@ -5373,8 +5379,6 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 	const bool drum_detection_enabled = input_mode == AnalysisInputMode::FullMix;
 	const RangeResult current_bass_drum_suppression_hint =
 		dominant_bass_note(detection_note_powers, kBassMinMidi, kDefaultBassMaxMidi, true);
-	const bool named_drum_source =
-		generated_gm_drum_source || contains_case_insensitive(resolved_source_name, "drum");
 	const bool tonal_soft_drum_suppressed =
 		!named_drum_source && !drum_transient && onset >= 1.60f &&
 		(strict_tuned_note_count > 0 ||
