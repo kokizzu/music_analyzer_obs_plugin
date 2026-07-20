@@ -4787,8 +4787,22 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 		snare_crack >= snare_body * 0.030f &&
 		snapshot.mid_energy >= snapshot.low_energy * 0.62f &&
 		(strongest_cymbal_drum <= 1.0e-6f || strongest_cymbal_drum <= strongest_body_drum * 0.24f);
+	const bool one_shot_drum_source =
+		generated_gm_drum_source || contains_case_insensitive(resolved_source_name, "drum sample");
+	const bool tom_low_kick_bleed_shape =
+		!one_shot_drum_source && body_shape == Kick &&
+		snapshot.low_energy >= 0.68f &&
+		snapshot.low_energy >= snapshot.mid_energy * 3.0f &&
+		kick_body >= snare_body * 1.25f &&
+		tom_body < kick_body * 1.65f &&
+		upper_tom_body < kick_body * 0.42f;
+	const bool tom_snare_bleed_shape =
+		!one_shot_drum_source && body_shape == Tom && snare_shape &&
+		snare_crack >= snare_body * 0.080f &&
+		tom_body < snare_body * 1.45f &&
+		upper_tom_body < snare_body * 0.85f;
 	const bool tom_side_shape =
-		body_shape_allowed && tom_shape &&
+		body_shape_allowed && tom_shape && !tom_low_kick_bleed_shape && !tom_snare_bleed_shape &&
 		drum_segment_bands[Tom] >= strongest_body_drum * 0.50f &&
 		tom_body >= kick_body * 1.05f &&
 		(tom_body >= snare_body * 1.50f ||

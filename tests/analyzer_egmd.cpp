@@ -924,6 +924,33 @@ std::string drum_snapshot_details(const mao::AnalysisSnapshot &snapshot)
 	return details;
 }
 
+std::string drum_debug_details(const mao::AnalysisSnapshot &snapshot)
+{
+	std::string details;
+	for (std::size_t i = 0; i < mao::kDrumCount; ++i) {
+		char part[176] = {};
+		std::snprintf(part, sizeof(part),
+			      "%s%s band=%.2f seg=%.2f shape=%.2f trig=%.2f/%.2f supported=%d level=%.2f%s",
+			      details.empty() ? "" : " | ", snapshot.drums[i].label,
+			      snapshot.drum_debug_bands[i], snapshot.drum_debug_segment_bands[i],
+			      snapshot.drum_debug_shape_scores[i], snapshot.drum_debug_trigger_scores[i],
+			      snapshot.drum_debug_trigger_thresholds[i],
+			      snapshot.drum_debug_shape_supported[i] ? 1 : 0, snapshot.drums[i].level,
+			      snapshot.drums[i].active ? "*" : "");
+		details += part;
+	}
+	char tail[256] = {};
+	std::snprintf(tail, sizeof(tail),
+		      " | rms=%.4f energy=%.2f/%.2f/%.2f transient=%.2f onset=%.2f body=%.2f/%.2f/%.2f crack=%.2f upperTom=%.2f bodyShape=%d",
+		      snapshot.rms, snapshot.low_energy, snapshot.mid_energy, snapshot.high_energy,
+		      snapshot.drum_debug_transient_ratio, snapshot.drum_debug_onset,
+		      snapshot.drum_debug_kick_body, snapshot.drum_debug_snare_body,
+		      snapshot.drum_debug_tom_body, snapshot.drum_debug_snare_crack,
+		      snapshot.drum_debug_upper_tom_body, snapshot.drum_debug_body_shape);
+	details += tail;
+	return details;
+}
+
 int percentage_floor(int numerator, int denominator)
 {
 	return denominator > 0 ? numerator * 100 / denominator : 0;
@@ -974,6 +1001,30 @@ void add_drum_precision_metrics(DrumPrecisionStats &stats, const mao::AnalysisSn
 	}
 	if (false_positive_window)
 		++stats.false_positive_windows;
+}
+
+bool has_false_positive(const mao::AnalysisSnapshot &snapshot, const CandidateWindow &candidate)
+{
+	for (std::size_t i = 0; i < mao::kDrumCount; ++i) {
+		if (!candidate.categories[i] && snapshot.drums[i].active)
+			return true;
+	}
+	return false;
+}
+
+std::string expected_categories_text(const CandidateWindow &candidate)
+{
+	static constexpr const char *kLabels[mao::kDrumCount] = {"kick", "snare", "hihat", "crash",
+								 "tom", "ride", "rim"};
+	std::string text;
+	for (std::size_t i = 0; i < mao::kDrumCount; ++i) {
+		if (!candidate.categories[i])
+			continue;
+		if (!text.empty())
+			text += ",";
+		text += kLabels[i];
+	}
+	return text.empty() ? "-" : text;
 }
 
 std::string drum_precision_summary(const DrumPrecisionStats &stats)
@@ -1105,6 +1156,9 @@ int main()
 	const int max_false_positive_windows_percent =
 		resolve_percent_env("MUSIC_ANALYZER_EGMD_MAX_FALSE_POSITIVE_WINDOWS_PERCENT", 75);
 	const bool inspect_only = env_truthy("MUSIC_ANALYZER_EGMD_INSPECT_ONLY");
+	const bool verbose_false_positives = env_truthy("MUSIC_ANALYZER_EGMD_VERBOSE_FALSE_POSITIVES");
+	const int verbose_false_positive_limit =
+		resolve_positive_int_env("MUSIC_ANALYZER_EGMD_VERBOSE_FALSE_POSITIVE_LIMIT", 24);
 
 	Runner runner;
 	RecallStats recall;
@@ -1114,6 +1168,7 @@ int main()
 	int tested_windows = 0;
 	int read_failures = 0;
 	int no_candidate_recordings = 0;
+	int verbose_false_positive_lines = 0;
 
 	for (const Recording &recording : recordings) {
 		const std::vector<CandidateWindow> candidates =
@@ -1146,6 +1201,16 @@ int main()
 				     "E-GMD " + recording.id + " at sample " +
 					     std::to_string(candidate.center_sample),
 				     recall, min_window_recall_percent);
+			if (verbose_false_positives && verbose_false_positive_lines < verbose_false_positive_limit &&
+			    has_false_positive(snapshot, candidate)) {
+				std::fprintf(stderr,
+					     "E-GMD false-positive %s sample %llu expected %s: %s\n",
+					     recording.id.c_str(),
+					     static_cast<unsigned long long>(candidate.center_sample),
+					     expected_categories_text(candidate).c_str(),
+					     drum_debug_details(snapshot).c_str());
+				++verbose_false_positive_lines;
+			}
 			add_drum_precision_metrics(precision, snapshot, candidate);
 		}
 
