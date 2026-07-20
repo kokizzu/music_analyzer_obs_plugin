@@ -5391,6 +5391,34 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 			}
 			return count;
 		};
+		auto analysis_chord_tone_count = [&](const ChordResult &chord) {
+			int count = 0;
+			for (int pitch_class = 0; pitch_class < 12; ++pitch_class) {
+				if (chord.tones[pitch_class] &&
+				    note_grid_pitch_level(guitar_chord_detection_grid, pitch_class) > 0.0f)
+					++count;
+			}
+			return count;
+		};
+		auto primary_guitar_chord_is_plain_triad = [](const ChordResult &chord) {
+			if (!valid_chord_result(chord))
+				return false;
+			const char *label_end = std::strchr(chord.label, '=');
+			const std::size_t label_len =
+				label_end ? static_cast<std::size_t>(label_end - chord.label) :
+					    std::strlen(chord.label);
+			ParsedRootChord parsed;
+			return parse_root_chord_component(chord.label, label_len, parsed) &&
+			       parsed.root == chord.root &&
+			       (parsed.quality == RootChordQuality::Major ||
+				parsed.quality == RootChordQuality::Minor);
+		};
+		auto analysis_simple_triad_supported = [&]() {
+			return raw_guitar_valid && primary_guitar_chord_is_plain_triad(raw_guitar_chord) &&
+			       note_grid_active_pitch_class_count(guitar_chord_detection_grid) <= 6 &&
+			       analysis_chord_tone_count(raw_guitar_chord) >= 3 &&
+			       displayed_chord_tone_count(raw_guitar_chord) >= 2;
+		};
 		auto guitar_chord_supported_by_display_grid = [&](const ChordResult &chord) {
 			if (mixed_source || !valid_chord_result(chord))
 				return true;
@@ -5406,11 +5434,12 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 				raw_guitar_valid && raw_guitar_chord.confidence >= 0.48f &&
 				displayed_chord_tone_count(raw_guitar_chord) >= 3 &&
 				std::strstr(raw_guitar_chord.label, "pow") == nullptr;
-			if (!analysis_chord_display_supported)
+			if (!analysis_chord_display_supported && !analysis_simple_triad_supported())
 				raw_guitar_chord = display_guitar_root_active ? display_guitar_chord : ChordResult{};
 			raw_guitar_valid = guitar_chord_valid_for_display(raw_guitar_chord);
 		}
-		if (!mixed_source && raw_guitar_valid && !display_guitar_valid && displayed_guitar_pitch_classes < 3) {
+		if (!mixed_source && raw_guitar_valid && !display_guitar_valid &&
+		    displayed_guitar_pitch_classes < 3 && !analysis_simple_triad_supported()) {
 			raw_guitar_chord = ChordResult{};
 			raw_guitar_valid = false;
 		}

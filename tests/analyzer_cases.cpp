@@ -815,6 +815,18 @@ void check_guitar_supported_extension_aliases(Runner &runner)
 		      std::string("guitar probe-weak third triad aliases: expected C, got `") +
 			      probe_weak_third_snapshot.guitar_chord.label + "`");
 
+	mao_test::Buffer weak_root_triad = {};
+	add_harmonic_note(weak_root_triad, 48, 0.034f, guitar_profile);
+	add_harmonic_note(weak_root_triad, 52, 0.22f, guitar_profile);
+	add_harmonic_note(weak_root_triad, 55, 0.22f, guitar_profile);
+
+	const auto weak_root_snapshot = analyze_buffer(weak_root_triad, "guitar");
+	runner.expect(grid_pitch_active(weak_root_snapshot.guitar_chord_analysis_notes, 0),
+		      "guitar weak-root analysis support: expected C in chord-analysis grid");
+	runner.expect(has_chord_label(weak_root_snapshot.guitar_chord.label, "C"),
+		      std::string("guitar weak-root analysis support: expected C, got `") +
+			      weak_root_snapshot.guitar_chord.label + "`");
+
 	mao_test::Buffer strong_ambiguous_thirds = {};
 	add_harmonic_note(strong_ambiguous_thirds, 52, 0.16f, guitar_profile);
 	add_harmonic_note(strong_ambiguous_thirds, 55, 0.24f, guitar_profile);
