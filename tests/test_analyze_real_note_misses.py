@@ -50,7 +50,35 @@ def test_counts_expected_pitch_seen_in_any_grid() -> None:
         raise AssertionError(output)
 
 
+def test_summarizes_full_mix_ownership_misses() -> None:
+    output = run_log(
+        "\n".join(
+            [
+                "  buffer 0 expected=E4 row_label=-- row_conf=0 row_grid=no any_grid=yes amb=-- bass=--[--] keys=--[--] guitar=E4[ E4:0.74] vocal=--[--] other=--[--]",
+                "piano_acoustic_001-064-100 piano/acoustic E4: expected-row ownership missing first-row=guitar row-label=`--`",
+                "  buffer 0 expected=A3 row_label=-- row_conf=0 row_grid=no any_grid=yes amb=A3:0.65 bass=--[--] keys=--[--] guitar=--[--] vocal=--[--] other=--[--]",
+                "other_flute_001-057-100 other/flute A3: expected-row ownership missing first-row=amb row-label=`--`",
+            ]
+        )
+    )
+    if "misses 0" not in output:
+        raise AssertionError(output)
+    if "ownership misses 2" not in output:
+        raise AssertionError(output)
+    if "piano/acoustic=1" not in output or "other/flute=1" not in output:
+        raise AssertionError(output)
+    if "ownership first rows guitar=1 amb=1" not in output:
+        raise AssertionError(output)
+    if "piano/acoustic->guitar=1" not in output or "other/flute->amb=1" not in output:
+        raise AssertionError(output)
+    if "E4->E4=1" not in output or "A3->A3=1" not in output:
+        raise AssertionError(output)
+    if "ownership expected present in verbose grids 2/2" not in output:
+        raise AssertionError(output)
+
+
 if __name__ == "__main__":
     test_summarizes_full_mix_offsets_and_sources()
     test_counts_expected_pitch_seen_in_any_grid()
+    test_summarizes_full_mix_ownership_misses()
     print("test_analyze_real_note_misses: ok")

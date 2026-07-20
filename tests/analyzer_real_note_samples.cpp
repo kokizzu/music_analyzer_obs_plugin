@@ -815,9 +815,17 @@ int main()
 			}
 			++buffer_index;
 		}
-		if (!detected && verbose_misses) {
+		const bool ownership_miss = full_mix && detected_anywhere && !detected_expected_row;
+		if ((!detected || ownership_miss) && verbose_misses) {
 			for (const std::string &line : debug_lines)
 				std::fprintf(stderr, "%s\n", line.c_str());
+			if (ownership_miss) {
+				std::fprintf(stderr,
+					     "%s %s/%s %s: expected-row ownership missing first-row=%s row-label=`%s`\n",
+					     row.id.c_str(), row.family.c_str(), row.source.c_str(),
+					     expected.c_str(), kObservedRowNames[first_detected_row],
+					     last_label.c_str());
+			}
 		}
 		runner.expect(detected,
 			      row.id + " " + row.nsynth_family + "/" + row.source + " " + expected +
