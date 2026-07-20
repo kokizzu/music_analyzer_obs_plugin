@@ -90,6 +90,7 @@ not provide clean per-instrument audio stems for each mixture.
 | [IDMT-SMT-Bass-Single-Track](https://zenodo.org/records/7544099) | Real electric bass-line note gate with `make test-idmt-bass-lines-samples` | 17 real electric-bass lines across styles with note onset, offset, MIDI pitch, string, fret, plucking-style, and expression-style annotations. The implemented target extracts stable expression-style `NO` note clips into `build/idmt_bass_lines_samples` and runs the shared isolated-bass real-note gate. Single instrument only. |
 | [IDMT-SMT-Guitar](https://zenodo.org/records/7544110) | Real guitar technique note gate with `make test-idmt-guitar-samples` | Seven real guitars with 44.1 kHz mono WAV recordings, XML note annotations, plucking styles, and expression styles including normal, bending, slide, vibrato, harmonics, and dead notes. The implemented target extracts stable monophonic non-dead-note clips into `build/idmt_guitar_samples`, pitch-checks them against the chromatic model, and runs the shared isolated-guitar real-note gate. Single instrument only. |
 | [IDMT-SMT-Drums](https://zenodo.org/records/7544164) | Real kick/snare/hi-hat gate with `make test-idmt-drums-samples` | 608 real drum WAV files with manually annotated SVL/XML onsets for kick drum, snare drum, and hi-hat training tracks. The implemented target extracts balanced annotated hit windows into `build/idmt_drums_samples` and runs the shared drum analyzer gate with only kick/snare/hi-hat marked required. Drum-only. |
+| [MDB Drums](https://github.com/CarlSouthall/MDBDrums) | Real drum-only MedleyDB-derived loop gate with `make test-mdb-drums-samples` | 23 real drum recordings with drum-only WAV files and class/subclass onset annotations. The implemented target downloads the GitHub tree, maps supported labels such as KD, SD, SST, CHH, OHH, CRC, RDC, LFT, and MHT to GM drum MIDI, writes an E-GMD-shaped metadata CSV, and runs the shared drum-loop analyzer gate. Drum-only. |
 | [GuitarSet](https://guitarset.weebly.com/) | Guitar fretboard tests with optional `make inspect-real-guitarset` preflight and `make test-real-guitarset-20` analyzer gate | 360 live guitar excerpts with hexaphonic pickup, per-string audio, microphone audio, JAMS MIDI-note/fret/chord annotations, and Zenodo download at [10.5281/zenodo.3371780](https://zenodo.org/records/3371780). Single instrument only. |
 | [Guitar-TECHS](https://guitar-techs.github.io/) | Electric guitar single-note and chord gates with optional `make test-guitar-techs-samples` and `make test-guitar-techs-chord-samples` | 3,732 recordings across single notes, techniques, chords, scales, and excerpts; DI, amp-mic, egocentric, and exocentric perspectives; synchronized per-string MIDI labels; Zenodo download at [10.5281/zenodo.14963133](https://zenodo.org/records/14963133). The implemented targets prepare DI/amp-mic single-note excerpts for the shared real-note analyzer test and chord-window manifests for the isolated-guitar note/chord harness. |
 | [Guitar Chord Mix](https://huggingface.co/datasets/ryangowe/guitar-chord-mix) | Real guitar chord gate with optional `make test-guitar-chord-mix-samples` | Hugging Face soundfolder of WAV guitar chord clips with JAMS `note_midi` annotations, assembled from GuitarSet, Guitar-TECHS, EGFxSet, Isolated Guitar Chords, SFZ, and DEMAND. The implemented target downloads all currently matched WAV/JAMS pairs by default and reuses the GuitarSet-shaped analyzer manifest path. Single instrument only. |
@@ -376,18 +377,25 @@ without additional annotation.
   annotated hit window, currently 1,823 clips: kick=697, snare=345, and
   hi-hat=781. It runs the shared drum analyzer gate with only those three
   categories marked required. Current cached recall/primary/precision is
-  kick 692/697, 687/697, and 692/819; snare 331/345, 290/345, and 331/637;
-  and hi-hat 744/781, 404/781, and 744/784. Crash/tom/ride/rim false
+  kick 693/697, 688/697, and 693/819; snare 334/345, 291/345, and 334/654;
+  and hi-hat 744/781, 438/781, and 744/784. Crash/tom/ride/rim false
   activations remain printed as diagnostics because IDMT-SMT-Drums does not
   label those classes in this target.
+- Use `make test-mdb-drums-samples` to download MDB Drums from GitHub, map
+  real drum class/subclass onset annotations into GM drum MIDI, and run the
+  shared E-GMD-shaped drum-loop analyzer gate. The current cached gate covers
+  23 recordings and 92 evaluated windows, with 89/192 drum-category hits,
+  50.86% precision, 46.35% recall, and 63.04% false-positive windows. This
+  adds real drum-only loop coverage for kick, snare, side-stick/rim, hi-hat,
+  cymbal, tom, and ride labels.
 - Use `make test-star-drums-samples` to download the 96.7 MB STAR Drums
   preview ZIP from Zenodo, convert the preview annotations into GM drum MIDI,
   convert the selected FLAC audio flavor into WAV, and run the shared E-GMD
   drum-loop analyzer gate. The default `STAR_DRUMS_AUDIO_FLAVOR=mix` tests the
   mixed-song previews; `re_synthesized_drum` and `original_drum` are available
   for drum-stem debugging. The current preview gate prepares 4 recordings and
-  checks 16 windows, with 31/56 drum-category hits, 63.27% precision, 55.36%
-  recall, and 81.25% false-positive windows. STAR Drums is useful because it
+  checks 16 windows, with 26/56 drum-category hits, 70.27% precision, 46.43%
+  recall, and 56.25% false-positive windows. STAR Drums is useful because it
   mixes annotated drums with real non-drum recordings, but the annotated drum
   stem is re-synthesized from automatic transcription, so it is not a
   replacement for real-drum ground truth.
