@@ -71,6 +71,13 @@ def test_summarizes_full_mix_ownership_misses() -> None:
         raise AssertionError(output)
     if "ownership first rows guitar=1 amb=1" not in output:
         raise AssertionError(output)
+    if (
+        "ownership expected source pitch rows piano/acoustic->guitar=1 other/flute->amb=1"
+        not in output
+    ):
+        raise AssertionError(output)
+    if "ownership expected pitch rows guitar=1 amb=1" not in output:
+        raise AssertionError(output)
     if "piano/acoustic->guitar=1" not in output or "other/flute->amb=1" not in output:
         raise AssertionError(output)
     if "E4->E4=1" not in output or "A3->A3=1" not in output:

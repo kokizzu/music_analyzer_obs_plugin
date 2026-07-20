@@ -35,6 +35,16 @@ OWNERSHIP_RE = re.compile(
 )
 BUFFER_RE = re.compile(r"^\s+buffer (?P<buffer>\d+) expected=(?P<expected>[A-G]#?\d) .*")
 NOTE_LEVEL_RE = re.compile(r"(?P<note>[A-G]#?\d):(?P<level>[0-9.]+)")
+ROW_GRID_RE = re.compile(r"\b(?P<row>bass|keys|guitar|vocal|other)=[^\[]*\[(?P<grid>[^\]]*)\]")
+AMB_RE = re.compile(r"\bamb=(?P<grid>.*?)\s+bass=")
+ROW_NAME = {
+    "amb": "amb",
+    "bass": "bass",
+    "keys": "piano",
+    "guitar": "guitar",
+    "vocal": "vocals",
+    "other": "other",
+}
 
 
 def split_note(note: str) -> tuple[str, int]:
@@ -77,7 +87,20 @@ def analyze(path: pathlib.Path) -> list[str]:
                 (match.group("note"), float(match.group("level")))
                 for match in NOTE_LEVEL_RE.finditer(line)
             ]
-            pending_buffers.append((buffer_match.group("expected"), detected_notes))
+            row_notes: dict[str, list[tuple[str, float]]] = collections.defaultdict(list)
+            amb_match = AMB_RE.search(line)
+            if amb_match:
+                row_notes["amb"].extend(
+                    (match.group("note"), float(match.group("level")))
+                    for match in NOTE_LEVEL_RE.finditer(amb_match.group("grid"))
+                )
+            for row_match in ROW_GRID_RE.finditer(line):
+                row = ROW_NAME[row_match.group("row")]
+                row_notes[row].extend(
+                    (match.group("note"), float(match.group("level")))
+                    for match in NOTE_LEVEL_RE.finditer(row_match.group("grid"))
+                )
+            pending_buffers.append((buffer_match.group("expected"), detected_notes, row_notes))
             continue
 
         fail_match = FAIL_RE.match(line)
@@ -98,6 +121,8 @@ def analyze(path: pathlib.Path) -> list[str]:
         closest_offsets: collections.Counter[int] = collections.Counter()
         first_rows: collections.Counter[str] = collections.Counter()
         source_rows: collections.Counter[tuple[str, str]] = collections.Counter()
+        expected_debug_rows: collections.Counter[str] = collections.Counter()
+        expected_source_debug_rows: collections.Counter[tuple[str, str]] = collections.Counter()
         source_examples: dict[str, list[str]] = collections.defaultdict(list)
         source_row_examples: dict[tuple[str, str], list[str]] = collections.defaultdict(list)
         missing_all_notes = 0
@@ -121,15 +146,22 @@ def analyze(path: pathlib.Path) -> list[str]:
             strongest_note = ""
             strongest_level = 0.0
             expected_seen = False
-            for _buffer_expected, detected_notes in buffers:
+            expected_seen_rows = set()
+            for _buffer_expected, detected_notes, row_notes in buffers:
                 for detected, level in detected_notes:
                     if pitch_name(detected) == pitch_name(expected):
                         expected_seen = True
                     if level > strongest_level:
                         strongest_level = level
                         strongest_note = detected
+                for row, notes in row_notes.items():
+                    if any(pitch_name(detected) == pitch_name(expected) for detected, _level in notes):
+                        expected_seen_rows.add(row)
             if expected_seen:
                 expected_present_in_debug += 1
+            for row in sorted(expected_seen_rows):
+                expected_debug_rows[row] += 1
+                expected_source_debug_rows[(source, row)] += 1
             if strongest_note:
                 strongest_pairs[(expected, strongest_note)] += 1
                 closest_offsets[closest_pitch_offset(expected, strongest_note)] += 1
@@ -142,6 +174,8 @@ def analyze(path: pathlib.Path) -> list[str]:
             "closest_offsets": closest_offsets,
             "first_rows": first_rows,
             "source_rows": source_rows,
+            "expected_debug_rows": expected_debug_rows,
+            "expected_source_debug_rows": expected_source_debug_rows,
             "source_examples": source_examples,
             "source_row_examples": source_row_examples,
             "missing_all_notes": missing_all_notes,
@@ -187,6 +221,8 @@ def analyze(path: pathlib.Path) -> list[str]:
         strongest_pairs = summary["strongest_pairs"]
         first_rows = summary["first_rows"]
         source_rows = summary["source_rows"]
+        expected_debug_rows = summary["expected_debug_rows"]
+        expected_source_debug_rows = summary["expected_source_debug_rows"]
         lines.append(f"analyze_real_note_misses: ownership misses {len(ownership)}")
         lines.append(
             "ownership by source "
@@ -203,6 +239,19 @@ def analyze(path: pathlib.Path) -> list[str]:
                 for (source, row), count in source_rows.most_common(12)
             )
         )
+        if expected_debug_rows:
+            lines.append(
+                "ownership expected pitch rows "
+                + " ".join(f"{row}={count}" for row, count in expected_debug_rows.most_common())
+            )
+        if expected_source_debug_rows:
+            lines.append(
+                "ownership expected source pitch rows "
+                + " ".join(
+                    f"{source}->{row}={count}"
+                    for (source, row), count in expected_source_debug_rows.most_common(12)
+                )
+            )
         lines.append(
             "ownership by expected pitch "
             + " ".join(f"{key}={value}" for key, value in sorted(expected_pitch.items()))
