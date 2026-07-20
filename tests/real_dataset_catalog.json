@@ -205,6 +205,22 @@
       "evidence": "Paper describes a 47+ hour synthesized orchestral multitrack dataset from 596 selected SOD MIDI files, with close-mic source signals; Zenodo documents SynthSOD-data/<song>/Close Mic FLAC stems, metadata JSON, and a separate aligned-score release with start/end time, MIDI pitch, and MIDI instrument for each note."
     },
     {
+      "id": "bach10_mf0_synth",
+      "name": "Bach10-mf0-synth",
+      "category": "synth_multitrack_truth",
+      "piece_count": 10,
+      "real_audio": false,
+      "isolated_sources": true,
+      "assembled_mix": true,
+      "aligned_symbolic_truth": true,
+      "truth": "synthesized/resynthesized four-part Bach chorale audio with per-stem F0 annotations",
+      "automation_target": "test-bach10-mf0-synth-samples",
+      "source_url": "https://zenodo.org/records/1481156",
+      "download_url": "https://zenodo.org/api/records/1481156/files/Bach10-mf0-syth.tar.gz/content",
+      "download_note": "The optional target downloads the 127 MB Bach10-mf0-synth archive, converts audio_mix WAV files and annotation_stems F0 CSV files into a MusicNet-shaped mixed-audio fixture, and runs the analyzer_musicnet pitch plus simplified-chord gate.",
+      "evidence": "Zenodo describes Bach10-mf0-synth as containing audio_mix, audio_stems, annotation_mf0, and annotation_stems folders for 10 Bach chorales; this repository imports the mixed audio and per-stem F0 CSV annotations into the existing MusicNet-shaped analyzer harness."
+    },
+    {
       "id": "polyvocal_f0",
       "name": "Vocal Ensemble F0 Aggregate",
       "category": "real_vocal_multitrack_truth",

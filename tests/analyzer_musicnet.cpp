@@ -540,6 +540,68 @@ bool snapshot_has_chord_label(const mao::AnalysisSnapshot &snapshot, const std::
 	       has_chord_label(snapshot.guitar_chord.label, label) || has_chord_label(snapshot.other_chord.label, label);
 }
 
+std::string chord_root(const std::string &label)
+{
+	if (label.empty())
+		return "";
+	std::size_t suffix = 1;
+	if (suffix < label.size() && label[suffix] == '#')
+		++suffix;
+	return label.substr(0, suffix);
+}
+
+std::string chord_quality(const std::string &label)
+{
+	if (label.empty())
+		return "";
+	std::size_t suffix = 1;
+	if (suffix < label.size() && label[suffix] == '#')
+		++suffix;
+	return label.substr(suffix);
+}
+
+std::string simplified_chord_label(const std::string &label)
+{
+	const std::string root = chord_root(label);
+	const std::string quality = chord_quality(label);
+	if (root.empty())
+		return label;
+	if (quality.empty() || quality == "6" || quality == "7" || quality == "9" || quality == "add9" ||
+	    quality == "maj7" || quality == "maj9")
+		return root;
+	if (quality == "m" || quality == "m6" || quality == "m7" || quality == "m9")
+		return root + "m";
+	return label;
+}
+
+bool has_simplified_chord_label(const char *actual, const std::string &expected)
+{
+	if (!actual)
+		return false;
+	const std::string simplified_expected = simplified_chord_label(expected);
+	const char *cursor = actual;
+	while (*cursor) {
+		const char *end = cursor;
+		while (*end && *end != '=')
+			++end;
+		if (end > cursor) {
+			const std::string component(cursor, static_cast<std::size_t>(end - cursor));
+			if (simplified_chord_label(component) == simplified_expected)
+				return true;
+		}
+		cursor = *end == '=' ? end + 1 : end;
+	}
+	return false;
+}
+
+bool snapshot_has_simplified_chord_label(const mao::AnalysisSnapshot &snapshot, const std::string &label)
+{
+	return has_simplified_chord_label(snapshot.global_chord.label, label) ||
+	       has_simplified_chord_label(snapshot.keyboard_chord.label, label) ||
+	       has_simplified_chord_label(snapshot.guitar_chord.label, label) ||
+	       has_simplified_chord_label(snapshot.other_chord.label, label);
+}
+
 struct ChordTemplate {
 	const char *suffix = "";
 	std::vector<int> intervals;
@@ -737,6 +799,7 @@ struct RecallStats {
 	int hits = 0;
 	int expected = 0;
 	int chord_hits = 0;
+	int simple_chord_hits = 0;
 	int chord_checks = 0;
 };
 
@@ -867,8 +930,16 @@ std::string chord_precision_summary(const ChordPrecisionStats &stats)
 	       std::to_string(stats.false_positives) + "/" + std::to_string(stats.false_negatives);
 }
 
+std::string simplified_chord_summary(const RecallStats &stats)
+{
+	return "simple chord hits " + std::to_string(stats.simple_chord_hits) + "/" +
+	       std::to_string(stats.chord_checks) + " " +
+	       percent_string(stats.simple_chord_hits, stats.chord_checks);
+}
+
 void check_recall(Runner &runner, const mao::AnalysisSnapshot &snapshot, const CandidateWindow &candidate,
-		  const std::string &context, RecallStats &stats, int min_recall_percent)
+		  const std::string &context, RecallStats &stats, int min_recall_percent,
+		  bool verbose_chord_misses)
 {
 	const std::array<bool, 12> detected = detected_pitch_classes(snapshot);
 	int expected = 0;
@@ -893,9 +964,14 @@ void check_recall(Runner &runner, const mao::AnalysisSnapshot &snapshot, const C
 		const bool chord_hit =
 			std::any_of(candidate.chord_labels.begin(), candidate.chord_labels.end(),
 				    [&](const std::string &label) { return snapshot_has_chord_label(snapshot, label); });
+		const bool simple_chord_hit =
+			std::any_of(candidate.chord_labels.begin(), candidate.chord_labels.end(),
+				    [&](const std::string &label) {
+					    return snapshot_has_simplified_chord_label(snapshot, label);
+				    });
 		if (chord_hit) {
 			++stats.chord_hits;
-		} else {
+		} else if (verbose_chord_misses) {
 			std::fprintf(stderr,
 				     "%s: chord opportunity `%s`, detected global `%s`, key `%s`, guitar `%s`, "
 				     "other `%s`\n",
@@ -903,6 +979,8 @@ void check_recall(Runner &runner, const mao::AnalysisSnapshot &snapshot, const C
 				     snapshot.global_chord.label, snapshot.keyboard_chord.label,
 				     snapshot.guitar_chord.label, snapshot.other_chord.label);
 		}
+		if (simple_chord_hit)
+			++stats.simple_chord_hits;
 	}
 }
 
@@ -1018,10 +1096,14 @@ int main()
 		resolve_percent_env("MUSIC_ANALYZER_MUSICNET_MIN_PRECISION_PERCENT", 35);
 	const int min_chord_recall_percent =
 		resolve_percent_env("MUSIC_ANALYZER_MUSICNET_MIN_CHORD_RECALL_PERCENT", 20);
+	const int min_simple_chord_recall_percent =
+		resolve_percent_env("MUSIC_ANALYZER_MUSICNET_MIN_SIMPLE_CHORD_RECALL_PERCENT", 0);
 	const int min_global_chord_precision_percent =
 		resolve_percent_env("MUSIC_ANALYZER_MUSICNET_MIN_GLOBAL_CHORD_PRECISION_PERCENT", 20);
 	const int min_chord_checks = resolve_positive_int_env("MUSIC_ANALYZER_MUSICNET_MIN_CHORD_CHECKS", 5);
 	const bool inspect_only = env_truthy("MUSIC_ANALYZER_MUSICNET_INSPECT_ONLY");
+	const bool verbose_chord_misses =
+		env_truthy("MUSIC_ANALYZER_MUSICNET_VERBOSE_CHORD_MISSES") || min_chord_recall_percent > 0;
 
 	Runner runner;
 	RecallStats recall;
@@ -1064,7 +1146,7 @@ int main()
 			check_recall(runner, snapshot, candidate,
 				     "MusicNet " + std::to_string(recording.id) + " at sample " +
 					     std::to_string(candidate.center_sample),
-				     recall, min_recall_percent);
+				     recall, min_recall_percent, verbose_chord_misses);
 			add_pitch_precision_metrics(pitch_precision, snapshot, candidate);
 			add_global_chord_precision_metrics(global_chord_precision, snapshot, candidate);
 		}
@@ -1116,6 +1198,14 @@ int main()
 					      std::to_string(min_chord_recall_percent) + "%, got " +
 					      std::to_string(recall.chord_hits) + "/" +
 					      std::to_string(recall.chord_checks));
+			if (min_simple_chord_recall_percent > 0) {
+				runner.expect(recall.simple_chord_hits * 100 >=
+						      recall.chord_checks * min_simple_chord_recall_percent,
+					      "MusicNet real-mix simplified chord recall: expected >=" +
+						      std::to_string(min_simple_chord_recall_percent) +
+						      "%, got " + std::to_string(recall.simple_chord_hits) +
+						      "/" + std::to_string(recall.chord_checks));
+			}
 			runner.expect(percentage_floor(global_chord_precision.true_positives,
 						       global_chord_precision.predicted_windows) >=
 					      min_global_chord_precision_percent,
@@ -1132,10 +1222,11 @@ int main()
 		std::fprintf(stderr,
 			     "analyzer_musicnet: %d/%d checks failed (recordings %d/%zu, windows %d, "
 			     "read failures %d, no-candidate recordings %d, unusable %d, note hits %d/%d, "
-			     "chord hits %d/%d, %s, %s, %s)\n",
+			     "chord hits %d/%d, %s, %s, %s, %s)\n",
 			     runner.failures, runner.checks, recordings_with_windows, recordings.size(), tested_windows,
 			     read_failures, no_candidate_recordings, unusable_recordings, recall.hits, recall.expected,
 			     recall.chord_hits, recall.chord_checks, pitch_precision_summary(pitch_precision).c_str(),
+			     simplified_chord_summary(recall).c_str(),
 			     chord_precision_summary(global_chord_precision).c_str(),
 			     composition_summary(composition).c_str());
 		return 1;
@@ -1149,10 +1240,11 @@ int main()
 	} else {
 		std::printf("analyzer_musicnet: %d checks passed (recordings %d/%zu, windows %d, "
 			    "read failures %d, no-candidate recordings %d, unusable %d, note hits %d/%d, "
-			    "chord hits %d/%d, %s, %s, %s)\n",
+			    "chord hits %d/%d, %s, %s, %s, %s)\n",
 			    runner.checks, recordings_with_windows, recordings.size(), tested_windows, read_failures,
 			    no_candidate_recordings, unusable_recordings, recall.hits, recall.expected,
 			    recall.chord_hits, recall.chord_checks, pitch_precision_summary(pitch_precision).c_str(),
+			    simplified_chord_summary(recall).c_str(),
 			    chord_precision_summary(global_chord_precision).c_str(),
 			    composition_summary(composition).c_str());
 	}
