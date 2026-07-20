@@ -2942,6 +2942,60 @@ void append_chord_alias(ChordResult &chord, int root, const char *suffix)
 	append_text(chord.label, sizeof(chord.label), alias);
 }
 
+void append_same_root_chord_aliases(ChordResult &target, const ChordResult &source)
+{
+	if (target.root < 0 || !target.label[0] || target.label[0] == '-' ||
+	    source.root < 0 || !source.label[0] || source.label[0] == '-')
+		return;
+
+	bool shared_root = false;
+	const char *cursor = source.label;
+	while (*cursor) {
+		const char *end = std::strchr(cursor, '=');
+		const std::size_t len = end ? static_cast<std::size_t>(end - cursor) : std::strlen(cursor);
+		ParsedRootChord parsed;
+		if (parse_root_chord_component(cursor, len, parsed) &&
+		    chord_label_has_root_component(target.label, parsed.root)) {
+			shared_root = true;
+			break;
+		}
+		if (!end)
+			break;
+		cursor = end + 1;
+	}
+	if (!shared_root)
+		return;
+
+	cursor = source.label;
+	while (*cursor) {
+		const char *end = std::strchr(cursor, '=');
+		const std::size_t len = end ? static_cast<std::size_t>(end - cursor) : std::strlen(cursor);
+		if (len > 0 && len < 32) {
+			char alias[32] = {};
+			std::memcpy(alias, cursor, len);
+			alias[len] = '\0';
+			ParsedRootChord parsed;
+			const bool extended_alias = chord_label_has_guitar_extension_or_alteration(alias);
+			if (parse_root_chord_component(alias, len, parsed) &&
+			    chord_label_has_root_component(target.label, parsed.root) &&
+			    (!extended_alias || chord_label_has_guitar_extension_or_alteration(target.label)) &&
+			    !chord_label_has_exact_component(target.label, alias)) {
+				if (target.label[0])
+					append_text(target.label, sizeof(target.label), "=");
+				append_text(target.label, sizeof(target.label), alias);
+				for (int pitch_class = 0; pitch_class < 12; ++pitch_class)
+					target.tones[pitch_class] = target.tones[pitch_class] || source.tones[pitch_class];
+				target.confidence = std::max(target.confidence, source.confidence);
+				target.margin = std::max(target.margin, source.margin);
+				target.uncertain = target.uncertain && source.uncertain;
+			}
+		}
+		if (!end)
+			break;
+		cursor = end + 1;
+	}
+}
+
 void append_supported_guitar_plain_triad_aliases(ChordResult &chord, const NoteGrid &grid, int only_root = -1)
 {
 	if (chord.root < 0 || !chord.label[0] || chord.label[0] == '-')
@@ -6066,6 +6120,8 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 			append_guitar_power_quality_candidates(smoothed_guitar_chord, guitar_chord_grid,
 							       detection_note_powers, kGuitarMinMidi,
 							       kGuitarMaxMidi);
+			append_same_root_chord_aliases(raw_guitar_chord, smoothed_guitar_chord);
+			append_same_root_chord_aliases(smoothed_guitar_chord, raw_guitar_chord);
 		}
 		stabilize_chord(snapshot.guitar_chord, guitar_chord_tracking_, raw_guitar_chord,
 				smoothed_guitar_chord, true, interval_seconds);
