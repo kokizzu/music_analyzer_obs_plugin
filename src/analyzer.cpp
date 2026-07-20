@@ -33,6 +33,8 @@ constexpr float kFullNoteRms = 0.035f;
 constexpr float kNoteRelativeFloor = 0.36f;
 constexpr float kMixedNoteRelativeFloor = 0.08f;
 constexpr float kComplexTuningFallbackScale = 0.38f;
+constexpr float kMixedDominantDetunedFallbackScale = 0.62f;
+constexpr int kMixedDominantDetunedFallbackMinMidi = 73;
 constexpr float kIsolatedComplexTuningFallbackScale = 0.78f;
 constexpr float kIsolatedDetunedFallbackScale = 0.0f;
 constexpr float kIsolatedNamedInstrumentTuningFallbackScale = 0.78f;
@@ -4529,6 +4531,10 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 			std::max(probe_level(note_powers, midi - 1), probe_level(note_powers, midi + 1));
 		const bool isolated_fallback_local_peak =
 			adjacent_note_level <= 1.0e-6f || raw_note_level >= adjacent_note_level * 0.72f;
+		const bool mixed_dominant_detuned_fallback_note =
+			mixed_source && midi >= kMixedDominantDetunedFallbackMinMidi &&
+			raw_note_level >= strongest_note_level * 0.80f &&
+			(adjacent_note_level <= 1.0e-6f || raw_note_level >= adjacent_note_level * 8.0f);
 		const bool strong_isolated_polyphonic_fallback_note =
 			raw_note_level >= strongest_note_level * 0.30f && isolated_fallback_local_peak;
 		const bool isolated_polyphonic_context = !mixed_source && strict_tuned_note_count >= 2;
@@ -4554,7 +4560,10 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 					       (strong_isolated_complex_fallback_note ?
 							kIsolatedComplexTuningFallbackScale :
 							0.0f)) :
-				(mixed_source ? 0.0f :
+				(mixed_source ?
+					       (mixed_dominant_detuned_fallback_note ?
+							kMixedDominantDetunedFallbackScale :
+							0.0f) :
 					       (isolated_polyphonic_context && strong_isolated_polyphonic_fallback_note ?
 							kIsolatedPolyphonicTuningFallbackScale :
 						 strong_isolated_named_real_fallback_note ?
