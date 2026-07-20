@@ -5315,6 +5315,13 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 		strongest_cymbal_drum > 0.0f &&
 		strongest_cymbal_drum >= strongest_body_drum * mixed_hihat_body_ratio &&
 		drum_segment_bands[HiHat] >= strongest_cymbal_drum * 0.42f;
+	const bool real_drum_track_embedded_hihat =
+		real_drum_track_source &&
+		drum_transient_ratio >= 1.25f &&
+		snapshot.high_energy >= 0.08f &&
+		strongest_cymbal_drum > 0.0f &&
+		strongest_cymbal_drum >= strongest_body_drum * 0.035f &&
+		drum_segment_bands[HiHat] >= strongest_cymbal_drum * 0.34f;
 	const bool embedded_cymbal_transient =
 		drum_transient && strongest_cymbal_drum >= 12.0f &&
 		strongest_cymbal_drum >= strongest_body_drum * 0.035f &&
@@ -5353,7 +5360,8 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 			(((body_shape == Snare || snare_side_shape) && snare_shape) ||
 			 embedded_snare_transient),
 		(cymbal_shape_allowed && (cymbal_shape == HiHat || hihat_family_shape)) ||
-			hihat_tom_body_backstop || hihat_mixed_backstop || embedded_cymbal_transient,
+			hihat_tom_body_backstop || hihat_mixed_backstop || real_drum_track_embedded_hihat ||
+			embedded_cymbal_transient,
 		cymbal_shape_allowed && (cymbal_shape == Crash || crash_family_shape),
 		body_shape_allowed && (tom_primary_shape || tom_side_shape) && tom_shape,
 		cymbal_shape_allowed && (cymbal_shape == Ride || ride_family_shape),
@@ -5394,6 +5402,7 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 		const bool cymbal = i == HiHat || i == Crash || i == Ride;
 		const bool kick = i == Kick;
 		const bool snare = i == Snare;
+		const bool hihat = i == HiHat;
 		const bool rim = i == Rim;
 		const bool tom = i == Tom;
 		const float kick_competing_band =
@@ -5442,6 +5451,9 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 		const bool soft_cymbal_transient =
 			!tonal_soft_drum_suppressed && had_previous_audio && cymbal &&
 			cymbal_family_evidence && soft_cymbal_separable && transient_ratio >= 0.65f;
+		const bool embedded_hihat_transient =
+			!tonal_soft_drum_suppressed && had_previous_audio && hihat &&
+			real_drum_track_embedded_hihat;
 		const bool soft_kick_transient =
 			kick && !tonal_soft_drum_suppressed &&
 			(kick_low_onset_body_shape ||
@@ -5484,11 +5496,13 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 		const bool soft_body_transient =
 			soft_kick_transient || soft_snare_transient || soft_rim_transient || soft_tom_transient;
 		const bool base_shape_supported = drum_shape_supported[i];
-		const bool shape_supported = base_shape_supported || soft_cymbal_transient;
+		const bool shape_supported = base_shape_supported || soft_cymbal_transient ||
+					     embedded_hihat_transient;
 		const bool quiet_cymbal_shape =
 			!tonal_soft_drum_suppressed && had_previous_audio && cymbal && base_shape_supported &&
 			cymbal_family_evidence && strongest_cymbal_drum >= strongest_body_drum * 0.10f;
-		const float threshold_scale = (soft_cymbal_transient || quiet_cymbal_shape) ? 0.26f :
+		const float threshold_scale = (soft_cymbal_transient || quiet_cymbal_shape ||
+					       embedded_hihat_transient) ? 0.26f :
 					      soft_kick_transient ? 0.32f :
 					      soft_snare_transient ? 0.30f :
 					      soft_rim_transient ? 0.24f :
@@ -5499,7 +5513,8 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 		snapshot.drum_debug_trigger_scores[i] = score;
 		snapshot.drum_debug_trigger_thresholds[i] = effective_threshold;
 		if (drum_detection_enabled && rms > kSilenceRms && shape_supported && (!kick || kick_click_transient) &&
-		    (drum_transient || soft_cymbal_transient || quiet_cymbal_shape || soft_body_transient) &&
+		    (drum_transient || soft_cymbal_transient || quiet_cymbal_shape ||
+		     embedded_hihat_transient || soft_body_transient) &&
 		    score > effective_threshold) {
 			const float threshold_excess = score / (effective_threshold + 1.0e-6f) - 1.0f;
 			float level = std::clamp(0.25f + 0.75f * threshold_excess / (threshold_excess + 3.5f),
