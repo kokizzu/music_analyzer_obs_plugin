@@ -17,7 +17,7 @@ import wave
 import zipfile
 
 
-FIXTURE_VERSION = "iowa-zip-v1"
+FIXTURE_VERSION = "iowa-zip-v2"
 SPEC_SEPARATOR = "|"
 NOTE_RE = re.compile(r"\.([A-G](?:b)?[0-8])(?:\.stereo)?\.aiff?$", re.IGNORECASE)
 ZIP_LINK_RE = re.compile(r"""href\s*=\s*["']([^"']+\.zip)["']""", re.IGNORECASE)
@@ -146,9 +146,25 @@ def source_suffix_from_url(url):
     return re.sub(r"[^A-Za-z0-9_.-]+", "-", stem).strip("-") or "zip"
 
 
-def specs_from_page_spec(page_spec, timeout_seconds, max_zips):
+def cached_page_path(cache_dir, page_spec):
+    digest = hashlib.sha256(page_spec["url"].encode("utf-8")).hexdigest()[:12]
+    source = re.sub(r"[^A-Za-z0-9_.-]+", "-", page_spec["source_prefix"]).strip("-")
+    return cache_dir / f"{source}-{digest}.html"
+
+
+def read_page_body(page_spec, timeout_seconds, cache_dir, refresh):
+    cache_path = cached_page_path(cache_dir, page_spec)
+    if cache_path.is_file() and not refresh:
+        return cache_path.read_text(encoding="latin1", errors="replace")
     with urllib.request.urlopen(page_spec["url"], timeout=timeout_seconds) as response:
         body = response.read().decode("latin1", "replace")
+    cache_path.parent.mkdir(parents=True, exist_ok=True)
+    cache_path.write_text(body, encoding="latin1")
+    return body
+
+
+def specs_from_page_spec(page_spec, timeout_seconds, max_zips, cache_dir, refresh):
+    body = read_page_body(page_spec, timeout_seconds, cache_dir, refresh)
     specs = []
     seen = set()
     for raw_href in ZIP_LINK_RE.findall(body):
@@ -413,6 +429,8 @@ def main(argv=None):
                         default=int(os.environ.get("IOWA_ZIP_DOWNLOAD_TIMEOUT", "240")))
     parser.add_argument("--download-retries", type=int,
                         default=int(os.environ.get("IOWA_ZIP_DOWNLOAD_RETRIES", "4")))
+    parser.add_argument("--max-download-failures", type=int,
+                        default=int(os.environ.get("IOWA_ZIP_MAX_DOWNLOAD_FAILURES", "0")))
     parser.add_argument("--max-zips-per-page", type=int,
                         default=int(os.environ.get("IOWA_ZIP_MAX_ZIPS_PER_PAGE", "0")))
     parser.add_argument("--skip-pitch-check", action="store_true",
@@ -431,7 +449,8 @@ def main(argv=None):
     specs = [parse_spec(spec) for spec in args.spec]
     for page_spec_text in args.page_spec:
         specs.extend(specs_from_page_spec(parse_page_spec(page_spec_text), args.download_timeout,
-                                          max(0, args.max_zips_per_page)))
+                                          max(0, args.max_zips_per_page), source_dir / "_pages",
+                                          args.refresh))
     signature = signature_text(specs, f"{args.limit}|pitch={0 if args.skip_pitch_check else 1}")
     min_samples = max(0, args.min_samples)
     if not args.refresh and manifest_complete(manifest_path, signature, min_samples):
@@ -439,10 +458,20 @@ def main(argv=None):
         return
 
     rows = []
+    download_failures = []
     for spec in specs:
         zip_path = source_dir / zip_filename(spec)
-        download_file(curl, spec["url"], zip_path, args.download_timeout, max(0, args.download_retries))
-        rows.extend(collect_zip_rows(spec, zip_path))
+        try:
+            download_file(curl, spec["url"], zip_path, args.download_timeout, max(0, args.download_retries))
+            rows.extend(collect_zip_rows(spec, zip_path))
+        except (subprocess.CalledProcessError, subprocess.TimeoutExpired, zipfile.BadZipFile, OSError) as exc:
+            download_failures.append((spec["source"], str(exc)))
+            if len(download_failures) > max(0, args.max_download_failures):
+                raise
+            print(
+                f"prepare_iowa_zip_samples: skipped source {spec['source']} after download/read failure: {exc}",
+                file=sys.stderr,
+            )
     rows = limited_rows(rows, args.limit)
     if not rows:
         raise SystemExit("prepare_iowa_zip_samples: no one-note AIF members discovered")
@@ -491,6 +520,8 @@ def main(argv=None):
         print(f"prepare_iowa_zip_samples: skipped {len(skipped)} files", file=sys.stderr)
         for member, reason in skipped[:12]:
             print(f"prepare_iowa_zip_samples: skipped {member}: {reason}", file=sys.stderr)
+    if download_failures:
+        print(f"prepare_iowa_zip_samples: skipped_sources {len(download_failures)}", file=sys.stderr)
 
 
 if __name__ == "__main__":

@@ -299,6 +299,22 @@
       "evidence": "Official MTG and Zenodo metadata describe 12 instruments recorded by professional musicians, one note per 48 kHz mono FLAC for single notes, semitone coverage across each playable range, repeated examples, and SQLite tables for sounds, takes, packs, and ratings. This repository imports that SQLite truth into the shared real-note analyzer harness."
     },
     {
+      "id": "university_iowa_mis",
+      "name": "University of Iowa Musical Instrument Samples",
+      "category": "single_instrument_truth",
+      "piece_count": 0,
+      "real_audio": true,
+      "isolated_sources": false,
+      "assembled_mix": false,
+      "aligned_symbolic_truth": true,
+      "truth": "pitch-labeled isolated instrument sample filenames",
+      "automation_target": "test-iowa-orchestra-full-samples",
+      "source_url": "https://theremin.music.uiowa.edu/MIS.html",
+      "download_url": "https://theremin.music.uiowa.edu/MIS-Pitches-2012/MISFlute2012.html",
+      "download_note": "The Iowa targets download piano AIFF files and post-2012 instrument ZIP pages into build/real_sample_sources, convert selected members into build-local real-note fixtures, and do not commit downloaded audio.",
+      "evidence": "The University of Iowa Musical Instrument Samples pages publish pitch-named piano files and post-2012 per-instrument ZIP archives for woodwinds, brass, strings, and pitched percussion. This repository derives expected MIDI notes from those filenames and pitch-checks converted snippets before running analyzer gates."
+    },
+    {
       "id": "orchideasol",
       "name": "OrchideaSOL",
       "category": "single_instrument_truth",

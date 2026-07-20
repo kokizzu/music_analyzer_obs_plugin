@@ -34,7 +34,11 @@ if parsed.scheme == "file":
     source = urllib.parse.unquote(parsed.path)
 else:
     source = urllib.parse.unquote(url)
-shutil.copyfile(source, out)
+try:
+    shutil.copyfile(source, out)
+except OSError as exc:
+    print(exc, file=sys.stderr)
+    sys.exit(22)
 """,
     )
 
@@ -274,6 +278,84 @@ def test_page_spec_can_limit_zip_links():
             raise AssertionError(f"expected only the first page ZIP source, got {sources}")
 
 
+def test_page_spec_html_is_cached():
+    with tempfile.TemporaryDirectory() as temp:
+        base = Path(temp)
+        source_zip = base / "source.zip"
+        make_zip(source_zip)
+        page = base / "page.html"
+        page.write_text(f'<a href="{source_zip.name}">source zip</a>', encoding="utf-8")
+        cache = base / "cache"
+        output_a = base / "out-a"
+        output_b = base / "out-b"
+        curl = base / "fake-curl"
+        ffmpeg = base / "fake-ffmpeg"
+        write_fake_curl(curl)
+        write_fake_ffmpeg(ffmpeg)
+
+        common_args = [
+            "--page-spec",
+            f"other|strings|iowa-cached-page|{page.resolve().as_uri()}",
+            "--source-dir",
+            str(cache),
+            "--min-samples",
+            "2",
+            "--ffmpeg",
+            str(ffmpeg),
+            "--curl",
+            str(curl),
+            "--skip-pitch-check",
+        ]
+        prepare_iowa_zip_samples.main(common_args + ["--output", str(output_a)])
+        page.unlink()
+        prepare_iowa_zip_samples.main(common_args + ["--output", str(output_b)])
+
+        rows = manifest_rows(output_b / "manifest.tsv")
+        if len(rows) != 2:
+            raise AssertionError(f"expected cached page rows, got {len(rows)}")
+
+
+def test_download_failure_can_be_tolerated_when_enough_samples_remain():
+    with tempfile.TemporaryDirectory() as temp:
+        base = Path(temp)
+        source_zip = base / "source.zip"
+        missing_zip = base / "missing.zip"
+        make_zip(source_zip)
+        cache = base / "cache"
+        output = base / "out"
+        curl = base / "fake-curl"
+        ffmpeg = base / "fake-ffmpeg"
+        write_fake_curl(curl)
+        write_fake_ffmpeg(ffmpeg)
+        prepare_iowa_zip_samples.main([
+            "--spec",
+            f"other|brass|iowa-missing|{missing_zip.resolve().as_uri()}",
+            "--spec",
+            f"other|strings|iowa-good|{source_zip.resolve().as_uri()}",
+            "--source-dir",
+            str(cache),
+            "--output",
+            str(output),
+            "--min-samples",
+            "2",
+            "--download-retries",
+            "0",
+            "--max-download-failures",
+            "1",
+            "--ffmpeg",
+            str(ffmpeg),
+            "--curl",
+            str(curl),
+            "--skip-pitch-check",
+        ])
+        rows = manifest_rows(output / "manifest.tsv")
+        if len(rows) != 2:
+            raise AssertionError(f"expected two rows after tolerated failure, got {len(rows)}")
+        sources = {row[3] for row in rows}
+        if sources != {"iowa-good"}:
+            raise AssertionError(f"expected only the good source, got {sources}")
+
+
 def test_pitch_reference_filter_rejects_neighbor_note():
     with tempfile.TemporaryDirectory() as temp:
         path = Path(temp) / "e2.wav"
@@ -291,8 +373,10 @@ def main():
     test_minimum_sample_failure_writes_partial_manifest()
     test_page_spec_expands_zip_links()
     test_page_spec_can_limit_zip_links()
+    test_page_spec_html_is_cached()
+    test_download_failure_can_be_tolerated_when_enough_samples_remain()
     test_pitch_reference_filter_rejects_neighbor_note()
-    print("test_prepare_iowa_zip_samples: 7 checks passed")
+    print("test_prepare_iowa_zip_samples: 9 checks passed")
     return 0
 
 
