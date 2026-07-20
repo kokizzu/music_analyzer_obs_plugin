@@ -5153,6 +5153,43 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 		snapshot.drums[i].level = drum_level_[i];
 		snapshot.drums[i].active = drum_level_[i] > 0.30f;
 	}
+
+	auto cap_drum_level = [&](std::size_t index, float cap) {
+		drum_level_[index] = std::min(drum_level_[index], cap);
+		snapshot.drums[index].level = drum_level_[index];
+		snapshot.drums[index].active = drum_level_[index] > 0.30f;
+	};
+
+	const bool low_dominant_kick_bleed =
+		drum_detection_enabled && !one_shot_drum_source &&
+		drum_level_[Kick] > 0.30f && drum_shape_supported[Kick] &&
+		(body_shape == Kick || kick_low_dominant_body || kick_tonal_body_shape || kick_low_onset_body_shape) &&
+		snapshot.low_energy >= 0.70f &&
+		snapshot.low_energy >= snapshot.mid_energy * 1.80f &&
+		kick_body >= snare_body * 0.80f &&
+		(strongest_cymbal_drum <= 1.0e-6f || strongest_cymbal_drum <= strongest_body_drum * 0.36f);
+	if (low_dominant_kick_bleed) {
+		const bool tom_is_kick_bleed =
+			drum_level_[Tom] > 0.30f &&
+			tom_body <= kick_body * 1.75f &&
+			upper_tom_body <= kick_body * 0.48f &&
+			snapshot.mid_energy <= snapshot.low_energy * 0.62f;
+		const bool snare_is_kick_bleed =
+			drum_level_[Snare] > 0.30f &&
+			snare_body <= kick_body * 0.72f &&
+			snare_crack <= std::max(snare_body * 0.16f, kick_body * 0.080f);
+		const bool rim_is_kick_bleed =
+			drum_level_[Rim] > 0.30f &&
+			rim_body <= kick_body * 0.42f &&
+			rim_low_mid_body <= kick_body * 0.34f;
+		if (tom_is_kick_bleed)
+			cap_drum_level(Tom, 0.28f);
+		if (snare_is_kick_bleed)
+			cap_drum_level(Snare, 0.28f);
+		if (rim_is_kick_bleed)
+			cap_drum_level(Rim, 0.28f);
+	}
+
 	const bool onset_tempo_event =
 		drum_detection_enabled && rms > kSilenceRms && drum_transient &&
 		(had_previous_audio ? onset >= 1.25f : true);
