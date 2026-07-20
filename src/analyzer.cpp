@@ -1053,6 +1053,7 @@ void remove_full_mix_row_midi(std::array<bool, kNoteProbeCount> &mask, NoteCandi
 void suppress_full_mix_bass_duplicate_ownership(FullMixOwnership &ownership, int bass_midi)
 {
 	static constexpr float kPreserveConfidentOwner = 0.78f;
+	static constexpr float kPreserveSupportedOtherOwner = 0.44f;
 	static constexpr int kPreserveConfidentOwnerMinMidi = 48;
 	if (bass_midi < kPreserveConfidentOwnerMinMidi) {
 		remove_full_mix_row_midi(ownership.keyboard, ownership.keyboard_candidates, bass_midi);
@@ -1071,7 +1072,7 @@ void suppress_full_mix_bass_duplicate_ownership(FullMixOwnership &ownership, int
 					 kPreserveConfidentOwner))
 		remove_full_mix_row_midi(ownership.vocal, ownership.vocal_candidates, bass_midi);
 	if (!confident_full_mix_row_midi(ownership.other, ownership.other_candidates, bass_midi,
-					 kPreserveConfidentOwner))
+					 kPreserveSupportedOtherOwner))
 		remove_full_mix_row_midi(ownership.other, ownership.other_candidates, bass_midi);
 }
 
@@ -1336,10 +1337,16 @@ InstrumentKind choose_full_mix_owner(const std::array<float, kNoteProbeCount> &p
 		candidate.midi >= kFullMixVocalMinMidi && candidate.midi <= kVocalMaxMidi &&
 		full_mix_vocal_profile_supported(evidence, candidate.midi, second, third, fourth, fifth,
 						 polyphonic_vocal_context);
+	const bool low_other_candidate = candidate.midi >= kGuitarMinMidi && candidate.midi < 55;
+	const bool low_other_profile_supported =
+		low_other_candidate && second >= 0.30f && third >= 0.12f &&
+		(fourth >= 0.075f || fifth >= 0.045f) &&
+		(other_weight >= guitar_weight * 1.05f || fourth >= 0.14f || fifth >= 0.075f);
 	const bool competing_timbres = competing_full_mix_timbres(keyboard_weight, guitar_weight, other_weight);
 	const bool blended_partials = blended_full_mix_upper_partials(second, third, fourth, fifth);
 	const bool force_blended_ambiguous =
-		!vocal_supported && (competing_timbres || blended_partials) && temporal.simultaneous_onset >= 0.18f;
+		!vocal_supported && !low_other_profile_supported && (competing_timbres || blended_partials) &&
+		temporal.simultaneous_onset >= 0.18f;
 	if (force_blended_ambiguous && competing_timbres) {
 		const float total = keyboard_weight + guitar_weight + other_weight;
 		evidence.ownership_scores[static_cast<std::size_t>(InstrumentKind::Keyboard)] =
@@ -1401,13 +1408,17 @@ InstrumentKind choose_full_mix_owner(const std::array<float, kNoteProbeCount> &p
 				scores[1] *= 0.80f;
 		}
 	}
-	if (candidate.midi >= 60 && candidate.midi <= kOtherMaxMidi && second >= 0.24f &&
-	    (fourth >= 0.06f || fifth >= 0.035f)) {
+	const bool normal_other_profile_supported =
+		candidate.midi >= 60 && candidate.midi <= kOtherMaxMidi && second >= 0.24f &&
+		(fourth >= 0.06f || fifth >= 0.035f);
+	if (low_other_profile_supported || normal_other_profile_supported) {
 		scores[3] = other_weight * 1.12f + second * 0.18f + third * 0.14f + fourth * 0.10f;
 		if (evidence.pitch_stability >= 0.45f)
 			scores[3] += 0.04f;
 		if (evidence.harmonicity >= 0.62f || evidence.spectral_centroid >= 0.20f)
 			scores[3] += 0.10f;
+		if (low_other_profile_supported)
+			scores[3] += 0.24f;
 	}
 	for (float &score : scores)
 		score *= noise_penalty * fit_penalty;
@@ -1441,9 +1452,16 @@ InstrumentKind choose_full_mix_owner(const std::array<float, kNoteProbeCount> &p
 	if (best == 2 && polyphonic_vocal_context)
 		return InstrumentKind::Ambiguous;
 	const bool supported_vocal_winner = best == 2 && vocal_supported;
+	const bool supported_low_other_winner = best == 3 && low_other_profile_supported;
 	const bool blended_non_vocal = (competing_timbres || blended_partials) && !supported_vocal_winner;
-	const float probability_floor = supported_vocal_winner ? 0.44f : blended_non_vocal ? 0.68f : 0.65f;
-	const float margin_floor = supported_vocal_winner ? 0.12f : blended_non_vocal ? 0.24f : 0.20f;
+	const float probability_floor =
+		(supported_vocal_winner || supported_low_other_winner) ? 0.44f :
+		blended_non_vocal ? 0.68f :
+				     0.65f;
+	const float margin_floor =
+		(supported_vocal_winner || supported_low_other_winner) ? 0.12f :
+		blended_non_vocal ? 0.24f :
+				     0.20f;
 	if (best_probability < probability_floor || best_probability - second_probability < margin_floor)
 		return InstrumentKind::Ambiguous;
 

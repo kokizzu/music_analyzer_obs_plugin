@@ -1797,6 +1797,21 @@ void check_full_mix_single_owned_note_has_no_instrument_chord(Runner &runner)
 		expect_no_chord(runner, snapshot.guitar_chord, "full-mix single other note guitar chord");
 		expect_no_chord(runner, snapshot.keyboard_chord, "full-mix single other note keyboard chord");
 	}
+
+	{
+		mao_test::Buffer buffer = {};
+		const std::vector<float> low_brass_profile = {1.0f, 0.60f, 0.40f, 0.24f, 0.14f};
+		add_harmonic_note(buffer, 52, 0.28f, low_brass_profile);
+
+		const auto snapshot =
+			analyze_buffer_with_mode(buffer, mao::AnalysisInputMode::FullMix, "single low other note", 3);
+		expect_global_pitch_class(runner, snapshot, 4, "full-mix single low other note global");
+		runner.expect(grid_pitch_active(snapshot.other_notes, 4),
+			      std::string("full-mix single low other note: expected other E ownership, got other `") +
+				      snapshot.other.label + "`, guitar `" + snapshot.guitar.label + "`, bass `" +
+				      snapshot.bass.label + "`");
+		expect_no_chord(runner, snapshot.other_chord, "full-mix single low other note chord");
+	}
 }
 
 void check_simultaneous_onset_group_rejects_vocal_spillover(Runner &runner)
