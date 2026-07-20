@@ -69,6 +69,23 @@ def main():
         reused = prep.prepare(args)
         assert reused == 3
 
+        note_out = root / "note_out"
+        note_args = type("Args", (), {
+            "archive": str(archive),
+            "output": str(note_out),
+            "limit": 1,
+            "min_recordings": 1,
+            "kinds": "ISOL",
+            "refresh": False,
+        })()
+        note_count = prep.prepare(note_args)
+        assert note_count == 1
+        note_metadata = (note_out / "maestro-v3.0.0.csv").read_text(encoding="utf-8")
+        assert "isol" in note_metadata.lower()
+        assert "ucho" not in note_metadata.lower()
+        assert len(list((note_out / "maps").rglob("*.wav"))) == 1
+        assert len(list((note_out / "maps").rglob("*.mid"))) == 1
+
     print("test_prepare_maps_piano_samples: ok")
 
 
