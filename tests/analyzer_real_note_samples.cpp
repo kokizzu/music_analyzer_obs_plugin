@@ -66,6 +66,19 @@ struct SourceStats {
 	int any_hits = 0;
 };
 
+constexpr int kFamilyCount = 5;
+constexpr int kObservedRowCount = 7;
+constexpr int kObservedBass = 0;
+constexpr int kObservedGuitar = 1;
+constexpr int kObservedPiano = 2;
+constexpr int kObservedVocals = 3;
+constexpr int kObservedOther = 4;
+constexpr int kObservedAmbiguous = 5;
+constexpr int kObservedNone = 6;
+static constexpr const char *kFamilyNames[kFamilyCount] = {"bass", "guitar", "piano", "vocals", "other"};
+static constexpr const char *kObservedRowNames[kObservedRowCount] = {"bass", "guitar", "piano",
+								    "vocals", "other", "amb", "none"};
+
 uint16_t read_u16(std::ifstream &file)
 {
 	unsigned char b[2] = {};
@@ -326,6 +339,40 @@ bool grid_has_pitch_class(const mao::NoteGrid &grid, int midi)
 	return grid.cells[pitch_class].active;
 }
 
+float grid_pitch_class_level(const mao::NoteGrid &grid, int midi)
+{
+	const int pitch_class = ((midi % 12) + 12) % 12;
+	float level = 0.0f;
+	for (const auto &row : grid.rows) {
+		if (row[pitch_class].active)
+			level = std::max(level, row[pitch_class].level);
+	}
+	if (grid.cells[pitch_class].active)
+		level = std::max(level, grid.cells[pitch_class].level);
+	return level;
+}
+
+int strongest_pitch_class_row(const mao::AnalysisSnapshot &snapshot, int midi)
+{
+	std::array<float, kObservedRowCount> levels = {};
+	levels[kObservedBass] = grid_pitch_class_level(snapshot.bass_notes, midi);
+	levels[kObservedGuitar] = grid_pitch_class_level(snapshot.guitar_notes, midi);
+	levels[kObservedPiano] = grid_pitch_class_level(snapshot.keyboard_notes, midi);
+	levels[kObservedVocals] = grid_pitch_class_level(snapshot.vocal_notes, midi);
+	levels[kObservedOther] = grid_pitch_class_level(snapshot.other_notes, midi);
+	levels[kObservedAmbiguous] = grid_pitch_class_level(snapshot.ambiguous_notes, midi);
+
+	int best = kObservedNone;
+	float best_level = 0.0f;
+	for (int i = 0; i < kObservedNone; ++i) {
+		if (levels[static_cast<std::size_t>(i)] > best_level) {
+			best = i;
+			best_level = levels[static_cast<std::size_t>(i)];
+		}
+	}
+	return best;
+}
+
 bool snapshot_has_pitch_class(const mao::AnalysisSnapshot &snapshot, int midi)
 {
 	return grid_has_pitch_class(snapshot.ambiguous_notes, midi) ||
@@ -452,14 +499,14 @@ mao::AnalysisInputMode family_mode(const std::string &family)
 int family_index(const std::string &family)
 {
 	if (family == "bass")
-		return 0;
+		return kObservedBass;
 	if (family == "guitar")
-		return 1;
+		return kObservedGuitar;
 	if (family == "piano")
-		return 2;
+		return kObservedPiano;
 	if (family == "vocals")
-		return 3;
-	return 4;
+		return kObservedVocals;
+	return kObservedOther;
 }
 
 std::string source_summary_key(const SampleRow &row)
@@ -551,6 +598,22 @@ std::string source_any_summary_text(const std::map<std::string, SourceStats> &st
 	return text;
 }
 
+void print_row_confusion(FILE *out,
+			 const std::array<std::array<int, kObservedRowCount>, kFamilyCount> &row_confusion)
+{
+	std::fprintf(out, "analyzer_real_note_samples full-mix row-confusion:");
+	for (int family = 0; family < kFamilyCount; ++family) {
+		std::fprintf(out, " %s[", kFamilyNames[family]);
+		for (int row = 0; row < kObservedRowCount; ++row) {
+			std::fprintf(out, "%s%s=%d", row == 0 ? "" : ",", kObservedRowNames[row],
+				     row_confusion[static_cast<std::size_t>(family)]
+						  [static_cast<std::size_t>(row)]);
+		}
+		std::fprintf(out, "]");
+	}
+	std::fprintf(out, "\n");
+}
+
 mao::AnalysisSnapshot analyze_buffer(const mao_test::Buffer &buffer, uint32_t sample_rate,
 				     mao::AnalysisInputMode mode, const char *source, int frames = 4)
 {
@@ -602,6 +665,9 @@ int main()
 		std::clamp(nonnegative_int_env("MUSIC_ANALYZER_REAL_NOTE_MIN_ANY_HIT_PERCENT",
 					       full_mix ? 80 : 0),
 			   0, 100);
+	const int min_expected_row_percent =
+		std::clamp(nonnegative_int_env("MUSIC_ANALYZER_REAL_NOTE_MIN_EXPECTED_ROW_PERCENT", 0),
+			   0, 100);
 	const int max_drum_active_percent =
 		std::clamp(nonnegative_int_env("MUSIC_ANALYZER_REAL_NOTE_MAX_DRUM_ACTIVE_PERCENT",
 					       full_mix ? 100 : 100),
@@ -626,10 +692,11 @@ int main()
 		      "expected at least " + std::to_string(required_samples) +
 			      " real note samples, got " + std::to_string(rows.size()));
 
-	std::array<int, 5> family_counts = {};
-	std::array<int, 5> family_hits = {};
-	std::array<int, 5> family_any_hits = {};
-	std::array<int, 5> family_row_hits = {};
+	std::array<int, kFamilyCount> family_counts = {};
+	std::array<int, kFamilyCount> family_hits = {};
+	std::array<int, kFamilyCount> family_any_hits = {};
+	std::array<int, kFamilyCount> family_row_hits = {};
+	std::array<std::array<int, kObservedRowCount>, kFamilyCount> row_confusion = {};
 	std::map<std::string, SourceStats> source_stats;
 	int any_hits = 0;
 	int row_hits = 0;
@@ -659,6 +726,7 @@ int main()
 		bool detected = false;
 		bool detected_anywhere = false;
 		bool detected_expected_row = false;
+		int first_detected_row = kObservedNone;
 		std::string last_label = "--";
 		std::vector<std::string> debug_lines;
 		int buffer_index = 0;
@@ -700,8 +768,11 @@ int main()
 			++analyzed_windows;
 			if (label_ok || grid_ok)
 				detected_expected_row = true;
-			if (any_grid_ok)
+			if (any_grid_ok) {
 				detected_anywhere = true;
+				if (first_detected_row == kObservedNone)
+					first_detected_row = strongest_pitch_class_row(snapshot, row.midi);
+			}
 			if ((!full_mix && (label_ok || grid_ok)) ||
 			    (full_mix && any_grid_ok)) {
 				detected = true;
@@ -756,16 +827,19 @@ int main()
 			++family_row_hits[index];
 			++row_hits;
 		}
+		if (full_mix) {
+			++row_confusion[static_cast<std::size_t>(index)]
+					[static_cast<std::size_t>(first_detected_row)];
+		}
 	}
 
-	const std::array<int, 5> minimum_family_counts = {
+	const std::array<int, kFamilyCount> minimum_family_counts = {
 		nonnegative_int_env("MUSIC_ANALYZER_REAL_NOTE_MIN_BASS", 0),
 		nonnegative_int_env("MUSIC_ANALYZER_REAL_NOTE_MIN_GUITAR", 0),
 		nonnegative_int_env("MUSIC_ANALYZER_REAL_NOTE_MIN_PIANO", 0),
 		nonnegative_int_env("MUSIC_ANALYZER_REAL_NOTE_MIN_VOCALS", 0),
 		nonnegative_int_env("MUSIC_ANALYZER_REAL_NOTE_MIN_OTHER", 0),
 	};
-	static constexpr const char *kFamilyNames[5] = {"bass", "guitar", "piano", "vocals", "other"};
 	for (std::size_t i = 0; i < minimum_family_counts.size(); ++i) {
 		runner.expect(family_counts[i] >= minimum_family_counts[i],
 			      std::string("expected at least ") + std::to_string(minimum_family_counts[i]) +
@@ -778,6 +852,11 @@ int main()
 			      "expected at least " + std::to_string(min_any_hit_percent) +
 				      "% full-mix any-row note recall, got " + std::to_string(any_hits) +
 				      "/" + std::to_string(usable));
+		const int expected_row_percent = row_hits * 100 / usable;
+		runner.expect(expected_row_percent >= min_expected_row_percent,
+			      "expected at least " + std::to_string(min_expected_row_percent) +
+				      "% full-mix expected-row note recall, got " +
+				      std::to_string(row_hits) + "/" + std::to_string(usable));
 		if (analyzed_windows > 0) {
 			const int drum_active_percent = active_drum_windows * 100 / analyzed_windows;
 			runner.expect(drum_active_percent <= max_drum_active_percent,
@@ -816,6 +895,8 @@ int main()
 				     active_drum_by_class[6]);
 		}
 		std::fprintf(stderr, ")\n");
+		if (full_mix)
+			print_row_confusion(stderr, row_confusion);
 		if (runner.failures > max_failures)
 			return 1;
 		std::printf(
@@ -835,6 +916,8 @@ int main()
 				    active_drum_by_class[6]);
 		}
 		std::printf(")\n");
+		if (full_mix)
+			print_row_confusion(stdout, row_confusion);
 		return 0;
 	}
 
@@ -854,5 +937,7 @@ int main()
 			    active_drum_by_class[6]);
 	}
 	std::printf(")\n");
+	if (full_mix)
+		print_row_confusion(stdout, row_confusion);
 	return 0;
 }
