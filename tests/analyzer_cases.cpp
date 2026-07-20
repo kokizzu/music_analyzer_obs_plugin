@@ -1692,6 +1692,14 @@ void check_high_full_mix_cluster_not_vocal_or_other(Runner &runner)
 		expect_no_pitch_class(runner, snapshot.vocal_notes, 9, "single A6 piano vocal");
 		expect_no_pitch_class(runner, snapshot.other_notes, 9, "single A6 piano other");
 	}
+	{
+		mao_test::Buffer buffer = {};
+		const std::vector<float> high_pure_profile = {1.0f};
+		add_harmonic_note(buffer, 81, 0.24f, high_pure_profile);
+		const auto snapshot = analyze_buffer(buffer, "full mix");
+		expect_global_pitch_class(runner, snapshot, 9, "single high pure guitar global");
+		expect_pitch_class(runner, snapshot.guitar_notes, 9, "single high pure guitar mirror");
+	}
 }
 
 void check_full_mix_single_instrument_precision(Runner &runner)

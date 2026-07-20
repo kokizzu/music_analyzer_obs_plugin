@@ -1195,6 +1195,46 @@ void demote_sparse_full_mix_owner(FullMixOwnership &ownership, std::array<bool, 
 	}
 }
 
+float candidate_midi_score(const NoteCandidateList &candidates, int midi)
+{
+	float score = 0.0f;
+	for (const NoteCandidate &candidate : candidates) {
+		if (candidate.midi == midi)
+			score = std::max(score, candidate.score);
+	}
+	return score;
+}
+
+void mirror_high_full_mix_guitar_candidates(FullMixOwnership &ownership)
+{
+	static constexpr int kHighGuitarMirrorMinMidi = 77;
+	static constexpr float kHighGuitarMirrorMinLevel = 0.50f;
+	static constexpr float kHighGuitarMirrorScoreScale = 0.42f;
+	for (int midi = kHighGuitarMirrorMinMidi; midi <= kGuitarMaxMidi; ++midi) {
+		if (midi < kFirstMidi || midi > kLastMidi || full_mix_row_midi_active(ownership.guitar, midi))
+			continue;
+		const std::size_t index = static_cast<std::size_t>(midi - kFirstMidi);
+		if (ownership.global_note_levels[index] < kHighGuitarMirrorMinLevel)
+			continue;
+		if (!full_mix_row_midi_active(ownership.keyboard, midi) &&
+		    !full_mix_row_midi_active(ownership.ambiguous, midi))
+			continue;
+
+		const float source_score =
+			std::max({candidate_midi_score(ownership.keyboard_candidates, midi),
+				  candidate_midi_score(ownership.ambiguous_candidates, midi)});
+		if (source_score <= 1.0e-6f)
+			continue;
+
+		NoteCandidate candidate;
+		candidate.midi = midi;
+		candidate.score = source_score * kHighGuitarMirrorScoreScale;
+		candidate.ownership_confidence = 0.36f;
+		ownership.guitar[index] = true;
+		ownership.guitar_candidates.push_back(candidate);
+	}
+}
+
 bool strongest_candidate(const NoteCandidateList &candidates, NoteCandidate &candidate)
 {
 	if (candidates.empty())
@@ -1748,6 +1788,7 @@ FullMixOwnership build_full_mix_ownership(const std::array<float, kNoteProbeCoun
 	demote_sparse_full_mix_owner(ownership, ownership.keyboard, ownership.keyboard_candidates, candidate_scores);
 	demote_sparse_full_mix_owner(ownership, ownership.guitar, ownership.guitar_candidates, candidate_scores);
 	demote_sparse_full_mix_owner(ownership, ownership.other, ownership.other_candidates, candidate_scores);
+	mirror_high_full_mix_guitar_candidates(ownership);
 
 	return ownership;
 }
