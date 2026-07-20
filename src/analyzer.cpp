@@ -1100,8 +1100,13 @@ void restore_full_mix_low_guitar_from_bass(FullMixOwnership &ownership,
 	const float second_octave = probe_level(powers, bass_midi + 24);
 	const float upper_major_third = probe_level(powers, bass_midi + 28);
 	const bool dominant_guitar_octave = octave >= fundamental * 0.62f;
+	const bool same_midi_rich_melodic_owner =
+		full_mix_row_midi_active(ownership.other, bass_midi) ||
+		full_mix_row_midi_active(ownership.ambiguous, bass_midi);
 	const bool supported_guitar_stack =
-		fifth >= fundamental * 0.16f && second_octave >= fundamental * 0.045f;
+		fifth >= fundamental * 0.16f &&
+		(second_octave >= fundamental * 0.045f ||
+		 (same_midi_rich_melodic_owner && upper_major_third >= fundamental * 0.020f));
 	const bool too_bass_like = octave < fundamental * 0.58f &&
 				   (fifth + second_octave + upper_major_third) < fundamental * 0.34f;
 	if (!dominant_guitar_octave || !supported_guitar_stack || too_bass_like)

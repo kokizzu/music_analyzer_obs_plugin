@@ -1803,6 +1803,22 @@ void check_full_mix_single_instrument_precision(Runner &runner)
 					  "guitar `") +
 				      snapshot.guitar.label + "`, bass `" + snapshot.bass.label + "`");
 	}
+
+	{
+		mao_test::Buffer buffer = {};
+		const std::vector<float> low_acoustic_octave_profile = {1.0f, 0.78f, 0.22f, 0.025f, 0.025f};
+		add_harmonic_note(buffer, 49, 0.27f, low_acoustic_octave_profile);
+
+		const auto snapshot =
+			analyze_buffer_with_mode(buffer, mao::AnalysisInputMode::FullMix,
+						 "speaker low acoustic guitar octave", 3);
+		expect_global_pitch_class(runner, snapshot, 1, "full-mix low acoustic guitar octave global");
+		runner.expect(grid_level_for_midi(snapshot.guitar_notes, 49) > 0.0f,
+			      std::string("full-mix low acoustic guitar octave: expected guitar C#3 ownership, "
+					  "got guitar `") +
+				      snapshot.guitar.label + "`, bass `" + snapshot.bass.label + "`, other `" +
+				      snapshot.other.label + "`");
+	}
 }
 
 void check_full_mix_single_owned_note_has_no_instrument_chord(Runner &runner)
