@@ -2639,6 +2639,22 @@ void check_realistic_instrument_chords(Runner &runner)
 				      snapshot.guitar.label + "`");
 	}
 
+	{
+		mao_test::Buffer buffer = {};
+		add_harmonic_note(buffer, 48, 0.22f, guitar_profile);
+		add_harmonic_note(buffer, 55, 0.22f, guitar_profile);
+		add_harmonic_note(buffer, 52, 0.060f, guitar_profile);
+		add_harmonic_note(buffer, 59, 0.065f, guitar_profile);
+		const auto snapshot = analyze_buffer(buffer, "guitar");
+		const std::string context = "weak guitar third extension hidden chord grid";
+		runner.expect(has_chord_label(snapshot.guitar_chord.label, "C"),
+			      context + ": expected C alias, got `" + snapshot.guitar_chord.label + "`");
+		runner.expect(has_chord_label(snapshot.guitar_chord.label, "Cmaj7"),
+			      context + ": expected Cmaj7 alias, got `" + snapshot.guitar_chord.label + "`");
+		runner.expect(!mao_test::has_note_token(snapshot.guitar.label, "E3"),
+			      context + ": expected E3 hidden, got `" + snapshot.guitar.label + "`");
+	}
+
 	const std::vector<float> keyboard_profile = {1.0f, 0.18f, 0.08f};
 	const auto keyboard_buffer = make_harmonic_notes({50, 53, 57, 60}, 0.20f, keyboard_profile);
 	const auto keyboard_snapshot = analyze_buffer(keyboard_buffer, "keyboard");
