@@ -260,10 +260,11 @@
       "assembled_mix": false,
       "aligned_symbolic_truth": true,
       "truth": "MIDI-aligned piano notes, chords, and pieces",
-      "automation_target": "",
-      "source_url": "https://paperswithcode.com/dataset/maps",
-      "download_note": "Useful for future piano note/chord coverage, but access, license, and exact download layout need verification before adding an unattended target.",
-      "evidence": "Dataset summaries describe MIDI Aligned Piano Sounds as piano recordings with aligned MIDI, isolated notes, random-pitch chords, usual musical chords, and pieces across varied recording conditions."
+      "automation_target": "test-maps-piano-samples",
+      "source_url": "https://zenodo.org/records/18160555",
+      "download_url": "https://zenodo.org/api/records/18160555/files/ENSTDkCl.zip/content",
+      "download_note": "The optional test-maps-piano-samples target downloads the 2.6 GB real Disklavier ENSTDkCl.zip archive, prepares a bounded MAESTRO-shaped subset from usual-chord, random-chord, and music WAV/MIDI pairs under build/maps_piano_samples, and runs the existing isolated-keyboard MAESTRO analyzer gate.",
+      "evidence": "Zenodo hosts MAPS split archives including ENSTDkCl.zip; dataset summaries describe MIDI Aligned Piano Sounds as piano recordings with aligned MIDI, isolated notes, random-pitch chords, usual musical chords, and pieces across varied recording conditions. This repository imports paired WAV/MIDI files into the MAESTRO-shaped keyboard note/chord harness."
     },
     {
       "id": "good_sounds",

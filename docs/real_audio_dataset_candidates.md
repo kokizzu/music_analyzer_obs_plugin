@@ -80,7 +80,7 @@ not provide clean per-instrument audio stems for each mixture.
 | RWC-Pop | Real pop mix transcription | Cited by MulTTiPop as 100 original pop recordings with multitrack MIDI. Access/licensing needs verification. |
 | [POP909](https://arxiv.org/abs/2008.07142) | Pop melody, lead, piano, chord checks | 909 popular-song arrangements with MIDI aligned to original audio plus tempo, beat, key, and chord annotations. Not per-instrument stems. |
 | [MAESTRO](https://magenta.tensorflow.org/datasets/maestro) | Keyboard row, sustain, and chord tests with optional `make test-real-maestro-20` analyzer gate | 1,276 real Disklavier piano performances, 198.7 hours, paired WAV/MIDI with about 3 ms alignment, official metadata CSV/JSON, and over 7M note labels. Single instrument only. |
-| [MAPS](https://paperswithcode.com/dataset/maps) | Keyboard row, isolated-note, chord, and piano-piece tests | MIDI Aligned Piano Sounds contains MIDI-annotated piano recordings, isolated notes, random-pitch chords, usual musical chords, and pieces in varied recording conditions. Single instrument only; access/licensing/download shape needs verification before automation. |
+| [MAPS](https://zenodo.org/records/18160555) | Keyboard row, chord, and piano-piece tests with `make test-maps-piano-samples` | MIDI Aligned Piano Sounds contains MIDI-annotated piano recordings, isolated notes, random-pitch chords, usual musical chords, and pieces in varied recording conditions. The implemented target downloads the real Disklavier `ENSTDkCl.zip`, prepares a bounded MAESTRO-shaped subset from usual-chord, random-chord, and music WAV/MIDI pairs, and runs the isolated-keyboard analyzer gate. Single instrument only. |
 | [Good-sounds](https://www.upf.edu/web/mtg/good-sounds) | Real single-note and scale samples across common orchestral/band instruments with `make test-good-sounds-samples` | 12 instruments recorded by professional musicians, one note per 48 kHz mono FLAC for the single-note material, with playable semitones recorded multiple times and tonal-quality metadata. Large archive, about 13.9 GB, so the implemented gate is explicit and only joins `make test-real-world-samples-full` when the archive is already cached. |
 | [OrchideaSOL](https://zenodo.org/records/3740399) | Large isolated-note orchestral sample coverage, especially extended techniques | 13,265 single-note samples across 14 instruments, with metadata on Zenodo and audio governed by the Ircam Forum License. Useful for future isolated-note/instrument gates, but not a direct unattended download target. |
 | [SNDB](https://github.com/audiolabs/SNDB) | Aggregated single-note metadata for broad orchestral note coverage | The Single Note Database indexes 30,883 single tones from four source datasets across 11 instruments, with MIDI pitch, dynamics, and articulation metadata. It is a bridge to local source libraries rather than a self-contained audio download. |
@@ -398,6 +398,13 @@ without additional annotation.
   dataset has no pitch or chord labels, this is a timbre row-routing regression
   gate only. `make test-real-world-samples-full` runs it only when the archive
   is already cached.
+- Use `make test-maps-piano-samples` to download the 2.6 GB MAPS `ENSTDkCl`
+  ZIP from Zenodo, extract paired WAV/MIDI recordings from the usual-chord,
+  random-chord, and music folders into a MAESTRO-shaped fixture, and run the
+  isolated-keyboard MAESTRO analyzer harness. This adds real piano note/chord
+  pressure beyond the smaller Iowa single-note target. `make
+  test-real-world-samples-full` runs it only when the archive is already
+  cached.
 - Use `make test-real-maestro-20` with
   `MUSIC_ANALYZER_MAESTRO_ROOT=/path/to/maestro-v3.0.0` after extracting the
   official MAESTRO archive. The analyzer gate expects the official metadata CSV
