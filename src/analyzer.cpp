@@ -1518,6 +1518,26 @@ InstrumentKind choose_full_mix_owner(const std::array<float, kNoteProbeCount> &p
 		evidence.spectral_slope <= 0.18f &&
 		evidence.local_noise_level <= 0.09f &&
 		!lower_mid_bright_other_candidate;
+	const bool thin_plucked_guitar_profile =
+		candidate.midi >= 52 && candidate.midi <= 76 &&
+		second >= 0.24f && second <= 0.50f &&
+		third >= 0.006f && third <= 0.030f &&
+		fourth >= 0.010f && fourth <= 0.060f &&
+		fifth <= 0.025f &&
+		evidence.spectral_centroid >= 0.08f && evidence.spectral_centroid <= 0.18f &&
+		evidence.spectral_slope <= 0.08f &&
+		evidence.local_noise_level <= 0.04f &&
+		!lower_mid_bright_other_candidate;
+	const bool upper_clean_guitar_profile =
+		candidate.midi >= 67 && candidate.midi <= 80 &&
+		second >= 0.070f && second <= 0.140f &&
+		third >= 0.045f && third <= 0.120f &&
+		fourth >= 0.045f && fourth <= 0.120f &&
+		fifth <= 0.025f &&
+		evidence.spectral_centroid >= 0.09f && evidence.spectral_centroid <= 0.18f &&
+		evidence.spectral_slope <= 0.20f &&
+		evidence.local_noise_level <= 0.030f &&
+		!lower_mid_bright_other_candidate;
 	const bool competing_timbres = competing_full_mix_timbres(keyboard_weight, guitar_weight, other_weight);
 	const bool blended_partials = blended_full_mix_upper_partials(second, third, fourth, fifth);
 	const bool force_blended_ambiguous =
@@ -1559,7 +1579,8 @@ InstrumentKind choose_full_mix_owner(const std::array<float, kNoteProbeCount> &p
 	}
 	if (candidate.midi >= kGuitarMinMidi && candidate.midi <= kGuitarMaxMidi &&
 	    ((second >= 0.12f && third >= 0.035f) || octave_stack_guitar_profile ||
-	     sparse_acoustic_guitar_profile || clean_plucked_guitar_profile)) {
+	     sparse_acoustic_guitar_profile || clean_plucked_guitar_profile ||
+	     thin_plucked_guitar_profile || upper_clean_guitar_profile)) {
 		scores[1] = guitar_weight * 1.18f + second * 0.24f + third * 0.16f;
 		if (octave_stack_guitar_profile)
 			scores[1] += 0.60f + fourth * 0.34f + fifth * 0.20f;
@@ -1567,6 +1588,10 @@ InstrumentKind choose_full_mix_owner(const std::array<float, kNoteProbeCount> &p
 			scores[1] += 0.48f + second * 0.14f;
 		if (clean_plucked_guitar_profile)
 			scores[1] += 0.52f + fourth * 0.18f;
+		if (thin_plucked_guitar_profile)
+			scores[1] += 0.46f + second * 0.12f;
+		if (upper_clean_guitar_profile)
+			scores[1] += 0.42f + fourth * 0.18f;
 		if (evidence.onset_strength >= 0.35f)
 			scores[1] += evidence.onset_strength * 0.08f;
 		if (evidence.decay_rate >= 0.18f)
@@ -1607,6 +1632,8 @@ InstrumentKind choose_full_mix_owner(const std::array<float, kNoteProbeCount> &p
 				scores[2] *= 0.30f;
 			if (clean_plucked_guitar_profile)
 				scores[2] *= 0.38f;
+			if (thin_plucked_guitar_profile || upper_clean_guitar_profile)
+				scores[2] *= 0.36f;
 		}
 	}
 	const bool normal_other_profile_supported =
@@ -1660,19 +1687,23 @@ InstrumentKind choose_full_mix_owner(const std::array<float, kNoteProbeCount> &p
 	const bool supported_octave_stack_guitar_winner = best == 1 && octave_stack_guitar_profile;
 	const bool supported_sparse_acoustic_guitar_winner = best == 1 && sparse_acoustic_guitar_profile;
 	const bool supported_clean_plucked_guitar_winner = best == 1 && clean_plucked_guitar_profile;
+	const bool supported_thin_plucked_guitar_winner = best == 1 && thin_plucked_guitar_profile;
+	const bool supported_upper_clean_guitar_winner = best == 1 && upper_clean_guitar_profile;
 	const bool supported_lower_mid_bright_other_winner = best == 3 && lower_mid_bright_other_candidate;
 	const bool supported_low_other_winner = best == 3 && low_other_profile_supported;
 	const bool blended_non_vocal = (competing_timbres || blended_partials) && !supported_vocal_winner;
 	const float probability_floor =
 		(supported_octave_stack_guitar_winner || supported_sparse_acoustic_guitar_winner ||
-		 supported_clean_plucked_guitar_winner) ? 0.38f :
+		 supported_clean_plucked_guitar_winner || supported_thin_plucked_guitar_winner ||
+		 supported_upper_clean_guitar_winner) ? 0.38f :
 		supported_lower_mid_bright_other_winner ? 0.34f :
 		(supported_vocal_winner || supported_low_other_winner) ? 0.44f :
 		blended_non_vocal ? 0.68f :
 				     0.65f;
 	const float margin_floor =
 		(supported_octave_stack_guitar_winner || supported_sparse_acoustic_guitar_winner ||
-		 supported_clean_plucked_guitar_winner) ? 0.08f :
+		 supported_clean_plucked_guitar_winner || supported_thin_plucked_guitar_winner ||
+		 supported_upper_clean_guitar_winner) ? 0.08f :
 		supported_lower_mid_bright_other_winner ? 0.04f :
 		(supported_vocal_winner || supported_low_other_winner) ? 0.12f :
 		blended_non_vocal ? 0.24f :
