@@ -3136,6 +3136,28 @@ void check_soft_drum_transient_stream(Runner &runner)
 	for (int i = 0; i < 4; ++i)
 		snapshot = engine.analyze(background.data(), background.size(), settings, "Mic/Aux", 0);
 
+	mao::AnalysisEngine low_body_snare_engine;
+	for (int i = 0; i < 6; ++i)
+		snapshot = low_body_snare_engine.analyze(background.data(), background.size(), settings, "Mic/Aux", 0);
+
+	mao_test::Buffer low_body_snare = background;
+	add_decayed_sine(low_body_snare, 78.0f, 0.035f, 1200);
+	add_decayed_sine(low_body_snare, 190.0f, 0.180f, 1300);
+	add_decayed_sine(low_body_snare, 1800.0f, 0.080f, 800);
+	snapshot = low_body_snare_engine.analyze(low_body_snare.data(), low_body_snare.size(), settings,
+						 "Mic/Aux", 0);
+	runner.expect(snapshot.drums[mao::Snare].active,
+		      "low-body snare transient: expected snare active, snare " +
+			      std::to_string(snapshot.drums[mao::Snare].level) + " kick " +
+			      std::to_string(snapshot.drums[mao::Kick].level));
+	runner.expect(snapshot.drums[mao::Snare].level >= snapshot.drums[mao::Kick].level,
+		      "low-body snare transient: expected snare not kick primary, snare " +
+			      std::to_string(snapshot.drums[mao::Snare].level) + " kick " +
+			      std::to_string(snapshot.drums[mao::Kick].level));
+
+	for (int i = 0; i < 4; ++i)
+		snapshot = engine.analyze(background.data(), background.size(), settings, "Mic/Aux", 0);
+
 	mao_test::Buffer cymbal = background;
 	add_decayed_sine(cymbal, 5200.0f, 0.035f, 1100);
 	add_decayed_sine(cymbal, 7600.0f, 0.030f, 900);

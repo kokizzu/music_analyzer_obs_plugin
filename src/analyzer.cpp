@@ -4945,6 +4945,18 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 					level *= scale;
 				}
 			}
+			if (kick) {
+				const bool snare_body_competes_with_kick =
+					snare_shape &&
+					snare_body >= kick_body * 0.55f &&
+					snare_crack >= snare_body * 0.080f &&
+					drum_segment_bands[Snare] >= drum_segment_bands[Kick] * 0.55f &&
+					snapshot.mid_energy >= snapshot.low_energy * 0.72f &&
+					(strongest_cymbal_drum <= strongest_body_drum * 0.40f ||
+					 snapshot.high_energy <= 0.38f);
+				if (snare_body_competes_with_kick)
+					level = std::min(level * 0.90f, 0.92f);
+			}
 			if (snare && snare_shape) {
 				const bool shell_centered_snare =
 					body_shape_scores[1] >= body_shape_scores[2] * 0.84f &&
