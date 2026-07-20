@@ -66,6 +66,7 @@ def closest_pitch_offset(expected: str, detected: str) -> int:
 
 
 def analyze(path: pathlib.Path) -> list[str]:
+    example_limit = 3
     failures = []
     ownership = []
     pending_buffers = []
@@ -97,17 +98,25 @@ def analyze(path: pathlib.Path) -> list[str]:
         closest_offsets: collections.Counter[int] = collections.Counter()
         first_rows: collections.Counter[str] = collections.Counter()
         source_rows: collections.Counter[tuple[str, str]] = collections.Counter()
+        source_examples: dict[str, list[str]] = collections.defaultdict(list)
+        source_row_examples: dict[tuple[str, str], list[str]] = collections.defaultdict(list)
         missing_all_notes = 0
         expected_present_in_debug = 0
 
         for record, buffers in records:
             source = f"{record['family']}/{record['source']}"
             expected = record["expected"]
+            example = f"{record['sample']} {expected}"
             by_source[source] += 1
             expected_pitch[pitch_name(expected)] += 1
+            if len(source_examples[source]) < example_limit:
+                source_examples[source].append(example)
             if "row" in record:
                 first_rows[record["row"]] += 1
                 source_rows[(source, record["row"])] += 1
+                key = (source, record["row"])
+                if len(source_row_examples[key]) < example_limit:
+                    source_row_examples[key].append(example)
 
             strongest_note = ""
             strongest_level = 0.0
@@ -133,6 +142,8 @@ def analyze(path: pathlib.Path) -> list[str]:
             "closest_offsets": closest_offsets,
             "first_rows": first_rows,
             "source_rows": source_rows,
+            "source_examples": source_examples,
+            "source_row_examples": source_row_examples,
             "missing_all_notes": missing_all_notes,
             "expected_present_in_debug": expected_present_in_debug,
         }
@@ -160,6 +171,13 @@ def analyze(path: pathlib.Path) -> list[str]:
         lines.append(
             f"expected present in verbose grids {summary['expected_present_in_debug']}/{len(failures)}"
         )
+        example_parts = []
+        for source, _count in by_source.most_common(6):
+            examples = summary["source_examples"].get(source, [])
+            if examples:
+                example_parts.append(f"{source}: " + ", ".join(examples))
+        if example_parts:
+            lines.append("examples " + " | ".join(example_parts))
         if summary["missing_all_notes"]:
             lines.append(f"no detected note levels {summary['missing_all_notes']}")
     if ownership:
@@ -199,6 +217,13 @@ def analyze(path: pathlib.Path) -> list[str]:
         lines.append(
             f"ownership expected present in verbose grids {summary['expected_present_in_debug']}/{len(ownership)}"
         )
+        example_parts = []
+        for (source, row), _count in source_rows.most_common(8):
+            examples = summary["source_row_examples"].get((source, row), [])
+            if examples:
+                example_parts.append(f"{source}->{row}: " + ", ".join(examples))
+        if example_parts:
+            lines.append("ownership examples " + " | ".join(example_parts))
         if summary["missing_all_notes"]:
             lines.append(f"ownership no detected note levels {summary['missing_all_notes']}")
     return lines

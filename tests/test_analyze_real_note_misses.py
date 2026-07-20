@@ -48,6 +48,8 @@ def test_counts_expected_pitch_seen_in_any_grid() -> None:
     )
     if "expected present in verbose grids 1/1" not in output:
         raise AssertionError(output)
+    if "examples guitar/electronic: guitar_electronic_022-081-050 A5" not in output:
+        raise AssertionError(output)
 
 
 def test_summarizes_full_mix_ownership_misses() -> None:
@@ -74,6 +76,10 @@ def test_summarizes_full_mix_ownership_misses() -> None:
     if "E4->E4=1" not in output or "A3->A3=1" not in output:
         raise AssertionError(output)
     if "ownership expected present in verbose grids 2/2" not in output:
+        raise AssertionError(output)
+    if "ownership examples piano/acoustic->guitar: piano_acoustic_001-064-100 E4" not in output:
+        raise AssertionError(output)
+    if "other/flute->amb: other_flute_001-057-100 A3" not in output:
         raise AssertionError(output)
 
 
