@@ -439,7 +439,8 @@ bool full_mix_bass_supported(const std::array<float, kNoteProbeCount> &powers, c
 	return fundamental > 1.0e-6f && (broad_level <= 1.0e-6f || fundamental >= broad_level * 0.075f);
 }
 
-bool full_mix_upper_bass_supported(const std::array<float, kNoteProbeCount> &powers, const RangeResult &upper_note)
+bool full_mix_upper_bass_supported(const std::array<float, kNoteProbeCount> &powers, const RangeResult &upper_note,
+				   const RangeResult &broad_note)
 {
 	if (upper_note.midi <= kDefaultBassMaxMidi || upper_note.midi > kFullMixUpperBassMaxMidi ||
 	    upper_note.score <= 1.0e-6f || upper_note.confidence < 0.06f)
@@ -455,7 +456,15 @@ bool full_mix_upper_bass_supported(const std::array<float, kNoteProbeCount> &pow
 	const bool supported_upper_stack =
 		octave >= fundamental * 0.44f &&
 		(fifth >= fundamental * 0.16f || second_octave >= fundamental * 0.08f);
-	return supported_upper_stack;
+	const bool competitive_with_broad_bass =
+		broad_note.score <= 1.0e-6f || upper_note.score >= broad_note.score * 0.24f;
+	const bool clean_upper_synth_bass =
+		competitive_with_broad_bass &&
+		upper_note.confidence >= 0.34f &&
+		octave <= fundamental * 0.18f &&
+		fifth <= fundamental * 0.105f &&
+		second_octave <= fundamental * 0.050f;
+	return supported_upper_stack || clean_upper_synth_bass;
 }
 
 struct NoteCandidate {
@@ -6591,7 +6600,7 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 		bool mixed_bass_supported =
 			isolated_bass || full_mix_bass_supported(detection_note_powers, bass_note, broad_bass_note);
 		if (!isolated_bass && !mixed_bass_supported &&
-		    full_mix_upper_bass_supported(detection_note_powers, upper_bass_note)) {
+		    full_mix_upper_bass_supported(detection_note_powers, upper_bass_note, broad_bass_note)) {
 			bass_note = upper_bass_note;
 			mixed_bass_supported = true;
 		}

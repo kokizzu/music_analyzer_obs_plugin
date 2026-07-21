@@ -3417,6 +3417,22 @@ void check_full_mix_high_bass_range(Runner &runner)
 	expect_label(runner, snapshot.bass.label, "F3", "full-mix high bass ownership");
 	runner.expect(grid_level_for_midi(snapshot.bass_notes, 53) > 0.0f,
 		      "full-mix high bass ownership: expected F3 in bass note grid");
+
+	mao_test::Buffer clean_buffer = {};
+	const std::vector<float> clean_synth_bass_profile = {1.0f, 0.10f, 0.045f, 0.015f};
+	add_harmonic_note(clean_buffer, 56, 0.26f, clean_synth_bass_profile);
+
+	const auto clean_snapshot =
+		analyze_buffer_with_mode(clean_buffer, mao::AnalysisInputMode::FullMix,
+					 "speaker clean upper synth bass", 3);
+	expect_label(runner, clean_snapshot.bass.label, "G#3",
+		     "full-mix clean upper synth bass ownership");
+	runner.expect(grid_level_for_midi(clean_snapshot.bass_notes, 56) > 0.0f,
+		      std::string("full-mix clean upper synth bass: expected G#3 in bass note grid, "
+				  "got bass `") +
+			      clean_snapshot.bass.label + "`, keyboard `" + clean_snapshot.keyboard.label +
+			      "`, vocal `" + clean_snapshot.vocal.label + "`, debug `" +
+			      full_mix_debug_summary_for_midi(clean_snapshot, 56) + "`");
 }
 
 void check_multi_instrument_mix(Runner &runner)
