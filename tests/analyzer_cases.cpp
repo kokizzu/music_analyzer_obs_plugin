@@ -2002,6 +2002,24 @@ void check_full_mix_single_instrument_precision(Runner &runner)
 
 	{
 		mao_test::Buffer buffer = {};
+		const std::vector<float> high_plucked_acoustic_guitar_profile =
+			{1.0f, 0.11f, 0.19f, 0.14f, 0.010f};
+		add_harmonic_note(buffer, 68, 0.24f, high_plucked_acoustic_guitar_profile);
+
+		const auto snapshot =
+			analyze_buffer_with_mode(buffer, mao::AnalysisInputMode::FullMix,
+						 "speaker high plucked acoustic guitar", 3);
+		expect_global_pitch_class(runner, snapshot, 8,
+					  "full-mix high plucked acoustic guitar global");
+		runner.expect(grid_level_for_midi(snapshot.guitar_notes, 68) > 0.0f,
+			      std::string("full-mix high plucked acoustic guitar: expected guitar G#4 "
+					  "display, got guitar `") +
+				      snapshot.guitar.label + "`, vocal `" + snapshot.vocal.label +
+				      "`, other `" + snapshot.other.label + "`");
+	}
+
+	{
+		mao_test::Buffer buffer = {};
 		const std::vector<float> low_bowed_string_profile = {1.0f, 0.055f, 0.15f, 0.13f, 0.10f};
 		add_harmonic_note(buffer, 42, 0.24f, low_bowed_string_profile);
 
