@@ -787,6 +787,37 @@ void check_guitar_supported_extension_aliases(Runner &runner)
 		      std::string("guitar lower flat-seventh aliases: expected E7, got `") +
 			      lower_flat_seventh_snapshot.guitar_chord.label + "`");
 
+	mao_test::Buffer dominant_seventh_omitted_fifth = {};
+	for (int midi : {52, 56, 62})
+		add_harmonic_note(dominant_seventh_omitted_fifth, midi, 0.18f, guitar_profile);
+
+	const auto dominant_seventh_omitted_fifth_snapshot =
+		analyze_buffer(dominant_seventh_omitted_fifth, "guitar");
+	runner.expect(has_chord_label(dominant_seventh_omitted_fifth_snapshot.guitar_chord.label, "E7"),
+		      std::string("guitar omitted-fifth dominant seventh: expected E7, got `") +
+			      dominant_seventh_omitted_fifth_snapshot.guitar_chord.label + "`");
+
+	mao_test::Buffer minor_seventh_omitted_fifth = {};
+	add_harmonic_note(minor_seventh_omitted_fifth, 45, 0.26f, guitar_profile);
+	add_harmonic_note(minor_seventh_omitted_fifth, 48, 0.15f, guitar_profile);
+	add_harmonic_note(minor_seventh_omitted_fifth, 55, 0.15f, guitar_profile);
+
+	const auto minor_seventh_omitted_fifth_snapshot =
+		analyze_buffer(minor_seventh_omitted_fifth, "guitar");
+	runner.expect(has_chord_label(minor_seventh_omitted_fifth_snapshot.guitar_chord.label, "Am7"),
+		      std::string("guitar omitted-fifth minor seventh: expected Am7, got `") +
+			      minor_seventh_omitted_fifth_snapshot.guitar_chord.label + "`");
+
+	mao_test::Buffer major_seventh_omitted_fifth = {};
+	for (int midi : {48, 52, 59})
+		add_harmonic_note(major_seventh_omitted_fifth, midi, 0.18f, guitar_profile);
+
+	const auto major_seventh_omitted_fifth_snapshot =
+		analyze_buffer(major_seventh_omitted_fifth, "guitar");
+	runner.expect(has_chord_label(major_seventh_omitted_fifth_snapshot.guitar_chord.label, "Cmaj7"),
+		      std::string("guitar omitted-fifth major seventh: expected Cmaj7, got `") +
+			      major_seventh_omitted_fifth_snapshot.guitar_chord.label + "`");
+
 	mao_test::Buffer suspended_with_weak_third = {};
 	add_harmonic_note(suspended_with_weak_third, 45, 0.22f, guitar_profile);
 	add_harmonic_note(suspended_with_weak_third, 50, 0.19f, guitar_profile);

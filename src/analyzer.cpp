@@ -3379,6 +3379,56 @@ void append_chord_alias(ChordResult &chord, int root, const char *suffix)
 	append_text(chord.label, sizeof(chord.label), alias);
 }
 
+void append_equivalent_sixth_seventh_aliases(ChordResult &chord)
+{
+	if (chord.root < 0 || !chord.label[0] || chord.label[0] == '-')
+		return;
+
+	struct AliasToAdd {
+		int root = -1;
+		char suffix[8] = {};
+	};
+	FixedList<AliasToAdd, 16> aliases;
+
+	const char *cursor = chord.label;
+	while (*cursor) {
+		const char *end = std::strchr(cursor, '=');
+		const std::size_t len = end ? static_cast<std::size_t>(end - cursor) : std::strlen(cursor);
+
+		ParsedRootChord parsed;
+		if (parse_root_chord_component(cursor, len, parsed)) {
+			std::size_t root_len = 1;
+			if (len > 1 && cursor[1] == '#')
+				root_len = 2;
+			const char *suffix = cursor + root_len;
+			const std::size_t suffix_len = len - root_len;
+			AliasToAdd alias;
+			if (suffix_is(suffix, suffix_len, "6")) {
+				alias.root = (parsed.root + 9) % 12;
+				copy_text(alias.suffix, sizeof(alias.suffix), "m7");
+			} else if (suffix_is(suffix, suffix_len, "m7")) {
+				alias.root = (parsed.root + 3) % 12;
+				copy_text(alias.suffix, sizeof(alias.suffix), "6");
+			} else if (suffix_is(suffix, suffix_len, "m6")) {
+				alias.root = (parsed.root + 9) % 12;
+				copy_text(alias.suffix, sizeof(alias.suffix), "m7b5");
+			} else if (suffix_is(suffix, suffix_len, "m7b5")) {
+				alias.root = (parsed.root + 3) % 12;
+				copy_text(alias.suffix, sizeof(alias.suffix), "m6");
+			}
+			if (alias.root >= 0)
+				aliases.push_back(alias);
+		}
+
+		if (!end)
+			break;
+		cursor = end + 1;
+	}
+
+	for (const AliasToAdd &alias : aliases)
+		append_chord_alias(chord, alias.root, alias.suffix);
+}
+
 void append_same_root_chord_aliases(ChordResult &target, const ChordResult &source)
 {
 	if (target.root < 0 || !target.label[0] || target.label[0] == '-' ||
@@ -3868,9 +3918,9 @@ void append_supported_guitar_extension_aliases_for_root(ChordResult &chord, cons
 		}
 	};
 	extend_core_range(root_pitch_class);
-	if (has_major)
+	if (major_third >= kCoreFloor)
 		extend_core_range(root_pitch_class + 4);
-	if (has_minor || has_dim)
+	if (minor_third >= kCoreFloor || has_dim)
 		extend_core_range(root_pitch_class + 3);
 	if (has_fifth)
 		extend_core_range(root_pitch_class + 7);
@@ -3922,6 +3972,21 @@ void append_supported_guitar_extension_aliases_for_root(ChordResult &chord, cons
 			append_chord_alias(chord, root_pitch_class, "m7");
 		if (supported_extension(9, sixth))
 			append_chord_alias(chord, root_pitch_class, "m6");
+	}
+	if (!has_fifth) {
+		const float omitted_fifth_third_floor = std::max(kCoreFloor, root * 0.22f);
+		const bool omitted_fifth_major = major_third >= omitted_fifth_third_floor &&
+						 major_third >= minor_third * 1.10f;
+		const bool omitted_fifth_minor = minor_third >= omitted_fifth_third_floor &&
+						 minor_third >= major_third * 1.10f;
+		if (omitted_fifth_major && supported_flat_seventh())
+			append_chord_alias(chord, root_pitch_class, "7");
+		if (omitted_fifth_major &&
+		    major_seventh >= std::max(kExtensionFloor, std::min(root, major_third) * 0.26f) &&
+		    supported_extension(11, major_seventh))
+			append_chord_alias(chord, root_pitch_class, "maj7");
+		if (omitted_fifth_minor && supported_flat_seventh())
+			append_chord_alias(chord, root_pitch_class, "m7");
 	}
 	if (has_dim) {
 		if (supported_extension(9, sixth))
@@ -6373,6 +6438,7 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 										 guitar_chord_detection_grid);
 			append_supported_guitar_symmetric_altered_aliases(raw_guitar_chord,
 									  guitar_chord_detection_grid);
+			append_equivalent_sixth_seventh_aliases(raw_guitar_chord);
 			append_supported_guitar_power_aliases(raw_guitar_chord, guitar_chord_detection_grid);
 			append_guitar_power_probe_third_aliases(raw_guitar_chord, guitar_chord_detection_grid,
 								detection_note_powers, min_midi, kGuitarMaxMidi);
@@ -6709,6 +6775,7 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 			append_supported_guitar_base_triad_aliases_for_extensions(smoothed_guitar_chord,
 										 guitar_chord_grid);
 			append_supported_guitar_symmetric_altered_aliases(smoothed_guitar_chord, guitar_chord_grid);
+			append_equivalent_sixth_seventh_aliases(smoothed_guitar_chord);
 			append_supported_guitar_power_aliases(smoothed_guitar_chord, guitar_chord_grid);
 			append_guitar_power_probe_third_aliases(smoothed_guitar_chord, guitar_chord_grid,
 								detection_note_powers, kGuitarMinMidi,
