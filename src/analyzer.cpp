@@ -4669,7 +4669,7 @@ bool note_grid_has_guitar_root_third_voicing(const NoteGrid &grid, int root_pitc
 		return false;
 	const int lowest_midi = note_grid_lowest_active_midi(grid);
 	if (lowest_midi >= 0 && root_midi > lowest_midi + 2)
-		return false;
+		return note_grid_pitch_in_midi_window(grid, third_pitch_class, root_midi - 12, root_midi - 3);
 
 	bool found = false;
 	auto visit = [&](const NoteCell &cell) {

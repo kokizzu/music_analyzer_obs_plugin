@@ -996,6 +996,12 @@ void check_guitar_supported_extension_aliases(Runner &runner)
 	expect_no_chord_label(runner, minor_dyad_snapshot.guitar_chord.label, "D#pow",
 			      "guitar root-third minor dyad power alias");
 
+	const auto inverted_minor_dyad_snapshot = analyze_buffer(mao_test::make_midi_notes({72, 81}, 0.34f),
+								 "guitar");
+	runner.expect(has_chord_label(inverted_minor_dyad_snapshot.guitar_chord.label, "Am"),
+		      std::string("guitar inverted root-third minor dyad: expected Am, got `") +
+			      inverted_minor_dyad_snapshot.guitar_chord.label + "`");
+
 	const auto pure_major_dyad_snapshot = analyze_buffer(mao_test::make_midi_notes({52, 56}, 0.34f), "guitar");
 	runner.expect(has_chord_label(pure_major_dyad_snapshot.guitar_chord.label, "E"),
 		      std::string("guitar pure root-third major dyad: expected E, got `") +
