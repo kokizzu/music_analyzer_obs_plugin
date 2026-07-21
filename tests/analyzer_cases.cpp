@@ -297,10 +297,11 @@ bool snapshot_global_pitch_active(const mao::AnalysisSnapshot &snapshot, int pit
 
 int full_mix_owned_midi_count(const mao::AnalysisSnapshot &snapshot, int midi)
 {
+	static constexpr float kConfidentOwnerLevel = 0.24f;
 	auto grid_has_midi = [midi](const mao::NoteGrid &grid) {
 		for (const auto &row : grid.rows) {
 			for (const mao::NoteCell &cell : row) {
-				if (cell.active && cell.midi == midi)
+				if (cell.active && cell.midi == midi && cell.level >= kConfidentOwnerLevel)
 					return true;
 			}
 		}
@@ -321,10 +322,11 @@ int full_mix_owned_midi_count(const mao::AnalysisSnapshot &snapshot, int midi)
 
 int full_mix_confident_midi_count(const mao::AnalysisSnapshot &snapshot, int midi)
 {
+	static constexpr float kConfidentOwnerLevel = 0.24f;
 	auto grid_has_midi = [midi](const mao::NoteGrid &grid) {
 		for (const auto &row : grid.rows) {
 			for (const mao::NoteCell &cell : row) {
-				if (cell.active && cell.midi == midi)
+				if (cell.active && cell.midi == midi && cell.level >= kConfidentOwnerLevel)
 					return true;
 			}
 		}

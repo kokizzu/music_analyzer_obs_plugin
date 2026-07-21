@@ -1106,6 +1106,14 @@ bool full_mix_row_midi_active(const std::array<bool, kNoteProbeCount> &mask, int
 	return mask[static_cast<std::size_t>(midi - kFirstMidi)];
 }
 
+bool full_mix_named_row_midi_active(const FullMixOwnership &ownership, int midi)
+{
+	return full_mix_row_midi_active(ownership.keyboard, midi) ||
+	       full_mix_row_midi_active(ownership.guitar, midi) ||
+	       full_mix_row_midi_active(ownership.vocal, midi) ||
+	       full_mix_row_midi_active(ownership.other, midi);
+}
+
 void suppress_full_mix_bass_duplicate_ownership(FullMixOwnership &ownership, int bass_midi)
 {
 	static constexpr float kPreserveConfidentOwner = 0.78f;
@@ -1303,6 +1311,102 @@ void mirror_high_full_mix_guitar_candidates(FullMixOwnership &ownership)
 		candidate.ownership_confidence = 0.36f;
 		ownership.guitar[index] = true;
 		ownership.guitar_candidates.push_back(candidate);
+	}
+}
+
+void add_full_mix_row_mirror(std::array<bool, kNoteProbeCount> &mask, NoteCandidateList &candidates,
+			     const NoteCandidate &source, float score_scale, float confidence)
+{
+	if (source.midi < kFirstMidi || source.midi > kLastMidi)
+		return;
+
+	const std::size_t index = static_cast<std::size_t>(source.midi - kFirstMidi);
+	if (mask[index])
+		return;
+
+	NoteCandidate mirrored = source;
+	mirrored.score *= score_scale;
+	mirrored.ownership_confidence = confidence;
+	mask[index] = true;
+	candidates.push_back(mirrored);
+}
+
+const FullMixDebugCandidate *full_mix_debug_for_midi(const FullMixOwnership &ownership, int midi)
+{
+	for (std::size_t i = 0; i < ownership.debug_candidate_count; ++i) {
+		const FullMixDebugCandidate &debug = ownership.debug_candidates[i];
+		if (debug.midi == midi)
+			return &debug;
+	}
+	return nullptr;
+}
+
+InstrumentKind strongest_named_owner_hint(const FullMixDebugCandidate &debug)
+{
+	static constexpr float kMinHintScore = 0.55f;
+	static constexpr float kMinHintMargin = 0.08f;
+	std::array<std::pair<float, InstrumentKind>, 3> scores = {{
+		{debug.keyboard_score, InstrumentKind::Keyboard},
+		{debug.guitar_score, InstrumentKind::Guitar},
+		{debug.other_score, InstrumentKind::Other},
+	}};
+	std::sort(scores.begin(), scores.end(), [](const auto &lhs, const auto &rhs) {
+		return lhs.first > rhs.first;
+	});
+	if (scores[0].first < kMinHintScore || scores[0].first - scores[1].first < kMinHintMargin)
+		return InstrumentKind::Ambiguous;
+	const float second = debug.harmonic_ratios[1];
+	const float third = debug.harmonic_ratios[2];
+	const float fourth = debug.harmonic_ratios[3];
+	const float fifth = debug.harmonic_ratios[4];
+	const bool guitar_shaped =
+		debug.midi >= 52 && debug.midi <= 76 &&
+		second >= 0.24f && second <= 0.52f &&
+		third >= 0.080f && third <= 0.28f &&
+		fourth <= 0.20f && fifth <= 0.14f &&
+		debug.guitar_score >= scores[0].first * 0.58f;
+	if (scores[0].second == InstrumentKind::Keyboard && guitar_shaped)
+		return InstrumentKind::Guitar;
+	return scores[0].second;
+}
+
+void mirror_ambiguous_full_mix_candidates(FullMixOwnership &ownership)
+{
+	static constexpr float kMirrorMinLevel = 0.18f;
+	static constexpr float kKeyboardMirrorScale = 0.28f;
+	static constexpr float kGuitarMirrorScale = 0.32f;
+	static constexpr float kOtherMirrorScale = 0.28f;
+	static constexpr float kMirrorConfidence = 0.20f;
+	for (const NoteCandidate &candidate : ownership.ambiguous_candidates) {
+		if (candidate.midi < kFirstMidi || candidate.midi > kLastMidi)
+			continue;
+		if (full_mix_named_row_midi_active(ownership, candidate.midi))
+			continue;
+		const std::size_t index = static_cast<std::size_t>(candidate.midi - kFirstMidi);
+		if (ownership.global_note_levels[index] < kMirrorMinLevel)
+			continue;
+
+		const FullMixDebugCandidate *debug = full_mix_debug_for_midi(ownership, candidate.midi);
+		if (!debug)
+			continue;
+		InstrumentKind target = strongest_named_owner_hint(*debug);
+		if (target == InstrumentKind::Keyboard &&
+		    candidate.midi >= kGuitarMinMidi && candidate.midi <= kGuitarMaxMidi &&
+		    count_owned_notes(ownership.guitar) >= 2)
+			target = InstrumentKind::Guitar;
+		if (target == InstrumentKind::Keyboard &&
+		    candidate.midi >= kKeyboardMinMidi && candidate.midi <= kKeyboardMaxMidi) {
+			add_full_mix_row_mirror(ownership.keyboard, ownership.keyboard_candidates, candidate,
+						kKeyboardMirrorScale, kMirrorConfidence);
+		} else if (target == InstrumentKind::Guitar &&
+			   candidate.midi >= kGuitarMinMidi && candidate.midi <= kGuitarMaxMidi) {
+			add_full_mix_row_mirror(ownership.guitar, ownership.guitar_candidates, candidate,
+						kGuitarMirrorScale, kMirrorConfidence);
+		} else if (target == InstrumentKind::Other &&
+			   candidate.midi >= kOtherMinMidi && candidate.midi <= kOtherMaxMidi) {
+			add_full_mix_row_mirror(ownership.other, ownership.other_candidates, candidate,
+						kOtherMirrorScale, kMirrorConfidence);
+		}
 	}
 }
 
@@ -1910,6 +2014,7 @@ FullMixOwnership build_full_mix_ownership(const std::array<float, kNoteProbeCoun
 	demote_sparse_full_mix_owner(ownership, ownership.guitar, ownership.guitar_candidates, candidate_scores);
 	demote_sparse_full_mix_owner(ownership, ownership.other, ownership.other_candidates, candidate_scores);
 	mirror_high_full_mix_guitar_candidates(ownership);
+	mirror_ambiguous_full_mix_candidates(ownership);
 
 	return ownership;
 }
@@ -2530,13 +2635,31 @@ void clear_instrument_state(InstrumentState &state)
 	state.confidence = 0.0f;
 }
 
+void prune_note_grid_below_level(NoteGrid &grid, float min_level)
+{
+	for (NoteCell &cell : grid.cells) {
+		if (cell.active && cell.level < min_level)
+			cell = {};
+	}
+	for (auto &row : grid.rows) {
+		for (NoteCell &cell : row) {
+			if (cell.active && cell.level < min_level)
+				cell = {};
+		}
+	}
+}
+
 void write_note_grid_cell(NoteGrid &grid, const NoteCandidate &candidate, float strongest_score, float visual_loudness)
 {
 	const int pitch_class = ((candidate.midi % 12) + 12) % 12;
 	NoteCell cell;
 	write_octave(cell.label, sizeof(cell.label), candidate.midi);
+	const float ownership_scale =
+		candidate.ownership_confidence <= 0.24f ? std::clamp(candidate.ownership_confidence, 0.0f, 1.0f) :
+							  1.0f;
 	cell.level = strongest_score > 1.0e-6f ?
-			     std::clamp(candidate.score / strongest_score * visual_loudness, 0.0f, 1.0f) :
+			     std::clamp(candidate.score / strongest_score * visual_loudness * ownership_scale,
+					0.0f, 1.0f) :
 			     0.0f;
 	cell.midi = candidate.midi;
 	cell.active = true;
@@ -6340,6 +6463,7 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 								full_mix_ownership.guitar_candidates,
 								preferred_root, guitar_energy, rms, max_notes, 0.22f);
 			guitar_chord_detection_grid = snapshot.guitar_notes;
+			prune_note_grid_below_level(guitar_chord_detection_grid, 0.24f);
 		} else {
 			preferred_root =
 				lowest_peak_pitch_class(detection_note_powers, min_midi, kGuitarMaxMidi);
@@ -6398,8 +6522,8 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 		}
 		snapshot.guitar_chord_analysis_notes = guitar_chord_detection_grid;
 		raw_guitar_chord = detect_guitar_chord_from_grid(guitar_chord_detection_grid, allow_extensions);
-		const ChordResult display_guitar_chord =
-			detect_guitar_chord_from_grid(snapshot.guitar_notes, allow_extensions);
+		const ChordResult display_guitar_chord = detect_guitar_chord_from_grid(
+			mixed_source ? guitar_chord_detection_grid : snapshot.guitar_notes, allow_extensions);
 		auto guitar_chord_valid_for_display = [](const ChordResult &chord) {
 			return chord.root >= 0 && chord.confidence >= kChordConfidenceFloor && !chord.uncertain &&
 			       chord.label[0] && chord.label[0] != '-';
