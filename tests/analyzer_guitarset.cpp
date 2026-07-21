@@ -662,6 +662,66 @@ std::string grid_cell_list(const mao::NoteGrid &grid)
 	return text.empty() ? "--" : text;
 }
 
+float raw_goertzel_magnitude(const mao_test::Buffer &buffer, uint32_t sample_rate, int midi)
+{
+	if (sample_rate == 0 || buffer.size() < 2)
+		return 0.0f;
+
+	double sum = 0.0;
+	for (float sample : buffer)
+		sum += sample;
+	const float mean = static_cast<float>(sum / static_cast<double>(buffer.size()));
+	const float frequency = mao_test::midi_frequency(midi);
+	const float coeff = 2.0f * std::cos(2.0f * mao_test::kPi * frequency / static_cast<float>(sample_rate));
+
+	float s1 = 0.0f;
+	float s2 = 0.0f;
+	for (std::size_t i = 0; i < buffer.size(); ++i) {
+		const float phase =
+			2.0f * mao_test::kPi * static_cast<float>(i) / static_cast<float>(buffer.size() - 1);
+		const float window = 0.5f - 0.5f * std::cos(phase);
+		const float x = (buffer[i] - mean) * window;
+		const float s0 = x + coeff * s1 - s2;
+		s2 = s1;
+		s1 = s0;
+	}
+
+	return std::sqrt(std::max(0.0f, s1 * s1 + s2 * s2 - coeff * s1 * s2));
+}
+
+float strongest_expected_raw_magnitude(const CandidateWindow &candidate, const mao_test::Buffer &buffer,
+				       uint32_t sample_rate)
+{
+	float strongest = 0.0f;
+	for (int midi : candidate.active_midis)
+		strongest = std::max(strongest, raw_goertzel_magnitude(buffer, sample_rate, midi));
+	return strongest;
+}
+
+std::string expected_raw_cell_list(const CandidateWindow &candidate, const mao_test::Buffer &buffer,
+				   uint32_t sample_rate, float strongest)
+{
+	if (strongest <= 1.0e-9f)
+		return "--";
+
+	std::vector<int> midis = candidate.active_midis;
+	std::sort(midis.begin(), midis.end());
+	midis.erase(std::unique(midis.begin(), midis.end()), midis.end());
+
+	std::string text;
+	for (int midi : midis) {
+		const float level =
+			std::clamp(raw_goertzel_magnitude(buffer, sample_rate, midi) / strongest, 0.0f, 1.0f);
+		char item[32] = {};
+		std::snprintf(item, sizeof(item), "%s%d:%.3f", mao_test::note_name(midi % 12),
+			      midi / 12 - 1, level);
+		if (!text.empty())
+			text += ",";
+		text += item;
+	}
+	return text.empty() ? "--" : text;
+}
+
 bool grid_has_any_active_pitch_class(const mao::NoteGrid &grid)
 {
 	for (int pitch_class = 0; pitch_class < 12; ++pitch_class) {
@@ -1230,6 +1290,7 @@ void print_guitarset_attribute_header(std::ostream &out)
 	    << "\tglobal_chord\tkeyboard_chord\tguitar_chord\tother_chord"
 	    << "\tguitar_pitch_classes\tguitar_cells\tguitar_analysis_pitch_classes"
 	    << "\tguitar_analysis_cells\tguitar_smoothed_pitch_classes\tguitar_smoothed_cells"
+	    << "\texpected_raw_peak\texpected_raw_cells"
 	    << "\tbass_pitch_classes\tkeyboard_pitch_classes\tvocal_pitch_classes"
 	    << "\tother_pitch_classes\tambiguous_pitch_classes"
 	    << "\trms\tlow\tmid\thigh\n";
@@ -1238,7 +1299,7 @@ void print_guitarset_attribute_header(std::ostream &out)
 void append_guitarset_attribute_row(std::ostream &out, const Recording &recording,
 				    const CandidateWindow &candidate,
 				    const mao::AnalysisSnapshot &snapshot,
-				    uint32_t sample_rate)
+				    const mao_test::Buffer &buffer, uint32_t sample_rate)
 {
 	const std::array<bool, 12> guitar = grid_pitch_classes(snapshot.guitar_notes);
 	const std::array<bool, 12> guitar_analysis =
@@ -1250,6 +1311,7 @@ void append_guitarset_attribute_row(std::ostream &out, const Recording &recordin
 	const std::array<bool, 12> vocal = grid_pitch_classes(snapshot.vocal_notes);
 	const std::array<bool, 12> other = grid_pitch_classes(snapshot.other_notes);
 	const std::array<bool, 12> ambiguous = grid_pitch_classes(snapshot.ambiguous_notes);
+	const float raw_peak = strongest_expected_raw_magnitude(candidate, buffer, sample_rate);
 
 	std::ostringstream line;
 	line << chord_status(snapshot, candidate);
@@ -1286,6 +1348,8 @@ void append_guitarset_attribute_row(std::ostream &out, const Recording &recordin
 	append_tsv(line, grid_cell_list(snapshot.guitar_chord_analysis_notes));
 	append_tsv(line, pitch_class_list(guitar_smoothed));
 	append_tsv(line, grid_cell_list(snapshot.guitar_chord_smoothed_notes));
+	append_tsv(line, raw_peak);
+	append_tsv(line, expected_raw_cell_list(candidate, buffer, sample_rate, raw_peak));
 	append_tsv(line, pitch_class_list(bass));
 	append_tsv(line, pitch_class_list(keyboard));
 	append_tsv(line, pitch_class_list(vocal));
@@ -1532,7 +1596,7 @@ int main()
 				const mao::AnalysisSnapshot snapshot = analyze_confirmed_buffer(buffer, sample_rate);
 				if (attribute_file)
 					append_guitarset_attribute_row(attribute_file, recording, candidate,
-								      snapshot, sample_rate);
+								      snapshot, buffer, sample_rate);
 				check_recall(runner, snapshot, candidate,
 					     recording.id + " at " + std::to_string(candidate.center_seconds) + "s",
 					     recall, min_window_recall_percent);

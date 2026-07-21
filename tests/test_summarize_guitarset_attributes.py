@@ -41,6 +41,8 @@ HEADER = [
     "guitar_analysis_cells",
     "guitar_smoothed_pitch_classes",
     "guitar_smoothed_cells",
+    "expected_raw_peak",
+    "expected_raw_cells",
     "bass_pitch_classes",
     "keyboard_pitch_classes",
     "vocal_pitch_classes",
@@ -86,6 +88,8 @@ def row(**overrides: str) -> list[str]:
             "guitar_analysis_cells": "C3:1.00,E3:0.80,G3:0.70",
             "guitar_smoothed_pitch_classes": "C,E,G",
             "guitar_smoothed_cells": "C3:1.00,E3:0.80,G3:0.70",
+            "expected_raw_peak": "12.0",
+            "expected_raw_cells": "C3:1.000,E3:0.800,G3:0.700",
             "bass_pitch_classes": "--",
             "keyboard_pitch_classes": "--",
             "vocal_pitch_classes": "--",
@@ -125,6 +129,8 @@ def main() -> int:
                 guitar_analysis_cells="G3:0.90,B3:0.35,D4:0.55",
                 guitar_smoothed_pitch_classes="G,B,D",
                 guitar_smoothed_cells="G3:0.82,B3:0.30,D4:0.50",
+                expected_raw_peak="10.0",
+                expected_raw_cells="G3:1.000,B3:0.380,D4:0.600",
             ),
             row(
                 status="no_chord",
@@ -174,6 +180,10 @@ def main() -> int:
     assert "visible present tone levels fifth=2@0.55 root=2@0.85 major_third=1@0.80" in output
     assert "analysis present tone levels fifth=2@0.62 major_third=2@0.57 root=2@0.95" in output
     assert "smoothed present tone levels fifth=2@0.60 major_third=2@0.55 root=2@0.91" in output
+    assert "raw expected tone levels fifth=2@0.65 major_third=2@0.59 root=2@1.00" in output
+    assert "visible-missing raw tone levels major_third=1@0.38" in output
+    assert "analysis-missing raw tone levels --" in output
+    assert "smoothed-missing raw tone levels --" in output
     assert "full-tone chord misses visible/analysis/smoothed 0/1/1" in output
     assert "chord miss examples" in output
     assert "rec2@2.500s expected=G" in output

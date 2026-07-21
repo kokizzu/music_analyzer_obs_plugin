@@ -256,6 +256,10 @@ def summarize(path: pathlib.Path) -> list[str]:
     visible_tone_levels: dict[str, list[float]] = collections.defaultdict(list)
     analysis_tone_levels: dict[str, list[float]] = collections.defaultdict(list)
     smooth_tone_levels: dict[str, list[float]] = collections.defaultdict(list)
+    raw_expected_tone_levels: dict[str, list[float]] = collections.defaultdict(list)
+    visible_missing_raw_tone_levels: dict[str, list[float]] = collections.defaultdict(list)
+    analysis_missing_raw_tone_levels: dict[str, list[float]] = collections.defaultdict(list)
+    smooth_missing_raw_tone_levels: dict[str, list[float]] = collections.defaultdict(list)
 
     expected_notes = sum(as_int(row, "expected_note_count") for row in rows)
     guitar_hits = sum(as_int(row, "guitar_note_hits") for row in rows)
@@ -287,6 +291,7 @@ def summarize(path: pathlib.Path) -> list[str]:
         visible_levels = parse_cell_levels(row.get("guitar_cells", ""))
         analysis_levels = parse_cell_levels(row.get("guitar_analysis_cells", ""))
         smooth_levels = parse_cell_levels(row.get("guitar_smoothed_cells", ""))
+        raw_levels = parse_cell_levels(row.get("expected_raw_cells", ""))
         expected_tones = chord_pitch_classes(expected_label)
         expected_root = chord_root(expected_label)
         expected_root_pc = NOTE_TO_PC.get(expected_root, -1)
@@ -321,6 +326,15 @@ def summarize(path: pathlib.Path) -> list[str]:
                 analysis_tone_levels[tone_name].append(analysis_levels.get(pitch_class, 0.0))
             if smooth_present:
                 smooth_tone_levels[tone_name].append(smooth_levels.get(pitch_class, 0.0))
+            raw_level = raw_levels.get(pitch_class)
+            if raw_level is not None:
+                raw_expected_tone_levels[tone_name].append(raw_level)
+                if not visible_present:
+                    visible_missing_raw_tone_levels[tone_name].append(raw_level)
+                if not analysis_present:
+                    analysis_missing_raw_tone_levels[tone_name].append(raw_level)
+                if not smooth_present:
+                    smooth_missing_raw_tone_levels[tone_name].append(raw_level)
         visible_chord_coverage[coverage_bucket(visible_coverage)] += 1
         analysis_chord_coverage[coverage_bucket(analysis_coverage)] += 1
         smooth_chord_coverage[coverage_bucket(smooth_coverage)] += 1
@@ -359,6 +373,10 @@ def summarize(path: pathlib.Path) -> list[str]:
         "visible present tone levels " + compact_level_summary(visible_tone_levels, 8),
         "analysis present tone levels " + compact_level_summary(analysis_tone_levels, 8),
         "smoothed present tone levels " + compact_level_summary(smooth_tone_levels, 8),
+        "raw expected tone levels " + compact_level_summary(raw_expected_tone_levels, 8),
+        "visible-missing raw tone levels " + compact_level_summary(visible_missing_raw_tone_levels, 8),
+        "analysis-missing raw tone levels " + compact_level_summary(analysis_missing_raw_tone_levels, 8),
+        "smoothed-missing raw tone levels " + compact_level_summary(smooth_missing_raw_tone_levels, 8),
         "full-tone chord misses visible/analysis/smoothed "
         + f"{visible_full_chord_misses}/{analysis_full_chord_misses}/{smooth_full_chord_misses}",
         f"median rms {median_rms:.6f}",
