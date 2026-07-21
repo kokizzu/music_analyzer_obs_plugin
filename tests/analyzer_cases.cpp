@@ -3265,6 +3265,23 @@ void check_bass_pluck_does_not_trigger_kick(Runner &runner)
 	runner.expect(!snapshot.drums[mao::Kick].active,
 		      "bass pluck no kick: expected kick inactive, level " +
 			      std::to_string(snapshot.drums[mao::Kick].level));
+
+	mao::AnalysisEngine drum_engine;
+	mao::AnalysisSnapshot drum_snapshot = {};
+	for (int frame = 0; frame < 8; ++frame) {
+		mao_test::Buffer sustain = {};
+		add_harmonic_note_at_offset(sustain, 36, 0.12f, bass_profile, static_cast<uint64_t>(frame) * 2400);
+		drum_snapshot = drum_engine.analyze(sustain.data(), sustain.size(), settings, "E-GMD drums", 0);
+	}
+
+	mao_test::Buffer low_kick = {};
+	add_decayed_sine(low_kick, 65.0f, 0.28f, 1500);
+	add_decayed_sine(low_kick, 130.0f, 0.12f, 900);
+	drum_snapshot = drum_engine.analyze(low_kick.data(), low_kick.size(), settings, "E-GMD drums", 0);
+	runner.expect(drum_snapshot.drums[mao::Kick].active,
+		      "explicit drum source low kick: expected kick active, level " +
+			      std::to_string(drum_snapshot.drums[mao::Kick].level) + " tom " +
+			      std::to_string(drum_snapshot.drums[mao::Tom].level));
 }
 
 void check_low_level_mic_aux_parts(Runner &runner)

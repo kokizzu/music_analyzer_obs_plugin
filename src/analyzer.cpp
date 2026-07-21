@@ -5563,7 +5563,7 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 		snapshot.low_energy >= 0.68f &&
 		snapshot.low_energy >= snapshot.mid_energy * 3.0f &&
 		kick_body >= snare_body * 1.25f &&
-		tom_body < kick_body * 1.65f &&
+		tom_body < kick_body * 1.82f &&
 		upper_tom_body < kick_body * 0.42f;
 	const bool tom_snare_bleed_shape =
 		!one_shot_drum_source && body_shape == Tom && snare_shape &&
@@ -5641,7 +5641,7 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 			kick_click_peak >= drum_segment_bands[Kick] * 0.070f &&
 			kick_click_body_ratio;
 		const bool bass_sustain_kick_suppressed =
-			kick && tracked_bass_midi_ >= 0 && tracked_bass_confidence_ >= 0.20f &&
+			kick && !named_drum_source && tracked_bass_midi_ >= 0 && tracked_bass_confidence_ >= 0.20f &&
 			kick_click_peak < kick_body * 0.16f && !(drum_transient && kick_low_dominant_body) &&
 			!kick_low_body_transient;
 		const bool kick_soft_body_shape =
