@@ -1349,6 +1349,30 @@ float candidate_midi_score(const NoteCandidateList &candidates, int midi)
 	return score;
 }
 
+bool high_octave_electronic_keyboard_alias_supported(const FullMixDebugCandidate &debug)
+{
+	if (debug.midi < 84 || debug.midi > kKeyboardMaxMidi)
+		return false;
+	if (debug.spectral_level < 0.38f || debug.pitch_confidence < 0.30f || debug.periodicity < 0.66f)
+		return false;
+	if (debug.local_noise_level > 0.035f || debug.harmonic_fit_error > 0.82f)
+		return false;
+
+	const float second = debug.harmonic_ratios[1];
+	const float third = debug.harmonic_ratios[2];
+	const float fourth = debug.harmonic_ratios[3];
+	const float fifth = debug.harmonic_ratios[4];
+	return second >= 1.30f &&
+	       second <= 2.35f &&
+	       third >= 0.002f &&
+	       third <= 0.78f &&
+	       fourth <= 0.055f &&
+	       fifth <= 0.025f &&
+	       debug.spectral_centroid >= 0.23f &&
+	       debug.spectral_centroid <= 0.34f &&
+	       debug.spectral_slope <= 0.12f;
+}
+
 void mirror_high_full_mix_guitar_candidates(FullMixOwnership &ownership)
 {
 	static constexpr int kHighGuitarMirrorMinMidi = 77;
@@ -1359,6 +1383,18 @@ void mirror_high_full_mix_guitar_candidates(FullMixOwnership &ownership)
 			continue;
 		const std::size_t index = static_cast<std::size_t>(midi - kFirstMidi);
 		if (ownership.global_note_levels[index] < kHighGuitarMirrorMinLevel)
+			continue;
+		bool high_electronic_keyboard_alias = false;
+		const std::size_t debug_count =
+			std::min<std::size_t>(ownership.debug_candidate_count, ownership.debug_candidates.size());
+		for (std::size_t debug_index = 0; debug_index < debug_count; ++debug_index) {
+			const FullMixDebugCandidate &debug = ownership.debug_candidates[debug_index];
+			if (debug.midi == midi && high_octave_electronic_keyboard_alias_supported(debug)) {
+				high_electronic_keyboard_alias = true;
+				break;
+			}
+		}
+		if (high_electronic_keyboard_alias)
 			continue;
 		if (!full_mix_row_midi_active(ownership.keyboard, midi) &&
 		    !full_mix_row_midi_active(ownership.ambiguous, midi))
@@ -1684,6 +1720,10 @@ bool full_mix_display_mirror_supported(FullMixDisplayRow row, const FullMixDebug
 			debug.spectral_centroid >= 0.10f &&
 			debug.spectral_centroid <= 0.34f &&
 			debug.spectral_slope <= 0.34f;
+		const bool high_octave_alias_electronic_keyboard_hint =
+			(debug.owner == InstrumentKind::Guitar || debug.owner == InstrumentKind::Ambiguous ||
+			 debug.owner == InstrumentKind::Other) &&
+			high_octave_electronic_keyboard_alias_supported(debug);
 		const bool clean_sustained_keyboard_hint =
 			debug.midi >= 52 && debug.midi <= 84 &&
 			debug.spectral_level >= 0.72f &&
@@ -1705,6 +1745,7 @@ bool full_mix_display_mirror_supported(FullMixDisplayRow row, const FullMixDebug
 		       noisy_low_sparse_electronic_keyboard_hint ||
 		       noisy_low_mid_electronic_keyboard_hint ||
 		       clean_octave_electronic_keyboard_hint ||
+		       high_octave_alias_electronic_keyboard_hint ||
 		       clean_sustained_keyboard_hint;
 	}
 	case FullMixDisplayRow::Guitar: {

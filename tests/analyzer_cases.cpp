@@ -1997,6 +1997,25 @@ void check_full_mix_single_instrument_precision(Runner &runner)
 
 	{
 		mao_test::Buffer buffer = {};
+		const std::vector<float> high_alias_electronic_keyboard_profile =
+			{1.0f, 1.48f, 0.060f, 0.006f, 0.004f};
+		add_harmonic_note(buffer, 85, 0.24f, high_alias_electronic_keyboard_profile);
+
+		const auto snapshot =
+			analyze_buffer_with_mode(buffer, mao::AnalysisInputMode::FullMix,
+						 "speaker high alias electronic keyboard", 3);
+		expect_global_pitch_class(runner, snapshot, 1,
+					  "full-mix high alias electronic keyboard global");
+		runner.expect(grid_level_for_midi(snapshot.keyboard_notes, 85) > 0.0f,
+			      std::string("full-mix high alias electronic keyboard: expected keyboard C#6 "
+					  "display, got keyboard `") +
+				      snapshot.keyboard.label + "`, guitar `" + snapshot.guitar.label +
+				      "`, other `" + snapshot.other.label + "`, debug `" +
+				      full_mix_debug_summary_for_midi(snapshot, 85) + "`");
+	}
+
+	{
+		mao_test::Buffer buffer = {};
 		const std::vector<float> clean_sustained_keyboard_profile = {1.0f, 0.11f, 0.07f, 0.026f, 0.001f};
 		add_harmonic_note(buffer, 64, 0.24f, clean_sustained_keyboard_profile);
 
