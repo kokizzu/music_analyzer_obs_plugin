@@ -4,6 +4,8 @@
 from __future__ import annotations
 
 import csv
+import argparse
+import collections
 import pathlib
 import statistics
 import sys
@@ -50,6 +52,23 @@ DEFAULT_BUCKETS = [
 ]
 
 
+ROW_FOR_FAMILY = {
+    "bass": "bass",
+    "guitar": "guitar",
+    "piano": "piano",
+    "vocals": "vocals",
+    "other": "other",
+}
+
+CATEGORY_FIELDS = [
+    "expected_note",
+    "debug_note",
+    "debug_owner",
+    "row_label",
+    "buffer_strongest_row",
+]
+
+
 def as_float(row: dict[str, str], field: str) -> float | None:
     try:
         value = row[field]
@@ -70,8 +89,10 @@ def quantile(values: list[float], fraction: float) -> float:
     return values[index]
 
 
-def print_bucket(rows: list[dict[str, str]], status: str, family: str, source: str, first_row: str) -> None:
-    bucket_rows = [
+def bucket_rows(
+    rows: list[dict[str, str]], status: str, family: str, source: str, first_row: str
+) -> list[dict[str, str]]:
+    return [
         row
         for row in rows
         if row.get("status") == status
@@ -80,14 +101,43 @@ def print_bucket(rows: list[dict[str, str]], status: str, family: str, source: s
         and row.get("first_row") == first_row
         and row.get("debug_note")
     ]
-    samples = sorted({row["sample_id"] for row in bucket_rows})
+
+
+def bucket_sample_count(rows: list[dict[str, str]], key: tuple[str, str, str, str]) -> int:
+    status, family, source, first_row = key
+    return len(
+        {
+            row["sample_id"]
+            for row in rows
+            if row.get("status") == status
+            and row.get("family") == family
+            and row.get("source") == source
+            and row.get("first_row") == first_row
+        }
+    )
+
+
+def compact_counts(rows: list[dict[str, str]], field: str, limit: int = 8) -> str:
+    counts = collections.Counter(row.get(field, "") for row in rows if row.get(field, ""))
+    if not counts:
+        return ""
+    return " ".join(f"{key}={value}" for key, value in counts.most_common(limit))
+
+
+def print_bucket(rows: list[dict[str, str]], status: str, family: str, source: str, first_row: str) -> None:
+    rows_for_bucket = bucket_rows(rows, status, family, source, first_row)
+    samples = sorted({row["sample_id"] for row in rows_for_bucket})
     print()
     print(
-        f"{status}:{family}/{source}->{first_row} rows={len(bucket_rows)} "
+        f"{status}:{family}/{source}->{first_row} rows={len(rows_for_bucket)} "
         f"samples={len(samples)} examples={', '.join(samples[:12])}"
     )
+    for field in CATEGORY_FIELDS:
+        counts = compact_counts(rows_for_bucket, field)
+        if counts:
+            print(f"  {field:16s} {counts}")
     for field in FIELDS:
-        values = sorted(value for row in bucket_rows if (value := as_float(row, field)) is not None)
+        values = sorted(value for row in rows_for_bucket if (value := as_float(row, field)) is not None)
         if not values:
             continue
         print(
@@ -102,10 +152,60 @@ def load_rows(path: pathlib.Path) -> list[dict[str, str]]:
         return list(csv.DictReader(handle, delimiter="\t"))
 
 
-def main() -> int:
-    path = pathlib.Path(sys.argv[1] if len(sys.argv) > 1 else "build/real_note_full_mix_attributes.tsv")
-    rows = load_rows(path)
+def top_bucket_keys(rows: list[dict[str, str]], top_misses: int) -> list[tuple[str, str, str, str]]:
+    counts: collections.Counter[tuple[str, str, str, str]] = collections.Counter()
+    for row in rows:
+        key = (row.get("status", ""), row.get("family", ""), row.get("source", ""), row.get("first_row", ""))
+        if "" in key:
+            continue
+        counts[key] += 1
+
+    keys: list[tuple[str, str, str, str]] = []
+    for key, _row_count in counts.most_common():
+        status, family, source, first_row = key
+        if status != "ownership_miss":
+            continue
+        keys.append(key)
+        expected_row = ROW_FOR_FAMILY.get(family)
+        comparisons = [
+            ("hit", family, source, first_row),
+            ("hit", family, source, expected_row or first_row),
+        ]
+        for comparison in comparisons:
+            if comparison in counts:
+                keys.append(comparison)
+        if len({key for key in keys if key[0] == "ownership_miss"}) >= top_misses:
+            break
+
     for bucket in DEFAULT_BUCKETS:
+        keys.append(bucket)
+
+    deduped = []
+    seen = set()
+    for key in keys:
+        if key in seen:
+            continue
+        seen.add(key)
+        if bucket_sample_count(rows, key) <= 0:
+            continue
+        deduped.append(key)
+    return deduped
+
+
+def main() -> int:
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("path", nargs="?", default="build/real_note_full_mix_attributes.tsv")
+    parser.add_argument(
+        "--top-misses",
+        type=int,
+        default=12,
+        help="number of largest ownership-miss buckets to print before fixed comparison buckets",
+    )
+    args = parser.parse_args()
+
+    path = pathlib.Path(args.path)
+    rows = load_rows(path)
+    for bucket in top_bucket_keys(rows, max(0, args.top_misses)):
         print_bucket(rows, *bucket)
     return 0
 

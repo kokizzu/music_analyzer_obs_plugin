@@ -18,6 +18,7 @@ constexpr int kBassMinMidi = 23;
 constexpr int kBassMaxMidi = 67;
 constexpr int kDefaultBassMaxMidi = 52;
 constexpr int kFullMixUpperBassMaxMidi = 59;
+constexpr int kFullMixCleanHighSynthBassMaxMidi = 64;
 constexpr int kGuitarMinMidi = 40;
 constexpr int kGuitarMaxMidi = 88;
 constexpr int kKeyboardMinMidi = 21;
@@ -442,7 +443,7 @@ bool full_mix_bass_supported(const std::array<float, kNoteProbeCount> &powers, c
 bool full_mix_upper_bass_supported(const std::array<float, kNoteProbeCount> &powers, const RangeResult &upper_note,
 				   const RangeResult &broad_note)
 {
-	if (upper_note.midi <= kDefaultBassMaxMidi || upper_note.midi > kFullMixUpperBassMaxMidi ||
+	if (upper_note.midi <= kDefaultBassMaxMidi || upper_note.midi > kFullMixCleanHighSynthBassMaxMidi ||
 	    upper_note.score <= 1.0e-6f || upper_note.confidence < 0.06f)
 		return false;
 
@@ -453,14 +454,16 @@ bool full_mix_upper_bass_supported(const std::array<float, kNoteProbeCount> &pow
 	const float octave = probe_level(powers, upper_note.midi + 12);
 	const float fifth = probe_level(powers, upper_note.midi + 19);
 	const float second_octave = probe_level(powers, upper_note.midi + 24);
+	const bool upper_bass_range = upper_note.midi <= kFullMixUpperBassMaxMidi;
 	const bool supported_upper_stack =
+		upper_bass_range &&
 		octave >= fundamental * 0.44f &&
 		(fifth >= fundamental * 0.16f || second_octave >= fundamental * 0.08f);
 	const bool competitive_with_broad_bass =
 		broad_note.score <= 1.0e-6f || upper_note.score >= broad_note.score * 0.24f;
 	const bool clean_upper_synth_bass =
 		competitive_with_broad_bass &&
-		upper_note.confidence >= 0.34f &&
+		upper_note.confidence >= (upper_bass_range ? 0.34f : 0.60f) &&
 		octave <= fundamental * 0.18f &&
 		fifth <= fundamental * 0.105f &&
 		second_octave <= fundamental * 0.050f;
@@ -6713,7 +6716,8 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 							    RangeResult{} :
 							    dominant_bass_note(detection_note_powers,
 									       kDefaultBassMaxMidi + 1,
-									       kFullMixUpperBassMaxMidi, false);
+									       kFullMixCleanHighSynthBassMaxMidi,
+									       false);
 		bool mixed_bass_supported =
 			isolated_bass || full_mix_bass_supported(detection_note_powers, bass_note, broad_bass_note);
 		if (!isolated_bass && !mixed_bass_supported &&
