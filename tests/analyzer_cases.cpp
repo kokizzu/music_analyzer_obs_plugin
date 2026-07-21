@@ -2265,6 +2265,41 @@ void check_full_mix_single_instrument_precision(Runner &runner)
 				      "`, keyboard `" + snapshot.keyboard.label + "`, debug `" +
 				      full_mix_debug_summary_for_midi(snapshot, 72) + "`");
 	}
+
+	{
+		mao_test::Buffer buffer = {};
+		const std::vector<float> low_noisy_string_profile =
+			{1.0f, 0.24f, 0.28f, 0.08f, 0.012f};
+		add_harmonic_note(buffer, 48, 0.24f, low_noisy_string_profile);
+
+		const auto snapshot =
+			analyze_buffer_with_mode(buffer, mao::AnalysisInputMode::FullMix,
+						 "speaker low noisy string other", 3);
+		expect_global_pitch_class(runner, snapshot, 0, "full-mix low noisy string global");
+		runner.expect(grid_level_for_midi(snapshot.other_notes, 48) > 0.0f,
+			      std::string("full-mix low noisy string: expected other C3 display, got other `") +
+				      snapshot.other.label + "`, keyboard `" + snapshot.keyboard.label +
+				      "`, guitar `" + snapshot.guitar.label + "`, debug `" +
+				      full_mix_debug_summary_for_midi(snapshot, 48) + "`");
+	}
+
+	{
+		mao_test::Buffer buffer = {};
+		const std::vector<float> octave_dominant_reed_profile =
+			{1.0f, 1.45f, 0.48f, 0.020f, 0.006f};
+		add_harmonic_note(buffer, 69, 0.24f, octave_dominant_reed_profile);
+
+		const auto snapshot =
+			analyze_buffer_with_mode(buffer, mao::AnalysisInputMode::FullMix,
+						 "speaker octave-dominant reed other", 3);
+		expect_global_pitch_class(runner, snapshot, 9, "full-mix octave-dominant reed global");
+		runner.expect(grid_level_for_midi(snapshot.other_notes, 69) > 0.0f,
+			      std::string("full-mix octave-dominant reed: expected other A4 display, got "
+					  "other `") +
+				      snapshot.other.label + "`, guitar `" + snapshot.guitar.label +
+				      "`, keyboard `" + snapshot.keyboard.label + "`, debug `" +
+				      full_mix_debug_summary_for_midi(snapshot, 69) + "`");
+	}
 }
 
 void check_full_mix_single_owned_note_has_no_instrument_chord(Runner &runner)

@@ -1850,6 +1850,38 @@ bool full_mix_display_mirror_supported(FullMixDisplayRow row, const FullMixDebug
 			debug.spectral_centroid <= 0.50f &&
 			debug.spectral_slope >= 0.45f &&
 			debug.spectral_slope <= 1.20f;
+		const bool low_bowed_string_display_other =
+			(debug.owner == InstrumentKind::Keyboard ||
+			 debug.owner == InstrumentKind::Guitar ||
+			 debug.owner == InstrumentKind::Ambiguous) &&
+			debug.midi >= 48 && debug.midi <= 65 &&
+			debug.spectral_level >= 0.35f &&
+			debug.periodicity >= 0.65f &&
+			debug.harmonic_fit_error <= 0.16f &&
+			debug.local_noise_level >= 0.24f &&
+			debug.local_noise_level <= 0.50f &&
+			debug.harmonic_ratios[1] >= 0.12f &&
+			debug.harmonic_ratios[1] <= 0.36f &&
+			debug.harmonic_ratios[2] >= 0.025f &&
+			debug.harmonic_ratios[2] <= 0.40f &&
+			debug.harmonic_ratios[3] <= 0.20f &&
+			debug.spectral_centroid >= 0.12f &&
+			debug.spectral_centroid <= 0.30f &&
+			debug.spectral_slope >= 0.10f &&
+			debug.spectral_slope <= 0.40f;
+		const bool octave_dominant_reed_display_other =
+			debug.owner == InstrumentKind::Guitar &&
+			debug.midi >= 60 && debug.midi <= 84 &&
+			debug.spectral_level >= 0.33f &&
+			debug.periodicity >= 0.62f &&
+			debug.local_noise_level <= 0.012f &&
+			debug.harmonic_ratios[1] >= 1.10f &&
+			debug.harmonic_ratios[2] >= 0.24f &&
+			debug.harmonic_ratios[3] <= 0.09f &&
+			debug.spectral_centroid >= 0.28f &&
+			debug.spectral_centroid <= 0.42f &&
+			debug.spectral_slope >= 0.10f &&
+			debug.spectral_slope <= 0.32f;
 		const bool high_wind_like_guitar_other =
 			sustained_other &&
 			debug.owner == InstrumentKind::Guitar &&
@@ -1865,13 +1897,16 @@ bool full_mix_display_mirror_supported(FullMixDisplayRow row, const FullMixDebug
 			 hollow_reed_like_guitar_other);
 		if (debug.owner == InstrumentKind::Guitar && debug.ownership_confidence >= 0.58f &&
 		    debug.other_score < 0.30f && !sustained_guitar_other && !bright_high_brass_other &&
-		    !low_weak_upper_string_other)
+		    !low_weak_upper_string_other && !low_bowed_string_display_other &&
+		    !octave_dominant_reed_display_other)
 			return false;
 		return debug.owner == InstrumentKind::Other ||
 		       debug.other_score >= 0.035f ||
 		       sustained_other ||
 		       bright_high_brass_other ||
-		       low_weak_upper_string_other;
+		       low_weak_upper_string_other ||
+		       low_bowed_string_display_other ||
+		       octave_dominant_reed_display_other;
 	}
 	return false;
 }
