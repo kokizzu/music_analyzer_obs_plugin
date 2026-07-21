@@ -809,6 +809,9 @@ analyze-mdb-drums-misses: $(BUILD_DIR)/analyzer_egmd prepare-mdb-drums-samples s
 	env MUSIC_ANALYZER_EGMD_ROOT="$(MDB_DRUMS_SAMPLE_DIR)" MUSIC_ANALYZER_EGMD_REQUIRED=1 MUSIC_ANALYZER_EGMD_REQUIRED_RECORDINGS="$(MDB_DRUMS_MIN_RECORDINGS)" MUSIC_ANALYZER_EGMD_REQUIRED_WINDOWS="$(MDB_DRUMS_REQUIRED_WINDOWS)" MUSIC_ANALYZER_EGMD_MIN_RECALL_PERCENT=0 MUSIC_ANALYZER_EGMD_MIN_WINDOW_RECALL_PERCENT=0 MUSIC_ANALYZER_EGMD_MIN_PRECISION_PERCENT=0 MUSIC_ANALYZER_EGMD_MAX_FALSE_POSITIVE_WINDOWS_PERCENT=100 MUSIC_ANALYZER_EGMD_VERBOSE_MISSES=1 MUSIC_ANALYZER_EGMD_VERBOSE_MISS_LIMIT=240 MUSIC_ANALYZER_EGMD_VERBOSE_FALSE_POSITIVES=1 MUSIC_ANALYZER_EGMD_VERBOSE_FALSE_POSITIVE_LIMIT=240 $(BUILD_DIR)/analyzer_egmd > "$(MDB_DRUMS_MISS_LOG).summary" 2> "$(MDB_DRUMS_MISS_LOG)"
 	$(PYTHON) scripts/analyze_egmd_misses.py "$(MDB_DRUMS_MISS_LOG)"
 
+analyze-mdb-drum-attributes: analyze-mdb-drums-misses scripts/summarize_egmd_drum_attributes.py
+	$(PYTHON) scripts/summarize_egmd_drum_attributes.py "$(MDB_DRUMS_MISS_LOG)" $(DRUM_ATTRIBUTE_ARGS)
+
 download-star-drums-samples: $(STAR_DRUMS_ARCHIVE)
 
 $(STAR_DRUMS_ARCHIVE): | $(BUILD_DIR)
@@ -825,6 +828,9 @@ test-star-drums-samples: $(BUILD_DIR)/analyzer_egmd prepare-star-drums-samples s
 analyze-star-drums-misses: $(BUILD_DIR)/analyzer_egmd prepare-star-drums-samples scripts/analyze_egmd_misses.py
 	env MUSIC_ANALYZER_EGMD_ROOT="$(STAR_DRUMS_SAMPLE_DIR)" MUSIC_ANALYZER_EGMD_REQUIRED=1 MUSIC_ANALYZER_EGMD_REQUIRED_RECORDINGS="$(STAR_DRUMS_MIN_RECORDINGS)" MUSIC_ANALYZER_EGMD_REQUIRED_WINDOWS="$(STAR_DRUMS_REQUIRED_WINDOWS)" MUSIC_ANALYZER_EGMD_MIN_RECALL_PERCENT=0 MUSIC_ANALYZER_EGMD_MIN_WINDOW_RECALL_PERCENT=0 MUSIC_ANALYZER_EGMD_MIN_PRECISION_PERCENT=0 MUSIC_ANALYZER_EGMD_MAX_FALSE_POSITIVE_WINDOWS_PERCENT=100 MUSIC_ANALYZER_EGMD_VERBOSE_MISSES=1 MUSIC_ANALYZER_EGMD_VERBOSE_MISS_LIMIT=120 MUSIC_ANALYZER_EGMD_VERBOSE_FALSE_POSITIVES=1 MUSIC_ANALYZER_EGMD_VERBOSE_FALSE_POSITIVE_LIMIT=120 $(BUILD_DIR)/analyzer_egmd > "$(STAR_DRUMS_MISS_LOG).summary" 2> "$(STAR_DRUMS_MISS_LOG)"
 	$(PYTHON) scripts/analyze_egmd_misses.py "$(STAR_DRUMS_MISS_LOG)"
+
+analyze-star-drum-attributes: analyze-star-drums-misses scripts/summarize_egmd_drum_attributes.py
+	$(PYTHON) scripts/summarize_egmd_drum_attributes.py "$(STAR_DRUMS_MISS_LOG)" $(DRUM_ATTRIBUTE_ARGS)
 
 download-medley-solos-samples: $(MEDLEY_SOLOS_METADATA) $(MEDLEY_SOLOS_ARCHIVE)
 
@@ -1288,6 +1294,7 @@ test: $(TEST_BINS) scripts/run_with_duration.sh
 	$(MAKE) test-real-note-attribute-buckets
 	$(MAKE) test-real-note-attribute-patterns
 	$(MAKE) test-egmd-miss-analysis
+	$(MAKE) test-egmd-drum-attribute-summary
 	$(MAKE) test-drum-primary-analysis
 	$(MAKE) test-real-goal-script
 	$(RUN_WITH_DURATION) analyzer_smoke $(BUILD_DIR)/analyzer_smoke
@@ -1528,6 +1535,9 @@ test-real-note-attribute-patterns: tests/test_find_real_note_attribute_patterns.
 
 test-egmd-miss-analysis: tests/test_analyze_egmd_misses.py scripts/analyze_egmd_misses.py
 	$(PYTHON) tests/test_analyze_egmd_misses.py
+
+test-egmd-drum-attribute-summary: tests/test_summarize_egmd_drum_attributes.py scripts/summarize_egmd_drum_attributes.py
+	$(PYTHON) tests/test_summarize_egmd_drum_attributes.py
 
 test-drum-primary-analysis: tests/test_analyze_drum_primary_debug.py tests/test_evaluate_drum_rule_grid.py scripts/analyze_drum_primary_debug.py scripts/evaluate_drum_rule_grid.py
 	$(PYTHON) tests/test_analyze_drum_primary_debug.py

@@ -6530,11 +6530,11 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 	const bool real_drum_track_low_embedded_hihat =
 		real_drum_track_source &&
 		drum_transient_ratio >= 1.25f &&
-		snapshot.high_energy >= 0.025f &&
+		snapshot.high_energy >= 0.020f &&
 		strongest_cymbal_drum > 0.0f &&
-		strongest_cymbal_drum >= strongest_body_drum * 0.014f &&
-		drum_segment_bands[HiHat] >= strongest_cymbal_drum * 0.70f &&
-		cymbal_shape != Crash;
+		strongest_cymbal_drum >= strongest_body_drum * 0.010f &&
+		drum_segment_bands[HiHat] >= strongest_cymbal_drum * 0.38f &&
+		(cymbal_shape != Crash || drum_segment_bands[HiHat] >= strongest_cymbal_drum * 0.55f);
 	const bool embedded_cymbal_transient =
 		drum_transient && strongest_cymbal_drum >= 12.0f &&
 		strongest_cymbal_drum >= strongest_body_drum * 0.035f &&
