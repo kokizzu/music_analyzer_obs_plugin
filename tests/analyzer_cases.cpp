@@ -3307,6 +3307,54 @@ void check_bass_pluck_does_not_trigger_kick(Runner &runner)
 			      std::to_string(drum_snapshot.drums[mao::Tom].level));
 }
 
+void check_real_drum_track_tom_bleed_suppression(Runner &runner)
+{
+	mao::AnalysisEngine engine;
+	mao::AnalysisSettings settings = mao_test::default_settings();
+	settings.analysis_interval_seconds = 0.05f;
+	mao::AnalysisSnapshot snapshot = {};
+
+	for (int frame = 0; frame < 2; ++frame) {
+		mao_test::Buffer warmup = {};
+		add_decayed_sine(warmup, 500.0f, 0.006f, 1000);
+		snapshot = engine.analyze(warmup.data(), warmup.size(), settings, "E-GMD drums", 0);
+	}
+	for (int frame = 0; frame < 3; ++frame) {
+		mao_test::Buffer buffer = {};
+		add_decayed_sine(buffer, 160.0f, 0.090f, 1500);
+		add_decayed_sine(buffer, 220.0f, 0.110f, 1300);
+		add_decayed_sine(buffer, 750.0f, 0.050f, 900);
+		add_decayed_sine(buffer, 1100.0f, 0.036f, 800);
+		add_decayed_sine(buffer, 90.0f, 0.008f, 1400);
+		add_decayed_sine(buffer, 120.0f, 0.065f, 1400);
+		add_decayed_sine(buffer, 320.0f, 0.060f, 1200);
+		add_decayed_sine(buffer, 3600.0f, 0.360f, 520);
+		add_decayed_sine(buffer, 5600.0f, 0.460f, 480);
+		add_decayed_sine(buffer, 7600.0f, 0.380f, 460);
+		snapshot = engine.analyze(buffer.data(), buffer.size(), settings, "E-GMD drums", 0);
+	}
+
+	runner.expect(snapshot.drums[mao::Snare].active,
+		      "real drum track tom bleed: expected snare active, level " +
+			      std::to_string(snapshot.drums[mao::Snare].level));
+	const bool cymbal_active = snapshot.drums[mao::HiHat].active ||
+				   snapshot.drums[mao::Crash].active ||
+				   snapshot.drums[mao::Ride].active;
+	runner.expect(cymbal_active,
+		      "real drum track tom bleed: expected active cymbal context, hihat " +
+			      std::to_string(snapshot.drums[mao::HiHat].level) + " crash " +
+			      std::to_string(snapshot.drums[mao::Crash].level) + " ride " +
+			      std::to_string(snapshot.drums[mao::Ride].level) + " high " +
+			      std::to_string(snapshot.high_energy));
+	runner.expect(!snapshot.drums[mao::Tom].active,
+		      "real drum track tom bleed: expected tom inactive, level " +
+			      std::to_string(snapshot.drums[mao::Tom].level) + " body " +
+			      std::to_string(snapshot.drum_debug_tom_body) + " snare " +
+			      std::to_string(snapshot.drum_debug_snare_body) + " upper " +
+			      std::to_string(snapshot.drum_debug_upper_tom_body) + " shape " +
+			      std::to_string(snapshot.drum_debug_body_shape));
+}
+
 void check_low_level_mic_aux_parts(Runner &runner)
 {
 	{
@@ -3994,6 +4042,7 @@ int main()
 	check_low_level_mixed_notes(runner);
 	check_melodic_sources_do_not_trigger_drums(runner);
 	check_layered_midi_instrument_voices(runner);
+	check_real_drum_track_tom_bleed_suppression(runner);
 	check_same_instrument_timbre_variants(runner);
 	check_distorted_midi_guitar_timbre(runner);
 	check_spillover_regressions(runner);

@@ -5976,6 +5976,21 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 			cap_drum_level(Rim, 0.28f);
 	}
 
+	const float active_cymbal_level =
+		std::max(drum_level_[HiHat], std::max(drum_level_[Crash], drum_level_[Ride]));
+	const bool snare_cymbal_tom_bleed =
+		drum_detection_enabled && !one_shot_drum_source &&
+		drum_level_[Tom] > 0.30f &&
+		drum_level_[Snare] > 0.70f &&
+		active_cymbal_level > 0.55f &&
+		body_shape == Tom &&
+		snapshot.mid_energy >= snapshot.low_energy * 1.20f &&
+		tom_body <= snare_body * 1.75f &&
+		upper_tom_body <= tom_body * 0.58f &&
+		snare_crack >= snare_body * 0.035f;
+	if (snare_cymbal_tom_bleed)
+		cap_drum_level(Tom, 0.28f);
+
 	const bool onset_tempo_event =
 		drum_detection_enabled && rms > kSilenceRms && drum_transient &&
 		(had_previous_audio ? onset >= 1.25f : true);
