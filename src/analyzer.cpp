@@ -3769,26 +3769,29 @@ void append_guitar_power_probe_third_aliases(ChordResult &chord, const NoteGrid 
 				note_grid_pitch_supported_level(grid, parsed.root, kActiveAliasFloor);
 			const float fifth_grid =
 				note_grid_pitch_supported_level(grid, parsed.root + 7, kActiveAliasFloor);
-			if (root_grid >= std::max(0.16f, strongest_grid * 0.20f) &&
-			    fifth_grid >= std::max(0.09f, strongest_grid * 0.10f)) {
-				const float root_probe =
-					strongest_probe_pitch_class_level(powers, parsed.root, min_midi, max_midi);
-				const float fifth_probe = strongest_probe_pitch_class_level(
-					powers, parsed.root + 7, min_midi, max_midi);
-				const float minor_third = strongest_probe_pitch_class_level(
-					powers, parsed.root + 3, min_midi, max_midi);
-				const float major_third = strongest_probe_pitch_class_level(
-					powers, parsed.root + 4, min_midi, max_midi);
-				const float anchor =
-					std::max({root_probe, fifth_probe, std::min(root_grid, fifth_grid) * 0.50f});
-				const float third_floor =
-					std::max({strongest_probe * 0.004f, anchor * 0.014f, 0.00055f});
-				const bool choose_minor =
-					minor_third >= third_floor && minor_third >= major_third * 1.02f;
-				const bool choose_major =
-					major_third >= third_floor && major_third >= minor_third * 1.02f;
-				if (choose_minor != choose_major)
-					append_chord_alias(chord, parsed.root, choose_minor ? "m" : "");
+			const float root_probe =
+				strongest_probe_pitch_class_level(powers, parsed.root, min_midi, max_midi);
+			const float fifth_probe =
+				strongest_probe_pitch_class_level(powers, parsed.root + 7, min_midi, max_midi);
+			const float minor_third =
+				strongest_probe_pitch_class_level(powers, parsed.root + 3, min_midi, max_midi);
+			const float major_third =
+				strongest_probe_pitch_class_level(powers, parsed.root + 4, min_midi, max_midi);
+			const float anchor =
+				std::max({root_probe, fifth_probe, std::min(root_grid, fifth_grid) * 0.50f});
+			const float third_floor =
+				std::max({strongest_probe * 0.004f, anchor * 0.014f, 0.00055f});
+			const bool choose_minor = minor_third >= third_floor && minor_third >= major_third * 1.02f;
+			const bool choose_major = major_third >= third_floor && major_third >= minor_third * 1.02f;
+			if (choose_minor != choose_major) {
+				append_chord_alias(chord, parsed.root, choose_minor ? "m" : "");
+			} else {
+				const float weaker_third = std::min(minor_third, major_third);
+				const float stronger_third = std::max(minor_third, major_third);
+				if (weaker_third >= third_floor && weaker_third >= stronger_third * 0.72f) {
+					append_chord_alias(chord, parsed.root, "");
+					append_chord_alias(chord, parsed.root, "m");
+				}
 			}
 		}
 
@@ -3827,23 +3830,20 @@ void append_guitar_power_quality_candidates(ChordResult &chord, const NoteGrid &
 				note_grid_pitch_supported_level(grid, parsed.root, kActiveAliasFloor);
 			const float fifth_grid =
 				note_grid_pitch_supported_level(grid, parsed.root + 7, kActiveAliasFloor);
-			if (root_grid >= std::max(0.16f, strongest_grid * 0.20f) &&
-			    fifth_grid >= std::max(0.09f, strongest_grid * 0.10f)) {
-				const float root_probe =
-					strongest_probe_pitch_class_level(powers, parsed.root, min_midi, max_midi);
-				const float fifth_probe = strongest_probe_pitch_class_level(
-					powers, parsed.root + 7, min_midi, max_midi);
-				const float minor_third = strongest_probe_pitch_class_level(
-					powers, parsed.root + 3, min_midi, max_midi);
-				const float major_third = strongest_probe_pitch_class_level(
-					powers, parsed.root + 4, min_midi, max_midi);
-				const float anchor =
-					std::max({root_probe, fifth_probe, std::min(root_grid, fifth_grid) * 0.50f});
-				const float third_probe_floor =
-					std::max({strongest_probe * 0.003f, anchor * 0.010f, 0.0004f});
-				if (major_third < third_probe_floor && minor_third < third_probe_floor)
-					roots[((parsed.root % 12) + 12) % 12] = true;
-			}
+			const float root_probe =
+				strongest_probe_pitch_class_level(powers, parsed.root, min_midi, max_midi);
+			const float fifth_probe =
+				strongest_probe_pitch_class_level(powers, parsed.root + 7, min_midi, max_midi);
+			const float minor_third =
+				strongest_probe_pitch_class_level(powers, parsed.root + 3, min_midi, max_midi);
+			const float major_third =
+				strongest_probe_pitch_class_level(powers, parsed.root + 4, min_midi, max_midi);
+			const float anchor =
+				std::max({root_probe, fifth_probe, std::min(root_grid, fifth_grid) * 0.50f});
+			const float third_probe_floor =
+				std::max({strongest_probe * 0.003f, anchor * 0.010f, 0.0004f});
+			if (major_third < third_probe_floor && minor_third < third_probe_floor)
+				roots[((parsed.root % 12) + 12) % 12] = true;
 		}
 
 		if (!end)
