@@ -1455,7 +1455,7 @@ bool sustained_other_display_supported(const FullMixDebugCandidate &debug)
 		return false;
 	if (debug.spectral_level < 0.72f || debug.pitch_confidence < 0.70f || debug.periodicity < 0.72f)
 		return false;
-	if (debug.local_noise_level > 0.055f || debug.harmonic_fit_error > 0.085f)
+	if (debug.local_noise_level > 0.13f || debug.harmonic_fit_error > 0.20f)
 		return false;
 
 	const float second = debug.harmonic_ratios[1];
@@ -1465,15 +1465,30 @@ bool sustained_other_display_supported(const FullMixDebugCandidate &debug)
 	const bool wind_like_mid_harmonics =
 		second >= 0.20f && second <= 0.48f &&
 		third >= 0.045f && third <= 0.18f &&
-		fourth <= 0.12f && fifth <= 0.09f &&
+		fourth <= 0.16f && fifth <= 0.10f &&
 		debug.spectral_centroid >= 0.12f && debug.spectral_centroid <= 0.25f &&
-		debug.spectral_slope >= 0.065f && debug.spectral_slope <= 0.22f;
+		debug.spectral_slope >= 0.065f && debug.spectral_slope <= 0.24f;
 	const bool reed_like_odd_harmonics =
 		second >= 0.08f && second <= 0.24f &&
 		third >= 0.09f && third <= 0.24f &&
 		fourth <= 0.16f && fifth <= 0.10f &&
 		debug.spectral_centroid >= 0.11f && debug.spectral_centroid <= 0.25f;
-	return wind_like_mid_harmonics || reed_like_odd_harmonics;
+	const bool pure_wind_like =
+		debug.midi >= 65 &&
+		second <= 0.16f && third <= 0.30f && fourth <= 0.30f && fifth <= 0.12f &&
+		debug.harmonicity <= 0.55f &&
+		debug.harmonic_fit_error <= 0.12f &&
+		debug.local_noise_level <= 0.020f &&
+		debug.spectral_centroid <= 0.24f &&
+		debug.spectral_slope <= 0.36f;
+	const bool bright_reed_like =
+		second <= 0.24f &&
+		third >= 0.20f && third <= 0.60f &&
+		fourth <= 0.32f && fifth <= 0.16f &&
+		debug.harmonic_fit_error <= 0.20f &&
+		debug.spectral_centroid >= 0.16f && debug.spectral_centroid <= 0.34f &&
+		debug.spectral_slope >= 0.24f && debug.spectral_slope <= 0.72f;
+	return wind_like_mid_harmonics || reed_like_odd_harmonics || pure_wind_like || bright_reed_like;
 }
 
 bool full_mix_display_mirror_supported(FullMixDisplayRow row, const FullMixDebugCandidate &debug)
@@ -1524,12 +1539,15 @@ bool full_mix_display_mirror_supported(FullMixDisplayRow row, const FullMixDebug
 	case FullMixDisplayRow::Vocal:
 		return debug.owner == InstrumentKind::Vocal && debug.ownership_confidence >= 0.58f;
 	case FullMixDisplayRow::Other:
+		const bool sustained_other = sustained_other_display_supported(debug);
+		const bool sustained_guitar_other =
+			sustained_other && debug.other_score >= 0.060f;
 		if (debug.owner == InstrumentKind::Guitar && debug.ownership_confidence >= 0.58f &&
-		    debug.other_score < 0.30f)
+		    debug.other_score < 0.30f && !sustained_guitar_other)
 			return false;
 		return debug.owner == InstrumentKind::Other ||
 		       debug.other_score >= 0.035f ||
-		       sustained_other_display_supported(debug);
+		       sustained_other;
 	}
 	return false;
 }
@@ -1538,6 +1556,9 @@ void add_full_mix_display_mirror(NoteCandidateList &candidates, const FullMixOwn
 				 const FullMixDebugCandidate &debug, FullMixDisplayRow row)
 {
 	if (debug.midi < kFirstMidi || debug.midi > kLastMidi || candidate_list_has_midi(candidates, debug.midi))
+		return;
+	if (row == FullMixDisplayRow::Other && debug.owner == InstrumentKind::Keyboard &&
+	    count_owned_notes(ownership.keyboard) >= 2)
 		return;
 	if (!full_mix_display_mirror_supported(row, debug))
 		return;
