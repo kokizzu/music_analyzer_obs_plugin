@@ -6,6 +6,7 @@
 #include <cmath>
 #include <cstdio>
 #include <cstring>
+#include <sstream>
 #include <string>
 #include <vector>
 
@@ -407,6 +408,50 @@ float grid_level_for_midi(const mao::NoteGrid &grid, int midi)
 		}
 	}
 	return level;
+}
+
+const char *instrument_kind_name(mao::InstrumentKind kind)
+{
+	switch (kind) {
+	case mao::InstrumentKind::Bass:
+		return "bass";
+	case mao::InstrumentKind::Guitar:
+		return "guitar";
+	case mao::InstrumentKind::Keyboard:
+		return "keys";
+	case mao::InstrumentKind::Vocal:
+		return "vocal";
+	case mao::InstrumentKind::Other:
+		return "other";
+	case mao::InstrumentKind::Ambiguous:
+	default:
+		return "amb";
+	}
+}
+
+std::string full_mix_debug_summary_for_midi(const mao::AnalysisSnapshot &snapshot, int midi)
+{
+	std::ostringstream out;
+	const std::size_t count =
+		std::min<std::size_t>(snapshot.full_mix_debug_candidate_count,
+				      snapshot.full_mix_debug_candidates.size());
+	for (std::size_t i = 0; i < count; ++i) {
+		const mao::FullMixDebugCandidate &debug = snapshot.full_mix_debug_candidates[i];
+		if (debug.midi != midi)
+			continue;
+		if (out.tellp() > 0)
+			out << "; ";
+		out << instrument_kind_name(debug.owner) << " conf=" << debug.ownership_confidence
+		    << " kgo=" << debug.keyboard_score << "," << debug.guitar_score << ","
+		    << debug.vocal_score << "," << debug.other_score
+		    << " spec=" << debug.spectral_level << " pitch=" << debug.pitch_confidence
+		    << " per=" << debug.periodicity << " fit=" << debug.harmonic_fit_error
+		    << " cent=" << debug.spectral_centroid << " slope=" << debug.spectral_slope
+		    << " noise=" << debug.local_noise_level << " partials="
+		    << debug.harmonic_ratios[1] << "," << debug.harmonic_ratios[2] << ","
+		    << debug.harmonic_ratios[3] << "," << debug.harmonic_ratios[4];
+	}
+	return out.str();
 }
 
 float snapshot_owned_level_for_midi(const mao::AnalysisSnapshot &snapshot, int midi)
@@ -2016,6 +2061,26 @@ void check_full_mix_single_instrument_precision(Runner &runner)
 					  "display, got guitar `") +
 				      snapshot.guitar.label + "`, vocal `" + snapshot.vocal.label +
 				      "`, other `" + snapshot.other.label + "`");
+	}
+
+	{
+		mao_test::Buffer buffer = {};
+		const std::vector<float> mid_vocal_like_acoustic_guitar_profile =
+			{1.0f, 0.15f, 0.041f, 0.13f, 0.049f};
+		add_harmonic_note(buffer, 54, 0.24f, mid_vocal_like_acoustic_guitar_profile);
+
+		const auto snapshot =
+			analyze_buffer_with_mode(buffer, mao::AnalysisInputMode::FullMix,
+						 "speaker mid vocal-like acoustic guitar", 3);
+		expect_global_pitch_class(runner, snapshot, 6,
+					  "full-mix mid vocal-like acoustic guitar global");
+		runner.expect(grid_level_for_midi(snapshot.guitar_notes, 54) > 0.0f,
+			      std::string("full-mix mid vocal-like acoustic guitar: expected guitar F#3 "
+					  "display, got guitar `") +
+				      snapshot.guitar.label + "`, keyboard `" + snapshot.keyboard.label +
+				      "`, vocal `" + snapshot.vocal.label + "`, other `" +
+				      snapshot.other.label + "`, debug `" +
+				      full_mix_debug_summary_for_midi(snapshot, 54) + "`");
 	}
 
 	{

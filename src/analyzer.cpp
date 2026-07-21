@@ -1618,10 +1618,30 @@ bool full_mix_display_mirror_supported(FullMixDisplayRow row, const FullMixDebug
 			debug.spectral_centroid <= 0.26f &&
 			debug.spectral_slope >= 0.10f &&
 			debug.spectral_slope <= 0.40f;
+		const bool mid_vocal_like_acoustic_body =
+			debug.owner == InstrumentKind::Vocal &&
+			debug.midi >= 52 && debug.midi <= 59 &&
+			debug.spectral_level >= 0.70f &&
+			debug.pitch_confidence >= 0.84f &&
+			debug.periodicity >= 0.72f &&
+			debug.local_noise_level <= 0.22f &&
+			debug.harmonic_fit_error <= 0.055f &&
+			debug.harmonic_ratios[1] >= 0.120f &&
+			debug.harmonic_ratios[1] <= 0.18f &&
+			debug.harmonic_ratios[2] >= 0.030f &&
+			debug.harmonic_ratios[2] <= 0.060f &&
+			debug.harmonic_ratios[3] >= 0.080f &&
+			debug.harmonic_ratios[3] <= 0.15f &&
+			debug.harmonic_ratios[4] <= 0.060f &&
+			debug.spectral_centroid >= 0.14f &&
+			debug.spectral_centroid <= 0.20f &&
+			debug.spectral_slope >= 0.12f &&
+			debug.spectral_slope <= 0.22f;
 		return debug.owner == InstrumentKind::Guitar ||
 		       debug.guitar_score >= 0.52f ||
 		       octave_dominant_acoustic_body ||
-		       high_plucked_acoustic_body;
+		       high_plucked_acoustic_body ||
+		       mid_vocal_like_acoustic_body;
 	}
 	case FullMixDisplayRow::Vocal:
 		return debug.owner == InstrumentKind::Vocal && debug.ownership_confidence >= 0.58f;
