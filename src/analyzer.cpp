@@ -5603,6 +5603,14 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 		strongest_cymbal_drum > 0.0f &&
 		strongest_cymbal_drum >= strongest_body_drum * 0.035f &&
 		drum_segment_bands[HiHat] >= strongest_cymbal_drum * 0.34f;
+	const bool real_drum_track_low_embedded_hihat =
+		real_drum_track_source &&
+		drum_transient_ratio >= 1.25f &&
+		snapshot.high_energy >= 0.025f &&
+		strongest_cymbal_drum > 0.0f &&
+		strongest_cymbal_drum >= strongest_body_drum * 0.014f &&
+		drum_segment_bands[HiHat] >= strongest_cymbal_drum * 0.70f &&
+		cymbal_shape != Crash;
 	const bool embedded_cymbal_transient =
 		drum_transient && strongest_cymbal_drum >= 12.0f &&
 		strongest_cymbal_drum >= strongest_body_drum * 0.035f &&
@@ -5734,7 +5742,7 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 			cymbal_family_evidence && soft_cymbal_separable && transient_ratio >= 0.65f;
 		const bool embedded_hihat_transient =
 			!tonal_soft_drum_suppressed && had_previous_audio && hihat &&
-			real_drum_track_embedded_hihat;
+			(real_drum_track_embedded_hihat || real_drum_track_low_embedded_hihat);
 		const bool soft_kick_transient =
 			kick && !tonal_soft_drum_suppressed &&
 			(kick_low_onset_body_shape ||
