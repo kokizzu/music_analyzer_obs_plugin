@@ -1921,6 +1921,44 @@ void check_full_mix_single_instrument_precision(Runner &runner)
 
 	{
 		mao_test::Buffer buffer = {};
+		const std::vector<float> noisy_low_thin_electronic_keyboard_profile =
+			{1.0f, 0.35f, 0.10f, 0.016f, 0.026f};
+		add_harmonic_note(buffer, 46, 0.27f, noisy_low_thin_electronic_keyboard_profile);
+
+		const auto snapshot =
+			analyze_buffer_with_mode(buffer, mao::AnalysisInputMode::FullMix,
+						 "speaker noisy low thin electronic keyboard", 3);
+		expect_global_pitch_class(runner, snapshot, 10,
+					  "full-mix noisy low thin electronic keyboard global");
+		runner.expect(grid_level_for_midi(snapshot.keyboard_notes, 46) > 0.0f,
+			      std::string("full-mix noisy low thin electronic keyboard: expected keyboard A#2 "
+					  "display, got keyboard `") +
+				      snapshot.keyboard.label + "`, bass `" + snapshot.bass.label +
+				      "`, guitar `" + snapshot.guitar.label + "`, debug `" +
+				      full_mix_debug_summary_for_midi(snapshot, 46) + "`");
+	}
+
+	{
+		mao_test::Buffer buffer = {};
+		const std::vector<float> clean_octave_electronic_keyboard_profile =
+			{1.0f, 0.60f, 0.068f, 0.031f, 0.006f};
+		add_harmonic_note(buffer, 72, 0.24f, clean_octave_electronic_keyboard_profile);
+
+		const auto snapshot =
+			analyze_buffer_with_mode(buffer, mao::AnalysisInputMode::FullMix,
+						 "speaker clean octave electronic keyboard", 3);
+		expect_global_pitch_class(runner, snapshot, 0,
+					  "full-mix clean octave electronic keyboard global");
+		runner.expect(grid_level_for_midi(snapshot.keyboard_notes, 72) > 0.0f,
+			      std::string("full-mix clean octave electronic keyboard: expected keyboard C5 "
+					  "display, got keyboard `") +
+				      snapshot.keyboard.label + "`, guitar `" + snapshot.guitar.label +
+				      "`, other `" + snapshot.other.label + "`, debug `" +
+				      full_mix_debug_summary_for_midi(snapshot, 72) + "`");
+	}
+
+	{
+		mao_test::Buffer buffer = {};
 		const std::vector<float> clean_sustained_keyboard_profile = {1.0f, 0.11f, 0.07f, 0.026f, 0.001f};
 		add_harmonic_note(buffer, 64, 0.24f, clean_sustained_keyboard_profile);
 
@@ -2123,6 +2161,24 @@ void check_full_mix_single_instrument_precision(Runner &runner)
 
 	{
 		mao_test::Buffer buffer = {};
+		const std::vector<float> clean_high_acoustic_guitar_profile =
+			{1.0f, 0.08f, 0.012f, 0.022f, 0.002f};
+		add_harmonic_note(buffer, 68, 0.24f, clean_high_acoustic_guitar_profile);
+
+		const auto snapshot =
+			analyze_buffer_with_mode(buffer, mao::AnalysisInputMode::FullMix,
+						 "speaker clean high acoustic guitar", 3);
+		expect_global_pitch_class(runner, snapshot, 8, "full-mix clean high acoustic guitar global");
+		runner.expect(grid_level_for_midi(snapshot.guitar_notes, 68) > 0.0f,
+			      std::string("full-mix clean high acoustic guitar: expected guitar G#4 "
+					  "display, got guitar `") +
+				      snapshot.guitar.label + "`, vocal `" + snapshot.vocal.label +
+				      "`, keyboard `" + snapshot.keyboard.label + "`, debug `" +
+				      full_mix_debug_summary_for_midi(snapshot, 68) + "`");
+	}
+
+	{
+		mao_test::Buffer buffer = {};
 		const std::vector<float> mid_vocal_like_acoustic_guitar_profile =
 			{1.0f, 0.15f, 0.041f, 0.13f, 0.049f};
 		add_harmonic_note(buffer, 54, 0.24f, mid_vocal_like_acoustic_guitar_profile);
@@ -2155,6 +2211,40 @@ void check_full_mix_single_instrument_precision(Runner &runner)
 					  "other `") +
 				      snapshot.other.label + "`, bass `" + snapshot.bass.label +
 				      "`, guitar `" + snapshot.guitar.label + "`");
+	}
+
+	{
+		mao_test::Buffer buffer = {};
+		const std::vector<float> low_weak_upper_string_profile =
+			{1.0f, 0.18f, 0.018f, 0.005f, 0.006f};
+		add_harmonic_note(buffer, 53, 0.24f, low_weak_upper_string_profile);
+
+		const auto snapshot =
+			analyze_buffer_with_mode(buffer, mao::AnalysisInputMode::FullMix,
+						 "speaker low weak-upper string other", 3);
+		expect_global_pitch_class(runner, snapshot, 5, "full-mix low weak-upper string global");
+		runner.expect(grid_level_for_midi(snapshot.other_notes, 53) > 0.0f,
+			      std::string("full-mix low weak-upper string: expected other F3 display, got "
+					  "other `") +
+				      snapshot.other.label + "`, bass `" + snapshot.bass.label +
+				      "`, keyboard `" + snapshot.keyboard.label + "`, debug `" +
+				      full_mix_debug_summary_for_midi(snapshot, 53) + "`");
+	}
+
+	{
+		mao_test::Buffer buffer = {};
+		const std::vector<float> hollow_reed_profile = {1.0f, 0.30f, 0.025f, 0.012f, 0.002f};
+		add_harmonic_note(buffer, 72, 0.24f, hollow_reed_profile);
+
+		const auto snapshot =
+			analyze_buffer_with_mode(buffer, mao::AnalysisInputMode::FullMix,
+						 "speaker hollow reed other", 3);
+		expect_global_pitch_class(runner, snapshot, 0, "full-mix hollow reed global");
+		runner.expect(grid_level_for_midi(snapshot.other_notes, 72) > 0.0f,
+			      std::string("full-mix hollow reed: expected other C5 display, got other `") +
+				      snapshot.other.label + "`, guitar `" + snapshot.guitar.label +
+				      "`, keyboard `" + snapshot.keyboard.label + "`, debug `" +
+				      full_mix_debug_summary_for_midi(snapshot, 72) + "`");
 	}
 }
 
