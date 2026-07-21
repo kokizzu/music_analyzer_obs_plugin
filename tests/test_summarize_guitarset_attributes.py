@@ -162,6 +162,8 @@ def main() -> int:
     assert "chord exact/global recall 1/2 50.00%" in output
     assert "visible chord-tone coverage 100%=1 50-74%=1" in output
     assert "analysis chord-tone coverage 100%=2" in output
+    assert "visible missing chord tones major_third=1" in output
+    assert "analysis missing chord tones --" in output
     assert "full-tone chord misses visible/analysis/smoothed 0/1/1" in output
     assert "chord miss examples" in output
     assert "rec2@2.500s expected=G" in output

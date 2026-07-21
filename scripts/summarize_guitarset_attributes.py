@@ -97,13 +97,32 @@ def chord_quality(label: str) -> str:
     return label[len(root) :]
 
 
-def chord_pitch_classes(label: str) -> set[int]:
+def chord_tones(label: str) -> list[tuple[str, int]]:
     root = chord_root(label)
     intervals = QUALITY_INTERVALS.get(chord_quality(label))
     if root not in NOTE_TO_PC or intervals is None:
-        return set()
+        return []
     root_pc = NOTE_TO_PC[root]
-    return {(root_pc + interval) % 12 for interval in intervals}
+    tones = []
+    for interval in intervals:
+        if interval == 0:
+            name = "root"
+        elif interval == 3:
+            name = "minor_third"
+        elif interval == 4:
+            name = "major_third"
+        elif interval == 7:
+            name = "fifth"
+        elif interval in {10, 11}:
+            name = "seventh"
+        else:
+            name = "extension"
+        tones.append((name, (root_pc + interval) % 12))
+    return tones
+
+
+def chord_pitch_classes(label: str) -> set[int]:
+    return {pitch_class for _name, pitch_class in chord_tones(label)}
 
 
 def parse_pitch_classes(text: str) -> set[int]:
@@ -124,6 +143,24 @@ def best_chord_coverage(expected_chords: str, pitch_classes: str) -> tuple[float
         best = max(best, coverage)
         full = full or expected <= visible
     return best, full
+
+
+def best_expected_chord(expected_chords: str, pitch_classes: str) -> str:
+    visible = parse_pitch_classes(pitch_classes)
+    best_label = ""
+    best_coverage = -1.0
+    for label in split_labels(expected_chords):
+        expected = chord_pitch_classes(label)
+        if not expected:
+            continue
+        coverage = len(expected & visible) / len(expected)
+        if coverage > best_coverage:
+            best_coverage = coverage
+            best_label = label
+    if best_label:
+        return best_label
+    labels = split_labels(expected_chords)
+    return labels[0] if labels else ""
 
 
 def coverage_bucket(coverage: float) -> str:
@@ -176,6 +213,9 @@ def summarize(path: pathlib.Path) -> list[str]:
     visible_chord_coverage: collections.Counter[str] = collections.Counter()
     analysis_chord_coverage: collections.Counter[str] = collections.Counter()
     smooth_chord_coverage: collections.Counter[str] = collections.Counter()
+    visible_missing_tones: collections.Counter[str] = collections.Counter()
+    analysis_missing_tones: collections.Counter[str] = collections.Counter()
+    smooth_missing_tones: collections.Counter[str] = collections.Counter()
 
     expected_notes = sum(as_int(row, "expected_note_count") for row in rows)
     guitar_hits = sum(as_int(row, "guitar_note_hits") for row in rows)
@@ -198,6 +238,19 @@ def summarize(path: pathlib.Path) -> list[str]:
         smooth_coverage, smooth_full = best_chord_coverage(
             row.get("expected_chords", ""), row.get("guitar_smoothed_pitch_classes", "")
         )
+        expected_label = best_expected_chord(
+            row.get("expected_chords", ""), row.get("guitar_analysis_pitch_classes", "")
+        )
+        visible_pitch_classes = parse_pitch_classes(row.get("guitar_pitch_classes", ""))
+        analysis_pitch_classes = parse_pitch_classes(row.get("guitar_analysis_pitch_classes", ""))
+        smooth_pitch_classes = parse_pitch_classes(row.get("guitar_smoothed_pitch_classes", ""))
+        for tone_name, pitch_class in chord_tones(expected_label):
+            if pitch_class not in visible_pitch_classes:
+                visible_missing_tones[tone_name] += 1
+            if pitch_class not in analysis_pitch_classes:
+                analysis_missing_tones[tone_name] += 1
+            if pitch_class not in smooth_pitch_classes:
+                smooth_missing_tones[tone_name] += 1
         visible_chord_coverage[coverage_bucket(visible_coverage)] += 1
         analysis_chord_coverage[coverage_bucket(analysis_coverage)] += 1
         smooth_chord_coverage[coverage_bucket(smooth_coverage)] += 1
@@ -223,6 +276,9 @@ def summarize(path: pathlib.Path) -> list[str]:
         "visible chord-tone coverage " + compact_counter(visible_chord_coverage, 8),
         "analysis chord-tone coverage " + compact_counter(analysis_chord_coverage, 8),
         "smoothed chord-tone coverage " + compact_counter(smooth_chord_coverage, 8),
+        "visible missing chord tones " + compact_counter(visible_missing_tones, 8),
+        "analysis missing chord tones " + compact_counter(analysis_missing_tones, 8),
+        "smoothed missing chord tones " + compact_counter(smooth_missing_tones, 8),
         "full-tone chord misses visible/analysis/smoothed "
         + f"{visible_full_chord_misses}/{analysis_full_chord_misses}/{smooth_full_chord_misses}",
         f"median rms {median_rms:.6f}",
