@@ -1092,6 +1092,212 @@ std::string composition_summary(const CompositionStats &stats)
 	       std::to_string(stats.max_pitch_classes);
 }
 
+std::string tsv_field(std::string value)
+{
+	for (char &ch : value) {
+		if (ch == '\t' || ch == '\n' || ch == '\r')
+			ch = ' ';
+	}
+	return value;
+}
+
+void append_tsv(std::ostringstream &line, const std::string &value)
+{
+	line << '\t' << tsv_field(value);
+}
+
+void append_tsv(std::ostringstream &line, const char *value)
+{
+	append_tsv(line, value ? std::string(value) : std::string());
+}
+
+void append_tsv(std::ostringstream &line, int value)
+{
+	line << '\t' << value;
+}
+
+void append_tsv(std::ostringstream &line, double value)
+{
+	line << '\t' << value;
+}
+
+void append_tsv(std::ostringstream &line, float value)
+{
+	line << '\t' << value;
+}
+
+const char *bool_cell(bool value)
+{
+	return value ? "1" : "0";
+}
+
+std::string midi_list(const std::vector<int> &midis)
+{
+	std::string text;
+	for (int midi : midis) {
+		char item[16] = {};
+		std::snprintf(item, sizeof(item), "%s%d", mao_test::note_name(midi % 12), midi / 12 - 1);
+		if (!text.empty())
+			text += ",";
+		text += item;
+	}
+	return text.empty() ? "--" : text;
+}
+
+std::string chord_quality_list(const std::vector<std::string> &labels)
+{
+	std::set<std::string> qualities;
+	for (const std::string &label : labels)
+		qualities.insert(chord_quality_name(label));
+	std::string text;
+	for (const std::string &quality : qualities) {
+		if (!text.empty())
+			text += "/";
+		text += quality;
+	}
+	return text.empty() ? "--" : text;
+}
+
+int pitch_class_hits(const std::array<bool, 12> &expected, const std::array<bool, 12> &detected)
+{
+	int hits = 0;
+	for (int pitch_class = 0; pitch_class < 12; ++pitch_class) {
+		if (expected[pitch_class] && detected[pitch_class])
+			++hits;
+	}
+	return hits;
+}
+
+int pitch_class_false_positives(const std::array<bool, 12> &expected,
+				const std::array<bool, 12> &detected)
+{
+	int false_positives = 0;
+	for (int pitch_class = 0; pitch_class < 12; ++pitch_class) {
+		if (!expected[pitch_class] && detected[pitch_class])
+			++false_positives;
+	}
+	return false_positives;
+}
+
+int cross_row_expected_hits(const std::array<bool, 12> &expected,
+			    const std::array<bool, 12> &bass,
+			    const std::array<bool, 12> &keyboard,
+			    const std::array<bool, 12> &vocal,
+			    const std::array<bool, 12> &other)
+{
+	int contaminated = 0;
+	for (int pitch_class = 0; pitch_class < 12; ++pitch_class) {
+		if (!expected[pitch_class])
+			continue;
+		if (bass[pitch_class] || keyboard[pitch_class] || vocal[pitch_class] || other[pitch_class])
+			++contaminated;
+	}
+	return contaminated;
+}
+
+bool labels_have_exact_chord(const char *actual, const std::vector<std::string> &expected)
+{
+	return std::any_of(expected.begin(), expected.end(),
+			   [&](const std::string &label) { return has_chord_label(actual, label); });
+}
+
+bool labels_have_simplified_chord(const mao::AnalysisSnapshot &snapshot,
+				  const std::vector<std::string> &expected)
+{
+	return std::any_of(expected.begin(), expected.end(), [&](const std::string &label) {
+		return snapshot_has_simplified_chord_label(snapshot, label);
+	});
+}
+
+std::string chord_status(const mao::AnalysisSnapshot &snapshot, const CandidateWindow &candidate)
+{
+	if (candidate.chord_labels.empty())
+		return split_chord_labels(snapshot.guitar_chord.label).empty() ? "no_chord" :
+									"single_note_false_chord";
+	return std::any_of(candidate.chord_labels.begin(), candidate.chord_labels.end(),
+			   [&](const std::string &label) { return snapshot_has_chord_label(snapshot, label); }) ?
+		       "chord_hit" :
+		       "chord_miss";
+}
+
+void print_guitarset_attribute_header(std::ostream &out)
+{
+	out << "status\trecording_id\taudio_path\tcenter_seconds\tsample_rate"
+	    << "\tinstrument\texpected_midis\texpected_pitch_classes\texpected_pitch_class_count"
+	    << "\texpected_chords\texpected_chord_qualities\texpected_chord_tone_count"
+	    << "\tguitar_note_hits\texpected_note_count\tguitar_false_positive_pitch_classes"
+	    << "\tcross_row_expected_hits\tchord_hit\tsimple_chord_hit\tguitar_chord_hit"
+	    << "\tglobal_chord\tkeyboard_chord\tguitar_chord\tother_chord"
+	    << "\tguitar_pitch_classes\tguitar_cells\tguitar_analysis_pitch_classes"
+	    << "\tguitar_analysis_cells\tguitar_smoothed_pitch_classes\tguitar_smoothed_cells"
+	    << "\tbass_pitch_classes\tkeyboard_pitch_classes\tvocal_pitch_classes"
+	    << "\tother_pitch_classes\tambiguous_pitch_classes"
+	    << "\trms\tlow\tmid\thigh\n";
+}
+
+void append_guitarset_attribute_row(std::ostream &out, const Recording &recording,
+				    const CandidateWindow &candidate,
+				    const mao::AnalysisSnapshot &snapshot,
+				    uint32_t sample_rate)
+{
+	const std::array<bool, 12> guitar = grid_pitch_classes(snapshot.guitar_notes);
+	const std::array<bool, 12> guitar_analysis =
+		grid_pitch_classes(snapshot.guitar_chord_analysis_notes);
+	const std::array<bool, 12> guitar_smoothed =
+		grid_pitch_classes(snapshot.guitar_chord_smoothed_notes);
+	const std::array<bool, 12> bass = grid_pitch_classes(snapshot.bass_notes);
+	const std::array<bool, 12> keyboard = grid_pitch_classes(snapshot.keyboard_notes);
+	const std::array<bool, 12> vocal = grid_pitch_classes(snapshot.vocal_notes);
+	const std::array<bool, 12> other = grid_pitch_classes(snapshot.other_notes);
+	const std::array<bool, 12> ambiguous = grid_pitch_classes(snapshot.ambiguous_notes);
+
+	std::ostringstream line;
+	line << chord_status(snapshot, candidate);
+	append_tsv(line, recording.id);
+	append_tsv(line, recording.audio_path);
+	append_tsv(line, candidate.center_seconds);
+	append_tsv(line, static_cast<int>(sample_rate));
+	append_tsv(line, "guitar");
+	append_tsv(line, midi_list(candidate.active_midis));
+	append_tsv(line, pitch_class_list(candidate.pitch_classes));
+	append_tsv(line, pitch_class_count(candidate.pitch_classes));
+	append_tsv(line, join_labels(candidate.chord_labels));
+	append_tsv(line, chord_quality_list(candidate.chord_labels));
+	append_tsv(line, candidate.chord_tone_count);
+	append_tsv(line, pitch_class_hits(candidate.pitch_classes, guitar));
+	append_tsv(line, pitch_class_count(candidate.pitch_classes));
+	append_tsv(line, pitch_class_false_positives(candidate.pitch_classes, guitar));
+	append_tsv(line, cross_row_expected_hits(candidate.pitch_classes, bass, keyboard, vocal, other));
+	append_tsv(line, bool_cell(!candidate.chord_labels.empty() &&
+				   std::any_of(candidate.chord_labels.begin(), candidate.chord_labels.end(),
+					       [&](const std::string &label) {
+						       return snapshot_has_chord_label(snapshot, label);
+					       })));
+	append_tsv(line, bool_cell(labels_have_simplified_chord(snapshot, candidate.chord_labels)));
+	append_tsv(line, bool_cell(labels_have_exact_chord(snapshot.guitar_chord.label,
+							  candidate.chord_labels)));
+	append_tsv(line, snapshot.global_chord.label);
+	append_tsv(line, snapshot.keyboard_chord.label);
+	append_tsv(line, snapshot.guitar_chord.label);
+	append_tsv(line, snapshot.other_chord.label);
+	append_tsv(line, pitch_class_list(guitar));
+	append_tsv(line, grid_cell_list(snapshot.guitar_notes));
+	append_tsv(line, pitch_class_list(guitar_analysis));
+	append_tsv(line, grid_cell_list(snapshot.guitar_chord_analysis_notes));
+	append_tsv(line, pitch_class_list(guitar_smoothed));
+	append_tsv(line, grid_cell_list(snapshot.guitar_chord_smoothed_notes));
+	append_tsv(line, pitch_class_list(bass));
+	append_tsv(line, pitch_class_list(keyboard));
+	append_tsv(line, pitch_class_list(vocal));
+	append_tsv(line, pitch_class_list(other));
+	append_tsv(line, pitch_class_list(ambiguous));
+	append_tsv(line, snapshot.rms);
+	append_tsv(line, snapshot.low_energy);
+	append_tsv(line, snapshot.mid_energy);
+	append_tsv(line, snapshot.high_energy);
+	out << line.str() << '\n';
+}
+
 void require_recall(Runner &runner, const RecallStats &stats, const char *label, int min_percent)
 {
 	runner.expect(stats.expected > 0,
@@ -1272,6 +1478,17 @@ int main()
 		resolve_percent_env("MUSIC_ANALYZER_GUITARSET_MAX_SINGLE_NOTE_CHORD_FALSE_PERCENT", -1);
 	const bool inspect_only = env_truthy("MUSIC_ANALYZER_GUITARSET_INSPECT_ONLY");
 	const bool use_all_recordings = env_truthy("MUSIC_ANALYZER_GUITARSET_USE_ALL");
+	const char *attribute_path_env = std::getenv("MUSIC_ANALYZER_GUITARSET_ATTRIBUTE_TSV");
+	std::ofstream attribute_file;
+	if (attribute_path_env && *attribute_path_env) {
+		attribute_file.open(attribute_path_env);
+		if (!attribute_file) {
+			std::fprintf(stderr, "analyzer_guitarset: failed to open attribute TSV `%s`\n",
+				     attribute_path_env);
+			return 1;
+		}
+		print_guitarset_attribute_header(attribute_file);
+	}
 
 	Runner runner;
 	runner.max_reported_failures = resolve_positive_int_env("MUSIC_ANALYZER_GUITARSET_MAX_FAILURE_LINES", 80);
@@ -1313,6 +1530,9 @@ int main()
 					continue;
 				}
 				const mao::AnalysisSnapshot snapshot = analyze_confirmed_buffer(buffer, sample_rate);
+				if (attribute_file)
+					append_guitarset_attribute_row(attribute_file, recording, candidate,
+								      snapshot, sample_rate);
 				check_recall(runner, snapshot, candidate,
 					     recording.id + " at " + std::to_string(candidate.center_seconds) + "s",
 					     recall, min_window_recall_percent);

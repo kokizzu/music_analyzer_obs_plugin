@@ -1,0 +1,254 @@
+#!/usr/bin/env python3
+"""Summarize GuitarSet-style note/chord attribute TSV exports."""
+
+from __future__ import annotations
+
+import collections
+import csv
+import pathlib
+import statistics
+import sys
+
+
+NOTE_TO_PC = {
+    "C": 0,
+    "C#": 1,
+    "D": 2,
+    "D#": 3,
+    "E": 4,
+    "F": 5,
+    "F#": 6,
+    "G": 7,
+    "G#": 8,
+    "A": 9,
+    "A#": 10,
+    "B": 11,
+}
+
+QUALITY_INTERVALS = {
+    "": (0, 4, 7),
+    "m": (0, 3, 7),
+    "pow": (0, 7),
+    "sus2": (0, 2, 7),
+    "sus4": (0, 5, 7),
+    "dim": (0, 3, 6),
+    "aug": (0, 4, 8),
+    "6": (0, 4, 7, 9),
+    "m6": (0, 3, 7, 9),
+    "7": (0, 4, 7, 10),
+    "maj7": (0, 4, 7, 11),
+    "m7": (0, 3, 7, 10),
+    "dim7": (0, 3, 6, 9),
+    "m7b5": (0, 3, 6, 10),
+    "add9": (0, 2, 4, 7),
+    "9": (0, 2, 4, 7, 10),
+    "maj9": (0, 2, 4, 7, 11),
+    "m9": (0, 2, 3, 7, 10),
+}
+
+
+def as_int(row: dict[str, str], field: str) -> int:
+    try:
+        return int(row.get(field, "") or "0")
+    except ValueError:
+        return 0
+
+
+def as_float(row: dict[str, str], field: str) -> float:
+    try:
+        return float(row.get(field, "") or "0")
+    except ValueError:
+        return 0.0
+
+
+def ratio_text(numerator: int, denominator: int) -> str:
+    if denominator <= 0:
+        return "0/0 0.00%"
+    return f"{numerator}/{denominator} {numerator * 100.0 / denominator:.2f}%"
+
+
+def load_rows(path: pathlib.Path) -> list[dict[str, str]]:
+    with path.open(newline="", errors="replace") as handle:
+        return list(csv.DictReader(handle, delimiter="\t"))
+
+
+def compact_counter(counter: collections.Counter[str], limit: int = 12) -> str:
+    if not counter:
+        return "--"
+    return " ".join(f"{key}={value}" for key, value in counter.most_common(limit))
+
+
+def split_labels(text: str) -> list[str]:
+    if not text or text == "--":
+        return []
+    return [item for item in text.split("/") if item and item != "--"]
+
+
+def chord_root(label: str) -> str:
+    if not label:
+        return ""
+    if len(label) >= 2 and label[1] == "#":
+        return label[:2]
+    return label[:1]
+
+
+def chord_quality(label: str) -> str:
+    root = chord_root(label)
+    return label[len(root) :]
+
+
+def chord_pitch_classes(label: str) -> set[int]:
+    root = chord_root(label)
+    intervals = QUALITY_INTERVALS.get(chord_quality(label))
+    if root not in NOTE_TO_PC or intervals is None:
+        return set()
+    root_pc = NOTE_TO_PC[root]
+    return {(root_pc + interval) % 12 for interval in intervals}
+
+
+def parse_pitch_classes(text: str) -> set[int]:
+    if not text or text == "--":
+        return set()
+    return {NOTE_TO_PC[item] for item in text.split(",") if item in NOTE_TO_PC}
+
+
+def best_chord_coverage(expected_chords: str, pitch_classes: str) -> tuple[float, bool]:
+    visible = parse_pitch_classes(pitch_classes)
+    best = 0.0
+    full = False
+    for label in split_labels(expected_chords):
+        expected = chord_pitch_classes(label)
+        if not expected:
+            continue
+        coverage = len(expected & visible) / len(expected)
+        best = max(best, coverage)
+        full = full or expected <= visible
+    return best, full
+
+
+def coverage_bucket(coverage: float) -> str:
+    if coverage >= 1.0:
+        return "100%"
+    if coverage >= 0.75:
+        return "75-99%"
+    if coverage >= 0.50:
+        return "50-74%"
+    if coverage > 0.0:
+        return "1-49%"
+    return "0%"
+
+
+def note_recall_bucket(row: dict[str, str]) -> str:
+    expected = as_int(row, "expected_note_count")
+    hits = as_int(row, "guitar_note_hits")
+    if expected <= 0:
+        return "none"
+    if hits >= expected:
+        return "100%"
+    if hits * 4 >= expected * 3:
+        return "75-99%"
+    if hits * 2 >= expected:
+        return "50-74%"
+    if hits > 0:
+        return "1-49%"
+    return "0%"
+
+
+def example_text(row: dict[str, str]) -> str:
+    return (
+        f"{row.get('recording_id', '')}@{as_float(row, 'center_seconds'):.3f}s "
+        f"expected={row.get('expected_chords', '--')} pc={row.get('expected_pitch_classes', '--')} "
+        f"guitar={row.get('guitar_chord', '--')} guitar_pc={row.get('guitar_pitch_classes', '--')} "
+        f"analysis_pc={row.get('guitar_analysis_pitch_classes', '--')} "
+        f"smooth_pc={row.get('guitar_smoothed_pitch_classes', '--')}"
+    )
+
+
+def summarize(path: pathlib.Path) -> list[str]:
+    rows = load_rows(path)
+    recordings = {row.get("recording_id", "") for row in rows if row.get("recording_id", "")}
+    status = collections.Counter(row.get("status", "") or "unknown" for row in rows)
+    quality_status = collections.Counter(
+        f"{row.get('expected_chord_qualities', '--')}:{row.get('status', 'unknown')}"
+        for row in rows
+    )
+    note_recall = collections.Counter(note_recall_bucket(row) for row in rows)
+    visible_chord_coverage: collections.Counter[str] = collections.Counter()
+    analysis_chord_coverage: collections.Counter[str] = collections.Counter()
+    smooth_chord_coverage: collections.Counter[str] = collections.Counter()
+
+    expected_notes = sum(as_int(row, "expected_note_count") for row in rows)
+    guitar_hits = sum(as_int(row, "guitar_note_hits") for row in rows)
+    false_positives = sum(as_int(row, "guitar_false_positive_pitch_classes") for row in rows)
+    contamination = sum(as_int(row, "cross_row_expected_hits") for row in rows)
+    chord_rows = [row for row in rows if row.get("expected_chords", "--") not in ("", "--")]
+    chord_hits = sum(1 for row in chord_rows if row.get("chord_hit") == "1")
+    simple_chord_hits = sum(1 for row in chord_rows if row.get("simple_chord_hit") == "1")
+    guitar_chord_hits = sum(1 for row in chord_rows if row.get("guitar_chord_hit") == "1")
+    visible_full_chord_misses = 0
+    analysis_full_chord_misses = 0
+    smooth_full_chord_misses = 0
+    for row in chord_rows:
+        visible_coverage, visible_full = best_chord_coverage(
+            row.get("expected_chords", ""), row.get("guitar_pitch_classes", "")
+        )
+        analysis_coverage, analysis_full = best_chord_coverage(
+            row.get("expected_chords", ""), row.get("guitar_analysis_pitch_classes", "")
+        )
+        smooth_coverage, smooth_full = best_chord_coverage(
+            row.get("expected_chords", ""), row.get("guitar_smoothed_pitch_classes", "")
+        )
+        visible_chord_coverage[coverage_bucket(visible_coverage)] += 1
+        analysis_chord_coverage[coverage_bucket(analysis_coverage)] += 1
+        smooth_chord_coverage[coverage_bucket(smooth_coverage)] += 1
+        if row.get("status") == "chord_miss":
+            visible_full_chord_misses += 1 if visible_full else 0
+            analysis_full_chord_misses += 1 if analysis_full else 0
+            smooth_full_chord_misses += 1 if smooth_full else 0
+
+    rms_values = [as_float(row, "rms") for row in rows]
+    median_rms = statistics.median(rms_values) if rms_values else 0.0
+
+    lines = [
+        f"summarize_guitarset_attributes: rows {len(rows)} recordings {len(recordings)}",
+        "status " + compact_counter(status),
+        "note recall buckets " + compact_counter(note_recall, 8),
+        "quality/status " + compact_counter(quality_status, 16),
+        "guitar note recall " + ratio_text(guitar_hits, expected_notes),
+        "guitar false-positive pitch classes " + str(false_positives),
+        "cross-row expected hits " + str(contamination),
+        "chord exact/global recall " + ratio_text(chord_hits, len(chord_rows)),
+        "chord simplified recall " + ratio_text(simple_chord_hits, len(chord_rows)),
+        "guitar chord exact recall " + ratio_text(guitar_chord_hits, len(chord_rows)),
+        "visible chord-tone coverage " + compact_counter(visible_chord_coverage, 8),
+        "analysis chord-tone coverage " + compact_counter(analysis_chord_coverage, 8),
+        "smoothed chord-tone coverage " + compact_counter(smooth_chord_coverage, 8),
+        "full-tone chord misses visible/analysis/smoothed "
+        + f"{visible_full_chord_misses}/{analysis_full_chord_misses}/{smooth_full_chord_misses}",
+        f"median rms {median_rms:.6f}",
+    ]
+
+    missed = [row for row in rows if row.get("status") == "chord_miss"]
+    if missed:
+        lines.append("chord miss examples")
+        for row in missed[:12]:
+            lines.append("  " + example_text(row))
+
+    weak_notes = [row for row in rows if note_recall_bucket(row) in {"0%", "1-49%", "50-74%"}]
+    if weak_notes:
+        lines.append("weak guitar-note examples")
+        for row in weak_notes[:12]:
+            lines.append("  " + example_text(row))
+
+    return lines
+
+
+def main() -> int:
+    path = pathlib.Path(sys.argv[1] if len(sys.argv) > 1 else "build/guitarset_attributes.tsv")
+    for line in summarize(path):
+        print(line)
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())
