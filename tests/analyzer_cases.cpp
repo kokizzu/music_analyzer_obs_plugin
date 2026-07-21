@@ -764,6 +764,16 @@ void check_guitar_supported_extension_aliases(Runner &runner)
 		      std::string("guitar moderate-third major seventh alias: expected Dmaj7, got `") +
 			      moderate_third_major_seventh_snapshot.guitar_chord.label + "`");
 
+	mao_test::Buffer display_supported_major_seventh = {};
+	for (int midi : {43, 50, 54, 55, 59})
+		add_harmonic_note(display_supported_major_seventh, midi, 0.18f, guitar_profile);
+
+	const auto display_supported_major_seventh_snapshot =
+		analyze_buffer(display_supported_major_seventh, "guitar");
+	runner.expect(has_chord_label(display_supported_major_seventh_snapshot.guitar_chord.label, "Gmaj7"),
+		      std::string("guitar display-supported extension aliases: expected Gmaj7, got `") +
+			      display_supported_major_seventh_snapshot.guitar_chord.label + "`");
+
 	mao_test::Buffer extension_with_minor_spill = {};
 	add_harmonic_note(extension_with_minor_spill, 45, 0.21f, guitar_profile);
 	add_harmonic_note(extension_with_minor_spill, 49, 0.12f, guitar_profile);
