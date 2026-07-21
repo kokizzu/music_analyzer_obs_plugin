@@ -17,6 +17,7 @@ constexpr int kLastMidi = kLastAnalyzedMidi;
 constexpr int kBassMinMidi = 23;
 constexpr int kBassMaxMidi = 67;
 constexpr int kDefaultBassMaxMidi = 52;
+constexpr int kFullMixUpperBassMaxMidi = 59;
 constexpr int kGuitarMinMidi = 40;
 constexpr int kGuitarMaxMidi = 88;
 constexpr int kKeyboardMinMidi = 21;
@@ -436,6 +437,25 @@ bool full_mix_bass_supported(const std::array<float, kNoteProbeCount> &powers, c
 	if (broad_note.score > 1.0e-6f && low_note.score < broad_note.score * broad_ratio_floor)
 		return false;
 	return fundamental > 1.0e-6f && (broad_level <= 1.0e-6f || fundamental >= broad_level * 0.075f);
+}
+
+bool full_mix_upper_bass_supported(const std::array<float, kNoteProbeCount> &powers, const RangeResult &upper_note)
+{
+	if (upper_note.midi <= kDefaultBassMaxMidi || upper_note.midi > kFullMixUpperBassMaxMidi ||
+	    upper_note.score <= 1.0e-6f || upper_note.confidence < 0.06f)
+		return false;
+
+	const float fundamental = probe_level(powers, upper_note.midi);
+	if (fundamental <= 1.0e-6f)
+		return false;
+
+	const float octave = probe_level(powers, upper_note.midi + 12);
+	const float fifth = probe_level(powers, upper_note.midi + 19);
+	const float second_octave = probe_level(powers, upper_note.midi + 24);
+	const bool supported_upper_stack =
+		octave >= fundamental * 0.44f &&
+		(fifth >= fundamental * 0.16f || second_octave >= fundamental * 0.08f);
+	return supported_upper_stack;
 }
 
 struct NoteCandidate {
@@ -6072,8 +6092,18 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 							    bass_note :
 							    dominant_bass_note(detection_note_powers, kBassMinMidi,
 									       kBassMaxMidi, include_bass_harmonics);
-		const bool mixed_bass_supported =
+		const RangeResult upper_bass_note = isolated_bass ?
+							    RangeResult{} :
+							    dominant_bass_note(detection_note_powers,
+									       kDefaultBassMaxMidi + 1,
+									       kFullMixUpperBassMaxMidi, false);
+		bool mixed_bass_supported =
 			isolated_bass || full_mix_bass_supported(detection_note_powers, bass_note, broad_bass_note);
+		if (!isolated_bass && !mixed_bass_supported &&
+		    full_mix_upper_bass_supported(detection_note_powers, upper_bass_note)) {
+			bass_note = upper_bass_note;
+			mixed_bass_supported = true;
+		}
 		if (mixed_bass_supported) {
 			RangeResult displayed_bass = bass_note;
 			if (isolated_bass) {

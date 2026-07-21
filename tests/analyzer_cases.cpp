@@ -3200,6 +3200,19 @@ void check_full_mix_bass_harmonic_note_not_duplicated(Runner &runner)
 	expect_empty_note_grid(runner, snapshot.other_notes, "full-mix bass harmonic other spillover");
 }
 
+void check_full_mix_high_bass_range(Runner &runner)
+{
+	mao_test::Buffer buffer = {};
+	const std::vector<float> high_bass_profile = {1.0f, 0.56f, 0.34f, 0.16f};
+	add_harmonic_note(buffer, 53, 0.26f, high_bass_profile);
+
+	const auto snapshot =
+		analyze_buffer_with_mode(buffer, mao::AnalysisInputMode::FullMix, "speaker monitor", 3);
+	expect_label(runner, snapshot.bass.label, "F3", "full-mix high bass ownership");
+	runner.expect(grid_level_for_midi(snapshot.bass_notes, 53) > 0.0f,
+		      "full-mix high bass ownership: expected F3 in bass note grid");
+}
+
 void check_multi_instrument_mix(Runner &runner)
 {
 	mao_test::Buffer buffer = {};
@@ -4076,6 +4089,7 @@ int main()
 	check_note_sub_rows(runner);
 	check_bass_pure_tone_stays_out_of_harmonic_rows(runner);
 	check_full_mix_bass_harmonic_note_not_duplicated(runner);
+	check_full_mix_high_bass_range(runner);
 	check_multi_instrument_mix(runner);
 	check_low_level_full_instrument_mix(runner);
 	check_bass_survives_low_mid_mix(runner);
