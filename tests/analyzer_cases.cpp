@@ -938,6 +938,20 @@ void check_guitar_supported_extension_aliases(Runner &runner)
 		      std::string("guitar weak-root analysis support: expected C, got `") +
 			      weak_root_snapshot.guitar_chord.label + "`");
 
+	mao_test::Buffer hidden_root_triad = {};
+	add_harmonic_note(hidden_root_triad, 48, 0.025f, guitar_profile);
+	add_harmonic_note(hidden_root_triad, 52, 0.22f, guitar_profile);
+	add_harmonic_note(hidden_root_triad, 55, 0.22f, guitar_profile);
+
+	const auto hidden_root_snapshot = analyze_buffer(hidden_root_triad, "guitar");
+	runner.expect(grid_pitch_active(hidden_root_snapshot.guitar_chord_analysis_notes, 0),
+		      "guitar hidden-root analysis support: expected C in chord-analysis grid");
+	runner.expect(!grid_pitch_active(hidden_root_snapshot.guitar_notes, 0),
+		      "guitar hidden-root analysis support: expected C hidden from visible grid");
+	runner.expect(has_chord_label(hidden_root_snapshot.guitar_chord.label, "C"),
+		      std::string("guitar hidden-root analysis support: expected C, got `") +
+			      hidden_root_snapshot.guitar_chord.label + "`");
+
 	mao_test::Buffer contaminated_minor_triad = {};
 	add_harmonic_note(contaminated_minor_triad, 49, 0.22f, guitar_profile);
 	add_harmonic_note(contaminated_minor_triad, 52, 0.15f, guitar_profile);

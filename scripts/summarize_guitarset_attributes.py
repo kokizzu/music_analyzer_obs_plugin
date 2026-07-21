@@ -6,6 +6,7 @@ from __future__ import annotations
 import collections
 import csv
 import pathlib
+import re
 import statistics
 import sys
 
@@ -131,6 +132,26 @@ def parse_pitch_classes(text: str) -> set[int]:
     return {NOTE_TO_PC[item] for item in text.split(",") if item in NOTE_TO_PC}
 
 
+CELL_RE = re.compile(r"([A-G]#?)-?\d+:([-+0-9.eE]+)")
+
+
+def parse_cell_levels(text: str) -> dict[int, float]:
+    levels: dict[int, float] = {}
+    if not text or text == "--":
+        return levels
+    for match in CELL_RE.finditer(text):
+        note = match.group(1)
+        if note not in NOTE_TO_PC:
+            continue
+        try:
+            level = float(match.group(2))
+        except ValueError:
+            continue
+        pitch_class = NOTE_TO_PC[note]
+        levels[pitch_class] = max(levels.get(pitch_class, 0.0), level)
+    return levels
+
+
 def best_chord_coverage(expected_chords: str, pitch_classes: str) -> tuple[float, bool]:
     visible = parse_pitch_classes(pitch_classes)
     best = 0.0
@@ -175,6 +196,18 @@ def coverage_bucket(coverage: float) -> str:
     return "0%"
 
 
+def compact_level_summary(values_by_tone: dict[str, list[float]], limit: int = 8) -> str:
+    items = []
+    for tone, values in sorted(values_by_tone.items()):
+        if not values:
+            continue
+        items.append((len(values), tone, statistics.median(values)))
+    items.sort(key=lambda item: (-item[0], item[1]))
+    if not items:
+        return "--"
+    return " ".join(f"{tone}={count}@{median:.2f}" for count, tone, median in items[:limit])
+
+
 def note_recall_bucket(row: dict[str, str]) -> str:
     expected = as_int(row, "expected_note_count")
     hits = as_int(row, "guitar_note_hits")
@@ -216,6 +249,13 @@ def summarize(path: pathlib.Path) -> list[str]:
     visible_missing_tones: collections.Counter[str] = collections.Counter()
     analysis_missing_tones: collections.Counter[str] = collections.Counter()
     smooth_missing_tones: collections.Counter[str] = collections.Counter()
+    visible_missing_analysis_present: collections.Counter[str] = collections.Counter()
+    visible_missing_smooth_present: collections.Counter[str] = collections.Counter()
+    analysis_missing_smooth_present: collections.Counter[str] = collections.Counter()
+    chord_miss_support: collections.Counter[str] = collections.Counter()
+    visible_tone_levels: dict[str, list[float]] = collections.defaultdict(list)
+    analysis_tone_levels: dict[str, list[float]] = collections.defaultdict(list)
+    smooth_tone_levels: dict[str, list[float]] = collections.defaultdict(list)
 
     expected_notes = sum(as_int(row, "expected_note_count") for row in rows)
     guitar_hits = sum(as_int(row, "guitar_note_hits") for row in rows)
@@ -244,13 +284,43 @@ def summarize(path: pathlib.Path) -> list[str]:
         visible_pitch_classes = parse_pitch_classes(row.get("guitar_pitch_classes", ""))
         analysis_pitch_classes = parse_pitch_classes(row.get("guitar_analysis_pitch_classes", ""))
         smooth_pitch_classes = parse_pitch_classes(row.get("guitar_smoothed_pitch_classes", ""))
+        visible_levels = parse_cell_levels(row.get("guitar_cells", ""))
+        analysis_levels = parse_cell_levels(row.get("guitar_analysis_cells", ""))
+        smooth_levels = parse_cell_levels(row.get("guitar_smoothed_cells", ""))
+        expected_tones = chord_pitch_classes(expected_label)
+        expected_root = chord_root(expected_label)
+        expected_root_pc = NOTE_TO_PC.get(expected_root, -1)
+        if row.get("status") == "chord_miss" and expected_tones:
+            visible_tones = len(expected_tones & visible_pitch_classes)
+            analysis_tones = len(expected_tones & analysis_pitch_classes)
+            smooth_tones = len(expected_tones & smooth_pitch_classes)
+            root_visible = expected_root_pc in visible_pitch_classes
+            chord_miss_support[
+                f"visible{visible_tones}_analysis{analysis_tones}_"
+                f"smooth{smooth_tones}_rootvis{int(root_visible)}"
+            ] += 1
         for tone_name, pitch_class in chord_tones(expected_label):
-            if pitch_class not in visible_pitch_classes:
+            visible_present = pitch_class in visible_pitch_classes
+            analysis_present = pitch_class in analysis_pitch_classes
+            smooth_present = pitch_class in smooth_pitch_classes
+            if not visible_present:
                 visible_missing_tones[tone_name] += 1
-            if pitch_class not in analysis_pitch_classes:
+                if analysis_present:
+                    visible_missing_analysis_present[tone_name] += 1
+                if smooth_present:
+                    visible_missing_smooth_present[tone_name] += 1
+            if not analysis_present:
                 analysis_missing_tones[tone_name] += 1
-            if pitch_class not in smooth_pitch_classes:
+                if smooth_present:
+                    analysis_missing_smooth_present[tone_name] += 1
+            if not smooth_present:
                 smooth_missing_tones[tone_name] += 1
+            if visible_present:
+                visible_tone_levels[tone_name].append(visible_levels.get(pitch_class, 0.0))
+            if analysis_present:
+                analysis_tone_levels[tone_name].append(analysis_levels.get(pitch_class, 0.0))
+            if smooth_present:
+                smooth_tone_levels[tone_name].append(smooth_levels.get(pitch_class, 0.0))
         visible_chord_coverage[coverage_bucket(visible_coverage)] += 1
         analysis_chord_coverage[coverage_bucket(analysis_coverage)] += 1
         smooth_chord_coverage[coverage_bucket(smooth_coverage)] += 1
@@ -279,6 +349,16 @@ def summarize(path: pathlib.Path) -> list[str]:
         "visible missing chord tones " + compact_counter(visible_missing_tones, 8),
         "analysis missing chord tones " + compact_counter(analysis_missing_tones, 8),
         "smoothed missing chord tones " + compact_counter(smooth_missing_tones, 8),
+        "visible-missing but analysis-present tones "
+        + compact_counter(visible_missing_analysis_present, 8),
+        "visible-missing but smoothed-present tones "
+        + compact_counter(visible_missing_smooth_present, 8),
+        "analysis-missing but smoothed-present tones "
+        + compact_counter(analysis_missing_smooth_present, 8),
+        "chord miss support buckets " + compact_counter(chord_miss_support, 12),
+        "visible present tone levels " + compact_level_summary(visible_tone_levels, 8),
+        "analysis present tone levels " + compact_level_summary(analysis_tone_levels, 8),
+        "smoothed present tone levels " + compact_level_summary(smooth_tone_levels, 8),
         "full-tone chord misses visible/analysis/smoothed "
         + f"{visible_full_chord_misses}/{analysis_full_chord_misses}/{smooth_full_chord_misses}",
         f"median rms {median_rms:.6f}",

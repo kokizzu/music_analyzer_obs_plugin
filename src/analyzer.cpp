@@ -4108,7 +4108,7 @@ ChordResult detect_display_supported_guitar_analysis_triad(const NoteGrid &displ
 		const bool display_fifth = note_grid_pitch_active(display_grid, fifth_pitch_class);
 		const int display_tones =
 			(display_root ? 1 : 0) + (display_third ? 1 : 0) + (display_fifth ? 1 : 0);
-		if (!display_root || display_tones < 2)
+		if (display_tones < 2)
 			return;
 
 		if (note_grid_pitch_active(display_grid, root - 1) && note_grid_pitch_active(display_grid, root + 1) &&

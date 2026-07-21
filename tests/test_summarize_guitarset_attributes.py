@@ -120,8 +120,11 @@ def main() -> int:
                 global_chord="--",
                 guitar_chord="--",
                 guitar_pitch_classes="G,D",
+                guitar_cells="G3:0.70,D4:0.40",
                 guitar_analysis_pitch_classes="G,B,D",
+                guitar_analysis_cells="G3:0.90,B3:0.35,D4:0.55",
                 guitar_smoothed_pitch_classes="G,B,D",
+                guitar_smoothed_cells="G3:0.82,B3:0.30,D4:0.50",
             ),
             row(
                 status="no_chord",
@@ -164,6 +167,13 @@ def main() -> int:
     assert "analysis chord-tone coverage 100%=2" in output
     assert "visible missing chord tones major_third=1" in output
     assert "analysis missing chord tones --" in output
+    assert "visible-missing but analysis-present tones major_third=1" in output
+    assert "visible-missing but smoothed-present tones major_third=1" in output
+    assert "analysis-missing but smoothed-present tones --" in output
+    assert "chord miss support buckets visible2_analysis3_smooth3_rootvis1=1" in output
+    assert "visible present tone levels fifth=2@0.55 root=2@0.85 major_third=1@0.80" in output
+    assert "analysis present tone levels fifth=2@0.62 major_third=2@0.57 root=2@0.95" in output
+    assert "smoothed present tone levels fifth=2@0.60 major_third=2@0.55 root=2@0.91" in output
     assert "full-tone chord misses visible/analysis/smoothed 0/1/1" in output
     assert "chord miss examples" in output
     assert "rec2@2.500s expected=G" in output
