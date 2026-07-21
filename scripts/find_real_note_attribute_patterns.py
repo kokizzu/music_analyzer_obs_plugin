@@ -81,11 +81,12 @@ class PatternMatch:
 @dataclasses.dataclass(frozen=True)
 class RuleResult:
     rule: str
+    positive_row_mask: int
     positive_samples: int
     positive_rows: int
+    negative_row_mask: int
     negative_samples: int
     negative_rows: int
-    negative_row_mask: int
 
 
 def as_float(row: dict[str, str], field: str) -> float | None:
@@ -262,6 +263,43 @@ def category_pattern(field: str, expected: str) -> Pattern:
     )
 
 
+def condition_pattern(spec: str) -> Pattern:
+    match = re.fullmatch(r"([A-Za-z0-9_]+)(<=|>=|<|>|=)(.+)", spec)
+    if not match:
+        raise SystemExit(
+            f"invalid condition `{spec}`; expected field<=value, field>=value, field<value, field>value, or field=value"
+        )
+    field, operator, raw_value = match.groups()
+    value = raw_value.strip()
+    if operator == "=":
+        return category_pattern(field, value)
+
+    try:
+        threshold = float(value)
+    except ValueError as exc:
+        raise SystemExit(f"invalid numeric threshold in condition `{spec}`") from exc
+
+    if operator == "<=":
+        return numeric_pattern(field, "<=", threshold)
+    if operator == ">=":
+        return numeric_pattern(field, ">=", threshold)
+    if operator == "<":
+        return Pattern(
+            f"{field}<{format_value(threshold)}",
+            False,
+            lambda row, field=field, threshold=threshold: (
+                (row_value := as_float(row, field)) is not None and row_value < threshold
+            ),
+        )
+    return Pattern(
+        f"{field}>{format_value(threshold)}",
+        False,
+        lambda row, field=field, threshold=threshold: (
+            (row_value := as_float(row, field)) is not None and row_value > threshold
+        ),
+    )
+
+
 def build_patterns(
     positive_rows: list[dict[str, str]], include_intervals: bool, include_row_context: bool
 ) -> tuple[list[Pattern], list[Pattern]]:
@@ -331,7 +369,7 @@ def result_from_masks(
     negative_rows: list[dict[str, str]],
     positive_sample_bits: list[int],
     negative_sample_bits: list[int],
-    max_negative_samples: int,
+    max_negative_samples: int | None,
 ) -> RuleResult | None:
     positive_samples, _positive_exceeded = sample_count_for_rows(
         positive_row_mask, positive_sample_bits
@@ -343,11 +381,66 @@ def result_from_masks(
         return None
     return RuleResult(
         rule=label,
+        positive_row_mask=positive_row_mask,
         positive_samples=positive_samples,
         positive_rows=positive_row_mask.bit_count(),
+        negative_row_mask=negative_row_mask,
         negative_samples=negative_samples,
         negative_rows=negative_row_mask.bit_count(),
-        negative_row_mask=negative_row_mask,
+    )
+
+
+def unique_rows_from_mask(
+    rows: list[dict[str, str]], row_mask: int, limit: int
+) -> list[dict[str, str]]:
+    selected: list[dict[str, str]] = []
+    seen_samples: set[str] = set()
+    while row_mask and len(selected) < limit:
+        bit = row_mask & -row_mask
+        index = bit.bit_length() - 1
+        row = rows[index]
+        sample_id = row.get("sample_id", "")
+        if sample_id not in seen_samples:
+            seen_samples.add(sample_id)
+            selected.append(row)
+        row_mask ^= bit
+    return selected
+
+
+def short_float(row: dict[str, str], field: str) -> str:
+    value = as_float(row, field)
+    if value is None:
+        return "-"
+    return f"{value:.3f}".rstrip("0").rstrip(".")
+
+
+def format_example(row: dict[str, str]) -> str:
+    scores = (
+        short_float(row, "keyboard_score"),
+        short_float(row, "guitar_score"),
+        short_float(row, "vocal_score"),
+        short_float(row, "other_score"),
+    )
+    partials = (
+        short_float(row, "partial2"),
+        short_float(row, "partial3"),
+        short_float(row, "partial4"),
+        short_float(row, "partial5"),
+    )
+    return (
+        f"{row.get('sample_id', '')} expected={row.get('expected_note', '')}"
+        f"/{row.get('expected_midi', '')} debug={row.get('debug_note', '')}"
+        f"/{row.get('debug_midi', '')} owner={row.get('debug_owner', '')}"
+        f" first_row={row.get('first_row', '')} strongest={row.get('buffer_strongest_row', '')}"
+        f" scores(k/g/v/o)={scores[0]}/{scores[1]}/{scores[2]}/{scores[3]}"
+        f" spec={short_float(row, 'spectral_level')}"
+        f" pitch={short_float(row, 'pitch_confidence')}"
+        f" per={short_float(row, 'periodicity')}"
+        f" fit={short_float(row, 'fit_error')}"
+        f" cent={short_float(row, 'centroid')}"
+        f" slope={short_float(row, 'slope')}"
+        f" noise={short_float(row, 'noise')}"
+        f" p2..p5={partials[0]},{partials[1]},{partials[2]},{partials[3]}"
     )
 
 
@@ -359,6 +452,8 @@ def print_bucket_patterns(
     max_negative_samples: int,
     include_intervals: bool,
     include_row_context: bool,
+    explicit_patterns: list[Pattern],
+    show_examples: int,
 ) -> None:
     positive_rows = rows_for_bucket(rows, bucket)
     negatives = hit_rows(rows)
@@ -374,6 +469,32 @@ def print_bucket_patterns(
 
     positive_sample_bits, _positive_sample_count = sample_bit_map(positive_rows)
     negative_sample_bits, _negative_sample_count = sample_bit_map(negatives)
+    if explicit_patterns:
+        positive_row_mask = (1 << len(positive_rows)) - 1
+        negative_row_mask = (1 << len(negatives)) - 1
+        for pattern in explicit_patterns:
+            positive_row_mask &= mask_for_pattern(positive_rows, pattern)
+            negative_row_mask &= mask_for_pattern(negatives, pattern)
+        result = result_from_masks(
+            " AND ".join(pattern.label for pattern in explicit_patterns),
+            positive_row_mask,
+            negative_row_mask,
+            positive_rows,
+            negatives,
+            positive_sample_bits,
+            negative_sample_bits,
+            None,
+        )
+        print("  explicit rule:")
+        print_results(
+            [result] if result is not None else [],
+            positive_samples,
+            negative_samples,
+            positive_rows,
+            negatives,
+            show_examples,
+        )
+
     category_patterns, numeric_patterns = build_patterns(
         positive_rows, include_intervals, include_row_context
     )
@@ -432,16 +553,32 @@ def print_bucket_patterns(
     )[:limit]
 
     print("  low-false candidate rules:")
-    print_results(low_false, positive_samples, negative_samples, negatives)
+    print_results(
+        low_false,
+        positive_samples,
+        negative_samples,
+        positive_rows,
+        negatives,
+        show_examples,
+    )
     print("  highest-coverage candidate rules:")
-    print_results(coverage, positive_samples, negative_samples, negatives)
+    print_results(
+        coverage,
+        positive_samples,
+        negative_samples,
+        positive_rows,
+        negatives,
+        show_examples,
+    )
 
 
 def print_results(
     results: list[RuleResult],
     positive_total: int,
     negative_total: int,
+    positive_rows: list[dict[str, str]],
     negative_rows: list[dict[str, str]],
+    show_examples: int,
 ) -> None:
     if not results:
         print("    --")
@@ -456,6 +593,22 @@ def print_results(
             f"rows={result.negative_rows}"
             + (f" neg_sources={negative_sources}" if negative_sources else "")
         )
+        if show_examples <= 0:
+            continue
+        positive_examples = unique_rows_from_mask(
+            positive_rows, result.positive_row_mask, show_examples
+        )
+        if positive_examples:
+            print("      positive examples:")
+            for row in positive_examples:
+                print(f"        {format_example(row)}")
+        negative_examples = unique_rows_from_mask(
+            negative_rows, result.negative_row_mask, show_examples
+        )
+        if negative_examples:
+            print("      protected-hit examples:")
+            for row in negative_examples:
+                print(f"        {format_example(row)}")
 
 
 def main() -> int:
@@ -480,10 +633,23 @@ def main() -> int:
         action="store_true",
         help="also test display-row context fields such as first visible row and per-row levels",
     )
+    parser.add_argument(
+        "--condition",
+        action="append",
+        default=[],
+        help="explicit ANDed condition to measure, such as debug_owner=guitar or pitch_confidence>=0.8",
+    )
+    parser.add_argument(
+        "--show-examples",
+        type=int,
+        default=0,
+        help="print up to this many positive and protected-hit sample examples for each rule",
+    )
     args = parser.parse_args()
 
     rows = load_rows(pathlib.Path(args.path))
     buckets = [parse_bucket_spec(spec) for spec in (args.bucket or DEFAULT_BUCKETS)]
+    explicit_patterns = [condition_pattern(spec) for spec in args.condition]
     for bucket in buckets:
         print_bucket_patterns(
             rows,
@@ -493,6 +659,8 @@ def main() -> int:
             max(0, args.max_negative_samples),
             args.include_intervals,
             args.include_row_context,
+            explicit_patterns,
+            max(0, args.show_examples),
         )
     return 0
 
