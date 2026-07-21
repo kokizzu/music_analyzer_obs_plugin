@@ -896,6 +896,15 @@ void check_guitar_supported_extension_aliases(Runner &runner)
 		      std::string("guitar noisy power aliases: expected Cpow alias, got `") +
 			      noisy_power_snapshot.guitar_chord.label + "`");
 
+	mao_test::Buffer thirdless_named_dyad = {};
+	add_harmonic_note(thirdless_named_dyad, 48, 0.20f, guitar_profile);
+	add_harmonic_note(thirdless_named_dyad, 55, 0.18f, guitar_profile);
+
+	const auto thirdless_named_dyad_snapshot = analyze_buffer(thirdless_named_dyad, "guitar");
+	runner.expect(has_chord_label(thirdless_named_dyad_snapshot.guitar_chord.label, "Cpow"),
+		      std::string("guitar thirdless named dyad: expected Cpow, got `") +
+			      thirdless_named_dyad_snapshot.guitar_chord.label + "`");
+
 	mao_test::Buffer full_triad = {};
 	for (int midi : {48, 52, 55})
 		add_harmonic_note(full_triad, midi, 0.24f, guitar_profile);
@@ -986,6 +995,19 @@ void check_guitar_supported_extension_aliases(Runner &runner)
 			      minor_dyad_snapshot.guitar_chord.label + "`");
 	expect_no_chord_label(runner, minor_dyad_snapshot.guitar_chord.label, "D#pow",
 			      "guitar root-third minor dyad power alias");
+
+	const auto pure_major_dyad_snapshot = analyze_buffer(mao_test::make_midi_notes({52, 56}, 0.34f), "guitar");
+	runner.expect(has_chord_label(pure_major_dyad_snapshot.guitar_chord.label, "E"),
+		      std::string("guitar pure root-third major dyad: expected E, got `") +
+			      pure_major_dyad_snapshot.guitar_chord.label + "`");
+	runner.expect(has_chord_label(pure_major_dyad_snapshot.guitar_chord.label, "C#m"),
+		      std::string("guitar pure root-third major dyad: expected rootless C#m alias, got `") +
+			      pure_major_dyad_snapshot.guitar_chord.label + "`");
+
+	const auto pure_minor_dyad_snapshot = analyze_buffer(mao_test::make_midi_notes({51, 54}, 0.34f), "guitar");
+	runner.expect(has_chord_label(pure_minor_dyad_snapshot.guitar_chord.label, "D#m"),
+		      std::string("guitar pure root-third minor dyad: expected D#m, got `") +
+			      pure_minor_dyad_snapshot.guitar_chord.label + "`");
 
 	mao_test::Buffer strong_ambiguous_thirds = {};
 	add_harmonic_note(strong_ambiguous_thirds, 52, 0.16f, guitar_profile);
