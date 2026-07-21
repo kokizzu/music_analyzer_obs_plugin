@@ -1736,6 +1736,42 @@ bool full_mix_display_mirror_supported(FullMixDisplayRow row, const FullMixDebug
 			(debug.owner == InstrumentKind::Vocal ||
 			 debug.owner == InstrumentKind::Ambiguous ||
 			 (debug.owner == InstrumentKind::Guitar && debug.guitar_score <= 0.74f));
+		const bool pure_high_electronic_keyboard_hint =
+			(debug.owner == InstrumentKind::Vocal ||
+			 debug.owner == InstrumentKind::Ambiguous ||
+			 debug.owner == InstrumentKind::Guitar ||
+			 debug.owner == InstrumentKind::Other) &&
+			debug.midi >= 72 && debug.midi <= 84 &&
+			debug.spectral_level >= 0.78f &&
+			debug.pitch_confidence >= 0.88f &&
+			debug.periodicity >= 0.68f &&
+			debug.local_noise_level <= 0.040f &&
+			debug.harmonic_fit_error <= 0.080f &&
+			debug.harmonic_ratios[1] <= 0.055f &&
+			debug.harmonic_ratios[2] <= 0.13f &&
+			debug.harmonic_ratios[3] <= 0.035f &&
+			debug.harmonic_ratios[4] <= 0.035f &&
+			debug.spectral_centroid <= 0.14f &&
+			debug.spectral_slope <= 0.22f;
+		const bool low_octave_organ_keyboard_hint =
+			(debug.owner == InstrumentKind::Guitar ||
+			 debug.owner == InstrumentKind::Ambiguous) &&
+			debug.midi >= 40 && debug.midi <= 52 &&
+			debug.local_noise_level >= 0.20f &&
+			debug.local_noise_level <= 0.56f &&
+			debug.spectral_level >= 0.30f &&
+			debug.pitch_confidence >= 0.10f &&
+			debug.periodicity >= 0.64f &&
+			debug.harmonic_fit_error <= 0.065f &&
+			debug.harmonic_ratios[1] >= 0.24f &&
+			debug.harmonic_ratios[1] <= 0.46f &&
+			debug.harmonic_ratios[2] >= 0.030f &&
+			debug.harmonic_ratios[2] <= 0.14f &&
+			debug.harmonic_ratios[3] <= 0.055f &&
+			debug.harmonic_ratios[4] <= 0.060f &&
+			debug.spectral_centroid >= 0.080f &&
+			debug.spectral_centroid <= 0.21f &&
+			debug.spectral_slope <= 0.13f;
 		return debug.owner == InstrumentKind::Keyboard ||
 		       (debug.keyboard_score >= 0.46f && !competing_guitar_range_hint) ||
 		       noisy_low_keyboard_hint ||
@@ -1746,7 +1782,9 @@ bool full_mix_display_mirror_supported(FullMixDisplayRow row, const FullMixDebug
 		       noisy_low_mid_electronic_keyboard_hint ||
 		       clean_octave_electronic_keyboard_hint ||
 		       high_octave_alias_electronic_keyboard_hint ||
-		       clean_sustained_keyboard_hint;
+		       clean_sustained_keyboard_hint ||
+		       pure_high_electronic_keyboard_hint ||
+		       low_octave_organ_keyboard_hint;
 	}
 	case FullMixDisplayRow::Guitar: {
 		const bool low_noisy_bass_shaped_guitar_hint =
@@ -1869,6 +1907,54 @@ bool full_mix_display_mirror_supported(FullMixDisplayRow row, const FullMixDebug
 			debug.spectral_centroid <= 0.20f &&
 			debug.spectral_slope >= 0.12f &&
 			debug.spectral_slope <= 0.22f;
+		const bool clean_high_keyboard_owned_acoustic_body =
+			debug.owner == InstrumentKind::Keyboard &&
+			debug.midi >= 66 && debug.midi <= 76 &&
+			debug.spectral_level >= 0.70f &&
+			debug.pitch_confidence >= 0.88f &&
+			debug.periodicity >= 0.70f &&
+			debug.local_noise_level <= 0.080f &&
+			debug.harmonic_fit_error <= 0.085f &&
+			debug.harmonic_ratios[1] >= 0.030f &&
+			debug.harmonic_ratios[1] <= 0.20f &&
+			debug.harmonic_ratios[2] <= 0.18f &&
+			debug.harmonic_ratios[3] >= 0.020f &&
+			debug.harmonic_ratios[3] <= 0.080f &&
+			debug.harmonic_ratios[4] <= 0.040f &&
+			debug.spectral_centroid <= 0.20f &&
+			debug.spectral_slope <= 0.24f;
+		const bool resonant_mid_ambiguous_acoustic_body =
+			(debug.owner == InstrumentKind::Ambiguous ||
+			 debug.owner == InstrumentKind::Vocal) &&
+			debug.midi >= 60 && debug.midi <= 64 &&
+			debug.spectral_level >= 0.70f &&
+			debug.pitch_confidence >= 0.90f &&
+			debug.periodicity >= 0.78f &&
+			debug.local_noise_level <= 0.075f &&
+			debug.harmonic_fit_error <= 0.095f &&
+			debug.keyboard_score >= 0.45f &&
+			debug.harmonic_ratios[1] >= 0.22f &&
+			debug.harmonic_ratios[1] <= 0.46f &&
+			debug.harmonic_ratios[2] <= 0.10f &&
+			debug.harmonic_ratios[3] >= 0.12f &&
+			debug.harmonic_ratios[3] <= 0.25f &&
+			debug.harmonic_ratios[4] <= 0.080f &&
+			debug.spectral_centroid <= 0.22f &&
+			debug.spectral_slope <= 0.26f;
+		const bool very_high_clean_acoustic_body =
+			debug.owner == InstrumentKind::Vocal &&
+			debug.midi >= 77 && debug.midi <= 84 &&
+			debug.spectral_level >= 0.78f &&
+			debug.pitch_confidence >= 0.88f &&
+			debug.periodicity >= 0.68f &&
+			debug.local_noise_level <= 0.040f &&
+			debug.harmonic_fit_error <= 0.080f &&
+			debug.harmonic_ratios[1] <= 0.055f &&
+			debug.harmonic_ratios[2] <= 0.13f &&
+			debug.harmonic_ratios[3] <= 0.035f &&
+			debug.harmonic_ratios[4] <= 0.035f &&
+			debug.spectral_centroid <= 0.14f &&
+			debug.spectral_slope <= 0.22f;
 		return debug.owner == InstrumentKind::Guitar ||
 		       debug.guitar_score >= 0.52f ||
 		       octave_dominant_acoustic_body ||
@@ -1876,7 +1962,10 @@ bool full_mix_display_mirror_supported(FullMixDisplayRow row, const FullMixDebug
 		       mid_keyboard_owned_acoustic_body ||
 		       high_plucked_acoustic_body ||
 		       clean_high_acoustic_body ||
-		       mid_vocal_like_acoustic_body;
+		       mid_vocal_like_acoustic_body ||
+		       clean_high_keyboard_owned_acoustic_body ||
+		       resonant_mid_ambiguous_acoustic_body ||
+		       very_high_clean_acoustic_body;
 	}
 	case FullMixDisplayRow::Vocal:
 		return debug.owner == InstrumentKind::Vocal && debug.ownership_confidence >= 0.58f;
@@ -1945,6 +2034,41 @@ bool full_mix_display_mirror_supported(FullMixDisplayRow row, const FullMixDebug
 			debug.spectral_centroid <= 0.42f &&
 			debug.spectral_slope >= 0.10f &&
 			debug.spectral_slope <= 0.32f;
+		const bool octave_rich_reed_display_other =
+			(debug.owner == InstrumentKind::Guitar ||
+			 debug.owner == InstrumentKind::Ambiguous) &&
+			debug.midi >= 72 && debug.midi <= 84 &&
+			debug.spectral_level >= 0.62f &&
+			debug.pitch_confidence >= 0.52f &&
+			debug.periodicity >= 0.78f &&
+			debug.local_noise_level <= 0.012f &&
+			debug.harmonic_fit_error <= 0.46f &&
+			debug.harmonic_ratios[1] >= 0.50f &&
+			debug.harmonic_ratios[1] <= 1.60f &&
+			debug.harmonic_ratios[2] <= 0.14f &&
+			debug.harmonic_ratios[3] <= 0.040f &&
+			debug.harmonic_ratios[4] <= 0.025f &&
+			debug.spectral_centroid >= 0.14f &&
+			debug.spectral_centroid <= 0.30f &&
+			debug.spectral_slope <= 0.09f;
+		const bool smooth_bowed_string_display_other =
+			(debug.owner == InstrumentKind::Guitar ||
+			 debug.owner == InstrumentKind::Ambiguous ||
+			 debug.owner == InstrumentKind::Vocal) &&
+			debug.midi >= 60 && debug.midi <= 66 &&
+			debug.spectral_level >= 0.80f &&
+			debug.pitch_confidence >= 0.80f &&
+			debug.periodicity >= 0.68f &&
+			debug.local_noise_level <= 0.16f &&
+			debug.harmonic_fit_error <= 0.080f &&
+			debug.harmonic_ratios[1] >= 0.050f &&
+			debug.harmonic_ratios[1] <= 0.32f &&
+			debug.harmonic_ratios[2] <= 0.040f &&
+			debug.harmonic_ratios[3] <= 0.040f &&
+			debug.harmonic_ratios[4] <= 0.040f &&
+			debug.spectral_centroid >= 0.020f &&
+			debug.spectral_centroid <= 0.14f &&
+			debug.spectral_slope <= 0.060f;
 		const bool high_wind_like_guitar_other =
 			sustained_other &&
 			debug.owner == InstrumentKind::Guitar &&
@@ -1961,7 +2085,8 @@ bool full_mix_display_mirror_supported(FullMixDisplayRow row, const FullMixDebug
 		if (debug.owner == InstrumentKind::Guitar && debug.ownership_confidence >= 0.58f &&
 		    debug.other_score < 0.30f && !sustained_guitar_other && !bright_high_brass_other &&
 		    !low_weak_upper_string_other && !low_bowed_string_display_other &&
-		    !octave_dominant_reed_display_other)
+		    !octave_dominant_reed_display_other && !octave_rich_reed_display_other &&
+		    !smooth_bowed_string_display_other)
 			return false;
 		return debug.owner == InstrumentKind::Other ||
 		       debug.other_score >= 0.035f ||
@@ -1969,7 +2094,9 @@ bool full_mix_display_mirror_supported(FullMixDisplayRow row, const FullMixDebug
 		       bright_high_brass_other ||
 		       low_weak_upper_string_other ||
 		       low_bowed_string_display_other ||
-		       octave_dominant_reed_display_other;
+		       octave_dominant_reed_display_other ||
+		       octave_rich_reed_display_other ||
+		       smooth_bowed_string_display_other;
 	}
 	return false;
 }
