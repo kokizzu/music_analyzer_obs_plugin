@@ -5,7 +5,7 @@ import sys
 
 
 MISS_RE = re.compile(
-    r"chord opportunity `([^`]*)`, detected global `([^`]*)`, key `([^`]*)`, "
+    r"^(.+?): chord opportunity `([^`]*)`, detected global `([^`]*)`, key `([^`]*)`, "
     r"guitar `([^`]*)`, other `([^`]*)`"
     r"(?:, expected pc `([^`]*)`, guitar pc `([^`]*)`, guitar cells `([^`]*)`"
     r"(?:, guitar analysis pc `([^`]*)`, guitar analysis cells `([^`]*)`, "
@@ -199,6 +199,9 @@ def main() -> int:
     full_tone_miss_pairs: collections.Counter[tuple[str, str]] = collections.Counter()
     analysis_full_tone_miss_pairs: collections.Counter[tuple[str, str]] = collections.Counter()
     smooth_full_tone_miss_pairs: collections.Counter[tuple[str, str]] = collections.Counter()
+    full_tone_examples: list[str] = []
+    analysis_full_tone_examples: list[str] = []
+    smooth_full_tone_examples: list[str] = []
     plain_to_power = []
     plain_to_power_third_state: collections.Counter[str] = collections.Counter()
     bucket_counts: collections.Counter[str] = collections.Counter()
@@ -212,6 +215,7 @@ def main() -> int:
     has_analysis_grid_diagnostics = False
 
     for (
+        context,
         opportunity,
         _global,
         _key,
@@ -252,6 +256,10 @@ def main() -> int:
                 full_expected_tones_by_quality[expected_quality] += 1
                 if full_tone_label not in detected:
                     full_tone_miss_pairs[(full_tone_label, guitar)] += 1
+                    if len(full_tone_examples) < 12:
+                        full_tone_examples.append(
+                            f"{context}: {full_tone_label} => {guitar} visible pc {guitar_pc}"
+                        )
             expected_tone_coverage_sum[expected_quality] += best_coverage
             coverage_buckets[coverage_bucket(best_coverage)] += 1
             if best_missing:
@@ -268,6 +276,11 @@ def main() -> int:
                     display_missing_analysis_full += 1
                 if analysis_full_tone_label not in detected:
                     analysis_full_tone_miss_pairs[(analysis_full_tone_label, guitar)] += 1
+                    if len(analysis_full_tone_examples) < 12:
+                        analysis_full_tone_examples.append(
+                            f"{context}: {analysis_full_tone_label} => {guitar} "
+                            f"analysis pc {guitar_analysis_pc} visible pc {guitar_pc}"
+                        )
             analysis_expected_tone_coverage_sum[expected_quality] += analysis_coverage
             analysis_coverage_buckets[coverage_bucket(analysis_coverage)] += 1
             smooth_pitch_classes = parse_pitch_classes(guitar_smooth_pc)
@@ -280,6 +293,11 @@ def main() -> int:
                     display_missing_smooth_full += 1
                 if smooth_full_tone_label not in detected:
                     smooth_full_tone_miss_pairs[(smooth_full_tone_label, guitar)] += 1
+                    if len(smooth_full_tone_examples) < 12:
+                        smooth_full_tone_examples.append(
+                            f"{context}: {smooth_full_tone_label} => {guitar} "
+                            f"smooth pc {guitar_smooth_pc} visible pc {guitar_pc}"
+                        )
             smooth_expected_tone_coverage_sum[expected_quality] += smooth_coverage
             smooth_coverage_buckets[coverage_bucket(smooth_coverage)] += 1
         bucket = miss_bucket(expected, detected, guitar_pitch_classes, full_tone_label)
@@ -362,13 +380,25 @@ def main() -> int:
         print("top full-tone expected labels still missed")
         for (expected_label, guitar), value in full_tone_miss_pairs.most_common(30):
             print(f"{value} {expected_label} => {guitar}")
+        if full_tone_examples:
+            print("full-tone miss examples")
+            for example in full_tone_examples:
+                print(example)
         if has_analysis_grid_diagnostics:
             print("top analysis-full-tone expected labels still missed")
             for (expected_label, guitar), value in analysis_full_tone_miss_pairs.most_common(30):
                 print(f"{value} {expected_label} => {guitar}")
+            if analysis_full_tone_examples:
+                print("analysis-full-tone miss examples")
+                for example in analysis_full_tone_examples:
+                    print(example)
             print("top smoothed-full-tone expected labels still missed")
             for (expected_label, guitar), value in smooth_full_tone_miss_pairs.most_common(30):
                 print(f"{value} {expected_label} => {guitar}")
+            if smooth_full_tone_examples:
+                print("smoothed-full-tone miss examples")
+                for example in smooth_full_tone_examples:
+                    print(example)
     print(f"same_root_plain_major_minor_to_power {len(plain_to_power)}")
     if plain_to_power_third_state:
         print("plain_to_power_third_state")

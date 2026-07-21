@@ -69,6 +69,12 @@ def main() -> int:
     require(output, "analysis guitar grid coverage buckets")
     require(output, "display_missing_analysis_full 1")
     require(output, "display_missing_smooth_full 1")
+    require(output, "full-tone miss examples")
+    require(output, "case1: Cmaj7 => C visible pc C,E,G,B")
+    require(output, "analysis-full-tone miss examples")
+    require(output, "case6: G => -- analysis pc G,B,D visible pc G,D")
+    require(output, "smoothed-full-tone miss examples")
+    require(output, "case6: G => -- smooth pc G,B,D visible pc G,D")
     print("test_analyze_guitarset_misses: ok")
     return 0
 
