@@ -911,7 +911,7 @@ analyze-real-note-attributes: $(BUILD_DIR)/analyzer_real_note_samples prepare-re
 
 inspect-real-note-attribute-buckets: scripts/inspect_real_note_attribute_buckets.py
 	@if [ ! -f "$(BUILD_DIR)/real_note_full_mix_attributes.tsv" ]; then $(MAKE) analyze-real-note-attributes; fi
-	$(PYTHON) scripts/inspect_real_note_attribute_buckets.py "$(BUILD_DIR)/real_note_full_mix_attributes.tsv"
+	$(PYTHON) scripts/inspect_real_note_attribute_buckets.py "$(BUILD_DIR)/real_note_full_mix_attributes.tsv" $(INSPECT_ARGS)
 
 find-real-note-attribute-patterns: scripts/find_real_note_attribute_patterns.py
 	@if [ ! -f "$(BUILD_DIR)/real_note_full_mix_attributes.tsv" ]; then $(MAKE) analyze-real-note-attributes; fi
