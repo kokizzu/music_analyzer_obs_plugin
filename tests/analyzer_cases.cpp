@@ -2029,6 +2029,26 @@ void check_full_mix_single_instrument_precision(Runner &runner)
 
 	{
 		mao_test::Buffer buffer = {};
+		const std::vector<float> keyboard_owned_acoustic_guitar_profile =
+			{1.0f, 0.30f, 0.025f, 0.24f, 0.014f};
+		add_harmonic_note(buffer, 56, 0.27f, keyboard_owned_acoustic_guitar_profile);
+
+		const auto snapshot =
+			analyze_buffer_with_mode(buffer, mao::AnalysisInputMode::FullMix,
+						 "speaker keyboard-owned acoustic guitar", 3);
+		expect_global_pitch_class(runner, snapshot, 8,
+					  "full-mix keyboard-owned acoustic guitar global");
+		runner.expect(grid_level_for_midi(snapshot.guitar_notes, 56) > 0.0f,
+			      std::string("full-mix keyboard-owned acoustic guitar: expected guitar G#3 "
+					  "display, got guitar `") +
+				      snapshot.guitar.label + "`, keyboard `" + snapshot.keyboard.label +
+				      "`, bass `" + snapshot.bass.label + "`, other `" +
+				      snapshot.other.label + "`, debug `" +
+				      full_mix_debug_summary_for_midi(snapshot, 56) + "`");
+	}
+
+	{
+		mao_test::Buffer buffer = {};
 		const std::vector<float> sparse_acoustic_guitar_profile = {1.0f, 0.32f, 0.030f, 0.020f, 0.010f};
 		add_harmonic_note(buffer, 54, 0.27f, sparse_acoustic_guitar_profile);
 
