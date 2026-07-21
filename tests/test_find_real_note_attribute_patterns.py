@@ -210,6 +210,102 @@ def main() -> int:
             stderr=subprocess.PIPE,
             check=True,
         )
+        multi_path = pathlib.Path(tmp) / "multi_attributes.tsv"
+        multi_rows = [
+            row(
+                status="ownership_miss",
+                detected_expected_row="0",
+                first_row="piano",
+                sample_id="guitar_1",
+                family="guitar",
+                nsynth_family="guitar",
+                source="acoustic",
+                expected_note="F#4",
+                expected_midi="66",
+                partial2="0.12",
+                pitch_confidence="0.95",
+            ),
+            row(
+                status="ownership_miss",
+                detected_expected_row="0",
+                first_row="piano",
+                sample_id="guitar_2",
+                family="guitar",
+                nsynth_family="guitar",
+                source="acoustic",
+                expected_note="A4",
+                expected_midi="69",
+                debug_note="A4",
+                debug_midi="69",
+                partial2="0.13",
+                pitch_confidence="0.96",
+            ),
+            row(
+                status="hit",
+                first_row="piano",
+                sample_id="keyboard_1",
+                family="piano",
+                nsynth_family="keyboard",
+                source="electronic",
+                expected_note="F#4",
+                expected_midi="66",
+                partial2="0.12",
+                pitch_confidence="0.40",
+            ),
+            row(
+                status="hit",
+                first_row="piano",
+                sample_id="keyboard_2",
+                family="piano",
+                nsynth_family="keyboard",
+                source="electronic",
+                expected_note="A4",
+                expected_midi="69",
+                debug_note="A4",
+                debug_midi="69",
+                partial2="0.62",
+                pitch_confidence="0.96",
+            ),
+            row(
+                status="hit",
+                first_row="guitar",
+                sample_id="keyboard_3",
+                family="piano",
+                nsynth_family="keyboard",
+                source="electronic",
+                expected_note="C5",
+                expected_midi="72",
+                debug_note="C5",
+                debug_midi="72",
+                debug_owner="guitar",
+                partial2="0.12",
+                pitch_confidence="0.96",
+            ),
+        ]
+        multi_path.write_text(
+            "\t".join(HEADER) + "\n" + "\n".join("\t".join(item) for item in multi_rows) + "\n"
+        )
+        multi_result = subprocess.run(
+            [
+                sys.executable,
+                str(ROOT / "scripts" / "find_real_note_attribute_patterns.py"),
+                str(multi_path),
+                "--bucket",
+                "ownership_miss:guitar/acoustic->piano",
+                "--limit",
+                "20",
+                "--max-negative-samples",
+                "0",
+                "--max-conditions",
+                "3",
+                "--beam-width",
+                "80",
+            ],
+            text=True,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            check=True,
+        )
 
     assert "ownership_miss:guitar/acoustic->piano positives=2 samples/2 rows" in result.stdout
     assert "debug_owner=piano AND partial2<=0.14: pos=2/2 rows=2 neg=0/2 rows=0" in result.stdout
@@ -220,6 +316,10 @@ def main() -> int:
     assert "guitar_1 expected=F#4/66 debug=F#4/66 owner=piano" in example_result.stdout
     assert "protected-hit examples:" in example_result.stdout
     assert "keyboard_1 expected=F#4/66 debug=F#4/66 owner=piano" in example_result.stdout
+    assert (
+        "debug_midi<=69 AND partial2<=0.13 AND pitch_confidence>=0.95: "
+        "pos=2/2 rows=2 neg=0/3 rows=0"
+    ) in multi_result.stdout
     print("test_find_real_note_attribute_patterns: ok")
     return 0
 

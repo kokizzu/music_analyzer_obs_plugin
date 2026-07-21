@@ -3,11 +3,12 @@
 
 from __future__ import annotations
 
+import argparse
 import collections
 import csv
 import pathlib
+import re
 import statistics
-import sys
 
 
 NUMERIC_FIELDS = [
@@ -67,6 +68,22 @@ SUMMARY_FIELDS = [
 ]
 
 
+SAMPLE_FIELDS = [
+    "debug_conf",
+    "keyboard_score",
+    "guitar_score",
+    "vocal_score",
+    "other_score",
+    "pitch_confidence",
+    "periodicity",
+    "fit_error",
+    "noise",
+    "partial2",
+    "partial3",
+    "partial4",
+]
+
+
 def source_key(row: dict[str, str]) -> str:
     source = row.get("source") or row.get("nsynth_family") or "unknown"
     return f"{row.get('family', 'unknown')}/{source}"
@@ -89,6 +106,27 @@ def median_text(rows: list[dict[str, str]], field: str) -> str:
     return f"{statistics.median(values):.3f}"
 
 
+def compact_counter(counter: collections.Counter[str], limit: int = 8) -> str:
+    if not counter:
+        return "--"
+    return " ".join(f"{key}={value}" for key, value in counter.most_common(limit))
+
+
+def expected_pitch_class(row: dict[str, str]) -> str:
+    match = re.fullmatch(r"([A-G]#?)-?\d+", row.get("expected_note", ""))
+    if match:
+        return match.group(1)
+    return row.get("expected_note", "--") or "--"
+
+
+def expected_octave(row: dict[str, str]) -> str:
+    try:
+        midi = int(row.get("expected_midi", ""))
+    except ValueError:
+        return "--"
+    return str(midi // 12 - 1)
+
+
 def note_range(samples: dict[str, dict[str, str]]) -> str:
     midis = []
     for row in samples.values():
@@ -101,13 +139,145 @@ def note_range(samples: dict[str, dict[str, str]]) -> str:
     return f"{min(midis)}-{max(midis)}"
 
 
+def median_parts(rows: list[dict[str, str]], fields: list[str]) -> str:
+    return " ".join(f"{field}={median_text(rows, field)}" for field in fields)
+
+
+def debug_rows_for_sample_ids(
+    rows_by_sample: dict[str, list[dict[str, str]]], sample_ids: set[str]
+) -> list[dict[str, str]]:
+    debug_rows = []
+    for sample_id in sample_ids:
+        debug_rows.extend(row for row in rows_by_sample.get(sample_id, []) if row.get("debug_note"))
+    return debug_rows
+
+
 def load_rows(path: pathlib.Path) -> list[dict[str, str]]:
     with path.open(newline="", errors="replace") as handle:
         reader = csv.DictReader(handle, delimiter="\t")
         return list(reader)
 
 
-def summarize(path: pathlib.Path) -> list[str]:
+def append_detailed_breakdown(
+    lines: list[str],
+    rows: list[dict[str, str]],
+    samples: dict[str, dict[str, str]],
+    detail_limit: int,
+    sample_limit: int,
+) -> None:
+    if detail_limit <= 0 and sample_limit <= 0:
+        return
+
+    rows_by_sample: dict[str, list[dict[str, str]]] = collections.defaultdict(list)
+    for row in rows:
+        rows_by_sample[row.get("sample_id", "")].append(row)
+
+    if detail_limit > 0:
+        samples_by_source: dict[str, list[dict[str, str]]] = collections.defaultdict(list)
+        for sample in samples.values():
+            samples_by_source[source_key(sample)].append(sample)
+
+        lines.append("source detail")
+        for source, source_samples in sorted(samples_by_source.items()):
+            source_sample_map = {row.get("sample_id", ""): row for row in source_samples}
+            source_debug_rows = debug_rows_for_sample_ids(
+                rows_by_sample, set(source_sample_map.keys())
+            )
+            status = collections.Counter(row.get("status", "unknown") for row in source_samples)
+            first_rows = collections.Counter(row.get("first_row", "none") for row in source_samples)
+            owners = collections.Counter(
+                row.get("debug_owner", "none") for row in source_debug_rows if row.get("debug_owner")
+            )
+            lines.append(
+                f"  {source} samples={len(source_samples)} midi={note_range(source_sample_map)} "
+                f"status={compact_counter(status)} first_rows={compact_counter(first_rows)} "
+                f"debug_owners={compact_counter(owners)} {median_parts(source_debug_rows, SAMPLE_FIELDS)}"
+            )
+
+        pitch_bucket_ids: dict[tuple[str, str, str, str, str], set[str]] = collections.defaultdict(set)
+        octave_bucket_ids: dict[tuple[str, str, str, str], set[str]] = collections.defaultdict(set)
+        for sample_id, sample in samples.items():
+            status = sample.get("status", "unknown")
+            if status == "hit":
+                continue
+            source = source_key(sample)
+            first_row = sample.get("first_row", "none")
+            pitch_bucket_ids[
+                (status, source, expected_pitch_class(sample), expected_octave(sample), first_row)
+            ].add(sample_id)
+            octave_bucket_ids[(status, source, expected_octave(sample), first_row)].add(sample_id)
+
+        lines.append("non-hit pitch buckets")
+        for (status, source, pitch_class, octave, first_row), sample_ids in sorted(
+            pitch_bucket_ids.items(), key=lambda item: (-len(item[1]), item[0])
+        )[:detail_limit]:
+            debug_rows = debug_rows_for_sample_ids(rows_by_sample, sample_ids)
+            owners = collections.Counter(
+                row.get("debug_owner", "none") for row in debug_rows if row.get("debug_owner")
+            )
+            debug_notes = collections.Counter(
+                row.get("debug_note", "none") for row in debug_rows if row.get("debug_note")
+            )
+            lines.append(
+                f"  {status}:{source} note={pitch_class}{octave}->"
+                f"{first_row} samples={len(sample_ids)} debug_owners={compact_counter(owners)} "
+                f"debug_notes={compact_counter(debug_notes, 5)} {median_parts(debug_rows, SAMPLE_FIELDS)}"
+            )
+
+        lines.append("non-hit octave buckets")
+        for (status, source, octave, first_row), sample_ids in sorted(
+            octave_bucket_ids.items(), key=lambda item: (-len(item[1]), item[0])
+        )[:detail_limit]:
+            debug_rows = debug_rows_for_sample_ids(rows_by_sample, sample_ids)
+            expected_notes = collections.Counter(
+                samples[sample_id].get("expected_note", "--") for sample_id in sample_ids
+            )
+            owners = collections.Counter(
+                row.get("debug_owner", "none") for row in debug_rows if row.get("debug_owner")
+            )
+            lines.append(
+                f"  {status}:{source} octave={octave}->{first_row} samples={len(sample_ids)} "
+                f"expected={compact_counter(expected_notes, 6)} debug_owners={compact_counter(owners)} "
+                f"{median_parts(debug_rows, SAMPLE_FIELDS)}"
+            )
+
+    if sample_limit > 0:
+        non_hit_samples = [
+            sample for sample in samples.values() if sample.get("status", "hit") != "hit"
+        ]
+        non_hit_samples.sort(
+            key=lambda row: (
+                row.get("status", ""),
+                source_key(row),
+                int(row.get("expected_midi", "0") or "0"),
+                row.get("sample_id", ""),
+            )
+        )
+        lines.append("non-hit sample attributes")
+        for sample in non_hit_samples[:sample_limit]:
+            sample_id = sample.get("sample_id", "")
+            debug_rows = debug_rows_for_sample_ids(rows_by_sample, {sample_id})
+            owners = collections.Counter(
+                row.get("debug_owner", "none") for row in debug_rows if row.get("debug_owner")
+            )
+            debug_notes = collections.Counter(
+                row.get("debug_note", "none") for row in debug_rows if row.get("debug_note")
+            )
+            strongest = collections.Counter(
+                row.get("buffer_strongest_row", "none")
+                for row in rows_by_sample.get(sample_id, [])
+                if row.get("buffer_strongest_row")
+            )
+            lines.append(
+                f"  {sample_id} status={sample.get('status', '')} source={source_key(sample)} "
+                f"expected={sample.get('expected_note', '')}/{sample.get('expected_midi', '')} "
+                f"first_row={sample.get('first_row', '')} strongest={compact_counter(strongest, 4)} "
+                f"debug_owners={compact_counter(owners, 4)} debug_notes={compact_counter(debug_notes, 5)} "
+                f"{median_parts(debug_rows, SAMPLE_FIELDS)}"
+            )
+
+
+def summarize(path: pathlib.Path, detail_limit: int = 0, sample_limit: int = 0) -> list[str]:
     rows = load_rows(path)
     samples: dict[str, dict[str, str]] = {}
     for row in rows:
@@ -170,12 +340,32 @@ def summarize(path: pathlib.Path) -> list[str]:
             + " ".join(parts)
         )
 
+    append_detailed_breakdown(lines, rows, samples, detail_limit, sample_limit)
     return lines
 
 
 def main() -> int:
-    path = pathlib.Path(sys.argv[1] if len(sys.argv) > 1 else "build/real_note_full_mix_attributes.tsv")
-    for line in summarize(path):
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("path", nargs="?", default="build/real_note_full_mix_attributes.tsv")
+    parser.add_argument(
+        "--detail-limit",
+        type=int,
+        default=0,
+        help="print this many non-hit pitch and octave buckets plus per-source attribute summaries",
+    )
+    parser.add_argument(
+        "--sample-limit",
+        type=int,
+        default=0,
+        help="print this many individual non-hit sample attribute summaries",
+    )
+    args = parser.parse_args()
+
+    for line in summarize(
+        pathlib.Path(args.path),
+        detail_limit=max(0, args.detail_limit),
+        sample_limit=max(0, args.sample_limit),
+    ):
         print(line)
     return 0
 

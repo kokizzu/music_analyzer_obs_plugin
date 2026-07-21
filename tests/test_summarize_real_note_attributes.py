@@ -165,12 +165,33 @@ def main() -> int:
             stderr=subprocess.PIPE,
             check=True,
         )
+        detailed_result = subprocess.run(
+            [
+                sys.executable,
+                str(ROOT / "scripts" / "summarize_real_note_attributes.py"),
+                str(path),
+                "--detail-limit",
+                "4",
+                "--sample-limit",
+                "4",
+            ],
+            text=True,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            check=True,
+        )
 
     assert "samples 2" in result.stdout
     assert "hit=1" in result.stdout
     assert "ownership_miss=1" in result.stdout
     assert "ownership_miss:piano/electronic->guitar=1" in result.stdout
     assert "debug medians ownership_miss:piano/electronic->guitar" in result.stdout
+    assert "source detail" in detailed_result.stdout
+    assert "piano/electronic samples=2 midi=40-60" in detailed_result.stdout
+    assert "non-hit pitch buckets" in detailed_result.stdout
+    assert "ownership_miss:piano/electronic note=E2->guitar samples=1" in detailed_result.stdout
+    assert "non-hit sample attributes" in detailed_result.stdout
+    assert "keyboard_2 status=ownership_miss source=piano/electronic expected=E2/40" in detailed_result.stdout
     print("test_summarize_real_note_attributes: ok")
     return 0
 

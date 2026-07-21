@@ -89,6 +89,14 @@ class RuleResult:
     negative_rows: int
 
 
+@dataclasses.dataclass(frozen=True)
+class SearchState:
+    labels: tuple[str, ...]
+    positive_row_mask: int
+    negative_row_mask: int
+    next_match_index: int
+
+
 def as_float(row: dict[str, str], field: str) -> float | None:
     value = row.get(field, "")
     if value == "":
@@ -390,6 +398,141 @@ def result_from_masks(
     )
 
 
+def count_samples_bounded(
+    row_mask: int, row_sample_bits: list[int], max_samples: int | None
+) -> int:
+    count, exceeded = sample_count_for_rows(row_mask, row_sample_bits, max_samples)
+    if exceeded and max_samples is not None:
+        return max_samples + 1
+    return count
+
+
+def ranked_state_key(
+    state: SearchState,
+    positive_sample_bits: list[int],
+    negative_sample_bits: list[int],
+    max_negative_samples: int,
+) -> tuple[int, int, int, int, str]:
+    negative_samples = count_samples_bounded(
+        state.negative_row_mask, negative_sample_bits, max_negative_samples
+    )
+    positive_samples = count_samples_bounded(
+        state.positive_row_mask, positive_sample_bits, None
+    )
+    return (
+        negative_samples,
+        -positive_samples,
+        state.negative_row_mask.bit_count(),
+        len(state.labels),
+        " AND ".join(state.labels),
+    )
+
+
+def extend_condition_search(
+    matches: list[PatternMatch],
+    positive_rows: list[dict[str, str]],
+    negative_rows: list[dict[str, str]],
+    positive_sample_bits: list[int],
+    negative_sample_bits: list[int],
+    min_positive_samples: int,
+    max_negative_samples: int,
+    max_conditions: int,
+    beam_width: int,
+) -> list[RuleResult]:
+    if max_conditions <= 2 or not matches:
+        return []
+
+    ordered_matches = sorted(matches, key=lambda match: match.label)
+    states: list[SearchState] = []
+    for index, match in enumerate(ordered_matches):
+        positive_samples = count_samples_bounded(
+            match.positive_row_mask, positive_sample_bits, None
+        )
+        if positive_samples < min_positive_samples:
+            continue
+        states.append(
+            SearchState(
+                labels=(match.label,),
+                positive_row_mask=match.positive_row_mask,
+                negative_row_mask=match.negative_row_mask,
+                next_match_index=index + 1,
+            )
+        )
+
+    results: list[RuleResult] = []
+    seen_results: set[tuple[int, int]] = set()
+    max_conditions = max(3, max_conditions)
+    beam_width = max(1, beam_width)
+
+    for condition_count in range(2, max_conditions + 1):
+        next_states: list[SearchState] = []
+        seen_states: dict[tuple[int, int], SearchState] = {}
+        for state in states:
+            for match_index in range(state.next_match_index, len(ordered_matches)):
+                match = ordered_matches[match_index]
+                positive_row_mask = state.positive_row_mask & match.positive_row_mask
+                if positive_row_mask == 0:
+                    continue
+                positive_samples = count_samples_bounded(
+                    positive_row_mask, positive_sample_bits, None
+                )
+                if positive_samples < min_positive_samples:
+                    continue
+                negative_row_mask = state.negative_row_mask & match.negative_row_mask
+                candidate = SearchState(
+                    labels=state.labels + (match.label,),
+                    positive_row_mask=positive_row_mask,
+                    negative_row_mask=negative_row_mask,
+                    next_match_index=match_index + 1,
+                )
+                key = (positive_row_mask, negative_row_mask)
+                existing = seen_states.get(key)
+                if existing is None or ranked_state_key(
+                    candidate,
+                    positive_sample_bits,
+                    negative_sample_bits,
+                    max_negative_samples,
+                ) < ranked_state_key(
+                    existing,
+                    positive_sample_bits,
+                    negative_sample_bits,
+                    max_negative_samples,
+                ):
+                    seen_states[key] = candidate
+
+        next_states = sorted(
+            seen_states.values(),
+            key=lambda state: ranked_state_key(
+                state, positive_sample_bits, negative_sample_bits, max_negative_samples
+            ),
+        )[:beam_width]
+
+        if condition_count >= 3:
+            for state in next_states:
+                result_key = (state.positive_row_mask, state.negative_row_mask)
+                if result_key in seen_results:
+                    continue
+                seen_results.add(result_key)
+                result = result_from_masks(
+                    " AND ".join(state.labels),
+                    state.positive_row_mask,
+                    state.negative_row_mask,
+                    positive_rows,
+                    negative_rows,
+                    positive_sample_bits,
+                    negative_sample_bits,
+                    max_negative_samples,
+                )
+                if result is not None:
+                    results.append(result)
+
+        states = next_states
+        if not states:
+            break
+
+    return results
+
+
 def unique_rows_from_mask(
     rows: list[dict[str, str]], row_mask: int, limit: int
 ) -> list[dict[str, str]]:
@@ -454,6 +597,8 @@ def print_bucket_patterns(
     include_row_context: bool,
     explicit_patterns: list[Pattern],
     show_examples: int,
+    max_conditions: int,
+    beam_width: int,
 ) -> None:
     positive_rows = rows_for_bucket(rows, bucket)
     negatives = hit_rows(rows)
@@ -532,6 +677,19 @@ def print_bucket_patterns(
                 category.positive_row_mask & numeric.positive_row_mask,
                 category.negative_row_mask & numeric.negative_row_mask,
             )
+    results.extend(
+        extend_condition_search(
+            [*category_matches, *numeric_matches],
+            positive_rows,
+            negatives,
+            positive_sample_bits,
+            negative_sample_bits,
+            min_positive_samples,
+            max_negative_samples,
+            max_conditions,
+            beam_width,
+        )
+    )
 
     low_false = sorted(
         results,
@@ -645,6 +803,18 @@ def main() -> int:
         default=0,
         help="print up to this many positive and protected-hit sample examples for each rule",
     )
+    parser.add_argument(
+        "--max-conditions",
+        type=int,
+        default=2,
+        help="maximum number of ANDed auto-search conditions; values above 2 use bounded beam search",
+    )
+    parser.add_argument(
+        "--beam-width",
+        type=int,
+        default=160,
+        help="number of partial multi-condition rules retained per search depth",
+    )
     args = parser.parse_args()
 
     rows = load_rows(pathlib.Path(args.path))
@@ -661,6 +831,8 @@ def main() -> int:
             args.include_row_context,
             explicit_patterns,
             max(0, args.show_examples),
+            max(1, args.max_conditions),
+            max(1, args.beam_width),
         )
     return 0
 
