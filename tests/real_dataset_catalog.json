@@ -507,6 +507,22 @@
       "evidence": "Zenodo describes 40 short solo monophonic singing excerpts recorded in real-world conditions, with trained-musician frame-level F0 annotations, two note annotation versions, lyrics, and language metadata; the README inside the ZIP documents note CSV rows as start time, pitch in Hz, and duration."
     },
     {
+      "id": "vocalset",
+      "name": "VocalSet",
+      "category": "single_instrument_truth",
+      "piece_count": 3560,
+      "real_audio": true,
+      "isolated_sources": false,
+      "assembled_mix": false,
+      "aligned_symbolic_truth": true,
+      "truth": "solo sung vocal WAV files with corrected note-level extended CSV annotations including start, end, duration, F0, and MIDI pitch",
+      "automation_target": "test-vocalset-samples",
+      "source_url": "https://zenodo.org/records/10200775",
+      "download_url": "https://zenodo.org/api/records/10200775/files/VocalSet.zip/content",
+      "download_note": "The optional test-vocalset-samples target downloads the large VocalSet ZIP, prepares balanced near-chromatic sung-note clips from the corrected extended 4 CSV annotations into build/vocalset_samples, and runs the shared isolated-vocal real-note analyzer gate. The broad full target runs this gate only when the archive is already cached; the max target downloads it deliberately.",
+      "evidence": "Zenodo describes VocalSet as a collection of 3,560 recorded vocal examples from 20 professional singers with corrected annotations. The archive layout includes VocalSet/FULL WAV recordings and extended 4 CSV annotation files with note-level timing, F0, estimated MIDI, and ground-truth pitch fields, which this repository imports as real vocal pitch evidence."
+    },
+    {
       "id": "gaps",
       "name": "GAPS",
       "category": "single_instrument_truth",
