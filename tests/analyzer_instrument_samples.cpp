@@ -387,6 +387,169 @@ const char *category_name(std::size_t index)
 	return index < mao::kDrumCount ? kNames[index] : "unknown";
 }
 
+const char *bool_cell(bool value)
+{
+	return value ? "1" : "0";
+}
+
+void append_tsv(std::ostringstream &line, const std::string &value)
+{
+	line << '\t';
+	for (char ch : value)
+		line << (ch == '\t' || ch == '\n' || ch == '\r' ? ' ' : ch);
+}
+
+void append_tsv(std::ostringstream &line, const char *value)
+{
+	append_tsv(line, std::string(value ? value : ""));
+}
+
+template <typename T> void append_tsv(std::ostringstream &line, const T &value)
+{
+	line << '\t' << value;
+}
+
+float grid_pitch_class_level(const mao::NoteGrid &grid, int midi)
+{
+	const int pitch_class = ((midi % 12) + 12) % 12;
+	float level = 0.0f;
+	if (grid.cells[pitch_class].active)
+		level = std::max(level, grid.cells[pitch_class].level);
+	for (const auto &row : grid.rows) {
+		if (row[pitch_class].active)
+			level = std::max(level, row[pitch_class].level);
+	}
+	return level;
+}
+
+std::string active_drum_list(const mao::AnalysisSnapshot &snapshot)
+{
+	std::string text;
+	for (std::size_t i = 0; i < mao::kDrumCount; ++i) {
+		if (!snapshot.drums[i].active)
+			continue;
+		if (!text.empty())
+			text += ",";
+		text += category_name(i);
+	}
+	return text.empty() ? "--" : text;
+}
+
+void print_attribute_header(std::ostream &out)
+{
+	out << "kind\tstatus\tfamily\texpected_family\tprogram\tprogram_name\tnote\tmidi\tpath\twindow_ms"
+	    << "\tdetected_expected_row\tdetected_anywhere\texpected_level"
+	    << "\tbass_level\tpiano_level\tguitar_level\tvocal_level\tother_level\tamb_level"
+	    << "\tbass_label\tpiano_label\tguitar_label\tvocal_label\tother_label"
+	    << "\tglobal_chord\tkeyboard_chord\tguitar_chord\tother_chord"
+	    << "\trms\tlow\tmid\thigh"
+	    << "\tdrum_expected\tdrum_active\tdrum_level\tdrum_active_list"
+	    << "\tkick_level\tsnare_level\thihat_level\tcrash_level\ttom_level\tride_level\trim_level"
+	    << "\tkick_trigger\tsnare_trigger\thihat_trigger\tcrash_trigger\ttom_trigger\tride_trigger\trim_trigger"
+	    << "\tkick_threshold\tsnare_threshold\thihat_threshold\tcrash_threshold\ttom_threshold"
+	    << "\tride_threshold\trim_threshold"
+	    << "\ttransient\tonset\tkick_body\tsnare_body\ttom_body\tsnare_crack\tupper_tom\tbody_shape\n";
+}
+
+void append_snapshot_attribute_fields(std::ostringstream &line, const mao::AnalysisSnapshot &snapshot,
+				      int expected_midi)
+{
+	append_tsv(line, grid_pitch_class_level(snapshot.bass_notes, expected_midi));
+	append_tsv(line, grid_pitch_class_level(snapshot.keyboard_notes, expected_midi));
+	append_tsv(line, grid_pitch_class_level(snapshot.guitar_notes, expected_midi));
+	append_tsv(line, grid_pitch_class_level(snapshot.vocal_notes, expected_midi));
+	append_tsv(line, grid_pitch_class_level(snapshot.other_notes, expected_midi));
+	append_tsv(line, grid_pitch_class_level(snapshot.ambiguous_notes, expected_midi));
+	append_tsv(line, snapshot.bass.label);
+	append_tsv(line, snapshot.keyboard.label);
+	append_tsv(line, snapshot.guitar.label);
+	append_tsv(line, snapshot.vocal.label);
+	append_tsv(line, snapshot.other.label);
+	append_tsv(line, snapshot.global_chord.label);
+	append_tsv(line, snapshot.keyboard_chord.label);
+	append_tsv(line, snapshot.guitar_chord.label);
+	append_tsv(line, snapshot.other_chord.label);
+	append_tsv(line, snapshot.rms);
+	append_tsv(line, snapshot.low_energy);
+	append_tsv(line, snapshot.mid_energy);
+	append_tsv(line, snapshot.high_energy);
+}
+
+void append_drum_attribute_fields(std::ostringstream &line, const mao::AnalysisSnapshot &snapshot,
+				  std::size_t expected)
+{
+	append_tsv(line, category_name(expected));
+	append_tsv(line, bool_cell(snapshot.drums[expected].active));
+	append_tsv(line, snapshot.drums[expected].level);
+	append_tsv(line, active_drum_list(snapshot));
+	for (std::size_t i = 0; i < mao::kDrumCount; ++i)
+		append_tsv(line, snapshot.drums[i].level);
+	for (std::size_t i = 0; i < mao::kDrumCount; ++i)
+		append_tsv(line, snapshot.drum_debug_trigger_scores[i]);
+	for (std::size_t i = 0; i < mao::kDrumCount; ++i)
+		append_tsv(line, snapshot.drum_debug_trigger_thresholds[i]);
+	append_tsv(line, snapshot.drum_debug_transient_ratio);
+	append_tsv(line, snapshot.drum_debug_onset);
+	append_tsv(line, snapshot.drum_debug_kick_body);
+	append_tsv(line, snapshot.drum_debug_snare_body);
+	append_tsv(line, snapshot.drum_debug_tom_body);
+	append_tsv(line, snapshot.drum_debug_snare_crack);
+	append_tsv(line, snapshot.drum_debug_upper_tom_body);
+	append_tsv(line, snapshot.drum_debug_body_shape);
+}
+
+void append_note_attribute_row(std::ostream &out, const std::string &suite_family, const SampleRow &row,
+			       const mao::AnalysisSnapshot &snapshot, float window_seconds,
+			       bool detected_expected_row, bool detected_anywhere)
+{
+	const float expected_level = grid_pitch_class_level(family_grid(snapshot, suite_family), row.midi);
+	const std::string status = detected_expected_row ? "hit" :
+				   detected_anywhere ? "ownership_miss" :
+						      "miss";
+	std::ostringstream line;
+	line << "note";
+	append_tsv(line, status);
+	append_tsv(line, suite_family);
+	append_tsv(line, row.family);
+	append_tsv(line, row.program);
+	append_tsv(line, row.program_name);
+	append_tsv(line, row.note);
+	append_tsv(line, row.midi);
+	append_tsv(line, row.path);
+	append_tsv(line, static_cast<int>(std::lround(window_seconds * 1000.0f)));
+	append_tsv(line, bool_cell(detected_expected_row));
+	append_tsv(line, bool_cell(detected_anywhere));
+	append_tsv(line, expected_level);
+	append_snapshot_attribute_fields(line, snapshot, row.midi);
+	for (int i = 0; i < 33; ++i)
+		append_tsv(line, "");
+	out << line.str() << '\n';
+}
+
+void append_drum_attribute_row(std::ostream &out, const SampleRow &row,
+			       const mao::AnalysisSnapshot &snapshot, float window_seconds,
+			       std::size_t expected)
+{
+	const bool detected = snapshot.drums[expected].active;
+	std::ostringstream line;
+	line << "drum";
+	append_tsv(line, detected ? "hit" : "miss");
+	append_tsv(line, "drum");
+	append_tsv(line, row.family);
+	append_tsv(line, row.program);
+	append_tsv(line, row.program_name);
+	append_tsv(line, row.note);
+	append_tsv(line, row.midi);
+	append_tsv(line, row.path);
+	append_tsv(line, static_cast<int>(std::lround(window_seconds * 1000.0f)));
+	append_tsv(line, bool_cell(detected));
+	append_tsv(line, bool_cell(detected));
+	append_tsv(line, snapshot.drums[expected].level);
+	append_snapshot_attribute_fields(line, snapshot, row.midi);
+	append_drum_attribute_fields(line, snapshot, expected);
+	out << line.str() << '\n';
+}
+
 bool env_filter_active()
 {
 	return std::getenv("MUSIC_ANALYZER_INSTRUMENT_SAMPLE_FILTER_FAMILY") != nullptr ||
@@ -472,7 +635,7 @@ const SampleRow *find_row(const std::vector<SampleRow> &rows, const std::string 
 	return nullptr;
 }
 
-void check_instrument_samples(Runner &runner, const std::string &root)
+void check_instrument_samples(Runner &runner, const std::string &root, std::ostream *attribute_out)
 {
 	static constexpr const char *kFamilies[] = {"piano", "guitar", "bass", "synth", "strings", "vocals"};
 	for (const char *family_name : kFamilies) {
@@ -509,6 +672,10 @@ void check_instrument_samples(Runner &runner, const std::string &root)
 								 expected.c_str()) ||
 					std::strcmp(family_state(snapshot, family).label, expected.c_str()) == 0;
 				const bool grid_ok = grid_has_pitch_class(family_grid(snapshot, family), row.midi);
+				if (attribute_out)
+					append_note_attribute_row(*attribute_out, family, row, snapshot,
+								  window_seconds, label_ok || grid_ok,
+								  snapshot_has_pitch_class(snapshot, row.midi));
 				runner.expect(label_ok || grid_ok,
 					      context + ": expected detected note, got label `" +
 						      family_state(snapshot, family).label + "`");
@@ -517,7 +684,7 @@ void check_instrument_samples(Runner &runner, const std::string &root)
 	}
 }
 
-void check_drum_kit_samples(Runner &runner, const std::string &root)
+void check_drum_kit_samples(Runner &runner, const std::string &root, std::ostream *attribute_out)
 {
 	const std::string family_dir = "drum_kit_samples";
 	std::vector<SampleRow> rows;
@@ -544,6 +711,8 @@ void check_drum_kit_samples(Runner &runner, const std::string &root)
 			const mao::AnalysisSnapshot snapshot = analyze_drum_buffer(buffer, sample_rate, window_seconds);
 			char window_label[16] = {};
 			std::snprintf(window_label, sizeof(window_label), "%.0fms", window_seconds * 1000.0f);
+			if (attribute_out)
+				append_drum_attribute_row(*attribute_out, row, snapshot, window_seconds, expected);
 			runner.expect(snapshot.drums[expected].active,
 				      "drum kit " + row.program_name + " " + row.family + " " + window_label +
 					      ": expected " + snapshot.drums[expected].label + " active (" +
@@ -697,8 +866,18 @@ int main()
 	}
 
 	Runner runner;
-	check_instrument_samples(runner, root);
-	check_drum_kit_samples(runner, root);
+	const char *attribute_path_env = std::getenv("MUSIC_ANALYZER_INSTRUMENT_ATTRIBUTE_TSV");
+	std::ofstream attribute_out;
+	if (attribute_path_env && *attribute_path_env) {
+		attribute_out.open(attribute_path_env, std::ios::out | std::ios::trunc);
+		runner.expect(attribute_out.good(),
+			      std::string("failed to open attribute TSV `") + attribute_path_env + "`");
+		if (attribute_out.good())
+			print_attribute_header(attribute_out);
+	}
+	std::ostream *attribute_stream = attribute_out.good() ? &attribute_out : nullptr;
+	check_instrument_samples(runner, root, attribute_stream);
+	check_drum_kit_samples(runner, root, attribute_stream);
 	check_combined_samples(runner, root);
 
 	if (runner.failures) {
