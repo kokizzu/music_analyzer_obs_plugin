@@ -1519,10 +1519,23 @@ bool full_mix_display_mirror_supported(FullMixDisplayRow row, const FullMixDebug
 			debug.guitar_score >= 0.55f &&
 			debug.other_score <= 0.08f &&
 			electronic_keyboard_partial_shape;
+		const bool clean_sustained_keyboard_hint =
+			debug.midi >= 52 && debug.midi <= 84 &&
+			debug.spectral_level >= 0.72f &&
+			debug.pitch_confidence >= 0.74f &&
+			debug.periodicity >= 0.72f &&
+			debug.keyboard_score >= 0.18f &&
+			debug.other_score <= 0.12f &&
+			debug.local_noise_level <= 0.22f &&
+			debug.harmonic_fit_error <= 0.12f &&
+			(debug.owner == InstrumentKind::Vocal ||
+			 debug.owner == InstrumentKind::Ambiguous ||
+			 (debug.owner == InstrumentKind::Guitar && debug.guitar_score <= 0.74f));
 		return debug.owner == InstrumentKind::Keyboard ||
 		       (debug.keyboard_score >= 0.46f && !competing_guitar_range_hint) ||
 		       noisy_low_keyboard_hint ||
-		       noisy_electronic_keyboard_hint;
+		       noisy_electronic_keyboard_hint ||
+		       clean_sustained_keyboard_hint;
 	}
 	case FullMixDisplayRow::Guitar: {
 		const bool low_noisy_bass_shaped_guitar_hint =
@@ -1540,8 +1553,14 @@ bool full_mix_display_mirror_supported(FullMixDisplayRow row, const FullMixDebug
 		return debug.owner == InstrumentKind::Vocal && debug.ownership_confidence >= 0.58f;
 	case FullMixDisplayRow::Other:
 		const bool sustained_other = sustained_other_display_supported(debug);
+		const bool high_wind_like_guitar_other =
+			sustained_other &&
+			debug.owner == InstrumentKind::Guitar &&
+			debug.midi >= 68 &&
+			debug.spectral_centroid >= 0.18f &&
+			debug.spectral_slope >= 0.050f;
 		const bool sustained_guitar_other =
-			sustained_other && debug.other_score >= 0.060f;
+			sustained_other && (debug.other_score >= 0.060f || high_wind_like_guitar_other);
 		if (debug.owner == InstrumentKind::Guitar && debug.ownership_confidence >= 0.58f &&
 		    debug.other_score < 0.30f && !sustained_guitar_other)
 			return false;

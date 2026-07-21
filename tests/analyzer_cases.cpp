@@ -1857,6 +1857,38 @@ void check_full_mix_single_instrument_precision(Runner &runner)
 
 	{
 		mao_test::Buffer buffer = {};
+		const std::vector<float> clean_sustained_keyboard_profile = {1.0f, 0.11f, 0.07f, 0.026f, 0.001f};
+		add_harmonic_note(buffer, 64, 0.24f, clean_sustained_keyboard_profile);
+
+		const auto snapshot =
+			analyze_buffer_with_mode(buffer, mao::AnalysisInputMode::FullMix,
+						 "speaker clean sustained electronic keyboard", 3);
+		expect_global_pitch_class(runner, snapshot, 4, "full-mix clean sustained keyboard global");
+		runner.expect(grid_level_for_midi(snapshot.keyboard_notes, 64) > 0.0f,
+			      std::string("full-mix clean sustained keyboard: expected keyboard E4 display, "
+					  "got keyboard `") +
+				      snapshot.keyboard.label + "`, guitar `" + snapshot.guitar.label +
+				      "`, vocal `" + snapshot.vocal.label + "`");
+	}
+
+	{
+		mao_test::Buffer buffer = {};
+		const std::vector<float> high_wind_profile = {1.0f, 0.37f, 0.16f, 0.027f, 0.015f};
+		add_harmonic_note(buffer, 68, 0.24f, high_wind_profile);
+
+		const auto snapshot =
+			analyze_buffer_with_mode(buffer, mao::AnalysisInputMode::FullMix,
+						 "speaker high brass other", 3);
+		expect_global_pitch_class(runner, snapshot, 8, "full-mix high brass other global");
+		runner.expect(grid_level_for_midi(snapshot.other_notes, 68) > 0.0f,
+			      std::string("full-mix high brass other: expected other G#4 display, "
+					  "got other `") +
+				      snapshot.other.label + "`, guitar `" + snapshot.guitar.label +
+				      "`, keyboard `" + snapshot.keyboard.label + "`");
+	}
+
+	{
+		mao_test::Buffer buffer = {};
 		const std::vector<float> guitar_profile = {1.0f, 0.36f, 0.17f, 0.07f, 0.03f};
 		add_harmonic_note(buffer, 52, 0.26f, guitar_profile);
 
