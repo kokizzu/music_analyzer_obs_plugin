@@ -3236,6 +3236,16 @@ bool note_grid_pitch_active(const NoteGrid &grid, int pitch_class)
 	return false;
 }
 
+int note_grid_chord_tone_count(const NoteGrid &grid, const ChordResult &chord)
+{
+	int count = 0;
+	for (int pitch_class = 0; pitch_class < 12; ++pitch_class) {
+		if (chord.tones[pitch_class] && note_grid_pitch_active(grid, pitch_class))
+			++count;
+	}
+	return count;
+}
+
 float note_grid_pitch_supported_level(const NoteGrid &grid, int pitch_class, float active_floor)
 {
 	pitch_class = ((pitch_class % 12) + 12) % 12;
@@ -4370,6 +4380,52 @@ bool valid_chord_result(const ChordResult &chord)
 {
 	return chord.root >= 0 && chord.confidence >= kChordConfidenceFloor && !chord.uncertain &&
 	       chord.label[0] && chord.label[0] != '-';
+}
+
+bool primary_chord_is_plain_major_minor(const ChordResult &chord)
+{
+	if (!valid_chord_result(chord))
+		return false;
+	const char *label_end = std::strchr(chord.label, '=');
+	const std::size_t label_len =
+		label_end ? static_cast<std::size_t>(label_end - chord.label) : std::strlen(chord.label);
+	ParsedRootChord parsed;
+	return parse_root_chord_component(chord.label, label_len, parsed) && parsed.root == chord.root &&
+	       (parsed.quality == RootChordQuality::Major || parsed.quality == RootChordQuality::Minor);
+}
+
+bool guitar_analysis_triad_should_replace(const ChordResult &current, const ChordResult &supported,
+					  const NoteGrid &display_grid, const NoteGrid &analysis_grid)
+{
+	if (!valid_chord_result(supported))
+		return false;
+	if (!valid_chord_result(current))
+		return true;
+	if (current.root == supported.root)
+		return false;
+
+	const int supported_display_tones = note_grid_chord_tone_count(display_grid, supported);
+	const int supported_analysis_tones = note_grid_chord_tone_count(analysis_grid, supported);
+	if (supported_display_tones < 2 || supported_analysis_tones < 3)
+		return false;
+
+	if (std::strstr(current.label, "pow") != nullptr)
+		return true;
+
+	const int current_display_tones = note_grid_chord_tone_count(display_grid, current);
+	const int current_analysis_tones = note_grid_chord_tone_count(analysis_grid, current);
+	const bool current_plain = primary_chord_is_plain_major_minor(current);
+	const bool current_extended = chord_label_has_guitar_extension_or_alteration(current.label);
+
+	if (current_extended && supported.confidence + 0.08f >= current.confidence)
+		return true;
+	if (!current_plain && supported_display_tones >= current_display_tones &&
+	    supported_analysis_tones >= current_analysis_tones && supported.confidence + 0.08f >= current.confidence)
+		return true;
+	if (current_display_tones < 2 && supported.confidence >= current.confidence * 0.92f)
+		return true;
+
+	return false;
 }
 
 std::array<float, 12> strongest_chord_chroma(const std::array<float, 12> &chroma)
@@ -6269,34 +6325,13 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 			return false;
 		};
 		auto displayed_chord_tone_count = [&](const ChordResult &chord) {
-			int count = 0;
-			for (int pitch_class = 0; pitch_class < 12; ++pitch_class) {
-				if (chord.tones[pitch_class] && guitar_note_grid_pitch_class_active(pitch_class))
-					++count;
-			}
-			return count;
+			return note_grid_chord_tone_count(snapshot.guitar_notes, chord);
 		};
 		auto analysis_chord_tone_count = [&](const ChordResult &chord) {
-			int count = 0;
-			for (int pitch_class = 0; pitch_class < 12; ++pitch_class) {
-				if (chord.tones[pitch_class] &&
-				    note_grid_pitch_level(guitar_chord_detection_grid, pitch_class) > 0.0f)
-					++count;
-			}
-			return count;
+			return note_grid_chord_tone_count(guitar_chord_detection_grid, chord);
 		};
 		auto primary_guitar_chord_is_plain_triad = [](const ChordResult &chord) {
-			if (!valid_chord_result(chord))
-				return false;
-			const char *label_end = std::strchr(chord.label, '=');
-			const std::size_t label_len =
-				label_end ? static_cast<std::size_t>(label_end - chord.label) :
-					    std::strlen(chord.label);
-			ParsedRootChord parsed;
-			return parse_root_chord_component(chord.label, label_len, parsed) &&
-			       parsed.root == chord.root &&
-			       (parsed.quality == RootChordQuality::Major ||
-				parsed.quality == RootChordQuality::Minor);
+			return primary_chord_is_plain_major_minor(chord);
 		};
 		auto analysis_simple_triad_supported = [&]() {
 			return raw_guitar_valid && primary_guitar_chord_is_plain_triad(raw_guitar_chord) &&
@@ -6340,7 +6375,11 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 		}
 		if (analysis_supported_guitar_triad_valid) {
 			const bool raw_power = raw_guitar_valid && std::strstr(raw_guitar_chord.label, "pow");
-			if (!raw_guitar_valid || raw_power) {
+			if (!raw_guitar_valid || raw_power ||
+			    guitar_analysis_triad_should_replace(raw_guitar_chord,
+							 analysis_supported_guitar_triad,
+							 snapshot.guitar_notes,
+							 guitar_chord_detection_grid)) {
 				raw_guitar_chord = analysis_supported_guitar_triad;
 				raw_guitar_valid = true;
 			} else if (raw_guitar_chord.root == analysis_supported_guitar_triad.root) {
@@ -6695,7 +6734,10 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 											      guitar_chord_grid));
 		if (valid_chord_result(smoothed_analysis_supported_guitar_triad)) {
 			if (!valid_chord_result(smoothed_guitar_chord) ||
-			    std::strstr(smoothed_guitar_chord.label, "pow")) {
+			    std::strstr(smoothed_guitar_chord.label, "pow") ||
+			    guitar_analysis_triad_should_replace(smoothed_guitar_chord,
+							 smoothed_analysis_supported_guitar_triad,
+							 snapshot.guitar_notes, guitar_chord_grid)) {
 				smoothed_guitar_chord = smoothed_analysis_supported_guitar_triad;
 			} else if (smoothed_guitar_chord.root == smoothed_analysis_supported_guitar_triad.root) {
 				append_same_root_chord_aliases(smoothed_guitar_chord,

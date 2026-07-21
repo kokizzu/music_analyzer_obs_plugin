@@ -881,6 +881,19 @@ void check_guitar_supported_extension_aliases(Runner &runner)
 		      std::string("guitar weak-root analysis support: expected C, got `") +
 			      weak_root_snapshot.guitar_chord.label + "`");
 
+	mao_test::Buffer contaminated_minor_triad = {};
+	add_harmonic_note(contaminated_minor_triad, 49, 0.22f, guitar_profile);
+	add_harmonic_note(contaminated_minor_triad, 52, 0.15f, guitar_profile);
+	add_harmonic_note(contaminated_minor_triad, 56, 0.17f, guitar_profile);
+	add_harmonic_note(contaminated_minor_triad, 45, 0.19f, guitar_profile);
+	add_harmonic_note(contaminated_minor_triad, 48, 0.08f, guitar_profile);
+	add_harmonic_note(contaminated_minor_triad, 55, 0.08f, guitar_profile);
+
+	const auto contaminated_minor_snapshot = analyze_buffer(contaminated_minor_triad, "guitar");
+	runner.expect(has_chord_label(contaminated_minor_snapshot.guitar_chord.label, "C#m"),
+		      std::string("guitar analysis-supported triad over shifted extension: expected C#m, got `") +
+			      contaminated_minor_snapshot.guitar_chord.label + "`");
+
 	mao_test::Buffer major_dyad = {};
 	add_harmonic_note(major_dyad, 49, 0.22f, guitar_profile);
 	add_harmonic_note(major_dyad, 53, 0.20f, guitar_profile);
