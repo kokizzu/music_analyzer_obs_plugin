@@ -1889,6 +1889,22 @@ void check_full_mix_single_instrument_precision(Runner &runner)
 
 	{
 		mao_test::Buffer buffer = {};
+		const std::vector<float> bright_high_brass_profile = {1.0f, 0.18f, 0.54f, 0.58f, 0.012f};
+		add_harmonic_note(buffer, 79, 0.22f, bright_high_brass_profile);
+
+		const auto snapshot =
+			analyze_buffer_with_mode(buffer, mao::AnalysisInputMode::FullMix,
+						 "speaker bright high brass other", 3);
+		expect_global_pitch_class(runner, snapshot, 7, "full-mix bright high brass global");
+		runner.expect(grid_level_for_midi(snapshot.other_notes, 79) > 0.0f,
+			      std::string("full-mix bright high brass: expected other G5 display, got "
+					  "other `") +
+				      snapshot.other.label + "`, keyboard `" + snapshot.keyboard.label +
+				      "`, guitar `" + snapshot.guitar.label + "`");
+	}
+
+	{
+		mao_test::Buffer buffer = {};
 		const std::vector<float> guitar_profile = {1.0f, 0.36f, 0.17f, 0.07f, 0.03f};
 		add_harmonic_note(buffer, 52, 0.26f, guitar_profile);
 
@@ -1964,6 +1980,40 @@ void check_full_mix_single_instrument_precision(Runner &runner)
 				      snapshot.other.label + "`");
 		expect_no_pitch_class(runner, snapshot.vocal_notes, 6,
 				      "full-mix sparse acoustic guitar vocal spillover");
+	}
+
+	{
+		mao_test::Buffer buffer = {};
+		const std::vector<float> octave_dominant_acoustic_guitar_profile =
+			{1.0f, 1.45f, 0.14f, 0.047f, 0.090f};
+		add_harmonic_note(buffer, 52, 0.20f, octave_dominant_acoustic_guitar_profile);
+
+		const auto snapshot =
+			analyze_buffer_with_mode(buffer, mao::AnalysisInputMode::FullMix,
+						 "speaker octave-dominant acoustic guitar", 3);
+		expect_global_pitch_class(runner, snapshot, 4,
+					  "full-mix octave-dominant acoustic guitar global");
+		runner.expect(grid_level_for_midi(snapshot.guitar_notes, 52) > 0.0f,
+			      std::string("full-mix octave-dominant acoustic guitar: expected guitar E3 "
+					  "display, got guitar `") +
+				      snapshot.guitar.label + "`, vocal `" + snapshot.vocal.label +
+				      "`, other `" + snapshot.other.label + "`");
+	}
+
+	{
+		mao_test::Buffer buffer = {};
+		const std::vector<float> low_bowed_string_profile = {1.0f, 0.055f, 0.15f, 0.13f, 0.10f};
+		add_harmonic_note(buffer, 42, 0.24f, low_bowed_string_profile);
+
+		const auto snapshot =
+			analyze_buffer_with_mode(buffer, mao::AnalysisInputMode::FullMix,
+						 "speaker low bowed string other", 3);
+		expect_global_pitch_class(runner, snapshot, 6, "full-mix low bowed string global");
+		runner.expect(grid_level_for_midi(snapshot.other_notes, 42) > 0.0f,
+			      std::string("full-mix low bowed string: expected other F#2 display, got "
+					  "other `") +
+				      snapshot.other.label + "`, bass `" + snapshot.bass.label +
+				      "`, guitar `" + snapshot.guitar.label + "`");
 	}
 }
 

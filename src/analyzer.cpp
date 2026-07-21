@@ -1250,6 +1250,43 @@ void restore_full_mix_low_keyboard_from_bass(FullMixOwnership &ownership,
 	ownership.keyboard_candidates.push_back(candidate);
 }
 
+void restore_full_mix_low_other_from_bass(FullMixOwnership &ownership,
+					  const std::array<float, kNoteProbeCount> &powers,
+					  int bass_midi)
+{
+	if (bass_midi < kGuitarMinMidi || bass_midi > kDefaultBassMaxMidi ||
+	    full_mix_row_midi_active(ownership.other, bass_midi))
+		return;
+
+	const float fundamental = probe_level(powers, bass_midi);
+	if (fundamental <= 1.0e-6f)
+		return;
+
+	const float octave = probe_level(powers, bass_midi + 12);
+	const float fifth = probe_level(powers, bass_midi + 19);
+	const float second_octave = probe_level(powers, bass_midi + 24);
+	const float upper_major_third = probe_level(powers, bass_midi + 28);
+	const float upper_stack = fifth + second_octave + upper_major_third;
+	const bool low_bowed_string_stack =
+		octave <= fundamental * 0.34f &&
+		upper_stack >= fundamental * 0.20f &&
+		(fifth >= fundamental * 0.070f || second_octave >= fundamental * 0.065f) &&
+		upper_major_third <= fundamental * 0.18f;
+	if (!low_bowed_string_stack)
+		return;
+
+	const float display_level =
+		std::max(fundamental, std::max(fifth * 0.86f, second_octave * 0.92f));
+	NoteCandidate candidate;
+	candidate.midi = bass_midi;
+	candidate.score =
+		capped_restored_low_owner_score(ownership.other_candidates, bass_midi,
+						display_level * display_level);
+	candidate.ownership_confidence = 0.42f;
+	ownership.other[static_cast<std::size_t>(bass_midi - kFirstMidi)] = true;
+	ownership.other_candidates.push_back(candidate);
+}
+
 void demote_sparse_full_mix_owner(FullMixOwnership &ownership, std::array<bool, kNoteProbeCount> &mask,
 				  NoteCandidateList &owner_candidates,
 				  const std::array<float, kNoteProbeCount> &candidate_scores)
@@ -1546,13 +1583,47 @@ bool full_mix_display_mirror_supported(FullMixDisplayRow row, const FullMixDebug
 			debug.harmonic_ratios[2] < 0.28f;
 		if (low_noisy_bass_shaped_guitar_hint)
 			return false;
+		const bool octave_dominant_acoustic_body =
+			debug.owner == InstrumentKind::Other &&
+			debug.midi >= 40 && debug.midi <= 64 &&
+			debug.spectral_level >= 0.50f &&
+			debug.pitch_confidence >= 0.45f &&
+			debug.periodicity >= 0.62f &&
+			debug.harmonic_ratios[1] >= 0.88f &&
+			debug.harmonic_ratios[1] <= 1.85f &&
+			debug.harmonic_ratios[2] >= 0.060f &&
+			debug.harmonic_ratios[2] <= 0.26f &&
+			debug.harmonic_ratios[3] <= 0.12f &&
+			debug.harmonic_ratios[4] >= 0.030f &&
+			debug.harmonic_ratios[4] <= 0.18f &&
+			debug.spectral_centroid >= 0.22f &&
+			debug.spectral_centroid <= 0.48f &&
+			debug.harmonic_fit_error <= 0.58f;
 		return debug.owner == InstrumentKind::Guitar ||
-		       debug.guitar_score >= 0.52f;
+		       debug.guitar_score >= 0.52f ||
+		       octave_dominant_acoustic_body;
 	}
 	case FullMixDisplayRow::Vocal:
 		return debug.owner == InstrumentKind::Vocal && debug.ownership_confidence >= 0.58f;
 	case FullMixDisplayRow::Other:
 		const bool sustained_other = sustained_other_display_supported(debug);
+		const bool bright_high_brass_other =
+			debug.midi >= 68 && debug.midi <= 84 &&
+			debug.spectral_level >= 0.72f &&
+			debug.pitch_confidence >= 0.84f &&
+			debug.periodicity >= 0.84f &&
+			debug.local_noise_level <= 0.045f &&
+			debug.harmonic_fit_error <= 0.34f &&
+			debug.harmonic_ratios[1] <= 0.26f &&
+			debug.harmonic_ratios[2] >= 0.24f &&
+			debug.harmonic_ratios[2] <= 0.66f &&
+			debug.harmonic_ratios[3] >= 0.28f &&
+			debug.harmonic_ratios[3] <= 0.85f &&
+			debug.harmonic_ratios[4] <= 0.08f &&
+			debug.spectral_centroid >= 0.30f &&
+			debug.spectral_centroid <= 0.50f &&
+			debug.spectral_slope >= 0.45f &&
+			debug.spectral_slope <= 1.20f;
 		const bool high_wind_like_guitar_other =
 			sustained_other &&
 			debug.owner == InstrumentKind::Guitar &&
@@ -1562,11 +1633,12 @@ bool full_mix_display_mirror_supported(FullMixDisplayRow row, const FullMixDebug
 		const bool sustained_guitar_other =
 			sustained_other && (debug.other_score >= 0.060f || high_wind_like_guitar_other);
 		if (debug.owner == InstrumentKind::Guitar && debug.ownership_confidence >= 0.58f &&
-		    debug.other_score < 0.30f && !sustained_guitar_other)
+		    debug.other_score < 0.30f && !sustained_guitar_other && !bright_high_brass_other)
 			return false;
 		return debug.owner == InstrumentKind::Other ||
 		       debug.other_score >= 0.035f ||
-		       sustained_other;
+		       sustained_other ||
+		       bright_high_brass_other;
 	}
 	return false;
 }
@@ -6501,6 +6573,9 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 					restore_full_mix_low_keyboard_from_bass(full_mix_ownership,
 										detection_note_powers,
 										displayed_bass.midi);
+					restore_full_mix_low_other_from_bass(full_mix_ownership,
+									     detection_note_powers,
+									     displayed_bass.midi);
 				}
 				mixed_bass_pitch_class = ((displayed_bass.midi % 12) + 12) % 12;
 			}
@@ -6527,6 +6602,9 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 						restore_full_mix_low_keyboard_from_bass(full_mix_ownership,
 											detection_note_powers,
 											displayed_bass.midi);
+						restore_full_mix_low_other_from_bass(full_mix_ownership,
+										    detection_note_powers,
+										    displayed_bass.midi);
 					}
 					mixed_bass_pitch_class = ((displayed_bass.midi % 12) + 12) % 12;
 				}
