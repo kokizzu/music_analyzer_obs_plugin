@@ -1565,6 +1565,23 @@ bool full_mix_display_mirror_supported(FullMixDisplayRow row, const FullMixDebug
 			debug.guitar_score >= 0.55f &&
 			debug.other_score <= 0.08f &&
 			electronic_keyboard_partial_shape;
+		const bool noisy_low_electronic_keyboard_hint =
+			debug.midi >= 40 && debug.midi <= 52 &&
+			debug.local_noise_level >= 0.34f &&
+			debug.local_noise_level <= 0.64f &&
+			debug.spectral_level >= 0.62f &&
+			debug.pitch_confidence >= 0.66f &&
+			debug.periodicity >= 0.62f &&
+			debug.harmonic_fit_error <= 0.09f &&
+			debug.harmonic_ratios[1] >= 0.46f &&
+			debug.harmonic_ratios[1] <= 0.58f &&
+			debug.harmonic_ratios[2] >= 0.064f &&
+			debug.harmonic_ratios[2] <= 0.16f &&
+			debug.harmonic_ratios[3] >= 0.10f &&
+			debug.harmonic_ratios[3] <= 0.19f &&
+			debug.harmonic_ratios[4] <= 0.085f &&
+			debug.spectral_slope >= 0.12f &&
+			debug.spectral_slope <= 0.30f;
 		const bool clean_sustained_keyboard_hint =
 			debug.midi >= 52 && debug.midi <= 84 &&
 			debug.spectral_level >= 0.72f &&
@@ -1581,6 +1598,7 @@ bool full_mix_display_mirror_supported(FullMixDisplayRow row, const FullMixDebug
 		       (debug.keyboard_score >= 0.46f && !competing_guitar_range_hint) ||
 		       noisy_low_keyboard_hint ||
 		       noisy_electronic_keyboard_hint ||
+		       noisy_low_electronic_keyboard_hint ||
 		       clean_sustained_keyboard_hint;
 	}
 	case FullMixDisplayRow::Guitar: {

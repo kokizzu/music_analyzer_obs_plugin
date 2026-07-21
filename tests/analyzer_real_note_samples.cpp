@@ -672,6 +672,145 @@ void print_row_confusion(FILE *out,
 	std::fprintf(out, "\n");
 }
 
+std::string tsv_field(std::string value)
+{
+	for (char &ch : value) {
+		if (ch == '\t' || ch == '\n' || ch == '\r')
+			ch = ' ';
+	}
+	return value;
+}
+
+void append_tsv(std::ostringstream &line, const std::string &value)
+{
+	line << '\t' << tsv_field(value);
+}
+
+void append_tsv(std::ostringstream &line, const char *value)
+{
+	append_tsv(line, value ? std::string(value) : std::string());
+}
+
+void append_tsv(std::ostringstream &line, int value)
+{
+	line << '\t' << value;
+}
+
+void append_tsv(std::ostringstream &line, float value)
+{
+	line << '\t' << value;
+}
+
+const char *bool_cell(bool value)
+{
+	return value ? "1" : "0";
+}
+
+void print_attribute_header(std::ostream &out)
+{
+	out << "status\tdetected\tdetected_anywhere\tdetected_expected_row\tfirst_row"
+	    << "\tsample_id\tfamily\tnsynth_family\tsource\texpected_note\texpected_midi\tbuffer\tmode"
+	    << "\trow_label\trow_conf\trow_grid\tany_grid\tbuffer_strongest_row"
+	    << "\tbass_level\tguitar_level\tpiano_level\tvocal_level\tother_level\tamb_level"
+	    << "\tglobal_chord\tkeyboard_chord\tguitar_chord\tother_chord"
+	    << "\trms\tlow\tmid\thigh\tkick\tsnare\thihat\tcrash\ttom\tride\trim"
+	    << "\tdebug_note\tdebug_midi\tdebug_owner\tdebug_conf"
+	    << "\tkeyboard_score\tguitar_score\tvocal_score\tother_score"
+	    << "\tspectral_level\tpitch_confidence\tperiodicity\tharmonicity\tfit_error"
+	    << "\tcentroid\tslope\tnoise\tpartial1\tpartial2\tpartial3\tpartial4\tpartial5\n";
+}
+
+void append_debug_candidate_fields(std::ostringstream &line, const mao::FullMixDebugCandidate *debug)
+{
+	if (!debug) {
+		for (int i = 0; i < 21; ++i)
+			append_tsv(line, "");
+		return;
+	}
+
+	append_tsv(line, debug_note_label(debug->midi));
+	append_tsv(line, debug->midi);
+	append_tsv(line, instrument_kind_name(debug->owner));
+	append_tsv(line, debug->ownership_confidence);
+	append_tsv(line, debug->keyboard_score);
+	append_tsv(line, debug->guitar_score);
+	append_tsv(line, debug->vocal_score);
+	append_tsv(line, debug->other_score);
+	append_tsv(line, debug->spectral_level);
+	append_tsv(line, debug->pitch_confidence);
+	append_tsv(line, debug->periodicity);
+	append_tsv(line, debug->harmonicity);
+	append_tsv(line, debug->harmonic_fit_error);
+	append_tsv(line, debug->spectral_centroid);
+	append_tsv(line, debug->spectral_slope);
+	append_tsv(line, debug->local_noise_level);
+	for (float ratio : debug->harmonic_ratios)
+		append_tsv(line, ratio);
+}
+
+void append_attribute_row(std::vector<std::string> &lines, const SampleRow &row, const std::string &expected,
+			  int buffer_index, bool full_mix, const mao::AnalysisSnapshot &snapshot,
+			  const mao::InstrumentState &expected_state, bool grid_ok, bool any_grid_ok,
+			  const mao::FullMixDebugCandidate *debug)
+{
+	std::ostringstream line;
+	line << tsv_field(row.id);
+	append_tsv(line, row.family);
+	append_tsv(line, row.nsynth_family);
+	append_tsv(line, row.source);
+	append_tsv(line, expected);
+	append_tsv(line, row.midi);
+	append_tsv(line, buffer_index);
+	append_tsv(line, full_mix ? "full_mix" : "isolated");
+	append_tsv(line, expected_state.label);
+	append_tsv(line, expected_state.confidence);
+	append_tsv(line, bool_cell(grid_ok));
+	append_tsv(line, bool_cell(any_grid_ok));
+	append_tsv(line, kObservedRowNames[strongest_pitch_class_row(snapshot, row.midi)]);
+	append_tsv(line, grid_pitch_class_level(snapshot.bass_notes, row.midi));
+	append_tsv(line, grid_pitch_class_level(snapshot.guitar_notes, row.midi));
+	append_tsv(line, grid_pitch_class_level(snapshot.keyboard_notes, row.midi));
+	append_tsv(line, grid_pitch_class_level(snapshot.vocal_notes, row.midi));
+	append_tsv(line, grid_pitch_class_level(snapshot.other_notes, row.midi));
+	append_tsv(line, grid_pitch_class_level(snapshot.ambiguous_notes, row.midi));
+	append_tsv(line, snapshot.global_chord.label);
+	append_tsv(line, snapshot.keyboard_chord.label);
+	append_tsv(line, snapshot.guitar_chord.label);
+	append_tsv(line, snapshot.other_chord.label);
+	append_tsv(line, snapshot.rms);
+	append_tsv(line, snapshot.low_energy);
+	append_tsv(line, snapshot.mid_energy);
+	append_tsv(line, snapshot.high_energy);
+	for (const mao::DrumState &drum : snapshot.drums)
+		append_tsv(line, drum.level);
+	append_debug_candidate_fields(line, debug);
+	lines.push_back(line.str());
+}
+
+void append_attribute_rows(std::vector<std::string> &lines, const SampleRow &row, const std::string &expected,
+			   int buffer_index, bool full_mix, const mao::AnalysisSnapshot &snapshot,
+			   const mao::InstrumentState &expected_state, bool grid_ok, bool any_grid_ok)
+{
+	const int expected_pitch = ((row.midi % 12) + 12) % 12;
+	bool wrote = false;
+	const std::size_t count =
+		std::min<std::size_t>(snapshot.full_mix_debug_candidate_count,
+				      snapshot.full_mix_debug_candidates.size());
+	for (std::size_t i = 0; i < count; ++i) {
+		const mao::FullMixDebugCandidate &debug = snapshot.full_mix_debug_candidates[i];
+		if (debug.midi < mao::kFirstAnalyzedMidi || debug.midi > mao::kLastAnalyzedMidi ||
+		    ((debug.midi % 12) + 12) % 12 != expected_pitch)
+			continue;
+		append_attribute_row(lines, row, expected, buffer_index, full_mix, snapshot, expected_state,
+				     grid_ok, any_grid_ok, &debug);
+		wrote = true;
+	}
+	if (!wrote) {
+		append_attribute_row(lines, row, expected, buffer_index, full_mix, snapshot, expected_state,
+				     grid_ok, any_grid_ok, nullptr);
+	}
+}
+
 mao::AnalysisSnapshot analyze_buffer(const mao_test::Buffer &buffer, uint32_t sample_rate,
 				     mao::AnalysisInputMode mode, const char *source, int frames = 4)
 {
@@ -716,6 +855,8 @@ int main()
 	const bool required = std::getenv("MUSIC_ANALYZER_REAL_NOTE_SAMPLES_REQUIRED") != nullptr;
 	const bool verbose_misses = std::getenv("MUSIC_ANALYZER_REAL_NOTE_VERBOSE_MISSES") != nullptr;
 	const bool verbose_drums = std::getenv("MUSIC_ANALYZER_REAL_NOTE_VERBOSE_DRUMS") != nullptr;
+	const char *attribute_path_env = std::getenv("MUSIC_ANALYZER_REAL_NOTE_ATTRIBUTE_TSV");
+	const bool attribute_export = attribute_path_env && *attribute_path_env;
 	const int required_samples = positive_int_env("MUSIC_ANALYZER_REAL_NOTE_REQUIRED_SAMPLES", 1000);
 	const int max_failures = nonnegative_int_env("MUSIC_ANALYZER_REAL_NOTE_MAX_FAILURES", 0);
 	const bool full_mix = std::getenv("MUSIC_ANALYZER_REAL_NOTE_FULL_MIX") != nullptr;
@@ -761,6 +902,14 @@ int main()
 	runner.expect(static_cast<int>(rows.size()) >= required_samples,
 		      "expected at least " + std::to_string(required_samples) +
 			      " real note samples, got " + std::to_string(rows.size()));
+	std::ofstream attribute_out;
+	if (attribute_export) {
+		attribute_out.open(attribute_path_env, std::ios::out | std::ios::trunc);
+		runner.expect(attribute_out.good(), std::string("failed to open attribute TSV `") +
+						      attribute_path_env + "`");
+		if (attribute_out.good())
+			print_attribute_header(attribute_out);
+	}
 
 	std::array<int, kFamilyCount> family_counts = {};
 	std::array<int, kFamilyCount> family_hits = {};
@@ -799,6 +948,7 @@ int main()
 		int first_detected_row = kObservedNone;
 		std::string last_label = "--";
 		std::vector<std::string> debug_lines;
+		std::vector<std::string> attribute_lines;
 		int buffer_index = 0;
 		const char *analysis_source =
 			full_mix ? "Speaker Monitor" :
@@ -816,6 +966,10 @@ int main()
 							  expected.c_str()) == 0;
 			const bool grid_ok = grid_has_pitch_class(family_grid(snapshot, row.family), row.midi);
 			const bool any_grid_ok = snapshot_has_pitch_class(snapshot, row.midi);
+			if (attribute_export) {
+				append_attribute_rows(attribute_lines, row, expected, buffer_index, full_mix, snapshot,
+						      family_state(snapshot, row.family), grid_ok, any_grid_ok);
+			}
 			for (const mao::DrumState &drum : snapshot.drums) {
 				if (drum.active) {
 					++active_drum_windows;
@@ -846,7 +1000,8 @@ int main()
 			if ((!full_mix && (label_ok || grid_ok)) ||
 			    (full_mix && detected_expected_row)) {
 				detected = true;
-				break;
+				if (!attribute_export)
+					break;
 			}
 			if (full_mix && any_grid_ok)
 				detected = true;
@@ -874,6 +1029,15 @@ int main()
 			++buffer_index;
 		}
 		const bool ownership_miss = full_mix && detected_anywhere && !detected_expected_row;
+		if (attribute_export && attribute_out.good()) {
+			const char *status = !detected ? "miss" : (ownership_miss ? "ownership_miss" : "hit");
+			for (const std::string &line : attribute_lines) {
+				attribute_out << status << '\t' << bool_cell(detected) << '\t'
+					      << bool_cell(detected_anywhere) << '\t'
+					      << bool_cell(detected_expected_row) << '\t'
+					      << kObservedRowNames[first_detected_row] << '\t' << line << '\n';
+			}
+		}
 		if ((!detected || ownership_miss) && verbose_misses) {
 			for (const std::string &line : debug_lines)
 				std::fprintf(stderr, "%s\n", line.c_str());
