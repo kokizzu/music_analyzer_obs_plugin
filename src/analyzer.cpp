@@ -1493,9 +1493,21 @@ bool full_mix_display_mirror_supported(FullMixDisplayRow row, const FullMixDebug
 			debug.midi < 60 && debug.local_noise_level >= 0.28f &&
 			debug.spectral_level >= 0.45f && debug.pitch_confidence >= 0.20f &&
 			debug.guitar_score < 0.42f;
+		const bool electronic_keyboard_partial_shape =
+			debug.harmonic_ratios[1] >= 0.40f || debug.harmonic_ratios[3] >= 0.10f;
+		const bool noisy_electronic_keyboard_hint =
+			debug.midi >= 48 && debug.midi <= 84 &&
+			debug.local_noise_level >= 0.12f &&
+			debug.spectral_level >= 0.50f &&
+			debug.pitch_confidence >= 0.70f &&
+			debug.keyboard_score >= 0.085f &&
+			debug.guitar_score >= 0.55f &&
+			debug.other_score <= 0.08f &&
+			electronic_keyboard_partial_shape;
 		return debug.owner == InstrumentKind::Keyboard ||
 		       (debug.keyboard_score >= 0.46f && !competing_guitar_range_hint) ||
-		       noisy_low_keyboard_hint;
+		       noisy_low_keyboard_hint ||
+		       noisy_electronic_keyboard_hint;
 	}
 	case FullMixDisplayRow::Guitar: {
 		const bool low_noisy_bass_shaped_guitar_hint =
