@@ -4626,6 +4626,140 @@ ChordResult detect_preferred_guitar_root_third_dyad(const NoteGrid &grid, int pr
 	return dyad;
 }
 
+int note_grid_lowest_active_midi(const NoteGrid &grid)
+{
+	int lowest = 128;
+	auto visit = [&](const NoteCell &cell) {
+		if (cell.active && cell.midi >= 0)
+			lowest = std::min(lowest, cell.midi);
+	};
+	for (const NoteCell &cell : grid.cells)
+		visit(cell);
+	for (const auto &row : grid.rows) {
+		for (const NoteCell &cell : row)
+			visit(cell);
+	}
+	return lowest == 128 ? -1 : lowest;
+}
+
+int note_grid_lowest_active_midi_for_pitch_class(const NoteGrid &grid, int pitch_class)
+{
+	pitch_class = ((pitch_class % 12) + 12) % 12;
+	int lowest = 128;
+	auto visit = [&](const NoteCell &cell) {
+		if (cell.active && cell.midi >= 0 && midi_pitch_class(cell.midi) == pitch_class)
+			lowest = std::min(lowest, cell.midi);
+	};
+	for (const NoteCell &cell : grid.cells)
+		visit(cell);
+	for (const auto &row : grid.rows) {
+		for (const NoteCell &cell : row)
+			visit(cell);
+	}
+	return lowest == 128 ? -1 : lowest;
+}
+
+bool note_grid_has_guitar_root_third_voicing(const NoteGrid &grid, int root_pitch_class, int third_pitch_class)
+{
+	root_pitch_class = ((root_pitch_class % 12) + 12) % 12;
+	third_pitch_class = ((third_pitch_class % 12) + 12) % 12;
+
+	const int root_midi = note_grid_lowest_active_midi_for_pitch_class(grid, root_pitch_class);
+	if (root_midi < 0)
+		return false;
+	const int lowest_midi = note_grid_lowest_active_midi(grid);
+	if (lowest_midi >= 0 && root_midi > lowest_midi + 2)
+		return false;
+
+	bool found = false;
+	auto visit = [&](const NoteCell &cell) {
+		if (found || !cell.active || cell.midi < 0 || midi_pitch_class(cell.midi) != third_pitch_class)
+			return;
+		const int interval = cell.midi - root_midi;
+		if (interval >= 3 && interval <= 16)
+			found = true;
+	};
+	for (const NoteCell &cell : grid.cells)
+		visit(cell);
+	for (const auto &row : grid.rows) {
+		for (const NoteCell &cell : row)
+			visit(cell);
+	}
+	return found;
+}
+
+ChordResult detect_supported_guitar_root_third_dyad(const NoteGrid &display_grid,
+						    const NoteGrid &analysis_grid,
+						    int preferred_root)
+{
+	ChordResult dyad;
+	const int display_pitch_classes = note_grid_active_pitch_class_count(display_grid);
+	const int analysis_pitch_classes = note_grid_active_pitch_class_count(analysis_grid);
+	if (display_pitch_classes < 2 || analysis_pitch_classes < 2 ||
+	    display_pitch_classes > 5 || analysis_pitch_classes > 6)
+		return dyad;
+
+	const std::array<float, 12> display_chroma = note_grid_chroma(display_grid);
+	const std::array<float, 12> analysis_chroma = note_grid_chroma(analysis_grid);
+	if (longest_chromatic_run(display_chroma) >= 4 || longest_chromatic_run(analysis_chroma) >= 4)
+		return dyad;
+
+	float strongest_display = 0.0f;
+	float strongest_analysis = 0.0f;
+	for (int pitch_class = 0; pitch_class < 12; ++pitch_class) {
+		strongest_display = std::max(strongest_display, note_grid_pitch_level(display_grid, pitch_class));
+		strongest_analysis = std::max(strongest_analysis, note_grid_pitch_level(analysis_grid, pitch_class));
+	}
+	if (strongest_display <= 1.0e-6f || strongest_analysis <= 1.0e-6f)
+		return dyad;
+
+	float best_score = 0.0f;
+	auto consider_root = [&](int root_pitch_class, bool minor) {
+		root_pitch_class = ((root_pitch_class % 12) + 12) % 12;
+		const int third_pitch_class = (root_pitch_class + (minor ? 3 : 4)) % 12;
+		const int opposite_third_pitch_class = (root_pitch_class + (minor ? 4 : 3)) % 12;
+		const float display_root = note_grid_pitch_level(display_grid, root_pitch_class);
+		const float display_third = note_grid_pitch_level(display_grid, third_pitch_class);
+		const float analysis_root = note_grid_pitch_level(analysis_grid, root_pitch_class);
+		const float analysis_third = note_grid_pitch_level(analysis_grid, third_pitch_class);
+		const float display_anchor = std::min(display_root, display_third);
+		const float analysis_anchor = std::min(analysis_root, analysis_third);
+		if (display_root < std::max(0.12f, strongest_display * 0.14f) ||
+		    display_third < std::max(0.10f, strongest_display * 0.10f) ||
+		    analysis_root < std::max(0.10f, strongest_analysis * 0.10f) ||
+		    analysis_third < std::max(0.08f, strongest_analysis * 0.08f))
+			return;
+		if (!note_grid_has_guitar_root_third_voicing(display_grid, root_pitch_class, third_pitch_class) ||
+		    !note_grid_has_guitar_root_third_voicing(analysis_grid, root_pitch_class, third_pitch_class))
+			return;
+
+		const float display_opposite = note_grid_pitch_level(display_grid, opposite_third_pitch_class);
+		const float analysis_opposite = note_grid_pitch_level(analysis_grid, opposite_third_pitch_class);
+		if (display_opposite >= std::max(0.12f, display_anchor * 0.78f) ||
+		    analysis_opposite >= std::max(0.10f, analysis_anchor * 0.78f))
+			return;
+
+		float score = 0.34f + display_anchor * 0.35f + analysis_anchor * 0.26f;
+		if (preferred_root >= 0 && root_pitch_class == ((preferred_root % 12) + 12) % 12)
+			score += 0.10f;
+		if (score <= best_score)
+			return;
+
+		best_score = score;
+		dyad = make_guitar_plain_triad(root_pitch_class, minor, std::clamp(score, 0.38f, 0.58f));
+	};
+
+	if (preferred_root >= 0) {
+		consider_root(preferred_root, false);
+		consider_root(preferred_root, true);
+	}
+	for (int root = 0; root < 12; ++root) {
+		consider_root(root, false);
+		consider_root(root, true);
+	}
+	return dyad;
+}
+
 void append_preferred_guitar_root_third_dyad_alias(ChordResult &chord, const ChordResult &dyad)
 {
 	if (chord.root < 0 || !chord.label[0] || chord.label[0] == '-')
@@ -7609,6 +7743,11 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 			raw_guitar_valid = false;
 		}
 		if (!mixed_source && !raw_guitar_valid) {
+			raw_guitar_chord = detect_supported_guitar_root_third_dyad(
+				snapshot.guitar_notes, guitar_chord_detection_grid, preferred_root);
+			raw_guitar_valid = guitar_chord_valid_for_display(raw_guitar_chord);
+		}
+		if (!mixed_source && !raw_guitar_valid) {
 			raw_guitar_chord = detect_supported_guitar_power_dyad(
 				snapshot.guitar_notes, guitar_chord_detection_grid, preferred_root);
 			raw_guitar_valid = guitar_chord_valid_for_display(raw_guitar_chord);
@@ -7989,6 +8128,11 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 		};
 		if (!smoothed_guitar_chord_supported_by_display_grid(smoothed_guitar_chord))
 			smoothed_guitar_chord = ChordResult{};
+		if (!mixed_source && !valid_chord_result(smoothed_guitar_chord)) {
+			smoothed_guitar_chord = detect_supported_guitar_root_third_dyad(
+				snapshot.guitar_notes, guitar_chord_grid,
+				lowest_note_grid_pitch_class(guitar_chord_grid));
+		}
 		if (!mixed_source && !valid_chord_result(smoothed_guitar_chord)) {
 			smoothed_guitar_chord = detect_supported_guitar_power_dyad(
 				snapshot.guitar_notes, guitar_chord_grid,
