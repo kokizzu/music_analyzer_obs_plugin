@@ -7,6 +7,7 @@ import csv
 import argparse
 import collections
 import pathlib
+import re
 import statistics
 import sys
 
@@ -147,6 +148,67 @@ def print_bucket(rows: list[dict[str, str]], status: str, family: str, source: s
         )
 
 
+def parse_bucket_spec(spec: str) -> tuple[str, str, str, str]:
+    match = re.fullmatch(r"([^:]+):([^/]+)/(.+)->(.+)", spec)
+    if not match:
+        raise SystemExit(
+            f"invalid bucket `{spec}`; expected format status:family/source->first_row"
+        )
+    return match.group(1), match.group(2), match.group(3), match.group(4)
+
+
+def format_score(value: float | None) -> str:
+    return "-" if value is None else f"{value:.3f}"
+
+
+def print_sample(rows: list[dict[str, str]], sample_id: str) -> None:
+    sample_rows = [row for row in rows if row.get("sample_id") == sample_id]
+    print()
+    if not sample_rows:
+        print(f"sample {sample_id}: no rows")
+        return
+
+    first = sample_rows[0]
+    print(
+        f"sample {sample_id}: status={first.get('status', '')} "
+        f"source={first.get('family', '')}/{first.get('source', '')} "
+        f"expected={first.get('expected_note', '') or first.get('expected_midi', '')} "
+        f"first_row={first.get('first_row', '')}"
+    )
+    for row in sample_rows:
+        debug_note = row.get("debug_note", "")
+        if not debug_note:
+            continue
+        scores = (
+            format_score(as_float(row, "keyboard_score")),
+            format_score(as_float(row, "guitar_score")),
+            format_score(as_float(row, "vocal_score")),
+            format_score(as_float(row, "other_score")),
+        )
+        partials = (
+            format_score(as_float(row, "partial1")),
+            format_score(as_float(row, "partial2")),
+            format_score(as_float(row, "partial3")),
+            format_score(as_float(row, "partial4")),
+            format_score(as_float(row, "partial5")),
+        )
+        print(
+            f"  buffer={row.get('buffer', '')} row_label=`{row.get('row_label', '')}` "
+            f"row_grid={row.get('row_grid', '')} any_grid={row.get('any_grid', '')} "
+            f"strongest={row.get('buffer_strongest_row', '')} debug={debug_note} "
+            f"owner={row.get('debug_owner', '')} conf={format_score(as_float(row, 'debug_conf'))} "
+            f"scores(k/g/v/o)={scores[0]}/{scores[1]}/{scores[2]}/{scores[3]} "
+            f"spec={format_score(as_float(row, 'spectral_level'))} "
+            f"pitch={format_score(as_float(row, 'pitch_confidence'))} "
+            f"per={format_score(as_float(row, 'periodicity'))} "
+            f"fit={format_score(as_float(row, 'fit_error'))} "
+            f"cent={format_score(as_float(row, 'centroid'))} "
+            f"slope={format_score(as_float(row, 'slope'))} "
+            f"noise={format_score(as_float(row, 'noise'))} "
+            f"partials={partials[0]},{partials[1]},{partials[2]},{partials[3]},{partials[4]}"
+        )
+
+
 def load_rows(path: pathlib.Path) -> list[dict[str, str]]:
     with path.open(newline="", errors="replace") as handle:
         return list(csv.DictReader(handle, delimiter="\t"))
@@ -201,12 +263,33 @@ def main() -> int:
         default=12,
         help="number of largest ownership-miss buckets to print before fixed comparison buckets",
     )
+    parser.add_argument(
+        "--bucket",
+        action="append",
+        default=[],
+        help="print only this bucket, formatted as status:family/source->first_row; repeatable",
+    )
+    parser.add_argument(
+        "--sample-id",
+        action="append",
+        default=[],
+        help="print per-buffer detector attributes for this sample id; repeatable",
+    )
     args = parser.parse_args()
 
     path = pathlib.Path(args.path)
     rows = load_rows(path)
-    for bucket in top_bucket_keys(rows, max(0, args.top_misses)):
+    if args.bucket:
+        buckets = [parse_bucket_spec(spec) for spec in args.bucket]
+    elif args.sample_id:
+        buckets = []
+    else:
+        buckets = top_bucket_keys(rows, max(0, args.top_misses))
+
+    for bucket in buckets:
         print_bucket(rows, *bucket)
+    for sample_id in args.sample_id:
+        print_sample(rows, sample_id)
     return 0
 
 
