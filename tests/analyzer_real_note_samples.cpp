@@ -66,6 +66,22 @@ struct SourceStats {
 	int any_hits = 0;
 };
 
+struct RawNoteAttributes {
+	float expected_peak = 0.0f;
+	float expected_ratio = 0.0f;
+	float tuned_peak = 0.0f;
+	float tuned_ratio = 0.0f;
+	float tuned_cent_offset = 0.0f;
+	float tuned_abs_cent_offset = 0.0f;
+	int local_best_midi = -1;
+	float local_best_peak = 0.0f;
+	int expected_rank = 0;
+	float prev_ratio = 0.0f;
+	float next_ratio = 0.0f;
+	float octave_down_ratio = 0.0f;
+	float octave_up_ratio = 0.0f;
+};
+
 constexpr int kFamilyCount = 5;
 constexpr int kObservedRowCount = 7;
 constexpr int kObservedBass = 0;
@@ -350,6 +366,104 @@ float grid_pitch_class_level(const mao::NoteGrid &grid, int midi)
 	if (grid.cells[pitch_class].active)
 		level = std::max(level, grid.cells[pitch_class].level);
 	return level;
+}
+
+mao_test::Buffer centered_hann_buffer(const mao_test::Buffer &buffer)
+{
+	mao_test::Buffer windowed = {};
+	if (buffer.size() < 2)
+		return windowed;
+
+	double sum = 0.0;
+	for (float sample : buffer)
+		sum += sample;
+	const float mean = static_cast<float>(sum / static_cast<double>(buffer.size()));
+
+	for (std::size_t i = 0; i < buffer.size(); ++i) {
+		const float phase =
+			2.0f * mao_test::kPi * static_cast<float>(i) / static_cast<float>(buffer.size() - 1);
+		const float window = 0.5f - 0.5f * std::cos(phase);
+		windowed[i] = (buffer[i] - mean) * window;
+	}
+	return windowed;
+}
+
+float raw_goertzel_frequency(const mao_test::Buffer &windowed, uint32_t sample_rate, float frequency)
+{
+	if (sample_rate == 0 || windowed.size() < 2 || frequency <= 0.0f)
+		return 0.0f;
+
+	const float coeff = 2.0f * std::cos(2.0f * mao_test::kPi * frequency / static_cast<float>(sample_rate));
+	float s1 = 0.0f;
+	float s2 = 0.0f;
+	for (float x : windowed) {
+		const float s0 = x + coeff * s1 - s2;
+		s2 = s1;
+		s1 = s0;
+	}
+
+	return std::sqrt(std::max(0.0f, s1 * s1 + s2 * s2 - coeff * s1 * s2));
+}
+
+float raw_goertzel_midi(const mao_test::Buffer &windowed, uint32_t sample_rate, int midi)
+{
+	if (midi < mao::kFirstAnalyzedMidi || midi > mao::kLastAnalyzedMidi)
+		return 0.0f;
+	return raw_goertzel_frequency(windowed, sample_rate, mao_test::midi_frequency(midi));
+}
+
+RawNoteAttributes measure_raw_note_attributes(const mao_test::Buffer &buffer, uint32_t sample_rate,
+					      int expected_midi)
+{
+	RawNoteAttributes attributes;
+	if (sample_rate == 0 || buffer.size() < 2 || expected_midi < mao::kFirstAnalyzedMidi ||
+	    expected_midi > mao::kLastAnalyzedMidi)
+		return attributes;
+
+	const mao_test::Buffer windowed = centered_hann_buffer(buffer);
+
+	attributes.expected_peak = raw_goertzel_midi(windowed, sample_rate, expected_midi);
+
+	int stronger_or_equal = 0;
+	for (int midi = std::max(mao::kFirstAnalyzedMidi, expected_midi - 12);
+	     midi <= std::min(mao::kLastAnalyzedMidi, expected_midi + 12); ++midi) {
+		const float peak = raw_goertzel_midi(windowed, sample_rate, midi);
+		if (peak > attributes.local_best_peak) {
+			attributes.local_best_peak = peak;
+			attributes.local_best_midi = midi;
+		}
+		if (midi != expected_midi && peak >= attributes.expected_peak)
+			++stronger_or_equal;
+	}
+	attributes.expected_rank = stronger_or_equal + 1;
+
+	const float denominator = std::max(attributes.local_best_peak, 1.0e-9f);
+	attributes.expected_ratio = std::clamp(attributes.expected_peak / denominator, 0.0f, 1.0f);
+	attributes.prev_ratio =
+		std::clamp(raw_goertzel_midi(windowed, sample_rate, expected_midi - 1) / denominator,
+			   0.0f, 1.0f);
+	attributes.next_ratio =
+		std::clamp(raw_goertzel_midi(windowed, sample_rate, expected_midi + 1) / denominator,
+			   0.0f, 1.0f);
+	attributes.octave_down_ratio =
+		std::clamp(raw_goertzel_midi(windowed, sample_rate, expected_midi - 12) / denominator,
+			   0.0f, 1.0f);
+	attributes.octave_up_ratio =
+		std::clamp(raw_goertzel_midi(windowed, sample_rate, expected_midi + 12) / denominator,
+			   0.0f, 1.0f);
+
+	static constexpr float kCentOffsets[] = {-18.0f, -9.0f, 0.0f, 9.0f, 18.0f};
+	for (float cents : kCentOffsets) {
+		const float frequency = mao_test::midi_frequency(expected_midi) * std::pow(2.0f, cents / 1200.0f);
+		const float peak = raw_goertzel_frequency(windowed, sample_rate, frequency);
+		if (peak > attributes.tuned_peak) {
+			attributes.tuned_peak = peak;
+			attributes.tuned_cent_offset = cents;
+		}
+	}
+	attributes.tuned_ratio = std::clamp(attributes.tuned_peak / denominator, 0.0f, 1.0f);
+	attributes.tuned_abs_cent_offset = std::abs(attributes.tuned_cent_offset);
+	return attributes;
 }
 
 int strongest_pitch_class_row(const mao::AnalysisSnapshot &snapshot, int midi)
@@ -713,6 +827,10 @@ void print_attribute_header(std::ostream &out)
 	    << "\trow_label\trow_conf\trow_grid\tany_grid\tbuffer_strongest_row"
 	    << "\tbass_level\tguitar_level\tpiano_level\tvocal_level\tother_level\tamb_level"
 	    << "\tglobal_chord\tkeyboard_chord\tguitar_chord\tother_chord"
+	    << "\traw_expected_peak\traw_expected_ratio\traw_tuned_peak\traw_tuned_ratio"
+	    << "\traw_tuned_cent_offset\traw_tuned_abs_cent_offset"
+	    << "\traw_local_best_note\traw_local_best_midi\traw_local_best_peak\traw_expected_rank"
+	    << "\traw_prev_ratio\traw_next_ratio\traw_octave_down_ratio\traw_octave_up_ratio"
 	    << "\trms\tlow\tmid\thigh\tkick\tsnare\thihat\tcrash\ttom\tride\trim"
 	    << "\tdebug_note\tdebug_midi\tdebug_owner\tdebug_conf"
 	    << "\tkeyboard_score\tguitar_score\tvocal_score\tother_score"
@@ -751,7 +869,7 @@ void append_debug_candidate_fields(std::ostringstream &line, const mao::FullMixD
 void append_attribute_row(std::vector<std::string> &lines, const SampleRow &row, const std::string &expected,
 			  int buffer_index, bool full_mix, const mao::AnalysisSnapshot &snapshot,
 			  const mao::InstrumentState &expected_state, bool grid_ok, bool any_grid_ok,
-			  const mao::FullMixDebugCandidate *debug)
+			  const RawNoteAttributes &raw, const mao::FullMixDebugCandidate *debug)
 {
 	std::ostringstream line;
 	line << tsv_field(row.id);
@@ -777,6 +895,20 @@ void append_attribute_row(std::vector<std::string> &lines, const SampleRow &row,
 	append_tsv(line, snapshot.keyboard_chord.label);
 	append_tsv(line, snapshot.guitar_chord.label);
 	append_tsv(line, snapshot.other_chord.label);
+	append_tsv(line, raw.expected_peak);
+	append_tsv(line, raw.expected_ratio);
+	append_tsv(line, raw.tuned_peak);
+	append_tsv(line, raw.tuned_ratio);
+	append_tsv(line, raw.tuned_cent_offset);
+	append_tsv(line, raw.tuned_abs_cent_offset);
+	append_tsv(line, debug_note_label(raw.local_best_midi));
+	append_tsv(line, raw.local_best_midi);
+	append_tsv(line, raw.local_best_peak);
+	append_tsv(line, raw.expected_rank);
+	append_tsv(line, raw.prev_ratio);
+	append_tsv(line, raw.next_ratio);
+	append_tsv(line, raw.octave_down_ratio);
+	append_tsv(line, raw.octave_up_ratio);
 	append_tsv(line, snapshot.rms);
 	append_tsv(line, snapshot.low_energy);
 	append_tsv(line, snapshot.mid_energy);
@@ -789,7 +921,8 @@ void append_attribute_row(std::vector<std::string> &lines, const SampleRow &row,
 
 void append_attribute_rows(std::vector<std::string> &lines, const SampleRow &row, const std::string &expected,
 			   int buffer_index, bool full_mix, const mao::AnalysisSnapshot &snapshot,
-			   const mao::InstrumentState &expected_state, bool grid_ok, bool any_grid_ok)
+			   const mao::InstrumentState &expected_state, bool grid_ok, bool any_grid_ok,
+			   const RawNoteAttributes &raw)
 {
 	const int expected_pitch = ((row.midi % 12) + 12) % 12;
 	bool wrote = false;
@@ -802,12 +935,12 @@ void append_attribute_rows(std::vector<std::string> &lines, const SampleRow &row
 		    ((debug.midi % 12) + 12) % 12 != expected_pitch)
 			continue;
 		append_attribute_row(lines, row, expected, buffer_index, full_mix, snapshot, expected_state,
-				     grid_ok, any_grid_ok, &debug);
+				     grid_ok, any_grid_ok, raw, &debug);
 		wrote = true;
 	}
 	if (!wrote) {
 		append_attribute_row(lines, row, expected, buffer_index, full_mix, snapshot, expected_state,
-				     grid_ok, any_grid_ok, nullptr);
+				     grid_ok, any_grid_ok, raw, nullptr);
 	}
 }
 
@@ -955,6 +1088,7 @@ int main()
 				   row.family == "bass" && !row.source.empty() ? row.source.c_str() :
 										 row.family.c_str();
 		for (const mao_test::Buffer &buffer : buffers) {
+			const RawNoteAttributes raw = measure_raw_note_attributes(buffer, sample_rate, row.midi);
 			const mao::AnalysisSnapshot snapshot =
 				analyze_buffer(buffer, sample_rate,
 					       full_mix ? mao::AnalysisInputMode::FullMix : family_mode(row.family),
@@ -968,7 +1102,8 @@ int main()
 			const bool any_grid_ok = snapshot_has_pitch_class(snapshot, row.midi);
 			if (attribute_export) {
 				append_attribute_rows(attribute_lines, row, expected, buffer_index, full_mix, snapshot,
-						      family_state(snapshot, row.family), grid_ok, any_grid_ok);
+						      family_state(snapshot, row.family), grid_ok, any_grid_ok,
+						      raw);
 			}
 			for (const mao::DrumState &drum : snapshot.drums) {
 				if (drum.active) {

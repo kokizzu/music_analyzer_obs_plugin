@@ -38,6 +38,19 @@ FIELDS = [
     "vocal_level",
     "other_level",
     "amb_level",
+    "raw_expected_peak",
+    "raw_expected_ratio",
+    "raw_tuned_peak",
+    "raw_tuned_ratio",
+    "raw_tuned_cent_offset",
+    "raw_tuned_abs_cent_offset",
+    "raw_local_best_midi",
+    "raw_local_best_peak",
+    "raw_expected_rank",
+    "raw_prev_ratio",
+    "raw_next_ratio",
+    "raw_octave_down_ratio",
+    "raw_octave_up_ratio",
 ]
 
 DEFAULT_BUCKETS = [
@@ -67,6 +80,7 @@ CATEGORY_FIELDS = [
     "debug_owner",
     "row_label",
     "buffer_strongest_row",
+    "raw_local_best_note",
 ]
 
 
@@ -205,6 +219,11 @@ def print_sample(rows: list[dict[str, str]], sample_id: str) -> None:
             f"cent={format_score(as_float(row, 'centroid'))} "
             f"slope={format_score(as_float(row, 'slope'))} "
             f"noise={format_score(as_float(row, 'noise'))} "
+            f"raw={format_score(as_float(row, 'raw_expected_ratio'))}/"
+            f"{format_score(as_float(row, 'raw_tuned_ratio'))} "
+            f"raw_best={row.get('raw_local_best_note', '')}/"
+            f"{format_score(as_float(row, 'raw_local_best_peak'))} "
+            f"raw_rank={format_score(as_float(row, 'raw_expected_rank'))} "
             f"partials={partials[0]},{partials[1]},{partials[2]},{partials[3]},{partials[4]}"
         )
 

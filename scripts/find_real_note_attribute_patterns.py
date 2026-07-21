@@ -43,6 +43,19 @@ ROW_CONTEXT_NUMERIC_FIELDS = [
     "vocal_level",
     "other_level",
     "amb_level",
+    "raw_expected_peak",
+    "raw_expected_ratio",
+    "raw_tuned_peak",
+    "raw_tuned_ratio",
+    "raw_tuned_cent_offset",
+    "raw_tuned_abs_cent_offset",
+    "raw_local_best_midi",
+    "raw_local_best_peak",
+    "raw_expected_rank",
+    "raw_prev_ratio",
+    "raw_next_ratio",
+    "raw_octave_down_ratio",
+    "raw_octave_up_ratio",
 ]
 
 DEBUG_CATEGORY_FIELDS = [
@@ -51,6 +64,7 @@ DEBUG_CATEGORY_FIELDS = [
 
 ROW_CONTEXT_CATEGORY_FIELDS = [
     "buffer_strongest_row",
+    "raw_local_best_note",
 ]
 
 DEFAULT_BUCKETS = [
@@ -583,6 +597,9 @@ def format_example(row: dict[str, str]) -> str:
         f" cent={short_float(row, 'centroid')}"
         f" slope={short_float(row, 'slope')}"
         f" noise={short_float(row, 'noise')}"
+        f" raw={short_float(row, 'raw_expected_ratio')}/{short_float(row, 'raw_tuned_ratio')}"
+        f" raw_best={row.get('raw_local_best_note', '')}/{short_float(row, 'raw_local_best_peak')}"
+        f" raw_rank={short_float(row, 'raw_expected_rank')}"
         f" p2..p5={partials[0]},{partials[1]},{partials[2]},{partials[3]}"
     )
 

@@ -19,6 +19,19 @@ NUMERIC_FIELDS = [
     "vocal_level",
     "other_level",
     "amb_level",
+    "raw_expected_peak",
+    "raw_expected_ratio",
+    "raw_tuned_peak",
+    "raw_tuned_ratio",
+    "raw_tuned_cent_offset",
+    "raw_tuned_abs_cent_offset",
+    "raw_local_best_midi",
+    "raw_local_best_peak",
+    "raw_expected_rank",
+    "raw_prev_ratio",
+    "raw_next_ratio",
+    "raw_octave_down_ratio",
+    "raw_octave_up_ratio",
     "rms",
     "low",
     "mid",
@@ -51,6 +64,24 @@ NUMERIC_FIELDS = [
 ]
 
 
+CONTEXT_SUMMARY_FIELDS = [
+    "bass_level",
+    "guitar_level",
+    "piano_level",
+    "vocal_level",
+    "other_level",
+    "amb_level",
+    "raw_expected_ratio",
+    "raw_tuned_ratio",
+    "raw_tuned_abs_cent_offset",
+    "raw_expected_rank",
+    "raw_prev_ratio",
+    "raw_next_ratio",
+    "raw_octave_down_ratio",
+    "raw_octave_up_ratio",
+]
+
+
 SUMMARY_FIELDS = [
     "debug_conf",
     "keyboard_score",
@@ -61,6 +92,10 @@ SUMMARY_FIELDS = [
     "periodicity",
     "fit_error",
     "noise",
+    "raw_expected_ratio",
+    "raw_tuned_ratio",
+    "raw_tuned_abs_cent_offset",
+    "raw_expected_rank",
     "partial1",
     "partial2",
     "partial3",
@@ -78,6 +113,9 @@ SAMPLE_FIELDS = [
     "periodicity",
     "fit_error",
     "noise",
+    "raw_expected_ratio",
+    "raw_tuned_ratio",
+    "raw_expected_rank",
     "partial2",
     "partial3",
     "partial4",
@@ -150,6 +188,18 @@ def debug_rows_for_sample_ids(
     for sample_id in sample_ids:
         debug_rows.extend(row for row in rows_by_sample.get(sample_id, []) if row.get("debug_note"))
     return debug_rows
+
+
+def unique_context_rows(rows: list[dict[str, str]]) -> list[dict[str, str]]:
+    selected = []
+    seen: set[tuple[str, str]] = set()
+    for row in rows:
+        key = (row.get("sample_id", ""), row.get("buffer", ""))
+        if key in seen:
+            continue
+        seen.add(key)
+        selected.append(row)
+    return selected
 
 
 def load_rows(path: pathlib.Path) -> list[dict[str, str]]:
@@ -322,6 +372,10 @@ def summarize(path: pathlib.Path, detail_limit: int = 0, sample_limit: int = 0) 
             continue
         rows_by_group[(row["status"], source_key(row), row.get("first_row", "none"))].append(row)
 
+    context_rows_by_group: dict[tuple[str, str, str], list[dict[str, str]]] = collections.defaultdict(list)
+    for row in unique_context_rows(rows):
+        context_rows_by_group[(row["status"], source_key(row), row.get("first_row", "none"))].append(row)
+
     median_keys = [key for key, _count in group_counts.most_common() if key[0] != "hit"][:8]
     median_keys += [key for key, _count in group_counts.most_common() if key[0] == "hit"][:5]
     seen_median_keys = set()
@@ -331,14 +385,20 @@ def summarize(path: pathlib.Path, detail_limit: int = 0, sample_limit: int = 0) 
         seen_median_keys.add(key)
         count = group_counts[key]
         debug_rows = rows_by_group.get(key, [])
-        if not debug_rows:
-            continue
         status, source, row_name = key
-        parts = [f"{field}={median_text(debug_rows, field)}" for field in SUMMARY_FIELDS]
-        lines.append(
-            f"debug medians {status}:{source}->{row_name} samples={count} debug_rows={len(debug_rows)} "
-            + " ".join(parts)
-        )
+        if debug_rows:
+            parts = [f"{field}={median_text(debug_rows, field)}" for field in SUMMARY_FIELDS]
+            lines.append(
+                f"debug medians {status}:{source}->{row_name} samples={count} debug_rows={len(debug_rows)} "
+                + " ".join(parts)
+            )
+        context_rows = context_rows_by_group.get(key, [])
+        if context_rows:
+            context_parts = [f"{field}={median_text(context_rows, field)}" for field in CONTEXT_SUMMARY_FIELDS]
+            lines.append(
+                f"context medians {status}:{source}->{row_name} samples={count} "
+                f"buffers={len(context_rows)} " + " ".join(context_parts)
+            )
 
     append_detailed_breakdown(lines, rows, samples, detail_limit, sample_limit)
     return lines
