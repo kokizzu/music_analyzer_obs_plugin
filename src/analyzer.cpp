@@ -1857,6 +1857,22 @@ bool full_mix_display_mirror_supported(FullMixDisplayRow row, const FullMixDebug
 			(debug.owner == InstrumentKind::Vocal ||
 			 debug.owner == InstrumentKind::Ambiguous ||
 			 (debug.owner == InstrumentKind::Guitar && debug.guitar_score <= 0.74f));
+		const bool clean_vocal_owned_keyboard_hint =
+			debug.owner == InstrumentKind::Vocal &&
+			debug.midi >= 52 && debug.midi <= 72 &&
+			debug.spectral_level >= 0.82f &&
+			debug.pitch_confidence >= 0.82f &&
+			debug.periodicity >= 0.68f &&
+			debug.keyboard_score >= 0.10f &&
+			debug.other_score <= 0.08f &&
+			debug.local_noise_level <= 0.20f &&
+			debug.harmonic_fit_error <= 0.055f &&
+			debug.harmonic_ratios[1] <= 0.28f &&
+			debug.harmonic_ratios[2] <= 0.095f &&
+			debug.harmonic_ratios[3] <= 0.055f &&
+			debug.harmonic_ratios[4] <= 0.040f &&
+			debug.spectral_centroid <= 0.16f &&
+			debug.spectral_slope <= 0.14f;
 		const bool pure_high_electronic_keyboard_hint =
 			(debug.owner == InstrumentKind::Vocal ||
 			 debug.owner == InstrumentKind::Ambiguous ||
@@ -1905,6 +1921,7 @@ bool full_mix_display_mirror_supported(FullMixDisplayRow row, const FullMixDebug
 		       clean_octave_electronic_keyboard_hint ||
 		       high_octave_alias_electronic_keyboard_hint ||
 		       clean_sustained_keyboard_hint ||
+		       clean_vocal_owned_keyboard_hint ||
 		       pure_high_electronic_keyboard_hint ||
 		       low_octave_organ_keyboard_hint;
 	}
@@ -2045,6 +2062,37 @@ bool full_mix_display_mirror_supported(FullMixDisplayRow row, const FullMixDebug
 			debug.harmonic_ratios[4] <= 0.040f &&
 			debug.spectral_centroid <= 0.20f &&
 			debug.spectral_slope <= 0.24f;
+		const bool bright_keyboard_owned_high_guitar_body =
+			debug.owner == InstrumentKind::Keyboard &&
+			debug.midi >= 72 && debug.midi <= 76 &&
+			debug.spectral_level >= 0.90f &&
+			debug.pitch_confidence >= 0.72f &&
+			debug.periodicity >= 0.70f &&
+			debug.local_noise_level <= 0.020f &&
+			debug.harmonic_fit_error <= 0.10f &&
+			debug.harmonic_ratios[1] >= 0.045f &&
+			debug.harmonic_ratios[1] <= 0.095f &&
+			debug.harmonic_ratios[2] >= 0.18f &&
+			debug.harmonic_ratios[2] <= 0.24f &&
+			debug.harmonic_ratios[3] <= 0.045f &&
+			debug.harmonic_ratios[4] <= 0.045f &&
+			debug.spectral_centroid >= 0.12f &&
+			debug.spectral_centroid <= 0.22f &&
+			debug.spectral_slope <= 0.28f;
+		const bool pure_keyboard_owned_high_guitar_body =
+			debug.owner == InstrumentKind::Keyboard &&
+			debug.midi >= 68 && debug.midi <= 76 &&
+			debug.spectral_level >= 0.80f &&
+			debug.pitch_confidence >= 0.84f &&
+			debug.periodicity >= 0.68f &&
+			debug.local_noise_level <= 0.030f &&
+			debug.harmonic_fit_error <= 0.080f &&
+			debug.harmonic_ratios[1] <= 0.11f &&
+			debug.harmonic_ratios[2] <= 0.045f &&
+			debug.harmonic_ratios[3] <= 0.030f &&
+			debug.harmonic_ratios[4] <= 0.025f &&
+			debug.spectral_centroid <= 0.090f &&
+			debug.spectral_slope <= 0.090f;
 		const bool resonant_mid_ambiguous_acoustic_body =
 			(debug.owner == InstrumentKind::Ambiguous ||
 			 debug.owner == InstrumentKind::Vocal) &&
@@ -2087,6 +2135,8 @@ bool full_mix_display_mirror_supported(FullMixDisplayRow row, const FullMixDebug
 		       clean_high_acoustic_body ||
 		       mid_vocal_like_acoustic_body ||
 		       clean_high_keyboard_owned_acoustic_body ||
+		       bright_keyboard_owned_high_guitar_body ||
+		       pure_keyboard_owned_high_guitar_body ||
 		       resonant_mid_ambiguous_acoustic_body ||
 		       very_high_clean_acoustic_body;
 	}
