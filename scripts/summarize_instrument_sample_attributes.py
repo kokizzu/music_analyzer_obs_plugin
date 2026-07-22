@@ -22,6 +22,38 @@ NUMERIC_FIELDS = [
     "low",
     "mid",
     "high",
+    "raw_expected_peak",
+    "raw_expected_ratio",
+    "raw_tuned_peak",
+    "raw_tuned_ratio",
+    "raw_tuned_cent_offset",
+    "raw_tuned_abs_cent_offset",
+    "raw_local_best_midi",
+    "raw_local_best_peak",
+    "raw_expected_rank",
+    "raw_prev_ratio",
+    "raw_next_ratio",
+    "raw_octave_down_ratio",
+    "raw_octave_up_ratio",
+    "debug_midi",
+    "debug_conf",
+    "keyboard_score",
+    "guitar_score",
+    "vocal_score",
+    "other_score",
+    "spectral_level",
+    "pitch_confidence",
+    "periodicity",
+    "harmonicity",
+    "fit_error",
+    "centroid",
+    "slope",
+    "noise",
+    "partial1",
+    "partial2",
+    "partial3",
+    "partial4",
+    "partial5",
     "drum_level",
     "kick_level",
     "snare_level",
@@ -53,6 +85,31 @@ NUMERIC_FIELDS = [
     "upper_tom",
 ]
 
+NOTE_PROFILE_FIELDS = [
+    "expected_level",
+    "raw_expected_ratio",
+    "raw_tuned_ratio",
+    "raw_tuned_abs_cent_offset",
+    "raw_expected_rank",
+    "debug_conf",
+    "keyboard_score",
+    "guitar_score",
+    "vocal_score",
+    "other_score",
+    "spectral_level",
+    "pitch_confidence",
+    "periodicity",
+    "harmonicity",
+    "fit_error",
+    "centroid",
+    "slope",
+    "noise",
+    "partial2",
+    "partial3",
+    "partial4",
+    "partial5",
+]
+
 
 def load_rows(path: pathlib.Path) -> list[dict[str, str]]:
     with path.open(newline="", errors="replace") as handle:
@@ -74,6 +131,12 @@ def percentile(values: list[float], fraction: float) -> float:
         return 0.0
     index = int(round((len(values) - 1) * fraction))
     return values[max(0, min(len(values) - 1, index))]
+
+
+def compact_counter(counter: collections.Counter[str], limit: int = 8) -> str:
+    if not counter:
+        return "--"
+    return " ".join(f"{key}={value}" for key, value in counter.most_common(limit))
 
 
 def numeric_summary(rows: Iterable[dict[str, str]], fields: list[str]) -> list[str]:
@@ -114,6 +177,18 @@ def summarize(path: pathlib.Path, top: int, examples: int) -> list[str]:
         counts = collections.Counter((note_row_family(row), row.get("status", "")) for row in note_rows)
         parts = [f"{family}:{status}={count}" for (family, status), count in sorted(counts.items())]
         lines.append("note status " + " ".join(parts))
+        profile_groups: dict[str, list[dict[str, str]]] = collections.defaultdict(list)
+        for row in note_rows:
+            profile_groups[note_row_family(row)].append(row)
+        lines.append("note family profiles")
+        for family, group in sorted(profile_groups.items()):
+            owners = collections.Counter(row.get("debug_owner", "") or "none" for row in group)
+            best_notes = collections.Counter(row.get("raw_local_best_note", "") or "none" for row in group)
+            lines.append(
+                f"note profile:{family} count {len(group)} "
+                f"owners {compact_counter(owners, 6)} raw_best {compact_counter(best_notes, 6)}"
+            )
+            lines.extend(numeric_summary(group, NOTE_PROFILE_FIELDS))
         miss_groups: dict[tuple[str, str], list[dict[str, str]]] = collections.defaultdict(list)
         for row in note_rows:
             if row.get("status") == "hit":
@@ -136,6 +211,20 @@ def summarize(path: pathlib.Path, top: int, examples: int) -> list[str]:
                         "low",
                         "mid",
                         "high",
+                        "raw_expected_ratio",
+                        "raw_tuned_ratio",
+                        "raw_tuned_abs_cent_offset",
+                        "raw_expected_rank",
+                        "debug_conf",
+                        "keyboard_score",
+                        "guitar_score",
+                        "vocal_score",
+                        "other_score",
+                        "spectral_level",
+                        "pitch_confidence",
+                        "periodicity",
+                        "fit_error",
+                        "noise",
                     ],
                 )
             )
@@ -149,7 +238,12 @@ def summarize(path: pathlib.Path, top: int, examples: int) -> list[str]:
                     f"other:{row.get('other_level', '')},amb:{row.get('amb_level', '')} "
                     f"labels=bass:{row.get('bass_label', '')} piano:{row.get('piano_label', '')} "
                     f"guitar:{row.get('guitar_label', '')} vocal:{row.get('vocal_label', '')} "
-                    f"other:{row.get('other_label', '')}"
+                    f"other:{row.get('other_label', '')} "
+                    f"debug={row.get('debug_note', '')}/{row.get('debug_owner', '')}/"
+                    f"{row.get('debug_conf', '')} scores="
+                    f"k:{row.get('keyboard_score', '')},g:{row.get('guitar_score', '')},"
+                    f"v:{row.get('vocal_score', '')},o:{row.get('other_score', '')} "
+                    f"raw={row.get('raw_expected_ratio', '')}/{row.get('raw_tuned_ratio', '')}"
                 )
 
     if drum_rows:
