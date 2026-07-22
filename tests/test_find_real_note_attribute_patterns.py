@@ -334,6 +334,21 @@ def main() -> int:
             stderr=subprocess.PIPE,
             check=True,
         )
+        auto_result = subprocess.run(
+            [
+                sys.executable,
+                str(ROOT / "scripts" / "find_real_note_attribute_patterns.py"),
+                str(path),
+                "--top-buckets",
+                "1",
+                "--limit",
+                "1",
+            ],
+            text=True,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            check=True,
+        )
 
     assert "ownership_miss:guitar/acoustic->piano positives=2 samples/2 rows" in result.stdout
     assert "debug_owner=piano AND partial2<=0.14: pos=2/2 rows=2 neg=0/2 rows=0" in result.stdout
@@ -348,6 +363,7 @@ def main() -> int:
         "debug_midi<=69 AND partial2<=0.13 AND pitch_confidence>=0.95: "
         "pos=2/2 rows=2 neg=0/3 rows=0"
     ) in multi_result.stdout
+    assert "ownership_miss:guitar/acoustic->piano positives=2 samples/2 rows" in auto_result.stdout
     print("test_find_real_note_attribute_patterns: ok")
     return 0
 

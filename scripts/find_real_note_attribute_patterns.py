@@ -161,6 +161,24 @@ def hit_rows(rows: list[dict[str, str]]) -> list[dict[str, str]]:
     return [row for row in rows if row.get("status") == "hit" and row.get("debug_note")]
 
 
+def top_buckets(rows: list[dict[str, str]], limit: int) -> list[tuple[str, str, str, str]]:
+    if limit <= 0:
+        return []
+    counts: collections.Counter[tuple[str, str, str, str]] = collections.Counter()
+    for row in rows:
+        if row.get("status") != "ownership_miss" or not row.get("debug_note"):
+            continue
+        counts[
+            (
+                row.get("status", ""),
+                row.get("family", ""),
+                row.get("source", ""),
+                row.get("first_row", ""),
+            )
+        ] += 1
+    return [bucket for bucket, _count in counts.most_common(limit)]
+
+
 def sample_count(rows: list[dict[str, str]]) -> int:
     return len({row.get("sample_id", "") for row in rows if row.get("sample_id", "")})
 
@@ -795,6 +813,12 @@ def main() -> int:
         default=[],
         help="ownership-miss bucket formatted as status:family/source->first_row; repeatable",
     )
+    parser.add_argument(
+        "--top-buckets",
+        type=int,
+        default=6,
+        help="when --bucket is omitted, mine this many current top ownership-miss buckets; 0 uses fixed defaults",
+    )
     parser.add_argument("--limit", type=int, default=8)
     parser.add_argument("--min-positive-samples", type=int, default=2)
     parser.add_argument("--max-negative-samples", type=int, default=25)
@@ -835,7 +859,9 @@ def main() -> int:
     args = parser.parse_args()
 
     rows = load_rows(pathlib.Path(args.path))
-    buckets = [parse_bucket_spec(spec) for spec in (args.bucket or DEFAULT_BUCKETS)]
+    buckets = [parse_bucket_spec(spec) for spec in args.bucket]
+    if not buckets:
+        buckets = top_buckets(rows, args.top_buckets) or [parse_bucket_spec(spec) for spec in DEFAULT_BUCKETS]
     explicit_patterns = [condition_pattern(spec) for spec in args.condition]
     for bucket in buckets:
         print_bucket_patterns(
