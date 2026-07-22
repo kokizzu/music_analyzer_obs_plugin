@@ -2111,6 +2111,24 @@ bool full_mix_display_mirror_supported(FullMixDisplayRow row, const FullMixDebug
 			debug.harmonic_ratios[4] <= 0.080f &&
 			debug.spectral_centroid <= 0.22f &&
 			debug.spectral_slope <= 0.26f;
+		const bool bright_mid_ambiguous_acoustic_body =
+			(debug.owner == InstrumentKind::Ambiguous ||
+			 debug.owner == InstrumentKind::Vocal) &&
+			debug.midi >= 60 && debug.midi <= 64 &&
+			debug.spectral_level >= 0.92f &&
+			debug.pitch_confidence >= 0.91f &&
+			debug.periodicity >= 0.82f &&
+			debug.local_noise_level <= 0.040f &&
+			debug.harmonic_fit_error <= 0.12f &&
+			debug.harmonic_ratios[1] >= 0.26f &&
+			debug.harmonic_ratios[1] <= 0.35f &&
+			debug.harmonic_ratios[2] <= 0.14f &&
+			debug.harmonic_ratios[3] >= 0.070f &&
+			debug.harmonic_ratios[3] <= 0.32f &&
+			debug.harmonic_ratios[4] <= 0.010f &&
+			debug.spectral_centroid >= 0.17f &&
+			debug.spectral_centroid <= 0.27f &&
+			debug.spectral_slope <= 0.26f;
 		const bool very_high_clean_acoustic_body =
 			debug.owner == InstrumentKind::Vocal &&
 			debug.midi >= 77 && debug.midi <= 84 &&
@@ -2138,6 +2156,7 @@ bool full_mix_display_mirror_supported(FullMixDisplayRow row, const FullMixDebug
 		       bright_keyboard_owned_high_guitar_body ||
 		       pure_keyboard_owned_high_guitar_body ||
 		       resonant_mid_ambiguous_acoustic_body ||
+		       bright_mid_ambiguous_acoustic_body ||
 		       very_high_clean_acoustic_body;
 	}
 	case FullMixDisplayRow::Vocal:
@@ -2158,6 +2177,22 @@ bool full_mix_display_mirror_supported(FullMixDisplayRow row, const FullMixDebug
 			debug.spectral_centroid >= 0.050f &&
 			debug.spectral_centroid <= 0.17f &&
 			debug.spectral_slope <= 0.14f;
+		const bool noisy_low_ambiguous_bowed_string_other =
+			debug.owner == InstrumentKind::Ambiguous &&
+			debug.midi >= 40 && debug.midi <= 44 &&
+			debug.spectral_level >= 0.68f &&
+			debug.pitch_confidence >= 0.56f &&
+			debug.periodicity >= 0.54f &&
+			debug.local_noise_level >= 0.38f &&
+			debug.local_noise_level <= 0.62f &&
+			debug.harmonic_fit_error <= 0.060f &&
+			debug.harmonic_ratios[1] <= 0.22f &&
+			debug.harmonic_ratios[2] <= 0.11f &&
+			debug.harmonic_ratios[3] <= 0.13f &&
+			debug.harmonic_ratios[4] <= 0.060f &&
+			debug.spectral_centroid >= 0.080f &&
+			debug.spectral_centroid <= 0.18f &&
+			debug.spectral_slope <= 0.20f;
 		const bool bright_high_brass_other =
 			debug.midi >= 68 && debug.midi <= 84 &&
 			debug.spectral_level >= 0.72f &&
@@ -2267,6 +2302,7 @@ bool full_mix_display_mirror_supported(FullMixDisplayRow row, const FullMixDebug
 		       sustained_other ||
 		       bright_high_brass_other ||
 		       low_weak_upper_string_other ||
+		       noisy_low_ambiguous_bowed_string_other ||
 		       low_bowed_string_display_other ||
 		       octave_dominant_reed_display_other ||
 		       octave_rich_reed_display_other ||
