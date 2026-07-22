@@ -39,6 +39,7 @@ def main() -> int:
                 guitar_smoothed_cells="G3:0.82,B3:0.30,D4:0.50",
                 expected_raw_peak="10.0",
                 expected_raw_cells="G3:1.000,B3:0.380,D4:0.600",
+                raw_pitch_class_levels="G:1.000,B:0.380,D:0.600",
             ),
             row(
                 status="chord_miss",
@@ -61,6 +62,7 @@ def main() -> int:
                 guitar_smoothed_cells="D3:0.90,F#3:0.30,A3:0.57",
                 expected_raw_peak="9.0",
                 expected_raw_cells="D3:1.000,F#3:0.350,A3:0.650",
+                raw_pitch_class_levels="D:1.000,F#:0.350,A:0.650",
             ),
         ]
         path.write_text(
@@ -125,6 +127,7 @@ def main() -> int:
                 guitar_smoothed_cells="G3:0.82,B3:0.30,D4:0.50",
                 expected_raw_peak="10.0",
                 expected_raw_cells="G3:1.000,B3:1.000,D4:1.000",
+                raw_pitch_class_levels="G:1.000,B:1.000,D:1.000",
             ),
             row(
                 status="chord_miss",
@@ -147,6 +150,7 @@ def main() -> int:
                 guitar_smoothed_cells="G3:0.82,B3:0.30,D4:0.50",
                 expected_raw_peak="10.0",
                 expected_raw_cells="G3:1.000,B3:1.000,D4:1.000",
+                raw_pitch_class_levels="G:1.000,B:1.000,D:1.000",
             ),
             row(
                 recording_id="hit_low_root",
@@ -163,6 +167,7 @@ def main() -> int:
                 guitar_smoothed_cells="G3:0.82,B3:0.30,D4:0.50",
                 expected_raw_peak="10.0",
                 expected_raw_cells="G3:0.200,B3:1.000,D4:1.000",
+                raw_pitch_class_levels="G:0.200,B:1.000,D:1.000",
             ),
             row(
                 recording_id="hit_low_third",
@@ -179,6 +184,7 @@ def main() -> int:
                 guitar_smoothed_cells="G3:0.82,B3:0.30,D4:0.50",
                 expected_raw_peak="10.0",
                 expected_raw_cells="G3:1.000,B3:0.200,D4:1.000",
+                raw_pitch_class_levels="G:1.000,B:0.200,D:1.000",
             ),
             row(
                 recording_id="hit_low_fifth",
@@ -195,6 +201,7 @@ def main() -> int:
                 guitar_smoothed_cells="G3:0.82,B3:0.30,D4:0.50",
                 expected_raw_peak="10.0",
                 expected_raw_cells="G3:1.000,B3:1.000,D4:0.200",
+                raw_pitch_class_levels="G:1.000,B:1.000,D:0.200",
             ),
         ]
         multi_path = pathlib.Path(tmpdir) / "multi.tsv"

@@ -722,6 +722,88 @@ std::string expected_raw_cell_list(const CandidateWindow &candidate, const mao_t
 	return text.empty() ? "--" : text;
 }
 
+std::array<float, 12> raw_pitch_class_profile(const mao_test::Buffer &buffer, uint32_t sample_rate,
+					      int min_midi, int max_midi)
+{
+	std::array<float, 12> profile = {};
+	for (int midi = min_midi; midi <= max_midi; ++midi) {
+		const int pitch_class = ((midi % 12) + 12) % 12;
+		profile[pitch_class] =
+			std::max(profile[pitch_class], raw_goertzel_magnitude(buffer, sample_rate, midi));
+	}
+	return profile;
+}
+
+std::string raw_pitch_class_level_list(const std::array<float, 12> &profile)
+{
+	const float strongest = *std::max_element(profile.begin(), profile.end());
+	if (strongest <= 1.0e-9f)
+		return "--";
+
+	std::string text;
+	for (int pitch_class = 0; pitch_class < 12; ++pitch_class) {
+		const float level = std::clamp(profile[pitch_class] / strongest, 0.0f, 1.0f);
+		char item[32] = {};
+		std::snprintf(item, sizeof(item), "%s:%.3f", mao_test::note_name(pitch_class), level);
+		if (!text.empty())
+			text += ",";
+		text += item;
+	}
+	return text;
+}
+
+int root_from_chord_label(const std::string &label)
+{
+	if (label.empty())
+		return -1;
+
+	for (int preferred_len : {2, 1}) {
+		for (int pitch_class = 0; pitch_class < 12; ++pitch_class) {
+			const char *name = mao_test::note_name(pitch_class);
+			const std::size_t len = std::strlen(name);
+			if (len != static_cast<std::size_t>(preferred_len))
+				continue;
+			if (label.size() >= len && label.compare(0, len, name) == 0)
+				return pitch_class;
+		}
+	}
+	return -1;
+}
+
+float normalized_raw_pitch_class_level(const std::array<float, 12> &profile, int pitch_class)
+{
+	const float strongest = *std::max_element(profile.begin(), profile.end());
+	if (strongest <= 1.0e-9f)
+		return 0.0f;
+	pitch_class = ((pitch_class % 12) + 12) % 12;
+	return std::clamp(profile[pitch_class] / strongest, 0.0f, 1.0f);
+}
+
+std::string expected_quality_raw_profile(const CandidateWindow &candidate,
+					 const std::array<float, 12> &raw_profile)
+{
+	if (candidate.chord_labels.empty())
+		return "--";
+
+	std::string text;
+	for (const std::string &label : candidate.chord_labels) {
+		const int root = root_from_chord_label(label);
+		if (root < 0)
+			continue;
+		const float root_level = normalized_raw_pitch_class_level(raw_profile, root);
+		const float minor_third = normalized_raw_pitch_class_level(raw_profile, root + 3);
+		const float major_third = normalized_raw_pitch_class_level(raw_profile, root + 4);
+		const float fifth = normalized_raw_pitch_class_level(raw_profile, root + 7);
+		char item[96] = {};
+		std::snprintf(item, sizeof(item), "%s:r%.3f,m3%.3f,M3%.3f,5%.3f", label.c_str(),
+			      root_level, minor_third, major_third, fifth);
+		if (!text.empty())
+			text += ";";
+		text += item;
+	}
+	return text.empty() ? "--" : text;
+}
+
 bool grid_has_any_active_pitch_class(const mao::NoteGrid &grid)
 {
 	for (int pitch_class = 0; pitch_class < 12; ++pitch_class) {
@@ -1290,7 +1372,8 @@ void print_guitarset_attribute_header(std::ostream &out)
 	    << "\tglobal_chord\tkeyboard_chord\tguitar_chord\tother_chord"
 	    << "\tguitar_pitch_classes\tguitar_cells\tguitar_analysis_pitch_classes"
 	    << "\tguitar_analysis_cells\tguitar_smoothed_pitch_classes\tguitar_smoothed_cells"
-	    << "\texpected_raw_peak\texpected_raw_cells"
+	    << "\texpected_raw_peak\texpected_raw_cells\traw_pitch_class_levels"
+	    << "\texpected_quality_raw_profile"
 	    << "\tbass_pitch_classes\tkeyboard_pitch_classes\tvocal_pitch_classes"
 	    << "\tother_pitch_classes\tambiguous_pitch_classes"
 	    << "\trms\tlow\tmid\thigh\n";
@@ -1312,6 +1395,7 @@ void append_guitarset_attribute_row(std::ostream &out, const Recording &recordin
 	const std::array<bool, 12> other = grid_pitch_classes(snapshot.other_notes);
 	const std::array<bool, 12> ambiguous = grid_pitch_classes(snapshot.ambiguous_notes);
 	const float raw_peak = strongest_expected_raw_magnitude(candidate, buffer, sample_rate);
+	const std::array<float, 12> raw_profile = raw_pitch_class_profile(buffer, sample_rate, 40, 88);
 
 	std::ostringstream line;
 	line << chord_status(snapshot, candidate);
@@ -1350,6 +1434,8 @@ void append_guitarset_attribute_row(std::ostream &out, const Recording &recordin
 	append_tsv(line, grid_cell_list(snapshot.guitar_chord_smoothed_notes));
 	append_tsv(line, raw_peak);
 	append_tsv(line, expected_raw_cell_list(candidate, buffer, sample_rate, raw_peak));
+	append_tsv(line, raw_pitch_class_level_list(raw_profile));
+	append_tsv(line, expected_quality_raw_profile(candidate, raw_profile));
 	append_tsv(line, pitch_class_list(bass));
 	append_tsv(line, pitch_class_list(keyboard));
 	append_tsv(line, pitch_class_list(vocal));

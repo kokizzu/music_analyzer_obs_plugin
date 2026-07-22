@@ -43,6 +43,8 @@ HEADER = [
     "guitar_smoothed_cells",
     "expected_raw_peak",
     "expected_raw_cells",
+    "raw_pitch_class_levels",
+    "expected_quality_raw_profile",
     "bass_pitch_classes",
     "keyboard_pitch_classes",
     "vocal_pitch_classes",
@@ -90,6 +92,7 @@ def row(**overrides: str) -> list[str]:
             "guitar_smoothed_cells": "C3:1.00,E3:0.80,G3:0.70",
             "expected_raw_peak": "12.0",
             "expected_raw_cells": "C3:1.000,E3:0.800,G3:0.700",
+            "raw_pitch_class_levels": "C:1.000,E:0.800,G:0.700",
             "bass_pitch_classes": "--",
             "keyboard_pitch_classes": "--",
             "vocal_pitch_classes": "--",
@@ -131,6 +134,7 @@ def main() -> int:
                 guitar_smoothed_cells="G3:0.82,B3:0.30,D4:0.50",
                 expected_raw_peak="10.0",
                 expected_raw_cells="G3:1.000,B3:0.380,D4:0.600",
+                raw_pitch_class_levels="G:0.900,B:0.200,D:0.500",
             ),
         ]
         path.write_text(
@@ -192,7 +196,7 @@ def main() -> int:
     assert "--=1" in output
     assert "raw_third" in output
     assert "recording rec2: status=chord_miss expected=G" in output
-    assert "levels raw(root/third/fifth)=1.000/0.380/0.600" in output
+    assert "levels raw(root/third/fifth)=0.900/0.200/0.500" in output
     assert "chord_miss:maj:visible2_analysis3_smooth3_rootvis1 rows=1 recordings=1 examples=rec2" in compact.stdout
     assert "chord_hit:maj:all" not in compact.stdout
     assert "raw_third" not in compact.stdout

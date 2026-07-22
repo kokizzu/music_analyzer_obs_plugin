@@ -303,6 +303,7 @@ def report_guitar_chords(path: pathlib.Path, limit: int, row_examples: int) -> N
                 f"smooth_pc={cell(row, 'guitar_smoothed_pitch_classes')} "
                 f"missing=v:{cell(row, 'visible_missing_tones')} a:{cell(row, 'analysis_missing_tones')} s:{cell(row, 'smooth_missing_tones')} "
                 f"tones=root:{num(row, 'raw_root')} third:{num(row, 'raw_third')} fifth:{num(row, 'raw_fifth')} "
+                f"quality_raw={cell(row, 'quality_raw', cell(row, 'expected_quality_raw_profile'))} "
                 f"rms={num(row, 'rms')} rec={cell(row, 'recording_id')}"
             )
 

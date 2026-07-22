@@ -67,6 +67,7 @@ CATEGORY_FIELDS = [
     "analysis_missing_tones",
     "smooth_missing_tones",
     "support",
+    "quality_raw",
 ]
 
 ROW_DUMP_FIELDS = [
@@ -97,6 +98,8 @@ ROW_DUMP_FIELDS = [
     "raw_root",
     "raw_third",
     "raw_fifth",
+    "quality_raw",
+    "raw_pitch_class_levels",
     "guitar_note_hits",
     "guitar_false_positive_pitch_classes",
     "cross_row_expected_hits",
@@ -156,7 +159,9 @@ def derive_row(row: dict[str, str]) -> dict[str, str]:
     visible_levels = parse_cell_levels(row.get("guitar_cells", ""))
     analysis_levels = parse_cell_levels(row.get("guitar_analysis_cells", ""))
     smooth_levels = parse_cell_levels(row.get("guitar_smoothed_cells", ""))
-    raw_levels = parse_cell_levels(row.get("expected_raw_cells", ""))
+    raw_levels = parse_cell_levels(row.get("raw_pitch_class_levels", ""))
+    if not raw_levels:
+        raw_levels = parse_cell_levels(row.get("expected_raw_cells", ""))
 
     expected_pitch_classes = set()
     for pitch_classes in tone_classes.values():
@@ -206,6 +211,8 @@ def derive_row(row: dict[str, str]) -> dict[str, str]:
         result[f"analysis_{key}"] = f"{max_level(analysis_levels, pitch_classes):.6f}"
         result[f"smooth_{key}"] = f"{max_level(smooth_levels, pitch_classes):.6f}"
         result[f"raw_{key}"] = f"{max_level(raw_levels, pitch_classes):.6f}"
+    result["quality_raw"] = row.get("expected_quality_raw_profile", "--") or "--"
+    result["raw_pitch_class_levels"] = row.get("raw_pitch_class_levels", "--") or "--"
     return result
 
 

@@ -132,7 +132,7 @@ def parse_pitch_classes(text: str) -> set[int]:
     return {NOTE_TO_PC[item] for item in text.split(",") if item in NOTE_TO_PC}
 
 
-CELL_RE = re.compile(r"([A-G]#?)-?\d+:([-+0-9.eE]+)")
+CELL_RE = re.compile(r"([A-G]#?)(?:-?\d+)?:([-+0-9.eE]+)")
 
 
 def parse_cell_levels(text: str) -> dict[int, float]:
@@ -291,7 +291,9 @@ def summarize(path: pathlib.Path) -> list[str]:
         visible_levels = parse_cell_levels(row.get("guitar_cells", ""))
         analysis_levels = parse_cell_levels(row.get("guitar_analysis_cells", ""))
         smooth_levels = parse_cell_levels(row.get("guitar_smoothed_cells", ""))
-        raw_levels = parse_cell_levels(row.get("expected_raw_cells", ""))
+        raw_levels = parse_cell_levels(row.get("raw_pitch_class_levels", ""))
+        if not raw_levels:
+            raw_levels = parse_cell_levels(row.get("expected_raw_cells", ""))
         expected_tones = chord_pitch_classes(expected_label)
         expected_root = chord_root(expected_label)
         expected_root_pc = NOTE_TO_PC.get(expected_root, -1)
