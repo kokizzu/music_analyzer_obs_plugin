@@ -49,6 +49,12 @@ target_include_directories(analyzer_cases PRIVATE
 )
 target_compile_options(analyzer_cases PRIVATE -Wall -Wextra)
 
+add_executable(fret_control_tests tests/fret_control.cpp src/fret_control.cpp)
+target_include_directories(fret_control_tests PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}/src
+)
+target_compile_options(fret_control_tests PRIVATE -Wall -Wextra)
+
 pkg_check_modules(SDL2 sdl2)
 if(SDL2_FOUND)
     string(TIMESTAMP STANDALONE_BUILD_TIME "%Y.%m%d.%H%M")
@@ -93,6 +99,7 @@ endif()
 enable_testing()
 add_test(NAME analyzer_smoke COMMAND analyzer_smoke)
 add_test(NAME analyzer_cases COMMAND analyzer_cases)
+add_test(NAME fret_control_tests COMMAND fret_control_tests)
 if(SDL2_FOUND)
     add_test(NAME standalone_self_test COMMAND music-analyzer-standalone --self-test)
     set_tests_properties(standalone_self_test PROPERTIES

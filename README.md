@@ -194,6 +194,8 @@ Android uses `AudioRecord` with `RECORD_AUDIO`, so it captures microphone, aux-i
 
 Press Space or tap the Android analyzer view to cycle available Android recording inputs. The source label shows `X/Y Name` when multiple inputs are exposed by Android, for example `2/3 USB Scarlett Solo`. USB audio interfaces work when Android lists them as input devices through `AudioManager`; the app selects the active input with `AudioRecord.setPreferredDevice`.
 
+Android also autoconnects supported LiteJam/Fret Zealot BLE fretboards and APC mini mk2/M-VAVE MIDI controllers. Auto mode follows the detected root; Manual mode retains a controller-selected root, and both send a rainbow major scale to the connected fretboard. Connection indicators appear immediately before BPM. Long-press the analyzer view to disable or re-enable device autoconnect. See [external fretboard and root control](docs/external_fret_control.md) for the APC grid, M-VAVE CubeSuite preset, BLE protocol, and hardware test checklist.
+
 Mic/input pass-through is not automatic on Android. The app explicitly creates an `AudioTrack` monitor stream and sends captured input to a non-speaker output when Android exposes one, preferring USB audio, wired headphones/headset, line out, then Bluetooth/HDMI. If only the built-in speaker is available, monitoring is disabled to avoid feedback, but the analyzer still uses the microphone/input.
 
 Basic Android test flow:

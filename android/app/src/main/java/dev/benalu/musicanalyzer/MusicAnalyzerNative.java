@@ -18,6 +18,26 @@ final class MusicAnalyzerNative {
 
     static native void nativeSetRuntimeMetrics(long handle, float cpuPercent, float ramMb);
 
+    static native boolean nativeApplyControlAction(long handle, int actionKind, int value);
+
+    static native boolean nativeHandleApcPad(long handle, int note, int velocity);
+
+    static native boolean nativeHandleMvaveSwitch(long handle, int switchIndex, boolean held);
+
+    static native void nativeSetDeviceState(long handle, int device, int connectionState);
+
+    static native boolean nativeSetAutoconnect(long handle, boolean enabled);
+
+    static native boolean nativeToggleAutoconnect(long handle);
+
+    static native long nativeGetControlRevision(long handle);
+
+    static native byte[] nativeGetApcLedMessages(long handle);
+
+    static native byte[] nativeGetLiteJamPacket(long handle);
+
+    static native byte[] nativeGetFretZealotPacket(long handle);
+
     static native void nativeRender(long handle, Bitmap bitmap, float elapsedSeconds, float snapshotAgeSeconds);
 
     static native void nativeDestroy(long handle);

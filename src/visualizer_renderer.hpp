@@ -1,6 +1,7 @@
 #pragma once
 
 #include "analyzer.hpp"
+#include "fret_control.hpp"
 
 #include <array>
 #include <cstddef>
@@ -45,6 +46,7 @@ struct VisualizerRenderer {
 	uint64_t drum_history_sequence = 0;
 	std::array<std::vector<DrumBar>, kDrumCount> drum_history = {};
 	std::array<StableDisplayState, 5> stable_labels = {};
+	ExternalControlDisplay external_control = {};
 	std::vector<uint8_t> pixels;
 };
 

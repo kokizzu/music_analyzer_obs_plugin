@@ -29,6 +29,17 @@ def main():
     activity = (
         ROOT / "android" / "app" / "src" / "main" / "java" / "dev" / "benalu" / "musicanalyzer" / "MainActivity.java"
     ).read_text(encoding="utf-8")
+    manifest = (ROOT / "android" / "app" / "src" / "main" / "AndroidManifest.xml").read_text(encoding="utf-8")
+    native_api = (
+        ROOT / "android" / "app" / "src" / "main" / "java" / "dev" / "benalu" / "musicanalyzer" /
+        "MusicAnalyzerNative.java"
+    ).read_text(encoding="utf-8")
+    external_devices = (
+        ROOT / "android" / "app" / "src" / "main" / "java" / "dev" / "benalu" / "musicanalyzer" /
+        "ExternalDeviceManager.java"
+    ).read_text(encoding="utf-8")
+    fret_control = (ROOT / "src" / "fret_control.cpp").read_text(encoding="utf-8")
+    external_control_docs = (ROOT / "docs" / "external_fret_control.md").read_text(encoding="utf-8")
 
     require("productFlavors" in app_gradle, "Android app must define product flavors")
     require("complete" in app_gradle, "complete Android flavor missing")
@@ -71,8 +82,9 @@ def main():
     require("dev.benalu.musicanalyzer.bassguitar" in makefile,
             "Makefile must launch bass-guitar Android package")
     require("android-grant-permissions:" in makefile and "pm grant" in makefile and
-            "android.permission.RECORD_AUDIO" in makefile,
-            "Makefile must expose and use Android microphone permission grants")
+            "android.permission.RECORD_AUDIO" in makefile and "android.permission.BLUETOOTH_SCAN" in makefile and
+            "android.permission.BLUETOOTH_CONNECT" in makefile,
+            "Makefile must expose and use Android microphone/BLE permission grants")
     require("am force-stop dev.benalu.musicanalyzer.complete" in makefile and
             "am force-stop dev.benalu.musicanalyzer.bassguitar" in makefile,
             "Makefile must stop the other Android flavor before launching")
@@ -131,6 +143,7 @@ def main():
 
     require("src/analyzer.cpp" in native_cmake, "Android native target must use shared analyzer.cpp")
     require("src/visualizer_renderer.cpp" in native_cmake, "Android native target must use shared renderer.cpp")
+    require("src/fret_control.cpp" in native_cmake, "Android native target must use shared fret control")
     require("android_bridge.cpp" in native_cmake, "Android native bridge missing from native target")
     require("jnigraphics" in native_cmake, "Android native target must link jnigraphics for AndroidBitmap")
     require("SDL" not in native_cmake, "Android target must not use SDL")
@@ -185,6 +198,45 @@ def main():
             "Android audio thread must not mutate renderer state")
     require("snapshot_mutex" in bridge and "std::atomic<float>" in bridge,
             "Android renderer must copy snapshots without blocking audio analysis")
+    require("nativeHandleApcPad" in bridge and "apc_action_for_pad" in bridge,
+            "Android JNI must route APC pads through the shared control map")
+    require("nativeHandleMvaveSwitch" in bridge and "mvave_action_for_switch" in bridge,
+            "Android JNI must route M-VAVE press/hold actions through the shared control map")
+    require("nativeGetLiteJamPacket" in bridge and "nativeGetFretZealotPacket" in bridge and
+            "nativeGetApcLedMessages" in bridge,
+            "Android JNI must expose all external-device output encoders")
+
+    require("android.permission.BLUETOOTH_SCAN" in manifest and
+            "android.permission.BLUETOOTH_CONNECT" in manifest,
+            "Android manifest must request modern BLE scan/connect permissions")
+    require("android.software.midi" in manifest and "android.hardware.bluetooth_le" in manifest,
+            "Android manifest must declare optional MIDI and BLE features")
+    require("ExternalDeviceManager" in activity and "setOnLongClickListener" in activity and
+            "nativeToggleAutoconnect" in activity,
+            "Android activity must own device discovery and expose the autoconnect toggle")
+    require("BLUETOOTH_SCAN" in activity and "BLUETOOTH_CONNECT" in activity,
+            "Android activity must request runtime BLE permissions")
+    require("nativeGetControlRevision" in native_api and "nativeSetDeviceState" in native_api,
+            "Android native API must expose synchronized external control state")
+
+    require("Lite Jam RGB".lower() in external_devices.lower() and
+            "0000ee04-0000-1000-8000-00805f9b34fb" in external_devices and
+            "WRITE_TYPE_NO_RESPONSE" in external_devices,
+            "Android BLE manager must discover and write LiteJam LEDs without response")
+    require("6e400002-b5a3-f393-e0a9-e50e24dcca9e" in external_devices and
+            "fb1e4002-54ae-4a28-9f74-dfccb248601d" in external_devices,
+            "Android BLE manager must support both Fret Zealot write characteristics")
+    require("openBluetoothDevice" in external_devices and "openOutputPort" in external_devices and
+            "openInputPort" in external_devices,
+            "Android MIDI manager must support BLE MIDI, controller input, and APC LED output")
+    require("MVAVE_HOLD_MILLIS" in external_devices and "mvaveRelease" in external_devices,
+            "M-VAVE handling must distinguish short releases from holds")
+    require("kMajorColors" in fret_control and "build_litejam_major_scale_packet" in fret_control and
+            "build_fret_zealot_major_scale_packet" in fret_control and "build_apc_led_messages" in fret_control,
+            "shared fret control must contain rainbow scale and APC output encoders")
+    require("CubeSuite" in external_control_docs and "Note On" in external_control_docs and
+            "Long-press" in external_control_docs,
+            "external control documentation must cover M-VAVE setup and autoconnect UI")
 
     print("check_android_project: ok")
 

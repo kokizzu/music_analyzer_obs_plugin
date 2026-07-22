@@ -1,4 +1,5 @@
 #include "analyzer.hpp"
+#include "fret_control.hpp"
 #include "visualizer_renderer.hpp"
 
 #include <android/bitmap.h>
@@ -27,12 +28,14 @@ struct AndroidAnalyzer {
 	mao::AnalysisEngine engine;
 	mao::AnalysisSettings settings;
 	mao::VisualizerRenderer renderer;
+	mao::FretControlState fret_control;
 	mao::AnalysisSnapshot snapshot;
 	std::array<float, mao::kAnalysisWindow> ring = {};
 	std::vector<float> input_buffer;
 	std::vector<float> decimated_buffer;
 	std::vector<float> analysis_window;
 	std::mutex snapshot_mutex;
+	std::mutex control_mutex;
 	char source_name[64] = "ANDROID";
 	uint64_t sequence = 0;
 	uint64_t audio_frames = 0;
@@ -182,7 +185,21 @@ bool analyze_if_ready(AndroidAnalyzer *state)
 		std::lock_guard<std::mutex> lock(state->snapshot_mutex);
 		state->snapshot = snapshot;
 	}
+	{
+		std::lock_guard<std::mutex> lock(state->control_mutex);
+		state->fret_control.set_detected_root_label(snapshot.root.label);
+	}
 	return true;
+}
+
+jbyteArray copy_byte_array(JNIEnv *env, const std::vector<uint8_t> &bytes)
+{
+	jbyteArray output = env->NewByteArray(static_cast<jsize>(bytes.size()));
+	if (!output || bytes.empty())
+		return output;
+	env->SetByteArrayRegion(output, 0, static_cast<jsize>(bytes.size()),
+				 reinterpret_cast<const jbyte *>(bytes.data()));
+	return output;
 }
 
 } // namespace
@@ -215,6 +232,7 @@ Java_dev_benalu_musicanalyzer_MusicAnalyzerNative_nativeCreate(JNIEnv *, jclass,
 		height > 0 ? static_cast<uint32_t>(height) :
 			     (bass_guitar ? mao::kBassGuitarVisualizerHeight : mao::kDefaultVisualizerHeight);
 	mao::resize_visualizer(&state->renderer, render_width, render_height);
+	state->renderer.external_control = state->fret_control.display();
 	state->analysis_window.resize(window_samples(state->settings));
 	state->input_buffer.resize(std::max<std::size_t>(4096, interval_samples(state->settings) * 4));
 	state->decimated_buffer.resize(state->input_buffer.size() / std::max<uint32_t>(1, state->decimation_factor) + 1);
@@ -280,6 +298,134 @@ Java_dev_benalu_musicanalyzer_MusicAnalyzerNative_nativeSetRuntimeMetrics(JNIEnv
 	state->snapshot.ram_mb = ram_mb;
 }
 
+extern "C" JNIEXPORT jboolean JNICALL
+Java_dev_benalu_musicanalyzer_MusicAnalyzerNative_nativeApplyControlAction(JNIEnv *, jclass, jlong handle,
+								  jint action_kind, jint value)
+{
+	AndroidAnalyzer *state = from_handle(handle);
+	if (!state)
+		return JNI_FALSE;
+	mao::ControlAction action;
+	switch (action_kind) {
+	case 0:
+		action = {mao::ControlActionKind::SetManualRoot, value};
+		break;
+	case 1:
+		action = {mao::ControlActionKind::ShiftManualRoot, value};
+		break;
+	case 2:
+		action = {mao::ControlActionKind::ToggleMode, 0};
+		break;
+	case 3:
+		action = {mao::ControlActionKind::ToggleAutoconnect, 0};
+		break;
+	default:
+		return JNI_FALSE;
+	}
+	std::lock_guard<std::mutex> lock(state->control_mutex);
+	return state->fret_control.apply(action) ? JNI_TRUE : JNI_FALSE;
+}
+
+extern "C" JNIEXPORT jboolean JNICALL
+Java_dev_benalu_musicanalyzer_MusicAnalyzerNative_nativeHandleApcPad(JNIEnv *, jclass, jlong handle, jint note,
+								jint velocity)
+{
+	AndroidAnalyzer *state = from_handle(handle);
+	if (!state || note < 0 || note >= 64 || velocity <= 0)
+		return JNI_FALSE;
+	std::lock_guard<std::mutex> lock(state->control_mutex);
+	return state->fret_control.apply(mao::apc_action_for_pad(static_cast<uint8_t>(note))) ? JNI_TRUE : JNI_FALSE;
+}
+
+extern "C" JNIEXPORT jboolean JNICALL
+Java_dev_benalu_musicanalyzer_MusicAnalyzerNative_nativeHandleMvaveSwitch(JNIEnv *, jclass, jlong handle,
+								     jint switch_index, jboolean held)
+{
+	AndroidAnalyzer *state = from_handle(handle);
+	if (!state)
+		return JNI_FALSE;
+	std::lock_guard<std::mutex> lock(state->control_mutex);
+	return state->fret_control.apply(mao::mvave_action_for_switch(switch_index, held == JNI_TRUE)) ? JNI_TRUE :
+												      JNI_FALSE;
+}
+
+extern "C" JNIEXPORT void JNICALL
+Java_dev_benalu_musicanalyzer_MusicAnalyzerNative_nativeSetDeviceState(JNIEnv *, jclass, jlong handle, jint device,
+								       jint connection_state)
+{
+	AndroidAnalyzer *state = from_handle(handle);
+	if (!state || device < 0 || device >= static_cast<int>(mao::ExternalDevice::Count) || connection_state < 0 ||
+	    connection_state > static_cast<int>(mao::DeviceConnectionState::Error))
+		return;
+	std::lock_guard<std::mutex> lock(state->control_mutex);
+	state->fret_control.set_device_state(static_cast<mao::ExternalDevice>(device),
+					     static_cast<mao::DeviceConnectionState>(connection_state));
+}
+
+extern "C" JNIEXPORT jboolean JNICALL
+Java_dev_benalu_musicanalyzer_MusicAnalyzerNative_nativeSetAutoconnect(JNIEnv *, jclass, jlong handle,
+								       jboolean enabled)
+{
+	AndroidAnalyzer *state = from_handle(handle);
+	if (!state)
+		return JNI_FALSE;
+	std::lock_guard<std::mutex> lock(state->control_mutex);
+	state->fret_control.set_autoconnect(enabled == JNI_TRUE);
+	return state->fret_control.autoconnect() ? JNI_TRUE : JNI_FALSE;
+}
+
+extern "C" JNIEXPORT jboolean JNICALL
+Java_dev_benalu_musicanalyzer_MusicAnalyzerNative_nativeToggleAutoconnect(JNIEnv *, jclass, jlong handle)
+{
+	AndroidAnalyzer *state = from_handle(handle);
+	if (!state)
+		return JNI_FALSE;
+	std::lock_guard<std::mutex> lock(state->control_mutex);
+	state->fret_control.toggle_autoconnect();
+	return state->fret_control.autoconnect() ? JNI_TRUE : JNI_FALSE;
+}
+
+extern "C" JNIEXPORT jlong JNICALL
+Java_dev_benalu_musicanalyzer_MusicAnalyzerNative_nativeGetControlRevision(JNIEnv *, jclass, jlong handle)
+{
+	AndroidAnalyzer *state = from_handle(handle);
+	if (!state)
+		return 0;
+	std::lock_guard<std::mutex> lock(state->control_mutex);
+	return static_cast<jlong>(state->fret_control.revision());
+}
+
+extern "C" JNIEXPORT jbyteArray JNICALL
+Java_dev_benalu_musicanalyzer_MusicAnalyzerNative_nativeGetApcLedMessages(JNIEnv *env, jclass, jlong handle)
+{
+	AndroidAnalyzer *state = from_handle(handle);
+	if (!state)
+		return env->NewByteArray(0);
+	std::lock_guard<std::mutex> lock(state->control_mutex);
+	return copy_byte_array(env, mao::build_apc_led_messages(state->fret_control.effective_root(),
+								 state->fret_control.mode()));
+}
+
+extern "C" JNIEXPORT jbyteArray JNICALL
+Java_dev_benalu_musicanalyzer_MusicAnalyzerNative_nativeGetLiteJamPacket(JNIEnv *env, jclass, jlong handle)
+{
+	AndroidAnalyzer *state = from_handle(handle);
+	if (!state)
+		return env->NewByteArray(0);
+	std::lock_guard<std::mutex> lock(state->control_mutex);
+	return copy_byte_array(env, mao::build_litejam_major_scale_packet(state->fret_control.effective_root()));
+}
+
+extern "C" JNIEXPORT jbyteArray JNICALL
+Java_dev_benalu_musicanalyzer_MusicAnalyzerNative_nativeGetFretZealotPacket(JNIEnv *env, jclass, jlong handle)
+{
+	AndroidAnalyzer *state = from_handle(handle);
+	if (!state)
+		return env->NewByteArray(0);
+	std::lock_guard<std::mutex> lock(state->control_mutex);
+	return copy_byte_array(env, mao::build_fret_zealot_major_scale_packet(state->fret_control.effective_root()));
+}
+
 extern "C" JNIEXPORT void JNICALL
 Java_dev_benalu_musicanalyzer_MusicAnalyzerNative_nativeRender(JNIEnv *env, jclass, jlong handle, jobject bitmap,
 							       jfloat elapsed_seconds,
@@ -302,10 +448,16 @@ Java_dev_benalu_musicanalyzer_MusicAnalyzerNative_nativeRender(JNIEnv *env, jcla
 		return;
 
 	mao::AnalysisSnapshot snapshot;
+	mao::ExternalControlDisplay external_control;
 	{
 		std::lock_guard<std::mutex> lock(state->snapshot_mutex);
 		snapshot = state->snapshot;
 	}
+	{
+		std::lock_guard<std::mutex> lock(state->control_mutex);
+		external_control = state->fret_control.display();
+	}
+	state->renderer.external_control = external_control;
 
 	mao::advance_visualizer_drum_history(&state->renderer, std::max(0.0f, elapsed_seconds));
 	mao::append_visualizer_drum_hits(&state->renderer, snapshot);

@@ -514,7 +514,7 @@ CXXFLAGS += -std=c++17 -fPIC -Wall -Wextra
 RENDERER_OBJ := $(BUILD_DIR)/visualizer_renderer.o
 PLUGIN_OBJS := $(BUILD_DIR)/analyzer.o $(RENDERER_OBJ) $(BUILD_DIR)/plugin.o
 ANALYZER_TEST_OBJ := $(BUILD_DIR)/analyzer_test.o
-TEST_BINS := $(BUILD_DIR)/analyzer_smoke $(BUILD_DIR)/analyzer_cases $(BUILD_DIR)/analyzer_midi_ranges $(BUILD_DIR)/analyzer_urmp $(BUILD_DIR)/analyzer_musicnet $(BUILD_DIR)/analyzer_multtipop $(BUILD_DIR)/analyzer_guitarset $(BUILD_DIR)/analyzer_maestro $(BUILD_DIR)/analyzer_egmd $(BUILD_DIR)/analyzer_drum_samples $(BUILD_DIR)/analyzer_instrument_samples $(BUILD_DIR)/analyzer_real_note_samples $(BUILD_DIR)/analyzer_instrument_family_samples
+TEST_BINS := $(BUILD_DIR)/fret_control_tests $(BUILD_DIR)/analyzer_smoke $(BUILD_DIR)/analyzer_cases $(BUILD_DIR)/analyzer_midi_ranges $(BUILD_DIR)/analyzer_urmp $(BUILD_DIR)/analyzer_musicnet $(BUILD_DIR)/analyzer_multtipop $(BUILD_DIR)/analyzer_guitarset $(BUILD_DIR)/analyzer_maestro $(BUILD_DIR)/analyzer_egmd $(BUILD_DIR)/analyzer_drum_samples $(BUILD_DIR)/analyzer_instrument_samples $(BUILD_DIR)/analyzer_real_note_samples $(BUILD_DIR)/analyzer_instrument_family_samples
 STANDALONE_BIN := $(BUILD_DIR)/music-analyzer-standalone
 BASS_GUITAR_STANDALONE_BIN := $(BUILD_DIR)/music-analyzer-bass-guitar
 
@@ -522,6 +522,7 @@ BASS_GUITAR_STANDALONE_BIN := $(BUILD_DIR)/music-analyzer-bass-guitar
 .PHONY: prepare-gaps-guitar-samples-full test-gaps-guitar-samples-full analyze-gaps-guitar-misses-full
 .PHONY: measure-analyzer-attributes measure-analyzer-attribute-rows measure-analyzer-patterns measure-analyzer-pattern-report inspect-instrument-sample-owner-buckets find-instrument-owner-patterns test-instrument-sample-owner-buckets test-instrument-owner-patterns test-analyzer-pattern-report test-measure-analyzer-patterns-target analyze-drum-tom-bleed-caps
 .PHONY: analyze-guitar-chord-mix-recovery test-guitar-chord-recovery-analysis
+.PHONY: test-fret-control android-lint
 
 .PRECIOUS: $(NSYNTH_SAMPLE_ARCHIVE) $(TINYSOL_ARCHIVE) $(GOOD_SOUNDS_ARCHIVE) $(GUITAR_TECHS_P1_SINGLENOTES_ARCHIVE) $(GUITAR_TECHS_P2_SINGLENOTES_ARCHIVE) $(GUITAR_TECHS_P1_CHORDS_ARCHIVE) $(GUITAR_TECHS_P2_CHORDS_ARCHIVE) $(IDMT_DRUMS_ARCHIVE) $(IDMT_GUITAR_ARCHIVE) $(STAR_DRUMS_ARCHIVE) $(MEDLEY_SOLOS_ARCHIVE) $(MAPS_PIANO_ARCHIVE) $(BACH10_MF0_SYNTH_ARCHIVE) $(VOCALSET_ARCHIVE)
 
@@ -580,17 +581,33 @@ android-route-desktop-audio-watch: scripts/route_android_emulator_audio.sh
 android-grant-permissions:
 	"$(ANDROID_ADB)" wait-for-device
 	-"$(ANDROID_ADB)" shell pm grant dev.benalu.musicanalyzer.bassguitar android.permission.RECORD_AUDIO
+	-"$(ANDROID_ADB)" shell pm grant dev.benalu.musicanalyzer.bassguitar android.permission.BLUETOOTH_SCAN
+	-"$(ANDROID_ADB)" shell pm grant dev.benalu.musicanalyzer.bassguitar android.permission.BLUETOOTH_CONNECT
+	-"$(ANDROID_ADB)" shell pm grant dev.benalu.musicanalyzer.bassguitar android.permission.ACCESS_COARSE_LOCATION
+	-"$(ANDROID_ADB)" shell pm grant dev.benalu.musicanalyzer.bassguitar android.permission.ACCESS_FINE_LOCATION
 	-"$(ANDROID_ADB)" shell pm grant dev.benalu.musicanalyzer.complete android.permission.RECORD_AUDIO
+	-"$(ANDROID_ADB)" shell pm grant dev.benalu.musicanalyzer.complete android.permission.BLUETOOTH_SCAN
+	-"$(ANDROID_ADB)" shell pm grant dev.benalu.musicanalyzer.complete android.permission.BLUETOOTH_CONNECT
+	-"$(ANDROID_ADB)" shell pm grant dev.benalu.musicanalyzer.complete android.permission.ACCESS_COARSE_LOCATION
+	-"$(ANDROID_ADB)" shell pm grant dev.benalu.musicanalyzer.complete android.permission.ACCESS_FINE_LOCATION
 
 android-install-bass-guitar: android-bass-guitar
 	"$(ANDROID_ADB)" wait-for-device
 	"$(ANDROID_ADB)" install -r "$(BASS_GUITAR_APK)"
 	-"$(ANDROID_ADB)" shell pm grant dev.benalu.musicanalyzer.bassguitar android.permission.RECORD_AUDIO
+	-"$(ANDROID_ADB)" shell pm grant dev.benalu.musicanalyzer.bassguitar android.permission.BLUETOOTH_SCAN
+	-"$(ANDROID_ADB)" shell pm grant dev.benalu.musicanalyzer.bassguitar android.permission.BLUETOOTH_CONNECT
+	-"$(ANDROID_ADB)" shell pm grant dev.benalu.musicanalyzer.bassguitar android.permission.ACCESS_COARSE_LOCATION
+	-"$(ANDROID_ADB)" shell pm grant dev.benalu.musicanalyzer.bassguitar android.permission.ACCESS_FINE_LOCATION
 
 android-install-complete: android-complete
 	"$(ANDROID_ADB)" wait-for-device
 	"$(ANDROID_ADB)" install -r "$(COMPLETE_APK)"
 	-"$(ANDROID_ADB)" shell pm grant dev.benalu.musicanalyzer.complete android.permission.RECORD_AUDIO
+	-"$(ANDROID_ADB)" shell pm grant dev.benalu.musicanalyzer.complete android.permission.BLUETOOTH_SCAN
+	-"$(ANDROID_ADB)" shell pm grant dev.benalu.musicanalyzer.complete android.permission.BLUETOOTH_CONNECT
+	-"$(ANDROID_ADB)" shell pm grant dev.benalu.musicanalyzer.complete android.permission.ACCESS_COARSE_LOCATION
+	-"$(ANDROID_ADB)" shell pm grant dev.benalu.musicanalyzer.complete android.permission.ACCESS_FINE_LOCATION
 
 android-run: android-run-bass-guitar
 
@@ -607,6 +624,9 @@ android-complete:
 
 android-bass-guitar:
 	ANDROID_HOME="$(ANDROID_SDK_ROOT)" ANDROID_SDK_ROOT="$(ANDROID_SDK_ROOT)" $(GRADLE) -p android :app:assembleBassGuitarDebug
+
+android-lint:
+	ANDROID_HOME="$(ANDROID_SDK_ROOT)" ANDROID_SDK_ROOT="$(ANDROID_SDK_ROOT)" $(GRADLE) -p android :app:lintCompleteDebug :app:lintBassGuitarDebug
 
 android-check: tests/check_android_project.py
 	$(PYTHON) tests/check_android_project.py
@@ -641,8 +661,17 @@ $(BUILD_DIR)/plugin.o: src/plugin.cpp src/analyzer.hpp src/visualizer_renderer.h
 $(BUILD_DIR)/analyzer.o: src/analyzer.cpp src/analyzer.hpp | $(BUILD_DIR)
 	$(CXX) $(CXXFLAGS) $(OBS_CFLAGS) -Isrc -c $< -o $@
 
-$(BUILD_DIR)/visualizer_renderer.o: src/visualizer_renderer.cpp src/visualizer_renderer.hpp src/analyzer.hpp | $(BUILD_DIR)
+$(BUILD_DIR)/visualizer_renderer.o: src/visualizer_renderer.cpp src/visualizer_renderer.hpp src/analyzer.hpp src/fret_control.hpp | $(BUILD_DIR)
 	$(CXX) $(CXXFLAGS) -Isrc -c $< -o $@
+
+$(BUILD_DIR)/fret_control.o: src/fret_control.cpp src/fret_control.hpp | $(BUILD_DIR)
+	$(CXX) $(CXXFLAGS) -Isrc -c $< -o $@
+
+$(BUILD_DIR)/fret_control_tests.o: tests/fret_control.cpp src/fret_control.hpp | $(BUILD_DIR)
+	$(CXX) $(CXXFLAGS) -Isrc -c $< -o $@
+
+$(BUILD_DIR)/fret_control_tests: $(BUILD_DIR)/fret_control.o $(BUILD_DIR)/fret_control_tests.o
+	$(CXX) -o $@ $^
 
 $(BUILD_DIR)/standalone.o: src/standalone.cpp src/analyzer.hpp src/visualizer_renderer.hpp $(SDL2_DEP) FORCE | $(BUILD_DIR)
 	$(MAKE) check-standalone-deps
@@ -1334,6 +1363,9 @@ test-real-world-samples-max:
 test-midi-ranges: $(BUILD_DIR)/analyzer_midi_ranges scripts/run_with_duration.sh
 	$(RUN_WITH_DURATION) analyzer_midi_ranges $(BUILD_DIR)/analyzer_midi_ranges
 
+test-fret-control: $(BUILD_DIR)/fret_control_tests scripts/run_with_duration.sh
+	$(RUN_WITH_DURATION) fret_control_tests $(BUILD_DIR)/fret_control_tests
+
 test: $(TEST_BINS) scripts/run_with_duration.sh
 	$(MAKE) test-standalone
 	$(MAKE) inspect-real-dataset-catalog
@@ -1399,6 +1431,7 @@ test: $(TEST_BINS) scripts/run_with_duration.sh
 	$(MAKE) test-egmd-drum-attribute-summary
 	$(MAKE) test-drum-primary-analysis
 	$(MAKE) test-real-goal-script
+	$(RUN_WITH_DURATION) fret_control_tests $(BUILD_DIR)/fret_control_tests
 	$(RUN_WITH_DURATION) analyzer_smoke $(BUILD_DIR)/analyzer_smoke
 	$(RUN_WITH_DURATION) analyzer_cases $(BUILD_DIR)/analyzer_cases
 	$(RUN_WITH_DURATION) analyzer_midi_ranges $(BUILD_DIR)/analyzer_midi_ranges

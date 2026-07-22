@@ -6,6 +6,7 @@ set(MAO_ROOT "${CMAKE_CURRENT_LIST_DIR}/../../../../../")
 
 add_library(music_analyzer_android SHARED
     "${MAO_ROOT}/src/analyzer.cpp"
+    "${MAO_ROOT}/src/fret_control.cpp"
     "${MAO_ROOT}/src/visualizer_renderer.cpp"
     "android_bridge.cpp"
 )

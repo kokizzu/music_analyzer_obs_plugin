@@ -23,10 +23,11 @@ import android.util.Log;
 import android.view.KeyEvent;
 import android.view.View;
 import java.util.ArrayList;
+import java.util.List;
 
 public final class MainActivity extends Activity {
     private static final String TAG = "MusicAnalyzer";
-    private static final int REQUEST_RECORD_AUDIO = 10;
+    private static final int REQUEST_PERMISSIONS = 10;
     private static final int SAMPLE_RATE = 48000;
     private static final long METRICS_INTERVAL_NANOS = 1_000_000_000L;
     private static final long ACTIVE_FRAME_DELAY_MS = 50;
@@ -34,6 +35,7 @@ public final class MainActivity extends Activity {
     private static final long CAPTURE_LOG_INTERVAL_NANOS = 1_000_000_000L;
 
     private AnalyzerView analyzerView;
+    private ExternalDeviceManager externalDevices;
     private volatile boolean running;
     private Thread audioThread;
     private long nativeHandle;
@@ -63,14 +65,25 @@ public final class MainActivity extends Activity {
         analyzerView.setFocusable(true);
         analyzerView.setFocusableInTouchMode(true);
         analyzerView.setOnClickListener(v -> cycleInputDevice());
+        analyzerView.setOnLongClickListener(v -> {
+            if (nativeHandle == 0 || externalDevices == null) {
+                return false;
+            }
+            boolean enabled = MusicAnalyzerNative.nativeToggleAutoconnect(nativeHandle);
+            externalDevices.setAutoconnect(enabled);
+            analyzerView.invalidate();
+            return true;
+        });
         setContentView(analyzerView);
         analyzerView.requestFocus();
 
-        if (checkSelfPermission(Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED) {
+        externalDevices = new ExternalDeviceManager(this, nativeHandle, () -> analyzerView.invalidate());
+        externalDevices.start();
+
+        if (hasPermission(Manifest.permission.RECORD_AUDIO)) {
             startAudio();
-        } else {
-            requestPermissions(new String[] {Manifest.permission.RECORD_AUDIO}, REQUEST_RECORD_AUDIO);
         }
+        requestMissingPermissions();
     }
 
     @Override
@@ -85,15 +98,52 @@ public final class MainActivity extends Activity {
     @Override
     public void onRequestPermissionsResult(int requestCode, String[] permissions, int[] grantResults) {
         super.onRequestPermissionsResult(requestCode, permissions, grantResults);
-        if (requestCode == REQUEST_RECORD_AUDIO && grantResults.length > 0
-                && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
-            startAudio();
+        if (requestCode == REQUEST_PERMISSIONS) {
+            if (hasPermission(Manifest.permission.RECORD_AUDIO)) {
+                startAudio();
+            }
+            if (externalDevices != null) {
+                externalDevices.onPermissionsChanged();
+            }
+        }
+    }
+
+    private boolean hasPermission(String permission) {
+        return checkSelfPermission(permission) == PackageManager.PERMISSION_GRANTED;
+    }
+
+    private void requestMissingPermissions() {
+        List<String> missing = new ArrayList<>();
+        if (!hasPermission(Manifest.permission.RECORD_AUDIO)) {
+            missing.add(Manifest.permission.RECORD_AUDIO);
+        }
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+            if (!hasPermission(Manifest.permission.BLUETOOTH_SCAN)) {
+                missing.add(Manifest.permission.BLUETOOTH_SCAN);
+            }
+            if (!hasPermission(Manifest.permission.BLUETOOTH_CONNECT)) {
+                missing.add(Manifest.permission.BLUETOOTH_CONNECT);
+            }
+        } else {
+            if (!hasPermission(Manifest.permission.ACCESS_COARSE_LOCATION)) {
+                missing.add(Manifest.permission.ACCESS_COARSE_LOCATION);
+            }
+            if (!hasPermission(Manifest.permission.ACCESS_FINE_LOCATION)) {
+                missing.add(Manifest.permission.ACCESS_FINE_LOCATION);
+            }
+        }
+        if (!missing.isEmpty()) {
+            requestPermissions(missing.toArray(new String[0]), REQUEST_PERMISSIONS);
         }
     }
 
     @Override
     protected void onDestroy() {
         stopAudio();
+        if (externalDevices != null) {
+            externalDevices.close();
+            externalDevices = null;
+        }
         if (nativeHandle != 0) {
             MusicAnalyzerNative.nativeDestroy(nativeHandle);
             nativeHandle = 0;
@@ -364,7 +414,7 @@ public final class MainActivity extends Activity {
                     return new RecorderSelection(recorder, source);
                 }
                 recorder.release();
-            } catch (IllegalArgumentException | UnsupportedOperationException ignored) {
+            } catch (IllegalArgumentException | UnsupportedOperationException | SecurityException ignored) {
             }
         }
         return null;
@@ -494,6 +544,9 @@ public final class MainActivity extends Activity {
                     boolean changed = MusicAnalyzerNative.nativePushSamples(nativeHandle, samples, count);
                     if (changed) {
                         lastAnalysisNanos = System.nanoTime();
+                        if (externalDevices != null) {
+                            externalDevices.onAnalyzerChanged();
+                        }
                         analyzerView.postInvalidateOnAnimation();
                     }
                 }

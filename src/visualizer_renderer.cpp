@@ -185,6 +185,14 @@ const std::array<const char *, 7> glyph_rows(char c)
 		return {"01110", "10001", "10001", "01111", "00001", "00001", "11110"};
 	case '#':
 		return {"01010", "01010", "11111", "01010", "11111", "01010", "01010"};
+	case '+':
+		return {"00000", "00100", "00100", "11111", "00100", "00100", "00000"};
+	case '?':
+		return {"01110", "10001", "00001", "00010", "00100", "00000", "00100"};
+	case '~':
+		return {"00000", "00000", "01001", "10110", "00000", "00000", "00000"};
+	case '!':
+		return {"00100", "00100", "00100", "00100", "00100", "00000", "00100"};
 	case '-':
 		return {"00000", "00000", "00000", "11111", "00000", "00000", "00000"};
 	case '.':
@@ -1137,6 +1145,63 @@ void draw_root_and_bpm(VisualizerRenderer *visualizer, const AnalysisSnapshot &s
 	const int total_width = text_width("BPM ", 2) + text_width(bpm_value, 2) +
 				(bpm_confidence[0] ? text_width(" ", 2) + text_width(bpm_confidence, 2) : 0);
 	int bpm_x = std::max(28, static_cast<int>(visualizer->width) - 28 - total_width);
+	if (visualizer->external_control.visible) {
+		constexpr std::array<const char *, 12> kRootNames = {
+			"C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B",
+		};
+		constexpr std::array<const char *, 4> kDeviceNames = {"LJ", "FZ", "APC", "MV"};
+		const auto state_color = [](DeviceConnectionState state) {
+			switch (state) {
+			case DeviceConnectionState::Connected:
+				return Color{52, 211, 153, 255};
+			case DeviceConnectionState::Searching:
+				return Color{250, 204, 21, 255};
+			case DeviceConnectionState::Connecting:
+				return Color{251, 146, 60, 255};
+			case DeviceConnectionState::Error:
+				return Color{248, 113, 113, 255};
+			case DeviceConnectionState::Disabled:
+				return Color{100, 116, 139, 255};
+			}
+			return Color{100, 116, 139, 255};
+		};
+		const auto state_suffix = [](DeviceConnectionState state) {
+			switch (state) {
+			case DeviceConnectionState::Connected:
+				return "+";
+			case DeviceConnectionState::Searching:
+				return "?";
+			case DeviceConnectionState::Connecting:
+				return "~";
+			case DeviceConnectionState::Error:
+				return "!";
+			case DeviceConnectionState::Disabled:
+				return "-";
+			}
+			return "-";
+		};
+
+		char mode_root[24] = {};
+		const int root = std::max(0, std::min(11, visualizer->external_control.effective_root));
+		std::snprintf(mode_root, sizeof(mode_root), "%s %s%s",
+			      visualizer->external_control.mode == RootControlMode::Auto ? "AUTO" : "MAN",
+			      kRootNames[static_cast<std::size_t>(root)],
+			      visualizer->external_control.autoconnect ? "" : " OFF");
+		int control_width = text_width(mode_root, 2);
+		for (std::size_t i = 0; i < kDeviceNames.size(); ++i)
+			control_width += text_width(" ", 2) + text_width(kDeviceNames[i], 2) + text_width("+", 2);
+		int control_x = std::max(28, bpm_x - 14 - control_width);
+		draw_text(visualizer, control_x, bpm_y, mode_root, 2, kWhiteTextColor);
+		control_x += text_width(mode_root, 2);
+		for (std::size_t i = 0; i < kDeviceNames.size(); ++i) {
+			control_x += text_width(" ", 2);
+			const DeviceConnectionState state = visualizer->external_control.devices[i];
+			draw_text(visualizer, control_x, bpm_y, kDeviceNames[i], 2, state_color(state));
+			control_x += text_width(kDeviceNames[i], 2);
+			draw_text(visualizer, control_x, bpm_y, state_suffix(state), 2, state_color(state));
+			control_x += text_width("+", 2);
+		}
+	}
 	draw_text(visualizer, bpm_x, bpm_y, "BPM", 2, kLabelColor);
 	bpm_x += text_width("BPM ", 2);
 	draw_text(visualizer, bpm_x, bpm_y, bpm_value, 2, kWhiteTextColor);

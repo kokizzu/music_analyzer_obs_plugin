@@ -8,3 +8,7 @@ core
 core.*
 __pycache__/
 *.pyc
+
+# Local LiteJam vendor references; do not commit.
+docs/NLJ-LED Control-210425-052233.pdf
+docs/NLJ-LED Perform mode-210425-052308.pdf
