@@ -10,6 +10,27 @@ from collections import defaultdict
 
 
 CATEGORIES = ("kick", "snare", "hihat", "crash", "tom", "ride", "rim")
+ROW_DUMP_FIELDS = (
+    [
+        "sample",
+        "expected",
+        "got",
+        "energy_low",
+        "energy_mid",
+        "energy_high",
+        "kick_body",
+        "snare_body",
+        "tom_body",
+        "snare_crack",
+        "upper_tom_body",
+        "body_shape",
+    ]
+    + [
+        f"{category}_{field}"
+        for category in CATEGORIES
+        for field in ("band", "seg", "shape_score", "trigger", "threshold", "shape", "level")
+    ]
+)
 DETAIL_RE = re.compile(
     r"(?P<cat>kick|snare|hihat|crash|tom|ride|rim) "
     r"band=(?P<band>[0-9.]+) "
@@ -24,6 +45,11 @@ MISS_RE = re.compile(
     r"got (?P<got>\w+|ambiguous|none).*?\[(?P<detail>.*)\]$"
 )
 ENERGY_RE = re.compile(r"energy=(?P<low>[0-9.]+)/(?P<mid>[0-9.]+)/(?P<high>[0-9.]+)")
+BODY_RE = re.compile(
+    r"body=(?P<kick_body>[0-9.]+)/(?P<snare_body>[0-9.]+)/(?P<tom_body>[0-9.]+) "
+    r"crack=(?P<snare_crack>[0-9.]+) upper_tom=(?P<upper_tom_body>[0-9.]+) "
+    r"body_shape=(?P<body_shape>-?[0-9]+)"
+)
 
 
 def parse_log(path: pathlib.Path):
@@ -54,6 +80,17 @@ def parse_log(path: pathlib.Path):
                 float(energy_match.group("mid")),
                 float(energy_match.group("high")),
             )
+        body_match = BODY_RE.search(match.group("detail"))
+        body = {}
+        if body_match:
+            body = {
+                "kick_body": float(body_match.group("kick_body")),
+                "snare_body": float(body_match.group("snare_body")),
+                "tom_body": float(body_match.group("tom_body")),
+                "snare_crack": float(body_match.group("snare_crack")),
+                "upper_tom_body": float(body_match.group("upper_tom_body")),
+                "body_shape": float(body_match.group("body_shape")),
+            }
         rows.append(
             {
                 "sample": match.group("sample"),
@@ -61,6 +98,7 @@ def parse_log(path: pathlib.Path):
                 "got": match.group("got"),
                 "metrics": metrics,
                 "energy": energy,
+                "body": body,
             }
         )
     return rows
@@ -82,6 +120,20 @@ def row_energy(row):
     return row["energy"]
 
 
+def row_body(row):
+    return row["body"]
+
+
+def body_ratio(body, lhs: str, rhs: str) -> float:
+    return body[lhs] / (body[rhs] + 1.0e-9)
+
+
+def summarize_values(values: list[float]) -> str:
+    if not values:
+        return "n/a"
+    return f"avg={sum(values) / len(values):.2f} min={min(values):.2f} max={max(values):.2f}"
+
+
 def print_overall(rows) -> None:
     if not rows:
         return
@@ -97,6 +149,35 @@ def print_overall(rows) -> None:
         sorted_pairs = sorted(by_got.items(), key=lambda item: (-item[1], item[0]))
         pairs = " ".join(f"{got}={count}" for got, count in sorted_pairs)
         print(f"  expected {expected}: {pairs}")
+
+
+def dump_rows(rows, expected_filter: str, limit: int) -> None:
+    printed = 0
+    print("\t".join(ROW_DUMP_FIELDS))
+    for row in rows:
+        if expected_filter and row_expected(row) != expected_filter:
+            continue
+        metrics = row_metrics(row)
+        energy = row_energy(row) or ("", "", "")
+        values = {
+            "sample": row["sample"],
+            "expected": row_expected(row),
+            "got": row_got(row),
+            "energy_low": "" if energy[0] == "" else f"{energy[0]:.6f}",
+            "energy_mid": "" if energy[1] == "" else f"{energy[1]:.6f}",
+            "energy_high": "" if energy[2] == "" else f"{energy[2]:.6f}",
+        }
+        for field, value in row_body(row).items():
+            values[field] = f"{value:.6f}"
+        for category in CATEGORIES:
+            category_metrics = metrics.get(category, {})
+            for field in ("band", "seg", "shape_score", "trigger", "threshold", "shape", "level"):
+                value = category_metrics.get(field, "")
+                values[f"{category}_{field}"] = "" if value == "" else f"{value:.6f}"
+        print("\t".join(values.get(field, "") for field in ROW_DUMP_FIELDS))
+        printed += 1
+        if limit > 0 and printed >= limit:
+            break
 
 
 def summarize(label: str, rows, example_count: int) -> None:
@@ -175,6 +256,23 @@ def summarize(label: str, rows, example_count: int) -> None:
             avg_mid = sum(energy[1] for energy in energies) / len(energies)
             avg_high = sum(energy[2] for energy in energies) / len(energies)
             print(f"    avg energy low/mid/high={avg_low:.2f}/{avg_mid:.2f}/{avg_high:.2f}")
+        body_rows = [row_body(row) for row in group if row_body(row)]
+        if body_rows:
+            for lhs, rhs, label in (
+                ("tom_body", "snare_body", "tom/snare body"),
+                ("tom_body", "kick_body", "tom/kick body"),
+                ("snare_crack", "snare_body", "crack/snare body"),
+                ("upper_tom_body", "snare_crack", "upper_tom/crack"),
+            ):
+                print(
+                    f"    {label}: "
+                    f"{summarize_values([body_ratio(body, lhs, rhs) for body in body_rows])}"
+                )
+            body_shapes = defaultdict(int)
+            for body in body_rows:
+                body_shapes[int(body["body_shape"])] += 1
+            shapes = " ".join(f"{shape}={count}" for shape, count in sorted(body_shapes.items()))
+            print(f"    body_shape: {shapes}")
         print(f"    near-level ties: {ties}/{len(group)}")
 
 
@@ -182,6 +280,18 @@ def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("logs", nargs="+", type=pathlib.Path)
     parser.add_argument("--examples", type=int, default=3)
+    parser.add_argument("--expected", default="", help="only print this expected drum in --dump-rows mode")
+    parser.add_argument(
+        "--dump-rows",
+        action="store_true",
+        help="print compact per-primary-miss drum attributes as TSV and skip summaries",
+    )
+    parser.add_argument(
+        "--dump-limit",
+        type=int,
+        default=0,
+        help="maximum rows to print in --dump-rows mode; 0 means all",
+    )
     args = parser.parse_args()
 
     all_rows = []
@@ -190,6 +300,10 @@ def main() -> int:
         rows = parse_log(path)
         parsed_logs.append((path, rows))
         all_rows.extend(rows)
+    if args.dump_rows:
+        dump_rows(all_rows, args.expected, max(0, args.dump_limit))
+        return 0
+
     print_overall(all_rows)
     for path, rows in parsed_logs:
         summarize(path.stem.replace("_primary_debug", ""), rows, max(0, args.examples))

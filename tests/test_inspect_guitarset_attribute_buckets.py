@@ -169,6 +169,20 @@ def main() -> int:
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
         )
+        dumped = subprocess.run(
+            [
+                sys.executable,
+                str(SCRIPT),
+                str(path),
+                "--dump-rows",
+                "--misses-only",
+            ],
+            cwd=ROOT,
+            check=True,
+            text=True,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+        )
 
     output = completed.stdout
     assert "chord_miss:maj:visible2_analysis3_smooth3_rootvis1 rows=1 recordings=1" in output
@@ -182,6 +196,9 @@ def main() -> int:
     assert "chord_miss:maj:visible2_analysis3_smooth3_rootvis1 rows=1 recordings=1 examples=rec2" in compact.stdout
     assert "chord_hit:maj:all" not in compact.stdout
     assert "raw_third" not in compact.stdout
+    assert dumped.stdout.startswith("recording_id\tstatus\texpected_chords\t")
+    assert "\nrec2\tchord_miss\tG\tmaj\tmaj\t--" in dumped.stdout
+    assert "\nrec1\t" not in dumped.stdout
     print("test_inspect_guitarset_attribute_buckets: ok")
     return 0
 

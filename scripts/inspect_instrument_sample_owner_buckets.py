@@ -36,6 +36,44 @@ FIELDS = [
     "partial5",
 ]
 
+ROW_DUMP_FIELDS = [
+    "kind",
+    "status",
+    "family",
+    "expected_family",
+    "program_name",
+    "note",
+    "midi",
+    "path",
+    "window_ms",
+    "detected_expected_row",
+    "detected_anywhere",
+    "debug_note",
+    "debug_owner",
+    "debug_conf",
+    "bass_level",
+    "piano_level",
+    "guitar_level",
+    "vocal_level",
+    "other_level",
+    "amb_level",
+    "raw_expected_ratio",
+    "raw_tuned_ratio",
+    "raw_tuned_abs_cent_offset",
+    "raw_local_best_note",
+    "raw_expected_rank",
+    "keyboard_score",
+    "guitar_score",
+    "vocal_score",
+    "other_score",
+    "spectral_level",
+    "pitch_confidence",
+    "periodicity",
+    "harmonicity",
+    "fit_error",
+    "noise",
+]
+
 
 def load_rows(path: pathlib.Path) -> list[dict[str, str]]:
     with path.open(newline="", errors="replace") as handle:
@@ -117,11 +155,39 @@ def print_bucket(key: tuple[str, str, str], rows: list[dict[str, str]], examples
         )
 
 
+def dump_rows(rows: list[dict[str, str]], *, misses_only: bool, limit: int) -> None:
+    printed = 0
+    print("\t".join(ROW_DUMP_FIELDS))
+    for row in rows:
+        if misses_only and bucket_key(row)[1] != "owner_miss":
+            continue
+        print("\t".join(row.get(field, "") for field in ROW_DUMP_FIELDS))
+        printed += 1
+        if limit > 0 and printed >= limit:
+            break
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("path", type=pathlib.Path)
     parser.add_argument("--top", type=int, default=12)
     parser.add_argument("--examples", type=int, default=4)
+    parser.add_argument(
+        "--dump-rows",
+        action="store_true",
+        help="print compact per-note detected attributes as TSV and skip bucket summaries",
+    )
+    parser.add_argument(
+        "--misses-only",
+        action="store_true",
+        help="with --dump-rows, print only owner-miss note rows",
+    )
+    parser.add_argument(
+        "--dump-limit",
+        type=int,
+        default=0,
+        help="maximum rows to print in --dump-rows mode; 0 means all",
+    )
     args = parser.parse_args()
 
     rows = [
@@ -129,6 +195,10 @@ def main() -> int:
         for row in load_rows(args.path)
         if row.get("kind") == "note" and row.get("debug_note")
     ]
+    if args.dump_rows:
+        dump_rows(rows, misses_only=args.misses_only, limit=max(0, args.dump_limit))
+        return 0
+
     print(f"inspect_instrument_sample_owner_buckets: note debug rows {len(rows)}")
     counts = collections.Counter(bucket_key(row) for row in rows)
     print("owner buckets " + " ".join(f"{'/'.join(key)}={count}" for key, count in counts.most_common(args.top)))

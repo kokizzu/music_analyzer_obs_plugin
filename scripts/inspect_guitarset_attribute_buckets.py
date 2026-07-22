@@ -69,6 +69,44 @@ CATEGORY_FIELDS = [
     "support",
 ]
 
+ROW_DUMP_FIELDS = [
+    "recording_id",
+    "status",
+    "expected_chords",
+    "expected_chord_qualities",
+    "quality",
+    "guitar_chord",
+    "global_chord",
+    "support",
+    "expected_pitch_classes",
+    "guitar_pitch_classes",
+    "guitar_analysis_pitch_classes",
+    "guitar_smoothed_pitch_classes",
+    "visible_missing_tones",
+    "analysis_missing_tones",
+    "smooth_missing_tones",
+    "visible_root",
+    "visible_third",
+    "visible_fifth",
+    "analysis_root",
+    "analysis_third",
+    "analysis_fifth",
+    "smooth_root",
+    "smooth_third",
+    "smooth_fifth",
+    "raw_root",
+    "raw_third",
+    "raw_fifth",
+    "guitar_note_hits",
+    "guitar_false_positive_pitch_classes",
+    "cross_row_expected_hits",
+    "rms",
+    "low",
+    "mid",
+    "high",
+    "audio_path",
+]
+
 BUCKET_RE = re.compile(r"([^:]+):([^:]+):(.+)")
 
 
@@ -334,6 +372,31 @@ def print_recording(rows: list[dict[str, str]], recording_id: str) -> None:
         )
 
 
+def dump_rows(
+    rows: list[dict[str, str]],
+    *,
+    buckets: list[tuple[str, str, str]],
+    recording_ids: list[str],
+    misses_only: bool,
+    limit: int,
+) -> None:
+    bucket_filter = set(buckets)
+    recording_filter = set(recording_ids)
+    printed = 0
+    print("\t".join(ROW_DUMP_FIELDS))
+    for row in rows:
+        if misses_only and row.get("status") != "chord_miss":
+            continue
+        if bucket_filter and not any(bucket_matches(row, bucket) for bucket in bucket_filter):
+            continue
+        if recording_filter and row.get("recording_id", "") not in recording_filter:
+            continue
+        print("\t".join(row.get(field, "") for field in ROW_DUMP_FIELDS))
+        printed += 1
+        if limit > 0 and printed >= limit:
+            break
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("path", nargs="?", default="build/guitar_chord_mix_attributes.tsv")
@@ -361,11 +424,33 @@ def main() -> int:
         action="store_true",
         help="print bucket counts and categorical summaries without numeric feature ranges",
     )
+    parser.add_argument(
+        "--dump-rows",
+        action="store_true",
+        help="print compact per-recording chord attributes as TSV and skip bucket summaries",
+    )
+    parser.add_argument(
+        "--dump-limit",
+        type=int,
+        default=0,
+        help="maximum rows to print in --dump-rows mode; 0 means all",
+    )
     args = parser.parse_args()
 
     rows = derive_rows(load_rows(pathlib.Path(args.path)))
-    if args.bucket:
-        buckets = [parse_bucket_spec(spec) for spec in args.bucket]
+    explicit_buckets = [parse_bucket_spec(spec) for spec in args.bucket]
+    if args.dump_rows:
+        dump_rows(
+            rows,
+            buckets=explicit_buckets,
+            recording_ids=args.recording_id,
+            misses_only=args.misses_only,
+            limit=max(0, args.dump_limit),
+        )
+        return 0
+
+    if explicit_buckets:
+        buckets = explicit_buckets
     elif args.recording_id:
         buckets = []
     else:

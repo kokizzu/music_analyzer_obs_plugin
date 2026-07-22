@@ -126,6 +126,22 @@ def main() -> int:
         assert "piano/owner_hit/piano=1" in output
         assert "guitar/owner_miss/piano=1" in output
         assert "owner_hit:strings->other rows=1" in output
+        dumped = subprocess.run(
+            [
+                sys.executable,
+                str(ROOT / "scripts" / "inspect_instrument_sample_owner_buckets.py"),
+                str(path),
+                "--dump-rows",
+                "--misses-only",
+            ],
+            text=True,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+        )
+        assert dumped.returncode == 0, dumped.stdout + dumped.stderr
+        assert dumped.stdout.startswith("kind\tstatus\tfamily\t")
+        assert "\nnote\thit\tguitar\tguitar\tProgram\tC4" in dumped.stdout
+        assert "\tnote\thit\tpiano\t" not in dumped.stdout
     print("test_inspect_instrument_sample_owner_buckets: ok")
     return 0
 

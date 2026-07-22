@@ -83,6 +83,47 @@ CATEGORY_FIELDS = [
     "raw_local_best_note",
 ]
 
+ROW_DUMP_FIELDS = [
+    "sample_id",
+    "status",
+    "family",
+    "source",
+    "expected_note",
+    "expected_midi",
+    "first_row",
+    "buffer",
+    "row_label",
+    "row_grid",
+    "any_grid",
+    "buffer_strongest_row",
+    "debug_note",
+    "debug_owner",
+    "debug_conf",
+    "keyboard_score",
+    "guitar_score",
+    "vocal_score",
+    "other_score",
+    "spectral_level",
+    "pitch_confidence",
+    "periodicity",
+    "harmonicity",
+    "fit_error",
+    "centroid",
+    "slope",
+    "noise",
+    "raw_expected_ratio",
+    "raw_tuned_ratio",
+    "raw_tuned_abs_cent_offset",
+    "raw_local_best_note",
+    "raw_expected_rank",
+    "bass_level",
+    "guitar_level",
+    "piano_level",
+    "vocal_level",
+    "other_level",
+    "amb_level",
+]
+
 
 def as_float(row: dict[str, str], field: str) -> float | None:
     try:
@@ -240,6 +281,40 @@ def print_sample(rows: list[dict[str, str]], sample_id: str) -> None:
         )
 
 
+def dump_rows(
+    rows: list[dict[str, str]],
+    *,
+    buckets: list[tuple[str, str, str, str]],
+    sample_ids: list[str],
+    misses_only: bool,
+    limit: int,
+) -> None:
+    bucket_filter = set(buckets)
+    sample_filter = set(sample_ids)
+    printed = 0
+    print("\t".join(ROW_DUMP_FIELDS))
+    for row in rows:
+        if not row.get("debug_note"):
+            continue
+        if misses_only and row.get("status") != "ownership_miss":
+            continue
+        if bucket_filter:
+            key = (
+                row.get("status", ""),
+                row.get("family", ""),
+                row.get("source", ""),
+                row.get("first_row", ""),
+            )
+            if key not in bucket_filter:
+                continue
+        if sample_filter and row.get("sample_id", "") not in sample_filter:
+            continue
+        print("\t".join(row.get(field, "") for field in ROW_DUMP_FIELDS))
+        printed += 1
+        if limit > 0 and printed >= limit:
+            break
+
+
 def load_rows(path: pathlib.Path) -> list[dict[str, str]]:
     with path.open(newline="", errors="replace") as handle:
         return list(csv.DictReader(handle, delimiter="\t"))
@@ -330,12 +405,34 @@ def main() -> int:
         action="store_true",
         help="print bucket counts and categorical summaries without numeric feature ranges",
     )
+    parser.add_argument(
+        "--dump-rows",
+        action="store_true",
+        help="print compact per-buffer detected attributes as TSV and skip bucket summaries",
+    )
+    parser.add_argument(
+        "--dump-limit",
+        type=int,
+        default=0,
+        help="maximum rows to print in --dump-rows mode; 0 means all",
+    )
     args = parser.parse_args()
 
     path = pathlib.Path(args.path)
     rows = load_rows(path)
-    if args.bucket:
-        buckets = [parse_bucket_spec(spec) for spec in args.bucket]
+    explicit_buckets = [parse_bucket_spec(spec) for spec in args.bucket]
+    if args.dump_rows:
+        dump_rows(
+            rows,
+            buckets=explicit_buckets,
+            sample_ids=args.sample_id,
+            misses_only=args.misses_only,
+            limit=max(0, args.dump_limit),
+        )
+        return 0
+
+    if explicit_buckets:
+        buckets = explicit_buckets
     elif args.sample_id:
         buckets = []
     else:

@@ -175,6 +175,19 @@ def main() -> int:
             stderr=subprocess.PIPE,
             check=True,
         )
+        dumped = subprocess.run(
+            [
+                sys.executable,
+                str(ROOT / "scripts" / "inspect_real_note_attribute_buckets.py"),
+                str(path),
+                "--dump-rows",
+                "--misses-only",
+            ],
+            text=True,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            check=True,
+        )
 
     assert "ownership_miss:piano/electronic->guitar rows=1 samples=1" in result.stdout
     assert "hit:other/acoustic->other rows=1 samples=1" in result.stdout
@@ -191,6 +204,9 @@ def main() -> int:
     assert "ownership_miss:piano/electronic->guitar rows=1 samples=1 examples=keyboard_1" in misses_only.stdout
     assert "hit:other/acoustic->other" not in misses_only.stdout
     assert "debug_conf" not in misses_only.stdout
+    assert dumped.stdout.startswith("sample_id\tstatus\tfamily\t")
+    assert "\nkeyboard_1\townership_miss\tpiano\telectronic\tC4" in dumped.stdout
+    assert "reed_1" not in dumped.stdout
     print("test_inspect_real_note_attribute_buckets: ok")
     return 0
 
