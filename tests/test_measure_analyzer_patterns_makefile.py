@@ -33,6 +33,9 @@ def main() -> int:
     for text in expected:
         assert text in recipe, f"measure-analyzer-patterns does not include {text}"
 
+    drum_recipe = target_recipe(makefile, "find-drum-attribute-patterns")
+    assert "full_rim_debug.err" in drum_recipe, "drum pattern search must protect full rim rows"
+
     for variable in [
         "MEASURE_INSTRUMENT_PATTERN_ARGS",
         "MEASURE_REAL_NOTE_PATTERN_ARGS",

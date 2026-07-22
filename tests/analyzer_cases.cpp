@@ -4037,6 +4037,30 @@ void check_soft_drum_transient_stream(Runner &runner)
 			      std::to_string(snapshot.drums[mao::Snare].level) + " rim " +
 			      std::to_string(snapshot.drums[mao::Rim].level));
 
+	mao::AnalysisEngine crash_backed_snare_engine;
+	for (int i = 0; i < 6; ++i)
+		snapshot = crash_backed_snare_engine.analyze(background.data(), background.size(), settings,
+							     "drum sample", 0);
+
+	mao_test::Buffer crash_backed_snare = background;
+	add_decayed_sine(crash_backed_snare, 160.0f, 0.070f, 1300);
+	add_decayed_sine(crash_backed_snare, 220.0f, 0.085f, 1100);
+	add_decayed_sine(crash_backed_snare, 650.0f, 0.045f, 720);
+	add_decayed_sine(crash_backed_snare, 1100.0f, 0.090f, 520);
+	add_decayed_sine(crash_backed_snare, 2200.0f, 0.040f, 430);
+	add_decayed_sine(crash_backed_snare, 5200.0f, 0.050f, 820);
+	add_decayed_sine(crash_backed_snare, 7600.0f, 0.045f, 680);
+	snapshot = crash_backed_snare_engine.analyze(crash_backed_snare.data(),
+						    crash_backed_snare.size(), settings, "drum sample", 0);
+	runner.expect(snapshot.drums[mao::Snare].active,
+		      "crash-backed snare sample: expected snare active, snare " +
+			      std::to_string(snapshot.drums[mao::Snare].level) + " rim " +
+			      std::to_string(snapshot.drums[mao::Rim].level));
+	runner.expect(snapshot.drums[mao::Snare].level >= snapshot.drums[mao::Rim].level,
+		      "crash-backed snare sample: expected snare not rim primary, snare " +
+			      std::to_string(snapshot.drums[mao::Snare].level) + " rim " +
+			      std::to_string(snapshot.drums[mao::Rim].level));
+
 	for (int i = 0; i < 4; ++i)
 		snapshot = engine.analyze(background.data(), background.size(), settings, "Mic/Aux", 0);
 
