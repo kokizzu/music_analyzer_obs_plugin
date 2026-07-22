@@ -202,6 +202,15 @@ def hit_rows(rows: list[dict[str, str]]) -> list[dict[str, str]]:
     return [row for row in rows if row.get("_owner_status") == "owner_hit"]
 
 
+def negative_rows(rows: list[dict[str, str]], bucket: tuple[str, str, str], mode: str) -> list[dict[str, str]]:
+    if mode == "owner-hit":
+        return hit_rows(rows)
+    if mode == "not-family":
+        _status, family, _owner = bucket
+        return [row for row in rows if row.get("family") != family]
+    raise SystemExit(f"unsupported negative mode `{mode}`")
+
+
 def sample_id(row: dict[str, str]) -> str:
     return (
         row.get("path", "")
@@ -331,10 +340,22 @@ def condition_pattern(spec: str) -> Pattern:
     )
 
 
-def build_patterns(positive_rows: list[dict[str, str]], include_display_fields: bool) -> list[Pattern]:
+def build_patterns(
+    positive_rows: list[dict[str, str]],
+    include_display_fields: bool,
+    excluded_fields: set[str],
+) -> list[Pattern]:
     patterns: list[Pattern] = []
-    category_fields = CATEGORY_FIELDS + (DISPLAY_CATEGORY_FIELDS if include_display_fields else [])
-    numeric_fields = NUMERIC_FIELDS + (DISPLAY_NUMERIC_FIELDS if include_display_fields else [])
+    category_fields = [
+        field
+        for field in CATEGORY_FIELDS + (DISPLAY_CATEGORY_FIELDS if include_display_fields else [])
+        if field not in excluded_fields
+    ]
+    numeric_fields = [
+        field
+        for field in NUMERIC_FIELDS + (DISPLAY_NUMERIC_FIELDS if include_display_fields else [])
+        if field not in excluded_fields
+    ]
     for field in category_fields:
         for value in sorted({row.get(field, "") for row in positive_rows if row.get(field, "")}):
             patterns.append(category_pattern(field, value))
@@ -593,19 +614,28 @@ def print_bucket_patterns(
     min_positive_samples: int,
     max_negative_samples: int,
     explicit_patterns: list[Pattern],
+    positive_filters: list[Pattern],
+    negative_mode: str,
     show_examples: int,
     max_conditions: int,
     beam_width: int,
     include_display_fields: bool,
+    excluded_fields: set[str],
 ) -> None:
     positive_rows = rows_for_bucket(rows, bucket)
-    negatives = hit_rows(rows)
+    if positive_filters:
+        positive_rows = [
+            row
+            for row in positive_rows
+            if all(pattern.predicate(row) for pattern in positive_filters)
+        ]
+    negatives = negative_rows(rows, bucket, negative_mode)
     positive_samples = sample_count(positive_rows)
     negative_samples = sample_count(negatives)
     print()
     print(
         f"{bucket_label(bucket)} positives={positive_samples} samples/{len(positive_rows)} rows "
-        f"protected_hits={negative_samples} samples/{len(negatives)} rows"
+        f"negatives({negative_mode})={negative_samples} samples/{len(negatives)} rows"
     )
     if not positive_rows:
         return
@@ -631,7 +661,7 @@ def print_bucket_patterns(
         print("  explicit rule:")
         print_results([result] if result is not None else [], positive_samples, negative_samples, positive_rows, negatives, show_examples)
 
-    patterns = build_patterns(positive_rows, include_display_fields)
+    patterns = build_patterns(positive_rows, include_display_fields, excluded_fields)
     matches = [
         PatternMatch(
             pattern.label,
@@ -705,19 +735,38 @@ def main() -> int:
         default=[],
         help="explicit ANDed condition to measure, such as debug_owner=piano or partial2<=0.2",
     )
+    parser.add_argument(
+        "--positive-condition",
+        action="append",
+        default=[],
+        help="ANDed condition used to prefilter positive bucket rows before searching",
+    )
     parser.add_argument("--show-examples", type=int, default=0)
     parser.add_argument("--max-conditions", type=int, default=2)
     parser.add_argument("--beam-width", type=int, default=160)
     parser.add_argument(
+        "--negative-mode",
+        choices=["owner-hit", "not-family"],
+        default="owner-hit",
+        help="negative row set to protect while mining candidate rules",
+    )
+    parser.add_argument(
         "--include-display-fields",
         action="store_true",
         help="include display/result fields such as expected_level and row labels in automatic rules",
+    )
+    parser.add_argument(
+        "--exclude-field",
+        action="append",
+        default=[],
+        help="field to exclude from automatic pattern search; repeatable",
     )
     args = parser.parse_args()
 
     rows = load_rows(pathlib.Path(args.path))
     buckets = [parse_bucket_spec(spec) for spec in (args.bucket or DEFAULT_BUCKETS)]
     explicit_patterns = [condition_pattern(spec) for spec in args.condition]
+    positive_filters = [condition_pattern(spec) for spec in args.positive_condition]
     for bucket in buckets:
         print_bucket_patterns(
             rows,
@@ -726,10 +775,13 @@ def main() -> int:
             max(1, args.min_positive_samples),
             max(0, args.max_negative_samples),
             explicit_patterns,
+            positive_filters,
+            args.negative_mode,
             max(0, args.show_examples),
             max(1, args.max_conditions),
             max(1, args.beam_width),
             args.include_display_fields,
+            set(args.exclude_field),
         )
     return 0
 

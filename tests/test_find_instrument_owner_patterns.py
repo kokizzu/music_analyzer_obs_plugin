@@ -257,9 +257,29 @@ def main() -> int:
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
         )
+        cross_family = subprocess.run(
+            [
+                sys.executable,
+                str(SCRIPT),
+                str(path),
+                "--bucket",
+                "owner_miss:guitar->piano",
+                "--limit",
+                "3",
+                "--negative-mode",
+                "not-family",
+                "--max-negative-samples",
+                "3",
+            ],
+            cwd=ROOT,
+            check=True,
+            text=True,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+        )
 
     assert (
-        "owner_miss:guitar->piano positives=2 samples/2 rows protected_hits=3 samples/3 rows"
+        "owner_miss:guitar->piano positives=2 samples/2 rows negatives(owner-hit)=3 samples/3 rows"
         in result.stdout
     ), result.stdout + result.stderr
     assert "AND partial2<=0.14: pos=2/2 rows=2 neg=0/3 rows=0" in result.stdout, result.stdout + result.stderr
@@ -278,6 +298,10 @@ def main() -> int:
     assert "piano Grand Piano C4 path=piano_1.wav target=piano owner=piano" in example.stdout, (
         example.stdout + example.stderr
     )
+    assert (
+        "owner_miss:guitar->piano positives=2 samples/2 rows negatives(not-family)=3 samples/3 rows"
+        in cross_family.stdout
+    ), cross_family.stdout + cross_family.stderr
     print("test_find_instrument_owner_patterns: ok")
     return 0
 
