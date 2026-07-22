@@ -4000,6 +4000,33 @@ void check_soft_drum_transient_stream(Runner &runner)
 		      "low-body snare transient: expected snare not kick primary, snare " +
 			      std::to_string(snapshot.drums[mao::Snare].level) + " kick " +
 			      std::to_string(snapshot.drums[mao::Kick].level));
+	runner.expect(snapshot.drums[mao::Snare].level >= snapshot.drums[mao::Rim].level,
+		      "low-body snare transient: expected snare not rim primary, snare " +
+			      std::to_string(snapshot.drums[mao::Snare].level) + " rim " +
+			      std::to_string(snapshot.drums[mao::Rim].level));
+
+	mao::AnalysisEngine bright_snare_engine;
+	for (int i = 0; i < 6; ++i)
+		snapshot = bright_snare_engine.analyze(background.data(), background.size(), settings, "Mic/Aux", 0);
+
+	mao_test::Buffer bright_snare = background;
+	add_decayed_sine(bright_snare, 160.0f, 0.070f, 1300);
+	add_decayed_sine(bright_snare, 220.0f, 0.085f, 1100);
+	add_decayed_sine(bright_snare, 650.0f, 0.045f, 720);
+	add_decayed_sine(bright_snare, 1100.0f, 0.090f, 520);
+	add_decayed_sine(bright_snare, 2200.0f, 0.040f, 430);
+	snapshot = bright_snare_engine.analyze(bright_snare.data(), bright_snare.size(), settings, "Mic/Aux", 0);
+	runner.expect(snapshot.drums[mao::Snare].active,
+		      "bright snare transient: expected snare active, snare " +
+			      std::to_string(snapshot.drums[mao::Snare].level) + " rim " +
+			      std::to_string(snapshot.drums[mao::Rim].level));
+	runner.expect(snapshot.drums[mao::Rim].active,
+		      "bright snare transient: expected rim evidence active for regression, rim " +
+			      std::to_string(snapshot.drums[mao::Rim].level));
+	runner.expect(snapshot.drums[mao::Snare].level >= snapshot.drums[mao::Rim].level,
+		      "bright snare transient: expected snare not rim primary, snare " +
+			      std::to_string(snapshot.drums[mao::Snare].level) + " rim " +
+			      std::to_string(snapshot.drums[mao::Rim].level));
 
 	for (int i = 0; i < 4; ++i)
 		snapshot = engine.analyze(background.data(), background.size(), settings, "Mic/Aux", 0);

@@ -7518,6 +7518,20 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 			cap_drum_level(Rim, 0.28f);
 	}
 
+	const bool snare_supported_rim_saturation =
+		drum_detection_enabled && !one_shot_drum_source &&
+		drum_level_[Rim] >= 0.95f &&
+		drum_level_[Snare] >= 0.55f &&
+		body_shape == Snare &&
+		snare_shape &&
+		snare_body >= rim_body * 0.78f &&
+		snare_body >= kick_body * 0.34f &&
+		snare_body >= tom_body * 0.34f &&
+		snare_crack >= snare_body * 0.55f &&
+		rim_shape_score <= body_shape_scores[1] * 1.05f;
+	if (snare_supported_rim_saturation)
+		cap_drum_level(Rim, std::max(0.31f, drum_level_[Snare] - 0.02f));
+
 	const float active_cymbal_level =
 		std::max(drum_level_[HiHat], std::max(drum_level_[Crash], drum_level_[Ride]));
 	const bool snare_cymbal_tom_bleed =
