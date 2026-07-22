@@ -38,6 +38,21 @@ class RuleResult:
     positives: list[dict[str, str]]
 
 
+@dataclasses.dataclass(frozen=True)
+class PatternMatch:
+    label: str
+    positive_mask: int
+    negative_mask: int
+
+
+@dataclasses.dataclass(frozen=True)
+class SearchState:
+    labels: tuple[str, ...]
+    positive_mask: int
+    negative_mask: int
+    next_match_index: int
+
+
 def quantile(values: list[float], fraction: float) -> float:
     if not values:
         return 0.0
@@ -114,6 +129,39 @@ def recording_count(rows: list[dict[str, str]]) -> int:
     return len({row.get("recording_id", "") for row in rows if row.get("recording_id", "")})
 
 
+def recording_bit_map(rows: list[dict[str, str]]) -> list[int]:
+    bits: dict[str, int] = {}
+    row_bits: list[int] = []
+    for row in rows:
+        recording_id = row.get("recording_id", "")
+        if recording_id not in bits:
+            bits[recording_id] = 1 << len(bits)
+        row_bits.append(bits[recording_id])
+    return row_bits
+
+
+def mask_for_pattern(rows: list[dict[str, str]], pattern: Pattern) -> int:
+    mask = 0
+    for index, row in enumerate(rows):
+        if pattern.predicate(row):
+            mask |= 1 << index
+    return mask
+
+
+def recording_count_for_mask(row_mask: int, row_bits: list[int], limit: int | None = None) -> tuple[int, bool]:
+    recording_mask = 0
+    while row_mask:
+        bit = row_mask & -row_mask
+        index = bit.bit_length() - 1
+        recording_mask |= row_bits[index]
+        if limit is not None:
+            count = recording_mask.bit_count()
+            if count > limit:
+                return count, True
+        row_mask ^= bit
+    return recording_mask.bit_count(), False
+
+
 def selected_recordings(rows: list[dict[str, str]], limit: int) -> list[dict[str, str]]:
     selected: list[dict[str, str]] = []
     seen: set[str] = set()
@@ -126,13 +174,6 @@ def selected_recordings(rows: list[dict[str, str]], limit: int) -> list[dict[str
         if len(selected) >= limit:
             break
     return selected
-
-
-def combine_patterns(left: Pattern, right: Pattern) -> Pattern:
-    return Pattern(
-        f"{left.label} AND {right.label}",
-        lambda row, left=left, right=right: left.predicate(row) and right.predicate(row),
-    )
 
 
 def evaluate(
@@ -160,6 +201,54 @@ def evaluate(
     )
 
 
+def selected_recordings_from_mask(
+    rows: list[dict[str, str]], row_mask: int, limit: int
+) -> list[dict[str, str]]:
+    selected: list[dict[str, str]] = []
+    seen: set[str] = set()
+    while row_mask and len(selected) < limit:
+        bit = row_mask & -row_mask
+        index = bit.bit_length() - 1
+        row = rows[index]
+        recording_id = row.get("recording_id", "")
+        if recording_id not in seen:
+            seen.add(recording_id)
+            selected.append(row)
+        row_mask ^= bit
+    return selected
+
+
+def result_from_masks(
+    rule: str,
+    positive_mask: int,
+    negative_mask: int,
+    positive_rows: list[dict[str, str]],
+    negative_rows: list[dict[str, str]],
+    positive_recording_bits: list[int],
+    negative_recording_bits: list[int],
+    max_negative_recordings: int,
+    show_examples: int,
+) -> RuleResult | None:
+    positive_recordings, _positive_exceeded = recording_count_for_mask(
+        positive_mask, positive_recording_bits
+    )
+    if positive_recordings <= 0:
+        return None
+    negative_recordings, negative_exceeded = recording_count_for_mask(
+        negative_mask, negative_recording_bits, max_negative_recordings
+    )
+    if negative_exceeded:
+        return None
+    return RuleResult(
+        rule=rule,
+        positive_rows=positive_mask.bit_count(),
+        positive_recordings=positive_recordings,
+        negative_rows=negative_mask.bit_count(),
+        negative_recordings=negative_recordings,
+        positives=selected_recordings_from_mask(positive_rows, positive_mask, show_examples),
+    )
+
+
 def rank_result(result: RuleResult) -> tuple[int, int, int, int, str]:
     return (
         result.negative_recordings,
@@ -168,6 +257,133 @@ def rank_result(result: RuleResult) -> tuple[int, int, int, int, str]:
         result.rule.count(" AND "),
         result.rule,
     )
+
+
+def bounded_recording_count(row_mask: int, row_bits: list[int], max_recordings: int | None) -> int:
+    count, exceeded = recording_count_for_mask(row_mask, row_bits, max_recordings)
+    if exceeded and max_recordings is not None:
+        return max_recordings + 1
+    return count
+
+
+def ranked_state_key(
+    state: SearchState,
+    positive_recording_bits: list[int],
+    negative_recording_bits: list[int],
+    max_negative_recordings: int,
+) -> tuple[int, int, int, int, str]:
+    negative_recordings = bounded_recording_count(
+        state.negative_mask, negative_recording_bits, max_negative_recordings
+    )
+    positive_recordings = bounded_recording_count(state.positive_mask, positive_recording_bits, None)
+    return (
+        negative_recordings,
+        -positive_recordings,
+        state.negative_mask.bit_count(),
+        len(state.labels),
+        " AND ".join(state.labels),
+    )
+
+
+def extend_condition_search(
+    matches: list[PatternMatch],
+    positive_rows: list[dict[str, str]],
+    negative_rows: list[dict[str, str]],
+    positive_recording_bits: list[int],
+    negative_recording_bits: list[int],
+    min_positive_recordings: int,
+    max_negative_recordings: int,
+    max_conditions: int,
+    beam_width: int,
+    show_examples: int,
+) -> list[RuleResult]:
+    if max_conditions < 2 or not matches:
+        return []
+
+    ordered = sorted(matches, key=lambda match: match.label)
+    states: list[SearchState] = []
+    for index, match in enumerate(ordered):
+        positive_recordings = bounded_recording_count(
+            match.positive_mask, positive_recording_bits, None
+        )
+        if positive_recordings < min_positive_recordings:
+            continue
+        states.append(
+            SearchState(
+                labels=(match.label,),
+                positive_mask=match.positive_mask,
+                negative_mask=match.negative_mask,
+                next_match_index=index + 1,
+            )
+        )
+
+    results: list[RuleResult] = []
+    seen_results: set[tuple[int, int]] = set()
+    for condition_count in range(2, max(2, max_conditions) + 1):
+        next_states_by_mask: dict[tuple[int, int], SearchState] = {}
+        for state in states:
+            for match_index in range(state.next_match_index, len(ordered)):
+                match = ordered[match_index]
+                positive_mask = state.positive_mask & match.positive_mask
+                if positive_mask == 0:
+                    continue
+                positive_recordings = bounded_recording_count(
+                    positive_mask, positive_recording_bits, None
+                )
+                if positive_recordings < min_positive_recordings:
+                    continue
+                negative_mask = state.negative_mask & match.negative_mask
+                candidate = SearchState(
+                    labels=state.labels + (match.label,),
+                    positive_mask=positive_mask,
+                    negative_mask=negative_mask,
+                    next_match_index=match_index + 1,
+                )
+                mask_key = (positive_mask, negative_mask)
+                existing = next_states_by_mask.get(mask_key)
+                if existing is None or ranked_state_key(
+                    candidate,
+                    positive_recording_bits,
+                    negative_recording_bits,
+                    max_negative_recordings,
+                ) < ranked_state_key(
+                    existing,
+                    positive_recording_bits,
+                    negative_recording_bits,
+                    max_negative_recordings,
+                ):
+                    next_states_by_mask[mask_key] = candidate
+
+        states = sorted(
+            next_states_by_mask.values(),
+            key=lambda state: ranked_state_key(
+                state,
+                positive_recording_bits,
+                negative_recording_bits,
+                max_negative_recordings,
+            ),
+        )[: max(1, beam_width)]
+        for state in states:
+            result_key = (state.positive_mask, state.negative_mask)
+            if result_key in seen_results:
+                continue
+            seen_results.add(result_key)
+            result = result_from_masks(
+                " AND ".join(state.labels),
+                state.positive_mask,
+                state.negative_mask,
+                positive_rows,
+                negative_rows,
+                positive_recording_bits,
+                negative_recording_bits,
+                max_negative_recordings,
+                show_examples,
+            )
+            if result is not None:
+                results.append(result)
+        if not states:
+            break
+    return results
 
 
 def format_example(row: dict[str, str]) -> str:
@@ -190,6 +406,8 @@ def print_patterns(
     min_positive_recordings: int,
     max_negative_recordings: int,
     show_examples: int,
+    max_conditions: int,
+    beam_width: int,
 ) -> None:
     positive_rows = [row for row in rows if bucket_matches(row, bucket)]
     negative_rows = [row for row in rows if row.get("status") == "chord_hit"]
@@ -201,32 +419,47 @@ def print_patterns(
         return
 
     base_patterns = build_patterns(positive_rows)
+    positive_recording_bits = recording_bit_map(positive_rows)
+    negative_recording_bits = recording_bit_map(negative_rows)
     results: list[RuleResult] = []
     for pattern in base_patterns:
         result = evaluate(pattern, positive_rows, negative_rows, max_negative_recordings, show_examples)
         if result is not None and result.positive_recordings >= min_positive_recordings:
             results.append(result)
 
-    # One pair of conditions is enough for these small diagnostic buckets and keeps
-    # the report fast enough to run interactively while tuning the detector.
-    for index, left in enumerate(base_patterns):
-        for right in base_patterns[index + 1 :]:
-            result = evaluate(
-                combine_patterns(left, right),
-                positive_rows,
-                negative_rows,
-                max_negative_recordings,
-                show_examples,
-            )
-            if result is not None and result.positive_recordings >= min_positive_recordings:
-                results.append(result)
+    matches = [
+        PatternMatch(
+            label=pattern.label,
+            positive_mask=mask_for_pattern(positive_rows, pattern),
+            negative_mask=mask_for_pattern(negative_rows, pattern),
+        )
+        for pattern in base_patterns
+    ]
+    results.extend(
+        extend_condition_search(
+            matches,
+            positive_rows,
+            negative_rows,
+            positive_recording_bits,
+            negative_recording_bits,
+            min_positive_recordings,
+            max_negative_recordings,
+            max(2, max_conditions),
+            max(1, beam_width),
+            show_examples,
+        )
+    )
 
     deduped: dict[str, RuleResult] = {}
     for result in results:
         existing = deduped.get(result.rule)
         if existing is None or rank_result(result) < rank_result(existing):
             deduped[result.rule] = result
-    for result in sorted(deduped.values(), key=rank_result)[:limit]:
+    ranked_results = sorted(deduped.values(), key=rank_result)[:limit]
+    if not ranked_results:
+        print("  --")
+        return
+    for result in ranked_results:
         print(
             f"  +{result.positive_recordings} rows={result.positive_rows} "
             f"-{result.negative_recordings} rows={result.negative_rows} :: {result.rule}"
@@ -248,6 +481,18 @@ def main() -> int:
     parser.add_argument("--min-positive-recordings", type=int, default=3)
     parser.add_argument("--max-negative-recordings", type=int, default=0)
     parser.add_argument("--show-examples", type=int, default=3)
+    parser.add_argument(
+        "--max-conditions",
+        type=int,
+        default=2,
+        help="maximum number of ANDed auto-search conditions; values above 2 use bounded beam search",
+    )
+    parser.add_argument(
+        "--beam-width",
+        type=int,
+        default=180,
+        help="number of partial multi-condition rules retained per search depth",
+    )
     args = parser.parse_args()
 
     rows = derive_rows(load_rows(pathlib.Path(args.path)))
@@ -259,6 +504,8 @@ def main() -> int:
             max(1, args.min_positive_recordings),
             max(0, args.max_negative_recordings),
             max(0, args.show_examples),
+            max(1, args.max_conditions),
+            max(1, args.beam_width),
         )
     return 0
 
