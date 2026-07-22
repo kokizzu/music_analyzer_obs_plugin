@@ -9489,6 +9489,11 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 		snapshot.drums[index].level = drum_level_[index];
 		snapshot.drums[index].active = drum_level_[index] > 0.30f;
 	};
+	auto boost_drum_level = [&](std::size_t index, float level) {
+		drum_level_[index] = std::max(drum_level_[index], std::clamp(level, 0.0f, 1.0f));
+		snapshot.drums[index].level = drum_level_[index];
+		snapshot.drums[index].active = drum_level_[index] > 0.30f;
+	};
 
 	const bool low_dominant_kick_bleed =
 		drum_detection_enabled && !one_shot_drum_source &&
@@ -9563,6 +9568,47 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 		snare_crack >= snare_body * 0.035f;
 	if (snare_cymbal_tom_bleed)
 		cap_drum_level(Tom, 0.28f);
+
+	// Measured one-shot rows show some tom bodies being stolen by kick/snare scoring.
+	const float hihat_rim_segment_ratio =
+		drum_segment_bands[HiHat] / (drum_segment_bands[Rim] + 1.0e-6f);
+	const float tom_kick_level_ratio =
+		drum_level_[Tom] / (drum_level_[Kick] + 1.0e-6f);
+	const float tom_snare_level_ratio =
+		drum_level_[Tom] / (drum_level_[Snare] + 1.0e-6f);
+	const bool one_shot_low_transient_tom_kick_steal =
+		hihat_rim_segment_ratio <= 0.091f &&
+		drum_transient_ratio <= 1.28f;
+	const bool one_shot_active_tom_kick_steal =
+		drum_level_[Tom] > 0.30f &&
+		tom_kick_level_ratio <= 0.535f &&
+		tom_snare_level_ratio >= 0.989f;
+	const bool one_shot_tom_kick_steal =
+		drum_detection_enabled && one_shot_drum_source &&
+		drum_level_[Kick] > 0.30f &&
+		drum_shape_supported[Tom] &&
+		(one_shot_low_transient_tom_kick_steal || one_shot_active_tom_kick_steal) &&
+		tom_body >= kick_body * 1.02f &&
+		tom_body >= snare_body * 0.98f &&
+		snare_crack <= snare_body * 0.80f;
+	if (one_shot_tom_kick_steal) {
+		boost_drum_level(Tom, std::max(0.90f, drum_level_[Kick] + 0.02f));
+		cap_drum_level(Kick, std::max(0.31f, drum_level_[Tom] - 0.02f));
+	}
+	const float tom_snare_band_ratio =
+		drum_segment_bands[Tom] / (drum_segment_bands[Snare] + 1.0e-6f);
+	const bool one_shot_tom_snare_steal =
+		drum_detection_enabled && one_shot_drum_source &&
+		drum_level_[Snare] > 0.30f &&
+		drum_shape_supported[Tom] &&
+		snapshot.high_energy <= 0.10f &&
+		tom_snare_band_ratio <= 0.919f &&
+		tom_body >= snare_body * 1.25f &&
+		upper_tom_body >= snare_crack * 6.0f;
+	if (one_shot_tom_snare_steal) {
+		boost_drum_level(Tom, std::max(0.90f, drum_level_[Snare] + 0.02f));
+		cap_drum_level(Snare, std::max(0.31f, drum_level_[Tom] - 0.02f));
+	}
 
 	const bool onset_tempo_event =
 		drum_detection_enabled && rms > kSilenceRms && drum_transient &&
