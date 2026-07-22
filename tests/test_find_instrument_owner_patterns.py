@@ -264,6 +264,8 @@ def main() -> int:
     ), result.stdout + result.stderr
     assert "AND partial2<=0.14: pos=2/2 rows=2 neg=0/3 rows=0" in result.stdout, result.stdout + result.stderr
     assert "highest-coverage candidate rules" in result.stdout, result.stdout + result.stderr
+    assert "detected_expected_row" not in result.stdout, result.stdout + result.stderr
+    assert "expected_level" not in result.stdout, result.stdout + result.stderr
     assert "explicit rule:" in example.stdout, example.stdout + example.stderr
     assert "debug_owner=piano: pos=2/2 rows=2 neg=2/3 rows=2" in example.stdout, (
         example.stdout + example.stderr

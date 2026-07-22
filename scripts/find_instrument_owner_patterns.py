@@ -16,15 +16,6 @@ from collections.abc import Callable
 NUMERIC_FIELDS = [
     "midi",
     "window_ms",
-    "detected_expected_row",
-    "detected_anywhere",
-    "expected_level",
-    "bass_level",
-    "piano_level",
-    "guitar_level",
-    "vocal_level",
-    "other_level",
-    "amb_level",
     "rms",
     "low",
     "mid",
@@ -63,12 +54,27 @@ NUMERIC_FIELDS = [
     "partial5",
 ]
 
+DISPLAY_NUMERIC_FIELDS = [
+    "detected_expected_row",
+    "detected_anywhere",
+    "expected_level",
+    "bass_level",
+    "piano_level",
+    "guitar_level",
+    "vocal_level",
+    "other_level",
+    "amb_level",
+]
+
 CATEGORY_FIELDS = [
     "program_name",
     "note",
     "debug_note",
     "debug_owner",
     "raw_local_best_note",
+]
+
+DISPLAY_CATEGORY_FIELDS = [
     "bass_label",
     "piano_label",
     "guitar_label",
@@ -325,12 +331,14 @@ def condition_pattern(spec: str) -> Pattern:
     )
 
 
-def build_patterns(positive_rows: list[dict[str, str]]) -> list[Pattern]:
+def build_patterns(positive_rows: list[dict[str, str]], include_display_fields: bool) -> list[Pattern]:
     patterns: list[Pattern] = []
-    for field in CATEGORY_FIELDS:
+    category_fields = CATEGORY_FIELDS + (DISPLAY_CATEGORY_FIELDS if include_display_fields else [])
+    numeric_fields = NUMERIC_FIELDS + (DISPLAY_NUMERIC_FIELDS if include_display_fields else [])
+    for field in category_fields:
         for value in sorted({row.get(field, "") for row in positive_rows if row.get(field, "")}):
             patterns.append(category_pattern(field, value))
-    for field in NUMERIC_FIELDS:
+    for field in numeric_fields:
         values = [value for row in positive_rows if (value := as_float(row, field)) is not None]
         for threshold in thresholds(values):
             patterns.append(numeric_pattern(field, "<=", threshold))
@@ -588,6 +596,7 @@ def print_bucket_patterns(
     show_examples: int,
     max_conditions: int,
     beam_width: int,
+    include_display_fields: bool,
 ) -> None:
     positive_rows = rows_for_bucket(rows, bucket)
     negatives = hit_rows(rows)
@@ -622,7 +631,7 @@ def print_bucket_patterns(
         print("  explicit rule:")
         print_results([result] if result is not None else [], positive_samples, negative_samples, positive_rows, negatives, show_examples)
 
-    patterns = build_patterns(positive_rows)
+    patterns = build_patterns(positive_rows, include_display_fields)
     matches = [
         PatternMatch(
             pattern.label,
@@ -699,6 +708,11 @@ def main() -> int:
     parser.add_argument("--show-examples", type=int, default=0)
     parser.add_argument("--max-conditions", type=int, default=2)
     parser.add_argument("--beam-width", type=int, default=160)
+    parser.add_argument(
+        "--include-display-fields",
+        action="store_true",
+        help="include display/result fields such as expected_level and row labels in automatic rules",
+    )
     args = parser.parse_args()
 
     rows = load_rows(pathlib.Path(args.path))
@@ -715,6 +729,7 @@ def main() -> int:
             max(0, args.show_examples),
             max(1, args.max_conditions),
             max(1, args.beam_width),
+            args.include_display_fields,
         )
     return 0
 

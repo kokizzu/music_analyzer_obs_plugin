@@ -900,9 +900,14 @@ void check_instrument_samples(Runner &runner, const std::string &root, std::ostr
 					const mao::AnalysisSnapshot full_mix_snapshot =
 						analyze_buffer(buffer, sample_rate, mao::AnalysisInputMode::FullMix,
 							       family.c_str(), window_seconds);
-					append_note_attribute_row(*attribute_out, family, row, snapshot,
-								  window_seconds, label_ok || grid_ok,
-								  snapshot_has_pitch_class(snapshot, row.midi), raw,
+					const bool full_mix_grid_ok =
+						grid_has_pitch_class(family_grid(full_mix_snapshot, family),
+								     row.midi);
+					const bool full_mix_anywhere =
+						snapshot_has_pitch_class(full_mix_snapshot, row.midi);
+					append_note_attribute_row(*attribute_out, family, row, full_mix_snapshot,
+								  window_seconds, full_mix_grid_ok,
+								  full_mix_anywhere, raw,
 								  debug_candidate_for_pitch(full_mix_snapshot, row.midi));
 				}
 				runner.expect(label_ok || grid_ok,
