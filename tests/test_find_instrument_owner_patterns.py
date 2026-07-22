@@ -277,6 +277,30 @@ def main() -> int:
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
         )
+        runtime_fields = subprocess.run(
+            [
+                sys.executable,
+                str(SCRIPT),
+                str(path),
+                "--bucket",
+                "owner_miss:guitar->piano",
+                "--field-preset",
+                "full-mix-debug",
+                "--limit",
+                "10",
+                "--max-negative-samples",
+                "0",
+                "--max-conditions",
+                "3",
+                "--beam-width",
+                "80",
+            ],
+            cwd=ROOT,
+            check=True,
+            text=True,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+        )
 
     assert (
         "owner_miss:guitar->piano positives=2 samples/2 rows negatives(owner-hit)=3 samples/3 rows"
@@ -302,6 +326,9 @@ def main() -> int:
         "owner_miss:guitar->piano positives=2 samples/2 rows negatives(not-family)=3 samples/3 rows"
         in cross_family.stdout
     ), cross_family.stdout + cross_family.stderr
+    assert "partial2<=0.14" in runtime_fields.stdout, runtime_fields.stdout + runtime_fields.stderr
+    assert "raw_expected" not in runtime_fields.stdout, runtime_fields.stdout + runtime_fields.stderr
+    assert "program_name" not in runtime_fields.stdout, runtime_fields.stdout + runtime_fields.stderr
     print("test_find_instrument_owner_patterns: ok")
     return 0
 

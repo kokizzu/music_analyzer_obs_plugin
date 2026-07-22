@@ -54,6 +54,28 @@ NUMERIC_FIELDS = [
     "partial5",
 ]
 
+FULL_MIX_DEBUG_NUMERIC_FIELDS = [
+    "debug_midi",
+    "debug_conf",
+    "keyboard_score",
+    "guitar_score",
+    "vocal_score",
+    "other_score",
+    "spectral_level",
+    "pitch_confidence",
+    "periodicity",
+    "harmonicity",
+    "fit_error",
+    "centroid",
+    "slope",
+    "noise",
+    "partial1",
+    "partial2",
+    "partial3",
+    "partial4",
+    "partial5",
+]
+
 DISPLAY_NUMERIC_FIELDS = [
     "detected_expected_row",
     "detected_anywhere",
@@ -72,6 +94,11 @@ CATEGORY_FIELDS = [
     "debug_note",
     "debug_owner",
     "raw_local_best_note",
+]
+
+FULL_MIX_DEBUG_CATEGORY_FIELDS = [
+    "debug_note",
+    "debug_owner",
 ]
 
 DISPLAY_CATEGORY_FIELDS = [
@@ -343,17 +370,24 @@ def condition_pattern(spec: str) -> Pattern:
 def build_patterns(
     positive_rows: list[dict[str, str]],
     include_display_fields: bool,
+    field_preset: str,
     excluded_fields: set[str],
 ) -> list[Pattern]:
     patterns: list[Pattern] = []
+    if field_preset == "full-mix-debug":
+        category_source = FULL_MIX_DEBUG_CATEGORY_FIELDS
+        numeric_source = FULL_MIX_DEBUG_NUMERIC_FIELDS
+    else:
+        category_source = CATEGORY_FIELDS
+        numeric_source = NUMERIC_FIELDS
     category_fields = [
         field
-        for field in CATEGORY_FIELDS + (DISPLAY_CATEGORY_FIELDS if include_display_fields else [])
+        for field in category_source + (DISPLAY_CATEGORY_FIELDS if include_display_fields else [])
         if field not in excluded_fields
     ]
     numeric_fields = [
         field
-        for field in NUMERIC_FIELDS + (DISPLAY_NUMERIC_FIELDS if include_display_fields else [])
+        for field in numeric_source + (DISPLAY_NUMERIC_FIELDS if include_display_fields else [])
         if field not in excluded_fields
     ]
     for field in category_fields:
@@ -620,6 +654,7 @@ def print_bucket_patterns(
     max_conditions: int,
     beam_width: int,
     include_display_fields: bool,
+    field_preset: str,
     excluded_fields: set[str],
 ) -> None:
     positive_rows = rows_for_bucket(rows, bucket)
@@ -661,7 +696,7 @@ def print_bucket_patterns(
         print("  explicit rule:")
         print_results([result] if result is not None else [], positive_samples, negative_samples, positive_rows, negatives, show_examples)
 
-    patterns = build_patterns(positive_rows, include_display_fields, excluded_fields)
+    patterns = build_patterns(positive_rows, include_display_fields, field_preset, excluded_fields)
     matches = [
         PatternMatch(
             pattern.label,
@@ -756,6 +791,12 @@ def main() -> int:
         help="include display/result fields such as expected_level and row labels in automatic rules",
     )
     parser.add_argument(
+        "--field-preset",
+        choices=["all", "full-mix-debug"],
+        default="all",
+        help="automatic pattern field set; full-mix-debug uses only candidate fields available in live display logic",
+    )
+    parser.add_argument(
         "--exclude-field",
         action="append",
         default=[],
@@ -781,6 +822,7 @@ def main() -> int:
             max(1, args.max_conditions),
             max(1, args.beam_width),
             args.include_display_fields,
+            args.field_preset,
             set(args.exclude_field),
         )
     return 0
