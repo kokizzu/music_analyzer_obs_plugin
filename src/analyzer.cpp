@@ -1747,12 +1747,29 @@ bool shared_vocal_pitch_display_supported(const FullMixDebugCandidate &debug)
 		third <= 0.090f &&
 		fourth <= 0.030f &&
 		fifth <= 0.018f;
+	const bool guitar_owned_measured_synth_voice =
+		debug.owner == InstrumentKind::Guitar &&
+		debug.midi >= 55 && debug.midi <= 76 &&
+		debug.spectral_level >= 0.90f &&
+		debug.pitch_confidence >= 0.89f &&
+		debug.periodicity >= 0.83f &&
+		debug.harmonic_fit_error <= 0.10f &&
+		debug.local_noise_level >= 0.020f &&
+		debug.local_noise_level <= 0.036f &&
+		debug.keyboard_score >= 0.10f &&
+		debug.guitar_score >= 0.78f &&
+		debug.guitar_score <= 0.90f &&
+		second >= 0.36f &&
+		second <= 0.56f &&
+		third <= 0.060f &&
+		fourth <= 0.040f &&
+		fifth <= 0.020f;
 	const bool ambiguous_choir_alias =
 		debug.owner == InstrumentKind::Ambiguous &&
 		debug.spectral_level >= 0.90f &&
 		debug.pitch_confidence <= 0.939f &&
 		debug.local_noise_level >= 0.004f &&
-		debug.vocal_score >= 0.389f &&
+		debug.vocal_score >= 0.388f &&
 		debug.vocal_score <= 0.398f;
 	const bool ambiguous_rounded_ooh =
 		debug.owner == InstrumentKind::Ambiguous &&
@@ -1763,9 +1780,26 @@ bool shared_vocal_pitch_display_supported(const FullMixDebugCandidate &debug)
 		third >= 0.24f && third <= 0.29f &&
 		fourth >= 0.090f && fourth <= 0.13f &&
 		fifth >= 0.040f && fifth <= 0.070f;
+	const bool keyboard_owned_low_confidence_ooh_octave =
+		debug.owner == InstrumentKind::Keyboard &&
+		debug.spectral_level >= 0.65f &&
+		debug.pitch_confidence >= 0.62f &&
+		debug.periodicity >= 0.90f &&
+		debug.harmonic_fit_error <= 0.095f &&
+		debug.harmonicity <= 0.88f &&
+		debug.guitar_score >= 0.21f &&
+		second >= 0.20f &&
+		second <= 0.25f &&
+		third >= 0.28f &&
+		third <= 0.34f &&
+		fourth >= 0.11f &&
+		fourth <= 0.15f &&
+		fifth >= 0.16f &&
+		fifth <= 0.22f;
 	if (keyboard_owned_pure_choir || guitar_owned_synthetic_voice || guitar_owned_voice_lead ||
 	    guitar_owned_synth_voice_body || ambiguous_choir_alias || ambiguous_rounded_ooh ||
 	    guitar_owned_voice_lead_edge || guitar_owned_synth_voice_edge ||
+	    guitar_owned_measured_synth_voice || keyboard_owned_low_confidence_ooh_octave ||
 	    high_keyboard_vocal_octave_alias)
 		return true;
 
@@ -2168,11 +2202,25 @@ bool keyboard_owned_synth_other_display_supported(const FullMixDebugCandidate &d
 		third <= 0.060f &&
 		fourth <= 0.003f &&
 		fifth <= 0.004f;
+	const bool measured_keyboard_synth_lead =
+		debug.midi >= 36 &&
+		debug.midi <= 84 &&
+		debug.pitch_confidence >= 0.76f &&
+		debug.periodicity >= 0.65f &&
+		debug.harmonic_fit_error <= 0.13f &&
+		debug.local_noise_level >= 0.007f &&
+		debug.local_noise_level <= 0.40f &&
+		debug.spectral_centroid <= 0.28f &&
+		second <= 0.27f &&
+		third <= 0.33f &&
+		fourth <= 0.085f &&
+		fifth <= 0.14f;
 	return square_lead || sparse_square_lead || low_period_square_lead ||
 	       high_warm_pad || sparse_chiff_pad ||
 	       choir_pad || soft_halo_pad || bowed_pad_tail ||
 	       mid_bowed_pad_tail || calliope_pad_body ||
-	       low_thin_square_lead || bright_saw_lead || breathy_voice_lead;
+	       low_thin_square_lead || bright_saw_lead || breathy_voice_lead ||
+	       measured_keyboard_synth_lead;
 }
 
 bool keyboard_owned_string_other_display_supported(const FullMixDebugCandidate &debug)
@@ -3231,11 +3279,26 @@ bool full_mix_display_mirror_supported(FullMixDisplayRow row, const FullMixDebug
 			debug.harmonic_ratios[2] <= 0.010f &&
 			debug.harmonic_ratios[3] <= 0.010f &&
 			debug.harmonic_ratios[4] <= 0.010f;
+		const bool ambiguous_octave_string_other =
+			debug.owner == InstrumentKind::Ambiguous &&
+			debug.midi >= 72 &&
+			debug.spectral_level >= 0.90f &&
+			debug.pitch_confidence >= 0.86f &&
+			debug.periodicity >= 0.70f &&
+			debug.harmonic_fit_error <= 0.060f &&
+			debug.local_noise_level >= 0.015f &&
+			debug.harmonic_ratios[1] >= 0.18f &&
+			debug.harmonic_ratios[1] <= 0.24f &&
+			debug.harmonic_ratios[2] <= 0.025f &&
+			debug.harmonic_ratios[3] <= 0.055f &&
+			debug.harmonic_ratios[4] <= 0.025f;
 		const bool measured_string_other =
+			keyboard_owned_string_other_display_supported(debug) ||
 			keyboard_owned_bowed_string_other ||
 			keyboard_owned_contrabass_other ||
 			ambiguous_viola_other ||
-			ambiguous_high_violin_other;
+			ambiguous_high_violin_other ||
+			ambiguous_octave_string_other;
 		const bool guitar_owned_synth_lead_other =
 			debug.owner == InstrumentKind::Guitar &&
 			debug.midi >= 48 &&
@@ -3300,12 +3363,45 @@ bool full_mix_display_mirror_supported(FullMixDisplayRow row, const FullMixDebug
 			debug.harmonic_ratios[2] <= 0.24f &&
 			debug.harmonic_ratios[3] <= 0.10f &&
 			debug.harmonic_ratios[4] <= 0.13f;
+		const bool guitar_owned_noisy_warm_pad_other =
+			debug.owner == InstrumentKind::Guitar &&
+			debug.midi >= 36 &&
+			debug.midi <= 72 &&
+			debug.spectral_level >= 0.90f &&
+			debug.pitch_confidence >= 0.80f &&
+			debug.periodicity >= 0.76f &&
+			debug.harmonic_fit_error <= 0.060f &&
+			debug.local_noise_level >= 0.24f &&
+			debug.local_noise_level <= 0.36f &&
+			debug.harmonic_ratios[1] >= 0.36f &&
+			debug.harmonic_ratios[1] <= 0.44f &&
+			debug.harmonic_ratios[2] >= 0.20f &&
+			debug.harmonic_ratios[2] <= 0.25f &&
+			debug.harmonic_ratios[3] <= 0.060f &&
+			debug.harmonic_ratios[4] <= 0.050f;
+		const bool vocal_owned_synth_lead_other =
+			debug.owner == InstrumentKind::Vocal &&
+			debug.midi >= 55 &&
+			debug.midi <= 84 &&
+			debug.spectral_level >= 0.90f &&
+			debug.pitch_confidence >= 0.87f &&
+			debug.periodicity >= 0.72f &&
+			debug.harmonic_fit_error <= 0.045f &&
+			debug.keyboard_score >= 0.10f &&
+			debug.vocal_score >= 0.59f &&
+			debug.other_score <= 0.001f &&
+			debug.harmonic_ratios[1] >= 0.055f &&
+			debug.harmonic_ratios[1] <= 0.24f &&
+			debug.harmonic_ratios[2] <= 0.14f &&
+			debug.harmonic_ratios[3] <= 0.090f &&
+			debug.harmonic_ratios[4] <= 0.020f;
 		const bool measured_guitar_synth_other =
 			guitar_owned_synth_lead_other ||
 			guitar_owned_choir_pad_other ||
 			guitar_owned_bowed_pad_other ||
 			guitar_owned_chiff_other ||
-			guitar_owned_voice_or_warm_pad_other;
+			guitar_owned_voice_or_warm_pad_other ||
+			guitar_owned_noisy_warm_pad_other;
 		const bool high_wind_like_guitar_other =
 			sustained_other &&
 			debug.owner == InstrumentKind::Guitar &&
@@ -3339,7 +3435,8 @@ bool full_mix_display_mirror_supported(FullMixDisplayRow row, const FullMixDebug
 		       square_lead_display_other ||
 		       measured_keyboard_synth_other ||
 		       measured_string_other ||
-		       measured_guitar_synth_other;
+		       measured_guitar_synth_other ||
+		       vocal_owned_synth_lead_other;
 	}
 	return false;
 }
