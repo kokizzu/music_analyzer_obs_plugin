@@ -80,12 +80,89 @@ def median(values: list[float]) -> str:
     return f"{statistics.median(values):.3f}".rstrip("0").rstrip(".")
 
 
+def short_path(value: str, max_parts: int = 3) -> str:
+    if not value:
+        return "--"
+    parts = pathlib.PurePath(value).parts
+    if len(parts) <= max_parts:
+        return value
+    return "/".join(parts[-max_parts:])
+
+
+def num(row: dict[str, str], field: str) -> str:
+    value = as_float(row, field)
+    if value is None:
+        return "--"
+    return f"{value:.3f}".rstrip("0").rstrip(".")
+
+
+def cell(row: dict[str, str], field: str, default: str = "--") -> str:
+    value = row.get(field, "")
+    return value if value else default
+
+
+def level_cells(row: dict[str, str], fields: tuple[str, ...]) -> str:
+    return ",".join(f"{field.removesuffix('_level')}:{num(row, field)}" for field in fields)
+
+
+def score_cells(row: dict[str, str]) -> str:
+    return ",".join(
+        f"{label}:{num(row, field)}"
+        for label, field in (
+            ("key", "keyboard_score"),
+            ("gtr", "guitar_score"),
+            ("voc", "vocal_score"),
+            ("oth", "other_score"),
+        )
+    )
+
+
+def trigger_cells(row: dict[str, str]) -> str:
+    parts = []
+    for drum in DRUMS:
+        parts.append(f"{drum}:{num(row, drum + '_trigger')}/{num(row, drum + '_threshold')}")
+    return ",".join(parts)
+
+
+def representative_rows(
+    rows: list[dict[str, str]],
+    group_fields: tuple[str, ...],
+    limit: int,
+    *,
+    prefer_non_hit: bool = True,
+) -> list[dict[str, str]]:
+    if limit <= 0:
+        return []
+    ordered = sorted(
+        rows,
+        key=lambda row: (
+            (row.get("status", "") == "hit") if prefer_non_hit else False,
+            *(row.get(field, "") for field in group_fields),
+            cell(row, "sample_id"),
+            cell(row, "recording_id"),
+            cell(row, "sample"),
+            cell(row, "path"),
+        ),
+    )
+    selected: list[dict[str, str]] = []
+    seen: set[tuple[str, ...]] = set()
+    for row in ordered:
+        key = tuple(row.get(field, "") for field in group_fields)
+        if key in seen:
+            continue
+        seen.add(key)
+        selected.append(row)
+        if len(selected) >= limit:
+            break
+    return selected
+
+
 def section(title: str) -> None:
     print()
     print(title)
 
 
-def report_instruments(path: pathlib.Path, limit: int) -> None:
+def report_instruments(path: pathlib.Path, limit: int, row_examples: int) -> None:
     rows = [row for row in load_rows(path) if row.get("kind") == "note" and row.get("debug_note")]
     section("instrument sample attributes")
     if not rows:
@@ -103,6 +180,19 @@ def report_instruments(path: pathlib.Path, limit: int) -> None:
             f"  {family}: rows={len(family_rows)} owners={compact(owners, 5)} "
             f"raw_rank1={ratio(raw_rank1, len(family_rows))} tuned<=9c={ratio(tuned, len(family_rows))}"
         )
+    examples = representative_rows(rows, ("status", "family", "debug_owner"), row_examples)
+    if examples:
+        print("  representative detected rows")
+        for row in examples:
+            print(
+                f"    {cell(row, 'status')} {cell(row, 'family')} "
+                f"expected={cell(row, 'note')}/{cell(row, 'midi')} "
+                f"got={cell(row, 'debug_note')}/{cell(row, 'debug_owner')} "
+                f"levels={level_cells(row, ('bass_level', 'piano_level', 'guitar_level', 'vocal_level', 'other_level', 'amb_level'))} "
+                f"raw_ratio={num(row, 'raw_expected_ratio')} tuned_ratio={num(row, 'raw_tuned_ratio')} "
+                f"cent={num(row, 'raw_tuned_abs_cent_offset')} rank={num(row, 'raw_expected_rank')} "
+                f"scores={score_cells(row)} file={short_path(cell(row, 'path', ''))}"
+            )
 
 
 def real_note_bucket(row: dict[str, str]) -> str:
@@ -112,7 +202,7 @@ def real_note_bucket(row: dict[str, str]) -> str:
     )
 
 
-def report_real_notes(path: pathlib.Path, limit: int) -> None:
+def report_real_notes(path: pathlib.Path, limit: int, row_examples: int) -> None:
     rows = [row for row in load_rows(path) if row.get("sample_id")]
     section("real-note full-mix attributes")
     if not rows:
@@ -149,6 +239,20 @@ def report_real_notes(path: pathlib.Path, limit: int) -> None:
             f"strongest={compact(collections.Counter(row.get('buffer_strongest_row', 'none') or 'none' for row in bucket_group), 4)} "
             f"raw_best={compact(collections.Counter(row.get('raw_local_best_note', '') for row in bucket_group), 4)}"
         )
+    examples = representative_rows(rows, ("status", "family", "source", "first_row", "debug_owner"), row_examples)
+    if examples:
+        print("  representative detected rows")
+        for row in examples:
+            print(
+                f"    {cell(row, 'status')} {cell(row, 'family')}/{cell(row, 'source')} "
+                f"expected={cell(row, 'expected_note')}/{cell(row, 'expected_midi')} "
+                f"first={cell(row, 'first_row')} buffer={cell(row, 'buffer')} "
+                f"got={cell(row, 'debug_note')}/{cell(row, 'debug_owner')} "
+                f"levels={level_cells(row, ('bass_level', 'guitar_level', 'piano_level', 'vocal_level', 'other_level', 'amb_level'))} "
+                f"raw={num(row, 'raw_expected_ratio')}/{num(row, 'raw_tuned_ratio')} "
+                f"cent={num(row, 'raw_tuned_abs_cent_offset')} rank={num(row, 'raw_expected_rank')} "
+                f"scores={score_cells(row)} sample={cell(row, 'sample_id')}"
+            )
 
 
 def split_list_cell(value: str) -> list[str]:
@@ -157,7 +261,7 @@ def split_list_cell(value: str) -> list[str]:
     return [item for item in value.split(",") if item]
 
 
-def report_guitar_chords(path: pathlib.Path, limit: int) -> None:
+def report_guitar_chords(path: pathlib.Path, limit: int, row_examples: int) -> None:
     rows = [row for row in load_rows(path) if row.get("recording_id")]
     section("guitar chord attributes")
     if not rows:
@@ -188,9 +292,22 @@ def report_guitar_chords(path: pathlib.Path, limit: int) -> None:
             f"expected={compact(collections.Counter(row.get('expected_chords', '') for row in bucket_group), 5)} "
             f"pred={compact(collections.Counter(row.get('guitar_chord', '') for row in bucket_group), 5)}"
         )
+    examples = representative_rows(rows, ("status", "quality", "support"), row_examples)
+    if examples:
+        print("  representative detected rows")
+        for row in examples:
+            print(
+                f"    {cell(row, 'status')} quality={cell(row, 'quality')} "
+                f"expected={cell(row, 'expected_chords')} got={cell(row, 'guitar_chord')} "
+                f"pc={cell(row, 'guitar_pitch_classes')} analysis_pc={cell(row, 'guitar_analysis_pitch_classes')} "
+                f"smooth_pc={cell(row, 'guitar_smoothed_pitch_classes')} "
+                f"missing=v:{cell(row, 'visible_missing_tones')} a:{cell(row, 'analysis_missing_tones')} s:{cell(row, 'smooth_missing_tones')} "
+                f"tones=root:{num(row, 'raw_root')} third:{num(row, 'raw_third')} fifth:{num(row, 'raw_fifth')} "
+                f"rms={num(row, 'rms')} rec={cell(row, 'recording_id')}"
+            )
 
 
-def report_drums(path: pathlib.Path, limit: int) -> None:
+def report_drums(path: pathlib.Path, limit: int, row_examples: int) -> None:
     rows = [row for row in load_rows(path) if row.get("sample")]
     section("drum primary miss attributes")
     if not rows:
@@ -213,6 +330,19 @@ def report_drums(path: pathlib.Path, limit: int) -> None:
             f"{median([value for row in route_rows if (value := as_float(row, 'energy_mid')) is not None])}/"
             f"{median([value for row in route_rows if (value := as_float(row, 'energy_high')) is not None])}"
         )
+    examples = representative_rows(rows, ("expected", "got"), row_examples, prefer_non_hit=False)
+    if examples:
+        print("  representative detected rows")
+        for row in examples:
+            print(
+                f"    {cell(row, 'expected')}->{cell(row, 'got')} "
+                f"energy={num(row, 'energy_low')}/{num(row, 'energy_mid')}/{num(row, 'energy_high')} "
+                f"body={num(row, 'kick_body')}/{num(row, 'snare_body')}/{num(row, 'tom_body')} "
+                f"crack={num(row, 'snare_crack')} upper_tom={num(row, 'upper_tom_body')} "
+                f"levels={level_cells(row, tuple(f'{drum}_level' for drum in DRUMS))} "
+                f"triggers={trigger_cells(row)} "
+                f"sample={short_path(cell(row, 'sample', ''))}"
+            )
 
 
 def main() -> int:
@@ -222,13 +352,20 @@ def main() -> int:
     parser.add_argument("--guitar-chord", type=pathlib.Path, default=pathlib.Path("build/guitar_chord_detected_attribute_rows.tsv"))
     parser.add_argument("--drum", type=pathlib.Path, default=pathlib.Path("build/drum_primary_miss_attribute_rows.tsv"))
     parser.add_argument("--limit", type=int, default=8)
+    parser.add_argument(
+        "--row-examples",
+        type=int,
+        default=4,
+        help="print representative row-level detector attributes per section",
+    )
     args = parser.parse_args()
 
     limit = max(1, args.limit)
-    report_instruments(args.instrument, limit)
-    report_real_notes(args.real_note, limit)
-    report_guitar_chords(args.guitar_chord, limit)
-    report_drums(args.drum, limit)
+    row_examples = max(0, args.row_examples)
+    report_instruments(args.instrument, limit, row_examples)
+    report_real_notes(args.real_note, limit, row_examples)
+    report_guitar_chords(args.guitar_chord, limit, row_examples)
+    report_drums(args.drum, limit, row_examples)
     return 0
 
 

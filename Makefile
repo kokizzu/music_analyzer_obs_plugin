@@ -27,6 +27,7 @@ STANDALONE_VERSION := $(BUILD_TIME).$(BUILD_COMMIT)
 RUN_WITH_DURATION := $(SHELL) scripts/run_with_duration.sh
 REAL_NOTE_ATTRIBUTE_SUMMARY_ARGS ?=
 MEASURE_ANALYZER_REPORT ?= $(BUILD_DIR)/analyzer_measurement_report.txt
+PATTERN_REPORT_ARGS ?= --row-examples 6
 MEASURE_INSTRUMENT_PATTERN_ARGS ?= --limit 4 --min-positive-samples 20 --max-negative-samples 0 --max-conditions 3 --beam-width 160 --show-examples 1
 MEASURE_REAL_NOTE_PATTERN_ARGS ?= --limit 4 --min-positive-samples 3 --max-negative-samples 0 --max-conditions 3 --beam-width 160 --show-examples 1
 MEASURE_GUITAR_PATTERN_ARGS ?= --top-buckets 4 --limit 4 --min-positive-recordings 3 --max-negative-recordings 0 --max-conditions 3 --beam-width 180 --show-examples 1

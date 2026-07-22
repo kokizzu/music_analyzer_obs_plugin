@@ -81,6 +81,10 @@ snare/1.wav	snare	tom	0.2	0.7	0.1	0.1	0.8	0.9
     assert "raw tone medians root=1 third=0.02 fifth=1" in output
     assert "drum primary miss attributes" in output
     assert "snare->tom" in output
+    assert "representative detected rows" in output
+    assert "expected=C4/60 first=bass" in output
+    assert "expected=Am got=Asus2" in output
+    assert "snare->tom energy=0.2/0.7/0.1" in output
     print("test_report_analyzer_attribute_patterns: ok")
     return 0
 

@@ -29,6 +29,7 @@ def main() -> int:
         "$(MEASURE_REAL_NOTE_PATTERN_ARGS)",
         "$(MEASURE_GUITAR_PATTERN_ARGS)",
         "$(MEASURE_DRUM_PATTERN_ARGS)",
+        "$(PATTERN_REPORT_ARGS)",
     ]
     for text in expected:
         assert text in recipe, f"measure-analyzer-patterns does not include {text}"
@@ -42,6 +43,7 @@ def main() -> int:
 
     for variable in [
         "MEASURE_ANALYZER_REPORT",
+        "PATTERN_REPORT_ARGS",
         "MEASURE_INSTRUMENT_PATTERN_ARGS",
         "MEASURE_REAL_NOTE_PATTERN_ARGS",
         "MEASURE_GUITAR_PATTERN_ARGS",
