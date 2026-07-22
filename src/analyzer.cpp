@@ -7267,10 +7267,14 @@ bool append_guitar_thirdless_dyad_quality_aliases(ChordResult &chord,
 	if (strongest_probe <= 1.0e-6f)
 		return false;
 	const float strongest_melodic_probe = strongest_melodic_probe_level(powers, min_midi, max_midi);
+	const bool scan_supported_roots =
+		chord_label_has_guitar_extension_or_alteration(chord.label) ||
+		std::strstr(chord.label, "pow") != nullptr || std::strstr(chord.label, "sus") != nullptr;
 
 	bool appended = false;
 	for (int root = 0; root < 12; ++root) {
-		if (!chord_label_has_root_component(chord.label, root))
+		const bool labeled_root = chord_label_has_root_component(chord.label, root);
+		if (!labeled_root && !scan_supported_roots)
 			continue;
 		if (!supported_guitar_root_fifth_dyad(display_grid, analysis_grid, root))
 			continue;
@@ -7298,6 +7302,14 @@ bool append_guitar_thirdless_dyad_quality_aliases(ChordResult &chord,
 		const float grid_third_floor = std::max(0.12f, grid_anchor * 0.32f);
 		const bool grid_minor = std::max(display_minor, analysis_minor) >= grid_third_floor;
 		const bool grid_major = std::max(display_major, analysis_major) >= grid_third_floor;
+		if (!labeled_root) {
+			const bool compact_display = note_grid_active_pitch_class_count(display_grid) <= 5;
+			const bool root_visible = note_grid_pitch_active(display_grid, root);
+			const bool fifth_visible = note_grid_pitch_active(display_grid, root + 7);
+			const bool weak_grid_third = !grid_minor && !grid_major;
+			if (!compact_display || !root_visible || !fifth_visible || !weak_grid_third)
+				continue;
+		}
 		const float third_floor = std::max({strongest_probe * 0.003f, anchor * 0.010f, 0.0004f});
 		const bool has_minor = minor_third >= third_floor;
 		const bool has_major = major_third >= third_floor;
@@ -7328,6 +7340,8 @@ bool append_guitar_thirdless_dyad_quality_aliases(ChordResult &chord,
 		const bool plain_root_chord =
 			std::strstr(chord.label, "pow") == nullptr &&
 			!chord_label_has_guitar_extension_or_alteration(chord.label);
+		const bool ambiguous_thirdless_quality_allowed =
+			plain_root_chord || std::strstr(chord.label, "pow") != nullptr || !labeled_root;
 		const float weak_probe_third_floor =
 			std::max({strongest_probe * 0.020f, anchor * 0.070f, 0.0010f});
 		const bool weak_probe_only_third =
@@ -7335,10 +7349,10 @@ bool append_guitar_thirdless_dyad_quality_aliases(ChordResult &chord,
 		if (choose_minor != choose_major) {
 			const bool minor = choose_minor;
 			append_chord_alias(chord, root, minor ? "m" : "");
-			if (grid_thirdless && plain_root_chord && weak_probe_only_third)
+			if (grid_thirdless && ambiguous_thirdless_quality_allowed && weak_probe_only_third)
 				append_chord_alias(chord, root, minor ? "" : "m");
 			appended = true;
-		} else if (grid_thirdless && plain_root_chord &&
+		} else if (grid_thirdless && ambiguous_thirdless_quality_allowed &&
 			   (!has_third_hint || weak_probe_only_third)) {
 			append_chord_alias(chord, root, "");
 			append_chord_alias(chord, root, "m");
