@@ -19,6 +19,7 @@ from inspect_guitarset_attribute_buckets import (
     derive_rows,
     load_rows,
     parse_bucket_spec,
+    top_bucket_keys,
 )
 
 
@@ -474,8 +475,14 @@ def main() -> int:
     parser.add_argument(
         "--bucket",
         action="append",
-        required=True,
+        default=[],
         help="bucket formatted as status:quality:support; repeatable",
+    )
+    parser.add_argument(
+        "--top-buckets",
+        type=int,
+        default=4,
+        help="when --bucket is omitted, mine this many largest chord-miss buckets; 0 disables auto buckets",
     )
     parser.add_argument("--limit", type=int, default=12)
     parser.add_argument("--min-positive-recordings", type=int, default=3)
@@ -496,10 +503,16 @@ def main() -> int:
     args = parser.parse_args()
 
     rows = derive_rows(load_rows(pathlib.Path(args.path)))
-    for spec in args.bucket:
+    buckets = [parse_bucket_spec(spec) for spec in args.bucket]
+    if not buckets and args.top_buckets > 0:
+        buckets = top_bucket_keys(rows, args.top_buckets, include_comparisons=False)
+    if not buckets:
+        print("find_guitarset_attribute_patterns: no chord buckets selected")
+        return 0
+    for bucket in buckets:
         print_patterns(
             rows,
-            parse_bucket_spec(spec),
+            bucket,
             max(1, args.limit),
             max(1, args.min_positive_recordings),
             max(0, args.max_negative_recordings),

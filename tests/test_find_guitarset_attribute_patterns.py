@@ -85,6 +85,24 @@ def main() -> int:
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
         )
+        auto_completed = subprocess.run(
+            [
+                sys.executable,
+                str(SCRIPT),
+                str(path),
+                "--top-buckets",
+                "1",
+                "--min-positive-recordings",
+                "2",
+                "--show-examples",
+                "1",
+            ],
+            cwd=ROOT,
+            check=True,
+            text=True,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+        )
         multi_condition_rows = [
             row(
                 status="chord_miss",
@@ -214,6 +232,8 @@ def main() -> int:
     assert "+2 rows=2 -0 rows=0" in output
     assert "support=visible2_analysis3_smooth3_rootvis1" in output
     assert "rec2@2.500s expected=G guitar=--" in output
+    assert "bucket chord_miss:maj:visible2_analysis3_smooth3_rootvis1 positives=2" in auto_completed.stdout
+    assert "rec2@2.500s expected=G guitar=--" in auto_completed.stdout
     assert "raw_fifth>=1 AND raw_root>=1 AND raw_third>=1" in multi_condition.stdout
     assert "miss1@1.000s expected=G guitar=--" in multi_condition.stdout
     print("test_find_guitarset_attribute_patterns: ok")
