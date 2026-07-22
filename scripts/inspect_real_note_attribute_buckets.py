@@ -139,18 +139,30 @@ def compact_counts(rows: list[dict[str, str]], field: str, limit: int = 8) -> st
     return " ".join(f"{key}={value}" for key, value in counts.most_common(limit))
 
 
-def print_bucket(rows: list[dict[str, str]], status: str, family: str, source: str, first_row: str) -> None:
+def print_bucket(
+    rows: list[dict[str, str]],
+    status: str,
+    family: str,
+    source: str,
+    first_row: str,
+    *,
+    example_limit: int,
+    summary_only: bool,
+) -> None:
     rows_for_bucket = bucket_rows(rows, status, family, source, first_row)
     samples = sorted({row["sample_id"] for row in rows_for_bucket})
+    examples = ", ".join(samples[: max(0, example_limit)])
     print()
     print(
         f"{status}:{family}/{source}->{first_row} rows={len(rows_for_bucket)} "
-        f"samples={len(samples)} examples={', '.join(samples[:12])}"
+        f"samples={len(samples)} examples={examples}"
     )
     for field in CATEGORY_FIELDS:
         counts = compact_counts(rows_for_bucket, field)
         if counts:
             print(f"  {field:16s} {counts}")
+    if summary_only:
+        return
     for field in FIELDS:
         values = sorted(value for row in rows_for_bucket if (value := as_float(row, field)) is not None)
         if not values:
@@ -233,7 +245,13 @@ def load_rows(path: pathlib.Path) -> list[dict[str, str]]:
         return list(csv.DictReader(handle, delimiter="\t"))
 
 
-def top_bucket_keys(rows: list[dict[str, str]], top_misses: int) -> list[tuple[str, str, str, str]]:
+def top_bucket_keys(
+    rows: list[dict[str, str]],
+    top_misses: int,
+    *,
+    include_comparisons: bool,
+    include_defaults: bool,
+) -> list[tuple[str, str, str, str]]:
     counts: collections.Counter[tuple[str, str, str, str]] = collections.Counter()
     for row in rows:
         key = (row.get("status", ""), row.get("family", ""), row.get("source", ""), row.get("first_row", ""))
@@ -247,19 +265,21 @@ def top_bucket_keys(rows: list[dict[str, str]], top_misses: int) -> list[tuple[s
         if status != "ownership_miss":
             continue
         keys.append(key)
-        expected_row = ROW_FOR_FAMILY.get(family)
-        comparisons = [
-            ("hit", family, source, first_row),
-            ("hit", family, source, expected_row or first_row),
-        ]
-        for comparison in comparisons:
-            if comparison in counts:
-                keys.append(comparison)
+        if include_comparisons:
+            expected_row = ROW_FOR_FAMILY.get(family)
+            comparisons = [
+                ("hit", family, source, first_row),
+                ("hit", family, source, expected_row or first_row),
+            ]
+            for comparison in comparisons:
+                if comparison in counts:
+                    keys.append(comparison)
         if len({key for key in keys if key[0] == "ownership_miss"}) >= top_misses:
             break
 
-    for bucket in DEFAULT_BUCKETS:
-        keys.append(bucket)
+    if include_defaults:
+        for bucket in DEFAULT_BUCKETS:
+            keys.append(bucket)
 
     deduped = []
     seen = set()
@@ -294,6 +314,22 @@ def main() -> int:
         default=[],
         help="print per-buffer detector attributes for this sample id; repeatable",
     )
+    parser.add_argument(
+        "--examples",
+        type=int,
+        default=12,
+        help="number of sample IDs to include in each bucket header",
+    )
+    parser.add_argument(
+        "--misses-only",
+        action="store_true",
+        help="print only the largest ownership-miss buckets, without comparison or fixed buckets",
+    )
+    parser.add_argument(
+        "--summary-only",
+        action="store_true",
+        help="print bucket counts and categorical summaries without numeric feature ranges",
+    )
     args = parser.parse_args()
 
     path = pathlib.Path(args.path)
@@ -303,10 +339,20 @@ def main() -> int:
     elif args.sample_id:
         buckets = []
     else:
-        buckets = top_bucket_keys(rows, max(0, args.top_misses))
+        buckets = top_bucket_keys(
+            rows,
+            max(0, args.top_misses),
+            include_comparisons=not args.misses_only,
+            include_defaults=not args.misses_only,
+        )
 
     for bucket in buckets:
-        print_bucket(rows, *bucket)
+        print_bucket(
+            rows,
+            *bucket,
+            example_limit=args.examples,
+            summary_only=args.summary_only,
+        )
     for sample_id in args.sample_id:
         print_sample(rows, sample_id)
     return 0

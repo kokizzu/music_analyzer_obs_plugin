@@ -204,7 +204,12 @@ def bucket_recording_count(rows: list[dict[str, str]], bucket: tuple[str, str, s
     return len({row.get("recording_id", "") for row in rows if bucket_matches(row, bucket)})
 
 
-def top_bucket_keys(rows: list[dict[str, str]], top_misses: int) -> list[tuple[str, str, str]]:
+def top_bucket_keys(
+    rows: list[dict[str, str]],
+    top_misses: int,
+    *,
+    include_comparisons: bool,
+) -> list[tuple[str, str, str]]:
     counts: collections.Counter[tuple[str, str, str]] = collections.Counter()
     for row in rows:
         if row.get("status") != "chord_miss":
@@ -214,6 +219,8 @@ def top_bucket_keys(rows: list[dict[str, str]], top_misses: int) -> list[tuple[s
     keys: list[tuple[str, str, str]] = []
     for key, _count in counts.most_common(max(0, top_misses)):
         keys.append(key)
+        if not include_comparisons:
+            continue
         quality = key[1]
         for comparison in (("chord_hit", quality, key[2]), ("chord_hit", quality, "all")):
             if bucket_recording_count(rows, comparison) > 0:
@@ -258,18 +265,27 @@ def compact_counts(rows: list[dict[str, str]], field: str, limit: int = 8) -> st
     return " ".join(f"{key}={value}" for key, value in counts.most_common(limit))
 
 
-def print_bucket(rows: list[dict[str, str]], bucket: tuple[str, str, str]) -> None:
+def print_bucket(
+    rows: list[dict[str, str]],
+    bucket: tuple[str, str, str],
+    *,
+    example_limit: int,
+    summary_only: bool,
+) -> None:
     rows_for_bucket = bucket_rows(rows, bucket)
     recordings = sorted({row.get("recording_id", "") for row in rows_for_bucket})
+    examples = ", ".join(recordings[: max(0, example_limit)])
     print()
     print(
         f"{bucket_label(bucket)} rows={len(rows_for_bucket)} recordings={len(recordings)} "
-        f"examples={', '.join(recordings[:12])}"
+        f"examples={examples}"
     )
     for field in CATEGORY_FIELDS:
         counts = compact_counts(rows_for_bucket, field)
         if counts:
             print(f"  {field:31s} {counts}")
+    if summary_only:
+        return
     for field in NUMERIC_FIELDS:
         values = sorted(value for row in rows_for_bucket if (value := as_float_opt(row, field)) is not None)
         if not values:
@@ -334,6 +350,17 @@ def main() -> int:
         default=[],
         help="print detailed derived attributes for this recording id; repeatable",
     )
+    parser.add_argument("--examples", type=int, default=12)
+    parser.add_argument(
+        "--misses-only",
+        action="store_true",
+        help="print only largest chord-miss buckets, without chord-hit comparisons",
+    )
+    parser.add_argument(
+        "--summary-only",
+        action="store_true",
+        help="print bucket counts and categorical summaries without numeric feature ranges",
+    )
     args = parser.parse_args()
 
     rows = derive_rows(load_rows(pathlib.Path(args.path)))
@@ -342,10 +369,15 @@ def main() -> int:
     elif args.recording_id:
         buckets = []
     else:
-        buckets = top_bucket_keys(rows, args.top_misses)
+        buckets = top_bucket_keys(rows, args.top_misses, include_comparisons=not args.misses_only)
 
     for bucket in buckets:
-        print_bucket(rows, bucket)
+        print_bucket(
+            rows,
+            bucket,
+            example_limit=args.examples,
+            summary_only=args.summary_only,
+        )
     for recording_id in args.recording_id:
         print_recording(rows, recording_id)
     return 0

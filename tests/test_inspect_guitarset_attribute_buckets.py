@@ -153,6 +153,22 @@ def main() -> int:
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
         )
+        compact = subprocess.run(
+            [
+                sys.executable,
+                str(SCRIPT),
+                str(path),
+                "--misses-only",
+                "--summary-only",
+                "--examples",
+                "1",
+            ],
+            cwd=ROOT,
+            check=True,
+            text=True,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+        )
 
     output = completed.stdout
     assert "chord_miss:maj:visible2_analysis3_smooth3_rootvis1 rows=1 recordings=1" in output
@@ -163,6 +179,9 @@ def main() -> int:
     assert "raw_third" in output
     assert "recording rec2: status=chord_miss expected=G" in output
     assert "levels raw(root/third/fifth)=1.000/0.380/0.600" in output
+    assert "chord_miss:maj:visible2_analysis3_smooth3_rootvis1 rows=1 recordings=1 examples=rec2" in compact.stdout
+    assert "chord_hit:maj:all" not in compact.stdout
+    assert "raw_third" not in compact.stdout
     print("test_inspect_guitarset_attribute_buckets: ok")
     return 0
 
