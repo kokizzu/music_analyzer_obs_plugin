@@ -4934,9 +4934,9 @@ ChordResult detect_supported_guitar_root_third_dyad(const NoteGrid &display_grid
 		const float analysis_third = note_grid_pitch_level(analysis_grid, third_pitch_class);
 		const float display_anchor = std::min(display_root, display_third);
 		const float analysis_anchor = std::min(analysis_root, analysis_third);
-		if (display_root < std::max(0.12f, strongest_display * 0.14f) ||
+		if (display_root < std::max(0.10f, strongest_display * 0.10f) ||
 		    display_third < std::max(0.10f, strongest_display * 0.10f) ||
-		    analysis_root < std::max(0.10f, strongest_analysis * 0.10f) ||
+		    analysis_root < std::max(0.06f, strongest_analysis * 0.06f) ||
 		    analysis_third < std::max(0.08f, strongest_analysis * 0.08f))
 			return;
 		if (!note_grid_has_guitar_root_third_voicing(display_grid, root_pitch_class, third_pitch_class) ||

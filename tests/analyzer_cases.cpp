@@ -1015,6 +1015,15 @@ void check_guitar_supported_extension_aliases(Runner &runner)
 		      std::string("guitar pure root-third minor dyad: expected D#m, got `") +
 			      pure_minor_dyad_snapshot.guitar_chord.label + "`");
 
+	mao_test::Buffer weak_root_minor_dyad = {};
+	add_harmonic_note(weak_root_minor_dyad, 57, 0.055f, guitar_profile);
+	add_harmonic_note(weak_root_minor_dyad, 60, 0.22f, guitar_profile);
+
+	const auto weak_root_minor_dyad_snapshot = analyze_buffer(weak_root_minor_dyad, "guitar");
+	runner.expect(has_chord_label(weak_root_minor_dyad_snapshot.guitar_chord.label, "Am"),
+		      std::string("guitar weak-root minor dyad without fifth: expected Am, got `") +
+			      weak_root_minor_dyad_snapshot.guitar_chord.label + "`");
+
 	mao_test::Buffer strong_ambiguous_thirds = {};
 	add_harmonic_note(strong_ambiguous_thirds, 52, 0.16f, guitar_profile);
 	add_harmonic_note(strong_ambiguous_thirds, 55, 0.24f, guitar_profile);
