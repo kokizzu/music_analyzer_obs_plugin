@@ -857,6 +857,21 @@ const SampleRow *find_row(const std::vector<SampleRow> &rows, const std::string 
 	return nullptr;
 }
 
+bool expects_full_mix_vocal_recovery(const std::string &suite_family, const SampleRow &row)
+{
+	if (suite_family != "vocals")
+		return false;
+	if (row.program_name == "choir_aahs" && (row.note == "B3" || row.note == "G3"))
+		return true;
+	if (row.program_name == "voice_oohs" && row.note == "G3")
+		return true;
+	if (row.program_name == "synth_voice" && row.note == "C4")
+		return true;
+	if (row.program_name == "voice_lead" && row.note == "C5")
+		return true;
+	return false;
+}
+
 void check_instrument_samples(Runner &runner, const std::string &root, std::ostream *attribute_out)
 {
 	static constexpr const char *kFamilies[] = {"piano", "guitar", "bass", "synth", "strings", "vocals"};
@@ -894,21 +909,31 @@ void check_instrument_samples(Runner &runner, const std::string &root, std::ostr
 								 expected.c_str()) ||
 					std::strcmp(family_state(snapshot, family).label, expected.c_str()) == 0;
 				const bool grid_ok = grid_has_pitch_class(family_grid(snapshot, family), row.midi);
+				const bool expect_full_mix_vocal = expects_full_mix_vocal_recovery(family, row);
+				mao::AnalysisSnapshot full_mix_snapshot = {};
+				bool full_mix_grid_ok = false;
+				bool full_mix_anywhere = false;
+				if (attribute_out || expect_full_mix_vocal) {
+					full_mix_snapshot =
+						analyze_buffer(buffer, sample_rate, mao::AnalysisInputMode::FullMix,
+							       family.c_str(), window_seconds);
+					full_mix_grid_ok =
+						grid_has_pitch_class(family_grid(full_mix_snapshot, family),
+								     row.midi);
+					full_mix_anywhere = snapshot_has_pitch_class(full_mix_snapshot, row.midi);
+				}
 				if (attribute_out) {
 					const RawNoteAttributes raw =
 						measure_raw_note_attributes(buffer, sample_rate, row.midi);
-					const mao::AnalysisSnapshot full_mix_snapshot =
-						analyze_buffer(buffer, sample_rate, mao::AnalysisInputMode::FullMix,
-							       family.c_str(), window_seconds);
-					const bool full_mix_grid_ok =
-						grid_has_pitch_class(family_grid(full_mix_snapshot, family),
-								     row.midi);
-					const bool full_mix_anywhere =
-						snapshot_has_pitch_class(full_mix_snapshot, row.midi);
 					append_note_attribute_row(*attribute_out, family, row, full_mix_snapshot,
 								  window_seconds, full_mix_grid_ok,
 								  full_mix_anywhere, raw,
 								  debug_candidate_for_pitch(full_mix_snapshot, row.midi));
+				}
+				if (expect_full_mix_vocal) {
+					runner.expect(grid_has_pitch_class(full_mix_snapshot.vocal_notes, row.midi),
+						      context + ": expected full-mix vocal row recovery, got label `" +
+							      full_mix_snapshot.vocal.label + "`");
 				}
 				runner.expect(label_ok || grid_ok,
 					      context + ": expected detected note, got label `" +

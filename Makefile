@@ -922,6 +922,10 @@ find-instrument-owner-patterns: scripts/find_instrument_owner_patterns.py
 	@if [ ! -f "$(BUILD_DIR)/instrument_sample_attributes.tsv" ]; then $(MAKE) analyze-instrument-sample-attributes; fi
 	$(PYTHON) scripts/find_instrument_owner_patterns.py "$(BUILD_DIR)/instrument_sample_attributes.tsv" $(if $(PATTERN_BUCKET),--bucket "$(PATTERN_BUCKET)") $(PATTERN_ARGS)
 
+filter-instrument-attribute-rows: scripts/filter_instrument_attribute_rows.py
+	@if [ ! -f "$(BUILD_DIR)/instrument_sample_attributes.tsv" ]; then $(MAKE) analyze-instrument-sample-attributes; fi
+	$(PYTHON) scripts/filter_instrument_attribute_rows.py "$(BUILD_DIR)/instrument_sample_attributes.tsv" $(FILTER_ATTRIBUTE_ARGS)
+
 measure-analyzer-attributes: analyze-instrument-sample-attributes analyze-real-note-attributes analyze-guitar-chord-mix-attributes analyze-drum-primary-misses analyze-mdb-drum-attributes
 	@printf '%s\n' ""
 	@printf '%s\n' "measurement report files:"

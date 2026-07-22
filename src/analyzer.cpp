@@ -1655,6 +1655,63 @@ bool shared_other_pitch_display_supported(const FullMixDebugCandidate &debug)
 	return sustained_or_bowed;
 }
 
+bool shared_vocal_pitch_display_supported(const FullMixDebugCandidate &debug)
+{
+	if (debug.midi < kFullMixVocalMinMidi || debug.midi > kVocalMaxMidi)
+		return false;
+	if (debug.owner == InstrumentKind::Vocal)
+		return debug.ownership_confidence >= 0.58f;
+	if (debug.owner != InstrumentKind::Keyboard && debug.owner != InstrumentKind::Other)
+		return false;
+	if (!strong_full_mix_pitch_for_display(debug, 0.70f, 0.70f, 0.64f, 0.34f, 0.72f))
+		return false;
+
+	const float second = debug.harmonic_ratios[1];
+	const float third = debug.harmonic_ratios[2];
+	const float fourth = debug.harmonic_ratios[3];
+	const float fifth = debug.harmonic_ratios[4];
+	const bool ultra_clean_choir_alias =
+		second <= 0.075f &&
+		third <= 0.006f &&
+		fourth <= 0.006f &&
+		debug.spectral_centroid <= 0.055f &&
+		debug.spectral_slope <= 0.022f;
+	const bool synthetic_voice_alias =
+		second >= 0.10f &&
+		debug.spectral_centroid >= 0.065f &&
+		debug.spectral_slope >= 0.030f &&
+		debug.spectral_slope <= 0.080f;
+	const bool upper_clear_vowel =
+		debug.owner == InstrumentKind::Keyboard &&
+		debug.midi >= 67 && debug.midi <= 84 &&
+		second >= 0.045f && second <= 0.19f &&
+		third <= 0.055f &&
+		fourth <= 0.055f &&
+		fifth <= 0.045f &&
+		debug.pitch_confidence >= 0.84f &&
+		debug.harmonic_fit_error <= 0.080f &&
+		(ultra_clean_choir_alias || synthetic_voice_alias);
+	const bool rounded_ooh_vowel =
+		debug.owner == InstrumentKind::Keyboard &&
+		debug.midi >= 53 && debug.midi <= 71 &&
+		second >= 0.24f && second <= 0.38f &&
+		third <= 0.065f &&
+		fourth >= 0.050f && fourth <= 0.105f &&
+		fifth <= 0.085f &&
+		debug.pitch_confidence >= 0.84f &&
+		debug.harmonic_fit_error <= 0.090f;
+	const bool bright_choir_vowel =
+		debug.owner == InstrumentKind::Other &&
+		debug.midi >= 53 && debug.midi <= 60 &&
+		second >= 0.45f && second <= 0.58f &&
+		third >= 0.88f && third <= 1.05f &&
+		fourth >= 0.10f && fourth <= 0.20f &&
+		debug.pitch_confidence >= 0.78f &&
+		debug.harmonic_fit_error <= 0.28f &&
+		debug.spectral_centroid >= 0.35f;
+	return upper_clear_vowel || rounded_ooh_vowel || bright_choir_vowel;
+}
+
 bool sustained_other_display_supported(const FullMixDebugCandidate &debug)
 {
 	if (debug.midi < 52 || debug.midi > 84)
@@ -2160,7 +2217,7 @@ bool full_mix_display_mirror_supported(FullMixDisplayRow row, const FullMixDebug
 		       very_high_clean_acoustic_body;
 	}
 	case FullMixDisplayRow::Vocal:
-		return debug.owner == InstrumentKind::Vocal && debug.ownership_confidence >= 0.58f;
+		return shared_vocal_pitch_display_supported(debug);
 	case FullMixDisplayRow::Other:
 		const bool sustained_other = sustained_other_display_supported(debug);
 		const bool low_weak_upper_string_other =
@@ -8184,9 +8241,11 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 
 	auto process_vocal = [&]() {
 		if (mixed_source) {
-			const int preferred_root = lowest_candidate_pitch_class(full_mix_ownership.vocal_candidates);
+			const NoteCandidateList vocal_display_candidates =
+				full_mix_display_candidates(full_mix_ownership, FullMixDisplayRow::Vocal);
+			const int preferred_root = lowest_candidate_pitch_class(vocal_display_candidates);
 			set_instrument_note_set_from_candidates(snapshot.vocal_notes, snapshot.vocal,
-								full_mix_ownership.vocal_candidates,
+								vocal_display_candidates,
 								preferred_root, vocal_energy, rms, 1);
 		} else {
 			const int preferred_root =
