@@ -41,8 +41,8 @@ constexpr uint8_t kApcOff = 0;
 constexpr uint8_t kApcDarkGray = 1;
 constexpr uint8_t kApcLightGray = 2;
 constexpr uint8_t kApcWhite = 3;
-constexpr uint8_t kApcNextSemitoneColor = 98;
-constexpr uint8_t kApcPreviousSemitoneColor = 101;
+constexpr uint8_t kApcNextSemitoneColor = 101;
+constexpr uint8_t kApcPreviousSemitoneColor = 98;
 constexpr std::array<uint8_t, 12> kApcRootRelativeColors = {
 	5, 9, 96, 109, 13, 21, 90, 37, 40, 49, 94, 57,
 };
