@@ -126,6 +126,26 @@ class SearchState:
     next_match_index: int
 
 
+class SampleCountCache:
+    def __init__(self, row_sample_bits: list[int], max_samples: int | None = None) -> None:
+        self.row_sample_bits = row_sample_bits
+        self.max_samples = max_samples
+        self.cache: dict[int, tuple[int, bool]] = {}
+
+    def count(self, row_mask: int) -> tuple[int, bool]:
+        cached = self.cache.get(row_mask)
+        if cached is None:
+            cached = sample_count_for_rows(row_mask, self.row_sample_bits, self.max_samples)
+            self.cache[row_mask] = cached
+        return cached
+
+    def bounded_count(self, row_mask: int) -> int:
+        count, exceeded = self.count(row_mask)
+        if exceeded and self.max_samples is not None:
+            return self.max_samples + 1
+        return count
+
+
 def as_float(row: dict[str, str], field: str) -> float | None:
     value = row.get(field, "")
     if value == "":
@@ -487,16 +507,11 @@ def count_samples_bounded(
 
 def ranked_state_key(
     state: SearchState,
-    positive_sample_bits: list[int],
-    negative_sample_bits: list[int],
-    max_negative_samples: int,
+    positive_counter: SampleCountCache,
+    negative_counter: SampleCountCache,
 ) -> tuple[int, int, int, int, str]:
-    negative_samples = count_samples_bounded(
-        state.negative_row_mask, negative_sample_bits, max_negative_samples
-    )
-    positive_samples = count_samples_bounded(
-        state.positive_row_mask, positive_sample_bits, None
-    )
+    negative_samples = negative_counter.bounded_count(state.negative_row_mask)
+    positive_samples = positive_counter.bounded_count(state.positive_row_mask)
     return (
         negative_samples,
         -positive_samples,
@@ -520,12 +535,12 @@ def extend_condition_search(
     if max_conditions <= 2 or not matches:
         return []
 
+    positive_counter = SampleCountCache(positive_sample_bits)
+    negative_counter = SampleCountCache(negative_sample_bits, max_negative_samples)
     ordered_matches = sorted(matches, key=lambda match: match.label)
     states: list[SearchState] = []
     for index, match in enumerate(ordered_matches):
-        positive_samples = count_samples_bounded(
-            match.positive_row_mask, positive_sample_bits, None
-        )
+        positive_samples = positive_counter.bounded_count(match.positive_row_mask)
         if positive_samples < min_positive_samples:
             continue
         states.append(
@@ -551,9 +566,7 @@ def extend_condition_search(
                 positive_row_mask = state.positive_row_mask & match.positive_row_mask
                 if positive_row_mask == 0:
                     continue
-                positive_samples = count_samples_bounded(
-                    positive_row_mask, positive_sample_bits, None
-                )
+                positive_samples = positive_counter.bounded_count(positive_row_mask)
                 if positive_samples < min_positive_samples:
                     continue
                 negative_row_mask = state.negative_row_mask & match.negative_row_mask
@@ -567,21 +580,19 @@ def extend_condition_search(
                 existing = seen_states.get(key)
                 if existing is None or ranked_state_key(
                     candidate,
-                    positive_sample_bits,
-                    negative_sample_bits,
-                    max_negative_samples,
+                    positive_counter,
+                    negative_counter,
                 ) < ranked_state_key(
                     existing,
-                    positive_sample_bits,
-                    negative_sample_bits,
-                    max_negative_samples,
+                    positive_counter,
+                    negative_counter,
                 ):
                     seen_states[key] = candidate
 
         next_states = sorted(
             seen_states.values(),
             key=lambda state: ranked_state_key(
-                state, positive_sample_bits, negative_sample_bits, max_negative_samples
+                state, positive_counter, negative_counter
             ),
         )[:beam_width]
 
