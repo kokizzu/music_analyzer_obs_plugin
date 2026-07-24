@@ -384,7 +384,7 @@ void draw_status_line(VisualizerRenderer *visualizer, const AnalysisSnapshot &sn
 	format_band_percentage(low, sizeof(low), snapshot.low_energy);
 	format_band_percentage(mid, sizeof(mid), snapshot.mid_energy);
 	format_band_percentage(high, sizeof(high), snapshot.high_energy);
-	std::snprintf(age, sizeof(age), "%.1fS", std::clamp(snapshot_age, 0.0f, 99.9f));
+	std::snprintf(age, sizeof(age), "%.1fs", std::clamp(snapshot_age, 0.0f, 99.9f));
 	std::snprintf(drop, sizeof(drop), "%llu", static_cast<unsigned long long>(snapshot.dropped_windows));
 
 	int x = 28;
@@ -1364,7 +1364,7 @@ void format_visualizer_status_line(char *output, std::size_t output_size, const 
 	format_band_percentage(mid, sizeof(mid), snapshot.mid_energy);
 	format_band_percentage(high, sizeof(high), snapshot.high_energy);
 	int written = std::snprintf(output, output_size,
-				    "LOW %s MID %s HIGH %s AGE %.1fS DROP %llu",
+				    "LOW %s MID %s HIGH %s AGE %.1fs DROP %llu",
 				    low, mid, high,
 				    std::clamp(snapshot_age, 0.0f, 99.9f),
 				    static_cast<unsigned long long>(snapshot.dropped_windows));

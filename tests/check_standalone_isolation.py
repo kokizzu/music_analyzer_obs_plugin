@@ -58,9 +58,9 @@ def main():
             renderer.find('" BAT %.0f"') < renderer.find('" RAM %.0fMB"') and
             "draw_status_pair" in renderer,
             "renderer status line must expose CPU, RAM, and charging-aware battery metrics")
-    require('AGE %.1fS' in renderer and 'AGE %04.1fS' not in renderer and
+    require('AGE %.1fs' in renderer and 'AGE %04.1fs' not in renderer and 'AGE %.1fS' not in renderer and
             '" RMS %.2f"' in renderer and renderer.find('" CPU %.0f"') < renderer.find('" RMS %.2f"'),
-            "AGE must be unpadded and RMS must appear after CPU")
+            "AGE must use an unpadded lowercase-s unit and RMS must appear after CPU")
     require('LOW %s MID %s HIGH %s' in renderer and "format_band_percentage" in renderer and
             'percentage > 99.0f' in renderer and '"MAX"' in renderer and '"%.0f%%"' in renderer,
             "LOW/MID/HIGH status percentages must be unpadded and show MAX above 99 percent")

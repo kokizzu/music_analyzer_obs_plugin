@@ -602,7 +602,7 @@ bool run_self_test()
 		const char *age = std::strstr(status_line, "AGE ");
 		const char *drop = std::strstr(status_line, "DROP ");
 		const char *expected =
-			"LOW 25% MID 50% HIGH MAX AGE 1.6S DROP 7 BAT+ 83 RAM 7MB CPU 742 RMS 0.12";
+			"LOW 25% MID 50% HIGH MAX AGE 1.6s DROP 7 BAT+ 83 RAM 7MB CPU 742 RMS 0.12";
 		if (std::strstr(status_line, "FRAMES") || std::strstr(status_line, "UPD") || !age || !drop ||
 		    age > drop || std::strcmp(status_line, expected) != 0) {
 			std::fprintf(stderr, "standalone self-test: unexpected status line '%s'\n", status_line);
