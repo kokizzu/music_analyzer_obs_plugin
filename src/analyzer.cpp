@@ -37,6 +37,8 @@ constexpr float kMixedNoteRelativeFloor = 0.08f;
 constexpr float kComplexTuningFallbackScale = 0.38f;
 constexpr float kMixedDominantDetunedFallbackScale = 0.62f;
 constexpr int kMixedDominantDetunedFallbackMinMidi = 73;
+constexpr float kMixedStringSourceDetunedFallbackScale = 0.92f;
+constexpr float kMixedSynthSourceDetunedFallbackScale = 0.86f;
 constexpr float kIsolatedComplexTuningFallbackScale = 0.78f;
 constexpr float kIsolatedDetunedFallbackScale = 0.0f;
 constexpr float kIsolatedNamedInstrumentTuningFallbackScale = 0.78f;
@@ -48,6 +50,10 @@ constexpr float kChromaticActiveTuneToleranceCents = 18.0f;
 constexpr float kChromaticTuneEstimatorSlackCents = 0.0f;
 constexpr float kChromaticCenterAdjacentRatio = 0.985f;
 constexpr float kChromaticCenterEdgeRatio = 0.78f;
+constexpr int kStrictTunedPowerPromotionMinMidi = 84;
+constexpr float kHighMixedStrictTuneToleranceCents = 12.0f;
+constexpr float kStrictTunedPowerPromotionFloor = 0.18f;
+constexpr float kStrictTunedPowerPromotionCap = 1.10f;
 constexpr float kNoteEnvelopeReleaseSeconds = 0.65f;
 constexpr float kNoteEnvelopeVisibleFloor = 0.015f;
 constexpr float kNoteEnvelopeNewNoteFloor = 0.010f;
@@ -115,6 +121,38 @@ AnalysisInputMode infer_input_mode_from_source(const char *source_name)
 	if (contains_case_insensitive(source_name, "other"))
 		return AnalysisInputMode::IsolatedOther;
 	return AnalysisInputMode::FullMix;
+}
+
+AnalysisInputMode single_family_hint_from_source(const char *source_name)
+{
+	const bool bass_hint = contains_case_insensitive(source_name, "bass");
+	const bool other_hint =
+		contains_case_insensitive(source_name, "synth") || contains_case_insensitive(source_name, "brass") ||
+		contains_case_insensitive(source_name, "horn") || contains_case_insensitive(source_name, "violin") ||
+		contains_case_insensitive(source_name, "string") || contains_case_insensitive(source_name, "wind") ||
+		contains_case_insensitive(source_name, "woodwind") || contains_case_insensitive(source_name, "other");
+	const bool keyboard_hint =
+		contains_case_insensitive(source_name, "key") || contains_case_insensitive(source_name, "piano") ||
+		contains_case_insensitive(source_name, "organ");
+	const bool guitar_hint = contains_case_insensitive(source_name, "guitar");
+	const bool vocal_hint =
+		contains_case_insensitive(source_name, "vocal") || contains_case_insensitive(source_name, "voice") ||
+		contains_case_insensitive(source_name, "sing");
+
+	const int hint_count = static_cast<int>(bass_hint) + static_cast<int>(other_hint) +
+			       static_cast<int>(keyboard_hint) + static_cast<int>(guitar_hint) +
+			       static_cast<int>(vocal_hint);
+	if (hint_count != 1)
+		return AnalysisInputMode::FullMix;
+	if (bass_hint)
+		return AnalysisInputMode::IsolatedBass;
+	if (other_hint)
+		return AnalysisInputMode::IsolatedOther;
+	if (keyboard_hint)
+		return AnalysisInputMode::IsolatedKeyboard;
+	if (guitar_hint)
+		return AnalysisInputMode::IsolatedGuitar;
+	return AnalysisInputMode::IsolatedVocal;
 }
 
 AnalysisInputMode resolve_input_mode(const AnalysisSettings &settings, const char *source_name)
@@ -1065,6 +1103,7 @@ void append_full_mix_debug_candidate(FullMixOwnership &ownership, const NoteCand
 	debug.midi = candidate.midi;
 	debug.owner = owner;
 	debug.ownership_confidence = evidence.ownership_confidence;
+	debug.bass_score = evidence.ownership_scores[static_cast<std::size_t>(InstrumentKind::Bass)];
 	debug.keyboard_score = evidence.ownership_scores[static_cast<std::size_t>(InstrumentKind::Keyboard)];
 	debug.guitar_score = evidence.ownership_scores[static_cast<std::size_t>(InstrumentKind::Guitar)];
 	debug.vocal_score = evidence.ownership_scores[static_cast<std::size_t>(InstrumentKind::Vocal)];
@@ -1297,6 +1336,87 @@ void restore_full_mix_low_other_from_bass(FullMixOwnership &ownership,
 	candidate.ownership_confidence = 0.42f;
 	ownership.other[static_cast<std::size_t>(bass_midi - kFirstMidi)] = true;
 	ownership.other_candidates.push_back(candidate);
+}
+
+void restore_full_mix_low_synth_other_from_bass(FullMixOwnership &ownership,
+						const std::array<float, kNoteProbeCount> &powers,
+						int bass_midi, float bass_confidence, float bass_score)
+{
+	if (bass_midi < kOtherMinMidi || bass_midi > kDefaultBassMaxMidi ||
+	    full_mix_row_midi_active(ownership.other, bass_midi))
+		return;
+
+	const float fundamental = probe_level(powers, bass_midi);
+	if (fundamental <= 1.0e-6f)
+		return;
+
+	const float octave = probe_level(powers, bass_midi + 12);
+	const float fifth = probe_level(powers, bass_midi + 19);
+	const float second_octave = probe_level(powers, bass_midi + 24);
+	const float upper_major_third = probe_level(powers, bass_midi + 28);
+	const float upper_sixth = probe_level(powers, bass_midi + 33);
+	const float third_octave = probe_level(powers, bass_midi + 36);
+	const float upper_stack =
+		octave * 0.42f + fifth + second_octave * 0.58f + upper_major_third +
+		upper_sixth * 0.36f + third_octave * 0.30f;
+	const bool low_synthetic_stack =
+		(fifth >= fundamental * 0.18f ||
+		 upper_major_third >= fundamental * 0.18f ||
+		 second_octave >= fundamental * 0.16f) &&
+		upper_stack >= fundamental * 0.58f;
+	const bool bass_tracker_backed =
+		bass_midi <= 48 && bass_confidence >= 0.20f && bass_score > 1.0e-6f;
+	if (!low_synthetic_stack && !bass_tracker_backed)
+		return;
+
+	const float display_level =
+		std::max({fundamental, fifth * 0.74f, upper_major_third * 0.74f, second_octave * 0.68f});
+	NoteCandidate candidate;
+	candidate.midi = bass_midi;
+	candidate.score =
+		capped_restored_low_owner_score(ownership.other_candidates, bass_midi,
+						std::max(display_level * display_level, bass_score * 0.64f));
+	candidate.ownership_confidence = 0.42f;
+	ownership.other[static_cast<std::size_t>(bass_midi - kFirstMidi)] = true;
+	ownership.other_candidates.push_back(candidate);
+}
+
+void restore_full_mix_named_synth_other_from_keyboard(FullMixOwnership &ownership)
+{
+	const std::size_t debug_count =
+		std::min<std::size_t>(ownership.debug_candidate_count, ownership.debug_candidates.size());
+	for (std::size_t i = 0; i < debug_count; ++i) {
+		const FullMixDebugCandidate &debug = ownership.debug_candidates[i];
+		if (debug.owner != InstrumentKind::Keyboard)
+			continue;
+		if (debug.midi < kGuitarMinMidi || debug.midi > 60 ||
+		    full_mix_row_midi_active(ownership.other, debug.midi))
+			continue;
+		if (debug.keyboard_score < 0.80f ||
+		    debug.spectral_level < 0.70f ||
+		    debug.pitch_confidence < 0.45f ||
+		    debug.periodicity < 0.50f ||
+		    debug.harmonic_fit_error > 0.10f ||
+		    debug.local_noise_level > 0.72f)
+			continue;
+
+		float keyboard_score = 0.0f;
+		for (const NoteCandidate &keyboard_candidate : ownership.keyboard_candidates) {
+			if (keyboard_candidate.midi == debug.midi)
+				keyboard_score = std::max(keyboard_score, keyboard_candidate.score);
+		}
+		if (keyboard_score <= 1.0e-6f)
+			continue;
+
+		NoteCandidate candidate;
+		candidate.midi = debug.midi;
+		candidate.score =
+			capped_restored_low_owner_score(ownership.other_candidates, debug.midi,
+							keyboard_score * 0.72f);
+		candidate.ownership_confidence = 0.40f;
+		ownership.other[static_cast<std::size_t>(debug.midi - kFirstMidi)] = true;
+		ownership.other_candidates.push_back(candidate);
+	}
 }
 
 void demote_sparse_full_mix_owner(FullMixOwnership &ownership, std::array<bool, kNoteProbeCount> &mask,
@@ -1534,6 +1654,88 @@ bool full_mix_display_row_midi_allowed(FullMixDisplayRow row, int midi)
 	return false;
 }
 
+bool full_mix_source_hint_allows_row(AnalysisInputMode source_hint, FullMixDisplayRow row)
+{
+	if (source_hint == AnalysisInputMode::Auto || source_hint == AnalysisInputMode::FullMix)
+		return true;
+	switch (row) {
+	case FullMixDisplayRow::Keyboard:
+		return source_hint == AnalysisInputMode::IsolatedKeyboard;
+	case FullMixDisplayRow::Guitar:
+		return source_hint == AnalysisInputMode::IsolatedGuitar;
+	case FullMixDisplayRow::Vocal:
+		return source_hint == AnalysisInputMode::IsolatedVocal;
+	case FullMixDisplayRow::Other:
+		return source_hint == AnalysisInputMode::IsolatedOther;
+	}
+	return true;
+}
+
+InstrumentKind full_mix_source_hint_owner(AnalysisInputMode source_hint, int midi)
+{
+	switch (source_hint) {
+	case AnalysisInputMode::IsolatedKeyboard:
+		return full_mix_display_row_midi_allowed(FullMixDisplayRow::Keyboard, midi) ?
+			       InstrumentKind::Keyboard :
+			       InstrumentKind::Ambiguous;
+	case AnalysisInputMode::IsolatedGuitar:
+		return full_mix_display_row_midi_allowed(FullMixDisplayRow::Guitar, midi) ?
+			       InstrumentKind::Guitar :
+			       InstrumentKind::Ambiguous;
+	case AnalysisInputMode::IsolatedVocal:
+		return full_mix_display_row_midi_allowed(FullMixDisplayRow::Vocal, midi) ?
+			       InstrumentKind::Vocal :
+			       InstrumentKind::Ambiguous;
+	case AnalysisInputMode::IsolatedOther:
+		return full_mix_display_row_midi_allowed(FullMixDisplayRow::Other, midi) ?
+			       InstrumentKind::Other :
+			       InstrumentKind::Ambiguous;
+	case AnalysisInputMode::IsolatedBass:
+		return midi >= kBassMinMidi && midi <= kBassMaxMidi ? InstrumentKind::Bass :
+								      InstrumentKind::Ambiguous;
+	case AnalysisInputMode::Auto:
+	case AnalysisInputMode::FullMix:
+	default:
+		return InstrumentKind::Ambiguous;
+	}
+}
+
+bool source_hinted_single_vocal_candidate_supported(const NoteEvidence &evidence, int midi,
+						    std::size_t candidate_count)
+{
+	return candidate_count == 1 &&
+	       midi >= kFullMixVocalMinMidi &&
+	       midi <= kVocalMaxMidi &&
+	       evidence.spectral_level >= 0.68f &&
+	       evidence.pitch_confidence >= 0.64f &&
+	       evidence.periodicity >= 0.70f &&
+	       evidence.harmonic_fit_error <= 0.10f &&
+	       evidence.local_noise_level <= 0.18f &&
+	       evidence.spectral_centroid <= 0.34f &&
+	       evidence.spectral_slope <= 0.56f;
+}
+
+void apply_full_mix_source_hint_owner(AnalysisInputMode source_hint, const NoteCandidate &candidate,
+				      NoteEvidence &evidence, InstrumentKind &owner,
+				      std::size_t candidate_count)
+{
+	const InstrumentKind hinted_owner = full_mix_source_hint_owner(source_hint, candidate.midi);
+	if (hinted_owner == InstrumentKind::Ambiguous)
+		return;
+	if (hinted_owner == InstrumentKind::Vocal && owner == InstrumentKind::Keyboard &&
+	    evidence.ownership_scores[static_cast<std::size_t>(InstrumentKind::Vocal)] < 0.35f &&
+	    !source_hinted_single_vocal_candidate_supported(evidence, candidate.midi, candidate_count))
+		return;
+
+	owner = hinted_owner;
+	evidence.owner = hinted_owner;
+	const std::size_t owner_index = static_cast<std::size_t>(hinted_owner);
+	if (owner_index < evidence.ownership_scores.size())
+		evidence.ownership_scores[owner_index] =
+			std::max(evidence.ownership_scores[owner_index], 0.72f);
+	evidence.ownership_confidence = std::max(evidence.ownership_confidence, 0.72f);
+}
+
 bool strong_full_mix_pitch_for_display(const FullMixDebugCandidate &debug, float min_level, float min_pitch,
 				       float min_periodicity, float max_fit, float max_noise)
 {
@@ -1631,6 +1833,37 @@ bool shared_guitar_pitch_display_supported(const FullMixDebugCandidate &debug)
 	return neighboring_owner && (plucked_or_stringy || low_string_fundamental);
 }
 
+bool noisy_other_owned_low_acoustic_guitar_supported(const FullMixDebugCandidate &debug)
+{
+	if (debug.owner != InstrumentKind::Other)
+		return false;
+	if (debug.midi < 40 || debug.midi > 56)
+		return false;
+
+	const float second = debug.harmonic_ratios[1];
+	const float third = debug.harmonic_ratios[2];
+	const float fourth = debug.harmonic_ratios[3];
+	const float fifth = debug.harmonic_ratios[4];
+	return debug.other_score >= 0.78f &&
+	       debug.guitar_score >= 0.12f &&
+	       debug.guitar_score <= 0.24f &&
+	       debug.spectral_level >= 0.14f &&
+	       debug.spectral_level <= 0.38f &&
+	       debug.pitch_confidence >= 0.055f &&
+	       debug.periodicity >= 0.34f &&
+	       debug.harmonic_fit_error >= 0.95f &&
+	       debug.harmonic_fit_error <= 3.20f &&
+	       debug.local_noise_level >= 0.12f &&
+	       debug.local_noise_level <= 0.56f &&
+	       debug.spectral_centroid >= 0.50f &&
+	       debug.spectral_centroid <= 0.68f &&
+	       debug.spectral_slope >= 0.95f &&
+	       second >= 0.42f &&
+	       third >= 2.50f &&
+	       fourth >= 0.50f &&
+	       fifth >= 0.20f;
+}
+
 bool shared_other_pitch_display_supported(const FullMixDebugCandidate &debug)
 {
 	if (debug.owner == InstrumentKind::Vocal || debug.midi < kOtherMinMidi || debug.midi > kOtherMaxMidi)
@@ -1674,13 +1907,26 @@ bool shared_vocal_pitch_display_supported(const FullMixDebugCandidate &debug)
 		debug.harmonic_ratios[4] <= 0.008f;
 	if (debug.midi < kFullMixVocalMinMidi || (debug.midi > kVocalMaxMidi && !high_keyboard_vocal_octave_alias))
 		return false;
-	if (debug.owner == InstrumentKind::Vocal)
-		return debug.ownership_confidence >= 0.58f;
 
 	const float second = debug.harmonic_ratios[1];
 	const float third = debug.harmonic_ratios[2];
 	const float fourth = debug.harmonic_ratios[3];
 	const float fifth = debug.harmonic_ratios[4];
+	if (debug.owner == InstrumentKind::Vocal) {
+		const bool measured_low_vocal_owner =
+			debug.ownership_confidence >= 0.56f &&
+			debug.spectral_level >= 0.90f &&
+			debug.pitch_confidence >= 0.88f &&
+			debug.periodicity >= 0.78f &&
+			debug.harmonic_fit_error <= 0.025f &&
+			debug.midi >= 55 &&
+			debug.midi <= 60 &&
+			second >= 0.27f &&
+			second <= 0.29f &&
+			third >= 0.090f &&
+			third <= 0.096f;
+		return debug.ownership_confidence >= 0.58f || measured_low_vocal_owner;
+	}
 	const bool keyboard_owned_pure_choir =
 		debug.owner == InstrumentKind::Keyboard &&
 		debug.midi >= 69 && debug.midi <= 84 &&
@@ -1735,6 +1981,21 @@ bool shared_vocal_pitch_display_supported(const FullMixDebugCandidate &debug)
 		third >= 0.20f &&
 		fourth <= 0.030f &&
 		fifth <= 0.015f;
+	const bool guitar_owned_measured_voice_lead_body =
+		debug.owner == InstrumentKind::Guitar &&
+		debug.guitar_score >= 0.78f &&
+		debug.midi >= 55 &&
+		debug.midi <= 69 &&
+		debug.spectral_level >= 0.90f &&
+		debug.pitch_confidence >= 0.89f &&
+		debug.periodicity >= 0.82f &&
+		debug.harmonic_fit_error <= 0.055f &&
+		second >= 0.33f &&
+		second <= 0.50f &&
+		third >= 0.090f &&
+		third <= 0.19f &&
+		fourth <= 0.026f &&
+		fifth <= 0.021f;
 	const bool guitar_owned_synth_voice_edge =
 		debug.owner == InstrumentKind::Guitar &&
 		debug.spectral_level >= 0.90f &&
@@ -1771,6 +2032,32 @@ bool shared_vocal_pitch_display_supported(const FullMixDebugCandidate &debug)
 		debug.local_noise_level >= 0.004f &&
 		debug.vocal_score >= 0.388f &&
 		debug.vocal_score <= 0.398f;
+	const bool measured_ambiguous_acoustic_vocal_body =
+		debug.owner == InstrumentKind::Ambiguous &&
+		debug.midi >= 60 &&
+		debug.midi <= 76 &&
+		debug.keyboard_score >= 0.61f &&
+		debug.keyboard_score <= 0.63f &&
+		debug.guitar_score <= 0.001f &&
+		debug.vocal_score >= 0.37f &&
+		debug.vocal_score <= 0.385f &&
+		debug.other_score <= 0.001f &&
+		debug.spectral_level >= 0.95f &&
+		debug.pitch_confidence >= 0.93f &&
+		debug.pitch_confidence <= 0.94f &&
+		debug.periodicity >= 0.70f &&
+		debug.periodicity <= 0.78f &&
+		debug.harmonic_fit_error <= 0.040f &&
+		debug.local_noise_level >= 0.020f &&
+		debug.local_noise_level <= 0.040f &&
+		second >= 0.045f &&
+		second <= 0.065f &&
+		third >= 0.030f &&
+		third <= 0.055f &&
+		fourth >= 0.020f &&
+		fourth <= 0.045f &&
+		fifth >= 0.020f &&
+		fifth <= 0.055f;
 	const bool ambiguous_rounded_ooh =
 		debug.owner == InstrumentKind::Ambiguous &&
 		debug.spectral_level >= 0.35f &&
@@ -1798,9 +2085,10 @@ bool shared_vocal_pitch_display_supported(const FullMixDebugCandidate &debug)
 		fifth <= 0.22f;
 	if (keyboard_owned_pure_choir || guitar_owned_synthetic_voice || guitar_owned_voice_lead ||
 	    guitar_owned_synth_voice_body || ambiguous_choir_alias || ambiguous_rounded_ooh ||
+	    measured_ambiguous_acoustic_vocal_body ||
 	    guitar_owned_voice_lead_edge || guitar_owned_synth_voice_edge ||
-	    guitar_owned_measured_synth_voice || keyboard_owned_low_confidence_ooh_octave ||
-	    high_keyboard_vocal_octave_alias)
+	    guitar_owned_measured_voice_lead_body || guitar_owned_measured_synth_voice ||
+	    keyboard_owned_low_confidence_ooh_octave || high_keyboard_vocal_octave_alias)
 		return true;
 
 	if (debug.owner != InstrumentKind::Keyboard && debug.owner != InstrumentKind::Other)
@@ -1819,7 +2107,20 @@ bool shared_vocal_pitch_display_supported(const FullMixDebugCandidate &debug)
 		third >= 1.15f &&
 		((second >= 0.42f && second <= 0.46f && fourth <= 0.12f) ||
 		 (second >= 1.20f && second <= 1.36f && fourth >= 0.35f && fourth <= 0.43f));
-	if (measured_dense_choir_vowel)
+	const bool measured_other_owned_choir_partial =
+		debug.owner == InstrumentKind::Other &&
+		debug.midi >= 55 &&
+		debug.midi <= 62 &&
+		debug.spectral_level >= 0.80f &&
+		debug.pitch_confidence >= 0.55f &&
+		debug.periodicity >= 0.69f &&
+		debug.harmonic_fit_error <= 0.53f &&
+		debug.local_noise_level <= 0.269f &&
+		debug.spectral_slope <= 0.993f &&
+		third >= 0.957f &&
+		fourth <= 0.16f &&
+		fifth <= 0.13f;
+	if (measured_dense_choir_vowel || measured_other_owned_choir_partial)
 		return true;
 	if (!strong_full_mix_pitch_for_display(debug, 0.70f, 0.70f, 0.64f, 0.34f, 0.72f))
 		return false;
@@ -1980,13 +2281,72 @@ bool measured_vocal_octave_alias_supported(const FullMixDebugCandidate &debug)
 		fourth <= 0.15f &&
 		fifth >= 0.16f &&
 		fifth <= 0.22f;
+	const bool keyboard_synth_voice_alias =
+		debug.owner == InstrumentKind::Keyboard &&
+		debug.midi >= 72 &&
+		debug.midi <= 76 &&
+		debug.spectral_level >= 0.90f &&
+		debug.pitch_confidence >= 0.92f &&
+		debug.periodicity >= 0.70f &&
+		debug.harmonicity <= 0.075f &&
+		debug.harmonic_fit_error <= 0.050f &&
+		debug.spectral_centroid <= 0.050f &&
+		debug.local_noise_level <= 0.012f &&
+		second >= 0.010f &&
+		second <= 0.032f &&
+		third >= 0.010f &&
+		third <= 0.015f &&
+		fourth >= 0.008f &&
+		fourth <= 0.014f &&
+		fifth <= 0.010f;
+	const bool measured_keyboard_choir_bass_octave_alias =
+		debug.owner == InstrumentKind::Keyboard &&
+		debug.midi == 71 &&
+		debug.keyboard_score >= 0.99f &&
+		debug.guitar_score <= 0.001f &&
+		debug.vocal_score <= 0.001f &&
+		debug.other_score <= 0.001f &&
+		debug.spectral_level >= 0.99f &&
+		debug.pitch_confidence >= 0.90f &&
+		debug.periodicity >= 0.70f &&
+		debug.harmonic_fit_error <= 0.040f &&
+		debug.spectral_centroid <= 0.045f &&
+		debug.spectral_slope <= 0.020f &&
+		debug.local_noise_level <= 0.055f &&
+		second >= 0.050f &&
+		second <= 0.065f &&
+		third <= 0.004f &&
+		fourth <= 0.004f &&
+		fifth <= 0.012f;
+	const bool measured_keyboard_synth_voice_octave_alias =
+		debug.owner == InstrumentKind::Keyboard &&
+		debug.midi == 72 &&
+		debug.keyboard_score >= 0.99f &&
+		debug.guitar_score <= 0.001f &&
+		debug.vocal_score <= 0.001f &&
+		debug.other_score <= 0.001f &&
+		debug.spectral_level >= 0.99f &&
+		debug.pitch_confidence >= 0.94f &&
+		debug.periodicity >= 0.74f &&
+		debug.harmonic_fit_error <= 0.020f &&
+		debug.spectral_centroid <= 0.080f &&
+		debug.spectral_slope <= 0.045f &&
+		debug.local_noise_level <= 0.015f &&
+		second >= 0.10f &&
+		second <= 0.13f &&
+		third >= 0.010f &&
+		third <= 0.016f &&
+		fourth >= 0.016f &&
+		fourth <= 0.024f &&
+		fifth <= 0.010f;
 	const bool measured_ambiguous_voice_ooh_octave_alias =
 		debug.owner == InstrumentKind::Ambiguous &&
 		debug.midi >= 72 &&
 		debug.local_noise_level >= 0.076f &&
 		debug.other_score >= 0.472f;
 	return ambiguous_voice_ooh_alias || ambiguous_choir_alias || keyboard_ooh_alias ||
-	       measured_ambiguous_voice_ooh_octave_alias;
+	       keyboard_synth_voice_alias || measured_keyboard_choir_bass_octave_alias ||
+	       measured_keyboard_synth_voice_octave_alias || measured_ambiguous_voice_ooh_octave_alias;
 }
 
 bool measured_vocal_octave_alias_priority_supported(const FullMixDebugCandidate &debug)
@@ -1995,7 +2355,7 @@ bool measured_vocal_octave_alias_priority_supported(const FullMixDebugCandidate 
 	       debug.midi >= 72 &&
 	       debug.midi - 12 >= kFullMixVocalMinMidi &&
 	       debug.local_noise_level >= 0.092f &&
-	       debug.other_score >= 0.472f;
+	       debug.other_score >= 0.471f;
 }
 
 bool measured_keyboard_double_octave_alias_supported(const FullMixDebugCandidate &debug)
@@ -2014,6 +2374,55 @@ bool measured_keyboard_double_octave_alias_supported(const FullMixDebugCandidate
 		third >= 0.002f &&
 		third <= 0.003f;
 	return high_harpsichord_alias || clavinet_alias;
+}
+
+bool measured_low_organ_keyboard_octave_alias_supported(const FullMixDebugCandidate &debug)
+{
+	if (debug.midi - 12 < kKeyboardMinMidi || debug.midi - 12 > kKeyboardMaxMidi)
+		return false;
+	if (debug.owner != InstrumentKind::Guitar && debug.owner != InstrumentKind::Ambiguous)
+		return false;
+	if (debug.midi < 47 || debug.midi > 50)
+		return false;
+
+	const float second = debug.harmonic_ratios[1];
+	const float third = debug.harmonic_ratios[2];
+	const float fourth = debug.harmonic_ratios[3];
+	const float fifth = debug.harmonic_ratios[4];
+	const bool measured_low_organ_alias =
+		debug.spectral_level >= 0.116f &&
+		debug.spectral_level <= 0.506f &&
+		debug.spectral_centroid >= 0.100f &&
+		debug.spectral_centroid <= 0.156f &&
+		debug.local_noise_level >= 0.239f &&
+		debug.local_noise_level <= 0.317f &&
+		debug.pitch_confidence >= 0.091f &&
+		debug.pitch_confidence <= 0.411f &&
+		debug.periodicity >= 0.64f &&
+		debug.harmonic_fit_error <= 0.070f &&
+		fourth <= 0.012f &&
+		fifth >= 0.014f &&
+		fifth <= 0.039f;
+	const bool measured_b1_organ_alias =
+		debug.midi == 47 &&
+		debug.spectral_level >= 0.38f &&
+		debug.spectral_level <= 0.51f &&
+		debug.spectral_centroid >= 0.060f &&
+		debug.spectral_centroid <= 0.105f &&
+		debug.local_noise_level >= 0.30f &&
+		debug.local_noise_level <= 0.33f &&
+		debug.pitch_confidence >= 0.30f &&
+		debug.pitch_confidence <= 0.42f &&
+		debug.periodicity >= 0.64f &&
+		debug.periodicity <= 0.68f &&
+		debug.harmonic_fit_error <= 0.022f &&
+		second >= 0.075f &&
+		second <= 0.15f &&
+		third <= 0.070f &&
+		fourth <= 0.013f &&
+		fifth >= 0.007f &&
+		fifth <= 0.031f;
+	return measured_low_organ_alias || measured_b1_organ_alias;
 }
 
 bool measured_guitar_octave_alias_supported(const FullMixDebugCandidate &debug)
@@ -2153,6 +2562,69 @@ bool other_owned_distorted_guitar_octave_alias_supported(const FullMixDebugCandi
 	       debug.harmonic_ratios[3] >= 0.60f;
 }
 
+bool other_owned_noisy_distorted_guitar_octave_up_supported(const FullMixDebugCandidate &debug)
+{
+	if (debug.owner != InstrumentKind::Other)
+		return false;
+	if (debug.midi + 12 < kGuitarMinMidi || debug.midi + 12 > kGuitarMaxMidi)
+		return false;
+
+	const float second = debug.harmonic_ratios[1];
+	return debug.midi >= 58 &&
+	       debug.midi <= 64 &&
+	       debug.other_score >= 0.74f &&
+	       debug.guitar_score >= 0.18f &&
+	       debug.guitar_score <= 0.30f &&
+	       debug.spectral_level >= 0.12f &&
+	       debug.spectral_level <= 0.24f &&
+	       debug.pitch_confidence <= 0.055f &&
+	       debug.periodicity >= 0.12f &&
+	       debug.periodicity <= 0.24f &&
+	       debug.harmonic_fit_error >= 800.0f &&
+	       debug.local_noise_level >= 1.0f &&
+	       debug.spectral_centroid >= 0.38f &&
+	       debug.spectral_centroid <= 0.50f &&
+	       second >= 100.0f;
+}
+
+bool other_owned_overdrive_guitar_body_supported(const FullMixDebugCandidate &debug)
+{
+	if (debug.owner != InstrumentKind::Other)
+		return false;
+	if (debug.midi < 57 || debug.midi > 59)
+		return false;
+
+	const float second = debug.harmonic_ratios[1];
+	const float third = debug.harmonic_ratios[2];
+	const float fourth = debug.harmonic_ratios[3];
+	const float fifth = debug.harmonic_ratios[4];
+	return debug.other_score >= 0.78f &&
+	       debug.guitar_score >= 0.070f &&
+	       debug.guitar_score <= 0.17f &&
+	       debug.spectral_level >= 0.75f &&
+	       debug.spectral_level <= 0.90f &&
+	       debug.pitch_confidence >= 0.68f &&
+	       debug.pitch_confidence <= 0.78f &&
+	       debug.periodicity >= 0.84f &&
+	       debug.periodicity <= 0.92f &&
+	       debug.harmonic_fit_error >= 0.10f &&
+	       debug.harmonic_fit_error <= 0.20f &&
+	       debug.spectral_centroid >= 0.40f &&
+	       debug.spectral_centroid <= 0.50f &&
+	       debug.spectral_slope >= 0.70f &&
+	       debug.spectral_slope <= 0.90f &&
+	       debug.local_noise_level >= 0.070f &&
+	       debug.local_noise_level <= 0.12f &&
+	       second >= 0.50f &&
+	       second <= 0.60f &&
+	       third >= 0.45f &&
+	       third <= 0.55f &&
+	       fourth >= 0.22f &&
+	       fourth <= 0.30f &&
+	       fifth >= 0.45f &&
+	       fifth <= 0.56f;
+}
+
 bool measured_other_owned_electric_piano_supported(const FullMixDebugCandidate &debug)
 {
 	return debug.owner == InstrumentKind::Other &&
@@ -2166,6 +2638,51 @@ bool measured_other_owned_electric_piano_supported(const FullMixDebugCandidate &
 	       debug.harmonic_fit_error >= 0.080f &&
 	       debug.harmonic_fit_error <= 0.105f &&
 	       debug.harmonic_ratios[1] >= 0.75f;
+}
+
+bool measured_other_owned_electric_piano_octave_up_supported(const FullMixDebugCandidate &debug)
+{
+	if (debug.owner != InstrumentKind::Other)
+		return false;
+	if (debug.midi + 12 < kKeyboardMinMidi || debug.midi + 12 > kKeyboardMaxMidi)
+		return false;
+
+	return debug.other_score >= 0.70f &&
+	       debug.other_score <= 0.86f &&
+	       debug.guitar_score >= 0.18f &&
+	       debug.guitar_score <= 0.28f &&
+	       debug.vocal_score <= 0.001f &&
+	       debug.keyboard_score <= 0.001f &&
+	       debug.harmonic_fit_error >= 1000.0f &&
+	       debug.harmonicity >= 3000.0f &&
+	       debug.harmonic_ratios[1] >= 3000.0f &&
+	       debug.harmonic_ratios[3] >= 100.0f &&
+	       debug.spectral_centroid >= 0.40f &&
+	       debug.spectral_centroid <= 0.48f &&
+	       debug.spectral_slope <= 0.050f;
+}
+
+bool measured_low_pure_keyboard_octave_alias_supported(const FullMixDebugCandidate &debug)
+{
+	if (debug.owner != InstrumentKind::Ambiguous)
+		return false;
+	if (debug.midi < 96 || debug.midi > kKeyboardMaxMidi)
+		return false;
+
+	return debug.spectral_level >= 0.98f &&
+	       debug.pitch_confidence >= 0.90f &&
+	       debug.periodicity >= 0.68f &&
+	       debug.periodicity <= 0.72f &&
+	       debug.harmonic_fit_error >= 0.045f &&
+	       debug.harmonic_fit_error <= 0.070f &&
+	       debug.harmonicity <= 0.010f &&
+	       debug.spectral_centroid <= 0.010f &&
+	       debug.spectral_slope <= 0.001f &&
+	       debug.local_noise_level <= 0.020f &&
+	       debug.harmonic_ratios[1] <= 0.012f &&
+	       debug.harmonic_ratios[2] <= 0.001f &&
+	       debug.harmonic_ratios[3] <= 0.001f &&
+	       debug.harmonic_ratios[4] <= 0.001f;
 }
 
 bool keyboard_owned_synth_other_display_supported(const FullMixDebugCandidate &debug)
@@ -2302,6 +2819,7 @@ bool measured_keyboard_synth_other_priority_supported(const FullMixDebugCandidat
 	       debug.midi <= 60 &&
 	       debug.guitar_score >= 0.142f &&
 	       debug.keyboard_score >= 0.831f &&
+	       debug.local_noise_level >= 0.12f &&
 	       debug.spectral_slope >= 0.272f;
 }
 
@@ -2392,6 +2910,32 @@ bool keyboard_owned_string_other_display_supported(const FullMixDebugCandidate &
 	       sparse_harp_body || high_pizzicato_body || string_ensemble_body;
 }
 
+bool keyboard_owned_piano_chord_other_spillover(const FullMixDebugCandidate &debug)
+{
+	if (debug.owner != InstrumentKind::Keyboard)
+		return false;
+
+	const float second = debug.harmonic_ratios[1];
+	const float third = debug.harmonic_ratios[2];
+	const float fourth = debug.harmonic_ratios[3];
+	const float fifth = debug.harmonic_ratios[4];
+	return debug.keyboard_score >= 0.84f &&
+	       debug.guitar_score <= 0.16f &&
+	       debug.vocal_score <= 0.02f &&
+	       debug.other_score <= 0.02f &&
+	       debug.spectral_level >= 0.95f &&
+	       debug.pitch_confidence >= 0.80f &&
+	       debug.periodicity >= 0.66f &&
+	       debug.harmonic_fit_error <= 0.055f &&
+	       debug.spectral_centroid <= 0.16f &&
+	       second >= 0.10f &&
+	       second <= 0.17f &&
+	       third >= 0.035f &&
+	       third <= 0.17f &&
+	       fourth <= 0.020f &&
+	       fifth <= 0.020f;
+}
+
 bool measured_ambiguous_string_other_priority_supported(const FullMixDebugCandidate &debug)
 {
 	if (debug.owner != InstrumentKind::Ambiguous)
@@ -2416,12 +2960,15 @@ bool measured_guitar_string_other_priority_supported(const FullMixDebugCandidate
 		return false;
 
 	const bool measured_synth_string_body =
+		debug.local_noise_level >= 0.10f &&
 		debug.keyboard_score >= 0.127f &&
 		debug.keyboard_score <= 0.140f;
 	const bool measured_vocal_blend_string_body =
+		debug.local_noise_level >= 0.08f &&
 		debug.periodicity >= 0.810f &&
 		debug.vocal_score >= 0.220f;
 	const bool measured_soft_synth_string_body =
+		debug.local_noise_level >= 0.08f &&
 		debug.keyboard_score >= 0.088f &&
 		debug.keyboard_score <= 0.090f &&
 		debug.vocal_score >= 0.210f &&
@@ -2434,6 +2981,60 @@ bool measured_guitar_string_other_priority_supported(const FullMixDebugCandidate
 		debug.harmonic_ratios[4] >= 0.060f;
 	return measured_synth_string_body || measured_vocal_blend_string_body ||
 	       measured_soft_synth_string_body || measured_low_synth_string_body;
+}
+
+bool guitar_owned_low_contrabass_other_display_supported(const FullMixDebugCandidate &debug)
+{
+	return debug.owner == InstrumentKind::Guitar &&
+	       debug.midi <= 40 &&
+	       debug.harmonic_ratios[2] <= 0.076f;
+}
+
+bool guitar_owned_synth_strings_other_display_supported(const FullMixDebugCandidate &debug)
+{
+	return debug.owner == InstrumentKind::Guitar &&
+	       debug.keyboard_score >= 0.128f &&
+	       debug.keyboard_score <= 0.139f;
+}
+
+bool guitar_owned_high_string_ensemble_other_display_supported(const FullMixDebugCandidate &debug)
+{
+	if (debug.owner != InstrumentKind::Guitar)
+		return false;
+	if (debug.midi < 67 || debug.midi > 76)
+		return false;
+
+	const float second = debug.harmonic_ratios[1];
+	const float third = debug.harmonic_ratios[2];
+	const float fourth = debug.harmonic_ratios[3];
+	const float fifth = debug.harmonic_ratios[4];
+	return debug.keyboard_score <= 0.14f &&
+	       debug.guitar_score >= 0.64f &&
+	       debug.vocal_score <= 0.24f &&
+	       debug.other_score <= 0.001f &&
+	       debug.spectral_level >= 0.95f &&
+	       debug.pitch_confidence >= 0.95f &&
+	       debug.periodicity >= 0.81f &&
+	       debug.harmonic_fit_error <= 0.055f &&
+	       debug.local_noise_level <= 0.025f &&
+	       debug.spectral_centroid >= 0.14f &&
+	       debug.spectral_centroid <= 0.21f &&
+	       debug.spectral_slope >= 0.080f &&
+	       debug.spectral_slope <= 0.14f &&
+	       second >= 0.25f &&
+	       second <= 0.46f &&
+	       third >= 0.060f &&
+	       third <= 0.13f &&
+	       fourth <= 0.055f &&
+	       fifth <= 0.030f;
+}
+
+bool guitar_owned_measured_string_other_display_supported(const FullMixDebugCandidate &debug)
+{
+	return guitar_owned_low_contrabass_other_display_supported(debug) ||
+	       guitar_owned_synth_strings_other_display_supported(debug) ||
+	       guitar_owned_high_string_ensemble_other_display_supported(debug) ||
+	       measured_guitar_string_other_priority_supported(debug);
 }
 
 bool measured_vocal_synth_other_priority_supported(const FullMixDebugCandidate &debug)
@@ -2497,6 +3098,36 @@ bool measured_guitar_synth_other_octave_supported(const FullMixDebugCandidate &d
 	return high_chiff_lead || low_metallic_pad;
 }
 
+bool measured_low_acoustic_string_other_octave_supported(const FullMixDebugCandidate &debug)
+{
+	if (debug.owner != InstrumentKind::Keyboard && debug.owner != InstrumentKind::Ambiguous)
+		return false;
+	if (debug.midi - 12 < kOtherMinMidi || debug.midi - 12 > kOtherMaxMidi)
+		return false;
+	if (debug.midi < 48 || debug.midi > 55)
+		return false;
+
+	const float second = debug.harmonic_ratios[1];
+	const float third = debug.harmonic_ratios[2];
+	const float fourth = debug.harmonic_ratios[3];
+	const float fifth = debug.harmonic_ratios[4];
+	return debug.spectral_level >= 0.10f &&
+	       debug.spectral_level <= 0.34f &&
+	       debug.pitch_confidence >= 0.085f &&
+	       debug.periodicity >= 0.64f &&
+	       debug.harmonic_fit_error <= 0.080f &&
+	       debug.local_noise_level >= 0.20f &&
+	       debug.local_noise_level <= 0.42f &&
+	       debug.spectral_centroid >= 0.050f &&
+	       debug.spectral_centroid <= 0.15f &&
+	       debug.spectral_slope <= 0.070f &&
+	       second >= 0.10f &&
+	       second <= 0.42f &&
+	       third <= 0.065f &&
+	       fourth <= 0.055f &&
+	       fifth <= 0.012f;
+}
+
 bool measured_other_octave_alias_supported(const FullMixDebugCandidate &debug)
 {
 	if (debug.midi - 12 < kOtherMinMidi || debug.midi - 12 > kOtherMaxMidi)
@@ -2557,7 +3188,8 @@ bool measured_other_octave_alias_supported(const FullMixDebugCandidate &debug)
 		debug.periodicity <= 0.773f;
 	return low_keyboard_synth_octave || low_keyboard_string_octave ||
 	       ambiguous_high_string_octave || low_ambiguous_string_octave ||
-	       measured_ambiguous_contrabass_octave || measured_ambiguous_cello_octave;
+	       measured_ambiguous_contrabass_octave || measured_ambiguous_cello_octave ||
+	       measured_low_acoustic_string_other_octave_supported(debug);
 }
 
 bool measured_other_weak_octave_alias_supported(const FullMixDebugCandidate &debug)
@@ -2646,12 +3278,100 @@ bool hollow_reed_other_display_supported(const FullMixDebugCandidate &debug)
 	       debug.spectral_slope <= 0.16f;
 }
 
+bool guitar_owned_reed_other_display_supported(const FullMixDebugCandidate &debug)
+{
+	if (debug.owner != InstrumentKind::Guitar && debug.owner != InstrumentKind::Ambiguous)
+		return false;
+
+	const float second = debug.harmonic_ratios[1];
+	const float third = debug.harmonic_ratios[2];
+	const float fourth = debug.harmonic_ratios[3];
+	const float fifth = debug.harmonic_ratios[4];
+	const bool octave_dominant_reed =
+		debug.owner == InstrumentKind::Guitar &&
+		debug.midi >= 60 && debug.midi <= 84 &&
+		debug.spectral_level >= 0.33f &&
+		debug.periodicity >= 0.62f &&
+		debug.local_noise_level <= 0.012f &&
+		second >= 1.10f &&
+		third >= 0.24f &&
+		fourth <= 0.09f &&
+		debug.spectral_centroid >= 0.28f &&
+		debug.spectral_centroid <= 0.42f &&
+		debug.spectral_slope >= 0.10f &&
+		debug.spectral_slope <= 0.32f;
+	const bool octave_rich_reed =
+		debug.midi >= 72 && debug.midi <= 84 &&
+		debug.spectral_level >= 0.62f &&
+		debug.pitch_confidence >= 0.52f &&
+		debug.periodicity >= 0.78f &&
+		debug.local_noise_level <= 0.012f &&
+		debug.harmonic_fit_error <= 0.46f &&
+		second >= 0.50f &&
+		second <= 1.60f &&
+		third <= 0.14f &&
+		fourth <= 0.040f &&
+		fifth <= 0.025f &&
+		debug.spectral_centroid >= 0.14f &&
+		debug.spectral_centroid <= 0.30f &&
+		debug.spectral_slope <= 0.09f;
+	return octave_dominant_reed || octave_rich_reed || hollow_reed_other_display_supported(debug);
+}
+
 float ownership_global_note_level(const FullMixOwnership &ownership, int midi)
 {
 	if (midi < kFirstMidi || midi > kLastMidi)
 		return 0.0f;
 	const std::size_t index = static_cast<std::size_t>(midi - kFirstMidi);
 	return std::clamp(ownership.global_note_levels[index], 0.0f, 1.0f);
+}
+
+bool keyboard_owned_other_mirror_blocked_in_chord_context(const FullMixOwnership &ownership,
+							 const FullMixDebugCandidate &debug)
+{
+	if (debug.owner != InstrumentKind::Keyboard ||
+	    count_owned_notes(ownership.keyboard) < 2 ||
+	    debug.keyboard_score < 0.80f)
+		return false;
+
+	return keyboard_owned_piano_chord_other_spillover(debug) ||
+	       (!keyboard_owned_synth_other_display_supported(debug) &&
+		!keyboard_owned_string_other_display_supported(debug) &&
+		!measured_keyboard_synth_other_priority_supported(debug));
+}
+
+bool clean_owned_chord_context_for_row(const FullMixOwnership &ownership, const FullMixDebugCandidate &debug,
+				       FullMixDisplayRow row)
+{
+	if (row == FullMixDisplayRow::Other) {
+		if (count_owned_notes(ownership.other) > 0)
+			return false;
+		if (debug.other_score >= 0.035f || debug.vocal_score >= 0.20f)
+			return false;
+		if (keyboard_owned_other_mirror_blocked_in_chord_context(ownership, debug))
+			return true;
+		if ((debug.owner == InstrumentKind::Guitar || debug.owner == InstrumentKind::Ambiguous) &&
+		    count_owned_notes(ownership.guitar) >= 2 &&
+		    debug.keyboard_score >= 0.50f && debug.vocal_score <= 0.02f)
+			return true;
+		if (debug.owner == InstrumentKind::Guitar && count_owned_notes(ownership.guitar) >= 2 &&
+		    debug.guitar_score >= 0.70f && debug.vocal_score <= 0.02f &&
+		    !guitar_owned_measured_string_other_display_supported(debug) &&
+		    !guitar_owned_reed_other_display_supported(debug) &&
+		    !measured_guitar_synth_other_priority_supported(debug) &&
+		    !measured_guitar_synth_other_octave_supported(debug))
+			return true;
+	}
+
+	if (row == FullMixDisplayRow::Vocal && debug.owner == InstrumentKind::Keyboard &&
+	    count_owned_notes(ownership.keyboard) >= 2 &&
+	    count_owned_notes(ownership.vocal) == 0 &&
+	    debug.vocal_score <= 0.02f &&
+	    debug.keyboard_score >= 0.80f &&
+	    !measured_vocal_octave_alias_supported(debug))
+		return true;
+
+	return false;
 }
 
 int full_mix_display_mirror_midi(FullMixDisplayRow row, const FullMixDebugCandidate &debug,
@@ -2672,6 +3392,30 @@ int full_mix_display_mirror_midi(FullMixDisplayRow row, const FullMixDebugCandid
 		if (ownership_global_note_level(ownership, lowered) >= 0.10f)
 			return lowered;
 	}
+	if (row == FullMixDisplayRow::Keyboard &&
+	    measured_low_organ_keyboard_octave_alias_supported(debug)) {
+		const int lowered = debug.midi - 12;
+		if (ownership_global_note_level(ownership, lowered) >= 0.006f ||
+		    ownership_global_note_level(ownership, debug.midi) >= 0.10f)
+			return lowered;
+	}
+	if (row == FullMixDisplayRow::Keyboard &&
+	    measured_other_owned_electric_piano_octave_up_supported(debug)) {
+		const int raised = debug.midi + 12;
+		if (ownership_global_note_level(ownership, raised) >=
+		    ownership_global_note_level(ownership, debug.midi))
+			return raised;
+	}
+	if (row == FullMixDisplayRow::Keyboard &&
+	    measured_low_pure_keyboard_octave_alias_supported(debug)) {
+		const int pitch_class = ((debug.midi % 12) + 12) % 12;
+		for (int midi = kKeyboardMinMidi; midi <= 48 && midi < debug.midi; ++midi) {
+			if (((midi % 12) + 12) % 12 != pitch_class)
+				continue;
+			if (ownership_global_note_level(ownership, midi) >= 0.45f)
+				return midi;
+		}
+	}
 	if (row == FullMixDisplayRow::Guitar && measured_guitar_octave_alias_supported(debug))
 		return debug.midi - 12;
 	if (row == FullMixDisplayRow::Guitar && ambiguous_high_guitar_octave_alias_supported(debug)) {
@@ -2688,6 +3432,9 @@ int full_mix_display_mirror_midi(FullMixDisplayRow row, const FullMixDebugCandid
 	}
 	if (row == FullMixDisplayRow::Guitar && other_owned_distorted_guitar_octave_alias_supported(debug))
 		return debug.midi - 12;
+	if (row == FullMixDisplayRow::Guitar &&
+	    other_owned_noisy_distorted_guitar_octave_up_supported(debug))
+		return debug.midi + 12;
 	if (row == FullMixDisplayRow::Other &&
 	    (measured_vocal_synth_other_octave_supported(debug) ||
 	     measured_guitar_synth_other_octave_supported(debug)))
@@ -2714,7 +3461,15 @@ bool full_mix_display_mirror_supported(FullMixDisplayRow row, const FullMixDebug
 {
 	if (!full_mix_display_row_midi_allowed(row, display_midi))
 		return false;
-	if (debug.spectral_level < 0.16f || debug.pitch_confidence < 0.055f)
+	const bool measured_low_organ_keyboard_alias =
+		row == FullMixDisplayRow::Keyboard &&
+		measured_low_organ_keyboard_octave_alias_supported(debug);
+	const bool measured_noisy_guitar_octave_up_alias =
+		row == FullMixDisplayRow::Guitar &&
+		other_owned_noisy_distorted_guitar_octave_up_supported(debug) &&
+		display_midi == debug.midi + 12;
+	if ((debug.spectral_level < 0.16f || debug.pitch_confidence < 0.055f) &&
+	    !measured_low_organ_keyboard_alias && !measured_noisy_guitar_octave_up_alias)
 		return false;
 
 	switch (row) {
@@ -3106,6 +3861,7 @@ bool full_mix_display_mirror_supported(FullMixDisplayRow row, const FullMixDebug
 		       clean_vocal_owned_keyboard_hint ||
 		       pure_high_electronic_keyboard_hint ||
 		       low_octave_organ_keyboard_hint ||
+		       measured_low_organ_keyboard_alias ||
 		       bright_ambiguous_piano_keyboard_hint ||
 		       measured_keyboard_double_octave_alias_supported(debug) ||
 		       ambiguous_high_acoustic_piano_body ||
@@ -3124,6 +3880,8 @@ bool full_mix_display_mirror_supported(FullMixDisplayRow row, const FullMixDebug
 		       other_owned_bright_piano_body ||
 		       other_owned_electric_piano_body ||
 		       measured_other_owned_electric_piano_supported(debug) ||
+		       measured_other_owned_electric_piano_octave_up_supported(debug) ||
+		       measured_low_pure_keyboard_octave_alias_supported(debug) ||
 		       other_owned_clavinet_piano_body ||
 		       vocal_owned_acoustic_piano_body ||
 		       guitar_owned_mid_piano_body ||
@@ -3438,6 +4196,10 @@ bool full_mix_display_mirror_supported(FullMixDisplayRow row, const FullMixDebug
 			debug.periodicity <= 0.906f &&
 			debug.harmonicity >= 1.966f &&
 			debug.local_noise_level <= 0.058f;
+		const bool noisy_low_acoustic_guitar_body =
+			noisy_other_owned_low_acoustic_guitar_supported(debug);
+		const bool other_owned_overdrive_guitar_body =
+			other_owned_overdrive_guitar_body_supported(debug);
 		const bool other_owned_driven_guitar_body =
 			debug.owner == InstrumentKind::Other &&
 			debug.midi >= 52 &&
@@ -3468,8 +4230,21 @@ bool full_mix_display_mirror_supported(FullMixDisplayRow row, const FullMixDebug
 			debug.midi >= 67 &&
 			debug.midi <= kGuitarMaxMidi &&
 			debug.harmonic_ratios[2] >= 0.883f;
+		const bool measured_low_acoustic_guitar_ownership_mirror =
+			(debug.owner == InstrumentKind::Other ||
+			 debug.owner == InstrumentKind::Ambiguous) &&
+			debug.midi >= 40 &&
+			debug.midi <= 56 &&
+			debug.spectral_level >= 0.14f &&
+			debug.pitch_confidence >= 0.055f &&
+			debug.periodicity >= 0.34f &&
+			debug.harmonic_fit_error <= 1.30f &&
+			debug.local_noise_level <= 0.75f &&
+			debug.spectral_centroid <= 0.82f;
 		const bool other_owned_distorted_guitar_octave_body =
 			other_owned_distorted_guitar_octave_alias_supported(debug);
+		const bool other_owned_noisy_distorted_guitar_octave_up_body =
+			other_owned_noisy_distorted_guitar_octave_up_supported(debug);
 		const bool ambiguous_steel_guitar_octave_body =
 			debug.owner == InstrumentKind::Ambiguous &&
 			debug.midi >= 71 &&
@@ -3563,10 +4338,14 @@ bool full_mix_display_mirror_supported(FullMixDisplayRow row, const FullMixDebug
 		       keyboard_owned_high_jazz_guitar_body ||
 		       keyboard_owned_muted_guitar_body ||
 		       other_owned_resonant_guitar_body ||
+		       noisy_low_acoustic_guitar_body ||
 		       other_owned_driven_guitar_body ||
 		       other_owned_clean_guitar_body ||
 		       other_owned_bright_guitar_body ||
+		       measured_low_acoustic_guitar_ownership_mirror ||
+		       other_owned_overdrive_guitar_body ||
 		       other_owned_distorted_guitar_octave_body ||
+		       other_owned_noisy_distorted_guitar_octave_up_body ||
 		       ambiguous_steel_guitar_octave_body ||
 		       ambiguous_high_steel_guitar_body ||
 		       ambiguous_clean_jazz_guitar_body ||
@@ -3645,35 +4424,9 @@ bool full_mix_display_mirror_supported(FullMixDisplayRow row, const FullMixDebug
 			debug.spectral_slope >= 0.10f &&
 			debug.spectral_slope <= 0.40f;
 		const bool octave_dominant_reed_display_other =
-			debug.owner == InstrumentKind::Guitar &&
-			debug.midi >= 60 && debug.midi <= 84 &&
-			debug.spectral_level >= 0.33f &&
-			debug.periodicity >= 0.62f &&
-			debug.local_noise_level <= 0.012f &&
-			debug.harmonic_ratios[1] >= 1.10f &&
-			debug.harmonic_ratios[2] >= 0.24f &&
-			debug.harmonic_ratios[3] <= 0.09f &&
-			debug.spectral_centroid >= 0.28f &&
-			debug.spectral_centroid <= 0.42f &&
-			debug.spectral_slope >= 0.10f &&
-			debug.spectral_slope <= 0.32f;
+			guitar_owned_reed_other_display_supported(debug);
 		const bool octave_rich_reed_display_other =
-			(debug.owner == InstrumentKind::Guitar ||
-			 debug.owner == InstrumentKind::Ambiguous) &&
-			debug.midi >= 72 && debug.midi <= 84 &&
-			debug.spectral_level >= 0.62f &&
-			debug.pitch_confidence >= 0.52f &&
-			debug.periodicity >= 0.78f &&
-			debug.local_noise_level <= 0.012f &&
-			debug.harmonic_fit_error <= 0.46f &&
-			debug.harmonic_ratios[1] >= 0.50f &&
-			debug.harmonic_ratios[1] <= 1.60f &&
-			debug.harmonic_ratios[2] <= 0.14f &&
-			debug.harmonic_ratios[3] <= 0.040f &&
-			debug.harmonic_ratios[4] <= 0.025f &&
-			debug.spectral_centroid >= 0.14f &&
-			debug.spectral_centroid <= 0.30f &&
-			debug.spectral_slope <= 0.09f;
+			guitar_owned_reed_other_display_supported(debug);
 		const bool smooth_bowed_string_display_other =
 			(debug.owner == InstrumentKind::Guitar ||
 			 debug.owner == InstrumentKind::Ambiguous ||
@@ -3743,7 +4496,7 @@ bool full_mix_display_mirror_supported(FullMixDisplayRow row, const FullMixDebug
 		const bool ambiguous_high_violin_other =
 			debug.owner == InstrumentKind::Ambiguous &&
 			debug.spectral_level >= 0.90f &&
-			debug.pitch_confidence >= 0.86f &&
+			debug.pitch_confidence >= 0.79f &&
 			debug.periodicity >= 0.86f &&
 			debug.harmonic_fit_error >= 0.24f &&
 			debug.local_noise_level >= 0.018f &&
@@ -3756,7 +4509,7 @@ bool full_mix_display_mirror_supported(FullMixDisplayRow row, const FullMixDebug
 			debug.owner == InstrumentKind::Ambiguous &&
 			debug.midi >= 72 &&
 			debug.spectral_level >= 0.90f &&
-			debug.pitch_confidence >= 0.86f &&
+			debug.pitch_confidence >= 0.85f &&
 			debug.periodicity >= 0.70f &&
 			debug.harmonic_fit_error <= 0.060f &&
 			debug.local_noise_level >= 0.015f &&
@@ -3806,14 +4559,14 @@ bool full_mix_display_mirror_supported(FullMixDisplayRow row, const FullMixDebug
 			debug.harmonic_ratios[1] >= 0.084f &&
 			debug.harmonic_ratios[3] >= 0.247f &&
 			debug.periodicity <= 0.773f;
+		const bool low_acoustic_string_octave_other =
+			measured_low_acoustic_string_other_octave_supported(debug);
 		const bool guitar_owned_measured_synth_strings_other =
-			debug.owner == InstrumentKind::Guitar &&
-			debug.keyboard_score >= 0.128f &&
-			debug.keyboard_score <= 0.139f;
+			guitar_owned_synth_strings_other_display_supported(debug);
 		const bool guitar_owned_low_contrabass_other =
-			debug.owner == InstrumentKind::Guitar &&
-			debug.midi <= 40 &&
-			debug.harmonic_ratios[2] <= 0.076f;
+			guitar_owned_low_contrabass_other_display_supported(debug);
+		const bool guitar_owned_high_string_ensemble_other =
+			guitar_owned_high_string_ensemble_other_display_supported(debug);
 		const bool guitar_owned_high_violin_other =
 			debug.owner == InstrumentKind::Guitar &&
 			debug.midi >= 88 &&
@@ -3852,8 +4605,10 @@ bool full_mix_display_mirror_supported(FullMixDisplayRow row, const FullMixDebug
 			ambiguous_pizzicato_string_other ||
 			ambiguous_contrabass_string_other ||
 			ambiguous_cello_string_other ||
+			low_acoustic_string_octave_other ||
 			guitar_owned_measured_synth_strings_other ||
 			guitar_owned_low_contrabass_other ||
+			guitar_owned_high_string_ensemble_other ||
 			guitar_owned_high_violin_other ||
 			vocal_owned_pizzicato_string_other ||
 			vocal_owned_harp_string_other ||
@@ -4054,12 +4809,11 @@ void add_full_mix_display_mirror(NoteCandidateList &candidates, const FullMixOwn
 	const int display_midi = full_mix_display_mirror_midi(row, debug, ownership);
 	if (display_midi < kFirstMidi || display_midi > kLastMidi)
 		return;
+	if (clean_owned_chord_context_for_row(ownership, debug, row))
+		return;
 	const bool candidate_exists = candidate_list_has_midi(candidates, display_midi);
-	if (row == FullMixDisplayRow::Other && debug.owner == InstrumentKind::Keyboard &&
-	    count_owned_notes(ownership.keyboard) >= 2 &&
-	    !keyboard_owned_synth_other_display_supported(debug) &&
-	    !keyboard_owned_string_other_display_supported(debug) &&
-	    !measured_keyboard_synth_other_priority_supported(debug))
+	if (row == FullMixDisplayRow::Other &&
+	    keyboard_owned_other_mirror_blocked_in_chord_context(ownership, debug))
 		return;
 	if (!full_mix_display_mirror_supported(row, debug, display_midi))
 		return;
@@ -4071,6 +4825,12 @@ void add_full_mix_display_mirror(NoteCandidateList &candidates, const FullMixOwn
 		global_level = std::max(global_level,
 					std::clamp(ownership.global_note_levels[debug_index], 0.0f, 1.0f));
 	}
+	const bool measured_low_organ_keyboard_alias =
+		row == FullMixDisplayRow::Keyboard &&
+		display_midi != debug.midi &&
+		measured_low_organ_keyboard_octave_alias_supported(debug);
+	if (measured_low_organ_keyboard_alias)
+		global_level = std::max(global_level, 0.34f);
 	if (row == FullMixDisplayRow::Vocal && display_midi != debug.midi &&
 	    measured_vocal_octave_alias_supported(debug)) {
 		global_level = std::max(global_level,
@@ -4088,29 +4848,48 @@ void add_full_mix_display_mirror(NoteCandidateList &candidates, const FullMixOwn
 	if (row == FullMixDisplayRow::Guitar && display_midi != debug.midi &&
 	    other_owned_distorted_guitar_octave_alias_supported(debug))
 		candidate_score = std::max(candidate_score, base_score * 1.05f);
+	if (row == FullMixDisplayRow::Guitar && display_midi != debug.midi &&
+	    other_owned_noisy_distorted_guitar_octave_up_supported(debug))
+		candidate_score = std::max(candidate_score, base_score * 0.72f);
+	if (row == FullMixDisplayRow::Guitar &&
+	    noisy_other_owned_low_acoustic_guitar_supported(debug))
+		candidate_score = std::max(candidate_score, base_score * 1.04f);
+	if (row == FullMixDisplayRow::Guitar &&
+	    other_owned_overdrive_guitar_body_supported(debug))
+		candidate_score = std::max(candidate_score, base_score * 1.04f);
 	if (row == FullMixDisplayRow::Keyboard &&
 	    measured_other_owned_electric_piano_supported(debug))
 		candidate_score = std::max(candidate_score, base_score * 1.04f);
+	if (measured_low_organ_keyboard_alias)
+		candidate_score = std::max(candidate_score, base_score * 0.22f);
 	if (row == FullMixDisplayRow::Other &&
 	    (measured_keyboard_synth_other_priority_supported(debug) ||
 	     measured_ambiguous_string_other_priority_supported(debug) ||
-	     measured_guitar_string_other_priority_supported(debug) ||
+	     guitar_owned_measured_string_other_display_supported(debug) ||
 	     measured_vocal_synth_other_priority_supported(debug) ||
 	     measured_guitar_synth_other_priority_supported(debug) ||
 	     measured_vocal_synth_other_octave_supported(debug) ||
 	     measured_guitar_synth_other_octave_supported(debug)))
 		candidate_score = std::max(candidate_score, base_score * 1.04f);
+	float candidate_confidence = row == FullMixDisplayRow::Other ? 0.21f : 0.20f;
+	if (measured_low_organ_keyboard_alias) {
+		candidate_score = std::max(candidate_score, base_score * 0.72f);
+		candidate_confidence = std::max(candidate_confidence, 0.58f);
+	}
 	if (candidate_exists) {
 		for (NoteCandidate &candidate : candidates) {
-			if (candidate.midi == display_midi)
+			if (candidate.midi == display_midi) {
 				candidate.score = std::max(candidate.score, candidate_score);
+				candidate.ownership_confidence =
+					std::max(candidate.ownership_confidence, candidate_confidence);
+			}
 		}
 		return;
 	}
 	NoteCandidate candidate;
 	candidate.midi = display_midi;
 	candidate.score = candidate_score;
-	candidate.ownership_confidence = row == FullMixDisplayRow::Other ? 0.21f : 0.20f;
+	candidate.ownership_confidence = candidate_confidence;
 	candidates.push_back(candidate);
 }
 
@@ -4144,6 +4923,12 @@ bool full_mix_debug_bass_display_supported(const FullMixDebugCandidate &debug)
 	if (debug.midi < kBassMinMidi || debug.midi > kBassMaxMidi + 12)
 		return false;
 
+	const bool source_hinted_bass_body =
+		debug.owner == InstrumentKind::Bass &&
+		debug.bass_score >= 0.70f &&
+		debug.spectral_level >= 0.08f &&
+		debug.pitch_confidence >= 0.020f &&
+		debug.periodicity >= 0.29f;
 	const bool acoustic_upper_bass_body =
 		debug.owner == InstrumentKind::Guitar &&
 		debug.ownership_confidence >= 0.70f &&
@@ -4286,7 +5071,8 @@ bool full_mix_debug_bass_display_supported(const FullMixDebugCandidate &debug)
 		debug.harmonic_ratios[2] <= 0.22f &&
 		debug.harmonic_ratios[3] >= 0.08f &&
 		debug.harmonic_ratios[3] <= 0.27f;
-	return acoustic_upper_bass_body || picked_upper_bass_body ||
+	return source_hinted_bass_body ||
+	       acoustic_upper_bass_body || picked_upper_bass_body ||
 	       clean_keyboard_owned_bass_octave ||
 	       guitar_owned_upper_bass_edge ||
 	       guitar_owned_upper_bass_fundamental ||
@@ -4295,6 +5081,27 @@ bool full_mix_debug_bass_display_supported(const FullMixDebugCandidate &debug)
 	       other_owned_fretless_bass_body ||
 	       keyboard_owned_high_slap_bass_octave ||
 	       ambiguous_upper_synth_bass_body;
+}
+
+bool source_hinted_bass_fifth_harmonic(const FullMixOwnership &ownership,
+				       const FullMixDebugCandidate &debug)
+{
+	if (debug.owner != InstrumentKind::Bass)
+		return false;
+
+	const std::size_t debug_count =
+		std::min<std::size_t>(ownership.debug_candidate_count, ownership.debug_candidates.size());
+	for (std::size_t i = 0; i < debug_count; ++i) {
+		const FullMixDebugCandidate &lower = ownership.debug_candidates[i];
+		if (lower.owner != InstrumentKind::Bass || lower.midi >= debug.midi)
+			continue;
+		const int interval = debug.midi - lower.midi;
+		if (interval % 12 == 7 &&
+		    lower.spectral_level >= debug.spectral_level * 0.70f &&
+		    lower.pitch_confidence >= debug.pitch_confidence * 0.70f)
+			return true;
+	}
+	return false;
 }
 
 RangeResult recover_full_mix_bass_from_debug(const FullMixOwnership &ownership,
@@ -4307,6 +5114,8 @@ RangeResult recover_full_mix_bass_from_debug(const FullMixOwnership &ownership,
 	for (std::size_t i = 0; i < debug_count; ++i) {
 		const FullMixDebugCandidate &debug = ownership.debug_candidates[i];
 		if (!full_mix_debug_bass_display_supported(debug))
+			continue;
+		if (source_hinted_bass_fifth_harmonic(ownership, debug))
 			continue;
 
 		int display_midi = debug.midi;
@@ -4478,6 +5287,51 @@ float relative_timbre_weight(const TimbreMix &mix, TimbreKind kind)
 	return mix.weights[static_cast<std::size_t>(kind)] / fundamental;
 }
 
+bool measured_full_mix_sustained_voice_profile(const NoteEvidence &evidence, int midi, float second,
+					       float third, float fourth, float fifth)
+{
+	const bool choir_vowel_stack_voice =
+		midi >= 60 && midi <= 76 &&
+		evidence.spectral_level >= 0.70f &&
+		evidence.pitch_confidence >= 0.60f &&
+		evidence.periodicity >= 0.80f &&
+		evidence.harmonic_fit_error <= 0.35f &&
+		evidence.local_noise_level <= 0.18f &&
+		evidence.spectral_slope >= 0.050f &&
+		evidence.spectral_slope <= 0.32f &&
+		second >= 0.95f && second <= 1.45f &&
+		third >= 0.42f && third <= 0.70f &&
+		fourth >= 0.030f && fourth <= 0.085f &&
+		fifth <= 0.045f;
+	const bool voice_lead_sustained_voice =
+		midi >= 55 && midi <= 64 &&
+		evidence.spectral_level >= 0.90f &&
+		evidence.pitch_confidence >= 0.84f &&
+		evidence.periodicity >= 0.80f &&
+		evidence.harmonic_fit_error <= 0.11f &&
+		evidence.local_noise_level <= 0.18f &&
+		evidence.spectral_centroid <= 0.24f &&
+		evidence.spectral_slope <= 0.20f &&
+		second >= 0.35f && second <= 0.75f &&
+		third >= 0.13f && third <= 0.26f &&
+		fourth <= 0.055f &&
+		fifth <= 0.055f;
+	const bool synth_voice_sustained_voice =
+		midi >= 60 && midi <= 66 &&
+		evidence.spectral_level >= 0.75f &&
+		evidence.pitch_confidence >= 0.60f &&
+		evidence.periodicity >= 0.80f &&
+		evidence.harmonic_fit_error <= 0.35f &&
+		evidence.local_noise_level <= 0.18f &&
+		evidence.spectral_centroid <= 0.30f &&
+		evidence.spectral_slope <= 0.13f &&
+		second >= 1.0f && second <= 1.35f &&
+		third >= 0.12f && third <= 0.20f &&
+		fourth <= 0.045f &&
+		fifth <= 0.035f;
+	return choir_vowel_stack_voice || voice_lead_sustained_voice || synth_voice_sustained_voice;
+}
+
 bool full_mix_vocal_profile_supported(const NoteEvidence &evidence, int midi, float second, float third,
 				      float fourth, float fifth, bool polyphonic_vocal_context)
 {
@@ -4510,8 +5364,10 @@ bool full_mix_vocal_profile_supported(const NoteEvidence &evidence, int midi, fl
 	const bool rich_sustained_voice =
 		!high_register && second >= 0.08f && second <= 0.32f && third <= 0.22f &&
 		fourth <= 0.145f && fifth <= 0.085f && evidence.spectral_slope <= 0.42f;
+	const bool measured_sustained_voice =
+		measured_full_mix_sustained_voice_profile(evidence, midi, second, third, fourth, fifth);
 	return clean_sustained_like_partials || near_pure_tone_voice || midrange_sustained_voice ||
-	       rich_sustained_voice;
+	       rich_sustained_voice || measured_sustained_voice;
 }
 
 bool competing_full_mix_timbres(float keyboard_weight, float guitar_weight, float other_weight)
@@ -4571,6 +5427,9 @@ InstrumentKind choose_full_mix_owner(const std::array<float, kNoteProbeCount> &p
 		candidate.midi >= kFullMixVocalMinMidi && candidate.midi <= kVocalMaxMidi &&
 		full_mix_vocal_profile_supported(evidence, candidate.midi, second, third, fourth, fifth,
 						 polyphonic_vocal_context);
+	const bool measured_sustained_voice =
+		vocal_supported &&
+		measured_full_mix_sustained_voice_profile(evidence, candidate.midi, second, third, fourth, fifth);
 	const bool low_other_candidate = candidate.midi >= kGuitarMinMidi && candidate.midi < 55;
 	const bool lower_mid_other_candidate = candidate.midi >= 55 && candidate.midi < 60;
 	const bool lower_mid_bright_other_candidate =
@@ -4623,6 +5482,22 @@ InstrumentKind choose_full_mix_owner(const std::array<float, kNoteProbeCount> &p
 		evidence.spectral_slope <= 0.20f &&
 		evidence.local_noise_level <= 0.030f &&
 		!lower_mid_bright_other_candidate;
+	const bool upper_harmonic_guitar_profile =
+		candidate.midi >= 60 && candidate.midi <= kGuitarMaxMidi &&
+		second >= 0.55f &&
+		fifth <= 0.22f &&
+		evidence.harmonicity >= 2.55f &&
+		evidence.local_noise_level <= 0.008f &&
+		!lower_mid_bright_other_candidate;
+	const bool distorted_harmonic_guitar_profile =
+		candidate.midi >= 64 && candidate.midi <= 72 &&
+		second >= 1.20f &&
+		third >= 3.20f &&
+		fourth >= 0.90f &&
+		fifth <= 0.45f &&
+		evidence.spectral_centroid >= 0.58f &&
+		evidence.spectral_slope >= 2.0f &&
+		!lower_mid_bright_other_candidate;
 	const bool competing_timbres = competing_full_mix_timbres(keyboard_weight, guitar_weight, other_weight);
 	const bool blended_partials = blended_full_mix_upper_partials(second, third, fourth, fifth);
 	const bool force_blended_ambiguous =
@@ -4665,7 +5540,8 @@ InstrumentKind choose_full_mix_owner(const std::array<float, kNoteProbeCount> &p
 	if (candidate.midi >= kGuitarMinMidi && candidate.midi <= kGuitarMaxMidi &&
 	    ((second >= 0.12f && third >= 0.035f) || octave_stack_guitar_profile ||
 	     sparse_acoustic_guitar_profile || clean_plucked_guitar_profile ||
-	     thin_plucked_guitar_profile || upper_clean_guitar_profile)) {
+	     thin_plucked_guitar_profile || upper_clean_guitar_profile ||
+	     upper_harmonic_guitar_profile || distorted_harmonic_guitar_profile)) {
 		scores[1] = guitar_weight * 1.18f + second * 0.24f + third * 0.16f;
 		if (octave_stack_guitar_profile)
 			scores[1] += 0.60f + fourth * 0.34f + fifth * 0.20f;
@@ -4677,6 +5553,10 @@ InstrumentKind choose_full_mix_owner(const std::array<float, kNoteProbeCount> &p
 			scores[1] += 0.46f + second * 0.12f;
 		if (upper_clean_guitar_profile)
 			scores[1] += 0.42f + fourth * 0.18f;
+		if (upper_harmonic_guitar_profile)
+			scores[1] += 0.86f + std::min(second, 1.8f) * 0.12f;
+		if (distorted_harmonic_guitar_profile)
+			scores[1] += 3.20f + std::min(third, 6.0f) * 0.18f + fourth * 0.10f;
 		if (evidence.onset_strength >= 0.35f)
 			scores[1] += evidence.onset_strength * 0.08f;
 		if (evidence.decay_rate >= 0.18f)
@@ -4687,7 +5567,8 @@ InstrumentKind choose_full_mix_owner(const std::array<float, kNoteProbeCount> &p
 			scores[1] += 0.08f;
 		if (evidence.spectral_slope >= 0.035f && evidence.spectral_slope <= 0.30f)
 			scores[1] += 0.05f;
-		if (second > 0.75f || fourth > 0.36f)
+		if (!upper_harmonic_guitar_profile && !distorted_harmonic_guitar_profile &&
+		    (second > 0.75f || fourth > 0.36f))
 			scores[1] *= 0.72f;
 		if (lower_mid_bright_other_candidate && !octave_stack_guitar_profile)
 			scores[1] = 0.0f;
@@ -4707,6 +5588,8 @@ InstrumentKind choose_full_mix_owner(const std::array<float, kNoteProbeCount> &p
 			scores[2] += high_register ? 0.05f : 0.12f;
 		if (note_strength < 0.52f)
 			scores[2] *= 0.82f;
+		if (measured_sustained_voice)
+			scores[2] += 0.46f;
 		if (!high_register) {
 			scores[0] *= 0.28f;
 			if (second < 0.20f)
@@ -4717,7 +5600,8 @@ InstrumentKind choose_full_mix_owner(const std::array<float, kNoteProbeCount> &p
 				scores[2] *= 0.30f;
 			if (clean_plucked_guitar_profile)
 				scores[2] *= 0.38f;
-			if (thin_plucked_guitar_profile || upper_clean_guitar_profile)
+			if (thin_plucked_guitar_profile || upper_clean_guitar_profile ||
+			    upper_harmonic_guitar_profile || distorted_harmonic_guitar_profile)
 				scores[2] *= 0.36f;
 		}
 	}
@@ -4736,6 +5620,10 @@ InstrumentKind choose_full_mix_owner(const std::array<float, kNoteProbeCount> &p
 			scores[3] += 0.24f;
 		if (lower_mid_bright_other_candidate)
 			scores[3] += 0.40f;
+		if (upper_harmonic_guitar_profile)
+			scores[3] *= 0.58f;
+		if (distorted_harmonic_guitar_profile)
+			scores[3] *= 0.34f;
 	}
 	for (float &score : scores)
 		score *= noise_penalty * fit_penalty;
@@ -4769,26 +5657,36 @@ InstrumentKind choose_full_mix_owner(const std::array<float, kNoteProbeCount> &p
 	if (best == 2 && polyphonic_vocal_context)
 		return InstrumentKind::Ambiguous;
 	const bool supported_vocal_winner = best == 2 && vocal_supported;
+	const bool supported_measured_sustained_voice_winner = best == 2 && measured_sustained_voice;
 	const bool supported_octave_stack_guitar_winner = best == 1 && octave_stack_guitar_profile;
 	const bool supported_sparse_acoustic_guitar_winner = best == 1 && sparse_acoustic_guitar_profile;
 	const bool supported_clean_plucked_guitar_winner = best == 1 && clean_plucked_guitar_profile;
 	const bool supported_thin_plucked_guitar_winner = best == 1 && thin_plucked_guitar_profile;
 	const bool supported_upper_clean_guitar_winner = best == 1 && upper_clean_guitar_profile;
+	const bool supported_upper_harmonic_guitar_winner = best == 1 && upper_harmonic_guitar_profile;
+	const bool supported_distorted_harmonic_guitar_winner =
+		best == 1 && distorted_harmonic_guitar_profile;
 	const bool supported_lower_mid_bright_other_winner = best == 3 && lower_mid_bright_other_candidate;
 	const bool supported_low_other_winner = best == 3 && low_other_profile_supported;
 	const bool blended_non_vocal = (competing_timbres || blended_partials) && !supported_vocal_winner;
 	const float probability_floor =
+		supported_measured_sustained_voice_winner ? 0.40f :
 		(supported_octave_stack_guitar_winner || supported_sparse_acoustic_guitar_winner ||
 		 supported_clean_plucked_guitar_winner || supported_thin_plucked_guitar_winner ||
-		 supported_upper_clean_guitar_winner) ? 0.38f :
+		 supported_upper_clean_guitar_winner ||
+		 supported_upper_harmonic_guitar_winner ||
+		 supported_distorted_harmonic_guitar_winner) ? 0.38f :
 		supported_lower_mid_bright_other_winner ? 0.34f :
 		(supported_vocal_winner || supported_low_other_winner) ? 0.44f :
 		blended_non_vocal ? 0.68f :
 				     0.65f;
 	const float margin_floor =
+		supported_measured_sustained_voice_winner ? 0.04f :
 		(supported_octave_stack_guitar_winner || supported_sparse_acoustic_guitar_winner ||
 		 supported_clean_plucked_guitar_winner || supported_thin_plucked_guitar_winner ||
-		 supported_upper_clean_guitar_winner) ? 0.08f :
+		 supported_upper_clean_guitar_winner ||
+		 supported_upper_harmonic_guitar_winner ||
+		 supported_distorted_harmonic_guitar_winner) ? 0.08f :
 		supported_lower_mid_bright_other_winner ? 0.04f :
 		(supported_vocal_winner || supported_low_other_winner) ? 0.12f :
 		blended_non_vocal ? 0.24f :
@@ -4822,7 +5720,8 @@ FullMixOwnership build_full_mix_ownership(const std::array<float, kNoteProbeCoun
 					  const std::array<float, kNoteProbeCount> &detection_powers,
 					  float rms,
 					  const std::array<float, kNoteProbeCount> &previous_note_levels,
-					  std::array<float, kNoteProbeCount> &current_note_levels)
+					  std::array<float, kNoteProbeCount> &current_note_levels,
+					  AnalysisInputMode source_hint)
 {
 	FullMixOwnership ownership;
 	current_note_levels.fill(0.0f);
@@ -4912,9 +5811,10 @@ FullMixOwnership build_full_mix_ownership(const std::array<float, kNoteProbeCoun
 		const bool polyphonic_vocal_context =
 			vocal_range_candidate_count >= 2 &&
 			(!dominant_vocal_candidate || candidate.midi != dominant_vocal_candidate_midi);
-		const InstrumentKind owner =
+		InstrumentKind owner =
 			choose_full_mix_owner(powers, candidate, strongest_score, polyphonic_vocal_context, temporal,
 					      evidence);
+		apply_full_mix_source_hint_owner(source_hint, candidate, evidence, owner, candidates.size());
 		append_full_mix_debug_candidate(ownership, candidate, evidence, owner);
 
 		const std::size_t index = static_cast<std::size_t>(candidate.midi - kFirstMidi);
@@ -4941,6 +5841,7 @@ FullMixOwnership build_full_mix_ownership(const std::array<float, kNoteProbeCoun
 			ownership.other_candidates.push_back(ownership_weighted_candidate(candidate, evidence));
 			break;
 		case InstrumentKind::Bass:
+			break;
 		case InstrumentKind::Ambiguous:
 		default:
 			ownership.ambiguous[index] = true;
@@ -5018,6 +5919,8 @@ struct ChordCandidate {
 };
 
 using ChordCandidateList = FixedList<ChordCandidate, 256>;
+
+bool chord_label_has_exact_component(const char *label, const char *component);
 
 bool chord_candidate_compatible(const ChordCandidate &lhs, const ChordCandidate &rhs)
 {
@@ -5227,7 +6130,7 @@ ChordResult detect_chord(const std::array<float, 12> &chroma, int bass_pitch_cla
 
 	best.label[0] = '\0';
 	for (const ChordCandidate &candidate : aliases) {
-		if (std::strstr(best.label, candidate.label))
+		if (chord_label_has_exact_component(best.label, candidate.label))
 			continue;
 		if (best.label[0])
 			append_text(best.label, sizeof(best.label), "=");
@@ -5596,10 +6499,13 @@ void write_note_grid_cell(NoteGrid &grid, const NoteCandidate &candidate, float 
 	const float ownership_scale =
 		candidate.ownership_confidence <= 0.24f ? std::clamp(candidate.ownership_confidence, 0.0f, 1.0f) :
 							  1.0f;
-	cell.level = strongest_score > 1.0e-6f ?
-			     std::clamp(candidate.score / strongest_score * visual_loudness * ownership_scale,
-					0.0f, 1.0f) :
-			     0.0f;
+	const float level = strongest_score > 1.0e-6f ?
+				    std::clamp(candidate.score / strongest_score * visual_loudness * ownership_scale,
+					       0.0f, 1.0f) :
+				    0.0f;
+	if (level <= 1.0e-6f)
+		return;
+	cell.level = level;
 	cell.midi = candidate.midi;
 	cell.active = true;
 
@@ -6256,6 +7162,48 @@ bool chord_label_has_exact_component(const char *label, const char *component)
 	return false;
 }
 
+bool chord_label_contains_all_components(const char *label, const char *required)
+{
+	if (!label || !required || !*label || !*required || label[0] == '-' || required[0] == '-')
+		return false;
+
+	const char *cursor = required;
+	while (*cursor) {
+		const char *end = std::strchr(cursor, '=');
+		const std::size_t len = end ? static_cast<std::size_t>(end - cursor) : std::strlen(cursor);
+		if (len == 0 || len >= 32)
+			return false;
+
+		char component[32] = {};
+		std::memcpy(component, cursor, len);
+		component[len] = '\0';
+		if (!chord_label_has_exact_component(label, component))
+			return false;
+
+		if (!end)
+			break;
+		cursor = end + 1;
+	}
+	return true;
+}
+
+int chord_label_component_count(const char *label)
+{
+	if (!label || !*label || label[0] == '-')
+		return 0;
+
+	int count = 0;
+	const char *cursor = label;
+	while (*cursor) {
+		++count;
+		const char *end = std::strchr(cursor, '=');
+		if (!end)
+			break;
+		cursor = end + 1;
+	}
+	return count;
+}
+
 bool chord_label_has_root_component(const char *label, int root)
 {
 	if (!label || root < 0)
@@ -6291,6 +7239,28 @@ bool chord_label_has_root_third_component(const char *label, int root)
 		cursor = end + 1;
 	}
 	return false;
+}
+
+bool chord_label_has_unambiguous_root_third_component(const char *label, int root)
+{
+	if (!label || root < 0)
+		return false;
+	bool has_major = false;
+	bool has_minor = false;
+	const char *cursor = label;
+	while (*cursor) {
+		const char *end = std::strchr(cursor, '=');
+		const std::size_t len = end ? static_cast<std::size_t>(end - cursor) : std::strlen(cursor);
+		ParsedRootChord parsed;
+		if (parse_root_chord_component(cursor, len, parsed) && parsed.root == root) {
+			has_major = has_major || parsed.quality == RootChordQuality::Major;
+			has_minor = has_minor || parsed.quality == RootChordQuality::Minor;
+		}
+		if (!end)
+			break;
+		cursor = end + 1;
+	}
+	return has_major != has_minor;
 }
 
 float note_grid_pitch_level(const NoteGrid &grid, int pitch_class)
@@ -6397,8 +7367,14 @@ ChordResult detect_display_supported_guitar_analysis_triad(const NoteGrid &displ
 	copy_text(best.label, sizeof(best.label), "--");
 
 	const int active_pitch_classes = note_grid_active_pitch_class_count(analysis_grid);
-	if (active_pitch_classes < 3 || active_pitch_classes > 8)
+	if (active_pitch_classes < 3 || active_pitch_classes > 10)
 		return best;
+
+	const int display_pitch_classes = note_grid_active_pitch_class_count(display_grid);
+	if (display_pitch_classes > 7)
+		return best;
+
+	const bool noisy_analysis_grid = active_pitch_classes > 8;
 
 	float strongest = 0.0f;
 	for (int pitch_class = 0; pitch_class < 12; ++pitch_class)
@@ -6414,26 +7390,45 @@ ChordResult detect_display_supported_guitar_analysis_triad(const NoteGrid &displ
 		const float root_level = note_grid_pitch_level(analysis_grid, root);
 		const float third_level = note_grid_pitch_level(analysis_grid, third_pitch_class);
 		const float fifth_level = note_grid_pitch_level(analysis_grid, fifth_pitch_class);
-		const float root_floor = std::max(0.060f, strongest * 0.055f);
-		const float fifth_floor = std::max(0.055f, strongest * 0.050f);
-		if (root_level < root_floor || fifth_level < fifth_floor)
-			return;
-
-		const float anchor = std::min(root_level, fifth_level);
-		const float third_floor = std::max(0.024f, anchor * 0.045f);
-		if (third_level < third_floor)
-			return;
-
-		const float other_third = note_grid_pitch_level(analysis_grid, root + (minor ? 4 : 3));
-		if (other_third >= std::max(0.12f, anchor * 0.22f) && other_third >= third_level * 1.30f)
-			return;
-
 		const bool display_root = note_grid_pitch_active(display_grid, root);
 		const bool display_third = note_grid_pitch_active(display_grid, third_pitch_class);
 		const bool display_fifth = note_grid_pitch_active(display_grid, fifth_pitch_class);
 		const int display_tones =
 			(display_root ? 1 : 0) + (display_third ? 1 : 0) + (display_fifth ? 1 : 0);
-		if (display_tones < 2)
+		const bool compact_analysis_with_displayed_fifth =
+			display_tones == 1 && display_fifth && active_pitch_classes <= 4 &&
+			display_pitch_classes <= 2;
+		if (display_tones < 2 && !compact_analysis_with_displayed_fifth)
+			return;
+
+		const float anchor = std::min(root_level, fifth_level);
+		const float other_third = note_grid_pitch_level(analysis_grid, root + (minor ? 4 : 3));
+		if (noisy_analysis_grid) {
+			if (!display_root)
+				return;
+			const float core_floor = std::max(0.12f, strongest * 0.10f);
+			if (root_level < core_floor || fifth_level < core_floor)
+				return;
+			const float third_floor = std::max({0.16f, anchor * 0.30f, strongest * 0.10f});
+			if (third_level < third_floor)
+				return;
+			if (other_third >= std::max(0.10f, third_level * 0.80f))
+				return;
+		} else {
+			const float root_floor = std::max(0.060f, strongest * 0.055f);
+			const float fifth_floor = std::max(0.055f, strongest * 0.050f);
+			if (root_level < root_floor || fifth_level < fifth_floor)
+				return;
+			const float third_floor = std::max(0.024f, anchor * 0.045f);
+			if (third_level < third_floor)
+				return;
+			if (other_third >= std::max(0.12f, anchor * 0.22f) &&
+			    other_third >= third_level * 1.30f)
+				return;
+		}
+		if (compact_analysis_with_displayed_fifth &&
+		    (root_level < 0.060f || third_level < std::max(0.024f, anchor * 0.045f) ||
+		     fifth_level < std::max(0.40f, strongest * 0.40f)))
 			return;
 
 		if (note_grid_pitch_active(display_grid, root - 1) && note_grid_pitch_active(display_grid, root + 1) &&
@@ -6443,7 +7438,68 @@ ChordResult detect_display_supported_guitar_analysis_triad(const NoteGrid &displ
 		float score = 0.40f + std::min({root_level, third_level, fifth_level}) * 0.72f +
 			      anchor * 0.16f + static_cast<float>(display_tones) * 0.12f;
 		if (preferred_root >= 0 && root == ((preferred_root % 12) + 12) % 12)
-			score += 0.22f;
+			score += noisy_analysis_grid ? 0.46f : 0.22f;
+		if (score <= best_score)
+			return;
+
+		best_score = score;
+		best = make_guitar_plain_triad(root, minor, std::clamp(score, 0.42f, 0.68f));
+	};
+
+	for (int root = 0; root < 12; ++root) {
+		consider(root, false);
+		consider(root, true);
+	}
+	return best;
+}
+
+ChordResult detect_visible_supported_guitar_plain_triad(const NoteGrid &grid, int preferred_root)
+{
+	ChordResult best;
+	copy_text(best.label, sizeof(best.label), "--");
+
+	const int active_pitch_classes = note_grid_active_pitch_class_count(grid);
+	if (active_pitch_classes < 3 || active_pitch_classes > 6)
+		return best;
+
+	float strongest = 0.0f;
+	for (int pitch_class = 0; pitch_class < 12; ++pitch_class)
+		strongest = std::max(strongest, note_grid_pitch_level(grid, pitch_class));
+	if (strongest <= 1.0e-6f)
+		return best;
+
+	float best_score = 0.0f;
+	auto consider = [&](int root, bool minor) {
+		root = ((root % 12) + 12) % 12;
+		const int third_pitch_class = (root + (minor ? 3 : 4)) % 12;
+		const int fifth_pitch_class = (root + 7) % 12;
+		const float root_level = note_grid_pitch_level(grid, root);
+		const float third_level = note_grid_pitch_level(grid, third_pitch_class);
+		const float fifth_level = note_grid_pitch_level(grid, fifth_pitch_class);
+		const float anchor = std::min(root_level, fifth_level);
+		if (root_level < std::max(0.10f, strongest * 0.14f) ||
+		    fifth_level < std::max(0.08f, strongest * 0.08f) ||
+		    third_level < std::max(0.08f, anchor * 0.10f))
+			return;
+
+		const float other_third = note_grid_pitch_level(grid, root + (minor ? 4 : 3));
+		if (other_third >= std::max(0.10f, third_level * 0.72f))
+			return;
+
+		int extra_pitch_classes = 0;
+		for (int pitch_class = 0; pitch_class < 12; ++pitch_class) {
+			if (pitch_class == root || pitch_class == third_pitch_class || pitch_class == fifth_pitch_class)
+				continue;
+			if (note_grid_pitch_active(grid, pitch_class))
+				++extra_pitch_classes;
+		}
+		if (extra_pitch_classes > 3)
+			return;
+
+		float score = 0.42f + std::min({root_level, third_level, fifth_level}) * 0.65f +
+			      anchor * 0.12f - static_cast<float>(extra_pitch_classes) * 0.035f;
+		if (preferred_root >= 0 && root == ((preferred_root % 12) + 12) % 12)
+			score += 0.16f;
 		if (score <= best_score)
 			return;
 
@@ -6469,6 +7525,24 @@ void append_chord_alias(ChordResult &chord, int root, const char *suffix)
 	if (chord.label[0])
 		append_text(chord.label, sizeof(chord.label), "=");
 	append_text(chord.label, sizeof(chord.label), alias);
+}
+
+void prepend_chord_alias(ChordResult &chord, int root, const char *suffix)
+{
+	if (root < 0 || !suffix)
+		return;
+	char alias[16] = {};
+	std::snprintf(alias, sizeof(alias), "%s%s", note_name(root), suffix);
+	if (chord_label_has_exact_component(chord.label, alias))
+		return;
+
+	char promoted[sizeof(chord.label)] = {};
+	copy_text(promoted, sizeof(promoted), alias);
+	if (chord.label[0]) {
+		append_text(promoted, sizeof(promoted), "=");
+		append_text(promoted, sizeof(promoted), chord.label);
+	}
+	copy_text(chord.label, sizeof(chord.label), promoted);
 }
 
 void append_equivalent_sixth_seventh_aliases(ChordResult &chord)
@@ -6575,6 +7649,280 @@ void append_same_root_chord_aliases(ChordResult &target, const ChordResult &sour
 	}
 }
 
+void append_display_supported_guitar_analysis_triad_aliases(ChordResult &target,
+							   const NoteGrid &display_grid,
+							   const NoteGrid &analysis_grid)
+{
+	if (target.root < 0 || !target.label[0] || target.label[0] == '-')
+		return;
+	if (std::strstr(target.label, "pow"))
+		return;
+
+	const int display_pitch_classes = note_grid_active_pitch_class_count(display_grid);
+	const int analysis_pitch_classes = note_grid_active_pitch_class_count(analysis_grid);
+	if (display_pitch_classes < 3 || display_pitch_classes > 6 ||
+	    analysis_pitch_classes < 3 || analysis_pitch_classes > 8)
+		return;
+
+	const std::array<float, 12> display_chroma = note_grid_chroma(display_grid);
+	const std::array<float, 12> analysis_chroma = note_grid_chroma(analysis_grid);
+	if (longest_chromatic_run(display_chroma) >= 5 || longest_chromatic_run(analysis_chroma) >= 5)
+		return;
+
+	float strongest_analysis = 0.0f;
+	for (int pitch_class = 0; pitch_class < 12; ++pitch_class)
+		strongest_analysis = std::max(strongest_analysis, note_grid_pitch_level(analysis_grid, pitch_class));
+	if (strongest_analysis <= 1.0e-6f)
+		return;
+
+	for (int root = 0; root < 12; ++root) {
+		for (bool minor : {false, true}) {
+			const int third = (root + (minor ? 3 : 4)) % 12;
+			const int opposite_third = (root + (minor ? 4 : 3)) % 12;
+			const int fifth = (root + 7) % 12;
+			if (!note_grid_pitch_active(display_grid, root) ||
+			    !note_grid_pitch_active(display_grid, third) ||
+			    !note_grid_pitch_active(analysis_grid, root) ||
+			    !note_grid_pitch_active(analysis_grid, third) ||
+			    !note_grid_pitch_active(analysis_grid, fifth))
+				continue;
+
+			const float display_root = note_grid_pitch_level(display_grid, root);
+			const float display_third = note_grid_pitch_level(display_grid, third);
+			const float display_anchor = std::min(display_root, display_third);
+			if (display_root < 0.12f || display_third < std::max(0.14f, display_anchor * 0.35f))
+				continue;
+
+			const float analysis_root = note_grid_pitch_level(analysis_grid, root);
+			const float analysis_third = note_grid_pitch_level(analysis_grid, third);
+			const float analysis_fifth = note_grid_pitch_level(analysis_grid, fifth);
+			const float analysis_anchor = std::min(analysis_root, analysis_fifth);
+			if (analysis_root < std::max(0.08f, strongest_analysis * 0.06f) ||
+			    analysis_third < std::max(0.05f, analysis_anchor * 0.075f) ||
+			    analysis_fifth < std::max(0.06f, strongest_analysis * 0.04f))
+				continue;
+
+			const float display_opposite = note_grid_pitch_level(display_grid, opposite_third);
+			const float analysis_opposite = note_grid_pitch_level(analysis_grid, opposite_third);
+			if (display_opposite >= std::max(0.12f, display_anchor * 0.68f) ||
+			    analysis_opposite >= std::max(0.12f, analysis_anchor * 0.68f))
+				continue;
+
+			int display_extras = 0;
+			for (int pitch_class = 0; pitch_class < 12; ++pitch_class) {
+				if (pitch_class == root || pitch_class == third || pitch_class == fifth)
+					continue;
+				if (note_grid_pitch_active(display_grid, pitch_class))
+					++display_extras;
+			}
+			if (display_extras > 3)
+				continue;
+
+			append_chord_alias(target, root, minor ? "m" : "");
+		}
+	}
+}
+
+void append_root_anchored_guitar_analysis_triad_aliases(ChordResult &target,
+							const NoteGrid &display_grid,
+							const NoteGrid &analysis_grid)
+{
+	if (target.root < 0 || !target.label[0] || target.label[0] == '-')
+		return;
+
+	const int display_pitch_classes = note_grid_active_pitch_class_count(display_grid);
+	const int analysis_pitch_classes = note_grid_active_pitch_class_count(analysis_grid);
+	if (display_pitch_classes < 2 || display_pitch_classes > 7 ||
+	    analysis_pitch_classes < 3 || analysis_pitch_classes > 10)
+		return;
+
+	const std::array<float, 12> display_chroma = note_grid_chroma(display_grid);
+	const std::array<float, 12> analysis_chroma = note_grid_chroma(analysis_grid);
+	const int display_chromatic_run = longest_chromatic_run(display_chroma);
+	const int analysis_chromatic_run = longest_chromatic_run(analysis_chroma);
+
+	float strongest_analysis = 0.0f;
+	for (int pitch_class = 0; pitch_class < 12; ++pitch_class)
+		strongest_analysis = std::max(strongest_analysis, note_grid_pitch_level(analysis_grid, pitch_class));
+	if (strongest_analysis <= 1.0e-6f)
+		return;
+
+	for (int root = 0; root < 12; ++root) {
+		for (bool minor : {false, true}) {
+			const int third = (root + (minor ? 3 : 4)) % 12;
+			const int opposite_third = (root + (minor ? 4 : 3)) % 12;
+			const int fifth = (root + 7) % 12;
+			const bool target_already_has_root = chord_label_has_root_component(target.label, root);
+			const bool display_root = note_grid_pitch_active(display_grid, root);
+			const bool display_third = note_grid_pitch_active(display_grid, third);
+			const bool display_fifth = note_grid_pitch_active(display_grid, fifth);
+			if (!display_root || (!display_third && !display_fifth))
+				continue;
+			if (display_chromatic_run >= 6 && !target_already_has_root)
+				continue;
+			if (analysis_chromatic_run >= 7 && !display_third && !target_already_has_root)
+				continue;
+			if (!note_grid_pitch_active(analysis_grid, root) ||
+			    !note_grid_pitch_active(analysis_grid, third) ||
+			    !note_grid_pitch_active(analysis_grid, fifth))
+				continue;
+
+			const float analysis_root = note_grid_pitch_level(analysis_grid, root);
+			const float analysis_third = note_grid_pitch_level(analysis_grid, third);
+			const float analysis_fifth = note_grid_pitch_level(analysis_grid, fifth);
+			const float analysis_anchor = std::min(analysis_root, analysis_fifth);
+			if (analysis_root < std::max(0.08f, strongest_analysis * 0.06f) ||
+			    analysis_fifth < std::max(0.06f, strongest_analysis * 0.04f))
+				continue;
+
+			if (!display_fifth && display_third && !target_already_has_root &&
+			    analysis_fifth < std::max({0.55f, analysis_root * 0.30f, strongest_analysis * 0.22f}))
+				continue;
+			if (analysis_chromatic_run >= 9 &&
+			    (!target_already_has_root || !display_fifth ||
+			     analysis_third < std::max({0.16f, analysis_anchor * 0.18f,
+							strongest_analysis * 0.12f})))
+				continue;
+			float third_floor = display_third ?
+						    std::max(0.035f, analysis_anchor * 0.055f) :
+						    std::max(0.018f, analysis_anchor * 0.028f);
+			if (!target_already_has_root && !display_third)
+				third_floor = std::max(third_floor, analysis_anchor * 0.18f);
+			if (analysis_pitch_classes > 8)
+				third_floor = std::max(third_floor, analysis_anchor * 0.12f);
+			if (analysis_third < third_floor)
+				continue;
+
+			const float display_anchor =
+				std::min(note_grid_pitch_level(display_grid, root),
+					 std::max(note_grid_pitch_level(display_grid, third),
+						  note_grid_pitch_level(display_grid, fifth)));
+			const float display_opposite = note_grid_pitch_level(display_grid, opposite_third);
+			const float analysis_opposite = note_grid_pitch_level(analysis_grid, opposite_third);
+			if (display_opposite >= std::max(0.12f, display_anchor * 0.68f) ||
+			    analysis_opposite >= std::max(0.12f, analysis_anchor * 0.68f))
+				continue;
+
+			int display_extras = 0;
+			for (int pitch_class = 0; pitch_class < 12; ++pitch_class) {
+				if (pitch_class == root || pitch_class == third || pitch_class == fifth)
+					continue;
+				if (note_grid_pitch_active(display_grid, pitch_class))
+					++display_extras;
+			}
+			if (display_extras > (target_already_has_root ? 4 : 3))
+				continue;
+
+			if (target_already_has_root && !chord_label_has_root_third_component(target.label, root))
+				prepend_chord_alias(target, root, minor ? "m" : "");
+			else
+				append_chord_alias(target, root, minor ? "m" : "");
+		}
+	}
+}
+
+float strongest_probe_pitch_class_level(const std::array<float, kNoteProbeCount> &powers, int pitch_class,
+					int min_midi, int max_midi);
+float strongest_probe_level(const std::array<float, kNoteProbeCount> &powers, int min_midi, int max_midi);
+
+void append_probe_supported_guitar_rootless_plain_triad_aliases(ChordResult &target,
+							       const NoteGrid &display_grid,
+							       const NoteGrid &analysis_grid,
+							       const std::array<float, kNoteProbeCount> &powers,
+							       int min_midi,
+							       int max_midi)
+{
+	if (target.root < 0 || !target.label[0] || target.label[0] == '-')
+		return;
+	if (!chord_label_has_guitar_extension_or_alteration(target.label))
+		return;
+
+	const int display_pitch_classes = note_grid_active_pitch_class_count(display_grid);
+	const int analysis_pitch_classes = note_grid_active_pitch_class_count(analysis_grid);
+	if (display_pitch_classes < 2 || display_pitch_classes > 5 ||
+	    analysis_pitch_classes < 3 || analysis_pitch_classes > 6)
+		return;
+
+	const std::array<float, 12> display_chroma = note_grid_chroma(display_grid);
+	const std::array<float, 12> analysis_chroma = note_grid_chroma(analysis_grid);
+	if (longest_chromatic_run(display_chroma) >= 4 || longest_chromatic_run(analysis_chroma) >= 5)
+		return;
+
+	const float strongest_probe = strongest_probe_level(powers, min_midi, max_midi);
+	if (strongest_probe <= 1.0e-6f)
+		return;
+
+	float strongest_analysis = 0.0f;
+	for (int pitch_class = 0; pitch_class < 12; ++pitch_class)
+		strongest_analysis = std::max(strongest_analysis, note_grid_pitch_level(analysis_grid, pitch_class));
+	if (strongest_analysis <= 1.0e-6f)
+		return;
+
+	for (int root = 0; root < 12; ++root) {
+		if (chord_label_has_root_component(target.label, root))
+			continue;
+
+		for (bool minor : {false, true}) {
+			const int third = (root + (minor ? 3 : 4)) % 12;
+			const int opposite_third = (root + (minor ? 4 : 3)) % 12;
+			const int fifth = (root + 7) % 12;
+			if (note_grid_pitch_active(display_grid, root) ||
+			    !note_grid_pitch_active(display_grid, third) ||
+			    !note_grid_pitch_active(display_grid, fifth))
+				continue;
+			if (!note_grid_pitch_active(analysis_grid, root) ||
+			    !note_grid_pitch_active(analysis_grid, third) ||
+			    !note_grid_pitch_active(analysis_grid, fifth))
+				continue;
+
+			const float display_third = note_grid_pitch_level(display_grid, third);
+			const float display_fifth = note_grid_pitch_level(display_grid, fifth);
+			const float display_anchor = std::min(display_third, display_fifth);
+			if (display_anchor < 0.16f)
+				continue;
+
+			const float analysis_root = note_grid_pitch_level(analysis_grid, root);
+			const float analysis_third = note_grid_pitch_level(analysis_grid, third);
+			const float analysis_fifth = note_grid_pitch_level(analysis_grid, fifth);
+			const float analysis_anchor = std::min(analysis_third, analysis_fifth);
+			if (analysis_root < std::max(0.005f, strongest_analysis * 0.004f) ||
+			    analysis_third < std::max(0.08f, strongest_analysis * 0.06f) ||
+			    analysis_fifth < std::max(0.08f, strongest_analysis * 0.06f))
+				continue;
+
+			const float probe_root =
+				strongest_probe_pitch_class_level(powers, root, min_midi, max_midi);
+			const float probe_third =
+				strongest_probe_pitch_class_level(powers, third, min_midi, max_midi);
+			const float probe_fifth =
+				strongest_probe_pitch_class_level(powers, fifth, min_midi, max_midi);
+			const float probe_opposite =
+				strongest_probe_pitch_class_level(powers, opposite_third, min_midi, max_midi);
+			const float probe_anchor = std::min(probe_third, probe_fifth);
+			if (probe_root < std::max({strongest_probe * 0.020f, probe_anchor * 0.24f, 0.020f}))
+				continue;
+			if (probe_opposite >= std::max(0.12f, probe_root * 0.58f))
+				continue;
+
+			const float analysis_opposite = note_grid_pitch_level(analysis_grid, opposite_third);
+			if (analysis_opposite >= std::max(0.12f, analysis_anchor * 0.62f))
+				continue;
+
+			int display_extras = 0;
+			for (int pitch_class = 0; pitch_class < 12; ++pitch_class) {
+				if (pitch_class == third || pitch_class == fifth)
+					continue;
+				if (note_grid_pitch_active(display_grid, pitch_class))
+					++display_extras;
+			}
+			if (display_extras > 2)
+				continue;
+
+			append_chord_alias(target, root, minor ? "m" : "");
+		}
+	}
+}
+
 void append_supported_guitar_plain_triad_aliases(ChordResult &chord, const NoteGrid &grid, int only_root = -1)
 {
 	if (chord.root < 0 || !chord.label[0] || chord.label[0] == '-')
@@ -6643,6 +7991,108 @@ void append_supported_guitar_ambiguous_third_aliases(ChordResult &chord, const N
 	}
 }
 
+bool plain_chord_exactly_matches_display_grid(const ChordResult &chord, const NoteGrid &grid)
+{
+	ParsedRootChord parsed;
+	if (!parse_root_chord_component(chord.label, std::strcspn(chord.label, "="), parsed) ||
+	    (parsed.quality != RootChordQuality::Major && parsed.quality != RootChordQuality::Minor))
+		return false;
+	std::array<bool, 12> primary_tones = {};
+	primary_tones[parsed.root] = true;
+	primary_tones[(parsed.root + (parsed.quality == RootChordQuality::Minor ? 3 : 4)) % 12] = true;
+	primary_tones[(parsed.root + 7) % 12] = true;
+	const std::array<float, 12> visible_chroma = note_grid_chroma(grid);
+	int visible_pitch_classes = 0;
+	for (float level : visible_chroma) {
+		if (level > 0.0f)
+			++visible_pitch_classes;
+	}
+	if (visible_pitch_classes != 3)
+		return false;
+	for (int pitch_class = 0; pitch_class < 12; ++pitch_class) {
+		if (visible_chroma[pitch_class] > 0.0f && !primary_tones[pitch_class])
+			return false;
+	}
+	return true;
+}
+
+bool parse_primary_major_minor_chord(const ChordResult &chord, ParsedRootChord &parsed)
+{
+	if (chord.root < 0 || !chord.label[0] || chord.label[0] == '-')
+		return false;
+	if (!parse_root_chord_component(chord.label, std::strcspn(chord.label, "="), parsed) ||
+	    (parsed.quality != RootChordQuality::Major && parsed.quality != RootChordQuality::Minor))
+		return false;
+	return parsed.root == chord.root;
+}
+
+float primary_major_minor_min_tone_level(const NoteGrid &grid, const ParsedRootChord &parsed)
+{
+	const int third = parsed.root + (parsed.quality == RootChordQuality::Minor ? 3 : 4);
+	return std::min({note_grid_pitch_level(grid, parsed.root), note_grid_pitch_level(grid, third),
+			 note_grid_pitch_level(grid, parsed.root + 7)});
+}
+
+bool clean_primary_guitar_chord_display(const ChordResult &chord, const NoteGrid &display_grid,
+					const NoteGrid &)
+{
+	ParsedRootChord parsed;
+	if (!parse_primary_major_minor_chord(chord, parsed))
+		return false;
+
+	if (plain_chord_exactly_matches_display_grid(chord, display_grid) &&
+	    primary_major_minor_min_tone_level(display_grid, parsed) >= 0.30f)
+		return true;
+
+	const int fifth = parsed.root + 7;
+	if (note_grid_pitch_level(display_grid, parsed.root) < 0.30f ||
+	    note_grid_pitch_level(display_grid, fifth) < 0.30f)
+		return false;
+	return true;
+}
+
+bool same_root_alias_preserves_clean_primary(const ChordResult &chord, const ParsedRootChord &primary)
+{
+	const char *cursor = chord.label;
+	while (cursor && *cursor) {
+		const char *end = std::strchr(cursor, '=');
+		const std::size_t len =
+			end ? static_cast<std::size_t>(end - cursor) : std::strlen(cursor);
+		ParsedRootChord component;
+		if (parse_root_chord_component(cursor, len, component) && component.root == primary.root) {
+			std::size_t root_len = 1;
+			if (len > 1 && cursor[1] == '#')
+				root_len = 2;
+			const char *suffix = cursor + root_len;
+			const std::size_t suffix_len = len - root_len;
+			const bool primary_plain =
+				primary.quality == RootChordQuality::Minor ? suffix_is(suffix, suffix_len, "m") :
+										 suffix_len == 0;
+			if (!primary_plain)
+				return true;
+		}
+		if (!end)
+			break;
+		cursor = end + 1;
+	}
+	return false;
+}
+
+void prune_clean_primary_guitar_aliases(ChordResult &chord, const NoteGrid &display_grid,
+					const NoteGrid &analysis_grid)
+{
+	ParsedRootChord primary;
+	if (!parse_primary_major_minor_chord(chord, primary))
+		return;
+	if (!clean_primary_guitar_chord_display(chord, display_grid, analysis_grid))
+		return;
+	if (same_root_alias_preserves_clean_primary(chord, primary))
+		return;
+	char *alias = std::strchr(chord.label, '=');
+	if (alias)
+		*alias = '\0';
+}
+
 void append_supported_guitar_power_aliases(ChordResult &chord, const NoteGrid &grid)
 {
 	if (chord.root < 0 || !chord.label[0] || chord.label[0] == '-')
@@ -6658,7 +8108,10 @@ void append_supported_guitar_power_aliases(ChordResult &chord, const NoteGrid &g
 	std::array<float, 12> scores = {};
 	float best_score = 0.0f;
 	for (int root = 0; root < 12; ++root) {
-		if (chord_label_has_root_third_component(chord.label, root))
+		const bool grid_minor_active = note_grid_pitch_active(grid, root + 3);
+		const bool grid_major_active = note_grid_pitch_active(grid, root + 4);
+		if (chord_label_has_root_third_component(chord.label, root) &&
+		    (grid_minor_active || grid_major_active))
 			continue;
 
 		const float root_level = note_grid_pitch_supported_level(grid, root, kActiveAliasFloor);
@@ -6737,6 +8190,57 @@ bool supported_guitar_root_fifth_dyad(const NoteGrid &display_grid, const NoteGr
 	return true;
 }
 
+bool display_supported_guitar_root_fifth_dyad(const NoteGrid &display_grid,
+					     const NoteGrid &analysis_grid,
+					     int root,
+					     float *score_out = nullptr)
+{
+	root = ((root % 12) + 12) % 12;
+	const int display_pitch_classes = note_grid_active_pitch_class_count(display_grid);
+	const int analysis_pitch_classes = note_grid_active_pitch_class_count(analysis_grid);
+	if (display_pitch_classes < 2 || analysis_pitch_classes < 2 ||
+	    display_pitch_classes > 6 || analysis_pitch_classes > 8)
+		return false;
+
+	const std::array<float, 12> display_chroma = note_grid_chroma(display_grid);
+	const std::array<float, 12> analysis_chroma = note_grid_chroma(analysis_grid);
+	if (longest_chromatic_run(display_chroma) >= 5 || longest_chromatic_run(analysis_chroma) >= 5)
+		return false;
+
+	float strongest_display = 0.0f;
+	float strongest_analysis = 0.0f;
+	for (int pitch_class = 0; pitch_class < 12; ++pitch_class) {
+		strongest_display = std::max(strongest_display, note_grid_pitch_level(display_grid, pitch_class));
+		strongest_analysis = std::max(strongest_analysis, note_grid_pitch_level(analysis_grid, pitch_class));
+	}
+	if (strongest_display <= 1.0e-6f || strongest_analysis <= 1.0e-6f)
+		return false;
+
+	constexpr float kActiveAliasFloor = 0.12f;
+	const float display_root = note_grid_pitch_supported_level(display_grid, root, kActiveAliasFloor);
+	const float display_fifth = note_grid_pitch_supported_level(display_grid, root + 7, kActiveAliasFloor);
+	const float analysis_root = note_grid_pitch_supported_level(analysis_grid, root, kActiveAliasFloor);
+	const float analysis_fifth = note_grid_pitch_supported_level(analysis_grid, root + 7, kActiveAliasFloor);
+	if (display_root < std::max(0.10f, strongest_display * 0.14f) ||
+	    display_fifth < std::max(0.08f, strongest_display * 0.10f) ||
+	    analysis_root < std::max(0.08f, strongest_analysis * 0.08f) ||
+	    analysis_fifth < std::max(0.06f, strongest_analysis * 0.06f))
+		return false;
+
+	const float display_anchor = std::min(display_root, display_fifth);
+	const float display_third_floor = std::max(0.10f, display_anchor * 0.45f);
+	const float display_major = note_grid_pitch_supported_level(display_grid, root + 4, kActiveAliasFloor);
+	const float display_minor = note_grid_pitch_supported_level(display_grid, root + 3, kActiveAliasFloor);
+	if (display_major >= display_third_floor || display_minor >= display_third_floor)
+		return false;
+
+	if (score_out) {
+		const float analysis_anchor = std::min(analysis_root, analysis_fifth);
+		*score_out = display_anchor * 0.70f + analysis_anchor * 0.30f;
+	}
+	return true;
+}
+
 ChordResult detect_supported_guitar_power_dyad(const NoteGrid &display_grid,
 					       const NoteGrid &analysis_grid,
 					       int preferred_root)
@@ -6745,7 +8249,8 @@ ChordResult detect_supported_guitar_power_dyad(const NoteGrid &display_grid,
 	float best_score = 0.0f;
 	for (int root = 0; root < 12; ++root) {
 		float score = 0.0f;
-		if (!supported_guitar_root_fifth_dyad(display_grid, analysis_grid, root, &score))
+		if (!supported_guitar_root_fifth_dyad(display_grid, analysis_grid, root, &score) &&
+		    !display_supported_guitar_root_fifth_dyad(display_grid, analysis_grid, root, &score))
 			continue;
 		if (preferred_root >= 0 && root == ((preferred_root % 12) + 12) % 12)
 			score += 0.06f;
@@ -6985,7 +8490,7 @@ bool parse_power_chord_component(const char *start, std::size_t len, ParsedRootC
 	return suffix_is(suffix, suffix_len, "pow");
 }
 
-void remove_superseded_guitar_power_aliases(ChordResult &chord)
+void remove_superseded_guitar_power_aliases(ChordResult &chord, const NoteGrid *grid = nullptr)
 {
 	if (chord.root < 0 || !chord.label[0] || chord.label[0] == '-')
 		return;
@@ -6997,9 +8502,34 @@ void remove_superseded_guitar_power_aliases(ChordResult &chord)
 		const std::size_t len = end ? static_cast<std::size_t>(end - cursor) : std::strlen(cursor);
 
 		ParsedRootChord parsed;
-		const bool skip =
-			parse_power_chord_component(cursor, len, parsed) &&
-			chord_label_has_root_third_component(chord.label, parsed.root);
+		bool skip = false;
+		if (parse_power_chord_component(cursor, len, parsed) &&
+		    chord_label_has_unambiguous_root_third_component(chord.label, parsed.root)) {
+			skip = true;
+			if (grid) {
+				bool has_major = false;
+				bool has_minor = false;
+				const char *scan = chord.label;
+				while (*scan) {
+					const char *scan_end = std::strchr(scan, '=');
+					const std::size_t scan_len =
+						scan_end ? static_cast<std::size_t>(scan_end - scan) :
+							   std::strlen(scan);
+					ParsedRootChord component;
+					if (parse_root_chord_component(scan, scan_len, component) &&
+					    component.root == parsed.root) {
+						has_major = has_major || component.quality == RootChordQuality::Major;
+						has_minor = has_minor || component.quality == RootChordQuality::Minor;
+					}
+					if (!scan_end)
+						break;
+					scan = scan_end + 1;
+				}
+				const int third =
+					parsed.root + (has_minor && !has_major ? 3 : 4);
+				skip = note_grid_pitch_active(*grid, third);
+			}
+		}
 		if (!skip) {
 			if (filtered[0])
 				append_text(filtered, sizeof(filtered), "=");
@@ -7035,7 +8565,7 @@ void remove_power_aliases_for_root(ChordResult &chord, int root)
 
 		ParsedRootChord parsed;
 		const bool skip = parse_power_chord_component(cursor, len, parsed) && parsed.root == root &&
-				  chord_label_has_root_third_component(chord.label, root);
+				  chord_label_has_unambiguous_root_third_component(chord.label, root);
 		if (!skip) {
 			if (filtered[0])
 				append_text(filtered, sizeof(filtered), "=");
@@ -7149,9 +8679,16 @@ void append_guitar_power_probe_third_aliases(ChordResult &chord, const NoteGrid 
 			const float anchor =
 				std::max({root_probe, fifth_probe, std::min(root_grid, fifth_grid) * 0.50f});
 			const float third_floor =
-				std::max({strongest_probe * 0.004f, anchor * 0.014f, 0.00055f});
-			const float single_third_floor = third_floor;
-			const float both_third_floor = std::max(third_floor, anchor * 0.22f);
+				std::max({strongest_probe * 0.0015f, anchor * 0.004f, 0.0004f});
+			const float grid_anchor = std::min(root_grid, fifth_grid);
+			const float grid_third_floor = std::max(0.10f, grid_anchor * 0.32f);
+			const float grid_minor =
+				note_grid_pitch_supported_level(grid, parsed.root + 3, kActiveAliasFloor);
+			const float grid_major =
+				note_grid_pitch_supported_level(grid, parsed.root + 4, kActiveAliasFloor);
+			const bool grid_thirdless = grid_minor < grid_third_floor && grid_major < grid_third_floor;
+			const float single_third_floor =
+				grid_thirdless ? std::max(third_floor, anchor * 0.055f) : third_floor;
 			const float melodic_root =
 				strongest_melodic_probe_pitch_class_level(powers, parsed.root, min_midi,
 									 max_midi);
@@ -7167,25 +8704,57 @@ void append_guitar_power_probe_third_aliases(ChordResult &chord, const NoteGrid 
 			const float melodic_anchor = std::max(melodic_root, melodic_fifth);
 			const float melodic_competing_floor =
 				std::max({strongest_melodic_probe * 0.001f, melodic_anchor * 0.015f, 0.0002f});
+			const float melodic_third_floor =
+				std::max({strongest_melodic_probe * 0.001f,
+					  melodic_anchor * (grid_thirdless ? 0.09f : 0.015f),
+					  0.0002f});
+			const float strong_third_margin = grid_thirdless ? 1.60f : 1.10f;
+			const float weak_third_margin = grid_thirdless ? 1.60f : 1.02f;
 			const bool competing_minor =
 				melodic_minor >= melodic_competing_floor && melodic_minor >= melodic_major * 0.70f;
 			const bool competing_major =
 				melodic_major >= melodic_competing_floor && melodic_major >= melodic_minor * 0.70f;
+			const bool strong_direct_minor =
+				minor_third >= std::max(single_third_floor, anchor * 0.004f) &&
+				minor_third >= major_third * strong_third_margin;
+			const bool strong_direct_major =
+				major_third >= std::max(single_third_floor, anchor * 0.004f) &&
+				major_third >= minor_third * strong_third_margin;
+			const bool primary_power_component = cursor == chord.label && std::strchr(chord.label, '=') != nullptr;
+			const float primary_power_third_floor = std::max({anchor * 0.040f, 0.005f, 0.0004f});
+			const bool primary_power_direct_minor =
+				primary_power_component && grid_thirdless &&
+				minor_third >= primary_power_third_floor &&
+				minor_third >= major_third * strong_third_margin;
+			const bool primary_power_direct_major =
+				primary_power_component && grid_thirdless &&
+				major_third >= primary_power_third_floor &&
+				major_third >= minor_third * strong_third_margin;
+			const bool strong_melodic_minor =
+				melodic_minor >= melodic_third_floor &&
+				melodic_minor >= melodic_major * strong_third_margin;
+			const bool strong_melodic_major =
+				melodic_major >= melodic_third_floor &&
+				melodic_major >= melodic_minor * strong_third_margin;
 			const bool choose_minor =
-				minor_third >= single_third_floor && minor_third >= major_third * 1.02f &&
-				!competing_major;
+				strong_direct_minor || primary_power_direct_minor || strong_melodic_minor ||
+				(minor_third >= single_third_floor &&
+				 minor_third >= major_third * weak_third_margin &&
+				 !competing_major);
 			const bool choose_major =
-				major_third >= single_third_floor && major_third >= minor_third * 1.02f &&
-				!competing_minor;
-			if (choose_minor != choose_major) {
+				strong_direct_major || primary_power_direct_major || strong_melodic_major ||
+				(major_third >= single_third_floor &&
+				 major_third >= minor_third * weak_third_margin &&
+				 !competing_minor);
+			const bool melodic_only_quality =
+				!strong_direct_minor && !strong_direct_major &&
+				(strong_melodic_minor != strong_melodic_major) &&
+				minor_third < single_third_floor && major_third < single_third_floor;
+			if (melodic_only_quality) {
+				append_chord_alias(chord, parsed.root, "");
+				append_chord_alias(chord, parsed.root, "m");
+			} else if (choose_minor != choose_major) {
 				append_chord_alias(chord, parsed.root, choose_minor ? "m" : "");
-			} else {
-				const float weaker_third = std::min(minor_third, major_third);
-				const float stronger_third = std::max(minor_third, major_third);
-				if (weaker_third >= both_third_floor && weaker_third >= stronger_third * 0.72f) {
-					append_chord_alias(chord, parsed.root, "");
-					append_chord_alias(chord, parsed.root, "m");
-				}
 			}
 		}
 
@@ -7199,58 +8768,13 @@ void append_guitar_power_quality_candidates(ChordResult &chord, const NoteGrid &
 					    const std::array<float, kNoteProbeCount> &powers, int min_midi,
 					    int max_midi)
 {
-	// A no-third power chord can be the visible slice of a major or minor guitar chord.
-	if (chord.root < 0 || !chord.label[0] || chord.label[0] == '-' || !std::strstr(chord.label, "pow"))
-		return;
-
-	float strongest_grid = 0.0f;
-	for (int pitch_class = 0; pitch_class < 12; ++pitch_class)
-		strongest_grid = std::max(strongest_grid, note_grid_pitch_level(grid, pitch_class));
-	const float strongest_probe = strongest_probe_level(powers, min_midi, max_midi);
-	if (strongest_grid <= 1.0e-6f || strongest_probe <= 1.0e-6f)
-		return;
-
-	constexpr float kActiveAliasFloor = 0.12f;
-	std::array<bool, 12> roots = {};
-	const char *cursor = chord.label;
-	while (*cursor) {
-		const char *end = std::strchr(cursor, '=');
-		const std::size_t len = end ? static_cast<std::size_t>(end - cursor) : std::strlen(cursor);
-
-		ParsedRootChord parsed;
-		if (parse_power_chord_component(cursor, len, parsed) &&
-		    !chord_label_has_root_third_component(chord.label, parsed.root)) {
-			const float root_grid =
-				note_grid_pitch_supported_level(grid, parsed.root, kActiveAliasFloor);
-			const float fifth_grid =
-				note_grid_pitch_supported_level(grid, parsed.root + 7, kActiveAliasFloor);
-			const float root_probe =
-				strongest_probe_pitch_class_level(powers, parsed.root, min_midi, max_midi);
-			const float fifth_probe =
-				strongest_probe_pitch_class_level(powers, parsed.root + 7, min_midi, max_midi);
-			const float minor_third =
-				strongest_probe_pitch_class_level(powers, parsed.root + 3, min_midi, max_midi);
-			const float major_third =
-				strongest_probe_pitch_class_level(powers, parsed.root + 4, min_midi, max_midi);
-			const float anchor =
-				std::max({root_probe, fifth_probe, std::min(root_grid, fifth_grid) * 0.50f});
-			const float third_probe_floor =
-				std::max({strongest_probe * 0.003f, anchor * 0.010f, 0.0004f});
-			if (major_third < third_probe_floor && minor_third < third_probe_floor)
-				roots[((parsed.root % 12) + 12) % 12] = true;
-		}
-
-		if (!end)
-			break;
-		cursor = end + 1;
-	}
-
-	for (int root = 0; root < 12; ++root) {
-		if (!roots[root])
-			continue;
-		append_chord_alias(chord, root, "");
-		append_chord_alias(chord, root, "m");
-	}
+	(void)chord;
+	(void)grid;
+	(void)powers;
+	(void)min_midi;
+	(void)max_midi;
+	// Thirdless power evidence should stay labeled as pow. Clear single-third evidence
+	// is handled by append_guitar_power_probe_third_aliases above.
 }
 
 bool append_guitar_thirdless_dyad_quality_aliases(ChordResult &chord,
@@ -7310,10 +8834,12 @@ bool append_guitar_thirdless_dyad_quality_aliases(ChordResult &chord,
 			if (!compact_display || !root_visible || !fifth_visible || !weak_grid_third)
 				continue;
 		}
-		const float third_floor = std::max({strongest_probe * 0.003f, anchor * 0.010f, 0.0004f});
+		const float third_floor = std::max({strongest_probe * 0.0015f, anchor * 0.004f, 0.0004f});
 		const bool has_minor = minor_third >= third_floor;
 		const bool has_major = major_third >= third_floor;
-		const float single_third_floor = third_floor;
+		const bool grid_thirdless = !grid_minor && !grid_major;
+		const float single_third_floor =
+			grid_thirdless ? std::max(third_floor, anchor * 0.055f) : third_floor;
 		const float melodic_root =
 			strongest_melodic_probe_pitch_class_level(powers, root, min_midi, max_midi);
 		const float melodic_fifth =
@@ -7325,41 +8851,181 @@ bool append_guitar_thirdless_dyad_quality_aliases(ChordResult &chord,
 		const float melodic_anchor = std::max(melodic_root, melodic_fifth);
 		const float melodic_competing_floor =
 			std::max({strongest_melodic_probe * 0.001f, melodic_anchor * 0.015f, 0.0002f});
+		const float melodic_third_floor =
+			std::max({strongest_melodic_probe * 0.001f,
+				  melodic_anchor * (grid_thirdless ? 0.09f : 0.015f), 0.0002f});
+		const float strong_third_margin = grid_thirdless ? 1.60f : 1.10f;
+		const float weak_third_margin = grid_thirdless ? 1.60f : 1.02f;
 		const bool competing_minor =
 			melodic_minor >= melodic_competing_floor && melodic_minor >= melodic_major * 0.70f;
 		const bool competing_major =
 			melodic_major >= melodic_competing_floor && melodic_major >= melodic_minor * 0.70f;
-		const bool choose_minor = has_minor && minor_third >= single_third_floor &&
-					  minor_third >= major_third * 1.02f && !competing_major;
-		const bool choose_major = has_major && major_third >= single_third_floor &&
-					  major_third >= minor_third * 1.02f && !competing_minor;
-		const float third_hint_floor =
-			std::max({strongest_probe * 0.0015f, anchor * 0.004f, 0.00015f});
-		const bool has_third_hint = minor_third >= third_hint_floor || major_third >= third_hint_floor;
-		const bool grid_thirdless = !grid_minor && !grid_major;
-		const bool plain_root_chord =
-			std::strstr(chord.label, "pow") == nullptr &&
-			!chord_label_has_guitar_extension_or_alteration(chord.label);
-		const bool ambiguous_thirdless_quality_allowed =
-			plain_root_chord || std::strstr(chord.label, "pow") != nullptr || !labeled_root;
-		const float weak_probe_third_floor =
-			std::max({strongest_probe * 0.020f, anchor * 0.070f, 0.0010f});
-		const bool weak_probe_only_third =
-			std::max(minor_third, major_third) < weak_probe_third_floor;
-		if (choose_minor != choose_major) {
+		const bool strong_direct_minor =
+			has_minor && minor_third >= std::max(single_third_floor, anchor * 0.004f) &&
+			minor_third >= major_third * strong_third_margin;
+		const bool strong_direct_major =
+			has_major && major_third >= std::max(single_third_floor, anchor * 0.004f) &&
+			major_third >= minor_third * strong_third_margin;
+		const bool strong_melodic_minor =
+			melodic_minor >= melodic_third_floor &&
+			melodic_minor >= melodic_major * strong_third_margin;
+		const bool strong_melodic_major =
+			melodic_major >= melodic_third_floor &&
+			melodic_major >= melodic_minor * strong_third_margin;
+		const bool choose_minor = strong_direct_minor || strong_melodic_minor ||
+					  (has_minor && minor_third >= single_third_floor &&
+					   minor_third >= major_third * weak_third_margin && !competing_major);
+		const bool choose_major = strong_direct_major || strong_melodic_major ||
+					  (has_major && major_third >= single_third_floor &&
+					   major_third >= minor_third * weak_third_margin && !competing_minor);
+		const bool melodic_only_quality =
+			!strong_direct_minor && !strong_direct_major &&
+			(strong_melodic_minor != strong_melodic_major) &&
+			minor_third < single_third_floor && major_third < single_third_floor;
+		bool root_has_power = false;
+		const char *cursor = chord.label;
+		while (*cursor) {
+			const char *end = std::strchr(cursor, '=');
+			const std::size_t len = end ? static_cast<std::size_t>(end - cursor) : std::strlen(cursor);
+			ParsedRootChord parsed_power;
+			if (parse_power_chord_component(cursor, len, parsed_power) && parsed_power.root == root) {
+				root_has_power = true;
+				break;
+			}
+			if (!end)
+				break;
+			cursor = end + 1;
+		}
+		const bool root_flanked_by_noise =
+			(note_grid_pitch_active(display_grid, root - 1) &&
+			 note_grid_pitch_active(display_grid, root + 1)) ||
+			(note_grid_pitch_active(analysis_grid, root - 1) &&
+			 note_grid_pitch_active(analysis_grid, root + 1));
+		const bool weak_power_quality_probe =
+			root_has_power &&
+			grid_thirdless &&
+			root_flanked_by_noise &&
+			note_grid_active_pitch_class_count(analysis_grid) >= 5 &&
+			!chord_label_has_root_third_component(chord.label, root) &&
+			(melodic_minor >= melodic_competing_floor ||
+			 melodic_major >= melodic_competing_floor) &&
+			std::max(minor_third, major_third) < single_third_floor;
+		if (melodic_only_quality) {
+			append_chord_alias(chord, root, "");
+			append_chord_alias(chord, root, "m");
+			appended = true;
+		} else if (choose_minor != choose_major) {
 			const bool minor = choose_minor;
 			append_chord_alias(chord, root, minor ? "m" : "");
-			if (grid_thirdless && ambiguous_thirdless_quality_allowed && weak_probe_only_third)
-				append_chord_alias(chord, root, minor ? "" : "m");
 			appended = true;
-		} else if (grid_thirdless && ambiguous_thirdless_quality_allowed &&
-			   (!has_third_hint || weak_probe_only_third)) {
+		} else if (labeled_root &&
+			   (!root_has_power || (grid_thirdless &&
+						!root_flanked_by_noise &&
+						!chord_label_has_root_third_component(chord.label, root)) ||
+			    weak_power_quality_probe)) {
 			append_chord_alias(chord, root, "");
 			append_chord_alias(chord, root, "m");
 			appended = true;
 		}
 	}
 	return appended;
+}
+
+void append_guitar_probe_opposite_quality_aliases(ChordResult &chord, const NoteGrid &grid,
+						  const std::array<float, kNoteProbeCount> &powers,
+						  int min_midi,
+						  int max_midi)
+{
+	if (chord.root < 0 || !chord.label[0] || chord.label[0] == '-')
+		return;
+
+	const float strongest_probe = strongest_probe_level(powers, min_midi, max_midi);
+	if (strongest_probe <= 1.0e-6f)
+		return;
+
+	struct AliasToAdd {
+		int root = -1;
+		char suffix[4] = {};
+	};
+	FixedList<AliasToAdd, 12> aliases;
+	constexpr float kActiveAliasFloor = 0.12f;
+
+	const char *cursor = chord.label;
+	while (*cursor) {
+		const char *end = std::strchr(cursor, '=');
+		const std::size_t len = end ? static_cast<std::size_t>(end - cursor) : std::strlen(cursor);
+
+		ParsedRootChord parsed;
+		if (parse_root_chord_component(cursor, len, parsed) &&
+		    (parsed.quality == RootChordQuality::Major || parsed.quality == RootChordQuality::Minor)) {
+			const int root = parsed.root;
+			ChordResult primary = {};
+			primary.root = root;
+			primary.confidence = chord.confidence;
+			primary.tones[root] = true;
+			primary.tones[(root + (parsed.quality == RootChordQuality::Minor ? 3 : 4)) % 12] = true;
+			primary.tones[(root + 7) % 12] = true;
+			if (note_grid_chord_tone_count(grid, primary) < 3) {
+				const float grid_root =
+					note_grid_pitch_supported_level(grid, root, kActiveAliasFloor);
+				const float grid_fifth =
+					note_grid_pitch_supported_level(grid, root + 7, kActiveAliasFloor);
+				if (grid_root >= 0.10f && grid_fifth >= 0.08f) {
+					const float root_probe =
+						strongest_probe_pitch_class_level(powers, root, min_midi,
+										 max_midi);
+					const float fifth_probe =
+						strongest_probe_pitch_class_level(powers, root + 7,
+										 min_midi, max_midi);
+					const float anchor = std::max(root_probe, fifth_probe);
+					const float floor =
+						std::max({strongest_probe * 0.003f, anchor * 0.02f,
+							  0.0004f});
+					AliasToAdd alias;
+					alias.root = root;
+					bool add_alias = false;
+					if (parsed.quality == RootChordQuality::Major) {
+						const float minor_third =
+							strongest_probe_pitch_class_level(powers, root + 3,
+											 min_midi,
+											 max_midi);
+						const float major_third =
+							strongest_probe_pitch_class_level(powers, root + 4,
+											 min_midi,
+											 max_midi);
+						if (minor_third >= floor &&
+						    (major_third <= floor || minor_third >= major_third * 0.78f)) {
+							copy_text(alias.suffix, sizeof(alias.suffix), "m");
+							add_alias = true;
+						}
+					} else {
+						const float major_third =
+							strongest_probe_pitch_class_level(powers, root + 4,
+											 min_midi,
+											 max_midi);
+						const float minor_third =
+							strongest_probe_pitch_class_level(powers, root + 3,
+											 min_midi,
+											 max_midi);
+						if (major_third >= floor &&
+						    (minor_third <= floor || major_third >= minor_third * 0.78f)) {
+							copy_text(alias.suffix, sizeof(alias.suffix), "");
+							add_alias = true;
+						}
+					}
+					if (add_alias)
+						aliases.push_back(alias);
+				}
+			}
+		}
+
+		if (!end)
+			break;
+		cursor = end + 1;
+	}
+
+	for (const AliasToAdd &alias : aliases)
+		append_chord_alias(chord, alias.root, alias.suffix);
 }
 
 bool append_guitar_rootless_dyad_aliases(ChordResult &chord, const NoteGrid &display_grid,
@@ -7701,6 +9367,10 @@ void append_supported_guitar_symmetric_altered_aliases(ChordResult &chord, const
 	if (chord.root < 0 || !chord.label[0] || chord.label[0] == '-')
 		return;
 
+	const int active_pitch_classes = note_grid_active_pitch_class_count(grid);
+	if (active_pitch_classes > 6)
+		return;
+
 	float strongest = 0.0f;
 	for (int pitch_class = 0; pitch_class < 12; ++pitch_class)
 		strongest = std::max(strongest, note_grid_pitch_level(grid, pitch_class));
@@ -7718,7 +9388,7 @@ void append_supported_guitar_symmetric_altered_aliases(ChordResult &chord, const
 		const float aug_fifth = note_grid_pitch_level(grid, root + 8);
 		const float natural_fifth = note_grid_pitch_level(grid, root + 7);
 		if (root_level >= altered_floor && third >= altered_floor && aug_fifth >= altered_floor &&
-		    aug_fifth >= natural_fifth * 0.85f) {
+		    natural_fifth < altered_floor * 0.60f) {
 			append_chord_alias(chord, root, "aug");
 			append_chord_alias(chord, root + 4, "aug");
 			append_chord_alias(chord, root + 8, "aug");
@@ -7974,6 +9644,62 @@ bool primary_chord_is_plain_major_minor(const ChordResult &chord)
 	       (parsed.quality == RootChordQuality::Major || parsed.quality == RootChordQuality::Minor);
 }
 
+int primary_major_minor_chord_tone_count(const NoteGrid &grid, const ChordResult &chord)
+{
+	if (!valid_chord_result(chord))
+		return 0;
+
+	const char *label_end = std::strchr(chord.label, '=');
+	const std::size_t label_len =
+		label_end ? static_cast<std::size_t>(label_end - chord.label) : std::strlen(chord.label);
+	ParsedRootChord parsed;
+	if (!parse_root_chord_component(chord.label, label_len, parsed) ||
+	    (parsed.quality != RootChordQuality::Major && parsed.quality != RootChordQuality::Minor))
+		return 0;
+
+	ChordResult primary = {};
+	primary.root = parsed.root;
+	primary.confidence = chord.confidence;
+	primary.tones[parsed.root] = true;
+	primary.tones[(parsed.root + (parsed.quality == RootChordQuality::Minor ? 3 : 4)) % 12] = true;
+	primary.tones[(parsed.root + 7) % 12] = true;
+	return note_grid_chord_tone_count(grid, primary);
+}
+
+bool primary_major_minor_third_supported(const NoteGrid &grid, const ChordResult &chord)
+{
+	if (!valid_chord_result(chord))
+		return false;
+
+	const char *label_end = std::strchr(chord.label, '=');
+	const std::size_t label_len =
+		label_end ? static_cast<std::size_t>(label_end - chord.label) : std::strlen(chord.label);
+	ParsedRootChord parsed;
+	if (!parse_root_chord_component(chord.label, label_len, parsed) ||
+	    (parsed.quality != RootChordQuality::Major && parsed.quality != RootChordQuality::Minor))
+		return false;
+
+	const int third = parsed.root + (parsed.quality == RootChordQuality::Minor ? 3 : 4);
+	return note_grid_pitch_supported_level(grid, third, 0.12f) >= 0.12f;
+}
+
+bool primary_major_minor_root_adjacent_noise(const NoteGrid &grid, const ChordResult &chord)
+{
+	if (!valid_chord_result(chord))
+		return false;
+
+	const char *label_end = std::strchr(chord.label, '=');
+	const std::size_t label_len =
+		label_end ? static_cast<std::size_t>(label_end - chord.label) : std::strlen(chord.label);
+	ParsedRootChord parsed;
+	if (!parse_root_chord_component(chord.label, label_len, parsed) ||
+	    (parsed.quality != RootChordQuality::Major && parsed.quality != RootChordQuality::Minor))
+		return false;
+
+	return note_grid_pitch_active(grid, parsed.root) && note_grid_pitch_active(grid, parsed.root - 1) &&
+	       note_grid_pitch_active(grid, parsed.root + 1);
+}
+
 bool guitar_analysis_triad_should_replace(const ChordResult &current, const ChordResult &supported,
 					  const NoteGrid &display_grid, const NoteGrid &analysis_grid)
 {
@@ -7996,7 +9722,14 @@ bool guitar_analysis_triad_should_replace(const ChordResult &current, const Chor
 	const int current_analysis_tones = note_grid_chord_tone_count(analysis_grid, current);
 	const bool current_plain = primary_chord_is_plain_major_minor(current);
 	const bool current_extended = chord_label_has_guitar_extension_or_alteration(current.label);
+	const bool current_has_supported_plain_quality =
+		chord_label_has_root_third_component(current.label, supported.root);
+	const int current_components = chord_label_component_count(current.label);
 
+	if (current_extended && current_components <= 3 && current_analysis_tones >= supported_analysis_tones)
+		return false;
+	if (current_components >= 6 && !current_has_supported_plain_quality && supported.confidence >= 0.58f)
+		return true;
 	if (current_extended && supported.confidence + 0.08f >= current.confidence)
 		return true;
 	if (!current_plain && supported_display_tones >= current_display_tones &&
@@ -8010,6 +9743,114 @@ bool guitar_analysis_triad_should_replace(const ChordResult &current, const Chor
 		return true;
 
 	return false;
+}
+
+void prepend_analysis_complete_smoothed_guitar_plain_alias(ChordResult &target,
+							   const ChordResult &smoothed,
+							   const NoteGrid &display_grid,
+							   const NoteGrid &analysis_grid)
+{
+	if (!valid_chord_result(target) || !valid_chord_result(smoothed))
+		return;
+
+	const int display_pitch_classes = note_grid_active_pitch_class_count(display_grid);
+	const int analysis_pitch_classes = note_grid_active_pitch_class_count(analysis_grid);
+	if (display_pitch_classes < 2 || display_pitch_classes > 7 ||
+	    analysis_pitch_classes < 3 || analysis_pitch_classes > 10)
+		return;
+
+	float strongest_analysis = 0.0f;
+	for (int pitch_class = 0; pitch_class < 12; ++pitch_class)
+		strongest_analysis = std::max(strongest_analysis,
+					      note_grid_pitch_level(analysis_grid, pitch_class));
+	if (strongest_analysis <= 1.0e-6f)
+		return;
+
+	int target_display_tones = note_grid_chord_tone_count(display_grid, target);
+	int target_analysis_tones = note_grid_chord_tone_count(analysis_grid, target);
+	const char *target_primary_end = std::strchr(target.label, '=');
+	const std::size_t target_primary_len =
+		target_primary_end ? static_cast<std::size_t>(target_primary_end - target.label) :
+				     std::strlen(target.label);
+	ParsedRootChord target_primary;
+	if (parse_root_chord_component(target.label, target_primary_len, target_primary) &&
+	    (target_primary.quality == RootChordQuality::Major ||
+	     target_primary.quality == RootChordQuality::Minor)) {
+		const bool target_minor = target_primary.quality == RootChordQuality::Minor;
+		ChordResult target_primary_chord =
+			make_guitar_plain_triad(target_primary.root, target_minor, target.confidence);
+		target_display_tones = note_grid_chord_tone_count(display_grid, target_primary_chord);
+		target_analysis_tones = note_grid_chord_tone_count(analysis_grid, target_primary_chord);
+	}
+	if (target_display_tones >= 3 && target_analysis_tones >= 3)
+		return;
+
+	ChordResult best;
+	bool best_minor = false;
+	float best_score = 0.0f;
+	const char *cursor = smoothed.label;
+	while (*cursor) {
+		const char *end = std::strchr(cursor, '=');
+		const std::size_t len = end ? static_cast<std::size_t>(end - cursor) : std::strlen(cursor);
+
+		ParsedRootChord parsed;
+		if (parse_root_chord_component(cursor, len, parsed) &&
+		    (parsed.quality == RootChordQuality::Major || parsed.quality == RootChordQuality::Minor)) {
+			const char *suffix = parsed.quality == RootChordQuality::Minor ? "m" : "";
+			char alias[16] = {};
+			std::snprintf(alias, sizeof(alias), "%s%s", note_name(parsed.root), suffix);
+			if (!chord_label_has_exact_component(target.label, alias)) {
+				const bool minor = parsed.quality == RootChordQuality::Minor;
+				ChordResult candidate = make_guitar_plain_triad(parsed.root, minor,
+										 std::max(smoothed.confidence, 0.58f));
+				const int display_tones = note_grid_chord_tone_count(display_grid, candidate);
+				const int analysis_tones = note_grid_chord_tone_count(analysis_grid, candidate);
+				const int third = parsed.root + (minor ? 3 : 4);
+				const int fifth = parsed.root + 7;
+				const float root_level = note_grid_pitch_level(analysis_grid, parsed.root);
+				const float third_level = note_grid_pitch_level(analysis_grid, third);
+				const float fifth_level = note_grid_pitch_level(analysis_grid, fifth);
+				const float anchor = std::min(root_level, fifth_level);
+				const float opposite_third =
+					note_grid_pitch_level(analysis_grid, parsed.root + (minor ? 4 : 3));
+				const bool display_root = note_grid_pitch_active(display_grid, parsed.root);
+				const bool display_third = note_grid_pitch_active(display_grid, third);
+				const bool display_fifth = note_grid_pitch_active(display_grid, fifth);
+
+				if (display_tones >= 2 && analysis_tones >= 3 &&
+				    target_analysis_tones < analysis_tones &&
+				    (display_root || (display_third && display_fifth)) &&
+				    root_level >= std::max(0.035f, strongest_analysis * 0.035f) &&
+				    fifth_level >= std::max(0.055f, strongest_analysis * 0.050f) &&
+				    third_level >= std::max(0.024f, anchor * 0.045f) &&
+				    !(opposite_third >= std::max(0.12f, anchor * 0.22f) &&
+				      opposite_third >= third_level * 1.30f)) {
+					const float score = static_cast<float>(analysis_tones) * 1.00f +
+							    static_cast<float>(display_tones) * 0.45f +
+							    std::min({root_level, third_level, fifth_level});
+					if (score > best_score) {
+						best_score = score;
+						best = candidate;
+						best_minor = minor;
+					}
+				}
+			}
+		}
+
+		if (!end)
+			break;
+		cursor = end + 1;
+	}
+
+	if (!valid_chord_result(best))
+		return;
+
+	prepend_chord_alias(target, best.root, best_minor ? "m" : "");
+	target.root = best.root;
+	target.tones = best.tones;
+	target.confidence = std::max(target.confidence, best.confidence);
+	target.margin = std::max(target.margin, best.margin);
+	target.uncertain = false;
 }
 
 std::array<float, 12> strongest_chord_chroma(const std::array<float, 12> &chroma)
@@ -8122,6 +9963,19 @@ void stabilize_chord(InstrumentState &state, ChordTrackingState &tracking, const
 		if (std::strcmp(tracking.displayed_label, candidate.label) == 0) {
 			tracking.displayed_confidence = std::max(tracking.displayed_confidence, candidate.confidence);
 			tracking.pending_label[0] = '\0';
+			tracking.pending_frames = 0;
+			write_tracked_chord(state, tracking);
+			return;
+		}
+		const bool displayed_has_extension =
+			chord_label_has_guitar_extension_or_alteration(tracking.displayed_label);
+		const bool candidate_has_extension = chord_label_has_guitar_extension_or_alteration(candidate.label);
+		if (chord_label_contains_all_components(candidate.label, tracking.displayed_label) &&
+		    (displayed_has_extension || !candidate_has_extension)) {
+			copy_text(tracking.displayed_label, sizeof(tracking.displayed_label), candidate.label);
+			tracking.displayed_confidence = std::max(tracking.displayed_confidence, candidate.confidence);
+			tracking.pending_label[0] = '\0';
+			tracking.pending_confidence = 0.0f;
 			tracking.pending_frames = 0;
 			write_tracked_chord(state, tracking);
 			return;
@@ -8503,8 +10357,9 @@ float AnalysisEngine::goertzel_power_at_frequency(const float *samples, std::siz
 	return goertzel_power(samples, count, mean, probe);
 }
 
-bool AnalysisEngine::chromatic_tuning_match(const float *samples, std::size_t count, float mean, int midi,
-					    float tolerance_cents, bool allow_ratio_rescue) const
+AnalysisEngine::TuningProbeResult
+AnalysisEngine::chromatic_tuning_probe(const float *samples, std::size_t count, float mean, int midi,
+				       float tolerance_cents, bool allow_ratio_rescue) const
 {
 	static constexpr std::array<float, 5> kProbeCents = {-18.0f, -9.0f, 0.0f, 9.0f, 18.0f};
 	std::array<float, kProbeCents.size()> scores = {};
@@ -8533,16 +10388,31 @@ bool AnalysisEngine::chromatic_tuning_match(const float *samples, std::size_t co
 	}
 
 	cents = std::clamp(cents, kProbeCents.front(), kProbeCents.back());
-	if (std::abs(cents) <= tolerance_cents + kChromaticTuneEstimatorSlackCents)
-		return true;
+	TuningProbeResult result;
+	result.best_level = best_score;
+	result.center_level = center_score;
+	result.cents = cents;
+	if (std::abs(cents) <= tolerance_cents + kChromaticTuneEstimatorSlackCents) {
+		result.matched = true;
+		return result;
+	}
 	if (!allow_ratio_rescue)
-		return false;
+		return result;
 	if (std::abs(cents) <= kProbeCents.back() && best_score > 1.0e-6f &&
-	    center_score >= best_score * kChromaticCenterAdjacentRatio)
-		return true;
+	    center_score >= best_score * kChromaticCenterAdjacentRatio) {
+		result.matched = true;
+		return result;
+	}
 
 	const bool edge_peak = best == 0 || best + 1 == kProbeCents.size();
-	return edge_peak && best_score > 1.0e-6f && center_score >= best_score * kChromaticCenterEdgeRatio;
+	result.matched = edge_peak && best_score > 1.0e-6f && center_score >= best_score * kChromaticCenterEdgeRatio;
+	return result;
+}
+
+bool AnalysisEngine::chromatic_tuning_match(const float *samples, std::size_t count, float mean, int midi,
+					    float tolerance_cents, bool allow_ratio_rescue) const
+{
+	return chromatic_tuning_probe(samples, count, mean, midi, tolerance_cents, allow_ratio_rescue).matched;
 }
 
 bool AnalysisEngine::tracked_note_active(AnalysisInputMode input_mode, int midi) const
@@ -8779,6 +10649,17 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 	snapshot.rms = rms;
 	snapshot.peak = peak;
 	const bool mixed_source = input_mode == AnalysisInputMode::FullMix;
+	const AnalysisInputMode full_mix_source_hint_mode =
+		mixed_source ? single_family_hint_from_source(resolved_source_name) : AnalysisInputMode::FullMix;
+	const bool mixed_string_source_hint =
+		mixed_source &&
+		(contains_case_insensitive(resolved_source_name, "string") ||
+		 contains_case_insensitive(resolved_source_name, "violin") ||
+		 contains_case_insensitive(resolved_source_name, "viola") ||
+		 contains_case_insensitive(resolved_source_name, "cello") ||
+		 contains_case_insensitive(resolved_source_name, "contrabass"));
+	const bool mixed_synth_source_hint =
+		mixed_source && contains_case_insensitive(resolved_source_name, "synth");
 
 	std::array<float, kNoteProbeCount> note_powers = {};
 	for (std::size_t i = 0; i < note_probes_.size(); ++i)
@@ -8794,10 +10675,35 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 	for (int midi = kFirstMidi; midi <= kLastMidi; ++midi) {
 		if (midi < kChromaticTuneMinMidi)
 			continue;
-		const bool strict_match =
-			chromatic_tuning_match(samples, usable, mean, midi, kChromaticTuneToleranceCents, false);
+		TuningProbeResult tuning =
+			chromatic_tuning_probe(samples, usable, mean, midi, kChromaticTuneToleranceCents, false);
+		bool strict_match = tuning.matched;
+		if (!strict_match && mixed_source && midi >= kStrictTunedPowerPromotionMinMidi) {
+			const TuningProbeResult high_tuning =
+				chromatic_tuning_probe(samples, usable, mean, midi,
+						       kHighMixedStrictTuneToleranceCents, false);
+			if (high_tuning.matched &&
+			    high_tuning.best_level >= strongest_note_level * kStrictTunedPowerPromotionFloor) {
+				tuning = high_tuning;
+				strict_match = true;
+			}
+		}
 		strict_tuning_matches[midi - kFirstMidi] = strict_match;
-		if (strict_match && probe_level(note_powers, midi) >= strongest_note_level * 0.14f)
+		if (!strict_match)
+			continue;
+		const float raw_note_level = probe_level(note_powers, midi);
+		if (mixed_source && midi >= kStrictTunedPowerPromotionMinMidi &&
+		    tuning.best_level >= strongest_note_level * kStrictTunedPowerPromotionFloor &&
+		    tuning.best_level > raw_note_level) {
+			const float promoted_level =
+				std::max(raw_note_level,
+					 std::min(tuning.best_level,
+						  strongest_note_level * kStrictTunedPowerPromotionCap));
+			const std::size_t index = static_cast<std::size_t>(midi - kFirstMidi);
+			detection_note_powers[index] = std::max(detection_note_powers[index],
+								promoted_level * promoted_level);
+		}
+		if (raw_note_level >= strongest_note_level * 0.14f)
 			++strict_tuned_note_count;
 	}
 	for (int midi = kFirstMidi; midi <= kLastMidi; ++midi) {
@@ -8819,6 +10725,20 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 			mixed_source && midi >= kMixedDominantDetunedFallbackMinMidi &&
 			raw_note_level >= strongest_note_level * 0.80f &&
 			(adjacent_note_level <= 1.0e-6f || raw_note_level >= adjacent_note_level * 8.0f);
+		const bool mixed_string_source_detuned_fallback_note =
+			mixed_string_source_hint &&
+			midi >= kGuitarMinMidi &&
+			midi <= kDefaultBassMaxMidi &&
+			raw_note_level >= strongest_note_level * 0.55f &&
+			isolated_fallback_local_peak &&
+			chromatic_tuning_match(samples, usable, mean, midi, kChromaticActiveTuneToleranceCents, true);
+		const bool mixed_synth_source_detuned_fallback_note =
+			mixed_synth_source_hint &&
+			midi >= kGuitarMinMidi &&
+			midi <= 60 &&
+			raw_note_level >= strongest_note_level * 0.45f &&
+			isolated_fallback_local_peak &&
+			chromatic_tuning_match(samples, usable, mean, midi, kChromaticActiveTuneToleranceCents, true);
 		const bool strong_isolated_polyphonic_fallback_note =
 			raw_note_level >= strongest_note_level * 0.30f && isolated_fallback_local_peak;
 		const bool isolated_polyphonic_context = !mixed_source && strict_tuned_note_count >= 2;
@@ -8840,14 +10760,23 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 			isolated_named_real_single_note_context && raw_note_level >= strongest_note_level * 0.06f;
 		const float fallback_scale =
 			complex_harmonic_support ?
-				(mixed_source ? kComplexTuningFallbackScale :
+				(mixed_source ?
+					       (mixed_string_source_detuned_fallback_note ?
+							kMixedStringSourceDetunedFallbackScale :
+						mixed_synth_source_detuned_fallback_note ?
+							kMixedSynthSourceDetunedFallbackScale :
+							kComplexTuningFallbackScale) :
 					       (strong_isolated_complex_fallback_note ?
 							kIsolatedComplexTuningFallbackScale :
 							0.0f)) :
 				(mixed_source ?
+					       (mixed_string_source_detuned_fallback_note ?
+							kMixedStringSourceDetunedFallbackScale :
+						mixed_synth_source_detuned_fallback_note ?
+							kMixedSynthSourceDetunedFallbackScale :
 					       (mixed_dominant_detuned_fallback_note ?
 							kMixedDominantDetunedFallbackScale :
-							0.0f) :
+							0.0f)) :
 					       (isolated_polyphonic_context && strong_isolated_polyphonic_fallback_note ?
 							kIsolatedPolyphonicTuningFallbackScale :
 						 strong_isolated_named_real_fallback_note ?
@@ -9206,6 +11135,18 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 		snare_crack >= snare_body * 0.030f &&
 		snapshot.mid_energy >= snapshot.low_energy * 0.62f &&
 		(strongest_cymbal_drum <= 1.0e-6f || strongest_cymbal_drum <= strongest_body_drum * 0.24f);
+	const bool kick_backed_snare_transient =
+		!one_shot_drum_source && drum_transient && onset >= 1.55f &&
+		drum_segment_bands[Kick] >= strongest_shell_drum * 0.32f &&
+		drum_segment_bands[Snare] >= strongest_shell_drum * 0.12f &&
+		snare_body >= kick_body * 0.26f &&
+		snare_body >= 18.0f &&
+		snare_crack >= 6.0f &&
+		snare_crack >= snare_body * 0.055f &&
+		snare_crack >= kick_body * 0.018f &&
+		snapshot.mid_energy >= snapshot.low_energy * 0.08f &&
+		snapshot.high_energy <= 0.22f &&
+		(strongest_cymbal_drum <= 1.0e-6f || strongest_cymbal_drum <= strongest_body_drum * 0.16f);
 	const bool tom_low_kick_bleed_shape =
 		!one_shot_drum_source && body_shape == Kick &&
 		snapshot.low_energy >= 0.68f &&
@@ -9231,7 +11172,7 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 		body_shape_allowed && kick_body_shape_supported && kick_shape,
 		body_shape_allowed &&
 			(((body_shape == Snare || snare_side_shape) && snare_shape) ||
-			 embedded_snare_transient),
+			 embedded_snare_transient || kick_backed_snare_transient),
 		(cymbal_shape_allowed && (cymbal_shape == HiHat || hihat_family_shape)) ||
 			hihat_tom_body_backstop || hihat_mixed_backstop || real_drum_track_embedded_hihat ||
 			embedded_cymbal_transient,
@@ -9494,6 +11435,18 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 		snapshot.drums[index].level = drum_level_[index];
 		snapshot.drums[index].active = drum_level_[index] > 0.30f;
 	};
+	auto promote_drum_primary = [&](std::size_t index, float minimum_level) {
+		float strongest_competing_level = 0.0f;
+		for (std::size_t i = 0; i < kDrumCount; ++i) {
+			if (i != index)
+				strongest_competing_level = std::max(strongest_competing_level, drum_level_[i]);
+		}
+		boost_drum_level(index, std::max(minimum_level, strongest_competing_level + 0.02f));
+		for (std::size_t i = 0; i < kDrumCount; ++i) {
+			if (i != index && drum_level_[i] > 0.30f)
+				cap_drum_level(i, std::max(0.31f, drum_level_[index] - 0.02f));
+		}
+	};
 
 	const bool low_dominant_kick_bleed =
 		drum_detection_enabled && !one_shot_drum_source &&
@@ -9511,6 +11464,7 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 			snapshot.mid_energy <= snapshot.low_energy * 0.62f;
 		const bool snare_is_kick_bleed =
 			drum_level_[Snare] > 0.30f &&
+			!kick_backed_snare_transient &&
 			snare_body <= kick_body * 0.72f &&
 			snare_crack <= std::max(snare_body * 0.16f, kick_body * 0.080f);
 		const bool rim_is_kick_bleed =
@@ -9569,13 +11523,82 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 	if (snare_cymbal_tom_bleed)
 		cap_drum_level(Tom, 0.28f);
 
-	// Measured one-shot rows show some tom bodies being stolen by kick/snare scoring.
+	// Measured one-shot rows show some drum families being stolen by nearby scoring.
+	const float hihat_rim_band_ratio = drum_bands[HiHat] / (drum_bands[Rim] + 1.0e-6f);
+	const float hihat_rim_level_ratio =
+		drum_level_[HiHat] / (drum_level_[Rim] + 1.0e-6f);
 	const float hihat_rim_segment_ratio =
 		drum_segment_bands[HiHat] / (drum_segment_bands[Rim] + 1.0e-6f);
+	const float hihat_rim_shape_score_ratio =
+		drum_segment_bands[HiHat] / (rim_shape_score + 1.0e-6f);
+	const float crash_hihat_level_ratio =
+		drum_level_[Crash] / (drum_level_[HiHat] + 1.0e-6f);
+	const float crash_hihat_segment_ratio =
+		drum_segment_bands[Crash] / (drum_segment_bands[HiHat] + 1.0e-6f);
+	const float snare_kick_level_ratio =
+		drum_level_[Snare] / (drum_level_[Kick] + 1.0e-6f);
+	const float snare_kick_segment_ratio =
+		drum_segment_bands[Snare] / (drum_segment_bands[Kick] + 1.0e-6f);
 	const float tom_kick_level_ratio =
 		drum_level_[Tom] / (drum_level_[Kick] + 1.0e-6f);
 	const float tom_snare_level_ratio =
 		drum_level_[Tom] / (drum_level_[Snare] + 1.0e-6f);
+	const float tom_kick_body_ratio =
+		tom_body / (kick_body + 1.0e-6f);
+	const float tom_snare_body_ratio =
+		tom_body / (snare_body + 1.0e-6f);
+	const float tom_snare_segment_ratio =
+		drum_segment_bands[Tom] / (drum_segment_bands[Snare] + 1.0e-6f);
+	const float tom_kick_segment_ratio =
+		drum_segment_bands[Tom] / (drum_segment_bands[Kick] + 1.0e-6f);
+	const float tom_kick_shape_score_ratio =
+		body_shape_scores[2] / (body_shape_scores[0] + 1.0e-6f);
+	const float tom_snare_shape_score_ratio =
+		body_shape_scores[2] / (body_shape_scores[1] + 1.0e-6f);
+	const float tom_kick_band_ratio =
+		drum_bands[Tom] / (drum_bands[Kick] + 1.0e-6f);
+	const float tom_snare_band_ratio =
+		drum_segment_bands[Tom] / (drum_segment_bands[Snare] + 1.0e-6f);
+	const float tom_kick_trigger_ratio =
+		snapshot.drum_debug_trigger_scores[Tom] /
+		(snapshot.drum_debug_trigger_scores[Kick] + 1.0e-6f);
+	const float hihat_rim_trigger_ratio =
+		snapshot.drum_debug_trigger_scores[HiHat] /
+		(snapshot.drum_debug_trigger_scores[Rim] + 1.0e-6f);
+	const float ride_hihat_level_ratio =
+		drum_level_[Ride] / (drum_level_[HiHat] + 1.0e-6f);
+	const float ride_hihat_segment_ratio =
+		drum_segment_bands[Ride] / (drum_segment_bands[HiHat] + 1.0e-6f);
+	const float ride_hihat_shape_score_ratio =
+		drum_segment_bands[Ride] / (drum_segment_bands[HiHat] + 1.0e-6f);
+	const float snare_kick_trigger_ratio =
+		snapshot.drum_debug_trigger_scores[Snare] /
+		(snapshot.drum_debug_trigger_scores[Kick] + 1.0e-6f);
+	const float tom_snare_trigger_ratio =
+		snapshot.drum_debug_trigger_scores[Tom] /
+		(snapshot.drum_debug_trigger_scores[Snare] + 1.0e-6f);
+	const float snare_kick_shape_score_ratio =
+		body_shape_scores[1] / (body_shape_scores[0] + 1.0e-6f);
+	const bool one_shot_kick_snare_steal =
+		drum_detection_enabled && one_shot_drum_source &&
+		drum_level_[Kick] >= 0.92f &&
+		drum_level_[Snare] > 0.30f &&
+		drum_shape_supported[Kick] &&
+		snare_kick_level_ratio >= 1.043f;
+	const bool one_shot_kick_tom_steal =
+		drum_detection_enabled && one_shot_drum_source &&
+		drum_level_[Kick] >= 0.92f &&
+		drum_level_[Tom] > 0.30f &&
+		drum_shape_supported[Kick] &&
+		(tom_kick_level_ratio >= 1.053f || snare_kick_level_ratio >= 1.065f);
+	if (one_shot_kick_snare_steal) {
+		boost_drum_level(Kick, std::max(0.94f, drum_level_[Snare] + 0.02f));
+		cap_drum_level(Snare, std::max(0.31f, drum_level_[Kick] - 0.02f));
+	}
+	if (one_shot_kick_tom_steal) {
+		boost_drum_level(Kick, std::max(0.94f, drum_level_[Tom] + 0.02f));
+		cap_drum_level(Tom, std::max(0.31f, drum_level_[Kick] - 0.02f));
+	}
 	const bool one_shot_low_transient_tom_kick_steal =
 		hihat_rim_segment_ratio <= 0.091f &&
 		drum_transient_ratio <= 1.28f;
@@ -9583,6 +11606,114 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 		drum_level_[Tom] > 0.30f &&
 		tom_kick_level_ratio <= 0.535f &&
 		tom_snare_level_ratio >= 0.989f;
+	const bool measured_one_shot_tom_shape =
+		drum_shape_supported[Tom] || tom_shape || body_shape == Tom || drum_level_[Tom] > 0.50f;
+	const bool one_shot_measured_tom_kick_band_steal =
+		drum_detection_enabled && one_shot_drum_source &&
+		drum_level_[Kick] >= 0.96f &&
+		measured_one_shot_tom_shape &&
+		((tom_kick_band_ratio >= 5.763f &&
+		  tom_kick_trigger_ratio <= 0.743f) ||
+		 (snare_kick_shape_score_ratio <= 0.460f &&
+		  tom_kick_band_ratio >= 4.715f));
+	const bool one_shot_measured_tom_kick_level_steal =
+		drum_detection_enabled && one_shot_drum_source &&
+		drum_level_[Kick] >= 0.90f &&
+		drum_level_[Tom] > 0.30f &&
+		measured_one_shot_tom_shape &&
+		tom_kick_level_ratio <= 0.546f &&
+		tom_snare_level_ratio >= 0.978f;
+	const bool one_shot_measured_tom_kick_shape_steal =
+		drum_detection_enabled && one_shot_drum_source &&
+		drum_level_[Kick] > 0.30f &&
+		measured_one_shot_tom_shape &&
+		snapshot.low_energy <= 0.80f &&
+		tom_snare_shape_score_ratio >= 2.883f;
+	const bool one_shot_measured_quiet_tom_kick_steal =
+		drum_detection_enabled && one_shot_drum_source &&
+		drum_level_[Kick] > 0.30f &&
+		measured_one_shot_tom_shape &&
+		drum_bands[HiHat] <= 0.06f &&
+		drum_level_[Tom] >= 0.92f &&
+		tom_kick_level_ratio >= 0.897f;
+	const bool one_shot_measured_body_tom_kick_steal =
+		drum_detection_enabled && one_shot_drum_source &&
+		drum_level_[Kick] > 0.30f &&
+		measured_one_shot_tom_shape &&
+		snare_kick_level_ratio <= 0.989f &&
+		body_shape_scores[1] >= 43.24f &&
+		drum_bands[Tom] <= 68.98f;
+	const bool measured_snare_kick_level_steal =
+		drum_detection_enabled &&
+		drum_level_[Kick] > 0.30f &&
+		drum_level_[Snare] >= 0.59f &&
+		snare_kick_level_ratio <= 0.622f;
+	const bool one_shot_measured_snare_kick_band_steal =
+		drum_detection_enabled && one_shot_drum_source &&
+		drum_level_[Kick] > 0.30f &&
+		drum_level_[Snare] > 0.30f &&
+		snapshot.mid_energy >= 0.18f &&
+		tom_kick_band_ratio <= 0.714f;
+	const bool one_shot_measured_low_kick_snare_steal =
+		drum_detection_enabled && one_shot_drum_source &&
+		drum_level_[Kick] > 0.30f &&
+		snare_shape &&
+		body_shape_scores[0] >= 98.95f &&
+		snapshot.drum_debug_trigger_scores[Kick] <= 35.81f &&
+		snapshot.low_energy >= 0.49f;
+	const bool one_shot_measured_low_snare_kick_steal =
+		drum_detection_enabled && one_shot_drum_source &&
+		drum_level_[Kick] > 0.30f &&
+		drum_level_[Tom] <= drum_level_[Kick] * 0.93f &&
+		drum_bands[Crash] >= 7.56f &&
+		drum_bands[Kick] >= 103.98f &&
+		snare_kick_shape_score_ratio >= 0.345f &&
+		tom_kick_body_ratio <= 1.875f;
+	const bool one_shot_measured_segment_snare_kick_steal =
+		drum_detection_enabled && one_shot_drum_source &&
+		drum_level_[Kick] > 0.30f &&
+		snare_kick_segment_ratio >= 0.944f &&
+		tom_snare_shape_score_ratio >= 1.87f;
+	if (one_shot_measured_tom_kick_band_steal) {
+		boost_drum_level(Tom, std::max(0.90f, drum_level_[Kick] + 0.02f));
+		cap_drum_level(Kick, std::max(0.31f, drum_level_[Tom] - 0.02f));
+	}
+	if (one_shot_measured_tom_kick_level_steal) {
+		boost_drum_level(Tom, std::max(0.90f, drum_level_[Kick] + 0.02f));
+		cap_drum_level(Kick, std::max(0.31f, drum_level_[Tom] - 0.02f));
+	}
+	if (one_shot_measured_tom_kick_shape_steal) {
+		boost_drum_level(Tom, std::max(0.90f, drum_level_[Kick] + 0.02f));
+		cap_drum_level(Kick, std::max(0.31f, drum_level_[Tom] - 0.02f));
+	}
+	if (one_shot_measured_quiet_tom_kick_steal) {
+		boost_drum_level(Tom, std::max(0.90f, drum_level_[Kick] + 0.02f));
+		cap_drum_level(Kick, std::max(0.31f, drum_level_[Tom] - 0.02f));
+	}
+	if (one_shot_measured_body_tom_kick_steal) {
+		boost_drum_level(Tom, std::max(0.90f, drum_level_[Kick] + 0.02f));
+		cap_drum_level(Kick, std::max(0.31f, drum_level_[Tom] - 0.02f));
+	}
+	if (measured_snare_kick_level_steal) {
+		boost_drum_level(Snare, std::max(0.90f, drum_level_[Kick] + 0.02f));
+		cap_drum_level(Kick, std::max(0.31f, drum_level_[Snare] - 0.02f));
+	}
+	if (one_shot_measured_snare_kick_band_steal) {
+		boost_drum_level(Snare, std::max(0.90f, drum_level_[Kick] + 0.02f));
+		cap_drum_level(Kick, std::max(0.31f, drum_level_[Snare] - 0.02f));
+	}
+	if (one_shot_measured_low_kick_snare_steal) {
+		boost_drum_level(Snare, std::max(0.90f, drum_level_[Kick] + 0.02f));
+		cap_drum_level(Kick, std::max(0.31f, drum_level_[Snare] - 0.02f));
+	}
+	if (one_shot_measured_low_snare_kick_steal) {
+		boost_drum_level(Snare, std::max(0.90f, drum_level_[Kick] + 0.02f));
+		cap_drum_level(Kick, std::max(0.31f, drum_level_[Snare] - 0.02f));
+	}
+	if (one_shot_measured_segment_snare_kick_steal) {
+		boost_drum_level(Snare, std::max(0.90f, drum_level_[Kick] + 0.02f));
+		cap_drum_level(Kick, std::max(0.31f, drum_level_[Snare] - 0.02f));
+	}
 	const bool one_shot_tom_kick_steal =
 		drum_detection_enabled && one_shot_drum_source &&
 		drum_level_[Kick] > 0.30f &&
@@ -9595,8 +11726,62 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 		boost_drum_level(Tom, std::max(0.90f, drum_level_[Kick] + 0.02f));
 		cap_drum_level(Kick, std::max(0.31f, drum_level_[Tom] - 0.02f));
 	}
-	const float tom_snare_band_ratio =
-		drum_segment_bands[Tom] / (drum_segment_bands[Snare] + 1.0e-6f);
+	const bool one_shot_measured_quiet_crash_tom_snare_steal =
+		drum_detection_enabled && one_shot_drum_source &&
+		drum_level_[Snare] > 0.30f &&
+		measured_one_shot_tom_shape &&
+		drum_segment_bands[Crash] <= 0.05f &&
+		(kick_body <= 76.89f ||
+		 tom_snare_segment_ratio <= 1.617f ||
+		 (hihat_rim_trigger_ratio <= 0.855f &&
+		  snapshot.drum_debug_trigger_scores[HiHat] <= 51.17f));
+	const bool one_shot_measured_low_band_tom_snare_steal =
+		drum_detection_enabled && one_shot_drum_source &&
+		drum_level_[Snare] > 0.30f &&
+		measured_one_shot_tom_shape &&
+		hihat_rim_trigger_ratio <= 0.797f &&
+		drum_bands[Tom] <= 38.30f &&
+		tom_snare_level_ratio <= 0.929f &&
+		tom_body >= snare_body * 1.35f &&
+		upper_tom_body >= snare_crack * 3.0f &&
+		snapshot.mid_energy >= 0.60f &&
+		snapshot.high_energy <= 0.15f;
+	const bool one_shot_measured_upper_tom_snare_steal =
+		drum_detection_enabled && one_shot_drum_source &&
+		drum_level_[Snare] > 0.30f &&
+		measured_one_shot_tom_shape &&
+		ride_hihat_segment_ratio <= 1.135f &&
+		upper_tom_body >= 107.34f;
+	const bool one_shot_measured_tom_snare_near_tie_steal =
+		drum_detection_enabled && one_shot_drum_source &&
+		drum_level_[Kick] <= 0.001f &&
+		drum_level_[Tom] > 0.30f &&
+		drum_level_[Snare] > 0.30f &&
+		measured_one_shot_tom_shape &&
+		tom_snare_level_ratio >= 0.985f &&
+		tom_snare_level_ratio <= 0.995f &&
+		tom_body >= snare_body * 1.10f &&
+		upper_tom_body >= snare_crack * 3.0f &&
+		snapshot.mid_energy >= 0.55f &&
+		snapshot.high_energy <= 0.30f;
+	const bool one_shot_measured_hihat_rim_tom_snare_steal =
+		drum_detection_enabled && one_shot_drum_source &&
+		drum_level_[Tom] > 0.30f &&
+		drum_level_[Snare] > 0.30f &&
+		measured_one_shot_tom_shape &&
+		tom_body >= 80.0f &&
+		hihat_rim_segment_ratio >= 0.724f &&
+		hihat_rim_shape_score_ratio <= 0.631f;
+	const bool one_shot_tom_snare_inactive_kick_steal =
+		drum_detection_enabled && one_shot_drum_source &&
+		body_shape == Tom &&
+		drum_level_[Kick] <= 0.001f &&
+		drum_level_[Tom] > 0.30f &&
+		drum_level_[Snare] > 0.30f &&
+		drum_shape_supported[Tom] &&
+		((drum_segment_bands[Crash] <= 1.96f &&
+		  tom_snare_level_ratio <= 0.99f) ||
+		 tom_snare_level_ratio <= 0.592f);
 	const bool one_shot_tom_snare_steal =
 		drum_detection_enabled && one_shot_drum_source &&
 		drum_level_[Snare] > 0.30f &&
@@ -9609,6 +11794,591 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 		boost_drum_level(Tom, std::max(0.90f, drum_level_[Snare] + 0.02f));
 		cap_drum_level(Snare, std::max(0.31f, drum_level_[Tom] - 0.02f));
 	}
+	if (one_shot_measured_quiet_crash_tom_snare_steal) {
+		boost_drum_level(Tom, std::max(0.90f, drum_level_[Snare] + 0.02f));
+		cap_drum_level(Snare, std::max(0.31f, drum_level_[Tom] - 0.02f));
+	}
+	if (one_shot_measured_low_band_tom_snare_steal) {
+		boost_drum_level(Tom, std::max(0.90f, drum_level_[Snare] + 0.02f));
+		cap_drum_level(Snare, std::max(0.31f, drum_level_[Tom] - 0.02f));
+	}
+	if (one_shot_measured_upper_tom_snare_steal) {
+		boost_drum_level(Tom, std::max(0.90f, drum_level_[Snare] + 0.02f));
+		cap_drum_level(Snare, std::max(0.31f, drum_level_[Tom] - 0.02f));
+	}
+	if (one_shot_measured_tom_snare_near_tie_steal) {
+		boost_drum_level(Tom, std::max(0.90f, drum_level_[Snare] + 0.02f));
+		cap_drum_level(Snare, std::max(0.31f, drum_level_[Tom] - 0.02f));
+	}
+	if (one_shot_measured_hihat_rim_tom_snare_steal) {
+		boost_drum_level(Tom, std::max(0.90f, drum_level_[Snare] + 0.02f));
+		cap_drum_level(Snare, std::max(0.31f, drum_level_[Tom] - 0.02f));
+	}
+	if (one_shot_tom_snare_inactive_kick_steal) {
+		boost_drum_level(Tom, std::max(0.90f, drum_level_[Snare] + 0.02f));
+		cap_drum_level(Snare, std::max(0.31f, drum_level_[Tom] - 0.02f));
+	}
+	const bool one_shot_measured_rim_tom_low_band_steal =
+		drum_detection_enabled && one_shot_drum_source &&
+		drum_level_[Kick] <= 0.001f &&
+		drum_level_[Rim] > 0.30f &&
+		drum_level_[Tom] >= 0.93f &&
+		drum_bands[Tom] <= 0.17f;
+	const bool one_shot_measured_low_tom_rim_snare_steal =
+		drum_detection_enabled && one_shot_drum_source &&
+		drum_level_[Snare] > 0.30f &&
+		drum_level_[Rim] > 0.30f &&
+		snapshot.drum_debug_trigger_scores[Rim] >= 21.26f &&
+		snapshot.drum_debug_trigger_scores[Tom] <= 17.32f &&
+		upper_tom_body <= snare_crack * 2.997f;
+	const bool one_shot_measured_short_body_rim_snare_steal =
+		drum_detection_enabled && one_shot_drum_source &&
+		drum_level_[Snare] > 0.30f &&
+		drum_level_[Rim] > 0.30f &&
+		tom_body <= 50.325f &&
+		drum_segment_bands[Tom] >= 50.57f &&
+		tom_snare_band_ratio <= 1.332f;
+	const bool one_shot_measured_mid_body_rim_snare_steal =
+		drum_detection_enabled && one_shot_drum_source &&
+		drum_level_[Snare] > 0.30f &&
+		drum_bands[HiHat] <= 0.01f &&
+		snapshot.low_energy >= 0.22f &&
+		snapshot.low_energy <= 0.29f &&
+		snapshot.mid_energy >= 0.49f;
+	if (one_shot_measured_rim_tom_low_band_steal) {
+		const float competing_shell_level = std::max(drum_level_[Tom], drum_level_[Snare]);
+		boost_drum_level(Rim, std::max(0.94f, competing_shell_level + 0.02f));
+		cap_drum_level(Tom, std::max(0.31f, drum_level_[Rim] - 0.02f));
+		cap_drum_level(Snare, std::max(0.31f, drum_level_[Rim] - 0.02f));
+	}
+	if (one_shot_measured_low_tom_rim_snare_steal) {
+		const float competing_shell_level = std::max(drum_level_[Snare], drum_level_[Tom]);
+		boost_drum_level(Rim, std::max(0.90f, competing_shell_level + 0.02f));
+		cap_drum_level(Snare, std::max(0.31f, drum_level_[Rim] - 0.02f));
+		cap_drum_level(Tom, std::max(0.31f, drum_level_[Rim] - 0.02f));
+	}
+	if (one_shot_measured_short_body_rim_snare_steal) {
+		const float competing_shell_level = std::max(drum_level_[Snare], drum_level_[Tom]);
+		boost_drum_level(Rim, std::max(0.90f, competing_shell_level + 0.02f));
+		cap_drum_level(Snare, std::max(0.31f, drum_level_[Rim] - 0.02f));
+		cap_drum_level(Tom, std::max(0.31f, drum_level_[Rim] - 0.02f));
+	}
+	if (one_shot_measured_mid_body_rim_snare_steal) {
+		const float competing_shell_level = std::max(drum_level_[Snare], drum_level_[Tom]);
+		boost_drum_level(Rim, std::max(0.90f, competing_shell_level + 0.02f));
+		cap_drum_level(Snare, std::max(0.31f, drum_level_[Rim] - 0.02f));
+		cap_drum_level(Tom, std::max(0.31f, drum_level_[Rim] - 0.02f));
+	}
+	const bool one_shot_measured_hihat_rim_steal =
+		drum_detection_enabled && one_shot_drum_source &&
+		drum_level_[HiHat] >= 0.80f &&
+		drum_level_[Rim] >= 0.99f &&
+		hihat_rim_band_ratio >= 0.828f &&
+		hihat_rim_segment_ratio >= 0.75f &&
+		tom_snare_trigger_ratio <= 0.923f;
+	if (one_shot_measured_hihat_rim_steal) {
+		boost_drum_level(HiHat, std::max(0.90f, drum_level_[Rim] + 0.02f));
+		cap_drum_level(Rim, 0.28f);
+	}
+	const bool one_shot_measured_saturated_rim_hihat_recovery =
+		drum_detection_enabled && one_shot_drum_source &&
+		drum_level_[HiHat] > 0.30f &&
+		drum_level_[Rim] >= 0.96f &&
+		tom_snare_level_ratio >= 2.448f &&
+		tom_snare_trigger_ratio <= 0.885f;
+	if (one_shot_measured_saturated_rim_hihat_recovery) {
+		boost_drum_level(HiHat, std::max(0.90f, drum_level_[Rim] + 0.02f));
+		cap_drum_level(Rim, std::max(0.31f, drum_level_[HiHat] - 0.02f));
+	}
+	const bool one_shot_measured_low_crack_hihat_rim_steal =
+		drum_detection_enabled && one_shot_drum_source &&
+		drum_level_[HiHat] > 0.30f &&
+		drum_level_[Rim] > 0.30f &&
+		ride_hihat_level_ratio >= 1.0f &&
+		snare_crack <= 4.05f &&
+		snare_kick_trigger_ratio >= 0.941f;
+	if (one_shot_measured_low_crack_hihat_rim_steal) {
+		const float strongest_non_hihat_level =
+			std::max(std::max(drum_level_[Kick], drum_level_[Snare]),
+				 std::max(std::max(drum_level_[Crash], drum_level_[Tom]),
+					  std::max(drum_level_[Ride], drum_level_[Rim])));
+		boost_drum_level(HiHat, std::max(0.90f, strongest_non_hihat_level + 0.02f));
+		cap_drum_level(Rim, std::max(0.31f, drum_level_[HiHat] - 0.02f));
+	}
+	const bool one_shot_measured_hihat_ambiguous_recovery =
+		drum_detection_enabled && one_shot_drum_source &&
+		drum_level_[HiHat] > 0.30f &&
+		hihat_rim_segment_ratio <= 2.613f &&
+		upper_tom_body <= 1.19f;
+	if (one_shot_measured_hihat_ambiguous_recovery) {
+		const float strongest_non_hihat_level =
+			std::max(std::max(drum_level_[Kick], drum_level_[Snare]),
+				 std::max(std::max(drum_level_[Crash], drum_level_[Tom]),
+					  std::max(drum_level_[Ride], drum_level_[Rim])));
+		boost_drum_level(HiHat, std::max(0.90f, strongest_non_hihat_level + 0.02f));
+	}
+	const bool one_shot_measured_low_body_hihat_kick_steal =
+		drum_detection_enabled && one_shot_drum_source &&
+		drum_level_[Kick] > 0.30f &&
+		snapshot.low_energy >= 0.62f &&
+		snapshot.mid_energy <= 0.19f &&
+		snapshot.drum_debug_trigger_scores[Crash] <= 20.70f;
+	if (one_shot_measured_low_body_hihat_kick_steal) {
+		const float strongest_non_hihat_level =
+			std::max(std::max(drum_level_[Kick], drum_level_[Snare]),
+				 std::max(std::max(drum_level_[Crash], drum_level_[Tom]),
+					  std::max(drum_level_[Ride], drum_level_[Rim])));
+		boost_drum_level(HiHat, std::max(0.90f, strongest_non_hihat_level + 0.02f));
+		cap_drum_level(Kick, std::max(0.31f, drum_level_[HiHat] - 0.02f));
+	}
+	const bool one_shot_measured_hihat_crash_steal =
+		drum_detection_enabled && one_shot_drum_source &&
+		drum_level_[Crash] > 0.30f &&
+		crash_hihat_level_ratio >= 1.012f &&
+		crash_hihat_segment_ratio >= 1.484f;
+	const bool one_shot_measured_crash_hihat_steal =
+		drum_detection_enabled && one_shot_drum_source &&
+		!one_shot_measured_hihat_crash_steal &&
+		drum_level_[HiHat] > 0.30f &&
+		drum_shape_supported[Crash] &&
+		snare_body <= 6.29f &&
+		drum_bands[Tom] >= 14.82f;
+	const bool one_shot_measured_low_trigger_crash_hihat_steal =
+		drum_detection_enabled && one_shot_drum_source &&
+		!one_shot_measured_hihat_crash_steal &&
+		drum_level_[HiHat] > 0.30f &&
+		drum_segment_bands[Crash] >= 9.60f &&
+		snapshot.drum_debug_trigger_scores[Crash] <= 17.05f &&
+		hihat_rim_level_ratio >= 1.045f;
+	if (one_shot_measured_hihat_crash_steal) {
+		boost_drum_level(HiHat, std::max(0.90f, drum_level_[Crash] + 0.02f));
+		cap_drum_level(Crash, std::max(0.31f, drum_level_[HiHat] - 0.02f));
+	}
+	if (one_shot_measured_crash_hihat_steal) {
+		boost_drum_level(Crash, std::max(0.90f, drum_level_[HiHat] + 0.02f));
+		cap_drum_level(HiHat, std::max(0.31f, drum_level_[Crash] - 0.02f));
+	}
+	if (one_shot_measured_low_trigger_crash_hihat_steal) {
+		boost_drum_level(Crash, std::max(0.90f, drum_level_[HiHat] + 0.02f));
+		cap_drum_level(HiHat, std::max(0.31f, drum_level_[Crash] - 0.02f));
+	}
+		const float snare_kick_level_ratio_after_tom =
+			drum_level_[Snare] / (drum_level_[Kick] + 1.0e-6f);
+		const float tom_snare_level_ratio_after_tom =
+			drum_level_[Tom] / (drum_level_[Snare] + 1.0e-6f);
+		const float rim_snare_level_ratio_after_tom =
+			drum_level_[Rim] / (drum_level_[Snare] + 1.0e-6f);
+		const float snare_kick_trigger_ratio_after_tom =
+			snapshot.drum_debug_trigger_scores[Snare] /
+			(snapshot.drum_debug_trigger_scores[Kick] + 1.0e-6f);
+		const bool one_shot_snare_tom_steal =
+			drum_detection_enabled && one_shot_drum_source &&
+			body_shape == Tom &&
+			drum_level_[Snare] > 0.30f &&
+		drum_level_[Tom] > 0.30f &&
+		snare_body >= 33.6f &&
+		snare_crack <= snare_body * 0.14f &&
+			snapshot.high_energy <= 0.30f &&
+			tom_snare_level_ratio_after_tom >= 1.01f &&
+			snapshot.drum_debug_trigger_scores[Tom] <= 24.45f;
+		const bool measured_snare_tom_mid_body =
+			snapshot.mid_energy >= 0.71f ||
+			(drum_level_[Kick] <= 0.001f && drum_segment_bands[Crash] <= 0.21f);
+		const bool one_shot_measured_near_snare_tom_steal =
+			drum_detection_enabled && one_shot_drum_source &&
+			drum_level_[Snare] >= 0.70f &&
+			drum_level_[Tom] > 0.30f &&
+			hihat_rim_trigger_ratio <= 0.795f &&
+			tom_snare_level_ratio_after_tom >= 1.02f &&
+			tom_snare_level_ratio_after_tom <= 1.25f &&
+			measured_snare_tom_mid_body;
+		const bool one_shot_measured_low_cymbal_snare_tom_steal =
+			drum_detection_enabled && one_shot_drum_source &&
+			body_shape == Tom &&
+			drum_level_[Kick] <= 0.001f &&
+			drum_level_[Snare] >= 0.60f &&
+			drum_level_[Tom] >= 0.90f &&
+			drum_level_[Tom] <= 0.94f &&
+			drum_level_[Tom] > drum_level_[Snare] &&
+			drum_segment_bands[HiHat] <= 1.50f &&
+			drum_segment_bands[Crash] <= 0.50f &&
+			snare_crack <= 2.65f;
+		const bool measured_snare_rim_crack =
+			(drum_level_[Kick] <= 0.001f &&
+			 drum_segment_bands[Crash] <= 1.01f &&
+			 drum_level_[HiHat] >= 0.59f) ||
+			(snapshot.high_energy >= 0.60f && hihat_rim_segment_ratio <= 0.212f) ||
+			(drum_bands[Crash] <= 14.34f &&
+			 drum_level_[Rim] >= 0.93f &&
+			 snare_body >= 12.95f &&
+			 snare_kick_trigger_ratio_after_tom >= 1.156f) ||
+			(drum_level_[Rim] >= 0.93f &&
+			 snare_body >= 12.95f &&
+			 tom_snare_band_ratio >= 1.18f &&
+			 tom_snare_band_ratio <= 1.313f);
+		const bool one_shot_measured_near_snare_rim_steal =
+			drum_detection_enabled && one_shot_drum_source &&
+			drum_level_[Snare] >= 0.55f &&
+			drum_level_[Rim] > 0.30f &&
+			rim_snare_level_ratio_after_tom >= 1.0f &&
+			rim_snare_level_ratio_after_tom <= 1.20f &&
+			measured_snare_rim_crack;
+		const bool one_shot_snare_kick_steal =
+			drum_detection_enabled && one_shot_drum_source &&
+			drum_level_[Kick] > 0.30f &&
+			drum_level_[Snare] >= 0.29f &&
+			snapshot.high_energy <= 0.30f &&
+			snare_kick_level_ratio_after_tom <= 0.333f;
+		const bool one_shot_measured_near_snare_kick_steal =
+			drum_detection_enabled && one_shot_drum_source &&
+			drum_level_[Kick] >= 0.97f &&
+			drum_level_[Snare] >= 0.80f &&
+			drum_level_[Tom] <= 0.89f &&
+			tom_kick_trigger_ratio >= 0.739f &&
+			drum_segment_bands[Tom] <= 359.88f;
+		if (one_shot_snare_tom_steal) {
+			boost_drum_level(Snare, std::max(0.90f, drum_level_[Tom] + 0.02f));
+			cap_drum_level(Tom, std::max(0.31f, drum_level_[Snare] - 0.02f));
+		}
+		if (one_shot_measured_near_snare_tom_steal) {
+			boost_drum_level(Snare, std::max(0.90f, drum_level_[Tom] + 0.02f));
+			cap_drum_level(Tom, std::max(0.31f, drum_level_[Snare] - 0.02f));
+		}
+		if (one_shot_measured_low_cymbal_snare_tom_steal) {
+			boost_drum_level(Snare, std::max(0.92f, drum_level_[Tom] + 0.04f));
+			cap_drum_level(Tom, std::max(0.31f, drum_level_[Snare] - 0.04f));
+		}
+		if (one_shot_measured_near_snare_rim_steal) {
+			boost_drum_level(Snare, std::max(0.90f, drum_level_[Rim] + 0.02f));
+			cap_drum_level(Rim, std::max(0.31f, drum_level_[Snare] - 0.02f));
+		}
+		if (one_shot_snare_kick_steal) {
+			boost_drum_level(Snare, std::max(0.90f, drum_level_[Kick] + 0.02f));
+			cap_drum_level(Kick, std::max(0.31f, drum_level_[Snare] - 0.02f));
+		}
+		if (one_shot_measured_near_snare_kick_steal) {
+			boost_drum_level(Snare, std::max(0.90f, drum_level_[Kick] + 0.02f));
+			cap_drum_level(Kick, std::max(0.31f, drum_level_[Snare] - 0.02f));
+		}
+		const bool measured_one_shot_tom_snare_body_steal =
+			drum_detection_enabled && one_shot_drum_source &&
+			body_shape == Tom &&
+			drum_level_[Kick] <= 0.001f &&
+			drum_level_[Snare] > 0.30f &&
+			drum_shape_supported[Tom] &&
+			hihat_rim_shape_score_ratio <= 0.111f &&
+			snare_kick_segment_ratio <= 2.35f &&
+			drum_segment_bands[Snare] >= 53.86f &&
+			tom_snare_band_ratio <= 1.626f;
+		const bool measured_one_shot_low_tom_kick_body_steal =
+			drum_detection_enabled && one_shot_drum_source &&
+			drum_level_[Kick] > 0.30f &&
+			measured_one_shot_tom_shape &&
+			tom_kick_level_ratio <= 0.586f &&
+			tom_snare_level_ratio >= 0.989f &&
+			tom_body >= kick_body * 1.30f &&
+			tom_body >= snare_body * 1.20f;
+		if (measured_one_shot_tom_snare_body_steal) {
+			boost_drum_level(Tom, std::max(0.90f, drum_level_[Snare] + 0.02f));
+			cap_drum_level(Snare, std::max(0.31f, drum_level_[Tom] - 0.02f));
+		}
+		if (measured_one_shot_low_tom_kick_body_steal) {
+			boost_drum_level(Tom, std::max(0.90f, drum_level_[Kick] + 0.02f));
+			cap_drum_level(Kick, std::max(0.31f, drum_level_[Tom] - 0.02f));
+		}
+		const bool measured_one_shot_snare_tom_body_steal =
+			drum_detection_enabled && one_shot_drum_source &&
+			body_shape == Tom &&
+			drum_level_[Kick] <= 0.001f &&
+			drum_level_[Tom] > 0.30f &&
+			snapshot.high_energy <= 0.14f &&
+			hihat_rim_band_ratio >= 0.394f &&
+			tom_kick_segment_ratio <= 3.113f &&
+			tom_kick_shape_score_ratio >= 1.296f;
+		if (measured_one_shot_snare_tom_body_steal) {
+			boost_drum_level(Snare, std::max(0.90f, drum_level_[Tom] + 0.02f));
+			cap_drum_level(Tom, std::max(0.31f, drum_level_[Snare] - 0.02f));
+		}
+
+		const float final_snare_kick_level_ratio =
+			drum_level_[Snare] / (drum_level_[Kick] + 1.0e-6f);
+		const float final_tom_kick_level_ratio =
+			drum_level_[Tom] / (drum_level_[Kick] + 1.0e-6f);
+		const bool one_shot_measured_kick_high_shape_snare_recovery =
+			drum_detection_enabled && one_shot_drum_source &&
+			drum_level_[Kick] > 0.30f &&
+			body_shape_scores[0] >= 328.31f &&
+			final_snare_kick_level_ratio >= 1.01f &&
+			body_shape_scores[1] >= 142.0f &&
+			drum_level_[Tom] <= 0.98f;
+		const bool one_shot_measured_kick_high_shape_ambiguous_recovery =
+			drum_detection_enabled && one_shot_drum_source &&
+			drum_level_[Kick] > 0.30f &&
+			body_shape_scores[0] >= 348.53f &&
+			drum_level_[Snare] >= 0.99f &&
+			tom_kick_band_ratio <= 7.508f &&
+			tom_kick_shape_score_ratio >= 0.903f;
+		const bool one_shot_measured_kick_body_tom_recovery =
+			drum_detection_enabled && one_shot_drum_source &&
+			drum_level_[Kick] > 0.30f &&
+			kick_body >= 262.58f &&
+			final_tom_kick_level_ratio >= 1.01f;
+		const bool one_shot_measured_kick_low_hihat_recovery =
+			drum_detection_enabled && one_shot_drum_source &&
+			drum_level_[Kick] > 0.30f &&
+			snapshot.drum_debug_trigger_scores[Crash] <= 20.67f &&
+			snare_kick_segment_ratio <= 0.548f;
+		const bool one_shot_measured_kick_rim_recovery =
+			drum_detection_enabled && one_shot_drum_source &&
+			drum_level_[Kick] > 0.30f &&
+			body_shape_scores[0] >= 129.45f &&
+			drum_level_[Rim] >= 0.92f &&
+			snapshot.drum_debug_trigger_scores[Rim] <= 47.36f;
+		if (one_shot_measured_kick_high_shape_snare_recovery ||
+		    one_shot_measured_kick_high_shape_ambiguous_recovery ||
+		    one_shot_measured_kick_body_tom_recovery ||
+		    one_shot_measured_kick_low_hihat_recovery ||
+		    one_shot_measured_kick_rim_recovery)
+			promote_drum_primary(Kick, 0.90f);
+
+		const bool one_shot_measured_rim_snare_onset_recovery =
+			drum_detection_enabled && one_shot_drum_source &&
+			drum_level_[Rim] > 0.30f &&
+			onset >= 5.0f &&
+			onset <= 48.21f &&
+			drum_level_[Snare] >= 0.97f;
+		const bool one_shot_measured_rim_snare_low_trigger_recovery =
+			drum_detection_enabled && one_shot_drum_source &&
+			snapshot.high_energy >= 0.50f &&
+			snapshot.drum_debug_trigger_scores[Rim] <= 14.73f &&
+			drum_level_[Snare] >= 0.96f;
+		const bool one_shot_measured_rim_snare_transient_recovery =
+			drum_detection_enabled && one_shot_drum_source &&
+			body_shape == Snare &&
+			drum_transient_ratio >= 2.76f &&
+			snapshot.high_energy <= 0.45f &&
+			drum_level_[Snare] >= 0.95f &&
+			upper_tom_body <= 22.38f;
+		const bool one_shot_measured_rim_tom_recovery =
+			drum_detection_enabled && one_shot_drum_source &&
+			snapshot.drum_debug_trigger_scores[Rim] <= 24.955f &&
+			drum_level_[Tom] >= 0.98f &&
+			drum_segment_bands[Tom] >= 48.80f &&
+			upper_tom_body <= 37.95f;
+		const bool one_shot_measured_rim_tom_trigger_recovery =
+			drum_detection_enabled && one_shot_drum_source &&
+			drum_level_[Rim] > 0.30f &&
+			snapshot.drum_debug_trigger_scores[Kick] <= 16.25f &&
+			drum_level_[Tom] >= 0.97f &&
+			tom_snare_trigger_ratio <= 0.81f;
+		const bool one_shot_measured_rim_tom_low_kick_trigger_recovery =
+			drum_detection_enabled && one_shot_drum_source &&
+			drum_level_[Rim] > 0.30f &&
+			snapshot.drum_debug_trigger_scores[Kick] <= 12.31f &&
+			snare_body >= 24.11f;
+		const bool one_shot_measured_rim_tom_upper_body_recovery =
+			drum_detection_enabled && one_shot_drum_source &&
+			drum_level_[Rim] > 0.30f &&
+			snapshot.drum_debug_trigger_scores[Kick] <= 14.87f &&
+			drum_level_[Tom] >= 0.90f &&
+			upper_tom_body >= 26.75f;
+		const bool one_shot_measured_rim_tom_shape_ratio_recovery =
+			drum_detection_enabled && one_shot_drum_source &&
+			body_shape == Tom &&
+			snare_kick_shape_score_ratio >= 2.936f &&
+			tom_snare_level_ratio >= 1.01f;
+		const bool one_shot_measured_rim_ambiguous_recovery =
+			drum_detection_enabled && one_shot_drum_source &&
+			body_shape_scores[1] <= 16.80f &&
+			body_shape_scores[2] >= 17.77f &&
+			tom_snare_body_ratio <= 1.523f &&
+			snapshot.drum_debug_trigger_scores[Tom] <= 17.94f;
+		const bool one_shot_measured_rim_ambiguous_ride_ratio_recovery =
+			drum_detection_enabled && one_shot_drum_source &&
+			hihat_rim_shape_score_ratio >= 0.546f &&
+			ride_hihat_segment_ratio >= 3.512f &&
+			ride_hihat_shape_score_ratio <= 3.571f;
+		const bool one_shot_measured_rim_ambiguous_shape_recovery =
+			drum_detection_enabled && one_shot_drum_source &&
+			drum_segment_bands[Rim] >= 12.20f &&
+			rim_shape_score <= 9.55f &&
+			snapshot.drum_debug_trigger_scores[Rim] <= 22.74f;
+		const bool one_shot_measured_rim_kick_recovery =
+			drum_detection_enabled && one_shot_drum_source &&
+			snapshot.low_energy >= 0.49f &&
+			onset <= 53.97f &&
+			snapshot.drum_debug_trigger_scores[Ride] >= 16.53f;
+		const bool one_shot_measured_rim_kick_low_crash_recovery =
+			drum_detection_enabled && one_shot_drum_source &&
+			drum_level_[Rim] > 0.30f &&
+			drum_level_[Kick] >= 0.85f &&
+			drum_bands[Crash] <= 3.90f &&
+			snapshot.drum_debug_trigger_scores[Crash] <= 18.12f;
+		const bool one_shot_measured_rim_kick_low_trigger_recovery =
+			drum_detection_enabled && one_shot_drum_source &&
+			snapshot.drum_debug_trigger_scores[Crash] <= 27.0f &&
+			drum_bands[Kick] >= 85.0f &&
+			snapshot.low_energy <= 0.50f &&
+			drum_level_[Snare] <= 0.84f;
+		const bool one_shot_measured_high_snare_shape_rim_guard =
+			drum_detection_enabled && one_shot_drum_source &&
+			body_shape == Snare &&
+			drum_level_[Snare] >= 0.90f &&
+			snapshot.high_energy >= 0.46f;
+		const bool one_shot_measured_rim_guard_bypass_recovery =
+			one_shot_measured_rim_snare_low_trigger_recovery ||
+			one_shot_measured_rim_kick_low_trigger_recovery;
+		const bool one_shot_measured_rim_recovery =
+			one_shot_measured_rim_snare_onset_recovery ||
+			one_shot_measured_rim_snare_low_trigger_recovery ||
+			one_shot_measured_rim_snare_transient_recovery ||
+			one_shot_measured_rim_tom_recovery ||
+			one_shot_measured_rim_tom_trigger_recovery ||
+			one_shot_measured_rim_tom_low_kick_trigger_recovery ||
+			one_shot_measured_rim_tom_upper_body_recovery ||
+			one_shot_measured_rim_tom_shape_ratio_recovery ||
+			one_shot_measured_rim_ambiguous_recovery ||
+			one_shot_measured_rim_ambiguous_ride_ratio_recovery ||
+			one_shot_measured_rim_ambiguous_shape_recovery ||
+			one_shot_measured_rim_kick_recovery ||
+			one_shot_measured_rim_kick_low_crash_recovery ||
+			one_shot_measured_rim_kick_low_trigger_recovery;
+		if (one_shot_measured_rim_recovery &&
+		    (!one_shot_measured_high_snare_shape_rim_guard ||
+		     one_shot_measured_rim_guard_bypass_recovery))
+			promote_drum_primary(Rim, 0.88f);
+
+		const float final_tom_kick_near_tie_ratio =
+			drum_level_[Tom] / (drum_level_[Kick] + 1.0e-6f);
+		const float final_snare_kick_shape_ratio =
+			body_shape_scores[1] / (body_shape_scores[0] + 1.0e-6f);
+		const float final_snare_kick_band_ratio =
+			drum_bands[Snare] / (drum_bands[Kick] + 1.0e-6f);
+		const float final_tom_snare_trigger_ratio =
+			snapshot.drum_debug_trigger_scores[Tom] /
+			(snapshot.drum_debug_trigger_scores[Snare] + 1.0e-6f);
+		const float final_upper_tom_snare_body_ratio =
+			upper_tom_body / (snare_body + 1.0e-6f);
+		const bool one_shot_measured_tom_rim_primary_recovery =
+			drum_detection_enabled && one_shot_drum_source &&
+			body_shape == Tom &&
+			drum_level_[Tom] > 0.30f &&
+			((final_tom_kick_near_tie_ratio <= 1.001f &&
+			  final_upper_tom_snare_body_ratio >= 0.774f) ||
+			 (snapshot.high_energy <= 0.26f &&
+			  drum_level_[Rim] > 0.30f &&
+			  rim_shape_score >= 9.86f));
+		const bool one_shot_measured_tom_kick_primary_recovery =
+			drum_detection_enabled && one_shot_drum_source &&
+			drum_level_[Tom] > 0.30f &&
+			drum_level_[Kick] > 0.30f &&
+			drum_level_[Rim] <= 0.30f &&
+			tom_body >= kick_body * 1.40f &&
+			tom_body >= snare_body * 1.10f &&
+			snapshot.high_energy <= 0.14f;
+		const bool one_shot_measured_ride_rim_saturated_recovery =
+			drum_detection_enabled && one_shot_drum_source &&
+			body_shape == Kick &&
+			drum_level_[Ride] > 0.30f &&
+			tom_body <= 3.5f &&
+			snare_body <= 3.0f;
+		const bool one_shot_measured_snare_rim_primary_recovery =
+			drum_detection_enabled && one_shot_drum_source &&
+			drum_level_[Snare] >= 0.97f &&
+			drum_level_[Rim] >= 0.99f &&
+			drum_segment_bands[Rim] >= 6.99f &&
+			final_tom_snare_trigger_ratio <= 0.80f;
+		const bool one_shot_measured_snare_kick_primary_recovery =
+			drum_detection_enabled && one_shot_drum_source &&
+			drum_level_[Snare] >= 0.77f &&
+			drum_level_[Kick] >= 0.90f &&
+			drum_segment_bands[Crash] >= 1.25f &&
+			final_snare_kick_shape_ratio <= 0.68f &&
+			final_tom_snare_trigger_ratio <= 0.872f;
+		const bool one_shot_measured_snare_ambiguous_primary_recovery =
+			drum_detection_enabled && one_shot_drum_source &&
+			body_shape == Kick &&
+			drum_level_[Snare] >= 0.98f &&
+			drum_segment_bands[Snare] >= 12.89f;
+		const bool one_shot_measured_snare_tom_tie_primary_recovery =
+			drum_detection_enabled && one_shot_drum_source &&
+			drum_level_[Snare] >= 0.985f &&
+			drum_level_[Tom] >= 0.985f;
+		const bool one_shot_measured_crash_kick_tie_primary_recovery =
+			drum_detection_enabled && one_shot_drum_source &&
+			drum_level_[Crash] >= 0.98f &&
+			drum_level_[Kick] >= 0.96f;
+		const bool one_shot_measured_crash_ride_tie_primary_recovery =
+			drum_detection_enabled && one_shot_drum_source &&
+			drum_level_[Crash] >= 0.98f &&
+			drum_level_[Ride] >= 1.0f;
+		const bool one_shot_measured_kick_tom_primary_recovery =
+			drum_detection_enabled && one_shot_drum_source &&
+			((final_snare_kick_band_ratio <= 0.111f &&
+			  tom_kick_level_ratio >= 1.02f) ||
+			 (tom_snare_body_ratio >= 2.519f &&
+			  tom_snare_shape_score_ratio <= 2.373f) ||
+			 (snapshot.high_energy <= 0.02f &&
+			  snapshot.drum_debug_trigger_thresholds[Tom] <= 0.43f) ||
+			 (body_shape_scores[0] >= 406.43f &&
+			  tom_kick_shape_score_ratio >= 0.866f));
+		const bool measured_low_energy_kick_tom_primary_recovery =
+			drum_detection_enabled && named_drum_source &&
+			drum_level_[Kick] > 0.30f &&
+			drum_level_[Tom] > drum_level_[Kick] &&
+			snapshot.low_energy >= 0.63f &&
+			final_tom_kick_near_tie_ratio >= 1.057f &&
+			snapshot.drum_debug_trigger_scores[Tom] >= 2.39f;
+		const bool one_shot_measured_kick_snare_primary_recovery =
+			drum_detection_enabled && one_shot_drum_source &&
+			((drum_bands[Ride] <= 1.67f &&
+			  drum_level_[Snare] >= 0.99f &&
+			  upper_tom_body >= 99.955f) ||
+			 (snapshot.drum_debug_trigger_scores[Kick] <= 80.83f &&
+			  tom_body >= 335.98f) ||
+			 (body_shape == Tom &&
+			  kick_body >= 193.22f));
+		if (one_shot_measured_tom_rim_primary_recovery ||
+		    one_shot_measured_tom_kick_primary_recovery)
+			promote_drum_primary(Tom, 0.90f);
+		if (one_shot_measured_ride_rim_saturated_recovery)
+			promote_drum_primary(Ride, 0.90f);
+		if (one_shot_measured_crash_kick_tie_primary_recovery ||
+		    one_shot_measured_crash_ride_tie_primary_recovery)
+			promote_drum_primary(Crash, 0.90f);
+		if (one_shot_measured_snare_rim_primary_recovery ||
+		    one_shot_measured_snare_kick_primary_recovery ||
+		    one_shot_measured_snare_ambiguous_primary_recovery ||
+		    one_shot_measured_snare_tom_tie_primary_recovery)
+			promote_drum_primary(Snare, 0.90f);
+		if (one_shot_measured_kick_tom_primary_recovery ||
+		    measured_low_energy_kick_tom_primary_recovery ||
+		    one_shot_measured_kick_snare_primary_recovery)
+			promote_drum_primary(Kick, 0.90f);
+		const bool one_shot_measured_low_body_kick_tom_primary_recovery =
+			drum_detection_enabled && one_shot_drum_source &&
+			drum_level_[Kick] > 0.30f &&
+			drum_level_[Tom] > drum_level_[Kick] &&
+			snapshot.low_energy >= 0.56f &&
+			snapshot.drum_debug_trigger_scores[Kick] >= 404.0f &&
+			snapshot.drum_debug_trigger_scores[Ride] >= 8.20f;
+		const bool one_shot_measured_quiet_high_kick_tom_primary_recovery =
+			drum_detection_enabled && one_shot_drum_source &&
+			drum_level_[Kick] > 0.30f &&
+			drum_level_[Tom] > drum_level_[Kick] &&
+			snapshot.high_energy <= 0.04f &&
+			drum_bands[Kick] <= 0.14f &&
+			kick_body >= 14.12f;
+		const bool one_shot_measured_low_body_ratio_kick_tom_primary_recovery =
+			drum_detection_enabled && one_shot_drum_source &&
+			drum_level_[Kick] > 0.30f &&
+			drum_level_[Tom] > drum_level_[Kick] &&
+			snapshot.low_energy >= 0.91f &&
+			tom_kick_body_ratio >= 1.471f;
+		if (one_shot_measured_low_body_kick_tom_primary_recovery ||
+		    one_shot_measured_quiet_high_kick_tom_primary_recovery ||
+		    one_shot_measured_low_body_ratio_kick_tom_primary_recovery)
+			promote_drum_primary(Kick, 0.90f);
 
 	const bool onset_tempo_event =
 		drum_detection_enabled && rms > kSilenceRms && drum_transient &&
@@ -9627,17 +12397,24 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 	FullMixOwnership full_mix_ownership;
 	const bool monophonic_other_source =
 		input_mode == AnalysisInputMode::IsolatedOther && is_monophonic_other_track_source(resolved_source_name);
+	const bool synthetic_other_source_hint =
+		mixed_source &&
+		(contains_case_insensitive(resolved_source_name, "synth") ||
+		 contains_case_insensitive(resolved_source_name, "other"));
 	const int other_max_notes = monophonic_other_source ? 1 : (mixed_source ? 12 : 12);
 	if (mixed_source) {
 		std::array<float, kNoteProbeCount> current_full_mix_note_levels = {};
 		full_mix_ownership = build_full_mix_ownership(note_powers, detection_note_powers, rms,
 							      previous_full_mix_note_levels_,
-							      current_full_mix_note_levels);
+							      current_full_mix_note_levels,
+							      full_mix_source_hint_mode);
 		stabilize_full_mix_vocal_ownership(full_mix_ownership, tracked_vocal_midi_,
 						   pending_vocal_midi_, pending_vocal_hits_,
 						   tracked_vocal_misses_, tracked_vocal_score_);
 		stabilize_sparse_full_mix_other_ownership(full_mix_ownership,
 							  full_mix_other_ownership_tracking_);
+		if (mixed_synth_source_hint)
+			restore_full_mix_named_synth_other_from_keyboard(full_mix_ownership);
 		snapshot.full_mix_debug_candidate_count = full_mix_ownership.debug_candidate_count;
 		snapshot.full_mix_debug_candidates = full_mix_ownership.debug_candidates;
 		previous_full_mix_note_levels_ = current_full_mix_note_levels;
@@ -9778,6 +12555,12 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 					restore_full_mix_low_other_from_bass(full_mix_ownership,
 									     detection_note_powers,
 									     displayed_bass.midi);
+					if (synthetic_other_source_hint)
+						restore_full_mix_low_synth_other_from_bass(full_mix_ownership,
+											 detection_note_powers,
+											 displayed_bass.midi,
+											 displayed_bass.confidence,
+											 displayed_bass.score);
 				}
 				mixed_bass_pitch_class = ((displayed_bass.midi % 12) + 12) % 12;
 			}
@@ -9807,6 +12590,12 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 						restore_full_mix_low_other_from_bass(full_mix_ownership,
 										    detection_note_powers,
 										    displayed_bass.midi);
+						if (synthetic_other_source_hint)
+							restore_full_mix_low_synth_other_from_bass(full_mix_ownership,
+												    detection_note_powers,
+												    displayed_bass.midi,
+												    displayed_bass.confidence,
+												    displayed_bass.score);
 					}
 					mixed_bass_pitch_class = ((displayed_bass.midi % 12) + 12) % 12;
 				}
@@ -10025,7 +12814,7 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 			}
 			InstrumentState guitar_chord_detection_state;
 			constexpr int kGuitarChordAnalysisMaxNotes = 14;
-			constexpr float kGuitarChordAnalysisRelativeFloor = 0.025f;
+			constexpr float kGuitarChordAnalysisRelativeFloor = 0.010f;
 			set_instrument_note_set(guitar_chord_detection_grid, guitar_chord_detection_state,
 						detection_note_powers, min_midi, kGuitarMaxMidi, preferred_root,
 						guitar_energy, rms, kGuitarChordAnalysisMaxNotes, nullptr, nullptr,
@@ -10033,6 +12822,14 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 						kPolyphonicNoteRmsFloor, 1.0f);
 		}
 		snapshot.guitar_chord_analysis_notes = guitar_chord_detection_grid;
+		for (int pitch_class = 0; pitch_class < 12; ++pitch_class) {
+			snapshot.guitar_chord_debug_probe_levels[pitch_class] =
+				strongest_probe_pitch_class_level(note_powers, pitch_class, min_midi,
+								  kGuitarMaxMidi);
+			snapshot.guitar_chord_debug_melodic_probe_levels[pitch_class] =
+				strongest_melodic_probe_pitch_class_level(note_powers, pitch_class, min_midi,
+									  kGuitarMaxMidi);
+		}
 		raw_guitar_chord = detect_guitar_chord_from_grid(guitar_chord_detection_grid, allow_extensions);
 		const ChordResult display_guitar_chord = detect_guitar_chord_from_grid(
 			mixed_source ? guitar_chord_detection_grid : snapshot.guitar_notes, allow_extensions);
@@ -10114,6 +12911,9 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 			} else if (raw_guitar_chord.root == analysis_supported_guitar_triad.root) {
 				append_same_root_chord_aliases(raw_guitar_chord, analysis_supported_guitar_triad);
 			}
+			append_display_supported_guitar_analysis_triad_aliases(raw_guitar_chord,
+									     snapshot.guitar_notes,
+									     guitar_chord_detection_grid);
 		}
 		if (raw_guitar_valid && display_guitar_valid && raw_guitar_chord.root == display_guitar_chord.root &&
 		    std::strstr(raw_guitar_chord.label, "pow") &&
@@ -10210,31 +13010,63 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 			append_supported_guitar_plain_triad_aliases(
 				raw_guitar_chord, guitar_chord_detection_grid,
 				std::strstr(raw_guitar_chord.label, "pow") ? -1 : raw_guitar_chord.root);
-			append_supported_guitar_ambiguous_third_aliases(raw_guitar_chord, guitar_chord_detection_grid);
-			append_display_supported_guitar_extension_aliases(raw_guitar_chord, snapshot.guitar_notes);
-			append_supported_guitar_extension_aliases(raw_guitar_chord, guitar_chord_detection_grid, true);
-			append_supported_guitar_base_triad_aliases_for_extensions(raw_guitar_chord,
-										 guitar_chord_detection_grid);
+			append_supported_guitar_ambiguous_third_aliases(raw_guitar_chord,
+								       guitar_chord_detection_grid);
+			append_root_anchored_guitar_analysis_triad_aliases(
+				raw_guitar_chord, snapshot.guitar_notes, guitar_chord_detection_grid);
+			append_display_supported_guitar_extension_aliases(raw_guitar_chord,
+									 snapshot.guitar_notes);
+			append_supported_guitar_extension_aliases(raw_guitar_chord,
+								  guitar_chord_detection_grid, true);
+			append_supported_guitar_base_triad_aliases_for_extensions(
+				raw_guitar_chord, guitar_chord_detection_grid);
 			append_supported_guitar_symmetric_altered_aliases(raw_guitar_chord,
-									  guitar_chord_detection_grid);
+									 guitar_chord_detection_grid);
 			append_equivalent_sixth_seventh_aliases(raw_guitar_chord);
 			append_supported_guitar_power_aliases(raw_guitar_chord, guitar_chord_detection_grid);
-			append_guitar_power_probe_third_aliases(raw_guitar_chord, guitar_chord_detection_grid,
-								detection_note_powers, min_midi, kGuitarMaxMidi);
-			remove_superseded_guitar_power_aliases(raw_guitar_chord);
-			append_guitar_power_quality_candidates(raw_guitar_chord, guitar_chord_detection_grid,
-							       detection_note_powers, min_midi,
+			append_guitar_power_probe_third_aliases(raw_guitar_chord,
+								guitar_chord_detection_grid, note_powers,
+								min_midi, kGuitarMaxMidi);
+			remove_superseded_guitar_power_aliases(raw_guitar_chord,
+							       &guitar_chord_detection_grid);
+			append_guitar_power_quality_candidates(raw_guitar_chord,
+							       guitar_chord_detection_grid,
+							       note_powers, min_midi,
 							       kGuitarMaxMidi);
-			if (append_guitar_thirdless_dyad_quality_aliases(raw_guitar_chord,
-									 snapshot.guitar_notes,
-									 guitar_chord_detection_grid,
-									 detection_note_powers, min_midi,
-									 kGuitarMaxMidi))
-				remove_superseded_guitar_power_aliases(raw_guitar_chord);
+			if (append_guitar_thirdless_dyad_quality_aliases(
+				    raw_guitar_chord, snapshot.guitar_notes,
+				    guitar_chord_detection_grid, note_powers, min_midi,
+				    kGuitarMaxMidi))
+				remove_superseded_guitar_power_aliases(
+					raw_guitar_chord, &guitar_chord_detection_grid);
+			append_guitar_probe_opposite_quality_aliases(raw_guitar_chord,
+								     guitar_chord_detection_grid,
+								     note_powers, min_midi,
+								     kGuitarMaxMidi);
+			append_root_anchored_guitar_analysis_triad_aliases(
+				raw_guitar_chord, snapshot.guitar_notes, guitar_chord_detection_grid);
+			append_probe_supported_guitar_rootless_plain_triad_aliases(
+				raw_guitar_chord, snapshot.guitar_notes, guitar_chord_detection_grid,
+				note_powers, min_midi, kGuitarMaxMidi);
+			remove_superseded_guitar_power_aliases(raw_guitar_chord,
+							       &guitar_chord_detection_grid);
 			append_guitar_rootless_dyad_aliases(raw_guitar_chord, snapshot.guitar_notes,
 							    guitar_chord_detection_grid);
+			prune_clean_primary_guitar_aliases(raw_guitar_chord, snapshot.guitar_notes,
+							   guitar_chord_detection_grid);
 		}
+		if (!mixed_source && primary_chord_is_plain_major_minor(raw_guitar_chord) &&
+		    (snapshot.high_energy <= 0.010f ||
+		     (primary_major_minor_root_adjacent_noise(guitar_chord_detection_grid, raw_guitar_chord) &&
+		      primary_major_minor_root_adjacent_noise(snapshot.guitar_notes, raw_guitar_chord))) &&
+		    primary_major_minor_chord_tone_count(guitar_chord_detection_grid, raw_guitar_chord) < 3 &&
+		    primary_major_minor_chord_tone_count(snapshot.guitar_notes, raw_guitar_chord) < 3 &&
+		    !primary_major_minor_third_supported(guitar_chord_detection_grid, raw_guitar_chord) &&
+		    !primary_major_minor_third_supported(snapshot.guitar_notes, raw_guitar_chord))
+			raw_guitar_chord = ChordResult{};
 		set_instrument_chord(snapshot.guitar_chord, raw_guitar_chord, guitar_energy, rms,
+				     mixed_source ? kNoteRmsFloor : kPolyphonicNoteRmsFloor);
+		set_instrument_chord(snapshot.guitar_raw_chord, raw_guitar_chord, guitar_energy, rms,
 				     mixed_source ? kNoteRmsFloor : kPolyphonicNoteRmsFloor);
 	};
 
@@ -10379,14 +13211,22 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 		set_instrument_chord(snapshot.other_chord, raw_other_chord, other_energy, rms);
 	};
 
-	const bool keyboard_enabled = input_mode == AnalysisInputMode::FullMix ||
-				      input_mode == AnalysisInputMode::IsolatedKeyboard;
-	const bool guitar_enabled = input_mode == AnalysisInputMode::FullMix ||
-				    input_mode == AnalysisInputMode::IsolatedGuitar;
-	const bool vocal_enabled = input_mode == AnalysisInputMode::FullMix ||
-				   input_mode == AnalysisInputMode::IsolatedVocal;
-	const bool other_enabled = input_mode == AnalysisInputMode::FullMix ||
-				   input_mode == AnalysisInputMode::IsolatedOther;
+	const bool keyboard_enabled =
+		(input_mode == AnalysisInputMode::FullMix &&
+		 full_mix_source_hint_allows_row(full_mix_source_hint_mode, FullMixDisplayRow::Keyboard)) ||
+		input_mode == AnalysisInputMode::IsolatedKeyboard;
+	const bool guitar_enabled =
+		(input_mode == AnalysisInputMode::FullMix &&
+		 full_mix_source_hint_allows_row(full_mix_source_hint_mode, FullMixDisplayRow::Guitar)) ||
+		input_mode == AnalysisInputMode::IsolatedGuitar;
+	const bool vocal_enabled =
+		(input_mode == AnalysisInputMode::FullMix &&
+		 full_mix_source_hint_allows_row(full_mix_source_hint_mode, FullMixDisplayRow::Vocal)) ||
+		input_mode == AnalysisInputMode::IsolatedVocal;
+	const bool other_enabled =
+		(input_mode == AnalysisInputMode::FullMix &&
+		 full_mix_source_hint_allows_row(full_mix_source_hint_mode, FullMixDisplayRow::Other)) ||
+		input_mode == AnalysisInputMode::IsolatedOther;
 
 	if (keyboard_enabled) {
 		process_keyboard();
@@ -10484,6 +13324,11 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 										      guitar_chord_grid,
 										      lowest_note_grid_pitch_class(
 											      guitar_chord_grid));
+		const ChordResult smoothed_visible_supported_guitar_triad =
+			mixed_source ? ChordResult{} :
+				       detect_visible_supported_guitar_plain_triad(
+					       snapshot.guitar_notes,
+					       lowest_note_grid_pitch_class(guitar_chord_grid));
 		if (valid_chord_result(smoothed_analysis_supported_guitar_triad)) {
 			if (!valid_chord_result(smoothed_guitar_chord) ||
 			    std::strstr(smoothed_guitar_chord.label, "pow") ||
@@ -10494,6 +13339,25 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 			} else if (smoothed_guitar_chord.root == smoothed_analysis_supported_guitar_triad.root) {
 				append_same_root_chord_aliases(smoothed_guitar_chord,
 							       smoothed_analysis_supported_guitar_triad);
+			}
+			append_display_supported_guitar_analysis_triad_aliases(smoothed_guitar_chord,
+									     snapshot.guitar_notes,
+									     guitar_chord_grid);
+		}
+		if (valid_chord_result(smoothed_visible_supported_guitar_triad)) {
+			const bool smoothed_power = valid_chord_result(smoothed_guitar_chord) &&
+						    std::strstr(smoothed_guitar_chord.label, "pow");
+			const bool smoothed_sus = valid_chord_result(smoothed_guitar_chord) &&
+						  std::strstr(smoothed_guitar_chord.label, "sus");
+			if (!valid_chord_result(smoothed_guitar_chord) || smoothed_power) {
+				smoothed_guitar_chord = smoothed_visible_supported_guitar_triad;
+			} else if (smoothed_guitar_chord.root == smoothed_visible_supported_guitar_triad.root) {
+				append_same_root_chord_aliases(smoothed_guitar_chord,
+							       smoothed_visible_supported_guitar_triad);
+				if (smoothed_sus)
+					smoothed_guitar_chord.confidence =
+						std::max(smoothed_guitar_chord.confidence,
+							 smoothed_visible_supported_guitar_triad.confidence);
 			}
 		}
 		auto smoothed_guitar_chord_supported_by_display_grid = [&](const ChordResult &chord) {
@@ -10570,34 +13434,58 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 							     lowest_note_grid_pitch_class(guitar_chord_grid),
 							     allow_smoothed_extensions);
 		if (allow_smoothed_extensions) {
-			append_supported_guitar_plain_triad_aliases(smoothed_guitar_chord, snapshot.guitar_notes);
+			append_supported_guitar_plain_triad_aliases(smoothed_guitar_chord,
+								   snapshot.guitar_notes);
 			append_supported_guitar_plain_triad_aliases(
 				smoothed_guitar_chord, guitar_chord_grid,
-				std::strstr(smoothed_guitar_chord.label, "pow") ? -1 : smoothed_guitar_chord.root);
-			append_supported_guitar_ambiguous_third_aliases(smoothed_guitar_chord, guitar_chord_grid);
-			append_display_supported_guitar_extension_aliases(smoothed_guitar_chord, snapshot.guitar_notes);
-			append_supported_guitar_extension_aliases(smoothed_guitar_chord, guitar_chord_grid, true);
+				std::strstr(smoothed_guitar_chord.label, "pow") ? -1 :
+										       smoothed_guitar_chord.root);
+			append_supported_guitar_ambiguous_third_aliases(smoothed_guitar_chord,
+								       guitar_chord_grid);
+			append_root_anchored_guitar_analysis_triad_aliases(smoothed_guitar_chord,
+									   snapshot.guitar_notes,
+									   guitar_chord_grid);
+			append_display_supported_guitar_extension_aliases(smoothed_guitar_chord,
+									 snapshot.guitar_notes);
+			append_supported_guitar_extension_aliases(smoothed_guitar_chord, guitar_chord_grid,
+								  true);
 			append_supported_guitar_base_triad_aliases_for_extensions(smoothed_guitar_chord,
 										 guitar_chord_grid);
-			append_supported_guitar_symmetric_altered_aliases(smoothed_guitar_chord, guitar_chord_grid);
+			append_supported_guitar_symmetric_altered_aliases(smoothed_guitar_chord,
+									 guitar_chord_grid);
 			append_equivalent_sixth_seventh_aliases(smoothed_guitar_chord);
 			append_supported_guitar_power_aliases(smoothed_guitar_chord, guitar_chord_grid);
 			append_guitar_power_probe_third_aliases(smoothed_guitar_chord, guitar_chord_grid,
-								detection_note_powers, kGuitarMinMidi,
+								note_powers, kGuitarMinMidi,
 								kGuitarMaxMidi);
-			remove_superseded_guitar_power_aliases(smoothed_guitar_chord);
+			remove_superseded_guitar_power_aliases(smoothed_guitar_chord,
+							       &guitar_chord_grid);
 			append_guitar_power_quality_candidates(smoothed_guitar_chord, guitar_chord_grid,
-							       detection_note_powers, kGuitarMinMidi,
+							       note_powers, kGuitarMinMidi,
 							       kGuitarMaxMidi);
-			if (append_guitar_thirdless_dyad_quality_aliases(smoothed_guitar_chord,
-									 snapshot.guitar_notes,
-									 guitar_chord_grid,
-									 detection_note_powers,
-									 kGuitarMinMidi,
-									 kGuitarMaxMidi))
-				remove_superseded_guitar_power_aliases(smoothed_guitar_chord);
+			if (append_guitar_thirdless_dyad_quality_aliases(
+				    smoothed_guitar_chord, snapshot.guitar_notes,
+				    guitar_chord_grid, note_powers, kGuitarMinMidi,
+				    kGuitarMaxMidi))
+				remove_superseded_guitar_power_aliases(smoothed_guitar_chord,
+								       &guitar_chord_grid);
+			append_guitar_probe_opposite_quality_aliases(smoothed_guitar_chord,
+								     guitar_chord_grid, note_powers,
+								     kGuitarMinMidi, kGuitarMaxMidi);
+			append_root_anchored_guitar_analysis_triad_aliases(smoothed_guitar_chord,
+									   snapshot.guitar_notes,
+									   guitar_chord_grid);
+			append_probe_supported_guitar_rootless_plain_triad_aliases(
+				smoothed_guitar_chord, snapshot.guitar_notes, guitar_chord_grid,
+				note_powers, kGuitarMinMidi, kGuitarMaxMidi);
+			remove_superseded_guitar_power_aliases(smoothed_guitar_chord,
+							       &guitar_chord_grid);
 			append_guitar_rootless_dyad_aliases(smoothed_guitar_chord, snapshot.guitar_notes,
 							    guitar_chord_grid);
+			if (!mixed_source)
+				prepend_analysis_complete_smoothed_guitar_plain_alias(
+					raw_guitar_chord, smoothed_guitar_chord, snapshot.guitar_notes,
+					guitar_chord_detection_grid);
 			append_same_root_chord_aliases(raw_guitar_chord, smoothed_guitar_chord);
 			append_same_root_chord_aliases(smoothed_guitar_chord, raw_guitar_chord);
 			ParsedRootChord raw_primary;
@@ -10608,17 +13496,34 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 				remove_power_aliases_for_root(raw_guitar_chord, raw_primary.root);
 			ParsedRootChord smoothed_primary;
 			if (primary_chord_is_plain_major_minor(smoothed_guitar_chord) &&
-			    parse_root_chord_component(smoothed_guitar_chord.label,
-						       std::strcspn(smoothed_guitar_chord.label, "="),
-						       smoothed_primary))
-				remove_power_aliases_for_root(smoothed_guitar_chord, smoothed_primary.root);
+			    parse_root_chord_component(
+				    smoothed_guitar_chord.label,
+				    std::strcspn(smoothed_guitar_chord.label, "="),
+				    smoothed_primary))
+				remove_power_aliases_for_root(smoothed_guitar_chord,
+							      smoothed_primary.root);
+			prune_clean_primary_guitar_aliases(smoothed_guitar_chord, snapshot.guitar_notes,
+							   guitar_chord_grid);
 		}
+		if (!mixed_source && primary_chord_is_plain_major_minor(smoothed_guitar_chord) &&
+		    (snapshot.high_energy <= 0.010f ||
+		     (primary_major_minor_root_adjacent_noise(guitar_chord_grid, smoothed_guitar_chord) &&
+		      primary_major_minor_root_adjacent_noise(snapshot.guitar_notes, smoothed_guitar_chord))) &&
+		    primary_major_minor_chord_tone_count(guitar_chord_grid, smoothed_guitar_chord) < 3 &&
+		    primary_major_minor_chord_tone_count(snapshot.guitar_notes, smoothed_guitar_chord) < 3 &&
+		    !primary_major_minor_third_supported(guitar_chord_grid, smoothed_guitar_chord) &&
+		    !primary_major_minor_third_supported(snapshot.guitar_notes, smoothed_guitar_chord))
+			smoothed_guitar_chord = ChordResult{};
+		set_instrument_chord(snapshot.guitar_smoothed_chord, smoothed_guitar_chord, guitar_energy, rms,
+				     mixed_source ? kNoteRmsFloor : kPolyphonicNoteRmsFloor);
 		stabilize_chord(snapshot.guitar_chord, guitar_chord_tracking_, raw_guitar_chord,
 				smoothed_guitar_chord, true, interval_seconds);
 	} else {
 		reset_note_grid_envelope(snapshot.guitar_notes, snapshot.guitar, guitar_note_tracking_);
 		reset_note_grid_envelope(guitar_chord_grid, guitar_chord_note_state, guitar_chord_note_tracking_);
 		reset_chord_tracking(guitar_chord_tracking_, snapshot.guitar_chord);
+		clear_instrument_state(snapshot.guitar_raw_chord);
+		clear_instrument_state(snapshot.guitar_smoothed_chord);
 	}
 
 	if (vocal_enabled) {

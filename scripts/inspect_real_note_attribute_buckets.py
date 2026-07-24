@@ -16,6 +16,7 @@ FIELDS = [
     "expected_midi",
     "debug_midi",
     "debug_conf",
+    "bass_score",
     "keyboard_score",
     "guitar_score",
     "vocal_score",
@@ -99,6 +100,9 @@ ROW_DUMP_FIELDS = [
     "debug_note",
     "debug_owner",
     "debug_conf",
+    "debug_delta",
+    "debug_abs_delta",
+    "miss_reason",
     "keyboard_score",
     "guitar_score",
     "vocal_score",
@@ -122,7 +126,29 @@ ROW_DUMP_FIELDS = [
     "vocal_level",
     "other_level",
     "amb_level",
+    "bass_notes",
+    "guitar_notes",
+    "piano_notes",
+    "vocal_notes",
+    "other_notes",
+    "amb_notes",
 ]
+
+NOTE_BASE = {
+    "C": 0,
+    "C#": 1,
+    "D": 2,
+    "D#": 3,
+    "E": 4,
+    "F": 5,
+    "F#": 6,
+    "G": 7,
+    "G#": 8,
+    "A": 9,
+    "A#": 10,
+    "B": 11,
+}
+NOTE_RE = re.compile(r"^([A-G]#?)(-?\d+)$")
 
 
 def as_float(row: dict[str, str], field: str) -> float | None:
@@ -136,6 +162,58 @@ def as_float(row: dict[str, str], field: str) -> float | None:
         return float(value)
     except ValueError:
         return None
+
+
+def midi_from_note(value: str) -> int | None:
+    match = NOTE_RE.match(value or "")
+    if not match:
+        return None
+    return NOTE_BASE[match.group(1)] + (int(match.group(2)) + 1) * 12
+
+
+def debug_delta(row: dict[str, str]) -> tuple[str, str]:
+    expected = as_float(row, "expected_midi")
+    debug_midi = as_float(row, "debug_midi")
+    if debug_midi is None:
+        debug_midi = midi_from_note(row.get("debug_note", ""))
+    if expected is None or debug_midi is None:
+        return "", ""
+    delta = int(round(debug_midi - expected))
+    return str(delta), str(abs(delta))
+
+
+def miss_reason(row: dict[str, str], abs_delta: str) -> str:
+    if row.get("status") == "hit":
+        return "hit"
+    row_key = ROW_FOR_FAMILY.get(row.get("family", ""), row.get("family", ""))
+    if row.get("first_row") and row.get("first_row") != row_key:
+        return "ownership"
+    raw_rank = as_float(row, "raw_expected_rank")
+    cent = as_float(row, "raw_tuned_abs_cent_offset")
+    if raw_rank is not None and raw_rank >= 4.0:
+        return "weak_expected_rank"
+    if raw_rank is not None and raw_rank <= 1.0 and cent is not None and cent > 9.0:
+        return "strict_tuning_reject"
+    try:
+        delta = int(abs_delta)
+    except ValueError:
+        delta = 99
+    if delta == 12:
+        return "octave_displacement"
+    if delta <= 1:
+        return "adjacent_candidate"
+    if cent is not None and cent > 9.0:
+        return "detuned"
+    return "unresolved"
+
+
+def derive_row(row: dict[str, str]) -> dict[str, str]:
+    result = dict(row)
+    delta, abs_delta = debug_delta(row)
+    result["debug_delta"] = delta
+    result["debug_abs_delta"] = abs_delta
+    result["miss_reason"] = miss_reason(row, abs_delta)
+    return result
 
 
 def quantile(values: list[float], fraction: float) -> float:
@@ -247,6 +325,7 @@ def print_sample(rows: list[dict[str, str]], sample_id: str) -> None:
         if not debug_note:
             continue
         scores = (
+            format_score(as_float(row, "bass_score")),
             format_score(as_float(row, "keyboard_score")),
             format_score(as_float(row, "guitar_score")),
             format_score(as_float(row, "vocal_score")),
@@ -264,7 +343,7 @@ def print_sample(rows: list[dict[str, str]], sample_id: str) -> None:
             f"row_grid={row.get('row_grid', '')} any_grid={row.get('any_grid', '')} "
             f"strongest={row.get('buffer_strongest_row', '')} debug={debug_note} "
             f"owner={row.get('debug_owner', '')} conf={format_score(as_float(row, 'debug_conf'))} "
-            f"scores(k/g/v/o)={scores[0]}/{scores[1]}/{scores[2]}/{scores[3]} "
+            f"scores(b/k/g/v/o)={scores[0]}/{scores[1]}/{scores[2]}/{scores[3]}/{scores[4]} "
             f"spec={format_score(as_float(row, 'spectral_level'))} "
             f"pitch={format_score(as_float(row, 'pitch_confidence'))} "
             f"per={format_score(as_float(row, 'periodicity'))} "
@@ -309,7 +388,8 @@ def dump_rows(
                 continue
         if sample_filter and row.get("sample_id", "") not in sample_filter:
             continue
-        print("\t".join(row.get(field, "") for field in ROW_DUMP_FIELDS))
+        derived = derive_row(row)
+        print("\t".join(derived.get(field, "") for field in ROW_DUMP_FIELDS))
         printed += 1
         if limit > 0 and printed >= limit:
             break

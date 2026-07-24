@@ -196,16 +196,19 @@ def main() -> int:
     assert "hit:other/acoustic->other rows=1 samples=1" in targeted.stdout
     assert "ownership_miss:piano/electronic->guitar" not in targeted.stdout
     assert "sample keyboard_1: status=ownership_miss source=piano/electronic" in targeted.stdout
-    assert "scores(k/g/v/o)=0.100/0.700/0.000/0.000" in targeted.stdout
+    assert "scores(b/k/g/v/o)=-/0.100/0.700/0.000/0.000" in targeted.stdout
     assert "ownership_miss:piano/electronic->guitar" not in sample_only.stdout
     assert "hit:other/acoustic->other rows=1 samples=1" not in sample_only.stdout
     assert "sample reed_1: status=hit source=other/acoustic" in sample_only.stdout
-    assert "scores(k/g/v/o)=0.000/0.200/0.000/0.800" in sample_only.stdout
+    assert "scores(b/k/g/v/o)=-/0.000/0.200/0.000/0.800" in sample_only.stdout
     assert "ownership_miss:piano/electronic->guitar rows=1 samples=1 examples=keyboard_1" in misses_only.stdout
     assert "hit:other/acoustic->other" not in misses_only.stdout
     assert "debug_conf" not in misses_only.stdout
     assert dumped.stdout.startswith("sample_id\tstatus\tfamily\t")
+    assert "debug_delta" in dumped.stdout.splitlines()[0]
+    assert "miss_reason" in dumped.stdout.splitlines()[0]
     assert "\nkeyboard_1\townership_miss\tpiano\telectronic\tC4" in dumped.stdout
+    assert "\t0\t0\townership\t" in dumped.stdout
     assert "reed_1" not in dumped.stdout
     print("test_inspect_real_note_attribute_buckets: ok")
     return 0

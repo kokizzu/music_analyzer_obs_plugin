@@ -44,6 +44,7 @@ NUMERIC_FIELDS = [
     "ride",
     "rim",
     "debug_conf",
+    "bass_score",
     "keyboard_score",
     "guitar_score",
     "vocal_score",
@@ -84,6 +85,7 @@ CONTEXT_SUMMARY_FIELDS = [
 
 SUMMARY_FIELDS = [
     "debug_conf",
+    "bass_score",
     "keyboard_score",
     "guitar_score",
     "vocal_score",
@@ -105,6 +107,7 @@ SUMMARY_FIELDS = [
 
 SAMPLE_FIELDS = [
     "debug_conf",
+    "bass_score",
     "keyboard_score",
     "guitar_score",
     "vocal_score",

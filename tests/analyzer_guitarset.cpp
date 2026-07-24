@@ -1370,9 +1370,11 @@ void print_guitarset_attribute_header(std::ostream &out)
 	    << "\tguitar_note_hits\texpected_note_count\tguitar_false_positive_pitch_classes"
 	    << "\tcross_row_expected_hits\tchord_hit\tsimple_chord_hit\tguitar_chord_hit"
 	    << "\tglobal_chord\tkeyboard_chord\tguitar_chord\tother_chord"
+	    << "\tguitar_raw_chord\tguitar_smoothed_chord"
 	    << "\tguitar_pitch_classes\tguitar_cells\tguitar_analysis_pitch_classes"
 	    << "\tguitar_analysis_cells\tguitar_smoothed_pitch_classes\tguitar_smoothed_cells"
 	    << "\texpected_raw_peak\texpected_raw_cells\traw_pitch_class_levels"
+	    << "\tguitar_probe_pitch_class_levels\tguitar_melodic_probe_pitch_class_levels"
 	    << "\texpected_quality_raw_profile"
 	    << "\tbass_pitch_classes\tkeyboard_pitch_classes\tvocal_pitch_classes"
 	    << "\tother_pitch_classes\tambiguous_pitch_classes"
@@ -1426,6 +1428,8 @@ void append_guitarset_attribute_row(std::ostream &out, const Recording &recordin
 	append_tsv(line, snapshot.keyboard_chord.label);
 	append_tsv(line, snapshot.guitar_chord.label);
 	append_tsv(line, snapshot.other_chord.label);
+	append_tsv(line, snapshot.guitar_raw_chord.label);
+	append_tsv(line, snapshot.guitar_smoothed_chord.label);
 	append_tsv(line, pitch_class_list(guitar));
 	append_tsv(line, grid_cell_list(snapshot.guitar_notes));
 	append_tsv(line, pitch_class_list(guitar_analysis));
@@ -1435,6 +1439,8 @@ void append_guitarset_attribute_row(std::ostream &out, const Recording &recordin
 	append_tsv(line, raw_peak);
 	append_tsv(line, expected_raw_cell_list(candidate, buffer, sample_rate, raw_peak));
 	append_tsv(line, raw_pitch_class_level_list(raw_profile));
+	append_tsv(line, raw_pitch_class_level_list(snapshot.guitar_chord_debug_probe_levels));
+	append_tsv(line, raw_pitch_class_level_list(snapshot.guitar_chord_debug_melodic_probe_levels));
 	append_tsv(line, expected_quality_raw_profile(candidate, raw_profile));
 	append_tsv(line, pitch_class_list(bass));
 	append_tsv(line, pitch_class_list(keyboard));
@@ -1472,6 +1478,16 @@ void require_chord_recall(Runner &runner, const RecallStats &stats, int min_chec
 	runner.expect(stats.chord_hits * 100 >= stats.chord_checks * min_percent,
 		      "GuitarSet chord recall: expected >=" + std::to_string(min_percent) +
 			      "%, got " + std::to_string(stats.chord_hits) + "/" +
+			      std::to_string(stats.chord_checks));
+}
+
+void require_chord_hits(Runner &runner, const RecallStats &stats, int min_hits)
+{
+	if (min_hits <= 0)
+		return;
+	runner.expect(stats.chord_hits >= min_hits,
+		      "GuitarSet chord hits: expected at least " + std::to_string(min_hits) +
+			      ", got " + std::to_string(stats.chord_hits) + "/" +
 			      std::to_string(stats.chord_checks));
 }
 
@@ -1624,6 +1640,7 @@ int main()
 	const int min_simple_other_chord_recall_percent =
 		resolve_percent_env("MUSIC_ANALYZER_GUITARSET_MIN_SIMPLE_OTHER_CHORD_RECALL_PERCENT", 0);
 	const int min_chord_checks = resolve_nonnegative_int_env("MUSIC_ANALYZER_GUITARSET_MIN_CHORD_CHECKS", 5);
+	const int min_chord_hits = resolve_nonnegative_int_env("MUSIC_ANALYZER_GUITARSET_MIN_CHORD_HITS", 0);
 	const int max_single_note_chord_false_percent =
 		resolve_percent_env("MUSIC_ANALYZER_GUITARSET_MAX_SINGLE_NOTE_CHORD_FALSE_PERCENT", -1);
 	const bool inspect_only = env_truthy("MUSIC_ANALYZER_GUITARSET_INSPECT_ONLY");
@@ -1711,6 +1728,7 @@ int main()
 					 min_guitar_row_recall_percent, max_guitar_contamination_percent,
 					 max_false_vocal_percent);
 		require_chord_recall(runner, recall, min_chord_checks, min_chord_recall_percent);
+		require_chord_hits(runner, recall, min_chord_hits);
 		require_chord_bucket_recall(runner, "GuitarSet major/minor chord recall",
 					    recall.major_minor_chord_hits,
 					    recall.major_minor_chord_checks,

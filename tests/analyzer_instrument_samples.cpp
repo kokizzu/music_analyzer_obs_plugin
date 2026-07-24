@@ -529,11 +529,22 @@ const mao::FullMixDebugCandidate *debug_candidate_for_pitch(const mao::AnalysisS
 				      snapshot.full_mix_debug_candidates.size());
 	for (std::size_t i = 0; i < count; ++i) {
 		const mao::FullMixDebugCandidate &debug = snapshot.full_mix_debug_candidates[i];
-		if (debug.midi >= mao::kFirstAnalyzedMidi && debug.midi <= mao::kLastAnalyzedMidi &&
-		    ((debug.midi % 12) + 12) % 12 == pitch_class)
+		if (debug.midi == midi)
 			return &debug;
 	}
-	return nullptr;
+	const mao::FullMixDebugCandidate *best = nullptr;
+	for (std::size_t i = 0; i < count; ++i) {
+		const mao::FullMixDebugCandidate &debug = snapshot.full_mix_debug_candidates[i];
+		if (debug.midi < mao::kFirstAnalyzedMidi || debug.midi > mao::kLastAnalyzedMidi ||
+		    ((debug.midi % 12) + 12) % 12 != pitch_class)
+			continue;
+		if (!best || debug.owner != mao::InstrumentKind::Ambiguous ||
+		    best->owner == mao::InstrumentKind::Ambiguous) {
+			if (!best || debug.ownership_confidence > best->ownership_confidence)
+				best = &debug;
+		}
+	}
+	return best;
 }
 
 const char *category_name(std::size_t index)
@@ -604,9 +615,10 @@ void print_attribute_header(std::ostream &out)
 	    << "\traw_local_best_note\traw_local_best_midi\traw_local_best_peak\traw_expected_rank"
 	    << "\traw_prev_ratio\traw_next_ratio\traw_octave_down_ratio\traw_octave_up_ratio"
 	    << "\tdebug_note\tdebug_midi\tdebug_owner\tdebug_conf"
-	    << "\tkeyboard_score\tguitar_score\tvocal_score\tother_score"
+	    << "\tbass_score\tkeyboard_score\tguitar_score\tvocal_score\tother_score"
 	    << "\tspectral_level\tpitch_confidence\tperiodicity\tharmonicity\tfit_error"
 	    << "\tcentroid\tslope\tnoise\tpartial1\tpartial2\tpartial3\tpartial4\tpartial5"
+	    << "\tdebug_count\tdebug_candidates"
 	    << "\tdrum_expected\tdrum_active\tdrum_level\tdrum_active_list"
 	    << "\tkick_level\tsnare_level\thihat_level\tcrash_level\ttom_level\tride_level\trim_level"
 	    << "\tkick_trigger\tsnare_trigger\thihat_trigger\tcrash_trigger\ttom_trigger\tride_trigger\trim_trigger"
@@ -666,7 +678,7 @@ void append_raw_note_attribute_fields(std::ostringstream &line, const RawNoteAtt
 void append_debug_candidate_fields(std::ostringstream &line, const mao::FullMixDebugCandidate *debug)
 {
 	if (!debug) {
-		for (int i = 0; i < 21; ++i)
+		for (int i = 0; i < 22; ++i)
 			append_tsv(line, "");
 		return;
 	}
@@ -675,6 +687,7 @@ void append_debug_candidate_fields(std::ostringstream &line, const mao::FullMixD
 	append_tsv(line, debug->midi);
 	append_tsv(line, instrument_kind_name(debug->owner));
 	append_tsv(line, debug->ownership_confidence);
+	append_tsv(line, debug->bass_score);
 	append_tsv(line, debug->keyboard_score);
 	append_tsv(line, debug->guitar_score);
 	append_tsv(line, debug->vocal_score);
@@ -689,6 +702,27 @@ void append_debug_candidate_fields(std::ostringstream &line, const mao::FullMixD
 	append_tsv(line, debug->local_noise_level);
 	for (float ratio : debug->harmonic_ratios)
 		append_tsv(line, ratio);
+}
+
+void append_full_mix_debug_summary_fields(std::ostringstream &line, const mao::AnalysisSnapshot &snapshot)
+{
+	const std::size_t count =
+		std::min<std::size_t>(snapshot.full_mix_debug_candidate_count,
+				      snapshot.full_mix_debug_candidates.size());
+	append_tsv(line, count);
+	std::string summary;
+	const std::size_t limit = std::min<std::size_t>(count, 8);
+	for (std::size_t i = 0; i < limit; ++i) {
+		const mao::FullMixDebugCandidate &debug = snapshot.full_mix_debug_candidates[i];
+		char part[160] = {};
+		std::snprintf(part, sizeof(part), "%s%s/%s/%.3f/b%.3f/k%.3f/g%.3f/v%.3f/o%.3f",
+			      summary.empty() ? "" : ",", debug_note_label(debug.midi).c_str(),
+			      instrument_kind_name(debug.owner), debug.ownership_confidence, debug.bass_score,
+			      debug.keyboard_score, debug.guitar_score, debug.vocal_score,
+			      debug.other_score);
+		summary += part;
+	}
+	append_tsv(line, summary);
 }
 
 void append_drum_attribute_fields(std::ostringstream &line, const mao::AnalysisSnapshot &snapshot,
@@ -741,6 +775,7 @@ void append_note_attribute_row(std::ostream &out, const std::string &suite_famil
 	append_snapshot_attribute_fields(line, snapshot, row.midi);
 	append_raw_note_attribute_fields(line, &raw);
 	append_debug_candidate_fields(line, debug);
+	append_full_mix_debug_summary_fields(line, snapshot);
 	for (int i = 0; i < 33; ++i)
 		append_tsv(line, "");
 	out << line.str() << '\n';
@@ -768,6 +803,7 @@ void append_drum_attribute_row(std::ostream &out, const SampleRow &row,
 	append_snapshot_attribute_fields(line, snapshot, row.midi);
 	append_raw_note_attribute_fields(line, nullptr);
 	append_debug_candidate_fields(line, nullptr);
+	append_full_mix_debug_summary_fields(line, snapshot);
 	append_drum_attribute_fields(line, snapshot, expected);
 	out << line.str() << '\n';
 }
@@ -872,6 +908,21 @@ bool expects_full_mix_vocal_recovery(const std::string &suite_family, const Samp
 	return false;
 }
 
+bool expects_full_mix_other_recovery(const std::string &suite_family, const SampleRow &row)
+{
+	return (suite_family == "synth" && row.program_name == "square_lead" &&
+		(row.note == "C2" || row.note == "G3")) ||
+	       (suite_family == "synth" && row.program_name == "chiff_lead" && row.note == "C2") ||
+	       (suite_family == "strings" && row.program_name == "contrabass" && row.note == "E1") ||
+	       (suite_family == "strings" &&
+		((row.program_name == "pizzicato_strings" && row.note == "G2") ||
+		 (row.program_name == "tremolo_strings" && row.note == "E5") ||
+		 (row.program_name == "string_ensemble_1" && row.note == "E5") ||
+		 (row.program_name == "synth_strings_1" &&
+		  (row.note == "G4" || row.note == "C5")) ||
+		 (row.program_name == "synth_strings_2" && row.note == "G3")));
+}
+
 void check_instrument_samples(Runner &runner, const std::string &root, std::ostream *attribute_out)
 {
 	static constexpr const char *kFamilies[] = {"piano", "guitar", "bass", "synth", "strings", "vocals"};
@@ -910,10 +961,11 @@ void check_instrument_samples(Runner &runner, const std::string &root, std::ostr
 					std::strcmp(family_state(snapshot, family).label, expected.c_str()) == 0;
 				const bool grid_ok = grid_has_pitch_class(family_grid(snapshot, family), row.midi);
 				const bool expect_full_mix_vocal = expects_full_mix_vocal_recovery(family, row);
+				const bool expect_full_mix_other = expects_full_mix_other_recovery(family, row);
 				mao::AnalysisSnapshot full_mix_snapshot = {};
 				bool full_mix_grid_ok = false;
 				bool full_mix_anywhere = false;
-				if (attribute_out || expect_full_mix_vocal) {
+				if (attribute_out || expect_full_mix_vocal || expect_full_mix_other) {
 					full_mix_snapshot =
 						analyze_buffer(buffer, sample_rate, mao::AnalysisInputMode::FullMix,
 							       family.c_str(), window_seconds);
@@ -934,6 +986,11 @@ void check_instrument_samples(Runner &runner, const std::string &root, std::ostr
 					runner.expect(grid_has_pitch_class(full_mix_snapshot.vocal_notes, row.midi),
 						      context + ": expected full-mix vocal row recovery, got label `" +
 							      full_mix_snapshot.vocal.label + "`");
+				}
+				if (expect_full_mix_other) {
+					runner.expect(grid_has_pitch_class(full_mix_snapshot.other_notes, row.midi),
+						      context + ": expected full-mix other row recovery, got label `" +
+							      full_mix_snapshot.other.label + "`");
 				}
 				runner.expect(label_ok || grid_ok,
 					      context + ": expected detected note, got label `" +

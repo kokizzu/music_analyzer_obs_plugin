@@ -23,6 +23,17 @@ from inspect_guitarset_attribute_buckets import (
 )
 
 
+OUTCOME_NUMERIC_FIELDS = {
+    "chord_hit",
+    "simple_chord_hit",
+    "guitar_chord_hit",
+    "expected_label_in_display",
+    "expected_label_in_raw",
+    "expected_label_in_smooth",
+}
+PATTERN_NUMERIC_FIELDS = [field for field in NUMERIC_FIELDS if field not in OUTCOME_NUMERIC_FIELDS]
+
+
 @dataclasses.dataclass(frozen=True)
 class Pattern:
     label: str
@@ -110,7 +121,7 @@ def build_patterns(positive_rows: list[dict[str, str]]) -> list[Pattern]:
         values = sorted({row.get(field, "") for row in positive_rows if row.get(field, "")})
         for value in values:
             patterns.append(category_pattern(field, value))
-    for field in NUMERIC_FIELDS:
+    for field in PATTERN_NUMERIC_FIELDS:
         values = [value for row in positive_rows if (value := as_float_opt(row, field)) is not None]
         for threshold in thresholds(values):
             patterns.append(numeric_pattern(field, "<=", threshold))
@@ -487,7 +498,7 @@ def main() -> int:
     parser.add_argument("--limit", type=int, default=12)
     parser.add_argument("--min-positive-recordings", type=int, default=3)
     parser.add_argument("--max-negative-recordings", type=int, default=0)
-    parser.add_argument("--show-examples", type=int, default=3)
+    parser.add_argument("--show-examples", "--row-examples", dest="show_examples", type=int, default=3)
     parser.add_argument(
         "--max-conditions",
         type=int,

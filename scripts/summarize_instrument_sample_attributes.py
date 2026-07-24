@@ -37,6 +37,7 @@ NUMERIC_FIELDS = [
     "raw_octave_up_ratio",
     "debug_midi",
     "debug_conf",
+    "bass_score",
     "keyboard_score",
     "guitar_score",
     "vocal_score",
@@ -54,6 +55,7 @@ NUMERIC_FIELDS = [
     "partial3",
     "partial4",
     "partial5",
+    "debug_count",
     "drum_level",
     "kick_level",
     "snare_level",
@@ -92,6 +94,7 @@ NOTE_PROFILE_FIELDS = [
     "raw_tuned_abs_cent_offset",
     "raw_expected_rank",
     "debug_conf",
+    "bass_score",
     "keyboard_score",
     "guitar_score",
     "vocal_score",
@@ -108,6 +111,7 @@ NOTE_PROFILE_FIELDS = [
     "partial3",
     "partial4",
     "partial5",
+    "debug_count",
 ]
 
 
@@ -216,6 +220,7 @@ def summarize(path: pathlib.Path, top: int, examples: int) -> list[str]:
                         "raw_tuned_abs_cent_offset",
                         "raw_expected_rank",
                         "debug_conf",
+                        "bass_score",
                         "keyboard_score",
                         "guitar_score",
                         "vocal_score",
@@ -225,6 +230,7 @@ def summarize(path: pathlib.Path, top: int, examples: int) -> list[str]:
                         "periodicity",
                         "fit_error",
                         "noise",
+                        "debug_count",
                     ],
                 )
             )
@@ -240,8 +246,10 @@ def summarize(path: pathlib.Path, top: int, examples: int) -> list[str]:
                     f"guitar:{row.get('guitar_label', '')} vocal:{row.get('vocal_label', '')} "
                     f"other:{row.get('other_label', '')} "
                     f"debug={row.get('debug_note', '')}/{row.get('debug_owner', '')}/"
-                    f"{row.get('debug_conf', '')} scores="
-                    f"k:{row.get('keyboard_score', '')},g:{row.get('guitar_score', '')},"
+                    f"{row.get('debug_conf', '')} debug_count={row.get('debug_count', '')} "
+                    f"candidates={row.get('debug_candidates', '')} scores="
+                    f"b:{row.get('bass_score', '')},k:{row.get('keyboard_score', '')},"
+                    f"g:{row.get('guitar_score', '')},"
                     f"v:{row.get('vocal_score', '')},o:{row.get('other_score', '')} "
                     f"raw={row.get('raw_expected_ratio', '')}/{row.get('raw_tuned_ratio', '')}"
                 )

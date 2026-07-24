@@ -12,6 +12,8 @@ import re
 import statistics
 from collections.abc import Callable
 
+from inspect_instrument_sample_owner_buckets import derive_row as derive_instrument_row
+
 
 NUMERIC_FIELDS = [
     "midi",
@@ -35,6 +37,7 @@ NUMERIC_FIELDS = [
     "raw_octave_up_ratio",
     "debug_midi",
     "debug_conf",
+    "bass_score",
     "keyboard_score",
     "guitar_score",
     "vocal_score",
@@ -52,11 +55,16 @@ NUMERIC_FIELDS = [
     "partial3",
     "partial4",
     "partial5",
+    "debug_count",
+    "nearest_debug_delta",
+    "nearest_debug_abs_delta",
+    "nearest_debug_conf",
 ]
 
 FULL_MIX_DEBUG_NUMERIC_FIELDS = [
     "debug_midi",
     "debug_conf",
+    "bass_score",
     "keyboard_score",
     "guitar_score",
     "vocal_score",
@@ -93,12 +101,16 @@ CATEGORY_FIELDS = [
     "note",
     "debug_note",
     "debug_owner",
+    "nearest_debug_note",
+    "nearest_debug_owner",
     "raw_local_best_note",
 ]
 
 FULL_MIX_DEBUG_CATEGORY_FIELDS = [
     "debug_note",
     "debug_owner",
+    "nearest_debug_note",
+    "nearest_debug_owner",
 ]
 
 DISPLAY_CATEGORY_FIELDS = [
@@ -119,6 +131,11 @@ DEFAULT_BUCKETS = [
     "owner_miss:strings->piano",
     "owner_miss:synth->guitar",
     "owner_miss:synth->piano",
+]
+
+DEFAULT_STATUS_BUCKETS = [
+    "miss:strings",
+    "miss:synth",
 ]
 
 
@@ -154,23 +171,31 @@ class RuleResult:
     negative_samples: int
 
 
-def load_rows(path: pathlib.Path) -> list[dict[str, str]]:
+def load_rows(path: pathlib.Path, *, include_all_note_rows: bool = False) -> list[dict[str, str]]:
     with path.open(newline="", errors="replace") as handle:
         rows = list(csv.DictReader(handle, delimiter="\t"))
     derived: list[dict[str, str]] = []
     for row in rows:
-        if row.get("kind") != "note" or not row.get("debug_note"):
+        if row.get("kind") != "note":
             continue
-        row = dict(row)
+        row = derive_instrument_row(row)
         row["_owner_target"] = owner_target(row)
+        row["_owner"], row["_owner_source"] = owner_and_source(row)
         row["_owner_status"] = owner_status(row)
-        if row["_owner_status"] in {"owner_hit", "owner_miss", "bass_debug"}:
+        row["_status_bucket"] = status_bucket_label((row.get("status", ""), note_row_family(row)))
+        if include_all_note_rows:
+            derived.append(row)
+        elif row["_owner_status"] in {"owner_hit", "owner_miss"}:
             derived.append(row)
     return derived
 
 
+def note_row_family(row: dict[str, str]) -> str:
+    return row.get("family", "") or row.get("expected_family", "") or "unknown"
+
+
 def owner_target(row: dict[str, str]) -> str:
-    family = row.get("family", "") or row.get("expected_family", "")
+    family = note_row_family(row)
     if family == "piano":
         return "piano"
     if family == "guitar":
@@ -180,15 +205,37 @@ def owner_target(row: dict[str, str]) -> str:
     if family in {"strings", "synth"}:
         return "other"
     if family == "bass":
-        return "bass-display"
+        return "bass"
     return family or "unknown"
+
+
+DISPLAY_LEVEL_FIELDS = {
+    "bass": "bass_level",
+    "piano": "piano_level",
+    "guitar": "guitar_level",
+    "vocals": "vocal_level",
+    "other": "other_level",
+}
+
+
+def target_display_hit(row: dict[str, str], target: str) -> bool:
+    if row.get("status") != "hit" or row.get("detected_expected_row") != "1":
+        return False
+    field = DISPLAY_LEVEL_FIELDS.get(target)
+    value = as_float(row, field) if field else None
+    return value is not None and value > 0.0
+
+
+def owner_and_source(row: dict[str, str]) -> tuple[str, str]:
+    target = owner_target(row)
+    if target_display_hit(row, target):
+        return target, "display"
+    return row.get("debug_owner", "") or "none", "debug"
 
 
 def owner_status(row: dict[str, str]) -> str:
     target = owner_target(row)
-    owner = row.get("debug_owner", "") or "none"
-    if target == "bass-display":
-        return "bass_debug"
+    owner, _source = owner_and_source(row)
     return "owner_hit" if owner == target else "owner_miss"
 
 
@@ -205,13 +252,37 @@ def as_float(row: dict[str, str], field: str) -> float | None:
 def parse_bucket_spec(spec: str) -> tuple[str, str, str]:
     match = re.fullmatch(r"([^:]+):([^>]+)->(.+)", spec)
     if not match:
-        raise SystemExit(f"invalid bucket `{spec}`; expected format owner_miss:guitar->piano")
-    return match.group(1), match.group(2), match.group(3)
+        raise SystemExit(
+            f"invalid bucket `{spec}`; expected format owner_miss:guitar->piano "
+            "or debug_owner_miss:guitar->piano"
+        )
+    status = match.group(1)
+    if status == "debug_owner_miss":
+        status = "owner_miss"
+    if status == "debug_owner_hit":
+        status = "owner_hit"
+    return status, match.group(2), match.group(3)
+
+
+def parse_status_bucket_spec(spec: str) -> tuple[str, str]:
+    match = re.fullmatch(r"([^:]+):(.+)", spec)
+    if not match:
+        raise SystemExit(f"invalid status bucket `{spec}`; expected format miss:strings")
+    return match.group(1), match.group(2)
 
 
 def bucket_label(bucket: tuple[str, str, str]) -> str:
     status, family, owner = bucket
-    return f"{status}:{family}->{owner}"
+    display_status = {
+        "owner_miss": "owner_miss",
+        "owner_hit": "owner_hit",
+    }.get(status, status)
+    return f"{display_status}:{family}->{owner}"
+
+
+def status_bucket_label(bucket: tuple[str, str]) -> str:
+    status, family = bucket
+    return f"status:{status}:{family}"
 
 
 def rows_for_bucket(rows: list[dict[str, str]], bucket: tuple[str, str, str]) -> list[dict[str, str]]:
@@ -221,12 +292,29 @@ def rows_for_bucket(rows: list[dict[str, str]], bucket: tuple[str, str, str]) ->
         for row in rows
         if row.get("_owner_status") == status
         and row.get("family") == family
-        and (row.get("debug_owner", "") or "none") == owner
+        and row.get("_owner", "") == owner
+    ]
+
+
+def rows_for_status_bucket(rows: list[dict[str, str]], bucket: tuple[str, str]) -> list[dict[str, str]]:
+    status, family = bucket
+    return [
+        row
+        for row in rows
+        if row.get("status") == status and note_row_family(row) == family
     ]
 
 
 def hit_rows(rows: list[dict[str, str]]) -> list[dict[str, str]]:
     return [row for row in rows if row.get("_owner_status") == "owner_hit"]
+
+
+def status_hit_rows(rows: list[dict[str, str]], family: str | None = None) -> list[dict[str, str]]:
+    return [
+        row
+        for row in rows
+        if row.get("status") == "hit" and (family is None or note_row_family(row) == family)
+    ]
 
 
 def negative_rows(rows: list[dict[str, str]], bucket: tuple[str, str, str], mode: str) -> list[dict[str, str]]:
@@ -236,6 +324,21 @@ def negative_rows(rows: list[dict[str, str]], bucket: tuple[str, str, str], mode
         _status, family, _owner = bucket
         return [row for row in rows if row.get("family") != family]
     raise SystemExit(f"unsupported negative mode `{mode}`")
+
+
+def status_negative_rows(rows: list[dict[str, str]], bucket: tuple[str, str], mode: str) -> list[dict[str, str]]:
+    status, family = bucket
+    if mode == "same-family-hit":
+        return status_hit_rows(rows, family)
+    if mode == "all-hit":
+        return status_hit_rows(rows)
+    if mode == "not-bucket":
+        return [
+            row
+            for row in rows
+            if not (row.get("status") == status and note_row_family(row) == family)
+        ]
+    raise SystemExit(f"unsupported status negative mode `{mode}`")
 
 
 def sample_id(row: dict[str, str]) -> str:
@@ -570,7 +673,7 @@ def compact_sources(rows: list[dict[str, str]], row_mask: int, limit: int = 4) -
         bit = row_mask & -row_mask
         index = bit.bit_length() - 1
         row = rows[index]
-        counts[f"{row.get('family', '')}->{row.get('debug_owner', '') or 'none'}"] += 1
+        counts[f"{row.get('family', '')}->{row.get('_owner', '') or 'none'}"] += 1
         row_mask ^= bit
     return ",".join(f"{key}={value}" for key, value in counts.most_common(limit))
 
@@ -584,6 +687,7 @@ def short_float(row: dict[str, str], field: str) -> str:
 
 def format_example(row: dict[str, str]) -> str:
     scores = (
+        short_float(row, "bass_score"),
         short_float(row, "keyboard_score"),
         short_float(row, "guitar_score"),
         short_float(row, "vocal_score"),
@@ -597,11 +701,20 @@ def format_example(row: dict[str, str]) -> str:
     )
     return (
         f"{row.get('family', '')} {row.get('program_name', '')} {row.get('note', '')} "
-        f"path={row.get('path', '')} target={row.get('_owner_target', '')} "
-        f"owner={row.get('debug_owner', '') or 'none'} debug={row.get('debug_note', '')}"
-        f" scores(k/g/v/o)={scores[0]}/{scores[1]}/{scores[2]}/{scores[3]}"
+        f"path={row.get('path', '')} status={row.get('status', '')} "
+        f"target={row.get('_owner_target', '')} expected_level={short_float(row, 'expected_level')} "
+        f"levels(b/p/g/v/o/a)={short_float(row, 'bass_level')}/{short_float(row, 'piano_level')}/"
+        f"{short_float(row, 'guitar_level')}/{short_float(row, 'vocal_level')}/"
+        f"{short_float(row, 'other_level')}/{short_float(row, 'amb_level')} "
+        f"owner={row.get('_owner', '') or 'none'} source={row.get('_owner_source', '') or '-'} "
+        f"debug_owner={row.get('debug_owner', '') or 'none'} debug={row.get('debug_note', '')}"
+        f" nearest={row.get('nearest_debug_note', '') or '-'}"
+        f"/{row.get('nearest_debug_delta', '') or '-'}"
+        f"/{row.get('nearest_debug_owner', '') or '-'} reason={row.get('miss_reason', '') or '-'}"
+        f" scores(b/k/g/v/o)={scores[0]}/{scores[1]}/{scores[2]}/{scores[3]}/{scores[4]}"
         f" spec={short_float(row, 'spectral_level')} pitch={short_float(row, 'pitch_confidence')}"
         f" per={short_float(row, 'periodicity')} fit={short_float(row, 'fit_error')}"
+        f" debug_count={short_float(row, 'debug_count')} candidates={row.get('debug_candidates', '') or '-'}"
         f" raw={short_float(row, 'raw_expected_ratio')}/{short_float(row, 'raw_tuned_ratio')}"
         f" raw_best={row.get('raw_local_best_note', '')}/{short_float(row, 'raw_local_best_peak')}"
         f" raw_rank={short_float(row, 'raw_expected_rank')} p2..p5={partials[0]},{partials[1]},{partials[2]},{partials[3]}"
@@ -752,6 +865,124 @@ def print_bucket_patterns(
     print_results(high_coverage, positive_samples, negative_samples, positive_rows, negatives, show_examples)
 
 
+def print_status_patterns(
+    rows: list[dict[str, str]],
+    bucket: tuple[str, str],
+    limit: int,
+    min_positive_samples: int,
+    max_negative_samples: int,
+    explicit_patterns: list[Pattern],
+    positive_filters: list[Pattern],
+    negative_mode: str,
+    show_examples: int,
+    max_conditions: int,
+    beam_width: int,
+    include_display_fields: bool,
+    field_preset: str,
+    excluded_fields: set[str],
+) -> None:
+    positive_rows = rows_for_status_bucket(rows, bucket)
+    if positive_filters:
+        positive_rows = [
+            row
+            for row in positive_rows
+            if all(pattern.predicate(row) for pattern in positive_filters)
+        ]
+    negatives = status_negative_rows(rows, bucket, negative_mode)
+    positive_samples = sample_count(positive_rows)
+    negative_samples = sample_count(negatives)
+    print()
+    print(
+        f"{status_bucket_label(bucket)} positives={positive_samples} samples/{len(positive_rows)} rows "
+        f"negatives({negative_mode})={negative_samples} samples/{len(negatives)} rows"
+    )
+    if not positive_rows:
+        return
+
+    positive_bits = sample_bit_map(positive_rows)
+    negative_bits = sample_bit_map(negatives)
+    if explicit_patterns:
+        positive_mask = (1 << len(positive_rows)) - 1
+        negative_mask = (1 << len(negatives)) - 1
+        for pattern in explicit_patterns:
+            positive_mask &= mask_for_pattern(positive_rows, pattern)
+            negative_mask &= mask_for_pattern(negatives, pattern)
+        result = result_from_masks(
+            " AND ".join(pattern.label for pattern in explicit_patterns),
+            positive_mask,
+            negative_mask,
+            positive_rows,
+            negatives,
+            positive_bits,
+            negative_bits,
+            None,
+        )
+        print("  explicit rule:")
+        print_results(
+            [result] if result is not None else [],
+            positive_samples,
+            negative_samples,
+            positive_rows,
+            negatives,
+            show_examples,
+        )
+
+    patterns = build_patterns(positive_rows, include_display_fields, field_preset, excluded_fields)
+    matches = [
+        PatternMatch(
+            pattern.label,
+            mask_for_pattern(positive_rows, pattern),
+            mask_for_pattern(negatives, pattern),
+        )
+        for pattern in patterns
+    ]
+
+    results: list[RuleResult] = []
+    for match in matches:
+        result = result_from_masks(
+            match.label,
+            match.positive_mask,
+            match.negative_mask,
+            positive_rows,
+            negatives,
+            positive_bits,
+            negative_bits,
+            max_negative_samples,
+        )
+        if result is not None and result.positive_samples >= min_positive_samples:
+            results.append(result)
+    results.extend(
+        extend_condition_search(
+            matches,
+            positive_rows,
+            negatives,
+            positive_bits,
+            negative_bits,
+            min_positive_samples,
+            max_negative_samples,
+            max(2, max_conditions),
+            max(1, beam_width),
+        )
+    )
+
+    deduped: dict[str, RuleResult] = {}
+    for result in results:
+        existing = deduped.get(result.rule)
+        if existing is None or rank_result(result) < rank_result(existing):
+            deduped[result.rule] = result
+    ranked = sorted(deduped.values(), key=rank_result)
+    low_false = ranked[:limit]
+    high_coverage = sorted(
+        deduped.values(),
+        key=lambda result: (-result.positive_samples, result.negative_samples, -result.positive_rows, result.rule),
+    )[:limit]
+
+    print("  low-false candidate rules:")
+    print_results(low_false, positive_samples, negative_samples, positive_rows, negatives, show_examples)
+    print("  highest-coverage candidate rules:")
+    print_results(high_coverage, positive_samples, negative_samples, positive_rows, negatives, show_examples)
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("path", nargs="?", default="build/instrument_sample_attributes.tsv")
@@ -759,7 +990,16 @@ def main() -> int:
         "--bucket",
         action="append",
         default=[],
-        help="owner bucket formatted as owner_miss:guitar->piano; repeatable",
+        help=(
+            "debug-owner bucket formatted as debug_owner_miss:guitar->piano; "
+            "legacy owner_miss:guitar->piano is also accepted; repeatable"
+        ),
+    )
+    parser.add_argument(
+        "--status-bucket",
+        action="append",
+        default=[],
+        help="final note status bucket formatted as miss:strings or ownership_miss:synth; repeatable",
     )
     parser.add_argument("--limit", type=int, default=8)
     parser.add_argument("--min-positive-samples", type=int, default=2)
@@ -786,6 +1026,12 @@ def main() -> int:
         help="negative row set to protect while mining candidate rules",
     )
     parser.add_argument(
+        "--status-negative-mode",
+        choices=["same-family-hit", "all-hit", "not-bucket"],
+        default="same-family-hit",
+        help="negative row set to protect while mining final-status rules",
+    )
+    parser.add_argument(
         "--include-display-fields",
         action="store_true",
         help="include display/result fields such as expected_level and row labels in automatic rules",
@@ -804,27 +1050,48 @@ def main() -> int:
     )
     args = parser.parse_args()
 
-    rows = load_rows(pathlib.Path(args.path))
-    buckets = [parse_bucket_spec(spec) for spec in (args.bucket or DEFAULT_BUCKETS)]
     explicit_patterns = [condition_pattern(spec) for spec in args.condition]
     positive_filters = [condition_pattern(spec) for spec in args.positive_condition]
-    for bucket in buckets:
-        print_bucket_patterns(
-            rows,
-            bucket,
-            max(1, args.limit),
-            max(1, args.min_positive_samples),
-            max(0, args.max_negative_samples),
-            explicit_patterns,
-            positive_filters,
-            args.negative_mode,
-            max(0, args.show_examples),
-            max(1, args.max_conditions),
-            max(1, args.beam_width),
-            args.include_display_fields,
-            args.field_preset,
-            set(args.exclude_field),
-        )
+    if args.bucket or not args.status_bucket:
+        owner_rows = load_rows(pathlib.Path(args.path))
+        buckets = [parse_bucket_spec(spec) for spec in (args.bucket or DEFAULT_BUCKETS)]
+        for bucket in buckets:
+            print_bucket_patterns(
+                owner_rows,
+                bucket,
+                max(1, args.limit),
+                max(1, args.min_positive_samples),
+                max(0, args.max_negative_samples),
+                explicit_patterns,
+                positive_filters,
+                args.negative_mode,
+                max(0, args.show_examples),
+                max(1, args.max_conditions),
+                max(1, args.beam_width),
+                args.include_display_fields,
+                args.field_preset,
+                set(args.exclude_field),
+            )
+    if args.status_bucket:
+        status_rows = load_rows(pathlib.Path(args.path), include_all_note_rows=True)
+        status_buckets = [parse_status_bucket_spec(spec) for spec in args.status_bucket]
+        for bucket in status_buckets:
+            print_status_patterns(
+                status_rows,
+                bucket,
+                max(1, args.limit),
+                max(1, args.min_positive_samples),
+                max(0, args.max_negative_samples),
+                explicit_patterns,
+                positive_filters,
+                args.status_negative_mode,
+                max(0, args.show_examples),
+                max(1, args.max_conditions),
+                max(1, args.beam_width),
+                args.include_display_fields,
+                args.field_preset,
+                set(args.exclude_field),
+            )
     return 0
 
 

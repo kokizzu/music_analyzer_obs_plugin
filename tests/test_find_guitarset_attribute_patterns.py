@@ -78,7 +78,7 @@ def main() -> int:
                 "chord_miss:maj:visible2_analysis3_smooth3_rootvis1",
                 "--min-positive-recordings",
                 "2",
-                "--show-examples",
+                "--row-examples",
                 "1",
             ],
             cwd=ROOT,
@@ -156,6 +156,9 @@ def main() -> int:
                 recording_id="hit_low_root",
                 expected_chords="G",
                 expected_chord_qualities="maj",
+                chord_hit="0",
+                simple_chord_hit="0",
+                guitar_chord_hit="0",
                 guitar_note_hits="2",
                 global_chord="--",
                 guitar_chord="--",
@@ -173,6 +176,9 @@ def main() -> int:
                 recording_id="hit_low_third",
                 expected_chords="G",
                 expected_chord_qualities="maj",
+                chord_hit="0",
+                simple_chord_hit="0",
+                guitar_chord_hit="0",
                 guitar_note_hits="2",
                 global_chord="--",
                 guitar_chord="--",
@@ -190,6 +196,9 @@ def main() -> int:
                 recording_id="hit_low_fifth",
                 expected_chords="G",
                 expected_chord_qualities="maj",
+                chord_hit="0",
+                simple_chord_hit="0",
+                guitar_chord_hit="0",
                 guitar_note_hits="2",
                 global_chord="--",
                 guitar_chord="--",
@@ -239,6 +248,7 @@ def main() -> int:
     assert "+2 rows=2 -0 rows=0" in output
     assert "support=visible2_analysis3_smooth3_rootvis1" in output
     assert "rec2@2.500s expected=G guitar=--" in output
+    assert "chord_hit<=" not in output
     assert "bucket chord_miss:maj:visible2_analysis3_smooth3_rootvis1 positives=2" in auto_completed.stdout
     assert "rec2@2.500s expected=G guitar=--" in auto_completed.stdout
     assert "raw_fifth>=1 AND raw_root>=1 AND raw_third>=1" in multi_condition.stdout

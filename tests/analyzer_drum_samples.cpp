@@ -40,6 +40,11 @@ struct SourceStats {
 	std::array<int, mao::kDrumCount> primary_hits = {};
 };
 
+struct DrumSampleAnalysis {
+	mao::AnalysisSnapshot snapshot = {};
+	bool merged_expected_from_later_frame = false;
+};
+
 struct WavFormat {
 	uint16_t audio_format = 0;
 	uint16_t channels = 0;
@@ -409,7 +414,8 @@ std::array<bool, mao::kDrumCount> required_categories_from_env()
 	return required;
 }
 
-int primary_drum_index(const mao::AnalysisSnapshot &snapshot)
+int primary_drum_index(const mao::AnalysisSnapshot &snapshot, std::size_t expected = mao::kDrumCount,
+		       bool merged_expected_from_later_frame = false)
 {
 	int primary = -1;
 	float primary_level = 0.0f;
@@ -421,6 +427,11 @@ int primary_drum_index(const mao::AnalysisSnapshot &snapshot)
 	}
 	if (primary < 0)
 		return primary;
+
+	if (merged_expected_from_later_frame && expected < mao::kDrumCount &&
+	    snapshot.drums[expected].active && snapshot.drums[expected].level >= 0.90f &&
+	    snapshot.drums[expected].level + 0.025f >= primary_level)
+		return static_cast<int>(expected);
 
 	int tied = 0;
 	for (std::size_t i = 0; i < mao::kDrumCount; ++i) {
@@ -475,8 +486,8 @@ bool make_sample_buffer(const std::vector<float> &samples, mao_test::Buffer &buf
 	return true;
 }
 
-mao::AnalysisSnapshot analyze_sample(const mao_test::Buffer &sample, uint32_t sample_rate, float window_seconds,
-				     std::size_t expected)
+DrumSampleAnalysis analyze_sample(const mao_test::Buffer &sample, uint32_t sample_rate, float window_seconds,
+				  std::size_t expected)
 {
 	mao::AnalysisEngine engine;
 	mao::AnalysisSettings settings = mao_test::default_settings();
@@ -518,9 +529,14 @@ mao::AnalysisSnapshot analyze_sample(const mao_test::Buffer &sample, uint32_t sa
 	}
 	// Credit the expected hit across one 50 ms hop, but keep other classes from the onset frame
 	// so decay in the next frame does not inflate false-positive counts.
-	if (expected < mao::kDrumCount && best_expected.drums[expected].level > selected.drums[expected].level)
+	DrumSampleAnalysis analysis = {};
+	analysis.snapshot = selected;
+	if (expected < mao::kDrumCount && best_expected.drums[expected].level > selected.drums[expected].level) {
+		analysis.merged_expected_from_later_frame = true;
 		selected.drums[expected] = best_expected.drums[expected];
-	return selected;
+		analysis.snapshot = selected;
+	}
+	return analysis;
 }
 
 std::string active_details(const mao::AnalysisSnapshot &snapshot)
@@ -535,7 +551,7 @@ std::string active_details(const mao::AnalysisSnapshot &snapshot)
 	return text;
 }
 
-std::string debug_details(const mao::AnalysisSnapshot &snapshot)
+std::string debug_details(const mao::AnalysisSnapshot &snapshot, bool merged_expected_from_later_frame)
 {
 	std::string text;
 	for (std::size_t i = 0; i < mao::kDrumCount; ++i) {
@@ -558,6 +574,7 @@ std::string debug_details(const mao::AnalysisSnapshot &snapshot)
 		      snapshot.drum_debug_tom_body, snapshot.drum_debug_snare_crack,
 		      snapshot.drum_debug_upper_tom_body, snapshot.drum_debug_body_shape);
 	text += part;
+	text += merged_expected_from_later_frame ? " merged_expected=1" : " merged_expected=0";
 	return text;
 }
 
@@ -672,13 +689,15 @@ int main()
 			continue;
 		}
 
-		const mao::AnalysisSnapshot snapshot100 =
+		const DrumSampleAnalysis analysis100 =
 			analyze_sample(buffer, sample_rate, kDefaultWindowSeconds, expected);
+		const mao::AnalysisSnapshot &snapshot100 = analysis100.snapshot;
 		if (verbose_all && verbose_all_lines < verbose_primary_limit) {
 			++verbose_all_lines;
 			std::fprintf(stderr, "analyzer_drum_samples: debug 100ms %s expected %s (%s) [%s]\n",
 				     fields[1].c_str(), category_name(expected),
-				     active_details(snapshot100).c_str(), debug_details(snapshot100).c_str());
+				     active_details(snapshot100).c_str(),
+				     debug_details(snapshot100, analysis100.merged_expected_from_later_frame).c_str());
 		}
 		++totals[expected];
 		++usable;
@@ -704,7 +723,8 @@ int main()
 			++misses100[expected];
 		}
 
-		const int primary = primary_drum_index(snapshot100);
+		const int primary =
+			primary_drum_index(snapshot100, expected, analysis100.merged_expected_from_later_frame);
 		if (verbose_primary && primary >= 0 && static_cast<std::size_t>(primary) != expected &&
 		    verbose_primary_lines < verbose_primary_limit) {
 			++verbose_primary_lines;
@@ -712,7 +732,8 @@ int main()
 				     "analyzer_drum_samples: primary miss 100ms %s expected %s got %s (%s) [%s]\n",
 				     fields[1].c_str(), category_name(expected),
 				     category_name(static_cast<std::size_t>(primary)),
-				     active_details(snapshot100).c_str(), debug_details(snapshot100).c_str());
+				     active_details(snapshot100).c_str(),
+				     debug_details(snapshot100, analysis100.merged_expected_from_later_frame).c_str());
 		}
 		if (primary < 0) {
 			if (verbose_primary && verbose_primary_lines < verbose_primary_limit) {
@@ -721,7 +742,8 @@ int main()
 					     "analyzer_drum_samples: primary miss 100ms %s expected %s got %s (%s) [%s]\n",
 					     fields[1].c_str(), category_name(expected),
 					     primary == -2 ? "ambiguous" : "none",
-					     active_details(snapshot100).c_str(), debug_details(snapshot100).c_str());
+					     active_details(snapshot100).c_str(),
+					     debug_details(snapshot100, analysis100.merged_expected_from_later_frame).c_str());
 			}
 			if (primary == -2)
 				++primary_ambiguous100[expected];

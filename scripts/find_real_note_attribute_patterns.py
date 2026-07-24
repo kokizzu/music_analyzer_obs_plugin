@@ -12,10 +12,13 @@ import re
 import statistics
 from collections.abc import Callable
 
+from inspect_real_note_attribute_buckets import derive_row as derive_real_note_row
+
 
 DEBUG_NUMERIC_FIELDS = [
     "debug_midi",
     "debug_conf",
+    "bass_score",
     "keyboard_score",
     "guitar_score",
     "vocal_score",
@@ -33,6 +36,8 @@ DEBUG_NUMERIC_FIELDS = [
     "partial3",
     "partial4",
     "partial5",
+    "debug_delta",
+    "debug_abs_delta",
 ]
 
 ROW_CONTEXT_NUMERIC_FIELDS = [
@@ -56,6 +61,8 @@ ROW_CONTEXT_NUMERIC_FIELDS = [
     "raw_next_ratio",
     "raw_octave_down_ratio",
     "raw_octave_up_ratio",
+    "debug_delta",
+    "debug_abs_delta",
 ]
 
 DEBUG_CATEGORY_FIELDS = [
@@ -137,7 +144,7 @@ def bucket_label(bucket: tuple[str, str, str, str]) -> str:
 
 def load_rows(path: pathlib.Path) -> list[dict[str, str]]:
     with path.open(newline="", errors="replace") as handle:
-        return list(csv.DictReader(handle, delimiter="\t"))
+        return [derive_real_note_row(row) for row in csv.DictReader(handle, delimiter="\t")]
 
 
 def source_key(row: dict[str, str]) -> str:
@@ -591,6 +598,7 @@ def short_float(row: dict[str, str], field: str) -> str:
 
 def format_example(row: dict[str, str]) -> str:
     scores = (
+        short_float(row, "bass_score"),
         short_float(row, "keyboard_score"),
         short_float(row, "guitar_score"),
         short_float(row, "vocal_score"),
@@ -606,8 +614,9 @@ def format_example(row: dict[str, str]) -> str:
         f"{row.get('sample_id', '')} expected={row.get('expected_note', '')}"
         f"/{row.get('expected_midi', '')} debug={row.get('debug_note', '')}"
         f"/{row.get('debug_midi', '')} owner={row.get('debug_owner', '')}"
+        f" delta={row.get('debug_delta', '') or '-'} reason={row.get('miss_reason', '') or '-'}"
         f" first_row={row.get('first_row', '')} strongest={row.get('buffer_strongest_row', '')}"
-        f" scores(k/g/v/o)={scores[0]}/{scores[1]}/{scores[2]}/{scores[3]}"
+        f" scores(b/k/g/v/o)={scores[0]}/{scores[1]}/{scores[2]}/{scores[3]}/{scores[4]}"
         f" spec={short_float(row, 'spectral_level')}"
         f" pitch={short_float(row, 'pitch_confidence')}"
         f" per={short_float(row, 'periodicity')}"
@@ -840,6 +849,8 @@ def main() -> int:
     )
     parser.add_argument(
         "--show-examples",
+        "--row-examples",
+        dest="show_examples",
         type=int,
         default=0,
         help="print up to this many positive and protected-hit sample examples for each rule",

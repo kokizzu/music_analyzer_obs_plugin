@@ -48,6 +48,8 @@ HEADER = [
     "partial3",
     "partial4",
     "partial5",
+    "debug_count",
+    "debug_candidates",
 ]
 
 
@@ -90,6 +92,8 @@ def row(**overrides: str) -> list[str]:
             "partial3": "0.3",
             "partial4": "0.2",
             "partial5": "0.1",
+            "debug_count": "1",
+            "debug_candidates": "C4/piano/0.800/k0.800/g0.100/v0.000/o0.100",
         }
     )
     values.update(overrides)
@@ -101,9 +105,25 @@ def main() -> int:
         path = pathlib.Path(tmp) / "attributes.tsv"
         rows = [
             row(family="piano", expected_family="piano", debug_owner="piano"),
-            row(family="guitar", expected_family="guitar", debug_owner="piano"),
+            row(status="ownership_miss", family="guitar", expected_family="guitar", debug_owner="piano"),
             row(family="strings", expected_family="strings", debug_owner="other"),
             row(family="vocals", expected_family="vocals", debug_owner="vocals"),
+            row(
+                status="miss",
+                family="synth",
+                expected_family="synth",
+                note="C2",
+                midi="36",
+                detected_expected_row="0",
+                detected_anywhere="0",
+                raw_expected_rank="8",
+                raw_tuned_abs_cent_offset="18",
+                debug_note="",
+                debug_owner="",
+                debug_conf="",
+                debug_count="2",
+                debug_candidates="B2/amb/0.000/k0.000/g0.000/v0.000/o0.000,C#2/guitar/0.600/k0.000/g0.600/v0.000/o0.000",
+            ),
         ]
         path.write_text("\t".join(HEADER) + "\n" + "\n".join("\t".join(item) for item in rows) + "\n")
         result = subprocess.run(
@@ -122,7 +142,7 @@ def main() -> int:
         )
         assert result.returncode == 0, result.stdout + result.stderr
         output = result.stdout
-        assert "note debug rows 4" in output
+        assert "note rows 5" in output
         assert "piano/owner_hit/piano=1" in output
         assert "guitar/owner_miss/piano=1" in output
         assert "owner_hit:strings->other rows=1" in output
@@ -140,7 +160,12 @@ def main() -> int:
         )
         assert dumped.returncode == 0, dumped.stdout + dumped.stderr
         assert dumped.stdout.startswith("kind\tstatus\tfamily\t")
-        assert "\nnote\thit\tguitar\tguitar\tProgram\tC4" in dumped.stdout
+        assert "nearest_debug_note" in dumped.stdout.splitlines()[0]
+        assert "miss_reason" in dumped.stdout.splitlines()[0]
+        assert "\nnote\townership_miss\tguitar\tguitar\tProgram\tC4" in dumped.stdout
+        assert "\townership\t" in dumped.stdout
+        assert "\nnote\tmiss\tsynth\tsynth\tProgram\tC2" in dumped.stdout
+        assert "\tweak_expected_rank\t" in dumped.stdout
         assert "\tnote\thit\tpiano\t" not in dumped.stdout
     print("test_inspect_instrument_sample_owner_buckets: ok")
     return 0

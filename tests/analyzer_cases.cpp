@@ -263,6 +263,61 @@ bool grid_pitch_active(const mao::NoteGrid &grid, int pitch_class)
 	return false;
 }
 
+std::string note_grid_pitch_classes(const mao::NoteGrid &grid)
+{
+	std::string out;
+	for (int pitch_class = 0; pitch_class < 12; ++pitch_class) {
+		if (!grid_pitch_active(grid, pitch_class))
+			continue;
+		if (!out.empty())
+			out += ",";
+		out += mao_test::note_name(pitch_class);
+	}
+	return out.empty() ? "--" : out;
+}
+
+float note_grid_pitch_level(const mao::NoteGrid &grid, int pitch_class)
+{
+	pitch_class = ((pitch_class % 12) + 12) % 12;
+	float level = 0.0f;
+	if (grid.cells[pitch_class].active)
+		level = std::max(level, grid.cells[pitch_class].level);
+	for (const auto &row : grid.rows) {
+		if (row[pitch_class].active)
+			level = std::max(level, row[pitch_class].level);
+	}
+	return level;
+}
+
+std::string pitch_level_list(const mao::NoteGrid &grid, const std::vector<int> &pitch_classes)
+{
+	std::string out;
+	char value[32];
+	for (int pitch_class : pitch_classes) {
+		if (!out.empty())
+			out += ",";
+		std::snprintf(value, sizeof(value), "%s=%.3f", mao_test::note_name(pitch_class),
+			      note_grid_pitch_level(grid, pitch_class));
+		out += value;
+	}
+	return out;
+}
+
+std::string pitch_level_list(const std::array<float, 12> &levels, const std::vector<int> &pitch_classes)
+{
+	std::string out;
+	char value[32];
+	for (int pitch_class : pitch_classes) {
+		pitch_class = ((pitch_class % 12) + 12) % 12;
+		if (!out.empty())
+			out += ",";
+		std::snprintf(value, sizeof(value), "%s=%.6f", mao_test::note_name(pitch_class),
+			      levels[static_cast<std::size_t>(pitch_class)]);
+		out += value;
+	}
+	return out;
+}
+
 bool grid_has_any_active(const mao::NoteGrid &grid)
 {
 	for (const auto &row : grid.rows) {
@@ -863,7 +918,14 @@ void check_guitar_supported_extension_aliases(Runner &runner)
 		analyze_buffer(minor_seventh_omitted_fifth, "guitar");
 	runner.expect(has_chord_label(minor_seventh_omitted_fifth_snapshot.guitar_chord.label, "Am7"),
 		      std::string("guitar omitted-fifth minor seventh: expected Am7, got `") +
-			      minor_seventh_omitted_fifth_snapshot.guitar_chord.label + "`");
+			      minor_seventh_omitted_fifth_snapshot.guitar_chord.label + "` raw `" +
+			      minor_seventh_omitted_fifth_snapshot.guitar_raw_chord.label + "` smooth `" +
+			      minor_seventh_omitted_fifth_snapshot.guitar_smoothed_chord.label + "` notes `" +
+			      note_grid_pitch_classes(minor_seventh_omitted_fifth_snapshot.guitar_notes) +
+			      "` analysis `" +
+			      note_grid_pitch_classes(
+				      minor_seventh_omitted_fifth_snapshot.guitar_chord_analysis_notes) +
+			      "`");
 
 	mao_test::Buffer major_seventh_omitted_fifth = {};
 	for (int midi : {48, 52, 59})
@@ -894,7 +956,32 @@ void check_guitar_supported_extension_aliases(Runner &runner)
 	const auto noisy_power_snapshot = analyze_buffer(noisy_power, "guitar");
 	runner.expect(has_chord_label(noisy_power_snapshot.guitar_chord.label, "Cpow"),
 		      std::string("guitar noisy power aliases: expected Cpow alias, got `") +
-			      noisy_power_snapshot.guitar_chord.label + "`");
+			      noisy_power_snapshot.guitar_chord.label + "` raw `" +
+			      noisy_power_snapshot.guitar_raw_chord.label + "` smooth `" +
+			      noisy_power_snapshot.guitar_smoothed_chord.label + "` notes `" +
+			      note_grid_pitch_classes(noisy_power_snapshot.guitar_notes) + "` analysis `" +
+			      note_grid_pitch_classes(noisy_power_snapshot.guitar_chord_analysis_notes) + "` levels `" +
+			      pitch_level_list(noisy_power_snapshot.guitar_notes, {0, 3, 4, 7}) +
+			      "` analysis-levels `" +
+			      pitch_level_list(noisy_power_snapshot.guitar_chord_analysis_notes, {0, 3, 4, 7}) +
+			      "` probe `" +
+			      pitch_level_list(noisy_power_snapshot.guitar_chord_debug_probe_levels, {0, 3, 4, 7}) +
+			      "` melodic `" +
+			      pitch_level_list(noisy_power_snapshot.guitar_chord_debug_melodic_probe_levels,
+					       {0, 3, 4, 7}) +
+			      "`");
+
+	mao_test::Buffer crowded_augmented_noise = {};
+	for (int midi : {51, 52, 53, 55, 56, 57, 58, 59})
+		add_harmonic_note(crowded_augmented_noise, midi, 0.16f, guitar_profile);
+
+	const auto crowded_augmented_noise_snapshot = analyze_buffer(crowded_augmented_noise, "guitar");
+	expect_no_chord_label(runner, crowded_augmented_noise_snapshot.guitar_chord.label, "D#aug",
+			      "guitar crowded symmetric altered noise D#aug");
+	expect_no_chord_label(runner, crowded_augmented_noise_snapshot.guitar_chord.label, "Gaug",
+			      "guitar crowded symmetric altered noise Gaug");
+	expect_no_chord_label(runner, crowded_augmented_noise_snapshot.guitar_chord.label, "Baug",
+			      "guitar crowded symmetric altered noise Baug");
 
 	mao_test::Buffer thirdless_named_dyad = {};
 	add_harmonic_note(thirdless_named_dyad, 48, 0.20f, guitar_profile);
@@ -903,7 +990,50 @@ void check_guitar_supported_extension_aliases(Runner &runner)
 	const auto thirdless_named_dyad_snapshot = analyze_buffer(thirdless_named_dyad, "guitar");
 	runner.expect(has_chord_label(thirdless_named_dyad_snapshot.guitar_chord.label, "Cpow"),
 		      std::string("guitar thirdless named dyad: expected Cpow, got `") +
-			      thirdless_named_dyad_snapshot.guitar_chord.label + "`");
+			      thirdless_named_dyad_snapshot.guitar_chord.label + "` raw `" +
+			      thirdless_named_dyad_snapshot.guitar_raw_chord.label + "` smooth `" +
+			      thirdless_named_dyad_snapshot.guitar_smoothed_chord.label + "` notes `" +
+			      note_grid_pitch_classes(thirdless_named_dyad_snapshot.guitar_notes) +
+			      "` analysis `" +
+			      note_grid_pitch_classes(thirdless_named_dyad_snapshot.guitar_chord_analysis_notes) +
+			      "` levels `" +
+			      pitch_level_list(thirdless_named_dyad_snapshot.guitar_notes, {0, 1, 3, 4, 7, 11}) +
+			      "` analysis-levels `" +
+			      pitch_level_list(thirdless_named_dyad_snapshot.guitar_chord_analysis_notes,
+					       {0, 1, 3, 4, 7, 11}) +
+			      "` probe `" +
+			      pitch_level_list(thirdless_named_dyad_snapshot.guitar_chord_debug_probe_levels,
+					       {0, 1, 3, 4, 7, 11}) +
+			      "` melodic `" +
+			      pitch_level_list(thirdless_named_dyad_snapshot.guitar_chord_debug_melodic_probe_levels,
+					       {0, 1, 3, 4, 7, 11}) +
+			      "`");
+
+	mao_test::Buffer flanked_thirdless_named_dyad = {};
+	add_harmonic_note(flanked_thirdless_named_dyad, 48, 0.22f, guitar_profile);
+	add_harmonic_note(flanked_thirdless_named_dyad, 55, 0.20f, guitar_profile);
+	add_harmonic_note(flanked_thirdless_named_dyad, 47, 0.050f, guitar_profile);
+	add_harmonic_note(flanked_thirdless_named_dyad, 49, 0.050f, guitar_profile);
+
+	const auto flanked_thirdless_named_dyad_snapshot =
+		analyze_buffer(flanked_thirdless_named_dyad, "guitar");
+	runner.expect(has_chord_label(flanked_thirdless_named_dyad_snapshot.guitar_chord.label, "Cpow"),
+		      std::string("guitar root-flanked thirdless dyad: expected Cpow, got `") +
+			      flanked_thirdless_named_dyad_snapshot.guitar_chord.label + "` raw `" +
+			      flanked_thirdless_named_dyad_snapshot.guitar_raw_chord.label + "` smooth `" +
+			      flanked_thirdless_named_dyad_snapshot.guitar_smoothed_chord.label + "` notes `" +
+			      note_grid_pitch_classes(flanked_thirdless_named_dyad_snapshot.guitar_notes) +
+			      "` analysis `" +
+			      note_grid_pitch_classes(
+				      flanked_thirdless_named_dyad_snapshot.guitar_chord_analysis_notes) +
+			      "` levels `" +
+			      pitch_level_list(flanked_thirdless_named_dyad_snapshot.guitar_notes,
+					       {0, 1, 3, 4, 7, 11}) +
+			      "`");
+	expect_no_chord_label(runner, flanked_thirdless_named_dyad_snapshot.guitar_chord.label, "C",
+			      "guitar root-flanked thirdless dyad major alias");
+	expect_no_chord_label(runner, flanked_thirdless_named_dyad_snapshot.guitar_chord.label, "Cm",
+			      "guitar root-flanked thirdless dyad minor alias");
 
 	mao_test::Buffer full_triad = {};
 	for (int midi : {48, 52, 55})
@@ -921,9 +1051,35 @@ void check_guitar_supported_extension_aliases(Runner &runner)
 	const auto weak_third_snapshot = analyze_buffer(weak_third_triad, "guitar");
 	runner.expect(has_chord_label(weak_third_snapshot.guitar_chord.label, "C"),
 		      std::string("guitar weak-third triad aliases: expected C, got `") +
-			      weak_third_snapshot.guitar_chord.label + "`");
+			      weak_third_snapshot.guitar_chord.label + "` raw `" +
+			      weak_third_snapshot.guitar_raw_chord.label + "` smooth `" +
+			      weak_third_snapshot.guitar_smoothed_chord.label + "` notes `" +
+			      note_grid_pitch_classes(weak_third_snapshot.guitar_notes) + "` analysis `" +
+			      note_grid_pitch_classes(weak_third_snapshot.guitar_chord_analysis_notes) + "` levels `" +
+			      pitch_level_list(weak_third_snapshot.guitar_notes, {0, 3, 4, 7}) +
+			      "` analysis-levels `" +
+			      pitch_level_list(weak_third_snapshot.guitar_chord_analysis_notes, {0, 3, 4, 7}) +
+			      "` probe `" +
+			      pitch_level_list(weak_third_snapshot.guitar_chord_debug_probe_levels, {0, 3, 4, 7}) +
+			      "` melodic `" +
+			      pitch_level_list(weak_third_snapshot.guitar_chord_debug_melodic_probe_levels,
+					       {0, 3, 4, 7}) +
+			      "`");
 	expect_no_chord_label(runner, weak_third_snapshot.guitar_chord.label, "Cpow",
-			      "guitar weak-third triad power alias");
+			      std::string("guitar weak-third triad power alias raw `") +
+				      weak_third_snapshot.guitar_raw_chord.label + "` smooth `" +
+				      weak_third_snapshot.guitar_smoothed_chord.label + "` notes `" +
+				      note_grid_pitch_classes(weak_third_snapshot.guitar_notes) + "` analysis `" +
+				      note_grid_pitch_classes(weak_third_snapshot.guitar_chord_analysis_notes) +
+				      "` levels `" + pitch_level_list(weak_third_snapshot.guitar_notes, {0, 3, 4, 7}) +
+				      "` analysis-levels `" +
+				      pitch_level_list(weak_third_snapshot.guitar_chord_analysis_notes, {0, 3, 4, 7}) +
+				      "` probe `" +
+				      pitch_level_list(weak_third_snapshot.guitar_chord_debug_probe_levels, {0, 3, 4, 7}) +
+				      "` melodic `" +
+				      pitch_level_list(weak_third_snapshot.guitar_chord_debug_melodic_probe_levels,
+						       {0, 3, 4, 7}) +
+				      "`");
 
 	mao_test::Buffer probe_weak_third_triad = {};
 	add_harmonic_note(probe_weak_third_triad, 48, 0.24f, guitar_profile);
@@ -960,6 +1116,25 @@ void check_guitar_supported_extension_aliases(Runner &runner)
 	runner.expect(has_chord_label(hidden_root_snapshot.guitar_chord.label, "C"),
 		      std::string("guitar hidden-root analysis support: expected C, got `") +
 			      hidden_root_snapshot.guitar_chord.label + "`");
+
+	mao_test::Buffer smoothed_hidden_root_triad = {};
+	add_harmonic_note(smoothed_hidden_root_triad, 48, 0.040f, guitar_profile);
+	add_harmonic_note(smoothed_hidden_root_triad, 52, 0.44f, guitar_profile);
+	add_harmonic_note(smoothed_hidden_root_triad, 55, 1.00f, guitar_profile);
+	add_harmonic_note(smoothed_hidden_root_triad, 54, 0.41f, guitar_profile);
+	add_harmonic_note(smoothed_hidden_root_triad, 56, 0.25f, guitar_profile);
+
+	const auto smoothed_hidden_root_snapshot = analyze_buffer(smoothed_hidden_root_triad, "guitar");
+	runner.expect(has_chord_label(smoothed_hidden_root_snapshot.guitar_smoothed_chord.label, "C"),
+		      std::string("guitar smoothed hidden-root candidate: expected smoothed C alias, got `") +
+			      smoothed_hidden_root_snapshot.guitar_smoothed_chord.label + "`");
+	runner.expect(has_chord_label(smoothed_hidden_root_snapshot.guitar_chord.label, "C"),
+		      std::string("guitar smoothed hidden-root candidate: expected displayed C alias, got `") +
+			      smoothed_hidden_root_snapshot.guitar_chord.label + "` raw `" +
+			      smoothed_hidden_root_snapshot.guitar_raw_chord.label + "` smooth `" +
+			      smoothed_hidden_root_snapshot.guitar_smoothed_chord.label + "` analysis `" +
+			      note_grid_pitch_classes(smoothed_hidden_root_snapshot.guitar_chord_analysis_notes) +
+			      "`");
 
 	mao_test::Buffer contaminated_minor_triad = {};
 	add_harmonic_note(contaminated_minor_triad, 49, 0.22f, guitar_profile);
@@ -1046,9 +1221,19 @@ void check_guitar_supported_extension_aliases(Runner &runner)
 
 	const auto ambiguous_weak_thirds_snapshot = analyze_buffer(ambiguous_weak_thirds, "guitar");
 	expect_no_chord_label(runner, ambiguous_weak_thirds_snapshot.guitar_chord.label, "C",
-			      "guitar ambiguous weak thirds major alias");
+			      std::string("guitar ambiguous weak thirds major alias raw `") +
+				      ambiguous_weak_thirds_snapshot.guitar_raw_chord.label + "` smooth `" +
+				      ambiguous_weak_thirds_snapshot.guitar_smoothed_chord.label + "` notes `" +
+				      ambiguous_weak_thirds_snapshot.guitar.label + "` analysis `" +
+				      note_grid_pitch_classes(ambiguous_weak_thirds_snapshot.guitar_chord_analysis_notes) +
+				      "`");
 	expect_no_chord_label(runner, ambiguous_weak_thirds_snapshot.guitar_chord.label, "Cm",
-			      "guitar ambiguous weak thirds minor alias");
+			      std::string("guitar ambiguous weak thirds minor alias raw `") +
+				      ambiguous_weak_thirds_snapshot.guitar_raw_chord.label + "` smooth `" +
+				      ambiguous_weak_thirds_snapshot.guitar_smoothed_chord.label + "` notes `" +
+				      ambiguous_weak_thirds_snapshot.guitar.label + "` analysis `" +
+				      note_grid_pitch_classes(ambiguous_weak_thirds_snapshot.guitar_chord_analysis_notes) +
+				      "`");
 
 	mao_test::Buffer weak_dim_shape = {};
 	add_harmonic_note(weak_dim_shape, 53, 0.24f, guitar_profile);
@@ -1059,6 +1244,25 @@ void check_guitar_supported_extension_aliases(Runner &runner)
 	runner.expect(has_chord_label(weak_dim_snapshot.guitar_chord.label, "Fdim"),
 		      std::string("guitar weak-tone diminished CAGED fallback: expected Fdim, got `") +
 			      weak_dim_snapshot.guitar_chord.label + "`");
+
+	{
+		mao_test::Buffer buffer = {};
+		const std::vector<float> bright_guitar_profile = {1.0f, 0.58f, 0.34f, 0.20f, 0.12f};
+		add_harmonic_note(buffer, 47, 0.22f, bright_guitar_profile);
+		add_harmonic_note(buffer, 51, 0.18f, bright_guitar_profile);
+		add_harmonic_note(buffer, 54, 0.13f, bright_guitar_profile);
+		for (int midi : {48, 53, 55, 58})
+			add_harmonic_note(buffer, midi, 0.040f, bright_guitar_profile);
+
+		const auto snapshot = analyze_buffer(buffer, "distorted guitar");
+		runner.expect(has_chord_label(snapshot.guitar_chord.label, "B"),
+			      std::string("guitar noisy full-tone major triad recovery: expected B, got `") +
+				      snapshot.guitar_chord.label + "` raw `" +
+				      snapshot.guitar_raw_chord.label + "` smooth `" +
+				      snapshot.guitar_smoothed_chord.label + "` notes `" +
+				      note_grid_pitch_classes(snapshot.guitar_notes) + "` analysis `" +
+				      note_grid_pitch_classes(snapshot.guitar_chord_analysis_notes) + "`");
+	}
 }
 
 void check_quiet_note_rejection(Runner &runner)
@@ -1874,10 +2078,16 @@ void check_full_mix_single_instrument_precision(Runner &runner)
 							       "full-mix piano-only ownership");
 			expect_no_pitch_class(runner, snapshot.guitar_notes, pitch_class,
 					      "full-mix piano-only guitar spillover");
-			expect_no_pitch_class(runner, snapshot.vocal_notes, pitch_class,
-					      "full-mix piano-only vocal spillover");
-			expect_no_pitch_class(runner, snapshot.other_notes, pitch_class,
-					      "full-mix piano-only other spillover");
+			runner.expect(!grid_pitch_active(snapshot.vocal_notes, pitch_class),
+				      std::string("full-mix piano-only vocal spillover: expected pitch class ") +
+					      mao_test::note_name(pitch_class) + " inactive, got vocal `" +
+					      snapshot.vocal.label + "`, debug `" +
+					      full_mix_debug_summary_for_midi(snapshot, midi) + "`");
+			runner.expect(!grid_pitch_active(snapshot.other_notes, pitch_class),
+				      std::string("full-mix piano-only other spillover: expected pitch class ") +
+					      mao_test::note_name(pitch_class) + " inactive, got other `" +
+					      snapshot.other.label + "`, debug `" +
+					      full_mix_debug_summary_for_midi(snapshot, midi) + "`");
 		}
 	}
 
@@ -1903,8 +2113,11 @@ void check_full_mix_single_instrument_precision(Runner &runner)
 					      "full-mix guitar-only keyboard spillover");
 			expect_no_pitch_class(runner, snapshot.vocal_notes, pitch_class,
 					      "full-mix guitar-only vocal spillover");
-			expect_no_pitch_class(runner, snapshot.other_notes, pitch_class,
-					      "full-mix guitar-only other spillover");
+			runner.expect(!grid_pitch_active(snapshot.other_notes, pitch_class),
+				      std::string("full-mix guitar-only other spillover: expected pitch class ") +
+					      mao_test::note_name(pitch_class) + " inactive, got other `" +
+					      snapshot.other.label + "`, debug `" +
+					      full_mix_debug_summary_for_midi(snapshot, midi) + "`");
 		}
 	}
 
@@ -3383,6 +3596,18 @@ void check_realistic_instrument_chords(Runner &runner)
 			      context + ": expected E3 hidden, got `" + snapshot.guitar.label + "`");
 	}
 
+	{
+		mao_test::Buffer buffer = {};
+		add_harmonic_note(buffer, 45, 0.22f, guitar_profile);
+		add_harmonic_note(buffer, 52, 0.24f, guitar_profile);
+		add_harmonic_note(buffer, 56, 0.10f, guitar_profile);
+		add_harmonic_note(buffer, 48, 0.045f, guitar_profile);
+		const auto snapshot = analyze_buffer(buffer, "guitar");
+		const std::string context = "weak raw minor third same-root guitar quality";
+		runner.expect(has_chord_label(snapshot.guitar_chord.label, "Am"),
+			      context + ": expected Am alias, got `" + snapshot.guitar_chord.label + "`");
+	}
+
 	const std::vector<float> keyboard_profile = {1.0f, 0.18f, 0.08f};
 	const auto keyboard_buffer = make_harmonic_notes({50, 53, 57, 60}, 0.20f, keyboard_profile);
 	const auto keyboard_snapshot = analyze_buffer(keyboard_buffer, "keyboard");
@@ -4014,6 +4239,30 @@ void check_soft_drum_transient_stream(Runner &runner)
 			      std::to_string(snapshot.drums[mao::Snare].level) + " rim " +
 			      std::to_string(snapshot.drums[mao::Rim].level));
 
+	mao::AnalysisEngine kick_backed_snare_engine;
+	for (int i = 0; i < 6; ++i)
+		snapshot = kick_backed_snare_engine.analyze(background.data(), background.size(), settings,
+							    "Mic/Aux", 0);
+
+	mao_test::Buffer kick_backed_snare = background;
+	add_decayed_sine(kick_backed_snare, 65.0f, 0.55f, 1500);
+	add_decayed_sine(kick_backed_snare, 90.0f, 0.17f, 1100);
+	add_decayed_sine(kick_backed_snare, 120.0f, 0.10f, 820);
+	add_decayed_sine(kick_backed_snare, 190.0f, 0.12f, 1300);
+	add_decayed_sine(kick_backed_snare, 220.0f, 0.080f, 1100);
+	add_decayed_sine(kick_backed_snare, 1100.0f, 0.12f, 520);
+	add_decayed_sine(kick_backed_snare, 2200.0f, 0.035f, 430);
+	snapshot = kick_backed_snare_engine.analyze(kick_backed_snare.data(),
+						   kick_backed_snare.size(), settings, "Mic/Aux", 0);
+	runner.expect(snapshot.drums[mao::Kick].active,
+		      "kick-backed snare transient: expected kick active, kick " +
+			      std::to_string(snapshot.drums[mao::Kick].level));
+	runner.expect(snapshot.drums[mao::Snare].active,
+		      "kick-backed snare transient: expected embedded snare active, snare " +
+			      std::to_string(snapshot.drums[mao::Snare].level) + " kick " +
+			      std::to_string(snapshot.drums[mao::Kick].level) + " tom " +
+			      std::to_string(snapshot.drums[mao::Tom].level));
+
 	mao::AnalysisEngine bright_snare_engine;
 	for (int i = 0; i < 6; ++i)
 		snapshot = bright_snare_engine.analyze(background.data(), background.size(), settings, "Mic/Aux", 0);
@@ -4059,7 +4308,40 @@ void check_soft_drum_transient_stream(Runner &runner)
 	runner.expect(snapshot.drums[mao::Snare].level >= snapshot.drums[mao::Rim].level,
 		      "crash-backed snare sample: expected snare not rim primary, snare " +
 			      std::to_string(snapshot.drums[mao::Snare].level) + " rim " +
-			      std::to_string(snapshot.drums[mao::Rim].level));
+			      std::to_string(snapshot.drums[mao::Rim].level) + " high " +
+			      std::to_string(snapshot.high_energy) + " body_shape " +
+			      std::to_string(snapshot.drum_debug_body_shape) + " transient " +
+			      std::to_string(snapshot.drum_debug_transient_ratio) + " onset " +
+			      std::to_string(snapshot.drum_debug_onset) + " upper_tom " +
+			      std::to_string(snapshot.drum_debug_upper_tom_body) + " snare_body " +
+			      std::to_string(snapshot.drum_debug_snare_body) + " tom_body " +
+			      std::to_string(snapshot.drum_debug_tom_body));
+
+	mao::AnalysisEngine low_kickish_snare_engine;
+	for (int i = 0; i < 6; ++i)
+		snapshot = low_kickish_snare_engine.analyze(background.data(), background.size(), settings,
+							    "drum sample", 0);
+
+	mao_test::Buffer low_kickish_snare = background;
+	add_decayed_sine(low_kickish_snare, 65.0f, 0.52f, 1500);
+	add_decayed_sine(low_kickish_snare, 90.0f, 0.18f, 1100);
+	add_decayed_sine(low_kickish_snare, 120.0f, 0.10f, 820);
+	add_decayed_sine(low_kickish_snare, 160.0f, 0.085f, 1300);
+	add_decayed_sine(low_kickish_snare, 220.0f, 0.095f, 1100);
+	add_decayed_sine(low_kickish_snare, 1100.0f, 0.090f, 520);
+	add_decayed_sine(low_kickish_snare, 2200.0f, 0.045f, 430);
+	add_decayed_sine(low_kickish_snare, 5600.0f, 0.030f, 460);
+	add_decayed_sine(low_kickish_snare, 7600.0f, 0.028f, 420);
+	snapshot = low_kickish_snare_engine.analyze(low_kickish_snare.data(),
+						    low_kickish_snare.size(), settings, "drum sample", 0);
+	runner.expect(snapshot.drums[mao::Snare].active,
+		      "low-kick one-shot snare sample: expected snare active, snare " +
+			      std::to_string(snapshot.drums[mao::Snare].level) + " kick " +
+			      std::to_string(snapshot.drums[mao::Kick].level));
+	runner.expect(snapshot.drums[mao::Snare].level >= snapshot.drums[mao::Kick].level,
+		      "low-kick one-shot snare sample: expected snare not kick primary, snare " +
+			      std::to_string(snapshot.drums[mao::Snare].level) + " kick " +
+			      std::to_string(snapshot.drums[mao::Kick].level));
 
 	for (int i = 0; i < 4; ++i)
 		snapshot = engine.analyze(background.data(), background.size(), settings, "Mic/Aux", 0);

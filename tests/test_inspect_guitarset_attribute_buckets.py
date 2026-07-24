@@ -35,6 +35,8 @@ HEADER = [
     "keyboard_chord",
     "guitar_chord",
     "other_chord",
+    "guitar_raw_chord",
+    "guitar_smoothed_chord",
     "guitar_pitch_classes",
     "guitar_cells",
     "guitar_analysis_pitch_classes",
@@ -44,6 +46,8 @@ HEADER = [
     "expected_raw_peak",
     "expected_raw_cells",
     "raw_pitch_class_levels",
+    "guitar_probe_pitch_class_levels",
+    "guitar_melodic_probe_pitch_class_levels",
     "expected_quality_raw_profile",
     "bass_pitch_classes",
     "keyboard_pitch_classes",
@@ -84,6 +88,8 @@ def row(**overrides: str) -> list[str]:
             "keyboard_chord": "--",
             "guitar_chord": "C",
             "other_chord": "--",
+            "guitar_raw_chord": "C",
+            "guitar_smoothed_chord": "C",
             "guitar_pitch_classes": "C,E,G",
             "guitar_cells": "C3:1.00,E3:0.80,G3:0.70",
             "guitar_analysis_pitch_classes": "C,E,G",
@@ -93,6 +99,8 @@ def row(**overrides: str) -> list[str]:
             "expected_raw_peak": "12.0",
             "expected_raw_cells": "C3:1.000,E3:0.800,G3:0.700",
             "raw_pitch_class_levels": "C:1.000,E:0.800,G:0.700",
+            "guitar_probe_pitch_class_levels": "C:1.000,E:0.800,G:0.700",
+            "guitar_melodic_probe_pitch_class_levels": "C:1.000,E:0.800,G:0.700",
             "bass_pitch_classes": "--",
             "keyboard_pitch_classes": "--",
             "vocal_pitch_classes": "--",
@@ -195,13 +203,21 @@ def main() -> int:
     assert "analysis_missing_tones" in output
     assert "--=1" in output
     assert "raw_third" in output
+    assert "guitar_match_kind" in output
+    assert "no_display_label=1" in output
+    assert "raw_third_anchor_ratio" in output
     assert "recording rec2: status=chord_miss expected=G" in output
+    assert "match=no_display_label" in output
+    assert "evidence=analysis_full_tone_label_gap/analysis" in output
     assert "levels raw(root/third/fifth)=0.900/0.200/0.500" in output
+    assert "opposite/anchor/margin=0.000/0.222/0.200" in output
     assert "chord_miss:maj:visible2_analysis3_smooth3_rootvis1 rows=1 recordings=1 examples=rec2" in compact.stdout
     assert "chord_hit:maj:all" not in compact.stdout
     assert "raw_third" not in compact.stdout
+    assert "evidence_class" in dumped.stdout
+    assert "\tanalysis_full_tone_label_gap\tanalysis\t" in dumped.stdout
     assert dumped.stdout.startswith("recording_id\tstatus\texpected_chords\t")
-    assert "\nrec2\tchord_miss\tG\tmaj\tmaj\t--" in dumped.stdout
+    assert "\nrec2\tchord_miss\tG\tmaj\tmaj\tG\tG\tmaj\tno_display_label\t0\t0\t0" in dumped.stdout
     assert "\nrec1\t" not in dumped.stdout
     print("test_inspect_guitarset_attribute_buckets: ok")
     return 0

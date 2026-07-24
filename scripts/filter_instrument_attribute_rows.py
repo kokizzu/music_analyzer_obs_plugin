@@ -21,6 +21,7 @@ DEFAULT_COLUMNS = [
     "debug_note",
     "debug_owner",
     "debug_conf",
+    "bass_score",
     "keyboard_score",
     "guitar_score",
     "vocal_score",
@@ -44,9 +45,12 @@ ATTRIBUTE_COLUMNS = [
     "status",
     "owner_status",
     "owner_target",
+    "owner",
+    "owner_source",
     "debug_note",
     "debug_owner",
     "debug_conf",
+    "bass_score",
     "keyboard_score",
     "guitar_score",
     "vocal_score",
@@ -62,6 +66,8 @@ ATTRIBUTE_COLUMNS = [
     "partial3",
     "partial4",
     "partial5",
+    "debug_count",
+    "debug_candidates",
     "raw_expected_ratio",
     "raw_tuned_ratio",
     "raw_tuned_abs_cent_offset",
@@ -88,23 +94,45 @@ def owner_target(row: dict[str, str]) -> str:
     if family in {"strings", "synth"}:
         return "other"
     if family == "bass":
-        return "bass-display"
+        return "bass"
     return family or "unknown"
+
+
+DISPLAY_LEVEL_FIELDS = {
+    "bass": "bass_level",
+    "piano": "piano_level",
+    "guitar": "guitar_level",
+    "vocals": "vocal_level",
+    "other": "other_level",
+}
+
+
+def target_display_hit(row: dict[str, str], target: str) -> bool:
+    if row.get("status") != "hit" or row.get("detected_expected_row") != "1":
+        return False
+    field = DISPLAY_LEVEL_FIELDS.get(target)
+    return field is not None and as_float(row, field) > 0.0
+
+
+def owner_and_source(row: dict[str, str]) -> tuple[str, str]:
+    target = owner_target(row)
+    if target_display_hit(row, target):
+        return target, "display"
+    return row.get("debug_owner", "") or "none", "debug"
 
 
 def owner_status(row: dict[str, str]) -> str:
     target = owner_target(row)
-    owner = row.get("debug_owner", "") or "none"
-    if target == "bass-display":
-        return "bass_debug"
+    owner, _source = owner_and_source(row)
     return "owner_hit" if owner == target else "owner_miss"
 
 
 def enrich_row(row: dict[str, str]) -> dict[str, str]:
     row = dict(row)
     row["owner_target"] = owner_target(row)
+    row["owner"], row["owner_source"] = owner_and_source(row)
     row["owner_status"] = owner_status(row)
-    row["owner_bucket"] = f"{row['owner_status']}:{row.get('family', '')}->{row.get('debug_owner', '') or 'none'}"
+    row["owner_bucket"] = f"{row['owner_status']}:{row.get('family', '')}->{row['owner']}"
     return row
 
 

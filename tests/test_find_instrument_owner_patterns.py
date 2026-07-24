@@ -62,6 +62,7 @@ HEADER = [
     "debug_midi",
     "debug_owner",
     "debug_conf",
+    "bass_score",
     "keyboard_score",
     "guitar_score",
     "vocal_score",
@@ -126,6 +127,7 @@ def row(**overrides: str) -> list[str]:
             "debug_midi": "60",
             "debug_owner": "piano",
             "debug_conf": "0.8",
+            "bass_score": "0.0",
             "keyboard_score": "0.8",
             "guitar_score": "0.1",
             "vocal_score": "0.0",
@@ -160,6 +162,9 @@ def main() -> int:
                 note="E3",
                 midi="52",
                 path="guitar_1.wav",
+                detected_expected_row="0",
+                expected_level="0.0",
+                guitar_level="0.0",
                 debug_note="E3",
                 debug_midi="52",
                 debug_owner="piano",
@@ -172,6 +177,9 @@ def main() -> int:
                 note="A3",
                 midi="57",
                 path="guitar_2.wav",
+                detected_expected_row="0",
+                expected_level="0.0",
+                guitar_level="0.0",
                 debug_note="A3",
                 debug_midi="57",
                 debug_owner="piano",
@@ -213,6 +221,85 @@ def main() -> int:
                 debug_owner="vocals",
                 partial2="0.12",
             ),
+            row(
+                family="bass",
+                expected_family="bass",
+                program_name="Finger Bass",
+                note="E2",
+                midi="40",
+                path="bass_1.wav",
+                debug_note="E2",
+                debug_midi="40",
+                debug_owner="bass",
+                debug_conf="0.72",
+                bass_score="0.72",
+                keyboard_score="0.0",
+                guitar_score="0.2",
+                vocal_score="0.0",
+                other_score="0.0",
+            ),
+            row(
+                family="strings",
+                expected_family="strings",
+                program_name="Pizzicato Strings",
+                note="G2",
+                midi="43",
+                path="strings_miss_1.wav",
+                status="miss",
+                detected_expected_row="0",
+                detected_anywhere="1",
+                expected_level="0.0",
+                other_level="0.0",
+                raw_expected_ratio="0.91",
+                raw_tuned_ratio="0.90",
+                raw_tuned_abs_cent_offset="18",
+                raw_expected_rank="1",
+                debug_note="",
+                debug_midi="",
+                debug_owner="",
+                debug_conf="",
+            ),
+            row(
+                family="strings",
+                expected_family="strings",
+                program_name="Pizzicato Strings",
+                note="G2",
+                midi="43",
+                path="strings_miss_2.wav",
+                status="miss",
+                detected_expected_row="0",
+                detected_anywhere="1",
+                expected_level="0.0",
+                other_level="0.0",
+                raw_expected_ratio="0.92",
+                raw_tuned_ratio="0.91",
+                raw_tuned_abs_cent_offset="18",
+                raw_expected_rank="1",
+                debug_note="",
+                debug_midi="",
+                debug_owner="",
+                debug_conf="",
+            ),
+            row(
+                family="strings",
+                expected_family="strings",
+                program_name="Pizzicato Strings",
+                note="A2",
+                midi="45",
+                path="strings_hit_1.wav",
+                status="hit",
+                detected_expected_row="1",
+                detected_anywhere="1",
+                expected_level="0.7",
+                other_level="0.7",
+                raw_expected_ratio="0.94",
+                raw_tuned_ratio="0.93",
+                raw_expected_rank="1",
+                debug_note="",
+                debug_midi="",
+                debug_owner="",
+                debug_conf="",
+            ),
         ]
         path.write_text("\t".join(HEADER) + "\n" + "\n".join("\t".join(item) for item in rows) + "\n")
         result = subprocess.run(
@@ -243,7 +330,7 @@ def main() -> int:
                 str(SCRIPT),
                 str(path),
                 "--bucket",
-                "owner_miss:guitar->piano",
+                "debug_owner_miss:guitar->piano",
                 "--condition",
                 "debug_owner=piano",
                 "--show-examples",
@@ -301,34 +388,125 @@ def main() -> int:
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
         )
+        status_result = subprocess.run(
+            [
+                sys.executable,
+                str(SCRIPT),
+                str(path),
+                "--status-bucket",
+                "miss:strings",
+                "--limit",
+                "10",
+                "--min-positive-samples",
+                "2",
+                "--max-negative-samples",
+                "0",
+                "--max-conditions",
+                "3",
+                "--beam-width",
+                "80",
+                "--include-display-fields",
+                "--show-examples",
+                "1",
+            ],
+            cwd=ROOT,
+            check=True,
+            text=True,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+        )
+        status_reason = subprocess.run(
+            [
+                sys.executable,
+                str(SCRIPT),
+                str(path),
+                "--status-bucket",
+                "miss:strings",
+                "--condition",
+                "miss_reason=ownership",
+                "--limit",
+                "3",
+                "--min-positive-samples",
+                "2",
+                "--max-negative-samples",
+                "0",
+                "--show-examples",
+                "1",
+            ],
+            cwd=ROOT,
+            check=True,
+            text=True,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+        )
+        bass_hit = subprocess.run(
+            [
+                sys.executable,
+                str(SCRIPT),
+                str(path),
+                "--bucket",
+                "owner_hit:bass->bass",
+                "--condition",
+                "debug_owner=bass",
+                "--show-examples",
+                "1",
+                "--max-negative-samples",
+                "4",
+            ],
+            cwd=ROOT,
+            check=True,
+            text=True,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+        )
 
     assert (
-        "owner_miss:guitar->piano positives=2 samples/2 rows negatives(owner-hit)=3 samples/3 rows"
+        "owner_miss:guitar->piano positives=2 samples/2 rows negatives(owner-hit)=5 samples/5 rows"
         in result.stdout
     ), result.stdout + result.stderr
-    assert "AND partial2<=0.14: pos=2/2 rows=2 neg=0/3 rows=0" in result.stdout, result.stdout + result.stderr
+    assert "AND partial2<=0.14: pos=2/2 rows=2 neg=0/5 rows=0" in result.stdout, result.stdout + result.stderr
     assert "highest-coverage candidate rules" in result.stdout, result.stdout + result.stderr
     assert "detected_expected_row" not in result.stdout, result.stdout + result.stderr
     assert "expected_level" not in result.stdout, result.stdout + result.stderr
     assert "explicit rule:" in example.stdout, example.stdout + example.stderr
-    assert "debug_owner=piano: pos=2/2 rows=2 neg=2/3 rows=2" in example.stdout, (
+    assert "debug_owner=piano: pos=2/2 rows=2 neg=2/5 rows=2" in example.stdout, (
         example.stdout + example.stderr
     )
     assert "positive examples:" in example.stdout, example.stdout + example.stderr
-    assert "guitar Clean Guitar E3 path=guitar_1.wav target=guitar owner=piano" in example.stdout, (
+    assert "guitar Clean Guitar E3 path=guitar_1.wav status=hit target=guitar" in example.stdout, (
         example.stdout + example.stderr
     )
     assert "protected-hit examples:" in example.stdout, example.stdout + example.stderr
-    assert "piano Grand Piano C4 path=piano_1.wav target=piano owner=piano" in example.stdout, (
+    assert "piano Grand Piano C4 path=piano_1.wav status=hit target=piano" in example.stdout, (
         example.stdout + example.stderr
     )
     assert (
-        "owner_miss:guitar->piano positives=2 samples/2 rows negatives(not-family)=3 samples/3 rows"
+        "owner_miss:guitar->piano positives=2 samples/2 rows negatives(not-family)=7 samples/7 rows"
         in cross_family.stdout
     ), cross_family.stdout + cross_family.stderr
     assert "partial2<=0.14" in runtime_fields.stdout, runtime_fields.stdout + runtime_fields.stderr
     assert "raw_expected" not in runtime_fields.stdout, runtime_fields.stdout + runtime_fields.stderr
     assert "program_name" not in runtime_fields.stdout, runtime_fields.stdout + runtime_fields.stderr
+    assert (
+        "status:miss:strings positives=2 samples/2 rows negatives(same-family-hit)=1 samples/1 rows"
+        in status_result.stdout
+    ), status_result.stdout + status_result.stderr
+    assert "expected_level<=0: pos=2/2 rows=2 neg=0/1 rows=0" in status_result.stdout, (
+        status_result.stdout + status_result.stderr
+    )
+    assert "strings Pizzicato Strings G2 path=strings_miss_1.wav status=miss" in status_result.stdout, (
+        status_result.stdout + status_result.stderr
+    )
+    assert "miss_reason=ownership: pos=2/2 rows=2 neg=0/1 rows=0" in status_reason.stdout, (
+        status_reason.stdout + status_reason.stderr
+    )
+    assert "reason=ownership" in status_reason.stdout, status_reason.stdout + status_reason.stderr
+    assert "owner_hit:bass->bass positives=1 samples/1 rows" in bass_hit.stdout, (
+        bass_hit.stdout + bass_hit.stderr
+    )
+    assert "bass Finger Bass E2 path=bass_1.wav status=hit target=bass" in bass_hit.stdout, (
+        bass_hit.stdout + bass_hit.stderr
+    )
     print("test_find_instrument_owner_patterns: ok")
     return 0
 

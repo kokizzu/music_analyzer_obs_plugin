@@ -230,7 +230,28 @@ def main() -> int:
                 "2",
                 "--condition",
                 "debug_owner=piano",
-                "--show-examples",
+                "--row-examples",
+                "1",
+            ],
+            text=True,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            check=True,
+        )
+        reason_result = subprocess.run(
+            [
+                sys.executable,
+                str(ROOT / "scripts" / "find_real_note_attribute_patterns.py"),
+                str(path),
+                "--bucket",
+                "ownership_miss:guitar/acoustic->piano",
+                "--limit",
+                "1",
+                "--max-negative-samples",
+                "0",
+                "--condition",
+                "miss_reason=ownership",
+                "--row-examples",
                 "1",
             ],
             text=True,
@@ -357,12 +378,14 @@ def main() -> int:
     assert "debug_owner=piano: pos=2/2 rows=2 neg=1/2 rows=1" in example_result.stdout
     assert "positive examples:" in example_result.stdout
     assert "guitar_1 expected=F#4/66 debug=F#4/66 owner=piano" in example_result.stdout
+    assert "reason=ownership" in example_result.stdout
     assert "protected-hit examples:" in example_result.stdout
     assert "keyboard_1 expected=F#4/66 debug=F#4/66 owner=piano" in example_result.stdout
+    assert "miss_reason=ownership: pos=2/2 rows=2 neg=0/2 rows=0" in reason_result.stdout
     assert (
         "debug_midi<=69 AND partial2<=0.13 AND pitch_confidence>=0.95: "
         "pos=2/2 rows=2 neg=0/3 rows=0"
-    ) in multi_result.stdout
+    ) in multi_result.stdout, multi_result.stdout + multi_result.stderr
     assert "ownership_miss:guitar/acoustic->piano positives=2 samples/2 rows" in auto_result.stdout
     print("test_find_real_note_attribute_patterns: ok")
     return 0

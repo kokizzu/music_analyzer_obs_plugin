@@ -39,9 +39,10 @@ p2	hit	guitar	acoustic	E3	52	guitar	0	guitar	E3	guitar	1	0	E3	1
         guitar = write(
             root / "guitar.tsv",
             """
-recording_id	status	expected_chords	expected_chord_qualities	quality	guitar_chord	global_chord	support	visible_missing_tones	analysis_missing_tones	smooth_missing_tones	raw_root	raw_third	raw_fifth
-g1	chord_miss	Am	min	m	Asus2	--	visible2_analysis2_smooth2_rootvis1	third	third	third	1	0.02	1
-g2	chord_hit	C	maj	maj	C	--	visible3_analysis3_smooth3_rootvis1	--	--	--	1	1	1
+recording_id	status	expected_chords	expected_chord_qualities	quality	expected_label	expected_root	expected_quality_compact	guitar_match_kind	guitar_chord	guitar_raw_chord	guitar_smoothed_chord	global_chord	support	guitar_pitch_classes	guitar_analysis_pitch_classes	guitar_smoothed_pitch_classes	visible_missing_tones	analysis_missing_tones	smooth_missing_tones	evidence_class	evidence_source	raw_root	raw_third	raw_fifth	raw_opposite_third	raw_third_anchor_ratio	raw_third_opposite_margin	quality_raw
+g1	chord_miss	Am	min	m	Am	A	m	display_same_root_other	Asus2	Asus2	Asus2	--	visible2_analysis2_smooth2_rootvis1	A,E	A,E	A,E	third	third	third	third_missing	grid	1	0.02	1	0.1	0.02	-0.08	A:r1,m30.02,51
+g2	chord_hit	C	maj	maj	C	C	maj	display_exact	C	C	C	--	visible3_analysis3_smooth3_rootvis1	C,E,G	C,E,G	C,E,G	--	--	--	display_exact	display	1	1	1	0	1	1	C:r1,M31,51
+g3	chord_miss	C#m	min	m	C#	C#	m	display_different_root	A	A	B	--	visible2_analysis3_smooth3_rootvis1	C#,E	C#,E,G#	C#,E,G#	fifth	--	--	analysis_full_tone_label_gap	analysis	1	1	1	0	1	1	C#:r1,m31,51
             """,
         )
         drum = write(
@@ -78,13 +79,25 @@ snare/1.wav	snare	tom	0.2	0.7	0.1	0.1	0.8	0.9
     assert "ownership_miss:piano/electronic->bass" in output
     assert "debug-midi deltas 12=1" in output
     assert "guitar chord attributes" in output
-    assert "raw tone medians root=1 third=0.02 fifth=1" in output
-    assert "drum primary miss attributes" in output
+    assert "full-tone expected-label gaps visible=0/0 analysis=1/1 smoothed=1/1" in output
+    assert "miss match kinds display_same_root_other=1 display_different_root=1" in output
+    assert "miss evidence classes third_missing=1 analysis_full_tone_label_gap=1" in output
+    assert "miss evidence sources grid=1 analysis=1" in output
+    assert "full-tone expected-label gap examples" in output
+    assert "analysis expected=C#m got=A raw=A smooth=B" in output
+    assert "match=display_different_root" in output
+    assert "evidence=analysis_full_tone_label_gap/analysis" in output
+    assert "third_anchor=1" in output
+    assert "raw tone medians root=1 third=0.51 fifth=1 third_anchor=0.51 third_margin=0.46" in output
+    assert "drum primary attributes" in output
     assert "snare->tom" in output
+    assert "level_margin_med=+0.1" in output
+    assert "trigger_ratio_margin_med=--" in output
     assert "representative detected rows" in output
     assert "expected=C4/60 first=bass" in output
     assert "expected=Am got=Asus2" in output
     assert "snare->tom energy=0.2/0.7/0.1" in output
+    assert "level_margin=+0.1" in output
     print("test_report_analyzer_attribute_patterns: ok")
     return 0
 

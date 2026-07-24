@@ -82,6 +82,7 @@ struct FullMixDebugCandidate {
 	int midi = -1;
 	InstrumentKind owner = InstrumentKind::Ambiguous;
 	float ownership_confidence = 0.0f;
+	float bass_score = 0.0f;
 	float keyboard_score = 0.0f;
 	float guitar_score = 0.0f;
 	float vocal_score = 0.0f;
@@ -150,8 +151,12 @@ struct AnalysisSnapshot {
 	InstrumentState guitar = {};
 	NoteGrid guitar_notes = {};
 	InstrumentState guitar_chord = {};
+	InstrumentState guitar_raw_chord = {};
+	InstrumentState guitar_smoothed_chord = {};
 	NoteGrid guitar_chord_analysis_notes = {};
 	NoteGrid guitar_chord_smoothed_notes = {};
+	std::array<float, 12> guitar_chord_debug_probe_levels = {};
+	std::array<float, 12> guitar_chord_debug_melodic_probe_levels = {};
 	InstrumentState keyboard = {};
 	NoteGrid keyboard_notes = {};
 	InstrumentState keyboard_chord = {};
@@ -199,6 +204,13 @@ private:
 	struct RootVote {
 		std::array<float, 12> scores = {};
 		bool valid = false;
+	};
+
+	struct TuningProbeResult {
+		bool matched = false;
+		float best_level = 0.0f;
+		float center_level = 0.0f;
+		float cents = 0.0f;
 	};
 
 	static constexpr std::size_t kMaxRootVotes = 1500;
@@ -263,6 +275,8 @@ private:
 	void update_tempo(bool transient_event, float interval_seconds, float rms);
 	float goertzel_power(const float *samples, std::size_t count, float mean, const Probe &probe) const;
 	float goertzel_power_at_frequency(const float *samples, std::size_t count, float mean, float freq) const;
+	TuningProbeResult chromatic_tuning_probe(const float *samples, std::size_t count, float mean, int midi,
+						 float tolerance_cents, bool allow_ratio_rescue) const;
 	bool chromatic_tuning_match(const float *samples, std::size_t count, float mean, int midi,
 				    float tolerance_cents, bool allow_ratio_rescue) const;
 	bool tracked_note_active(AnalysisInputMode input_mode, int midi) const;

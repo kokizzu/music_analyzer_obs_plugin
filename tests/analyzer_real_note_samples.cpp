@@ -574,8 +574,8 @@ std::string full_mix_debug_line(const mao::AnalysisSnapshot &snapshot, int expec
 		}
 		line << debug_note_label(debug.midi) << ":" << instrument_kind_name(debug.owner)
 		     << "/conf=" << debug.ownership_confidence
-		     << "/kgo=" << debug.keyboard_score << "," << debug.guitar_score << ","
-		     << debug.vocal_score << "," << debug.other_score
+		     << "/bkvo=" << debug.bass_score << "," << debug.keyboard_score << ","
+		     << debug.guitar_score << "," << debug.vocal_score << "," << debug.other_score
 		     << "/spec=" << debug.spectral_level << "/pitch=" << debug.pitch_confidence
 		     << "/per=" << debug.periodicity << "/harm=" << debug.harmonicity
 		     << "/fit=" << debug.harmonic_fit_error << "/cent=" << debug.spectral_centroid
@@ -826,6 +826,7 @@ void print_attribute_header(std::ostream &out)
 	    << "\tsample_id\tfamily\tnsynth_family\tsource\texpected_note\texpected_midi\tbuffer\tmode"
 	    << "\trow_label\trow_conf\trow_grid\tany_grid\tbuffer_strongest_row"
 	    << "\tbass_level\tguitar_level\tpiano_level\tvocal_level\tother_level\tamb_level"
+	    << "\tbass_notes\tguitar_notes\tpiano_notes\tvocal_notes\tother_notes\tamb_notes"
 	    << "\tglobal_chord\tkeyboard_chord\tguitar_chord\tother_chord"
 	    << "\traw_expected_peak\traw_expected_ratio\traw_tuned_peak\traw_tuned_ratio"
 	    << "\traw_tuned_cent_offset\traw_tuned_abs_cent_offset"
@@ -833,7 +834,7 @@ void print_attribute_header(std::ostream &out)
 	    << "\traw_prev_ratio\traw_next_ratio\traw_octave_down_ratio\traw_octave_up_ratio"
 	    << "\trms\tlow\tmid\thigh\tkick\tsnare\thihat\tcrash\ttom\tride\trim"
 	    << "\tdebug_note\tdebug_midi\tdebug_owner\tdebug_conf"
-	    << "\tkeyboard_score\tguitar_score\tvocal_score\tother_score"
+	    << "\tbass_score\tkeyboard_score\tguitar_score\tvocal_score\tother_score"
 	    << "\tspectral_level\tpitch_confidence\tperiodicity\tharmonicity\tfit_error"
 	    << "\tcentroid\tslope\tnoise\tpartial1\tpartial2\tpartial3\tpartial4\tpartial5\n";
 }
@@ -841,7 +842,7 @@ void print_attribute_header(std::ostream &out)
 void append_debug_candidate_fields(std::ostringstream &line, const mao::FullMixDebugCandidate *debug)
 {
 	if (!debug) {
-		for (int i = 0; i < 21; ++i)
+		for (int i = 0; i < 22; ++i)
 			append_tsv(line, "");
 		return;
 	}
@@ -850,6 +851,7 @@ void append_debug_candidate_fields(std::ostringstream &line, const mao::FullMixD
 	append_tsv(line, debug->midi);
 	append_tsv(line, instrument_kind_name(debug->owner));
 	append_tsv(line, debug->ownership_confidence);
+	append_tsv(line, debug->bass_score);
 	append_tsv(line, debug->keyboard_score);
 	append_tsv(line, debug->guitar_score);
 	append_tsv(line, debug->vocal_score);
@@ -891,6 +893,12 @@ void append_attribute_row(std::vector<std::string> &lines, const SampleRow &row,
 	append_tsv(line, grid_pitch_class_level(snapshot.vocal_notes, row.midi));
 	append_tsv(line, grid_pitch_class_level(snapshot.other_notes, row.midi));
 	append_tsv(line, grid_pitch_class_level(snapshot.ambiguous_notes, row.midi));
+	append_tsv(line, grid_debug_label(snapshot.bass_notes));
+	append_tsv(line, grid_debug_label(snapshot.guitar_notes));
+	append_tsv(line, grid_debug_label(snapshot.keyboard_notes));
+	append_tsv(line, grid_debug_label(snapshot.vocal_notes));
+	append_tsv(line, grid_debug_label(snapshot.other_notes));
+	append_tsv(line, grid_debug_label(snapshot.ambiguous_notes));
 	append_tsv(line, snapshot.global_chord.label);
 	append_tsv(line, snapshot.keyboard_chord.label);
 	append_tsv(line, snapshot.guitar_chord.label);

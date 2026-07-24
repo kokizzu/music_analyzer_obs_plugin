@@ -30,6 +30,7 @@ ROW_DUMP_FIELDS = (
         for category in CATEGORIES
         for field in ("band", "seg", "shape_score", "trigger", "threshold", "shape", "level")
     ]
+    + ["merged_expected"]
 )
 DETAIL_RE = re.compile(
     r"(?P<cat>kick|snare|hihat|crash|tom|ride|rim) "
@@ -44,63 +45,82 @@ MISS_RE = re.compile(
     r"primary miss 100ms (?P<sample>\S+) expected (?P<expected>\w+) "
     r"got (?P<got>\w+|ambiguous|none).*?\[(?P<detail>.*)\]$"
 )
+DEBUG_RE = re.compile(r"debug 100ms (?P<sample>\S+) expected (?P<expected>\w+).*?\[(?P<detail>.*)\]$")
 ENERGY_RE = re.compile(r"energy=(?P<low>[0-9.]+)/(?P<mid>[0-9.]+)/(?P<high>[0-9.]+)")
 BODY_RE = re.compile(
     r"body=(?P<kick_body>[0-9.]+)/(?P<snare_body>[0-9.]+)/(?P<tom_body>[0-9.]+) "
     r"crack=(?P<snare_crack>[0-9.]+) upper_tom=(?P<upper_tom_body>[0-9.]+) "
     r"body_shape=(?P<body_shape>-?[0-9]+)"
 )
+MERGED_EXPECTED_RE = re.compile(r"\bmerged_expected=(?P<merged>[01])\b")
 
 
-def parse_log(path: pathlib.Path):
-    rows = []
-    for line in path.read_text(errors="replace").splitlines():
-        if "primary miss" not in line:
-            continue
-        match = MISS_RE.search(line)
-        if not match:
-            continue
-        metrics = {}
-        for detail_match in DETAIL_RE.finditer(match.group("detail")):
-            cat = detail_match.group("cat")
-            metrics[cat] = {
-                "band": float(detail_match.group("band")),
-                "seg": float(detail_match.group("seg")),
-                "shape_score": float(detail_match.group("shape_score")),
-                "trigger": float(detail_match.group("trigger")),
-                "threshold": float(detail_match.group("threshold")),
-                "shape": float(detail_match.group("shape")),
-                "level": float(detail_match.group("level")),
-            }
-        energy_match = ENERGY_RE.search(match.group("detail"))
-        energy = None
-        if energy_match:
-            energy = (
-                float(energy_match.group("low")),
-                float(energy_match.group("mid")),
-                float(energy_match.group("high")),
-            )
-        body_match = BODY_RE.search(match.group("detail"))
-        body = {}
-        if body_match:
-            body = {
-                "kick_body": float(body_match.group("kick_body")),
-                "snare_body": float(body_match.group("snare_body")),
-                "tom_body": float(body_match.group("tom_body")),
-                "snare_crack": float(body_match.group("snare_crack")),
-                "upper_tom_body": float(body_match.group("upper_tom_body")),
-                "body_shape": float(body_match.group("body_shape")),
-            }
-        rows.append(
-            {
-                "sample": match.group("sample"),
-                "expected": match.group("expected"),
-                "got": match.group("got"),
-                "metrics": metrics,
-                "energy": energy,
-                "body": body,
-            }
+def parse_detail(detail: str):
+    metrics = {}
+    for detail_match in DETAIL_RE.finditer(detail):
+        cat = detail_match.group("cat")
+        metrics[cat] = {
+            "band": float(detail_match.group("band")),
+            "seg": float(detail_match.group("seg")),
+            "shape_score": float(detail_match.group("shape_score")),
+            "trigger": float(detail_match.group("trigger")),
+            "threshold": float(detail_match.group("threshold")),
+            "shape": float(detail_match.group("shape")),
+            "level": float(detail_match.group("level")),
+        }
+    energy_match = ENERGY_RE.search(detail)
+    energy = None
+    if energy_match:
+        energy = (
+            float(energy_match.group("low")),
+            float(energy_match.group("mid")),
+            float(energy_match.group("high")),
         )
+    body_match = BODY_RE.search(detail)
+    body = {}
+    if body_match:
+        body = {
+            "kick_body": float(body_match.group("kick_body")),
+            "snare_body": float(body_match.group("snare_body")),
+            "tom_body": float(body_match.group("tom_body")),
+            "snare_crack": float(body_match.group("snare_crack")),
+            "upper_tom_body": float(body_match.group("upper_tom_body")),
+            "body_shape": float(body_match.group("body_shape")),
+        }
+    return metrics, energy, body
+
+
+def row_from_match(match, got: str):
+    metrics, energy, body = parse_detail(match.group("detail"))
+    merged_match = MERGED_EXPECTED_RE.search(match.group("detail"))
+    return {
+        "sample": match.group("sample"),
+        "expected": match.group("expected"),
+        "got": got,
+        "metrics": metrics,
+        "energy": energy,
+        "body": body,
+        "merged_expected": merged_match.group("merged") if merged_match else "0",
+    }
+
+
+def parse_log(path: pathlib.Path, *, include_debug_rows: bool = False):
+    rows = []
+    debug_rows = []
+    miss_keys = set()
+    for line in path.read_text(errors="replace").splitlines():
+        miss_match = MISS_RE.search(line)
+        if miss_match:
+            row = row_from_match(miss_match, miss_match.group("got"))
+            rows.append(row)
+            miss_keys.add((row["sample"], row["expected"]))
+            continue
+        if include_debug_rows:
+            debug_match = DEBUG_RE.search(line)
+            if debug_match:
+                debug_rows.append(row_from_match(debug_match, debug_match.group("expected")))
+    if include_debug_rows:
+        rows.extend(row for row in debug_rows if (row["sample"], row["expected"]) not in miss_keys)
     return rows
 
 
@@ -174,6 +194,7 @@ def dump_rows(rows, expected_filter: str, limit: int) -> None:
             for field in ("band", "seg", "shape_score", "trigger", "threshold", "shape", "level"):
                 value = category_metrics.get(field, "")
                 values[f"{category}_{field}"] = "" if value == "" else f"{value:.6f}"
+        values["merged_expected"] = row.get("merged_expected", "0")
         print("\t".join(values.get(field, "") for field in ROW_DUMP_FIELDS))
         printed += 1
         if limit > 0 and printed >= limit:
@@ -287,6 +308,11 @@ def main() -> int:
         help="print compact per-primary-miss drum attributes as TSV and skip summaries",
     )
     parser.add_argument(
+        "--include-debug-rows",
+        action="store_true",
+        help="include analyzer_drum_samples debug rows in --dump-rows output, including correct primaries",
+    )
+    parser.add_argument(
         "--dump-limit",
         type=int,
         default=0,
@@ -297,7 +323,7 @@ def main() -> int:
     all_rows = []
     parsed_logs = []
     for path in args.logs:
-        rows = parse_log(path)
+        rows = parse_log(path, include_debug_rows=args.include_debug_rows)
         parsed_logs.append((path, rows))
         all_rows.extend(rows)
     if args.dump_rows:

@@ -11,9 +11,11 @@ import re
 import statistics
 
 from summarize_guitarset_attributes import (
+    NOTE_TO_PC,
     as_float,
     as_int,
-    best_expected_chord,
+    chord_quality,
+    chord_root,
     chord_tones,
     load_rows,
     parse_cell_levels,
@@ -52,13 +54,41 @@ NUMERIC_FIELDS = [
     "raw_root",
     "raw_third",
     "raw_fifth",
+    "raw_opposite_third",
+    "raw_third_anchor_ratio",
+    "raw_third_opposite_margin",
+    "probe_root",
+    "probe_third",
+    "probe_fifth",
+    "probe_opposite_third",
+    "probe_third_anchor_ratio",
+    "probe_third_opposite_margin",
+    "melodic_probe_root",
+    "melodic_probe_third",
+    "melodic_probe_fifth",
+    "melodic_probe_opposite_third",
+    "melodic_probe_third_anchor_ratio",
+    "melodic_probe_third_opposite_margin",
+    "chord_hit",
+    "simple_chord_hit",
+    "guitar_chord_hit",
+    "expected_label_in_display",
+    "expected_label_in_raw",
+    "expected_label_in_smooth",
+    "expected_root_in_display",
 ]
 
 CATEGORY_FIELDS = [
     "expected_chords",
     "expected_chord_qualities",
+    "expected_label",
+    "expected_root",
+    "expected_quality_compact",
     "guitar_chord",
+    "guitar_raw_chord",
+    "guitar_smoothed_chord",
     "global_chord",
+    "guitar_match_kind",
     "expected_pitch_classes",
     "guitar_pitch_classes",
     "guitar_analysis_pitch_classes",
@@ -67,6 +97,8 @@ CATEGORY_FIELDS = [
     "analysis_missing_tones",
     "smooth_missing_tones",
     "support",
+    "evidence_class",
+    "evidence_source",
     "quality_raw",
 ]
 
@@ -76,7 +108,20 @@ ROW_DUMP_FIELDS = [
     "expected_chords",
     "expected_chord_qualities",
     "quality",
+    "expected_label",
+    "expected_root",
+    "expected_quality_compact",
+    "guitar_match_kind",
+    "chord_hit",
+    "simple_chord_hit",
+    "guitar_chord_hit",
+    "expected_label_in_display",
+    "expected_label_in_raw",
+    "expected_label_in_smooth",
+    "expected_root_in_display",
     "guitar_chord",
+    "guitar_raw_chord",
+    "guitar_smoothed_chord",
     "global_chord",
     "support",
     "expected_pitch_classes",
@@ -86,6 +131,8 @@ ROW_DUMP_FIELDS = [
     "visible_missing_tones",
     "analysis_missing_tones",
     "smooth_missing_tones",
+    "evidence_class",
+    "evidence_source",
     "visible_root",
     "visible_third",
     "visible_fifth",
@@ -98,8 +145,25 @@ ROW_DUMP_FIELDS = [
     "raw_root",
     "raw_third",
     "raw_fifth",
+    "raw_opposite_third",
+    "raw_third_anchor_ratio",
+    "raw_third_opposite_margin",
+    "probe_root",
+    "probe_third",
+    "probe_fifth",
+    "probe_opposite_third",
+    "probe_third_anchor_ratio",
+    "probe_third_opposite_margin",
+    "melodic_probe_root",
+    "melodic_probe_third",
+    "melodic_probe_fifth",
+    "melodic_probe_opposite_third",
+    "melodic_probe_third_anchor_ratio",
+    "melodic_probe_third_opposite_margin",
     "quality_raw",
     "raw_pitch_class_levels",
+    "guitar_probe_pitch_class_levels",
+    "guitar_melodic_probe_pitch_class_levels",
     "guitar_note_hits",
     "guitar_false_positive_pitch_classes",
     "cross_row_expected_hits",
@@ -126,6 +190,101 @@ def normalized_quality(row: dict[str, str], expected_label: str) -> str:
     return "maj" if expected_label else "--"
 
 
+def split_chord_labels(value: str) -> list[str]:
+    if not value or value == "--":
+        return []
+    return [label for label in re.split(r"[=/]", value) if label and label != "--"]
+
+
+def compact_quality(label: str) -> str:
+    quality = chord_quality(label)
+    return "maj" if quality == "" and label else quality or "--"
+
+
+def label_pitch_classes(label: str) -> set[int]:
+    return {pitch_class for _name, pitch_class in chord_tones(label)}
+
+
+def best_expected_label(expected_chords: str, analysis_pitch_classes: str) -> str:
+    labels = split_chord_labels(expected_chords)
+    if not labels:
+        return ""
+    analysis = parse_pitch_classes(analysis_pitch_classes)
+    best_label = labels[0]
+    best_score = -1.0
+    for label in labels:
+        expected = label_pitch_classes(label)
+        if not expected:
+            continue
+        score = len(expected & analysis) / len(expected)
+        if score > best_score:
+            best_score = score
+            best_label = label
+    return best_label
+
+
+def expected_root_name(label: str) -> str:
+    root = chord_root(label)
+    return root if root in NOTE_TO_PC else "--"
+
+
+def same_root_labels(labels: list[str], root: str) -> list[str]:
+    if root == "--":
+        return []
+    return [label for label in labels if chord_root(label) == root]
+
+
+def guitar_match_kind(
+    expected_labels: list[str],
+    expected_label: str,
+    displayed_value: str,
+    raw_value: str,
+    smooth_value: str,
+) -> str:
+    displayed = split_chord_labels(displayed_value)
+    raw = split_chord_labels(raw_value)
+    smooth = split_chord_labels(smooth_value)
+    expected = set(expected_labels or ([expected_label] if expected_label else []))
+    if expected and any(label in displayed for label in expected):
+        return "display_exact"
+    if expected and any(label in raw for label in expected):
+        return "raw_exact"
+    if expected and any(label in smooth for label in expected):
+        return "smooth_exact"
+    root = expected_root_name(expected_label)
+    same_root = same_root_labels(displayed, root)
+    if any(chord_quality(label) == "pow" for label in same_root):
+        return "display_same_root_power"
+    if same_root:
+        return "display_same_root_other"
+    if displayed:
+        return "display_different_root"
+    return "no_display_label"
+
+
+def label_cell_contains(value: str, labels: list[str]) -> int:
+    detected = set(split_chord_labels(value))
+    return int(any(label in detected for label in labels))
+
+
+def root_cell_contains(value: str, root: str) -> int:
+    if root == "--":
+        return 0
+    return int(any(chord_root(label) == root for label in split_chord_labels(value)))
+
+
+def opposite_third_pitch_class(expected_label: str) -> int | None:
+    root = expected_root_name(expected_label)
+    if root not in NOTE_TO_PC:
+        return None
+    quality = chord_quality(expected_label)
+    if quality in {"", "7", "maj7", "6", "add9", "9", "maj9", "aug"}:
+        return (NOTE_TO_PC[root] + 3) % 12
+    if quality in {"m", "m7", "m6", "m9", "dim", "dim7", "m7b5"}:
+        return (NOTE_TO_PC[root] + 4) % 12
+    return None
+
+
 def tone_key(name: str) -> str:
     if name in {"major_third", "minor_third"}:
         return "third"
@@ -143,9 +302,31 @@ def max_level(levels: dict[int, float], pitch_classes: list[int]) -> float:
     return value
 
 
+def tone_present(tone_classes: dict[str, list[int]], pitch_classes: set[int], key: str) -> bool:
+    return any(pitch_class in pitch_classes for pitch_class in tone_classes.get(key, []))
+
+
+def strong_third_evidence(source_values: list[tuple[str, float, float]]) -> tuple[str, str]:
+    thresholds = {
+        "raw": (0.030, 0.020),
+        "probe": (0.100, 0.030),
+        "melodic": (0.120, 0.040),
+    }
+    for source, anchor_ratio, margin in source_values:
+        min_ratio, min_margin = thresholds[source]
+        if anchor_ratio >= min_ratio and margin >= min_margin:
+            if source == "raw":
+                return "raw_quality_gap", source
+            if source == "melodic":
+                return "melodic_probe_quality_gap", source
+            return "direct_probe_quality_gap", source
+    return "", ""
+
+
 def derive_row(row: dict[str, str]) -> dict[str, str]:
     result = dict(row)
-    expected_label = best_expected_chord(
+    expected_labels = split_chord_labels(row.get("expected_chords", ""))
+    expected_label = best_expected_label(
         row.get("expected_chords", ""), row.get("guitar_analysis_pitch_classes", "")
     )
     quality = normalized_quality(row, expected_label)
@@ -162,6 +343,8 @@ def derive_row(row: dict[str, str]) -> dict[str, str]:
     raw_levels = parse_cell_levels(row.get("raw_pitch_class_levels", ""))
     if not raw_levels:
         raw_levels = parse_cell_levels(row.get("expected_raw_cells", ""))
+    probe_levels = parse_cell_levels(row.get("guitar_probe_pitch_class_levels", ""))
+    melodic_probe_levels = parse_cell_levels(row.get("guitar_melodic_probe_pitch_class_levels", ""))
 
     expected_pitch_classes = set()
     for pitch_classes in tone_classes.values():
@@ -186,12 +369,33 @@ def derive_row(row: dict[str, str]) -> dict[str, str]:
         f"visible{visible_tones}_analysis{analysis_tones}_"
         f"smooth{smooth_tones}_rootvis{root_visible}"
     )
+    root_name = expected_root_name(expected_label)
+    expected_labels_for_match = expected_labels or ([expected_label] if expected_label else [])
 
     result.update(
         {
             "expected_label": expected_label,
+            "expected_root": root_name,
+            "expected_quality_compact": compact_quality(expected_label),
             "quality": quality,
             "support": support,
+            "guitar_match_kind": guitar_match_kind(
+                expected_labels_for_match,
+                expected_label,
+                row.get("guitar_chord", ""),
+                row.get("guitar_raw_chord", ""),
+                row.get("guitar_smoothed_chord", ""),
+            ),
+            "expected_label_in_display": str(
+                label_cell_contains(row.get("guitar_chord", ""), expected_labels_for_match)
+            ),
+            "expected_label_in_raw": str(
+                label_cell_contains(row.get("guitar_raw_chord", ""), expected_labels_for_match)
+            ),
+            "expected_label_in_smooth": str(
+                label_cell_contains(row.get("guitar_smoothed_chord", ""), expected_labels_for_match)
+            ),
+            "expected_root_in_display": str(root_cell_contains(row.get("guitar_chord", ""), root_name)),
             "guitar_pc_count": str(len(visible)),
             "analysis_pc_count": str(len(analysis)),
             "smooth_pc_count": str(len(smooth)),
@@ -211,8 +415,91 @@ def derive_row(row: dict[str, str]) -> dict[str, str]:
         result[f"analysis_{key}"] = f"{max_level(analysis_levels, pitch_classes):.6f}"
         result[f"smooth_{key}"] = f"{max_level(smooth_levels, pitch_classes):.6f}"
         result[f"raw_{key}"] = f"{max_level(raw_levels, pitch_classes):.6f}"
+        result[f"probe_{key}"] = f"{max_level(probe_levels, pitch_classes):.6f}"
+        result[f"melodic_probe_{key}"] = f"{max_level(melodic_probe_levels, pitch_classes):.6f}"
+    opposite_third = opposite_third_pitch_class(expected_label)
+    raw_opposite_third = raw_levels.get(opposite_third, 0.0) if opposite_third is not None else 0.0
+    probe_opposite_third = probe_levels.get(opposite_third, 0.0) if opposite_third is not None else 0.0
+    melodic_probe_opposite_third = (
+        melodic_probe_levels.get(opposite_third, 0.0) if opposite_third is not None else 0.0
+    )
+    raw_root = max_level(raw_levels, tone_classes.get("root", []))
+    raw_third = max_level(raw_levels, tone_classes.get("third", []))
+    raw_fifth = max_level(raw_levels, tone_classes.get("fifth", []))
+    raw_anchor = max(raw_root, raw_fifth)
+    probe_root = max_level(probe_levels, tone_classes.get("root", []))
+    probe_third = max_level(probe_levels, tone_classes.get("third", []))
+    probe_fifth = max_level(probe_levels, tone_classes.get("fifth", []))
+    probe_anchor = max(probe_root, probe_fifth)
+    melodic_probe_root = max_level(melodic_probe_levels, tone_classes.get("root", []))
+    melodic_probe_third = max_level(melodic_probe_levels, tone_classes.get("third", []))
+    melodic_probe_fifth = max_level(melodic_probe_levels, tone_classes.get("fifth", []))
+    melodic_probe_anchor = max(melodic_probe_root, melodic_probe_fifth)
+    result["raw_opposite_third"] = f"{raw_opposite_third:.6f}"
+    raw_third_anchor_ratio = raw_third / raw_anchor if raw_anchor > 1.0e-6 else 0.0
+    raw_third_margin = raw_third - raw_opposite_third
+    result["raw_third_anchor_ratio"] = f"{raw_third_anchor_ratio:.6f}"
+    result["raw_third_opposite_margin"] = f"{raw_third_margin:.6f}"
+    result["probe_opposite_third"] = f"{probe_opposite_third:.6f}"
+    probe_third_anchor_ratio = probe_third / probe_anchor if probe_anchor > 1.0e-6 else 0.0
+    probe_third_margin = probe_third - probe_opposite_third
+    result["probe_third_anchor_ratio"] = f"{probe_third_anchor_ratio:.6f}"
+    result["probe_third_opposite_margin"] = f"{probe_third_margin:.6f}"
+    result["melodic_probe_opposite_third"] = f"{melodic_probe_opposite_third:.6f}"
+    melodic_probe_third_anchor_ratio = (
+        melodic_probe_third / melodic_probe_anchor if melodic_probe_anchor > 1.0e-6 else 0.0
+    )
+    melodic_probe_third_margin = melodic_probe_third - melodic_probe_opposite_third
+    result["melodic_probe_third_anchor_ratio"] = (
+        f"{melodic_probe_third_anchor_ratio:.6f}"
+    )
+    result["melodic_probe_third_opposite_margin"] = f"{melodic_probe_third_margin:.6f}"
+
+    display_exact = result["expected_label_in_display"] == "1"
+    raw_exact = result["expected_label_in_raw"] == "1"
+    smooth_exact = result["expected_label_in_smooth"] == "1"
+    root_any = any(tone_present(tone_classes, pitch_classes, "root") for pitch_classes in (visible, analysis, smooth))
+    third_any = any(tone_present(tone_classes, pitch_classes, "third") for pitch_classes in (visible, analysis, smooth))
+    fifth_any = any(tone_present(tone_classes, pitch_classes, "fifth") for pitch_classes in (visible, analysis, smooth))
+    quality_gap, quality_source = strong_third_evidence(
+        [
+            ("raw", raw_third_anchor_ratio, raw_third_margin),
+            ("probe", probe_third_anchor_ratio, probe_third_margin),
+            ("melodic", melodic_probe_third_anchor_ratio, melodic_probe_third_margin),
+        ]
+    )
+    if display_exact:
+        evidence_class, evidence_source = "display_exact", "display"
+    elif raw_exact:
+        evidence_class, evidence_source = "raw_exact_not_displayed", "raw"
+    elif smooth_exact:
+        evidence_class, evidence_source = "smooth_exact_not_displayed", "smooth"
+    elif result["visible_missing_tones"] == "--":
+        evidence_class, evidence_source = "visible_full_tone_label_gap", "visible"
+    elif result["analysis_missing_tones"] == "--":
+        evidence_class, evidence_source = "analysis_full_tone_label_gap", "analysis"
+    elif result["smooth_missing_tones"] == "--":
+        evidence_class, evidence_source = "smooth_full_tone_label_gap", "smooth"
+    elif quality_gap and root_any and fifth_any:
+        evidence_class, evidence_source = quality_gap, quality_source
+    elif root_any and fifth_any and not third_any:
+        evidence_class, evidence_source = "power_only_ambiguous", "root_fifth"
+    elif not root_any:
+        evidence_class, evidence_source = "expected_root_absent", "grid"
+    elif not third_any:
+        evidence_class, evidence_source = "third_missing", "grid"
+    elif not fifth_any:
+        evidence_class, evidence_source = "fifth_missing", "grid"
+    else:
+        evidence_class, evidence_source = "partial_or_wrong_label", "grid"
+    result["evidence_class"] = evidence_class
+    result["evidence_source"] = evidence_source
     result["quality_raw"] = row.get("expected_quality_raw_profile", "--") or "--"
     result["raw_pitch_class_levels"] = row.get("raw_pitch_class_levels", "--") or "--"
+    result["guitar_probe_pitch_class_levels"] = row.get("guitar_probe_pitch_class_levels", "--") or "--"
+    result["guitar_melodic_probe_pitch_class_levels"] = (
+        row.get("guitar_melodic_probe_pitch_class_levels", "--") or "--"
+    )
     return result
 
 
@@ -356,7 +643,9 @@ def print_recording(rows: list[dict[str, str]], recording_id: str) -> None:
         print(
             f"recording {recording_id}: status={row.get('status', '')} "
             f"expected={row.get('expected_chords', '')} quality={row.get('quality', '')} "
-            f"guitar={row.get('guitar_chord', '')} support={row.get('support', '')}"
+            f"guitar={row.get('guitar_chord', '')} support={row.get('support', '')} "
+            f"match={row.get('guitar_match_kind', '--')} "
+            f"evidence={row.get('evidence_class', '--')}/{row.get('evidence_source', '--')}"
         )
         print(
             f"  pc visible={row.get('guitar_pitch_classes', '--')} "
@@ -368,6 +657,10 @@ def print_recording(rows: list[dict[str, str]], recording_id: str) -> None:
             f"{format_score(as_float_opt(row, 'raw_root'))}/"
             f"{format_score(as_float_opt(row, 'raw_third'))}/"
             f"{format_score(as_float_opt(row, 'raw_fifth'))} "
+            "opposite/anchor/margin="
+            f"{format_score(as_float_opt(row, 'raw_opposite_third'))}/"
+            f"{format_score(as_float_opt(row, 'raw_third_anchor_ratio'))}/"
+            f"{format_score(as_float_opt(row, 'raw_third_opposite_margin'))} "
             "analysis="
             f"{format_score(as_float_opt(row, 'analysis_root'))}/"
             f"{format_score(as_float_opt(row, 'analysis_third'))}/"

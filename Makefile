@@ -32,10 +32,20 @@ RUN_WITH_DURATION := $(SHELL) scripts/run_with_duration.sh
 REAL_NOTE_ATTRIBUTE_SUMMARY_ARGS ?=
 MEASURE_ANALYZER_REPORT ?= $(BUILD_DIR)/analyzer_measurement_report.txt
 PATTERN_REPORT_ARGS ?= --row-examples 6
+ATTRIBUTE_ROW_REPORT_ARGS ?= --rows 16
+REPORT_FULL_DRUM_SKIP ?= 1
+INSTRUMENT_DETECTED_ATTRIBUTE_ROWS ?= $(BUILD_DIR)/instrument_detected_attribute_rows.tsv
+REAL_NOTE_DETECTED_ATTRIBUTE_ROWS ?= $(BUILD_DIR)/real_note_detected_attribute_rows.tsv
+REAL_NOTE_MISS_ATTRIBUTE_ROWS ?= $(BUILD_DIR)/real_note_miss_attribute_rows.tsv
+GUITAR_CHORD_DETECTED_ATTRIBUTE_ROWS ?= $(BUILD_DIR)/guitar_chord_detected_attribute_rows.tsv
+GUITAR_CHORD_MISS_ATTRIBUTE_ROWS ?= $(BUILD_DIR)/guitar_chord_miss_attribute_rows.tsv
+MEASURE_ANALYZER_ROW_DUMPS ?= $(INSTRUMENT_DETECTED_ATTRIBUTE_ROWS) $(REAL_NOTE_DETECTED_ATTRIBUTE_ROWS) $(REAL_NOTE_MISS_ATTRIBUTE_ROWS) $(GUITAR_CHORD_DETECTED_ATTRIBUTE_ROWS) $(GUITAR_CHORD_MISS_ATTRIBUTE_ROWS)
 MEASURE_INSTRUMENT_PATTERN_ARGS ?= --limit 4 --min-positive-samples 20 --max-negative-samples 0 --max-conditions 3 --beam-width 160 --show-examples 1
+MEASURE_INSTRUMENT_STATUS_PATTERN_ARGS ?= --status-bucket miss:strings --status-bucket miss:synth --limit 4 --min-positive-samples 2 --max-negative-samples 0 --max-conditions 3 --beam-width 160 --show-examples 2 --exclude-field program_name --exclude-field note --exclude-field raw_local_best_note
 MEASURE_REAL_NOTE_PATTERN_ARGS ?= --limit 4 --min-positive-samples 3 --max-negative-samples 0 --max-conditions 3 --beam-width 160 --show-examples 1
 MEASURE_GUITAR_PATTERN_ARGS ?= --top-buckets 4 --limit 4 --min-positive-recordings 3 --max-negative-recordings 0 --max-conditions 3 --beam-width 180 --show-examples 1
 MEASURE_DRUM_PATTERN_ARGS ?= --top-routes 4 --limit 4 --min-positive-samples 3 --max-negative-samples 0 --max-conditions 3 --beam-width 220 --show-examples 1
+MEASURE_DRUM_FULL_PATTERN_ARGS ?= --top-routes 4 --limit 4 --min-positive-samples 20 --max-negative-samples 0 --max-conditions 3 --beam-width 64 --show-examples 1
 OBS_USER_PLUGIN_DIR ?= $(HOME)/.config/obs-studio/plugins/music-analyzer-obs/bin/64bit
 URMP_FIXTURE_ARCHIVE := tests/fixtures/urmp-mini.tar.gz
 DIRECT_FIT_SMALL_FIXTURE_ARCHIVE := tests/fixtures/direct-fit-small.tar.gz
@@ -114,6 +124,13 @@ DRUM_SAMPLE_SPREAD_MIN_CRASH_RECALL_PERCENT ?= 95
 DRUM_SAMPLE_SPREAD_MIN_TOM_RECALL_PERCENT ?= 78
 DRUM_SAMPLE_SPREAD_MIN_RIDE_RECALL_PERCENT ?= 88
 DRUM_SAMPLE_SPREAD_MIN_RIM_RECALL_PERCENT ?= 86
+DRUM_SAMPLE_SPREAD_MIN_KICK_PRIMARY_PERCENT ?= 87
+DRUM_SAMPLE_SPREAD_MIN_SNARE_PRIMARY_PERCENT ?= 68
+DRUM_SAMPLE_SPREAD_MIN_HIHAT_PRIMARY_PERCENT ?= 73
+DRUM_SAMPLE_SPREAD_MIN_CRASH_PRIMARY_PERCENT ?= 59
+DRUM_SAMPLE_SPREAD_MIN_TOM_PRIMARY_PERCENT ?= 45
+DRUM_SAMPLE_SPREAD_MIN_RIDE_PRIMARY_PERCENT ?= 47
+DRUM_SAMPLE_SPREAD_MIN_RIM_PRIMARY_PERCENT ?= 57
 DRUM_SAMPLE_SPREAD_MAX_KICK_FALSE_PERCENT ?= 24
 DRUM_SAMPLE_SPREAD_MAX_TOM_FALSE_PERCENT ?= 45
 DRUM_SAMPLE_FULL_BUILD_DIR ?= $(BUILD_DIR)/drum_samples_full
@@ -131,10 +148,20 @@ DRUM_SAMPLE_FULL_MIN_KICK_PRIMARY_PERCENT ?= 88
 DRUM_SAMPLE_FULL_MIN_SNARE_PRIMARY_PERCENT ?= 60
 DRUM_SAMPLE_FULL_MIN_HIHAT_PRIMARY_PERCENT ?= 60
 DRUM_SAMPLE_FULL_MIN_CRASH_PRIMARY_PERCENT ?= 58
-DRUM_SAMPLE_FULL_MIN_TOM_PRIMARY_PERCENT ?= 20
+DRUM_SAMPLE_FULL_MIN_TOM_PRIMARY_PERCENT ?= 35
 DRUM_SAMPLE_FULL_MIN_RIDE_PRIMARY_PERCENT ?= 50
 DRUM_SAMPLE_FULL_MIN_RIM_PRIMARY_PERCENT ?= 66
 DRUM_SAMPLE_FULL_MAX_TOM_FALSE_PERCENT ?= 45
+DRUM_SPREAD_GATE_OUT ?= $(BUILD_DIR)/drum_samples_spread_gate.out
+DRUM_SPREAD_GATE_ERR ?= $(BUILD_DIR)/drum_samples_spread_gate.err
+DRUM_SPREAD_GATE_SUMMARY ?= $(BUILD_DIR)/drum_samples_spread_gate_matrix.txt
+DRUM_SPREAD_EXACT_ATTRIBUTE_ROWS ?= $(BUILD_DIR)/drum_spread_exact_attribute_rows.tsv
+PRIMARY_DRUM_DEBUG_ERRS ?= $(BUILD_DIR)/kick_primary_debug.err $(BUILD_DIR)/tom_primary_debug.err $(BUILD_DIR)/snare_primary_debug.err $(BUILD_DIR)/hihat_primary_debug.err $(BUILD_DIR)/crash_primary_debug.err $(BUILD_DIR)/ride_primary_debug.err $(BUILD_DIR)/rim_primary_debug.err
+DRUM_FULL_GATE_OUT ?= $(BUILD_DIR)/drum_samples_full_gate.out
+DRUM_FULL_GATE_ERR ?= $(BUILD_DIR)/drum_samples_full_gate.err
+DRUM_FULL_GATE_SUMMARY ?= $(BUILD_DIR)/drum_samples_full_gate_matrix.txt
+DRUM_FULL_EXACT_ATTRIBUTE_ROWS ?= $(BUILD_DIR)/drum_full_exact_attribute_rows.tsv
+FULL_DRUM_DEBUG_ERRS ?= $(BUILD_DIR)/full_kick_debug.err $(BUILD_DIR)/full_snare_debug.err $(BUILD_DIR)/full_tom_debug.err $(BUILD_DIR)/full_rim_debug.err
 DRUM_MACHINE_SAMPLE_BUILD_DIR ?= $(BUILD_DIR)/drum_machine_samples
 DRUM_MACHINE_SAMPLE_LIMIT ?= 0
 DRUM_MACHINE_SAMPLE_FILTER ?= Roland TR-909 Drum Samples|dr202_samples.zip|JazzFunkKit.rar
@@ -161,6 +188,9 @@ HF_DRUM_KIT_MIN_TOM_PRIMARY_PERCENT ?= 85
 HF_DRUM_KIT_MIN_RIDE_PRIMARY_PERCENT ?= 95
 HF_DRUM_KIT_MIN_RIM_PRIMARY_PERCENT ?= 45
 HF_DRUM_KIT_MAX_KICK_FALSE_PERCENT ?= 12
+HF_DRUM_KIT_PRIMARY_DEBUG_OUT ?= $(BUILD_DIR)/hf_drum_kit_primary_debug.out
+HF_DRUM_KIT_PRIMARY_DEBUG_ERR ?= $(BUILD_DIR)/hf_drum_kit_primary_debug.err
+HF_DRUM_KIT_PRIMARY_ATTRIBUTE_ROWS ?= $(BUILD_DIR)/hf_drum_kit_primary_attribute_rows.tsv
 IDMT_DRUMS_URL ?= https://zenodo.org/api/records/7544164/files/IDMT-SMT-DRUMS-V2.zip/content
 IDMT_DRUMS_SOURCE_DIR ?= $(REAL_SAMPLE_SOURCE_DIR)/idmt_drums
 IDMT_DRUMS_ARCHIVE ?= $(IDMT_DRUMS_SOURCE_DIR)/IDMT-SMT-DRUMS-V2.zip
@@ -173,6 +203,10 @@ IDMT_DRUMS_MIN_SNARE_PRIMARY_RECALL_PERCENT ?= 80
 IDMT_DRUMS_MIN_PRECISION_PERCENT ?= 50
 IDMT_DRUMS_MAX_KICK_FALSE_PERCENT ?= 12
 IDMT_DRUMS_DOWNLOAD_CONNECTIONS ?= 8
+IDMT_DRUMS_PRIMARY_DEBUG_OUT ?= $(BUILD_DIR)/idmt_drums_primary_debug.out
+IDMT_DRUMS_PRIMARY_DEBUG_ERR ?= $(BUILD_DIR)/idmt_drums_primary_debug.err
+IDMT_DRUMS_PRIMARY_ATTRIBUTE_ROWS ?= $(BUILD_DIR)/idmt_drums_primary_attribute_rows.tsv
+DRUM_PROTECTED_PRIMARY_ATTRIBUTE_INPUTS ?= $(DRUM_SPREAD_EXACT_ATTRIBUTE_ROWS) $(HF_DRUM_KIT_PRIMARY_ATTRIBUTE_ROWS) $(IDMT_DRUMS_PRIMARY_ATTRIBUTE_ROWS)
 MDB_DRUMS_SAMPLE_DIR ?= $(BUILD_DIR)/mdb_drums_samples
 MDB_DRUMS_SOURCE_ROOT ?=
 MDB_DRUMS_RECORDING_LIMIT ?= 0
@@ -282,8 +316,9 @@ GUITAR_CHORD_MIX_MIN_WINDOWS ?= 500
 GUITAR_CHORD_MIX_MIN_RECALL_PERCENT ?= 75
 GUITAR_CHORD_MIX_MIN_PRECISION_PERCENT ?= 65
 GUITAR_CHORD_MIX_MIN_GUITAR_RECALL_PERCENT ?= 75
-GUITAR_CHORD_MIX_MIN_CHORD_RECALL_PERCENT ?= 80
-GUITAR_CHORD_MIX_MIN_CHORD_PRECISION_PERCENT ?= 84
+GUITAR_CHORD_MIX_MIN_CHORD_RECALL_PERCENT ?= 86
+GUITAR_CHORD_MIX_MIN_CHORD_PRECISION_PERCENT ?= 88
+GUITAR_CHORD_MIX_MIN_CHORD_HITS ?= 459
 GUITAR_CHORD_MIX_MAX_CONTAMINATION_PERCENT ?= 20
 GUITAR_CHORD_MIX_MAX_FALSE_VOCAL_PERCENT ?= 5
 GUITAR_CHORD_MIX_MISS_LOG ?= $(BUILD_DIR)/guitar_chord_mix_misses.log
@@ -521,12 +556,19 @@ ANALYZER_TEST_OBJ := $(BUILD_DIR)/analyzer_test.o
 TEST_BINS := $(BUILD_DIR)/fret_control_tests $(BUILD_DIR)/analyzer_smoke $(BUILD_DIR)/analyzer_cases $(BUILD_DIR)/analyzer_midi_ranges $(BUILD_DIR)/analyzer_urmp $(BUILD_DIR)/analyzer_musicnet $(BUILD_DIR)/analyzer_multtipop $(BUILD_DIR)/analyzer_guitarset $(BUILD_DIR)/analyzer_maestro $(BUILD_DIR)/analyzer_egmd $(BUILD_DIR)/analyzer_drum_samples $(BUILD_DIR)/analyzer_instrument_samples $(BUILD_DIR)/analyzer_real_note_samples $(BUILD_DIR)/analyzer_instrument_family_samples
 STANDALONE_BIN := $(BUILD_DIR)/music-analyzer-standalone
 BASS_GUITAR_STANDALONE_BIN := $(BUILD_DIR)/music-analyzer-bass-guitar
+PARALLEL_TEST_JOBS ?= 4
+MEASURE_ANALYZER_JOBS ?= $(PARALLEL_TEST_JOBS)
 
-.PHONY: FORCE all standalone standalone-bass-guitar setup-android setup-android-emulator android-emulator android-emulator-stop android-stop-apps android-uninstall-old-packages android-profile android-profile-bass-guitar android-profile-complete android-audio-status android-route-desktop-audio android-route-desktop-audio-watch android-grant-permissions android-install-bass-guitar android-install-complete android-run android-run-bass-guitar android-run-complete android android-complete android-bass-guitar android-check check-standalone-deps install-standalone-deps test-standalone profile-standalone prepare-drum-samples test-drum-samples prepare-drum-samples-spread test-drum-samples-spread analyze-drum-primary-misses analyze-drum-rule-grid find-drum-attribute-patterns prepare-drum-samples-full test-drum-samples-full prepare-drum-machine-samples test-drum-machine-samples prepare-hf-drum-kit-samples test-hf-drum-kit-samples download-idmt-drums-samples prepare-idmt-drums-samples test-idmt-drums-samples prepare-mdb-drums-samples test-mdb-drums-samples analyze-mdb-drums-misses analyze-mdb-drum-attributes download-star-drums-samples prepare-star-drums-samples test-star-drums-samples analyze-star-drums-misses analyze-star-drum-attributes test-drum-real-world-samples test-drum-real-world-samples-full download-medley-solos-samples prepare-medley-solos-samples test-medley-solos-samples download-maps-piano-samples prepare-maps-piano-samples test-maps-piano-samples prepare-maps-piano-note-samples test-maps-piano-note-samples download-bach10-mf0-synth-samples prepare-bach10-mf0-synth-samples test-bach10-mf0-synth-samples prepare-instrument-samples test-instrument-samples analyze-instrument-sample-attributes download-real-note-samples prepare-real-note-samples test-real-note-samples test-real-note-samples-full-mix analyze-real-note-misses analyze-real-note-attributes inspect-real-note-attribute-buckets find-real-note-attribute-patterns prepare-guitar-fretboard-note-samples test-guitar-fretboard-note-samples download-guitar-techs-samples prepare-guitar-techs-samples test-guitar-techs-samples download-guitar-techs-chord-samples prepare-guitar-techs-chord-samples test-guitar-techs-chord-samples prepare-guitar-chord-mix-samples test-guitar-chord-mix-samples analyze-guitar-chord-mix-misses analyze-guitar-chord-mix-attributes inspect-guitar-chord-mix-attribute-buckets find-guitar-chord-mix-attribute-patterns prepare-egfxset-guitar-samples test-egfxset-guitar-samples prepare-gaps-guitar-samples test-gaps-guitar-samples analyze-gaps-guitar-misses download-guitarset-samples prepare-downloaded-guitarset test-downloaded-guitarset analyze-guitarset-misses download-philharmonia-samples prepare-philharmonia-samples test-philharmonia-samples prepare-philharmonia-samples-full test-philharmonia-samples-full download-good-sounds-samples prepare-good-sounds-samples test-good-sounds-samples prepare-iowa-piano-samples test-iowa-piano-samples prepare-iowa-bass-samples test-iowa-bass-samples prepare-iowa-strings-samples test-iowa-strings-samples prepare-iowa-orchestra-samples test-iowa-orchestra-samples prepare-iowa-orchestra-full-samples test-iowa-orchestra-full-samples download-idmt-bass-lines-samples prepare-idmt-bass-lines-samples test-idmt-bass-lines-samples download-idmt-guitar-samples prepare-idmt-guitar-samples test-idmt-guitar-samples download-tinysol-samples prepare-tinysol-samples test-tinysol-samples download-vocadito-samples prepare-vocadito-samples test-vocadito-samples download-vocalset-samples prepare-vocalset-samples test-vocalset-samples test-configured-real-world-samples test-real-world-samples test-real-world-samples-full test-real-world-samples-max test-midi-ranges clean clean-pycache deps install-user test real-dataset-sources inspect-real-dataset-catalog inspect-real-goal-coverage inspect-real-goal-20 inspect-real-goal-full inspect-real-medleydb inspect-real-musdb inspect-real-slakh inspect-real-choralsynth inspect-real-cocochorales inspect-real-synthsod-remote inspect-real-synthsod extract-real-synthsod-archives inspect-real-polyvocal inspect-real-prepared-multitrack inspect-real-multtipop inspect-real-musicnet-remote inspect-real-musicnet inspect-real-musicnet-full inspect-real-spheres inspect-real-guitarset inspect-real-maestro inspect-real-egmd test-musicnet-remote test-medleydb-inspector test-medleydb-prepare test-musdb-inspector test-slakh-inspector test-slakh-prepare test-choralsynth-inspector test-choralsynth-prepare test-cocochorales-inspector test-cocochorales-prepare test-synthsod-remote test-synthsod-archive-extract test-synthsod-inspector test-synthsod-prepare test-polyvocal-inspector test-polyvocal-prepare test-prepared-multitrack-inspector test-prepared-multitrack-prepare test-multtipop-inspector test-spheres-inspector test-guitarset-inspector test-urmp-inspector test-drum-sample-prepare test-hf-drum-kit-prepare test-idmt-drums-prepare test-mdb-drums-prepare test-star-drums-prepare test-medley-solos-prepare test-maps-piano-prepare test-bach10-mf0-synth-prepare test-instrument-sample-attribute-summary test-philharmonia-prepare test-good-sounds-prepare test-iowa-piano-prepare test-iowa-zip-prepare test-idmt-bass-lines-prepare test-idmt-guitar-prepare test-tinysol-prepare test-vocadito-prepare test-vocalset-prepare test-guitar-fretboard-note-prepare test-guitar-techs-prepare test-guitar-techs-chord-prepare test-guitar-chord-mix-prepare test-gaps-guitar-prepare test-guitarset-miss-analysis test-guitarset-attribute-summary test-guitarset-attribute-buckets test-guitarset-attribute-patterns test-real-note-miss-analysis test-real-note-attribute-summary test-real-note-attribute-buckets test-real-note-attribute-patterns test-egmd-miss-analysis test-egmd-drum-attribute-summary test-drum-primary-analysis test-real-goal-script test-real-goal-fixture test-musicnet-fixture test-medleydb-fixture test-slakh-fixture test-choralsynth-fixture test-cocochorales-fixture test-synthsod-fixture test-polyvocal-fixture test-prepared-multitrack-fixture test-multtipop-audio-root-fixture test-guitarset-fixture test-maestro-fixture test-egmd-fixture test-bach10-fixture test-direct-fit-small-fixture test-urmp-fixture test-real-goal-20 test-real-goal-full test-real-multitrack-20 test-real-multitrack-full test-real-urmp test-real-urmp-full test-real-musicnet-20 test-real-musicnet-full test-real-medleydb-20 test-real-slakh-20 test-real-slakh-full test-real-choralsynth-20 test-real-cocochorales-20 test-real-synthsod-20 test-real-synthsod-full test-real-polyvocal-20 test-real-prepared-multitrack-20 test-real-prepared-multitrack-full test-real-multtipop-20 test-real-multtipop-full test-real-guitarset-20 test-real-guitarset-full test-real-maestro-20 test-real-maestro-full test-real-egmd-20 test-real-egmd-full inspect-real-multitrack-20 inspect-real-multitrack-full inspect-real-urmp inspect-real-urmp-full inspect-urmp-fixture decode-urmp-fixture decode-direct-fit-small-fixture update-urmp-fixture update-direct-fit-small-fixture
+.PHONY: FORCE all standalone standalone-bass-guitar setup-android setup-android-emulator android-emulator android-emulator-stop android-stop-apps android-uninstall-old-packages android-profile android-profile-bass-guitar android-profile-complete android-audio-status android-route-desktop-audio android-route-desktop-audio-watch android-grant-permissions android-install-bass-guitar android-install-complete android-run android-run-bass-guitar android-run-complete android android-complete android-bass-guitar android-check check-standalone-deps install-standalone-deps test-standalone profile-standalone prepare-drum-samples test-drum-samples prepare-drum-samples-spread test-drum-samples-spread analyze-drum-primary-misses analyze-drum-rule-grid analyze-drum-full-attribute-rows find-drum-attribute-patterns find-drum-full-attribute-patterns prepare-drum-samples-full test-drum-samples-full prepare-drum-machine-samples test-drum-machine-samples prepare-hf-drum-kit-samples test-hf-drum-kit-samples download-idmt-drums-samples prepare-idmt-drums-samples test-idmt-drums-samples prepare-mdb-drums-samples test-mdb-drums-samples analyze-mdb-drums-misses analyze-mdb-drum-attributes download-star-drums-samples prepare-star-drums-samples test-star-drums-samples analyze-star-drums-misses analyze-star-drum-attributes test-drum-real-world-samples test-drum-real-world-samples-full download-medley-solos-samples prepare-medley-solos-samples test-medley-solos-samples download-maps-piano-samples prepare-maps-piano-samples test-maps-piano-samples prepare-maps-piano-note-samples test-maps-piano-note-samples download-bach10-mf0-synth-samples prepare-bach10-mf0-synth-samples test-bach10-mf0-synth-samples prepare-instrument-samples test-instrument-samples analyze-instrument-sample-attributes download-real-note-samples prepare-real-note-samples test-real-note-samples test-real-note-samples-full-mix analyze-real-note-misses analyze-real-note-attributes inspect-real-note-attribute-buckets find-real-note-attribute-patterns prepare-guitar-fretboard-note-samples test-guitar-fretboard-note-samples download-guitar-techs-samples prepare-guitar-techs-samples test-guitar-techs-samples download-guitar-techs-chord-samples prepare-guitar-techs-chord-samples test-guitar-techs-chord-samples prepare-guitar-chord-mix-samples test-guitar-chord-mix-samples analyze-guitar-chord-mix-misses analyze-guitar-chord-mix-attributes analyze-guitar-chord-mix-recovery inspect-guitar-chord-mix-attribute-buckets find-guitar-chord-mix-attribute-patterns prepare-egfxset-guitar-samples test-egfxset-guitar-samples prepare-gaps-guitar-samples test-gaps-guitar-samples analyze-gaps-guitar-misses download-guitarset-samples prepare-downloaded-guitarset test-downloaded-guitarset analyze-guitarset-misses download-philharmonia-samples prepare-philharmonia-samples test-philharmonia-samples prepare-philharmonia-samples-full test-philharmonia-samples-full download-good-sounds-samples prepare-good-sounds-samples test-good-sounds-samples prepare-iowa-piano-samples test-iowa-piano-samples prepare-iowa-bass-samples test-iowa-bass-samples prepare-iowa-strings-samples test-iowa-strings-samples prepare-iowa-orchestra-samples test-iowa-orchestra-samples prepare-iowa-orchestra-full-samples test-iowa-orchestra-full-samples download-idmt-bass-lines-samples prepare-idmt-bass-lines-samples test-idmt-bass-lines-samples download-idmt-guitar-samples prepare-idmt-guitar-samples test-idmt-guitar-samples download-tinysol-samples prepare-tinysol-samples test-tinysol-samples download-vocadito-samples prepare-vocadito-samples test-vocadito-samples download-vocalset-samples prepare-vocalset-samples test-vocalset-samples test-configured-real-world-samples test-real-world-samples test-real-world-samples-full test-real-world-samples-max test-midi-ranges clean clean-pycache deps install-user test real-dataset-sources inspect-real-dataset-catalog inspect-real-goal-coverage inspect-real-goal-20 inspect-real-goal-full inspect-real-medleydb inspect-real-musdb inspect-real-slakh inspect-real-choralsynth inspect-real-cocochorales inspect-real-synthsod-remote inspect-real-synthsod extract-real-synthsod-archives inspect-real-polyvocal inspect-real-prepared-multitrack inspect-real-multtipop inspect-real-musicnet-remote inspect-real-musicnet inspect-real-musicnet-full inspect-real-spheres inspect-real-guitarset inspect-real-maestro inspect-real-egmd test-musicnet-remote test-medleydb-inspector test-medleydb-prepare test-musdb-inspector test-slakh-inspector test-slakh-prepare test-choralsynth-inspector test-choralsynth-prepare test-cocochorales-inspector test-cocochorales-prepare test-synthsod-remote test-synthsod-archive-extract test-synthsod-inspector test-synthsod-prepare test-polyvocal-inspector test-polyvocal-prepare test-prepared-multitrack-inspector test-prepared-multitrack-prepare test-multtipop-inspector test-spheres-inspector test-guitarset-inspector test-urmp-inspector test-drum-sample-prepare test-hf-drum-kit-prepare test-idmt-drums-prepare test-mdb-drums-prepare test-star-drums-prepare test-medley-solos-prepare test-maps-piano-prepare test-bach10-mf0-synth-prepare test-instrument-sample-attribute-summary test-philharmonia-prepare test-good-sounds-prepare test-iowa-piano-prepare test-iowa-zip-prepare test-idmt-bass-lines-prepare test-idmt-guitar-prepare test-tinysol-prepare test-vocadito-prepare test-vocalset-prepare test-guitar-fretboard-note-prepare test-guitar-techs-prepare test-guitar-techs-chord-prepare test-guitar-chord-mix-prepare test-gaps-guitar-prepare test-guitarset-miss-analysis test-guitarset-attribute-summary test-guitarset-attribute-buckets test-guitarset-attribute-patterns test-real-note-miss-analysis test-real-note-attribute-summary test-real-note-attribute-buckets test-real-note-attribute-patterns test-egmd-miss-analysis test-egmd-drum-attribute-summary test-drum-primary-analysis test-real-goal-script test-real-goal-fixture test-musicnet-fixture test-medleydb-fixture test-slakh-fixture test-choralsynth-fixture test-cocochorales-fixture test-synthsod-fixture test-polyvocal-fixture test-prepared-multitrack-fixture test-multtipop-audio-root-fixture test-guitarset-fixture test-maestro-fixture test-egmd-fixture test-bach10-fixture test-direct-fit-small-fixture test-urmp-fixture test-real-goal-20 test-real-goal-full test-real-multitrack-20 test-real-multitrack-full test-real-urmp test-real-urmp-full test-real-musicnet-20 test-real-musicnet-full test-real-medleydb-20 test-real-slakh-20 test-real-slakh-full test-real-choralsynth-20 test-real-cocochorales-20 test-real-synthsod-20 test-real-synthsod-full test-real-polyvocal-20 test-real-prepared-multitrack-20 test-real-prepared-multitrack-full test-real-multtipop-20 test-real-multtipop-full test-real-guitarset-20 test-real-guitarset-full test-real-maestro-20 test-real-maestro-full test-real-egmd-20 test-real-egmd-full inspect-real-multitrack-20 inspect-real-multitrack-full inspect-real-urmp inspect-real-urmp-full inspect-urmp-fixture decode-urmp-fixture decode-direct-fit-small-fixture update-urmp-fixture update-direct-fit-small-fixture
 .PHONY: prepare-gaps-guitar-samples-full test-gaps-guitar-samples-full analyze-gaps-guitar-misses-full
-.PHONY: measure-analyzer-attributes measure-analyzer-attribute-rows measure-analyzer-patterns measure-analyzer-pattern-report inspect-instrument-sample-owner-buckets find-instrument-owner-patterns test-instrument-sample-owner-buckets test-instrument-owner-patterns test-analyzer-pattern-report test-measure-analyzer-patterns-target analyze-drum-tom-bleed-caps
-.PHONY: analyze-guitar-chord-mix-recovery test-guitar-chord-recovery-analysis
 .PHONY: test-fret-control android-lint icon-assets
+.PHONY: measure-analyzer-attributes measure-analyzer-attribute-rows measure-analyzer-attribute-rows-full refresh-analyzer-detected-attribute-rows print-analyzer-detected-attributes measure-analyzer-detected-attributes measure-analyzer-detected-attributes-full report-analyzer-patterns-from-rows report-analyzer-patterns-from-rows-full measure-analyzer-patterns measure-analyzer-patterns-full measure-analyzer-pattern-report inspect-instrument-sample-owner-buckets find-instrument-owner-patterns find-instrument-status-patterns test-instrument-sample-owner-buckets test-instrument-owner-patterns test-refresh-analyzer-detected-attribute-rows test-print-analyzer-detected-attributes test-analyzer-pattern-report test-measure-analyzer-patterns-target analyze-drum-primary-attribute-rows find-drum-primary-attribute-patterns analyze-drum-tom-bleed-caps
+.PHONY: analyze-drum-spread-gate-matrix analyze-drum-full-gate-matrix find-drum-spread-exact-attribute-patterns find-drum-full-exact-attribute-patterns test-drum-gate-matrix-summary
+.PHONY: analyze-hf-drum-primary-attribute-rows find-hf-drum-primary-attribute-patterns analyze-idmt-drum-primary-attribute-rows find-idmt-drum-primary-attribute-patterns analyze-protected-drum-primary-attribute-rows find-protected-drum-primary-attribute-patterns
+.PHONY: analyze-guitar-chord-mix-recovery analyze-guitar-chord-mix-extra-components test-guitar-chord-recovery-analysis test-guitar-chord-extra-components-analysis
+.PHONY: test-parallel test-core-parallel test-analysis-scripts-parallel test-analyzer-smoke test-analyzer-cases test-analyzer-midi-ranges test-analyzer-urmp test-analyzer-musicnet test-analyzer-multtipop test-analyzer-guitarset test-analyzer-maestro test-analyzer-egmd
+.PHONY: test-drum-real-world-samples-parallel test-drum-real-world-samples-full-parallel test-real-world-samples-parallel test-real-world-samples-full-parallel test-drum-samples-optional test-drum-samples-spread-optional test-drum-machine-samples-optional test-drum-samples-full-optional test-good-sounds-samples-optional test-medley-solos-samples-optional test-maps-piano-samples-optional test-maps-piano-note-samples-optional test-bach10-mf0-synth-samples-optional test-vocalset-samples-optional
+.PHONY: test-iowa-piano-samples-max test-iowa-orchestra-full-samples-max test-good-sounds-samples-max test-medley-solos-samples-max test-maps-piano-samples-max test-maps-piano-note-samples-max
 
 .PRECIOUS: $(NSYNTH_SAMPLE_ARCHIVE) $(TINYSOL_ARCHIVE) $(GOOD_SOUNDS_ARCHIVE) $(GUITAR_TECHS_P1_SINGLENOTES_ARCHIVE) $(GUITAR_TECHS_P2_SINGLENOTES_ARCHIVE) $(GUITAR_TECHS_P1_CHORDS_ARCHIVE) $(GUITAR_TECHS_P2_CHORDS_ARCHIVE) $(IDMT_DRUMS_ARCHIVE) $(IDMT_GUITAR_ARCHIVE) $(STAR_DRUMS_ARCHIVE) $(MEDLEY_SOLOS_ARCHIVE) $(MAPS_PIANO_ARCHIVE) $(BACH10_MF0_SYNTH_ARCHIVE) $(VOCALSET_ARCHIVE)
 
@@ -695,7 +737,7 @@ $(BASS_GUITAR_STANDALONE_BIN): $(ANALYZER_TEST_OBJ) $(RENDERER_OBJ) $(BUILD_DIR)
 	$(CXX) -o $@ $^ $(SDL2_LIBS) -lm -pthread
 
 $(BUILD_DIR)/analyzer_test.o: src/analyzer.cpp src/analyzer.hpp | $(BUILD_DIR)
-	tmp="$@.$$$$.tmp"; $(CXX) $(CXXFLAGS) -Isrc -c $< -o "$$tmp"; mv "$$tmp" "$@"
+	tmp="$@.$$$$.tmp"; $(CXX) $(CXXFLAGS) -Isrc -c $< -o "$$tmp" && mv "$$tmp" "$@"
 
 $(BUILD_DIR)/analyzer_smoke.o: tests/analyzer_smoke.cpp src/analyzer.hpp tests/analyzer_test_utils.hpp | $(BUILD_DIR)
 	$(CXX) $(CXXFLAGS) -Isrc -Itests -c $< -o $@
@@ -794,42 +836,105 @@ test-drum-samples: $(BUILD_DIR)/analyzer_drum_samples prepare-drum-samples scrip
 prepare-drum-samples-spread: scripts/prepare_drum_samples.py | $(BUILD_DIR)
 	DRUM_SAMPLE_SOURCE_DIR="$(DRUM_SAMPLE_SOURCE_DIR)" DRUM_SAMPLE_BUILD_DIR="$(DRUM_SAMPLE_SPREAD_BUILD_DIR)" DRUM_SAMPLE_LIMIT="$(DRUM_SAMPLE_SPREAD_LIMIT)" DRUM_SAMPLE_SELECTION="spread" DRUM_SAMPLE_SOURCE_FILTER="$(DRUM_SAMPLE_SOURCE_FILTER)" $(PYTHON) scripts/prepare_drum_samples.py --source "$(DRUM_SAMPLE_SOURCE_DIR)" --output "$(DRUM_SAMPLE_SPREAD_BUILD_DIR)" --limit-per-category "$(DRUM_SAMPLE_SPREAD_LIMIT)" --selection "spread" --source-filter "$(DRUM_SAMPLE_SOURCE_FILTER)" --no-archives
 
-test-drum-samples-spread: $(BUILD_DIR)/analyzer_drum_samples prepare-drum-samples-spread scripts/run_with_duration.sh
-	$(RUN_WITH_DURATION) analyzer_drum_samples_spread env MUSIC_ANALYZER_DRUM_SAMPLES_REQUIRED=1 MUSIC_ANALYZER_DRUM_SAMPLE_MIN_RECALL_PERCENT="$(DRUM_SAMPLE_SPREAD_MIN_RECALL_PERCENT)" MUSIC_ANALYZER_DRUM_SAMPLE_MIN_PRECISION_PERCENT="$(DRUM_SAMPLE_SPREAD_MIN_PRECISION_PERCENT)" MUSIC_ANALYZER_DRUM_SAMPLE_MIN_KICK_RECALL_PERCENT="$(DRUM_SAMPLE_SPREAD_MIN_KICK_RECALL_PERCENT)" MUSIC_ANALYZER_DRUM_SAMPLE_MIN_SNARE_RECALL_PERCENT="$(DRUM_SAMPLE_SPREAD_MIN_SNARE_RECALL_PERCENT)" MUSIC_ANALYZER_DRUM_SAMPLE_MIN_HIHAT_RECALL_PERCENT="$(DRUM_SAMPLE_SPREAD_MIN_HIHAT_RECALL_PERCENT)" MUSIC_ANALYZER_DRUM_SAMPLE_MIN_CRASH_RECALL_PERCENT="$(DRUM_SAMPLE_SPREAD_MIN_CRASH_RECALL_PERCENT)" MUSIC_ANALYZER_DRUM_SAMPLE_MIN_TOM_RECALL_PERCENT="$(DRUM_SAMPLE_SPREAD_MIN_TOM_RECALL_PERCENT)" MUSIC_ANALYZER_DRUM_SAMPLE_MIN_RIDE_RECALL_PERCENT="$(DRUM_SAMPLE_SPREAD_MIN_RIDE_RECALL_PERCENT)" MUSIC_ANALYZER_DRUM_SAMPLE_MIN_RIM_RECALL_PERCENT="$(DRUM_SAMPLE_SPREAD_MIN_RIM_RECALL_PERCENT)" MUSIC_ANALYZER_DRUM_SAMPLE_MAX_KICK_FALSE_PERCENT="$(DRUM_SAMPLE_SPREAD_MAX_KICK_FALSE_PERCENT)" MUSIC_ANALYZER_DRUM_SAMPLE_MAX_TOM_FALSE_PERCENT="$(DRUM_SAMPLE_SPREAD_MAX_TOM_FALSE_PERCENT)" MUSIC_ANALYZER_DRUM_SAMPLES_DIR="$(DRUM_SAMPLE_SPREAD_BUILD_DIR)" $(BUILD_DIR)/analyzer_drum_samples
+$(DRUM_SAMPLE_SPREAD_BUILD_DIR)/manifest.tsv: scripts/prepare_drum_samples.py | $(BUILD_DIR)
+	$(MAKE) prepare-drum-samples-spread
 
-analyze-drum-primary-misses: $(BUILD_DIR)/analyzer_drum_samples prepare-drum-samples-spread scripts/analyze_drum_primary_debug.py
-	env MUSIC_ANALYZER_DRUM_SAMPLES_REQUIRED=1 MUSIC_ANALYZER_DRUM_SAMPLE_REQUIRED_CATEGORIES=kick MUSIC_ANALYZER_DRUM_SAMPLE_FILTER_CATEGORY=kick MUSIC_ANALYZER_DRUM_SAMPLE_VERBOSE_PRIMARY=1 MUSIC_ANALYZER_DRUM_SAMPLE_VERBOSE_PRIMARY_LIMIT=220 MUSIC_ANALYZER_DRUM_SAMPLE_MIN_RECALL_PERCENT=0 MUSIC_ANALYZER_DRUM_SAMPLE_MIN_PRIMARY_RECALL_PERCENT=0 MUSIC_ANALYZER_DRUM_SAMPLES_DIR="$(DRUM_SAMPLE_SPREAD_BUILD_DIR)" $(BUILD_DIR)/analyzer_drum_samples > "$(BUILD_DIR)/kick_primary_debug.out" 2> "$(BUILD_DIR)/kick_primary_debug.err"
-	env MUSIC_ANALYZER_DRUM_SAMPLES_REQUIRED=1 MUSIC_ANALYZER_DRUM_SAMPLE_REQUIRED_CATEGORIES=tom MUSIC_ANALYZER_DRUM_SAMPLE_FILTER_CATEGORY=tom MUSIC_ANALYZER_DRUM_SAMPLE_VERBOSE_PRIMARY=1 MUSIC_ANALYZER_DRUM_SAMPLE_VERBOSE_PRIMARY_LIMIT=220 MUSIC_ANALYZER_DRUM_SAMPLE_MIN_RECALL_PERCENT=0 MUSIC_ANALYZER_DRUM_SAMPLE_MIN_PRIMARY_RECALL_PERCENT=0 MUSIC_ANALYZER_DRUM_SAMPLES_DIR="$(DRUM_SAMPLE_SPREAD_BUILD_DIR)" $(BUILD_DIR)/analyzer_drum_samples > "$(BUILD_DIR)/tom_primary_debug.out" 2> "$(BUILD_DIR)/tom_primary_debug.err"
-	env MUSIC_ANALYZER_DRUM_SAMPLES_REQUIRED=1 MUSIC_ANALYZER_DRUM_SAMPLE_REQUIRED_CATEGORIES=snare MUSIC_ANALYZER_DRUM_SAMPLE_FILTER_CATEGORY=snare MUSIC_ANALYZER_DRUM_SAMPLE_VERBOSE_PRIMARY=1 MUSIC_ANALYZER_DRUM_SAMPLE_VERBOSE_PRIMARY_LIMIT=220 MUSIC_ANALYZER_DRUM_SAMPLE_MIN_RECALL_PERCENT=0 MUSIC_ANALYZER_DRUM_SAMPLE_MIN_PRIMARY_RECALL_PERCENT=0 MUSIC_ANALYZER_DRUM_SAMPLES_DIR="$(DRUM_SAMPLE_SPREAD_BUILD_DIR)" $(BUILD_DIR)/analyzer_drum_samples > "$(BUILD_DIR)/snare_primary_debug.out" 2> "$(BUILD_DIR)/snare_primary_debug.err"
-	env MUSIC_ANALYZER_DRUM_SAMPLES_REQUIRED=1 MUSIC_ANALYZER_DRUM_SAMPLE_REQUIRED_CATEGORIES=hihat MUSIC_ANALYZER_DRUM_SAMPLE_FILTER_CATEGORY=hihat MUSIC_ANALYZER_DRUM_SAMPLE_VERBOSE_PRIMARY=1 MUSIC_ANALYZER_DRUM_SAMPLE_VERBOSE_PRIMARY_LIMIT=220 MUSIC_ANALYZER_DRUM_SAMPLE_MIN_RECALL_PERCENT=0 MUSIC_ANALYZER_DRUM_SAMPLE_MIN_PRIMARY_RECALL_PERCENT=0 MUSIC_ANALYZER_DRUM_SAMPLES_DIR="$(DRUM_SAMPLE_SPREAD_BUILD_DIR)" $(BUILD_DIR)/analyzer_drum_samples > "$(BUILD_DIR)/hihat_primary_debug.out" 2> "$(BUILD_DIR)/hihat_primary_debug.err"
-	env MUSIC_ANALYZER_DRUM_SAMPLES_REQUIRED=1 MUSIC_ANALYZER_DRUM_SAMPLE_REQUIRED_CATEGORIES=crash MUSIC_ANALYZER_DRUM_SAMPLE_FILTER_CATEGORY=crash MUSIC_ANALYZER_DRUM_SAMPLE_VERBOSE_PRIMARY=1 MUSIC_ANALYZER_DRUM_SAMPLE_VERBOSE_PRIMARY_LIMIT=220 MUSIC_ANALYZER_DRUM_SAMPLE_MIN_RECALL_PERCENT=0 MUSIC_ANALYZER_DRUM_SAMPLE_MIN_PRIMARY_RECALL_PERCENT=0 MUSIC_ANALYZER_DRUM_SAMPLES_DIR="$(DRUM_SAMPLE_SPREAD_BUILD_DIR)" $(BUILD_DIR)/analyzer_drum_samples > "$(BUILD_DIR)/crash_primary_debug.out" 2> "$(BUILD_DIR)/crash_primary_debug.err"
-	env MUSIC_ANALYZER_DRUM_SAMPLES_REQUIRED=1 MUSIC_ANALYZER_DRUM_SAMPLE_REQUIRED_CATEGORIES=ride MUSIC_ANALYZER_DRUM_SAMPLE_FILTER_CATEGORY=ride MUSIC_ANALYZER_DRUM_SAMPLE_VERBOSE_PRIMARY=1 MUSIC_ANALYZER_DRUM_SAMPLE_VERBOSE_PRIMARY_LIMIT=220 MUSIC_ANALYZER_DRUM_SAMPLE_MIN_RECALL_PERCENT=0 MUSIC_ANALYZER_DRUM_SAMPLE_MIN_PRIMARY_RECALL_PERCENT=0 MUSIC_ANALYZER_DRUM_SAMPLES_DIR="$(DRUM_SAMPLE_SPREAD_BUILD_DIR)" $(BUILD_DIR)/analyzer_drum_samples > "$(BUILD_DIR)/ride_primary_debug.out" 2> "$(BUILD_DIR)/ride_primary_debug.err"
-	env MUSIC_ANALYZER_DRUM_SAMPLES_REQUIRED=1 MUSIC_ANALYZER_DRUM_SAMPLE_REQUIRED_CATEGORIES=rim MUSIC_ANALYZER_DRUM_SAMPLE_FILTER_CATEGORY=rim MUSIC_ANALYZER_DRUM_SAMPLE_VERBOSE_PRIMARY=1 MUSIC_ANALYZER_DRUM_SAMPLE_VERBOSE_PRIMARY_LIMIT=220 MUSIC_ANALYZER_DRUM_SAMPLE_MIN_RECALL_PERCENT=0 MUSIC_ANALYZER_DRUM_SAMPLE_MIN_PRIMARY_RECALL_PERCENT=0 MUSIC_ANALYZER_DRUM_SAMPLES_DIR="$(DRUM_SAMPLE_SPREAD_BUILD_DIR)" $(BUILD_DIR)/analyzer_drum_samples > "$(BUILD_DIR)/rim_primary_debug.out" 2> "$(BUILD_DIR)/rim_primary_debug.err"
+test-drum-samples-spread: $(BUILD_DIR)/analyzer_drum_samples prepare-drum-samples-spread scripts/run_with_duration.sh
+	$(RUN_WITH_DURATION) analyzer_drum_samples_spread env MUSIC_ANALYZER_DRUM_SAMPLES_REQUIRED=1 MUSIC_ANALYZER_DRUM_SAMPLE_MIN_RECALL_PERCENT="$(DRUM_SAMPLE_SPREAD_MIN_RECALL_PERCENT)" MUSIC_ANALYZER_DRUM_SAMPLE_MIN_PRECISION_PERCENT="$(DRUM_SAMPLE_SPREAD_MIN_PRECISION_PERCENT)" MUSIC_ANALYZER_DRUM_SAMPLE_MIN_KICK_RECALL_PERCENT="$(DRUM_SAMPLE_SPREAD_MIN_KICK_RECALL_PERCENT)" MUSIC_ANALYZER_DRUM_SAMPLE_MIN_SNARE_RECALL_PERCENT="$(DRUM_SAMPLE_SPREAD_MIN_SNARE_RECALL_PERCENT)" MUSIC_ANALYZER_DRUM_SAMPLE_MIN_HIHAT_RECALL_PERCENT="$(DRUM_SAMPLE_SPREAD_MIN_HIHAT_RECALL_PERCENT)" MUSIC_ANALYZER_DRUM_SAMPLE_MIN_CRASH_RECALL_PERCENT="$(DRUM_SAMPLE_SPREAD_MIN_CRASH_RECALL_PERCENT)" MUSIC_ANALYZER_DRUM_SAMPLE_MIN_TOM_RECALL_PERCENT="$(DRUM_SAMPLE_SPREAD_MIN_TOM_RECALL_PERCENT)" MUSIC_ANALYZER_DRUM_SAMPLE_MIN_RIDE_RECALL_PERCENT="$(DRUM_SAMPLE_SPREAD_MIN_RIDE_RECALL_PERCENT)" MUSIC_ANALYZER_DRUM_SAMPLE_MIN_RIM_RECALL_PERCENT="$(DRUM_SAMPLE_SPREAD_MIN_RIM_RECALL_PERCENT)" MUSIC_ANALYZER_DRUM_SAMPLE_MIN_KICK_PRIMARY_RECALL_PERCENT="$(DRUM_SAMPLE_SPREAD_MIN_KICK_PRIMARY_PERCENT)" MUSIC_ANALYZER_DRUM_SAMPLE_MIN_SNARE_PRIMARY_RECALL_PERCENT="$(DRUM_SAMPLE_SPREAD_MIN_SNARE_PRIMARY_PERCENT)" MUSIC_ANALYZER_DRUM_SAMPLE_MIN_HIHAT_PRIMARY_RECALL_PERCENT="$(DRUM_SAMPLE_SPREAD_MIN_HIHAT_PRIMARY_PERCENT)" MUSIC_ANALYZER_DRUM_SAMPLE_MIN_CRASH_PRIMARY_RECALL_PERCENT="$(DRUM_SAMPLE_SPREAD_MIN_CRASH_PRIMARY_PERCENT)" MUSIC_ANALYZER_DRUM_SAMPLE_MIN_TOM_PRIMARY_RECALL_PERCENT="$(DRUM_SAMPLE_SPREAD_MIN_TOM_PRIMARY_PERCENT)" MUSIC_ANALYZER_DRUM_SAMPLE_MIN_RIDE_PRIMARY_RECALL_PERCENT="$(DRUM_SAMPLE_SPREAD_MIN_RIDE_PRIMARY_PERCENT)" MUSIC_ANALYZER_DRUM_SAMPLE_MIN_RIM_PRIMARY_RECALL_PERCENT="$(DRUM_SAMPLE_SPREAD_MIN_RIM_PRIMARY_PERCENT)" MUSIC_ANALYZER_DRUM_SAMPLE_MAX_KICK_FALSE_PERCENT="$(DRUM_SAMPLE_SPREAD_MAX_KICK_FALSE_PERCENT)" MUSIC_ANALYZER_DRUM_SAMPLE_MAX_TOM_FALSE_PERCENT="$(DRUM_SAMPLE_SPREAD_MAX_TOM_FALSE_PERCENT)" MUSIC_ANALYZER_DRUM_SAMPLES_DIR="$(DRUM_SAMPLE_SPREAD_BUILD_DIR)" $(BUILD_DIR)/analyzer_drum_samples
+
+analyze-drum-spread-gate-matrix: $(BUILD_DIR)/analyzer_drum_samples prepare-drum-samples-spread scripts/summarize_drum_gate_matrix.py scripts/analyze_drum_primary_debug.py scripts/run_with_duration.sh
+	$(RUN_WITH_DURATION) analyzer_drum_samples_spread_matrix env MUSIC_ANALYZER_DRUM_SAMPLES_REQUIRED=1 MUSIC_ANALYZER_DRUM_SAMPLE_VERBOSE_ALL=1 MUSIC_ANALYZER_DRUM_SAMPLE_VERBOSE_PRIMARY=1 MUSIC_ANALYZER_DRUM_SAMPLE_VERBOSE_PRIMARY_LIMIT=2000 MUSIC_ANALYZER_DRUM_SAMPLE_MIN_RECALL_PERCENT="$(DRUM_SAMPLE_SPREAD_MIN_RECALL_PERCENT)" MUSIC_ANALYZER_DRUM_SAMPLE_MIN_PRECISION_PERCENT="$(DRUM_SAMPLE_SPREAD_MIN_PRECISION_PERCENT)" MUSIC_ANALYZER_DRUM_SAMPLE_MIN_KICK_RECALL_PERCENT="$(DRUM_SAMPLE_SPREAD_MIN_KICK_RECALL_PERCENT)" MUSIC_ANALYZER_DRUM_SAMPLE_MIN_SNARE_RECALL_PERCENT="$(DRUM_SAMPLE_SPREAD_MIN_SNARE_RECALL_PERCENT)" MUSIC_ANALYZER_DRUM_SAMPLE_MIN_HIHAT_RECALL_PERCENT="$(DRUM_SAMPLE_SPREAD_MIN_HIHAT_RECALL_PERCENT)" MUSIC_ANALYZER_DRUM_SAMPLE_MIN_CRASH_RECALL_PERCENT="$(DRUM_SAMPLE_SPREAD_MIN_CRASH_RECALL_PERCENT)" MUSIC_ANALYZER_DRUM_SAMPLE_MIN_TOM_RECALL_PERCENT="$(DRUM_SAMPLE_SPREAD_MIN_TOM_RECALL_PERCENT)" MUSIC_ANALYZER_DRUM_SAMPLE_MIN_RIDE_RECALL_PERCENT="$(DRUM_SAMPLE_SPREAD_MIN_RIDE_RECALL_PERCENT)" MUSIC_ANALYZER_DRUM_SAMPLE_MIN_RIM_RECALL_PERCENT="$(DRUM_SAMPLE_SPREAD_MIN_RIM_RECALL_PERCENT)" MUSIC_ANALYZER_DRUM_SAMPLE_MIN_KICK_PRIMARY_RECALL_PERCENT="$(DRUM_SAMPLE_SPREAD_MIN_KICK_PRIMARY_PERCENT)" MUSIC_ANALYZER_DRUM_SAMPLE_MIN_SNARE_PRIMARY_RECALL_PERCENT="$(DRUM_SAMPLE_SPREAD_MIN_SNARE_PRIMARY_PERCENT)" MUSIC_ANALYZER_DRUM_SAMPLE_MIN_HIHAT_PRIMARY_RECALL_PERCENT="$(DRUM_SAMPLE_SPREAD_MIN_HIHAT_PRIMARY_PERCENT)" MUSIC_ANALYZER_DRUM_SAMPLE_MIN_CRASH_PRIMARY_RECALL_PERCENT="$(DRUM_SAMPLE_SPREAD_MIN_CRASH_PRIMARY_PERCENT)" MUSIC_ANALYZER_DRUM_SAMPLE_MIN_TOM_PRIMARY_RECALL_PERCENT="$(DRUM_SAMPLE_SPREAD_MIN_TOM_PRIMARY_PERCENT)" MUSIC_ANALYZER_DRUM_SAMPLE_MIN_RIDE_PRIMARY_RECALL_PERCENT="$(DRUM_SAMPLE_SPREAD_MIN_RIDE_PRIMARY_PERCENT)" MUSIC_ANALYZER_DRUM_SAMPLE_MIN_RIM_PRIMARY_RECALL_PERCENT="$(DRUM_SAMPLE_SPREAD_MIN_RIM_PRIMARY_PERCENT)" MUSIC_ANALYZER_DRUM_SAMPLE_MAX_KICK_FALSE_PERCENT="$(DRUM_SAMPLE_SPREAD_MAX_KICK_FALSE_PERCENT)" MUSIC_ANALYZER_DRUM_SAMPLE_MAX_TOM_FALSE_PERCENT="$(DRUM_SAMPLE_SPREAD_MAX_TOM_FALSE_PERCENT)" MUSIC_ANALYZER_DRUM_SAMPLES_DIR="$(DRUM_SAMPLE_SPREAD_BUILD_DIR)" $(BUILD_DIR)/analyzer_drum_samples > "$(DRUM_SPREAD_GATE_OUT)" 2> "$(DRUM_SPREAD_GATE_ERR)"
+	$(PYTHON) scripts/summarize_drum_gate_matrix.py "$(DRUM_SPREAD_GATE_OUT)" > "$(DRUM_SPREAD_GATE_SUMMARY)"
+	$(PYTHON) scripts/analyze_drum_primary_debug.py --dump-rows --include-debug-rows "$(DRUM_SPREAD_GATE_ERR)" > "$(DRUM_SPREAD_EXACT_ATTRIBUTE_ROWS)"
+	@cat "$(DRUM_SPREAD_GATE_SUMMARY)"
+	@printf '%s\n' "drum spread exact attribute TSV: $(DRUM_SPREAD_EXACT_ATTRIBUTE_ROWS)"
+
+$(BUILD_DIR)/kick_primary_debug.err: $(BUILD_DIR)/analyzer_drum_samples scripts/run_with_duration.sh | $(DRUM_SAMPLE_SPREAD_BUILD_DIR)/manifest.tsv
+	$(RUN_WITH_DURATION) analyzer_drum_samples_primary_kick_debug env MUSIC_ANALYZER_DRUM_SAMPLES_REQUIRED=1 MUSIC_ANALYZER_DRUM_SAMPLE_REQUIRED_CATEGORIES=kick MUSIC_ANALYZER_DRUM_SAMPLE_FILTER_CATEGORY=kick MUSIC_ANALYZER_DRUM_SAMPLE_VERBOSE_PRIMARY=1 MUSIC_ANALYZER_DRUM_SAMPLE_VERBOSE_ALL=1 MUSIC_ANALYZER_DRUM_SAMPLE_VERBOSE_PRIMARY_LIMIT=220 MUSIC_ANALYZER_DRUM_SAMPLE_MIN_RECALL_PERCENT=0 MUSIC_ANALYZER_DRUM_SAMPLE_MIN_PRIMARY_RECALL_PERCENT=0 MUSIC_ANALYZER_DRUM_SAMPLES_DIR="$(DRUM_SAMPLE_SPREAD_BUILD_DIR)" $(BUILD_DIR)/analyzer_drum_samples > "$(BUILD_DIR)/kick_primary_debug.out" 2> "$@"
+
+$(BUILD_DIR)/tom_primary_debug.err: $(BUILD_DIR)/analyzer_drum_samples scripts/run_with_duration.sh | $(DRUM_SAMPLE_SPREAD_BUILD_DIR)/manifest.tsv
+	$(RUN_WITH_DURATION) analyzer_drum_samples_primary_tom_debug env MUSIC_ANALYZER_DRUM_SAMPLES_REQUIRED=1 MUSIC_ANALYZER_DRUM_SAMPLE_REQUIRED_CATEGORIES=tom MUSIC_ANALYZER_DRUM_SAMPLE_FILTER_CATEGORY=tom MUSIC_ANALYZER_DRUM_SAMPLE_VERBOSE_PRIMARY=1 MUSIC_ANALYZER_DRUM_SAMPLE_VERBOSE_ALL=1 MUSIC_ANALYZER_DRUM_SAMPLE_VERBOSE_PRIMARY_LIMIT=220 MUSIC_ANALYZER_DRUM_SAMPLE_MIN_RECALL_PERCENT=0 MUSIC_ANALYZER_DRUM_SAMPLE_MIN_PRIMARY_RECALL_PERCENT=0 MUSIC_ANALYZER_DRUM_SAMPLES_DIR="$(DRUM_SAMPLE_SPREAD_BUILD_DIR)" $(BUILD_DIR)/analyzer_drum_samples > "$(BUILD_DIR)/tom_primary_debug.out" 2> "$@"
+
+$(BUILD_DIR)/snare_primary_debug.err: $(BUILD_DIR)/analyzer_drum_samples scripts/run_with_duration.sh | $(DRUM_SAMPLE_SPREAD_BUILD_DIR)/manifest.tsv
+	$(RUN_WITH_DURATION) analyzer_drum_samples_primary_snare_debug env MUSIC_ANALYZER_DRUM_SAMPLES_REQUIRED=1 MUSIC_ANALYZER_DRUM_SAMPLE_REQUIRED_CATEGORIES=snare MUSIC_ANALYZER_DRUM_SAMPLE_FILTER_CATEGORY=snare MUSIC_ANALYZER_DRUM_SAMPLE_VERBOSE_PRIMARY=1 MUSIC_ANALYZER_DRUM_SAMPLE_VERBOSE_ALL=1 MUSIC_ANALYZER_DRUM_SAMPLE_VERBOSE_PRIMARY_LIMIT=220 MUSIC_ANALYZER_DRUM_SAMPLE_MIN_RECALL_PERCENT=0 MUSIC_ANALYZER_DRUM_SAMPLE_MIN_PRIMARY_RECALL_PERCENT=0 MUSIC_ANALYZER_DRUM_SAMPLES_DIR="$(DRUM_SAMPLE_SPREAD_BUILD_DIR)" $(BUILD_DIR)/analyzer_drum_samples > "$(BUILD_DIR)/snare_primary_debug.out" 2> "$@"
+
+$(BUILD_DIR)/hihat_primary_debug.err: $(BUILD_DIR)/analyzer_drum_samples scripts/run_with_duration.sh | $(DRUM_SAMPLE_SPREAD_BUILD_DIR)/manifest.tsv
+	$(RUN_WITH_DURATION) analyzer_drum_samples_primary_hihat_debug env MUSIC_ANALYZER_DRUM_SAMPLES_REQUIRED=1 MUSIC_ANALYZER_DRUM_SAMPLE_REQUIRED_CATEGORIES=hihat MUSIC_ANALYZER_DRUM_SAMPLE_FILTER_CATEGORY=hihat MUSIC_ANALYZER_DRUM_SAMPLE_VERBOSE_PRIMARY=1 MUSIC_ANALYZER_DRUM_SAMPLE_VERBOSE_ALL=1 MUSIC_ANALYZER_DRUM_SAMPLE_VERBOSE_PRIMARY_LIMIT=220 MUSIC_ANALYZER_DRUM_SAMPLE_MIN_RECALL_PERCENT=0 MUSIC_ANALYZER_DRUM_SAMPLE_MIN_PRIMARY_RECALL_PERCENT=0 MUSIC_ANALYZER_DRUM_SAMPLES_DIR="$(DRUM_SAMPLE_SPREAD_BUILD_DIR)" $(BUILD_DIR)/analyzer_drum_samples > "$(BUILD_DIR)/hihat_primary_debug.out" 2> "$@"
+
+$(BUILD_DIR)/crash_primary_debug.err: $(BUILD_DIR)/analyzer_drum_samples scripts/run_with_duration.sh | $(DRUM_SAMPLE_SPREAD_BUILD_DIR)/manifest.tsv
+	$(RUN_WITH_DURATION) analyzer_drum_samples_primary_crash_debug env MUSIC_ANALYZER_DRUM_SAMPLES_REQUIRED=1 MUSIC_ANALYZER_DRUM_SAMPLE_REQUIRED_CATEGORIES=crash MUSIC_ANALYZER_DRUM_SAMPLE_FILTER_CATEGORY=crash MUSIC_ANALYZER_DRUM_SAMPLE_VERBOSE_PRIMARY=1 MUSIC_ANALYZER_DRUM_SAMPLE_VERBOSE_ALL=1 MUSIC_ANALYZER_DRUM_SAMPLE_VERBOSE_PRIMARY_LIMIT=220 MUSIC_ANALYZER_DRUM_SAMPLE_MIN_RECALL_PERCENT=0 MUSIC_ANALYZER_DRUM_SAMPLE_MIN_PRIMARY_RECALL_PERCENT=0 MUSIC_ANALYZER_DRUM_SAMPLES_DIR="$(DRUM_SAMPLE_SPREAD_BUILD_DIR)" $(BUILD_DIR)/analyzer_drum_samples > "$(BUILD_DIR)/crash_primary_debug.out" 2> "$@"
+
+$(BUILD_DIR)/ride_primary_debug.err: $(BUILD_DIR)/analyzer_drum_samples scripts/run_with_duration.sh | $(DRUM_SAMPLE_SPREAD_BUILD_DIR)/manifest.tsv
+	$(RUN_WITH_DURATION) analyzer_drum_samples_primary_ride_debug env MUSIC_ANALYZER_DRUM_SAMPLES_REQUIRED=1 MUSIC_ANALYZER_DRUM_SAMPLE_REQUIRED_CATEGORIES=ride MUSIC_ANALYZER_DRUM_SAMPLE_FILTER_CATEGORY=ride MUSIC_ANALYZER_DRUM_SAMPLE_VERBOSE_PRIMARY=1 MUSIC_ANALYZER_DRUM_SAMPLE_VERBOSE_ALL=1 MUSIC_ANALYZER_DRUM_SAMPLE_VERBOSE_PRIMARY_LIMIT=220 MUSIC_ANALYZER_DRUM_SAMPLE_MIN_RECALL_PERCENT=0 MUSIC_ANALYZER_DRUM_SAMPLE_MIN_PRIMARY_RECALL_PERCENT=0 MUSIC_ANALYZER_DRUM_SAMPLES_DIR="$(DRUM_SAMPLE_SPREAD_BUILD_DIR)" $(BUILD_DIR)/analyzer_drum_samples > "$(BUILD_DIR)/ride_primary_debug.out" 2> "$@"
+
+$(BUILD_DIR)/rim_primary_debug.err: $(BUILD_DIR)/analyzer_drum_samples scripts/run_with_duration.sh | $(DRUM_SAMPLE_SPREAD_BUILD_DIR)/manifest.tsv
+	$(RUN_WITH_DURATION) analyzer_drum_samples_primary_rim_debug env MUSIC_ANALYZER_DRUM_SAMPLES_REQUIRED=1 MUSIC_ANALYZER_DRUM_SAMPLE_REQUIRED_CATEGORIES=rim MUSIC_ANALYZER_DRUM_SAMPLE_FILTER_CATEGORY=rim MUSIC_ANALYZER_DRUM_SAMPLE_VERBOSE_PRIMARY=1 MUSIC_ANALYZER_DRUM_SAMPLE_VERBOSE_ALL=1 MUSIC_ANALYZER_DRUM_SAMPLE_VERBOSE_PRIMARY_LIMIT=220 MUSIC_ANALYZER_DRUM_SAMPLE_MIN_RECALL_PERCENT=0 MUSIC_ANALYZER_DRUM_SAMPLE_MIN_PRIMARY_RECALL_PERCENT=0 MUSIC_ANALYZER_DRUM_SAMPLES_DIR="$(DRUM_SAMPLE_SPREAD_BUILD_DIR)" $(BUILD_DIR)/analyzer_drum_samples > "$(BUILD_DIR)/rim_primary_debug.out" 2> "$@"
+
+analyze-drum-primary-misses: $(PRIMARY_DRUM_DEBUG_ERRS) scripts/analyze_drum_primary_debug.py
 	$(PYTHON) scripts/analyze_drum_primary_debug.py "$(BUILD_DIR)/kick_primary_debug.err" "$(BUILD_DIR)/tom_primary_debug.err" "$(BUILD_DIR)/snare_primary_debug.err" "$(BUILD_DIR)/hihat_primary_debug.err" "$(BUILD_DIR)/crash_primary_debug.err" "$(BUILD_DIR)/ride_primary_debug.err" "$(BUILD_DIR)/rim_primary_debug.err"
 
-analyze-drum-rule-grid: $(BUILD_DIR)/analyzer_drum_samples prepare-drum-samples-full scripts/analyze_drum_debug_rows.py scripts/evaluate_drum_rule_grid.py
-	env MUSIC_ANALYZER_DRUM_SAMPLES_REQUIRED=1 MUSIC_ANALYZER_DRUM_SAMPLE_REQUIRED_CATEGORIES=kick MUSIC_ANALYZER_DRUM_SAMPLE_FILTER_CATEGORY=kick MUSIC_ANALYZER_DRUM_SAMPLE_VERBOSE_ALL=1 MUSIC_ANALYZER_DRUM_SAMPLE_VERBOSE_PRIMARY_LIMIT=6000 MUSIC_ANALYZER_DRUM_SAMPLE_MIN_RECALL_PERCENT=0 MUSIC_ANALYZER_DRUM_SAMPLE_MIN_PRIMARY_RECALL_PERCENT=0 MUSIC_ANALYZER_DRUM_SAMPLE_MIN_PRECISION_PERCENT=0 MUSIC_ANALYZER_DRUM_SAMPLE_MAX_KICK_FALSE_PERCENT=100 MUSIC_ANALYZER_DRUM_SAMPLES_DIR="$(DRUM_SAMPLE_FULL_BUILD_DIR)" $(BUILD_DIR)/analyzer_drum_samples > "$(BUILD_DIR)/full_kick_debug.out" 2> "$(BUILD_DIR)/full_kick_debug.err"
-	env MUSIC_ANALYZER_DRUM_SAMPLES_REQUIRED=1 MUSIC_ANALYZER_DRUM_SAMPLE_REQUIRED_CATEGORIES=snare MUSIC_ANALYZER_DRUM_SAMPLE_FILTER_CATEGORY=snare MUSIC_ANALYZER_DRUM_SAMPLE_VERBOSE_ALL=1 MUSIC_ANALYZER_DRUM_SAMPLE_VERBOSE_PRIMARY_LIMIT=5200 MUSIC_ANALYZER_DRUM_SAMPLE_MIN_RECALL_PERCENT=0 MUSIC_ANALYZER_DRUM_SAMPLE_MIN_PRIMARY_RECALL_PERCENT=0 MUSIC_ANALYZER_DRUM_SAMPLE_MIN_PRECISION_PERCENT=0 MUSIC_ANALYZER_DRUM_SAMPLE_MAX_KICK_FALSE_PERCENT=100 MUSIC_ANALYZER_DRUM_SAMPLES_DIR="$(DRUM_SAMPLE_FULL_BUILD_DIR)" $(BUILD_DIR)/analyzer_drum_samples > "$(BUILD_DIR)/full_snare_debug.out" 2> "$(BUILD_DIR)/full_snare_debug.err"
-	env MUSIC_ANALYZER_DRUM_SAMPLES_REQUIRED=1 MUSIC_ANALYZER_DRUM_SAMPLE_REQUIRED_CATEGORIES=tom MUSIC_ANALYZER_DRUM_SAMPLE_FILTER_CATEGORY=tom MUSIC_ANALYZER_DRUM_SAMPLE_VERBOSE_ALL=1 MUSIC_ANALYZER_DRUM_SAMPLE_VERBOSE_PRIMARY_LIMIT=2500 MUSIC_ANALYZER_DRUM_SAMPLE_MIN_RECALL_PERCENT=0 MUSIC_ANALYZER_DRUM_SAMPLE_MIN_PRIMARY_RECALL_PERCENT=0 MUSIC_ANALYZER_DRUM_SAMPLE_MIN_PRECISION_PERCENT=0 MUSIC_ANALYZER_DRUM_SAMPLE_MAX_KICK_FALSE_PERCENT=100 MUSIC_ANALYZER_DRUM_SAMPLES_DIR="$(DRUM_SAMPLE_FULL_BUILD_DIR)" $(BUILD_DIR)/analyzer_drum_samples > "$(BUILD_DIR)/full_tom_debug.out" 2> "$(BUILD_DIR)/full_tom_debug.err"
-	env MUSIC_ANALYZER_DRUM_SAMPLES_REQUIRED=1 MUSIC_ANALYZER_DRUM_SAMPLE_REQUIRED_CATEGORIES=rim MUSIC_ANALYZER_DRUM_SAMPLE_FILTER_CATEGORY=rim MUSIC_ANALYZER_DRUM_SAMPLE_VERBOSE_ALL=1 MUSIC_ANALYZER_DRUM_SAMPLE_VERBOSE_PRIMARY_LIMIT=900 MUSIC_ANALYZER_DRUM_SAMPLE_MIN_RECALL_PERCENT=0 MUSIC_ANALYZER_DRUM_SAMPLE_MIN_PRIMARY_RECALL_PERCENT=0 MUSIC_ANALYZER_DRUM_SAMPLE_MIN_PRECISION_PERCENT=0 MUSIC_ANALYZER_DRUM_SAMPLE_MAX_KICK_FALSE_PERCENT=100 MUSIC_ANALYZER_DRUM_SAMPLES_DIR="$(DRUM_SAMPLE_FULL_BUILD_DIR)" $(BUILD_DIR)/analyzer_drum_samples > "$(BUILD_DIR)/full_rim_debug.out" 2> "$(BUILD_DIR)/full_rim_debug.err"
+$(BUILD_DIR)/drum_primary_miss_attribute_rows.tsv: $(PRIMARY_DRUM_DEBUG_ERRS) scripts/analyze_drum_primary_debug.py
+	$(PYTHON) scripts/analyze_drum_primary_debug.py --dump-rows --include-debug-rows "$(BUILD_DIR)/kick_primary_debug.err" "$(BUILD_DIR)/tom_primary_debug.err" "$(BUILD_DIR)/snare_primary_debug.err" "$(BUILD_DIR)/hihat_primary_debug.err" "$(BUILD_DIR)/crash_primary_debug.err" "$(BUILD_DIR)/ride_primary_debug.err" "$(BUILD_DIR)/rim_primary_debug.err" > "$(BUILD_DIR)/drum_primary_miss_attribute_rows.tsv"
+
+analyze-drum-primary-attribute-rows: $(BUILD_DIR)/drum_primary_miss_attribute_rows.tsv
+	@printf '%s\n' "drum primary attribute TSV: $(BUILD_DIR)/drum_primary_miss_attribute_rows.tsv"
+
+$(BUILD_DIR)/full_kick_debug.err: $(BUILD_DIR)/analyzer_drum_samples scripts/run_with_duration.sh | prepare-drum-samples-full
+	$(RUN_WITH_DURATION) analyzer_drum_samples_full_kick_debug env MUSIC_ANALYZER_DRUM_SAMPLES_REQUIRED=1 MUSIC_ANALYZER_DRUM_SAMPLE_REQUIRED_CATEGORIES=kick MUSIC_ANALYZER_DRUM_SAMPLE_FILTER_CATEGORY=kick MUSIC_ANALYZER_DRUM_SAMPLE_VERBOSE_ALL=1 MUSIC_ANALYZER_DRUM_SAMPLE_VERBOSE_PRIMARY=1 MUSIC_ANALYZER_DRUM_SAMPLE_VERBOSE_PRIMARY_LIMIT=6000 MUSIC_ANALYZER_DRUM_SAMPLE_MIN_RECALL_PERCENT=0 MUSIC_ANALYZER_DRUM_SAMPLE_MIN_PRIMARY_RECALL_PERCENT=0 MUSIC_ANALYZER_DRUM_SAMPLE_MIN_PRECISION_PERCENT=0 MUSIC_ANALYZER_DRUM_SAMPLE_MAX_KICK_FALSE_PERCENT=100 MUSIC_ANALYZER_DRUM_SAMPLES_DIR="$(DRUM_SAMPLE_FULL_BUILD_DIR)" $(BUILD_DIR)/analyzer_drum_samples > "$(BUILD_DIR)/full_kick_debug.out" 2> "$@"
+
+$(BUILD_DIR)/full_snare_debug.err: $(BUILD_DIR)/analyzer_drum_samples scripts/run_with_duration.sh | prepare-drum-samples-full
+	$(RUN_WITH_DURATION) analyzer_drum_samples_full_snare_debug env MUSIC_ANALYZER_DRUM_SAMPLES_REQUIRED=1 MUSIC_ANALYZER_DRUM_SAMPLE_REQUIRED_CATEGORIES=snare MUSIC_ANALYZER_DRUM_SAMPLE_FILTER_CATEGORY=snare MUSIC_ANALYZER_DRUM_SAMPLE_VERBOSE_ALL=1 MUSIC_ANALYZER_DRUM_SAMPLE_VERBOSE_PRIMARY=1 MUSIC_ANALYZER_DRUM_SAMPLE_VERBOSE_PRIMARY_LIMIT=5200 MUSIC_ANALYZER_DRUM_SAMPLE_MIN_RECALL_PERCENT=0 MUSIC_ANALYZER_DRUM_SAMPLE_MIN_PRIMARY_RECALL_PERCENT=0 MUSIC_ANALYZER_DRUM_SAMPLE_MIN_PRECISION_PERCENT=0 MUSIC_ANALYZER_DRUM_SAMPLE_MAX_KICK_FALSE_PERCENT=100 MUSIC_ANALYZER_DRUM_SAMPLES_DIR="$(DRUM_SAMPLE_FULL_BUILD_DIR)" $(BUILD_DIR)/analyzer_drum_samples > "$(BUILD_DIR)/full_snare_debug.out" 2> "$@"
+
+$(BUILD_DIR)/full_tom_debug.err: $(BUILD_DIR)/analyzer_drum_samples scripts/run_with_duration.sh | prepare-drum-samples-full
+	$(RUN_WITH_DURATION) analyzer_drum_samples_full_tom_debug env MUSIC_ANALYZER_DRUM_SAMPLES_REQUIRED=1 MUSIC_ANALYZER_DRUM_SAMPLE_REQUIRED_CATEGORIES=tom MUSIC_ANALYZER_DRUM_SAMPLE_FILTER_CATEGORY=tom MUSIC_ANALYZER_DRUM_SAMPLE_VERBOSE_ALL=1 MUSIC_ANALYZER_DRUM_SAMPLE_VERBOSE_PRIMARY=1 MUSIC_ANALYZER_DRUM_SAMPLE_VERBOSE_PRIMARY_LIMIT=2500 MUSIC_ANALYZER_DRUM_SAMPLE_MIN_RECALL_PERCENT=0 MUSIC_ANALYZER_DRUM_SAMPLE_MIN_PRIMARY_RECALL_PERCENT=0 MUSIC_ANALYZER_DRUM_SAMPLE_MIN_PRECISION_PERCENT=0 MUSIC_ANALYZER_DRUM_SAMPLE_MAX_KICK_FALSE_PERCENT=100 MUSIC_ANALYZER_DRUM_SAMPLES_DIR="$(DRUM_SAMPLE_FULL_BUILD_DIR)" $(BUILD_DIR)/analyzer_drum_samples > "$(BUILD_DIR)/full_tom_debug.out" 2> "$@"
+
+$(BUILD_DIR)/full_rim_debug.err: $(BUILD_DIR)/analyzer_drum_samples scripts/run_with_duration.sh | prepare-drum-samples-full
+	$(RUN_WITH_DURATION) analyzer_drum_samples_full_rim_debug env MUSIC_ANALYZER_DRUM_SAMPLES_REQUIRED=1 MUSIC_ANALYZER_DRUM_SAMPLE_REQUIRED_CATEGORIES=rim MUSIC_ANALYZER_DRUM_SAMPLE_FILTER_CATEGORY=rim MUSIC_ANALYZER_DRUM_SAMPLE_VERBOSE_ALL=1 MUSIC_ANALYZER_DRUM_SAMPLE_VERBOSE_PRIMARY=1 MUSIC_ANALYZER_DRUM_SAMPLE_VERBOSE_PRIMARY_LIMIT=900 MUSIC_ANALYZER_DRUM_SAMPLE_MIN_RECALL_PERCENT=0 MUSIC_ANALYZER_DRUM_SAMPLE_MIN_PRIMARY_RECALL_PERCENT=0 MUSIC_ANALYZER_DRUM_SAMPLE_MIN_PRECISION_PERCENT=0 MUSIC_ANALYZER_DRUM_SAMPLE_MAX_KICK_FALSE_PERCENT=100 MUSIC_ANALYZER_DRUM_SAMPLES_DIR="$(DRUM_SAMPLE_FULL_BUILD_DIR)" $(BUILD_DIR)/analyzer_drum_samples > "$(BUILD_DIR)/full_rim_debug.out" 2> "$@"
+
+analyze-drum-rule-grid: $(FULL_DRUM_DEBUG_ERRS) scripts/analyze_drum_debug_rows.py scripts/evaluate_drum_rule_grid.py
 	$(PYTHON) scripts/analyze_drum_debug_rows.py --expected tom --focus tom --against snare --examples 8 "$(BUILD_DIR)/full_tom_debug.err"
 	$(PYTHON) scripts/analyze_drum_debug_rows.py --expected snare --focus tom --against snare --examples 8 "$(BUILD_DIR)/full_snare_debug.err"
 	$(PYTHON) scripts/analyze_drum_debug_rows.py --expected kick --focus tom --against kick --examples 8 "$(BUILD_DIR)/full_kick_debug.err"
 	$(PYTHON) scripts/evaluate_drum_rule_grid.py "$(BUILD_DIR)/full_kick_debug.err" "$(BUILD_DIR)/full_snare_debug.err" "$(BUILD_DIR)/full_tom_debug.err" --top 80
 
-analyze-drum-tom-bleed-caps: scripts/evaluate_drum_tom_bleed_caps.py
-	@if [ ! -f "$(BUILD_DIR)/full_kick_debug.err" ] || [ ! -f "$(BUILD_DIR)/full_snare_debug.err" ] || [ ! -f "$(BUILD_DIR)/full_tom_debug.err" ] || [ ! -f "$(BUILD_DIR)/full_rim_debug.err" ]; then $(MAKE) analyze-drum-rule-grid; fi
+analyze-drum-tom-bleed-caps: $(FULL_DRUM_DEBUG_ERRS) scripts/evaluate_drum_tom_bleed_caps.py
 	$(PYTHON) scripts/evaluate_drum_tom_bleed_caps.py "$(BUILD_DIR)/full_kick_debug.err" "$(BUILD_DIR)/full_snare_debug.err" "$(BUILD_DIR)/full_tom_debug.err" $(DRUM_TOM_BLEED_ARGS)
 
-find-drum-attribute-patterns: scripts/find_drum_attribute_patterns.py
-	@if [ ! -f "$(BUILD_DIR)/full_kick_debug.err" ] || [ ! -f "$(BUILD_DIR)/full_snare_debug.err" ] || [ ! -f "$(BUILD_DIR)/full_tom_debug.err" ] || [ ! -f "$(BUILD_DIR)/full_rim_debug.err" ]; then $(MAKE) analyze-drum-rule-grid; fi
+$(BUILD_DIR)/drum_full_attribute_rows.tsv: $(FULL_DRUM_DEBUG_ERRS) scripts/analyze_drum_primary_debug.py
+	$(PYTHON) scripts/analyze_drum_primary_debug.py --dump-rows --include-debug-rows "$(BUILD_DIR)/full_kick_debug.err" "$(BUILD_DIR)/full_snare_debug.err" "$(BUILD_DIR)/full_tom_debug.err" "$(BUILD_DIR)/full_rim_debug.err" > "$(BUILD_DIR)/drum_full_attribute_rows.tsv"
+
+analyze-drum-full-attribute-rows: $(BUILD_DIR)/drum_full_attribute_rows.tsv
+	@printf '%s\n' "full drum attribute TSV: $(BUILD_DIR)/drum_full_attribute_rows.tsv"
+
+find-drum-attribute-patterns: $(FULL_DRUM_DEBUG_ERRS) scripts/find_drum_attribute_patterns.py
 	$(PYTHON) scripts/find_drum_attribute_patterns.py "$(BUILD_DIR)/full_kick_debug.err" "$(BUILD_DIR)/full_snare_debug.err" "$(BUILD_DIR)/full_tom_debug.err" "$(BUILD_DIR)/full_rim_debug.err" $(if $(PATTERN_ROUTE),--route "$(PATTERN_ROUTE)") $(PATTERN_ARGS)
+
+find-drum-primary-attribute-patterns: $(BUILD_DIR)/drum_primary_miss_attribute_rows.tsv scripts/find_drum_attribute_patterns.py scripts/analyze_drum_primary_debug.py
+	$(PYTHON) scripts/find_drum_attribute_patterns.py "$(BUILD_DIR)/drum_primary_miss_attribute_rows.tsv" $(if $(PATTERN_ROUTE),--route "$(PATTERN_ROUTE)") $(PATTERN_ARGS)
+
+find-drum-full-attribute-patterns: $(BUILD_DIR)/drum_full_attribute_rows.tsv scripts/find_drum_attribute_patterns.py scripts/analyze_drum_primary_debug.py
+	$(PYTHON) scripts/find_drum_attribute_patterns.py "$(BUILD_DIR)/drum_full_attribute_rows.tsv" $(if $(PATTERN_ROUTE),--route "$(PATTERN_ROUTE)") $(PATTERN_ARGS)
+
+find-drum-spread-exact-attribute-patterns: $(BUILD_DIR)/analyzer_drum_samples scripts/find_drum_attribute_patterns.py scripts/analyze_drum_primary_debug.py
+	@if [ ! -f "$(DRUM_SPREAD_EXACT_ATTRIBUTE_ROWS)" ] || [ "$(BUILD_DIR)/analyzer_drum_samples" -nt "$(DRUM_SPREAD_EXACT_ATTRIBUTE_ROWS)" ] || [ "scripts/analyze_drum_primary_debug.py" -nt "$(DRUM_SPREAD_EXACT_ATTRIBUTE_ROWS)" ]; then $(MAKE) analyze-drum-spread-gate-matrix; fi
+	$(PYTHON) scripts/find_drum_attribute_patterns.py "$(DRUM_SPREAD_EXACT_ATTRIBUTE_ROWS)" $(if $(PATTERN_ROUTE),--route "$(PATTERN_ROUTE)") $(PATTERN_ARGS)
 
 prepare-drum-samples-full: scripts/prepare_drum_samples.py | $(BUILD_DIR)
 	DRUM_SAMPLE_SOURCE_DIR="$(DRUM_SAMPLE_SOURCE_DIR)" DRUM_SAMPLE_BUILD_DIR="$(DRUM_SAMPLE_FULL_BUILD_DIR)" DRUM_SAMPLE_LIMIT="$(DRUM_SAMPLE_FULL_LIMIT)" DRUM_SAMPLE_SELECTION="$(DRUM_SAMPLE_SELECTION)" DRUM_SAMPLE_SOURCE_FILTER="$(DRUM_SAMPLE_SOURCE_FILTER)" $(PYTHON) scripts/prepare_drum_samples.py --source "$(DRUM_SAMPLE_SOURCE_DIR)" --output "$(DRUM_SAMPLE_FULL_BUILD_DIR)" --limit-per-category "$(DRUM_SAMPLE_FULL_LIMIT)" --selection "$(DRUM_SAMPLE_SELECTION)" --source-filter "$(DRUM_SAMPLE_SOURCE_FILTER)" --unrar "$(UNRAR)"
 
 test-drum-samples-full: $(BUILD_DIR)/analyzer_drum_samples prepare-drum-samples-full scripts/run_with_duration.sh
 	$(RUN_WITH_DURATION) analyzer_drum_samples_full env MUSIC_ANALYZER_DRUM_SAMPLES_REQUIRED=1 MUSIC_ANALYZER_DRUM_SAMPLES_DIR="$(DRUM_SAMPLE_FULL_BUILD_DIR)" MUSIC_ANALYZER_DRUM_SAMPLE_MIN_RECALL_PERCENT="$(DRUM_SAMPLE_FULL_MIN_RECALL_PERCENT)" MUSIC_ANALYZER_DRUM_SAMPLE_MIN_PRECISION_PERCENT="$(DRUM_SAMPLE_FULL_MIN_PRECISION_PERCENT)" MUSIC_ANALYZER_DRUM_SAMPLE_MIN_KICK_RECALL_PERCENT="$(DRUM_SAMPLE_FULL_MIN_KICK_RECALL_PERCENT)" MUSIC_ANALYZER_DRUM_SAMPLE_MIN_SNARE_RECALL_PERCENT="$(DRUM_SAMPLE_FULL_MIN_SNARE_RECALL_PERCENT)" MUSIC_ANALYZER_DRUM_SAMPLE_MIN_HIHAT_RECALL_PERCENT="$(DRUM_SAMPLE_FULL_MIN_HIHAT_RECALL_PERCENT)" MUSIC_ANALYZER_DRUM_SAMPLE_MIN_CRASH_RECALL_PERCENT="$(DRUM_SAMPLE_FULL_MIN_CRASH_RECALL_PERCENT)" MUSIC_ANALYZER_DRUM_SAMPLE_MIN_TOM_RECALL_PERCENT="$(DRUM_SAMPLE_FULL_MIN_TOM_RECALL_PERCENT)" MUSIC_ANALYZER_DRUM_SAMPLE_MIN_RIDE_RECALL_PERCENT="$(DRUM_SAMPLE_FULL_MIN_RIDE_RECALL_PERCENT)" MUSIC_ANALYZER_DRUM_SAMPLE_MIN_RIM_RECALL_PERCENT="$(DRUM_SAMPLE_FULL_MIN_RIM_RECALL_PERCENT)" MUSIC_ANALYZER_DRUM_SAMPLE_MIN_KICK_PRIMARY_RECALL_PERCENT="$(DRUM_SAMPLE_FULL_MIN_KICK_PRIMARY_PERCENT)" MUSIC_ANALYZER_DRUM_SAMPLE_MIN_SNARE_PRIMARY_RECALL_PERCENT="$(DRUM_SAMPLE_FULL_MIN_SNARE_PRIMARY_PERCENT)" MUSIC_ANALYZER_DRUM_SAMPLE_MIN_HIHAT_PRIMARY_RECALL_PERCENT="$(DRUM_SAMPLE_FULL_MIN_HIHAT_PRIMARY_PERCENT)" MUSIC_ANALYZER_DRUM_SAMPLE_MIN_CRASH_PRIMARY_RECALL_PERCENT="$(DRUM_SAMPLE_FULL_MIN_CRASH_PRIMARY_PERCENT)" MUSIC_ANALYZER_DRUM_SAMPLE_MIN_TOM_PRIMARY_RECALL_PERCENT="$(DRUM_SAMPLE_FULL_MIN_TOM_PRIMARY_PERCENT)" MUSIC_ANALYZER_DRUM_SAMPLE_MIN_RIDE_PRIMARY_RECALL_PERCENT="$(DRUM_SAMPLE_FULL_MIN_RIDE_PRIMARY_PERCENT)" MUSIC_ANALYZER_DRUM_SAMPLE_MIN_RIM_PRIMARY_RECALL_PERCENT="$(DRUM_SAMPLE_FULL_MIN_RIM_PRIMARY_PERCENT)" MUSIC_ANALYZER_DRUM_SAMPLE_MAX_TOM_FALSE_PERCENT="$(DRUM_SAMPLE_FULL_MAX_TOM_FALSE_PERCENT)" $(BUILD_DIR)/analyzer_drum_samples
+
+analyze-drum-full-gate-matrix: $(BUILD_DIR)/analyzer_drum_samples prepare-drum-samples-full scripts/summarize_drum_gate_matrix.py scripts/analyze_drum_primary_debug.py scripts/run_with_duration.sh
+	$(RUN_WITH_DURATION) analyzer_drum_samples_full_matrix env MUSIC_ANALYZER_DRUM_SAMPLES_REQUIRED=1 MUSIC_ANALYZER_DRUM_SAMPLE_VERBOSE_ALL=1 MUSIC_ANALYZER_DRUM_SAMPLE_VERBOSE_PRIMARY=1 MUSIC_ANALYZER_DRUM_SAMPLE_VERBOSE_PRIMARY_LIMIT=20000 MUSIC_ANALYZER_DRUM_SAMPLES_DIR="$(DRUM_SAMPLE_FULL_BUILD_DIR)" MUSIC_ANALYZER_DRUM_SAMPLE_MIN_RECALL_PERCENT="$(DRUM_SAMPLE_FULL_MIN_RECALL_PERCENT)" MUSIC_ANALYZER_DRUM_SAMPLE_MIN_PRECISION_PERCENT="$(DRUM_SAMPLE_FULL_MIN_PRECISION_PERCENT)" MUSIC_ANALYZER_DRUM_SAMPLE_MIN_KICK_RECALL_PERCENT="$(DRUM_SAMPLE_FULL_MIN_KICK_RECALL_PERCENT)" MUSIC_ANALYZER_DRUM_SAMPLE_MIN_SNARE_RECALL_PERCENT="$(DRUM_SAMPLE_FULL_MIN_SNARE_RECALL_PERCENT)" MUSIC_ANALYZER_DRUM_SAMPLE_MIN_HIHAT_RECALL_PERCENT="$(DRUM_SAMPLE_FULL_MIN_HIHAT_RECALL_PERCENT)" MUSIC_ANALYZER_DRUM_SAMPLE_MIN_CRASH_RECALL_PERCENT="$(DRUM_SAMPLE_FULL_MIN_CRASH_RECALL_PERCENT)" MUSIC_ANALYZER_DRUM_SAMPLE_MIN_TOM_RECALL_PERCENT="$(DRUM_SAMPLE_FULL_MIN_TOM_RECALL_PERCENT)" MUSIC_ANALYZER_DRUM_SAMPLE_MIN_RIDE_RECALL_PERCENT="$(DRUM_SAMPLE_FULL_MIN_RIDE_RECALL_PERCENT)" MUSIC_ANALYZER_DRUM_SAMPLE_MIN_RIM_RECALL_PERCENT="$(DRUM_SAMPLE_FULL_MIN_RIM_RECALL_PERCENT)" MUSIC_ANALYZER_DRUM_SAMPLE_MIN_KICK_PRIMARY_RECALL_PERCENT="$(DRUM_SAMPLE_FULL_MIN_KICK_PRIMARY_PERCENT)" MUSIC_ANALYZER_DRUM_SAMPLE_MIN_SNARE_PRIMARY_RECALL_PERCENT="$(DRUM_SAMPLE_FULL_MIN_SNARE_PRIMARY_PERCENT)" MUSIC_ANALYZER_DRUM_SAMPLE_MIN_HIHAT_PRIMARY_RECALL_PERCENT="$(DRUM_SAMPLE_FULL_MIN_HIHAT_PRIMARY_PERCENT)" MUSIC_ANALYZER_DRUM_SAMPLE_MIN_CRASH_PRIMARY_RECALL_PERCENT="$(DRUM_SAMPLE_FULL_MIN_CRASH_PRIMARY_PERCENT)" MUSIC_ANALYZER_DRUM_SAMPLE_MIN_TOM_PRIMARY_RECALL_PERCENT="$(DRUM_SAMPLE_FULL_MIN_TOM_PRIMARY_PERCENT)" MUSIC_ANALYZER_DRUM_SAMPLE_MIN_RIDE_PRIMARY_RECALL_PERCENT="$(DRUM_SAMPLE_FULL_MIN_RIDE_PRIMARY_PERCENT)" MUSIC_ANALYZER_DRUM_SAMPLE_MIN_RIM_PRIMARY_RECALL_PERCENT="$(DRUM_SAMPLE_FULL_MIN_RIM_PRIMARY_PERCENT)" MUSIC_ANALYZER_DRUM_SAMPLE_MAX_TOM_FALSE_PERCENT="$(DRUM_SAMPLE_FULL_MAX_TOM_FALSE_PERCENT)" $(BUILD_DIR)/analyzer_drum_samples > "$(DRUM_FULL_GATE_OUT)" 2> "$(DRUM_FULL_GATE_ERR)"
+	$(PYTHON) scripts/summarize_drum_gate_matrix.py "$(DRUM_FULL_GATE_OUT)" > "$(DRUM_FULL_GATE_SUMMARY)"
+	$(PYTHON) scripts/analyze_drum_primary_debug.py --dump-rows --include-debug-rows "$(DRUM_FULL_GATE_ERR)" > "$(DRUM_FULL_EXACT_ATTRIBUTE_ROWS)"
+	@cat "$(DRUM_FULL_GATE_SUMMARY)"
+	@printf '%s\n' "drum full exact attribute TSV: $(DRUM_FULL_EXACT_ATTRIBUTE_ROWS)"
+
+find-drum-full-exact-attribute-patterns: $(BUILD_DIR)/analyzer_drum_samples scripts/find_drum_attribute_patterns.py scripts/analyze_drum_primary_debug.py
+	@if [ ! -f "$(DRUM_FULL_EXACT_ATTRIBUTE_ROWS)" ] || [ "$(BUILD_DIR)/analyzer_drum_samples" -nt "$(DRUM_FULL_EXACT_ATTRIBUTE_ROWS)" ] || [ "scripts/analyze_drum_primary_debug.py" -nt "$(DRUM_FULL_EXACT_ATTRIBUTE_ROWS)" ]; then $(MAKE) analyze-drum-full-gate-matrix; fi
+	$(PYTHON) scripts/find_drum_attribute_patterns.py "$(DRUM_FULL_EXACT_ATTRIBUTE_ROWS)" $(if $(PATTERN_ROUTE),--route "$(PATTERN_ROUTE)") $(PATTERN_ARGS)
 
 prepare-drum-machine-samples: scripts/prepare_drum_samples.py | $(BUILD_DIR)
 	DRUM_SAMPLE_SOURCE_DIR="$(DRUM_SAMPLE_SOURCE_DIR)" DRUM_SAMPLE_BUILD_DIR="$(DRUM_MACHINE_SAMPLE_BUILD_DIR)" DRUM_SAMPLE_LIMIT="$(DRUM_MACHINE_SAMPLE_LIMIT)" DRUM_SAMPLE_SELECTION="spread" DRUM_SAMPLE_SOURCE_FILTER="$(DRUM_MACHINE_SAMPLE_FILTER)" $(PYTHON) scripts/prepare_drum_samples.py --source "$(DRUM_SAMPLE_SOURCE_DIR)" --output "$(DRUM_MACHINE_SAMPLE_BUILD_DIR)" --limit-per-category "$(DRUM_MACHINE_SAMPLE_LIMIT)" --selection "spread" --source-filter "$(DRUM_MACHINE_SAMPLE_FILTER)" --unrar "$(UNRAR)"
@@ -842,6 +947,15 @@ prepare-hf-drum-kit-samples: scripts/prepare_hf_drum_kit_samples.py | $(BUILD_DI
 
 test-hf-drum-kit-samples: $(BUILD_DIR)/analyzer_drum_samples prepare-hf-drum-kit-samples scripts/run_with_duration.sh
 	$(RUN_WITH_DURATION) analyzer_hf_drum_kit_samples env MUSIC_ANALYZER_DRUM_SAMPLES_REQUIRED=1 MUSIC_ANALYZER_DRUM_SAMPLES_DIR="$(HF_DRUM_KIT_SAMPLE_DIR)" MUSIC_ANALYZER_DRUM_SAMPLE_MIN_RECALL_PERCENT="$(HF_DRUM_KIT_MIN_RECALL_PERCENT)" MUSIC_ANALYZER_DRUM_SAMPLE_MIN_PRECISION_PERCENT="$(HF_DRUM_KIT_MIN_PRECISION_PERCENT)" MUSIC_ANALYZER_DRUM_SAMPLE_MIN_KICK_PRIMARY_RECALL_PERCENT="$(HF_DRUM_KIT_MIN_KICK_PRIMARY_PERCENT)" MUSIC_ANALYZER_DRUM_SAMPLE_MIN_SNARE_PRIMARY_RECALL_PERCENT="$(HF_DRUM_KIT_MIN_SNARE_PRIMARY_PERCENT)" MUSIC_ANALYZER_DRUM_SAMPLE_MIN_HIHAT_PRIMARY_RECALL_PERCENT="$(HF_DRUM_KIT_MIN_HIHAT_PRIMARY_PERCENT)" MUSIC_ANALYZER_DRUM_SAMPLE_MIN_CRASH_PRIMARY_RECALL_PERCENT="$(HF_DRUM_KIT_MIN_CRASH_PRIMARY_PERCENT)" MUSIC_ANALYZER_DRUM_SAMPLE_MIN_TOM_PRIMARY_RECALL_PERCENT="$(HF_DRUM_KIT_MIN_TOM_PRIMARY_PERCENT)" MUSIC_ANALYZER_DRUM_SAMPLE_MIN_RIDE_PRIMARY_RECALL_PERCENT="$(HF_DRUM_KIT_MIN_RIDE_PRIMARY_PERCENT)" MUSIC_ANALYZER_DRUM_SAMPLE_MIN_RIM_PRIMARY_RECALL_PERCENT="$(HF_DRUM_KIT_MIN_RIM_PRIMARY_PERCENT)" MUSIC_ANALYZER_DRUM_SAMPLE_MAX_KICK_FALSE_PERCENT="$(HF_DRUM_KIT_MAX_KICK_FALSE_PERCENT)" $(BUILD_DIR)/analyzer_drum_samples
+
+analyze-hf-drum-primary-attribute-rows: $(BUILD_DIR)/analyzer_drum_samples prepare-hf-drum-kit-samples scripts/analyze_drum_primary_debug.py scripts/run_with_duration.sh
+	$(RUN_WITH_DURATION) analyzer_hf_drum_kit_primary_debug env MUSIC_ANALYZER_DRUM_SAMPLES_REQUIRED=1 MUSIC_ANALYZER_DRUM_SAMPLES_DIR="$(HF_DRUM_KIT_SAMPLE_DIR)" MUSIC_ANALYZER_DRUM_SAMPLE_VERBOSE_ALL=1 MUSIC_ANALYZER_DRUM_SAMPLE_VERBOSE_PRIMARY=1 MUSIC_ANALYZER_DRUM_SAMPLE_VERBOSE_PRIMARY_LIMIT=5000 MUSIC_ANALYZER_DRUM_SAMPLE_MIN_RECALL_PERCENT=0 MUSIC_ANALYZER_DRUM_SAMPLE_MIN_PRIMARY_RECALL_PERCENT=0 MUSIC_ANALYZER_DRUM_SAMPLE_MIN_PRECISION_PERCENT=0 MUSIC_ANALYZER_DRUM_SAMPLE_MAX_KICK_FALSE_PERCENT=100 $(BUILD_DIR)/analyzer_drum_samples > "$(HF_DRUM_KIT_PRIMARY_DEBUG_OUT)" 2> "$(HF_DRUM_KIT_PRIMARY_DEBUG_ERR)"
+	$(PYTHON) scripts/analyze_drum_primary_debug.py --dump-rows --include-debug-rows "$(HF_DRUM_KIT_PRIMARY_DEBUG_ERR)" > "$(HF_DRUM_KIT_PRIMARY_ATTRIBUTE_ROWS)"
+	@printf '%s\n' "HF drum-kit primary attribute TSV: $(HF_DRUM_KIT_PRIMARY_ATTRIBUTE_ROWS)"
+
+find-hf-drum-primary-attribute-patterns: scripts/find_drum_attribute_patterns.py scripts/analyze_drum_primary_debug.py
+	@if [ ! -f "$(HF_DRUM_KIT_PRIMARY_ATTRIBUTE_ROWS)" ]; then $(MAKE) analyze-hf-drum-primary-attribute-rows; fi
+	$(PYTHON) scripts/find_drum_attribute_patterns.py "$(HF_DRUM_KIT_PRIMARY_ATTRIBUTE_ROWS)" $(if $(PATTERN_ROUTE),--route "$(PATTERN_ROUTE)") $(PATTERN_ARGS)
 
 download-idmt-drums-samples: $(IDMT_DRUMS_ARCHIVE)
 
@@ -858,6 +972,26 @@ prepare-idmt-drums-samples: scripts/prepare_idmt_drums_samples.py download-idmt-
 
 test-idmt-drums-samples: $(BUILD_DIR)/analyzer_drum_samples prepare-idmt-drums-samples scripts/run_with_duration.sh
 	$(RUN_WITH_DURATION) analyzer_idmt_drums_samples env MUSIC_ANALYZER_DRUM_SAMPLES_REQUIRED=1 MUSIC_ANALYZER_DRUM_SAMPLES_DIR="$(IDMT_DRUMS_SAMPLE_DIR)" MUSIC_ANALYZER_DRUM_SAMPLE_REQUIRED_CATEGORIES="kick,snare,hihat" MUSIC_ANALYZER_DRUM_SAMPLE_MIN_RECALL_PERCENT="$(IDMT_DRUMS_MIN_RECALL_PERCENT)" MUSIC_ANALYZER_DRUM_SAMPLE_MIN_SNARE_RECALL_PERCENT="$(IDMT_DRUMS_MIN_SNARE_RECALL_PERCENT)" MUSIC_ANALYZER_DRUM_SAMPLE_MIN_SNARE_PRIMARY_RECALL_PERCENT="$(IDMT_DRUMS_MIN_SNARE_PRIMARY_RECALL_PERCENT)" MUSIC_ANALYZER_DRUM_SAMPLE_MIN_PRECISION_PERCENT="$(IDMT_DRUMS_MIN_PRECISION_PERCENT)" MUSIC_ANALYZER_DRUM_SAMPLE_MAX_KICK_FALSE_PERCENT="$(IDMT_DRUMS_MAX_KICK_FALSE_PERCENT)" $(BUILD_DIR)/analyzer_drum_samples
+
+analyze-idmt-drum-primary-attribute-rows: $(BUILD_DIR)/analyzer_drum_samples prepare-idmt-drums-samples scripts/analyze_drum_primary_debug.py scripts/run_with_duration.sh
+	$(RUN_WITH_DURATION) analyzer_idmt_drums_primary_debug env MUSIC_ANALYZER_DRUM_SAMPLES_REQUIRED=1 MUSIC_ANALYZER_DRUM_SAMPLES_DIR="$(IDMT_DRUMS_SAMPLE_DIR)" MUSIC_ANALYZER_DRUM_SAMPLE_REQUIRED_CATEGORIES="kick,snare,hihat" MUSIC_ANALYZER_DRUM_SAMPLE_VERBOSE_ALL=1 MUSIC_ANALYZER_DRUM_SAMPLE_VERBOSE_PRIMARY=1 MUSIC_ANALYZER_DRUM_SAMPLE_VERBOSE_PRIMARY_LIMIT=4000 MUSIC_ANALYZER_DRUM_SAMPLE_MIN_RECALL_PERCENT=0 MUSIC_ANALYZER_DRUM_SAMPLE_MIN_PRIMARY_RECALL_PERCENT=0 MUSIC_ANALYZER_DRUM_SAMPLE_MIN_SNARE_PRIMARY_RECALL_PERCENT=0 MUSIC_ANALYZER_DRUM_SAMPLE_MIN_PRECISION_PERCENT=0 MUSIC_ANALYZER_DRUM_SAMPLE_MAX_KICK_FALSE_PERCENT=100 $(BUILD_DIR)/analyzer_drum_samples > "$(IDMT_DRUMS_PRIMARY_DEBUG_OUT)" 2> "$(IDMT_DRUMS_PRIMARY_DEBUG_ERR)"
+	$(PYTHON) scripts/analyze_drum_primary_debug.py --dump-rows --include-debug-rows "$(IDMT_DRUMS_PRIMARY_DEBUG_ERR)" > "$(IDMT_DRUMS_PRIMARY_ATTRIBUTE_ROWS)"
+	@printf '%s\n' "IDMT drum primary attribute TSV: $(IDMT_DRUMS_PRIMARY_ATTRIBUTE_ROWS)"
+
+find-idmt-drum-primary-attribute-patterns: scripts/find_drum_attribute_patterns.py scripts/analyze_drum_primary_debug.py
+	@if [ ! -f "$(IDMT_DRUMS_PRIMARY_ATTRIBUTE_ROWS)" ]; then $(MAKE) analyze-idmt-drum-primary-attribute-rows; fi
+	$(PYTHON) scripts/find_drum_attribute_patterns.py "$(IDMT_DRUMS_PRIMARY_ATTRIBUTE_ROWS)" $(if $(PATTERN_ROUTE),--route "$(PATTERN_ROUTE)") $(PATTERN_ARGS)
+
+analyze-protected-drum-primary-attribute-rows:
+	$(MAKE) -j$(PARALLEL_TEST_JOBS) analyze-drum-spread-gate-matrix analyze-hf-drum-primary-attribute-rows analyze-idmt-drum-primary-attribute-rows
+	@printf '%s\n' "protected drum primary attribute TSVs:"
+	@printf '%s\n' "  $(DRUM_SPREAD_EXACT_ATTRIBUTE_ROWS)"
+	@printf '%s\n' "  $(HF_DRUM_KIT_PRIMARY_ATTRIBUTE_ROWS)"
+	@printf '%s\n' "  $(IDMT_DRUMS_PRIMARY_ATTRIBUTE_ROWS)"
+
+find-protected-drum-primary-attribute-patterns: scripts/find_drum_attribute_patterns.py scripts/analyze_drum_primary_debug.py
+	@missing=0; for path in $(DRUM_PROTECTED_PRIMARY_ATTRIBUTE_INPUTS); do if [ ! -f "$$path" ]; then missing=1; fi; done; if [ "$$missing" = "1" ]; then $(MAKE) analyze-protected-drum-primary-attribute-rows; fi
+	$(PYTHON) scripts/find_drum_attribute_patterns.py $(foreach path,$(DRUM_PROTECTED_PRIMARY_ATTRIBUTE_INPUTS),"$(path)") $(if $(PATTERN_ROUTE),--route "$(PATTERN_ROUTE)") $(PATTERN_ARGS)
 
 prepare-mdb-drums-samples: scripts/prepare_mdb_drums_samples.py | $(BUILD_DIR)
 	MDB_DRUMS_SAMPLE_DIR="$(MDB_DRUMS_SAMPLE_DIR)" MDB_DRUMS_SOURCE_ROOT="$(MDB_DRUMS_SOURCE_ROOT)" MDB_DRUMS_RECORDING_LIMIT="$(MDB_DRUMS_RECORDING_LIMIT)" MDB_DRUMS_MIN_RECORDINGS="$(MDB_DRUMS_MIN_RECORDINGS)" $(PYTHON) scripts/prepare_mdb_drums_samples.py --output "$(MDB_DRUMS_SAMPLE_DIR)" --source-root "$(MDB_DRUMS_SOURCE_ROOT)" --limit "$(MDB_DRUMS_RECORDING_LIMIT)" --min-recordings "$(MDB_DRUMS_MIN_RECORDINGS)"
@@ -948,8 +1082,11 @@ prepare-instrument-samples: scripts/prepare_instrument_samples.py | $(BUILD_DIR)
 test-instrument-samples: $(BUILD_DIR)/analyzer_instrument_samples prepare-instrument-samples scripts/run_with_duration.sh
 	$(RUN_WITH_DURATION) analyzer_instrument_samples env MUSIC_ANALYZER_INSTRUMENT_SAMPLES_REQUIRED=1 MUSIC_ANALYZER_INSTRUMENT_SAMPLE_ROOT="$(INSTRUMENT_SAMPLE_BUILD_ROOT)" $(BUILD_DIR)/analyzer_instrument_samples
 
-analyze-instrument-sample-attributes: $(BUILD_DIR)/analyzer_instrument_samples prepare-instrument-samples scripts/summarize_instrument_sample_attributes.py
-	env MUSIC_ANALYZER_INSTRUMENT_SAMPLES_REQUIRED=1 MUSIC_ANALYZER_INSTRUMENT_SAMPLE_ROOT="$(INSTRUMENT_SAMPLE_BUILD_ROOT)" MUSIC_ANALYZER_INSTRUMENT_ATTRIBUTE_TSV="$(BUILD_DIR)/instrument_sample_attributes.tsv" $(BUILD_DIR)/analyzer_instrument_samples > "$(BUILD_DIR)/instrument_sample_attributes.out"
+$(BUILD_DIR)/instrument_sample_attributes.tsv: $(BUILD_DIR)/analyzer_instrument_samples scripts/prepare_instrument_samples.py | $(BUILD_DIR)
+	@if [ ! -f "$(INSTRUMENT_SAMPLE_BUILD_ROOT)/piano_samples/manifest.tsv" ] || [ "scripts/prepare_instrument_samples.py" -nt "$(INSTRUMENT_SAMPLE_BUILD_ROOT)/piano_samples/manifest.tsv" ]; then $(MAKE) prepare-instrument-samples; fi
+	-env MUSIC_ANALYZER_INSTRUMENT_SAMPLES_REQUIRED=1 MUSIC_ANALYZER_INSTRUMENT_SAMPLE_ROOT="$(INSTRUMENT_SAMPLE_BUILD_ROOT)" MUSIC_ANALYZER_INSTRUMENT_ATTRIBUTE_TSV="$@" $(BUILD_DIR)/analyzer_instrument_samples > "$(BUILD_DIR)/instrument_sample_attributes.out"
+
+analyze-instrument-sample-attributes: $(BUILD_DIR)/instrument_sample_attributes.tsv scripts/summarize_instrument_sample_attributes.py
 	$(PYTHON) scripts/summarize_instrument_sample_attributes.py "$(BUILD_DIR)/instrument_sample_attributes.tsv" $(INSTRUMENT_ATTRIBUTE_ARGS)
 	@printf '%s\n' "attribute TSV: $(BUILD_DIR)/instrument_sample_attributes.tsv"
 
@@ -960,6 +1097,10 @@ inspect-instrument-sample-owner-buckets: scripts/inspect_instrument_sample_owner
 find-instrument-owner-patterns: scripts/find_instrument_owner_patterns.py
 	@if [ ! -f "$(BUILD_DIR)/instrument_sample_attributes.tsv" ]; then $(MAKE) analyze-instrument-sample-attributes; fi
 	$(PYTHON) scripts/find_instrument_owner_patterns.py "$(BUILD_DIR)/instrument_sample_attributes.tsv" $(if $(PATTERN_BUCKET),--bucket "$(PATTERN_BUCKET)") $(PATTERN_ARGS)
+
+find-instrument-status-patterns: scripts/find_instrument_owner_patterns.py
+	@if [ ! -f "$(BUILD_DIR)/instrument_sample_attributes.tsv" ]; then $(MAKE) analyze-instrument-sample-attributes; fi
+	$(PYTHON) scripts/find_instrument_owner_patterns.py "$(BUILD_DIR)/instrument_sample_attributes.tsv" $(or $(PATTERN_ARGS),$(MEASURE_INSTRUMENT_STATUS_PATTERN_ARGS))
 
 filter-instrument-attribute-rows: scripts/filter_instrument_attribute_rows.py
 	@if [ ! -f "$(BUILD_DIR)/instrument_sample_attributes.tsv" ]; then $(MAKE) analyze-instrument-sample-attributes; fi
@@ -983,26 +1124,58 @@ measure-analyzer-attributes: analyze-instrument-sample-attributes analyze-real-n
 	@printf '%s\n' "guitar chord miss attribute buckets:"
 	$(PYTHON) scripts/inspect_guitarset_attribute_buckets.py "$(BUILD_DIR)/guitar_chord_mix_attributes.tsv" $(MEASURE_GUITAR_BUCKET_ARGS)
 
-measure-analyzer-attribute-rows: analyze-instrument-sample-attributes analyze-real-note-attributes analyze-guitar-chord-mix-attributes analyze-drum-primary-misses
-	$(PYTHON) scripts/inspect_instrument_sample_owner_buckets.py "$(BUILD_DIR)/instrument_sample_attributes.tsv" --dump-rows > "$(BUILD_DIR)/instrument_detected_attribute_rows.tsv"
-	$(PYTHON) scripts/inspect_real_note_attribute_buckets.py "$(BUILD_DIR)/real_note_full_mix_attributes.tsv" --dump-rows > "$(BUILD_DIR)/real_note_detected_attribute_rows.tsv"
-	$(PYTHON) scripts/inspect_real_note_attribute_buckets.py "$(BUILD_DIR)/real_note_full_mix_attributes.tsv" --dump-rows --misses-only > "$(BUILD_DIR)/real_note_miss_attribute_rows.tsv"
-	$(PYTHON) scripts/inspect_guitarset_attribute_buckets.py "$(BUILD_DIR)/guitar_chord_mix_attributes.tsv" --dump-rows > "$(BUILD_DIR)/guitar_chord_detected_attribute_rows.tsv"
-	$(PYTHON) scripts/inspect_guitarset_attribute_buckets.py "$(BUILD_DIR)/guitar_chord_mix_attributes.tsv" --dump-rows --misses-only > "$(BUILD_DIR)/guitar_chord_miss_attribute_rows.tsv"
-	$(PYTHON) scripts/analyze_drum_primary_debug.py --dump-rows "$(BUILD_DIR)/kick_primary_debug.err" "$(BUILD_DIR)/tom_primary_debug.err" "$(BUILD_DIR)/snare_primary_debug.err" "$(BUILD_DIR)/hihat_primary_debug.err" "$(BUILD_DIR)/crash_primary_debug.err" "$(BUILD_DIR)/ride_primary_debug.err" "$(BUILD_DIR)/rim_primary_debug.err" > "$(BUILD_DIR)/drum_primary_miss_attribute_rows.tsv"
-	@printf '%s\n' "attribute row dumps:"
-	@printf '%s\n' "  $(BUILD_DIR)/instrument_detected_attribute_rows.tsv"
-	@printf '%s\n' "  $(BUILD_DIR)/real_note_detected_attribute_rows.tsv"
-	@printf '%s\n' "  $(BUILD_DIR)/real_note_miss_attribute_rows.tsv"
-	@printf '%s\n' "  $(BUILD_DIR)/guitar_chord_detected_attribute_rows.tsv"
-	@printf '%s\n' "  $(BUILD_DIR)/guitar_chord_miss_attribute_rows.tsv"
-	@printf '%s\n' "  $(BUILD_DIR)/drum_primary_miss_attribute_rows.tsv"
+$(INSTRUMENT_DETECTED_ATTRIBUTE_ROWS): $(BUILD_DIR)/instrument_sample_attributes.tsv scripts/inspect_instrument_sample_owner_buckets.py | $(BUILD_DIR)
+	$(PYTHON) scripts/inspect_instrument_sample_owner_buckets.py "$(BUILD_DIR)/instrument_sample_attributes.tsv" --dump-rows > "$@"
 
-measure-analyzer-patterns: measure-analyzer-attribute-rows analyze-drum-tom-bleed-caps scripts/report_analyzer_attribute_patterns.py
-	$(PYTHON) scripts/report_analyzer_attribute_patterns.py --instrument "$(BUILD_DIR)/instrument_detected_attribute_rows.tsv" --real-note "$(BUILD_DIR)/real_note_detected_attribute_rows.tsv" --guitar-chord "$(BUILD_DIR)/guitar_chord_detected_attribute_rows.tsv" --drum "$(BUILD_DIR)/drum_primary_miss_attribute_rows.tsv" $(PATTERN_REPORT_ARGS)
+$(REAL_NOTE_DETECTED_ATTRIBUTE_ROWS): $(BUILD_DIR)/real_note_full_mix_attributes.tsv scripts/inspect_real_note_attribute_buckets.py | $(BUILD_DIR)
+	$(PYTHON) scripts/inspect_real_note_attribute_buckets.py "$(BUILD_DIR)/real_note_full_mix_attributes.tsv" --dump-rows > "$@"
+
+$(REAL_NOTE_MISS_ATTRIBUTE_ROWS): $(BUILD_DIR)/real_note_full_mix_attributes.tsv scripts/inspect_real_note_attribute_buckets.py | $(BUILD_DIR)
+	$(PYTHON) scripts/inspect_real_note_attribute_buckets.py "$(BUILD_DIR)/real_note_full_mix_attributes.tsv" --dump-rows --misses-only > "$@"
+
+$(GUITAR_CHORD_DETECTED_ATTRIBUTE_ROWS): $(BUILD_DIR)/guitar_chord_mix_attributes.tsv scripts/inspect_guitarset_attribute_buckets.py | $(BUILD_DIR)
+	$(PYTHON) scripts/inspect_guitarset_attribute_buckets.py "$(BUILD_DIR)/guitar_chord_mix_attributes.tsv" --dump-rows > "$@"
+
+$(GUITAR_CHORD_MISS_ATTRIBUTE_ROWS): $(BUILD_DIR)/guitar_chord_mix_attributes.tsv scripts/inspect_guitarset_attribute_buckets.py | $(BUILD_DIR)
+	$(PYTHON) scripts/inspect_guitarset_attribute_buckets.py "$(BUILD_DIR)/guitar_chord_mix_attributes.tsv" --dump-rows --misses-only > "$@"
+
+measure-analyzer-attribute-rows:
+	$(MAKE) -j$(MEASURE_ANALYZER_JOBS) analyze-instrument-sample-attributes analyze-real-note-attributes analyze-guitar-chord-mix-attributes analyze-drum-primary-attribute-rows
+	$(MAKE) -j$(MEASURE_ANALYZER_JOBS) $(MEASURE_ANALYZER_ROW_DUMPS)
+	@printf '%s\n' "attribute row dumps:"
+	@printf '%s\n' "  $(INSTRUMENT_DETECTED_ATTRIBUTE_ROWS)"
+	@printf '%s\n' "  $(REAL_NOTE_DETECTED_ATTRIBUTE_ROWS)"
+	@printf '%s\n' "  $(REAL_NOTE_MISS_ATTRIBUTE_ROWS)"
+	@printf '%s\n' "  $(GUITAR_CHORD_DETECTED_ATTRIBUTE_ROWS)"
+	@printf '%s\n' "  $(GUITAR_CHORD_MISS_ATTRIBUTE_ROWS)"
+	@printf '%s\n' "  $(BUILD_DIR)/drum_primary_miss_attribute_rows.tsv"
+	@if [ -f "$(BUILD_DIR)/drum_full_attribute_rows.tsv" ]; then printf '%s\n' "  $(BUILD_DIR)/drum_full_attribute_rows.tsv"; else printf '%s\n' "  full drum rows skipped; run make measure-analyzer-attribute-rows-full for exhaustive drum rows"; fi
+
+measure-analyzer-attribute-rows-full: measure-analyzer-attribute-rows analyze-drum-rule-grid $(BUILD_DIR)/drum_full_attribute_rows.tsv
+	@printf '%s\n' "full drum attribute row dump:"
+	@printf '%s\n' "  $(BUILD_DIR)/drum_full_attribute_rows.tsv"
+
+refresh-analyzer-detected-attribute-rows: scripts/refresh_analyzer_detected_attribute_rows.py
+	$(PYTHON) scripts/refresh_analyzer_detected_attribute_rows.py --build-dir "$(BUILD_DIR)" --python "$(PYTHON)"
+
+print-analyzer-detected-attributes: $(MEASURE_ANALYZER_ROW_DUMPS) $(BUILD_DIR)/drum_primary_miss_attribute_rows.tsv scripts/print_analyzer_detected_attributes.py
+	$(PYTHON) scripts/print_analyzer_detected_attributes.py --instrument "$(INSTRUMENT_DETECTED_ATTRIBUTE_ROWS)" --real-note "$(REAL_NOTE_DETECTED_ATTRIBUTE_ROWS)" --guitar-chord "$(GUITAR_CHORD_DETECTED_ATTRIBUTE_ROWS)" --drum-primary "$(BUILD_DIR)/drum_primary_miss_attribute_rows.tsv" --drum-full "$(BUILD_DIR)/drum_full_attribute_rows.tsv" $(ATTRIBUTE_ROW_REPORT_ARGS)
+
+measure-analyzer-detected-attributes: measure-analyzer-attribute-rows
+	$(MAKE) print-analyzer-detected-attributes
+
+measure-analyzer-detected-attributes-full: measure-analyzer-attribute-rows-full
+	$(MAKE) print-analyzer-detected-attributes
+
+report-analyzer-patterns-from-rows: scripts/report_analyzer_attribute_patterns.py scripts/print_analyzer_detected_attributes.py
+	$(MAKE) print-analyzer-detected-attributes
+	$(PYTHON) scripts/report_analyzer_attribute_patterns.py --instrument "$(INSTRUMENT_DETECTED_ATTRIBUTE_ROWS)" --real-note "$(REAL_NOTE_DETECTED_ATTRIBUTE_ROWS)" --guitar-chord "$(GUITAR_CHORD_DETECTED_ATTRIBUTE_ROWS)" --drum "$(BUILD_DIR)/drum_primary_miss_attribute_rows.tsv" $(PATTERN_REPORT_ARGS)
 	@printf '%s\n' ""
 	@printf '%s\n' "generated instrument owner pattern candidates:"
 	$(MAKE) find-instrument-owner-patterns PATTERN_ARGS="$(MEASURE_INSTRUMENT_PATTERN_ARGS)"
+	@printf '%s\n' ""
+	@printf '%s\n' "generated instrument final-status pattern candidates:"
+	$(MAKE) find-instrument-status-patterns PATTERN_ARGS="$(MEASURE_INSTRUMENT_STATUS_PATTERN_ARGS)"
 	@printf '%s\n' ""
 	@printf '%s\n' "real-note full-mix pattern candidates:"
 	$(MAKE) find-real-note-attribute-patterns PATTERN_ARGS="$(MEASURE_REAL_NOTE_PATTERN_ARGS)"
@@ -1010,8 +1183,36 @@ measure-analyzer-patterns: measure-analyzer-attribute-rows analyze-drum-tom-blee
 	@printf '%s\n' "guitar chord pattern candidates:"
 	$(MAKE) find-guitar-chord-mix-attribute-patterns PATTERN_ARGS="$(MEASURE_GUITAR_PATTERN_ARGS)"
 	@printf '%s\n' ""
+	@printf '%s\n' "guitar chord recovery threshold simulation:"
+	$(MAKE) analyze-guitar-chord-mix-recovery RECOVERY_ARGS="$(RECOVERY_ARGS)"
+	@printf '%s\n' ""
+	@printf '%s\n' "guitar chord extra component analysis:"
+	$(MAKE) analyze-guitar-chord-mix-extra-components EXTRA_COMPONENT_ARGS="$(EXTRA_COMPONENT_ARGS)"
+	@printf '%s\n' ""
 	@printf '%s\n' "drum primary pattern candidates:"
-	$(MAKE) find-drum-attribute-patterns PATTERN_ARGS="$(MEASURE_DRUM_PATTERN_ARGS)"
+	$(MAKE) find-drum-primary-attribute-patterns PATTERN_ARGS="$(MEASURE_DRUM_PATTERN_ARGS)"
+	@printf '%s\n' ""
+	@printf '%s\n' "drum spread exact gate matrix:"
+	$(MAKE) analyze-drum-spread-gate-matrix
+	@printf '%s\n' ""
+	@printf '%s\n' "drum spread exact pattern candidates:"
+	$(MAKE) find-drum-spread-exact-attribute-patterns PATTERN_ARGS="$(MEASURE_DRUM_PATTERN_ARGS)"
+	@if [ "$(REPORT_FULL_DRUM_SKIP)" = "1" ]; then printf '%s\n' ""; printf '%s\n' "protected drum full-row pattern candidates:"; printf '%s\n' "skipped; run make measure-analyzer-patterns-full for exhaustive protected full-drum rows"; fi
+
+report-analyzer-patterns-from-rows-full:
+	$(MAKE) report-analyzer-patterns-from-rows REPORT_FULL_DRUM_SKIP=0
+	@printf '%s\n' ""
+	@printf '%s\n' "protected drum full-row pattern candidates:"
+	$(MAKE) find-drum-full-attribute-patterns PATTERN_ARGS="$(MEASURE_DRUM_FULL_PATTERN_ARGS)"
+	@printf '%s\n' ""
+	@printf '%s\n' "drum full exact pattern candidates:"
+	$(MAKE) find-drum-full-exact-attribute-patterns PATTERN_ARGS="$(MEASURE_DRUM_FULL_PATTERN_ARGS)"
+
+measure-analyzer-patterns: measure-analyzer-attribute-rows
+	$(MAKE) report-analyzer-patterns-from-rows
+
+measure-analyzer-patterns-full: measure-analyzer-attribute-rows-full analyze-drum-tom-bleed-caps
+	$(MAKE) report-analyzer-patterns-from-rows-full
 
 measure-analyzer-pattern-report: | $(BUILD_DIR)
 	$(MAKE) measure-analyzer-patterns | tee "$(MEASURE_ANALYZER_REPORT)"
@@ -1040,8 +1241,11 @@ analyze-real-note-misses: $(BUILD_DIR)/analyzer_real_note_samples prepare-real-n
 	env MUSIC_ANALYZER_REAL_NOTE_SAMPLES_REQUIRED=1 MUSIC_ANALYZER_REAL_NOTE_FULL_MIX=1 MUSIC_ANALYZER_REAL_NOTE_VERBOSE_MISSES=1 MUSIC_ANALYZER_REAL_NOTE_SAMPLE_ROOT="$(REAL_NOTE_SAMPLE_DIR)" MUSIC_ANALYZER_REAL_NOTE_MIN_BASS="$(REAL_NOTE_MIN_BASS)" MUSIC_ANALYZER_REAL_NOTE_MIN_GUITAR="$(REAL_NOTE_MIN_GUITAR)" MUSIC_ANALYZER_REAL_NOTE_MIN_PIANO="$(REAL_NOTE_MIN_PIANO)" MUSIC_ANALYZER_REAL_NOTE_MIN_VOCALS="$(REAL_NOTE_MIN_VOCALS)" MUSIC_ANALYZER_REAL_NOTE_MIN_OTHER="$(REAL_NOTE_MIN_OTHER)" MUSIC_ANALYZER_REAL_NOTE_MIN_ANY_HIT_PERCENT="$(REAL_NOTE_FULL_MIX_MIN_ANY_HIT_PERCENT)" MUSIC_ANALYZER_REAL_NOTE_MIN_EXPECTED_ROW_PERCENT="$(REAL_NOTE_FULL_MIX_MIN_EXPECTED_ROW_PERCENT)" MUSIC_ANALYZER_REAL_NOTE_MIN_BASS_EXPECTED_ROW_PERCENT="$(REAL_NOTE_FULL_MIX_MIN_BASS_EXPECTED_ROW_PERCENT)" MUSIC_ANALYZER_REAL_NOTE_MIN_GUITAR_EXPECTED_ROW_PERCENT="$(REAL_NOTE_FULL_MIX_MIN_GUITAR_EXPECTED_ROW_PERCENT)" MUSIC_ANALYZER_REAL_NOTE_MIN_PIANO_EXPECTED_ROW_PERCENT="$(REAL_NOTE_FULL_MIX_MIN_PIANO_EXPECTED_ROW_PERCENT)" MUSIC_ANALYZER_REAL_NOTE_MIN_VOCALS_EXPECTED_ROW_PERCENT="$(REAL_NOTE_FULL_MIX_MIN_VOCALS_EXPECTED_ROW_PERCENT)" MUSIC_ANALYZER_REAL_NOTE_MIN_OTHER_EXPECTED_ROW_PERCENT="$(REAL_NOTE_FULL_MIX_MIN_OTHER_EXPECTED_ROW_PERCENT)" MUSIC_ANALYZER_REAL_NOTE_MAX_DRUM_ACTIVE_PERCENT="$(REAL_NOTE_FULL_MIX_MAX_DRUM_ACTIVE_PERCENT)" MUSIC_ANALYZER_REAL_NOTE_MAX_FAILURES="$(REAL_NOTE_FULL_MIX_MAX_FAILURES)" MUSIC_ANALYZER_REAL_NOTE_MAX_FAILURE_LINES=120 $(BUILD_DIR)/analyzer_real_note_samples > "$(BUILD_DIR)/real_note_full_mix_verbose.out" 2> "$(BUILD_DIR)/real_note_full_mix_verbose.err"
 	$(PYTHON) scripts/analyze_real_note_misses.py "$(BUILD_DIR)/real_note_full_mix_verbose.err"
 
-analyze-real-note-attributes: $(BUILD_DIR)/analyzer_real_note_samples prepare-real-note-samples scripts/summarize_real_note_attributes.py
-	env MUSIC_ANALYZER_REAL_NOTE_SAMPLES_REQUIRED=1 MUSIC_ANALYZER_REAL_NOTE_FULL_MIX=1 MUSIC_ANALYZER_REAL_NOTE_ATTRIBUTE_TSV="$(BUILD_DIR)/real_note_full_mix_attributes.tsv" MUSIC_ANALYZER_REAL_NOTE_SAMPLE_ROOT="$(REAL_NOTE_SAMPLE_DIR)" MUSIC_ANALYZER_REAL_NOTE_MIN_BASS="$(REAL_NOTE_MIN_BASS)" MUSIC_ANALYZER_REAL_NOTE_MIN_GUITAR="$(REAL_NOTE_MIN_GUITAR)" MUSIC_ANALYZER_REAL_NOTE_MIN_PIANO="$(REAL_NOTE_MIN_PIANO)" MUSIC_ANALYZER_REAL_NOTE_MIN_VOCALS="$(REAL_NOTE_MIN_VOCALS)" MUSIC_ANALYZER_REAL_NOTE_MIN_OTHER="$(REAL_NOTE_MIN_OTHER)" MUSIC_ANALYZER_REAL_NOTE_MIN_ANY_HIT_PERCENT="$(REAL_NOTE_FULL_MIX_MIN_ANY_HIT_PERCENT)" MUSIC_ANALYZER_REAL_NOTE_MIN_EXPECTED_ROW_PERCENT="$(REAL_NOTE_FULL_MIX_MIN_EXPECTED_ROW_PERCENT)" MUSIC_ANALYZER_REAL_NOTE_MIN_BASS_EXPECTED_ROW_PERCENT="$(REAL_NOTE_FULL_MIX_MIN_BASS_EXPECTED_ROW_PERCENT)" MUSIC_ANALYZER_REAL_NOTE_MIN_GUITAR_EXPECTED_ROW_PERCENT="$(REAL_NOTE_FULL_MIX_MIN_GUITAR_EXPECTED_ROW_PERCENT)" MUSIC_ANALYZER_REAL_NOTE_MIN_PIANO_EXPECTED_ROW_PERCENT="$(REAL_NOTE_FULL_MIX_MIN_PIANO_EXPECTED_ROW_PERCENT)" MUSIC_ANALYZER_REAL_NOTE_MIN_VOCALS_EXPECTED_ROW_PERCENT="$(REAL_NOTE_FULL_MIX_MIN_VOCALS_EXPECTED_ROW_PERCENT)" MUSIC_ANALYZER_REAL_NOTE_MIN_OTHER_EXPECTED_ROW_PERCENT="$(REAL_NOTE_FULL_MIX_MIN_OTHER_EXPECTED_ROW_PERCENT)" MUSIC_ANALYZER_REAL_NOTE_MAX_DRUM_ACTIVE_PERCENT="$(REAL_NOTE_FULL_MIX_MAX_DRUM_ACTIVE_PERCENT)" MUSIC_ANALYZER_REAL_NOTE_MAX_FAILURES="$(REAL_NOTE_FULL_MIX_MAX_FAILURES)" $(BUILD_DIR)/analyzer_real_note_samples > "$(BUILD_DIR)/real_note_full_mix_attributes.out"
+$(BUILD_DIR)/real_note_full_mix_attributes.tsv: $(BUILD_DIR)/analyzer_real_note_samples scripts/prepare_nsynth_samples.py | $(BUILD_DIR)
+	@if [ ! -f "$(REAL_NOTE_SAMPLE_DIR)/manifest.tsv" ] || [ "scripts/prepare_nsynth_samples.py" -nt "$(REAL_NOTE_SAMPLE_DIR)/manifest.tsv" ]; then $(MAKE) prepare-real-note-samples; fi
+	env MUSIC_ANALYZER_REAL_NOTE_SAMPLES_REQUIRED=1 MUSIC_ANALYZER_REAL_NOTE_FULL_MIX=1 MUSIC_ANALYZER_REAL_NOTE_ATTRIBUTE_TSV="$@" MUSIC_ANALYZER_REAL_NOTE_SAMPLE_ROOT="$(REAL_NOTE_SAMPLE_DIR)" MUSIC_ANALYZER_REAL_NOTE_MIN_BASS=0 MUSIC_ANALYZER_REAL_NOTE_MIN_GUITAR=0 MUSIC_ANALYZER_REAL_NOTE_MIN_PIANO=0 MUSIC_ANALYZER_REAL_NOTE_MIN_VOCALS=0 MUSIC_ANALYZER_REAL_NOTE_MIN_OTHER=0 MUSIC_ANALYZER_REAL_NOTE_MIN_ANY_HIT_PERCENT=0 MUSIC_ANALYZER_REAL_NOTE_MIN_EXPECTED_ROW_PERCENT=0 MUSIC_ANALYZER_REAL_NOTE_MIN_BASS_EXPECTED_ROW_PERCENT=0 MUSIC_ANALYZER_REAL_NOTE_MIN_GUITAR_EXPECTED_ROW_PERCENT=0 MUSIC_ANALYZER_REAL_NOTE_MIN_PIANO_EXPECTED_ROW_PERCENT=0 MUSIC_ANALYZER_REAL_NOTE_MIN_VOCALS_EXPECTED_ROW_PERCENT=0 MUSIC_ANALYZER_REAL_NOTE_MIN_OTHER_EXPECTED_ROW_PERCENT=0 MUSIC_ANALYZER_REAL_NOTE_MAX_DRUM_ACTIVE_PERCENT=100 MUSIC_ANALYZER_REAL_NOTE_MAX_FAILURES=999999 $(BUILD_DIR)/analyzer_real_note_samples > "$(BUILD_DIR)/real_note_full_mix_attributes.out"
+
+analyze-real-note-attributes: $(BUILD_DIR)/real_note_full_mix_attributes.tsv scripts/summarize_real_note_attributes.py
 	$(PYTHON) scripts/summarize_real_note_attributes.py "$(BUILD_DIR)/real_note_full_mix_attributes.tsv" $(REAL_NOTE_ATTRIBUTE_SUMMARY_ARGS)
 	@printf '%s\n' "attribute TSV: $(BUILD_DIR)/real_note_full_mix_attributes.tsv"
 
@@ -1111,20 +1315,27 @@ prepare-guitar-chord-mix-samples: scripts/prepare_hf_guitar_chord_mix.py | $(BUI
 	GUITAR_CHORD_MIX_SAMPLE_DIR="$(GUITAR_CHORD_MIX_SAMPLE_DIR)" GUITAR_CHORD_MIX_LIMIT="$(GUITAR_CHORD_MIX_LIMIT)" GUITAR_CHORD_MIX_MIN_EXCERPTS="$(GUITAR_CHORD_MIX_MIN_EXCERPTS)" $(PYTHON) scripts/prepare_hf_guitar_chord_mix.py --output "$(GUITAR_CHORD_MIX_SAMPLE_DIR)" --limit "$(GUITAR_CHORD_MIX_LIMIT)" --min-samples "$(GUITAR_CHORD_MIX_MIN_EXCERPTS)"
 
 test-guitar-chord-mix-samples: $(BUILD_DIR)/analyzer_guitarset prepare-guitar-chord-mix-samples scripts/run_with_duration.sh
-	$(RUN_WITH_DURATION) analyzer_guitar_chord_mix_samples env MUSIC_ANALYZER_GUITARSET_MANIFEST="$(GUITAR_CHORD_MIX_SAMPLE_DIR)/manifest.tsv" MUSIC_ANALYZER_GUITARSET_REQUIRED=1 MUSIC_ANALYZER_GUITARSET_USE_ALL=1 MUSIC_ANALYZER_GUITARSET_REQUIRED_EXCERPTS="$(GUITAR_CHORD_MIX_MIN_EXCERPTS)" MUSIC_ANALYZER_GUITARSET_REQUIRED_WINDOWS="$(GUITAR_CHORD_MIX_MIN_WINDOWS)" MUSIC_ANALYZER_GUITARSET_MAX_WINDOWS_PER_EXCERPT=4 MUSIC_ANALYZER_GUITARSET_MIN_ACTIVE_NOTES=3 MUSIC_ANALYZER_GUITARSET_MIN_PITCH_CLASSES=3 MUSIC_ANALYZER_GUITARSET_MIN_WINDOW_RECALL_PERCENT=0 MUSIC_ANALYZER_GUITARSET_MIN_RECALL_PERCENT="$(GUITAR_CHORD_MIX_MIN_RECALL_PERCENT)" MUSIC_ANALYZER_GUITARSET_MIN_PRECISION_PERCENT="$(GUITAR_CHORD_MIX_MIN_PRECISION_PERCENT)" MUSIC_ANALYZER_GUITARSET_MIN_GUITAR_RECALL_PERCENT="$(GUITAR_CHORD_MIX_MIN_GUITAR_RECALL_PERCENT)" MUSIC_ANALYZER_GUITARSET_MAX_CONTAMINATION_PERCENT="$(GUITAR_CHORD_MIX_MAX_CONTAMINATION_PERCENT)" MUSIC_ANALYZER_GUITARSET_MAX_FALSE_VOCAL_PERCENT="$(GUITAR_CHORD_MIX_MAX_FALSE_VOCAL_PERCENT)" MUSIC_ANALYZER_GUITARSET_MIN_CHORD_RECALL_PERCENT="$(GUITAR_CHORD_MIX_MIN_CHORD_RECALL_PERCENT)" MUSIC_ANALYZER_GUITARSET_MIN_CHORD_PRECISION_PERCENT="$(GUITAR_CHORD_MIX_MIN_CHORD_PRECISION_PERCENT)" MUSIC_ANALYZER_GUITARSET_MIN_CHORD_CHECKS="$(GUITAR_CHORD_MIX_MIN_WINDOWS)" MUSIC_ANALYZER_GUITARSET_MAX_FAILURE_LINES=80 $(BUILD_DIR)/analyzer_guitarset
+	$(RUN_WITH_DURATION) analyzer_guitar_chord_mix_samples env MUSIC_ANALYZER_GUITARSET_MANIFEST="$(GUITAR_CHORD_MIX_SAMPLE_DIR)/manifest.tsv" MUSIC_ANALYZER_GUITARSET_REQUIRED=1 MUSIC_ANALYZER_GUITARSET_USE_ALL=1 MUSIC_ANALYZER_GUITARSET_REQUIRED_EXCERPTS="$(GUITAR_CHORD_MIX_MIN_EXCERPTS)" MUSIC_ANALYZER_GUITARSET_REQUIRED_WINDOWS="$(GUITAR_CHORD_MIX_MIN_WINDOWS)" MUSIC_ANALYZER_GUITARSET_MAX_WINDOWS_PER_EXCERPT=4 MUSIC_ANALYZER_GUITARSET_MIN_ACTIVE_NOTES=3 MUSIC_ANALYZER_GUITARSET_MIN_PITCH_CLASSES=3 MUSIC_ANALYZER_GUITARSET_MIN_WINDOW_RECALL_PERCENT=0 MUSIC_ANALYZER_GUITARSET_MIN_RECALL_PERCENT="$(GUITAR_CHORD_MIX_MIN_RECALL_PERCENT)" MUSIC_ANALYZER_GUITARSET_MIN_PRECISION_PERCENT="$(GUITAR_CHORD_MIX_MIN_PRECISION_PERCENT)" MUSIC_ANALYZER_GUITARSET_MIN_GUITAR_RECALL_PERCENT="$(GUITAR_CHORD_MIX_MIN_GUITAR_RECALL_PERCENT)" MUSIC_ANALYZER_GUITARSET_MAX_CONTAMINATION_PERCENT="$(GUITAR_CHORD_MIX_MAX_CONTAMINATION_PERCENT)" MUSIC_ANALYZER_GUITARSET_MAX_FALSE_VOCAL_PERCENT="$(GUITAR_CHORD_MIX_MAX_FALSE_VOCAL_PERCENT)" MUSIC_ANALYZER_GUITARSET_MIN_CHORD_RECALL_PERCENT="$(GUITAR_CHORD_MIX_MIN_CHORD_RECALL_PERCENT)" MUSIC_ANALYZER_GUITARSET_MIN_CHORD_PRECISION_PERCENT="$(GUITAR_CHORD_MIX_MIN_CHORD_PRECISION_PERCENT)" MUSIC_ANALYZER_GUITARSET_MIN_CHORD_CHECKS="$(GUITAR_CHORD_MIX_MIN_WINDOWS)" MUSIC_ANALYZER_GUITARSET_MIN_CHORD_HITS="$(GUITAR_CHORD_MIX_MIN_CHORD_HITS)" MUSIC_ANALYZER_GUITARSET_MAX_FAILURE_LINES=80 $(BUILD_DIR)/analyzer_guitarset
 
 analyze-guitar-chord-mix-misses: $(BUILD_DIR)/analyzer_guitarset prepare-guitar-chord-mix-samples scripts/analyze_guitarset_misses.py
 	env MUSIC_ANALYZER_GUITARSET_MANIFEST="$(GUITAR_CHORD_MIX_SAMPLE_DIR)/manifest.tsv" MUSIC_ANALYZER_GUITARSET_REQUIRED=1 MUSIC_ANALYZER_GUITARSET_USE_ALL=1 MUSIC_ANALYZER_GUITARSET_REQUIRED_EXCERPTS="$(GUITAR_CHORD_MIX_MIN_EXCERPTS)" MUSIC_ANALYZER_GUITARSET_REQUIRED_WINDOWS="$(GUITAR_CHORD_MIX_MIN_WINDOWS)" MUSIC_ANALYZER_GUITARSET_MAX_WINDOWS_PER_EXCERPT=4 MUSIC_ANALYZER_GUITARSET_MIN_ACTIVE_NOTES=3 MUSIC_ANALYZER_GUITARSET_MIN_PITCH_CLASSES=3 MUSIC_ANALYZER_GUITARSET_MIN_WINDOW_RECALL_PERCENT=0 MUSIC_ANALYZER_GUITARSET_MIN_RECALL_PERCENT="$(GUITAR_CHORD_MIX_MIN_RECALL_PERCENT)" MUSIC_ANALYZER_GUITARSET_MIN_PRECISION_PERCENT="$(GUITAR_CHORD_MIX_MIN_PRECISION_PERCENT)" MUSIC_ANALYZER_GUITARSET_MIN_GUITAR_RECALL_PERCENT="$(GUITAR_CHORD_MIX_MIN_GUITAR_RECALL_PERCENT)" MUSIC_ANALYZER_GUITARSET_MAX_CONTAMINATION_PERCENT="$(GUITAR_CHORD_MIX_MAX_CONTAMINATION_PERCENT)" MUSIC_ANALYZER_GUITARSET_MAX_FALSE_VOCAL_PERCENT="$(GUITAR_CHORD_MIX_MAX_FALSE_VOCAL_PERCENT)" MUSIC_ANALYZER_GUITARSET_MIN_CHORD_RECALL_PERCENT="$(GUITAR_CHORD_MIX_MIN_CHORD_RECALL_PERCENT)" MUSIC_ANALYZER_GUITARSET_MIN_CHORD_PRECISION_PERCENT="$(GUITAR_CHORD_MIX_MIN_CHORD_PRECISION_PERCENT)" MUSIC_ANALYZER_GUITARSET_MIN_CHORD_CHECKS="$(GUITAR_CHORD_MIX_MIN_WINDOWS)" MUSIC_ANALYZER_GUITARSET_MAX_FAILURE_LINES=0 MUSIC_ANALYZER_GUITARSET_VERBOSE_CHORD_MISSES=1 $(BUILD_DIR)/analyzer_guitarset > "$(GUITAR_CHORD_MIX_MISS_LOG).summary" 2> "$(GUITAR_CHORD_MIX_MISS_LOG)"
 	$(PYTHON) scripts/analyze_guitarset_misses.py "$(GUITAR_CHORD_MIX_MISS_LOG)"
 
-analyze-guitar-chord-mix-attributes: $(BUILD_DIR)/analyzer_guitarset prepare-guitar-chord-mix-samples scripts/summarize_guitarset_attributes.py
-	env MUSIC_ANALYZER_GUITARSET_MANIFEST="$(GUITAR_CHORD_MIX_SAMPLE_DIR)/manifest.tsv" MUSIC_ANALYZER_GUITARSET_REQUIRED=1 MUSIC_ANALYZER_GUITARSET_USE_ALL=1 MUSIC_ANALYZER_GUITARSET_REQUIRED_EXCERPTS="$(GUITAR_CHORD_MIX_MIN_EXCERPTS)" MUSIC_ANALYZER_GUITARSET_REQUIRED_WINDOWS="$(GUITAR_CHORD_MIX_MIN_WINDOWS)" MUSIC_ANALYZER_GUITARSET_MAX_WINDOWS_PER_EXCERPT=4 MUSIC_ANALYZER_GUITARSET_MIN_ACTIVE_NOTES=3 MUSIC_ANALYZER_GUITARSET_MIN_PITCH_CLASSES=3 MUSIC_ANALYZER_GUITARSET_MIN_WINDOW_RECALL_PERCENT=0 MUSIC_ANALYZER_GUITARSET_MIN_RECALL_PERCENT="$(GUITAR_CHORD_MIX_MIN_RECALL_PERCENT)" MUSIC_ANALYZER_GUITARSET_MIN_PRECISION_PERCENT="$(GUITAR_CHORD_MIX_MIN_PRECISION_PERCENT)" MUSIC_ANALYZER_GUITARSET_MIN_GUITAR_RECALL_PERCENT="$(GUITAR_CHORD_MIX_MIN_GUITAR_RECALL_PERCENT)" MUSIC_ANALYZER_GUITARSET_MAX_CONTAMINATION_PERCENT="$(GUITAR_CHORD_MIX_MAX_CONTAMINATION_PERCENT)" MUSIC_ANALYZER_GUITARSET_MAX_FALSE_VOCAL_PERCENT="$(GUITAR_CHORD_MIX_MAX_FALSE_VOCAL_PERCENT)" MUSIC_ANALYZER_GUITARSET_MIN_CHORD_RECALL_PERCENT="$(GUITAR_CHORD_MIX_MIN_CHORD_RECALL_PERCENT)" MUSIC_ANALYZER_GUITARSET_MIN_CHORD_PRECISION_PERCENT="$(GUITAR_CHORD_MIX_MIN_CHORD_PRECISION_PERCENT)" MUSIC_ANALYZER_GUITARSET_MIN_CHORD_CHECKS="$(GUITAR_CHORD_MIX_MIN_WINDOWS)" MUSIC_ANALYZER_GUITARSET_ATTRIBUTE_TSV="$(BUILD_DIR)/guitar_chord_mix_attributes.tsv" $(BUILD_DIR)/analyzer_guitarset > "$(BUILD_DIR)/guitar_chord_mix_attributes.out"
+$(BUILD_DIR)/guitar_chord_mix_attributes.tsv: $(BUILD_DIR)/analyzer_guitarset scripts/prepare_hf_guitar_chord_mix.py | $(BUILD_DIR)
+	@if [ ! -f "$(GUITAR_CHORD_MIX_SAMPLE_DIR)/manifest.tsv" ] || [ "scripts/prepare_hf_guitar_chord_mix.py" -nt "$(GUITAR_CHORD_MIX_SAMPLE_DIR)/manifest.tsv" ]; then $(MAKE) prepare-guitar-chord-mix-samples; fi
+	env MUSIC_ANALYZER_GUITARSET_MANIFEST="$(GUITAR_CHORD_MIX_SAMPLE_DIR)/manifest.tsv" MUSIC_ANALYZER_GUITARSET_REQUIRED=1 MUSIC_ANALYZER_GUITARSET_USE_ALL=1 MUSIC_ANALYZER_GUITARSET_REQUIRED_EXCERPTS="$(GUITAR_CHORD_MIX_MIN_EXCERPTS)" MUSIC_ANALYZER_GUITARSET_REQUIRED_WINDOWS="$(GUITAR_CHORD_MIX_MIN_WINDOWS)" MUSIC_ANALYZER_GUITARSET_MAX_WINDOWS_PER_EXCERPT=4 MUSIC_ANALYZER_GUITARSET_MIN_ACTIVE_NOTES=3 MUSIC_ANALYZER_GUITARSET_MIN_PITCH_CLASSES=3 MUSIC_ANALYZER_GUITARSET_MIN_WINDOW_RECALL_PERCENT=0 MUSIC_ANALYZER_GUITARSET_MIN_RECALL_PERCENT=0 MUSIC_ANALYZER_GUITARSET_MIN_PRECISION_PERCENT=0 MUSIC_ANALYZER_GUITARSET_MIN_GUITAR_RECALL_PERCENT=0 MUSIC_ANALYZER_GUITARSET_MAX_CONTAMINATION_PERCENT=100 MUSIC_ANALYZER_GUITARSET_MAX_FALSE_VOCAL_PERCENT=100 MUSIC_ANALYZER_GUITARSET_MIN_CHORD_RECALL_PERCENT=0 MUSIC_ANALYZER_GUITARSET_MIN_CHORD_PRECISION_PERCENT=0 MUSIC_ANALYZER_GUITARSET_MIN_CHORD_CHECKS="$(GUITAR_CHORD_MIX_MIN_WINDOWS)" MUSIC_ANALYZER_GUITARSET_ATTRIBUTE_TSV="$@" $(BUILD_DIR)/analyzer_guitarset > "$(BUILD_DIR)/guitar_chord_mix_attributes.out"
+
+analyze-guitar-chord-mix-attributes: $(BUILD_DIR)/guitar_chord_mix_attributes.tsv scripts/summarize_guitarset_attributes.py
 	$(PYTHON) scripts/summarize_guitarset_attributes.py "$(BUILD_DIR)/guitar_chord_mix_attributes.tsv"
 	@printf '%s\n' "attribute TSV: $(BUILD_DIR)/guitar_chord_mix_attributes.tsv"
 
 analyze-guitar-chord-mix-recovery: scripts/analyze_guitar_chord_recovery.py
 	@if [ ! -f "$(BUILD_DIR)/guitar_chord_mix_attributes.tsv" ]; then $(MAKE) analyze-guitar-chord-mix-attributes; fi
 	$(PYTHON) scripts/analyze_guitar_chord_recovery.py "$(BUILD_DIR)/guitar_chord_mix_attributes.tsv" $(RECOVERY_ARGS)
+
+analyze-guitar-chord-mix-extra-components: scripts/analyze_guitar_chord_extra_components.py
+	@if [ ! -f "$(BUILD_DIR)/guitar_chord_mix_attributes.tsv" ]; then $(MAKE) analyze-guitar-chord-mix-attributes; fi
+	$(PYTHON) scripts/analyze_guitar_chord_extra_components.py "$(BUILD_DIR)/guitar_chord_mix_attributes.tsv" $(EXTRA_COMPONENT_ARGS)
 
 inspect-guitar-chord-mix-attribute-buckets: scripts/inspect_guitarset_attribute_buckets.py
 	@if [ ! -f "$(BUILD_DIR)/guitar_chord_mix_attributes.tsv" ]; then $(MAKE) analyze-guitar-chord-mix-attributes; fi
@@ -1321,6 +1532,84 @@ prepare-vocalset-samples: scripts/prepare_vocalset_samples.py download-vocalset-
 test-vocalset-samples: $(BUILD_DIR)/analyzer_real_note_samples prepare-vocalset-samples scripts/run_with_duration.sh
 	$(RUN_WITH_DURATION) analyzer_vocalset_samples env MUSIC_ANALYZER_REAL_NOTE_SAMPLES_REQUIRED=1 MUSIC_ANALYZER_REAL_NOTE_REQUIRED_SAMPLES="$(VOCALSET_MIN_VOCALS)" MUSIC_ANALYZER_REAL_NOTE_SAMPLE_ROOT="$(VOCALSET_SAMPLE_DIR)" MUSIC_ANALYZER_REAL_NOTE_MIN_VOCALS="$(VOCALSET_MIN_VOCALS)" MUSIC_ANALYZER_REAL_NOTE_MAX_FAILURES="$(VOCALSET_MAX_FAILURES)" MUSIC_ANALYZER_REAL_NOTE_MAX_FAILURE_LINES=120 $(BUILD_DIR)/analyzer_real_note_samples
 
+DRUM_REAL_WORLD_SAMPLE_TARGETS := test-hf-drum-kit-samples test-idmt-drums-samples test-mdb-drums-samples test-star-drums-samples test-drum-samples-optional test-drum-samples-spread-optional
+DRUM_REAL_WORLD_SAMPLE_FULL_TARGETS := $(DRUM_REAL_WORLD_SAMPLE_TARGETS) test-drum-machine-samples-optional test-drum-samples-full-optional
+REAL_WORLD_SAMPLE_TARGETS := test-real-note-samples test-real-note-samples-full-mix test-guitar-fretboard-note-samples test-hf-drum-kit-samples test-idmt-drums-samples test-mdb-drums-samples test-star-drums-samples test-downloaded-guitarset test-philharmonia-samples test-iowa-piano-samples test-iowa-bass-samples test-idmt-bass-lines-samples test-vocadito-samples
+REAL_WORLD_SAMPLE_FULL_TARGETS := $(REAL_WORLD_SAMPLE_TARGETS) test-guitar-techs-samples test-guitar-techs-chord-samples test-guitar-chord-mix-samples test-egfxset-guitar-samples test-gaps-guitar-samples test-idmt-guitar-samples test-iowa-strings-samples test-iowa-orchestra-samples test-iowa-orchestra-full-samples test-philharmonia-samples-full test-tinysol-samples test-drum-machine-samples-optional test-drum-samples-full-optional test-good-sounds-samples-optional test-medley-solos-samples-optional test-maps-piano-samples-optional test-maps-piano-note-samples-optional test-bach10-mf0-synth-samples-optional test-vocalset-samples-optional test-configured-real-world-samples
+REAL_WORLD_SAMPLE_MAX_BASE_TARGETS := $(filter-out test-iowa-piano-samples,$(REAL_WORLD_SAMPLE_TARGETS))
+REAL_WORLD_SAMPLE_MAX_TARGETS := $(REAL_WORLD_SAMPLE_MAX_BASE_TARGETS) test-guitar-techs-samples test-guitar-techs-chord-samples test-guitar-chord-mix-samples test-egfxset-guitar-samples test-gaps-guitar-samples-full test-idmt-guitar-samples test-iowa-piano-samples-max test-iowa-strings-samples test-iowa-orchestra-samples test-iowa-orchestra-full-samples-max test-philharmonia-samples-full test-tinysol-samples test-good-sounds-samples-max test-medley-solos-samples-max test-maps-piano-samples-max test-maps-piano-note-samples-max test-bach10-mf0-synth-samples test-vocalset-samples test-drum-machine-samples-optional test-drum-samples-full-optional test-configured-real-world-samples
+DETECTOR_SAMPLE_REGRESSION_TARGETS := test-analyzer-cases test-real-note-samples-full-mix test-guitar-chord-mix-samples $(DRUM_REAL_WORLD_SAMPLE_TARGETS) test-instrument-samples
+.PHONY: test-detector-samples-parallel
+
+ifneq ($(wildcard $(DRUM_SAMPLE_SOURCE_DIR)),)
+test-drum-samples-optional: test-drum-samples
+test-drum-samples-spread-optional: test-drum-samples-spread
+test-drum-machine-samples-optional: test-drum-machine-samples
+test-drum-samples-full-optional: test-drum-samples-full
+else
+test-drum-samples-optional:
+	printf '%s\n' "test-drum-samples: skipped; missing $(DRUM_SAMPLE_SOURCE_DIR)"
+test-drum-samples-spread-optional:
+	printf '%s\n' "test-drum-samples-spread: skipped; missing $(DRUM_SAMPLE_SOURCE_DIR)"
+test-drum-machine-samples-optional:
+	printf '%s\n' "test-drum-machine-samples: skipped; missing $(DRUM_SAMPLE_SOURCE_DIR)"
+test-drum-samples-full-optional:
+	printf '%s\n' "test-drum-samples-full: skipped; missing $(DRUM_SAMPLE_SOURCE_DIR)"
+endif
+
+ifneq ($(wildcard $(GOOD_SOUNDS_ARCHIVE)),)
+test-good-sounds-samples-optional: test-good-sounds-samples
+else
+test-good-sounds-samples-optional:
+	printf '%s\n' "test-good-sounds-samples: skipped; missing $(GOOD_SOUNDS_ARCHIVE)"
+endif
+
+ifneq ($(wildcard $(MEDLEY_SOLOS_ARCHIVE)),)
+test-medley-solos-samples-optional: test-medley-solos-samples
+else
+test-medley-solos-samples-optional:
+	printf '%s\n' "test-medley-solos-samples: skipped; missing $(MEDLEY_SOLOS_ARCHIVE)"
+endif
+
+ifneq ($(wildcard $(MAPS_PIANO_ARCHIVE)),)
+test-maps-piano-samples-optional: test-maps-piano-samples
+test-maps-piano-note-samples-optional: test-maps-piano-note-samples
+else
+test-maps-piano-samples-optional:
+	printf '%s\n' "test-maps-piano-samples: skipped; missing $(MAPS_PIANO_ARCHIVE)"
+test-maps-piano-note-samples-optional:
+	printf '%s\n' "test-maps-piano-note-samples: skipped; missing $(MAPS_PIANO_ARCHIVE)"
+endif
+
+ifneq ($(or $(BACH10_MF0_SYNTH_SOURCE_ROOT),$(wildcard $(BACH10_MF0_SYNTH_ARCHIVE))),)
+test-bach10-mf0-synth-samples-optional: test-bach10-mf0-synth-samples
+else
+test-bach10-mf0-synth-samples-optional:
+	printf '%s\n' "test-bach10-mf0-synth-samples: skipped; missing $(BACH10_MF0_SYNTH_ARCHIVE)"
+endif
+
+ifneq ($(wildcard $(VOCALSET_ARCHIVE)),)
+test-vocalset-samples-optional: test-vocalset-samples
+else
+test-vocalset-samples-optional:
+	printf '%s\n' "test-vocalset-samples: skipped; missing $(VOCALSET_ARCHIVE)"
+endif
+
+test-drum-real-world-samples-parallel:
+	$(MAKE) -j$(PARALLEL_TEST_JOBS) $(DRUM_REAL_WORLD_SAMPLE_TARGETS)
+
+test-drum-real-world-samples-full-parallel:
+	$(MAKE) -j$(PARALLEL_TEST_JOBS) $(DRUM_REAL_WORLD_SAMPLE_FULL_TARGETS)
+
+test-real-world-samples-parallel:
+	$(MAKE) -j$(PARALLEL_TEST_JOBS) $(REAL_WORLD_SAMPLE_TARGETS)
+
+test-real-world-samples-full-parallel:
+	$(MAKE) -j$(PARALLEL_TEST_JOBS) $(REAL_WORLD_SAMPLE_FULL_TARGETS)
+
+test-detector-samples-parallel:
+	$(MAKE) -j$(PARALLEL_TEST_JOBS) $(DETECTOR_SAMPLE_REGRESSION_TARGETS)
+
 test-drum-real-world-samples: test-hf-drum-kit-samples test-idmt-drums-samples test-mdb-drums-samples test-star-drums-samples
 	if [ -d "$(DRUM_SAMPLE_SOURCE_DIR)" ]; then $(MAKE) test-drum-samples; $(MAKE) test-drum-samples-spread; else printf '%s\n' "test-drum-samples: skipped; missing $(DRUM_SAMPLE_SOURCE_DIR)"; fi
 
@@ -1343,35 +1632,66 @@ test-real-world-samples-full: test-real-world-samples test-guitar-techs-samples 
 	if [ -s "$(VOCALSET_ARCHIVE)" ]; then $(MAKE) test-vocalset-samples; else printf '%s\n' "test-vocalset-samples: skipped; missing $(VOCALSET_ARCHIVE)"; fi
 	$(MAKE) test-configured-real-world-samples
 
-test-real-world-samples-max:
-	$(MAKE) test-real-world-samples
-	$(MAKE) test-guitar-techs-samples
-	$(MAKE) test-guitar-techs-chord-samples
-	$(MAKE) test-guitar-chord-mix-samples
-	$(MAKE) test-egfxset-guitar-samples
-	$(MAKE) test-gaps-guitar-samples-full
-	$(MAKE) test-idmt-guitar-samples
+test-iowa-piano-samples-max:
 	$(MAKE) IOWA_PIANO_SAMPLE_LIMIT=0 test-iowa-piano-samples
-	$(MAKE) test-iowa-strings-samples
-	$(MAKE) test-iowa-orchestra-samples
+
+test-iowa-orchestra-full-samples-max:
 	$(MAKE) IOWA_ORCHESTRA_FULL_SAMPLE_LIMIT=0 IOWA_ORCHESTRA_FULL_MAX_ZIPS_PER_PAGE=0 test-iowa-orchestra-full-samples
-	$(MAKE) test-philharmonia-samples-full
-	$(MAKE) test-tinysol-samples
+
+test-good-sounds-samples-max:
 	$(MAKE) GOOD_SOUNDS_SAMPLE_LIMIT=0 test-good-sounds-samples
+
+test-medley-solos-samples-max:
 	$(MAKE) MEDLEY_SOLOS_LIMIT_PER_INSTRUMENT=0 test-medley-solos-samples
+
+test-maps-piano-samples-max:
 	$(MAKE) MAPS_PIANO_RECORDING_LIMIT=0 test-maps-piano-samples
+
+test-maps-piano-note-samples-max:
 	$(MAKE) MAPS_PIANO_NOTE_RECORDING_LIMIT=0 test-maps-piano-note-samples
-	$(MAKE) test-bach10-mf0-synth-samples
-	$(MAKE) test-vocalset-samples
-	if [ -d "$(DRUM_SAMPLE_SOURCE_DIR)" ]; then $(MAKE) test-drum-machine-samples; else printf '%s\n' "test-drum-machine-samples: skipped; missing $(DRUM_SAMPLE_SOURCE_DIR)"; fi
-	if [ -d "$(DRUM_SAMPLE_SOURCE_DIR)" ]; then $(MAKE) test-drum-samples-full; else printf '%s\n' "test-drum-samples-full: skipped; missing $(DRUM_SAMPLE_SOURCE_DIR)"; fi
-	$(MAKE) test-configured-real-world-samples
+
+test-real-world-samples-max:
+	$(MAKE) -j$(PARALLEL_TEST_JOBS) $(REAL_WORLD_SAMPLE_MAX_TARGETS)
 
 test-midi-ranges: $(BUILD_DIR)/analyzer_midi_ranges scripts/run_with_duration.sh
 	$(RUN_WITH_DURATION) analyzer_midi_ranges $(BUILD_DIR)/analyzer_midi_ranges
 
 test-fret-control: $(BUILD_DIR)/fret_control_tests scripts/run_with_duration.sh
 	$(RUN_WITH_DURATION) fret_control_tests $(BUILD_DIR)/fret_control_tests
+
+test-analyzer-smoke: $(BUILD_DIR)/analyzer_smoke scripts/run_with_duration.sh
+	$(RUN_WITH_DURATION) analyzer_smoke $(BUILD_DIR)/analyzer_smoke
+
+test-analyzer-cases: $(BUILD_DIR)/analyzer_cases scripts/run_with_duration.sh
+	$(RUN_WITH_DURATION) analyzer_cases $(BUILD_DIR)/analyzer_cases
+
+test-analyzer-midi-ranges: $(BUILD_DIR)/analyzer_midi_ranges scripts/run_with_duration.sh
+	$(RUN_WITH_DURATION) analyzer_midi_ranges $(BUILD_DIR)/analyzer_midi_ranges
+
+test-analyzer-urmp: $(BUILD_DIR)/analyzer_urmp scripts/run_with_duration.sh
+	$(RUN_WITH_DURATION) analyzer_urmp $(BUILD_DIR)/analyzer_urmp
+
+test-analyzer-musicnet: $(BUILD_DIR)/analyzer_musicnet scripts/run_with_duration.sh
+	$(RUN_WITH_DURATION) analyzer_musicnet $(BUILD_DIR)/analyzer_musicnet
+
+test-analyzer-multtipop: $(BUILD_DIR)/analyzer_multtipop scripts/run_with_duration.sh
+	$(RUN_WITH_DURATION) analyzer_multtipop $(BUILD_DIR)/analyzer_multtipop
+
+test-analyzer-guitarset: $(BUILD_DIR)/analyzer_guitarset scripts/run_with_duration.sh
+	$(RUN_WITH_DURATION) analyzer_guitarset $(BUILD_DIR)/analyzer_guitarset
+
+test-analyzer-maestro: $(BUILD_DIR)/analyzer_maestro scripts/run_with_duration.sh
+	$(RUN_WITH_DURATION) analyzer_maestro $(BUILD_DIR)/analyzer_maestro
+
+test-analyzer-egmd: $(BUILD_DIR)/analyzer_egmd scripts/run_with_duration.sh
+	$(RUN_WITH_DURATION) analyzer_egmd $(BUILD_DIR)/analyzer_egmd
+
+test-core-parallel: test-analyzer-smoke test-analyzer-cases test-analyzer-midi-ranges test-analyzer-urmp test-analyzer-musicnet test-analyzer-multtipop test-analyzer-guitarset test-analyzer-maestro test-analyzer-egmd
+
+test-analysis-scripts-parallel: inspect-real-dataset-catalog inspect-real-goal-coverage test-musicnet-remote test-medleydb-inspector test-medleydb-prepare test-musdb-inspector test-slakh-inspector test-slakh-prepare test-choralsynth-inspector test-choralsynth-prepare test-cocochorales-inspector test-cocochorales-prepare test-synthsod-remote test-synthsod-archive-extract test-synthsod-inspector test-synthsod-prepare test-polyvocal-inspector test-polyvocal-prepare test-prepared-multitrack-inspector test-prepared-multitrack-prepare test-multtipop-inspector test-spheres-inspector test-guitarset-inspector test-urmp-inspector test-drum-sample-prepare test-hf-drum-kit-prepare test-idmt-drums-prepare test-mdb-drums-prepare test-star-drums-prepare test-medley-solos-prepare test-maps-piano-prepare test-bach10-mf0-synth-prepare test-instrument-sample-attribute-summary test-instrument-sample-owner-buckets test-instrument-owner-patterns test-refresh-analyzer-detected-attribute-rows test-print-analyzer-detected-attributes test-analyzer-pattern-report test-measure-analyzer-patterns-target test-philharmonia-prepare test-good-sounds-prepare test-iowa-piano-prepare test-iowa-zip-prepare test-idmt-bass-lines-prepare test-idmt-guitar-prepare test-tinysol-prepare test-vocadito-prepare test-vocalset-prepare test-guitar-fretboard-note-prepare test-guitar-techs-prepare test-guitar-techs-chord-prepare test-guitar-chord-mix-prepare test-gaps-guitar-prepare test-guitarset-miss-analysis test-guitarset-attribute-summary test-guitarset-attribute-buckets test-guitarset-attribute-patterns test-guitar-chord-recovery-analysis test-guitar-chord-extra-components-analysis test-real-note-miss-analysis test-real-note-attribute-summary test-real-note-attribute-buckets test-real-note-attribute-patterns test-egmd-miss-analysis test-egmd-drum-attribute-summary test-drum-primary-analysis test-drum-gate-matrix-summary test-real-goal-script android-check
+
+test-parallel:
+	$(MAKE) -j$(PARALLEL_TEST_JOBS) test-analysis-scripts-parallel test-core-parallel test-standalone
 
 test: $(TEST_BINS) scripts/run_with_duration.sh
 	$(MAKE) test-standalone
@@ -1410,6 +1730,8 @@ test: $(TEST_BINS) scripts/run_with_duration.sh
 	$(MAKE) test-instrument-sample-attribute-summary
 	$(MAKE) test-instrument-sample-owner-buckets
 	$(MAKE) test-instrument-owner-patterns
+	$(MAKE) test-refresh-analyzer-detected-attribute-rows
+	$(MAKE) test-print-analyzer-detected-attributes
 	$(MAKE) test-analyzer-pattern-report
 	$(MAKE) test-measure-analyzer-patterns-target
 	$(MAKE) test-philharmonia-prepare
@@ -1437,6 +1759,7 @@ test: $(TEST_BINS) scripts/run_with_duration.sh
 	$(MAKE) test-egmd-miss-analysis
 	$(MAKE) test-egmd-drum-attribute-summary
 	$(MAKE) test-drum-primary-analysis
+	$(MAKE) test-drum-gate-matrix-summary
 	$(MAKE) test-real-goal-script
 	$(RUN_WITH_DURATION) fret_control_tests $(BUILD_DIR)/fret_control_tests
 	$(RUN_WITH_DURATION) analyzer_smoke $(BUILD_DIR)/analyzer_smoke
@@ -1666,6 +1989,9 @@ test-guitarset-attribute-patterns: tests/test_find_guitarset_attribute_patterns.
 test-guitar-chord-recovery-analysis: tests/test_analyze_guitar_chord_recovery.py scripts/analyze_guitar_chord_recovery.py
 	$(PYTHON) tests/test_analyze_guitar_chord_recovery.py
 
+test-guitar-chord-extra-components-analysis: tests/test_analyze_guitar_chord_extra_components.py scripts/analyze_guitar_chord_extra_components.py
+	$(PYTHON) tests/test_analyze_guitar_chord_extra_components.py
+
 test-real-note-miss-analysis: tests/test_analyze_real_note_misses.py scripts/analyze_real_note_misses.py
 	$(PYTHON) tests/test_analyze_real_note_misses.py
 
@@ -1687,6 +2013,12 @@ test-instrument-sample-owner-buckets: tests/test_inspect_instrument_sample_owner
 test-instrument-owner-patterns: tests/test_find_instrument_owner_patterns.py scripts/find_instrument_owner_patterns.py
 	$(PYTHON) tests/test_find_instrument_owner_patterns.py
 
+test-refresh-analyzer-detected-attribute-rows: tests/test_refresh_analyzer_detected_attribute_rows.py scripts/refresh_analyzer_detected_attribute_rows.py
+	$(PYTHON) tests/test_refresh_analyzer_detected_attribute_rows.py
+
+test-print-analyzer-detected-attributes: tests/test_print_analyzer_detected_attributes.py scripts/print_analyzer_detected_attributes.py
+	$(PYTHON) tests/test_print_analyzer_detected_attributes.py
+
 test-analyzer-pattern-report: tests/test_report_analyzer_attribute_patterns.py scripts/report_analyzer_attribute_patterns.py
 	$(PYTHON) tests/test_report_analyzer_attribute_patterns.py
 
@@ -1704,6 +2036,9 @@ test-drum-primary-analysis: tests/test_analyze_drum_primary_debug.py tests/test_
 	$(PYTHON) tests/test_evaluate_drum_rule_grid.py
 	$(PYTHON) tests/test_evaluate_drum_tom_bleed_caps.py
 	$(PYTHON) tests/test_find_drum_attribute_patterns.py
+
+test-drum-gate-matrix-summary: tests/test_summarize_drum_gate_matrix.py scripts/summarize_drum_gate_matrix.py
+	$(PYTHON) tests/test_summarize_drum_gate_matrix.py
 
 test-real-goal-script: tests/test_run_real_goal_gate.py tests/run_real_goal_gate.py
 	$(PYTHON) tests/test_run_real_goal_gate.py

@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import argparse
+import csv
 import dataclasses
 import pathlib
 import re
@@ -31,6 +32,7 @@ TRANSIENT_RE = re.compile(
     r" crack=(?P<snare_crack>[0-9.]+) upper_tom=(?P<upper_tom_body>[0-9.]+)"
     r" body_shape=(?P<body_shape>-?[0-9]+))?"
 )
+MERGED_EXPECTED_RE = re.compile(r"\bmerged_expected=(?P<merged>[01])\b")
 
 
 @dataclasses.dataclass(frozen=True)
@@ -44,6 +46,7 @@ class PatternMatch:
     label: str
     positive_mask: int
     negative_mask: int
+    all_mask: int
 
 
 @dataclasses.dataclass(frozen=True)
@@ -51,6 +54,7 @@ class SearchState:
     labels: tuple[str, ...]
     positive_mask: int
     negative_mask: int
+    all_mask: int
     next_match_index: int
 
 
@@ -61,8 +65,16 @@ class RuleResult:
     positive_samples: int
     negative_rows: int
     negative_samples: int
+    foreign_rows: int
+    foreign_samples: int
+    new_active_rows: int
+    new_active_samples: int
+    primary_break_rows: int
+    primary_break_samples: int
     positive_examples: list[dict[str, str]]
     negative_examples: list[dict[str, str]]
+    new_active_examples: list[dict[str, str]]
+    primary_break_examples: list[dict[str, str]]
 
 
 def primary_from_levels(row: dict[str, str]) -> str:
@@ -85,9 +97,9 @@ def primary_from_levels(row: dict[str, str]) -> str:
     return "ambiguous" if tied > 1 else best
 
 
-def parse_rows(path: pathlib.Path) -> list[dict[str, str]]:
+def parse_debug_rows(text: str) -> list[dict[str, str]]:
     rows: list[dict[str, str]] = []
-    for line in path.read_text(errors="replace").splitlines():
+    for line in text.splitlines():
         row_match = ROW_RE.search(line)
         transient_match = TRANSIENT_RE.search(line)
         if not row_match or not transient_match:
@@ -95,7 +107,11 @@ def parse_rows(path: pathlib.Path) -> list[dict[str, str]]:
         row: dict[str, str] = {
             "sample": row_match.group("sample"),
             "expected": row_match.group("expected"),
+            "merged_expected": "0",
         }
+        merged_match = MERGED_EXPECTED_RE.search(line)
+        if merged_match:
+            row["merged_expected"] = merged_match.group("merged")
         for field in (
             "transient",
             "onset",
@@ -122,6 +138,54 @@ def parse_rows(path: pathlib.Path) -> list[dict[str, str]]:
     return rows
 
 
+def parse_tsv_rows(text: str) -> list[dict[str, str]]:
+    rows: list[dict[str, str]] = []
+    reader = csv.DictReader(text.splitlines(), delimiter="\t")
+    for raw in reader:
+        if not raw.get("sample") or not raw.get("expected"):
+            continue
+        row: dict[str, str] = {}
+        for field, value in raw.items():
+            if field is None or value is None:
+                continue
+            if field in {"energy_low", "energy_mid", "energy_high", "got"}:
+                continue
+            row[field] = value
+        for source, target in (
+            ("energy_low", "low"),
+            ("energy_mid", "mid"),
+            ("energy_high", "high"),
+        ):
+            if raw.get(source):
+                row[target] = raw[source]
+        row["sample"] = raw["sample"]
+        row["expected"] = raw["expected"]
+        row["primary"] = raw.get("got") or primary_from_levels(row)
+        row["merged_expected"] = raw.get("merged_expected") or "0"
+        if not any(f"{category}_level" in row for category in CATEGORIES):
+            continue
+        add_ratios(row)
+        rows.append(row)
+    return rows
+
+
+def parse_rows(path: pathlib.Path, source: str | None = None) -> list[dict[str, str]]:
+    text = path.read_text(errors="replace")
+    first_line = next((line for line in text.splitlines() if line.strip()), "")
+    if "\t" in first_line:
+        header = first_line.split("\t")
+        if {"sample", "expected"}.issubset(set(header)):
+            rows = parse_tsv_rows(text)
+        else:
+            rows = parse_debug_rows(text)
+    else:
+        rows = parse_debug_rows(text)
+    source = source or path.stem
+    for row in rows:
+        row["source"] = source
+    return rows
+
+
 def add_ratios(row: dict[str, str]) -> None:
     for lhs, rhs in (
         ("tom", "snare"),
@@ -137,6 +201,18 @@ def add_ratios(row: dict[str, str]) -> None:
             if lhs_value is None or rhs_value is None:
                 continue
             row[f"{lhs}_{rhs}_{field}_ratio"] = f"{lhs_value / (rhs_value + 1.0e-9):.9f}"
+    for label, lhs_field, rhs_field in (
+        ("tom_snare_body_ratio", "tom_body", "snare_body"),
+        ("tom_kick_body_ratio", "tom_body", "kick_body"),
+        ("snare_kick_body_ratio", "snare_body", "kick_body"),
+        ("upper_tom_snare_body_ratio", "upper_tom_body", "snare_body"),
+        ("upper_tom_snare_crack_ratio", "upper_tom_body", "snare_crack"),
+    ):
+        lhs_value = as_float(row, lhs_field)
+        rhs_value = as_float(row, rhs_field)
+        if lhs_value is None or rhs_value is None:
+            continue
+        row[label] = f"{lhs_value / (rhs_value + 1.0e-9):.9f}"
 
 
 def as_float(row: dict[str, str], field: str) -> float | None:
@@ -206,7 +282,7 @@ def numeric_fields(rows: list[dict[str, str]]) -> list[str]:
     fields = set()
     for row in rows:
         for field, value in row.items():
-            if field in {"sample", "expected", "primary"}:
+            if field in {"sample", "expected", "primary", "merged_expected"}:
                 continue
             try:
                 float(value)
@@ -236,11 +312,15 @@ def build_patterns(positive_rows: list[dict[str, str]]) -> list[Pattern]:
     return deduped
 
 
+def sample_key(row: dict[str, str]) -> str:
+    return f"{row.get('source', '')}\0{row.get('sample', '')}"
+
+
 def sample_bit_map(rows: list[dict[str, str]]) -> list[int]:
     bits: dict[str, int] = {}
     row_bits: list[int] = []
     for row in rows:
-        sample = row.get("sample", "")
+        sample = sample_key(row)
         if sample not in bits:
             bits[sample] = 1 << len(bits)
         row_bits.append(bits[sample])
@@ -283,7 +363,7 @@ def selected_samples_from_mask(rows: list[dict[str, str]], row_mask: int, limit:
         bit = row_mask & -row_mask
         index = bit.bit_length() - 1
         row = rows[index]
-        sample = row.get("sample", "")
+        sample = sample_key(row)
         if sample not in seen:
             seen.add(sample)
             selected.append(row)
@@ -291,14 +371,47 @@ def selected_samples_from_mask(rows: list[dict[str, str]], row_mask: int, limit:
     return selected
 
 
+def side_effect_masks(
+    rows: list[dict[str, str]], row_mask: int, target_category: str
+) -> tuple[int, int, int]:
+    foreign_mask = 0
+    new_active_mask = 0
+    primary_break_mask = 0
+    target_level_field = f"{target_category}_level"
+    for index, row in enumerate(rows):
+        bit = 1 << index
+        if not row_mask & bit:
+            continue
+        expected = row.get("expected", "")
+        if expected == target_category:
+            continue
+        foreign_mask |= bit
+        target_level = as_float(row, target_level_field) or 0.0
+        if target_level <= 0.30:
+            new_active_mask |= bit
+        if expected in CATEGORIES:
+            primary = row.get("primary", "")
+            expected_level = as_float(row, f"{expected}_level") or 0.0
+            primary_level = as_float(row, f"{primary}_level") if primary in CATEGORIES else None
+            current_winner_level = expected_level if primary_level is None else max(expected_level, primary_level)
+            repaired_target_level = max(target_level, 0.90, current_winner_level + 0.02)
+            if repaired_target_level > expected_level + 0.005:
+                primary_break_mask |= bit
+    return foreign_mask, new_active_mask, primary_break_mask
+
+
 def result_from_masks(
     rule: str,
     positive_mask: int,
     negative_mask: int,
+    all_mask: int,
     positive_rows: list[dict[str, str]],
     negative_rows: list[dict[str, str]],
+    all_rows: list[dict[str, str]],
     positive_sample_bits: list[int],
     negative_sample_bits: list[int],
+    all_sample_bits: list[int],
+    target_category: str,
     max_negative_samples: int,
     show_examples: int,
 ) -> RuleResult | None:
@@ -310,14 +423,30 @@ def result_from_masks(
     )
     if negative_exceeded:
         return None
+    foreign_mask, new_active_mask, primary_break_mask = side_effect_masks(
+        all_rows, all_mask, target_category
+    )
+    foreign_samples, _foreign_exceeded = sample_count_for_mask(foreign_mask, all_sample_bits)
+    new_active_samples, _new_active_exceeded = sample_count_for_mask(new_active_mask, all_sample_bits)
+    primary_break_samples, _primary_break_exceeded = sample_count_for_mask(
+        primary_break_mask, all_sample_bits
+    )
     return RuleResult(
         rule=rule,
         positive_rows=positive_mask.bit_count(),
         positive_samples=positive_samples,
         negative_rows=negative_mask.bit_count(),
         negative_samples=negative_samples,
+        foreign_rows=foreign_mask.bit_count(),
+        foreign_samples=foreign_samples,
+        new_active_rows=new_active_mask.bit_count(),
+        new_active_samples=new_active_samples,
+        primary_break_rows=primary_break_mask.bit_count(),
+        primary_break_samples=primary_break_samples,
         positive_examples=selected_samples_from_mask(positive_rows, positive_mask, show_examples),
         negative_examples=selected_samples_from_mask(negative_rows, negative_mask, show_examples),
+        new_active_examples=selected_samples_from_mask(all_rows, new_active_mask, show_examples),
+        primary_break_examples=selected_samples_from_mask(all_rows, primary_break_mask, show_examples),
     )
 
 
@@ -342,8 +471,11 @@ def extend_condition_search(
     matches: list[PatternMatch],
     positive_rows: list[dict[str, str]],
     negative_rows: list[dict[str, str]],
+    all_rows: list[dict[str, str]],
     positive_sample_bits: list[int],
     negative_sample_bits: list[int],
+    all_sample_bits: list[int],
+    target_category: str,
     min_positive_samples: int,
     max_negative_samples: int,
     max_conditions: int,
@@ -362,6 +494,7 @@ def extend_condition_search(
                 labels=(match.label,),
                 positive_mask=match.positive_mask,
                 negative_mask=match.negative_mask,
+                all_mask=match.all_mask,
                 next_match_index=index + 1,
             )
         )
@@ -379,13 +512,15 @@ def extend_condition_search(
                 if bounded_sample_count(positive_mask, positive_sample_bits, None) < min_positive_samples:
                     continue
                 negative_mask = state.negative_mask & match.negative_mask
+                all_mask = state.all_mask & match.all_mask
                 candidate = SearchState(
                     labels=state.labels + (match.label,),
                     positive_mask=positive_mask,
                     negative_mask=negative_mask,
+                    all_mask=all_mask,
                     next_match_index=match_index + 1,
                 )
-                key = (positive_mask, negative_mask)
+                key = (positive_mask, negative_mask, all_mask)
                 existing = next_states.get(key)
                 if existing is None or ranked_state_key(
                     candidate, positive_sample_bits, negative_sample_bits, max_negative_samples
@@ -398,7 +533,7 @@ def extend_condition_search(
             ),
         )[: max(1, beam_width)]
         for state in states:
-            result_key = (state.positive_mask, state.negative_mask)
+            result_key = (state.positive_mask, state.negative_mask, state.all_mask)
             if result_key in seen_results:
                 continue
             seen_results.add(result_key)
@@ -406,10 +541,14 @@ def extend_condition_search(
                 " AND ".join(state.labels),
                 state.positive_mask,
                 state.negative_mask,
+                state.all_mask,
                 positive_rows,
                 negative_rows,
+                all_rows,
                 positive_sample_bits,
                 negative_sample_bits,
+                all_sample_bits,
+                target_category,
                 max_negative_samples,
                 show_examples,
             )
@@ -420,9 +559,12 @@ def extend_condition_search(
     return results
 
 
-def rank_result(result: RuleResult) -> tuple[int, int, int, int, str]:
+def rank_result(result: RuleResult) -> tuple[int, int, int, int, int, int, int, str]:
     return (
         result.negative_samples,
+        result.primary_break_samples,
+        result.new_active_samples,
+        result.foreign_samples,
         -result.positive_samples,
         result.negative_rows,
         result.rule.count(" AND "),
@@ -451,8 +593,11 @@ def top_routes(rows: list[dict[str, str]], limit: int) -> list[tuple[str, str]]:
 def format_example(row: dict[str, str]) -> str:
     expected = row.get("expected", "")
     got = row.get("primary", "")
+    source = row.get("source", "")
+    sample = row.get("sample", "")
+    sample_text = f"{source}:{sample}" if source else sample
     parts = [
-        f"{row.get('sample', '')} {expected}->{got}",
+        f"{sample_text} {expected}->{got}",
         f"energy={value_text(row, 'low')}/{value_text(row, 'mid')}/{value_text(row, 'high')}",
         f"body={value_text(row, 'kick_body')}/{value_text(row, 'snare_body')}/{value_text(row, 'tom_body')}",
         f"crack={value_text(row, 'snare_crack')}",
@@ -496,8 +641,8 @@ def print_route_patterns(
     negative_rows = [row for row in rows if row.get("expected") == row.get("primary")]
     protected_by_expected = Counter(row.get("expected", "") for row in negative_rows)
     print(
-        f"route {expected}->{got} positives={len({row.get('sample', '') for row in positive_rows})} "
-        f"rows={len(positive_rows)} protected_correct={len({row.get('sample', '') for row in negative_rows})} "
+        f"route {expected}->{got} positives={len({sample_key(row) for row in positive_rows})} "
+        f"rows={len(positive_rows)} protected_correct={len({sample_key(row) for row in negative_rows})} "
         f"rows={len(negative_rows)}"
     )
     if not positive_rows:
@@ -510,12 +655,14 @@ def print_route_patterns(
 
     positive_sample_bits = sample_bit_map(positive_rows)
     negative_sample_bits = sample_bit_map(negative_rows)
+    all_sample_bits = sample_bit_map(rows)
     patterns = build_patterns(positive_rows)
     matches = [
         PatternMatch(
             label=pattern.label,
             positive_mask=mask_for_pattern(positive_rows, pattern),
             negative_mask=mask_for_pattern(negative_rows, pattern),
+            all_mask=mask_for_pattern(rows, pattern),
         )
         for pattern in patterns
     ]
@@ -525,10 +672,14 @@ def print_route_patterns(
             match.label,
             match.positive_mask,
             match.negative_mask,
+            match.all_mask,
             positive_rows,
             negative_rows,
+            rows,
             positive_sample_bits,
             negative_sample_bits,
+            all_sample_bits,
+            expected,
             max_negative_samples,
             show_examples,
         )
@@ -539,8 +690,11 @@ def print_route_patterns(
             matches,
             positive_rows,
             negative_rows,
+            rows,
             positive_sample_bits,
             negative_sample_bits,
+            all_sample_bits,
+            expected,
             min_positive_samples,
             max_negative_samples,
             max(2, max_conditions),
@@ -560,7 +714,10 @@ def print_route_patterns(
     for result in ranked:
         print(
             f"  +{result.positive_samples} rows={result.positive_rows} "
-            f"-{result.negative_samples} rows={result.negative_rows} :: {result.rule}"
+            f"-{result.negative_samples} rows={result.negative_rows} "
+            f"foreign={result.foreign_samples} rows={result.foreign_rows} "
+            f"new-active={result.new_active_samples} rows={result.new_active_rows} "
+            f"primary-break={result.primary_break_samples} rows={result.primary_break_rows} :: {result.rule}"
         )
         if show_examples <= 0:
             continue
@@ -571,6 +728,14 @@ def print_route_patterns(
         if result.negative_examples:
             print("    protected-correct examples:")
             for row in result.negative_examples:
+                print(f"      {format_example(row)}")
+        if result.new_active_examples:
+            print("    new-active side-effect examples:")
+            for row in result.new_active_examples:
+                print(f"      {format_example(row)}")
+        if result.primary_break_examples:
+            print("    primary-break side-effect examples:")
+            for row in result.primary_break_examples:
                 print(f"      {format_example(row)}")
 
 
@@ -584,13 +749,28 @@ def main() -> int:
     parser.add_argument("--max-negative-samples", type=int, default=0)
     parser.add_argument("--max-conditions", type=int, default=3)
     parser.add_argument("--beam-width", type=int, default=220)
-    parser.add_argument("--show-examples", type=int, default=0)
+    parser.add_argument("--show-examples", "--row-examples", dest="show_examples", type=int, default=0)
+    parser.add_argument(
+        "--include-merged-rows",
+        action="store_true",
+        help="include drum rows whose expected level was credited from a later frame",
+    )
     args = parser.parse_args()
 
     rows: list[dict[str, str]] = []
+    source_stem_counts = Counter(path.stem for path in args.logs)
     for path in args.logs:
-        rows.extend(parse_rows(path))
+        source = path.stem if source_stem_counts[path.stem] == 1 else path.as_posix()
+        rows.extend(parse_rows(path, source))
+    merged_rows = sum(1 for row in rows if row.get("merged_expected") == "1")
+    if merged_rows and not args.include_merged_rows:
+        rows = [row for row in rows if row.get("merged_expected") != "1"]
     routes = [parse_route(route) for route in args.route] if args.route else top_routes(rows, args.top_routes)
+    print("candidate rules are attribute selectors; rerun analyzer gates to validate runtime level and primary-label effects")
+    if merged_rows and not args.include_merged_rows:
+        print(
+            f"ignored merged expected-credit rows={merged_rows}; pass --include-merged-rows to inspect them"
+        )
     for route in routes:
         print_route_patterns(
             rows,
