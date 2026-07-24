@@ -4918,6 +4918,84 @@ NoteCandidateList full_mix_display_candidates(const FullMixOwnership &ownership,
 	return candidates;
 }
 
+bool non_guitar_debug_pitch_support(const FullMixDebugCandidate &debug)
+{
+	if (debug.owner == InstrumentKind::Keyboard || debug.owner == InstrumentKind::Other ||
+	    debug.owner == InstrumentKind::Vocal)
+		return true;
+	const float non_guitar_score = std::max({debug.keyboard_score, debug.other_score, debug.vocal_score});
+	return non_guitar_score >= 0.42f && non_guitar_score >= debug.guitar_score * 1.35f;
+}
+
+const FullMixDebugCandidate *strongest_same_pitch_non_guitar_debug_at_or_below(
+	const FullMixOwnership &ownership, int midi)
+{
+	const int pitch_class = midi_pitch_class(midi);
+	const FullMixDebugCandidate *best = nullptr;
+	const std::size_t debug_count =
+		std::min<std::size_t>(ownership.debug_candidate_count, ownership.debug_candidates.size());
+	for (std::size_t i = 0; i < debug_count; ++i) {
+		const FullMixDebugCandidate &debug = ownership.debug_candidates[i];
+		if (debug.midi > midi || midi_pitch_class(debug.midi) != pitch_class)
+			continue;
+		if (!non_guitar_debug_pitch_support(debug))
+			continue;
+		if (!best || ownership_global_note_level(ownership, debug.midi) >
+				     ownership_global_note_level(ownership, best->midi))
+			best = &debug;
+	}
+	return best;
+}
+
+bool guitar_display_candidate_shadowed_by_non_guitar_pitch(const FullMixOwnership &ownership,
+							   const NoteCandidate &candidate)
+{
+	if (candidate.midi < kGuitarMinMidi || candidate.midi > kGuitarMaxMidi)
+		return false;
+
+	const FullMixDebugCandidate *lower =
+		strongest_same_pitch_non_guitar_debug_at_or_below(ownership, candidate.midi);
+	if (!lower)
+		return false;
+	const float lower_level = ownership_global_note_level(ownership, lower->midi);
+	if (lower_level < 0.18f)
+		return false;
+
+	const FullMixDebugCandidate *debug = full_mix_debug_for_midi(ownership, candidate.midi);
+	if (debug && debug->midi == lower->midi)
+		return false;
+
+	if (!debug || candidate.midi - lower->midi < 12 || candidate.midi - lower->midi > 24)
+		return false;
+
+	const bool upper_harmonic_shadow =
+		debug->owner == InstrumentKind::Guitar &&
+		lower_level >= 0.42f &&
+		debug->spectral_level <= lower->spectral_level * 1.28f &&
+		debug->harmonicity >= 0.42f &&
+		debug->spectral_centroid <= 0.32f &&
+		debug->spectral_slope <= 0.16f &&
+		debug->local_noise_level <= 0.14f &&
+		(debug->keyboard_score + debug->other_score + debug->vocal_score) <= 0.22f;
+	if (upper_harmonic_shadow)
+		return true;
+
+	return candidate.ownership_confidence <= 0.36f &&
+	       lower_level >= ownership_global_note_level(ownership, candidate.midi) * 0.65f;
+}
+
+NoteCandidateList prune_shadowed_full_mix_guitar_display_candidates(const FullMixOwnership &ownership,
+								    const NoteCandidateList &candidates)
+{
+	NoteCandidateList pruned;
+	for (const NoteCandidate &candidate : candidates) {
+		if (guitar_display_candidate_shadowed_by_non_guitar_pitch(ownership, candidate))
+			continue;
+		pruned.push_back(candidate);
+	}
+	return pruned;
+}
+
 bool full_mix_debug_bass_display_supported(const FullMixDebugCandidate &debug)
 {
 	if (debug.midi < kBassMinMidi || debug.midi > kBassMaxMidi + 12)
@@ -13013,7 +13091,9 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 		if (mixed_source) {
 			preferred_root = lowest_candidate_pitch_class(full_mix_ownership.guitar_candidates);
 			const NoteCandidateList guitar_display =
-				full_mix_display_candidates(full_mix_ownership, FullMixDisplayRow::Guitar);
+				prune_shadowed_full_mix_guitar_display_candidates(
+					full_mix_ownership,
+					full_mix_display_candidates(full_mix_ownership, FullMixDisplayRow::Guitar));
 			set_instrument_note_set_from_candidates(snapshot.guitar_notes, snapshot.guitar,
 								guitar_display,
 								preferred_root, guitar_energy, rms, max_notes, 0.22f);
