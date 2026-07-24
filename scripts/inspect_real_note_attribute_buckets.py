@@ -52,6 +52,8 @@ FIELDS = [
     "raw_next_ratio",
     "raw_octave_down_ratio",
     "raw_octave_up_ratio",
+    "raw_best_debug_delta",
+    "raw_best_debug_abs_delta",
 ]
 
 DEFAULT_BUCKETS = [
@@ -120,6 +122,8 @@ ROW_DUMP_FIELDS = [
     "raw_tuned_abs_cent_offset",
     "raw_local_best_note",
     "raw_expected_rank",
+    "raw_best_debug_delta",
+    "raw_best_debug_abs_delta",
     "bass_level",
     "guitar_level",
     "piano_level",
@@ -182,6 +186,15 @@ def debug_delta(row: dict[str, str]) -> tuple[str, str]:
     return str(delta), str(abs(delta))
 
 
+def numeric_delta(row: dict[str, str], left_field: str, right_field: str) -> tuple[str, str]:
+    left = as_float(row, left_field)
+    right = as_float(row, right_field)
+    if left is None or right is None:
+        return "", ""
+    delta = int(round(left - right))
+    return str(delta), str(abs(delta))
+
+
 def miss_reason(row: dict[str, str], abs_delta: str) -> str:
     if row.get("status") == "hit":
         return "hit"
@@ -212,6 +225,9 @@ def derive_row(row: dict[str, str]) -> dict[str, str]:
     delta, abs_delta = debug_delta(row)
     result["debug_delta"] = delta
     result["debug_abs_delta"] = abs_delta
+    raw_best_delta, raw_best_abs_delta = numeric_delta(row, "raw_local_best_midi", "debug_midi")
+    result["raw_best_debug_delta"] = raw_best_delta
+    result["raw_best_debug_abs_delta"] = raw_best_abs_delta
     result["miss_reason"] = miss_reason(row, abs_delta)
     return result
 

@@ -61,6 +61,8 @@ ROW_CONTEXT_NUMERIC_FIELDS = [
     "raw_next_ratio",
     "raw_octave_down_ratio",
     "raw_octave_up_ratio",
+    "raw_best_debug_delta",
+    "raw_best_debug_abs_delta",
     "debug_delta",
     "debug_abs_delta",
 ]
