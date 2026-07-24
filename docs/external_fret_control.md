@@ -35,7 +35,7 @@ Connect the APC mini mk2 by USB. Android must expose at least one MIDI output po
 
 ## M-VAVE Chocolate Plus
 
-Every M-VAVE MIDI packet is captured before control mapping, regardless of its channel or configured data number. Note and CC numbers use modulo positions 0-3 for A-D. FootCtrlPlus Program Change display values ending in 1-4 map to A-D; display values ending in 5-6 are the E/F combination controls and are captured but do not trigger an A-D action. SysEx is also captured for diagnostics but does not imply a root-control action.
+Every M-VAVE MIDI packet is captured before control mapping, regardless of its channel or configured data number. The FootCtrlPlus factory custom controls CC32, CC33, CC34, and CC35 map directly to A, B, C, and D; other Note and CC numbers use modulo positions 0-3. FootCtrlPlus Program Change display values ending in 1-4 map to A-D; display values ending in 5-6 are the E/F combination controls and are captured but do not trigger an A-D action. SysEx is also captured for diagnostics but does not imply a root-control action.
 
 For predictable press-versus-hold behavior, the recommended vendor-editor preset uses momentary Note messages on MIDI channel 1:
 
@@ -46,9 +46,9 @@ For predictable press-versus-hold behavior, the recommended vendor-editor preset
 | C | 38 | set manual root to G | set manual root to C |
 | D | 39 | toggle Auto/Manual | toggle Auto/Manual |
 
-Each switch should send Note On when pressed and Note Off (or Note On with velocity zero) when released. The short action happens on press, while releasing after 600 ms completes the long action. Note-On-only presets therefore still provide repeatable short actions. Notes 0-3 and 60-63 are accepted as alternate four-note banks. Any CC is accepted, using values at least 64 for press and lower values for release. Program Change works as a short-press fallback because it has no release event.
+Each switch should send Note On when pressed and Note Off (or Note On with velocity zero) when released. The short action happens on press, while releasing after 600 ms completes the long action. Note-On-only presets therefore still provide repeatable short actions. Notes 0-3 and 60-63 are accepted as alternate four-note banks. Any CC is accepted: a high value followed by a low value provides press/release timing, while a single low-valued CC (including the factory CC32-35 behavior) is treated as a short press. Program Change also works as a short-press fallback because it has no release event.
 
-USB MIDI and BLE MIDI are supported. The scanner recognizes names containing `Chocolate`, `M-VAVE`, `MVAVE`, or `FootCtrl`, then opens the device through Android's Bluetooth MIDI service. The app also opens a matching bonded controller directly, which covers a `FootCtrlPlus` that Android has already connected and that therefore stops advertising before the app starts.
+USB MIDI and BLE MIDI are supported. The scanner recognizes names containing `Chocolate`, `M-VAVE`, `MVAVE`, or `FootCtrl`. USB controllers use Android MIDI ports. BLE controllers are opened directly through the standard BLE-MIDI service `03b80e5a-ede8-4b33-a751-6ce34ec4c700` and I/O characteristic `7772e5db-3868-4112-a1a9-f2669d106bf3`, bypassing Android's Bluetooth MIDI bridge when it opens a port but delivers no packets. The app also opens a matching bonded controller directly, which covers a `FootCtrlPlus` that stops advertising before the app starts.
 
 The vendor's current download center lists `FootCtrlPlus` under the newer MidiSuite editor, while the older Chocolate remains listed under CubeSuite: <https://www.m-vave.com/download>.
 
@@ -80,4 +80,4 @@ The app sends `40 00 00 00` to clear before the new scale and paces commands in 
 
 ## Hardware validation
 
-Automated tests validate mode retention, chromatic wrapping, controller maps, glyph precedence, LiteJam segment/string encoding, and Fret Zealot nibble packing. An APK build validates all JNI and Android APIs. Physical hardware is still required to validate advertised names on a particular firmware, left-handed/custom tuning expectations, BLE write pacing, and the selected CubeSuite preset.
+Automated tests validate mode retention, chromatic wrapping, controller maps, glyph precedence, LiteJam segment/string encoding, and Fret Zealot nibble packing. An APK build validates all JNI and Android APIs. Physical hardware is still required to validate advertised names on a particular firmware, left-handed/custom tuning expectations, BLE write pacing, and the selected MidiSuite preset.

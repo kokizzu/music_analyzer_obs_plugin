@@ -231,15 +231,19 @@ def main():
     require("6e400002-b5a3-f393-e0a9-e50e24dcca9e" in external_devices and
             "fb1e4002-54ae-4a28-9f74-dfccb248601d" in external_devices,
             "Android BLE manager must support both Fret Zealot write characteristics")
-    require("openBluetoothDevice" in external_devices and "openOutputPort" in external_devices and
-            "openInputPort" in external_devices,
-            "Android MIDI manager must support BLE MIDI, controller input, and APC LED output")
+    require("03b80e5a-ede8-4b33-a751-6ce34ec4c700" in external_devices and
+            "7772e5db-3868-4112-a1a9-f2669d106bf3" in external_devices and
+            "connectGatt" in external_devices and "writeDescriptor" in external_devices and
+            "onCharacteristicChanged" in external_devices and
+            "openOutputPort" in external_devices and "openInputPort" in external_devices,
+            "Android device manager must support direct BLE MIDI, controller input, and APC LED output")
     require("getBondedDevices" in external_devices and "openBondedMvaveIfAvailable" in external_devices,
             "Android MIDI manager must reopen an already bonded M-VAVE controller")
     require("MVAVE_HOLD_MILLIS" in external_devices and "mvaveRelease" in external_devices and
-            "data1 % 4" in external_devices and "mvaveProgramToSwitch" in external_devices and
+            "controller >= 32 && controller <= 35" in external_devices and
+            "controller % 4" in external_devices and "mvaveProgramToSwitch" in external_devices and
             "displayedSuffix" in external_devices and "M-VAVE MIDI" in external_devices and
-            "M-VAVE raw" in external_devices,
+            "M-VAVE BLE raw" in external_devices,
             "M-VAVE handling must capture arbitrary MIDI values, program banks, and hardware diagnostics")
     require("kMajorColors" in fret_control and "build_litejam_major_scale_packet" in fret_control and
             "build_fret_zealot_major_scale_packet" in fret_control and "build_apc_led_messages" in fret_control,

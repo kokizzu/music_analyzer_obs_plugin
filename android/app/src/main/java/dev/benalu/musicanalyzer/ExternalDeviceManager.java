@@ -6,6 +6,7 @@ import android.bluetooth.BluetoothDevice;
 import android.bluetooth.BluetoothGatt;
 import android.bluetooth.BluetoothGattCallback;
 import android.bluetooth.BluetoothGattCharacteristic;
+import android.bluetooth.BluetoothGattDescriptor;
 import android.bluetooth.BluetoothGattService;
 import android.bluetooth.BluetoothManager;
 import android.bluetooth.BluetoothProfile;
@@ -56,6 +57,10 @@ final class ExternalDeviceManager implements Closeable {
     private static final UUID FRET_ZEALOT_LED = UUID.fromString("6e400002-b5a3-f393-e0a9-e50e24dcca9e");
     private static final UUID FRET_ZEALOT_2_SERVICE = UUID.fromString("fb1e4001-54ae-4a28-9f74-dfccb248601d");
     private static final UUID FRET_ZEALOT_2_LED = UUID.fromString("fb1e4002-54ae-4a28-9f74-dfccb248601d");
+    private static final UUID BLE_MIDI_SERVICE = UUID.fromString("03b80e5a-ede8-4b33-a751-6ce34ec4c700");
+    private static final UUID BLE_MIDI_IO = UUID.fromString("7772e5db-3868-4112-a1a9-f2669d106bf3");
+    private static final UUID CLIENT_CHARACTERISTIC_CONFIG =
+            UUID.fromString("00002902-0000-1000-8000-00805f9b34fb");
 
     private static final long MVAVE_HOLD_MILLIS = 600;
     private static final int REQUESTED_MTU = 247;
@@ -85,6 +90,11 @@ final class ExternalDeviceManager implements Closeable {
     private boolean mvaveOpening;
     private MidiConnection apcConnection;
     private MidiConnection mvaveConnection;
+    private BluetoothGatt mvaveGatt;
+    private BluetoothGattCharacteristic mvaveGattCharacteristic;
+    private boolean mvaveGattConnecting;
+    private boolean mvaveGattSubscribed;
+    private int mvaveBleRunningStatus;
 
     ExternalDeviceManager(Context context, long nativeHandle, Runnable invalidateDisplay) {
         this.context = context;
@@ -123,6 +133,7 @@ final class ExternalDeviceManager implements Closeable {
             closeBleTarget(fretZealot, STATE_DISABLED);
             closeMidiConnection(true, STATE_DISABLED);
             closeMidiConnection(false, STATE_DISABLED);
+            closeMvaveGatt(STATE_DISABLED);
         }
         invalidateDisplay.run();
     }
@@ -135,6 +146,7 @@ final class ExternalDeviceManager implements Closeable {
         closeBleTarget(fretZealot, STATE_DISABLED);
         closeMidiConnection(true, STATE_DISABLED);
         closeMidiConnection(false, STATE_DISABLED);
+        closeMvaveGatt(STATE_DISABLED);
         if (midiManager != null && midiCallbackRegistered) {
             midiManager.unregisterDeviceCallback(midiDeviceCallback);
             midiCallbackRegistered = false;
@@ -168,7 +180,7 @@ final class ExternalDeviceManager implements Closeable {
         if (apcConnection == null && !apcOpening) {
             setDeviceState(DEVICE_APC_MINI, STATE_SEARCHING);
         }
-        if (mvaveConnection == null && !mvaveOpening) {
+        if (!hasMvaveConnection() && !isMvaveOpening()) {
             setDeviceState(DEVICE_MVAVE, STATE_SEARCHING);
         }
     }
@@ -197,7 +209,7 @@ final class ExternalDeviceManager implements Closeable {
             setDeviceState(DEVICE_FRET_ZEALOT, STATE_SEARCHING);
         }
         if (scanning || (liteJam.characteristic != null && fretZealot.characteristic != null
-                && mvaveConnection != null)) {
+                && hasMvaveConnection())) {
             return;
         }
         bleScanner = bluetoothAdapter.getBluetoothLeScanner();
@@ -256,20 +268,181 @@ final class ExternalDeviceManager implements Closeable {
     }
 
     private void openBondedMvaveIfAvailable() {
-        if (bluetoothAdapter == null || mvaveConnection != null || mvaveOpening) {
+        if (bluetoothAdapter == null || hasMvaveConnection() || isMvaveOpening()) {
             return;
         }
         try {
             for (BluetoothDevice device : bluetoothAdapter.getBondedDevices()) {
                 String name = device.getName();
                 if (name != null && isMvaveBleName(name.toLowerCase(Locale.ROOT))) {
-                    Log.i(TAG, "Opening bonded M-VAVE device: " + name);
-                    openBluetoothMidiDevice(device);
+                    Log.i(TAG, "Opening bonded M-VAVE BLE-MIDI device: " + name);
+                    connectMvaveGatt(device);
                     return;
                 }
             }
         } catch (SecurityException exception) {
             Log.w(TAG, "Unable to inspect bonded M-VAVE devices", exception);
+        }
+    }
+
+    private boolean hasMvaveConnection() {
+        return mvaveConnection != null || mvaveGattSubscribed;
+    }
+
+    private boolean isMvaveOpening() {
+        return mvaveOpening || mvaveGattConnecting || (mvaveGatt != null && !mvaveGattSubscribed);
+    }
+
+    private void connectMvaveGatt(BluetoothDevice device) {
+        if (!started || !autoconnect || hasMvaveConnection() || isMvaveOpening()) {
+            return;
+        }
+        mvaveGattConnecting = true;
+        setDeviceState(DEVICE_MVAVE, STATE_CONNECTING);
+        try {
+            mvaveGatt = device.connectGatt(context, false, mvaveGattCallback, BluetoothDevice.TRANSPORT_LE);
+            if (mvaveGatt == null) {
+                mvaveGattConnecting = false;
+                setDeviceState(DEVICE_MVAVE, STATE_ERROR);
+                scheduleBleScanRetry();
+            }
+        } catch (SecurityException exception) {
+            mvaveGattConnecting = false;
+            setDeviceState(DEVICE_MVAVE, STATE_ERROR);
+            scheduleBleScanRetry();
+            Log.w(TAG, "Unable to connect M-VAVE BLE-MIDI device", exception);
+        }
+    }
+
+    private void closeMvaveGatt(int finalState) {
+        BluetoothGatt gatt = mvaveGatt;
+        mvaveGatt = null;
+        mvaveGattCharacteristic = null;
+        mvaveGattConnecting = false;
+        mvaveGattSubscribed = false;
+        mvaveBleRunningStatus = 0;
+        Arrays.fill(mvavePressed, false);
+        if (gatt != null) {
+            try {
+                gatt.disconnect();
+                gatt.close();
+            } catch (SecurityException exception) {
+                Log.w(TAG, "Unable to close M-VAVE BLE-MIDI device", exception);
+            }
+        }
+        setDeviceState(DEVICE_MVAVE, finalState);
+    }
+
+    private void failMvaveGatt() {
+        closeMvaveGatt(autoconnect ? STATE_SEARCHING : STATE_DISABLED);
+        scheduleBleScanRetry();
+    }
+
+    private void discoverMvaveServices(BluetoothGatt gatt) {
+        try {
+            if (!gatt.discoverServices()) {
+                failMvaveGatt();
+            }
+        } catch (SecurityException exception) {
+            Log.w(TAG, "Unable to discover M-VAVE BLE-MIDI service", exception);
+            failMvaveGatt();
+        }
+    }
+
+    private void configureMvaveGatt(BluetoothGatt gatt) {
+        BluetoothGattCharacteristic characteristic =
+                findCharacteristic(gatt, BLE_MIDI_SERVICE, BLE_MIDI_IO);
+        if (characteristic == null) {
+            Log.w(TAG, "M-VAVE device does not expose the standard BLE-MIDI characteristic");
+            failMvaveGatt();
+            return;
+        }
+        BluetoothGattDescriptor descriptor = characteristic.getDescriptor(CLIENT_CHARACTERISTIC_CONFIG);
+        if (descriptor == null) {
+            Log.w(TAG, "M-VAVE BLE-MIDI characteristic has no notification descriptor");
+            failMvaveGatt();
+            return;
+        }
+        int properties = characteristic.getProperties();
+        byte[] descriptorValue = (properties & BluetoothGattCharacteristic.PROPERTY_NOTIFY) != 0
+                ? BluetoothGattDescriptor.ENABLE_NOTIFICATION_VALUE
+                : BluetoothGattDescriptor.ENABLE_INDICATION_VALUE;
+        try {
+            if (!gatt.setCharacteristicNotification(characteristic, true)) {
+                failMvaveGatt();
+                return;
+            }
+            boolean accepted;
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                accepted = gatt.writeDescriptor(descriptor, descriptorValue)
+                        == android.bluetooth.BluetoothStatusCodes.SUCCESS;
+            } else {
+                descriptor.setValue(descriptorValue);
+                accepted = gatt.writeDescriptor(descriptor);
+            }
+            if (!accepted) {
+                failMvaveGatt();
+                return;
+            }
+            mvaveGattCharacteristic = characteristic;
+        } catch (SecurityException exception) {
+            Log.w(TAG, "Unable to subscribe to M-VAVE BLE-MIDI input", exception);
+            failMvaveGatt();
+        }
+    }
+
+    private void handleMvaveBlePacket(byte[] packet) {
+        if (packet == null || packet.length < 2) {
+            return;
+        }
+        StringBuilder raw = new StringBuilder();
+        for (byte value : packet) {
+            if (raw.length() > 0) {
+                raw.append(' ');
+            }
+            raw.append(String.format(Locale.ROOT, "%02X", value & 0xff));
+        }
+        Log.d(TAG, "M-VAVE BLE raw: " + raw);
+
+        int index = 1; // BLE-MIDI packet header.
+        while (index < packet.length) {
+            int timestamp = packet[index] & 0xff;
+            if ((timestamp & 0x80) == 0) {
+                ++index;
+                continue;
+            }
+            ++index; // Every MIDI event starts with a timestamp-low byte.
+            if (index >= packet.length) {
+                break;
+            }
+
+            int value = packet[index] & 0xff;
+            if ((value & 0x80) != 0) {
+                ++index;
+                if (value >= 0x80 && value < 0xf0) {
+                    mvaveBleRunningStatus = value;
+                } else if (value >= 0xf8) {
+                    continue;
+                } else {
+                    mvaveBleRunningStatus = 0;
+                    while (index < packet.length && (packet[index] & 0xff) < 0x80) {
+                        ++index;
+                    }
+                    continue;
+                }
+            }
+            if (mvaveBleRunningStatus == 0) {
+                continue;
+            }
+
+            int message = mvaveBleRunningStatus & 0xf0;
+            int dataBytes = (message == 0xc0 || message == 0xd0) ? 1 : 2;
+            if (index + dataBytes > packet.length) {
+                break;
+            }
+            int data1 = packet[index++] & 0x7f;
+            int data2 = dataBytes == 2 ? packet[index++] & 0x7f : 0;
+            handleMvaveMessage(mvaveBleRunningStatus, data1, data2);
         }
     }
 
@@ -344,7 +517,7 @@ final class ExternalDeviceManager implements Closeable {
         target.connecting = false;
         setDeviceState(target.deviceIndex, STATE_CONNECTED);
         refreshOutputs(true);
-        if (liteJam.characteristic != null && fretZealot.characteristic != null && mvaveConnection != null) {
+        if (liteJam.characteristic != null && fretZealot.characteristic != null && hasMvaveConnection()) {
             stopBleScan();
         }
     }
@@ -381,7 +554,7 @@ final class ExternalDeviceManager implements Closeable {
             return;
         }
         handler.postDelayed(() -> {
-            if (started && autoconnect && mvaveConnection == null && !mvaveOpening) {
+            if (started && autoconnect && !hasMvaveConnection() && !isMvaveOpening()) {
                 setDeviceState(DEVICE_MVAVE, STATE_SEARCHING);
             }
             startBleScanIfAllowed();
@@ -538,7 +711,10 @@ final class ExternalDeviceManager implements Closeable {
         String name = midiDeviceName(info);
         if (isApcName(name) && apcConnection == null && !apcOpening) {
             openMidiDevice(info, true);
-        } else if (isMvaveName(name) && mvaveConnection == null && !mvaveOpening) {
+        } else if (isMvaveName(name)
+                && info.getType() != MidiDeviceInfo.TYPE_BLUETOOTH
+                && !hasMvaveConnection()
+                && !isMvaveOpening()) {
             openMidiDevice(info, false);
         }
     }
@@ -552,22 +728,6 @@ final class ExternalDeviceManager implements Closeable {
             setDeviceState(DEVICE_MVAVE, STATE_CONNECTING);
         }
         midiManager.openDevice(info, device -> finishOpenMidiDevice(device, apc), handler);
-    }
-
-    private void openBluetoothMidiDevice(BluetoothDevice bluetoothDevice) {
-        if (midiManager == null || mvaveConnection != null || mvaveOpening || !started || !autoconnect) {
-            return;
-        }
-        Log.i(TAG, "Opening M-VAVE Bluetooth MIDI device");
-        mvaveOpening = true;
-        setDeviceState(DEVICE_MVAVE, STATE_CONNECTING);
-        try {
-            midiManager.openBluetoothDevice(bluetoothDevice, device -> finishOpenMidiDevice(device, false), handler);
-        } catch (SecurityException exception) {
-            mvaveOpening = false;
-            setDeviceState(DEVICE_MVAVE, STATE_ERROR);
-            Log.w(TAG, "Unable to open Bluetooth MIDI device", exception);
-        }
     }
 
     private void finishOpenMidiDevice(MidiDevice device, boolean apc) {
@@ -601,7 +761,7 @@ final class ExternalDeviceManager implements Closeable {
             Log.i(TAG, "M-VAVE MIDI connected: " + midiDeviceName(device.getInfo()));
         }
         refreshOutputs(true);
-        if (liteJam.characteristic != null && fretZealot.characteristic != null && mvaveConnection != null) {
+        if (liteJam.characteristic != null && fretZealot.characteristic != null && hasMvaveConnection()) {
             stopBleScan();
         }
     }
@@ -675,15 +835,27 @@ final class ExternalDeviceManager implements Closeable {
         return program % 4;
     }
 
+    private int mvaveControlToSwitch(int controller) {
+        if (controller >= 32 && controller <= 35) {
+            return controller - 32;
+        }
+        return controller % 4;
+    }
+
+    private void mvaveTap(int switchIndex) {
+        if (switchIndex >= 0 && switchIndex < mvavePressed.length
+                && MusicAnalyzerNative.nativeHandleMvaveSwitch(nativeHandle, switchIndex, false)) {
+            refreshOutputs(true);
+        }
+    }
+
     private void mvavePress(int switchIndex) {
         if (switchIndex < 0 || switchIndex >= mvavePressed.length) {
             return;
         }
         mvavePressed[switchIndex] = true;
         mvavePressedAt[switchIndex] = SystemClock.uptimeMillis();
-        if (MusicAnalyzerNative.nativeHandleMvaveSwitch(nativeHandle, switchIndex, false)) {
-            refreshOutputs(true);
-        }
+        mvaveTap(switchIndex);
     }
 
     private void mvaveRelease(int switchIndex) {
@@ -714,18 +886,19 @@ final class ExternalDeviceManager implements Closeable {
                 mvaveRelease(switchIndex);
             }
         } else if (message == 0xb0) {
-            int switchIndex = data1 % 4;
+            int switchIndex = mvaveControlToSwitch(data1);
             if (data2 >= 64) {
                 mvavePress(switchIndex);
-            } else {
+            } else if (mvavePressed[switchIndex]) {
                 mvaveRelease(switchIndex);
+            } else {
+                // Some M-VAVE custom-control presets emit one low-valued CC on press,
+                // rather than a high-value press followed by a zero-value release.
+                mvaveTap(switchIndex);
             }
         } else if (message == 0xc0) {
             int switchIndex = mvaveProgramToSwitch(data1);
-            if (switchIndex >= 0
-                    && MusicAnalyzerNative.nativeHandleMvaveSwitch(nativeHandle, switchIndex, false)) {
-                refreshOutputs(true);
-            }
+            mvaveTap(switchIndex);
         }
     }
 
@@ -748,7 +921,7 @@ final class ExternalDeviceManager implements Closeable {
             } else if (isFretZealotName(name)) {
                 connectBle(fretZealot, result.getDevice());
             } else if (isMvaveBleName(name)) {
-                openBluetoothMidiDevice(result.getDevice());
+                connectMvaveGatt(result.getDevice());
             }
         }
 
@@ -762,10 +935,87 @@ final class ExternalDeviceManager implements Closeable {
             if (fretZealot.gatt == null) {
                 setDeviceState(DEVICE_FRET_ZEALOT, STATE_ERROR);
             }
-            if (mvaveConnection == null) {
+            if (!hasMvaveConnection()) {
                 setDeviceState(DEVICE_MVAVE, STATE_ERROR);
             }
             scheduleBleScanRetry();
+        }
+    };
+
+    private final BluetoothGattCallback mvaveGattCallback = new BluetoothGattCallback() {
+        @Override
+        public void onConnectionStateChange(BluetoothGatt gatt, int status, int newState) {
+            handler.post(() -> {
+                if (gatt != mvaveGatt) {
+                    closeGattQuietly(gatt);
+                    return;
+                }
+                if (status == BluetoothGatt.GATT_SUCCESS && newState == BluetoothProfile.STATE_CONNECTED) {
+                    mvaveGattConnecting = true;
+                    setDeviceState(DEVICE_MVAVE, STATE_CONNECTING);
+                    discoverMvaveServices(gatt);
+                } else if (newState == BluetoothProfile.STATE_DISCONNECTED
+                        || status != BluetoothGatt.GATT_SUCCESS) {
+                    failMvaveGatt();
+                }
+            });
+        }
+
+        @Override
+        public void onServicesDiscovered(BluetoothGatt gatt, int status) {
+            handler.post(() -> {
+                if (gatt != mvaveGatt) {
+                    return;
+                }
+                if (status == BluetoothGatt.GATT_SUCCESS) {
+                    configureMvaveGatt(gatt);
+                } else {
+                    failMvaveGatt();
+                }
+            });
+        }
+
+        @Override
+        public void onDescriptorWrite(BluetoothGatt gatt, BluetoothGattDescriptor descriptor, int status) {
+            handler.post(() -> {
+                if (gatt != mvaveGatt
+                        || !CLIENT_CHARACTERISTIC_CONFIG.equals(descriptor.getUuid())) {
+                    return;
+                }
+                if (status != BluetoothGatt.GATT_SUCCESS || mvaveGattCharacteristic == null) {
+                    failMvaveGatt();
+                    return;
+                }
+                mvaveGattConnecting = false;
+                mvaveGattSubscribed = true;
+                mvaveBleRunningStatus = 0;
+                setDeviceState(DEVICE_MVAVE, STATE_CONNECTED);
+                Log.i(TAG, "M-VAVE direct BLE-MIDI connected");
+                if (liteJam.characteristic != null && fretZealot.characteristic != null) {
+                    stopBleScan();
+                }
+            });
+        }
+
+        @Override
+        public void onCharacteristicChanged(
+                BluetoothGatt gatt, BluetoothGattCharacteristic characteristic, byte[] value) {
+            if (gatt == mvaveGatt && BLE_MIDI_IO.equals(characteristic.getUuid())) {
+                byte[] packet = Arrays.copyOf(value, value.length);
+                handler.post(() -> handleMvaveBlePacket(packet));
+            }
+        }
+
+        @Override
+        public void onCharacteristicChanged(BluetoothGatt gatt, BluetoothGattCharacteristic characteristic) {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                return;
+            }
+            byte[] value = characteristic.getValue();
+            if (gatt == mvaveGatt && BLE_MIDI_IO.equals(characteristic.getUuid()) && value != null) {
+                byte[] packet = Arrays.copyOf(value, value.length);
+                handler.post(() -> handleMvaveBlePacket(packet));
+            }
         }
     };
 
