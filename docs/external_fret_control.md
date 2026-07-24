@@ -29,7 +29,7 @@ G#  A   A#  B
 
 The bottom two physical rows are one 3x2 semitone-down area, one 2x2 Auto/Manual toggle, and one 3x2 semitone-up area. Root and semitone pads update the retained manual root; use the center pads to make it effective.
 
-The app sends a complete 8x8 LED refresh after connection and after every effective-root/mode change. Each control block has a distinct solid palette color. The requested C/D/E/F/G/A/B glyph is black, and the sharp glyph is white with precedence over both the letter and background. The implementation uses APC notes 0-63 and Akai's full-brightness solid Note On status `0x96`.
+The app sends a complete 8x8 LED refresh after connection and after every effective-root/mode change. Each control block has a distinct solid palette color. Both the requested C/D/E/F/G/A/B glyph and the sharp glyph are dark in Auto mode and white in Manual mode, making the active mode visible on the controller. The implementation uses APC notes 0-63 and Akai's full-brightness solid Note On status `0x96`.
 
 Connect the APC mini mk2 by USB. Android must expose at least one MIDI output port for pad input; an input port is additionally required for LED feedback.
 

@@ -73,14 +73,19 @@ void test_apc_display()
 {
 	const auto natural = mao::build_apc_led_messages(0, mao::RootControlMode::Manual);
 	assert(apc_color(natural, 56) != 0);
-	assert(apc_color(natural, 57) == 0);
+	assert(apc_color(natural, 57) == 3);
 	assert(apc_color(natural, 8) != 0);
-	assert(apc_color(natural, 9) == 0);
-	const auto sharp = mao::build_apc_led_messages(1, mao::RootControlMode::Auto);
-	assert(apc_color(sharp, 61) == 3);
-	assert(apc_color(sharp, 63) == 3);
-	assert(apc_color(sharp, 45) == 3);
-	assert(apc_color(sharp, 47) == 3);
+	assert(apc_color(natural, 9) == 3);
+	const auto automatic = mao::build_apc_led_messages(1, mao::RootControlMode::Auto);
+	assert(apc_color(automatic, 61) == 0);
+	assert(apc_color(automatic, 63) == 0);
+	assert(apc_color(automatic, 45) == 0);
+	assert(apc_color(automatic, 47) == 0);
+	const auto manual_sharp = mao::build_apc_led_messages(1, mao::RootControlMode::Manual);
+	assert(apc_color(manual_sharp, 61) == 3);
+	assert(apc_color(manual_sharp, 63) == 3);
+	assert(apc_color(manual_sharp, 45) == 3);
+	assert(apc_color(manual_sharp, 47) == 3);
 }
 
 void test_litejam_packet()

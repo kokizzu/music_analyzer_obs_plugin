@@ -357,6 +357,7 @@ std::vector<uint8_t> build_apc_led_messages(int root_pitch_class, RootControlMod
 	const int root = normalize_pitch_class(root_pitch_class);
 	const int letter = natural_letter_index(root);
 	const bool sharp = is_sharp_pitch_class(root);
+	const uint8_t glyph_color = mode == RootControlMode::Manual ? kApcWhite : kApcOff;
 	std::vector<uint8_t> messages;
 	messages.reserve(64 * 3);
 	for (int note = 0; note < 64; ++note) {
@@ -364,9 +365,9 @@ std::vector<uint8_t> build_apc_led_messages(int root_pitch_class, RootControlMod
 		const int column = note % 8;
 		uint8_t color = apc_background(row_from_top, column, mode);
 		if (kLetterGlyphs[static_cast<std::size_t>(letter)][static_cast<std::size_t>(row_from_top)][column] == '#')
-			color = kApcOff;
+			color = glyph_color;
 		if (sharp && kSharpGlyph[static_cast<std::size_t>(row_from_top)][column] == '#')
-			color = kApcWhite;
+			color = glyph_color;
 		messages.push_back(kApcSolidFullBrightness);
 		messages.push_back(static_cast<uint8_t>(note));
 		messages.push_back(color);
