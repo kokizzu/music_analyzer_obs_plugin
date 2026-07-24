@@ -5158,6 +5158,56 @@ RangeResult recover_full_mix_bass_from_debug(const FullMixOwnership &ownership,
 	return best;
 }
 
+bool high_zero_partial_alias_candidate(const FullMixDebugCandidate &debug)
+{
+	if (debug.owner != InstrumentKind::Ambiguous || debug.midi < kGuitarMaxMidi + 8)
+		return false;
+	if (debug.spectral_centroid > 0.001f || debug.spectral_slope > 0.001f ||
+	    debug.harmonicity > 0.001f || debug.harmonic_fit_error > 0.065f ||
+	    debug.local_noise_level > 0.145f || debug.periodicity < 0.60f)
+		return false;
+
+	for (std::size_t i = 1; i < debug.harmonic_ratios.size(); ++i) {
+		if (debug.harmonic_ratios[i] > 0.001f)
+			return false;
+	}
+	return true;
+}
+
+bool full_mix_bass_shadowed_by_keyboard_alias(const FullMixOwnership &ownership, const RangeResult &bass_note)
+{
+	if (bass_note.midi < kFirstMidi || bass_note.midi > kBassMaxMidi)
+		return false;
+
+	const int pitch_class = ((bass_note.midi % 12) + 12) % 12;
+	bool keyboard_pitch_support = false;
+	for (const NoteCandidate &candidate : ownership.keyboard_candidates) {
+		if (candidate.midi < bass_note.midi)
+			continue;
+		if (((candidate.midi % 12) + 12) % 12 != pitch_class)
+			continue;
+		if (candidate.score >= 0.16f || candidate.ownership_confidence >= 0.42f) {
+			keyboard_pitch_support = true;
+			break;
+		}
+	}
+	if (!keyboard_pitch_support)
+		return false;
+
+	const std::size_t debug_count =
+		std::min<std::size_t>(ownership.debug_candidate_count, ownership.debug_candidates.size());
+	for (std::size_t i = 0; i < debug_count; ++i) {
+		const FullMixDebugCandidate &debug = ownership.debug_candidates[i];
+		if (!high_zero_partial_alias_candidate(debug))
+			continue;
+		if (debug.midi < bass_note.midi + 24)
+			continue;
+		if (((debug.midi % 12) + 12) % 12 == pitch_class)
+			return true;
+	}
+	return false;
+}
+
 bool strongest_candidate(const NoteCandidateList &candidates, NoteCandidate &candidate)
 {
 	if (candidates.empty())
@@ -12640,6 +12690,9 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 				mixed_bass_supported = true;
 			}
 		}
+		if (!isolated_bass && mixed_bass_supported &&
+		    full_mix_bass_shadowed_by_keyboard_alias(full_mix_ownership, bass_note))
+			mixed_bass_supported = false;
 		if (mixed_bass_supported) {
 			RangeResult displayed_bass = bass_note;
 			if (isolated_bass) {
