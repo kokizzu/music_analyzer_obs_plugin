@@ -1,11 +1,11 @@
 <p align="center">
   <img src="assets/music-analyzer-icon.png" width="180" alt="Music Analyzer spectrum, fretboard, and keyboard icon">
-  <img src="assets/music-analyzer-bass-guitar-icon.png" width="180" alt="Music Analyzer Bass and Guitar icon">
+  <img src="assets/music-analyzer-bass-guitar-icon.png" width="180" alt="DrumBassGuitar Analyzer icon">
 </p>
 
 # Music Analyzer OBS Plugin
 
-The complete and Bass + Guitar flavor icons were created with ChatGPT image generation. `make icon-assets` regenerates their Android density variants and embedded 64x64 standalone window icons from `assets/music-analyzer-icon.png` and `assets/music-analyzer-bass-guitar-icon.png`.
+The complete Music Analyzer and compact DrumBassGuitar Analyzer icons were created with ChatGPT image generation. `make icon-assets` regenerates their Android density variants and embedded 64x64 standalone window icons from `assets/music-analyzer-icon.png` and `assets/music-analyzer-bass-guitar-icon.png`.
 
 Native OBS Studio plugin that analyzes a music mix and displays an instrument-oriented overlay:
 
@@ -30,7 +30,7 @@ Native OBS Studio plugin that analyzes a music mix and displays an instrument-or
 - Chords: compact major, minor, lowercase power-chord `pow`, sus2, sus4, diminished, augmented, 6, minor 6, dominant 7, major 7, minor 7, diminished 7, half-diminished, add9, 9, major 9, and minor 9 labels such as `C`, `Dm`, `Cpow`, `Cdim`, `Caug`, `C6`, `Dm6`, `G7`, `Cmaj7`, `Dm7`, `Cdim7`, `Bm7b5`, `Cadd9`, `G9`, `Cmaj9`, and `Dm9`
 - Equivalent chord names for the same detected pitch classes are shown together, such as `Csus2=Gsus4` or `Dm7=F6`
 - Explicit instrument sources use the full chord template set; mixed sources keep conservative chord labels to avoid false extensions from other instruments
-- Bass + Guitar layout: a smaller renderer that keeps drums, bass, guitar, root, and BPM while omitting keyboard, vocal, and other rows
+- DrumBassGuitar Analyzer: a smaller Bass + Guitar renderer that keeps drums, bass, guitar, root, and BPM while omitting keyboard, vocal, and other rows
 
 The analyzer is designed for real-time OBS use. It uses bounded DSP heuristics rather than a large ML stem-separation model: audio is downmixed into a fixed ring buffer, analyzer windows are copied to a worker thread at a configurable interval, and the OBS audio callback returns immediately after lightweight buffering. By default, OBS and standalone analyze a rolling 100 ms audio window every 50 ms. The old 4096-sample window is still available as a legacy option. The overlay source renders a single reusable RGBA texture.
 
@@ -94,7 +94,7 @@ make standalone
 This builds both desktop standalone binaries:
 
 - `build/music-analyzer-standalone`: complete layout
-- `build/music-analyzer-bass-guitar`: smaller Bass + Guitar layout with drums, bass, guitar, root, and BPM
+- `build/music-analyzer-bass-guitar`: DrumBassGuitar Analyzer with the smaller drums, bass, guitar, root, and BPM layout
 
 To build only the compact binary:
 
@@ -151,7 +151,7 @@ The complete standalone can also render the compact layout with `--layout bass-g
 The Android app shares `src/analyzer.cpp` and `src/visualizer_renderer.cpp` through JNI. It has two product flavors:
 
 - `complete`: original complete layout
-- `bassGuitar`: smaller Bass + Guitar layout
+- `bassGuitar`: DrumBassGuitar Analyzer using the smaller Bass + Guitar layout
 
 Install the local Android SDK, NDK, CMake, build-tools, platform, and Gradle distribution under `build/`:
 

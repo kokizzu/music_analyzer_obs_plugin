@@ -27,6 +27,8 @@ def main():
     require("$(SDL2_LIBS)" in makefile, "standalone link rule must use SDL libs")
     require("MAO_STANDALONE_VERSION" in makefile, "Makefile standalone version macro missing")
     require("MAO_STANDALONE_BASS_GUITAR=1" in makefile, "Makefile bass-guitar standalone macro missing")
+    require('"DrumBassGuitar Analyzer"' in standalone and '"Music Analyzer Bass + Guitar"' not in standalone,
+            "compact standalone window must use the DrumBassGuitar Analyzer name")
     require("profile-standalone:" in makefile and "scripts/profile_standalone.sh" in makefile,
             "Makefile standalone profile target missing")
     require("APP_ICON_HEADER" in makefile and "BASS_GUITAR_APP_ICON_HEADER" in makefile and

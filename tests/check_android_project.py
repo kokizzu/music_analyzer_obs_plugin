@@ -48,6 +48,9 @@ def main():
             'applicationId "dev.benalu.musicanalyzer"' in app_gradle,
             "Android package namespace must use dev.benalu.musicanalyzer")
     require("bass-guitar" in app_gradle, "bass-guitar layout build config missing")
+    require('resValue "string", "app_name", "DrumBassGuitar Analyzer"' in app_gradle and
+            "Music Analyzer Bass + Guitar" not in app_gradle,
+            "Android compact flavor must use the DrumBassGuitar Analyzer name")
     require("MAO_LAYOUT" in app_gradle, "complete layout build config missing")
     require('ndkVersion "27.2.12479018"' in app_gradle, "Android app must pin the setup NDK version")
     require("sourceCompatibility JavaVersion.VERSION_17" in app_gradle and

@@ -89,7 +89,7 @@ const char *layout_name(mao::VisualizerLayoutMode layout)
 
 const char *layout_title(mao::VisualizerLayoutMode layout)
 {
-	return layout == mao::VisualizerLayoutMode::BassGuitar ? "Music Analyzer Bass + Guitar" :
+	return layout == mao::VisualizerLayoutMode::BassGuitar ? "DrumBassGuitar Analyzer" :
 								  "Music Analyzer Standalone";
 }
 
