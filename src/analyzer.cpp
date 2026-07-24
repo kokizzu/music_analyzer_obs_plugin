@@ -11954,6 +11954,13 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 		drum_segment_bands[Crash] >= 9.60f &&
 		snapshot.drum_debug_trigger_scores[Crash] <= 17.05f &&
 		hihat_rim_level_ratio >= 1.045f;
+	const bool one_shot_measured_crash_rim_steal =
+		drum_detection_enabled && one_shot_drum_source &&
+		drum_level_[Crash] >= 0.90f &&
+		drum_level_[Rim] >= 0.99f &&
+		drum_level_[HiHat] >= 0.918f &&
+		hihat_rim_level_ratio <= 0.932f &&
+		hihat_rim_trigger_ratio >= 1.031f;
 	if (one_shot_measured_hihat_crash_steal) {
 		boost_drum_level(HiHat, std::max(0.90f, drum_level_[Crash] + 0.02f));
 		cap_drum_level(Crash, std::max(0.31f, drum_level_[HiHat] - 0.02f));
@@ -11965,6 +11972,10 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 	if (one_shot_measured_low_trigger_crash_hihat_steal) {
 		boost_drum_level(Crash, std::max(0.90f, drum_level_[HiHat] + 0.02f));
 		cap_drum_level(HiHat, std::max(0.31f, drum_level_[Crash] - 0.02f));
+	}
+	if (one_shot_measured_crash_rim_steal) {
+		boost_drum_level(Crash, std::max(0.90f, drum_level_[Rim] + 0.02f));
+		cap_drum_level(Rim, std::max(0.31f, drum_level_[Crash] - 0.02f));
 	}
 		const float snare_kick_level_ratio_after_tom =
 			drum_level_[Snare] / (drum_level_[Kick] + 1.0e-6f);
