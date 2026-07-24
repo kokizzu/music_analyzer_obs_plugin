@@ -12209,6 +12209,11 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 			drum_segment_bands[Rim] >= 12.20f &&
 			rim_shape_score <= 9.55f &&
 			snapshot.drum_debug_trigger_scores[Rim] <= 22.74f;
+		const bool one_shot_measured_rim_ambiguous_upper_tom_ratio_recovery =
+			drum_detection_enabled && one_shot_drum_source &&
+			snapshot.drum_debug_trigger_scores[Kick] >= 308.72f &&
+			upper_tom_body >= snare_body * 0.925f &&
+			upper_tom_body >= snare_crack * 8.539f;
 		const bool one_shot_measured_rim_kick_recovery =
 			drum_detection_enabled && one_shot_drum_source &&
 			snapshot.low_energy >= 0.49f &&
@@ -12247,6 +12252,7 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 			one_shot_measured_rim_ambiguous_recovery ||
 			one_shot_measured_rim_ambiguous_ride_ratio_recovery ||
 			one_shot_measured_rim_ambiguous_shape_recovery ||
+			one_shot_measured_rim_ambiguous_upper_tom_ratio_recovery ||
 			one_shot_measured_rim_kick_recovery ||
 			one_shot_measured_rim_kick_low_crash_recovery ||
 			one_shot_measured_rim_kick_low_trigger_recovery;
