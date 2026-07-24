@@ -12291,6 +12291,10 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 			upper_tom_body >= 78.0f &&
 			drum_bands[Ride] <= 3.74f &&
 			snare_kick_trigger_ratio <= 1.209f;
+		const bool one_shot_measured_high_ride_tom_snare_primary_recovery =
+			drum_detection_enabled && one_shot_drum_source &&
+			drum_bands[Ride] >= 16.28f &&
+			upper_tom_body >= snare_crack * 12.476f;
 		const bool one_shot_measured_ride_rim_saturated_recovery =
 			drum_detection_enabled && one_shot_drum_source &&
 			body_shape == Kick &&
@@ -12381,7 +12385,8 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 		if (one_shot_measured_tom_rim_primary_recovery ||
 		    one_shot_measured_tom_kick_primary_recovery ||
 		    one_shot_measured_low_tom_from_kick_primary_recovery ||
-		    one_shot_measured_tom_no_kick_snare_steal_primary_recovery)
+		    one_shot_measured_tom_no_kick_snare_steal_primary_recovery ||
+		    one_shot_measured_high_ride_tom_snare_primary_recovery)
 			promote_drum_primary(Tom, 0.90f);
 		if (one_shot_measured_ride_rim_saturated_recovery)
 			promote_drum_primary(Ride, 0.90f);
