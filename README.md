@@ -303,6 +303,15 @@ PARALLEL_TEST_JOBS=8 make test-detector-samples-parallel
 
 This fans out the analyzer cases, NSynth full-mix note samples, Guitar Chord Mix samples, real-world drum sample gates, and generated instrument sample gate.
 
+For the NSynth full-mix real-note gate alone, the sharded target splits the manifest across `PARALLEL_TEST_JOBS` analyzer processes and skips rebuilding a fresh manifest:
+
+```sh
+make test-real-note-samples-full-mix-parallel
+PARALLEL_TEST_JOBS=8 make test-real-note-samples-full-mix-parallel
+```
+
+With the current cached 2,212-sample manifest this runs in about 6 seconds with `PARALLEL_TEST_JOBS=4`, versus about 23 seconds for the serial full-mix analyzer phase.
+
 The real-world sample sweeps also have Makefile fanout targets for cached datasets:
 
 ```sh

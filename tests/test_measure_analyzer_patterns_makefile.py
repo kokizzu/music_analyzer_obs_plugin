@@ -80,6 +80,22 @@ def main() -> int:
     assert "$(MAKE) -j$(PARALLEL_TEST_JOBS) $(REAL_WORLD_SAMPLE_MAX_TARGETS)" in max_samples_recipe, (
         "max real-world sample tests must fan out through make -j"
     )
+    real_note_sharded_recipe = target_recipe(makefile, "test-real-note-samples-full-mix-parallel")
+    assert "$(MAKE) -j$(REAL_NOTE_FULL_MIX_SHARDS) $(REAL_NOTE_FULL_MIX_SHARD_TARGETS)" in real_note_sharded_recipe, (
+        "real-note full-mix parallel target must fan out deterministic shards"
+    )
+    assert "scripts/prepare_nsynth_samples.py\" -nt \"$(REAL_NOTE_SAMPLE_DIR)/manifest.tsv\"" in real_note_sharded_recipe, (
+        "real-note full-mix parallel target must skip sample regeneration when the manifest is fresh"
+    )
+    real_note_shard_recipe = target_recipe(makefile, "test-real-note-samples-full-mix-shard-%")
+    for text in [
+        "MUSIC_ANALYZER_REAL_NOTE_FULL_MIX=1",
+        "MUSIC_ANALYZER_REAL_NOTE_SHARD_COUNT=\"$(REAL_NOTE_FULL_MIX_SHARDS)\"",
+        "MUSIC_ANALYZER_REAL_NOTE_SHARD_INDEX=\"$*\"",
+        "MUSIC_ANALYZER_REAL_NOTE_MIN_EXPECTED_ROW_PERCENT=\"$(REAL_NOTE_FULL_MIX_MIN_EXPECTED_ROW_PERCENT)\"",
+        "MUSIC_ANALYZER_REAL_NOTE_MIN_BASS=0",
+    ]:
+        assert text in real_note_shard_recipe, f"real-note shard target must include {text}"
     assert "REAL_WORLD_SAMPLE_MAX_TARGETS :=" in makefile, "missing max real-world sample target list"
     assert "REAL_WORLD_SAMPLE_MAX_BASE_TARGETS :=" in makefile, (
         "max real-world sample target list must avoid duplicated default/max targets"

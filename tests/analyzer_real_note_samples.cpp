@@ -1001,6 +1001,14 @@ int main()
 	const int required_samples = positive_int_env("MUSIC_ANALYZER_REAL_NOTE_REQUIRED_SAMPLES", 1000);
 	const int max_failures = nonnegative_int_env("MUSIC_ANALYZER_REAL_NOTE_MAX_FAILURES", 0);
 	const bool full_mix = std::getenv("MUSIC_ANALYZER_REAL_NOTE_FULL_MIX") != nullptr;
+	const int shard_count = positive_int_env("MUSIC_ANALYZER_REAL_NOTE_SHARD_COUNT", 1);
+	const int shard_index = nonnegative_int_env("MUSIC_ANALYZER_REAL_NOTE_SHARD_INDEX", 0);
+	if (shard_index >= shard_count) {
+		std::fprintf(stderr,
+			     "analyzer_real_note_samples: invalid shard index %d for shard count %d\n",
+			     shard_index, shard_count);
+		return 1;
+	}
 	const int min_any_hit_percent =
 		std::clamp(nonnegative_int_env("MUSIC_ANALYZER_REAL_NOTE_MIN_ANY_HIT_PERCENT",
 					       full_mix ? 80 : 0),
@@ -1066,7 +1074,11 @@ int main()
 	int verbose_drum_lines = 0;
 	const int verbose_drum_limit = positive_int_env("MUSIC_ANALYZER_REAL_NOTE_VERBOSE_DRUM_LIMIT", 24);
 	int usable = 0;
-	for (const SampleRow &row : rows) {
+	for (std::size_t row_index = 0; row_index < rows.size(); ++row_index) {
+		const int row_shard = static_cast<int>(row_index % static_cast<std::size_t>(shard_count));
+		if (shard_count > 1 && row_shard != shard_index)
+			continue;
+		const SampleRow &row = rows[row_index];
 		std::vector<float> samples;
 		uint32_t sample_rate = 0;
 		std::string error;
