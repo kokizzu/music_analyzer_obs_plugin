@@ -89,7 +89,7 @@ const char *layout_name(mao::VisualizerLayoutMode layout)
 
 const char *layout_title(mao::VisualizerLayoutMode layout)
 {
-	return layout == mao::VisualizerLayoutMode::BassGuitar ? "DrumBassGuitar Analyzer" :
+	return layout == mao::VisualizerLayoutMode::BassGuitar ? "HalfMusic Analyzer" :
 								  "Music Analyzer Standalone";
 }
 
@@ -837,6 +837,11 @@ bool run_self_test()
 			      sizeof(compact_snapshot.guitar_notes.rows[0][0].label), "1");
 		std::snprintf(compact_snapshot.guitar_chord.label, sizeof(compact_snapshot.guitar_chord.label), "E");
 		compact_snapshot.guitar_chord.confidence = 0.9f;
+		compact_snapshot.keyboard_notes.rows[0][0].active = true;
+		compact_snapshot.keyboard_notes.rows[0][0].midi = 60;
+		compact_snapshot.keyboard_notes.rows[0][0].level = 0.85f;
+		std::snprintf(compact_snapshot.keyboard_chord.label, sizeof(compact_snapshot.keyboard_chord.label), "C");
+		compact_snapshot.keyboard_chord.confidence = 0.9f;
 		std::snprintf(compact_snapshot.root_candidates, sizeof(compact_snapshot.root_candidates), "E 74%% A 12%%");
 		compact_snapshot.estimated_bpm = 120.0f;
 		compact_snapshot.bpm_confidence = 0.6f;
@@ -852,6 +857,10 @@ bool run_self_test()
 				    mao::kBassGuitarVisualizerHeight * 4 ||
 		    compact_pixels < 1000) {
 			std::fprintf(stderr, "standalone self-test: compact renderer produced too few visible pixels\n");
+			return false;
+		}
+		if (std::strcmp(compact_renderer.stable_labels[3].label, "C") != 0) {
+			std::fprintf(stderr, "standalone self-test: HalfMusic keyboard sustain was not rendered\n");
 			return false;
 		}
 	}

@@ -27,8 +27,8 @@ def main():
     require("$(SDL2_LIBS)" in makefile, "standalone link rule must use SDL libs")
     require("MAO_STANDALONE_VERSION" in makefile, "Makefile standalone version macro missing")
     require("MAO_STANDALONE_BASS_GUITAR=1" in makefile, "Makefile bass-guitar standalone macro missing")
-    require('"DrumBassGuitar Analyzer"' in standalone and '"Music Analyzer Bass + Guitar"' not in standalone,
-            "compact standalone window must use the DrumBassGuitar Analyzer name")
+    require('"HalfMusic Analyzer"' in standalone and '"DrumBassGuitar Analyzer"' not in standalone,
+            "compact standalone window must use the HalfMusic Analyzer name")
     require("profile-standalone:" in makefile and "scripts/profile_standalone.sh" in makefile,
             "Makefile standalone profile target missing")
     require("APP_ICON_HEADER" in makefile and "BASS_GUITAR_APP_ICON_HEADER" in makefile and
@@ -54,6 +54,10 @@ def main():
             "sustain column must normalize to plain major/minor chords")
     require('"BASS+GUITAR"' not in renderer,
             "compact layout name should stay in the window title, not the rendered header")
+    require("kHalfMusicKeyboardFirstRow = 1" in renderer and "kHalfMusicKeyboardRowCount = 2" in renderer and
+            "draw_compact_guitar_summary" not in renderer and
+            "draw_note_column_headers(visualizer, layout, 138 + y_shift, true, false)" in renderer,
+            "HalfMusic layout must show the lower two keyboard rows with CHORD/SUSTAIN and no NOTES column")
     require("cpu_percent" in renderer and "ram_mb" in renderer and "battery_percent" in renderer and
             "battery_charging" in renderer and
             '" CPU %.0f"' in renderer and '"%02.0f%%"' not in renderer and

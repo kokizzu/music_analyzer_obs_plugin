@@ -45,7 +45,7 @@ android {
         bassGuitar {
             dimension "layout"
             applicationIdSuffix ".bassguitar"
-            resValue "string", "app_name", "DrumBassGuitar Analyzer"
+            resValue "string", "app_name", "HalfMusic Analyzer"
             buildConfigField "String", "MAO_LAYOUT", "\"bass-guitar\""
         }
     }
