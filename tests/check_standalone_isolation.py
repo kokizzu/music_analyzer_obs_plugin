@@ -17,6 +17,7 @@ def main():
     plugin = (ROOT / "src" / "plugin.cpp").read_text(encoding="utf-8")
     standalone = (ROOT / "src" / "standalone.cpp").read_text(encoding="utf-8")
     renderer = (ROOT / "src" / "visualizer_renderer.cpp").read_text(encoding="utf-8")
+    icon_header = (ROOT / "src" / "app_icon_rgba.hpp").read_text(encoding="utf-8")
 
     require("SDL2_CFLAGS" in makefile and "SDL2_LIBS" in makefile, "Makefile must define SDL flags")
     require("$(BUILD_DIR)/standalone.o" in makefile, "standalone object rule missing")
@@ -27,6 +28,9 @@ def main():
     require("MAO_STANDALONE_BASS_GUITAR=1" in makefile, "Makefile bass-guitar standalone macro missing")
     require("profile-standalone:" in makefile and "scripts/profile_standalone.sh" in makefile,
             "Makefile standalone profile target missing")
+    require("APP_ICON_HEADER" in makefile and "icon-assets:" in makefile and
+            "scripts/generate_icon_assets.sh" in makefile,
+            "Makefile must regenerate shared desktop and Android icon assets")
 
     plugin_rule = makefile.split("$(BUILD_DIR)/plugin.o:", 1)[1].split("\n\n", 1)[0]
     plugin_link = makefile.split("$(BUILD_DIR)/music-analyzer-obs.so:", 1)[1].split("\n\n", 1)[0]
@@ -70,6 +74,9 @@ def main():
 
     require("#pragma GCC diagnostic push" in standalone, "standalone SDL include must be warning-guarded")
     require("#pragma GCC diagnostic pop" in standalone, "standalone SDL include guard must be closed")
+    require("SDL_SetWindowIcon" in standalone and "SDL_CreateRGBSurfaceWithFormatFrom" in standalone and
+            "kAppIconRgba" in icon_header,
+            "standalone windows must use the embedded generated app icon")
     require("MAO_STANDALONE_WITH_SDL" in standalone, "standalone compile guard missing")
     close_process = standalone.split("void close_process()", 1)[1].split("\n\t}\n};", 1)[0]
     sigkill_index = close_process.find("(void)kill(pid, SIGKILL);")

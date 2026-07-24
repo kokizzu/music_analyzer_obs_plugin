@@ -1,4 +1,5 @@
 #include "analyzer.hpp"
+#include "app_icon_rgba.hpp"
 #include "visualizer_renderer.hpp"
 
 #ifndef MAO_STANDALONE_WITH_SDL
@@ -1427,6 +1428,14 @@ bool create_window(SdlSession *session, const Options &options)
 	if (!session->window) {
 		std::fprintf(stderr, "SDL_CreateWindow failed: %s\n", SDL_GetError());
 		return false;
+	}
+	SDL_Surface *icon = SDL_CreateRGBSurfaceWithFormatFrom(
+		const_cast<std::uint8_t *>(mao::generated::kAppIconRgba.data()),
+		mao::generated::kAppIconWidth, mao::generated::kAppIconHeight, 32,
+		mao::generated::kAppIconWidth * 4, SDL_PIXELFORMAT_RGBA32);
+	if (icon) {
+		SDL_SetWindowIcon(session->window, icon);
+		SDL_FreeSurface(icon);
 	}
 	session->last_aspect_set_w = placement.w;
 	session->last_aspect_set_h = placement.h;

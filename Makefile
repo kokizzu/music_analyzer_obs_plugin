@@ -18,6 +18,8 @@ ANDROID_ADB := $(ANDROID_SDK_ROOT)/platform-tools/adb
 ANDROID_PROFILE_PACKAGE ?= dev.benalu.musicanalyzer.bassguitar
 BASS_GUITAR_APK := android/app/build/outputs/apk/bassGuitar/debug/app-bassGuitar-debug.apk
 COMPLETE_APK := android/app/build/outputs/apk/complete/debug/app-complete-debug.apk
+ICON_SOURCE ?= assets/music-analyzer-icon.png
+APP_ICON_HEADER := src/app_icon_rgba.hpp
 ANDROID_GRADLE_BIN := $(BUILD_DIR)/gradle/gradle-$(ANDROID_GRADLE_VERSION)/bin/gradle
 GRADLE ?= $(if $(wildcard $(ANDROID_GRADLE_BIN)),$(ANDROID_GRADLE_BIN),gradle)
 DEPS_DIR ?= $(BUILD_DIR)/deps
@@ -522,11 +524,14 @@ BASS_GUITAR_STANDALONE_BIN := $(BUILD_DIR)/music-analyzer-bass-guitar
 .PHONY: prepare-gaps-guitar-samples-full test-gaps-guitar-samples-full analyze-gaps-guitar-misses-full
 .PHONY: measure-analyzer-attributes measure-analyzer-attribute-rows measure-analyzer-patterns measure-analyzer-pattern-report inspect-instrument-sample-owner-buckets find-instrument-owner-patterns test-instrument-sample-owner-buckets test-instrument-owner-patterns test-analyzer-pattern-report test-measure-analyzer-patterns-target analyze-drum-tom-bleed-caps
 .PHONY: analyze-guitar-chord-mix-recovery test-guitar-chord-recovery-analysis
-.PHONY: test-fret-control android-lint
+.PHONY: test-fret-control android-lint icon-assets
 
 .PRECIOUS: $(NSYNTH_SAMPLE_ARCHIVE) $(TINYSOL_ARCHIVE) $(GOOD_SOUNDS_ARCHIVE) $(GUITAR_TECHS_P1_SINGLENOTES_ARCHIVE) $(GUITAR_TECHS_P2_SINGLENOTES_ARCHIVE) $(GUITAR_TECHS_P1_CHORDS_ARCHIVE) $(GUITAR_TECHS_P2_CHORDS_ARCHIVE) $(IDMT_DRUMS_ARCHIVE) $(IDMT_GUITAR_ARCHIVE) $(STAR_DRUMS_ARCHIVE) $(MEDLEY_SOLOS_ARCHIVE) $(MAPS_PIANO_ARCHIVE) $(BACH10_MF0_SYNTH_ARCHIVE) $(VOCALSET_ARCHIVE)
 
 FORCE:
+
+icon-assets: scripts/generate_icon_assets.sh
+	$(SHELL) scripts/generate_icon_assets.sh "$(ICON_SOURCE)"
 
 all: $(SIMDE_DEP) $(BUILD_DIR)/music-analyzer-obs.so
 
@@ -673,11 +678,11 @@ $(BUILD_DIR)/fret_control_tests.o: tests/fret_control.cpp src/fret_control.hpp |
 $(BUILD_DIR)/fret_control_tests: $(BUILD_DIR)/fret_control.o $(BUILD_DIR)/fret_control_tests.o
 	$(CXX) -o $@ $^
 
-$(BUILD_DIR)/standalone.o: src/standalone.cpp src/analyzer.hpp src/visualizer_renderer.hpp $(SDL2_DEP) FORCE | $(BUILD_DIR)
+$(BUILD_DIR)/standalone.o: src/standalone.cpp src/analyzer.hpp src/visualizer_renderer.hpp $(APP_ICON_HEADER) $(SDL2_DEP) FORCE | $(BUILD_DIR)
 	$(MAKE) check-standalone-deps
 	$(CXX) $(CXXFLAGS) $(SDL2_CFLAGS) -DMAO_STANDALONE_WITH_SDL=1 -DMAO_STANDALONE_VERSION=\"$(STANDALONE_VERSION)\" -Isrc -c $< -o $@
 
-$(BUILD_DIR)/standalone_bass_guitar.o: src/standalone.cpp src/analyzer.hpp src/visualizer_renderer.hpp $(SDL2_DEP) FORCE | $(BUILD_DIR)
+$(BUILD_DIR)/standalone_bass_guitar.o: src/standalone.cpp src/analyzer.hpp src/visualizer_renderer.hpp $(APP_ICON_HEADER) $(SDL2_DEP) FORCE | $(BUILD_DIR)
 	$(MAKE) check-standalone-deps
 	$(CXX) $(CXXFLAGS) $(SDL2_CFLAGS) -DMAO_STANDALONE_WITH_SDL=1 -DMAO_STANDALONE_BASS_GUITAR=1 -DMAO_STANDALONE_VERSION=\"$(STANDALONE_VERSION)\" -Isrc -c $< -o $@
 

@@ -15,7 +15,7 @@ The status immediately before BPM shows the effective mode/root and each connect
 AUTO C  LJ+ FZ? APC- MV!
 ```
 
-`+` is connected, `?` is searching, `~` is connecting, `!` is an error, and `-` is disabled. `LJ`, `FZ`, `APC`, and `MV` mean LiteJam, Fret Zealot, APC mini mk2, and M-VAVE. Long-press anywhere on the analyzer view to turn device autoconnect off or back on; `OFF` appears beside the root while disabled. A normal tap still cycles the audio input.
+`+` is connected, `?` is searching, `~` is connecting, `!` is an error, and `-` is disabled. `LJ`, `FZ`, `APC`, and `MV` mean LiteJam, Fret Zealot, APC mini mk2, and M-VAVE. LiteJam and APC autoconnect are enabled by default; Fret Zealot and M-VAVE are disabled by default. Tap one of the four device labels to toggle autoconnect only for that device. Disabling a label disconnects that device and leaves the other three unchanged. Long-press anywhere on the analyzer view to turn the global device autoconnect switch off or back on; `OFF` appears beside the root while globally disabled. Tap only the current input-source label in the top header to cycle the audio input; ordinary taps elsewhere do nothing.
 
 ## APC mini mk2
 

@@ -22,6 +22,7 @@ import android.os.Debug;
 import android.os.Process;
 import android.util.Log;
 import android.view.KeyEvent;
+import android.view.MotionEvent;
 import android.view.View;
 import java.util.ArrayList;
 import java.util.List;
@@ -65,7 +66,6 @@ public final class MainActivity extends Activity {
         analyzerView.setKeepScreenOn(true);
         analyzerView.setFocusable(true);
         analyzerView.setFocusableInTouchMode(true);
-        analyzerView.setOnClickListener(v -> cycleInputDevice());
         analyzerView.setOnLongClickListener(v -> {
             if (nativeHandle == 0 || externalDevices == null) {
                 return false;
@@ -590,11 +590,56 @@ public final class MainActivity extends Activity {
         private final Paint paint = new Paint(Paint.FILTER_BITMAP_FLAG);
         private final RectF destination = new RectF();
         private long lastDrawNanos = System.nanoTime();
+        private int pressedTouchTarget = -1;
 
         AnalyzerView(Activity activity, int width, int height) {
             super(activity);
             bitmap = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888);
             setBackgroundColor(Color.BLACK);
+        }
+
+        private int touchTarget(float viewX, float viewY) {
+            if (nativeHandle == 0 || destination.width() <= 0.0f || destination.height() <= 0.0f
+                    || !destination.contains(viewX, viewY)) {
+                return -1;
+            }
+            int bitmapX = Math.round((viewX - destination.left) * bitmap.getWidth() / destination.width());
+            int bitmapY = Math.round((viewY - destination.top) * bitmap.getHeight() / destination.height());
+            int target = MusicAnalyzerNative.nativeTouchTarget(nativeHandle, bitmapX, bitmapY);
+            if (BuildConfig.DEBUG) {
+                Log.d(TAG, "Touch view=" + viewX + "," + viewY + " bitmap=" + bitmapX + "," + bitmapY
+                        + " target=" + target);
+            }
+            return target;
+        }
+
+        @Override
+        public boolean onTouchEvent(MotionEvent event) {
+            int action = event.getActionMasked();
+            if (action == MotionEvent.ACTION_DOWN) {
+                pressedTouchTarget = touchTarget(event.getX(), event.getY());
+                if (pressedTouchTarget >= 0) {
+                    return true;
+                }
+            } else if (pressedTouchTarget >= 0) {
+                if (action == MotionEvent.ACTION_UP) {
+                    int releasedTarget = touchTarget(event.getX(), event.getY());
+                    int target = pressedTouchTarget;
+                    pressedTouchTarget = -1;
+                    if (releasedTarget == target) {
+                        if (target == 0) {
+                            cycleInputDevice();
+                        } else if (externalDevices != null) {
+                            externalDevices.toggleDeviceAutoconnect(target - 1);
+                        }
+                        invalidate();
+                    }
+                } else if (action == MotionEvent.ACTION_CANCEL) {
+                    pressedTouchTarget = -1;
+                }
+                return true;
+            }
+            return super.onTouchEvent(event);
         }
 
         @Override

@@ -204,6 +204,63 @@ jbyteArray copy_byte_array(JNIEnv *env, const std::vector<uint8_t> &bytes)
 	return output;
 }
 
+int rendered_text_width(const char *text, int scale)
+{
+	return text ? static_cast<int>(std::strlen(text)) * scale * 6 : 0;
+}
+
+int analyzer_touch_target(const mao::VisualizerRenderer &renderer, const mao::AnalysisSnapshot &snapshot,
+			  const mao::ExternalControlDisplay &control, int x, int y)
+{
+	const int header_y_offset = renderer.layout_mode == mao::VisualizerLayoutMode::BassGuitar ? -8 : -10;
+	const int title_y = std::max(0, 24 + header_y_offset);
+	const char *source = snapshot.source[0] ? snapshot.source : "WAITING";
+	const int source_x = 28 + rendered_text_width("MUSIC ANALYZER  ", 3);
+	const int source_right = source_x + rendered_text_width(source, 3);
+	if (x >= source_x - 6 && x <= source_right + 6 && y >= title_y - 6 && y <= title_y + 28)
+		return 0;
+
+	if (!control.visible || y < static_cast<int>(renderer.height) - 80 || y >= static_cast<int>(renderer.height))
+		return -1;
+
+	char bpm_value[16] = {};
+	char bpm_confidence[16] = {};
+	if (snapshot.estimated_bpm > 0.0f && snapshot.bpm_confidence > 0.05f) {
+		std::snprintf(bpm_value, sizeof(bpm_value), "%.0f", snapshot.estimated_bpm);
+		std::snprintf(bpm_confidence, sizeof(bpm_confidence), "%.0f%%", snapshot.bpm_confidence * 100.0f);
+	} else {
+		std::snprintf(bpm_value, sizeof(bpm_value), "--");
+	}
+	const int bpm_width = rendered_text_width("BPM ", 2) + rendered_text_width(bpm_value, 2) +
+			      (bpm_confidence[0] ? rendered_text_width(" ", 2) +
+						   rendered_text_width(bpm_confidence, 2) :
+						   0);
+	const int bpm_x = std::max(28, static_cast<int>(renderer.width) - 28 - bpm_width);
+	static constexpr std::array<const char *, 12> kRootNames = {
+		"C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B",
+	};
+	static constexpr std::array<const char *, 4> kDeviceNames = {"LJ", "FZ", "APC", "MV"};
+	char mode_root[24] = {};
+	const int root = std::clamp(control.effective_root, 0, 11);
+	std::snprintf(mode_root, sizeof(mode_root), "%s %s%s",
+		      control.mode == mao::RootControlMode::Auto ? "AUTO" : "MAN",
+		      kRootNames[static_cast<std::size_t>(root)], control.autoconnect ? "" : " OFF");
+	int control_width = rendered_text_width(mode_root, 2);
+	for (const char *device_name : kDeviceNames)
+		control_width += rendered_text_width(" ", 2) + rendered_text_width(device_name, 2) +
+				 rendered_text_width("+", 2);
+	int device_x = std::max(28, bpm_x - 14 - control_width) + rendered_text_width(mode_root, 2);
+	for (std::size_t i = 0; i < kDeviceNames.size(); ++i) {
+		device_x += rendered_text_width(" ", 2);
+		const int device_right = device_x + rendered_text_width(kDeviceNames[i], 2) +
+					 rendered_text_width("+", 2);
+		if (x >= device_x - 4 && x <= device_right + 4)
+			return 1 + static_cast<int>(i);
+		device_x = device_right;
+	}
+	return -1;
+}
+
 } // namespace
 
 extern "C" JNIEXPORT jlong JNICALL
@@ -388,6 +445,25 @@ Java_dev_benalu_musicanalyzer_MusicAnalyzerNative_nativeToggleAutoconnect(JNIEnv
 	std::lock_guard<std::mutex> lock(state->control_mutex);
 	state->fret_control.toggle_autoconnect();
 	return state->fret_control.autoconnect() ? JNI_TRUE : JNI_FALSE;
+}
+
+extern "C" JNIEXPORT jint JNICALL
+Java_dev_benalu_musicanalyzer_MusicAnalyzerNative_nativeTouchTarget(JNIEnv *, jclass, jlong handle, jint x, jint y)
+{
+	AndroidAnalyzer *state = from_handle(handle);
+	if (!state)
+		return -1;
+	mao::AnalysisSnapshot snapshot;
+	mao::ExternalControlDisplay control;
+	{
+		std::lock_guard<std::mutex> lock(state->snapshot_mutex);
+		snapshot = state->snapshot;
+	}
+	{
+		std::lock_guard<std::mutex> lock(state->control_mutex);
+		control = state->fret_control.display();
+	}
+	return analyzer_touch_target(state->renderer, snapshot, control, x, y);
 }
 
 extern "C" JNIEXPORT jlong JNICALL

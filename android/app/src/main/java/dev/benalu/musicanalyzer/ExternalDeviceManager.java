@@ -74,6 +74,7 @@ final class ExternalDeviceManager implements Closeable {
     private final Handler handler = new Handler(Looper.getMainLooper());
     private final BleTarget liteJam = new BleTarget(DEVICE_LITEJAM, false);
     private final BleTarget fretZealot = new BleTarget(DEVICE_FRET_ZEALOT, true);
+    private final boolean[] deviceAutoconnect = {true, false, true, false};
     private final boolean[] mvavePressed = new boolean[4];
     private final long[] mvavePressedAt = new long[4];
 
@@ -138,6 +139,68 @@ final class ExternalDeviceManager implements Closeable {
         invalidateDisplay.run();
     }
 
+    void toggleDeviceAutoconnect(int device) {
+        if (device < 0 || device >= deviceAutoconnect.length) {
+            return;
+        }
+        setDeviceAutoconnect(device, !deviceAutoconnect[device]);
+    }
+
+    private void setDeviceAutoconnect(int device, boolean enabled) {
+        if (deviceAutoconnect[device] == enabled) {
+            return;
+        }
+        deviceAutoconnect[device] = enabled;
+        if (!enabled || !autoconnect || !started) {
+            switch (device) {
+                case DEVICE_LITEJAM:
+                    closeBleTarget(liteJam, STATE_DISABLED);
+                    break;
+                case DEVICE_FRET_ZEALOT:
+                    closeBleTarget(fretZealot, STATE_DISABLED);
+                    break;
+                case DEVICE_APC_MINI:
+                    closeMidiConnection(true, STATE_DISABLED);
+                    break;
+                case DEVICE_MVAVE:
+                    closeMidiConnection(false, STATE_DISABLED);
+                    closeMvaveGatt(STATE_DISABLED);
+                    break;
+                default:
+                    break;
+            }
+            if (allEnabledBleDevicesConnected()) {
+                stopBleScan();
+            }
+        } else {
+            setDeviceState(device, STATE_SEARCHING);
+            if (device == DEVICE_APC_MINI || device == DEVICE_MVAVE) {
+                startMidiDiscovery();
+            }
+            if (device != DEVICE_APC_MINI) {
+                startBleScanIfAllowed();
+            }
+        }
+        invalidateDisplay.run();
+    }
+
+    private boolean shouldAutoconnectDevice(int device) {
+        return started && autoconnect && device >= 0 && device < deviceAutoconnect.length
+                && deviceAutoconnect[device];
+    }
+
+    private boolean hasEnabledBleDevice() {
+        return deviceAutoconnect[DEVICE_LITEJAM]
+                || deviceAutoconnect[DEVICE_FRET_ZEALOT]
+                || deviceAutoconnect[DEVICE_MVAVE];
+    }
+
+    private boolean allEnabledBleDevicesConnected() {
+        return (!deviceAutoconnect[DEVICE_LITEJAM] || liteJam.characteristic != null)
+                && (!deviceAutoconnect[DEVICE_FRET_ZEALOT] || fretZealot.characteristic != null)
+                && (!deviceAutoconnect[DEVICE_MVAVE] || hasMvaveConnection());
+    }
+
     @Override
     public void close() {
         started = false;
@@ -171,51 +234,71 @@ final class ExternalDeviceManager implements Closeable {
     }
 
     private void setDisconnectedDevicesSearching() {
-        if (liteJam.gatt == null) {
+        if (shouldAutoconnectDevice(DEVICE_LITEJAM) && liteJam.gatt == null) {
             setDeviceState(DEVICE_LITEJAM, STATE_SEARCHING);
         }
-        if (fretZealot.gatt == null) {
+        if (shouldAutoconnectDevice(DEVICE_FRET_ZEALOT) && fretZealot.gatt == null) {
             setDeviceState(DEVICE_FRET_ZEALOT, STATE_SEARCHING);
         }
-        if (apcConnection == null && !apcOpening) {
+        if (shouldAutoconnectDevice(DEVICE_APC_MINI) && apcConnection == null && !apcOpening) {
             setDeviceState(DEVICE_APC_MINI, STATE_SEARCHING);
         }
-        if (!hasMvaveConnection() && !isMvaveOpening()) {
+        if (shouldAutoconnectDevice(DEVICE_MVAVE) && !hasMvaveConnection() && !isMvaveOpening()) {
             setDeviceState(DEVICE_MVAVE, STATE_SEARCHING);
         }
     }
 
     private void startBleScanIfAllowed() {
-        if (!started || !autoconnect) {
+        if (!started || !autoconnect || !hasEnabledBleDevice()) {
             return;
         }
         if (!hasBlePermissions()) {
-            setDeviceState(DEVICE_LITEJAM, STATE_DISABLED);
-            setDeviceState(DEVICE_FRET_ZEALOT, STATE_DISABLED);
+            if (deviceAutoconnect[DEVICE_LITEJAM]) {
+                setDeviceState(DEVICE_LITEJAM, STATE_DISABLED);
+            }
+            if (deviceAutoconnect[DEVICE_FRET_ZEALOT]) {
+                setDeviceState(DEVICE_FRET_ZEALOT, STATE_DISABLED);
+            }
+            if (deviceAutoconnect[DEVICE_MVAVE]) {
+                setDeviceState(DEVICE_MVAVE, STATE_DISABLED);
+            }
             return;
         }
         BluetoothManager manager = context.getSystemService(BluetoothManager.class);
         bluetoothAdapter = manager == null ? null : manager.getAdapter();
         if (bluetoothAdapter == null || !bluetoothAdapter.isEnabled()) {
-            setDeviceState(DEVICE_LITEJAM, STATE_ERROR);
-            setDeviceState(DEVICE_FRET_ZEALOT, STATE_ERROR);
+            if (deviceAutoconnect[DEVICE_LITEJAM]) {
+                setDeviceState(DEVICE_LITEJAM, STATE_ERROR);
+            }
+            if (deviceAutoconnect[DEVICE_FRET_ZEALOT]) {
+                setDeviceState(DEVICE_FRET_ZEALOT, STATE_ERROR);
+            }
+            if (deviceAutoconnect[DEVICE_MVAVE]) {
+                setDeviceState(DEVICE_MVAVE, STATE_ERROR);
+            }
             return;
         }
         openBondedMvaveIfAvailable();
-        if (liteJam.gatt == null) {
+        if (shouldAutoconnectDevice(DEVICE_LITEJAM) && liteJam.gatt == null) {
             setDeviceState(DEVICE_LITEJAM, STATE_SEARCHING);
         }
-        if (fretZealot.gatt == null) {
+        if (shouldAutoconnectDevice(DEVICE_FRET_ZEALOT) && fretZealot.gatt == null) {
             setDeviceState(DEVICE_FRET_ZEALOT, STATE_SEARCHING);
         }
-        if (scanning || (liteJam.characteristic != null && fretZealot.characteristic != null
-                && hasMvaveConnection())) {
+        if (scanning || allEnabledBleDevicesConnected()) {
             return;
         }
         bleScanner = bluetoothAdapter.getBluetoothLeScanner();
         if (bleScanner == null) {
-            setDeviceState(DEVICE_LITEJAM, STATE_ERROR);
-            setDeviceState(DEVICE_FRET_ZEALOT, STATE_ERROR);
+            if (deviceAutoconnect[DEVICE_LITEJAM]) {
+                setDeviceState(DEVICE_LITEJAM, STATE_ERROR);
+            }
+            if (deviceAutoconnect[DEVICE_FRET_ZEALOT]) {
+                setDeviceState(DEVICE_FRET_ZEALOT, STATE_ERROR);
+            }
+            if (deviceAutoconnect[DEVICE_MVAVE]) {
+                setDeviceState(DEVICE_MVAVE, STATE_ERROR);
+            }
             return;
         }
         try {
@@ -223,8 +306,15 @@ final class ExternalDeviceManager implements Closeable {
             scanning = true;
         } catch (SecurityException exception) {
             Log.w(TAG, "BLE scan permission denied", exception);
-            setDeviceState(DEVICE_LITEJAM, STATE_ERROR);
-            setDeviceState(DEVICE_FRET_ZEALOT, STATE_ERROR);
+            if (deviceAutoconnect[DEVICE_LITEJAM]) {
+                setDeviceState(DEVICE_LITEJAM, STATE_ERROR);
+            }
+            if (deviceAutoconnect[DEVICE_FRET_ZEALOT]) {
+                setDeviceState(DEVICE_FRET_ZEALOT, STATE_ERROR);
+            }
+            if (deviceAutoconnect[DEVICE_MVAVE]) {
+                setDeviceState(DEVICE_MVAVE, STATE_ERROR);
+            }
         }
     }
 
@@ -268,7 +358,8 @@ final class ExternalDeviceManager implements Closeable {
     }
 
     private void openBondedMvaveIfAvailable() {
-        if (bluetoothAdapter == null || hasMvaveConnection() || isMvaveOpening()) {
+        if (!shouldAutoconnectDevice(DEVICE_MVAVE) || bluetoothAdapter == null
+                || hasMvaveConnection() || isMvaveOpening()) {
             return;
         }
         try {
@@ -294,7 +385,7 @@ final class ExternalDeviceManager implements Closeable {
     }
 
     private void connectMvaveGatt(BluetoothDevice device) {
-        if (!started || !autoconnect || hasMvaveConnection() || isMvaveOpening()) {
+        if (!shouldAutoconnectDevice(DEVICE_MVAVE) || hasMvaveConnection() || isMvaveOpening()) {
             return;
         }
         mvaveGattConnecting = true;
@@ -334,7 +425,7 @@ final class ExternalDeviceManager implements Closeable {
     }
 
     private void failMvaveGatt() {
-        closeMvaveGatt(autoconnect ? STATE_SEARCHING : STATE_DISABLED);
+        closeMvaveGatt(shouldAutoconnectDevice(DEVICE_MVAVE) ? STATE_SEARCHING : STATE_DISABLED);
         scheduleBleScanRetry();
     }
 
@@ -447,7 +538,7 @@ final class ExternalDeviceManager implements Closeable {
     }
 
     private void connectBle(BleTarget target, BluetoothDevice device) {
-        if (!started || !autoconnect || target.gatt != null || target.connecting) {
+        if (!shouldAutoconnectDevice(target.deviceIndex) || target.gatt != null || target.connecting) {
             return;
         }
         target.connecting = true;
@@ -517,7 +608,7 @@ final class ExternalDeviceManager implements Closeable {
         target.connecting = false;
         setDeviceState(target.deviceIndex, STATE_CONNECTED);
         refreshOutputs(true);
-        if (liteJam.characteristic != null && fretZealot.characteristic != null && hasMvaveConnection()) {
+        if (allEnabledBleDevicesConnected()) {
             stopBleScan();
         }
     }
@@ -545,16 +636,18 @@ final class ExternalDeviceManager implements Closeable {
     }
 
     private void failBleTarget(BleTarget target) {
-        closeBleTarget(target, STATE_ERROR);
+        closeBleTarget(target,
+                shouldAutoconnectDevice(target.deviceIndex) ? STATE_ERROR : STATE_DISABLED);
         scheduleBleScanRetry();
     }
 
     private void scheduleBleScanRetry() {
-        if (!started || !autoconnect) {
+        if (!started || !autoconnect || !hasEnabledBleDevice()) {
             return;
         }
         handler.postDelayed(() -> {
-            if (started && autoconnect && !hasMvaveConnection() && !isMvaveOpening()) {
+            if (shouldAutoconnectDevice(DEVICE_MVAVE)
+                    && !hasMvaveConnection() && !isMvaveOpening()) {
                 setDeviceState(DEVICE_MVAVE, STATE_SEARCHING);
             }
             startBleScanIfAllowed();
@@ -656,15 +749,20 @@ final class ExternalDeviceManager implements Closeable {
     }
 
     private void startMidiDiscovery() {
-        if (!started || !autoconnect) {
+        if (!started || !autoconnect
+                || (!deviceAutoconnect[DEVICE_APC_MINI] && !deviceAutoconnect[DEVICE_MVAVE])) {
             return;
         }
         if (midiManager == null) {
             midiManager = context.getSystemService(MidiManager.class);
         }
         if (midiManager == null) {
-            setDeviceState(DEVICE_APC_MINI, STATE_ERROR);
-            setDeviceState(DEVICE_MVAVE, STATE_ERROR);
+            if (deviceAutoconnect[DEVICE_APC_MINI]) {
+                setDeviceState(DEVICE_APC_MINI, STATE_ERROR);
+            }
+            if (deviceAutoconnect[DEVICE_MVAVE]) {
+                setDeviceState(DEVICE_MVAVE, STATE_ERROR);
+            }
             return;
         }
         if (!midiCallbackRegistered) {
@@ -709,9 +807,10 @@ final class ExternalDeviceManager implements Closeable {
             return;
         }
         String name = midiDeviceName(info);
-        if (isApcName(name) && apcConnection == null && !apcOpening) {
+        if (isApcName(name) && shouldAutoconnectDevice(DEVICE_APC_MINI)
+                && apcConnection == null && !apcOpening) {
             openMidiDevice(info, true);
-        } else if (isMvaveName(name)
+        } else if (isMvaveName(name) && shouldAutoconnectDevice(DEVICE_MVAVE)
                 && info.getType() != MidiDeviceInfo.TYPE_BLUETOOTH
                 && !hasMvaveConnection()
                 && !isMvaveOpening()) {
@@ -736,11 +835,12 @@ final class ExternalDeviceManager implements Closeable {
         } else {
             mvaveOpening = false;
         }
-        if (device == null || !started || !autoconnect) {
+        int deviceIndex = apc ? DEVICE_APC_MINI : DEVICE_MVAVE;
+        if (device == null || !shouldAutoconnectDevice(deviceIndex)) {
             Log.w(TAG, (apc ? "APC" : "M-VAVE") + " MIDI device open returned no usable device");
             closeQuietly(device);
-            setDeviceState(apc ? DEVICE_APC_MINI : DEVICE_MVAVE,
-                    autoconnect ? STATE_ERROR : STATE_DISABLED);
+            setDeviceState(deviceIndex,
+                    shouldAutoconnectDevice(deviceIndex) ? STATE_ERROR : STATE_DISABLED);
             return;
         }
         MidiConnection connection = createMidiConnection(device, apc);
@@ -761,7 +861,7 @@ final class ExternalDeviceManager implements Closeable {
             Log.i(TAG, "M-VAVE MIDI connected: " + midiDeviceName(device.getInfo()));
         }
         refreshOutputs(true);
-        if (liteJam.characteristic != null && fretZealot.characteristic != null && hasMvaveConnection()) {
+        if (allEnabledBleDevicesConnected()) {
             stopBleScan();
         }
     }
@@ -927,13 +1027,13 @@ final class ExternalDeviceManager implements Closeable {
         public void onScanFailed(int errorCode) {
             scanning = false;
             Log.w(TAG, "BLE scan failed: " + errorCode);
-            if (liteJam.gatt == null) {
+            if (shouldAutoconnectDevice(DEVICE_LITEJAM) && liteJam.gatt == null) {
                 setDeviceState(DEVICE_LITEJAM, STATE_ERROR);
             }
-            if (fretZealot.gatt == null) {
+            if (shouldAutoconnectDevice(DEVICE_FRET_ZEALOT) && fretZealot.gatt == null) {
                 setDeviceState(DEVICE_FRET_ZEALOT, STATE_ERROR);
             }
-            if (!hasMvaveConnection()) {
+            if (shouldAutoconnectDevice(DEVICE_MVAVE) && !hasMvaveConnection()) {
                 setDeviceState(DEVICE_MVAVE, STATE_ERROR);
             }
             scheduleBleScanRetry();
@@ -989,7 +1089,7 @@ final class ExternalDeviceManager implements Closeable {
                 mvaveBleRunningStatus = 0;
                 setDeviceState(DEVICE_MVAVE, STATE_CONNECTED);
                 Log.i(TAG, "M-VAVE direct BLE-MIDI connected");
-                if (liteJam.characteristic != null && fretZealot.characteristic != null) {
+                if (allEnabledBleDevicesConnected()) {
                     stopBleScan();
                 }
             });
@@ -1039,10 +1139,12 @@ final class ExternalDeviceManager implements Closeable {
                 } else if (newState == BluetoothProfile.STATE_DISCONNECTED) {
                     target.clear();
                     closeGattQuietly(gatt);
-                    setDeviceState(target.deviceIndex, autoconnect ? STATE_SEARCHING : STATE_DISABLED);
+                    setDeviceState(target.deviceIndex,
+                            shouldAutoconnectDevice(target.deviceIndex) ? STATE_SEARCHING : STATE_DISABLED);
                     startBleScanIfAllowed();
                 } else if (status != BluetoothGatt.GATT_SUCCESS) {
-                    closeBleTarget(target, autoconnect ? STATE_SEARCHING : STATE_DISABLED);
+                    closeBleTarget(target,
+                            shouldAutoconnectDevice(target.deviceIndex) ? STATE_SEARCHING : STATE_DISABLED);
                     startBleScanIfAllowed();
                 }
             });
@@ -1101,10 +1203,12 @@ final class ExternalDeviceManager implements Closeable {
         @Override
         public void onDeviceRemoved(MidiDeviceInfo device) {
             if (apcConnection != null && apcConnection.device.getInfo().getId() == device.getId()) {
-                closeMidiConnection(true, autoconnect ? STATE_SEARCHING : STATE_DISABLED);
+                closeMidiConnection(true,
+                        shouldAutoconnectDevice(DEVICE_APC_MINI) ? STATE_SEARCHING : STATE_DISABLED);
             }
             if (mvaveConnection != null && mvaveConnection.device.getInfo().getId() == device.getId()) {
-                closeMidiConnection(false, autoconnect ? STATE_SEARCHING : STATE_DISABLED);
+                closeMidiConnection(false,
+                        shouldAutoconnectDevice(DEVICE_MVAVE) ? STATE_SEARCHING : STATE_DISABLED);
             }
         }
 

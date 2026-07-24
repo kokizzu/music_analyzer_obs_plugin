@@ -1,4 +1,10 @@
+<p align="center">
+  <img src="assets/music-analyzer-icon.png" width="180" alt="Music Analyzer spectrum, fretboard, and keyboard icon">
+</p>
+
 # Music Analyzer OBS Plugin
+
+The shared spectrum/fretboard/keyboard icon was created with ChatGPT image generation. `make icon-assets` regenerates the Android density variants and the embedded 64x64 standalone window icon from `assets/music-analyzer-icon.png`.
 
 Native OBS Studio plugin that analyzes a music mix and displays an instrument-oriented overlay:
 
@@ -193,9 +199,9 @@ ANDROID_EMULATOR_ABI=arm64-v8a make setup-android-emulator
 
 Android uses `AudioRecord` with `RECORD_AUDIO`, so it captures microphone, aux-in, or USB audio input. It prefers Android's unprocessed audio source when available and falls back to default capture when the device/emulator does not expose it. Android does not generally allow ordinary apps to capture speaker/system playback directly without a separate media-projection workflow, so route speaker output into an input if you need the same behavior as the desktop speaker-monitor standalone.
 
-Press Space or tap the Android analyzer view to cycle available Android recording inputs. The source label shows `X/Y Name` when multiple inputs are exposed by Android, for example `2/3 USB Scarlett Solo`. USB audio interfaces work when Android lists them as input devices through `AudioManager`; the app selects the active input with `AudioRecord.setPreferredDevice`.
+Press Space or tap the current source label in the Android app's top header to cycle available Android recording inputs. Tapping elsewhere in the analyzer does not switch inputs. The source label shows `X/Y Name` when multiple inputs are exposed by Android, for example `2/3 USB Scarlett Solo`. USB audio interfaces work when Android lists them as input devices through `AudioManager`; the app selects the active input with `AudioRecord.setPreferredDevice`.
 
-Android also autoconnects supported LiteJam/Fret Zealot BLE fretboards and APC mini mk2/M-VAVE MIDI controllers. Auto mode follows the detected root; Manual mode retains a controller-selected root, and both send a rainbow major scale to the connected fretboard. Connection indicators appear immediately before BPM. Long-press the analyzer view to disable or re-enable device autoconnect. See [external fretboard and root control](docs/external_fret_control.md) for the APC grid, M-VAVE CubeSuite preset, BLE protocol, and hardware test checklist.
+Android supports LiteJam/Fret Zealot BLE fretboards and APC mini mk2/M-VAVE MIDI controllers. LiteJam and APC autoconnect are enabled by default; Fret Zealot and M-VAVE start disabled. Auto mode follows the detected root; Manual mode retains a controller-selected root, and both send a rainbow major scale to the connected fretboard. Connection indicators appear immediately before BPM; tap a device label to toggle only that device's autoconnect. Long-press the analyzer view to disable or re-enable global device autoconnect. See [external fretboard and root control](docs/external_fret_control.md) for the APC grid, M-VAVE CubeSuite preset, BLE protocol, and hardware test checklist.
 
 Mic/input pass-through is not automatic on Android. The app explicitly creates an `AudioTrack` monitor stream and sends captured input to a non-speaker output when Android exposes one, preferring USB audio, wired headphones/headset, line out, then Bluetooth/HDMI. If only the built-in speaker is available, monitoring is disabled to avoid feedback, but the analyzer still uses the microphone/input.
 

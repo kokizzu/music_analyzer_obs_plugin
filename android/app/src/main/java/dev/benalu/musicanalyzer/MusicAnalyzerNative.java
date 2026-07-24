@@ -30,6 +30,8 @@ final class MusicAnalyzerNative {
 
     static native boolean nativeToggleAutoconnect(long handle);
 
+    static native int nativeTouchTarget(long handle, int x, int y);
+
     static native long nativeGetControlRevision(long handle);
 
     static native byte[] nativeGetApcLedMessages(long handle);

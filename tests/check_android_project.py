@@ -161,8 +161,10 @@ def main():
             "Android app must use emulator-friendly capture sources before UNPROCESSED on emulators")
     require("GET_DEVICES_INPUTS" in activity and "setPreferredDevice(inputChoice.device)" in activity,
             "Android app must enumerate and select input devices such as USB audio interfaces")
-    require("cycleInputDevice" in activity and "KEYCODE_SPACE" in activity and "setOnClickListener" in activity,
-            "Android app must expose input-device cycling through keyboard and touch")
+    require("cycleInputDevice" in activity and "KEYCODE_SPACE" in activity and
+            "nativeTouchTarget" in activity and "target == 0" in activity and
+            "setOnClickListener" not in activity,
+            "Android app must cycle inputs only from the source-label touch target or keyboard")
     require("nativeSetSourceName" in activity and "nativeSetSourceName" in bridge,
             "Android selected input label must flow into the shared renderer")
     require("using AudioRecord source" in activity and "capture source=" in activity,
@@ -216,9 +218,19 @@ def main():
             "Android BLE scanning must declare that scan results are not used for location")
     require("android.software.midi" in manifest and "android.hardware.bluetooth_le" in manifest,
             "Android manifest must declare optional MIDI and BLE features")
+    require('android:icon="@mipmap/ic_launcher"' in manifest and
+            'android:roundIcon="@mipmap/ic_launcher"' in manifest,
+            "Android manifest must use the generated launcher icon")
+    for density in ("mdpi", "hdpi", "xhdpi", "xxhdpi", "xxxhdpi"):
+        icon = ROOT / "android" / "app" / "src" / "main" / "res" / f"mipmap-{density}" / "ic_launcher.png"
+        require(icon.is_file() and icon.stat().st_size > 0,
+                f"Android {density} launcher icon is missing")
     require("ExternalDeviceManager" in activity and "setOnLongClickListener" in activity and
             "nativeToggleAutoconnect" in activity,
             "Android activity must own device discovery and expose the autoconnect toggle")
+    require("toggleDeviceAutoconnect(target - 1)" in activity and
+            "nativeTouchTarget" in bridge and "nativeTouchTarget" in native_api,
+            "Android device labels must expose per-device autoconnect touch targets")
     require("BLUETOOTH_SCAN" in activity and "BLUETOOTH_CONNECT" in activity,
             "Android activity must request runtime BLE permissions")
     require("readAppCpuPercent" in activity and "Math.min(999.0f" not in activity,
@@ -241,6 +253,10 @@ def main():
             "Android device manager must support direct BLE MIDI, controller input, and APC LED output")
     require("getBondedDevices" in external_devices and "openBondedMvaveIfAvailable" in external_devices,
             "Android MIDI manager must reopen an already bonded M-VAVE controller")
+    require("boolean[] deviceAutoconnect = {true, false, true, false}" in external_devices and
+            "toggleDeviceAutoconnect" in external_devices and "shouldAutoconnectDevice" in external_devices and
+            "allEnabledBleDevicesConnected" in external_devices,
+            "Android must default to LiteJam/APC-only autoconnect and toggle each device independently")
     require("MVAVE_HOLD_MILLIS" in external_devices and "mvaveRelease" in external_devices and
             "controller >= 32 && controller <= 35" in external_devices and
             "controller % 4" in external_devices and "mvaveProgramToSwitch" in external_devices and
