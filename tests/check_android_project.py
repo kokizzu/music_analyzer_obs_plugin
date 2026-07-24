@@ -237,8 +237,10 @@ def main():
     require("getBondedDevices" in external_devices and "openBondedMvaveIfAvailable" in external_devices,
             "Android MIDI manager must reopen an already bonded M-VAVE controller")
     require("MVAVE_HOLD_MILLIS" in external_devices and "mvaveRelease" in external_devices and
-            "data1 % 4" in external_devices and "M-VAVE MIDI" in external_devices,
-            "M-VAVE handling must support press/hold actions, program banks, and hardware diagnostics")
+            "data1 % 4" in external_devices and "mvaveProgramToSwitch" in external_devices and
+            "displayedSuffix" in external_devices and "M-VAVE MIDI" in external_devices and
+            "M-VAVE raw" in external_devices,
+            "M-VAVE handling must capture arbitrary MIDI values, program banks, and hardware diagnostics")
     require("kMajorColors" in fret_control and "build_litejam_major_scale_packet" in fret_control and
             "build_fret_zealot_major_scale_packet" in fret_control and "build_apc_led_messages" in fret_control,
             "shared fret control must contain rainbow scale and APC output encoders")

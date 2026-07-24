@@ -661,7 +661,18 @@ final class ExternalDeviceManager implements Closeable {
         if (note >= 60 && note <= 63) {
             return note - 60;
         }
-        return -1;
+        return note % 4;
+    }
+
+    private int mvaveProgramToSwitch(int program) {
+        int displayedSuffix = (program + 1) % 10;
+        if (displayedSuffix >= 1 && displayedSuffix <= 4) {
+            return displayedSuffix - 1;
+        }
+        if (displayedSuffix == 5 || displayedSuffix == 6) {
+            return -1;
+        }
+        return program % 4;
     }
 
     private void mvavePress(int switchIndex) {
@@ -702,15 +713,17 @@ final class ExternalDeviceManager implements Closeable {
             } else {
                 mvaveRelease(switchIndex);
             }
-        } else if (message == 0xb0 && data1 >= 20 && data1 <= 23) {
-            int switchIndex = data1 - 20;
+        } else if (message == 0xb0) {
+            int switchIndex = data1 % 4;
             if (data2 >= 64) {
                 mvavePress(switchIndex);
             } else {
                 mvaveRelease(switchIndex);
             }
         } else if (message == 0xc0) {
-            if (MusicAnalyzerNative.nativeHandleMvaveSwitch(nativeHandle, data1 % 4, false)) {
+            int switchIndex = mvaveProgramToSwitch(data1);
+            if (switchIndex >= 0
+                    && MusicAnalyzerNative.nativeHandleMvaveSwitch(nativeHandle, switchIndex, false)) {
                 refreshOutputs(true);
             }
         }
@@ -865,6 +878,16 @@ final class ExternalDeviceManager implements Closeable {
         @Override
         public void onSend(byte[] data, int offset, int count, long timestamp) {
             int end = offset + count;
+            if (!apc && count > 0) {
+                StringBuilder raw = new StringBuilder();
+                for (int index = offset; index < end; ++index) {
+                    if (raw.length() > 0) {
+                        raw.append(' ');
+                    }
+                    raw.append(String.format(Locale.ROOT, "%02X", data[index] & 0xff));
+                }
+                Log.d(TAG, "M-VAVE raw: " + raw);
+            }
             for (int index = offset; index < end; ++index) {
                 int value = data[index] & 0xff;
                 if ((value & 0x80) != 0) {

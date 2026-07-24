@@ -35,7 +35,9 @@ Connect the APC mini mk2 by USB. Android must expose at least one MIDI output po
 
 ## M-VAVE Chocolate Plus
 
-For press-versus-hold support, configure a CubeSuite preset as momentary Note messages on MIDI channel 1:
+Every M-VAVE MIDI packet is captured before control mapping, regardless of its channel or configured data number. Note and CC numbers use modulo positions 0-3 for A-D. FootCtrlPlus Program Change display values ending in 1-4 map to A-D; display values ending in 5-6 are the E/F combination controls and are captured but do not trigger an A-D action. SysEx is also captured for diagnostics but does not imply a root-control action.
+
+For predictable press-versus-hold behavior, the recommended vendor-editor preset uses momentary Note messages on MIDI channel 1:
 
 | Switch | Note | Short release | Hold at least 600 ms |
 | --- | ---: | --- | --- |
@@ -44,9 +46,11 @@ For press-versus-hold support, configure a CubeSuite preset as momentary Note me
 | C | 38 | set manual root to G | set manual root to C |
 | D | 39 | toggle Auto/Manual | toggle Auto/Manual |
 
-Each switch should send Note On when pressed and Note Off (or Note On with velocity zero) when released. The short action happens on press, while releasing after 600 ms completes the long action. Note-On-only presets therefore still provide repeatable short actions. Notes 0-3 and 60-63 are accepted as alternate four-note banks. CC 20-23 with press values at least 64 and release values below 64 are also accepted. Program Change works as a short-press fallback because it has no release event; every consecutive group of four program numbers maps to A-D.
+Each switch should send Note On when pressed and Note Off (or Note On with velocity zero) when released. The short action happens on press, while releasing after 600 ms completes the long action. Note-On-only presets therefore still provide repeatable short actions. Notes 0-3 and 60-63 are accepted as alternate four-note banks. Any CC is accepted, using values at least 64 for press and lower values for release. Program Change works as a short-press fallback because it has no release event.
 
 USB MIDI and BLE MIDI are supported. The scanner recognizes names containing `Chocolate`, `M-VAVE`, `MVAVE`, or `FootCtrl`, then opens the device through Android's Bluetooth MIDI service. The app also opens a matching bonded controller directly, which covers a `FootCtrlPlus` that Android has already connected and that therefore stops advertising before the app starts.
+
+The vendor's current download center lists `FootCtrlPlus` under the newer MidiSuite editor, while the older Chocolate remains listed under CubeSuite: <https://www.m-vave.com/download>.
 
 ## BLE transport notes
 
