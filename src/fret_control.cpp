@@ -39,8 +39,8 @@ constexpr std::array<const char *, 8> kSharpGlyph = {
 constexpr uint8_t kApcSolidFullBrightness = 0x96;
 constexpr uint8_t kApcOff = 0;
 constexpr uint8_t kApcWhite = 3;
-constexpr std::array<uint8_t, 12> kApcRootBlockColors = {
-	21, 90, 37, 40, 49, 94, 57, 5, 9, 96, 109, 13,
+constexpr std::array<uint8_t, 12> kApcRootRelativeColors = {
+	5, 9, 96, 109, 13, 21, 90, 37, 40, 49, 94, 57,
 };
 constexpr uint8_t kApcPreviousSemitoneColor = 45;
 constexpr uint8_t kApcModeToggleColor = 73;
@@ -98,11 +98,12 @@ bool is_sharp_pitch_class(int pitch_class)
 	}
 }
 
-uint8_t apc_background(int row_from_top, int column)
+uint8_t apc_background(int row_from_top, int column, int effective_root)
 {
 	if (row_from_top < 6) {
-		const int root = (row_from_top / 2) * 4 + (column / 2);
-		return kApcRootBlockColors[static_cast<std::size_t>(root)];
+		const int block_pitch_class = (row_from_top / 2) * 4 + (column / 2);
+		const int interval = normalize_pitch_class(block_pitch_class - effective_root);
+		return kApcRootRelativeColors[static_cast<std::size_t>(interval)];
 	}
 	if (column < 3)
 		return kApcPreviousSemitoneColor;
@@ -366,7 +367,7 @@ std::vector<uint8_t> build_apc_led_messages(int root_pitch_class, RootControlMod
 	for (int note = 0; note < 64; ++note) {
 		const int row_from_top = 7 - note / 8;
 		const int column = note % 8;
-		uint8_t color = apc_background(row_from_top, column);
+		uint8_t color = apc_background(row_from_top, column, root);
 		if (kLetterGlyphs[static_cast<std::size_t>(letter)][static_cast<std::size_t>(row_from_top)][column] == '#')
 			color = glyph_color;
 		if (sharp && kSharpGlyph[static_cast<std::size_t>(row_from_top)][column] == '#')
