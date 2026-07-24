@@ -41,6 +41,8 @@ constexpr uint8_t kApcOff = 0;
 constexpr uint8_t kApcDarkGray = 1;
 constexpr uint8_t kApcLightGray = 2;
 constexpr uint8_t kApcWhite = 3;
+constexpr uint8_t kApcNextSemitoneColor = 98;
+constexpr uint8_t kApcPreviousSemitoneColor = 101;
 constexpr std::array<uint8_t, 12> kApcRootRelativeColors = {
 	5, 9, 96, 109, 13, 21, 90, 37, 40, 49, 94, 57,
 };
@@ -103,10 +105,11 @@ uint8_t apc_background(int row_from_top, int column, int effective_root, RootCon
 		const int interval = normalize_pitch_class(block_pitch_class - effective_root);
 		return kApcRootRelativeColors[static_cast<std::size_t>(interval)];
 	}
-	const bool mode_toggle = column >= 3 && column < 5;
-	if (mode == RootControlMode::Auto)
-		return mode_toggle ? kApcLightGray : kApcDarkGray;
-	return mode_toggle ? kApcDarkGray : kApcLightGray;
+	if (column < 3)
+		return kApcPreviousSemitoneColor;
+	if (column >= 5)
+		return kApcNextSemitoneColor;
+	return mode == RootControlMode::Auto ? kApcLightGray : kApcDarkGray;
 }
 
 uint8_t scale_nibble(uint8_t component)
