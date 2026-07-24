@@ -1090,20 +1090,16 @@ analyze-instrument-sample-attributes: $(BUILD_DIR)/instrument_sample_attributes.
 	$(PYTHON) scripts/summarize_instrument_sample_attributes.py "$(BUILD_DIR)/instrument_sample_attributes.tsv" $(INSTRUMENT_ATTRIBUTE_ARGS)
 	@printf '%s\n' "attribute TSV: $(BUILD_DIR)/instrument_sample_attributes.tsv"
 
-inspect-instrument-sample-owner-buckets: scripts/inspect_instrument_sample_owner_buckets.py
-	@if [ ! -f "$(BUILD_DIR)/instrument_sample_attributes.tsv" ]; then $(MAKE) analyze-instrument-sample-attributes; fi
+inspect-instrument-sample-owner-buckets: $(BUILD_DIR)/instrument_sample_attributes.tsv scripts/inspect_instrument_sample_owner_buckets.py
 	$(PYTHON) scripts/inspect_instrument_sample_owner_buckets.py "$(BUILD_DIR)/instrument_sample_attributes.tsv" $(INSPECT_INSTRUMENT_OWNER_ARGS)
 
-find-instrument-owner-patterns: scripts/find_instrument_owner_patterns.py
-	@if [ ! -f "$(BUILD_DIR)/instrument_sample_attributes.tsv" ]; then $(MAKE) analyze-instrument-sample-attributes; fi
+find-instrument-owner-patterns: $(BUILD_DIR)/instrument_sample_attributes.tsv scripts/find_instrument_owner_patterns.py
 	$(PYTHON) scripts/find_instrument_owner_patterns.py "$(BUILD_DIR)/instrument_sample_attributes.tsv" $(if $(PATTERN_BUCKET),--bucket "$(PATTERN_BUCKET)") $(PATTERN_ARGS)
 
-find-instrument-status-patterns: scripts/find_instrument_owner_patterns.py
-	@if [ ! -f "$(BUILD_DIR)/instrument_sample_attributes.tsv" ]; then $(MAKE) analyze-instrument-sample-attributes; fi
+find-instrument-status-patterns: $(BUILD_DIR)/instrument_sample_attributes.tsv scripts/find_instrument_owner_patterns.py
 	$(PYTHON) scripts/find_instrument_owner_patterns.py "$(BUILD_DIR)/instrument_sample_attributes.tsv" $(or $(PATTERN_ARGS),$(MEASURE_INSTRUMENT_STATUS_PATTERN_ARGS))
 
-filter-instrument-attribute-rows: scripts/filter_instrument_attribute_rows.py
-	@if [ ! -f "$(BUILD_DIR)/instrument_sample_attributes.tsv" ]; then $(MAKE) analyze-instrument-sample-attributes; fi
+filter-instrument-attribute-rows: $(BUILD_DIR)/instrument_sample_attributes.tsv scripts/filter_instrument_attribute_rows.py
 	$(PYTHON) scripts/filter_instrument_attribute_rows.py "$(BUILD_DIR)/instrument_sample_attributes.tsv" $(FILTER_ATTRIBUTE_ARGS)
 
 measure-analyzer-attributes: analyze-instrument-sample-attributes analyze-real-note-attributes analyze-guitar-chord-mix-attributes analyze-drum-primary-misses analyze-mdb-drum-attributes
@@ -1249,12 +1245,10 @@ analyze-real-note-attributes: $(BUILD_DIR)/real_note_full_mix_attributes.tsv scr
 	$(PYTHON) scripts/summarize_real_note_attributes.py "$(BUILD_DIR)/real_note_full_mix_attributes.tsv" $(REAL_NOTE_ATTRIBUTE_SUMMARY_ARGS)
 	@printf '%s\n' "attribute TSV: $(BUILD_DIR)/real_note_full_mix_attributes.tsv"
 
-inspect-real-note-attribute-buckets: scripts/inspect_real_note_attribute_buckets.py
-	@if [ ! -f "$(BUILD_DIR)/real_note_full_mix_attributes.tsv" ]; then $(MAKE) analyze-real-note-attributes; fi
+inspect-real-note-attribute-buckets: $(BUILD_DIR)/real_note_full_mix_attributes.tsv scripts/inspect_real_note_attribute_buckets.py
 	$(PYTHON) scripts/inspect_real_note_attribute_buckets.py "$(BUILD_DIR)/real_note_full_mix_attributes.tsv" $(INSPECT_ARGS)
 
-find-real-note-attribute-patterns: scripts/find_real_note_attribute_patterns.py
-	@if [ ! -f "$(BUILD_DIR)/real_note_full_mix_attributes.tsv" ]; then $(MAKE) analyze-real-note-attributes; fi
+find-real-note-attribute-patterns: $(BUILD_DIR)/real_note_full_mix_attributes.tsv scripts/find_real_note_attribute_patterns.py
 	$(PYTHON) scripts/find_real_note_attribute_patterns.py "$(BUILD_DIR)/real_note_full_mix_attributes.tsv" $(if $(PATTERN_BUCKET),--bucket "$(PATTERN_BUCKET)") $(PATTERN_ARGS)
 
 prepare-guitar-fretboard-note-samples: scripts/prepare_guitar_fretboard_notes.py | $(BUILD_DIR)
@@ -1329,20 +1323,16 @@ analyze-guitar-chord-mix-attributes: $(BUILD_DIR)/guitar_chord_mix_attributes.ts
 	$(PYTHON) scripts/summarize_guitarset_attributes.py "$(BUILD_DIR)/guitar_chord_mix_attributes.tsv"
 	@printf '%s\n' "attribute TSV: $(BUILD_DIR)/guitar_chord_mix_attributes.tsv"
 
-analyze-guitar-chord-mix-recovery: scripts/analyze_guitar_chord_recovery.py
-	@if [ ! -f "$(BUILD_DIR)/guitar_chord_mix_attributes.tsv" ]; then $(MAKE) analyze-guitar-chord-mix-attributes; fi
+analyze-guitar-chord-mix-recovery: $(BUILD_DIR)/guitar_chord_mix_attributes.tsv scripts/analyze_guitar_chord_recovery.py
 	$(PYTHON) scripts/analyze_guitar_chord_recovery.py "$(BUILD_DIR)/guitar_chord_mix_attributes.tsv" $(RECOVERY_ARGS)
 
-analyze-guitar-chord-mix-extra-components: scripts/analyze_guitar_chord_extra_components.py
-	@if [ ! -f "$(BUILD_DIR)/guitar_chord_mix_attributes.tsv" ]; then $(MAKE) analyze-guitar-chord-mix-attributes; fi
+analyze-guitar-chord-mix-extra-components: $(BUILD_DIR)/guitar_chord_mix_attributes.tsv scripts/analyze_guitar_chord_extra_components.py
 	$(PYTHON) scripts/analyze_guitar_chord_extra_components.py "$(BUILD_DIR)/guitar_chord_mix_attributes.tsv" $(EXTRA_COMPONENT_ARGS)
 
-inspect-guitar-chord-mix-attribute-buckets: scripts/inspect_guitarset_attribute_buckets.py
-	@if [ ! -f "$(BUILD_DIR)/guitar_chord_mix_attributes.tsv" ]; then $(MAKE) analyze-guitar-chord-mix-attributes; fi
+inspect-guitar-chord-mix-attribute-buckets: $(BUILD_DIR)/guitar_chord_mix_attributes.tsv scripts/inspect_guitarset_attribute_buckets.py
 	$(PYTHON) scripts/inspect_guitarset_attribute_buckets.py "$(BUILD_DIR)/guitar_chord_mix_attributes.tsv" $(INSPECT_ARGS)
 
-find-guitar-chord-mix-attribute-patterns: scripts/find_guitarset_attribute_patterns.py scripts/inspect_guitarset_attribute_buckets.py
-	@if [ ! -f "$(BUILD_DIR)/guitar_chord_mix_attributes.tsv" ]; then $(MAKE) analyze-guitar-chord-mix-attributes; fi
+find-guitar-chord-mix-attribute-patterns: $(BUILD_DIR)/guitar_chord_mix_attributes.tsv scripts/find_guitarset_attribute_patterns.py scripts/inspect_guitarset_attribute_buckets.py
 	$(PYTHON) scripts/find_guitarset_attribute_patterns.py "$(BUILD_DIR)/guitar_chord_mix_attributes.tsv" $(if $(PATTERN_BUCKET),--bucket "$(PATTERN_BUCKET)") $(PATTERN_ARGS)
 
 prepare-egfxset-guitar-samples: scripts/prepare_hf_guitar_chord_mix.py | $(BUILD_DIR)

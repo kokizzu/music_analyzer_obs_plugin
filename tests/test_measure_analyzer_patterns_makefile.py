@@ -300,6 +300,25 @@ def main() -> int:
             assert text in source_recipe, f"{target} must include {text}"
         assert "| $(BUILD_DIR)" in source_recipe, f"{target} must create output under the build dir"
 
+    stale_aware_attribute_shortcuts = {
+        "inspect-instrument-sample-owner-buckets": "$(BUILD_DIR)/instrument_sample_attributes.tsv",
+        "find-instrument-owner-patterns": "$(BUILD_DIR)/instrument_sample_attributes.tsv",
+        "find-instrument-status-patterns": "$(BUILD_DIR)/instrument_sample_attributes.tsv",
+        "filter-instrument-attribute-rows": "$(BUILD_DIR)/instrument_sample_attributes.tsv",
+        "inspect-real-note-attribute-buckets": "$(BUILD_DIR)/real_note_full_mix_attributes.tsv",
+        "find-real-note-attribute-patterns": "$(BUILD_DIR)/real_note_full_mix_attributes.tsv",
+        "analyze-guitar-chord-mix-recovery": "$(BUILD_DIR)/guitar_chord_mix_attributes.tsv",
+        "analyze-guitar-chord-mix-extra-components": "$(BUILD_DIR)/guitar_chord_mix_attributes.tsv",
+        "inspect-guitar-chord-mix-attribute-buckets": "$(BUILD_DIR)/guitar_chord_mix_attributes.tsv",
+        "find-guitar-chord-mix-attribute-patterns": "$(BUILD_DIR)/guitar_chord_mix_attributes.tsv",
+    }
+    for target, tsv in stale_aware_attribute_shortcuts.items():
+        shortcut_recipe = target_recipe(makefile, target)
+        assert tsv in shortcut_recipe.splitlines()[0], f"{target} must depend on {tsv}"
+        assert "if [ ! -f" not in shortcut_recipe, (
+            f"{target} must use Make timestamp checks, not existence-only TSV refresh"
+        )
+
     rows_recipe = target_recipe(makefile, "measure-analyzer-attribute-rows")
     assert rows_recipe.splitlines()[0] == "measure-analyzer-attribute-rows:", (
         "default row measurement must own the parallel analyzer fanout"
