@@ -213,7 +213,7 @@ public final class MainActivity extends Activity {
         if (elapsedMillis <= 0.0f) {
             return -1.0f;
         }
-        return Math.max(0.0f, Math.min(999.0f, (cpuDeltaMillis * 100.0f) / elapsedMillis));
+        return Math.max(0.0f, (cpuDeltaMillis * 100.0f) / elapsedMillis);
     }
 
     private void updateRuntimeMetrics(long nowNanos) {

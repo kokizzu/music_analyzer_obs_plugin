@@ -47,9 +47,10 @@ def main():
     require('"BASS+GUITAR"' not in renderer,
             "compact layout name should stay in the window title, not the rendered header")
     require("cpu_percent" in renderer and "ram_mb" in renderer and "battery_percent" in renderer and
-            '" CPU %02.0f%%"' in renderer and '" RAM %.0fMB"' in renderer and
+            '" CPU %.0f"' in renderer and '"%02.0f%%"' not in renderer and
+            "std::clamp(snapshot.cpu_percent" not in renderer and '" RAM %.0fMB"' in renderer and
             '" BATT %.0f%%"' in renderer and "draw_status_pair" in renderer,
-            "renderer status line must expose optional CPU, app RAM, and battery metrics")
+            "renderer status line must expose uncapped unitless CPU, app RAM, and battery metrics")
     require('LOW %s MID %s HIGH %s' in renderer and "format_band_percentage" in renderer and
             'percentage > 99.0f' in renderer and '"MAX"' in renderer and '"%.0f%%"' in renderer,
             "LOW/MID/HIGH status percentages must be unpadded and show MAX above 99 percent")

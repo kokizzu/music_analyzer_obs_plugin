@@ -395,11 +395,6 @@ void draw_status_line(VisualizerRenderer *visualizer, const AnalysisSnapshot &sn
 	x = draw_status_pair(visualizer, x, y, "HIGH ", high);
 	x = draw_status_pair(visualizer, x, y, "AGE ", age);
 	x = draw_status_pair(visualizer, x, y, "DROP ", drop);
-	if (snapshot.cpu_percent >= 0.0f) {
-		char cpu[8] = {};
-		std::snprintf(cpu, sizeof(cpu), "%02.0f%%", std::clamp(snapshot.cpu_percent, 0.0f, 99.0f));
-		x = draw_status_pair(visualizer, x, y, "CPU ", cpu);
-	}
 	if (snapshot.ram_mb >= 0.0f) {
 		char ram[8] = {};
 		std::snprintf(ram, sizeof(ram), "%.0fMB", std::clamp(snapshot.ram_mb, 0.0f, 999.0f));
@@ -409,7 +404,12 @@ void draw_status_line(VisualizerRenderer *visualizer, const AnalysisSnapshot &sn
 		char battery[8] = {};
 		std::snprintf(battery, sizeof(battery), "%.0f%%",
 			      std::clamp(snapshot.battery_percent, 0.0f, 100.0f));
-		(void)draw_status_pair(visualizer, x, y, "BATT ", battery);
+		x = draw_status_pair(visualizer, x, y, "BATT ", battery);
+	}
+	if (snapshot.cpu_percent >= 0.0f) {
+		char cpu[16] = {};
+		std::snprintf(cpu, sizeof(cpu), "%.0f", std::max(snapshot.cpu_percent, 0.0f));
+		(void)draw_status_pair(visualizer, x, y, "CPU ", cpu);
 	}
 }
 
@@ -1372,12 +1372,6 @@ void format_visualizer_status_line(char *output, std::size_t output_size, const 
 	if (written < 0)
 		return;
 	std::size_t used = std::min<std::size_t>(static_cast<std::size_t>(written), output_size - 1);
-	if (snapshot.cpu_percent >= 0.0f && used + 1 < output_size) {
-		written = std::snprintf(output + used, output_size - used, " CPU %02.0f%%",
-					std::clamp(snapshot.cpu_percent, 0.0f, 99.0f));
-		if (written > 0)
-			used = std::min<std::size_t>(used + static_cast<std::size_t>(written), output_size - 1);
-	}
 	if (snapshot.ram_mb >= 0.0f && used + 1 < output_size) {
 		written = std::snprintf(output + used, output_size - used, " RAM %.0fMB",
 					std::clamp(snapshot.ram_mb, 0.0f, 999.0f));
@@ -1385,8 +1379,14 @@ void format_visualizer_status_line(char *output, std::size_t output_size, const 
 			used = std::min<std::size_t>(used + static_cast<std::size_t>(written), output_size - 1);
 	}
 	if (snapshot.battery_percent >= 0.0f && used + 1 < output_size) {
-		std::snprintf(output + used, output_size - used, " BATT %.0f%%",
-			      std::clamp(snapshot.battery_percent, 0.0f, 100.0f));
+		written = std::snprintf(output + used, output_size - used, " BATT %.0f%%",
+					std::clamp(snapshot.battery_percent, 0.0f, 100.0f));
+		if (written > 0)
+			used = std::min<std::size_t>(used + static_cast<std::size_t>(written), output_size - 1);
+	}
+	if (snapshot.cpu_percent >= 0.0f && used + 1 < output_size) {
+		std::snprintf(output + used, output_size - used, " CPU %.0f",
+			      std::max(snapshot.cpu_percent, 0.0f));
 	}
 }
 

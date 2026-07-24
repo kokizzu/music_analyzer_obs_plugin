@@ -221,6 +221,8 @@ def main():
             "Android activity must own device discovery and expose the autoconnect toggle")
     require("BLUETOOTH_SCAN" in activity and "BLUETOOTH_CONNECT" in activity,
             "Android activity must request runtime BLE permissions")
+    require("readAppCpuPercent" in activity and "Math.min(999.0f" not in activity,
+            "Android app CPU must remain uncapped so multi-core usage is visible")
     require("nativeGetControlRevision" in native_api and "nativeSetDeviceState" in native_api,
             "Android native API must expose synchronized external control state")
 
