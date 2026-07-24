@@ -555,9 +555,9 @@ std::string debug_details(const mao::AnalysisSnapshot &snapshot, bool merged_exp
 {
 	std::string text;
 	for (std::size_t i = 0; i < mao::kDrumCount; ++i) {
-		char part[160] = {};
+		char part[224] = {};
 		std::snprintf(part, sizeof(part),
-			      "%s%s band=%.2f seg=%.2f shape_score=%.2f trigger=%.2f/%.2f shape=%d level=%.2f",
+			      "%s%s band=%.6f seg=%.6f shape_score=%.6f trigger=%.6f/%.6f shape=%d level=%.6f",
 			      text.empty() ? "" : " | ", category_name(i), snapshot.drum_debug_bands[i],
 			      snapshot.drum_debug_segment_bands[i], snapshot.drum_debug_shape_scores[i],
 			      snapshot.drum_debug_trigger_scores[i],
@@ -565,9 +565,9 @@ std::string debug_details(const mao::AnalysisSnapshot &snapshot, bool merged_exp
 			      snapshot.drum_debug_shape_supported[i] ? 1 : 0, snapshot.drums[i].level);
 		text += part;
 	}
-	char part[256] = {};
+	char part[384] = {};
 	std::snprintf(part, sizeof(part),
-		      " | transient=%.2f onset=%.2f energy=%.2f/%.2f/%.2f body=%.2f/%.2f/%.2f crack=%.2f upper_tom=%.2f body_shape=%d",
+		      " | transient=%.6f onset=%.6f energy=%.6f/%.6f/%.6f body=%.6f/%.6f/%.6f crack=%.6f upper_tom=%.6f body_shape=%d",
 		      snapshot.drum_debug_transient_ratio, snapshot.drum_debug_onset,
 		      snapshot.low_energy, snapshot.mid_energy, snapshot.high_energy,
 		      snapshot.drum_debug_kick_body, snapshot.drum_debug_snare_body,
