@@ -12408,6 +12408,15 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 		    measured_low_energy_kick_tom_primary_recovery ||
 		    one_shot_measured_kick_snare_primary_recovery)
 			promote_drum_primary(Kick, 0.90f);
+		const float post_primary_tom_kick_level_ratio =
+			drum_level_[Tom] / (drum_level_[Kick] + 1.0e-6f);
+		const bool measured_low_body_kick_tom_primary_recovery =
+			drum_detection_enabled && named_drum_source &&
+			drum_level_[Kick] > 0.30f &&
+			drum_level_[Tom] > drum_level_[Kick] &&
+			snapshot.low_energy >= 0.61f &&
+			post_primary_tom_kick_level_ratio >= 1.045f &&
+			snapshot.drum_debug_trigger_scores[Tom] >= 2.33f;
 		const bool one_shot_measured_low_body_kick_tom_primary_recovery =
 			drum_detection_enabled && one_shot_drum_source &&
 			drum_level_[Kick] > 0.30f &&
@@ -12428,7 +12437,8 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 			drum_level_[Tom] > drum_level_[Kick] &&
 			snapshot.low_energy >= 0.91f &&
 			tom_kick_body_ratio >= 1.471f;
-		if (one_shot_measured_low_body_kick_tom_primary_recovery ||
+		if (measured_low_body_kick_tom_primary_recovery ||
+		    one_shot_measured_low_body_kick_tom_primary_recovery ||
 		    one_shot_measured_quiet_high_kick_tom_primary_recovery ||
 		    one_shot_measured_low_body_ratio_kick_tom_primary_recovery)
 			promote_drum_primary(Kick, 0.90f);
