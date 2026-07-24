@@ -12443,9 +12443,18 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 		if (one_shot_measured_crash_kick_tie_primary_recovery ||
 		    one_shot_measured_crash_ride_tie_primary_recovery)
 			promote_drum_primary(Crash, 0.90f);
+		const float final_crash_hihat_level_ratio =
+			drum_level_[Crash] / (drum_level_[HiHat] + 1.0e-6f);
+		const bool one_shot_measured_hihat_ambiguous_primary_recovery =
+			drum_detection_enabled && one_shot_drum_source &&
+			drum_level_[HiHat] > 0.30f &&
+			final_crash_hihat_level_ratio >= 1.005f &&
+			final_crash_hihat_level_ratio <= 1.015f &&
+			drum_bands[Ride] >= 12.038f;
 		if (one_shot_measured_hihat_ambiguous_snare_shape_primary_recovery ||
 		    one_shot_measured_hihat_rim_low_kick_body_primary_recovery ||
-		    one_shot_measured_hihat_rim_upper_tom_ratio_primary_recovery)
+		    one_shot_measured_hihat_rim_upper_tom_ratio_primary_recovery ||
+		    one_shot_measured_hihat_ambiguous_primary_recovery)
 			promote_drum_primary(HiHat, 0.90f);
 		if (one_shot_measured_snare_rim_primary_recovery ||
 		    one_shot_measured_snare_kick_primary_recovery ||
