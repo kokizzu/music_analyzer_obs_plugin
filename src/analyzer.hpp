@@ -112,6 +112,7 @@ struct AnalysisSnapshot {
 	uint64_t analyzed_windows = 0;
 	float cpu_percent = -1.0f;
 	float ram_mb = -1.0f;
+	float battery_percent = -1.0f;
 	bool audio_seen = false;
 	std::array<DrumState, kDrumCount> drums = {};
 	std::array<float, kDrumCount> drum_debug_bands = {};

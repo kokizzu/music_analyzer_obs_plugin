@@ -15,6 +15,7 @@ import android.media.AudioManager;
 import android.media.AudioRecord;
 import android.media.AudioTrack;
 import android.media.MediaRecorder;
+import android.os.BatteryManager;
 import android.os.Build;
 import android.os.Bundle;
 import android.os.Debug;
@@ -187,6 +188,18 @@ public final class MainActivity extends Activity {
         return (float) pssKb / 1024.0f;
     }
 
+    private float readBatteryPercent() {
+        BatteryManager batteryManager = getSystemService(BatteryManager.class);
+        if (batteryManager == null) {
+            return -1.0f;
+        }
+        int batteryPercent = batteryManager.getIntProperty(BatteryManager.BATTERY_PROPERTY_CAPACITY);
+        if (batteryPercent < 0 || batteryPercent > 100) {
+            return -1.0f;
+        }
+        return (float) batteryPercent;
+    }
+
     private float readAppCpuPercent(long nowNanos) {
         long cpuMillis = Process.getElapsedCpuTime();
         long elapsedNanos = nowNanos - lastMetricsNanos;
@@ -212,7 +225,8 @@ public final class MainActivity extends Activity {
         MusicAnalyzerNative.nativeSetRuntimeMetrics(
                 nativeHandle,
                 cpuPercent,
-                readAppRamMb());
+                readAppRamMb(),
+                readBatteryPercent());
     }
 
     private static boolean isProbablyEmulator() {

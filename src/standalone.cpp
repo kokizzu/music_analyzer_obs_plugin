@@ -592,11 +592,15 @@ bool run_self_test()
 		status_snapshot.mid_energy = 0.50f;
 		status_snapshot.high_energy = 0.25f;
 		status_snapshot.dropped_windows = 7;
+		status_snapshot.cpu_percent = 8.0f;
+		status_snapshot.ram_mb = 7.0f;
+		status_snapshot.battery_percent = 83.0f;
 		char status_line[128] = {};
 		mao::format_visualizer_status_line(status_line, sizeof(status_line), status_snapshot, 1.6f);
 		const char *age = std::strstr(status_line, "AGE ");
 		const char *drop = std::strstr(status_line, "DROP ");
-		const char *expected = "RMS 0.12 LOW  25% MID  50% HIGH  25% AGE 01.6S DROP 7";
+		const char *expected =
+			"RMS 0.12 LOW  25% MID  50% HIGH  25% AGE 01.6S DROP 7 CPU 08% RAM 7MB BATT 83%";
 		if (std::strstr(status_line, "FRAMES") || std::strstr(status_line, "UPD") || !age || !drop ||
 		    age > drop || std::strcmp(status_line, expected) != 0) {
 			std::fprintf(stderr, "standalone self-test: unexpected status line '%s'\n", status_line);

@@ -46,9 +46,10 @@ def main():
             "sustain column must normalize to plain major/minor chords")
     require('"BASS+GUITAR"' not in renderer,
             "compact layout name should stay in the window title, not the rendered header")
-    require("cpu_percent" in renderer and "ram_mb" in renderer and '" CPU %02.0f%%"' in renderer and
-            '" RAM %03.0fMB"' in renderer and "draw_status_pair" in renderer,
-            "renderer status line must expose optional CPU and app RAM metrics")
+    require("cpu_percent" in renderer and "ram_mb" in renderer and "battery_percent" in renderer and
+            '" CPU %02.0f%%"' in renderer and '" RAM %.0fMB"' in renderer and
+            '" BATT %.0f%%"' in renderer and "draw_status_pair" in renderer,
+            "renderer status line must expose optional CPU, app RAM, and battery metrics")
     require('LOW %3.0f%% MID %3.0f%% HIGH %3.0f%%' in renderer and
             'std::snprintf(low, sizeof(low), "%3.0f%%"' in renderer and
             'std::snprintf(mid, sizeof(mid), "%3.0f%%"' in renderer and

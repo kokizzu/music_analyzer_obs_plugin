@@ -52,6 +52,7 @@ struct AndroidAnalyzer {
 	uint32_t silent_skip_windows = 0;
 	std::atomic<float> cpu_percent{-1.0f};
 	std::atomic<float> ram_mb{-1.0f};
+	std::atomic<float> battery_percent{-1.0f};
 	bool seen_nonsilent_audio = false;
 };
 
@@ -178,6 +179,7 @@ bool analyze_if_ready(AndroidAnalyzer *state)
 	snapshot.analyzed_windows = state->sequence;
 	snapshot.cpu_percent = state->cpu_percent.load(std::memory_order_relaxed);
 	snapshot.ram_mb = state->ram_mb.load(std::memory_order_relaxed);
+	snapshot.battery_percent = state->battery_percent.load(std::memory_order_relaxed);
 	if (silent_window)
 		state->silent_skip_windows = 0;
 
@@ -285,7 +287,8 @@ Java_dev_benalu_musicanalyzer_MusicAnalyzerNative_nativePushSamples(JNIEnv *env,
 extern "C" JNIEXPORT void JNICALL
 Java_dev_benalu_musicanalyzer_MusicAnalyzerNative_nativeSetRuntimeMetrics(JNIEnv *, jclass, jlong handle,
 									  jfloat cpu_percent,
-									  jfloat ram_mb)
+									  jfloat ram_mb,
+									  jfloat battery_percent)
 {
 	AndroidAnalyzer *state = from_handle(handle);
 	if (!state)
@@ -293,9 +296,11 @@ Java_dev_benalu_musicanalyzer_MusicAnalyzerNative_nativeSetRuntimeMetrics(JNIEnv
 
 	state->cpu_percent.store(cpu_percent, std::memory_order_relaxed);
 	state->ram_mb.store(ram_mb, std::memory_order_relaxed);
+	state->battery_percent.store(battery_percent, std::memory_order_relaxed);
 	std::lock_guard<std::mutex> lock(state->snapshot_mutex);
 	state->snapshot.cpu_percent = cpu_percent;
 	state->snapshot.ram_mb = ram_mb;
+	state->snapshot.battery_percent = battery_percent;
 }
 
 extern "C" JNIEXPORT jboolean JNICALL

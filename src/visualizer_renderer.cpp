@@ -353,12 +353,13 @@ void draw_root_candidates(VisualizerRenderer *visualizer, int x, int y, const ch
 int draw_status_pair(VisualizerRenderer *visualizer, int x, int y, const char *label, const char *value)
 {
 	constexpr uint32_t kScale = 2;
+	constexpr int kPairGap = 8;
 	static constexpr Color kStatusLabelColor{104, 116, 132, 255};
 	draw_text(visualizer, x, y, label, kScale, kStatusLabelColor);
 	x += text_width(label, kScale);
 	draw_text(visualizer, x, y, value, kScale, kValueTextColor);
 	x += text_width(value, kScale);
-	return x + text_width(" ", kScale);
+	return x + kPairGap;
 }
 
 void draw_status_line(VisualizerRenderer *visualizer, const AnalysisSnapshot &snapshot, float snapshot_age,
@@ -392,8 +393,14 @@ void draw_status_line(VisualizerRenderer *visualizer, const AnalysisSnapshot &sn
 	}
 	if (snapshot.ram_mb >= 0.0f) {
 		char ram[8] = {};
-		std::snprintf(ram, sizeof(ram), "%03.0fMB", std::clamp(snapshot.ram_mb, 0.0f, 999.0f));
-		(void)draw_status_pair(visualizer, x, y, "RAM ", ram);
+		std::snprintf(ram, sizeof(ram), "%.0fMB", std::clamp(snapshot.ram_mb, 0.0f, 999.0f));
+		x = draw_status_pair(visualizer, x, y, "RAM ", ram);
+	}
+	if (snapshot.battery_percent >= 0.0f) {
+		char battery[8] = {};
+		std::snprintf(battery, sizeof(battery), "%.0f%%",
+			      std::clamp(snapshot.battery_percent, 0.0f, 100.0f));
+		(void)draw_status_pair(visualizer, x, y, "BATT ", battery);
 	}
 }
 
@@ -1359,8 +1366,14 @@ void format_visualizer_status_line(char *output, std::size_t output_size, const 
 			used = std::min<std::size_t>(used + static_cast<std::size_t>(written), output_size - 1);
 	}
 	if (snapshot.ram_mb >= 0.0f && used + 1 < output_size) {
-		std::snprintf(output + used, output_size - used, " RAM %03.0fMB",
-			      std::clamp(snapshot.ram_mb, 0.0f, 999.0f));
+		written = std::snprintf(output + used, output_size - used, " RAM %.0fMB",
+					std::clamp(snapshot.ram_mb, 0.0f, 999.0f));
+		if (written > 0)
+			used = std::min<std::size_t>(used + static_cast<std::size_t>(written), output_size - 1);
+	}
+	if (snapshot.battery_percent >= 0.0f && used + 1 < output_size) {
+		std::snprintf(output + used, output_size - used, " BATT %.0f%%",
+			      std::clamp(snapshot.battery_percent, 0.0f, 100.0f));
 	}
 }
 

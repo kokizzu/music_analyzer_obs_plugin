@@ -153,6 +153,7 @@ final class ExternalDeviceManager implements Closeable {
     }
 
     private void setDeviceState(int device, int state) {
+        Log.d(TAG, "Device state " + device + " -> " + state);
         MusicAnalyzerNative.nativeSetDeviceState(nativeHandle, device, state);
         invalidateDisplay.run();
     }
@@ -188,6 +189,7 @@ final class ExternalDeviceManager implements Closeable {
             setDeviceState(DEVICE_FRET_ZEALOT, STATE_ERROR);
             return;
         }
+        openBondedMvaveIfAvailable();
         if (liteJam.gatt == null) {
             setDeviceState(DEVICE_LITEJAM, STATE_SEARCHING);
         }
@@ -251,6 +253,24 @@ final class ExternalDeviceManager implements Closeable {
     private boolean isMvaveBleName(String name) {
         return name.contains("chocolate") || name.contains("m-vave") || name.contains("mvave")
                 || name.contains("footctrl");
+    }
+
+    private void openBondedMvaveIfAvailable() {
+        if (bluetoothAdapter == null || mvaveConnection != null || mvaveOpening) {
+            return;
+        }
+        try {
+            for (BluetoothDevice device : bluetoothAdapter.getBondedDevices()) {
+                String name = device.getName();
+                if (name != null && isMvaveBleName(name.toLowerCase(Locale.ROOT))) {
+                    Log.i(TAG, "Opening bonded M-VAVE device: " + name);
+                    openBluetoothMidiDevice(device);
+                    return;
+                }
+            }
+        } catch (SecurityException exception) {
+            Log.w(TAG, "Unable to inspect bonded M-VAVE devices", exception);
+        }
     }
 
     private void connectBle(BleTarget target, BluetoothDevice device) {
@@ -538,6 +558,7 @@ final class ExternalDeviceManager implements Closeable {
         if (midiManager == null || mvaveConnection != null || mvaveOpening || !started || !autoconnect) {
             return;
         }
+        Log.i(TAG, "Opening M-VAVE Bluetooth MIDI device");
         mvaveOpening = true;
         setDeviceState(DEVICE_MVAVE, STATE_CONNECTING);
         try {
@@ -556,6 +577,7 @@ final class ExternalDeviceManager implements Closeable {
             mvaveOpening = false;
         }
         if (device == null || !started || !autoconnect) {
+            Log.w(TAG, (apc ? "APC" : "M-VAVE") + " MIDI device open returned no usable device");
             closeQuietly(device);
             setDeviceState(apc ? DEVICE_APC_MINI : DEVICE_MVAVE,
                     autoconnect ? STATE_ERROR : STATE_DISABLED);
@@ -563,6 +585,7 @@ final class ExternalDeviceManager implements Closeable {
         }
         MidiConnection connection = createMidiConnection(device, apc);
         if (connection == null) {
+            Log.w(TAG, (apc ? "APC" : "M-VAVE") + " MIDI device has no readable output port");
             closeQuietly(device);
             setDeviceState(apc ? DEVICE_APC_MINI : DEVICE_MVAVE, STATE_ERROR);
             return;
@@ -575,6 +598,7 @@ final class ExternalDeviceManager implements Closeable {
             closeMidiConnection(false, STATE_CONNECTED);
             mvaveConnection = connection;
             setDeviceState(DEVICE_MVAVE, STATE_CONNECTED);
+            Log.i(TAG, "M-VAVE MIDI connected: " + midiDeviceName(device.getInfo()));
         }
         refreshOutputs(true);
         if (liteJam.characteristic != null && fretZealot.characteristic != null && mvaveConnection != null) {
@@ -628,6 +652,9 @@ final class ExternalDeviceManager implements Closeable {
     }
 
     private int mvaveNoteToSwitch(int note) {
+        if (note >= 0 && note <= 3) {
+            return note;
+        }
         if (note >= 36 && note <= 39) {
             return note - 36;
         }
@@ -638,11 +665,14 @@ final class ExternalDeviceManager implements Closeable {
     }
 
     private void mvavePress(int switchIndex) {
-        if (switchIndex < 0 || switchIndex >= mvavePressed.length || mvavePressed[switchIndex]) {
+        if (switchIndex < 0 || switchIndex >= mvavePressed.length) {
             return;
         }
         mvavePressed[switchIndex] = true;
         mvavePressedAt[switchIndex] = SystemClock.uptimeMillis();
+        if (MusicAnalyzerNative.nativeHandleMvaveSwitch(nativeHandle, switchIndex, false)) {
+            refreshOutputs(true);
+        }
     }
 
     private void mvaveRelease(int switchIndex) {
@@ -651,12 +681,19 @@ final class ExternalDeviceManager implements Closeable {
         }
         mvavePressed[switchIndex] = false;
         boolean held = SystemClock.uptimeMillis() - mvavePressedAt[switchIndex] >= MVAVE_HOLD_MILLIS;
-        if (MusicAnalyzerNative.nativeHandleMvaveSwitch(nativeHandle, switchIndex, held)) {
+        boolean changed = false;
+        if (held && (switchIndex == 0 || switchIndex == 1)) {
+            changed = MusicAnalyzerNative.nativeHandleMvaveSwitch(nativeHandle, switchIndex, false);
+        } else if (held && switchIndex == 2) {
+            changed = MusicAnalyzerNative.nativeHandleMvaveSwitch(nativeHandle, switchIndex, true);
+        }
+        if (changed) {
             refreshOutputs(true);
         }
     }
 
     private void handleMvaveMessage(int status, int data1, int data2) {
+        Log.d(TAG, String.format(Locale.ROOT, "M-VAVE MIDI %02X %d %d", status, data1, data2));
         int message = status & 0xf0;
         if (message == 0x90 || message == 0x80) {
             int switchIndex = mvaveNoteToSwitch(data1);
@@ -672,8 +709,8 @@ final class ExternalDeviceManager implements Closeable {
             } else {
                 mvaveRelease(switchIndex);
             }
-        } else if (message == 0xc0 && data1 >= 0 && data1 <= 3) {
-            if (MusicAnalyzerNative.nativeHandleMvaveSwitch(nativeHandle, data1, false)) {
+        } else if (message == 0xc0) {
+            if (MusicAnalyzerNative.nativeHandleMvaveSwitch(nativeHandle, data1 % 4, false)) {
                 refreshOutputs(true);
             }
         }

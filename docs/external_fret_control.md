@@ -44,9 +44,9 @@ For press-versus-hold support, configure a CubeSuite preset as momentary Note me
 | C | 38 | set manual root to G | set manual root to C |
 | D | 39 | toggle Auto/Manual | toggle Auto/Manual |
 
-Each switch must send Note On when pressed and Note Off (or Note On with velocity zero) when released. Notes 60-63 are accepted as an alternate four-note bank. CC 20-23 with press values at least 64 and release values below 64 are also accepted. Program Change 0-3 works only as a short-press fallback because Program Change has no release event.
+Each switch should send Note On when pressed and Note Off (or Note On with velocity zero) when released. The short action happens on press, while releasing after 600 ms completes the long action. Note-On-only presets therefore still provide repeatable short actions. Notes 0-3 and 60-63 are accepted as alternate four-note banks. CC 20-23 with press values at least 64 and release values below 64 are also accepted. Program Change works as a short-press fallback because it has no release event; every consecutive group of four program numbers maps to A-D.
 
-USB MIDI and BLE MIDI are supported. For BLE, make the controller connectable before opening the app. The scanner recognizes names containing `Chocolate`, `M-VAVE`, `MVAVE`, or `FootCtrl`, then opens the device through Android's Bluetooth MIDI service.
+USB MIDI and BLE MIDI are supported. The scanner recognizes names containing `Chocolate`, `M-VAVE`, `MVAVE`, or `FootCtrl`, then opens the device through Android's Bluetooth MIDI service. The app also opens a matching bonded controller directly, which covers a `FootCtrlPlus` that Android has already connected and that therefore stops advertising before the app starts.
 
 ## BLE transport notes
 
