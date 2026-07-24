@@ -77,7 +77,7 @@ void test_apc_display()
 	assert(apc_color(natural, 8) == 101);
 	assert(apc_color(natural, 9) == 3);
 	assert(apc_color(natural, 3) == 1);
-	assert(apc_color(natural, 5) == 111);
+	assert(apc_color(natural, 5) == 76);
 
 	const auto palette = mao::build_apc_led_messages(0, mao::RootControlMode::Auto);
 	assert(apc_color(palette, 49) == 5);
@@ -94,7 +94,7 @@ void test_apc_display()
 	assert(apc_color(palette, 23) == 57);
 	assert(apc_color(palette, 0) == 101);
 	assert(apc_color(palette, 3) == 2);
-	assert(apc_color(palette, 5) == 111);
+	assert(apc_color(palette, 5) == 76);
 
 	const auto g_palette = mao::build_apc_led_messages(7, mao::RootControlMode::Auto);
 	assert(apc_color(g_palette, 39) == 5);
