@@ -11547,6 +11547,8 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 		tom_body / (kick_body + 1.0e-6f);
 	const float tom_snare_body_ratio =
 		tom_body / (snare_body + 1.0e-6f);
+	const float snare_kick_body_ratio =
+		snare_body / (kick_body + 1.0e-6f);
 	const float tom_snare_segment_ratio =
 		drum_segment_bands[Tom] / (drum_segment_bands[Snare] + 1.0e-6f);
 	const float tom_kick_segment_ratio =
@@ -12414,6 +12416,8 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 			  upper_tom_body >= 99.955f) ||
 			 (snapshot.drum_debug_trigger_scores[Kick] <= 80.83f &&
 			  tom_body >= 335.98f) ||
+			 (snare_kick_body_ratio >= 2.168f &&
+			  snare_kick_shape_score_ratio <= 1.165f) ||
 			 (body_shape == Tom &&
 			  kick_body >= 193.22f));
 		if (one_shot_measured_tom_rim_primary_recovery ||
