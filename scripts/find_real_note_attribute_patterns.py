@@ -168,6 +168,13 @@ def hit_rows(rows: list[dict[str, str]]) -> list[dict[str, str]]:
     return [row for row in rows if row.get("status") == "hit" and row.get("debug_note")]
 
 
+def protected_hit_rows(
+    rows: list[dict[str, str]], positive_rows: list[dict[str, str]]
+) -> list[dict[str, str]]:
+    positive_ids = {id(row) for row in positive_rows}
+    return [row for row in hit_rows(rows) if id(row) not in positive_ids]
+
+
 def top_buckets(rows: list[dict[str, str]], limit: int) -> list[tuple[str, str, str, str]]:
     if limit <= 0:
         return []
@@ -645,7 +652,7 @@ def print_bucket_patterns(
     beam_width: int,
 ) -> None:
     positive_rows = rows_for_bucket(rows, bucket)
-    negatives = hit_rows(rows)
+    negatives = protected_hit_rows(rows, positive_rows)
     positive_samples = sample_count(positive_rows)
     negative_samples = sample_count(negatives)
     print()
@@ -820,7 +827,7 @@ def main() -> int:
         "--bucket",
         action="append",
         default=[],
-        help="ownership-miss bucket formatted as status:family/source->first_row; repeatable",
+        help="bucket formatted as status:family/source->first_row; repeatable",
     )
     parser.add_argument(
         "--top-buckets",

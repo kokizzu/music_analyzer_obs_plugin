@@ -370,6 +370,84 @@ def main() -> int:
             stderr=subprocess.PIPE,
             check=True,
         )
+        hit_path = pathlib.Path(tmp) / "hit_attributes.tsv"
+        hit_rows = [
+            row(
+                status="hit",
+                first_row="guitar",
+                sample_id="piano_wrong_1",
+                family="piano",
+                nsynth_family="keyboard",
+                source="electronic",
+                expected_note="F#4",
+                expected_midi="66",
+                debug_owner="guitar",
+                keyboard_score="0",
+                guitar_score="1",
+            ),
+            row(
+                status="hit",
+                first_row="guitar",
+                sample_id="piano_wrong_2",
+                family="piano",
+                nsynth_family="keyboard",
+                source="electronic",
+                expected_note="A4",
+                expected_midi="69",
+                debug_note="A4",
+                debug_midi="69",
+                debug_owner="guitar",
+                keyboard_score="0",
+                guitar_score="1",
+            ),
+            row(
+                status="hit",
+                first_row="piano",
+                sample_id="piano_right",
+                family="piano",
+                nsynth_family="keyboard",
+                source="electronic",
+                expected_note="C5",
+                expected_midi="72",
+            ),
+            row(
+                status="hit",
+                first_row="guitar",
+                sample_id="guitar_right",
+                family="guitar",
+                nsynth_family="guitar",
+                source="acoustic",
+                expected_note="E4",
+                expected_midi="64",
+                debug_note="E4",
+                debug_midi="64",
+                debug_owner="guitar",
+                keyboard_score="0",
+                guitar_score="1",
+            ),
+        ]
+        hit_path.write_text(
+            "\t".join(HEADER) + "\n" + "\n".join("\t".join(item) for item in hit_rows) + "\n"
+        )
+        hit_result = subprocess.run(
+            [
+                sys.executable,
+                str(ROOT / "scripts" / "find_real_note_attribute_patterns.py"),
+                str(hit_path),
+                "--bucket",
+                "hit:piano/electronic->guitar",
+                "--condition",
+                "debug_owner=guitar",
+                "--limit",
+                "2",
+                "--max-negative-samples",
+                "2",
+            ],
+            text=True,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            check=True,
+        )
 
     assert "ownership_miss:guitar/acoustic->piano positives=2 samples/2 rows" in result.stdout
     assert "debug_owner=piano AND partial2<=0.14: pos=2/2 rows=2 neg=0/2 rows=0" in result.stdout
@@ -387,6 +465,11 @@ def main() -> int:
         "pos=2/2 rows=2 neg=0/3 rows=0"
     ) in multi_result.stdout, multi_result.stdout + multi_result.stderr
     assert "ownership_miss:guitar/acoustic->piano positives=2 samples/2 rows" in auto_result.stdout
+    assert (
+        "hit:piano/electronic->guitar positives=2 samples/2 rows "
+        "protected_hits=2 samples/2 rows"
+    ) in hit_result.stdout
+    assert "debug_owner=guitar: pos=2/2 rows=2 neg=1/2 rows=1" in hit_result.stdout
     print("test_find_real_note_attribute_patterns: ok")
     return 0
 
