@@ -12380,6 +12380,10 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 			snare_body >= kick_body * 0.68f &&
 			snare_crack >= snare_body * 0.070f &&
 			snapshot.drum_debug_trigger_scores[Tom] <= 30.66f;
+		const bool one_shot_measured_high_band_snare_from_tom_primary_recovery =
+			drum_detection_enabled && one_shot_drum_source &&
+			drum_bands[Snare] >= 202.549f &&
+			drum_segment_bands[Crash] <= 0.889f;
 		const bool one_shot_measured_crash_kick_tie_primary_recovery =
 			drum_detection_enabled && one_shot_drum_source &&
 			drum_level_[Crash] >= 0.98f &&
@@ -12472,7 +12476,8 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 		    one_shot_measured_snare_ambiguous_primary_recovery ||
 		    one_shot_measured_snare_tom_tie_primary_recovery ||
 		    one_shot_measured_snare_from_tom_primary_recovery ||
-		    one_shot_measured_low_trigger_snare_from_tom_primary_recovery)
+		    one_shot_measured_low_trigger_snare_from_tom_primary_recovery ||
+		    one_shot_measured_high_band_snare_from_tom_primary_recovery)
 			promote_drum_primary(Snare, 0.90f);
 		const bool one_shot_measured_late_kick_tom_primary_recovery =
 			drum_detection_enabled && one_shot_drum_source &&
