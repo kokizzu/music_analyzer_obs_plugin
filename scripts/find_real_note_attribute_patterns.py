@@ -409,15 +409,26 @@ def condition_pattern(spec: str) -> Pattern:
 
 
 def build_patterns(
-    positive_rows: list[dict[str, str]], include_intervals: bool, include_row_context: bool
+    positive_rows: list[dict[str, str]],
+    include_intervals: bool,
+    include_row_context: bool,
+    exclude_fields: set[str],
 ) -> tuple[list[Pattern], list[Pattern]]:
     category_patterns: list[Pattern] = []
-    category_fields = DEBUG_CATEGORY_FIELDS + (
+    category_fields = [
+        field
+        for field in DEBUG_CATEGORY_FIELDS + (
         ROW_CONTEXT_CATEGORY_FIELDS if include_row_context else []
-    )
-    numeric_fields = DEBUG_NUMERIC_FIELDS + (
+        )
+        if field not in exclude_fields
+    ]
+    numeric_fields = [
+        field
+        for field in DEBUG_NUMERIC_FIELDS + (
         ROW_CONTEXT_NUMERIC_FIELDS if include_row_context else []
-    )
+        )
+        if field not in exclude_fields
+    ]
     for field in category_fields:
         values = sorted({row.get(field, "") for row in positive_rows if row.get(field, "")})
         for value in values:
@@ -695,6 +706,7 @@ def print_bucket_patterns(
     show_examples: int,
     max_conditions: int,
     beam_width: int,
+    exclude_fields: set[str],
 ) -> None:
     positive_rows = rows_for_bucket(rows, bucket)
     negatives = protected_hit_rows(rows, positive_rows)
@@ -737,7 +749,7 @@ def print_bucket_patterns(
         )
 
     category_patterns, numeric_patterns = build_patterns(
-        positive_rows, include_intervals, include_row_context
+        positive_rows, include_intervals, include_row_context, exclude_fields
     )
     category_matches = [
         indexed_match(pattern, positive_rows, negatives) for pattern in category_patterns
@@ -906,6 +918,12 @@ def main() -> int:
         help="explicit ANDed condition to measure, such as debug_owner=guitar or pitch_confidence>=0.8",
     )
     parser.add_argument(
+        "--exclude-field",
+        action="append",
+        default=[],
+        help="field to exclude from automatic pattern search; repeatable",
+    )
+    parser.add_argument(
         "--show-examples",
         "--row-examples",
         dest="show_examples",
@@ -947,6 +965,7 @@ def main() -> int:
             max(0, args.show_examples),
             max(1, args.max_conditions),
             max(1, args.beam_width),
+            set(args.exclude_field),
         )
     return 0
 
