@@ -26,6 +26,7 @@ static constexpr int kCompleteContentShiftY = -10;
 static constexpr int kBassGuitarContentShiftY = -8;
 static constexpr int kHalfMusicKeyboardFirstRow = 1;
 static constexpr int kHalfMusicKeyboardRowCount = 2;
+static constexpr int kHalfMusicGuitarY = 284;
 
 uint8_t blend_channel(uint8_t from, uint8_t to, float amount)
 {
@@ -58,7 +59,7 @@ struct VisualLayout {
 	int chord_x = 654;
 	int stable_x = 782;
 	int count_x = 822;
-	int chord_w = 124;
+	int chord_w = 72;
 	int stable_w = 92;
 	int count_w = 64;
 };
@@ -69,7 +70,7 @@ VisualLayout visual_layout(const VisualizerRenderer *visualizer)
 	const int width = static_cast<int>(visualizer->width);
 	static constexpr int kMinNoteWidth = 420;
 	static constexpr int kNoteToChordGap = 24;
-	static constexpr int kColumnGap = 14;
+	static constexpr int kColumnGap = 12;
 	static constexpr int kRightMargin = 28;
 
 	layout.count_x = std::max(layout.note_x + kMinNoteWidth + kNoteToChordGap + layout.chord_w + kColumnGap +
@@ -87,7 +88,7 @@ VisualLayout bass_guitar_visual_layout(const VisualizerRenderer *visualizer)
 	const int width = static_cast<int>(visualizer->width);
 	static constexpr int kRightMargin = 28;
 	static constexpr int kNoteToChordGap = 24;
-	static constexpr int kColumnGap = 18;
+	static constexpr int kColumnGap = 12;
 	layout.stable_x = width - kRightMargin - layout.stable_w;
 	layout.chord_x = layout.stable_x - kColumnGap - layout.chord_w;
 	layout.note_w = std::max(420, layout.chord_x - layout.note_x - kNoteToChordGap);
@@ -1283,22 +1284,23 @@ void render_bass_guitar_pixels(VisualizerRenderer *visualizer, const AnalysisSna
 {
 	constexpr int y_shift = kBassGuitarContentShiftY;
 	draw_visualizer_header(visualizer, snapshot, snapshot_age, nullptr, y_shift);
-	draw_drum_row(visualizer, snapshot, 84 + y_shift, 78 + y_shift, 106, 150, 2);
+	draw_drum_row(visualizer, snapshot, 104 + y_shift, 98 + y_shift, 106, 150, 2);
 
 	const VisualLayout layout = bass_guitar_visual_layout(visualizer);
 	update_stable_label(visualizer, StableBass, snapshot, snapshot.bass_notes, nullptr, true);
 	update_stable_label(visualizer, StableKeyboard, snapshot, snapshot.keyboard_notes, &snapshot.keyboard_chord, false);
 	update_stable_label(visualizer, StableGuitar, snapshot, snapshot.guitar_notes, &snapshot.guitar_chord, false);
-	draw_note_column_headers(visualizer, layout, 138 + y_shift, true, false);
+	draw_note_column_headers(visualizer, layout, 158 + y_shift, true, false);
 
-	int row_y = 158 + y_shift;
+	int row_y = 178 + y_shift;
 	row_y = draw_instrument_rows(visualizer, layout, row_y, "BASS", snapshot.bass_notes, nullptr,
 				     visualizer->stable_labels[StableBass].label, Color{255, 59, 48, 245}, 1, false);
 	const int degree_root_pitch_class = pitch_class_from_note_label(snapshot.root.label);
-	row_y = draw_piano_keyboard(visualizer, layout, row_y + 4, snapshot.keyboard_notes, snapshot.keyboard_chord,
+	row_y = draw_piano_keyboard(visualizer, layout, row_y - 8, snapshot.keyboard_notes, snapshot.keyboard_chord,
 				    visualizer->stable_labels[StableKeyboard].label, degree_root_pitch_class,
 				    kHalfMusicKeyboardFirstRow, kHalfMusicKeyboardRowCount, false);
-	row_y = draw_guitar_fretboard(visualizer, layout, row_y + 8, snapshot.guitar_notes, snapshot.guitar_chord,
+	row_y = draw_guitar_fretboard(visualizer, layout, kHalfMusicGuitarY + y_shift, snapshot.guitar_notes,
+				      snapshot.guitar_chord,
 				      visualizer->stable_labels[StableGuitar].label, degree_root_pitch_class, true, false);
 
 	const int root_y = std::max(row_y + 6, static_cast<int>(visualizer->height) - 42 + y_shift);
