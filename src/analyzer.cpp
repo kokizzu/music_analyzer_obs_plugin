@@ -12391,6 +12391,9 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 			  tom_snare_shape_score_ratio <= 2.373f) ||
 			 (snapshot.high_energy <= 0.02f &&
 			  snapshot.drum_debug_trigger_thresholds[Tom] <= 0.43f) ||
+			 (drum_bands[Kick] >= 0.18f &&
+			  snare_kick_trigger_ratio <= 0.08f &&
+			  drum_level_[Snare] <= 0.87f) ||
 			 (body_shape_scores[0] >= 406.43f &&
 			  tom_kick_shape_score_ratio >= 0.866f));
 		const bool one_shot_measured_low_trigger_kick_from_tom_primary_recovery =
