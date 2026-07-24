@@ -96,6 +96,17 @@ def main() -> int:
         "MUSIC_ANALYZER_REAL_NOTE_MIN_BASS=0",
     ]:
         assert text in real_note_shard_recipe, f"real-note shard target must include {text}"
+    detector_regression_targets = re.search(
+        r"^DETECTOR_SAMPLE_REGRESSION_TARGETS := (.+)$", makefile, re.MULTILINE
+    )
+    assert detector_regression_targets is not None, "missing detector sample regression target list"
+    detector_regression_target_list = detector_regression_targets.group(1)
+    assert "test-real-note-samples-full-mix-parallel" in detector_regression_target_list, (
+        "detector sample regression loop must use the sharded real-note full-mix gate"
+    )
+    assert "test-real-note-samples-full-mix " not in detector_regression_target_list + " ", (
+        "detector sample regression loop must not use the serial real-note full-mix gate"
+    )
     assert "REAL_WORLD_SAMPLE_MAX_TARGETS :=" in makefile, "missing max real-world sample target list"
     assert "REAL_WORLD_SAMPLE_MAX_BASE_TARGETS :=" in makefile, (
         "max real-world sample target list must avoid duplicated default/max targets"
