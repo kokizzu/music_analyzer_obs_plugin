@@ -12421,9 +12421,9 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 			drum_detection_enabled && named_drum_source &&
 			drum_level_[Kick] > 0.30f &&
 			drum_level_[Tom] > drum_level_[Kick] &&
-			snapshot.low_energy >= 0.60f &&
-			post_primary_tom_kick_level_ratio >= 1.043f &&
-			snapshot.drum_debug_trigger_scores[Tom] >= 2.39f;
+			snapshot.low_energy >= 0.59f &&
+			post_primary_tom_kick_level_ratio >= 1.022f &&
+			snapshot.drum_debug_trigger_scores[Tom] >= 2.33f;
 		const bool one_shot_measured_low_body_kick_tom_primary_recovery =
 			drum_detection_enabled && one_shot_drum_source &&
 			drum_level_[Kick] > 0.30f &&
