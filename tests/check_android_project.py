@@ -176,8 +176,9 @@ def main():
     require("nativeSetRuntimeMetrics" in activity and "nativeSetRuntimeMetrics" in bridge,
             "Android runtime metrics must flow into the shared renderer")
     require("BatteryManager.BATTERY_PROPERTY_CAPACITY" in activity and "readBatteryPercent()" in activity and
-            "battery_percent" in bridge,
-            "Android battery percentage must flow into the shared renderer")
+            "BatteryManager.BATTERY_PROPERTY_STATUS" in activity and "readBatteryCharging()" in activity and
+            "battery_percent" in bridge and "battery_charging" in bridge,
+            "Android battery percentage and charging state must flow into the shared renderer")
     require("postInvalidateDelayed" in activity, "Android rendering must be frame-rate bounded")
     require("420 : 540" in activity, "Android compact layout height must match the shared renderer")
     require("AudioTrack" in activity, "Android app must explicitly monitor input to an output device")

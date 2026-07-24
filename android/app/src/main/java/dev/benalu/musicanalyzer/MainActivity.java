@@ -200,6 +200,13 @@ public final class MainActivity extends Activity {
         return (float) batteryPercent;
     }
 
+    private boolean readBatteryCharging() {
+        BatteryManager batteryManager = getSystemService(BatteryManager.class);
+        return batteryManager != null
+                && batteryManager.getIntProperty(BatteryManager.BATTERY_PROPERTY_STATUS)
+                == BatteryManager.BATTERY_STATUS_CHARGING;
+    }
+
     private float readAppCpuPercent(long nowNanos) {
         long cpuMillis = Process.getElapsedCpuTime();
         long elapsedNanos = nowNanos - lastMetricsNanos;
@@ -226,7 +233,8 @@ public final class MainActivity extends Activity {
                 nativeHandle,
                 cpuPercent,
                 readAppRamMb(),
-                readBatteryPercent());
+                readBatteryPercent(),
+                readBatteryCharging());
     }
 
     private static boolean isProbablyEmulator() {

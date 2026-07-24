@@ -51,12 +51,13 @@ def main():
     require('"BASS+GUITAR"' not in renderer,
             "compact layout name should stay in the window title, not the rendered header")
     require("cpu_percent" in renderer and "ram_mb" in renderer and "battery_percent" in renderer and
+            "battery_charging" in renderer and
             '" CPU %.0f"' in renderer and '"%02.0f%%"' not in renderer and
             "std::clamp(snapshot.cpu_percent" not in renderer and '" RAM %.0fMB"' in renderer and
-            '" BATT %.0f"' in renderer and '" BATT %.0f%%"' not in renderer and
-            renderer.find('" BATT %.0f"') < renderer.find('" RAM %.0fMB"') and
+            '" BAT+ %.0f"' in renderer and '" BAT %.0f"' in renderer and '" BAT %.0f%%"' not in renderer and
+            renderer.find('" BAT %.0f"') < renderer.find('" RAM %.0fMB"') and
             "draw_status_pair" in renderer,
-            "renderer status line must expose uncapped unitless CPU, app RAM, and battery metrics")
+            "renderer status line must expose CPU, RAM, and charging-aware battery metrics")
     require('AGE %.1fS' in renderer and 'AGE %04.1fS' not in renderer and
             '" RMS %.2f"' in renderer and renderer.find('" CPU %.0f"') < renderer.find('" RMS %.2f"'),
             "AGE must be unpadded and RMS must appear after CPU")

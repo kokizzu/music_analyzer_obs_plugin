@@ -398,7 +398,7 @@ void draw_status_line(VisualizerRenderer *visualizer, const AnalysisSnapshot &sn
 		char battery[8] = {};
 		std::snprintf(battery, sizeof(battery), "%.0f",
 			      std::clamp(snapshot.battery_percent, 0.0f, 100.0f));
-		x = draw_status_pair(visualizer, x, y, "BATT ", battery);
+		x = draw_status_pair(visualizer, x, y, snapshot.battery_charging ? "BAT+ " : "BAT ", battery);
 	}
 	if (snapshot.ram_mb >= 0.0f) {
 		char ram[8] = {};
@@ -1372,7 +1372,8 @@ void format_visualizer_status_line(char *output, std::size_t output_size, const 
 		return;
 	std::size_t used = std::min<std::size_t>(static_cast<std::size_t>(written), output_size - 1);
 	if (snapshot.battery_percent >= 0.0f && used + 1 < output_size) {
-		written = std::snprintf(output + used, output_size - used, " BATT %.0f",
+		written = std::snprintf(output + used, output_size - used,
+					snapshot.battery_charging ? " BAT+ %.0f" : " BAT %.0f",
 					std::clamp(snapshot.battery_percent, 0.0f, 100.0f));
 		if (written > 0)
 			used = std::min<std::size_t>(used + static_cast<std::size_t>(written), output_size - 1);

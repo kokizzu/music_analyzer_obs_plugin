@@ -16,7 +16,8 @@ final class MusicAnalyzerNative {
 
     static native boolean nativePushSamples(long handle, float[] samples, int length);
 
-    static native void nativeSetRuntimeMetrics(long handle, float cpuPercent, float ramMb, float batteryPercent);
+    static native void nativeSetRuntimeMetrics(long handle, float cpuPercent, float ramMb, float batteryPercent,
+            boolean batteryCharging);
 
     static native boolean nativeApplyControlAction(long handle, int actionKind, int value);
 

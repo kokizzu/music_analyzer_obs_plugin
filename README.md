@@ -74,7 +74,7 @@ The small status text at the top is for checking whether the analyzer is receivi
 - `LOW`, `MID`, `HIGH`: rough percentage split of detected low, mid, and high-frequency energy.
 - `AGE`: seconds since the overlay last received a new analyzer snapshot. If this keeps increasing while music is playing, the visualizer is not receiving fresh analyzer data. Stale-age redraws are throttled so the overlay does not repaint continuously only for this counter.
 - `DROP`: analyzer windows skipped because a newer audio window arrived before the worker consumed the previous one.
-- `BATT`: device battery level, shown as an unpadded whole number without a percent sign. This is available on Android.
+- `BAT`: device battery level, shown as an unpadded whole number without a percent sign. The label becomes `BAT+` while charging. This is available on Android.
 - `RAM`: process RAM usage in MB. In OBS this is the OBS process, including the plugin; in standalone and Android this is the app process.
 - `CPU`: uncapped process CPU usage sampled about once per second, displayed after RAM and without a percent sign. In OBS this is the OBS process, including the plugin; in standalone and Android this is the app process. `100` means roughly one full CPU core, `200` means two cores, and so on.
 - `RMS`: current overall loudness of the analyzer window, displayed at the far right so its changing width does not shift the other status fields.
