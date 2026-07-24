@@ -309,6 +309,8 @@ bool FretControlState::apply(const ControlAction &action)
 		return set_manual_root(action.value);
 	case ControlActionKind::ShiftManualRoot:
 		return shift_manual_root(action.value);
+	case ControlActionKind::ToggleManualRootCG:
+		return set_manual_root(manual_root_ == 7 ? 0 : 7);
 	case ControlActionKind::ToggleMode:
 		return toggle_mode();
 	case ControlActionKind::ToggleAutoconnect:
@@ -342,7 +344,7 @@ ControlAction mvave_action_for_switch(int switch_index, bool held)
 	case 1:
 		return {ControlActionKind::ShiftManualRoot, held ? 2 : 1};
 	case 2:
-		return {ControlActionKind::SetManualRoot, held ? 0 : 7};
+		return {ControlActionKind::ToggleManualRootCG, 0};
 	case 3:
 		return {ControlActionKind::ToggleMode, 0};
 	default:

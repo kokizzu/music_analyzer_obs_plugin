@@ -43,10 +43,10 @@ For predictable press-versus-hold behavior, the recommended vendor-editor preset
 | --- | ---: | --- | --- |
 | A | 36 | down one semitone | down two semitones (one whole tone) |
 | B | 37 | up one semitone | up two semitones (one whole tone) |
-| C | 38 | set manual root to G | set manual root to C |
+| C | 38 | toggle manual root G/C | no extra action |
 | D | 39 | toggle Auto/Manual | toggle Auto/Manual |
 
-Each switch should send Note On when pressed and Note Off (or Note On with velocity zero) when released. The short action happens on press, while releasing after 600 ms completes the long action. Note-On-only presets therefore still provide repeatable short actions. Notes 0-3 and 60-63 are accepted as alternate four-note banks. Any CC is accepted: a high value followed by a low value provides press/release timing, while a single low-valued CC (including the factory CC32-35 behavior) is treated as a short press. Program Change also works as a short-press fallback because it has no release event.
+Each switch should send Note On when pressed and Note Off (or Note On with velocity zero) when released. The short action happens on press, while releasing A or B after 600 ms completes the long action. C and D are press-only; holding C does not toggle again on release. Note-On-only presets therefore still provide repeatable short actions. Notes 0-3 and 60-63 are accepted as alternate four-note banks. Any CC is accepted: a high value followed by a low value provides press/release timing, while a single low-valued CC (including the factory CC32-35 behavior) is treated as a short press. Program Change also works as a short-press fallback because it has no release event.
 
 USB MIDI and BLE MIDI are supported. The scanner recognizes names containing `Chocolate`, `M-VAVE`, `MVAVE`, or `FootCtrl`. USB controllers use Android MIDI ports. BLE controllers are opened directly through the standard BLE-MIDI service `03b80e5a-ede8-4b33-a751-6ce34ec4c700` and I/O characteristic `7772e5db-3868-4112-a1a9-f2669d106bf3`, bypassing Android's Bluetooth MIDI bridge when it opens a port but delivers no packets. The app also opens a matching bonded controller directly, which covers a `FootCtrlPlus` that stops advertising before the app starts.
 

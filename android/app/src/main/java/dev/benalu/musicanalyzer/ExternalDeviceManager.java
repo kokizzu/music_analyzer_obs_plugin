@@ -867,8 +867,6 @@ final class ExternalDeviceManager implements Closeable {
         boolean changed = false;
         if (held && (switchIndex == 0 || switchIndex == 1)) {
             changed = MusicAnalyzerNative.nativeHandleMvaveSwitch(nativeHandle, switchIndex, false);
-        } else if (held && switchIndex == 2) {
-            changed = MusicAnalyzerNative.nativeHandleMvaveSwitch(nativeHandle, switchIndex, true);
         }
         if (changed) {
             refreshOutputs(true);

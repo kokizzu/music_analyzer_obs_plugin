@@ -49,6 +49,7 @@ enum class ControlActionKind : uint8_t {
 	None,
 	SetManualRoot,
 	ShiftManualRoot,
+	ToggleManualRootCG,
 	ToggleMode,
 	ToggleAutoconnect,
 };

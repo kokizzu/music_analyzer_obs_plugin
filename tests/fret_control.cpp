@@ -55,9 +55,18 @@ void test_controller_actions()
 	assert(mao::mvave_action_for_switch(0, false).value == -1);
 	assert(mao::mvave_action_for_switch(0, true).value == -2);
 	assert(mao::mvave_action_for_switch(1, true).value == 2);
-	assert(mao::mvave_action_for_switch(2, false).value == 7);
-	assert(mao::mvave_action_for_switch(2, true).value == 0);
+	assert(mao::mvave_action_for_switch(2, false).kind == mao::ControlActionKind::ToggleManualRootCG);
+	assert(mao::mvave_action_for_switch(2, true).kind == mao::ControlActionKind::ToggleManualRootCG);
 	assert(mao::mvave_action_for_switch(3, false).kind == mao::ControlActionKind::ToggleMode);
+
+	mao::FretControlState state;
+	assert(state.apply(mao::mvave_action_for_switch(2, false)));
+	assert(state.manual_root() == 7);
+	assert(state.apply(mao::mvave_action_for_switch(2, false)));
+	assert(state.manual_root() == 0);
+	assert(state.set_manual_root(4));
+	assert(state.apply(mao::mvave_action_for_switch(2, false)));
+	assert(state.manual_root() == 7);
 }
 
 void test_apc_display()
