@@ -209,6 +209,8 @@ def main():
     require("android.permission.BLUETOOTH_SCAN" in manifest and
             "android.permission.BLUETOOTH_CONNECT" in manifest,
             "Android manifest must request modern BLE scan/connect permissions")
+    require('android:usesPermissionFlags="neverForLocation"' in manifest,
+            "Android BLE scanning must declare that scan results are not used for location")
     require("android.software.midi" in manifest and "android.hardware.bluetooth_le" in manifest,
             "Android manifest must declare optional MIDI and BLE features")
     require("ExternalDeviceManager" in activity and "setOnLongClickListener" in activity and
