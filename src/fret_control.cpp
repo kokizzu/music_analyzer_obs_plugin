@@ -40,8 +40,11 @@ constexpr uint8_t kApcSolidFullBrightness = 0x96;
 constexpr uint8_t kApcOff = 0;
 constexpr uint8_t kApcWhite = 3;
 constexpr std::array<uint8_t, 12> kApcRootBlockColors = {
-	5, 60, 9, 96, 13, 73, 21, 90, 37, 45, 49, 53,
+	21, 90, 37, 40, 49, 94, 57, 5, 9, 96, 109, 13,
 };
+constexpr uint8_t kApcPreviousSemitoneColor = 45;
+constexpr uint8_t kApcModeToggleColor = 73;
+constexpr uint8_t kApcNextSemitoneColor = 8;
 
 int normalize_pitch_class(int pitch_class)
 {
@@ -95,17 +98,17 @@ bool is_sharp_pitch_class(int pitch_class)
 	}
 }
 
-uint8_t apc_background(int row_from_top, int column, RootControlMode mode)
+uint8_t apc_background(int row_from_top, int column)
 {
 	if (row_from_top < 6) {
 		const int root = (row_from_top / 2) * 4 + (column / 2);
 		return kApcRootBlockColors[static_cast<std::size_t>(root)];
 	}
 	if (column < 3)
-		return 45;
+		return kApcPreviousSemitoneColor;
 	if (column < 5)
-		return mode == RootControlMode::Auto ? 21 : 9;
-	return 5;
+		return kApcModeToggleColor;
+	return kApcNextSemitoneColor;
 }
 
 uint8_t scale_nibble(uint8_t component)
@@ -363,7 +366,7 @@ std::vector<uint8_t> build_apc_led_messages(int root_pitch_class, RootControlMod
 	for (int note = 0; note < 64; ++note) {
 		const int row_from_top = 7 - note / 8;
 		const int column = note % 8;
-		uint8_t color = apc_background(row_from_top, column, mode);
+		uint8_t color = apc_background(row_from_top, column);
 		if (kLetterGlyphs[static_cast<std::size_t>(letter)][static_cast<std::size_t>(row_from_top)][column] == '#')
 			color = glyph_color;
 		if (sharp && kSharpGlyph[static_cast<std::size_t>(row_from_top)][column] == '#')
