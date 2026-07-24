@@ -362,6 +362,15 @@ int draw_status_pair(VisualizerRenderer *visualizer, int x, int y, const char *l
 	return x + kPairGap;
 }
 
+void format_band_percentage(char *output, std::size_t output_size, float energy)
+{
+	const float percentage = std::max(0.0f, energy * 100.0f);
+	if (percentage > 99.0f)
+		std::snprintf(output, output_size, "MAX");
+	else
+		std::snprintf(output, output_size, "%.0f%%", percentage);
+}
+
 void draw_status_line(VisualizerRenderer *visualizer, const AnalysisSnapshot &snapshot, float snapshot_age,
 		      int y_offset = 0)
 {
@@ -372,9 +381,9 @@ void draw_status_line(VisualizerRenderer *visualizer, const AnalysisSnapshot &sn
 	char age[8] = {};
 	char drop[24] = {};
 	std::snprintf(rms, sizeof(rms), "%4.2f", std::clamp(snapshot.rms, 0.0f, 9.99f));
-	std::snprintf(low, sizeof(low), "%3.0f%%", std::clamp(snapshot.low_energy * 100.0f, 0.0f, 100.0f));
-	std::snprintf(mid, sizeof(mid), "%3.0f%%", std::clamp(snapshot.mid_energy * 100.0f, 0.0f, 100.0f));
-	std::snprintf(high, sizeof(high), "%3.0f%%", std::clamp(snapshot.high_energy * 100.0f, 0.0f, 100.0f));
+	format_band_percentage(low, sizeof(low), snapshot.low_energy);
+	format_band_percentage(mid, sizeof(mid), snapshot.mid_energy);
+	format_band_percentage(high, sizeof(high), snapshot.high_energy);
 	std::snprintf(age, sizeof(age), "%04.1fS", std::clamp(snapshot_age, 0.0f, 99.9f));
 	std::snprintf(drop, sizeof(drop), "%llu", static_cast<unsigned long long>(snapshot.dropped_windows));
 
@@ -1348,12 +1357,16 @@ void format_visualizer_status_line(char *output, std::size_t output_size, const 
 	if (!output || output_size == 0)
 		return;
 
+	char low[8] = {};
+	char mid[8] = {};
+	char high[8] = {};
+	format_band_percentage(low, sizeof(low), snapshot.low_energy);
+	format_band_percentage(mid, sizeof(mid), snapshot.mid_energy);
+	format_band_percentage(high, sizeof(high), snapshot.high_energy);
 	int written = std::snprintf(output, output_size,
-				    "RMS %4.2f LOW %3.0f%% MID %3.0f%% HIGH %3.0f%% AGE %04.1fS DROP %llu",
+				    "RMS %4.2f LOW %s MID %s HIGH %s AGE %04.1fS DROP %llu",
 				    std::clamp(snapshot.rms, 0.0f, 9.99f),
-				    std::clamp(snapshot.low_energy * 100.0f, 0.0f, 100.0f),
-				    std::clamp(snapshot.mid_energy * 100.0f, 0.0f, 100.0f),
-				    std::clamp(snapshot.high_energy * 100.0f, 0.0f, 100.0f),
+				    low, mid, high,
 				    std::clamp(snapshot_age, 0.0f, 99.9f),
 				    static_cast<unsigned long long>(snapshot.dropped_windows));
 	if (written < 0)

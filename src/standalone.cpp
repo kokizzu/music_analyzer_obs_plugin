@@ -590,7 +590,7 @@ bool run_self_test()
 		status_snapshot.rms = 0.12f;
 		status_snapshot.low_energy = 0.25f;
 		status_snapshot.mid_energy = 0.50f;
-		status_snapshot.high_energy = 0.25f;
+		status_snapshot.high_energy = 1.0f;
 		status_snapshot.dropped_windows = 7;
 		status_snapshot.cpu_percent = 8.0f;
 		status_snapshot.ram_mb = 7.0f;
@@ -600,7 +600,7 @@ bool run_self_test()
 		const char *age = std::strstr(status_line, "AGE ");
 		const char *drop = std::strstr(status_line, "DROP ");
 		const char *expected =
-			"RMS 0.12 LOW  25% MID  50% HIGH  25% AGE 01.6S DROP 7 CPU 08% RAM 7MB BATT 83%";
+			"RMS 0.12 LOW 25% MID 50% HIGH MAX AGE 01.6S DROP 7 CPU 08% RAM 7MB BATT 83%";
 		if (std::strstr(status_line, "FRAMES") || std::strstr(status_line, "UPD") || !age || !drop ||
 		    age > drop || std::strcmp(status_line, expected) != 0) {
 			std::fprintf(stderr, "standalone self-test: unexpected status line '%s'\n", status_line);

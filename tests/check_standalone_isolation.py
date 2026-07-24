@@ -50,11 +50,9 @@ def main():
             '" CPU %02.0f%%"' in renderer and '" RAM %.0fMB"' in renderer and
             '" BATT %.0f%%"' in renderer and "draw_status_pair" in renderer,
             "renderer status line must expose optional CPU, app RAM, and battery metrics")
-    require('LOW %3.0f%% MID %3.0f%% HIGH %3.0f%%' in renderer and
-            'std::snprintf(low, sizeof(low), "%3.0f%%"' in renderer and
-            'std::snprintf(mid, sizeof(mid), "%3.0f%%"' in renderer and
-            'std::snprintf(high, sizeof(high), "%3.0f%%"' in renderer,
-            "LOW/MID/HIGH status percentages must be fixed-width with spaces to avoid text jitter")
+    require('LOW %s MID %s HIGH %s' in renderer and "format_band_percentage" in renderer and
+            'percentage > 99.0f' in renderer and '"MAX"' in renderer and '"%.0f%%"' in renderer,
+            "LOW/MID/HIGH status percentages must be unpadded and show MAX above 99 percent")
     require('DROP %llu' in renderer and 'DROP %03llu' not in renderer,
             "DROP status count must not be zero-padded")
     require("apply_process_metrics(&snapshot)" in plugin and "snapshot->cpu_percent" in plugin and
