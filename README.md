@@ -65,12 +65,13 @@ If the overlay says `ADD MUSIC ANALYZER FILTER TO AN AUDIO SOURCE`, the overlay 
 
 The small status text at the top is for checking whether the analyzer is receiving and processing audio:
 
-- `RMS`: current overall loudness of the analyzer window.
 - `LOW`, `MID`, `HIGH`: rough percentage split of detected low, mid, and high-frequency energy.
 - `AGE`: seconds since the overlay last received a new analyzer snapshot. If this keeps increasing while music is playing, the visualizer is not receiving fresh analyzer data. Stale-age redraws are throttled so the overlay does not repaint continuously only for this counter.
 - `DROP`: analyzer windows skipped because a newer audio window arrived before the worker consumed the previous one.
+- `BATT`: device battery level, shown as an unpadded whole number without a percent sign. This is available on Android.
 - `RAM`: process RAM usage in MB. In OBS this is the OBS process, including the plugin; in standalone and Android this is the app process.
-- `CPU`: uncapped process CPU usage sampled about once per second, displayed last and without a percent sign so its changing width does not shift RAM or battery. In OBS this is the OBS process, including the plugin; in standalone and Android this is the app process. `100` means roughly one full CPU core, `200` means two cores, and so on.
+- `CPU`: uncapped process CPU usage sampled about once per second, displayed after RAM and without a percent sign. In OBS this is the OBS process, including the plugin; in standalone and Android this is the app process. `100` means roughly one full CPU core, `200` means two cores, and so on.
+- `RMS`: current overall loudness of the analyzer window, displayed at the far right so its changing width does not shift the other status fields.
 - `BPM`: bottom-right estimated tempo. The percentage is confidence from recent transient timing, so sparse intros, rubato, or weak drums may show `BPM --` or a low-confidence estimate.
 
 `Analyzer interval (ms)` controls how often a new rolling window is evaluated. The default is 50 ms. `Analysis window (ms)` controls the amount of recent audio inside each evaluation window. The default is 100 ms, so consecutive evaluations overlap. Enable `Use legacy 4096-sample analysis window` to switch back to the original fixed-size window.

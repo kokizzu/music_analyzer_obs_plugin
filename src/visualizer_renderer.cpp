@@ -384,33 +384,33 @@ void draw_status_line(VisualizerRenderer *visualizer, const AnalysisSnapshot &sn
 	format_band_percentage(low, sizeof(low), snapshot.low_energy);
 	format_band_percentage(mid, sizeof(mid), snapshot.mid_energy);
 	format_band_percentage(high, sizeof(high), snapshot.high_energy);
-	std::snprintf(age, sizeof(age), "%04.1fS", std::clamp(snapshot_age, 0.0f, 99.9f));
+	std::snprintf(age, sizeof(age), "%.1fS", std::clamp(snapshot_age, 0.0f, 99.9f));
 	std::snprintf(drop, sizeof(drop), "%llu", static_cast<unsigned long long>(snapshot.dropped_windows));
 
 	int x = 28;
 	const int y = std::max(0, 58 + y_offset);
-	x = draw_status_pair(visualizer, x, y, "RMS ", rms);
 	x = draw_status_pair(visualizer, x, y, "LOW ", low);
 	x = draw_status_pair(visualizer, x, y, "MID ", mid);
 	x = draw_status_pair(visualizer, x, y, "HIGH ", high);
 	x = draw_status_pair(visualizer, x, y, "AGE ", age);
 	x = draw_status_pair(visualizer, x, y, "DROP ", drop);
+	if (snapshot.battery_percent >= 0.0f) {
+		char battery[8] = {};
+		std::snprintf(battery, sizeof(battery), "%.0f",
+			      std::clamp(snapshot.battery_percent, 0.0f, 100.0f));
+		x = draw_status_pair(visualizer, x, y, "BATT ", battery);
+	}
 	if (snapshot.ram_mb >= 0.0f) {
 		char ram[8] = {};
 		std::snprintf(ram, sizeof(ram), "%.0fMB", std::clamp(snapshot.ram_mb, 0.0f, 999.0f));
 		x = draw_status_pair(visualizer, x, y, "RAM ", ram);
 	}
-	if (snapshot.battery_percent >= 0.0f) {
-		char battery[8] = {};
-		std::snprintf(battery, sizeof(battery), "%.0f%%",
-			      std::clamp(snapshot.battery_percent, 0.0f, 100.0f));
-		x = draw_status_pair(visualizer, x, y, "BATT ", battery);
-	}
 	if (snapshot.cpu_percent >= 0.0f) {
 		char cpu[16] = {};
 		std::snprintf(cpu, sizeof(cpu), "%.0f", std::max(snapshot.cpu_percent, 0.0f));
-		(void)draw_status_pair(visualizer, x, y, "CPU ", cpu);
+		x = draw_status_pair(visualizer, x, y, "CPU ", cpu);
 	}
+	(void)draw_status_pair(visualizer, x, y, "RMS ", rms);
 }
 
 void draw_muted_mic_indicator(VisualizerRenderer *visualizer)
@@ -1364,30 +1364,34 @@ void format_visualizer_status_line(char *output, std::size_t output_size, const 
 	format_band_percentage(mid, sizeof(mid), snapshot.mid_energy);
 	format_band_percentage(high, sizeof(high), snapshot.high_energy);
 	int written = std::snprintf(output, output_size,
-				    "RMS %4.2f LOW %s MID %s HIGH %s AGE %04.1fS DROP %llu",
-				    std::clamp(snapshot.rms, 0.0f, 9.99f),
+				    "LOW %s MID %s HIGH %s AGE %.1fS DROP %llu",
 				    low, mid, high,
 				    std::clamp(snapshot_age, 0.0f, 99.9f),
 				    static_cast<unsigned long long>(snapshot.dropped_windows));
 	if (written < 0)
 		return;
 	std::size_t used = std::min<std::size_t>(static_cast<std::size_t>(written), output_size - 1);
+	if (snapshot.battery_percent >= 0.0f && used + 1 < output_size) {
+		written = std::snprintf(output + used, output_size - used, " BATT %.0f",
+					std::clamp(snapshot.battery_percent, 0.0f, 100.0f));
+		if (written > 0)
+			used = std::min<std::size_t>(used + static_cast<std::size_t>(written), output_size - 1);
+	}
 	if (snapshot.ram_mb >= 0.0f && used + 1 < output_size) {
 		written = std::snprintf(output + used, output_size - used, " RAM %.0fMB",
 					std::clamp(snapshot.ram_mb, 0.0f, 999.0f));
 		if (written > 0)
 			used = std::min<std::size_t>(used + static_cast<std::size_t>(written), output_size - 1);
 	}
-	if (snapshot.battery_percent >= 0.0f && used + 1 < output_size) {
-		written = std::snprintf(output + used, output_size - used, " BATT %.0f%%",
-					std::clamp(snapshot.battery_percent, 0.0f, 100.0f));
+	if (snapshot.cpu_percent >= 0.0f && used + 1 < output_size) {
+		written = std::snprintf(output + used, output_size - used, " CPU %.0f",
+					std::max(snapshot.cpu_percent, 0.0f));
 		if (written > 0)
 			used = std::min<std::size_t>(used + static_cast<std::size_t>(written), output_size - 1);
 	}
-	if (snapshot.cpu_percent >= 0.0f && used + 1 < output_size) {
-		std::snprintf(output + used, output_size - used, " CPU %.0f",
-			      std::max(snapshot.cpu_percent, 0.0f));
-	}
+	if (used + 1 < output_size)
+		std::snprintf(output + used, output_size - used, " RMS %.2f",
+			      std::clamp(snapshot.rms, 0.0f, 9.99f));
 }
 
 bool snapshot_resets_visualizer_age(const AnalysisSnapshot &snapshot)
