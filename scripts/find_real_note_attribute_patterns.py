@@ -83,6 +83,14 @@ DEFAULT_BUCKETS = [
     "ownership_miss:guitar/acoustic->bass",
 ]
 
+ROW_FOR_FAMILY = {
+    "bass": "bass",
+    "guitar": "guitar",
+    "piano": "piano",
+    "vocals": "vocals",
+    "other": "other",
+}
+
 
 @dataclasses.dataclass(frozen=True)
 class Pattern:
@@ -153,6 +161,18 @@ def source_key(row: dict[str, str]) -> str:
 
 def rows_for_bucket(rows: list[dict[str, str]], bucket: tuple[str, str, str, str]) -> list[dict[str, str]]:
     status, family, source, first_row = bucket
+    if status == "row_confusion":
+        expected_row = ROW_FOR_FAMILY.get(family, family)
+        return [
+            row
+            for row in rows
+            if row.get("status") == "hit"
+            and row.get("family") == family
+            and row.get("source") == source
+            and row.get("buffer_strongest_row") == first_row
+            and row.get("buffer_strongest_row") != expected_row
+            and row.get("debug_note")
+        ]
     return [
         row
         for row in rows
@@ -175,21 +195,33 @@ def protected_hit_rows(
     return [row for row in hit_rows(rows) if id(row) not in positive_ids]
 
 
-def top_buckets(rows: list[dict[str, str]], limit: int) -> list[tuple[str, str, str, str]]:
+def top_buckets(
+    rows: list[dict[str, str]], limit: int, bucket_status: str
+) -> list[tuple[str, str, str, str]]:
     if limit <= 0:
         return []
     counts: collections.Counter[tuple[str, str, str, str]] = collections.Counter()
     for row in rows:
-        if row.get("status") != "ownership_miss" or not row.get("debug_note"):
+        if not row.get("debug_note"):
             continue
-        counts[
-            (
-                row.get("status", ""),
-                row.get("family", ""),
-                row.get("source", ""),
-                row.get("first_row", ""),
-            )
-        ] += 1
+        if bucket_status == "row_confusion":
+            family = row.get("family", "")
+            expected_row = ROW_FOR_FAMILY.get(family, family)
+            strongest_row = row.get("buffer_strongest_row", "")
+            if row.get("status") != "hit" or strongest_row == expected_row or not strongest_row:
+                continue
+            counts[("row_confusion", family, row.get("source", ""), strongest_row)] += 1
+        else:
+            if row.get("status") != bucket_status:
+                continue
+            counts[
+                (
+                    row.get("status", ""),
+                    row.get("family", ""),
+                    row.get("source", ""),
+                    row.get("first_row", ""),
+                )
+            ] += 1
     return [bucket for bucket, _count in counts.most_common(limit)]
 
 
@@ -833,7 +865,13 @@ def main() -> int:
         "--top-buckets",
         type=int,
         default=6,
-        help="when --bucket is omitted, mine this many current top ownership-miss buckets; 0 uses fixed defaults",
+        help="when --bucket is omitted, mine this many current top buckets; 0 uses fixed defaults",
+    )
+    parser.add_argument(
+        "--bucket-status",
+        choices=("ownership_miss", "row_confusion"),
+        default="ownership_miss",
+        help="status used by --top-buckets; row_confusion means hit rows whose strongest display row is wrong",
     )
     parser.add_argument("--limit", type=int, default=8)
     parser.add_argument("--min-positive-samples", type=int, default=2)
@@ -879,7 +917,9 @@ def main() -> int:
     rows = load_rows(pathlib.Path(args.path))
     buckets = [parse_bucket_spec(spec) for spec in args.bucket]
     if not buckets:
-        buckets = top_buckets(rows, args.top_buckets) or [parse_bucket_spec(spec) for spec in DEFAULT_BUCKETS]
+        buckets = top_buckets(rows, args.top_buckets, args.bucket_status) or [
+            parse_bucket_spec(spec) for spec in DEFAULT_BUCKETS
+        ]
     explicit_patterns = [condition_pattern(spec) for spec in args.condition]
     for bucket in buckets:
         print_bucket_patterns(
