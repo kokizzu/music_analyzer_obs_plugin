@@ -1,5 +1,9 @@
 #include "analyzer.hpp"
+#ifdef MAO_STANDALONE_BASS_GUITAR
+#include "app_icon_bass_guitar_rgba.hpp"
+#else
 #include "app_icon_rgba.hpp"
+#endif
 #include "visualizer_renderer.hpp"
 
 #ifndef MAO_STANDALONE_WITH_SDL

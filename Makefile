@@ -19,7 +19,9 @@ ANDROID_PROFILE_PACKAGE ?= dev.benalu.musicanalyzer.bassguitar
 BASS_GUITAR_APK := android/app/build/outputs/apk/bassGuitar/debug/app-bassGuitar-debug.apk
 COMPLETE_APK := android/app/build/outputs/apk/complete/debug/app-complete-debug.apk
 ICON_SOURCE ?= assets/music-analyzer-icon.png
+BASS_GUITAR_ICON_SOURCE ?= assets/music-analyzer-bass-guitar-icon.png
 APP_ICON_HEADER := src/app_icon_rgba.hpp
+BASS_GUITAR_APP_ICON_HEADER := src/app_icon_bass_guitar_rgba.hpp
 ANDROID_GRADLE_BIN := $(BUILD_DIR)/gradle/gradle-$(ANDROID_GRADLE_VERSION)/bin/gradle
 GRADLE ?= $(if $(wildcard $(ANDROID_GRADLE_BIN)),$(ANDROID_GRADLE_BIN),gradle)
 DEPS_DIR ?= $(BUILD_DIR)/deps
@@ -531,7 +533,7 @@ BASS_GUITAR_STANDALONE_BIN := $(BUILD_DIR)/music-analyzer-bass-guitar
 FORCE:
 
 icon-assets: scripts/generate_icon_assets.sh
-	$(SHELL) scripts/generate_icon_assets.sh "$(ICON_SOURCE)"
+	$(SHELL) scripts/generate_icon_assets.sh "$(ICON_SOURCE)" "$(BASS_GUITAR_ICON_SOURCE)"
 
 all: $(SIMDE_DEP) $(BUILD_DIR)/music-analyzer-obs.so
 
@@ -682,7 +684,7 @@ $(BUILD_DIR)/standalone.o: src/standalone.cpp src/analyzer.hpp src/visualizer_re
 	$(MAKE) check-standalone-deps
 	$(CXX) $(CXXFLAGS) $(SDL2_CFLAGS) -DMAO_STANDALONE_WITH_SDL=1 -DMAO_STANDALONE_VERSION=\"$(STANDALONE_VERSION)\" -Isrc -c $< -o $@
 
-$(BUILD_DIR)/standalone_bass_guitar.o: src/standalone.cpp src/analyzer.hpp src/visualizer_renderer.hpp $(APP_ICON_HEADER) $(SDL2_DEP) FORCE | $(BUILD_DIR)
+$(BUILD_DIR)/standalone_bass_guitar.o: src/standalone.cpp src/analyzer.hpp src/visualizer_renderer.hpp $(BASS_GUITAR_APP_ICON_HEADER) $(SDL2_DEP) FORCE | $(BUILD_DIR)
 	$(MAKE) check-standalone-deps
 	$(CXX) $(CXXFLAGS) $(SDL2_CFLAGS) -DMAO_STANDALONE_WITH_SDL=1 -DMAO_STANDALONE_BASS_GUITAR=1 -DMAO_STANDALONE_VERSION=\"$(STANDALONE_VERSION)\" -Isrc -c $< -o $@
 

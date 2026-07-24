@@ -226,6 +226,10 @@ def main():
         icon = ROOT / "android" / "app" / "src" / "main" / "res" / f"mipmap-{density}" / "ic_launcher.png"
         require(icon.is_file() and icon.stat().st_size > 0,
                 f"Android {density} launcher icon is missing")
+        bass_guitar_icon = (ROOT / "android" / "app" / "src" / "bassGuitar" / "res" /
+                            f"mipmap-{density}" / "ic_launcher.png")
+        require(bass_guitar_icon.is_file() and bass_guitar_icon.stat().st_size > 0,
+                f"Android Bass + Guitar {density} launcher icon is missing")
     require("ExternalDeviceManager" in activity and "setOnLongClickListener" in activity and
             "nativeToggleAutoconnect" in activity,
             "Android activity must own device discovery and expose the autoconnect toggle")

@@ -1,10 +1,11 @@
 <p align="center">
   <img src="assets/music-analyzer-icon.png" width="180" alt="Music Analyzer spectrum, fretboard, and keyboard icon">
+  <img src="assets/music-analyzer-bass-guitar-icon.png" width="180" alt="Music Analyzer Bass and Guitar icon">
 </p>
 
 # Music Analyzer OBS Plugin
 
-The shared spectrum/fretboard/keyboard icon was created with ChatGPT image generation. `make icon-assets` regenerates the Android density variants and the embedded 64x64 standalone window icon from `assets/music-analyzer-icon.png`.
+The complete and Bass + Guitar flavor icons were created with ChatGPT image generation. `make icon-assets` regenerates their Android density variants and embedded 64x64 standalone window icons from `assets/music-analyzer-icon.png` and `assets/music-analyzer-bass-guitar-icon.png`.
 
 Native OBS Studio plugin that analyzes a music mix and displays an instrument-oriented overlay:
 
