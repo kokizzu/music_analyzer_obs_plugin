@@ -5174,6 +5174,61 @@ bool high_zero_partial_alias_candidate(const FullMixDebugCandidate &debug)
 	return true;
 }
 
+bool low_bass_candidate_shadowed_by_upper_keyboard_pitch(const FullMixOwnership &ownership,
+							 const RangeResult &bass_note)
+{
+	if (bass_note.midi <= kDefaultBassMaxMidi || bass_note.midi > 59)
+		return false;
+
+	const int pitch_class = midi_pitch_class(bass_note.midi);
+	bool upper_keyboard_support = false;
+	for (const NoteCandidate &candidate : ownership.keyboard_candidates) {
+		if (candidate.midi < bass_note.midi + 12)
+			continue;
+		if (midi_pitch_class(candidate.midi) != pitch_class)
+			continue;
+		if (candidate.score >= 0.16f || candidate.ownership_confidence >= 0.42f) {
+			upper_keyboard_support = true;
+			break;
+		}
+	}
+	if (!upper_keyboard_support)
+		return false;
+
+	bool non_bass_low_alias = false;
+	bool upper_keyboard_debug = false;
+	bool real_bass_debug = false;
+	const std::size_t debug_count =
+		std::min<std::size_t>(ownership.debug_candidate_count, ownership.debug_candidates.size());
+	for (std::size_t i = 0; i < debug_count; ++i) {
+		const FullMixDebugCandidate &debug = ownership.debug_candidates[i];
+		if (midi_pitch_class(debug.midi) != pitch_class)
+			continue;
+
+		const bool bass_owned =
+			debug.owner == InstrumentKind::Bass ||
+			(debug.bass_score >= 0.34f &&
+			 debug.bass_score >= std::max({debug.keyboard_score, debug.guitar_score,
+						       debug.vocal_score, debug.other_score}) * 0.84f);
+		if (debug.midi <= bass_note.midi + 2 && bass_owned)
+			real_bass_debug = true;
+
+		if (std::abs(debug.midi - bass_note.midi) <= 1 &&
+		    debug.owner != InstrumentKind::Bass &&
+		    debug.bass_score <= 0.22f &&
+		    debug.spectral_level >= 0.35f &&
+		    debug.pitch_confidence >= 0.18f)
+			non_bass_low_alias = true;
+
+		if (debug.midi >= bass_note.midi + 12 &&
+		    (debug.owner == InstrumentKind::Keyboard || debug.keyboard_score >= 0.45f) &&
+		    debug.spectral_level >= 0.25f)
+			upper_keyboard_debug = true;
+	}
+
+	return non_bass_low_alias && upper_keyboard_debug && !real_bass_debug;
+}
+
 bool full_mix_bass_shadowed_by_keyboard_alias(const FullMixOwnership &ownership, const RangeResult &bass_note)
 {
 	if (bass_note.midi < kFirstMidi || bass_note.midi > kBassMaxMidi)
@@ -5205,7 +5260,7 @@ bool full_mix_bass_shadowed_by_keyboard_alias(const FullMixOwnership &ownership,
 		if (((debug.midi % 12) + 12) % 12 == pitch_class)
 			return true;
 	}
-	return false;
+	return low_bass_candidate_shadowed_by_upper_keyboard_pitch(ownership, bass_note);
 }
 
 bool strongest_candidate(const NoteCandidateList &candidates, NoteCandidate &candidate)
