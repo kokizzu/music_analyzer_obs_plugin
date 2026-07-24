@@ -85,6 +85,12 @@ HEADER = [
     "partial3",
     "partial4",
     "partial5",
+    "bass_notes",
+    "guitar_notes",
+    "piano_notes",
+    "vocal_notes",
+    "other_notes",
+    "amb_notes",
 ]
 
 
@@ -448,6 +454,90 @@ def main() -> int:
             stderr=subprocess.PIPE,
             check=True,
         )
+        placement_path = pathlib.Path(tmp) / "placement_attributes.tsv"
+        placement_rows = [
+            row(
+                status="ownership_miss",
+                detected_expected_row="0",
+                first_row="piano",
+                buffer_strongest_row="piano",
+                sample_id="guitar_hidden_1",
+                family="guitar",
+                nsynth_family="guitar",
+                source="acoustic",
+                expected_note="F#4",
+                expected_midi="66",
+                debug_note="F#4",
+                debug_midi="66",
+                piano_notes="F#4:1.00",
+            ),
+            row(
+                status="ownership_miss",
+                detected_expected_row="0",
+                first_row="piano",
+                buffer_strongest_row="piano",
+                sample_id="guitar_hidden_2",
+                family="guitar",
+                nsynth_family="guitar",
+                source="acoustic",
+                expected_note="A4",
+                expected_midi="69",
+                debug_note="A4",
+                debug_midi="69",
+                piano_notes="A4:0.90",
+            ),
+            row(
+                status="hit",
+                first_row="guitar",
+                buffer_strongest_row="guitar",
+                sample_id="guitar_visible",
+                family="guitar",
+                nsynth_family="guitar",
+                source="acoustic",
+                expected_note="C4",
+                expected_midi="60",
+                debug_note="C4",
+                debug_midi="60",
+                guitar_notes="C4:1.00",
+            ),
+            row(
+                status="hit",
+                first_row="piano",
+                buffer_strongest_row="piano",
+                sample_id="piano_visible",
+                family="piano",
+                nsynth_family="keyboard",
+                source="electronic",
+                expected_note="E4",
+                expected_midi="64",
+                debug_note="E4",
+                debug_midi="64",
+                piano_notes="E4:1.00",
+            ),
+        ]
+        placement_path.write_text(
+            "\t".join(HEADER) + "\n" + "\n".join("\t".join(item) for item in placement_rows) + "\n"
+        )
+        placement_result = subprocess.run(
+            [
+                sys.executable,
+                str(ROOT / "scripts" / "find_real_note_attribute_patterns.py"),
+                str(placement_path),
+                "--bucket",
+                "ownership_miss:guitar/acoustic->piano",
+                "--include-row-context",
+                "--condition",
+                "expected_row_exact_level<=0",
+                "--limit",
+                "1",
+                "--max-negative-samples",
+                "0",
+            ],
+            text=True,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            check=True,
+        )
 
     assert "ownership_miss:guitar/acoustic->piano positives=2 samples/2 rows" in result.stdout
     assert "debug_owner=piano AND partial2<=0.14: pos=2/2 rows=2 neg=0/2 rows=0" in result.stdout
@@ -470,6 +560,7 @@ def main() -> int:
         "protected_hits=2 samples/2 rows"
     ) in hit_result.stdout
     assert "debug_owner=guitar: pos=2/2 rows=2 neg=1/2 rows=1" in hit_result.stdout
+    assert "expected_row_exact_level<=0: pos=2/2 rows=2 neg=0/2 rows=0" in placement_result.stdout
     print("test_find_real_note_attribute_patterns: ok")
     return 0
 

@@ -47,6 +47,12 @@ def main() -> int:
             "partial3",
             "partial4",
             "partial5",
+            "bass_notes",
+            "guitar_notes",
+            "piano_notes",
+            "vocal_notes",
+            "other_notes",
+            "amb_notes",
         ]
         keyboard_row = [
             "ownership_miss",
@@ -81,6 +87,12 @@ def main() -> int:
             "0.10",
             "0.05",
             "0.02",
+            "",
+            "C4:1.00,C5:0.20",
+            "C4:0.60,E4:0.20",
+            "",
+            "",
+            "",
         ]
         reed_row = [
             "hit",
@@ -115,6 +127,12 @@ def main() -> int:
             "0.20",
             "0.04",
             "0.01",
+            "",
+            "",
+            "",
+            "",
+            "A4:0.80,A5:0.20",
+            "",
         ]
         path.write_text("\t".join(columns) + "\n" + "\t".join(keyboard_row) + "\n" + "\t".join(reed_row) + "\n")
 
@@ -207,8 +225,10 @@ def main() -> int:
     assert dumped.stdout.startswith("sample_id\tstatus\tfamily\t")
     assert "debug_delta" in dumped.stdout.splitlines()[0]
     assert "miss_reason" in dumped.stdout.splitlines()[0]
+    assert "expected_row_exact_level" in dumped.stdout.splitlines()[0]
     assert "\nkeyboard_1\townership_miss\tpiano\telectronic\tC4" in dumped.stdout
     assert "\t0\t0\townership\t" in dumped.stdout
+    assert "\townership\t0.600\t0.600\t0\t1.000\t1.000\t0\t2\t2\t" in dumped.stdout
     assert "reed_1" not in dumped.stdout
     print("test_inspect_real_note_attribute_buckets: ok")
     return 0

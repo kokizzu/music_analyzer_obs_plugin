@@ -54,6 +54,14 @@ FIELDS = [
     "raw_octave_up_ratio",
     "raw_best_debug_delta",
     "raw_best_debug_abs_delta",
+    "expected_row_exact_level",
+    "expected_row_pitch_level",
+    "expected_row_pitch_delta",
+    "strongest_row_exact_level",
+    "strongest_row_pitch_level",
+    "strongest_row_pitch_delta",
+    "expected_exact_row_count",
+    "expected_pitch_row_count",
 ]
 
 DEFAULT_BUCKETS = [
@@ -105,6 +113,14 @@ ROW_DUMP_FIELDS = [
     "debug_delta",
     "debug_abs_delta",
     "miss_reason",
+    "expected_row_exact_level",
+    "expected_row_pitch_level",
+    "expected_row_pitch_delta",
+    "strongest_row_exact_level",
+    "strongest_row_pitch_level",
+    "strongest_row_pitch_delta",
+    "expected_exact_row_count",
+    "expected_pitch_row_count",
     "keyboard_score",
     "guitar_score",
     "vocal_score",
@@ -153,6 +169,16 @@ NOTE_BASE = {
     "B": 11,
 }
 NOTE_RE = re.compile(r"^([A-G]#?)(-?\d+)$")
+NOTE_CELL_RE = re.compile(r"([A-G]#?-?\d+):([0-9.]+)")
+
+ROW_NOTE_FIELDS = {
+    "bass": "bass_notes",
+    "guitar": "guitar_notes",
+    "piano": "piano_notes",
+    "vocals": "vocal_notes",
+    "other": "other_notes",
+    "amb": "amb_notes",
+}
 
 
 def as_float(row: dict[str, str], field: str) -> float | None:
@@ -173,6 +199,67 @@ def midi_from_note(value: str) -> int | None:
     if not match:
         return None
     return NOTE_BASE[match.group(1)] + (int(match.group(2)) + 1) * 12
+
+
+def parse_note_cells(value: str) -> list[tuple[int, float]]:
+    cells: list[tuple[int, float]] = []
+    for note, level in NOTE_CELL_RE.findall(value or ""):
+        midi = midi_from_note(note)
+        if midi is None:
+            continue
+        try:
+            cells.append((midi, float(level)))
+        except ValueError:
+            continue
+    return cells
+
+
+def format_derived_float(value: float | None) -> str:
+    return "" if value is None else f"{value:.3f}"
+
+
+def note_row_cells(row: dict[str, str], row_name: str) -> list[tuple[int, float]]:
+    field = ROW_NOTE_FIELDS.get(row_name)
+    if not field:
+        return []
+    return parse_note_cells(row.get(field, ""))
+
+
+def note_row_levels(row: dict[str, str], row_name: str, target_midi: int) -> tuple[float, float, int | None]:
+    cells = note_row_cells(row, row_name)
+    if not cells:
+        return 0.0, 0.0, None
+
+    target_pitch = ((target_midi % 12) + 12) % 12
+    exact_level = 0.0
+    pitch_level = 0.0
+    pitch_delta: int | None = None
+    for midi, level in cells:
+        if midi == target_midi:
+            exact_level = max(exact_level, level)
+        if ((midi % 12) + 12) % 12 != target_pitch:
+            continue
+        if level > pitch_level:
+            pitch_level = level
+            pitch_delta = midi - target_midi
+    return exact_level, pitch_level, pitch_delta
+
+
+def note_row_counts(row: dict[str, str], target_midi: int) -> tuple[int, int]:
+    exact_rows = 0
+    pitch_rows = 0
+    target_pitch = ((target_midi % 12) + 12) % 12
+    for row_name in ("bass", "guitar", "piano", "vocals", "other"):
+        exact_seen = False
+        pitch_seen = False
+        for midi, _level in note_row_cells(row, row_name):
+            if midi == target_midi:
+                exact_seen = True
+            if ((midi % 12) + 12) % 12 == target_pitch:
+                pitch_seen = True
+        exact_rows += int(exact_seen)
+        pitch_rows += int(pitch_seen)
+    return exact_rows, pitch_rows
 
 
 def debug_delta(row: dict[str, str]) -> tuple[str, str]:
@@ -229,6 +316,22 @@ def derive_row(row: dict[str, str]) -> dict[str, str]:
     result["raw_best_debug_delta"] = raw_best_delta
     result["raw_best_debug_abs_delta"] = raw_best_abs_delta
     result["miss_reason"] = miss_reason(row, abs_delta)
+    expected = as_float(row, "expected_midi")
+    if expected is not None:
+        expected_midi = int(round(expected))
+        expected_row = ROW_FOR_FAMILY.get(row.get("family", ""), row.get("family", ""))
+        strongest_row = row.get("buffer_strongest_row", "")
+        expected_exact, expected_pitch, expected_delta = note_row_levels(row, expected_row, expected_midi)
+        strongest_exact, strongest_pitch, strongest_delta = note_row_levels(row, strongest_row, expected_midi)
+        exact_count, pitch_count = note_row_counts(row, expected_midi)
+        result["expected_row_exact_level"] = format_derived_float(expected_exact)
+        result["expected_row_pitch_level"] = format_derived_float(expected_pitch)
+        result["expected_row_pitch_delta"] = "" if expected_delta is None else str(expected_delta)
+        result["strongest_row_exact_level"] = format_derived_float(strongest_exact)
+        result["strongest_row_pitch_level"] = format_derived_float(strongest_pitch)
+        result["strongest_row_pitch_delta"] = "" if strongest_delta is None else str(strongest_delta)
+        result["expected_exact_row_count"] = str(exact_count)
+        result["expected_pitch_row_count"] = str(pitch_count)
     return result
 
 
