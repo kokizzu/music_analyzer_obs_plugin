@@ -12246,6 +12246,10 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 			drum_bands[Kick] >= 85.0f &&
 			snapshot.low_energy <= 0.50f &&
 			drum_level_[Snare] <= 0.84f;
+		const bool one_shot_measured_low_body_rim_snare_recovery =
+			drum_detection_enabled && one_shot_drum_source &&
+			kick_body <= 5.807f &&
+			drum_segment_bands[Kick] >= 6.769f;
 		const bool one_shot_measured_high_snare_shape_rim_guard =
 			drum_detection_enabled && one_shot_drum_source &&
 			body_shape == Snare &&
@@ -12270,7 +12274,8 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 			one_shot_measured_rim_ambiguous_upper_tom_ratio_recovery ||
 			one_shot_measured_rim_kick_recovery ||
 			one_shot_measured_rim_kick_low_crash_recovery ||
-			one_shot_measured_rim_kick_low_trigger_recovery;
+			one_shot_measured_rim_kick_low_trigger_recovery ||
+			one_shot_measured_low_body_rim_snare_recovery;
 		if (one_shot_measured_rim_recovery &&
 		    (!one_shot_measured_high_snare_shape_rim_guard ||
 		     one_shot_measured_rim_guard_bypass_recovery))
