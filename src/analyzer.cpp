@@ -8913,19 +8913,35 @@ void append_guitar_power_probe_third_aliases(ChordResult &chord, const NoteGrid 
 				primary_power_component && grid_thirdless &&
 				major_third >= primary_power_third_floor &&
 				major_third >= minor_third * strong_third_margin;
-			const bool strong_melodic_minor =
-				melodic_minor >= melodic_third_floor &&
-				melodic_minor >= melodic_major * strong_third_margin;
+				const bool strong_melodic_minor =
+					melodic_minor >= melodic_third_floor &&
+					melodic_minor >= melodic_major * strong_third_margin;
 			const bool strong_melodic_major =
 				melodic_major >= melodic_third_floor &&
 				melodic_major >= melodic_minor * strong_third_margin;
+			const float consistent_probe_third_floor =
+				std::max({third_floor, anchor * 0.030f, 0.018f});
+			const bool consistent_probe_minor =
+				grid_thirdless &&
+				minor_third >= consistent_probe_third_floor &&
+				minor_third >= major_third * 1.22f &&
+				melodic_minor >= melodic_third_floor * 0.70f &&
+				melodic_minor >= melodic_major * 1.18f;
+			const bool consistent_probe_major =
+				grid_thirdless &&
+				major_third >= consistent_probe_third_floor &&
+				major_third >= minor_third * 1.22f &&
+				melodic_major >= melodic_third_floor * 0.70f &&
+				melodic_major >= melodic_minor * 1.18f;
 			const bool choose_minor =
 				strong_direct_minor || primary_power_direct_minor || strong_melodic_minor ||
+				consistent_probe_minor ||
 				(minor_third >= single_third_floor &&
 				 minor_third >= major_third * weak_third_margin &&
 				 !competing_major);
 			const bool choose_major =
 				strong_direct_major || primary_power_direct_major || strong_melodic_major ||
+				consistent_probe_major ||
 				(major_third >= single_third_floor &&
 				 major_third >= minor_third * weak_third_margin &&
 				 !competing_minor);

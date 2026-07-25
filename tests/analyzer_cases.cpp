@@ -1091,6 +1091,26 @@ void check_guitar_supported_extension_aliases(Runner &runner)
 		      std::string("guitar probe-weak third triad aliases: expected C, got `") +
 			      probe_weak_third_snapshot.guitar_chord.label + "`");
 
+	mao_test::Buffer consistent_probe_power_third = {};
+	add_harmonic_note(consistent_probe_power_third, 47, 0.24f, guitar_profile);
+	add_harmonic_note(consistent_probe_power_third, 54, 0.22f, guitar_profile);
+	add_harmonic_note(consistent_probe_power_third, 51, 0.024f, guitar_profile);
+
+	const auto consistent_probe_power_snapshot = analyze_buffer(consistent_probe_power_third, "guitar");
+	runner.expect(has_chord_label(consistent_probe_power_snapshot.guitar_chord.label, "B"),
+		      std::string("guitar consistent weak third over power chord: expected B alias, got `") +
+			      consistent_probe_power_snapshot.guitar_chord.label + "` raw `" +
+			      consistent_probe_power_snapshot.guitar_raw_chord.label + "` smooth `" +
+			      consistent_probe_power_snapshot.guitar_smoothed_chord.label + "` probe `" +
+			      pitch_level_list(consistent_probe_power_snapshot.guitar_chord_debug_probe_levels,
+					       {11, 2, 3, 6}) +
+			      "` melodic `" +
+			      pitch_level_list(consistent_probe_power_snapshot.guitar_chord_debug_melodic_probe_levels,
+					       {11, 2, 3, 6}) +
+			      "`");
+	expect_no_chord_label(runner, consistent_probe_power_snapshot.guitar_chord.label, "Bm",
+			      "guitar consistent weak third over power chord minor alias");
+
 	mao_test::Buffer weak_root_triad = {};
 	add_harmonic_note(weak_root_triad, 48, 0.034f, guitar_profile);
 	add_harmonic_note(weak_root_triad, 52, 0.22f, guitar_profile);
