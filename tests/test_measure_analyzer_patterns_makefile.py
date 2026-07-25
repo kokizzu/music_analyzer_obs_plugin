@@ -76,13 +76,19 @@ def main() -> int:
             assert env_name in recipe_text, f"{target} must enforce {env_name}"
             assert var_name in recipe_text, f"{target} must use {var_name}"
 
+    assert "PARALLEL_TEST_MAKE_JOBS = $(if $(filter -j%,$(MAKEFLAGS)),,-j$(PARALLEL_TEST_JOBS))" in makefile, (
+        "parallel aggregate targets must reuse an inherited GNU make jobserver"
+    )
     max_samples_recipe = target_recipe(makefile, "test-real-world-samples-max")
-    assert "$(MAKE) -j$(PARALLEL_TEST_JOBS) $(REAL_WORLD_SAMPLE_MAX_TARGETS)" in max_samples_recipe, (
-        "max real-world sample tests must fan out through make -j"
+    assert "$(MAKE) $(PARALLEL_TEST_MAKE_JOBS) $(REAL_WORLD_SAMPLE_MAX_TARGETS)" in max_samples_recipe, (
+        "max real-world sample tests must fan out through jobserver-aware make"
     )
     real_note_sharded_recipe = target_recipe(makefile, "test-real-note-samples-full-mix-parallel")
-    assert "$(MAKE) -j$(REAL_NOTE_FULL_MIX_SHARDS) $(REAL_NOTE_FULL_MIX_SHARD_TARGETS)" in real_note_sharded_recipe, (
-        "real-note full-mix parallel target must fan out deterministic shards"
+    assert "REAL_NOTE_FULL_MIX_TEST_MAKE_JOBS = $(if $(filter -j%,$(MAKEFLAGS)),,-j$(REAL_NOTE_FULL_MIX_SHARDS))" in makefile, (
+        "real-note shard tests must not force nested jobserver mode"
+    )
+    assert "$(MAKE) $(REAL_NOTE_FULL_MIX_TEST_MAKE_JOBS) $(REAL_NOTE_FULL_MIX_SHARD_TARGETS)" in real_note_sharded_recipe, (
+        "real-note full-mix parallel target must fan out deterministic shards through jobserver-aware make"
     )
     assert "scripts/prepare_nsynth_samples.py\" -nt \"$(REAL_NOTE_SAMPLE_DIR)/manifest.tsv\"" in real_note_sharded_recipe, (
         "real-note full-mix parallel target must skip sample regeneration when the manifest is fresh"
@@ -97,8 +103,11 @@ def main() -> int:
     ]:
         assert text in real_note_shard_recipe, f"real-note shard target must include {text}"
     instrument_sharded_recipe = target_recipe(makefile, "test-instrument-samples-parallel")
-    assert "$(MAKE) -j$(INSTRUMENT_SAMPLE_SHARDS) $(INSTRUMENT_SAMPLE_SHARD_TARGETS)" in instrument_sharded_recipe, (
-        "generated instrument sample parallel target must fan out deterministic shards"
+    assert "INSTRUMENT_SAMPLE_TEST_MAKE_JOBS = $(if $(filter -j%,$(MAKEFLAGS)),,-j$(INSTRUMENT_SAMPLE_SHARDS))" in makefile, (
+        "generated instrument sample shards must not force nested jobserver mode"
+    )
+    assert "$(MAKE) $(INSTRUMENT_SAMPLE_TEST_MAKE_JOBS) $(INSTRUMENT_SAMPLE_SHARD_TARGETS)" in instrument_sharded_recipe, (
+        "generated instrument sample parallel target must fan out deterministic shards through jobserver-aware make"
     )
     assert "$(INSTRUMENT_SAMPLE_MANIFEST_STAMP)" in instrument_sharded_recipe.splitlines()[0], (
         "generated instrument sample parallel target must share a prepared manifest stamp"
@@ -422,8 +431,11 @@ def main() -> int:
     assert rows_recipe.splitlines()[0] == "measure-analyzer-attribute-rows:", (
         "default row measurement must own the parallel analyzer fanout"
     )
-    assert "$(MAKE) -j$(MEASURE_ANALYZER_JOBS)" in rows_recipe, (
-        "default row measurement must run independent analyzer producers in parallel"
+    assert "MEASURE_ANALYZER_MAKE_JOBS = $(if $(filter -j%,$(MAKEFLAGS)),,-j$(MEASURE_ANALYZER_JOBS))" in makefile, (
+        "attribute row measurement must reuse an inherited GNU make jobserver"
+    )
+    assert "$(MAKE) $(MEASURE_ANALYZER_MAKE_JOBS)" in rows_recipe, (
+        "default row measurement must run independent analyzer producers through jobserver-aware make"
     )
     for text in [
         "analyze-instrument-sample-attributes",
