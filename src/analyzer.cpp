@@ -8287,6 +8287,62 @@ void promote_guitar_debug_lower_octave_primary(NoteGrid &grid, InstrumentState &
 		write_note_grid_label(state, grid, preferred_root);
 }
 
+void promote_raw_supported_high_guitar_lower_octave_primary(
+	NoteGrid &grid, InstrumentState &state, const FullMixOwnership &ownership,
+	const std::array<float, kNoteProbeCount> &powers, int preferred_root)
+{
+	bool changed = false;
+	const std::size_t debug_count =
+		std::min<std::size_t>(ownership.debug_candidate_count, ownership.debug_candidates.size());
+
+	for (int pitch_class = 0; pitch_class < 12; ++pitch_class) {
+		NoteCell primary = {};
+		for (const auto &row : grid.rows) {
+			if (row[pitch_class].active) {
+				primary = row[pitch_class];
+				break;
+			}
+		}
+		if (!primary.active || primary.midi < 79)
+			continue;
+
+		const int lower_midi = primary.midi - 12;
+		if (lower_midi < kGuitarMinMidi || lower_midi > kGuitarMaxMidi)
+			continue;
+
+		const FullMixDebugCandidate *primary_debug = nullptr;
+		for (std::size_t i = 0; i < debug_count; ++i) {
+			const FullMixDebugCandidate &debug = ownership.debug_candidates[i];
+			if (debug.midi == primary.midi && debug.owner == InstrumentKind::Guitar) {
+				primary_debug = &debug;
+				break;
+			}
+		}
+		if (!primary_debug)
+			continue;
+
+		const bool high_distorted_octave_body =
+			primary_debug->guitar_score >= 0.70f &&
+			primary_debug->spectral_level >= 0.30f &&
+			primary_debug->spectral_level <= 0.70f &&
+			primary_debug->pitch_confidence <= 0.45f &&
+			primary_debug->periodicity >= 0.50f &&
+			primary_debug->harmonic_fit_error >= 0.45f;
+		if (!high_distorted_octave_body)
+			continue;
+
+		const float primary_raw = probe_level(powers, primary.midi);
+		const float lower_raw = probe_level(powers, lower_midi);
+		if (primary_raw <= 1.0e-6f || lower_raw < primary_raw * 0.12f)
+			continue;
+
+		changed = promote_note_grid_primary_midi(grid, lower_midi, primary.level) || changed;
+	}
+
+	if (changed)
+		write_note_grid_label(state, grid, preferred_root);
+}
+
 bool note_grid_pitch_active(const NoteGrid &grid, int pitch_class)
 {
 	pitch_class = ((pitch_class % 12) + 12) % 12;
@@ -15037,6 +15093,10 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 			prefer_debug_supported_guitar_octave_primary(snapshot.guitar_notes,
 								    snapshot.guitar,
 								    full_mix_ownership, -1);
+		if (mixed_source)
+			promote_raw_supported_high_guitar_lower_octave_primary(
+				snapshot.guitar_notes, snapshot.guitar, full_mix_ownership,
+				note_powers, -1);
 		if (!mixed_source)
 			prefer_supported_lower_octave_display(snapshot.guitar_notes, snapshot.guitar, note_powers,
 							      kGuitarMinMidi, 52, -1);

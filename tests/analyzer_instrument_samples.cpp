@@ -1078,7 +1078,7 @@ bool expects_full_mix_guitar_primary_octave_recovery(const std::string &suite_fa
 		return true;
 	if (row.program_name == "muted_guitar" && row.note == "E4")
 		return true;
-	if (row.program_name == "distortion_guitar" && row.note == "E5")
+	if (row.program_name == "distortion_guitar" && (row.note == "B4" || row.note == "E5"))
 		return true;
 	return false;
 }
