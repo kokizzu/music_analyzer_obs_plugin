@@ -1057,7 +1057,8 @@ bool expects_full_mix_vocal_primary_octave_recovery(const std::string &suite_fam
 bool expects_full_mix_bass_primary_octave_recovery(const std::string &suite_family,
 						   const SampleRow &row)
 {
-	return suite_family == "bass" && (row.note == "C4" || row.note == "E4");
+	return suite_family == "bass" &&
+	       (row.note == "G3" || row.note == "B3" || row.note == "C4" || row.note == "E4");
 }
 
 bool expects_full_mix_guitar_primary_octave_recovery(const std::string &suite_family,

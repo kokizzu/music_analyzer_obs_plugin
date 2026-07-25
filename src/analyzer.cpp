@@ -7571,7 +7571,7 @@ void prefer_debug_supported_high_bass_primary(NoteGrid &grid, InstrumentState &s
 			const FullMixDebugCandidate &debug = ownership.debug_candidates[i];
 			if (debug.owner != InstrumentKind::Bass || !full_mix_debug_bass_display_supported(debug))
 				continue;
-			if (debug.midi < 60 || debug.midi > kFullMixCleanHighSynthBassMaxMidi ||
+			if (debug.midi < 55 || debug.midi > kFullMixCleanHighSynthBassMaxMidi ||
 			    debug.midi <= primary.midi || midi_pitch_class(debug.midi) != pitch_class)
 				continue;
 
