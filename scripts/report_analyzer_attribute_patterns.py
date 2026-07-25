@@ -91,6 +91,19 @@ def debug_pitch_delta(row: dict[str, str], midi_field: str, debug_field: str = "
     return actual - expected
 
 
+def display_pitch_delta(row: dict[str, str], midi_field: str) -> int | None:
+    direct_delta = parse_int(row.get("display_delta", ""))
+    if direct_delta is not None:
+        return direct_delta
+    expected = parse_int(row.get(midi_field, ""))
+    actual = parse_int(row.get("display_midi", ""))
+    if actual is None and row.get("display_note", ""):
+        actual = midi_from_note(row["display_note"])
+    if expected is None or actual is None:
+        return None
+    return actual - expected
+
+
 def pitch_quality(delta: int | None) -> str:
     if delta is None:
         return "unknown"
@@ -105,6 +118,13 @@ def pitch_quality_counts(rows: list[dict[str, str]], midi_field: str, debug_fiel
     counts: collections.Counter[str] = collections.Counter()
     for row in rows:
         counts[pitch_quality(debug_pitch_delta(row, midi_field, debug_field))] += 1
+    return counts
+
+
+def display_pitch_quality_counts(rows: list[dict[str, str]], midi_field: str) -> collections.Counter[str]:
+    counts: collections.Counter[str] = collections.Counter()
+    for row in rows:
+        counts[pitch_quality(display_pitch_delta(row, midi_field))] += 1
     return counts
 
 
@@ -248,6 +268,7 @@ def report_instruments(path: pathlib.Path, limit: int, row_examples: int) -> Non
     family_counts = collections.Counter(row.get("family", "unknown") for row in rows)
     print(f"  families {compact(family_counts, limit)}")
     print(f"  pitch quality {compact(pitch_quality_counts(rows, 'midi'), limit)}")
+    print(f"  display pitch quality {compact(display_pitch_quality_counts(rows, 'midi'), limit)}")
     non_hit_rows = [row for row in rows if row.get("status") != "hit"]
     if non_hit_rows:
         print(f"  miss reasons {compact(collections.Counter(row.get('miss_reason', '--') or '--' for row in non_hit_rows), limit)}")
@@ -259,6 +280,7 @@ def report_instruments(path: pathlib.Path, limit: int, row_examples: int) -> Non
         print(
             f"  {family}: rows={len(family_rows)} owners={compact(owners, 5)} "
             f"pitch={compact(pitch_quality_counts(family_rows, 'midi'), 4)} "
+            f"display={compact(display_pitch_quality_counts(family_rows, 'midi'), 4)} "
             f"raw_rank1={ratio(raw_rank1, len(family_rows))} tuned<=9c={ratio(tuned, len(family_rows))}"
         )
     examples = representative_rows(rows, ("status", "family", "debug_owner"), row_examples)
@@ -268,6 +290,7 @@ def report_instruments(path: pathlib.Path, limit: int, row_examples: int) -> Non
             print(
                 f"    {cell(row, 'status')} {cell(row, 'family')} "
                 f"expected={cell(row, 'note')}/{cell(row, 'midi')} "
+                f"display={cell(row, 'display_note')}/{cell(row, 'display_delta')} "
                 f"got={cell(row, 'debug_note')}/{cell(row, 'debug_owner')} "
                 f"nearest={cell(row, 'nearest_debug_note')}/{cell(row, 'nearest_debug_delta')} "
                 f"reason={cell(row, 'miss_reason')} "

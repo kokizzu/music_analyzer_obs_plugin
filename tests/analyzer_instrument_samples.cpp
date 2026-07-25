@@ -609,6 +609,25 @@ float grid_pitch_class_level(const mao::NoteGrid &grid, int midi)
 	return level;
 }
 
+int grid_pitch_class_midi(const mao::NoteGrid &grid, int midi)
+{
+	const int pitch_class = ((midi % 12) + 12) % 12;
+	int best_midi = -1;
+	float best_level = -1.0f;
+	auto consider = [&](const mao::NoteCell &cell) {
+		if (!cell.active || cell.midi < mao::kFirstAnalyzedMidi || cell.midi > mao::kLastAnalyzedMidi)
+			return;
+		if (cell.level > best_level) {
+			best_level = cell.level;
+			best_midi = cell.midi;
+		}
+	};
+	consider(grid.cells[pitch_class]);
+	for (const auto &row : grid.rows)
+		consider(row[pitch_class]);
+	return best_midi;
+}
+
 std::string active_drum_list(const mao::AnalysisSnapshot &snapshot)
 {
 	std::string text;
@@ -626,6 +645,7 @@ void print_attribute_header(std::ostream &out)
 {
 	out << "kind\tstatus\tfamily\texpected_family\tprogram\tprogram_name\tnote\tmidi\tpath\twindow_ms"
 	    << "\tdetected_expected_row\tdetected_anywhere\texpected_level"
+	    << "\tdisplay_note\tdisplay_midi\tdisplay_delta"
 	    << "\tbass_level\tpiano_level\tguitar_level\tvocal_level\tother_level\tamb_level"
 	    << "\tbass_label\tpiano_label\tguitar_label\tvocal_label\tother_label"
 	    << "\tglobal_chord\tkeyboard_chord\tguitar_chord\tother_chord"
@@ -801,6 +821,16 @@ void append_note_attribute_row(std::ostream &out, const std::string &suite_famil
 	append_tsv(line, bool_cell(detected_expected_row));
 	append_tsv(line, bool_cell(detected_anywhere));
 	append_tsv(line, expected_level);
+	const int display_midi = grid_pitch_class_midi(family_grid(snapshot, suite_family), row.midi);
+	if (display_midi >= 0) {
+		append_tsv(line, debug_note_label(display_midi));
+		append_tsv(line, display_midi);
+		append_tsv(line, display_midi - row.midi);
+	} else {
+		append_tsv(line, "");
+		append_tsv(line, "");
+		append_tsv(line, "");
+	}
 	append_snapshot_attribute_fields(line, snapshot, row.midi);
 	append_raw_note_attribute_fields(line, &raw);
 	append_debug_candidate_fields(line, debug);

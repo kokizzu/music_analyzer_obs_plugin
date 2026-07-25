@@ -23,9 +23,9 @@ def main() -> int:
         instrument = write(
             root / "instrument.tsv",
             """
-kind	status	family	expected_family	program_name	note	midi	path	window_ms	detected_expected_row	detected_anywhere	debug_note	debug_owner	debug_conf	raw_expected_rank	raw_tuned_abs_cent_offset
-note	hit	guitar	guitar	clean	C3	48	s.wav	100	1	1	C3	guitar	1	1	0
-note	hit	piano	piano	grand	E4	64	p.wav	100	1	1	E5	guitar	0.7	2	9
+kind	status	family	expected_family	program_name	note	midi	path	window_ms	detected_expected_row	detected_anywhere	display_note	display_midi	display_delta	debug_note	debug_owner	debug_conf	raw_expected_rank	raw_tuned_abs_cent_offset
+note	hit	guitar	guitar	clean	C3	48	s.wav	100	1	1	C3	48	0	C3	guitar	1	1	0
+note	hit	piano	piano	grand	E4	64	p.wav	100	1	1	E4	64	0	E5	guitar	0.7	2	9
             """,
         )
         real_note = write(
@@ -76,8 +76,9 @@ snare/1.wav	snare	tom	0.2	0.7	0.1	0.1	0.8	0.9
     output = result.stdout
     assert "instrument sample attributes" in output
     assert "pitch quality exact=1 octave_alias=1" in output
-    assert "guitar: rows=1 owners=guitar=1 pitch=exact=1" in output
-    assert "piano: rows=1 owners=guitar=1 pitch=octave_alias=1" in output
+    assert "display pitch quality exact=2" in output
+    assert "guitar: rows=1 owners=guitar=1 pitch=exact=1 display=exact=1" in output
+    assert "piano: rows=1 owners=guitar=1 pitch=octave_alias=1 display=exact=1" in output
     assert "real-note full-mix attributes" in output
     assert "row pitch quality octave_alias=1 exact=1" in output
     assert "ownership_miss:piano/electronic->bass" in output

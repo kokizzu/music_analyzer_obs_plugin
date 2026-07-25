@@ -124,6 +124,17 @@ def debug_pitch_delta(row: dict[str, str], midi_field: str, debug_field: str = "
     return actual - expected
 
 
+def display_pitch_delta(row: dict[str, str], midi_field: str) -> int | None:
+    direct_delta = parse_int(row.get("display_delta", ""))
+    if direct_delta is not None:
+        return direct_delta
+    expected = parse_int(row.get(midi_field, ""))
+    actual = parse_int(row.get("display_midi", ""))
+    if expected is None or actual is None:
+        return None
+    return actual - expected
+
+
 def pitch_quality(delta: int | None) -> str:
     if delta is None:
         return "unknown"
@@ -138,6 +149,13 @@ def pitch_quality_counts(rows: list[dict[str, str]], midi_field: str, debug_fiel
     counts: collections.Counter[str] = collections.Counter()
     for row in rows:
         counts[pitch_quality(debug_pitch_delta(row, midi_field, debug_field))] += 1
+    return counts
+
+
+def display_pitch_quality_counts(rows: list[dict[str, str]], midi_field: str) -> collections.Counter[str]:
+    counts: collections.Counter[str] = collections.Counter()
+    for row in rows:
+        counts[pitch_quality(display_pitch_delta(row, midi_field))] += 1
     return counts
 
 
@@ -241,18 +259,21 @@ def report_instrument_rows(path: pathlib.Path, row_limit: int) -> None:
     print(f"  debug owner mismatches={compact(owner_mismatches(rows, 'family'))}")
     print(f"  debug pitch deltas={compact(debug_pitch_deltas(rows, 'midi'))}")
     print(f"  pitch quality={compact(pitch_quality_counts(rows, 'midi'))}")
+    print(f"  display pitch quality={compact(display_pitch_quality_counts(rows, 'midi'))}")
     print("  family ranges:")
     for family in sorted({row.get("family", "unknown") for row in rows}):
         family_rows = [row for row in rows if row.get("family", "unknown") == family]
         print(
             f"    {family} rows={len(family_rows)} notes={note_count(family_rows, 'midi', 'note')} "
             f"range={midi_range(family_rows, 'midi')} hit={status_fraction(family_rows, 'hit')} "
-            f"pitch={compact(pitch_quality_counts(family_rows, 'midi'), 4)}"
+            f"pitch={compact(pitch_quality_counts(family_rows, 'midi'), 4)} "
+            f"display={compact(display_pitch_quality_counts(family_rows, 'midi'), 4)}"
         )
     for row in limited_rows(rows, row_limit, {"hit"}):
         print(
             f"    {cell(row, 'status')} {cell(row, 'family')} "
             f"expected={cell(row, 'note')}/{cell(row, 'midi')} "
+            f"display={cell(row, 'display_note')}/{cell(row, 'display_delta')} "
             f"got={cell(row, 'debug_note')}/{cell(row, 'debug_owner')} "
             f"nearest={cell(row, 'nearest_debug_note')}/{cell(row, 'nearest_debug_delta')} "
             f"reason={cell(row, 'miss_reason')} "
