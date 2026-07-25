@@ -7583,6 +7583,8 @@ void prefer_debug_supported_high_bass_primary(NoteGrid &grid, InstrumentState &s
 			const float lower_octave_level = probe_level(powers, debug.midi - 12);
 			if (high_level <= 1.0e-6f || lower_octave_level >= high_level * 0.12f)
 				continue;
+			if (note_grid_midi_level(grid, debug.midi - 12) >= 0.55f)
+				continue;
 
 			if (supported_midi < 0 || debug.midi < supported_midi) {
 				supported_midi = debug.midi;

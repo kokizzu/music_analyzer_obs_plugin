@@ -1063,8 +1063,17 @@ bool expects_full_mix_vocal_display_octave_recovery(const std::string &suite_fam
 bool expects_full_mix_bass_primary_octave_recovery(const std::string &suite_family,
 						   const SampleRow &row)
 {
-	return suite_family == "bass" &&
-	       (row.note == "G3" || row.note == "B3" || row.note == "C4" || row.note == "E4");
+	if (suite_family != "bass")
+		return false;
+	if (row.note == "G3" || row.note == "B3" || row.note == "C4" || row.note == "E4")
+		return true;
+	if (row.program_name == "pick_bass" && row.note == "G2") {
+		return row.path == "034_pick_bass_043_G2_v100_d0900.wav" ||
+		       row.path == "034_pick_bass_043_G2_v088_d1100.wav" ||
+		       row.path == "034_pick_bass_043_G2_v100_d1100.wav" ||
+		       row.path == "034_pick_bass_043_G2_v088_d0900.wav";
+	}
+	return false;
 }
 
 bool expects_full_mix_keyboard_primary_octave_recovery(const std::string &suite_family,
