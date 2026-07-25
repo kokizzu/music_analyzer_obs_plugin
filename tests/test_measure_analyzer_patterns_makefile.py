@@ -341,7 +341,7 @@ def main() -> int:
     source_attribute_targets = {
         "$(BUILD_DIR)/guitar_chord_mix_attributes.tsv": (
             "$(BUILD_DIR)/analyzer_guitarset",
-            "MUSIC_ANALYZER_GUITARSET_ATTRIBUTE_TSV=\"$@\"",
+            "MUSIC_ANALYZER_GUITARSET_ATTRIBUTE_TSV=\"$@.tmp\"",
             "guitar_chord_mix_attributes.out",
         ),
     }
@@ -454,6 +454,19 @@ def main() -> int:
         "default row measurement must build row dump file targets in parallel"
     )
     assert "measure-analyzer-attribute-rows-full" in rows_recipe, "default row target must point to the full target"
+
+    for target in [
+        "$(BUILD_DIR)/instrument_sample_attributes.tsv",
+        "$(BUILD_DIR)/real_note_full_mix_attributes.tsv",
+        "$(BUILD_DIR)/guitar_chord_mix_attributes.tsv",
+    ]:
+        attribute_recipe = target_recipe(makefile, target)
+        assert "$@.tmp" in attribute_recipe, f"{target} must write through a temporary TSV"
+        assert 'mv "$@.tmp" "$@"' in attribute_recipe, f"{target} must publish TSV atomically"
+    guitar_attribute_recipe = target_recipe(makefile, "$(BUILD_DIR)/guitar_chord_mix_attributes.tsv")
+    assert 'MUSIC_ANALYZER_GUITARSET_ATTRIBUTE_TSV="$@.tmp"' in guitar_attribute_recipe, (
+        "guitar chord attribute exporter must not stream directly to the final TSV"
+    )
 
     full_rows_recipe = target_recipe(makefile, "measure-analyzer-attribute-rows-full")
     assert "analyze-drum-rule-grid" in full_rows_recipe, "full row target must own full debug drum logs"
