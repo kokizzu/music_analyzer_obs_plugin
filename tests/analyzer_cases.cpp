@@ -2226,6 +2226,26 @@ void check_full_mix_single_instrument_precision(Runner &runner)
 
 	{
 		mao_test::Buffer buffer = {};
+		const std::vector<float> octave_dominant_e1_keyboard_profile =
+			{1.0f, 2.0f, 0.15f, 0.32f, 0.04f};
+		add_harmonic_note(buffer, 28, 0.20f, octave_dominant_e1_keyboard_profile);
+
+		const auto snapshot =
+			analyze_buffer_with_mode(buffer, mao::AnalysisInputMode::FullMix,
+						 "speaker octave-dominant E1 keyboard", 3);
+		expect_global_pitch_class(runner, snapshot, 4,
+					  "full-mix octave-dominant E1 keyboard global");
+		runner.expect(grid_level_for_midi(snapshot.keyboard_notes, 28) > 0.0f,
+			      std::string("full-mix octave-dominant E1 keyboard: expected keyboard E1 "
+					  "display, got keyboard `") +
+				      snapshot.keyboard.label + "`, bass `" + snapshot.bass.label +
+				      "`, guitar `" + snapshot.guitar.label + "`, other `" +
+				      snapshot.other.label + "`, debug `" +
+				      full_mix_debug_summary_for_midi(snapshot, 28) + "`");
+	}
+
+	{
+		mao_test::Buffer buffer = {};
 		const std::vector<float> rich_sub_low_electronic_keyboard_profile =
 			{1.0f, 0.62f, 0.24f, 0.060f, 0.12f};
 		add_harmonic_note(buffer, 31, 0.27f, rich_sub_low_electronic_keyboard_profile);

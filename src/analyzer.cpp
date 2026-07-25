@@ -1424,6 +1424,10 @@ void restore_full_mix_low_keyboard_from_bass(FullMixOwnership &ownership,
 			(fifth >= fundamental * 0.24f ||
 			 second_octave >= fundamental * 0.20f ||
 			 upper_major_third >= fundamental * 0.16f);
+		const bool strong_sub_low_keyboard_stack =
+			strong_electronic_stack &&
+			!octave_alias &&
+			keyboard_midi < kGuitarMinMidi;
 		if (!strong_electronic_stack && !sub_low_electronic_keyboard_stack &&
 		    !octave_dominant_sub_low_keyboard_stack &&
 		    !rich_sub_low_electronic_keyboard_stack &&
@@ -1439,7 +1443,8 @@ void restore_full_mix_low_keyboard_from_bass(FullMixOwnership &ownership,
 			capped_restored_low_owner_score(ownership.keyboard_candidates, keyboard_midi,
 							display_level * display_level);
 		candidate.ownership_confidence =
-			(sub_low_electronic_keyboard_stack ||
+			(strong_sub_low_keyboard_stack ||
+			 sub_low_electronic_keyboard_stack ||
 			 octave_dominant_sub_low_keyboard_stack ||
 			 rich_sub_low_electronic_keyboard_stack ||
 			 octave_alias_sub_low_keyboard_stack) ? 0.80f : 0.50f;
