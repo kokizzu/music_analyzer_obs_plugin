@@ -7546,6 +7546,57 @@ bool promote_note_grid_primary_midi(NoteGrid &grid, int midi, float level)
 	return true;
 }
 
+void prefer_debug_supported_high_bass_primary(NoteGrid &grid, InstrumentState &state,
+					      const FullMixOwnership &ownership,
+					      const std::array<float, kNoteProbeCount> &powers,
+					      int preferred_root)
+{
+	bool changed = false;
+	const std::size_t debug_count =
+		std::min<std::size_t>(ownership.debug_candidate_count, ownership.debug_candidates.size());
+	for (int pitch_class = 0; pitch_class < 12; ++pitch_class) {
+		NoteCell primary = {};
+		for (const auto &row : grid.rows) {
+			if (row[pitch_class].active) {
+				primary = row[pitch_class];
+				break;
+			}
+		}
+		if (!primary.active)
+			continue;
+
+		int supported_midi = -1;
+		float supported_level = 0.0f;
+		for (std::size_t i = 0; i < debug_count; ++i) {
+			const FullMixDebugCandidate &debug = ownership.debug_candidates[i];
+			if (debug.owner != InstrumentKind::Bass || !full_mix_debug_bass_display_supported(debug))
+				continue;
+			if (debug.midi < 60 || debug.midi > kFullMixCleanHighSynthBassMaxMidi ||
+			    debug.midi <= primary.midi || midi_pitch_class(debug.midi) != pitch_class)
+				continue;
+
+			const float high_level = probe_level(powers, debug.midi);
+			const float lower_octave_level = probe_level(powers, debug.midi - 12);
+			if (high_level <= 1.0e-6f || lower_octave_level >= high_level * 0.12f)
+				continue;
+
+			if (supported_midi < 0 || debug.midi < supported_midi) {
+				supported_midi = debug.midi;
+				supported_level = std::max(primary.level,
+							   ownership_global_note_level(ownership, debug.midi));
+			}
+		}
+		if (supported_midi < 0)
+			continue;
+		changed = promote_note_grid_primary_midi(grid, supported_midi,
+							 std::max(supported_level, primary.level)) ||
+			  changed;
+	}
+
+	if (changed)
+		write_note_grid_label(state, grid, preferred_root);
+}
+
 int lowest_note_grid_pitch_class(const NoteGrid &grid)
 {
 	int lowest_midi = kLastMidi + 1;
@@ -14935,6 +14986,10 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 					  interval_seconds, 1, nullptr, 1);
 		prefer_supported_lower_octave_display(snapshot.bass_notes, snapshot.bass, note_powers,
 						      kBassMinMidi, kDefaultBassMaxMidi, -1);
+		if (mixed_source)
+			prefer_debug_supported_high_bass_primary(snapshot.bass_notes, snapshot.bass,
+								full_mix_ownership,
+								detection_note_powers, -1);
 	} else {
 		reset_note_grid_envelope(snapshot.bass_notes, snapshot.bass, bass_note_tracking_);
 	}
