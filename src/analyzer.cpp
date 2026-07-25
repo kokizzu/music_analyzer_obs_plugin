@@ -1381,6 +1381,7 @@ void restore_full_mix_low_keyboard_from_bass(FullMixOwnership &ownership,
 		const float fifth = probe_level(powers, keyboard_midi + 19);
 		const float second_octave = probe_level(powers, keyboard_midi + 24);
 		const float upper_major_third = probe_level(powers, keyboard_midi + 28);
+		const float upper_fifth = probe_level(powers, keyboard_midi + 31);
 		const float upper_stack = fifth + second_octave + upper_major_third;
 		const bool strong_electronic_stack =
 			!octave_alias &&
@@ -1416,6 +1417,20 @@ void restore_full_mix_low_keyboard_from_bass(FullMixOwnership &ownership,
 			upper_stack >= fundamental * 0.25f &&
 			(second_octave >= fundamental * 0.045f ||
 			 upper_major_third >= fundamental * 0.045f);
+		const bool fundamental_stack_sub_low_keyboard =
+			!octave_alias &&
+			keyboard_midi >= 30 &&
+			keyboard_midi <= 34 &&
+			keyboard_midi < kGuitarMinMidi &&
+			octave >= fundamental * 0.18f &&
+			octave <= fundamental * 0.36f &&
+			fifth >= fundamental * 0.20f &&
+			fifth <= fundamental * 0.54f &&
+			second_octave >= fundamental * 0.20f &&
+			second_octave <= fundamental * 0.44f &&
+			upper_major_third <= fundamental * 0.045f &&
+			upper_fifth <= fundamental * 0.16f &&
+			(fifth + second_octave + upper_major_third + upper_fifth) >= fundamental * 0.48f;
 		const bool octave_alias_sub_low_keyboard_stack =
 			octave_alias &&
 			keyboard_midi < kGuitarMinMidi &&
@@ -1431,12 +1446,14 @@ void restore_full_mix_low_keyboard_from_bass(FullMixOwnership &ownership,
 		if (!strong_electronic_stack && !sub_low_electronic_keyboard_stack &&
 		    !octave_dominant_sub_low_keyboard_stack &&
 		    !rich_sub_low_electronic_keyboard_stack &&
+		    !fundamental_stack_sub_low_keyboard &&
 		    !octave_alias_sub_low_keyboard_stack)
 			return false;
 
 		const float display_level =
 			std::max({fundamental, octave * 0.68f, fifth * 0.76f,
-				  second_octave * 0.62f, upper_major_third * 0.58f});
+				  second_octave * 0.62f, upper_major_third * 0.58f,
+				  upper_fifth * 0.54f});
 		NoteCandidate candidate;
 		candidate.midi = keyboard_midi;
 		candidate.score =
@@ -1447,6 +1464,7 @@ void restore_full_mix_low_keyboard_from_bass(FullMixOwnership &ownership,
 			 sub_low_electronic_keyboard_stack ||
 			 octave_dominant_sub_low_keyboard_stack ||
 			 rich_sub_low_electronic_keyboard_stack ||
+			 fundamental_stack_sub_low_keyboard ||
 			 octave_alias_sub_low_keyboard_stack) ? 0.80f : 0.50f;
 		ownership.keyboard[static_cast<std::size_t>(keyboard_midi - kFirstMidi)] = true;
 		ownership.keyboard_candidates.push_back(candidate);
