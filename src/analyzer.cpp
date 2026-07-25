@@ -9033,6 +9033,125 @@ float strongest_melodic_probe_level(const std::array<float, kNoteProbeCount> &po
 	return level;
 }
 
+ChordResult detect_probe_supported_guitar_plain_triad(const NoteGrid &display_grid,
+						      const NoteGrid &analysis_grid,
+						      const std::array<float, kNoteProbeCount> &powers,
+						      int min_midi, int max_midi, int preferred_root)
+{
+	ChordResult best;
+	copy_text(best.label, sizeof(best.label), "--");
+
+	const int display_pitch_classes = note_grid_active_pitch_class_count(display_grid);
+	const int analysis_pitch_classes = note_grid_active_pitch_class_count(analysis_grid);
+	if (display_pitch_classes < 2 || analysis_pitch_classes < 2 ||
+	    display_pitch_classes > 8 || analysis_pitch_classes > 10)
+		return best;
+
+	const std::array<float, 12> display_chroma = note_grid_chroma(display_grid);
+	const std::array<float, 12> analysis_chroma = note_grid_chroma(analysis_grid);
+	if (longest_chromatic_run(display_chroma) >= 6 || longest_chromatic_run(analysis_chroma) >= 7)
+		return best;
+
+	const float strongest_probe = strongest_probe_level(powers, min_midi, max_midi);
+	if (strongest_probe <= 1.0e-6f)
+		return best;
+
+	auto grid_active = [&](int pitch_class) {
+		return note_grid_pitch_active(display_grid, pitch_class) ||
+		       note_grid_pitch_active(analysis_grid, pitch_class);
+	};
+	auto grid_level = [&](int pitch_class) {
+		return std::max(note_grid_pitch_level(display_grid, pitch_class),
+				note_grid_pitch_level(analysis_grid, pitch_class));
+	};
+
+	float best_score = 0.0f;
+	auto consider = [&](int root, bool minor) {
+		root = ((root % 12) + 12) % 12;
+		const int third = (root + (minor ? 3 : 4)) % 12;
+		const int opposite_third = (root + (minor ? 4 : 3)) % 12;
+		const int fifth = (root + 7) % 12;
+		const bool display_root = note_grid_pitch_active(display_grid, root);
+		const bool display_third = note_grid_pitch_active(display_grid, third);
+		const bool display_fifth = note_grid_pitch_active(display_grid, fifth);
+		const bool analysis_root = note_grid_pitch_active(analysis_grid, root);
+		const bool analysis_third = note_grid_pitch_active(analysis_grid, third);
+		const bool analysis_fifth = note_grid_pitch_active(analysis_grid, fifth);
+		if (!display_root || !analysis_root)
+			return;
+
+		const int display_tones = (display_root ? 1 : 0) + (display_third ? 1 : 0) +
+					  (display_fifth ? 1 : 0);
+		const int analysis_tones = (analysis_root ? 1 : 0) + (analysis_third ? 1 : 0) +
+					   (analysis_fifth ? 1 : 0);
+		const int combined_tones = (grid_active(root) ? 1 : 0) + (grid_active(third) ? 1 : 0) +
+					   (grid_active(fifth) ? 1 : 0);
+		if (display_tones < 2 || analysis_tones < 2 || combined_tones < 2)
+			return;
+
+		const float root_probe =
+			strongest_probe_pitch_class_level(powers, root, min_midi, max_midi);
+		const float third_probe =
+			strongest_probe_pitch_class_level(powers, third, min_midi, max_midi);
+		const float fifth_probe =
+			strongest_probe_pitch_class_level(powers, fifth, min_midi, max_midi);
+		const float opposite_probe =
+			strongest_probe_pitch_class_level(powers, opposite_third, min_midi, max_midi);
+		const float root_norm = root_probe / strongest_probe;
+		const float third_norm = third_probe / strongest_probe;
+		const float fifth_norm = fifth_probe / strongest_probe;
+		const float opposite_norm = opposite_probe / strongest_probe;
+		if (root_norm < 0.18f || fifth_norm < 0.070f)
+			return;
+
+		const float anchor_norm = std::max(root_norm, fifth_norm);
+		const float grid_third = grid_level(third);
+		const float grid_opposite = grid_level(opposite_third);
+		const bool third_grid_supported = grid_third >= std::max(0.12f, grid_opposite * 1.08f);
+		const float third_floor = third_grid_supported ?
+						  std::max(0.030f, anchor_norm * 0.030f) :
+						  std::max(0.048f, anchor_norm * 0.055f);
+		if (third_norm < third_floor)
+			return;
+		if (!third_grid_supported && third_norm < opposite_norm * 1.12f)
+			return;
+		if (third_grid_supported && opposite_norm > third_norm * 1.45f)
+			return;
+
+		int extra_pitch_classes = 0;
+		for (int pitch_class = 0; pitch_class < 12; ++pitch_class) {
+			if (pitch_class == root || pitch_class == third || pitch_class == fifth)
+				continue;
+			if (note_grid_pitch_active(display_grid, pitch_class))
+				++extra_pitch_classes;
+		}
+		if (extra_pitch_classes > 5 && !third_grid_supported)
+			return;
+
+		float score = 0.38f + std::min({root_norm, third_norm, fifth_norm}) * 0.42f +
+			      std::min(root_norm, fifth_norm) * 0.12f +
+			      static_cast<float>(display_tones + analysis_tones) * 0.035f -
+			      static_cast<float>(extra_pitch_classes) * 0.018f;
+		if (preferred_root >= 0 && root == ((preferred_root % 12) + 12) % 12)
+			score += 0.08f;
+		if (score <= best_score)
+			return;
+
+		best_score = score;
+		best = make_guitar_plain_triad(root, minor, std::clamp(score, 0.38f, 0.62f));
+	};
+
+	if (preferred_root >= 0) {
+		consider(preferred_root, false);
+		consider(preferred_root, true);
+	}
+	for (int root = 0; root < 12; ++root) {
+		consider(root, false);
+		consider(root, true);
+	}
+	return best;
+}
+
 void append_guitar_power_probe_third_aliases(ChordResult &chord, const NoteGrid &grid,
 					     const std::array<float, kNoteProbeCount> &powers, int min_midi,
 					     int max_midi)
@@ -10051,6 +10170,17 @@ bool primary_chord_is_plain_major_minor(const ChordResult &chord)
 	ParsedRootChord parsed;
 	return parse_root_chord_component(chord.label, label_len, parsed) && parsed.root == chord.root &&
 	       (parsed.quality == RootChordQuality::Major || parsed.quality == RootChordQuality::Minor);
+}
+
+bool primary_chord_is_power(const ChordResult &chord)
+{
+	if (!valid_chord_result(chord))
+		return false;
+	const char *label_end = std::strchr(chord.label, '=');
+	const std::size_t label_len =
+		label_end ? static_cast<std::size_t>(label_end - chord.label) : std::strlen(chord.label);
+	ParsedRootChord parsed;
+	return parse_power_chord_component(chord.label, label_len, parsed) && parsed.root == chord.root;
 }
 
 int primary_major_minor_chord_tone_count(const NoteGrid &grid, const ChordResult &chord)
@@ -13519,6 +13649,32 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 				snapshot.guitar_notes, guitar_chord_detection_grid, preferred_root);
 			raw_guitar_valid = guitar_chord_valid_for_display(raw_guitar_chord);
 		}
+		if (!mixed_source) {
+			const ChordResult probe_supported_guitar_triad =
+				detect_probe_supported_guitar_plain_triad(
+					snapshot.guitar_notes, guitar_chord_detection_grid, note_powers,
+					min_midi, kGuitarMaxMidi, preferred_root);
+			if (valid_chord_result(probe_supported_guitar_triad)) {
+				const bool raw_power = primary_chord_is_power(raw_guitar_chord);
+				const bool raw_same_root_without_third =
+					raw_guitar_valid &&
+					chord_label_has_root_component(raw_guitar_chord.label,
+								       probe_supported_guitar_triad.root) &&
+					!chord_label_has_root_third_component(
+						raw_guitar_chord.label, probe_supported_guitar_triad.root);
+				if (!raw_guitar_valid || raw_power) {
+					raw_guitar_chord = probe_supported_guitar_triad;
+					raw_guitar_valid = true;
+				} else if (raw_same_root_without_third) {
+					prepend_analysis_complete_smoothed_guitar_plain_alias(
+						raw_guitar_chord, probe_supported_guitar_triad,
+						snapshot.guitar_notes, guitar_chord_detection_grid);
+					append_same_root_chord_aliases(raw_guitar_chord,
+								       probe_supported_guitar_triad);
+					raw_guitar_valid = guitar_chord_valid_for_display(raw_guitar_chord);
+				}
+			}
+		}
 		if (raw_guitar_chord.root >= 0 && std::strstr(raw_guitar_chord.label, "pow")) {
 			int power_root = raw_guitar_chord.root;
 			ParsedRootChord parsed_power;
@@ -13972,6 +14128,32 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 			smoothed_guitar_chord = detect_supported_guitar_power_dyad(
 				snapshot.guitar_notes, guitar_chord_grid,
 				lowest_note_grid_pitch_class(guitar_chord_grid));
+		}
+		if (!mixed_source) {
+			const ChordResult probe_supported_guitar_triad =
+				detect_probe_supported_guitar_plain_triad(
+					snapshot.guitar_notes, guitar_chord_grid, note_powers,
+					kGuitarMinMidi, kGuitarMaxMidi,
+					lowest_note_grid_pitch_class(guitar_chord_grid));
+			if (valid_chord_result(probe_supported_guitar_triad)) {
+				const bool smoothed_power = primary_chord_is_power(smoothed_guitar_chord);
+				const bool smoothed_same_root_without_third =
+					valid_chord_result(smoothed_guitar_chord) &&
+					chord_label_has_root_component(smoothed_guitar_chord.label,
+								       probe_supported_guitar_triad.root) &&
+					!chord_label_has_root_third_component(
+						smoothed_guitar_chord.label,
+						probe_supported_guitar_triad.root);
+				if (!valid_chord_result(smoothed_guitar_chord) || smoothed_power) {
+					smoothed_guitar_chord = probe_supported_guitar_triad;
+				} else if (smoothed_same_root_without_third) {
+					prepend_analysis_complete_smoothed_guitar_plain_alias(
+						smoothed_guitar_chord, probe_supported_guitar_triad,
+						snapshot.guitar_notes, guitar_chord_grid);
+					append_same_root_chord_aliases(smoothed_guitar_chord,
+								       probe_supported_guitar_triad);
+				}
+			}
 		}
 		if (smoothed_guitar_chord.root >= 0 && std::strstr(smoothed_guitar_chord.label, "pow")) {
 			int power_root = smoothed_guitar_chord.root;
