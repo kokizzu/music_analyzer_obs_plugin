@@ -65,6 +65,11 @@ struct RawNoteAttributes {
 	float next_ratio = 0.0f;
 	float octave_down_ratio = 0.0f;
 	float octave_up_ratio = 0.0f;
+	float fifth_up_ratio = 0.0f;
+	float second_octave_up_ratio = 0.0f;
+	float upper_major_third_ratio = 0.0f;
+	float upper_fifth_ratio = 0.0f;
+	float third_octave_up_ratio = 0.0f;
 };
 
 uint16_t read_u16(std::ifstream &file)
@@ -505,6 +510,21 @@ RawNoteAttributes measure_raw_note_attributes(const mao_test::Buffer &buffer, ui
 	attributes.octave_up_ratio =
 		std::clamp(raw_goertzel_midi(windowed, sample_rate, expected_midi + 12) / denominator,
 			   0.0f, 1.0f);
+	attributes.fifth_up_ratio =
+		std::clamp(raw_goertzel_midi(windowed, sample_rate, expected_midi + 19) / denominator,
+			   0.0f, 1.0f);
+	attributes.second_octave_up_ratio =
+		std::clamp(raw_goertzel_midi(windowed, sample_rate, expected_midi + 24) / denominator,
+			   0.0f, 1.0f);
+	attributes.upper_major_third_ratio =
+		std::clamp(raw_goertzel_midi(windowed, sample_rate, expected_midi + 28) / denominator,
+			   0.0f, 1.0f);
+	attributes.upper_fifth_ratio =
+		std::clamp(raw_goertzel_midi(windowed, sample_rate, expected_midi + 31) / denominator,
+			   0.0f, 1.0f);
+	attributes.third_octave_up_ratio =
+		std::clamp(raw_goertzel_midi(windowed, sample_rate, expected_midi + 36) / denominator,
+			   0.0f, 1.0f);
 
 	static constexpr float kCentOffsets[] = {-18.0f, -9.0f, 0.0f, 9.0f, 18.0f};
 	for (float cents : kCentOffsets) {
@@ -614,6 +634,8 @@ void print_attribute_header(std::ostream &out)
 	    << "\traw_tuned_cent_offset\traw_tuned_abs_cent_offset"
 	    << "\traw_local_best_note\traw_local_best_midi\traw_local_best_peak\traw_expected_rank"
 	    << "\traw_prev_ratio\traw_next_ratio\traw_octave_down_ratio\traw_octave_up_ratio"
+	    << "\traw_fifth_up_ratio\traw_second_octave_up_ratio\traw_upper_major_third_ratio"
+	    << "\traw_upper_fifth_ratio\traw_third_octave_up_ratio"
 	    << "\tdebug_note\tdebug_midi\tdebug_owner\tdebug_conf"
 	    << "\tbass_score\tkeyboard_score\tguitar_score\tvocal_score\tother_score"
 	    << "\tspectral_level\tpitch_confidence\tperiodicity\tharmonicity\tfit_error"
@@ -654,7 +676,7 @@ void append_snapshot_attribute_fields(std::ostringstream &line, const mao::Analy
 void append_raw_note_attribute_fields(std::ostringstream &line, const RawNoteAttributes *raw)
 {
 	if (!raw) {
-		for (int i = 0; i < 14; ++i)
+		for (int i = 0; i < 19; ++i)
 			append_tsv(line, "");
 		return;
 	}
@@ -673,6 +695,11 @@ void append_raw_note_attribute_fields(std::ostringstream &line, const RawNoteAtt
 	append_tsv(line, raw->next_ratio);
 	append_tsv(line, raw->octave_down_ratio);
 	append_tsv(line, raw->octave_up_ratio);
+	append_tsv(line, raw->fifth_up_ratio);
+	append_tsv(line, raw->second_octave_up_ratio);
+	append_tsv(line, raw->upper_major_third_ratio);
+	append_tsv(line, raw->upper_fifth_ratio);
+	append_tsv(line, raw->third_octave_up_ratio);
 }
 
 void append_debug_candidate_fields(std::ostringstream &line, const mao::FullMixDebugCandidate *debug)

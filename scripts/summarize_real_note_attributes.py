@@ -32,6 +32,11 @@ NUMERIC_FIELDS = [
     "raw_next_ratio",
     "raw_octave_down_ratio",
     "raw_octave_up_ratio",
+    "raw_fifth_up_ratio",
+    "raw_second_octave_up_ratio",
+    "raw_upper_major_third_ratio",
+    "raw_upper_fifth_ratio",
+    "raw_third_octave_up_ratio",
     "rms",
     "low",
     "mid",
@@ -80,6 +85,11 @@ CONTEXT_SUMMARY_FIELDS = [
     "raw_next_ratio",
     "raw_octave_down_ratio",
     "raw_octave_up_ratio",
+    "raw_fifth_up_ratio",
+    "raw_second_octave_up_ratio",
+    "raw_upper_major_third_ratio",
+    "raw_upper_fifth_ratio",
+    "raw_third_octave_up_ratio",
 ]
 
 
@@ -102,6 +112,11 @@ SUMMARY_FIELDS = [
     "partial2",
     "partial3",
     "partial4",
+    "raw_fifth_up_ratio",
+    "raw_second_octave_up_ratio",
+    "raw_upper_major_third_ratio",
+    "raw_upper_fifth_ratio",
+    "raw_third_octave_up_ratio",
 ]
 
 
@@ -122,6 +137,11 @@ SAMPLE_FIELDS = [
     "partial2",
     "partial3",
     "partial4",
+    "raw_fifth_up_ratio",
+    "raw_second_octave_up_ratio",
+    "raw_upper_major_third_ratio",
+    "raw_upper_fifth_ratio",
+    "raw_third_octave_up_ratio",
 ]
 
 
