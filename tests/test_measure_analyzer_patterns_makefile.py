@@ -135,11 +135,24 @@ def main() -> int:
     assert "test-real-note-samples-full-mix " not in detector_regression_target_list + " ", (
         "detector sample regression loop must not use the serial real-note full-mix gate"
     )
+    assert "test-analyzer-cases" in detector_regression_target_list, (
+        "detector sample regression loop must include synthetic temporal/chord/analyzer cases"
+    )
+    assert "test-guitar-chord-mix-samples" in detector_regression_target_list, (
+        "detector sample regression loop must include the real guitar chord mix gate"
+    )
+    assert "$(DRUM_REAL_WORLD_SAMPLE_TARGETS)" in detector_regression_target_list, (
+        "detector sample regression loop must include real-world drum sample gates"
+    )
     assert "test-instrument-samples-parallel" in detector_regression_target_list, (
         "detector sample regression loop must use the sharded generated instrument sample gate"
     )
     assert "test-instrument-samples " not in detector_regression_target_list + " ", (
         "detector sample regression loop must not use the serial generated instrument sample gate"
+    )
+    detector_regression_recipe = target_recipe(makefile, "test-detector-samples-parallel")
+    assert "$(MAKE) $(PARALLEL_TEST_MAKE_JOBS) $(DETECTOR_SAMPLE_REGRESSION_TARGETS)" in detector_regression_recipe, (
+        "detector sample regression target must fan out through jobserver-aware make"
     )
     assert "REAL_WORLD_SAMPLE_MAX_TARGETS :=" in makefile, "missing max real-world sample target list"
     assert "REAL_WORLD_SAMPLE_MAX_BASE_TARGETS :=" in makefile, (
