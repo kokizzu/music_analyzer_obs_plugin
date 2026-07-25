@@ -2454,6 +2454,25 @@ bool measured_vocal_octave_alias_supported(const FullMixDebugCandidate &debug)
 	const float third = debug.harmonic_ratios[2];
 	const float fourth = debug.harmonic_ratios[3];
 	const float fifth = debug.harmonic_ratios[4];
+	const bool vocal_owned_ooh_octave_alias =
+		debug.owner == InstrumentKind::Vocal &&
+		debug.midi >= 72 &&
+		debug.midi <= 76 &&
+		debug.vocal_score >= 0.70f &&
+		debug.keyboard_score >= 0.30f &&
+		debug.other_score >= 0.40f &&
+		debug.spectral_level >= 0.34f &&
+		debug.pitch_confidence >= 0.34f &&
+		debug.periodicity >= 0.86f &&
+		debug.harmonic_fit_error <= 0.055f &&
+		second >= 0.30f &&
+		second <= 0.34f &&
+		third >= 0.26f &&
+		third <= 0.34f &&
+		fourth >= 0.10f &&
+		fourth <= 0.18f &&
+		fifth >= 0.045f &&
+		fifth <= 0.11f;
 	const bool ambiguous_voice_ooh_alias =
 		debug.owner == InstrumentKind::Ambiguous &&
 		debug.keyboard_score >= 0.33f &&
@@ -2559,7 +2578,8 @@ bool measured_vocal_octave_alias_supported(const FullMixDebugCandidate &debug)
 		debug.midi >= 72 &&
 		debug.local_noise_level >= 0.076f &&
 		debug.other_score >= 0.472f;
-	return ambiguous_voice_ooh_alias || ambiguous_choir_alias || keyboard_ooh_alias ||
+	return vocal_owned_ooh_octave_alias ||
+	       ambiguous_voice_ooh_alias || ambiguous_choir_alias || keyboard_ooh_alias ||
 	       keyboard_synth_voice_alias || measured_keyboard_choir_bass_octave_alias ||
 	       measured_keyboard_synth_voice_octave_alias || measured_ambiguous_voice_ooh_octave_alias;
 }
@@ -2571,6 +2591,26 @@ bool measured_vocal_octave_alias_priority_supported(const FullMixDebugCandidate 
 	       debug.midi - 12 >= kFullMixVocalMinMidi &&
 	       debug.local_noise_level >= 0.092f &&
 	       debug.other_score >= 0.471f;
+}
+
+bool raw_supported_vocal_lower_octave_alias(const FullMixDebugCandidate &debug, int display_midi,
+					    const std::array<float, kNoteProbeCount> *raw_powers)
+{
+	if (!raw_powers || display_midi != debug.midi - 12)
+		return false;
+	if (!measured_vocal_octave_alias_supported(debug))
+		return false;
+
+	const float lower_level = probe_level(*raw_powers, display_midi);
+	const float upper_level = probe_level(*raw_powers, debug.midi);
+	const float fifth_level = probe_level(*raw_powers, display_midi + 7);
+	const float second_octave_level = probe_level(*raw_powers, display_midi + 24);
+	if (lower_level <= 1.0e-6f)
+		return false;
+
+	const bool dominant_lower = lower_level >= std::max(upper_level * 6.0f, second_octave_level * 12.0f);
+	const bool harmonic_context = fifth_level >= lower_level * 0.020f || upper_level >= lower_level * 0.010f;
+	return dominant_lower && harmonic_context;
 }
 
 bool measured_keyboard_double_octave_alias_supported(const FullMixDebugCandidate &debug)
@@ -5019,7 +5059,8 @@ bool full_mix_display_mirror_supported(FullMixDisplayRow row, const FullMixDebug
 }
 
 void add_full_mix_display_mirror(NoteCandidateList &candidates, const FullMixOwnership &ownership,
-				 const FullMixDebugCandidate &debug, FullMixDisplayRow row)
+				 const FullMixDebugCandidate &debug, FullMixDisplayRow row,
+				 const std::array<float, kNoteProbeCount> *raw_powers = nullptr)
 {
 	const int display_midi = full_mix_display_mirror_midi(row, debug, ownership);
 	if (display_midi < kFirstMidi || display_midi > kLastMidi)
@@ -5060,7 +5101,8 @@ void add_full_mix_display_mirror(NoteCandidateList &candidates, const FullMixOwn
 	const float base_score = row_reference > 1.0e-6f ? row_reference : 1.0f;
 	float candidate_score = base_score * std::clamp(global_level, 0.18f, 1.0f) * 0.52f;
 	if (row == FullMixDisplayRow::Vocal && display_midi != debug.midi &&
-	    measured_vocal_octave_alias_priority_supported(debug))
+	    (measured_vocal_octave_alias_priority_supported(debug) ||
+	     raw_supported_vocal_lower_octave_alias(debug, display_midi, raw_powers)))
 		candidate_score = std::max(candidate_score, base_score * 1.08f);
 	if (row == FullMixDisplayRow::Guitar && display_midi != debug.midi &&
 	    other_owned_distorted_guitar_octave_alias_supported(debug))
@@ -5110,7 +5152,8 @@ void add_full_mix_display_mirror(NoteCandidateList &candidates, const FullMixOwn
 	candidates.push_back(candidate);
 }
 
-NoteCandidateList full_mix_display_candidates(const FullMixOwnership &ownership, FullMixDisplayRow row)
+NoteCandidateList full_mix_display_candidates(const FullMixOwnership &ownership, FullMixDisplayRow row,
+					      const std::array<float, kNoteProbeCount> *raw_powers = nullptr)
 {
 	NoteCandidateList candidates;
 	switch (row) {
@@ -5131,7 +5174,7 @@ NoteCandidateList full_mix_display_candidates(const FullMixOwnership &ownership,
 	const std::size_t debug_count =
 		std::min<std::size_t>(ownership.debug_candidate_count, ownership.debug_candidates.size());
 	for (std::size_t i = 0; i < debug_count; ++i)
-		add_full_mix_display_mirror(candidates, ownership, ownership.debug_candidates[i], row);
+		add_full_mix_display_mirror(candidates, ownership, ownership.debug_candidates[i], row, raw_powers);
 	return candidates;
 }
 
@@ -14391,7 +14434,8 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 	auto process_vocal = [&]() {
 		if (mixed_source) {
 			const NoteCandidateList vocal_display_candidates =
-				full_mix_display_candidates(full_mix_ownership, FullMixDisplayRow::Vocal);
+				full_mix_display_candidates(full_mix_ownership, FullMixDisplayRow::Vocal,
+							    &note_powers);
 			const int preferred_root = lowest_candidate_pitch_class(vocal_display_candidates);
 			set_instrument_note_set_from_candidates(snapshot.vocal_notes, snapshot.vocal,
 								vocal_display_candidates,
