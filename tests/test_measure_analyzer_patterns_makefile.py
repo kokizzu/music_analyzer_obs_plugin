@@ -354,8 +354,10 @@ def main() -> int:
     source_attribute_targets = {
         "$(BUILD_DIR)/guitar_chord_mix_attributes.tsv": (
             "$(BUILD_DIR)/analyzer_guitarset",
-            "MUSIC_ANALYZER_GUITARSET_ATTRIBUTE_TSV=\"$@.tmp\"",
-            "guitar_chord_mix_attributes.out",
+            "tmp=\"$@.$$$$.tmp\"",
+            "out=\"$(BUILD_DIR)/guitar_chord_mix_attributes.$$$$.out\"",
+            "MUSIC_ANALYZER_GUITARSET_ATTRIBUTE_TSV=\"$$tmp\"",
+            "mv \"$$out\" \"$(BUILD_DIR)/guitar_chord_mix_attributes.out\"",
         ),
     }
     for target, required_parts in source_attribute_targets.items():
@@ -471,13 +473,18 @@ def main() -> int:
     for target in [
         "$(BUILD_DIR)/instrument_sample_attributes.tsv",
         "$(BUILD_DIR)/real_note_full_mix_attributes.tsv",
-        "$(BUILD_DIR)/guitar_chord_mix_attributes.tsv",
     ]:
         attribute_recipe = target_recipe(makefile, target)
         assert "$@.tmp" in attribute_recipe, f"{target} must write through a temporary TSV"
         assert 'mv "$@.tmp" "$@"' in attribute_recipe, f"{target} must publish TSV atomically"
     guitar_attribute_recipe = target_recipe(makefile, "$(BUILD_DIR)/guitar_chord_mix_attributes.tsv")
-    assert 'MUSIC_ANALYZER_GUITARSET_ATTRIBUTE_TSV="$@.tmp"' in guitar_attribute_recipe, (
+    assert 'tmp="$@.$$$$.tmp"' in guitar_attribute_recipe, (
+        "guitar chord attribute exporter must use a per-process temporary TSV"
+    )
+    assert 'mv "$$tmp" "$@"' in guitar_attribute_recipe, (
+        "guitar chord attribute exporter must publish the temporary TSV atomically"
+    )
+    assert 'MUSIC_ANALYZER_GUITARSET_ATTRIBUTE_TSV="$$tmp"' in guitar_attribute_recipe, (
         "guitar chord attribute exporter must not stream directly to the final TSV"
     )
 
