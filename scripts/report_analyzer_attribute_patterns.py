@@ -68,6 +68,46 @@ def unique_sample_count(rows: list[dict[str, str]], field: str) -> int:
     return len({row.get(field, "") for row in rows if row.get(field, "")})
 
 
+def parse_int(value: str) -> int | None:
+    try:
+        return int(value)
+    except (TypeError, ValueError):
+        return None
+
+
+def debug_pitch_delta(row: dict[str, str], midi_field: str, debug_field: str = "debug_midi") -> int | None:
+    direct_delta = parse_int(row.get("debug_delta", ""))
+    if direct_delta is not None:
+        return direct_delta
+    direct_delta = parse_int(row.get("nearest_debug_delta", ""))
+    if direct_delta is not None:
+        return direct_delta
+    expected = parse_int(row.get(midi_field, ""))
+    actual = parse_int(row.get(debug_field, ""))
+    if actual is None and row.get("debug_note", ""):
+        actual = midi_from_note(row["debug_note"])
+    if expected is None or actual is None:
+        return None
+    return actual - expected
+
+
+def pitch_quality(delta: int | None) -> str:
+    if delta is None:
+        return "unknown"
+    if delta == 0:
+        return "exact"
+    if delta % 12 == 0:
+        return "octave_alias"
+    return "other_pitch"
+
+
+def pitch_quality_counts(rows: list[dict[str, str]], midi_field: str, debug_field: str = "debug_midi") -> collections.Counter[str]:
+    counts: collections.Counter[str] = collections.Counter()
+    for row in rows:
+        counts[pitch_quality(debug_pitch_delta(row, midi_field, debug_field))] += 1
+    return counts
+
+
 def ratio(count: int, total: int) -> str:
     if total <= 0:
         return "0/0"
@@ -207,6 +247,7 @@ def report_instruments(path: pathlib.Path, limit: int, row_examples: int) -> Non
     print(f"  note rows={len(rows)}")
     family_counts = collections.Counter(row.get("family", "unknown") for row in rows)
     print(f"  families {compact(family_counts, limit)}")
+    print(f"  pitch quality {compact(pitch_quality_counts(rows, 'midi'), limit)}")
     non_hit_rows = [row for row in rows if row.get("status") != "hit"]
     if non_hit_rows:
         print(f"  miss reasons {compact(collections.Counter(row.get('miss_reason', '--') or '--' for row in non_hit_rows), limit)}")
@@ -217,6 +258,7 @@ def report_instruments(path: pathlib.Path, limit: int, row_examples: int) -> Non
         tuned = sum(1 for row in family_rows if float_or(row, "raw_tuned_abs_cent_offset", 99.0) <= 9.0)
         print(
             f"  {family}: rows={len(family_rows)} owners={compact(owners, 5)} "
+            f"pitch={compact(pitch_quality_counts(family_rows, 'midi'), 4)} "
             f"raw_rank1={ratio(raw_rank1, len(family_rows))} tuned<=9c={ratio(tuned, len(family_rows))}"
         )
     examples = representative_rows(rows, ("status", "family", "debug_owner"), row_examples)
@@ -254,6 +296,7 @@ def report_real_notes(path: pathlib.Path, limit: int, row_examples: int) -> None
     for row in rows:
         by_sample_status.setdefault(row["sample_id"], row.get("status", "unknown"))
     print(f"  rows={len(rows)} samples={len(by_sample_status)} status={compact(collections.Counter(by_sample_status.values()), limit)}")
+    print(f"  row pitch quality {compact(pitch_quality_counts(rows, 'expected_midi'), limit)}")
     miss_rows = [row for row in rows if row.get("status") == "ownership_miss" and row.get("debug_note")]
     print(f"  ownership miss rows={len(miss_rows)} samples={unique_sample_count(miss_rows, 'sample_id')}")
     if miss_rows:

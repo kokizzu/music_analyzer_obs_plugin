@@ -75,7 +75,11 @@ snare/1.wav	snare	tom	0.2	0.7	0.1	0.1	0.8	0.9
         )
     output = result.stdout
     assert "instrument sample attributes" in output
+    assert "pitch quality exact=1 octave_alias=1" in output
+    assert "guitar: rows=1 owners=guitar=1 pitch=exact=1" in output
+    assert "piano: rows=1 owners=guitar=1 pitch=octave_alias=1" in output
     assert "real-note full-mix attributes" in output
+    assert "row pitch quality octave_alias=1 exact=1" in output
     assert "ownership_miss:piano/electronic->bass" in output
     assert "debug-midi deltas 12=1" in output
     assert "guitar chord attributes" in output

@@ -85,13 +85,19 @@ kick.wav	kick	kick	0.9	0.1	0.0	0.9	0.1	0.1	0.1	0.1	1	0	0	0	0	0	0	0.9	0.4	0	0	0	0
     assert "measured generated instrument note rows" in output
     assert "debug owner mismatches=guitar->piano=1" in output
     assert "debug pitch deltas=+0=2" in output
+    assert "pitch quality=exact=2" in output
     assert "piano rows=1 notes=1 range=C4/60 hit=1/1 100.0%" in output
+    assert "piano rows=1 notes=1 range=C4/60 hit=1/1 100.0% pitch=exact=1" in output
     assert "guitar rows=1 notes=1 range=E3/52 hit=0/1 0.0%" in output
+    assert "guitar rows=1 notes=1 range=E3/52 hit=0/1 0.0% pitch=exact=1" in output
     assert "miss guitar expected=E3/52 got=E3/piano" in output
     assert "measured real-note full-mix rows" in output
     assert "debug owner mismatches=piano->guitar=1" in output
+    assert "pitch quality=exact=2" in output
     assert "guitar rows=1 samples=1 notes=1 range=E3/52 hit=1/1 100.0%" in output
+    assert "guitar rows=1 samples=1 notes=1 range=E3/52 hit=1/1 100.0% pitch=exact=1" in output
     assert "piano rows=1 samples=1 notes=1 range=C4/60 hit=0/1 0.0%" in output
+    assert "piano rows=1 samples=1 notes=1 range=C4/60 hit=0/1 0.0% pitch=exact=1" in output
     assert "ownership_miss piano/electronic expected=C4/60 first=bass" in output
     assert "measured guitar chord rows" in output
     assert "maj chord_hit=1/1 100.0%" in output

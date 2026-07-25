@@ -97,10 +97,7 @@ def owner_mismatches(rows: list[dict[str, str]], family_field: str) -> collectio
 def debug_pitch_deltas(rows: list[dict[str, str]], midi_field: str, debug_field: str = "debug_midi") -> collections.Counter[str]:
     deltas: collections.Counter[str] = collections.Counter()
     for row in rows:
-        direct_delta = parse_int(row.get("debug_delta", ""))
-        if direct_delta is None:
-            direct_delta = parse_int(row.get("nearest_debug_delta", ""))
-        if direct_delta is not None:
+        if (direct_delta := debug_pitch_delta(row, midi_field, debug_field)) is not None:
             deltas[f"{direct_delta:+d}"] += 1
             continue
 
@@ -113,11 +110,42 @@ def debug_pitch_deltas(rows: list[dict[str, str]], midi_field: str, debug_field:
     return deltas
 
 
+def debug_pitch_delta(row: dict[str, str], midi_field: str, debug_field: str = "debug_midi") -> int | None:
+    direct_delta = parse_int(row.get("debug_delta", ""))
+    if direct_delta is not None:
+        return direct_delta
+    direct_delta = parse_int(row.get("nearest_debug_delta", ""))
+    if direct_delta is not None:
+        return direct_delta
+    expected = parse_int(row.get(midi_field, ""))
+    actual = parse_int(row.get(debug_field, ""))
+    if expected is None or actual is None:
+        return None
+    return actual - expected
+
+
+def pitch_quality(delta: int | None) -> str:
+    if delta is None:
+        return "unknown"
+    if delta == 0:
+        return "exact"
+    if delta % 12 == 0:
+        return "octave_alias"
+    return "other_pitch"
+
+
+def pitch_quality_counts(rows: list[dict[str, str]], midi_field: str, debug_field: str = "debug_midi") -> collections.Counter[str]:
+    counts: collections.Counter[str] = collections.Counter()
+    for row in rows:
+        counts[pitch_quality(debug_pitch_delta(row, midi_field, debug_field))] += 1
+    return counts
+
+
 def note_count(rows: list[dict[str, str]], midi_field: str, note_field: str) -> int:
-    midi_values = {row.get(midi_field, "") for row in rows if row.get(midi_field, "")}
-    if midi_values:
-        return len(midi_values)
-    return len({row.get(note_field, "") for row in rows if row.get(note_field, "")})
+	midi_values = {row.get(midi_field, "") for row in rows if row.get(midi_field, "")}
+	if midi_values:
+		return len(midi_values)
+	return len({row.get(note_field, "") for row in rows if row.get(note_field, "")})
 
 
 def status_fraction(rows: list[dict[str, str]], hit_value: str) -> str:
@@ -212,12 +240,14 @@ def report_instrument_rows(path: pathlib.Path, row_limit: int) -> None:
     )
     print(f"  debug owner mismatches={compact(owner_mismatches(rows, 'family'))}")
     print(f"  debug pitch deltas={compact(debug_pitch_deltas(rows, 'midi'))}")
+    print(f"  pitch quality={compact(pitch_quality_counts(rows, 'midi'))}")
     print("  family ranges:")
     for family in sorted({row.get("family", "unknown") for row in rows}):
         family_rows = [row for row in rows if row.get("family", "unknown") == family]
         print(
             f"    {family} rows={len(family_rows)} notes={note_count(family_rows, 'midi', 'note')} "
-            f"range={midi_range(family_rows, 'midi')} hit={status_fraction(family_rows, 'hit')}"
+            f"range={midi_range(family_rows, 'midi')} hit={status_fraction(family_rows, 'hit')} "
+            f"pitch={compact(pitch_quality_counts(family_rows, 'midi'), 4)}"
         )
     for row in limited_rows(rows, row_limit, {"hit"}):
         print(
@@ -250,6 +280,7 @@ def report_real_note_rows(path: pathlib.Path, row_limit: int) -> None:
     )
     print(f"  debug owner mismatches={compact(owner_mismatches(rows, 'family'))}")
     print(f"  debug pitch deltas={compact(debug_pitch_deltas(rows, 'expected_midi'))}")
+    print(f"  pitch quality={compact(pitch_quality_counts(rows, 'expected_midi'))}")
     print("  family ranges:")
     for family in sorted({row.get("family", "unknown") for row in rows}):
         family_rows = [row for row in rows if row.get("family", "unknown") == family]
@@ -257,7 +288,8 @@ def report_real_note_rows(path: pathlib.Path, row_limit: int) -> None:
         print(
             f"    {family} rows={len(family_rows)} samples={len(samples)} "
             f"notes={note_count(family_rows, 'expected_midi', 'expected_note')} "
-            f"range={midi_range(family_rows, 'expected_midi')} hit={status_fraction(family_rows, 'hit')}"
+            f"range={midi_range(family_rows, 'expected_midi')} hit={status_fraction(family_rows, 'hit')} "
+            f"pitch={compact(pitch_quality_counts(family_rows, 'expected_midi'), 4)}"
         )
     for row in limited_rows(rows, row_limit, {"hit"}):
         print(
