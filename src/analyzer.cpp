@@ -1492,6 +1492,9 @@ void restore_full_mix_low_other_from_bass(FullMixOwnership &ownership,
 	const float second_octave = probe_level(powers, bass_midi + 24);
 	const float upper_major_third = probe_level(powers, bass_midi + 28);
 	const float upper_stack = fifth + second_octave + upper_major_third;
+	const bool keyboard_octave_alias =
+		bass_midi + 12 <= kLastMidi &&
+		full_mix_row_midi_active(ownership.keyboard, bass_midi + 12);
 	const bool low_bowed_string_stack =
 		bass_midi >= kGuitarMinMidi &&
 		octave <= fundamental * 0.34f &&
@@ -1514,7 +1517,19 @@ void restore_full_mix_low_other_from_bass(FullMixOwnership &ownership,
 		fifth <= fundamental * 0.14f &&
 		second_octave <= fundamental * 0.040f &&
 		upper_major_third <= fundamental * 0.030f;
-	if (!low_bowed_string_stack && !sub_low_bowed_string_stack && !sparse_sub_low_bowed_string_stack)
+	const bool octave_alias_sparse_sub_low_bowed_string_stack =
+		bass_midi >= 36 &&
+		bass_midi < kGuitarMinMidi &&
+		keyboard_octave_alias &&
+		octave >= fundamental * 0.040f &&
+		octave <= fundamental * 0.30f &&
+		upper_stack <= fundamental * 0.080f &&
+		fifth <= fundamental * 0.040f &&
+		second_octave <= fundamental * 0.040f &&
+		upper_major_third <= fundamental * 0.015f;
+	if (!low_bowed_string_stack && !sub_low_bowed_string_stack &&
+	    !sparse_sub_low_bowed_string_stack &&
+	    !octave_alias_sparse_sub_low_bowed_string_stack)
 		return;
 
 	const float display_level =
@@ -1525,7 +1540,8 @@ void restore_full_mix_low_other_from_bass(FullMixOwnership &ownership,
 		capped_restored_low_owner_score(ownership.other_candidates, bass_midi,
 						display_level * display_level);
 	candidate.ownership_confidence =
-		(sub_low_bowed_string_stack || sparse_sub_low_bowed_string_stack) ? 0.50f : 0.42f;
+		(sub_low_bowed_string_stack || sparse_sub_low_bowed_string_stack ||
+		 octave_alias_sparse_sub_low_bowed_string_stack) ? 0.50f : 0.42f;
 	ownership.other[static_cast<std::size_t>(bass_midi - kFirstMidi)] = true;
 	ownership.other_candidates.push_back(candidate);
 }

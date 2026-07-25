@@ -2797,6 +2797,25 @@ void check_full_mix_single_instrument_precision(Runner &runner)
 
 	{
 		mao_test::Buffer buffer = {};
+		const std::vector<float> octave_alias_sparse_sub_low_bowed_string_profile =
+			{1.0f, 0.16f, 0.020f, 0.018f, 0.006f};
+		add_harmonic_note(buffer, 39, 0.24f, octave_alias_sparse_sub_low_bowed_string_profile);
+
+		const auto snapshot =
+			analyze_buffer_with_mode(buffer, mao::AnalysisInputMode::FullMix,
+						 "speaker octave-alias sparse sub-low bowed string other", 3);
+		expect_global_pitch_class(runner, snapshot, 3,
+					  "full-mix octave-alias sparse sub-low bowed string global");
+		runner.expect(grid_level_for_midi(snapshot.other_notes, 39) > 0.0f,
+			      std::string("full-mix octave-alias sparse sub-low bowed string: expected "
+					  "other D#2 display, got other `") +
+				      snapshot.other.label + "`, keyboard `" + snapshot.keyboard.label +
+				      "`, bass `" + snapshot.bass.label + "`, guitar `" +
+				      snapshot.guitar.label + "`");
+	}
+
+	{
+		mao_test::Buffer buffer = {};
 		const std::vector<float> low_weak_upper_string_profile =
 			{1.0f, 0.18f, 0.018f, 0.005f, 0.006f};
 		add_harmonic_note(buffer, 53, 0.24f, low_weak_upper_string_profile);
