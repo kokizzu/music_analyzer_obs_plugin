@@ -391,6 +391,7 @@ def main() -> int:
             row(
                 status="hit",
                 first_row="guitar",
+                buffer_strongest_row="guitar",
                 sample_id="piano_wrong_1",
                 family="piano",
                 nsynth_family="keyboard",
@@ -404,6 +405,7 @@ def main() -> int:
             row(
                 status="hit",
                 first_row="guitar",
+                buffer_strongest_row="guitar",
                 sample_id="piano_wrong_2",
                 family="piano",
                 nsynth_family="keyboard",
@@ -456,6 +458,28 @@ def main() -> int:
                 "debug_owner=guitar",
                 "--limit",
                 "2",
+                "--max-negative-samples",
+                "2",
+            ],
+            text=True,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            check=True,
+        )
+        row_confusion_result = subprocess.run(
+            [
+                sys.executable,
+                str(ROOT / "scripts" / "find_real_note_attribute_patterns.py"),
+                str(hit_path),
+                "--top-buckets",
+                "1",
+                "--bucket-status",
+                "row_confusion",
+                "--include-row-context",
+                "--condition",
+                "debug_owner=guitar",
+                "--limit",
+                "1",
                 "--max-negative-samples",
                 "2",
             ],
@@ -570,6 +594,11 @@ def main() -> int:
         "protected_hits=2 samples/2 rows"
     ) in hit_result.stdout
     assert "debug_owner=guitar: pos=2/2 rows=2 neg=1/2 rows=1" in hit_result.stdout
+    assert (
+        "row_confusion:piano/electronic->guitar positives=2 samples/2 rows "
+        "protected_hits=2 samples/2 rows"
+    ) in row_confusion_result.stdout
+    assert "debug_owner=guitar: pos=2/2 rows=2 neg=1/2 rows=1" in row_confusion_result.stdout
     assert "expected_row_exact_level<=0: pos=2/2 rows=2 neg=0/2 rows=0" in placement_result.stdout
     print("test_find_real_note_attribute_patterns: ok")
     return 0
