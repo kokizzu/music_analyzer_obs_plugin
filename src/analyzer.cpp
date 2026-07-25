@@ -13208,6 +13208,12 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 			promote_drum_primary(HiHat, 0.90f);
 		if (one_shot_measured_ride_from_hihat_quiet_low_primary_recovery)
 			promote_drum_primary(Ride, 0.90f);
+		const bool one_shot_measured_rim_high_kick_trigger_primary_recovery =
+			drum_detection_enabled && one_shot_drum_source &&
+			hihat_rim_trigger_ratio <= 0.86f &&
+			snapshot.drum_debug_trigger_scores[Kick] >= 1406.45f;
+		if (one_shot_measured_rim_high_kick_trigger_primary_recovery)
+			promote_drum_primary(Rim, 0.90f);
 		if (one_shot_measured_crash_from_hihat_band_primary_recovery)
 			promote_drum_primary(Crash, 0.90f);
 		if (one_shot_measured_snare_rim_primary_recovery ||
