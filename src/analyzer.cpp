@@ -7459,7 +7459,8 @@ void prefer_supported_lower_octave_display(NoteGrid &grid, InstrumentState &stat
 }
 
 void prefer_visible_lower_octave_primary(NoteGrid &grid, InstrumentState &state, int min_midi,
-					 float relative_floor, int preferred_root)
+					 float relative_floor, int preferred_root,
+					 float absolute_floor = 0.24f)
 {
 	min_midi = std::max(min_midi, kFirstMidi);
 	bool changed = false;
@@ -7475,11 +7476,14 @@ void prefer_visible_lower_octave_primary(NoteGrid &grid, InstrumentState &state,
 			continue;
 
 		NoteCell lower = {};
-		const NoteCell primary = active_cells.front();
+		NoteCell primary = active_cells.front();
+		const NoteCell &display = grid.cells[pitch_class];
+		if (display.active && display.midi > primary.midi && display.level > primary.level)
+			primary = display;
 		for (const NoteCell &cell : active_cells) {
 			if (cell.midi >= primary.midi || cell.midi < min_midi)
 				continue;
-			if (cell.level < std::max(0.24f, primary.level * relative_floor))
+			if (cell.level < std::max(absolute_floor, primary.level * relative_floor))
 				continue;
 			if (!lower.active || cell.midi < lower.midi) {
 				lower = cell;
@@ -15362,7 +15366,7 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 							      kVocalMinMidi, 64, -1);
 		else
 			prefer_visible_lower_octave_primary(snapshot.vocal_notes, snapshot.vocal, kVocalMinMidi,
-							   0.72f, -1);
+							   0.20f, -1, 0.18f);
 	} else {
 		reset_note_grid_envelope(snapshot.vocal_notes, snapshot.vocal, vocal_note_tracking_);
 	}
