@@ -38,6 +38,9 @@ DEFAULT_COLUMNS = [
     "display_midi",
     "display_delta",
     "display_pitch_quality",
+    "target_notes",
+    "target_distinct_midis",
+    "target_octave_duplicates",
     "vocal_label",
     "vocal_level",
     "debug_note",
@@ -76,6 +79,9 @@ ATTRIBUTE_COLUMNS = [
     "display_midi",
     "display_delta",
     "display_pitch_quality",
+    "target_notes",
+    "target_distinct_midis",
+    "target_octave_duplicates",
     "debug_note",
     "debug_owner",
     "debug_delta",
@@ -185,6 +191,40 @@ DISPLAY_LEVEL_FIELDS = {
     "other": "other_level",
 }
 
+DISPLAY_NOTE_FIELDS = {
+    "bass": "bass_notes",
+    "piano": "piano_notes",
+    "guitar": "guitar_notes",
+    "vocals": "vocal_notes",
+    "other": "other_notes",
+}
+
+
+def target_note_field(target: str) -> str | None:
+    return DISPLAY_NOTE_FIELDS.get(target)
+
+
+def note_cell_midis(value: str) -> list[int]:
+    midis: list[int] = []
+    seen: set[int] = set()
+    for part in (value or "").split(","):
+        note = part.split(":", 1)[0].strip()
+        if not note or note == "--":
+            continue
+        midi = midi_from_note(note)
+        if midi is None or midi in seen:
+            continue
+        seen.add(midi)
+        midis.append(midi)
+    return midis
+
+
+def octave_duplicate_count(midis: list[int]) -> int:
+    by_pitch_class: dict[int, set[int]] = collections.defaultdict(set)
+    for midi in midis:
+        by_pitch_class[((midi % 12) + 12) % 12].add(midi)
+    return sum(1 for values in by_pitch_class.values() if len(values) > 1)
+
 
 def target_display_hit(row: dict[str, str], target: str) -> bool:
     if row.get("status") != "hit" or row.get("detected_expected_row") != "1":
@@ -218,6 +258,11 @@ def enrich_row(row: dict[str, str]) -> dict[str, str]:
     delta = display_pitch_delta(row)
     row["display_delta"] = "" if delta is None else str(delta)
     row["display_pitch_quality"] = pitch_quality(delta)
+    note_field = target_note_field(row["owner_target"])
+    row["target_notes"] = row.get(note_field or "", "") if note_field else ""
+    target_midis = note_cell_midis(row["target_notes"])
+    row["target_distinct_midis"] = str(len(target_midis))
+    row["target_octave_duplicates"] = str(octave_duplicate_count(target_midis))
     return row
 
 

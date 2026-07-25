@@ -12,6 +12,8 @@ import re
 
 DRUMS = ("kick", "snare", "hihat", "crash", "tom", "ride", "rim")
 NOTE_ORDER = ("C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B")
+NOTE_BASE = {note: index for index, note in enumerate(NOTE_ORDER)}
+NOTE_RE = re.compile(r"^([A-G]#?)(-?\d+)$")
 
 
 def load_rows(path: pathlib.Path) -> list[dict[str, str]]:
@@ -159,6 +161,60 @@ def display_pitch_quality_counts(rows: list[dict[str, str]], midi_field: str) ->
     return counts
 
 
+def midi_from_note_label(note: str) -> int | None:
+    match = NOTE_RE.match(note)
+    if not match:
+        return None
+    return NOTE_BASE[match.group(1)] + (int(match.group(2)) + 1) * 12
+
+
+def note_cell_midis(value: str) -> list[int]:
+    midis: list[int] = []
+    seen: set[int] = set()
+    for part in (value or "").split(","):
+        note = part.split(":", 1)[0].strip()
+        if not note or note == "--":
+            continue
+        midi = midi_from_note_label(note)
+        if midi is None or midi in seen:
+            continue
+        seen.add(midi)
+        midis.append(midi)
+    return midis
+
+
+def octave_duplicate_count(midis: list[int]) -> int:
+    by_pitch_class: dict[int, set[int]] = collections.defaultdict(set)
+    for midi in midis:
+        by_pitch_class[midi % 12].add(midi)
+    return sum(1 for values in by_pitch_class.values() if len(values) > 1)
+
+
+def target_note_field(family: str) -> str:
+    if family == "bass":
+        return "bass_notes"
+    if family == "guitar":
+        return "guitar_notes"
+    if family == "piano":
+        return "piano_notes"
+    if family == "vocals":
+        return "vocal_notes"
+    return "other_notes"
+
+
+def target_octave_duplicate_count(row: dict[str, str], family_field: str = "family") -> int:
+    return octave_duplicate_count(note_cell_midis(row.get(target_note_field(row.get(family_field, "")), "")))
+
+
+def target_octave_duplicate_counts(rows: list[dict[str, str]], family_field: str = "family") -> collections.Counter[str]:
+    counts: collections.Counter[str] = collections.Counter()
+    for row in rows:
+        duplicate_count = target_octave_duplicate_count(row, family_field)
+        if duplicate_count > 0:
+            counts[f"{row.get(family_field, 'unknown')}:dup{duplicate_count}"] += 1
+    return counts
+
+
 def note_count(rows: list[dict[str, str]], midi_field: str, note_field: str) -> int:
 	midi_values = {row.get(midi_field, "") for row in rows if row.get(midi_field, "")}
 	if midi_values:
@@ -260,6 +316,7 @@ def report_instrument_rows(path: pathlib.Path, row_limit: int) -> None:
     print(f"  debug pitch deltas={compact(debug_pitch_deltas(rows, 'midi'))}")
     print(f"  pitch quality={compact(pitch_quality_counts(rows, 'midi'))}")
     print(f"  display pitch quality={compact(display_pitch_quality_counts(rows, 'midi'))}")
+    print(f"  target octave duplicates={compact(target_octave_duplicate_counts(rows))}")
     print("  family ranges:")
     for family in sorted({row.get("family", "unknown") for row in rows}):
         family_rows = [row for row in rows if row.get("family", "unknown") == family]
@@ -267,7 +324,8 @@ def report_instrument_rows(path: pathlib.Path, row_limit: int) -> None:
             f"    {family} rows={len(family_rows)} notes={note_count(family_rows, 'midi', 'note')} "
             f"range={midi_range(family_rows, 'midi')} hit={status_fraction(family_rows, 'hit')} "
             f"pitch={compact(pitch_quality_counts(family_rows, 'midi'), 4)} "
-            f"display={compact(display_pitch_quality_counts(family_rows, 'midi'), 4)}"
+            f"display={compact(display_pitch_quality_counts(family_rows, 'midi'), 4)} "
+            f"octdup={compact(collections.Counter(str(target_octave_duplicate_count(row)) for row in family_rows), 4)}"
         )
     for row in limited_rows(rows, row_limit, {"hit"}):
         print(
@@ -277,6 +335,7 @@ def report_instrument_rows(path: pathlib.Path, row_limit: int) -> None:
             f"got={cell(row, 'debug_note')}/{cell(row, 'debug_owner')} "
             f"nearest={cell(row, 'nearest_debug_note')}/{cell(row, 'nearest_debug_delta')} "
             f"reason={cell(row, 'miss_reason')} "
+            f"octdup={target_octave_duplicate_count(row)} "
             f"levels={level_cells(row, ('bass_level', 'piano_level', 'guitar_level', 'vocal_level', 'other_level', 'amb_level'))} "
             f"raw={num(row, 'raw_expected_ratio')}/{num(row, 'raw_tuned_ratio')} "
             f"cent={num(row, 'raw_tuned_abs_cent_offset')} rank={num(row, 'raw_expected_rank')} "

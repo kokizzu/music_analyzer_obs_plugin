@@ -23,7 +23,22 @@ HEADER = [
     "window_ms",
     "detected_expected_row",
     "detected_anywhere",
+    "display_note",
+    "display_midi",
+    "display_delta",
     "expected_level",
+    "bass_level",
+    "piano_level",
+    "guitar_level",
+    "vocal_level",
+    "other_level",
+    "amb_level",
+    "bass_notes",
+    "piano_notes",
+    "guitar_notes",
+    "vocal_notes",
+    "other_notes",
+    "amb_notes",
     "raw_expected_ratio",
     "raw_tuned_ratio",
     "raw_tuned_abs_cent_offset",
@@ -67,7 +82,22 @@ def row(**overrides: str) -> list[str]:
             "window_ms": "100",
             "detected_expected_row": "1",
             "detected_anywhere": "1",
+            "display_note": "C4",
+            "display_midi": "60",
+            "display_delta": "0",
             "expected_level": "1.0",
+            "bass_level": "0.0",
+            "piano_level": "1.0",
+            "guitar_level": "0.0",
+            "vocal_level": "0.0",
+            "other_level": "0.0",
+            "amb_level": "0.0",
+            "bass_notes": "",
+            "piano_notes": "C4:1.00",
+            "guitar_notes": "",
+            "vocal_notes": "",
+            "other_notes": "",
+            "amb_notes": "",
             "raw_expected_ratio": "1.0",
             "raw_tuned_ratio": "1.0",
             "raw_tuned_abs_cent_offset": "0.0",
@@ -116,6 +146,9 @@ def main() -> int:
                 midi="36",
                 detected_expected_row="0",
                 detected_anywhere="0",
+                display_note="",
+                display_midi="",
+                display_delta="",
                 raw_expected_rank="8",
                 raw_tuned_abs_cent_offset="18",
                 debug_note="",
@@ -160,9 +193,14 @@ def main() -> int:
         )
         assert dumped.returncode == 0, dumped.stdout + dumped.stderr
         assert dumped.stdout.startswith("kind\tstatus\tfamily\t")
+        header = dumped.stdout.splitlines()[0]
+        assert "display_note" in header
+        assert "piano_notes" in header
         assert "nearest_debug_note" in dumped.stdout.splitlines()[0]
         assert "miss_reason" in dumped.stdout.splitlines()[0]
         assert "\nnote\townership_miss\tguitar\tguitar\tProgram\tC4" in dumped.stdout
+        assert "\tC4\t60\t0\t" in dumped.stdout
+        assert "\tC4:1.00\t" in dumped.stdout
         assert "\townership\t" in dumped.stdout
         assert "\nnote\tmiss\tsynth\tsynth\tProgram\tC2" in dumped.stdout
         assert "\tweak_expected_rank\t" in dumped.stdout

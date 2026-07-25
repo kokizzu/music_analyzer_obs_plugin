@@ -128,6 +128,53 @@ def display_pitch_quality_counts(rows: list[dict[str, str]], midi_field: str) ->
     return counts
 
 
+def note_cell_midis(value: str) -> list[int]:
+    midis: list[int] = []
+    seen: set[int] = set()
+    for part in (value or "").split(","):
+        note = part.split(":", 1)[0].strip()
+        if not note or note == "--":
+            continue
+        midi = midi_from_note(note)
+        if midi is None or midi in seen:
+            continue
+        seen.add(midi)
+        midis.append(midi)
+    return midis
+
+
+def octave_duplicate_count(midis: list[int]) -> int:
+    by_pitch_class: dict[int, set[int]] = collections.defaultdict(set)
+    for midi in midis:
+        by_pitch_class[midi % 12].add(midi)
+    return sum(1 for values in by_pitch_class.values() if len(values) > 1)
+
+
+def target_note_field(family: str) -> str:
+    if family == "bass":
+        return "bass_notes"
+    if family == "guitar":
+        return "guitar_notes"
+    if family == "piano":
+        return "piano_notes"
+    if family == "vocals":
+        return "vocal_notes"
+    return "other_notes"
+
+
+def target_octave_duplicate_count(row: dict[str, str], family_field: str = "family") -> int:
+    return octave_duplicate_count(note_cell_midis(row.get(target_note_field(row.get(family_field, "")), "")))
+
+
+def target_octave_duplicate_counts(rows: list[dict[str, str]], family_field: str = "family") -> collections.Counter[str]:
+    counts: collections.Counter[str] = collections.Counter()
+    for row in rows:
+        duplicate_count = target_octave_duplicate_count(row, family_field)
+        if duplicate_count > 0:
+            counts[f"{row.get(family_field, 'unknown')}:dup{duplicate_count}"] += 1
+    return counts
+
+
 def ratio(count: int, total: int) -> str:
     if total <= 0:
         return "0/0"
@@ -269,6 +316,7 @@ def report_instruments(path: pathlib.Path, limit: int, row_examples: int) -> Non
     print(f"  families {compact(family_counts, limit)}")
     print(f"  pitch quality {compact(pitch_quality_counts(rows, 'midi'), limit)}")
     print(f"  display pitch quality {compact(display_pitch_quality_counts(rows, 'midi'), limit)}")
+    print(f"  target octave duplicates {compact(target_octave_duplicate_counts(rows), limit)}")
     non_hit_rows = [row for row in rows if row.get("status") != "hit"]
     if non_hit_rows:
         print(f"  miss reasons {compact(collections.Counter(row.get('miss_reason', '--') or '--' for row in non_hit_rows), limit)}")
@@ -281,6 +329,7 @@ def report_instruments(path: pathlib.Path, limit: int, row_examples: int) -> Non
             f"  {family}: rows={len(family_rows)} owners={compact(owners, 5)} "
             f"pitch={compact(pitch_quality_counts(family_rows, 'midi'), 4)} "
             f"display={compact(display_pitch_quality_counts(family_rows, 'midi'), 4)} "
+            f"octdup={compact(collections.Counter(str(target_octave_duplicate_count(row)) for row in family_rows), 4)} "
             f"raw_rank1={ratio(raw_rank1, len(family_rows))} tuned<=9c={ratio(tuned, len(family_rows))}"
         )
     examples = representative_rows(rows, ("status", "family", "debug_owner"), row_examples)
@@ -294,6 +343,10 @@ def report_instruments(path: pathlib.Path, limit: int, row_examples: int) -> Non
                 f"got={cell(row, 'debug_note')}/{cell(row, 'debug_owner')} "
                 f"nearest={cell(row, 'nearest_debug_note')}/{cell(row, 'nearest_debug_delta')} "
                 f"reason={cell(row, 'miss_reason')} "
+                f"octdup={target_octave_duplicate_count(row)} "
+                f"notes=b[{cell(row, 'bass_notes')}] g[{cell(row, 'guitar_notes')}] "
+                f"k[{cell(row, 'piano_notes')}] v[{cell(row, 'vocal_notes')}] "
+                f"o[{cell(row, 'other_notes')}] a[{cell(row, 'amb_notes')}] "
                 f"debug_count={num(row, 'debug_count')} candidates={cell(row, 'debug_candidates')} "
                 f"levels={level_cells(row, ('bass_level', 'piano_level', 'guitar_level', 'vocal_level', 'other_level', 'amb_level'))} "
                 f"raw_ratio={num(row, 'raw_expected_ratio')} tuned_ratio={num(row, 'raw_tuned_ratio')} "

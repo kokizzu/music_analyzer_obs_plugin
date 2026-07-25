@@ -628,6 +628,27 @@ int grid_pitch_class_midi(const mao::NoteGrid &grid, int midi)
 	return best_midi;
 }
 
+std::string grid_debug_label(const mao::NoteGrid &grid)
+{
+	std::string text;
+	auto append_cell = [&](const mao::NoteCell &cell) {
+		if (!cell.active || cell.midi < mao::kFirstAnalyzedMidi || cell.midi > mao::kLastAnalyzedMidi)
+			return;
+		char part[48] = {};
+		std::snprintf(part, sizeof(part), "%s%s:%.2f", text.empty() ? "" : ",",
+			      debug_note_label(cell.midi).c_str(), cell.level);
+		text += part;
+	};
+
+	for (const mao::NoteCell &cell : grid.cells)
+		append_cell(cell);
+	for (const auto &row : grid.rows) {
+		for (const mao::NoteCell &cell : row)
+			append_cell(cell);
+	}
+	return text.empty() ? "--" : text;
+}
+
 std::string active_drum_list(const mao::AnalysisSnapshot &snapshot)
 {
 	std::string text;
@@ -647,6 +668,7 @@ void print_attribute_header(std::ostream &out)
 	    << "\tdetected_expected_row\tdetected_anywhere\texpected_level"
 	    << "\tdisplay_note\tdisplay_midi\tdisplay_delta"
 	    << "\tbass_level\tpiano_level\tguitar_level\tvocal_level\tother_level\tamb_level"
+	    << "\tbass_notes\tpiano_notes\tguitar_notes\tvocal_notes\tother_notes\tamb_notes"
 	    << "\tbass_label\tpiano_label\tguitar_label\tvocal_label\tother_label"
 	    << "\tglobal_chord\tkeyboard_chord\tguitar_chord\tother_chord"
 	    << "\trms\tlow\tmid\thigh"
@@ -679,6 +701,12 @@ void append_snapshot_attribute_fields(std::ostringstream &line, const mao::Analy
 	append_tsv(line, grid_pitch_class_level(snapshot.vocal_notes, expected_midi));
 	append_tsv(line, grid_pitch_class_level(snapshot.other_notes, expected_midi));
 	append_tsv(line, grid_pitch_class_level(snapshot.ambiguous_notes, expected_midi));
+	append_tsv(line, grid_debug_label(snapshot.bass_notes));
+	append_tsv(line, grid_debug_label(snapshot.keyboard_notes));
+	append_tsv(line, grid_debug_label(snapshot.guitar_notes));
+	append_tsv(line, grid_debug_label(snapshot.vocal_notes));
+	append_tsv(line, grid_debug_label(snapshot.other_notes));
+	append_tsv(line, grid_debug_label(snapshot.ambiguous_notes));
 	append_tsv(line, snapshot.bass.label);
 	append_tsv(line, snapshot.keyboard.label);
 	append_tsv(line, snapshot.guitar.label);
