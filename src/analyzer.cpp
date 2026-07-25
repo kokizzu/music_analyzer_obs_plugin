@@ -7460,7 +7460,8 @@ void prefer_supported_lower_octave_display(NoteGrid &grid, InstrumentState &stat
 
 void prefer_visible_lower_octave_primary(NoteGrid &grid, InstrumentState &state, int min_midi,
 					 float relative_floor, int preferred_root,
-					 float absolute_floor = 0.24f)
+					 float absolute_floor = 0.24f,
+					 int deep_low_promotion_floor = kFirstMidi)
 {
 	min_midi = std::max(min_midi, kFirstMidi);
 	bool changed = false;
@@ -7482,6 +7483,8 @@ void prefer_visible_lower_octave_primary(NoteGrid &grid, InstrumentState &state,
 			primary = display;
 		for (const NoteCell &cell : active_cells) {
 			if (cell.midi >= primary.midi || cell.midi < min_midi)
+				continue;
+			if (cell.midi < deep_low_promotion_floor && primary.midi - cell.midi > 12)
 				continue;
 			if (cell.level < std::max(absolute_floor, primary.level * relative_floor))
 				continue;
@@ -15464,7 +15467,7 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 							      kOtherMinMidi, 52, -1);
 		else
 			prefer_visible_lower_octave_primary(snapshot.other_notes, snapshot.other, kOtherMinMidi,
-							   0.20f, -1, 0.08f);
+							   0.20f, -1, 0.08f, 52);
 		smooth_note_grid_envelope(other_chord_grid, other_chord_note_state, other_chord_note_tracking_,
 					  -1, interval_seconds, other_max_notes, other_new_notes,
 					  kNoteAttackConfirmFrames,

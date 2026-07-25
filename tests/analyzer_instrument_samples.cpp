@@ -1116,7 +1116,9 @@ bool expects_full_mix_other_primary_octave_recovery(const std::string &suite_fam
 		 (row.program_name == "cello" && row.note == "G4"))) ||
 	       (suite_family == "synth" &&
 		((row.program_name == "metallic_pad" && row.note == "G3") ||
-		 (row.program_name == "square_lead" && row.note == "C2")));
+		 (row.program_name == "square_lead" && (row.note == "C2" || row.note == "C5")) ||
+		 (row.program_name == "saw_lead" && row.note == "C5") ||
+		 (row.program_name == "warm_pad" && row.note == "C5")));
 }
 
 bool expects_full_mix_other_recovery(const std::string &suite_family, const SampleRow &row)
