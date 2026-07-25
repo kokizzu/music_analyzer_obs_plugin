@@ -8119,6 +8119,82 @@ bool full_mix_debug_guitar_note_supported(const FullMixOwnership &ownership, int
 	return false;
 }
 
+float full_mix_debug_keyboard_note_score(const FullMixOwnership &ownership, int midi)
+{
+	const std::size_t debug_count =
+		std::min<std::size_t>(ownership.debug_candidate_count, ownership.debug_candidates.size());
+	float best = -1.0f;
+	for (std::size_t i = 0; i < debug_count; ++i) {
+		const FullMixDebugCandidate &debug = ownership.debug_candidates[i];
+		if (debug.midi != midi)
+			continue;
+		if (debug.owner != InstrumentKind::Keyboard || debug.keyboard_score < 0.68f)
+			continue;
+		if (debug.ownership_confidence < 0.68f && debug.spectral_level < 0.28f)
+			continue;
+		const float raw_level = ownership_global_note_level(ownership, debug.midi);
+		if (raw_level < 0.08f && debug.spectral_level < 0.24f)
+			continue;
+		best = std::max(best, debug.ownership_confidence);
+	}
+	return best;
+}
+
+void prefer_debug_supported_keyboard_octave_primary(NoteGrid &grid, InstrumentState &state,
+						    const FullMixOwnership &ownership,
+						    int preferred_root)
+{
+	bool changed = false;
+	const std::size_t debug_count =
+		std::min<std::size_t>(ownership.debug_candidate_count, ownership.debug_candidates.size());
+	for (int pitch_class = 0; pitch_class < 12; ++pitch_class) {
+		NoteCell primary = {};
+		for (const auto &row : grid.rows) {
+			if (row[pitch_class].active) {
+				primary = row[pitch_class];
+				break;
+			}
+		}
+		if (!primary.active)
+			continue;
+		const float primary_debug_score =
+			std::max(0.0f, full_mix_debug_keyboard_note_score(ownership, primary.midi));
+
+		int supported_midi = -1;
+		float supported_level = 0.0f;
+		float supported_debug_score = 0.0f;
+		for (std::size_t i = 0; i < debug_count; ++i) {
+			const FullMixDebugCandidate &debug = ownership.debug_candidates[i];
+			if (debug.midi < kKeyboardMinMidi || debug.midi > kKeyboardMaxMidi ||
+			    midi_pitch_class(debug.midi) != pitch_class)
+				continue;
+			const float debug_score = full_mix_debug_keyboard_note_score(ownership, debug.midi);
+			if (debug_score < primary_debug_score + 0.025f)
+				continue;
+			const float visible_level = note_grid_midi_level(grid, debug.midi);
+			if (visible_level <= 0.0f)
+				continue;
+			const float score = std::max(visible_level, ownership_global_note_level(ownership, debug.midi));
+			if (supported_midi < 0 || debug_score > supported_debug_score ||
+			    (debug_score == supported_debug_score && score > supported_level) ||
+			    (debug_score == supported_debug_score && score == supported_level &&
+			     std::abs(debug.midi - primary.midi) < std::abs(supported_midi - primary.midi))) {
+				supported_midi = debug.midi;
+				supported_level = score;
+				supported_debug_score = debug_score;
+			}
+		}
+		if (supported_midi < 0 || supported_midi == primary.midi)
+			continue;
+		changed = promote_note_grid_primary_midi(grid, supported_midi,
+							 std::max(supported_level, primary.level)) ||
+			  changed;
+	}
+
+	if (changed)
+		write_note_grid_label(state, grid, preferred_root);
+}
+
 void promote_low_guitar_display_fundamentals(NoteGrid &display_grid, InstrumentState &display_state,
 					     const NoteGrid &analysis_grid, int preferred_root)
 {
@@ -15063,6 +15139,10 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 		if (!mixed_source)
 			prefer_supported_lower_octave_display(snapshot.keyboard_notes, snapshot.keyboard,
 							      note_powers, kKeyboardMinMidi, 52, -1);
+		else
+			prefer_debug_supported_keyboard_octave_primary(snapshot.keyboard_notes,
+								       snapshot.keyboard,
+								       full_mix_ownership, -1);
 		smooth_note_grid_envelope(keyboard_chord_grid, keyboard_chord_note_state, keyboard_chord_note_tracking_,
 					  -1, interval_seconds, mixed_source ? 8 : 10, keyboard_new_notes,
 					  kNoteAttackConfirmFrames,

@@ -1067,6 +1067,16 @@ bool expects_full_mix_bass_primary_octave_recovery(const std::string &suite_fami
 	       (row.note == "G3" || row.note == "B3" || row.note == "C4" || row.note == "E4");
 }
 
+bool expects_full_mix_keyboard_primary_octave_recovery(const std::string &suite_family,
+						       const SampleRow &row)
+{
+	return suite_family == "piano" &&
+	       ((row.program_name == "acoustic_grand" && row.note == "E2") ||
+		(row.program_name == "bright_acoustic" && row.note == "G2") ||
+		(row.program_name == "electric_piano_1" && row.note == "G3") ||
+		(row.program_name == "harpsichord" && row.note == "G5"));
+}
+
 bool expects_full_mix_guitar_primary_octave_recovery(const std::string &suite_family,
 						     const SampleRow &row)
 {
@@ -1163,6 +1173,8 @@ void check_instrument_samples(Runner &runner, const std::string &root, std::ostr
 					expects_full_mix_vocal_display_octave_recovery(family, row);
 				const bool expect_full_mix_bass_primary =
 					expects_full_mix_bass_primary_octave_recovery(family, row);
+				const bool expect_full_mix_keyboard_primary =
+					expects_full_mix_keyboard_primary_octave_recovery(family, row);
 				const bool expect_full_mix_guitar_primary =
 					expects_full_mix_guitar_primary_octave_recovery(family, row);
 				const bool expect_full_mix_other_primary =
@@ -1173,8 +1185,8 @@ void check_instrument_samples(Runner &runner, const std::string &root, std::ostr
 				bool full_mix_anywhere = false;
 				if (attribute_out || expect_full_mix_vocal || expect_full_mix_vocal_primary ||
 				    expect_full_mix_vocal_display || expect_full_mix_bass_primary ||
-				    expect_full_mix_guitar_primary || expect_full_mix_other_primary ||
-				    expect_full_mix_other) {
+				    expect_full_mix_keyboard_primary || expect_full_mix_guitar_primary ||
+				    expect_full_mix_other_primary || expect_full_mix_other) {
 					full_mix_snapshot =
 						analyze_buffer(buffer, sample_rate, mao::AnalysisInputMode::FullMix,
 							       family.c_str(), window_seconds);
@@ -1221,6 +1233,15 @@ void check_instrument_samples(Runner &runner, const std::string &root, std::ostr
 						      context +
 							      ": expected full-mix bass primary octave recovery, got `" +
 							      grid_debug_label(full_mix_snapshot.bass_notes) + "`");
+				}
+				if (expect_full_mix_keyboard_primary) {
+					const int primary_midi =
+						grid_primary_pitch_class_midi(full_mix_snapshot.keyboard_notes,
+									      row.midi);
+					runner.expect(primary_midi == row.midi,
+						      context +
+							      ": expected full-mix keyboard primary octave recovery, got `" +
+							      grid_debug_label(full_mix_snapshot.keyboard_notes) + "`");
 				}
 				if (expect_full_mix_guitar_primary) {
 					const int primary_midi =
