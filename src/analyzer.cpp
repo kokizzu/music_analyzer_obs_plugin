@@ -1423,7 +1423,7 @@ void restore_full_mix_low_other_from_bass(FullMixOwnership &ownership,
 					  const std::array<float, kNoteProbeCount> &powers,
 					  int bass_midi)
 {
-	if (bass_midi < kGuitarMinMidi || bass_midi > kDefaultBassMaxMidi ||
+	if (bass_midi < kOtherMinMidi || bass_midi > kDefaultBassMaxMidi ||
 	    full_mix_row_midi_active(ownership.other, bass_midi))
 		return;
 
@@ -1437,11 +1437,19 @@ void restore_full_mix_low_other_from_bass(FullMixOwnership &ownership,
 	const float upper_major_third = probe_level(powers, bass_midi + 28);
 	const float upper_stack = fifth + second_octave + upper_major_third;
 	const bool low_bowed_string_stack =
+		bass_midi >= kGuitarMinMidi &&
 		octave <= fundamental * 0.34f &&
 		upper_stack >= fundamental * 0.20f &&
 		(fifth >= fundamental * 0.070f || second_octave >= fundamental * 0.065f) &&
 		upper_major_third <= fundamental * 0.18f;
-	if (!low_bowed_string_stack)
+	const bool sub_low_bowed_string_stack =
+		bass_midi >= 36 &&
+		bass_midi < kGuitarMinMidi &&
+		octave <= fundamental * 0.34f &&
+		upper_stack >= fundamental * 0.16f &&
+		(fifth >= fundamental * 0.055f || second_octave >= fundamental * 0.050f) &&
+		upper_major_third <= fundamental * 0.20f;
+	if (!low_bowed_string_stack && !sub_low_bowed_string_stack)
 		return;
 
 	const float display_level =
@@ -1451,7 +1459,7 @@ void restore_full_mix_low_other_from_bass(FullMixOwnership &ownership,
 	candidate.score =
 		capped_restored_low_owner_score(ownership.other_candidates, bass_midi,
 						display_level * display_level);
-	candidate.ownership_confidence = 0.42f;
+	candidate.ownership_confidence = sub_low_bowed_string_stack ? 0.50f : 0.42f;
 	ownership.other[static_cast<std::size_t>(bass_midi - kFirstMidi)] = true;
 	ownership.other_candidates.push_back(candidate);
 }
