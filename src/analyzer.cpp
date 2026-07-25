@@ -7210,6 +7210,36 @@ int note_grid_active_pitch_class_count(const NoteGrid &grid)
 	return count;
 }
 
+bool note_grid_has_midi(const NoteGrid &grid, int midi)
+{
+	if (midi < kFirstMidi || midi > kLastMidi)
+		return false;
+	for (const auto &row : grid.rows) {
+		for (const NoteCell &cell : row) {
+			if (cell.active && cell.midi == midi)
+				return true;
+		}
+	}
+	return false;
+}
+
+float note_grid_midi_level(const NoteGrid &grid, int midi)
+{
+	if (midi < kFirstMidi || midi > kLastMidi)
+		return 0.0f;
+	const int pitch_class = ((midi % 12) + 12) % 12;
+	float level = 0.0f;
+	if (grid.cells[pitch_class].active && grid.cells[pitch_class].midi == midi)
+		level = std::max(level, grid.cells[pitch_class].level);
+	for (const auto &row : grid.rows) {
+		for (const NoteCell &cell : row) {
+			if (cell.active && cell.midi == midi)
+				level = std::max(level, cell.level);
+		}
+	}
+	return level;
+}
+
 int lowest_note_grid_pitch_class(const NoteGrid &grid)
 {
 	int lowest_midi = kLastMidi + 1;
@@ -7674,6 +7704,50 @@ float note_grid_pitch_level(const NoteGrid &grid, int pitch_class)
 			level = std::max(level, row[pitch_class].level);
 	}
 	return level;
+}
+
+void promote_low_guitar_display_fundamentals(NoteGrid &display_grid, InstrumentState &display_state,
+					     const NoteGrid &analysis_grid, int preferred_root)
+{
+	if (note_grid_active_pitch_class_count(display_grid) > 8)
+		return;
+
+	bool changed = false;
+	for (int midi = kGuitarMinMidi; midi <= 52; ++midi) {
+		if (note_grid_has_midi(display_grid, midi))
+			continue;
+
+		const float analysis_level = note_grid_midi_level(analysis_grid, midi);
+		if (analysis_level < 0.050f)
+			continue;
+
+		float strongest_visible_octave = 0.0f;
+		int visible_octave_count = 0;
+		for (int octave_midi = midi + 12; octave_midi <= kGuitarMaxMidi; octave_midi += 12) {
+			const float octave_level = note_grid_midi_level(display_grid, octave_midi);
+			if (octave_level <= 0.0f)
+				continue;
+			strongest_visible_octave = std::max(strongest_visible_octave, octave_level);
+			if (octave_level >= 0.20f)
+				++visible_octave_count;
+		}
+
+		if (strongest_visible_octave < 0.75f || visible_octave_count < 1)
+			continue;
+
+		const float promote_level = std::max(strongest_visible_octave, 0.80f);
+		write_note_grid_cell(display_grid, NoteCandidate{midi, promote_level}, 1.0f, 1.0f);
+		const int pitch_class = ((midi % 12) + 12) % 12;
+		NoteCell &primary = display_grid.cells[pitch_class];
+		write_octave(primary.label, sizeof(primary.label), midi);
+		primary.level = 1.0f;
+		primary.midi = midi;
+		primary.active = true;
+		changed = true;
+	}
+
+	if (changed)
+		write_note_grid_label(display_state, display_grid, preferred_root);
 }
 
 bool note_grid_pitch_active(const NoteGrid &grid, int pitch_class)
@@ -14642,6 +14716,8 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 				     mixed_source ? kNoteRmsFloor : kPolyphonicNoteRmsFloor);
 		stabilize_chord(snapshot.guitar_chord, guitar_chord_tracking_, raw_guitar_chord,
 				smoothed_guitar_chord, true, interval_seconds);
+		promote_low_guitar_display_fundamentals(snapshot.guitar_notes, snapshot.guitar,
+							snapshot.guitar_chord_analysis_notes, -1);
 	} else {
 		reset_note_grid_envelope(snapshot.guitar_notes, snapshot.guitar, guitar_note_tracking_);
 		reset_note_grid_envelope(guitar_chord_grid, guitar_chord_note_state, guitar_chord_note_tracking_);

@@ -1983,6 +1983,30 @@ void check_distorted_midi_guitar_timbre(Runner &runner)
 	expect_no_drums(runner, snapshot, "distorted MIDI guitar timbre");
 }
 
+void check_isolated_guitar_octave_harmonic_display(Runner &runner)
+{
+	mao_test::Buffer buffer = {};
+	const std::vector<float> octave_dominant_guitar_profile = {0.12f, 1.0f, 0.010f, 0.82f, 0.10f};
+	add_harmonic_note(buffer, 40, 0.24f, octave_dominant_guitar_profile);
+
+	const auto snapshot = analyze_buffer(buffer, "guitar");
+	expect_note_token(runner, snapshot.guitar.label, "E2", "isolated guitar octave harmonic display");
+	runner.expect(grid_level_for_midi(snapshot.guitar_notes, 40) > 0.0f,
+		      std::string("isolated guitar octave harmonic display: expected E2 row, got `") +
+			      snapshot.guitar.label + "` notes `" + note_grid_active_labels(snapshot.guitar_notes) +
+			      "` analysis `" +
+			      note_grid_active_labels(snapshot.guitar_chord_analysis_notes) + "` smoothed `" +
+			      note_grid_active_labels(snapshot.guitar_chord_smoothed_notes) + "`");
+	const int pitch_class = 40 % 12;
+	runner.expect(snapshot.guitar_notes.cells[pitch_class].active &&
+			      snapshot.guitar_notes.cells[pitch_class].midi == 40,
+		      std::string("isolated guitar octave harmonic display: expected E2 primary cell, got `") +
+			      snapshot.guitar.label + "` notes `" + note_grid_active_labels(snapshot.guitar_notes) +
+			      "` analysis `" +
+			      note_grid_active_labels(snapshot.guitar_chord_analysis_notes) + "` smoothed `" +
+			      note_grid_active_labels(snapshot.guitar_chord_smoothed_notes) + "`");
+}
+
 void check_spillover_regressions(Runner &runner)
 {
 	{
@@ -5198,6 +5222,7 @@ int main()
 	check_real_drum_track_tom_bleed_suppression(runner);
 	check_same_instrument_timbre_variants(runner);
 	check_distorted_midi_guitar_timbre(runner);
+	check_isolated_guitar_octave_harmonic_display(runner);
 	check_spillover_regressions(runner);
 	check_high_full_mix_cluster_not_vocal_or_other(runner);
 	check_full_mix_single_instrument_precision(runner);
