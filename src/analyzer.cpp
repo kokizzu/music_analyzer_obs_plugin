@@ -7325,6 +7325,70 @@ void prefer_supported_lower_octave_display(NoteGrid &grid, InstrumentState &stat
 		write_note_grid_label(state, grid, preferred_root);
 }
 
+void prefer_visible_lower_octave_primary(NoteGrid &grid, InstrumentState &state, int min_midi,
+					 float relative_floor, int preferred_root)
+{
+	min_midi = std::max(min_midi, kFirstMidi);
+	bool changed = false;
+
+	for (int pitch_class = 0; pitch_class < 12; ++pitch_class) {
+		FixedList<NoteCell, kNoteRowCount> active_cells;
+		for (const auto &row : grid.rows) {
+			const NoteCell &cell = row[pitch_class];
+			if (cell.active && cell.midi >= kFirstMidi && cell.midi <= kLastMidi)
+				active_cells.push_back(cell);
+		}
+		if (active_cells.empty())
+			continue;
+
+		const NoteCell primary = active_cells.front();
+		const int lower_midi = primary.midi - 12;
+		if (lower_midi < min_midi)
+			continue;
+
+		NoteCell lower = {};
+		for (const NoteCell &cell : active_cells) {
+			if (cell.midi == lower_midi) {
+				lower = cell;
+				break;
+			}
+		}
+		if (!lower.active)
+			continue;
+		if (lower.level < std::max(0.24f, primary.level * relative_floor))
+			continue;
+
+		lower.level = std::max(lower.level, primary.level);
+		std::array<NoteCell, kNoteRowCount> reordered = {};
+		reordered[0] = lower;
+		std::size_t write = 1;
+		std::array<bool, kNoteRowCount> used = {};
+		while (write < reordered.size()) {
+			std::size_t best = active_cells.size();
+			for (std::size_t i = 0; i < active_cells.size(); ++i) {
+				if (used[i] || active_cells[i].midi == lower.midi)
+					continue;
+				if (best == active_cells.size() || active_cells[i].level > active_cells[best].level ||
+				    (active_cells[i].level == active_cells[best].level &&
+				     active_cells[i].midi < active_cells[best].midi))
+					best = i;
+			}
+			if (best == active_cells.size())
+				break;
+			used[best] = true;
+			reordered[write++] = active_cells[best];
+		}
+
+		for (std::size_t row = 0; row < grid.rows.size(); ++row)
+			grid.rows[row][pitch_class] = reordered[row];
+		grid.cells[pitch_class] = lower;
+		changed = true;
+	}
+
+	if (changed)
+		write_note_grid_label(state, grid, preferred_root);
+}
+
 int lowest_note_grid_pitch_class(const NoteGrid &grid)
 {
 	int lowest_midi = kLastMidi + 1;
@@ -14571,6 +14635,9 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 		if (!mixed_source)
 			prefer_supported_lower_octave_display(snapshot.guitar_notes, snapshot.guitar, note_powers,
 							      kGuitarMinMidi, 52, -1);
+		else
+			prefer_visible_lower_octave_primary(snapshot.guitar_notes, snapshot.guitar,
+							   kGuitarMinMidi, 0.55f, -1);
 		smooth_note_grid_envelope(guitar_chord_grid, guitar_chord_note_state, guitar_chord_note_tracking_,
 					  -1, interval_seconds, mixed_source ? 6 : 12, guitar_new_notes,
 					  kNoteAttackConfirmFrames,
@@ -14826,6 +14893,9 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 		if (!mixed_source)
 			prefer_supported_lower_octave_display(snapshot.vocal_notes, snapshot.vocal, note_powers,
 							      kVocalMinMidi, 64, -1);
+		else
+			prefer_visible_lower_octave_primary(snapshot.vocal_notes, snapshot.vocal, kVocalMinMidi,
+							   0.72f, -1);
 	} else {
 		reset_note_grid_envelope(snapshot.vocal_notes, snapshot.vocal, vocal_note_tracking_);
 	}

@@ -263,6 +263,16 @@ bool grid_pitch_active(const mao::NoteGrid &grid, int pitch_class)
 	return false;
 }
 
+int grid_primary_midi_for_pitch(const mao::NoteGrid &grid, int pitch_class)
+{
+	pitch_class = ((pitch_class % 12) + 12) % 12;
+	for (const auto &row : grid.rows) {
+		if (row[pitch_class].active)
+			return row[pitch_class].midi;
+	}
+	return -1;
+}
+
 std::string note_grid_pitch_classes(const mao::NoteGrid &grid)
 {
 	std::string out;
@@ -2729,6 +2739,11 @@ void check_full_mix_single_instrument_precision(Runner &runner)
 					  "display, got guitar `") +
 				      snapshot.guitar.label + "`, vocal `" + snapshot.vocal.label +
 				      "`, other `" + snapshot.other.label + "`");
+		runner.expect(grid_primary_midi_for_pitch(snapshot.guitar_notes, 4) == 52,
+			      std::string("full-mix octave-dominant acoustic guitar: expected E3 primary "
+					  "row, got guitar `") +
+				      snapshot.guitar.label + "` notes `" +
+				      note_grid_active_labels(snapshot.guitar_notes) + "`");
 	}
 
 	{
