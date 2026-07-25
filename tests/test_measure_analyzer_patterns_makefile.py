@@ -328,11 +328,6 @@ def main() -> int:
         assert '> "$@"' in row_dump_recipe, f"{target} must write to its file target"
 
     source_attribute_targets = {
-        "$(BUILD_DIR)/real_note_full_mix_attributes.tsv": (
-            "$(BUILD_DIR)/analyzer_real_note_samples",
-            "MUSIC_ANALYZER_REAL_NOTE_ATTRIBUTE_TSV=\"$@\"",
-            "real_note_full_mix_attributes.out",
-        ),
         "$(BUILD_DIR)/guitar_chord_mix_attributes.tsv": (
             "$(BUILD_DIR)/analyzer_guitarset",
             "MUSIC_ANALYZER_GUITARSET_ATTRIBUTE_TSV=\"$@\"",
@@ -345,14 +340,45 @@ def main() -> int:
             assert text in source_recipe, f"{target} must include {text}"
         assert "| $(BUILD_DIR)" in source_recipe, f"{target} must create output under the build dir"
 
+    real_note_attribute_recipe = target_recipe(makefile, "$(BUILD_DIR)/real_note_full_mix_attributes.tsv")
+    assert "REAL_NOTE_FULL_MIX_ATTRIBUTE_MAKE_JOBS = $(if $(filter -j%,$(MAKEFLAGS)),,-j$(REAL_NOTE_FULL_MIX_SHARDS))" in makefile, (
+        "real-note attribute shards must force -j only when the parent make has no jobserver"
+    )
+    assert "$(BUILD_DIR)/analyzer_real_note_samples" in real_note_attribute_recipe.splitlines()[0], (
+        "real-note attribute TSV must rebuild when the analyzer binary changes"
+    )
+    assert "$(MAKE) $(REAL_NOTE_FULL_MIX_ATTRIBUTE_MAKE_JOBS) $(REAL_NOTE_FULL_MIX_ATTRIBUTE_PARTS)" in real_note_attribute_recipe, (
+        "real-note attribute TSV must build shard parts in parallel even when top-level make is serial"
+    )
+    assert "awk 'FNR == 1 && NR != 1 { next } { print }'" in real_note_attribute_recipe, (
+        "real-note attribute TSV must concatenate shard rows while dropping duplicate headers"
+    )
+    real_note_attribute_shard_recipe = target_recipe(
+        makefile, "$(BUILD_DIR)/real_note_full_mix_attributes.shard-%.tsv"
+    )
+    for text in [
+        "$(BUILD_DIR)/analyzer_real_note_samples",
+        "MUSIC_ANALYZER_REAL_NOTE_FULL_MIX=1",
+        "MUSIC_ANALYZER_REAL_NOTE_ATTRIBUTE_TSV=\"$@\"",
+        "MUSIC_ANALYZER_REAL_NOTE_SHARD_COUNT=\"$(REAL_NOTE_FULL_MIX_SHARDS)\"",
+        "MUSIC_ANALYZER_REAL_NOTE_SHARD_INDEX=\"$*\"",
+        "real_note_full_mix_attributes.shard-$*.out",
+    ]:
+        assert text in real_note_attribute_shard_recipe, (
+            f"real-note attribute shard target must include {text}"
+        )
+
     instrument_attribute_recipe = target_recipe(makefile, "$(BUILD_DIR)/instrument_sample_attributes.tsv")
+    assert "INSTRUMENT_SAMPLE_ATTRIBUTE_MAKE_JOBS = $(if $(filter -j%,$(MAKEFLAGS)),,-j$(INSTRUMENT_SAMPLE_SHARDS))" in makefile, (
+        "instrument attribute shards must force -j only when the parent make has no jobserver"
+    )
     assert "$(BUILD_DIR)/analyzer_instrument_samples" in instrument_attribute_recipe.splitlines()[0], (
         "instrument attribute TSV must rebuild when the analyzer binary changes"
     )
     assert "$(INSTRUMENT_SAMPLE_MANIFEST_STAMP)" in instrument_attribute_recipe.splitlines()[0], (
         "instrument attribute TSV must share the prepared manifest stamp"
     )
-    assert "$(MAKE) -j$(INSTRUMENT_SAMPLE_SHARDS) $(INSTRUMENT_SAMPLE_ATTRIBUTE_PARTS)" in instrument_attribute_recipe, (
+    assert "$(MAKE) $(INSTRUMENT_SAMPLE_ATTRIBUTE_MAKE_JOBS) $(INSTRUMENT_SAMPLE_ATTRIBUTE_PARTS)" in instrument_attribute_recipe, (
         "instrument attribute TSV must build shard parts in parallel even when top-level make is serial"
     )
     assert "awk 'FNR == 1 && NR != 1 { next } { print }'" in instrument_attribute_recipe, (
