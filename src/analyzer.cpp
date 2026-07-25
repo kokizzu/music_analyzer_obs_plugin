@@ -5256,6 +5256,96 @@ NoteCandidateList prune_shadowed_full_mix_guitar_display_candidates(const FullMi
 	return pruned;
 }
 
+void prefer_supported_lower_octave_candidates(NoteCandidateList &candidates, int min_midi,
+					      float relative_floor, float global_floor)
+{
+	float global_best = 0.0f;
+	for (const NoteCandidate &candidate : candidates)
+		global_best = std::max(global_best, candidate.score);
+	if (global_best <= 1.0e-6f)
+		return;
+
+	for (int pitch_class = 0; pitch_class < 12; ++pitch_class) {
+		float best_score = 0.0f;
+		int best_midi = -1;
+		for (const NoteCandidate &candidate : candidates) {
+			if (candidate.midi < min_midi || midi_pitch_class(candidate.midi) != pitch_class)
+				continue;
+			if (candidate.score > best_score) {
+				best_score = candidate.score;
+				best_midi = candidate.midi;
+			}
+		}
+		if (best_midi < 0)
+			continue;
+
+		NoteCandidate *lowest_supported = nullptr;
+		for (NoteCandidate &candidate : candidates) {
+			if (candidate.midi < min_midi || candidate.midi >= best_midi ||
+			    midi_pitch_class(candidate.midi) != pitch_class)
+				continue;
+			if (candidate.score < best_score * relative_floor ||
+			    candidate.score < global_best * global_floor)
+				continue;
+			if (!lowest_supported || candidate.midi < lowest_supported->midi)
+				lowest_supported = &candidate;
+		}
+		if (!lowest_supported)
+			continue;
+		lowest_supported->score = std::max(lowest_supported->score, best_score * 1.06f);
+	}
+}
+
+void restore_supported_lower_guitar_debug_candidates(NoteCandidateList &candidates,
+						     const FullMixOwnership &ownership)
+{
+	float global_best = strongest_candidate_score(candidates);
+	if (global_best <= 1.0e-6f)
+		global_best = 1.0f;
+
+	const std::size_t debug_count =
+		std::min<std::size_t>(ownership.debug_candidate_count, ownership.debug_candidates.size());
+	for (std::size_t i = 0; i < debug_count; ++i) {
+		const FullMixDebugCandidate &debug = ownership.debug_candidates[i];
+		if (debug.midi < kGuitarMinMidi || debug.midi > kGuitarMaxMidi)
+			continue;
+		if (debug.owner != InstrumentKind::Guitar || debug.guitar_score < 0.70f)
+			continue;
+		if (debug.ownership_confidence < 0.70f && debug.spectral_level < 0.34f)
+			continue;
+
+		float strongest_upper = 0.0f;
+		for (const NoteCandidate &candidate : candidates) {
+			if (candidate.midi <= debug.midi || midi_pitch_class(candidate.midi) != midi_pitch_class(debug.midi))
+				continue;
+			strongest_upper = std::max(strongest_upper, candidate.score);
+		}
+		if (strongest_upper <= 1.0e-6f)
+			continue;
+
+		const float raw_level = ownership_global_note_level(ownership, debug.midi);
+		if (raw_level < 0.16f && debug.spectral_level < 0.30f)
+			continue;
+
+		const float restored_score = std::max(strongest_upper * 1.06f, global_best * 0.30f);
+		bool exists = false;
+		for (NoteCandidate &candidate : candidates) {
+			if (candidate.midi != debug.midi)
+				continue;
+			candidate.score = std::max(candidate.score, restored_score);
+			candidate.ownership_confidence = std::max(candidate.ownership_confidence, 0.72f);
+			exists = true;
+		}
+		if (!exists) {
+			NoteCandidate candidate;
+			candidate.midi = debug.midi;
+			candidate.score = restored_score;
+			candidate.ownership_confidence = 0.72f;
+			candidates.push_back(candidate);
+		}
+	}
+}
+
 bool full_mix_debug_bass_display_supported(const FullMixDebugCandidate &debug)
 {
 	if (debug.midi < kBassMinMidi || debug.midi > kBassMaxMidi + 12)
@@ -7384,21 +7474,18 @@ void prefer_visible_lower_octave_primary(NoteGrid &grid, InstrumentState &state,
 		if (active_cells.empty())
 			continue;
 
-		const NoteCell primary = active_cells.front();
-		const int lower_midi = primary.midi - 12;
-		if (lower_midi < min_midi)
-			continue;
-
 		NoteCell lower = {};
+		const NoteCell primary = active_cells.front();
 		for (const NoteCell &cell : active_cells) {
-			if (cell.midi == lower_midi) {
+			if (cell.midi >= primary.midi || cell.midi < min_midi)
+				continue;
+			if (cell.level < std::max(0.24f, primary.level * relative_floor))
+				continue;
+			if (!lower.active || cell.midi < lower.midi) {
 				lower = cell;
-				break;
 			}
 		}
 		if (!lower.active)
-			continue;
-		if (lower.level < std::max(0.24f, primary.level * relative_floor))
 			continue;
 
 		lower.level = std::max(lower.level, primary.level);
@@ -7940,6 +8027,67 @@ void promote_low_guitar_display_fundamentals(NoteGrid &display_grid, InstrumentS
 
 	if (changed)
 		write_note_grid_label(display_state, display_grid, preferred_root);
+}
+
+void promote_guitar_debug_lower_octave_primary(NoteGrid &grid, InstrumentState &state,
+					       const FullMixOwnership &ownership, int preferred_root)
+{
+	bool changed = false;
+	const std::size_t debug_count =
+		std::min<std::size_t>(ownership.debug_candidate_count, ownership.debug_candidates.size());
+	for (int pitch_class = 0; pitch_class < 12; ++pitch_class) {
+		NoteCell primary = {};
+		for (const auto &row : grid.rows) {
+			if (row[pitch_class].active) {
+				primary = row[pitch_class];
+				break;
+			}
+		}
+		if (!primary.active)
+			continue;
+
+		const FullMixDebugCandidate *lower = nullptr;
+		for (std::size_t i = 0; i < debug_count; ++i) {
+			const FullMixDebugCandidate &debug = ownership.debug_candidates[i];
+			if (debug.midi < kGuitarMinMidi || debug.midi >= primary.midi ||
+			    midi_pitch_class(debug.midi) != pitch_class)
+				continue;
+			if (debug.owner != InstrumentKind::Guitar || debug.guitar_score < 0.70f)
+				continue;
+			if (debug.ownership_confidence < 0.70f && debug.spectral_level < 0.34f)
+				continue;
+			const float raw_level = ownership_global_note_level(ownership, debug.midi);
+			if (raw_level < 0.16f && debug.spectral_level < 0.30f)
+				continue;
+			if (!lower || debug.midi < lower->midi)
+				lower = &debug;
+		}
+		if (!lower)
+			continue;
+
+		NoteCell promoted = {};
+		write_octave(promoted.label, sizeof(promoted.label), lower->midi);
+		promoted.level = std::max(primary.level, ownership_global_note_level(ownership, lower->midi));
+		promoted.midi = lower->midi;
+		promoted.active = true;
+
+		std::array<NoteCell, kNoteRowCount> reordered = {};
+		reordered[0] = promoted;
+		std::size_t write = 1;
+		for (const auto &row : grid.rows) {
+			const NoteCell &cell = row[pitch_class];
+			if (!cell.active || cell.midi == promoted.midi || write >= reordered.size())
+				continue;
+			reordered[write++] = cell;
+		}
+		for (std::size_t row = 0; row < grid.rows.size(); ++row)
+			grid.rows[row][pitch_class] = reordered[row];
+		grid.cells[pitch_class] = promoted;
+		changed = true;
+	}
+
+	if (changed)
+		write_note_grid_label(state, grid, preferred_root);
 }
 
 bool note_grid_pitch_active(const NoteGrid &grid, int pitch_class)
@@ -14083,10 +14231,12 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 		const int max_notes = mixed_source ? 6 : 8;
 		if (mixed_source) {
 			preferred_root = lowest_candidate_pitch_class(full_mix_ownership.guitar_candidates);
-			const NoteCandidateList guitar_display =
+			NoteCandidateList guitar_display =
 				prune_shadowed_full_mix_guitar_display_candidates(
 					full_mix_ownership,
 					full_mix_display_candidates(full_mix_ownership, FullMixDisplayRow::Guitar));
+			restore_supported_lower_guitar_debug_candidates(guitar_display, full_mix_ownership);
+			prefer_supported_lower_octave_candidates(guitar_display, kGuitarMinMidi, 0.30f, 0.18f);
 			set_instrument_note_set_from_candidates(snapshot.guitar_notes, snapshot.guitar,
 								guitar_display,
 								preferred_root, guitar_energy, rms, max_notes, 0.22f);
@@ -14429,6 +14579,9 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 				     mixed_source ? kNoteRmsFloor : kPolyphonicNoteRmsFloor);
 		set_instrument_chord(snapshot.guitar_raw_chord, raw_guitar_chord, guitar_energy, rms,
 				     mixed_source ? kNoteRmsFloor : kPolyphonicNoteRmsFloor);
+		if (mixed_source)
+			promote_guitar_debug_lower_octave_primary(snapshot.guitar_notes, snapshot.guitar,
+								  full_mix_ownership, preferred_root);
 	};
 
 	auto process_vocal = [&]() {
@@ -14681,7 +14834,7 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 							      kGuitarMinMidi, 52, -1);
 		else
 			prefer_visible_lower_octave_primary(snapshot.guitar_notes, snapshot.guitar,
-							   kGuitarMinMidi, 0.55f, -1);
+							   kGuitarMinMidi, 0.30f, -1);
 		smooth_note_grid_envelope(guitar_chord_grid, guitar_chord_note_state, guitar_chord_note_tracking_,
 					  -1, interval_seconds, mixed_source ? 6 : 12, guitar_new_notes,
 					  kNoteAttackConfirmFrames,
