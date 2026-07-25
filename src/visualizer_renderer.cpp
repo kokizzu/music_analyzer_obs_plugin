@@ -800,6 +800,34 @@ float note_grid_midi_level(const NoteGrid &notes, int midi)
 	return std::clamp(level, 0.0f, 1.0f);
 }
 
+float note_grid_lower_same_pitch_level(const NoteGrid &notes, int midi)
+{
+	float level = 0.0f;
+	const int pitch_class = ((midi % 12) + 12) % 12;
+	for (const auto &row : notes.rows) {
+		for (const NoteCell &cell : row) {
+			if (!cell.active || cell.midi < 0 || cell.midi >= midi)
+				continue;
+			if (((cell.midi % 12) + 12) % 12 != pitch_class)
+				continue;
+			const int interval = midi - cell.midi;
+			if (interval != 12 && interval != 24 && interval != 36)
+				continue;
+			level = std::max(level, cell.level);
+		}
+	}
+	return std::clamp(level, 0.0f, 1.0f);
+}
+
+float guitar_note_grid_midi_level(const NoteGrid &notes, int midi)
+{
+	const float raw_level = note_grid_midi_level(notes, midi);
+	const float lower_level = note_grid_lower_same_pitch_level(notes, midi);
+	if (raw_level > 0.0f && lower_level >= raw_level * 0.55f)
+		return raw_level * 0.34f;
+	return raw_level;
+}
+
 int fold_midi_to_piano_range(int midi)
 {
 	constexpr int kFirstPianoMidi = 24;
@@ -1066,7 +1094,7 @@ int draw_guitar_fretboard(VisualizerRenderer *visualizer, const VisualLayout &la
 			const int cell_x = layout.note_x + fret * fret_w;
 			const int midi = kOpenMidis[string] + fret;
 			const int pitch_class = ((midi % 12) + 12) % 12;
-			const float raw_level = note_grid_midi_level(notes, midi);
+			const float raw_level = guitar_note_grid_midi_level(notes, midi);
 			const float level = display_highlight_level(raw_level);
 			fill_rect(visualizer, cell_x, cell_y, fret_w - 1, cell_h, fret_bg);
 			if (raw_level > 0.0f) {

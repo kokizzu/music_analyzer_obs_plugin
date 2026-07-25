@@ -83,6 +83,10 @@ def main():
     require("std::fill(visualizer->pixels.begin(), visualizer->pixels.end(), 0)" in renderer,
             "renderer must clear the preallocated pixel buffer without vector reassignment")
     require("history.reserve(64)" in renderer, "renderer must reserve drum-history storage up front")
+    require("guitar_note_grid_midi_level" in renderer and
+            "note_grid_lower_same_pitch_level" in renderer and
+            "const float raw_level = guitar_note_grid_midi_level(notes, midi);" in renderer,
+            "guitar fretboard must attenuate upper same-pitch harmonic markers without changing analyzer state")
 
     require("#pragma GCC diagnostic push" in standalone, "standalone SDL include must be warning-guarded")
     require("#pragma GCC diagnostic pop" in standalone, "standalone SDL include guard must be closed")
