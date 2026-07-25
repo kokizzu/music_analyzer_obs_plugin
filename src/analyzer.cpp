@@ -12888,6 +12888,27 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 			rim_low_mid_body >= 4.5f &&
 			snare_crack >= 1.5f &&
 			snapshot.high_energy <= 0.36f;
+		const bool one_shot_measured_low_crash_rim_tom_recovery =
+			drum_detection_enabled && one_shot_drum_source &&
+			drum_level_[Rim] <= 0.001f &&
+			drum_level_[Tom] >= 0.90f &&
+			drum_level_[Snare] >= 0.70f &&
+			drum_bands[Crash] <= 0.0045f &&
+			tom_kick_band_ratio >= 3.20f &&
+			snapshot.drum_debug_trigger_scores[Rim] >= 10.0f &&
+			snare_crack >= 1.8f &&
+			snapshot.high_energy <= 0.20f;
+		const bool one_shot_measured_low_crash_body_rim_tom_recovery =
+			drum_detection_enabled && one_shot_drum_source &&
+			drum_level_[Rim] <= 0.001f &&
+			drum_level_[Tom] >= 0.98f &&
+			drum_level_[Snare] >= 0.96f &&
+			drum_bands[Crash] <= 0.0045f &&
+			snare_kick_body_ratio >= 4.50f &&
+			snapshot.drum_debug_trigger_scores[Rim] >= 17.0f &&
+			snapshot.drum_debug_trigger_scores[Rim] <= 19.0f &&
+			snare_crack >= 3.5f &&
+			snapshot.high_energy <= 0.16f;
 		const bool one_shot_measured_rim_tom_trigger_recovery =
 			drum_detection_enabled && one_shot_drum_source &&
 			drum_level_[Rim] > 0.30f &&
@@ -12972,6 +12993,8 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 			one_shot_measured_rim_snare_transient_recovery ||
 			one_shot_measured_rim_tom_recovery ||
 			one_shot_measured_low_band_rim_tom_recovery ||
+			one_shot_measured_low_crash_rim_tom_recovery ||
+			one_shot_measured_low_crash_body_rim_tom_recovery ||
 			one_shot_measured_rim_tom_trigger_recovery ||
 			one_shot_measured_rim_tom_low_kick_trigger_recovery ||
 			one_shot_measured_rim_tom_upper_body_recovery ||
