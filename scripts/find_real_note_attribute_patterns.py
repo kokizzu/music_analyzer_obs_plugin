@@ -31,6 +31,7 @@ DEBUG_NUMERIC_FIELDS = [
     "centroid",
     "slope",
     "noise",
+    "third_octave_ratio",
     "partial1",
     "partial2",
     "partial3",
@@ -700,6 +701,7 @@ def format_example(row: dict[str, str]) -> str:
         f" cent={short_float(row, 'centroid')}"
         f" slope={short_float(row, 'slope')}"
         f" noise={short_float(row, 'noise')}"
+        f" third_oct={short_float(row, 'third_octave_ratio')}"
         f" raw={short_float(row, 'raw_expected_ratio')}/{short_float(row, 'raw_tuned_ratio')}"
         f" raw_best={row.get('raw_local_best_note', '')}/{short_float(row, 'raw_local_best_peak')}"
         f" raw_rank={short_float(row, 'raw_expected_rank')}"

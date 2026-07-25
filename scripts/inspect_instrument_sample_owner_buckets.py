@@ -32,6 +32,7 @@ FIELDS = [
     "centroid",
     "slope",
     "noise",
+    "third_octave_ratio",
     "partial2",
     "partial3",
     "partial4",

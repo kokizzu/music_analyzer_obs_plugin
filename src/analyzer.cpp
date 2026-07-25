@@ -555,6 +555,7 @@ struct NoteEvidence {
 	float spectral_centroid = 0.0f;
 	float spectral_slope = 0.0f;
 	float local_noise_level = 0.0f;
+	float third_octave_ratio = 0.0f;
 	std::array<float, 5> harmonic_ratios = {};
 	std::array<float, 5> ownership_scores = {};
 	InstrumentKind owner = InstrumentKind::Ambiguous;
@@ -836,6 +837,11 @@ NoteEvidence build_note_evidence(const std::array<float, kNoteProbeCount> &power
 	const float high_partials = mix.bands[2] + mix.bands[3] + mix.bands[4];
 	evidence.spectral_slope = high_partials / std::max(low_partials, 1.0e-6f);
 	evidence.local_noise_level = local_spectral_noise_ratio(powers, candidate.midi, fundamental);
+	if (candidate.midi + 36 <= kLastMidi) {
+		const float third_octave =
+			std::sqrt(std::max(powers[candidate.midi + 36 - kFirstMidi], 0.0f));
+		evidence.third_octave_ratio = std::clamp(third_octave / fundamental, 0.0f, 1.0f);
+	}
 	const float harmonic_support = std::clamp(harmonic_sum / std::max(fundamental, 1.0e-6f), 0.0f, 1.0f);
 	const float noise_penalty = std::clamp(1.0f - evidence.local_noise_level * 0.45f, 0.35f, 1.0f);
 	const float fit_penalty = std::clamp(1.0f - evidence.harmonic_fit_error * 0.40f, 0.45f, 1.0f);
@@ -1120,6 +1126,7 @@ void append_full_mix_debug_candidate(FullMixOwnership &ownership, const NoteCand
 	debug.spectral_centroid = evidence.spectral_centroid;
 	debug.spectral_slope = evidence.spectral_slope;
 	debug.local_noise_level = evidence.local_noise_level;
+	debug.third_octave_ratio = evidence.third_octave_ratio;
 	debug.harmonic_ratios = evidence.harmonic_ratios;
 	ownership.debug_candidates[ownership.debug_candidate_count++] = debug;
 }

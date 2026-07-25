@@ -95,6 +95,7 @@ struct FullMixDebugCandidate {
 	float spectral_centroid = 0.0f;
 	float spectral_slope = 0.0f;
 	float local_noise_level = 0.0f;
+	float third_octave_ratio = 0.0f;
 	std::array<float, 5> harmonic_ratios = {};
 };
 

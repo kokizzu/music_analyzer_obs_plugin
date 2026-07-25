@@ -858,13 +858,14 @@ void print_attribute_header(std::ostream &out)
 	    << "\tdebug_note\tdebug_midi\tdebug_owner\tdebug_conf"
 	    << "\tbass_score\tkeyboard_score\tguitar_score\tvocal_score\tother_score"
 	    << "\tspectral_level\tpitch_confidence\tperiodicity\tharmonicity\tfit_error"
-	    << "\tcentroid\tslope\tnoise\tpartial1\tpartial2\tpartial3\tpartial4\tpartial5\n";
+	    << "\tcentroid\tslope\tnoise\tthird_octave_ratio"
+	    << "\tpartial1\tpartial2\tpartial3\tpartial4\tpartial5\n";
 }
 
 void append_debug_candidate_fields(std::ostringstream &line, const mao::FullMixDebugCandidate *debug)
 {
 	if (!debug) {
-		for (int i = 0; i < 22; ++i)
+		for (int i = 0; i < 23; ++i)
 			append_tsv(line, "");
 		return;
 	}
@@ -886,6 +887,7 @@ void append_debug_candidate_fields(std::ostringstream &line, const mao::FullMixD
 	append_tsv(line, debug->spectral_centroid);
 	append_tsv(line, debug->spectral_slope);
 	append_tsv(line, debug->local_noise_level);
+	append_tsv(line, debug->third_octave_ratio);
 	for (float ratio : debug->harmonic_ratios)
 		append_tsv(line, ratio);
 }

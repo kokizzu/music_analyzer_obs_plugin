@@ -62,6 +62,7 @@ NUMERIC_FIELDS = [
     "centroid",
     "slope",
     "noise",
+    "third_octave_ratio",
     "partial1",
     "partial2",
     "partial3",
