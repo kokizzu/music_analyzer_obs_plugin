@@ -7,6 +7,24 @@ import argparse
 import collections
 import csv
 import pathlib
+import re
+
+
+NOTE_RE = re.compile(r"^([A-G]#?)(-?\d+)$")
+NOTE_BASE = {
+    "C": 0,
+    "C#": 1,
+    "D": 2,
+    "D#": 3,
+    "E": 4,
+    "F": 5,
+    "F#": 6,
+    "G": 7,
+    "G#": 8,
+    "A": 9,
+    "A#": 10,
+    "B": 11,
+}
 
 
 DEFAULT_COLUMNS = [
@@ -20,6 +38,8 @@ DEFAULT_COLUMNS = [
     "vocal_level",
     "debug_note",
     "debug_owner",
+    "debug_delta",
+    "pitch_quality",
     "debug_conf",
     "bass_score",
     "keyboard_score",
@@ -50,6 +70,8 @@ ATTRIBUTE_COLUMNS = [
     "owner_source",
     "debug_note",
     "debug_owner",
+    "debug_delta",
+    "pitch_quality",
     "debug_conf",
     "bass_score",
     "keyboard_score",
@@ -83,6 +105,40 @@ def as_float(row: dict[str, str], field: str) -> float:
         return float(row.get(field, "") or 0.0)
     except ValueError:
         return 0.0
+
+
+def parse_int(value: str) -> int | None:
+    try:
+        return int(value)
+    except (TypeError, ValueError):
+        return None
+
+
+def midi_from_note(note: str) -> int | None:
+    match = NOTE_RE.match(note)
+    if not match:
+        return None
+    return NOTE_BASE[match.group(1)] + (int(match.group(2)) + 1) * 12
+
+
+def debug_pitch_delta(row: dict[str, str]) -> int | None:
+    expected = parse_int(row.get("midi", ""))
+    actual = parse_int(row.get("debug_midi", ""))
+    if actual is None and row.get("debug_note", ""):
+        actual = midi_from_note(row["debug_note"])
+    if expected is None or actual is None:
+        return None
+    return actual - expected
+
+
+def pitch_quality(delta: int | None) -> str:
+    if delta is None:
+        return "unknown"
+    if delta == 0:
+        return "exact"
+    if delta % 12 == 0:
+        return "octave_alias"
+    return "other_pitch"
 
 
 def owner_target(row: dict[str, str]) -> str:
@@ -135,6 +191,9 @@ def enrich_row(row: dict[str, str]) -> dict[str, str]:
     row["owner"], row["owner_source"] = owner_and_source(row)
     row["owner_status"] = owner_status(row)
     row["owner_bucket"] = f"{row['owner_status']}:{row.get('family', '')}->{row['owner']}"
+    delta = debug_pitch_delta(row)
+    row["debug_delta"] = "" if delta is None else str(delta)
+    row["pitch_quality"] = pitch_quality(delta)
     return row
 
 
@@ -161,6 +220,8 @@ def row_matches(row: dict[str, str], args: argparse.Namespace) -> bool:
     if args.owner_status and row.get("owner_status") != args.owner_status:
         return False
     if args.owner_bucket and row.get("owner_bucket") != args.owner_bucket:
+        return False
+    if args.pitch_quality and row.get("pitch_quality") != args.pitch_quality:
         return False
     if args.debug_owner and (row.get("debug_owner", "") or "none") != args.debug_owner:
         return False
@@ -190,6 +251,7 @@ def main() -> int:
     parser.add_argument("--status")
     parser.add_argument("--owner-status")
     parser.add_argument("--owner-bucket")
+    parser.add_argument("--pitch-quality", choices=["exact", "octave_alias", "other_pitch", "unknown"])
     parser.add_argument("--debug-owner")
     parser.add_argument("--not-debug-owner")
     parser.add_argument("--field", action="append", default=[])
