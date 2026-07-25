@@ -1089,6 +1089,17 @@ bool expects_full_mix_guitar_primary_octave_recovery(const std::string &suite_fa
 	return false;
 }
 
+bool expects_full_mix_other_primary_octave_recovery(const std::string &suite_family,
+						    const SampleRow &row)
+{
+	return (suite_family == "strings" &&
+		((row.program_name == "viola" && row.note == "C4") ||
+		 (row.program_name == "cello" && row.note == "G4"))) ||
+	       (suite_family == "synth" &&
+		((row.program_name == "metallic_pad" && row.note == "G3") ||
+		 (row.program_name == "square_lead" && row.note == "C2")));
+}
+
 bool expects_full_mix_other_recovery(const std::string &suite_family, const SampleRow &row)
 {
 	return (suite_family == "synth" && row.program_name == "square_lead" &&
@@ -1154,13 +1165,16 @@ void check_instrument_samples(Runner &runner, const std::string &root, std::ostr
 					expects_full_mix_bass_primary_octave_recovery(family, row);
 				const bool expect_full_mix_guitar_primary =
 					expects_full_mix_guitar_primary_octave_recovery(family, row);
+				const bool expect_full_mix_other_primary =
+					expects_full_mix_other_primary_octave_recovery(family, row);
 				const bool expect_full_mix_other = expects_full_mix_other_recovery(family, row);
 				mao::AnalysisSnapshot full_mix_snapshot = {};
 				bool full_mix_grid_ok = false;
 				bool full_mix_anywhere = false;
 				if (attribute_out || expect_full_mix_vocal || expect_full_mix_vocal_primary ||
 				    expect_full_mix_vocal_display || expect_full_mix_bass_primary ||
-				    expect_full_mix_guitar_primary || expect_full_mix_other) {
+				    expect_full_mix_guitar_primary || expect_full_mix_other_primary ||
+				    expect_full_mix_other) {
 					full_mix_snapshot =
 						analyze_buffer(buffer, sample_rate, mao::AnalysisInputMode::FullMix,
 							       family.c_str(), window_seconds);
@@ -1216,6 +1230,15 @@ void check_instrument_samples(Runner &runner, const std::string &root, std::ostr
 						      context +
 							      ": expected full-mix guitar primary octave recovery, got `" +
 							      grid_debug_label(full_mix_snapshot.guitar_notes) + "`");
+				}
+				if (expect_full_mix_other_primary) {
+					const int primary_midi =
+						grid_primary_pitch_class_midi(full_mix_snapshot.other_notes,
+									      row.midi);
+					runner.expect(primary_midi == row.midi,
+						      context +
+							      ": expected full-mix other primary octave recovery, got `" +
+							      grid_debug_label(full_mix_snapshot.other_notes) + "`");
 				}
 				if (expect_full_mix_other) {
 					runner.expect(grid_has_pitch_class(full_mix_snapshot.other_notes, row.midi),

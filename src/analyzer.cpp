@@ -15380,6 +15380,9 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 		if (!mixed_source)
 			prefer_supported_lower_octave_display(snapshot.other_notes, snapshot.other, note_powers,
 							      kOtherMinMidi, 52, -1);
+		else
+			prefer_visible_lower_octave_primary(snapshot.other_notes, snapshot.other, kOtherMinMidi,
+							   0.20f, -1, 0.08f);
 		smooth_note_grid_envelope(other_chord_grid, other_chord_note_state, other_chord_note_tracking_,
 					  -1, interval_seconds, other_max_notes, other_new_notes,
 					  kNoteAttackConfirmFrames,
