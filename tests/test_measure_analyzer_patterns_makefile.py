@@ -328,11 +328,6 @@ def main() -> int:
         assert '> "$@"' in row_dump_recipe, f"{target} must write to its file target"
 
     source_attribute_targets = {
-        "$(BUILD_DIR)/instrument_sample_attributes.tsv": (
-            "$(BUILD_DIR)/analyzer_instrument_samples",
-            "MUSIC_ANALYZER_INSTRUMENT_ATTRIBUTE_TSV=\"$@\"",
-            "instrument_sample_attributes.out",
-        ),
         "$(BUILD_DIR)/real_note_full_mix_attributes.tsv": (
             "$(BUILD_DIR)/analyzer_real_note_samples",
             "MUSIC_ANALYZER_REAL_NOTE_ATTRIBUTE_TSV=\"$@\"",
@@ -349,6 +344,34 @@ def main() -> int:
         for text in required_parts:
             assert text in source_recipe, f"{target} must include {text}"
         assert "| $(BUILD_DIR)" in source_recipe, f"{target} must create output under the build dir"
+
+    instrument_attribute_recipe = target_recipe(makefile, "$(BUILD_DIR)/instrument_sample_attributes.tsv")
+    assert "$(BUILD_DIR)/analyzer_instrument_samples" in instrument_attribute_recipe.splitlines()[0], (
+        "instrument attribute TSV must rebuild when the analyzer binary changes"
+    )
+    assert "$(INSTRUMENT_SAMPLE_MANIFEST_STAMP)" in instrument_attribute_recipe.splitlines()[0], (
+        "instrument attribute TSV must share the prepared manifest stamp"
+    )
+    assert "$(MAKE) -j$(INSTRUMENT_SAMPLE_SHARDS) $(INSTRUMENT_SAMPLE_ATTRIBUTE_PARTS)" in instrument_attribute_recipe, (
+        "instrument attribute TSV must build shard parts in parallel even when top-level make is serial"
+    )
+    assert "awk 'FNR == 1 && NR != 1 { next } { print }'" in instrument_attribute_recipe, (
+        "instrument attribute TSV must concatenate shard rows while dropping duplicate headers"
+    )
+    instrument_attribute_shard_recipe = target_recipe(
+        makefile, "$(BUILD_DIR)/instrument_sample_attributes.shard-%.tsv"
+    )
+    for text in [
+        "$(BUILD_DIR)/analyzer_instrument_samples",
+        "$(INSTRUMENT_SAMPLE_MANIFEST_STAMP)",
+        "MUSIC_ANALYZER_INSTRUMENT_ATTRIBUTE_TSV=\"$@\"",
+        "MUSIC_ANALYZER_INSTRUMENT_SAMPLE_SHARD_COUNT=\"$(INSTRUMENT_SAMPLE_SHARDS)\"",
+        "MUSIC_ANALYZER_INSTRUMENT_SAMPLE_SHARD_INDEX=\"$*\"",
+        "instrument_sample_attributes.shard-$*.out",
+    ]:
+        assert text in instrument_attribute_shard_recipe, (
+            f"instrument attribute shard target must include {text}"
+        )
 
     stale_aware_attribute_shortcuts = {
         "inspect-instrument-sample-owner-buckets": "$(BUILD_DIR)/instrument_sample_attributes.tsv",
