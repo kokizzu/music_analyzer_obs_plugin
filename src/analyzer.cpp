@@ -1072,6 +1072,10 @@ struct FullMixOwnership {
 	std::array<bool, kNoteProbeCount> vocal = {};
 	std::array<bool, kNoteProbeCount> other = {};
 	std::array<bool, kNoteProbeCount> ambiguous = {};
+	std::array<bool, kNoteProbeCount> keyboard_display_suppressed = {};
+	std::array<bool, kNoteProbeCount> guitar_display_suppressed = {};
+	std::array<bool, kNoteProbeCount> vocal_display_suppressed = {};
+	std::array<bool, kNoteProbeCount> other_display_suppressed = {};
 	std::array<float, kNoteProbeCount> global_note_levels = {};
 	std::array<float, 12> global_chroma = {};
 	NoteCandidateList keyboard_candidates;
@@ -1157,6 +1161,47 @@ void remove_full_mix_row_midi(std::array<bool, kNoteProbeCount> &mask, NoteCandi
 	remove_candidate_midi(candidates, midi);
 }
 
+void suppress_full_mix_row_display_midi(FullMixOwnership &ownership, FullMixDisplayRow row, int midi)
+{
+	if (midi < kFirstMidi || midi > kLastMidi)
+		return;
+
+	const std::size_t index = static_cast<std::size_t>(midi - kFirstMidi);
+	switch (row) {
+	case FullMixDisplayRow::Keyboard:
+		ownership.keyboard_display_suppressed[index] = true;
+		break;
+	case FullMixDisplayRow::Guitar:
+		ownership.guitar_display_suppressed[index] = true;
+		break;
+	case FullMixDisplayRow::Vocal:
+		ownership.vocal_display_suppressed[index] = true;
+		break;
+	case FullMixDisplayRow::Other:
+		ownership.other_display_suppressed[index] = true;
+		break;
+	}
+}
+
+bool full_mix_row_display_midi_suppressed(const FullMixOwnership &ownership, FullMixDisplayRow row, int midi)
+{
+	if (midi < kFirstMidi || midi > kLastMidi)
+		return false;
+
+	const std::size_t index = static_cast<std::size_t>(midi - kFirstMidi);
+	switch (row) {
+	case FullMixDisplayRow::Keyboard:
+		return ownership.keyboard_display_suppressed[index];
+	case FullMixDisplayRow::Guitar:
+		return ownership.guitar_display_suppressed[index];
+	case FullMixDisplayRow::Vocal:
+		return ownership.vocal_display_suppressed[index];
+	case FullMixDisplayRow::Other:
+		return ownership.other_display_suppressed[index];
+	}
+	return false;
+}
+
 bool full_mix_row_midi_active(const std::array<bool, kNoteProbeCount> &mask, int midi)
 {
 	if (midi < kFirstMidi || midi > kLastMidi)
@@ -1205,6 +1250,60 @@ void suppress_full_mix_bass_duplicate_ownership(FullMixOwnership &ownership, int
 	if (!confident_full_mix_row_midi(ownership.other, ownership.other_candidates, bass_midi,
 					 kPreserveSupportedOtherOwner))
 		remove_full_mix_row_midi(ownership.other, ownership.other_candidates, bass_midi);
+}
+
+void suppress_full_mix_low_bass_harmonic_aliases(FullMixOwnership &ownership,
+						 const std::array<float, kNoteProbeCount> &powers,
+						 int bass_midi, bool preserve_synthetic_other)
+{
+	if (bass_midi < kBassMinMidi || bass_midi >= kGuitarMinMidi)
+		return;
+
+	const float fundamental = probe_level(powers, bass_midi);
+	if (fundamental <= 1.0e-6f)
+		return;
+
+	auto suppress_alias = [&](int midi) {
+		static constexpr float kPreserveConfidentNamedOwner = 0.76f;
+		static constexpr float kPreserveSupportedOtherOwner = 0.48f;
+		static constexpr float kPreserveSyntheticOtherOwner = 0.40f;
+		const float preserve_other_confidence =
+			preserve_synthetic_other ? kPreserveSyntheticOtherOwner : kPreserveSupportedOtherOwner;
+		auto suppress_row = [&](FullMixDisplayRow row, std::array<bool, kNoteProbeCount> &mask,
+					NoteCandidateList &candidates, float preserve_confidence) {
+			if (confident_full_mix_row_midi(mask, candidates, midi, preserve_confidence))
+				return;
+			remove_full_mix_row_midi(mask, candidates, midi);
+			suppress_full_mix_row_display_midi(ownership, row, midi);
+		};
+
+		suppress_row(FullMixDisplayRow::Keyboard, ownership.keyboard, ownership.keyboard_candidates,
+			     kPreserveConfidentNamedOwner);
+		suppress_row(FullMixDisplayRow::Guitar, ownership.guitar, ownership.guitar_candidates,
+			     kPreserveConfidentNamedOwner);
+		suppress_row(FullMixDisplayRow::Vocal, ownership.vocal, ownership.vocal_candidates,
+			     kPreserveConfidentNamedOwner);
+		suppress_row(FullMixDisplayRow::Other, ownership.other, ownership.other_candidates,
+			     preserve_other_confidence);
+	};
+
+	suppress_alias(bass_midi);
+	for (int interval : {12, 19, 24, 28, 31, 36}) {
+		const int harmonic_midi = bass_midi + interval;
+		if (harmonic_midi < kFirstMidi || harmonic_midi > kLastMidi)
+			continue;
+
+		const float harmonic = probe_level(powers, harmonic_midi);
+		if (harmonic < fundamental * 0.040f)
+			continue;
+
+		if (interval == 12) {
+			for (int delta : {-1, 0, 1})
+				suppress_alias(harmonic_midi + delta);
+		} else {
+			suppress_alias(harmonic_midi);
+		}
+	}
 }
 
 float strongest_candidate_score_except_midi(const NoteCandidateList &candidates, int excluded_midi)
@@ -4809,6 +4908,9 @@ void add_full_mix_display_mirror(NoteCandidateList &candidates, const FullMixOwn
 	const int display_midi = full_mix_display_mirror_midi(row, debug, ownership);
 	if (display_midi < kFirstMidi || display_midi > kLastMidi)
 		return;
+	const std::size_t index = static_cast<std::size_t>(display_midi - kFirstMidi);
+	if (full_mix_row_display_midi_suppressed(ownership, row, display_midi))
+		return;
 	if (clean_owned_chord_context_for_row(ownership, debug, row))
 		return;
 	const bool candidate_exists = candidate_list_has_midi(candidates, display_midi);
@@ -4818,7 +4920,6 @@ void add_full_mix_display_mirror(NoteCandidateList &candidates, const FullMixOwn
 	if (!full_mix_display_mirror_supported(row, debug, display_midi))
 		return;
 
-	const std::size_t index = static_cast<std::size_t>(display_midi - kFirstMidi);
 	float global_level = std::clamp(ownership.global_note_levels[index], 0.0f, 1.0f);
 	if (display_midi != debug.midi && debug.midi >= kFirstMidi && debug.midi <= kLastMidi) {
 		const std::size_t debug_index = static_cast<std::size_t>(debug.midi - kFirstMidi);
@@ -12925,6 +13026,10 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 											 displayed_bass.midi,
 											 displayed_bass.confidence,
 											 displayed_bass.score);
+					suppress_full_mix_low_bass_harmonic_aliases(full_mix_ownership,
+										    detection_note_powers,
+										    displayed_bass.midi,
+										    synthetic_other_source_hint);
 				}
 				mixed_bass_pitch_class = ((displayed_bass.midi % 12) + 12) % 12;
 			}
@@ -12956,10 +13061,14 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 										    displayed_bass.midi);
 						if (synthetic_other_source_hint)
 							restore_full_mix_low_synth_other_from_bass(full_mix_ownership,
-												    detection_note_powers,
-												    displayed_bass.midi,
-												    displayed_bass.confidence,
-												    displayed_bass.score);
+												 detection_note_powers,
+												 displayed_bass.midi,
+												 displayed_bass.confidence,
+												 displayed_bass.score);
+						suppress_full_mix_low_bass_harmonic_aliases(full_mix_ownership,
+											    detection_note_powers,
+											    displayed_bass.midi,
+											    synthetic_other_source_hint);
 					}
 					mixed_bass_pitch_class = ((displayed_bass.midi % 12) + 12) % 12;
 				}

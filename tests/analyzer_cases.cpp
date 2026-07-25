@@ -276,6 +276,27 @@ std::string note_grid_pitch_classes(const mao::NoteGrid &grid)
 	return out.empty() ? "--" : out;
 }
 
+std::string note_grid_active_labels(const mao::NoteGrid &grid)
+{
+	std::string out;
+	char level[24];
+	for (const auto &row : grid.rows) {
+		for (const mao::NoteCell &cell : row) {
+			if (!cell.active)
+				continue;
+			if (!out.empty())
+				out += ",";
+			std::snprintf(level, sizeof(level), "%.3f", cell.level);
+			out += cell.label;
+			out += "/";
+			out += std::to_string(cell.midi);
+			out += "=";
+			out += level;
+		}
+	}
+	return out.empty() ? "--" : out;
+}
+
 float note_grid_pitch_level(const mao::NoteGrid &grid, int pitch_class)
 {
 	pitch_class = ((pitch_class % 12) + 12) % 12;
@@ -441,7 +462,8 @@ void expect_no_pitch_class(Runner &runner, const mao::NoteGrid &grid, int pitch_
 
 void expect_empty_note_grid(Runner &runner, const mao::NoteGrid &grid, const std::string &context)
 {
-	runner.expect(!grid_has_any_active(grid), context + ": expected no active notes");
+	runner.expect(!grid_has_any_active(grid),
+		      context + ": expected no active notes, got `" + note_grid_active_labels(grid) + "`");
 }
 
 bool grid_pitch_has_octave(const mao::NoteGrid &grid, int pitch_class, const char *octave)
@@ -3949,6 +3971,23 @@ void check_full_mix_bass_harmonic_note_not_duplicated(Runner &runner)
 	expect_empty_note_grid(runner, snapshot.guitar_notes, "full-mix bass harmonic guitar spillover");
 	expect_empty_note_grid(runner, snapshot.vocal_notes, "full-mix bass harmonic vocal spillover");
 	expect_empty_note_grid(runner, snapshot.other_notes, "full-mix bass harmonic other spillover");
+
+	mao_test::Buffer low_buffer = {};
+	const std::vector<float> low_electronic_bass_profile = {1.0f, 0.80f, 0.18f, 0.05f, 0.03f};
+	add_harmonic_note(low_buffer, 29, 0.30f, low_electronic_bass_profile);
+
+	const auto low_snapshot =
+		analyze_buffer_with_mode(low_buffer, mao::AnalysisInputMode::FullMix,
+					 "speaker low electronic bass-only", 3);
+	expect_label(runner, low_snapshot.bass.label, "F1", "full-mix low electronic bass harmonic ownership");
+	expect_empty_note_grid(runner, low_snapshot.keyboard_notes,
+			       "full-mix low electronic bass keyboard harmonic spillover");
+	expect_empty_note_grid(runner, low_snapshot.guitar_notes,
+			       "full-mix low electronic bass guitar harmonic spillover");
+	expect_empty_note_grid(runner, low_snapshot.vocal_notes,
+			       "full-mix low electronic bass vocal harmonic spillover");
+	expect_empty_note_grid(runner, low_snapshot.other_notes,
+			       "full-mix low electronic bass other harmonic spillover");
 }
 
 void check_full_mix_high_bass_range(Runner &runner)
