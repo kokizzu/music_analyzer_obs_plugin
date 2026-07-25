@@ -1386,7 +1386,24 @@ void restore_full_mix_low_keyboard_from_bass(FullMixOwnership &ownership,
 		(fifth >= fundamental * 0.26f || second_octave >= fundamental * 0.20f ||
 		 upper_major_third >= fundamental * 0.16f) &&
 		upper_stack >= fundamental * 0.42f;
-	if (!strong_electronic_stack)
+	const bool sub_low_electronic_keyboard_stack =
+		bass_midi < kGuitarMinMidi &&
+		octave >= fundamental * 0.34f &&
+		octave <= fundamental * 0.72f &&
+		fifth >= fundamental * 0.070f &&
+		fifth <= fundamental * 0.18f &&
+		second_octave >= fundamental * 0.070f &&
+		upper_major_third <= fundamental * 0.14f &&
+		upper_stack >= fundamental * 0.18f;
+	const bool octave_dominant_sub_low_keyboard_stack =
+		bass_midi >= 34 &&
+		bass_midi < kGuitarMinMidi &&
+		octave > fundamental * 0.72f &&
+		fifth >= fundamental * 0.12f &&
+		upper_major_third <= fundamental * 0.14f &&
+		upper_stack >= fundamental * 0.18f;
+	if (!strong_electronic_stack && !sub_low_electronic_keyboard_stack &&
+	    !octave_dominant_sub_low_keyboard_stack)
 		return;
 
 	const float display_level = std::max(fundamental, std::max(octave * 0.68f, fifth * 0.76f));
@@ -1395,7 +1412,9 @@ void restore_full_mix_low_keyboard_from_bass(FullMixOwnership &ownership,
 	candidate.score =
 		capped_restored_low_owner_score(ownership.keyboard_candidates, bass_midi,
 						display_level * display_level);
-	candidate.ownership_confidence = 0.50f;
+	candidate.ownership_confidence =
+		(sub_low_electronic_keyboard_stack || octave_dominant_sub_low_keyboard_stack) ? 0.80f :
+												0.50f;
 	ownership.keyboard[static_cast<std::size_t>(bass_midi - kFirstMidi)] = true;
 	ownership.keyboard_candidates.push_back(candidate);
 }

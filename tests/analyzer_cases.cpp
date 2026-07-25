@@ -2208,6 +2208,43 @@ void check_full_mix_single_instrument_precision(Runner &runner)
 
 	{
 		mao_test::Buffer buffer = {};
+		const std::vector<float> sub_low_electronic_keyboard_profile =
+			{1.0f, 0.50f, 0.11f, 0.10f, 0.025f};
+		add_harmonic_note(buffer, 31, 0.27f, sub_low_electronic_keyboard_profile);
+
+		const auto snapshot =
+			analyze_buffer_with_mode(buffer, mao::AnalysisInputMode::FullMix,
+						 "speaker sub-low electronic keyboard", 3);
+		expect_global_pitch_class(runner, snapshot, 7, "full-mix sub-low electronic keyboard global");
+		runner.expect(grid_level_for_midi(snapshot.keyboard_notes, 31) > 0.0f,
+			      std::string("full-mix sub-low electronic keyboard: expected keyboard G1 "
+					  "display, got keyboard `") +
+				      snapshot.keyboard.label + "`, bass `" + snapshot.bass.label +
+				      "`, guitar `" + snapshot.guitar.label + "`, debug `" +
+				      full_mix_debug_summary_for_midi(snapshot, 31) + "`");
+	}
+
+	{
+		mao_test::Buffer buffer = {};
+		const std::vector<float> octave_dominant_sub_low_keyboard_profile =
+			{1.0f, 0.92f, 0.20f, 0.08f, 0.04f};
+		add_harmonic_note(buffer, 34, 0.27f, octave_dominant_sub_low_keyboard_profile);
+
+		const auto snapshot =
+			analyze_buffer_with_mode(buffer, mao::AnalysisInputMode::FullMix,
+						 "speaker octave-dominant sub-low electronic keyboard", 3);
+		expect_global_pitch_class(runner, snapshot, 10,
+					  "full-mix octave-dominant sub-low electronic keyboard global");
+		runner.expect(grid_level_for_midi(snapshot.keyboard_notes, 34) > 0.0f,
+			      std::string("full-mix octave-dominant sub-low electronic keyboard: expected "
+					  "keyboard A#1 display, got keyboard `") +
+				      snapshot.keyboard.label + "`, bass `" + snapshot.bass.label +
+				      "`, guitar `" + snapshot.guitar.label + "`, debug `" +
+				      full_mix_debug_summary_for_midi(snapshot, 34) + "`");
+	}
+
+	{
+		mao_test::Buffer buffer = {};
 		const std::vector<float> noisy_low_electronic_keyboard_profile =
 			{1.0f, 0.54f, 0.13f, 0.17f, 0.052f};
 		add_harmonic_note(buffer, 40, 0.27f, noisy_low_electronic_keyboard_profile);
