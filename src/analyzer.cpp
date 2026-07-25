@@ -8451,9 +8451,31 @@ bool clean_primary_guitar_chord_display(const ChordResult &chord, const NoteGrid
 	return true;
 }
 
-bool same_root_alias_preserves_clean_primary(const ChordResult &chord, const ParsedRootChord &primary)
+float strongest_grid_pitch_level(const NoteGrid &display_grid, const NoteGrid &analysis_grid, int pitch_class)
+{
+	return std::max(note_grid_pitch_level(display_grid, pitch_class),
+			note_grid_pitch_level(analysis_grid, pitch_class));
+}
+
+bool same_root_alias_preserves_clean_primary(const ChordResult &chord, const ParsedRootChord &primary,
+					     const NoteGrid &display_grid,
+					     const NoteGrid &analysis_grid)
 {
 	const char *cursor = chord.label;
+	const int primary_third = primary.root + (primary.quality == RootChordQuality::Minor ? 3 : 4);
+	const float primary_root = strongest_grid_pitch_level(display_grid, analysis_grid, primary.root);
+	const float primary_fifth = strongest_grid_pitch_level(display_grid, analysis_grid, primary.root + 7);
+	const float primary_anchor = std::min(primary_root, primary_fifth);
+	const float primary_third_level =
+		strongest_grid_pitch_level(display_grid, analysis_grid, primary_third);
+	const float primary_support = std::max(primary_anchor, primary_third_level);
+
+	auto supported_alias_tone = [&](int pitch_class, float relative_floor, float third_relative_floor) {
+		const float level = strongest_grid_pitch_level(display_grid, analysis_grid, pitch_class);
+		return level >= std::max({0.12f, primary_support * relative_floor,
+					  primary_third_level * third_relative_floor});
+	};
+
 	while (cursor && *cursor) {
 		const char *end = std::strchr(cursor, '=');
 		const std::size_t len =
@@ -8468,7 +8490,88 @@ bool same_root_alias_preserves_clean_primary(const ChordResult &chord, const Par
 			const bool primary_plain =
 				primary.quality == RootChordQuality::Minor ? suffix_is(suffix, suffix_len, "m") :
 										 suffix_len == 0;
-			if (!primary_plain)
+			if (!primary_plain) {
+				if (component.quality == RootChordQuality::Major ||
+				    component.quality == RootChordQuality::Minor) {
+					const bool minor = component.quality == RootChordQuality::Minor;
+					const int alias_third = component.root + (minor ? 3 : 4);
+					if (alias_third != primary_third &&
+					    supported_alias_tone(alias_third, 0.34f, 0.72f))
+						return true;
+					if (suffix_is(suffix, suffix_len, "6") ||
+					    suffix_is(suffix, suffix_len, "m6")) {
+						if (supported_alias_tone(component.root + 9, 0.42f, 0.35f))
+							return true;
+					} else if (suffix_is(suffix, suffix_len, "7") ||
+						   suffix_is(suffix, suffix_len, "m7")) {
+						if (supported_alias_tone(component.root + 10, 0.42f, 0.35f))
+							return true;
+					} else if (suffix_is(suffix, suffix_len, "maj7")) {
+						if (supported_alias_tone(component.root + 11, 0.42f, 0.35f))
+							return true;
+					} else if (suffix_is(suffix, suffix_len, "9") ||
+						   suffix_is(suffix, suffix_len, "m9") ||
+						   suffix_is(suffix, suffix_len, "maj9") ||
+						   suffix_is(suffix, suffix_len, "add9")) {
+						if (supported_alias_tone(component.root + 2, 0.42f, 0.35f))
+							return true;
+					}
+				} else if (component.quality == RootChordQuality::NoThird) {
+					if (suffix_is(suffix, suffix_len, "sus2") &&
+					    supported_alias_tone(component.root + 2, 0.38f, 0.55f))
+						return true;
+					if (suffix_is(suffix, suffix_len, "sus4") &&
+					    supported_alias_tone(component.root + 5, 0.38f, 0.55f))
+						return true;
+				} else if (component.quality == RootChordQuality::Diminished) {
+					if (supported_alias_tone(component.root + 6, 0.38f, 0.55f))
+						return true;
+				}
+			}
+		}
+		if (!end)
+			break;
+		cursor = end + 1;
+	}
+	return false;
+}
+
+bool supported_different_root_plain_alias_preserves_clean_primary(const ChordResult &chord,
+								 const ParsedRootChord &primary,
+								 const NoteGrid &display_grid,
+								 const NoteGrid &analysis_grid)
+{
+	bool primary_major = false;
+	bool primary_minor = false;
+	const char *cursor = chord.label;
+	while (cursor && *cursor) {
+		const char *end = std::strchr(cursor, '=');
+		const std::size_t len =
+			end ? static_cast<std::size_t>(end - cursor) : std::strlen(cursor);
+		ParsedRootChord component;
+		if (parse_root_chord_component(cursor, len, component) && component.root == primary.root) {
+			primary_major = primary_major || component.quality == RootChordQuality::Major;
+			primary_minor = primary_minor || component.quality == RootChordQuality::Minor;
+		}
+		if (!end)
+			break;
+		cursor = end + 1;
+	}
+	if (!primary_major || !primary_minor)
+		return false;
+
+	cursor = chord.label;
+	while (cursor && *cursor) {
+		const char *end = std::strchr(cursor, '=');
+		const std::size_t len =
+			end ? static_cast<std::size_t>(end - cursor) : std::strlen(cursor);
+		ParsedRootChord component;
+		if (parse_root_chord_component(cursor, len, component) && component.root != primary.root &&
+		    (component.quality == RootChordQuality::Major || component.quality == RootChordQuality::Minor)) {
+			ChordResult alias = make_guitar_plain_triad(
+				component.root, component.quality == RootChordQuality::Minor, 0.58f);
+			if (note_grid_chord_tone_count(display_grid, alias) >= 2 &&
+			    note_grid_chord_tone_count(analysis_grid, alias) >= 3)
 				return true;
 		}
 		if (!end)
@@ -8486,7 +8589,10 @@ void prune_clean_primary_guitar_aliases(ChordResult &chord, const NoteGrid &disp
 		return;
 	if (!clean_primary_guitar_chord_display(chord, display_grid, analysis_grid))
 		return;
-	if (same_root_alias_preserves_clean_primary(chord, primary))
+	if (supported_different_root_plain_alias_preserves_clean_primary(chord, primary, display_grid,
+									analysis_grid))
+		return;
+	if (same_root_alias_preserves_clean_primary(chord, primary, display_grid, analysis_grid))
 		return;
 	char *alias = std::strchr(chord.label, '=');
 	if (alias)
