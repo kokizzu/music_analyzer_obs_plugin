@@ -331,6 +331,8 @@ make test-real-world-samples-max
 PARALLEL_TEST_JOBS=8 make test-real-world-samples-max
 ```
 
+The parallel real-world sweeps use the sharded NSynth full-mix gate instead of the serial full-mix target, so `PARALLEL_TEST_JOBS` applies to that expensive note pass as well as to the independent dataset targets.
+
 The analyzer attribute measurement loop also uses the Makefile fanout for its independent row producers:
 
 ```sh

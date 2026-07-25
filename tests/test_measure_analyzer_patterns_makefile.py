@@ -85,6 +85,15 @@ def main() -> int:
     assert "$(MAKE) $(PARALLEL_TEST_MAKE_JOBS) $(REAL_WORLD_SAMPLE_MAX_TARGETS)" in max_samples_recipe, (
         "max real-world sample tests must fan out through jobserver-aware make"
     )
+    real_world_targets = re.search(r"^REAL_WORLD_SAMPLE_TARGETS := (.+)$", makefile, re.MULTILINE)
+    assert real_world_targets is not None, "missing real-world sample target list"
+    real_world_target_list = real_world_targets.group(1)
+    assert "test-real-note-samples-full-mix-parallel" in real_world_target_list, (
+        "parallel real-world sample tests must use the sharded real-note full-mix gate"
+    )
+    assert "test-real-note-samples-full-mix " not in real_world_target_list + " ", (
+        "parallel real-world sample tests must not use the serial real-note full-mix gate"
+    )
     real_note_sharded_recipe = target_recipe(makefile, "test-real-note-samples-full-mix-parallel")
     assert "REAL_NOTE_FULL_MIX_TEST_MAKE_JOBS = $(if $(filter -j%,$(MAKEFLAGS)),,-j$(REAL_NOTE_FULL_MIX_SHARDS))" in makefile, (
         "real-note shard tests must not force nested jobserver mode"
