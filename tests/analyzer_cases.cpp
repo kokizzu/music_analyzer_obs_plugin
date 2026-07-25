@@ -2007,6 +2007,27 @@ void check_isolated_guitar_octave_harmonic_display(Runner &runner)
 			      note_grid_active_labels(snapshot.guitar_chord_smoothed_notes) + "`");
 }
 
+void check_isolated_keyboard_low_octave_display(Runner &runner)
+{
+	mao_test::Buffer buffer = {};
+	const std::vector<float> octave_competitive_keyboard_profile = {1.0f, 0.99f, 0.16f, 0.12f};
+	add_harmonic_note(buffer, 52, 0.24f, octave_competitive_keyboard_profile);
+
+	const auto snapshot = analyze_buffer(buffer, "keyboard");
+	expect_note_token(runner, snapshot.keyboard.label, "E3", "isolated keyboard low octave display");
+	const int pitch_class = 52 % 12;
+	runner.expect(snapshot.keyboard_notes.rows[0][pitch_class].active &&
+			      snapshot.keyboard_notes.rows[0][pitch_class].midi == 52,
+		      std::string("isolated keyboard low octave display: expected E3 first row, got `") +
+			      snapshot.keyboard.label + "` notes `" +
+			      note_grid_active_labels(snapshot.keyboard_notes) + "`");
+	runner.expect(snapshot.keyboard_notes.cells[pitch_class].active &&
+			      snapshot.keyboard_notes.cells[pitch_class].midi == 52,
+		      std::string("isolated keyboard low octave display: expected E3 primary cell, got `") +
+			      snapshot.keyboard.label + "` notes `" +
+			      note_grid_active_labels(snapshot.keyboard_notes) + "`");
+}
+
 void check_spillover_regressions(Runner &runner)
 {
 	{
@@ -5223,6 +5244,7 @@ int main()
 	check_same_instrument_timbre_variants(runner);
 	check_distorted_midi_guitar_timbre(runner);
 	check_isolated_guitar_octave_harmonic_display(runner);
+	check_isolated_keyboard_low_octave_display(runner);
 	check_spillover_regressions(runner);
 	check_high_full_mix_cluster_not_vocal_or_other(runner);
 	check_full_mix_single_instrument_precision(runner);

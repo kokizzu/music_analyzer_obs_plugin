@@ -7240,6 +7240,91 @@ float note_grid_midi_level(const NoteGrid &grid, int midi)
 	return level;
 }
 
+void prefer_supported_lower_octave_display(NoteGrid &grid, InstrumentState &state,
+					   const std::array<float, kNoteProbeCount> &powers,
+					   int min_midi, int max_promoted_midi, int preferred_root)
+{
+	min_midi = std::max(min_midi, kFirstMidi);
+	max_promoted_midi = std::min(max_promoted_midi, kLastMidi);
+	bool changed = false;
+
+	for (int pitch_class = 0; pitch_class < 12; ++pitch_class) {
+		FixedList<NoteCell, kNoteRowCount> active_cells;
+		for (const auto &row : grid.rows) {
+			const NoteCell &cell = row[pitch_class];
+			if (cell.active && cell.midi >= kFirstMidi && cell.midi <= kLastMidi)
+				active_cells.push_back(cell);
+		}
+		if (active_cells.empty())
+			continue;
+
+		const NoteCell primary = active_cells.front();
+		if (primary.midi <= min_midi)
+			continue;
+
+		const float primary_raw = probe_level(powers, primary.midi);
+		NoteCell promoted = {};
+		for (int midi = std::min(max_promoted_midi, primary.midi - 12); midi >= min_midi; --midi) {
+			if (midi_pitch_class(midi) != pitch_class)
+				continue;
+			const int octave_delta = primary.midi - midi;
+			if (octave_delta % 12 != 0)
+				continue;
+
+			const float visible_level = note_grid_midi_level(grid, midi);
+			const float raw_level = probe_level(powers, midi);
+			const bool visible_supported =
+				visible_level >= std::max(0.045f, primary.level * 0.38f);
+			const bool raw_supported =
+				primary_raw > 1.0e-6f && raw_level >= primary_raw * 0.30f &&
+				active_cells.size() >= kNoteRowCount;
+			if (!visible_supported && !raw_supported)
+				continue;
+
+			const float support_score =
+				std::max(visible_level, raw_supported ? primary.level : 0.0f);
+
+			promoted = {};
+			write_octave(promoted.label, sizeof(promoted.label), midi);
+			promoted.level = std::max({visible_level, support_score, primary.level});
+			promoted.midi = midi;
+			promoted.active = true;
+			break;
+		}
+
+		if (!promoted.active || active_cells.front().midi == promoted.midi)
+			continue;
+
+		std::array<NoteCell, kNoteRowCount> reordered = {};
+		reordered[0] = promoted;
+		std::size_t write = 1;
+		std::array<bool, kNoteRowCount> used = {};
+		while (write < reordered.size()) {
+			std::size_t best = active_cells.size();
+			for (std::size_t i = 0; i < active_cells.size(); ++i) {
+				if (used[i] || active_cells[i].midi == promoted.midi)
+					continue;
+				if (best == active_cells.size() || active_cells[i].level > active_cells[best].level ||
+				    (active_cells[i].level == active_cells[best].level &&
+				     active_cells[i].midi < active_cells[best].midi))
+					best = i;
+			}
+			if (best == active_cells.size())
+				break;
+			used[best] = true;
+			reordered[write++] = active_cells[best];
+		}
+
+		for (std::size_t row = 0; row < grid.rows.size(); ++row)
+			grid.rows[row][pitch_class] = reordered[row];
+		grid.cells[pitch_class] = promoted;
+		changed = true;
+	}
+
+	if (changed)
+		write_note_grid_label(state, grid, preferred_root);
+}
+
 int lowest_note_grid_pitch_class(const NoteGrid &grid)
 {
 	int lowest_midi = kLastMidi + 1;
@@ -14441,6 +14526,8 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 	if (bass_processed) {
 		smooth_note_grid_envelope(snapshot.bass_notes, snapshot.bass, bass_note_tracking_, -1,
 					  interval_seconds, 1, nullptr, 1);
+		prefer_supported_lower_octave_display(snapshot.bass_notes, snapshot.bass, note_powers,
+						      kBassMinMidi, kDefaultBassMaxMidi, -1);
 	} else {
 		reset_note_grid_envelope(snapshot.bass_notes, snapshot.bass, bass_note_tracking_);
 	}
@@ -14451,6 +14538,9 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 					  kNoteAttackConfirmFrames,
 					  mixed_source ? kMixedNoteEnvelopeImmediateConfirmFloor :
 							 kNoteEnvelopeImmediateConfirmFloor);
+		if (!mixed_source)
+			prefer_supported_lower_octave_display(snapshot.keyboard_notes, snapshot.keyboard,
+							      note_powers, kKeyboardMinMidi, 52, -1);
 		smooth_note_grid_envelope(keyboard_chord_grid, keyboard_chord_note_state, keyboard_chord_note_tracking_,
 					  -1, interval_seconds, mixed_source ? 8 : 10, keyboard_new_notes,
 					  kNoteAttackConfirmFrames,
@@ -14478,6 +14568,9 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 					  kNoteAttackConfirmFrames,
 					  mixed_source ? kMixedNoteEnvelopeImmediateConfirmFloor :
 							 kNoteEnvelopeImmediateConfirmFloor);
+		if (!mixed_source)
+			prefer_supported_lower_octave_display(snapshot.guitar_notes, snapshot.guitar, note_powers,
+							      kGuitarMinMidi, 52, -1);
 		smooth_note_grid_envelope(guitar_chord_grid, guitar_chord_note_state, guitar_chord_note_tracking_,
 					  -1, interval_seconds, mixed_source ? 6 : 12, guitar_new_notes,
 					  kNoteAttackConfirmFrames,
@@ -14730,6 +14823,9 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 		const int vocal_max_notes = contains_case_insensitive(resolved_source_name, "vocals") ? 2 : 1;
 		smooth_note_grid_envelope(snapshot.vocal_notes, snapshot.vocal, vocal_note_tracking_, -1,
 					  interval_seconds, vocal_max_notes);
+		if (!mixed_source)
+			prefer_supported_lower_octave_display(snapshot.vocal_notes, snapshot.vocal, note_powers,
+							      kVocalMinMidi, 64, -1);
 	} else {
 		reset_note_grid_envelope(snapshot.vocal_notes, snapshot.vocal, vocal_note_tracking_);
 	}
@@ -14740,6 +14836,9 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 					  kNoteAttackConfirmFrames,
 					  mixed_source ? kMixedNoteEnvelopeImmediateConfirmFloor :
 							 kNoteEnvelopeImmediateConfirmFloor);
+		if (!mixed_source)
+			prefer_supported_lower_octave_display(snapshot.other_notes, snapshot.other, note_powers,
+							      kOtherMinMidi, 52, -1);
 		smooth_note_grid_envelope(other_chord_grid, other_chord_note_state, other_chord_note_tracking_,
 					  -1, interval_seconds, other_max_notes, other_new_notes,
 					  kNoteAttackConfirmFrames,
