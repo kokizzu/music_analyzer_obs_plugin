@@ -7519,6 +7519,33 @@ void prefer_visible_lower_octave_primary(NoteGrid &grid, InstrumentState &state,
 		write_note_grid_label(state, grid, preferred_root);
 }
 
+bool promote_note_grid_primary_midi(NoteGrid &grid, int midi, float level)
+{
+	if (midi < kFirstMidi || midi > kLastMidi)
+		return false;
+
+	const int pitch_class = midi_pitch_class(midi);
+	NoteCell promoted = {};
+	write_octave(promoted.label, sizeof(promoted.label), midi);
+	promoted.level = std::clamp(level, 0.0f, 1.0f);
+	promoted.midi = midi;
+	promoted.active = true;
+
+	std::array<NoteCell, kNoteRowCount> reordered = {};
+	reordered[0] = promoted;
+	std::size_t write = 1;
+	for (const auto &row : grid.rows) {
+		const NoteCell &cell = row[pitch_class];
+		if (!cell.active || cell.midi == promoted.midi || write >= reordered.size())
+			continue;
+		reordered[write++] = cell;
+	}
+	for (std::size_t row = 0; row < grid.rows.size(); ++row)
+		grid.rows[row][pitch_class] = reordered[row];
+	grid.cells[pitch_class] = promoted;
+	return true;
+}
+
 int lowest_note_grid_pitch_class(const NoteGrid &grid)
 {
 	int lowest_midi = kLastMidi + 1;
@@ -7985,6 +8012,58 @@ float note_grid_pitch_level(const NoteGrid &grid, int pitch_class)
 	return level;
 }
 
+void guitar_harmonic_support_from_display(const NoteGrid &grid, int midi, int &count, float &strongest)
+{
+	static constexpr int kGuitarHarmonicIntervals[] = {12, 19, 24, 28, 31, 36};
+	count = 0;
+	strongest = 0.0f;
+	for (int interval : kGuitarHarmonicIntervals) {
+		const float level = note_grid_midi_level(grid, midi + interval);
+		strongest = std::max(strongest, level);
+		if (level >= 0.20f)
+			++count;
+	}
+}
+
+bool low_guitar_harmonic_primary_supported(const NoteGrid &grid, int midi)
+{
+	if (midi > 47)
+		return false;
+	int harmonic_count = 0;
+	float strongest_harmonic = 0.0f;
+	guitar_harmonic_support_from_display(grid, midi, harmonic_count, strongest_harmonic);
+	return note_grid_midi_level(grid, midi + 12) >= 0.20f &&
+	       note_grid_midi_level(grid, midi + 19) >= 0.20f &&
+	       harmonic_count >= 2 &&
+	       strongest_harmonic >= 0.70f;
+}
+
+bool full_mix_debug_guitar_note_supported(const FullMixOwnership &ownership, int midi)
+{
+	const std::size_t debug_count =
+		std::min<std::size_t>(ownership.debug_candidate_count, ownership.debug_candidates.size());
+	for (std::size_t i = 0; i < debug_count; ++i) {
+		const FullMixDebugCandidate &debug = ownership.debug_candidates[i];
+		if (debug.midi != midi)
+			continue;
+		if (debug.owner != InstrumentKind::Guitar || debug.guitar_score < 0.70f)
+			continue;
+		if (debug.ownership_confidence < 0.70f && debug.spectral_level < 0.34f)
+			continue;
+		const float raw_level = ownership_global_note_level(ownership, debug.midi);
+		const bool confident_harmonic_body =
+			debug.ownership_confidence >= 0.80f &&
+			debug.other_score >= 0.70f &&
+			debug.pitch_confidence <= 0.080f &&
+			debug.periodicity >= 0.35f &&
+			debug.harmonic_fit_error >= 1.0f;
+		if (raw_level < 0.16f && debug.spectral_level < 0.30f && !confident_harmonic_body)
+			continue;
+		return true;
+	}
+	return false;
+}
+
 void promote_low_guitar_display_fundamentals(NoteGrid &display_grid, InstrumentState &display_state,
 					     const NoteGrid &analysis_grid, int preferred_root)
 {
@@ -7997,8 +8076,6 @@ void promote_low_guitar_display_fundamentals(NoteGrid &display_grid, InstrumentS
 			continue;
 
 		const float analysis_level = note_grid_midi_level(analysis_grid, midi);
-		if (analysis_level < 0.050f)
-			continue;
 
 		float strongest_visible_octave = 0.0f;
 		int visible_octave_count = 0;
@@ -8010,23 +8087,114 @@ void promote_low_guitar_display_fundamentals(NoteGrid &display_grid, InstrumentS
 			if (octave_level >= 0.20f)
 				++visible_octave_count;
 		}
-
-		if (strongest_visible_octave < 0.75f || visible_octave_count < 1)
+		const bool direct_supported = analysis_level >= 0.050f;
+		const bool low_harmonic_supported = low_guitar_harmonic_primary_supported(display_grid, midi);
+		if (!direct_supported && !low_harmonic_supported)
 			continue;
 
-		const float promote_level = std::max(strongest_visible_octave, 0.80f);
-		write_note_grid_cell(display_grid, NoteCandidate{midi, promote_level}, 1.0f, 1.0f);
-		const int pitch_class = ((midi % 12) + 12) % 12;
-		NoteCell &primary = display_grid.cells[pitch_class];
-		write_octave(primary.label, sizeof(primary.label), midi);
-		primary.level = 1.0f;
-		primary.midi = midi;
-		primary.active = true;
-		changed = true;
+		int harmonic_count = 0;
+		float strongest_harmonic = 0.0f;
+		guitar_harmonic_support_from_display(display_grid, midi, harmonic_count, strongest_harmonic);
+		if (strongest_visible_octave < 0.75f && strongest_harmonic < 0.75f)
+			continue;
+		if (visible_octave_count < 1 && harmonic_count < 2)
+			continue;
+
+		const float promote_level = std::max({strongest_visible_octave, strongest_harmonic, 0.80f});
+		changed = promote_note_grid_primary_midi(display_grid, midi, promote_level) || changed;
 	}
 
 	if (changed)
 		write_note_grid_label(display_state, display_grid, preferred_root);
+}
+
+void prefer_supported_guitar_lower_octave_primary(NoteGrid &grid, InstrumentState &state,
+						  const FullMixOwnership &ownership, int min_midi,
+						  float relative_floor, int preferred_root)
+{
+	min_midi = std::max(min_midi, kFirstMidi);
+	bool changed = false;
+
+	for (int pitch_class = 0; pitch_class < 12; ++pitch_class) {
+		FixedList<NoteCell, kNoteRowCount> active_cells;
+		for (const auto &row : grid.rows) {
+			const NoteCell &cell = row[pitch_class];
+			if (cell.active && cell.midi >= kFirstMidi && cell.midi <= kLastMidi)
+				active_cells.push_back(cell);
+		}
+		if (active_cells.empty())
+			continue;
+
+		const NoteCell primary = active_cells.front();
+		NoteCell lower = {};
+		for (const NoteCell &cell : active_cells) {
+			if (cell.midi >= primary.midi || cell.midi < min_midi)
+				continue;
+			if (cell.level < std::max(0.24f, primary.level * relative_floor))
+				continue;
+
+			const bool low_harmonic_supported =
+				low_guitar_harmonic_primary_supported(grid, cell.midi);
+			if (!low_harmonic_supported &&
+			    !full_mix_debug_guitar_note_supported(ownership, cell.midi))
+				continue;
+			if (!lower.active || cell.midi < lower.midi)
+				lower = cell;
+		}
+		if (!lower.active)
+			continue;
+
+		lower.level = std::max(lower.level, primary.level);
+		changed = promote_note_grid_primary_midi(grid, lower.midi, lower.level) || changed;
+	}
+
+	if (changed)
+		write_note_grid_label(state, grid, preferred_root);
+}
+
+void prefer_debug_supported_guitar_octave_primary(NoteGrid &grid, InstrumentState &state,
+						  const FullMixOwnership &ownership, int preferred_root)
+{
+	bool changed = false;
+	const std::size_t debug_count =
+		std::min<std::size_t>(ownership.debug_candidate_count, ownership.debug_candidates.size());
+	for (int pitch_class = 0; pitch_class < 12; ++pitch_class) {
+		NoteCell primary = {};
+		for (const auto &row : grid.rows) {
+			if (row[pitch_class].active) {
+				primary = row[pitch_class];
+				break;
+			}
+		}
+		if (!primary.active || low_guitar_harmonic_primary_supported(grid, primary.midi))
+			continue;
+		if (full_mix_debug_guitar_note_supported(ownership, primary.midi))
+			continue;
+
+		int supported_midi = -1;
+		float supported_level = 0.0f;
+		for (std::size_t i = 0; i < debug_count; ++i) {
+			const FullMixDebugCandidate &debug = ownership.debug_candidates[i];
+			if (debug.midi < kGuitarMinMidi || debug.midi > kGuitarMaxMidi ||
+			    midi_pitch_class(debug.midi) != pitch_class)
+				continue;
+			if (!full_mix_debug_guitar_note_supported(ownership, debug.midi))
+				continue;
+			if (supported_midi < 0 || debug.midi < supported_midi) {
+				supported_midi = debug.midi;
+				supported_level = std::max(primary.level,
+							   ownership_global_note_level(ownership, debug.midi));
+			}
+		}
+		if (supported_midi < 0 || supported_midi == primary.midi)
+			continue;
+		changed = promote_note_grid_primary_midi(grid, supported_midi,
+							 std::max(supported_level, primary.level)) ||
+			  changed;
+	}
+
+	if (changed)
+		write_note_grid_label(state, grid, preferred_root);
 }
 
 void promote_guitar_debug_lower_octave_primary(NoteGrid &grid, InstrumentState &state,
@@ -8052,12 +8220,7 @@ void promote_guitar_debug_lower_octave_primary(NoteGrid &grid, InstrumentState &
 			if (debug.midi < kGuitarMinMidi || debug.midi >= primary.midi ||
 			    midi_pitch_class(debug.midi) != pitch_class)
 				continue;
-			if (debug.owner != InstrumentKind::Guitar || debug.guitar_score < 0.70f)
-				continue;
-			if (debug.ownership_confidence < 0.70f && debug.spectral_level < 0.34f)
-				continue;
-			const float raw_level = ownership_global_note_level(ownership, debug.midi);
-			if (raw_level < 0.16f && debug.spectral_level < 0.30f)
+			if (!full_mix_debug_guitar_note_supported(ownership, debug.midi))
 				continue;
 			if (!lower || debug.midi < lower->midi)
 				lower = &debug;
@@ -8065,25 +8228,8 @@ void promote_guitar_debug_lower_octave_primary(NoteGrid &grid, InstrumentState &
 		if (!lower)
 			continue;
 
-		NoteCell promoted = {};
-		write_octave(promoted.label, sizeof(promoted.label), lower->midi);
-		promoted.level = std::max(primary.level, ownership_global_note_level(ownership, lower->midi));
-		promoted.midi = lower->midi;
-		promoted.active = true;
-
-		std::array<NoteCell, kNoteRowCount> reordered = {};
-		reordered[0] = promoted;
-		std::size_t write = 1;
-		for (const auto &row : grid.rows) {
-			const NoteCell &cell = row[pitch_class];
-			if (!cell.active || cell.midi == promoted.midi || write >= reordered.size())
-				continue;
-			reordered[write++] = cell;
-		}
-		for (std::size_t row = 0; row < grid.rows.size(); ++row)
-			grid.rows[row][pitch_class] = reordered[row];
-		grid.cells[pitch_class] = promoted;
-		changed = true;
+		const float level = std::max(primary.level, ownership_global_note_level(ownership, lower->midi));
+		changed = promote_note_grid_primary_midi(grid, lower->midi, level) || changed;
 	}
 
 	if (changed)
@@ -14829,12 +14975,21 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 					  kNoteAttackConfirmFrames,
 					  mixed_source ? kMixedNoteEnvelopeImmediateConfirmFloor :
 							 kNoteEnvelopeImmediateConfirmFloor);
+		if (mixed_source)
+			promote_guitar_debug_lower_octave_primary(snapshot.guitar_notes, snapshot.guitar,
+								  full_mix_ownership, -1);
+		if (mixed_source)
+			prefer_debug_supported_guitar_octave_primary(snapshot.guitar_notes,
+								    snapshot.guitar,
+								    full_mix_ownership, -1);
 		if (!mixed_source)
 			prefer_supported_lower_octave_display(snapshot.guitar_notes, snapshot.guitar, note_powers,
 							      kGuitarMinMidi, 52, -1);
 		else
-			prefer_visible_lower_octave_primary(snapshot.guitar_notes, snapshot.guitar,
-							   kGuitarMinMidi, 0.30f, -1);
+			prefer_supported_guitar_lower_octave_primary(snapshot.guitar_notes,
+								     snapshot.guitar,
+								     full_mix_ownership,
+								     kGuitarMinMidi, 0.30f, -1);
 		smooth_note_grid_envelope(guitar_chord_grid, guitar_chord_note_state, guitar_chord_note_tracking_,
 					  -1, interval_seconds, mixed_source ? 6 : 12, guitar_new_notes,
 					  kNoteAttackConfirmFrames,

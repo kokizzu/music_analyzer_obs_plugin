@@ -1057,8 +1057,23 @@ bool expects_full_mix_vocal_primary_octave_recovery(const std::string &suite_fam
 bool expects_full_mix_guitar_primary_octave_recovery(const std::string &suite_family,
 						     const SampleRow &row)
 {
-	return suite_family == "guitar" && row.program_name == "jazz_guitar" &&
-	       (row.note == "E3" || row.note == "E4");
+	if (suite_family != "guitar")
+		return false;
+	if (row.program_name == "jazz_guitar" && (row.note == "E3" || row.note == "E4"))
+		return true;
+	if ((row.program_name == "nylon_guitar" || row.program_name == "steel_guitar") &&
+	    row.note == "E2")
+		return true;
+	if ((row.program_name == "steel_guitar" || row.program_name == "clean_guitar") &&
+	    row.note == "G2")
+		return true;
+	if (row.program_name == "clean_guitar" && (row.note == "E2" || row.note == "E3"))
+		return true;
+	if (row.program_name == "muted_guitar" && row.note == "E4")
+		return true;
+	if (row.program_name == "distortion_guitar" && row.note == "E5")
+		return true;
+	return false;
 }
 
 bool expects_full_mix_other_recovery(const std::string &suite_family, const SampleRow &row)
