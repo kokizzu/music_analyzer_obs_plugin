@@ -898,6 +898,25 @@ void check_guitar_supported_extension_aliases(Runner &runner)
 		      std::string("guitar display-supported extension aliases: expected Gmaj7, got `") +
 			      display_supported_major_seventh_snapshot.guitar_chord.label + "`");
 
+	mao_test::Buffer probe_supported_major_seventh = {};
+	add_harmonic_note(probe_supported_major_seventh, 48, 0.18f, guitar_profile);
+	add_harmonic_note(probe_supported_major_seventh, 52, 0.19f, guitar_profile);
+	add_harmonic_note(probe_supported_major_seventh, 55, 0.26f, guitar_profile);
+	add_harmonic_note(probe_supported_major_seventh, 56, 0.095f, guitar_profile);
+	add_harmonic_note(probe_supported_major_seventh, 59, 0.045f, guitar_profile);
+
+	const auto probe_supported_major_seventh_snapshot =
+		analyze_buffer(probe_supported_major_seventh, "guitar");
+	runner.expect(
+		has_chord_label(probe_supported_major_seventh_snapshot.guitar_chord.label, "Cmaj7"),
+		std::string("guitar probe-supported extension aliases: expected Cmaj7, got `") +
+			probe_supported_major_seventh_snapshot.guitar_chord.label + "` raw `" +
+			probe_supported_major_seventh_snapshot.guitar_raw_chord.label + "` smooth `" +
+			probe_supported_major_seventh_snapshot.guitar_smoothed_chord.label + "` analysis `" +
+			note_grid_pitch_classes(
+				probe_supported_major_seventh_snapshot.guitar_chord_analysis_notes) +
+			"`");
+
 	mao_test::Buffer extension_with_minor_spill = {};
 	add_harmonic_note(extension_with_minor_spill, 45, 0.21f, guitar_profile);
 	add_harmonic_note(extension_with_minor_spill, 49, 0.12f, guitar_profile);

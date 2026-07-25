@@ -9799,6 +9799,156 @@ void append_supported_guitar_extension_aliases(ChordResult &chord, const NoteGri
 	}
 }
 
+void append_probe_supported_guitar_extension_aliases(ChordResult &chord, const NoteGrid &display_grid,
+						     const NoteGrid &analysis_grid,
+						     const std::array<float, kNoteProbeCount> &powers,
+						     int min_midi, int max_midi)
+{
+	if (chord.root < 0 || !chord.label[0] || chord.label[0] == '-')
+		return;
+
+	const int display_pitch_classes = note_grid_active_pitch_class_count(display_grid);
+	const int analysis_pitch_classes = note_grid_active_pitch_class_count(analysis_grid);
+	if (display_pitch_classes < 2 || analysis_pitch_classes < 2 ||
+	    display_pitch_classes > 8 || analysis_pitch_classes > 10)
+		return;
+
+	const std::array<float, 12> display_chroma = note_grid_chroma(display_grid);
+	const std::array<float, 12> analysis_chroma = note_grid_chroma(analysis_grid);
+	if (longest_chromatic_run(display_chroma) >= 6 || longest_chromatic_run(analysis_chroma) >= 7)
+		return;
+
+	const float strongest_probe = strongest_probe_level(powers, min_midi, max_midi);
+	if (strongest_probe <= 1.0e-6f)
+		return;
+
+	struct RootToScan {
+		int root = -1;
+		RootChordQuality quality = RootChordQuality::Other;
+		bool probe_extensions_allowed = false;
+	};
+	FixedList<RootToScan, 12> roots;
+	auto add_root = [&](int root, RootChordQuality quality, bool probe_extensions_allowed) {
+		root = ((root % 12) + 12) % 12;
+		for (RootToScan &existing : roots) {
+			if (existing.root == root) {
+				if (existing.quality == RootChordQuality::NoThird &&
+				    quality != RootChordQuality::Other)
+					existing.quality = quality;
+				existing.probe_extensions_allowed =
+					existing.probe_extensions_allowed || probe_extensions_allowed;
+				return;
+			}
+		}
+		RootToScan entry;
+		entry.root = root;
+		entry.quality = quality;
+		entry.probe_extensions_allowed = probe_extensions_allowed;
+		roots.push_back(entry);
+	};
+
+	const char *cursor = chord.label;
+	while (*cursor) {
+		const char *end = std::strchr(cursor, '=');
+		const std::size_t len = end ? static_cast<std::size_t>(end - cursor) : std::strlen(cursor);
+		ParsedRootChord parsed;
+		if (parse_root_chord_component(cursor, len, parsed) &&
+		    (parsed.quality == RootChordQuality::Major || parsed.quality == RootChordQuality::Minor ||
+		     parsed.quality == RootChordQuality::NoThird)) {
+			std::size_t root_len = 1;
+			if (len > 1 && cursor[1] == '#')
+				root_len = 2;
+			const char *suffix = cursor + root_len;
+			const std::size_t suffix_len = len - root_len;
+			const bool extension_component =
+				suffix_is(suffix, suffix_len, "6") || suffix_is(suffix, suffix_len, "7") ||
+				suffix_is(suffix, suffix_len, "9") ||
+				suffix_is(suffix, suffix_len, "maj7") ||
+				suffix_is(suffix, suffix_len, "maj9") ||
+				suffix_is(suffix, suffix_len, "add9") ||
+				suffix_is(suffix, suffix_len, "m6") ||
+				suffix_is(suffix, suffix_len, "m7") ||
+				suffix_is(suffix, suffix_len, "m9");
+			add_root(parsed.root, parsed.quality,
+				 parsed.quality == RootChordQuality::NoThird || extension_component);
+		}
+		if (!end)
+			break;
+		cursor = end + 1;
+	}
+
+	auto grid_level = [&](const NoteGrid &grid, int pitch_class) {
+		return note_grid_pitch_supported_level(grid, pitch_class, 0.0f);
+	};
+	auto combined_grid_level = [&](int pitch_class) {
+		return std::max(grid_level(display_grid, pitch_class), grid_level(analysis_grid, pitch_class));
+	};
+	auto probe_norm = [&](int pitch_class) {
+		return strongest_probe_pitch_class_level(powers, pitch_class, min_midi, max_midi) /
+		       strongest_probe;
+	};
+	auto supported_extension = [&](int root, int interval, float level, float core_anchor) {
+		if (level < std::max(0.075f, core_anchor * 0.16f))
+			return false;
+		if (note_grid_pitch_active(display_grid, root + interval) ||
+		    note_grid_pitch_active(analysis_grid, root + interval))
+			return true;
+		return level >= std::max(0.095f, core_anchor * 0.20f);
+	};
+
+	for (const RootToScan &entry : roots) {
+		const int root = entry.root;
+		if (root < 0)
+			continue;
+		if (!entry.probe_extensions_allowed)
+			continue;
+		if (!note_grid_pitch_active(display_grid, root) && !note_grid_pitch_active(analysis_grid, root))
+			continue;
+
+		const float root_support = std::max(probe_norm(root), combined_grid_level(root));
+		const float fifth_support = std::max(probe_norm(root + 7), combined_grid_level(root + 7));
+		if (root_support < 0.10f || fifth_support < 0.075f)
+			continue;
+
+		const float major_probe = probe_norm(root + 4);
+		const float minor_probe = probe_norm(root + 3);
+		const float major_support = std::max(major_probe, combined_grid_level(root + 4));
+		const float minor_support = std::max(minor_probe, combined_grid_level(root + 3));
+		const float third_floor = std::max(0.070f, std::min(root_support, fifth_support) * 0.12f);
+		const bool label_major = entry.quality == RootChordQuality::Major;
+		const bool label_minor = entry.quality == RootChordQuality::Minor;
+		const bool no_third = entry.quality == RootChordQuality::NoThird;
+		const bool major_supported =
+			(label_major && major_support >= third_floor) ||
+			(no_third && major_support >= third_floor && major_probe >= minor_probe * 1.08f);
+		const bool minor_supported =
+			(label_minor && minor_support >= third_floor) ||
+			(no_third && minor_support >= third_floor && minor_probe >= major_probe * 1.08f);
+		const float major_core_anchor = std::min({root_support, major_support, fifth_support});
+		const float minor_core_anchor = std::min({root_support, minor_support, fifth_support});
+		const float sixth = probe_norm(root + 9);
+		const float flat_seventh = probe_norm(root + 10);
+		const float major_seventh = probe_norm(root + 11);
+
+		if (major_supported) {
+			if (no_third)
+				append_chord_alias(chord, root, "");
+			if (supported_extension(root, 10, flat_seventh, major_core_anchor))
+				append_chord_alias(chord, root, "7");
+			if (supported_extension(root, 11, major_seventh, major_core_anchor))
+				append_chord_alias(chord, root, "maj7");
+			if (supported_extension(root, 9, sixth, major_core_anchor))
+				append_chord_alias(chord, root, "6");
+		}
+		if (minor_supported) {
+			if (no_third)
+				append_chord_alias(chord, root, "m");
+			if (supported_extension(root, 10, flat_seventh, minor_core_anchor))
+				append_chord_alias(chord, root, "m7");
+		}
+	}
+}
+
 void append_display_supported_guitar_extension_aliases(ChordResult &chord, const NoteGrid &grid)
 {
 	if (chord.root < 0 || !chord.label[0] || chord.label[0] == '-')
@@ -13758,6 +13908,9 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 									 snapshot.guitar_notes);
 			append_supported_guitar_extension_aliases(raw_guitar_chord,
 								  guitar_chord_detection_grid, true);
+			append_probe_supported_guitar_extension_aliases(
+				raw_guitar_chord, snapshot.guitar_notes, guitar_chord_detection_grid,
+				note_powers, min_midi, kGuitarMaxMidi);
 			append_supported_guitar_base_triad_aliases_for_extensions(
 				raw_guitar_chord, guitar_chord_detection_grid);
 			append_supported_guitar_symmetric_altered_aliases(raw_guitar_chord,
@@ -14215,6 +14368,9 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 									 snapshot.guitar_notes);
 			append_supported_guitar_extension_aliases(smoothed_guitar_chord, guitar_chord_grid,
 								  true);
+			append_probe_supported_guitar_extension_aliases(
+				smoothed_guitar_chord, snapshot.guitar_notes, guitar_chord_grid,
+				note_powers, kGuitarMinMidi, kGuitarMaxMidi);
 			append_supported_guitar_base_triad_aliases_for_extensions(smoothed_guitar_chord,
 										 guitar_chord_grid);
 			append_supported_guitar_symmetric_altered_aliases(smoothed_guitar_chord,
