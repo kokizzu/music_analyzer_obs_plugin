@@ -96,6 +96,23 @@ def main() -> int:
         "MUSIC_ANALYZER_REAL_NOTE_MIN_BASS=0",
     ]:
         assert text in real_note_shard_recipe, f"real-note shard target must include {text}"
+    instrument_sharded_recipe = target_recipe(makefile, "test-instrument-samples-parallel")
+    assert "$(MAKE) -j$(INSTRUMENT_SAMPLE_SHARDS) $(INSTRUMENT_SAMPLE_SHARD_TARGETS)" in instrument_sharded_recipe, (
+        "generated instrument sample parallel target must fan out deterministic shards"
+    )
+    assert "$(INSTRUMENT_SAMPLE_MANIFEST_STAMP)" in instrument_sharded_recipe.splitlines()[0], (
+        "generated instrument sample parallel target must share a prepared manifest stamp"
+    )
+    instrument_shard_recipe = target_recipe(makefile, "test-instrument-samples-shard-%")
+    assert "$(INSTRUMENT_SAMPLE_MANIFEST_STAMP)" in instrument_shard_recipe.splitlines()[0], (
+        "generated instrument shard target must depend on the shared manifest stamp"
+    )
+    for text in [
+        "MUSIC_ANALYZER_INSTRUMENT_SAMPLES_REQUIRED=1",
+        "MUSIC_ANALYZER_INSTRUMENT_SAMPLE_SHARD_COUNT=\"$(INSTRUMENT_SAMPLE_SHARDS)\"",
+        "MUSIC_ANALYZER_INSTRUMENT_SAMPLE_SHARD_INDEX=\"$*\"",
+    ]:
+        assert text in instrument_shard_recipe, f"generated instrument shard target must include {text}"
     detector_regression_targets = re.search(
         r"^DETECTOR_SAMPLE_REGRESSION_TARGETS := (.+)$", makefile, re.MULTILINE
     )
@@ -106,6 +123,12 @@ def main() -> int:
     )
     assert "test-real-note-samples-full-mix " not in detector_regression_target_list + " ", (
         "detector sample regression loop must not use the serial real-note full-mix gate"
+    )
+    assert "test-instrument-samples-parallel" in detector_regression_target_list, (
+        "detector sample regression loop must use the sharded generated instrument sample gate"
+    )
+    assert "test-instrument-samples " not in detector_regression_target_list + " ", (
+        "detector sample regression loop must not use the serial generated instrument sample gate"
     )
     assert "REAL_WORLD_SAMPLE_MAX_TARGETS :=" in makefile, "missing max real-world sample target list"
     assert "REAL_WORLD_SAMPLE_MAX_BASE_TARGETS :=" in makefile, (

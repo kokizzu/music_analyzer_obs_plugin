@@ -312,6 +312,15 @@ PARALLEL_TEST_JOBS=8 make test-real-note-samples-full-mix-parallel
 
 With the current cached 2,212-sample manifest this runs in about 6 seconds with `PARALLEL_TEST_JOBS=4`, versus about 23 seconds for the serial full-mix analyzer phase.
 
+For the generated FluidSynth piano/guitar/bass/synth/strings/vocals/GM-drum gate alone, the sharded target splits the generated manifests across `PARALLEL_TEST_JOBS` analyzer processes and keeps the combined multi-instrument checks on shard 0:
+
+```sh
+make test-instrument-samples-parallel
+PARALLEL_TEST_JOBS=8 make test-instrument-samples-parallel
+```
+
+With the current cached generated sample manifests this runs in about 70 seconds with `PARALLEL_TEST_JOBS=4`, versus about 280 seconds for the serial analyzer phase.
+
 The real-world sample sweeps also have Makefile fanout targets for cached datasets:
 
 ```sh
@@ -363,6 +372,7 @@ Prepare and test MIDI-rendered single-note fixtures for piano, guitar, bass, syn
 ```sh
 make prepare-instrument-samples
 make test-instrument-samples
+make test-instrument-samples-parallel
 make analyze-instrument-sample-attributes
 make inspect-instrument-sample-owner-buckets
 make find-instrument-owner-patterns

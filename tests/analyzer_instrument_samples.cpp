@@ -832,6 +832,31 @@ bool filter_matches(const std::string &suite_family, const SampleRow &row)
 	return true;
 }
 
+int positive_int_env(const char *name, int fallback)
+{
+	const char *value = std::getenv(name);
+	if (!value || !*value)
+		return fallback;
+	const int parsed = std::atoi(value);
+	return parsed > 0 ? parsed : fallback;
+}
+
+int nonnegative_int_env(const char *name, int fallback)
+{
+	const char *value = std::getenv(name);
+	if (!value || !*value)
+		return fallback;
+	const int parsed = std::atoi(value);
+	return parsed >= 0 ? parsed : fallback;
+}
+
+bool shard_includes_row(std::size_t row_index, int shard_count, int shard_index)
+{
+	if (shard_count <= 1)
+		return true;
+	return static_cast<int>(row_index % static_cast<std::size_t>(shard_count)) == shard_index;
+}
+
 bool category_index(const std::string &category, std::size_t &index)
 {
 	for (std::size_t i = 0; i < mao::kDrumCount; ++i) {
@@ -923,7 +948,8 @@ bool expects_full_mix_other_recovery(const std::string &suite_family, const Samp
 		 (row.program_name == "synth_strings_2" && row.note == "G3")));
 }
 
-void check_instrument_samples(Runner &runner, const std::string &root, std::ostream *attribute_out)
+void check_instrument_samples(Runner &runner, const std::string &root, std::ostream *attribute_out,
+			      int shard_count, int shard_index)
 {
 	static constexpr const char *kFamilies[] = {"piano", "guitar", "bass", "synth", "strings", "vocals"};
 	for (const char *family_name : kFamilies) {
@@ -935,7 +961,10 @@ void check_instrument_samples(Runner &runner, const std::string &root, std::ostr
 		if (!env_filter_active())
 			runner.expect(rows.size() >= 1000, "expected at least 1000 " + family + " samples");
 
-		for (const SampleRow &row : rows) {
+		for (std::size_t row_index = 0; row_index < rows.size(); ++row_index) {
+			if (!shard_includes_row(row_index, shard_count, shard_index))
+				continue;
+			const SampleRow &row = rows[row_index];
 			if (!filter_matches(family, row))
 				continue;
 			mao_test::Buffer buffer = {};
@@ -1000,7 +1029,8 @@ void check_instrument_samples(Runner &runner, const std::string &root, std::ostr
 	}
 }
 
-void check_drum_kit_samples(Runner &runner, const std::string &root, std::ostream *attribute_out)
+void check_drum_kit_samples(Runner &runner, const std::string &root, std::ostream *attribute_out,
+			    int shard_count, int shard_index)
 {
 	const std::string family_dir = "drum_kit_samples";
 	std::vector<SampleRow> rows;
@@ -1009,7 +1039,10 @@ void check_drum_kit_samples(Runner &runner, const std::string &root, std::ostrea
 	if (!env_filter_active())
 		runner.expect(rows.size() >= 1000, "expected at least 1000 generated drum kit samples");
 
-	for (const SampleRow &row : rows) {
+	for (std::size_t row_index = 0; row_index < rows.size(); ++row_index) {
+		if (!shard_includes_row(row_index, shard_count, shard_index))
+			continue;
+		const SampleRow &row = rows[row_index];
 		if (!filter_matches("drum", row))
 			continue;
 		std::size_t expected = 0;
@@ -1182,6 +1215,14 @@ int main()
 	}
 
 	Runner runner;
+	const int shard_count = positive_int_env("MUSIC_ANALYZER_INSTRUMENT_SAMPLE_SHARD_COUNT", 1);
+	const int shard_index = nonnegative_int_env("MUSIC_ANALYZER_INSTRUMENT_SAMPLE_SHARD_INDEX", 0);
+	if (shard_index >= shard_count) {
+		std::fprintf(stderr,
+			     "analyzer_instrument_samples: invalid shard index %d for shard count %d\n",
+			     shard_index, shard_count);
+		return 1;
+	}
 	const char *attribute_path_env = std::getenv("MUSIC_ANALYZER_INSTRUMENT_ATTRIBUTE_TSV");
 	std::ofstream attribute_out;
 	if (attribute_path_env && *attribute_path_env) {
@@ -1192,9 +1233,10 @@ int main()
 			print_attribute_header(attribute_out);
 	}
 	std::ostream *attribute_stream = attribute_out.good() ? &attribute_out : nullptr;
-	check_instrument_samples(runner, root, attribute_stream);
-	check_drum_kit_samples(runner, root, attribute_stream);
-	check_combined_samples(runner, root);
+	check_instrument_samples(runner, root, attribute_stream, shard_count, shard_index);
+	check_drum_kit_samples(runner, root, attribute_stream, shard_count, shard_index);
+	if (shard_index == 0)
+		check_combined_samples(runner, root);
 
 	if (runner.failures) {
 		std::fprintf(stderr, "analyzer_instrument_samples: %d/%d checks failed\n", runner.failures,
