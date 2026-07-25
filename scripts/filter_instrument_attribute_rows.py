@@ -38,6 +38,10 @@ DEFAULT_COLUMNS = [
     "display_midi",
     "display_delta",
     "display_pitch_quality",
+    "primary_note",
+    "primary_midi",
+    "primary_delta",
+    "primary_pitch_quality",
     "target_notes",
     "target_distinct_midis",
     "target_octave_duplicates",
@@ -79,6 +83,10 @@ ATTRIBUTE_COLUMNS = [
     "display_midi",
     "display_delta",
     "display_pitch_quality",
+    "primary_note",
+    "primary_midi",
+    "primary_delta",
+    "primary_pitch_quality",
     "target_notes",
     "target_distinct_midis",
     "target_octave_duplicates",
@@ -153,6 +161,19 @@ def display_pitch_delta(row: dict[str, str]) -> int | None:
     actual = parse_int(row.get("display_midi", ""))
     if actual is None and row.get("display_note", ""):
         actual = midi_from_note(row["display_note"])
+    if expected is None or actual is None:
+        return None
+    return actual - expected
+
+
+def primary_pitch_delta(row: dict[str, str]) -> int | None:
+    direct = parse_int(row.get("primary_delta", ""))
+    if direct is not None:
+        return direct
+    expected = parse_int(row.get("midi", ""))
+    actual = parse_int(row.get("primary_midi", ""))
+    if actual is None and row.get("primary_note", ""):
+        actual = midi_from_note(row["primary_note"])
     if expected is None or actual is None:
         return None
     return actual - expected
@@ -258,6 +279,9 @@ def enrich_row(row: dict[str, str]) -> dict[str, str]:
     delta = display_pitch_delta(row)
     row["display_delta"] = "" if delta is None else str(delta)
     row["display_pitch_quality"] = pitch_quality(delta)
+    delta = primary_pitch_delta(row)
+    row["primary_delta"] = "" if delta is None else str(delta)
+    row["primary_pitch_quality"] = pitch_quality(delta)
     note_field = target_note_field(row["owner_target"])
     row["target_notes"] = row.get(note_field or "", "") if note_field else ""
     target_midis = note_cell_midis(row["target_notes"])
@@ -294,6 +318,8 @@ def row_matches(row: dict[str, str], args: argparse.Namespace) -> bool:
         return False
     if args.display_pitch_quality and row.get("display_pitch_quality") != args.display_pitch_quality:
         return False
+    if args.primary_pitch_quality and row.get("primary_pitch_quality") != args.primary_pitch_quality:
+        return False
     if args.debug_owner and (row.get("debug_owner", "") or "none") != args.debug_owner:
         return False
     if args.not_debug_owner and (row.get("debug_owner", "") or "none") == args.not_debug_owner:
@@ -324,6 +350,7 @@ def main() -> int:
     parser.add_argument("--owner-bucket")
     parser.add_argument("--pitch-quality", choices=["exact", "octave_alias", "other_pitch", "unknown"])
     parser.add_argument("--display-pitch-quality", choices=["exact", "octave_alias", "other_pitch", "unknown"])
+    parser.add_argument("--primary-pitch-quality", choices=["exact", "octave_alias", "other_pitch", "unknown"])
     parser.add_argument("--debug-owner")
     parser.add_argument("--not-debug-owner")
     parser.add_argument("--field", action="append", default=[])

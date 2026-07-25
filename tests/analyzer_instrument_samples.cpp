@@ -628,6 +628,20 @@ int grid_pitch_class_midi(const mao::NoteGrid &grid, int midi)
 	return best_midi;
 }
 
+int grid_primary_pitch_class_midi(const mao::NoteGrid &grid, int midi)
+{
+	const int pitch_class = ((midi % 12) + 12) % 12;
+	for (const auto &row : grid.rows) {
+		const mao::NoteCell &cell = row[pitch_class];
+		if (cell.active && cell.midi >= mao::kFirstAnalyzedMidi && cell.midi <= mao::kLastAnalyzedMidi)
+			return cell.midi;
+	}
+	const mao::NoteCell &cell = grid.cells[pitch_class];
+	if (cell.active && cell.midi >= mao::kFirstAnalyzedMidi && cell.midi <= mao::kLastAnalyzedMidi)
+		return cell.midi;
+	return -1;
+}
+
 std::string grid_debug_label(const mao::NoteGrid &grid)
 {
 	std::string text;
@@ -667,6 +681,7 @@ void print_attribute_header(std::ostream &out)
 	out << "kind\tstatus\tfamily\texpected_family\tprogram\tprogram_name\tnote\tmidi\tpath\twindow_ms"
 	    << "\tdetected_expected_row\tdetected_anywhere\texpected_level"
 	    << "\tdisplay_note\tdisplay_midi\tdisplay_delta"
+	    << "\tprimary_note\tprimary_midi\tprimary_delta"
 	    << "\tbass_level\tpiano_level\tguitar_level\tvocal_level\tother_level\tamb_level"
 	    << "\tbass_notes\tpiano_notes\tguitar_notes\tvocal_notes\tother_notes\tamb_notes"
 	    << "\tbass_label\tpiano_label\tguitar_label\tvocal_label\tother_label"
@@ -859,6 +874,16 @@ void append_note_attribute_row(std::ostream &out, const std::string &suite_famil
 		append_tsv(line, "");
 		append_tsv(line, "");
 	}
+	const int primary_midi = grid_primary_pitch_class_midi(family_grid(snapshot, suite_family), row.midi);
+	if (primary_midi >= 0) {
+		append_tsv(line, debug_note_label(primary_midi));
+		append_tsv(line, primary_midi);
+		append_tsv(line, primary_midi - row.midi);
+	} else {
+		append_tsv(line, "");
+		append_tsv(line, "");
+		append_tsv(line, "");
+	}
 	append_snapshot_attribute_fields(line, snapshot, row.midi);
 	append_raw_note_attribute_fields(line, &raw);
 	append_debug_candidate_fields(line, debug);
@@ -887,6 +912,8 @@ void append_drum_attribute_row(std::ostream &out, const SampleRow &row,
 	append_tsv(line, bool_cell(detected));
 	append_tsv(line, bool_cell(detected));
 	append_tsv(line, snapshot.drums[expected].level);
+	for (int i = 0; i < 6; ++i)
+		append_tsv(line, "");
 	append_snapshot_attribute_fields(line, snapshot, row.midi);
 	append_raw_note_attribute_fields(line, nullptr);
 	append_debug_candidate_fields(line, nullptr);

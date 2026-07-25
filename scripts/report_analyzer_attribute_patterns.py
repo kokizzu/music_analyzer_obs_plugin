@@ -104,6 +104,19 @@ def display_pitch_delta(row: dict[str, str], midi_field: str) -> int | None:
     return actual - expected
 
 
+def primary_pitch_delta(row: dict[str, str], midi_field: str) -> int | None:
+    direct_delta = parse_int(row.get("primary_delta", ""))
+    if direct_delta is not None:
+        return direct_delta
+    expected = parse_int(row.get(midi_field, ""))
+    actual = parse_int(row.get("primary_midi", ""))
+    if actual is None and row.get("primary_note", ""):
+        actual = midi_from_note(row["primary_note"])
+    if expected is None or actual is None:
+        return None
+    return actual - expected
+
+
 def pitch_quality(delta: int | None) -> str:
     if delta is None:
         return "unknown"
@@ -125,6 +138,13 @@ def display_pitch_quality_counts(rows: list[dict[str, str]], midi_field: str) ->
     counts: collections.Counter[str] = collections.Counter()
     for row in rows:
         counts[pitch_quality(display_pitch_delta(row, midi_field))] += 1
+    return counts
+
+
+def primary_pitch_quality_counts(rows: list[dict[str, str]], midi_field: str) -> collections.Counter[str]:
+    counts: collections.Counter[str] = collections.Counter()
+    for row in rows:
+        counts[pitch_quality(primary_pitch_delta(row, midi_field))] += 1
     return counts
 
 
@@ -316,6 +336,7 @@ def report_instruments(path: pathlib.Path, limit: int, row_examples: int) -> Non
     print(f"  families {compact(family_counts, limit)}")
     print(f"  pitch quality {compact(pitch_quality_counts(rows, 'midi'), limit)}")
     print(f"  display pitch quality {compact(display_pitch_quality_counts(rows, 'midi'), limit)}")
+    print(f"  primary pitch quality {compact(primary_pitch_quality_counts(rows, 'midi'), limit)}")
     print(f"  target octave duplicates {compact(target_octave_duplicate_counts(rows), limit)}")
     non_hit_rows = [row for row in rows if row.get("status") != "hit"]
     if non_hit_rows:
@@ -329,6 +350,7 @@ def report_instruments(path: pathlib.Path, limit: int, row_examples: int) -> Non
             f"  {family}: rows={len(family_rows)} owners={compact(owners, 5)} "
             f"pitch={compact(pitch_quality_counts(family_rows, 'midi'), 4)} "
             f"display={compact(display_pitch_quality_counts(family_rows, 'midi'), 4)} "
+            f"primary={compact(primary_pitch_quality_counts(family_rows, 'midi'), 4)} "
             f"octdup={compact(collections.Counter(str(target_octave_duplicate_count(row)) for row in family_rows), 4)} "
             f"raw_rank1={ratio(raw_rank1, len(family_rows))} tuned<=9c={ratio(tuned, len(family_rows))}"
         )
@@ -340,6 +362,7 @@ def report_instruments(path: pathlib.Path, limit: int, row_examples: int) -> Non
                 f"    {cell(row, 'status')} {cell(row, 'family')} "
                 f"expected={cell(row, 'note')}/{cell(row, 'midi')} "
                 f"display={cell(row, 'display_note')}/{cell(row, 'display_delta')} "
+                f"primary={cell(row, 'primary_note')}/{cell(row, 'primary_delta')} "
                 f"got={cell(row, 'debug_note')}/{cell(row, 'debug_owner')} "
                 f"nearest={cell(row, 'nearest_debug_note')}/{cell(row, 'nearest_debug_delta')} "
                 f"reason={cell(row, 'miss_reason')} "

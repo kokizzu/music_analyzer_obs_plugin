@@ -23,9 +23,9 @@ def main() -> int:
         instrument = write(
             root / "instrument.tsv",
             """
-kind	status	family	note	midi	path	display_note	display_midi	display_delta	debug_note	debug_owner	nearest_debug_delta	bass_level	piano_level	guitar_level	vocal_level	other_level	amb_level	bass_notes	piano_notes	guitar_notes	vocal_notes	other_notes	amb_notes	raw_expected_ratio	raw_tuned_ratio	raw_tuned_abs_cent_offset	raw_expected_rank	keyboard_score	guitar_score	vocal_score	other_score	pitch_confidence	periodicity	fit_error
-note	hit	piano	C4	60	piano.wav	C4	60	0	C4	piano	0	0	0.9	0.1	0	0	0	--	C4:0.9	--	--	--	--	1	1	0	1	0.9	0.1	0	0	0.9	0.8	0.1
-note	miss	guitar	E3	52	guitar.wav	E4	64	12	E3	piano	0	0	0.8	0.2	0	0	0	--	--	E3:0.5,E4:0.6	--	--	--	0.7	0.8	4	2	0.8	0.2	0	0	0.7	0.6	0.2
+kind	status	family	note	midi	path	display_note	display_midi	display_delta	primary_note	primary_midi	primary_delta	debug_note	debug_owner	nearest_debug_delta	bass_level	piano_level	guitar_level	vocal_level	other_level	amb_level	bass_notes	piano_notes	guitar_notes	vocal_notes	other_notes	amb_notes	raw_expected_ratio	raw_tuned_ratio	raw_tuned_abs_cent_offset	raw_expected_rank	keyboard_score	guitar_score	vocal_score	other_score	pitch_confidence	periodicity	fit_error
+note	hit	piano	C4	60	piano.wav	C4	60	0	C4	60	0	C4	piano	0	0	0.9	0.1	0	0	0	--	C4:0.9	--	--	--	--	1	1	0	1	0.9	0.1	0	0	0.9	0.8	0.1
+note	miss	guitar	E3	52	guitar.wav	E4	64	12	E3	52	0	E3	piano	0	0	0.8	0.2	0	0	0	--	--	E3:0.5,E4:0.6	--	--	--	0.7	0.8	4	2	0.8	0.2	0	0	0.7	0.6	0.2
             """,
         )
         real_note = write(
@@ -88,14 +88,16 @@ kick.wav	kick	kick	0.9	0.1	0.0	0.9	0.1	0.1	0.1	0.1	1	0	0	0	0	0	0	0.9	0.4	0	0	0	0
     assert "debug pitch deltas=+0=2" in output
     assert "pitch quality=exact=2" in output
     assert "display pitch quality=exact=1 octave_alias=1" in output
+    assert "primary pitch quality=exact=2" in output
     assert "target octave duplicates=guitar:dup1=1" in output
     assert "display octave alias buckets:" in output
     assert "1 guitar/-- expected=E3/52 detected=E4/+12 status=miss owner=piano" in output
+    assert "primary octave alias buckets=--" in output
     assert "piano rows=1 notes=1 range=C4/60 hit=1/1 100.0%" in output
-    assert "piano rows=1 notes=1 range=C4/60 hit=1/1 100.0% pitch=exact=1 display=exact=1 octdup=0=1" in output
+    assert "piano rows=1 notes=1 range=C4/60 hit=1/1 100.0% pitch=exact=1 display=exact=1 primary=exact=1 octdup=0=1" in output
     assert "guitar rows=1 notes=1 range=E3/52 hit=0/1 0.0%" in output
-    assert "guitar rows=1 notes=1 range=E3/52 hit=0/1 0.0% pitch=exact=1 display=octave_alias=1 octdup=1=1" in output
-    assert "miss guitar expected=E3/52 display=E4/12 got=E3/piano" in output
+    assert "guitar rows=1 notes=1 range=E3/52 hit=0/1 0.0% pitch=exact=1 display=octave_alias=1 primary=exact=1 octdup=1=1" in output
+    assert "miss guitar expected=E3/52 display=E4/12 primary=E3/0 got=E3/piano" in output
     assert "octdup=1" in output
     assert "measured real-note full-mix rows" in output
     assert "debug owner mismatches=piano->guitar=1" in output

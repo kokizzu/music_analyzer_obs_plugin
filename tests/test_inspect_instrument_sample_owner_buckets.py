@@ -26,6 +26,9 @@ HEADER = [
     "display_note",
     "display_midi",
     "display_delta",
+    "primary_note",
+    "primary_midi",
+    "primary_delta",
     "expected_level",
     "bass_level",
     "piano_level",
@@ -85,6 +88,9 @@ def row(**overrides: str) -> list[str]:
             "display_note": "C4",
             "display_midi": "60",
             "display_delta": "0",
+            "primary_note": "C4",
+            "primary_midi": "60",
+            "primary_delta": "0",
             "expected_level": "1.0",
             "bass_level": "0.0",
             "piano_level": "1.0",
@@ -149,6 +155,9 @@ def main() -> int:
                 display_note="",
                 display_midi="",
                 display_delta="",
+                primary_note="",
+                primary_midi="",
+                primary_delta="",
                 raw_expected_rank="8",
                 raw_tuned_abs_cent_offset="18",
                 debug_note="",
@@ -195,11 +204,12 @@ def main() -> int:
         assert dumped.stdout.startswith("kind\tstatus\tfamily\t")
         header = dumped.stdout.splitlines()[0]
         assert "display_note" in header
+        assert "primary_note" in header
         assert "piano_notes" in header
         assert "nearest_debug_note" in dumped.stdout.splitlines()[0]
         assert "miss_reason" in dumped.stdout.splitlines()[0]
         assert "\nnote\townership_miss\tguitar\tguitar\tProgram\tC4" in dumped.stdout
-        assert "\tC4\t60\t0\t" in dumped.stdout
+        assert "\tC4\t60\t0\tC4\t60\t0\t" in dumped.stdout
         assert "\tC4:1.00\t" in dumped.stdout
         assert "\townership\t" in dumped.stdout
         assert "\nnote\tmiss\tsynth\tsynth\tProgram\tC2" in dumped.stdout

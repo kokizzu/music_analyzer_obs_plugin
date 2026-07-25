@@ -23,10 +23,10 @@ def main() -> int:
         rows = write(
             root / "instrument.tsv",
             """
-kind	status	family	expected_family	program_name	note	midi	path	detected_expected_row	bass_level	piano_level	guitar_level	vocal_level	other_level	bass_notes	piano_notes	guitar_notes	vocal_notes	other_notes	display_note	display_midi	display_delta	debug_note	debug_midi	debug_owner
-note	hit	bass	bass	bass	E1	28	bass.wav	1	0.7	0	0	0	0	E1:0.7,E2:0.4	--	--	--	--	E1	28	0	E2	40	bass
-note	hit	piano	piano	piano	C4	60	piano.wav	1	0	0.9	0	0	0	--	C4:0.9	--	--	--	C4	60	0	C4	60	piano
-note	hit	vocals	vocals	vocal	D4	62	vocal.wav	0	0	0	0	0	0	--	--	--	F4:0.7	--	F4	65	3	F4	65	piano
+kind	status	family	expected_family	program_name	note	midi	path	detected_expected_row	bass_level	piano_level	guitar_level	vocal_level	other_level	bass_notes	piano_notes	guitar_notes	vocal_notes	other_notes	display_note	display_midi	display_delta	primary_note	primary_midi	primary_delta	debug_note	debug_midi	debug_owner
+note	hit	bass	bass	bass	E1	28	bass.wav	1	0.7	0	0	0	0	E1:0.7,E2:0.4	--	--	--	--	E2	40	12	E1	28	0	E2	40	bass
+note	hit	piano	piano	piano	C4	60	piano.wav	1	0	0.9	0	0	0	--	C4:0.9	--	--	--	C4	60	0	C4	60	0	C4	60	piano
+note	hit	vocals	vocals	vocal	D4	62	vocal.wav	0	0	0	0	0	0	--	--	--	F4:0.7	--	F4	65	3	F4	65	3	F4	65	piano
             """,
         )
         octave = subprocess.run(
@@ -118,9 +118,31 @@ note	hit	vocals	vocals	vocal	D4	62	vocal.wav	0	0	0	0	0	0	--	--	--	F4:0.7	--	F4	6
             stderr=subprocess.PIPE,
         ).stdout
         assert "family\tnote\tdisplay_note\tdisplay_delta\tdisplay_pitch_quality" in display_exact
-        assert "bass\tE1\tE1\t0\texact" in display_exact
         assert "piano\tC4\tC4\t0\texact" in display_exact
-        assert "count\t2" in display_exact
+        assert "count\t1" in display_exact
+
+        primary_exact = subprocess.run(
+            [
+                sys.executable,
+                str(SCRIPT),
+                str(rows),
+                "--kind",
+                "note",
+                "--primary-pitch-quality",
+                "exact",
+                "--columns",
+                "family,note,primary_note,primary_delta,primary_pitch_quality",
+            ],
+            cwd=ROOT,
+            check=True,
+            text=True,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+        ).stdout
+        assert "family\tnote\tprimary_note\tprimary_delta\tprimary_pitch_quality" in primary_exact
+        assert "bass\tE1\tE1\t0\texact" in primary_exact
+        assert "piano\tC4\tC4\t0\texact" in primary_exact
+        assert "count\t2" in primary_exact
 
         duplicates = subprocess.run(
             [
