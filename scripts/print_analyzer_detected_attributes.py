@@ -161,6 +161,55 @@ def display_pitch_quality_counts(rows: list[dict[str, str]], midi_field: str) ->
     return counts
 
 
+def octave_alias_buckets(
+    rows: list[dict[str, str]],
+    *,
+    midi_field: str,
+    expected_note_field: str,
+    detected_note_field: str,
+    source_field: str,
+    delta_func,
+) -> collections.Counter[tuple[str, str, str, str, str, str, str]]:
+    buckets: collections.Counter[tuple[str, str, str, str, str, str, str]] = collections.Counter()
+    for row in rows:
+        delta = delta_func(row)
+        if pitch_quality(delta) != "octave_alias":
+            continue
+        expected_midi = cell(row, midi_field)
+        expected_note = cell(row, expected_note_field)
+        detected_note = cell(row, detected_note_field)
+        buckets[
+            (
+                cell(row, "family", "unknown"),
+                cell(row, source_field, "--"),
+                f"{expected_note}/{expected_midi}",
+                detected_note,
+                f"{delta:+d}" if delta is not None else "--",
+                cell(row, "status", "unknown"),
+                cell(row, "debug_owner", "--"),
+            )
+        ] += 1
+    return buckets
+
+
+def print_octave_alias_buckets(
+    title: str,
+    buckets: collections.Counter[tuple[str, str, str, str, str, str, str]],
+    row_limit: int,
+) -> None:
+    if not buckets:
+        print(f"  {title}=--")
+        return
+
+    limit = len(buckets) if row_limit == 0 else max(0, row_limit)
+    print(f"  {title}:")
+    for (family, source, expected, detected, delta, status, owner), count in buckets.most_common(limit):
+        print(
+            f"    {count} {family}/{source} expected={expected} "
+            f"detected={detected}/{delta} status={status} owner={owner}"
+        )
+
+
 def midi_from_note_label(note: str) -> int | None:
     match = NOTE_RE.match(note)
     if not match:
@@ -317,6 +366,18 @@ def report_instrument_rows(path: pathlib.Path, row_limit: int) -> None:
     print(f"  pitch quality={compact(pitch_quality_counts(rows, 'midi'))}")
     print(f"  display pitch quality={compact(display_pitch_quality_counts(rows, 'midi'))}")
     print(f"  target octave duplicates={compact(target_octave_duplicate_counts(rows))}")
+    print_octave_alias_buckets(
+        "display octave alias buckets",
+        octave_alias_buckets(
+            rows,
+            midi_field="midi",
+            expected_note_field="note",
+            detected_note_field="display_note",
+            source_field="program_name",
+            delta_func=lambda row: display_pitch_delta(row, "midi"),
+        ),
+        row_limit,
+    )
     print("  family ranges:")
     for family in sorted({row.get("family", "unknown") for row in rows}):
         family_rows = [row for row in rows if row.get("family", "unknown") == family]
@@ -361,6 +422,18 @@ def report_real_note_rows(path: pathlib.Path, row_limit: int) -> None:
     print(f"  debug owner mismatches={compact(owner_mismatches(rows, 'family'))}")
     print(f"  debug pitch deltas={compact(debug_pitch_deltas(rows, 'expected_midi'))}")
     print(f"  pitch quality={compact(pitch_quality_counts(rows, 'expected_midi'))}")
+    print_octave_alias_buckets(
+        "detected octave alias buckets",
+        octave_alias_buckets(
+            rows,
+            midi_field="expected_midi",
+            expected_note_field="expected_note",
+            detected_note_field="debug_note",
+            source_field="source",
+            delta_func=lambda row: debug_pitch_delta(row, "expected_midi"),
+        ),
+        row_limit,
+    )
     print("  family ranges:")
     for family in sorted({row.get("family", "unknown") for row in rows}):
         family_rows = [row for row in rows if row.get("family", "unknown") == family]

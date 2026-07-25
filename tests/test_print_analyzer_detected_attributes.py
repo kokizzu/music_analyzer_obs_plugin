@@ -34,6 +34,7 @@ note	miss	guitar	E3	52	guitar.wav	E4	64	12	E3	piano	0	0	0.8	0.2	0	0	0	--	--	E3:0
 sample_id	status	family	source	expected_note	expected_midi	first_row	buffer	row_label	buffer_strongest_row	debug_note	debug_delta	debug_owner	bass_level	guitar_level	piano_level	vocal_level	other_level	amb_level	raw_expected_ratio	raw_tuned_ratio	raw_tuned_abs_cent_offset	raw_expected_rank	keyboard_score	guitar_score	vocal_score	other_score	pitch_confidence	periodicity	fit_error
 s1	hit	guitar	acoustic	E3	52	guitar	0	E3	guitar	E3	0	guitar	0	0.9	0.1	0	0	0	1	1	0	1	0.1	0.9	0	0	0.9	0.8	0.1
 s2	ownership_miss	piano	electronic	C4	60	bass	1	C4	bass	C4	0	guitar	0.8	0.2	0.4	0	0	0	1	1	0	1	0.4	0.6	0	0	0.8	0.7	0.1
+s3	hit	bass	electric	E2	40	bass	0	E2	bass	E3	12	bass	0.9	0.2	0.1	0	0	0	1	1	0	1	0.1	0.2	0	0	0.9	0.8	0.1
             """,
         )
         guitar = write(
@@ -88,6 +89,8 @@ kick.wav	kick	kick	0.9	0.1	0.0	0.9	0.1	0.1	0.1	0.1	1	0	0	0	0	0	0	0.9	0.4	0	0	0	0
     assert "pitch quality=exact=2" in output
     assert "display pitch quality=exact=1 octave_alias=1" in output
     assert "target octave duplicates=guitar:dup1=1" in output
+    assert "display octave alias buckets:" in output
+    assert "1 guitar/-- expected=E3/52 detected=E4/+12 status=miss owner=piano" in output
     assert "piano rows=1 notes=1 range=C4/60 hit=1/1 100.0%" in output
     assert "piano rows=1 notes=1 range=C4/60 hit=1/1 100.0% pitch=exact=1 display=exact=1 octdup=0=1" in output
     assert "guitar rows=1 notes=1 range=E3/52 hit=0/1 0.0%" in output
@@ -97,6 +100,8 @@ kick.wav	kick	kick	0.9	0.1	0.0	0.9	0.1	0.1	0.1	0.1	1	0	0	0	0	0	0	0.9	0.4	0	0	0	0
     assert "measured real-note full-mix rows" in output
     assert "debug owner mismatches=piano->guitar=1" in output
     assert "pitch quality=exact=2" in output
+    assert "detected octave alias buckets:" in output
+    assert "1 bass/electric expected=E2/40 detected=E3/+12 status=hit owner=bass" in output
     assert "guitar rows=1 samples=1 notes=1 range=E3/52 hit=1/1 100.0%" in output
     assert "guitar rows=1 samples=1 notes=1 range=E3/52 hit=1/1 100.0% pitch=exact=1" in output
     assert "piano rows=1 samples=1 notes=1 range=C4/60 hit=0/1 0.0%" in output
