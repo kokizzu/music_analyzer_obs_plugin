@@ -16,8 +16,52 @@ def target_recipe(makefile: str, target: str) -> str:
     return match.group(0)
 
 
+def assert_atomic_build_recipe(makefile: str, target: str) -> None:
+    recipe = target_recipe(makefile, target)
+    assert 'tmp="$@.$$$$.tmp"' in recipe, f"{target} must build through a per-process temp file"
+    assert '-o "$$tmp"' in recipe, f"{target} must write compiler/linker output to the temp file"
+    assert '&& mv "$$tmp" "$@"' in recipe, f"{target} must publish the temp file atomically"
+
+
 def main() -> int:
     makefile = MAKEFILE.read_text(encoding="utf-8")
+    for target in [
+        "$(BUILD_DIR)/fret_control_tests.o",
+        "$(BUILD_DIR)/analyzer_test.o",
+        "$(BUILD_DIR)/analyzer_smoke.o",
+        "$(BUILD_DIR)/analyzer_cases.o",
+        "$(BUILD_DIR)/analyzer_midi_ranges.o",
+        "$(BUILD_DIR)/analyzer_urmp.o",
+        "$(BUILD_DIR)/analyzer_musicnet.o",
+        "$(BUILD_DIR)/analyzer_multtipop.o",
+        "$(BUILD_DIR)/analyzer_guitarset.o",
+        "$(BUILD_DIR)/analyzer_maestro.o",
+        "$(BUILD_DIR)/analyzer_egmd.o",
+        "$(BUILD_DIR)/analyzer_drum_samples.o",
+        "$(BUILD_DIR)/analyzer_instrument_samples.o",
+        "$(BUILD_DIR)/analyzer_real_note_samples.o",
+        "$(BUILD_DIR)/analyzer_instrument_family_samples.o",
+        "$(BUILD_DIR)/standalone.o",
+        "$(BUILD_DIR)/standalone_bass_guitar.o",
+        "$(BUILD_DIR)/fret_control_tests",
+        "$(BUILD_DIR)/analyzer_smoke",
+        "$(BUILD_DIR)/analyzer_cases",
+        "$(BUILD_DIR)/analyzer_midi_ranges",
+        "$(BUILD_DIR)/analyzer_urmp",
+        "$(BUILD_DIR)/analyzer_musicnet",
+        "$(BUILD_DIR)/analyzer_multtipop",
+        "$(BUILD_DIR)/analyzer_guitarset",
+        "$(BUILD_DIR)/analyzer_maestro",
+        "$(BUILD_DIR)/analyzer_egmd",
+        "$(BUILD_DIR)/analyzer_drum_samples",
+        "$(BUILD_DIR)/analyzer_instrument_samples",
+        "$(BUILD_DIR)/analyzer_real_note_samples",
+        "$(BUILD_DIR)/analyzer_instrument_family_samples",
+        "$(STANDALONE_BIN)",
+        "$(BASS_GUITAR_STANDALONE_BIN)",
+    ]:
+        assert_atomic_build_recipe(makefile, target)
+
     recipe = target_recipe(makefile, "report-analyzer-patterns-from-rows")
     expected = [
         "$(MAKE) print-analyzer-detected-attributes",
