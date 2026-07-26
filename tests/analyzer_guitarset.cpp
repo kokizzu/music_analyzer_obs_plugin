@@ -1643,6 +1643,21 @@ int main()
 	const int min_chord_hits = resolve_nonnegative_int_env("MUSIC_ANALYZER_GUITARSET_MIN_CHORD_HITS", 0);
 	const int max_single_note_chord_false_percent =
 		resolve_percent_env("MUSIC_ANALYZER_GUITARSET_MAX_SINGLE_NOTE_CHORD_FALSE_PERCENT", -1);
+	const int shard_count = resolve_positive_int_env("MUSIC_ANALYZER_GUITARSET_SHARD_COUNT", 1);
+	const int shard_index = resolve_nonnegative_int_env("MUSIC_ANALYZER_GUITARSET_SHARD_INDEX", 0);
+	if (shard_index >= shard_count) {
+		std::fprintf(stderr,
+			     "analyzer_guitarset: invalid shard index %d for shard count %d\n",
+			     shard_index, shard_count);
+		return 1;
+	}
+	const auto shard_required_count = [shard_count](int total) {
+		return (total + shard_count - 1) / shard_count;
+	};
+	const int shard_required_recordings = shard_required_count(required_recordings);
+	const int shard_required_windows = shard_required_count(required_windows);
+	const int shard_min_chord_checks = shard_required_count(min_chord_checks);
+	const int shard_min_chord_hits = shard_required_count(min_chord_hits);
 	const bool inspect_only = env_truthy("MUSIC_ANALYZER_GUITARSET_INSPECT_ONLY");
 	const bool use_all_recordings = env_truthy("MUSIC_ANALYZER_GUITARSET_USE_ALL");
 	const char *attribute_path_env = std::getenv("MUSIC_ANALYZER_GUITARSET_ATTRIBUTE_TSV");
@@ -1669,8 +1684,12 @@ int main()
 	int no_candidate_recordings = 0;
 	int unusable_recordings = 0;
 
-	for (const Recording &recording : recordings) {
-		if (!use_all_recordings && tested_recordings >= required_recordings)
+	for (std::size_t recording_index = 0; recording_index < recordings.size(); ++recording_index) {
+		if (shard_count > 1 &&
+		    static_cast<int>(recording_index % static_cast<std::size_t>(shard_count)) != shard_index)
+			continue;
+		const Recording &recording = recordings[recording_index];
+		if (!use_all_recordings && tested_recordings >= shard_required_recordings)
 			break;
 		WavFormat format;
 		if (!read_wav_format(recording.audio_path, format, error)) {
@@ -1713,11 +1732,11 @@ int main()
 		}
 	}
 
-	runner.expect(tested_recordings >= required_recordings,
-		      "GuitarSet coverage: expected at least " + std::to_string(required_recordings) +
+	runner.expect(tested_recordings >= shard_required_recordings,
+		      "GuitarSet coverage: expected at least " + std::to_string(shard_required_recordings) +
 			      " usable excerpts, got " + std::to_string(tested_recordings));
-	runner.expect(tested_windows >= required_windows,
-		      "GuitarSet coverage: expected at least " + std::to_string(required_windows) +
+	runner.expect(tested_windows >= shard_required_windows,
+		      "GuitarSet coverage: expected at least " + std::to_string(shard_required_windows) +
 			      " windows, got " + std::to_string(tested_windows));
 	runner.expect(read_failures == 0,
 		      "GuitarSet audio read failures: expected 0, got " + std::to_string(read_failures));
@@ -1727,8 +1746,8 @@ int main()
 		require_guitar_precision(runner, precision, min_guitar_precision_percent,
 					 min_guitar_row_recall_percent, max_guitar_contamination_percent,
 					 max_false_vocal_percent);
-		require_chord_recall(runner, recall, min_chord_checks, min_chord_recall_percent);
-		require_chord_hits(runner, recall, min_chord_hits);
+		require_chord_recall(runner, recall, shard_min_chord_checks, min_chord_recall_percent);
+		require_chord_hits(runner, recall, shard_min_chord_hits);
 		require_chord_bucket_recall(runner, "GuitarSet major/minor chord recall",
 					    recall.major_minor_chord_hits,
 					    recall.major_minor_chord_checks,
@@ -1746,7 +1765,7 @@ int main()
 		require_chord_bucket_recall(runner, "GuitarSet simplified other chord recall",
 					    recall.simple_other_chord_hits, recall.other_chord_checks,
 					    min_simple_other_chord_recall_percent);
-		require_guitar_chord_precision(runner, guitar_chord_precision, min_chord_checks,
+		require_guitar_chord_precision(runner, guitar_chord_precision, shard_min_chord_checks,
 					       min_chord_precision_percent);
 		require_single_note_chord_false_rate(runner, guitar_chord_precision, tested_windows,
 						     max_single_note_chord_false_percent);
