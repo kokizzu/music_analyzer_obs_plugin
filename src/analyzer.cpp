@@ -15257,7 +15257,7 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 			prefer_supported_lower_octave_candidates(guitar_display, kGuitarMinMidi, 0.30f, 0.18f);
 			set_instrument_note_set_from_candidates(snapshot.guitar_notes, snapshot.guitar,
 								guitar_display,
-								preferred_root, guitar_energy, rms, max_notes, 0.22f);
+								preferred_root, guitar_energy, rms, max_notes, 0.28f);
 			InstrumentState guitar_chord_note_state;
 			set_instrument_note_set_from_candidates(guitar_chord_detection_grid,
 								guitar_chord_note_state,
