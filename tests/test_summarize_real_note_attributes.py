@@ -91,6 +91,12 @@ HEADER = [
     "partial3",
     "partial4",
     "partial5",
+    "bass_notes",
+    "guitar_notes",
+    "piano_notes",
+    "vocal_notes",
+    "other_notes",
+    "amb_notes",
 ]
 
 
@@ -164,6 +170,9 @@ def main() -> int:
                 partial2="0.4",
                 partial3="0.2",
                 partial4="0.1",
+                bass_notes="C3:0.40",
+                guitar_notes="C4:0.60",
+                piano_notes="C4:1.00",
             ),
             row(
                 status="ownership_miss",
@@ -204,6 +213,9 @@ def main() -> int:
                 partial2="0.54",
                 partial3="0.13",
                 partial4="0.17",
+                guitar_notes="E2:0.80",
+                piano_notes="--",
+                other_notes="E3:0.50",
             ),
         ]
         path.write_text("\t".join(HEADER) + "\n" + "\n".join("\t".join(item) for item in rows) + "\n")
@@ -238,8 +250,16 @@ def main() -> int:
     assert "context medians ownership_miss:piano/electronic->guitar" in result.stdout
     assert "raw_expected_ratio=0.410" in result.stdout
     assert "raw_tuned_abs_cent_offset=18.000" in result.stdout
+    assert "extra note-row summary buffers=2 samples=2" in result.stdout
+    assert "extra_pitch_buffers=2 extra_pitch_rows=4" in result.stdout
+    assert "extra_exact_buffers=2 extra_exact_rows=2" in result.stdout
+    assert "top extra pitch source/row piano/electronic->guitar=2" in result.stdout
+    assert "piano/electronic->bass=1" in result.stdout
+    assert "top extra exact source/row piano/electronic->guitar=2" in result.stdout
     assert "source detail" in detailed_result.stdout
     assert "piano/electronic samples=2 midi=40-60" in detailed_result.stdout
+    assert "top extra-row samples" in detailed_result.stdout
+    assert "keyboard_1 pitch_buffers=1 exact_buffers=1 rows=bass=1 guitar=1" in detailed_result.stdout
     assert "non-hit pitch buckets" in detailed_result.stdout
     assert "ownership_miss:piano/electronic note=E2->guitar samples=1" in detailed_result.stdout
     assert "non-hit sample attributes" in detailed_result.stdout

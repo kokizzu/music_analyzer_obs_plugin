@@ -10,6 +10,37 @@ import pathlib
 import re
 import statistics
 
+NOTE_BASE = {
+    "C": 0,
+    "C#": 1,
+    "D": 2,
+    "D#": 3,
+    "E": 4,
+    "F": 5,
+    "F#": 6,
+    "G": 7,
+    "G#": 8,
+    "A": 9,
+    "A#": 10,
+    "B": 11,
+}
+NOTE_CELL_RE = re.compile(r"([A-G]#?-?\d+):([0-9.]+)")
+
+ROW_FOR_FAMILY = {
+    "bass": "bass",
+    "guitar": "guitar",
+    "piano": "piano",
+    "vocals": "vocals",
+    "other": "other",
+}
+ROW_NOTE_FIELDS = {
+    "bass": "bass_notes",
+    "guitar": "guitar_notes",
+    "piano": "piano_notes",
+    "vocals": "vocal_notes",
+    "other": "other_notes",
+}
+
 
 NUMERIC_FIELDS = [
     "row_conf",
@@ -189,6 +220,33 @@ def expected_octave(row: dict[str, str]) -> str:
     return str(midi // 12 - 1)
 
 
+def midi_from_note_label(note: str) -> int | None:
+    match = re.fullmatch(r"([A-G]#?)(-?\d+)", note or "")
+    if not match:
+        return None
+    return NOTE_BASE[match.group(1)] + (int(match.group(2)) + 1) * 12
+
+
+def note_row_cells(value: str) -> list[tuple[int, float]]:
+    cells: list[tuple[int, float]] = []
+    for note, level in NOTE_CELL_RE.findall(value or ""):
+        midi = midi_from_note_label(note)
+        if midi is None:
+            continue
+        try:
+            cells.append((midi, float(level)))
+        except ValueError:
+            continue
+    return cells
+
+
+def expected_midi(row: dict[str, str]) -> int | None:
+    try:
+        return int(row.get("expected_midi", ""))
+    except ValueError:
+        return None
+
+
 def note_range(samples: dict[str, dict[str, str]]) -> str:
     midis = []
     for row in samples.values():
@@ -224,6 +282,86 @@ def unique_context_rows(rows: list[dict[str, str]]) -> list[dict[str, str]]:
         seen.add(key)
         selected.append(row)
     return selected
+
+
+def append_extra_note_row_summary(
+    lines: list[str], rows: list[dict[str, str]], sample_limit: int
+) -> None:
+    context_rows = unique_context_rows(rows)
+    extra_pitch_buffers = 0
+    extra_exact_buffers = 0
+    extra_pitch_rows = 0
+    extra_exact_rows = 0
+    extra_pitch_by_source_row: collections.Counter[str] = collections.Counter()
+    extra_exact_by_source_row: collections.Counter[str] = collections.Counter()
+    sample_pitch_buffers: collections.Counter[str] = collections.Counter()
+    sample_exact_buffers: collections.Counter[str] = collections.Counter()
+    sample_extra_rows: dict[str, collections.Counter[str]] = collections.defaultdict(collections.Counter)
+
+    for row in context_rows:
+        midi = expected_midi(row)
+        expected_row = ROW_FOR_FAMILY.get(row.get("family", ""))
+        sample_id = row.get("sample_id", "")
+        if midi is None or not expected_row or not sample_id:
+            continue
+
+        target_pitch = midi % 12
+        pitch_rows: list[str] = []
+        exact_rows: list[str] = []
+        for row_name, field in ROW_NOTE_FIELDS.items():
+            if row_name == expected_row:
+                continue
+            cells = note_row_cells(row.get(field, ""))
+            has_pitch = any(candidate_midi % 12 == target_pitch for candidate_midi, _level in cells)
+            has_exact = any(candidate_midi == midi for candidate_midi, _level in cells)
+            if has_pitch:
+                pitch_rows.append(row_name)
+            if has_exact:
+                exact_rows.append(row_name)
+
+        if pitch_rows:
+            extra_pitch_buffers += 1
+            sample_pitch_buffers[sample_id] += 1
+        if exact_rows:
+            extra_exact_buffers += 1
+            sample_exact_buffers[sample_id] += 1
+
+        source = source_key(row)
+        for row_name in pitch_rows:
+            extra_pitch_rows += 1
+            key = f"{source}->{row_name}"
+            extra_pitch_by_source_row[key] += 1
+            sample_extra_rows[sample_id][row_name] += 1
+        for row_name in exact_rows:
+            extra_exact_rows += 1
+            extra_exact_by_source_row[f"{source}->{row_name}"] += 1
+
+    sample_count = len({row.get("sample_id", "") for row in context_rows if row.get("sample_id")})
+    lines.append(
+        "extra note-row summary "
+        f"buffers={len(context_rows)} samples={sample_count} "
+        f"extra_pitch_buffers={extra_pitch_buffers} extra_pitch_rows={extra_pitch_rows} "
+        f"extra_exact_buffers={extra_exact_buffers} extra_exact_rows={extra_exact_rows}"
+    )
+    lines.append(
+        "top extra pitch source/row "
+        + compact_counter(extra_pitch_by_source_row, max(8, sample_limit if sample_limit > 0 else 8))
+    )
+    lines.append(
+        "top extra exact source/row "
+        + compact_counter(extra_exact_by_source_row, max(8, sample_limit if sample_limit > 0 else 8))
+    )
+
+    if sample_limit <= 0 or not sample_pitch_buffers:
+        return
+
+    lines.append("top extra-row samples")
+    for sample_id, count in sample_pitch_buffers.most_common(sample_limit):
+        rows_text = compact_counter(sample_extra_rows.get(sample_id, collections.Counter()), 5)
+        exact = sample_exact_buffers.get(sample_id, 0)
+        lines.append(
+            f"  {sample_id} pitch_buffers={count} exact_buffers={exact} rows={rows_text}"
+        )
 
 
 def load_rows(path: pathlib.Path) -> list[dict[str, str]]:
@@ -424,6 +562,7 @@ def summarize(path: pathlib.Path, detail_limit: int = 0, sample_limit: int = 0) 
                 f"buffers={len(context_rows)} " + " ".join(context_parts)
             )
 
+    append_extra_note_row_summary(lines, rows, sample_limit)
     append_detailed_breakdown(lines, rows, samples, detail_limit, sample_limit)
     return lines
 
