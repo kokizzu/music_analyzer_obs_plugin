@@ -14164,6 +14164,8 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 		drum_level_[Crash] / (drum_level_[HiHat] + 1.0e-6f);
 	const float crash_hihat_segment_ratio =
 		drum_segment_bands[Crash] / (drum_segment_bands[HiHat] + 1.0e-6f);
+	const float snare_kick_band_ratio =
+		drum_bands[Snare] / (drum_bands[Kick] + 1.0e-6f);
 	const float snare_kick_level_ratio =
 		drum_level_[Snare] / (drum_level_[Kick] + 1.0e-6f);
 	const float snare_kick_segment_ratio =
@@ -14420,6 +14422,9 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 		  snapshot.drum_debug_trigger_scores[Rim] >= 23.056f &&
 		  snapshot.drum_debug_trigger_scores[Snare] <= 24.136f &&
 		  tom_snare_shape_score_ratio <= 1.472f) ||
+		 (snare_kick_band_ratio <= 0.946f &&
+		  snapshot.drum_debug_trigger_thresholds[Snare] <= 0.426f &&
+		  snapshot.drum_debug_trigger_scores[Snare] >= 10.613f) ||
 		 (snapshot.high_energy <= 0.370f &&
 		  kick_body <= 89.119f &&
 		  drum_segment_bands[Ride] >= 20.281f &&
