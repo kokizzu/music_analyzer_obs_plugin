@@ -8431,7 +8431,8 @@ void prefer_probe_supported_lower_synth_primary(NoteGrid &grid, InstrumentState 
 		if (primary_probe <= 1.0e-6f)
 			continue;
 		const bool lower_probe_supported =
-			lower_probe >= primary_probe * 0.08f && lower_probe <= primary_probe * 1.15f;
+			(lower_probe >= primary_probe * 0.020f && lower_probe <= primary_probe * 1.15f) ||
+			(lower_midi >= 60 && lower_probe >= primary_probe * 2.0f);
 		const float lower_fifth = note_grid_midi_level(grid, lower_midi + 19);
 		const float lower_major_third = note_grid_midi_level(grid, lower_midi + 28);
 		const bool lower_harmonic_stack_supported =
@@ -15928,7 +15929,7 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 										 -1);
 				prefer_probe_supported_lower_synth_primary(
 					snapshot.other_notes, snapshot.other, full_mix_ownership,
-					detection_note_powers, kOtherMinMidi, -1);
+					note_powers, kOtherMinMidi, -1);
 			}
 			if (mixed_string_source_hint) {
 				prefer_debug_supported_upper_other_octave_primary(snapshot.other_notes,
