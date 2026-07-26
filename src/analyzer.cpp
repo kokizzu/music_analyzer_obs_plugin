@@ -15209,7 +15209,7 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 				set_instrument_note_set_from_candidates(snapshot.keyboard_notes, snapshot.keyboard,
 									keyboard_display,
 									preferred_root, keyboard_energy, rms, max_notes,
-									0.16f);
+									0.18f);
 		} else {
 			const int min_midi = kKeyboardMinMidi;
 			const int max_midi = kKeyboardMaxMidi;
