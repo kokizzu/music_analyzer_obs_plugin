@@ -10352,6 +10352,36 @@ void prune_clean_primary_guitar_aliases(ChordResult &chord, const NoteGrid &disp
 		copy_text(chord.label, sizeof(chord.label), filtered);
 }
 
+void prune_promoted_plain_guitar_primary_aliases(ChordResult &chord, const NoteGrid &display_grid,
+						 const NoteGrid &analysis_grid,
+						 const char *label_before_promotion)
+{
+	if (!label_before_promotion || !*label_before_promotion)
+		return;
+
+	ParsedRootChord original_primary;
+	if (!parse_plain_major_minor_component(label_before_promotion,
+					       std::strcspn(label_before_promotion, "="),
+					       original_primary))
+		return;
+
+	ParsedRootChord displayed_primary;
+	if (!parse_plain_major_minor_component(chord.label, std::strcspn(chord.label, "="),
+					       displayed_primary))
+		return;
+	if (original_primary.root != displayed_primary.root ||
+	    original_primary.quality != displayed_primary.quality)
+		return;
+
+	ChordResult display_rooted = chord;
+	display_rooted.root = displayed_primary.root;
+	if (!plain_chord_exactly_matches_display_grid(display_rooted, display_grid) ||
+	    primary_major_minor_min_tone_level(display_grid, displayed_primary) < 0.30f)
+		return;
+	prune_clean_primary_guitar_aliases(display_rooted, display_grid, analysis_grid);
+	copy_text(chord.label, sizeof(chord.label), display_rooted.label);
+}
+
 void append_supported_guitar_power_aliases(ChordResult &chord, const NoteGrid &grid)
 {
 	if (chord.root < 0 || !chord.label[0] || chord.label[0] == '-')
@@ -16169,8 +16199,14 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 		    !primary_major_minor_third_supported(guitar_chord_detection_grid, raw_guitar_chord) &&
 		    !primary_major_minor_third_supported(snapshot.guitar_notes, raw_guitar_chord))
 			raw_guitar_chord = ChordResult{};
+		char raw_guitar_label_before_promotion[sizeof(raw_guitar_chord.label)] = {};
+		copy_text(raw_guitar_label_before_promotion, sizeof(raw_guitar_label_before_promotion),
+			  raw_guitar_chord.label);
 		promote_supported_plain_guitar_primary(raw_guitar_chord, snapshot.guitar_notes,
 						       guitar_chord_detection_grid);
+		prune_promoted_plain_guitar_primary_aliases(raw_guitar_chord, snapshot.guitar_notes,
+							    guitar_chord_detection_grid,
+							    raw_guitar_label_before_promotion);
 		set_instrument_chord(snapshot.guitar_chord, raw_guitar_chord, guitar_energy, rms,
 				     mixed_source ? kNoteRmsFloor : kPolyphonicNoteRmsFloor);
 		set_instrument_chord(snapshot.guitar_raw_chord, raw_guitar_chord, guitar_energy, rms,
@@ -16695,9 +16731,17 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 		    !primary_major_minor_third_supported(guitar_chord_grid, smoothed_guitar_chord) &&
 		    !primary_major_minor_third_supported(snapshot.guitar_notes, smoothed_guitar_chord))
 			smoothed_guitar_chord = ChordResult{};
+		char smoothed_guitar_label_before_promotion[sizeof(smoothed_guitar_chord.label)] = {};
+		copy_text(smoothed_guitar_label_before_promotion,
+			  sizeof(smoothed_guitar_label_before_promotion),
+			  smoothed_guitar_chord.label);
 		promote_supported_plain_guitar_primary(smoothed_guitar_chord,
 						       snapshot.guitar_notes,
 						       guitar_chord_grid);
+		prune_promoted_plain_guitar_primary_aliases(smoothed_guitar_chord,
+							    snapshot.guitar_notes,
+							    guitar_chord_grid,
+							    smoothed_guitar_label_before_promotion);
 		set_instrument_chord(snapshot.guitar_smoothed_chord, smoothed_guitar_chord, guitar_energy, rms,
 				     mixed_source ? kNoteRmsFloor : kPolyphonicNoteRmsFloor);
 		stabilize_chord(snapshot.guitar_chord, guitar_chord_tracking_, raw_guitar_chord,
