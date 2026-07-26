@@ -114,6 +114,10 @@ def main() -> int:
         rows = [
             row(),
             row(
+                recording_id="rec1b",
+                guitar_chord="G=C",
+            ),
+            row(
                 status="chord_miss",
                 recording_id="rec2",
                 center_seconds="2.5",
@@ -169,28 +173,33 @@ def main() -> int:
         )
 
     output = completed.stdout
-    assert "summarize_guitarset_attributes: rows 3 recordings 3" in output
-    assert "status chord_hit=1 chord_miss=1 no_chord=1" in output
-    assert "guitar note recall 5/7 71.43%" in output
-    assert "chord exact/global recall 1/2 50.00%" in output
-    assert "visible chord-tone coverage 100%=1 50-74%=1" in output
-    assert "analysis chord-tone coverage 100%=2" in output
+    assert "summarize_guitarset_attributes: rows 4 recordings 4" in output
+    assert "status chord_hit=2 chord_miss=1 no_chord=1" in output
+    assert "guitar note recall 8/10 80.00%" in output
+    assert "chord exact/global recall 2/3 66.67%" in output
+    assert "guitar primary chord recall 1/3 33.33%" in output
+    assert "guitar expected chord later than primary 1" in output
+    assert "guitar primary chord labels C=1 G=1 --=1" in output
+    assert "visible chord-tone coverage 100%=2 50-74%=1" in output
+    assert "analysis chord-tone coverage 100%=3" in output
     assert "visible missing chord tones major_third=1" in output
     assert "analysis missing chord tones --" in output
     assert "visible-missing but analysis-present tones major_third=1" in output
     assert "visible-missing but smoothed-present tones major_third=1" in output
     assert "analysis-missing but smoothed-present tones --" in output
     assert "chord miss support buckets visible2_analysis3_smooth3_rootvis1=1" in output
-    assert "visible present tone levels fifth=2@0.55 root=2@0.85 major_third=1@0.80" in output
-    assert "analysis present tone levels fifth=2@0.62 major_third=2@0.57 root=2@0.95" in output
-    assert "smoothed present tone levels fifth=2@0.60 major_third=2@0.55 root=2@0.91" in output
-    assert "raw expected tone levels fifth=2@0.60 major_third=2@0.50 root=2@0.95" in output
+    assert "visible present tone levels fifth=3@0.70 root=3@1.00 major_third=2@0.80" in output
+    assert "analysis present tone levels fifth=3@0.70 major_third=3@0.80 root=3@1.00" in output
+    assert "smoothed present tone levels fifth=3@0.70 major_third=3@0.80 root=3@1.00" in output
+    assert "raw expected tone levels fifth=3@0.70 major_third=3@0.80 root=3@1.00" in output
     assert "visible-missing raw tone levels major_third=1@0.20" in output
     assert "analysis-missing raw tone levels --" in output
     assert "smoothed-missing raw tone levels --" in output
     assert "full-tone chord misses visible/analysis/smoothed 0/1/1" in output
     assert "chord miss examples" in output
     assert "rec2@2.500s expected=G" in output
+    assert "expected chord later than primary examples" in output
+    assert "rec1b@1.250s expected=C" in output
     assert "weak guitar-note examples" in output
     assert "rec3@1.250s expected=--" in output
     print("test_summarize_guitarset_attributes: ok")

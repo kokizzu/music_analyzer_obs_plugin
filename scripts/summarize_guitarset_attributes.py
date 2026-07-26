@@ -85,6 +85,21 @@ def split_labels(text: str) -> list[str]:
     return [item for item in text.split("/") if item and item != "--"]
 
 
+def split_chord_components(text: str) -> list[str]:
+    if not text or text == "--":
+        return []
+    return [
+        item.strip()
+        for item in re.split(r"[=/]", text)
+        if item.strip() and item.strip() != "--"
+    ]
+
+
+def primary_chord_component(text: str) -> str:
+    components = split_chord_components(text)
+    return components[0] if components else "--"
+
+
 def chord_root(label: str) -> str:
     if not label:
         return ""
@@ -269,10 +284,36 @@ def summarize(path: pathlib.Path) -> list[str]:
     chord_hits = sum(1 for row in chord_rows if row.get("chord_hit") == "1")
     simple_chord_hits = sum(1 for row in chord_rows if row.get("simple_chord_hit") == "1")
     guitar_chord_hits = sum(1 for row in chord_rows if row.get("guitar_chord_hit") == "1")
+    guitar_primary_chord_hits = 0
+    guitar_expected_later_than_primary = 0
+    guitar_primary_labels: collections.Counter[str] = collections.Counter()
+    guitar_primary_miss_examples: list[str] = []
+    guitar_expected_later_examples: list[str] = []
     visible_full_chord_misses = 0
     analysis_full_chord_misses = 0
     smooth_full_chord_misses = 0
     for row in chord_rows:
+        expected_components = set(split_chord_components(row.get("expected_chords", "")))
+        guitar_components = split_chord_components(row.get("guitar_chord", ""))
+        guitar_primary = guitar_components[0] if guitar_components else "--"
+        guitar_primary_labels[guitar_primary] += 1
+        guitar_expected_anywhere = bool(expected_components & set(guitar_components))
+        guitar_primary_hit = guitar_primary in expected_components
+        if guitar_primary_hit:
+            guitar_primary_chord_hits += 1
+        elif guitar_expected_anywhere:
+            guitar_expected_later_than_primary += 1
+            if len(guitar_expected_later_examples) < 8:
+                guitar_expected_later_examples.append(
+                    "  "
+                    + example_text(row)
+                    + f" primary={guitar_primary}"
+                )
+        elif row.get("guitar_chord_hit") == "1" and len(guitar_primary_miss_examples) < 8:
+            guitar_primary_miss_examples.append(
+                "  " + example_text(row) + f" primary={guitar_primary}"
+            )
+
         visible_coverage, visible_full = best_chord_coverage(
             row.get("expected_chords", ""), row.get("guitar_pitch_classes", "")
         )
@@ -359,6 +400,11 @@ def summarize(path: pathlib.Path) -> list[str]:
         "chord exact/global recall " + ratio_text(chord_hits, len(chord_rows)),
         "chord simplified recall " + ratio_text(simple_chord_hits, len(chord_rows)),
         "guitar chord exact recall " + ratio_text(guitar_chord_hits, len(chord_rows)),
+        "guitar primary chord recall "
+        + ratio_text(guitar_primary_chord_hits, len(chord_rows)),
+        "guitar expected chord later than primary "
+        + str(guitar_expected_later_than_primary),
+        "guitar primary chord labels " + compact_counter(guitar_primary_labels, 12),
         "visible chord-tone coverage " + compact_counter(visible_chord_coverage, 8),
         "analysis chord-tone coverage " + compact_counter(analysis_chord_coverage, 8),
         "smoothed chord-tone coverage " + compact_counter(smooth_chord_coverage, 8),
@@ -389,6 +435,14 @@ def summarize(path: pathlib.Path) -> list[str]:
         lines.append("chord miss examples")
         for row in missed[:12]:
             lines.append("  " + example_text(row))
+
+    if guitar_expected_later_examples:
+        lines.append("expected chord later than primary examples")
+        lines.extend(guitar_expected_later_examples)
+
+    if guitar_primary_miss_examples:
+        lines.append("primary miss despite guitar chord hit examples")
+        lines.extend(guitar_primary_miss_examples)
 
     weak_notes = [row for row in rows if note_recall_bucket(row) in {"0%", "1-49%", "50-74%"}]
     if weak_notes:
