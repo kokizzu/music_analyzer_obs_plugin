@@ -8428,8 +8428,18 @@ void prefer_probe_supported_lower_synth_primary(NoteGrid &grid, InstrumentState 
 
 		const float primary_probe = probe_level(powers, primary.midi);
 		const float lower_probe = probe_level(powers, lower_midi);
-		if (primary_probe <= 1.0e-6f || lower_probe < primary_probe * 0.08f ||
-		    lower_probe > primary_probe * 1.15f)
+		if (primary_probe <= 1.0e-6f)
+			continue;
+		const bool lower_probe_supported =
+			lower_probe >= primary_probe * 0.08f && lower_probe <= primary_probe * 1.15f;
+		const float lower_fifth = note_grid_midi_level(grid, lower_midi + 19);
+		const float lower_major_third = note_grid_midi_level(grid, lower_midi + 28);
+		const bool lower_harmonic_stack_supported =
+			primary.midi >= 60 && lower_midi + 28 <= kLastMidi &&
+			lower_fifth >= primary.level * 0.28f &&
+			lower_major_third >= primary.level * 0.12f &&
+			lower_fifth + lower_major_third >= primary.level * 0.45f;
+		if (!lower_probe_supported && !lower_harmonic_stack_supported)
 			continue;
 
 		bool supported_primary = false;

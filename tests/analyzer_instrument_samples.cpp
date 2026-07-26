@@ -1123,6 +1123,7 @@ bool expects_full_mix_other_primary_octave_recovery(const std::string &suite_fam
 		 (row.program_name == "square_lead" && (row.note == "C2" || row.note == "C5")) ||
 		 (row.program_name == "saw_lead" &&
 		  (row.note == "C2" || row.note == "G2" || row.note == "G3" || row.note == "C5")) ||
+		 (row.program_name == "bass_and_lead" && row.note == "G3") ||
 		 (row.program_name == "sweep_pad" && (row.note == "C2" || row.note == "G3")) ||
 		 (row.program_name == "warm_pad" && row.note == "C5")));
 }
