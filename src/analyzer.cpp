@@ -8238,6 +8238,57 @@ void prefer_debug_supported_lower_other_octave_primary(NoteGrid &grid, Instrumen
 		write_note_grid_label(state, grid, preferred_root);
 }
 
+void prefer_strong_visible_lower_other_octave_primary(NoteGrid &grid, InstrumentState &state,
+						      int min_midi, int preferred_root)
+{
+	min_midi = std::max(min_midi, kFirstMidi);
+	bool changed = false;
+
+	for (int pitch_class = 0; pitch_class < 12; ++pitch_class) {
+		NoteCell primary = {};
+		for (const auto &row : grid.rows) {
+			const NoteCell &cell = row[pitch_class];
+			if (cell.active && cell.midi >= kFirstMidi && cell.midi <= kLastMidi) {
+				primary = cell;
+				break;
+			}
+		}
+		if (!primary.active) {
+			const NoteCell &cell = grid.cells[pitch_class];
+			if (cell.active && cell.midi >= kFirstMidi && cell.midi <= kLastMidi)
+				primary = cell;
+		}
+		if (!primary.active)
+			continue;
+
+		NoteCell lower = {};
+		auto consider = [&](const NoteCell &cell) {
+			if (!cell.active || cell.midi < min_midi || cell.midi >= primary.midi ||
+			    cell.midi > kLastMidi || midi_pitch_class(cell.midi) != pitch_class)
+				return;
+			const int octave_delta = primary.midi - cell.midi;
+			if (octave_delta > 12 || cell.level < 0.60f)
+				return;
+			if (!lower.active || cell.midi < lower.midi ||
+			    (cell.midi == lower.midi && cell.level > lower.level))
+				lower = cell;
+		};
+
+		consider(grid.cells[pitch_class]);
+		for (const auto &row : grid.rows)
+			consider(row[pitch_class]);
+
+		if (!lower.active)
+			continue;
+		changed = promote_note_grid_primary_midi(grid, lower.midi,
+							 std::max(lower.level, primary.level)) ||
+			  changed;
+	}
+
+	if (changed)
+		write_note_grid_label(state, grid, preferred_root);
+}
+
 void prefer_debug_supported_keyboard_octave_primary(NoteGrid &grid, InstrumentState &state,
 						    const FullMixOwnership &ownership,
 						    int preferred_root)
@@ -15564,6 +15615,10 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 			prefer_debug_supported_lower_other_octave_primary(snapshot.other_notes, snapshot.other,
 									  full_mix_ownership, kOtherMinMidi,
 									  -1);
+			if (synthetic_other_source_hint)
+				prefer_strong_visible_lower_other_octave_primary(snapshot.other_notes,
+										 snapshot.other, kOtherMinMidi,
+										 -1);
 		}
 		smooth_note_grid_envelope(other_chord_grid, other_chord_note_state, other_chord_note_tracking_,
 					  -1, interval_seconds, other_max_notes, other_new_notes,
