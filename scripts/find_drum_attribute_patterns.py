@@ -633,12 +633,22 @@ def print_route_patterns(
     max_conditions: int,
     beam_width: int,
     show_examples: int,
+    include_merged_positives: bool,
 ) -> None:
     expected, got = route
     positive_rows = [
-        row for row in rows if row.get("expected") == expected and row.get("primary") == got
+        row for row in rows
+        if row.get("expected") == expected
+        and row.get("primary") == got
+        and (include_merged_positives or row.get("merged_expected") != "1")
     ]
-    negative_rows = [row for row in rows if row.get("expected") == row.get("primary")]
+    negative_rows = [
+        row for row in rows
+        if (
+            row.get("expected") == row.get("primary") or
+            (not include_merged_positives and row.get("merged_expected") == "1")
+        )
+    ]
     protected_by_expected = Counter(row.get("expected", "") for row in negative_rows)
     print(
         f"route {expected}->{got} positives={len({sample_key(row) for row in positive_rows})} "
@@ -753,7 +763,7 @@ def main() -> int:
     parser.add_argument(
         "--include-merged-rows",
         action="store_true",
-        help="include drum rows whose expected level was credited from a later frame",
+        help="mine drum rows whose expected level was credited from a later frame as positives",
     )
     args = parser.parse_args()
 
@@ -763,13 +773,11 @@ def main() -> int:
         source = path.stem if source_stem_counts[path.stem] == 1 else path.as_posix()
         rows.extend(parse_rows(path, source))
     merged_rows = sum(1 for row in rows if row.get("merged_expected") == "1")
-    if merged_rows and not args.include_merged_rows:
-        rows = [row for row in rows if row.get("merged_expected") != "1"]
     routes = [parse_route(route) for route in args.route] if args.route else top_routes(rows, args.top_routes)
     print("candidate rules are attribute selectors; rerun analyzer gates to validate runtime level and primary-label effects")
     if merged_rows and not args.include_merged_rows:
         print(
-            f"ignored merged expected-credit rows={merged_rows}; pass --include-merged-rows to inspect them"
+            f"protecting merged expected-credit rows={merged_rows}; pass --include-merged-rows to mine them"
         )
     for route in routes:
         print_route_patterns(
@@ -781,6 +789,7 @@ def main() -> int:
             max(1, args.max_conditions),
             max(1, args.beam_width),
             max(0, args.show_examples),
+            args.include_merged_rows,
         )
     return 0
 

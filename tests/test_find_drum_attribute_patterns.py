@@ -206,24 +206,24 @@ def main() -> int:
         )
         multi_tsv_output = run_patterns(tsv_path, tsv_path_2, row_examples=4)
 
-    assert "route tom->kick positives=2 rows=2 protected_correct=3 rows=3" in output
-    assert "ignored merged expected-credit rows=1" in output
-    assert "protected_by_expected=kick=1 snare=1 tom=1" in output
+    assert "route tom->kick positives=2 rows=2 protected_correct=4 rows=4" in output
+    assert "protecting merged expected-credit rows=1; pass --include-merged-rows to mine them" in output
+    assert "protected_by_expected=kick=1 snare=1 tom=2" in output
     assert "+2 rows=2 -0 rows=0" in output
     assert "foreign=1 rows=1 new-active=1 rows=1" in output
     assert "primary-break=1 rows=1" in output
     assert "tom/001.wav tom->kick" in output
     assert "snare/miss.wav snare->kick" in output
-    assert "route tom->kick positives=2 rows=2 protected_correct=3 rows=3" in tsv_output
-    assert "ignored merged expected-credit rows=1" in tsv_output
-    assert "protected_by_expected=kick=1 snare=1 tom=1" in tsv_output
+    assert "route tom->kick positives=2 rows=2 protected_correct=4 rows=4" in tsv_output
+    assert "protecting merged expected-credit rows=1; pass --include-merged-rows to mine them" in tsv_output
+    assert "protected_by_expected=kick=1 snare=1 tom=2" in tsv_output
     assert "+2 rows=2 -0 rows=0" in tsv_output
     assert "foreign=1 rows=1 new-active=1 rows=1" in tsv_output
     assert "primary-break=1 rows=1" in tsv_output
     assert "tom/001.wav tom->kick" in tsv_output
     assert "snare/miss.wav snare->kick" in tsv_output
     assert "route tom->kick positives=3 rows=3 protected_correct=3 rows=3" in tsv_output_with_merged
-    assert "route tom->kick positives=3 rows=3 protected_correct=4 rows=4" in multi_tsv_output
+    assert "route tom->kick positives=3 rows=3 protected_correct=5 rows=5" in multi_tsv_output
     assert "drum:tom/001.wav tom->kick" in multi_tsv_output
     assert "drum_second:tom/001.wav tom->kick" in multi_tsv_output
     print("test_find_drum_attribute_patterns: ok")
