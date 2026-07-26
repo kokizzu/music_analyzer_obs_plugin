@@ -9959,11 +9959,10 @@ bool same_root_alias_component_supported_by_clean_primary(const char *start, std
 	const float primary_anchor = std::min(primary_root, primary_fifth);
 	const float primary_third_level =
 		strongest_grid_pitch_level(display_grid, analysis_grid, primary_third);
-	const float primary_support = std::max(primary_anchor, primary_third_level);
-
-	auto supported_alias_tone = [&](int pitch_class, float relative_floor, float third_relative_floor) {
+	auto supported_alias_tone = [&](int pitch_class, float relative_floor, float third_relative_floor,
+					float absolute_floor = 0.12f) {
 		const float level = strongest_grid_pitch_level(display_grid, analysis_grid, pitch_class);
-		return level >= std::max({0.12f, primary_support * relative_floor,
+		return level >= std::max({absolute_floor, primary_anchor * relative_floor,
 					  primary_third_level * third_relative_floor});
 	};
 
@@ -9984,18 +9983,18 @@ bool same_root_alias_component_supported_by_clean_primary(const char *start, std
 		if (alias_third != primary_third && supported_alias_tone(alias_third, 0.34f, 0.72f))
 			return true;
 		if (suffix_is(suffix, suffix_len, "6") || suffix_is(suffix, suffix_len, "m6")) {
-			if (supported_alias_tone(component.root + 9, 0.42f, 0.35f))
+			if (supported_alias_tone(component.root + 9, 0.36f, 0.20f, 0.16f))
 				return true;
 		} else if (suffix_is(suffix, suffix_len, "7") || suffix_is(suffix, suffix_len, "m7")) {
-			if (supported_alias_tone(component.root + 10, 0.42f, 0.35f))
+			if (supported_alias_tone(component.root + 10, 0.36f, 0.20f, 0.16f))
 				return true;
 		} else if (suffix_is(suffix, suffix_len, "maj7")) {
-			if (supported_alias_tone(component.root + 11, 0.42f, 0.35f))
+			if (supported_alias_tone(component.root + 11, 0.36f, 0.20f, 0.16f))
 				return true;
 		} else if (suffix_is(suffix, suffix_len, "9") || suffix_is(suffix, suffix_len, "m9") ||
 			   suffix_is(suffix, suffix_len, "maj9") ||
 			   suffix_is(suffix, suffix_len, "add9")) {
-			if (supported_alias_tone(component.root + 2, 0.42f, 0.35f))
+			if (supported_alias_tone(component.root + 2, 0.38f, 0.24f, 0.16f))
 				return true;
 		}
 	} else if (component.quality == RootChordQuality::NoThird) {
