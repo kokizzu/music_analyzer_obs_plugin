@@ -14830,6 +14830,12 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 			snapshot.high_energy >= 0.369f;
 		if (one_shot_measured_high_rim_from_tom_primary_recovery)
 			promote_drum_primary(Rim, 0.90f);
+		const bool one_shot_measured_kick_saturated_rim_primary_recovery =
+			drum_detection_enabled && one_shot_drum_source &&
+			body_shape_scores[0] >= 58.682f &&
+			drum_level_[Rim] >= 1.0f;
+		if (one_shot_measured_kick_saturated_rim_primary_recovery)
+			promote_drum_primary(Kick, 0.90f);
 
 	const bool onset_tempo_event =
 		drum_detection_enabled && rms > kSilenceRms && drum_transient &&
