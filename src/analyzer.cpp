@@ -5296,6 +5296,25 @@ void prefer_supported_lower_octave_candidates(NoteCandidateList &candidates, int
 	}
 }
 
+void prefer_existing_candidate_midi(NoteCandidateList &candidates, int midi,
+				    float score_scale, float confidence_floor)
+{
+	if (midi < kFirstMidi || midi > kLastMidi)
+		return;
+
+	const float strongest = strongest_candidate_score(candidates);
+	if (strongest <= 1.0e-6f)
+		return;
+
+	for (NoteCandidate &candidate : candidates) {
+		if (candidate.midi != midi)
+			continue;
+		candidate.score = std::max(candidate.score, strongest * score_scale);
+		candidate.ownership_confidence =
+			std::max(candidate.ownership_confidence, confidence_floor);
+	}
+}
+
 void restore_supported_lower_guitar_debug_candidates(NoteCandidateList &candidates,
 						     const FullMixOwnership &ownership)
 {
@@ -15103,12 +15122,17 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 			preferred_root = mixed_bass_pitch_class >= 0 ?
 						 mixed_bass_pitch_class :
 						 lowest_candidate_pitch_class(full_mix_ownership.keyboard_candidates);
-			const NoteCandidateList keyboard_display =
-				full_mix_display_candidates(full_mix_ownership, FullMixDisplayRow::Keyboard);
-			set_instrument_note_set_from_candidates(snapshot.keyboard_notes, snapshot.keyboard,
-								keyboard_display,
-								preferred_root, keyboard_energy, rms, max_notes,
-								0.16f);
+				NoteCandidateList keyboard_display =
+					full_mix_display_candidates(full_mix_ownership, FullMixDisplayRow::Keyboard);
+				if (snapshot.bass_debug_displayed_midi >= kKeyboardMinMidi &&
+				    snapshot.bass_debug_displayed_midi < kGuitarMinMidi)
+					prefer_existing_candidate_midi(keyboard_display,
+								       snapshot.bass_debug_displayed_midi,
+								       1.08f, 0.80f);
+				set_instrument_note_set_from_candidates(snapshot.keyboard_notes, snapshot.keyboard,
+									keyboard_display,
+									preferred_root, keyboard_energy, rms, max_notes,
+									0.16f);
 		} else {
 			const int min_midi = kKeyboardMinMidi;
 			const int max_midi = kKeyboardMaxMidi;
