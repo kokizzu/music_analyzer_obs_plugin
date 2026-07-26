@@ -14482,6 +14482,53 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 			tom_body <= 47.647f &&
 			tom_kick_trigger_ratio >= 0.709f &&
 			tom_snare_trigger_ratio >= 0.840f;
+		const bool one_shot_measured_rim_snare_tom_body_recovery =
+			drum_detection_enabled && one_shot_drum_source &&
+			tom_body >= 83.865f &&
+			tom_snare_body_ratio <= 1.029f &&
+			tom_snare_level_ratio <= 0.28f &&
+			tom_snare_segment_ratio >= 0.963f;
+		const bool one_shot_measured_rim_snare_low_threshold_crack_recovery =
+			drum_detection_enabled && one_shot_drum_source &&
+			snapshot.drum_debug_trigger_scores[Kick] <= 26.737f &&
+			snare_crack >= 37.10f &&
+			snapshot.drum_debug_trigger_thresholds[Snare] <= 0.426f;
+		const float measured_snare_kick_level_ratio =
+			drum_level_[Snare] / (drum_level_[Kick] + 1.0e-9f);
+		const bool one_shot_measured_rim_snare_low_kick_crash_recovery =
+			drum_detection_enabled && one_shot_drum_source &&
+			snapshot.drum_debug_trigger_scores[Crash] >= 19.876f &&
+			snapshot.drum_debug_trigger_scores[Kick] <= 17.18f &&
+			measured_snare_kick_level_ratio >= 898410000.0f;
+		const bool one_shot_measured_rim_snare_low_kick_segment_recovery =
+			drum_detection_enabled && one_shot_drum_source &&
+			snapshot.drum_debug_trigger_scores[Crash] <= 19.876f &&
+			measured_snare_kick_level_ratio >= 1000000000.0f &&
+			snare_kick_segment_ratio >= 1.979f &&
+			tom_kick_band_ratio <= 4.442f;
+		const bool one_shot_measured_rim_snare_crash_level_recovery =
+			drum_detection_enabled && one_shot_drum_source &&
+			drum_level_[Crash] >= 0.901f &&
+			snapshot.drum_debug_trigger_scores[Crash] <= 34.70f &&
+			drum_level_[Snare] >= 0.973f;
+		const bool one_shot_measured_low_rim_kick_body_recovery =
+			drum_detection_enabled && one_shot_drum_source &&
+			crash_hihat_segment_ratio <= 0.453f &&
+			drum_level_[Kick] >= 0.999f &&
+			tom_body <= 66.217f;
+		const bool one_shot_measured_rim_crash_body_ratio_recovery =
+			drum_detection_enabled && one_shot_drum_source &&
+			drum_level_[Crash] >= 0.999f &&
+			snare_kick_body_ratio >= 3.677f;
+		const bool one_shot_measured_rim_snare_narrow_crash_band_recovery =
+			drum_detection_enabled && one_shot_drum_source &&
+			drum_bands[Crash] >= 9.516f &&
+			drum_bands[Crash] <= 9.518f;
+		const bool one_shot_measured_rim_ambiguous_ride_tom_recovery =
+			drum_detection_enabled && one_shot_drum_source &&
+			snapshot.drum_debug_trigger_scores[Crash] <= 21.004f &&
+			drum_level_[Ride] >= 0.846f &&
+			drum_bands[Tom] >= 32.19f;
 		const bool one_shot_measured_high_snare_shape_rim_guard =
 			drum_detection_enabled && one_shot_drum_source &&
 			body_shape == Snare &&
@@ -14495,7 +14542,16 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 			one_shot_measured_rim_snare_low_crash_recovery ||
 			one_shot_measured_rim_snare_bright_ride_recovery ||
 			one_shot_measured_rim_snare_tom_band_recovery ||
-			one_shot_measured_rim_snare_dense_tom_band_recovery;
+			one_shot_measured_rim_snare_dense_tom_band_recovery ||
+			one_shot_measured_rim_snare_tom_body_recovery ||
+			one_shot_measured_rim_snare_low_threshold_crack_recovery ||
+			one_shot_measured_rim_snare_low_kick_crash_recovery ||
+			one_shot_measured_rim_snare_low_kick_segment_recovery ||
+			one_shot_measured_rim_snare_crash_level_recovery ||
+			one_shot_measured_low_rim_kick_body_recovery ||
+			one_shot_measured_rim_crash_body_ratio_recovery ||
+			one_shot_measured_rim_snare_narrow_crash_band_recovery ||
+			one_shot_measured_rim_ambiguous_ride_tom_recovery;
 		const bool one_shot_measured_rim_recovery =
 			one_shot_measured_rim_snare_onset_recovery ||
 			one_shot_measured_rim_snare_low_trigger_recovery ||
@@ -14523,7 +14579,16 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 			one_shot_measured_rim_snare_low_crash_recovery ||
 			one_shot_measured_rim_snare_bright_ride_recovery ||
 			one_shot_measured_rim_snare_tom_band_recovery ||
-			one_shot_measured_rim_snare_dense_tom_band_recovery;
+			one_shot_measured_rim_snare_dense_tom_band_recovery ||
+			one_shot_measured_rim_snare_tom_body_recovery ||
+			one_shot_measured_rim_snare_low_threshold_crack_recovery ||
+			one_shot_measured_rim_snare_low_kick_crash_recovery ||
+			one_shot_measured_rim_snare_low_kick_segment_recovery ||
+			one_shot_measured_rim_snare_crash_level_recovery ||
+			one_shot_measured_low_rim_kick_body_recovery ||
+			one_shot_measured_rim_crash_body_ratio_recovery ||
+			one_shot_measured_rim_snare_narrow_crash_band_recovery ||
+			one_shot_measured_rim_ambiguous_ride_tom_recovery;
 		if (one_shot_measured_rim_recovery &&
 		    (!one_shot_measured_high_snare_shape_rim_guard ||
 		     one_shot_measured_rim_guard_bypass_recovery))
@@ -14916,7 +14981,16 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 		    one_shot_measured_rim_snare_low_crash_recovery ||
 		    one_shot_measured_rim_snare_bright_ride_recovery ||
 		    one_shot_measured_rim_snare_tom_band_recovery ||
-		    one_shot_measured_rim_snare_dense_tom_band_recovery)
+		    one_shot_measured_rim_snare_dense_tom_band_recovery ||
+		    one_shot_measured_rim_snare_tom_body_recovery ||
+		    one_shot_measured_rim_snare_low_threshold_crack_recovery ||
+		    one_shot_measured_rim_snare_low_kick_crash_recovery ||
+		    one_shot_measured_rim_snare_low_kick_segment_recovery ||
+		    one_shot_measured_rim_snare_crash_level_recovery ||
+		    one_shot_measured_low_rim_kick_body_recovery ||
+		    one_shot_measured_rim_crash_body_ratio_recovery ||
+		    one_shot_measured_rim_snare_narrow_crash_band_recovery ||
+		    one_shot_measured_rim_ambiguous_ride_tom_recovery)
 			promote_drum_primary(Rim, 0.90f);
 
 		const bool measured_snare_crack_tom_bleed =
