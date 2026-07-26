@@ -382,11 +382,11 @@ def main() -> int:
     assert "$(BUILD_DIR)/analyzer_real_note_samples" in real_note_attribute_recipe.splitlines()[0], (
         "real-note attribute TSV must rebuild when the analyzer binary changes"
     )
-    assert "$(MAKE) $(REAL_NOTE_FULL_MIX_ATTRIBUTE_MAKE_JOBS) $(REAL_NOTE_FULL_MIX_ATTRIBUTE_PARTS)" in real_note_attribute_recipe, (
-        "real-note attribute TSV must build shard parts in parallel even when top-level make is serial"
+    assert "scripts/build_sharded_tsv.sh" in real_note_attribute_recipe.splitlines()[0], (
+        "real-note attribute TSV must rebuild when the sharded TSV helper changes"
     )
-    assert "awk 'FNR == 1 && NR != 1 { next } { print }'" in real_note_attribute_recipe, (
-        "real-note attribute TSV must concatenate shard rows while dropping duplicate headers"
+    assert '$(SHELL) scripts/build_sharded_tsv.sh "$@" "$(MAKE)" "$(REAL_NOTE_FULL_MIX_ATTRIBUTE_MAKE_JOBS)" $(REAL_NOTE_FULL_MIX_ATTRIBUTE_PARTS)' in real_note_attribute_recipe, (
+        "real-note attribute TSV must use the locked helper to build and combine shards"
     )
     real_note_attribute_shard_recipe = target_recipe(
         makefile, "$(BUILD_DIR)/real_note_full_mix_attributes.shard-%.tsv"
@@ -413,11 +413,11 @@ def main() -> int:
     assert "$(INSTRUMENT_SAMPLE_MANIFEST_STAMP)" in instrument_attribute_recipe.splitlines()[0], (
         "instrument attribute TSV must share the prepared manifest stamp"
     )
-    assert "$(MAKE) $(INSTRUMENT_SAMPLE_ATTRIBUTE_MAKE_JOBS) $(INSTRUMENT_SAMPLE_ATTRIBUTE_PARTS)" in instrument_attribute_recipe, (
-        "instrument attribute TSV must build shard parts in parallel even when top-level make is serial"
+    assert "scripts/build_sharded_tsv.sh" in instrument_attribute_recipe.splitlines()[0], (
+        "instrument attribute TSV must rebuild when the sharded TSV helper changes"
     )
-    assert "awk 'FNR == 1 && NR != 1 { next } { print }'" in instrument_attribute_recipe, (
-        "instrument attribute TSV must concatenate shard rows while dropping duplicate headers"
+    assert '$(SHELL) scripts/build_sharded_tsv.sh "$@" "$(MAKE)" "$(INSTRUMENT_SAMPLE_ATTRIBUTE_MAKE_JOBS)" $(INSTRUMENT_SAMPLE_ATTRIBUTE_PARTS)' in instrument_attribute_recipe, (
+        "instrument attribute TSV must use the locked helper to build and combine shards"
     )
     instrument_attribute_shard_recipe = target_recipe(
         makefile, "$(BUILD_DIR)/instrument_sample_attributes.shard-%.tsv"
@@ -484,8 +484,9 @@ def main() -> int:
         "$(BUILD_DIR)/real_note_full_mix_attributes.tsv",
     ]:
         attribute_recipe = target_recipe(makefile, target)
-        assert "$@.tmp" in attribute_recipe, f"{target} must write through a temporary TSV"
-        assert 'mv "$@.tmp" "$@"' in attribute_recipe, f"{target} must publish TSV atomically"
+        assert "scripts/build_sharded_tsv.sh" in attribute_recipe, (
+            f"{target} must use the locked sharded TSV helper"
+        )
     guitar_attribute_recipe = target_recipe(makefile, "$(BUILD_DIR)/guitar_chord_mix_attributes.tsv")
     assert 'tmp="$@.$$$$.tmp"' in guitar_attribute_recipe, (
         "guitar chord attribute exporter must use a per-process temporary TSV"
