@@ -1761,7 +1761,7 @@ test-analyzer-egmd: $(BUILD_DIR)/analyzer_egmd scripts/run_with_duration.sh
 test-core-parallel: scripts/run_with_duration.sh
 	$(RUN_WITH_DURATION) test_core_parallel $(MAKE) $(PARALLEL_TEST_MAKE_JOBS) test-analyzer-smoke test-analyzer-cases test-analyzer-midi-ranges test-analyzer-urmp test-analyzer-musicnet test-analyzer-multtipop test-analyzer-guitarset test-analyzer-maestro test-analyzer-egmd
 
-ANALYSIS_SCRIPT_TEST_TARGETS := inspect-real-dataset-catalog inspect-real-goal-coverage test-musicnet-remote test-medleydb-inspector test-medleydb-prepare test-musdb-inspector test-slakh-inspector test-slakh-prepare test-choralsynth-inspector test-choralsynth-prepare test-cocochorales-inspector test-cocochorales-prepare test-synthsod-remote test-synthsod-archive-extract test-synthsod-inspector test-synthsod-prepare test-polyvocal-inspector test-polyvocal-prepare test-prepared-multitrack-inspector test-prepared-multitrack-prepare test-multtipop-inspector test-spheres-inspector test-guitarset-inspector test-urmp-inspector test-drum-sample-prepare test-hf-drum-kit-prepare test-idmt-drums-prepare test-mdb-drums-prepare test-star-drums-prepare test-medley-solos-prepare test-maps-piano-prepare test-bach10-mf0-synth-prepare test-instrument-sample-attribute-summary test-instrument-sample-owner-buckets test-filter-instrument-attribute-rows test-instrument-owner-patterns test-refresh-analyzer-detected-attribute-rows test-print-analyzer-detected-attributes test-analyzer-pattern-report test-measure-analyzer-patterns-target test-build-sharded-tsv test-philharmonia-prepare test-good-sounds-prepare test-iowa-piano-prepare test-iowa-zip-prepare test-idmt-bass-lines-prepare test-idmt-guitar-prepare test-tinysol-prepare test-vocadito-prepare test-vocalset-prepare test-guitar-fretboard-note-prepare test-guitar-techs-prepare test-guitar-techs-chord-prepare test-guitar-chord-mix-prepare test-gaps-guitar-prepare test-guitarset-miss-analysis test-guitarset-attribute-summary test-guitarset-attribute-buckets test-guitarset-attribute-patterns test-guitar-chord-recovery-analysis test-guitar-chord-extra-components-analysis test-real-note-miss-analysis test-real-note-attribute-summary test-real-note-attribute-buckets test-real-note-attribute-patterns test-egmd-miss-analysis test-egmd-drum-attribute-summary test-drum-primary-analysis test-drum-gate-matrix-summary test-drum-active-threshold-simulation test-drum-active-false-summary test-real-goal-script android-check
+ANALYSIS_SCRIPT_TEST_TARGETS := inspect-real-dataset-catalog inspect-real-goal-coverage test-musicnet-remote test-medleydb-inspector test-medleydb-prepare test-musdb-inspector test-slakh-inspector test-slakh-prepare test-choralsynth-inspector test-choralsynth-prepare test-cocochorales-inspector test-cocochorales-prepare test-synthsod-remote test-synthsod-archive-extract test-synthsod-inspector test-synthsod-prepare test-polyvocal-inspector test-polyvocal-prepare test-prepared-multitrack-inspector test-prepared-multitrack-prepare test-multtipop-inspector test-spheres-inspector test-guitarset-inspector test-urmp-inspector test-drum-sample-prepare test-hf-drum-kit-prepare test-idmt-drums-prepare test-mdb-drums-prepare test-star-drums-prepare test-medley-solos-prepare test-maps-piano-prepare test-bach10-mf0-synth-prepare test-instrument-sample-attribute-summary test-instrument-sample-owner-buckets test-filter-instrument-attribute-rows test-instrument-owner-patterns test-refresh-analyzer-detected-attribute-rows test-print-analyzer-detected-attributes test-analyzer-pattern-report test-measure-analyzer-patterns-target test-build-sharded-tsv test-philharmonia-prepare test-good-sounds-prepare test-iowa-piano-prepare test-iowa-zip-prepare test-idmt-bass-lines-prepare test-idmt-guitar-prepare test-tinysol-prepare test-vocadito-prepare test-vocalset-prepare test-guitar-fretboard-note-prepare test-guitar-techs-prepare test-guitar-techs-chord-prepare test-guitar-chord-mix-prepare test-gaps-guitar-prepare test-guitarset-miss-analysis test-guitarset-attribute-summary test-guitarset-attribute-buckets test-guitarset-attribute-patterns test-guitar-chord-recovery-analysis test-guitar-chord-extra-components-analysis test-real-note-miss-analysis test-real-note-attribute-summary test-real-note-attribute-buckets test-real-note-attribute-patterns test-egmd-miss-analysis test-egmd-drum-attribute-summary test-egmd-drum-recovery-eval test-drum-primary-analysis test-drum-gate-matrix-summary test-drum-active-threshold-simulation test-drum-active-false-summary test-real-goal-script android-check
 
 test-analysis-scripts-parallel: scripts/run_with_duration.sh
 	$(RUN_WITH_DURATION) test_analysis_scripts_parallel $(MAKE) $(PARALLEL_TEST_MAKE_JOBS) $(ANALYSIS_SCRIPT_TEST_TARGETS)
@@ -1834,6 +1834,7 @@ test: $(TEST_BINS) scripts/run_with_duration.sh
 	$(MAKE) test-real-note-attribute-patterns
 	$(MAKE) test-egmd-miss-analysis
 	$(MAKE) test-egmd-drum-attribute-summary
+	$(MAKE) test-egmd-drum-recovery-eval
 	$(MAKE) test-drum-primary-analysis
 	$(MAKE) test-drum-gate-matrix-summary
 	$(MAKE) test-real-goal-script
@@ -2112,6 +2113,16 @@ test-egmd-miss-analysis: tests/test_analyze_egmd_misses.py scripts/analyze_egmd_
 
 test-egmd-drum-attribute-summary: tests/test_summarize_egmd_drum_attributes.py scripts/summarize_egmd_drum_attributes.py
 	$(PYTHON) tests/test_summarize_egmd_drum_attributes.py
+
+.PHONY: test-egmd-drum-recovery-eval evaluate-mdb-drum-recovery evaluate-star-drum-recovery
+test-egmd-drum-recovery-eval: tests/test_evaluate_egmd_drum_recovery.py scripts/evaluate_egmd_drum_recovery.py scripts/summarize_egmd_drum_attributes.py
+	$(PYTHON) tests/test_evaluate_egmd_drum_recovery.py
+
+evaluate-mdb-drum-recovery: analyze-mdb-drums-misses scripts/evaluate_egmd_drum_recovery.py scripts/summarize_egmd_drum_attributes.py
+	$(PYTHON) scripts/evaluate_egmd_drum_recovery.py "$(MDB_DRUMS_MISS_LOG)" $(DRUM_RECOVERY_ARGS)
+
+evaluate-star-drum-recovery: analyze-star-drums-misses scripts/evaluate_egmd_drum_recovery.py scripts/summarize_egmd_drum_attributes.py
+	$(PYTHON) scripts/evaluate_egmd_drum_recovery.py "$(STAR_DRUMS_MISS_LOG)" $(DRUM_RECOVERY_ARGS)
 
 test-drum-primary-analysis: tests/test_analyze_drum_primary_debug.py tests/test_evaluate_drum_rule_grid.py tests/test_evaluate_drum_tom_bleed_caps.py tests/test_find_drum_attribute_patterns.py scripts/analyze_drum_primary_debug.py scripts/evaluate_drum_rule_grid.py scripts/evaluate_drum_tom_bleed_caps.py scripts/find_drum_attribute_patterns.py
 	$(PYTHON) tests/test_analyze_drum_primary_debug.py

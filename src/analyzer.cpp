@@ -14040,6 +14040,23 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 		}
 	};
 
+	const float snare_trigger_ratio_after_detection =
+		snapshot.drum_debug_trigger_scores[Snare] /
+		(snapshot.drum_debug_trigger_thresholds[Snare] + 1.0e-6f);
+	const bool supported_low_real_drum_snare =
+		drum_detection_enabled && real_drum_track_source &&
+		drum_level_[Snare] >= 0.14f && drum_level_[Snare] <= 0.30f &&
+		drum_shape_supported[Snare] &&
+		body_shape == Tom &&
+		snare_trigger_ratio_after_detection >= 0.60f &&
+		rms <= 0.030f &&
+		snare_body >= 0.50f &&
+		snare_crack >= snare_body * 0.050f &&
+		snapshot.low_energy <= 0.55f &&
+		snapshot.mid_energy >= snapshot.low_energy * 0.85f;
+	if (supported_low_real_drum_snare)
+		boost_drum_level(Snare, 0.34f);
+
 	const bool low_dominant_kick_bleed =
 		drum_detection_enabled && !one_shot_drum_source &&
 		drum_level_[Kick] > 0.30f && drum_shape_supported[Kick] &&
