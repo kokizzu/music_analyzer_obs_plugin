@@ -1684,25 +1684,29 @@ int main()
 	int no_candidate_recordings = 0;
 	int unusable_recordings = 0;
 
+	int eligible_recording_index = 0;
 	for (std::size_t recording_index = 0; recording_index < recordings.size(); ++recording_index) {
-		if (shard_count > 1 &&
-		    static_cast<int>(recording_index % static_cast<std::size_t>(shard_count)) != shard_index)
-			continue;
 		const Recording &recording = recordings[recording_index];
-		if (!use_all_recordings && tested_recordings >= shard_required_recordings)
-			break;
 		WavFormat format;
 		if (!read_wav_format(recording.audio_path, format, error)) {
-			++unusable_recordings;
+			if (shard_count == 1)
+				++unusable_recordings;
 			continue;
 		}
 		std::vector<CandidateWindow> candidates =
 			select_candidate_windows(recording, format.sample_rate, max_windows_per_recording,
 						 min_active_notes, min_pitch_classes);
 		if (candidates.empty()) {
-			++no_candidate_recordings;
+			if (shard_count == 1)
+				++no_candidate_recordings;
 			continue;
 		}
+		const int shard_for_recording = eligible_recording_index % shard_count;
+		++eligible_recording_index;
+		if (shard_count > 1 && shard_for_recording != shard_index)
+			continue;
+		if (!use_all_recordings && tested_recordings >= shard_required_recordings)
+			break;
 
 		++tested_recordings;
 		for (const CandidateWindow &candidate : candidates) {

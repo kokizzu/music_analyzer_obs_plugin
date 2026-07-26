@@ -254,6 +254,82 @@ def main() -> int:
     assert "$(RUN_WITH_DURATION) analyzer_guitar_chord_mix_samples_parallel" in guitar_chord_sharded_recipe, (
         "guitar chord mix parallel target must report aggregate duration"
     )
+    phony_lines = "\n".join(re.findall(r"^\.PHONY:.*$", makefile, re.MULTILINE))
+    for target_var in [
+        "$(GUITAR_CHORD_MIX_SHARD_TARGETS)",
+        "$(GUITAR_TECHS_CHORD_SHARD_TARGETS)",
+        "$(EGFXSET_GUITAR_SHARD_TARGETS)",
+        "$(GAPS_GUITAR_SHARD_TARGETS)",
+        "$(GAPS_GUITAR_FULL_SHARD_TARGETS)",
+        "$(GUITARSET_SHARD_TARGETS)",
+    ]:
+        assert target_var not in phony_lines, (
+            f"{target_var} must not expand into concrete .PHONY targets because that masks pattern recipes"
+        )
+    guitar_chord_shard_recipe = target_recipe(makefile, "test-guitar-chord-mix-samples-shard-%")
+    assert "FORCE" in guitar_chord_shard_recipe.splitlines()[0], (
+        "guitar chord mix shard pattern must use FORCE so each shard executes"
+    )
+    for aggregate, shard, jobs_var, shards_var, targets_var, duration in [
+        (
+            "test-guitar-techs-chord-samples",
+            "test-guitar-techs-chord-samples-shard-%",
+            "GUITAR_TECHS_CHORD_TEST_MAKE_JOBS",
+            "GUITAR_TECHS_CHORD_SHARDS",
+            "GUITAR_TECHS_CHORD_SHARD_TARGETS",
+            "analyzer_guitar_techs_chord_samples_parallel",
+        ),
+        (
+            "test-egfxset-guitar-samples",
+            "test-egfxset-guitar-samples-shard-%",
+            "EGFXSET_GUITAR_TEST_MAKE_JOBS",
+            "EGFXSET_GUITAR_SHARDS",
+            "EGFXSET_GUITAR_SHARD_TARGETS",
+            "analyzer_egfxset_guitar_samples_parallel",
+        ),
+        (
+            "test-gaps-guitar-samples",
+            "test-gaps-guitar-samples-shard-%",
+            "GAPS_GUITAR_TEST_MAKE_JOBS",
+            "GAPS_GUITAR_SHARDS",
+            "GAPS_GUITAR_SHARD_TARGETS",
+            "analyzer_gaps_guitar_samples_parallel",
+        ),
+        (
+            "test-gaps-guitar-samples-full",
+            "test-gaps-guitar-samples-full-shard-%",
+            "GAPS_GUITAR_FULL_TEST_MAKE_JOBS",
+            "GAPS_GUITAR_FULL_SHARDS",
+            "GAPS_GUITAR_FULL_SHARD_TARGETS",
+            "analyzer_gaps_guitar_samples_full_parallel",
+        ),
+        (
+            "test-downloaded-guitarset",
+            "test-downloaded-guitarset-shard-%",
+            "GUITARSET_TEST_MAKE_JOBS",
+            "GUITARSET_SHARDS",
+            "GUITARSET_SHARD_TARGETS",
+            "analyzer_guitarset_downloaded_parallel",
+        ),
+    ]:
+        assert f"{jobs_var} = $(if $(filter -j%,$(MAKEFLAGS)),,-j$({shards_var}))" in makefile, (
+            f"{aggregate} shard fanout must reuse an inherited GNU make jobserver"
+        )
+        aggregate_recipe = target_recipe(makefile, aggregate)
+        assert f"$(MAKE) $({jobs_var}) $({targets_var})" in aggregate_recipe, (
+            f"{aggregate} must fan out deterministic shards through jobserver-aware make"
+        )
+        assert f"$(RUN_WITH_DURATION) {duration}" in aggregate_recipe, (
+            f"{aggregate} must report aggregate duration"
+        )
+        shard_recipe = target_recipe(makefile, shard)
+        assert "FORCE" in shard_recipe.splitlines()[0], f"{shard} must use FORCE so each shard executes"
+        for text in [
+            f'MUSIC_ANALYZER_GUITARSET_SHARD_COUNT="$({shards_var})"',
+            'MUSIC_ANALYZER_GUITARSET_SHARD_INDEX="$*"',
+            "$(BUILD_DIR)/analyzer_guitarset",
+        ]:
+            assert text in shard_recipe, f"{shard} must include {text}"
     detector_regression_recipe = target_recipe(makefile, "test-detector-samples-parallel")
     assert "$(MAKE) $(PARALLEL_TEST_MAKE_JOBS) $(DETECTOR_SAMPLE_REGRESSION_TARGETS)" in detector_regression_recipe, (
         "detector sample regression target must fan out through jobserver-aware make"
