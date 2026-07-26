@@ -101,6 +101,9 @@ def main() -> int:
     assert "$(MAKE) $(REAL_NOTE_FULL_MIX_TEST_MAKE_JOBS) $(REAL_NOTE_FULL_MIX_SHARD_TARGETS)" in real_note_sharded_recipe, (
         "real-note full-mix parallel target must fan out deterministic shards through jobserver-aware make"
     )
+    assert "$(RUN_WITH_DURATION) analyzer_real_note_samples_full_mix_parallel" in real_note_sharded_recipe, (
+        "real-note full-mix parallel target must report aggregate duration"
+    )
     assert "scripts/prepare_nsynth_samples.py\" -nt \"$(REAL_NOTE_SAMPLE_DIR)/manifest.tsv\"" in real_note_sharded_recipe, (
         "real-note full-mix parallel target must skip sample regeneration when the manifest is fresh"
     )
@@ -119,6 +122,9 @@ def main() -> int:
     )
     assert "$(MAKE) $(INSTRUMENT_SAMPLE_TEST_MAKE_JOBS) $(INSTRUMENT_SAMPLE_SHARD_TARGETS)" in instrument_sharded_recipe, (
         "generated instrument sample parallel target must fan out deterministic shards through jobserver-aware make"
+    )
+    assert "$(RUN_WITH_DURATION) analyzer_instrument_samples_parallel" in instrument_sharded_recipe, (
+        "generated instrument sample parallel target must report aggregate duration"
     )
     assert "$(INSTRUMENT_SAMPLE_MANIFEST_STAMP)" in instrument_sharded_recipe.splitlines()[0], (
         "generated instrument sample parallel target must share a prepared manifest stamp"
@@ -159,6 +165,13 @@ def main() -> int:
     assert "test-instrument-samples " not in detector_regression_target_list + " ", (
         "detector sample regression loop must not use the serial generated instrument sample gate"
     )
+    guitar_chord_sharded_recipe = target_recipe(makefile, "test-guitar-chord-mix-samples-parallel")
+    assert "$(MAKE) $(GUITAR_CHORD_MIX_TEST_MAKE_JOBS) $(GUITAR_CHORD_MIX_SHARD_TARGETS)" in guitar_chord_sharded_recipe, (
+        "guitar chord mix parallel target must fan out deterministic shards through jobserver-aware make"
+    )
+    assert "$(RUN_WITH_DURATION) analyzer_guitar_chord_mix_samples_parallel" in guitar_chord_sharded_recipe, (
+        "guitar chord mix parallel target must report aggregate duration"
+    )
     detector_regression_recipe = target_recipe(makefile, "test-detector-samples-parallel")
     assert "$(MAKE) $(PARALLEL_TEST_MAKE_JOBS) $(DETECTOR_SAMPLE_REGRESSION_TARGETS)" in detector_regression_recipe, (
         "detector sample regression target must fan out through jobserver-aware make"
@@ -166,6 +179,10 @@ def main() -> int:
     assert "REAL_WORLD_SAMPLE_MAX_TARGETS :=" in makefile, "missing max real-world sample target list"
     assert "REAL_WORLD_SAMPLE_MAX_BASE_TARGETS :=" in makefile, (
         "max real-world sample target list must avoid duplicated default/max targets"
+    )
+    max_samples_recipe = target_recipe(makefile, "test-real-world-samples-max")
+    assert "$(RUN_WITH_DURATION) real_world_samples_max" in max_samples_recipe, (
+        "max real-world sample target must report aggregate duration"
     )
     for target, override in {
         "test-iowa-piano-samples-max": "IOWA_PIANO_SAMPLE_LIMIT=0",
