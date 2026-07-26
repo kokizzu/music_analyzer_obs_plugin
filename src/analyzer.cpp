@@ -14757,7 +14757,14 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 		    one_shot_measured_low_trigger_snare_from_tom_primary_recovery ||
 		    one_shot_measured_high_band_snare_from_tom_primary_recovery)
 			promote_drum_primary(Snare, 0.90f);
+		const bool one_shot_measured_quiet_crash_saturated_snare_tom_primary_recovery =
+			drum_detection_enabled && one_shot_drum_source &&
+			drum_level_[Snare] >= 0.999f &&
+			drum_level_[Rim] <= 0.30f &&
+			snapshot.mid_energy >= snapshot.low_energy * 1.20f &&
+			drum_bands[Crash] <= 0.191f;
 		if (one_shot_measured_quiet_crash_tom_from_snare_primary_recovery ||
+		    one_shot_measured_quiet_crash_saturated_snare_tom_primary_recovery ||
 		    one_shot_measured_ratio_tom_from_snare_primary_recovery)
 			promote_drum_primary(Tom, 0.90f);
 		const bool one_shot_measured_late_kick_tom_primary_recovery =
