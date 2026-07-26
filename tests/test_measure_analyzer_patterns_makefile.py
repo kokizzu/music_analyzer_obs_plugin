@@ -146,6 +146,16 @@ def main() -> int:
     assert "$(MAKE) $(PARALLEL_TEST_MAKE_JOBS) $(ANALYSIS_SCRIPT_TEST_TARGETS)" in analysis_scripts_recipe, (
         "analysis script parallel target must fan out through jobserver-aware make"
     )
+    default_test_recipe = target_recipe(makefile, "test")
+    assert "$(MAKE) test-parallel" in default_test_recipe, (
+        "default test target must use the parallel test aggregate"
+    )
+    assert "$(MAKE) test-detector-samples-parallel" in default_test_recipe, (
+        "default test target must use the parallel detector sample aggregate"
+    )
+    assert "$(MAKE) test-instrument-samples\n" not in default_test_recipe, (
+        "default test target must not run generated instrument samples serially"
+    )
     max_samples_recipe = target_recipe(makefile, "test-real-world-samples-max")
     assert "$(MAKE) $(PARALLEL_TEST_MAKE_JOBS) $(REAL_WORLD_SAMPLE_MAX_TARGETS)" in max_samples_recipe, (
         "max real-world sample tests must fan out through jobserver-aware make"

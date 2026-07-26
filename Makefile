@@ -1792,86 +1792,10 @@ test-parallel: scripts/run_with_duration.sh
 	$(RUN_WITH_DURATION) test_parallel $(MAKE) $(PARALLEL_TEST_MAKE_JOBS) test-analysis-scripts-parallel test-core-parallel test-standalone
 
 test: $(TEST_BINS) scripts/run_with_duration.sh
-	$(MAKE) test-standalone
-	$(MAKE) inspect-real-dataset-catalog
-	$(MAKE) inspect-real-goal-coverage
-	$(MAKE) test-musicnet-remote
-	$(MAKE) test-medleydb-inspector
-	$(MAKE) test-medleydb-prepare
-	$(MAKE) test-musdb-inspector
-	$(MAKE) test-slakh-inspector
-	$(MAKE) test-slakh-prepare
-	$(MAKE) test-choralsynth-inspector
-	$(MAKE) test-choralsynth-prepare
-	$(MAKE) test-cocochorales-inspector
-	$(MAKE) test-cocochorales-prepare
-	$(MAKE) test-synthsod-remote
-	$(MAKE) test-synthsod-archive-extract
-	$(MAKE) test-synthsod-inspector
-	$(MAKE) test-synthsod-prepare
-	$(MAKE) test-polyvocal-inspector
-	$(MAKE) test-polyvocal-prepare
-	$(MAKE) test-prepared-multitrack-inspector
-	$(MAKE) test-prepared-multitrack-prepare
-	$(MAKE) test-multtipop-inspector
-	$(MAKE) test-spheres-inspector
-	$(MAKE) test-guitarset-inspector
-	$(MAKE) test-urmp-inspector
-	$(MAKE) test-drum-sample-prepare
-	$(MAKE) test-hf-drum-kit-prepare
-	$(MAKE) test-idmt-drums-prepare
-	$(MAKE) test-mdb-drums-prepare
-	$(MAKE) test-star-drums-prepare
-	$(MAKE) test-medley-solos-prepare
-	$(MAKE) test-maps-piano-prepare
-	$(MAKE) test-bach10-mf0-synth-prepare
-	$(MAKE) test-instrument-sample-attribute-summary
-	$(MAKE) test-instrument-sample-owner-buckets
-	$(MAKE) test-instrument-owner-patterns
-	$(MAKE) test-refresh-analyzer-detected-attribute-rows
-	$(MAKE) test-print-analyzer-detected-attributes
-	$(MAKE) test-analyzer-pattern-report
-	$(MAKE) test-measure-analyzer-patterns-target
-	$(MAKE) test-philharmonia-prepare
-	$(MAKE) test-good-sounds-prepare
-	$(MAKE) test-iowa-piano-prepare
-	$(MAKE) test-iowa-zip-prepare
-	$(MAKE) test-idmt-bass-lines-prepare
-	$(MAKE) test-idmt-guitar-prepare
-	$(MAKE) test-tinysol-prepare
-	$(MAKE) test-vocadito-prepare
-	$(MAKE) test-vocalset-prepare
-	$(MAKE) test-guitar-fretboard-note-prepare
-	$(MAKE) test-guitar-techs-prepare
-	$(MAKE) test-guitar-techs-chord-prepare
-	$(MAKE) test-guitar-chord-mix-prepare
-	$(MAKE) test-gaps-guitar-prepare
-	$(MAKE) test-guitarset-miss-analysis
-	$(MAKE) test-guitarset-attribute-summary
-	$(MAKE) test-guitarset-attribute-buckets
-	$(MAKE) test-guitarset-attribute-patterns
-	$(MAKE) test-real-note-miss-analysis
-	$(MAKE) test-real-note-attribute-summary
-	$(MAKE) test-real-note-attribute-buckets
-	$(MAKE) test-real-note-attribute-patterns
-	$(MAKE) test-egmd-miss-analysis
-	$(MAKE) test-egmd-drum-attribute-summary
-	$(MAKE) test-egmd-drum-recovery-eval
-	$(MAKE) test-drum-primary-analysis
-	$(MAKE) test-drum-gate-matrix-summary
-	$(MAKE) test-real-goal-script
+	$(MAKE) test-parallel
+	$(MAKE) test-detector-samples-parallel
 	$(RUN_WITH_DURATION) fret_control_tests $(BUILD_DIR)/fret_control_tests
-	$(RUN_WITH_DURATION) analyzer_smoke $(BUILD_DIR)/analyzer_smoke
-	$(RUN_WITH_DURATION) analyzer_cases $(BUILD_DIR)/analyzer_cases
-	$(RUN_WITH_DURATION) analyzer_midi_ranges $(BUILD_DIR)/analyzer_midi_ranges
-	$(RUN_WITH_DURATION) analyzer_urmp $(BUILD_DIR)/analyzer_urmp
-	$(RUN_WITH_DURATION) analyzer_musicnet $(BUILD_DIR)/analyzer_musicnet
-	$(RUN_WITH_DURATION) analyzer_multtipop $(BUILD_DIR)/analyzer_multtipop
-	$(RUN_WITH_DURATION) analyzer_guitarset $(BUILD_DIR)/analyzer_guitarset
-	$(RUN_WITH_DURATION) analyzer_maestro $(BUILD_DIR)/analyzer_maestro
-	$(RUN_WITH_DURATION) analyzer_egmd $(BUILD_DIR)/analyzer_egmd
-	if [ -d "$(DRUM_SAMPLE_SOURCE_DIR)" ]; then $(MAKE) test-drum-samples; $(MAKE) test-drum-samples-spread; else printf '%s\n' "test-drum-samples: skipped; missing $(DRUM_SAMPLE_SOURCE_DIR)"; fi
-	if command -v fluidsynth >/dev/null 2>&1; then $(MAKE) test-instrument-samples; else printf '%s\n' "test-instrument-samples: skipped; missing fluidsynth"; fi
+	$(MAKE) test-real-note-samples
 	$(MAKE) test-direct-fit-small-fixture
 	$(MAKE) test-synthsod-fixture
 	$(MAKE) test-prepared-multitrack-fixture
