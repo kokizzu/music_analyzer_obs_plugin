@@ -7606,6 +7606,57 @@ void prefer_debug_supported_high_bass_primary(NoteGrid &grid, InstrumentState &s
 		write_note_grid_label(state, grid, preferred_root);
 }
 
+void prefer_debug_supported_mid_bass_primary(NoteGrid &grid, InstrumentState &state,
+					     const FullMixOwnership &ownership, int preferred_root)
+{
+	bool changed = false;
+	const std::size_t debug_count =
+		std::min<std::size_t>(ownership.debug_candidate_count, ownership.debug_candidates.size());
+
+	for (int pitch_class = 0; pitch_class < 12; ++pitch_class) {
+		NoteCell primary = {};
+		for (const auto &row : grid.rows) {
+			if (row[pitch_class].active) {
+				primary = row[pitch_class];
+				break;
+			}
+		}
+		if (!primary.active)
+			continue;
+
+		int supported_midi = -1;
+		float supported_level = 0.0f;
+		float supported_confidence = 0.0f;
+		for (std::size_t i = 0; i < debug_count; ++i) {
+			const FullMixDebugCandidate &debug = ownership.debug_candidates[i];
+			if (debug.owner != InstrumentKind::Bass || !full_mix_debug_bass_display_supported(debug))
+				continue;
+			if (primary.midi >= 36 || debug.midi < 36 || debug.midi > 43 ||
+			    debug.midi != primary.midi + 12 || midi_pitch_class(debug.midi) != pitch_class)
+				continue;
+			if (debug.ownership_confidence < 0.80f || debug.pitch_confidence > 0.32f ||
+			    debug.periodicity < 0.40f)
+				continue;
+
+			const float raw_level = ownership_global_note_level(ownership, debug.midi);
+			const float promote_level = std::max(raw_level, primary.level);
+			if (supported_midi < 0 || debug.ownership_confidence > supported_confidence) {
+				supported_midi = debug.midi;
+				supported_level = promote_level;
+				supported_confidence = debug.ownership_confidence;
+			}
+		}
+		if (supported_midi < 0)
+			continue;
+		changed = promote_note_grid_primary_midi(grid, supported_midi,
+							 std::max(supported_level, primary.level)) ||
+			  changed;
+	}
+
+	if (changed)
+		write_note_grid_label(state, grid, preferred_root);
+}
+
 int lowest_note_grid_pitch_class(const NoteGrid &grid)
 {
 	int lowest_midi = kLastMidi + 1;
@@ -15271,10 +15322,13 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 					  interval_seconds, 1, nullptr, 1);
 		prefer_supported_lower_octave_display(snapshot.bass_notes, snapshot.bass, note_powers,
 						      kBassMinMidi, kDefaultBassMaxMidi, -1);
-		if (mixed_source)
+		if (mixed_source) {
+			prefer_debug_supported_mid_bass_primary(snapshot.bass_notes, snapshot.bass,
+							       full_mix_ownership, -1);
 			prefer_debug_supported_high_bass_primary(snapshot.bass_notes, snapshot.bass,
-								full_mix_ownership,
-								detection_note_powers, -1);
+								 full_mix_ownership,
+								 detection_note_powers, -1);
+		}
 	} else {
 		reset_note_grid_envelope(snapshot.bass_notes, snapshot.bass, bass_note_tracking_);
 	}
