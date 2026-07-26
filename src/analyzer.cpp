@@ -7657,6 +7657,61 @@ void prefer_debug_supported_mid_bass_primary(NoteGrid &grid, InstrumentState &st
 		write_note_grid_label(state, grid, preferred_root);
 }
 
+void prefer_probe_supported_lower_bass_primary(NoteGrid &grid, InstrumentState &state,
+					       const FullMixOwnership &ownership,
+					       const std::array<float, kNoteProbeCount> &powers,
+					       int preferred_root)
+{
+	bool changed = false;
+	const std::size_t debug_count =
+		std::min<std::size_t>(ownership.debug_candidate_count, ownership.debug_candidates.size());
+
+	for (int pitch_class = 0; pitch_class < 12; ++pitch_class) {
+		NoteCell primary = {};
+		for (const auto &row : grid.rows) {
+			if (row[pitch_class].active) {
+				primary = row[pitch_class];
+				break;
+			}
+		}
+		if (!primary.active || primary.midi < 55 || primary.midi > 59)
+			continue;
+
+		const int lower_midi = primary.midi - 12;
+		if (lower_midi < kBassMinMidi || midi_pitch_class(lower_midi) != pitch_class)
+			continue;
+		if (note_grid_midi_level(grid, lower_midi) >= 0.55f)
+			continue;
+
+		const float primary_probe = probe_level(powers, primary.midi);
+		const float lower_probe = probe_level(powers, lower_midi);
+		if (primary_probe <= 1.0e-6f || lower_probe < primary_probe * 0.020f ||
+		    lower_probe > primary_probe * 0.18f)
+			continue;
+
+		bool supported_primary = false;
+		for (std::size_t i = 0; i < debug_count; ++i) {
+			const FullMixDebugCandidate &debug = ownership.debug_candidates[i];
+			if (debug.midi != primary.midi || debug.owner != InstrumentKind::Bass)
+				continue;
+			if (!full_mix_debug_bass_display_supported(debug))
+				continue;
+			if (debug.ownership_confidence < 0.95f || debug.pitch_confidence < 0.70f ||
+			    debug.periodicity < 0.85f)
+				continue;
+			supported_primary = true;
+			break;
+		}
+		if (!supported_primary)
+			continue;
+
+		changed = promote_note_grid_primary_midi(grid, lower_midi, primary.level) || changed;
+	}
+
+	if (changed)
+		write_note_grid_label(state, grid, preferred_root);
+}
+
 int lowest_note_grid_pitch_class(const NoteGrid &grid)
 {
 	int lowest_midi = kLastMidi + 1;
@@ -15457,6 +15512,8 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 								 full_mix_ownership,
 								 detection_note_powers, -1);
 		}
+		prefer_probe_supported_lower_bass_primary(snapshot.bass_notes, snapshot.bass,
+							  full_mix_ownership, detection_note_powers, -1);
 	} else {
 		reset_note_grid_envelope(snapshot.bass_notes, snapshot.bass, bass_note_tracking_);
 	}

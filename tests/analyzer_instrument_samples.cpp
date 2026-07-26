@@ -1069,12 +1069,8 @@ bool expects_full_mix_bass_primary_octave_recovery(const std::string &suite_fami
 		return true;
 	if (row.program_name == "slap_bass_1" && (row.note == "E2" || row.note == "G2"))
 		return true;
-	if (row.program_name == "pick_bass" && row.note == "G2") {
-		return row.path == "034_pick_bass_043_G2_v100_d0900.wav" ||
-		       row.path == "034_pick_bass_043_G2_v088_d1100.wav" ||
-		       row.path == "034_pick_bass_043_G2_v100_d1100.wav" ||
-		       row.path == "034_pick_bass_043_G2_v088_d0900.wav";
-	}
+	if (row.program_name == "pick_bass" && (row.note == "G2" || row.note == "B2"))
+		return true;
 	return false;
 }
 
