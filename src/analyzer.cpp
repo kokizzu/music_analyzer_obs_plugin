@@ -10260,8 +10260,14 @@ void promote_supported_plain_guitar_primary(ChordResult &chord, const NoteGrid &
 			if (has_power)
 				score += 0.72f;
 			const bool different_root = !current_plain || current_primary.root != component.root;
+			const bool same_root_opposite_plain =
+				current_plain && current_primary.root == component.root &&
+				current_primary.quality != component.quality;
 			const float required_margin =
-				!current_plain ? 0.20f : has_power && different_root ? 0.18f : 0.48f;
+				!current_plain ? 0.20f :
+				has_power && different_root ? 0.18f :
+				same_root_opposite_plain ? 0.04f :
+							   0.48f;
 			if (score > best_score && score >= current_score + required_margin) {
 				best_score = score;
 				best_start = cursor;
@@ -10278,7 +10284,8 @@ void promote_supported_plain_guitar_primary(ChordResult &chord, const NoteGrid &
 
 	if (!best_start || best_len == 0)
 		return;
-	if (current_plain && current_primary.root == best_component.root && !best_has_power)
+	if (current_plain && current_primary.root == best_component.root &&
+	    current_primary.quality == best_component.quality && !best_has_power)
 		return;
 
 	char promoted[sizeof(chord.label)] = {};
