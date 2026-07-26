@@ -13713,6 +13713,11 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 		drum_transient && strongest_cymbal_drum >= 12.0f &&
 		strongest_cymbal_drum >= strongest_body_drum * 0.035f &&
 		drum_segment_bands[HiHat] >= strongest_cymbal_drum * 0.42f;
+	const bool initial_real_drum_track_embedded_hihat =
+		real_drum_track_low_embedded_hihat &&
+		!had_previous_audio &&
+		onset >= 2.0f &&
+		snapshot.high_energy >= 0.020f;
 	const bool embedded_snare_transient =
 		drum_transient && onset >= 1.35f &&
 		drum_segment_bands[Snare] >= strongest_shell_drum * 0.30f &&
@@ -13851,8 +13856,10 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 			!tonal_soft_drum_suppressed && had_previous_audio && cymbal &&
 			cymbal_family_evidence && soft_cymbal_separable && transient_ratio >= 0.65f;
 		const bool embedded_hihat_transient =
-			!tonal_soft_drum_suppressed && had_previous_audio && hihat &&
-			(real_drum_track_embedded_hihat || real_drum_track_low_embedded_hihat);
+			!tonal_soft_drum_suppressed && hihat &&
+			((had_previous_audio &&
+			  (real_drum_track_embedded_hihat || real_drum_track_low_embedded_hihat)) ||
+			 initial_real_drum_track_embedded_hihat);
 		const bool soft_kick_transient =
 			kick && !tonal_soft_drum_suppressed &&
 			(kick_low_onset_body_shape ||
