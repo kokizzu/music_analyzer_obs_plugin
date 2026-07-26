@@ -39,10 +39,10 @@ analyzer_drum_samples: primary matrix
         )
     output = completed.stdout
     require(output, "active matrix rows=3 events=22")
-    require(output, "active expected tom: hit=5/10 recall=50.00% misses=5 top_misses=snare=3 kick=2")
+    require(output, "active expected tom: hit=5/10 hit_share=50.00% off_target=5 top_off_target=snare=3 kick=2")
     require(output, "primary totals ambiguous=2 kick=4 none=1 snare=8 tom=7")
-    require(output, "primary expected kick: hit=2/5 recall=40.00% misses=3 top_misses=ambiguous=1 snare=1 tom=1")
-    require(output, "primary expected tom: hit=5/12 recall=41.67% misses=7 top_misses=snare=3 kick=2 ambiguous=1 none=1")
+    require(output, "primary expected kick: hit=2/5 hit_share=40.00% off_target=3 top_off_target=ambiguous=1 snare=1 tom=1")
+    require(output, "primary expected tom: hit=5/12 hit_share=41.67% off_target=7 top_off_target=snare=3 kick=2 ambiguous=1 none=1")
     print("test_summarize_drum_gate_matrix: ok")
     return 0
 

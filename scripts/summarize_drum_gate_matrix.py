@@ -71,11 +71,12 @@ def print_kind_summary(kind: str, matrix: dict[str, dict[str, int]]) -> None:
             continue
         total = sum(counts.values())
         hit = counts.get(expected, 0)
-        misses = total - hit
-        recall = 100.0 * hit / total if total else 0.0
+        off_target = total - hit
+        hit_share = 100.0 * hit / total if total else 0.0
         print(
             f"{kind} expected {expected}: hit={hit}/{total} "
-            f"recall={recall:.2f}% misses={misses} top_misses={top_misses(expected, counts)}"
+            f"hit_share={hit_share:.2f}% off_target={off_target} "
+            f"top_off_target={top_misses(expected, counts)}"
         )
 
 
