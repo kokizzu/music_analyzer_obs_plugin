@@ -165,6 +165,29 @@ note	hit	vocals	vocals	vocal	D4	62	vocal.wav	0	0	0	0	0	0	--	--	--	F4:0.7	--	F4	6
         assert "bass\tE1\tE1:0.7,E2:0.4\t2\t1" in duplicates
         assert "count\t1" in duplicates
 
+        target_visibility = subprocess.run(
+            [
+                sys.executable,
+                str(SCRIPT),
+                str(rows),
+                "--kind",
+                "note",
+                "--columns",
+                (
+                    "family,note,primary_note,target_expected_visible,"
+                    "target_primary_visible,target_lowest_same_pitch_delta"
+                ),
+            ],
+            cwd=ROOT,
+            check=True,
+            text=True,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+        ).stdout
+        assert "bass\tE1\tE1\t1\t1\t0" in target_visibility
+        assert "piano\tC4\tC4\t1\t1\t0" in target_visibility
+        assert "vocals\tD4\tF4\t0\t1\t" in target_visibility
+
     print("test_filter_instrument_attribute_rows: ok")
     return 0
 

@@ -45,6 +45,9 @@ DEFAULT_COLUMNS = [
     "target_notes",
     "target_distinct_midis",
     "target_octave_duplicates",
+    "target_expected_visible",
+    "target_primary_visible",
+    "target_lowest_same_pitch_delta",
     "vocal_label",
     "vocal_level",
     "debug_note",
@@ -90,6 +93,10 @@ ATTRIBUTE_COLUMNS = [
     "target_notes",
     "target_distinct_midis",
     "target_octave_duplicates",
+    "target_expected_visible",
+    "target_primary_visible",
+    "target_lowest_same_pitch_midi",
+    "target_lowest_same_pitch_delta",
     "debug_note",
     "debug_owner",
     "debug_delta",
@@ -247,6 +254,17 @@ def octave_duplicate_count(midis: list[int]) -> int:
     return sum(1 for values in by_pitch_class.values() if len(values) > 1)
 
 
+def midi_pitch_class(midi: int) -> int:
+    return ((midi % 12) + 12) % 12
+
+
+def row_primary_midi(row: dict[str, str]) -> int | None:
+    actual = parse_int(row.get("primary_midi", ""))
+    if actual is None and row.get("primary_note", ""):
+        actual = midi_from_note(row["primary_note"])
+    return actual
+
+
 def target_display_hit(row: dict[str, str], target: str) -> bool:
     if row.get("status") != "hit" or row.get("detected_expected_row") != "1":
         return False
@@ -287,6 +305,22 @@ def enrich_row(row: dict[str, str]) -> dict[str, str]:
     target_midis = note_cell_midis(row["target_notes"])
     row["target_distinct_midis"] = str(len(target_midis))
     row["target_octave_duplicates"] = str(octave_duplicate_count(target_midis))
+    expected_midi = parse_int(row.get("midi", ""))
+    actual_primary_midi = row_primary_midi(row)
+    row["target_expected_visible"] = "1" if expected_midi is not None and expected_midi in target_midis else "0"
+    row["target_primary_visible"] = (
+        "1" if actual_primary_midi is not None and actual_primary_midi in target_midis else "0"
+    )
+    same_pitch_midis = (
+        [midi for midi in target_midis if midi_pitch_class(midi) == midi_pitch_class(expected_midi)]
+        if expected_midi is not None
+        else []
+    )
+    lowest_same_pitch = min(same_pitch_midis) if same_pitch_midis else None
+    row["target_lowest_same_pitch_midi"] = "" if lowest_same_pitch is None else str(lowest_same_pitch)
+    row["target_lowest_same_pitch_delta"] = (
+        "" if lowest_same_pitch is None or expected_midi is None else str(lowest_same_pitch - expected_midi)
+    )
     return row
 
 
