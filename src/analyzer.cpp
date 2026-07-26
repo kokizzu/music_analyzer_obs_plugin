@@ -14844,6 +14844,13 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 			snapshot.drum_debug_trigger_scores[Crash] <= 5.317f;
 		if (one_shot_measured_hihat_low_crash_trigger_primary_recovery)
 			promote_drum_primary(HiHat, 0.90f);
+		const bool one_shot_measured_late_snare_tom_level_primary_recovery =
+			drum_detection_enabled && one_shot_drum_source &&
+			snapshot.drum_debug_trigger_thresholds[Snare] <= 0.426f &&
+			tom_snare_level_ratio >= 1.059f &&
+			tom_snare_segment_ratio >= 1.343f;
+		if (one_shot_measured_late_snare_tom_level_primary_recovery)
+			promote_drum_primary(Snare, 0.90f);
 
 	const bool onset_tempo_event =
 		drum_detection_enabled && rms > kSilenceRms && drum_transient &&
