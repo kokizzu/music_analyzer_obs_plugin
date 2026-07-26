@@ -120,6 +120,7 @@ class PatternMatch:
     label: str
     positive_row_mask: int
     negative_row_mask: int
+    foreign_row_mask: int
     category: bool
 
 
@@ -132,6 +133,9 @@ class RuleResult:
     negative_row_mask: int
     negative_samples: int
     negative_rows: int
+    foreign_row_mask: int
+    foreign_samples: int
+    foreign_rows: int
 
 
 @dataclasses.dataclass(frozen=True)
@@ -139,6 +143,7 @@ class SearchState:
     labels: tuple[str, ...]
     positive_row_mask: int
     negative_row_mask: int
+    foreign_row_mask: int
     next_match_index: int
 
 
@@ -249,6 +254,17 @@ def protected_hit_rows(
 ) -> list[dict[str, str]]:
     positive_ids = {id(row) for row in positive_rows}
     return [row for row in hit_rows(rows) if id(row) not in positive_ids]
+
+
+def foreign_miss_rows(
+    rows: list[dict[str, str]], positive_rows: list[dict[str, str]]
+) -> list[dict[str, str]]:
+    positive_ids = {id(row) for row in positive_rows}
+    return [
+        row
+        for row in rows
+        if id(row) not in positive_ids and row.get("status") != "hit" and row.get("debug_note")
+    ]
 
 
 def top_buckets(
@@ -517,11 +533,13 @@ def indexed_match(
     pattern: Pattern,
     positive_rows: list[dict[str, str]],
     negative_rows: list[dict[str, str]],
+    foreign_rows: list[dict[str, str]],
 ) -> PatternMatch:
     return PatternMatch(
         label=pattern.label,
         positive_row_mask=mask_for_pattern(positive_rows, pattern),
         negative_row_mask=mask_for_pattern(negative_rows, pattern),
+        foreign_row_mask=mask_for_pattern(foreign_rows, pattern),
         category=pattern.category,
     )
 
@@ -532,9 +550,12 @@ def result_from_masks(
     negative_row_mask: int,
     positive_rows: list[dict[str, str]],
     negative_rows: list[dict[str, str]],
+    foreign_rows: list[dict[str, str]],
     positive_sample_bits: list[int],
     negative_sample_bits: list[int],
+    foreign_sample_bits: list[int],
     max_negative_samples: int | None,
+    foreign_row_mask: int = 0,
 ) -> RuleResult | None:
     positive_samples, _positive_exceeded = sample_count_for_rows(
         positive_row_mask, positive_sample_bits
@@ -544,6 +565,9 @@ def result_from_masks(
     )
     if negative_exceeded:
         return None
+    foreign_samples, _foreign_exceeded = sample_count_for_rows(
+        foreign_row_mask, foreign_sample_bits
+    )
     return RuleResult(
         rule=label,
         positive_row_mask=positive_row_mask,
@@ -552,6 +576,9 @@ def result_from_masks(
         negative_row_mask=negative_row_mask,
         negative_samples=negative_samples,
         negative_rows=negative_row_mask.bit_count(),
+        foreign_row_mask=foreign_row_mask,
+        foreign_samples=foreign_samples,
+        foreign_rows=foreign_row_mask.bit_count(),
     )
 
 
@@ -568,11 +595,14 @@ def ranked_state_key(
     state: SearchState,
     positive_counter: SampleCountCache,
     negative_counter: SampleCountCache,
-) -> tuple[int, int, int, int, str]:
+    foreign_counter: SampleCountCache,
+) -> tuple[int, int, int, int, int, str]:
     negative_samples = negative_counter.bounded_count(state.negative_row_mask)
+    foreign_samples = foreign_counter.bounded_count(state.foreign_row_mask)
     positive_samples = positive_counter.bounded_count(state.positive_row_mask)
     return (
         negative_samples,
+        foreign_samples,
         -positive_samples,
         state.negative_row_mask.bit_count(),
         len(state.labels),
@@ -584,8 +614,10 @@ def extend_condition_search(
     matches: list[PatternMatch],
     positive_rows: list[dict[str, str]],
     negative_rows: list[dict[str, str]],
+    foreign_rows: list[dict[str, str]],
     positive_sample_bits: list[int],
     negative_sample_bits: list[int],
+    foreign_sample_bits: list[int],
     min_positive_samples: int,
     max_negative_samples: int,
     max_conditions: int,
@@ -596,6 +628,7 @@ def extend_condition_search(
 
     positive_counter = SampleCountCache(positive_sample_bits)
     negative_counter = SampleCountCache(negative_sample_bits, max_negative_samples)
+    foreign_counter = SampleCountCache(foreign_sample_bits)
     ordered_matches = sorted(matches, key=lambda match: match.label)
     states: list[SearchState] = []
     for index, match in enumerate(ordered_matches):
@@ -607,6 +640,7 @@ def extend_condition_search(
                 labels=(match.label,),
                 positive_row_mask=match.positive_row_mask,
                 negative_row_mask=match.negative_row_mask,
+                foreign_row_mask=match.foreign_row_mask,
                 next_match_index=index + 1,
             )
         )
@@ -629,35 +663,43 @@ def extend_condition_search(
                 if positive_samples < min_positive_samples:
                     continue
                 negative_row_mask = state.negative_row_mask & match.negative_row_mask
+                foreign_row_mask = state.foreign_row_mask & match.foreign_row_mask
                 candidate = SearchState(
                     labels=state.labels + (match.label,),
                     positive_row_mask=positive_row_mask,
                     negative_row_mask=negative_row_mask,
+                    foreign_row_mask=foreign_row_mask,
                     next_match_index=match_index + 1,
                 )
-                key = (positive_row_mask, negative_row_mask)
+                key = (positive_row_mask, negative_row_mask, foreign_row_mask)
                 existing = seen_states.get(key)
                 if existing is None or ranked_state_key(
                     candidate,
                     positive_counter,
                     negative_counter,
+                    foreign_counter,
                 ) < ranked_state_key(
                     existing,
                     positive_counter,
                     negative_counter,
+                    foreign_counter,
                 ):
                     seen_states[key] = candidate
 
         next_states = sorted(
             seen_states.values(),
             key=lambda state: ranked_state_key(
-                state, positive_counter, negative_counter
+                state, positive_counter, negative_counter, foreign_counter
             ),
         )[:beam_width]
 
         if condition_count >= 3:
             for state in next_states:
-                result_key = (state.positive_row_mask, state.negative_row_mask)
+                result_key = (
+                    state.positive_row_mask,
+                    state.negative_row_mask,
+                    state.foreign_row_mask,
+                )
                 if result_key in seen_results:
                     continue
                 seen_results.add(result_key)
@@ -667,9 +709,12 @@ def extend_condition_search(
                     state.negative_row_mask,
                     positive_rows,
                     negative_rows,
+                    foreign_rows,
                     positive_sample_bits,
                     negative_sample_bits,
+                    foreign_sample_bits,
                     max_negative_samples,
+                    state.foreign_row_mask,
                 )
                 if result is not None:
                     results.append(result)
@@ -757,41 +802,52 @@ def print_bucket_patterns(
 ) -> None:
     positive_rows = rows_for_bucket(rows, bucket)
     negatives = protected_hit_rows(rows, positive_rows)
+    foreign_rows = foreign_miss_rows(rows, positive_rows)
     positive_samples = sample_count(positive_rows)
     negative_samples = sample_count(negatives)
+    foreign_samples = sample_count(foreign_rows)
     print()
     print(
         f"{bucket_label(bucket)} positives={positive_samples} samples/{len(positive_rows)} rows "
-        f"protected_hits={negative_samples} samples/{len(negatives)} rows"
+        f"protected_hits={negative_samples} samples/{len(negatives)} rows "
+        f"foreign_misses={foreign_samples} samples/{len(foreign_rows)} rows"
     )
     if not positive_rows:
         return
 
     positive_sample_bits, _positive_sample_count = sample_bit_map(positive_rows)
     negative_sample_bits, _negative_sample_count = sample_bit_map(negatives)
+    foreign_sample_bits, _foreign_sample_count = sample_bit_map(foreign_rows)
     if explicit_patterns:
         positive_row_mask = (1 << len(positive_rows)) - 1
         negative_row_mask = (1 << len(negatives)) - 1
+        foreign_row_mask = (1 << len(foreign_rows)) - 1
         for pattern in explicit_patterns:
             positive_row_mask &= mask_for_pattern(positive_rows, pattern)
             negative_row_mask &= mask_for_pattern(negatives, pattern)
+            foreign_row_mask &= mask_for_pattern(foreign_rows, pattern)
         result = result_from_masks(
             " AND ".join(pattern.label for pattern in explicit_patterns),
             positive_row_mask,
             negative_row_mask,
             positive_rows,
             negatives,
+            foreign_rows,
             positive_sample_bits,
             negative_sample_bits,
+            foreign_sample_bits,
             None,
+            foreign_row_mask,
         )
         print("  explicit rule:")
         print_results(
             [result] if result is not None else [],
             positive_samples,
             negative_samples,
+            foreign_samples,
             positive_rows,
             negatives,
+            foreign_rows,
             show_examples,
         )
 
@@ -799,22 +855,27 @@ def print_bucket_patterns(
         positive_rows, include_intervals, include_row_context, exclude_fields
     )
     category_matches = [
-        indexed_match(pattern, positive_rows, negatives) for pattern in category_patterns
+        indexed_match(pattern, positive_rows, negatives, foreign_rows) for pattern in category_patterns
     ]
     numeric_matches = [
-        indexed_match(pattern, positive_rows, negatives) for pattern in numeric_patterns
+        indexed_match(pattern, positive_rows, negatives, foreign_rows) for pattern in numeric_patterns
     ]
 
-    def add_result(label: str, positive_row_mask: int, negative_row_mask: int) -> None:
+    def add_result(
+        label: str, positive_row_mask: int, negative_row_mask: int, foreign_row_mask: int
+    ) -> None:
         result = result_from_masks(
             label,
             positive_row_mask,
             negative_row_mask,
             positive_rows,
             negatives,
+            foreign_rows,
             positive_sample_bits,
             negative_sample_bits,
+            foreign_sample_bits,
             max_negative_samples,
+            foreign_row_mask,
         )
         if result is None:
             return
@@ -824,21 +885,29 @@ def print_bucket_patterns(
 
     results: list[RuleResult] = []
     for match in [*category_matches, *numeric_matches]:
-        add_result(match.label, match.positive_row_mask, match.negative_row_mask)
+        add_result(
+            match.label,
+            match.positive_row_mask,
+            match.negative_row_mask,
+            match.foreign_row_mask,
+        )
     for category in category_matches:
         for numeric in numeric_matches:
             add_result(
                 f"{category.label} AND {numeric.label}",
                 category.positive_row_mask & numeric.positive_row_mask,
                 category.negative_row_mask & numeric.negative_row_mask,
+                category.foreign_row_mask & numeric.foreign_row_mask,
             )
     results.extend(
         extend_condition_search(
             [*category_matches, *numeric_matches],
             positive_rows,
             negatives,
+            foreign_rows,
             positive_sample_bits,
             negative_sample_bits,
+            foreign_sample_bits,
             min_positive_samples,
             max_negative_samples,
             max_conditions,
@@ -850,6 +919,7 @@ def print_bucket_patterns(
         results,
         key=lambda result: (
             result.negative_samples,
+            result.foreign_samples,
             -result.positive_samples,
             result.negative_rows,
             result.rule,
@@ -860,6 +930,7 @@ def print_bucket_patterns(
         key=lambda result: (
             -result.positive_samples,
             result.negative_samples,
+            result.foreign_samples,
             -result.positive_rows,
             result.rule,
         ),
@@ -870,8 +941,10 @@ def print_bucket_patterns(
         low_false,
         positive_samples,
         negative_samples,
+        foreign_samples,
         positive_rows,
         negatives,
+        foreign_rows,
         show_examples,
     )
     print("  highest-coverage candidate rules:")
@@ -879,8 +952,10 @@ def print_bucket_patterns(
         coverage,
         positive_samples,
         negative_samples,
+        foreign_samples,
         positive_rows,
         negatives,
+        foreign_rows,
         show_examples,
     )
 
@@ -889,8 +964,10 @@ def print_results(
     results: list[RuleResult],
     positive_total: int,
     negative_total: int,
+    foreign_total: int,
     positive_rows: list[dict[str, str]],
     negative_rows: list[dict[str, str]],
+    foreign_rows: list[dict[str, str]],
     show_examples: int,
 ) -> None:
     if not results:
@@ -900,11 +977,20 @@ def print_results(
         negative_sources = summarize_negative_sources_from_mask(
             negative_rows, result.negative_row_mask
         )
+        foreign_sources = summarize_negative_sources_from_mask(
+            foreign_rows, result.foreign_row_mask
+        )
         print(
             f"    {result.rule}: pos={result.positive_samples}/{positive_total} "
             f"rows={result.positive_rows} neg={result.negative_samples}/{negative_total} "
             f"rows={result.negative_rows}"
+            + (
+                f" foreign_miss={result.foreign_samples}/{foreign_total} "
+                f"rows={result.foreign_rows}"
+                if foreign_total > 0 else ""
+            )
             + (f" neg_sources={negative_sources}" if negative_sources else "")
+            + (f" foreign_sources={foreign_sources}" if foreign_sources else "")
         )
         if show_examples <= 0:
             continue
@@ -921,6 +1007,13 @@ def print_results(
         if negative_examples:
             print("      protected-hit examples:")
             for row in negative_examples:
+                print(f"        {format_example(row)}")
+        foreign_examples = unique_rows_from_mask(
+            foreign_rows, result.foreign_row_mask, show_examples
+        )
+        if foreign_examples:
+            print("      foreign-miss examples:")
+            for row in foreign_examples:
                 print(f"        {format_example(row)}")
 
 

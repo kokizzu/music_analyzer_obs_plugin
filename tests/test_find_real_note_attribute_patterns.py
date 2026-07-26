@@ -652,6 +652,86 @@ def main() -> int:
             stderr=subprocess.PIPE,
             check=True,
         )
+        foreign_path = pathlib.Path(tmp) / "foreign_attributes.tsv"
+        foreign_rows = [
+            row(
+                status="ownership_miss",
+                detected_expected_row="0",
+                first_row="piano",
+                sample_id="guitar_foreign_1",
+                family="guitar",
+                nsynth_family="guitar",
+                source="acoustic",
+                expected_note="F#4",
+                expected_midi="66",
+                partial2="0.12",
+            ),
+            row(
+                status="ownership_miss",
+                detected_expected_row="0",
+                first_row="piano",
+                sample_id="guitar_foreign_2",
+                family="guitar",
+                nsynth_family="guitar",
+                source="acoustic",
+                expected_note="A4",
+                expected_midi="69",
+                debug_note="A4",
+                debug_midi="69",
+                partial2="0.13",
+            ),
+            row(
+                status="ownership_miss",
+                detected_expected_row="0",
+                first_row="piano",
+                sample_id="bass_foreign",
+                family="bass",
+                nsynth_family="bass",
+                source="electronic",
+                expected_note="E2",
+                expected_midi="40",
+                debug_note="E2",
+                debug_midi="40",
+                partial2="0.12",
+            ),
+            row(
+                status="hit",
+                first_row="piano",
+                sample_id="piano_protected",
+                family="piano",
+                nsynth_family="keyboard",
+                source="electronic",
+                expected_note="C4",
+                expected_midi="60",
+                debug_note="C4",
+                debug_midi="60",
+                partial2="0.12",
+            ),
+        ]
+        foreign_path.write_text(
+            "\t".join(HEADER) + "\n" + "\n".join("\t".join(item) for item in foreign_rows) + "\n"
+        )
+        foreign_result = subprocess.run(
+            [
+                sys.executable,
+                str(ROOT / "scripts" / "find_real_note_attribute_patterns.py"),
+                str(foreign_path),
+                "--bucket",
+                "ownership_miss:guitar/acoustic->piano",
+                "--condition",
+                "debug_owner=piano",
+                "--limit",
+                "1",
+                "--max-negative-samples",
+                "2",
+                "--row-examples",
+                "1",
+            ],
+            text=True,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            check=True,
+        )
 
     assert "ownership_miss:guitar/acoustic->piano positives=2 samples/2 rows" in result.stdout
     assert "debug_owner=piano AND partial2<=0.14: pos=2/2 rows=2 neg=0/2 rows=0" in result.stdout
@@ -685,6 +765,16 @@ def main() -> int:
     ) in octave_result.stdout
     assert "debug_delta=12: pos=2/2 rows=2 neg=0/2 rows=0" in octave_result.stdout
     assert "expected_row_exact_level<=0: pos=2/2 rows=2 neg=0/2 rows=0" in placement_result.stdout
+    assert (
+        "ownership_miss:guitar/acoustic->piano positives=2 samples/2 rows "
+        "protected_hits=1 samples/1 rows foreign_misses=1 samples/1 rows"
+    ) in foreign_result.stdout
+    assert (
+        "debug_owner=piano: pos=2/2 rows=2 neg=1/1 rows=1 "
+        "foreign_miss=1/1 rows=1"
+    ) in foreign_result.stdout
+    assert "foreign-miss examples:" in foreign_result.stdout
+    assert "bass_foreign expected=E2/40 debug=E2/40 owner=piano" in foreign_result.stdout
     print("test_find_real_note_attribute_patterns: ok")
     return 0
 
