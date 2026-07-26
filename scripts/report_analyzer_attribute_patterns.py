@@ -413,6 +413,18 @@ def real_note_row_confusion_rows(rows: list[dict[str, str]]) -> list[dict[str, s
     return confused
 
 
+def row_count_summary(rows: list[dict[str, str]], sample_field: str = "sample_id") -> str:
+    return f"{len(rows)} rows/{unique_sample_count(rows, sample_field)} samples"
+
+
+def visible_row_confusion_rows(rows: list[dict[str, str]], min_level: float = 0.50) -> list[dict[str, str]]:
+    return [row for row in rows if float_or(row, "strongest_row_pitch_level", 0.0) >= min_level]
+
+
+def exact_row_confusion_rows(rows: list[dict[str, str]], min_level: float = 0.25) -> list[dict[str, str]]:
+    return [row for row in rows if float_or(row, "strongest_row_exact_level", 0.0) >= min_level]
+
+
 def report_real_notes(path: pathlib.Path, limit: int, row_examples: int) -> None:
     rows = [row for row in load_rows(path) if row.get("sample_id")]
     section("real-note full-mix attributes")
@@ -425,15 +437,26 @@ def report_real_notes(path: pathlib.Path, limit: int, row_examples: int) -> None
     print(f"  rows={len(rows)} samples={len(by_sample_status)} status={compact(collections.Counter(by_sample_status.values()), limit)}")
     print(f"  row pitch quality {compact(pitch_quality_counts(rows, 'expected_midi'), limit)}")
     confused_rows = real_note_row_confusion_rows(rows)
-    print(f"  strongest-row confusion rows={len(confused_rows)} samples={unique_sample_count(confused_rows, 'sample_id')}")
+    visible_confused = visible_row_confusion_rows(confused_rows)
+    exact_confused = exact_row_confusion_rows(confused_rows)
+    print(
+        f"  strongest-row confusion rows={len(confused_rows)} "
+        f"samples={unique_sample_count(confused_rows, 'sample_id')} "
+        f"visible>=0.50={row_count_summary(visible_confused)} "
+        f"exact>=0.25={row_count_summary(exact_confused)}"
+    )
     if confused_rows:
         confusion_buckets: dict[str, list[dict[str, str]]] = collections.defaultdict(list)
         for row in confused_rows:
             confusion_buckets[real_note_row_confusion_bucket(row)].append(row)
         for bucket, bucket_group in sorted(confusion_buckets.items(), key=lambda item: (-len(item[1]), item[0]))[:limit]:
+            bucket_visible = visible_row_confusion_rows(bucket_group)
+            bucket_exact = exact_row_confusion_rows(bucket_group)
             print(
                 f"  row_confusion:{bucket}: rows={len(bucket_group)} "
                 f"samples={unique_sample_count(bucket_group, 'sample_id')} "
+                f"visible>=0.50={row_count_summary(bucket_visible)} "
+                f"exact>=0.25={row_count_summary(bucket_exact)} "
                 f"pitch={compact(pitch_quality_counts(bucket_group, 'expected_midi'), 4)} "
                 f"debug_owner={compact(collections.Counter(row.get('debug_owner', 'none') or 'none' for row in bucket_group), 4)} "
                 f"expected_level_med={median([value for row in bucket_group if (value := as_float(row, 'expected_row_exact_level')) is not None])} "

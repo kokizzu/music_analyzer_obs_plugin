@@ -31,10 +31,10 @@ note	hit	piano	piano	grand	E4	64	p.wav	100	1	1	E4	64	0	E4	64	0	E5	guitar	0.7	2	9
         real_note = write(
             root / "real.tsv",
             """
-sample_id	status	family	source	expected_note	expected_midi	first_row	buffer	buffer_strongest_row	debug_note	debug_owner	raw_expected_ratio	raw_tuned_abs_cent_offset	raw_local_best_note	raw_expected_rank	expected_row_exact_level	strongest_row_exact_level
-p1	ownership_miss	piano	electronic	C4	60	bass	0	bass	C5	guitar	1	0	C4	1	0.4	1.0
-p2	hit	guitar	acoustic	E3	52	guitar	0	guitar	E3	guitar	1	0	E3	1	1.0	1.0
-p3	hit	piano	electronic	C4	60	piano	0	guitar	C4	guitar	1	0	C4	1	0.5	0.9
+sample_id	status	family	source	expected_note	expected_midi	first_row	buffer	buffer_strongest_row	debug_note	debug_owner	raw_expected_ratio	raw_tuned_abs_cent_offset	raw_local_best_note	raw_expected_rank	expected_row_exact_level	expected_row_pitch_level	strongest_row_exact_level	strongest_row_pitch_level
+p1	ownership_miss	piano	electronic	C4	60	bass	0	bass	C5	guitar	1	0	C4	1	0.4	0.4	1.0	1.0
+p2	hit	guitar	acoustic	E3	52	guitar	0	guitar	E3	guitar	1	0	E3	1	1.0	1.0	1.0	1.0
+p3	hit	piano	electronic	C4	60	piano	0	guitar	C4	guitar	1	0	C4	1	0.5	0.5	0.9	0.9
             """,
         )
         guitar = write(
@@ -84,8 +84,12 @@ snare/1.wav	snare	tom	0.2	0.7	0.1	0.1	0.8	0.9
     assert "piano: rows=1 owners=guitar=1 pitch=octave_alias=1 display=exact=1 primary=exact=1 octdup=0=1" in output
     assert "real-note full-mix attributes" in output
     assert "row pitch quality exact=2 octave_alias=1" in output
-    assert "strongest-row confusion rows=1 samples=1" in output
-    assert "row_confusion:piano/electronic->guitar: rows=1 samples=1 pitch=exact=1 debug_owner=guitar=1 expected_level_med=0.5 strongest_level_med=0.9" in output
+    assert "strongest-row confusion rows=1 samples=1 visible>=0.50=1 rows/1 samples exact>=0.25=1 rows/1 samples" in output
+    assert (
+        "row_confusion:piano/electronic->guitar: rows=1 samples=1 "
+        "visible>=0.50=1 rows/1 samples exact>=0.25=1 rows/1 samples "
+        "pitch=exact=1 debug_owner=guitar=1 expected_level_med=0.5 strongest_level_med=0.9"
+    ) in output
     assert "ownership_miss:piano/electronic->bass" in output
     assert "debug-midi deltas 12=1" in output
     assert "guitar chord attributes" in output
