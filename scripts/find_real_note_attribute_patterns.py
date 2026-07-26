@@ -176,7 +176,7 @@ def parse_bucket_spec(spec: str) -> tuple[str, str, str, str]:
     match = re.fullmatch(r"([^:]+):([^/]+)/(.+)->(.+)", spec)
     if not match:
         raise SystemExit(
-            f"invalid bucket `{spec}`; expected format status:family/source->first_row"
+            f"invalid bucket `{spec}`; expected format status:family/source->target"
         )
     return match.group(1), match.group(2), match.group(3), match.group(4)
 
@@ -195,8 +195,28 @@ def source_key(row: dict[str, str]) -> str:
     return f"{row.get('family', 'unknown')}/{row.get('source', 'unknown')}"
 
 
+def octave_displacement_label(row: dict[str, str]) -> str:
+    delta = as_float(row, "debug_delta")
+    if delta is None:
+        return ""
+    rounded = int(round(delta))
+    if abs(rounded) < 12 or rounded % 12 != 0:
+        return ""
+    return f"{rounded:+d}"
+
+
 def rows_for_bucket(rows: list[dict[str, str]], bucket: tuple[str, str, str, str]) -> list[dict[str, str]]:
-    status, family, source, first_row = bucket
+    status, family, source, target = bucket
+    if status == "octave_displacement":
+        return [
+            row
+            for row in rows
+            if row.get("status") == "hit"
+            and row.get("family") == family
+            and row.get("source") == source
+            and octave_displacement_label(row) == target
+            and row.get("debug_note")
+        ]
     if status == "row_confusion":
         expected_row = ROW_FOR_FAMILY.get(family, family)
         return [
@@ -205,7 +225,7 @@ def rows_for_bucket(rows: list[dict[str, str]], bucket: tuple[str, str, str, str
             if row.get("status") == "hit"
             and row.get("family") == family
             and row.get("source") == source
-            and row.get("buffer_strongest_row") == first_row
+            and row.get("buffer_strongest_row") == target
             and row.get("buffer_strongest_row") != expected_row
             and row.get("debug_note")
         ]
@@ -215,7 +235,7 @@ def rows_for_bucket(rows: list[dict[str, str]], bucket: tuple[str, str, str, str
         if row.get("status") == status
         and row.get("family") == family
         and row.get("source") == source
-        and row.get("first_row") == first_row
+        and row.get("first_row") == target
         and row.get("debug_note")
     ]
 
@@ -240,7 +260,19 @@ def top_buckets(
     for row in rows:
         if not row.get("debug_note"):
             continue
-        if bucket_status == "row_confusion":
+        if bucket_status == "octave_displacement":
+            delta_label = octave_displacement_label(row)
+            if row.get("status") != "hit" or not delta_label:
+                continue
+            counts[
+                (
+                    "octave_displacement",
+                    row.get("family", ""),
+                    row.get("source", ""),
+                    delta_label,
+                )
+            ] += 1
+        elif bucket_status == "row_confusion":
             family = row.get("family", "")
             expected_row = ROW_FOR_FAMILY.get(family, family)
             strongest_row = row.get("buffer_strongest_row", "")
@@ -909,9 +941,12 @@ def main() -> int:
     )
     parser.add_argument(
         "--bucket-status",
-        choices=("ownership_miss", "row_confusion"),
+        choices=("ownership_miss", "row_confusion", "octave_displacement"),
         default="ownership_miss",
-        help="status used by --top-buckets; row_confusion means hit rows whose strongest display row is wrong",
+        help=(
+            "status used by --top-buckets; row_confusion means hit rows whose strongest "
+            "display row is wrong, octave_displacement means hit rows shifted by octave"
+        ),
     )
     parser.add_argument("--limit", type=int, default=8)
     parser.add_argument("--min-positive-samples", type=int, default=2)

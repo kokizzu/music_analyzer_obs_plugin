@@ -488,6 +488,86 @@ def main() -> int:
             stderr=subprocess.PIPE,
             check=True,
         )
+        octave_path = pathlib.Path(tmp) / "octave_attributes.tsv"
+        octave_rows = [
+            row(
+                status="hit",
+                first_row="bass",
+                buffer_strongest_row="bass",
+                sample_id="bass_octave_1",
+                family="bass",
+                source="electronic",
+                expected_note="E1",
+                expected_midi="28",
+                debug_note="E2",
+                debug_midi="40",
+                debug_owner="bass",
+            ),
+            row(
+                status="hit",
+                first_row="bass",
+                buffer_strongest_row="bass",
+                sample_id="bass_octave_2",
+                family="bass",
+                source="electronic",
+                expected_note="A1",
+                expected_midi="33",
+                debug_note="A2",
+                debug_midi="45",
+                debug_owner="bass",
+            ),
+            row(
+                status="hit",
+                first_row="bass",
+                buffer_strongest_row="bass",
+                sample_id="bass_right",
+                family="bass",
+                source="electronic",
+                expected_note="D2",
+                expected_midi="38",
+                debug_note="D2",
+                debug_midi="38",
+                debug_owner="bass",
+            ),
+            row(
+                status="hit",
+                first_row="guitar",
+                buffer_strongest_row="guitar",
+                sample_id="guitar_right",
+                family="guitar",
+                nsynth_family="guitar",
+                source="acoustic",
+                expected_note="E2",
+                expected_midi="40",
+                debug_note="E2",
+                debug_midi="40",
+                debug_owner="guitar",
+            ),
+        ]
+        octave_path.write_text(
+            "\t".join(HEADER) + "\n" + "\n".join("\t".join(item) for item in octave_rows) + "\n"
+        )
+        octave_result = subprocess.run(
+            [
+                sys.executable,
+                str(ROOT / "scripts" / "find_real_note_attribute_patterns.py"),
+                str(octave_path),
+                "--top-buckets",
+                "1",
+                "--bucket-status",
+                "octave_displacement",
+                "--condition",
+                "debug_delta=12",
+                "--limit",
+                "1",
+                "--max-negative-samples",
+                "2",
+            ],
+            text=True,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            check=True,
+        )
         placement_path = pathlib.Path(tmp) / "placement_attributes.tsv"
         placement_rows = [
             row(
@@ -599,6 +679,11 @@ def main() -> int:
         "protected_hits=2 samples/2 rows"
     ) in row_confusion_result.stdout
     assert "debug_owner=guitar: pos=2/2 rows=2 neg=1/2 rows=1" in row_confusion_result.stdout
+    assert (
+        "octave_displacement:bass/electronic->+12 positives=2 samples/2 rows "
+        "protected_hits=2 samples/2 rows"
+    ) in octave_result.stdout
+    assert "debug_delta=12: pos=2/2 rows=2 neg=0/2 rows=0" in octave_result.stdout
     assert "expected_row_exact_level<=0: pos=2/2 rows=2 neg=0/2 rows=0" in placement_result.stdout
     print("test_find_real_note_attribute_patterns: ok")
     return 0
