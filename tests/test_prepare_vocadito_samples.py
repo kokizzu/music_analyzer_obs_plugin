@@ -15,16 +15,25 @@ sys.path.insert(0, str(ROOT / "scripts"))
 import prepare_vocadito_samples
 
 
-def sine_wav_bytes(freq=261.625565, seconds=2.0, sample_rate=44100):
+def sine_wav_bytes(freq=261.625565, seconds=2.0, sample_rate=44100, segments=None):
     data = io.BytesIO()
     frame_count = int(seconds * sample_rate)
+    segments = segments or [(0.0, seconds, freq)]
     with wave.open(data, "wb") as file:
         file.setnchannels(1)
         file.setsampwidth(2)
         file.setframerate(sample_rate)
         frames = bytearray()
         for index in range(frame_count):
-            sample = 0.25 * math.sin(2.0 * math.pi * freq * index / sample_rate)
+            seconds_at_sample = index / sample_rate
+            active_freq = None
+            for start, end, segment_freq in segments:
+                if start <= seconds_at_sample < end:
+                    active_freq = segment_freq
+                    break
+            sample = 0.0
+            if active_freq is not None:
+                sample = 0.25 * math.sin(2.0 * math.pi * active_freq * index / sample_rate)
             frames.extend(struct.pack("<h", int(sample * 32767.0)))
         file.writeframes(bytes(frames))
     return data.getvalue()
@@ -40,7 +49,17 @@ def make_fixture(path):
                 "2,S2,62,Tagalog",
             ]) + "\n",
         )
-        archive.writestr("Audio/vocadito_1.wav", sine_wav_bytes())
+        archive.writestr(
+            "Audio/vocadito_1.wav",
+            sine_wav_bytes(
+                seconds=2.2,
+                segments=[
+                    (0.0, 0.76, 261.625565),
+                    (0.82, 1.45, 277.182631),
+                    (1.44, 2.10, 261.625565),
+                ],
+            ),
+        )
         archive.writestr("Audio/vocadito_2.wav", sine_wav_bytes(freq=293.664768))
         archive.writestr(
             "Annotations/Notes/vocadito_1_notesA1.csv",
@@ -54,7 +73,7 @@ def make_fixture(path):
         archive.writestr(
             "Annotations/Notes/vocadito_1_notesA2.csv",
             "\n".join([
-                "0.100,293.665,0.600",
+                "0.100,261.626,0.600",
             ]) + "\n",
         )
         archive.writestr(
@@ -167,12 +186,30 @@ def test_minimum_failure_writes_partial_manifest():
             raise AssertionError("expected min-samples failure")
 
 
+def test_pitch_reference_filter_rejects_adjacent_audio():
+    with tempfile.TemporaryDirectory() as temp:
+        root = Path(temp)
+        good = root / "c4.wav"
+        bad = root / "csharp4.wav"
+        bad_octave = root / "csharp5.wav"
+        good.write_bytes(sine_wav_bytes(freq=261.625565, seconds=0.6))
+        bad.write_bytes(sine_wav_bytes(freq=277.182631, seconds=0.6))
+        bad_octave.write_bytes(sine_wav_bytes(freq=554.365262, seconds=0.6))
+        if not prepare_vocadito_samples.pitch_reference_ok(good, 60):
+            raise AssertionError("matching C4 audio should pass pitch reference")
+        if prepare_vocadito_samples.pitch_reference_ok(bad, 60):
+            raise AssertionError("adjacent C#4 audio should not pass as C4")
+        if prepare_vocadito_samples.pitch_reference_ok(bad_octave, 60):
+            raise AssertionError("adjacent C#5 audio should not pass as C4")
+
+
 def main():
     test_default_a1_manifest_and_clips()
     test_both_annotator_mode_is_available()
     test_limit_is_balanced_by_note()
     test_minimum_failure_writes_partial_manifest()
-    print("test_prepare_vocadito_samples: 4 checks passed")
+    test_pitch_reference_filter_rejects_adjacent_audio()
+    print("test_prepare_vocadito_samples: 5 checks passed")
     return 0
 
 

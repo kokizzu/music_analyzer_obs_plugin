@@ -503,7 +503,7 @@
       "automation_target": "test-vocadito-samples",
       "source_url": "https://zenodo.org/records/5578807",
       "download_url": "https://zenodo.org/api/records/5578807/files/vocadito.zip/content",
-      "download_note": "The test-vocadito-samples target downloads the 58.5 MB ZIP, prepares stable near-chromatic A1 note clips into build/vocadito_samples, and runs the shared isolated-vocal real-note analyzer gate. The current default prepares 370 clips and detects 368/370.",
+      "download_note": "The test-vocadito-samples target downloads the 58.5 MB ZIP, prepares stable near-chromatic A1 note clips into build/vocadito_samples, rejects clips whose prepared audio is dominated by an adjacent pitch class, and runs the shared isolated-vocal real-note analyzer gate. The current default prepares 354 clips and detects 354/354.",
       "evidence": "Zenodo describes 40 short solo monophonic singing excerpts recorded in real-world conditions, with trained-musician frame-level F0 annotations, two note annotation versions, lyrics, and language metadata; the README inside the ZIP documents note CSV rows as start time, pitch in Hz, and duration."
     },
     {

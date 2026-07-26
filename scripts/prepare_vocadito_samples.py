@@ -12,7 +12,7 @@ import wave
 import zipfile
 
 
-FIXTURE_VERSION = "vocadito-v1"
+FIXTURE_VERSION = "vocadito-v3"
 DEFAULT_ANNOTATOR = "A1"
 SUPPORTED_ANNOTATORS = {"A1", "A2", "both"}
 NOTE_RE = re.compile(r"^Annotations/Notes/vocadito_(\d+)_notes(A[12])\.csv$")
@@ -125,6 +125,77 @@ def extract_clip(audio_data, output_path, start_seconds, duration_seconds):
         target.writeframes(frames)
     temporary_path.replace(output_path)
     return True
+
+
+def read_probe_window(path):
+    with wave.open(str(path), "rb") as source:
+        channels = source.getnchannels()
+        sample_rate = source.getframerate()
+        sample_width = source.getsampwidth()
+        frame_count = source.getnframes()
+        if sample_width not in (2, 3, 4) or channels <= 0 or frame_count <= 0:
+            return sample_rate, []
+        start = min(frame_count, int(sample_rate * 0.08))
+        count = min(frame_count - start, int(sample_rate * 0.25))
+        if count <= 0:
+            return sample_rate, []
+        source.setpos(start)
+        data = source.readframes(count)
+
+    samples = []
+    frame_width = sample_width * channels
+    for offset in range(0, len(data), frame_width):
+        total = 0.0
+        for channel in range(channels):
+            sample_start = offset + channel * sample_width
+            raw = data[sample_start:sample_start + sample_width]
+            if len(raw) != sample_width:
+                continue
+            if sample_width == 2:
+                value = int.from_bytes(raw, byteorder="little", signed=True) / 32768.0
+            elif sample_width == 3:
+                integer = int.from_bytes(raw, byteorder="little", signed=False)
+                if integer & 0x800000:
+                    integer -= 0x1000000
+                value = integer / 8388608.0
+            else:
+                value = int.from_bytes(raw, byteorder="little", signed=True) / 2147483648.0
+            total += value
+        samples.append(total / channels)
+    return sample_rate, samples
+
+
+def goertzel_level(samples, sample_rate, freq):
+    if not samples:
+        return 0.0
+    count = len(samples)
+    mean = sum(samples) / count
+    coeff = 2.0 * math.cos(2.0 * math.pi * freq / sample_rate)
+    s1 = 0.0
+    s2 = 0.0
+    for index, sample in enumerate(samples):
+        window = 0.5 - 0.5 * math.cos(2.0 * math.pi * index / max(1, count - 1))
+        x = (sample - mean) * window
+        s0 = x + coeff * s1 - s2
+        s2 = s1
+        s1 = s0
+    return math.sqrt(max(0.0, s1 * s1 + s2 * s2 - coeff * s1 * s2))
+
+
+def pitch_reference_ok(path, midi):
+    sample_rate, samples = read_probe_window(path)
+    if not samples:
+        return False
+    expected = goertzel_level(samples, sample_rate, midi_frequency(midi))
+    adjacent = 0.0
+    for offset in (-13, -1, 1, 11, 13):
+        adjacent_midi = midi + offset
+        if adjacent_midi < MIDI_RANGE[0] or adjacent_midi > MIDI_RANGE[1]:
+            continue
+        adjacent = max(adjacent, goertzel_level(samples, sample_rate, midi_frequency(adjacent_midi)))
+    if expected <= 1.0e-6:
+        return False
+    return adjacent <= 1.0e-6 or expected >= adjacent * 0.72
 
 
 def candidate_clip_window(note, audio_seconds, min_duration, attack_margin, release_margin, clip_seconds):
@@ -291,6 +362,8 @@ def manifest_complete(path, min_rows):
             fields = line.rstrip("\n").split("\t")
             if len(fields) < 8:
                 return False
+            if FIXTURE_VERSION not in fields[7]:
+                return False
             if not (root / fields[6]).is_file():
                 return False
             rows += 1
@@ -337,6 +410,9 @@ def prepare_samples(archive_path, output_dir, annotator=DEFAULT_ANNOTATOR, limit
                 if not extract_clip(audio_data, output_path, row["clip_start"], row["clip_duration"]):
                     skipped["clip_failed"] = skipped.get("clip_failed", 0) + 1
                     continue
+            if not pitch_reference_ok(output_path, row["midi"]):
+                skipped["pitch_reference"] = skipped.get("pitch_reference", 0) + 1
+                continue
             prepared.append(row)
 
     required_prepared = max(1, min_samples)
