@@ -81,6 +81,26 @@ def main() -> int:
     assert "PARALLEL_TEST_MAKE_JOBS = $(if $(filter -j%,$(MAKEFLAGS)),,-j$(PARALLEL_TEST_JOBS))" in makefile, (
         "parallel aggregate targets must reuse an inherited GNU make jobserver"
     )
+    analysis_script_targets = re.search(r"^ANALYSIS_SCRIPT_TEST_TARGETS := (.+)$", makefile, re.MULTILINE)
+    assert analysis_script_targets is not None, "missing analysis script parallel target list"
+    analysis_script_target_list = analysis_script_targets.group(1)
+    for target in [
+        "inspect-real-dataset-catalog",
+        "test-analyzer-pattern-report",
+        "test-real-note-attribute-patterns",
+        "test-drum-gate-matrix-summary",
+        "android-check",
+    ]:
+        assert target in analysis_script_target_list, (
+            f"analysis script parallel target list must include {target}"
+        )
+    analysis_scripts_recipe = target_recipe(makefile, "test-analysis-scripts-parallel")
+    assert "$(RUN_WITH_DURATION) test_analysis_scripts_parallel" in analysis_scripts_recipe, (
+        "analysis script parallel target must report aggregate duration"
+    )
+    assert "$(MAKE) $(PARALLEL_TEST_MAKE_JOBS) $(ANALYSIS_SCRIPT_TEST_TARGETS)" in analysis_scripts_recipe, (
+        "analysis script parallel target must fan out through jobserver-aware make"
+    )
     max_samples_recipe = target_recipe(makefile, "test-real-world-samples-max")
     assert "$(MAKE) $(PARALLEL_TEST_MAKE_JOBS) $(REAL_WORLD_SAMPLE_MAX_TARGETS)" in max_samples_recipe, (
         "max real-world sample tests must fan out through jobserver-aware make"
