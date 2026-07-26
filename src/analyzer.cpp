@@ -14836,6 +14836,14 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 			drum_level_[Rim] >= 1.0f;
 		if (one_shot_measured_kick_saturated_rim_primary_recovery)
 			promote_drum_primary(Kick, 0.90f);
+		const bool one_shot_measured_hihat_low_crash_trigger_primary_recovery =
+			drum_detection_enabled && one_shot_drum_source &&
+			drum_level_[HiHat] > 0.30f &&
+			drum_level_[Tom] > 0.30f &&
+			crash_hihat_level_ratio >= 0.97f &&
+			snapshot.drum_debug_trigger_scores[Crash] <= 5.317f;
+		if (one_shot_measured_hihat_low_crash_trigger_primary_recovery)
+			promote_drum_primary(HiHat, 0.90f);
 
 	const bool onset_tempo_event =
 		drum_detection_enabled && rms > kSilenceRms && drum_transient &&
