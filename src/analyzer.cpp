@@ -8431,6 +8431,19 @@ void promote_source_hinted_other_debug_primaries(NoteGrid &grid, InstrumentState
 			consider(debug.midi, std::max({primary.level, debug_level, debug.other_score}), true);
 		}
 
+		const bool source_hinted_exact_debug_primary =
+			(allow_probe_lower_octave || allow_independent_fundamental) &&
+			!primary.active &&
+			debug.pitch_confidence >= 0.30f &&
+			debug.periodicity >= 0.55f;
+		if (source_hinted_exact_debug_primary) {
+			const float debug_level = std::max(ownership_global_note_level(ownership, debug.midi),
+							  debug.spectral_level);
+			consider(debug.midi,
+				 std::max({debug_level, debug.other_score, debug.pitch_confidence, 0.72f}),
+				 allow_independent_fundamental);
+		}
+
 		const bool independent_string_fundamental =
 			allow_independent_fundamental &&
 			!primary.active &&
@@ -8454,9 +8467,11 @@ void promote_source_hinted_other_debug_primaries(NoteGrid &grid, InstrumentState
 			continue;
 		const float debug_probe = probe_level(powers, debug.midi);
 		const float lower_probe = probe_level(powers, lower_midi);
+		const float source_hint_probe_floor = allow_independent_fundamental ? 0.030f : 0.080f;
+		const float source_hint_debug_probe_floor = allow_independent_fundamental ? 0.080f : 0.20f;
 		const bool lower_probe_supported =
-			lower_probe >= strongest_probe * 0.080f &&
-			(debug_probe <= 1.0e-6f || lower_probe >= debug_probe * 0.20f);
+			lower_probe >= strongest_probe * source_hint_probe_floor &&
+			(debug_probe <= 1.0e-6f || lower_probe >= debug_probe * source_hint_debug_probe_floor);
 		if (!lower_probe_supported)
 			continue;
 		const float normalized = std::clamp(lower_probe / strongest_probe, 0.0f, 1.0f);

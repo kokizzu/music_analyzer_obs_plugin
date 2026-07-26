@@ -1112,18 +1112,22 @@ bool expects_full_mix_other_primary_octave_recovery(const std::string &suite_fam
 	return (suite_family == "strings" &&
 		((row.program_name == "violin" && row.note == "G3") ||
 		 (row.program_name == "viola" && row.note == "C4") ||
-		 (row.program_name == "cello" && (row.note == "E2" || row.note == "G4")) ||
-		 (row.program_name == "contrabass" && row.note == "E3") ||
+		 (row.program_name == "cello" &&
+		  (row.note == "E2" || row.note == "G2" || row.note == "G4")) ||
+		 (row.program_name == "contrabass" &&
+		  (row.note == "B2" || row.note == "E3")) ||
 		 (row.program_name == "tremolo_strings" && (row.note == "E2" || row.note == "G2")) ||
 		 (row.program_name == "orchestral_harp" &&
 		  (row.note == "C3" || row.note == "E2" || row.note == "G2")) ||
 		 (row.program_name == "string_ensemble_1" && (row.note == "E2" || row.note == "G2")) ||
-		 (row.program_name == "string_ensemble_2" && row.note == "G2"))) ||
+		 (row.program_name == "string_ensemble_2" && row.note == "G2") ||
+		 (row.program_name == "synth_strings_2" && row.note == "E2"))) ||
 	       (suite_family == "synth" &&
 		((row.program_name == "metallic_pad" && row.note == "G3") ||
 		 (row.program_name == "square_lead" && (row.note == "C2" || row.note == "C5")) ||
 		 (row.program_name == "saw_lead" &&
-		  (row.note == "C2" || row.note == "G2" || row.note == "G3" || row.note == "C5")) ||
+		  (row.note == "C2" || row.note == "G2" || row.note == "G3" || row.note == "C4" ||
+		   row.note == "C5")) ||
 		 (row.program_name == "bass_and_lead" && row.note == "G3") ||
 		 (row.program_name == "chiff_lead" && row.note == "C5") ||
 		 (row.program_name == "sweep_pad" && (row.note == "C2" || row.note == "G3")) ||
