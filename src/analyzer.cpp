@@ -14461,6 +14461,13 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 			snapshot.drum_debug_trigger_scores[Crash] <= 26.982f &&
 			snare_crack >= 18.371f &&
 			tom_snare_trigger_ratio <= 0.837f;
+		const bool one_shot_measured_rim_snare_bright_ride_recovery =
+			drum_detection_enabled && one_shot_drum_source &&
+			drum_level_[Rim] > 0.30f &&
+			snapshot.high_energy >= 0.679f &&
+			drum_segment_bands[Ride] <= 3.402f &&
+			snapshot.drum_debug_trigger_scores[Ride] >= 12.932f &&
+			drum_level_[Rim] <= 0.975f;
 		const bool one_shot_measured_high_snare_shape_rim_guard =
 			drum_detection_enabled && one_shot_drum_source &&
 			body_shape == Snare &&
@@ -14471,7 +14478,8 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 			one_shot_measured_rim_kick_low_trigger_recovery ||
 			one_shot_measured_rim_snare_high_crack_recovery ||
 			one_shot_measured_rim_ride_bright_recovery ||
-			one_shot_measured_rim_snare_low_crash_recovery;
+			one_shot_measured_rim_snare_low_crash_recovery ||
+			one_shot_measured_rim_snare_bright_ride_recovery;
 		const bool one_shot_measured_rim_recovery =
 			one_shot_measured_rim_snare_onset_recovery ||
 			one_shot_measured_rim_snare_low_trigger_recovery ||
@@ -14496,7 +14504,8 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 			one_shot_measured_low_body_rim_snare_recovery ||
 			one_shot_measured_rim_snare_high_crack_recovery ||
 			one_shot_measured_rim_ride_bright_recovery ||
-			one_shot_measured_rim_snare_low_crash_recovery;
+			one_shot_measured_rim_snare_low_crash_recovery ||
+			one_shot_measured_rim_snare_bright_ride_recovery;
 		if (one_shot_measured_rim_recovery &&
 		    (!one_shot_measured_high_snare_shape_rim_guard ||
 		     one_shot_measured_rim_guard_bypass_recovery))
@@ -14886,7 +14895,8 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 
 		if (one_shot_measured_rim_snare_high_crack_recovery ||
 		    one_shot_measured_rim_ride_bright_recovery ||
-		    one_shot_measured_rim_snare_low_crash_recovery)
+		    one_shot_measured_rim_snare_low_crash_recovery ||
+		    one_shot_measured_rim_snare_bright_ride_recovery)
 			promote_drum_primary(Rim, 0.90f);
 
 		const bool measured_snare_crack_tom_bleed =
