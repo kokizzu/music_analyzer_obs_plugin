@@ -1226,6 +1226,9 @@ report-analyzer-patterns-from-rows: scripts/report_analyzer_attribute_patterns.p
 	@printf '%s\n' "drum primary pattern candidates:"
 	$(MAKE) find-drum-primary-attribute-patterns PATTERN_ARGS="$(MEASURE_DRUM_PATTERN_ARGS)"
 	@printf '%s\n' ""
+	@printf '%s\n' "protected drum primary pattern candidates:"
+	$(MAKE) find-protected-drum-primary-attribute-patterns PATTERN_ARGS="$(MEASURE_DRUM_PATTERN_ARGS)"
+	@printf '%s\n' ""
 	@printf '%s\n' "drum spread exact gate matrix:"
 	$(MAKE) analyze-drum-spread-gate-matrix
 	@printf '%s\n' ""

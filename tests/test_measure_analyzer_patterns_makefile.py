@@ -30,6 +30,7 @@ def main() -> int:
         "$(MAKE) analyze-guitar-chord-mix-recovery",
         "$(MAKE) analyze-guitar-chord-mix-extra-components",
         "$(MAKE) find-drum-primary-attribute-patterns",
+        "$(MAKE) find-protected-drum-primary-attribute-patterns",
         "$(MAKE) analyze-drum-spread-gate-matrix",
         "$(MAKE) find-drum-spread-exact-attribute-patterns",
         "$(MEASURE_INSTRUMENT_PATTERN_ARGS)",
