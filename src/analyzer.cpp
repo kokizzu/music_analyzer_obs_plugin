@@ -14200,6 +14200,8 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 	const float hihat_rim_trigger_ratio =
 		snapshot.drum_debug_trigger_scores[HiHat] /
 		(snapshot.drum_debug_trigger_scores[Rim] + 1.0e-6f);
+	const float ride_hihat_band_ratio =
+		drum_bands[Ride] / (drum_bands[HiHat] + 1.0e-6f);
 	const float ride_hihat_level_ratio =
 		drum_level_[Ride] / (drum_level_[HiHat] + 1.0e-6f);
 	const float ride_hihat_segment_ratio =
@@ -15232,6 +15234,12 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 			snapshot.low_energy >= 0.445f &&
 			snare_kick_shape_score_ratio >= 1.043f &&
 			snare_kick_trigger_ratio <= 0.866f;
+		const bool one_shot_measured_low_rim_snare_from_tom_primary_recovery =
+			drum_detection_enabled && one_shot_drum_source &&
+			drum_level_[Snare] > 0.30f &&
+			drum_level_[Tom] > 0.30f &&
+			hihat_rim_trigger_ratio <= 0.752f &&
+			ride_hihat_band_ratio <= 0.852f;
 		const bool one_shot_measured_low_trigger_snare_from_tom_primary_recovery =
 			drum_detection_enabled && one_shot_drum_source &&
 			kick_body >= 72.12f &&
@@ -15399,6 +15407,7 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 		    one_shot_measured_snare_ambiguous_primary_recovery ||
 		    one_shot_measured_snare_tom_tie_primary_recovery ||
 		    one_shot_measured_snare_from_tom_primary_recovery ||
+		    one_shot_measured_low_rim_snare_from_tom_primary_recovery ||
 		    one_shot_measured_low_trigger_snare_from_tom_primary_recovery ||
 		    one_shot_measured_high_band_snare_from_tom_primary_recovery)
 			promote_drum_primary(Snare, 0.90f);
