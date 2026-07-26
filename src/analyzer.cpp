@@ -14851,6 +14851,14 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 			tom_snare_segment_ratio >= 1.343f;
 		if (one_shot_measured_late_snare_tom_level_primary_recovery)
 			promote_drum_primary(Snare, 0.90f);
+		const bool one_shot_measured_late_snare_rim_low_kick_primary_recovery =
+			drum_detection_enabled && one_shot_drum_source &&
+			drum_bands[Crash] <= 8.609f &&
+			drum_level_[Rim] >= 0.897f &&
+			drum_level_[Snare] <= 0.29f &&
+			snare_kick_segment_ratio >= 1.71f;
+		if (one_shot_measured_late_snare_rim_low_kick_primary_recovery)
+			promote_drum_primary(Snare, 0.90f);
 
 	const bool onset_tempo_event =
 		drum_detection_enabled && rms > kSilenceRms && drum_transient &&
