@@ -1661,20 +1661,20 @@ test-vocalset-samples-optional:
 	printf '%s\n' "test-vocalset-samples: skipped; missing $(VOCALSET_ARCHIVE)"
 endif
 
-test-drum-real-world-samples-parallel:
-	$(MAKE) $(PARALLEL_TEST_MAKE_JOBS) $(DRUM_REAL_WORLD_SAMPLE_TARGETS)
+test-drum-real-world-samples-parallel: scripts/run_with_duration.sh
+	$(RUN_WITH_DURATION) drum_real_world_samples_parallel $(MAKE) $(PARALLEL_TEST_MAKE_JOBS) $(DRUM_REAL_WORLD_SAMPLE_TARGETS)
 
-test-drum-real-world-samples-full-parallel:
-	$(MAKE) $(PARALLEL_TEST_MAKE_JOBS) $(DRUM_REAL_WORLD_SAMPLE_FULL_TARGETS)
+test-drum-real-world-samples-full-parallel: scripts/run_with_duration.sh
+	$(RUN_WITH_DURATION) drum_real_world_samples_full_parallel $(MAKE) $(PARALLEL_TEST_MAKE_JOBS) $(DRUM_REAL_WORLD_SAMPLE_FULL_TARGETS)
 
-test-real-world-samples-parallel:
-	$(MAKE) $(PARALLEL_TEST_MAKE_JOBS) $(REAL_WORLD_SAMPLE_TARGETS)
+test-real-world-samples-parallel: scripts/run_with_duration.sh
+	$(RUN_WITH_DURATION) real_world_samples_parallel $(MAKE) $(PARALLEL_TEST_MAKE_JOBS) $(REAL_WORLD_SAMPLE_TARGETS)
 
-test-real-world-samples-full-parallel:
-	$(MAKE) $(PARALLEL_TEST_MAKE_JOBS) $(REAL_WORLD_SAMPLE_FULL_TARGETS)
+test-real-world-samples-full-parallel: scripts/run_with_duration.sh
+	$(RUN_WITH_DURATION) real_world_samples_full_parallel $(MAKE) $(PARALLEL_TEST_MAKE_JOBS) $(REAL_WORLD_SAMPLE_FULL_TARGETS)
 
-test-detector-samples-parallel:
-	$(MAKE) $(PARALLEL_TEST_MAKE_JOBS) $(DETECTOR_SAMPLE_REGRESSION_TARGETS)
+test-detector-samples-parallel: scripts/run_with_duration.sh
+	$(RUN_WITH_DURATION) detector_samples_parallel $(MAKE) $(PARALLEL_TEST_MAKE_JOBS) $(DETECTOR_SAMPLE_REGRESSION_TARGETS)
 
 test-drum-real-world-samples: test-hf-drum-kit-samples test-idmt-drums-samples test-mdb-drums-samples test-star-drums-samples
 	if [ -d "$(DRUM_SAMPLE_SOURCE_DIR)" ]; then $(MAKE) test-drum-samples; $(MAKE) test-drum-samples-spread; else printf '%s\n' "test-drum-samples: skipped; missing $(DRUM_SAMPLE_SOURCE_DIR)"; fi
@@ -1752,12 +1752,13 @@ test-analyzer-maestro: $(BUILD_DIR)/analyzer_maestro scripts/run_with_duration.s
 test-analyzer-egmd: $(BUILD_DIR)/analyzer_egmd scripts/run_with_duration.sh
 	$(RUN_WITH_DURATION) analyzer_egmd $(BUILD_DIR)/analyzer_egmd
 
-test-core-parallel: test-analyzer-smoke test-analyzer-cases test-analyzer-midi-ranges test-analyzer-urmp test-analyzer-musicnet test-analyzer-multtipop test-analyzer-guitarset test-analyzer-maestro test-analyzer-egmd
+test-core-parallel: scripts/run_with_duration.sh
+	$(RUN_WITH_DURATION) test_core_parallel $(MAKE) $(PARALLEL_TEST_MAKE_JOBS) test-analyzer-smoke test-analyzer-cases test-analyzer-midi-ranges test-analyzer-urmp test-analyzer-musicnet test-analyzer-multtipop test-analyzer-guitarset test-analyzer-maestro test-analyzer-egmd
 
 test-analysis-scripts-parallel: inspect-real-dataset-catalog inspect-real-goal-coverage test-musicnet-remote test-medleydb-inspector test-medleydb-prepare test-musdb-inspector test-slakh-inspector test-slakh-prepare test-choralsynth-inspector test-choralsynth-prepare test-cocochorales-inspector test-cocochorales-prepare test-synthsod-remote test-synthsod-archive-extract test-synthsod-inspector test-synthsod-prepare test-polyvocal-inspector test-polyvocal-prepare test-prepared-multitrack-inspector test-prepared-multitrack-prepare test-multtipop-inspector test-spheres-inspector test-guitarset-inspector test-urmp-inspector test-drum-sample-prepare test-hf-drum-kit-prepare test-idmt-drums-prepare test-mdb-drums-prepare test-star-drums-prepare test-medley-solos-prepare test-maps-piano-prepare test-bach10-mf0-synth-prepare test-instrument-sample-attribute-summary test-instrument-sample-owner-buckets test-filter-instrument-attribute-rows test-instrument-owner-patterns test-refresh-analyzer-detected-attribute-rows test-print-analyzer-detected-attributes test-analyzer-pattern-report test-measure-analyzer-patterns-target test-philharmonia-prepare test-good-sounds-prepare test-iowa-piano-prepare test-iowa-zip-prepare test-idmt-bass-lines-prepare test-idmt-guitar-prepare test-tinysol-prepare test-vocadito-prepare test-vocalset-prepare test-guitar-fretboard-note-prepare test-guitar-techs-prepare test-guitar-techs-chord-prepare test-guitar-chord-mix-prepare test-gaps-guitar-prepare test-guitarset-miss-analysis test-guitarset-attribute-summary test-guitarset-attribute-buckets test-guitarset-attribute-patterns test-guitar-chord-recovery-analysis test-guitar-chord-extra-components-analysis test-real-note-miss-analysis test-real-note-attribute-summary test-real-note-attribute-buckets test-real-note-attribute-patterns test-egmd-miss-analysis test-egmd-drum-attribute-summary test-drum-primary-analysis test-drum-gate-matrix-summary test-real-goal-script android-check
 
-test-parallel:
-	$(MAKE) $(PARALLEL_TEST_MAKE_JOBS) test-analysis-scripts-parallel test-core-parallel test-standalone
+test-parallel: scripts/run_with_duration.sh
+	$(RUN_WITH_DURATION) test_parallel $(MAKE) $(PARALLEL_TEST_MAKE_JOBS) test-analysis-scripts-parallel test-core-parallel test-standalone
 
 test: $(TEST_BINS) scripts/run_with_duration.sh
 	$(MAKE) test-standalone
