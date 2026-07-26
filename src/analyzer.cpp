@@ -8363,6 +8363,118 @@ void prefer_debug_supported_lower_other_octave_primary(NoteGrid &grid, Instrumen
 		write_note_grid_label(state, grid, preferred_root);
 }
 
+NoteCell note_grid_primary_cell_for_pitch_class(const NoteGrid &grid, int pitch_class)
+{
+	pitch_class = ((pitch_class % 12) + 12) % 12;
+	for (const auto &row : grid.rows) {
+		const NoteCell &cell = row[pitch_class];
+		if (cell.active && cell.midi >= kFirstMidi && cell.midi <= kLastMidi &&
+		    midi_pitch_class(cell.midi) == pitch_class)
+			return cell;
+	}
+	const NoteCell &cell = grid.cells[pitch_class];
+	if (cell.active && cell.midi >= kFirstMidi && cell.midi <= kLastMidi &&
+	    midi_pitch_class(cell.midi) == pitch_class)
+		return cell;
+	return {};
+}
+
+void promote_source_hinted_other_debug_primaries(NoteGrid &grid, InstrumentState &state,
+						 const FullMixOwnership &ownership,
+						 const std::array<float, kNoteProbeCount> &powers,
+						 int min_midi, int preferred_root,
+						 bool allow_probe_lower_octave,
+						 bool allow_independent_fundamental)
+{
+	min_midi = std::max(min_midi, kFirstMidi);
+	float strongest_probe = 0.0f;
+	for (int midi = kFirstMidi; midi <= kLastMidi; ++midi)
+		strongest_probe = std::max(strongest_probe, probe_level(powers, midi));
+	if (strongest_probe <= 1.0e-6f)
+		return;
+
+	std::array<int, 12> promoted_midis = {};
+	std::array<float, 12> promoted_levels = {};
+	promoted_midis.fill(-1);
+
+	auto consider = [&](int midi, float level, bool prefer_lowest) {
+		if (midi < min_midi || midi > kOtherMaxMidi)
+			return;
+		const int pitch_class = midi_pitch_class(midi);
+		if (promoted_midis[pitch_class] < 0 ||
+		    (prefer_lowest ? midi < promoted_midis[pitch_class] :
+				     midi > promoted_midis[pitch_class]) ||
+		    (midi == promoted_midis[pitch_class] && level > promoted_levels[pitch_class])) {
+			promoted_midis[pitch_class] = midi;
+			promoted_levels[pitch_class] = std::clamp(level, 0.0f, 1.0f);
+		}
+	};
+
+	const std::size_t debug_count =
+		std::min<std::size_t>(ownership.debug_candidate_count, ownership.debug_candidates.size());
+	for (std::size_t i = 0; i < debug_count; ++i) {
+		const FullMixDebugCandidate &debug = ownership.debug_candidates[i];
+		if (debug.owner != InstrumentKind::Other || debug.midi < min_midi ||
+		    debug.midi > kOtherMaxMidi)
+			continue;
+		if (debug.ownership_confidence < 0.72f || debug.other_score < 0.70f)
+			continue;
+		if (debug.periodicity < 0.30f && debug.pitch_confidence < 0.030f &&
+		    debug.spectral_level < 0.080f)
+			continue;
+
+		const int pitch_class = midi_pitch_class(debug.midi);
+		const NoteCell primary = note_grid_primary_cell_for_pitch_class(grid, pitch_class);
+		if (primary.active && debug.midi < primary.midi) {
+			const float debug_level = std::max(ownership_global_note_level(ownership, debug.midi),
+							  debug.spectral_level);
+			consider(debug.midi, std::max({primary.level, debug_level, debug.other_score}), true);
+		}
+
+		const bool independent_string_fundamental =
+			allow_independent_fundamental &&
+			!primary.active &&
+			debug.other_score >= 0.80f &&
+			debug.keyboard_score <= 0.20f &&
+			debug.guitar_score <= 0.25f &&
+			debug.vocal_score <= 0.05f &&
+			debug.spectral_level >= 0.12f &&
+			debug.pitch_confidence >= 0.12f &&
+			debug.periodicity >= 0.40f;
+		if (independent_string_fundamental) {
+			const float debug_level = std::max(ownership_global_note_level(ownership, debug.midi),
+							  debug.spectral_level);
+			consider(debug.midi, std::max({debug_level, debug.other_score, 0.80f}), false);
+		}
+
+		if (!allow_probe_lower_octave)
+			continue;
+		const int lower_midi = debug.midi - 12;
+		if (lower_midi < min_midi || midi_pitch_class(lower_midi) != pitch_class)
+			continue;
+		const float debug_probe = probe_level(powers, debug.midi);
+		const float lower_probe = probe_level(powers, lower_midi);
+		const bool lower_probe_supported =
+			lower_probe >= strongest_probe * 0.080f &&
+			(debug_probe <= 1.0e-6f || lower_probe >= debug_probe * 0.20f);
+		if (!lower_probe_supported)
+			continue;
+		const float normalized = std::clamp(lower_probe / strongest_probe, 0.0f, 1.0f);
+		consider(lower_midi, std::max({normalized, debug.other_score, 0.72f}), true);
+	}
+
+	bool changed = false;
+	for (int pitch_class = 0; pitch_class < 12; ++pitch_class) {
+		if (promoted_midis[pitch_class] < 0)
+			continue;
+		changed = promote_note_grid_primary_midi(grid, promoted_midis[pitch_class],
+							 promoted_levels[pitch_class]) ||
+			  changed;
+	}
+	if (changed)
+		write_note_grid_label(state, grid, preferred_root);
+}
+
 void prefer_strong_visible_lower_other_octave_primary(NoteGrid &grid, InstrumentState &state,
 						      int min_midi, int preferred_root)
 {
@@ -16303,6 +16415,11 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 			prefer_debug_supported_lower_other_octave_primary(snapshot.other_notes, snapshot.other,
 									  full_mix_ownership, kOtherMinMidi,
 									  -1);
+			if (mixed_string_source_hint || synthetic_other_source_hint)
+				promote_source_hinted_other_debug_primaries(
+					snapshot.other_notes, snapshot.other, full_mix_ownership,
+					note_powers, kOtherMinMidi, -1, synthetic_other_source_hint,
+					mixed_string_source_hint);
 			if (synthetic_other_source_hint) {
 				prefer_strong_visible_lower_other_octave_primary(snapshot.other_notes,
 										 snapshot.other, kOtherMinMidi,
