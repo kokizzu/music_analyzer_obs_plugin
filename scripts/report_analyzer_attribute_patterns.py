@@ -27,6 +27,13 @@ NOTE_BASE = {
     "B": 11,
 }
 DRUMS = ("kick", "snare", "hihat", "crash", "tom", "ride", "rim")
+ROW_FOR_FAMILY = {
+    "bass": "bass",
+    "guitar": "guitar",
+    "piano": "piano",
+    "vocals": "vocals",
+    "other": "other",
+}
 
 
 def load_rows(path: pathlib.Path) -> list[dict[str, str]]:
@@ -385,6 +392,27 @@ def real_note_bucket(row: dict[str, str]) -> str:
     )
 
 
+def expected_row_for_family(family: str) -> str:
+    return ROW_FOR_FAMILY.get(family, family)
+
+
+def real_note_row_confusion_bucket(row: dict[str, str]) -> str:
+    return f"{row.get('family', '')}/{row.get('source', '')}->{row.get('buffer_strongest_row', '')}"
+
+
+def real_note_row_confusion_rows(rows: list[dict[str, str]]) -> list[dict[str, str]]:
+    confused: list[dict[str, str]] = []
+    for row in rows:
+        if row.get("status") != "hit" or not row.get("debug_note"):
+            continue
+        strongest_row = row.get("buffer_strongest_row", "")
+        if not strongest_row:
+            continue
+        if strongest_row != expected_row_for_family(row.get("family", "")):
+            confused.append(row)
+    return confused
+
+
 def report_real_notes(path: pathlib.Path, limit: int, row_examples: int) -> None:
     rows = [row for row in load_rows(path) if row.get("sample_id")]
     section("real-note full-mix attributes")
@@ -396,6 +424,21 @@ def report_real_notes(path: pathlib.Path, limit: int, row_examples: int) -> None
         by_sample_status.setdefault(row["sample_id"], row.get("status", "unknown"))
     print(f"  rows={len(rows)} samples={len(by_sample_status)} status={compact(collections.Counter(by_sample_status.values()), limit)}")
     print(f"  row pitch quality {compact(pitch_quality_counts(rows, 'expected_midi'), limit)}")
+    confused_rows = real_note_row_confusion_rows(rows)
+    print(f"  strongest-row confusion rows={len(confused_rows)} samples={unique_sample_count(confused_rows, 'sample_id')}")
+    if confused_rows:
+        confusion_buckets: dict[str, list[dict[str, str]]] = collections.defaultdict(list)
+        for row in confused_rows:
+            confusion_buckets[real_note_row_confusion_bucket(row)].append(row)
+        for bucket, bucket_group in sorted(confusion_buckets.items(), key=lambda item: (-len(item[1]), item[0]))[:limit]:
+            print(
+                f"  row_confusion:{bucket}: rows={len(bucket_group)} "
+                f"samples={unique_sample_count(bucket_group, 'sample_id')} "
+                f"pitch={compact(pitch_quality_counts(bucket_group, 'expected_midi'), 4)} "
+                f"debug_owner={compact(collections.Counter(row.get('debug_owner', 'none') or 'none' for row in bucket_group), 4)} "
+                f"expected_level_med={median([value for row in bucket_group if (value := as_float(row, 'expected_row_exact_level')) is not None])} "
+                f"strongest_level_med={median([value for row in bucket_group if (value := as_float(row, 'strongest_row_exact_level')) is not None])}"
+            )
     miss_rows = [row for row in rows if row.get("status") == "ownership_miss" and row.get("debug_note")]
     print(f"  ownership miss rows={len(miss_rows)} samples={unique_sample_count(miss_rows, 'sample_id')}")
     if miss_rows:
