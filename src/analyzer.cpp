@@ -12490,9 +12490,23 @@ ChordResult detect_mixed_chord_from_grid(const NoteGrid &grid, int preferred_roo
 
 ChordResult choose_chord_candidate(const ChordResult &raw, const ChordResult &smoothed)
 {
-	if (valid_chord_result(raw) && (!valid_chord_result(smoothed) || raw.confidence >= smoothed.confidence * 0.96f))
+	const bool raw_valid = valid_chord_result(raw);
+	const bool smoothed_valid = valid_chord_result(smoothed);
+	if (raw_valid && smoothed_valid) {
+		const int raw_components = chord_label_component_count(raw.label);
+		const int smoothed_components = chord_label_component_count(smoothed.label);
+		if (smoothed_components > raw_components &&
+		    chord_label_contains_all_components(smoothed.label, raw.label) &&
+		    smoothed.confidence >= raw.confidence * 0.72f)
+			return smoothed;
+		if (raw_components > smoothed_components &&
+		    chord_label_contains_all_components(raw.label, smoothed.label) &&
+		    raw.confidence >= smoothed.confidence * 0.72f)
+			return raw;
+	}
+	if (raw_valid && (!smoothed_valid || raw.confidence >= smoothed.confidence * 0.96f))
 		return raw;
-	if (valid_chord_result(smoothed))
+	if (smoothed_valid)
 		return smoothed;
 	ChordResult empty;
 	copy_text(empty.label, sizeof(empty.label), "--");
