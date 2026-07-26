@@ -8145,6 +8145,99 @@ float full_mix_debug_keyboard_note_score(const FullMixOwnership &ownership, int 
 	return best;
 }
 
+float full_mix_debug_other_note_score(const FullMixOwnership &ownership, int midi)
+{
+	const std::size_t debug_count =
+		std::min<std::size_t>(ownership.debug_candidate_count, ownership.debug_candidates.size());
+	float best = -1.0f;
+	for (std::size_t i = 0; i < debug_count; ++i) {
+		const FullMixDebugCandidate &debug = ownership.debug_candidates[i];
+		if (debug.midi != midi || debug.owner != InstrumentKind::Other)
+			continue;
+		if (debug.ownership_confidence < 0.80f)
+			continue;
+		if (debug.periodicity < 0.30f && debug.spectral_level < 0.28f)
+			continue;
+		const float raw_level = ownership_global_note_level(ownership, debug.midi);
+		if (raw_level < 0.025f && debug.spectral_level < 0.24f)
+			continue;
+		best = std::max(best, debug.ownership_confidence);
+	}
+	return best;
+}
+
+void prefer_debug_supported_lower_other_octave_primary(NoteGrid &grid, InstrumentState &state,
+						       const FullMixOwnership &ownership,
+						       int min_midi, int preferred_root)
+{
+	min_midi = std::max(min_midi, kFirstMidi);
+	bool changed = false;
+	const std::size_t debug_count =
+		std::min<std::size_t>(ownership.debug_candidate_count, ownership.debug_candidates.size());
+
+	for (int pitch_class = 0; pitch_class < 12; ++pitch_class) {
+		NoteCell primary = {};
+		for (const auto &row : grid.rows) {
+			const NoteCell &cell = row[pitch_class];
+			if (cell.active) {
+				primary = cell;
+				break;
+			}
+		}
+		if (!primary.active)
+			continue;
+
+		const float primary_debug_score =
+			std::max(0.0f, full_mix_debug_other_note_score(ownership, primary.midi));
+		int supported_midi = -1;
+		float supported_level = 0.0f;
+		float supported_debug_score = 0.0f;
+		for (std::size_t i = 0; i < debug_count; ++i) {
+			const FullMixDebugCandidate &debug = ownership.debug_candidates[i];
+			if (debug.midi < min_midi || debug.midi >= primary.midi ||
+			    midi_pitch_class(debug.midi) != pitch_class)
+				continue;
+			const float debug_score = full_mix_debug_other_note_score(ownership, debug.midi);
+			if (debug_score < 0.80f || debug_score + 0.02f < primary_debug_score)
+				continue;
+
+			const float visible_level = note_grid_midi_level(grid, debug.midi);
+			if (visible_level <= 0.0f)
+				continue;
+			const float raw_level = ownership_global_note_level(ownership, debug.midi);
+			const int octave_delta = primary.midi - debug.midi;
+			const bool one_octave = octave_delta <= 12;
+			const bool visible_supported = visible_level >= 0.08f;
+			const bool weak_visible_but_measured =
+				visible_level >= 0.025f && raw_level >= 0.040f && debug.periodicity >= 0.32f;
+			const bool deep_low_supported =
+				octave_delta <= 24 && debug.midi >= 40 && visible_level >= 0.50f &&
+				raw_level >= 0.30f && debug_score >= 0.90f && debug.periodicity >= 0.55f;
+			if (!(one_octave && (visible_supported || weak_visible_but_measured)) &&
+			    !deep_low_supported)
+				continue;
+
+			const float score = std::max(visible_level, raw_level);
+			if (supported_midi < 0 || debug_score > supported_debug_score ||
+			    (debug_score == supported_debug_score && score > supported_level) ||
+			    (debug_score == supported_debug_score && score == supported_level &&
+			     debug.midi < supported_midi)) {
+				supported_midi = debug.midi;
+				supported_level = score;
+				supported_debug_score = debug_score;
+			}
+		}
+		if (supported_midi < 0 || supported_midi == primary.midi)
+			continue;
+		changed = promote_note_grid_primary_midi(grid, supported_midi,
+							 std::max(supported_level, primary.level)) ||
+			  changed;
+	}
+
+	if (changed)
+		write_note_grid_label(state, grid, preferred_root);
+}
+
 void prefer_debug_supported_keyboard_octave_primary(NoteGrid &grid, InstrumentState &state,
 						    const FullMixOwnership &ownership,
 						    int preferred_root)
@@ -15465,9 +15558,13 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 		if (!mixed_source)
 			prefer_supported_lower_octave_display(snapshot.other_notes, snapshot.other, note_powers,
 							      kOtherMinMidi, 52, -1);
-		else
+		else {
 			prefer_visible_lower_octave_primary(snapshot.other_notes, snapshot.other, kOtherMinMidi,
 							   0.20f, -1, 0.08f, 52);
+			prefer_debug_supported_lower_other_octave_primary(snapshot.other_notes, snapshot.other,
+									  full_mix_ownership, kOtherMinMidi,
+									  -1);
+		}
 		smooth_note_grid_envelope(other_chord_grid, other_chord_note_state, other_chord_note_tracking_,
 					  -1, interval_seconds, other_max_notes, other_new_notes,
 					  kNoteAttackConfirmFrames,
