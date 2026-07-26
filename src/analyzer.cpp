@@ -15507,7 +15507,20 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 		    one_shot_measured_rim_snare_narrow_crash_band_recovery ||
 		    one_shot_measured_rim_ambiguous_ride_tom_recovery)
 			promote_drum_primary(Rim, 0.90f);
-		if (one_shot_measured_narrow_band_tom_from_kick_primary_recovery)
+		const bool one_shot_measured_protected_tom_from_kick_primary_recovery =
+			drum_detection_enabled && one_shot_drum_source &&
+			((snapshot.drum_debug_trigger_scores[Rim] >= 22.834f &&
+			  tom_kick_level_ratio <= 0.855f &&
+			  tom_snare_level_ratio >= 0.326f) ||
+			 (snare_body >= 30.001f &&
+			  tom_kick_band_ratio >= 3.127f &&
+			  tom_kick_band_ratio <= 3.136f) ||
+			 (drum_level_[Kick] <= 0.985f &&
+			  drum_shape_supported[Kick] &&
+			  snapshot.drum_debug_trigger_scores[Rim] >= 22.834f &&
+			  snapshot.drum_debug_trigger_scores[Snare] <= 22.257f));
+		if (one_shot_measured_narrow_band_tom_from_kick_primary_recovery ||
+		    one_shot_measured_protected_tom_from_kick_primary_recovery)
 			promote_drum_primary(Tom, 0.90f);
 
 		const bool generated_gm_orchestra_tom_primary_recovery =
