@@ -15678,7 +15678,7 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 				full_mix_display_candidates(full_mix_ownership, FullMixDisplayRow::Other);
 			set_instrument_note_set_from_candidates(snapshot.other_notes, snapshot.other,
 								other_display, note_root,
-								other_energy, rms, other_max_notes);
+								other_energy, rms, other_max_notes, 0.70f);
 		} else {
 			const int min_midi = kOtherMinMidi;
 			set_instrument_note_set(snapshot.other_notes, snapshot.other, detection_note_powers,
