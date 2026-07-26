@@ -177,10 +177,17 @@ def main() -> int:
         "MUSIC_ANALYZER_REAL_NOTE_FULL_MIX=1",
         "MUSIC_ANALYZER_REAL_NOTE_SHARD_COUNT=\"$(REAL_NOTE_FULL_MIX_SHARDS)\"",
         "MUSIC_ANALYZER_REAL_NOTE_SHARD_INDEX=\"$*\"",
-        "MUSIC_ANALYZER_REAL_NOTE_MIN_EXPECTED_ROW_PERCENT=\"$(REAL_NOTE_FULL_MIX_MIN_EXPECTED_ROW_PERCENT)\"",
         "MUSIC_ANALYZER_REAL_NOTE_MIN_BASS=0",
+        "$(REAL_NOTE_FULL_MIX_GATE_ENV)",
     ]:
         assert text in real_note_shard_recipe, f"real-note shard target must include {text}"
+    for text in [
+        "REAL_NOTE_FULL_MIX_GATE_ENV = \\",
+        "MUSIC_ANALYZER_REAL_NOTE_MIN_EXPECTED_ROW_PERCENT=\"$(REAL_NOTE_FULL_MIX_MIN_EXPECTED_ROW_PERCENT)\"",
+        "MUSIC_ANALYZER_REAL_NOTE_MIN_FIRST_ROW_PERCENT=\"$(REAL_NOTE_FULL_MIX_MIN_FIRST_ROW_PERCENT)\"",
+        "MUSIC_ANALYZER_REAL_NOTE_MIN_GUITAR_FIRST_ROW_PERCENT=\"$(REAL_NOTE_FULL_MIX_MIN_GUITAR_FIRST_ROW_PERCENT)\"",
+    ]:
+        assert text in makefile, f"real-note full-mix gate env must include {text}"
     instrument_sharded_recipe = target_recipe(makefile, "test-instrument-samples-parallel")
     assert "INSTRUMENT_SAMPLE_TEST_MAKE_JOBS = $(if $(filter -j%,$(MAKEFLAGS)),,-j$(INSTRUMENT_SAMPLE_SHARDS))" in makefile, (
         "generated instrument sample shards must not force nested jobserver mode"

@@ -1045,6 +1045,9 @@ int main()
 	const int min_expected_row_percent =
 		std::clamp(nonnegative_int_env("MUSIC_ANALYZER_REAL_NOTE_MIN_EXPECTED_ROW_PERCENT", 0),
 			   0, 100);
+	const int min_first_row_percent =
+		std::clamp(nonnegative_int_env("MUSIC_ANALYZER_REAL_NOTE_MIN_FIRST_ROW_PERCENT", 0),
+			   0, 100);
 	const std::array<int, kFamilyCount> min_family_expected_row_percent = {
 		std::clamp(nonnegative_int_env("MUSIC_ANALYZER_REAL_NOTE_MIN_BASS_EXPECTED_ROW_PERCENT", 0),
 			   0, 100),
@@ -1055,6 +1058,18 @@ int main()
 		std::clamp(nonnegative_int_env("MUSIC_ANALYZER_REAL_NOTE_MIN_VOCALS_EXPECTED_ROW_PERCENT", 0),
 			   0, 100),
 		std::clamp(nonnegative_int_env("MUSIC_ANALYZER_REAL_NOTE_MIN_OTHER_EXPECTED_ROW_PERCENT", 0),
+			   0, 100),
+	};
+	const std::array<int, kFamilyCount> min_family_first_row_percent = {
+		std::clamp(nonnegative_int_env("MUSIC_ANALYZER_REAL_NOTE_MIN_BASS_FIRST_ROW_PERCENT", 0),
+			   0, 100),
+		std::clamp(nonnegative_int_env("MUSIC_ANALYZER_REAL_NOTE_MIN_GUITAR_FIRST_ROW_PERCENT", 0),
+			   0, 100),
+		std::clamp(nonnegative_int_env("MUSIC_ANALYZER_REAL_NOTE_MIN_PIANO_FIRST_ROW_PERCENT", 0),
+			   0, 100),
+		std::clamp(nonnegative_int_env("MUSIC_ANALYZER_REAL_NOTE_MIN_VOCALS_FIRST_ROW_PERCENT", 0),
+			   0, 100),
+		std::clamp(nonnegative_int_env("MUSIC_ANALYZER_REAL_NOTE_MIN_OTHER_FIRST_ROW_PERCENT", 0),
 			   0, 100),
 	};
 	const int max_drum_active_percent =
@@ -1093,10 +1108,12 @@ int main()
 	std::array<int, kFamilyCount> family_hits = {};
 	std::array<int, kFamilyCount> family_any_hits = {};
 	std::array<int, kFamilyCount> family_row_hits = {};
+	std::array<int, kFamilyCount> family_first_row_hits = {};
 	std::array<std::array<int, kObservedRowCount>, kFamilyCount> row_confusion = {};
 	std::map<std::string, SourceStats> source_stats;
 	int any_hits = 0;
 	int row_hits = 0;
+	int first_row_hits = 0;
 	int active_drum_windows = 0;
 	std::array<int, mao::kDrumCount> active_drum_by_class = {};
 	int analyzed_windows = 0;
@@ -1256,6 +1273,10 @@ int main()
 			++row_hits;
 		}
 		if (full_mix) {
+			if (first_detected_row == index) {
+				++family_first_row_hits[index];
+				++first_row_hits;
+			}
 			++row_confusion[static_cast<std::size_t>(index)]
 					[static_cast<std::size_t>(first_detected_row)];
 		}
@@ -1285,6 +1306,11 @@ int main()
 			      "expected at least " + std::to_string(min_expected_row_percent) +
 				      "% full-mix expected-row note recall, got " +
 				      std::to_string(row_hits) + "/" + std::to_string(usable));
+		const int first_row_percent = first_row_hits * 100 / usable;
+		runner.expect(first_row_percent >= min_first_row_percent,
+			      "expected at least " + std::to_string(min_first_row_percent) +
+				      "% full-mix first-row note ownership, got " +
+				      std::to_string(first_row_hits) + "/" + std::to_string(usable));
 		for (std::size_t i = 0; i < min_family_expected_row_percent.size(); ++i) {
 			if (min_family_expected_row_percent[i] <= 0 || family_counts[i] <= 0)
 				continue;
@@ -1295,6 +1321,19 @@ int main()
 					      "% full-mix " + kFamilyNames[i] +
 					      " expected-row note recall, got " +
 					      std::to_string(family_row_hits[i]) + "/" +
+					      std::to_string(family_counts[i]));
+		}
+		for (std::size_t i = 0; i < min_family_first_row_percent.size(); ++i) {
+			if (min_family_first_row_percent[i] <= 0 || family_counts[i] <= 0)
+				continue;
+			const int family_first_row_percent =
+				family_first_row_hits[i] * 100 / family_counts[i];
+			runner.expect(family_first_row_percent >= min_family_first_row_percent[i],
+				      "expected at least " +
+					      std::to_string(min_family_first_row_percent[i]) +
+					      "% full-mix " + kFamilyNames[i] +
+					      " first-row note ownership, got " +
+					      std::to_string(family_first_row_hits[i]) + "/" +
 					      std::to_string(family_counts[i]));
 		}
 		if (analyzed_windows > 0) {
@@ -1325,14 +1364,22 @@ int main()
 			     family_hits[3], family_counts[3], family_hits[4], family_counts[4]);
 		if (full_mix) {
 			std::fprintf(stderr,
-				     "; any-row %d/%d, expected-row %d/%d, drum-active-windows %d/%d",
-				     any_hits, usable, row_hits, usable, active_drum_windows, analyzed_windows);
+				     "; any-row %d/%d, expected-row %d/%d, first-row %d/%d, drum-active-windows %d/%d",
+				     any_hits, usable, row_hits, usable, first_row_hits, usable,
+				     active_drum_windows, analyzed_windows);
 			std::fprintf(stderr,
 				     ", expected-row-by-family bass=%d/%d guitar=%d/%d piano=%d/%d vocals=%d/%d other=%d/%d",
 				     family_row_hits[0], family_counts[0], family_row_hits[1],
 				     family_counts[1], family_row_hits[2], family_counts[2],
 				     family_row_hits[3], family_counts[3], family_row_hits[4],
 				     family_counts[4]);
+			std::fprintf(stderr,
+				     ", first-row-by-family bass=%d/%d guitar=%d/%d piano=%d/%d vocals=%d/%d other=%d/%d",
+				     family_first_row_hits[0], family_counts[0],
+				     family_first_row_hits[1], family_counts[1],
+				     family_first_row_hits[2], family_counts[2],
+				     family_first_row_hits[3], family_counts[3],
+				     family_first_row_hits[4], family_counts[4]);
 			std::fprintf(stderr,
 				     ", drums kick=%d snare=%d hihat=%d crash=%d tom=%d ride=%d rim=%d",
 				     active_drum_by_class[0], active_drum_by_class[1],
@@ -1353,13 +1400,21 @@ int main()
 			family_hits[1], family_counts[1], family_hits[2], family_counts[2],
 			family_hits[3], family_counts[3], family_hits[4], family_counts[4]);
 		if (full_mix) {
-			std::printf("; any-row %d/%d, expected-row %d/%d, drum-active-windows %d/%d",
-				    any_hits, usable, row_hits, usable, active_drum_windows, analyzed_windows);
+			std::printf("; any-row %d/%d, expected-row %d/%d, first-row %d/%d, drum-active-windows %d/%d",
+				    any_hits, usable, row_hits, usable, first_row_hits, usable,
+				    active_drum_windows, analyzed_windows);
 			std::printf(
 				", expected-row-by-family bass=%d/%d guitar=%d/%d piano=%d/%d vocals=%d/%d other=%d/%d",
 				family_row_hits[0], family_counts[0], family_row_hits[1], family_counts[1],
 				family_row_hits[2], family_counts[2], family_row_hits[3], family_counts[3],
 				family_row_hits[4], family_counts[4]);
+			std::printf(
+				", first-row-by-family bass=%d/%d guitar=%d/%d piano=%d/%d vocals=%d/%d other=%d/%d",
+				family_first_row_hits[0], family_counts[0],
+				family_first_row_hits[1], family_counts[1],
+				family_first_row_hits[2], family_counts[2],
+				family_first_row_hits[3], family_counts[3],
+				family_first_row_hits[4], family_counts[4]);
 			std::printf(", drums kick=%d snare=%d hihat=%d crash=%d tom=%d ride=%d rim=%d",
 				    active_drum_by_class[0], active_drum_by_class[1],
 				    active_drum_by_class[2], active_drum_by_class[3],
@@ -1380,13 +1435,21 @@ int main()
 		family_hits[2], family_counts[2], family_hits[3], family_counts[3], family_hits[4],
 		family_counts[4]);
 	if (full_mix) {
-		std::printf("; any-row %d/%d, expected-row %d/%d, drum-active-windows %d/%d",
-			    any_hits, usable, row_hits, usable, active_drum_windows, analyzed_windows);
+		std::printf("; any-row %d/%d, expected-row %d/%d, first-row %d/%d, drum-active-windows %d/%d",
+			    any_hits, usable, row_hits, usable, first_row_hits, usable,
+			    active_drum_windows, analyzed_windows);
 		std::printf(
 			", expected-row-by-family bass=%d/%d guitar=%d/%d piano=%d/%d vocals=%d/%d other=%d/%d",
 			family_row_hits[0], family_counts[0], family_row_hits[1], family_counts[1],
 			family_row_hits[2], family_counts[2], family_row_hits[3], family_counts[3],
 			family_row_hits[4], family_counts[4]);
+		std::printf(
+			", first-row-by-family bass=%d/%d guitar=%d/%d piano=%d/%d vocals=%d/%d other=%d/%d",
+			family_first_row_hits[0], family_counts[0],
+			family_first_row_hits[1], family_counts[1],
+			family_first_row_hits[2], family_counts[2],
+			family_first_row_hits[3], family_counts[3],
+			family_first_row_hits[4], family_counts[4]);
 		std::printf(", drums kick=%d snare=%d hihat=%d crash=%d tom=%d ride=%d rim=%d",
 			    active_drum_by_class[0], active_drum_by_class[1], active_drum_by_class[2],
 			    active_drum_by_class[3], active_drum_by_class[4], active_drum_by_class[5],
