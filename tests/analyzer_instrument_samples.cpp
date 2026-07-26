@@ -1117,6 +1117,7 @@ bool expects_full_mix_other_primary_octave_recovery(const std::string &suite_fam
 		((row.program_name == "violin" && row.note == "G3") ||
 		 (row.program_name == "viola" && row.note == "C4") ||
 		 (row.program_name == "cello" && (row.note == "E2" || row.note == "G4")) ||
+		 (row.program_name == "contrabass" && row.note == "E3") ||
 		 (row.program_name == "tremolo_strings" && row.note == "G2") ||
 		 (row.program_name == "orchestral_harp" && row.note == "C3") ||
 		 (row.program_name == "string_ensemble_1" && row.note == "G2"))) ||

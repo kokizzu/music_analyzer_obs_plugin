@@ -8340,6 +8340,70 @@ void prefer_strong_visible_lower_other_octave_primary(NoteGrid &grid, Instrument
 		write_note_grid_label(state, grid, preferred_root);
 }
 
+void prefer_debug_supported_upper_other_octave_primary(NoteGrid &grid, InstrumentState &state,
+						       const FullMixOwnership &ownership,
+						       int min_midi, int preferred_root)
+{
+	min_midi = std::max(min_midi, kFirstMidi);
+	bool changed = false;
+	const std::size_t debug_count =
+		std::min<std::size_t>(ownership.debug_candidate_count, ownership.debug_candidates.size());
+
+	for (int pitch_class = 0; pitch_class < 12; ++pitch_class) {
+		NoteCell primary = {};
+		for (const auto &row : grid.rows) {
+			const NoteCell &cell = row[pitch_class];
+			if (cell.active) {
+				primary = cell;
+				break;
+			}
+		}
+		if (!primary.active)
+			continue;
+
+		const float primary_debug_score =
+			std::max(0.0f, full_mix_debug_other_note_score(ownership, primary.midi));
+		if (primary_debug_score >= 0.80f)
+			continue;
+
+		int supported_midi = -1;
+		float supported_level = 0.0f;
+		float supported_debug_score = 0.0f;
+		for (std::size_t i = 0; i < debug_count; ++i) {
+			const FullMixDebugCandidate &debug = ownership.debug_candidates[i];
+			if (debug.midi <= primary.midi || debug.midi < min_midi ||
+			    midi_pitch_class(debug.midi) != pitch_class)
+				continue;
+			const int octave_delta = debug.midi - primary.midi;
+			if (octave_delta != 12)
+				continue;
+			const float debug_score = full_mix_debug_other_note_score(ownership, debug.midi);
+			if (debug_score < 0.85f)
+				continue;
+			const float visible_level = note_grid_midi_level(grid, debug.midi);
+			const float raw_level = ownership_global_note_level(ownership, debug.midi);
+			if (visible_level < 0.45f || raw_level < 0.20f)
+				continue;
+
+			const float score = std::max(visible_level, raw_level);
+			if (supported_midi < 0 || debug_score > supported_debug_score ||
+			    (debug_score == supported_debug_score && score > supported_level)) {
+				supported_midi = debug.midi;
+				supported_level = score;
+				supported_debug_score = debug_score;
+			}
+		}
+		if (supported_midi < 0)
+			continue;
+		changed = promote_note_grid_primary_midi(grid, supported_midi,
+							 std::max(supported_level, primary.level)) ||
+			  changed;
+	}
+
+	if (changed)
+		write_note_grid_label(state, grid, preferred_root);
+}
+
 void prefer_debug_supported_keyboard_octave_primary(NoteGrid &grid, InstrumentState &state,
 						    const FullMixOwnership &ownership,
 						    int preferred_root)
@@ -15673,6 +15737,11 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 				prefer_strong_visible_lower_other_octave_primary(snapshot.other_notes,
 										 snapshot.other, kOtherMinMidi,
 										 -1);
+			if (mixed_string_source_hint)
+				prefer_debug_supported_upper_other_octave_primary(snapshot.other_notes,
+										  snapshot.other,
+										  full_mix_ownership,
+										  kOtherMinMidi, -1);
 		}
 		smooth_note_grid_envelope(other_chord_grid, other_chord_note_state, other_chord_note_tracking_,
 					  -1, interval_seconds, other_max_notes, other_new_notes,
