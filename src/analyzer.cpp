@@ -15105,13 +15105,26 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 		    one_shot_measured_rim_ambiguous_ride_tom_recovery)
 			promote_drum_primary(Rim, 0.90f);
 
+		const bool generated_gm_orchestra_tom_primary_recovery =
+			drum_detection_enabled && generated_gm_drum_source &&
+			drum_level_[Tom] > 0.30f &&
+			drum_shape_supported[Tom] &&
+			body_shape == Tom &&
+			tom_body >= 100.0f &&
+			tom_body >= snare_body * 1.42f &&
+			upper_tom_body >= 48.0f &&
+			snapshot.drum_debug_trigger_scores[Tom] >= 8000.0f;
+		if (generated_gm_orchestra_tom_primary_recovery)
+			promote_drum_primary(Tom, 0.90f);
+
 		const bool measured_snare_crack_tom_bleed =
 			drum_detection_enabled &&
 			drum_level_[Tom] > 0.30f &&
 			drum_level_[Snare] >= 0.70f &&
 			snare_body > 1.0e-6f &&
 			snare_crack >= snare_body * 0.18f &&
-			tom_body <= snare_body * 1.70f;
+			tom_body <= snare_body * 1.70f &&
+			!generated_gm_orchestra_tom_primary_recovery;
 		if (measured_snare_crack_tom_bleed)
 			cap_drum_level(Tom, 0.28f);
 
