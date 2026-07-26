@@ -14884,6 +14884,15 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 			hihat_rim_segment_ratio <= 0.17f &&
 			snapshot.low_energy >= 0.71f &&
 			tom_kick_level_ratio <= 0.876f;
+		const bool one_shot_measured_narrow_band_tom_from_kick_primary_recovery =
+			drum_detection_enabled && one_shot_drum_source &&
+			drum_level_[Tom] > 0.30f &&
+			drum_level_[Kick] > 0.30f &&
+			((snapshot.high_energy <= 0.17f &&
+			  tom_kick_band_ratio >= 3.127f &&
+			  tom_kick_band_ratio <= 3.155f) ||
+			 (drum_level_[Kick] <= 0.987f &&
+			  tom_kick_shape_score_ratio <= 0.482f));
 		const bool one_shot_measured_tom_no_kick_snare_steal_primary_recovery =
 			drum_detection_enabled && one_shot_drum_source &&
 			body_shape == Tom &&
@@ -15246,6 +15255,8 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 		    one_shot_measured_rim_snare_narrow_crash_band_recovery ||
 		    one_shot_measured_rim_ambiguous_ride_tom_recovery)
 			promote_drum_primary(Rim, 0.90f);
+		if (one_shot_measured_narrow_band_tom_from_kick_primary_recovery)
+			promote_drum_primary(Tom, 0.90f);
 
 		const bool generated_gm_orchestra_tom_primary_recovery =
 			drum_detection_enabled && generated_gm_drum_source &&
