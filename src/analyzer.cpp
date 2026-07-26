@@ -77,7 +77,7 @@ constexpr float kMixedBassMinBroadScoreRatio = 0.22f;
 constexpr float kMixedBassMinConfidence = 0.025f;
 constexpr float kIsolatedBassPeriodicityFloor = 0.34f;
 constexpr float kIsolatedBassPeriodicitySpectralRatio = 0.62f;
-constexpr int kIsolatedBassStrongHarmonicMaxMidi = 40;
+constexpr int kIsolatedBassStrongHarmonicMaxMidi = 47;
 constexpr int kIsolatedBassPeriodicReplacementMaxMidi = 43;
 
 bool contains_case_insensitive(const char *text, const char *needle)
