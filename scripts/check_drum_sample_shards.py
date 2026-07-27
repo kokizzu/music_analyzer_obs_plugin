@@ -7,6 +7,7 @@ import argparse
 import pathlib
 import re
 import sys
+from collections import Counter
 
 
 CATEGORIES = ("kick", "snare", "hihat", "crash", "tom", "ride", "rim")
@@ -139,6 +140,17 @@ def validate(args: argparse.Namespace, skipped: int, active: dict[str, dict[str,
             f"  expected {expected:<5}"
             + "".join(f" {detected}={row.get(detected, 0)}" for detected in CATEGORIES)
             + f" ambiguous={row.get('ambiguous', 0)} none={row.get('none', 0)}"
+        )
+    primary_confusion: Counter[str] = Counter()
+    for expected in CATEGORIES:
+        for detected, value in primary.get(expected, {}).items():
+            if value <= 0 or detected == expected:
+                continue
+            primary_confusion[f"{expected}->{detected}"] += value
+    if primary_confusion:
+        print(
+            "check_drum_sample_shards: primary confusion "
+            + " ".join(f"{route}={value}" for route, value in primary_confusion.most_common(12))
         )
     print(f"check_drum_sample_shards: ok (usable {usable}, skipped {skipped}", end="")
     for category in CATEGORIES:

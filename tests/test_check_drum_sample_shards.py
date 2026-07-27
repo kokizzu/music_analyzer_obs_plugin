@@ -70,6 +70,7 @@ def main() -> int:
         raise AssertionError(completed.stderr)
     require(completed.stdout, "check_drum_sample_shards: active matrix")
     require(completed.stdout, "expected snare kick=1 snare=4")
+    require(completed.stdout, "check_drum_sample_shards: primary confusion snare->tom=1 tom->snare=1")
     require(completed.stdout, "check_drum_sample_shards: ok (usable 25, skipped 2")
     require(completed.stdout, "snare recall 4/5 primary 4/5 precision 4/8 false 4 50%")
 
