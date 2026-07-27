@@ -118,7 +118,7 @@ def tsv_row(
 
 def run_patterns(
     *paths: pathlib.Path, include_merged_rows: bool = False, row_examples: int = 1,
-    max_conditions: int = 3, route_name: str = "tom->kick",
+    max_conditions: int = 3, route_name: str = "tom->kick", show_near_misses: int = 0,
 ) -> str:
     command = [
         sys.executable,
@@ -135,6 +135,8 @@ def run_patterns(
         "--row-examples",
         str(row_examples),
     ]
+    if show_near_misses > 0:
+        command.extend(["--show-near-misses", str(show_near_misses)])
     if include_merged_rows:
         command.append("--include-merged-rows")
     completed = subprocess.run(
@@ -242,6 +244,20 @@ def main() -> int:
             encoding="utf-8",
         )
         zero_denominator_output = run_patterns(zero_denominator_path, route_name="tom->snare")
+        near_miss_path = pathlib.Path(tmpdir) / "near_miss.tsv"
+        near_miss_path.write_text(
+            "\n".join(
+                [
+                    "\t".join(tsv_header()),
+                    tsv_row("tom/near_1.wav", "tom", "kick", kick_level=0.90, snare_level=0.10, tom_level=0.60),
+                    tsv_row("tom/near_2.wav", "tom", "kick", kick_level=0.90, snare_level=0.10, tom_level=0.60),
+                    tsv_row("tom/protected.wav", "tom", "tom", kick_level=0.90, snare_level=0.10, tom_level=0.60),
+                ]
+            )
+            + "\n",
+            encoding="utf-8",
+        )
+        near_miss_output = run_patterns(near_miss_path, row_examples=0, show_near_misses=2)
 
     assert "route tom->kick positives=2 rows=2 protected_correct=4 rows=4" in output
     assert "protecting merged expected-credit rows=1; pass --include-merged-rows to mine them" in output
@@ -269,6 +285,10 @@ def main() -> int:
     assert "route tom->snare positives=2 rows=2" in zero_denominator_output
     assert "1000000000" not in zero_denominator_output
     assert "snare_kick_level_ratio" not in zero_denominator_output
+    assert "route tom->kick positives=2 rows=2 protected_correct=1 rows=1" in near_miss_output
+    assert "\n  --\n" in near_miss_output
+    assert "nearest over-budget single-condition candidate rules:" in near_miss_output
+    assert "+2 rows=2 -1 rows=1" in near_miss_output
     print("test_find_drum_attribute_patterns: ok")
     return 0
 

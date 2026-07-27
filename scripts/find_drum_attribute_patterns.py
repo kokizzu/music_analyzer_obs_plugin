@@ -487,7 +487,7 @@ def result_from_masks(
     all_counter: SampleCounter,
     side_effect_base: SideEffectMaskSet,
     target_category: str,
-    max_negative_samples: int,
+    max_negative_samples: int | None,
     show_examples: int,
 ) -> RuleResult | None:
     positive_samples, _positive_exceeded = positive_counter.count(positive_mask)
@@ -523,7 +523,7 @@ def ranked_state_key(
     state: SearchState,
     positive_counter: SampleCounter,
     negative_counter: SampleCounter,
-    max_negative_samples: int,
+    max_negative_samples: int | None,
 ) -> tuple[int, int, int, int, str]:
     negative_samples = bounded_sample_count(state.negative_mask, negative_counter, max_negative_samples)
     positive_samples = bounded_sample_count(state.positive_mask, positive_counter, None)
@@ -566,7 +566,7 @@ def extend_condition_search(
     side_effect_base: SideEffectMaskSet,
     target_category: str,
     min_positive_samples: int,
-    max_negative_samples: int,
+    max_negative_samples: int | None,
     max_conditions: int,
     beam_width: int,
     show_examples: int,
@@ -730,6 +730,7 @@ def print_route_patterns(
     max_conditions: int,
     beam_width: int,
     show_examples: int,
+    show_near_misses: int,
     include_merged_positives: bool,
 ) -> None:
     expected, got = route
@@ -778,79 +779,96 @@ def print_route_patterns(
         )
         for pattern in patterns
     ]
-    results: list[RuleResult] = []
-    for match in matches:
-        result = result_from_masks(
-            match.label,
-            match.positive_mask,
-            match.negative_mask,
-            match.all_mask,
-            positive_rows,
-            negative_rows,
-            rows,
-            positive_counter,
-            negative_counter,
-            all_counter,
-            side_effect_base,
-            expected,
-            max_negative_samples,
-            show_examples,
-        )
-        if result is not None and result.positive_samples >= min_positive_samples:
-            results.append(result)
-    results.extend(
-        extend_condition_search(
-            matches,
-            positive_rows,
-            negative_rows,
-            rows,
-            positive_counter,
-            negative_counter,
-            all_counter,
-            side_effect_base,
-            expected,
-            min_positive_samples,
-            max_negative_samples,
-            max_conditions,
-            max(1, beam_width),
-            show_examples,
-        )
-    )
-    deduped: dict[str, RuleResult] = {}
-    for result in results:
-        existing = deduped.get(result.rule)
-        if existing is None or rank_result(result) < rank_result(existing):
-            deduped[result.rule] = result
-    ranked = sorted(deduped.values(), key=rank_result)[:limit]
+
+    def collect_results(max_negative_samples_limit: int | None, include_multi_condition: bool) -> list[RuleResult]:
+        results: list[RuleResult] = []
+        for match in matches:
+            result = result_from_masks(
+                match.label,
+                match.positive_mask,
+                match.negative_mask,
+                match.all_mask,
+                positive_rows,
+                negative_rows,
+                rows,
+                positive_counter,
+                negative_counter,
+                all_counter,
+                side_effect_base,
+                expected,
+                max_negative_samples_limit,
+                show_examples,
+            )
+            if result is not None and result.positive_samples >= min_positive_samples:
+                results.append(result)
+        if include_multi_condition:
+            results.extend(
+                extend_condition_search(
+                    matches,
+                    positive_rows,
+                    negative_rows,
+                    rows,
+                    positive_counter,
+                    negative_counter,
+                    all_counter,
+                    side_effect_base,
+                    expected,
+                    min_positive_samples,
+                    max_negative_samples_limit,
+                    max_conditions,
+                    max(1, beam_width),
+                    show_examples,
+                )
+            )
+        deduped: dict[str, RuleResult] = {}
+        for result in results:
+            existing = deduped.get(result.rule)
+            if existing is None or rank_result(result) < rank_result(existing):
+                deduped[result.rule] = result
+        return sorted(deduped.values(), key=rank_result)
+
+    def print_rules(rules: list[RuleResult]) -> None:
+        for result in rules:
+            print(
+                f"  +{result.positive_samples} rows={result.positive_rows} "
+                f"-{result.negative_samples} rows={result.negative_rows} "
+                f"foreign={result.foreign_samples} rows={result.foreign_rows} "
+                f"new-active={result.new_active_samples} rows={result.new_active_rows} "
+                f"primary-break={result.primary_break_samples} rows={result.primary_break_rows} :: {result.rule}"
+            )
+            if show_examples <= 0:
+                continue
+            if result.positive_examples:
+                print("    positive examples:")
+                for row in result.positive_examples:
+                    print(f"      {format_example(row)}")
+            if result.negative_examples:
+                print("    protected-correct examples:")
+                for row in result.negative_examples:
+                    print(f"      {format_example(row)}")
+            if result.new_active_examples:
+                print("    new-active side-effect examples:")
+                for row in result.new_active_examples:
+                    print(f"      {format_example(row)}")
+            if result.primary_break_examples:
+                print("    primary-break side-effect examples:")
+                for row in result.primary_break_examples:
+                    print(f"      {format_example(row)}")
+
+    ranked = collect_results(max_negative_samples, True)[:limit]
     if not ranked:
         print("  --")
+        if show_near_misses > 0:
+            near_misses = [
+                result
+                for result in collect_results(None, False)
+                if result.negative_samples > max_negative_samples
+            ][:show_near_misses]
+            if near_misses:
+                print("  nearest over-budget single-condition candidate rules:")
+                print_rules(near_misses)
         return
-    for result in ranked:
-        print(
-            f"  +{result.positive_samples} rows={result.positive_rows} "
-            f"-{result.negative_samples} rows={result.negative_rows} "
-            f"foreign={result.foreign_samples} rows={result.foreign_rows} "
-            f"new-active={result.new_active_samples} rows={result.new_active_rows} "
-            f"primary-break={result.primary_break_samples} rows={result.primary_break_rows} :: {result.rule}"
-        )
-        if show_examples <= 0:
-            continue
-        if result.positive_examples:
-            print("    positive examples:")
-            for row in result.positive_examples:
-                print(f"      {format_example(row)}")
-        if result.negative_examples:
-            print("    protected-correct examples:")
-            for row in result.negative_examples:
-                print(f"      {format_example(row)}")
-        if result.new_active_examples:
-            print("    new-active side-effect examples:")
-            for row in result.new_active_examples:
-                print(f"      {format_example(row)}")
-        if result.primary_break_examples:
-            print("    primary-break side-effect examples:")
-            for row in result.primary_break_examples:
-                print(f"      {format_example(row)}")
+    print_rules(ranked)
 
 
 def main() -> int:
@@ -864,6 +882,12 @@ def main() -> int:
     parser.add_argument("--max-conditions", type=int, default=3)
     parser.add_argument("--beam-width", type=int, default=220)
     parser.add_argument("--show-examples", "--row-examples", dest="show_examples", type=int, default=0)
+    parser.add_argument(
+        "--show-near-misses",
+        type=int,
+        default=0,
+        help="when no rule fits the negative budget, show this many closest over-budget candidates",
+    )
     parser.add_argument(
         "--include-merged-rows",
         action="store_true",
@@ -893,6 +917,7 @@ def main() -> int:
             max(1, args.max_conditions),
             max(1, args.beam_width),
             max(0, args.show_examples),
+            max(0, args.show_near_misses),
             args.include_merged_rows,
         )
     return 0
