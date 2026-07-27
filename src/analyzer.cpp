@@ -14308,11 +14308,16 @@ ChordResult preserve_smoothed_plain_primary_order(const ChordResult &smoothed, c
 	    smoothed.confidence < raw.confidence * 0.50f)
 		return raw;
 
-	ParsedRootChord raw_primary;
-	if (parse_plain_major_minor_component(raw.label, std::strcspn(raw.label, "="), raw_primary))
+	ParsedRootChord smoothed_primary;
+	const std::size_t smoothed_primary_len = std::strcspn(smoothed.label, "=");
+	if (!parse_plain_major_minor_component(smoothed.label, smoothed_primary_len, smoothed_primary))
 		return raw;
 
-	const std::size_t smoothed_primary_len = std::strcspn(smoothed.label, "=");
+	ParsedRootChord raw_primary;
+	if (parse_plain_major_minor_component(raw.label, std::strcspn(raw.label, "="), raw_primary) &&
+	    raw_primary.root == smoothed_primary.root)
+		return raw;
+
 	if (!chord_label_has_component(raw.label, smoothed.label, smoothed_primary_len))
 		return raw;
 
@@ -14353,6 +14358,10 @@ ChordResult choose_chord_candidate(const ChordResult &raw, const ChordResult &sm
 			return raw;
 		}
 	}
+	if (raw_valid && smoothed_valid && preserve_raw_plain_primary &&
+	    raw.confidence >= smoothed.confidence * 0.96f &&
+	    smoothed.confidence >= raw.confidence * 0.90f)
+		return preserve_smoothed_plain_primary_order(smoothed, raw);
 	if (raw_valid && (!smoothed_valid || raw.confidence >= smoothed.confidence * 0.96f))
 		return raw;
 	if (smoothed_valid)
