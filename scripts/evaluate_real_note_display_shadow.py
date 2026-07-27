@@ -153,6 +153,13 @@ def pct(numerator: int, denominator: int) -> str:
     return f"{numerator * 100.0 / denominator:.1f}%"
 
 
+def source_counts(records: list[dict[str, str]], limit: int = 5) -> str:
+    counts = collections.Counter(record["source_key"] for record in records)
+    if not counts:
+        return "--"
+    return " ".join(f"{key}={value}" for key, value in counts.most_common(limit))
+
+
 def parse_float_list(value: str) -> list[float]:
     out: list[float] = []
     for part in value.split(","):
@@ -293,7 +300,7 @@ def shadow_rule_matches(record: dict[str, str], rule: str) -> bool:
     raise ValueError(f"unknown simulation rule `{rule}`")
 
 
-def print_simulations(title: str, records: list[dict[str, str]]) -> None:
+def print_simulations(title: str, records: list[dict[str, str]], source_breakdown: bool) -> None:
     extras = [record for record in records if record["protected"] == "0"]
     protected = [record for record in records if record["protected"] == "1"]
     print(f"\n{title} suppressor simulations")
@@ -315,6 +322,9 @@ def print_simulations(title: str, records: list[dict[str, str]]) -> None:
             f"protected={len(protected_hits)}/{len(protected)} "
             f"precision={pct(len(extra_hits), total_hits)} protected_rate={pct(len(protected_hits), len(protected))}"
         )
+        if source_breakdown and total_hits > 0:
+            print(f"    extras_sources {source_counts(extra_hits)}")
+            print(f"    protected_sources {source_counts(protected_hits)}")
 
 
 def threshold_rule_matches(
@@ -469,6 +479,11 @@ def main() -> int:
         help="print counts and simulations without per-field ranges or example rows",
     )
     parser.add_argument(
+        "--source-breakdown",
+        action="store_true",
+        help="include per-source hit counts for each simulated suppression rule",
+    )
+    parser.add_argument(
         "--threshold-search",
         action="store_true",
         help="search score/level threshold triples for low-risk shadow suppression",
@@ -538,7 +553,7 @@ def main() -> int:
         else:
             print_group(f"{args.shadow_row}->same-pitch {target_row} extras", extras, args.examples)
             print_group(f"{args.shadow_row}->same-pitch {target_row} protected", protected, args.examples)
-        print_simulations(f"{args.shadow_row}->same-pitch {target_row}", records)
+        print_simulations(f"{args.shadow_row}->same-pitch {target_row}", records, args.source_breakdown)
         if args.threshold_search:
             print_threshold_search(
                 f"{args.shadow_row}->same-pitch {target_row}",
