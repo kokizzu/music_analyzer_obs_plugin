@@ -170,6 +170,22 @@ def note_cell_midis(value: str) -> list[int]:
     return midis
 
 
+def parse_note_level_cells(value: str) -> list[tuple[int, float]]:
+    cells: list[tuple[int, float]] = []
+    for part in (value or "").split(","):
+        note, separator, level = part.strip().partition(":")
+        if not separator or not note or note == "--":
+            continue
+        midi = midi_from_note(note)
+        if midi is None:
+            continue
+        try:
+            cells.append((midi, float(level)))
+        except ValueError:
+            continue
+    return cells
+
+
 def octave_duplicate_count(midis: list[int]) -> int:
     by_pitch_class: dict[int, set[int]] = collections.defaultdict(set)
     for midi in midis:
@@ -187,6 +203,22 @@ def target_note_field(family: str) -> str:
     if family == "vocals":
         return "vocal_notes"
     return "other_notes"
+
+
+def row_note_field(row_name: str) -> str | None:
+    if row_name == "bass":
+        return "bass_notes"
+    if row_name == "guitar":
+        return "guitar_notes"
+    if row_name == "piano":
+        return "piano_notes"
+    if row_name == "vocals":
+        return "vocal_notes"
+    if row_name == "other":
+        return "other_notes"
+    if row_name == "amb":
+        return "amb_notes"
+    return None
 
 
 def target_octave_duplicate_count(row: dict[str, str], family_field: str = "family") -> int:
@@ -396,6 +428,76 @@ def expected_row_for_family(family: str) -> str:
     return ROW_FOR_FAMILY.get(family, family)
 
 
+def note_row_cells(row: dict[str, str], row_name: str) -> list[tuple[int, float]]:
+    field = row_note_field(row_name)
+    if not field:
+        return []
+    return parse_note_level_cells(row.get(field, ""))
+
+
+def note_row_levels(row: dict[str, str], row_name: str, target_midi: int) -> tuple[float, float, int | None]:
+    cells = note_row_cells(row, row_name)
+    if not cells:
+        return 0.0, 0.0, None
+
+    target_pitch = target_midi % 12
+    exact_level = 0.0
+    pitch_level = 0.0
+    pitch_delta: int | None = None
+    for midi, level in cells:
+        if midi == target_midi:
+            exact_level = max(exact_level, level)
+        if midi % 12 != target_pitch:
+            continue
+        if level > pitch_level:
+            pitch_level = level
+            pitch_delta = midi - target_midi
+    return exact_level, pitch_level, pitch_delta
+
+
+def note_row_counts(row: dict[str, str], target_midi: int) -> tuple[int, int]:
+    exact_rows = 0
+    pitch_rows = 0
+    target_pitch = target_midi % 12
+    for row_name in ("bass", "guitar", "piano", "vocals", "other"):
+        exact_seen = False
+        pitch_seen = False
+        for midi, _level in note_row_cells(row, row_name):
+            if midi == target_midi:
+                exact_seen = True
+            if midi % 12 == target_pitch:
+                pitch_seen = True
+        exact_rows += int(exact_seen)
+        pitch_rows += int(pitch_seen)
+    return exact_rows, pitch_rows
+
+
+def format_derived_float(value: float) -> str:
+    return f"{value:.3f}"
+
+
+def derive_real_note_row(row: dict[str, str]) -> dict[str, str]:
+    result = dict(row)
+    expected = parse_int(row.get("expected_midi", ""))
+    if expected is None:
+        return result
+
+    expected_row = expected_row_for_family(row.get("family", ""))
+    strongest_row = row.get("buffer_strongest_row", "")
+    expected_exact, expected_pitch, expected_delta = note_row_levels(row, expected_row, expected)
+    strongest_exact, strongest_pitch, strongest_delta = note_row_levels(row, strongest_row, expected)
+    exact_count, pitch_count = note_row_counts(row, expected)
+    result["expected_row_exact_level"] = format_derived_float(expected_exact)
+    result["expected_row_pitch_level"] = format_derived_float(expected_pitch)
+    result["expected_row_pitch_delta"] = "" if expected_delta is None else str(expected_delta)
+    result["strongest_row_exact_level"] = format_derived_float(strongest_exact)
+    result["strongest_row_pitch_level"] = format_derived_float(strongest_pitch)
+    result["strongest_row_pitch_delta"] = "" if strongest_delta is None else str(strongest_delta)
+    result["expected_exact_row_count"] = str(exact_count)
+    result["expected_pitch_row_count"] = str(pitch_count)
+    return result
+
+
 def real_note_row_confusion_bucket(row: dict[str, str]) -> str:
     return f"{row.get('family', '')}/{row.get('source', '')}->{row.get('buffer_strongest_row', '')}"
 
@@ -426,7 +528,7 @@ def exact_row_confusion_rows(rows: list[dict[str, str]], min_level: float = 0.25
 
 
 def report_real_notes(path: pathlib.Path, limit: int, row_examples: int) -> None:
-    rows = [row for row in load_rows(path) if row.get("sample_id")]
+    rows = [derive_real_note_row(row) for row in load_rows(path) if row.get("sample_id")]
     section("real-note full-mix attributes")
     if not rows:
         print(f"  missing rows: {path}")

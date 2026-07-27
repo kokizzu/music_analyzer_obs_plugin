@@ -31,10 +31,10 @@ note	hit	piano	piano	grand	E4	64	p.wav	100	1	1	E4	64	0	E4	64	0	E5	guitar	0.7	2	9
         real_note = write(
             root / "real.tsv",
             """
-sample_id	status	family	source	expected_note	expected_midi	first_row	buffer	buffer_strongest_row	debug_note	debug_owner	raw_expected_ratio	raw_tuned_abs_cent_offset	raw_local_best_note	raw_expected_rank	expected_row_exact_level	expected_row_pitch_level	strongest_row_exact_level	strongest_row_pitch_level
-p1	ownership_miss	piano	electronic	C4	60	bass	0	bass	C5	guitar	1	0	C4	1	0.4	0.4	1.0	1.0
-p2	hit	guitar	acoustic	E3	52	guitar	0	guitar	E3	guitar	1	0	E3	1	1.0	1.0	1.0	1.0
-p3	hit	piano	electronic	C4	60	piano	0	guitar	C4	guitar	1	0	C4	1	0.5	0.5	0.9	0.9
+sample_id	status	family	source	expected_note	expected_midi	first_row	buffer	buffer_strongest_row	debug_note	debug_owner	raw_expected_ratio	raw_tuned_abs_cent_offset	raw_local_best_note	raw_expected_rank	bass_notes	guitar_notes	piano_notes	vocal_notes	other_notes	amb_notes
+p1	ownership_miss	piano	electronic	C4	60	bass	0	bass	C5	guitar	1	0	C4	1	C4:1.0	--	C4:0.4	--	--	--
+p2	hit	guitar	acoustic	E3	52	guitar	0	guitar	E3	guitar	1	0	E3	1	--	E3:1.0	--	--	--	--
+p3	hit	piano	electronic	C4	60	piano	0	guitar	C4	guitar	1	0	C4	1	--	C4:0.9	C4:0.5	--	--	--
             """,
         )
         guitar = write(
