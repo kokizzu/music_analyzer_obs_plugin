@@ -1885,27 +1885,20 @@ test-detector-samples-parallel: scripts/run_with_duration.sh
 test-fixtures-parallel: $(BUILD_DIR)/analyzer_real_note_samples $(BUILD_DIR)/analyzer_urmp $(BUILD_DIR)/analyzer_musicnet $(BUILD_DIR)/analyzer_multtipop scripts/run_with_duration.sh
 	$(RUN_WITH_DURATION) test_fixtures_parallel $(MAKE) $(PARALLEL_TEST_MAKE_JOBS) $(TEST_FIXTURE_PARALLEL_TARGETS)
 
-test-drum-real-world-samples: test-hf-drum-kit-samples test-idmt-drums-samples test-mdb-drums-samples test-star-drums-samples
-	if [ -d "$(DRUM_SAMPLE_SOURCE_DIR)" ]; then $(MAKE) test-drum-samples; $(MAKE) test-drum-samples-spread; else printf '%s\n' "test-drum-samples: skipped; missing $(DRUM_SAMPLE_SOURCE_DIR)"; fi
+test-drum-real-world-samples: scripts/run_with_duration.sh
+	$(MAKE) test-drum-real-world-samples-parallel
 
-test-drum-real-world-samples-full: test-drum-real-world-samples
-	if [ -d "$(DRUM_SAMPLE_SOURCE_DIR)" ]; then $(MAKE) test-drum-machine-samples; $(MAKE) test-drum-samples-full; else printf '%s\n' "test-drum-samples-full: skipped; missing $(DRUM_SAMPLE_SOURCE_DIR)"; fi
+test-drum-real-world-samples-full: scripts/run_with_duration.sh
+	$(MAKE) test-drum-real-world-samples-full-parallel
 
-test-real-world-samples: test-real-note-samples test-real-note-samples-full-mix test-guitar-fretboard-note-samples test-hf-drum-kit-samples test-idmt-drums-samples test-mdb-drums-samples test-star-drums-samples test-downloaded-guitarset test-philharmonia-samples test-iowa-piano-samples test-iowa-bass-samples test-idmt-bass-lines-samples test-vocadito-samples
+test-real-world-samples: scripts/run_with_duration.sh
+	$(MAKE) test-real-world-samples-parallel
 
 test-configured-real-world-samples: tests/run_real_goal_gate.py
 	$(PYTHON) tests/run_real_goal_gate.py optional-20 "$(MAKE)"
 
-test-real-world-samples-full: test-real-world-samples test-guitar-techs-samples test-guitar-techs-chord-samples test-guitar-chord-mix-samples-parallel test-egfxset-guitar-samples test-gaps-guitar-samples test-idmt-guitar-samples test-iowa-strings-samples test-iowa-orchestra-samples test-iowa-orchestra-full-samples test-philharmonia-samples-full test-tinysol-samples
-	if [ -d "$(DRUM_SAMPLE_SOURCE_DIR)" ]; then $(MAKE) test-drum-machine-samples; else printf '%s\n' "test-drum-machine-samples: skipped; missing $(DRUM_SAMPLE_SOURCE_DIR)"; fi
-	if [ -d "$(DRUM_SAMPLE_SOURCE_DIR)" ]; then $(MAKE) test-drum-samples-full; else printf '%s\n' "test-drum-samples-full: skipped; missing $(DRUM_SAMPLE_SOURCE_DIR)"; fi
-	if [ -s "$(GOOD_SOUNDS_ARCHIVE)" ]; then $(MAKE) test-good-sounds-samples; else printf '%s\n' "test-good-sounds-samples: skipped; missing $(GOOD_SOUNDS_ARCHIVE)"; fi
-	if [ -s "$(MEDLEY_SOLOS_ARCHIVE)" ]; then $(MAKE) test-medley-solos-samples; else printf '%s\n' "test-medley-solos-samples: skipped; missing $(MEDLEY_SOLOS_ARCHIVE)"; fi
-	if [ -s "$(MAPS_PIANO_ARCHIVE)" ]; then $(MAKE) test-maps-piano-samples; else printf '%s\n' "test-maps-piano-samples: skipped; missing $(MAPS_PIANO_ARCHIVE)"; fi
-	if [ -s "$(MAPS_PIANO_ARCHIVE)" ]; then $(MAKE) test-maps-piano-note-samples; else printf '%s\n' "test-maps-piano-note-samples: skipped; missing $(MAPS_PIANO_ARCHIVE)"; fi
-	if [ -n "$(BACH10_MF0_SYNTH_SOURCE_ROOT)" ] || [ -s "$(BACH10_MF0_SYNTH_ARCHIVE)" ]; then $(MAKE) test-bach10-mf0-synth-samples; else printf '%s\n' "test-bach10-mf0-synth-samples: skipped; missing $(BACH10_MF0_SYNTH_ARCHIVE)"; fi
-	if [ -s "$(VOCALSET_ARCHIVE)" ]; then $(MAKE) test-vocalset-samples; else printf '%s\n' "test-vocalset-samples: skipped; missing $(VOCALSET_ARCHIVE)"; fi
-	$(MAKE) test-configured-real-world-samples
+test-real-world-samples-full: scripts/run_with_duration.sh
+	$(MAKE) test-real-world-samples-full-parallel
 
 test-iowa-piano-samples-max:
 	$(MAKE) IOWA_PIANO_SAMPLE_LIMIT=0 test-iowa-piano-samples

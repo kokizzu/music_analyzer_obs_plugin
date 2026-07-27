@@ -208,6 +208,19 @@ def main() -> int:
     assert "$(MAKE) $(PARALLEL_TEST_MAKE_JOBS) $(REAL_WORLD_SAMPLE_MAX_TARGETS)" in max_samples_recipe, (
         "max real-world sample tests must fan out through jobserver-aware make"
     )
+    for wrapper, aggregate in {
+        "test-drum-real-world-samples": "test-drum-real-world-samples-parallel",
+        "test-drum-real-world-samples-full": "test-drum-real-world-samples-full-parallel",
+        "test-real-world-samples": "test-real-world-samples-parallel",
+        "test-real-world-samples-full": "test-real-world-samples-full-parallel",
+    }.items():
+        wrapper_recipe = target_recipe(makefile, wrapper)
+        assert f"$(MAKE) {aggregate}" in wrapper_recipe, (
+            f"{wrapper} must delegate to {aggregate}"
+        )
+        assert "$(PARALLEL_TEST_MAKE_JOBS)" not in wrapper_recipe, (
+            f"{wrapper} must let {aggregate} own its job fanout"
+        )
     real_world_targets = re.search(r"^REAL_WORLD_SAMPLE_TARGETS := (.+)$", makefile, re.MULTILINE)
     assert real_world_targets is not None, "missing real-world sample target list"
     real_world_target_list = real_world_targets.group(1)
@@ -350,11 +363,8 @@ def main() -> int:
         "full drum real-world sample tests must not use the serial full-drum sample gate"
     )
     real_world_full_recipe = target_recipe(makefile, "test-real-world-samples-full")
-    assert "test-guitar-chord-mix-samples-parallel" in real_world_full_recipe, (
-        "serial full real-world wrapper must delegate guitar chord mix to the sharded gate"
-    )
-    assert "test-guitar-chord-mix-samples " not in real_world_full_recipe + " ", (
-        "serial full real-world wrapper must not run guitar chord mix serially"
+    assert "$(MAKE) test-real-world-samples-full-parallel" in real_world_full_recipe, (
+        "full real-world wrapper must delegate to the parallel aggregate"
     )
     real_world_max_targets = re.search(
         r"^REAL_WORLD_SAMPLE_MAX_TARGETS := (.+)$", makefile, re.MULTILINE
