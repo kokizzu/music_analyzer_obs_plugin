@@ -873,6 +873,20 @@ def main() -> int:
         "display shadow target should default to concise output"
     )
 
+    row_confusion_recipe = target_recipe(makefile, "find-real-note-row-confusion-patterns")
+    assert "$(REAL_NOTE_RUNTIME_ROW_CONFUSION_EXCLUDES)" in row_confusion_recipe, (
+        "row-confusion mining should default to runtime-observable fields"
+    )
+    for field in [
+        "expected_midi",
+        "expected_row_pitch_delta",
+        "debug_delta",
+        "debug_abs_delta",
+    ]:
+        assert f"--exclude-field {field}" in makefile, (
+            f"runtime row-confusion excludes must include ground-truth field {field}"
+        )
+
     status_recipe = target_recipe(makefile, "find-instrument-status-patterns")
     assert "scripts/find_instrument_owner_patterns.py" in status_recipe, "status search must use the pattern miner"
     assert "$(MEASURE_INSTRUMENT_STATUS_PATTERN_ARGS)" in status_recipe, "status search needs direct defaults"
@@ -891,6 +905,7 @@ def main() -> int:
         "MEASURE_INSTRUMENT_PATTERN_ARGS",
         "MEASURE_INSTRUMENT_STATUS_PATTERN_ARGS",
         "MEASURE_REAL_NOTE_PATTERN_ARGS",
+        "REAL_NOTE_RUNTIME_ROW_CONFUSION_EXCLUDES",
         "MEASURE_GUITAR_PATTERN_ARGS",
         "MEASURE_DRUM_PATTERN_ARGS",
         "MEASURE_DRUM_FULL_PATTERN_ARGS",
