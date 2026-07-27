@@ -1029,6 +1029,9 @@ def main() -> int:
     assert "$(REAL_NOTE_RUNTIME_ROW_CONFUSION_EXCLUDES)" in visual_row_confusion_recipe, (
         "visual row-confusion mining should default to runtime-observable fields"
     )
+    assert "$(MEASURE_REAL_NOTE_PRACTICAL_ROW_CONFUSION_PATTERN_ARGS)" in visual_row_confusion_recipe, (
+        "visual row-confusion mining should use bounded practical defaults"
+    )
     for field in [
         "expected_midi",
         "raw_local_best_note",
