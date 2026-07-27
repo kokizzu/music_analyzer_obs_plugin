@@ -8723,6 +8723,65 @@ bool full_mix_debug_guitar_note_supported(const FullMixOwnership &ownership, int
 	return false;
 }
 
+bool non_octave_guitar_harmonic_interval(int interval)
+{
+	interval = std::abs(interval);
+	return interval == 19 || interval == 28 || interval == 31;
+}
+
+void prefer_confident_guitar_debug_notes_over_harmonic_aliases(NoteCandidateList &candidates,
+							       const FullMixOwnership &ownership)
+{
+	if (candidates.empty())
+		return;
+
+	static constexpr int kFifteenFretGuitarDisplayMaxMidi = 79;
+	const float strongest = std::max(strongest_candidate_score(candidates), 1.0e-6f);
+	const std::size_t debug_count =
+		std::min<std::size_t>(ownership.debug_candidate_count, ownership.debug_candidates.size());
+	for (std::size_t i = 0; i < debug_count; ++i) {
+		const FullMixDebugCandidate &debug = ownership.debug_candidates[i];
+		if (debug.midi < kGuitarMinMidi || debug.midi > kFifteenFretGuitarDisplayMaxMidi)
+			continue;
+		if (!full_mix_debug_guitar_note_supported(ownership, debug.midi))
+			continue;
+
+		const float debug_level = ownership_global_note_level(ownership, debug.midi);
+		float alias_score = 0.0f;
+		for (const NoteCandidate &candidate : candidates) {
+			if (candidate.midi == debug.midi)
+				continue;
+			if (!non_octave_guitar_harmonic_interval(candidate.midi - debug.midi))
+				continue;
+
+			const float alias_level = ownership_global_note_level(ownership, candidate.midi);
+			if (debug_level < std::max(0.10f, alias_level * 0.45f) && debug.spectral_level < 0.34f)
+				continue;
+			alias_score = std::max(alias_score, candidate.score);
+		}
+		if (alias_score <= 1.0e-6f)
+			continue;
+
+		const float restored_score =
+			std::max({alias_score * 1.08f, strongest * 0.42f, debug_level * strongest});
+		bool exists = false;
+		for (NoteCandidate &candidate : candidates) {
+			if (candidate.midi != debug.midi)
+				continue;
+			candidate.score = std::max(candidate.score, restored_score);
+			candidate.ownership_confidence = std::max(candidate.ownership_confidence, 0.78f);
+			exists = true;
+		}
+		if (!exists) {
+			NoteCandidate candidate;
+			candidate.midi = debug.midi;
+			candidate.score = restored_score;
+			candidate.ownership_confidence = 0.78f;
+			candidates.push_back(candidate);
+		}
+	}
+}
+
 float full_mix_debug_keyboard_note_score(const FullMixOwnership &ownership, int midi)
 {
 	const std::size_t debug_count =
@@ -9425,6 +9484,13 @@ void promote_low_guitar_display_fundamentals(NoteGrid &display_grid, InstrumentS
 		const bool direct_supported = analysis_level >= 0.050f;
 		const bool low_harmonic_supported = low_guitar_harmonic_primary_supported(display_grid, midi);
 		if (!direct_supported && !low_harmonic_supported)
+			continue;
+		/*
+		 * Above B2, a single strong fifth/third-harmonic stack can look like a lower guitar
+		 * fundamental (for example B4 as E3). Keep low-string recovery permissive, but require
+		 * a same-pitch octave anchor for midrange fundamentals inferred from analysis support.
+		 */
+		if (direct_supported && !low_harmonic_supported && midi > 47 && visible_octave_count < 1)
 			continue;
 
 		int harmonic_count = 0;
@@ -16490,9 +16556,13 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 					full_mix_ownership,
 					full_mix_display_candidates(full_mix_ownership, FullMixDisplayRow::Guitar));
 			restore_supported_lower_guitar_debug_candidates(guitar_display, full_mix_ownership);
+			prefer_confident_guitar_debug_notes_over_harmonic_aliases(guitar_display,
+										  full_mix_ownership);
 			prefer_supported_lower_octave_candidates(guitar_display, kGuitarMinMidi, 0.30f, 0.18f);
 			guitar_display = prune_shadowed_full_mix_guitar_display_candidates(
 				full_mix_ownership, guitar_display);
+			prefer_confident_guitar_debug_notes_over_harmonic_aliases(guitar_display,
+										  full_mix_ownership);
 			mixed_guitar_display_candidates = guitar_display;
 			set_instrument_note_set_from_candidates(snapshot.guitar_notes, snapshot.guitar,
 								guitar_display,

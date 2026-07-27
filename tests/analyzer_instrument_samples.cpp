@@ -1089,7 +1089,10 @@ bool expects_full_mix_guitar_primary_octave_recovery(const std::string &suite_fa
 {
 	if (suite_family != "guitar")
 		return false;
-	if (row.program_name == "jazz_guitar" && (row.note == "E3" || row.note == "E4"))
+	if (row.program_name == "jazz_guitar" &&
+	    (row.note == "E3" || row.note == "E4" || row.note == "B4"))
+		return true;
+	if (row.program_name == "overdrive_guitar" && row.note == "G4")
 		return true;
 	if ((row.program_name == "nylon_guitar" || row.program_name == "steel_guitar") &&
 	    row.note == "E2")
