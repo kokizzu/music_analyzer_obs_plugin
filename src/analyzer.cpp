@@ -5681,6 +5681,33 @@ void prefer_existing_candidate_midi(NoteCandidateList &candidates, int midi,
 	}
 }
 
+void prefer_or_add_candidate_midi(NoteCandidateList &candidates, int midi,
+				  float score_scale, float confidence_floor)
+{
+	if (midi < kFirstMidi || midi > kLastMidi)
+		return;
+
+	const float strongest = strongest_candidate_score(candidates);
+	if (strongest <= 1.0e-6f)
+		return;
+
+	const float score = strongest * score_scale;
+	for (NoteCandidate &candidate : candidates) {
+		if (candidate.midi != midi)
+			continue;
+		candidate.score = std::max(candidate.score, score);
+		candidate.ownership_confidence =
+			std::max(candidate.ownership_confidence, confidence_floor);
+		return;
+	}
+
+	NoteCandidate candidate;
+	candidate.midi = midi;
+	candidate.score = score;
+	candidate.ownership_confidence = confidence_floor;
+	candidates.push_back(candidate);
+}
+
 void restore_supported_lower_guitar_debug_candidates(NoteCandidateList &candidates,
 						     const FullMixOwnership &ownership)
 {
@@ -7904,6 +7931,30 @@ float note_grid_midi_level(const NoteGrid &grid, int midi)
 	return level;
 }
 
+int note_grid_strongest_active_midi_in_range(const NoteGrid &grid, int min_midi, int max_midi)
+{
+	min_midi = std::max(min_midi, kFirstMidi);
+	max_midi = std::min(max_midi, kLastMidi);
+	int best_midi = -1;
+	float best_level = -1.0f;
+	auto consider = [&](const NoteCell &cell) {
+		if (!cell.active || cell.midi < min_midi || cell.midi > max_midi)
+			return;
+		if (cell.level > best_level || (cell.level == best_level &&
+						(best_midi < 0 || cell.midi < best_midi))) {
+			best_level = cell.level;
+			best_midi = cell.midi;
+		}
+	};
+	for (const NoteCell &cell : grid.cells)
+		consider(cell);
+	for (const auto &row : grid.rows) {
+		for (const NoteCell &cell : row)
+			consider(cell);
+	}
+	return best_midi;
+}
+
 void prefer_supported_lower_octave_display(NoteGrid &grid, InstrumentState &state,
 					   const std::array<float, kNoteProbeCount> &powers,
 					   int min_midi, int max_promoted_midi, int preferred_root)
@@ -9493,6 +9544,36 @@ void prefer_exact_debug_keyboard_lower_octave_primary(NoteGrid &grid, Instrument
 	}
 
 	if (changed)
+		write_note_grid_label(state, grid, preferred_root);
+}
+
+void promote_source_hinted_keyboard_bass_primary(NoteGrid &grid, InstrumentState &state,
+						 const NoteGrid &bass_grid, int preferred_root)
+{
+	const int bass_midi =
+		note_grid_strongest_active_midi_in_range(bass_grid, kKeyboardMinMidi, kGuitarMinMidi);
+	if (bass_midi < 0)
+		return;
+
+	NoteCell primary = {};
+	const int pitch_class = midi_pitch_class(bass_midi);
+	for (const auto &row : grid.rows) {
+		const NoteCell &cell = row[pitch_class];
+		if (cell.active) {
+			primary = cell;
+			break;
+		}
+	}
+	if (primary.active && primary.midi <= bass_midi)
+		return;
+
+	const float level = std::max({note_grid_midi_level(grid, bass_midi),
+				      note_grid_midi_level(bass_grid, bass_midi),
+				      primary.active ? primary.level : 0.0f});
+	if (level <= 0.0f)
+		return;
+
+	if (promote_note_grid_primary_midi(grid, bass_midi, level))
 		write_note_grid_label(state, grid, preferred_root);
 }
 
@@ -16662,10 +16743,16 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 				NoteCandidateList keyboard_display =
 					full_mix_display_candidates(full_mix_ownership, FullMixDisplayRow::Keyboard);
 				if (snapshot.bass_debug_displayed_midi >= kKeyboardMinMidi &&
-				    snapshot.bass_debug_displayed_midi < kGuitarMinMidi)
-					prefer_existing_candidate_midi(keyboard_display,
-								       snapshot.bass_debug_displayed_midi,
-								       1.08f, 0.80f);
+				    snapshot.bass_debug_displayed_midi < kGuitarMinMidi) {
+					if (full_mix_source_hint_mode == AnalysisInputMode::IsolatedKeyboard)
+						prefer_or_add_candidate_midi(
+							keyboard_display, snapshot.bass_debug_displayed_midi,
+							1.08f, 0.80f);
+					else
+						prefer_existing_candidate_midi(
+							keyboard_display, snapshot.bass_debug_displayed_midi,
+							1.08f, 0.80f);
+				}
 				mixed_keyboard_display_candidates = keyboard_display;
 				set_instrument_note_set_from_candidates(snapshot.keyboard_notes, snapshot.keyboard,
 									keyboard_display,
@@ -17317,6 +17404,10 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 			prefer_exact_debug_keyboard_lower_octave_primary(snapshot.keyboard_notes,
 									 snapshot.keyboard,
 									 full_mix_ownership, -1);
+		if (mixed_source && full_mix_source_hint_mode == AnalysisInputMode::IsolatedKeyboard)
+			promote_source_hinted_keyboard_bass_primary(snapshot.keyboard_notes,
+								    snapshot.keyboard,
+								    snapshot.bass_notes, -1);
 		smooth_note_grid_envelope(keyboard_chord_grid, keyboard_chord_note_state, keyboard_chord_note_tracking_,
 					  -1, interval_seconds, mixed_source ? 8 : 10, keyboard_new_notes,
 					  kNoteAttackConfirmFrames,

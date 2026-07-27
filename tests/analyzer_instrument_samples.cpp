@@ -1077,11 +1077,27 @@ bool expects_full_mix_bass_primary_octave_recovery(const std::string &suite_fami
 bool expects_full_mix_keyboard_primary_octave_recovery(const std::string &suite_family,
 						       const SampleRow &row)
 {
-	return suite_family == "piano" &&
-	       ((row.program_name == "acoustic_grand" && row.note == "E2") ||
-		(row.program_name == "bright_acoustic" && row.note == "G2") ||
-		(row.program_name == "electric_piano_1" && row.note == "G3") ||
-		(row.program_name == "harpsichord" && row.note == "G5"));
+	if (suite_family != "piano")
+		return false;
+	if (row.note == "E2")
+		return true;
+	if (row.note == "C2" && row.program_name != "electric_piano_1")
+		return true;
+	if ((row.note == "C1") &&
+	    (row.program_name == "electric_grand" || row.program_name == "electric_piano_2" ||
+	     row.program_name == "harpsichord" || row.program_name == "clavinet"))
+		return true;
+	if ((row.note == "E1") &&
+	    (row.program_name == "electric_grand" || row.program_name == "electric_piano_2" ||
+	     row.program_name == "harpsichord"))
+		return true;
+	if ((row.note == "G1") &&
+	    (row.program_name == "electric_grand" || row.program_name == "electric_piano_2" ||
+	     row.program_name == "harpsichord"))
+		return true;
+	return (row.program_name == "bright_acoustic" && row.note == "G2") ||
+	       (row.program_name == "electric_piano_1" && row.note == "G3") ||
+	       (row.program_name == "harpsichord" && row.note == "G5");
 }
 
 bool expects_full_mix_guitar_primary_octave_recovery(const std::string &suite_family,
