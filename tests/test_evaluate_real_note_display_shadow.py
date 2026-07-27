@@ -1,0 +1,166 @@
+#!/usr/bin/env python3
+
+from __future__ import annotations
+
+import pathlib
+import subprocess
+import sys
+import tempfile
+
+
+ROOT = pathlib.Path(__file__).resolve().parents[1]
+
+HEADER = [
+    "status",
+    "detected",
+    "detected_anywhere",
+    "detected_expected_row",
+    "first_row",
+    "sample_id",
+    "family",
+    "nsynth_family",
+    "source",
+    "expected_note",
+    "expected_midi",
+    "buffer",
+    "debug_note",
+    "debug_midi",
+    "debug_owner",
+    "debug_conf",
+    "bass_score",
+    "keyboard_score",
+    "guitar_score",
+    "vocal_score",
+    "other_score",
+    "spectral_level",
+    "pitch_confidence",
+    "periodicity",
+    "harmonicity",
+    "fit_error",
+    "centroid",
+    "slope",
+    "noise",
+    "partial2",
+    "partial3",
+    "partial4",
+    "partial5",
+    "raw_expected_ratio",
+    "raw_expected_rank",
+    "bass_notes",
+    "guitar_notes",
+    "piano_notes",
+    "vocal_notes",
+    "other_notes",
+]
+
+
+def row(**overrides: str) -> list[str]:
+    values = {name: "" for name in HEADER}
+    values.update(
+        {
+            "status": "hit",
+            "detected": "1",
+            "detected_anywhere": "1",
+            "detected_expected_row": "1",
+            "first_row": "piano",
+            "nsynth_family": "",
+            "source": "acoustic",
+            "buffer": "0",
+            "debug_note": "C4",
+            "debug_midi": "60",
+            "debug_owner": "piano",
+            "debug_conf": "0.80",
+            "bass_score": "0.00",
+            "keyboard_score": "0.70",
+            "guitar_score": "0.20",
+            "vocal_score": "0.00",
+            "other_score": "0.10",
+            "spectral_level": "0.75",
+            "pitch_confidence": "0.90",
+            "periodicity": "0.80",
+            "harmonicity": "0.45",
+            "fit_error": "0.05",
+            "centroid": "0.30",
+            "slope": "0.10",
+            "noise": "0.05",
+            "partial2": "0.40",
+            "partial3": "0.20",
+            "partial4": "0.10",
+            "partial5": "0.05",
+            "raw_expected_ratio": "1.00",
+            "raw_expected_rank": "1",
+            "bass_notes": "",
+            "guitar_notes": "C4:0.60",
+            "piano_notes": "C4:0.90",
+            "vocal_notes": "",
+            "other_notes": "",
+        }
+    )
+    values.update(overrides)
+    return [values[name] for name in HEADER]
+
+
+def main() -> int:
+    with tempfile.TemporaryDirectory() as tmp:
+        path = pathlib.Path(tmp) / "attributes.tsv"
+        rows = [
+            row(
+                sample_id="keyboard_1",
+                family="piano",
+                source="electronic",
+                expected_note="C4",
+                expected_midi="60",
+                debug_owner="guitar",
+                keyboard_score="0.20",
+                guitar_score="0.80",
+            ),
+            row(
+                sample_id="guitar_1",
+                family="guitar",
+                expected_note="E3",
+                expected_midi="52",
+                debug_note="E3",
+                debug_midi="52",
+                debug_owner="guitar",
+                keyboard_score="0.20",
+                guitar_score="0.80",
+                guitar_notes="E3:0.80",
+                piano_notes="E3:0.55",
+            ),
+        ]
+        path.write_text(
+            "\t".join(HEADER) + "\n" + "\n".join("\t".join(item) for item in rows) + "\n"
+        )
+
+        result = subprocess.run(
+            [
+                sys.executable,
+                str(ROOT / "scripts" / "evaluate_real_note_display_shadow.py"),
+                str(path),
+                "--shadow-row",
+                "piano",
+                "--target-row",
+                "guitar",
+                "--min-shadow-level",
+                "0.10",
+                "--min-target-level",
+                "0.10",
+                "--examples",
+                "1",
+            ],
+            check=True,
+            text=True,
+            stdout=subprocess.PIPE,
+        )
+
+    output = result.stdout
+    assert "piano->same-pitch guitar extras rows=1 samples=1" in output, output
+    assert "sources piano/electronic=1" in output, output
+    assert "piano->same-pitch guitar protected rows=1 samples=1" in output, output
+    assert "sources guitar/acoustic=1" in output, output
+    assert "target_score=0.80 shadow_score=0.20" in output, output
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())
