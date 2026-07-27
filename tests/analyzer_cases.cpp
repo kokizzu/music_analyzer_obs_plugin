@@ -1312,6 +1312,25 @@ void check_guitar_supported_extension_aliases(Runner &runner)
 		      std::string("guitar analysis-supported triad over shifted extension: expected C#m, got `") +
 			      contaminated_minor_snapshot.guitar_chord.label + "`");
 
+	mao_test::Buffer root_third_with_false_root = {};
+	add_harmonic_note(root_third_with_false_root, 57, 0.105f, guitar_profile);
+	add_harmonic_note(root_third_with_false_root, 60, 0.24f, guitar_profile);
+	add_harmonic_note(root_third_with_false_root, 64, 0.030f, guitar_profile);
+	add_harmonic_note(root_third_with_false_root, 65, 0.048f, guitar_profile);
+
+	const auto root_third_with_false_root_snapshot =
+		analyze_buffer(root_third_with_false_root, "guitar");
+	runner.expect(has_chord_label(root_third_with_false_root_snapshot.guitar_chord.label, "Am"),
+		      std::string("guitar root-third dyad over false displayed root: expected Am alias, got `") +
+			      root_third_with_false_root_snapshot.guitar_chord.label + "` raw `" +
+			      root_third_with_false_root_snapshot.guitar_raw_chord.label + "` smooth `" +
+			      root_third_with_false_root_snapshot.guitar_smoothed_chord.label + "` notes `" +
+			      note_grid_pitch_classes(root_third_with_false_root_snapshot.guitar_notes) +
+			      "` analysis `" +
+			      note_grid_pitch_classes(
+				      root_third_with_false_root_snapshot.guitar_chord_analysis_notes) +
+			      "`");
+
 	mao_test::Buffer major_dyad = {};
 	add_harmonic_note(major_dyad, 49, 0.22f, guitar_profile);
 	add_harmonic_note(major_dyad, 53, 0.20f, guitar_profile);
