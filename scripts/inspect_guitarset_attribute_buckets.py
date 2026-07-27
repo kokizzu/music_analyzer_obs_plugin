@@ -329,6 +329,10 @@ def derive_row(row: dict[str, str]) -> dict[str, str]:
     expected_label = best_expected_label(
         row.get("expected_chords", ""), row.get("guitar_analysis_pitch_classes", "")
     )
+    if not expected_label and row.get("status") == "single_note_false_chord":
+        detected_labels = split_chord_labels(row.get("guitar_chord", ""))
+        if detected_labels:
+            expected_label = detected_labels[0]
     quality = normalized_quality(row, expected_label)
     tone_classes: dict[str, list[int]] = collections.defaultdict(list)
     for name, pitch_class in chord_tones(expected_label):
@@ -370,7 +374,9 @@ def derive_row(row: dict[str, str]) -> dict[str, str]:
         f"smooth{smooth_tones}_rootvis{root_visible}"
     )
     root_name = expected_root_name(expected_label)
-    expected_labels_for_match = expected_labels or ([expected_label] if expected_label else [])
+    expected_labels_for_match = expected_labels or (
+        [expected_label] if expected_label and row.get("status") != "single_note_false_chord" else []
+    )
 
     result.update(
         {
@@ -504,7 +510,12 @@ def derive_row(row: dict[str, str]) -> dict[str, str]:
 
 
 def derive_rows(rows: list[dict[str, str]]) -> list[dict[str, str]]:
-    return [derive_row(row) for row in rows if row.get("expected_chords", "--") not in {"", "--"}]
+    return [
+        derive_row(row)
+        for row in rows
+        if row.get("expected_chords", "--") not in {"", "--"}
+        or row.get("status") in {"single_note_false_chord", "no_chord"}
+    ]
 
 
 def parse_bucket_spec(spec: str) -> tuple[str, str, str]:
@@ -523,9 +534,11 @@ def bucket_label(bucket: tuple[str, str, str]) -> str:
 
 def bucket_matches(row: dict[str, str], bucket: tuple[str, str, str]) -> bool:
     status, quality, support = bucket
-    if row.get("status") != status or row.get("quality") != quality:
+    if status not in {"all", "any"} and row.get("status") != status:
         return False
-    return support == "all" or row.get("support") == support
+    if quality not in {"all", "any"} and row.get("quality") != quality:
+        return False
+    return support in {"all", "any"} or row.get("support") == support
 
 
 def bucket_rows(rows: list[dict[str, str]], bucket: tuple[str, str, str]) -> list[dict[str, str]]:

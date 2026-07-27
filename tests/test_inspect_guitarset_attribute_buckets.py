@@ -144,6 +144,36 @@ def main() -> int:
                 expected_raw_cells="G3:1.000,B3:0.380,D4:0.600",
                 raw_pitch_class_levels="G:0.900,B:0.200,D:0.500",
             ),
+            row(
+                status="single_note_false_chord",
+                recording_id="rec3",
+                expected_midis="F4",
+                expected_pitch_classes="F",
+                expected_pitch_class_count="1",
+                expected_chords="--",
+                expected_chord_qualities="--",
+                expected_chord_tone_count="0",
+                guitar_note_hits="1",
+                expected_note_count="1",
+                chord_hit="0",
+                simple_chord_hit="0",
+                guitar_chord_hit="0",
+                global_chord="--",
+                guitar_chord="Fm=Fpow=F",
+                guitar_raw_chord="Fm",
+                guitar_smoothed_chord="F=Fpow=Fm",
+                guitar_pitch_classes="C,F",
+                guitar_cells="C6:0.99,F4:1.00",
+                guitar_analysis_pitch_classes="C,F,G#",
+                guitar_analysis_cells="C6:0.41,F4:1.00,G#4:0.01",
+                guitar_smoothed_pitch_classes="C,F",
+                guitar_smoothed_cells="C6:0.41,F4:1.00",
+                expected_raw_peak="11.0",
+                expected_raw_cells="F4:1.000",
+                raw_pitch_class_levels="C:0.522,F:1.000,G#:0.010",
+                guitar_probe_pitch_class_levels="C:0.993,F:1.000,G#:0.008",
+                guitar_melodic_probe_pitch_class_levels="C:0.900,F:1.000,G#:0.007",
+            ),
         ]
         path.write_text(
             "\t".join(HEADER) + "\n" + "\n".join("\t".join(item) for item in rows) + "\n",
@@ -195,6 +225,21 @@ def main() -> int:
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
         )
+        false_bucket = subprocess.run(
+            [
+                sys.executable,
+                str(SCRIPT),
+                str(path),
+                "--bucket",
+                "single_note_false_chord:any:any",
+                "--summary-only",
+            ],
+            cwd=ROOT,
+            check=True,
+            text=True,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+        )
 
     output = completed.stdout
     assert "chord_miss:maj:visible2_analysis3_smooth3_rootvis1 rows=1 recordings=1" in output
@@ -219,6 +264,10 @@ def main() -> int:
     assert dumped.stdout.startswith("recording_id\tstatus\texpected_chords\t")
     assert "\nrec2\tchord_miss\tG\tmaj\tmaj\tG\tG\tmaj\tno_display_label\t0\t0\t0" in dumped.stdout
     assert "\nrec1\t" not in dumped.stdout
+    assert "single_note_false_chord:any:any rows=1 recordings=1" in false_bucket.stdout
+    assert "expected_label                  Fm=1" in false_bucket.stdout
+    assert "expected_root                   F=1" in false_bucket.stdout
+    assert "support                         visible2_analysis3_smooth2_rootvis1=1" in false_bucket.stdout
     print("test_inspect_guitarset_attribute_buckets: ok")
     return 0
 
