@@ -411,6 +411,20 @@ def main() -> int:
         "MUSIC_ANALYZER_DRUM_SAMPLE_MIN_PRIMARY_RECALL_PERCENT=0",
     ]:
         assert text in drum_full_shard_recipe, f"full drum shard target must include {text}"
+    phony_lines = "\n".join(re.findall(r"^\.PHONY:.*$", makefile, re.MULTILINE))
+    drum_full_cached_recipe = target_recipe(makefile, "find-drum-full-exact-attribute-patterns-cached")
+    assert "find-drum-full-exact-attribute-patterns-cached" in phony_lines, (
+        "cached full drum pattern target must be phony"
+    )
+    assert "using cached drum full exact attribute TSV" in drum_full_cached_recipe, (
+        "cached full drum pattern target must announce when it reuses existing rows"
+    )
+    assert "$(BUILD_DIR)/analyzer_drum_samples\" -nt" not in drum_full_cached_recipe, (
+        "cached full drum pattern target must not force analyzer freshness regeneration"
+    )
+    assert "$(PYTHON) scripts/find_drum_attribute_patterns.py \"$(DRUM_FULL_EXACT_ATTRIBUTE_ROWS)\"" in drum_full_cached_recipe, (
+        "cached full drum pattern target must mine the full drum exact TSV"
+    )
     guitar_chord_sharded_recipe = target_recipe(makefile, "test-guitar-chord-mix-samples-parallel")
     assert "$(MAKE) $(GUITAR_CHORD_MIX_TEST_MAKE_JOBS) $(GUITAR_CHORD_MIX_SHARD_TARGETS)" in guitar_chord_sharded_recipe, (
         "guitar chord mix parallel target must fan out deterministic shards through jobserver-aware make"
@@ -418,7 +432,6 @@ def main() -> int:
     assert "$(RUN_WITH_DURATION) analyzer_guitar_chord_mix_samples_parallel" in guitar_chord_sharded_recipe, (
         "guitar chord mix parallel target must report aggregate duration"
     )
-    phony_lines = "\n".join(re.findall(r"^\.PHONY:.*$", makefile, re.MULTILINE))
     for target_var in [
         "$(GUITAR_CHORD_MIX_SHARD_TARGETS)",
         "$(GUITAR_TECHS_CHORD_SHARD_TARGETS)",
