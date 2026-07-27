@@ -261,6 +261,25 @@ def main() -> int:
             stderr=subprocess.PIPE,
             check=True,
         )
+        near_miss_result = subprocess.run(
+            [
+                sys.executable,
+                str(ROOT / "scripts" / "find_real_note_attribute_patterns.py"),
+                str(path),
+                "--bucket",
+                "ownership_miss:guitar/acoustic->piano",
+                "--limit",
+                "1",
+                "--max-negative-samples",
+                "0",
+                "--show-near-misses",
+                "2",
+            ],
+            text=True,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            check=True,
+        )
         example_result = subprocess.run(
             [
                 sys.executable,
@@ -864,6 +883,8 @@ def main() -> int:
     assert "ownership_miss:guitar/acoustic->piano positives=2 samples/2 rows" in result.stdout
     assert "debug_owner=piano AND partial2<=0.14: pos=2/2 rows=2 neg=0/2 rows=0" in result.stdout
     assert "highest-coverage candidate rules" in result.stdout
+    assert "nearest over-budget single-condition candidate rules:" in near_miss_result.stdout
+    assert "pos=2/2 rows=2 neg=1/2 rows=1" in near_miss_result.stdout
     assert "explicit rule:" in example_result.stdout
     assert "debug_owner=piano: pos=2/2 rows=2 neg=1/2 rows=1" in example_result.stdout
     assert "positive examples:" in example_result.stdout

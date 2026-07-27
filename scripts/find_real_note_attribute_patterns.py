@@ -867,6 +867,7 @@ def print_bucket_patterns(
     include_row_context: bool,
     explicit_patterns: list[Pattern],
     show_examples: int,
+    show_near_misses: int,
     max_conditions: int,
     beam_width: int,
     exclude_fields: set[str],
@@ -1029,6 +1030,49 @@ def print_bucket_patterns(
         foreign_rows,
         show_examples,
     )
+    if show_near_misses > 0:
+        near_misses: list[RuleResult] = []
+        for match in [*category_matches, *numeric_matches]:
+            result = result_from_masks(
+                match.label,
+                match.positive_row_mask,
+                match.negative_row_mask,
+                positive_rows,
+                negatives,
+                foreign_rows,
+                positive_sample_bits,
+                negative_sample_bits,
+                foreign_sample_bits,
+                None,
+                match.foreign_row_mask,
+            )
+            if result is None or result.positive_samples < min_positive_samples:
+                continue
+            if result.negative_samples <= max_negative_samples:
+                continue
+            near_misses.append(result)
+        near_misses = sorted(
+            near_misses,
+            key=lambda result: (
+                result.negative_samples,
+                result.foreign_samples,
+                -result.positive_samples,
+                result.negative_rows,
+                result.rule,
+            ),
+        )[:show_near_misses]
+        if near_misses:
+            print("  nearest over-budget single-condition candidate rules:")
+            print_results(
+                near_misses,
+                positive_samples,
+                negative_samples,
+                foreign_samples,
+                positive_rows,
+                negatives,
+                foreign_rows,
+                show_examples,
+            )
 
 
 def print_results(
@@ -1147,6 +1191,12 @@ def main() -> int:
         help="print up to this many positive and protected-hit sample examples for each rule",
     )
     parser.add_argument(
+        "--show-near-misses",
+        type=int,
+        default=0,
+        help="show this many closest over-budget single-condition candidates",
+    )
+    parser.add_argument(
         "--max-conditions",
         type=int,
         default=2,
@@ -1178,6 +1228,7 @@ def main() -> int:
             args.include_row_context,
             explicit_patterns,
             max(0, args.show_examples),
+            max(0, args.show_near_misses),
             max(1, args.max_conditions),
             max(1, args.beam_width),
             set(args.exclude_field),
