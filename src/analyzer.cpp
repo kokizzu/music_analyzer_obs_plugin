@@ -9656,6 +9656,30 @@ void promote_source_hinted_string_bass_primary(NoteGrid &grid, InstrumentState &
 		write_note_grid_label(state, grid, preferred_root);
 }
 
+void boost_note_grid_primary_octave_display_level(NoteGrid &grid, InstrumentState &state,
+						  int preferred_root)
+{
+	bool changed = false;
+	for (int pitch_class = 0; pitch_class < 12; ++pitch_class) {
+		NoteCell primary = {};
+		float strongest_level = grid.cells[pitch_class].active ? grid.cells[pitch_class].level : 0.0f;
+		for (const auto &row : grid.rows) {
+			const NoteCell &cell = row[pitch_class];
+			if (!cell.active)
+				continue;
+			if (!primary.active)
+				primary = cell;
+			strongest_level = std::max(strongest_level, cell.level);
+		}
+		if (!primary.active || strongest_level <= primary.level)
+			continue;
+		changed = promote_note_grid_primary_midi(grid, primary.midi, strongest_level) || changed;
+	}
+
+	if (changed)
+		write_note_grid_label(state, grid, preferred_root);
+}
+
 void promote_low_guitar_display_fundamentals(NoteGrid &display_grid, InstrumentState &display_state,
 					     const NoteGrid &analysis_grid, int preferred_root)
 {
@@ -17887,6 +17911,8 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 		attenuate_note_grid_display_by_candidates(snapshot.guitar_notes, mixed_guitar_display_candidates);
 		attenuate_note_grid_display_by_candidates(snapshot.vocal_notes, mixed_vocal_display_candidates);
 		attenuate_note_grid_display_by_candidates(snapshot.other_notes, mixed_other_display_candidates);
+		if (mixed_synth_source_hint)
+			boost_note_grid_primary_octave_display_level(snapshot.other_notes, snapshot.other, -1);
 	} else {
 		reset_chord_tracking(global_chord_tracking_, snapshot.global_chord);
 	}
