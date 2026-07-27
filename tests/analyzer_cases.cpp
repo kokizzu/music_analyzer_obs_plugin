@@ -1445,6 +1445,24 @@ void check_guitar_supported_extension_aliases(Runner &runner)
 				      note_grid_pitch_classes(snapshot.guitar_notes) + "` analysis `" +
 				      note_grid_pitch_classes(snapshot.guitar_chord_analysis_notes) + "`");
 	}
+
+	{
+		mao_test::Buffer buffer = {};
+		const std::vector<float> bright_guitar_profile = {1.0f, 0.58f, 0.34f, 0.20f, 0.12f};
+		add_harmonic_note(buffer, 49, 0.22f, bright_guitar_profile);
+		add_harmonic_note(buffer, 54, 0.20f, bright_guitar_profile);
+		add_harmonic_note(buffer, 57, 0.20f, bright_guitar_profile);
+		add_harmonic_note(buffer, 50, 0.17f, bright_guitar_profile);
+
+		const auto snapshot = analyze_buffer(buffer, "distorted guitar");
+		runner.expect(has_chord_label(snapshot.guitar_chord.label, "D"),
+			      std::string("guitar analysis-complete relative major alias: expected D, got `") +
+				      snapshot.guitar_chord.label + "` raw `" +
+				      snapshot.guitar_raw_chord.label + "` smooth `" +
+				      snapshot.guitar_smoothed_chord.label + "` notes `" +
+				      note_grid_pitch_classes(snapshot.guitar_notes) + "` analysis `" +
+				      note_grid_pitch_classes(snapshot.guitar_chord_analysis_notes) + "`");
+	}
 }
 
 void check_quiet_note_rejection(Runner &runner)

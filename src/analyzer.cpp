@@ -11139,6 +11139,17 @@ void append_root_anchored_guitar_analysis_triad_aliases(ChordResult &target,
 	if (target.root < 0 || !target.label[0] || target.label[0] == '-')
 		return;
 
+	ParsedRootChord target_primary;
+	const std::size_t target_primary_len = std::strcspn(target.label, "=");
+	bool target_primary_minor = false;
+	if (parse_root_chord_component(target.label, target_primary_len, target_primary) &&
+	    target_primary.quality == RootChordQuality::Minor) {
+		std::size_t root_len = 1;
+		if (target_primary_len > 1 && target.label[1] == '#')
+			root_len = 2;
+		target_primary_minor = suffix_is(target.label + root_len, target_primary_len - root_len, "m");
+	}
+
 	const int display_pitch_classes = note_grid_active_pitch_class_count(display_grid);
 	const int analysis_pitch_classes = note_grid_active_pitch_class_count(analysis_grid);
 	if (display_pitch_classes < 2 || display_pitch_classes > 7 ||
@@ -11165,7 +11176,12 @@ void append_root_anchored_guitar_analysis_triad_aliases(ChordResult &target,
 			const bool display_root = note_grid_pitch_active(display_grid, root);
 			const bool display_third = note_grid_pitch_active(display_grid, third);
 			const bool display_fifth = note_grid_pitch_active(display_grid, fifth);
-			if (!display_root || (!display_third && !display_fifth))
+			// Recover weak-root major shapes whose upper tones are otherwise scored as a minor triad.
+			const bool analysis_complete_rootless_vi_major =
+				target_primary_minor && !minor && !target_already_has_root &&
+				root == (target_primary.root + 8) % 12 && display_third && display_fifth;
+			if ((!display_root && !analysis_complete_rootless_vi_major) ||
+			    (!display_third && !display_fifth))
 				continue;
 			if (display_chromatic_run >= 6 && !target_already_has_root)
 				continue;
@@ -11180,7 +11196,10 @@ void append_root_anchored_guitar_analysis_triad_aliases(ChordResult &target,
 			const float analysis_third = note_grid_pitch_level(analysis_grid, third);
 			const float analysis_fifth = note_grid_pitch_level(analysis_grid, fifth);
 			const float analysis_anchor = std::min(analysis_root, analysis_fifth);
-			if (analysis_root < std::max(0.08f, strongest_analysis * 0.06f) ||
+			const float analysis_root_floor = analysis_complete_rootless_vi_major ?
+							  std::max(0.035f, strongest_analysis * 0.025f) :
+							  std::max(0.08f, strongest_analysis * 0.06f);
+			if (analysis_root < analysis_root_floor ||
 			    analysis_fifth < std::max(0.06f, strongest_analysis * 0.04f))
 				continue;
 
@@ -11203,9 +11222,12 @@ void append_root_anchored_guitar_analysis_triad_aliases(ChordResult &target,
 				continue;
 
 			const float display_anchor =
-				std::min(note_grid_pitch_level(display_grid, root),
-					 std::max(note_grid_pitch_level(display_grid, third),
-						  note_grid_pitch_level(display_grid, fifth)));
+				display_root ?
+					std::min(note_grid_pitch_level(display_grid, root),
+						 std::max(note_grid_pitch_level(display_grid, third),
+							  note_grid_pitch_level(display_grid, fifth))) :
+					std::min(note_grid_pitch_level(display_grid, third),
+						 note_grid_pitch_level(display_grid, fifth));
 			const float display_opposite = note_grid_pitch_level(display_grid, opposite_third);
 			const float analysis_opposite = note_grid_pitch_level(analysis_grid, opposite_third);
 			if (display_opposite >= std::max(0.12f, display_anchor * 0.68f) ||
@@ -11592,16 +11614,21 @@ bool different_root_plain_alias_supported_by_clean_primary(const ParsedRootChord
 	    (!relative_minor_alias && !relative_major_alias))
 		return false;
 
+	const int display_tones = note_grid_chord_tone_count(display_grid, alias);
+	const int analysis_tones = note_grid_chord_tone_count(analysis_grid, alias);
+	const bool analysis_complete_relative_major =
+		analysis_tones >= 3 && display_tones >= 2 && relative_major_alias;
 	const float primary_root = strongest_grid_pitch_level(display_grid, analysis_grid, primary.root);
 	const float primary_fifth = strongest_grid_pitch_level(display_grid, analysis_grid, primary.root + 7);
 	const float alias_root = strongest_grid_pitch_level(display_grid, analysis_grid, component.root);
-	const float root_floor = same_root_alias_supported ? 0.14f : 0.30f;
-	const float root_ratio = same_root_alias_supported ? 0.40f : 0.72f;
+	const float root_floor =
+		same_root_alias_supported ? 0.14f : analysis_complete_relative_major ? 0.035f : 0.30f;
+	const float root_ratio =
+		same_root_alias_supported ? 0.40f : analysis_complete_relative_major ? 0.08f : 0.72f;
 	if (alias_root < std::max(root_floor, std::min(primary_root, primary_fifth) * root_ratio))
 		return false;
 
-	return note_grid_chord_tone_count(display_grid, alias) >= 2 &&
-	       note_grid_chord_tone_count(analysis_grid, alias) >= 2;
+	return display_tones >= 2 && analysis_tones >= 2;
 }
 
 bool label_has_supported_same_root_alias_for_primary(const ChordResult &chord,
