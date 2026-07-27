@@ -180,6 +180,11 @@ def main() -> int:
     assert "guitar primary chord recall 1/3 33.33%" in output
     assert "guitar expected chord later than primary 1" in output
     assert "guitar primary chord labels C=1 G=1 --=1" in output
+    assert "guitar primary mismatch labels G=1 --=1" in output
+    assert "guitar primary mismatch pairs G->C=1 --->G=1" in output
+    assert "guitar primary mismatch root deltas +7=1" in output
+    assert "guitar primary mismatch qualities maj->maj=1 none->maj=1" in output
+    assert "guitar expected-later primary labels G=1" in output
     assert "visible chord-tone coverage 100%=2 50-74%=1" in output
     assert "analysis chord-tone coverage 100%=3" in output
     assert "visible missing chord tones major_third=1" in output

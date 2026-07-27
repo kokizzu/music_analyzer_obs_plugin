@@ -101,7 +101,7 @@ def primary_chord_component(text: str) -> str:
 
 
 def chord_root(label: str) -> str:
-    if not label:
+    if not label or label == "--":
         return ""
     if len(label) >= 2 and label[1] == "#":
         return label[:2]
@@ -111,6 +111,13 @@ def chord_root(label: str) -> str:
 def chord_quality(label: str) -> str:
     root = chord_root(label)
     return label[len(root) :]
+
+
+def chord_quality_name(label: str) -> str:
+    if not label or label == "--":
+        return "none"
+    quality = chord_quality(label)
+    return "maj" if quality == "" else quality
 
 
 def chord_tones(label: str) -> list[tuple[str, int]]:
@@ -287,12 +294,20 @@ def summarize(path: pathlib.Path) -> list[str]:
     guitar_primary_chord_hits = 0
     guitar_expected_later_than_primary = 0
     guitar_primary_labels: collections.Counter[str] = collections.Counter()
+    guitar_primary_mismatch_labels: collections.Counter[str] = collections.Counter()
+    guitar_primary_mismatch_pairs: collections.Counter[str] = collections.Counter()
+    guitar_primary_mismatch_root_deltas: collections.Counter[str] = collections.Counter()
+    guitar_primary_mismatch_qualities: collections.Counter[str] = collections.Counter()
+    guitar_expected_later_primary_labels: collections.Counter[str] = collections.Counter()
     guitar_primary_miss_examples: list[str] = []
     guitar_expected_later_examples: list[str] = []
     visible_full_chord_misses = 0
     analysis_full_chord_misses = 0
     smooth_full_chord_misses = 0
     for row in chord_rows:
+        expected_label = best_expected_chord(
+            row.get("expected_chords", ""), row.get("guitar_analysis_pitch_classes", "")
+        )
         expected_components = set(split_chord_components(row.get("expected_chords", "")))
         guitar_components = split_chord_components(row.get("guitar_chord", ""))
         guitar_primary = guitar_components[0] if guitar_components else "--"
@@ -301,18 +316,32 @@ def summarize(path: pathlib.Path) -> list[str]:
         guitar_primary_hit = guitar_primary in expected_components
         if guitar_primary_hit:
             guitar_primary_chord_hits += 1
-        elif guitar_expected_anywhere:
-            guitar_expected_later_than_primary += 1
-            if len(guitar_expected_later_examples) < 8:
-                guitar_expected_later_examples.append(
-                    "  "
-                    + example_text(row)
-                    + f" primary={guitar_primary}"
+        else:
+            if expected_label:
+                guitar_primary_mismatch_labels[guitar_primary] += 1
+                guitar_primary_mismatch_pairs[f"{guitar_primary}->{expected_label}"] += 1
+                primary_root = chord_root(guitar_primary)
+                expected_root = chord_root(expected_label)
+                primary_pc = NOTE_TO_PC.get(primary_root)
+                expected_pc = NOTE_TO_PC.get(expected_root)
+                if primary_pc is not None and expected_pc is not None:
+                    guitar_primary_mismatch_root_deltas[f"+{(primary_pc - expected_pc) % 12}"] += 1
+                guitar_primary_mismatch_qualities[
+                    f"{chord_quality_name(guitar_primary)}->{chord_quality_name(expected_label)}"
+                ] += 1
+            if guitar_expected_anywhere:
+                guitar_expected_later_than_primary += 1
+                guitar_expected_later_primary_labels[guitar_primary] += 1
+                if len(guitar_expected_later_examples) < 8:
+                    guitar_expected_later_examples.append(
+                        "  "
+                        + example_text(row)
+                        + f" primary={guitar_primary}"
+                    )
+            elif row.get("guitar_chord_hit") == "1" and len(guitar_primary_miss_examples) < 8:
+                guitar_primary_miss_examples.append(
+                    "  " + example_text(row) + f" primary={guitar_primary}"
                 )
-        elif row.get("guitar_chord_hit") == "1" and len(guitar_primary_miss_examples) < 8:
-            guitar_primary_miss_examples.append(
-                "  " + example_text(row) + f" primary={guitar_primary}"
-            )
 
         visible_coverage, visible_full = best_chord_coverage(
             row.get("expected_chords", ""), row.get("guitar_pitch_classes", "")
@@ -322,9 +351,6 @@ def summarize(path: pathlib.Path) -> list[str]:
         )
         smooth_coverage, smooth_full = best_chord_coverage(
             row.get("expected_chords", ""), row.get("guitar_smoothed_pitch_classes", "")
-        )
-        expected_label = best_expected_chord(
-            row.get("expected_chords", ""), row.get("guitar_analysis_pitch_classes", "")
         )
         visible_pitch_classes = parse_pitch_classes(row.get("guitar_pitch_classes", ""))
         analysis_pitch_classes = parse_pitch_classes(row.get("guitar_analysis_pitch_classes", ""))
@@ -405,6 +431,16 @@ def summarize(path: pathlib.Path) -> list[str]:
         "guitar expected chord later than primary "
         + str(guitar_expected_later_than_primary),
         "guitar primary chord labels " + compact_counter(guitar_primary_labels, 12),
+        "guitar primary mismatch labels "
+        + compact_counter(guitar_primary_mismatch_labels, 12),
+        "guitar primary mismatch pairs "
+        + compact_counter(guitar_primary_mismatch_pairs, 12),
+        "guitar primary mismatch root deltas "
+        + compact_counter(guitar_primary_mismatch_root_deltas, 12),
+        "guitar primary mismatch qualities "
+        + compact_counter(guitar_primary_mismatch_qualities, 12),
+        "guitar expected-later primary labels "
+        + compact_counter(guitar_expected_later_primary_labels, 12),
         "visible chord-tone coverage " + compact_counter(visible_chord_coverage, 8),
         "analysis chord-tone coverage " + compact_counter(analysis_chord_coverage, 8),
         "smoothed chord-tone coverage " + compact_counter(smooth_chord_coverage, 8),
