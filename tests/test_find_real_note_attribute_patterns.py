@@ -16,6 +16,7 @@ HEADER = [
     "detected_anywhere",
     "detected_expected_row",
     "first_row",
+    "visual_first_row",
     "sample_id",
     "family",
     "nsynth_family",
@@ -29,12 +30,19 @@ HEADER = [
     "row_grid",
     "any_grid",
     "buffer_strongest_row",
+    "buffer_visual_strongest_row",
     "bass_level",
     "guitar_level",
     "piano_level",
     "vocal_level",
     "other_level",
     "amb_level",
+    "bass_visual_level",
+    "guitar_visual_level",
+    "piano_visual_level",
+    "vocal_visual_level",
+    "other_visual_level",
+    "amb_visual_level",
     "global_chord",
     "keyboard_chord",
     "guitar_chord",
@@ -488,6 +496,106 @@ def main() -> int:
             stderr=subprocess.PIPE,
             check=True,
         )
+        visual_rows = [
+            row(
+                status="hit",
+                first_row="piano",
+                visual_first_row="guitar",
+                buffer_strongest_row="piano",
+                buffer_visual_strongest_row="guitar",
+                sample_id="keyboard_visual_1",
+                family="piano",
+                nsynth_family="keyboard",
+                source="electronic",
+                expected_note="F#4",
+                expected_midi="66",
+                debug_note="F#4",
+                debug_midi="66",
+                debug_owner="guitar",
+                guitar_visual_level="0.95",
+                piano_visual_level="0.35",
+            ),
+            row(
+                status="hit",
+                first_row="piano",
+                visual_first_row="guitar",
+                buffer_strongest_row="piano",
+                buffer_visual_strongest_row="guitar",
+                sample_id="keyboard_visual_2",
+                family="piano",
+                nsynth_family="keyboard",
+                source="electronic",
+                expected_note="A4",
+                expected_midi="69",
+                debug_note="A4",
+                debug_midi="69",
+                debug_owner="guitar",
+                guitar_visual_level="0.90",
+                piano_visual_level="0.40",
+            ),
+            row(
+                status="hit",
+                first_row="piano",
+                visual_first_row="piano",
+                buffer_strongest_row="piano",
+                buffer_visual_strongest_row="piano",
+                sample_id="keyboard_visual_right",
+                family="piano",
+                nsynth_family="keyboard",
+                source="electronic",
+                expected_note="C4",
+                expected_midi="60",
+                debug_note="C4",
+                debug_midi="60",
+                debug_owner="piano",
+                guitar_visual_level="0.10",
+                piano_visual_level="0.90",
+            ),
+            row(
+                status="hit",
+                first_row="guitar",
+                visual_first_row="guitar",
+                buffer_strongest_row="guitar",
+                buffer_visual_strongest_row="guitar",
+                sample_id="guitar_visual_right",
+                family="guitar",
+                nsynth_family="guitar",
+                source="acoustic",
+                expected_note="E4",
+                expected_midi="64",
+                debug_note="E4",
+                debug_midi="64",
+                debug_owner="guitar",
+                guitar_visual_level="0.90",
+                piano_visual_level="0.10",
+            ),
+        ]
+        visual_path = pathlib.Path(tmp) / "visual_attributes.tsv"
+        visual_path.write_text(
+            "\t".join(HEADER) + "\n" + "\n".join("\t".join(item) for item in visual_rows) + "\n"
+        )
+        visual_row_confusion_result = subprocess.run(
+            [
+                sys.executable,
+                str(ROOT / "scripts" / "find_real_note_attribute_patterns.py"),
+                str(visual_path),
+                "--top-buckets",
+                "1",
+                "--bucket-status",
+                "visual_row_confusion",
+                "--include-row-context",
+                "--condition",
+                "buffer_visual_strongest_row=guitar",
+                "--limit",
+                "1",
+                "--max-negative-samples",
+                "2",
+            ],
+            text=True,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            check=True,
+        )
         octave_path = pathlib.Path(tmp) / "octave_attributes.tsv"
         octave_rows = [
             row(
@@ -759,6 +867,13 @@ def main() -> int:
         "protected_hits=2 samples/2 rows"
     ) in row_confusion_result.stdout
     assert "debug_owner=guitar: pos=2/2 rows=2 neg=1/2 rows=1" in row_confusion_result.stdout
+    assert (
+        "visual_row_confusion:piano/electronic->guitar positives=2 samples/2 rows "
+        "protected_hits=2 samples/2 rows"
+    ) in visual_row_confusion_result.stdout
+    assert (
+        "buffer_visual_strongest_row=guitar: pos=2/2 rows=2 neg=1/2 rows=1"
+    ) in visual_row_confusion_result.stdout
     assert (
         "octave_displacement:bass/electronic->+12 positives=2 samples/2 rows "
         "protected_hits=2 samples/2 rows"

@@ -49,6 +49,12 @@ ROW_CONTEXT_NUMERIC_FIELDS = [
     "vocal_level",
     "other_level",
     "amb_level",
+    "bass_visual_level",
+    "guitar_visual_level",
+    "piano_visual_level",
+    "vocal_visual_level",
+    "other_visual_level",
+    "amb_visual_level",
     "raw_expected_peak",
     "raw_expected_ratio",
     "raw_tuned_peak",
@@ -87,6 +93,7 @@ DEBUG_CATEGORY_FIELDS = [
 
 ROW_CONTEXT_CATEGORY_FIELDS = [
     "buffer_strongest_row",
+    "buffer_visual_strongest_row",
     "raw_local_best_note",
 ]
 
@@ -234,6 +241,18 @@ def rows_for_bucket(rows: list[dict[str, str]], bucket: tuple[str, str, str, str
             and row.get("buffer_strongest_row") != expected_row
             and row.get("debug_note")
         ]
+    if status == "visual_row_confusion":
+        expected_row = ROW_FOR_FAMILY.get(family, family)
+        return [
+            row
+            for row in rows
+            if row.get("status") == "hit"
+            and row.get("family") == family
+            and row.get("source") == source
+            and row.get("buffer_visual_strongest_row") == target
+            and row.get("buffer_visual_strongest_row") != expected_row
+            and row.get("debug_note")
+        ]
     return [
         row
         for row in rows
@@ -295,6 +314,13 @@ def top_buckets(
             if row.get("status") != "hit" or strongest_row == expected_row or not strongest_row:
                 continue
             counts[("row_confusion", family, row.get("source", ""), strongest_row)] += 1
+        elif bucket_status == "visual_row_confusion":
+            family = row.get("family", "")
+            expected_row = ROW_FOR_FAMILY.get(family, family)
+            strongest_row = row.get("buffer_visual_strongest_row", "")
+            if row.get("status") != "hit" or strongest_row == expected_row or not strongest_row:
+                continue
+            counts[("visual_row_confusion", family, row.get("source", ""), strongest_row)] += 1
         else:
             if row.get("status") != bucket_status:
                 continue
@@ -1034,11 +1060,12 @@ def main() -> int:
     )
     parser.add_argument(
         "--bucket-status",
-        choices=("ownership_miss", "row_confusion", "octave_displacement"),
+        choices=("ownership_miss", "row_confusion", "visual_row_confusion", "octave_displacement"),
         default="ownership_miss",
         help=(
             "status used by --top-buckets; row_confusion means hit rows whose strongest "
-            "display row is wrong, octave_displacement means hit rows shifted by octave"
+            "raw row is wrong, visual_row_confusion means hit rows whose strongest UI row "
+            "is wrong, octave_displacement means hit rows shifted by octave"
         ),
     )
     parser.add_argument("--limit", type=int, default=8)
