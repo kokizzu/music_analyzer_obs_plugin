@@ -2798,8 +2798,29 @@ void check_full_mix_single_instrument_precision(Runner &runner)
 		runner.expect(guitar_visual <= keyboard_visual,
 			      std::string("full-mix measured electric piano tine: expected guitar F3 not "
 					  "brighter than keyboard, got guitar visual ") +
-				      std::to_string(guitar_visual) + ", keyboard visual " +
-				      std::to_string(keyboard_visual) + ", debug `" +
+			      std::to_string(guitar_visual) + ", keyboard visual " +
+			      std::to_string(keyboard_visual) + ", debug `" +
+			      full_mix_debug_summary_for_midi(snapshot, 53) + "`");
+	}
+
+	{
+		mao_test::Buffer buffer = {};
+		const std::vector<float> measured_bright_tine_keyboard_profile =
+			{1.0f, 0.44f, 0.29f, 0.030f, 0.049f};
+		add_harmonic_note(buffer, 53, 0.24f, measured_bright_tine_keyboard_profile);
+
+		const auto snapshot =
+			analyze_buffer_with_mode(buffer, mao::AnalysisInputMode::FullMix,
+						 "speaker measured bright tine keyboard", 3);
+		expect_global_pitch_class(runner, snapshot, 5,
+					  "full-mix measured bright tine keyboard global");
+		const float keyboard_visual = grid_visual_level_for_midi(snapshot.keyboard_notes, 53);
+		runner.expect(keyboard_visual >= 0.80f,
+			      std::string("full-mix measured bright tine keyboard: expected readable "
+					  "keyboard F3 visual >= 0.80, got ") +
+				      std::to_string(keyboard_visual) + ", keyboard `" +
+				      snapshot.keyboard.label + "`, guitar `" + snapshot.guitar.label +
+				      "`, bass `" + snapshot.bass.label + "`, debug `" +
 				      full_mix_debug_summary_for_midi(snapshot, 53) + "`");
 	}
 

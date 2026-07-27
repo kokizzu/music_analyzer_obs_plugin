@@ -3913,13 +3913,19 @@ bool guitar_owned_dark_electronic_keyboard_body_supported(const FullMixDebugCand
 	const float third = debug.harmonic_ratios[2];
 	const float fourth = debug.harmonic_ratios[3];
 	const float fifth = debug.harmonic_ratios[4];
+	const bool dark_tine_body =
+		debug.spectral_centroid <= 0.24f &&
+		debug.spectral_slope <= 0.26f;
+	const bool measured_bright_tine_body =
+		debug.keyboard_score >= 0.08f &&
+		debug.spectral_centroid <= 0.27f &&
+		debug.spectral_slope <= 0.28f;
 	return second >= 0.39f &&
 	       second <= 0.80f &&
 	       third <= 0.32f &&
 	       fourth <= 0.26f &&
 	       fifth <= 0.065f &&
-	       debug.spectral_centroid <= 0.24f &&
-	       debug.spectral_slope <= 0.26f;
+	       (dark_tine_body || measured_bright_tine_body);
 }
 
 bool full_mix_display_mirror_supported(FullMixDisplayRow row, const FullMixDebugCandidate &debug,
