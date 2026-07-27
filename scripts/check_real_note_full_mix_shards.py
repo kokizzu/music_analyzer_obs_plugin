@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import argparse
+from collections import Counter
 import pathlib
 import re
 import sys
@@ -218,6 +219,17 @@ def validate(args: argparse.Namespace, summary: dict[str, int],
             f"  {family}["
             + ",".join(f"{row}={confusion[family][row]}" for row in ROWS)
             + "]"
+        )
+    row_confusion: Counter[str] = Counter()
+    for family in FAMILIES:
+        for row, value in confusion[family].items():
+            if value <= 0 or row == family:
+                continue
+            row_confusion[f"{family}->{row}"] += value
+    if row_confusion:
+        print(
+            "check_real_note_full_mix_shards: row-confusion routes "
+            + " ".join(f"{route}={value}" for route, value in row_confusion.most_common(12))
         )
 
 

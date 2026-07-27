@@ -63,6 +63,11 @@ def main() -> int:
         "first-row-by-family bass=1/2 guitar=1/2 piano=1/2 vocals=1/2 other=1/2",
     )
     require(completed.stdout, "bass[bass=1,guitar=1,piano=0,vocals=0,other=0,amb=0,none=0]")
+    require(
+        completed.stdout,
+        "check_real_note_full_mix_shards: row-confusion routes "
+        "bass->guitar=1 guitar->piano=1 piano->vocals=1 vocals->other=1 other->amb=1",
+    )
 
     failed = run_checker("--other-min-expected-row-percent", "100")
     if failed.returncode == 0:
