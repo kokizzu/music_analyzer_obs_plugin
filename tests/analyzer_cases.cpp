@@ -3026,6 +3026,30 @@ void check_full_mix_single_owned_note_has_no_instrument_chord(Runner &runner)
 				      snapshot.bass.label + "`");
 		expect_no_chord(runner, snapshot.other_chord, "full-mix single lower-mid other note chord");
 	}
+
+	{
+		mao_test::Buffer buffer = {};
+		const std::vector<float> shadowed_low_brass_profile =
+			{1.0f, 0.62f, 0.42f, 0.24f, 0.14f, 0.0f, 0.0f, 1.0f};
+		add_harmonic_note(buffer, 43, 0.22f, shadowed_low_brass_profile);
+
+		const auto snapshot =
+			analyze_buffer_with_mode(buffer, mao::AnalysisInputMode::FullMix,
+						 "single third-octave-shadowed other note", 3);
+		expect_global_pitch_class(runner, snapshot, 7,
+					  "full-mix third-octave-shadowed other global");
+		runner.expect(grid_pitch_active(snapshot.other_notes, 7) ||
+				      grid_pitch_active(snapshot.ambiguous_notes, 7),
+			      std::string("full-mix third-octave-shadowed other: expected other/ambiguous G, "
+					  "got other `") +
+				      snapshot.other.label + "`, ambiguous `" +
+				      note_grid_active_labels(snapshot.ambiguous_notes) + "`, guitar `" +
+				      snapshot.guitar.label + "`");
+		runner.expect(!grid_pitch_active(snapshot.guitar_notes, 7),
+			      std::string("full-mix third-octave-shadowed other guitar mirror: "
+					  "expected no guitar G, got `") +
+				      note_grid_active_labels(snapshot.guitar_notes) + "`");
+	}
 }
 
 void check_simultaneous_onset_group_rejects_vocal_spillover(Runner &runner)
