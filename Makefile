@@ -667,7 +667,7 @@ GUITARSET_TEST_MAKE_JOBS = $(if $(filter -j%,$(MAKEFLAGS)),,-j$(GUITARSET_SHARDS
 .PHONY: analyze-drum-spread-gate-matrix analyze-drum-full-gate-matrix analyze-drum-active-false-rows find-drum-spread-exact-attribute-patterns find-drum-full-exact-attribute-patterns test-drum-gate-matrix-summary test-drum-active-threshold-simulation test-drum-active-false-summary
 .PHONY: analyze-hf-drum-primary-attribute-rows find-hf-drum-primary-attribute-patterns analyze-idmt-drum-primary-attribute-rows find-idmt-drum-primary-attribute-patterns analyze-protected-drum-primary-attribute-rows find-protected-drum-primary-attribute-patterns
 .PHONY: analyze-guitar-chord-mix-recovery analyze-guitar-chord-primary-order analyze-guitar-chord-mix-extra-components test-guitar-chord-recovery-analysis test-guitar-primary-order-analysis test-guitar-chord-extra-components-analysis test-guitar-chord-mix-samples-parallel
-.PHONY: test-parallel test-core-parallel test-analysis-scripts-parallel test-real-note-samples-full-mix-parallel test-instrument-samples-parallel test-analyzer-smoke test-analyzer-cases test-analyzer-midi-ranges test-analyzer-urmp test-analyzer-musicnet test-analyzer-multtipop test-analyzer-guitarset test-analyzer-maestro test-analyzer-egmd
+.PHONY: test-parallel test-core-parallel test-analysis-scripts-parallel test-fixtures-parallel test-real-note-samples-full-mix-parallel test-instrument-samples-parallel test-analyzer-smoke test-analyzer-cases test-analyzer-midi-ranges test-analyzer-urmp test-analyzer-musicnet test-analyzer-multtipop test-analyzer-guitarset test-analyzer-maestro test-analyzer-egmd
 .PHONY: test-drum-real-world-samples-parallel test-drum-real-world-samples-full-parallel test-real-world-samples-parallel test-real-world-samples-full-parallel test-drum-samples-optional test-drum-samples-spread-optional test-drum-machine-samples-optional test-drum-samples-full-optional test-good-sounds-samples-optional test-medley-solos-samples-optional test-maps-piano-samples-optional test-maps-piano-note-samples-optional test-bach10-mf0-synth-samples-optional test-vocalset-samples-optional
 .PHONY: test-iowa-piano-samples-max test-iowa-orchestra-full-samples-max test-good-sounds-samples-max test-medley-solos-samples-max test-maps-piano-samples-max test-maps-piano-note-samples-max
 
@@ -1724,6 +1724,7 @@ REAL_WORLD_SAMPLE_FULL_TARGETS := $(REAL_WORLD_SAMPLE_TARGETS) test-guitar-techs
 REAL_WORLD_SAMPLE_MAX_BASE_TARGETS := $(filter-out test-iowa-piano-samples,$(REAL_WORLD_SAMPLE_TARGETS))
 REAL_WORLD_SAMPLE_MAX_TARGETS := $(REAL_WORLD_SAMPLE_MAX_BASE_TARGETS) test-guitar-techs-samples test-guitar-techs-chord-samples test-guitar-chord-mix-samples-parallel test-egfxset-guitar-samples test-gaps-guitar-samples-full test-idmt-guitar-samples test-iowa-piano-samples-max test-iowa-strings-samples test-iowa-orchestra-samples test-iowa-orchestra-full-samples-max test-philharmonia-samples-full test-tinysol-samples test-good-sounds-samples-max test-medley-solos-samples-max test-maps-piano-samples-max test-maps-piano-note-samples-max test-bach10-mf0-synth-samples test-vocalset-samples test-drum-machine-samples-optional test-drum-samples-full-optional test-configured-real-world-samples
 DETECTOR_SAMPLE_REGRESSION_TARGETS := test-analyzer-cases test-real-note-samples-full-mix-parallel test-guitar-chord-mix-samples-parallel $(DRUM_REAL_WORLD_SAMPLE_TARGETS) test-instrument-samples-parallel
+TEST_FIXTURE_PARALLEL_TARGETS := test-real-note-samples test-direct-fit-small-fixture test-synthsod-fixture test-prepared-multitrack-fixture test-multtipop-audio-root-fixture
 .PHONY: test-detector-samples-parallel
 
 ifneq ($(wildcard $(DRUM_SAMPLE_SOURCE_DIR)),)
@@ -1794,6 +1795,9 @@ test-real-world-samples-full-parallel: scripts/run_with_duration.sh
 
 test-detector-samples-parallel: scripts/run_with_duration.sh
 	$(RUN_WITH_DURATION) detector_samples_parallel $(MAKE) $(PARALLEL_TEST_MAKE_JOBS) $(DETECTOR_SAMPLE_REGRESSION_TARGETS)
+
+test-fixtures-parallel: $(BUILD_DIR)/analyzer_real_note_samples $(BUILD_DIR)/analyzer_urmp $(BUILD_DIR)/analyzer_musicnet $(BUILD_DIR)/analyzer_multtipop scripts/run_with_duration.sh
+	$(RUN_WITH_DURATION) test_fixtures_parallel $(MAKE) $(PARALLEL_TEST_MAKE_JOBS) $(TEST_FIXTURE_PARALLEL_TARGETS)
 
 test-drum-real-world-samples: test-hf-drum-kit-samples test-idmt-drums-samples test-mdb-drums-samples test-star-drums-samples
 	if [ -d "$(DRUM_SAMPLE_SOURCE_DIR)" ]; then $(MAKE) test-drum-samples; $(MAKE) test-drum-samples-spread; else printf '%s\n' "test-drum-samples: skipped; missing $(DRUM_SAMPLE_SOURCE_DIR)"; fi
@@ -1886,11 +1890,7 @@ test: $(TEST_BINS) scripts/run_with_duration.sh
 	$(MAKE) test-parallel
 	$(MAKE) test-detector-samples-parallel
 	$(RUN_WITH_DURATION) fret_control_tests $(BUILD_DIR)/fret_control_tests
-	$(MAKE) test-real-note-samples
-	$(MAKE) test-direct-fit-small-fixture
-	$(MAKE) test-synthsod-fixture
-	$(MAKE) test-prepared-multitrack-fixture
-	$(MAKE) test-multtipop-audio-root-fixture
+	$(MAKE) test-fixtures-parallel
 	$(MAKE) test-real-goal-fixture
 
 inspect-real-dataset-catalog: tests/inspect_real_dataset_catalog.py tests/real_dataset_catalog.json docs/real_audio_dataset_candidates.md
