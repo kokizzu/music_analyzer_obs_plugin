@@ -3077,6 +3077,34 @@ void check_full_mix_single_owned_note_has_no_instrument_chord(Runner &runner)
 				      full_mix_debug_summary_for_midi(snapshot, 54) + "`, debug second `" +
 				      full_mix_debug_summary_for_midi(snapshot, 66) + "`");
 	}
+
+	{
+		mao_test::Buffer buffer = {};
+		const std::vector<float> electronic_keyboard_ladder_profile =
+			{1.0f, 0.96f, 0.18f, 1.18f, 0.12f, 0.0f, 0.0f, 1.10f};
+		add_harmonic_note(buffer, 36, 0.18f, electronic_keyboard_ladder_profile);
+
+		const auto snapshot =
+			analyze_buffer_with_mode(buffer, mao::AnalysisInputMode::FullMix,
+						 "single electronic keyboard octave ladder", 3);
+		expect_global_pitch_class(runner, snapshot, 0,
+					  "full-mix electronic keyboard ladder global");
+		runner.expect(grid_pitch_active(snapshot.keyboard_notes, 0) ||
+				      grid_pitch_active(snapshot.ambiguous_notes, 0),
+			      std::string("full-mix electronic keyboard ladder: expected keyboard/ambiguous C, "
+					  "got keyboard `") +
+				      snapshot.keyboard.label + "`, ambiguous `" +
+				      note_grid_active_labels(snapshot.ambiguous_notes) + "`, guitar `" +
+				      snapshot.guitar.label + "`");
+		runner.expect(!grid_pitch_active(snapshot.guitar_notes, 0),
+			      std::string("full-mix electronic keyboard ladder guitar shadow: "
+					  "expected no guitar C, got `") +
+				      note_grid_active_labels(snapshot.guitar_notes) + "`, debug C2 `" +
+				      full_mix_debug_summary_for_midi(snapshot, 36) + "`, debug C3 `" +
+				      full_mix_debug_summary_for_midi(snapshot, 48) + "`, debug C4 `" +
+				      full_mix_debug_summary_for_midi(snapshot, 60) + "`, debug C5 `" +
+				      full_mix_debug_summary_for_midi(snapshot, 72) + "`");
+	}
 }
 
 void check_simultaneous_onset_group_rejects_vocal_spillover(Runner &runner)

@@ -5281,6 +5281,46 @@ int guitar_like_debug_pitch_class_count(const FullMixOwnership &ownership)
 	return count;
 }
 
+bool guitar_display_candidate_shadowed_by_upper_keyboard_pitch(const FullMixOwnership &ownership,
+							      const NoteCandidate &candidate)
+{
+	const float candidate_level = ownership_global_note_level(ownership, candidate.midi);
+	if (candidate_level < 0.78f)
+		return false;
+
+	const FullMixDebugCandidate *candidate_debug = full_mix_debug_for_midi(ownership, candidate.midi);
+	if (candidate_debug && candidate_debug->owner == InstrumentKind::Guitar) {
+		const bool confident_guitar_body =
+			candidate_debug->guitar_score >= 0.90f &&
+			candidate_debug->pitch_confidence >= 0.70f &&
+			candidate_debug->periodicity >= 0.70f;
+		const bool noisy_harmonic_guitar_body =
+			candidate_debug->guitar_score >= 0.78f &&
+			candidate_debug->harmonicity >= 1.20f &&
+			candidate_debug->harmonic_fit_error >= 0.18f &&
+			candidate_debug->local_noise_level >= 0.10f;
+		if (confident_guitar_body || noisy_harmonic_guitar_body)
+			return false;
+	}
+
+	const int pitch_class = midi_pitch_class(candidate.midi);
+	for (const NoteCandidate &keyboard : ownership.keyboard_candidates) {
+		const int interval = keyboard.midi - candidate.midi;
+		if (interval < 12 || interval > 36 || midi_pitch_class(keyboard.midi) != pitch_class)
+			continue;
+		if (keyboard.score < std::max(0.74f, candidate_level * 0.70f))
+			continue;
+		const FullMixDebugCandidate *upper_debug = full_mix_debug_for_midi(ownership, keyboard.midi);
+		if (!upper_debug || upper_debug->owner == InstrumentKind::Keyboard ||
+		    upper_debug->keyboard_score >= 0.70f ||
+		    full_mix_display_mirror_supported(FullMixDisplayRow::Keyboard, *upper_debug,
+						      keyboard.midi))
+			return true;
+	}
+
+	return false;
+}
+
 bool guitar_display_candidate_shadowed_by_non_guitar_pitch(const FullMixOwnership &ownership,
 							   const NoteCandidate &candidate)
 {
@@ -5294,6 +5334,9 @@ bool guitar_display_candidate_shadowed_by_non_guitar_pitch(const FullMixOwnershi
 	const bool dense_guitar_context =
 		debug && debug->guitar_score >= 0.070f &&
 		guitar_like_debug_pitch_class_count(ownership) >= 3;
+	if (!dense_guitar_context &&
+	    guitar_display_candidate_shadowed_by_upper_keyboard_pitch(ownership, candidate))
+		return true;
 	if (!dense_guitar_context) {
 		const int pitch_class = midi_pitch_class(candidate.midi);
 		const std::size_t debug_count =
