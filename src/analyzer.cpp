@@ -6075,6 +6075,29 @@ void restore_supported_lower_guitar_debug_candidates(NoteCandidateList &candidat
 	}
 }
 
+bool full_mix_upper_electronic_bass_attack_supported(const FullMixDebugCandidate &debug)
+{
+	return (debug.owner == InstrumentKind::Guitar || debug.owner == InstrumentKind::Other ||
+		debug.owner == InstrumentKind::Ambiguous) &&
+	       (debug.owner == InstrumentKind::Ambiguous || debug.ownership_confidence <= 0.90f) &&
+	       debug.midi >= 53 &&
+	       debug.midi <= 63 &&
+	       debug.keyboard_score <= 0.20f &&
+	       debug.spectral_level >= 0.85f &&
+	       debug.pitch_confidence >= 0.72f &&
+	       debug.periodicity >= 0.70f &&
+	       debug.harmonic_fit_error <= 0.22f &&
+	       debug.local_noise_level <= 0.19f &&
+	       debug.spectral_centroid <= 0.25f &&
+	       debug.spectral_slope <= 0.20f &&
+	       debug.harmonic_ratios[1] >= 0.20f &&
+	       debug.harmonic_ratios[1] <= 1.15f &&
+	       debug.harmonic_ratios[2] >= 0.040f &&
+	       debug.harmonic_ratios[2] <= 0.70f &&
+	       debug.harmonic_ratios[3] <= 0.080f &&
+	       debug.harmonic_ratios[4] <= 0.025f;
+}
+
 bool full_mix_debug_bass_display_supported(const FullMixDebugCandidate &debug)
 {
 	if (debug.midi < kBassMinMidi || debug.midi > kBassMaxMidi + 12)
@@ -6185,6 +6208,8 @@ bool full_mix_debug_bass_display_supported(const FullMixDebugCandidate &debug)
 		debug.harmonic_ratios[3] <= 0.13f &&
 		debug.harmonic_ratios[4] >= 0.012f &&
 		debug.harmonic_ratios[4] <= 0.040f;
+	const bool measured_upper_electronic_bass_attack =
+		full_mix_upper_electronic_bass_attack_supported(debug);
 	const bool other_owned_fretless_bass_body =
 		debug.owner == InstrumentKind::Other &&
 		debug.midi >= 60 &&
@@ -6234,6 +6259,7 @@ bool full_mix_debug_bass_display_supported(const FullMixDebugCandidate &debug)
 	       guitar_owned_upper_bass_edge ||
 	       guitar_owned_upper_bass_fundamental ||
 	       measured_slap_mid_bass_body ||
+	       measured_upper_electronic_bass_attack ||
 	       acoustic_high_bass_body || picked_high_bass_octave ||
 	       other_owned_fretless_bass_body ||
 	       keyboard_owned_high_slap_bass_octave ||
@@ -6274,6 +6300,8 @@ RangeResult recover_full_mix_bass_from_debug(const FullMixOwnership &ownership,
 			continue;
 		if (source_hinted_bass_fifth_harmonic(ownership, debug))
 			continue;
+		const bool upper_electronic_attack =
+			full_mix_upper_electronic_bass_attack_supported(debug);
 
 		int display_midi = debug.midi;
 		float display_score = bass_candidate_score(powers, display_midi, true);
@@ -6305,12 +6333,13 @@ RangeResult recover_full_mix_bass_from_debug(const FullMixOwnership &ownership,
 			global_level * (0.45f + debug.pitch_confidence * 0.30f + debug.periodicity * 0.25f);
 		if (support <= best.score)
 			continue;
+		const float confidence_cap = upper_electronic_attack ? 0.42f : 0.82f;
 		best.midi = display_midi;
 		best.score = support;
 		best.confidence =
 			std::clamp(0.12f + debug.pitch_confidence * 0.32f +
 					   debug.periodicity * 0.24f + global_level * 0.24f,
-				   0.0f, 0.82f);
+				   0.0f, confidence_cap);
 	}
 	return best;
 }

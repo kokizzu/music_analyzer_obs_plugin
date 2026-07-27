@@ -4846,6 +4846,23 @@ void check_full_mix_high_bass_range(Runner &runner)
 	runner.expect(grid_level_for_midi(snapshot.bass_notes, 53) > 0.0f,
 		      "full-mix high bass ownership: expected F3 in bass note grid");
 
+	mao_test::Buffer upper_electronic_buffer = {};
+	const std::vector<float> upper_electronic_bass_profile = {1.0f, 0.62f, 0.21f, 0.042f, 0.006f};
+	add_harmonic_note(upper_electronic_buffer, 54, 0.26f, upper_electronic_bass_profile);
+
+	const auto upper_electronic_snapshot =
+		analyze_buffer_with_mode(upper_electronic_buffer, mao::AnalysisInputMode::FullMix,
+					 "speaker measured upper electronic bass", 3);
+	expect_label(runner, upper_electronic_snapshot.bass.label, "F#3",
+		     "full-mix upper electronic bass ownership");
+	runner.expect(grid_level_for_midi(upper_electronic_snapshot.bass_notes, 54) > 0.0f,
+		      std::string("full-mix upper electronic bass: expected F#3 in bass note grid, "
+				  "got bass `") +
+			      upper_electronic_snapshot.bass.label + "`, keyboard `" +
+			      upper_electronic_snapshot.keyboard.label + "`, guitar `" +
+			      upper_electronic_snapshot.guitar.label + "`, debug `" +
+			      full_mix_debug_summary_for_midi(upper_electronic_snapshot, 54) + "`");
+
 	mao_test::Buffer clean_buffer = {};
 	const std::vector<float> clean_synth_bass_profile = {1.0f, 0.10f, 0.045f, 0.015f};
 	add_harmonic_note(clean_buffer, 56, 0.26f, clean_synth_bass_profile);
