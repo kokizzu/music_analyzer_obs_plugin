@@ -15527,6 +15527,8 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 									    1.0f;
 					level *= scale;
 				}
+				if (hihat && embedded_hihat_transient)
+					level = std::max(level, 0.34f);
 			}
 			if (kick) {
 				const bool snare_body_competes_with_kick =
@@ -15717,6 +15719,9 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 	const bool real_drum_track_weak_hihat_bleed =
 		drum_detection_enabled && real_drum_track_source &&
 		drum_level_[HiHat] > 0.30f &&
+		!real_drum_track_embedded_hihat &&
+		!real_drum_track_low_embedded_hihat &&
+		!initial_real_drum_track_embedded_hihat &&
 		!drum_shape_supported[HiHat] &&
 		strongest_body_drum > 1.0e-6f &&
 		strongest_cymbal_drum <=

@@ -5096,6 +5096,44 @@ void check_real_drum_track_tom_bleed_suppression(Runner &runner)
 			      std::to_string(snapshot.drum_debug_body_shape));
 }
 
+void check_real_drum_track_embedded_hihat_survives_bleed_cap(Runner &runner)
+{
+	mao::AnalysisEngine engine;
+	mao::AnalysisSettings settings = mao_test::default_settings();
+	settings.analysis_interval_seconds = 0.05f;
+	mao::AnalysisSnapshot snapshot = {};
+
+	for (int frame = 0; frame < 4; ++frame) {
+		mao_test::Buffer warmup = {};
+		add_decayed_sine(warmup, 120.0f, 0.012f, 1400);
+		snapshot = engine.analyze(warmup.data(), warmup.size(), settings, "E-GMD drums", 0);
+	}
+
+	for (int frame = 0; frame < 2; ++frame) {
+		mao_test::Buffer buffer = {};
+		add_decayed_sine(buffer, 90.0f, 0.15f, 1500);
+		add_decayed_sine(buffer, 150.0f, 0.12f, 1400);
+		add_decayed_sine(buffer, 220.0f, 0.085f, 1200);
+		add_decayed_sine(buffer, 3600.0f, 0.110f, 520);
+		add_decayed_sine(buffer, 5600.0f, 0.125f, 480);
+		add_decayed_sine(buffer, 7600.0f, 0.105f, 460);
+		snapshot = engine.analyze(buffer.data(), buffer.size(), settings, "E-GMD drums", 0);
+	}
+
+	runner.expect(snapshot.drums[mao::HiHat].active,
+		      "real drum track embedded hihat: expected hihat active, level " +
+			      std::to_string(snapshot.drums[mao::HiHat].level) + " supported " +
+			      std::to_string(snapshot.drum_debug_shape_supported[mao::HiHat]) +
+			      " threshold " +
+			      std::to_string(snapshot.drum_debug_trigger_thresholds[mao::HiHat]) +
+			      " trigger " +
+			      std::to_string(snapshot.drum_debug_trigger_scores[mao::HiHat]) + " high " +
+			      std::to_string(snapshot.high_energy));
+	runner.expect(snapshot.drums[mao::HiHat].level >= 0.34f,
+		      "real drum track embedded hihat: expected hihat above weak-bleed cap, level " +
+			      std::to_string(snapshot.drums[mao::HiHat].level));
+}
+
 void check_low_level_mic_aux_parts(Runner &runner)
 {
 	{
@@ -5894,6 +5932,7 @@ int main()
 	check_melodic_sources_do_not_trigger_drums(runner);
 	check_layered_midi_instrument_voices(runner);
 	check_real_drum_track_tom_bleed_suppression(runner);
+	check_real_drum_track_embedded_hihat_survives_bleed_cap(runner);
 	check_same_instrument_timbre_variants(runner);
 	check_distorted_midi_guitar_timbre(runner);
 	check_isolated_guitar_octave_harmonic_display(runner);
