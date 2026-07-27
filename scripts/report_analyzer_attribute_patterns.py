@@ -315,7 +315,9 @@ def trigger_ratio(row: dict[str, str], drum: str) -> float | None:
 	threshold = as_float(row, f"{drum}_threshold")
 	if trigger is None or threshold is None:
 		return None
-	return trigger / (threshold + 1.0e-6)
+	if threshold <= 1.0e-6:
+		return None
+	return trigger / threshold
 
 
 def drum_level_margin(row: dict[str, str], expected: str, got: str) -> float | None:

@@ -49,8 +49,8 @@ g3	chord_miss	C#m	min	m	C#	C#	m	display_different_root	A	A	B	0.30	0.42	0.48	--	v
         drum = write(
             root / "drum.tsv",
             """
-sample	expected	got	energy_low	energy_mid	energy_high	kick_level	snare_level	tom_level
-snare/1.wav	snare	tom	0.2	0.7	0.1	0.1	0.8	0.9
+sample	expected	got	energy_low	energy_mid	energy_high	kick_level	snare_level	tom_level	snare_trigger	snare_threshold	tom_trigger	tom_threshold
+snare/1.wav	snare	tom	0.2	0.7	0.1	0.1	0.8	0.9	1.0	0.0	0.5	0.5
             """,
         )
         result = subprocess.run(
@@ -120,6 +120,7 @@ snare/1.wav	snare	tom	0.2	0.7	0.1	0.1	0.8	0.9
     assert "expected=Am got=Asus2" in output
     assert "snare->tom energy=0.2/0.7/0.1" in output
     assert "level_margin=+0.1" in output
+    assert "100000" not in output
     print("test_report_analyzer_attribute_patterns: ok")
     return 0
 

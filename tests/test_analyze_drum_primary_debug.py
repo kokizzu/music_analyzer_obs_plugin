@@ -107,16 +107,24 @@ def main() -> int:
             "rim band=1.00 seg=1.00 shape_score=1.00 trigger=0.20/1.40 shape=0 level=0.00 | "
             "transient=2.00 onset=1.50 energy=0.40/0.50/0.10 "
             "body=3.00/1.00/3.00 crack=0.10 upper_tom=1.00 body_shape=4]",
+            "analyzer_drum_samples: primary miss 100ms snare/zero-denom.wav expected snare got tom "
+            "(kick=0.00 snare=0.60* hihat=0.00 crash=0.00 tom=0.90* ride=0.00 rim=0.00) "
+            "[snare band=2.00 seg=2.00 shape_score=2.00 trigger=1.00/1.00 shape=1 level=0.60 | "
+            "tom band=0.00 seg=0.00 shape_score=0.00 trigger=0.00/0.00 shape=1 level=0.90 | "
+            "transient=2.00 onset=1.50 energy=0.20/0.70/0.10 "
+            "body=1.00/2.00/0.00 crack=0.10 upper_tom=0.00 body_shape=2]",
         ]
     )
     output = run_analysis(log_text)
     dumped = run_dump(log_text)
     dumped_with_correct = run_dump(log_text, include_debug_rows=True)
     require(output, "overall primary misses")
+    require(output, "expected snare: tom=1")
     require(output, "expected tom: ambiguous=1 kick=1")
-    require(output, "drum: 2 primary misses")
+    require(output, "drum: 3 primary misses")
     require(output, "tom -> ambiguous: 1")
     require(output, "tom -> kick: 1")
+    require(output, "snare -> tom: 1")
     require(output, "examples: tom/001.wav")
     require(output, "band        expected/got avg=2.00")
     require(output, "expected shape supported: 1/1")
@@ -146,6 +154,8 @@ def main() -> int:
         raise AssertionError(f"expected debug-only primary hit to keep analyzer expected label:\n{dumped_with_correct}")
     if dumped_with_correct.count("tom/001.wav\ttom\tkick") != 1:
         raise AssertionError(f"expected primary miss sample to be dumped once:\n{dumped_with_correct}")
+    if "100000" in output:
+        raise AssertionError(f"expected zero-denominator ratios to be skipped:\n{output}")
     print("test_analyze_drum_primary_debug: ok")
     return 0
 

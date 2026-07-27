@@ -88,18 +88,28 @@ def primary(metrics):
     return "ambiguous" if tied > 1 else best
 
 
+def safe_ratio(numerator, denominator):
+    if abs(denominator) < 1.0e-9:
+        return None
+    return numerator / denominator
+
+
 def ratio(metrics, lhs, rhs, key):
-    return metrics[lhs][key] / (metrics[rhs][key] + 1.0e-9)
+    return safe_ratio(metrics[lhs][key], metrics[rhs][key])
 
 
 def body_ratio(body, lhs, rhs):
-    return body[lhs] / (body[rhs] + 1.0e-9)
+    return safe_ratio(body[lhs], body[rhs])
 
 
 def summarize_values(values):
-    if not values:
+    finite_values = [value for value in values if value is not None]
+    if not finite_values:
         return "n/a"
-    return f"avg={sum(values) / len(values):.2f} min={min(values):.2f} max={max(values):.2f}"
+    return (
+        f"avg={sum(finite_values) / len(finite_values):.2f} "
+        f"min={min(finite_values):.2f} max={max(finite_values):.2f}"
+    )
 
 
 def main() -> int:

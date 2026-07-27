@@ -144,14 +144,24 @@ def row_body(row):
     return row["body"]
 
 
-def body_ratio(body, lhs: str, rhs: str) -> float:
-    return body[lhs] / (body[rhs] + 1.0e-9)
+def safe_ratio(numerator: float, denominator: float) -> float | None:
+    if abs(denominator) < 1.0e-9:
+        return None
+    return numerator / denominator
 
 
-def summarize_values(values: list[float]) -> str:
-    if not values:
+def body_ratio(body, lhs: str, rhs: str) -> float | None:
+    return safe_ratio(body[lhs], body[rhs])
+
+
+def summarize_values(values: list[float | None]) -> str:
+    finite_values = [value for value in values if value is not None]
+    if not finite_values:
         return "n/a"
-    return f"avg={sum(values) / len(values):.2f} min={min(values):.2f} max={max(values):.2f}"
+    return (
+        f"avg={sum(finite_values) / len(finite_values):.2f} "
+        f"min={min(finite_values):.2f} max={max(finite_values):.2f}"
+    )
 
 
 def print_overall(rows) -> None:
@@ -217,9 +227,11 @@ def summarize(label: str, rows, example_count: int) -> None:
         metric_rows = [row_metrics(row) for row in group]
         for metric in ("band", "seg", "shape_score", "trigger", "level"):
             ratios = [
-                metrics[expected][metric] / (metrics[got][metric] + 1.0e-9)
+                ratio
                 for metrics in metric_rows
                 if expected in metrics and got in metrics
+                if (ratio := safe_ratio(metrics[expected][metric], metrics[got][metric]))
+                is not None
             ]
             if not ratios:
                 continue
