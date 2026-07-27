@@ -14051,6 +14051,34 @@ ChordResult preserve_raw_plain_primary_order(const ChordResult &smoothed, const 
 	return promoted;
 }
 
+ChordResult preserve_smoothed_plain_primary_order(const ChordResult &smoothed, const ChordResult &raw)
+{
+	if (!primary_chord_is_plain_major_minor(smoothed) ||
+	    smoothed.confidence < raw.confidence * 0.50f)
+		return raw;
+
+	ParsedRootChord raw_primary;
+	if (parse_plain_major_minor_component(raw.label, std::strcspn(raw.label, "="), raw_primary))
+		return raw;
+
+	const std::size_t smoothed_primary_len = std::strcspn(smoothed.label, "=");
+	if (!chord_label_has_component(raw.label, smoothed.label, smoothed_primary_len))
+		return raw;
+
+	ChordResult promoted = smoothed;
+	char label[sizeof(promoted.label)] = {};
+	append_unique_chord_components(label, sizeof(label), smoothed.label, nullptr);
+	append_unique_chord_components(label, sizeof(label), raw.label, smoothed.label);
+	if (!label[0])
+		return raw;
+
+	copy_text(promoted.label, sizeof(promoted.label), label);
+	promoted.confidence = std::max(smoothed.confidence, raw.confidence);
+	promoted.margin = std::max(smoothed.margin, raw.margin);
+	promoted.uncertain = smoothed.uncertain && raw.uncertain;
+	return promoted;
+}
+
 ChordResult choose_chord_candidate(const ChordResult &raw, const ChordResult &smoothed,
 				   bool preserve_raw_plain_primary = false)
 {
@@ -14068,8 +14096,11 @@ ChordResult choose_chord_candidate(const ChordResult &raw, const ChordResult &sm
 		}
 		if (raw_components > smoothed_components &&
 		    chord_label_contains_all_components(raw.label, smoothed.label) &&
-		    raw.confidence >= smoothed.confidence * 0.72f)
+		    raw.confidence >= smoothed.confidence * 0.72f) {
+			if (preserve_raw_plain_primary)
+				return preserve_smoothed_plain_primary_order(smoothed, raw);
 			return raw;
+		}
 	}
 	if (raw_valid && (!smoothed_valid || raw.confidence >= smoothed.confidence * 0.96f))
 		return raw;
