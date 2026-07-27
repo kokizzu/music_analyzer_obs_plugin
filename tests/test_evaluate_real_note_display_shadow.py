@@ -215,6 +215,38 @@ def main() -> int:
             text=True,
             stdout=subprocess.PIPE,
         )
+        target_level_threshold_result = subprocess.run(
+            [
+                sys.executable,
+                str(ROOT / "scripts" / "evaluate_real_note_display_shadow.py"),
+                str(path),
+                "--shadow-row",
+                "piano",
+                "--target-row",
+                "guitar",
+                "--min-shadow-level",
+                "0.10",
+                "--min-target-level",
+                "0.10",
+                "--summary-only",
+                "--threshold-search",
+                "--max-protected",
+                "0",
+                "--threshold-limit",
+                "2",
+                "--shadow-score-thresholds",
+                "0.18",
+                "--score-ratios",
+                "0.50",
+                "--level-ratios",
+                "0.90",
+                "--target-level-thresholds",
+                "0.40",
+            ],
+            check=True,
+            text=True,
+            stdout=subprocess.PIPE,
+        )
 
     output = result.stdout
     assert "piano->same-pitch guitar extras rows=2 samples=2" in output, output
@@ -233,6 +265,11 @@ def main() -> int:
     threshold_output = threshold_result.stdout
     assert "piano->same-pitch guitar threshold search max_protected=0" in threshold_output, threshold_output
     assert "protected=0/1 extras=1/2 min_shadow_score=0.18 score_ratio=0.50 level_ratio=0.90" in threshold_output, threshold_output
+    target_level_threshold_output = target_level_threshold_result.stdout
+    assert (
+        "protected=0/1 extras=1/2 min_shadow_score=0.18 score_ratio=0.50 "
+        "level_ratio=0.90 target_level_max=0.40"
+    ) in target_level_threshold_output, target_level_threshold_output
     return 0
 
 

@@ -168,6 +168,24 @@ def parse_float_list(value: str) -> list[float]:
     return out
 
 
+def parse_optional_float_list(value: str) -> list[float | None]:
+    out: list[float | None] = []
+    for part in value.split(","):
+        part = part.strip()
+        if not part:
+            continue
+        if part.lower() in {"none", "off", "-"}:
+            out.append(None)
+            continue
+        try:
+            out.append(float(part))
+        except ValueError as exc:
+            raise argparse.ArgumentTypeError(f"invalid float `{part}` in `{value}`") from exc
+    if not out:
+        raise argparse.ArgumentTypeError("expected at least one float or `none`")
+    return out
+
+
 def load_rows(path: pathlib.Path) -> list[dict[str, str]]:
     with path.open(newline="", errors="replace") as handle:
         return list(csv.DictReader(handle, delimiter="\t"))
@@ -304,6 +322,7 @@ def threshold_rule_matches(
     min_shadow_score: float,
     score_ratio: float,
     level_ratio: float,
+    target_level_ceiling: float | None,
 ) -> bool:
     target_score = as_float(record, "target_score") or 0.0
     shadow_score = as_float(record, "shadow_score") or 0.0
@@ -314,6 +333,7 @@ def threshold_rule_matches(
         and shadow_score >= min_shadow_score
         and target_score <= shadow_score * score_ratio
         and target_level <= shadow_level * level_ratio
+        and (target_level_ceiling is None or target_level <= target_level_ceiling)
     )
 
 
@@ -323,39 +343,81 @@ def print_threshold_search(
     shadow_score_thresholds: list[float],
     score_ratios: list[float],
     level_ratios: list[float],
+    target_level_thresholds: list[float | None],
     max_protected: int,
     limit: int,
 ) -> None:
     extras = [record for record in records if record["protected"] == "0"]
     protected = [record for record in records if record["protected"] == "1"]
-    matches: list[tuple[int, int, float, float, float]] = []
+    matches: list[tuple[int, int, float, float, float, float | None]] = []
     for min_shadow_score in shadow_score_thresholds:
         for score_ratio in score_ratios:
             for level_ratio in level_ratios:
-                extra_hits = sum(
-                    1
-                    for record in extras
-                    if threshold_rule_matches(record, min_shadow_score, score_ratio, level_ratio)
-                )
-                protected_hits = sum(
-                    1
-                    for record in protected
-                    if threshold_rule_matches(record, min_shadow_score, score_ratio, level_ratio)
-                )
-                if extra_hits > 0 and protected_hits <= max_protected:
-                    matches.append((protected_hits, extra_hits, min_shadow_score, score_ratio, level_ratio))
+                for target_level_ceiling in target_level_thresholds:
+                    extra_hits = sum(
+                        1
+                        for record in extras
+                        if threshold_rule_matches(
+                            record,
+                            min_shadow_score,
+                            score_ratio,
+                            level_ratio,
+                            target_level_ceiling,
+                        )
+                    )
+                    protected_hits = sum(
+                        1
+                        for record in protected
+                        if threshold_rule_matches(
+                            record,
+                            min_shadow_score,
+                            score_ratio,
+                            level_ratio,
+                            target_level_ceiling,
+                        )
+                    )
+                    if extra_hits > 0 and protected_hits <= max_protected:
+                        matches.append(
+                            (
+                                protected_hits,
+                                extra_hits,
+                                min_shadow_score,
+                                score_ratio,
+                                level_ratio,
+                                target_level_ceiling,
+                            )
+                        )
 
     print(f"\n{title} threshold search max_protected={max_protected}")
     if not matches:
         print("  no matching thresholds")
         return
-    matches.sort(key=lambda item: (item[0], -item[1], item[2], item[3], item[4]))
-    for protected_hits, extra_hits, min_shadow_score, score_ratio, level_ratio in matches[: max(0, limit)]:
-        print(
+    matches.sort(
+        key=lambda item: (
+            item[0],
+            -item[1],
+            item[2],
+            item[3],
+            item[4],
+            9.0 if item[5] is None else item[5],
+        )
+    )
+    for (
+        protected_hits,
+        extra_hits,
+        min_shadow_score,
+        score_ratio,
+        level_ratio,
+        target_level_ceiling,
+    ) in matches[: max(0, limit)]:
+        line = (
             f"  protected={protected_hits}/{len(protected)} extras={extra_hits}/{len(extras)} "
             f"min_shadow_score={min_shadow_score:.2f} score_ratio={score_ratio:.2f} "
             f"level_ratio={level_ratio:.2f}"
         )
+        if target_level_ceiling is not None:
+            line += f" target_level_max={target_level_ceiling:.2f}"
+        print(line)
 
 
 def print_group(title: str, records: list[dict[str, str]], examples: int) -> None:
@@ -428,6 +490,12 @@ def main() -> int:
         type=parse_float_list,
         default=parse_float_list("0.72,0.68,0.64,0.60,0.56,0.52,0.48,0.44,0.40,0.35,0.30"),
     )
+    parser.add_argument(
+        "--target-level-thresholds",
+        type=parse_optional_float_list,
+        default=parse_optional_float_list("none"),
+        help="optional absolute target-level ceilings to include in threshold search",
+    )
     args = parser.parse_args()
 
     rows = load_rows(pathlib.Path(args.path))
@@ -478,6 +546,7 @@ def main() -> int:
                 args.shadow_score_thresholds,
                 args.score_ratios,
                 args.level_ratios,
+                args.target_level_thresholds,
                 args.max_protected,
                 args.threshold_limit,
             )
