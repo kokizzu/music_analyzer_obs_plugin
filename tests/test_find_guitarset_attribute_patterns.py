@@ -158,6 +158,26 @@ def main() -> int:
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
         )
+        alias_completed = subprocess.run(
+            [
+                sys.executable,
+                str(SCRIPT),
+                str(path),
+                "--top-buckets",
+                "1",
+                "--min-support",
+                "2",
+                "--max-patterns",
+                "1",
+                "--show-examples",
+                "1",
+            ],
+            cwd=ROOT,
+            check=True,
+            text=True,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+        )
         single_note_false = subprocess.run(
             [
                 sys.executable,
@@ -371,6 +391,9 @@ def main() -> int:
     assert "chord_hit<=" not in output
     assert "bucket chord_miss:maj:visible2_analysis3_smooth3_rootvis1 positives=2" in auto_completed.stdout
     assert "rec2@2.500s expected=G guitar=--" in auto_completed.stdout
+    assert "bucket chord_miss:maj:visible2_analysis3_smooth3_rootvis1 positives=2" in alias_completed.stdout
+    assert alias_completed.stdout.count("\n  +") == 1
+    assert "rec2@2.500s expected=G guitar=--" in alias_completed.stdout
     assert "bucket single_note_false_chord:any:any positives=1" in single_note_false.stdout
     assert "rec4@" in single_note_false.stdout
     assert "expected=-- guitar=Fm=Fpow=F" in single_note_false.stdout

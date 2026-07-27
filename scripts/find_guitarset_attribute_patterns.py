@@ -532,8 +532,22 @@ def main() -> int:
         default=4,
         help="when --bucket is omitted, mine this many largest chord-miss buckets; 0 disables auto buckets",
     )
-    parser.add_argument("--limit", type=int, default=12)
-    parser.add_argument("--min-positive-recordings", type=int, default=3)
+    parser.add_argument(
+        "--limit",
+        "--max-patterns",
+        dest="limit",
+        type=int,
+        default=12,
+        help="maximum patterns to print per bucket",
+    )
+    parser.add_argument(
+        "--min-positive-recordings",
+        "--min-support",
+        dest="min_positive_recordings",
+        type=int,
+        default=3,
+        help="minimum positive recordings a printed pattern must cover",
+    )
     parser.add_argument("--max-negative-recordings", type=int, default=0)
     parser.add_argument("--show-examples", "--row-examples", dest="show_examples", type=int, default=3)
     parser.add_argument(
