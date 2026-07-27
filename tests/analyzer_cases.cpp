@@ -534,7 +534,8 @@ std::string full_mix_debug_summary_for_midi(const mao::AnalysisSnapshot &snapsho
 		    << " spec=" << debug.spectral_level << " pitch=" << debug.pitch_confidence
 		    << " per=" << debug.periodicity << " fit=" << debug.harmonic_fit_error
 		    << " cent=" << debug.spectral_centroid << " slope=" << debug.spectral_slope
-		    << " noise=" << debug.local_noise_level << " partials="
+		    << " noise=" << debug.local_noise_level << " third=" << debug.third_octave_ratio
+		    << " partials="
 		    << debug.harmonic_ratios[1] << "," << debug.harmonic_ratios[2] << ","
 		    << debug.harmonic_ratios[3] << "," << debug.harmonic_ratios[4];
 	}
@@ -3050,6 +3051,32 @@ void check_full_mix_single_owned_note_has_no_instrument_chord(Runner &runner)
 					  "expected no guitar G, got `") +
 				      note_grid_active_labels(snapshot.guitar_notes) + "`");
 	}
+
+	{
+		mao_test::Buffer buffer = {};
+		const std::vector<float> octave_ladder_brass_profile =
+			{1.0f, 3.20f, 2.75f, 1.25f, 0.62f, 0.0f, 0.0f, 1.0f};
+		add_harmonic_note(buffer, 42, 0.070f, octave_ladder_brass_profile);
+
+		const auto snapshot =
+			analyze_buffer_with_mode(buffer, mao::AnalysisInputMode::FullMix,
+						 "single octave-ladder other note", 3);
+		expect_global_pitch_class(runner, snapshot, 6, "full-mix octave-ladder other global");
+		runner.expect(grid_pitch_active(snapshot.other_notes, 6) ||
+				      grid_pitch_active(snapshot.ambiguous_notes, 6),
+			      std::string("full-mix octave-ladder other: expected other/ambiguous F#, "
+					  "got other `") +
+				      snapshot.other.label + "`, ambiguous `" +
+				      note_grid_active_labels(snapshot.ambiguous_notes) + "`, guitar `" +
+				      snapshot.guitar.label + "`");
+		runner.expect(!grid_pitch_active(snapshot.guitar_notes, 6),
+			      std::string("full-mix octave-ladder other guitar shadow: expected no guitar F#, "
+					  "got `") +
+				      note_grid_active_labels(snapshot.guitar_notes) + "`, debug lower `" +
+				      full_mix_debug_summary_for_midi(snapshot, 42) + "`, debug octave `" +
+				      full_mix_debug_summary_for_midi(snapshot, 54) + "`, debug second `" +
+				      full_mix_debug_summary_for_midi(snapshot, 66) + "`");
+	}
 }
 
 void check_simultaneous_onset_group_rejects_vocal_spillover(Runner &runner)
@@ -3226,7 +3253,14 @@ void check_mixed_keyboard_guitar_note_bounds(Runner &runner)
 	runner.expect(grid_has_any_active(snapshot.keyboard_notes),
 		      "mixed keyboard/guitar bounds: expected keyboard notes active");
 	runner.expect(grid_has_any_active(snapshot.guitar_notes),
-		      "mixed keyboard/guitar bounds: expected guitar notes active");
+		      std::string("mixed keyboard/guitar bounds: expected guitar notes active, got guitar `") +
+			      note_grid_active_labels(snapshot.guitar_notes) + "`, debug C3 `" +
+			      full_mix_debug_summary_for_midi(snapshot, 48) + "`, debug E3 `" +
+			      full_mix_debug_summary_for_midi(snapshot, 52) + "`, debug G3 `" +
+			      full_mix_debug_summary_for_midi(snapshot, 55) + "`, debug C4 `" +
+			      full_mix_debug_summary_for_midi(snapshot, 60) + "`, debug E4 `" +
+			      full_mix_debug_summary_for_midi(snapshot, 64) + "`, debug C2 `" +
+			      full_mix_debug_summary_for_midi(snapshot, 36) + "`");
 	runner.expect(grid_active_cell_count(snapshot.keyboard_notes) <= 8,
 		      "mixed keyboard/guitar bounds: expected keyboard grid <= 8 active cells, got " +
 			      std::to_string(grid_active_cell_count(snapshot.keyboard_notes)) + " label `" +

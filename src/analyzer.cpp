@@ -5260,6 +5260,27 @@ const FullMixDebugCandidate *strongest_same_pitch_non_guitar_debug_below(
 	return best;
 }
 
+int guitar_like_debug_pitch_class_count(const FullMixOwnership &ownership)
+{
+	std::array<bool, 12> pitch_classes = {};
+	const std::size_t debug_count =
+		std::min<std::size_t>(ownership.debug_candidate_count, ownership.debug_candidates.size());
+	for (std::size_t i = 0; i < debug_count; ++i) {
+		const FullMixDebugCandidate &debug = ownership.debug_candidates[i];
+		if (debug.guitar_score < 0.070f)
+			continue;
+		if (ownership_global_note_level(ownership, debug.midi) < 0.08f)
+			continue;
+		pitch_classes[static_cast<std::size_t>(midi_pitch_class(debug.midi))] = true;
+	}
+	int count = 0;
+	for (bool active : pitch_classes) {
+		if (active)
+			++count;
+	}
+	return count;
+}
+
 bool guitar_display_candidate_shadowed_by_non_guitar_pitch(const FullMixOwnership &ownership,
 							   const NoteCandidate &candidate)
 {
@@ -5269,6 +5290,25 @@ bool guitar_display_candidate_shadowed_by_non_guitar_pitch(const FullMixOwnershi
 	const FullMixDebugCandidate *debug = full_mix_debug_for_midi(ownership, candidate.midi);
 	if (debug && low_slope_electronic_keyboard_guitar_shadow(*debug))
 		return true;
+
+	const bool dense_guitar_context =
+		debug && debug->guitar_score >= 0.070f &&
+		guitar_like_debug_pitch_class_count(ownership) >= 3;
+	if (!dense_guitar_context) {
+		const int pitch_class = midi_pitch_class(candidate.midi);
+		const std::size_t debug_count =
+			std::min<std::size_t>(ownership.debug_candidate_count, ownership.debug_candidates.size());
+		for (std::size_t i = 0; i < debug_count; ++i) {
+			const FullMixDebugCandidate &lower = ownership.debug_candidates[i];
+			const int interval = candidate.midi - lower.midi;
+			if (interval < 0 || interval > 37 || midi_pitch_class(lower.midi) != pitch_class)
+				continue;
+			if (ownership_global_note_level(ownership, lower.midi) < 0.08f)
+				continue;
+			if (non_guitar_third_octave_shadow_blocks_guitar_display(lower))
+				return true;
+		}
+	}
 
 	const FullMixDebugCandidate *lower =
 		strongest_same_pitch_non_guitar_debug_at_or_below(ownership, candidate.midi);
@@ -16136,6 +16176,8 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 					full_mix_display_candidates(full_mix_ownership, FullMixDisplayRow::Guitar));
 			restore_supported_lower_guitar_debug_candidates(guitar_display, full_mix_ownership);
 			prefer_supported_lower_octave_candidates(guitar_display, kGuitarMinMidi, 0.30f, 0.18f);
+			guitar_display = prune_shadowed_full_mix_guitar_display_candidates(
+				full_mix_ownership, guitar_display);
 			set_instrument_note_set_from_candidates(snapshot.guitar_notes, snapshot.guitar,
 								guitar_display,
 								preferred_root, guitar_energy, rms, max_notes, 0.28f);
