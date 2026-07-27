@@ -1093,6 +1093,88 @@ struct FullMixOwnership {
 	std::size_t debug_candidate_count = 0;
 };
 
+bool measured_b1_electric_bass_octave_debug_supported(const FullMixOwnership &ownership)
+{
+	const std::size_t debug_count =
+		std::min<std::size_t>(ownership.debug_candidate_count, ownership.debug_candidates.size());
+	for (std::size_t i = 0; i < debug_count; ++i) {
+		const FullMixDebugCandidate &debug = ownership.debug_candidates[i];
+		if (debug.midi != 47)
+			continue;
+
+		const bool measured_other_or_guitar =
+			(debug.owner == InstrumentKind::Other || debug.owner == InstrumentKind::Guitar) &&
+			debug.ownership_confidence >= 0.62f &&
+			debug.spectral_level >= 0.80f &&
+			debug.pitch_confidence >= 0.60f &&
+			debug.periodicity >= 0.74f &&
+			debug.harmonic_fit_error <= 0.18f &&
+			debug.local_noise_level >= 0.28f &&
+			debug.local_noise_level <= 0.42f &&
+			debug.spectral_centroid >= 0.20f &&
+			debug.spectral_centroid <= 0.34f &&
+			debug.spectral_slope >= 0.060f &&
+			debug.spectral_slope <= 0.30f &&
+			debug.harmonic_ratios[1] >= 0.55f &&
+			debug.harmonic_ratios[1] <= 0.95f &&
+			debug.harmonic_ratios[2] >= 0.080f &&
+			debug.harmonic_ratios[2] <= 0.33f &&
+			debug.harmonic_ratios[3] <= 0.12f &&
+			debug.harmonic_ratios[4] <= 0.16f;
+		const bool measured_ambiguous_clean =
+			debug.owner == InstrumentKind::Ambiguous &&
+			debug.spectral_level >= 0.94f &&
+			debug.pitch_confidence >= 0.78f &&
+			debug.periodicity >= 0.64f &&
+			debug.harmonic_fit_error <= 0.035f &&
+			debug.local_noise_level >= 0.29f &&
+			debug.local_noise_level <= 0.35f &&
+			debug.harmonic_ratios[1] <= 0.22f &&
+			debug.harmonic_ratios[2] <= 0.020f &&
+			debug.harmonic_ratios[3] <= 0.010f &&
+			debug.harmonic_ratios[4] <= 0.006f;
+		if (measured_other_or_guitar || measured_ambiguous_clean)
+			return true;
+	}
+	return false;
+}
+
+float confirmed_full_mix_bass_visual_confidence_floor(const FullMixOwnership &ownership,
+						      const std::array<float, kNoteProbeCount> &powers,
+						      const RangeResult &note)
+{
+	if (note.midi != 35 || note.score <= 1.0e-6f || note.confidence < 0.20f)
+		return 0.0f;
+
+	const float fundamental = probe_level(powers, note.midi);
+	if (fundamental <= 1.0e-6f)
+		return 0.0f;
+
+	const float octave = probe_level(powers, note.midi + 12);
+	const float fifth = probe_level(powers, note.midi + 19);
+	const float second_octave = probe_level(powers, note.midi + 24);
+	const float upper_major_third = probe_level(powers, note.midi + 28);
+	const bool octave_dominant_b1_bass =
+		fundamental >= octave * 0.28f &&
+		octave >= fundamental * 0.58f &&
+		fifth >= fundamental * 0.28f &&
+		second_octave >= fundamental * 0.40f &&
+		upper_major_third <= fundamental * 0.86f;
+	if (!octave_dominant_b1_bass || !measured_b1_electric_bass_octave_debug_supported(ownership))
+		return 0.0f;
+
+	return 0.56f;
+}
+
+void apply_confirmed_full_mix_bass_visual_floor(const FullMixOwnership &ownership,
+						const std::array<float, kNoteProbeCount> &powers,
+						RangeResult &note)
+{
+	const float floor = confirmed_full_mix_bass_visual_confidence_floor(ownership, powers, note);
+	if (floor > 0.0f)
+		note.confidence = std::max(note.confidence, floor);
+}
+
 int count_owned_notes(const std::array<bool, kNoteProbeCount> &mask)
 {
 	int count = 0;
@@ -16904,6 +16986,11 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 				}
 			}
 
+			if (!isolated_bass)
+				apply_confirmed_full_mix_bass_visual_floor(full_mix_ownership,
+									   detection_note_powers,
+									   displayed_bass);
+
 			snapshot.bass_debug_displayed_midi = displayed_bass.midi;
 			snapshot.bass_debug_displayed_confidence = displayed_bass.confidence;
 			snapshot.bass_debug_displayed_score = displayed_bass.score;
@@ -16956,6 +17043,9 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 				tracked_bass_confidence_ = displayed_bass.confidence;
 				tracked_bass_score_ = displayed_bass.score;
 				++tracked_bass_misses_;
+				apply_confirmed_full_mix_bass_visual_floor(full_mix_ownership,
+									   detection_note_powers,
+									   displayed_bass);
 				snapshot.bass_debug_displayed_midi = displayed_bass.midi;
 				snapshot.bass_debug_displayed_confidence = displayed_bass.confidence;
 				snapshot.bass_debug_displayed_score = displayed_bass.score;

@@ -661,6 +661,35 @@ void check_full_mix_bass_conservative_switching(Runner &runner)
 	expect_label(runner, snapshot.bass.label, "E2", "full-mix bass switching confirmed");
 }
 
+void check_full_mix_electronic_bass_visual_floor(Runner &runner)
+{
+	mao::AnalysisEngine engine;
+	mao::AnalysisSettings settings = mao_test::default_settings();
+	settings.input_mode = mao::AnalysisInputMode::FullMix;
+	settings.analysis_interval_seconds = 0.05f;
+
+	mao_test::Buffer buffer = {};
+	const std::vector<float> octave_dominant_bass_profile = {0.76f, 1.0f, 0.98f, 0.76f, 0.16f, 0.13f};
+	add_harmonic_note(buffer, 35, 0.22f, octave_dominant_bass_profile);
+
+	mao::AnalysisSnapshot snapshot = {};
+	for (int i = 0; i < 4; ++i)
+		snapshot = engine.analyze(buffer.data(), buffer.size(), settings, "Mic/Aux", 0);
+
+	const float bass_level = grid_visual_level_for_midi(snapshot.bass_notes, 35);
+	const float keyboard_level = grid_visual_level_for_midi(snapshot.keyboard_notes, 35);
+	expect_label(runner, snapshot.bass.label, "B1", "full-mix electronic bass visual floor note");
+	runner.expect(bass_level >= 0.90f,
+		      "full-mix electronic bass visual floor: expected bright B1 bass, got " +
+			      std::to_string(bass_level) + " bass notes `" +
+			      note_grid_active_labels(snapshot.bass_notes) + "` keyboard `" +
+			      note_grid_active_labels(snapshot.keyboard_notes) + "` debug B2 `" +
+			      full_mix_debug_summary_for_midi(snapshot, 47) + "`");
+	runner.expect(bass_level >= keyboard_level,
+		      "full-mix electronic bass visual floor: expected bass at least as bright as keyboard mirror, got bass " +
+			      std::to_string(bass_level) + " keyboard " + std::to_string(keyboard_level));
+}
+
 void check_vocal_notes(Runner &runner)
 {
 	for (int midi = 40; midi <= 84; ++midi) {
@@ -5732,6 +5761,7 @@ int main()
 	check_isolated_bass_periodic_fundamental_rescue(runner);
 	check_isolated_bass_upper_note_not_third_partial_alias(runner);
 	check_full_mix_bass_conservative_switching(runner);
+	check_full_mix_electronic_bass_visual_floor(runner);
 	check_vocal_notes(runner);
 	check_harmonic_single_notes(runner);
 	check_harmonic_chords(runner);
