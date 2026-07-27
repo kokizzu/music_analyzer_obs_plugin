@@ -181,6 +181,7 @@ def main() -> int:
         "test-real-note-attribute-patterns",
         "test-drum-gate-matrix-summary",
         "test-drum-sample-shard-check",
+        "test-real-note-full-mix-shard-check",
         "android-check",
     ]:
         assert target in analysis_script_target_list, (
@@ -220,6 +221,15 @@ def main() -> int:
     assert "REAL_NOTE_FULL_MIX_TEST_MAKE_JOBS = $(if $(filter -j%,$(MAKEFLAGS)),,-j$(REAL_NOTE_FULL_MIX_SHARDS))" in makefile, (
         "real-note shard tests must not force nested jobserver mode"
     )
+    assert "REAL_NOTE_FULL_MIX_SHARD_OUTS := $(addprefix $(BUILD_DIR)/real_note_full_mix_shard_,$(addsuffix .out,$(REAL_NOTE_FULL_MIX_SHARD_INDEXES)))" in makefile, (
+        "real-note full-mix aggregate checker must consume deterministic shard outputs"
+    )
+    for text in [
+        "REAL_NOTE_FULL_MIX_AGG_MIN_FIRST_ROW_PERCENT ?= 30",
+        "REAL_NOTE_FULL_MIX_AGG_MIN_GUITAR_FIRST_ROW_PERCENT ?= 43",
+        "REAL_NOTE_FULL_MIX_AGG_MIN_OTHER_FIRST_ROW_PERCENT ?= 15",
+    ]:
+        assert text in makefile, f"real-note aggregate gate must include {text}"
     assert "$(MAKE) $(REAL_NOTE_FULL_MIX_TEST_MAKE_JOBS) $(REAL_NOTE_FULL_MIX_SHARD_TARGETS)" in real_note_sharded_recipe, (
         "real-note full-mix parallel target must fan out deterministic shards through jobserver-aware make"
     )
@@ -229,6 +239,18 @@ def main() -> int:
     assert "scripts/prepare_nsynth_samples.py\" -nt \"$(REAL_NOTE_SAMPLE_DIR)/manifest.tsv\"" in real_note_sharded_recipe, (
         "real-note full-mix parallel target must skip sample regeneration when the manifest is fresh"
     )
+    assert "$(PYTHON) scripts/check_real_note_full_mix_shards.py" in real_note_sharded_recipe, (
+        "real-note full-mix parallel target must validate aggregated shard ownership metrics"
+    )
+    for text in [
+        "--min-first-row-percent \"$(REAL_NOTE_FULL_MIX_AGG_MIN_FIRST_ROW_PERCENT)\"",
+        "--guitar-min-first-row-percent \"$(REAL_NOTE_FULL_MIX_AGG_MIN_GUITAR_FIRST_ROW_PERCENT)\"",
+        "--other-min-first-row-percent \"$(REAL_NOTE_FULL_MIX_AGG_MIN_OTHER_FIRST_ROW_PERCENT)\"",
+        "$(REAL_NOTE_FULL_MIX_SHARD_OUTS)",
+    ]:
+        assert text in real_note_sharded_recipe, (
+            f"real-note aggregate checker recipe must include {text}"
+        )
     real_note_shard_recipe = target_recipe(makefile, "test-real-note-samples-full-mix-shard-%")
     for text in [
         "MUSIC_ANALYZER_REAL_NOTE_FULL_MIX=1",
@@ -238,6 +260,11 @@ def main() -> int:
         "$(REAL_NOTE_FULL_MIX_GATE_ENV)",
     ]:
         assert text in real_note_shard_recipe, f"real-note shard target must include {text}"
+    for text in [
+        "> \"$(BUILD_DIR)/real_note_full_mix_shard_$*.out\"",
+        "2> \"$(BUILD_DIR)/real_note_full_mix_shard_$*.err\"",
+    ]:
+        assert text in real_note_shard_recipe, f"real-note shard target must write {text}"
     for text in [
         "REAL_NOTE_FULL_MIX_GATE_ENV = \\",
         "MUSIC_ANALYZER_REAL_NOTE_MIN_EXPECTED_ROW_PERCENT=\"$(REAL_NOTE_FULL_MIX_MIN_EXPECTED_ROW_PERCENT)\"",
