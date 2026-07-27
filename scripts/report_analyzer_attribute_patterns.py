@@ -221,6 +221,10 @@ def row_note_field(row_name: str) -> str | None:
     return None
 
 
+def visible_note_rows() -> tuple[str, ...]:
+    return ("bass", "guitar", "piano", "vocals", "other", "amb")
+
+
 def target_octave_duplicate_count(row: dict[str, str], family_field: str = "family") -> int:
     return octave_duplicate_count(note_cell_midis(row.get(target_note_field(row.get(family_field, "")), "")))
 
@@ -472,6 +476,42 @@ def note_row_counts(row: dict[str, str], target_midi: int) -> tuple[int, int]:
     return exact_rows, pitch_rows
 
 
+def exact_spillover_entries(
+    rows: list[dict[str, str]],
+    *,
+    midi_field: str,
+    min_level: float,
+) -> list[dict[str, str]]:
+    entries: list[dict[str, str]] = []
+    for row in rows:
+        if row.get("status") != "hit":
+            continue
+        expected_midi = parse_int(row.get(midi_field, ""))
+        if expected_midi is None:
+            continue
+        expected_row = expected_row_for_family(row.get("family", ""))
+        expected_exact, _expected_pitch, _expected_delta = note_row_levels(row, expected_row, expected_midi)
+        for row_name in visible_note_rows():
+            if row_name == expected_row:
+                continue
+            level = max(
+                (level for midi, level in note_row_cells(row, row_name) if midi == expected_midi),
+                default=0.0,
+            )
+            if level < min_level:
+                continue
+            entry = dict(row)
+            entry["spillover_row"] = row_name
+            entry["spillover_level"] = format_derived_float(level)
+            entry["expected_row_exact_level"] = format_derived_float(expected_exact)
+            entries.append(entry)
+    return entries
+
+
+def spillover_route(row: dict[str, str]) -> str:
+    return f"{row.get('family', '')}/{row.get('source', '')}->{row.get('spillover_row', '')}"
+
+
 def format_derived_float(value: float) -> str:
     return f"{value:.3f}"
 
@@ -541,11 +581,17 @@ def report_real_notes(path: pathlib.Path, limit: int, row_examples: int) -> None
     confused_rows = real_note_row_confusion_rows(rows)
     visible_confused = visible_row_confusion_rows(confused_rows)
     exact_confused = exact_row_confusion_rows(confused_rows)
+    spillover_rows = exact_spillover_entries(rows, midi_field="expected_midi", min_level=0.25)
     print(
         f"  strongest-row confusion rows={len(confused_rows)} "
         f"samples={unique_sample_count(confused_rows, 'sample_id')} "
         f"visible>=0.50={row_count_summary(visible_confused)} "
         f"exact>=0.25={row_count_summary(exact_confused)}"
+    )
+    print(
+        f"  same-midi spillover>=0.25 entries={len(spillover_rows)} "
+        f"samples={unique_sample_count(spillover_rows, 'sample_id')} "
+        f"routes={compact(collections.Counter(spillover_route(row) for row in spillover_rows), limit)}"
     )
     if confused_rows:
         confusion_buckets: dict[str, list[dict[str, str]]] = collections.defaultdict(list)

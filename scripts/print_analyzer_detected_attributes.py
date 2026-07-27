@@ -269,6 +269,92 @@ def target_note_field(family: str) -> str:
     return "other_notes"
 
 
+def row_note_field(row_name: str) -> str | None:
+    if row_name == "bass":
+        return "bass_notes"
+    if row_name == "guitar":
+        return "guitar_notes"
+    if row_name == "piano":
+        return "piano_notes"
+    if row_name == "vocals":
+        return "vocal_notes"
+    if row_name == "other":
+        return "other_notes"
+    if row_name == "amb":
+        return "amb_notes"
+    return None
+
+
+def expected_row_for_family(family: str) -> str:
+    if family == "piano":
+        return "piano"
+    if family == "vocals":
+        return "vocals"
+    if family in {"strings", "synth", "other"}:
+        return "other"
+    return family
+
+
+def parse_note_level_cells(value: str) -> list[tuple[int, float]]:
+    cells: list[tuple[int, float]] = []
+    for part in (value or "").split(","):
+        note, separator, level = part.strip().partition(":")
+        if not separator or not note or note == "--":
+            continue
+        midi = midi_from_note_label(note)
+        if midi is None:
+            continue
+        try:
+            cells.append((midi, float(level)))
+        except ValueError:
+            continue
+    return cells
+
+
+def note_row_cells(row: dict[str, str], row_name: str) -> list[tuple[int, float]]:
+    field = row_note_field(row_name)
+    if not field:
+        return []
+    return parse_note_level_cells(row.get(field, ""))
+
+
+def note_row_exact_level(row: dict[str, str], row_name: str, target_midi: int) -> float:
+    return max((level for midi, level in note_row_cells(row, row_name) if midi == target_midi), default=0.0)
+
+
+def exact_spillover_entries(
+    rows: list[dict[str, str]],
+    *,
+    midi_field: str,
+    min_level: float,
+) -> list[dict[str, str]]:
+    entries: list[dict[str, str]] = []
+    for row in rows:
+        if row.get("status") != "hit":
+            continue
+        expected_midi = parse_int(row.get(midi_field, ""))
+        if expected_midi is None:
+            continue
+        expected_row = expected_row_for_family(row.get("family", ""))
+        expected_level = note_row_exact_level(row, expected_row, expected_midi)
+        for row_name in ("bass", "guitar", "piano", "vocals", "other", "amb"):
+            if row_name == expected_row:
+                continue
+            level = note_row_exact_level(row, row_name, expected_midi)
+            if level < min_level:
+                continue
+            entry = dict(row)
+            entry["spillover_row"] = row_name
+            entry["spillover_level"] = f"{level:.3f}"
+            entry["expected_row_exact_level"] = f"{expected_level:.3f}"
+            entries.append(entry)
+    return entries
+
+
+def spillover_route(row: dict[str, str]) -> str:
+    return f"{row.get('family', '')}/{row.get('source', '--') or '--'}->{row.get('spillover_row', '')}"
+
+
 def target_octave_duplicate_count(row: dict[str, str], family_field: str = "family") -> int:
     return octave_duplicate_count(note_cell_midis(row.get(target_note_field(row.get(family_field, "")), "")))
 
@@ -455,6 +541,12 @@ def report_real_note_rows(path: pathlib.Path, row_limit: int) -> None:
     print(f"  debug owner mismatches={compact(owner_mismatches(rows, 'family'))}")
     print(f"  debug pitch deltas={compact(debug_pitch_deltas(rows, 'expected_midi'))}")
     print(f"  pitch quality={compact(pitch_quality_counts(rows, 'expected_midi'))}")
+    spillover_rows = exact_spillover_entries(rows, midi_field="expected_midi", min_level=0.25)
+    print(
+        f"  same-midi spillover>=0.25 entries={len(spillover_rows)} "
+        f"samples={len({row.get('sample_id', '') for row in spillover_rows if row.get('sample_id', '')})} "
+        f"routes={compact(collections.Counter(spillover_route(row) for row in spillover_rows))}"
+    )
     print_octave_alias_buckets(
         "detected octave alias buckets",
         octave_alias_buckets(
