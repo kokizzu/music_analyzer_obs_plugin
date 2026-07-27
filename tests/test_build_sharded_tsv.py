@@ -67,6 +67,45 @@ def main() -> int:
         if leftovers:
             raise AssertionError(f"temporary files were not cleaned up: {leftovers}")
 
+        stale_target = tmp / "stale-combined.tsv"
+        stale_part_a = tmp / "stale-part-a.tsv"
+        stale_part_b = tmp / "stale-part-b.tsv"
+        stale_part_a.write_text("name\nold-a\n", encoding="utf-8")
+        stale_part_b.write_text("name\nold-b\n", encoding="utf-8")
+        fake_missing_make = tmp / "fake-missing-make.sh"
+        fake_missing_make.write_text(
+            "\n".join(
+                [
+                    "#!/bin/sh",
+                    "set -eu",
+                    "for arg in \"$@\"; do",
+                    "  case \"$arg\" in -j*) continue ;; esac",
+                    "done",
+                    "exit 0",
+                ]
+            )
+            + "\n",
+            encoding="utf-8",
+        )
+        fake_missing_make.chmod(0o755)
+
+        stale_command = [
+            "sh",
+            str(SCRIPT),
+            str(stale_target),
+            str(fake_missing_make),
+            "",
+            str(stale_part_a),
+            str(stale_part_b),
+        ]
+        stale = subprocess.run(stale_command, cwd=ROOT, text=True, capture_output=True, timeout=10)
+        if stale.returncode == 0:
+            raise AssertionError("builder reused stale shard files instead of failing")
+        if stale_part_a.exists() or stale_part_b.exists():
+            raise AssertionError("stale shard files were not removed before rebuilding")
+        if stale_target.exists():
+            raise AssertionError("target was published from stale shard files")
+
     print("test_build_sharded_tsv: ok")
     return 0
 

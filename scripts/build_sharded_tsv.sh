@@ -24,6 +24,8 @@ cleanup() {
 }
 trap cleanup EXIT INT TERM
 
+rm -f "$@"
+
 if [ -n "$make_jobs" ]; then
 	"$make_cmd" $make_jobs "$@"
 else
