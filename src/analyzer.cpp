@@ -9577,6 +9577,40 @@ void promote_source_hinted_keyboard_bass_primary(NoteGrid &grid, InstrumentState
 		write_note_grid_label(state, grid, preferred_root);
 }
 
+void promote_source_hinted_string_bass_primary(NoteGrid &grid, InstrumentState &state,
+					       const NoteGrid &bass_grid, int preferred_root)
+{
+	const int bass_midi =
+		note_grid_strongest_active_midi_in_range(bass_grid, kOtherMinMidi,
+							 kGuitarMinMidi - 1);
+	if (bass_midi < 0)
+		return;
+
+	const int pitch_class = midi_pitch_class(bass_midi);
+	NoteCell primary = {};
+	for (const auto &row : grid.rows) {
+		const NoteCell &cell = row[pitch_class];
+		if (cell.active) {
+			primary = cell;
+			break;
+		}
+	}
+	if (!primary.active || primary.midi <= bass_midi)
+		return;
+
+	const float bass_level = note_grid_midi_level(bass_grid, bass_midi);
+	if (bass_level < 0.45f)
+		return;
+
+	const float level = std::max({note_grid_midi_level(grid, bass_midi), bass_level,
+				      primary.level});
+	if (level <= 0.0f)
+		return;
+
+	if (promote_note_grid_primary_midi(grid, bass_midi, level))
+		write_note_grid_label(state, grid, preferred_root);
+}
+
 void promote_low_guitar_display_fundamentals(NoteGrid &display_grid, InstrumentState &display_state,
 					     const NoteGrid &analysis_grid, int preferred_root)
 {
@@ -17773,6 +17807,9 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 				prefer_weak_debug_string_lower_other_octave_primary(
 					snapshot.other_notes, snapshot.other, full_mix_ownership,
 					kOtherMinMidi, -1);
+				promote_source_hinted_string_bass_primary(snapshot.other_notes,
+									  snapshot.other,
+									  snapshot.bass_notes, -1);
 			}
 		}
 		smooth_note_grid_envelope(other_chord_grid, other_chord_note_state, other_chord_note_tracking_,
