@@ -879,6 +879,9 @@ def main() -> int:
     )
     for field in [
         "expected_midi",
+        "raw_local_best_note",
+        "raw_octave_down_ratio",
+        "raw_third_octave_up_ratio",
         "expected_row_pitch_delta",
         "debug_delta",
         "debug_abs_delta",

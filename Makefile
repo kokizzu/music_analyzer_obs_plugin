@@ -79,7 +79,37 @@ MEASURE_ANALYZER_PATTERN_FULL_SECTION_OUTPUTS := \
 MEASURE_INSTRUMENT_PATTERN_ARGS ?= --limit 4 --min-positive-samples 20 --max-negative-samples 0 --max-conditions 3 --beam-width 160 --show-examples 1
 MEASURE_INSTRUMENT_STATUS_PATTERN_ARGS ?= --status-bucket miss:strings --status-bucket miss:synth --limit 4 --min-positive-samples 2 --max-negative-samples 0 --max-conditions 3 --beam-width 160 --show-examples 2 --exclude-field program_name --exclude-field note --exclude-field raw_local_best_note
 MEASURE_REAL_NOTE_PATTERN_ARGS ?= --limit 4 --min-positive-samples 3 --max-negative-samples 0 --max-conditions 3 --beam-width 160 --show-examples 1
-REAL_NOTE_RUNTIME_ROW_CONFUSION_EXCLUDES ?= --exclude-field expected_midi --exclude-field raw_expected_peak --exclude-field raw_expected_ratio --exclude-field raw_expected_rank --exclude-field expected_row_exact_level --exclude-field expected_row_pitch_level --exclude-field expected_row_pitch_delta --exclude-field expected_exact_row_count --exclude-field expected_pitch_row_count --exclude-field strongest_row_pitch_delta --exclude-field debug_delta --exclude-field debug_abs_delta
+REAL_NOTE_RUNTIME_ROW_CONFUSION_EXCLUDES ?= \
+	--exclude-field expected_midi \
+	--exclude-field raw_expected_peak \
+	--exclude-field raw_expected_ratio \
+	--exclude-field raw_tuned_peak \
+	--exclude-field raw_tuned_ratio \
+	--exclude-field raw_tuned_cent_offset \
+	--exclude-field raw_tuned_abs_cent_offset \
+	--exclude-field raw_local_best_note \
+	--exclude-field raw_local_best_midi \
+	--exclude-field raw_local_best_peak \
+	--exclude-field raw_expected_rank \
+	--exclude-field raw_prev_ratio \
+	--exclude-field raw_next_ratio \
+	--exclude-field raw_octave_down_ratio \
+	--exclude-field raw_octave_up_ratio \
+	--exclude-field raw_fifth_up_ratio \
+	--exclude-field raw_second_octave_up_ratio \
+	--exclude-field raw_upper_major_third_ratio \
+	--exclude-field raw_upper_fifth_ratio \
+	--exclude-field raw_third_octave_up_ratio \
+	--exclude-field raw_best_debug_delta \
+	--exclude-field raw_best_debug_abs_delta \
+	--exclude-field expected_row_exact_level \
+	--exclude-field expected_row_pitch_level \
+	--exclude-field expected_row_pitch_delta \
+	--exclude-field expected_exact_row_count \
+	--exclude-field expected_pitch_row_count \
+	--exclude-field strongest_row_pitch_delta \
+	--exclude-field debug_delta \
+	--exclude-field debug_abs_delta
 MEASURE_GUITAR_PATTERN_ARGS ?= --top-buckets 4 --limit 4 --min-positive-recordings 3 --max-negative-recordings 0 --max-conditions 3 --beam-width 180 --show-examples 1
 MEASURE_DRUM_PATTERN_ARGS ?= --top-routes 4 --limit 4 --min-positive-samples 3 --max-negative-samples 0 --max-conditions 3 --beam-width 220 --show-examples 1
 MEASURE_DRUM_FULL_PATTERN_ARGS ?= --top-routes 4 --limit 4 --min-positive-samples 20 --max-negative-samples 0 --max-conditions 3 --beam-width 64 --show-examples 1
