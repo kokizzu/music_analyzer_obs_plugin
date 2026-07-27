@@ -749,6 +749,15 @@ std::string source_summary_key(const SampleRow &row)
 	return row.family + "/unknown";
 }
 
+using RouteCounts = std::map<std::string, int>;
+
+void add_source_route(RouteCounts &routes, const SampleRow &row, int expected_index, int observed_index)
+{
+	if (observed_index == expected_index || observed_index < 0 || observed_index >= kObservedRowCount)
+		return;
+	++routes[source_summary_key(row) + "->" + kObservedRowNames[observed_index]];
+}
+
 std::string source_summary_text(const std::map<std::string, SourceStats> &stats, int max_entries)
 {
 	struct Row {
@@ -842,6 +851,21 @@ void print_row_confusion(FILE *out, const char *label,
 		}
 		std::fprintf(out, "]");
 	}
+	std::fprintf(out, "\n");
+}
+
+void print_source_routes(FILE *out, const char *label, const RouteCounts &routes)
+{
+	std::vector<std::pair<std::string, int>> sorted(routes.begin(), routes.end());
+	std::sort(sorted.begin(), sorted.end(), [](const auto &lhs, const auto &rhs) {
+		if (lhs.second != rhs.second)
+			return lhs.second > rhs.second;
+		return lhs.first < rhs.first;
+	});
+
+	std::fprintf(out, "analyzer_real_note_samples full-mix %s:", label);
+	for (const auto &route : sorted)
+		std::fprintf(out, " %s=%d", route.first.c_str(), route.second);
 	std::fprintf(out, "\n");
 }
 
@@ -1159,6 +1183,8 @@ int main()
 	std::array<int, kFamilyCount> family_first_row_hits = {};
 	std::array<std::array<int, kObservedRowCount>, kFamilyCount> row_confusion = {};
 	std::array<std::array<int, kObservedRowCount>, kFamilyCount> visual_row_confusion = {};
+	RouteCounts row_confusion_source_routes;
+	RouteCounts visual_row_confusion_source_routes;
 	std::map<std::string, SourceStats> source_stats;
 	int any_hits = 0;
 	int row_hits = 0;
@@ -1336,6 +1362,9 @@ int main()
 					[static_cast<std::size_t>(first_detected_row)];
 			++visual_row_confusion[static_cast<std::size_t>(index)]
 					      [static_cast<std::size_t>(first_visual_detected_row)];
+			add_source_route(row_confusion_source_routes, row, index, first_detected_row);
+			add_source_route(visual_row_confusion_source_routes, row, index,
+					 first_visual_detected_row);
 		}
 	}
 
@@ -1448,6 +1477,10 @@ int main()
 		if (full_mix) {
 			print_row_confusion(stderr, "row-confusion", row_confusion);
 			print_row_confusion(stderr, "visual-row-confusion", visual_row_confusion);
+			print_source_routes(stderr, "row-confusion-source-routes",
+					    row_confusion_source_routes);
+			print_source_routes(stderr, "visual-row-confusion-source-routes",
+					    visual_row_confusion_source_routes);
 		}
 		if (runner.failures > max_failures)
 			return 1;
@@ -1484,6 +1517,10 @@ int main()
 		if (full_mix) {
 			print_row_confusion(stdout, "row-confusion", row_confusion);
 			print_row_confusion(stdout, "visual-row-confusion", visual_row_confusion);
+			print_source_routes(stdout, "row-confusion-source-routes",
+					    row_confusion_source_routes);
+			print_source_routes(stdout, "visual-row-confusion-source-routes",
+					    visual_row_confusion_source_routes);
 		}
 		return 0;
 	}
@@ -1520,6 +1557,9 @@ int main()
 	if (full_mix) {
 		print_row_confusion(stdout, "row-confusion", row_confusion);
 		print_row_confusion(stdout, "visual-row-confusion", visual_row_confusion);
+		print_source_routes(stdout, "row-confusion-source-routes", row_confusion_source_routes);
+		print_source_routes(stdout, "visual-row-confusion-source-routes",
+				    visual_row_confusion_source_routes);
 	}
 	return 0;
 }

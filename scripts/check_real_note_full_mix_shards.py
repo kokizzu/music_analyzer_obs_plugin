@@ -17,6 +17,10 @@ ROW_CONFUSION_RE = re.compile(r"^analyzer_real_note_samples full-mix row-confusi
 VISUAL_ROW_CONFUSION_RE = re.compile(
     r"^analyzer_real_note_samples full-mix visual-row-confusion: (?P<body>.+)$"
 )
+SOURCE_ROUTES_RE = re.compile(
+    r"^analyzer_real_note_samples full-mix (?P<label>row-confusion|visual-row-confusion)-source-routes:"
+    r"(?P<body>.*)$"
+)
 FAMILY_TOTAL_RE = re.compile(
     r"\b(?P<family>bass|guitar|piano|vocals|other)(?:=|\s+)(?P<hit>\d+)/(?P<total>\d+)"
 )
@@ -71,9 +75,32 @@ def add_confusion(total: dict[str, dict[str, int]], part: dict[str, dict[str, in
             total[family][row] += part[family][row]
 
 
+def parse_source_routes(body: str) -> Counter[str]:
+    routes: Counter[str] = Counter()
+    for token in body.split():
+        if "=" not in token:
+            continue
+        route, value = token.rsplit("=", 1)
+        if "->" not in route:
+            continue
+        routes[route] += int(value)
+    return routes
+
+
+def add_routes(total: Counter[str], part: Counter[str]) -> None:
+    for route, value in part.items():
+        total[route] += value
+
+
 def parse_shard(
     path: pathlib.Path,
-) -> tuple[dict[str, int], dict[str, dict[str, int]], dict[str, dict[str, int]]]:
+) -> tuple[
+    dict[str, int],
+    dict[str, dict[str, int]],
+    dict[str, dict[str, int]],
+    Counter[str],
+    Counter[str],
+]:
     summary: dict[str, int] = {
         "usable": 0,
         "any_hit": 0,
@@ -97,9 +124,13 @@ def parse_shard(
 
     confusion = empty_confusion()
     visual_confusion = empty_confusion()
+    row_source_routes: Counter[str] = Counter()
+    visual_source_routes: Counter[str] = Counter()
     saw_summary = False
     saw_confusion = False
     saw_visual_confusion = False
+    saw_row_source_routes = False
+    saw_visual_source_routes = False
     for line in path.read_text(errors="replace").splitlines():
         summary_match = SUMMARY_RE.match(line)
         if summary_match:
@@ -145,6 +176,18 @@ def parse_shard(
         if visual_confusion_match:
             saw_visual_confusion = True
             add_confusion(visual_confusion, parse_confusion(visual_confusion_match.group("body")))
+            continue
+
+        source_routes_match = SOURCE_ROUTES_RE.match(line)
+        if source_routes_match:
+            label = source_routes_match.group("label")
+            routes = parse_source_routes(source_routes_match.group("body"))
+            if label == "row-confusion":
+                saw_row_source_routes = True
+                add_routes(row_source_routes, routes)
+            else:
+                saw_visual_source_routes = True
+                add_routes(visual_source_routes, routes)
 
     if not saw_summary:
         fail(f"missing analyzer_real_note_samples full-mix summary in {path}")
@@ -152,7 +195,11 @@ def parse_shard(
         fail(f"missing analyzer_real_note_samples full-mix row-confusion in {path}")
     if not saw_visual_confusion:
         fail(f"missing analyzer_real_note_samples full-mix visual-row-confusion in {path}")
-    return summary, confusion, visual_confusion
+    if not saw_row_source_routes:
+        fail(f"missing analyzer_real_note_samples full-mix row-confusion-source-routes in {path}")
+    if not saw_visual_source_routes:
+        fail(f"missing analyzer_real_note_samples full-mix visual-row-confusion-source-routes in {path}")
+    return summary, confusion, visual_confusion, row_source_routes, visual_source_routes
 
 
 def add_summary(total: dict[str, int], part: dict[str, int]) -> None:
@@ -193,11 +240,21 @@ def print_confusion(label: str, confusion: dict[str, dict[str, int]]) -> None:
         )
 
 
+def print_source_routes(label: str, routes: Counter[str]) -> None:
+    if routes:
+        print(
+            f"check_real_note_full_mix_shards: {label} source routes "
+            + " ".join(f"{route}={value}" for route, value in routes.most_common(12))
+        )
+
+
 def validate(
     args: argparse.Namespace,
     summary: dict[str, int],
     confusion: dict[str, dict[str, int]],
     visual_confusion: dict[str, dict[str, int]],
+    row_source_routes: Counter[str],
+    visual_source_routes: Counter[str],
 ) -> None:
     checks = [
         ("any-row", summary["any_hit"], summary["any_total"], args.min_any_hit_percent),
@@ -260,6 +317,8 @@ def validate(
     )
     print_confusion("row-confusion", confusion)
     print_confusion("visual-row-confusion", visual_confusion)
+    print_source_routes("row-confusion", row_source_routes)
+    print_source_routes("visual-row-confusion", visual_source_routes)
 
 
 def main() -> int:
@@ -277,12 +336,22 @@ def main() -> int:
     summary: dict[str, int] = {}
     confusion = empty_confusion()
     visual_confusion = empty_confusion()
+    row_source_routes: Counter[str] = Counter()
+    visual_source_routes: Counter[str] = Counter()
     for path in args.logs:
-        shard_summary, shard_confusion, shard_visual_confusion = parse_shard(path)
+        (
+            shard_summary,
+            shard_confusion,
+            shard_visual_confusion,
+            shard_row_source_routes,
+            shard_visual_source_routes,
+        ) = parse_shard(path)
         add_summary(summary, shard_summary)
         add_confusion(confusion, shard_confusion)
         add_confusion(visual_confusion, shard_visual_confusion)
-    validate(args, summary, confusion, visual_confusion)
+        add_routes(row_source_routes, shard_row_source_routes)
+        add_routes(visual_source_routes, shard_visual_source_routes)
+    validate(args, summary, confusion, visual_confusion, row_source_routes, visual_source_routes)
     return 0
 
 

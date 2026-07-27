@@ -16,6 +16,8 @@ LOG_TEXT = """
 analyzer_real_note_samples full-mix: 572 checks passed (usable 10, bass 2/2, guitar 2/2, piano 2/2, vocals 2/2, other 2/2; any-row 10/10, expected-row 9/10, first-row 5/10, drum-active-windows 1/40, expected-row-by-family bass=2/2 guitar=2/2 piano=2/2 vocals=2/2 other=1/2, first-row-by-family bass=1/2 guitar=1/2 piano=1/2 vocals=1/2 other=1/2, drums kick=0 snare=1 hihat=0 crash=0 tom=0 ride=0 rim=0)
 analyzer_real_note_samples full-mix row-confusion: bass[bass=1,guitar=1,piano=0,vocals=0,other=0,amb=0,none=0] guitar[bass=0,guitar=1,piano=1,vocals=0,other=0,amb=0,none=0] piano[bass=0,guitar=0,piano=1,vocals=1,other=0,amb=0,none=0] vocals[bass=0,guitar=0,piano=0,vocals=1,other=1,amb=0,none=0] other[bass=0,guitar=0,piano=0,vocals=0,other=1,amb=1,none=0]
 analyzer_real_note_samples full-mix visual-row-confusion: bass[bass=2,guitar=0,piano=0,vocals=0,other=0,amb=0,none=0] guitar[bass=0,guitar=1,piano=0,vocals=0,other=0,amb=1,none=0] piano[bass=0,guitar=1,piano=1,vocals=0,other=0,amb=0,none=0] vocals[bass=0,guitar=0,piano=0,vocals=1,other=0,amb=1,none=0] other[bass=0,guitar=0,piano=1,vocals=0,other=1,amb=0,none=0]
+analyzer_real_note_samples full-mix row-confusion-source-routes: bass/electronic->guitar=1 guitar/acoustic->piano=1 piano/electronic->vocals=1 vocals/acoustic->other=1 other/acoustic->amb=1
+analyzer_real_note_samples full-mix visual-row-confusion-source-routes: guitar/acoustic->amb=1 piano/electronic->guitar=1 vocals/acoustic->amb=1 other/acoustic->piano=1
 """.strip()
 
 
@@ -73,6 +75,18 @@ def main() -> int:
         completed.stdout,
         "check_real_note_full_mix_shards: visual-row-confusion routes "
         "guitar->amb=1 piano->guitar=1 vocals->amb=1 other->piano=1",
+    )
+    require(
+        completed.stdout,
+        "check_real_note_full_mix_shards: row-confusion source routes "
+        "bass/electronic->guitar=1 guitar/acoustic->piano=1 piano/electronic->vocals=1 "
+        "vocals/acoustic->other=1 other/acoustic->amb=1",
+    )
+    require(
+        completed.stdout,
+        "check_real_note_full_mix_shards: visual-row-confusion source routes "
+        "guitar/acoustic->amb=1 piano/electronic->guitar=1 vocals/acoustic->amb=1 "
+        "other/acoustic->piano=1",
     )
 
     failed = run_checker("--other-min-expected-row-percent", "100")
