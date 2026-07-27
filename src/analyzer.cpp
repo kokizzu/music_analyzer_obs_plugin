@@ -14029,6 +14029,55 @@ void append_unique_chord_components(char *dst, std::size_t dst_size, const char 
 	}
 }
 
+bool promote_smoothed_same_root_guitar_quality(
+	ChordResult &raw, const ChordResult &smoothed,
+	const std::array<float, kNoteProbeCount> &powers, int min_midi, int max_midi)
+{
+	if (!valid_chord_result(raw) || !valid_chord_result(smoothed))
+		return false;
+
+	ParsedRootChord raw_primary;
+	ParsedRootChord smoothed_primary;
+	if (!parse_plain_major_minor_component(raw.label, std::strcspn(raw.label, "="), raw_primary) ||
+	    !parse_plain_major_minor_component(smoothed.label, std::strcspn(smoothed.label, "="),
+					       smoothed_primary))
+		return false;
+	if (raw_primary.root != smoothed_primary.root ||
+	    raw_primary.quality == smoothed_primary.quality)
+		return false;
+
+	const int raw_third = raw_primary.root +
+			      (raw_primary.quality == RootChordQuality::Minor ? 3 : 4);
+	const int smoothed_third = smoothed_primary.root +
+				   (smoothed_primary.quality == RootChordQuality::Minor ? 3 : 4);
+	const float raw_third_level =
+		strongest_probe_pitch_class_level(powers, raw_third, min_midi, max_midi);
+	const float smoothed_third_level =
+		strongest_probe_pitch_class_level(powers, smoothed_third, min_midi, max_midi);
+	if (smoothed_third_level < 0.012f ||
+	    smoothed_third_level < raw_third_level * 1.15f + 0.002f)
+		return false;
+
+	ChordResult promoted = smoothed;
+	char label[sizeof(promoted.label)] = {};
+	append_unique_chord_components(label, sizeof(label), smoothed.label, nullptr);
+	append_unique_chord_components(label, sizeof(label), raw.label, smoothed.label);
+	if (!label[0])
+		return false;
+
+	copy_text(promoted.label, sizeof(promoted.label), label);
+	promoted.root = smoothed_primary.root;
+	promoted.tones = make_guitar_plain_triad(smoothed_primary.root,
+						 smoothed_primary.quality == RootChordQuality::Minor,
+						 promoted.confidence)
+				 .tones;
+	promoted.confidence = std::max(raw.confidence, smoothed.confidence);
+	promoted.margin = std::max(raw.margin, smoothed.margin);
+	promoted.uncertain = raw.uncertain && smoothed.uncertain;
+	raw = promoted;
+	return true;
+}
+
 ChordResult preserve_raw_plain_primary_order(const ChordResult &smoothed, const ChordResult &raw)
 {
 	if (!primary_chord_is_plain_major_minor(raw) ||
@@ -18630,6 +18679,12 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 							    snapshot.guitar_notes,
 							    guitar_chord_grid,
 							    smoothed_guitar_label_before_promotion);
+		if (!mixed_source &&
+		    promote_smoothed_same_root_guitar_quality(raw_guitar_chord, smoothed_guitar_chord,
+							      note_powers, kGuitarMinMidi,
+							      kGuitarMaxMidi))
+			set_instrument_chord(snapshot.guitar_raw_chord, raw_guitar_chord, guitar_energy, rms,
+					     kPolyphonicNoteRmsFloor);
 		set_instrument_chord(snapshot.guitar_smoothed_chord, smoothed_guitar_chord, guitar_energy, rms,
 				     mixed_source ? kNoteRmsFloor : kPolyphonicNoteRmsFloor);
 		stabilize_chord(snapshot.guitar_chord, guitar_chord_tracking_, raw_guitar_chord,

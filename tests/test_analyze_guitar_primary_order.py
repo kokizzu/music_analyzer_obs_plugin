@@ -47,6 +47,32 @@ def main() -> int:
                 guitar_analysis_cells="E3:1.00,A2:0.70",
             ),
             row(
+                recording_id="same_root_quality_rescue",
+                audio_path="same_root_quality_rescue.wav",
+                expected_chords="A#",
+                expected_chord_qualities="maj",
+                guitar_chord="A#m=F=A#pow=A#",
+                guitar_raw_chord="A#m=F=A#pow=A#",
+                guitar_smoothed_chord="A#=A#pow=A#m",
+                guitar_chord_confidence="0.58",
+                guitar_raw_chord_confidence="0.58",
+                guitar_smoothed_chord_confidence="0.58",
+                guitar_pitch_classes="F,A,A#",
+                guitar_cells="F3:0.86,A2:0.80,A#2:1.00",
+                guitar_analysis_pitch_classes="C#,F,A,A#",
+                guitar_analysis_cells="C#3:0.03,F3:0.77,A2:0.43,A#2:1.00",
+                guitar_smoothed_pitch_classes="F,A,A#",
+                guitar_smoothed_cells="F3:0.77,A2:0.43,A#2:1.00",
+                raw_pitch_class_levels=(
+                    "C:0.010,C#:0.002,D:0.024,D#:0.016,E:0.013,F:0.838,"
+                    "F#:0.004,G:0.025,G#:0.018,A:0.024,A#:1.000,B:0.022"
+                ),
+                guitar_probe_pitch_class_levels=(
+                    "C:0.155,C#:0.025,D:0.033,D#:0.034,E:0.484,F:0.858,"
+                    "F#:0.361,G:0.056,G#:0.336,A:0.795,A#:1.000,B:0.667"
+                ),
+            ),
+            row(
                 recording_id="miss",
                 status="chord_miss",
                 expected_chords="D",
@@ -75,24 +101,34 @@ def main() -> int:
             stderr=subprocess.PIPE,
         )
         output = completed.stdout
-        assert "guitar_chord: primary=1/4 later=2 miss=1" in output
-        assert "guitar_raw_chord: primary=2/4 later=1 miss=1" in output
-        assert "guitar_smoothed_chord: primary=1/4 later=2 miss=1" in output
+        assert "guitar_chord: primary=1/5 later=3 miss=1" in output
+        assert "guitar_raw_chord: primary=2/5 later=2 miss=1" in output
+        assert "guitar_smoothed_chord: primary=2/5 later=2 miss=1" in output
         assert (
             "candidate primary relationships: display0_raw0_smooth0=2 "
+            "display0_raw0_smooth1=1 "
             "display0_raw1_smooth0=1 display1_raw1_smooth1=1"
         ) in output
-        assert "candidate primary rescues: raw=1 smoothed=0 both=0" in output
+        assert "candidate primary rescues: raw=1 smoothed=1 both=0" in output
         assert "raw primary rescue examples" in output
         assert (
             "expected=Am display=C raw=Am smoothed=C score=r:5.640/s:5.515 "
             "conf=d:0.20/r:0.80/s:0.30 "
             "later_am.wav"
         ) in output
-        assert "raw-only primary examples" in output
-        assert "smoothed-only primary examples" not in output
         assert (
-            "guitar_primary_order: rows=4 primary_misses=2 expected_later=2 "
+            "same_root_quality_raw_probe_promote: candidates=1 rescues=1 protected_false=0"
+            in output
+        )
+        assert (
+            "same_root_quality_display_probe_promote: candidates=1 rescues=1 protected_false=0"
+            in output
+        )
+        assert "rescue promote=A# expected=A# display=A#m raw=A#m smoothed=A#" in output
+        assert "raw-only primary examples" in output
+        assert "smoothed-only primary examples" in output
+        assert (
+            "guitar_primary_order: rows=5 primary_misses=3 expected_later=3 "
             "score_promotable=1 cpp_promotable=0"
         ) in output
         assert "gap=0.125 expected=Am primary=C" in output

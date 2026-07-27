@@ -92,6 +92,36 @@ def chord_tones(root: int, minor: bool) -> set[int]:
     return {root % 12, (root + (3 if minor else 4)) % 12, (root + 7) % 12}
 
 
+def quality_third(root: int, minor: bool) -> int:
+    return (root + (3 if minor else 4)) % 12
+
+
+def promoted_same_root_smoothed_quality(
+    row: dict[str, str],
+    levels_field: str,
+    min_third: float,
+    ratio: float,
+    offset: float,
+) -> str | None:
+    raw_primary = primary_component(row.get("guitar_raw_chord", ""))
+    smoothed_primary = primary_component(row.get("guitar_smoothed_chord", ""))
+    raw_plain = parse_plain(raw_primary)
+    smoothed_plain = parse_plain(smoothed_primary)
+    if raw_plain is None or smoothed_plain is None:
+        return None
+    if raw_plain[0] != smoothed_plain[0] or raw_plain[1] == smoothed_plain[1]:
+        return None
+
+    raw_levels = parse_cells(row.get(levels_field, ""))
+    smoothed_third = raw_levels.get(quality_third(smoothed_plain[0], smoothed_plain[1]), 0.0)
+    raw_third = raw_levels.get(quality_third(raw_plain[0], raw_plain[1]), 0.0)
+    if smoothed_third < min_third:
+        return None
+    if smoothed_third < raw_third * ratio + offset:
+        return None
+    return smoothed_primary
+
+
 def component_score(
     label: str,
     display: set[int],
@@ -170,6 +200,12 @@ def main() -> int:
     both_rescues = []
     raw_only_primary = []
     smoothed_only_primary = []
+    same_root_quality_raw_promotions = []
+    same_root_quality_raw_rescues = []
+    same_root_quality_raw_protected_false = []
+    same_root_quality_display_promotions = []
+    same_root_quality_display_rescues = []
+    same_root_quality_display_protected_false = []
     for row in chord_rows:
         expected = expected_labels(row.get("expected_chords", ""))
         displayed_primary = primary_component(row.get("guitar_chord", ""))
@@ -191,6 +227,25 @@ def main() -> int:
             raw_only_primary.append(row)
         if smoothed_hit and not raw_hit:
             smoothed_only_primary.append(row)
+        same_root_quality_raw = promoted_same_root_smoothed_quality(
+            row, "raw_pitch_class_levels", 0.012, 1.35, 0.004
+        )
+        if same_root_quality_raw:
+            same_root_quality_raw_promotions.append((same_root_quality_raw, row))
+            if not displayed_hit and same_root_quality_raw in expected:
+                same_root_quality_raw_rescues.append((same_root_quality_raw, row))
+            if displayed_hit and same_root_quality_raw not in expected:
+                same_root_quality_raw_protected_false.append((same_root_quality_raw, row))
+
+        same_root_quality_display = promoted_same_root_smoothed_quality(
+            row, "guitar_probe_pitch_class_levels", 0.012, 1.15, 0.002
+        )
+        if same_root_quality_display:
+            same_root_quality_display_promotions.append((same_root_quality_display, row))
+            if not displayed_hit and same_root_quality_display in expected:
+                same_root_quality_display_rescues.append((same_root_quality_display, row))
+            if displayed_hit and same_root_quality_display not in expected:
+                same_root_quality_display_protected_false.append((same_root_quality_display, row))
 
     if relationship_buckets:
         print(
@@ -236,6 +291,50 @@ def main() -> int:
         print_rescue_examples("smoothed primary rescue examples", smoothed_rescues)
         print_rescue_examples("raw-only primary examples", raw_only_primary)
         print_rescue_examples("smoothed-only primary examples", smoothed_only_primary)
+
+    def print_same_root_quality(
+        title: str,
+        promotions: list[tuple[str, dict[str, str]]],
+        rescues: list[tuple[str, dict[str, str]]],
+        protected_false: list[tuple[str, dict[str, str]]],
+    ) -> None:
+        print(
+            f"{title}:",
+            f"candidates={len(promotions)}",
+            f"rescues={len(rescues)}",
+            f"protected_false={len(protected_false)}",
+        )
+        for promoted, row in rescues[: args.examples]:
+            print(
+                f"  rescue promote={promoted}",
+                f"expected={row.get('expected_chords')}",
+                f"display={primary_component(row.get('guitar_chord', ''))}",
+                f"raw={primary_component(row.get('guitar_raw_chord', ''))}",
+                f"smoothed={primary_component(row.get('guitar_smoothed_chord', ''))}",
+                pathlib.Path(row.get("audio_path", "")).name,
+            )
+        for promoted, row in protected_false[: args.examples]:
+            print(
+                f"  protected_false promote={promoted}",
+                f"expected={row.get('expected_chords')}",
+                f"display={primary_component(row.get('guitar_chord', ''))}",
+                f"raw={primary_component(row.get('guitar_raw_chord', ''))}",
+                f"smoothed={primary_component(row.get('guitar_smoothed_chord', ''))}",
+                pathlib.Path(row.get("audio_path", "")).name,
+            )
+
+    print_same_root_quality(
+        "same_root_quality_raw_probe_promote",
+        same_root_quality_raw_promotions,
+        same_root_quality_raw_rescues,
+        same_root_quality_raw_protected_false,
+    )
+    print_same_root_quality(
+        "same_root_quality_display_probe_promote",
+        same_root_quality_display_promotions,
+        same_root_quality_display_rescues,
+        same_root_quality_display_protected_false,
+    )
 
     primary_misses = []
     expected_later = []
