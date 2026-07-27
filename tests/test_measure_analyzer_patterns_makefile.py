@@ -129,6 +129,15 @@ def main() -> int:
     ).splitlines()[0], (
         "protected drum primary report must wait for spread rows to avoid parallel TSV regeneration"
     )
+    protected_inputs = re.search(
+        r"^DRUM_PROTECTED_PRIMARY_ATTRIBUTE_INPUTS \?= (?P<value>.*)$",
+        makefile,
+        re.MULTILINE,
+    )
+    assert protected_inputs is not None, "missing protected drum primary input list"
+    assert "$(DRUM_FULL_EXACT_ATTRIBUTE_ROWS)" in protected_inputs.group("value"), (
+        "protected drum primary mining must include cached full-exact rows when available"
+    )
     assert "$(MEASURE_ANALYZER_PATTERN_DRUM_SPREAD_MATRIX_REPORT)" in target_recipe(
         makefile, "$(MEASURE_ANALYZER_PATTERN_DRUM_ACTIVE_FALSE_REPORT)"
     ).splitlines()[0], (
