@@ -7477,6 +7477,16 @@ void prune_note_grid_below_level(NoteGrid &grid, float min_level)
 	}
 }
 
+float note_candidate_display_ownership_scale(const NoteCandidate &candidate)
+{
+	const float confidence = std::clamp(candidate.ownership_confidence, 0.0f, 1.0f);
+	if (confidence >= 0.88f)
+		return 1.0f;
+	if (confidence <= 0.24f)
+		return confidence;
+	return confidence * confidence;
+}
+
 void write_note_grid_cell(NoteGrid &grid, const NoteCandidate &candidate, float strongest_score, float visual_loudness)
 {
 	const int pitch_class = ((candidate.midi % 12) + 12) % 12;
@@ -7613,6 +7623,36 @@ void set_instrument_note_set_from_candidates(NoteGrid &grid, InstrumentState &st
 		++written;
 	}
 	write_note_grid_label(state, grid, preferred_root);
+}
+
+void attenuate_note_grid_display_by_candidates(NoteGrid &grid, const NoteCandidateList &candidates)
+{
+	auto scale_for_midi = [&](int midi) {
+		float scale = 1.0f;
+		bool found = false;
+		for (const NoteCandidate &candidate : candidates) {
+			if (candidate.midi != midi)
+				continue;
+			const float candidate_scale = note_candidate_display_ownership_scale(candidate);
+			if (!found || candidate_scale > scale)
+				scale = candidate_scale;
+			found = true;
+		}
+		return found ? scale : 1.0f;
+	};
+
+	auto attenuate_cell = [&](NoteCell &cell) {
+		if (!cell.active || cell.midi < kFirstMidi || cell.midi > kLastMidi)
+			return;
+		cell.visual_level = std::clamp(cell.level * scale_for_midi(cell.midi), 0.0f, 1.0f);
+	};
+
+	for (NoteCell &cell : grid.cells)
+		attenuate_cell(cell);
+	for (auto &row : grid.rows) {
+		for (NoteCell &cell : row)
+			attenuate_cell(cell);
+	}
 }
 
 void collect_note_grid_levels(const NoteGrid &grid, std::array<float, kNoteProbeCount> &levels)
@@ -16381,6 +16421,11 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 		prefer_major_when_both_thirds_present(smoothed_global_chord, smoothed_global_chroma);
 	}
 
+	NoteCandidateList mixed_keyboard_display_candidates;
+	NoteCandidateList mixed_guitar_display_candidates;
+	NoteCandidateList mixed_vocal_display_candidates;
+	NoteCandidateList mixed_other_display_candidates;
+
 	auto process_keyboard = [&]() {
 		const bool allow_extensions = !mixed_source;
 		int preferred_root = -1;
@@ -16396,6 +16441,7 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 					prefer_existing_candidate_midi(keyboard_display,
 								       snapshot.bass_debug_displayed_midi,
 								       1.08f, 0.80f);
+				mixed_keyboard_display_candidates = keyboard_display;
 				set_instrument_note_set_from_candidates(snapshot.keyboard_notes, snapshot.keyboard,
 									keyboard_display,
 									preferred_root, keyboard_energy, rms, max_notes,
@@ -16447,6 +16493,7 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 			prefer_supported_lower_octave_candidates(guitar_display, kGuitarMinMidi, 0.30f, 0.18f);
 			guitar_display = prune_shadowed_full_mix_guitar_display_candidates(
 				full_mix_ownership, guitar_display);
+			mixed_guitar_display_candidates = guitar_display;
 			set_instrument_note_set_from_candidates(snapshot.guitar_notes, snapshot.guitar,
 								guitar_display,
 								preferred_root, guitar_energy, rms, max_notes, 0.28f);
@@ -16807,6 +16854,7 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 			const NoteCandidateList vocal_display_candidates =
 				full_mix_display_candidates(full_mix_ownership, FullMixDisplayRow::Vocal,
 							    &note_powers);
+			mixed_vocal_display_candidates = vocal_display_candidates;
 			const int preferred_root = lowest_candidate_pitch_class(vocal_display_candidates);
 			set_instrument_note_set_from_candidates(snapshot.vocal_notes, snapshot.vocal,
 								vocal_display_candidates,
@@ -16876,6 +16924,7 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 		if (mixed_source) {
 			const NoteCandidateList other_display =
 				full_mix_display_candidates(full_mix_ownership, FullMixDisplayRow::Other);
+			mixed_other_display_candidates = other_display;
 			set_instrument_note_set_from_candidates(snapshot.other_notes, snapshot.other,
 								other_display, note_root,
 								other_energy, rms, other_max_notes, 0.70f);
@@ -17420,6 +17469,10 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 	if (mixed_source) {
 		stabilize_chord(snapshot.global_chord, global_chord_tracking_, raw_global_chord, smoothed_global_chord,
 				true, interval_seconds, true, true);
+		attenuate_note_grid_display_by_candidates(snapshot.keyboard_notes, mixed_keyboard_display_candidates);
+		attenuate_note_grid_display_by_candidates(snapshot.guitar_notes, mixed_guitar_display_candidates);
+		attenuate_note_grid_display_by_candidates(snapshot.vocal_notes, mixed_vocal_display_candidates);
+		attenuate_note_grid_display_by_candidates(snapshot.other_notes, mixed_other_display_candidates);
 	} else {
 		reset_chord_tracking(global_chord_tracking_, snapshot.global_chord);
 	}

@@ -69,6 +69,7 @@ struct InstrumentState {
 struct NoteCell {
 	char label[8] = {};
 	float level = 0.0f;
+	float visual_level = -1.0f;
 	int midi = -1;
 	bool active = false;
 };

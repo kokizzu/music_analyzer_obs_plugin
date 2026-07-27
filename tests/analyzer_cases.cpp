@@ -320,6 +320,23 @@ float note_grid_pitch_level(const mao::NoteGrid &grid, int pitch_class)
 	return level;
 }
 
+float note_grid_pitch_visual_level(const mao::NoteGrid &grid, int pitch_class)
+{
+	pitch_class = ((pitch_class % 12) + 12) % 12;
+	auto visual_level = [](const mao::NoteCell &cell) {
+		return cell.visual_level >= 0.0f ? cell.visual_level : cell.level;
+	};
+
+	float level = 0.0f;
+	if (grid.cells[pitch_class].active)
+		level = std::max(level, visual_level(grid.cells[pitch_class]));
+	for (const auto &row : grid.rows) {
+		if (row[pitch_class].active)
+			level = std::max(level, visual_level(row[pitch_class]));
+	}
+	return level;
+}
+
 std::string pitch_level_list(const mao::NoteGrid &grid, const std::vector<int> &pitch_classes)
 {
 	std::string out;
@@ -2172,6 +2189,11 @@ void check_high_full_mix_cluster_not_vocal_or_other(Runner &runner)
 		const auto snapshot = analyze_buffer(buffer, "full mix");
 		expect_global_pitch_class(runner, snapshot, 9, "single high pure guitar global");
 		expect_pitch_class(runner, snapshot.guitar_notes, 9, "single high pure guitar mirror");
+		const float detected_level = note_grid_pitch_level(snapshot.guitar_notes, 9);
+		const float visual_level = note_grid_pitch_visual_level(snapshot.guitar_notes, 9);
+		runner.expect(visual_level > 0.0f && visual_level < detected_level && visual_level < 0.25f,
+			      "single high pure guitar mirror: expected render-only attenuation, detected " +
+				      std::to_string(detected_level) + " visual " + std::to_string(visual_level));
 	}
 }
 

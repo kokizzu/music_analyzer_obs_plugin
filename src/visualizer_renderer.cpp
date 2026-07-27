@@ -52,6 +52,13 @@ float display_highlight_level(float level)
 	return std::clamp(kVisibleHighlightFloor + normalized * (1.0f - kVisibleHighlightFloor), 0.0f, 1.0f);
 }
 
+float note_cell_render_level(const NoteCell &cell)
+{
+	if (!cell.active)
+		return 0.0f;
+	return cell.visual_level >= 0.0f ? cell.visual_level : cell.level;
+}
+
 struct VisualLayout {
 	int label_x = 28;
 	int note_x = 150;
@@ -500,7 +507,7 @@ void draw_note_cell(VisualizerRenderer *visualizer, int x, int y, int w, int h, 
 	const Color border{58, 68, 82, 220};
 	const Color idle_text{91, 106, 124, 255};
 	const Color active_color = octave_color_from_midi(cell.midi, accent);
-	const float level = cell.active ? display_highlight_level(cell.level) : 0.0f;
+	const float level = display_highlight_level(note_cell_render_level(cell));
 	const Color bg = cell.active ? blend_color(idle_bg, active_color, level * 0.42f) : idle_bg;
 	const Color stroke = cell.active ? blend_color(border, active_color, level * 0.82f) : border;
 
@@ -794,7 +801,7 @@ float note_grid_midi_level(const NoteGrid &notes, int midi)
 	for (const auto &row : notes.rows) {
 		for (const NoteCell &cell : row) {
 			if (cell.active && cell.midi == midi)
-				level = std::max(level, cell.level);
+				level = std::max(level, note_cell_render_level(cell));
 		}
 	}
 	return std::clamp(level, 0.0f, 1.0f);
@@ -813,7 +820,7 @@ float note_grid_lower_same_pitch_level(const NoteGrid &notes, int midi)
 			const int interval = midi - cell.midi;
 			if (interval != 12 && interval != 24 && interval != 36)
 				continue;
-			level = std::max(level, cell.level);
+			level = std::max(level, note_cell_render_level(cell));
 		}
 	}
 	return std::clamp(level, 0.0f, 1.0f);
@@ -847,7 +854,7 @@ float piano_key_level(const NoteGrid &notes, int midi)
 	for (const auto &row : notes.rows) {
 		for (const NoteCell &cell : row) {
 			if (cell.active && cell.midi >= 0 && fold_midi_to_piano_range(cell.midi) == midi)
-				level = std::max(level, cell.level);
+				level = std::max(level, note_cell_render_level(cell));
 		}
 	}
 	return std::clamp(level, 0.0f, 1.0f);
