@@ -314,6 +314,49 @@ bool grid_has_pitch_class(const mao::NoteGrid &grid, int midi)
 	return grid.cells[pitch_class].active;
 }
 
+int grid_active_distinct_midi_count(const mao::NoteGrid &grid)
+{
+	std::array<bool, mao::kNoteProbeCount> seen = {};
+	for (const mao::NoteCell &cell : grid.cells) {
+		if (!cell.active || cell.midi < mao::kFirstAnalyzedMidi || cell.midi > mao::kLastAnalyzedMidi)
+			continue;
+		seen[static_cast<std::size_t>(cell.midi - mao::kFirstAnalyzedMidi)] = true;
+	}
+	for (const auto &row : grid.rows) {
+		for (const mao::NoteCell &cell : row) {
+			if (!cell.active || cell.midi < mao::kFirstAnalyzedMidi ||
+			    cell.midi > mao::kLastAnalyzedMidi)
+				continue;
+			seen[static_cast<std::size_t>(cell.midi - mao::kFirstAnalyzedMidi)] = true;
+		}
+	}
+
+	int count = 0;
+	for (bool active : seen) {
+		if (active)
+			++count;
+	}
+	return count;
+}
+
+bool grid_has_active_midi_at_or_above(const mao::NoteGrid &grid, int midi_floor)
+{
+	auto matches = [&](const mao::NoteCell &cell) {
+		return cell.active && cell.midi >= midi_floor && cell.midi <= mao::kLastAnalyzedMidi;
+	};
+	for (const mao::NoteCell &cell : grid.cells) {
+		if (matches(cell))
+			return true;
+	}
+	for (const auto &row : grid.rows) {
+		for (const mao::NoteCell &cell : row) {
+			if (matches(cell))
+				return true;
+		}
+	}
+	return false;
+}
+
 bool snapshot_has_pitch_class(const mao::AnalysisSnapshot &snapshot, int midi)
 {
 	return grid_has_pitch_class(snapshot.ambiguous_notes, midi) ||
@@ -1190,6 +1233,11 @@ bool expects_full_mix_other_recovery(const std::string &suite_family, const Samp
 		 (row.program_name == "synth_strings_2" && row.note == "G3")));
 }
 
+bool expects_full_mix_low_synth_harmonic_prune(const std::string &suite_family, const SampleRow &row)
+{
+	return suite_family == "synth" && row.program_name == "square_lead" && row.note == "C2";
+}
+
 void check_instrument_samples(Runner &runner, const std::string &root, std::ostream *attribute_out,
 			      int shard_count, int shard_index)
 {
@@ -1247,6 +1295,8 @@ void check_instrument_samples(Runner &runner, const std::string &root, std::ostr
 				const bool expect_full_mix_other_display =
 					expects_full_mix_other_display_octave_recovery(family, row);
 				const bool expect_full_mix_other = expects_full_mix_other_recovery(family, row);
+				const bool expect_full_mix_low_synth_prune =
+					expects_full_mix_low_synth_harmonic_prune(family, row);
 				mao::AnalysisSnapshot full_mix_snapshot = {};
 				bool full_mix_grid_ok = false;
 				bool full_mix_anywhere = false;
@@ -1254,7 +1304,7 @@ void check_instrument_samples(Runner &runner, const std::string &root, std::ostr
 				    expect_full_mix_vocal_display || expect_full_mix_bass_primary ||
 				    expect_full_mix_keyboard_primary || expect_full_mix_guitar_primary ||
 				    expect_full_mix_other_primary || expect_full_mix_other_display ||
-				    expect_full_mix_other) {
+				    expect_full_mix_other || expect_full_mix_low_synth_prune) {
 					full_mix_snapshot =
 						analyze_buffer(buffer, sample_rate, mao::AnalysisInputMode::FullMix,
 							       family.c_str(), window_seconds);
@@ -1341,6 +1391,17 @@ void check_instrument_samples(Runner &runner, const std::string &root, std::ostr
 					runner.expect(grid_has_pitch_class(full_mix_snapshot.other_notes, row.midi),
 						      context + ": expected full-mix other row recovery, got label `" +
 							      full_mix_snapshot.other.label + "`");
+				}
+				if (expect_full_mix_low_synth_prune) {
+					runner.expect(grid_active_distinct_midi_count(full_mix_snapshot.other_notes) <= 1,
+						      context +
+							      ": expected compact low-synth other display, got `" +
+							      grid_debug_label(full_mix_snapshot.other_notes) + "`");
+					runner.expect(!grid_has_active_midi_at_or_above(full_mix_snapshot.other_notes,
+										 row.midi + 12),
+						      context +
+							      ": expected upper harmonic aliases pruned, got `" +
+							      grid_debug_label(full_mix_snapshot.other_notes) + "`");
 				}
 				runner.expect(label_ok || grid_ok,
 					      context + ": expected detected note, got label `" +

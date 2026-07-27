@@ -5939,6 +5939,67 @@ NoteCandidateList prune_shadowed_full_mix_guitar_display_candidates(const FullMi
 	return pruned;
 }
 
+bool low_synthetic_other_harmonic_interval(int interval, bool dense_upper_stack)
+{
+	if (interval <= 0)
+		return false;
+
+	static constexpr int kUpperAliases[] = {12, 19, 24, 28, 31, 36, 40, 43,
+						47, 48, 49, 51, 52, 55, 57, 58, 60};
+	for (int alias : kUpperAliases) {
+		if (std::abs(interval - alias) <= 1)
+			return true;
+	}
+
+	if (dense_upper_stack && (interval == 4 || interval == 7))
+		return true;
+
+	return dense_upper_stack && interval >= 36;
+}
+
+NoteCandidateList prune_low_synthetic_other_harmonic_aliases(const NoteCandidateList &candidates)
+{
+	if (candidates.size() <= 4)
+		return candidates;
+
+	const float strongest = strongest_candidate_score(candidates);
+	if (strongest <= 1.0e-6f)
+		return candidates;
+
+	int low_fundamental = -1;
+	for (const NoteCandidate &candidate : candidates) {
+		if (candidate.midi < kOtherMinMidi || candidate.midi > 48)
+			continue;
+		if (candidate.score < strongest * 0.18f)
+			continue;
+		if (low_fundamental < 0 || candidate.midi < low_fundamental)
+			low_fundamental = candidate.midi;
+	}
+	if (low_fundamental < 0)
+		return candidates;
+
+	int upper_aliases = 0;
+	for (const NoteCandidate &candidate : candidates) {
+		const int interval = candidate.midi - low_fundamental;
+		if (interval < 19 || candidate.score < strongest * 0.12f)
+			continue;
+		if (low_synthetic_other_harmonic_interval(interval, false))
+			++upper_aliases;
+	}
+	if (upper_aliases < 2)
+		return candidates;
+
+	NoteCandidateList pruned;
+	for (const NoteCandidate &candidate : candidates) {
+		if (candidate.midi != low_fundamental &&
+		    midi_pitch_class(candidate.midi) != midi_pitch_class(low_fundamental) &&
+		    low_synthetic_other_harmonic_interval(candidate.midi - low_fundamental, true))
+			continue;
+		pruned.push_back(candidate);
+	}
+	return pruned.empty() ? candidates : pruned;
+}
+
 void prefer_supported_lower_octave_candidates(NoteCandidateList &candidates, int min_midi,
 					      float relative_floor, float global_floor)
 {
@@ -8245,6 +8306,77 @@ int note_grid_active_pitch_class_count(const NoteGrid &grid)
 			++count;
 	}
 	return count;
+}
+
+float note_grid_midi_level(const NoteGrid &grid, int midi);
+
+void clear_note_grid_midi(NoteGrid &grid, int midi)
+{
+	if (midi < kFirstMidi || midi > kLastMidi)
+		return;
+
+	const int pitch_class = midi_pitch_class(midi);
+	if (grid.cells[pitch_class].active && grid.cells[pitch_class].midi == midi)
+		grid.cells[pitch_class] = {};
+	for (auto &row : grid.rows) {
+		if (row[pitch_class].active && row[pitch_class].midi == midi)
+			row[pitch_class] = {};
+	}
+}
+
+void prune_low_synthetic_other_note_grid_harmonic_aliases(NoteGrid &grid, InstrumentState &state)
+{
+	std::array<bool, kNoteProbeCount> active_midis = {};
+	float strongest = 0.0f;
+	auto collect = [&](const NoteCell &cell) {
+		if (!cell.active || cell.midi < kFirstMidi || cell.midi > kLastMidi)
+			return;
+		active_midis[static_cast<std::size_t>(cell.midi - kFirstMidi)] = true;
+		strongest = std::max(strongest, cell.level);
+	};
+	for (const NoteCell &cell : grid.cells)
+		collect(cell);
+	for (const auto &row : grid.rows) {
+		for (const NoteCell &cell : row)
+			collect(cell);
+	}
+	if (strongest <= 1.0e-6f)
+		return;
+
+	int low_fundamental = -1;
+	for (int midi = kOtherMinMidi; midi <= 48; ++midi) {
+		if (!active_midis[static_cast<std::size_t>(midi - kFirstMidi)])
+			continue;
+		const float level = note_grid_midi_level(grid, midi);
+		if (level < strongest * 0.18f)
+			continue;
+		low_fundamental = midi;
+		break;
+	}
+	if (low_fundamental < 0)
+		return;
+
+	int upper_aliases = 0;
+	for (int midi = low_fundamental + 19; midi <= kLastMidi; ++midi) {
+		if (!active_midis[static_cast<std::size_t>(midi - kFirstMidi)])
+			continue;
+		if (note_grid_midi_level(grid, midi) < strongest * 0.12f)
+			continue;
+		if (low_synthetic_other_harmonic_interval(midi - low_fundamental, false))
+			++upper_aliases;
+	}
+	if (upper_aliases < 2)
+		return;
+
+	for (int midi = low_fundamental + 1; midi <= kLastMidi; ++midi) {
+		if (!active_midis[static_cast<std::size_t>(midi - kFirstMidi)])
+			continue;
+		if (midi_pitch_class(midi) == midi_pitch_class(low_fundamental))
+			continue;
+		if (low_synthetic_other_harmonic_interval(midi - low_fundamental, true))
+			clear_note_grid_midi(grid, midi);
+	}
+	write_note_grid_label(state, grid, midi_pitch_class(low_fundamental));
 }
 
 bool note_grid_has_midi(const NoteGrid &grid, int midi)
@@ -17958,11 +18090,17 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 		const bool allow_extensions = !mixed_source && !monophonic_other_source;
 		std::array<float, 12> chroma = {};
 		int preferred_root = -1;
+		NoteCandidateList other_display;
 		if (mixed_source) {
-			chroma = candidate_chroma(full_mix_ownership.other_candidates);
+			other_display = full_mix_display_candidates(full_mix_ownership, FullMixDisplayRow::Other);
+			if (synthetic_other_source_hint)
+				other_display = prune_low_synthetic_other_harmonic_aliases(other_display);
+			const NoteCandidateList &other_analysis_candidates =
+				synthetic_other_source_hint ? other_display : full_mix_ownership.other_candidates;
+			chroma = candidate_chroma(other_analysis_candidates);
 			preferred_root = mixed_bass_pitch_class >= 0 ?
 						 mixed_bass_pitch_class :
-						 lowest_candidate_pitch_class(full_mix_ownership.other_candidates);
+						 lowest_candidate_pitch_class(other_analysis_candidates);
 		} else {
 			const int min_midi = kOtherMinMidi;
 			chroma = peak_chroma_for_range(detection_note_powers, min_midi, kOtherMaxMidi,
@@ -17974,8 +18112,6 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 						     detect_chord(chroma, preferred_root, allow_extensions);
 		const int note_root = raw_other_chord.root >= 0 ? raw_other_chord.root : preferred_root;
 		if (mixed_source) {
-			const NoteCandidateList other_display =
-				full_mix_display_candidates(full_mix_ownership, FullMixDisplayRow::Other);
 			mixed_other_display_candidates = other_display;
 			set_instrument_note_set_from_candidates(snapshot.other_notes, snapshot.other,
 								other_display, note_root,
@@ -18534,6 +18670,9 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 									  snapshot.other,
 									  snapshot.bass_notes, -1);
 			}
+			if (synthetic_other_source_hint)
+				prune_low_synthetic_other_note_grid_harmonic_aliases(snapshot.other_notes,
+										     snapshot.other);
 		}
 		smooth_note_grid_envelope(other_chord_grid, other_chord_note_state, other_chord_note_tracking_,
 					  -1, interval_seconds, other_max_notes, other_new_notes,
