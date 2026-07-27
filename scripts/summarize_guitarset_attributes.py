@@ -148,6 +148,14 @@ def chord_pitch_classes(label: str) -> set[int]:
     return {pitch_class for _name, pitch_class in chord_tones(label)}
 
 
+def chord_third_pitch_classes(label: str) -> set[int]:
+    return {
+        pitch_class
+        for tone_name, pitch_class in chord_tones(label)
+        if tone_name in {"major_third", "minor_third"}
+    }
+
+
 def parse_pitch_classes(text: str) -> set[int]:
     if not text or text == "--":
         return set()
@@ -216,6 +224,30 @@ def coverage_bucket(coverage: float) -> str:
     if coverage > 0.0:
         return "1-49%"
     return "0%"
+
+
+def chord_support_key(label: str, visible_text: str, analysis_text: str, smooth_text: str) -> str:
+    tones = chord_pitch_classes(label)
+    if not tones:
+        return "none"
+    visible = parse_pitch_classes(visible_text)
+    analysis = parse_pitch_classes(analysis_text)
+    smooth = parse_pitch_classes(smooth_text)
+    return f"v{len(tones & visible)}_a{len(tones & analysis)}_s{len(tones & smooth)}"
+
+
+def chord_third_support_key(label: str, visible_text: str, analysis_text: str, smooth_text: str) -> str:
+    thirds = chord_third_pitch_classes(label)
+    if not thirds:
+        return "none"
+    visible = parse_pitch_classes(visible_text)
+    analysis = parse_pitch_classes(analysis_text)
+    smooth = parse_pitch_classes(smooth_text)
+    return (
+        f"v{int(bool(thirds & visible))}_"
+        f"a{int(bool(thirds & analysis))}_"
+        f"s{int(bool(thirds & smooth))}"
+    )
 
 
 def compact_level_summary(values_by_tone: dict[str, list[float]], limit: int = 8) -> str:
@@ -298,7 +330,11 @@ def summarize(path: pathlib.Path) -> list[str]:
     guitar_primary_mismatch_pairs: collections.Counter[str] = collections.Counter()
     guitar_primary_mismatch_root_deltas: collections.Counter[str] = collections.Counter()
     guitar_primary_mismatch_qualities: collections.Counter[str] = collections.Counter()
+    guitar_primary_mismatch_support: collections.Counter[str] = collections.Counter()
+    guitar_primary_mismatch_third_support: collections.Counter[str] = collections.Counter()
     guitar_expected_later_primary_labels: collections.Counter[str] = collections.Counter()
+    guitar_expected_later_primary_support: collections.Counter[str] = collections.Counter()
+    guitar_expected_later_primary_third_support: collections.Counter[str] = collections.Counter()
     guitar_primary_miss_examples: list[str] = []
     guitar_expected_later_examples: list[str] = []
     visible_full_chord_misses = 0
@@ -329,9 +365,41 @@ def summarize(path: pathlib.Path) -> list[str]:
                 guitar_primary_mismatch_qualities[
                     f"{chord_quality_name(guitar_primary)}->{chord_quality_name(expected_label)}"
                 ] += 1
+                guitar_primary_mismatch_support[
+                    chord_support_key(
+                        guitar_primary,
+                        row.get("guitar_pitch_classes", ""),
+                        row.get("guitar_analysis_pitch_classes", ""),
+                        row.get("guitar_smoothed_pitch_classes", ""),
+                    )
+                ] += 1
+                guitar_primary_mismatch_third_support[
+                    chord_third_support_key(
+                        guitar_primary,
+                        row.get("guitar_pitch_classes", ""),
+                        row.get("guitar_analysis_pitch_classes", ""),
+                        row.get("guitar_smoothed_pitch_classes", ""),
+                    )
+                ] += 1
             if guitar_expected_anywhere:
                 guitar_expected_later_than_primary += 1
                 guitar_expected_later_primary_labels[guitar_primary] += 1
+                guitar_expected_later_primary_support[
+                    chord_support_key(
+                        guitar_primary,
+                        row.get("guitar_pitch_classes", ""),
+                        row.get("guitar_analysis_pitch_classes", ""),
+                        row.get("guitar_smoothed_pitch_classes", ""),
+                    )
+                ] += 1
+                guitar_expected_later_primary_third_support[
+                    chord_third_support_key(
+                        guitar_primary,
+                        row.get("guitar_pitch_classes", ""),
+                        row.get("guitar_analysis_pitch_classes", ""),
+                        row.get("guitar_smoothed_pitch_classes", ""),
+                    )
+                ] += 1
                 if len(guitar_expected_later_examples) < 8:
                     guitar_expected_later_examples.append(
                         "  "
@@ -439,8 +507,16 @@ def summarize(path: pathlib.Path) -> list[str]:
         + compact_counter(guitar_primary_mismatch_root_deltas, 12),
         "guitar primary mismatch qualities "
         + compact_counter(guitar_primary_mismatch_qualities, 12),
+        "guitar primary mismatch support "
+        + compact_counter(guitar_primary_mismatch_support, 12),
+        "guitar primary mismatch third support "
+        + compact_counter(guitar_primary_mismatch_third_support, 12),
         "guitar expected-later primary labels "
         + compact_counter(guitar_expected_later_primary_labels, 12),
+        "guitar expected-later primary support "
+        + compact_counter(guitar_expected_later_primary_support, 12),
+        "guitar expected-later primary third support "
+        + compact_counter(guitar_expected_later_primary_third_support, 12),
         "visible chord-tone coverage " + compact_counter(visible_chord_coverage, 8),
         "analysis chord-tone coverage " + compact_counter(analysis_chord_coverage, 8),
         "smoothed chord-tone coverage " + compact_counter(smooth_chord_coverage, 8),

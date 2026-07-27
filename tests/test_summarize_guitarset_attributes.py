@@ -184,7 +184,11 @@ def main() -> int:
     assert "guitar primary mismatch pairs G->C=1 --->G=1" in output
     assert "guitar primary mismatch root deltas +7=1" in output
     assert "guitar primary mismatch qualities maj->maj=1 none->maj=1" in output
+    assert "guitar primary mismatch support v1_a1_s1=1 none=1" in output
+    assert "guitar primary mismatch third support v0_a0_s0=1 none=1" in output
     assert "guitar expected-later primary labels G=1" in output
+    assert "guitar expected-later primary support v1_a1_s1=1" in output
+    assert "guitar expected-later primary third support v0_a0_s0=1" in output
     assert "visible chord-tone coverage 100%=2 50-74%=1" in output
     assert "analysis chord-tone coverage 100%=3" in output
     assert "visible missing chord tones major_third=1" in output
