@@ -806,6 +806,7 @@ def main() -> int:
         "inspect-real-note-attribute-buckets": "$(BUILD_DIR)/real_note_full_mix_attributes.tsv",
         "find-real-note-attribute-patterns": "$(BUILD_DIR)/real_note_full_mix_attributes.tsv",
         "find-real-note-row-confusion-patterns": "$(BUILD_DIR)/real_note_full_mix_attributes.tsv",
+        "find-real-note-practical-row-confusion-patterns": "$(BUILD_DIR)/real_note_full_mix_attributes.tsv",
         "evaluate-real-note-display-shadow": "$(BUILD_DIR)/real_note_full_mix_attributes.tsv",
         "analyze-guitar-chord-mix-recovery": "$(BUILD_DIR)/guitar_chord_mix_attributes.tsv",
         "analyze-guitar-chord-mix-extra-components": "$(BUILD_DIR)/guitar_chord_mix_attributes.tsv",
@@ -966,6 +967,20 @@ def main() -> int:
     assert "$(REAL_NOTE_RUNTIME_ROW_CONFUSION_EXCLUDES)" in row_confusion_recipe, (
         "row-confusion mining should default to runtime-observable fields"
     )
+    practical_row_confusion_recipe = target_recipe(makefile, "find-real-note-practical-row-confusion-patterns")
+    assert "$(REAL_NOTE_RUNTIME_ROW_CONFUSION_EXCLUDES)" in practical_row_confusion_recipe, (
+        "practical row-confusion mining should keep runtime-observable fields"
+    )
+    assert "$(MEASURE_REAL_NOTE_PRACTICAL_ROW_CONFUSION_PATTERN_ARGS)" in practical_row_confusion_recipe, (
+        "practical row-confusion mining should use the bounded low-false defaults"
+    )
+    for text in [
+        "MEASURE_REAL_NOTE_PRACTICAL_ROW_CONFUSION_PATTERN_ARGS ?= --top-buckets 8",
+        "--min-positive-samples 20",
+        "--max-negative-samples 20",
+        "--max-conditions 2",
+    ]:
+        assert text in makefile, f"practical row-confusion defaults must include {text}"
     visual_row_confusion_recipe = target_recipe(makefile, "find-real-note-visual-row-confusion-patterns")
     assert "$(REAL_NOTE_RUNTIME_ROW_CONFUSION_EXCLUDES)" in visual_row_confusion_recipe, (
         "visual row-confusion mining should default to runtime-observable fields"
@@ -1001,6 +1016,7 @@ def main() -> int:
         "MEASURE_INSTRUMENT_PATTERN_ARGS",
         "MEASURE_INSTRUMENT_STATUS_PATTERN_ARGS",
         "MEASURE_REAL_NOTE_PATTERN_ARGS",
+        "MEASURE_REAL_NOTE_PRACTICAL_ROW_CONFUSION_PATTERN_ARGS",
         "REAL_NOTE_RUNTIME_ROW_CONFUSION_EXCLUDES",
         "MEASURE_GUITAR_PATTERN_ARGS",
         "MEASURE_DRUM_PATTERN_ARGS",
