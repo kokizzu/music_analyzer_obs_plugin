@@ -4369,6 +4369,17 @@ void check_guitar_caged_mix_root_independence(Runner &runner)
 	const auto snapshot = analyze_buffer(buffer, "full mix");
 	expect_label(runner, snapshot.bass.label, "G1", "CAGED mix root independence bass");
 	expect_label(runner, snapshot.global_chord.label, "C", "CAGED mix root independence global chord");
+	runner.expect(has_chord_label(snapshot.guitar_chord.label, "C"),
+		      std::string("CAGED mix root independence guitar chord: expected C alias, got `") +
+			      snapshot.guitar_chord.label + "` notes `" +
+			      note_grid_pitch_classes(snapshot.guitar_notes) + "` analysis `" +
+			      note_grid_pitch_classes(snapshot.guitar_chord_analysis_notes) + "` smooth `" +
+			      note_grid_pitch_classes(snapshot.guitar_chord_smoothed_notes) + "` debug C3 `" +
+			      full_mix_debug_summary_for_midi(snapshot, 48) + "` debug E3 `" +
+			      full_mix_debug_summary_for_midi(snapshot, 52) + "` debug G3 `" +
+			      full_mix_debug_summary_for_midi(snapshot, 55) + "` debug C4 `" +
+			      full_mix_debug_summary_for_midi(snapshot, 60) + "` debug E4 `" +
+			      full_mix_debug_summary_for_midi(snapshot, 64) + "`");
 	expect_no_chord_label(runner, snapshot.global_chord.label, "G", "CAGED mix root independence global chord");
 	for (int pitch_class : {0, 4, 7}) {
 		expect_global_pitch_class(runner, snapshot, pitch_class, "CAGED mix root independence global notes");

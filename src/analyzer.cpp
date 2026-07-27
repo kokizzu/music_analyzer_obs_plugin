@@ -8620,6 +8620,123 @@ ChordResult detect_caged_guitar_chord(const std::array<float, 12> &chroma, int p
 	return best;
 }
 
+bool full_mix_guitar_chord_context_debug_supported(const FullMixOwnership &ownership,
+						   const FullMixDebugCandidate &debug,
+						   int display_midi)
+{
+	if (display_midi < kGuitarMinMidi || display_midi > kGuitarMaxMidi)
+		return false;
+	if (full_mix_row_midi_active(ownership.guitar, display_midi))
+		return false;
+	if (full_mix_row_display_midi_suppressed(ownership, FullMixDisplayRow::Guitar, display_midi))
+		return false;
+	const bool low_chord_context_guitar_like =
+		(debug.owner == InstrumentKind::Other || debug.owner == InstrumentKind::Ambiguous) &&
+		display_midi >= kGuitarMinMidi &&
+		display_midi <= 59 &&
+		debug.spectral_level >= 0.42f &&
+		debug.pitch_confidence >= 0.20f &&
+		debug.periodicity >= 0.50f &&
+		debug.harmonic_fit_error <= 0.95f &&
+		debug.local_noise_level <= 0.95f &&
+		(debug.guitar_score >= 0.10f || debug.harmonic_ratios[1] >= 0.30f ||
+		 debug.spectral_slope >= 0.25f);
+	if (!full_mix_display_mirror_supported(FullMixDisplayRow::Guitar, debug, display_midi) &&
+	    !low_chord_context_guitar_like)
+		return false;
+
+	const bool dominant_keyboard_owner =
+		debug.owner == InstrumentKind::Keyboard &&
+		debug.keyboard_score >= 0.70f &&
+		debug.keyboard_score >= debug.guitar_score + 0.40f;
+	if (dominant_keyboard_owner && debug.spectral_level < 0.90f)
+		return false;
+
+	return true;
+}
+
+void mirror_full_mix_guitar_chord_context_candidates(FullMixOwnership &ownership)
+{
+	NoteCandidateList candidates;
+	std::array<bool, 12> pitch_classes = {};
+	std::array<bool, 12> low_pitch_classes = {};
+
+	const std::size_t debug_count =
+		std::min<std::size_t>(ownership.debug_candidate_count, ownership.debug_candidates.size());
+	for (std::size_t i = 0; i < debug_count; ++i) {
+		const FullMixDebugCandidate &debug = ownership.debug_candidates[i];
+		const int display_midi = full_mix_display_mirror_midi(FullMixDisplayRow::Guitar, debug, ownership);
+		const bool supported =
+			full_mix_guitar_chord_context_debug_supported(ownership, debug, display_midi);
+		if (!supported)
+			continue;
+
+		const float source_score =
+			std::max({ownership_global_note_level(ownership, display_midi),
+				  candidate_midi_score(ownership.ambiguous_candidates, display_midi),
+				  candidate_midi_score(ownership.other_candidates, display_midi),
+				  candidate_midi_score(ownership.keyboard_candidates, display_midi),
+				  ownership_global_note_level(ownership, debug.midi)});
+		if (source_score <= 1.0e-6f)
+			continue;
+
+		const int pitch_class = midi_pitch_class(display_midi);
+		pitch_classes[static_cast<std::size_t>(pitch_class)] = true;
+		if (display_midi <= 59)
+			low_pitch_classes[static_cast<std::size_t>(pitch_class)] = true;
+
+		const float confidence = 0.80f;
+		bool updated = false;
+		for (NoteCandidate &candidate : candidates) {
+			if (candidate.midi != display_midi)
+				continue;
+			candidate.score = std::max(candidate.score, source_score);
+			candidate.ownership_confidence = std::max(candidate.ownership_confidence, confidence);
+			updated = true;
+			break;
+		}
+		if (!updated) {
+			NoteCandidate candidate;
+			candidate.midi = display_midi;
+			candidate.score = source_score;
+			candidate.ownership_confidence = confidence;
+			candidates.push_back(candidate);
+		}
+	}
+
+	int pitch_class_count = 0;
+	int low_pitch_class_count = 0;
+	for (std::size_t i = 0; i < pitch_classes.size(); ++i) {
+		if (pitch_classes[i])
+			++pitch_class_count;
+		if (low_pitch_classes[i])
+			++low_pitch_class_count;
+	}
+	if (pitch_class_count < 3 || low_pitch_class_count < 2)
+		return;
+
+	const ChordResult caged =
+		detect_caged_guitar_chord(candidate_chroma(candidates), lowest_candidate_pitch_class(candidates));
+	if (caged.root < 0 || caged.confidence < kChordConfidenceFloor || caged.uncertain ||
+	    !caged.label[0] || caged.label[0] == '-')
+		return;
+
+	float strongest = 0.0f;
+	for (const NoteCandidate &candidate : candidates)
+		strongest = std::max(strongest, candidate.score);
+	if (strongest <= 1.0e-6f)
+		return;
+
+	for (const NoteCandidate &candidate : candidates) {
+		const int pitch_class = midi_pitch_class(candidate.midi);
+		if (!caged.tones[static_cast<std::size_t>(pitch_class)] &&
+		    candidate.score < strongest * 0.80f)
+			continue;
+		add_full_mix_row_mirror(ownership.guitar, ownership.guitar_candidates, candidate, 0.74f,
+					candidate.ownership_confidence);
+	}
+}
+
 bool chord_label_has_guitar_extension_or_alteration(const char *label)
 {
 	if (!label)
@@ -16517,6 +16634,7 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 							  full_mix_other_ownership_tracking_);
 		if (mixed_synth_source_hint)
 			restore_full_mix_named_synth_other_from_keyboard(full_mix_ownership);
+		mirror_full_mix_guitar_chord_context_candidates(full_mix_ownership);
 		snapshot.full_mix_debug_candidate_count = full_mix_ownership.debug_candidate_count;
 		snapshot.full_mix_debug_candidates = full_mix_ownership.debug_candidates;
 		previous_full_mix_note_levels_ = current_full_mix_note_levels;
@@ -16752,6 +16870,9 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 		copy_text(snapshot.bass.label, sizeof(snapshot.bass.label), "--");
 		snapshot.bass.confidence = 0.0f;
 	}
+
+	if (mixed_source)
+		mirror_full_mix_guitar_chord_context_candidates(full_mix_ownership);
 
 	if (mixed_source) {
 		const bool strong_bass_hint = mixed_bass_pitch_class >= 0 && snapshot.bass.confidence >= 0.32f;
