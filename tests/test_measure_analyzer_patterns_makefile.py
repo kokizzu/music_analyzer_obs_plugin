@@ -180,6 +180,7 @@ def main() -> int:
         "test-analyzer-pattern-report",
         "test-real-note-attribute-patterns",
         "test-drum-gate-matrix-summary",
+        "test-drum-sample-shard-check",
         "android-check",
     ]:
         assert target in analysis_script_target_list, (
@@ -304,6 +305,23 @@ def main() -> int:
     assert "test-guitar-chord-mix-samples " not in real_world_full_target_list + " ", (
         "full real-world sample tests must not use the serial guitar chord mix gate"
     )
+    assert "test-drum-samples-full-parallel-optional" in real_world_full_target_list, (
+        "full real-world sample tests must use the sharded full-drum sample gate"
+    )
+    assert "test-drum-samples-full-optional " not in real_world_full_target_list + " ", (
+        "full real-world sample tests must not use the serial full-drum sample gate"
+    )
+    drum_real_world_full_targets = re.search(
+        r"^DRUM_REAL_WORLD_SAMPLE_FULL_TARGETS := (.+)$", makefile, re.MULTILINE
+    )
+    assert drum_real_world_full_targets is not None, "missing full drum real-world sample target list"
+    drum_real_world_full_target_list = drum_real_world_full_targets.group(1)
+    assert "test-drum-samples-full-parallel-optional" in drum_real_world_full_target_list, (
+        "full drum real-world sample tests must use the sharded full-drum sample gate"
+    )
+    assert "test-drum-samples-full-optional " not in drum_real_world_full_target_list + " ", (
+        "full drum real-world sample tests must not use the serial full-drum sample gate"
+    )
     real_world_full_recipe = target_recipe(makefile, "test-real-world-samples-full")
     assert "test-guitar-chord-mix-samples-parallel" in real_world_full_recipe, (
         "serial full real-world wrapper must delegate guitar chord mix to the sharded gate"
@@ -322,6 +340,50 @@ def main() -> int:
     assert "test-guitar-chord-mix-samples " not in real_world_max_target_list + " ", (
         "max real-world sample tests must not use the serial guitar chord mix gate"
     )
+    assert "test-drum-samples-full-parallel-optional" in real_world_max_target_list, (
+        "max real-world sample tests must use the sharded full-drum sample gate"
+    )
+    assert "test-drum-samples-full-optional " not in real_world_max_target_list + " ", (
+        "max real-world sample tests must not use the serial full-drum sample gate"
+    )
+    drum_full_manifest_recipe = target_recipe(makefile, "$(DRUM_SAMPLE_FULL_BUILD_DIR)/manifest.tsv")
+    assert "$(MAKE) prepare-drum-samples-full" in drum_full_manifest_recipe, (
+        "full drum sample manifest target must delegate to the full prepare target"
+    )
+    drum_full_parallel_recipe = target_recipe(makefile, "test-drum-samples-full-parallel")
+    assert "DRUM_SAMPLE_FULL_TEST_MAKE_JOBS = $(if $(filter -j%,$(MAKEFLAGS)),,-j$(words $(DRUM_SAMPLE_FULL_SHARD_CATEGORIES)))" in makefile, (
+        "full drum shard tests must not force nested jobserver mode"
+    )
+    assert "$(DRUM_SAMPLE_FULL_BUILD_DIR)/manifest.tsv" in drum_full_parallel_recipe.splitlines()[0], (
+        "full drum parallel target must share a prepared manifest stamp"
+    )
+    assert "$(MAKE) $(DRUM_SAMPLE_FULL_TEST_MAKE_JOBS) $(DRUM_SAMPLE_FULL_SHARD_TARGETS)" in drum_full_parallel_recipe, (
+        "full drum parallel target must fan out category shards through jobserver-aware make"
+    )
+    assert "$(RUN_WITH_DURATION) analyzer_drum_samples_full_parallel" in drum_full_parallel_recipe, (
+        "full drum parallel target must report aggregate duration"
+    )
+    assert "$(PYTHON) scripts/check_drum_sample_shards.py" in drum_full_parallel_recipe, (
+        "full drum parallel target must validate aggregated shard matrices"
+    )
+    assert "--tom-max-false-percent \"$(DRUM_SAMPLE_FULL_MAX_TOM_FALSE_PERCENT)\"" in drum_full_parallel_recipe, (
+        "full drum parallel target must preserve the serial tom false-positive gate"
+    )
+    drum_full_shard_recipe = target_recipe(makefile, "test-drum-samples-full-shard-%")
+    assert "FORCE" in drum_full_shard_recipe.splitlines()[0], (
+        "full drum shard pattern must use FORCE so each category executes"
+    )
+    assert "$(DRUM_SAMPLE_FULL_BUILD_DIR)/manifest.tsv" in drum_full_shard_recipe.splitlines()[0], (
+        "full drum shard target must depend on the shared manifest stamp"
+    )
+    for text in [
+        "MUSIC_ANALYZER_DRUM_SAMPLE_REQUIRED_CATEGORIES=\"$*\"",
+        "MUSIC_ANALYZER_DRUM_SAMPLE_FILTER_CATEGORY=\"$*\"",
+        "MUSIC_ANALYZER_DRUM_SAMPLE_MIN_RECALL_PERCENT=0",
+        "MUSIC_ANALYZER_DRUM_SAMPLE_MIN_PRECISION_PERCENT=0",
+        "MUSIC_ANALYZER_DRUM_SAMPLE_MIN_PRIMARY_RECALL_PERCENT=0",
+    ]:
+        assert text in drum_full_shard_recipe, f"full drum shard target must include {text}"
     guitar_chord_sharded_recipe = target_recipe(makefile, "test-guitar-chord-mix-samples-parallel")
     assert "$(MAKE) $(GUITAR_CHORD_MIX_TEST_MAKE_JOBS) $(GUITAR_CHORD_MIX_SHARD_TARGETS)" in guitar_chord_sharded_recipe, (
         "guitar chord mix parallel target must fan out deterministic shards through jobserver-aware make"
