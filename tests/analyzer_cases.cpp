@@ -514,6 +514,22 @@ float grid_level_for_midi(const mao::NoteGrid &grid, int midi)
 	return level;
 }
 
+float grid_visual_level_for_midi(const mao::NoteGrid &grid, int midi)
+{
+	auto visual_level = [](const mao::NoteCell &cell) {
+		return cell.visual_level >= 0.0f ? cell.visual_level : cell.level;
+	};
+
+	float level = 0.0f;
+	for (const auto &row : grid.rows) {
+		for (const mao::NoteCell &cell : row) {
+			if (cell.active && cell.midi == midi)
+				level = std::max(level, visual_level(cell));
+		}
+	}
+	return level;
+}
+
 const char *instrument_kind_name(mao::InstrumentKind kind)
 {
 	switch (kind) {
@@ -2194,6 +2210,35 @@ void check_high_full_mix_cluster_not_vocal_or_other(Runner &runner)
 		runner.expect(visual_level > 0.0f && visual_level < detected_level && visual_level < 0.25f,
 			      "single high pure guitar mirror: expected render-only attenuation, detected " +
 				      std::to_string(detected_level) + " visual " + std::to_string(visual_level));
+	}
+	{
+		mao::AnalysisEngine engine;
+		mao::AnalysisSettings settings = mao_test::default_settings();
+		settings.input_mode = mao::AnalysisInputMode::FullMix;
+		settings.analysis_interval_seconds = 0.05f;
+		mao_test::Buffer buffer = {};
+		const std::vector<float> high_pure_profile = {1.0f};
+		add_harmonic_note(buffer, 81, 0.24f, high_pure_profile);
+		mao::AnalysisSnapshot snapshot = {};
+		for (int frame = 0; frame < 3; ++frame)
+			snapshot = engine.analyze(buffer.data(), buffer.size(), settings, "full mix", 0);
+
+		const float live_detected = grid_level_for_midi(snapshot.guitar_notes, 81);
+		const float live_visual = grid_visual_level_for_midi(snapshot.guitar_notes, 81);
+		runner.expect(live_visual > 0.0f && live_visual < live_detected * 0.45f,
+			      "single high pure guitar release: expected live mirror attenuation, detected " +
+				      std::to_string(live_detected) + " visual " + std::to_string(live_visual));
+
+		mao_test::Buffer silence = {};
+		snapshot = engine.analyze(silence.data(), silence.size(), settings, "full mix", 0);
+		const float release_detected = grid_level_for_midi(snapshot.guitar_notes, 81);
+		const float release_visual = grid_visual_level_for_midi(snapshot.guitar_notes, 81);
+		runner.expect(release_detected > 0.0f,
+			      "single high pure guitar release: expected decaying envelope to remain visible");
+		runner.expect(release_visual > 0.0f && release_visual < release_detected * 0.45f,
+			      "single high pure guitar release: expected mirror attenuation during release, detected " +
+				      std::to_string(release_detected) + " visual " +
+				      std::to_string(release_visual));
 	}
 }
 

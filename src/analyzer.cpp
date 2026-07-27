@@ -7644,7 +7644,9 @@ void attenuate_note_grid_display_by_candidates(NoteGrid &grid, const NoteCandida
 	auto attenuate_cell = [&](NoteCell &cell) {
 		if (!cell.active || cell.midi < kFirstMidi || cell.midi > kLastMidi)
 			return;
-		cell.visual_level = std::clamp(cell.level * scale_for_midi(cell.midi), 0.0f, 1.0f);
+		const float candidate_visual = std::clamp(cell.level * scale_for_midi(cell.midi), 0.0f, 1.0f);
+		cell.visual_level =
+			cell.visual_level >= 0.0f ? std::min(cell.visual_level, candidate_visual) : candidate_visual;
 	};
 
 	for (NoteCell &cell : grid.cells)
@@ -7674,10 +7676,24 @@ void smooth_note_grid_envelope(NoteGrid &grid, InstrumentState &state,
 			       int attack_confirm_frames = kNoteAttackConfirmFrames,
 			       float immediate_confirm_floor = kNoteEnvelopeImmediateConfirmFloor,
 			       float release_seconds = kNoteEnvelopeReleaseSeconds,
-			       float visible_floor = kNoteEnvelopeVisibleFloor)
+			       float visible_floor = kNoteEnvelopeVisibleFloor,
+			       const NoteCandidateList *display_candidates = nullptr)
 {
 	std::array<float, kNoteProbeCount> raw_levels = {};
 	collect_note_grid_levels(grid, raw_levels);
+	std::array<float, kNoteProbeCount> raw_display_scales = {};
+	std::array<bool, kNoteProbeCount> raw_display_scale_present = {};
+	if (display_candidates) {
+		for (const NoteCandidate &candidate : *display_candidates) {
+			if (candidate.midi < kFirstMidi || candidate.midi > kLastMidi)
+				continue;
+			const std::size_t index = static_cast<std::size_t>(candidate.midi - kFirstMidi);
+			raw_display_scales[index] =
+				std::max(raw_display_scales[index],
+					 note_candidate_display_ownership_scale(candidate));
+			raw_display_scale_present[index] = true;
+		}
+	}
 
 	const float release_step =
 		std::clamp(interval_seconds, 0.01f, 1.0f) / std::max(release_seconds, 0.01f);
@@ -7693,6 +7709,9 @@ void smooth_note_grid_envelope(NoteGrid &grid, InstrumentState &state,
 		if (raw_level > 0.0f) {
 			note.consecutive_hits = std::min(note.consecutive_hits + 1, 1000);
 			note.consecutive_misses = 0;
+			note.display_scale = raw_display_scale_present[i] ?
+						     std::clamp(raw_display_scales[i], 0.0f, 1.0f) :
+						     1.0f;
 			if (!note.confirmed &&
 			    (note.consecutive_hits >= std::max(1, attack_confirm_frames) ||
 			     raw_level >= immediate_confirm_floor))
@@ -7720,6 +7739,7 @@ void smooth_note_grid_envelope(NoteGrid &grid, InstrumentState &state,
 	struct TrackedDisplayCandidate {
 		int midi = -1;
 		float level = 0.0f;
+		float display_scale = 1.0f;
 		bool current = false;
 	};
 	FixedList<TrackedDisplayCandidate, kNoteProbeCount> candidates;
@@ -7727,7 +7747,9 @@ void smooth_note_grid_envelope(NoteGrid &grid, InstrumentState &state,
 		const std::size_t index = static_cast<std::size_t>(midi - kFirstMidi);
 		const float level = tracking[index].envelope;
 		if (level > 0.0f)
-			candidates.push_back(TrackedDisplayCandidate{midi, level, raw_levels[index] > 0.0f});
+			candidates.push_back(
+				TrackedDisplayCandidate{midi, level, tracking[index].display_scale,
+							raw_levels[index] > 0.0f});
 	}
 	std::sort(candidates.begin(), candidates.end(),
 		  [](const TrackedDisplayCandidate &a, const TrackedDisplayCandidate &b) {
@@ -7741,6 +7763,17 @@ void smooth_note_grid_envelope(NoteGrid &grid, InstrumentState &state,
 	int written = 0;
 	for (const TrackedDisplayCandidate &candidate : candidates) {
 		write_note_grid_cell(grid, NoteCandidate{candidate.midi, candidate.level}, 1.0f, 1.0f);
+		for (NoteCell &cell : grid.cells) {
+			if (cell.active && cell.midi == candidate.midi)
+				cell.visual_level = std::clamp(cell.level * candidate.display_scale, 0.0f, 1.0f);
+		}
+		for (auto &row : grid.rows) {
+			for (NoteCell &cell : row) {
+				if (cell.active && cell.midi == candidate.midi)
+					cell.visual_level =
+						std::clamp(cell.level * candidate.display_scale, 0.0f, 1.0f);
+			}
+		}
 		if (++written >= std::max(1, max_notes))
 			break;
 	}
@@ -17144,7 +17177,9 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 					  interval_seconds, mixed_source ? 8 : 10, keyboard_new_notes,
 					  kNoteAttackConfirmFrames,
 					  mixed_source ? kMixedNoteEnvelopeImmediateConfirmFloor :
-							 kNoteEnvelopeImmediateConfirmFloor);
+							 kNoteEnvelopeImmediateConfirmFloor,
+					  kNoteEnvelopeReleaseSeconds, kNoteEnvelopeVisibleFloor,
+					  mixed_source ? &mixed_keyboard_display_candidates : nullptr);
 		if (!mixed_source)
 			prefer_supported_lower_octave_display(snapshot.keyboard_notes, snapshot.keyboard,
 							      note_powers, kKeyboardMinMidi, 52, -1);
@@ -17182,7 +17217,9 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 					  interval_seconds, mixed_source ? 6 : 8, guitar_new_notes,
 					  kNoteAttackConfirmFrames,
 					  mixed_source ? kMixedNoteEnvelopeImmediateConfirmFloor :
-							 kNoteEnvelopeImmediateConfirmFloor);
+							 kNoteEnvelopeImmediateConfirmFloor,
+					  kNoteEnvelopeReleaseSeconds, kNoteEnvelopeVisibleFloor,
+					  mixed_source ? &mixed_guitar_display_candidates : nullptr);
 		if (mixed_source)
 			promote_guitar_debug_lower_octave_primary(snapshot.guitar_notes, snapshot.guitar,
 								  full_mix_ownership, -1);
@@ -17464,7 +17501,10 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 	if (vocal_enabled) {
 		const int vocal_max_notes = contains_case_insensitive(resolved_source_name, "vocals") ? 2 : 1;
 		smooth_note_grid_envelope(snapshot.vocal_notes, snapshot.vocal, vocal_note_tracking_, -1,
-					  interval_seconds, vocal_max_notes);
+					  interval_seconds, vocal_max_notes, nullptr, kNoteAttackConfirmFrames,
+					  kNoteEnvelopeImmediateConfirmFloor, kNoteEnvelopeReleaseSeconds,
+					  kNoteEnvelopeVisibleFloor,
+					  mixed_source ? &mixed_vocal_display_candidates : nullptr);
 		if (!mixed_source)
 			prefer_supported_lower_octave_display(snapshot.vocal_notes, snapshot.vocal, note_powers,
 							      kVocalMinMidi, 64, -1);
@@ -17480,7 +17520,9 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 					  interval_seconds, other_max_notes, other_new_notes,
 					  kNoteAttackConfirmFrames,
 					  mixed_source ? kMixedNoteEnvelopeImmediateConfirmFloor :
-							 kNoteEnvelopeImmediateConfirmFloor);
+							 kNoteEnvelopeImmediateConfirmFloor,
+					  kNoteEnvelopeReleaseSeconds, kNoteEnvelopeVisibleFloor,
+					  mixed_source ? &mixed_other_display_candidates : nullptr);
 		if (!mixed_source)
 			prefer_supported_lower_octave_display(snapshot.other_notes, snapshot.other, note_powers,
 							      kOtherMinMidi, 52, -1);

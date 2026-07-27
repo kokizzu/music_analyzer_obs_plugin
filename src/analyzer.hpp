@@ -173,6 +173,7 @@ struct NoteTrackingState {
 	int consecutive_hits = 0;
 	int consecutive_misses = 0;
 	float envelope = 0.0f;
+	float display_scale = 1.0f;
 	bool confirmed = false;
 };
 
