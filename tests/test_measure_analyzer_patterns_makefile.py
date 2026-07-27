@@ -613,10 +613,8 @@ def main() -> int:
     source_attribute_targets = {
         "$(BUILD_DIR)/guitar_chord_mix_attributes.tsv": (
             "$(BUILD_DIR)/analyzer_guitarset",
-            "tmp=\"$@.$$$$.tmp\"",
-            "out=\"$(BUILD_DIR)/guitar_chord_mix_attributes.$$$$.out\"",
-            "MUSIC_ANALYZER_GUITARSET_ATTRIBUTE_TSV=\"$$tmp\"",
-            "mv \"$$out\" \"$(BUILD_DIR)/guitar_chord_mix_attributes.out\"",
+            "scripts/build_sharded_tsv.sh",
+            "$(GUITAR_CHORD_MIX_ATTRIBUTE_PARTS)",
         ),
     }
     for target, required_parts in source_attribute_targets.items():
@@ -684,6 +682,33 @@ def main() -> int:
             f"instrument attribute shard target must include {text}"
         )
 
+    guitar_attribute_recipe = target_recipe(makefile, "$(BUILD_DIR)/guitar_chord_mix_attributes.tsv")
+    assert "GUITAR_CHORD_MIX_ATTRIBUTE_MAKE_JOBS = $(if $(filter -j%,$(MAKEFLAGS)),,-j$(GUITAR_CHORD_MIX_SHARDS))" in makefile, (
+        "guitar chord attribute shards must force -j only when the parent make has no jobserver"
+    )
+    assert "$(BUILD_DIR)/analyzer_guitarset" in guitar_attribute_recipe.splitlines()[0], (
+        "guitar chord attribute TSV must rebuild when the analyzer binary changes"
+    )
+    assert "scripts/build_sharded_tsv.sh" in guitar_attribute_recipe.splitlines()[0], (
+        "guitar chord attribute TSV must rebuild when the sharded TSV helper changes"
+    )
+    assert '$(SHELL) scripts/build_sharded_tsv.sh "$@" "$(MAKE)" "$(GUITAR_CHORD_MIX_ATTRIBUTE_MAKE_JOBS)" $(GUITAR_CHORD_MIX_ATTRIBUTE_PARTS)' in guitar_attribute_recipe, (
+        "guitar chord attribute TSV must use the locked helper to build and combine shards"
+    )
+    guitar_attribute_shard_recipe = target_recipe(
+        makefile, "$(BUILD_DIR)/guitar_chord_mix_attributes.shard-%.tsv"
+    )
+    for text in [
+        "$(BUILD_DIR)/analyzer_guitarset",
+        "MUSIC_ANALYZER_GUITARSET_ATTRIBUTE_TSV=\"$@\"",
+        "MUSIC_ANALYZER_GUITARSET_SHARD_COUNT=\"$(GUITAR_CHORD_MIX_SHARDS)\"",
+        "MUSIC_ANALYZER_GUITARSET_SHARD_INDEX=\"$*\"",
+        "guitar_chord_mix_attributes.shard-$*.out",
+    ]:
+        assert text in guitar_attribute_shard_recipe, (
+            f"guitar chord attribute shard target must include {text}"
+        )
+
     stale_aware_attribute_shortcuts = {
         "inspect-instrument-sample-owner-buckets": "$(BUILD_DIR)/instrument_sample_attributes.tsv",
         "find-instrument-owner-patterns": "$(BUILD_DIR)/instrument_sample_attributes.tsv",
@@ -738,14 +763,8 @@ def main() -> int:
             f"{target} must use the locked sharded TSV helper"
         )
     guitar_attribute_recipe = target_recipe(makefile, "$(BUILD_DIR)/guitar_chord_mix_attributes.tsv")
-    assert 'tmp="$@.$$$$.tmp"' in guitar_attribute_recipe, (
-        "guitar chord attribute exporter must use a per-process temporary TSV"
-    )
-    assert 'mv "$$tmp" "$@"' in guitar_attribute_recipe, (
-        "guitar chord attribute exporter must publish the temporary TSV atomically"
-    )
-    assert 'MUSIC_ANALYZER_GUITARSET_ATTRIBUTE_TSV="$$tmp"' in guitar_attribute_recipe, (
-        "guitar chord attribute exporter must not stream directly to the final TSV"
+    assert "scripts/build_sharded_tsv.sh" in guitar_attribute_recipe, (
+        "guitar chord attribute exporter must publish through the locked sharded TSV helper"
     )
 
     full_rows_recipe = target_recipe(makefile, "measure-analyzer-attribute-rows-full")
