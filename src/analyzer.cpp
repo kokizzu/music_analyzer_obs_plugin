@@ -4091,8 +4091,6 @@ bool guitar_owned_measured_tine_attack_keyboard_body_supported(const FullMixDebu
 		return false;
 	if (debug.midi < 52 || debug.midi > 64)
 		return false;
-	if (debug.keyboard_score < 0.08f || debug.other_score > 0.02f || debug.vocal_score > 0.02f)
-		return false;
 	if (debug.spectral_level < 0.84f || debug.pitch_confidence < 0.78f ||
 	    debug.periodicity < 0.74f)
 		return false;
@@ -4103,16 +4101,33 @@ bool guitar_owned_measured_tine_attack_keyboard_body_supported(const FullMixDebu
 	const float third = debug.harmonic_ratios[2];
 	const float fourth = debug.harmonic_ratios[3];
 	const float fifth = debug.harmonic_ratios[4];
-	return second >= 0.30f &&
-	       second <= 0.58f &&
-	       third >= 0.070f &&
-	       third <= 0.28f &&
-	       fourth <= 0.18f &&
-	       fifth <= 0.024f &&
-	       debug.spectral_centroid >= 0.14f &&
-	       debug.spectral_centroid <= 0.31f &&
-	       debug.spectral_slope >= 0.13f &&
-	       debug.spectral_slope <= 0.32f;
+	const bool scored_tine_attack =
+		debug.keyboard_score >= 0.08f &&
+		debug.other_score <= 0.02f &&
+		debug.vocal_score <= 0.02f &&
+		second >= 0.30f &&
+		second <= 0.58f &&
+		third >= 0.070f &&
+		third <= 0.28f &&
+		fourth <= 0.18f &&
+		fifth <= 0.024f &&
+		debug.spectral_centroid >= 0.14f &&
+		debug.spectral_centroid <= 0.31f &&
+		debug.spectral_slope >= 0.13f &&
+		debug.spectral_slope <= 0.32f;
+	const bool clean_third_rich_tine_attack =
+		second >= 0.36f &&
+		second <= 0.64f &&
+		third >= 0.18f &&
+		third <= 0.45f &&
+		fourth <= 0.05f &&
+		fifth <= 0.025f &&
+		debug.local_noise_level <= 0.04f &&
+		debug.spectral_centroid >= 0.14f &&
+		debug.spectral_centroid <= 0.32f &&
+		debug.spectral_slope >= 0.12f &&
+		debug.spectral_slope <= 0.32f;
+	return scored_tine_attack || clean_third_rich_tine_attack;
 }
 
 bool full_mix_display_mirror_supported(FullMixDisplayRow row, const FullMixDebugCandidate &debug,

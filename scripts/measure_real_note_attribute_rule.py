@@ -1,0 +1,121 @@
+#!/usr/bin/env python3
+"""Measure a hand-written rule against real-note attribute rows."""
+
+from __future__ import annotations
+
+import argparse
+import collections
+import csv
+import pathlib
+import re
+
+
+Condition = tuple[str, str, str]
+
+CONDITION_RE = re.compile(r"^([^!<>=:]+)(!=|>=|<=|=|>|<|:)(.+)$")
+
+
+def as_float(value: str) -> float | None:
+    try:
+        return float(value)
+    except ValueError:
+        return None
+
+
+def parse_condition(spec: str) -> Condition:
+    match = CONDITION_RE.fullmatch(spec)
+    if not match:
+        raise SystemExit(f"invalid condition `{spec}`")
+    return match.group(1), match.group(2), match.group(3)
+
+
+def matches_condition(row: dict[str, str], condition: Condition) -> bool:
+    field, op, expected = condition
+    actual = row.get(field, "")
+    if op == "=":
+        return actual == expected
+    if op == "!=":
+        return actual != expected
+
+    actual_number = as_float(actual)
+    if actual_number is None:
+        return False
+
+    if op == ":":
+        try:
+            low, high = (float(part) for part in expected.split(":", 1))
+        except ValueError as exc:
+            raise SystemExit(f"invalid range condition `{field}:{expected}`") from exc
+        return low <= actual_number <= high
+
+    expected_number = as_float(expected)
+    if expected_number is None:
+        raise SystemExit(f"invalid numeric condition `{field}{op}{expected}`")
+    if op == ">=":
+        return actual_number >= expected_number
+    if op == "<=":
+        return actual_number <= expected_number
+    if op == ">":
+        return actual_number > expected_number
+    if op == "<":
+        return actual_number < expected_number
+    raise AssertionError(op)
+
+
+def load_rows(path: pathlib.Path) -> list[dict[str, str]]:
+    with path.open(newline="", errors="replace") as handle:
+        return list(csv.DictReader(handle, delimiter="\t"))
+
+
+def main() -> int:
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("path", nargs="?", default="build/real_note_full_mix_attributes.tsv")
+    parser.add_argument(
+        "--condition",
+        action="append",
+        default=[],
+        help="row condition: field=value, field!=value, field>=number, field<=number, or field:min:max",
+    )
+    parser.add_argument("--examples", type=int, default=16, help="number of sample ids to print")
+    parser.add_argument("--top", type=int, default=20, help="number of grouped buckets to print")
+    parser.add_argument(
+        "--group-by",
+        action="append",
+        default=["family", "source", "first_row"],
+        help="field to group matches by; repeatable",
+    )
+    args = parser.parse_args()
+
+    conditions = [parse_condition(spec) for spec in args.condition]
+    rows = [
+        row
+        for row in load_rows(pathlib.Path(args.path))
+        if all(matches_condition(row, condition) for condition in conditions)
+    ]
+    sample_ids = sorted({row.get("sample_id", "") for row in rows if row.get("sample_id", "")})
+
+    print(f"matched rows={len(rows)} samples={len(sample_ids)}")
+    if args.condition:
+        print("conditions " + " ".join(args.condition))
+    if sample_ids:
+        print("examples " + " ".join(sample_ids[: max(0, args.examples)]))
+
+    grouped: collections.Counter[tuple[str, ...]] = collections.Counter()
+    grouped_samples: dict[tuple[str, ...], set[str]] = collections.defaultdict(set)
+    for row in rows:
+        key = tuple(row.get(field, "") for field in args.group_by)
+        grouped[key] += 1
+        sample_id = row.get("sample_id", "")
+        if sample_id:
+            grouped_samples[key].add(sample_id)
+
+    if grouped:
+        print("groups " + "/".join(args.group_by))
+        for key, count in grouped.most_common(max(0, args.top)):
+            label = "/".join(value or "-" for value in key)
+            print(f"  {label} rows={count} samples={len(grouped_samples[key])}")
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())
