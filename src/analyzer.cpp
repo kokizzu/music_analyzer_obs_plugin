@@ -5729,10 +5729,82 @@ bool low_bass_candidate_shadowed_by_upper_keyboard_pitch(const FullMixOwnership 
 	return non_bass_low_alias && upper_keyboard_debug && !real_bass_debug;
 }
 
-bool full_mix_bass_shadowed_by_keyboard_alias(const FullMixOwnership &ownership, const RangeResult &bass_note)
+float tracked_note_envelope(const std::array<NoteTrackingState, kNoteProbeCount> &tracking, int midi)
+{
+	if (midi < kFirstMidi || midi > kLastMidi)
+		return 0.0f;
+
+	const NoteTrackingState &note = tracking[static_cast<std::size_t>(midi - kFirstMidi)];
+	return note.confirmed ? std::clamp(note.envelope, 0.0f, 1.0f) : 0.0f;
+}
+
+bool high_bass_octave_alias_shadowed_by_smoothed_upper_note(
+	const FullMixOwnership &ownership, const RangeResult &bass_note,
+	const std::array<NoteTrackingState, kNoteProbeCount> *tracking)
+{
+	if (!tracking || bass_note.midi < 53 || bass_note.midi > 59)
+		return false;
+
+	const int pitch_class = midi_pitch_class(bass_note.midi);
+	bool non_bass_low_debug = false;
+	bool real_bass_debug = false;
+	bool current_upper_same_pitch = false;
+	for (std::size_t i = 0;
+	     i < std::min<std::size_t>(ownership.debug_candidate_count, ownership.debug_candidates.size());
+	     ++i) {
+		const FullMixDebugCandidate &debug = ownership.debug_candidates[i];
+		if (midi_pitch_class(debug.midi) != pitch_class)
+			continue;
+
+		const bool bass_owned =
+			debug.owner == InstrumentKind::Bass ||
+			(debug.bass_score >= 0.22f &&
+			 debug.bass_score >= std::max({debug.keyboard_score, debug.guitar_score,
+						       debug.vocal_score, debug.other_score}) * 0.80f);
+		if (std::abs(debug.midi - bass_note.midi) <= 1 && bass_owned)
+			real_bass_debug = true;
+
+		if (std::abs(debug.midi - bass_note.midi) <= 1 &&
+		    debug.owner != InstrumentKind::Bass &&
+		    debug.bass_score <= 0.050f &&
+		    debug.spectral_level >= 0.45f &&
+		    (debug.guitar_score >= 0.72f || debug.other_score >= 0.72f ||
+		     debug.keyboard_score >= 0.72f || debug.owner == InstrumentKind::Ambiguous))
+			non_bass_low_debug = true;
+
+		if (debug.midi >= bass_note.midi + 12 &&
+		    (debug.owner == InstrumentKind::Keyboard || debug.keyboard_score >= 0.45f))
+			current_upper_same_pitch = true;
+	}
+	if (real_bass_debug || !non_bass_low_debug)
+		return false;
+
+	const float low_level = ownership_global_note_level(ownership, bass_note.midi);
+	if (low_level < 0.70f)
+		return false;
+
+	bool smoothed_upper_same_pitch = current_upper_same_pitch;
+	for (int upper = bass_note.midi + 12; upper <= kLastMidi; upper += 12) {
+		const float tracked_upper = tracked_note_envelope(*tracking, upper);
+		const float current_upper = ownership_global_note_level(ownership, upper);
+		if (std::max(tracked_upper, current_upper) >= 0.42f) {
+			smoothed_upper_same_pitch = true;
+			break;
+		}
+	}
+
+	return smoothed_upper_same_pitch;
+}
+
+bool full_mix_bass_shadowed_by_keyboard_alias(
+	const FullMixOwnership &ownership, const RangeResult &bass_note,
+	const std::array<NoteTrackingState, kNoteProbeCount> *tracking = nullptr)
 {
 	if (bass_note.midi < kFirstMidi || bass_note.midi > kBassMaxMidi)
 		return false;
+
+	if (high_bass_octave_alias_shadowed_by_smoothed_upper_note(ownership, bass_note, tracking))
+		return true;
 
 	const int pitch_class = ((bass_note.midi % 12) + 12) % 12;
 	bool keyboard_pitch_support = false;
@@ -15762,7 +15834,8 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 			}
 		}
 		if (!isolated_bass && mixed_bass_supported &&
-		    full_mix_bass_shadowed_by_keyboard_alias(full_mix_ownership, bass_note))
+		    full_mix_bass_shadowed_by_keyboard_alias(full_mix_ownership, bass_note,
+							    &full_mix_note_tracking_))
 			mixed_bass_supported = false;
 		if (mixed_bass_supported) {
 			RangeResult displayed_bass = bass_note;

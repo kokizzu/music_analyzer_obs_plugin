@@ -4329,6 +4329,33 @@ void check_full_mix_high_bass_range(Runner &runner)
 			      full_mix_debug_summary_for_midi(high_clean_snapshot, 61) + "`");
 }
 
+void check_full_mix_organ_suboctave_does_not_take_over_bass(Runner &runner)
+{
+	mao::AnalysisEngine engine;
+	mao::AnalysisSettings settings = mao_test::default_settings();
+	settings.input_mode = mao::AnalysisInputMode::FullMix;
+
+	mao_test::Buffer upper = {};
+	const std::vector<float> organ_upper_profile = {1.0f, 0.10f, 0.004f};
+	add_harmonic_note(upper, 65, 0.26f, organ_upper_profile);
+
+	mao_test::Buffer suboctave_takeover = {};
+	const std::vector<float> organ_suboctave_profile = {1.0f, 0.84f, 0.54f, 0.32f, 0.16f};
+	add_harmonic_note(suboctave_takeover, 53, 0.24f, organ_suboctave_profile);
+
+	mao::AnalysisSnapshot snapshot = {};
+	for (int frame = 0; frame < 3; ++frame)
+		snapshot = engine.analyze(upper.data(), upper.size(), settings, "speaker monitor", 0);
+	snapshot = engine.analyze(suboctave_takeover.data(), suboctave_takeover.size(), settings,
+				  "speaker monitor", 0);
+
+	runner.expect(!grid_pitch_has_octave(snapshot.bass_notes, 5, "3"),
+		      std::string("full-mix organ suboctave takeover: expected no bass F3, got bass `") +
+			      snapshot.bass.label + "`, keyboard `" + snapshot.keyboard.label + "`, guitar `" +
+			      snapshot.guitar.label + "`, other `" + snapshot.other.label + "`, debug `" +
+			      full_mix_debug_summary_for_midi(snapshot, 53) + "`");
+}
+
 void check_multi_instrument_mix(Runner &runner)
 {
 	mao_test::Buffer buffer = {};
@@ -5316,6 +5343,7 @@ int main()
 	check_bass_pure_tone_stays_out_of_harmonic_rows(runner);
 	check_full_mix_bass_harmonic_note_not_duplicated(runner);
 	check_full_mix_high_bass_range(runner);
+	check_full_mix_organ_suboctave_does_not_take_over_bass(runner);
 	check_multi_instrument_mix(runner);
 	check_low_level_full_instrument_mix(runner);
 	check_bass_survives_low_mid_mix(runner);
