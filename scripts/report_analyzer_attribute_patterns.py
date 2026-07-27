@@ -34,6 +34,14 @@ ROW_FOR_FAMILY = {
     "vocals": "vocals",
     "other": "other",
 }
+ROW_VISUAL_LEVEL_FIELDS = {
+    "bass": "bass_visual_level",
+    "guitar": "guitar_visual_level",
+    "piano": "piano_visual_level",
+    "vocals": "vocal_visual_level",
+    "other": "other_visual_level",
+    "amb": "amb_visual_level",
+}
 
 
 def load_rows(path: pathlib.Path) -> list[dict[str, str]]:
@@ -535,11 +543,23 @@ def derive_real_note_row(row: dict[str, str]) -> dict[str, str]:
     result["strongest_row_pitch_delta"] = "" if strongest_delta is None else str(strongest_delta)
     result["expected_exact_row_count"] = str(exact_count)
     result["expected_pitch_row_count"] = str(pitch_count)
+    visual_row = row.get("buffer_visual_strongest_row", "")
+    if visual_row:
+        result["expected_row_visual_level"] = format_derived_float(
+            float_or(row, ROW_VISUAL_LEVEL_FIELDS.get(expected_row, ""), 0.0)
+        )
+        result["visual_strongest_row_pitch_level"] = format_derived_float(
+            float_or(row, ROW_VISUAL_LEVEL_FIELDS.get(visual_row, ""), 0.0)
+        )
     return result
 
 
 def real_note_row_confusion_bucket(row: dict[str, str]) -> str:
     return f"{row.get('family', '')}/{row.get('source', '')}->{row.get('buffer_strongest_row', '')}"
+
+
+def real_note_visual_row_confusion_bucket(row: dict[str, str]) -> str:
+    return f"{row.get('family', '')}/{row.get('source', '')}->{row.get('buffer_visual_strongest_row', '')}"
 
 
 def real_note_row_confusion_rows(rows: list[dict[str, str]]) -> list[dict[str, str]]:
@@ -548,6 +568,19 @@ def real_note_row_confusion_rows(rows: list[dict[str, str]]) -> list[dict[str, s
         if row.get("status") != "hit" or not row.get("debug_note"):
             continue
         strongest_row = row.get("buffer_strongest_row", "")
+        if not strongest_row:
+            continue
+        if strongest_row != expected_row_for_family(row.get("family", "")):
+            confused.append(row)
+    return confused
+
+
+def real_note_visual_row_confusion_rows(rows: list[dict[str, str]]) -> list[dict[str, str]]:
+    confused: list[dict[str, str]] = []
+    for row in rows:
+        if row.get("status") != "hit" or not row.get("debug_note"):
+            continue
+        strongest_row = row.get("buffer_visual_strongest_row", "")
         if not strongest_row:
             continue
         if strongest_row != expected_row_for_family(row.get("family", "")):
@@ -565,6 +598,10 @@ def visible_row_confusion_rows(rows: list[dict[str, str]], min_level: float = 0.
 
 def exact_row_confusion_rows(rows: list[dict[str, str]], min_level: float = 0.25) -> list[dict[str, str]]:
     return [row for row in rows if float_or(row, "strongest_row_exact_level", 0.0) >= min_level]
+
+
+def visible_visual_row_confusion_rows(rows: list[dict[str, str]], min_level: float = 0.50) -> list[dict[str, str]]:
+    return [row for row in rows if float_or(row, "visual_strongest_row_pitch_level", 0.0) >= min_level]
 
 
 def report_real_notes(path: pathlib.Path, limit: int, row_examples: int) -> None:
@@ -588,6 +625,14 @@ def report_real_notes(path: pathlib.Path, limit: int, row_examples: int) -> None
         f"visible>=0.50={row_count_summary(visible_confused)} "
         f"exact>=0.25={row_count_summary(exact_confused)}"
     )
+    if any(row.get("buffer_visual_strongest_row") for row in rows):
+        visual_confused_rows = real_note_visual_row_confusion_rows(rows)
+        visual_visible_confused = visible_visual_row_confusion_rows(visual_confused_rows)
+        print(
+            f"  visual-row confusion rows={len(visual_confused_rows)} "
+            f"samples={unique_sample_count(visual_confused_rows, 'sample_id')} "
+            f"visible>=0.50={row_count_summary(visual_visible_confused)}"
+        )
     print(
         f"  same-midi spillover>=0.25 entries={len(spillover_rows)} "
         f"samples={unique_sample_count(spillover_rows, 'sample_id')} "

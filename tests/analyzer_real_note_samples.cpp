@@ -373,6 +373,24 @@ float grid_pitch_class_level(const mao::NoteGrid &grid, int midi)
 	return level;
 }
 
+float note_cell_visual_level(const mao::NoteCell &cell)
+{
+	return cell.visual_level >= 0.0f ? cell.visual_level : cell.level;
+}
+
+float grid_pitch_class_visual_level(const mao::NoteGrid &grid, int midi)
+{
+	const int pitch_class = ((midi % 12) + 12) % 12;
+	float level = 0.0f;
+	for (const auto &row : grid.rows) {
+		if (row[pitch_class].active)
+			level = std::max(level, note_cell_visual_level(row[pitch_class]));
+	}
+	if (grid.cells[pitch_class].active)
+		level = std::max(level, note_cell_visual_level(grid.cells[pitch_class]));
+	return level;
+}
+
 mao_test::Buffer centered_hann_buffer(const mao_test::Buffer &buffer)
 {
 	mao_test::Buffer windowed = {};
@@ -495,6 +513,27 @@ int strongest_pitch_class_row(const mao::AnalysisSnapshot &snapshot, int midi)
 	levels[kObservedVocals] = grid_pitch_class_level(snapshot.vocal_notes, midi);
 	levels[kObservedOther] = grid_pitch_class_level(snapshot.other_notes, midi);
 	levels[kObservedAmbiguous] = grid_pitch_class_level(snapshot.ambiguous_notes, midi);
+
+	int best = kObservedNone;
+	float best_level = 0.0f;
+	for (int i = 0; i < kObservedNone; ++i) {
+		if (levels[static_cast<std::size_t>(i)] > best_level) {
+			best = i;
+			best_level = levels[static_cast<std::size_t>(i)];
+		}
+	}
+	return best;
+}
+
+int strongest_visual_pitch_class_row(const mao::AnalysisSnapshot &snapshot, int midi)
+{
+	std::array<float, kObservedRowCount> levels = {};
+	levels[kObservedBass] = grid_pitch_class_visual_level(snapshot.bass_notes, midi);
+	levels[kObservedGuitar] = grid_pitch_class_visual_level(snapshot.guitar_notes, midi);
+	levels[kObservedPiano] = grid_pitch_class_visual_level(snapshot.keyboard_notes, midi);
+	levels[kObservedVocals] = grid_pitch_class_visual_level(snapshot.vocal_notes, midi);
+	levels[kObservedOther] = grid_pitch_class_visual_level(snapshot.other_notes, midi);
+	levels[kObservedAmbiguous] = grid_pitch_class_visual_level(snapshot.ambiguous_notes, midi);
 
 	int best = kObservedNone;
 	float best_level = 0.0f;
@@ -842,10 +881,12 @@ const char *bool_cell(bool value)
 
 void print_attribute_header(std::ostream &out)
 {
-	out << "status\tdetected\tdetected_anywhere\tdetected_expected_row\tfirst_row"
+	out << "status\tdetected\tdetected_anywhere\tdetected_expected_row\tfirst_row\tvisual_first_row"
 	    << "\tsample_id\tfamily\tnsynth_family\tsource\texpected_note\texpected_midi\tbuffer\tmode"
-	    << "\trow_label\trow_conf\trow_grid\tany_grid\tbuffer_strongest_row"
+	    << "\trow_label\trow_conf\trow_grid\tany_grid\tbuffer_strongest_row\tbuffer_visual_strongest_row"
 	    << "\tbass_level\tguitar_level\tpiano_level\tvocal_level\tother_level\tamb_level"
+	    << "\tbass_visual_level\tguitar_visual_level\tpiano_visual_level\tvocal_visual_level"
+	    << "\tother_visual_level\tamb_visual_level"
 	    << "\tbass_notes\tguitar_notes\tpiano_notes\tvocal_notes\tother_notes\tamb_notes"
 	    << "\tglobal_chord\tkeyboard_chord\tguitar_chord\tother_chord"
 	    << "\traw_expected_peak\traw_expected_ratio\traw_tuned_peak\traw_tuned_ratio"
@@ -911,12 +952,19 @@ void append_attribute_row(std::vector<std::string> &lines, const SampleRow &row,
 	append_tsv(line, bool_cell(grid_ok));
 	append_tsv(line, bool_cell(any_grid_ok));
 	append_tsv(line, kObservedRowNames[strongest_pitch_class_row(snapshot, row.midi)]);
+	append_tsv(line, kObservedRowNames[strongest_visual_pitch_class_row(snapshot, row.midi)]);
 	append_tsv(line, grid_pitch_class_level(snapshot.bass_notes, row.midi));
 	append_tsv(line, grid_pitch_class_level(snapshot.guitar_notes, row.midi));
 	append_tsv(line, grid_pitch_class_level(snapshot.keyboard_notes, row.midi));
 	append_tsv(line, grid_pitch_class_level(snapshot.vocal_notes, row.midi));
 	append_tsv(line, grid_pitch_class_level(snapshot.other_notes, row.midi));
 	append_tsv(line, grid_pitch_class_level(snapshot.ambiguous_notes, row.midi));
+	append_tsv(line, grid_pitch_class_visual_level(snapshot.bass_notes, row.midi));
+	append_tsv(line, grid_pitch_class_visual_level(snapshot.guitar_notes, row.midi));
+	append_tsv(line, grid_pitch_class_visual_level(snapshot.keyboard_notes, row.midi));
+	append_tsv(line, grid_pitch_class_visual_level(snapshot.vocal_notes, row.midi));
+	append_tsv(line, grid_pitch_class_visual_level(snapshot.other_notes, row.midi));
+	append_tsv(line, grid_pitch_class_visual_level(snapshot.ambiguous_notes, row.midi));
 	append_tsv(line, grid_debug_label(snapshot.bass_notes));
 	append_tsv(line, grid_debug_label(snapshot.guitar_notes));
 	append_tsv(line, grid_debug_label(snapshot.keyboard_notes));
@@ -1145,6 +1193,7 @@ int main()
 		bool detected_anywhere = false;
 		bool detected_expected_row = false;
 		int first_detected_row = kObservedNone;
+		int first_visual_detected_row = kObservedNone;
 		std::string last_label = "--";
 		std::vector<std::string> debug_lines;
 		std::vector<std::string> attribute_lines;
@@ -1197,6 +1246,9 @@ int main()
 				detected_anywhere = true;
 				if (first_detected_row == kObservedNone)
 					first_detected_row = strongest_pitch_class_row(snapshot, row.midi);
+				if (first_visual_detected_row == kObservedNone)
+					first_visual_detected_row =
+						strongest_visual_pitch_class_row(snapshot, row.midi);
 			}
 			if ((!full_mix && (label_ok || grid_ok)) ||
 			    (full_mix && detected_expected_row)) {
@@ -1236,7 +1288,9 @@ int main()
 				attribute_out << status << '\t' << bool_cell(detected) << '\t'
 					      << bool_cell(detected_anywhere) << '\t'
 					      << bool_cell(detected_expected_row) << '\t'
-					      << kObservedRowNames[first_detected_row] << '\t' << line << '\n';
+					      << kObservedRowNames[first_detected_row] << '\t'
+					      << kObservedRowNames[first_visual_detected_row] << '\t'
+					      << line << '\n';
 			}
 		}
 		if ((!detected || ownership_miss) && verbose_misses) {
