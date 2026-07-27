@@ -99,6 +99,29 @@ def main() -> int:
             "\t".join(HEADER) + "\n" + "\n".join("\t".join(item) for item in rows) + "\n",
             encoding="utf-8",
         )
+        protected_path = pathlib.Path(tmpdir) / "protected.tsv"
+        protected_rows = [
+            row(
+                status="chord_hit",
+                recording_id="protected_hit",
+                expected_chords="F",
+                expected_chord_qualities="maj",
+                guitar_chord="F",
+                guitar_raw_chord="F",
+                guitar_smoothed_chord="F",
+                guitar_pitch_classes="C,F,A",
+                guitar_cells="C4:0.70,F3:1.00,A3:0.80",
+                guitar_analysis_pitch_classes="C,F,A",
+                guitar_analysis_cells="C4:0.70,F3:1.00,A3:0.80",
+                guitar_smoothed_pitch_classes="C,F,A",
+                guitar_smoothed_cells="C4:0.70,F3:1.00,A3:0.80",
+                raw_pitch_class_levels="C:0.700,F:1.000,A:0.800",
+            )
+        ]
+        protected_path.write_text(
+            "\t".join(HEADER) + "\n" + "\n".join("\t".join(item) for item in protected_rows) + "\n",
+            encoding="utf-8",
+        )
         completed = subprocess.run(
             [
                 sys.executable,
@@ -144,6 +167,55 @@ def main() -> int:
                 "single_note_false_chord:any:any",
                 "--min-positive-recordings",
                 "1",
+                "--show-examples",
+                "1",
+            ],
+            cwd=ROOT,
+            check=True,
+            text=True,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+        )
+        protected_single_note_false = subprocess.run(
+            [
+                sys.executable,
+                str(SCRIPT),
+                str(path),
+                "--bucket",
+                "single_note_false_chord:any:any",
+                "--protected-path",
+                str(protected_path),
+                "--protected-bucket",
+                "chord_hit:any:any",
+                "--min-positive-recordings",
+                "1",
+                "--max-negative-recordings",
+                "0",
+                "--show-examples",
+                "1",
+            ],
+            cwd=ROOT,
+            check=True,
+            text=True,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+        )
+        runtime_single_note_false = subprocess.run(
+            [
+                sys.executable,
+                str(SCRIPT),
+                str(path),
+                "--bucket",
+                "single_note_false_chord:any:any",
+                "--protected-path",
+                str(protected_path),
+                "--protected-bucket",
+                "chord_hit:any:any",
+                "--runtime-only",
+                "--min-positive-recordings",
+                "1",
+                "--max-negative-recordings",
+                "0",
                 "--show-examples",
                 "1",
             ],
@@ -302,6 +374,13 @@ def main() -> int:
     assert "bucket single_note_false_chord:any:any positives=1" in single_note_false.stdout
     assert "rec4@" in single_note_false.stdout
     assert "expected=-- guitar=Fm=Fpow=F" in single_note_false.stdout
+    assert "bucket single_note_false_chord:any:any positives=1" in protected_single_note_false.stdout
+    assert "protected_hits=1" in protected_single_note_false.stdout
+    assert "rec4@" in protected_single_note_false.stdout
+    assert "-0 rows=0" in protected_single_note_false.stdout
+    assert "bucket single_note_false_chord:any:any positives=1" in runtime_single_note_false.stdout
+    assert "guitar_pc_count<=2" in runtime_single_note_false.stdout
+    assert "expected_chord_qualities" not in runtime_single_note_false.stdout
     assert "raw_fifth>=1 AND raw_root>=1 AND raw_third>=1" in multi_condition.stdout
     assert "miss1@1.000s expected=G guitar=--" in multi_condition.stdout
     print("test_find_guitarset_attribute_patterns: ok")

@@ -32,6 +32,16 @@ OUTCOME_NUMERIC_FIELDS = {
     "expected_label_in_smooth",
 }
 PATTERN_NUMERIC_FIELDS = [field for field in NUMERIC_FIELDS if field not in OUTCOME_NUMERIC_FIELDS]
+RUNTIME_NUMERIC_FIELDS = [
+    "rms",
+    "low",
+    "mid",
+    "high",
+    "guitar_pc_count",
+    "analysis_pc_count",
+    "smooth_pc_count",
+]
+RUNTIME_CATEGORY_FIELDS: list[str] = []
 
 
 @dataclasses.dataclass(frozen=True)
@@ -115,13 +125,15 @@ def category_pattern(field: str, expected: str) -> Pattern:
     )
 
 
-def build_patterns(positive_rows: list[dict[str, str]]) -> list[Pattern]:
+def build_patterns(positive_rows: list[dict[str, str]], *, runtime_only: bool = False) -> list[Pattern]:
     patterns: list[Pattern] = []
-    for field in CATEGORY_FIELDS + ["quality"]:
+    category_fields = RUNTIME_CATEGORY_FIELDS if runtime_only else CATEGORY_FIELDS + ["quality"]
+    numeric_fields = RUNTIME_NUMERIC_FIELDS if runtime_only else PATTERN_NUMERIC_FIELDS
+    for field in category_fields:
         values = sorted({row.get(field, "") for row in positive_rows if row.get(field, "")})
         for value in values:
             patterns.append(category_pattern(field, value))
-    for field in PATTERN_NUMERIC_FIELDS:
+    for field in numeric_fields:
         values = [value for row in positive_rows if (value := as_float_opt(row, field)) is not None]
         for threshold in thresholds(values):
             patterns.append(numeric_pattern(field, "<=", threshold))
@@ -413,6 +425,8 @@ def format_example(row: dict[str, str]) -> str:
 
 def print_patterns(
     rows: list[dict[str, str]],
+    protected_source_rows: list[dict[str, str]],
+    protected_buckets: list[tuple[str, str, str]],
     bucket: tuple[str, str, str],
     limit: int,
     min_positive_recordings: int,
@@ -420,9 +434,17 @@ def print_patterns(
     show_examples: int,
     max_conditions: int,
     beam_width: int,
+    runtime_only: bool,
 ) -> None:
     positive_rows = [row for row in rows if bucket_matches(row, bucket)]
-    negative_rows = [row for row in rows if row.get("status") == "chord_hit"]
+    if protected_buckets:
+        negative_rows = [
+            row
+            for row in protected_source_rows
+            if any(bucket_matches(row, protected_bucket) for protected_bucket in protected_buckets)
+        ]
+    else:
+        negative_rows = [row for row in protected_source_rows if row.get("status") == "chord_hit"]
     print(
         f"bucket {bucket_label(bucket)} positives={recording_count(positive_rows)} "
         f"positive_rows={len(positive_rows)} protected_hits={recording_count(negative_rows)}"
@@ -430,7 +452,7 @@ def print_patterns(
     if not positive_rows:
         return
 
-    base_patterns = build_patterns(positive_rows)
+    base_patterns = build_patterns(positive_rows, runtime_only=runtime_only)
     positive_recording_bits = recording_bit_map(positive_rows)
     negative_recording_bits = recording_bit_map(negative_rows)
     results: list[RuleResult] = []
@@ -490,6 +512,21 @@ def main() -> int:
         help="bucket formatted as status:quality:support; repeatable",
     )
     parser.add_argument(
+        "--protected-path",
+        action="append",
+        default=[],
+        help="additional attribute TSV to use for protected negative rows; repeatable",
+    )
+    parser.add_argument(
+        "--protected-bucket",
+        action="append",
+        default=[],
+        help=(
+            "protected bucket formatted as status:quality:support; repeatable. "
+            "Defaults to chord_hit rows from the selected protected path(s), or the main path."
+        ),
+    )
+    parser.add_argument(
         "--top-buckets",
         type=int,
         default=4,
@@ -511,9 +548,20 @@ def main() -> int:
         default=180,
         help="number of partial multi-condition rules retained per search depth",
     )
+    parser.add_argument(
+        "--runtime-only",
+        action="store_true",
+        help="mine only runtime-observable count and energy fields, excluding ground-truth labels and outcomes",
+    )
     args = parser.parse_args()
 
     rows = derive_rows(load_rows(pathlib.Path(args.path)))
+    protected_source_rows = rows
+    if args.protected_path:
+        protected_source_rows = []
+        for protected_path in args.protected_path:
+            protected_source_rows.extend(derive_rows(load_rows(pathlib.Path(protected_path))))
+    protected_buckets = [parse_bucket_spec(spec) for spec in args.protected_bucket]
     buckets = [parse_bucket_spec(spec) for spec in args.bucket]
     if not buckets and args.top_buckets > 0:
         buckets = top_bucket_keys(rows, args.top_buckets, include_comparisons=False)
@@ -523,6 +571,8 @@ def main() -> int:
     for bucket in buckets:
         print_patterns(
             rows,
+            protected_source_rows,
+            protected_buckets,
             bucket,
             max(1, args.limit),
             max(1, args.min_positive_recordings),
@@ -530,6 +580,7 @@ def main() -> int:
             max(0, args.show_examples),
             max(1, args.max_conditions),
             max(1, args.beam_width),
+            args.runtime_only,
         )
     return 0
 
