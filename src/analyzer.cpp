@@ -4130,6 +4130,20 @@ bool guitar_owned_measured_tine_attack_keyboard_body_supported(const FullMixDebu
 	return scored_tine_attack || clean_third_rich_tine_attack;
 }
 
+bool ambiguous_upper_partial_string_keyboard_spillover(const FullMixDebugCandidate &debug)
+{
+	return debug.owner == InstrumentKind::Ambiguous &&
+	       debug.ownership_confidence <= 0.001f &&
+	       debug.keyboard_score <= 0.001f &&
+	       debug.guitar_score <= 0.001f &&
+	       debug.vocal_score <= 0.001f &&
+	       debug.other_score <= 0.001f &&
+	       debug.spectral_level >= 0.64f &&
+	       debug.pitch_confidence >= 0.35f &&
+	       debug.harmonic_ratios[1] <= 0.12f &&
+	       debug.harmonic_ratios[4] >= 0.131f;
+}
+
 bool full_mix_display_mirror_supported(FullMixDisplayRow row, const FullMixDebugCandidate &debug,
 				       int display_midi)
 {
@@ -4148,6 +4162,8 @@ bool full_mix_display_mirror_supported(FullMixDisplayRow row, const FullMixDebug
 
 	switch (row) {
 	case FullMixDisplayRow::Keyboard: {
+		if (ambiguous_upper_partial_string_keyboard_spillover(debug))
+			return false;
 		const bool competing_guitar_range_hint =
 			debug.midi >= kGuitarMinMidi && debug.midi <= kGuitarMaxMidi &&
 			debug.guitar_score >= 0.30f &&
