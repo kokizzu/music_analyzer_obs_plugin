@@ -2520,6 +2520,50 @@ void check_full_mix_single_instrument_precision(Runner &runner)
 	}
 
 	{
+		mao_test::Buffer low_alias = {};
+		mao_test::Buffer alias_with_upper_keyboard = {};
+		const std::vector<float> priming_alias_profile =
+			{1.0f, 0.62f, 0.15f, 0.12f, 0.008f};
+		const std::vector<float> shadowed_alias_profile =
+			{1.0f, 0.35f, 0.08f, 0.075f, 0.008f};
+		const std::vector<float> upper_keyboard_profile = {1.0f, 0.12f, 0.04f, 0.015f, 0.006f};
+		add_harmonic_note(low_alias, 53, 0.24f, priming_alias_profile);
+		add_harmonic_note(alias_with_upper_keyboard, 53, 0.20f, shadowed_alias_profile);
+		add_harmonic_note(alias_with_upper_keyboard, 65, 0.24f, upper_keyboard_profile);
+
+		mao::AnalysisEngine engine;
+		mao::AnalysisSettings settings = mao_test::default_settings();
+		settings.input_mode = mao::AnalysisInputMode::FullMix;
+		mao::AnalysisSnapshot snapshot = {};
+		for (int frame = 0; frame < 3; ++frame)
+			snapshot = engine.analyze(low_alias.data(), low_alias.size(), settings,
+						  "speaker organ low alias before keyboard", 0);
+		const bool primed_low_alias = grid_level_for_midi(snapshot.bass_notes, 53) > 0.0f;
+		const std::string primed_bass_label = snapshot.bass.label;
+
+		snapshot = engine.analyze(alias_with_upper_keyboard.data(), alias_with_upper_keyboard.size(),
+					  settings, "speaker organ low alias with upper keyboard", 0);
+		runner.expect(primed_low_alias,
+			      std::string("full-mix organ keyboard alias release: expected initial low alias "
+					  "to prime bass tracking, got bass `") +
+				      primed_bass_label + "`");
+		runner.expect(grid_level_for_midi(snapshot.keyboard_notes, 65) > 0.0f,
+			      std::string("full-mix organ keyboard alias release: expected keyboard F4 "
+					  "display, got keyboard `") +
+				      snapshot.keyboard.label + "`, bass `" + snapshot.bass.label +
+				      "`, lower debug `" + full_mix_debug_summary_for_midi(snapshot, 53) +
+				      "`, upper debug `" + full_mix_debug_summary_for_midi(snapshot, 65) +
+				      "`");
+		runner.expect(grid_level_for_midi(snapshot.bass_notes, 53) <= 0.0f,
+			      std::string("full-mix organ keyboard alias release: expected shadowed tracked "
+					  "bass F3 alias to clear immediately, got bass `") +
+				      snapshot.bass.label + "`, keyboard `" + snapshot.keyboard.label +
+				      "`, lower debug `" + full_mix_debug_summary_for_midi(snapshot, 53) +
+				      "`, upper debug `" + full_mix_debug_summary_for_midi(snapshot, 65) +
+				      "`");
+	}
+
+	{
 		mao_test::Buffer buffer = {};
 		const std::vector<float> electronic_keyboard_octave_shadow_profile =
 			{1.0f, 0.72f, 0.14f, 0.040f, 0.020f};
