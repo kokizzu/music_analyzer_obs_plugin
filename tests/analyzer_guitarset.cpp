@@ -1371,6 +1371,8 @@ void print_guitarset_attribute_header(std::ostream &out)
 	    << "\tcross_row_expected_hits\tchord_hit\tsimple_chord_hit\tguitar_chord_hit"
 	    << "\tglobal_chord\tkeyboard_chord\tguitar_chord\tother_chord"
 	    << "\tguitar_raw_chord\tguitar_smoothed_chord"
+	    << "\tguitar_chord_confidence\tguitar_raw_chord_confidence"
+	    << "\tguitar_smoothed_chord_confidence"
 	    << "\tguitar_pitch_classes\tguitar_cells\tguitar_analysis_pitch_classes"
 	    << "\tguitar_analysis_cells\tguitar_smoothed_pitch_classes\tguitar_smoothed_cells"
 	    << "\texpected_raw_peak\texpected_raw_cells\traw_pitch_class_levels"
@@ -1430,6 +1432,9 @@ void append_guitarset_attribute_row(std::ostream &out, const Recording &recordin
 	append_tsv(line, snapshot.other_chord.label);
 	append_tsv(line, snapshot.guitar_raw_chord.label);
 	append_tsv(line, snapshot.guitar_smoothed_chord.label);
+	append_tsv(line, snapshot.guitar_chord.confidence);
+	append_tsv(line, snapshot.guitar_raw_chord.confidence);
+	append_tsv(line, snapshot.guitar_smoothed_chord.confidence);
 	append_tsv(line, pitch_class_list(guitar));
 	append_tsv(line, grid_cell_list(snapshot.guitar_notes));
 	append_tsv(line, pitch_class_list(guitar_analysis));

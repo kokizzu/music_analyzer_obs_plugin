@@ -40,10 +40,10 @@ p3	hit	piano	electronic	C4	60	piano	guitar	0	guitar	guitar	C4	guitar	1	0	C4	1	0	
         guitar = write(
             root / "guitar.tsv",
             """
-recording_id	status	expected_chords	expected_chord_qualities	quality	expected_label	expected_root	expected_quality_compact	guitar_match_kind	guitar_chord	guitar_raw_chord	guitar_smoothed_chord	global_chord	support	guitar_pitch_classes	guitar_analysis_pitch_classes	guitar_smoothed_pitch_classes	visible_missing_tones	analysis_missing_tones	smooth_missing_tones	evidence_class	evidence_source	raw_root	raw_third	raw_fifth	raw_opposite_third	raw_third_anchor_ratio	raw_third_opposite_margin	quality_raw
-g1	chord_miss	Am	min	m	Am	A	m	display_same_root_other	Asus2	Asus2	Asus2	--	visible2_analysis2_smooth2_rootvis1	A,E	A,E	A,E	third	third	third	third_missing	grid	1	0.02	1	0.1	0.02	-0.08	A:r1,m30.02,51
-g2	chord_hit	C	maj	maj	C	C	maj	display_exact	C	C	C	--	visible3_analysis3_smooth3_rootvis1	C,E,G	C,E,G	C,E,G	--	--	--	display_exact	display	1	1	1	0	1	1	C:r1,M31,51
-g3	chord_miss	C#m	min	m	C#	C#	m	display_different_root	A	A	B	--	visible2_analysis3_smooth3_rootvis1	C#,E	C#,E,G#	C#,E,G#	fifth	--	--	analysis_full_tone_label_gap	analysis	1	1	1	0	1	1	C#:r1,m31,51
+recording_id	status	expected_chords	expected_chord_qualities	quality	expected_label	expected_root	expected_quality_compact	guitar_match_kind	guitar_chord	guitar_raw_chord	guitar_smoothed_chord	guitar_chord_confidence	guitar_raw_chord_confidence	guitar_smoothed_chord_confidence	global_chord	support	guitar_pitch_classes	guitar_analysis_pitch_classes	guitar_smoothed_pitch_classes	visible_missing_tones	analysis_missing_tones	smooth_missing_tones	evidence_class	evidence_source	raw_root	raw_third	raw_fifth	raw_opposite_third	raw_third_anchor_ratio	raw_third_opposite_margin	quality_raw
+g1	chord_miss	Am	min	m	Am	A	m	display_same_root_other	Asus2	Asus2	Asus2	0.40	0.35	0.34	--	visible2_analysis2_smooth2_rootvis1	A,E	A,E	A,E	third	third	third	third_missing	grid	1	0.02	1	0.1	0.02	-0.08	A:r1,m30.02,51
+g2	chord_hit	C	maj	maj	C	C	maj	display_exact	C	C	C	0.92	0.90	0.88	--	visible3_analysis3_smooth3_rootvis1	C,E,G	C,E,G	C,E,G	--	--	--	display_exact	display	1	1	1	0	1	1	C:r1,M31,51
+g3	chord_miss	C#m	min	m	C#	C#	m	display_different_root	A	A	B	0.30	0.42	0.48	--	visible2_analysis3_smooth3_rootvis1	C#,E	C#,E,G#	C#,E,G#	fifth	--	--	analysis_full_tone_label_gap	analysis	1	1	1	0	1	1	C#:r1,m31,51
             """,
         )
         drum = write(
