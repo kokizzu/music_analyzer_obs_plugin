@@ -5362,7 +5362,7 @@ void add_full_mix_display_mirror(NoteCandidateList &candidates, const FullMixOwn
 	if (row == FullMixDisplayRow::Keyboard &&
 	    guitar_owned_dark_electronic_keyboard_body_supported(debug)) {
 		candidate_score = std::max(candidate_score, base_score * 0.96f);
-		candidate_confidence = std::max(candidate_confidence, 0.78f);
+		candidate_confidence = std::max(candidate_confidence, 0.88f);
 	}
 	if (measured_low_organ_keyboard_alias)
 		candidate_score = std::max(candidate_score, base_score * 0.22f);

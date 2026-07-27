@@ -2826,6 +2826,60 @@ void check_full_mix_single_instrument_precision(Runner &runner)
 
 	{
 		mao_test::Buffer buffer = {};
+		const std::vector<float> measured_dimmed_tine_keyboard_profile =
+			{1.0f, 0.43f, 0.095f, 0.12f, 0.055f};
+		add_harmonic_note(buffer, 52, 0.24f, measured_dimmed_tine_keyboard_profile);
+
+		const auto snapshot =
+			analyze_buffer_with_mode(buffer, mao::AnalysisInputMode::FullMix,
+						 "speaker measured dimmed tine keyboard", 3);
+		expect_global_pitch_class(runner, snapshot, 4,
+					  "full-mix measured dimmed tine keyboard global");
+		const float keyboard_visual = grid_visual_level_for_midi(snapshot.keyboard_notes, 52);
+		const float guitar_visual = grid_visual_level_for_midi(snapshot.guitar_notes, 52);
+		runner.expect(keyboard_visual >= 0.88f && keyboard_visual >= guitar_visual * 0.88f,
+			      std::string("full-mix measured dimmed tine keyboard: expected readable "
+					  "keyboard E3 visual, got keyboard visual ") +
+				      std::to_string(keyboard_visual) + ", guitar visual " +
+				      std::to_string(guitar_visual) + ", keyboard `" +
+				      snapshot.keyboard.label + "`, guitar `" + snapshot.guitar.label +
+				      "`, debug `" + full_mix_debug_summary_for_midi(snapshot, 52) + "`");
+	}
+
+	{
+		const std::vector<std::vector<float>> measured_tine_attack_profiles = {
+			{1.0f, 0.327f, 0.165f, 0.010f, 0.013f},
+			{1.0f, 0.323f, 0.162f, 0.011f, 0.013f},
+			{1.0f, 0.332f, 0.149f, 0.011f, 0.015f},
+			{1.0f, 0.373f, 0.131f, 0.011f, 0.020f},
+			{1.0f, 0.440f, 0.104f, 0.010f, 0.025f},
+		};
+		mao::AnalysisEngine engine;
+		mao::AnalysisSettings settings = mao_test::default_settings();
+		settings.input_mode = mao::AnalysisInputMode::FullMix;
+		mao::AnalysisSnapshot snapshot = {};
+		for (const std::vector<float> &profile : measured_tine_attack_profiles) {
+			mao_test::Buffer buffer = {};
+			add_harmonic_note(buffer, 53, 0.24f, profile);
+			snapshot = engine.analyze(buffer.data(), buffer.size(), settings,
+						  "speaker measured tine attack keyboard", 0);
+		}
+
+		expect_global_pitch_class(runner, snapshot, 5,
+					  "full-mix measured tine attack keyboard global");
+		const float keyboard_visual = grid_visual_level_for_midi(snapshot.keyboard_notes, 53);
+		const float guitar_visual = grid_visual_level_for_midi(snapshot.guitar_notes, 53);
+		runner.expect(keyboard_visual >= 0.88f && keyboard_visual >= guitar_visual * 0.88f,
+			      std::string("full-mix measured tine attack keyboard: expected readable "
+					  "keyboard F3 after attack, got keyboard visual ") +
+				      std::to_string(keyboard_visual) + ", guitar visual " +
+				      std::to_string(guitar_visual) + ", keyboard `" +
+				      snapshot.keyboard.label + "`, guitar `" + snapshot.guitar.label +
+				      "`, debug `" + full_mix_debug_summary_for_midi(snapshot, 53) + "`");
+	}
+
+	{
+		mao_test::Buffer buffer = {};
 		const std::vector<float> high_wind_profile = {1.0f, 0.37f, 0.16f, 0.027f, 0.015f};
 		add_harmonic_note(buffer, 68, 0.24f, high_wind_profile);
 
