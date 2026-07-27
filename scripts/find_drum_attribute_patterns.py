@@ -259,7 +259,9 @@ def add_ratios(row: dict[str, str]) -> None:
             rhs_value = as_float(row, f"{rhs}_{field}")
             if lhs_value is None or rhs_value is None:
                 continue
-            row[f"{lhs}_{rhs}_{field}_ratio"] = f"{lhs_value / (rhs_value + 1.0e-9):.9f}"
+            if abs(rhs_value) < 1.0e-6:
+                continue
+            row[f"{lhs}_{rhs}_{field}_ratio"] = f"{lhs_value / rhs_value:.9f}"
     for label, lhs_field, rhs_field in (
         ("tom_snare_body_ratio", "tom_body", "snare_body"),
         ("tom_kick_body_ratio", "tom_body", "kick_body"),
@@ -271,7 +273,9 @@ def add_ratios(row: dict[str, str]) -> None:
         rhs_value = as_float(row, rhs_field)
         if lhs_value is None or rhs_value is None:
             continue
-        row[label] = f"{lhs_value / (rhs_value + 1.0e-9):.9f}"
+        if abs(rhs_value) < 1.0e-6:
+            continue
+        row[label] = f"{lhs_value / rhs_value:.9f}"
 
 
 def as_float(row: dict[str, str], field: str) -> float | None:

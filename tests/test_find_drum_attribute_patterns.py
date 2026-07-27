@@ -115,14 +115,14 @@ def tsv_row(
 
 def run_patterns(
     *paths: pathlib.Path, include_merged_rows: bool = False, row_examples: int = 1,
-    max_conditions: int = 3,
+    max_conditions: int = 3, route_name: str = "tom->kick",
 ) -> str:
     command = [
         sys.executable,
         str(SCRIPT),
         *(str(path) for path in paths),
         "--route",
-        "tom->kick",
+        route_name,
         "--min-positive-samples",
         "2",
         "--max-negative-samples",
@@ -207,6 +207,21 @@ def main() -> int:
             encoding="utf-8",
         )
         multi_tsv_output = run_patterns(tsv_path, tsv_path_2, row_examples=4)
+        zero_denominator_path = pathlib.Path(tmpdir) / "zero_denominator.tsv"
+        zero_denominator_path.write_text(
+            "\n".join(
+                [
+                    "\t".join(tsv_header()),
+                    tsv_row("tom/zero_1.wav", "tom", "snare", kick_level=0.0, snare_level=0.90, tom_level=0.60),
+                    tsv_row("tom/zero_2.wav", "tom", "snare", kick_level=0.0, snare_level=0.88, tom_level=0.58),
+                    tsv_row("tom/ok.wav", "tom", "tom", kick_level=0.0, snare_level=0.10, tom_level=0.95),
+                    tsv_row("snare/ok.wav", "snare", "snare", kick_level=0.0, snare_level=0.95, tom_level=0.20),
+                ]
+            )
+            + "\n",
+            encoding="utf-8",
+        )
+        zero_denominator_output = run_patterns(zero_denominator_path, route_name="tom->snare")
 
     assert "route tom->kick positives=2 rows=2 protected_correct=4 rows=4" in output
     assert "protecting merged expected-credit rows=1; pass --include-merged-rows to mine them" in output
@@ -231,6 +246,9 @@ def main() -> int:
     assert "route tom->kick positives=3 rows=3 protected_correct=5 rows=5" in multi_tsv_output
     assert "drum:tom/001.wav tom->kick" in multi_tsv_output
     assert "drum_second:tom/001.wav tom->kick" in multi_tsv_output
+    assert "route tom->snare positives=2 rows=2" in zero_denominator_output
+    assert "1000000000" not in zero_denominator_output
+    assert "snare_kick_level_ratio" not in zero_denominator_output
     print("test_find_drum_attribute_patterns: ok")
     return 0
 
