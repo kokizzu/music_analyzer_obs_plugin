@@ -2541,6 +2541,26 @@ void check_full_mix_single_instrument_precision(Runner &runner)
 
 	{
 		mao_test::Buffer buffer = {};
+		const std::vector<float> electronic_keyboard_third_octave_shadow_profile =
+			{1.0f, 0.16f, 0.06f, 0.035f, 0.018f, 0.010f, 0.006f, 1.10f};
+		add_harmonic_note(buffer, 40, 0.24f, electronic_keyboard_third_octave_shadow_profile);
+
+		const auto snapshot =
+			analyze_buffer_with_mode(buffer, mao::AnalysisInputMode::FullMix,
+						 "speaker electronic keyboard third-octave shadow", 3);
+		expect_global_pitch_class(runner, snapshot, 4,
+					  "full-mix electronic keyboard third-octave shadow global");
+		runner.expect(grid_level_for_midi(snapshot.guitar_notes, 76) <= 0.0f,
+			      std::string("full-mix electronic keyboard third-octave shadow: expected no "
+					  "guitar E5 octave-ladder alias, got guitar `") +
+				      snapshot.guitar.label + "`, keyboard `" + snapshot.keyboard.label +
+				      "`, other `" + snapshot.other.label + "`, lower debug `" +
+				      full_mix_debug_summary_for_midi(snapshot, 40) + "`, upper debug `" +
+				      full_mix_debug_summary_for_midi(snapshot, 76) + "`");
+	}
+
+	{
+		mao_test::Buffer buffer = {};
 		const std::vector<float> high_alias_electronic_keyboard_profile =
 			{1.0f, 1.48f, 0.060f, 0.006f, 0.004f};
 		add_harmonic_note(buffer, 85, 0.24f, high_alias_electronic_keyboard_profile);

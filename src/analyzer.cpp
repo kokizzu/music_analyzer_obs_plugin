@@ -5281,6 +5281,23 @@ int guitar_like_debug_pitch_class_count(const FullMixOwnership &ownership)
 	return count;
 }
 
+bool guitar_display_candidate_has_confident_body(const FullMixDebugCandidate &debug)
+{
+	if (debug.owner != InstrumentKind::Guitar)
+		return false;
+
+	const bool confident_guitar_body =
+		debug.guitar_score >= 0.90f &&
+		debug.pitch_confidence >= 0.70f &&
+		debug.periodicity >= 0.70f;
+	const bool noisy_harmonic_guitar_body =
+		debug.guitar_score >= 0.78f &&
+		debug.harmonicity >= 1.20f &&
+		debug.harmonic_fit_error >= 0.18f &&
+		debug.local_noise_level >= 0.10f;
+	return confident_guitar_body || noisy_harmonic_guitar_body;
+}
+
 bool guitar_display_candidate_shadowed_by_upper_keyboard_pitch(const FullMixOwnership &ownership,
 							      const NoteCandidate &candidate)
 {
@@ -5289,19 +5306,8 @@ bool guitar_display_candidate_shadowed_by_upper_keyboard_pitch(const FullMixOwne
 		return false;
 
 	const FullMixDebugCandidate *candidate_debug = full_mix_debug_for_midi(ownership, candidate.midi);
-	if (candidate_debug && candidate_debug->owner == InstrumentKind::Guitar) {
-		const bool confident_guitar_body =
-			candidate_debug->guitar_score >= 0.90f &&
-			candidate_debug->pitch_confidence >= 0.70f &&
-			candidate_debug->periodicity >= 0.70f;
-		const bool noisy_harmonic_guitar_body =
-			candidate_debug->guitar_score >= 0.78f &&
-			candidate_debug->harmonicity >= 1.20f &&
-			candidate_debug->harmonic_fit_error >= 0.18f &&
-			candidate_debug->local_noise_level >= 0.10f;
-		if (confident_guitar_body || noisy_harmonic_guitar_body)
-			return false;
-	}
+	if (candidate_debug && guitar_display_candidate_has_confident_body(*candidate_debug))
+		return false;
 
 	const int pitch_class = midi_pitch_class(candidate.midi);
 	for (const NoteCandidate &keyboard : ownership.keyboard_candidates) {
@@ -5316,6 +5322,40 @@ bool guitar_display_candidate_shadowed_by_upper_keyboard_pitch(const FullMixOwne
 		    full_mix_display_mirror_supported(FullMixDisplayRow::Keyboard, *upper_debug,
 						      keyboard.midi))
 			return true;
+	}
+
+	return false;
+}
+
+bool guitar_display_candidate_shadowed_by_lower_keyboard_third_octave(
+	const FullMixOwnership &ownership, const NoteCandidate &candidate)
+{
+	const float candidate_level = ownership_global_note_level(ownership, candidate.midi);
+	if (candidate_level < 0.78f)
+		return false;
+
+	const FullMixDebugCandidate *candidate_debug = full_mix_debug_for_midi(ownership, candidate.midi);
+	if (candidate_debug && guitar_display_candidate_has_confident_body(*candidate_debug))
+		return false;
+
+	const std::size_t debug_count =
+		std::min<std::size_t>(ownership.debug_candidate_count, ownership.debug_candidates.size());
+	for (std::size_t i = 0; i < debug_count; ++i) {
+		const FullMixDebugCandidate &lower = ownership.debug_candidates[i];
+		const int interval = candidate.midi - lower.midi;
+		if (interval < 35 || interval > 37 || midi_pitch_class(lower.midi) != midi_pitch_class(candidate.midi))
+			continue;
+		if (!non_guitar_debug_pitch_support(lower))
+			continue;
+		if (lower.third_octave_ratio < 0.985f)
+			continue;
+		if (lower.spectral_level < 0.20f || lower.pitch_confidence < 0.10f)
+			continue;
+		if (measured_guitar_octave_alias_supported(lower) ||
+		    other_owned_distorted_guitar_octave_alias_supported(lower) ||
+		    other_owned_noisy_distorted_guitar_octave_up_supported(lower))
+			continue;
+		return true;
 	}
 
 	return false;
@@ -5336,6 +5376,9 @@ bool guitar_display_candidate_shadowed_by_non_guitar_pitch(const FullMixOwnershi
 		guitar_like_debug_pitch_class_count(ownership) >= 3;
 	if (!dense_guitar_context &&
 	    guitar_display_candidate_shadowed_by_upper_keyboard_pitch(ownership, candidate))
+		return true;
+	if (!dense_guitar_context &&
+	    guitar_display_candidate_shadowed_by_lower_keyboard_third_octave(ownership, candidate))
 		return true;
 	if (!dense_guitar_context) {
 		const int pitch_class = midi_pitch_class(candidate.midi);
