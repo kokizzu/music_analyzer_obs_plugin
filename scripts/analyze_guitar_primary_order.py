@@ -168,6 +168,8 @@ def main() -> int:
     raw_rescues = []
     smoothed_rescues = []
     both_rescues = []
+    raw_only_primary = []
+    smoothed_only_primary = []
     for row in chord_rows:
         expected = expected_labels(row.get("expected_chords", ""))
         displayed_primary = primary_component(row.get("guitar_chord", ""))
@@ -185,6 +187,10 @@ def main() -> int:
             smoothed_rescues.append(row)
         if not displayed_hit and raw_hit and smoothed_hit:
             both_rescues.append(row)
+        if raw_hit and not smoothed_hit:
+            raw_only_primary.append(row)
+        if smoothed_hit and not raw_hit:
+            smoothed_only_primary.append(row)
 
     if relationship_buckets:
         print(
@@ -205,11 +211,20 @@ def main() -> int:
                 return
             print(title)
             for row in rescue_rows[: args.examples]:
+                display = pitch_classes(row.get("guitar_pitch_classes", ""))
+                analysis = pitch_classes(row.get("guitar_analysis_pitch_classes", ""))
+                display_levels = parse_cells(row.get("guitar_cells", ""))
+                analysis_levels = parse_cells(row.get("guitar_analysis_cells", ""))
+                raw_primary = primary_component(row.get("guitar_raw_chord", ""))
+                smoothed_primary = primary_component(row.get("guitar_smoothed_chord", ""))
                 print(
                     f"  expected={row.get('expected_chords')}",
                     f"display={primary_component(row.get('guitar_chord', ''))}",
-                    f"raw={primary_component(row.get('guitar_raw_chord', ''))}",
-                    f"smoothed={primary_component(row.get('guitar_smoothed_chord', ''))}",
+                    f"raw={raw_primary}",
+                    f"smoothed={smoothed_primary}",
+                    "score="
+                    f"r:{component_score(raw_primary, display, analysis, display_levels, analysis_levels):.3f}/"
+                    f"s:{component_score(smoothed_primary, display, analysis, display_levels, analysis_levels):.3f}",
                     "conf="
                     f"d:{confidence_value(row, 'guitar_chord_confidence')}/"
                     f"r:{confidence_value(row, 'guitar_raw_chord_confidence')}/"
@@ -219,6 +234,8 @@ def main() -> int:
 
         print_rescue_examples("raw primary rescue examples", raw_rescues)
         print_rescue_examples("smoothed primary rescue examples", smoothed_rescues)
+        print_rescue_examples("raw-only primary examples", raw_only_primary)
+        print_rescue_examples("smoothed-only primary examples", smoothed_only_primary)
 
     primary_misses = []
     expected_later = []

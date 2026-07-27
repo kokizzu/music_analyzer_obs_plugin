@@ -85,9 +85,12 @@ def main() -> int:
         assert "candidate primary rescues: raw=1 smoothed=0 both=0" in output
         assert "raw primary rescue examples" in output
         assert (
-            "expected=Am display=C raw=Am smoothed=C conf=d:0.20/r:0.80/s:0.30 "
+            "expected=Am display=C raw=Am smoothed=C score=r:5.640/s:5.515 "
+            "conf=d:0.20/r:0.80/s:0.30 "
             "later_am.wav"
         ) in output
+        assert "raw-only primary examples" in output
+        assert "smoothed-only primary examples" not in output
         assert (
             "guitar_primary_order: rows=4 primary_misses=2 expected_later=2 "
             "score_promotable=1 cpp_promotable=0"
