@@ -2561,6 +2561,26 @@ void check_full_mix_single_instrument_precision(Runner &runner)
 
 	{
 		mao_test::Buffer buffer = {};
+		const std::vector<float> electronic_keyboard_octave_stack_profile =
+			{1.0f, 0.62f, 0.15f, 0.72f, 0.040f, 0.018f, 0.010f, 1.05f};
+		add_harmonic_note(buffer, 37, 0.20f, electronic_keyboard_octave_stack_profile);
+
+		const auto snapshot =
+			analyze_buffer_with_mode(buffer, mao::AnalysisInputMode::FullMix,
+						 "speaker electronic keyboard octave stack", 3);
+		expect_global_pitch_class(runner, snapshot, 1,
+					  "full-mix electronic keyboard octave stack global");
+		runner.expect(grid_level_for_midi(snapshot.guitar_notes, 61) <= 0.0f,
+			      std::string("full-mix electronic keyboard octave stack: expected no guitar "
+					  "C#4 octave-stack shadow, got guitar `") +
+				      snapshot.guitar.label + "`, keyboard `" + snapshot.keyboard.label +
+				      "`, other `" + snapshot.other.label + "`, middle debug `" +
+				      full_mix_debug_summary_for_midi(snapshot, 61) + "`, upper debug `" +
+				      full_mix_debug_summary_for_midi(snapshot, 73) + "`");
+	}
+
+	{
+		mao_test::Buffer buffer = {};
 		const std::vector<float> low_acoustic_guitar_profile =
 			{1.0f, 0.21f, 0.54f, 0.34f, 0.020f};
 		const std::vector<float> upper_keyboard_profile =

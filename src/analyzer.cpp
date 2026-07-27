@@ -5332,6 +5332,51 @@ bool guitar_display_candidate_has_confident_body(const FullMixDebugCandidate &de
 	return confident_guitar_body || noisy_harmonic_guitar_body;
 }
 
+bool confident_guitar_candidate_shadowed_by_keyboard_stack(const FullMixOwnership &ownership,
+							   const NoteCandidate &candidate,
+							   const FullMixDebugCandidate &debug)
+{
+	if (debug.owner != InstrumentKind::Guitar || debug.guitar_score < 0.78f)
+		return false;
+
+	const FullMixDebugCandidate *lower =
+		strongest_same_pitch_non_guitar_debug_below(ownership, candidate.midi);
+	if (!lower)
+		return false;
+	const int lower_interval = candidate.midi - lower->midi;
+	if (lower_interval < 12 || lower_interval > 24)
+		return false;
+	if (measured_guitar_octave_alias_supported(*lower) ||
+	    other_owned_distorted_guitar_octave_alias_supported(*lower) ||
+	    other_owned_noisy_distorted_guitar_octave_up_supported(*lower))
+		return false;
+
+	const float candidate_level = ownership_global_note_level(ownership, candidate.midi);
+	const float lower_level = ownership_global_note_level(ownership, lower->midi);
+	if (lower_level < 0.18f || lower_level < candidate_level * 0.45f)
+		return false;
+
+	const int pitch_class = midi_pitch_class(candidate.midi);
+	for (const NoteCandidate &keyboard : ownership.keyboard_candidates) {
+		const int upper_interval = keyboard.midi - candidate.midi;
+		if (upper_interval < 12 || upper_interval > 24 ||
+		    midi_pitch_class(keyboard.midi) != pitch_class)
+			continue;
+		if (keyboard.score < std::max(0.74f, candidate_level * 0.65f))
+			continue;
+		const FullMixDebugCandidate *upper_debug = full_mix_debug_for_midi(ownership, keyboard.midi);
+		if (!upper_debug)
+			return true;
+		if (upper_debug->owner == InstrumentKind::Keyboard ||
+		    upper_debug->keyboard_score >= 0.70f ||
+		    full_mix_display_mirror_supported(FullMixDisplayRow::Keyboard, *upper_debug,
+						      keyboard.midi))
+			return true;
+	}
+
+	return false;
+}
+
 bool guitar_display_candidate_shadowed_by_upper_keyboard_pitch(const FullMixOwnership &ownership,
 							      const NoteCandidate &candidate)
 {
@@ -5343,7 +5388,8 @@ bool guitar_display_candidate_shadowed_by_upper_keyboard_pitch(const FullMixOwne
 		if (!candidate_debug || other_owned_low_acoustic_guitar_body_supported(*candidate_debug))
 			return false;
 	}
-	if (candidate_debug && guitar_display_candidate_has_confident_body(*candidate_debug))
+	if (candidate_debug && guitar_display_candidate_has_confident_body(*candidate_debug) &&
+	    !confident_guitar_candidate_shadowed_by_keyboard_stack(ownership, candidate, *candidate_debug))
 		return false;
 
 	const int pitch_class = midi_pitch_class(candidate.midi);
