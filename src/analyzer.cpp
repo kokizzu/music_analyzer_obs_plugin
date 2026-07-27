@@ -8373,6 +8373,37 @@ void suppress_other_dominant_same_pitch_bass_shadows(NoteGrid &bass_grid, Instru
 		write_note_grid_label(bass_state, bass_grid, preferred_root);
 }
 
+void suppress_keyboard_owned_weak_same_pitch_bass_shadows(NoteGrid &bass_grid, InstrumentState &bass_state,
+							  const NoteGrid &keyboard_grid,
+							  const FullMixOwnership &ownership,
+							  int preferred_root)
+{
+	static constexpr float kMaxBassScore = 0.10f;
+	static constexpr float kMaxBassLevel = 0.45f;
+	static constexpr float kMinKeyboardScore = 0.18f;
+
+	bool changed = false;
+	for (int midi = kBassMinMidi; midi <= kBassMaxMidi; ++midi) {
+		const float bass_level = note_grid_midi_level(bass_grid, midi);
+		if (bass_level <= 0.0f || bass_level > kMaxBassLevel)
+			continue;
+		if (note_grid_midi_level(keyboard_grid, midi) <= 0.0f)
+			continue;
+
+		const FullMixDebugCandidate *debug = best_same_midi_bass_debug(ownership, midi);
+		if (!debug || debug->owner != InstrumentKind::Keyboard ||
+		    debug->bass_score > kMaxBassScore ||
+		    debug->keyboard_score < kMinKeyboardScore)
+			continue;
+
+		clear_note_grid_midi(bass_grid, midi);
+		changed = true;
+	}
+
+	if (changed)
+		write_note_grid_label(bass_state, bass_grid, preferred_root);
+}
+
 void prune_low_synthetic_other_note_grid_harmonic_aliases(NoteGrid &grid, InstrumentState &state)
 {
 	std::array<bool, kNoteProbeCount> active_midis = {};
@@ -18845,6 +18876,9 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 			boost_note_grid_primary_octave_display_level(snapshot.other_notes, snapshot.other, -1);
 		suppress_other_dominant_same_pitch_bass_shadows(snapshot.bass_notes, snapshot.bass,
 								snapshot.other_notes, full_mix_ownership, -1);
+		suppress_keyboard_owned_weak_same_pitch_bass_shadows(snapshot.bass_notes, snapshot.bass,
+								     snapshot.keyboard_notes,
+								     full_mix_ownership, -1);
 	} else {
 		reset_chord_tracking(global_chord_tracking_, snapshot.global_chord);
 	}
