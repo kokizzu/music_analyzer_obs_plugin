@@ -4356,6 +4356,23 @@ void check_full_mix_organ_suboctave_does_not_take_over_bass(Runner &runner)
 			      full_mix_debug_summary_for_midi(snapshot, 53) + "`");
 }
 
+void check_full_mix_organ_partial_does_not_take_over_guitar(Runner &runner)
+{
+	mao_test::Buffer buffer = {};
+	const std::vector<float> organ_partial_profile = {1.0f, 3.90f, 0.040f, 0.016f, 0.002f};
+	add_harmonic_note(buffer, 80, 0.060f, organ_partial_profile);
+
+	const auto snapshot =
+		analyze_buffer_with_mode(buffer, mao::AnalysisInputMode::FullMix,
+					 "speaker organ keyboard", 3);
+	expect_global_pitch_class(runner, snapshot, 8, "full-mix organ partial global");
+	runner.expect(!grid_pitch_active(snapshot.guitar_notes, 8),
+		      std::string("full-mix organ partial guitar shadow: expected no G# guitar row, "
+				  "got guitar `") +
+			      snapshot.guitar.label + "`, keyboard `" + snapshot.keyboard.label +
+			      "`, debug `" + full_mix_debug_summary_for_midi(snapshot, 80) + "`");
+}
+
 void check_multi_instrument_mix(Runner &runner)
 {
 	mao_test::Buffer buffer = {};
@@ -5344,6 +5361,7 @@ int main()
 	check_full_mix_bass_harmonic_note_not_duplicated(runner);
 	check_full_mix_high_bass_range(runner);
 	check_full_mix_organ_suboctave_does_not_take_over_bass(runner);
+	check_full_mix_organ_partial_does_not_take_over_guitar(runner);
 	check_multi_instrument_mix(runner);
 	check_low_level_full_instrument_mix(runner);
 	check_bass_survives_low_mid_mix(runner);

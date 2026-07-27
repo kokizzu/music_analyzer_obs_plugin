@@ -2897,6 +2897,17 @@ bool non_guitar_third_octave_shadow_blocks_guitar_display(const FullMixDebugCand
 	       !other_owned_noisy_distorted_guitar_octave_up_supported(debug);
 }
 
+bool low_slope_electronic_keyboard_guitar_shadow(const FullMixDebugCandidate &debug)
+{
+	return debug.owner == InstrumentKind::Guitar &&
+	       debug.guitar_score >= 0.86f &&
+	       debug.spectral_slope <= 0.0135f &&
+	       debug.pitch_confidence <= 0.40f &&
+	       debug.periodicity <= 0.70f &&
+	       debug.harmonic_fit_error >= 0.85f &&
+	       debug.harmonicity >= 2.0f;
+}
+
 bool measured_other_owned_electric_piano_supported(const FullMixDebugCandidate &debug)
 {
 	return debug.owner == InstrumentKind::Other &&
@@ -4168,6 +4179,8 @@ bool full_mix_display_mirror_supported(FullMixDisplayRow row, const FullMixDebug
 			debug.harmonic_ratios[2] < 0.28f;
 		if (low_noisy_bass_shaped_guitar_hint)
 			return false;
+		if (low_slope_electronic_keyboard_guitar_shadow(debug))
+			return false;
 		if (display_midi == debug.midi &&
 		    non_guitar_third_octave_shadow_blocks_guitar_display(debug))
 			return false;
@@ -5253,12 +5266,15 @@ bool guitar_display_candidate_shadowed_by_non_guitar_pitch(const FullMixOwnershi
 	if (candidate.midi < kGuitarMinMidi || candidate.midi > kGuitarMaxMidi)
 		return false;
 
+	const FullMixDebugCandidate *debug = full_mix_debug_for_midi(ownership, candidate.midi);
+	if (debug && low_slope_electronic_keyboard_guitar_shadow(*debug))
+		return true;
+
 	const FullMixDebugCandidate *lower =
 		strongest_same_pitch_non_guitar_debug_at_or_below(ownership, candidate.midi);
 	if (!lower)
 		return false;
 
-	const FullMixDebugCandidate *debug = full_mix_debug_for_midi(ownership, candidate.midi);
 	if (debug && debug->midi == lower->midi)
 		lower = strongest_same_pitch_non_guitar_debug_below(ownership, candidate.midi);
 	if (!lower)
