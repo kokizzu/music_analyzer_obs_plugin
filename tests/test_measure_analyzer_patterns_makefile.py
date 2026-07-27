@@ -247,6 +247,35 @@ def main() -> int:
     assert "test-instrument-samples " not in detector_regression_target_list + " ", (
         "detector sample regression loop must not use the serial generated instrument sample gate"
     )
+    real_world_full_targets = re.search(
+        r"^REAL_WORLD_SAMPLE_FULL_TARGETS := (.+)$", makefile, re.MULTILINE
+    )
+    assert real_world_full_targets is not None, "missing full real-world sample target list"
+    real_world_full_target_list = real_world_full_targets.group(1)
+    assert "test-guitar-chord-mix-samples-parallel" in real_world_full_target_list, (
+        "full real-world sample tests must use the sharded guitar chord mix gate"
+    )
+    assert "test-guitar-chord-mix-samples " not in real_world_full_target_list + " ", (
+        "full real-world sample tests must not use the serial guitar chord mix gate"
+    )
+    real_world_full_recipe = target_recipe(makefile, "test-real-world-samples-full")
+    assert "test-guitar-chord-mix-samples-parallel" in real_world_full_recipe, (
+        "serial full real-world wrapper must delegate guitar chord mix to the sharded gate"
+    )
+    assert "test-guitar-chord-mix-samples " not in real_world_full_recipe + " ", (
+        "serial full real-world wrapper must not run guitar chord mix serially"
+    )
+    real_world_max_targets = re.search(
+        r"^REAL_WORLD_SAMPLE_MAX_TARGETS := (.+)$", makefile, re.MULTILINE
+    )
+    assert real_world_max_targets is not None, "missing max real-world sample target list"
+    real_world_max_target_list = real_world_max_targets.group(1)
+    assert "test-guitar-chord-mix-samples-parallel" in real_world_max_target_list, (
+        "max real-world sample tests must use the sharded guitar chord mix gate"
+    )
+    assert "test-guitar-chord-mix-samples " not in real_world_max_target_list + " ", (
+        "max real-world sample tests must not use the serial guitar chord mix gate"
+    )
     guitar_chord_sharded_recipe = target_recipe(makefile, "test-guitar-chord-mix-samples-parallel")
     assert "$(MAKE) $(GUITAR_CHORD_MIX_TEST_MAKE_JOBS) $(GUITAR_CHORD_MIX_SHARD_TARGETS)" in guitar_chord_sharded_recipe, (
         "guitar chord mix parallel target must fan out deterministic shards through jobserver-aware make"
