@@ -852,6 +852,33 @@ def main() -> int:
             f"guitar chord attribute shard target must include {text}"
         )
 
+    downloaded_guitarset_attribute_recipe = target_recipe(makefile, "$(GUITARSET_ATTRIBUTE_TSV)")
+    assert "GUITARSET_ATTRIBUTE_MAKE_JOBS = $(if $(filter -j%,$(MAKEFLAGS)),,-j$(GUITARSET_SHARDS))" in makefile, (
+        "downloaded GuitarSet attribute shards must force -j only when the parent make has no jobserver"
+    )
+    assert "$(BUILD_DIR)/analyzer_guitarset" in downloaded_guitarset_attribute_recipe.splitlines()[0], (
+        "downloaded GuitarSet attribute TSV must rebuild when the analyzer binary changes"
+    )
+    assert "scripts/build_sharded_tsv.sh" in downloaded_guitarset_attribute_recipe.splitlines()[0], (
+        "downloaded GuitarSet attribute TSV must rebuild when the sharded TSV helper changes"
+    )
+    assert '$(SHELL) scripts/build_sharded_tsv.sh "$@" "$(MAKE)" "$(GUITARSET_ATTRIBUTE_MAKE_JOBS)" $(GUITARSET_ATTRIBUTE_PARTS)' in downloaded_guitarset_attribute_recipe, (
+        "downloaded GuitarSet attribute TSV must use the locked helper to build and combine shards"
+    )
+    downloaded_guitarset_attribute_shard_recipe = target_recipe(
+        makefile, "$(BUILD_DIR)/guitarset_attributes.shard-%.tsv"
+    )
+    for text in [
+        "$(BUILD_DIR)/analyzer_guitarset",
+        "MUSIC_ANALYZER_GUITARSET_ATTRIBUTE_TSV=\"$@\"",
+        "MUSIC_ANALYZER_GUITARSET_SHARD_COUNT=\"$(GUITARSET_SHARDS)\"",
+        "MUSIC_ANALYZER_GUITARSET_SHARD_INDEX=\"$*\"",
+        "guitarset_attributes.shard-$*.out",
+    ]:
+        assert text in downloaded_guitarset_attribute_shard_recipe, (
+            f"downloaded GuitarSet attribute shard target must include {text}"
+        )
+
     stale_aware_attribute_shortcuts = {
         "inspect-instrument-sample-owner-buckets": "$(BUILD_DIR)/instrument_sample_attributes.tsv",
         "find-instrument-owner-patterns": "$(BUILD_DIR)/instrument_sample_attributes.tsv",
@@ -866,6 +893,9 @@ def main() -> int:
         "analyze-guitar-chord-mix-extra-components": "$(BUILD_DIR)/guitar_chord_mix_attributes.tsv",
         "inspect-guitar-chord-mix-attribute-buckets": "$(BUILD_DIR)/guitar_chord_mix_attributes.tsv",
         "find-guitar-chord-mix-attribute-patterns": "$(BUILD_DIR)/guitar_chord_mix_attributes.tsv",
+        "analyze-guitarset-attributes": "$(GUITARSET_ATTRIBUTE_TSV)",
+        "inspect-guitarset-attribute-buckets": "$(GUITARSET_ATTRIBUTE_TSV)",
+        "find-guitarset-attribute-patterns": "$(GUITARSET_ATTRIBUTE_TSV)",
     }
     for target, tsv in stale_aware_attribute_shortcuts.items():
         shortcut_recipe = target_recipe(makefile, target)
