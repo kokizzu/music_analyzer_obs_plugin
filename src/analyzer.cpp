@@ -15748,6 +15748,12 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 			drum_detection_enabled && one_shot_drum_source &&
 			drum_bands[Ride] >= 16.28f &&
 			upper_tom_body >= snare_crack * 12.476f;
+		const bool one_shot_measured_kick_band_tom_from_snare_primary_recovery =
+			drum_detection_enabled && one_shot_drum_source &&
+			measured_one_shot_tom_shape &&
+			drum_bands[Kick] >= 134.45f &&
+			drum_level_[Kick] <= 0.001f &&
+			drum_segment_bands[Kick] <= 89.03f;
 		const bool one_shot_measured_quiet_crash_tom_from_snare_primary_recovery =
 			drum_detection_enabled && one_shot_drum_source &&
 			drum_level_[Tom] > 0.30f &&
@@ -15954,6 +15960,12 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 			  snare_kick_shape_score_ratio <= 1.165f) ||
 			 (body_shape == Tom &&
 			  kick_body >= 193.22f));
+		const bool one_shot_measured_mid_body_kick_from_snare_primary_recovery =
+			drum_detection_enabled && one_shot_drum_source &&
+			hihat_rim_segment_ratio <= 0.265f &&
+			snare_kick_level_ratio >= 1.02f &&
+			tom_body >= 40.186f &&
+			drum_segment_bands[Tom] <= 45.504f;
 		const bool one_shot_measured_dense_body_kick_from_tom_primary_recovery =
 			drum_detection_enabled && one_shot_drum_source &&
 			drum_bands[Kick] <= 0.063f &&
@@ -15965,7 +15977,8 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 		    one_shot_measured_tom_no_kick_snare_steal_primary_recovery ||
 		    one_shot_measured_tom_kick_low_crash_primary_recovery ||
 		    one_shot_measured_tom_from_snare_primary_recovery ||
-		    one_shot_measured_high_ride_tom_snare_primary_recovery)
+		    one_shot_measured_high_ride_tom_snare_primary_recovery ||
+		    one_shot_measured_kick_band_tom_from_snare_primary_recovery)
 			promote_drum_primary(Tom, 0.90f);
 		if (one_shot_measured_ride_rim_saturated_recovery)
 			promote_drum_primary(Ride, 0.90f);
@@ -16042,6 +16055,7 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 		    measured_low_energy_kick_tom_primary_recovery ||
 		    one_shot_measured_late_kick_tom_primary_recovery ||
 		    one_shot_measured_kick_snare_primary_recovery ||
+		    one_shot_measured_mid_body_kick_from_snare_primary_recovery ||
 		    one_shot_measured_dense_body_kick_from_tom_primary_recovery)
 			promote_drum_primary(Kick, 0.90f);
 		const float post_primary_tom_kick_level_ratio =
