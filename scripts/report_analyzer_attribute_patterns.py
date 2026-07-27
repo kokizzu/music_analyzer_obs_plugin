@@ -658,6 +658,22 @@ def report_real_notes(path: pathlib.Path, limit: int, row_examples: int) -> None
                 f"strongest_pitch_med={median([value for row in bucket_group if (value := as_float(row, 'strongest_row_pitch_level')) is not None])} "
                 f"strongest_pitch_delta={compact(collections.Counter(row.get('strongest_row_pitch_delta', '--') or '--' for row in bucket_group), 4)}"
             )
+    if any(row.get("buffer_visual_strongest_row") for row in rows) and visual_confused_rows:
+        visual_confusion_buckets: dict[str, list[dict[str, str]]] = collections.defaultdict(list)
+        for row in visual_confused_rows:
+            visual_confusion_buckets[real_note_visual_row_confusion_bucket(row)].append(row)
+        for bucket, bucket_group in sorted(
+            visual_confusion_buckets.items(), key=lambda item: (-len(item[1]), item[0])
+        )[:limit]:
+            bucket_visible = visible_visual_row_confusion_rows(bucket_group)
+            print(
+                f"  visual_row_confusion:{bucket}: rows={len(bucket_group)} "
+                f"samples={unique_sample_count(bucket_group, 'sample_id')} "
+                f"visible>=0.50={row_count_summary(bucket_visible)} "
+                f"debug_owner={compact(collections.Counter(row.get('debug_owner', 'none') or 'none' for row in bucket_group), 4)} "
+                f"expected_visual_med={median([value for row in bucket_group if (value := as_float(row, 'expected_row_visual_level')) is not None])} "
+                f"strongest_visual_med={median([value for row in bucket_group if (value := as_float(row, 'visual_strongest_row_pitch_level')) is not None])}"
+            )
     miss_rows = [row for row in rows if row.get("status") == "ownership_miss" and row.get("debug_note")]
     print(f"  ownership miss rows={len(miss_rows)} samples={unique_sample_count(miss_rows, 'sample_id')}")
     if miss_rows:
