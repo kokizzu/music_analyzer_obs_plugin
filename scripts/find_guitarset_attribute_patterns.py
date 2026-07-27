@@ -45,9 +45,17 @@ RUNTIME_CATEGORY_FIELDS: list[str] = []
 
 
 @dataclasses.dataclass(frozen=True)
+class Constraint:
+    field: str
+    kind: str
+    value: float | str
+
+
+@dataclasses.dataclass(frozen=True)
 class Pattern:
     label: str
     predicate: Callable[[dict[str, str]], bool]
+    constraint: Constraint | None = None
 
 
 @dataclasses.dataclass(frozen=True)
@@ -65,11 +73,13 @@ class PatternMatch:
     label: str
     positive_mask: int
     negative_mask: int
+    constraint: Constraint | None = None
 
 
 @dataclasses.dataclass(frozen=True)
 class SearchState:
     labels: tuple[str, ...]
+    constraints: tuple[Constraint, ...]
     positive_mask: int
     negative_mask: int
     next_match_index: int
@@ -109,12 +119,14 @@ def numeric_pattern(field: str, operator: str, threshold: float) -> Pattern:
             lambda row, field=field, threshold=threshold: (
                 (value := as_float_opt(row, field)) is not None and value <= threshold
             ),
+            Constraint(field, "upper", threshold),
         )
     return Pattern(
         f"{field}>={format_value(threshold)}",
         lambda row, field=field, threshold=threshold: (
             (value := as_float_opt(row, field)) is not None and value >= threshold
         ),
+        Constraint(field, "lower", threshold),
     )
 
 
@@ -122,6 +134,7 @@ def category_pattern(field: str, expected: str) -> Pattern:
     return Pattern(
         f"{field}={expected}",
         lambda row, field=field, expected=expected: row.get(field, "") == expected,
+        Constraint(field, "category", expected),
     )
 
 
@@ -309,6 +322,25 @@ def ranked_state_key(
     )
 
 
+def constraints_compatible(
+    existing_constraints: tuple[Constraint, ...], new_constraint: Constraint | None
+) -> bool:
+    if new_constraint is None:
+        return True
+    for existing in existing_constraints:
+        if existing.field != new_constraint.field:
+            continue
+        if existing.kind == "category" or new_constraint.kind == "category":
+            return False
+        if existing.kind == new_constraint.kind:
+            return False
+        if {existing.kind, new_constraint.kind} == {"lower", "upper"}:
+            lower = float(existing.value if existing.kind == "lower" else new_constraint.value)
+            upper = float(existing.value if existing.kind == "upper" else new_constraint.value)
+            return lower < upper
+    return True
+
+
 def extend_condition_search(
     matches: list[PatternMatch],
     positive_rows: list[dict[str, str]],
@@ -335,6 +367,7 @@ def extend_condition_search(
         states.append(
             SearchState(
                 labels=(match.label,),
+                constraints=(match.constraint,) if match.constraint is not None else (),
                 positive_mask=match.positive_mask,
                 negative_mask=match.negative_mask,
                 next_match_index=index + 1,
@@ -348,6 +381,8 @@ def extend_condition_search(
         for state in states:
             for match_index in range(state.next_match_index, len(ordered)):
                 match = ordered[match_index]
+                if not constraints_compatible(state.constraints, match.constraint):
+                    continue
                 positive_mask = state.positive_mask & match.positive_mask
                 if positive_mask == 0:
                     continue
@@ -359,6 +394,10 @@ def extend_condition_search(
                 negative_mask = state.negative_mask & match.negative_mask
                 candidate = SearchState(
                     labels=state.labels + (match.label,),
+                    constraints=(
+                        state.constraints + (match.constraint,)
+                        if match.constraint is not None else state.constraints
+                    ),
                     positive_mask=positive_mask,
                     negative_mask=negative_mask,
                     next_match_index=match_index + 1,
@@ -466,6 +505,7 @@ def print_patterns(
             label=pattern.label,
             positive_mask=mask_for_pattern(positive_rows, pattern),
             negative_mask=mask_for_pattern(negative_rows, pattern),
+            constraint=pattern.constraint,
         )
         for pattern in base_patterns
     ]

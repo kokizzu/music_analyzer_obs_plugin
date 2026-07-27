@@ -10,6 +10,9 @@ import tempfile
 
 ROOT = pathlib.Path(__file__).resolve().parents[1]
 SCRIPT = ROOT / "scripts" / "find_drum_attribute_patterns.py"
+sys.path.insert(0, str(ROOT / "scripts"))
+
+import find_drum_attribute_patterns as patterns
 
 
 def details(
@@ -146,6 +149,23 @@ def run_patterns(
 
 
 def main() -> int:
+    assert not patterns.constraints_compatible(
+        (patterns.numeric_pattern("tom_level", "<=", 0.8).constraint,),
+        patterns.numeric_pattern("tom_level", ">=", 0.8).constraint,
+    )
+    assert patterns.constraints_compatible(
+        (patterns.numeric_pattern("tom_level", ">=", 0.7).constraint,),
+        patterns.numeric_pattern("tom_level", "<=", 0.9).constraint,
+    )
+    assert not patterns.constraints_compatible(
+        (patterns.numeric_pattern("snare_trigger", "<=", 1.0).constraint,),
+        patterns.numeric_pattern("snare_trigger", "<=", 2.0).constraint,
+    )
+    assert not patterns.constraints_compatible(
+        (patterns.category_pattern("body_shape", "2").constraint,),
+        patterns.category_pattern("body_shape", "4").constraint,
+    )
+
     rows = [
         row("tom/001.wav", "tom", details(kick_level=0.90, snare_level=0.10, tom_level=0.60)),
         row("tom/002.wav", "tom", details(kick_level=0.88, snare_level=0.10, tom_level=0.58)),

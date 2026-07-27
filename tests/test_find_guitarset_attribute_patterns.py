@@ -11,9 +11,29 @@ from test_inspect_guitarset_attribute_buckets import HEADER, ROOT, row
 
 
 SCRIPT = ROOT / "scripts" / "find_guitarset_attribute_patterns.py"
+sys.path.insert(0, str(ROOT / "scripts"))
+
+import find_guitarset_attribute_patterns as patterns
 
 
 def main() -> int:
+    assert not patterns.constraints_compatible(
+        (patterns.numeric_pattern("raw_root", "<=", 0.5).constraint,),
+        patterns.numeric_pattern("raw_root", ">=", 0.5).constraint,
+    )
+    assert patterns.constraints_compatible(
+        (patterns.numeric_pattern("raw_root", ">=", 0.4).constraint,),
+        patterns.numeric_pattern("raw_root", "<=", 0.6).constraint,
+    )
+    assert not patterns.constraints_compatible(
+        (patterns.numeric_pattern("rms", "<=", 0.1).constraint,),
+        patterns.numeric_pattern("rms", "<=", 0.2).constraint,
+    )
+    assert not patterns.constraints_compatible(
+        (patterns.category_pattern("quality", "maj").constraint,),
+        patterns.category_pattern("quality", "min").constraint,
+    )
+
     with tempfile.TemporaryDirectory() as tmpdir:
         path = pathlib.Path(tmpdir) / "guitarset.tsv"
         rows = [
