@@ -2561,6 +2561,29 @@ void check_full_mix_single_instrument_precision(Runner &runner)
 
 	{
 		mao_test::Buffer buffer = {};
+		const std::vector<float> low_acoustic_guitar_profile =
+			{1.0f, 0.21f, 0.54f, 0.34f, 0.020f};
+		const std::vector<float> upper_keyboard_profile =
+			{1.0f, 0.030f, 0.010f, 0.004f, 0.002f};
+		add_harmonic_note(buffer, 51, 0.10f, low_acoustic_guitar_profile);
+		add_harmonic_note(buffer, 63, 0.12f, upper_keyboard_profile);
+
+		const auto snapshot =
+			analyze_buffer_with_mode(buffer, mao::AnalysisInputMode::FullMix,
+						 "speaker low acoustic guitar with upper keyboard support", 3);
+		expect_global_pitch_class(runner, snapshot, 3,
+					  "full-mix low acoustic guitar upper keyboard global");
+		runner.expect(grid_level_for_midi(snapshot.guitar_notes, 51) > 0.0f,
+			      std::string("full-mix low acoustic guitar upper keyboard: expected guitar "
+					  "D#3 display, got guitar `") +
+				      snapshot.guitar.label + "`, keyboard `" + snapshot.keyboard.label +
+				      "`, other `" + snapshot.other.label + "`, lower debug `" +
+				      full_mix_debug_summary_for_midi(snapshot, 51) + "`, upper debug `" +
+				      full_mix_debug_summary_for_midi(snapshot, 63) + "`");
+	}
+
+	{
+		mao_test::Buffer buffer = {};
 		const std::vector<float> high_alias_electronic_keyboard_profile =
 			{1.0f, 1.48f, 0.060f, 0.006f, 0.004f};
 		add_harmonic_note(buffer, 85, 0.24f, high_alias_electronic_keyboard_profile);

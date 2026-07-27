@@ -2079,6 +2079,40 @@ bool noisy_other_owned_low_acoustic_guitar_supported(const FullMixDebugCandidate
 	       fifth >= 0.20f;
 }
 
+bool other_owned_low_acoustic_guitar_body_supported(const FullMixDebugCandidate &debug)
+{
+	if (debug.owner != InstrumentKind::Other)
+		return false;
+	if (debug.midi < 40 || debug.midi > 56)
+		return false;
+
+	const bool moderate_body =
+		debug.other_score >= 0.78f &&
+		debug.guitar_score >= 0.070f &&
+		debug.guitar_score <= 0.24f &&
+		debug.spectral_level >= 0.14f &&
+		debug.pitch_confidence >= 0.055f &&
+		debug.periodicity >= 0.34f &&
+		debug.harmonic_fit_error <= 1.30f &&
+		debug.local_noise_level <= 0.75f &&
+		debug.spectral_centroid <= 0.82f;
+	const bool bright_noisy_body =
+		debug.other_score >= 0.88f &&
+		debug.guitar_score >= 0.035f &&
+		debug.guitar_score <= 0.10f &&
+		debug.spectral_level >= 0.14f &&
+		debug.spectral_level <= 0.56f &&
+		debug.pitch_confidence >= 0.055f &&
+		debug.periodicity >= 0.40f &&
+		debug.harmonicity >= 3.50f &&
+		debug.harmonic_fit_error <= 3.20f &&
+		debug.local_noise_level >= 0.18f &&
+		debug.local_noise_level <= 0.24f &&
+		debug.spectral_centroid >= 0.64f &&
+		debug.spectral_slope >= 2.50f;
+	return moderate_body || bright_noisy_body;
+}
+
 bool shared_other_pitch_display_supported(const FullMixDebugCandidate &debug)
 {
 	if (debug.owner == InstrumentKind::Vocal || debug.midi < kOtherMinMidi || debug.midi > kOtherMaxMidi)
@@ -5302,10 +5336,13 @@ bool guitar_display_candidate_shadowed_by_upper_keyboard_pitch(const FullMixOwne
 							      const NoteCandidate &candidate)
 {
 	const float candidate_level = ownership_global_note_level(ownership, candidate.midi);
-	if (candidate_level < 0.78f)
-		return false;
-
 	const FullMixDebugCandidate *candidate_debug = full_mix_debug_for_midi(ownership, candidate.midi);
+	if (candidate_level < 0.78f) {
+		if (candidate_level < 0.50f)
+			return false;
+		if (!candidate_debug || other_owned_low_acoustic_guitar_body_supported(*candidate_debug))
+			return false;
+	}
 	if (candidate_debug && guitar_display_candidate_has_confident_body(*candidate_debug))
 		return false;
 
