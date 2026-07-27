@@ -63,6 +63,37 @@ def main() -> int:
         assert_atomic_build_recipe(makefile, target)
 
     recipe = target_recipe(makefile, "report-analyzer-patterns-from-rows")
+    for text in [
+        "$(RUN_WITH_DURATION) analyzer_pattern_report_sections",
+        "$(MAKE) $(MEASURE_ANALYZER_MAKE_JOBS) measure-analyzer-pattern-report-sections",
+        "cat $(MEASURE_ANALYZER_PATTERN_SECTION_OUTPUTS)",
+    ]:
+        assert text in recipe, f"report-analyzer-patterns-from-rows does not include {text}"
+
+    sections_recipe = target_recipe(makefile, "measure-analyzer-pattern-report-sections")
+    assert "$(MEASURE_ANALYZER_PATTERN_SECTION_OUTPUTS)" in sections_recipe, (
+        "pattern report section fanout must build all default section outputs"
+    )
+    section_recipes = "\n".join(
+        target_recipe(makefile, target)
+        for target in [
+            "$(MEASURE_ANALYZER_PATTERN_DETECTED_REPORT)",
+            "$(MEASURE_ANALYZER_PATTERN_SUMMARY_REPORT)",
+            "$(MEASURE_ANALYZER_PATTERN_INSTRUMENT_OWNER_REPORT)",
+            "$(MEASURE_ANALYZER_PATTERN_INSTRUMENT_STATUS_REPORT)",
+            "$(MEASURE_ANALYZER_PATTERN_REAL_NOTE_REPORT)",
+            "$(MEASURE_ANALYZER_PATTERN_REAL_NOTE_ROW_CONFUSION_REPORT)",
+            "$(MEASURE_ANALYZER_PATTERN_GUITAR_CHORD_REPORT)",
+            "$(MEASURE_ANALYZER_PATTERN_GUITAR_CHORD_RECOVERY_REPORT)",
+            "$(MEASURE_ANALYZER_PATTERN_GUITAR_CHORD_EXTRA_REPORT)",
+            "$(MEASURE_ANALYZER_PATTERN_DRUM_PRIMARY_REPORT)",
+            "$(MEASURE_ANALYZER_PATTERN_PROTECTED_DRUM_PRIMARY_REPORT)",
+            "$(MEASURE_ANALYZER_PATTERN_DRUM_SPREAD_MATRIX_REPORT)",
+            "$(MEASURE_ANALYZER_PATTERN_DRUM_ACTIVE_FALSE_REPORT)",
+            "$(MEASURE_ANALYZER_PATTERN_DRUM_SPREAD_EXACT_REPORT)",
+            "$(MEASURE_ANALYZER_PATTERN_FULL_SKIP_REPORT)",
+        ]
+    )
     expected = [
         "$(MAKE) print-analyzer-detected-attributes",
         "scripts/report_analyzer_attribute_patterns.py",
@@ -89,9 +120,24 @@ def main() -> int:
         "measure-analyzer-patterns-full",
     ]
     for text in expected:
-        assert text in recipe, f"report-analyzer-patterns-from-rows does not include {text}"
+        assert text in section_recipes, f"pattern report section recipes do not include {text}"
     assert "$(MAKE) find-drum-full-attribute-patterns" not in recipe, (
         "default pattern report must not mine exhaustive full-drum rows"
+    )
+    assert "$(MEASURE_ANALYZER_PATTERN_DRUM_SPREAD_MATRIX_REPORT)" in target_recipe(
+        makefile, "$(MEASURE_ANALYZER_PATTERN_PROTECTED_DRUM_PRIMARY_REPORT)"
+    ).splitlines()[0], (
+        "protected drum primary report must wait for spread rows to avoid parallel TSV regeneration"
+    )
+    assert "$(MEASURE_ANALYZER_PATTERN_DRUM_SPREAD_MATRIX_REPORT)" in target_recipe(
+        makefile, "$(MEASURE_ANALYZER_PATTERN_DRUM_ACTIVE_FALSE_REPORT)"
+    ).splitlines()[0], (
+        "drum active false report must wait for spread rows to avoid parallel TSV regeneration"
+    )
+    assert "$(MEASURE_ANALYZER_PATTERN_DRUM_SPREAD_MATRIX_REPORT)" in target_recipe(
+        makefile, "$(MEASURE_ANALYZER_PATTERN_DRUM_SPREAD_EXACT_REPORT)"
+    ).splitlines()[0], (
+        "drum spread exact pattern report must wait for spread rows to avoid parallel TSV regeneration"
     )
 
     pattern_recipe = target_recipe(makefile, "measure-analyzer-patterns")
@@ -776,13 +822,26 @@ def main() -> int:
     assert "$(MAKE) report-analyzer-patterns-from-rows REPORT_FULL_DRUM_SKIP=0" in full_report_recipe, (
         "full report helper must suppress the bounded skip message"
     )
-    assert "$(MAKE) find-drum-full-attribute-patterns" in full_report_recipe, (
+    assert "$(RUN_WITH_DURATION) analyzer_pattern_full_report_sections" in full_report_recipe, (
+        "full report helper must fan out full pattern sections"
+    )
+    assert "cat $(MEASURE_ANALYZER_PATTERN_FULL_SECTION_OUTPUTS)" in full_report_recipe, (
+        "full report helper must print full pattern sections in deterministic order"
+    )
+    full_section_recipes = "\n".join(
+        target_recipe(makefile, target)
+        for target in [
+            "$(MEASURE_ANALYZER_PATTERN_FULL_DRUM_REPORT)",
+            "$(MEASURE_ANALYZER_PATTERN_FULL_DRUM_EXACT_REPORT)",
+        ]
+    )
+    assert "$(MAKE) find-drum-full-attribute-patterns" in full_section_recipes, (
         "full report helper must mine exhaustive full-drum rows"
     )
-    assert "$(MAKE) find-drum-full-exact-attribute-patterns" in full_report_recipe, (
+    assert "$(MAKE) find-drum-full-exact-attribute-patterns" in full_section_recipes, (
         "full report helper must mine exact full gate rows"
     )
-    assert "$(MEASURE_DRUM_FULL_PATTERN_ARGS)" in full_report_recipe, (
+    assert "$(MEASURE_DRUM_FULL_PATTERN_ARGS)" in full_section_recipes, (
         "full drum pattern target needs bounded default args"
     )
 

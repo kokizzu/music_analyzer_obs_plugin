@@ -40,6 +40,42 @@ REAL_NOTE_MISS_ATTRIBUTE_ROWS ?= $(BUILD_DIR)/real_note_miss_attribute_rows.tsv
 GUITAR_CHORD_DETECTED_ATTRIBUTE_ROWS ?= $(BUILD_DIR)/guitar_chord_detected_attribute_rows.tsv
 GUITAR_CHORD_MISS_ATTRIBUTE_ROWS ?= $(BUILD_DIR)/guitar_chord_miss_attribute_rows.tsv
 MEASURE_ANALYZER_ROW_DUMPS ?= $(INSTRUMENT_DETECTED_ATTRIBUTE_ROWS) $(REAL_NOTE_DETECTED_ATTRIBUTE_ROWS) $(REAL_NOTE_MISS_ATTRIBUTE_ROWS) $(GUITAR_CHORD_DETECTED_ATTRIBUTE_ROWS) $(GUITAR_CHORD_MISS_ATTRIBUTE_ROWS)
+MEASURE_ANALYZER_PATTERN_DETECTED_REPORT := $(BUILD_DIR)/measure_analyzer_pattern_detected.txt
+MEASURE_ANALYZER_PATTERN_SUMMARY_REPORT := $(BUILD_DIR)/measure_analyzer_pattern_summary.txt
+MEASURE_ANALYZER_PATTERN_INSTRUMENT_OWNER_REPORT := $(BUILD_DIR)/measure_analyzer_pattern_instrument_owner.txt
+MEASURE_ANALYZER_PATTERN_INSTRUMENT_STATUS_REPORT := $(BUILD_DIR)/measure_analyzer_pattern_instrument_status.txt
+MEASURE_ANALYZER_PATTERN_REAL_NOTE_REPORT := $(BUILD_DIR)/measure_analyzer_pattern_real_note.txt
+MEASURE_ANALYZER_PATTERN_REAL_NOTE_ROW_CONFUSION_REPORT := $(BUILD_DIR)/measure_analyzer_pattern_real_note_row_confusion.txt
+MEASURE_ANALYZER_PATTERN_GUITAR_CHORD_REPORT := $(BUILD_DIR)/measure_analyzer_pattern_guitar_chord.txt
+MEASURE_ANALYZER_PATTERN_GUITAR_CHORD_RECOVERY_REPORT := $(BUILD_DIR)/measure_analyzer_pattern_guitar_chord_recovery.txt
+MEASURE_ANALYZER_PATTERN_GUITAR_CHORD_EXTRA_REPORT := $(BUILD_DIR)/measure_analyzer_pattern_guitar_chord_extra.txt
+MEASURE_ANALYZER_PATTERN_DRUM_PRIMARY_REPORT := $(BUILD_DIR)/measure_analyzer_pattern_drum_primary.txt
+MEASURE_ANALYZER_PATTERN_PROTECTED_DRUM_PRIMARY_REPORT := $(BUILD_DIR)/measure_analyzer_pattern_protected_drum_primary.txt
+MEASURE_ANALYZER_PATTERN_DRUM_SPREAD_MATRIX_REPORT := $(BUILD_DIR)/measure_analyzer_pattern_drum_spread_matrix.txt
+MEASURE_ANALYZER_PATTERN_DRUM_ACTIVE_FALSE_REPORT := $(BUILD_DIR)/measure_analyzer_pattern_drum_active_false.txt
+MEASURE_ANALYZER_PATTERN_DRUM_SPREAD_EXACT_REPORT := $(BUILD_DIR)/measure_analyzer_pattern_drum_spread_exact.txt
+MEASURE_ANALYZER_PATTERN_FULL_SKIP_REPORT := $(BUILD_DIR)/measure_analyzer_pattern_full_skip.txt
+MEASURE_ANALYZER_PATTERN_FULL_DRUM_REPORT := $(BUILD_DIR)/measure_analyzer_pattern_full_drum.txt
+MEASURE_ANALYZER_PATTERN_FULL_DRUM_EXACT_REPORT := $(BUILD_DIR)/measure_analyzer_pattern_full_drum_exact.txt
+MEASURE_ANALYZER_PATTERN_SECTION_OUTPUTS := \
+	$(MEASURE_ANALYZER_PATTERN_DETECTED_REPORT) \
+	$(MEASURE_ANALYZER_PATTERN_SUMMARY_REPORT) \
+	$(MEASURE_ANALYZER_PATTERN_INSTRUMENT_OWNER_REPORT) \
+	$(MEASURE_ANALYZER_PATTERN_INSTRUMENT_STATUS_REPORT) \
+	$(MEASURE_ANALYZER_PATTERN_REAL_NOTE_REPORT) \
+	$(MEASURE_ANALYZER_PATTERN_REAL_NOTE_ROW_CONFUSION_REPORT) \
+	$(MEASURE_ANALYZER_PATTERN_GUITAR_CHORD_REPORT) \
+	$(MEASURE_ANALYZER_PATTERN_GUITAR_CHORD_RECOVERY_REPORT) \
+	$(MEASURE_ANALYZER_PATTERN_GUITAR_CHORD_EXTRA_REPORT) \
+	$(MEASURE_ANALYZER_PATTERN_DRUM_PRIMARY_REPORT) \
+	$(MEASURE_ANALYZER_PATTERN_PROTECTED_DRUM_PRIMARY_REPORT) \
+	$(MEASURE_ANALYZER_PATTERN_DRUM_SPREAD_MATRIX_REPORT) \
+	$(MEASURE_ANALYZER_PATTERN_DRUM_ACTIVE_FALSE_REPORT) \
+	$(MEASURE_ANALYZER_PATTERN_DRUM_SPREAD_EXACT_REPORT) \
+	$(MEASURE_ANALYZER_PATTERN_FULL_SKIP_REPORT)
+MEASURE_ANALYZER_PATTERN_FULL_SECTION_OUTPUTS := \
+	$(MEASURE_ANALYZER_PATTERN_FULL_DRUM_REPORT) \
+	$(MEASURE_ANALYZER_PATTERN_FULL_DRUM_EXACT_REPORT)
 MEASURE_INSTRUMENT_PATTERN_ARGS ?= --limit 4 --min-positive-samples 20 --max-negative-samples 0 --max-conditions 3 --beam-width 160 --show-examples 1
 MEASURE_INSTRUMENT_STATUS_PATTERN_ARGS ?= --status-bucket miss:strings --status-bucket miss:synth --limit 4 --min-positive-samples 2 --max-negative-samples 0 --max-conditions 3 --beam-width 160 --show-examples 2 --exclude-field program_name --exclude-field note --exclude-field raw_local_best_note
 MEASURE_REAL_NOTE_PATTERN_ARGS ?= --limit 4 --min-positive-samples 3 --max-negative-samples 0 --max-conditions 3 --beam-width 160 --show-examples 1
@@ -627,7 +663,7 @@ GUITARSET_TEST_MAKE_JOBS = $(if $(filter -j%,$(MAKEFLAGS)),,-j$(GUITARSET_SHARDS
 .PHONY: prepare-gaps-guitar-samples-full test-gaps-guitar-samples-full analyze-gaps-guitar-misses-full
 .PHONY: analyze-guitarset-attributes inspect-guitarset-attribute-buckets find-guitarset-attribute-patterns
 .PHONY: test-fret-control android-lint icon-assets
-.PHONY: measure-analyzer-attributes measure-analyzer-attribute-rows measure-analyzer-attribute-rows-full refresh-analyzer-detected-attribute-rows print-analyzer-detected-attributes measure-analyzer-detected-attributes measure-analyzer-detected-attributes-full report-analyzer-patterns-from-rows report-analyzer-patterns-from-rows-full measure-analyzer-patterns measure-analyzer-patterns-full measure-analyzer-pattern-report inspect-instrument-sample-owner-buckets find-instrument-owner-patterns find-instrument-status-patterns test-instrument-sample-owner-buckets test-filter-instrument-attribute-rows test-instrument-owner-patterns test-refresh-analyzer-detected-attribute-rows test-print-analyzer-detected-attributes test-analyzer-pattern-report test-measure-analyzer-patterns-target analyze-drum-primary-attribute-rows find-drum-primary-attribute-patterns analyze-drum-tom-bleed-caps
+.PHONY: measure-analyzer-attributes measure-analyzer-attribute-rows measure-analyzer-attribute-rows-full refresh-analyzer-detected-attribute-rows print-analyzer-detected-attributes measure-analyzer-detected-attributes measure-analyzer-detected-attributes-full measure-analyzer-pattern-report-sections report-analyzer-patterns-from-rows report-analyzer-patterns-from-rows-full measure-analyzer-patterns measure-analyzer-patterns-full measure-analyzer-pattern-report inspect-instrument-sample-owner-buckets find-instrument-owner-patterns find-instrument-status-patterns test-instrument-sample-owner-buckets test-filter-instrument-attribute-rows test-instrument-owner-patterns test-refresh-analyzer-detected-attribute-rows test-print-analyzer-detected-attributes test-analyzer-pattern-report test-measure-analyzer-patterns-target analyze-drum-primary-attribute-rows find-drum-primary-attribute-patterns analyze-drum-tom-bleed-caps
 .PHONY: analyze-drum-spread-gate-matrix analyze-drum-full-gate-matrix analyze-drum-active-false-rows find-drum-spread-exact-attribute-patterns find-drum-full-exact-attribute-patterns test-drum-gate-matrix-summary test-drum-active-threshold-simulation test-drum-active-false-summary
 .PHONY: analyze-hf-drum-primary-attribute-rows find-hf-drum-primary-attribute-patterns analyze-idmt-drum-primary-attribute-rows find-idmt-drum-primary-attribute-patterns analyze-protected-drum-primary-attribute-rows find-protected-drum-primary-attribute-patterns
 .PHONY: analyze-guitar-chord-mix-recovery analyze-guitar-chord-primary-order analyze-guitar-chord-mix-extra-components test-guitar-chord-recovery-analysis test-guitar-primary-order-analysis test-guitar-chord-extra-components-analysis test-guitar-chord-mix-samples-parallel
@@ -1244,55 +1280,68 @@ measure-analyzer-detected-attributes: measure-analyzer-attribute-rows
 measure-analyzer-detected-attributes-full: measure-analyzer-attribute-rows-full
 	$(MAKE) print-analyzer-detected-attributes
 
-report-analyzer-patterns-from-rows: scripts/report_analyzer_attribute_patterns.py scripts/print_analyzer_detected_attributes.py
-	$(MAKE) print-analyzer-detected-attributes
-	$(PYTHON) scripts/report_analyzer_attribute_patterns.py --instrument "$(INSTRUMENT_DETECTED_ATTRIBUTE_ROWS)" --real-note "$(REAL_NOTE_DETECTED_ATTRIBUTE_ROWS)" --guitar-chord "$(GUITAR_CHORD_DETECTED_ATTRIBUTE_ROWS)" --drum "$(BUILD_DIR)/drum_primary_miss_attribute_rows.tsv" $(PATTERN_REPORT_ARGS)
-	@printf '%s\n' ""
-	@printf '%s\n' "generated instrument owner pattern candidates:"
-	$(MAKE) find-instrument-owner-patterns PATTERN_ARGS="$(MEASURE_INSTRUMENT_PATTERN_ARGS)"
-	@printf '%s\n' ""
-	@printf '%s\n' "generated instrument final-status pattern candidates:"
-	$(MAKE) find-instrument-status-patterns PATTERN_ARGS="$(MEASURE_INSTRUMENT_STATUS_PATTERN_ARGS)"
-	@printf '%s\n' ""
-	@printf '%s\n' "real-note full-mix pattern candidates:"
-	$(MAKE) find-real-note-attribute-patterns PATTERN_ARGS="$(MEASURE_REAL_NOTE_PATTERN_ARGS)"
-	@printf '%s\n' ""
-	@printf '%s\n' "real-note strongest-row confusion pattern candidates:"
-	$(MAKE) find-real-note-row-confusion-patterns PATTERN_ARGS="$(MEASURE_REAL_NOTE_ROW_CONFUSION_PATTERN_ARGS)"
-	@printf '%s\n' ""
-	@printf '%s\n' "guitar chord pattern candidates:"
-	$(MAKE) find-guitar-chord-mix-attribute-patterns PATTERN_ARGS="$(MEASURE_GUITAR_PATTERN_ARGS)"
-	@printf '%s\n' ""
-	@printf '%s\n' "guitar chord recovery threshold simulation:"
-	$(MAKE) analyze-guitar-chord-mix-recovery RECOVERY_ARGS="$(RECOVERY_ARGS)"
-	@printf '%s\n' ""
-	@printf '%s\n' "guitar chord extra component analysis:"
-	$(MAKE) analyze-guitar-chord-mix-extra-components EXTRA_COMPONENT_ARGS="$(EXTRA_COMPONENT_ARGS)"
-	@printf '%s\n' ""
-	@printf '%s\n' "drum primary pattern candidates:"
-	$(MAKE) find-drum-primary-attribute-patterns PATTERN_ARGS="$(MEASURE_DRUM_PATTERN_ARGS)"
-	@printf '%s\n' ""
-	@printf '%s\n' "protected drum primary pattern candidates:"
-	$(MAKE) find-protected-drum-primary-attribute-patterns PATTERN_ARGS="$(MEASURE_DRUM_PATTERN_ARGS)"
-	@printf '%s\n' ""
-	@printf '%s\n' "drum spread exact gate matrix:"
-	@if [ -d "$(DRUM_SAMPLE_SOURCE_DIR)" ]; then $(MAKE) analyze-drum-spread-gate-matrix; elif [ -f "$(DRUM_SPREAD_EXACT_ATTRIBUTE_ROWS)" ]; then printf '%s\n' "skipped regeneration; using existing $(DRUM_SPREAD_EXACT_ATTRIBUTE_ROWS)"; else printf '%s\n' "skipped; missing $(DRUM_SAMPLE_SOURCE_DIR)"; fi
-	@printf '%s\n' ""
-	@printf '%s\n' "drum active false-row summary:"
-	$(MAKE) analyze-drum-active-false-rows
-	@printf '%s\n' ""
-	@printf '%s\n' "drum spread exact pattern candidates:"
-	$(MAKE) find-drum-spread-exact-attribute-patterns PATTERN_ARGS="$(MEASURE_DRUM_PATTERN_ARGS)"
-	@if [ "$(REPORT_FULL_DRUM_SKIP)" = "1" ]; then printf '%s\n' ""; printf '%s\n' "protected drum full-row pattern candidates:"; printf '%s\n' "skipped; run make measure-analyzer-patterns-full for exhaustive protected full-drum rows"; fi
+$(MEASURE_ANALYZER_PATTERN_DETECTED_REPORT): FORCE $(MEASURE_ANALYZER_ROW_DUMPS) $(BUILD_DIR)/drum_primary_miss_attribute_rows.tsv scripts/print_analyzer_detected_attributes.py | $(BUILD_DIR)
+	@tmp="$@.$$$$.tmp"; $(MAKE) print-analyzer-detected-attributes > "$$tmp" && mv "$$tmp" "$@"
+
+$(MEASURE_ANALYZER_PATTERN_SUMMARY_REPORT): FORCE $(MEASURE_ANALYZER_ROW_DUMPS) $(BUILD_DIR)/drum_primary_miss_attribute_rows.tsv scripts/report_analyzer_attribute_patterns.py | $(BUILD_DIR)
+	@tmp="$@.$$$$.tmp"; $(PYTHON) scripts/report_analyzer_attribute_patterns.py --instrument "$(INSTRUMENT_DETECTED_ATTRIBUTE_ROWS)" --real-note "$(REAL_NOTE_DETECTED_ATTRIBUTE_ROWS)" --guitar-chord "$(GUITAR_CHORD_DETECTED_ATTRIBUTE_ROWS)" --drum "$(BUILD_DIR)/drum_primary_miss_attribute_rows.tsv" $(PATTERN_REPORT_ARGS) > "$$tmp" && mv "$$tmp" "$@"
+
+$(MEASURE_ANALYZER_PATTERN_INSTRUMENT_OWNER_REPORT): FORCE $(BUILD_DIR)/instrument_sample_attributes.tsv scripts/find_instrument_owner_patterns.py | $(BUILD_DIR)
+	@tmp="$@.$$$$.tmp"; { printf '%s\n' ""; printf '%s\n' "generated instrument owner pattern candidates:"; $(MAKE) find-instrument-owner-patterns PATTERN_ARGS="$(MEASURE_INSTRUMENT_PATTERN_ARGS)"; } > "$$tmp" && mv "$$tmp" "$@"
+
+$(MEASURE_ANALYZER_PATTERN_INSTRUMENT_STATUS_REPORT): FORCE $(BUILD_DIR)/instrument_sample_attributes.tsv scripts/find_instrument_owner_patterns.py | $(BUILD_DIR)
+	@tmp="$@.$$$$.tmp"; { printf '%s\n' ""; printf '%s\n' "generated instrument final-status pattern candidates:"; $(MAKE) find-instrument-status-patterns PATTERN_ARGS="$(MEASURE_INSTRUMENT_STATUS_PATTERN_ARGS)"; } > "$$tmp" && mv "$$tmp" "$@"
+
+$(MEASURE_ANALYZER_PATTERN_REAL_NOTE_REPORT): FORCE $(BUILD_DIR)/real_note_full_mix_attributes.tsv scripts/find_real_note_attribute_patterns.py | $(BUILD_DIR)
+	@tmp="$@.$$$$.tmp"; { printf '%s\n' ""; printf '%s\n' "real-note full-mix pattern candidates:"; $(MAKE) find-real-note-attribute-patterns PATTERN_ARGS="$(MEASURE_REAL_NOTE_PATTERN_ARGS)"; } > "$$tmp" && mv "$$tmp" "$@"
+
+$(MEASURE_ANALYZER_PATTERN_REAL_NOTE_ROW_CONFUSION_REPORT): FORCE $(BUILD_DIR)/real_note_full_mix_attributes.tsv scripts/find_real_note_attribute_patterns.py | $(BUILD_DIR)
+	@tmp="$@.$$$$.tmp"; { printf '%s\n' ""; printf '%s\n' "real-note strongest-row confusion pattern candidates:"; $(MAKE) find-real-note-row-confusion-patterns PATTERN_ARGS="$(MEASURE_REAL_NOTE_ROW_CONFUSION_PATTERN_ARGS)"; } > "$$tmp" && mv "$$tmp" "$@"
+
+$(MEASURE_ANALYZER_PATTERN_GUITAR_CHORD_REPORT): FORCE $(BUILD_DIR)/guitar_chord_mix_attributes.tsv scripts/find_guitarset_attribute_patterns.py scripts/inspect_guitarset_attribute_buckets.py | $(BUILD_DIR)
+	@tmp="$@.$$$$.tmp"; { printf '%s\n' ""; printf '%s\n' "guitar chord pattern candidates:"; $(MAKE) find-guitar-chord-mix-attribute-patterns PATTERN_ARGS="$(MEASURE_GUITAR_PATTERN_ARGS)"; } > "$$tmp" && mv "$$tmp" "$@"
+
+$(MEASURE_ANALYZER_PATTERN_GUITAR_CHORD_RECOVERY_REPORT): FORCE $(BUILD_DIR)/guitar_chord_mix_attributes.tsv scripts/analyze_guitar_chord_recovery.py | $(BUILD_DIR)
+	@tmp="$@.$$$$.tmp"; { printf '%s\n' ""; printf '%s\n' "guitar chord recovery threshold simulation:"; $(MAKE) analyze-guitar-chord-mix-recovery RECOVERY_ARGS="$(RECOVERY_ARGS)"; } > "$$tmp" && mv "$$tmp" "$@"
+
+$(MEASURE_ANALYZER_PATTERN_GUITAR_CHORD_EXTRA_REPORT): FORCE $(BUILD_DIR)/guitar_chord_mix_attributes.tsv scripts/analyze_guitar_chord_extra_components.py | $(BUILD_DIR)
+	@tmp="$@.$$$$.tmp"; { printf '%s\n' ""; printf '%s\n' "guitar chord extra component analysis:"; $(MAKE) analyze-guitar-chord-mix-extra-components EXTRA_COMPONENT_ARGS="$(EXTRA_COMPONENT_ARGS)"; } > "$$tmp" && mv "$$tmp" "$@"
+
+$(MEASURE_ANALYZER_PATTERN_DRUM_PRIMARY_REPORT): FORCE $(BUILD_DIR)/drum_primary_miss_attribute_rows.tsv scripts/find_drum_attribute_patterns.py scripts/analyze_drum_primary_debug.py | $(BUILD_DIR)
+	@tmp="$@.$$$$.tmp"; { printf '%s\n' ""; printf '%s\n' "drum primary pattern candidates:"; $(MAKE) find-drum-primary-attribute-patterns PATTERN_ARGS="$(MEASURE_DRUM_PATTERN_ARGS)"; } > "$$tmp" && mv "$$tmp" "$@"
+
+$(MEASURE_ANALYZER_PATTERN_DRUM_SPREAD_MATRIX_REPORT): FORCE $(BUILD_DIR)/analyzer_drum_samples scripts/summarize_drum_gate_matrix.py scripts/analyze_drum_primary_debug.py | $(BUILD_DIR)
+	@tmp="$@.$$$$.tmp"; { printf '%s\n' ""; printf '%s\n' "drum spread exact gate matrix:"; if [ -d "$(DRUM_SAMPLE_SOURCE_DIR)" ]; then $(MAKE) analyze-drum-spread-gate-matrix; elif [ -f "$(DRUM_SPREAD_EXACT_ATTRIBUTE_ROWS)" ]; then printf '%s\n' "skipped regeneration; using existing $(DRUM_SPREAD_EXACT_ATTRIBUTE_ROWS)"; else printf '%s\n' "skipped; missing $(DRUM_SAMPLE_SOURCE_DIR)"; fi; } > "$$tmp" && mv "$$tmp" "$@"
+
+$(MEASURE_ANALYZER_PATTERN_PROTECTED_DRUM_PRIMARY_REPORT): FORCE $(MEASURE_ANALYZER_PATTERN_DRUM_SPREAD_MATRIX_REPORT) scripts/find_drum_attribute_patterns.py scripts/analyze_drum_primary_debug.py | $(BUILD_DIR)
+	@tmp="$@.$$$$.tmp"; { printf '%s\n' ""; printf '%s\n' "protected drum primary pattern candidates:"; $(MAKE) find-protected-drum-primary-attribute-patterns PATTERN_ARGS="$(MEASURE_DRUM_PATTERN_ARGS)"; } > "$$tmp" && mv "$$tmp" "$@"
+
+$(MEASURE_ANALYZER_PATTERN_DRUM_ACTIVE_FALSE_REPORT): FORCE $(MEASURE_ANALYZER_PATTERN_DRUM_SPREAD_MATRIX_REPORT) scripts/summarize_drum_active_false_rows.py | $(BUILD_DIR)
+	@tmp="$@.$$$$.tmp"; { printf '%s\n' ""; printf '%s\n' "drum active false-row summary:"; $(MAKE) analyze-drum-active-false-rows; } > "$$tmp" && mv "$$tmp" "$@"
+
+$(MEASURE_ANALYZER_PATTERN_DRUM_SPREAD_EXACT_REPORT): FORCE $(MEASURE_ANALYZER_PATTERN_DRUM_SPREAD_MATRIX_REPORT) scripts/find_drum_attribute_patterns.py scripts/analyze_drum_primary_debug.py | $(BUILD_DIR)
+	@tmp="$@.$$$$.tmp"; { printf '%s\n' ""; printf '%s\n' "drum spread exact pattern candidates:"; $(MAKE) find-drum-spread-exact-attribute-patterns PATTERN_ARGS="$(MEASURE_DRUM_PATTERN_ARGS)"; } > "$$tmp" && mv "$$tmp" "$@"
+
+$(MEASURE_ANALYZER_PATTERN_FULL_SKIP_REPORT): FORCE | $(BUILD_DIR)
+	@tmp="$@.$$$$.tmp"; { if [ "$(REPORT_FULL_DRUM_SKIP)" = "1" ]; then printf '%s\n' ""; printf '%s\n' "protected drum full-row pattern candidates:"; printf '%s\n' "skipped; run make measure-analyzer-patterns-full for exhaustive protected full-drum rows"; fi; } > "$$tmp" && mv "$$tmp" "$@"
+
+$(MEASURE_ANALYZER_PATTERN_FULL_DRUM_REPORT): FORCE $(BUILD_DIR)/drum_full_attribute_rows.tsv scripts/find_drum_attribute_patterns.py scripts/analyze_drum_primary_debug.py | $(BUILD_DIR)
+	@tmp="$@.$$$$.tmp"; { printf '%s\n' ""; printf '%s\n' "protected drum full-row pattern candidates:"; $(MAKE) find-drum-full-attribute-patterns PATTERN_ARGS="$(MEASURE_DRUM_FULL_PATTERN_ARGS)"; } > "$$tmp" && mv "$$tmp" "$@"
+
+$(MEASURE_ANALYZER_PATTERN_FULL_DRUM_EXACT_REPORT): FORCE $(BUILD_DIR)/analyzer_drum_samples scripts/find_drum_attribute_patterns.py scripts/analyze_drum_primary_debug.py | $(BUILD_DIR)
+	@tmp="$@.$$$$.tmp"; { printf '%s\n' ""; printf '%s\n' "drum full exact pattern candidates:"; $(MAKE) find-drum-full-exact-attribute-patterns PATTERN_ARGS="$(MEASURE_DRUM_FULL_PATTERN_ARGS)"; } > "$$tmp" && mv "$$tmp" "$@"
+
+measure-analyzer-pattern-report-sections: $(MEASURE_ANALYZER_PATTERN_SECTION_OUTPUTS)
+	@true
+
+report-analyzer-patterns-from-rows: scripts/run_with_duration.sh scripts/report_analyzer_attribute_patterns.py scripts/print_analyzer_detected_attributes.py
+	$(RUN_WITH_DURATION) analyzer_pattern_report_sections $(MAKE) $(MEASURE_ANALYZER_MAKE_JOBS) measure-analyzer-pattern-report-sections
+	@cat $(MEASURE_ANALYZER_PATTERN_SECTION_OUTPUTS)
 
 report-analyzer-patterns-from-rows-full:
 	$(MAKE) report-analyzer-patterns-from-rows REPORT_FULL_DRUM_SKIP=0
-	@printf '%s\n' ""
-	@printf '%s\n' "protected drum full-row pattern candidates:"
-	$(MAKE) find-drum-full-attribute-patterns PATTERN_ARGS="$(MEASURE_DRUM_FULL_PATTERN_ARGS)"
-	@printf '%s\n' ""
-	@printf '%s\n' "drum full exact pattern candidates:"
-	$(MAKE) find-drum-full-exact-attribute-patterns PATTERN_ARGS="$(MEASURE_DRUM_FULL_PATTERN_ARGS)"
+	$(RUN_WITH_DURATION) analyzer_pattern_full_report_sections $(MAKE) $(MEASURE_ANALYZER_MAKE_JOBS) $(MEASURE_ANALYZER_PATTERN_FULL_SECTION_OUTPUTS)
+	@cat $(MEASURE_ANALYZER_PATTERN_FULL_SECTION_OUTPUTS)
 
 measure-analyzer-patterns: measure-analyzer-attribute-rows
 	$(MAKE) report-analyzer-patterns-from-rows
