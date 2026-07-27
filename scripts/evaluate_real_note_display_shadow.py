@@ -74,6 +74,14 @@ NUMERIC_FIELDS = [
     "raw_expected_rank",
 ]
 
+ROW_OWNER_ALIASES = {
+    "bass": {"bass"},
+    "guitar": {"guitar"},
+    "piano": {"keyboard", "piano"},
+    "vocals": {"vocal", "vocals"},
+    "other": {"other"},
+}
+
 
 def midi_from_note(note: str) -> int | None:
     match = NOTE_RE.match(note or "")
@@ -137,6 +145,12 @@ def med(values: list[float]) -> str:
         f"med={statistics.median(ordered):.3f} q75={quantile(ordered, 0.75):.3f} "
         f"max={ordered[-1]:.3f}"
     )
+
+
+def pct(numerator: int, denominator: int) -> str:
+    if denominator <= 0:
+        return "0.0%"
+    return f"{numerator * 100.0 / denominator:.1f}%"
 
 
 def load_rows(path: pathlib.Path) -> list[dict[str, str]]:
@@ -207,6 +221,64 @@ def build_record(
         record["target_score"] = ""
         record["shadow_score"] = ""
     return record
+
+
+def owner_matches(row_name: str, owner: str) -> bool:
+    aliases = ROW_OWNER_ALIASES.get(row_name, {row_name})
+    return (owner or "").strip().lower() in aliases
+
+
+def shadow_rule_matches(record: dict[str, str], rule: str) -> bool:
+    target_score = as_float(record, "target_score") or 0.0
+    shadow_score = as_float(record, "shadow_score") or 0.0
+    target_level = as_float(record, "target_level") or 0.0
+    shadow_level = as_float(record, "shadow_level") or 0.0
+    debug_owner = record.get("debug_owner", "")
+    shadow_row = record.get("shadow_row", "")
+
+    if shadow_level <= 1.0e-6:
+        return False
+
+    owner_is_shadow = owner_matches(shadow_row, debug_owner)
+    target_is_weak = target_score <= 0.10 and target_level <= 0.45
+    shadow_score_dominant = shadow_score >= 0.24 and target_score <= shadow_score * 0.50
+    shadow_level_dominant = target_level <= shadow_level * 0.72
+    shadow_score_clear = shadow_score >= 0.18 and target_score <= shadow_score * 0.67
+    shadow_level_clear = target_level <= shadow_level * 0.90
+
+    if rule == "owner_shadow_score2_level":
+        return owner_is_shadow and shadow_score_dominant and shadow_level_clear
+    if rule == "owner_shadow_score15_level":
+        return owner_is_shadow and shadow_score_clear and shadow_level_clear
+    if rule == "score2_level_no_owner":
+        return shadow_score_dominant and shadow_level_dominant
+    if rule == "weak_target_shadow_owned":
+        return owner_is_shadow and target_is_weak and shadow_score >= 0.18
+    raise ValueError(f"unknown simulation rule `{rule}`")
+
+
+def print_simulations(title: str, records: list[dict[str, str]]) -> None:
+    extras = [record for record in records if record["protected"] == "0"]
+    protected = [record for record in records if record["protected"] == "1"]
+    print(f"\n{title} suppressor simulations")
+    if not records:
+        print("  no records")
+        return
+
+    for rule in (
+        "owner_shadow_score2_level",
+        "owner_shadow_score15_level",
+        "score2_level_no_owner",
+        "weak_target_shadow_owned",
+    ):
+        extra_hits = [record for record in extras if shadow_rule_matches(record, rule)]
+        protected_hits = [record for record in protected if shadow_rule_matches(record, rule)]
+        total_hits = len(extra_hits) + len(protected_hits)
+        print(
+            f"  {rule:28s} extras={len(extra_hits)}/{len(extras)} "
+            f"protected={len(protected_hits)}/{len(protected)} "
+            f"precision={pct(len(extra_hits), total_hits)} protected_rate={pct(len(protected_hits), len(protected))}"
+        )
 
 
 def print_group(title: str, records: list[dict[str, str]], examples: int) -> None:
@@ -280,6 +352,7 @@ def main() -> int:
         protected = [record for record in records if record["protected"] == "1"]
         print_group(f"{args.shadow_row}->same-pitch {target_row} extras", extras, args.examples)
         print_group(f"{args.shadow_row}->same-pitch {target_row} protected", protected, args.examples)
+        print_simulations(f"{args.shadow_row}->same-pitch {target_row}", records)
     return 0
 
 

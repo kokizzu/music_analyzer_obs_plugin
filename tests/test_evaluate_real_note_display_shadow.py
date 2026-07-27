@@ -159,6 +159,9 @@ def main() -> int:
     assert "piano->same-pitch guitar protected rows=1 samples=1" in output, output
     assert "sources guitar/acoustic=1" in output, output
     assert "target_score=0.80 shadow_score=0.20" in output, output
+    assert "piano->same-pitch guitar suppressor simulations" in output, output
+    assert "owner_shadow_score2_level" in output, output
+    assert "extras=0/1 protected=0/1 precision=0.0% protected_rate=0.0%" in output, output
     return 0
 
 
