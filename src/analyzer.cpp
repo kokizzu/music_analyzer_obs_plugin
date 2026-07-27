@@ -3836,6 +3836,31 @@ bool keyboard_owned_mid_acoustic_guitar_body_supported(const FullMixDebugCandida
 	       debug.guitar_score <= 0.22f;
 }
 
+bool guitar_owned_dark_electronic_keyboard_body_supported(const FullMixDebugCandidate &debug)
+{
+	if (debug.owner != InstrumentKind::Guitar)
+		return false;
+	if (debug.midi < 52 || debug.midi > 64)
+		return false;
+	if (debug.spectral_level < 0.84f || debug.pitch_confidence < 0.78f ||
+	    debug.periodicity < 0.70f)
+		return false;
+	if (debug.harmonic_fit_error > 0.22f || debug.local_noise_level > 0.22f)
+		return false;
+
+	const float second = debug.harmonic_ratios[1];
+	const float third = debug.harmonic_ratios[2];
+	const float fourth = debug.harmonic_ratios[3];
+	const float fifth = debug.harmonic_ratios[4];
+	return second >= 0.39f &&
+	       second <= 0.80f &&
+	       third <= 0.32f &&
+	       fourth <= 0.26f &&
+	       fifth <= 0.065f &&
+	       debug.spectral_centroid <= 0.24f &&
+	       debug.spectral_slope <= 0.26f;
+}
+
 bool full_mix_display_mirror_supported(FullMixDisplayRow row, const FullMixDebugCandidate &debug,
 				       int display_midi)
 {
@@ -4226,6 +4251,8 @@ bool full_mix_display_mirror_supported(FullMixDisplayRow row, const FullMixDebug
 			debug.spectral_centroid <= 0.174f &&
 			debug.pitch_confidence <= 0.753f &&
 			debug.periodicity >= 0.842f;
+		const bool guitar_owned_dark_electronic_keyboard_body =
+			guitar_owned_dark_electronic_keyboard_body_supported(debug);
 		return debug.owner == InstrumentKind::Keyboard ||
 		       (debug.keyboard_score >= 0.46f && !competing_guitar_range_hint) ||
 		       electronic_keyboard_alias_display_supported(debug) ||
@@ -4265,7 +4292,8 @@ bool full_mix_display_mirror_supported(FullMixDisplayRow row, const FullMixDebug
 		       other_owned_clavinet_piano_body ||
 		       vocal_owned_acoustic_piano_body ||
 		       guitar_owned_mid_piano_body ||
-		       guitar_owned_clavinet_piano_body;
+		       guitar_owned_clavinet_piano_body ||
+		       guitar_owned_dark_electronic_keyboard_body;
 	}
 	case FullMixDisplayRow::Guitar: {
 		const bool low_noisy_bass_shaped_guitar_hint =
@@ -5232,6 +5260,11 @@ void add_full_mix_display_mirror(NoteCandidateList &candidates, const FullMixOwn
 	if (row == FullMixDisplayRow::Keyboard &&
 	    measured_other_owned_electric_piano_supported(debug))
 		candidate_score = std::max(candidate_score, base_score * 1.04f);
+	if (row == FullMixDisplayRow::Keyboard &&
+	    guitar_owned_dark_electronic_keyboard_body_supported(debug)) {
+		candidate_score = std::max(candidate_score, base_score * 0.96f);
+		candidate_confidence = std::max(candidate_confidence, 0.78f);
+	}
 	if (measured_low_organ_keyboard_alias)
 		candidate_score = std::max(candidate_score, base_score * 0.22f);
 	if (row == FullMixDisplayRow::Other &&

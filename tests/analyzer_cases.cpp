@@ -2771,9 +2771,36 @@ void check_full_mix_single_instrument_precision(Runner &runner)
 		expect_global_pitch_class(runner, snapshot, 4, "full-mix clean sustained keyboard global");
 		runner.expect(grid_level_for_midi(snapshot.keyboard_notes, 64) > 0.0f,
 			      std::string("full-mix clean sustained keyboard: expected keyboard E4 display, "
-					  "got keyboard `") +
+				      "got keyboard `") +
 				      snapshot.keyboard.label + "`, guitar `" + snapshot.guitar.label +
 				      "`, vocal `" + snapshot.vocal.label + "`");
+	}
+
+	{
+		mao_test::Buffer buffer = {};
+		const std::vector<float> measured_electric_piano_tine_profile =
+			{1.0f, 0.44f, 0.10f, 0.010f, 0.025f};
+		add_harmonic_note(buffer, 53, 0.24f, measured_electric_piano_tine_profile);
+
+		const auto snapshot =
+			analyze_buffer_with_mode(buffer, mao::AnalysisInputMode::FullMix,
+						 "speaker measured electric piano tine", 3);
+		expect_global_pitch_class(runner, snapshot, 5, "full-mix measured electric piano tine global");
+		const float keyboard_visual = grid_visual_level_for_midi(snapshot.keyboard_notes, 53);
+		const float guitar_visual = grid_visual_level_for_midi(snapshot.guitar_notes, 53);
+		runner.expect(keyboard_visual >= 0.35f,
+			      std::string("full-mix measured electric piano tine: expected visible keyboard "
+					  "F3, got keyboard `") +
+				      snapshot.keyboard.label + "` visual " + std::to_string(keyboard_visual) +
+				      ", guitar `" + snapshot.guitar.label + "` visual " +
+				      std::to_string(guitar_visual) + ", debug `" +
+				      full_mix_debug_summary_for_midi(snapshot, 53) + "`");
+		runner.expect(guitar_visual <= keyboard_visual,
+			      std::string("full-mix measured electric piano tine: expected guitar F3 not "
+					  "brighter than keyboard, got guitar visual ") +
+				      std::to_string(guitar_visual) + ", keyboard visual " +
+				      std::to_string(keyboard_visual) + ", debug `" +
+				      full_mix_debug_summary_for_midi(snapshot, 53) + "`");
 	}
 
 	{
