@@ -1139,11 +1139,45 @@ bool measured_b1_electric_bass_octave_debug_supported(const FullMixOwnership &ow
 	return false;
 }
 
+bool measured_low_electronic_bass_octave_debug_supported(const FullMixOwnership &ownership, int bass_midi)
+{
+	if (bass_midi < 28 || bass_midi > 35)
+		return false;
+
+	const int octave_midi = bass_midi + 12;
+	const std::size_t debug_count =
+		std::min<std::size_t>(ownership.debug_candidate_count, ownership.debug_candidates.size());
+	for (std::size_t i = 0; i < debug_count; ++i) {
+		const FullMixDebugCandidate &debug = ownership.debug_candidates[i];
+		if (debug.midi != octave_midi)
+			continue;
+
+		const bool noisy_octave_alias =
+			debug.owner == InstrumentKind::Ambiguous &&
+			debug.ownership_confidence <= 0.02f &&
+			debug.spectral_level >= 0.58f &&
+			debug.pitch_confidence >= 0.46f &&
+			debug.periodicity >= 0.50f &&
+			debug.harmonic_fit_error <= 0.16f &&
+			debug.local_noise_level >= 0.24f &&
+			debug.local_noise_level <= 0.66f &&
+			debug.spectral_centroid <= 0.18f &&
+			debug.spectral_slope <= 0.045f &&
+			debug.harmonic_ratios[1] <= 0.70f &&
+			debug.harmonic_ratios[2] <= 0.10f &&
+			debug.harmonic_ratios[3] <= 0.035f &&
+			debug.harmonic_ratios[4] <= 0.018f;
+		if (noisy_octave_alias)
+			return true;
+	}
+	return false;
+}
+
 float confirmed_full_mix_bass_visual_confidence_floor(const FullMixOwnership &ownership,
 						      const std::array<float, kNoteProbeCount> &powers,
 						      const RangeResult &note)
 {
-	if (note.midi != 35 || note.score <= 1.0e-6f || note.confidence < 0.20f)
+	if (note.score <= 1.0e-6f || note.confidence < 0.20f)
 		return 0.0f;
 
 	const float fundamental = probe_level(powers, note.midi);
@@ -1154,6 +1188,16 @@ float confirmed_full_mix_bass_visual_confidence_floor(const FullMixOwnership &ow
 	const float fifth = probe_level(powers, note.midi + 19);
 	const float second_octave = probe_level(powers, note.midi + 24);
 	const float upper_major_third = probe_level(powers, note.midi + 28);
+	if (measured_low_electronic_bass_octave_debug_supported(ownership, note.midi) &&
+	    octave >= fundamental * 0.08f &&
+	    fundamental >= octave * 0.020f &&
+	    second_octave <= octave * 0.95f &&
+	    upper_major_third <= octave * 0.80f)
+		return 0.58f;
+
+	if (note.midi != 35)
+		return 0.0f;
+
 	const bool octave_dominant_b1_bass =
 		fundamental >= octave * 0.28f &&
 		octave >= fundamental * 0.58f &&
