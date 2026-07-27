@@ -4085,6 +4085,36 @@ bool guitar_owned_dark_electronic_keyboard_body_supported(const FullMixDebugCand
 	       (dark_tine_body || measured_bright_tine_body);
 }
 
+bool guitar_owned_measured_tine_attack_keyboard_body_supported(const FullMixDebugCandidate &debug)
+{
+	if (debug.owner != InstrumentKind::Guitar)
+		return false;
+	if (debug.midi < 52 || debug.midi > 64)
+		return false;
+	if (debug.keyboard_score < 0.08f || debug.other_score > 0.02f || debug.vocal_score > 0.02f)
+		return false;
+	if (debug.spectral_level < 0.84f || debug.pitch_confidence < 0.78f ||
+	    debug.periodicity < 0.74f)
+		return false;
+	if (debug.harmonic_fit_error > 0.16f || debug.local_noise_level > 0.22f)
+		return false;
+
+	const float second = debug.harmonic_ratios[1];
+	const float third = debug.harmonic_ratios[2];
+	const float fourth = debug.harmonic_ratios[3];
+	const float fifth = debug.harmonic_ratios[4];
+	return second >= 0.30f &&
+	       second <= 0.58f &&
+	       third >= 0.070f &&
+	       third <= 0.28f &&
+	       fourth <= 0.18f &&
+	       fifth <= 0.024f &&
+	       debug.spectral_centroid >= 0.14f &&
+	       debug.spectral_centroid <= 0.31f &&
+	       debug.spectral_slope >= 0.13f &&
+	       debug.spectral_slope <= 0.32f;
+}
+
 bool full_mix_display_mirror_supported(FullMixDisplayRow row, const FullMixDebugCandidate &debug,
 				       int display_midi)
 {
@@ -4477,6 +4507,8 @@ bool full_mix_display_mirror_supported(FullMixDisplayRow row, const FullMixDebug
 			debug.periodicity >= 0.842f;
 		const bool guitar_owned_dark_electronic_keyboard_body =
 			guitar_owned_dark_electronic_keyboard_body_supported(debug);
+		const bool guitar_owned_tine_attack_keyboard_body =
+			guitar_owned_measured_tine_attack_keyboard_body_supported(debug);
 		return debug.owner == InstrumentKind::Keyboard ||
 		       (debug.keyboard_score >= 0.46f && !competing_guitar_range_hint) ||
 		       electronic_keyboard_alias_display_supported(debug) ||
@@ -4517,7 +4549,8 @@ bool full_mix_display_mirror_supported(FullMixDisplayRow row, const FullMixDebug
 		       vocal_owned_acoustic_piano_body ||
 		       guitar_owned_mid_piano_body ||
 		       guitar_owned_clavinet_piano_body ||
-		       guitar_owned_dark_electronic_keyboard_body;
+		       guitar_owned_dark_electronic_keyboard_body ||
+		       guitar_owned_tine_attack_keyboard_body;
 	}
 	case FullMixDisplayRow::Guitar: {
 		const bool low_noisy_bass_shaped_guitar_hint =
@@ -4527,6 +4560,8 @@ bool full_mix_display_mirror_supported(FullMixDisplayRow row, const FullMixDebug
 			debug.harmonic_ratios[1] < 0.56f &&
 			debug.harmonic_ratios[2] < 0.28f;
 		if (low_noisy_bass_shaped_guitar_hint)
+			return false;
+		if (guitar_owned_measured_tine_attack_keyboard_body_supported(debug))
 			return false;
 		if (low_slope_electronic_keyboard_guitar_shadow(debug))
 			return false;
@@ -5801,6 +5836,8 @@ bool guitar_display_candidate_shadowed_by_non_guitar_pitch(const FullMixOwnershi
 		return false;
 
 	const FullMixDebugCandidate *debug = full_mix_debug_for_midi(ownership, candidate.midi);
+	if (debug && guitar_owned_measured_tine_attack_keyboard_body_supported(*debug))
+		return true;
 	if (debug && low_slope_electronic_keyboard_guitar_shadow(*debug))
 		return true;
 
