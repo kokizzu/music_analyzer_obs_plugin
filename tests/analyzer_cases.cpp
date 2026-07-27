@@ -2264,6 +2264,11 @@ void check_full_mix_single_instrument_precision(Runner &runner)
 			      std::string("full-mix low electronic keyboard: expected keyboard G2 ownership, "
 					  "got keyboard `") +
 				      snapshot.keyboard.label + "`, bass `" + snapshot.bass.label + "`");
+		runner.expect(grid_level_for_midi(snapshot.guitar_notes, 43) <= 0.0f,
+			      std::string("full-mix low electronic keyboard: expected no exact guitar "
+					  "G2 duplicate, got guitar `") +
+				      snapshot.guitar.label + "`, keyboard `" + snapshot.keyboard.label +
+				      "`, debug `" + full_mix_debug_summary_for_midi(snapshot, 43) + "`");
 	}
 
 	{

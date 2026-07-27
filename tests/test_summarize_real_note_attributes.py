@@ -260,6 +260,11 @@ def main() -> int:
     assert "piano/electronic samples=2 midi=40-60" in detailed_result.stdout
     assert "top extra-row samples" in detailed_result.stdout
     assert "keyboard_1 pitch_buffers=1 exact_buffers=1 rows=bass=1 guitar=1" in detailed_result.stdout
+    assert "top extra exact examples" in detailed_result.stdout
+    assert (
+        "piano/electronic->guitar keyboard_1@0 expected=C4/60 level=0.60"
+        in detailed_result.stdout
+    )
     assert "non-hit pitch buckets" in detailed_result.stdout
     assert "ownership_miss:piano/electronic note=E2->guitar samples=1" in detailed_result.stdout
     assert "non-hit sample attributes" in detailed_result.stdout

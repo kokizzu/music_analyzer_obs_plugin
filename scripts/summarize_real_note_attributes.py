@@ -294,6 +294,7 @@ def append_extra_note_row_summary(
     extra_exact_rows = 0
     extra_pitch_by_source_row: collections.Counter[str] = collections.Counter()
     extra_exact_by_source_row: collections.Counter[str] = collections.Counter()
+    extra_exact_examples: dict[str, list[str]] = collections.defaultdict(list)
     sample_pitch_buffers: collections.Counter[str] = collections.Counter()
     sample_exact_buffers: collections.Counter[str] = collections.Counter()
     sample_extra_rows: dict[str, collections.Counter[str]] = collections.defaultdict(collections.Counter)
@@ -306,6 +307,7 @@ def append_extra_note_row_summary(
             continue
 
         target_pitch = midi % 12
+        source = source_key(row)
         pitch_rows: list[str] = []
         exact_rows: list[str] = []
         for row_name, field in ROW_NOTE_FIELDS.items():
@@ -313,11 +315,21 @@ def append_extra_note_row_summary(
                 continue
             cells = note_row_cells(row.get(field, ""))
             has_pitch = any(candidate_midi % 12 == target_pitch for candidate_midi, _level in cells)
-            has_exact = any(candidate_midi == midi for candidate_midi, _level in cells)
+            exact_level = max(
+                (level for candidate_midi, level in cells if candidate_midi == midi), default=0.0
+            )
+            has_exact = exact_level > 0.0
             if has_pitch:
                 pitch_rows.append(row_name)
             if has_exact:
                 exact_rows.append(row_name)
+                key = f"{source}->{row_name}"
+                extra_exact_examples[key].append(
+                    f"{sample_id}@{row.get('buffer', '')} "
+                    f"expected={row.get('expected_note', '')}/{midi} "
+                    f"level={exact_level:.2f} first={row.get('first_row', '')} "
+                    f"strongest={row.get('buffer_strongest_row', '')}"
+                )
 
         if pitch_rows:
             extra_pitch_buffers += 1
@@ -326,7 +338,6 @@ def append_extra_note_row_summary(
             extra_exact_buffers += 1
             sample_exact_buffers[sample_id] += 1
 
-        source = source_key(row)
         for row_name in pitch_rows:
             extra_pitch_rows += 1
             key = f"{source}->{row_name}"
@@ -362,6 +373,12 @@ def append_extra_note_row_summary(
         lines.append(
             f"  {sample_id} pitch_buffers={count} exact_buffers={exact} rows={rows_text}"
         )
+
+    if extra_exact_by_source_row:
+        lines.append("top extra exact examples")
+        for key, _count in extra_exact_by_source_row.most_common(sample_limit):
+            examples = " | ".join(extra_exact_examples.get(key, [])[:sample_limit])
+            lines.append(f"  {key} {examples}")
 
 
 def load_rows(path: pathlib.Path) -> list[dict[str, str]]:
