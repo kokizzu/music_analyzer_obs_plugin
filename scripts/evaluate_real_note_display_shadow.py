@@ -153,6 +153,21 @@ def pct(numerator: int, denominator: int) -> str:
     return f"{numerator * 100.0 / denominator:.1f}%"
 
 
+def parse_float_list(value: str) -> list[float]:
+    out: list[float] = []
+    for part in value.split(","):
+        part = part.strip()
+        if not part:
+            continue
+        try:
+            out.append(float(part))
+        except ValueError as exc:
+            raise argparse.ArgumentTypeError(f"invalid float `{part}` in `{value}`") from exc
+    if not out:
+        raise argparse.ArgumentTypeError("expected at least one float")
+    return out
+
+
 def load_rows(path: pathlib.Path) -> list[dict[str, str]]:
     with path.open(newline="", errors="replace") as handle:
         return list(csv.DictReader(handle, delimiter="\t"))
@@ -284,6 +299,65 @@ def print_simulations(title: str, records: list[dict[str, str]]) -> None:
         )
 
 
+def threshold_rule_matches(
+    record: dict[str, str],
+    min_shadow_score: float,
+    score_ratio: float,
+    level_ratio: float,
+) -> bool:
+    target_score = as_float(record, "target_score") or 0.0
+    shadow_score = as_float(record, "shadow_score") or 0.0
+    target_level = as_float(record, "target_level") or 0.0
+    shadow_level = as_float(record, "shadow_level") or 0.0
+    return (
+        shadow_level > 1.0e-6
+        and shadow_score >= min_shadow_score
+        and target_score <= shadow_score * score_ratio
+        and target_level <= shadow_level * level_ratio
+    )
+
+
+def print_threshold_search(
+    title: str,
+    records: list[dict[str, str]],
+    shadow_score_thresholds: list[float],
+    score_ratios: list[float],
+    level_ratios: list[float],
+    max_protected: int,
+    limit: int,
+) -> None:
+    extras = [record for record in records if record["protected"] == "0"]
+    protected = [record for record in records if record["protected"] == "1"]
+    matches: list[tuple[int, int, float, float, float]] = []
+    for min_shadow_score in shadow_score_thresholds:
+        for score_ratio in score_ratios:
+            for level_ratio in level_ratios:
+                extra_hits = sum(
+                    1
+                    for record in extras
+                    if threshold_rule_matches(record, min_shadow_score, score_ratio, level_ratio)
+                )
+                protected_hits = sum(
+                    1
+                    for record in protected
+                    if threshold_rule_matches(record, min_shadow_score, score_ratio, level_ratio)
+                )
+                if extra_hits > 0 and protected_hits <= max_protected:
+                    matches.append((protected_hits, extra_hits, min_shadow_score, score_ratio, level_ratio))
+
+    print(f"\n{title} threshold search max_protected={max_protected}")
+    if not matches:
+        print("  no matching thresholds")
+        return
+    matches.sort(key=lambda item: (item[0], -item[1], item[2], item[3], item[4]))
+    for protected_hits, extra_hits, min_shadow_score, score_ratio, level_ratio in matches[: max(0, limit)]:
+        print(
+            f"  protected={protected_hits}/{len(protected)} extras={extra_hits}/{len(extras)} "
+            f"min_shadow_score={min_shadow_score:.2f} score_ratio={score_ratio:.2f} "
+            f"level_ratio={level_ratio:.2f}"
+        )
+
+
 def print_group(title: str, records: list[dict[str, str]], examples: int) -> None:
     print(f"\n{title} rows={len(records)} samples={len({r.get('sample_id', '') for r in records})}")
     if not records:
@@ -332,6 +406,28 @@ def main() -> int:
         action="store_true",
         help="print counts and simulations without per-field ranges or example rows",
     )
+    parser.add_argument(
+        "--threshold-search",
+        action="store_true",
+        help="search score/level threshold triples for low-risk shadow suppression",
+    )
+    parser.add_argument("--max-protected", type=int, default=2)
+    parser.add_argument("--threshold-limit", type=int, default=12)
+    parser.add_argument(
+        "--shadow-score-thresholds",
+        type=parse_float_list,
+        default=parse_float_list("0.24,0.28,0.30,0.32,0.36,0.40,0.45,0.50,0.55,0.60,0.70"),
+    )
+    parser.add_argument(
+        "--score-ratios",
+        type=parse_float_list,
+        default=parse_float_list("0.50,0.45,0.40,0.35,0.30,0.25,0.20,0.15"),
+    )
+    parser.add_argument(
+        "--level-ratios",
+        type=parse_float_list,
+        default=parse_float_list("0.72,0.68,0.64,0.60,0.56,0.52,0.48,0.44,0.40,0.35,0.30"),
+    )
     args = parser.parse_args()
 
     rows = load_rows(pathlib.Path(args.path))
@@ -375,6 +471,16 @@ def main() -> int:
             print_group(f"{args.shadow_row}->same-pitch {target_row} extras", extras, args.examples)
             print_group(f"{args.shadow_row}->same-pitch {target_row} protected", protected, args.examples)
         print_simulations(f"{args.shadow_row}->same-pitch {target_row}", records)
+        if args.threshold_search:
+            print_threshold_search(
+                f"{args.shadow_row}->same-pitch {target_row}",
+                records,
+                args.shadow_score_thresholds,
+                args.score_ratios,
+                args.level_ratios,
+                args.max_protected,
+                args.threshold_limit,
+            )
     return 0
 
 

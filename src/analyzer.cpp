@@ -8324,6 +8324,55 @@ void clear_note_grid_midi(NoteGrid &grid, int midi)
 	}
 }
 
+const FullMixDebugCandidate *best_same_midi_bass_debug(const FullMixOwnership &ownership, int midi)
+{
+	const FullMixDebugCandidate *best = nullptr;
+	float best_score = -1.0f;
+	const std::size_t debug_count =
+		std::min<std::size_t>(ownership.debug_candidate_count, ownership.debug_candidates.size());
+	for (std::size_t i = 0; i < debug_count; ++i) {
+		const FullMixDebugCandidate &debug = ownership.debug_candidates[i];
+		if (debug.midi != midi)
+			continue;
+		const float score = debug.bass_score + debug.ownership_confidence * 0.01f;
+		if (!best || score > best_score) {
+			best = &debug;
+			best_score = score;
+		}
+	}
+	return best;
+}
+
+void suppress_other_dominant_same_pitch_bass_shadows(NoteGrid &bass_grid, InstrumentState &bass_state,
+						     const NoteGrid &other_grid,
+						     const FullMixOwnership &ownership,
+						     int preferred_root)
+{
+	static constexpr float kMinOtherScore = 0.24f;
+	static constexpr float kMaxBassToOtherScoreRatio = 0.50f;
+	static constexpr float kMaxBassToOtherLevelRatio = 0.64f;
+
+	bool changed = false;
+	for (int midi = kBassMinMidi; midi <= kBassMaxMidi; ++midi) {
+		const float bass_level = note_grid_midi_level(bass_grid, midi);
+		if (bass_level <= 0.0f)
+			continue;
+		const float other_level = note_grid_midi_level(other_grid, midi);
+		if (other_level <= 0.0f || bass_level > other_level * kMaxBassToOtherLevelRatio)
+			continue;
+		const FullMixDebugCandidate *debug = best_same_midi_bass_debug(ownership, midi);
+		if (!debug || debug->other_score < kMinOtherScore ||
+		    debug->bass_score > debug->other_score * kMaxBassToOtherScoreRatio)
+			continue;
+
+		clear_note_grid_midi(bass_grid, midi);
+		changed = true;
+	}
+
+	if (changed)
+		write_note_grid_label(bass_state, bass_grid, preferred_root);
+}
+
 void prune_low_synthetic_other_note_grid_harmonic_aliases(NoteGrid &grid, InstrumentState &state)
 {
 	std::array<bool, kNoteProbeCount> active_midis = {};
@@ -18794,6 +18843,8 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 		attenuate_note_grid_display_by_candidates(snapshot.other_notes, mixed_other_display_candidates);
 		if (mixed_synth_source_hint)
 			boost_note_grid_primary_octave_display_level(snapshot.other_notes, snapshot.other, -1);
+		suppress_other_dominant_same_pitch_bass_shadows(snapshot.bass_notes, snapshot.bass,
+								snapshot.other_notes, full_mix_ownership, -1);
 	} else {
 		reset_chord_tracking(global_chord_tracking_, snapshot.global_chord);
 	}
