@@ -256,6 +256,11 @@ def main() -> int:
     assert "top extra pitch source/row piano/electronic->guitar=2" in result.stdout
     assert "piano/electronic->bass=1" in result.stdout
     assert "top extra exact source/row piano/electronic->guitar=2" in result.stdout
+    assert "extra note-cell intervals cells=4 same_pitch_class=4 exact=2" in result.stdout
+    assert "top extra note-cell delta piano/electronic->guitar:+0=2" in result.stdout
+    assert "piano/electronic->bass:-12=1" in result.stdout
+    assert "piano/electronic->other:+12=1" in result.stdout
+    assert "top extra same-pitch/octave delta piano/electronic->guitar:+0=2" in result.stdout
     assert "source detail" in detailed_result.stdout
     assert "piano/electronic samples=2 midi=40-60" in detailed_result.stdout
     assert "top extra-row samples" in detailed_result.stdout

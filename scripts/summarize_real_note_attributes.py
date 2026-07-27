@@ -247,6 +247,10 @@ def expected_midi(row: dict[str, str]) -> int | None:
         return None
 
 
+def delta_label(delta: int) -> str:
+    return f"{delta:+d}"
+
+
 def note_range(samples: dict[str, dict[str, str]]) -> str:
     midis = []
     for row in samples.values():
@@ -295,6 +299,11 @@ def append_extra_note_row_summary(
     extra_pitch_by_source_row: collections.Counter[str] = collections.Counter()
     extra_exact_by_source_row: collections.Counter[str] = collections.Counter()
     extra_exact_examples: dict[str, list[str]] = collections.defaultdict(list)
+    extra_note_cells = 0
+    extra_same_pitch_cells = 0
+    extra_exact_cells = 0
+    extra_note_delta_by_source_row: collections.Counter[str] = collections.Counter()
+    extra_same_pitch_delta_by_source_row: collections.Counter[str] = collections.Counter()
     sample_pitch_buffers: collections.Counter[str] = collections.Counter()
     sample_exact_buffers: collections.Counter[str] = collections.Counter()
     sample_extra_rows: dict[str, collections.Counter[str]] = collections.defaultdict(collections.Counter)
@@ -313,12 +322,24 @@ def append_extra_note_row_summary(
         for row_name, field in ROW_NOTE_FIELDS.items():
             if row_name == expected_row:
                 continue
-            cells = note_row_cells(row.get(field, ""))
-            has_pitch = any(candidate_midi % 12 == target_pitch for candidate_midi, _level in cells)
-            exact_level = max(
-                (level for candidate_midi, level in cells if candidate_midi == midi), default=0.0
-            )
+            cells_by_midi: dict[int, float] = {}
+            for candidate_midi, level in note_row_cells(row.get(field, "")):
+                cells_by_midi[candidate_midi] = max(cells_by_midi.get(candidate_midi, 0.0), level)
+            has_pitch = any(candidate_midi % 12 == target_pitch for candidate_midi in cells_by_midi)
+            exact_level = cells_by_midi.get(midi, 0.0)
             has_exact = exact_level > 0.0
+
+            for candidate_midi in cells_by_midi:
+                delta = candidate_midi - midi
+                key = f"{source}->{row_name}:{delta_label(delta)}"
+                extra_note_cells += 1
+                extra_note_delta_by_source_row[key] += 1
+                if candidate_midi % 12 == target_pitch:
+                    extra_same_pitch_cells += 1
+                    extra_same_pitch_delta_by_source_row[key] += 1
+                if candidate_midi == midi:
+                    extra_exact_cells += 1
+
             if has_pitch:
                 pitch_rows.append(row_name)
             if has_exact:
@@ -361,6 +382,18 @@ def append_extra_note_row_summary(
     lines.append(
         "top extra exact source/row "
         + compact_counter(extra_exact_by_source_row, max(8, sample_limit if sample_limit > 0 else 8))
+    )
+    lines.append(
+        "extra note-cell intervals "
+        f"cells={extra_note_cells} same_pitch_class={extra_same_pitch_cells} exact={extra_exact_cells}"
+    )
+    lines.append(
+        "top extra note-cell delta "
+        + compact_counter(extra_note_delta_by_source_row, max(8, sample_limit if sample_limit > 0 else 8))
+    )
+    lines.append(
+        "top extra same-pitch/octave delta "
+        + compact_counter(extra_same_pitch_delta_by_source_row, max(8, sample_limit if sample_limit > 0 else 8))
     )
 
     if sample_limit <= 0 or not sample_pitch_buffers:
