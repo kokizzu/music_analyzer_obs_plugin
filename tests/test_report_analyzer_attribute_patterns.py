@@ -88,7 +88,8 @@ snare/1.wav	snare	tom	0.2	0.7	0.1	0.1	0.8	0.9
     assert (
         "row_confusion:piano/electronic->guitar: rows=1 samples=1 "
         "visible>=0.50=1 rows/1 samples exact>=0.25=1 rows/1 samples "
-        "pitch=exact=1 debug_owner=guitar=1 expected_level_med=0.5 strongest_level_med=0.9"
+        "pitch=exact=1 debug_owner=guitar=1 expected_level_med=0.5 strongest_level_med=0.9 "
+        "expected_pitch_med=0.5 strongest_pitch_med=0.9 strongest_pitch_delta=0=1"
     ) in output
     assert "ownership_miss:piano/electronic->bass" in output
     assert "debug-midi deltas 12=1" in output

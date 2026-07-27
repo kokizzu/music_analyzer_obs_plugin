@@ -562,7 +562,10 @@ def report_real_notes(path: pathlib.Path, limit: int, row_examples: int) -> None
                 f"pitch={compact(pitch_quality_counts(bucket_group, 'expected_midi'), 4)} "
                 f"debug_owner={compact(collections.Counter(row.get('debug_owner', 'none') or 'none' for row in bucket_group), 4)} "
                 f"expected_level_med={median([value for row in bucket_group if (value := as_float(row, 'expected_row_exact_level')) is not None])} "
-                f"strongest_level_med={median([value for row in bucket_group if (value := as_float(row, 'strongest_row_exact_level')) is not None])}"
+                f"strongest_level_med={median([value for row in bucket_group if (value := as_float(row, 'strongest_row_exact_level')) is not None])} "
+                f"expected_pitch_med={median([value for row in bucket_group if (value := as_float(row, 'expected_row_pitch_level')) is not None])} "
+                f"strongest_pitch_med={median([value for row in bucket_group if (value := as_float(row, 'strongest_row_pitch_level')) is not None])} "
+                f"strongest_pitch_delta={compact(collections.Counter(row.get('strongest_row_pitch_delta', '--') or '--' for row in bucket_group), 4)}"
             )
     miss_rows = [row for row in rows if row.get("status") == "ownership_miss" and row.get("debug_note")]
     print(f"  ownership miss rows={len(miss_rows)} samples={unique_sample_count(miss_rows, 'sample_id')}")
