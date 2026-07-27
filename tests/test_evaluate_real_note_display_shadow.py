@@ -166,6 +166,25 @@ def main() -> int:
             text=True,
             stdout=subprocess.PIPE,
         )
+        summary_result = subprocess.run(
+            [
+                sys.executable,
+                str(ROOT / "scripts" / "evaluate_real_note_display_shadow.py"),
+                str(path),
+                "--shadow-row",
+                "piano",
+                "--target-row",
+                "guitar",
+                "--min-shadow-level",
+                "0.10",
+                "--min-target-level",
+                "0.10",
+                "--summary-only",
+            ],
+            check=True,
+            text=True,
+            stdout=subprocess.PIPE,
+        )
 
     output = result.stdout
     assert "piano->same-pitch guitar extras rows=2 samples=2" in output, output
@@ -176,6 +195,11 @@ def main() -> int:
     assert "piano->same-pitch guitar suppressor simulations" in output, output
     assert "owner_shadow_score2_level" in output, output
     assert "extras=1/2 protected=0/1 precision=100.0% protected_rate=0.0%" in output, output
+    summary_output = summary_result.stdout
+    assert "piano->same-pitch guitar extras rows=2 samples=2" in summary_output, summary_output
+    assert "piano->same-pitch guitar protected rows=1 samples=1" in summary_output, summary_output
+    assert "target_level" not in summary_output, summary_output
+    assert "example " not in summary_output, summary_output
     return 0
 
 

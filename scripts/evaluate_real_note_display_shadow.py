@@ -309,6 +309,16 @@ def print_group(title: str, records: list[dict[str, str]], examples: int) -> Non
         )
 
 
+def print_group_summary(title: str, records: list[dict[str, str]]) -> None:
+    print(f"\n{title} rows={len(records)} samples={len({r.get('sample_id', '') for r in records})}")
+    if not records:
+        return
+    by_source = collections.Counter(r["source_key"] for r in records)
+    by_owner = collections.Counter(r.get("debug_owner", "") or "--" for r in records)
+    print("  sources " + " ".join(f"{key}={value}" for key, value in by_source.most_common(5)))
+    print("  debug_owner " + " ".join(f"{key}={value}" for key, value in by_owner.most_common(5)))
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("path", nargs="?", default="build/real_note_full_mix_attributes.tsv")
@@ -317,6 +327,11 @@ def main() -> int:
     parser.add_argument("--min-target-level", type=float, default=0.01)
     parser.add_argument("--min-shadow-level", type=float, default=0.01)
     parser.add_argument("--examples", type=int, default=8)
+    parser.add_argument(
+        "--summary-only",
+        action="store_true",
+        help="print counts and simulations without per-field ranges or example rows",
+    )
     args = parser.parse_args()
 
     rows = load_rows(pathlib.Path(args.path))
@@ -353,8 +368,12 @@ def main() -> int:
         records = records_by_target[target_row]
         extras = [record for record in records if record["protected"] == "0"]
         protected = [record for record in records if record["protected"] == "1"]
-        print_group(f"{args.shadow_row}->same-pitch {target_row} extras", extras, args.examples)
-        print_group(f"{args.shadow_row}->same-pitch {target_row} protected", protected, args.examples)
+        if args.summary_only:
+            print_group_summary(f"{args.shadow_row}->same-pitch {target_row} extras", extras)
+            print_group_summary(f"{args.shadow_row}->same-pitch {target_row} protected", protected)
+        else:
+            print_group(f"{args.shadow_row}->same-pitch {target_row} extras", extras, args.examples)
+            print_group(f"{args.shadow_row}->same-pitch {target_row} protected", protected, args.examples)
         print_simulations(f"{args.shadow_row}->same-pitch {target_row}", records)
     return 0
 

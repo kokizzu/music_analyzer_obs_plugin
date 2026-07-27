@@ -717,6 +717,7 @@ def main() -> int:
         "inspect-real-note-attribute-buckets": "$(BUILD_DIR)/real_note_full_mix_attributes.tsv",
         "find-real-note-attribute-patterns": "$(BUILD_DIR)/real_note_full_mix_attributes.tsv",
         "find-real-note-row-confusion-patterns": "$(BUILD_DIR)/real_note_full_mix_attributes.tsv",
+        "evaluate-real-note-display-shadow": "$(BUILD_DIR)/real_note_full_mix_attributes.tsv",
         "analyze-guitar-chord-mix-recovery": "$(BUILD_DIR)/guitar_chord_mix_attributes.tsv",
         "analyze-guitar-chord-mix-extra-components": "$(BUILD_DIR)/guitar_chord_mix_attributes.tsv",
         "inspect-guitar-chord-mix-attribute-buckets": "$(BUILD_DIR)/guitar_chord_mix_attributes.tsv",
@@ -862,6 +863,14 @@ def main() -> int:
     )
     assert "$(MEASURE_DRUM_FULL_PATTERN_ARGS)" in full_section_recipes, (
         "full drum pattern target needs bounded default args"
+    )
+
+    shadow_recipe = target_recipe(makefile, "evaluate-real-note-display-shadow")
+    assert "scripts/evaluate_real_note_display_shadow.py" in shadow_recipe, (
+        "display shadow target must use the dedicated evaluator"
+    )
+    assert "$(or $(DISPLAY_SHADOW_ARGS),--summary-only)" in shadow_recipe, (
+        "display shadow target should default to concise output"
     )
 
     status_recipe = target_recipe(makefile, "find-instrument-status-patterns")
