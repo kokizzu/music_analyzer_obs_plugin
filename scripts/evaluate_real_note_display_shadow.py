@@ -163,7 +163,10 @@ def best_same_midi_debug(rows: list[dict[str, str]], midi: int, target_row: str)
     best: dict[str, str] | None = None
     best_score = -1.0
     for row in rows:
-        if as_int(row, "debug_midi") != midi:
+        debug_midi = as_int(row, "debug_midi")
+        if debug_midi is None:
+            debug_midi = midi_from_note(row.get("debug_note", ""))
+        if debug_midi != midi:
             continue
         score = as_float(row, score_field) or 0.0
         confidence = as_float(row, "debug_conf") or 0.0

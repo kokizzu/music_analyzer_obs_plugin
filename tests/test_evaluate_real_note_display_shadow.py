@@ -127,6 +127,20 @@ def main() -> int:
                 guitar_notes="E3:0.80",
                 piano_notes="E3:0.55",
             ),
+            row(
+                sample_id="keyboard_note_only_debug",
+                family="piano",
+                source="electronic",
+                expected_note="D4",
+                expected_midi="62",
+                debug_note="D4",
+                debug_midi="",
+                debug_owner="piano",
+                keyboard_score="0.80",
+                guitar_score="0.20",
+                guitar_notes="D4:0.30",
+                piano_notes="D4:0.90",
+            ),
         ]
         path.write_text(
             "\t".join(HEADER) + "\n" + "\n".join("\t".join(item) for item in rows) + "\n"
@@ -154,14 +168,14 @@ def main() -> int:
         )
 
     output = result.stdout
-    assert "piano->same-pitch guitar extras rows=1 samples=1" in output, output
-    assert "sources piano/electronic=1" in output, output
+    assert "piano->same-pitch guitar extras rows=2 samples=2" in output, output
+    assert "sources piano/electronic=2" in output, output
     assert "piano->same-pitch guitar protected rows=1 samples=1" in output, output
     assert "sources guitar/acoustic=1" in output, output
     assert "target_score=0.80 shadow_score=0.20" in output, output
     assert "piano->same-pitch guitar suppressor simulations" in output, output
     assert "owner_shadow_score2_level" in output, output
-    assert "extras=0/1 protected=0/1 precision=0.0% protected_rate=0.0%" in output, output
+    assert "extras=1/2 protected=0/1 precision=100.0% protected_rate=0.0%" in output, output
     return 0
 
 
