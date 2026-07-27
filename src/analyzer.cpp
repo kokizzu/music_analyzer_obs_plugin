@@ -5212,6 +5212,7 @@ void add_full_mix_display_mirror(NoteCandidateList &candidates, const FullMixOwn
 	const float row_reference = strongest_candidate_score(candidates);
 	const float base_score = row_reference > 1.0e-6f ? row_reference : 1.0f;
 	float candidate_score = base_score * std::clamp(global_level, 0.18f, 1.0f) * 0.52f;
+	float candidate_confidence = row == FullMixDisplayRow::Other ? 0.21f : 0.20f;
 	if (row == FullMixDisplayRow::Vocal && display_midi != debug.midi &&
 	    (measured_vocal_octave_alias_priority_supported(debug) ||
 	     raw_supported_vocal_lower_octave_alias(debug, display_midi, raw_powers)))
@@ -5234,15 +5235,18 @@ void add_full_mix_display_mirror(NoteCandidateList &candidates, const FullMixOwn
 	if (measured_low_organ_keyboard_alias)
 		candidate_score = std::max(candidate_score, base_score * 0.22f);
 	if (row == FullMixDisplayRow::Other &&
+	    !ownership.ambiguous[index] &&
+	    debug.owner != InstrumentKind::Ambiguous &&
+	    debug.ownership_confidence >= 0.58f &&
 	    (measured_keyboard_synth_other_priority_supported(debug) ||
-	     measured_ambiguous_string_other_priority_supported(debug) ||
 	     guitar_owned_measured_string_other_display_supported(debug) ||
 	     measured_vocal_synth_other_priority_supported(debug) ||
 	     measured_guitar_synth_other_priority_supported(debug) ||
 	     measured_vocal_synth_other_octave_supported(debug) ||
-	     measured_guitar_synth_other_octave_supported(debug)))
+	     measured_guitar_synth_other_octave_supported(debug))) {
 		candidate_score = std::max(candidate_score, base_score * 1.04f);
-	float candidate_confidence = row == FullMixDisplayRow::Other ? 0.21f : 0.20f;
+		candidate_confidence = std::max(candidate_confidence, 0.58f);
+	}
 	if (measured_low_organ_keyboard_alias) {
 		candidate_score = std::max(candidate_score, base_score * 0.72f);
 		candidate_confidence = std::max(candidate_confidence, 0.58f);
@@ -7482,8 +7486,9 @@ float note_candidate_display_ownership_scale(const NoteCandidate &candidate)
 	const float confidence = std::clamp(candidate.ownership_confidence, 0.0f, 1.0f);
 	if (confidence >= 0.88f)
 		return 1.0f;
+	/* Low-confidence mirrors are already attenuated when written as raw cell levels. */
 	if (confidence <= 0.24f)
-		return confidence;
+		return 1.0f;
 	return confidence * confidence;
 }
 

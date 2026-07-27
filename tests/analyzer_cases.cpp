@@ -3145,6 +3145,14 @@ void check_full_mix_single_instrument_precision(Runner &runner)
 				      snapshot.other.label + "`, keyboard `" + snapshot.keyboard.label +
 				      "`, guitar `" + snapshot.guitar.label + "`, debug `" +
 				      full_mix_debug_summary_for_midi(snapshot, 48) + "`");
+		const float other_visual = grid_visual_level_for_midi(snapshot.other_notes, 48);
+		runner.expect(other_visual >= 0.24f,
+			      std::string("full-mix low noisy string: expected readable other C3 visual "
+					  "level >= 0.24, got ") +
+				      std::to_string(other_visual) + ", other `" + snapshot.other.label +
+				      "`, keyboard `" + snapshot.keyboard.label + "`, guitar `" +
+				      snapshot.guitar.label + "`, debug `" +
+				      full_mix_debug_summary_for_midi(snapshot, 48) + "`");
 	}
 
 	{
