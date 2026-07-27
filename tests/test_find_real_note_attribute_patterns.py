@@ -9,6 +9,9 @@ import tempfile
 
 
 ROOT = pathlib.Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(ROOT / "scripts"))
+
+import find_real_note_attribute_patterns as patterns
 
 HEADER = [
     "status",
@@ -166,6 +169,23 @@ def row(**overrides: str) -> list[str]:
 
 
 def main() -> int:
+    assert not patterns.constraints_compatible(
+        (patterns.numeric_pattern("centroid", "<=", 0.04).constraint,),
+        patterns.numeric_pattern("centroid", ">=", 0.04).constraint,
+    )
+    assert patterns.constraints_compatible(
+        (patterns.numeric_pattern("centroid", ">=", 0.03).constraint,),
+        patterns.numeric_pattern("centroid", "<=", 0.04).constraint,
+    )
+    assert not patterns.constraints_compatible(
+        (patterns.numeric_pattern("debug_midi", "<=", 46).constraint,),
+        patterns.numeric_pattern("debug_midi", "<=", 57).constraint,
+    )
+    assert not patterns.constraints_compatible(
+        (patterns.category_pattern("debug_owner", "guitar").constraint,),
+        patterns.category_pattern("debug_owner", "piano").constraint,
+    )
+
     with tempfile.TemporaryDirectory() as tmp:
         path = pathlib.Path(tmp) / "attributes.tsv"
         rows = [

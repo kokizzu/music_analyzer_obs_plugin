@@ -116,10 +116,18 @@ ROW_FOR_FAMILY = {
 
 
 @dataclasses.dataclass(frozen=True)
+class Constraint:
+    field: str
+    kind: str
+    value: float | str
+
+
+@dataclasses.dataclass(frozen=True)
 class Pattern:
     label: str
     category: bool
     predicate: Callable[[dict[str, str]], bool]
+    constraint: Constraint | None = None
 
 
 @dataclasses.dataclass(frozen=True)
@@ -129,6 +137,7 @@ class PatternMatch:
     negative_row_mask: int
     foreign_row_mask: int
     category: bool
+    constraint: Constraint | None = None
 
 
 @dataclasses.dataclass(frozen=True)
@@ -148,6 +157,7 @@ class RuleResult:
 @dataclasses.dataclass(frozen=True)
 class SearchState:
     labels: tuple[str, ...]
+    constraints: tuple[Constraint, ...]
     positive_row_mask: int
     negative_row_mask: int
     foreign_row_mask: int
@@ -431,6 +441,7 @@ def numeric_pattern(field: str, operator: str, threshold: float) -> Pattern:
             lambda row, field=field, threshold=threshold: (
                 (value := as_float(row, field)) is not None and value <= threshold
             ),
+            Constraint(field, "upper", threshold),
         )
     return Pattern(
         f"{field}>={format_value(threshold)}",
@@ -438,6 +449,7 @@ def numeric_pattern(field: str, operator: str, threshold: float) -> Pattern:
         lambda row, field=field, threshold=threshold: (
             (value := as_float(row, field)) is not None and value >= threshold
         ),
+        Constraint(field, "lower", threshold),
     )
 
 
@@ -448,6 +460,7 @@ def interval_pattern(field: str, low: float, high: float) -> Pattern:
         lambda row, field=field, low=low, high=high: (
             (value := as_float(row, field)) is not None and low <= value <= high
         ),
+        Constraint(field, "interval", f"{low}:{high}"),
     )
 
 
@@ -456,6 +469,7 @@ def category_pattern(field: str, expected: str) -> Pattern:
         f"{field}={expected}",
         True,
         lambda row, field=field, expected=expected: row.get(field, "") == expected,
+        Constraint(field, "category", expected),
     )
 
 
@@ -486,6 +500,7 @@ def condition_pattern(spec: str) -> Pattern:
             lambda row, field=field, threshold=threshold: (
                 (row_value := as_float(row, field)) is not None and row_value < threshold
             ),
+            Constraint(field, "upper", threshold),
         )
     return Pattern(
         f"{field}>{format_value(threshold)}",
@@ -493,6 +508,7 @@ def condition_pattern(spec: str) -> Pattern:
         lambda row, field=field, threshold=threshold: (
             (row_value := as_float(row, field)) is not None and row_value > threshold
         ),
+        Constraint(field, "lower", threshold),
     )
 
 
@@ -567,6 +583,7 @@ def indexed_match(
         negative_row_mask=mask_for_pattern(negative_rows, pattern),
         foreign_row_mask=mask_for_pattern(foreign_rows, pattern),
         category=pattern.category,
+        constraint=pattern.constraint,
     )
 
 
@@ -636,6 +653,27 @@ def ranked_state_key(
     )
 
 
+def constraints_compatible(
+    existing_constraints: tuple[Constraint, ...], new_constraint: Constraint | None
+) -> bool:
+    if new_constraint is None:
+        return True
+    for existing in existing_constraints:
+        if existing.field != new_constraint.field:
+            continue
+        if existing.kind == "category" or new_constraint.kind == "category":
+            return False
+        if existing.kind == "interval" or new_constraint.kind == "interval":
+            return False
+        if existing.kind == new_constraint.kind:
+            return False
+        if {existing.kind, new_constraint.kind} == {"lower", "upper"}:
+            lower = float(existing.value if existing.kind == "lower" else new_constraint.value)
+            upper = float(existing.value if existing.kind == "upper" else new_constraint.value)
+            return lower < upper
+    return True
+
+
 def extend_condition_search(
     matches: list[PatternMatch],
     positive_rows: list[dict[str, str]],
@@ -664,6 +702,7 @@ def extend_condition_search(
         states.append(
             SearchState(
                 labels=(match.label,),
+                constraints=(match.constraint,) if match.constraint is not None else (),
                 positive_row_mask=match.positive_row_mask,
                 negative_row_mask=match.negative_row_mask,
                 foreign_row_mask=match.foreign_row_mask,
@@ -682,6 +721,8 @@ def extend_condition_search(
         for state in states:
             for match_index in range(state.next_match_index, len(ordered_matches)):
                 match = ordered_matches[match_index]
+                if not constraints_compatible(state.constraints, match.constraint):
+                    continue
                 positive_row_mask = state.positive_row_mask & match.positive_row_mask
                 if positive_row_mask == 0:
                     continue
@@ -692,6 +733,10 @@ def extend_condition_search(
                 foreign_row_mask = state.foreign_row_mask & match.foreign_row_mask
                 candidate = SearchState(
                     labels=state.labels + (match.label,),
+                    constraints=(
+                        state.constraints + (match.constraint,)
+                        if match.constraint is not None else state.constraints
+                    ),
                     positive_row_mask=positive_row_mask,
                     negative_row_mask=negative_row_mask,
                     foreign_row_mask=foreign_row_mask,
