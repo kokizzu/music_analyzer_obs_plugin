@@ -248,6 +248,50 @@ def main() -> int:
             stderr=subprocess.PIPE,
             check=True,
         )
+        family_filtered = subprocess.run(
+            [
+                sys.executable,
+                str(ROOT / "scripts" / "inspect_real_note_attribute_buckets.py"),
+                str(path),
+                "--dump-rows",
+                "--family",
+                "other",
+                "--source",
+                "acoustic",
+            ],
+            text=True,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            check=True,
+        )
+        miss_reason_filtered = subprocess.run(
+            [
+                sys.executable,
+                str(ROOT / "scripts" / "inspect_real_note_attribute_buckets.py"),
+                str(path),
+                "--dump-rows",
+                "--miss-reason",
+                "ownership",
+            ],
+            text=True,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            check=True,
+        )
+        row_filtered = subprocess.run(
+            [
+                sys.executable,
+                str(ROOT / "scripts" / "inspect_real_note_attribute_buckets.py"),
+                str(path),
+                "--summary-only",
+                "--first-row",
+                "other",
+            ],
+            text=True,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            check=True,
+        )
 
     assert "ownership_miss:piano/electronic->guitar rows=1 samples=1" in result.stdout
     assert "hit:other/acoustic->other rows=1 samples=1" in result.stdout
@@ -277,6 +321,12 @@ def main() -> int:
     assert "\t0\t0\townership\t" in dumped.stdout
     assert "\townership\t0.600\t0.600\t0\t1.000\t1.000\t0\t2\t2\t" in dumped.stdout
     assert "reed_1" not in dumped.stdout
+    assert "\nreed_1\thit\tother\tacoustic\tA4" in family_filtered.stdout
+    assert "keyboard_1" not in family_filtered.stdout
+    assert "\nkeyboard_1\townership_miss\tpiano\telectronic\tC4" in miss_reason_filtered.stdout
+    assert "reed_1" not in miss_reason_filtered.stdout
+    assert "hit:other/acoustic->other rows=1 samples=1" in row_filtered.stdout
+    assert "ownership_miss:piano/electronic->guitar" not in row_filtered.stdout
     print("test_inspect_real_note_attribute_buckets: ok")
     return 0
 

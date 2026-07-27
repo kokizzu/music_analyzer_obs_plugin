@@ -528,6 +528,40 @@ def dump_rows(
             break
 
 
+def filter_rows(
+    rows: list[dict[str, str]],
+    *,
+    statuses: set[str],
+    families: set[str],
+    sources: set[str],
+    first_rows: set[str],
+    visual_first_rows: set[str],
+    row_labels: set[str],
+    miss_reasons: set[str],
+) -> list[dict[str, str]]:
+    if not any((statuses, families, sources, first_rows, visual_first_rows, row_labels, miss_reasons)):
+        return rows
+
+    filtered: list[dict[str, str]] = []
+    for row in rows:
+        if statuses and row.get("status", "") not in statuses:
+            continue
+        if families and row.get("family", "") not in families:
+            continue
+        if sources and row.get("source", "") not in sources:
+            continue
+        if first_rows and row.get("first_row", "") not in first_rows:
+            continue
+        if visual_first_rows and row.get("visual_first_row", "") not in visual_first_rows:
+            continue
+        if row_labels and row.get("row_label", "") not in row_labels:
+            continue
+        if miss_reasons and derive_row(row).get("miss_reason", "") not in miss_reasons:
+            continue
+        filtered.append(row)
+    return filtered
+
+
 def load_rows(path: pathlib.Path) -> list[dict[str, str]]:
     with path.open(newline="", errors="replace") as handle:
         return list(csv.DictReader(handle, delimiter="\t"))
@@ -629,10 +663,36 @@ def main() -> int:
         default=0,
         help="maximum rows to print in --dump-rows mode; 0 means all",
     )
+    parser.add_argument("--status", action="append", default=[], help="include only this row status; repeatable")
+    parser.add_argument("--family", action="append", default=[], help="include only this expected family; repeatable")
+    parser.add_argument("--source", action="append", default=[], help="include only this source subtype; repeatable")
+    parser.add_argument("--first-row", action="append", default=[], help="include only this first detected row; repeatable")
+    parser.add_argument(
+        "--visual-first-row",
+        action="append",
+        default=[],
+        help="include only this first visually displayed row; repeatable",
+    )
+    parser.add_argument("--row-label", action="append", default=[], help="include only this per-buffer row label; repeatable")
+    parser.add_argument(
+        "--miss-reason",
+        action="append",
+        default=[],
+        help="include only this derived miss reason in --dump-rows or bucket summaries; repeatable",
+    )
     args = parser.parse_args()
 
     path = pathlib.Path(args.path)
-    rows = load_rows(path)
+    rows = filter_rows(
+        load_rows(path),
+        statuses=set(args.status),
+        families=set(args.family),
+        sources=set(args.source),
+        first_rows=set(args.first_row),
+        visual_first_rows=set(args.visual_first_row),
+        row_labels=set(args.row_label),
+        miss_reasons=set(args.miss_reason),
+    )
     explicit_buckets = [parse_bucket_spec(spec) for spec in args.bucket]
     if args.dump_rows:
         dump_rows(
