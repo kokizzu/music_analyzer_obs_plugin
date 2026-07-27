@@ -1081,7 +1081,7 @@ bool expects_full_mix_keyboard_primary_octave_recovery(const std::string &suite_
 		return false;
 	if (row.note == "E2")
 		return true;
-	if (row.note == "C2" && row.program_name != "electric_piano_1")
+	if (row.note == "C2")
 		return true;
 	if ((row.note == "C1") &&
 	    (row.program_name == "electric_grand" || row.program_name == "electric_piano_2" ||

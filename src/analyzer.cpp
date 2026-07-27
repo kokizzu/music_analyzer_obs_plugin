@@ -9577,6 +9577,51 @@ void promote_source_hinted_keyboard_bass_primary(NoteGrid &grid, InstrumentState
 		write_note_grid_label(state, grid, preferred_root);
 }
 
+void promote_source_hinted_keyboard_weak_low_octave_primary(NoteGrid &grid, InstrumentState &state,
+							    const FullMixOwnership &ownership,
+							    int preferred_root)
+{
+	static constexpr int kWeakLowOctavePrimaryMinMidi = 48;
+	static constexpr int kWeakLowOctavePrimaryMaxMidi = 51;
+	static constexpr float kWeakLowOctavePrimaryDebugCeiling = 0.80f;
+	static constexpr float kWeakLowOctaveRelativeFloor = 0.70f;
+	static constexpr float kWeakLowOctaveAbsoluteFloor = 0.70f;
+
+	bool changed = false;
+	for (int pitch_class = 0; pitch_class < 12; ++pitch_class) {
+		NoteCell primary = {};
+		for (const auto &row : grid.rows) {
+			const NoteCell &cell = row[pitch_class];
+			if (cell.active) {
+				primary = cell;
+				break;
+			}
+		}
+		if (!primary.active)
+			continue;
+		if (primary.midi < kWeakLowOctavePrimaryMinMidi ||
+		    primary.midi > kWeakLowOctavePrimaryMaxMidi)
+			continue;
+		const float primary_debug_score =
+			std::max(0.0f, full_mix_debug_keyboard_note_score(ownership, primary.midi));
+		if (primary_debug_score > kWeakLowOctavePrimaryDebugCeiling)
+			continue;
+
+		const int lower_midi = primary.midi - 12;
+		const float lower_level = note_grid_midi_level(grid, lower_midi);
+		if (lower_level < std::max(kWeakLowOctaveAbsoluteFloor,
+					   primary.level * kWeakLowOctaveRelativeFloor))
+			continue;
+
+		changed = promote_note_grid_primary_midi(grid, lower_midi,
+							 std::max(lower_level, primary.level)) ||
+			  changed;
+	}
+
+	if (changed)
+		write_note_grid_label(state, grid, preferred_root);
+}
+
 void promote_source_hinted_string_bass_primary(NoteGrid &grid, InstrumentState &state,
 					       const NoteGrid &bass_grid, int preferred_root)
 {
@@ -17442,6 +17487,9 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 			promote_source_hinted_keyboard_bass_primary(snapshot.keyboard_notes,
 								    snapshot.keyboard,
 								    snapshot.bass_notes, -1);
+		if (mixed_source && full_mix_source_hint_mode == AnalysisInputMode::IsolatedKeyboard)
+			promote_source_hinted_keyboard_weak_low_octave_primary(
+				snapshot.keyboard_notes, snapshot.keyboard, full_mix_ownership, -1);
 		smooth_note_grid_envelope(keyboard_chord_grid, keyboard_chord_note_state, keyboard_chord_note_tracking_,
 					  -1, interval_seconds, mixed_source ? 8 : 10, keyboard_new_notes,
 					  kNoteAttackConfirmFrames,
