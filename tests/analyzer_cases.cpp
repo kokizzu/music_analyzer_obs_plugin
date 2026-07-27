@@ -3168,6 +3168,29 @@ void check_full_mix_single_instrument_precision(Runner &runner)
 
 	{
 		mao_test::Buffer buffer = {};
+		const std::vector<float> measured_low_brass_fundamental_profile =
+			{1.0f, 0.32f, 0.40f, 0.42f, 0.38f};
+		add_harmonic_note(buffer, 45, 0.24f, measured_low_brass_fundamental_profile);
+
+		const auto snapshot =
+			analyze_buffer_with_mode(buffer, mao::AnalysisInputMode::FullMix,
+						 "speaker measured low brass fundamental other", 3);
+		expect_global_pitch_class(runner, snapshot, 9,
+					  "full-mix measured low brass fundamental global");
+		const float other_visual = grid_visual_level_for_midi(snapshot.other_notes, 45);
+		const float guitar_visual = grid_visual_level_for_midi(snapshot.guitar_notes, 45);
+		runner.expect(other_visual >= 0.58f && other_visual >= guitar_visual * 0.80f,
+			      std::string("full-mix measured low brass fundamental: expected readable "
+					  "other A2 visual, got other visual ") +
+				      std::to_string(other_visual) + ", guitar visual " +
+				      std::to_string(guitar_visual) + ", other `" + snapshot.other.label +
+				      "`, guitar `" + snapshot.guitar.label + "`, bass `" +
+				      snapshot.bass.label + "`, keyboard `" + snapshot.keyboard.label +
+				      "`, debug `" + full_mix_debug_summary_for_midi(snapshot, 45) + "`");
+	}
+
+	{
+		mao_test::Buffer buffer = {};
 		const std::vector<float> low_weak_upper_string_profile =
 			{1.0f, 0.18f, 0.018f, 0.005f, 0.006f};
 		add_harmonic_note(buffer, 53, 0.24f, low_weak_upper_string_profile);

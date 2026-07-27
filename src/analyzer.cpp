@@ -2183,6 +2183,37 @@ bool other_owned_low_acoustic_guitar_body_supported(const FullMixDebugCandidate 
 	return moderate_body || bright_noisy_body;
 }
 
+bool measured_low_brass_fundamental_other_supported(const FullMixDebugCandidate &debug)
+{
+	if (debug.owner != InstrumentKind::Other)
+		return false;
+	if (debug.midi < 43 || debug.midi > 56)
+		return false;
+
+	const float second = debug.harmonic_ratios[1];
+	const float third = debug.harmonic_ratios[2];
+	const float fourth = debug.harmonic_ratios[3];
+	const float fifth = debug.harmonic_ratios[4];
+	return debug.other_score >= 0.82f &&
+	       debug.guitar_score <= 0.16f &&
+	       debug.keyboard_score <= 0.06f &&
+	       debug.vocal_score <= 0.04f &&
+	       debug.spectral_level >= 0.12f &&
+	       debug.pitch_confidence >= 0.040f &&
+	       debug.periodicity >= 0.38f &&
+	       debug.harmonicity >= 1.40f &&
+	       debug.harmonic_fit_error <= 4.0f &&
+	       debug.local_noise_level >= 0.16f &&
+	       debug.local_noise_level <= 0.62f &&
+	       debug.spectral_centroid >= 0.42f &&
+	       debug.spectral_centroid <= 0.74f &&
+	       debug.spectral_slope >= 0.45f &&
+	       second >= 0.24f &&
+	       third >= 0.35f &&
+	       fourth >= 0.12f &&
+	       fifth >= 0.070f;
+}
+
 bool ambiguous_low_acoustic_guitar_body_supported(const FullMixDebugCandidate &debug)
 {
 	if (debug.owner != InstrumentKind::Ambiguous)
@@ -5244,6 +5275,7 @@ bool full_mix_display_mirror_supported(FullMixDisplayRow row, const FullMixDebug
 		       debug.other_score >= 0.035f ||
 		       shared_other_pitch_display_supported(debug) ||
 		       sustained_other ||
+		       measured_low_brass_fundamental_other_supported(debug) ||
 		       bright_high_brass_other ||
 		       low_weak_upper_string_other ||
 		       noisy_low_ambiguous_bowed_string_other ||
@@ -5335,10 +5367,17 @@ void add_full_mix_display_mirror(NoteCandidateList &candidates, const FullMixOwn
 	if (measured_low_organ_keyboard_alias)
 		candidate_score = std::max(candidate_score, base_score * 0.22f);
 	if (row == FullMixDisplayRow::Other &&
+	    measured_low_brass_fundamental_other_supported(debug) &&
+	    debug.ownership_confidence >= 0.82f) {
+		candidate_score = std::max(candidate_score, base_score * 1.24f);
+		candidate_confidence = std::max(candidate_confidence, 0.88f);
+	}
+	if (row == FullMixDisplayRow::Other &&
 	    !ownership.ambiguous[index] &&
 	    debug.owner != InstrumentKind::Ambiguous &&
 	    debug.ownership_confidence >= 0.58f &&
 	    (measured_keyboard_synth_other_priority_supported(debug) ||
+	     measured_low_brass_fundamental_other_supported(debug) ||
 	     guitar_owned_measured_string_other_display_supported(debug) ||
 	     measured_vocal_synth_other_priority_supported(debug) ||
 	     measured_guitar_synth_other_priority_supported(debug) ||
