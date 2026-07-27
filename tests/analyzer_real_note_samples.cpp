@@ -829,10 +829,10 @@ std::string source_any_summary_text(const std::map<std::string, SourceStats> &st
 	return text;
 }
 
-void print_row_confusion(FILE *out,
+void print_row_confusion(FILE *out, const char *label,
 			 const std::array<std::array<int, kObservedRowCount>, kFamilyCount> &row_confusion)
 {
-	std::fprintf(out, "analyzer_real_note_samples full-mix row-confusion:");
+	std::fprintf(out, "analyzer_real_note_samples full-mix %s:", label);
 	for (int family = 0; family < kFamilyCount; ++family) {
 		std::fprintf(out, " %s[", kFamilyNames[family]);
 		for (int row = 0; row < kObservedRowCount; ++row) {
@@ -1158,6 +1158,7 @@ int main()
 	std::array<int, kFamilyCount> family_row_hits = {};
 	std::array<int, kFamilyCount> family_first_row_hits = {};
 	std::array<std::array<int, kObservedRowCount>, kFamilyCount> row_confusion = {};
+	std::array<std::array<int, kObservedRowCount>, kFamilyCount> visual_row_confusion = {};
 	std::map<std::string, SourceStats> source_stats;
 	int any_hits = 0;
 	int row_hits = 0;
@@ -1333,6 +1334,8 @@ int main()
 			}
 			++row_confusion[static_cast<std::size_t>(index)]
 					[static_cast<std::size_t>(first_detected_row)];
+			++visual_row_confusion[static_cast<std::size_t>(index)]
+					      [static_cast<std::size_t>(first_visual_detected_row)];
 		}
 	}
 
@@ -1442,8 +1445,10 @@ int main()
 				     active_drum_by_class[6]);
 		}
 		std::fprintf(stderr, ")\n");
-		if (full_mix)
-			print_row_confusion(stderr, row_confusion);
+		if (full_mix) {
+			print_row_confusion(stderr, "row-confusion", row_confusion);
+			print_row_confusion(stderr, "visual-row-confusion", visual_row_confusion);
+		}
 		if (runner.failures > max_failures)
 			return 1;
 		std::printf(
@@ -1476,8 +1481,10 @@ int main()
 				    active_drum_by_class[6]);
 		}
 		std::printf(")\n");
-		if (full_mix)
-			print_row_confusion(stdout, row_confusion);
+		if (full_mix) {
+			print_row_confusion(stdout, "row-confusion", row_confusion);
+			print_row_confusion(stdout, "visual-row-confusion", visual_row_confusion);
+		}
 		return 0;
 	}
 
@@ -1510,7 +1517,9 @@ int main()
 			    active_drum_by_class[6]);
 	}
 	std::printf(")\n");
-	if (full_mix)
-		print_row_confusion(stdout, row_confusion);
+	if (full_mix) {
+		print_row_confusion(stdout, "row-confusion", row_confusion);
+		print_row_confusion(stdout, "visual-row-confusion", visual_row_confusion);
+	}
 	return 0;
 }

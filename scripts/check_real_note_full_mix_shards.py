@@ -14,6 +14,9 @@ FAMILIES = ("bass", "guitar", "piano", "vocals", "other")
 ROWS = ("bass", "guitar", "piano", "vocals", "other", "amb", "none")
 SUMMARY_RE = re.compile(r"^analyzer_real_note_samples full-mix: .*\((?P<body>.+)\)$")
 ROW_CONFUSION_RE = re.compile(r"^analyzer_real_note_samples full-mix row-confusion: (?P<body>.+)$")
+VISUAL_ROW_CONFUSION_RE = re.compile(
+    r"^analyzer_real_note_samples full-mix visual-row-confusion: (?P<body>.+)$"
+)
 FAMILY_TOTAL_RE = re.compile(
     r"\b(?P<family>bass|guitar|piano|vocals|other)(?:=|\s+)(?P<hit>\d+)/(?P<total>\d+)"
 )
@@ -68,7 +71,9 @@ def add_confusion(total: dict[str, dict[str, int]], part: dict[str, dict[str, in
             total[family][row] += part[family][row]
 
 
-def parse_shard(path: pathlib.Path) -> tuple[dict[str, int], dict[str, dict[str, int]]]:
+def parse_shard(
+    path: pathlib.Path,
+) -> tuple[dict[str, int], dict[str, dict[str, int]], dict[str, dict[str, int]]]:
     summary: dict[str, int] = {
         "usable": 0,
         "any_hit": 0,
@@ -91,8 +96,10 @@ def parse_shard(path: pathlib.Path) -> tuple[dict[str, int], dict[str, dict[str,
         summary[f"drum_{drum}"] = 0
 
     confusion = empty_confusion()
+    visual_confusion = empty_confusion()
     saw_summary = False
     saw_confusion = False
+    saw_visual_confusion = False
     for line in path.read_text(errors="replace").splitlines():
         summary_match = SUMMARY_RE.match(line)
         if summary_match:
@@ -132,12 +139,20 @@ def parse_shard(path: pathlib.Path) -> tuple[dict[str, int], dict[str, dict[str,
         if confusion_match:
             saw_confusion = True
             add_confusion(confusion, parse_confusion(confusion_match.group("body")))
+            continue
+
+        visual_confusion_match = VISUAL_ROW_CONFUSION_RE.match(line)
+        if visual_confusion_match:
+            saw_visual_confusion = True
+            add_confusion(visual_confusion, parse_confusion(visual_confusion_match.group("body")))
 
     if not saw_summary:
         fail(f"missing analyzer_real_note_samples full-mix summary in {path}")
     if not saw_confusion:
         fail(f"missing analyzer_real_note_samples full-mix row-confusion in {path}")
-    return summary, confusion
+    if not saw_visual_confusion:
+        fail(f"missing analyzer_real_note_samples full-mix visual-row-confusion in {path}")
+    return summary, confusion, visual_confusion
 
 
 def add_summary(total: dict[str, int], part: dict[str, int]) -> None:
@@ -152,8 +167,38 @@ def arg_threshold(args: argparse.Namespace, family: str, name: str) -> int:
     return getattr(args, name)
 
 
-def validate(args: argparse.Namespace, summary: dict[str, int],
-             confusion: dict[str, dict[str, int]]) -> None:
+def confusion_routes(confusion: dict[str, dict[str, int]]) -> Counter[str]:
+    routes: Counter[str] = Counter()
+    for family in FAMILIES:
+        for row, value in confusion[family].items():
+            if value <= 0 or row == family:
+                continue
+            routes[f"{family}->{row}"] += value
+    return routes
+
+
+def print_confusion(label: str, confusion: dict[str, dict[str, int]]) -> None:
+    print(f"check_real_note_full_mix_shards: {label}")
+    for family in FAMILIES:
+        print(
+            f"  {family}["
+            + ",".join(f"{row}={confusion[family][row]}" for row in ROWS)
+            + "]"
+        )
+    routes = confusion_routes(confusion)
+    if routes:
+        print(
+            f"check_real_note_full_mix_shards: {label} routes "
+            + " ".join(f"{route}={value}" for route, value in routes.most_common(12))
+        )
+
+
+def validate(
+    args: argparse.Namespace,
+    summary: dict[str, int],
+    confusion: dict[str, dict[str, int]],
+    visual_confusion: dict[str, dict[str, int]],
+) -> None:
     checks = [
         ("any-row", summary["any_hit"], summary["any_total"], args.min_any_hit_percent),
         ("expected-row", summary["expected_hit"], summary["expected_total"],
@@ -213,24 +258,8 @@ def validate(args: argparse.Namespace, summary: dict[str, int],
             for family in FAMILIES
         )
     )
-    print("check_real_note_full_mix_shards: row-confusion")
-    for family in FAMILIES:
-        print(
-            f"  {family}["
-            + ",".join(f"{row}={confusion[family][row]}" for row in ROWS)
-            + "]"
-        )
-    row_confusion: Counter[str] = Counter()
-    for family in FAMILIES:
-        for row, value in confusion[family].items():
-            if value <= 0 or row == family:
-                continue
-            row_confusion[f"{family}->{row}"] += value
-    if row_confusion:
-        print(
-            "check_real_note_full_mix_shards: row-confusion routes "
-            + " ".join(f"{route}={value}" for route, value in row_confusion.most_common(12))
-        )
+    print_confusion("row-confusion", confusion)
+    print_confusion("visual-row-confusion", visual_confusion)
 
 
 def main() -> int:
@@ -247,11 +276,13 @@ def main() -> int:
 
     summary: dict[str, int] = {}
     confusion = empty_confusion()
+    visual_confusion = empty_confusion()
     for path in args.logs:
-        shard_summary, shard_confusion = parse_shard(path)
+        shard_summary, shard_confusion, shard_visual_confusion = parse_shard(path)
         add_summary(summary, shard_summary)
         add_confusion(confusion, shard_confusion)
-    validate(args, summary, confusion)
+        add_confusion(visual_confusion, shard_visual_confusion)
+    validate(args, summary, confusion, visual_confusion)
     return 0
 
 
