@@ -7942,6 +7942,85 @@ float note_candidate_display_ownership_scale(const NoteCandidate &candidate)
 	return confidence * confidence;
 }
 
+float note_cell_effective_visual_level(const NoteCell &cell)
+{
+	if (!cell.active)
+		return 0.0f;
+	return cell.visual_level >= 0.0f ? cell.visual_level : cell.level;
+}
+
+float note_grid_midi_visual_level(const NoteGrid &grid, int midi)
+{
+	if (midi < kFirstMidi || midi > kLastMidi)
+		return 0.0f;
+
+	float level = 0.0f;
+	const int pitch_class = midi_pitch_class(midi);
+	const NoteCell &pitch_cell = grid.cells[static_cast<std::size_t>(pitch_class)];
+	if (pitch_cell.active && pitch_cell.midi == midi)
+		level = std::max(level, note_cell_effective_visual_level(pitch_cell));
+	for (const auto &row : grid.rows) {
+		const NoteCell &cell = row[static_cast<std::size_t>(pitch_class)];
+		if (cell.active && cell.midi == midi)
+			level = std::max(level, note_cell_effective_visual_level(cell));
+	}
+	return level;
+}
+
+float note_grid_pitch_class_visual_level(const NoteGrid &grid, int pitch_class)
+{
+	pitch_class = (pitch_class % 12 + 12) % 12;
+	float level = note_cell_effective_visual_level(grid.cells[static_cast<std::size_t>(pitch_class)]);
+	for (const auto &row : grid.rows)
+		level = std::max(level,
+				 note_cell_effective_visual_level(row[static_cast<std::size_t>(pitch_class)]));
+	return level;
+}
+
+void attenuate_ambiguous_note_cell_by_named_rows(NoteCell &cell, const NoteGrid &bass,
+						 const NoteGrid &keyboard, const NoteGrid &guitar,
+						 const NoteGrid &vocal, const NoteGrid &other)
+{
+	if (!cell.active || cell.midi < kFirstMidi || cell.midi > kLastMidi)
+		return;
+
+	const int pitch_class = midi_pitch_class(cell.midi);
+	const float named_exact = std::max({
+		note_grid_midi_visual_level(bass, cell.midi),
+		note_grid_midi_visual_level(keyboard, cell.midi),
+		note_grid_midi_visual_level(guitar, cell.midi),
+		note_grid_midi_visual_level(vocal, cell.midi),
+		note_grid_midi_visual_level(other, cell.midi),
+	});
+	const float named_pitch_class = std::max({
+		note_grid_pitch_class_visual_level(bass, pitch_class),
+		note_grid_pitch_class_visual_level(keyboard, pitch_class),
+		note_grid_pitch_class_visual_level(guitar, pitch_class),
+		note_grid_pitch_class_visual_level(vocal, pitch_class),
+		note_grid_pitch_class_visual_level(other, pitch_class),
+	});
+	if (named_pitch_class < 0.08f)
+		return;
+
+	const float ceiling = named_exact >= 0.08f ?
+				      std::max(0.02f, named_exact * 0.32f) :
+				      std::max(0.02f, named_pitch_class * 0.50f);
+	const float current = note_cell_effective_visual_level(cell);
+	cell.visual_level = std::min(current, ceiling);
+}
+
+void attenuate_ambiguous_note_grid_by_named_rows(NoteGrid &ambiguous, const NoteGrid &bass,
+						 const NoteGrid &keyboard, const NoteGrid &guitar,
+						 const NoteGrid &vocal, const NoteGrid &other)
+{
+	for (NoteCell &cell : ambiguous.cells)
+		attenuate_ambiguous_note_cell_by_named_rows(cell, bass, keyboard, guitar, vocal, other);
+	for (auto &row : ambiguous.rows) {
+		for (NoteCell &cell : row)
+			attenuate_ambiguous_note_cell_by_named_rows(cell, bass, keyboard, guitar, vocal, other);
+	}
+}
+
 void write_note_grid_cell(NoteGrid &grid, const NoteCandidate &candidate, float strongest_score, float visual_loudness)
 {
 	const int pitch_class = ((candidate.midi % 12) + 12) % 12;
@@ -18907,6 +18986,9 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 		suppress_keyboard_owned_weak_same_pitch_bass_shadows(snapshot.bass_notes, snapshot.bass,
 								     snapshot.keyboard_notes,
 								     full_mix_ownership, -1);
+		attenuate_ambiguous_note_grid_by_named_rows(snapshot.ambiguous_notes, snapshot.bass_notes,
+							    snapshot.keyboard_notes, snapshot.guitar_notes,
+							    snapshot.vocal_notes, snapshot.other_notes);
 	} else {
 		reset_chord_tracking(global_chord_tracking_, snapshot.global_chord);
 	}
