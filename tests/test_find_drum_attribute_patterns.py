@@ -114,7 +114,8 @@ def tsv_row(
 
 
 def run_patterns(
-    *paths: pathlib.Path, include_merged_rows: bool = False, row_examples: int = 1
+    *paths: pathlib.Path, include_merged_rows: bool = False, row_examples: int = 1,
+    max_conditions: int = 3,
 ) -> str:
     command = [
         sys.executable,
@@ -127,7 +128,7 @@ def run_patterns(
         "--max-negative-samples",
         "0",
         "--max-conditions",
-        "3",
+        str(max_conditions),
         "--row-examples",
         str(row_examples),
     ]
@@ -190,6 +191,7 @@ def main() -> int:
             encoding="utf-8",
         )
         tsv_output = run_patterns(tsv_path)
+        tsv_output_one_condition = run_patterns(tsv_path, max_conditions=1)
         tsv_output_with_merged = run_patterns(tsv_path, include_merged_rows=True)
 
         tsv_path_2 = pathlib.Path(tmpdir) / "drum_second.tsv"
@@ -218,6 +220,9 @@ def main() -> int:
     assert "protecting merged expected-credit rows=1; pass --include-merged-rows to mine them" in tsv_output
     assert "protected_by_expected=kick=1 snare=1 tom=2" in tsv_output
     assert "+2 rows=2 -0 rows=0" in tsv_output
+    assert "route tom->kick positives=2 rows=2 protected_correct=4 rows=4" in tsv_output_one_condition
+    assert "\n  --\n" in tsv_output_one_condition
+    assert " AND " not in tsv_output_one_condition
     assert "foreign=1 rows=1 new-active=1 rows=1" in tsv_output
     assert "primary-break=1 rows=1" in tsv_output
     assert "tom/001.wav tom->kick" in tsv_output

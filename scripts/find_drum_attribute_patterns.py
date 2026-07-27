@@ -77,6 +77,65 @@ class RuleResult:
     primary_break_examples: list[dict[str, str]]
 
 
+@dataclasses.dataclass
+class SampleCounter:
+    row_bits: list[int]
+    exact_counts: dict[int, int] = dataclasses.field(default_factory=dict)
+    limited_counts: dict[tuple[int, int], tuple[int, bool]] = dataclasses.field(default_factory=dict)
+
+    def count(self, row_mask: int, limit: int | None = None) -> tuple[int, bool]:
+        if limit is None:
+            cached = self.exact_counts.get(row_mask)
+            if cached is not None:
+                return cached, False
+            count = self.sample_mask(row_mask).bit_count()
+            self.exact_counts[row_mask] = count
+            return count, False
+
+        cached_exact = self.exact_counts.get(row_mask)
+        if cached_exact is not None:
+            return cached_exact, cached_exact > limit
+        key = (row_mask, limit)
+        cached_limited = self.limited_counts.get(key)
+        if cached_limited is not None:
+            return cached_limited
+
+        sample_mask = 0
+        work_mask = row_mask
+        while work_mask:
+            bit = work_mask & -work_mask
+            index = bit.bit_length() - 1
+            sample_mask |= self.row_bits[index]
+            count = sample_mask.bit_count()
+            if count > limit:
+                result = (count, True)
+                self.limited_counts[key] = result
+                return result
+            work_mask ^= bit
+        count = sample_mask.bit_count()
+        self.exact_counts[row_mask] = count
+        result = (count, False)
+        self.limited_counts[key] = result
+        return result
+
+    def sample_mask(self, row_mask: int) -> int:
+        sample_mask = 0
+        work_mask = row_mask
+        while work_mask:
+            bit = work_mask & -work_mask
+            index = bit.bit_length() - 1
+            sample_mask |= self.row_bits[index]
+            work_mask ^= bit
+        return sample_mask
+
+
+@dataclasses.dataclass(frozen=True)
+class SideEffectMaskSet:
+    foreign: int
+    new_active: int
+    primary_break: int
+
+
 def primary_from_levels(row: dict[str, str]) -> str:
     best = "none"
     best_level = 0.0
@@ -336,21 +395,11 @@ def mask_for_pattern(rows: list[dict[str, str]], pattern: Pattern) -> int:
 
 
 def sample_count_for_mask(row_mask: int, row_bits: list[int], limit: int | None = None) -> tuple[int, bool]:
-    sample_mask = 0
-    while row_mask:
-        bit = row_mask & -row_mask
-        index = bit.bit_length() - 1
-        sample_mask |= row_bits[index]
-        if limit is not None:
-            count = sample_mask.bit_count()
-            if count > limit:
-                return count, True
-        row_mask ^= bit
-    return sample_mask.bit_count(), False
+    return SampleCounter(row_bits).count(row_mask, limit)
 
 
-def bounded_sample_count(row_mask: int, row_bits: list[int], limit: int | None) -> int:
-    count, exceeded = sample_count_for_mask(row_mask, row_bits, limit)
+def bounded_sample_count(row_mask: int, counter: SampleCounter, limit: int | None) -> int:
+    count, exceeded = counter.count(row_mask, limit)
     if exceeded and limit is not None:
         return limit + 1
     return count
@@ -371,17 +420,13 @@ def selected_samples_from_mask(rows: list[dict[str, str]], row_mask: int, limit:
     return selected
 
 
-def side_effect_masks(
-    rows: list[dict[str, str]], row_mask: int, target_category: str
-) -> tuple[int, int, int]:
+def side_effect_base_masks(rows: list[dict[str, str]], target_category: str) -> SideEffectMaskSet:
     foreign_mask = 0
     new_active_mask = 0
     primary_break_mask = 0
     target_level_field = f"{target_category}_level"
     for index, row in enumerate(rows):
         bit = 1 << index
-        if not row_mask & bit:
-            continue
         expected = row.get("expected", "")
         if expected == target_category:
             continue
@@ -397,7 +442,19 @@ def side_effect_masks(
             repaired_target_level = max(target_level, 0.90, current_winner_level + 0.02)
             if repaired_target_level > expected_level + 0.005:
                 primary_break_mask |= bit
-    return foreign_mask, new_active_mask, primary_break_mask
+    return SideEffectMaskSet(
+        foreign=foreign_mask,
+        new_active=new_active_mask,
+        primary_break=primary_break_mask,
+    )
+
+
+def side_effect_masks(row_mask: int, base_masks: SideEffectMaskSet) -> tuple[int, int, int]:
+    return (
+        row_mask & base_masks.foreign,
+        row_mask & base_masks.new_active,
+        row_mask & base_masks.primary_break,
+    )
 
 
 def result_from_masks(
@@ -408,29 +465,24 @@ def result_from_masks(
     positive_rows: list[dict[str, str]],
     negative_rows: list[dict[str, str]],
     all_rows: list[dict[str, str]],
-    positive_sample_bits: list[int],
-    negative_sample_bits: list[int],
-    all_sample_bits: list[int],
+    positive_counter: SampleCounter,
+    negative_counter: SampleCounter,
+    all_counter: SampleCounter,
+    side_effect_base: SideEffectMaskSet,
     target_category: str,
     max_negative_samples: int,
     show_examples: int,
 ) -> RuleResult | None:
-    positive_samples, _positive_exceeded = sample_count_for_mask(positive_mask, positive_sample_bits)
+    positive_samples, _positive_exceeded = positive_counter.count(positive_mask)
     if positive_samples <= 0:
         return None
-    negative_samples, negative_exceeded = sample_count_for_mask(
-        negative_mask, negative_sample_bits, max_negative_samples
-    )
+    negative_samples, negative_exceeded = negative_counter.count(negative_mask, max_negative_samples)
     if negative_exceeded:
         return None
-    foreign_mask, new_active_mask, primary_break_mask = side_effect_masks(
-        all_rows, all_mask, target_category
-    )
-    foreign_samples, _foreign_exceeded = sample_count_for_mask(foreign_mask, all_sample_bits)
-    new_active_samples, _new_active_exceeded = sample_count_for_mask(new_active_mask, all_sample_bits)
-    primary_break_samples, _primary_break_exceeded = sample_count_for_mask(
-        primary_break_mask, all_sample_bits
-    )
+    foreign_mask, new_active_mask, primary_break_mask = side_effect_masks(all_mask, side_effect_base)
+    foreign_samples, _foreign_exceeded = all_counter.count(foreign_mask)
+    new_active_samples, _new_active_exceeded = all_counter.count(new_active_mask)
+    primary_break_samples, _primary_break_exceeded = all_counter.count(primary_break_mask)
     return RuleResult(
         rule=rule,
         positive_rows=positive_mask.bit_count(),
@@ -452,12 +504,12 @@ def result_from_masks(
 
 def ranked_state_key(
     state: SearchState,
-    positive_sample_bits: list[int],
-    negative_sample_bits: list[int],
+    positive_counter: SampleCounter,
+    negative_counter: SampleCounter,
     max_negative_samples: int,
 ) -> tuple[int, int, int, int, str]:
-    negative_samples = bounded_sample_count(state.negative_mask, negative_sample_bits, max_negative_samples)
-    positive_samples = bounded_sample_count(state.positive_mask, positive_sample_bits, None)
+    negative_samples = bounded_sample_count(state.negative_mask, negative_counter, max_negative_samples)
+    positive_samples = bounded_sample_count(state.positive_mask, positive_counter, None)
     return (
         negative_samples,
         -positive_samples,
@@ -472,9 +524,10 @@ def extend_condition_search(
     positive_rows: list[dict[str, str]],
     negative_rows: list[dict[str, str]],
     all_rows: list[dict[str, str]],
-    positive_sample_bits: list[int],
-    negative_sample_bits: list[int],
-    all_sample_bits: list[int],
+    positive_counter: SampleCounter,
+    negative_counter: SampleCounter,
+    all_counter: SampleCounter,
+    side_effect_base: SideEffectMaskSet,
     target_category: str,
     min_positive_samples: int,
     max_negative_samples: int,
@@ -487,7 +540,7 @@ def extend_condition_search(
     ordered = sorted(matches, key=lambda match: match.label)
     states: list[SearchState] = []
     for index, match in enumerate(ordered):
-        if bounded_sample_count(match.positive_mask, positive_sample_bits, None) < min_positive_samples:
+        if bounded_sample_count(match.positive_mask, positive_counter, None) < min_positive_samples:
             continue
         states.append(
             SearchState(
@@ -509,7 +562,7 @@ def extend_condition_search(
                 positive_mask = state.positive_mask & match.positive_mask
                 if positive_mask == 0:
                     continue
-                if bounded_sample_count(positive_mask, positive_sample_bits, None) < min_positive_samples:
+                if bounded_sample_count(positive_mask, positive_counter, None) < min_positive_samples:
                     continue
                 negative_mask = state.negative_mask & match.negative_mask
                 all_mask = state.all_mask & match.all_mask
@@ -523,13 +576,13 @@ def extend_condition_search(
                 key = (positive_mask, negative_mask, all_mask)
                 existing = next_states.get(key)
                 if existing is None or ranked_state_key(
-                    candidate, positive_sample_bits, negative_sample_bits, max_negative_samples
-                ) < ranked_state_key(existing, positive_sample_bits, negative_sample_bits, max_negative_samples):
+                    candidate, positive_counter, negative_counter, max_negative_samples
+                ) < ranked_state_key(existing, positive_counter, negative_counter, max_negative_samples):
                     next_states[key] = candidate
         states = sorted(
             next_states.values(),
             key=lambda state: ranked_state_key(
-                state, positive_sample_bits, negative_sample_bits, max_negative_samples
+                state, positive_counter, negative_counter, max_negative_samples
             ),
         )[: max(1, beam_width)]
         for state in states:
@@ -545,9 +598,10 @@ def extend_condition_search(
                 positive_rows,
                 negative_rows,
                 all_rows,
-                positive_sample_bits,
-                negative_sample_bits,
-                all_sample_bits,
+                positive_counter,
+                negative_counter,
+                all_counter,
+                side_effect_base,
                 target_category,
                 max_negative_samples,
                 show_examples,
@@ -666,6 +720,10 @@ def print_route_patterns(
     positive_sample_bits = sample_bit_map(positive_rows)
     negative_sample_bits = sample_bit_map(negative_rows)
     all_sample_bits = sample_bit_map(rows)
+    positive_counter = SampleCounter(positive_sample_bits)
+    negative_counter = SampleCounter(negative_sample_bits)
+    all_counter = SampleCounter(all_sample_bits)
+    side_effect_base = side_effect_base_masks(rows, expected)
     patterns = build_patterns(positive_rows)
     matches = [
         PatternMatch(
@@ -686,9 +744,10 @@ def print_route_patterns(
             positive_rows,
             negative_rows,
             rows,
-            positive_sample_bits,
-            negative_sample_bits,
-            all_sample_bits,
+            positive_counter,
+            negative_counter,
+            all_counter,
+            side_effect_base,
             expected,
             max_negative_samples,
             show_examples,
@@ -701,13 +760,14 @@ def print_route_patterns(
             positive_rows,
             negative_rows,
             rows,
-            positive_sample_bits,
-            negative_sample_bits,
-            all_sample_bits,
+            positive_counter,
+            negative_counter,
+            all_counter,
+            side_effect_base,
             expected,
             min_positive_samples,
             max_negative_samples,
-            max(2, max_conditions),
+            max_conditions,
             max(1, beam_width),
             show_examples,
         )
