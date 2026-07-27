@@ -1495,71 +1495,132 @@ void restore_full_mix_low_other_from_bass(FullMixOwnership &ownership,
 					  const std::array<float, kNoteProbeCount> &powers,
 					  int bass_midi)
 {
-	if (bass_midi < kOtherMinMidi || bass_midi > kDefaultBassMaxMidi ||
-	    full_mix_row_midi_active(ownership.other, bass_midi))
-		return;
+	auto same_pitch_other_support = [&](int other_midi) {
+		int support_count = 0;
+		float strongest_support = 0.0f;
+		const int pitch_class = midi_pitch_class(other_midi);
+		const std::size_t debug_count =
+			std::min<std::size_t>(ownership.debug_candidate_count,
+					      ownership.debug_candidates.size());
+		for (std::size_t i = 0; i < debug_count; ++i) {
+			const FullMixDebugCandidate &debug = ownership.debug_candidates[i];
+			if (debug.midi <= other_midi || debug.midi > other_midi + 48 ||
+			    midi_pitch_class(debug.midi) != pitch_class)
+				continue;
+			const bool supported =
+				(debug.owner == InstrumentKind::Other &&
+				 debug.ownership_confidence >= 0.70f) ||
+				(debug.owner == InstrumentKind::Ambiguous &&
+				 debug.other_score >= 0.40f) ||
+				debug.other_score >= 0.70f;
+			if (!supported)
+				continue;
+			++support_count;
+			strongest_support = std::max(strongest_support, probe_level(powers, debug.midi));
+		}
+		return std::pair<int, float>{support_count, strongest_support};
+	};
 
-	const float fundamental = probe_level(powers, bass_midi);
-	if (fundamental <= 1.0e-6f)
-		return;
+	auto restore_candidate = [&](int other_midi, bool octave_alias) {
+		if (other_midi < kOtherMinMidi || other_midi > kDefaultBassMaxMidi ||
+		    full_mix_row_midi_active(ownership.other, other_midi))
+			return false;
 
-	const float octave = probe_level(powers, bass_midi + 12);
-	const float fifth = probe_level(powers, bass_midi + 19);
-	const float second_octave = probe_level(powers, bass_midi + 24);
-	const float upper_major_third = probe_level(powers, bass_midi + 28);
-	const float upper_stack = fifth + second_octave + upper_major_third;
-	const bool keyboard_octave_alias =
-		bass_midi + 12 <= kLastMidi &&
-		full_mix_row_midi_active(ownership.keyboard, bass_midi + 12);
-	const bool low_bowed_string_stack =
-		bass_midi >= kGuitarMinMidi &&
-		octave <= fundamental * 0.34f &&
-		upper_stack >= fundamental * 0.20f &&
-		(fifth >= fundamental * 0.070f || second_octave >= fundamental * 0.065f) &&
-		upper_major_third <= fundamental * 0.18f;
-	const bool sub_low_bowed_string_stack =
-		bass_midi >= 36 &&
-		bass_midi < kGuitarMinMidi &&
-		octave <= fundamental * 0.34f &&
-		upper_stack >= fundamental * 0.16f &&
-		(fifth >= fundamental * 0.055f || second_octave >= fundamental * 0.050f) &&
-		upper_major_third <= fundamental * 0.20f;
-	const bool sparse_sub_low_bowed_string_stack =
-		bass_midi >= 36 &&
-		bass_midi < kGuitarMinMidi &&
-		octave <= fundamental * 0.09f &&
-		upper_stack >= fundamental * 0.035f &&
-		upper_stack <= fundamental * 0.16f &&
-		fifth <= fundamental * 0.14f &&
-		second_octave <= fundamental * 0.040f &&
-		upper_major_third <= fundamental * 0.030f;
-	const bool octave_alias_sparse_sub_low_bowed_string_stack =
-		bass_midi >= 36 &&
-		bass_midi < kGuitarMinMidi &&
-		keyboard_octave_alias &&
-		octave >= fundamental * 0.040f &&
-		octave <= fundamental * 0.30f &&
-		upper_stack <= fundamental * 0.080f &&
-		fifth <= fundamental * 0.040f &&
-		second_octave <= fundamental * 0.040f &&
-		upper_major_third <= fundamental * 0.015f;
-	if (!low_bowed_string_stack && !sub_low_bowed_string_stack &&
-	    !sparse_sub_low_bowed_string_stack &&
-	    !octave_alias_sparse_sub_low_bowed_string_stack)
-		return;
+		const float fundamental = probe_level(powers, other_midi);
+		if (fundamental <= 1.0e-6f)
+			return false;
 
-	const float display_level =
-		std::max(fundamental, std::max(fifth * 0.86f, second_octave * 0.92f));
-	NoteCandidate candidate;
-	candidate.midi = bass_midi;
-	candidate.score =
-		capped_restored_low_owner_score(ownership.other_candidates, bass_midi,
-						display_level * display_level);
-	candidate.ownership_confidence =
-		(sub_low_bowed_string_stack || sparse_sub_low_bowed_string_stack ||
-		 octave_alias_sparse_sub_low_bowed_string_stack) ? 0.50f : 0.42f;
-	ownership.other[static_cast<std::size_t>(bass_midi - kFirstMidi)] = true;
-	ownership.other_candidates.push_back(candidate);
+		const float octave = probe_level(powers, other_midi + 12);
+		const float fifth = probe_level(powers, other_midi + 19);
+		const float second_octave = probe_level(powers, other_midi + 24);
+		const float upper_major_third = probe_level(powers, other_midi + 28);
+		const float upper_fifth = probe_level(powers, other_midi + 31);
+		const float third_octave = probe_level(powers, other_midi + 36);
+		const float upper_stack = fifth + second_octave + upper_major_third;
+		const bool keyboard_octave_alias =
+			other_midi + 12 <= kLastMidi &&
+			full_mix_row_midi_active(ownership.keyboard, other_midi + 12);
+		const auto [same_pitch_support_count, same_pitch_support_level] =
+			same_pitch_other_support(other_midi);
+		const bool same_pitch_supported =
+			same_pitch_support_count >= 1 &&
+			same_pitch_support_level >= fundamental * 0.50f;
+		const bool low_bowed_string_stack =
+			!octave_alias &&
+			other_midi >= kGuitarMinMidi &&
+			octave <= fundamental * 0.34f &&
+			upper_stack >= fundamental * 0.20f &&
+			(fifth >= fundamental * 0.070f || second_octave >= fundamental * 0.065f) &&
+			upper_major_third <= fundamental * 0.18f;
+		const bool sub_low_bowed_string_stack =
+			!octave_alias &&
+			other_midi >= 36 &&
+			other_midi < kGuitarMinMidi &&
+			octave <= fundamental * 0.34f &&
+			upper_stack >= fundamental * 0.16f &&
+			(fifth >= fundamental * 0.055f || second_octave >= fundamental * 0.050f) &&
+			upper_major_third <= fundamental * 0.20f;
+		const bool sparse_sub_low_bowed_string_stack =
+			!octave_alias &&
+			other_midi >= 36 &&
+			other_midi < kGuitarMinMidi &&
+			octave <= fundamental * 0.09f &&
+			upper_stack >= fundamental * 0.035f &&
+			upper_stack <= fundamental * 0.16f &&
+			fifth <= fundamental * 0.14f &&
+			second_octave <= fundamental * 0.040f &&
+			upper_major_third <= fundamental * 0.030f;
+		const bool octave_alias_sparse_sub_low_bowed_string_stack =
+			!octave_alias &&
+			other_midi >= 36 &&
+			other_midi < kGuitarMinMidi &&
+			keyboard_octave_alias &&
+			octave >= fundamental * 0.040f &&
+			octave <= fundamental * 0.30f &&
+			upper_stack <= fundamental * 0.080f &&
+			fifth <= fundamental * 0.040f &&
+			second_octave <= fundamental * 0.040f &&
+			upper_major_third <= fundamental * 0.015f;
+		const bool octave_shadowed_low_brass_stack =
+			octave_alias &&
+			other_midi >= 36 &&
+			other_midi < kGuitarMinMidi &&
+			octave >= fundamental * 0.88f &&
+			fundamental >= octave * 0.24f &&
+			same_pitch_supported &&
+			(second_octave >= octave * 0.055f ||
+			 third_octave >= octave * 0.030f) &&
+			(fifth >= octave * 0.020f ||
+			 upper_major_third >= octave * 0.030f ||
+			 upper_fifth >= octave * 0.020f);
+		if (!low_bowed_string_stack && !sub_low_bowed_string_stack &&
+		    !sparse_sub_low_bowed_string_stack &&
+		    !octave_alias_sparse_sub_low_bowed_string_stack &&
+		    !octave_shadowed_low_brass_stack)
+			return false;
+
+		const float display_level =
+			std::max({fundamental, fifth * 0.86f, second_octave * 0.92f,
+				  octave_shadowed_low_brass_stack ? octave * 0.70f : 0.0f,
+				  octave_shadowed_low_brass_stack ? third_octave * 0.52f : 0.0f});
+		NoteCandidate candidate;
+		candidate.midi = other_midi;
+		candidate.score =
+			capped_restored_low_owner_score(ownership.other_candidates, other_midi,
+							display_level * display_level);
+		candidate.ownership_confidence =
+			(sub_low_bowed_string_stack || sparse_sub_low_bowed_string_stack ||
+			 octave_alias_sparse_sub_low_bowed_string_stack ||
+			 octave_shadowed_low_brass_stack) ? 0.50f : 0.42f;
+		ownership.other[static_cast<std::size_t>(other_midi - kFirstMidi)] = true;
+		ownership.other_candidates.push_back(candidate);
+		return true;
+	};
+
+	if (bass_midi < kOtherMinMidi || bass_midi > kDefaultBassMaxMidi)
+		return;
+	(void)restore_candidate(bass_midi, false);
+	(void)restore_candidate(bass_midi - 12, true);
 }
 
 void restore_full_mix_low_synth_other_from_bass(FullMixOwnership &ownership,
