@@ -20,11 +20,15 @@ def main() -> int:
             row(),
             row(
                 recording_id="later_am",
+                audio_path="later_am.wav",
                 expected_chords="Am",
                 expected_chord_qualities="min",
                 guitar_chord="C=C6=Am7=Cmaj7=Am",
                 guitar_raw_chord="Am=C=C6=Am7=Cmaj7",
                 guitar_smoothed_chord="C=C6=Am7=Cmaj7=Am",
+                guitar_chord_confidence="0.20",
+                guitar_raw_chord_confidence="0.80",
+                guitar_smoothed_chord_confidence="0.30",
                 guitar_pitch_classes="C,E",
                 guitar_cells="C3:1.00,E3:0.80",
                 guitar_analysis_pitch_classes="C,E,G,A",
@@ -74,6 +78,16 @@ def main() -> int:
         assert "guitar_chord: primary=1/4 later=2 miss=1" in output
         assert "guitar_raw_chord: primary=2/4 later=1 miss=1" in output
         assert "guitar_smoothed_chord: primary=1/4 later=2 miss=1" in output
+        assert (
+            "candidate primary relationships: display0_raw0_smooth0=2 "
+            "display0_raw1_smooth0=1 display1_raw1_smooth1=1"
+        ) in output
+        assert "candidate primary rescues: raw=1 smoothed=0 both=0" in output
+        assert "raw primary rescue examples" in output
+        assert (
+            "expected=Am display=C raw=Am smoothed=C conf=d:0.20/r:0.80/s:0.30 "
+            "later_am.wav"
+        ) in output
         assert (
             "guitar_primary_order: rows=4 primary_misses=2 expected_later=2 "
             "score_promotable=1 cpp_promotable=0"

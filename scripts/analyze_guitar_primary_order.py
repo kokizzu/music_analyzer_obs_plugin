@@ -77,6 +77,11 @@ def parse_cells(value: str) -> dict[int, float]:
     return levels
 
 
+def primary_component(value: str) -> str:
+    components = split_components(value)
+    return components[0] if components else "--"
+
+
 def pitch_classes(value: str) -> set[int]:
     if not value or value == "--":
         return set()
@@ -124,6 +129,11 @@ def expected_labels(value: str) -> set[str]:
     return set(split_components(value))
 
 
+def confidence_value(row: dict[str, str], field: str) -> str:
+    value = row.get(field, "")
+    return value if value else "--"
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("path", type=pathlib.Path)
@@ -153,6 +163,62 @@ def main() -> int:
             f"later={later_hits}",
             f"miss={misses}",
         )
+
+    relationship_buckets: collections.Counter[str] = collections.Counter()
+    raw_rescues = []
+    smoothed_rescues = []
+    both_rescues = []
+    for row in chord_rows:
+        expected = expected_labels(row.get("expected_chords", ""))
+        displayed_primary = primary_component(row.get("guitar_chord", ""))
+        raw_primary = primary_component(row.get("guitar_raw_chord", ""))
+        smoothed_primary = primary_component(row.get("guitar_smoothed_chord", ""))
+        displayed_hit = displayed_primary in expected
+        raw_hit = raw_primary in expected
+        smoothed_hit = smoothed_primary in expected
+        relationship_buckets[
+            f"display{int(displayed_hit)}_raw{int(raw_hit)}_smooth{int(smoothed_hit)}"
+        ] += 1
+        if not displayed_hit and raw_hit:
+            raw_rescues.append(row)
+        if not displayed_hit and smoothed_hit:
+            smoothed_rescues.append(row)
+        if not displayed_hit and raw_hit and smoothed_hit:
+            both_rescues.append(row)
+
+    if relationship_buckets:
+        print(
+            "candidate primary relationships:",
+            " ".join(
+                f"{key}={relationship_buckets[key]}" for key in sorted(relationship_buckets)
+            ),
+        )
+        print(
+            "candidate primary rescues:",
+            f"raw={len(raw_rescues)}",
+            f"smoothed={len(smoothed_rescues)}",
+            f"both={len(both_rescues)}",
+        )
+
+        def print_rescue_examples(title: str, rescue_rows: list[dict[str, str]]) -> None:
+            if not rescue_rows:
+                return
+            print(title)
+            for row in rescue_rows[: args.examples]:
+                print(
+                    f"  expected={row.get('expected_chords')}",
+                    f"display={primary_component(row.get('guitar_chord', ''))}",
+                    f"raw={primary_component(row.get('guitar_raw_chord', ''))}",
+                    f"smoothed={primary_component(row.get('guitar_smoothed_chord', ''))}",
+                    "conf="
+                    f"d:{confidence_value(row, 'guitar_chord_confidence')}/"
+                    f"r:{confidence_value(row, 'guitar_raw_chord_confidence')}/"
+                    f"s:{confidence_value(row, 'guitar_smoothed_chord_confidence')}",
+                    pathlib.Path(row.get("audio_path", "")).name,
+                )
+
+        print_rescue_examples("raw primary rescue examples", raw_rescues)
+        print_rescue_examples("smoothed primary rescue examples", smoothed_rescues)
 
     primary_misses = []
     expected_later = []
