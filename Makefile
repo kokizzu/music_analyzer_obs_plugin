@@ -1439,7 +1439,7 @@ find-real-note-row-confusion-patterns: $(BUILD_DIR)/real_note_full_mix_attribute
 	$(PYTHON) scripts/find_real_note_attribute_patterns.py "$(BUILD_DIR)/real_note_full_mix_attributes.tsv" $(if $(PATTERN_BUCKET),--bucket "$(PATTERN_BUCKET)") --bucket-status row_confusion --include-row-context $(REAL_NOTE_RUNTIME_ROW_CONFUSION_EXCLUDES) $(or $(PATTERN_ARGS),--top-buckets 8 --limit 10 --max-negative-samples 0 --max-conditions 3 --beam-width 120)
 
 find-real-note-visual-row-confusion-patterns: $(BUILD_DIR)/real_note_full_mix_attributes.tsv scripts/find_real_note_attribute_patterns.py
-	$(PYTHON) scripts/find_real_note_attribute_patterns.py "$(BUILD_DIR)/real_note_full_mix_attributes.tsv" $(if $(PATTERN_BUCKET),--bucket "$(PATTERN_BUCKET)") --bucket-status visual_row_confusion --include-row-context $(or $(PATTERN_ARGS),--top-buckets 8 --limit 10 --max-negative-samples 0 --max-conditions 3 --beam-width 120)
+	$(PYTHON) scripts/find_real_note_attribute_patterns.py "$(BUILD_DIR)/real_note_full_mix_attributes.tsv" $(if $(PATTERN_BUCKET),--bucket "$(PATTERN_BUCKET)") --bucket-status visual_row_confusion --include-row-context $(REAL_NOTE_RUNTIME_ROW_CONFUSION_EXCLUDES) $(or $(PATTERN_ARGS),--top-buckets 8 --limit 10 --max-negative-samples 0 --max-conditions 3 --beam-width 120)
 
 evaluate-real-note-display-shadow: $(BUILD_DIR)/real_note_full_mix_attributes.tsv scripts/evaluate_real_note_display_shadow.py
 	$(PYTHON) scripts/evaluate_real_note_display_shadow.py "$(BUILD_DIR)/real_note_full_mix_attributes.tsv" $(or $(DISPLAY_SHADOW_ARGS),--summary-only)

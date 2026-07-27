@@ -877,6 +877,10 @@ def main() -> int:
     assert "$(REAL_NOTE_RUNTIME_ROW_CONFUSION_EXCLUDES)" in row_confusion_recipe, (
         "row-confusion mining should default to runtime-observable fields"
     )
+    visual_row_confusion_recipe = target_recipe(makefile, "find-real-note-visual-row-confusion-patterns")
+    assert "$(REAL_NOTE_RUNTIME_ROW_CONFUSION_EXCLUDES)" in visual_row_confusion_recipe, (
+        "visual row-confusion mining should default to runtime-observable fields"
+    )
     for field in [
         "expected_midi",
         "raw_local_best_note",
