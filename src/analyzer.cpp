@@ -13072,7 +13072,69 @@ ChordResult detect_mixed_chord_from_grid(const NoteGrid &grid, int preferred_roo
 	return best;
 }
 
-ChordResult choose_chord_candidate(const ChordResult &raw, const ChordResult &smoothed)
+bool chord_label_has_component(const char *label, const char *component, std::size_t component_len)
+{
+	if (!label || !component || component_len == 0)
+		return false;
+
+	const char *cursor = label;
+	while (cursor && *cursor) {
+		const char *end = std::strchr(cursor, '=');
+		const std::size_t len =
+			end ? static_cast<std::size_t>(end - cursor) : std::strlen(cursor);
+		if (len == component_len && std::strncmp(cursor, component, len) == 0)
+			return true;
+		if (!end)
+			break;
+		cursor = end + 1;
+	}
+	return false;
+}
+
+void append_unique_chord_components(char *dst, std::size_t dst_size, const char *label,
+				    const char *existing_label)
+{
+	if (!dst || dst_size == 0 || !label)
+		return;
+
+	const char *cursor = label;
+	while (cursor && *cursor) {
+		const char *end = std::strchr(cursor, '=');
+		const std::size_t len =
+			end ? static_cast<std::size_t>(end - cursor) : std::strlen(cursor);
+		if (!chord_label_has_component(existing_label, cursor, len) &&
+		    !chord_label_has_component(dst, cursor, len))
+			append_chord_label_component(dst, dst_size, cursor, len);
+		if (!end)
+			break;
+		cursor = end + 1;
+	}
+}
+
+ChordResult preserve_raw_plain_primary_order(const ChordResult &smoothed, const ChordResult &raw)
+{
+	if (!primary_chord_is_plain_major_minor(raw) ||
+	    raw.confidence < smoothed.confidence * 0.60f)
+		return smoothed;
+
+	ChordResult promoted = smoothed;
+	char label[sizeof(promoted.label)] = {};
+	append_unique_chord_components(label, sizeof(label), raw.label, nullptr);
+	append_unique_chord_components(label, sizeof(label), smoothed.label, raw.label);
+	if (!label[0])
+		return smoothed;
+
+	copy_text(promoted.label, sizeof(promoted.label), label);
+	promoted.root = raw.root;
+	promoted.tones = raw.tones;
+	promoted.confidence = std::max(smoothed.confidence, raw.confidence);
+	promoted.margin = std::max(smoothed.margin, raw.margin);
+	promoted.uncertain = smoothed.uncertain && raw.uncertain;
+	return promoted;
+}
+
+ChordResult choose_chord_candidate(const ChordResult &raw, const ChordResult &smoothed,
+				   bool preserve_raw_plain_primary = false)
 {
 	const bool raw_valid = valid_chord_result(raw);
 	const bool smoothed_valid = valid_chord_result(smoothed);
@@ -13081,8 +13143,11 @@ ChordResult choose_chord_candidate(const ChordResult &raw, const ChordResult &sm
 		const int smoothed_components = chord_label_component_count(smoothed.label);
 		if (smoothed_components > raw_components &&
 		    chord_label_contains_all_components(smoothed.label, raw.label) &&
-		    smoothed.confidence >= raw.confidence * 0.72f)
+		    smoothed.confidence >= raw.confidence * 0.72f) {
+			if (preserve_raw_plain_primary)
+				return preserve_raw_plain_primary_order(smoothed, raw);
 			return smoothed;
+		}
 		if (raw_components > smoothed_components &&
 		    chord_label_contains_all_components(raw.label, smoothed.label) &&
 		    raw.confidence >= smoothed.confidence * 0.72f)
@@ -13115,14 +13180,15 @@ void write_tracked_chord(InstrumentState &state, const ChordTrackingState &track
 
 void stabilize_chord(InstrumentState &state, ChordTrackingState &tracking, const ChordResult &raw,
 		     const ChordResult &smoothed, bool enabled, float interval_seconds,
-		     bool allow_smoothed_initial = true, bool prefer_displayed_smoothed = false)
+		     bool allow_smoothed_initial = true, bool prefer_displayed_smoothed = false,
+		     bool preserve_raw_plain_primary = false)
 {
 	if (!enabled) {
 		reset_chord_tracking(tracking, state);
 		return;
 	}
 
-	ChordResult candidate = choose_chord_candidate(raw, smoothed);
+	ChordResult candidate = choose_chord_candidate(raw, smoothed, preserve_raw_plain_primary);
 	const bool has_displayed = tracking.displayed_label[0] && tracking.displayed_label[0] != '-';
 	if (prefer_displayed_smoothed && has_displayed && valid_chord_result(smoothed) &&
 	    std::strcmp(tracking.displayed_label, smoothed.label) == 0 &&
@@ -14729,6 +14795,31 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 		snare_crack >= snare_body * 0.035f;
 	if (snare_cymbal_tom_bleed)
 		cap_drum_level(Tom, 0.28f);
+
+	const bool real_drum_track_weak_hihat_bleed =
+		drum_detection_enabled && real_drum_track_source &&
+		drum_level_[HiHat] > 0.30f &&
+		!drum_shape_supported[HiHat] &&
+		strongest_body_drum > 1.0e-6f &&
+		strongest_cymbal_drum <=
+			strongest_body_drum * (snapshot.high_energy < 0.08f ? 0.020f : 0.035f) &&
+		snapshot.high_energy <= 0.16f;
+	if (real_drum_track_weak_hihat_bleed)
+		cap_drum_level(HiHat, 0.28f);
+
+	const bool real_drum_track_hihat_crash_bleed =
+		drum_detection_enabled && real_drum_track_source &&
+		drum_level_[HiHat] > 0.30f &&
+		drum_level_[Crash] > 0.30f &&
+		drum_shape_supported[HiHat] &&
+		drum_shape_supported[Crash] &&
+		snapshot.high_energy >= 0.80f &&
+		snapshot.low_energy <= 0.08f &&
+		snapshot.mid_energy <= 0.08f &&
+		drum_segment_bands[Crash] <= drum_segment_bands[HiHat] * 1.02f &&
+		drum_segment_bands[Ride] <= drum_segment_bands[HiHat] * 0.55f;
+	if (real_drum_track_hihat_crash_bleed)
+		cap_drum_level(Crash, 0.28f);
 
 	// Measured one-shot rows show some drum families being stolen by nearby scoring.
 	const float hihat_rim_band_ratio = drum_bands[HiHat] / (drum_bands[Rim] + 1.0e-6f);
@@ -17522,7 +17613,7 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 		set_instrument_chord(snapshot.guitar_smoothed_chord, smoothed_guitar_chord, guitar_energy, rms,
 				     mixed_source ? kNoteRmsFloor : kPolyphonicNoteRmsFloor);
 		stabilize_chord(snapshot.guitar_chord, guitar_chord_tracking_, raw_guitar_chord,
-				smoothed_guitar_chord, true, interval_seconds);
+				smoothed_guitar_chord, true, interval_seconds, true, false, !mixed_source);
 		promote_low_guitar_display_fundamentals(snapshot.guitar_notes, snapshot.guitar,
 							snapshot.guitar_chord_analysis_notes, -1);
 	} else {
