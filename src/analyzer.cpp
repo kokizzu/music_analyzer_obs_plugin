@@ -8557,6 +8557,49 @@ void suppress_keyboard_owned_same_pitch_bass_shadows(NoteGrid &bass_grid, Instru
 		write_note_grid_label(bass_state, bass_grid, preferred_root);
 }
 
+bool measured_other_owned_keyboard_shadow(const FullMixDebugCandidate &debug)
+{
+	return debug.owner == InstrumentKind::Other &&
+	       debug.other_score >= 0.70f &&
+	       debug.keyboard_score <= 0.18f &&
+	       debug.spectral_centroid <= 0.552f &&
+	       debug.harmonic_fit_error <= 0.784f &&
+	       debug.harmonicity >= 4.814f;
+}
+
+void suppress_measured_other_owned_keyboard_shadows(NoteGrid &keyboard_grid, InstrumentState &keyboard_state,
+						    const NoteGrid &other_grid,
+						    const FullMixOwnership &ownership,
+						    int preferred_root)
+{
+	static constexpr float kMinOtherPitchLevel = 0.55f;
+	static constexpr float kMaxKeyboardToOtherLevelRatio = 1.35f;
+
+	bool changed = false;
+	const std::size_t debug_count =
+		std::min<std::size_t>(ownership.debug_candidate_count, ownership.debug_candidates.size());
+	for (std::size_t i = 0; i < debug_count; ++i) {
+		const FullMixDebugCandidate &debug = ownership.debug_candidates[i];
+		if (!measured_other_owned_keyboard_shadow(debug))
+			continue;
+
+		const float keyboard_level = note_grid_midi_visual_level(keyboard_grid, debug.midi);
+		if (keyboard_level <= 0.0f)
+			continue;
+		const float other_level =
+			note_grid_pitch_class_visual_level(other_grid, midi_pitch_class(debug.midi));
+		if (other_level < kMinOtherPitchLevel ||
+		    keyboard_level > other_level * kMaxKeyboardToOtherLevelRatio)
+			continue;
+
+		clear_note_grid_midi(keyboard_grid, debug.midi);
+		changed = true;
+	}
+
+	if (changed)
+		write_note_grid_label(keyboard_state, keyboard_grid, preferred_root);
+}
+
 void prune_low_synthetic_other_note_grid_harmonic_aliases(NoteGrid &grid, InstrumentState &state)
 {
 	std::array<bool, kNoteProbeCount> active_midis = {};
@@ -19266,6 +19309,9 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 		attenuate_note_grid_display_by_candidates(snapshot.guitar_notes, mixed_guitar_display_candidates);
 		attenuate_note_grid_display_by_candidates(snapshot.vocal_notes, mixed_vocal_display_candidates);
 		attenuate_note_grid_display_by_candidates(snapshot.other_notes, mixed_other_display_candidates);
+		suppress_measured_other_owned_keyboard_shadows(snapshot.keyboard_notes, snapshot.keyboard,
+							       snapshot.other_notes, full_mix_ownership,
+							       -1);
 		if (mixed_synth_source_hint)
 			boost_note_grid_primary_octave_display_level(snapshot.other_notes, snapshot.other, -1);
 		suppress_other_dominant_same_pitch_bass_shadows(snapshot.bass_notes, snapshot.bass,
