@@ -8517,6 +8517,46 @@ const FullMixDebugCandidate *best_same_midi_keyboard_debug(const FullMixOwnershi
 	return best;
 }
 
+float full_mix_debug_row_score(const FullMixDebugCandidate &debug, InstrumentKind row)
+{
+	switch (row) {
+	case InstrumentKind::Guitar:
+		return debug.guitar_score;
+	case InstrumentKind::Keyboard:
+		return debug.keyboard_score;
+	case InstrumentKind::Other:
+		return debug.other_score;
+	case InstrumentKind::Vocal:
+		return debug.vocal_score;
+	case InstrumentKind::Bass:
+		return debug.bass_score;
+	case InstrumentKind::Ambiguous:
+	default:
+		return 0.0f;
+	}
+}
+
+const FullMixDebugCandidate *best_same_midi_vocal_shadow_debug(const FullMixOwnership &ownership, int midi,
+							       InstrumentKind owner_row)
+{
+	const FullMixDebugCandidate *best = nullptr;
+	float best_score = -1.0f;
+	const std::size_t debug_count =
+		std::min<std::size_t>(ownership.debug_candidate_count, ownership.debug_candidates.size());
+	for (std::size_t i = 0; i < debug_count; ++i) {
+		const FullMixDebugCandidate &debug = ownership.debug_candidates[i];
+		if (debug.midi != midi)
+			continue;
+		const float owner_score = full_mix_debug_row_score(debug, owner_row);
+		const float score = owner_score + debug.ownership_confidence * 0.01f;
+		if (!best || score > best_score) {
+			best = &debug;
+			best_score = score;
+		}
+	}
+	return best;
+}
+
 void suppress_other_dominant_same_pitch_keyboard_shadows(NoteGrid &keyboard_grid,
 							 InstrumentState &keyboard_state,
 							 const NoteGrid &other_grid,
@@ -8628,6 +8668,44 @@ void suppress_keyboard_owned_same_pitch_bass_shadows(NoteGrid &bass_grid, Instru
 
 	if (changed)
 		write_note_grid_label(bass_state, bass_grid, preferred_root);
+}
+
+void suppress_named_owned_same_pitch_vocal_shadows(NoteGrid &vocal_grid, InstrumentState &vocal_state,
+						   const NoteGrid &owner_grid,
+						   const FullMixOwnership &ownership,
+						   InstrumentKind owner_row, int preferred_root)
+{
+	static constexpr float kMinOwnerScore = 0.24f;
+	static constexpr float kMaxVocalToOwnerScoreRatio = 0.15f;
+	static constexpr float kMinVocalLevel = 0.05f;
+	static constexpr float kMinOwnerLevel = 0.20f;
+	static constexpr float kMaxVocalToOwnerLevelRatio = 0.72f;
+
+	bool changed = false;
+	for (int midi = kVocalMinMidi; midi <= kVocalMaxMidi; ++midi) {
+		const float vocal_level = note_grid_midi_visual_level(vocal_grid, midi);
+		if (vocal_level < kMinVocalLevel)
+			continue;
+		const float owner_level = note_grid_midi_visual_level(owner_grid, midi);
+		if (owner_level < kMinOwnerLevel ||
+		    vocal_level > owner_level * kMaxVocalToOwnerLevelRatio)
+			continue;
+
+		const FullMixDebugCandidate *debug =
+			best_same_midi_vocal_shadow_debug(ownership, midi, owner_row);
+		if (!debug)
+			continue;
+		const float owner_score = full_mix_debug_row_score(*debug, owner_row);
+		if (owner_score < kMinOwnerScore ||
+		    debug->vocal_score > owner_score * kMaxVocalToOwnerScoreRatio)
+			continue;
+
+		clear_note_grid_midi(vocal_grid, midi);
+		changed = true;
+	}
+
+	if (changed)
+		write_note_grid_label(vocal_state, vocal_grid, preferred_root);
 }
 
 bool measured_other_owned_keyboard_shadow(const FullMixDebugCandidate &debug)
@@ -19412,6 +19490,15 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 								full_mix_ownership, -1,
 								full_mix_source_hint_mode !=
 									AnalysisInputMode::IsolatedBass);
+		suppress_named_owned_same_pitch_vocal_shadows(snapshot.vocal_notes, snapshot.vocal,
+							      snapshot.keyboard_notes, full_mix_ownership,
+							      InstrumentKind::Keyboard, -1);
+		suppress_named_owned_same_pitch_vocal_shadows(snapshot.vocal_notes, snapshot.vocal,
+							      snapshot.guitar_notes, full_mix_ownership,
+							      InstrumentKind::Guitar, -1);
+		suppress_named_owned_same_pitch_vocal_shadows(snapshot.vocal_notes, snapshot.vocal,
+							      snapshot.other_notes, full_mix_ownership,
+							      InstrumentKind::Other, -1);
 		attenuate_ambiguous_note_grid_by_named_rows(snapshot.ambiguous_notes, snapshot.bass_notes,
 							    snapshot.keyboard_notes, snapshot.guitar_notes,
 							    snapshot.vocal_notes, snapshot.other_notes);
