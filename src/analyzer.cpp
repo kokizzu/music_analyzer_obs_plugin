@@ -6522,9 +6522,10 @@ float tracked_note_envelope(const std::array<NoteTrackingState, kNoteProbeCount>
 
 bool high_bass_octave_alias_shadowed_by_smoothed_upper_note(
 	const FullMixOwnership &ownership, const RangeResult &bass_note,
-	const std::array<NoteTrackingState, kNoteProbeCount> *tracking)
+	const std::array<NoteTrackingState, kNoteProbeCount> *tracking,
+	const std::array<float, kNoteProbeCount> *raw_powers)
 {
-	if (!tracking || bass_note.midi < 53 || bass_note.midi > 59)
+	if (bass_note.midi < 53 || bass_note.midi > 59)
 		return false;
 
 	const int pitch_class = midi_pitch_class(bass_note.midi);
@@ -6566,26 +6567,43 @@ bool high_bass_octave_alias_shadowed_by_smoothed_upper_note(
 		return false;
 
 	bool smoothed_upper_same_pitch = current_upper_same_pitch;
-	for (int upper = bass_note.midi + 12; upper <= kLastMidi; upper += 12) {
-		const float tracked_upper = tracked_note_envelope(*tracking, upper);
-		const float current_upper = ownership_global_note_level(ownership, upper);
-		if (std::max(tracked_upper, current_upper) >= 0.42f) {
-			smoothed_upper_same_pitch = true;
-			break;
+	if (tracking) {
+		for (int upper = bass_note.midi + 12; upper <= kLastMidi; upper += 12) {
+			const float tracked_upper = tracked_note_envelope(*tracking, upper);
+			const float current_upper = ownership_global_note_level(ownership, upper);
+			if (std::max(tracked_upper, current_upper) >= 0.42f) {
+				smoothed_upper_same_pitch = true;
+				break;
+			}
 		}
 	}
 
-	return smoothed_upper_same_pitch;
+	bool raw_upper_same_pitch = false;
+	if (raw_powers) {
+		const float low_raw = probe_level(*raw_powers, bass_note.midi);
+		for (int upper = bass_note.midi + 12; upper <= std::min(kLastMidi, bass_note.midi + 24);
+		     upper += 12) {
+			const float upper_raw = probe_level(*raw_powers, upper);
+			if (upper_raw >= 0.55f && upper_raw >= low_raw * 0.98f) {
+				raw_upper_same_pitch = true;
+				break;
+			}
+		}
+	}
+
+	return smoothed_upper_same_pitch || raw_upper_same_pitch;
 }
 
 bool full_mix_bass_shadowed_by_keyboard_alias(
 	const FullMixOwnership &ownership, const RangeResult &bass_note,
-	const std::array<NoteTrackingState, kNoteProbeCount> *tracking = nullptr)
+	const std::array<NoteTrackingState, kNoteProbeCount> *tracking = nullptr,
+	const std::array<float, kNoteProbeCount> *raw_powers = nullptr)
 {
 	if (bass_note.midi < kFirstMidi || bass_note.midi > kBassMaxMidi)
 		return false;
 
-	if (high_bass_octave_alias_shadowed_by_smoothed_upper_note(ownership, bass_note, tracking))
+	if (high_bass_octave_alias_shadowed_by_smoothed_upper_note(ownership, bass_note, tracking,
+								   raw_powers))
 		return true;
 
 	const int pitch_class = ((bass_note.midi % 12) + 12) % 12;
@@ -17985,7 +18003,8 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 		bool bass_shadowed_by_keyboard_alias = false;
 		if (!isolated_bass && mixed_bass_supported &&
 		    full_mix_bass_shadowed_by_keyboard_alias(full_mix_ownership, bass_note,
-							    &full_mix_note_tracking_)) {
+							    &full_mix_note_tracking_,
+							    &note_powers)) {
 			bass_shadowed_by_keyboard_alias = true;
 			mixed_bass_supported = false;
 		}
@@ -18074,7 +18093,13 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 				mixed_bass_pitch_class = ((displayed_bass.midi % 12) + 12) % 12;
 			}
 		} else {
-			if (bass_shadowed_by_keyboard_alias && tracked_bass_midi_ == bass_note.midi) {
+			const bool tracked_high_alias_shadowed =
+				bass_shadowed_by_keyboard_alias &&
+				tracked_bass_midi_ >= 53 &&
+				tracked_bass_midi_ <= 59 &&
+				midi_pitch_class(tracked_bass_midi_) == midi_pitch_class(bass_note.midi);
+			if (bass_shadowed_by_keyboard_alias &&
+			    (tracked_bass_midi_ == bass_note.midi || tracked_high_alias_shadowed)) {
 				tracked_bass_midi_ = -1;
 				pending_bass_midi_ = -1;
 				pending_bass_hits_ = 0;
