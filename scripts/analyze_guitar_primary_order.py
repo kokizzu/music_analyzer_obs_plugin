@@ -58,6 +58,33 @@ def parse_plain(label: str) -> tuple[int, bool] | None:
     return None
 
 
+def extension_family(label: str) -> tuple[int, str] | None:
+    root_name = chord_root(label)
+    if root_name not in NOTE_TO_PC:
+        return None
+    quality = chord_quality(label)
+    if quality in {"6", "7", "9", "maj7", "maj9", "add9"}:
+        return NOTE_TO_PC[root_name], "major"
+    if quality in {"m6", "m7", "m9"}:
+        return NOTE_TO_PC[root_name], "minor"
+    return None
+
+
+def same_root_extension_primary_candidate(components: list[str]) -> str | None:
+    if not components:
+        return None
+    primary = parse_plain(components[0])
+    if primary is None:
+        return None
+    primary_root, primary_minor = primary
+    primary_family = "minor" if primary_minor else "major"
+    for component in components[1:]:
+        family = extension_family(component)
+        if family == (primary_root, primary_family):
+            return component
+    return None
+
+
 def is_power_for_root(label: str, root: int) -> bool:
     return label == f"{PC_TO_NOTE[root % 12]}pow"
 
@@ -200,6 +227,10 @@ def main() -> int:
     both_rescues = []
     raw_only_primary = []
     smoothed_only_primary = []
+    extension_primary_candidates = []
+    extension_primary_rescues = []
+    extension_primary_protected_false = []
+    extension_primary_neutral = []
     same_root_quality_raw_promotions = []
     same_root_quality_raw_rescues = []
     same_root_quality_raw_protected_false = []
@@ -227,6 +258,16 @@ def main() -> int:
             raw_only_primary.append(row)
         if smoothed_hit and not raw_hit:
             smoothed_only_primary.append(row)
+        displayed_components = split_components(row.get("guitar_chord", ""))
+        extension_candidate = same_root_extension_primary_candidate(displayed_components)
+        if extension_candidate:
+            extension_primary_candidates.append((extension_candidate, row))
+            if not displayed_hit and extension_candidate in expected:
+                extension_primary_rescues.append((extension_candidate, row))
+            elif displayed_hit and extension_candidate not in expected:
+                extension_primary_protected_false.append((extension_candidate, row))
+            else:
+                extension_primary_neutral.append((extension_candidate, row))
         same_root_quality_raw = promoted_same_root_smoothed_quality(
             row, "raw_pitch_class_levels", 0.012, 1.35, 0.004
         )
@@ -291,6 +332,30 @@ def main() -> int:
         print_rescue_examples("smoothed primary rescue examples", smoothed_rescues)
         print_rescue_examples("raw-only primary examples", raw_only_primary)
         print_rescue_examples("smoothed-only primary examples", smoothed_only_primary)
+
+    print(
+        "same_root_extension_primary_probe:",
+        f"candidates={len(extension_primary_candidates)}",
+        f"rescues={len(extension_primary_rescues)}",
+        f"protected_false={len(extension_primary_protected_false)}",
+        f"neutral={len(extension_primary_neutral)}",
+    )
+    for promoted, row in extension_primary_rescues[: args.examples]:
+        print(
+            f"  rescue promote={promoted}",
+            f"expected={row.get('expected_chords')}",
+            f"primary={primary_component(row.get('guitar_chord', ''))}",
+            f"label={row.get('guitar_chord', '--')}",
+            pathlib.Path(row.get("audio_path", "")).name,
+        )
+    for promoted, row in extension_primary_protected_false[: args.examples]:
+        print(
+            f"  protected_false promote={promoted}",
+            f"expected={row.get('expected_chords')}",
+            f"primary={primary_component(row.get('guitar_chord', ''))}",
+            f"label={row.get('guitar_chord', '--')}",
+            pathlib.Path(row.get("audio_path", "")).name,
+        )
 
     def print_same_root_quality(
         title: str,
@@ -421,7 +486,9 @@ def main() -> int:
                 buckets["<0"] += 1
         print("score_gap_buckets:", " ".join(f"{key}={value}" for key, value in buckets.items()))
 
-    for gap, row, primary in sorted(likely_promotable, reverse=True)[: args.examples]:
+    for gap, row, primary in sorted(
+        likely_promotable, key=lambda item: item[0], reverse=True
+    )[: args.examples]:
         print(
             f"  gap={gap:.3f}",
             f"expected={row.get('expected_chords')}",

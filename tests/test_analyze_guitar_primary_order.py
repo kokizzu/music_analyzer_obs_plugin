@@ -73,6 +73,24 @@ def main() -> int:
                 ),
             ),
             row(
+                recording_id="extension_rescue",
+                audio_path="extension_rescue.wav",
+                expected_chords="Cmaj7",
+                expected_chord_qualities="maj7",
+                guitar_chord="C=Cmaj7",
+                guitar_raw_chord="C=Cmaj7",
+                guitar_smoothed_chord="C=Cmaj7",
+            ),
+            row(
+                recording_id="extension_protected",
+                audio_path="extension_protected.wav",
+                expected_chords="C",
+                expected_chord_qualities="maj",
+                guitar_chord="C=Cmaj7",
+                guitar_raw_chord="C=Cmaj7",
+                guitar_smoothed_chord="C=Cmaj7",
+            ),
+            row(
                 recording_id="miss",
                 status="chord_miss",
                 expected_chords="D",
@@ -101,13 +119,13 @@ def main() -> int:
             stderr=subprocess.PIPE,
         )
         output = completed.stdout
-        assert "guitar_chord: primary=1/5 later=3 miss=1" in output
-        assert "guitar_raw_chord: primary=2/5 later=2 miss=1" in output
-        assert "guitar_smoothed_chord: primary=2/5 later=2 miss=1" in output
+        assert "guitar_chord: primary=2/7 later=4 miss=1" in output
+        assert "guitar_raw_chord: primary=3/7 later=3 miss=1" in output
+        assert "guitar_smoothed_chord: primary=3/7 later=3 miss=1" in output
         assert (
-            "candidate primary relationships: display0_raw0_smooth0=2 "
+            "candidate primary relationships: display0_raw0_smooth0=3 "
             "display0_raw0_smooth1=1 "
-            "display0_raw1_smooth0=1 display1_raw1_smooth1=1"
+            "display0_raw1_smooth0=1 display1_raw1_smooth1=2"
         ) in output
         assert "candidate primary rescues: raw=1 smoothed=1 both=0" in output
         assert "raw primary rescue examples" in output
@@ -115,6 +133,18 @@ def main() -> int:
             "expected=Am display=C raw=Am smoothed=C score=r:5.640/s:5.515 "
             "conf=d:0.20/r:0.80/s:0.30 "
             "later_am.wav"
+        ) in output
+        assert (
+            "same_root_extension_primary_probe: candidates=3 rescues=1 "
+            "protected_false=1 neutral=1"
+        ) in output
+        assert (
+            "rescue promote=Cmaj7 expected=Cmaj7 primary=C label=C=Cmaj7 "
+            "extension_rescue.wav"
+        ) in output
+        assert (
+            "protected_false promote=Cmaj7 expected=C primary=C label=C=Cmaj7 "
+            "extension_protected.wav"
         ) in output
         assert (
             "same_root_quality_raw_probe_promote: candidates=1 rescues=1 protected_false=0"
@@ -128,7 +158,7 @@ def main() -> int:
         assert "raw-only primary examples" in output
         assert "smoothed-only primary examples" in output
         assert (
-            "guitar_primary_order: rows=5 primary_misses=3 expected_later=3 "
+            "guitar_primary_order: rows=7 primary_misses=4 expected_later=4 "
             "score_promotable=1 cpp_promotable=0"
         ) in output
         assert "gap=0.125 expected=Am primary=C" in output
