@@ -210,6 +210,8 @@ def main() -> int:
                 "0.50",
                 "--level-ratios",
                 "0.90",
+                "--threshold-examples",
+                "1",
             ],
             check=True,
             text=True,
@@ -288,6 +290,7 @@ def main() -> int:
     threshold_output = threshold_result.stdout
     assert "piano->same-pitch guitar threshold search max_protected=0" in threshold_output, threshold_output
     assert "protected=0/1 extras=1/2 min_shadow_score=0.18 score_ratio=0.50 level_ratio=0.90" in threshold_output, threshold_output
+    assert "extra keyboard_note_only_debug@0 src=piano/electronic expected=D4/62" in threshold_output, threshold_output
     target_level_threshold_output = target_level_threshold_result.stdout
     assert (
         "protected=0/1 extras=1/2 min_shadow_score=0.18 score_ratio=0.50 "

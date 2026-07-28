@@ -356,6 +356,7 @@ def print_threshold_search(
     target_level_thresholds: list[float | None],
     max_protected: int,
     limit: int,
+    examples: int,
 ) -> None:
     extras = [record for record in records if record["protected"] == "0"]
     protected = [record for record in records if record["protected"] == "1"]
@@ -428,6 +429,30 @@ def print_threshold_search(
         if target_level_ceiling is not None:
             line += f" target_level_max={target_level_ceiling:.2f}"
         print(line)
+        if examples <= 0:
+            continue
+        matching_extras = [
+            record
+            for record in extras
+            if threshold_rule_matches(
+                record,
+                min_shadow_score,
+                score_ratio,
+                level_ratio,
+                target_level_ceiling,
+            )
+        ]
+        for record in matching_extras[:examples]:
+            print(
+                "    extra "
+                f"{record.get('sample_id', '')}@{record.get('buffer', '')} "
+                f"src={record.get('source_key', '')} expected={record.get('expected_note', '')}/"
+                f"{record.get('expected_midi', '')} target={record.get('target_row', '')}:"
+                f"{record.get('target_level', '')} shadow={record.get('shadow_row', '')}:"
+                f"{record.get('shadow_level', '')} debug={record.get('debug_note', '')}/"
+                f"{record.get('debug_owner', '')} target_score={record.get('target_score', '')} "
+                f"shadow_score={record.get('shadow_score', '')}"
+            )
 
 
 def print_group(title: str, records: list[dict[str, str]], examples: int) -> None:
@@ -490,6 +515,12 @@ def main() -> int:
     )
     parser.add_argument("--max-protected", type=int, default=2)
     parser.add_argument("--threshold-limit", type=int, default=12)
+    parser.add_argument(
+        "--threshold-examples",
+        type=int,
+        default=0,
+        help="print this many matching extra rows under each threshold-search result",
+    )
     parser.add_argument(
         "--shadow-score-thresholds",
         type=parse_float_list,
@@ -564,6 +595,7 @@ def main() -> int:
                 args.target_level_thresholds,
                 args.max_protected,
                 args.threshold_limit,
+                args.threshold_examples,
             )
     return 0
 

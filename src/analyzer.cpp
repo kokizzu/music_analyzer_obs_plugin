@@ -8479,25 +8479,6 @@ void clear_note_grid_midi(NoteGrid &grid, int midi)
 	}
 }
 
-const FullMixDebugCandidate *best_same_midi_bass_debug(const FullMixOwnership &ownership, int midi)
-{
-	const FullMixDebugCandidate *best = nullptr;
-	float best_score = -1.0f;
-	const std::size_t debug_count =
-		std::min<std::size_t>(ownership.debug_candidate_count, ownership.debug_candidates.size());
-	for (std::size_t i = 0; i < debug_count; ++i) {
-		const FullMixDebugCandidate &debug = ownership.debug_candidates[i];
-		if (debug.midi != midi)
-			continue;
-		const float score = debug.bass_score + debug.ownership_confidence * 0.01f;
-		if (!best || score > best_score) {
-			best = &debug;
-			best_score = score;
-		}
-	}
-	return best;
-}
-
 const FullMixDebugCandidate *best_same_midi_keyboard_debug(const FullMixOwnership &ownership, int midi)
 {
 	const FullMixDebugCandidate *best = nullptr;
@@ -8536,8 +8517,8 @@ float full_mix_debug_row_score(const FullMixDebugCandidate &debug, InstrumentKin
 	}
 }
 
-const FullMixDebugCandidate *best_same_midi_vocal_shadow_debug(const FullMixOwnership &ownership, int midi,
-							       InstrumentKind owner_row)
+const FullMixDebugCandidate *best_same_midi_row_debug(const FullMixOwnership &ownership, int midi,
+						      InstrumentKind row)
 {
 	const FullMixDebugCandidate *best = nullptr;
 	float best_score = -1.0f;
@@ -8547,14 +8528,19 @@ const FullMixDebugCandidate *best_same_midi_vocal_shadow_debug(const FullMixOwne
 		const FullMixDebugCandidate &debug = ownership.debug_candidates[i];
 		if (debug.midi != midi)
 			continue;
-		const float owner_score = full_mix_debug_row_score(debug, owner_row);
-		const float score = owner_score + debug.ownership_confidence * 0.01f;
+		const float score = full_mix_debug_row_score(debug, row) + debug.ownership_confidence * 0.01f;
 		if (!best || score > best_score) {
 			best = &debug;
 			best_score = score;
 		}
 	}
 	return best;
+}
+
+const FullMixDebugCandidate *best_same_midi_vocal_shadow_debug(const FullMixOwnership &ownership, int midi,
+							       InstrumentKind owner_row)
+{
+	return best_same_midi_row_debug(ownership, midi, owner_row);
 }
 
 void suppress_other_dominant_same_pitch_keyboard_shadows(NoteGrid &keyboard_grid,
@@ -8600,7 +8586,7 @@ void suppress_other_dominant_same_pitch_bass_shadows(NoteGrid &bass_grid, Instru
 {
 	static constexpr float kMinOtherScore = 0.24f;
 	static constexpr float kMaxBassToOtherScoreRatio = 0.50f;
-	static constexpr float kMaxBassToOtherLevelRatio = 0.64f;
+	static constexpr float kMaxBassToOtherLevelRatio = 0.66f;
 
 	bool changed = false;
 	for (int midi = kBassMinMidi; midi <= kBassMaxMidi; ++midi) {
@@ -8610,7 +8596,8 @@ void suppress_other_dominant_same_pitch_bass_shadows(NoteGrid &bass_grid, Instru
 		const float other_level = note_grid_midi_level(other_grid, midi);
 		if (other_level <= 0.0f || bass_level > other_level * kMaxBassToOtherLevelRatio)
 			continue;
-		const FullMixDebugCandidate *debug = best_same_midi_bass_debug(ownership, midi);
+		const FullMixDebugCandidate *debug =
+			best_same_midi_row_debug(ownership, midi, InstrumentKind::Other);
 		if (!debug || debug->other_score < kMinOtherScore ||
 		    debug->bass_score > debug->other_score * kMaxBassToOtherScoreRatio)
 			continue;
@@ -8645,7 +8632,8 @@ void suppress_keyboard_owned_same_pitch_bass_shadows(NoteGrid &bass_grid, Instru
 		if (keyboard_level <= 0.0f)
 			continue;
 
-		const FullMixDebugCandidate *debug = best_same_midi_bass_debug(ownership, midi);
+		const FullMixDebugCandidate *debug =
+			best_same_midi_row_debug(ownership, midi, InstrumentKind::Keyboard);
 		if (!debug || debug->owner != InstrumentKind::Keyboard)
 			continue;
 
