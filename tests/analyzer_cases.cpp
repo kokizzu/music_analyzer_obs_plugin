@@ -2695,6 +2695,31 @@ void check_full_mix_single_instrument_precision(Runner &runner)
 
 	{
 		mao_test::Buffer buffer = {};
+		const std::vector<float> other_alias_profile = {1.0f, 7.39f, 0.37f, 4.16f, 0.17f};
+		const std::vector<float> upper_keyboard_profile = {1.0f, 0.12f, 0.04f, 0.02f, 0.01f};
+		add_harmonic_note(buffer, 48, 0.10f, other_alias_profile);
+		add_harmonic_note(buffer, 60, 0.24f, upper_keyboard_profile);
+
+		const auto snapshot =
+			analyze_buffer_with_mode(buffer, mao::AnalysisInputMode::FullMix,
+						 "speaker measured electronic keyboard suboctave", 3);
+		expect_global_pitch_class(runner, snapshot, 0,
+					  "full-mix measured electronic keyboard suboctave global");
+		runner.expect(grid_level_for_midi(snapshot.keyboard_notes, 60) > 0.0f,
+			      std::string("full-mix measured electronic keyboard suboctave: expected "
+					  "keyboard C4 display, got keyboard `") +
+				      snapshot.keyboard.label + "`, other `" + snapshot.other.label +
+				      "`, debug C3 `" + full_mix_debug_summary_for_midi(snapshot, 48) +
+				      "`, debug C4 `" + full_mix_debug_summary_for_midi(snapshot, 60) + "`");
+		runner.expect(grid_level_for_midi(snapshot.other_notes, 48) <= 0.0f,
+			      std::string("full-mix measured electronic keyboard suboctave: expected no "
+					  "other C3 alias, got other `") +
+				      snapshot.other.label + "`, keyboard `" + snapshot.keyboard.label +
+				      "`, debug `" + full_mix_debug_summary_for_midi(snapshot, 48) + "`");
+	}
+
+	{
+		mao_test::Buffer buffer = {};
 		const std::vector<float> organ_subharmonic_alias_profile =
 			{1.0f, 0.35f, 0.08f, 0.075f, 0.008f};
 		const std::vector<float> upper_keyboard_profile = {1.0f, 0.12f, 0.04f, 0.015f, 0.006f};

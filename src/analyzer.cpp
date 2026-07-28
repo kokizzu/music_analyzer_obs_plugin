@@ -6635,6 +6635,29 @@ void demote_full_mix_other_candidate(FullMixOwnership &ownership, const NoteCand
 	ownership.ambiguous_candidates.push_back(candidate);
 }
 
+bool measured_keyboard_like_other_suboctave_alias(const FullMixDebugCandidate &debug)
+{
+	return debug.owner == InstrumentKind::Other &&
+	       debug.spectral_centroid <= 0.572f &&
+	       debug.harmonic_ratios[3] >= 2.862f;
+}
+
+void suppress_keyboard_like_other_suboctave_aliases(FullMixOwnership &ownership)
+{
+	const std::size_t debug_count =
+		std::min<std::size_t>(ownership.debug_candidate_count, ownership.debug_candidates.size());
+	for (std::size_t i = 0; i < debug_count; ++i) {
+		const FullMixDebugCandidate &debug = ownership.debug_candidates[i];
+		if (!measured_keyboard_like_other_suboctave_alias(debug))
+			continue;
+		if (!full_mix_row_midi_active(ownership.other, debug.midi))
+			continue;
+
+		remove_full_mix_row_midi(ownership.other, ownership.other_candidates, debug.midi);
+		suppress_full_mix_row_display_midi(ownership, FullMixDisplayRow::Other, debug.midi);
+	}
+}
+
 void stabilize_full_mix_vocal_ownership(FullMixOwnership &ownership, int &tracked_midi, int &pending_midi,
 					int &pending_hits, int &tracked_misses, float &tracked_score)
 {
@@ -17757,6 +17780,7 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 						   tracked_vocal_misses_, tracked_vocal_score_);
 		stabilize_sparse_full_mix_other_ownership(full_mix_ownership,
 							  full_mix_other_ownership_tracking_);
+		suppress_keyboard_like_other_suboctave_aliases(full_mix_ownership);
 		if (mixed_synth_source_hint)
 			restore_full_mix_named_synth_other_from_keyboard(full_mix_ownership);
 		mirror_full_mix_guitar_chord_context_candidates(full_mix_ownership);
