@@ -6658,7 +6658,7 @@ bool measured_keyboard_like_other_suboctave_alias(const FullMixDebugCandidate &d
 {
 	return debug.owner == InstrumentKind::Other &&
 	       debug.spectral_centroid <= 0.575f &&
-	       debug.harmonic_ratios[3] >= 2.451f;
+	       debug.harmonic_ratios[3] >= 2.443f;
 }
 
 void suppress_keyboard_like_other_suboctave_aliases(FullMixOwnership &ownership)
