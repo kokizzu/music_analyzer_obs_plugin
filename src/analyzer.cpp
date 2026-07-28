@@ -8468,27 +8468,43 @@ void suppress_other_dominant_same_pitch_bass_shadows(NoteGrid &bass_grid, Instru
 		write_note_grid_label(bass_state, bass_grid, preferred_root);
 }
 
-void suppress_keyboard_owned_weak_same_pitch_bass_shadows(NoteGrid &bass_grid, InstrumentState &bass_state,
-							  const NoteGrid &keyboard_grid,
-							  const FullMixOwnership &ownership,
-							  int preferred_root)
+void suppress_keyboard_owned_same_pitch_bass_shadows(NoteGrid &bass_grid, InstrumentState &bass_state,
+						     const NoteGrid &keyboard_grid,
+						     const FullMixOwnership &ownership,
+						     int preferred_root,
+						     bool allow_dominant_keyboard_shadow)
 {
 	static constexpr float kMaxBassScore = 0.10f;
 	static constexpr float kMaxBassLevel = 0.45f;
 	static constexpr float kMinKeyboardScore = 0.18f;
+	static constexpr float kDominantMinKeyboardScore = 0.24f;
+	static constexpr float kDominantMaxBassToKeyboardScoreRatio = 0.50f;
+	static constexpr float kDominantMaxBassToKeyboardLevelRatio = 0.68f;
 
 	bool changed = false;
 	for (int midi = kBassMinMidi; midi <= kBassMaxMidi; ++midi) {
 		const float bass_level = note_grid_midi_level(bass_grid, midi);
-		if (bass_level <= 0.0f || bass_level > kMaxBassLevel)
+		if (bass_level <= 0.0f)
 			continue;
-		if (note_grid_midi_level(keyboard_grid, midi) <= 0.0f)
+		const float keyboard_level = note_grid_midi_level(keyboard_grid, midi);
+		if (keyboard_level <= 0.0f)
 			continue;
 
 		const FullMixDebugCandidate *debug = best_same_midi_bass_debug(ownership, midi);
-		if (!debug || debug->owner != InstrumentKind::Keyboard ||
-		    debug->bass_score > kMaxBassScore ||
-		    debug->keyboard_score < kMinKeyboardScore)
+		if (!debug || debug->owner != InstrumentKind::Keyboard)
+			continue;
+
+		const bool weak_keyboard_owned_shadow =
+			bass_level <= kMaxBassLevel &&
+			debug->bass_score <= kMaxBassScore &&
+			debug->keyboard_score >= kMinKeyboardScore;
+		const bool dominant_keyboard_owned_shadow =
+			allow_dominant_keyboard_shadow &&
+			full_mix_row_midi_active(ownership.keyboard, midi) &&
+			debug->keyboard_score >= kDominantMinKeyboardScore &&
+			debug->bass_score <= debug->keyboard_score * kDominantMaxBassToKeyboardScoreRatio &&
+			bass_level <= keyboard_level * kDominantMaxBassToKeyboardLevelRatio;
+		if (!weak_keyboard_owned_shadow && !dominant_keyboard_owned_shadow)
 			continue;
 
 		clear_note_grid_midi(bass_grid, midi);
@@ -19211,9 +19227,11 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 			boost_note_grid_primary_octave_display_level(snapshot.other_notes, snapshot.other, -1);
 		suppress_other_dominant_same_pitch_bass_shadows(snapshot.bass_notes, snapshot.bass,
 								snapshot.other_notes, full_mix_ownership, -1);
-		suppress_keyboard_owned_weak_same_pitch_bass_shadows(snapshot.bass_notes, snapshot.bass,
-								     snapshot.keyboard_notes,
-								     full_mix_ownership, -1);
+		suppress_keyboard_owned_same_pitch_bass_shadows(snapshot.bass_notes, snapshot.bass,
+								snapshot.keyboard_notes,
+								full_mix_ownership, -1,
+								full_mix_source_hint_mode !=
+									AnalysisInputMode::IsolatedBass);
 		attenuate_ambiguous_note_grid_by_named_rows(snapshot.ambiguous_notes, snapshot.bass_notes,
 							    snapshot.keyboard_notes, snapshot.guitar_notes,
 							    snapshot.vocal_notes, snapshot.other_notes);
