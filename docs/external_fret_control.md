@@ -72,12 +72,12 @@ Fret Zealot v1 uses service `6e400001-b5a3-f393-e0a9-e50e24dcca9e` and write cha
 ```text
 byte 0: command in high nibble, effect in low nibble
 byte 1: fret in high nibble, red in low nibble
-byte 2: green in high nibble, blue in low nibble
+byte 2: blue in high nibble, green in low nibble
 byte 3: 1 << (zero-based string + 1); the default right-handed map is bit 1 low E through bit 6 high E
 ```
 
-The app sends `40 00 00 00` to clear before the new scale and paces commands in 20-byte chunks. These Fret Zealot interoperability details were independently derived from the vendor Android client's BLE library; no vendor code or app asset is included here.
+The app sends `40 00 00 00` to clear before the new scale and paces commands in 20-byte chunks. Android connects and writes through a focused, Android 15-compatible adaptation of Edge Tech Labs' official [`fz-android-sdk`](https://github.com/edgetechlabs/fz-android-sdk), based on SDK commit `6da6d1b`. The adapted module preserves the SDK's core `LEDBLELib` command API while omitting its obsolete UI and firmware-update dependencies. The shared native analyzer remains the source of fret/string colors; the Android controller translates its packet into the SDK's `clear`, `set`, and flush calls. Both Fret Zealot LED generations above are supported.
 
 ## Hardware validation
 
-Automated tests validate mode retention, chromatic wrapping, controller maps, glyph precedence, LiteJam segment/string encoding, and Fret Zealot nibble packing. An APK build validates all JNI and Android APIs. Physical hardware is still required to validate advertised names on a particular firmware, left-handed/custom tuning expectations, BLE write pacing, and the selected MidiSuite preset.
+Automated tests validate mode retention, chromatic wrapping, controller maps, glyph precedence, LiteJam segment/string encoding, Fret Zealot nibble packing, and delegation through the SDK API. An APK build validates all JNI and Android APIs. Physical hardware is still required to validate advertised names on a particular firmware, left-handed/custom tuning expectations, BLE write pacing, and the selected MidiSuite preset.

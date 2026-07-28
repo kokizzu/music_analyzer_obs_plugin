@@ -16,3 +16,4 @@ dependencyResolutionManagement {
 
 rootProject.name = "MusicAnalyzer"
 include ":app"
+include ":fz-android-sdk"

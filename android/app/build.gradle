@@ -2,6 +2,10 @@ plugins {
     id "com.android.application"
 }
 
+dependencies {
+    implementation project(":fz-android-sdk")
+}
+
 def compileSdkValue = providers.gradleProperty("android.compileSdk").orElse("35").get().toInteger()
 def targetSdkValue = providers.gradleProperty("android.targetSdk").orElse("35").get().toInteger()
 def minSdkValue = providers.gradleProperty("android.minSdk").orElse("26").get().toInteger()

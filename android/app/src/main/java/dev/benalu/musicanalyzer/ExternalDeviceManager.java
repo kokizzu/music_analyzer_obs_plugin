@@ -53,10 +53,6 @@ final class ExternalDeviceManager implements Closeable {
 
     private static final UUID LITEJAM_SERVICE = UUID.fromString("000000ee-0000-1000-8000-00805f9b34fb");
     private static final UUID LITEJAM_LED = UUID.fromString("0000ee04-0000-1000-8000-00805f9b34fb");
-    private static final UUID FRET_ZEALOT_SERVICE = UUID.fromString("6e400001-b5a3-f393-e0a9-e50e24dcca9e");
-    private static final UUID FRET_ZEALOT_LED = UUID.fromString("6e400002-b5a3-f393-e0a9-e50e24dcca9e");
-    private static final UUID FRET_ZEALOT_2_SERVICE = UUID.fromString("fb1e4001-54ae-4a28-9f74-dfccb248601d");
-    private static final UUID FRET_ZEALOT_2_LED = UUID.fromString("fb1e4002-54ae-4a28-9f74-dfccb248601d");
     private static final UUID BLE_MIDI_SERVICE = UUID.fromString("03b80e5a-ede8-4b33-a751-6ce34ec4c700");
     private static final UUID BLE_MIDI_IO = UUID.fromString("7772e5db-3868-4112-a1a9-f2669d106bf3");
     private static final UUID CLIENT_CHARACTERISTIC_CONFIG =
@@ -64,7 +60,7 @@ final class ExternalDeviceManager implements Closeable {
 
     private static final long MVAVE_HOLD_MILLIS = 600;
     private static final int REQUESTED_MTU = 247;
-    private static final int FRET_ZEALOT_CHUNK_BYTES = 20;
+    private static final int BLE_CHUNK_BYTES = 20;
     private static final long WRITE_WITHOUT_RESPONSE_DELAY_MILLIS = 12;
     private static final long BLE_RETRY_DELAY_MILLIS = 1500;
 
@@ -73,7 +69,7 @@ final class ExternalDeviceManager implements Closeable {
     private final Runnable invalidateDisplay;
     private final Handler handler = new Handler(Looper.getMainLooper());
     private final BleTarget liteJam = new BleTarget(DEVICE_LITEJAM, false);
-    private final BleTarget fretZealot = new BleTarget(DEVICE_FRET_ZEALOT, true);
+    private final FretZealotSdkController fretZealot;
     private final boolean[] deviceAutoconnect = {true, false, true, false};
     private final boolean[] mvavePressed = new boolean[4];
     private final long[] mvavePressedAt = new long[4];
@@ -101,6 +97,37 @@ final class ExternalDeviceManager implements Closeable {
         this.context = context;
         this.nativeHandle = nativeHandle;
         this.invalidateDisplay = invalidateDisplay;
+        fretZealot = new FretZealotSdkController(context, new FretZealotSdkController.Listener() {
+            @Override
+            public void onConnecting() {
+                setDeviceState(DEVICE_FRET_ZEALOT, STATE_CONNECTING);
+            }
+
+            @Override
+            public void onReady() {
+                setDeviceState(DEVICE_FRET_ZEALOT, STATE_CONNECTED);
+                refreshOutputs(true);
+                if (allEnabledBleDevicesConnected()) {
+                    stopBleScan();
+                }
+            }
+
+            @Override
+            public void onDisconnected() {
+                setDeviceState(DEVICE_FRET_ZEALOT,
+                        shouldAutoconnectDevice(DEVICE_FRET_ZEALOT)
+                                ? STATE_SEARCHING : STATE_DISABLED);
+                scheduleBleScanRetry();
+            }
+
+            @Override
+            public void onError() {
+                setDeviceState(DEVICE_FRET_ZEALOT,
+                        shouldAutoconnectDevice(DEVICE_FRET_ZEALOT)
+                                ? STATE_ERROR : STATE_DISABLED);
+                scheduleBleScanRetry();
+            }
+        });
     }
 
     void start() {
@@ -131,7 +158,7 @@ final class ExternalDeviceManager implements Closeable {
         } else {
             stopBleScan();
             closeBleTarget(liteJam, STATE_DISABLED);
-            closeBleTarget(fretZealot, STATE_DISABLED);
+            closeFretZealot(STATE_DISABLED);
             closeMidiConnection(true, STATE_DISABLED);
             closeMidiConnection(false, STATE_DISABLED);
             closeMvaveGatt(STATE_DISABLED);
@@ -157,7 +184,7 @@ final class ExternalDeviceManager implements Closeable {
                     closeBleTarget(liteJam, STATE_DISABLED);
                     break;
                 case DEVICE_FRET_ZEALOT:
-                    closeBleTarget(fretZealot, STATE_DISABLED);
+                    closeFretZealot(STATE_DISABLED);
                     break;
                 case DEVICE_APC_MINI:
                     closeMidiConnection(true, STATE_DISABLED);
@@ -197,7 +224,7 @@ final class ExternalDeviceManager implements Closeable {
 
     private boolean allEnabledBleDevicesConnected() {
         return (!deviceAutoconnect[DEVICE_LITEJAM] || liteJam.characteristic != null)
-                && (!deviceAutoconnect[DEVICE_FRET_ZEALOT] || fretZealot.characteristic != null)
+                && (!deviceAutoconnect[DEVICE_FRET_ZEALOT] || fretZealot.isReady())
                 && (!deviceAutoconnect[DEVICE_MVAVE] || hasMvaveConnection());
     }
 
@@ -206,7 +233,7 @@ final class ExternalDeviceManager implements Closeable {
         started = false;
         stopBleScan();
         closeBleTarget(liteJam, STATE_DISABLED);
-        closeBleTarget(fretZealot, STATE_DISABLED);
+        closeFretZealot(STATE_DISABLED);
         closeMidiConnection(true, STATE_DISABLED);
         closeMidiConnection(false, STATE_DISABLED);
         closeMvaveGatt(STATE_DISABLED);
@@ -237,7 +264,7 @@ final class ExternalDeviceManager implements Closeable {
         if (shouldAutoconnectDevice(DEVICE_LITEJAM) && liteJam.gatt == null) {
             setDeviceState(DEVICE_LITEJAM, STATE_SEARCHING);
         }
-        if (shouldAutoconnectDevice(DEVICE_FRET_ZEALOT) && fretZealot.gatt == null) {
+        if (shouldAutoconnectDevice(DEVICE_FRET_ZEALOT) && !fretZealot.isActive()) {
             setDeviceState(DEVICE_FRET_ZEALOT, STATE_SEARCHING);
         }
         if (shouldAutoconnectDevice(DEVICE_APC_MINI) && apcConnection == null && !apcOpening) {
@@ -282,7 +309,7 @@ final class ExternalDeviceManager implements Closeable {
         if (shouldAutoconnectDevice(DEVICE_LITEJAM) && liteJam.gatt == null) {
             setDeviceState(DEVICE_LITEJAM, STATE_SEARCHING);
         }
-        if (shouldAutoconnectDevice(DEVICE_FRET_ZEALOT) && fretZealot.gatt == null) {
+        if (shouldAutoconnectDevice(DEVICE_FRET_ZEALOT) && !fretZealot.isActive()) {
             setDeviceState(DEVICE_FRET_ZEALOT, STATE_SEARCHING);
         }
         if (scanning || allEnabledBleDevicesConnected()) {
@@ -562,9 +589,6 @@ final class ExternalDeviceManager implements Closeable {
         if (liteJam.gatt == gatt) {
             return liteJam;
         }
-        if (fretZealot.gatt == gatt) {
-            return fretZealot;
-        }
         return null;
     }
 
@@ -591,15 +615,8 @@ final class ExternalDeviceManager implements Closeable {
     }
 
     private void configureBleTarget(BleTarget target, BluetoothGatt gatt) {
-        BluetoothGattCharacteristic characteristic;
-        if (target == liteJam) {
-            characteristic = findCharacteristic(gatt, LITEJAM_SERVICE, LITEJAM_LED);
-        } else {
-            characteristic = findCharacteristic(gatt, FRET_ZEALOT_2_SERVICE, FRET_ZEALOT_2_LED);
-            if (characteristic == null) {
-                characteristic = findCharacteristic(gatt, FRET_ZEALOT_SERVICE, FRET_ZEALOT_LED);
-            }
-        }
+        BluetoothGattCharacteristic characteristic =
+                findCharacteristic(gatt, LITEJAM_SERVICE, LITEJAM_LED);
         if (characteristic == null) {
             failBleTarget(target);
             return;
@@ -625,6 +642,11 @@ final class ExternalDeviceManager implements Closeable {
             }
         }
         setDeviceState(target.deviceIndex, finalState);
+    }
+
+    private void closeFretZealot(int finalState) {
+        fretZealot.close();
+        setDeviceState(DEVICE_FRET_ZEALOT, finalState);
     }
 
     private void closeGattQuietly(BluetoothGatt gatt) {
@@ -707,8 +729,8 @@ final class ExternalDeviceManager implements Closeable {
         if (!target.chunkWrites) {
             target.writeQueue.add(Arrays.copyOf(packet, packet.length));
         } else {
-            for (int offset = 0; offset < packet.length; offset += FRET_ZEALOT_CHUNK_BYTES) {
-                int end = Math.min(packet.length, offset + FRET_ZEALOT_CHUNK_BYTES);
+            for (int offset = 0; offset < packet.length; offset += BLE_CHUNK_BYTES) {
+                int end = Math.min(packet.length, offset + BLE_CHUNK_BYTES);
                 target.writeQueue.add(Arrays.copyOfRange(packet, offset, end));
             }
         }
@@ -730,8 +752,8 @@ final class ExternalDeviceManager implements Closeable {
         if (liteJam.characteristic != null) {
             queuePacket(liteJam, MusicAnalyzerNative.nativeGetLiteJamPacket(nativeHandle));
         }
-        if (fretZealot.characteristic != null) {
-            queuePacket(fretZealot, MusicAnalyzerNative.nativeGetFretZealotPacket(nativeHandle));
+        if (fretZealot.isReady()) {
+            fretZealot.sendPacket(MusicAnalyzerNative.nativeGetFretZealotPacket(nativeHandle));
         }
         invalidateDisplay.run();
     }
@@ -1017,7 +1039,9 @@ final class ExternalDeviceManager implements Closeable {
             if (isLiteJamName(name)) {
                 connectBle(liteJam, result.getDevice());
             } else if (isFretZealotName(name)) {
-                connectBle(fretZealot, result.getDevice());
+                if (shouldAutoconnectDevice(DEVICE_FRET_ZEALOT)) {
+                    fretZealot.connect(result.getDevice());
+                }
             } else if (isMvaveBleName(name)) {
                 connectMvaveGatt(result.getDevice());
             }
@@ -1030,7 +1054,7 @@ final class ExternalDeviceManager implements Closeable {
             if (shouldAutoconnectDevice(DEVICE_LITEJAM) && liteJam.gatt == null) {
                 setDeviceState(DEVICE_LITEJAM, STATE_ERROR);
             }
-            if (shouldAutoconnectDevice(DEVICE_FRET_ZEALOT) && fretZealot.gatt == null) {
+            if (shouldAutoconnectDevice(DEVICE_FRET_ZEALOT) && !fretZealot.isActive()) {
                 setDeviceState(DEVICE_FRET_ZEALOT, STATE_ERROR);
             }
             if (shouldAutoconnectDevice(DEVICE_MVAVE) && !hasMvaveConnection()) {

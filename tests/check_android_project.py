@@ -13,6 +13,8 @@ def require(condition, message):
 
 def main():
     app_gradle = (ROOT / "android" / "app" / "build.gradle").read_text(encoding="utf-8")
+    root_gradle = (ROOT / "android" / "build.gradle").read_text(encoding="utf-8")
+    settings_gradle = (ROOT / "android" / "settings.gradle").read_text(encoding="utf-8")
     gradle_properties = (ROOT / "android" / "gradle.properties").read_text(encoding="utf-8")
     makefile = (ROOT / "Makefile").read_text(encoding="utf-8")
     setup_script = (ROOT / "scripts" / "setup_android.sh").read_text(encoding="utf-8")
@@ -38,6 +40,21 @@ def main():
         ROOT / "android" / "app" / "src" / "main" / "java" / "dev" / "benalu" / "musicanalyzer" /
         "ExternalDeviceManager.java"
     ).read_text(encoding="utf-8")
+    fret_zealot_sdk_controller = (
+        ROOT / "android" / "app" / "src" / "main" / "java" / "dev" / "benalu" / "musicanalyzer" /
+        "FretZealotSdkController.java"
+    ).read_text(encoding="utf-8")
+    fret_zealot_sdk = (
+        ROOT / "android" / "fz-android-sdk" / "src" / "main" / "java" / "com" / "fz" / "blelib" /
+        "LEDBLELib.java"
+    ).read_text(encoding="utf-8")
+    fret_zealot_attributes = (
+        ROOT / "android" / "fz-android-sdk" / "src" / "main" / "java" / "com" / "fz" / "blelib" /
+        "SampleGattAttributes.java"
+    ).read_text(encoding="utf-8")
+    fret_zealot_manifest = (
+        ROOT / "android" / "fz-android-sdk" / "src" / "main" / "AndroidManifest.xml"
+    ).read_text(encoding="utf-8")
     fret_control = (ROOT / "src" / "fret_control.cpp").read_text(encoding="utf-8")
     external_control_docs = (ROOT / "docs" / "external_fret_control.md").read_text(encoding="utf-8")
 
@@ -58,6 +75,13 @@ def main():
             "Android app must compile Java without obsolete source/target warnings")
     require("android.javaCompile.suppressSourceTargetDeprecationWarning=true" in gradle_properties,
             "Android Gradle Java source/target deprecation warning must be suppressed")
+    require('include ":fz-android-sdk"' in settings_gradle and
+            'id "com.android.library" version "8.7.3" apply false' in root_gradle and
+            'implementation project(":fz-android-sdk")' in app_gradle,
+            "Android app must compile the Fret Zealot SDK compatibility module")
+    require('android:name=".BluetoothLeService"' in fret_zealot_manifest and
+            'android:exported="false"' in fret_zealot_manifest,
+            "Fret Zealot SDK bound service must be private and manifest-registered")
 
     require("setup-android:" in makefile, "Makefile setup-android target missing")
     require("setup-android-emulator:" in makefile, "Makefile setup-android-emulator target missing")
@@ -250,9 +274,25 @@ def main():
             "0000ee04-0000-1000-8000-00805f9b34fb" in external_devices and
             "WRITE_TYPE_NO_RESPONSE" in external_devices,
             "Android BLE manager must discover and write LiteJam LEDs without response")
-    require("6e400002-b5a3-f393-e0a9-e50e24dcca9e" in external_devices and
-            "fb1e4002-54ae-4a28-9f74-dfccb248601d" in external_devices,
-            "Android BLE manager must support both Fret Zealot write characteristics")
+    require("FretZealotSdkController" in external_devices and
+            "fretZealot.connect(result.getDevice())" in external_devices and
+            "fretZealot.sendPacket" in external_devices and
+            "connectBle(fretZealot" not in external_devices,
+            "Android BLE manager must delegate Fret Zealot connection and output to the SDK")
+    require("LEDBLELib.getInstance" in fret_zealot_sdk_controller and
+            "sendCommandBufferClear" in fret_zealot_sdk_controller and
+            "sdk.clear()" in fret_zealot_sdk_controller and
+            "sdk.set(" in fret_zealot_sdk_controller and
+            "sendCommandFlush" in fret_zealot_sdk_controller,
+            "Fret Zealot output must use the official SDK command API")
+    require("6e400002-b5a3-f393-e0a9-e50e24dcca9e" in fret_zealot_attributes and
+            "fb1e4002-54ae-4a28-9f74-dfccb248601d" in fret_zealot_attributes and
+            "SampleGattAttributes.LED_2_CH" in fret_zealot_sdk and
+            "SampleGattAttributes.LED_CH" in fret_zealot_sdk,
+            "Fret Zealot SDK module must support both Fret Zealot LED generations")
+    require("strand, red, green, blue, pixel" in fret_zealot_sdk and
+            "((green & 0x0f) << 4) | (blue & 0x0f)" in fret_zealot_sdk,
+            "Fret Zealot SDK adaptation must preserve the official R/B/G API and wire ordering")
     require("03b80e5a-ede8-4b33-a751-6ce34ec4c700" in external_devices and
             "7772e5db-3868-4112-a1a9-f2669d106bf3" in external_devices and
             "connectGatt" in external_devices and "writeDescriptor" in external_devices and
