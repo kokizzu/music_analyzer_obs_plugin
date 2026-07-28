@@ -8,6 +8,7 @@ import collections
 import csv
 import pathlib
 import re
+from collections.abc import Callable
 
 
 NOTE_TO_PC = {
@@ -27,6 +28,19 @@ NOTE_TO_PC = {
 
 PC_TO_NOTE = {value: key for key, value in NOTE_TO_PC.items()}
 CELL_RE = re.compile(r"([A-G]#?)(?:-?\d+)?:([-+0-9.eE]+)")
+CHORD_INTERVALS = {
+    "": (0, 4, 7),
+    "m": (0, 3, 7),
+    "6": (0, 4, 7, 9),
+    "7": (0, 4, 7, 10),
+    "9": (0, 2, 4, 7, 10),
+    "maj7": (0, 4, 7, 11),
+    "maj9": (0, 2, 4, 7, 11),
+    "add9": (0, 2, 4, 7),
+    "m6": (0, 3, 7, 9),
+    "m7": (0, 3, 7, 10),
+    "m9": (0, 2, 3, 7, 10),
+}
 
 
 def split_components(value: str) -> list[str]:
@@ -70,6 +84,18 @@ def extension_family(label: str) -> tuple[int, str] | None:
     return None
 
 
+def chord_pitch_set(label: str) -> set[int] | None:
+    root_name = chord_root(label)
+    if root_name not in NOTE_TO_PC:
+        return None
+    quality = chord_quality(label)
+    intervals = CHORD_INTERVALS.get(quality)
+    if intervals is None:
+        return None
+    root = NOTE_TO_PC[root_name]
+    return {(root + interval) % 12 for interval in intervals}
+
+
 def same_root_extension_primary_candidate(components: list[str]) -> str | None:
     if not components:
         return None
@@ -83,6 +109,19 @@ def same_root_extension_primary_candidate(components: list[str]) -> str | None:
         if family == (primary_root, primary_family):
             return component
     return None
+
+
+def current_same_root_extension_primary(components: list[str]) -> tuple[str, str] | None:
+    if not components:
+        return None
+    family = extension_family(components[0])
+    if family is None:
+        return None
+    root, quality_family = family
+    plain = f"{PC_TO_NOTE[root]}{'m' if quality_family == 'minor' else ''}"
+    if plain not in components[1:]:
+        return None
+    return components[0], plain
 
 
 def is_power_for_root(label: str, root: int) -> bool:
@@ -102,6 +141,12 @@ def parse_cells(value: str) -> dict[int, float]:
         pc = NOTE_TO_PC[note]
         levels[pc] = max(levels.get(pc, 0.0), level)
     return levels
+
+
+def cell_level_min(levels: dict[int, float], pitch_classes: set[int]) -> float:
+    if not pitch_classes:
+        return 0.0
+    return min(levels.get(pitch_class, 0.0) for pitch_class in pitch_classes)
 
 
 def primary_component(value: str) -> str:
@@ -191,6 +236,204 @@ def confidence_value(row: dict[str, str], field: str) -> str:
     return value if value else "--"
 
 
+def extension_feature_row(
+    promoted: str,
+    row: dict[str, str],
+) -> dict[str, str | float]:
+    components = split_components(row.get("guitar_chord", ""))
+    primary = components[0] if components else ""
+    primary_plain = parse_plain(primary)
+    primary_pitch_classes = chord_pitch_set(primary) or set()
+    promoted_pitch_classes = chord_pitch_set(promoted) or set()
+    extra_pitch_classes = promoted_pitch_classes - primary_pitch_classes
+    candidate_index = next(
+        (index for index, component in enumerate(components) if component == promoted),
+        -1,
+    )
+    display_pitch_classes = pitch_classes(row.get("guitar_pitch_classes", ""))
+    analysis_pitch_classes = pitch_classes(row.get("guitar_analysis_pitch_classes", ""))
+    smoothed_pitch_classes = pitch_classes(row.get("guitar_smoothed_pitch_classes", ""))
+    display_levels = parse_cells(row.get("guitar_cells", ""))
+    analysis_levels = parse_cells(row.get("guitar_analysis_cells", ""))
+    smoothed_levels = parse_cells(row.get("guitar_smoothed_cells", ""))
+    probe_levels = parse_cells(row.get("guitar_probe_pitch_class_levels", ""))
+    raw_levels = parse_cells(row.get("raw_pitch_class_levels", ""))
+    suffix = chord_quality(promoted) or "maj"
+    return {
+        "suffix": suffix,
+        "primary_family": "minor" if primary_plain and primary_plain[1] else "major",
+        "candidate_slot": "1" if candidate_index == 1 else "2+",
+        "candidate_index": float(candidate_index),
+        "extra_tones": float(len(extra_pitch_classes)),
+        "extra_visible_hits": float(len(extra_pitch_classes & display_pitch_classes)),
+        "extra_analysis_hits": float(len(extra_pitch_classes & analysis_pitch_classes)),
+        "extra_smoothed_hits": float(len(extra_pitch_classes & smoothed_pitch_classes)),
+        "extra_visible_min": cell_level_min(display_levels, extra_pitch_classes),
+        "extra_analysis_min": cell_level_min(analysis_levels, extra_pitch_classes),
+        "extra_smoothed_min": cell_level_min(smoothed_levels, extra_pitch_classes),
+        "extra_probe_min": cell_level_min(probe_levels, extra_pitch_classes),
+        "extra_raw_min": cell_level_min(raw_levels, extra_pitch_classes),
+    }
+
+
+def current_extension_feature_row(
+    current_primary: str,
+    plain_fallback: str,
+    row: dict[str, str],
+) -> dict[str, str | float]:
+    components = split_components(row.get("guitar_chord", ""))
+    plain_pitch_classes = chord_pitch_set(plain_fallback) or set()
+    current_pitch_classes = chord_pitch_set(current_primary) or set()
+    extra_pitch_classes = current_pitch_classes - plain_pitch_classes
+    plain_index = next(
+        (index for index, component in enumerate(components) if component == plain_fallback),
+        -1,
+    )
+    display_pitch_classes = pitch_classes(row.get("guitar_pitch_classes", ""))
+    analysis_pitch_classes = pitch_classes(row.get("guitar_analysis_pitch_classes", ""))
+    smoothed_pitch_classes = pitch_classes(row.get("guitar_smoothed_pitch_classes", ""))
+    display_levels = parse_cells(row.get("guitar_cells", ""))
+    analysis_levels = parse_cells(row.get("guitar_analysis_cells", ""))
+    smoothed_levels = parse_cells(row.get("guitar_smoothed_cells", ""))
+    probe_levels = parse_cells(row.get("guitar_probe_pitch_class_levels", ""))
+    raw_levels = parse_cells(row.get("raw_pitch_class_levels", ""))
+    suffix = chord_quality(current_primary) or "maj"
+    return {
+        "suffix": suffix,
+        "plain_slot": "1" if plain_index == 1 else "2+",
+        "plain_index": float(plain_index),
+        "extra_tones": float(len(extra_pitch_classes)),
+        "extra_visible_hits": float(len(extra_pitch_classes & display_pitch_classes)),
+        "extra_analysis_hits": float(len(extra_pitch_classes & analysis_pitch_classes)),
+        "extra_smoothed_hits": float(len(extra_pitch_classes & smoothed_pitch_classes)),
+        "extra_visible_min": cell_level_min(display_levels, extra_pitch_classes),
+        "extra_analysis_min": cell_level_min(analysis_levels, extra_pitch_classes),
+        "extra_smoothed_min": cell_level_min(smoothed_levels, extra_pitch_classes),
+        "extra_probe_min": cell_level_min(probe_levels, extra_pitch_classes),
+        "extra_raw_min": cell_level_min(raw_levels, extra_pitch_classes),
+    }
+
+
+def compact_feature_summary(features: dict[str, str | float]) -> str:
+    fields = (
+        "suffix",
+        "plain_slot",
+        "extra_visible_min",
+        "extra_analysis_min",
+        "extra_smoothed_min",
+        "extra_probe_min",
+        "extra_raw_min",
+    )
+    return ",".join(f"{field}={format_feature_value(features[field])}" for field in fields)
+
+
+def format_feature_value(value: float) -> str:
+    if isinstance(value, str):
+        return value
+    if abs(value - round(value)) < 1.0e-6:
+        return str(int(round(value)))
+    return f"{value:.3f}".rstrip("0").rstrip(".")
+
+
+def extension_feature_patterns(
+    feature_rows: list[dict[str, str | float]],
+) -> list[tuple[str, Callable[[dict[str, str | float]], bool]]]:
+    if not feature_rows:
+        return []
+    patterns: list[tuple[str, Callable[[dict[str, str | float]], bool]]] = []
+    category_fields = ("suffix", "primary_family", "candidate_slot")
+    numeric_fields = (
+        "candidate_index",
+        "extra_tones",
+        "extra_visible_hits",
+        "extra_analysis_hits",
+        "extra_smoothed_hits",
+        "extra_visible_min",
+        "extra_analysis_min",
+        "extra_smoothed_min",
+        "extra_probe_min",
+        "extra_raw_min",
+    )
+    for field in category_fields:
+        for value in sorted({str(row[field]) for row in feature_rows}):
+            patterns.append(
+                (
+                    f"{field}={value}",
+                    lambda row, field=field, value=value: str(row[field]) == value,
+                )
+            )
+    for field in numeric_fields:
+        values = sorted({float(row[field]) for row in feature_rows})
+        for value in values:
+            text = format_feature_value(value)
+            patterns.append(
+                (
+                    f"{field}>={text}",
+                    lambda row, field=field, value=value: float(row[field]) >= value,
+                )
+            )
+            patterns.append(
+                (
+                    f"{field}<={text}",
+                    lambda row, field=field, value=value: float(row[field]) <= value,
+                )
+            )
+    deduped: list[tuple[str, callable]] = []
+    seen: set[str] = set()
+    for label, predicate in patterns:
+        if label in seen:
+            continue
+        seen.add(label)
+        deduped.append((label, predicate))
+    return deduped
+
+
+def print_extension_safe_rules(
+    rescues: list[tuple[str, dict[str, str]]],
+    protected_false: list[tuple[str, dict[str, str]]],
+    neutral: list[tuple[str, dict[str, str]]],
+    limit: int,
+) -> None:
+    rescue_features = [extension_feature_row(promoted, row) for promoted, row in rescues]
+    protected_features = [extension_feature_row(promoted, row) for promoted, row in protected_false]
+    neutral_features = [extension_feature_row(promoted, row) for promoted, row in neutral]
+    patterns = extension_feature_patterns(rescue_features)
+    results: list[tuple[int, int, int, int, str]] = []
+    for left_index, (left_label, left_predicate) in enumerate(patterns):
+        candidates = [(left_label, left_predicate)]
+        for right_label, right_predicate in patterns[left_index + 1 :]:
+            candidates.append(
+                (
+                    f"{left_label} AND {right_label}",
+                    lambda row, left=left_predicate, right=right_predicate: left(row) and right(row),
+                )
+            )
+        for label, predicate in candidates:
+            rescue_count = sum(1 for row in rescue_features if predicate(row))
+            if rescue_count <= 0:
+                continue
+            protected_count = sum(1 for row in protected_features if predicate(row))
+            if protected_count > 0:
+                continue
+            neutral_count = sum(1 for row in neutral_features if predicate(row))
+            condition_count = label.count(" AND ") + 1
+            results.append((-rescue_count, neutral_count, condition_count, len(label), label))
+    print("same_root_extension_primary_safe_rules:")
+    if not results:
+        print("  --")
+        return
+    seen: set[str] = set()
+    printed = 0
+    for negative_rescues, neutral_count, _condition_count, _label_len, label in sorted(results):
+        if label in seen:
+            continue
+        seen.add(label)
+        print(f"  +{-negative_rescues} protected_false=0 neutral={neutral_count} :: {label}")
+        printed += 1
+        if printed >= limit:
+            break
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("path", type=pathlib.Path)
@@ -231,6 +474,10 @@ def main() -> int:
     extension_primary_rescues = []
     extension_primary_protected_false = []
     extension_primary_neutral = []
+    current_extension_primary_candidates = []
+    current_extension_primary_rescues = []
+    current_extension_primary_protected_false = []
+    current_extension_primary_neutral = []
     same_root_quality_raw_promotions = []
     same_root_quality_raw_rescues = []
     same_root_quality_raw_protected_false = []
@@ -268,6 +515,16 @@ def main() -> int:
                 extension_primary_protected_false.append((extension_candidate, row))
             else:
                 extension_primary_neutral.append((extension_candidate, row))
+        current_extension = current_same_root_extension_primary(displayed_components)
+        if current_extension:
+            current_extension_primary_candidates.append((*current_extension, row))
+            current_primary, plain_fallback = current_extension
+            if current_primary in expected:
+                current_extension_primary_rescues.append((*current_extension, row))
+            elif plain_fallback in expected:
+                current_extension_primary_protected_false.append((*current_extension, row))
+            else:
+                current_extension_primary_neutral.append((*current_extension, row))
         same_root_quality_raw = promoted_same_root_smoothed_quality(
             row, "raw_pitch_class_levels", 0.012, 1.35, 0.004
         )
@@ -353,6 +610,37 @@ def main() -> int:
             f"  protected_false promote={promoted}",
             f"expected={row.get('expected_chords')}",
             f"primary={primary_component(row.get('guitar_chord', ''))}",
+            f"label={row.get('guitar_chord', '--')}",
+            pathlib.Path(row.get("audio_path", "")).name,
+        )
+    print_extension_safe_rules(
+        extension_primary_rescues,
+        extension_primary_protected_false,
+        extension_primary_neutral,
+        args.examples,
+    )
+    print(
+        "current_same_root_extension_primary:",
+        f"candidates={len(current_extension_primary_candidates)}",
+        f"expected_primary={len(current_extension_primary_rescues)}",
+        f"protected_plain_false={len(current_extension_primary_protected_false)}",
+        f"neutral={len(current_extension_primary_neutral)}",
+    )
+    for current_primary, plain_fallback, row in current_extension_primary_rescues[: args.examples]:
+        print(
+            f"  expected_primary current={current_primary}",
+            f"plain={plain_fallback}",
+            f"expected={row.get('expected_chords')}",
+            f"features={compact_feature_summary(current_extension_feature_row(current_primary, plain_fallback, row))}",
+            f"label={row.get('guitar_chord', '--')}",
+            pathlib.Path(row.get("audio_path", "")).name,
+        )
+    for current_primary, plain_fallback, row in current_extension_primary_protected_false[: args.examples]:
+        print(
+            f"  protected_plain_false current={current_primary}",
+            f"plain={plain_fallback}",
+            f"expected={row.get('expected_chords')}",
+            f"features={compact_feature_summary(current_extension_feature_row(current_primary, plain_fallback, row))}",
             f"label={row.get('guitar_chord', '--')}",
             pathlib.Path(row.get("audio_path", "")).name,
         )

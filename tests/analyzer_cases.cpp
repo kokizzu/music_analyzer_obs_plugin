@@ -189,6 +189,15 @@ bool has_chord_label(const char *actual, const std::string &expected)
 	return false;
 }
 
+bool chord_primary_label_is(const char *actual, const std::string &expected)
+{
+	if (!actual)
+		return false;
+	const char *end = std::strchr(actual, '=');
+	const std::size_t len = end ? static_cast<std::size_t>(end - actual) : std::strlen(actual);
+	return len == expected.size() && std::strncmp(actual, expected.c_str(), expected.size()) == 0;
+}
+
 void expect_no_chord_label(Runner &runner, const char *actual, const std::string &unexpected,
 			   const std::string &context)
 {
@@ -946,6 +955,9 @@ void check_guitar_supported_extension_aliases(Runner &runner)
 			      snapshot.guitar_chord.label + "`");
 	runner.expect(has_chord_label(snapshot.guitar_chord.label, "Cmaj7"),
 		      std::string("guitar supported extension aliases: expected Cmaj7 alias, got `") +
+			      snapshot.guitar_chord.label + "`");
+	runner.expect(chord_primary_label_is(snapshot.guitar_chord.label, "C"),
+		      std::string("guitar weak extension primary: expected C primary, got `") +
 			      snapshot.guitar_chord.label + "`");
 
 	mao_test::Buffer low_core_buffer = {};

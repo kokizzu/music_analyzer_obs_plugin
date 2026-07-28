@@ -75,11 +75,25 @@ def main() -> int:
             row(
                 recording_id="extension_rescue",
                 audio_path="extension_rescue.wav",
+                expected_midis="C3,E3,G3,B3",
+                expected_pitch_classes="C,E,G,B",
+                expected_pitch_class_count="4",
                 expected_chords="Cmaj7",
                 expected_chord_qualities="maj7",
+                expected_chord_tone_count="4",
                 guitar_chord="C=Cmaj7",
                 guitar_raw_chord="C=Cmaj7",
                 guitar_smoothed_chord="C=Cmaj7",
+                guitar_note_hits="4",
+                expected_note_count="4",
+                guitar_pitch_classes="C,E,G,B",
+                guitar_cells="C3:1.00,E3:0.80,G3:0.70,B3:0.60",
+                guitar_analysis_pitch_classes="C,E,G,B",
+                guitar_analysis_cells="C3:1.00,E3:0.80,G3:0.70,B3:0.60",
+                guitar_smoothed_pitch_classes="C,E,G,B",
+                guitar_smoothed_cells="C3:1.00,E3:0.80,G3:0.70,B3:0.60",
+                raw_pitch_class_levels="C:1.000,E:0.800,G:0.700,B:0.600",
+                guitar_probe_pitch_class_levels="C:1.000,E:0.800,G:0.700,B:0.600",
             ),
             row(
                 recording_id="extension_protected",
@@ -146,6 +160,9 @@ def main() -> int:
             "protected_false promote=Cmaj7 expected=C primary=C label=C=Cmaj7 "
             "extension_protected.wav"
         ) in output
+        assert "same_root_extension_primary_safe_rules:" in output
+        assert "protected_false=0" in output
+        assert "extra_visible_hits>=1" in output
         assert (
             "same_root_quality_raw_probe_promote: candidates=1 rescues=1 protected_false=0"
             in output

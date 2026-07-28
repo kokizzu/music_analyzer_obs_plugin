@@ -11728,6 +11728,170 @@ bool parse_plain_major_minor_component(const char *start, std::size_t len, Parse
 							    suffix_len == 0;
 }
 
+bool same_root_extension_extra_tones(const char *start, std::size_t len,
+				     const ParsedRootChord &component,
+				     const ParsedRootChord &primary,
+				     std::array<bool, 12> &extra_tones)
+{
+	extra_tones.fill(false);
+	if (!start || component.root != primary.root || component.quality != primary.quality)
+		return false;
+
+	std::size_t root_len = 1;
+	if (len > 1 && start[1] == '#')
+		root_len = 2;
+	const char *suffix = start + root_len;
+	const std::size_t suffix_len = len - root_len;
+
+	auto add_extra = [&](int interval) {
+		extra_tones[static_cast<std::size_t>((component.root + interval) % 12)] = true;
+	};
+
+	bool extension = false;
+	if (component.quality == RootChordQuality::Major) {
+		if (suffix_is(suffix, suffix_len, "6")) {
+			add_extra(9);
+			extension = true;
+		} else if (suffix_is(suffix, suffix_len, "7")) {
+			add_extra(10);
+			extension = true;
+		} else if (suffix_is(suffix, suffix_len, "9")) {
+			add_extra(2);
+			add_extra(10);
+			extension = true;
+		} else if (suffix_is(suffix, suffix_len, "maj7")) {
+			add_extra(11);
+			extension = true;
+		} else if (suffix_is(suffix, suffix_len, "maj9")) {
+			add_extra(2);
+			add_extra(11);
+			extension = true;
+		} else if (suffix_is(suffix, suffix_len, "add9")) {
+			add_extra(2);
+			extension = true;
+		}
+	} else if (component.quality == RootChordQuality::Minor) {
+		if (suffix_is(suffix, suffix_len, "m6")) {
+			add_extra(9);
+			extension = true;
+		} else if (suffix_is(suffix, suffix_len, "m7")) {
+			add_extra(10);
+			extension = true;
+		} else if (suffix_is(suffix, suffix_len, "m9")) {
+			add_extra(2);
+			add_extra(10);
+			extension = true;
+		}
+	}
+	return extension;
+}
+
+bool strong_same_root_extension_tones_supported(
+	const std::array<bool, 12> &extra_tones, const NoteGrid &display_grid,
+	const NoteGrid &analysis_grid,
+	const std::array<float, kNoteProbeCount> &powers, int min_midi, int max_midi)
+{
+	static constexpr float kMinVisibleExtraLevel = 0.81f;
+	static constexpr float kMinAnalysisExtraLevel = 0.90f;
+	static constexpr float kMinNormalizedRawExtraLevel = 0.79f;
+	const float strongest_probe = strongest_probe_level(powers, min_midi, max_midi);
+	if (strongest_probe <= 1.0e-6f)
+		return false;
+
+	bool has_extra = false;
+	for (int pitch_class = 0; pitch_class < 12; ++pitch_class) {
+		if (!extra_tones[static_cast<std::size_t>(pitch_class)])
+			continue;
+		has_extra = true;
+		const float visible_level = note_grid_pitch_level(display_grid, pitch_class);
+		const float analysis_level = note_grid_pitch_level(analysis_grid, pitch_class);
+		const float raw_level =
+			strongest_probe_pitch_class_level(powers, pitch_class, min_midi, max_midi) /
+			strongest_probe;
+		if (visible_level < kMinVisibleExtraLevel || analysis_level < kMinAnalysisExtraLevel ||
+		    raw_level < kMinNormalizedRawExtraLevel)
+			return false;
+	}
+	return has_extra;
+}
+
+void promote_strong_same_root_guitar_extension_primary(
+	ChordResult &chord, const NoteGrid &display_grid,
+	const NoteGrid &analysis_grid,
+	const std::array<float, kNoteProbeCount> &powers, int min_midi, int max_midi)
+{
+	if (chord.root < 0 || chord.confidence < kChordConfidenceFloor || chord.uncertain ||
+	    !chord.label[0] || chord.label[0] == '-' || chord_label_component_count(chord.label) < 2)
+		return;
+
+	ParsedRootChord primary;
+	const std::size_t primary_len = std::strcspn(chord.label, "=");
+	if (!parse_plain_major_minor_component(chord.label, primary_len, primary))
+		return;
+
+	const char *best_start = nullptr;
+	std::size_t best_len = 0;
+	ParsedRootChord best_component;
+	std::array<bool, 12> best_extra_tones = {};
+	const char *cursor = chord.label;
+	bool first_component = true;
+	while (cursor && *cursor) {
+		const char *end = std::strchr(cursor, '=');
+		const std::size_t len =
+			end ? static_cast<std::size_t>(end - cursor) : std::strlen(cursor);
+		ParsedRootChord component;
+		std::array<bool, 12> extra_tones = {};
+		if (!first_component &&
+		    parse_root_chord_component(cursor, len, component) &&
+		    same_root_extension_extra_tones(cursor, len, component, primary, extra_tones) &&
+		    strong_same_root_extension_tones_supported(extra_tones, display_grid, analysis_grid, powers,
+							       min_midi, max_midi)) {
+			best_start = cursor;
+			best_len = len;
+			best_component = component;
+			best_extra_tones = extra_tones;
+			break;
+		}
+		if (!end)
+			break;
+		cursor = end + 1;
+		first_component = false;
+	}
+	if (!best_start || best_len == 0)
+		return;
+
+	char promoted[sizeof(chord.label)] = {};
+	append_chord_label_component(promoted, sizeof(promoted), best_start, best_len);
+	cursor = chord.label;
+	bool skipped_promoted = false;
+	while (cursor && *cursor) {
+		const char *end = std::strchr(cursor, '=');
+		const std::size_t len =
+			end ? static_cast<std::size_t>(end - cursor) : std::strlen(cursor);
+		const bool same_component =
+			!skipped_promoted && len == best_len && std::strncmp(cursor, best_start, len) == 0;
+		if (same_component) {
+			skipped_promoted = true;
+		} else {
+			append_chord_label_component(promoted, sizeof(promoted), cursor, len);
+		}
+		if (!end)
+			break;
+		cursor = end + 1;
+	}
+	copy_text(chord.label, sizeof(chord.label), promoted);
+	chord.root = best_component.root;
+	chord.tones.fill(false);
+	chord.tones[chord.root] = true;
+	chord.tones[(chord.root + (best_component.quality == RootChordQuality::Minor ? 3 : 4)) % 12] = true;
+	chord.tones[(chord.root + 7) % 12] = true;
+	for (int pitch_class = 0; pitch_class < 12; ++pitch_class) {
+		if (best_extra_tones[static_cast<std::size_t>(pitch_class)])
+			chord.tones[static_cast<std::size_t>(pitch_class)] = true;
+	}
+	chord.uncertain = false;
+}
+
 float plain_guitar_component_primary_score(const ParsedRootChord &component,
 					   const NoteGrid &display_grid,
 					   const NoteGrid &analysis_grid)
@@ -18352,6 +18516,10 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 		prune_promoted_plain_guitar_primary_aliases(raw_guitar_chord, snapshot.guitar_notes,
 							    guitar_chord_detection_grid,
 							    raw_guitar_label_before_promotion);
+		if (!mixed_source)
+			promote_strong_same_root_guitar_extension_primary(
+				raw_guitar_chord, snapshot.guitar_notes, guitar_chord_detection_grid,
+				note_powers, min_midi, kGuitarMaxMidi);
 		set_instrument_chord(snapshot.guitar_chord, raw_guitar_chord, guitar_energy, rms,
 				     mixed_source ? kNoteRmsFloor : kPolyphonicNoteRmsFloor);
 		set_instrument_chord(snapshot.guitar_raw_chord, raw_guitar_chord, guitar_energy, rms,
@@ -18922,6 +19090,10 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 							    snapshot.guitar_notes,
 							    guitar_chord_grid,
 							    smoothed_guitar_label_before_promotion);
+		if (!mixed_source)
+			promote_strong_same_root_guitar_extension_primary(
+				smoothed_guitar_chord, snapshot.guitar_notes, guitar_chord_grid,
+				note_powers, kGuitarMinMidi, kGuitarMaxMidi);
 		if (!mixed_source &&
 		    promote_smoothed_same_root_guitar_quality(raw_guitar_chord, smoothed_guitar_chord,
 							      note_powers, kGuitarMinMidi,
