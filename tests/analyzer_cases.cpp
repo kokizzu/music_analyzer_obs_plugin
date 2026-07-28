@@ -2773,6 +2773,35 @@ void check_full_mix_single_instrument_precision(Runner &runner)
 	}
 
 	{
+		mao_test::Buffer buffer = {};
+		const std::vector<float> measured_low_organ_alias_profile =
+			{1.0f, 5.66f, 0.24f, 5.50f, 0.29f};
+		const std::vector<float> upper_keyboard_profile = {1.0f, 0.12f, 0.04f, 0.015f, 0.006f};
+		add_harmonic_note(buffer, 55, 0.10f, measured_low_organ_alias_profile);
+		add_harmonic_note(buffer, 67, 0.24f, upper_keyboard_profile);
+
+		const auto snapshot =
+			analyze_buffer_with_mode(buffer, mao::AnalysisInputMode::FullMix,
+						 "speaker measured organ bass alias with upper keyboard", 3);
+		expect_global_pitch_class(runner, snapshot, 7,
+					  "full-mix measured organ bass alias global");
+		runner.expect(grid_level_for_midi(snapshot.keyboard_notes, 67) > 0.0f,
+			      std::string("full-mix measured organ bass alias: expected keyboard G4 "
+					  "display, got keyboard `") +
+				      snapshot.keyboard.label + "`, bass `" + snapshot.bass.label +
+				      "`, debug lower `" + full_mix_debug_summary_for_midi(snapshot, 55) +
+				      "`, debug upper `" + full_mix_debug_summary_for_midi(snapshot, 67) +
+				      "`");
+		runner.expect(grid_level_for_midi(snapshot.bass_notes, 55) <= 0.0f,
+			      std::string("full-mix measured organ bass alias: expected no bass G3 "
+					  "alias, got bass `") +
+				      snapshot.bass.label + "`, keyboard `" + snapshot.keyboard.label +
+				      "`, debug lower `" + full_mix_debug_summary_for_midi(snapshot, 55) +
+				      "`, debug upper `" + full_mix_debug_summary_for_midi(snapshot, 67) +
+				      "`");
+	}
+
+	{
 		mao_test::Buffer low_alias = {};
 		mao_test::Buffer alias_with_upper_keyboard = {};
 		const std::vector<float> priming_alias_profile =

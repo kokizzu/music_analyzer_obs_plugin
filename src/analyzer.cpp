@@ -6437,6 +6437,19 @@ bool high_zero_partial_alias_candidate(const FullMixDebugCandidate &debug)
 	return true;
 }
 
+bool measured_low_keyboard_suboctave_bass_alias(const FullMixDebugCandidate &debug)
+{
+	return debug.owner != InstrumentKind::Bass &&
+	       debug.midi > kDefaultBassMaxMidi &&
+	       debug.midi <= 59 &&
+	       debug.bass_score <= 0.055f &&
+	       debug.pitch_confidence <= 0.10f &&
+	       debug.spectral_centroid <= 0.65f &&
+	       debug.harmonic_ratios[1] >= 4.50f &&
+	       debug.harmonic_ratios[2] <= 0.74f &&
+	       debug.harmonic_ratios[3] >= 1.80f;
+}
+
 bool low_bass_candidate_shadowed_by_upper_keyboard_pitch(const FullMixOwnership &ownership,
 							 const RangeResult &bass_note)
 {
@@ -6459,6 +6472,7 @@ bool low_bass_candidate_shadowed_by_upper_keyboard_pitch(const FullMixOwnership 
 		return false;
 
 	bool non_bass_low_alias = false;
+	bool measured_low_keyboard_alias = false;
 	bool upper_keyboard_debug = false;
 	bool real_bass_debug = false;
 	const std::size_t debug_count =
@@ -6483,13 +6497,18 @@ bool low_bass_candidate_shadowed_by_upper_keyboard_pitch(const FullMixOwnership 
 		    debug.pitch_confidence >= 0.18f)
 			non_bass_low_alias = true;
 
+		if (std::abs(debug.midi - bass_note.midi) <= 1 &&
+		    measured_low_keyboard_suboctave_bass_alias(debug))
+			measured_low_keyboard_alias = true;
+
 		if (debug.midi >= bass_note.midi + 12 &&
 		    (debug.owner == InstrumentKind::Keyboard || debug.keyboard_score >= 0.45f) &&
 		    debug.spectral_level >= 0.25f)
 			upper_keyboard_debug = true;
 	}
 
-	return non_bass_low_alias && upper_keyboard_debug && !real_bass_debug;
+	return ((non_bass_low_alias && upper_keyboard_debug) || measured_low_keyboard_alias) &&
+	       !real_bass_debug;
 }
 
 float tracked_note_envelope(const std::array<NoteTrackingState, kNoteProbeCount> &tracking, int midi)
