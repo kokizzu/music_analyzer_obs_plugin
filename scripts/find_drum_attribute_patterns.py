@@ -676,15 +676,51 @@ def parse_route(route: str) -> tuple[str, str]:
     return match.group(1), match.group(2)
 
 
-def top_routes(rows: list[dict[str, str]], limit: int) -> list[tuple[str, str]]:
+def route_positive_rows(
+    rows: list[dict[str, str]],
+    route: tuple[str, str],
+    include_merged_positives: bool,
+) -> list[dict[str, str]]:
+    expected, got = route
+    return [
+        row for row in rows
+        if row.get("expected") == expected
+        and row.get("primary") == got
+        and (include_merged_positives or row.get("merged_expected") != "1")
+    ]
+
+
+def route_sample_count(rows: list[dict[str, str]]) -> int:
+    return len({sample_key(row) for row in rows})
+
+
+def top_routes(
+    rows: list[dict[str, str]],
+    limit: int,
+    min_positive_samples: int,
+    min_positive_rows: int,
+    include_merged_positives: bool,
+) -> list[tuple[str, str]]:
     counts: Counter[tuple[str, str]] = Counter()
+    route_sample_keys: dict[tuple[str, str], set[str]] = {}
     for row in rows:
         expected = row.get("expected", "")
         got = row.get("primary", "")
         if not expected or not got or expected == got:
             continue
+        if not include_merged_positives and row.get("merged_expected") == "1":
+            continue
         counts[(expected, got)] += 1
-    return [route for route, _count in counts.most_common(max(1, limit))]
+        route_sample_keys.setdefault((expected, got), set()).add(sample_key(row))
+    routes = []
+    for route, row_count in counts.most_common():
+        sample_count = len(route_sample_keys.get(route, set()))
+        if sample_count < min_positive_samples or row_count < min_positive_rows:
+            continue
+        routes.append(route)
+        if len(routes) >= max(1, limit):
+            break
+    return routes
 
 
 def format_example(row: dict[str, str]) -> str:
@@ -734,12 +770,7 @@ def print_route_patterns(
     include_merged_positives: bool,
 ) -> None:
     expected, got = route
-    positive_rows = [
-        row for row in rows
-        if row.get("expected") == expected
-        and row.get("primary") == got
-        and (include_merged_positives or row.get("merged_expected") != "1")
-    ]
+    positive_rows = route_positive_rows(rows, route, include_merged_positives)
     negative_rows = [
         row for row in rows
         if (
@@ -878,6 +909,18 @@ def main() -> int:
     parser.add_argument("--top-routes", type=int, default=5)
     parser.add_argument("--limit", type=int, default=10)
     parser.add_argument("--min-positive-samples", type=int, default=3)
+    parser.add_argument(
+        "--min-route-positive-samples",
+        type=int,
+        default=0,
+        help="skip route searches with fewer positive samples before mining candidate rules",
+    )
+    parser.add_argument(
+        "--min-route-positive-rows",
+        type=int,
+        default=0,
+        help="skip route searches with fewer positive rows before mining candidate rules",
+    )
     parser.add_argument("--max-negative-samples", type=int, default=0)
     parser.add_argument("--max-conditions", type=int, default=3)
     parser.add_argument("--beam-width", type=int, default=220)
@@ -901,13 +944,38 @@ def main() -> int:
         source = path.stem if source_stem_counts[path.stem] == 1 else path.as_posix()
         rows.extend(parse_rows(path, source))
     merged_rows = sum(1 for row in rows if row.get("merged_expected") == "1")
-    routes = [parse_route(route) for route in args.route] if args.route else top_routes(rows, args.top_routes)
+    min_route_positive_samples = max(0, args.min_route_positive_samples)
+    min_route_positive_rows = max(0, args.min_route_positive_rows)
+    routes = (
+        [parse_route(route) for route in args.route]
+        if args.route
+        else top_routes(
+            rows,
+            args.top_routes,
+            min_route_positive_samples,
+            min_route_positive_rows,
+            args.include_merged_rows,
+        )
+    )
     print("candidate rules are attribute selectors; rerun analyzer gates to validate runtime level and primary-label effects")
     if merged_rows and not args.include_merged_rows:
         print(
             f"protecting merged expected-credit rows={merged_rows}; pass --include-merged-rows to mine them"
         )
+    if not routes:
+        print("no routes matched the route-level positive thresholds")
+        return 0
     for route in routes:
+        route_rows = route_positive_rows(rows, route, args.include_merged_rows)
+        route_samples = route_sample_count(route_rows)
+        if route_samples < min_route_positive_samples or len(route_rows) < min_route_positive_rows:
+            expected, got = route
+            print(
+                f"route {expected}->{got} skipped: positives={route_samples} rows={len(route_rows)} "
+                f"below min-route-positive-samples={min_route_positive_samples} "
+                f"min-route-positive-rows={min_route_positive_rows}"
+            )
+            continue
         print_route_patterns(
             rows,
             route,

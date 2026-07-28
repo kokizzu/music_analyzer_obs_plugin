@@ -119,13 +119,13 @@ def tsv_row(
 def run_patterns(
     *paths: pathlib.Path, include_merged_rows: bool = False, row_examples: int = 1,
     max_conditions: int = 3, route_name: str = "tom->kick", show_near_misses: int = 0,
+    min_route_positive_samples: int = 0, min_route_positive_rows: int = 0,
+    use_top_routes: bool = False, top_routes: int = 5,
 ) -> str:
     command = [
         sys.executable,
         str(SCRIPT),
         *(str(path) for path in paths),
-        "--route",
-        route_name,
         "--min-positive-samples",
         "2",
         "--max-negative-samples",
@@ -135,6 +135,14 @@ def run_patterns(
         "--row-examples",
         str(row_examples),
     ]
+    if use_top_routes:
+        command.extend(["--top-routes", str(top_routes)])
+    else:
+        command.extend(["--route", route_name])
+    if min_route_positive_samples > 0:
+        command.extend(["--min-route-positive-samples", str(min_route_positive_samples)])
+    if min_route_positive_rows > 0:
+        command.extend(["--min-route-positive-rows", str(min_route_positive_rows)])
     if show_near_misses > 0:
         command.extend(["--show-near-misses", str(show_near_misses)])
     if include_merged_rows:
@@ -258,6 +266,25 @@ def main() -> int:
             encoding="utf-8",
         )
         near_miss_output = run_patterns(near_miss_path, row_examples=0, show_near_misses=2)
+        skipped_route_output = run_patterns(
+            near_miss_path,
+            row_examples=0,
+            min_route_positive_samples=3,
+        )
+        top_route_filtered_output = run_patterns(
+            near_miss_path,
+            row_examples=0,
+            use_top_routes=True,
+            top_routes=4,
+            min_route_positive_samples=2,
+        )
+        top_route_empty_output = run_patterns(
+            near_miss_path,
+            row_examples=0,
+            use_top_routes=True,
+            top_routes=4,
+            min_route_positive_samples=10,
+        )
 
     assert "route tom->kick positives=2 rows=2 protected_correct=4 rows=4" in output
     assert "protecting merged expected-credit rows=1; pass --include-merged-rows to mine them" in output
@@ -289,6 +316,13 @@ def main() -> int:
     assert "\n  --\n" in near_miss_output
     assert "nearest over-budget single-condition candidate rules:" in near_miss_output
     assert "+2 rows=2 -1 rows=1" in near_miss_output
+    assert (
+        "route tom->kick skipped: positives=2 rows=2 "
+        "below min-route-positive-samples=3 min-route-positive-rows=0"
+    ) in skipped_route_output
+    assert "route tom->kick positives=" not in skipped_route_output
+    assert "route tom->kick" in top_route_filtered_output
+    assert "no routes matched the route-level positive thresholds" in top_route_empty_output
     print("test_find_drum_attribute_patterns: ok")
     return 0
 
