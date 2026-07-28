@@ -12187,6 +12187,13 @@ void promote_supported_plain_guitar_primary(ChordResult &chord, const NoteGrid &
 		cursor = end + 1;
 	}
 	copy_text(chord.label, sizeof(chord.label), promoted);
+	const ChordResult promoted_primary =
+		make_guitar_plain_triad(best_component.root,
+					 best_component.quality == RootChordQuality::Minor,
+					 chord.confidence);
+	chord.root = promoted_primary.root;
+	chord.tones = promoted_primary.tones;
+	chord.uncertain = false;
 }
 
 void prune_clean_primary_guitar_aliases(ChordResult &chord, const NoteGrid &display_grid,
