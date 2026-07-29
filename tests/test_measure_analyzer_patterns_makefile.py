@@ -210,11 +210,15 @@ def main() -> int:
     assert "$(RUN_WITH_DURATION) test_fast" in default_test_recipe, (
         "default test target must report the fast parallel aggregate duration"
     )
-    assert "$(MAKE) $(PARALLEL_TEST_MAKE_JOBS) test-parallel test-detector-samples-parallel test-fret-control test-real-goal-fixture" in default_test_recipe, (
-        "default test target must fan out independent test groups together"
+    assert "$(MAKE) $(PARALLEL_TEST_MAKE_JOBS) test-parallel test-detector-samples-parallel test-fret-control test-real-goal-fixture test-fixtures-parallel-isolated" in default_test_recipe, (
+        "default test target must fan out independent test groups and isolated fixtures together"
     )
-    assert "$(MAKE) test-fixtures-parallel" in default_test_recipe, (
-        "default test target must still run the fixture aggregate"
+    isolated_fixture_recipe = target_recipe(makefile, "test-fixtures-parallel-isolated")
+    assert "$(RUN_WITH_DURATION) test_fixtures_parallel_isolated" in isolated_fixture_recipe, (
+        "isolated fixture target must report aggregate duration"
+    )
+    assert 'REAL_GOAL_FIXTURE_DIR="$(REAL_GOAL_PARALLEL_FIXTURE_DIR)" test-fixtures-parallel' in isolated_fixture_recipe, (
+        "isolated fixture target must run fixtures under a separate real-goal root"
     )
     assert "$(MAKE) test-instrument-samples\n" not in default_test_recipe, (
         "default test target must not run generated instrument samples serially"

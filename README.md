@@ -288,11 +288,12 @@ make test
 PARALLEL_TEST_JOBS=8 make test
 ```
 
-`make test` runs the script/core/standalone/detector group and the combined
-real-goal fixture gate in the first jobserver fanout, then runs the smaller
-fixture aggregate afterward. The smaller fixture aggregate still fans out
-internally, but it is kept after the real-goal fixture because several fixture
-targets reuse subdirectories under `build/real-goal-fixture`.
+`make test` runs the script/core/standalone/detector group, the combined
+real-goal fixture gate, and the smaller fixture aggregate in the first
+jobserver fanout. The smaller fixture aggregate runs through
+`test-fixtures-parallel-isolated`, which uses `build/real-goal-fixture-parallel`
+so its fixture generators cannot race the combined real-goal fixture target that
+writes `build/real-goal-fixture`.
 
 For a faster local loop over the parallel-safe script checks, core analyzer binaries, and standalone isolation checks:
 
