@@ -10153,6 +10153,27 @@ float full_mix_debug_other_note_score(const FullMixOwnership &ownership, int mid
 	return best;
 }
 
+bool full_mix_debug_other_fundamental_primary_supported(const FullMixOwnership &ownership, int midi)
+{
+	const std::size_t debug_count =
+		std::min<std::size_t>(ownership.debug_candidate_count, ownership.debug_candidates.size());
+	for (std::size_t i = 0; i < debug_count; ++i) {
+		const FullMixDebugCandidate &debug = ownership.debug_candidates[i];
+		if (debug.midi != midi || debug.owner != InstrumentKind::Other)
+			continue;
+		if (debug.ownership_confidence < 0.70f)
+			continue;
+		const bool fundamental_shape =
+			debug.harmonicity >= 1.0f ||
+			debug.harmonic_fit_error >= 0.20f ||
+			debug.harmonic_ratios[1] >= 0.80f ||
+			debug.local_noise_level >= 0.080f;
+		if (fundamental_shape)
+			return true;
+	}
+	return false;
+}
+
 void prefer_debug_supported_lower_other_octave_primary(NoteGrid &grid, InstrumentState &state,
 						       const FullMixOwnership &ownership,
 						       int min_midi, int preferred_root)
@@ -10560,7 +10581,7 @@ void prefer_probe_supported_lower_string_primary(NoteGrid &grid, InstrumentState
 		}
 		if (!primary.active)
 			continue;
-		if (full_mix_debug_other_note_score(ownership, primary.midi) >= 0.80f)
+		if (full_mix_debug_other_fundamental_primary_supported(ownership, primary.midi))
 			continue;
 
 		const float primary_probe = probe_level(powers, primary.midi);
@@ -10578,9 +10599,9 @@ void prefer_probe_supported_lower_string_primary(NoteGrid &grid, InstrumentState
 			const float lower_probe = probe_level(powers, lower_midi);
 			const float lower_ratio = lower_probe / primary_probe;
 			const bool direct_octave_supported =
-				octave_delta == 12 && primary.midi >= 60 && lower_ratio >= 0.10f;
+				octave_delta == 12 && primary.midi >= 60 && lower_ratio >= 0.040f;
 			const bool double_octave_supported =
-				octave_delta == 24 && primary.midi >= 72 && lower_ratio >= 0.20f &&
+				octave_delta == 24 && primary.midi >= 72 && lower_ratio >= 0.080f &&
 				note_grid_midi_level(grid, primary.midi - 12) >= primary.level * 0.55f;
 			if (!direct_octave_supported && !double_octave_supported)
 				continue;
