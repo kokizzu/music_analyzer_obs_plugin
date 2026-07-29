@@ -269,6 +269,7 @@ def protected_false_promotions(
     absolute_floor: float,
     source: str,
     mode: str = "any_power",
+    max_label_count: int | None = None,
 ) -> list[tuple[dict[str, str], str]]:
     false_promotions: list[tuple[dict[str, str], str]] = []
     for row in rows:
@@ -278,6 +279,8 @@ def protected_false_promotions(
         if not expected:
             continue
         displayed_labels = split_labels(row.get("guitar_chord", ""))
+        if max_label_count is not None and len(displayed_labels) > max_label_count:
+            continue
         for label in displayed_labels:
             if not is_power_label(label):
                 continue
@@ -391,7 +394,9 @@ def summarize(path: pathlib.Path, examples: int, limit: int) -> list[str]:
                 f"  floor=max(anchor*{ratio:.3f},0.005) recover={len(candidates)} "
                 f"same_root_pow={len(power_candidates)} protected_false={len(false_promotions)} "
                 f"first_power={len(first_power_candidates)}/{len(first_power_false)} "
-                f"primary_power={len(primary_power_candidates)}/{len(primary_power_false)}"
+                f"primary_power={len(primary_power_candidates)}/{len(primary_power_false)} "
+                f"labels<=5={len([row for row in candidates if len(split_labels(row.get('guitar_chord', ''))) <= 5])}/"
+                f"{len(protected_false_promotions(protected_rows, ratio, 0.005, source, 'any_power', 5))}"
             )
             for row in candidates[: min(examples, limit)]:
                 levels = source_levels(row, source)

@@ -107,6 +107,7 @@ def main() -> int:
         assert "internal-probe same-root promotion simulation" in output
         assert "test-raw-profile same-root promotion simulation" in output
         assert "floor=max(anchor*0.020,0.005) recover=2 same_root_pow=1 protected_false=0" in output
+        assert "labels<=5=2/0" in output
         assert (
             "protected protected_power_false expected=G got=Gpow=G promoted=Gm"
             not in output

@@ -1189,9 +1189,27 @@ void check_guitar_supported_extension_aliases(Runner &runner)
 					       {0, 1, 3, 4, 7, 11}) +
 			      "`");
 	expect_no_chord_label(runner, flanked_thirdless_named_dyad_snapshot.guitar_chord.label, "C",
-			      "guitar root-flanked thirdless dyad major alias");
+			      std::string("guitar root-flanked thirdless dyad major alias probe `") +
+				      pitch_level_list(
+					      flanked_thirdless_named_dyad_snapshot.guitar_chord_debug_probe_levels,
+					      {0, 1, 3, 4, 7, 11}) +
+				      "` melodic `" +
+				      pitch_level_list(
+					      flanked_thirdless_named_dyad_snapshot
+						      .guitar_chord_debug_melodic_probe_levels,
+					      {0, 1, 3, 4, 7, 11}) +
+				      "`");
 	expect_no_chord_label(runner, flanked_thirdless_named_dyad_snapshot.guitar_chord.label, "Cm",
-			      "guitar root-flanked thirdless dyad minor alias");
+			      std::string("guitar root-flanked thirdless dyad minor alias probe `") +
+				      pitch_level_list(
+					      flanked_thirdless_named_dyad_snapshot.guitar_chord_debug_probe_levels,
+					      {0, 1, 3, 4, 7, 11}) +
+				      "` melodic `" +
+				      pitch_level_list(
+					      flanked_thirdless_named_dyad_snapshot
+						      .guitar_chord_debug_melodic_probe_levels,
+					      {0, 1, 3, 4, 7, 11}) +
+				      "`");
 
 	mao_test::Buffer full_triad = {};
 	for (int midi : {48, 52, 55})
@@ -1423,6 +1441,13 @@ void check_guitar_supported_extension_aliases(Runner &runner)
 				      ambiguous_weak_thirds_snapshot.guitar_smoothed_chord.label + "` notes `" +
 				      ambiguous_weak_thirds_snapshot.guitar.label + "` analysis `" +
 				      note_grid_pitch_classes(ambiguous_weak_thirds_snapshot.guitar_chord_analysis_notes) +
+				      "` probe `" +
+				      pitch_level_list(ambiguous_weak_thirds_snapshot.guitar_chord_debug_probe_levels,
+						       {0, 3, 4, 7}) +
+				      "` melodic `" +
+				      pitch_level_list(
+					      ambiguous_weak_thirds_snapshot.guitar_chord_debug_melodic_probe_levels,
+					      {0, 3, 4, 7}) +
 				      "`");
 	expect_no_chord_label(runner, ambiguous_weak_thirds_snapshot.guitar_chord.label, "Cm",
 			      std::string("guitar ambiguous weak thirds minor alias raw `") +
@@ -1430,6 +1455,13 @@ void check_guitar_supported_extension_aliases(Runner &runner)
 				      ambiguous_weak_thirds_snapshot.guitar_smoothed_chord.label + "` notes `" +
 				      ambiguous_weak_thirds_snapshot.guitar.label + "` analysis `" +
 				      note_grid_pitch_classes(ambiguous_weak_thirds_snapshot.guitar_chord_analysis_notes) +
+				      "` probe `" +
+				      pitch_level_list(ambiguous_weak_thirds_snapshot.guitar_chord_debug_probe_levels,
+						       {0, 3, 4, 7}) +
+				      "` melodic `" +
+				      pitch_level_list(
+					      ambiguous_weak_thirds_snapshot.guitar_chord_debug_melodic_probe_levels,
+					      {0, 3, 4, 7}) +
 				      "`");
 
 	mao_test::Buffer weak_dim_shape = {};
