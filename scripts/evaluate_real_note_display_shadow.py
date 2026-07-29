@@ -322,8 +322,8 @@ def shadow_rule_matches(record: dict[str, str], rule: str) -> bool:
             and owner_is_shadow
             and shadow_score >= 0.24
             and target_score <= shadow_score * 0.15
-            and target_level <= shadow_level * 0.721
-            and periodicity >= 0.70
+            and target_level <= shadow_level * 0.72
+            and periodicity >= 0.66
         )
     if rule == "runtime_keyboard_bass_weak":
         return (

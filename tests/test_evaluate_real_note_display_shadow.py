@@ -209,6 +209,28 @@ def main() -> int:
                 other_notes="",
             ),
             row(
+                sample_id="measured_guitar_bass_relaxed_periodicity",
+                family="piano",
+                source="electronic",
+                expected_note="F3",
+                expected_midi="53",
+                first_row="guitar",
+                debug_note="F3",
+                debug_midi="53",
+                debug_owner="guitar",
+                bass_score="0.00",
+                keyboard_score="0.00",
+                guitar_score="0.30",
+                vocal_score="0.00",
+                other_score="0.00",
+                periodicity="0.67",
+                bass_notes="F3:0.71",
+                guitar_notes="F3:1.00",
+                piano_notes="",
+                vocal_notes="",
+                other_notes="",
+            ),
+            row(
                 sample_id="measured_guitar_bass_protected",
                 family="bass",
                 source="electronic",
@@ -546,9 +568,9 @@ def main() -> int:
     assert "guitar->same-pitch piano extras rows=1 samples=1" in all_rows_output, all_rows_output
     assert "piano->same-pitch piano" not in all_rows_output, all_rows_output
     measured_runtime_output = measured_runtime_result.stdout
-    assert "guitar->same-pitch bass extras rows=1 samples=1" in measured_runtime_output, measured_runtime_output
+    assert "guitar->same-pitch bass extras rows=2 samples=2" in measured_runtime_output, measured_runtime_output
     assert (
-        "runtime_guitar_bass_measured extras=1/1 protected=0/1 precision=100.0% protected_rate=0.0%"
+        "runtime_guitar_bass_measured extras=2/2 protected=0/1 precision=100.0% protected_rate=0.0%"
     ) in measured_runtime_output, measured_runtime_output
     return 0
 
