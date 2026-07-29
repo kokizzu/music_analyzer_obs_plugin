@@ -1,0 +1,100 @@
+#!/usr/bin/env python3
+
+from __future__ import annotations
+
+import pathlib
+import subprocess
+import sys
+import tempfile
+
+
+ROOT = pathlib.Path(__file__).resolve().parents[1]
+SCRIPT = ROOT / "scripts" / "filter_drum_attribute_rows.py"
+
+
+def write(path: pathlib.Path, text: str) -> pathlib.Path:
+    path.write_text(text.strip() + "\n", encoding="utf-8")
+    return path
+
+
+def main() -> int:
+    with tempfile.TemporaryDirectory() as tmpdir:
+        root = pathlib.Path(tmpdir)
+        rows = write(
+            root / "drums.tsv",
+            """
+sample	expected	got	energy_low	energy_mid	energy_high	kick_body	snare_body	tom_body	snare_crack	upper_tom_body	body_shape	kick_level	kick_trigger	kick_threshold	kick_shape	kick_band	kick_seg	kick_shape_score	snare_level	snare_trigger	snare_threshold	snare_shape	snare_band	snare_seg	snare_shape_score	tom_level	tom_trigger	tom_threshold	tom_shape	tom_band	tom_seg	tom_shape_score	merged_expected
+tom/a.wav	tom	snare	0.25	0.56	0.19	10	20	32	4	20	4	0.0	10	1.42	0	3	4	5	0.98	20	1.42	1	30	40	50	0.68	16	1.42	1	45	60	65	0
+snare/b.wav	snare	snare	0.12	0.70	0.18	6	30	35	20	16	1	0.0	6	1.42	0	1	2	3	0.95	30	1.42	1	20	21	22	0.20	8	1.42	0	6	7	8	0
+kick/c.wav	kick	tom	0.80	0.15	0.05	40	18	50	2	30	0	0.82	12	1.42	1	12	12	13	0.10	5	1.42	0	5	5	5	0.90	14	1.42	1	44	45	46	1
+            """,
+        )
+
+        route = subprocess.run(
+            [
+                sys.executable,
+                str(SCRIPT),
+                str(rows),
+                "--route",
+                "tom:snare",
+                "--columns",
+                "sample,expected,got,status,expected_level,got_level,tom_snare_body_ratio,upper_tom_crack_ratio",
+            ],
+            cwd=ROOT,
+            check=True,
+            text=True,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+        ).stdout
+        assert "tom/a.wav\ttom\tsnare\tmiss\t0.68\t0.98\t1.600000\t5.000000" in route
+        assert "count\t1" in route
+
+        counts = subprocess.run(
+            [
+                sys.executable,
+                str(SCRIPT),
+                str(rows),
+                "--status",
+                "miss",
+                "--count-by",
+                "expected",
+                "--count-by",
+                "got",
+            ],
+            cwd=ROOT,
+            check=True,
+            text=True,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+        ).stdout
+        assert "tom\tsnare\t1" in counts
+        assert "kick\ttom\t1" in counts
+        assert "count\t2" in counts
+
+        numeric = subprocess.run(
+            [
+                sys.executable,
+                str(SCRIPT),
+                str(rows),
+                "--min",
+                "tom_snare_body_ratio=2.0",
+                "--max",
+                "energy_high=0.10",
+                "--columns",
+                "sample,tom_snare_body_ratio,energy_high",
+            ],
+            cwd=ROOT,
+            check=True,
+            text=True,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+        ).stdout
+        assert "kick/c.wav\t2.777778\t0.05" in numeric
+        assert "count\t1" in numeric
+
+    print("test_filter_drum_attribute_rows: ok")
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())
