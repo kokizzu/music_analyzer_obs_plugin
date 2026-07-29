@@ -54,6 +54,7 @@ class State:
 @dataclasses.dataclass(frozen=True)
 class Result:
     rule: str
+    constraints: tuple[Constraint, ...]
     positive_rows: int
     positive_samples: int
     protected_rows: int
@@ -345,6 +346,7 @@ def result_from_state(
 ) -> Result:
     return Result(
         rule=" AND ".join(state.labels),
+        constraints=state.constraints,
         positive_rows=state.positive_mask.bit_count(),
         positive_samples=sample_count(state.positive_mask, positive_bits),
         protected_rows=state.protected_mask.bit_count(),
@@ -556,28 +558,125 @@ def route_text(rows: list[dict[str, str]], route: tuple[str, str], settings: Set
             ][: settings.show_near_misses]
             if near:
                 print("  nearest over-budget rules:")
-                print_results(near, active, settings.show_examples)
+                print_results(near, active, settings.show_examples, protected_rows, 0)
             return buffer.getvalue()
-        print_results(accepted, active, settings.show_examples)
+        print_results(
+            accepted,
+            active,
+            settings.show_examples,
+            protected_rows,
+            settings.show_near_misses,
+        )
     return buffer.getvalue()
 
 
-def print_results(results: list[Result], active: str, show_examples: int) -> None:
+def constraint_distance(row: dict[str, str], constraints: tuple[Constraint, ...]) -> tuple[int, float] | None:
+    misses = 0
+    score = 0.0
+    for constraint in constraints:
+        if constraint.kind == "category":
+            if row.get(constraint.field, "") != str(constraint.value):
+                return None
+            continue
+        value = as_float(row, constraint.field)
+        if value is None:
+            return None
+        threshold = float(constraint.value)
+        scale = max(1.0, abs(threshold))
+        if constraint.kind == "upper":
+            distance = max(0.0, value - threshold)
+        elif constraint.kind == "lower":
+            distance = max(0.0, threshold - value)
+        else:
+            continue
+        if distance > 0.0:
+            misses += 1
+            score += distance / scale
+    return misses, score
+
+
+def nearest_protected_examples(
+    protected_rows: list[dict[str, str]],
+    result: Result,
+    limit: int,
+) -> list[dict[str, str]]:
+    if limit <= 0 or not result.constraints:
+        return []
+    excluded = {sample_key(row) for row in result.protected_examples}
+    candidates: list[tuple[int, float, str, dict[str, str]]] = []
+    seen: set[str] = set()
+    for row in protected_rows:
+        key = sample_key(row)
+        if key in seen or key in excluded:
+            continue
+        distance = constraint_distance(row, result.constraints)
+        if distance is None:
+            continue
+        seen.add(key)
+        misses, score = distance
+        candidates.append((misses, score, key, row))
+    candidates.sort(key=lambda item: (item[0], item[1], item[2]))
+    return [row for _misses, _score, _key, row in candidates[:limit]]
+
+
+def format_constraint_status(row: dict[str, str], constraint: Constraint) -> str:
+    if constraint.kind == "category":
+        value = row.get(constraint.field, "") or "-"
+        expected = str(constraint.value)
+        status = "ok" if value == expected else f"want {expected}"
+        return f"{constraint.field}={value} {status}"
+    value = as_float(row, constraint.field)
+    if value is None:
+        return f"{constraint.field}=-"
+    threshold = float(constraint.value)
+    if constraint.kind == "upper":
+        delta = value - threshold
+        status = "ok" if delta <= 0.0 else f"+{format_value(delta)}"
+        return (
+            f"{constraint.field}={value_text(row, constraint.field)} "
+            f"<= {format_value(threshold)} {status}"
+        )
+    if constraint.kind == "lower":
+        delta = threshold - value
+        status = "ok" if delta <= 0.0 else f"-{format_value(delta)}"
+        return (
+            f"{constraint.field}={value_text(row, constraint.field)} "
+            f">= {format_value(threshold)} {status}"
+        )
+    return constraint.field
+
+
+def format_near_example(row: dict[str, str], active: str, constraints: tuple[Constraint, ...]) -> str:
+    statuses = " ".join(format_constraint_status(row, constraint) for constraint in constraints)
+    return f"{format_example(row, active)} near: {statuses}"
+
+
+def print_results(
+    results: list[Result],
+    active: str,
+    show_examples: int,
+    protected_rows: list[dict[str, str]],
+    show_near_misses: int,
+) -> None:
     for result in results:
         print(
             f"  +{result.positive_samples} rows={result.positive_rows} "
             f"-{result.protected_samples} rows={result.protected_rows} :: {result.rule}"
         )
-        if show_examples <= 0:
-            continue
-        if result.positive_examples:
-            print("    false-active examples:")
-            for row in result.positive_examples:
-                print(f"      {format_example(row, active)}")
-        if result.protected_examples:
-            print("    protected true-active examples:")
-            for row in result.protected_examples:
-                print(f"      {format_example(row, active)}")
+        if show_examples > 0:
+            if result.positive_examples:
+                print("    false-active examples:")
+                for row in result.positive_examples:
+                    print(f"      {format_example(row, active)}")
+            if result.protected_examples:
+                print("    protected true-active examples:")
+                for row in result.protected_examples:
+                    print(f"      {format_example(row, active)}")
+        near_examples = nearest_protected_examples(protected_rows, result, show_near_misses)
+        if near_examples:
+            print("    nearest protected true-active near misses:")
+            for row in near_examples:
+                print(f"      {format_near_example(row, active, result.constraints)}")
 
 
 def worker(task: tuple[int, list[dict[str, str]], tuple[str, str], Settings]) -> tuple[int, str]:

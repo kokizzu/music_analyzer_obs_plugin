@@ -100,6 +100,47 @@ def main() -> int:
     require(output, "route kick->snare positives=2 rows=2 protected_true_snare=2 rows=2")
     require(output, "nearest over-budget rules:")
     require(output, "+2 rows=2 -2 rows=2")
+
+    accepted_near_rows = [
+        "kick/near-a.wav\tkick\tkick\t1\t0.80\t0.10\t0.10\t0.50\t10\t1.0\t1.0\t0.60\t10\t1.0\t1.0\t0\t0\t0\t1\t0\t0\t0\t1\t0\t0\t0\t1\t0\t0\t0\t1\t0\t0\t0\t1",
+        "kick/near-b.wav\tkick\tkick\t1\t0.81\t0.10\t0.10\t0.50\t10\t1.0\t1.0\t0.61\t10\t1.0\t1.0\t0\t0\t0\t1\t0\t0\t0\t1\t0\t0\t0\t1\t0\t0\t0\t1\t0\t0\t0\t1",
+        "snare/near-a.wav\tsnare\tsnare\t1\t0.83\t0.10\t0.10\t0.50\t10\t1.0\t1.0\t0.90\t10\t1.0\t1.0\t0\t0\t0\t1\t0\t0\t0\t1\t0\t0\t0\t1\t0\t0\t0\t1\t0\t0\t0\t1",
+        "snare/near-b.wav\tsnare\tsnare\t1\t0.84\t0.10\t0.10\t0.50\t10\t1.0\t1.0\t0.88\t10\t1.0\t1.0\t0\t0\t0\t1\t0\t0\t0\t1\t0\t0\t0\t1\t0\t0\t0\t1\t0\t0\t0\t1",
+    ]
+    with tempfile.TemporaryDirectory() as tmpdir:
+        table = pathlib.Path(tmpdir) / "accepted-near.tsv"
+        table.write_text(header + "\n" + "\n".join(accepted_near_rows) + "\n", encoding="utf-8")
+        completed = subprocess.run(
+            [
+                sys.executable,
+                str(SCRIPT),
+                str(table),
+                "--route",
+                "kick->snare",
+                "--min-positive-samples",
+                "2",
+                "--max-protected-samples",
+                "0",
+                "--max-conditions",
+                "1",
+                "--protected-margin",
+                "0",
+                "--show-near-misses",
+                "1",
+                "--limit",
+                "1",
+            ],
+            cwd=ROOT,
+            check=True,
+            text=True,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+        )
+    output = completed.stdout
+    require(output, "route kick->snare positives=2 rows=2 protected_true_snare=2 rows=2")
+    require(output, "nearest protected true-active near misses:")
+    require(output, "snare/near-a.wav snare->snare")
+    require(output, "low=0.83 <= 0.81 +0.02")
     print("test_find_drum_active_false_patterns: ok")
     return 0
 
