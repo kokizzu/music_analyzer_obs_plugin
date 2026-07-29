@@ -14770,6 +14770,57 @@ void append_unique_chord_components(char *dst, std::size_t dst_size, const char 
 	}
 }
 
+void promote_displayed_smoothed_power_guitar_primary(InstrumentState &state,
+						     const ChordResult &smoothed,
+						     const NoteGrid &display_grid,
+						     const NoteGrid &analysis_grid)
+{
+	if (!state.label[0] || state.label[0] == '-' || !valid_chord_result(smoothed) ||
+	    !primary_chord_is_plain_major_minor(smoothed) ||
+	    smoothed.confidence < state.confidence * 0.80f)
+		return;
+
+	ParsedRootChord displayed_primary;
+	if (!parse_root_chord_component(state.label, std::strcspn(state.label, "="),
+					displayed_primary))
+		return;
+
+	ParsedRootChord smoothed_primary;
+	const std::size_t smoothed_len = std::strcspn(smoothed.label, "=");
+	if (!parse_plain_major_minor_component(smoothed.label, smoothed_len, smoothed_primary) ||
+	    displayed_primary.root == smoothed_primary.root ||
+	    !label_has_same_root_power_component(state.label, smoothed_primary.root) ||
+	    !chord_label_has_component(state.label, smoothed.label, smoothed_len))
+		return;
+
+	const bool minor = smoothed_primary.quality == RootChordQuality::Minor;
+	const ChordResult candidate = make_guitar_plain_triad(smoothed_primary.root, minor,
+							      smoothed.confidence);
+	if (note_grid_chord_tone_count(display_grid, candidate) < 3 ||
+	    note_grid_chord_tone_count(analysis_grid, candidate) < 3)
+		return;
+
+	const float current_score =
+		(displayed_primary.quality == RootChordQuality::Major ||
+		 displayed_primary.quality == RootChordQuality::Minor) ?
+			plain_guitar_component_primary_score(displayed_primary, display_grid,
+							     analysis_grid) :
+			-1.0f;
+	const float candidate_score =
+		plain_guitar_component_primary_score(smoothed_primary, display_grid, analysis_grid) + 0.72f;
+	if (candidate_score < current_score + 0.18f)
+		return;
+
+	const char *suffix = minor ? "m" : "";
+	char alias[16] = {};
+	std::snprintf(alias, sizeof(alias), "%s%s", note_name(smoothed_primary.root), suffix);
+	char promoted[sizeof(state.label)] = {};
+	append_chord_label_component(promoted, sizeof(promoted), alias, std::strlen(alias));
+	append_unique_chord_components(promoted, sizeof(promoted), state.label, alias);
+	copy_text(state.label, sizeof(state.label), promoted);
+	state.confidence = std::max(state.confidence, smoothed.confidence);
+}
+
 bool promote_smoothed_same_root_guitar_quality(
 	ChordResult &raw, const ChordResult &smoothed,
 	const std::array<float, kNoteProbeCount> &powers, int min_midi, int max_midi)
@@ -19543,6 +19594,10 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 				     mixed_source ? kNoteRmsFloor : kPolyphonicNoteRmsFloor);
 		stabilize_chord(snapshot.guitar_chord, guitar_chord_tracking_, raw_guitar_chord,
 				smoothed_guitar_chord, true, interval_seconds, true, false, !mixed_source);
+		if (!mixed_source)
+			promote_displayed_smoothed_power_guitar_primary(
+				snapshot.guitar_chord, smoothed_guitar_chord,
+				snapshot.guitar_notes, guitar_chord_detection_grid);
 		promote_low_guitar_display_fundamentals(snapshot.guitar_notes, snapshot.guitar,
 							snapshot.guitar_chord_analysis_notes, -1);
 	} else {
