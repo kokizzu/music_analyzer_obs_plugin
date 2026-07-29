@@ -47,6 +47,7 @@ MEASURE_ANALYZER_PATTERN_INSTRUMENT_STATUS_REPORT := $(BUILD_DIR)/measure_analyz
 MEASURE_ANALYZER_PATTERN_REAL_NOTE_REPORT := $(BUILD_DIR)/measure_analyzer_pattern_real_note.txt
 MEASURE_ANALYZER_PATTERN_REAL_NOTE_ROW_CONFUSION_REPORT := $(BUILD_DIR)/measure_analyzer_pattern_real_note_row_confusion.txt
 MEASURE_ANALYZER_PATTERN_GUITAR_CHORD_REPORT := $(BUILD_DIR)/measure_analyzer_pattern_guitar_chord.txt
+MEASURE_ANALYZER_PATTERN_GUITAR_PRIMARY_ORDER_REPORT := $(BUILD_DIR)/measure_analyzer_pattern_guitar_primary_order.txt
 MEASURE_ANALYZER_PATTERN_GUITAR_CHORD_RECOVERY_REPORT := $(BUILD_DIR)/measure_analyzer_pattern_guitar_chord_recovery.txt
 MEASURE_ANALYZER_PATTERN_GUITAR_CHORD_EXTRA_REPORT := $(BUILD_DIR)/measure_analyzer_pattern_guitar_chord_extra.txt
 MEASURE_ANALYZER_PATTERN_DRUM_PRIMARY_REPORT := $(BUILD_DIR)/measure_analyzer_pattern_drum_primary.txt
@@ -65,6 +66,7 @@ MEASURE_ANALYZER_PATTERN_SECTION_OUTPUTS := \
 	$(MEASURE_ANALYZER_PATTERN_REAL_NOTE_REPORT) \
 	$(MEASURE_ANALYZER_PATTERN_REAL_NOTE_ROW_CONFUSION_REPORT) \
 	$(MEASURE_ANALYZER_PATTERN_GUITAR_CHORD_REPORT) \
+	$(MEASURE_ANALYZER_PATTERN_GUITAR_PRIMARY_ORDER_REPORT) \
 	$(MEASURE_ANALYZER_PATTERN_GUITAR_CHORD_RECOVERY_REPORT) \
 	$(MEASURE_ANALYZER_PATTERN_GUITAR_CHORD_EXTRA_REPORT) \
 	$(MEASURE_ANALYZER_PATTERN_DRUM_PRIMARY_REPORT) \
@@ -1374,6 +1376,9 @@ $(MEASURE_ANALYZER_PATTERN_REAL_NOTE_ROW_CONFUSION_REPORT): FORCE $(BUILD_DIR)/r
 
 $(MEASURE_ANALYZER_PATTERN_GUITAR_CHORD_REPORT): FORCE $(BUILD_DIR)/guitar_chord_mix_attributes.tsv scripts/find_guitarset_attribute_patterns.py scripts/inspect_guitarset_attribute_buckets.py | $(BUILD_DIR)
 	@tmp="$@.$$$$.tmp"; { printf '%s\n' ""; printf '%s\n' "guitar chord pattern candidates:"; $(MAKE) find-guitar-chord-mix-attribute-patterns PATTERN_ARGS="$(MEASURE_GUITAR_PATTERN_ARGS)"; } > "$$tmp" && mv "$$tmp" "$@"
+
+$(MEASURE_ANALYZER_PATTERN_GUITAR_PRIMARY_ORDER_REPORT): FORCE $(GUITAR_CHORD_DETECTED_ATTRIBUTE_ROWS) scripts/analyze_guitar_primary_order.py | $(BUILD_DIR)
+	@tmp="$@.$$$$.tmp"; { printf '%s\n' ""; printf '%s\n' "guitar chord primary-order analysis:"; $(MAKE) analyze-guitar-chord-primary-order PRIMARY_ORDER_ARGS="$(PRIMARY_ORDER_ARGS)"; } > "$$tmp" && mv "$$tmp" "$@"
 
 $(MEASURE_ANALYZER_PATTERN_GUITAR_CHORD_RECOVERY_REPORT): FORCE $(BUILD_DIR)/guitar_chord_mix_attributes.tsv scripts/analyze_guitar_chord_recovery.py | $(BUILD_DIR)
 	@tmp="$@.$$$$.tmp"; { printf '%s\n' ""; printf '%s\n' "guitar chord recovery threshold simulation:"; $(MAKE) analyze-guitar-chord-mix-recovery RECOVERY_ARGS="$(RECOVERY_ARGS)"; } > "$$tmp" && mv "$$tmp" "$@"
