@@ -866,8 +866,8 @@ std::vector<CandidateWindow> select_candidate_windows(const Recording &recording
 }
 
 bool analyze_drum_window_sequence(const std::string &audio_path, uint64_t center_sample,
-				  uint32_t recording_sample_rate, mao::AnalysisSnapshot &snapshot,
-				  uint32_t &sample_rate, std::string &error)
+				  uint32_t recording_sample_rate, const char *analyzer_source_name,
+				  mao::AnalysisSnapshot &snapshot, uint32_t &sample_rate, std::string &error)
 {
 	mao::AnalysisEngine engine;
 	mao::AnalysisSettings settings = mao_test::default_settings();
@@ -891,7 +891,7 @@ bool analyze_drum_window_sequence(const std::string &audio_path, uint64_t center
 		if (!read_wav_window(audio_path, frame_center + read_center_offset, buffer, sample_rate, error))
 			return false;
 		settings.sample_rate = sample_rate;
-		snapshot = engine.analyze(buffer.data(), buffer.size(), settings, "E-GMD drums", 0);
+		snapshot = engine.analyze(buffer.data(), buffer.size(), settings, analyzer_source_name, 0);
 	}
 	return true;
 }
@@ -1200,6 +1200,9 @@ int main()
 		resolve_positive_int_env("MUSIC_ANALYZER_EGMD_VERBOSE_FALSE_POSITIVE_LIMIT", 24);
 	const bool verbose_misses = env_truthy("MUSIC_ANALYZER_EGMD_VERBOSE_MISSES");
 	const int verbose_miss_limit = resolve_positive_int_env("MUSIC_ANALYZER_EGMD_VERBOSE_MISS_LIMIT", 24);
+	const char *analyzer_source_name = std::getenv("MUSIC_ANALYZER_EGMD_SOURCE_NAME");
+	if (!analyzer_source_name || !*analyzer_source_name)
+		analyzer_source_name = "E-GMD drums";
 
 	Runner runner;
 	RecallStats recall;
@@ -1232,7 +1235,8 @@ int main()
 			uint32_t sample_rate = 0;
 			std::string error;
 			if (!analyze_drum_window_sequence(recording.audio_path, candidate.center_sample,
-							  recording.sample_rate, snapshot, sample_rate, error)) {
+							  recording.sample_rate, analyzer_source_name, snapshot,
+							  sample_rate, error)) {
 				++read_failures;
 				runner.expect(false, "E-GMD " + recording.id + " at sample " +
 							     std::to_string(candidate.center_sample) + ": " + error);
