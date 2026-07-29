@@ -478,6 +478,10 @@ def status_fraction(rows: list[dict[str, str]], hit_value: str) -> str:
     return f"{hits}/{len(rows)} {percent(hits, len(rows))}"
 
 
+def count_fraction(count: int, total: int) -> str:
+    return f"{count}/{total} {percent(count, total)}"
+
+
 def short_path(value: str, max_parts: int = 3) -> str:
     if not value:
         return "--"
@@ -528,6 +532,29 @@ def score_cells(row: dict[str, str]) -> str:
             ("oth", "other_score"),
         )
     )
+
+
+def expected_row_exact_hit(row: dict[str, str], midi_field: str = "expected_midi") -> bool:
+    expected_midi = parse_int(row.get(midi_field, ""))
+    if expected_midi is None:
+        return False
+    expected_row = expected_row_for_family(row.get("family", ""))
+    return note_row_exact_level(row, expected_row, expected_midi) > 0.0
+
+
+def first_row_matches_expected(row: dict[str, str]) -> bool:
+    expected_row = expected_row_for_family(row.get("family", ""))
+    return row.get("first_row", "") == expected_row
+
+
+def strongest_row_matches_expected(row: dict[str, str]) -> bool:
+    expected_row = expected_row_for_family(row.get("family", ""))
+    return row.get("buffer_strongest_row", "") == expected_row
+
+
+def first_row_route(row: dict[str, str]) -> str:
+    expected = f"{row.get('family', 'unknown')}/{row.get('source', '--') or '--'}"
+    return f"{expected}->{cell(row, 'first_row')}"
 
 
 def partial_cells(row: dict[str, str]) -> str:
@@ -655,6 +682,15 @@ def report_real_note_rows(path: pathlib.Path, row_limit: int) -> None:
     print(f"  debug owner mismatches={compact(owner_mismatches(rows, 'family'))}")
     print(f"  debug pitch deltas={compact(debug_pitch_deltas(rows, 'expected_midi'))}")
     print(f"  pitch quality={compact(pitch_quality_counts(rows, 'expected_midi'))}")
+    print(
+        f"  row routing expected-row exact="
+        f"{count_fraction(sum(1 for row in rows if expected_row_exact_hit(row)), len(rows))} "
+        f"first-row expected="
+        f"{count_fraction(sum(1 for row in rows if first_row_matches_expected(row)), len(rows))} "
+        f"strongest-row expected="
+        f"{count_fraction(sum(1 for row in rows if strongest_row_matches_expected(row)), len(rows))}"
+    )
+    print(f"  first-row routes={compact(collections.Counter(first_row_route(row) for row in rows))}")
     spillover_rows = exact_spillover_entries(rows, midi_field="expected_midi", min_level=0.25)
     print(
         f"  same-midi spillover>=0.25 entries={len(spillover_rows)} "
@@ -681,7 +717,10 @@ def report_real_note_rows(path: pathlib.Path, row_limit: int) -> None:
             f"    {family} rows={len(family_rows)} samples={len(samples)} "
             f"notes={note_count(family_rows, 'expected_midi', 'expected_note')} "
             f"range={midi_range(family_rows, 'expected_midi')} hit={status_fraction(family_rows, 'hit')} "
-            f"pitch={compact(pitch_quality_counts(family_rows, 'expected_midi'), 4)}"
+            f"pitch={compact(pitch_quality_counts(family_rows, 'expected_midi'), 4)} "
+            f"expected-row={count_fraction(sum(1 for row in family_rows if expected_row_exact_hit(row)), len(family_rows))} "
+            f"first-row={count_fraction(sum(1 for row in family_rows if first_row_matches_expected(row)), len(family_rows))} "
+            f"strongest-row={count_fraction(sum(1 for row in family_rows if strongest_row_matches_expected(row)), len(family_rows))}"
         )
     print_note_group_buckets(
         "source/note buckets",

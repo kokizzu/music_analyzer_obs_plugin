@@ -107,13 +107,15 @@ kick.wav	kick	kick	0.9	0.1	0.0	0.9	0.1	0.1	0.1	0.1	1	0	0	0	0	0	0	0.9	0.4	0	0	0	0
     assert "measured real-note full-mix rows" in output
     assert "debug owner mismatches=piano->guitar=1" in output
     assert "pitch quality=exact=2" in output
+    assert "row routing expected-row exact=3/3 100.0% first-row expected=2/3 66.7% strongest-row expected=2/3 66.7%" in output
+    assert "first-row routes=guitar/acoustic->guitar=1 piano/electronic->bass=1 bass/electric->bass=1" in output
     assert "same-midi spillover>=0.25 entries=1 samples=1 routes=bass/electric->guitar=1" in output
     assert "detected octave alias buckets:" in output
     assert "1 bass/electric expected=E2/40 detected=E3/+12 status=hit owner=bass" in output
     assert "guitar rows=1 samples=1 notes=1 range=E3/52 hit=1/1 100.0%" in output
-    assert "guitar rows=1 samples=1 notes=1 range=E3/52 hit=1/1 100.0% pitch=exact=1" in output
+    assert "guitar rows=1 samples=1 notes=1 range=E3/52 hit=1/1 100.0% pitch=exact=1 expected-row=1/1 100.0% first-row=1/1 100.0% strongest-row=1/1 100.0%" in output
     assert "piano rows=1 samples=1 notes=1 range=C4/60 hit=0/1 0.0%" in output
-    assert "piano rows=1 samples=1 notes=1 range=C4/60 hit=0/1 0.0% pitch=exact=1" in output
+    assert "piano rows=1 samples=1 notes=1 range=C4/60 hit=0/1 0.0% pitch=exact=1 expected-row=1/1 100.0% first-row=0/1 0.0% strongest-row=0/1 0.0%" in output
     assert "source/note buckets:" in output
     assert (
         "piano/electronic expected=C4/60 rows=1 status=ownership_miss=1 "
