@@ -89,6 +89,7 @@ ROW_CONTEXT_NUMERIC_FIELDS = [
 
 DEBUG_CATEGORY_FIELDS = [
     "debug_owner",
+    "debug_score_state",
 ]
 
 ROW_CONTEXT_CATEGORY_FIELDS = [

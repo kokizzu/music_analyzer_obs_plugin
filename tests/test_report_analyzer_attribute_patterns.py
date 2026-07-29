@@ -31,10 +31,10 @@ note	hit	piano	piano	grand	E4	64	p.wav	100	1	1	E4	64	0	E4	64	0	E5	guitar	0.7	2	9
         real_note = write(
             root / "real.tsv",
             """
-sample_id	status	family	source	expected_note	expected_midi	first_row	visual_first_row	buffer	buffer_strongest_row	buffer_visual_strongest_row	debug_note	debug_owner	raw_expected_ratio	raw_tuned_abs_cent_offset	raw_local_best_note	raw_expected_rank	bass_level	guitar_level	piano_level	vocal_level	other_level	amb_level	bass_visual_level	guitar_visual_level	piano_visual_level	vocal_visual_level	other_visual_level	amb_visual_level	bass_notes	guitar_notes	piano_notes	vocal_notes	other_notes	amb_notes
-p1	ownership_miss	piano	electronic	C4	60	bass	bass	0	bass	bass	C5	guitar	1	0	C4	1	1.0	0	0.4	0	0	0	1.0	0	0.4	0	0	0	C4:1.0	--	C4:0.4	--	--	--
-p2	hit	guitar	acoustic	E3	52	guitar	guitar	0	guitar	guitar	E3	guitar	1	0	E3	1	0	1.0	0	0	0	0	0	1.0	0	0	0	0	--	E3:1.0	--	--	--	--
-p3	hit	piano	electronic	C4	60	piano	guitar	0	guitar	guitar	C4	guitar	1	0	C4	1	0	0.9	0.5	0	0	0	0	0.7	0.3	0	0	0	--	C4:0.9	C4:0.5	--	--	--
+sample_id	status	family	source	expected_note	expected_midi	first_row	visual_first_row	buffer	buffer_strongest_row	buffer_visual_strongest_row	debug_note	debug_owner	debug_conf	keyboard_score	guitar_score	vocal_score	other_score	raw_expected_ratio	raw_tuned_abs_cent_offset	raw_local_best_note	raw_expected_rank	bass_level	guitar_level	piano_level	vocal_level	other_level	amb_level	bass_visual_level	guitar_visual_level	piano_visual_level	vocal_visual_level	other_visual_level	amb_visual_level	bass_notes	guitar_notes	piano_notes	vocal_notes	other_notes	amb_notes
+p1	ownership_miss	piano	electronic	C4	60	bass	bass	0	bass	bass	C5	guitar	0.9	0.0	0.9	0.0	0.0	1	0	C4	1	1.0	0	0.4	0	0	0	1.0	0	0.4	0	0	0	C4:1.0	--	C4:0.4	--	--	--
+p2	hit	guitar	acoustic	E3	52	guitar	guitar	0	guitar	guitar	E3	guitar	1.0	0.0	1.0	0.0	0.0	1	0	E3	1	0	1.0	0	0	0	0	0	1.0	0	0	0	0	--	E3:1.0	--	--	--	--
+p3	hit	piano	electronic	C4	60	piano	guitar	0	guitar	guitar	C4	guitar	0.8	0.2	0.8	0.0	0.0	1	0	C4	1	0	0.9	0.5	0	0	0	0	0.7	0.3	0	0	0	--	C4:0.9	C4:0.5	--	--	--
             """,
         )
         guitar = write(
@@ -84,6 +84,7 @@ snare/1.wav	snare	tom	0.2	0.7	0.1	0.1	0.8	0.9	1.0	0.0	0.5	0.5
     assert "piano: rows=1 owners=guitar=1 pitch=octave_alias=1 display=exact=1 primary=exact=1 octdup=0=1" in output
     assert "real-note full-mix attributes" in output
     assert "row pitch quality exact=2 octave_alias=1" in output
+    assert "debug score states scored_owner=3" in output
     assert "strongest-row confusion rows=1 samples=1 visible>=0.50=1 rows/1 samples exact>=0.25=1 rows/1 samples" in output
     assert "same-midi spillover>=0.25 entries=1 samples=1 routes=piano/electronic->guitar=1" in output
     assert (

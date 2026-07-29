@@ -295,6 +295,8 @@ def main() -> int:
 
     assert "ownership_miss:piano/electronic->guitar rows=1 samples=1" in result.stdout
     assert "hit:other/acoustic->other rows=1 samples=1" in result.stdout
+    assert "debug_score_state" in result.stdout
+    assert "scored_owner=1" in result.stdout
     assert "debug_conf" in result.stdout
     assert "partial2" in result.stdout
     assert "hit:other/acoustic->other rows=1 samples=1" in targeted.stdout
@@ -309,6 +311,7 @@ def main() -> int:
     assert "hit:other/acoustic->other" not in misses_only.stdout
     assert "debug_conf" not in misses_only.stdout
     assert dumped.stdout.startswith("sample_id\tstatus\tfamily\t")
+    assert "debug_score_state" in dumped.stdout.splitlines()[0]
     assert "debug_delta" in dumped.stdout.splitlines()[0]
     assert "miss_reason" in dumped.stdout.splitlines()[0]
     assert "expected_row_exact_level" in dumped.stdout.splitlines()[0]
@@ -318,7 +321,7 @@ def main() -> int:
     assert "\nkeyboard_1\townership_miss\tpiano\telectronic\tC4" in dumped.stdout
     assert "\tguitar\tpiano\tC4\tguitar\t" in dumped.stdout
     assert "\t0.00\t1.00\t0.60\t0.00\t0.00\t0.00\t0.00\t0.35\t0.95\t" in dumped.stdout
-    assert "\t0\t0\townership\t" in dumped.stdout
+    assert "\tscored_owner\t0\t0\townership\t" in dumped.stdout
     assert "\townership\t0.600\t0.600\t0\t1.000\t1.000\t0\t2\t2\t" in dumped.stdout
     assert "reed_1" not in dumped.stdout
     assert "\nreed_1\thit\tother\tacoustic\tA4" in family_filtered.stdout

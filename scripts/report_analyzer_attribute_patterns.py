@@ -66,6 +66,16 @@ def float_or(row: dict[str, str], field: str, default: float) -> float:
     return default if value is None else value
 
 
+def debug_score_state(row: dict[str, str]) -> str:
+    if not row.get("debug_note") and not row.get("debug_midi"):
+        return "no_debug"
+    score_fields = ("keyboard_score", "guitar_score", "vocal_score", "other_score")
+    has_score = any(float_or(row, field, 0.0) > 1.0e-6 for field in score_fields)
+    if row.get("debug_owner", "") == "amb":
+        return "scored_amb" if has_score else "unscored_amb"
+    return "scored_owner" if has_score else "unscored_owner"
+
+
 def midi_from_note(note: str) -> int | None:
     match = NOTE_RE.match(note)
     if not match:
@@ -528,6 +538,7 @@ def format_derived_float(value: float) -> str:
 
 def derive_real_note_row(row: dict[str, str]) -> dict[str, str]:
     result = dict(row)
+    result["debug_score_state"] = debug_score_state(row)
     expected = parse_int(row.get("expected_midi", ""))
     if expected is None:
         return result
@@ -617,6 +628,10 @@ def report_real_notes(path: pathlib.Path, limit: int, row_examples: int) -> None
         by_sample_status.setdefault(row["sample_id"], row.get("status", "unknown"))
     print(f"  rows={len(rows)} samples={len(by_sample_status)} status={compact(collections.Counter(by_sample_status.values()), limit)}")
     print(f"  row pitch quality {compact(pitch_quality_counts(rows, 'expected_midi'), limit)}")
+    print(
+        f"  debug score states "
+        f"{compact(collections.Counter(row.get('debug_score_state', '--') or '--' for row in rows), limit)}"
+    )
     confused_rows = real_note_row_confusion_rows(rows)
     visible_confused = visible_row_confusion_rows(confused_rows)
     exact_confused = exact_row_confusion_rows(confused_rows)

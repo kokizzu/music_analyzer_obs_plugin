@@ -185,6 +185,19 @@ def main() -> int:
         (patterns.category_pattern("debug_owner", "guitar").constraint,),
         patterns.category_pattern("debug_owner", "piano").constraint,
     )
+    assert patterns.derive_real_note_row({})["debug_score_state"] == "no_debug"
+    assert (
+        patterns.derive_real_note_row(
+            {"debug_note": "C4", "debug_midi": "60", "debug_owner": "amb"}
+        )["debug_score_state"]
+        == "unscored_amb"
+    )
+    assert (
+        patterns.derive_real_note_row(
+            {"debug_note": "C4", "debug_midi": "60", "debug_owner": "amb", "guitar_score": "0.2"}
+        )["debug_score_state"]
+        == "scored_amb"
+    )
 
     with tempfile.TemporaryDirectory() as tmp:
         path = pathlib.Path(tmp) / "attributes.tsv"
@@ -316,6 +329,25 @@ def main() -> int:
                 "miss_reason=ownership",
                 "--row-examples",
                 "1",
+            ],
+            text=True,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            check=True,
+        )
+        score_state_result = subprocess.run(
+            [
+                sys.executable,
+                str(ROOT / "scripts" / "find_real_note_attribute_patterns.py"),
+                str(path),
+                "--bucket",
+                "ownership_miss:guitar/acoustic->piano",
+                "--limit",
+                "1",
+                "--max-negative-samples",
+                "3",
+                "--condition",
+                "debug_score_state=scored_owner",
             ],
             text=True,
             stdout=subprocess.PIPE,
@@ -893,6 +925,7 @@ def main() -> int:
     assert "protected-hit examples:" in example_result.stdout
     assert "keyboard_1 expected=F#4/66 debug=F#4/66 owner=piano" in example_result.stdout
     assert "miss_reason=ownership: pos=2/2 rows=2 neg=0/2 rows=0" in reason_result.stdout
+    assert "debug_score_state=scored_owner: pos=2/2 rows=2" in score_state_result.stdout
     assert (
         "debug_midi<=69 AND partial2<=0.13 AND pitch_confidence>=0.95: "
         "pos=2/2 rows=2 neg=0/3 rows=0"

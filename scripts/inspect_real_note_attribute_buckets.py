@@ -95,6 +95,7 @@ CATEGORY_FIELDS = [
     "expected_note",
     "debug_note",
     "debug_owner",
+    "debug_score_state",
     "row_label",
     "buffer_strongest_row",
     "raw_local_best_note",
@@ -118,6 +119,7 @@ ROW_DUMP_FIELDS = [
     "debug_note",
     "debug_owner",
     "debug_conf",
+    "debug_score_state",
     "debug_delta",
     "debug_abs_delta",
     "miss_reason",
@@ -296,6 +298,17 @@ def numeric_delta(row: dict[str, str], left_field: str, right_field: str) -> tup
     return str(delta), str(abs(delta))
 
 
+def debug_score_state(row: dict[str, str]) -> str:
+    if not row.get("debug_note") and not row.get("debug_midi"):
+        return "no_debug"
+    score_fields = ("keyboard_score", "guitar_score", "vocal_score", "other_score")
+    has_score = any((as_float(row, field) or 0.0) > 1.0e-6 for field in score_fields)
+    owner = row.get("debug_owner", "")
+    if owner == "amb":
+        return "scored_amb" if has_score else "unscored_amb"
+    return "scored_owner" if has_score else "unscored_owner"
+
+
 def miss_reason(row: dict[str, str], abs_delta: str) -> str:
     if row.get("status") == "hit":
         return "hit"
@@ -329,6 +342,7 @@ def derive_row(row: dict[str, str]) -> dict[str, str]:
     raw_best_delta, raw_best_abs_delta = numeric_delta(row, "raw_local_best_midi", "debug_midi")
     result["raw_best_debug_delta"] = raw_best_delta
     result["raw_best_debug_abs_delta"] = raw_best_abs_delta
+    result["debug_score_state"] = debug_score_state(row)
     result["miss_reason"] = miss_reason(row, abs_delta)
     expected = as_float(row, "expected_midi")
     if expected is not None:
@@ -401,7 +415,7 @@ def print_bucket(
     example_limit: int,
     summary_only: bool,
 ) -> None:
-    rows_for_bucket = bucket_rows(rows, status, family, source, first_row)
+    rows_for_bucket = [derive_row(row) for row in bucket_rows(rows, status, family, source, first_row)]
     samples = sorted({row["sample_id"] for row in rows_for_bucket})
     examples = ", ".join(samples[: max(0, example_limit)])
     print()
