@@ -8761,10 +8761,10 @@ void suppress_guitar_dominant_same_pitch_bass_shadows(NoteGrid &bass_grid, Instr
 
 	bool changed = false;
 	for (int midi = kBassMinMidi; midi <= kBassMaxMidi; ++midi) {
-		const float bass_level = note_grid_midi_level(bass_grid, midi);
+		const float bass_level = note_grid_midi_visual_level(bass_grid, midi);
 		if (bass_level <= 0.0f)
 			continue;
-		const float guitar_level = note_grid_midi_level(guitar_grid, midi);
+		const float guitar_level = note_grid_midi_visual_level(guitar_grid, midi);
 		if (guitar_level <= 0.0f || bass_level > guitar_level * kMaxBassToGuitarLevelRatio)
 			continue;
 
