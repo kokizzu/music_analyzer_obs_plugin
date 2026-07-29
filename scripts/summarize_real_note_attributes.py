@@ -40,6 +40,18 @@ ROW_NOTE_FIELDS = {
     "vocals": "vocal_notes",
     "other": "other_notes",
 }
+ALL_ROW_NOTE_FIELDS = {
+    **ROW_NOTE_FIELDS,
+    "amb": "amb_notes",
+}
+ROW_LEVEL_FIELDS = {
+    "bass": "bass_level",
+    "guitar": "guitar_level",
+    "piano": "piano_level",
+    "vocals": "vocal_level",
+    "other": "other_level",
+    "amb": "amb_level",
+}
 
 
 NUMERIC_FIELDS = [
@@ -177,6 +189,34 @@ SAMPLE_FIELDS = [
 ]
 
 
+CONFUSION_PROFILE_FIELDS = [
+    "expected_row_level",
+    "observed_row_level",
+    "expected_row_exact_level",
+    "expected_row_pitch_level",
+    "observed_row_exact_level",
+    "observed_row_pitch_level",
+    "debug_exact_match",
+    "debug_pitch_match",
+    "debug_abs_delta",
+    "debug_conf",
+    "bass_score",
+    "keyboard_score",
+    "guitar_score",
+    "vocal_score",
+    "other_score",
+    "spectral_level",
+    "pitch_confidence",
+    "periodicity",
+    "fit_error",
+    "noise",
+    "partial2",
+    "partial3",
+    "partial4",
+    "partial5",
+]
+
+
 def source_key(row: dict[str, str]) -> str:
     source = row.get("source") or row.get("nsynth_family") or "unknown"
     return f"{row.get('family', 'unknown')}/{source}"
@@ -240,6 +280,26 @@ def note_row_cells(value: str) -> list[tuple[int, float]]:
     return cells
 
 
+def note_row_levels(row: dict[str, str], row_name: str, target_midi: int) -> tuple[float, float, int | None]:
+    field = ALL_ROW_NOTE_FIELDS.get(row_name)
+    if not field:
+        return 0.0, 0.0, None
+
+    target_pitch = target_midi % 12
+    exact_level = 0.0
+    pitch_level = 0.0
+    pitch_delta: int | None = None
+    for midi, level in note_row_cells(row.get(field, "")):
+        if midi == target_midi:
+            exact_level = max(exact_level, level)
+        if midi % 12 != target_pitch:
+            continue
+        if level > pitch_level:
+            pitch_level = level
+            pitch_delta = midi - target_midi
+    return exact_level, pitch_level, pitch_delta
+
+
 def expected_midi(row: dict[str, str]) -> int | None:
     try:
         return int(row.get("expected_midi", ""))
@@ -265,6 +325,81 @@ def note_range(samples: dict[str, dict[str, str]]) -> str:
 
 def median_parts(rows: list[dict[str, str]], fields: list[str]) -> str:
     return " ".join(f"{field}={median_text(rows, field)}" for field in fields)
+
+
+def context_key(row: dict[str, str]) -> tuple[str, str]:
+    return row.get("sample_id", ""), row.get("buffer", "")
+
+
+def format_float(value: float) -> str:
+    return f"{value:.3f}"
+
+
+def debug_midi(row: dict[str, str]) -> int | None:
+    value = as_float(row, "debug_midi")
+    if value is not None:
+        return int(round(value))
+    return midi_from_note_label(row.get("debug_note", ""))
+
+
+def select_confusion_debug_row(
+    rows: list[dict[str, str]], target_midi: int, observed_row: str
+) -> dict[str, str]:
+    candidates = [row for row in rows if row.get("debug_note") or row.get("debug_midi")]
+    if not candidates:
+        return rows[0] if rows else {}
+
+    target_pitch = target_midi % 12
+
+    def score(row: dict[str, str]) -> tuple[int, int, int, int, float]:
+        midi = debug_midi(row)
+        exact = midi == target_midi
+        pitch = midi is not None and midi % 12 == target_pitch
+        abs_delta = abs(midi - target_midi) if midi is not None else 999
+        return (
+            int(row.get("debug_owner", "") == observed_row),
+            int(exact),
+            int(pitch),
+            -min(abs_delta, 999),
+            as_float(row, "debug_conf") or 0.0,
+        )
+
+    return max(candidates, key=score)
+
+
+def confusion_profile_row(
+    context_row: dict[str, str],
+    selected_debug_row: dict[str, str],
+    *,
+    expected_row: str,
+    observed_row: str,
+    target_midi: int,
+) -> dict[str, str]:
+    profile = dict(selected_debug_row or context_row)
+    profile["sample_id"] = context_row.get("sample_id", "")
+
+    expected_level_field = ROW_LEVEL_FIELDS.get(expected_row, "")
+    observed_level_field = ROW_LEVEL_FIELDS.get(observed_row, "")
+    profile["expected_row_level"] = format_float(as_float(context_row, expected_level_field) or 0.0)
+    profile["observed_row_level"] = format_float(as_float(context_row, observed_level_field) or 0.0)
+
+    expected_exact, expected_pitch, _expected_delta = note_row_levels(context_row, expected_row, target_midi)
+    observed_exact, observed_pitch, _observed_delta = note_row_levels(context_row, observed_row, target_midi)
+    profile["expected_row_exact_level"] = format_float(expected_exact)
+    profile["expected_row_pitch_level"] = format_float(expected_pitch)
+    profile["observed_row_exact_level"] = format_float(observed_exact)
+    profile["observed_row_pitch_level"] = format_float(observed_pitch)
+
+    midi = debug_midi(profile)
+    if midi is None:
+        profile["debug_exact_match"] = "0"
+        profile["debug_pitch_match"] = "0"
+        profile["debug_abs_delta"] = ""
+    else:
+        profile["debug_exact_match"] = "1" if midi == target_midi else "0"
+        profile["debug_pitch_match"] = "1" if midi % 12 == target_midi % 12 else "0"
+        profile["debug_abs_delta"] = str(abs(midi - target_midi))
+    return profile
 
 
 def debug_rows_for_sample_ids(
@@ -418,6 +553,10 @@ def append_row_confusion_pitch_summary(
     lines: list[str], rows: list[dict[str, str]], sample_limit: int
 ) -> None:
     context_rows = unique_context_rows(rows)
+    rows_by_context: dict[tuple[str, str], list[dict[str, str]]] = collections.defaultdict(list)
+    for row in rows:
+        rows_by_context[context_key(row)].append(row)
+
     for label, observed_field in [
         ("strongest-row", "buffer_strongest_row"),
         ("visual-row", "buffer_visual_strongest_row"),
@@ -427,12 +566,15 @@ def append_row_confusion_pitch_summary(
         pitch_route_counts: collections.Counter[str] = collections.Counter()
         sample_ids: set[str] = set()
         bucket_samples: dict[str, set[str]] = collections.defaultdict(set)
+        bucket_profiles: dict[str, list[dict[str, str]]] = collections.defaultdict(list)
+        route_profiles: dict[str, list[dict[str, str]]] = collections.defaultdict(list)
 
         for row in context_rows:
             expected_row = ROW_FOR_FAMILY.get(row.get("family", ""))
             observed_row = row.get(observed_field, "")
             sample_id = row.get("sample_id", "")
-            if not expected_row or not observed_row or observed_row == expected_row:
+            target_midi = expected_midi(row)
+            if not expected_row or not observed_row or observed_row == expected_row or target_midi is None:
                 continue
             source = source_key(row)
             note = expected_pitch_class(row) + expected_octave(row)
@@ -445,6 +587,19 @@ def append_row_confusion_pitch_summary(
             if sample_id:
                 sample_ids.add(sample_id)
                 bucket_samples[bucket].add(sample_id)
+
+            selected_debug_row = select_confusion_debug_row(
+                rows_by_context.get(context_key(row), [row]), target_midi, observed_row
+            )
+            profile = confusion_profile_row(
+                row,
+                selected_debug_row,
+                expected_row=expected_row,
+                observed_row=observed_row,
+                target_midi=target_midi,
+            )
+            bucket_profiles[bucket].append(profile)
+            route_profiles[route].append(profile)
 
         limit = max(8, sample_limit if sample_limit > 0 else 8)
         lines.append(
@@ -459,6 +614,19 @@ def append_row_confusion_pitch_summary(
             f"{label} confusion pitch-class routes "
             + compact_counter(pitch_route_counts, limit)
         )
+        if route_counts:
+            lines.append(f"{label} confusion route medians")
+            for route, row_count in route_counts.most_common(min(limit, 8)):
+                profile_rows = route_profiles.get(route, [])
+                samples = len({row.get("sample_id", "") for row in profile_rows if row.get("sample_id", "")})
+                owners = collections.Counter(
+                    row.get("debug_owner", "") for row in profile_rows if row.get("debug_owner", "")
+                )
+                lines.append(
+                    f"  {route} rows={row_count} samples={samples} "
+                    f"debug_owners={compact_counter(owners, 5)} "
+                    + median_parts(profile_rows, CONFUSION_PROFILE_FIELDS)
+                )
 
         if sample_limit <= 0 or not bucket_counts:
             continue
@@ -468,6 +636,18 @@ def append_row_confusion_pitch_summary(
             lines.append(
                 f"  {bucket} rows={row_count} samples={len(bucket_samples.get(bucket, set()))} "
                 + " ".join(samples)
+            )
+        lines.append(f"{label} confusion bucket medians")
+        for bucket, row_count in bucket_counts.most_common(sample_limit):
+            profile_rows = bucket_profiles.get(bucket, [])
+            samples = len({row.get("sample_id", "") for row in profile_rows if row.get("sample_id", "")})
+            owners = collections.Counter(
+                row.get("debug_owner", "") for row in profile_rows if row.get("debug_owner", "")
+            )
+            lines.append(
+                f"  {bucket} rows={row_count} samples={samples} "
+                f"debug_owners={compact_counter(owners, 5)} "
+                + median_parts(profile_rows, CONFUSION_PROFILE_FIELDS)
             )
 
 

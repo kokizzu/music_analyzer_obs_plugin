@@ -76,6 +76,7 @@ HEADER = [
     "debug_midi",
     "debug_owner",
     "debug_conf",
+    "bass_score",
     "keyboard_score",
     "guitar_score",
     "vocal_score",
@@ -163,6 +164,10 @@ def main() -> int:
                 debug_midi="60",
                 debug_owner="piano",
                 debug_conf="0.80",
+                bass_level="0.40",
+                guitar_level="0.60",
+                piano_level="1.00",
+                bass_score="0.01",
                 keyboard_score="0.70",
                 guitar_score="0.10",
                 vocal_score="0.02",
@@ -198,6 +203,10 @@ def main() -> int:
                 debug_midi="40",
                 debug_owner="guitar",
                 debug_conf="0.56",
+                guitar_level="0.80",
+                piano_level="0.00",
+                other_level="0.50",
+                bass_score="0.00",
                 keyboard_score="0.00",
                 guitar_score="0.56",
                 vocal_score="0.00",
@@ -275,10 +284,17 @@ def main() -> int:
     assert "strongest-row confusion routes piano/electronic->guitar=2" in result.stdout
     assert "strongest-row confusion pitch-class routes piano/electronic C->guitar=1" in result.stdout
     assert "piano/electronic E->guitar=1" in result.stdout
+    assert "strongest-row confusion route medians" in result.stdout
+    assert "piano/electronic->guitar rows=2 samples=2 debug_owners=piano=1 guitar=1" in result.stdout
+    assert "expected_row_level=0.500 observed_row_level=0.700" in result.stdout
+    assert "expected_row_pitch_level=0.500" in result.stdout
+    assert "observed_row_pitch_level=0.700" in result.stdout
+    assert "debug_exact_match=1.000 debug_pitch_match=1.000 debug_abs_delta=0.000" in result.stdout
     assert "visual-row confusion note buckets rows=2 samples=2" in result.stdout
     assert "piano/electronic C4->bass=1" in result.stdout
     assert "piano/electronic E2->other=1" in result.stdout
     assert "visual-row confusion routes piano/electronic->bass=1 piano/electronic->other=1" in result.stdout
+    assert "visual-row confusion route medians" in result.stdout
     assert "source detail" in detailed_result.stdout
     assert "piano/electronic samples=2 midi=40-60" in detailed_result.stdout
     assert "top extra-row samples" in detailed_result.stdout
@@ -290,7 +306,9 @@ def main() -> int:
     )
     assert "strongest-row confusion bucket samples" in detailed_result.stdout
     assert "piano/electronic C4->guitar rows=1 samples=1 keyboard_1" in detailed_result.stdout
+    assert "strongest-row confusion bucket medians" in detailed_result.stdout
     assert "visual-row confusion bucket samples" in detailed_result.stdout
+    assert "visual-row confusion bucket medians" in detailed_result.stdout
     assert "non-hit pitch buckets" in detailed_result.stdout
     assert "ownership_miss:piano/electronic note=E2->guitar samples=1" in detailed_result.stdout
     assert "non-hit sample attributes" in detailed_result.stdout
