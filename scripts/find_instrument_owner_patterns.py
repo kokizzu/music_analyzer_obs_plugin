@@ -1052,6 +1052,15 @@ def main() -> int:
         help="final note status bucket formatted as miss:strings or ownership_miss:synth; repeatable",
     )
     parser.add_argument("--limit", type=int, default=8)
+    parser.add_argument(
+        "--top-buckets",
+        type=int,
+        default=None,
+        help=(
+            "accepted for command-line parity with the real-note pattern finder; "
+            "instrument owner mining uses explicit or built-in buckets"
+        ),
+    )
     parser.add_argument("--min-positive-samples", type=int, default=2)
     parser.add_argument("--max-negative-samples", type=int, default=25)
     parser.add_argument(

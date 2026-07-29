@@ -339,6 +339,8 @@ def main() -> int:
                 str(path),
                 "--bucket",
                 "owner_miss:guitar->piano",
+                "--top-buckets",
+                "4",
                 "--limit",
                 "10",
                 "--max-negative-samples",
