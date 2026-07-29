@@ -182,6 +182,7 @@ def main() -> int:
             "extension_protected.wav"
         ) in output
         assert "same_root_extension_primary_safe_rules:" in output
+        assert "same_root_extension_primary_runtime_safe_rules:" in output
         assert "protected_false=0" in output
         assert "extra_visible_hits>=1" in output
         assert (

@@ -382,23 +382,25 @@ def format_feature_value(value: float) -> str:
 
 def extension_feature_patterns(
     feature_rows: list[dict[str, str | float]],
+    numeric_fields: tuple[str, ...] | None = None,
 ) -> list[tuple[str, Callable[[dict[str, str | float]], bool]]]:
     if not feature_rows:
         return []
     patterns: list[tuple[str, Callable[[dict[str, str | float]], bool]]] = []
     category_fields = ("suffix", "primary_family", "candidate_slot")
-    numeric_fields = (
-        "candidate_index",
-        "extra_tones",
-        "extra_visible_hits",
-        "extra_analysis_hits",
-        "extra_smoothed_hits",
-        "extra_visible_min",
-        "extra_analysis_min",
-        "extra_smoothed_min",
-        "extra_probe_min",
-        "extra_raw_min",
-    )
+    if numeric_fields is None:
+        numeric_fields = (
+            "candidate_index",
+            "extra_tones",
+            "extra_visible_hits",
+            "extra_analysis_hits",
+            "extra_smoothed_hits",
+            "extra_visible_min",
+            "extra_analysis_min",
+            "extra_smoothed_min",
+            "extra_probe_min",
+            "extra_raw_min",
+        )
     for field in category_fields:
         for value in sorted({str(row[field]) for row in feature_rows}):
             patterns.append(
@@ -434,15 +436,17 @@ def extension_feature_patterns(
 
 
 def print_extension_safe_rules(
+    title: str,
     rescues: list[tuple[str, dict[str, str]]],
     protected_false: list[tuple[str, dict[str, str]]],
     neutral: list[tuple[str, dict[str, str]]],
     limit: int,
+    numeric_fields: tuple[str, ...] | None = None,
 ) -> None:
     rescue_features = [extension_feature_row(promoted, row) for promoted, row in rescues]
     protected_features = [extension_feature_row(promoted, row) for promoted, row in protected_false]
     neutral_features = [extension_feature_row(promoted, row) for promoted, row in neutral]
-    patterns = extension_feature_patterns(rescue_features)
+    patterns = extension_feature_patterns(rescue_features, numeric_fields)
     results: list[tuple[int, int, int, int, str]] = []
     for left_index, (left_label, left_predicate) in enumerate(patterns):
         candidates = [(left_label, left_predicate)]
@@ -463,7 +467,7 @@ def print_extension_safe_rules(
             neutral_count = sum(1 for row in neutral_features if predicate(row))
             condition_count = label.count(" AND ") + 1
             results.append((-rescue_count, neutral_count, condition_count, len(label), label))
-    print("same_root_extension_primary_safe_rules:")
+    print(title)
     if not results:
         print("  --")
         return
@@ -672,10 +676,29 @@ def main() -> int:
             pathlib.Path(row.get("audio_path", "")).name,
         )
     print_extension_safe_rules(
+        "same_root_extension_primary_safe_rules:",
         extension_primary_rescues,
         extension_primary_protected_false,
         extension_primary_neutral,
         args.examples,
+    )
+    print_extension_safe_rules(
+        "same_root_extension_primary_runtime_safe_rules:",
+        extension_primary_rescues,
+        extension_primary_protected_false,
+        extension_primary_neutral,
+        args.examples,
+        (
+            "candidate_index",
+            "extra_tones",
+            "extra_visible_hits",
+            "extra_analysis_hits",
+            "extra_smoothed_hits",
+            "extra_visible_min",
+            "extra_analysis_min",
+            "extra_smoothed_min",
+            "extra_probe_min",
+        ),
     )
     print(
         "current_same_root_extension_primary:",
