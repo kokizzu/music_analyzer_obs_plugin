@@ -110,6 +110,17 @@ BUILTIN_CAPS = {
         ),
         description="probe low-heavy kick-primary rows before suppressing tom bleed",
     ),
+    "level-primary-saturated-kick-tom": CandidateCap(
+        name="level-primary-saturated-kick-tom",
+        target="tom",
+        cap=0.28,
+        conditions=(
+            Condition("level_primary", "=", "kick"),
+            Condition("kick_level", ">=", "0.995"),
+            Condition("tom_level", ">", "0.30"),
+        ),
+        description="probe runtime-style saturated kick-primary tom bleed suppression",
+    ),
 }
 
 
@@ -122,7 +133,33 @@ def as_float(value: str) -> float:
 
 def read_rows(path: pathlib.Path) -> list[dict[str, str]]:
     with path.open(newline="", encoding="utf-8") as handle:
-        return list(csv.DictReader(handle, delimiter="\t"))
+        rows = list(csv.DictReader(handle, delimiter="\t"))
+    for row in rows:
+        add_level_primary(row)
+    return rows
+
+
+def add_level_primary(row: dict[str, str]) -> None:
+    primary = "none"
+    primary_level = 0.0
+    for category in CATEGORIES:
+        level = as_float(row.get(f"{category}_level", ""))
+        if level <= 0.30 or level <= primary_level:
+            continue
+        primary = category
+        primary_level = level
+    if primary == "none":
+        row["level_primary"] = primary
+        row["level_primary_level"] = "0"
+        return
+    tied = sum(
+        1
+        for category in CATEGORIES
+        if as_float(row.get(f"{category}_level", "")) > 0.30
+        and abs(as_float(row.get(f"{category}_level", "")) - primary_level) <= 0.005
+    )
+    row["level_primary"] = "ambiguous" if tied > 1 else primary
+    row["level_primary_level"] = f"{primary_level:.9f}"
 
 
 def percent(hit: int, total: int) -> float:
