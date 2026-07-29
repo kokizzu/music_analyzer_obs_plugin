@@ -1313,6 +1313,26 @@ void check_guitar_supported_extension_aliases(Runner &runner)
 		      std::string("guitar hidden-root analysis support: expected C, got `") +
 			      hidden_root_snapshot.guitar_chord.label + "`");
 
+	mao_test::Buffer visible_root_analysis_triad = {};
+	add_harmonic_note(visible_root_analysis_triad, 50, 0.24f, guitar_profile);
+	add_harmonic_note(visible_root_analysis_triad, 54, 0.038f, guitar_profile);
+	add_harmonic_note(visible_root_analysis_triad, 57, 0.086f, guitar_profile);
+
+	const auto visible_root_analysis_snapshot = analyze_buffer(visible_root_analysis_triad, "guitar");
+	runner.expect(grid_pitch_active(visible_root_analysis_snapshot.guitar_notes, 2),
+		      "guitar visible-root analysis triad: expected D visible in guitar grid");
+	runner.expect(grid_pitch_active(visible_root_analysis_snapshot.guitar_chord_analysis_notes, 6) &&
+			      grid_pitch_active(visible_root_analysis_snapshot.guitar_chord_analysis_notes, 9),
+		      "guitar visible-root analysis triad: expected F# and A in chord-analysis grid");
+	runner.expect(has_chord_label(visible_root_analysis_snapshot.guitar_chord.label, "D"),
+		      std::string("guitar visible-root analysis triad: expected D, got `") +
+			      visible_root_analysis_snapshot.guitar_chord.label + "` notes `" +
+			      note_grid_pitch_classes(visible_root_analysis_snapshot.guitar_notes) +
+			      "` analysis `" +
+			      note_grid_pitch_classes(
+				      visible_root_analysis_snapshot.guitar_chord_analysis_notes) +
+			      "`");
+
 	mao_test::Buffer smoothed_hidden_root_triad = {};
 	add_harmonic_note(smoothed_hidden_root_triad, 48, 0.040f, guitar_profile);
 	add_harmonic_note(smoothed_hidden_root_triad, 52, 0.44f, guitar_profile);

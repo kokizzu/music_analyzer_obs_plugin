@@ -11175,7 +11175,11 @@ ChordResult detect_display_supported_guitar_analysis_triad(const NoteGrid &displ
 		const bool compact_analysis_with_displayed_fifth =
 			display_tones == 1 && display_fifth && active_pitch_classes <= 4 &&
 			display_pitch_classes <= 2;
-		if (display_tones < 2 && !compact_analysis_with_displayed_fifth)
+		const bool compact_analysis_with_displayed_root =
+			display_tones == 1 && display_root && active_pitch_classes <= 6 &&
+			display_pitch_classes <= 4;
+		if (display_tones < 2 && !compact_analysis_with_displayed_fifth &&
+		    !compact_analysis_with_displayed_root)
 			return;
 
 		const float anchor = std::min(root_level, fifth_level);
@@ -11206,6 +11210,11 @@ ChordResult detect_display_supported_guitar_analysis_triad(const NoteGrid &displ
 		if (compact_analysis_with_displayed_fifth &&
 		    (root_level < 0.060f || third_level < std::max(0.024f, anchor * 0.045f) ||
 		     fifth_level < std::max(0.40f, strongest * 0.40f)))
+			return;
+		if (compact_analysis_with_displayed_root &&
+		    (root_level < std::max(0.32f, strongest * 0.32f) ||
+		     third_level < std::max(0.032f, anchor * 0.050f) ||
+		     fifth_level < std::max(0.090f, strongest * 0.085f)))
 			return;
 
 		if (note_grid_pitch_active(display_grid, root - 1) && note_grid_pitch_active(display_grid, root + 1) &&
