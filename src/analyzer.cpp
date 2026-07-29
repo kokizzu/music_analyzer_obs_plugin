@@ -18092,6 +18092,19 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 		if (measured_snare_crack_tom_bleed)
 			cap_drum_level(Tom, 0.28f);
 
+		const float final_post_tom_bleed_kick_level_ratio =
+			drum_level_[Tom] / (drum_level_[Kick] + 1.0e-6f);
+		const bool one_shot_measured_late_deep_kick_from_tom_primary_recovery =
+			drum_detection_enabled && one_shot_drum_source &&
+			!generated_gm_orchestra_tom_primary_recovery &&
+			drum_level_[Kick] > 0.30f &&
+			final_post_tom_bleed_kick_level_ratio >= 1.02f &&
+			snare_kick_trigger_ratio <= 0.597f &&
+			snapshot.low_energy >= 0.93f &&
+			snapshot.mid_energy <= 0.07f;
+		if (one_shot_measured_late_deep_kick_from_tom_primary_recovery)
+			promote_drum_primary(Kick, 0.90f);
+
 	const bool onset_tempo_event =
 		drum_detection_enabled && rms > kSilenceRms && drum_transient &&
 		(had_previous_audio ? onset >= 1.25f : true);
