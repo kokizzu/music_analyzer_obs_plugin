@@ -179,6 +179,104 @@ def primary_pitch_quality_counts(rows: list[dict[str, str]], midi_field: str) ->
     return counts
 
 
+def note_key(row: dict[str, str], *, midi_field: str, note_field: str, source_field: str) -> tuple[str, str, str]:
+    family = cell(row, "family", "unknown")
+    source = cell(row, source_field)
+    note = cell(row, note_field)
+    midi = cell(row, midi_field)
+    return family, source, f"{note}/{midi}"
+
+
+def grouped_rows(
+    rows: list[dict[str, str]],
+    *,
+    midi_field: str,
+    note_field: str,
+    source_field: str,
+) -> dict[tuple[str, str, str], list[dict[str, str]]]:
+    groups: dict[tuple[str, str, str], list[dict[str, str]]] = collections.defaultdict(list)
+    for row in rows:
+        groups[note_key(row, midi_field=midi_field, note_field=note_field, source_field=source_field)].append(row)
+    return groups
+
+
+def print_note_group_buckets(
+    title: str,
+    rows: list[dict[str, str]],
+    *,
+    midi_field: str,
+    note_field: str,
+    source_field: str,
+    row_limit: int,
+) -> None:
+    groups = grouped_rows(rows, midi_field=midi_field, note_field=note_field, source_field=source_field)
+    if not groups:
+        print(f"  {title}=--")
+        return
+    ranked = sorted(
+        groups.items(),
+        key=lambda item: (
+            sum(1 for row in item[1] if row.get("status") != "hit"),
+            sum(1 for row in item[1] if pitch_quality(debug_pitch_delta(row, midi_field)) != "exact"),
+            len(item[1]),
+            item[0],
+        ),
+        reverse=True,
+    )
+    limit = len(ranked) if row_limit == 0 else max(0, row_limit)
+    print(f"  {title}:")
+    has_display_fields = any(
+        row.get("display_delta") or row.get("display_midi") or row.get("display_note") for row in rows
+    )
+    has_primary_fields = any(
+        row.get("primary_delta") or row.get("primary_midi") or row.get("primary_note") for row in rows
+    )
+    for (family, source, expected), group_rows in ranked[:limit]:
+        status_counts = collections.Counter(row.get("status", "unknown") for row in group_rows)
+        owner_counts = collections.Counter(cell(row, "debug_owner") for row in group_rows)
+        pitch_parts = [
+            f"debug={compact(pitch_quality_counts(group_rows, midi_field), 4)}",
+        ]
+        if has_display_fields:
+            pitch_parts.append(f"display={compact(display_pitch_quality_counts(group_rows, midi_field), 4)}")
+        if has_primary_fields:
+            pitch_parts.append(f"primary={compact(primary_pitch_quality_counts(group_rows, midi_field), 4)}")
+        print(
+            f"    {family}/{source} expected={expected} rows={len(group_rows)} "
+            f"status={compact(status_counts, 4)} "
+            f"{' '.join(pitch_parts)} "
+            f"owners={compact(owner_counts, 4)}"
+        )
+
+
+def print_chord_group_buckets(title: str, rows: list[dict[str, str]], row_limit: int) -> None:
+    groups: dict[tuple[str, str], list[dict[str, str]]] = collections.defaultdict(list)
+    for row in rows:
+        groups[(cell(row, "quality"), cell(row, "expected_chords"))].append(row)
+    if not groups:
+        print(f"  {title}=--")
+        return
+    ranked = sorted(
+        groups.items(),
+        key=lambda item: (
+            sum(1 for row in item[1] if row.get("status") != "chord_hit"),
+            len(item[1]),
+            item[0],
+        ),
+        reverse=True,
+    )
+    limit = len(ranked) if row_limit == 0 else max(0, row_limit)
+    print(f"  {title}:")
+    for (quality, expected), group_rows in ranked[:limit]:
+        print(
+            f"    {expected} quality={quality} rows={len(group_rows)} "
+            f"status={compact(collections.Counter(row.get('status', 'unknown') for row in group_rows), 4)} "
+            f"match={compact(collections.Counter(cell(row, 'guitar_match_kind') for row in group_rows), 4)} "
+            f"display={compact(collections.Counter(cell(row, 'guitar_chord') for row in group_rows), 4)} "
+            f"evidence={compact(collections.Counter(cell(row, 'evidence_class') for row in group_rows), 4)}"
+        )
+
+
 def octave_alias_buckets(
     rows: list[dict[str, str]],
     *,
@@ -506,6 +604,14 @@ def report_instrument_rows(path: pathlib.Path, row_limit: int) -> None:
             f"primary={compact(primary_pitch_quality_counts(family_rows, 'midi'), 4)} "
             f"octdup={compact(collections.Counter(str(target_octave_duplicate_count(row)) for row in family_rows), 4)}"
         )
+    print_note_group_buckets(
+        "program/note buckets",
+        rows,
+        midi_field="midi",
+        note_field="note",
+        source_field="program_name",
+        row_limit=row_limit,
+    )
     for row in limited_rows(rows, row_limit, {"hit"}):
         print(
             f"    {cell(row, 'status')} {cell(row, 'family')} "
@@ -569,6 +675,14 @@ def report_real_note_rows(path: pathlib.Path, row_limit: int) -> None:
             f"range={midi_range(family_rows, 'expected_midi')} hit={status_fraction(family_rows, 'hit')} "
             f"pitch={compact(pitch_quality_counts(family_rows, 'expected_midi'), 4)}"
         )
+    print_note_group_buckets(
+        "source/note buckets",
+        rows,
+        midi_field="expected_midi",
+        note_field="expected_note",
+        source_field="source",
+        row_limit=row_limit,
+    )
     for row in limited_rows(rows, row_limit, {"hit"}):
         print(
             f"    {cell(row, 'status')} {cell(row, 'family')}/{cell(row, 'source')} "
@@ -633,6 +747,7 @@ def report_guitar_chord_rows(path: pathlib.Path, row_limit: int) -> None:
     for quality in sorted({row.get("quality", "unknown") for row in rows}):
         quality_rows = [row for row in rows if row.get("quality", "unknown") == quality]
         print(f"    {quality} chord_hit={status_fraction(quality_rows, 'chord_hit')}")
+    print_chord_group_buckets("expected chord buckets", rows, row_limit)
     for row in limited_rows(rows, row_limit, {"chord_hit", "no_chord"}):
         print(
             f"    {cell(row, 'status')} quality={cell(row, 'quality')} "

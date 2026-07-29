@@ -97,6 +97,11 @@ kick.wav	kick	kick	0.9	0.1	0.0	0.9	0.1	0.1	0.1	0.1	1	0	0	0	0	0	0	0.9	0.4	0	0	0	0
     assert "piano rows=1 notes=1 range=C4/60 hit=1/1 100.0% pitch=exact=1 display=exact=1 primary=exact=1 octdup=0=1" in output
     assert "guitar rows=1 notes=1 range=E3/52 hit=0/1 0.0%" in output
     assert "guitar rows=1 notes=1 range=E3/52 hit=0/1 0.0% pitch=exact=1 display=octave_alias=1 primary=exact=1 octdup=1=1" in output
+    assert "program/note buckets:" in output
+    assert (
+        "guitar/-- expected=E3/52 rows=1 status=miss=1 debug=exact=1 "
+        "display=octave_alias=1 primary=exact=1 owners=piano=1"
+    ) in output
     assert "miss guitar expected=E3/52 display=E4/12 primary=E3/0 got=E3/piano" in output
     assert "octdup=1" in output
     assert "measured real-note full-mix rows" in output
@@ -109,10 +114,20 @@ kick.wav	kick	kick	0.9	0.1	0.0	0.9	0.1	0.1	0.1	0.1	1	0	0	0	0	0	0	0.9	0.4	0	0	0	0
     assert "guitar rows=1 samples=1 notes=1 range=E3/52 hit=1/1 100.0% pitch=exact=1" in output
     assert "piano rows=1 samples=1 notes=1 range=C4/60 hit=0/1 0.0%" in output
     assert "piano rows=1 samples=1 notes=1 range=C4/60 hit=0/1 0.0% pitch=exact=1" in output
+    assert "source/note buckets:" in output
+    assert (
+        "piano/electronic expected=C4/60 rows=1 status=ownership_miss=1 "
+        "debug=exact=1 owners=guitar=1"
+    ) in output
     assert "ownership_miss piano/electronic expected=C4/60 first=bass" in output
     assert "measured guitar chord rows" in output
     assert "maj chord_hit=1/1 100.0%" in output
     assert "m chord_hit=0/1 0.0%" in output
+    assert "expected chord buckets:" in output
+    assert (
+        "Am quality=m rows=1 status=chord_miss=1 match=display_same_root_other=1 "
+        "display=Asus2=1 evidence=fifth_missing=1"
+    ) in output
     assert "miss evidence=fifth_missing=1 sources=grid=1" in output
     assert "miss match kinds=display_same_root_other=1" in output
     assert "miss visible missing=fifth=1 analysis missing=fifth=1 smooth missing=fifth=1" in output
