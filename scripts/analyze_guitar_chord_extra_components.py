@@ -146,6 +146,45 @@ def detected_subset_relation(label: str, detected_labels: list[str]) -> str:
     return "--"
 
 
+def chord_hit(labels: list[str], expected_labels: list[str]) -> bool:
+    expected = set(expected_labels)
+    return any(label in expected for label in labels)
+
+
+def same_root(label: str, reference: str) -> bool:
+    parsed = parse_label(label)
+    reference_parsed = parse_label(reference)
+    return parsed is not None and reference_parsed is not None and parsed[0] == reference_parsed[0]
+
+
+def same_pitch_set(label: str, reference: str) -> bool:
+    label_pcs = pitch_set(label)
+    reference_pcs = pitch_set(reference)
+    return label_pcs is not None and label_pcs == reference_pcs
+
+
+def prune_labels(labels: list[str], policy: str) -> list[str]:
+    if not labels:
+        return []
+    if policy == "none":
+        return labels
+    primary = labels[0]
+    pruned = [primary]
+    for label in labels[1:]:
+        keep = False
+        if policy == "primary":
+            keep = False
+        elif policy == "primary-equivalent":
+            keep = same_pitch_set(label, primary)
+        elif policy == "primary-same-root-equivalent":
+            keep = same_root(label, primary) or same_pitch_set(label, primary)
+        else:
+            raise ValueError(f"unknown prune policy: {policy}")
+        if keep and label not in pruned:
+            pruned.append(label)
+    return pruned
+
+
 def row_extra_components(row: dict[str, str]) -> list[tuple[str, str, str, str]]:
     expected = split_labels(row.get("expected_chords", ""))
     expected_set = set(expected)
@@ -165,7 +204,67 @@ def row_extra_components(row: dict[str, str]) -> list[tuple[str, str, str, str]]
     return extras
 
 
-def summarize(path: pathlib.Path, examples: int, limit: int) -> list[str]:
+def summarize_prune_policy(rows: list[dict[str, str]], policy: str, examples: int) -> list[str]:
+    current_hits = 0
+    pruned_hits = 0
+    lost_hits = 0
+    gained_hits = 0
+    current_components = 0
+    pruned_components = 0
+    current_extras = 0
+    pruned_extras = 0
+    removed_counter: collections.Counter[str] = collections.Counter()
+    retained_extra_counter: collections.Counter[str] = collections.Counter()
+    lost_examples: list[tuple[dict[str, str], list[str], list[str]]] = []
+
+    for row in rows:
+        expected = split_labels(row.get("expected_chords", ""))
+        detected = split_labels(row.get("guitar_chord", ""))
+        pruned = prune_labels(detected, policy)
+        current_hit = chord_hit(detected, expected)
+        pruned_hit = chord_hit(pruned, expected)
+        current_hits += int(current_hit)
+        pruned_hits += int(pruned_hit)
+        lost_hits += int(current_hit and not pruned_hit)
+        gained_hits += int(pruned_hit and not current_hit)
+        current_components += len(detected)
+        pruned_components += len(pruned)
+
+        expected_set = set(expected)
+        current_extras += sum(1 for label in detected if label not in expected_set)
+        pruned_extras += sum(1 for label in pruned if label not in expected_set)
+        pruned_set = set(pruned)
+        for label in detected:
+            if label not in pruned_set:
+                removed_counter[label_suffix(label)] += 1
+        for label in pruned:
+            if label not in expected_set:
+                retained_extra_counter[label_suffix(label)] += 1
+        if current_hit and not pruned_hit and len(lost_examples) < examples:
+            lost_examples.append((row, detected, pruned))
+
+    lines = [
+        f"prune policy {policy}: rows={len(rows)} current_hits={current_hits} "
+        f"pruned_hits={pruned_hits} lost_hits={lost_hits} gained_hits={gained_hits} "
+        f"components={pruned_components}/{current_components} "
+        f"extras={pruned_extras}/{current_extras}",
+        f"  removed suffixes {compact(removed_counter, 10)}",
+        f"  retained extra suffixes {compact(retained_extra_counter, 10)}",
+    ]
+    if lost_examples:
+        lines.append("  lost hit examples")
+        for row, detected, pruned in lost_examples:
+            lines.append(
+                "    "
+                f"{row.get('recording_id', '')} expected={row.get('expected_chords', '')} "
+                f"got={'='.join(detected) or '--'} pruned={'='.join(pruned) or '--'} "
+                f"match={row.get('guitar_match_kind', '--')} "
+                f"evidence={row.get('evidence_class', '--')}/{row.get('evidence_source', '--')}"
+            )
+    return lines
+
+
+def summarize(path: pathlib.Path, examples: int, limit: int, prune_policies: list[str]) -> list[str]:
     rows = [derive_guitarset_row(row) for row in load_rows(path) if row.get("recording_id")]
     component_counter: collections.Counter[str] = collections.Counter()
     suffix_counter: collections.Counter[str] = collections.Counter()
@@ -246,6 +345,9 @@ def summarize(path: pathlib.Path, examples: int, limit: int) -> list[str]:
                 f"match={row.get('guitar_match_kind', '--')} "
                 f"evidence={row.get('evidence_class', '--')}/{row.get('evidence_source', '--')}"
             )
+
+    for policy in prune_policies:
+        lines.extend(summarize_prune_policy(rows, policy, examples))
     return lines
 
 
@@ -254,9 +356,21 @@ def main() -> int:
     parser.add_argument("path", nargs="?", default="build/guitar_chord_mix_attributes.tsv")
     parser.add_argument("--examples", type=int, default=4)
     parser.add_argument("--limit", type=int, default=10)
+    parser.add_argument(
+        "--simulate-prune",
+        action="append",
+        choices=("none", "primary", "primary-equivalent", "primary-same-root-equivalent"),
+        default=[],
+        help="append simulated post-detection guitar chord label pruning metrics",
+    )
     args = parser.parse_args()
 
-    for line in summarize(pathlib.Path(args.path), max(0, args.examples), max(1, args.limit)):
+    for line in summarize(
+        pathlib.Path(args.path),
+        max(0, args.examples),
+        max(1, args.limit),
+        args.simulate_prune,
+    ):
         print(line)
     return 0
 

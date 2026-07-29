@@ -30,7 +30,19 @@ miss_unrelated	chord_miss	Dm	A#aug=Dpow	D,F,A	display_different_root	power_only_
             """,
         )
         completed = subprocess.run(
-            [sys.executable, str(SCRIPT), str(path), "--examples", "3", "--limit", "8"],
+            [
+                sys.executable,
+                str(SCRIPT),
+                str(path),
+                "--examples",
+                "3",
+                "--limit",
+                "8",
+                "--simulate-prune",
+                "primary-equivalent",
+                "--simulate-prune",
+                "primary-same-root-equivalent",
+            ],
             cwd=ROOT,
             check=True,
             text=True,
@@ -70,6 +82,17 @@ miss_unrelated	chord_miss	Dm	A#aug=Dpow	D,F,A	display_different_root	power_only_
     assert "hit_same_root status=chord_hit expected=C got=C=Cmaj7=Cpow=Caug=Em extra=Caug" in output
     assert "different_root_extra examples" in output
     assert "miss_unrelated status=chord_miss expected=Dm got=A#aug=Dpow extra=A#aug" in output
+    assert (
+        "prune policy primary-equivalent: rows=4 current_hits=3 pruned_hits=3 "
+        "lost_hits=0 gained_hits=0 components=5/11 extras=2/8"
+    ) in output
+    assert "  removed suffixes pow=2 6=1 maj7=1 aug=1 m=1" in output
+    assert "  retained extra suffixes sus4=1 aug=1" in output
+    assert (
+        "prune policy primary-same-root-equivalent: rows=4 current_hits=3 pruned_hits=3 "
+        "lost_hits=0 gained_hits=0 components=8/11 extras=5/8"
+    ) in output
+    assert "  retained extra suffixes aug=2 sus4=1 maj7=1 pow=1" in output
     print("test_analyze_guitar_chord_extra_components: ok")
     return 0
 
