@@ -573,6 +573,130 @@ def main() -> int:
             stderr=subprocess.PIPE,
             check=True,
         )
+        parallel_path = pathlib.Path(tmp) / "parallel_attributes.tsv"
+        parallel_rows = [
+            row(
+                status="hit",
+                first_row="guitar",
+                buffer_strongest_row="guitar",
+                sample_id="piano_wrong_1",
+                family="piano",
+                nsynth_family="keyboard",
+                source="electronic",
+                expected_note="F#4",
+                expected_midi="66",
+                debug_owner="guitar",
+                keyboard_score="0",
+                guitar_score="1",
+            ),
+            row(
+                status="hit",
+                first_row="guitar",
+                buffer_strongest_row="guitar",
+                sample_id="piano_wrong_2",
+                family="piano",
+                nsynth_family="keyboard",
+                source="electronic",
+                expected_note="A4",
+                expected_midi="69",
+                debug_note="A4",
+                debug_midi="69",
+                debug_owner="guitar",
+                keyboard_score="0",
+                guitar_score="1",
+            ),
+            row(
+                status="hit",
+                first_row="piano",
+                buffer_strongest_row="piano",
+                sample_id="other_wrong_1",
+                family="other",
+                nsynth_family="string",
+                source="acoustic",
+                expected_note="C4",
+                expected_midi="60",
+                debug_note="C4",
+                debug_midi="60",
+                debug_owner="piano",
+                other_score="0",
+                keyboard_score="1",
+            ),
+            row(
+                status="hit",
+                first_row="piano",
+                buffer_strongest_row="piano",
+                sample_id="other_wrong_2",
+                family="other",
+                nsynth_family="string",
+                source="acoustic",
+                expected_note="E4",
+                expected_midi="64",
+                debug_note="E4",
+                debug_midi="64",
+                debug_owner="piano",
+                other_score="0",
+                keyboard_score="1",
+            ),
+            row(
+                status="hit",
+                first_row="piano",
+                buffer_strongest_row="piano",
+                sample_id="piano_right",
+                family="piano",
+                nsynth_family="keyboard",
+                source="electronic",
+                expected_note="C5",
+                expected_midi="72",
+            ),
+            row(
+                status="hit",
+                first_row="other",
+                buffer_strongest_row="other",
+                sample_id="other_right",
+                family="other",
+                nsynth_family="string",
+                source="acoustic",
+                expected_note="G4",
+                expected_midi="67",
+                debug_note="G4",
+                debug_midi="67",
+                debug_owner="other",
+            ),
+        ]
+        parallel_path.write_text(
+            "\t".join(HEADER) + "\n" + "\n".join("\t".join(item) for item in parallel_rows) + "\n"
+        )
+        parallel_args = [
+            sys.executable,
+            str(ROOT / "scripts" / "find_real_note_attribute_patterns.py"),
+            str(parallel_path),
+            "--top-buckets",
+            "2",
+            "--bucket-status",
+            "row_confusion",
+            "--limit",
+            "2",
+            "--min-positive-samples",
+            "1",
+            "--max-negative-samples",
+            "4",
+            "--show-examples",
+            "1",
+        ]
+        serial_bucket_result = subprocess.run(
+            [*parallel_args, "--jobs", "1"],
+            text=True,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            check=True,
+        )
+        parallel_bucket_result = subprocess.run(
+            [*parallel_args, "--jobs", "2"],
+            text=True,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            check=True,
+        )
         visual_rows = [
             row(
                 status="hit",
@@ -947,6 +1071,9 @@ def main() -> int:
         "protected_hits=2 samples/2 rows"
     ) in row_confusion_result.stdout
     assert "debug_owner=guitar: pos=2/2 rows=2 neg=1/2 rows=1" in row_confusion_result.stdout
+    assert serial_bucket_result.stdout == parallel_bucket_result.stdout
+    assert "row_confusion:piano/electronic->guitar" in parallel_bucket_result.stdout
+    assert "row_confusion:other/acoustic->piano" in parallel_bucket_result.stdout
     assert (
         "visual_row_confusion:piano/electronic->guitar positives=2 samples/2 rows "
         "protected_hits=2 samples/2 rows"

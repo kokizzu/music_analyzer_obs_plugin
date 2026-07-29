@@ -5,8 +5,11 @@ from __future__ import annotations
 
 import argparse
 import collections
+import concurrent.futures
+import contextlib
 import csv
 import dataclasses
+import io
 import pathlib
 import re
 import statistics
@@ -163,6 +166,21 @@ class SearchState:
     negative_row_mask: int
     foreign_row_mask: int
     next_match_index: int
+
+
+@dataclasses.dataclass(frozen=True)
+class PatternSearchSettings:
+    limit: int
+    min_positive_samples: int
+    max_negative_samples: int
+    include_intervals: bool
+    include_row_context: bool
+    condition_specs: tuple[str, ...]
+    show_examples: int
+    show_near_misses: int
+    max_conditions: int
+    beam_width: int
+    exclude_fields: tuple[str, ...]
 
 
 class SampleCountCache:
@@ -1133,6 +1151,42 @@ def print_results(
                 print(f"        {format_example(row)}")
 
 
+def bucket_patterns_text(
+    rows: list[dict[str, str]],
+    bucket: tuple[str, str, str, str],
+    settings: PatternSearchSettings,
+) -> str:
+    output = io.StringIO()
+    explicit_patterns = [
+        condition_pattern(spec) for spec in settings.condition_specs
+    ]
+    with contextlib.redirect_stdout(output):
+        print_bucket_patterns(
+            rows,
+            bucket,
+            settings.limit,
+            settings.min_positive_samples,
+            settings.max_negative_samples,
+            settings.include_intervals,
+            settings.include_row_context,
+            explicit_patterns,
+            settings.show_examples,
+            settings.show_near_misses,
+            settings.max_conditions,
+            settings.beam_width,
+            set(settings.exclude_fields),
+        )
+    return output.getvalue()
+
+
+def bucket_patterns_text_job(
+    rows: list[dict[str, str]],
+    bucket: tuple[str, str, str, str],
+    settings: PatternSearchSettings,
+) -> str:
+    return bucket_patterns_text(rows, bucket, settings)
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("path", nargs="?", default="build/real_note_full_mix_attributes.tsv")
@@ -1209,6 +1263,12 @@ def main() -> int:
         default=160,
         help="number of partial multi-condition rules retained per search depth",
     )
+    parser.add_argument(
+        "--jobs",
+        type=int,
+        default=1,
+        help="number of independent buckets to mine in parallel",
+    )
     args = parser.parse_args()
 
     rows = load_rows(pathlib.Path(args.path))
@@ -1217,23 +1277,35 @@ def main() -> int:
         buckets = top_buckets(rows, args.top_buckets, args.bucket_status) or [
             parse_bucket_spec(spec) for spec in DEFAULT_BUCKETS
         ]
-    explicit_patterns = [condition_pattern(spec) for spec in args.condition]
-    for bucket in buckets:
-        print_bucket_patterns(
-            rows,
-            bucket,
-            max(1, args.limit),
-            max(1, args.min_positive_samples),
-            max(0, args.max_negative_samples),
-            args.include_intervals,
-            args.include_row_context,
-            explicit_patterns,
-            max(0, args.show_examples),
-            max(0, args.show_near_misses),
-            max(1, args.max_conditions),
-            max(1, args.beam_width),
-            set(args.exclude_field),
-        )
+    settings = PatternSearchSettings(
+        limit=max(1, args.limit),
+        min_positive_samples=max(1, args.min_positive_samples),
+        max_negative_samples=max(0, args.max_negative_samples),
+        include_intervals=args.include_intervals,
+        include_row_context=args.include_row_context,
+        condition_specs=tuple(args.condition),
+        show_examples=max(0, args.show_examples),
+        show_near_misses=max(0, args.show_near_misses),
+        max_conditions=max(1, args.max_conditions),
+        beam_width=max(1, args.beam_width),
+        exclude_fields=tuple(sorted(set(args.exclude_field))),
+    )
+    jobs = min(max(1, args.jobs), len(buckets))
+    if jobs <= 1:
+        for bucket in buckets:
+            print(bucket_patterns_text(rows, bucket, settings), end="")
+        return 0
+
+    outputs = [""] * len(buckets)
+    with concurrent.futures.ProcessPoolExecutor(max_workers=jobs) as executor:
+        futures = {
+            executor.submit(bucket_patterns_text_job, rows, bucket, settings): index
+            for index, bucket in enumerate(buckets)
+        }
+        for future in concurrent.futures.as_completed(futures):
+            outputs[futures[future]] = future.result()
+    for output in outputs:
+        print(output, end="")
     return 0
 
 
