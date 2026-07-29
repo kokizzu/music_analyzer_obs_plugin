@@ -575,6 +575,36 @@ def main() -> int:
             text=True,
             stdout=subprocess.PIPE,
         )
+        all_threshold_result = subprocess.run(
+            [
+                sys.executable,
+                str(ROOT / "scripts" / "evaluate_real_note_display_shadow.py"),
+                str(path),
+                "--shadow-row",
+                "all",
+                "--target-row",
+                "all",
+                "--min-shadow-level",
+                "0.10",
+                "--min-target-level",
+                "0.10",
+                "--summary-only",
+                "--threshold-search",
+                "--max-protected",
+                "0",
+                "--threshold-limit",
+                "3",
+                "--shadow-score-thresholds",
+                "0.18,0.24",
+                "--score-ratios",
+                "0.50",
+                "--level-ratios",
+                "0.90",
+            ],
+            check=True,
+            text=True,
+            stdout=subprocess.PIPE,
+        )
         measured_runtime_result = subprocess.run(
             [
                 sys.executable,
@@ -679,6 +709,16 @@ def main() -> int:
     assert "extras=1/1 protected=0/0 precision=100.0%" in all_rows_output, all_rows_output
     assert "guitar->same-pitch piano extras rows=1 samples=1" in all_rows_output, all_rows_output
     assert "piano->same-pitch piano" not in all_rows_output, all_rows_output
+    all_threshold_output = all_threshold_result.stdout
+    assert "ranked threshold-search opportunities" in all_threshold_output, all_threshold_output
+    assert (
+        "piano->same-pitch guitar protected=0/1 extras=2/3 "
+        "min_shadow_score=0.18 score_ratio=0.50 level_ratio=0.90"
+    ) in all_threshold_output, all_threshold_output
+    assert (
+        "piano->same-pitch bass protected=0/0 extras=1/1 "
+        "min_shadow_score=0.18 score_ratio=0.50 level_ratio=0.90"
+    ) in all_threshold_output, all_threshold_output
     measured_runtime_output = measured_runtime_result.stdout
     assert "guitar->same-pitch bass extras rows=4 samples=4" in measured_runtime_output, measured_runtime_output
     assert "runtime_guitar_bass_guarded" not in measured_runtime_output, measured_runtime_output

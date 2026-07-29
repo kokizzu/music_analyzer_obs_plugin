@@ -27,6 +27,7 @@ NOTE_BASE = {
 }
 NOTE_RE = re.compile(r"^([A-G]#?)(-?\d+)$")
 NOTE_CELL_RE = re.compile(r"([A-G]#?-?\d+):([0-9.]+)")
+ThresholdMatch = tuple[int, int, float, float, float, float | None]
 
 ROW_FOR_FAMILY = {
     "bass": "bass",
@@ -448,26 +449,22 @@ def threshold_rule_matches(
     )
 
 
-def print_threshold_search(
-    title: str,
+def threshold_search_matches(
     records: list[dict[str, str]],
     shadow_score_thresholds: list[float],
     score_ratios: list[float],
     level_ratios: list[float],
     target_level_thresholds: list[float | None],
     max_protected: int,
-    limit: int,
-    examples: int,
-    protected_examples: int,
     min_pitch_confidence: float | None,
     min_periodicity: float | None,
     max_fit_error: float | None,
     max_noise: float | None,
     owner_mode: str,
-) -> None:
+) -> list[ThresholdMatch]:
     extras = [record for record in records if record["protected"] == "0"]
     protected = [record for record in records if record["protected"] == "1"]
-    matches: list[tuple[int, int, float, float, float, float | None]] = []
+    matches: list[ThresholdMatch] = []
     for min_shadow_score in shadow_score_thresholds:
         for score_ratio in score_ratios:
             for level_ratio in level_ratios:
@@ -513,13 +510,9 @@ def print_threshold_search(
                                 score_ratio,
                                 level_ratio,
                                 target_level_ceiling,
-                            )
                         )
+                    )
 
-    print(f"\n{title} threshold search max_protected={max_protected}")
-    if not matches:
-        print("  no matching thresholds")
-        return
     matches.sort(
         key=lambda item: (
             item[0],
@@ -530,6 +523,60 @@ def print_threshold_search(
             9.0 if item[5] is None else item[5],
         )
     )
+    return matches
+
+
+def threshold_match_text(
+    match: ThresholdMatch,
+    extras_total: int,
+    protected_total: int,
+    min_pitch_confidence: float | None,
+    min_periodicity: float | None,
+    max_fit_error: float | None,
+    max_noise: float | None,
+    owner_mode: str,
+) -> str:
+    protected_hits, extra_hits, min_shadow_score, score_ratio, level_ratio, target_level_ceiling = match
+    line = (
+        f"protected={protected_hits}/{protected_total} extras={extra_hits}/{extras_total} "
+        f"min_shadow_score={min_shadow_score:.2f} score_ratio={score_ratio:.2f} "
+        f"level_ratio={level_ratio:.2f}"
+    )
+    if target_level_ceiling is not None:
+        line += f" target_level_max={target_level_ceiling:.2f}"
+    if min_pitch_confidence is not None:
+        line += f" min_pitch_confidence={min_pitch_confidence:.2f}"
+    if min_periodicity is not None:
+        line += f" min_periodicity={min_periodicity:.2f}"
+    if max_fit_error is not None:
+        line += f" max_fit_error={max_fit_error:.2f}"
+    if max_noise is not None:
+        line += f" max_noise={max_noise:.2f}"
+    if owner_mode != "any":
+        line += f" owner_mode={owner_mode}"
+    return line
+
+
+def print_threshold_search(
+    title: str,
+    records: list[dict[str, str]],
+    matches: list[ThresholdMatch],
+    max_protected: int,
+    limit: int,
+    examples: int,
+    protected_examples: int,
+    min_pitch_confidence: float | None,
+    min_periodicity: float | None,
+    max_fit_error: float | None,
+    max_noise: float | None,
+    owner_mode: str,
+) -> None:
+    extras = [record for record in records if record["protected"] == "0"]
+    protected = [record for record in records if record["protected"] == "1"]
+    print(f"\n{title} threshold search max_protected={max_protected}")
+    if not matches:
+        print("  no matching thresholds")
+        return
     for (
         protected_hits,
         extra_hits,
@@ -538,24 +585,20 @@ def print_threshold_search(
         level_ratio,
         target_level_ceiling,
     ) in matches[: max(0, limit)]:
-        line = (
-            f"  protected={protected_hits}/{len(protected)} extras={extra_hits}/{len(extras)} "
-            f"min_shadow_score={min_shadow_score:.2f} score_ratio={score_ratio:.2f} "
-            f"level_ratio={level_ratio:.2f}"
+        match = (protected_hits, extra_hits, min_shadow_score, score_ratio, level_ratio, target_level_ceiling)
+        print(
+            "  "
+            + threshold_match_text(
+                match,
+                len(extras),
+                len(protected),
+                min_pitch_confidence,
+                min_periodicity,
+                max_fit_error,
+                max_noise,
+                owner_mode,
+            )
         )
-        if target_level_ceiling is not None:
-            line += f" target_level_max={target_level_ceiling:.2f}"
-        if min_pitch_confidence is not None:
-            line += f" min_pitch_confidence={min_pitch_confidence:.2f}"
-        if min_periodicity is not None:
-            line += f" min_periodicity={min_periodicity:.2f}"
-        if max_fit_error is not None:
-            line += f" max_fit_error={max_fit_error:.2f}"
-        if max_noise is not None:
-            line += f" max_noise={max_noise:.2f}"
-        if owner_mode != "any":
-            line += f" owner_mode={owner_mode}"
-        print(line)
         if examples > 0:
             matching_extras = [
                 record
@@ -612,7 +655,79 @@ def print_threshold_search(
                 f"{record.get('shadow_level', '')} debug={record.get('debug_note', '')}/"
                 f"{record.get('debug_owner', '')} target_score={record.get('target_score', '')} "
                 f"shadow_score={record.get('shadow_score', '')}"
+                )
+
+
+def print_ranked_threshold_summary(
+    opportunities: list[tuple[str, int, int, ThresholdMatch]],
+    limit: int,
+    min_pitch_confidence: float | None,
+    min_periodicity: float | None,
+    max_fit_error: float | None,
+    max_noise: float | None,
+    owner_mode: str,
+) -> None:
+    print("\nranked threshold-search opportunities")
+    if not opportunities:
+        print("  no matching thresholds")
+        return
+
+    best_by_route: dict[str, tuple[str, int, int, ThresholdMatch]] = {}
+    for opportunity in opportunities:
+        route = opportunity[0]
+        current = best_by_route.get(route)
+        if current is None:
+            best_by_route[route] = opportunity
+            continue
+        _route, extras_total, protected_total, match = opportunity
+        _cur_route, cur_extras_total, cur_protected_total, cur_match = current
+        key = (
+            match[0],
+            -match[1],
+            -(match[1] / max(1, extras_total)),
+            match[2],
+            match[3],
+            match[4],
+            9.0 if match[5] is None else match[5],
+        )
+        current_key = (
+            cur_match[0],
+            -cur_match[1],
+            -(cur_match[1] / max(1, cur_extras_total)),
+            cur_match[2],
+            cur_match[3],
+            cur_match[4],
+            9.0 if cur_match[5] is None else cur_match[5],
+        )
+        if key < current_key:
+            best_by_route[route] = opportunity
+
+    ranked = sorted(
+        best_by_route.values(),
+        key=lambda item: (
+            item[3][0],
+            -item[3][1],
+            -(item[3][1] / max(1, item[1])),
+            item[3][2],
+            item[3][3],
+            item[3][4],
+            9.0 if item[3][5] is None else item[3][5],
+        ),
+    )
+    for route, extras_total, protected_total, match in ranked[: max(0, limit)]:
+        print(
+            f"  {route} "
+            + threshold_match_text(
+                match,
+                extras_total,
+                protected_total,
+                min_pitch_confidence,
+                min_periodicity,
+                max_fit_error,
+                max_noise,
+                owner_mode,
             )
+        )
 
 
 def print_group(title: str, records: list[dict[str, str]], examples: int) -> None:
@@ -754,6 +869,8 @@ def main() -> int:
         if shadow_row not in ROW_NOTE_FIELDS:
             raise SystemExit(f"unknown shadow row `{shadow_row}`")
 
+    threshold_opportunities: list[tuple[str, int, int, ThresholdMatch]] = []
+    threshold_route_count = 0
     for shadow_row in shadow_rows:
         records_by_target: dict[str, list[dict[str, str]]] = collections.defaultdict(list)
         for (_sample_id, _buffer), group_rows in grouped.items():
@@ -789,13 +906,30 @@ def main() -> int:
                 print_group(f"{shadow_row}->same-pitch {target_row} protected", protected, args.examples)
             print_simulations(f"{shadow_row}->same-pitch {target_row}", records, args.source_breakdown)
             if args.threshold_search:
-                print_threshold_search(
-                    f"{shadow_row}->same-pitch {target_row}",
+                threshold_route_count += 1
+                matches = threshold_search_matches(
                     records,
                     args.shadow_score_thresholds,
                     args.score_ratios,
                     args.level_ratios,
                     args.target_level_thresholds,
+                    args.max_protected,
+                    args.min_pitch_confidence,
+                    args.min_periodicity,
+                    args.max_fit_error,
+                    args.max_noise,
+                    args.threshold_owner_mode,
+                )
+                route = f"{shadow_row}->same-pitch {target_row}"
+                extras_total = sum(1 for record in records if record["protected"] == "0")
+                protected_total = sum(1 for record in records if record["protected"] == "1")
+                threshold_opportunities.extend(
+                    (route, extras_total, protected_total, match) for match in matches
+                )
+                print_threshold_search(
+                    route,
+                    records,
+                    matches,
                     args.max_protected,
                     args.threshold_limit,
                     args.threshold_examples,
@@ -806,6 +940,16 @@ def main() -> int:
                     args.max_noise,
                     args.threshold_owner_mode,
                 )
+    if args.threshold_search and threshold_route_count > 1:
+        print_ranked_threshold_summary(
+            threshold_opportunities,
+            args.threshold_limit,
+            args.min_pitch_confidence,
+            args.min_periodicity,
+            args.max_fit_error,
+            args.max_noise,
+            args.threshold_owner_mode,
+        )
     return 0
 
 
