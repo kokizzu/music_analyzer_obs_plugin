@@ -44,6 +44,10 @@ tom/report_protected.wav\ttom\ttom\t0.74\t0.997\t0.15\t0\t0\t0.96\t0\t0
                 "kick-field-tom:tom:0.28:got.eq.kick,kick_level.gtef.tom_level@1.05,energy_low.gte.0.58,tom_level.gt.0.30",
                 "--candidate-cap",
                 "level-primary-saturated-kick-tom",
+                "--candidate-cap",
+                "derived-ratio-tom:tom:0.28:tom_kick_level_ratio.gte.2.0",
+                "--candidate-cap",
+                "missing-ratio-crash:crash:0.28:crash_hihat_level_ratio.lte.0.969,crash_level.gt.0.30",
             ],
             cwd=ROOT,
             check=True,
@@ -79,6 +83,12 @@ tom/report_protected.wav\ttom\ttom\t0.74\t0.997\t0.15\t0\t0\t0.96\t0\t0
     require(output, "  matched expected=tom=2 kick=1 got=kick=2 tom=1")
     require(output, "  false-active removed=1 routes=kick->tom=1 true-active lost=2")
     require(output, "    lost sample=tom/report_protected.wav expected=tom got=tom tom_level=0.960->0.280")
+    require(output, "candidate derived-ratio-tom threshold 0.30 target=tom cap=0.28 matched=1")
+    require(output, "  predicate: tom_kick_level_ratio>=2.0")
+    require(output, "  matched expected=snare=1 got=snare=1")
+    require(output, "  false-active removed=1 routes=snare->tom=1 true-active lost=0")
+    require(output, "candidate missing-ratio-crash threshold 0.30 target=crash cap=0.28 matched=0")
+    require(output, "  predicate: crash_hihat_level_ratio<=0.969,crash_level>0.30")
     print("test_simulate_drum_active_thresholds: ok")
     return 0
 

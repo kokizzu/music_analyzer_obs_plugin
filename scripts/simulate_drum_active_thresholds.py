@@ -60,12 +60,18 @@ class Condition:
         if self.op == "!=":
             return actual != self.value
 
-        actual_value = as_float(actual)
+        actual_value = optional_float(actual)
+        if actual_value is None:
+            return False
         expected_value = (
-            as_float(row.get(self.compare_field, "")) * self.compare_multiplier
+            optional_float(row.get(self.compare_field, ""))
             if self.compare_field
-            else as_float(self.value)
+            else optional_float(self.value)
         )
+        if expected_value is None:
+            return False
+        if self.compare_field:
+            expected_value *= self.compare_multiplier
         if self.op == ">=":
             return actual_value >= expected_value
         if self.op == "<=":
@@ -125,10 +131,15 @@ BUILTIN_CAPS = {
 
 
 def as_float(value: str) -> float:
+    parsed = optional_float(value)
+    return parsed if parsed is not None else 0.0
+
+
+def optional_float(value: str) -> float | None:
     try:
         return float(value)
     except (TypeError, ValueError):
-        return 0.0
+        return None
 
 
 def read_rows(path: pathlib.Path) -> list[dict[str, str]]:
@@ -136,7 +147,38 @@ def read_rows(path: pathlib.Path) -> list[dict[str, str]]:
         rows = list(csv.DictReader(handle, delimiter="\t"))
     for row in rows:
         add_level_primary(row)
+        add_ratios(row)
     return rows
+
+
+def add_ratios(row: dict[str, str]) -> None:
+    for lhs, rhs in (
+        ("tom", "snare"),
+        ("tom", "kick"),
+        ("snare", "kick"),
+        ("hihat", "rim"),
+        ("crash", "hihat"),
+        ("ride", "hihat"),
+        ("kick", "bass"),
+    ):
+        for field in ("band", "seg", "shape_score", "trigger", "level"):
+            lhs_value = optional_float(row.get(f"{lhs}_{field}", ""))
+            rhs_value = optional_float(row.get(f"{rhs}_{field}", ""))
+            if lhs_value is None or rhs_value is None or abs(rhs_value) < 1.0e-6:
+                continue
+            row[f"{lhs}_{rhs}_{field}_ratio"] = f"{lhs_value / rhs_value:.9f}"
+    for label, lhs_field, rhs_field in (
+        ("tom_snare_body_ratio", "tom_body", "snare_body"),
+        ("tom_kick_body_ratio", "tom_body", "kick_body"),
+        ("snare_kick_body_ratio", "snare_body", "kick_body"),
+        ("upper_tom_snare_body_ratio", "upper_tom_body", "snare_body"),
+        ("upper_tom_snare_crack_ratio", "upper_tom_body", "snare_crack"),
+    ):
+        lhs_value = optional_float(row.get(lhs_field, ""))
+        rhs_value = optional_float(row.get(rhs_field, ""))
+        if lhs_value is None or rhs_value is None or abs(rhs_value) < 1.0e-6:
+            continue
+        row[label] = f"{lhs_value / rhs_value:.9f}"
 
 
 def add_level_primary(row: dict[str, str]) -> None:
