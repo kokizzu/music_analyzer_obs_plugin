@@ -10617,6 +10617,14 @@ void prefer_probe_supported_lower_string_primary(NoteGrid &grid, InstrumentState
 
 			const float lower_probe = probe_level(powers, lower_midi);
 			const float lower_ratio = lower_probe / primary_probe;
+			const float lower_second_octave_ratio =
+				probe_level(powers, lower_midi + 24) / primary_probe;
+			const float lower_major_third_ratio =
+				probe_level(powers, lower_midi + 28) / primary_probe;
+			const bool low_e1_supported =
+				primary.midi == 40 && lower_midi == 28 && lower_ratio >= 0.030f &&
+				lower_ratio <= 0.045f && lower_second_octave_ratio >= 0.70f &&
+				lower_major_third_ratio >= 0.20f;
 			const bool low_g1_supported =
 				primary.midi == 43 && lower_midi == 31 && lower_ratio >= 0.065f &&
 				lower_ratio <= 0.090f;
@@ -10625,9 +10633,10 @@ void prefer_probe_supported_lower_string_primary(NoteGrid &grid, InstrumentState
 			const bool double_octave_supported =
 				octave_delta == 24 && primary.midi >= 72 && lower_ratio >= 0.080f &&
 				note_grid_midi_level(grid, primary.midi - 12) >= primary.level * 0.55f;
-			if (!low_g1_supported && !direct_octave_supported && !double_octave_supported)
+			if (!low_e1_supported && !low_g1_supported && !direct_octave_supported &&
+			    !double_octave_supported)
 				continue;
-			if (fundamental_primary_supported && !low_g1_supported)
+			if (fundamental_primary_supported && !low_e1_supported && !low_g1_supported)
 				continue;
 
 			if (supported_midi < 0 || lower_midi < supported_midi ||
