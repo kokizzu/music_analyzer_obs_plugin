@@ -2138,6 +2138,8 @@ bool source_hinted_vocal_candidate_supported(const NoteEvidence &evidence, int m
 		evidence.ownership_scores[static_cast<std::size_t>(InstrumentKind::Guitar)];
 	const float vocal_score =
 		evidence.ownership_scores[static_cast<std::size_t>(InstrumentKind::Vocal)];
+	const float other_score =
+		evidence.ownership_scores[static_cast<std::size_t>(InstrumentKind::Other)];
 
 	const bool measured_ooh_octave_alias =
 		candidate_count <= 8 &&
@@ -2158,7 +2160,25 @@ bool source_hinted_vocal_candidate_supported(const NoteEvidence &evidence, int m
 		third >= 0.28f && third <= 0.34f &&
 		fourth >= 0.11f && fourth <= 0.15f &&
 		fifth >= 0.16f && fifth <= 0.22f;
-	return measured_ooh_octave_alias;
+	const bool measured_synth_voice_octave_alias =
+		candidate_count <= 4 &&
+		midi == 72 &&
+		keyboard_score >= 0.99f &&
+		guitar_score <= 0.02f &&
+		vocal_score <= 0.02f &&
+		other_score <= 0.02f &&
+		evidence.spectral_level >= 0.99f &&
+		evidence.pitch_confidence >= 0.94f &&
+		evidence.periodicity >= 0.74f &&
+		evidence.harmonic_fit_error <= 0.020f &&
+		evidence.spectral_centroid <= 0.080f &&
+		evidence.spectral_slope <= 0.045f &&
+		evidence.local_noise_level <= 0.015f &&
+		second >= 0.10f && second <= 0.13f &&
+		third >= 0.010f && third <= 0.016f &&
+		fourth >= 0.016f && fourth <= 0.024f &&
+		fifth <= 0.010f;
+	return measured_ooh_octave_alias || measured_synth_voice_octave_alias;
 }
 
 void apply_full_mix_source_hint_owner(AnalysisInputMode source_hint, const NoteCandidate &candidate,
@@ -2863,6 +2883,27 @@ bool measured_vocal_octave_alias_supported(const FullMixDebugCandidate &debug)
 		fourth <= 0.15f &&
 		fifth >= 0.16f &&
 		fifth <= 0.22f;
+	const bool source_hinted_vocal_synth_voice_alias =
+		debug.owner == InstrumentKind::Vocal &&
+		debug.midi == 72 &&
+		debug.vocal_score >= 0.70f &&
+		debug.keyboard_score >= 0.99f &&
+		debug.guitar_score <= 0.02f &&
+		debug.other_score <= 0.02f &&
+		debug.spectral_level >= 0.99f &&
+		debug.pitch_confidence >= 0.94f &&
+		debug.periodicity >= 0.74f &&
+		debug.harmonic_fit_error <= 0.020f &&
+		debug.spectral_centroid <= 0.080f &&
+		debug.spectral_slope <= 0.045f &&
+		debug.local_noise_level <= 0.015f &&
+		second >= 0.10f &&
+		second <= 0.13f &&
+		third >= 0.010f &&
+		third <= 0.016f &&
+		fourth >= 0.016f &&
+		fourth <= 0.024f &&
+		fifth <= 0.010f;
 	const bool keyboard_synth_voice_alias =
 		debug.owner == InstrumentKind::Keyboard &&
 		debug.midi >= 72 &&
@@ -2928,7 +2969,7 @@ bool measured_vocal_octave_alias_supported(const FullMixDebugCandidate &debug)
 		debug.other_score >= 0.472f;
 	return vocal_owned_ooh_octave_alias ||
 	       ambiguous_voice_ooh_alias || ambiguous_choir_alias || keyboard_ooh_alias ||
-	       source_hinted_vocal_ooh_alias ||
+	       source_hinted_vocal_ooh_alias || source_hinted_vocal_synth_voice_alias ||
 	       keyboard_synth_voice_alias || measured_keyboard_choir_bass_octave_alias ||
 	       measured_keyboard_synth_voice_octave_alias || measured_ambiguous_voice_ooh_octave_alias;
 }

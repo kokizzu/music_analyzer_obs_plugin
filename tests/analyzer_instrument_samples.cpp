@@ -1105,7 +1105,13 @@ bool expects_full_mix_vocal_display_octave_recovery(const std::string &suite_fam
 
 bool expects_full_mix_vocal_source_hint_owner(const std::string &suite_family, const SampleRow &row)
 {
-	return suite_family == "vocals" && row.program_name == "voice_oohs" && row.note == "E4";
+	if (suite_family != "vocals")
+		return false;
+	if (row.program_name == "voice_oohs" && row.note == "E4")
+		return true;
+	if (row.program_name == "synth_voice" && row.note == "C4")
+		return true;
+	return false;
 }
 
 bool expects_full_mix_bass_primary_octave_recovery(const std::string &suite_family,
