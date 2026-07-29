@@ -4,8 +4,11 @@
 from __future__ import annotations
 
 import argparse
+import concurrent.futures
+import contextlib
 import csv
 import dataclasses
+import io
 import pathlib
 import re
 import statistics
@@ -144,6 +147,20 @@ class SideEffectMaskSet:
     foreign: int
     new_active: int
     primary_break: int
+
+
+@dataclasses.dataclass(frozen=True)
+class RoutePatternSettings:
+    limit: int
+    min_positive_samples: int
+    max_negative_samples: int
+    max_conditions: int
+    beam_width: int
+    show_examples: int
+    show_near_misses: int
+    include_merged_rows: bool
+    min_route_positive_samples: int
+    min_route_positive_rows: int
 
 
 def primary_from_levels(row: dict[str, str]) -> str:
@@ -902,6 +919,48 @@ def print_route_patterns(
     print_rules(ranked)
 
 
+def route_patterns_text(
+    rows: list[dict[str, str]],
+    route: tuple[str, str],
+    settings: RoutePatternSettings,
+) -> str:
+    buffer = io.StringIO()
+    with contextlib.redirect_stdout(buffer):
+        route_rows = route_positive_rows(rows, route, settings.include_merged_rows)
+        route_samples = route_sample_count(route_rows)
+        if (
+            route_samples < settings.min_route_positive_samples
+            or len(route_rows) < settings.min_route_positive_rows
+        ):
+            expected, got = route
+            print(
+                f"route {expected}->{got} skipped: positives={route_samples} rows={len(route_rows)} "
+                f"below min-route-positive-samples={settings.min_route_positive_samples} "
+                f"min-route-positive-rows={settings.min_route_positive_rows}"
+            )
+            return buffer.getvalue()
+        print_route_patterns(
+            rows,
+            route,
+            settings.limit,
+            settings.min_positive_samples,
+            settings.max_negative_samples,
+            settings.max_conditions,
+            settings.beam_width,
+            settings.show_examples,
+            settings.show_near_misses,
+            settings.include_merged_rows,
+        )
+    return buffer.getvalue()
+
+
+def route_patterns_worker(
+    task: tuple[int, list[dict[str, str]], tuple[str, str], RoutePatternSettings],
+) -> tuple[int, str]:
+    index, rows, route, settings = task
+    return index, route_patterns_text(rows, route, settings)
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("logs", nargs="+", type=pathlib.Path)
@@ -936,6 +995,12 @@ def main() -> int:
         action="store_true",
         help="mine drum rows whose expected level was credited from a later frame as positives",
     )
+    parser.add_argument(
+        "--jobs",
+        type=int,
+        default=1,
+        help="mine independent routes in parallel when multiple routes are selected",
+    )
     args = parser.parse_args()
 
     rows: list[dict[str, str]] = []
@@ -965,29 +1030,30 @@ def main() -> int:
     if not routes:
         print("no routes matched the route-level positive thresholds")
         return 0
-    for route in routes:
-        route_rows = route_positive_rows(rows, route, args.include_merged_rows)
-        route_samples = route_sample_count(route_rows)
-        if route_samples < min_route_positive_samples or len(route_rows) < min_route_positive_rows:
-            expected, got = route
-            print(
-                f"route {expected}->{got} skipped: positives={route_samples} rows={len(route_rows)} "
-                f"below min-route-positive-samples={min_route_positive_samples} "
-                f"min-route-positive-rows={min_route_positive_rows}"
-            )
-            continue
-        print_route_patterns(
-            rows,
-            route,
-            max(1, args.limit),
-            max(1, args.min_positive_samples),
-            max(0, args.max_negative_samples),
-            max(1, args.max_conditions),
-            max(1, args.beam_width),
-            max(0, args.show_examples),
-            max(0, args.show_near_misses),
-            args.include_merged_rows,
-        )
+    settings = RoutePatternSettings(
+        limit=max(1, args.limit),
+        min_positive_samples=max(1, args.min_positive_samples),
+        max_negative_samples=max(0, args.max_negative_samples),
+        max_conditions=max(1, args.max_conditions),
+        beam_width=max(1, args.beam_width),
+        show_examples=max(0, args.show_examples),
+        show_near_misses=max(0, args.show_near_misses),
+        include_merged_rows=args.include_merged_rows,
+        min_route_positive_samples=min_route_positive_samples,
+        min_route_positive_rows=min_route_positive_rows,
+    )
+    jobs = min(max(1, args.jobs), len(routes))
+    if jobs <= 1:
+        for route in routes:
+            print(route_patterns_text(rows, route, settings), end="")
+    else:
+        outputs: list[str] = [""] * len(routes)
+        tasks = [(index, rows, route, settings) for index, route in enumerate(routes)]
+        with concurrent.futures.ProcessPoolExecutor(max_workers=jobs) as executor:
+            for index, text in executor.map(route_patterns_worker, tasks):
+                outputs[index] = text
+        for text in outputs:
+            print(text, end="")
     return 0
 
 

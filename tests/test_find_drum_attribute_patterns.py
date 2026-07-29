@@ -120,7 +120,7 @@ def run_patterns(
     *paths: pathlib.Path, include_merged_rows: bool = False, row_examples: int = 1,
     max_conditions: int = 3, route_name: str = "tom->kick", show_near_misses: int = 0,
     min_route_positive_samples: int = 0, min_route_positive_rows: int = 0,
-    use_top_routes: bool = False, top_routes: int = 5,
+    use_top_routes: bool = False, top_routes: int = 5, jobs: int = 1,
 ) -> str:
     command = [
         sys.executable,
@@ -134,6 +134,8 @@ def run_patterns(
         str(max_conditions),
         "--row-examples",
         str(row_examples),
+        "--jobs",
+        str(jobs),
     ]
     if use_top_routes:
         command.extend(["--top-routes", str(top_routes)])
@@ -285,6 +287,19 @@ def main() -> int:
             top_routes=4,
             min_route_positive_samples=10,
         )
+        serial_top_routes_output = run_patterns(
+            tsv_path,
+            row_examples=0,
+            use_top_routes=True,
+            top_routes=4,
+        )
+        parallel_top_routes_output = run_patterns(
+            tsv_path,
+            row_examples=0,
+            use_top_routes=True,
+            top_routes=4,
+            jobs=2,
+        )
 
     assert "route tom->kick positives=2 rows=2 protected_correct=4 rows=4" in output
     assert "protecting merged expected-credit rows=1; pass --include-merged-rows to mine them" in output
@@ -323,6 +338,7 @@ def main() -> int:
     assert "route tom->kick positives=" not in skipped_route_output
     assert "route tom->kick" in top_route_filtered_output
     assert "no routes matched the route-level positive thresholds" in top_route_empty_output
+    assert parallel_top_routes_output == serial_top_routes_output
     print("test_find_drum_attribute_patterns: ok")
     return 0
 

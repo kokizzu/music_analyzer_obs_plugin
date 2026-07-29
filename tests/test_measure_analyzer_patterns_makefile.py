@@ -710,6 +710,20 @@ def main() -> int:
     assert 'scripts/analyze_drum_primary_debug.py" -nt "$(DRUM_FULL_EXACT_ATTRIBUTE_ROWS)"' in drum_full_exact_recipe, (
         "exact full drum search must regenerate when the row parser changes"
     )
+    for target in [
+        "find-drum-attribute-patterns",
+        "find-drum-primary-attribute-patterns",
+        "find-drum-full-attribute-patterns",
+        "find-drum-spread-exact-attribute-patterns",
+        "find-drum-full-exact-attribute-patterns",
+        "find-drum-full-exact-attribute-patterns-cached",
+        "find-hf-drum-primary-attribute-patterns",
+        "find-idmt-drum-primary-attribute-patterns",
+        "find-protected-drum-primary-attribute-patterns",
+    ]:
+        assert '--jobs "$(DRUM_PATTERN_JOBS)"' in target_recipe(makefile, target), (
+            f"{target} should mine independent drum routes in parallel by default"
+        )
 
     drum_full_gate_recipe = target_recipe(makefile, "analyze-drum-full-gate-matrix")
     assert "MUSIC_ANALYZER_DRUM_SAMPLE_VERBOSE_PRIMARY=1" in drum_full_gate_recipe, (
@@ -1139,6 +1153,7 @@ def main() -> int:
         "MEASURE_GUITAR_PATTERN_ARGS",
         "MEASURE_DRUM_PATTERN_ARGS",
         "MEASURE_DRUM_FULL_PATTERN_ARGS",
+        "DRUM_PATTERN_JOBS",
         "DRUM_SPREAD_EXACT_ATTRIBUTE_ROWS",
         "DRUM_FULL_EXACT_ATTRIBUTE_ROWS",
         "PRIMARY_DRUM_DEBUG_ERRS",
