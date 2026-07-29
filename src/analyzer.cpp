@@ -10916,6 +10916,8 @@ void prefer_probe_visible_low_keyboard_primary(NoteGrid &grid, InstrumentState &
 		const float primary_probe = probe_level(powers, primary.midi);
 		if (primary_probe <= 1.0e-6f)
 			continue;
+		const float primary_debug_score =
+			std::max(0.0f, full_mix_debug_keyboard_note_score(ownership, primary.midi));
 
 		int supported_midi = -1;
 		float supported_level = 0.0f;
@@ -10930,7 +10932,13 @@ void prefer_probe_visible_low_keyboard_primary(NoteGrid &grid, InstrumentState &
 				continue;
 
 			const float lower_probe = probe_level(powers, lower_midi);
-			if (lower_probe < primary_probe * 0.080f)
+			const float lower_ratio = lower_probe / primary_probe;
+			const bool probe_supported = lower_ratio >= 0.080f;
+			const bool weak_acoustic_e1_supported =
+				primary.midi == 40 && lower_midi == 28 && lower_level >= 0.80f &&
+				primary_debug_score >= 0.98f && lower_ratio >= 0.006f &&
+				lower_ratio <= 0.020f;
+			if (!probe_supported && !weak_acoustic_e1_supported)
 				continue;
 
 			if (supported_midi < 0 || lower_midi < supported_midi ||
