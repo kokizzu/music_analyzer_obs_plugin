@@ -195,6 +195,7 @@ def main() -> int:
         "test-drum-gate-matrix-summary",
         "test-drum-sample-shard-check",
         "test-real-note-full-mix-shard-check",
+        "test-real-note-sample-shard-check",
         "android-check",
     ]:
         assert target in analysis_script_target_list, (
@@ -306,6 +307,55 @@ def main() -> int:
         "MUSIC_ANALYZER_REAL_NOTE_MIN_GUITAR_FIRST_ROW_PERCENT=\"$(REAL_NOTE_FULL_MIX_MIN_GUITAR_FIRST_ROW_PERCENT)\"",
     ]:
         assert text in makefile, f"real-note full-mix gate env must include {text}"
+    isolated_sample_sharded_recipe = target_recipe(makefile, "test-real-note-sample-shards")
+    assert "REAL_NOTE_SAMPLE_TEST_MAKE_JOBS = $(if $(filter -j%,$(MAKEFLAGS)),,-j$(REAL_NOTE_SAMPLE_SHARDS))" in makefile, (
+        "isolated real-note shard tests must not force nested jobserver mode"
+    )
+    assert "REAL_NOTE_SAMPLE_SHARD_OUTS := $(addprefix $(BUILD_DIR)/real_note_$(REAL_NOTE_SAMPLE_TAG)_shard_,$(addsuffix .out,$(REAL_NOTE_SAMPLE_SHARD_INDEXES)))" in makefile, (
+        "isolated real-note aggregate checker must consume deterministic shard outputs"
+    )
+    assert "$(MAKE) $(REAL_NOTE_SAMPLE_TEST_MAKE_JOBS) $(REAL_NOTE_SAMPLE_SHARD_TARGETS)" in isolated_sample_sharded_recipe, (
+        "isolated real-note parallel target must fan out deterministic shards through jobserver-aware make"
+    )
+    assert "$(PYTHON) scripts/check_real_note_sample_shards.py" in isolated_sample_sharded_recipe, (
+        "isolated real-note parallel target must validate aggregated shard sample metrics"
+    )
+    isolated_sample_shard_recipe = target_recipe(makefile, "test-real-note-sample-shard-%")
+    for text in [
+        "MUSIC_ANALYZER_REAL_NOTE_SHARD_COUNT=\"$(REAL_NOTE_SAMPLE_SHARDS)\"",
+        "MUSIC_ANALYZER_REAL_NOTE_SHARD_INDEX=\"$*\"",
+        "MUSIC_ANALYZER_REAL_NOTE_MIN_BASS=0",
+        "MUSIC_ANALYZER_REAL_NOTE_MAX_FAILURES=\"$(REAL_NOTE_SAMPLE_SHARD_MAX_FAILURES)\"",
+        "> \"$(BUILD_DIR)/real_note_$(REAL_NOTE_SAMPLE_TAG)_shard_$*.out\"",
+        "2> \"$(BUILD_DIR)/real_note_$(REAL_NOTE_SAMPLE_TAG)_shard_$*.err\"",
+    ]:
+        assert text in isolated_sample_shard_recipe, (
+            f"isolated real-note shard target must include {text}"
+        )
+    for target, tag in {
+        "test-real-note-samples": "nsynth",
+        "test-guitar-fretboard-note-samples": "guitar_fretboard",
+        "test-guitar-techs-samples": "guitar_techs",
+        "test-philharmonia-samples": "philharmonia",
+        "test-philharmonia-samples-full": "philharmonia_full",
+        "test-good-sounds-samples": "good_sounds",
+        "test-iowa-piano-samples": "iowa_piano",
+        "test-iowa-bass-samples": "iowa_bass",
+        "test-iowa-strings-samples": "iowa_strings",
+        "test-iowa-orchestra-samples": "iowa_orchestra",
+        "test-iowa-orchestra-full-samples": "iowa_orchestra_full",
+        "test-idmt-bass-lines-samples": "idmt_bass_lines",
+        "test-idmt-guitar-samples": "idmt_guitar",
+        "test-tinysol-samples": "tinysol",
+        "test-vocadito-samples": "vocadito",
+        "test-vocalset-samples": "vocalset",
+    }.items():
+        assert f"{target}: REAL_NOTE_SAMPLE_TAG := {tag}" in makefile, (
+            f"{target} must configure a deterministic isolated real-note shard tag"
+        )
+        assert "$(RUN_REAL_NOTE_SAMPLE_SHARDS)" in target_recipe(makefile, target), (
+            f"{target} must delegate to the isolated real-note shard runner"
+        )
     instrument_sharded_recipe = target_recipe(makefile, "test-instrument-samples-parallel")
     assert "INSTRUMENT_SAMPLE_TEST_MAKE_JOBS = $(if $(filter -j%,$(MAKEFLAGS)),,-j$(INSTRUMENT_SAMPLE_SHARDS))" in makefile, (
         "generated instrument sample shards must not force nested jobserver mode"
