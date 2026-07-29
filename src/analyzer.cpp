@@ -12492,7 +12492,7 @@ bool chord_component_plain_major_minor(const char *start, std::size_t len)
 	return suffix_len == 0 || suffix_is(suffix, suffix_len, "m");
 }
 
-void prune_crowded_guitar_chord_label(ChordResult &chord)
+void prune_crowded_guitar_chord_label(ChordResult &chord, bool strict_plain_only)
 {
 	if (chord.root < 0 || !chord.label[0] || chord.label[0] == '-' ||
 	    chord_label_component_count(chord.label) < kGuitarChordCrowdedPruneMinComponents)
@@ -12520,14 +12520,15 @@ void prune_crowded_guitar_chord_label(ChordResult &chord)
 		ParsedRootChord component_parsed;
 		const bool have_component_parsed =
 			parse_root_chord_component(cursor, len, component_parsed);
-		if (!keep && have_component_parsed &&
+		if (!strict_plain_only && !keep && have_component_parsed &&
 		    component_parsed.quality == RootChordQuality::NoThird)
 			keep = true;
 		if (!keep && have_primary_mask) {
-			keep = have_component_mask &&
-			       (component_mask == primary_mask ||
-				(component_mask & primary_mask) == primary_mask ||
-				(component_mask & primary_mask) == component_mask);
+			keep = have_component_mask && component_mask == primary_mask;
+			if (!strict_plain_only && !keep && have_component_mask) {
+				keep = (component_mask & primary_mask) == primary_mask ||
+				       (component_mask & primary_mask) == component_mask;
+			}
 		}
 		if (!keep && have_component_mask) {
 			for (std::size_t i = 0; i < kept_mask_count; ++i) {
@@ -12537,7 +12538,7 @@ void prune_crowded_guitar_chord_label(ChordResult &chord)
 				}
 			}
 		}
-		if (!keep && have_primary_parsed) {
+		if (!strict_plain_only && !keep && have_primary_parsed) {
 			keep = have_component_parsed && component_parsed.root == primary_parsed.root &&
 			       (component_parsed.quality == RootChordQuality::NoThird ||
 				component_parsed.quality == RootChordQuality::Diminished ||
@@ -19672,7 +19673,7 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 		    !primary_guitar_chord_has_playable_voicing(raw_guitar_chord, snapshot.guitar_notes,
 							       guitar_chord_detection_grid))
 			raw_guitar_chord = ChordResult{};
-		prune_crowded_guitar_chord_label(raw_guitar_chord);
+		prune_crowded_guitar_chord_label(raw_guitar_chord, mixed_source);
 		set_instrument_chord(snapshot.guitar_chord, raw_guitar_chord, guitar_energy, rms,
 				     mixed_source ? kNoteRmsFloor : kPolyphonicNoteRmsFloor);
 		set_instrument_chord(snapshot.guitar_raw_chord, raw_guitar_chord, guitar_energy, rms,
@@ -20262,8 +20263,8 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 			promote_smoothed_same_root_guitar_quality(raw_guitar_chord, smoothed_guitar_chord,
 								  note_powers, kGuitarMinMidi,
 								  kGuitarMaxMidi);
-		prune_crowded_guitar_chord_label(raw_guitar_chord);
-		prune_crowded_guitar_chord_label(smoothed_guitar_chord);
+		prune_crowded_guitar_chord_label(raw_guitar_chord, mixed_source);
+		prune_crowded_guitar_chord_label(smoothed_guitar_chord, mixed_source);
 		if (raw_changed_by_smoothed)
 			set_instrument_chord(snapshot.guitar_raw_chord, raw_guitar_chord, guitar_energy, rms,
 					     kPolyphonicNoteRmsFloor);

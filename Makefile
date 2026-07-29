@@ -666,7 +666,7 @@ CXXFLAGS += -std=c++17 -fPIC -Wall -Wextra
 RENDERER_OBJ := $(BUILD_DIR)/visualizer_renderer.o
 PLUGIN_OBJS := $(BUILD_DIR)/analyzer.o $(RENDERER_OBJ) $(BUILD_DIR)/plugin.o
 ANALYZER_TEST_OBJ := $(BUILD_DIR)/analyzer_test.o
-TEST_BINS := $(BUILD_DIR)/fret_control_tests $(BUILD_DIR)/analyzer_smoke $(BUILD_DIR)/analyzer_cases $(BUILD_DIR)/analyzer_midi_ranges $(BUILD_DIR)/analyzer_urmp $(BUILD_DIR)/analyzer_musicnet $(BUILD_DIR)/analyzer_multtipop $(BUILD_DIR)/analyzer_guitarset $(BUILD_DIR)/analyzer_maestro $(BUILD_DIR)/analyzer_egmd $(BUILD_DIR)/analyzer_drum_samples $(BUILD_DIR)/analyzer_instrument_samples $(BUILD_DIR)/analyzer_real_note_samples $(BUILD_DIR)/analyzer_instrument_family_samples
+TEST_BINS := $(BUILD_DIR)/fret_control_tests $(BUILD_DIR)/analyzer_internal $(BUILD_DIR)/analyzer_smoke $(BUILD_DIR)/analyzer_cases $(BUILD_DIR)/analyzer_midi_ranges $(BUILD_DIR)/analyzer_urmp $(BUILD_DIR)/analyzer_musicnet $(BUILD_DIR)/analyzer_multtipop $(BUILD_DIR)/analyzer_guitarset $(BUILD_DIR)/analyzer_maestro $(BUILD_DIR)/analyzer_egmd $(BUILD_DIR)/analyzer_drum_samples $(BUILD_DIR)/analyzer_instrument_samples $(BUILD_DIR)/analyzer_real_note_samples $(BUILD_DIR)/analyzer_instrument_family_samples
 STANDALONE_BIN := $(BUILD_DIR)/music-analyzer-standalone
 BASS_GUITAR_STANDALONE_BIN := $(BUILD_DIR)/music-analyzer-bass-guitar
 PARALLEL_TEST_JOBS ?= 4
@@ -732,7 +732,7 @@ GUITARSET_ATTRIBUTE_MAKE_JOBS = $(if $(filter -j%,$(MAKEFLAGS)),,-j$(GUITARSET_S
 .PHONY: analyze-drum-spread-gate-matrix analyze-drum-full-gate-matrix analyze-drum-full-gate-matrix-parallel analyze-drum-active-false-rows find-drum-spread-exact-attribute-patterns find-drum-full-exact-attribute-patterns find-drum-full-exact-attribute-patterns-cached test-drum-gate-matrix-summary test-drum-active-threshold-simulation test-drum-active-false-summary
 .PHONY: analyze-hf-drum-primary-attribute-rows find-hf-drum-primary-attribute-patterns analyze-idmt-drum-primary-attribute-rows find-idmt-drum-primary-attribute-patterns analyze-protected-drum-primary-attribute-rows find-protected-drum-primary-attribute-patterns
 .PHONY: analyze-guitar-chord-mix-recovery analyze-guitar-chord-primary-order analyze-guitar-chord-mix-extra-components test-guitar-chord-recovery-analysis test-guitar-primary-order-analysis test-guitar-chord-extra-components-analysis test-guitar-chord-mix-samples-parallel
-.PHONY: test-parallel test-core-parallel test-analysis-scripts-parallel test-fixtures-parallel test-fixtures-parallel-isolated test-real-note-samples-full-mix-parallel test-real-note-full-mix-shard-check test-instrument-samples-parallel test-analyzer-smoke test-analyzer-cases test-analyzer-midi-ranges test-analyzer-urmp test-analyzer-musicnet test-analyzer-multtipop test-analyzer-guitarset test-analyzer-maestro test-analyzer-egmd
+.PHONY: test-parallel test-core-parallel test-analysis-scripts-parallel test-fixtures-parallel test-fixtures-parallel-isolated test-real-note-samples-full-mix-parallel test-real-note-full-mix-shard-check test-instrument-samples-parallel test-analyzer-internal test-analyzer-smoke test-analyzer-cases test-analyzer-midi-ranges test-analyzer-urmp test-analyzer-musicnet test-analyzer-multtipop test-analyzer-guitarset test-analyzer-maestro test-analyzer-egmd
 .PHONY: test-drum-real-world-samples-parallel test-drum-real-world-samples-full-parallel test-real-world-samples-parallel test-real-world-samples-full-parallel test-real-world-samples-max-parallel test-drum-samples-optional test-drum-samples-spread-optional test-drum-machine-samples-optional test-drum-samples-full-optional test-good-sounds-samples-optional test-medley-solos-samples-optional test-maps-piano-samples-optional test-maps-piano-note-samples-optional test-bach10-mf0-synth-samples-optional test-vocalset-samples-optional
 .PHONY: test-drum-samples-full-parallel test-drum-samples-full-shard-% test-drum-samples-full-parallel-optional test-drum-sample-shard-check
 .PHONY: test-iowa-piano-samples-max test-iowa-orchestra-full-samples-max test-good-sounds-samples-max test-medley-solos-samples-max test-maps-piano-samples-max test-maps-piano-note-samples-max
@@ -909,6 +909,9 @@ $(BUILD_DIR)/analyzer_test.o: src/analyzer.cpp src/analyzer.hpp | $(BUILD_DIR)
 $(BUILD_DIR)/analyzer_smoke.o: tests/analyzer_smoke.cpp src/analyzer.hpp tests/analyzer_test_utils.hpp | $(BUILD_DIR)
 	tmp="$@.$$$$.tmp"; $(CXX) $(CXXFLAGS) -Isrc -Itests -c $< -o "$$tmp" && mv "$$tmp" "$@"
 
+$(BUILD_DIR)/analyzer_internal.o: tests/analyzer_internal.cpp src/analyzer.cpp src/analyzer.hpp | $(BUILD_DIR)
+	tmp="$@.$$$$.tmp"; $(CXX) $(CXXFLAGS) -Isrc -Itests -c $< -o "$$tmp" && mv "$$tmp" "$@"
+
 $(BUILD_DIR)/analyzer_cases.o: tests/analyzer_cases.cpp src/analyzer.hpp tests/analyzer_test_utils.hpp | $(BUILD_DIR)
 	tmp="$@.$$$$.tmp"; $(CXX) $(CXXFLAGS) -Isrc -Itests -c $< -o "$$tmp" && mv "$$tmp" "$@"
 
@@ -946,6 +949,9 @@ $(BUILD_DIR)/analyzer_instrument_family_samples.o: tests/analyzer_instrument_fam
 	tmp="$@.$$$$.tmp"; $(CXX) $(CXXFLAGS) -Isrc -Itests -c $< -o "$$tmp" && mv "$$tmp" "$@"
 
 $(BUILD_DIR)/analyzer_smoke: $(ANALYZER_TEST_OBJ) $(BUILD_DIR)/analyzer_smoke.o
+	tmp="$@.$$$$.tmp"; $(CXX) -o "$$tmp" $^ -lm -pthread && mv "$$tmp" "$@"
+
+$(BUILD_DIR)/analyzer_internal: $(BUILD_DIR)/analyzer_internal.o
 	tmp="$@.$$$$.tmp"; $(CXX) -o "$$tmp" $^ -lm -pthread && mv "$$tmp" "$@"
 
 $(BUILD_DIR)/analyzer_cases: $(ANALYZER_TEST_OBJ) $(BUILD_DIR)/analyzer_cases.o
@@ -2001,6 +2007,9 @@ test-fret-control: $(BUILD_DIR)/fret_control_tests scripts/run_with_duration.sh
 test-analyzer-smoke: $(BUILD_DIR)/analyzer_smoke scripts/run_with_duration.sh
 	$(RUN_WITH_DURATION) analyzer_smoke $(BUILD_DIR)/analyzer_smoke
 
+test-analyzer-internal: $(BUILD_DIR)/analyzer_internal scripts/run_with_duration.sh
+	$(RUN_WITH_DURATION) analyzer_internal $(BUILD_DIR)/analyzer_internal
+
 test-analyzer-cases: $(BUILD_DIR)/analyzer_cases scripts/run_with_duration.sh
 	$(RUN_WITH_DURATION) analyzer_cases $(BUILD_DIR)/analyzer_cases
 
@@ -2026,7 +2035,7 @@ test-analyzer-egmd: $(BUILD_DIR)/analyzer_egmd scripts/run_with_duration.sh
 	$(RUN_WITH_DURATION) analyzer_egmd $(BUILD_DIR)/analyzer_egmd
 
 test-core-parallel: scripts/run_with_duration.sh
-	$(RUN_WITH_DURATION) test_core_parallel $(MAKE) $(PARALLEL_TEST_MAKE_JOBS) test-analyzer-smoke test-analyzer-cases test-analyzer-midi-ranges test-analyzer-urmp test-analyzer-musicnet test-analyzer-multtipop test-analyzer-guitarset test-analyzer-maestro test-analyzer-egmd
+	$(RUN_WITH_DURATION) test_core_parallel $(MAKE) $(PARALLEL_TEST_MAKE_JOBS) test-analyzer-internal test-analyzer-smoke test-analyzer-cases test-analyzer-midi-ranges test-analyzer-urmp test-analyzer-musicnet test-analyzer-multtipop test-analyzer-guitarset test-analyzer-maestro test-analyzer-egmd
 
 ANALYSIS_SCRIPT_TEST_TARGETS := inspect-real-dataset-catalog inspect-real-goal-coverage test-musicnet-remote test-medleydb-inspector test-medleydb-prepare test-musdb-inspector test-slakh-inspector test-slakh-prepare test-choralsynth-inspector test-choralsynth-prepare test-cocochorales-inspector test-cocochorales-prepare test-synthsod-remote test-synthsod-archive-extract test-synthsod-inspector test-synthsod-prepare test-polyvocal-inspector test-polyvocal-prepare test-prepared-multitrack-inspector test-prepared-multitrack-prepare test-multtipop-inspector test-spheres-inspector test-guitarset-inspector test-urmp-inspector test-drum-sample-prepare test-hf-drum-kit-prepare test-idmt-drums-prepare test-mdb-drums-prepare test-star-drums-prepare test-medley-solos-prepare test-maps-piano-prepare test-bach10-mf0-synth-prepare test-instrument-sample-attribute-summary test-instrument-sample-owner-buckets test-filter-instrument-attribute-rows test-filter-drum-attribute-rows test-instrument-owner-patterns test-refresh-analyzer-detected-attribute-rows test-print-analyzer-detected-attributes test-analyzer-pattern-report test-measure-analyzer-patterns-target test-build-sharded-tsv test-drum-sample-shard-check test-real-note-full-mix-shard-check test-guitarset-shard-check test-philharmonia-prepare test-good-sounds-prepare test-iowa-piano-prepare test-iowa-zip-prepare test-idmt-bass-lines-prepare test-idmt-guitar-prepare test-tinysol-prepare test-vocadito-prepare test-vocalset-prepare test-guitar-fretboard-note-prepare test-guitar-techs-prepare test-guitar-techs-chord-prepare test-guitar-chord-mix-prepare test-gaps-guitar-prepare test-guitarset-miss-analysis test-guitarset-attribute-summary test-guitarset-attribute-buckets test-guitarset-attribute-patterns test-guitar-chord-recovery-analysis test-guitar-primary-order-analysis test-guitar-chord-extra-components-analysis test-real-note-miss-analysis test-real-note-attribute-summary test-real-note-attribute-buckets test-real-note-attribute-patterns test-real-note-attribute-rule test-real-note-display-shadow-eval test-egmd-miss-analysis test-egmd-drum-attribute-summary test-egmd-drum-recovery-eval test-drum-debug-row-analysis test-drum-primary-analysis test-drum-gate-matrix-summary test-drum-active-threshold-simulation test-drum-active-false-summary test-real-goal-script android-check
 
