@@ -414,6 +414,63 @@ def append_extra_note_row_summary(
             lines.append(f"  {key} {examples}")
 
 
+def append_row_confusion_pitch_summary(
+    lines: list[str], rows: list[dict[str, str]], sample_limit: int
+) -> None:
+    context_rows = unique_context_rows(rows)
+    for label, observed_field in [
+        ("strongest-row", "buffer_strongest_row"),
+        ("visual-row", "buffer_visual_strongest_row"),
+    ]:
+        bucket_counts: collections.Counter[str] = collections.Counter()
+        route_counts: collections.Counter[str] = collections.Counter()
+        pitch_route_counts: collections.Counter[str] = collections.Counter()
+        sample_ids: set[str] = set()
+        bucket_samples: dict[str, set[str]] = collections.defaultdict(set)
+
+        for row in context_rows:
+            expected_row = ROW_FOR_FAMILY.get(row.get("family", ""))
+            observed_row = row.get(observed_field, "")
+            sample_id = row.get("sample_id", "")
+            if not expected_row or not observed_row or observed_row == expected_row:
+                continue
+            source = source_key(row)
+            note = expected_pitch_class(row) + expected_octave(row)
+            bucket = f"{source} {note}->{observed_row}"
+            route = f"{source}->{observed_row}"
+            pitch_route = f"{source} {expected_pitch_class(row)}->{observed_row}"
+            bucket_counts[bucket] += 1
+            route_counts[route] += 1
+            pitch_route_counts[pitch_route] += 1
+            if sample_id:
+                sample_ids.add(sample_id)
+                bucket_samples[bucket].add(sample_id)
+
+        limit = max(8, sample_limit if sample_limit > 0 else 8)
+        lines.append(
+            f"{label} confusion note buckets rows={sum(bucket_counts.values())} "
+            f"samples={len(sample_ids)} "
+            + compact_counter(bucket_counts, limit)
+        )
+        lines.append(
+            f"{label} confusion routes " + compact_counter(route_counts, limit)
+        )
+        lines.append(
+            f"{label} confusion pitch-class routes "
+            + compact_counter(pitch_route_counts, limit)
+        )
+
+        if sample_limit <= 0 or not bucket_counts:
+            continue
+        lines.append(f"{label} confusion bucket samples")
+        for bucket, row_count in bucket_counts.most_common(sample_limit):
+            samples = sorted(bucket_samples.get(bucket, set()))[:sample_limit]
+            lines.append(
+                f"  {bucket} rows={row_count} samples={len(bucket_samples.get(bucket, set()))} "
+                + " ".join(samples)
+            )
+
+
 def load_rows(path: pathlib.Path) -> list[dict[str, str]]:
     with path.open(newline="", errors="replace") as handle:
         reader = csv.DictReader(handle, delimiter="\t")
@@ -613,6 +670,7 @@ def summarize(path: pathlib.Path, detail_limit: int = 0, sample_limit: int = 0) 
             )
 
     append_extra_note_row_summary(lines, rows, sample_limit)
+    append_row_confusion_pitch_summary(lines, rows, sample_limit)
     append_detailed_breakdown(lines, rows, samples, detail_limit, sample_limit)
     return lines
 

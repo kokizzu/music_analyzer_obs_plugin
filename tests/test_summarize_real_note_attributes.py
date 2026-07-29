@@ -17,6 +17,7 @@ HEADER = [
     "detected_anywhere",
     "detected_expected_row",
     "first_row",
+    "visual_first_row",
     "sample_id",
     "family",
     "nsynth_family",
@@ -30,6 +31,7 @@ HEADER = [
     "row_grid",
     "any_grid",
     "buffer_strongest_row",
+    "buffer_visual_strongest_row",
     "bass_level",
     "guitar_level",
     "piano_level",
@@ -147,6 +149,7 @@ def main() -> int:
             row(
                 status="hit",
                 first_row="piano",
+                visual_first_row="piano",
                 sample_id="keyboard_1",
                 family="piano",
                 nsynth_family="keyboard",
@@ -154,6 +157,8 @@ def main() -> int:
                 expected_note="C4",
                 expected_midi="60",
                 buffer="0",
+                buffer_strongest_row="guitar",
+                buffer_visual_strongest_row="bass",
                 debug_note="C4",
                 debug_midi="60",
                 debug_owner="piano",
@@ -178,6 +183,7 @@ def main() -> int:
                 status="ownership_miss",
                 detected_expected_row="0",
                 first_row="guitar",
+                visual_first_row="guitar",
                 sample_id="keyboard_2",
                 family="piano",
                 nsynth_family="keyboard",
@@ -185,6 +191,8 @@ def main() -> int:
                 expected_note="E2",
                 expected_midi="40",
                 buffer="0",
+                buffer_strongest_row="guitar",
+                buffer_visual_strongest_row="other",
                 row_grid="0",
                 debug_note="E2",
                 debug_midi="40",
@@ -261,6 +269,16 @@ def main() -> int:
     assert "piano/electronic->bass:-12=1" in result.stdout
     assert "piano/electronic->other:+12=1" in result.stdout
     assert "top extra same-pitch/octave delta piano/electronic->guitar:+0=2" in result.stdout
+    assert "strongest-row confusion note buckets rows=2 samples=2" in result.stdout
+    assert "piano/electronic C4->guitar=1" in result.stdout
+    assert "piano/electronic E2->guitar=1" in result.stdout
+    assert "strongest-row confusion routes piano/electronic->guitar=2" in result.stdout
+    assert "strongest-row confusion pitch-class routes piano/electronic C->guitar=1" in result.stdout
+    assert "piano/electronic E->guitar=1" in result.stdout
+    assert "visual-row confusion note buckets rows=2 samples=2" in result.stdout
+    assert "piano/electronic C4->bass=1" in result.stdout
+    assert "piano/electronic E2->other=1" in result.stdout
+    assert "visual-row confusion routes piano/electronic->bass=1 piano/electronic->other=1" in result.stdout
     assert "source detail" in detailed_result.stdout
     assert "piano/electronic samples=2 midi=40-60" in detailed_result.stdout
     assert "top extra-row samples" in detailed_result.stdout
@@ -270,6 +288,9 @@ def main() -> int:
         "piano/electronic->guitar keyboard_1@0 expected=C4/60 level=0.60"
         in detailed_result.stdout
     )
+    assert "strongest-row confusion bucket samples" in detailed_result.stdout
+    assert "piano/electronic C4->guitar rows=1 samples=1 keyboard_1" in detailed_result.stdout
+    assert "visual-row confusion bucket samples" in detailed_result.stdout
     assert "non-hit pitch buckets" in detailed_result.stdout
     assert "ownership_miss:piano/electronic note=E2->guitar samples=1" in detailed_result.stdout
     assert "non-hit sample attributes" in detailed_result.stdout
