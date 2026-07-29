@@ -371,6 +371,37 @@ def main() -> int:
             text=True,
             stdout=subprocess.PIPE,
         )
+        alias_threshold_result = subprocess.run(
+            [
+                sys.executable,
+                str(ROOT / "scripts" / "evaluate_real_note_display_shadow.py"),
+                str(path),
+                "--shadow-row",
+                "piano",
+                "--target-row",
+                "guitar",
+                "--min-shadow-level",
+                "0.10",
+                "--min-target-level",
+                "0.10",
+                "--threshold-search",
+                "--max-protected",
+                "0",
+                "--top-routes",
+                "1",
+                "--shadow-score-thresholds",
+                "0.18,0.24",
+                "--score-ratios",
+                "0.50",
+                "--level-ratios",
+                "0.90",
+                "--show-examples",
+                "1",
+            ],
+            check=True,
+            text=True,
+            stdout=subprocess.PIPE,
+        )
         source_breakdown_result = subprocess.run(
             [
                 sys.executable,
@@ -617,6 +648,11 @@ def main() -> int:
     assert "piano->same-pitch guitar threshold search max_protected=0" in threshold_output, threshold_output
     assert "protected=0/1 extras=2/3 min_shadow_score=0.18 score_ratio=0.50 level_ratio=0.90" in threshold_output, threshold_output
     assert "extra keyboard_note_only_debug@0 src=piano/electronic expected=D4/62" in threshold_output, threshold_output
+    alias_threshold_output = alias_threshold_result.stdout
+    assert "piano->same-pitch guitar extras rows=3 samples=3" in alias_threshold_output, alias_threshold_output
+    assert "piano->same-pitch guitar threshold search max_protected=0" in alias_threshold_output, alias_threshold_output
+    assert alias_threshold_output.count("protected=0/1 extras=") == 1, alias_threshold_output
+    assert "example keyboard_1@0 src=piano/electronic expected=C4/60" in alias_threshold_output, alias_threshold_output
     target_level_threshold_output = target_level_threshold_result.stdout
     assert (
         "protected=0/1 extras=2/3 min_shadow_score=0.18 score_ratio=0.50 "

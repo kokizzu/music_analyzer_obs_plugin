@@ -657,7 +657,7 @@ def main() -> int:
     parser.add_argument("--shadow-row", default="piano")
     parser.add_argument("--min-target-level", type=float, default=0.01)
     parser.add_argument("--min-shadow-level", type=float, default=0.01)
-    parser.add_argument("--examples", type=int, default=8)
+    parser.add_argument("--examples", "--show-examples", dest="examples", type=int, default=8)
     parser.add_argument(
         "--summary-only",
         action="store_true",
@@ -674,7 +674,7 @@ def main() -> int:
         help="search score/level threshold triples for low-risk shadow suppression",
     )
     parser.add_argument("--max-protected", type=int, default=2)
-    parser.add_argument("--threshold-limit", type=int, default=12)
+    parser.add_argument("--threshold-limit", "--top-routes", dest="threshold_limit", type=int, default=12)
     parser.add_argument(
         "--threshold-examples",
         type=int,
