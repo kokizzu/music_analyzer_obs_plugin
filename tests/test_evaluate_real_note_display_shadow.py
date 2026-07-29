@@ -169,6 +169,24 @@ def main() -> int:
                 guitar_notes="E4:0.30",
                 piano_notes="E4:0.90",
             ),
+            row(
+                sample_id="keyboard_bass_shadow",
+                family="piano",
+                source="electronic",
+                expected_note="C3",
+                expected_midi="48",
+                debug_note="C3",
+                debug_midi="48",
+                debug_owner="piano",
+                bass_score="0.00",
+                keyboard_score="0.80",
+                guitar_score="0.10",
+                bass_notes="C3:0.40",
+                guitar_notes="",
+                piano_notes="C3:0.90",
+                vocal_notes="",
+                other_notes="",
+            ),
         ]
         path.write_text(
             "\t".join(HEADER) + "\n" + "\n".join("\t".join(item) for item in rows) + "\n"
@@ -423,6 +441,10 @@ def main() -> int:
     assert "no matching thresholds" in guarded_reject_output, guarded_reject_output
     all_rows_output = all_rows_result.stdout
     assert "piano->same-pitch guitar extras rows=3 samples=3" in all_rows_output, all_rows_output
+    assert "piano->same-pitch bass extras rows=1 samples=1" in all_rows_output, all_rows_output
+    assert "runtime_keyboard_bass_weak" in all_rows_output, all_rows_output
+    assert "runtime_keyboard_bass_guarded" in all_rows_output, all_rows_output
+    assert "extras=1/1 protected=0/0 precision=100.0%" in all_rows_output, all_rows_output
     assert "guitar->same-pitch piano extras rows=1 samples=1" in all_rows_output, all_rows_output
     assert "piano->same-pitch piano" not in all_rows_output, all_rows_output
     return 0

@@ -278,7 +278,12 @@ def shadow_rule_matches(record: dict[str, str], rule: str) -> bool:
     target_level = as_float(record, "target_level") or 0.0
     shadow_level = as_float(record, "shadow_level") or 0.0
     debug_owner = record.get("debug_owner", "")
+    target_row = record.get("target_row", "")
     shadow_row = record.get("shadow_row", "")
+    pitch_confidence = as_float(record, "pitch_confidence") or 0.0
+    periodicity = as_float(record, "periodicity") or 0.0
+    fit_error = as_float(record, "fit_error") or 0.0
+    noise = as_float(record, "noise") or 0.0
 
     if shadow_level <= 1.0e-6:
         return False
@@ -298,6 +303,69 @@ def shadow_rule_matches(record: dict[str, str], rule: str) -> bool:
         return shadow_score_dominant and shadow_level_dominant
     if rule == "weak_target_shadow_owned":
         return owner_is_shadow and target_is_weak and shadow_score >= 0.18
+    if rule == "runtime_guitar_bass_guarded":
+        return (
+            target_row == "bass"
+            and shadow_row == "guitar"
+            and shadow_score >= 0.18
+            and target_score <= shadow_score * 0.20
+            and target_level <= shadow_level * 0.80
+            and pitch_confidence >= 0.78
+            and periodicity >= 0.70
+            and fit_error <= 0.08
+            and noise <= 0.45
+        )
+    if rule == "runtime_keyboard_bass_weak":
+        return (
+            target_row == "bass"
+            and shadow_row == "piano"
+            and owner_is_shadow
+            and target_level <= 0.45
+            and target_score <= 0.10
+            and shadow_score >= 0.18
+        )
+    if rule == "runtime_keyboard_bass_dominant":
+        return (
+            target_row == "bass"
+            and shadow_row == "piano"
+            and owner_is_shadow
+            and shadow_score >= 0.24
+            and target_score <= shadow_score * 0.50
+            and target_level <= shadow_level * 0.68
+        )
+    if rule == "runtime_keyboard_bass_guarded":
+        return (
+            target_row == "bass"
+            and shadow_row == "piano"
+            and owner_is_shadow
+            and shadow_score >= 0.18
+            and target_score <= shadow_score * 0.20
+            and target_level <= shadow_level * 0.80
+            and pitch_confidence >= 0.78
+            and periodicity >= 0.70
+            and fit_error <= 0.08
+            and noise <= 0.45
+        )
+    if rule == "runtime_other_bass_legacy":
+        return (
+            target_row == "bass"
+            and shadow_row == "other"
+            and shadow_score >= 0.24
+            and target_score <= shadow_score * 0.50
+            and target_level <= shadow_level * 0.66
+        )
+    if rule == "runtime_other_bass_guarded":
+        return (
+            target_row == "bass"
+            and shadow_row == "other"
+            and shadow_score >= 0.18
+            and target_score <= shadow_score * 0.20
+            and target_level <= shadow_level * 0.80
+            and pitch_confidence >= 0.78
+            and periodicity >= 0.70
+            and fit_error <= 0.08
+            and noise <= 0.45
+        )
     raise ValueError(f"unknown simulation rule `{rule}`")
 
 
@@ -314,6 +382,12 @@ def print_simulations(title: str, records: list[dict[str, str]], source_breakdow
         "owner_shadow_score15_level",
         "score2_level_no_owner",
         "weak_target_shadow_owned",
+        "runtime_guitar_bass_guarded",
+        "runtime_keyboard_bass_weak",
+        "runtime_keyboard_bass_dominant",
+        "runtime_keyboard_bass_guarded",
+        "runtime_other_bass_legacy",
+        "runtime_other_bass_guarded",
     ):
         extra_hits = [record for record in extras if shadow_rule_matches(record, rule)]
         protected_hits = [record for record in protected if shadow_rule_matches(record, rule)]
