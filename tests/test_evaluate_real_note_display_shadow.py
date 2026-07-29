@@ -385,6 +385,38 @@ def main() -> int:
             text=True,
             stdout=subprocess.PIPE,
         )
+        owner_mode_result = subprocess.run(
+            [
+                sys.executable,
+                str(ROOT / "scripts" / "evaluate_real_note_display_shadow.py"),
+                str(path),
+                "--shadow-row",
+                "piano",
+                "--target-row",
+                "guitar",
+                "--min-shadow-level",
+                "0.10",
+                "--min-target-level",
+                "0.10",
+                "--summary-only",
+                "--threshold-search",
+                "--max-protected",
+                "0",
+                "--threshold-limit",
+                "2",
+                "--shadow-score-thresholds",
+                "0.18",
+                "--score-ratios",
+                "0.50",
+                "--level-ratios",
+                "0.90",
+                "--threshold-owner-mode",
+                "shadow",
+            ],
+            check=True,
+            text=True,
+            stdout=subprocess.PIPE,
+        )
         all_rows_result = subprocess.run(
             [
                 sys.executable,
@@ -439,6 +471,11 @@ def main() -> int:
     ) in guarded_threshold_output, guarded_threshold_output
     guarded_reject_output = guarded_reject_result.stdout
     assert "no matching thresholds" in guarded_reject_output, guarded_reject_output
+    owner_mode_output = owner_mode_result.stdout
+    assert (
+        "protected=0/1 extras=2/3 min_shadow_score=0.18 score_ratio=0.50 "
+        "level_ratio=0.90 owner_mode=shadow"
+    ) in owner_mode_output, owner_mode_output
     all_rows_output = all_rows_result.stdout
     assert "piano->same-pitch guitar extras rows=3 samples=3" in all_rows_output, all_rows_output
     assert "piano->same-pitch bass extras rows=1 samples=1" in all_rows_output, all_rows_output

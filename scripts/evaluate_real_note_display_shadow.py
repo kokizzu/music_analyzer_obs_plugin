@@ -412,6 +412,7 @@ def threshold_rule_matches(
     min_periodicity: float | None,
     max_fit_error: float | None,
     max_noise: float | None,
+    owner_mode: str,
 ) -> bool:
     target_score = as_float(record, "target_score") or 0.0
     shadow_score = as_float(record, "shadow_score") or 0.0
@@ -421,6 +422,15 @@ def threshold_rule_matches(
     periodicity = as_float(record, "periodicity")
     fit_error = as_float(record, "fit_error")
     noise = as_float(record, "noise")
+    debug_owner = record.get("debug_owner", "")
+    target_row = record.get("target_row", "")
+    shadow_row = record.get("shadow_row", "")
+    if owner_mode == "shadow" and not owner_matches(shadow_row, debug_owner):
+        return False
+    if owner_mode == "target" and not owner_matches(target_row, debug_owner):
+        return False
+    if owner_mode == "not-target" and owner_matches(target_row, debug_owner):
+        return False
     if min_pitch_confidence is not None and (
         pitch_confidence is None or pitch_confidence < min_pitch_confidence
     ):
@@ -454,6 +464,7 @@ def print_threshold_search(
     min_periodicity: float | None,
     max_fit_error: float | None,
     max_noise: float | None,
+    owner_mode: str,
 ) -> None:
     extras = [record for record in records if record["protected"] == "0"]
     protected = [record for record in records if record["protected"] == "1"]
@@ -475,6 +486,7 @@ def print_threshold_search(
                             min_periodicity,
                             max_fit_error,
                             max_noise,
+                            owner_mode,
                         )
                     )
                     protected_hits = sum(
@@ -490,6 +502,7 @@ def print_threshold_search(
                             min_periodicity,
                             max_fit_error,
                             max_noise,
+                            owner_mode,
                         )
                     )
                     if extra_hits > 0 and protected_hits <= max_protected:
@@ -541,6 +554,8 @@ def print_threshold_search(
             line += f" max_fit_error={max_fit_error:.2f}"
         if max_noise is not None:
             line += f" max_noise={max_noise:.2f}"
+        if owner_mode != "any":
+            line += f" owner_mode={owner_mode}"
         print(line)
         if examples <= 0:
             continue
@@ -557,6 +572,7 @@ def print_threshold_search(
                 min_periodicity,
                 max_fit_error,
                 max_noise,
+                owner_mode,
             )
         ]
         for record in matching_extras[:examples]:
@@ -683,6 +699,12 @@ def main() -> int:
         default=None,
         help="optional maximum local noise required for threshold-search matches",
     )
+    parser.add_argument(
+        "--threshold-owner-mode",
+        choices=["any", "shadow", "target", "not-target"],
+        default="any",
+        help="optional debug-owner requirement for threshold-search matches",
+    )
     args = parser.parse_args()
 
     rows = load_rows(pathlib.Path(args.path))
@@ -748,6 +770,7 @@ def main() -> int:
                     args.min_periodicity,
                     args.max_fit_error,
                     args.max_noise,
+                    args.threshold_owner_mode,
                 )
     return 0
 
