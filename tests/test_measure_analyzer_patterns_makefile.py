@@ -677,10 +677,15 @@ def main() -> int:
     )
 
     drum_full_recipe = target_recipe(makefile, "find-drum-full-attribute-patterns")
-    assert "drum_full_attribute_rows.tsv" in drum_full_recipe, "full drum search must use measured TSV rows"
+    assert "$(DRUM_FULL_EXACT_ATTRIBUTE_ROWS)" in drum_full_recipe, (
+        "legacy full drum search must use the parallel exact full-manifest TSV"
+    )
+    assert "$(MAKE) analyze-drum-full-gate-matrix-parallel" in drum_full_recipe, (
+        "legacy full drum search must refresh stale rows through the parallel attribute builder"
+    )
     assert "scripts/find_drum_attribute_patterns.py" in drum_full_recipe, "full drum search must use the pattern miner"
-    assert "$(BUILD_DIR)/drum_full_attribute_rows.tsv" in drum_full_recipe, (
-        "full drum search must depend on the stale-aware full TSV target"
+    assert "drum_full_attribute_rows.tsv" not in drum_full_recipe, (
+        "legacy full drum search must not depend on the serial full-row dump"
     )
 
     drum_spread_exact_recipe = target_recipe(makefile, "find-drum-spread-exact-attribute-patterns")
@@ -1068,8 +1073,12 @@ def main() -> int:
             "$(MEASURE_ANALYZER_PATTERN_FULL_DRUM_EXACT_REPORT)",
         ]
     )
+    full_drum_report_recipe = target_recipe(makefile, "$(MEASURE_ANALYZER_PATTERN_FULL_DRUM_REPORT)")
+    assert "$(BUILD_DIR)/drum_full_attribute_rows.tsv" not in full_drum_report_recipe.splitlines()[0], (
+        "full drum pattern report must not prebuild serial full-row dumps"
+    )
     assert "$(MAKE) find-drum-full-attribute-patterns" in full_section_recipes, (
-        "full report helper must mine exhaustive full-drum rows"
+        "full report helper must mine protected full-drum rows through the parallel exact TSV"
     )
     assert "$(MAKE) find-drum-full-exact-attribute-patterns" in full_section_recipes, (
         "full report helper must mine exact full gate rows"
