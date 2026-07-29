@@ -319,6 +319,38 @@ def component_score(
     return display_tones * 1.15 + analysis_tones * 0.85 + anchor * 0.55 + third_level * 0.35
 
 
+def score_promotion_candidate(
+    row: dict[str, str],
+    min_gap: float = 0.02,
+) -> tuple[float, str, str, float, float] | None:
+    components = split_components(row.get("guitar_chord", ""))
+    if len(components) < 2:
+        return None
+
+    display = pitch_classes(row.get("guitar_pitch_classes", ""))
+    analysis = pitch_classes(row.get("guitar_analysis_pitch_classes", ""))
+    display_levels = parse_cells(row.get("guitar_cells", ""))
+    analysis_levels = parse_cells(row.get("guitar_analysis_cells", ""))
+    primary = components[0]
+    primary_score = component_score(primary, display, analysis, display_levels, analysis_levels)
+
+    best: tuple[float, int, str] | None = None
+    for index, label in enumerate(components[1:], start=1):
+        score = component_score(label, display, analysis, display_levels, analysis_levels)
+        if score < 0.0:
+            continue
+        if best is None or score > best[0] or (score == best[0] and index < best[1]):
+            best = (score, index, label)
+    if best is None:
+        return None
+
+    candidate_score, _index, promoted = best
+    gap = candidate_score - primary_score
+    if gap < min_gap:
+        return None
+    return gap, promoted, primary, primary_score, candidate_score
+
+
 def expected_labels(value: str) -> set[str]:
     return set(split_components(value))
 
@@ -584,6 +616,10 @@ def main() -> int:
     analysis_full_anchor_rescues = []
     analysis_full_anchor_protected_false = []
     analysis_full_anchor_neutral = []
+    score_promotion_candidates = []
+    score_promotion_rescues = []
+    score_promotion_protected_false = []
+    score_promotion_neutral = []
     for row in chord_rows:
         expected = expected_labels(row.get("expected_chords", ""))
         displayed_primary = primary_component(row.get("guitar_chord", ""))
@@ -653,6 +689,18 @@ def main() -> int:
                 analysis_full_anchor_protected_false.append((promoted, row))
             else:
                 analysis_full_anchor_neutral.append((promoted, row))
+
+        score_candidate = score_promotion_candidate(row)
+        if score_candidate:
+            gap, promoted, primary, primary_score, promoted_score = score_candidate
+            scored_row = (gap, promoted, primary, primary_score, promoted_score, row)
+            score_promotion_candidates.append(scored_row)
+            if not displayed_hit and promoted in expected:
+                score_promotion_rescues.append(scored_row)
+            elif displayed_hit and promoted not in expected:
+                score_promotion_protected_false.append(scored_row)
+            else:
+                score_promotion_neutral.append(scored_row)
 
     if relationship_buckets:
         print(
@@ -838,6 +886,38 @@ def main() -> int:
             f"  protected_false promote={promoted}",
             f"expected={row.get('expected_chords')}",
             f"display={primary_component(row.get('guitar_chord', ''))}",
+            f"label={row.get('guitar_chord', '--')}",
+            pathlib.Path(row.get("audio_path", "")).name,
+        )
+
+    print(
+        "score_promotion_probe:",
+        f"candidates={len(score_promotion_candidates)}",
+        f"rescues={len(score_promotion_rescues)}",
+        f"protected_false={len(score_promotion_protected_false)}",
+        f"neutral={len(score_promotion_neutral)}",
+    )
+    for gap, promoted, primary, primary_score, promoted_score, row in sorted(
+        score_promotion_rescues, key=lambda item: item[0], reverse=True
+    )[: args.examples]:
+        print(
+            f"  rescue promote={promoted}",
+            f"expected={row.get('expected_chords')}",
+            f"primary={primary}",
+            f"gap={gap:.3f}",
+            f"score=p:{primary_score:.3f}/c:{promoted_score:.3f}",
+            f"label={row.get('guitar_chord', '--')}",
+            pathlib.Path(row.get("audio_path", "")).name,
+        )
+    for gap, promoted, primary, primary_score, promoted_score, row in sorted(
+        score_promotion_protected_false, key=lambda item: item[0], reverse=True
+    )[: args.examples]:
+        print(
+            f"  protected_false promote={promoted}",
+            f"expected={row.get('expected_chords')}",
+            f"primary={primary}",
+            f"gap={gap:.3f}",
+            f"score=p:{primary_score:.3f}/c:{promoted_score:.3f}",
             f"label={row.get('guitar_chord', '--')}",
             pathlib.Path(row.get("audio_path", "")).name,
         )
