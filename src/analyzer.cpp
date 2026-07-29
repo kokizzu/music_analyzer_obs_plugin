@@ -71,6 +71,7 @@ constexpr float kChordWeakExtensionMargin = 0.16f;
 constexpr float kChordStrongExtensionToneFloor = 0.32f;
 constexpr float kChordStrongExtensionCoreRatio = 0.36f;
 constexpr float kGuitarCagedPresenceFloor = 0.50f;
+constexpr int kGuitarChordCrowdedPruneMinComponents = 7;
 constexpr std::size_t kDrumTransientSegments = 8;
 constexpr float kDrumTransientRatio = 1.55f;
 constexpr float kMixedBassMinBroadScoreRatio = 0.22f;
@@ -12413,6 +12414,150 @@ void append_chord_label_component(char *dst, std::size_t dst_size, const char *s
 	dst[used + copy_len] = '\0';
 }
 
+bool chord_component_pitch_mask(const char *start, std::size_t len, unsigned int &mask)
+{
+	ParsedRootChord parsed;
+	if (!parse_root_chord_component(start, len, parsed))
+		return false;
+
+	std::size_t root_len = 1;
+	if (len > 1 && start[1] == '#')
+		root_len = 2;
+	const char *suffix = start + root_len;
+	const std::size_t suffix_len = len - root_len;
+	mask = 0;
+	auto add = [&](int interval) {
+		const unsigned int bit =
+			1u << static_cast<unsigned int>((parsed.root + interval + 120) % 12);
+		mask |= bit;
+	};
+	auto add_intervals = [&](std::initializer_list<int> intervals) {
+		for (int interval : intervals)
+			add(interval);
+	};
+
+	if (suffix_len == 0)
+		add_intervals({0, 4, 7});
+	else if (suffix_is(suffix, suffix_len, "m"))
+		add_intervals({0, 3, 7});
+	else if (suffix_is(suffix, suffix_len, "pow"))
+		add_intervals({0, 7});
+	else if (suffix_is(suffix, suffix_len, "sus2"))
+		add_intervals({0, 2, 7});
+	else if (suffix_is(suffix, suffix_len, "sus4"))
+		add_intervals({0, 5, 7});
+	else if (suffix_is(suffix, suffix_len, "dim"))
+		add_intervals({0, 3, 6});
+	else if (suffix_is(suffix, suffix_len, "aug"))
+		add_intervals({0, 4, 8});
+	else if (suffix_is(suffix, suffix_len, "6"))
+		add_intervals({0, 4, 7, 9});
+	else if (suffix_is(suffix, suffix_len, "m6"))
+		add_intervals({0, 3, 7, 9});
+	else if (suffix_is(suffix, suffix_len, "7"))
+		add_intervals({0, 4, 7, 10});
+	else if (suffix_is(suffix, suffix_len, "maj7"))
+		add_intervals({0, 4, 7, 11});
+	else if (suffix_is(suffix, suffix_len, "m7"))
+		add_intervals({0, 3, 7, 10});
+	else if (suffix_is(suffix, suffix_len, "dim7"))
+		add_intervals({0, 3, 6, 9});
+	else if (suffix_is(suffix, suffix_len, "m7b5"))
+		add_intervals({0, 3, 6, 10});
+	else if (suffix_is(suffix, suffix_len, "9"))
+		add_intervals({0, 2, 4, 7, 10});
+	else if (suffix_is(suffix, suffix_len, "maj9"))
+		add_intervals({0, 2, 4, 7, 11});
+	else if (suffix_is(suffix, suffix_len, "m9"))
+		add_intervals({0, 2, 3, 7, 10});
+	else if (suffix_is(suffix, suffix_len, "add9"))
+		add_intervals({0, 2, 4, 7});
+	else
+		return false;
+	return mask != 0;
+}
+
+bool chord_component_plain_major_minor(const char *start, std::size_t len)
+{
+	ParsedRootChord parsed;
+	if (!parse_root_chord_component(start, len, parsed) ||
+	    (parsed.quality != RootChordQuality::Major && parsed.quality != RootChordQuality::Minor))
+		return false;
+
+	std::size_t root_len = 1;
+	if (len > 1 && start[1] == '#')
+		root_len = 2;
+	const char *suffix = start + root_len;
+	const std::size_t suffix_len = len - root_len;
+	return suffix_len == 0 || suffix_is(suffix, suffix_len, "m");
+}
+
+void prune_crowded_guitar_chord_label(ChordResult &chord)
+{
+	if (chord.root < 0 || !chord.label[0] || chord.label[0] == '-' ||
+	    chord_label_component_count(chord.label) < kGuitarChordCrowdedPruneMinComponents)
+		return;
+
+	const std::size_t primary_len = std::strcspn(chord.label, "=");
+	ParsedRootChord primary_parsed;
+	const bool have_primary_parsed =
+		parse_root_chord_component(chord.label, primary_len, primary_parsed);
+	unsigned int primary_mask = 0;
+	const bool have_primary_mask = chord_component_pitch_mask(chord.label, primary_len, primary_mask);
+
+	char filtered[sizeof(chord.label)] = {};
+	std::array<unsigned int, 32> kept_masks = {};
+	std::size_t kept_mask_count = 0;
+	const char *cursor = chord.label;
+	bool first_component = true;
+	while (cursor && *cursor) {
+		const char *end = std::strchr(cursor, '=');
+		const std::size_t len =
+			end ? static_cast<std::size_t>(end - cursor) : std::strlen(cursor);
+		unsigned int component_mask = 0;
+		const bool have_component_mask = chord_component_pitch_mask(cursor, len, component_mask);
+		bool keep = first_component || chord_component_plain_major_minor(cursor, len);
+		ParsedRootChord component_parsed;
+		const bool have_component_parsed =
+			parse_root_chord_component(cursor, len, component_parsed);
+		if (!keep && have_component_parsed &&
+		    component_parsed.quality == RootChordQuality::NoThird)
+			keep = true;
+		if (!keep && have_primary_mask) {
+			keep = have_component_mask &&
+			       (component_mask == primary_mask ||
+				(component_mask & primary_mask) == primary_mask ||
+				(component_mask & primary_mask) == component_mask);
+		}
+		if (!keep && have_component_mask) {
+			for (std::size_t i = 0; i < kept_mask_count; ++i) {
+				if (kept_masks[i] == component_mask) {
+					keep = true;
+					break;
+				}
+			}
+		}
+		if (!keep && have_primary_parsed) {
+			keep = have_component_parsed && component_parsed.root == primary_parsed.root &&
+			       (component_parsed.quality == RootChordQuality::NoThird ||
+				component_parsed.quality == RootChordQuality::Diminished ||
+				component_parsed.quality == RootChordQuality::Other);
+		}
+		if (keep) {
+			append_chord_label_component(filtered, sizeof(filtered), cursor, len);
+			if (have_component_mask && kept_mask_count < kept_masks.size())
+				kept_masks[kept_mask_count++] = component_mask;
+		}
+
+		if (!end)
+			break;
+		cursor = end + 1;
+		first_component = false;
+	}
+	if (filtered[0])
+		copy_text(chord.label, sizeof(chord.label), filtered);
+}
+
 bool parse_plain_major_minor_component(const char *start, std::size_t len, ParsedRootChord &parsed)
 {
 	if (!parse_root_chord_component(start, len, parsed) ||
@@ -19527,6 +19672,7 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 		    !primary_guitar_chord_has_playable_voicing(raw_guitar_chord, snapshot.guitar_notes,
 							       guitar_chord_detection_grid))
 			raw_guitar_chord = ChordResult{};
+		prune_crowded_guitar_chord_label(raw_guitar_chord);
 		set_instrument_chord(snapshot.guitar_chord, raw_guitar_chord, guitar_energy, rms,
 				     mixed_source ? kNoteRmsFloor : kPolyphonicNoteRmsFloor);
 		set_instrument_chord(snapshot.guitar_raw_chord, raw_guitar_chord, guitar_energy, rms,
@@ -20111,10 +20257,14 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 		    !primary_guitar_chord_has_playable_voicing(smoothed_guitar_chord, snapshot.guitar_notes,
 							       guitar_chord_grid))
 			smoothed_guitar_chord = ChordResult{};
-		if (!mixed_source &&
-		    promote_smoothed_same_root_guitar_quality(raw_guitar_chord, smoothed_guitar_chord,
-							      note_powers, kGuitarMinMidi,
-							      kGuitarMaxMidi))
+		const bool raw_changed_by_smoothed =
+			!mixed_source &&
+			promote_smoothed_same_root_guitar_quality(raw_guitar_chord, smoothed_guitar_chord,
+								  note_powers, kGuitarMinMidi,
+								  kGuitarMaxMidi);
+		prune_crowded_guitar_chord_label(raw_guitar_chord);
+		prune_crowded_guitar_chord_label(smoothed_guitar_chord);
+		if (raw_changed_by_smoothed)
 			set_instrument_chord(snapshot.guitar_raw_chord, raw_guitar_chord, guitar_energy, rms,
 					     kPolyphonicNoteRmsFloor);
 		set_instrument_chord(snapshot.guitar_smoothed_chord, smoothed_guitar_chord, guitar_energy, rms,
