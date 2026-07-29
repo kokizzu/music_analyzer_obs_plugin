@@ -8745,19 +8745,17 @@ void suppress_other_dominant_same_pitch_bass_shadows(NoteGrid &bass_grid, Instru
 void suppress_guitar_dominant_same_pitch_bass_shadows(NoteGrid &bass_grid, InstrumentState &bass_state,
 						      const NoteGrid &guitar_grid,
 						      const FullMixOwnership &ownership,
-						      int preferred_root)
+						      int preferred_root,
+						      bool allow_named_guitar_source_cleanup)
 {
-	static constexpr float kMinGuitarScore = 0.18f;
-	static constexpr float kMaxBassToGuitarScoreRatio = 0.20f;
 	static constexpr float kMaxBassToGuitarLevelRatio = 0.80f;
-	static constexpr float kMinPitchConfidence = 0.78f;
-	static constexpr float kMinPeriodicity = 0.70f;
-	static constexpr float kMaxHarmonicFitError = 0.08f;
-	static constexpr float kMaxNoiseLevel = 0.45f;
 	static constexpr float kMeasuredMinGuitarScore = 0.24f;
 	static constexpr float kMeasuredMaxBassToGuitarScoreRatio = 0.15f;
 	static constexpr float kMeasuredMaxBassToGuitarLevelRatio = 0.68f;
 	static constexpr float kMeasuredMaxNoiseLevel = 0.45f;
+	static constexpr float kNamedMinPitchConfidence = 0.78f;
+	static constexpr float kNamedMinPeriodicity = 0.70f;
+	static constexpr float kNamedMaxHarmonicFitError = 0.08f;
 
 	bool changed = false;
 	for (int midi = kBassMinMidi; midi <= kBassMaxMidi; ++midi) {
@@ -8773,20 +8771,23 @@ void suppress_guitar_dominant_same_pitch_bass_shadows(NoteGrid &bass_grid, Instr
 		if (!debug)
 			continue;
 
-		const bool guarded_guitar_shadow =
-			debug->guitar_score >= kMinGuitarScore &&
-			debug->bass_score <= debug->guitar_score * kMaxBassToGuitarScoreRatio &&
-			debug->pitch_confidence >= kMinPitchConfidence &&
-			debug->periodicity >= kMinPeriodicity &&
-			debug->harmonic_fit_error <= kMaxHarmonicFitError &&
-			debug->local_noise_level <= kMaxNoiseLevel;
 		const bool measured_guitar_shadow =
 			debug->owner == InstrumentKind::Guitar &&
 			debug->guitar_score >= kMeasuredMinGuitarScore &&
 			debug->bass_score <= debug->guitar_score * kMeasuredMaxBassToGuitarScoreRatio &&
 			bass_level <= guitar_level * kMeasuredMaxBassToGuitarLevelRatio &&
 			debug->local_noise_level <= kMeasuredMaxNoiseLevel;
-		if (!guarded_guitar_shadow && !measured_guitar_shadow)
+		const bool named_guitar_shadow =
+			allow_named_guitar_source_cleanup &&
+			debug->owner == InstrumentKind::Guitar &&
+			debug->guitar_score >= kMeasuredMinGuitarScore &&
+			debug->bass_score <= debug->guitar_score * kMeasuredMaxBassToGuitarScoreRatio &&
+			bass_level <= guitar_level * kMaxBassToGuitarLevelRatio &&
+			debug->pitch_confidence >= kNamedMinPitchConfidence &&
+			debug->periodicity >= kNamedMinPeriodicity &&
+			debug->harmonic_fit_error <= kNamedMaxHarmonicFitError &&
+			debug->local_noise_level <= kMeasuredMaxNoiseLevel;
+		if (!measured_guitar_shadow && !named_guitar_shadow)
 			continue;
 
 		clear_note_grid_midi(bass_grid, midi);
@@ -19899,7 +19900,9 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 								snapshot.other_notes, full_mix_ownership, -1);
 		suppress_guitar_dominant_same_pitch_bass_shadows(snapshot.bass_notes, snapshot.bass,
 								 snapshot.guitar_notes,
-								 full_mix_ownership, -1);
+								 full_mix_ownership, -1,
+								 full_mix_source_hint_mode ==
+									 AnalysisInputMode::IsolatedGuitar);
 		suppress_keyboard_owned_same_pitch_bass_shadows(snapshot.bass_notes, snapshot.bass,
 								snapshot.keyboard_notes,
 								full_mix_ownership, -1,

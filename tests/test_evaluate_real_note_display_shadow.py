@@ -541,6 +541,38 @@ def main() -> int:
             text=True,
             stdout=subprocess.PIPE,
         )
+        protected_threshold_result = subprocess.run(
+            [
+                sys.executable,
+                str(ROOT / "scripts" / "evaluate_real_note_display_shadow.py"),
+                str(path),
+                "--shadow-row",
+                "guitar",
+                "--target-row",
+                "bass",
+                "--min-shadow-level",
+                "0.10",
+                "--min-target-level",
+                "0.10",
+                "--summary-only",
+                "--threshold-search",
+                "--max-protected",
+                "1",
+                "--threshold-limit",
+                "1",
+                "--shadow-score-thresholds",
+                "0.24",
+                "--score-ratios",
+                "0.50",
+                "--level-ratios",
+                "0.90",
+                "--threshold-protected-examples",
+                "1",
+            ],
+            check=True,
+            text=True,
+            stdout=subprocess.PIPE,
+        )
 
     output = result.stdout
     assert "piano->same-pitch guitar extras rows=3 samples=3" in output, output
@@ -591,9 +623,13 @@ def main() -> int:
     assert "piano->same-pitch piano" not in all_rows_output, all_rows_output
     measured_runtime_output = measured_runtime_result.stdout
     assert "guitar->same-pitch bass extras rows=3 samples=3" in measured_runtime_output, measured_runtime_output
+    assert "runtime_guitar_bass_guarded" not in measured_runtime_output, measured_runtime_output
     assert (
         "runtime_guitar_bass_measured extras=2/3 protected=0/1 precision=100.0% protected_rate=0.0%"
     ) in measured_runtime_output, measured_runtime_output
+    protected_threshold_output = protected_threshold_result.stdout
+    assert "protected=1/1 extras=3/3 min_shadow_score=0.24" in protected_threshold_output, protected_threshold_output
+    assert "protected measured_guitar_bass_protected@0" in protected_threshold_output, protected_threshold_output
     return 0
 
 

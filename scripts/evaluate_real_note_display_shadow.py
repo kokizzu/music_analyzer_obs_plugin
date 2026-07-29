@@ -303,18 +303,6 @@ def shadow_rule_matches(record: dict[str, str], rule: str) -> bool:
         return shadow_score_dominant and shadow_level_dominant
     if rule == "weak_target_shadow_owned":
         return owner_is_shadow and target_is_weak and shadow_score >= 0.18
-    if rule == "runtime_guitar_bass_guarded":
-        return (
-            target_row == "bass"
-            and shadow_row == "guitar"
-            and shadow_score >= 0.18
-            and target_score <= shadow_score * 0.20
-            and target_level <= shadow_level * 0.80
-            and pitch_confidence >= 0.78
-            and periodicity >= 0.70
-            and fit_error <= 0.08
-            and noise <= 0.45
-        )
     if rule == "runtime_guitar_bass_measured":
         return (
             target_row == "bass"
@@ -392,7 +380,6 @@ def print_simulations(title: str, records: list[dict[str, str]], source_breakdow
         "owner_shadow_score15_level",
         "score2_level_no_owner",
         "weak_target_shadow_owned",
-        "runtime_guitar_bass_guarded",
         "runtime_guitar_bass_measured",
         "runtime_keyboard_bass_weak",
         "runtime_keyboard_bass_dominant",
@@ -471,6 +458,7 @@ def print_threshold_search(
     max_protected: int,
     limit: int,
     examples: int,
+    protected_examples: int,
     min_pitch_confidence: float | None,
     min_periodicity: float | None,
     max_fit_error: float | None,
@@ -568,11 +556,39 @@ def print_threshold_search(
         if owner_mode != "any":
             line += f" owner_mode={owner_mode}"
         print(line)
-        if examples <= 0:
+        if examples > 0:
+            matching_extras = [
+                record
+                for record in extras
+                if threshold_rule_matches(
+                    record,
+                    min_shadow_score,
+                    score_ratio,
+                    level_ratio,
+                    target_level_ceiling,
+                    min_pitch_confidence,
+                    min_periodicity,
+                    max_fit_error,
+                    max_noise,
+                    owner_mode,
+                )
+            ]
+            for record in matching_extras[:examples]:
+                print(
+                    "    extra "
+                    f"{record.get('sample_id', '')}@{record.get('buffer', '')} "
+                    f"src={record.get('source_key', '')} expected={record.get('expected_note', '')}/"
+                    f"{record.get('expected_midi', '')} target={record.get('target_row', '')}:"
+                    f"{record.get('target_level', '')} shadow={record.get('shadow_row', '')}:"
+                    f"{record.get('shadow_level', '')} debug={record.get('debug_note', '')}/"
+                    f"{record.get('debug_owner', '')} target_score={record.get('target_score', '')} "
+                    f"shadow_score={record.get('shadow_score', '')}"
+                )
+        if protected_examples <= 0:
             continue
-        matching_extras = [
+        matching_protected = [
             record
-            for record in extras
+            for record in protected
             if threshold_rule_matches(
                 record,
                 min_shadow_score,
@@ -586,9 +602,9 @@ def print_threshold_search(
                 owner_mode,
             )
         ]
-        for record in matching_extras[:examples]:
+        for record in matching_protected[:protected_examples]:
             print(
-                "    extra "
+                "    protected "
                 f"{record.get('sample_id', '')}@{record.get('buffer', '')} "
                 f"src={record.get('source_key', '')} expected={record.get('expected_note', '')}/"
                 f"{record.get('expected_midi', '')} target={record.get('target_row', '')}:"
@@ -664,6 +680,12 @@ def main() -> int:
         type=int,
         default=0,
         help="print this many matching extra rows under each threshold-search result",
+    )
+    parser.add_argument(
+        "--threshold-protected-examples",
+        type=int,
+        default=0,
+        help="print this many matching protected rows under each threshold-search result",
     )
     parser.add_argument(
         "--shadow-score-thresholds",
@@ -777,6 +799,7 @@ def main() -> int:
                     args.max_protected,
                     args.threshold_limit,
                     args.threshold_examples,
+                    args.threshold_protected_examples,
                     args.min_pitch_confidence,
                     args.min_periodicity,
                     args.max_fit_error,
