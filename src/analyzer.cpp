@@ -13398,7 +13398,7 @@ void append_guitar_power_probe_third_aliases(ChordResult &chord, const NoteGrid 
 			const float single_third_floor =
 				grid_thirdless ? std::max(third_floor, anchor * 0.055f) : third_floor;
 			const float compact_probe_third_floor =
-				std::max({anchor * 0.020f, strongest_probe * 0.0015f, 0.005f});
+				std::max({anchor * 0.018f, strongest_probe * 0.0015f, 0.005f});
 			const float melodic_root =
 				strongest_melodic_probe_pitch_class_level(powers, parsed.root, min_midi,
 									 max_midi);
