@@ -62,6 +62,44 @@ def main() -> int:
     require(output, "route kick->snare positives=2 rows=2 protected_true_snare=2 rows=2")
     require(output, "+2 rows=2 -0 rows=0")
     require(output, "false-active examples:")
+
+    guarded_rows = [
+        "kick/near-a.wav\tkick\tkick\t1\t0.80\t0.10\t0.10\t0.50\t10\t1.0\t1.0\t0.60\t10\t1.0\t1.0\t0\t0\t0\t1\t0\t0\t0\t1\t0\t0\t0\t1\t0\t0\t0\t1\t0\t0\t0\t1",
+        "kick/near-b.wav\tkick\tkick\t1\t0.81\t0.10\t0.10\t0.50\t10\t1.0\t1.0\t0.60\t10\t1.0\t1.0\t0\t0\t0\t1\t0\t0\t0\t1\t0\t0\t0\t1\t0\t0\t0\t1\t0\t0\t0\t1",
+        "snare/near-a.wav\tsnare\tsnare\t1\t0.779\t0.10\t0.10\t0.50\t10\t1.0\t1.0\t0.60\t10\t1.0\t1.0\t0\t0\t0\t1\t0\t0\t0\t1\t0\t0\t0\t1\t0\t0\t0\t1\t0\t0\t0\t1",
+        "snare/near-b.wav\tsnare\tsnare\t1\t0.778\t0.10\t0.10\t0.50\t10\t1.0\t1.0\t0.60\t10\t1.0\t1.0\t0\t0\t0\t1\t0\t0\t0\t1\t0\t0\t0\t1\t0\t0\t0\t1\t0\t0\t0\t1",
+    ]
+    with tempfile.TemporaryDirectory() as tmpdir:
+        table = pathlib.Path(tmpdir) / "guarded.tsv"
+        table.write_text(header + "\n" + "\n".join(guarded_rows) + "\n", encoding="utf-8")
+        completed = subprocess.run(
+            [
+                sys.executable,
+                str(SCRIPT),
+                str(table),
+                "--route",
+                "kick->snare",
+                "--min-positive-samples",
+                "2",
+                "--max-protected-samples",
+                "0",
+                "--max-conditions",
+                "1",
+                "--protected-margin",
+                "0.03",
+                "--show-near-misses",
+                "1",
+            ],
+            cwd=ROOT,
+            check=True,
+            text=True,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+        )
+    output = completed.stdout
+    require(output, "route kick->snare positives=2 rows=2 protected_true_snare=2 rows=2")
+    require(output, "nearest over-budget rules:")
+    require(output, "+2 rows=2 -2 rows=2")
     print("test_find_drum_active_false_patterns: ok")
     return 0
 

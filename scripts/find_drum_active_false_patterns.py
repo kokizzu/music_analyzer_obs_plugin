@@ -72,6 +72,8 @@ class Settings:
     beam_width: int
     show_examples: int
     show_near_misses: int
+    protected_margin: float
+    protected_relative_margin: float
 
 
 def as_float(row: dict[str, str], field: str) -> float | None:
@@ -269,10 +271,28 @@ def build_patterns(positive_rows: list[dict[str, str]]) -> list[Pattern]:
     return deduped
 
 
-def mask_for(rows: list[dict[str, str]], pattern: Pattern) -> int:
+def pattern_matches(row: dict[str, str], pattern: Pattern, protected_margin: float = 0.0,
+                    protected_relative_margin: float = 0.0) -> bool:
+    constraint = pattern.constraint
+    if constraint is None or constraint.kind == "category" or protected_margin <= 0.0:
+        return pattern.predicate(row)
+    value = as_float(row, constraint.field)
+    if value is None:
+        return False
+    threshold = float(constraint.value)
+    margin = max(protected_margin, abs(threshold) * max(0.0, protected_relative_margin))
+    if constraint.kind == "upper":
+        return value <= threshold + margin
+    if constraint.kind == "lower":
+        return value >= threshold - margin
+    return pattern.predicate(row)
+
+
+def mask_for(rows: list[dict[str, str]], pattern: Pattern, protected_margin: float = 0.0,
+             protected_relative_margin: float = 0.0) -> int:
     mask = 0
     for index, row in enumerate(rows):
-        if pattern.predicate(row):
+        if pattern_matches(row, pattern, protected_margin, protected_relative_margin):
             mask |= 1 << index
     return mask
 
@@ -350,7 +370,12 @@ def search_results(
             Match(
                 label=pattern.label,
                 positive_mask=positive_mask,
-                protected_mask=mask_for(protected_rows, pattern),
+                protected_mask=mask_for(
+                    protected_rows,
+                    pattern,
+                    settings.protected_margin,
+                    settings.protected_relative_margin,
+                ),
                 constraint=pattern.constraint,
             )
         )
@@ -573,6 +598,18 @@ def main() -> int:
     parser.add_argument("--beam-width", type=int, default=160)
     parser.add_argument("--show-examples", type=int, default=0)
     parser.add_argument("--show-near-misses", type=int, default=0)
+    parser.add_argument(
+        "--protected-margin",
+        type=float,
+        default=0.002,
+        help="expand numeric rule thresholds by this absolute amount for protected true-hit rows",
+    )
+    parser.add_argument(
+        "--protected-relative-margin",
+        type=float,
+        default=0.001,
+        help="expand numeric rule thresholds by this threshold-relative fraction for protected rows",
+    )
     parser.add_argument("--jobs", type=int, default=1)
     args = parser.parse_args()
 
@@ -593,6 +630,8 @@ def main() -> int:
         beam_width=max(1, args.beam_width),
         show_examples=max(0, args.show_examples),
         show_near_misses=max(0, args.show_near_misses),
+        protected_margin=max(0.0, args.protected_margin),
+        protected_relative_margin=max(0.0, args.protected_relative_margin),
     )
     if not routes:
         return 0
