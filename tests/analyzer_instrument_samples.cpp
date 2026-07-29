@@ -1194,7 +1194,7 @@ bool expects_full_mix_other_primary_octave_recovery(const std::string &suite_fam
 		 (row.program_name == "cello" &&
 		  (row.note == "C2" || row.note == "E2" || row.note == "G2" || row.note == "G4")) ||
 		 (row.program_name == "contrabass" &&
-		  (row.note == "C2" || row.note == "B2" || row.note == "E3")) ||
+		  (row.note == "G1" || row.note == "C2" || row.note == "B2" || row.note == "E3")) ||
 		 (row.program_name == "tremolo_strings" &&
 		  (row.note == "C2" || row.note == "E2" || row.note == "G2" || row.note == "E3")) ||
 		 (row.program_name == "pizzicato_strings" && row.note == "C2") ||
