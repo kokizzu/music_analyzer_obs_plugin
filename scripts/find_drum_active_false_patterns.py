@@ -528,10 +528,17 @@ def value_text(row: dict[str, str], field: str) -> str:
     return f"{value:.3f}".rstrip("0").rstrip(".")
 
 
-def route_text(rows: list[dict[str, str]], route: tuple[str, str], settings: Settings) -> str:
+def route_text(
+    rows: list[dict[str, str]],
+    extra_protected_rows: list[dict[str, str]],
+    route: tuple[str, str],
+    settings: Settings,
+) -> str:
     expected, active = route
     positive_rows = false_rows_for_route(rows, expected, active, settings.threshold)
-    protected_rows = protected_rows_for_active(rows, active, settings.threshold)
+    protected_rows = protected_rows_for_active(rows, active, settings.threshold) + protected_rows_for_active(
+        extra_protected_rows, active, settings.threshold
+    )
     positive_samples = len({sample_key(row) for row in positive_rows})
     protected_samples = len({sample_key(row) for row in protected_rows})
     buffer = io.StringIO()
@@ -679,14 +686,23 @@ def print_results(
                 print(f"      {format_near_example(row, active, result.constraints)}")
 
 
-def worker(task: tuple[int, list[dict[str, str]], tuple[str, str], Settings]) -> tuple[int, str]:
-    index, rows, route, settings = task
-    return index, route_text(rows, route, settings)
+def worker(
+    task: tuple[int, list[dict[str, str]], list[dict[str, str]], tuple[str, str], Settings]
+) -> tuple[int, str]:
+    index, rows, extra_protected_rows, route, settings = task
+    return index, route_text(rows, extra_protected_rows, route, settings)
 
 
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("rows", nargs="+", type=pathlib.Path)
+    parser.add_argument(
+        "--extra-protected-rows",
+        action="append",
+        default=[],
+        type=pathlib.Path,
+        help="TSV rows used only as protected true-hit rows, not as false-active positives",
+    )
     parser.add_argument("--route", action="append", default=[])
     parser.add_argument("--top-routes", type=int, default=6)
     parser.add_argument("--threshold", type=float, default=0.30)
@@ -713,11 +729,15 @@ def main() -> int:
     args = parser.parse_args()
 
     rows = list(itertools.chain.from_iterable(read_rows(path) for path in args.rows))
+    extra_protected_rows = list(
+        itertools.chain.from_iterable(read_rows(path) for path in args.extra_protected_rows)
+    )
     routes = [parse_route(route) for route in args.route] if args.route else top_routes(
         rows, args.threshold, args.top_routes
     )
     print(
         f"drum active false pattern candidates: rows={len(rows)} "
+        f"extra_protected_rows={len(extra_protected_rows)} "
         f"threshold={args.threshold:.2f} routes={len(routes)}"
     )
     settings = Settings(
@@ -737,10 +757,13 @@ def main() -> int:
     jobs = min(max(1, args.jobs), len(routes))
     if jobs == 1:
         for route in routes:
-            print(route_text(rows, route, settings), end="")
+            print(route_text(rows, extra_protected_rows, route, settings), end="")
         return 0
     outputs = [""] * len(routes)
-    tasks = [(index, rows, route, settings) for index, route in enumerate(routes)]
+    tasks = [
+        (index, rows, extra_protected_rows, route, settings)
+        for index, route in enumerate(routes)
+    ]
     with concurrent.futures.ProcessPoolExecutor(max_workers=jobs) as executor:
         for index, text in executor.map(worker, tasks):
             outputs[index] = text

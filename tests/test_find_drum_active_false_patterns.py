@@ -58,10 +58,50 @@ def main() -> int:
             stderr=subprocess.PIPE,
         )
     output = completed.stdout
-    require(output, "drum active false pattern candidates: rows=5 threshold=0.30 routes=1")
+    require(output, "drum active false pattern candidates: rows=5 extra_protected_rows=0 threshold=0.30 routes=1")
     require(output, "route kick->snare positives=2 rows=2 protected_true_snare=2 rows=2")
     require(output, "+2 rows=2 -0 rows=0")
     require(output, "false-active examples:")
+
+    extra_protected_rows = [
+        "snare/extra.wav\tsnare\tsnare\t0\t0.79\t0.13\t0.08\t0.90\t17\t3.9\t1.0\t0.60\t6\t2.1\t1.0\t0\t0\t0\t1\t0\t0\t0\t1\t0\t0\t0\t1\t0\t0\t0\t1\t0\t0\t0\t1",
+    ]
+    with tempfile.TemporaryDirectory() as tmpdir:
+        table = pathlib.Path(tmpdir) / "drum.tsv"
+        extra = pathlib.Path(tmpdir) / "extra.tsv"
+        table.write_text(header + "\n" + "\n".join(rows) + "\n", encoding="utf-8")
+        extra.write_text(header + "\n" + "\n".join(extra_protected_rows) + "\n", encoding="utf-8")
+        completed = subprocess.run(
+            [
+                sys.executable,
+                str(SCRIPT),
+                str(table),
+                "--extra-protected-rows",
+                str(extra),
+                "--route",
+                "kick->snare",
+                "--min-positive-samples",
+                "2",
+                "--max-protected-samples",
+                "0",
+                "--max-conditions",
+                "1",
+                "--show-examples",
+                "1",
+                "--show-near-misses",
+                "1",
+            ],
+            cwd=ROOT,
+            check=True,
+            text=True,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+        )
+    output = completed.stdout
+    require(output, "drum active false pattern candidates: rows=5 extra_protected_rows=1 threshold=0.30 routes=1")
+    require(output, "route kick->snare positives=2 rows=2 protected_true_snare=3 rows=3")
+    require(output, "nearest over-budget rules:")
+    require(output, "snare/extra.wav snare->snare")
 
     guarded_rows = [
         "kick/near-a.wav\tkick\tkick\t1\t0.80\t0.10\t0.10\t0.50\t10\t1.0\t1.0\t0.60\t10\t1.0\t1.0\t0\t0\t0\t1\t0\t0\t0\t1\t0\t0\t0\t1\t0\t0\t0\t1\t0\t0\t0\t1",
