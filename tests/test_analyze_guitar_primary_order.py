@@ -267,6 +267,7 @@ def main() -> int:
             "protected_false promote=Am expected=C primary=C gap=0.370 "
             "score=p:6.460/c:6.830 label=C=Am score_protected.wav"
         ) in output
+        assert "score_promotion_safe_rules:" in output
         assert (
             "cpp_style_promotion_probe: candidates=2 rescues=1 protected_false=1 neutral=0"
             in output

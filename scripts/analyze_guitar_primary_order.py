@@ -351,6 +351,212 @@ def score_promotion_candidate(
     return gap, promoted, primary, primary_score, candidate_score
 
 
+def score_feature_row(
+    gap: float,
+    promoted: str,
+    primary: str,
+    primary_score: float,
+    promoted_score: float,
+    row: dict[str, str],
+) -> dict[str, str | float]:
+    components = split_components(row.get("guitar_chord", ""))
+    promoted_index = next(
+        (index for index, component in enumerate(components) if component == promoted),
+        -1,
+    )
+    primary_parsed = parse_plain(primary)
+    promoted_parsed = parse_plain(promoted)
+    display = pitch_classes(row.get("guitar_pitch_classes", ""))
+    analysis = pitch_classes(row.get("guitar_analysis_pitch_classes", ""))
+    smoothed = pitch_classes(row.get("guitar_smoothed_pitch_classes", ""))
+    display_levels = parse_cells(row.get("guitar_cells", ""))
+    analysis_levels = parse_cells(row.get("guitar_analysis_cells", ""))
+    smoothed_levels = parse_cells(row.get("guitar_smoothed_cells", ""))
+    probe_levels = parse_cells(row.get("guitar_probe_pitch_class_levels", ""))
+    raw_levels = parse_cells(row.get("raw_pitch_class_levels", ""))
+    melodic_levels = parse_cells(row.get("guitar_melodic_probe_pitch_class_levels", ""))
+
+    def plain_features(prefix: str, parsed: tuple[int, bool] | None) -> dict[str, str | float]:
+        if parsed is None:
+            return {
+                f"{prefix}_plain": "0",
+                f"{prefix}_quality": "other",
+                f"{prefix}_display_tones": 0.0,
+                f"{prefix}_analysis_tones": 0.0,
+                f"{prefix}_smooth_tones": 0.0,
+                f"{prefix}_root_visible": 0.0,
+                f"{prefix}_root_analysis": 0.0,
+                f"{prefix}_root_smooth": 0.0,
+                f"{prefix}_root_raw": 0.0,
+                f"{prefix}_root_probe": 0.0,
+                f"{prefix}_root_melodic": 0.0,
+                f"{prefix}_third_raw": 0.0,
+                f"{prefix}_third_probe": 0.0,
+                f"{prefix}_third_melodic": 0.0,
+                f"{prefix}_min_combined": 0.0,
+            }
+        root, minor = parsed
+        tones = chord_tones(root, minor)
+        third = quality_third(root, minor)
+        combined_levels = {
+            pitch_class: max(display_levels.get(pitch_class, 0.0), analysis_levels.get(pitch_class, 0.0))
+            for pitch_class in tones
+        }
+        return {
+            f"{prefix}_plain": "1",
+            f"{prefix}_quality": "m" if minor else "maj",
+            f"{prefix}_display_tones": float(len(tones & display)),
+            f"{prefix}_analysis_tones": float(len(tones & analysis)),
+            f"{prefix}_smooth_tones": float(len(tones & smoothed)),
+            f"{prefix}_root_visible": display_levels.get(root, 0.0),
+            f"{prefix}_root_analysis": analysis_levels.get(root, 0.0),
+            f"{prefix}_root_smooth": smoothed_levels.get(root, 0.0),
+            f"{prefix}_root_raw": raw_levels.get(root, 0.0),
+            f"{prefix}_root_probe": probe_levels.get(root, 0.0),
+            f"{prefix}_root_melodic": melodic_levels.get(root, 0.0),
+            f"{prefix}_third_raw": raw_levels.get(third, 0.0),
+            f"{prefix}_third_probe": probe_levels.get(third, 0.0),
+            f"{prefix}_third_melodic": melodic_levels.get(third, 0.0),
+            f"{prefix}_min_combined": min(combined_levels.values()) if combined_levels else 0.0,
+        }
+
+    root_interval = "none"
+    if primary_parsed is not None and promoted_parsed is not None:
+        root_interval = str((promoted_parsed[0] - primary_parsed[0]) % 12)
+
+    features: dict[str, str | float] = {
+        "candidate_slot": "1" if promoted_index == 1 else "2+",
+        "candidate_index": float(promoted_index),
+        "component_count": float(len(components)),
+        "root_interval": root_interval,
+        "gap": gap,
+        "primary_score": primary_score,
+        "candidate_score": promoted_score,
+        "display_pitch_classes": float(len(display)),
+        "analysis_pitch_classes": float(len(analysis)),
+        "smooth_pitch_classes": float(len(smoothed)),
+    }
+    features.update(plain_features("primary", primary_parsed))
+    features.update(plain_features("candidate", promoted_parsed))
+    return features
+
+
+def print_score_safe_rules(
+    rescues: list[tuple[float, str, str, float, float, dict[str, str]]],
+    protected_false: list[tuple[float, str, str, float, float, dict[str, str]]],
+    neutral: list[tuple[float, str, str, float, float, dict[str, str]]],
+    limit: int,
+) -> None:
+    rescue_features = [score_feature_row(*item) for item in rescues]
+    protected_features = [score_feature_row(*item) for item in protected_false]
+    neutral_features = [score_feature_row(*item) for item in neutral]
+    category_fields = (
+        "candidate_slot",
+        "root_interval",
+        "primary_plain",
+        "primary_quality",
+        "candidate_plain",
+        "candidate_quality",
+    )
+    numeric_fields = (
+        "candidate_index",
+        "component_count",
+        "gap",
+        "primary_score",
+        "candidate_score",
+        "display_pitch_classes",
+        "analysis_pitch_classes",
+        "smooth_pitch_classes",
+        "primary_display_tones",
+        "primary_analysis_tones",
+        "primary_smooth_tones",
+        "primary_root_visible",
+        "primary_root_analysis",
+        "primary_root_smooth",
+        "primary_root_raw",
+        "primary_root_probe",
+        "primary_root_melodic",
+        "primary_third_raw",
+        "primary_third_probe",
+        "primary_third_melodic",
+        "primary_min_combined",
+        "candidate_display_tones",
+        "candidate_analysis_tones",
+        "candidate_smooth_tones",
+        "candidate_root_visible",
+        "candidate_root_analysis",
+        "candidate_root_smooth",
+        "candidate_root_raw",
+        "candidate_root_probe",
+        "candidate_root_melodic",
+        "candidate_third_raw",
+        "candidate_third_probe",
+        "candidate_third_melodic",
+        "candidate_min_combined",
+    )
+    patterns: list[tuple[str, Callable[[dict[str, str | float]], bool]]] = []
+    for field in category_fields:
+        for value in sorted({str(row[field]) for row in rescue_features}):
+            patterns.append(
+                (
+                    f"{field}={value}",
+                    lambda row, field=field, value=value: str(row[field]) == value,
+                )
+            )
+    for field in numeric_fields:
+        values = sorted({float(row[field]) for row in rescue_features})
+        for value in values:
+            text = format_feature_value(value)
+            patterns.append(
+                (
+                    f"{field}>={text}",
+                    lambda row, field=field, value=value: float(row[field]) >= value,
+                )
+            )
+            patterns.append(
+                (
+                    f"{field}<={text}",
+                    lambda row, field=field, value=value: float(row[field]) <= value,
+                )
+            )
+
+    results: list[tuple[int, int, int, int, str]] = []
+    for left_index, (left_label, left_predicate) in enumerate(patterns):
+        candidates = [(left_label, left_predicate)]
+        for right_label, right_predicate in patterns[left_index + 1 :]:
+            candidates.append(
+                (
+                    f"{left_label} AND {right_label}",
+                    lambda row, left=left_predicate, right=right_predicate: left(row) and right(row),
+                )
+            )
+        for label, predicate in candidates:
+            rescue_count = sum(1 for row in rescue_features if predicate(row))
+            if rescue_count <= 0:
+                continue
+            protected_count = sum(1 for row in protected_features if predicate(row))
+            if protected_count > 0:
+                continue
+            neutral_count = sum(1 for row in neutral_features if predicate(row))
+            condition_count = label.count(" AND ") + 1
+            results.append((-rescue_count, neutral_count, condition_count, len(label), label))
+
+    print("score_promotion_safe_rules:")
+    if not results:
+        print("  --")
+        return
+    seen: set[str] = set()
+    printed = 0
+    for negative_rescues, neutral_count, _condition_count, _label_len, label in sorted(results):
+        if label in seen:
+            continue
+        seen.add(label)
+        print(f"  +{-negative_rescues} protected_false=0 neutral={neutral_count} :: {label}")
+        printed += 1
+        if printed >= limit:
+            break
+
+
 def cpp_style_promotion_candidate(
     row: dict[str, str],
 ) -> tuple[float, float, str, str, float, float] | None:
@@ -994,6 +1200,12 @@ def main() -> int:
             f"label={row.get('guitar_chord', '--')}",
             pathlib.Path(row.get("audio_path", "")).name,
         )
+    print_score_safe_rules(
+        score_promotion_rescues,
+        score_promotion_protected_false,
+        score_promotion_neutral,
+        args.examples,
+    )
 
     print(
         "cpp_style_promotion_probe:",
