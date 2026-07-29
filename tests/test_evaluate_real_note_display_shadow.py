@@ -231,6 +231,28 @@ def main() -> int:
                 other_notes="",
             ),
             row(
+                sample_id="measured_guitar_bass_relaxed_noise",
+                family="piano",
+                source="electronic",
+                expected_note="F#3",
+                expected_midi="54",
+                first_row="guitar",
+                debug_note="F#3",
+                debug_midi="54",
+                debug_owner="guitar",
+                bass_score="0.00",
+                keyboard_score="0.00",
+                guitar_score="0.30",
+                vocal_score="0.00",
+                other_score="0.00",
+                noise="0.52",
+                bass_notes="F#3:0.68",
+                guitar_notes="F#3:1.00",
+                piano_notes="",
+                vocal_notes="",
+                other_notes="",
+            ),
+            row(
                 sample_id="measured_guitar_bass_protected",
                 family="bass",
                 source="electronic",
@@ -622,13 +644,13 @@ def main() -> int:
     assert "guitar->same-pitch piano extras rows=1 samples=1" in all_rows_output, all_rows_output
     assert "piano->same-pitch piano" not in all_rows_output, all_rows_output
     measured_runtime_output = measured_runtime_result.stdout
-    assert "guitar->same-pitch bass extras rows=3 samples=3" in measured_runtime_output, measured_runtime_output
+    assert "guitar->same-pitch bass extras rows=4 samples=4" in measured_runtime_output, measured_runtime_output
     assert "runtime_guitar_bass_guarded" not in measured_runtime_output, measured_runtime_output
     assert (
-        "runtime_guitar_bass_measured extras=2/3 protected=0/1 precision=100.0% protected_rate=0.0%"
+        "runtime_guitar_bass_measured extras=3/4 protected=0/1 precision=100.0% protected_rate=0.0%"
     ) in measured_runtime_output, measured_runtime_output
     protected_threshold_output = protected_threshold_result.stdout
-    assert "protected=1/1 extras=3/3 min_shadow_score=0.24" in protected_threshold_output, protected_threshold_output
+    assert "protected=1/1 extras=4/4 min_shadow_score=0.24" in protected_threshold_output, protected_threshold_output
     assert "protected measured_guitar_bass_protected@0" in protected_threshold_output, protected_threshold_output
     return 0
 
