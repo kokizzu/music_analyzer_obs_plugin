@@ -648,14 +648,12 @@ std::string full_mix_debug_line(const mao::AnalysisSnapshot &snapshot, int expec
 
 std::string grid_debug_label(const mao::NoteGrid &grid)
 {
-	std::string text;
+	std::array<float, mao::kNoteProbeCount> levels = {};
 	auto append_cell = [&](const mao::NoteCell &cell) {
 		if (!cell.active || cell.midi < mao::kFirstAnalyzedMidi || cell.midi > mao::kLastAnalyzedMidi)
 			return;
-		char part[48] = {};
-		std::snprintf(part, sizeof(part), "%s%s:%.2f", text.empty() ? "" : ",",
-			      debug_note_label(cell.midi).c_str(), cell.level);
-		text += part;
+		const std::size_t index = static_cast<std::size_t>(cell.midi - mao::kFirstAnalyzedMidi);
+		levels[index] = std::max(levels[index], cell.level);
 	};
 
 	for (const mao::NoteCell &cell : grid.cells)
@@ -664,7 +662,43 @@ std::string grid_debug_label(const mao::NoteGrid &grid)
 		for (const mao::NoteCell &cell : row)
 			append_cell(cell);
 	}
+
+	std::string text;
+	for (int midi = mao::kFirstAnalyzedMidi; midi <= mao::kLastAnalyzedMidi; ++midi) {
+		const float level = levels[static_cast<std::size_t>(midi - mao::kFirstAnalyzedMidi)];
+		if (level <= 0.0f)
+			continue;
+		char part[48] = {};
+		std::snprintf(part, sizeof(part), "%s%s:%.2f", text.empty() ? "" : ",",
+			      debug_note_label(midi).c_str(), level);
+		text += part;
+	}
 	return text.empty() ? "--" : text;
+}
+
+mao::NoteCell make_debug_note_cell(int midi, float level)
+{
+	mao::NoteCell cell;
+	cell.active = true;
+	cell.midi = midi;
+	cell.level = level;
+	return cell;
+}
+
+void check_grid_debug_label(Runner &runner)
+{
+	mao::NoteGrid grid;
+	const int midi = 40;
+	const int octave_midi = midi + 12;
+	const int pitch_class = ((midi % 12) + 12) % 12;
+	grid.cells[static_cast<std::size_t>(pitch_class)] = make_debug_note_cell(midi, 0.25f);
+	grid.rows[0][static_cast<std::size_t>(pitch_class)] = make_debug_note_cell(midi, 0.75f);
+	grid.rows[1][static_cast<std::size_t>(pitch_class)] = make_debug_note_cell(octave_midi, 0.60f);
+
+	const std::string expected =
+		debug_note_label(midi) + ":0.75," + debug_note_label(octave_midi) + ":0.60";
+	runner.expect(grid_debug_label(grid) == expected,
+		      "grid debug label should de-duplicate summary cells while preserving octaves");
 }
 
 std::string snapshot_note_debug_line(const mao::AnalysisSnapshot &snapshot, int expected_midi = -1)
@@ -1149,6 +1183,12 @@ int main()
 					       full_mix ? 100 : 100),
 			   0, 100);
 
+	Runner runner;
+	runner.max_reported_failures = positive_int_env("MUSIC_ANALYZER_REAL_NOTE_MAX_FAILURE_LINES", 40);
+	check_grid_debug_label(runner);
+	if (runner.failures > 0)
+		return 1;
+
 	std::vector<SampleRow> rows;
 	const std::string manifest_path = join_path(root, "manifest.tsv");
 	if (!read_manifest(manifest_path, rows)) {
@@ -1162,8 +1202,6 @@ int main()
 		return 0;
 	}
 
-	Runner runner;
-	runner.max_reported_failures = positive_int_env("MUSIC_ANALYZER_REAL_NOTE_MAX_FAILURE_LINES", 40);
 	runner.expect(static_cast<int>(rows.size()) >= required_samples,
 		      "expected at least " + std::to_string(required_samples) +
 			      " real note samples, got " + std::to_string(rows.size()));
