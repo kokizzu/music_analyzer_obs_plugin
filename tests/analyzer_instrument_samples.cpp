@@ -1183,8 +1183,8 @@ bool expects_full_mix_other_primary_octave_recovery(const std::string &suite_fam
 						    const SampleRow &row)
 {
 	return (suite_family == "strings" &&
-		((row.program_name == "violin" && row.note == "G3") ||
-		 (row.program_name == "viola" && row.note == "C4") ||
+		((row.program_name == "violin" && (row.note == "G3" || row.note == "C6")) ||
+		 (row.program_name == "viola" && (row.note == "C3" || row.note == "C4")) ||
 		 (row.program_name == "cello" &&
 		  (row.note == "C2" || row.note == "E2" || row.note == "G2" || row.note == "G4")) ||
 		 (row.program_name == "contrabass" &&
@@ -1198,7 +1198,8 @@ bool expects_full_mix_other_primary_octave_recovery(const std::string &suite_fam
 		  (row.note == "C2" || row.note == "E2" || row.note == "G2")) ||
 		 (row.program_name == "string_ensemble_2" && (row.note == "C2" || row.note == "G2")) ||
 		 (row.program_name == "synth_strings_1" && row.note == "C2") ||
-		 (row.program_name == "synth_strings_2" && (row.note == "C2" || row.note == "E2")))) ||
+		 (row.program_name == "synth_strings_2" &&
+		  (row.note == "C2" || row.note == "E2" || row.note == "G3")))) ||
 	       (suite_family == "synth" &&
 		((row.program_name == "metallic_pad" && row.note == "G3") ||
 		 (row.program_name == "square_lead" && (row.note == "C2" || row.note == "C5")) ||

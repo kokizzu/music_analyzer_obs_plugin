@@ -10536,6 +10536,71 @@ void prefer_measured_string_lower_other_octave_primary(NoteGrid &grid, Instrumen
 		write_note_grid_label(state, grid, preferred_root);
 }
 
+void prefer_probe_supported_lower_string_primary(NoteGrid &grid, InstrumentState &state,
+						const FullMixOwnership &ownership,
+						const std::array<float, kNoteProbeCount> &powers,
+						int min_midi, int preferred_root)
+{
+	min_midi = std::max(min_midi, kFirstMidi);
+	bool changed = false;
+
+	for (int pitch_class = 0; pitch_class < 12; ++pitch_class) {
+		NoteCell primary = {};
+		for (const auto &row : grid.rows) {
+			const NoteCell &cell = row[pitch_class];
+			if (cell.active && cell.midi >= kFirstMidi && cell.midi <= kLastMidi) {
+				primary = cell;
+				break;
+			}
+		}
+		if (!primary.active) {
+			const NoteCell &cell = grid.cells[pitch_class];
+			if (cell.active && cell.midi >= kFirstMidi && cell.midi <= kLastMidi)
+				primary = cell;
+		}
+		if (!primary.active)
+			continue;
+		if (full_mix_debug_other_note_score(ownership, primary.midi) >= 0.80f)
+			continue;
+
+		const float primary_probe = probe_level(powers, primary.midi);
+		if (primary_probe <= 1.0e-6f)
+			continue;
+
+		int supported_midi = -1;
+		float supported_ratio = 0.0f;
+		for (int octave_delta : {12, 24}) {
+			const int lower_midi = primary.midi - octave_delta;
+			if (lower_midi < min_midi || lower_midi > kLastMidi ||
+			    midi_pitch_class(lower_midi) != pitch_class)
+				continue;
+
+			const float lower_probe = probe_level(powers, lower_midi);
+			const float lower_ratio = lower_probe / primary_probe;
+			const bool direct_octave_supported =
+				octave_delta == 12 && primary.midi >= 60 && lower_ratio >= 0.10f;
+			const bool double_octave_supported =
+				octave_delta == 24 && primary.midi >= 72 && lower_ratio >= 0.20f &&
+				note_grid_midi_level(grid, primary.midi - 12) >= primary.level * 0.55f;
+			if (!direct_octave_supported && !double_octave_supported)
+				continue;
+
+			if (supported_midi < 0 || lower_midi < supported_midi ||
+			    (lower_midi == supported_midi && lower_ratio > supported_ratio)) {
+				supported_midi = lower_midi;
+				supported_ratio = lower_ratio;
+			}
+		}
+
+		if (supported_midi < 0)
+			continue;
+		changed = promote_note_grid_primary_midi(grid, supported_midi, primary.level) || changed;
+	}
+
+	if (changed)
+		write_note_grid_label(state, grid, preferred_root);
+}
+
 void prefer_weak_debug_string_lower_other_octave_primary(NoteGrid &grid, InstrumentState &state,
 							 const FullMixOwnership &ownership,
 							 int min_midi, int preferred_root)
@@ -19849,6 +19914,11 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 				prefer_measured_string_lower_other_octave_primary(
 					snapshot.other_notes, snapshot.other, full_mix_ownership, kOtherMinMidi,
 					-1);
+				prefer_probe_supported_lower_string_primary(snapshot.other_notes,
+									  snapshot.other,
+									  full_mix_ownership,
+									  note_powers,
+									  kOtherMinMidi, -1);
 				prefer_weak_debug_string_lower_other_octave_primary(
 					snapshot.other_notes, snapshot.other, full_mix_ownership,
 					kOtherMinMidi, -1);
