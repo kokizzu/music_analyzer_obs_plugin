@@ -269,6 +269,25 @@ def main() -> int:
             text=True,
             stdout=subprocess.PIPE,
         )
+        all_rows_result = subprocess.run(
+            [
+                sys.executable,
+                str(ROOT / "scripts" / "evaluate_real_note_display_shadow.py"),
+                str(path),
+                "--shadow-row",
+                "all",
+                "--target-row",
+                "all",
+                "--min-shadow-level",
+                "0.10",
+                "--min-target-level",
+                "0.10",
+                "--summary-only",
+            ],
+            check=True,
+            text=True,
+            stdout=subprocess.PIPE,
+        )
 
     output = result.stdout
     assert "piano->same-pitch guitar extras rows=2 samples=2" in output, output
@@ -296,6 +315,10 @@ def main() -> int:
         "protected=0/1 extras=1/2 min_shadow_score=0.18 score_ratio=0.50 "
         "level_ratio=0.90 target_level_max=0.40"
     ) in target_level_threshold_output, target_level_threshold_output
+    all_rows_output = all_rows_result.stdout
+    assert "piano->same-pitch guitar extras rows=2 samples=2" in all_rows_output, all_rows_output
+    assert "guitar->same-pitch piano extras rows=1 samples=1" in all_rows_output, all_rows_output
+    assert "piano->same-pitch piano" not in all_rows_output, all_rows_output
     return 0
 
 

@@ -1486,6 +1486,10 @@ find-real-note-visual-row-confusion-patterns: $(BUILD_DIR)/real_note_full_mix_at
 evaluate-real-note-display-shadow: $(BUILD_DIR)/real_note_full_mix_attributes.tsv scripts/evaluate_real_note_display_shadow.py
 	$(PYTHON) scripts/evaluate_real_note_display_shadow.py "$(BUILD_DIR)/real_note_full_mix_attributes.tsv" $(or $(DISPLAY_SHADOW_ARGS),--summary-only)
 
+.PHONY: evaluate-real-note-display-shadow-all
+evaluate-real-note-display-shadow-all: $(BUILD_DIR)/real_note_full_mix_attributes.tsv scripts/evaluate_real_note_display_shadow.py
+	$(PYTHON) scripts/evaluate_real_note_display_shadow.py "$(BUILD_DIR)/real_note_full_mix_attributes.tsv" $(or $(DISPLAY_SHADOW_ARGS),--shadow-row all --target-row all --summary-only --threshold-search --source-breakdown --max-protected 0 --threshold-limit 8)
+
 measure-real-note-attribute-rule: $(BUILD_DIR)/real_note_full_mix_attributes.tsv scripts/measure_real_note_attribute_rule.py
 	$(PYTHON) scripts/measure_real_note_attribute_rule.py "$(BUILD_DIR)/real_note_full_mix_attributes.tsv" $(RULE_ARGS)
 

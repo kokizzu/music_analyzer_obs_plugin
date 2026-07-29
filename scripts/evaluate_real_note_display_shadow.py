@@ -43,6 +43,7 @@ ROW_NOTE_FIELDS = {
     "vocals": "vocal_notes",
     "other": "other_notes",
 }
+ROW_NAMES = tuple(ROW_NOTE_FIELDS)
 
 ROW_SCORE_FIELDS = {
     "bass": "bass_score",
@@ -549,54 +550,61 @@ def main() -> int:
     for row in rows:
         grouped[(row.get("sample_id", ""), row.get("buffer", ""))].append(row)
 
-    target_rows = args.target_row or ["bass", "guitar", "other"]
-    records_by_target: dict[str, list[dict[str, str]]] = collections.defaultdict(list)
-    for (_sample_id, _buffer), group_rows in grouped.items():
-        context = group_rows[0]
-        midi = as_int(context, "expected_midi")
-        if midi is None:
-            continue
-        if args.shadow_row not in ROW_NOTE_FIELDS:
-            raise SystemExit(f"unknown shadow row `{args.shadow_row}`")
-        shadow_level = exact_level(context, args.shadow_row, midi)
-        if shadow_level < args.min_shadow_level:
-            continue
-        for target_row in target_rows:
-            if target_row == args.shadow_row:
-                continue
-            if target_row not in ROW_NOTE_FIELDS:
-                raise SystemExit(f"unknown target row `{target_row}`")
-            target_level = exact_level(context, target_row, midi)
-            if target_level < args.min_target_level:
-                continue
-            debug = best_same_midi_debug(group_rows, midi, target_row)
-            records_by_target[target_row].append(
-                build_record(context, debug, target_row, args.shadow_row, midi)
-            )
-
+    target_rows = list(ROW_NAMES) if "all" in args.target_row else (args.target_row or ["bass", "guitar", "other"])
+    shadow_rows = list(ROW_NAMES) if args.shadow_row == "all" else [args.shadow_row]
     for target_row in target_rows:
-        records = records_by_target[target_row]
-        extras = [record for record in records if record["protected"] == "0"]
-        protected = [record for record in records if record["protected"] == "1"]
-        if args.summary_only:
-            print_group_summary(f"{args.shadow_row}->same-pitch {target_row} extras", extras)
-            print_group_summary(f"{args.shadow_row}->same-pitch {target_row} protected", protected)
-        else:
-            print_group(f"{args.shadow_row}->same-pitch {target_row} extras", extras, args.examples)
-            print_group(f"{args.shadow_row}->same-pitch {target_row} protected", protected, args.examples)
-        print_simulations(f"{args.shadow_row}->same-pitch {target_row}", records, args.source_breakdown)
-        if args.threshold_search:
-            print_threshold_search(
-                f"{args.shadow_row}->same-pitch {target_row}",
-                records,
-                args.shadow_score_thresholds,
-                args.score_ratios,
-                args.level_ratios,
-                args.target_level_thresholds,
-                args.max_protected,
-                args.threshold_limit,
-                args.threshold_examples,
-            )
+        if target_row not in ROW_NOTE_FIELDS:
+            raise SystemExit(f"unknown target row `{target_row}`")
+    for shadow_row in shadow_rows:
+        if shadow_row not in ROW_NOTE_FIELDS:
+            raise SystemExit(f"unknown shadow row `{shadow_row}`")
+
+    for shadow_row in shadow_rows:
+        records_by_target: dict[str, list[dict[str, str]]] = collections.defaultdict(list)
+        for (_sample_id, _buffer), group_rows in grouped.items():
+            context = group_rows[0]
+            midi = as_int(context, "expected_midi")
+            if midi is None:
+                continue
+            shadow_level = exact_level(context, shadow_row, midi)
+            if shadow_level < args.min_shadow_level:
+                continue
+            for target_row in target_rows:
+                if target_row == shadow_row:
+                    continue
+                target_level = exact_level(context, target_row, midi)
+                if target_level < args.min_target_level:
+                    continue
+                debug = best_same_midi_debug(group_rows, midi, target_row)
+                records_by_target[target_row].append(
+                    build_record(context, debug, target_row, shadow_row, midi)
+                )
+
+        for target_row in target_rows:
+            if target_row == shadow_row:
+                continue
+            records = records_by_target[target_row]
+            extras = [record for record in records if record["protected"] == "0"]
+            protected = [record for record in records if record["protected"] == "1"]
+            if args.summary_only:
+                print_group_summary(f"{shadow_row}->same-pitch {target_row} extras", extras)
+                print_group_summary(f"{shadow_row}->same-pitch {target_row} protected", protected)
+            else:
+                print_group(f"{shadow_row}->same-pitch {target_row} extras", extras, args.examples)
+                print_group(f"{shadow_row}->same-pitch {target_row} protected", protected, args.examples)
+            print_simulations(f"{shadow_row}->same-pitch {target_row}", records, args.source_breakdown)
+            if args.threshold_search:
+                print_threshold_search(
+                    f"{shadow_row}->same-pitch {target_row}",
+                    records,
+                    args.shadow_score_thresholds,
+                    args.score_ratios,
+                    args.level_ratios,
+                    args.target_level_thresholds,
+                    args.max_protected,
+                    args.threshold_limit,
+                    args.threshold_examples,
+                )
     return 0
 
 
