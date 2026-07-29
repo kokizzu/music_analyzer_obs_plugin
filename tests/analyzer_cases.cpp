@@ -1167,6 +1167,22 @@ void check_guitar_supported_extension_aliases(Runner &runner)
 					       {0, 1, 3, 4, 7, 11}) +
 			      "`");
 
+	mao_test::Buffer harmonic_single_note = {};
+	const std::vector<float> strong_harmonic_guitar_profile = {1.0f, 0.82f, 0.55f, 0.36f, 0.04f};
+	add_harmonic_note(harmonic_single_note, 52, 0.24f, strong_harmonic_guitar_profile);
+
+	const auto harmonic_single_note_snapshot = analyze_buffer(harmonic_single_note, "guitar");
+	expect_note_token(runner, harmonic_single_note_snapshot.guitar.label, "E3",
+			  "guitar single-note harmonic chord rejection");
+	expect_no_chord(runner, harmonic_single_note_snapshot.guitar_chord,
+			std::string("guitar single-note harmonic chord rejection raw `") +
+				harmonic_single_note_snapshot.guitar_raw_chord.label + "` smooth `" +
+				harmonic_single_note_snapshot.guitar_smoothed_chord.label + "` notes `" +
+				note_grid_pitch_classes(harmonic_single_note_snapshot.guitar_notes) +
+				"` analysis `" +
+				note_grid_pitch_classes(harmonic_single_note_snapshot.guitar_chord_analysis_notes) +
+				"`");
+
 	mao_test::Buffer flanked_thirdless_named_dyad = {};
 	add_harmonic_note(flanked_thirdless_named_dyad, 48, 0.22f, guitar_profile);
 	add_harmonic_note(flanked_thirdless_named_dyad, 55, 0.20f, guitar_profile);

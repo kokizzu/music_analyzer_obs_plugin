@@ -12649,6 +12649,8 @@ bool label_has_same_root_power_component(const char *label, int root)
 	return false;
 }
 
+bool note_grid_has_guitar_root_fifth_voicing(const NoteGrid &grid, int root_pitch_class, int fifth_pitch_class);
+
 void promote_supported_plain_guitar_primary(ChordResult &chord, const NoteGrid &display_grid,
 					    const NoteGrid &analysis_grid)
 {
@@ -13105,6 +13107,32 @@ bool note_grid_has_guitar_root_third_voicing(const NoteGrid &grid, int root_pitc
 			return;
 		const int interval = cell.midi - root_midi;
 		if (interval >= 3 && interval <= 16)
+			found = true;
+	};
+	for (const NoteCell &cell : grid.cells)
+		visit(cell);
+	for (const auto &row : grid.rows) {
+		for (const NoteCell &cell : row)
+			visit(cell);
+	}
+	return found;
+}
+
+bool note_grid_has_guitar_root_fifth_voicing(const NoteGrid &grid, int root_pitch_class, int fifth_pitch_class)
+{
+	root_pitch_class = ((root_pitch_class % 12) + 12) % 12;
+	fifth_pitch_class = ((fifth_pitch_class % 12) + 12) % 12;
+
+	const int root_midi = note_grid_lowest_active_midi_for_pitch_class(grid, root_pitch_class);
+	if (root_midi < 0)
+		return false;
+
+	bool found = false;
+	auto visit = [&](const NoteCell &cell) {
+		if (found || !cell.active || cell.midi < 0 || midi_pitch_class(cell.midi) != fifth_pitch_class)
+			return;
+		const int interval = cell.midi - root_midi;
+		if (interval >= -14 && interval <= 14)
 			found = true;
 	};
 	for (const NoteCell &cell : grid.cells)
@@ -14802,6 +14830,84 @@ bool primary_major_minor_third_supported(const NoteGrid &grid, const ChordResult
 
 	const int third = parsed.root + (parsed.quality == RootChordQuality::Minor ? 3 : 4);
 	return note_grid_pitch_supported_level(grid, third, 0.12f) >= 0.12f;
+}
+
+bool primary_guitar_chord_has_playable_voicing(const ChordResult &chord, const NoteGrid &display_grid,
+					       const NoteGrid &analysis_grid)
+{
+	if (!valid_chord_result(chord))
+		return true;
+
+	const char *label_end = std::strchr(chord.label, '=');
+	const std::size_t label_len =
+		label_end ? static_cast<std::size_t>(label_end - chord.label) : std::strlen(chord.label);
+	ParsedRootChord parsed;
+	if (!parse_root_chord_component(chord.label, label_len, parsed))
+		return true;
+
+	const int display_pitch_classes = note_grid_active_pitch_class_count(display_grid);
+	const int analysis_pitch_classes = note_grid_active_pitch_class_count(analysis_grid);
+	if (display_pitch_classes > 2 || analysis_pitch_classes > 4)
+		return true;
+
+	if (parse_power_chord_component(chord.label, label_len, parsed))
+		return note_grid_has_guitar_root_fifth_voicing(display_grid, parsed.root, parsed.root + 7) ||
+		       note_grid_has_guitar_root_fifth_voicing(analysis_grid, parsed.root, parsed.root + 7);
+
+	std::size_t root_len = 1;
+	if (label_len > 1 && chord.label[1] == '#')
+		root_len = 2;
+	const char *suffix = chord.label + root_len;
+	const std::size_t suffix_len = label_len - root_len;
+
+	if (parsed.quality == RootChordQuality::NoThird) {
+		int suspended_tone = -1;
+		if (suffix_is(suffix, suffix_len, "sus2"))
+			suspended_tone = parsed.root + 2;
+		else if (suffix_is(suffix, suffix_len, "sus4"))
+			suspended_tone = parsed.root + 5;
+		else
+			return true;
+
+		const bool root_fifth =
+			note_grid_has_guitar_root_fifth_voicing(display_grid, parsed.root, parsed.root + 7) ||
+			note_grid_has_guitar_root_fifth_voicing(analysis_grid, parsed.root, parsed.root + 7);
+		const bool suspended_supported =
+			note_grid_pitch_supported_level(display_grid, suspended_tone, 0.12f) >= 0.12f ||
+			note_grid_pitch_supported_level(analysis_grid, suspended_tone, 0.12f) >= 0.12f;
+		return root_fifth && suspended_supported;
+	}
+
+	if (!parse_plain_major_minor_component(chord.label, label_len, parsed))
+		return true;
+
+	const int third = parsed.root + (parsed.quality == RootChordQuality::Minor ? 3 : 4);
+	const int fifth = parsed.root + 7;
+	const bool root_third =
+		note_grid_has_guitar_root_third_voicing(display_grid, parsed.root, third) ||
+		note_grid_has_guitar_root_third_voicing(analysis_grid, parsed.root, third);
+	const bool root_fifth =
+		note_grid_has_guitar_root_fifth_voicing(display_grid, parsed.root, fifth) ||
+		note_grid_has_guitar_root_fifth_voicing(analysis_grid, parsed.root, fifth);
+	const bool third_supported =
+		note_grid_pitch_supported_level(display_grid, third, 0.12f) >= 0.12f ||
+		note_grid_pitch_supported_level(analysis_grid, third, 0.12f) >= 0.12f;
+	const bool fifth_supported =
+		note_grid_pitch_supported_level(display_grid, fifth, 0.12f) >= 0.12f ||
+		note_grid_pitch_supported_level(analysis_grid, fifth, 0.12f) >= 0.12f;
+	if (root_third)
+		return true;
+	if (root_fifth)
+		return true;
+	if (root_third && (root_fifth || fifth_supported))
+		return true;
+	if (root_fifth && third_supported)
+		return true;
+
+	ChordResult primary = make_guitar_plain_triad(parsed.root, parsed.quality == RootChordQuality::Minor,
+						      chord.confidence);
+	return note_grid_chord_tone_count(display_grid, primary) >= 3 &&
+	       note_grid_chord_tone_count(analysis_grid, primary) >= 3 && third_supported;
 }
 
 bool primary_major_minor_root_adjacent_noise(const NoteGrid &grid, const ChordResult &chord)
@@ -19417,6 +19523,10 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 			promote_strong_same_root_guitar_extension_primary(
 				raw_guitar_chord, snapshot.guitar_notes, guitar_chord_detection_grid,
 				note_powers, min_midi, kGuitarMaxMidi);
+		if (!mixed_source &&
+		    !primary_guitar_chord_has_playable_voicing(raw_guitar_chord, snapshot.guitar_notes,
+							       guitar_chord_detection_grid))
+			raw_guitar_chord = ChordResult{};
 		set_instrument_chord(snapshot.guitar_chord, raw_guitar_chord, guitar_energy, rms,
 				     mixed_source ? kNoteRmsFloor : kPolyphonicNoteRmsFloor);
 		set_instrument_chord(snapshot.guitar_raw_chord, raw_guitar_chord, guitar_energy, rms,
@@ -19997,6 +20107,10 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 			promote_strong_same_root_guitar_extension_primary(
 				smoothed_guitar_chord, snapshot.guitar_notes, guitar_chord_grid,
 				note_powers, kGuitarMinMidi, kGuitarMaxMidi);
+		if (!mixed_source &&
+		    !primary_guitar_chord_has_playable_voicing(smoothed_guitar_chord, snapshot.guitar_notes,
+							       guitar_chord_grid))
+			smoothed_guitar_chord = ChordResult{};
 		if (!mixed_source &&
 		    promote_smoothed_same_root_guitar_quality(raw_guitar_chord, smoothed_guitar_chord,
 							      note_powers, kGuitarMinMidi,
