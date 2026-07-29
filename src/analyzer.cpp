@@ -13358,6 +13358,7 @@ void append_guitar_power_probe_third_aliases(ChordResult &chord, const NoteGrid 
 	if (strongest_grid <= 1.0e-6f || strongest_probe <= 1.0e-6f)
 		return;
 	const float strongest_melodic_probe = strongest_melodic_probe_level(powers, min_midi, max_midi);
+	const bool compact_power_alias_set = chord_label_component_count(chord.label) <= 5;
 
 	constexpr float kActiveAliasFloor = 0.12f;
 	const char *cursor = chord.label;
@@ -13391,8 +13392,13 @@ void append_guitar_power_probe_third_aliases(ChordResult &chord, const NoteGrid 
 			const float grid_major =
 				note_grid_pitch_supported_level(grid, parsed.root + 4, kActiveAliasFloor);
 			const bool grid_thirdless = grid_minor < grid_third_floor && grid_major < grid_third_floor;
+			const bool grid_power_supported =
+				root_grid >= std::max(0.10f, strongest_grid * 0.14f) &&
+				fifth_grid >= std::max(0.08f, strongest_grid * 0.10f);
 			const float single_third_floor =
 				grid_thirdless ? std::max(third_floor, anchor * 0.055f) : third_floor;
+			const float compact_probe_third_floor =
+				std::max({anchor * 0.020f, strongest_probe * 0.0015f, 0.005f});
 			const float melodic_root =
 				strongest_melodic_probe_pitch_class_level(powers, parsed.root, min_midi,
 									 max_midi);
@@ -13434,9 +13440,21 @@ void append_guitar_power_probe_third_aliases(ChordResult &chord, const NoteGrid 
 				primary_power_component && grid_thirdless &&
 				major_third >= primary_power_third_floor &&
 				major_third >= minor_third * strong_third_margin;
-				const bool strong_melodic_minor =
-					melodic_minor >= melodic_third_floor &&
-					melodic_minor >= melodic_major * strong_third_margin;
+			const bool compact_power_direct_minor =
+				compact_power_alias_set && grid_power_supported && grid_thirdless &&
+				minor_third >= compact_probe_third_floor &&
+				minor_third >= major_third * 1.10f &&
+				melodic_minor >= melodic_competing_floor &&
+				melodic_minor >= melodic_major * 1.18f;
+			const bool compact_power_direct_major =
+				compact_power_alias_set && grid_power_supported && grid_thirdless &&
+				major_third >= compact_probe_third_floor &&
+				major_third >= minor_third * 1.10f &&
+				melodic_major >= melodic_competing_floor &&
+				melodic_major >= melodic_minor * 1.18f;
+			const bool strong_melodic_minor =
+				melodic_minor >= melodic_third_floor &&
+				melodic_minor >= melodic_major * strong_third_margin;
 			const bool strong_melodic_major =
 				melodic_major >= melodic_third_floor &&
 				melodic_major >= melodic_minor * strong_third_margin;
@@ -13456,13 +13474,13 @@ void append_guitar_power_probe_third_aliases(ChordResult &chord, const NoteGrid 
 				melodic_major >= melodic_minor * 1.18f;
 			const bool choose_minor =
 				strong_direct_minor || primary_power_direct_minor || strong_melodic_minor ||
-				consistent_probe_minor ||
+				compact_power_direct_minor || consistent_probe_minor ||
 				(minor_third >= single_third_floor &&
 				 minor_third >= major_third * weak_third_margin &&
 				 !competing_major);
 			const bool choose_major =
 				strong_direct_major || primary_power_direct_major || strong_melodic_major ||
-				consistent_probe_major ||
+				compact_power_direct_major || consistent_probe_major ||
 				(major_third >= single_third_floor &&
 				 major_third >= minor_third * weak_third_margin &&
 				 !competing_minor);
