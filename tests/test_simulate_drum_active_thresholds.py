@@ -38,7 +38,7 @@ tom/unsafe.wav\ttom\tkick\t0.75\t0.99\t0.15\t0\t0\t0.95\t0\t0
                 "--threshold",
                 "0.30,0.60",
                 "--candidate-cap",
-                "kick-primary-tom:tom:0.28:got=kick,kick_level>=0.95,energy_low>=0.58,tom_level>0.30",
+                "kick-primary-tom:tom:0.28:got.eq.kick,kick_level.gte.0.95,energy_low.gte.0.58,tom_level.gt.0.30",
             ],
             cwd=ROOT,
             check=True,

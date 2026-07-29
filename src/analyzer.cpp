@@ -18332,6 +18332,20 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 		    one_shot_measured_sub_bass_kick_from_tom_primary_recovery)
 			promote_drum_primary(Kick, 0.90f);
 
+		const bool strong_low_kick_tom_bleed =
+			drum_detection_enabled &&
+			drum_level_[Tom] > 0.30f &&
+			drum_level_[Kick] >= 0.95f &&
+			drum_level_[Kick] + 0.005f >= drum_level_[Tom] &&
+			drum_level_[Snare] <= 0.30f &&
+			drum_level_[Rim] <= 0.30f &&
+			snapshot.low_energy >= 0.85f &&
+			drum_segment_bands[Kick] >= 220.0f &&
+			drum_segment_bands[Tom] <= drum_segment_bands[Kick] * 1.24f &&
+			tom_body <= kick_body * 1.28f;
+		if (strong_low_kick_tom_bleed)
+			cap_drum_level(Tom, 0.28f);
+
 	const bool onset_tempo_event =
 		drum_detection_enabled && rms > kSilenceRms && drum_transient &&
 		(had_previous_audio ? onset >= 1.25f : true);

@@ -29,6 +29,14 @@ DEFAULT_PROFILE_FIELDS = (
     "tom_seg",
 )
 COMPARATORS = (">=", "<=", "!=", ">", "<", "=")
+WORD_COMPARATORS = (
+    (".gte.", ">="),
+    (".lte.", "<="),
+    (".ne.", "!="),
+    (".gt.", ">"),
+    (".lt.", "<"),
+    (".eq.", "="),
+)
 
 
 @dataclass(frozen=True)
@@ -183,6 +191,15 @@ def profile_text(rows: list[dict[str, str]], fields: tuple[str, ...]) -> str:
 
 
 def parse_condition(text: str) -> Condition:
+    for token, op in WORD_COMPARATORS:
+        if token in text:
+            field, value = text.split(token, 1)
+            field = field.strip()
+            value = value.strip()
+            if not field or not value:
+                raise ValueError(f"invalid candidate condition: {text}")
+            return Condition(field, op, value)
+
     for op in COMPARATORS:
         if op in text:
             field, value = text.split(op, 1)
@@ -311,7 +328,8 @@ def main() -> int:
         default=[],
         help=(
             "simulate a candidate active cap. Use a built-in name such as "
-            "`low-kick-primary-tom`, or custom `name:target:cap:field=value,...`."
+            "`low-kick-primary-tom`, or custom `name:target:cap:field.eq.value,...`; "
+            "comparators: .eq. .ne. .gt. .gte. .lt. .lte."
         ),
     )
     parser.add_argument(
