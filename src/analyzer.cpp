@@ -8655,8 +8655,8 @@ void suppress_guitar_dominant_same_pitch_bass_shadows(NoteGrid &bass_grid, Instr
 	static constexpr float kMaxNoiseLevel = 0.45f;
 	static constexpr float kMeasuredMinGuitarScore = 0.24f;
 	static constexpr float kMeasuredMaxBassToGuitarScoreRatio = 0.15f;
-	static constexpr float kMeasuredMaxBassToGuitarLevelRatio = 0.72f;
-	static constexpr float kMeasuredMinPeriodicity = 0.66f;
+	static constexpr float kMeasuredMaxBassToGuitarLevelRatio = 0.68f;
+	static constexpr float kMeasuredMaxNoiseLevel = 0.45f;
 
 	bool changed = false;
 	for (int midi = kBassMinMidi; midi <= kBassMaxMidi; ++midi) {
@@ -8684,7 +8684,7 @@ void suppress_guitar_dominant_same_pitch_bass_shadows(NoteGrid &bass_grid, Instr
 			debug->guitar_score >= kMeasuredMinGuitarScore &&
 			debug->bass_score <= debug->guitar_score * kMeasuredMaxBassToGuitarScoreRatio &&
 			bass_level <= guitar_level * kMeasuredMaxBassToGuitarLevelRatio &&
-			debug->periodicity >= kMeasuredMinPeriodicity;
+			debug->local_noise_level <= kMeasuredMaxNoiseLevel;
 		if (!guarded_guitar_shadow && !measured_guitar_shadow)
 			continue;
 
