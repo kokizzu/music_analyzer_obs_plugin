@@ -17788,6 +17788,9 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 			drum_detection_enabled && one_shot_drum_source &&
 			((final_snare_kick_band_ratio <= 0.111f &&
 			  tom_kick_level_ratio >= 1.02f) ||
+			 (drum_level_[Kick] > 0.30f &&
+			  tom_kick_level_ratio >= 1.02f &&
+			  snare_kick_trigger_ratio <= 0.597f) ||
 			 (tom_snare_body_ratio >= 2.519f &&
 			  tom_snare_shape_score_ratio <= 2.373f) ||
 			 (snapshot.high_energy <= 0.02f &&
