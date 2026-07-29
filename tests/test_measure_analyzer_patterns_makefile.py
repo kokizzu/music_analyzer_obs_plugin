@@ -1067,12 +1067,18 @@ def main() -> int:
     assert "$(REAL_NOTE_RUNTIME_ROW_CONFUSION_EXCLUDES)" in row_confusion_recipe, (
         "row-confusion mining should default to runtime-observable fields"
     )
+    assert "--include-row-context" not in row_confusion_recipe, (
+        "row-confusion auto-search must not use display-row fields as candidate rules"
+    )
     practical_row_confusion_recipe = target_recipe(makefile, "find-real-note-practical-row-confusion-patterns")
     assert "$(REAL_NOTE_RUNTIME_ROW_CONFUSION_EXCLUDES)" in practical_row_confusion_recipe, (
         "practical row-confusion mining should keep runtime-observable fields"
     )
     assert "$(MEASURE_REAL_NOTE_PRACTICAL_ROW_CONFUSION_PATTERN_ARGS)" in practical_row_confusion_recipe, (
         "practical row-confusion mining should use the bounded low-false defaults"
+    )
+    assert "--include-row-context" not in practical_row_confusion_recipe, (
+        "practical row-confusion auto-search must not mine circular display-row fields"
     )
     for text in [
         "MEASURE_REAL_NOTE_PRACTICAL_ROW_CONFUSION_PATTERN_ARGS ?= --top-buckets 8",
@@ -1087,6 +1093,12 @@ def main() -> int:
     )
     assert "$(MEASURE_REAL_NOTE_PRACTICAL_ROW_CONFUSION_PATTERN_ARGS)" in visual_row_confusion_recipe, (
         "visual row-confusion mining should use bounded practical defaults"
+    )
+    assert "--include-row-context" not in visual_row_confusion_recipe, (
+        "visual row-confusion auto-search must not mine circular display-row fields"
+    )
+    assert ".PHONY: find-real-note-row-confusion-patterns find-real-note-practical-row-confusion-patterns find-real-note-visual-row-confusion-patterns" in makefile, (
+        "all real-note row-confusion shortcuts should be phony"
     )
     for field in [
         "expected_midi",
