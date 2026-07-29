@@ -10911,8 +10911,8 @@ void prefer_probe_visible_low_keyboard_primary(NoteGrid &grid, InstrumentState &
 		}
 		if (!primary.active)
 			continue;
-		if (full_mix_debug_keyboard_harmonic_primary_protected(ownership, primary.midi))
-			continue;
+		const bool harmonic_primary_protected =
+			full_mix_debug_keyboard_harmonic_primary_protected(ownership, primary.midi);
 
 		const float primary_probe = probe_level(powers, primary.midi);
 		if (primary_probe <= 1.0e-6f)
@@ -10942,10 +10942,20 @@ void prefer_probe_visible_low_keyboard_primary(NoteGrid &grid, InstrumentState &
 							      probe_level(raw_powers, lower_midi) /
 								      primary_raw_probe :
 							      0.0f;
-			const bool raw_acoustic_g1_supported =
-				primary.midi == 43 && lower_midi == 31 && primary_debug_score >= 0.98f &&
-				lower_raw_ratio >= 0.30f && lower_raw_ratio <= 0.75f;
-			if (!probe_supported && !weak_acoustic_e1_supported && !raw_acoustic_g1_supported)
+			const bool g1_candidate = lower_midi == 31 &&
+						  (primary.midi == 43 || primary.midi == 55);
+			const bool raw_high_confidence_keyboard_g1_supported =
+				g1_candidate && primary_debug_score >= 0.98f &&
+				lower_raw_ratio >= 0.08f && lower_raw_ratio <= 0.75f;
+			const bool raw_mid_confidence_keyboard_g1_supported =
+				primary.midi == 43 && lower_midi == 31 && !harmonic_primary_protected &&
+				primary_debug_score >= 0.84f && primary_debug_score <= 0.865f &&
+				lower_raw_ratio >= 0.12f && lower_raw_ratio <= 0.14f;
+			const bool raw_keyboard_g1_supported = raw_high_confidence_keyboard_g1_supported ||
+							       raw_mid_confidence_keyboard_g1_supported;
+			if (harmonic_primary_protected && !raw_keyboard_g1_supported)
+				continue;
+			if (!probe_supported && !weak_acoustic_e1_supported && !raw_keyboard_g1_supported)
 				continue;
 
 			if (supported_midi < 0 || lower_midi < supported_midi ||
