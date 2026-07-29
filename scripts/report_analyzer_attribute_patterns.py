@@ -939,7 +939,7 @@ def main() -> int:
     parser.add_argument("--real-note", type=pathlib.Path, default=pathlib.Path("build/real_note_detected_attribute_rows.tsv"))
     parser.add_argument("--guitar-chord", type=pathlib.Path, default=pathlib.Path("build/guitar_chord_detected_attribute_rows.tsv"))
     parser.add_argument("--drum", type=pathlib.Path, default=pathlib.Path("build/drum_primary_miss_attribute_rows.tsv"))
-    parser.add_argument("--limit", type=int, default=8)
+    parser.add_argument("--limit", "--top", dest="limit", type=int, default=8)
     parser.add_argument(
         "--row-examples",
         type=int,

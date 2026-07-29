@@ -65,7 +65,7 @@ snare/1.wav	snare	tom	0.2	0.7	0.1	0.1	0.8	0.9	1.0	0.0	0.5	0.5
                 str(guitar),
                 "--drum",
                 str(drum),
-                "--limit",
+                "--top",
                 "4",
             ],
             cwd=ROOT,

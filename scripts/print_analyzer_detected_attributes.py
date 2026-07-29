@@ -701,6 +701,7 @@ def main() -> int:
     parser.add_argument(
         "--rows",
         "--row-limit",
+        "--top",
         dest="rows",
         type=int,
         default=12,

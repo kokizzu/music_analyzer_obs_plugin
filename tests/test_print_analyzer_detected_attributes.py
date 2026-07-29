@@ -73,7 +73,7 @@ kick.wav	kick	kick	0.9	0.1	0.0	0.9	0.1	0.1	0.1	0.1	1	0	0	0	0	0	0	0.9	0.4	0	0	0	0
                 str(drum_primary),
                 "--drum-full",
                 str(drum_full),
-                "--row-limit",
+                "--top",
                 "2",
             ],
             cwd=ROOT,
