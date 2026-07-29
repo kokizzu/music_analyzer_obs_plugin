@@ -18048,6 +18048,19 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 		if (one_shot_measured_no_kick_bright_tail_snare_from_tom_primary_recovery)
 			promote_drum_primary(Snare, 0.90f);
 
+		const float final_tom_snare_level_ratio =
+			drum_level_[Tom] / (drum_level_[Snare] + 1.0e-6f);
+		const bool one_shot_measured_late_tom_from_snare_primary_recovery =
+			drum_detection_enabled && one_shot_drum_source &&
+			body_shape == Tom &&
+			drum_level_[Tom] > 0.30f &&
+			drum_level_[Snare] > drum_level_[Tom] &&
+			body_shape_scores[0] >= 200.308f &&
+			tom_kick_trigger_ratio >= 0.88f &&
+			final_tom_snare_level_ratio <= 0.995f;
+		if (one_shot_measured_late_tom_from_snare_primary_recovery)
+			promote_drum_primary(Tom, 0.90f);
+
 		const bool generated_gm_orchestra_tom_primary_recovery =
 			drum_detection_enabled && generated_gm_drum_source &&
 			drum_level_[Tom] > 0.30f &&
