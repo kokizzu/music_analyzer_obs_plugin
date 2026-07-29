@@ -1103,6 +1103,11 @@ bool expects_full_mix_vocal_display_octave_recovery(const std::string &suite_fam
 	return suite_family == "vocals" && row.program_name == "voice_oohs" && row.note == "E4";
 }
 
+bool expects_full_mix_vocal_source_hint_owner(const std::string &suite_family, const SampleRow &row)
+{
+	return suite_family == "vocals" && row.program_name == "voice_oohs" && row.note == "E4";
+}
+
 bool expects_full_mix_bass_primary_octave_recovery(const std::string &suite_family,
 						   const SampleRow &row)
 {
@@ -1284,6 +1289,8 @@ void check_instrument_samples(Runner &runner, const std::string &root, std::ostr
 					expects_full_mix_vocal_primary_octave_recovery(family, row);
 				const bool expect_full_mix_vocal_display =
 					expects_full_mix_vocal_display_octave_recovery(family, row);
+				const bool expect_full_mix_vocal_hint_owner =
+					expects_full_mix_vocal_source_hint_owner(family, row);
 				const bool expect_full_mix_bass_primary =
 					expects_full_mix_bass_primary_octave_recovery(family, row);
 				const bool expect_full_mix_keyboard_primary =
@@ -1301,7 +1308,8 @@ void check_instrument_samples(Runner &runner, const std::string &root, std::ostr
 				bool full_mix_grid_ok = false;
 				bool full_mix_anywhere = false;
 				if (attribute_out || expect_full_mix_vocal || expect_full_mix_vocal_primary ||
-				    expect_full_mix_vocal_display || expect_full_mix_bass_primary ||
+				    expect_full_mix_vocal_display || expect_full_mix_vocal_hint_owner ||
+				    expect_full_mix_bass_primary ||
 				    expect_full_mix_keyboard_primary || expect_full_mix_guitar_primary ||
 				    expect_full_mix_other_primary || expect_full_mix_other_display ||
 				    expect_full_mix_other || expect_full_mix_low_synth_prune) {
@@ -1341,6 +1349,18 @@ void check_instrument_samples(Runner &runner, const std::string &root, std::ostr
 					runner.expect(display_midi == row.midi,
 						      context +
 							      ": expected full-mix vocal display octave recovery, got `" +
+							      grid_debug_label(full_mix_snapshot.vocal_notes) + "`");
+				}
+				if (expect_full_mix_vocal_hint_owner) {
+					const mao::FullMixDebugCandidate *debug =
+						debug_candidate_for_pitch(full_mix_snapshot, row.midi);
+					runner.expect(debug && debug->owner == mao::InstrumentKind::Vocal,
+						      context +
+							      ": expected full-mix source-hinted vocal debug owner, got `" +
+							      (debug ? instrument_kind_name(debug->owner) : "--") +
+							      "` midi " +
+							      (debug ? std::to_string(debug->midi) : "--") +
+							      " vocal grid `" +
 							      grid_debug_label(full_mix_snapshot.vocal_notes) + "`");
 				}
 				if (expect_full_mix_bass_primary) {
