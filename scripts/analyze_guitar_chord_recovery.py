@@ -263,6 +263,10 @@ def same_root_power_candidate(row: dict[str, str]) -> bool:
     return f"{root_name}pow" in split_labels(row.get("guitar_chord", ""))
 
 
+def displayed_label_count(row: dict[str, str]) -> int:
+    return len(split_labels(row.get("guitar_chord", "")))
+
+
 def protected_false_promotions(
     rows: list[dict[str, str]],
     ratio: float,
@@ -378,6 +382,12 @@ def summarize(path: pathlib.Path, examples: int, limit: int) -> list[str]:
             false_promotions = protected_false_promotions(
                 protected_rows, ratio, 0.005, source, "any_power"
             )
+            bounded_label_candidates = [
+                row for row in candidates if displayed_label_count(row) <= 5
+            ]
+            bounded_label_false = protected_false_promotions(
+                protected_rows, ratio, 0.005, source, "any_power", 5
+            )
             first_power_candidates = [
                 row for row in rows if promotion_candidate(row, ratio, 0.005, source, "first_power")
             ]
@@ -395,8 +405,7 @@ def summarize(path: pathlib.Path, examples: int, limit: int) -> list[str]:
                 f"same_root_pow={len(power_candidates)} protected_false={len(false_promotions)} "
                 f"first_power={len(first_power_candidates)}/{len(first_power_false)} "
                 f"primary_power={len(primary_power_candidates)}/{len(primary_power_false)} "
-                f"labels<=5={len([row for row in candidates if len(split_labels(row.get('guitar_chord', ''))) <= 5])}/"
-                f"{len(protected_false_promotions(protected_rows, ratio, 0.005, source, 'any_power', 5))}"
+                f"labels<=5={len(bounded_label_candidates)}/{len(bounded_label_false)}"
             )
             for row in candidates[: min(examples, limit)]:
                 levels = source_levels(row, source)
@@ -413,6 +422,28 @@ def summarize(path: pathlib.Path, examples: int, limit: int) -> list[str]:
                     f"got={row.get('guitar_chord', '--')} "
                     f"{source}={root_value}/{third_value}/{fifth_value}"
                 )
+            if bounded_label_candidates and not bounded_label_false:
+                lines.append(
+                    f"    zero_false labels<=5 recover={len(bounded_label_candidates)} "
+                    "mode=any_power"
+                )
+                for row in bounded_label_candidates[: min(examples, limit)]:
+                    levels = source_levels(row, source)
+                    labels = split_labels(row.get("expected_chords", ""))
+                    root = expected_root(labels[0]) if labels else None
+                    root_value = third_value = fifth_value = "--"
+                    if root is not None:
+                        root_value = level(levels, root)
+                        third_value = level(levels, expected_third(labels[0], root))
+                        fifth_value = level(levels, root + 7)
+                    lines.append(
+                        "      bounded "
+                        f"{row.get('recording_id', '')} "
+                        f"labels={displayed_label_count(row)} "
+                        f"expected={row.get('expected_chords', '')} "
+                        f"got={row.get('guitar_chord', '--')} "
+                        f"{source}={root_value}/{third_value}/{fifth_value}"
+                    )
             for row in primary_power_candidates[: min(examples, limit)]:
                 levels = source_levels(row, source)
                 labels = split_labels(row.get("expected_chords", ""))

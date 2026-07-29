@@ -108,6 +108,11 @@ def main() -> int:
         assert "test-raw-profile same-root promotion simulation" in output
         assert "floor=max(anchor*0.020,0.005) recover=2 same_root_pow=1 protected_false=0" in output
         assert "labels<=5=2/0" in output
+        assert "zero_false labels<=5 recover=2 mode=any_power" in output
+        assert (
+            "bounded visible_and_analysis labels=1 expected=G got=Gpow raw=1/0.38/0.6"
+            in output
+        )
         assert (
             "protected protected_power_false expected=G got=Gpow=G promoted=Gm"
             not in output
@@ -122,6 +127,7 @@ def main() -> int:
         )
         assert "internal-probe same-root promotion simulation" in limited.stdout
         assert limited.stdout.count("    visible_and_analysis expected=G got=Gpow") == 18
+        assert limited.stdout.count("      bounded visible_and_analysis labels=1") == 18
     print("test_analyze_guitar_chord_recovery: ok")
     return 0
 
