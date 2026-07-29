@@ -16761,6 +16761,8 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 		drum_segment_bands[HiHat] / (drum_segment_bands[Rim] + 1.0e-6f);
 	const float hihat_rim_shape_score_ratio =
 		drum_segment_bands[HiHat] / (rim_shape_score + 1.0e-6f);
+	const float crash_hihat_band_ratio =
+		drum_bands[Crash] / (drum_bands[HiHat] + 1.0e-6f);
 	const float crash_hihat_level_ratio =
 		drum_level_[Crash] / (drum_level_[HiHat] + 1.0e-6f);
 	const float crash_hihat_segment_ratio =
@@ -17166,6 +17168,15 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 		boost_drum_level(HiHat, std::max(0.90f, drum_level_[Rim] + 0.02f));
 		cap_drum_level(Rim, std::max(0.31f, drum_level_[HiHat] - 0.02f));
 	}
+	const bool one_shot_measured_ride_rim_steal =
+		drum_detection_enabled && one_shot_drum_source &&
+		drum_level_[Ride] > 0.30f &&
+		drum_level_[Rim] > 0.30f &&
+		crash_hihat_band_ratio >= 0.675f &&
+		hihat_rim_level_ratio <= 0.900f &&
+		snare_crack <= 5.963f;
+	if (one_shot_measured_ride_rim_steal)
+		promote_drum_primary(Ride, 0.90f);
 	const bool one_shot_measured_low_crack_hihat_rim_steal =
 		drum_detection_enabled && one_shot_drum_source &&
 		drum_level_[HiHat] > 0.30f &&
