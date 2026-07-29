@@ -119,6 +119,7 @@ def main() -> int:
         "$(RECOVERY_ARGS)",
         "$(EXTRA_COMPONENT_ARGS)",
         "$(MEASURE_DRUM_PATTERN_ARGS)",
+        "$(MEASURE_DRUM_ACTIVE_FALSE_PATTERN_ARGS)",
         "$(PATTERN_REPORT_ARGS)",
         "measure-analyzer-patterns-full",
     ]
@@ -726,6 +727,7 @@ def main() -> int:
         "find-drum-spread-exact-attribute-patterns",
         "find-drum-full-exact-attribute-patterns",
         "find-drum-full-exact-attribute-patterns-cached",
+        "find-drum-active-false-patterns",
         "find-hf-drum-primary-attribute-patterns",
         "find-idmt-drum-primary-attribute-patterns",
         "find-protected-drum-primary-attribute-patterns",
@@ -1175,6 +1177,7 @@ def main() -> int:
         "MEASURE_GUITAR_PATTERN_ARGS",
         "MEASURE_DRUM_PATTERN_ARGS",
         "MEASURE_DRUM_FULL_PATTERN_ARGS",
+        "MEASURE_DRUM_ACTIVE_FALSE_PATTERN_ARGS",
         "DRUM_PATTERN_JOBS",
         "REAL_NOTE_PATTERN_JOBS",
         "DRUM_SPREAD_EXACT_ATTRIBUTE_ROWS",
