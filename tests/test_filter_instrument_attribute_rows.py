@@ -165,6 +165,31 @@ note	hit	vocals	vocals	vocal	D4	62	vocal.wav	0	0	0	0	0	0	--	--	--	F4:0.7	--	F4	6
         assert "bass\tE1\tE1:0.7,E2:0.4\t2\t1" in duplicates
         assert "count\t1" in duplicates
 
+        note_filter = subprocess.run(
+            [
+                sys.executable,
+                str(SCRIPT),
+                str(rows),
+                "--kind",
+                "note",
+                "--note",
+                "E1",
+                "--midi",
+                "28",
+                "--program-name",
+                "bass",
+                "--columns",
+                "family,program_name,note,midi",
+            ],
+            cwd=ROOT,
+            check=True,
+            text=True,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+        ).stdout
+        assert "bass\tbass\tE1\t28" in note_filter
+        assert "count\t1" in note_filter
+
         target_visibility = subprocess.run(
             [
                 sys.executable,

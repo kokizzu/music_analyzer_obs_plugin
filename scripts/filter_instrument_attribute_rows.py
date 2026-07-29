@@ -342,6 +342,12 @@ def row_matches(row: dict[str, str], args: argparse.Namespace) -> bool:
         return False
     if args.not_family and row.get("family") == args.not_family:
         return False
+    if args.program_name and row.get("program_name") != args.program_name:
+        return False
+    if args.note and row.get("note") != args.note:
+        return False
+    if args.midi is not None and parse_int(row.get("midi", "")) != args.midi:
+        return False
     if args.status and row.get("status") != args.status:
         return False
     if args.owner_status and row.get("owner_status") != args.owner_status:
@@ -379,6 +385,9 @@ def main() -> int:
     parser.add_argument("--kind", default="note")
     parser.add_argument("--family")
     parser.add_argument("--not-family")
+    parser.add_argument("--program-name")
+    parser.add_argument("--note")
+    parser.add_argument("--midi", type=int)
     parser.add_argument("--status")
     parser.add_argument("--owner-status")
     parser.add_argument("--owner-bucket")
