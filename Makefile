@@ -716,7 +716,7 @@ GUITARSET_ATTRIBUTE_MAKE_JOBS = $(if $(filter -j%,$(MAKEFLAGS)),,-j$(GUITARSET_S
 .PHONY: analyze-hf-drum-primary-attribute-rows find-hf-drum-primary-attribute-patterns analyze-idmt-drum-primary-attribute-rows find-idmt-drum-primary-attribute-patterns analyze-protected-drum-primary-attribute-rows find-protected-drum-primary-attribute-patterns
 .PHONY: analyze-guitar-chord-mix-recovery analyze-guitar-chord-primary-order analyze-guitar-chord-mix-extra-components test-guitar-chord-recovery-analysis test-guitar-primary-order-analysis test-guitar-chord-extra-components-analysis test-guitar-chord-mix-samples-parallel
 .PHONY: test-parallel test-core-parallel test-analysis-scripts-parallel test-fixtures-parallel test-real-note-samples-full-mix-parallel test-real-note-full-mix-shard-check test-instrument-samples-parallel test-analyzer-smoke test-analyzer-cases test-analyzer-midi-ranges test-analyzer-urmp test-analyzer-musicnet test-analyzer-multtipop test-analyzer-guitarset test-analyzer-maestro test-analyzer-egmd
-.PHONY: test-drum-real-world-samples-parallel test-drum-real-world-samples-full-parallel test-real-world-samples-parallel test-real-world-samples-full-parallel test-drum-samples-optional test-drum-samples-spread-optional test-drum-machine-samples-optional test-drum-samples-full-optional test-good-sounds-samples-optional test-medley-solos-samples-optional test-maps-piano-samples-optional test-maps-piano-note-samples-optional test-bach10-mf0-synth-samples-optional test-vocalset-samples-optional
+.PHONY: test-drum-real-world-samples-parallel test-drum-real-world-samples-full-parallel test-real-world-samples-parallel test-real-world-samples-full-parallel test-real-world-samples-max-parallel test-drum-samples-optional test-drum-samples-spread-optional test-drum-machine-samples-optional test-drum-samples-full-optional test-good-sounds-samples-optional test-medley-solos-samples-optional test-maps-piano-samples-optional test-maps-piano-note-samples-optional test-bach10-mf0-synth-samples-optional test-vocalset-samples-optional
 .PHONY: test-drum-samples-full-parallel test-drum-samples-full-shard-% test-drum-samples-full-parallel-optional test-drum-sample-shard-check
 .PHONY: test-iowa-piano-samples-max test-iowa-orchestra-full-samples-max test-good-sounds-samples-max test-medley-solos-samples-max test-maps-piano-samples-max test-maps-piano-note-samples-max
 
@@ -1924,8 +1924,11 @@ test-maps-piano-samples-max:
 test-maps-piano-note-samples-max:
 	$(MAKE) MAPS_PIANO_NOTE_RECORDING_LIMIT=0 test-maps-piano-note-samples
 
-test-real-world-samples-max: scripts/run_with_duration.sh
+test-real-world-samples-max-parallel: scripts/run_with_duration.sh
 	$(RUN_WITH_DURATION) real_world_samples_max $(MAKE) $(PARALLEL_TEST_MAKE_JOBS) $(REAL_WORLD_SAMPLE_MAX_TARGETS)
+
+test-real-world-samples-max: scripts/run_with_duration.sh
+	$(MAKE) test-real-world-samples-max-parallel
 
 test-midi-ranges: $(BUILD_DIR)/analyzer_midi_ranges scripts/run_with_duration.sh
 	$(RUN_WITH_DURATION) analyzer_midi_ranges $(BUILD_DIR)/analyzer_midi_ranges

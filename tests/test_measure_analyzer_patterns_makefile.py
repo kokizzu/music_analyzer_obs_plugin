@@ -219,8 +219,8 @@ def main() -> int:
     assert "$(MAKE) test-instrument-samples\n" not in default_test_recipe, (
         "default test target must not run generated instrument samples serially"
     )
-    max_samples_recipe = target_recipe(makefile, "test-real-world-samples-max")
-    assert "$(MAKE) $(PARALLEL_TEST_MAKE_JOBS) $(REAL_WORLD_SAMPLE_MAX_TARGETS)" in max_samples_recipe, (
+    max_samples_parallel_recipe = target_recipe(makefile, "test-real-world-samples-max-parallel")
+    assert "$(MAKE) $(PARALLEL_TEST_MAKE_JOBS) $(REAL_WORLD_SAMPLE_MAX_TARGETS)" in max_samples_parallel_recipe, (
         "max real-world sample tests must fan out through jobserver-aware make"
     )
     for wrapper, aggregate in {
@@ -228,6 +228,7 @@ def main() -> int:
         "test-drum-real-world-samples-full": "test-drum-real-world-samples-full-parallel",
         "test-real-world-samples": "test-real-world-samples-parallel",
         "test-real-world-samples-full": "test-real-world-samples-full-parallel",
+        "test-real-world-samples-max": "test-real-world-samples-max-parallel",
     }.items():
         wrapper_recipe = target_recipe(makefile, wrapper)
         assert f"$(MAKE) {aggregate}" in wrapper_recipe, (
@@ -571,9 +572,9 @@ def main() -> int:
     assert "REAL_WORLD_SAMPLE_MAX_BASE_TARGETS :=" in makefile, (
         "max real-world sample target list must avoid duplicated default/max targets"
     )
-    max_samples_recipe = target_recipe(makefile, "test-real-world-samples-max")
-    assert "$(RUN_WITH_DURATION) real_world_samples_max" in max_samples_recipe, (
-        "max real-world sample target must report aggregate duration"
+    max_samples_parallel_recipe = target_recipe(makefile, "test-real-world-samples-max-parallel")
+    assert "$(RUN_WITH_DURATION) real_world_samples_max" in max_samples_parallel_recipe, (
+        "max real-world sample parallel target must report aggregate duration"
     )
     for target, override in {
         "test-iowa-piano-samples-max": "IOWA_PIANO_SAMPLE_LIMIT=0",
