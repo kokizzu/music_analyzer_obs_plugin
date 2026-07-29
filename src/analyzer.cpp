@@ -8597,6 +8597,13 @@ void suppress_other_dominant_same_pitch_bass_shadows(NoteGrid &bass_grid, Instru
 	static constexpr float kMinOtherScore = 0.24f;
 	static constexpr float kMaxBassToOtherScoreRatio = 0.50f;
 	static constexpr float kMaxBassToOtherLevelRatio = 0.66f;
+	static constexpr float kGuardedMinOtherScore = 0.18f;
+	static constexpr float kGuardedMaxBassToOtherScoreRatio = 0.20f;
+	static constexpr float kGuardedMaxBassToOtherLevelRatio = 0.80f;
+	static constexpr float kGuardedMinPitchConfidence = 0.78f;
+	static constexpr float kGuardedMinPeriodicity = 0.70f;
+	static constexpr float kGuardedMaxHarmonicFitError = 0.08f;
+	static constexpr float kGuardedMaxNoiseLevel = 0.45f;
 
 	bool changed = false;
 	for (int midi = kBassMinMidi; midi <= kBassMaxMidi; ++midi) {
@@ -8608,8 +8615,20 @@ void suppress_other_dominant_same_pitch_bass_shadows(NoteGrid &bass_grid, Instru
 			continue;
 		const FullMixDebugCandidate *debug =
 			best_same_midi_row_debug(ownership, midi, InstrumentKind::Other);
-		if (!debug || debug->other_score < kMinOtherScore ||
-		    debug->bass_score > debug->other_score * kMaxBassToOtherScoreRatio)
+		if (!debug)
+			continue;
+		const bool legacy_other_shadow =
+			debug->other_score >= kMinOtherScore &&
+			debug->bass_score <= debug->other_score * kMaxBassToOtherScoreRatio;
+		const bool guarded_other_shadow =
+			debug->other_score >= kGuardedMinOtherScore &&
+			debug->bass_score <= debug->other_score * kGuardedMaxBassToOtherScoreRatio &&
+			bass_level <= other_level * kGuardedMaxBassToOtherLevelRatio &&
+			debug->pitch_confidence >= kGuardedMinPitchConfidence &&
+			debug->periodicity >= kGuardedMinPeriodicity &&
+			debug->harmonic_fit_error <= kGuardedMaxHarmonicFitError &&
+			debug->local_noise_level <= kGuardedMaxNoiseLevel;
+		if (!legacy_other_shadow && !guarded_other_shadow)
 			continue;
 
 		clear_note_grid_midi(bass_grid, midi);
@@ -8672,6 +8691,13 @@ void suppress_keyboard_owned_same_pitch_bass_shadows(NoteGrid &bass_grid, Instru
 	static constexpr float kDominantMinKeyboardScore = 0.24f;
 	static constexpr float kDominantMaxBassToKeyboardScoreRatio = 0.50f;
 	static constexpr float kDominantMaxBassToKeyboardLevelRatio = 0.68f;
+	static constexpr float kGuardedMinKeyboardScore = 0.18f;
+	static constexpr float kGuardedMaxBassToKeyboardScoreRatio = 0.20f;
+	static constexpr float kGuardedMaxBassToKeyboardLevelRatio = 0.80f;
+	static constexpr float kGuardedMinPitchConfidence = 0.78f;
+	static constexpr float kGuardedMinPeriodicity = 0.70f;
+	static constexpr float kGuardedMaxHarmonicFitError = 0.08f;
+	static constexpr float kGuardedMaxNoiseLevel = 0.45f;
 
 	bool changed = false;
 	for (int midi = kBassMinMidi; midi <= kBassMaxMidi; ++midi) {
@@ -8697,7 +8723,18 @@ void suppress_keyboard_owned_same_pitch_bass_shadows(NoteGrid &bass_grid, Instru
 			debug->keyboard_score >= kDominantMinKeyboardScore &&
 			debug->bass_score <= debug->keyboard_score * kDominantMaxBassToKeyboardScoreRatio &&
 			bass_level <= keyboard_level * kDominantMaxBassToKeyboardLevelRatio;
-		if (!weak_keyboard_owned_shadow && !dominant_keyboard_owned_shadow)
+		const bool guarded_keyboard_shadow =
+			allow_dominant_keyboard_shadow &&
+			full_mix_row_midi_active(ownership.keyboard, midi) &&
+			debug->keyboard_score >= kGuardedMinKeyboardScore &&
+			debug->bass_score <= debug->keyboard_score * kGuardedMaxBassToKeyboardScoreRatio &&
+			bass_level <= keyboard_level * kGuardedMaxBassToKeyboardLevelRatio &&
+			debug->pitch_confidence >= kGuardedMinPitchConfidence &&
+			debug->periodicity >= kGuardedMinPeriodicity &&
+			debug->harmonic_fit_error <= kGuardedMaxHarmonicFitError &&
+			debug->local_noise_level <= kGuardedMaxNoiseLevel;
+		if (!weak_keyboard_owned_shadow && !dominant_keyboard_owned_shadow &&
+		    !guarded_keyboard_shadow)
 			continue;
 
 		clear_note_grid_midi(bass_grid, midi);

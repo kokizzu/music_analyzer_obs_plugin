@@ -334,11 +334,29 @@ def threshold_rule_matches(
     score_ratio: float,
     level_ratio: float,
     target_level_ceiling: float | None,
+    min_pitch_confidence: float | None,
+    min_periodicity: float | None,
+    max_fit_error: float | None,
+    max_noise: float | None,
 ) -> bool:
     target_score = as_float(record, "target_score") or 0.0
     shadow_score = as_float(record, "shadow_score") or 0.0
     target_level = as_float(record, "target_level") or 0.0
     shadow_level = as_float(record, "shadow_level") or 0.0
+    pitch_confidence = as_float(record, "pitch_confidence")
+    periodicity = as_float(record, "periodicity")
+    fit_error = as_float(record, "fit_error")
+    noise = as_float(record, "noise")
+    if min_pitch_confidence is not None and (
+        pitch_confidence is None or pitch_confidence < min_pitch_confidence
+    ):
+        return False
+    if min_periodicity is not None and (periodicity is None or periodicity < min_periodicity):
+        return False
+    if max_fit_error is not None and (fit_error is None or fit_error > max_fit_error):
+        return False
+    if max_noise is not None and (noise is None or noise > max_noise):
+        return False
     return (
         shadow_level > 1.0e-6
         and shadow_score >= min_shadow_score
@@ -358,6 +376,10 @@ def print_threshold_search(
     max_protected: int,
     limit: int,
     examples: int,
+    min_pitch_confidence: float | None,
+    min_periodicity: float | None,
+    max_fit_error: float | None,
+    max_noise: float | None,
 ) -> None:
     extras = [record for record in records if record["protected"] == "0"]
     protected = [record for record in records if record["protected"] == "1"]
@@ -375,6 +397,10 @@ def print_threshold_search(
                             score_ratio,
                             level_ratio,
                             target_level_ceiling,
+                            min_pitch_confidence,
+                            min_periodicity,
+                            max_fit_error,
+                            max_noise,
                         )
                     )
                     protected_hits = sum(
@@ -386,6 +412,10 @@ def print_threshold_search(
                             score_ratio,
                             level_ratio,
                             target_level_ceiling,
+                            min_pitch_confidence,
+                            min_periodicity,
+                            max_fit_error,
+                            max_noise,
                         )
                     )
                     if extra_hits > 0 and protected_hits <= max_protected:
@@ -429,6 +459,14 @@ def print_threshold_search(
         )
         if target_level_ceiling is not None:
             line += f" target_level_max={target_level_ceiling:.2f}"
+        if min_pitch_confidence is not None:
+            line += f" min_pitch_confidence={min_pitch_confidence:.2f}"
+        if min_periodicity is not None:
+            line += f" min_periodicity={min_periodicity:.2f}"
+        if max_fit_error is not None:
+            line += f" max_fit_error={max_fit_error:.2f}"
+        if max_noise is not None:
+            line += f" max_noise={max_noise:.2f}"
         print(line)
         if examples <= 0:
             continue
@@ -441,6 +479,10 @@ def print_threshold_search(
                 score_ratio,
                 level_ratio,
                 target_level_ceiling,
+                min_pitch_confidence,
+                min_periodicity,
+                max_fit_error,
+                max_noise,
             )
         ]
         for record in matching_extras[:examples]:
@@ -543,6 +585,30 @@ def main() -> int:
         default=parse_optional_float_list("none"),
         help="optional absolute target-level ceilings to include in threshold search",
     )
+    parser.add_argument(
+        "--min-pitch-confidence",
+        type=float,
+        default=None,
+        help="optional minimum pitch confidence required for threshold-search matches",
+    )
+    parser.add_argument(
+        "--min-periodicity",
+        type=float,
+        default=None,
+        help="optional minimum periodicity required for threshold-search matches",
+    )
+    parser.add_argument(
+        "--max-fit-error",
+        type=float,
+        default=None,
+        help="optional maximum harmonic fit error required for threshold-search matches",
+    )
+    parser.add_argument(
+        "--max-noise",
+        type=float,
+        default=None,
+        help="optional maximum local noise required for threshold-search matches",
+    )
     args = parser.parse_args()
 
     rows = load_rows(pathlib.Path(args.path))
@@ -575,7 +641,7 @@ def main() -> int:
                 target_level = exact_level(context, target_row, midi)
                 if target_level < args.min_target_level:
                     continue
-                debug = best_same_midi_debug(group_rows, midi, target_row)
+                debug = best_same_midi_debug(group_rows, midi, shadow_row)
                 records_by_target[target_row].append(
                     build_record(context, debug, target_row, shadow_row, midi)
                 )
@@ -604,6 +670,10 @@ def main() -> int:
                     args.max_protected,
                     args.threshold_limit,
                     args.threshold_examples,
+                    args.min_pitch_confidence,
+                    args.min_periodicity,
+                    args.max_fit_error,
+                    args.max_noise,
                 )
     return 0
 

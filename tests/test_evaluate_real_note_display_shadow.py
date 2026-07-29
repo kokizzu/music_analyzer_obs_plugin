@@ -141,6 +141,34 @@ def main() -> int:
                 guitar_notes="D4:0.30",
                 piano_notes="D4:0.90",
             ),
+            row(
+                sample_id="keyboard_multi_debug",
+                family="piano",
+                source="electronic",
+                expected_note="E4",
+                expected_midi="64",
+                debug_note="E4",
+                debug_midi="64",
+                debug_owner="guitar",
+                keyboard_score="0.20",
+                guitar_score="0.90",
+                guitar_notes="E4:0.30",
+                piano_notes="E4:0.90",
+            ),
+            row(
+                sample_id="keyboard_multi_debug",
+                family="piano",
+                source="electronic",
+                expected_note="E4",
+                expected_midi="64",
+                debug_note="E4",
+                debug_midi="64",
+                debug_owner="piano",
+                keyboard_score="0.90",
+                guitar_score="0.10",
+                guitar_notes="E4:0.30",
+                piano_notes="E4:0.90",
+            ),
         ]
         path.write_text(
             "\t".join(HEADER) + "\n" + "\n".join("\t".join(item) for item in rows) + "\n"
@@ -269,6 +297,76 @@ def main() -> int:
             text=True,
             stdout=subprocess.PIPE,
         )
+        guarded_threshold_result = subprocess.run(
+            [
+                sys.executable,
+                str(ROOT / "scripts" / "evaluate_real_note_display_shadow.py"),
+                str(path),
+                "--shadow-row",
+                "piano",
+                "--target-row",
+                "guitar",
+                "--min-shadow-level",
+                "0.10",
+                "--min-target-level",
+                "0.10",
+                "--summary-only",
+                "--threshold-search",
+                "--max-protected",
+                "0",
+                "--threshold-limit",
+                "2",
+                "--shadow-score-thresholds",
+                "0.18",
+                "--score-ratios",
+                "0.50",
+                "--level-ratios",
+                "0.90",
+                "--min-pitch-confidence",
+                "0.85",
+                "--min-periodicity",
+                "0.75",
+                "--max-fit-error",
+                "0.06",
+                "--max-noise",
+                "0.06",
+            ],
+            check=True,
+            text=True,
+            stdout=subprocess.PIPE,
+        )
+        guarded_reject_result = subprocess.run(
+            [
+                sys.executable,
+                str(ROOT / "scripts" / "evaluate_real_note_display_shadow.py"),
+                str(path),
+                "--shadow-row",
+                "piano",
+                "--target-row",
+                "guitar",
+                "--min-shadow-level",
+                "0.10",
+                "--min-target-level",
+                "0.10",
+                "--summary-only",
+                "--threshold-search",
+                "--max-protected",
+                "0",
+                "--threshold-limit",
+                "2",
+                "--shadow-score-thresholds",
+                "0.18",
+                "--score-ratios",
+                "0.50",
+                "--level-ratios",
+                "0.90",
+                "--min-pitch-confidence",
+                "0.95",
+            ],
+            check=True,
+            text=True,
+            stdout=subprocess.PIPE,
+        )
         all_rows_result = subprocess.run(
             [
                 sys.executable,
@@ -290,33 +388,41 @@ def main() -> int:
         )
 
     output = result.stdout
-    assert "piano->same-pitch guitar extras rows=2 samples=2" in output, output
-    assert "sources piano/electronic=2" in output, output
+    assert "piano->same-pitch guitar extras rows=3 samples=3" in output, output
+    assert "sources piano/electronic=3" in output, output
     assert "piano->same-pitch guitar protected rows=1 samples=1" in output, output
     assert "sources guitar/acoustic=1" in output, output
     assert "target_score=0.80 shadow_score=0.20" in output, output
     assert "piano->same-pitch guitar suppressor simulations" in output, output
     assert "owner_shadow_score2_level" in output, output
-    assert "extras=1/2 protected=0/1 precision=100.0% protected_rate=0.0%" in output, output
+    assert "extras=2/3 protected=0/1 precision=100.0% protected_rate=0.0%" in output, output
     source_breakdown_output = source_breakdown_result.stdout
-    assert "extras_sources piano/electronic=1" in source_breakdown_output, source_breakdown_output
+    assert "extras_sources piano/electronic=2" in source_breakdown_output, source_breakdown_output
     assert "protected_sources --" in source_breakdown_output, source_breakdown_output
     summary_output = summary_result.stdout
-    assert "piano->same-pitch guitar extras rows=2 samples=2" in summary_output, summary_output
+    assert "piano->same-pitch guitar extras rows=3 samples=3" in summary_output, summary_output
     assert "piano->same-pitch guitar protected rows=1 samples=1" in summary_output, summary_output
     assert "target_level" not in summary_output, summary_output
     assert "example " not in summary_output, summary_output
     threshold_output = threshold_result.stdout
     assert "piano->same-pitch guitar threshold search max_protected=0" in threshold_output, threshold_output
-    assert "protected=0/1 extras=1/2 min_shadow_score=0.18 score_ratio=0.50 level_ratio=0.90" in threshold_output, threshold_output
+    assert "protected=0/1 extras=2/3 min_shadow_score=0.18 score_ratio=0.50 level_ratio=0.90" in threshold_output, threshold_output
     assert "extra keyboard_note_only_debug@0 src=piano/electronic expected=D4/62" in threshold_output, threshold_output
     target_level_threshold_output = target_level_threshold_result.stdout
     assert (
-        "protected=0/1 extras=1/2 min_shadow_score=0.18 score_ratio=0.50 "
+        "protected=0/1 extras=2/3 min_shadow_score=0.18 score_ratio=0.50 "
         "level_ratio=0.90 target_level_max=0.40"
     ) in target_level_threshold_output, target_level_threshold_output
+    guarded_threshold_output = guarded_threshold_result.stdout
+    assert (
+        "protected=0/1 extras=2/3 min_shadow_score=0.18 score_ratio=0.50 "
+        "level_ratio=0.90 min_pitch_confidence=0.85 min_periodicity=0.75 "
+        "max_fit_error=0.06 max_noise=0.06"
+    ) in guarded_threshold_output, guarded_threshold_output
+    guarded_reject_output = guarded_reject_result.stdout
+    assert "no matching thresholds" in guarded_reject_output, guarded_reject_output
     all_rows_output = all_rows_result.stdout
-    assert "piano->same-pitch guitar extras rows=2 samples=2" in all_rows_output, all_rows_output
+    assert "piano->same-pitch guitar extras rows=3 samples=3" in all_rows_output, all_rows_output
     assert "guitar->same-pitch piano extras rows=1 samples=1" in all_rows_output, all_rows_output
     assert "piano->same-pitch piano" not in all_rows_output, all_rows_output
     return 0
