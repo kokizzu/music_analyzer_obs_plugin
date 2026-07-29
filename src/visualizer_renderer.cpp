@@ -831,7 +831,7 @@ float guitar_note_grid_midi_level(const NoteGrid &notes, int midi)
 	const float raw_level = note_grid_midi_level(notes, midi);
 	const float lower_level = note_grid_lower_same_pitch_level(notes, midi);
 	if (raw_level > 0.0f && lower_level >= raw_level * 0.55f)
-		return raw_level * 0.34f;
+		return raw_level * 0.14f;
 	return raw_level;
 }
 
@@ -857,6 +857,9 @@ float piano_key_level(const NoteGrid &notes, int midi)
 				level = std::max(level, note_cell_render_level(cell));
 		}
 	}
+	const float lower_level = note_grid_lower_same_pitch_level(notes, midi);
+	if (level > 0.0f && lower_level >= level * 0.55f)
+		level *= 0.18f;
 	return std::clamp(level, 0.0f, 1.0f);
 }
 

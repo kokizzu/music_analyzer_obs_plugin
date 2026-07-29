@@ -85,8 +85,11 @@ def main():
     require("history.reserve(64)" in renderer, "renderer must reserve drum-history storage up front")
     require("guitar_note_grid_midi_level" in renderer and
             "note_grid_lower_same_pitch_level" in renderer and
-            "const float raw_level = guitar_note_grid_midi_level(notes, midi);" in renderer,
-            "guitar fretboard must attenuate upper same-pitch harmonic markers without changing analyzer state")
+            "const float raw_level = guitar_note_grid_midi_level(notes, midi);" in renderer and
+            "return raw_level * 0.14f;" in renderer and
+            renderer.count("note_grid_lower_same_pitch_level(notes, midi)") >= 2 and
+            "level *= 0.18f;" in renderer,
+            "piano and guitar renderers must attenuate upper same-pitch harmonic markers without changing analyzer state")
 
     require("#pragma GCC diagnostic push" in standalone, "standalone SDL include must be warning-guarded")
     require("#pragma GCC diagnostic pop" in standalone, "standalone SDL include guard must be closed")
