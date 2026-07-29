@@ -5805,6 +5805,34 @@ void check_low_dominant_kick_suppresses_body_bleed(Runner &runner)
 			      std::to_string(snapshot.drums[mao::Rim].level));
 }
 
+void check_saturated_one_shot_kick_suppresses_tom_bleed(Runner &runner)
+{
+	mao::AnalysisEngine engine;
+	mao::AnalysisSettings settings = mao_test::default_settings();
+	settings.input_mode = mao::AnalysisInputMode::FullMix;
+	settings.analysis_interval_seconds = 0.05f;
+
+	mao_test::Buffer kick = {};
+	add_decayed_sine(kick, 55.0f, 0.52f, 1600);
+	add_decayed_sine(kick, 72.0f, 0.88f, 1500);
+	add_decayed_sine(kick, 95.0f, 0.34f, 1200);
+	add_decayed_sine(kick, 125.0f, 0.22f, 900);
+	add_decayed_sine(kick, 180.0f, 0.13f, 820);
+	add_decayed_sine(kick, 1100.0f, 0.34f, 520);
+	const auto snapshot = engine.analyze(kick.data(), kick.size(), settings, "drum sample", 0);
+
+	runner.expect(snapshot.drums[mao::Kick].active,
+		      "saturated one-shot kick bleed: expected kick active, level " +
+			      std::to_string(snapshot.drums[mao::Kick].level));
+	runner.expect(!snapshot.drums[mao::Tom].active,
+		      "saturated one-shot kick bleed: expected tom inactive, level " +
+			      std::to_string(snapshot.drums[mao::Tom].level) + " kick " +
+			      std::to_string(snapshot.drums[mao::Kick].level) + " body_shape " +
+			      std::to_string(snapshot.drum_debug_body_shape) + " kick_body " +
+			      std::to_string(snapshot.drum_debug_kick_body) + " tom_body " +
+			      std::to_string(snapshot.drum_debug_tom_body));
+}
+
 void check_upbeat_mix_drums_and_chords(Runner &runner)
 {
 	mao::AnalysisEngine engine;
@@ -6275,6 +6303,7 @@ int main()
 	check_high_crash_probe_counts_as_high_energy(runner);
 	check_strong_drum_levels_keep_headroom(runner);
 	check_low_dominant_kick_suppresses_body_bleed(runner);
+	check_saturated_one_shot_kick_suppresses_tom_bleed(runner);
 	check_upbeat_mix_drums_and_chords(runner);
 	check_root_candidates(runner);
 	check_root_from_common_major_degrees(runner);

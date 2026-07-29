@@ -18924,6 +18924,21 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 		if (strong_low_kick_tom_bleed)
 			cap_drum_level(Tom, 0.28f);
 
+		const bool one_shot_saturated_kick_tom_bleed =
+			drum_detection_enabled && one_shot_drum_source &&
+			!generated_gm_orchestra_tom_primary_recovery &&
+			!one_shot_measured_tom_kick_primary_recovery &&
+			!one_shot_measured_protected_tom_from_kick_primary_recovery &&
+			!one_shot_measured_narrow_band_tom_from_kick_primary_recovery &&
+			drum_level_[Kick] >= 0.995f &&
+			drum_level_[Tom] > 0.30f &&
+			drum_shape_supported[Kick] &&
+			(body_shape == Kick || body_shape_scores[0] >= body_shape_scores[2] * 0.80f) &&
+			(drum_level_[Kick] + 0.020f >= drum_level_[Tom] || tom_kick_level_ratio <= 1.020f) &&
+			tom_body <= kick_body * 1.80f;
+		if (one_shot_saturated_kick_tom_bleed)
+			cap_drum_level(Tom, 0.28f);
+
 	const bool onset_tempo_event =
 		drum_detection_enabled && rms > kSilenceRms && drum_transient &&
 		(had_previous_audio ? onset >= 1.25f : true);
