@@ -228,6 +228,7 @@ DRUM_SPREAD_GATE_OUT ?= $(BUILD_DIR)/drum_samples_spread_gate.out
 DRUM_SPREAD_GATE_ERR ?= $(BUILD_DIR)/drum_samples_spread_gate.err
 DRUM_SPREAD_GATE_SUMMARY ?= $(BUILD_DIR)/drum_samples_spread_gate_matrix.txt
 DRUM_SPREAD_EXACT_ATTRIBUTE_ROWS ?= $(BUILD_DIR)/drum_spread_exact_attribute_rows.tsv
+DRUM_ACTIVE_SIM_ARGS ?=
 PRIMARY_DRUM_DEBUG_ERRS ?= $(BUILD_DIR)/kick_primary_debug.err $(BUILD_DIR)/tom_primary_debug.err $(BUILD_DIR)/snare_primary_debug.err $(BUILD_DIR)/hihat_primary_debug.err $(BUILD_DIR)/crash_primary_debug.err $(BUILD_DIR)/ride_primary_debug.err $(BUILD_DIR)/rim_primary_debug.err
 DRUM_FULL_GATE_OUT ?= $(BUILD_DIR)/drum_samples_full_gate.out
 DRUM_FULL_GATE_ERR ?= $(BUILD_DIR)/drum_samples_full_gate.err
@@ -1006,6 +1007,10 @@ analyze-drum-spread-gate-matrix: $(BUILD_DIR)/analyzer_drum_samples prepare-drum
 analyze-drum-active-false-rows: scripts/summarize_drum_active_false_rows.py
 	@if [ ! -f "$(DRUM_SPREAD_EXACT_ATTRIBUTE_ROWS)" ]; then if [ -d "$(DRUM_SAMPLE_SOURCE_DIR)" ]; then $(MAKE) analyze-drum-spread-gate-matrix; else printf '%s\n' "drum active false-row summary: skipped; missing $(DRUM_SAMPLE_SOURCE_DIR) and $(DRUM_SPREAD_EXACT_ATTRIBUTE_ROWS)"; exit 0; fi; fi
 	$(PYTHON) scripts/summarize_drum_active_false_rows.py "$(DRUM_SPREAD_EXACT_ATTRIBUTE_ROWS)" $(DRUM_ACTIVE_FALSE_ARGS)
+
+analyze-drum-active-thresholds: scripts/simulate_drum_active_thresholds.py
+	@if [ ! -f "$(DRUM_SPREAD_EXACT_ATTRIBUTE_ROWS)" ]; then if [ -d "$(DRUM_SAMPLE_SOURCE_DIR)" ]; then $(MAKE) analyze-drum-spread-gate-matrix; else printf '%s\n' "drum active threshold simulation: skipped; missing $(DRUM_SAMPLE_SOURCE_DIR) and $(DRUM_SPREAD_EXACT_ATTRIBUTE_ROWS)"; exit 0; fi; fi
+	$(PYTHON) scripts/simulate_drum_active_thresholds.py "$(DRUM_SPREAD_EXACT_ATTRIBUTE_ROWS)" $(DRUM_ACTIVE_SIM_ARGS)
 
 $(BUILD_DIR)/kick_primary_debug.err: $(BUILD_DIR)/analyzer_drum_samples scripts/run_with_duration.sh | $(DRUM_SAMPLE_SPREAD_BUILD_DIR)/manifest.tsv
 	$(RUN_WITH_DURATION) analyzer_drum_samples_primary_kick_debug env MUSIC_ANALYZER_DRUM_SAMPLES_REQUIRED=1 MUSIC_ANALYZER_DRUM_SAMPLE_REQUIRED_CATEGORIES=kick MUSIC_ANALYZER_DRUM_SAMPLE_FILTER_CATEGORY=kick MUSIC_ANALYZER_DRUM_SAMPLE_VERBOSE_PRIMARY=1 MUSIC_ANALYZER_DRUM_SAMPLE_VERBOSE_ALL=1 MUSIC_ANALYZER_DRUM_SAMPLE_VERBOSE_PRIMARY_LIMIT=220 MUSIC_ANALYZER_DRUM_SAMPLE_MIN_RECALL_PERCENT=0 MUSIC_ANALYZER_DRUM_SAMPLE_MIN_PRIMARY_RECALL_PERCENT=0 MUSIC_ANALYZER_DRUM_SAMPLES_DIR="$(DRUM_SAMPLE_SPREAD_BUILD_DIR)" $(BUILD_DIR)/analyzer_drum_samples > "$(BUILD_DIR)/kick_primary_debug.out" 2> "$@"
