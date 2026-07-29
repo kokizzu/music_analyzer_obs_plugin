@@ -62,6 +62,9 @@ def main() -> int:
     require(output, "route kick->snare positives=2 rows=2 protected_true_snare=2 rows=2")
     require(output, "+2 rows=2 -0 rows=0")
     require(output, "false-active examples:")
+    require(output, "ranked active false suppression opportunities")
+    require(output, "attribute-level candidates; validate runtime changes with the full drum gate")
+    require(output, "candidate kick->snare +2 rows=2 -0 rows=0 protected_true_snare=2")
 
     extra_protected_rows = [
         "snare/extra.wav\tsnare\tsnare\t0\t0.79\t0.13\t0.08\t0.90\t17\t3.9\t1.0\t0.60\t6\t2.1\t1.0\t0\t0\t0\t1\t0\t0\t0\t1\t0\t0\t0\t1\t0\t0\t0\t1\t0\t0\t0\t1",
@@ -102,6 +105,7 @@ def main() -> int:
     require(output, "route kick->snare positives=2 rows=2 protected_true_snare=3 rows=3")
     require(output, "nearest over-budget rules:")
     require(output, "snare/extra.wav snare->snare")
+    require(output, "nearest kick->snare +2 rows=2 -1 rows=1 protected_true_snare=3")
 
     guarded_rows = [
         "kick/near-a.wav\tkick\tkick\t1\t0.80\t0.10\t0.10\t0.50\t10\t1.0\t1.0\t0.60\t10\t1.0\t1.0\t0\t0\t0\t1\t0\t0\t0\t1\t0\t0\t0\t1\t0\t0\t0\t1\t0\t0\t0\t1",

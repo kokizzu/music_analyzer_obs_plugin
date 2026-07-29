@@ -64,6 +64,29 @@ class Result:
 
 
 @dataclasses.dataclass(frozen=True)
+class RouteAnalysis:
+    route: tuple[str, str]
+    positive_rows: list[dict[str, str]]
+    protected_rows: list[dict[str, str]]
+    positive_samples: int
+    protected_samples: int
+    candidates: list[Result]
+    accepted: list[Result]
+
+
+@dataclasses.dataclass(frozen=True)
+class RouteSummary:
+    kind: str
+    route: tuple[str, str]
+    rule: str
+    positive_samples: int
+    positive_rows: int
+    protected_samples: int
+    protected_rows: int
+    protected_total_samples: int
+
+
+@dataclasses.dataclass(frozen=True)
 class Settings:
     threshold: float
     limit: int
@@ -528,12 +551,12 @@ def value_text(row: dict[str, str], field: str) -> str:
     return f"{value:.3f}".rstrip("0").rstrip(".")
 
 
-def route_text(
+def analyze_route(
     rows: list[dict[str, str]],
     extra_protected_rows: list[dict[str, str]],
     route: tuple[str, str],
     settings: Settings,
-) -> str:
+) -> RouteAnalysis:
     expected, active = route
     positive_rows = false_rows_for_route(rows, expected, active, settings.threshold)
     protected_rows = protected_rows_for_active(rows, active, settings.threshold) + protected_rows_for_active(
@@ -541,40 +564,131 @@ def route_text(
     )
     positive_samples = len({sample_key(row) for row in positive_rows})
     protected_samples = len({sample_key(row) for row in protected_rows})
-    buffer = io.StringIO()
-    with contextlib.redirect_stdout(buffer):
-        print(
-            f"route {expected}->{active} positives={positive_samples} rows={len(positive_rows)} "
-            f"protected_true_{active}={protected_samples} rows={len(protected_rows)}"
-        )
-        if positive_samples < settings.min_positive_samples:
-            print("  --")
-            return buffer.getvalue()
+    candidates: list[Result] = []
+    accepted: list[Result] = []
+    if positive_samples >= settings.min_positive_samples:
         candidates = search_results(positive_rows, protected_rows, settings)
         accepted = [
             result
             for result in candidates
             if result.protected_samples <= settings.max_protected_samples
         ][: settings.limit]
-        if not accepted:
+    return RouteAnalysis(
+        route=route,
+        positive_rows=positive_rows,
+        protected_rows=protected_rows,
+        positive_samples=positive_samples,
+        protected_samples=protected_samples,
+        candidates=candidates,
+        accepted=accepted,
+    )
+
+
+def route_summaries(analysis: RouteAnalysis, settings: Settings) -> list[RouteSummary]:
+    summaries: list[RouteSummary] = []
+    for result in analysis.accepted[: settings.limit]:
+        summaries.append(
+            RouteSummary(
+                kind="candidate",
+                route=analysis.route,
+                rule=result.rule,
+                positive_samples=result.positive_samples,
+                positive_rows=result.positive_rows,
+                protected_samples=result.protected_samples,
+                protected_rows=result.protected_rows,
+                protected_total_samples=analysis.protected_samples,
+            )
+        )
+    if not summaries:
+        over_budget = [
+            result for result in analysis.candidates
+            if result.protected_samples > settings.max_protected_samples
+        ]
+        if over_budget:
+            result = over_budget[0]
+            summaries.append(
+                RouteSummary(
+                    kind="nearest",
+                    route=analysis.route,
+                    rule=result.rule,
+                    positive_samples=result.positive_samples,
+                    positive_rows=result.positive_rows,
+                    protected_samples=result.protected_samples,
+                    protected_rows=result.protected_rows,
+                    protected_total_samples=analysis.protected_samples,
+                )
+            )
+    return summaries
+
+
+def summary_rank(summary: RouteSummary) -> tuple[int, int, int, int, str, str]:
+    return (
+        0 if summary.kind == "candidate" else 1,
+        summary.protected_samples,
+        -summary.positive_samples,
+        summary.protected_rows,
+        f"{summary.route[0]}->{summary.route[1]}",
+        summary.rule,
+    )
+
+
+def print_ranked_summary(summaries: list[RouteSummary], limit: int) -> None:
+    print("ranked active false suppression opportunities")
+    print("  attribute-level candidates; validate runtime changes with the full drum gate")
+    if not summaries:
+        print("  no matching suppression opportunities")
+        return
+    for summary in sorted(summaries, key=summary_rank)[: max(0, limit)]:
+        expected, active = summary.route
+        print(
+            f"  {summary.kind} {expected}->{active} "
+            f"+{summary.positive_samples} rows={summary.positive_rows} "
+            f"-{summary.protected_samples} rows={summary.protected_rows} "
+            f"protected_true_{active}={summary.protected_total_samples} :: {summary.rule}"
+        )
+
+
+def route_text_from_analysis(analysis: RouteAnalysis, settings: Settings) -> str:
+    expected, active = analysis.route
+    buffer = io.StringIO()
+    with contextlib.redirect_stdout(buffer):
+        print(
+            f"route {expected}->{active} positives={analysis.positive_samples} "
+            f"rows={len(analysis.positive_rows)} "
+            f"protected_true_{active}={analysis.protected_samples} "
+            f"rows={len(analysis.protected_rows)}"
+        )
+        if analysis.positive_samples < settings.min_positive_samples:
+            print("  --")
+            return buffer.getvalue()
+        if not analysis.accepted:
             print("  --")
             near = [
                 result
-                for result in candidates
+                for result in analysis.candidates
                 if result.protected_samples > settings.max_protected_samples
             ][: settings.show_near_misses]
             if near:
                 print("  nearest over-budget rules:")
-                print_results(near, active, settings.show_examples, protected_rows, 0)
+                print_results(near, active, settings.show_examples, analysis.protected_rows, 0)
             return buffer.getvalue()
         print_results(
-            accepted,
+            analysis.accepted,
             active,
             settings.show_examples,
-            protected_rows,
+            analysis.protected_rows,
             settings.show_near_misses,
         )
     return buffer.getvalue()
+
+
+def route_text(
+    rows: list[dict[str, str]],
+    extra_protected_rows: list[dict[str, str]],
+    route: tuple[str, str],
+    settings: Settings,
+) -> str:
+    return route_text_from_analysis(analyze_route(rows, extra_protected_rows, route, settings), settings)
 
 
 def constraint_distance(row: dict[str, str], constraints: tuple[Constraint, ...]) -> tuple[int, float] | None:
@@ -688,9 +802,10 @@ def print_results(
 
 def worker(
     task: tuple[int, list[dict[str, str]], list[dict[str, str]], tuple[str, str], Settings]
-) -> tuple[int, str]:
+) -> tuple[int, str, list[RouteSummary]]:
     index, rows, extra_protected_rows, route, settings = task
-    return index, route_text(rows, extra_protected_rows, route, settings)
+    analysis = analyze_route(rows, extra_protected_rows, route, settings)
+    return index, route_text_from_analysis(analysis, settings), route_summaries(analysis, settings)
 
 
 def main() -> int:
@@ -754,10 +869,14 @@ def main() -> int:
     )
     if not routes:
         return 0
+    summaries: list[RouteSummary] = []
     jobs = min(max(1, args.jobs), len(routes))
     if jobs == 1:
         for route in routes:
-            print(route_text(rows, extra_protected_rows, route, settings), end="")
+            analysis = analyze_route(rows, extra_protected_rows, route, settings)
+            print(route_text_from_analysis(analysis, settings), end="")
+            summaries.extend(route_summaries(analysis, settings))
+        print_ranked_summary(summaries, settings.limit)
         return 0
     outputs = [""] * len(routes)
     tasks = [
@@ -765,10 +884,12 @@ def main() -> int:
         for index, route in enumerate(routes)
     ]
     with concurrent.futures.ProcessPoolExecutor(max_workers=jobs) as executor:
-        for index, text in executor.map(worker, tasks):
+        for index, text, route_summaries_ in executor.map(worker, tasks):
             outputs[index] = text
+            summaries.extend(route_summaries_)
     for text in outputs:
         print(text, end="")
+    print_ranked_summary(summaries, settings.limit)
     return 0
 
 
