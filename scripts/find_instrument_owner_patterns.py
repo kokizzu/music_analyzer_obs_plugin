@@ -322,6 +322,35 @@ def rows_for_status_bucket(rows: list[dict[str, str]], bucket: tuple[str, str]) 
     ]
 
 
+def top_owner_buckets(rows: list[dict[str, str]], limit: int, status: str) -> list[tuple[str, str, str]]:
+    if limit <= 0:
+        return []
+    counts: collections.Counter[tuple[str, str, str]] = collections.Counter()
+    for row in rows:
+        if row.get("_owner_status") != status:
+            continue
+        family = note_row_family(row)
+        owner = row.get("_owner", "")
+        if not family or not owner:
+            continue
+        counts[(status, family, owner)] += 1
+    return [bucket for bucket, _count in counts.most_common(limit)]
+
+
+def top_status_buckets(rows: list[dict[str, str]], limit: int, status: str) -> list[tuple[str, str]]:
+    if limit <= 0:
+        return []
+    counts: collections.Counter[tuple[str, str]] = collections.Counter()
+    for row in rows:
+        if row.get("status") != status:
+            continue
+        family = note_row_family(row)
+        if not family:
+            continue
+        counts[(status, family)] += 1
+    return [bucket for bucket, _count in counts.most_common(limit)]
+
+
 def hit_rows(rows: list[dict[str, str]]) -> list[dict[str, str]]:
     return [row for row in rows if row.get("_owner_status") == "owner_hit"]
 
@@ -1057,9 +1086,29 @@ def main() -> int:
         type=int,
         default=None,
         help=(
-            "accepted for command-line parity with the real-note pattern finder; "
-            "instrument owner mining uses explicit or built-in buckets"
+            "when --bucket is omitted, mine this many current top owner buckets; "
+            "0 uses fixed defaults"
         ),
+    )
+    parser.add_argument(
+        "--bucket-status",
+        choices=["owner_miss", "owner_hit"],
+        default="owner_miss",
+        help="owner status used by --top-buckets",
+    )
+    parser.add_argument(
+        "--status-top-buckets",
+        type=int,
+        default=None,
+        help=(
+            "when --status-bucket is omitted, mine this many current final-status buckets; "
+            "0 uses fixed defaults"
+        ),
+    )
+    parser.add_argument(
+        "--status-bucket-status",
+        default="miss",
+        help="final note status used by --status-top-buckets",
     )
     parser.add_argument("--min-positive-samples", type=int, default=2)
     parser.add_argument("--max-negative-samples", type=int, default=25)
@@ -1111,9 +1160,14 @@ def main() -> int:
 
     explicit_patterns = [condition_pattern(spec) for spec in args.condition]
     positive_filters = [condition_pattern(spec) for spec in args.positive_condition]
-    if args.bucket or not args.status_bucket:
+    if args.bucket or not (args.status_bucket or args.status_top_buckets is not None):
         owner_rows = load_rows(pathlib.Path(args.path))
-        buckets = [parse_bucket_spec(spec) for spec in (args.bucket or DEFAULT_BUCKETS)]
+        buckets = [parse_bucket_spec(spec) for spec in args.bucket]
+        if not buckets:
+            if args.top_buckets is not None:
+                buckets = top_owner_buckets(owner_rows, args.top_buckets, args.bucket_status)
+            if not buckets:
+                buckets = [parse_bucket_spec(spec) for spec in DEFAULT_BUCKETS]
         for bucket in buckets:
             print_bucket_patterns(
                 owner_rows,
@@ -1131,9 +1185,18 @@ def main() -> int:
                 args.field_preset,
                 set(args.exclude_field),
             )
-    if args.status_bucket:
+    if args.status_bucket or args.status_top_buckets is not None:
         status_rows = load_rows(pathlib.Path(args.path), include_all_note_rows=True)
         status_buckets = [parse_status_bucket_spec(spec) for spec in args.status_bucket]
+        if not status_buckets:
+            if args.status_top_buckets is not None:
+                status_buckets = top_status_buckets(
+                    status_rows,
+                    args.status_top_buckets,
+                    args.status_bucket_status,
+                )
+            if not status_buckets:
+                status_buckets = [parse_status_bucket_spec(spec) for spec in DEFAULT_STATUS_BUCKETS]
         for bucket in status_buckets:
             print_status_patterns(
                 status_rows,

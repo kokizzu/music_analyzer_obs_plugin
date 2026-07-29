@@ -1103,6 +1103,9 @@ def main() -> int:
     status_recipe = target_recipe(makefile, "find-instrument-status-patterns")
     assert "scripts/find_instrument_owner_patterns.py" in status_recipe, "status search must use the pattern miner"
     assert "$(MEASURE_INSTRUMENT_STATUS_PATTERN_ARGS)" in status_recipe, "status search needs direct defaults"
+    assert "--status-top-buckets 0 $(PATTERN_ARGS)" in status_recipe, (
+        "custom status search args must stay in final-status mode"
+    )
 
     for variable in [
         "MEASURE_ANALYZER_REPORT",

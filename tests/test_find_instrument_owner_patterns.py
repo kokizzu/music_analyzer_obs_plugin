@@ -447,6 +447,56 @@ def main() -> int:
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
         )
+        auto_owner = subprocess.run(
+            [
+                sys.executable,
+                str(SCRIPT),
+                str(path),
+                "--top-buckets",
+                "1",
+                "--limit",
+                "3",
+                "--min-positive-samples",
+                "2",
+                "--max-negative-samples",
+                "0",
+                "--max-conditions",
+                "2",
+                "--beam-width",
+                "40",
+            ],
+            cwd=ROOT,
+            check=True,
+            text=True,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+        )
+        auto_status = subprocess.run(
+            [
+                sys.executable,
+                str(SCRIPT),
+                str(path),
+                "--status-top-buckets",
+                "1",
+                "--status-bucket-status",
+                "miss",
+                "--limit",
+                "3",
+                "--min-positive-samples",
+                "2",
+                "--max-negative-samples",
+                "0",
+                "--max-conditions",
+                "2",
+                "--beam-width",
+                "40",
+            ],
+            cwd=ROOT,
+            check=True,
+            text=True,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+        )
         status_reason = subprocess.run(
             [
                 sys.executable,
@@ -529,6 +579,14 @@ def main() -> int:
     assert "strings Pizzicato Strings G2 path=strings_miss_1.wav status=miss" in status_result.stdout, (
         status_result.stdout + status_result.stderr
     )
+    assert "owner_miss:guitar->piano positives=2 samples/2 rows" in auto_owner.stdout, (
+        auto_owner.stdout + auto_owner.stderr
+    )
+    assert "owner_miss:guitar->other" not in auto_owner.stdout, auto_owner.stdout + auto_owner.stderr
+    assert "status:miss:strings positives=2 samples/2 rows" in auto_status.stdout, (
+        auto_status.stdout + auto_status.stderr
+    )
+    assert "status:hit:" not in auto_status.stdout, auto_status.stdout + auto_status.stderr
     assert "miss_reason=ownership: pos=2/2 rows=2 neg=0/1 rows=0" in status_reason.stdout, (
         status_reason.stdout + status_reason.stderr
     )
