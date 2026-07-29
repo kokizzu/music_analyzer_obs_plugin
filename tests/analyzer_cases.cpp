@@ -3762,6 +3762,45 @@ void check_simultaneous_onset_group_rejects_vocal_spillover(Runner &runner)
 		      "simultaneous-onset group: expected C to stay keyboard or ambiguous");
 }
 
+void check_blended_ambiguous_debug_scores(Runner &runner)
+{
+	mao_test::Buffer buffer = {};
+	const std::vector<float> blended_guitar_profile = {1.0f, 0.34f, 0.16f, 0.10f, 0.05f};
+	for (int midi : {60, 64, 67})
+		add_harmonic_note(buffer, midi, 0.24f, blended_guitar_profile);
+
+	const auto snapshot =
+		analyze_buffer_with_mode(buffer, mao::AnalysisInputMode::FullMix,
+					 "blended ambiguous debug scores", 1);
+	const int midi = 60;
+	const mao::FullMixDebugCandidate *candidate = nullptr;
+	const std::size_t count =
+		std::min<std::size_t>(snapshot.full_mix_debug_candidate_count,
+				      snapshot.full_mix_debug_candidates.size());
+	for (std::size_t i = 0; i < count; ++i) {
+		const mao::FullMixDebugCandidate &debug = snapshot.full_mix_debug_candidates[i];
+		if (debug.midi == midi) {
+			candidate = &debug;
+			break;
+		}
+	}
+
+	const std::string context =
+		std::string("blended ambiguous debug scores ") + mao_test::note_label(midi);
+	runner.expect(candidate != nullptr, context + ": missing debug candidate");
+	if (!candidate)
+		return;
+	const float named_score =
+		std::max({candidate->keyboard_score, candidate->guitar_score, candidate->other_score});
+	runner.expect(candidate->owner == mao::InstrumentKind::Ambiguous,
+		      context + ": expected ambiguous owner, got `" +
+			      instrument_kind_name(candidate->owner) + "` debug `" +
+			      full_mix_debug_summary_for_midi(snapshot, midi) + "`");
+	runner.expect(candidate->ownership_confidence > 0.0f && named_score > 0.0f,
+		      context + ": expected retained row-score evidence in ambiguous debug, got `" +
+			      full_mix_debug_summary_for_midi(snapshot, midi) + "`");
+}
+
 void check_full_mix_vocal_requires_temporal_confirmation(Runner &runner)
 {
 	mao::AnalysisEngine engine;
@@ -6101,6 +6140,7 @@ int main()
 	check_full_mix_single_instrument_precision(runner);
 	check_full_mix_single_owned_note_has_no_instrument_chord(runner);
 	check_simultaneous_onset_group_rejects_vocal_spillover(runner);
+	check_blended_ambiguous_debug_scores(runner);
 	check_full_mix_vocal_requires_temporal_confirmation(runner);
 	check_full_mix_midrange_vocal_recall(runner);
 	check_full_mix_realistic_vocal_recall(runner);

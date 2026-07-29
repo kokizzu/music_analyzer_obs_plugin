@@ -6895,6 +6895,21 @@ bool blended_full_mix_upper_partials(float second, float third, float fourth, fl
 	       fifth >= 0.040f;
 }
 
+void set_ambiguous_full_mix_timbre_scores(NoteEvidence &evidence, float keyboard_weight,
+					  float guitar_weight, float other_weight)
+{
+	const float total = keyboard_weight + guitar_weight + other_weight;
+	if (total <= 1.0e-6f)
+		return;
+
+	evidence.ownership_scores[static_cast<std::size_t>(InstrumentKind::Keyboard)] =
+		keyboard_weight / total;
+	evidence.ownership_scores[static_cast<std::size_t>(InstrumentKind::Guitar)] =
+		guitar_weight / total;
+	evidence.ownership_scores[static_cast<std::size_t>(InstrumentKind::Other)] = other_weight / total;
+	evidence.ownership_confidence = std::max({keyboard_weight, guitar_weight, other_weight}) / total;
+}
+
 InstrumentKind choose_full_mix_owner(const std::array<float, kNoteProbeCount> &powers,
 				     const NoteCandidate &candidate, float strongest_score,
 				     bool polyphonic_vocal_context, const TemporalNoteFeatures &temporal,
@@ -7004,18 +7019,13 @@ InstrumentKind choose_full_mix_owner(const std::array<float, kNoteProbeCount> &p
 		!vocal_supported && !low_other_profile_supported && (competing_timbres || blended_partials) &&
 		temporal.simultaneous_onset >= 0.18f;
 	if (force_blended_ambiguous && competing_timbres) {
-		const float total = keyboard_weight + guitar_weight + other_weight;
-		evidence.ownership_scores[static_cast<std::size_t>(InstrumentKind::Keyboard)] =
-			keyboard_weight / total;
-		evidence.ownership_scores[static_cast<std::size_t>(InstrumentKind::Guitar)] =
-			guitar_weight / total;
-		evidence.ownership_scores[static_cast<std::size_t>(InstrumentKind::Other)] = other_weight / total;
-		evidence.ownership_confidence =
-			std::max({keyboard_weight, guitar_weight, other_weight}) / total;
+		set_ambiguous_full_mix_timbre_scores(evidence, keyboard_weight, guitar_weight, other_weight);
 		return InstrumentKind::Ambiguous;
 	}
-	if (force_blended_ambiguous && blended_partials)
+	if (force_blended_ambiguous && blended_partials) {
+		set_ambiguous_full_mix_timbre_scores(evidence, keyboard_weight, guitar_weight, other_weight);
 		return InstrumentKind::Ambiguous;
+	}
 
 	const bool normal_keyboard_profile_supported =
 		candidate.midi >= 48 && candidate.midi <= 83 && second <= 0.56f;
