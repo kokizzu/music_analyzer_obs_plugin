@@ -67,7 +67,7 @@ def main() -> int:
             "ride band=1.00 seg=1.00 shape_score=1.00 trigger=0.20/1.40 shape=0 level=0.00 | "
             "rim band=1.00 seg=1.00 shape_score=1.00 trigger=0.20/1.40 shape=0 level=0.00 | "
             "transient=2.10 onset=1.70 energy=0.58/0.32/0.10 "
-            "body=4.00/2.00/8.00 crack=0.50 upper_tom=3.00 body_shape=4 merged_expected=1]",
+            "body=4.00/2.00/8.00 crack=0.50 upper_tom=3.00 body_shape=4 rule_flags=0x13 merged_expected=1]",
             "analyzer_drum_samples: debug 100ms tom/001.wav expected tom "
             "(kick=0.96* snare=0.00 hihat=0.00 crash=0.00 tom=0.71* ride=0.00 rim=0.00) "
             "[kick band=4.00 seg=5.00 shape_score=6.00 trigger=1.60/0.60 shape=1 level=0.96 | "
@@ -78,7 +78,7 @@ def main() -> int:
             "ride band=1.00 seg=1.00 shape_score=1.00 trigger=0.20/1.40 shape=0 level=0.00 | "
             "rim band=1.00 seg=1.00 shape_score=1.00 trigger=0.20/1.40 shape=0 level=0.00 | "
             "transient=2.10 onset=1.70 energy=0.58/0.32/0.10 "
-            "body=4.00/2.00/8.00 crack=0.50 upper_tom=3.00 body_shape=4 merged_expected=1]",
+            "body=4.00/2.00/8.00 crack=0.50 upper_tom=3.00 body_shape=4 rule_flags=0x13 merged_expected=1]",
             "analyzer_drum_samples: primary miss 100ms tom/002.wav expected tom got ambiguous "
             "(kick=0.80* snare=0.00 hihat=0.00 crash=0.00 tom=0.80* ride=0.00 rim=0.00) "
             "[kick band=2.00 seg=2.00 shape_score=2.00 trigger=1.00/0.60 shape=1 level=0.80 | "
@@ -134,8 +134,10 @@ def main() -> int:
     require(output, "body_shape: 4=1")
     require(output, "near-level ties: 0/1")
     require(dumped, "sample\texpected\tgot\tenergy_low\tenergy_mid\tenergy_high\tkick_body")
+    require(dumped, "\trule_flags\tflag_generated_gm_source\tflag_one_shot_source")
     require(dumped, "\tmerged_expected\n")
     require(dumped, "tom/001.wav\ttom\tkick\t0.580000\t0.320000\t0.100000\t4.000000\t2.000000\t8.000000")
+    require(dumped, "\t0x13\t1\t1\t0\t0\t1\t0\t0\t0\t0\t0\t1\n")
     require(dumped, "tom/002.wav\ttom\tambiguous\t0.330000\t0.330000\t0.340000")
     require(dumped_with_correct, "tom/ok.wav\ttom\ttom\t0.200000\t0.700000\t0.100000\t1.000000\t1.000000\t3.000000")
     require(

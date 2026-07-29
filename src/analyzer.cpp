@@ -16820,6 +16820,12 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 	const bool one_shot_drum_source =
 		generated_gm_drum_source || contains_case_insensitive(resolved_source_name, "drum sample");
 	const bool real_drum_track_source = named_drum_source && !one_shot_drum_source;
+	if (generated_gm_drum_source)
+		snapshot.drum_debug_rule_flags |= DrumDebugGeneratedGmSource;
+	if (one_shot_drum_source)
+		snapshot.drum_debug_rule_flags |= DrumDebugOneShotSource;
+	if (real_drum_track_source)
+		snapshot.drum_debug_rule_flags |= DrumDebugRealTrackSource;
 	const float mixed_hihat_body_ratio =
 		generated_gm_drum_source ? 0.04f :
 		real_drum_track_source ? (snapshot.high_energy >= 0.10f ? 0.045f : 0.075f) :
@@ -18304,6 +18310,8 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 			tom_body >= kick_body * 1.40f &&
 			tom_body >= snare_body * 1.10f &&
 			snapshot.high_energy <= 0.14f;
+		if (one_shot_measured_tom_kick_primary_recovery)
+			snapshot.drum_debug_rule_flags |= DrumDebugTomKickPrimaryRecovery;
 		const bool one_shot_measured_low_tom_from_kick_primary_recovery =
 			drum_detection_enabled && one_shot_drum_source &&
 			drum_shape_supported[Tom] &&
@@ -18319,6 +18327,8 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 			  tom_kick_band_ratio <= 3.155f) ||
 			 (drum_level_[Kick] <= 0.987f &&
 			  tom_kick_shape_score_ratio <= 0.482f));
+		if (one_shot_measured_narrow_band_tom_from_kick_primary_recovery)
+			snapshot.drum_debug_rule_flags |= DrumDebugNarrowTomKickPrimaryRecovery;
 		const bool one_shot_measured_inactive_tom_from_kick_primary_recovery =
 			drum_detection_enabled && one_shot_drum_source &&
 			drum_level_[Kick] > 0.30f &&
@@ -18824,6 +18834,8 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 			  drum_shape_supported[Kick] &&
 			  snapshot.drum_debug_trigger_scores[Rim] >= 22.834f &&
 			  snapshot.drum_debug_trigger_scores[Snare] <= 22.257f));
+		if (one_shot_measured_protected_tom_from_kick_primary_recovery)
+			snapshot.drum_debug_rule_flags |= DrumDebugProtectedTomKickPrimaryRecovery;
 		if (one_shot_measured_narrow_band_tom_from_kick_primary_recovery ||
 		    one_shot_measured_protected_tom_from_kick_primary_recovery ||
 		    one_shot_measured_inactive_tom_from_kick_primary_recovery)
@@ -18873,6 +18885,8 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 			upper_tom_body >= 48.0f &&
 			snapshot.drum_debug_trigger_scores[Tom] >= 8000.0f;
 		if (generated_gm_orchestra_tom_primary_recovery)
+			snapshot.drum_debug_rule_flags |= DrumDebugGmOrchestraTomRecovery;
+		if (generated_gm_orchestra_tom_primary_recovery)
 			promote_drum_primary(Tom, 0.90f);
 
 		const bool measured_snare_crack_tom_bleed =
@@ -18884,6 +18898,8 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 			tom_body <= snare_body * 1.70f &&
 			!one_shot_measured_mid_tom_from_snare_primary_recovery &&
 			!generated_gm_orchestra_tom_primary_recovery;
+		if (measured_snare_crack_tom_bleed)
+			snapshot.drum_debug_rule_flags |= DrumDebugSnareCrackTomBleed;
 		if (measured_snare_crack_tom_bleed)
 			cap_drum_level(Tom, 0.28f);
 
@@ -18922,6 +18938,8 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 			drum_segment_bands[Tom] <= drum_segment_bands[Kick] * 1.24f &&
 			tom_body <= kick_body * 1.28f;
 		if (strong_low_kick_tom_bleed)
+			snapshot.drum_debug_rule_flags |= DrumDebugStrongLowKickTomBleed;
+		if (strong_low_kick_tom_bleed)
 			cap_drum_level(Tom, 0.28f);
 
 		const bool one_shot_saturated_kick_tom_bleed =
@@ -18936,6 +18954,8 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 			(body_shape == Kick || body_shape_scores[0] >= body_shape_scores[2] * 0.80f) &&
 			(drum_level_[Kick] + 0.020f >= drum_level_[Tom] || tom_kick_level_ratio <= 1.020f) &&
 			tom_body <= kick_body * 1.80f;
+		if (one_shot_saturated_kick_tom_bleed)
+			snapshot.drum_debug_rule_flags |= DrumDebugSaturatedKickTomBleed;
 		if (one_shot_saturated_kick_tom_bleed)
 			cap_drum_level(Tom, 0.28f);
 

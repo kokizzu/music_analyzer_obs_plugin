@@ -10,6 +10,18 @@ from collections import defaultdict
 
 
 CATEGORIES = ("kick", "snare", "hihat", "crash", "tom", "ride", "rim")
+RULE_FLAG_BITS = (
+    ("flag_generated_gm_source", 1 << 0),
+    ("flag_one_shot_source", 1 << 1),
+    ("flag_real_track_source", 1 << 2),
+    ("flag_tom_kick_primary_recovery", 1 << 3),
+    ("flag_protected_tom_kick_primary_recovery", 1 << 4),
+    ("flag_narrow_tom_kick_primary_recovery", 1 << 5),
+    ("flag_gm_orchestra_tom_recovery", 1 << 6),
+    ("flag_snare_crack_tom_bleed", 1 << 7),
+    ("flag_strong_low_kick_tom_bleed", 1 << 8),
+    ("flag_saturated_kick_tom_bleed", 1 << 9),
+)
 ROW_DUMP_FIELDS = (
     [
         "sample",
@@ -30,6 +42,8 @@ ROW_DUMP_FIELDS = (
         for category in CATEGORIES
         for field in ("band", "seg", "shape_score", "trigger", "threshold", "shape", "level")
     ]
+    + ["rule_flags"]
+    + [name for name, _bit in RULE_FLAG_BITS]
     + ["merged_expected"]
 )
 DETAIL_RE = re.compile(
@@ -53,6 +67,7 @@ BODY_RE = re.compile(
     r"body_shape=(?P<body_shape>-?[0-9]+)"
 )
 MERGED_EXPECTED_RE = re.compile(r"\bmerged_expected=(?P<merged>[01])\b")
+RULE_FLAGS_RE = re.compile(r"\brule_flags=(?P<flags>0x[0-9a-fA-F]+|[0-9]+)\b")
 
 
 def parse_detail(detail: str):
@@ -93,6 +108,8 @@ def parse_detail(detail: str):
 def row_from_match(match, got: str):
     metrics, energy, body = parse_detail(match.group("detail"))
     merged_match = MERGED_EXPECTED_RE.search(match.group("detail"))
+    rule_flags_match = RULE_FLAGS_RE.search(match.group("detail"))
+    rule_flags = rule_flags_match.group("flags") if rule_flags_match else "0x0"
     return {
         "sample": match.group("sample"),
         "expected": match.group("expected"),
@@ -100,6 +117,7 @@ def row_from_match(match, got: str):
         "metrics": metrics,
         "energy": energy,
         "body": body,
+        "rule_flags": rule_flags,
         "merged_expected": merged_match.group("merged") if merged_match else "0",
     }
 
@@ -148,6 +166,13 @@ def safe_ratio(numerator: float, denominator: float) -> float | None:
     if abs(denominator) < 1.0e-9:
         return None
     return numerator / denominator
+
+
+def parse_rule_flags(value: str) -> int:
+    try:
+        return int(value, 0)
+    except ValueError:
+        return 0
 
 
 def body_ratio(body, lhs: str, rhs: str) -> float | None:
@@ -204,6 +229,10 @@ def dump_rows(rows, expected_filter: str, limit: int) -> None:
             for field in ("band", "seg", "shape_score", "trigger", "threshold", "shape", "level"):
                 value = category_metrics.get(field, "")
                 values[f"{category}_{field}"] = "" if value == "" else f"{value:.6f}"
+        values["rule_flags"] = row.get("rule_flags", "0x0")
+        rule_flags = parse_rule_flags(values["rule_flags"])
+        for field, bit in RULE_FLAG_BITS:
+            values[field] = "1" if rule_flags & bit else "0"
         values["merged_expected"] = row.get("merged_expected", "0")
         print("\t".join(values.get(field, "") for field in ROW_DUMP_FIELDS))
         printed += 1

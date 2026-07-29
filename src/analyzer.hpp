@@ -26,6 +26,19 @@ enum DrumIndex : std::size_t {
 	Rim = 6,
 };
 
+enum DrumDebugRuleFlag : uint64_t {
+	DrumDebugGeneratedGmSource = 1ull << 0,
+	DrumDebugOneShotSource = 1ull << 1,
+	DrumDebugRealTrackSource = 1ull << 2,
+	DrumDebugTomKickPrimaryRecovery = 1ull << 3,
+	DrumDebugProtectedTomKickPrimaryRecovery = 1ull << 4,
+	DrumDebugNarrowTomKickPrimaryRecovery = 1ull << 5,
+	DrumDebugGmOrchestraTomRecovery = 1ull << 6,
+	DrumDebugSnareCrackTomBleed = 1ull << 7,
+	DrumDebugStrongLowKickTomBleed = 1ull << 8,
+	DrumDebugSaturatedKickTomBleed = 1ull << 9,
+};
+
 enum class AnalysisInputMode {
 	Auto,
 	FullMix,
@@ -133,6 +146,7 @@ struct AnalysisSnapshot {
 	float drum_debug_tom_body = 0.0f;
 	float drum_debug_upper_tom_body = 0.0f;
 	int drum_debug_body_shape = -1;
+	uint64_t drum_debug_rule_flags = 0;
 	int bass_debug_spectral_midi = -1;
 	float bass_debug_spectral_confidence = 0.0f;
 	float bass_debug_spectral_score = 0.0f;

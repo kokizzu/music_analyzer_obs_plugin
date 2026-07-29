@@ -565,14 +565,15 @@ std::string debug_details(const mao::AnalysisSnapshot &snapshot, bool merged_exp
 			      snapshot.drum_debug_shape_supported[i] ? 1 : 0, snapshot.drums[i].level);
 		text += part;
 	}
-	char part[384] = {};
+	char part[416] = {};
 	std::snprintf(part, sizeof(part),
-		      " | transient=%.6f onset=%.6f energy=%.6f/%.6f/%.6f body=%.6f/%.6f/%.6f crack=%.6f upper_tom=%.6f body_shape=%d",
+		      " | transient=%.6f onset=%.6f energy=%.6f/%.6f/%.6f body=%.6f/%.6f/%.6f crack=%.6f upper_tom=%.6f body_shape=%d rule_flags=0x%llx",
 		      snapshot.drum_debug_transient_ratio, snapshot.drum_debug_onset,
 		      snapshot.low_energy, snapshot.mid_energy, snapshot.high_energy,
 		      snapshot.drum_debug_kick_body, snapshot.drum_debug_snare_body,
 		      snapshot.drum_debug_tom_body, snapshot.drum_debug_snare_crack,
-		      snapshot.drum_debug_upper_tom_body, snapshot.drum_debug_body_shape);
+		      snapshot.drum_debug_upper_tom_body, snapshot.drum_debug_body_shape,
+		      static_cast<unsigned long long>(snapshot.drum_debug_rule_flags));
 	text += part;
 	text += merged_expected_from_later_frame ? " merged_expected=1" : " merged_expected=0";
 	return text;
