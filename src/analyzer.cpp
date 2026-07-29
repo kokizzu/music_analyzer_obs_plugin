@@ -17619,6 +17619,16 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 			  tom_kick_band_ratio <= 3.155f) ||
 			 (drum_level_[Kick] <= 0.987f &&
 			  tom_kick_shape_score_ratio <= 0.482f));
+		const bool one_shot_measured_inactive_tom_from_kick_primary_recovery =
+			drum_detection_enabled && one_shot_drum_source &&
+			drum_level_[Kick] > 0.30f &&
+			drum_level_[Tom] <= 0.30f &&
+			drum_level_[Rim] <= 0.30f &&
+			((drum_level_[Kick] <= 0.987f &&
+			  tom_kick_shape_score_ratio <= 0.482f &&
+			  tom_kick_body_ratio <= 1.127f) ||
+			 (drum_level_[Kick] <= 0.989f &&
+			  snare_kick_shape_score_ratio <= 0.178f));
 		const bool one_shot_measured_tom_no_kick_snare_steal_primary_recovery =
 			drum_detection_enabled && one_shot_drum_source &&
 			body_shape == Tom &&
@@ -18107,7 +18117,8 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 			  snapshot.drum_debug_trigger_scores[Rim] >= 22.834f &&
 			  snapshot.drum_debug_trigger_scores[Snare] <= 22.257f));
 		if (one_shot_measured_narrow_band_tom_from_kick_primary_recovery ||
-		    one_shot_measured_protected_tom_from_kick_primary_recovery)
+		    one_shot_measured_protected_tom_from_kick_primary_recovery ||
+		    one_shot_measured_inactive_tom_from_kick_primary_recovery)
 			promote_drum_primary(Tom, 0.90f);
 		const float final_no_kick_snare_tom_level_ratio =
 			drum_level_[Tom] / (drum_level_[Snare] + 1.0e-6f);
