@@ -40,11 +40,11 @@ tom/a.wav\ttom\ttom\t0\t0\t1\t0\t0\t0.20\t0.8\t1.0\t2\t0\t0\t0\t1\t0\t0\t0\t0\t1
     require(output, "kick: recall=1/2 50.00% precision=1/1 100.00% false=0")
     require(output, "snare: recall=1/1 100.00% precision=1/3 33.33% false=2")
     require(output, "  false level_med=0.525 trigger_med=2.000 seg_med=7.000 shape_med=1.000 expected=kick=2")
-    require(output, "    kick->snare rows=2 level_med=0.525 trigger_ratio_med=2.000 seg_med=7.000 expected_level_med=0.525 expected_trigger_ratio_med=1.400 primary=kick=1 snare=1")
+    require(output, "    kick->snare rows=2 level_med=0.525 trigger_ratio_med=2.000 seg_med=7.000 expected_level_med=0.525 expected_trigger_ratio_med=1.400 protected_true_snare=1 true_level_med=0.900 true_trigger_ratio_med=3.000 primary=kick=1 snare=1")
     require(output, "    false kick->snare sample=kick/a.wav level=0.350 trigger=1.500/1.000 seg=6.000 shape=1 got=kick")
     require(output, "tom: recall=1/1 100.00% precision=1/2 50.00% false=1")
     require(output, "top false-active routes:")
-    require(output, "  kick->snare rows=2 level_med=0.525 trigger_ratio_med=2.000 seg_med=7.000 expected_level_med=0.525 expected_trigger_ratio_med=1.400 primary=kick=1 snare=1")
+    require(output, "  kick->snare rows=2 level_med=0.525 trigger_ratio_med=2.000 seg_med=7.000 expected_level_med=0.525 expected_trigger_ratio_med=1.400 protected_true_snare=1 true_level_med=0.900 true_trigger_ratio_med=3.000 primary=kick=1 snare=1")
     print("test_summarize_drum_active_false_rows: ok")
     return 0
 

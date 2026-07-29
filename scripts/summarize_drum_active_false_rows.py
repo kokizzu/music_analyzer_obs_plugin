@@ -62,7 +62,29 @@ def expected_trigger_ratio(row: dict[str, str]) -> float:
     )
 
 
-def route_text(rows: list[dict[str, str]], expected: str, active: str) -> str:
+def true_active_rows(rows: list[dict[str, str]], category: str, threshold: float) -> list[dict[str, str]]:
+    return [
+        row
+        for row in rows
+        if row.get("expected", "") == category and as_float(row.get(f"{category}_level", "")) > threshold
+    ]
+
+
+def route_text(
+    rows: list[dict[str, str]],
+    expected: str,
+    active: str,
+    all_rows: list[dict[str, str]] | None = None,
+    threshold: float = 0.30,
+) -> str:
+    protected = [] if all_rows is None else true_active_rows(all_rows, active, threshold)
+    protected_text = ""
+    if all_rows is not None:
+        protected_text = (
+            f"protected_true_{active}={len(protected)} "
+            f"true_level_med={median_field(protected, active + '_level')} "
+            f"true_trigger_ratio_med={median_values([active_trigger_ratio(row, active) for row in protected]):s} "
+        )
     return (
         f"{expected}->{active} rows={len(rows)} "
         f"level_med={median_field(rows, active + '_level')} "
@@ -70,6 +92,7 @@ def route_text(rows: list[dict[str, str]], expected: str, active: str) -> str:
         f"seg_med={median_field(rows, active + '_seg')} "
         f"expected_level_med={median_values([expected_level(row) for row in rows]):s} "
         f"expected_trigger_ratio_med={median_values([expected_trigger_ratio(row) for row in rows]):s} "
+        f"{protected_text}"
         f"primary={compact_counter(Counter(row.get('got', '') for row in rows), 4)}"
     )
 
@@ -104,7 +127,7 @@ def summarize_false_routes(
         key=lambda item: (-len(item[1]), item[0][0], item[0][1]),
     )
     for (expected, active), route_rows_for_pair in ranked[:limit]:
-        print(f"  {route_text(route_rows_for_pair, expected, active)}")
+        print(f"  {route_text(route_rows_for_pair, expected, active, rows, threshold)}")
         for row in route_rows_for_pair[:examples]:
             print(
                 f"    route sample={row.get('sample', '--')} "
@@ -167,7 +190,7 @@ def summarize_category(
         routes = sorted(grouped.items(), key=lambda item: (-len(item[1]), item[0]))
         print("  false routes:")
         for expected, route_rows_for_expected in routes[:route_limit]:
-            print(f"    {route_text(route_rows_for_expected, expected, category)}")
+            print(f"    {route_text(route_rows_for_expected, expected, category, rows, threshold)}")
 
 
 def main() -> int:
