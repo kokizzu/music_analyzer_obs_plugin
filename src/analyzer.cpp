@@ -8611,7 +8611,9 @@ void suppress_other_dominant_same_pitch_bass_shadows(NoteGrid &bass_grid, Instru
 		if (bass_level <= 0.0f)
 			continue;
 		const float other_level = note_grid_midi_level(other_grid, midi);
-		if (other_level <= 0.0f || bass_level > other_level * kMaxBassToOtherLevelRatio)
+		if (other_level <= 0.0f ||
+		    bass_level > other_level * std::max(kMaxBassToOtherLevelRatio,
+							kGuardedMaxBassToOtherLevelRatio))
 			continue;
 		const FullMixDebugCandidate *debug =
 			best_same_midi_row_debug(ownership, midi, InstrumentKind::Other);
@@ -8733,8 +8735,17 @@ void suppress_keyboard_owned_same_pitch_bass_shadows(NoteGrid &bass_grid, Instru
 			debug->periodicity >= kGuardedMinPeriodicity &&
 			debug->harmonic_fit_error <= kGuardedMaxHarmonicFitError &&
 			debug->local_noise_level <= kGuardedMaxNoiseLevel;
+		const bool guarded_keyboard_grid_shadow =
+			allow_dominant_keyboard_shadow &&
+			debug->keyboard_score >= kGuardedMinKeyboardScore &&
+			debug->bass_score <= debug->keyboard_score * kGuardedMaxBassToKeyboardScoreRatio &&
+			bass_level <= keyboard_level * kGuardedMaxBassToKeyboardLevelRatio &&
+			debug->pitch_confidence >= kGuardedMinPitchConfidence &&
+			debug->periodicity >= kGuardedMinPeriodicity &&
+			debug->harmonic_fit_error <= kGuardedMaxHarmonicFitError &&
+			debug->local_noise_level <= kGuardedMaxNoiseLevel;
 		if (!weak_keyboard_owned_shadow && !dominant_keyboard_owned_shadow &&
-		    !guarded_keyboard_shadow)
+		    !guarded_keyboard_shadow && !guarded_keyboard_grid_shadow)
 			continue;
 
 		clear_note_grid_midi(bass_grid, midi);
