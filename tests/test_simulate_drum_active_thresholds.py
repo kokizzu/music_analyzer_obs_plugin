@@ -61,6 +61,8 @@ tom/unsafe.wav\ttom\tkick\t0.75\t0.99\t0.15\t0\t0\t0.95\t0\t0
     require(output, "  matched expected=kick=1 tom=1 got=kick=2")
     require(output, "  after tom: recall=1/2 50.00% precision=1/2 50.00% false=1")
     require(output, "  false-active removed=1 routes=kick->tom=1 true-active lost=1")
+    require(output, "  removed medians: energy_low=0.700 energy_mid=-- energy_high=--")
+    require(output, "  lost medians: energy_low=0.750 energy_mid=-- energy_high=--")
     require(output, "    removed sample=kick/tom_bleed.wav expected=kick got=kick tom_level=0.550->0.280")
     require(output, "    lost sample=tom/unsafe.wav expected=tom got=kick tom_level=0.950->0.280")
     print("test_simulate_drum_active_thresholds: ok")

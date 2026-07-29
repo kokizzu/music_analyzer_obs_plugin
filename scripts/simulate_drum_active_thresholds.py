@@ -6,12 +6,28 @@ from __future__ import annotations
 import argparse
 import csv
 import pathlib
+import statistics
 from collections import Counter
 from dataclasses import dataclass
 
 
 CATEGORIES = ("kick", "snare", "hihat", "crash", "tom", "ride", "rim")
 DEFAULT_THRESHOLDS = (0.30, 0.40, 0.50, 0.60, 0.70, 0.80, 0.90)
+DEFAULT_PROFILE_FIELDS = (
+    "energy_low",
+    "energy_mid",
+    "energy_high",
+    "kick_body",
+    "snare_body",
+    "tom_body",
+    "body_shape",
+    "kick_level",
+    "snare_level",
+    "tom_level",
+    "kick_seg",
+    "snare_seg",
+    "tom_seg",
+)
 COMPARATORS = (">=", "<=", "!=", ">", "<", "=")
 
 
@@ -153,6 +169,19 @@ def compact_counter(counter: Counter[str], limit: int = 5) -> str:
     return " ".join(f"{name}={count}" for name, count in counter.most_common(limit))
 
 
+def median_text(rows: list[dict[str, str]], field: str) -> str:
+    values = [as_float(row.get(field, "")) for row in rows if row.get(field, "") != ""]
+    if not values:
+        return "--"
+    return f"{statistics.median(values):.3f}"
+
+
+def profile_text(rows: list[dict[str, str]], fields: tuple[str, ...]) -> str:
+    if not rows:
+        return "--"
+    return " ".join(f"{field}={median_text(rows, field)}" for field in fields)
+
+
 def parse_condition(text: str) -> Condition:
     for op in COMPARATORS:
         if op in text:
@@ -194,7 +223,12 @@ def parse_candidate_caps(values: list[str]) -> list[CandidateCap]:
     return [parse_candidate_cap(value) for value in values]
 
 
-def print_candidate(rows: list[dict[str, str]], threshold: float, candidate: CandidateCap) -> None:
+def print_candidate(
+    rows: list[dict[str, str]],
+    threshold: float,
+    candidate: CandidateCap,
+    profile_fields: tuple[str, ...],
+) -> None:
     matched = [row for row in rows if candidate.matches(row)]
     target = candidate.target
     before_total, before_hit, before_active, before_false = active_stats(rows, target, threshold)
@@ -245,6 +279,9 @@ def print_candidate(rows: list[dict[str, str]], threshold: float, candidate: Can
         f"  false-active removed={len(removed_false)} "
         f"routes={compact_counter(removed_routes)} true-active lost={len(lost_true)}"
     )
+    if profile_fields:
+        print(f"  removed medians: {profile_text(removed_false, profile_fields)}")
+        print(f"  lost medians: {profile_text(lost_true, profile_fields)}")
     for row in removed_false[:3]:
         print(
             f"    removed sample={row.get('sample', '--')} expected={row.get('expected', '--')} "
@@ -277,15 +314,25 @@ def main() -> int:
             "`low-kick-primary-tom`, or custom `name:target:cap:field=value,...`."
         ),
     )
+    parser.add_argument(
+        "--profile-fields",
+        default=",".join(DEFAULT_PROFILE_FIELDS),
+        help="comma-separated candidate median fields to print; use `none` to disable",
+    )
     args = parser.parse_args()
 
     rows = read_rows(args.rows)
     candidates = parse_candidate_caps(args.candidate_cap)
+    profile_fields = tuple(
+        field.strip()
+        for field in args.profile_fields.split(",")
+        if field.strip() and field.strip().lower() != "none"
+    )
     print(f"drum active threshold simulation: rows={len(rows)} source={args.rows}")
     for threshold in parse_thresholds(args.threshold):
         print_threshold(rows, threshold)
         for candidate in candidates:
-            print_candidate(rows, threshold, candidate)
+            print_candidate(rows, threshold, candidate, profile_fields)
     return 0
 
 
