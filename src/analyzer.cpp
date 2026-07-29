@@ -8653,6 +8653,10 @@ void suppress_guitar_dominant_same_pitch_bass_shadows(NoteGrid &bass_grid, Instr
 	static constexpr float kMinPeriodicity = 0.70f;
 	static constexpr float kMaxHarmonicFitError = 0.08f;
 	static constexpr float kMaxNoiseLevel = 0.45f;
+	static constexpr float kMeasuredMinGuitarScore = 0.70f;
+	static constexpr float kMeasuredMaxBassScore = 0.01f;
+	static constexpr float kMeasuredMaxBassToGuitarLevelRatio = 0.68f;
+	static constexpr float kMeasuredMinPeriodicity = 0.70f;
 
 	bool changed = false;
 	for (int midi = kBassMinMidi; midi <= kBassMaxMidi; ++midi) {
@@ -8665,12 +8669,23 @@ void suppress_guitar_dominant_same_pitch_bass_shadows(NoteGrid &bass_grid, Instr
 
 		const FullMixDebugCandidate *debug =
 			best_same_midi_row_debug(ownership, midi, InstrumentKind::Guitar);
-		if (!debug || debug->guitar_score < kMinGuitarScore ||
-		    debug->bass_score > debug->guitar_score * kMaxBassToGuitarScoreRatio ||
-		    debug->pitch_confidence < kMinPitchConfidence ||
-		    debug->periodicity < kMinPeriodicity ||
-		    debug->harmonic_fit_error > kMaxHarmonicFitError ||
-		    debug->local_noise_level > kMaxNoiseLevel)
+		if (!debug)
+			continue;
+
+		const bool guarded_guitar_shadow =
+			debug->guitar_score >= kMinGuitarScore &&
+			debug->bass_score <= debug->guitar_score * kMaxBassToGuitarScoreRatio &&
+			debug->pitch_confidence >= kMinPitchConfidence &&
+			debug->periodicity >= kMinPeriodicity &&
+			debug->harmonic_fit_error <= kMaxHarmonicFitError &&
+			debug->local_noise_level <= kMaxNoiseLevel;
+		const bool measured_guitar_shadow =
+			debug->owner == InstrumentKind::Guitar &&
+			debug->guitar_score >= kMeasuredMinGuitarScore &&
+			debug->bass_score <= kMeasuredMaxBassScore &&
+			bass_level <= guitar_level * kMeasuredMaxBassToGuitarLevelRatio &&
+			debug->periodicity >= kMeasuredMinPeriodicity;
+		if (!guarded_guitar_shadow && !measured_guitar_shadow)
 			continue;
 
 		clear_note_grid_midi(bass_grid, midi);

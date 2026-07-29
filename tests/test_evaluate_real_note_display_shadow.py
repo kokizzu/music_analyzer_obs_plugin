@@ -187,6 +187,48 @@ def main() -> int:
                 vocal_notes="",
                 other_notes="",
             ),
+            row(
+                sample_id="measured_guitar_bass_shadow",
+                family="piano",
+                source="electronic",
+                expected_note="E3",
+                expected_midi="52",
+                first_row="guitar",
+                debug_note="E3",
+                debug_midi="52",
+                debug_owner="guitar",
+                bass_score="0.00",
+                keyboard_score="0.00",
+                guitar_score="1.00",
+                vocal_score="0.00",
+                other_score="0.00",
+                bass_notes="E3:0.60",
+                guitar_notes="E3:1.00",
+                piano_notes="",
+                vocal_notes="",
+                other_notes="",
+            ),
+            row(
+                sample_id="measured_guitar_bass_protected",
+                family="bass",
+                source="electronic",
+                expected_note="E3",
+                expected_midi="52",
+                first_row="bass",
+                debug_note="E3",
+                debug_midi="52",
+                debug_owner="guitar",
+                bass_score="0.00",
+                keyboard_score="0.00",
+                guitar_score="1.00",
+                vocal_score="0.00",
+                other_score="0.00",
+                bass_notes="E3:0.72",
+                guitar_notes="E3:1.00",
+                piano_notes="",
+                vocal_notes="",
+                other_notes="",
+            ),
         ]
         path.write_text(
             "\t".join(HEADER) + "\n" + "\n".join("\t".join(item) for item in rows) + "\n"
@@ -436,6 +478,25 @@ def main() -> int:
             text=True,
             stdout=subprocess.PIPE,
         )
+        measured_runtime_result = subprocess.run(
+            [
+                sys.executable,
+                str(ROOT / "scripts" / "evaluate_real_note_display_shadow.py"),
+                str(path),
+                "--shadow-row",
+                "guitar",
+                "--target-row",
+                "bass",
+                "--min-shadow-level",
+                "0.10",
+                "--min-target-level",
+                "0.10",
+                "--summary-only",
+            ],
+            check=True,
+            text=True,
+            stdout=subprocess.PIPE,
+        )
 
     output = result.stdout
     assert "piano->same-pitch guitar extras rows=3 samples=3" in output, output
@@ -484,6 +545,11 @@ def main() -> int:
     assert "extras=1/1 protected=0/0 precision=100.0%" in all_rows_output, all_rows_output
     assert "guitar->same-pitch piano extras rows=1 samples=1" in all_rows_output, all_rows_output
     assert "piano->same-pitch piano" not in all_rows_output, all_rows_output
+    measured_runtime_output = measured_runtime_result.stdout
+    assert "guitar->same-pitch bass extras rows=1 samples=1" in measured_runtime_output, measured_runtime_output
+    assert (
+        "runtime_guitar_bass_measured extras=1/1 protected=0/1 precision=100.0% protected_rate=0.0%"
+    ) in measured_runtime_output, measured_runtime_output
     return 0
 
 

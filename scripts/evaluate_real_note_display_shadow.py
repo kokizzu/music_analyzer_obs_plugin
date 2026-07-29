@@ -315,6 +315,16 @@ def shadow_rule_matches(record: dict[str, str], rule: str) -> bool:
             and fit_error <= 0.08
             and noise <= 0.45
         )
+    if rule == "runtime_guitar_bass_measured":
+        return (
+            target_row == "bass"
+            and shadow_row == "guitar"
+            and owner_is_shadow
+            and shadow_score >= 0.70
+            and target_score <= 0.01
+            and target_level <= shadow_level * 0.68
+            and periodicity >= 0.70
+        )
     if rule == "runtime_keyboard_bass_weak":
         return (
             target_row == "bass"
@@ -383,6 +393,7 @@ def print_simulations(title: str, records: list[dict[str, str]], source_breakdow
         "score2_level_no_owner",
         "weak_target_shadow_owned",
         "runtime_guitar_bass_guarded",
+        "runtime_guitar_bass_measured",
         "runtime_keyboard_bass_weak",
         "runtime_keyboard_bass_dominant",
         "runtime_keyboard_bass_guarded",
