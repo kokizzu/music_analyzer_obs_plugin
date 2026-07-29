@@ -18058,6 +18058,14 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 
 		const float final_tom_snare_level_ratio =
 			drum_level_[Tom] / (drum_level_[Snare] + 1.0e-6f);
+		const bool one_shot_measured_band_tom_from_snare_primary_recovery =
+			drum_detection_enabled && one_shot_drum_source &&
+			drum_level_[Tom] > 0.30f &&
+			drum_level_[Snare] > drum_level_[Tom] &&
+			final_snare_kick_level_ratio >= 1.042f &&
+			tom_kick_trigger_ratio <= 0.704f &&
+			tom_snare_band_ratio >= 1.790f &&
+			final_upper_tom_snare_crack_ratio <= 8.625f;
 		const bool one_shot_measured_late_tom_from_snare_primary_recovery =
 			drum_detection_enabled && one_shot_drum_source &&
 			body_shape == Tom &&
@@ -18066,7 +18074,8 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 			body_shape_scores[0] >= 200.308f &&
 			tom_kick_trigger_ratio >= 0.88f &&
 			final_tom_snare_level_ratio <= 0.995f;
-		if (one_shot_measured_late_tom_from_snare_primary_recovery)
+		if (one_shot_measured_band_tom_from_snare_primary_recovery ||
+		    one_shot_measured_late_tom_from_snare_primary_recovery)
 			promote_drum_primary(Tom, 0.90f);
 
 		const bool generated_gm_orchestra_tom_primary_recovery =
@@ -18102,7 +18111,17 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 			snare_kick_trigger_ratio <= 0.597f &&
 			snapshot.low_energy >= 0.93f &&
 			snapshot.mid_energy <= 0.07f;
-		if (one_shot_measured_late_deep_kick_from_tom_primary_recovery)
+		const bool one_shot_measured_sub_bass_kick_from_tom_primary_recovery =
+			drum_detection_enabled && one_shot_drum_source &&
+			!generated_gm_orchestra_tom_primary_recovery &&
+			drum_level_[Kick] > 0.30f &&
+			drum_level_[Snare] <= 0.30f &&
+			final_post_tom_bleed_kick_level_ratio >= 1.02f &&
+			snapshot.high_energy <= 0.005f &&
+			tom_kick_shape_score_ratio <= 0.611f &&
+			drum_segment_bands[Tom] <= 316.80f;
+		if (one_shot_measured_late_deep_kick_from_tom_primary_recovery ||
+		    one_shot_measured_sub_bass_kick_from_tom_primary_recovery)
 			promote_drum_primary(Kick, 0.90f);
 
 	const bool onset_tempo_event =
