@@ -37,6 +37,12 @@ WORD_COMPARATORS = (
     (".lt.", "<"),
     (".eq.", "="),
 )
+FIELD_COMPARATORS = (
+    (".gtef.", ">="),
+    (".ltef.", "<="),
+    (".gtf.", ">"),
+    (".ltf.", "<"),
+)
 
 
 @dataclass(frozen=True)
@@ -44,6 +50,8 @@ class Condition:
     field: str
     op: str
     value: str
+    compare_field: str = ""
+    compare_multiplier: float = 1.0
 
     def matches(self, row: dict[str, str]) -> bool:
         actual = row.get(self.field, "")
@@ -53,7 +61,11 @@ class Condition:
             return actual != self.value
 
         actual_value = as_float(actual)
-        expected_value = as_float(self.value)
+        expected_value = (
+            as_float(row.get(self.compare_field, "")) * self.compare_multiplier
+            if self.compare_field
+            else as_float(self.value)
+        )
         if self.op == ">=":
             return actual_value >= expected_value
         if self.op == "<=":
@@ -65,6 +77,8 @@ class Condition:
         raise ValueError(f"unsupported comparator: {self.op}")
 
     def text(self) -> str:
+        if self.compare_field:
+            return f"{self.field}{self.op}{self.compare_field}*{self.compare_multiplier:g}"
         return f"{self.field}{self.op}{self.value}"
 
 
@@ -191,6 +205,28 @@ def profile_text(rows: list[dict[str, str]], fields: tuple[str, ...]) -> str:
 
 
 def parse_condition(text: str) -> Condition:
+    for token, op in FIELD_COMPARATORS:
+        if token in text:
+            field, value = text.split(token, 1)
+            field = field.strip()
+            value = value.strip()
+            if not field or not value:
+                raise ValueError(f"invalid candidate condition: {text}")
+            compare_field, multiplier_text = (
+                value.split("@", 1) if "@" in value else (value, "1.0")
+            )
+            compare_field = compare_field.strip()
+            multiplier_text = multiplier_text.strip()
+            if not compare_field or not multiplier_text:
+                raise ValueError(f"invalid candidate condition: {text}")
+            return Condition(
+                field,
+                op,
+                value,
+                compare_field=compare_field,
+                compare_multiplier=float(multiplier_text),
+            )
+
     for token, op in WORD_COMPARATORS:
         if token in text:
             field, value = text.split(token, 1)
@@ -329,7 +365,8 @@ def main() -> int:
         help=(
             "simulate a candidate active cap. Use a built-in name such as "
             "`low-kick-primary-tom`, or custom `name:target:cap:field.eq.value,...`; "
-            "comparators: .eq. .ne. .gt. .gte. .lt. .lte."
+            "comparators: .eq. .ne. .gt. .gte. .lt. .lte.; "
+            "field comparators: .gtf. .gtef. .ltf. .ltef. with `other_field@multiplier`."
         ),
     )
     parser.add_argument(

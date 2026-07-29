@@ -39,6 +39,8 @@ tom/unsafe.wav\ttom\tkick\t0.75\t0.99\t0.15\t0\t0\t0.95\t0\t0
                 "0.30,0.60",
                 "--candidate-cap",
                 "kick-primary-tom:tom:0.28:got.eq.kick,kick_level.gte.0.95,energy_low.gte.0.58,tom_level.gt.0.30",
+                "--candidate-cap",
+                "kick-field-tom:tom:0.28:got.eq.kick,kick_level.gtef.tom_level@1.05,energy_low.gte.0.58,tom_level.gt.0.30",
             ],
             cwd=ROOT,
             check=True,
@@ -65,6 +67,10 @@ tom/unsafe.wav\ttom\tkick\t0.75\t0.99\t0.15\t0\t0\t0.95\t0\t0
     require(output, "  lost medians: energy_low=0.750 energy_mid=-- energy_high=--")
     require(output, "    removed sample=kick/tom_bleed.wav expected=kick got=kick tom_level=0.550->0.280")
     require(output, "    lost sample=tom/unsafe.wav expected=tom got=kick tom_level=0.950->0.280")
+    require(output, "candidate kick-field-tom threshold 0.30 target=tom cap=0.28 matched=1")
+    require(output, "  predicate: got=kick,kick_level>=tom_level*1.05,energy_low>=0.58,tom_level>0.30")
+    require(output, "  matched expected=kick=1 got=kick=1")
+    require(output, "  false-active removed=1 routes=kick->tom=1 true-active lost=0")
     print("test_simulate_drum_active_thresholds: ok")
     return 0
 
