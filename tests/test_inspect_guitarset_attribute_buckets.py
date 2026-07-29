@@ -263,6 +263,10 @@ def main() -> int:
     assert "chord_hit:maj:all" not in compact.stdout
     assert "raw_third" not in compact.stdout
     assert "evidence_class" in dumped.stdout
+    assert "guitar_cells" in dumped.stdout
+    assert "G3:0.70,D4:0.40" in dumped.stdout
+    assert "guitar_analysis_cells" in dumped.stdout
+    assert "G3:0.90,B3:0.35,D4:0.55" in dumped.stdout
     assert "\tanalysis_full_tone_label_gap\tanalysis\t" in dumped.stdout
     assert dumped.stdout.startswith("recording_id\tstatus\texpected_chords\t")
     assert "\nrec2\tchord_miss\tG\tmaj\tmaj\tG\tG\tmaj\tno_display_label\t0\t0\t0" in dumped.stdout
