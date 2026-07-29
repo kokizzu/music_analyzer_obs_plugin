@@ -41,6 +41,8 @@ miss_unrelated	chord_miss	Dm	A#aug=Dpow	D,F,A	display_different_root	power_only_
                 "--simulate-prune",
                 "primary-equivalent",
                 "--simulate-prune",
+                "primary-equivalent-plain",
+                "--simulate-prune",
                 "primary-same-root-equivalent",
             ],
             cwd=ROOT,
@@ -88,6 +90,11 @@ miss_unrelated	chord_miss	Dm	A#aug=Dpow	D,F,A	display_different_root	power_only_
     ) in output
     assert "  removed suffixes pow=2 6=1 maj7=1 aug=1 m=1" in output
     assert "  retained extra suffixes sus4=1 aug=1" in output
+    assert (
+        "prune policy primary-equivalent-plain: rows=4 current_hits=3 pruned_hits=3 "
+        "lost_hits=0 gained_hits=0 components=6/11 extras=3/8"
+    ) in output
+    assert "  retained extra suffixes sus4=1 m=1 aug=1" in output
     assert (
         "prune policy primary-same-root-equivalent: rows=4 current_hits=3 pruned_hits=3 "
         "lost_hits=0 gained_hits=0 components=8/11 extras=5/8"

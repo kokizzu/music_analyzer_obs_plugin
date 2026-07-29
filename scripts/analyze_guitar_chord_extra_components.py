@@ -163,6 +163,11 @@ def same_pitch_set(label: str, reference: str) -> bool:
     return label_pcs is not None and label_pcs == reference_pcs
 
 
+def is_plain_major_minor(label: str) -> bool:
+    parsed = parse_label(label)
+    return parsed is not None and parsed[1] in ("", "m")
+
+
 def prune_labels(labels: list[str], policy: str) -> list[str]:
     if not labels:
         return []
@@ -176,6 +181,8 @@ def prune_labels(labels: list[str], policy: str) -> list[str]:
             keep = False
         elif policy == "primary-equivalent":
             keep = same_pitch_set(label, primary)
+        elif policy == "primary-equivalent-plain":
+            keep = same_pitch_set(label, primary) or is_plain_major_minor(label)
         elif policy == "primary-same-root-equivalent":
             keep = same_root(label, primary) or same_pitch_set(label, primary)
         else:
@@ -359,7 +366,13 @@ def main() -> int:
     parser.add_argument(
         "--simulate-prune",
         action="append",
-        choices=("none", "primary", "primary-equivalent", "primary-same-root-equivalent"),
+        choices=(
+            "none",
+            "primary",
+            "primary-equivalent",
+            "primary-equivalent-plain",
+            "primary-same-root-equivalent",
+        ),
         default=[],
         help="append simulated post-detection guitar chord label pruning metrics",
     )
