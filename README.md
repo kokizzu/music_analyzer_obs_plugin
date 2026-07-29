@@ -285,7 +285,13 @@ Run the analyzer tests:
 
 ```sh
 make test
+PARALLEL_TEST_JOBS=8 make test
 ```
+
+`make test` runs the parallel-safe script/core/standalone/detector group first,
+then runs the fixture groups in order. The fixture groups still fan out
+internally, but they are not run at the same outer level because several of
+them reuse `build/real-goal-fixture`.
 
 For a faster local loop over the parallel-safe script checks, core analyzer binaries, and standalone isolation checks:
 

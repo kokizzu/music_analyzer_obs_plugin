@@ -204,11 +204,17 @@ def main() -> int:
         "analysis script parallel target must fan out through jobserver-aware make"
     )
     default_test_recipe = target_recipe(makefile, "test")
-    assert "$(MAKE) test-parallel" in default_test_recipe, (
-        "default test target must use the parallel test aggregate"
+    assert "$(RUN_WITH_DURATION) test_fast" in default_test_recipe, (
+        "default test target must report the fast parallel aggregate duration"
     )
-    assert "$(MAKE) test-detector-samples-parallel" in default_test_recipe, (
-        "default test target must use the parallel detector sample aggregate"
+    assert "$(MAKE) $(PARALLEL_TEST_MAKE_JOBS) test-parallel test-detector-samples-parallel test-fret-control" in default_test_recipe, (
+        "default test target must fan out parallel-safe test groups together"
+    )
+    assert "$(MAKE) test-fixtures-parallel" in default_test_recipe, (
+        "default test target must still run the fixture aggregate"
+    )
+    assert "$(MAKE) test-real-goal-fixture" in default_test_recipe, (
+        "default test target must still run the real-goal fixture gate"
     )
     assert "$(MAKE) test-instrument-samples\n" not in default_test_recipe, (
         "default test target must not run generated instrument samples serially"
