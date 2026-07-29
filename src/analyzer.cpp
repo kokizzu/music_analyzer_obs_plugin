@@ -10947,6 +10947,25 @@ void prefer_probe_visible_low_keyboard_primary(NoteGrid &grid, InstrumentState &
 							      probe_level(raw_powers, lower_midi) /
 								      primary_raw_probe :
 							      0.0f;
+			const float lower_raw_g2_ratio = primary_raw_probe > 1.0e-6f ?
+							 probe_level(raw_powers, lower_midi + 19) /
+								 primary_raw_probe :
+							 0.0f;
+			const float lower_raw_c3_ratio = primary_raw_probe > 1.0e-6f ?
+							 probe_level(raw_powers, lower_midi + 24) /
+								 primary_raw_probe :
+							 0.0f;
+			const bool weak_missing_acoustic_c1_from_c2_supported =
+				primary.midi == 36 && lower_midi == 24 && lower_level >= 0.70f &&
+				lower_raw_ratio <= 0.0015f &&
+				lower_raw_g2_ratio >= 0.55f && lower_raw_c3_ratio >= 0.50f;
+			const bool weak_missing_acoustic_c1_from_c3_supported =
+				primary.midi == 48 && lower_midi == 24 && lower_level >= 0.70f &&
+				lower_raw_ratio >= 0.010f && lower_raw_ratio <= 0.030f &&
+				lower_raw_g2_ratio >= 0.55f && lower_raw_c3_ratio >= 0.80f;
+			const bool weak_missing_acoustic_c1_supported =
+				weak_missing_acoustic_c1_from_c2_supported ||
+				weak_missing_acoustic_c1_from_c3_supported;
 			const bool g1_candidate = lower_midi == 31 &&
 						  (primary.midi == 43 || primary.midi == 55);
 			const bool raw_high_confidence_keyboard_g1_supported =
@@ -10958,9 +10977,11 @@ void prefer_probe_visible_low_keyboard_primary(NoteGrid &grid, InstrumentState &
 				lower_raw_ratio >= 0.12f && lower_raw_ratio <= 0.14f;
 			const bool raw_keyboard_g1_supported = raw_high_confidence_keyboard_g1_supported ||
 							       raw_mid_confidence_keyboard_g1_supported;
-			if (harmonic_primary_protected && !raw_keyboard_g1_supported)
+			if (harmonic_primary_protected && !weak_missing_acoustic_c1_supported &&
+			    !raw_keyboard_g1_supported)
 				continue;
-			if (!probe_supported && !weak_acoustic_e1_supported && !raw_keyboard_g1_supported)
+			if (!probe_supported && !weak_acoustic_e1_supported &&
+			    !weak_missing_acoustic_c1_supported && !raw_keyboard_g1_supported)
 				continue;
 
 			if (supported_midi < 0 || lower_midi < supported_midi ||

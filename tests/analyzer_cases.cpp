@@ -4738,6 +4738,17 @@ void check_low_acoustic_piano_fundamental_survives_partial_dominance(Runner &run
 		      std::string("low acoustic piano fundamental: expected C#1 cell active, got `") +
 			      snapshot.keyboard.label + "`");
 	expect_no_drums(runner, snapshot, "low acoustic piano fundamental");
+
+	mao_test::Buffer c2_with_subharmonic = {};
+	const std::vector<float> c2_profile = {1.0f, 0.34f, 0.13f, 0.22f, 0.20f, 0.043f};
+	add_harmonic_note(c2_with_subharmonic, 36, 0.24f, c2_profile);
+	mao_test::add_sine(c2_with_subharmonic, mao_test::midi_frequency(24), 0.0008f);
+	const auto c2_snapshot =
+		analyze_buffer_with_mode(c2_with_subharmonic, mao::AnalysisInputMode::FullMix,
+					 "speaker piano", 4);
+	runner.expect(grid_primary_midi_for_pitch(c2_snapshot.keyboard_notes, 0) == 36,
+		      std::string("low acoustic piano C2 subharmonic guard: expected C2 primary, got `") +
+			      note_grid_active_labels(c2_snapshot.keyboard_notes) + "`");
 }
 
 void check_realistic_instrument_chords(Runner &runner)
