@@ -168,6 +168,10 @@ def quality_third(root: int, minor: bool) -> int:
     return (root + (3 if minor else 4)) % 12
 
 
+def plain_label(root: int, minor: bool) -> str:
+    return f"{PC_TO_NOTE[root % 12]}{'m' if minor else ''}"
+
+
 def promoted_same_root_smoothed_quality(
     row: dict[str, str],
     levels_field: str,
@@ -192,6 +196,47 @@ def promoted_same_root_smoothed_quality(
     if smoothed_third < raw_third * ratio + offset:
         return None
     return smoothed_primary
+
+
+def analysis_full_anchor_plain_promotions(row: dict[str, str]) -> list[str]:
+    components = set(split_components(row.get("guitar_chord", "")))
+    display = pitch_classes(row.get("guitar_pitch_classes", ""))
+    analysis = pitch_classes(row.get("guitar_analysis_pitch_classes", ""))
+    if not display or not analysis:
+        return []
+
+    analysis_levels = parse_cells(row.get("guitar_analysis_cells", ""))
+    raw_levels = parse_cells(row.get("raw_pitch_class_levels", ""))
+    melodic_levels = parse_cells(row.get("guitar_melodic_probe_pitch_class_levels", ""))
+
+    promotions: list[str] = []
+    for root in range(12):
+        for minor in (False, True):
+            label = plain_label(root, minor)
+            if label in components:
+                continue
+            tones = chord_tones(root, minor)
+            if not tones <= analysis or len(tones & display) < 1:
+                continue
+
+            third = quality_third(root, minor)
+            opposite = quality_third(root, not minor)
+            root_level = analysis_levels.get(root, 0.0)
+            third_level = analysis_levels.get(third, 0.0)
+            fifth_level = analysis_levels.get((root + 7) % 12, 0.0)
+            anchor = min(root_level, fifth_level)
+            if anchor < 0.12 or third_level < max(0.08, anchor * 0.40):
+                continue
+
+            raw_third = raw_levels.get(third, 0.0)
+            raw_opposite = raw_levels.get(opposite, 0.0)
+            melodic_third = melodic_levels.get(third, 0.0)
+            melodic_opposite = melodic_levels.get(opposite, 0.0)
+            raw_clear = raw_third >= 0.08 and raw_third >= raw_opposite * 1.25
+            melodic_clear = melodic_third >= 0.16 and melodic_third >= melodic_opposite * 1.25
+            if raw_clear or melodic_clear:
+                promotions.append(label)
+    return promotions
 
 
 def component_score(
@@ -484,6 +529,10 @@ def main() -> int:
     same_root_quality_display_promotions = []
     same_root_quality_display_rescues = []
     same_root_quality_display_protected_false = []
+    analysis_full_anchor_promotions = []
+    analysis_full_anchor_rescues = []
+    analysis_full_anchor_protected_false = []
+    analysis_full_anchor_neutral = []
     for row in chord_rows:
         expected = expected_labels(row.get("expected_chords", ""))
         displayed_primary = primary_component(row.get("guitar_chord", ""))
@@ -544,6 +593,15 @@ def main() -> int:
                 same_root_quality_display_rescues.append((same_root_quality_display, row))
             if displayed_hit and same_root_quality_display not in expected:
                 same_root_quality_display_protected_false.append((same_root_quality_display, row))
+
+        for promoted in analysis_full_anchor_plain_promotions(row):
+            analysis_full_anchor_promotions.append((promoted, row))
+            if not displayed_hit and promoted in expected:
+                analysis_full_anchor_rescues.append((promoted, row))
+            elif displayed_hit and promoted not in expected:
+                analysis_full_anchor_protected_false.append((promoted, row))
+            else:
+                analysis_full_anchor_neutral.append((promoted, row))
 
     if relationship_buckets:
         print(
@@ -688,6 +746,31 @@ def main() -> int:
         same_root_quality_display_rescues,
         same_root_quality_display_protected_false,
     )
+
+    print(
+        "analysis_full_anchor_plain_promote:",
+        f"candidates={len(analysis_full_anchor_promotions)}",
+        f"rescues={len(analysis_full_anchor_rescues)}",
+        f"protected_false={len(analysis_full_anchor_protected_false)}",
+        f"neutral={len(analysis_full_anchor_neutral)}",
+    )
+    for promoted, row in analysis_full_anchor_rescues[: args.examples]:
+        print(
+            f"  rescue promote={promoted}",
+            f"expected={row.get('expected_chords')}",
+            f"display={primary_component(row.get('guitar_chord', ''))}",
+            f"raw={primary_component(row.get('guitar_raw_chord', ''))}",
+            f"smoothed={primary_component(row.get('guitar_smoothed_chord', ''))}",
+            pathlib.Path(row.get("audio_path", "")).name,
+        )
+    for promoted, row in analysis_full_anchor_protected_false[: args.examples]:
+        print(
+            f"  protected_false promote={promoted}",
+            f"expected={row.get('expected_chords')}",
+            f"display={primary_component(row.get('guitar_chord', ''))}",
+            f"label={row.get('guitar_chord', '--')}",
+            pathlib.Path(row.get("audio_path", "")).name,
+        )
 
     primary_misses = []
     expected_later = []
