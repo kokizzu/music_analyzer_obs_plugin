@@ -28,6 +28,19 @@ NOTE_TO_PC = {
 }
 
 CELL_RE = re.compile(r"^([A-G]#?)(?:-?\d+)?:([0-9.]+)$")
+PROMOTION_RATIOS = (0.005, 0.010, 0.015, 0.020, 0.030, 0.040)
+PROMOTION_SOURCES = (
+    ("probe", "internal-probe"),
+    ("melodic", "internal-melodic-probe"),
+    ("raw", "test-raw-profile"),
+)
+PROMOTION_SCOPES = (
+    ("all-candidates", None, None),
+    ("labels<=5", None, 5),
+    ("any_power", "any_power", None),
+    ("first_power", "first_power", None),
+    ("primary_power", "primary_power", None),
+)
 
 
 def chord_root(label: str) -> str:
@@ -302,6 +315,113 @@ def protected_false_promotions(
     return false_promotions
 
 
+def promotion_rows(
+    rows: list[dict[str, str]],
+    ratio: float,
+    absolute_floor: float,
+    source: str,
+    mode: str | None,
+    max_label_count: int | None,
+) -> list[dict[str, str]]:
+    candidates = []
+    for row in rows:
+        if max_label_count is not None and displayed_label_count(row) > max_label_count:
+            continue
+        if promotion_candidate(row, ratio, absolute_floor, source, mode):
+            candidates.append(row)
+    return candidates
+
+
+def ranked_promotion_opportunities(
+    rows: list[dict[str, str]], protected_rows: list[dict[str, str]]
+) -> list[dict[str, object]]:
+    options: list[dict[str, object]] = []
+    for source, label in PROMOTION_SOURCES:
+        if not any(source_levels(row, source) for row in rows):
+            continue
+        for ratio in PROMOTION_RATIOS:
+            for scope, mode, max_label_count in PROMOTION_SCOPES:
+                candidates = promotion_rows(rows, ratio, 0.005, source, mode, max_label_count)
+                if not candidates:
+                    continue
+                protected_mode = mode or "any_power"
+                false_promotions = protected_false_promotions(
+                    protected_rows, ratio, 0.005, source, protected_mode, max_label_count
+                )
+                options.append(
+                    {
+                        "source": label,
+                        "scope": scope,
+                        "ratio": ratio,
+                        "recover": len(candidates),
+                        "same_root_pow": sum(1 for row in candidates if same_root_power_candidate(row)),
+                        "protected_false": len(false_promotions),
+                    }
+                )
+
+    best_by_scope: dict[tuple[str, str], dict[str, object]] = {}
+    for option in options:
+        key = (str(option["source"]), str(option["scope"]))
+        current = best_by_scope.get(key)
+        if current is None:
+            best_by_scope[key] = option
+            continue
+        option_key = (
+            int(option["protected_false"]),
+            -int(option["recover"]),
+            -int(option["same_root_pow"]),
+            float(option["ratio"]),
+        )
+        current_key = (
+            int(current["protected_false"]),
+            -int(current["recover"]),
+            -int(current["same_root_pow"]),
+            float(current["ratio"]),
+        )
+        if option_key < current_key:
+            best_by_scope[key] = option
+
+    return sorted(
+        best_by_scope.values(),
+        key=lambda option: (
+            int(option["protected_false"]),
+            -int(option["recover"]),
+            -int(option["same_root_pow"]),
+            str(option["source"]),
+            str(option["scope"]),
+            float(option["ratio"]),
+        ),
+    )
+
+
+def append_ranked_promotion_summary(lines: list[str], options: list[dict[str, object]], limit: int) -> None:
+    lines.append("ranked same-root promotion opportunities")
+    if not options:
+        lines.append("  no recoverable promotion opportunities")
+        return
+
+    zero_false = [option for option in options if int(option["protected_false"]) == 0]
+    if zero_false:
+        best = zero_false[0]
+        lines.append(
+            "  best_zero_false "
+            f"{best['source']} {best['scope']} "
+            f"floor=max(anchor*{float(best['ratio']):.3f},0.005) "
+            f"recover={best['recover']} same_root_pow={best['same_root_pow']}"
+        )
+    else:
+        lines.append("  no zero-protected recovery option found")
+
+    for option in options[: max(0, limit)]:
+        lines.append(
+            "  "
+            f"{option['source']} {option['scope']} "
+            f"floor=max(anchor*{float(option['ratio']):.3f},0.005) "
+            f"recover={option['recover']} same_root_pow={option['same_root_pow']} "
+            f"protected_false={option['protected_false']}"
+        )
+
+
 def summarize(path: pathlib.Path, examples: int, limit: int) -> list[str]:
     all_rows = [derive_guitarset_row(row) for row in load_rows(path)]
     rows = [row for row in all_rows if row.get("status") == "chord_miss"]
@@ -376,7 +496,7 @@ def summarize(path: pathlib.Path, examples: int, limit: int) -> list[str]:
         if not any(source_levels(row, source) for row in rows):
             continue
         lines.append(f"{label} same-root promotion simulation")
-        for ratio in (0.005, 0.010, 0.015, 0.020, 0.030, 0.040):
+        for ratio in PROMOTION_RATIOS:
             candidates = [row for row in rows if promotion_candidate(row, ratio, 0.005, source)]
             power_candidates = [row for row in candidates if same_root_power_candidate(row)]
             false_promotions = protected_false_promotions(
@@ -465,6 +585,7 @@ def summarize(path: pathlib.Path, examples: int, limit: int) -> list[str]:
                     f"{row.get('recording_id', '')} expected={row.get('expected_chords', '')} "
                     f"got={row.get('guitar_chord', '--')} promoted={promoted}"
                 )
+    append_ranked_promotion_summary(lines, ranked_promotion_opportunities(rows, protected_rows), limit)
     return lines
 
 

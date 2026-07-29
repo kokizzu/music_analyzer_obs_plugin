@@ -117,6 +117,12 @@ def main() -> int:
             "protected protected_power_false expected=G got=Gpow=G promoted=Gm"
             not in output
         )
+        assert "ranked same-root promotion opportunities" in output
+        ranked = output.split("ranked same-root promotion opportunities", 1)[1]
+        assert "best_zero_false" in ranked
+        assert "recover=2 same_root_pow=1" in ranked
+        assert "labels<=5" in ranked
+        assert "protected_false=0" in ranked
         limited = subprocess.run(
             [sys.executable, str(SCRIPT), str(path), "--examples", "2", "--limit", "1"],
             cwd=ROOT,
