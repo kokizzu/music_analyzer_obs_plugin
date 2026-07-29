@@ -69,7 +69,7 @@ def float_or(row: dict[str, str], field: str, default: float) -> float:
 def debug_score_state(row: dict[str, str]) -> str:
     if not row.get("debug_note") and not row.get("debug_midi"):
         return "no_debug"
-    score_fields = ("keyboard_score", "guitar_score", "vocal_score", "other_score")
+    score_fields = ("bass_score", "keyboard_score", "guitar_score", "vocal_score", "other_score")
     has_score = any(float_or(row, field, 0.0) > 1.0e-6 for field in score_fields)
     if row.get("debug_owner", "") == "amb":
         return "scored_amb" if has_score else "unscored_amb"

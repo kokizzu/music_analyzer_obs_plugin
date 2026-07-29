@@ -131,6 +131,7 @@ ROW_DUMP_FIELDS = [
     "strongest_row_pitch_delta",
     "expected_exact_row_count",
     "expected_pitch_row_count",
+    "bass_score",
     "keyboard_score",
     "guitar_score",
     "vocal_score",
@@ -301,7 +302,7 @@ def numeric_delta(row: dict[str, str], left_field: str, right_field: str) -> tup
 def debug_score_state(row: dict[str, str]) -> str:
     if not row.get("debug_note") and not row.get("debug_midi"):
         return "no_debug"
-    score_fields = ("keyboard_score", "guitar_score", "vocal_score", "other_score")
+    score_fields = ("bass_score", "keyboard_score", "guitar_score", "vocal_score", "other_score")
     has_score = any((as_float(row, field) or 0.0) > 1.0e-6 for field in score_fields)
     owner = row.get("debug_owner", "")
     if owner == "amb":

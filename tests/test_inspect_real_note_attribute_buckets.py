@@ -33,6 +33,7 @@ def main() -> int:
             "expected_midi",
             "debug_midi",
             "debug_conf",
+            "bass_score",
             "keyboard_score",
             "guitar_score",
             "vocal_score",
@@ -87,6 +88,7 @@ def main() -> int:
             "60",
             "60",
             "0.75",
+            "0.00",
             "0.10",
             "0.70",
             "0.00",
@@ -141,6 +143,7 @@ def main() -> int:
             "69",
             "69",
             "0.85",
+            "0.00",
             "0.00",
             "0.20",
             "0.00",
@@ -302,11 +305,11 @@ def main() -> int:
     assert "hit:other/acoustic->other rows=1 samples=1" in targeted.stdout
     assert "ownership_miss:piano/electronic->guitar" not in targeted.stdout
     assert "sample keyboard_1: status=ownership_miss source=piano/electronic" in targeted.stdout
-    assert "scores(b/k/g/v/o)=-/0.100/0.700/0.000/0.000" in targeted.stdout
+    assert "scores(b/k/g/v/o)=0.000/0.100/0.700/0.000/0.000" in targeted.stdout
     assert "ownership_miss:piano/electronic->guitar" not in sample_only.stdout
     assert "hit:other/acoustic->other rows=1 samples=1" not in sample_only.stdout
     assert "sample reed_1: status=hit source=other/acoustic" in sample_only.stdout
-    assert "scores(b/k/g/v/o)=-/0.000/0.200/0.000/0.800" in sample_only.stdout
+    assert "scores(b/k/g/v/o)=0.000/0.000/0.200/0.000/0.800" in sample_only.stdout
     assert "ownership_miss:piano/electronic->guitar rows=1 samples=1 examples=keyboard_1" in misses_only.stdout
     assert "hit:other/acoustic->other" not in misses_only.stdout
     assert "debug_conf" not in misses_only.stdout
@@ -315,6 +318,7 @@ def main() -> int:
     assert "debug_delta" in dumped.stdout.splitlines()[0]
     assert "miss_reason" in dumped.stdout.splitlines()[0]
     assert "expected_row_exact_level" in dumped.stdout.splitlines()[0]
+    assert "bass_score" in dumped.stdout.splitlines()[0]
     assert "visual_first_row" in dumped.stdout.splitlines()[0]
     assert "buffer_visual_strongest_row" in dumped.stdout.splitlines()[0]
     assert "piano_visual_level" in dumped.stdout.splitlines()[0]

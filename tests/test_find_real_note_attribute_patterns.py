@@ -198,6 +198,12 @@ def main() -> int:
         )["debug_score_state"]
         == "scored_amb"
     )
+    assert (
+        patterns.derive_real_note_row(
+            {"debug_note": "E2", "debug_midi": "40", "debug_owner": "bass", "bass_score": "0.4"}
+        )["debug_score_state"]
+        == "scored_owner"
+    )
 
     with tempfile.TemporaryDirectory() as tmp:
         path = pathlib.Path(tmp) / "attributes.tsv"
