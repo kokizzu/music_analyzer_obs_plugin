@@ -100,6 +100,12 @@ HEADER = [
     "vocal_notes",
     "other_notes",
     "amb_notes",
+    "bass_visual_notes",
+    "guitar_visual_notes",
+    "piano_visual_notes",
+    "vocal_visual_notes",
+    "other_visual_notes",
+    "amb_visual_notes",
 ]
 
 
@@ -140,6 +146,16 @@ def row(**overrides: str) -> list[str]:
         }
     )
     values.update(overrides)
+    for visual_field, note_field in (
+        ("bass_visual_notes", "bass_notes"),
+        ("guitar_visual_notes", "guitar_notes"),
+        ("piano_visual_notes", "piano_notes"),
+        ("vocal_visual_notes", "vocal_notes"),
+        ("other_visual_notes", "other_notes"),
+        ("amb_visual_notes", "amb_notes"),
+    ):
+        if visual_field not in overrides:
+            values[visual_field] = values[note_field]
     return [values[name] for name in HEADER]
 
 
@@ -183,6 +199,7 @@ def main() -> int:
                 bass_notes="C3:0.40",
                 guitar_notes="C4:0.60",
                 piano_notes="C4:1.00",
+                bass_visual_notes="",
             ),
             row(
                 status="ownership_miss",
@@ -278,6 +295,16 @@ def main() -> int:
     assert "piano/electronic->bass:-12=1" in result.stdout
     assert "piano/electronic->other:+12=1" in result.stdout
     assert "top extra same-pitch/octave delta piano/electronic->guitar:+0=2" in result.stdout
+    assert (
+        "visible extra note-row summary buffers=2 samples=2 "
+        "extra_pitch_buffers=2 extra_pitch_rows=3 "
+        "extra_exact_buffers=2 extra_exact_rows=2"
+    ) in result.stdout
+    assert "visible extra note-cell intervals cells=3 same_pitch_class=3 exact=2" in result.stdout
+    assert (
+        "top visible extra pitch source/row piano/electronic->guitar=2 "
+        "piano/electronic->other=1"
+    ) in result.stdout
     assert "strongest-row confusion note buckets rows=2 samples=2" in result.stdout
     assert "piano/electronic C4->guitar=1" in result.stdout
     assert "piano/electronic E2->guitar=1" in result.stdout

@@ -40,6 +40,13 @@ ROW_NOTE_FIELDS = {
     "vocals": "vocal_notes",
     "other": "other_notes",
 }
+ROW_VISUAL_NOTE_FIELDS = {
+    "bass": "bass_visual_notes",
+    "guitar": "guitar_visual_notes",
+    "piano": "piano_visual_notes",
+    "vocals": "vocal_visual_notes",
+    "other": "other_visual_notes",
+}
 ALL_ROW_NOTE_FIELDS = {
     **ROW_NOTE_FIELDS,
     "amb": "amb_notes",
@@ -423,10 +430,9 @@ def unique_context_rows(rows: list[dict[str, str]]) -> list[dict[str, str]]:
     return selected
 
 
-def append_extra_note_row_summary(
-    lines: list[str], rows: list[dict[str, str]], sample_limit: int
-) -> None:
-    context_rows = unique_context_rows(rows)
+def extra_note_summary_for_fields(
+    context_rows: list[dict[str, str]], note_fields: dict[str, str]
+) -> dict[str, object]:
     extra_pitch_buffers = 0
     extra_exact_buffers = 0
     extra_pitch_rows = 0
@@ -454,7 +460,7 @@ def append_extra_note_row_summary(
         source = source_key(row)
         pitch_rows: list[str] = []
         exact_rows: list[str] = []
-        for row_name, field in ROW_NOTE_FIELDS.items():
+        for row_name, field in note_fields.items():
             if row_name == expected_row:
                 continue
             cells_by_midi: dict[int, float] = {}
@@ -504,32 +510,83 @@ def append_extra_note_row_summary(
             extra_exact_by_source_row[f"{source}->{row_name}"] += 1
 
     sample_count = len({row.get("sample_id", "") for row in context_rows if row.get("sample_id")})
+    return {
+        "buffers": len(context_rows),
+        "samples": sample_count,
+        "extra_pitch_buffers": extra_pitch_buffers,
+        "extra_pitch_rows": extra_pitch_rows,
+        "extra_exact_buffers": extra_exact_buffers,
+        "extra_exact_rows": extra_exact_rows,
+        "extra_pitch_by_source_row": extra_pitch_by_source_row,
+        "extra_exact_by_source_row": extra_exact_by_source_row,
+        "extra_exact_examples": extra_exact_examples,
+        "extra_note_cells": extra_note_cells,
+        "extra_same_pitch_cells": extra_same_pitch_cells,
+        "extra_exact_cells": extra_exact_cells,
+        "extra_note_delta_by_source_row": extra_note_delta_by_source_row,
+        "extra_same_pitch_delta_by_source_row": extra_same_pitch_delta_by_source_row,
+        "sample_pitch_buffers": sample_pitch_buffers,
+        "sample_exact_buffers": sample_exact_buffers,
+        "sample_extra_rows": sample_extra_rows,
+    }
+
+
+def append_extra_note_summary_lines(
+    lines: list[str], label: str, summary: dict[str, object], sample_limit: int
+) -> None:
+    extra_pitch_by_source_row = summary["extra_pitch_by_source_row"]
+    extra_exact_by_source_row = summary["extra_exact_by_source_row"]
+    extra_note_delta_by_source_row = summary["extra_note_delta_by_source_row"]
+    extra_same_pitch_delta_by_source_row = summary["extra_same_pitch_delta_by_source_row"]
+    limit = max(8, sample_limit if sample_limit > 0 else 8)
     lines.append(
-        "extra note-row summary "
-        f"buffers={len(context_rows)} samples={sample_count} "
-        f"extra_pitch_buffers={extra_pitch_buffers} extra_pitch_rows={extra_pitch_rows} "
-        f"extra_exact_buffers={extra_exact_buffers} extra_exact_rows={extra_exact_rows}"
+        f"{label} note-row summary "
+        f"buffers={summary['buffers']} samples={summary['samples']} "
+        f"extra_pitch_buffers={summary['extra_pitch_buffers']} "
+        f"extra_pitch_rows={summary['extra_pitch_rows']} "
+        f"extra_exact_buffers={summary['extra_exact_buffers']} "
+        f"extra_exact_rows={summary['extra_exact_rows']}"
     )
     lines.append(
-        "top extra pitch source/row "
-        + compact_counter(extra_pitch_by_source_row, max(8, sample_limit if sample_limit > 0 else 8))
+        f"top {label} pitch source/row "
+        + compact_counter(extra_pitch_by_source_row, limit)
     )
     lines.append(
-        "top extra exact source/row "
-        + compact_counter(extra_exact_by_source_row, max(8, sample_limit if sample_limit > 0 else 8))
+        f"top {label} exact source/row "
+        + compact_counter(extra_exact_by_source_row, limit)
     )
     lines.append(
-        "extra note-cell intervals "
-        f"cells={extra_note_cells} same_pitch_class={extra_same_pitch_cells} exact={extra_exact_cells}"
+        f"{label} note-cell intervals "
+        f"cells={summary['extra_note_cells']} "
+        f"same_pitch_class={summary['extra_same_pitch_cells']} "
+        f"exact={summary['extra_exact_cells']}"
     )
     lines.append(
-        "top extra note-cell delta "
-        + compact_counter(extra_note_delta_by_source_row, max(8, sample_limit if sample_limit > 0 else 8))
+        f"top {label} note-cell delta "
+        + compact_counter(extra_note_delta_by_source_row, limit)
     )
     lines.append(
-        "top extra same-pitch/octave delta "
-        + compact_counter(extra_same_pitch_delta_by_source_row, max(8, sample_limit if sample_limit > 0 else 8))
+        f"top {label} same-pitch/octave delta "
+        + compact_counter(extra_same_pitch_delta_by_source_row, limit)
     )
+
+
+def append_extra_note_row_summary(
+    lines: list[str], rows: list[dict[str, str]], sample_limit: int
+) -> None:
+    context_rows = unique_context_rows(rows)
+    summary = extra_note_summary_for_fields(context_rows, ROW_NOTE_FIELDS)
+    append_extra_note_summary_lines(lines, "extra", summary, sample_limit)
+
+    if context_rows and all(field in context_rows[0] for field in ROW_VISUAL_NOTE_FIELDS.values()):
+        visual_summary = extra_note_summary_for_fields(context_rows, ROW_VISUAL_NOTE_FIELDS)
+        append_extra_note_summary_lines(lines, "visible extra", visual_summary, sample_limit)
+
+    sample_pitch_buffers = summary["sample_pitch_buffers"]
+    sample_exact_buffers = summary["sample_exact_buffers"]
+    sample_extra_rows = summary["sample_extra_rows"]
+    extra_exact_by_source_row = summary["extra_exact_by_source_row"]
+    extra_exact_examples = summary["extra_exact_examples"]
 
     if sample_limit <= 0 or not sample_pitch_buffers:
         return
