@@ -10132,6 +10132,25 @@ float full_mix_debug_keyboard_note_score(const FullMixOwnership &ownership, int 
 	return best;
 }
 
+bool full_mix_debug_keyboard_harmonic_primary_protected(const FullMixOwnership &ownership, int midi)
+{
+	if (midi < 43)
+		return false;
+
+	const std::size_t debug_count =
+		std::min<std::size_t>(ownership.debug_candidate_count, ownership.debug_candidates.size());
+	for (std::size_t i = 0; i < debug_count; ++i) {
+		const FullMixDebugCandidate &debug = ownership.debug_candidates[i];
+		if (debug.midi != midi || debug.owner != InstrumentKind::Keyboard)
+			continue;
+		if (debug.ownership_confidence < 0.86f)
+			continue;
+		if (debug.harmonicity >= 2.0f && debug.harmonic_fit_error >= 0.25f)
+			return true;
+	}
+	return false;
+}
+
 float full_mix_debug_other_note_score(const FullMixOwnership &ownership, int midi)
 {
 	const std::size_t debug_count =
@@ -10867,6 +10886,62 @@ void prefer_exact_debug_keyboard_lower_octave_primary(NoteGrid &grid, Instrument
 		changed = promote_note_grid_primary_midi(grid, supported_midi,
 							 std::max(supported_level, primary.level)) ||
 			  changed;
+	}
+
+	if (changed)
+		write_note_grid_label(state, grid, preferred_root);
+}
+
+void prefer_probe_visible_low_keyboard_primary(NoteGrid &grid, InstrumentState &state,
+					       const FullMixOwnership &ownership,
+					       const std::array<float, kNoteProbeCount> &powers,
+					       int preferred_root)
+{
+	bool changed = false;
+
+	for (int pitch_class = 0; pitch_class < 12; ++pitch_class) {
+		NoteCell primary = {};
+		for (const auto &row : grid.rows) {
+			const NoteCell &cell = row[pitch_class];
+			if (cell.active) {
+				primary = cell;
+				break;
+			}
+		}
+		if (!primary.active)
+			continue;
+		if (full_mix_debug_keyboard_harmonic_primary_protected(ownership, primary.midi))
+			continue;
+
+		const float primary_probe = probe_level(powers, primary.midi);
+		if (primary_probe <= 1.0e-6f)
+			continue;
+
+		int supported_midi = -1;
+		float supported_level = 0.0f;
+		for (int octave_delta : {12, 24}) {
+			const int lower_midi = primary.midi - octave_delta;
+			if (lower_midi < kKeyboardMinMidi || lower_midi >= kGuitarMinMidi ||
+			    midi_pitch_class(lower_midi) != pitch_class)
+				continue;
+
+			const float lower_level = note_grid_midi_level(grid, lower_midi);
+			if (lower_level < 0.65f)
+				continue;
+
+			const float lower_probe = probe_level(powers, lower_midi);
+			if (lower_probe < primary_probe * 0.080f)
+				continue;
+
+			if (supported_midi < 0 || lower_midi < supported_midi ||
+			    (lower_midi == supported_midi && lower_level > supported_level)) {
+				supported_midi = lower_midi;
+				supported_level = std::max(lower_level, primary.level);
+			}
+		}
+		if (supported_midi < 0)
+			continue;
+		changed = promote_note_grid_primary_midi(grid, supported_midi, supported_level) || changed;
 	}
 
 	if (changed)
@@ -19534,6 +19609,11 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 			prefer_exact_debug_keyboard_lower_octave_primary(snapshot.keyboard_notes,
 									 snapshot.keyboard,
 									 full_mix_ownership, -1);
+		if (mixed_source)
+			prefer_probe_visible_low_keyboard_primary(snapshot.keyboard_notes,
+								 snapshot.keyboard,
+								 full_mix_ownership,
+								 detection_note_powers, -1);
 		if (mixed_source && full_mix_source_hint_mode == AnalysisInputMode::IsolatedKeyboard)
 			promote_source_hinted_keyboard_bass_primary(snapshot.keyboard_notes,
 								    snapshot.keyboard,

@@ -1143,11 +1143,14 @@ bool expects_full_mix_keyboard_primary_octave_recovery(const std::string &suite_
 		return true;
 	if ((row.note == "E1") &&
 	    (row.program_name == "electric_grand" || row.program_name == "electric_piano_2" ||
-	     row.program_name == "harpsichord"))
+	     row.program_name == "harpsichord" || row.program_name == "electric_piano_1" ||
+	     row.program_name == "clavinet"))
 		return true;
 	if ((row.note == "G1") &&
 	    (row.program_name == "electric_grand" || row.program_name == "electric_piano_2" ||
-	     row.program_name == "harpsichord"))
+	     row.program_name == "harpsichord" || row.program_name == "electric_piano_1"))
+		return true;
+	if (row.note == "C1" && row.program_name == "electric_piano_1")
 		return true;
 	return (row.program_name == "bright_acoustic" && row.note == "G2") ||
 	       (row.program_name == "electric_piano_1" && row.note == "G3") ||
