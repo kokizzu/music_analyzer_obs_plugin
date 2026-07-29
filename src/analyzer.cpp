@@ -8767,28 +8767,35 @@ void suppress_guitar_dominant_same_pitch_bass_shadows(NoteGrid &bass_grid, Instr
 		if (guitar_level <= 0.0f || bass_level > guitar_level * kMaxBassToGuitarLevelRatio)
 			continue;
 
-		const FullMixDebugCandidate *debug =
-			best_same_midi_row_debug(ownership, midi, InstrumentKind::Guitar);
-		if (!debug)
-			continue;
+		bool guitar_shadow = false;
+		const std::size_t debug_count =
+			std::min<std::size_t>(ownership.debug_candidate_count,
+					      ownership.debug_candidates.size());
+		for (std::size_t i = 0; i < debug_count; ++i) {
+			const FullMixDebugCandidate &debug = ownership.debug_candidates[i];
+			if (debug.midi != midi || debug.owner != InstrumentKind::Guitar)
+				continue;
 
-		const bool measured_guitar_shadow =
-			debug->owner == InstrumentKind::Guitar &&
-			debug->guitar_score >= kMeasuredMinGuitarScore &&
-			debug->bass_score <= debug->guitar_score * kMeasuredMaxBassToGuitarScoreRatio &&
-			bass_level <= guitar_level * kMeasuredMaxBassToGuitarLevelRatio &&
-			debug->local_noise_level <= kMeasuredMaxNoiseLevel;
-		const bool named_guitar_shadow =
-			allow_named_guitar_source_cleanup &&
-			debug->owner == InstrumentKind::Guitar &&
-			debug->guitar_score >= kMeasuredMinGuitarScore &&
-			debug->bass_score <= debug->guitar_score * kMeasuredMaxBassToGuitarScoreRatio &&
-			bass_level <= guitar_level * kMaxBassToGuitarLevelRatio &&
-			debug->pitch_confidence >= kNamedMinPitchConfidence &&
-			debug->periodicity >= kNamedMinPeriodicity &&
-			debug->harmonic_fit_error <= kNamedMaxHarmonicFitError &&
-			debug->local_noise_level <= kMeasuredMaxNoiseLevel;
-		if (!measured_guitar_shadow && !named_guitar_shadow)
+			const bool measured_guitar_shadow =
+				debug.guitar_score >= kMeasuredMinGuitarScore &&
+				debug.bass_score <= debug.guitar_score * kMeasuredMaxBassToGuitarScoreRatio &&
+				bass_level <= guitar_level * kMeasuredMaxBassToGuitarLevelRatio &&
+				debug.local_noise_level <= kMeasuredMaxNoiseLevel;
+			const bool named_guitar_shadow =
+				allow_named_guitar_source_cleanup &&
+				debug.guitar_score >= kMeasuredMinGuitarScore &&
+				debug.bass_score <= debug.guitar_score * kMeasuredMaxBassToGuitarScoreRatio &&
+				bass_level <= guitar_level * kMaxBassToGuitarLevelRatio &&
+				debug.pitch_confidence >= kNamedMinPitchConfidence &&
+				debug.periodicity >= kNamedMinPeriodicity &&
+				debug.harmonic_fit_error <= kNamedMaxHarmonicFitError &&
+				debug.local_noise_level <= kMeasuredMaxNoiseLevel;
+			if (measured_guitar_shadow || named_guitar_shadow) {
+				guitar_shadow = true;
+				break;
+			}
+		}
+		if (!guitar_shadow)
 			continue;
 
 		clear_note_grid_midi(bass_grid, midi);

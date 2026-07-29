@@ -41,6 +41,17 @@ void set_pitch(NoteGrid &grid, int pitch_class, float level)
 	cell.midi = 60 + pitch_class;
 }
 
+void set_midi(NoteGrid &grid, int midi, float level)
+{
+	const int pitch_class = midi_pitch_class(midi);
+	NoteCell &cell = grid.cells[static_cast<std::size_t>(pitch_class)];
+	cell.active = true;
+	cell.level = level;
+	cell.visual_level = level;
+	cell.midi = midi;
+	std::snprintf(cell.label, sizeof(cell.label), "%d", midi);
+}
+
 void set_probe_level(std::array<float, kNoteProbeCount> &powers, int midi, float level)
 {
 	if (midi < kFirstMidi || midi > kLastMidi)
@@ -131,11 +142,51 @@ void check_displayed_same_root_plain_guitar_primary(Runner &runner)
 			      protected_state.label + "`");
 }
 
+void check_same_pitch_guitar_bass_shadow_uses_any_matching_debug(Runner &runner)
+{
+	static constexpr int kMidi = 52;
+
+	NoteGrid bass_grid = {};
+	set_midi(bass_grid, kMidi, 0.64f);
+	InstrumentState bass_state = {};
+	NoteGrid guitar_grid = {};
+	set_midi(guitar_grid, kMidi, 1.00f);
+	FullMixOwnership ownership = {};
+	ownership.debug_candidate_count = 2;
+	ownership.debug_candidates[0].midi = kMidi;
+	ownership.debug_candidates[0].owner = InstrumentKind::Keyboard;
+	ownership.debug_candidates[0].ownership_confidence = 0.80f;
+	ownership.debug_candidates[0].guitar_score = 0.70f;
+	ownership.debug_candidates[0].bass_score = 0.00f;
+	ownership.debug_candidates[0].local_noise_level = 0.05f;
+	ownership.debug_candidates[1].midi = kMidi;
+	ownership.debug_candidates[1].owner = InstrumentKind::Guitar;
+	ownership.debug_candidates[1].guitar_score = 0.30f;
+	ownership.debug_candidates[1].bass_score = 0.00f;
+	ownership.debug_candidates[1].local_noise_level = 0.05f;
+
+	suppress_guitar_dominant_same_pitch_bass_shadows(bass_grid, bass_state, guitar_grid, ownership,
+							 -1, false);
+	runner.expect(note_grid_midi_visual_level(bass_grid, kMidi) <= 0.0f,
+		      "same-pitch guitar bass shadow: expected non-best guitar-owned debug candidate "
+		      "to clear bass E3");
+
+	NoteGrid protected_bass_grid = {};
+	set_midi(protected_bass_grid, kMidi, 0.76f);
+	InstrumentState protected_bass_state = {};
+	suppress_guitar_dominant_same_pitch_bass_shadows(protected_bass_grid,
+							 protected_bass_state, guitar_grid, ownership,
+							 -1, false);
+	runner.expect(note_grid_midi_visual_level(protected_bass_grid, kMidi) > 0.0f,
+		      "same-pitch guitar bass shadow: expected strong bass E3 to stay visible");
+}
+
 int run()
 {
 	Runner runner;
 	check_crowded_guitar_prune_modes(runner);
 	check_displayed_same_root_plain_guitar_primary(runner);
+	check_same_pitch_guitar_bass_shadow_uses_any_matching_debug(runner);
 	if (runner.failures) {
 		std::fprintf(stderr, "analyzer_internal: %d/%d checks failed\n", runner.failures,
 			     runner.checks);
