@@ -8620,6 +8620,46 @@ void suppress_other_dominant_same_pitch_bass_shadows(NoteGrid &bass_grid, Instru
 		write_note_grid_label(bass_state, bass_grid, preferred_root);
 }
 
+void suppress_guitar_dominant_same_pitch_bass_shadows(NoteGrid &bass_grid, InstrumentState &bass_state,
+						      const NoteGrid &guitar_grid,
+						      const FullMixOwnership &ownership,
+						      int preferred_root)
+{
+	static constexpr float kMinGuitarScore = 0.18f;
+	static constexpr float kMaxBassToGuitarScoreRatio = 0.20f;
+	static constexpr float kMaxBassToGuitarLevelRatio = 0.80f;
+	static constexpr float kMinPitchConfidence = 0.78f;
+	static constexpr float kMinPeriodicity = 0.70f;
+	static constexpr float kMaxHarmonicFitError = 0.08f;
+	static constexpr float kMaxNoiseLevel = 0.45f;
+
+	bool changed = false;
+	for (int midi = kBassMinMidi; midi <= kBassMaxMidi; ++midi) {
+		const float bass_level = note_grid_midi_level(bass_grid, midi);
+		if (bass_level <= 0.0f)
+			continue;
+		const float guitar_level = note_grid_midi_level(guitar_grid, midi);
+		if (guitar_level <= 0.0f || bass_level > guitar_level * kMaxBassToGuitarLevelRatio)
+			continue;
+
+		const FullMixDebugCandidate *debug =
+			best_same_midi_row_debug(ownership, midi, InstrumentKind::Guitar);
+		if (!debug || debug->guitar_score < kMinGuitarScore ||
+		    debug->bass_score > debug->guitar_score * kMaxBassToGuitarScoreRatio ||
+		    debug->pitch_confidence < kMinPitchConfidence ||
+		    debug->periodicity < kMinPeriodicity ||
+		    debug->harmonic_fit_error > kMaxHarmonicFitError ||
+		    debug->local_noise_level > kMaxNoiseLevel)
+			continue;
+
+		clear_note_grid_midi(bass_grid, midi);
+		changed = true;
+	}
+
+	if (changed)
+		write_note_grid_label(bass_state, bass_grid, preferred_root);
+}
+
 void suppress_keyboard_owned_same_pitch_bass_shadows(NoteGrid &bass_grid, InstrumentState &bass_state,
 						     const NoteGrid &keyboard_grid,
 						     const FullMixOwnership &ownership,
@@ -19483,6 +19523,9 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 			boost_note_grid_primary_octave_display_level(snapshot.other_notes, snapshot.other, -1);
 		suppress_other_dominant_same_pitch_bass_shadows(snapshot.bass_notes, snapshot.bass,
 								snapshot.other_notes, full_mix_ownership, -1);
+		suppress_guitar_dominant_same_pitch_bass_shadows(snapshot.bass_notes, snapshot.bass,
+								 snapshot.guitar_notes,
+								 full_mix_ownership, -1);
 		suppress_keyboard_owned_same_pitch_bass_shadows(snapshot.bass_notes, snapshot.bass,
 								snapshot.keyboard_notes,
 								full_mix_ownership, -1,

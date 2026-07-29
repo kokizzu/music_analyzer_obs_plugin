@@ -667,7 +667,10 @@ void check_full_mix_bass_conservative_switching(Runner &runner)
 	expect_label(runner, snapshot.bass.label, "B1", "full-mix bass switching one-frame reject");
 
 	snapshot = engine.analyze(e2.data(), e2.size(), settings, "Mic/Aux", 0);
-	expect_label(runner, snapshot.bass.label, "E2", "full-mix bass switching confirmed");
+	runner.expect(std::strcmp(snapshot.bass.label, "E2") == 0,
+		      std::string("full-mix bass switching confirmed: expected E2, got `") +
+			      snapshot.bass.label + "` guitar `" + snapshot.guitar.label +
+			      "` debug E2 `" + full_mix_debug_summary_for_midi(snapshot, 40) + "`");
 }
 
 void check_full_mix_electronic_bass_visual_floor(Runner &runner)
@@ -3201,6 +3204,14 @@ void check_full_mix_single_instrument_precision(Runner &runner)
 		runner.expect(grid_level_for_midi(snapshot.guitar_notes, 52) > 0.0f,
 			      std::string("full-mix mid guitar: expected guitar E3 ownership, got guitar `") +
 				      snapshot.guitar.label + "`, bass `" + snapshot.bass.label + "`");
+		runner.expect(grid_level_for_midi(snapshot.bass_notes, 52) <= 0.0f,
+			      std::string("full-mix mid guitar: expected no same-pitch bass E3 shadow, got bass `") +
+				      snapshot.bass.label + "` bass_level=" +
+				      std::to_string(grid_level_for_midi(snapshot.bass_notes, 52)) +
+				      " guitar_level=" +
+				      std::to_string(grid_level_for_midi(snapshot.guitar_notes, 52)) +
+				      " debug E3 `" +
+				      full_mix_debug_summary_for_midi(snapshot, 52) + "`");
 	}
 
 	{
@@ -4917,7 +4928,10 @@ void check_full_mix_global_chord_guides_root_with_inversion(Runner &runner)
 	for (int frame = 0; frame < 72; ++frame)
 		snapshot = engine.analyze(buffer.data(), buffer.size(), settings, "full mix inversion", 0);
 
-	expect_label(runner, snapshot.bass.label, "E2", "full-mix inversion bass");
+	runner.expect(std::strcmp(snapshot.bass.label, "E2") == 0,
+		      std::string("full-mix inversion bass: expected E2, got `") +
+			      snapshot.bass.label + "` guitar `" + snapshot.guitar.label +
+			      "` debug E2 `" + full_mix_debug_summary_for_midi(snapshot, 40) + "`");
 	expect_label(runner, snapshot.global_chord.label, "C", "full-mix inversion global chord");
 	expect_no_chord(runner, snapshot.keyboard_chord, "full-mix inversion keyboard chord");
 	expect_no_chord(runner, snapshot.guitar_chord, "full-mix inversion guitar chord");
