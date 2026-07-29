@@ -15423,6 +15423,81 @@ void promote_displayed_smoothed_power_guitar_primary(InstrumentState &state,
 	state.confidence = std::max(state.confidence, smoothed.confidence);
 }
 
+void promote_displayed_same_root_plain_guitar_primary(InstrumentState &state,
+						      const NoteGrid &display_grid,
+						      const NoteGrid &analysis_grid,
+						      const std::array<float, kNoteProbeCount> &powers,
+						      int min_midi, int max_midi)
+{
+	if (!state.label[0] || state.label[0] == '-' || chord_label_component_count(state.label) < 2)
+		return;
+
+	ParsedRootChord current_primary;
+	if (!parse_plain_major_minor_component(state.label, std::strcspn(state.label, "="),
+					       current_primary))
+		return;
+	if (current_primary.quality != RootChordQuality::Minor)
+		return;
+	const float current_score =
+		plain_guitar_component_primary_score(current_primary, display_grid, analysis_grid);
+
+	const char *best_start = nullptr;
+	std::size_t best_len = 0;
+	float best_score = -1.0f;
+	ParsedRootChord best_component;
+	const char *cursor = state.label;
+	bool first_component = true;
+	while (cursor && *cursor) {
+		const char *end = std::strchr(cursor, '=');
+		const std::size_t len =
+			end ? static_cast<std::size_t>(end - cursor) : std::strlen(cursor);
+		ParsedRootChord component;
+		if (!first_component && parse_plain_major_minor_component(cursor, len, component) &&
+		    component.root == current_primary.root &&
+		    component.quality == RootChordQuality::Major) {
+			const float score =
+				plain_guitar_component_primary_score(component, display_grid, analysis_grid);
+			if (score > best_score) {
+				best_score = score;
+				best_start = cursor;
+				best_len = len;
+				best_component = component;
+			}
+		}
+		if (!end)
+			break;
+		cursor = end + 1;
+		first_component = false;
+	}
+
+	static constexpr float kClearPlainPrimaryMargin = 0.48f;
+	if (!best_start || best_len == 0 ||
+	    best_score < current_score + kClearPlainPrimaryMargin)
+		return;
+
+	const int current_third =
+		current_primary.root + (current_primary.quality == RootChordQuality::Minor ? 3 : 4);
+	const int best_third =
+		best_component.root + (best_component.quality == RootChordQuality::Minor ? 3 : 4);
+	const float current_third_level =
+		strongest_probe_pitch_class_level(powers, current_third, min_midi, max_midi);
+	const float best_third_level =
+		strongest_probe_pitch_class_level(powers, best_third, min_midi, max_midi);
+	const float strongest_probe = strongest_probe_level(powers, min_midi, max_midi);
+	if (strongest_probe <= 1.0e-8f ||
+	    best_third_level < strongest_probe * 0.006f ||
+	    best_third_level < current_third_level * 1.35f + strongest_probe * 0.002f)
+		return;
+
+	char alias[16] = {};
+	std::snprintf(alias, sizeof(alias), "%s%s", note_name(best_component.root),
+		      best_component.quality == RootChordQuality::Minor ? "m" : "");
+	char promoted[sizeof(state.label)] = {};
+	append_chord_label_component(promoted, sizeof(promoted), alias, std::strlen(alias));
+	append_unique_chord_components(promoted, sizeof(promoted), state.label, alias);
+	copy_text(state.label, sizeof(state.label), promoted);
+}
+
 bool promote_smoothed_same_root_guitar_quality(
 	ChordResult &raw, const ChordResult &smoothed,
 	const std::array<float, kNoteProbeCount> &powers, int min_midi, int max_midi)
@@ -20272,12 +20347,18 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 				     mixed_source ? kNoteRmsFloor : kPolyphonicNoteRmsFloor);
 		stabilize_chord(snapshot.guitar_chord, guitar_chord_tracking_, raw_guitar_chord,
 				smoothed_guitar_chord, true, interval_seconds, true, false, !mixed_source);
-		if (!mixed_source)
+		if (!mixed_source) {
 			promote_displayed_smoothed_power_guitar_primary(
 				snapshot.guitar_chord, smoothed_guitar_chord,
 				snapshot.guitar_notes, guitar_chord_detection_grid);
+		}
 		promote_low_guitar_display_fundamentals(snapshot.guitar_notes, snapshot.guitar,
 							snapshot.guitar_chord_analysis_notes, -1);
+		if (!mixed_source)
+			promote_displayed_same_root_plain_guitar_primary(
+				snapshot.guitar_chord, snapshot.guitar_notes,
+				snapshot.guitar_chord_analysis_notes, detection_note_powers,
+				kGuitarMinMidi, kGuitarMaxMidi);
 	} else {
 		reset_note_grid_envelope(snapshot.guitar_notes, snapshot.guitar, guitar_note_tracking_);
 		reset_note_grid_envelope(guitar_chord_grid, guitar_chord_note_state, guitar_chord_note_tracking_);
