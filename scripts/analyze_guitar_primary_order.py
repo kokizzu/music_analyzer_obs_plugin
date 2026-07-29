@@ -351,6 +351,63 @@ def score_promotion_candidate(
     return gap, promoted, primary, primary_score, candidate_score
 
 
+def cpp_style_promotion_candidate(
+    row: dict[str, str],
+) -> tuple[float, float, str, str, float, float] | None:
+    components = split_components(row.get("guitar_chord", ""))
+    if len(components) < 2:
+        return None
+
+    display = pitch_classes(row.get("guitar_pitch_classes", ""))
+    analysis = pitch_classes(row.get("guitar_analysis_pitch_classes", ""))
+    display_levels = parse_cells(row.get("guitar_cells", ""))
+    analysis_levels = parse_cells(row.get("guitar_analysis_cells", ""))
+    primary = components[0]
+    primary_plain = parse_plain(primary)
+    primary_score = (
+        component_score(primary, display, analysis, display_levels, analysis_levels)
+        if primary_plain
+        else -1.0
+    )
+
+    best: tuple[float, float, int, str] | None = None
+    for index, label in enumerate(components[1:], start=1):
+        parsed = parse_plain(label)
+        if parsed is None:
+            continue
+        root, minor = parsed
+        score = component_score(label, display, analysis, display_levels, analysis_levels)
+        if score < 0.0:
+            continue
+        has_power = any(is_power_for_root(component, root) for component in components)
+        if has_power:
+            score += 0.72
+        same_root_opposite = (
+            primary_plain is not None
+            and primary_plain[0] == root
+            and primary_plain[1] != minor
+        )
+        different_root = primary_plain is None or primary_plain[0] != root
+        required_margin = (
+            0.20
+            if primary_plain is None
+            else 0.18
+            if has_power and different_root
+            else 0.04
+            if same_root_opposite
+            else 0.48
+        )
+        if score < primary_score + required_margin:
+            continue
+        if best is None or score > best[0] or (score == best[0] and index < best[2]):
+            best = (score, required_margin, index, label)
+    if best is None:
+        return None
+
+    candidate_score, required_margin, _index, promoted = best
+    return candidate_score - primary_score, required_margin, promoted, primary, primary_score, candidate_score
+
+
 def expected_labels(value: str) -> set[str]:
     return set(split_components(value))
 
@@ -620,6 +677,10 @@ def main() -> int:
     score_promotion_rescues = []
     score_promotion_protected_false = []
     score_promotion_neutral = []
+    cpp_style_promotion_candidates = []
+    cpp_style_promotion_rescues = []
+    cpp_style_promotion_protected_false = []
+    cpp_style_promotion_neutral = []
     for row in chord_rows:
         expected = expected_labels(row.get("expected_chords", ""))
         displayed_primary = primary_component(row.get("guitar_chord", ""))
@@ -701,6 +762,18 @@ def main() -> int:
                 score_promotion_protected_false.append(scored_row)
             else:
                 score_promotion_neutral.append(scored_row)
+
+        cpp_candidate = cpp_style_promotion_candidate(row)
+        if cpp_candidate:
+            gap, margin, promoted, primary, primary_score, promoted_score = cpp_candidate
+            scored_row = (gap, margin, promoted, primary, primary_score, promoted_score, row)
+            cpp_style_promotion_candidates.append(scored_row)
+            if not displayed_hit and promoted in expected:
+                cpp_style_promotion_rescues.append(scored_row)
+            elif displayed_hit and promoted not in expected:
+                cpp_style_promotion_protected_false.append(scored_row)
+            else:
+                cpp_style_promotion_neutral.append(scored_row)
 
     if relationship_buckets:
         print(
@@ -917,6 +990,40 @@ def main() -> int:
             f"expected={row.get('expected_chords')}",
             f"primary={primary}",
             f"gap={gap:.3f}",
+            f"score=p:{primary_score:.3f}/c:{promoted_score:.3f}",
+            f"label={row.get('guitar_chord', '--')}",
+            pathlib.Path(row.get("audio_path", "")).name,
+        )
+
+    print(
+        "cpp_style_promotion_probe:",
+        f"candidates={len(cpp_style_promotion_candidates)}",
+        f"rescues={len(cpp_style_promotion_rescues)}",
+        f"protected_false={len(cpp_style_promotion_protected_false)}",
+        f"neutral={len(cpp_style_promotion_neutral)}",
+    )
+    for gap, margin, promoted, primary, primary_score, promoted_score, row in sorted(
+        cpp_style_promotion_rescues, key=lambda item: item[0], reverse=True
+    )[: args.examples]:
+        print(
+            f"  rescue promote={promoted}",
+            f"expected={row.get('expected_chords')}",
+            f"primary={primary}",
+            f"gap={gap:.3f}",
+            f"margin={margin:.3f}",
+            f"score=p:{primary_score:.3f}/c:{promoted_score:.3f}",
+            f"label={row.get('guitar_chord', '--')}",
+            pathlib.Path(row.get("audio_path", "")).name,
+        )
+    for gap, margin, promoted, primary, primary_score, promoted_score, row in sorted(
+        cpp_style_promotion_protected_false, key=lambda item: item[0], reverse=True
+    )[: args.examples]:
+        print(
+            f"  protected_false promote={promoted}",
+            f"expected={row.get('expected_chords')}",
+            f"primary={primary}",
+            f"gap={gap:.3f}",
+            f"margin={margin:.3f}",
             f"score=p:{primary_score:.3f}/c:{promoted_score:.3f}",
             f"label={row.get('guitar_chord', '--')}",
             pathlib.Path(row.get("audio_path", "")).name,

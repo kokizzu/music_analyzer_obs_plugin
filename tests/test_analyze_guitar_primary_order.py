@@ -50,6 +50,36 @@ def main() -> int:
                 guitar_smoothed_cells="C3:0.80,E3:1.00,G3:0.20,A2:1.00",
             ),
             row(
+                recording_id="cpp_rescue",
+                audio_path="cpp_rescue.wav",
+                expected_chords="Am",
+                expected_chord_qualities="min",
+                guitar_chord="C=Am",
+                guitar_raw_chord="C=Am",
+                guitar_smoothed_chord="C=Am",
+                guitar_pitch_classes="C,E,A",
+                guitar_cells="C3:0.80,E3:1.00,A2:1.00",
+                guitar_analysis_pitch_classes="C,E,A",
+                guitar_analysis_cells="C3:0.80,E3:1.00,A2:1.00",
+                guitar_smoothed_pitch_classes="C,E,A",
+                guitar_smoothed_cells="C3:0.80,E3:1.00,A2:1.00",
+            ),
+            row(
+                recording_id="cpp_protected",
+                audio_path="cpp_protected.wav",
+                expected_chords="C",
+                expected_chord_qualities="maj",
+                guitar_chord="C=Am",
+                guitar_raw_chord="C=Am",
+                guitar_smoothed_chord="C=Am",
+                guitar_pitch_classes="C,E,A",
+                guitar_cells="C3:0.80,E3:1.00,A2:1.00",
+                guitar_analysis_pitch_classes="C,E,A",
+                guitar_analysis_cells="C3:0.80,E3:1.00,A2:1.00",
+                guitar_smoothed_pitch_classes="C,E,A",
+                guitar_smoothed_cells="C3:0.80,E3:1.00,A2:1.00",
+            ),
+            row(
                 recording_id="invalid_power_minor",
                 expected_chords="Am",
                 expected_chord_qualities="min",
@@ -169,13 +199,13 @@ def main() -> int:
             stderr=subprocess.PIPE,
         )
         output = completed.stdout
-        assert "guitar_chord: primary=3/9 later=4 miss=2" in output
-        assert "guitar_raw_chord: primary=4/9 later=3 miss=2" in output
-        assert "guitar_smoothed_chord: primary=4/9 later=3 miss=2" in output
+        assert "guitar_chord: primary=4/11 later=5 miss=2" in output
+        assert "guitar_raw_chord: primary=5/11 later=4 miss=2" in output
+        assert "guitar_smoothed_chord: primary=5/11 later=4 miss=2" in output
         assert (
-            "candidate primary relationships: display0_raw0_smooth0=4 "
+            "candidate primary relationships: display0_raw0_smooth0=5 "
             "display0_raw0_smooth1=1 "
-            "display0_raw1_smooth0=1 display1_raw1_smooth1=3"
+            "display0_raw1_smooth0=1 display1_raw1_smooth1=4"
         ) in output
         assert "candidate primary rescues: raw=1 smoothed=1 both=0" in output
         assert "raw primary rescue examples" in output
@@ -218,33 +248,55 @@ def main() -> int:
             "analysis_full_anchor_rescue.wav"
         ) in output
         assert (
-            "score_promotion_probe: candidates=2 rescues=1 protected_false=1 neutral=0"
+            "score_promotion_probe: candidates=4 rescues=2 protected_false=2 neutral=0"
             in output
         )
+        assert (
+            "rescue promote=Am expected=Am primary=C gap=7.830 "
+            "score=p:-1.000/c:6.830 label=C=Am cpp_rescue.wav"
+        ) in output
         assert (
             "rescue promote=Am expected=Am primary=C gap=0.125 "
             "score=p:5.515/c:5.640 label=C=C6=Am7=Cmaj7=Am later_am.wav"
         ) in output
         assert (
+            "protected_false promote=Am expected=C primary=C gap=7.830 "
+            "score=p:-1.000/c:6.830 label=C=Am cpp_protected.wav"
+        ) in output
+        assert (
             "protected_false promote=Am expected=C primary=C gap=0.370 "
             "score=p:6.460/c:6.830 label=C=Am score_protected.wav"
+        ) in output
+        assert (
+            "cpp_style_promotion_probe: candidates=2 rescues=1 protected_false=1 neutral=0"
+            in output
+        )
+        assert (
+            "rescue promote=Am expected=Am primary=C gap=7.830 margin=0.480 "
+            "score=p:-1.000/c:6.830 label=C=Am cpp_rescue.wav"
+        ) in output
+        assert (
+            "protected_false promote=Am expected=C primary=C gap=7.830 margin=0.480 "
+            "score=p:-1.000/c:6.830 label=C=Am cpp_protected.wav"
         ) in output
         assert "raw-only primary examples" in output
         assert "smoothed-only primary examples" in output
         assert (
-            "guitar_primary_order: rows=9 primary_misses=5 expected_later=4 "
-            "score_promotable=1 cpp_promotable=0"
+            "guitar_primary_order: rows=11 primary_misses=6 expected_later=5 "
+            "score_promotable=2 cpp_promotable=1"
         ) in output
         assert "primary_miss_quality_buckets:" in output
-        assert "expected=min primary=plain_major root=different_root=1" in output
+        assert "expected=min primary=plain_major root=different_root=2" in output
         assert "expected=maj7 primary=plain_major root=same_root=1" in output
         assert "primary_miss_evidence_buckets:" in output
-        assert "match=-- evidence=--/--=5" in output
+        assert "match=-- evidence=--/--=6" in output
         assert "primary_miss_tone_buckets:" in output
-        assert "visible=-- analysis=-- smooth=--=5" in output
+        assert "visible=-- analysis=-- smooth=--=6" in output
         assert "primary_miss_root_buckets:" in output
-        assert "rootvis=-- display=-- raw=-- smooth=--=5" in output
+        assert "rootvis=-- display=-- raw=-- smooth=--=6" in output
+        assert "gap=7.830 expected=Am primary=C label=C=Am" in output
         assert "gap=0.125 expected=Am primary=C" in output
+        assert "cpp-style promotable expected-later rows" in output
         assert "invalid_power_minor" not in output
     print("test_analyze_guitar_primary_order: ok")
     return 0
