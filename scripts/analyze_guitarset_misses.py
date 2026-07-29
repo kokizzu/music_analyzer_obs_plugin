@@ -310,7 +310,16 @@ def main() -> int:
             expected_power = f"{root(expected_label)}pow"
             for detected_label in detected:
                 if detected_label == expected_power:
-                    plain_to_power.append((expected_label, detected_label))
+                    plain_to_power.append(
+                        (
+                            context,
+                            expected_label,
+                            detected_label,
+                            guitar_pc or "--",
+                            guitar_analysis_pc or "--",
+                            guitar_smooth_pc or "--",
+                        )
+                    )
                     expected_root = NOTE_TO_PC.get(root(expected_label))
                     if expected_root is None:
                         continue
@@ -404,8 +413,13 @@ def main() -> int:
         print("plain_to_power_third_state")
         for key, value in plain_to_power_third_state.most_common():
             print(f"{key} {value}")
-    for expected_label, detected_label in plain_to_power[:80]:
-        print(f"{expected_label} -> {detected_label}")
+    if plain_to_power:
+        print("plain_to_power_examples")
+    for context, expected_label, detected_label, guitar_pc, guitar_analysis_pc, guitar_smooth_pc in plain_to_power[:80]:
+        print(
+            f"{expected_label} -> {detected_label} at {context} "
+            f"visible {guitar_pc} analysis {guitar_analysis_pc} smooth {guitar_smooth_pc}"
+        )
     return 0
 
 

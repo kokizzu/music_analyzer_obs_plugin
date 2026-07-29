@@ -53,18 +53,23 @@ def main() -> int:
                 "guitar cells `G2:1.00,D3:0.70`, guitar analysis pc `G,B,D`, "
                 "guitar analysis cells `G2:1.00,B2:0.30,D3:0.70`, guitar smooth pc `G,B,D`, "
                 "guitar smooth cells `G2:0.85,B2:0.22,D3:0.64`",
+                "case7: chord opportunity `C`, detected global `--`, key `--`, "
+                "guitar `Cpow`, other `--`, expected pc `C,E,G`, guitar pc `C,G`, "
+                "guitar cells `C3:1.00,G3:0.70`, guitar analysis pc `C,G`, "
+                "guitar analysis cells `C3:1.00,G3:0.70`, guitar smooth pc `C,G`, "
+                "guitar smooth cells `C3:0.90,G3:0.63`",
             ]
         )
     )
-    require(output, "misses 6")
+    require(output, "misses 7")
     require(output, "1 full_tones_present_same_root_wrong_quality")
     require(output, "1 full_tones_present_root_shift")
-    require(output, "1 same_root_but_expected_tones_missing")
+    require(output, "2 same_root_but_expected_tones_missing")
     require(output, "2 expected_tones_missing_no_chord")
     require(output, "1 no_guitar_notes")
     require(output, "2 100%")
     require(output, "1 75-99%")
-    require(output, "2 50-74%")
+    require(output, "3 50-74%")
     require(output, "1 0%")
     require(output, "analysis guitar grid coverage buckets")
     require(output, "display_missing_analysis_full 1")
@@ -75,6 +80,9 @@ def main() -> int:
     require(output, "case6: G => -- analysis pc G,B,D visible pc G,D")
     require(output, "smoothed-full-tone miss examples")
     require(output, "case6: G => -- smooth pc G,B,D visible pc G,D")
+    require(output, "same_root_plain_major_minor_to_power 1")
+    require(output, "plain_to_power_examples")
+    require(output, "C -> Cpow at case7 visible C,G analysis C,G smooth C,G")
     print("test_analyze_guitarset_misses: ok")
     return 0
 
