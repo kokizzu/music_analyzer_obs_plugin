@@ -9262,7 +9262,7 @@ void prefer_probe_supported_lower_bass_primary(NoteGrid &grid, InstrumentState &
 				break;
 			}
 		}
-		if (!primary.active || primary.midi < 55 || primary.midi > 59)
+		if (!primary.active || ((primary.midi < 55 || primary.midi > 59) && primary.midi != 48))
 			continue;
 
 		const int lower_midi = primary.midi - 12;
@@ -9273,8 +9273,15 @@ void prefer_probe_supported_lower_bass_primary(NoteGrid &grid, InstrumentState &
 
 		const float primary_probe = probe_level(powers, primary.midi);
 		const float lower_probe = probe_level(powers, lower_midi);
-		if (primary_probe <= 1.0e-6f || lower_probe < primary_probe * 0.020f ||
-		    lower_probe > primary_probe * 0.18f)
+		const bool measured_slap_c2_alias =
+			primary.midi == 48 &&
+			lower_probe >= primary_probe * 0.065f &&
+			lower_probe <= primary_probe * 0.105f;
+		const bool measured_high_alias =
+			primary.midi >= 55 && primary.midi <= 59 &&
+			lower_probe >= primary_probe * 0.020f &&
+			lower_probe <= primary_probe * 0.18f;
+		if (primary_probe <= 1.0e-6f || (!measured_high_alias && !measured_slap_c2_alias))
 			continue;
 
 		bool supported_primary = false;
@@ -9284,9 +9291,17 @@ void prefer_probe_supported_lower_bass_primary(NoteGrid &grid, InstrumentState &
 				continue;
 			if (!full_mix_debug_bass_display_supported(debug))
 				continue;
-			if (debug.ownership_confidence < 0.95f || debug.pitch_confidence < 0.70f ||
-			    debug.periodicity < 0.85f)
-				continue;
+			if (measured_slap_c2_alias) {
+				if (debug.ownership_confidence < 0.70f ||
+				    debug.ownership_confidence > 0.76f ||
+				    debug.pitch_confidence < 0.55f ||
+				    debug.periodicity < 0.60f)
+					continue;
+			} else {
+				if (debug.ownership_confidence < 0.95f || debug.pitch_confidence < 0.70f ||
+				    debug.periodicity < 0.85f)
+					continue;
+			}
 			supported_primary = true;
 			break;
 		}
