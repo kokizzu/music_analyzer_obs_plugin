@@ -8888,7 +8888,7 @@ void suppress_named_owned_same_pitch_vocal_shadows(NoteGrid &vocal_grid, Instrum
 {
 	static constexpr float kMinOwnerScore = 0.24f;
 	static constexpr float kMaxVocalToOwnerScoreRatio = 0.15f;
-	static constexpr float kMinVocalLevel = 0.05f;
+	static constexpr float kMinVocalLevel = 0.04f;
 	static constexpr float kMinOwnerLevel = 0.20f;
 	static constexpr float kMaxVocalToOwnerLevelRatio = 0.72f;
 
