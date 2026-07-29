@@ -646,14 +646,15 @@ std::string full_mix_debug_line(const mao::AnalysisSnapshot &snapshot, int expec
 	return line.str();
 }
 
-std::string grid_debug_label(const mao::NoteGrid &grid)
+std::string grid_debug_label(const mao::NoteGrid &grid, bool visual = false)
 {
 	std::array<float, mao::kNoteProbeCount> levels = {};
 	auto append_cell = [&](const mao::NoteCell &cell) {
 		if (!cell.active || cell.midi < mao::kFirstAnalyzedMidi || cell.midi > mao::kLastAnalyzedMidi)
 			return;
 		const std::size_t index = static_cast<std::size_t>(cell.midi - mao::kFirstAnalyzedMidi);
-		levels[index] = std::max(levels[index], cell.level);
+		const float level = visual ? note_cell_visual_level(cell) : cell.level;
+		levels[index] = std::max(levels[index], level);
 	};
 
 	for (const mao::NoteCell &cell : grid.cells)
@@ -699,6 +700,13 @@ void check_grid_debug_label(Runner &runner)
 		debug_note_label(midi) + ":0.75," + debug_note_label(octave_midi) + ":0.60";
 	runner.expect(grid_debug_label(grid) == expected,
 		      "grid debug label should de-duplicate summary cells while preserving octaves");
+	grid.rows[0][static_cast<std::size_t>(pitch_class)].visual_level = 0.20f;
+	grid.rows[1][static_cast<std::size_t>(pitch_class)].visual_level = 0.10f;
+	grid.cells[static_cast<std::size_t>(pitch_class)].visual_level = 0.90f;
+	const std::string visual_expected =
+		debug_note_label(midi) + ":0.90," + debug_note_label(octave_midi) + ":0.10";
+	runner.expect(grid_debug_label(grid, true) == visual_expected,
+		      "visual grid debug label should use visual levels while preserving octaves");
 }
 
 std::string snapshot_note_debug_line(const mao::AnalysisSnapshot &snapshot, int expected_midi = -1)
@@ -946,6 +954,8 @@ void print_attribute_header(std::ostream &out)
 	    << "\tbass_visual_level\tguitar_visual_level\tpiano_visual_level\tvocal_visual_level"
 	    << "\tother_visual_level\tamb_visual_level"
 	    << "\tbass_notes\tguitar_notes\tpiano_notes\tvocal_notes\tother_notes\tamb_notes"
+	    << "\tbass_visual_notes\tguitar_visual_notes\tpiano_visual_notes\tvocal_visual_notes"
+	    << "\tother_visual_notes\tamb_visual_notes"
 	    << "\tglobal_chord\tkeyboard_chord\tguitar_chord\tother_chord"
 	    << "\traw_expected_peak\traw_expected_ratio\traw_tuned_peak\traw_tuned_ratio"
 	    << "\traw_tuned_cent_offset\traw_tuned_abs_cent_offset"
@@ -1029,6 +1039,12 @@ void append_attribute_row(std::vector<std::string> &lines, const SampleRow &row,
 	append_tsv(line, grid_debug_label(snapshot.vocal_notes));
 	append_tsv(line, grid_debug_label(snapshot.other_notes));
 	append_tsv(line, grid_debug_label(snapshot.ambiguous_notes));
+	append_tsv(line, grid_debug_label(snapshot.bass_notes, true));
+	append_tsv(line, grid_debug_label(snapshot.guitar_notes, true));
+	append_tsv(line, grid_debug_label(snapshot.keyboard_notes, true));
+	append_tsv(line, grid_debug_label(snapshot.vocal_notes, true));
+	append_tsv(line, grid_debug_label(snapshot.other_notes, true));
+	append_tsv(line, grid_debug_label(snapshot.ambiguous_notes, true));
 	append_tsv(line, snapshot.global_chord.label);
 	append_tsv(line, snapshot.keyboard_chord.label);
 	append_tsv(line, snapshot.guitar_chord.label);

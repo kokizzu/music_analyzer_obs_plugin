@@ -44,6 +44,14 @@ ROW_NOTE_FIELDS = {
     "vocals": "vocal_notes",
     "other": "other_notes",
 }
+
+ROW_VISUAL_NOTE_FIELDS = {
+    "bass": "bass_visual_notes",
+    "guitar": "guitar_visual_notes",
+    "piano": "piano_visual_notes",
+    "vocals": "vocal_visual_notes",
+    "other": "other_visual_notes",
+}
 ROW_NAMES = tuple(ROW_NOTE_FIELDS)
 
 ROW_SCORE_FIELDS = {
@@ -107,7 +115,8 @@ def parse_note_cells(value: str) -> list[tuple[int, float]]:
 
 
 def exact_level(row: dict[str, str], row_name: str, midi: int) -> float:
-    field = ROW_NOTE_FIELDS[row_name]
+    visual_field = ROW_VISUAL_NOTE_FIELDS[row_name]
+    field = visual_field if visual_field in row else ROW_NOTE_FIELDS[row_name]
     return max((level for candidate_midi, level in parse_note_cells(row.get(field, "")) if candidate_midi == midi), default=0.0)
 
 

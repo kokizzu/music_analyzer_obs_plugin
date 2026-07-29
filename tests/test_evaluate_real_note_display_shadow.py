@@ -51,6 +51,11 @@ HEADER = [
     "piano_notes",
     "vocal_notes",
     "other_notes",
+    "bass_visual_notes",
+    "guitar_visual_notes",
+    "piano_visual_notes",
+    "vocal_visual_notes",
+    "other_visual_notes",
 ]
 
 
@@ -97,6 +102,15 @@ def row(**overrides: str) -> list[str]:
         }
     )
     values.update(overrides)
+    for visual_field, note_field in (
+        ("bass_visual_notes", "bass_notes"),
+        ("guitar_visual_notes", "guitar_notes"),
+        ("piano_visual_notes", "piano_notes"),
+        ("vocal_visual_notes", "vocal_notes"),
+        ("other_visual_notes", "other_notes"),
+    ):
+        if visual_field not in overrides:
+            values[visual_field] = values[note_field]
     return [values[name] for name in HEADER]
 
 
@@ -294,6 +308,29 @@ def main() -> int:
                 piano_notes="",
                 vocal_notes="",
                 other_notes="",
+            ),
+            row(
+                sample_id="hidden_measured_guitar_bass_shadow",
+                family="piano",
+                source="electronic",
+                expected_note="A3",
+                expected_midi="57",
+                first_row="guitar",
+                debug_note="A3",
+                debug_midi="57",
+                debug_owner="guitar",
+                bass_score="0.00",
+                keyboard_score="0.00",
+                guitar_score="0.30",
+                vocal_score="0.00",
+                other_score="0.00",
+                bass_notes="A3:0.68",
+                guitar_notes="A3:1.00",
+                piano_notes="",
+                vocal_notes="",
+                other_notes="",
+                bass_visual_notes="",
+                guitar_visual_notes="A3:1.00",
             ),
         ]
         path.write_text(
