@@ -319,6 +319,7 @@ def main() -> int:
     assert "miss_reason" in dumped.stdout.splitlines()[0]
     assert "expected_row_exact_level" in dumped.stdout.splitlines()[0]
     assert "bass_score" in dumped.stdout.splitlines()[0]
+    assert "partial2" in dumped.stdout.splitlines()[0]
     assert "visual_first_row" in dumped.stdout.splitlines()[0]
     assert "buffer_visual_strongest_row" in dumped.stdout.splitlines()[0]
     assert "piano_visual_level" in dumped.stdout.splitlines()[0]
@@ -327,6 +328,7 @@ def main() -> int:
     assert "\t0.00\t1.00\t0.60\t0.00\t0.00\t0.00\t0.00\t0.35\t0.95\t" in dumped.stdout
     assert "\tscored_owner\t0\t0\townership\t" in dumped.stdout
     assert "\townership\t0.600\t0.600\t0\t1.000\t1.000\t0\t2\t2\t" in dumped.stdout
+    assert "\t0.02\t\t1.00\t0.60\t0.10\t0.05\t0.02\t" in dumped.stdout
     assert "reed_1" not in dumped.stdout
     assert "\nreed_1\thit\tother\tacoustic\tA4" in family_filtered.stdout
     assert "keyboard_1" not in family_filtered.stdout

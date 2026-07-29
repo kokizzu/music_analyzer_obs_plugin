@@ -530,6 +530,14 @@ def score_cells(row: dict[str, str]) -> str:
     )
 
 
+def partial_cells(row: dict[str, str]) -> str:
+    return ",".join(
+        f"p{index}:{num(row, f'partial{index}')}"
+        for index in range(1, 6)
+        if row.get(f"partial{index}", "") != ""
+    )
+
+
 def note_cells(row: dict[str, str]) -> str:
     fields = (
         ("bass", "bass_notes"),
@@ -697,6 +705,7 @@ def report_real_note_rows(path: pathlib.Path, row_limit: int) -> None:
             f"notes={note_cells(row)} "
             f"scores={score_cells(row)} pitch={num(row, 'pitch_confidence')} "
             f"periodic={num(row, 'periodicity')} fit={num(row, 'fit_error')} "
+            f"partials={partial_cells(row)} "
             f"sample={cell(row, 'sample_id')}"
         )
 

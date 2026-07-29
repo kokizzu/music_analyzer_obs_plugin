@@ -31,10 +31,10 @@ note	miss	guitar	E3	52	guitar.wav	E4	64	12	E3	52	0	E3	piano	0	0	0.8	0.2	0	0	0	--
         real_note = write(
             root / "real.tsv",
             """
-sample_id	status	family	source	expected_note	expected_midi	first_row	buffer	row_label	buffer_strongest_row	debug_note	debug_delta	debug_owner	bass_level	guitar_level	piano_level	vocal_level	other_level	amb_level	bass_notes	guitar_notes	piano_notes	vocal_notes	other_notes	amb_notes	raw_expected_ratio	raw_tuned_ratio	raw_tuned_abs_cent_offset	raw_expected_rank	keyboard_score	guitar_score	vocal_score	other_score	pitch_confidence	periodicity	fit_error
-s1	hit	guitar	acoustic	E3	52	guitar	0	E3	guitar	E3	0	guitar	0	0.9	0.1	0	0	0	--	E3:0.9	--	--	--	--	1	1	0	1	0.1	0.9	0	0	0.9	0.8	0.1
-s2	ownership_miss	piano	electronic	C4	60	bass	1	C4	bass	C4	0	guitar	0.8	0.2	0.4	0	0	0	C4:0.8	C4:0.2	C4:0.4	--	--	--	1	1	0	1	0.4	0.6	0	0	0.8	0.7	0.1
-s3	hit	bass	electric	E2	40	bass	0	E2	bass	E3	12	bass	0.9	0.2	0.1	0	0	0	E2:0.9	E2:0.3	--	--	--	--	1	1	0	1	0.1	0.2	0	0	0.9	0.8	0.1
+sample_id	status	family	source	expected_note	expected_midi	first_row	buffer	row_label	buffer_strongest_row	debug_note	debug_delta	debug_owner	bass_level	guitar_level	piano_level	vocal_level	other_level	amb_level	bass_notes	guitar_notes	piano_notes	vocal_notes	other_notes	amb_notes	raw_expected_ratio	raw_tuned_ratio	raw_tuned_abs_cent_offset	raw_expected_rank	keyboard_score	guitar_score	vocal_score	other_score	pitch_confidence	periodicity	fit_error	partial1	partial2	partial3	partial4	partial5
+s1	hit	guitar	acoustic	E3	52	guitar	0	E3	guitar	E3	0	guitar	0	0.9	0.1	0	0	0	--	E3:0.9	--	--	--	--	1	1	0	1	0.1	0.9	0	0	0.9	0.8	0.1	1	0.42	0.20	0.08	0.04
+s2	ownership_miss	piano	electronic	C4	60	bass	1	C4	bass	C4	0	guitar	0.8	0.2	0.4	0	0	0	C4:0.8	C4:0.2	C4:0.4	--	--	--	1	1	0	1	0.4	0.6	0	0	0.8	0.7	0.1	1	0.25	0.11	0.03	0.01
+s3	hit	bass	electric	E2	40	bass	0	E2	bass	E3	12	bass	0.9	0.2	0.1	0	0	0	E2:0.9	E2:0.3	--	--	--	--	1	1	0	1	0.1	0.2	0	0	0.9	0.8	0.1	1	0.36	0.18	0.07	0.02
             """,
         )
         guitar = write(
@@ -120,6 +120,7 @@ kick.wav	kick	kick	0.9	0.1	0.0	0.9	0.1	0.1	0.1	0.1	1	0	0	0	0	0	0	0.9	0.4	0	0	0	0
         "debug=exact=1 owners=guitar=1"
     ) in output
     assert "ownership_miss piano/electronic expected=C4/60 first=bass" in output
+    assert "partials=p1:1,p2:0.25,p3:0.11,p4:0.03,p5:0.01 sample=s2" in output
     assert "measured guitar chord rows" in output
     assert "maj chord_hit=1/1 100.0%" in output
     assert "m chord_hit=0/1 0.0%" in output
