@@ -208,6 +208,15 @@ def main() -> int:
             "guitar_primary_order: rows=8 primary_misses=5 expected_later=4 "
             "score_promotable=1 cpp_promotable=0"
         ) in output
+        assert "primary_miss_quality_buckets:" in output
+        assert "expected=min primary=plain_major root=different_root=1" in output
+        assert "expected=maj7 primary=plain_major root=same_root=1" in output
+        assert "primary_miss_evidence_buckets:" in output
+        assert "match=-- evidence=--/--=5" in output
+        assert "primary_miss_tone_buckets:" in output
+        assert "visible=-- analysis=-- smooth=--=5" in output
+        assert "primary_miss_root_buckets:" in output
+        assert "rootvis=-- display=-- raw=-- smooth=--=5" in output
         assert "gap=0.125 expected=Am primary=C" in output
         assert "invalid_power_minor" not in output
     print("test_analyze_guitar_primary_order: ok")

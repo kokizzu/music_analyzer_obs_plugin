@@ -1581,8 +1581,8 @@ analyze-guitar-chord-mix-attributes: $(BUILD_DIR)/guitar_chord_mix_attributes.ts
 analyze-guitar-chord-mix-recovery: $(BUILD_DIR)/guitar_chord_mix_attributes.tsv scripts/analyze_guitar_chord_recovery.py
 	$(PYTHON) scripts/analyze_guitar_chord_recovery.py "$(BUILD_DIR)/guitar_chord_mix_attributes.tsv" $(RECOVERY_ARGS)
 
-analyze-guitar-chord-primary-order: $(BUILD_DIR)/guitar_chord_mix_attributes.tsv scripts/analyze_guitar_primary_order.py
-	$(PYTHON) scripts/analyze_guitar_primary_order.py "$(BUILD_DIR)/guitar_chord_mix_attributes.tsv" $(PRIMARY_ORDER_ARGS)
+analyze-guitar-chord-primary-order: $(GUITAR_CHORD_DETECTED_ATTRIBUTE_ROWS) scripts/analyze_guitar_primary_order.py
+	$(PYTHON) scripts/analyze_guitar_primary_order.py "$(GUITAR_CHORD_DETECTED_ATTRIBUTE_ROWS)" $(PRIMARY_ORDER_ARGS)
 
 analyze-guitar-chord-mix-extra-components: $(BUILD_DIR)/guitar_chord_mix_attributes.tsv scripts/analyze_guitar_chord_extra_components.py
 	$(PYTHON) scripts/analyze_guitar_chord_extra_components.py "$(BUILD_DIR)/guitar_chord_mix_attributes.tsv" $(EXTRA_COMPONENT_ARGS)

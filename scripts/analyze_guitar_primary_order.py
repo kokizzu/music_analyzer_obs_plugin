@@ -154,6 +154,53 @@ def primary_component(value: str) -> str:
     return components[0] if components else "--"
 
 
+def component_root_pc(label: str) -> int | None:
+    root_name = chord_root(label)
+    return NOTE_TO_PC.get(root_name)
+
+
+def primary_quality_bucket(label: str) -> str:
+    if not label or label == "--":
+        return "none"
+    quality = chord_quality(label)
+    if quality == "":
+        return "plain_major"
+    if quality == "m":
+        return "plain_minor"
+    if quality == "pow":
+        return "power"
+    if quality in {"sus2", "sus4"}:
+        return "sus"
+    if quality in {"dim", "dim7", "m7b5", "aug"}:
+        return "altered"
+    return "extension"
+
+
+def root_relation(expected: set[str], primary: str) -> str:
+    primary_root = component_root_pc(primary)
+    if primary_root is None:
+        return "no_primary"
+    expected_roots = {component_root_pc(label) for label in expected}
+    expected_roots.discard(None)
+    if primary_root in expected_roots:
+        return "same_root"
+    return "different_root"
+
+
+def compact_value(value: str | None, fallback: str = "--") -> str:
+    value = value if value not in (None, "") else fallback
+    return str(value).replace(" ", "_")
+
+
+def print_counter(title: str, counter: collections.Counter[str], limit: int) -> None:
+    print(title)
+    if not counter:
+        print("  --")
+        return
+    for key, value in counter.most_common(limit):
+        print(f"  {key}={value}")
+
+
 def pitch_classes(value: str) -> set[int]:
     if not value or value == "--":
         return set()
@@ -800,13 +847,57 @@ def main() -> int:
     score_gaps: list[float] = []
     likely_promotable = []
     cpp_promotable = []
+    miss_quality_buckets: collections.Counter[str] = collections.Counter()
+    miss_evidence_buckets: collections.Counter[str] = collections.Counter()
+    miss_tone_buckets: collections.Counter[str] = collections.Counter()
+    miss_root_buckets: collections.Counter[str] = collections.Counter()
 
     for row in chord_rows:
         expected = expected_labels(row.get("expected_chords", ""))
         components = split_components(row.get("guitar_chord", ""))
-        if not components or components[0] in expected:
+        primary = components[0] if components else "--"
+        if not components or primary in expected:
             continue
         primary_misses.append(row)
+        expected_quality = compact_value(
+            row.get("expected_quality_compact")
+            or row.get("quality")
+            or row.get("expected_chord_qualities")
+        )
+        miss_quality_buckets[
+            "expected="
+            + expected_quality
+            + " primary="
+            + primary_quality_bucket(primary)
+            + " root="
+            + root_relation(expected, primary)
+        ] += 1
+        miss_evidence_buckets[
+            "match="
+            + compact_value(row.get("guitar_match_kind"))
+            + " evidence="
+            + compact_value(row.get("evidence_class"))
+            + "/"
+            + compact_value(row.get("evidence_source"))
+        ] += 1
+        miss_tone_buckets[
+            "visible="
+            + compact_value(row.get("visible_missing_tones"))
+            + " analysis="
+            + compact_value(row.get("analysis_missing_tones"))
+            + " smooth="
+            + compact_value(row.get("smooth_missing_tones"))
+        ] += 1
+        miss_root_buckets[
+            "rootvis="
+            + compact_value(row.get("expected_root_in_display"))
+            + " display="
+            + compact_value(row.get("expected_label_in_display"))
+            + " raw="
+            + compact_value(row.get("expected_label_in_raw"))
+            + " smooth="
+            + compact_value(row.get("expected_label_in_smooth"))
+        ] += 1
         if not expected & set(components):
             continue
         expected_later.append(row)
@@ -865,6 +956,10 @@ def main() -> int:
         f"score_promotable={len(likely_promotable)}",
         f"cpp_promotable={len(cpp_promotable)}",
     )
+    print_counter("primary_miss_quality_buckets:", miss_quality_buckets, args.examples)
+    print_counter("primary_miss_evidence_buckets:", miss_evidence_buckets, args.examples)
+    print_counter("primary_miss_tone_buckets:", miss_tone_buckets, args.examples)
+    print_counter("primary_miss_root_buckets:", miss_root_buckets, args.examples)
     if score_gaps:
         buckets = collections.Counter()
         for gap in score_gaps:
