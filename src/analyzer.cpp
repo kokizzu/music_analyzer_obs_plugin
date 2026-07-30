@@ -12848,6 +12848,61 @@ void prune_crowded_guitar_chord_label(ChordResult &chord, bool strict_plain_only
 		copy_text(chord.label, sizeof(chord.label), filtered);
 }
 
+void prune_crowded_guitar_display_label(InstrumentState &state)
+{
+	if (!state.label[0] || state.label[0] == '-' ||
+	    chord_label_component_count(state.label) < kGuitarChordCrowdedPruneMinComponents)
+		return;
+
+	const std::size_t primary_len = std::strcspn(state.label, "=");
+	unsigned int primary_mask = 0;
+	const bool have_primary_mask = chord_component_pitch_mask(state.label, primary_len, primary_mask);
+	std::array<bool, 12> plain_roots = {};
+
+	const char *scan = state.label;
+	while (scan && *scan) {
+		const char *end = std::strchr(scan, '=');
+		const std::size_t len =
+			end ? static_cast<std::size_t>(end - scan) : std::strlen(scan);
+		ParsedRootChord component;
+		if (chord_component_plain_major_minor(scan, len) &&
+		    parse_root_chord_component(scan, len, component))
+			plain_roots[static_cast<std::size_t>(component.root)] = true;
+
+		if (!end)
+			break;
+		scan = end + 1;
+	}
+
+	char filtered[sizeof(state.label)] = {};
+	const char *cursor = state.label;
+	bool first_component = true;
+	while (cursor && *cursor) {
+		const char *end = std::strchr(cursor, '=');
+		const std::size_t len =
+			end ? static_cast<std::size_t>(end - cursor) : std::strlen(cursor);
+		unsigned int component_mask = 0;
+		const bool have_component_mask = chord_component_pitch_mask(cursor, len, component_mask);
+		ParsedRootChord component;
+		const bool have_component = parse_root_chord_component(cursor, len, component);
+		const bool same_root_as_plain =
+			have_component && plain_roots[static_cast<std::size_t>(component.root)];
+		const bool keep = first_component || chord_component_plain_major_minor(cursor, len) ||
+				  same_root_as_plain ||
+				  (have_primary_mask && have_component_mask && component_mask == primary_mask);
+		if (keep)
+			append_chord_label_component(filtered, sizeof(filtered), cursor, len);
+
+		if (!end)
+			break;
+		cursor = end + 1;
+		first_component = false;
+	}
+
+	if (filtered[0])
+		copy_text(state.label, sizeof(state.label), filtered);
+}
+
 bool parse_plain_major_minor_component(const char *start, std::size_t len, ParsedRootChord &parsed)
 {
 	if (!parse_root_chord_component(start, len, parsed) ||
@@ -21222,6 +21277,7 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 				snapshot.guitar_chord, snapshot.guitar_notes,
 				snapshot.guitar_chord_analysis_notes, detection_note_powers,
 				kGuitarMinMidi, kGuitarMaxMidi);
+		prune_crowded_guitar_display_label(snapshot.guitar_chord);
 	} else {
 		reset_note_grid_envelope(snapshot.guitar_notes, snapshot.guitar, guitar_note_tracking_);
 		reset_note_grid_envelope(guitar_chord_grid, guitar_chord_note_state, guitar_chord_note_tracking_);
