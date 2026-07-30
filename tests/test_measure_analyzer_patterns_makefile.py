@@ -367,8 +367,8 @@ def main() -> int:
         "detector improvement workflow must generate clean measured attribute and pattern reports"
     )
     detector_improvement_full_recipe = target_recipe(makefile, "analyze-detector-improvements-full")
-    assert "$(MAKE) test-real-world-samples-max-parallel" in detector_improvement_full_recipe, (
-        "full detector improvement workflow must reuse the max real-world parallel gate"
+    assert "$(MAKE) test-detector-samples-full-parallel" in detector_improvement_full_recipe, (
+        "full detector improvement workflow must reuse the full parallel detector sample gate"
     )
     assert "$(MAKE) -s measure-analyzer-patterns-full" in detector_improvement_full_recipe, (
         "full detector improvement workflow must generate clean exhaustive pattern reports"

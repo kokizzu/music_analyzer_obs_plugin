@@ -99,6 +99,10 @@ NUMERIC_FIELDS = [
     "ride",
     "rim",
     "debug_conf",
+    "onset_strength",
+    "decay_rate",
+    "pitch_stability",
+    "simultaneous_onset",
     "bass_score",
     "keyboard_score",
     "guitar_score",
@@ -146,6 +150,10 @@ CONTEXT_SUMMARY_FIELDS = [
 
 SUMMARY_FIELDS = [
     "debug_conf",
+    "onset_strength",
+    "decay_rate",
+    "pitch_stability",
+    "simultaneous_onset",
     "bass_score",
     "keyboard_score",
     "guitar_score",
@@ -173,6 +181,10 @@ SUMMARY_FIELDS = [
 
 SAMPLE_FIELDS = [
     "debug_conf",
+    "onset_strength",
+    "decay_rate",
+    "pitch_stability",
+    "simultaneous_onset",
     "bass_score",
     "keyboard_score",
     "guitar_score",

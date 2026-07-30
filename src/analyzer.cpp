@@ -1264,6 +1264,10 @@ void append_full_mix_debug_candidate(FullMixOwnership &ownership, const NoteCand
 	debug.midi = candidate.midi;
 	debug.owner = owner;
 	debug.ownership_confidence = evidence.ownership_confidence;
+	debug.onset_strength = evidence.onset_strength;
+	debug.decay_rate = evidence.decay_rate;
+	debug.pitch_stability = evidence.pitch_stability;
+	debug.simultaneous_onset = evidence.simultaneous_onset;
 	debug.bass_score = evidence.ownership_scores[static_cast<std::size_t>(InstrumentKind::Bass)];
 	debug.keyboard_score = evidence.ownership_scores[static_cast<std::size_t>(InstrumentKind::Keyboard)];
 	debug.guitar_score = evidence.ownership_scores[static_cast<std::size_t>(InstrumentKind::Guitar)];

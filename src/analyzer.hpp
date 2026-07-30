@@ -99,6 +99,10 @@ struct FullMixDebugCandidate {
 	int midi = -1;
 	InstrumentKind owner = InstrumentKind::Ambiguous;
 	float ownership_confidence = 0.0f;
+	float onset_strength = 0.0f;
+	float decay_rate = 0.0f;
+	float pitch_stability = 0.0f;
+	float simultaneous_onset = 0.0f;
 	float bass_score = 0.0f;
 	float keyboard_score = 0.0f;
 	float guitar_score = 0.0f;

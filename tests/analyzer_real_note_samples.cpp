@@ -965,6 +965,7 @@ void print_attribute_header(std::ostream &out)
 	    << "\traw_upper_fifth_ratio\traw_third_octave_up_ratio"
 	    << "\trms\tlow\tmid\thigh\tkick\tsnare\thihat\tcrash\ttom\tride\trim"
 	    << "\tdebug_note\tdebug_midi\tdebug_owner\tdebug_conf"
+	    << "\tonset_strength\tdecay_rate\tpitch_stability\tsimultaneous_onset"
 	    << "\tbass_score\tkeyboard_score\tguitar_score\tvocal_score\tother_score"
 	    << "\tspectral_level\tpitch_confidence\tperiodicity\tharmonicity\tfit_error"
 	    << "\tcentroid\tslope\tnoise\tthird_octave_ratio"
@@ -974,7 +975,7 @@ void print_attribute_header(std::ostream &out)
 void append_debug_candidate_fields(std::ostringstream &line, const mao::FullMixDebugCandidate *debug)
 {
 	if (!debug) {
-		for (int i = 0; i < 23; ++i)
+		for (int i = 0; i < 27; ++i)
 			append_tsv(line, "");
 		return;
 	}
@@ -983,6 +984,10 @@ void append_debug_candidate_fields(std::ostringstream &line, const mao::FullMixD
 	append_tsv(line, debug->midi);
 	append_tsv(line, instrument_kind_name(debug->owner));
 	append_tsv(line, debug->ownership_confidence);
+	append_tsv(line, debug->onset_strength);
+	append_tsv(line, debug->decay_rate);
+	append_tsv(line, debug->pitch_stability);
+	append_tsv(line, debug->simultaneous_onset);
 	append_tsv(line, debug->bass_score);
 	append_tsv(line, debug->keyboard_score);
 	append_tsv(line, debug->guitar_score);

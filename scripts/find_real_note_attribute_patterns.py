@@ -21,6 +21,10 @@ from inspect_real_note_attribute_buckets import derive_row as derive_real_note_r
 DEBUG_NUMERIC_FIELDS = [
     "debug_midi",
     "debug_conf",
+    "onset_strength",
+    "decay_rate",
+    "pitch_stability",
+    "simultaneous_onset",
     "bass_score",
     "keyboard_score",
     "guitar_score",
