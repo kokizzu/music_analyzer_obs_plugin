@@ -1580,7 +1580,7 @@ analyze-real-note-attributes: $(BUILD_DIR)/real_note_full_mix_attributes.tsv scr
 	@printf '%s\n' "attribute TSV: $(BUILD_DIR)/real_note_full_mix_attributes.tsv"
 
 inspect-real-note-attribute-buckets: $(BUILD_DIR)/real_note_full_mix_attributes.tsv scripts/inspect_real_note_attribute_buckets.py
-	$(PYTHON) scripts/inspect_real_note_attribute_buckets.py "$(BUILD_DIR)/real_note_full_mix_attributes.tsv" $(INSPECT_ARGS)
+	$(PYTHON) scripts/inspect_real_note_attribute_buckets.py "$(BUILD_DIR)/real_note_full_mix_attributes.tsv" $(if $(INSPECT_BUCKET),--bucket "$(INSPECT_BUCKET)") $(INSPECT_ARGS)
 
 find-real-note-attribute-patterns: $(BUILD_DIR)/real_note_full_mix_attributes.tsv scripts/find_real_note_attribute_patterns.py
 	$(PYTHON) scripts/find_real_note_attribute_patterns.py "$(BUILD_DIR)/real_note_full_mix_attributes.tsv" $(if $(PATTERN_BUCKET),--bucket "$(PATTERN_BUCKET)") --jobs "$(REAL_NOTE_PATTERN_JOBS)" $(PATTERN_ARGS)

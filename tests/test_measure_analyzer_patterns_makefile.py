@@ -1152,6 +1152,10 @@ def main() -> int:
         assert "if [ ! -f" not in shortcut_recipe, (
             f"{target} must use Make timestamp checks, not existence-only TSV refresh"
         )
+    real_note_inspect_recipe = target_recipe(makefile, "inspect-real-note-attribute-buckets")
+    assert '$(if $(INSPECT_BUCKET),--bucket "$(INSPECT_BUCKET)")' in real_note_inspect_recipe, (
+        "real-note bucket inspection must accept bucket names through INSPECT_BUCKET"
+    )
 
     rows_recipe = target_recipe(makefile, "measure-analyzer-attribute-rows")
     assert rows_recipe.splitlines()[0] == "measure-analyzer-attribute-rows:", (
