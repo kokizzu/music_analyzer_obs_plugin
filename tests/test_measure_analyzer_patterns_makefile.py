@@ -186,6 +186,12 @@ def main() -> int:
             assert env_name in recipe_text, f"{target} must enforce {env_name}"
             assert var_name in recipe_text, f"{target} must use {var_name}"
 
+    assert "ONLINE_CPU_COUNT := $(or $(shell nproc 2>/dev/null)" in makefile, (
+        "parallel test defaults must derive the online CPU count"
+    )
+    assert "PARALLEL_TEST_JOBS ?= $(ONLINE_CPU_COUNT)" in makefile, (
+        "parallel test job count must remain overrideable while defaulting to online CPUs"
+    )
     assert "PARALLEL_TEST_MAKE_JOBS = $(if $(filter -j%,$(MAKEFLAGS)),,-j$(PARALLEL_TEST_JOBS))" in makefile, (
         "parallel aggregate targets must reuse an inherited GNU make jobserver"
     )
