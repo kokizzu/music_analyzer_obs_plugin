@@ -290,7 +290,7 @@ def is_plain_major_minor(label: str) -> bool:
     return parsed is not None and parsed[1] in ("", "m")
 
 
-def prune_labels(labels: list[str], policy: str) -> list[str]:
+def prune_labels(labels: list[str], policy: str, row: dict[str, str] | None = None) -> list[str]:
     if not labels:
         return []
     if policy == "none":
@@ -307,6 +307,12 @@ def prune_labels(labels: list[str], policy: str) -> list[str]:
             keep = same_pitch_set(label, primary) or is_plain_major_minor(label)
         elif policy == "primary-same-root-equivalent":
             keep = same_root(label, primary) or same_pitch_set(label, primary)
+        elif policy == "observed-playable":
+            keep = row is not None and observed_playability(label, row) != "unsupported"
+        elif policy == "primary-equivalent-observed-playable":
+            keep = same_pitch_set(label, primary) or (
+                row is not None and observed_playability(label, row) != "unsupported"
+            )
         else:
             raise ValueError(f"unknown prune policy: {policy}")
         if keep and label not in pruned:
@@ -349,7 +355,7 @@ def summarize_prune_policy(rows: list[dict[str, str]], policy: str, examples: in
     for row in rows:
         expected = split_labels(row.get("expected_chords", ""))
         detected = split_labels(row.get("guitar_chord", ""))
-        pruned = prune_labels(detected, policy)
+        pruned = prune_labels(detected, policy, row)
         current_hit = chord_hit(detected, expected)
         pruned_hit = chord_hit(pruned, expected)
         current_hits += int(current_hit)
@@ -543,6 +549,8 @@ def main() -> int:
             "primary-equivalent",
             "primary-equivalent-plain",
             "primary-same-root-equivalent",
+            "observed-playable",
+            "primary-equivalent-observed-playable",
         ),
         default=[],
         help="append simulated post-detection guitar chord label pruning metrics",
