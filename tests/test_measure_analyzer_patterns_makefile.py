@@ -1025,6 +1025,21 @@ def main() -> int:
         "MUSIC_ANALYZER_GUITARSET_MIN_CHORD_HITS=0",
     ]:
         assert text in makefile, f"GuitarSet shard gate must include {text}"
+    egfxset_shard_recipe = target_recipe(makefile, "test-egfxset-guitar-samples-shard-%")
+    for text in [
+        "MUSIC_ANALYZER_GUITARSET_REQUIRED_EXCERPTS=1",
+        "MUSIC_ANALYZER_GUITARSET_REQUIRED_WINDOWS=1",
+    ]:
+        assert text in egfxset_shard_recipe, (
+            f"EGFXSET shard target must keep per-shard coverage gate permissive: {text}"
+        )
+    for text in [
+        'MUSIC_ANALYZER_GUITARSET_REQUIRED_EXCERPTS="$(EGFXSET_GUITAR_MIN_EXCERPTS)"',
+        'MUSIC_ANALYZER_GUITARSET_REQUIRED_WINDOWS="$(EGFXSET_GUITAR_MIN_WINDOWS)"',
+    ]:
+        assert text not in egfxset_shard_recipe, (
+            f"EGFXSET shard target must leave aggregate coverage gate to the parent checker: {text}"
+        )
     detector_regression_recipe = target_recipe(makefile, "test-detector-samples-parallel")
     assert "\n\t+$(RUN_WITH_DURATION) detector_samples_parallel" in detector_regression_recipe, (
         "detector sample regression target must preserve the make jobserver through the duration wrapper"
