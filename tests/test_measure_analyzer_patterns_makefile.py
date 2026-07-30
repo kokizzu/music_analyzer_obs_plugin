@@ -1622,6 +1622,57 @@ def main() -> int:
         "MAPS piano archive target must resume downloads into a partial file"
     )
 
+    assert "GUITARSET_ANNOTATION_ARCHIVE ?= $(GUITARSET_SOURCE_DIR)/annotation.zip" in makefile, (
+        "downloaded GuitarSet annotation archive must have a named cache path"
+    )
+    assert "GUITARSET_AUDIO_ARCHIVE ?= $(GUITARSET_SOURCE_DIR)/audio_mono-mic.zip" in makefile, (
+        "downloaded GuitarSet audio archive must have a named cache path"
+    )
+    assert "$(GUITARSET_ANNOTATION_ARCHIVE)" in makefile and "$(GUITARSET_AUDIO_ARCHIVE)" in makefile, (
+        "downloaded GuitarSet archives must be referenced through named variables"
+    )
+    assert re.search(
+        r"^download-guitarset-samples: .*\$\(GUITARSET_ANNOTATION_ARCHIVE\) \$\(GUITARSET_AUDIO_ARCHIVE\)",
+        makefile,
+        re.MULTILINE,
+    ), (
+        "downloaded GuitarSet target must depend on validated archive targets"
+    )
+    assert 'curl -L -C - -o "$(GUITARSET_SOURCE_DIR)/annotation.zip"' not in makefile, (
+        "downloaded GuitarSet target must not write directly to the final annotation archive"
+    )
+    assert 'curl -L -C - -o "$(GUITARSET_SOURCE_DIR)/audio_mono-mic.zip"' not in makefile, (
+        "downloaded GuitarSet target must not write directly to the final audio archive"
+    )
+    for target, var, url in [
+        ("$(GUITARSET_ANNOTATION_ARCHIVE)", "GUITARSET_ANNOTATION_ARCHIVE", "GUITARSET_ANNOTATION_URL"),
+        ("$(GUITARSET_AUDIO_ARCHIVE)", "GUITARSET_AUDIO_ARCHIVE", "GUITARSET_AUDIO_URL"),
+    ]:
+        archive_recipe = target_recipe(makefile, target)
+        assert f"{target}: FORCE" in archive_recipe.splitlines()[0], (
+            f"{target} must revalidate existing downloads"
+        )
+        assert f'mv -f "$({var})" "$({var}).part"' in archive_recipe, (
+            f"{target} must quarantine corrupt completed zips"
+        )
+        assert f'zipfile -t "$({var}).part"' in archive_recipe, (
+            f"{target} must validate partial zips before promotion"
+        )
+        assert f'curl -fL -C - -o "$({var}).part" "$({url})"' in archive_recipe, (
+            f"{target} must resume downloads into a partial file"
+        )
+        assert f'zipfile -t "$({var})"' in archive_recipe, (
+            f"{target} must validate the final zip"
+        )
+    for target in ["prepare-downloaded-guitarset", "$(GUITARSET_MANIFEST)"]:
+        recipe = target_recipe(makefile, target)
+        assert 'zipfile -e "$(GUITARSET_ANNOTATION_ARCHIVE)"' in recipe, (
+            f"{target} must extract the validated annotation archive"
+        )
+        assert 'zipfile -e "$(GUITARSET_AUDIO_ARCHIVE)"' in recipe, (
+            f"{target} must extract the validated audio archive"
+        )
+
     patterns_full_recipe = target_recipe(makefile, "measure-analyzer-patterns-full")
     assert "measure-analyzer-attribute-rows-full" not in patterns_full_recipe, (
         "full pattern target must not regenerate legacy serial full-drum debug rows"
