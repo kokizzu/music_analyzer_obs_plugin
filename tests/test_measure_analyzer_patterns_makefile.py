@@ -399,6 +399,12 @@ def main() -> int:
     assert "$(DRUM_REAL_WORLD_SAMPLE_TARGETS)" in detector_regression_target_list, (
         "detector sample regression loop must include real-world drum sample gates"
     )
+    assert "test-drum-samples-full-parallel-optional" in detector_regression_target_list, (
+        "detector sample regression loop must include the sharded full-drum gate when local samples exist"
+    )
+    assert "test-vocadito-samples" in detector_regression_target_list, (
+        "detector sample regression loop must include the real vocal note gate"
+    )
     assert "test-instrument-samples-parallel" in detector_regression_target_list, (
         "detector sample regression loop must use the sharded generated instrument sample gate"
     )
