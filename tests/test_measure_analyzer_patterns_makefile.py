@@ -211,6 +211,26 @@ def main() -> int:
     assert "$(MAKE) $(PARALLEL_TEST_MAKE_JOBS) $(ANALYSIS_SCRIPT_TEST_TARGETS)" in analysis_scripts_recipe, (
         "analysis script parallel target must fan out through jobserver-aware make"
     )
+    detector_improvement_recipe = target_recipe(makefile, "analyze-detector-improvements")
+    assert "\n\t+$(RUN_WITH_DURATION) detector_improvement_samples" in detector_improvement_recipe, (
+        "detector improvement workflow must report the bounded sample-regression duration"
+    )
+    assert "$(MAKE) test-detector-samples-parallel" in detector_improvement_recipe, (
+        "detector improvement workflow must reuse the bounded parallel detector sample gate"
+    )
+    assert "\n\t+$(RUN_WITH_DURATION) detector_improvement_patterns" in detector_improvement_recipe, (
+        "detector improvement workflow must report the bounded pattern-analysis duration"
+    )
+    assert "$(MAKE) measure-analyzer-patterns" in detector_improvement_recipe, (
+        "detector improvement workflow must generate measured attribute and pattern reports"
+    )
+    detector_improvement_full_recipe = target_recipe(makefile, "analyze-detector-improvements-full")
+    assert "$(MAKE) test-real-world-samples-max-parallel" in detector_improvement_full_recipe, (
+        "full detector improvement workflow must reuse the max real-world parallel gate"
+    )
+    assert "$(MAKE) measure-analyzer-patterns-full" in detector_improvement_full_recipe, (
+        "full detector improvement workflow must generate exhaustive pattern reports"
+    )
     default_test_recipe = target_recipe(makefile, "test")
     assert "$(RUN_WITH_DURATION) test_fast" in default_test_recipe, (
         "default test target must report the fast parallel aggregate duration"
