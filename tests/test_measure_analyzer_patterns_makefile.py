@@ -1040,6 +1040,28 @@ def main() -> int:
         assert text not in egfxset_shard_recipe, (
             f"EGFXSET shard target must leave aggregate coverage gate to the parent checker: {text}"
         )
+    for target, aggregate_vars in {
+        "test-guitar-techs-chord-samples-shard-%": "GUITAR_TECHS_CHORD",
+        "test-gaps-guitar-samples-shard-%": "GAPS_GUITAR",
+        "test-gaps-guitar-samples-full-shard-%": "GAPS_GUITAR_FULL",
+    }.items():
+        shard_recipe = target_recipe(makefile, target)
+        for text in [
+            "MUSIC_ANALYZER_GUITARSET_REQUIRED_EXCERPTS=1",
+            "MUSIC_ANALYZER_GUITARSET_REQUIRED_WINDOWS=1",
+            "MUSIC_ANALYZER_GUITARSET_MIN_CHORD_CHECKS=0",
+        ]:
+            assert text in shard_recipe, (
+                f"{target} must keep per-shard coverage/chord gates permissive: {text}"
+            )
+        for text in [
+            f'MUSIC_ANALYZER_GUITARSET_REQUIRED_EXCERPTS="$({aggregate_vars}_MIN_EXCERPTS)"',
+            f'MUSIC_ANALYZER_GUITARSET_REQUIRED_WINDOWS="$({aggregate_vars}_MIN_WINDOWS)"',
+            f'MUSIC_ANALYZER_GUITARSET_MIN_CHORD_CHECKS="$({aggregate_vars}_MIN_WINDOWS)"',
+        ]:
+            assert text not in shard_recipe, (
+                f"{target} must leave aggregate coverage/chord gates to the parent checker: {text}"
+            )
     detector_regression_recipe = target_recipe(makefile, "test-detector-samples-parallel")
     assert "\n\t+$(RUN_WITH_DURATION) detector_samples_parallel" in detector_regression_recipe, (
         "detector sample regression target must preserve the make jobserver through the duration wrapper"
