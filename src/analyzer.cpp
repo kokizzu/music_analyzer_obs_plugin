@@ -19322,10 +19322,18 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 			snare_kick_shape_score_ratio >= 0.878f &&
 			tom_snare_body_ratio >= 2.154f &&
 			tom_snare_level_ratio >= 1.005f;
+		const bool one_shot_measured_flagged_snare_from_tom_primary_recovery =
+			drum_detection_enabled && one_shot_drum_source &&
+			(snapshot.drum_debug_rule_flags & DrumDebugTomKickPrimaryRecovery) != 0 &&
+			drum_level_[Snare] > 0.30f &&
+			drum_level_[Tom] > 0.30f &&
+			drum_level_[Kick] <= 0.826f &&
+			drum_bands[Rim] >= 14.086f;
 		if (one_shot_measured_snare_body_tom_tie_primary_recovery ||
 		    one_shot_measured_snare_bright_tom_tie_primary_recovery ||
 		    one_shot_measured_kick_band_snare_from_tom_primary_recovery ||
-		    one_shot_measured_ratio_snare_from_tom_primary_recovery)
+		    one_shot_measured_ratio_snare_from_tom_primary_recovery ||
+		    one_shot_measured_flagged_snare_from_tom_primary_recovery)
 			promote_drum_primary(Snare, 0.90f);
 
 		const bool one_shot_measured_upper_body_tom_from_snare_primary_recovery =
