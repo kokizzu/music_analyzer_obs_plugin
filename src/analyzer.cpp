@@ -17225,11 +17225,16 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 		kick_click_body_shape ||
 		kick_low_onset_body_shape ||
 		kick_tonal_body_shape;
+	const bool percussion_drum_source =
+		contains_case_insensitive(resolved_source_name, "percussion");
 	const bool named_drum_source =
-		generated_gm_drum_source || contains_case_insensitive(resolved_source_name, "drum");
+		generated_gm_drum_source || contains_case_insensitive(resolved_source_name, "drum") ||
+		percussion_drum_source;
 	const bool one_shot_drum_source =
-		generated_gm_drum_source || contains_case_insensitive(resolved_source_name, "drum sample");
+		generated_gm_drum_source || contains_case_insensitive(resolved_source_name, "drum sample") ||
+		contains_case_insensitive(resolved_source_name, "percussion sample");
 	const bool real_drum_track_source = named_drum_source && !one_shot_drum_source;
+	const bool percussion_drum_track_source = real_drum_track_source && percussion_drum_source;
 	if (generated_gm_drum_source)
 		snapshot.drum_debug_rule_flags |= DrumDebugGeneratedGmSource;
 	if (one_shot_drum_source)
@@ -17660,6 +17665,19 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 	if (snare_supported_rim_saturation)
 		cap_drum_level(Rim, std::max(0.31f, drum_level_[Snare] - 0.02f));
 
+	const bool real_drum_track_snare_rim_bleed =
+		drum_detection_enabled && percussion_drum_track_source &&
+		drum_level_[Rim] >= 0.95f &&
+		drum_level_[Snare] >= 0.95f &&
+		body_shape == Snare &&
+		snare_shape &&
+		snare_body >= kick_body * 2.0f &&
+		snare_body >= tom_body * 0.90f &&
+		snare_crack >= snare_body * 0.50f &&
+		rim_shape_score <= body_shape_scores[1] * 0.60f;
+	if (real_drum_track_snare_rim_bleed)
+		cap_drum_level(Rim, 0.28f);
+
 	const bool crash_backed_snare_rim_bleed =
 		drum_detection_enabled &&
 		drum_level_[Rim] >= 0.95f &&
@@ -17690,12 +17708,29 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 	if (snare_cymbal_tom_bleed)
 		cap_drum_level(Tom, 0.28f);
 
+	const bool real_drum_track_tom_shell_bleed =
+		drum_detection_enabled && percussion_drum_track_source &&
+		drum_level_[Tom] > 0.30f &&
+		body_shape == Tom &&
+		tom_body >= kick_body * 1.80f &&
+		tom_body >= snare_body * 1.55f &&
+		snare_crack <= snare_body * 0.060f &&
+		snapshot.high_energy <= 0.08f &&
+		snapshot.low_energy >= snapshot.mid_energy * 1.50f;
+	if (real_drum_track_tom_shell_bleed) {
+		if (drum_level_[Kick] > 0.30f)
+			cap_drum_level(Kick, 0.28f);
+		if (drum_level_[Snare] > 0.30f)
+			cap_drum_level(Snare, 0.28f);
+	}
+
 	const bool real_drum_track_weak_hihat_bleed =
 		drum_detection_enabled && real_drum_track_source &&
 		drum_level_[HiHat] > 0.30f &&
-		!real_drum_track_embedded_hihat &&
-		!real_drum_track_low_embedded_hihat &&
-		!initial_real_drum_track_embedded_hihat &&
+		(percussion_drum_track_source ||
+		 (!real_drum_track_embedded_hihat &&
+		  !real_drum_track_low_embedded_hihat &&
+		  !initial_real_drum_track_embedded_hihat)) &&
 		!drum_shape_supported[HiHat] &&
 		strongest_body_drum > 1.0e-6f &&
 		strongest_cymbal_drum <=
