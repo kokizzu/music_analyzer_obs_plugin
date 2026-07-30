@@ -22,14 +22,15 @@ def main() -> int:
         "sample\texpected\tgot\tkick_level\tsnare_level\thihat_level\tcrash_level\ttom_level\t"
         "ride_level\trim_level\tflag_one_shot_source\tflag_real_track_source\t"
         "flag_tom_kick_primary_recovery\tflag_protected_tom_kick_primary_recovery\t"
-        "flag_strong_low_kick_tom_bleed\tflag_saturated_kick_tom_bleed"
+        "flag_strong_low_kick_tom_bleed\tflag_saturated_kick_tom_bleed\t"
+        "flag_high_band_kick_body_tom_bleed"
     )
     rows = [
-        "kick/a.wav\tkick\tkick\t0.95\t0.10\t0\t0\t0.62\t0\t0\t1\t0\t1\t0\t0\t1",
-        "kick/b.wav\tkick\tkick\t0.90\t0.10\t0\t0\t0.66\t0\t0\t1\t0\t1\t0\t0\t1",
-        "tom/a.wav\ttom\ttom\t0.20\t0.10\t0\t0\t0.91\t0\t0\t0\t1\t1\t1\t0\t0",
-        "tom/b.wav\ttom\ttom\t0.18\t0.10\t0\t0\t0.88\t0\t0\t0\t1\t0\t0\t0\t0",
-        "snare/a.wav\tsnare\tsnare\t0.15\t0.92\t0\t0\t0.40\t0\t0\t0\t1\t0\t0\t1\t0",
+        "kick/a.wav\tkick\tkick\t0.95\t0.10\t0\t0\t0.62\t0\t0\t1\t0\t1\t0\t0\t1\t1",
+        "kick/b.wav\tkick\tkick\t0.90\t0.10\t0\t0\t0.66\t0\t0\t1\t0\t1\t0\t0\t1\t1",
+        "tom/a.wav\ttom\ttom\t0.20\t0.10\t0\t0\t0.91\t0\t0\t0\t1\t1\t1\t0\t0\t0",
+        "tom/b.wav\ttom\ttom\t0.18\t0.10\t0\t0\t0.88\t0\t0\t0\t1\t0\t0\t0\t0\t0",
+        "snare/a.wav\tsnare\tsnare\t0.15\t0.92\t0\t0\t0.40\t0\t0\t0\t1\t0\t0\t1\t0\t0",
     ]
     with tempfile.TemporaryDirectory() as tmpdir:
         table = pathlib.Path(tmpdir) / "drums.tsv"
@@ -57,6 +58,7 @@ def main() -> int:
     require(output, "route kick->tom false=2 protected_true_tom=2")
     require(output, "false_level_med=0.640 protected_level_med=0.895")
     require(output, "flag_saturated_kick_tom_bleed=2/2 100.0%")
+    require(output, "flag_high_band_kick_body_tom_bleed=2/2 100.0%")
     require(output, "flag_protected_tom_kick_primary_recovery=1/2 50.0%")
     require(
         output,

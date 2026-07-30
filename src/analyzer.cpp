@@ -19423,6 +19423,22 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 		if (one_shot_high_band_kick_weighted_tom_bleed)
 			cap_drum_level(Tom, 0.28f);
 
+		const bool one_shot_high_band_kick_body_tom_bleed =
+			drum_detection_enabled && one_shot_drum_source &&
+			!generated_gm_orchestra_tom_primary_recovery &&
+			!generated_gm_high_tom_primary_recovery &&
+			!one_shot_measured_tom_kick_primary_recovery &&
+			!one_shot_measured_protected_tom_from_kick_primary_recovery &&
+			!one_shot_measured_narrow_band_tom_from_kick_primary_recovery &&
+			drum_level_[Kick] > 0.30f &&
+			drum_level_[Tom] > 0.30f &&
+			drum_bands[Kick] >= 577.788f &&
+			tom_snare_body_ratio >= 2.991f;
+		if (one_shot_high_band_kick_body_tom_bleed)
+			snapshot.drum_debug_rule_flags |= DrumDebugHighBandKickBodyTomBleed;
+		if (one_shot_high_band_kick_body_tom_bleed)
+			cap_drum_level(Tom, 0.28f);
+
 		const bool one_shot_saturated_kick_tom_bleed =
 			drum_detection_enabled && one_shot_drum_source &&
 			!generated_gm_orchestra_tom_primary_recovery &&
