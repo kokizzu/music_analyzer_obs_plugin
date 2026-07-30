@@ -213,6 +213,61 @@ note	hit	vocals	vocals	vocal	D4	62	vocal.wav	0	0	0	0	0	0	--	--	--	F4:0.7	--	F4	6
         assert "piano\tC4\tC4\t1\t1\t0" in target_visibility
         assert "vocals\tD4\tF4\t0\t1\t" in target_visibility
 
+        real_note_rows = write(
+            root / "real_note.tsv",
+            """
+status	detected	detected_expected_row	first_row	visual_first_row	sample_id	family	source	expected_note	expected_midi	buffer	mode	bass_level	piano_level	guitar_level	vocal_level	other_level	bass_notes	piano_notes	guitar_notes	vocal_notes	other_notes	debug_note	debug_midi	debug_owner	debug_conf	bass_score	keyboard_score	guitar_score	vocal_score	other_score	pitch_confidence	periodicity	fit_error	centroid	slope	noise	partial2	partial3	partial4	partial5
+hit	1	1	vocals	vocals	vocal_a	vocals	acoustic	D4	62	0	full_mix	0	0	0	0.8	0	--	--	--	D4:0.8	--	D4	62	vocals	0.9	0	0	0	0.9	0	0.8	0.75	0.04	0.2	0.3	0.05	0.2	0.1	0.05	0.02
+hit	1	0	piano	piano	vocal_b	vocals	acoustic	E4	64	0	full_mix	0	1	0	0	0	--	E4:1.0	--	--	--	E4	64	piano	1	0	1	0	0	0	0.9	0.7	0.03	0.1	0.1	0.02	0.1	0.05	0.02	0.01
+            """,
+        )
+        real_note_filter = subprocess.run(
+            [
+                sys.executable,
+                str(SCRIPT),
+                str(real_note_rows),
+                "--kind",
+                "real-note",
+                "--family",
+                "vocals",
+                "--pitch-quality",
+                "exact",
+                "--columns",
+                "kind,family,note,midi,debug_note,debug_delta,pitch_quality,target_expected_visible",
+            ],
+            cwd=ROOT,
+            check=True,
+            text=True,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+        ).stdout
+        assert "kind\tfamily\tnote\tmidi\tdebug_note\tdebug_delta\tpitch_quality\ttarget_expected_visible" in real_note_filter
+        assert "real-note\tvocals\tD4\t62\tD4\t0\texact\t1" in real_note_filter
+        assert "real-note\tvocals\tE4\t64\tE4\t0\texact\t0" in real_note_filter
+        assert "count\t2" in real_note_filter
+
+        real_note_count = subprocess.run(
+            [
+                sys.executable,
+                str(SCRIPT),
+                str(real_note_rows),
+                "--kind",
+                "real-note",
+                "--family",
+                "vocals",
+                "--count-by",
+                "visual_first_row",
+            ],
+            cwd=ROOT,
+            check=True,
+            text=True,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+        ).stdout
+        assert "vocals\t1" in real_note_count
+        assert "piano\t1" in real_note_count
+        assert "count\t2" in real_note_count
+
     print("test_filter_instrument_attribute_rows: ok")
     return 0
 

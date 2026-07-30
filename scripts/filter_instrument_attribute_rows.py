@@ -150,8 +150,19 @@ def midi_from_note(note: str) -> int | None:
     return NOTE_BASE[match.group(1)] + (int(match.group(2)) + 1) * 12
 
 
+def expected_midi(row: dict[str, str]) -> int | None:
+    value = parse_int(row.get("midi", ""))
+    if value is not None:
+        return value
+    return parse_int(row.get("expected_midi", ""))
+
+
+def expected_note(row: dict[str, str]) -> str:
+    return row.get("note", "") or row.get("expected_note", "")
+
+
 def debug_pitch_delta(row: dict[str, str]) -> int | None:
-    expected = parse_int(row.get("midi", ""))
+    expected = expected_midi(row)
     actual = parse_int(row.get("debug_midi", ""))
     if actual is None and row.get("debug_note", ""):
         actual = midi_from_note(row["debug_note"])
@@ -164,7 +175,7 @@ def display_pitch_delta(row: dict[str, str]) -> int | None:
     direct = parse_int(row.get("display_delta", ""))
     if direct is not None:
         return direct
-    expected = parse_int(row.get("midi", ""))
+    expected = expected_midi(row)
     actual = parse_int(row.get("display_midi", ""))
     if actual is None and row.get("display_note", ""):
         actual = midi_from_note(row["display_note"])
@@ -177,7 +188,7 @@ def primary_pitch_delta(row: dict[str, str]) -> int | None:
     direct = parse_int(row.get("primary_delta", ""))
     if direct is not None:
         return direct
-    expected = parse_int(row.get("midi", ""))
+    expected = expected_midi(row)
     actual = parse_int(row.get("primary_midi", ""))
     if actual is None and row.get("primary_note", ""):
         actual = midi_from_note(row["primary_note"])
@@ -287,6 +298,12 @@ def owner_status(row: dict[str, str]) -> str:
 
 def enrich_row(row: dict[str, str]) -> dict[str, str]:
     row = dict(row)
+    if not row.get("kind") and row.get("expected_midi"):
+        row["kind"] = "real-note"
+    if not row.get("note") and row.get("expected_note"):
+        row["note"] = row["expected_note"]
+    if not row.get("midi") and row.get("expected_midi"):
+        row["midi"] = row["expected_midi"]
     row["owner_target"] = owner_target(row)
     row["owner"], row["owner_source"] = owner_and_source(row)
     row["owner_status"] = owner_status(row)
@@ -305,21 +322,23 @@ def enrich_row(row: dict[str, str]) -> dict[str, str]:
     target_midis = note_cell_midis(row["target_notes"])
     row["target_distinct_midis"] = str(len(target_midis))
     row["target_octave_duplicates"] = str(octave_duplicate_count(target_midis))
-    expected_midi = parse_int(row.get("midi", ""))
+    expected_midi_value = expected_midi(row)
     actual_primary_midi = row_primary_midi(row)
-    row["target_expected_visible"] = "1" if expected_midi is not None and expected_midi in target_midis else "0"
+    row["target_expected_visible"] = (
+        "1" if expected_midi_value is not None and expected_midi_value in target_midis else "0"
+    )
     row["target_primary_visible"] = (
         "1" if actual_primary_midi is not None and actual_primary_midi in target_midis else "0"
     )
     same_pitch_midis = (
-        [midi for midi in target_midis if midi_pitch_class(midi) == midi_pitch_class(expected_midi)]
-        if expected_midi is not None
+        [midi for midi in target_midis if midi_pitch_class(midi) == midi_pitch_class(expected_midi_value)]
+        if expected_midi_value is not None
         else []
     )
     lowest_same_pitch = min(same_pitch_midis) if same_pitch_midis else None
     row["target_lowest_same_pitch_midi"] = "" if lowest_same_pitch is None else str(lowest_same_pitch)
     row["target_lowest_same_pitch_delta"] = (
-        "" if lowest_same_pitch is None or expected_midi is None else str(lowest_same_pitch - expected_midi)
+        "" if lowest_same_pitch is None or expected_midi_value is None else str(lowest_same_pitch - expected_midi_value)
     )
     return row
 
@@ -344,9 +363,9 @@ def row_matches(row: dict[str, str], args: argparse.Namespace) -> bool:
         return False
     if args.program_name and row.get("program_name") != args.program_name:
         return False
-    if args.note and row.get("note") != args.note:
+    if args.note and expected_note(row) != args.note:
         return False
-    if args.midi is not None and parse_int(row.get("midi", "")) != args.midi:
+    if args.midi is not None and expected_midi(row) != args.midi:
         return False
     if args.status and row.get("status") != args.status:
         return False
