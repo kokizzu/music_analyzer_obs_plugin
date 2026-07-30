@@ -83,11 +83,12 @@ def main() -> int:
     parser.add_argument(
         "--group-by",
         action="append",
-        default=["family", "source", "first_row"],
-        help="field to group matches by; repeatable",
+        default=None,
+        help="field to group matches by; repeatable; defaults to family/source/first_row",
     )
     args = parser.parse_args()
 
+    group_by = args.group_by or ["family", "source", "first_row"]
     conditions = [parse_condition(spec) for spec in args.condition]
     rows = [
         row
@@ -105,14 +106,14 @@ def main() -> int:
     grouped: collections.Counter[tuple[str, ...]] = collections.Counter()
     grouped_samples: dict[tuple[str, ...], set[str]] = collections.defaultdict(set)
     for row in rows:
-        key = tuple(row.get(field, "") for field in args.group_by)
+        key = tuple(row.get(field, "") for field in group_by)
         grouped[key] += 1
         sample_id = row.get("sample_id", "")
         if sample_id:
             grouped_samples[key].add(sample_id)
 
     if grouped:
-        print("groups " + "/".join(args.group_by))
+        print("groups " + "/".join(group_by))
         for key, count in grouped.most_common(max(0, args.top)):
             label = "/".join(value or "-" for value in key)
             print(f"  {label} rows={count} samples={len(grouped_samples[key])}")

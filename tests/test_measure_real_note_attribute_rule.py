@@ -143,13 +143,26 @@ def main() -> int:
             "--condition",
             "partial3<=0.03",
         )
+        grouped_result = run_rule(
+            path,
+            "--condition",
+            "debug_owner=guitar",
+            "--group-by",
+            "buffer_strongest_row",
+            "--group-by",
+            "debug_score_state",
+        )
 
     assert "matched rows=1 samples=1" in result.stdout
     assert "examples keyboard_1" in result.stdout
+    assert "groups family/source/first_row" in result.stdout
     assert "piano/electronic/guitar rows=1 samples=1" in result.stdout
     assert "guitar/electronic/guitar" not in result.stdout
     assert "matched rows=1 samples=1" in derived_result.stdout
     assert "examples keyboard_2" in derived_result.stdout
+    assert "groups buffer_strongest_row/debug_score_state" in grouped_result.stdout
+    assert "guitar/scored_owner rows=3 samples=3" in grouped_result.stdout
+    assert "family/source/first_row" not in grouped_result.stdout
     print("test_measure_real_note_attribute_rule: ok")
     return 0
 
