@@ -1490,7 +1490,7 @@ measure-analyzer-patterns-full: measure-analyzer-attribute-rows-full analyze-dru
 	+$(MAKE) report-analyzer-patterns-from-rows-full
 
 measure-analyzer-pattern-report: | $(BUILD_DIR)
-	+$(MAKE) measure-analyzer-patterns | tee "$(MEASURE_ANALYZER_REPORT)"
+	+$(MAKE) -s measure-analyzer-patterns | tee "$(MEASURE_ANALYZER_REPORT)"
 	@printf '%s\n' "measurement report: $(MEASURE_ANALYZER_REPORT)"
 
 download-real-note-samples: $(NSYNTH_SAMPLE_ARCHIVE)

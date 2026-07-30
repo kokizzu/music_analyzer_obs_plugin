@@ -160,7 +160,9 @@ def main() -> int:
     )
 
     report_recipe = target_recipe(makefile, "measure-analyzer-pattern-report")
-    assert "$(MAKE) measure-analyzer-patterns" in report_recipe, "report target must reuse the measurement target"
+    assert "$(MAKE) -s measure-analyzer-patterns" in report_recipe, (
+        "saved report target must reuse the measurement target without make recipe echo"
+    )
     assert "$(MEASURE_ANALYZER_REPORT)" in report_recipe, "report target must write the configured report path"
 
     spread_recipe = target_recipe(makefile, "test-drum-samples-spread")
