@@ -198,17 +198,35 @@ def main() -> int:
         re.MULTILINE,
     )
     assert active_false_protected is not None, "missing active false extra protected row defaults"
-    assert "$(DRUM_FULL_EXACT_ATTRIBUTE_ROWS)" in active_false_protected.group("value"), (
-        "drum active false mining must protect exact full-drum true-hit rows when available"
+    assert "$(DRUM_FULL_EXACT_ATTRIBUTE_ROWS)" not in active_false_protected.group("value"), (
+        "bounded drum active false mining must not force exhaustive full-drum rows"
     )
-    assert "$(DRUM_FULL_MERGED_EXPECTED_ATTRIBUTE_ROWS)" in active_false_protected.group("value"), (
-        "drum active false mining must protect merged expected-hit rows when available"
+    assert "$(DRUM_FULL_MERGED_EXPECTED_ATTRIBUTE_ROWS)" not in active_false_protected.group("value"), (
+        "bounded drum active false mining must not force merged expected full-drum rows"
     )
     assert "$(HF_DRUM_KIT_PRIMARY_ATTRIBUTE_ROWS)" in active_false_protected.group("value"), (
         "drum active false mining must protect HF drum-kit primary true-hit rows"
     )
     assert "$(IDMT_DRUMS_PRIMARY_ATTRIBUTE_ROWS)" in active_false_protected.group("value"), (
         "drum active false mining must protect IDMT drum primary true-hit rows"
+    )
+    active_false_full_protected = re.search(
+        r"^MEASURE_DRUM_ACTIVE_FULL_EXTRA_PROTECTED_ROWS \?= (?P<value>.*)$",
+        makefile,
+        re.MULTILINE,
+    )
+    assert active_false_full_protected is not None, "missing full active false extra protected row defaults"
+    assert "$(DRUM_FULL_EXACT_ATTRIBUTE_ROWS)" in active_false_full_protected.group("value"), (
+        "full drum active false mining must protect exact full-drum true-hit rows"
+    )
+    assert "$(DRUM_FULL_MERGED_EXPECTED_ATTRIBUTE_ROWS)" in active_false_full_protected.group("value"), (
+        "full drum active false mining must protect merged expected-hit rows"
+    )
+    assert "$(HF_DRUM_KIT_PRIMARY_ATTRIBUTE_ROWS)" in active_false_full_protected.group("value"), (
+        "full drum active false mining must still protect HF drum-kit primary true-hit rows"
+    )
+    assert "$(IDMT_DRUMS_PRIMARY_ATTRIBUTE_ROWS)" in active_false_full_protected.group("value"), (
+        "full drum active false mining must still protect IDMT drum primary true-hit rows"
     )
     assert "DRUM_ACTIVE_EXTRA_PROTECTED_ROWS ?= $(MEASURE_DRUM_ACTIVE_EXTRA_PROTECTED_ROWS)" in makefile, (
         "direct drum active false mining must inherit the measured protected row defaults"
@@ -1441,7 +1459,7 @@ def main() -> int:
     )
 
     full_report_recipe = target_recipe(makefile, "report-analyzer-patterns-from-rows-full")
-    assert "$(MAKE) report-analyzer-patterns-from-rows REPORT_FULL_DRUM_SKIP=0" in full_report_recipe, (
+    assert '$(MAKE) report-analyzer-patterns-from-rows REPORT_FULL_DRUM_SKIP=0 MEASURE_DRUM_ACTIVE_EXTRA_PROTECTED_ROWS="$(MEASURE_DRUM_ACTIVE_FULL_EXTRA_PROTECTED_ROWS)"' in full_report_recipe, (
         "full report helper must suppress the bounded skip message"
     )
     assert "$(RUN_WITH_DURATION) analyzer_pattern_full_report_sections" in full_report_recipe, (
@@ -1597,6 +1615,7 @@ def main() -> int:
         "MEASURE_DRUM_PATTERN_ARGS",
         "MEASURE_DRUM_FULL_PATTERN_ARGS",
         "MEASURE_DRUM_ACTIVE_FALSE_PATTERN_ARGS",
+        "MEASURE_DRUM_ACTIVE_FULL_EXTRA_PROTECTED_ROWS",
         "DRUM_PATTERN_JOBS",
         "REAL_NOTE_PATTERN_JOBS",
         "DRUM_SPREAD_EXACT_ATTRIBUTE_ROWS",
