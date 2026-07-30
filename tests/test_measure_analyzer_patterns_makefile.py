@@ -377,6 +377,17 @@ def main() -> int:
     assert "$(PYTHON) scripts/check_real_note_sample_shards.py" in isolated_sample_sharded_recipe, (
         "isolated real-note parallel target must validate aggregated shard sample metrics"
     )
+    assert "$(REAL_NOTE_SAMPLE_HIT_PERCENT_ARGS)" in isolated_sample_sharded_recipe, (
+        "isolated real-note aggregate checker must validate per-family recall gates"
+    )
+    for text in [
+        "--min-bass-hit-percent \"$(REAL_NOTE_SAMPLE_MIN_BASS_HIT_PERCENT)\"",
+        "--min-guitar-hit-percent \"$(REAL_NOTE_SAMPLE_MIN_GUITAR_HIT_PERCENT)\"",
+        "--min-piano-hit-percent \"$(REAL_NOTE_SAMPLE_MIN_PIANO_HIT_PERCENT)\"",
+        "--min-vocals-hit-percent \"$(REAL_NOTE_SAMPLE_MIN_VOCALS_HIT_PERCENT)\"",
+        "--min-other-hit-percent \"$(REAL_NOTE_SAMPLE_MIN_OTHER_HIT_PERCENT)\"",
+    ]:
+        assert text in makefile, f"isolated real-note recall gate args must include {text}"
     isolated_sample_shard_recipe = target_recipe(makefile, "test-real-note-sample-shard-%")
     for text in [
         "MUSIC_ANALYZER_REAL_NOTE_SHARD_COUNT=\"$(REAL_NOTE_SAMPLE_SHARDS)\"",
@@ -416,6 +427,16 @@ def main() -> int:
         )
         assert "\n\t+$(RUN_REAL_NOTE_SAMPLE_SHARDS)" in recipe_text, (
             f"{target} must preserve the make jobserver through the isolated real-note shard runner"
+        )
+    for family in ["BASS", "GUITAR", "PIANO", "VOCALS", "OTHER"]:
+        assert f"REAL_NOTE_MIN_{family}_HIT_PERCENT ?= 100" in makefile, (
+            f"NSynth isolated target must default to strict {family.lower()} recall"
+        )
+        assert (
+            f"test-real-note-samples: REAL_NOTE_SAMPLE_MIN_{family}_HIT_PERCENT := "
+            f"$(REAL_NOTE_MIN_{family}_HIT_PERCENT)"
+        ) in makefile, (
+            f"NSynth isolated target must pass through strict {family.lower()} recall"
         )
     instrument_sharded_recipe = target_recipe(makefile, "test-instrument-samples-parallel")
     assert "INSTRUMENT_SAMPLE_TEST_MAKE_JOBS = $(if $(filter -j%,$(MAKEFLAGS)),,-j$(INSTRUMENT_SAMPLE_SHARDS))" in makefile, (
