@@ -22,11 +22,11 @@ def main() -> int:
         path = write(
             pathlib.Path(tmpdir) / "guitar.tsv",
             """
-recording_id	status	expected_chords	guitar_chord	expected_pitch_classes	guitar_match_kind	evidence_class	evidence_source
-hit_equiv	chord_hit	Csus2	Csus2=Gsus4	C,D,G	display_exact	display_exact	display
-hit_contains	chord_hit	Am	Am=C6	A,C,E	display_exact	display_exact	display
-hit_same_root	chord_hit	C	C=Cmaj7=Cpow=Caug=Em	C,E,G	display_exact	display_exact	display
-miss_unrelated	chord_miss	Dm	A#aug=Dpow	D,F,A	display_different_root	power_only_ambiguous	root_fifth
+recording_id	status	expected_chords	guitar_chord	expected_pitch_classes	guitar_cells	guitar_analysis_cells	guitar_match_kind	evidence_class	evidence_source
+hit_equiv	chord_hit	Csus2	Csus2=Gsus4	C,D,G	C3:0.90,D3:0.82,G3:0.77	C3:0.91,D3:0.83,G3:0.78	display_exact	display_exact	display
+hit_contains	chord_hit	Am	Am=C6	A,C,E	A2:0.90,C3:0.84,E3:0.80,G3:0.76	A2:0.91,C3:0.85,E3:0.81,G3:0.77	display_exact	display_exact	display
+hit_same_root	chord_hit	C	C=Cmaj7=Cpow=Caug=Em	C,E,G	C3:0.90,E3:0.82,G3:0.76,B3:0.70,G#4:0.05	C3:0.91,E3:0.83,G3:0.77,B3:0.71,G#4:0.05	display_exact	display_exact	display
+miss_unrelated	chord_miss	Dm	A#aug=Dpow	D,F,A	D3:0.88,A3:0.80	D3:0.89,A3:0.81	display_different_root	power_only_ambiguous	root_fifth
             """,
         )
         completed = subprocess.run(
@@ -77,6 +77,12 @@ miss_unrelated	chord_miss	Dm	A#aug=Dpow	D,F,A	display_different_root	power_only_
         assert text in output
     assert "detected rootless subsets rootless_subset_of_Cmaj7=1" in output
     assert "hit detected rootless subsets rootless_subset_of_Cmaj7=1" in output
+    assert "component standard-guitar playability playable=8" in output
+    assert "hit component standard-guitar playability playable=6" in output
+    assert "component observed-guitar playability display_analysis=6 unsupported=2" in output
+    assert "hit component observed-guitar playability display_analysis=5 unsupported=1" in output
+    assert "observed-guitar unsupported examples" in output
+    assert "hit_same_root status=chord_hit expected=C got=C=Cmaj7=Cpow=Caug=Em extra=Caug" in output
     assert "detected rootless subset examples" in output
     assert "hit_same_root status=chord_hit expected=C got=C=Cmaj7=Cpow=Caug=Em extra=Em relation=rootless_subset_of_Cmaj7" in output
     assert "same_pitch_set examples" in output

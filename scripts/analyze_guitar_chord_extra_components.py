@@ -28,6 +28,11 @@ NOTE_TO_PC = {
 }
 PC_TO_NOTE = {value: key for key, value in NOTE_TO_PC.items()}
 LABEL_RE = re.compile(r"^([A-G]#?)(.*)$")
+CELL_RE = re.compile(r"^([A-G]#?)(-?\d+):([0-9.]+)$")
+STANDARD_GUITAR_TUNING = (40, 45, 50, 55, 59, 64)
+MAX_GUITAR_FRET = 15
+MAX_COMPACT_FRET_SPAN = 5
+MIN_OBSERVED_LEVEL = 0.12
 TEMPLATES = {
     "": (0, 4, 7),
     "m": (0, 3, 7),
@@ -94,6 +99,123 @@ def pitch_set_text(values: frozenset[int] | None) -> str:
     if not values:
         return "--"
     return ",".join(PC_TO_NOTE[pitch_class] for pitch_class in sorted(values))
+
+
+def midi_from_note(note: str, octave_text: str) -> int | None:
+    pitch_class = NOTE_TO_PC.get(note)
+    if pitch_class is None:
+        return None
+    try:
+        octave = int(octave_text)
+    except ValueError:
+        return None
+    return (octave + 1) * 12 + pitch_class
+
+
+def parse_cells(value: str, min_level: float = MIN_OBSERVED_LEVEL) -> list[tuple[int, int, float]]:
+    cells: list[tuple[int, int, float]] = []
+    if not value or value == "--":
+        return cells
+    for item in value.split(","):
+        match = CELL_RE.match(item)
+        if not match:
+            continue
+        midi = midi_from_note(match.group(1), match.group(2))
+        if midi is None:
+            continue
+        try:
+            level = float(match.group(3))
+        except ValueError:
+            continue
+        if level >= min_level:
+            cells.append((midi, midi % 12, level))
+    return cells
+
+
+def midi_positions(midi: int) -> list[tuple[int, int]]:
+    positions: list[tuple[int, int]] = []
+    for string_index, open_midi in enumerate(STANDARD_GUITAR_TUNING):
+        fret = midi - open_midi
+        if 0 <= fret <= MAX_GUITAR_FRET:
+            positions.append((string_index, fret))
+    return positions
+
+
+def compact_fret_span(positions: list[tuple[int, int]]) -> bool:
+    fretted = [fret for _string_index, fret in positions if fret > 0]
+    if not fretted:
+        return True
+    return max(fretted) - min(fretted) <= MAX_COMPACT_FRET_SPAN
+
+
+def playable_position_assignment(choices_by_pitch: dict[int, list[tuple[int, int]]]) -> bool:
+    if not choices_by_pitch:
+        return False
+
+    ordered = sorted(choices_by_pitch, key=lambda pitch_class: len(choices_by_pitch[pitch_class]))
+    if any(not choices_by_pitch[pitch_class] for pitch_class in ordered):
+        return False
+
+    def search(index: int, used_strings: set[int], selected: list[tuple[int, int]]) -> bool:
+        if index >= len(ordered):
+            return compact_fret_span(selected)
+        for string_index, fret in choices_by_pitch[ordered[index]]:
+            if string_index in used_strings:
+                continue
+            used_strings.add(string_index)
+            selected.append((string_index, fret))
+            if search(index + 1, used_strings, selected):
+                return True
+            selected.pop()
+            used_strings.remove(string_index)
+        return False
+
+    return search(0, set(), [])
+
+
+def pitch_set_playable_on_standard_guitar(values: frozenset[int] | None) -> str:
+    if not values:
+        return "unknown"
+    choices_by_pitch: dict[int, list[tuple[int, int]]] = {}
+    for pitch_class in values:
+        choices: list[tuple[int, int]] = []
+        for string_index, open_midi in enumerate(STANDARD_GUITAR_TUNING):
+            for fret in range(MAX_GUITAR_FRET + 1):
+                if (open_midi + fret) % 12 == pitch_class:
+                    choices.append((string_index, fret))
+        choices_by_pitch[pitch_class] = choices
+    return "playable" if playable_position_assignment(choices_by_pitch) else "unplayable"
+
+
+def observed_pitch_set_playable(values: frozenset[int] | None, cells: list[tuple[int, int, float]]) -> bool:
+    if not values or not cells:
+        return False
+    choices_by_pitch: dict[int, list[tuple[int, int]]] = {}
+    for pitch_class in values:
+        choices: list[tuple[int, int]] = []
+        for midi, cell_pitch_class, _level in cells:
+            if cell_pitch_class != pitch_class:
+                continue
+            choices.extend(midi_positions(midi))
+        choices_by_pitch[pitch_class] = sorted(set(choices))
+    return playable_position_assignment(choices_by_pitch)
+
+
+def observed_playability(label: str, row: dict[str, str]) -> str:
+    values = pitch_set(label)
+    if not values:
+        return "unknown"
+    display_cells = parse_cells(row.get("guitar_cells", ""))
+    analysis_cells = parse_cells(row.get("guitar_analysis_cells", ""))
+    display = observed_pitch_set_playable(values, display_cells)
+    analysis = observed_pitch_set_playable(values, analysis_cells)
+    if display and analysis:
+        return "display_analysis"
+    if display:
+        return "display_only"
+    if analysis:
+        return "analysis_only"
+    return "unsupported"
 
 
 def compact(counter: collections.Counter[str], limit: int) -> str:
@@ -281,6 +403,10 @@ def summarize(path: pathlib.Path, examples: int, limit: int, prune_policies: lis
     hit_relation_counter: collections.Counter[str] = collections.Counter()
     subset_counter: collections.Counter[str] = collections.Counter()
     hit_subset_counter: collections.Counter[str] = collections.Counter()
+    playable_counter: collections.Counter[str] = collections.Counter()
+    hit_playable_counter: collections.Counter[str] = collections.Counter()
+    observed_playable_counter: collections.Counter[str] = collections.Counter()
+    hit_observed_playable_counter: collections.Counter[str] = collections.Counter()
     label_count_counter: collections.Counter[str] = collections.Counter()
     extra_count_counter: collections.Counter[str] = collections.Counter()
     rows_with_extras = 0
@@ -290,6 +416,7 @@ def summarize(path: pathlib.Path, examples: int, limit: int, prune_policies: lis
     max_components = 0
     examples_by_relation: dict[str, list[tuple[dict[str, str], str]]] = collections.defaultdict(list)
     subset_examples: list[tuple[dict[str, str], str, str]] = []
+    unsupported_examples: list[tuple[dict[str, str], str, str]] = []
 
     for row in rows:
         detected = split_labels(row.get("guitar_chord", ""))
@@ -307,19 +434,27 @@ def summarize(path: pathlib.Path, examples: int, limit: int, prune_policies: lis
         if row.get("status") == "chord_hit":
             hit_rows_with_extras += 1
         for label, suffix, relation, subset_relation in extras:
+            playable = pitch_set_playable_on_standard_guitar(pitch_set(label))
+            observed = observed_playability(label, row)
             component_counter[label] += 1
             suffix_counter[suffix] += 1
             relation_counter[relation] += 1
+            playable_counter[playable] += 1
+            observed_playable_counter[observed] += 1
             if len(examples_by_relation[relation]) < examples:
                 examples_by_relation[relation].append((row, label))
             if subset_relation != "--":
                 subset_counter[subset_relation] += 1
                 if len(subset_examples) < examples:
                     subset_examples.append((row, label, subset_relation))
+            if observed == "unsupported" and len(unsupported_examples) < examples:
+                unsupported_examples.append((row, label, observed))
             if row.get("status") == "chord_hit":
                 hit_component_counter[label] += 1
                 hit_suffix_counter[suffix] += 1
                 hit_relation_counter[relation] += 1
+                hit_playable_counter[playable] += 1
+                hit_observed_playable_counter[observed] += 1
                 if subset_relation != "--":
                     hit_subset_counter[subset_relation] += 1
 
@@ -335,9 +470,13 @@ def summarize(path: pathlib.Path, examples: int, limit: int, prune_policies: lis
         f"component labels {compact(component_counter, limit)}",
         f"component suffixes {compact(suffix_counter, limit)}",
         f"component relations {compact(relation_counter, limit)}",
+        f"component standard-guitar playability {compact(playable_counter, limit)}",
+        f"component observed-guitar playability {compact(observed_playable_counter, limit)}",
         f"hit component labels {compact(hit_component_counter, limit)}",
         f"hit component suffixes {compact(hit_suffix_counter, limit)}",
         f"hit component relations {compact(hit_relation_counter, limit)}",
+        f"hit component standard-guitar playability {compact(hit_playable_counter, limit)}",
+        f"hit component observed-guitar playability {compact(hit_observed_playable_counter, limit)}",
         f"detected rootless subsets {compact(subset_counter, limit)}",
         f"hit detected rootless subsets {compact(hit_subset_counter, limit)}",
     ]
@@ -352,6 +491,21 @@ def summarize(path: pathlib.Path, examples: int, limit: int, prune_policies: lis
                 f"extra={label} relation={subset_relation} "
                 f"extra_pc={pitch_set_text(pitch_set(label))} "
                 f"expected_pc={row.get('expected_pitch_classes', '--')} "
+                f"match={row.get('guitar_match_kind', '--')} "
+                f"evidence={row.get('evidence_class', '--')}/{row.get('evidence_source', '--')}"
+            )
+
+    if unsupported_examples:
+        lines.append("observed-guitar unsupported examples")
+        for row, label, _observed in unsupported_examples:
+            lines.append(
+                "  "
+                f"{row.get('recording_id', '')} status={row.get('status', '')} "
+                f"expected={row.get('expected_chords', '')} got={row.get('guitar_chord', '--')} "
+                f"extra={label} "
+                f"extra_pc={pitch_set_text(pitch_set(label))} "
+                f"display_cells={row.get('guitar_cells', '--')} "
+                f"analysis_cells={row.get('guitar_analysis_cells', '--')} "
                 f"match={row.get('guitar_match_kind', '--')} "
                 f"evidence={row.get('evidence_class', '--')}/{row.get('evidence_source', '--')}"
             )
