@@ -84,6 +84,8 @@ class RouteSummary:
     protected_samples: int
     protected_rows: int
     protected_total_samples: int
+    nearest_protected_misses: int | None
+    nearest_protected_score: float | None
 
 
 @dataclasses.dataclass(frozen=True)
@@ -631,6 +633,7 @@ def analyze_route(
 def route_summaries(analysis: RouteAnalysis, settings: Settings) -> list[RouteSummary]:
     summaries: list[RouteSummary] = []
     for result in analysis.accepted[: settings.limit]:
+        nearest = nearest_protected_distance(analysis.protected_rows, result)
         summaries.append(
             RouteSummary(
                 kind="candidate",
@@ -641,6 +644,8 @@ def route_summaries(analysis: RouteAnalysis, settings: Settings) -> list[RouteSu
                 protected_samples=result.protected_samples,
                 protected_rows=result.protected_rows,
                 protected_total_samples=analysis.protected_samples,
+                nearest_protected_misses=nearest[0] if nearest is not None else None,
+                nearest_protected_score=nearest[1] if nearest is not None else None,
             )
         )
     if not summaries:
@@ -650,6 +655,7 @@ def route_summaries(analysis: RouteAnalysis, settings: Settings) -> list[RouteSu
         ]
         if over_budget:
             result = over_budget[0]
+            nearest = nearest_protected_distance(analysis.protected_rows, result)
             summaries.append(
                 RouteSummary(
                     kind="nearest",
@@ -660,6 +666,8 @@ def route_summaries(analysis: RouteAnalysis, settings: Settings) -> list[RouteSu
                     protected_samples=result.protected_samples,
                     protected_rows=result.protected_rows,
                     protected_total_samples=analysis.protected_samples,
+                    nearest_protected_misses=nearest[0] if nearest is not None else None,
+                    nearest_protected_score=nearest[1] if nearest is not None else None,
                 )
             )
     return summaries
@@ -679,16 +687,24 @@ def summary_rank(summary: RouteSummary) -> tuple[int, int, int, int, str, str]:
 def print_ranked_summary(summaries: list[RouteSummary], limit: int) -> None:
     print("ranked active false suppression opportunities")
     print("  attribute-level candidates; validate runtime changes with the full drum gate")
+    print("  near_protected is closest true-active miss-count/normalized-gap; lower is riskier")
     if not summaries:
         print("  no matching suppression opportunities")
         return
     for summary in sorted(summaries, key=summary_rank)[: max(0, limit)]:
         expected, active = summary.route
+        near = ""
+        if summary.nearest_protected_misses is not None and summary.nearest_protected_score is not None:
+            miss_label = "miss" if summary.nearest_protected_misses == 1 else "misses"
+            near = (
+                f" near_protected={summary.nearest_protected_misses}{miss_label}/"
+                f"{format_value(summary.nearest_protected_score)}"
+            )
         print(
             f"  {summary.kind} {expected}->{active} "
             f"+{summary.positive_samples} rows={summary.positive_rows} "
             f"-{summary.protected_samples} rows={summary.protected_rows} "
-            f"protected_true_{active}={summary.protected_total_samples} :: {summary.rule}"
+            f"protected_true_{active}={summary.protected_total_samples}{near} :: {summary.rule}"
         )
 
 
@@ -782,6 +798,32 @@ def nearest_protected_examples(
         candidates.append((misses, score, key, row))
     candidates.sort(key=lambda item: (item[0], item[1], item[2]))
     return [row for _misses, _score, _key, row in candidates[:limit]]
+
+
+def nearest_protected_distance(
+    protected_rows: list[dict[str, str]],
+    result: Result,
+) -> tuple[int, float] | None:
+    if not result.constraints:
+        return None
+    excluded = {sample_key(row) for row in result.protected_examples}
+    best: tuple[int, float, str] | None = None
+    seen: set[str] = set()
+    for row in protected_rows:
+        key = sample_key(row)
+        if key in seen or key in excluded:
+            continue
+        distance = constraint_distance(row, result.constraints)
+        if distance is None:
+            continue
+        seen.add(key)
+        misses, score = distance
+        candidate = (misses, score, key)
+        if best is None or candidate < best:
+            best = candidate
+    if best is None:
+        return None
+    return best[0], best[1]
 
 
 def format_constraint_status(row: dict[str, str], constraint: Constraint) -> str:

@@ -64,6 +64,7 @@ def main() -> int:
     require(output, "false-active examples:")
     require(output, "ranked active false suppression opportunities")
     require(output, "attribute-level candidates; validate runtime changes with the full drum gate")
+    require(output, "near_protected is closest true-active miss-count/normalized-gap; lower is riskier")
     require(output, "candidate kick->snare +2 rows=2 -0 rows=0 protected_true_snare=2")
 
     with tempfile.TemporaryDirectory() as tmpdir:
@@ -215,6 +216,7 @@ def main() -> int:
     output = completed.stdout
     require(output, "route kick->snare positives=2 rows=2 protected_true_snare=2 rows=2")
     require(output, "nearest protected true-active near misses:")
+    require(output, "near_protected=1miss/0.02")
     require(output, "snare/near-a.wav snare->snare")
     require(output, "low=0.83 <= 0.81 +0.02")
     print("test_find_drum_active_false_patterns: ok")
