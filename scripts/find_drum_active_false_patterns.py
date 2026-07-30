@@ -98,6 +98,7 @@ class Settings:
     show_near_misses: int
     protected_margin: float
     protected_relative_margin: float
+    excluded_fields: frozenset[str]
 
 
 def as_float(row: dict[str, str], field: str) -> float | None:
@@ -261,11 +262,15 @@ def category_pattern(field: str, value: str) -> Pattern:
     )
 
 
-def numeric_fields(rows: list[dict[str, str]]) -> list[str]:
+def field_excluded(field: str, excluded_fields: frozenset[str]) -> bool:
+    return any(field == excluded or excluded in field for excluded in excluded_fields)
+
+
+def numeric_fields(rows: list[dict[str, str]], excluded_fields: frozenset[str]) -> list[str]:
     fields: set[str] = set()
     for row in rows:
         for field, value in row.items():
-            if field in SKIP_FIELDS:
+            if field in SKIP_FIELDS or field_excluded(field, excluded_fields):
                 continue
             try:
                 float(value)
@@ -275,12 +280,14 @@ def numeric_fields(rows: list[dict[str, str]]) -> list[str]:
     return sorted(fields)
 
 
-def build_patterns(positive_rows: list[dict[str, str]]) -> list[Pattern]:
+def build_patterns(positive_rows: list[dict[str, str]], excluded_fields: frozenset[str]) -> list[Pattern]:
     patterns: list[Pattern] = []
     for field in ("body_shape",):
+        if field_excluded(field, excluded_fields):
+            continue
         for value in sorted({row.get(field, "") for row in positive_rows if row.get(field, "")}):
             patterns.append(category_pattern(field, value))
-    for field in numeric_fields(positive_rows):
+    for field in numeric_fields(positive_rows, excluded_fields):
         values = [value for row in positive_rows if (value := as_float(row, field)) is not None]
         for threshold in thresholds(values):
             patterns.append(numeric_pattern(field, "<=", threshold))
@@ -387,7 +394,7 @@ def search_results(
     positive_bits = sample_bits(positive_rows)
     protected_bits = sample_bits(protected_rows)
     matches: list[Match] = []
-    for pattern in build_patterns(positive_rows):
+    for pattern in build_patterns(positive_rows, settings.excluded_fields):
         positive_mask = mask_for(positive_rows, pattern)
         if sample_count(positive_mask, positive_bits) < settings.min_positive_samples:
             continue
@@ -840,6 +847,14 @@ def main() -> int:
         default=0.001,
         help="expand numeric rule thresholds by this threshold-relative fraction for protected rows",
     )
+    parser.add_argument(
+        "--exclude-fields",
+        default="",
+        help=(
+            "comma-separated candidate fields to skip; derived ratio fields containing "
+            "an excluded field name are skipped too"
+        ),
+    )
     parser.add_argument("--jobs", type=int, default=1)
     args = parser.parse_args()
 
@@ -866,6 +881,7 @@ def main() -> int:
         show_near_misses=max(0, args.show_near_misses),
         protected_margin=max(0.0, args.protected_margin),
         protected_relative_margin=max(0.0, args.protected_relative_margin),
+        excluded_fields=frozenset(field.strip() for field in args.exclude_fields.split(",") if field.strip()),
     )
     if not routes:
         return 0

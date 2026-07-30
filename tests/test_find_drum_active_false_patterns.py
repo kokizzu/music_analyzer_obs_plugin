@@ -66,6 +66,38 @@ def main() -> int:
     require(output, "attribute-level candidates; validate runtime changes with the full drum gate")
     require(output, "candidate kick->snare +2 rows=2 -0 rows=0 protected_true_snare=2")
 
+    with tempfile.TemporaryDirectory() as tmpdir:
+        table = pathlib.Path(tmpdir) / "drum.tsv"
+        table.write_text(header + "\n" + "\n".join(rows) + "\n", encoding="utf-8")
+        completed = subprocess.run(
+            [
+                sys.executable,
+                str(SCRIPT),
+                str(table),
+                "--route",
+                "kick->snare",
+                "--min-positive-samples",
+                "2",
+                "--max-protected-samples",
+                "0",
+                "--max-conditions",
+                "1",
+                "--limit",
+                "4",
+                "--exclude-fields",
+                "kick_level,body_shape",
+            ],
+            cwd=ROOT,
+            check=True,
+            text=True,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+        )
+    output = completed.stdout
+    require(output, "route kick->snare positives=2 rows=2 protected_true_snare=2 rows=2")
+    if "kick_level" in output or "body_shape" in output:
+        raise AssertionError(f"excluded field appeared in output:\n{output}")
+
     extra_protected_rows = [
         "snare/extra.wav\tsnare\tsnare\t0\t0.79\t0.13\t0.08\t0.90\t17\t3.9\t1.0\t0.60\t6\t2.1\t1.0\t0\t0\t0\t1\t0\t0\t0\t1\t0\t0\t0\t1\t0\t0\t0\t1\t0\t0\t0\t1",
     ]
