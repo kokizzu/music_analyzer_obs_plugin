@@ -311,6 +311,13 @@ PARALLEL_TEST_JOBS=8 make test-detector-samples-parallel
 
 This fans out the analyzer cases, NSynth full-mix note samples, Guitar Chord Mix samples, real-world drum sample gates, the optional local full-drum gate, and the generated instrument sample gate through the same GNU make jobserver.
 
+For a broader detector sample sweep with the max real-world targets, generated instrument samples, and analyzer cases:
+
+```sh
+make test-detector-samples-full-parallel
+PARALLEL_TEST_JOBS=8 make test-detector-samples-full-parallel
+```
+
 For a full detector-tuning pass that runs the parallel regression gates first, then regenerates measured attribute rows and pattern reports with durations:
 
 ```sh
@@ -318,7 +325,7 @@ make analyze-detector-improvements
 PARALLEL_TEST_JOBS=8 MEASURE_ANALYZER_JOBS=8 make analyze-detector-improvements
 ```
 
-Use `make analyze-detector-improvements-full` when you intentionally want the max real-world sample sweep and exhaustive full-drum pattern reports.
+Use `make analyze-detector-improvements-full` when you intentionally want `make test-detector-samples-full-parallel` followed by the exhaustive full-drum pattern reports.
 
 For the NSynth full-mix real-note gate alone, the sharded target splits the manifest across `PARALLEL_TEST_JOBS` analyzer processes and skips rebuilding a fresh manifest:
 

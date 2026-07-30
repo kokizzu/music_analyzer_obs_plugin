@@ -2130,8 +2130,9 @@ REAL_WORLD_SAMPLE_FULL_TARGETS := $(REAL_WORLD_SAMPLE_TARGETS) test-guitar-techs
 REAL_WORLD_SAMPLE_MAX_BASE_TARGETS := $(filter-out test-iowa-piano-samples,$(REAL_WORLD_SAMPLE_TARGETS))
 REAL_WORLD_SAMPLE_MAX_TARGETS := $(REAL_WORLD_SAMPLE_MAX_BASE_TARGETS) test-guitar-techs-samples test-guitar-techs-chord-samples test-guitar-chord-mix-samples-parallel test-egfxset-guitar-samples test-gaps-guitar-samples-full test-idmt-guitar-samples test-iowa-piano-samples-max test-iowa-strings-samples test-iowa-orchestra-samples test-iowa-orchestra-full-samples-max test-philharmonia-samples-full test-tinysol-samples test-good-sounds-samples-max test-medley-solos-samples-max test-maps-piano-samples-max test-maps-piano-note-samples-max test-bach10-mf0-synth-samples test-vocalset-samples test-drum-machine-samples-optional test-drum-samples-full-parallel-optional test-configured-real-world-samples
 DETECTOR_SAMPLE_REGRESSION_TARGETS := test-analyzer-cases test-real-note-samples-full-mix-parallel test-guitar-chord-mix-samples-parallel $(DRUM_REAL_WORLD_SAMPLE_TARGETS) test-vocadito-samples test-vocadito-samples-full-mix-parallel test-instrument-samples-parallel test-drum-samples-full-parallel-optional
+DETECTOR_SAMPLE_FULL_REGRESSION_TARGETS := test-analyzer-cases test-instrument-samples-parallel test-real-world-samples-max-parallel
 TEST_FIXTURE_PARALLEL_TARGETS := test-real-note-samples test-direct-fit-small-fixture test-synthsod-fixture test-prepared-multitrack-fixture test-multtipop-audio-root-fixture
-.PHONY: test-detector-samples-parallel
+.PHONY: test-detector-samples-parallel test-detector-samples-full-parallel
 
 ifneq ($(wildcard $(DRUM_SAMPLE_SOURCE_DIR)),)
 test-drum-samples-optional: test-drum-samples
@@ -2205,6 +2206,9 @@ test-real-world-samples-full-parallel: scripts/run_with_duration.sh
 test-detector-samples-parallel: scripts/run_with_duration.sh
 	+$(RUN_WITH_DURATION) detector_samples_parallel $(MAKE) $(PARALLEL_TEST_MAKE_JOBS) $(DETECTOR_SAMPLE_REGRESSION_TARGETS)
 
+test-detector-samples-full-parallel: scripts/run_with_duration.sh
+	+$(RUN_WITH_DURATION) detector_samples_full_parallel $(MAKE) $(PARALLEL_TEST_MAKE_JOBS) $(DETECTOR_SAMPLE_FULL_REGRESSION_TARGETS)
+
 test-fixtures-parallel: $(BUILD_DIR)/analyzer_real_note_samples $(BUILD_DIR)/analyzer_urmp $(BUILD_DIR)/analyzer_musicnet $(BUILD_DIR)/analyzer_multtipop scripts/run_with_duration.sh
 	+$(RUN_WITH_DURATION) test_fixtures_parallel $(MAKE) $(PARALLEL_TEST_MAKE_JOBS) $(TEST_FIXTURE_PARALLEL_TARGETS)
 
@@ -2255,7 +2259,7 @@ analyze-detector-improvements: scripts/run_with_duration.sh
 	+$(RUN_WITH_DURATION) detector_improvement_patterns $(MAKE) -s measure-analyzer-patterns
 
 analyze-detector-improvements-full: scripts/run_with_duration.sh
-	+$(RUN_WITH_DURATION) detector_improvement_samples_full $(MAKE) test-real-world-samples-max-parallel
+	+$(RUN_WITH_DURATION) detector_improvement_samples_full $(MAKE) test-detector-samples-full-parallel
 	+$(RUN_WITH_DURATION) detector_improvement_patterns_full $(MAKE) -s measure-analyzer-patterns-full
 
 test-midi-ranges: $(BUILD_DIR)/analyzer_midi_ranges scripts/run_with_duration.sh
