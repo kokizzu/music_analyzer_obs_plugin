@@ -19911,6 +19911,15 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 		if (final_one_shot_measured_ride_band_tom_snare_active_bleed)
 			cap_drum_level(Snare, 0.28f);
 
+		const bool final_one_shot_measured_low_hihat_rim_tom_snare_active_bleed =
+			drum_detection_enabled && one_shot_drum_source &&
+			drum_level_[Tom] > 0.30f &&
+			drum_level_[Snare] > 0.30f &&
+			hihat_rim_band_ratio <= 0.053f &&
+			tom_snare_level_ratio >= 1.001f;
+		if (final_one_shot_measured_low_hihat_rim_tom_snare_active_bleed)
+			cap_drum_level(Snare, 0.28f);
+
 	const bool onset_tempo_event =
 		drum_detection_enabled && rms > kSilenceRms && drum_transient &&
 		(had_previous_audio ? onset >= 1.25f : true);
