@@ -170,6 +170,9 @@ def main() -> int:
     assert "$(DRUM_FULL_MERGED_EXPECTED_ATTRIBUTE_ROWS)" in active_false_protected.group("value"), (
         "drum active false mining must protect merged expected-hit rows when available"
     )
+    assert "DRUM_ACTIVE_EXTRA_PROTECTED_ROWS ?= $(MEASURE_DRUM_ACTIVE_EXTRA_PROTECTED_ROWS)" in makefile, (
+        "direct drum active false mining must inherit the measured protected row defaults"
+    )
     active_false_recipe = target_recipe(makefile, "find-drum-active-false-patterns")
     assert '$(foreach rows,$(DRUM_ACTIVE_EXTRA_PROTECTED_ROWS),--extra-protected-rows "$(rows)")' in active_false_recipe, (
         "drum active false mining must pass each protected TSV as a separate parser argument"
