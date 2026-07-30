@@ -3032,6 +3032,51 @@ bool measured_vocal_octave_alias_priority_supported(const FullMixDebugCandidate 
 	       debug.other_score >= 0.471f;
 }
 
+bool measured_low_vocal_fundamental_alias_supported(const FullMixDebugCandidate &debug)
+{
+	if (debug.midi < kFullMixVocalMinMidi - 12 || debug.midi >= kFullMixVocalMinMidi)
+		return false;
+
+	const float second = debug.harmonic_ratios[1];
+	const float third = debug.harmonic_ratios[2];
+	const float fourth = debug.harmonic_ratios[3];
+	const float fifth = debug.harmonic_ratios[4];
+	const bool strong_low_pitch =
+		debug.spectral_level >= 0.65f &&
+		debug.pitch_confidence >= 0.50f &&
+		debug.periodicity >= 0.66f &&
+		debug.harmonic_fit_error <= 0.36f;
+	const bool formant_like_low_vowel =
+		debug.spectral_centroid >= 0.32f &&
+		debug.spectral_slope >= 0.55f &&
+		second >= 0.30f &&
+		third >= 0.10f &&
+		(fourth >= 0.08f || fifth >= 0.04f);
+	const bool obvious_clean_bass =
+		debug.spectral_centroid <= 0.24f &&
+		debug.spectral_slope <= 0.32f &&
+		third <= 0.12f &&
+		fourth <= 0.08f &&
+		fifth <= 0.04f;
+	return strong_low_pitch && formant_like_low_vowel && !obvious_clean_bass;
+}
+
+bool measured_low_vocal_alias_display_midi_supported(const FullMixOwnership &ownership, int display_midi)
+{
+	if (display_midi < kFullMixVocalMinMidi || display_midi > kVocalMaxMidi)
+		return false;
+
+	const int source_midi = display_midi - 12;
+	const std::size_t debug_count =
+		std::min<std::size_t>(ownership.debug_candidate_count, ownership.debug_candidates.size());
+	for (std::size_t i = 0; i < debug_count; ++i) {
+		const FullMixDebugCandidate &debug = ownership.debug_candidates[i];
+		if (debug.midi == source_midi && measured_low_vocal_fundamental_alias_supported(debug))
+			return true;
+	}
+	return false;
+}
+
 bool raw_supported_vocal_lower_octave_alias(const FullMixDebugCandidate &debug, int display_midi,
 					    const std::array<float, kNoteProbeCount> *raw_powers)
 {
@@ -4108,6 +4153,11 @@ int full_mix_display_mirror_midi(FullMixDisplayRow row, const FullMixDebugCandid
 	if (row == FullMixDisplayRow::Vocal && measured_vocal_octave_alias_supported(debug)) {
 		const int lowered = debug.midi - 12;
 		return lowered;
+	}
+	if (row == FullMixDisplayRow::Vocal && measured_low_vocal_fundamental_alias_supported(debug)) {
+		const int raised = debug.midi + 12;
+		if (raised >= kFullMixVocalMinMidi && raised <= kVocalMaxMidi)
+			return raised;
 	}
 	if (row == FullMixDisplayRow::Keyboard && measured_keyboard_double_octave_alias_supported(debug)) {
 		const int lowered = debug.midi - 24;
@@ -5189,7 +5239,9 @@ bool full_mix_display_mirror_supported(FullMixDisplayRow row, const FullMixDebug
 		       measured_guitar_octave_alias_supported(debug);
 	}
 	case FullMixDisplayRow::Vocal:
-		return shared_vocal_pitch_display_supported(debug) || measured_vocal_octave_alias_supported(debug);
+		return shared_vocal_pitch_display_supported(debug) ||
+		       measured_vocal_octave_alias_supported(debug) ||
+		       measured_low_vocal_fundamental_alias_supported(debug);
 	case FullMixDisplayRow::Other:
 		const bool sustained_other = sustained_other_display_supported(debug);
 		const bool low_weak_upper_string_other =
@@ -5668,12 +5720,21 @@ void add_full_mix_display_mirror(NoteCandidateList &candidates, const FullMixOwn
 		row == FullMixDisplayRow::Keyboard &&
 		display_midi != debug.midi &&
 		measured_low_organ_keyboard_octave_alias_supported(debug);
+	const bool measured_low_vocal_fundamental_alias =
+		row == FullMixDisplayRow::Vocal &&
+		display_midi == debug.midi + 12 &&
+		measured_low_vocal_fundamental_alias_supported(debug);
 	if (measured_low_organ_keyboard_alias)
 		global_level = std::max(global_level, 0.34f);
 	if (row == FullMixDisplayRow::Vocal && display_midi != debug.midi &&
 	    measured_vocal_octave_alias_supported(debug)) {
 		global_level = std::max(global_level,
 					std::clamp(debug.spectral_level * debug.pitch_confidence, 0.0f, 1.0f));
+	}
+	if (measured_low_vocal_fundamental_alias) {
+		global_level = std::max(global_level,
+					std::clamp(debug.spectral_level * debug.pitch_confidence * 0.78f,
+						   0.0f, 1.0f));
 	}
 	if (global_level < 0.10f)
 		return;
@@ -5682,6 +5743,10 @@ void add_full_mix_display_mirror(NoteCandidateList &candidates, const FullMixOwn
 	const float base_score = row_reference > 1.0e-6f ? row_reference : 1.0f;
 	float candidate_score = base_score * std::clamp(global_level, 0.18f, 1.0f) * 0.52f;
 	float candidate_confidence = row == FullMixDisplayRow::Other ? 0.21f : 0.20f;
+	if (measured_low_vocal_fundamental_alias) {
+		candidate_score = std::min(candidate_score, base_score * 0.34f);
+		candidate_confidence = std::max(candidate_confidence, 0.24f);
+	}
 	if (row == FullMixDisplayRow::Vocal && display_midi != debug.midi &&
 	    (measured_vocal_octave_alias_priority_supported(debug) ||
 	     raw_supported_vocal_lower_octave_alias(debug, display_midi, raw_powers)))
@@ -8977,6 +9042,8 @@ void suppress_named_owned_same_pitch_vocal_shadows(NoteGrid &vocal_grid, Instrum
 		const float owner_level = note_grid_midi_visual_level(owner_grid, midi);
 		if (owner_level < kMinOwnerLevel ||
 		    vocal_level > owner_level * kMaxVocalToOwnerLevelRatio)
+			continue;
+		if (measured_low_vocal_alias_display_midi_supported(ownership, midi))
 			continue;
 
 		const FullMixDebugCandidate *debug =

@@ -3995,6 +3995,35 @@ void check_full_mix_realistic_vocal_recall(Runner &runner)
 		settings.analysis_interval_seconds = 0.05f;
 
 		mao_test::Buffer buffer = {};
+		const std::vector<float> low_fundamental_vocal_profile =
+			{1.0f, 1.20f, 0.72f, 0.36f, 0.18f};
+		add_harmonic_note(buffer, 41, 0.24f, low_fundamental_vocal_profile);
+
+		mao::AnalysisSnapshot snapshot = engine.analyze(buffer.data(), buffer.size(), settings, "Mic/Aux", 0);
+		expect_global_pitch_class(runner, snapshot, 5, "full-mix low fundamental vocal first-frame global");
+		expect_no_pitch_class(runner, snapshot.vocal_notes, 5,
+				      "full-mix low fundamental vocal first-frame vocal");
+
+		snapshot = engine.analyze(buffer.data(), buffer.size(), settings, "Mic/Aux", 0);
+		runner.expect(grid_pitch_active(snapshot.vocal_notes, 5),
+			      std::string("full-mix low fundamental vocal second-frame vocal: expected F active, got keyboard `") +
+				      snapshot.keyboard.label + "`, guitar `" + snapshot.guitar.label +
+				      "`, vocal `" + snapshot.vocal.label + "`, other `" +
+				      snapshot.other.label + "`, debug F2 `" +
+				      full_mix_debug_summary_for_midi(snapshot, 41) + "`");
+		runner.expect(grid_level_for_midi(snapshot.vocal_notes, 53) > 0.0f,
+			      "full-mix low fundamental vocal: expected display-safe F3 alias in vocal grid");
+		runner.expect(grid_level_for_midi(snapshot.vocal_notes, 41) <= 0.0f,
+			      "full-mix low fundamental vocal: expected F2 below vocal grid display floor");
+	}
+
+	{
+		mao::AnalysisEngine engine;
+		mao::AnalysisSettings settings = mao_test::default_settings();
+		settings.input_mode = mao::AnalysisInputMode::FullMix;
+		settings.analysis_interval_seconds = 0.05f;
+
+		mao_test::Buffer buffer = {};
 		const std::vector<float> low_vocal_profile = {1.0f, 0.22f, 0.12f, 0.055f, 0.025f};
 		add_harmonic_note(buffer, 53, 0.24f, low_vocal_profile);
 
