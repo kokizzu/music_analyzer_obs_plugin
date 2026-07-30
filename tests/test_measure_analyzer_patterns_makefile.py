@@ -634,12 +634,26 @@ def main() -> int:
         "cached full drum pattern target must mine the full drum exact TSV"
     )
     guitar_chord_sharded_recipe = target_recipe(makefile, "test-guitar-chord-mix-samples-parallel")
+    assert "GUITAR_CHORD_MIX_SHARD_OUTS := $(addprefix $(BUILD_DIR)/guitar_chord_mix_samples_shard_,$(addsuffix .out,$(GUITAR_CHORD_MIX_SHARD_INDEXES)))" in makefile, (
+        "guitar chord mix parallel target must define deterministic shard output logs"
+    )
     assert "$(MAKE) $(GUITAR_CHORD_MIX_TEST_MAKE_JOBS) $(GUITAR_CHORD_MIX_SHARD_TARGETS)" in guitar_chord_sharded_recipe, (
         "guitar chord mix parallel target must fan out deterministic shards through jobserver-aware make"
     )
     assert "$(RUN_WITH_DURATION) analyzer_guitar_chord_mix_samples_parallel" in guitar_chord_sharded_recipe, (
         "guitar chord mix parallel target must report aggregate duration"
     )
+    assert "scripts/check_guitarset_shards.py $(GUITAR_CHORD_MIX_SHARD_OUTS)" in guitar_chord_sharded_recipe, (
+        "guitar chord mix parallel target must validate aggregate shard metrics"
+    )
+    for text in [
+        "--required-excerpts \"$(GUITAR_CHORD_MIX_MIN_EXCERPTS)\"",
+        "--required-windows \"$(GUITAR_CHORD_MIX_MIN_WINDOWS)\"",
+        "--min-chord-hits \"$(GUITAR_CHORD_MIX_MIN_CHORD_HITS)\"",
+    ]:
+        assert text in guitar_chord_sharded_recipe, (
+            f"guitar chord mix aggregate checker must include {text}"
+        )
     for target_var in [
         "$(GUITAR_CHORD_MIX_SHARD_TARGETS)",
         "$(GUITAR_TECHS_CHORD_SHARD_TARGETS)",
@@ -655,6 +669,16 @@ def main() -> int:
     assert "FORCE" in guitar_chord_shard_recipe.splitlines()[0], (
         "guitar chord mix shard pattern must use FORCE so each shard executes"
     )
+    for text in [
+        "guitar_chord_mix_samples_shard_$*.out",
+        "MUSIC_ANALYZER_GUITARSET_REQUIRED_EXCERPTS=1",
+        "MUSIC_ANALYZER_GUITARSET_REQUIRED_WINDOWS=1",
+        "MUSIC_ANALYZER_GUITARSET_MIN_CHORD_CHECKS=0",
+        "MUSIC_ANALYZER_GUITARSET_MIN_CHORD_HITS=0",
+    ]:
+        assert text in guitar_chord_shard_recipe, (
+            f"guitar chord mix shard target must include {text}"
+        )
     for aggregate, shard, jobs_var, shards_var, targets_var, duration in [
         (
             "test-guitar-techs-chord-samples",
@@ -1057,6 +1081,9 @@ def main() -> int:
     for text in [
         "$(BUILD_DIR)/analyzer_guitarset",
         "MUSIC_ANALYZER_GUITARSET_ATTRIBUTE_TSV=\"$@\"",
+        "MUSIC_ANALYZER_GUITARSET_REQUIRED_EXCERPTS=1",
+        "MUSIC_ANALYZER_GUITARSET_REQUIRED_WINDOWS=1",
+        "MUSIC_ANALYZER_GUITARSET_MIN_CHORD_CHECKS=0",
         "MUSIC_ANALYZER_GUITARSET_SHARD_COUNT=\"$(GUITAR_CHORD_MIX_SHARDS)\"",
         "MUSIC_ANALYZER_GUITARSET_SHARD_INDEX=\"$*\"",
         "guitar_chord_mix_attributes.shard-$*.out",
@@ -1064,6 +1091,12 @@ def main() -> int:
         assert text in guitar_attribute_shard_recipe, (
             f"guitar chord attribute shard target must include {text}"
         )
+    assert "MUSIC_ANALYZER_GUITARSET_REQUIRED_EXCERPTS=\"$(GUITAR_CHORD_MIX_MIN_EXCERPTS)\"" not in guitar_attribute_shard_recipe, (
+        "guitar chord attribute shards must not fail uneven shards with the global excerpt floor"
+    )
+    assert "MUSIC_ANALYZER_GUITARSET_REQUIRED_WINDOWS=\"$(GUITAR_CHORD_MIX_MIN_WINDOWS)\"" not in guitar_attribute_shard_recipe, (
+        "guitar chord attribute shards must not fail uneven shards with the global window floor"
+    )
 
     downloaded_guitarset_attribute_recipe = target_recipe(makefile, "$(GUITARSET_ATTRIBUTE_TSV)")
     assert "GUITARSET_ATTRIBUTE_MAKE_JOBS = $(if $(filter -j%,$(MAKEFLAGS)),,-j$(GUITARSET_SHARDS))" in makefile, (
