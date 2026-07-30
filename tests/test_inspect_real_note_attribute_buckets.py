@@ -179,7 +179,71 @@ def main() -> int:
             "A4:0.80,A5:0.20",
             "",
         ]
-        path.write_text("\t".join(columns) + "\n" + "\t".join(keyboard_row) + "\n" + "\t".join(reed_row) + "\n")
+        keyboard_visual_row = [
+            "hit",
+            "piano",
+            "electronic",
+            "piano",
+            "piano",
+            "keyboard_visual_1",
+            "E4",
+            "0",
+            "E4",
+            "yes",
+            "yes",
+            "guitar",
+            "guitar",
+            "E4",
+            "guitar",
+            "64",
+            "64",
+            "0.82",
+            "0.00",
+            "0.62",
+            "0.78",
+            "0.00",
+            "0.00",
+            "1.00",
+            "0.82",
+            "0.78",
+            "0.04",
+            "0.24",
+            "0.08",
+            "0.02",
+            "1.00",
+            "0.52",
+            "0.22",
+            "0.08",
+            "0.03",
+            "0.00",
+            "0.90",
+            "0.72",
+            "0.00",
+            "0.00",
+            "0.00",
+            "0.00",
+            "0.70",
+            "1.00",
+            "0.00",
+            "0.00",
+            "0.00",
+            "",
+            "E3:0.20,E4:0.90",
+            "E4:0.72,G4:0.20",
+            "",
+            "",
+            "",
+        ]
+        path.write_text(
+            "\t".join(columns)
+            + "\n"
+            + "\t".join(keyboard_row)
+            + "\n"
+            + "\t".join(reed_row)
+            + "\n"
+            + "\t".join(keyboard_visual_row)
+            + "\n"
+        )
 
         result = subprocess.run(
             [
@@ -295,9 +359,66 @@ def main() -> int:
             stderr=subprocess.PIPE,
             check=True,
         )
+        row_confusion = subprocess.run(
+            [
+                sys.executable,
+                str(ROOT / "scripts" / "inspect_real_note_attribute_buckets.py"),
+                str(path),
+                "--bucket",
+                "row_confusion:piano/electronic->guitar",
+                "--summary-only",
+            ],
+            text=True,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            check=True,
+        )
+        visual_row_confusion = subprocess.run(
+            [
+                sys.executable,
+                str(ROOT / "scripts" / "inspect_real_note_attribute_buckets.py"),
+                str(path),
+                "--bucket",
+                "visual_row_confusion:piano/electronic->guitar",
+                "--summary-only",
+            ],
+            text=True,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            check=True,
+        )
+        visual_row_confusion_dump = subprocess.run(
+            [
+                sys.executable,
+                str(ROOT / "scripts" / "inspect_real_note_attribute_buckets.py"),
+                str(path),
+                "--dump-rows",
+                "--bucket",
+                "visual_row_confusion:piano/electronic->guitar",
+            ],
+            text=True,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            check=True,
+        )
+        visual_row_confusion_auto = subprocess.run(
+            [
+                sys.executable,
+                str(ROOT / "scripts" / "inspect_real_note_attribute_buckets.py"),
+                str(path),
+                "--bucket-status",
+                "visual_row_confusion",
+                "--summary-only",
+            ],
+            text=True,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            check=True,
+        )
 
     assert "ownership_miss:piano/electronic->guitar rows=1 samples=1" in result.stdout
     assert "hit:other/acoustic->other rows=1 samples=1" in result.stdout
+    assert "row_confusion:piano/electronic->guitar" not in result.stdout
     assert "debug_score_state" in result.stdout
     assert "scored_owner=1" in result.stdout
     assert "debug_conf" in result.stdout
@@ -336,6 +457,18 @@ def main() -> int:
     assert "reed_1" not in miss_reason_filtered.stdout
     assert "hit:other/acoustic->other rows=1 samples=1" in row_filtered.stdout
     assert "ownership_miss:piano/electronic->guitar" not in row_filtered.stdout
+    assert "row_confusion:piano/electronic->guitar rows=1 samples=1" in row_confusion.stdout
+    assert "keyboard_visual_1" in row_confusion.stdout
+    assert "ownership_miss:piano/electronic->guitar" not in row_confusion.stdout
+    assert "visual_row_confusion:piano/electronic->guitar rows=1 samples=1" in visual_row_confusion.stdout
+    assert "keyboard_visual_1" in visual_row_confusion.stdout
+    assert "ownership_miss:piano/electronic->guitar" not in visual_row_confusion.stdout
+    assert visual_row_confusion_dump.stdout.startswith("sample_id\tstatus\tfamily\t")
+    assert "\nkeyboard_visual_1\thit\tpiano\telectronic\tE4" in visual_row_confusion_dump.stdout
+    assert "keyboard_1" not in visual_row_confusion_dump.stdout
+    assert "reed_1" not in visual_row_confusion_dump.stdout
+    assert "visual_row_confusion:piano/electronic->guitar rows=1 samples=1" in visual_row_confusion_auto.stdout
+    assert "ownership_miss:piano/electronic->guitar" not in visual_row_confusion_auto.stdout
     print("test_inspect_real_note_attribute_buckets: ok")
     return 0
 

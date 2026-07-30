@@ -380,29 +380,28 @@ def quantile(values: list[float], fraction: float) -> float:
 def bucket_rows(
     rows: list[dict[str, str]], status: str, family: str, source: str, first_row: str
 ) -> list[dict[str, str]]:
-    return [
-        row
-        for row in rows
-        if row.get("status") == status
-        and row.get("family") == family
-        and row.get("source") == source
-        and row.get("first_row") == first_row
-        and row.get("debug_note")
-    ]
+    return [row for row in rows if row_matches_bucket(row, status, family, source, first_row)]
+
+
+def row_matches_bucket(
+    row: dict[str, str], status: str, family: str, source: str, target_row: str
+) -> bool:
+    if row.get("family") != family or row.get("source") != source or not row.get("debug_note"):
+        return False
+    if status == "row_confusion":
+        expected_row = ROW_FOR_FAMILY.get(family, family)
+        strongest_row = row.get("buffer_strongest_row", "")
+        return row.get("status") == "hit" and strongest_row == target_row and strongest_row != expected_row
+    if status == "visual_row_confusion":
+        expected_row = ROW_FOR_FAMILY.get(family, family)
+        strongest_row = row.get("buffer_visual_strongest_row", "")
+        return row.get("status") == "hit" and strongest_row == target_row and strongest_row != expected_row
+    return row.get("status") == status and row.get("first_row") == target_row
 
 
 def bucket_sample_count(rows: list[dict[str, str]], key: tuple[str, str, str, str]) -> int:
     status, family, source, first_row = key
-    return len(
-        {
-            row["sample_id"]
-            for row in rows
-            if row.get("status") == status
-            and row.get("family") == family
-            and row.get("source") == source
-            and row.get("first_row") == first_row
-        }
-    )
+    return len({row["sample_id"] for row in rows if row_matches_bucket(row, status, family, source, first_row)})
 
 
 def compact_counts(rows: list[dict[str, str]], field: str, limit: int = 8) -> str:
@@ -532,13 +531,7 @@ def dump_rows(
         if misses_only and row.get("status") != "ownership_miss":
             continue
         if bucket_filter:
-            key = (
-                row.get("status", ""),
-                row.get("family", ""),
-                row.get("source", ""),
-                row.get("first_row", ""),
-            )
-            if key not in bucket_filter:
+            if not any(row_matches_bucket(row, *key) for key in bucket_filter):
                 continue
         if sample_filter and row.get("sample_id", "") not in sample_filter:
             continue
@@ -592,12 +585,26 @@ def top_bucket_keys(
     rows: list[dict[str, str]],
     top_misses: int,
     *,
+    bucket_status: str,
     include_comparisons: bool,
     include_defaults: bool,
 ) -> list[tuple[str, str, str, str]]:
     counts: collections.Counter[tuple[str, str, str, str]] = collections.Counter()
     for row in rows:
-        key = (row.get("status", ""), row.get("family", ""), row.get("source", ""), row.get("first_row", ""))
+        family = row.get("family", "")
+        expected_row = ROW_FOR_FAMILY.get(family, family)
+        if bucket_status == "row_confusion":
+            target_row = row.get("buffer_strongest_row", "")
+            if row.get("status") != "hit" or not target_row or target_row == expected_row:
+                continue
+            key = ("row_confusion", family, row.get("source", ""), target_row)
+        elif bucket_status == "visual_row_confusion":
+            target_row = row.get("buffer_visual_strongest_row", "")
+            if row.get("status") != "hit" or not target_row or target_row == expected_row:
+                continue
+            key = ("visual_row_confusion", family, row.get("source", ""), target_row)
+        else:
+            key = (row.get("status", ""), family, row.get("source", ""), row.get("first_row", ""))
         if "" in key:
             continue
         counts[key] += 1
@@ -605,10 +612,10 @@ def top_bucket_keys(
     keys: list[tuple[str, str, str, str]] = []
     for key, _row_count in counts.most_common():
         status, family, source, first_row = key
-        if status != "ownership_miss":
+        if status != bucket_status:
             continue
         keys.append(key)
-        if include_comparisons:
+        if include_comparisons and bucket_status == "ownership_miss":
             expected_row = ROW_FOR_FAMILY.get(family)
             comparisons = [
                 ("hit", family, source, first_row),
@@ -617,10 +624,10 @@ def top_bucket_keys(
             for comparison in comparisons:
                 if comparison in counts:
                     keys.append(comparison)
-        if len({key for key in keys if key[0] == "ownership_miss"}) >= top_misses:
+        if len({key for key in keys if key[0] == bucket_status}) >= top_misses:
             break
 
-    if include_defaults:
+    if include_defaults and bucket_status == "ownership_miss":
         for bucket in DEFAULT_BUCKETS:
             keys.append(bucket)
 
@@ -667,6 +674,12 @@ def main() -> int:
         "--misses-only",
         action="store_true",
         help="print only the largest ownership-miss buckets, without comparison or fixed buckets",
+    )
+    parser.add_argument(
+        "--bucket-status",
+        choices=("ownership_miss", "row_confusion", "visual_row_confusion"),
+        default="ownership_miss",
+        help="status used for automatically selected top buckets",
     )
     parser.add_argument(
         "--summary-only",
@@ -733,6 +746,7 @@ def main() -> int:
         buckets = top_bucket_keys(
             rows,
             max(0, args.top_misses),
+            bucket_status=args.bucket_status,
             include_comparisons=not args.misses_only,
             include_defaults=not args.misses_only,
         )
