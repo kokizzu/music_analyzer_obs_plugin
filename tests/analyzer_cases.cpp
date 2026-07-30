@@ -3027,6 +3027,39 @@ void check_full_mix_single_instrument_precision(Runner &runner)
 
 	{
 		mao_test::Buffer buffer = {};
+		const std::vector<float> measured_low_electronic_keyboard_profile =
+			{1.0f, 0.93f, 0.15f, 0.49f, 0.53f};
+		add_harmonic_note(buffer, 51, 0.20f, measured_low_electronic_keyboard_profile);
+
+		const auto snapshot =
+			analyze_buffer_with_mode(buffer, mao::AnalysisInputMode::FullMix,
+						 "speaker measured low electronic keyboard octave mirror", 3);
+		expect_global_pitch_class(runner, snapshot, 3,
+					  "full-mix measured low electronic keyboard octave mirror global");
+		runner.expect(grid_pitch_active(snapshot.keyboard_notes, 3) ||
+				      grid_pitch_active(snapshot.ambiguous_notes, 3),
+			      std::string("full-mix measured low electronic keyboard octave mirror: "
+					  "expected keyboard/ambiguous D#, got keyboard `") +
+				      snapshot.keyboard.label + "`, ambiguous `" +
+				      note_grid_active_labels(snapshot.ambiguous_notes) + "`, guitar `" +
+				      snapshot.guitar.label + "`");
+		const float keyboard_visual = grid_visual_level_for_midi(snapshot.keyboard_notes, 51);
+		const float guitar_octave_visual = std::max(grid_visual_level_for_midi(snapshot.guitar_notes, 63),
+							    grid_visual_level_for_midi(snapshot.guitar_notes, 75));
+		runner.expect(keyboard_visual >= 0.55f && guitar_octave_visual <= keyboard_visual,
+			      std::string("full-mix measured low electronic keyboard octave mirror: "
+					  "expected guitar D#4/D#5 mirrors not brighter than keyboard, got "
+					  "keyboard visual ") +
+				      std::to_string(keyboard_visual) + ", guitar octave visual " +
+				      std::to_string(guitar_octave_visual) + ", guitar `" +
+				      snapshot.guitar.label + "`, lower debug `" +
+				      full_mix_debug_summary_for_midi(snapshot, 51) + "`, guitar D#4 debug `" +
+				      full_mix_debug_summary_for_midi(snapshot, 63) + "`, guitar D#5 debug `" +
+				      full_mix_debug_summary_for_midi(snapshot, 75) + "`");
+	}
+
+	{
+		mao_test::Buffer buffer = {};
 		const std::vector<float> low_acoustic_guitar_profile =
 			{1.0f, 0.21f, 0.54f, 0.34f, 0.020f};
 		const std::vector<float> upper_keyboard_profile =

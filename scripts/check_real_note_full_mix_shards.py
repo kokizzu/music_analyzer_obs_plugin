@@ -25,6 +25,7 @@ FAMILY_TOTAL_RE = re.compile(
     r"\b(?P<family>bass|guitar|piano|vocals|other)(?:=|\s+)(?P<hit>\d+)/(?P<total>\d+)"
 )
 DRUM_RE = re.compile(r"\b(?P<name>kick|snare|hihat|crash|tom|ride|rim)=(?P<count>\d+)")
+ROUTE_LIMIT_RE = re.compile(r"^(?P<route>[^=]+)=(?P<limit>\d+)$")
 
 
 def percent(hit: int, total: int) -> int:
@@ -85,6 +86,13 @@ def parse_source_routes(body: str) -> Counter[str]:
             continue
         routes[route] += int(value)
     return routes
+
+
+def parse_route_limit(spec: str) -> tuple[str, int]:
+    match = ROUTE_LIMIT_RE.fullmatch(spec)
+    if not match:
+        fail(f"invalid route limit `{spec}`; expected route=count")
+    return match.group("route"), int(match.group("limit"))
 
 
 def add_routes(total: Counter[str], part: Counter[str]) -> None:
@@ -293,6 +301,11 @@ def validate(
             f"expected full-mix melodic drum-active windows <= {args.max_drum_active_percent}%, "
             f"got {drum_percent}% ({summary['drum_active']}/{summary['drum_windows']})"
         )
+    for spec in args.max_visual_source_route:
+        route, limit = parse_route_limit(spec)
+        value = visual_source_routes.get(route, 0)
+        if value > limit:
+            fail(f"expected full-mix visual source route {route} <= {limit}, got {value}")
 
     print(
         "check_real_note_full_mix_shards: ok "
@@ -328,6 +341,13 @@ def main() -> int:
     parser.add_argument("--min-expected-row-percent", type=int, default=80)
     parser.add_argument("--min-first-row-percent", type=int, default=25)
     parser.add_argument("--max-drum-active-percent", type=int, default=25)
+    parser.add_argument(
+        "--max-visual-source-route",
+        action="append",
+        default=[],
+        metavar="ROUTE=COUNT",
+        help="maximum allowed aggregate visual source-route count, for example piano/electronic->guitar=160",
+    )
     for family in FAMILIES:
         parser.add_argument(f"--{family}-min-expected-row-percent", type=int)
         parser.add_argument(f"--{family}-min-first-row-percent", type=int)
