@@ -22,6 +22,7 @@ RULE_FLAG_BITS = (
     ("flag_strong_low_kick_tom_bleed", 1 << 8),
     ("flag_saturated_kick_tom_bleed", 1 << 9),
     ("flag_high_band_kick_body_tom_bleed", 1 << 11),
+    ("flag_massive_tom_body_snare_primary_recovery", 1 << 12),
 )
 ROW_DUMP_FIELDS = (
     [
