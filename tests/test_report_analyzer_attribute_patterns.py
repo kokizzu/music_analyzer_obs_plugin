@@ -92,6 +92,11 @@ snare/1.wav	snare	tom	0.2	0.7	0.1	0.1	0.8	0.9	1.0	0.0	0.5	0.5
     assert (
         "exact-octave coverage debug[exact=2/3 (66.7%) pitch-class=3/3 (100.0%) octave-alias=1/3 (33.3%)]"
     ) in output
+    assert (
+        "grid exact-octave coverage expected-row[exact=3/3 (100.0%) pitch-class=3/3 (100.0%)] "
+        "strongest-row[exact=3/3 (100.0%) pitch-class=3/3 (100.0%)] "
+        "any-row[exact=3/3 (100.0%) pitch-class=3/3 (100.0%)]"
+    ) in output
     assert "debug score states scored_owner=3" in output
     assert "strongest-row confusion rows=1 samples=1 visible>=0.50=1 rows/1 samples exact>=0.25=1 rows/1 samples" in output
     assert "same-midi spillover>=0.25 entries=1 samples=1 routes=piano/electronic->guitar=1" in output

@@ -62,6 +62,13 @@ def parse_int(value: str) -> int | None:
         return None
 
 
+def parse_float(value: str) -> float | None:
+    try:
+        return float(value)
+    except (TypeError, ValueError):
+        return None
+
+
 def midi_range(rows: list[dict[str, str]], field: str) -> str:
     values = [parsed for row in rows if (parsed := parse_int(row.get(field, ""))) is not None]
     if not values:
@@ -207,6 +214,32 @@ def pitch_coverage_line(
             f"primary[{pitch_coverage_text(primary_pitch_quality_counts(rows, midi_field), len(rows))}]"
         )
     return " ".join(parts)
+
+
+def level_positive_count(rows: list[dict[str, str]], field: str) -> int:
+    return sum(1 for row in rows if (value := parse_float(row.get(field, ""))) is not None and value > 0.0)
+
+
+def int_positive_count(rows: list[dict[str, str]], field: str) -> int:
+    return sum(1 for row in rows if (value := parse_int(row.get(field, ""))) is not None and value > 0)
+
+
+def real_note_grid_coverage_line(rows: list[dict[str, str]]) -> str:
+    has_grid_fields = any(
+        row.get("expected_row_exact_level", "") or row.get("expected_exact_row_count", "")
+        for row in rows
+    )
+    if not has_grid_fields:
+        return ""
+    total = len(rows)
+    return (
+        f"expected-row[exact={count_fraction(level_positive_count(rows, 'expected_row_exact_level'), total)} "
+        f"pitch-class={count_fraction(level_positive_count(rows, 'expected_row_pitch_level'), total)}] "
+        f"strongest-row[exact={count_fraction(level_positive_count(rows, 'strongest_row_exact_level'), total)} "
+        f"pitch-class={count_fraction(level_positive_count(rows, 'strongest_row_pitch_level'), total)}] "
+        f"any-row[exact={count_fraction(int_positive_count(rows, 'expected_exact_row_count'), total)} "
+        f"pitch-class={count_fraction(int_positive_count(rows, 'expected_pitch_row_count'), total)}]"
+    )
 
 
 def note_key(row: dict[str, str], *, midi_field: str, note_field: str, source_field: str) -> tuple[str, str, str]:
@@ -720,6 +753,9 @@ def report_real_note_rows(path: pathlib.Path, row_limit: int) -> None:
         "  exact-octave coverage "
         f"{pitch_coverage_line(rows, 'expected_midi', include_display=False, include_primary=False)}"
     )
+    grid_coverage = real_note_grid_coverage_line(rows)
+    if grid_coverage:
+        print(f"  grid exact-octave coverage {grid_coverage}")
     print(
         f"  row routing expected-row exact="
         f"{count_fraction(sum(1 for row in rows if expected_row_exact_hit(row)), len(rows))} "
