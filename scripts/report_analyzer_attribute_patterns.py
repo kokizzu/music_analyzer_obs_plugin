@@ -173,6 +173,36 @@ def primary_pitch_quality_counts(rows: list[dict[str, str]], midi_field: str) ->
     return counts
 
 
+def pitch_coverage_text(counter: collections.Counter[str], total: int) -> str:
+    exact = counter.get("exact", 0)
+    octave_alias = counter.get("octave_alias", 0)
+    pitch_class = exact + octave_alias
+    return (
+        f"exact={ratio(exact, total)} "
+        f"pitch-class={ratio(pitch_class, total)} "
+        f"octave-alias={ratio(octave_alias, total)}"
+    )
+
+
+def pitch_coverage_line(
+    rows: list[dict[str, str]],
+    midi_field: str,
+    *,
+    include_display: bool,
+    include_primary: bool,
+) -> str:
+    parts = [f"debug[{pitch_coverage_text(pitch_quality_counts(rows, midi_field), len(rows))}]"]
+    if include_display:
+        parts.append(
+            f"display[{pitch_coverage_text(display_pitch_quality_counts(rows, midi_field), len(rows))}]"
+        )
+    if include_primary:
+        parts.append(
+            f"primary[{pitch_coverage_text(primary_pitch_quality_counts(rows, midi_field), len(rows))}]"
+        )
+    return " ".join(parts)
+
+
 def note_cell_midis(value: str) -> list[int]:
     midis: list[int] = []
     seen: set[int] = set()
@@ -400,6 +430,10 @@ def report_instruments(path: pathlib.Path, limit: int, row_examples: int) -> Non
     print(f"  pitch quality {compact(pitch_quality_counts(rows, 'midi'), limit)}")
     print(f"  display pitch quality {compact(display_pitch_quality_counts(rows, 'midi'), limit)}")
     print(f"  primary pitch quality {compact(primary_pitch_quality_counts(rows, 'midi'), limit)}")
+    print(
+        "  exact-octave coverage "
+        f"{pitch_coverage_line(rows, 'midi', include_display=True, include_primary=True)}"
+    )
     print(f"  target octave duplicates {compact(target_octave_duplicate_counts(rows), limit)}")
     non_hit_rows = [row for row in rows if row.get("status") != "hit"]
     if non_hit_rows:
@@ -628,6 +662,10 @@ def report_real_notes(path: pathlib.Path, limit: int, row_examples: int) -> None
         by_sample_status.setdefault(row["sample_id"], row.get("status", "unknown"))
     print(f"  rows={len(rows)} samples={len(by_sample_status)} status={compact(collections.Counter(by_sample_status.values()), limit)}")
     print(f"  row pitch quality {compact(pitch_quality_counts(rows, 'expected_midi'), limit)}")
+    print(
+        "  exact-octave coverage "
+        f"{pitch_coverage_line(rows, 'expected_midi', include_display=False, include_primary=False)}"
+    )
     print(
         f"  debug score states "
         f"{compact(collections.Counter(row.get('debug_score_state', '--') or '--' for row in rows), limit)}"

@@ -79,11 +79,19 @@ snare/1.wav	snare	tom	0.2	0.7	0.1	0.1	0.8	0.9	1.0	0.0	0.5	0.5
     assert "pitch quality exact=1 octave_alias=1" in output
     assert "display pitch quality octave_alias=1 exact=1" in output
     assert "primary pitch quality exact=2" in output
+    assert (
+        "exact-octave coverage debug[exact=1/2 (50.0%) pitch-class=2/2 (100.0%) octave-alias=1/2 (50.0%)] "
+        "display[exact=1/2 (50.0%) pitch-class=2/2 (100.0%) octave-alias=1/2 (50.0%)] "
+        "primary[exact=2/2 (100.0%) pitch-class=2/2 (100.0%) octave-alias=0/2 (0.0%)]"
+    ) in output
     assert "target octave duplicates guitar:dup1=1" in output
     assert "guitar: rows=1 owners=guitar=1 pitch=exact=1 display=octave_alias=1 primary=exact=1 octdup=1=1" in output
     assert "piano: rows=1 owners=guitar=1 pitch=octave_alias=1 display=exact=1 primary=exact=1 octdup=0=1" in output
     assert "real-note full-mix attributes" in output
     assert "row pitch quality exact=2 octave_alias=1" in output
+    assert (
+        "exact-octave coverage debug[exact=2/3 (66.7%) pitch-class=3/3 (100.0%) octave-alias=1/3 (33.3%)]"
+    ) in output
     assert "debug score states scored_owner=3" in output
     assert "strongest-row confusion rows=1 samples=1 visible>=0.50=1 rows/1 samples exact>=0.25=1 rows/1 samples" in output
     assert "same-midi spillover>=0.25 entries=1 samples=1 routes=piano/electronic->guitar=1" in output
