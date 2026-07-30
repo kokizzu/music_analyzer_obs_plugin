@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import csv
+import io
 import pathlib
 import subprocess
 import sys
@@ -465,11 +467,40 @@ def main() -> int:
     assert "buffer_visual_strongest_row" in dumped.stdout.splitlines()[0]
     assert "piano_visual_level" in dumped.stdout.splitlines()[0]
     assert "\nkeyboard_1\townership_miss\tpiano\telectronic\tC4" in dumped.stdout
-    assert "\tguitar\tpiano\tC4\tguitar\t" in dumped.stdout
-    assert "\t0.00\t1.00\t0.60\t0.00\t0.00\t0.00\t0.00\t0.35\t0.95\t" in dumped.stdout
-    assert "\tscored_owner\t0\t0\townership\t" in dumped.stdout
-    assert "\townership\t0.600\t0.600\t0\t1.000\t1.000\t0\t2\t2\t" in dumped.stdout
-    assert "\t0.02\t\t1.00\t0.60\t0.10\t0.05\t0.02\t" in dumped.stdout
+    dumped_rows = list(csv.DictReader(io.StringIO(dumped.stdout), delimiter="\t"))
+    assert len(dumped_rows) == 1
+    keyboard_dump = dumped_rows[0]
+    assert keyboard_dump["sample_id"] == "keyboard_1"
+    assert keyboard_dump["first_row"] == "guitar"
+    assert keyboard_dump["visual_first_row"] == "piano"
+    assert keyboard_dump["debug_note"] == "C4"
+    assert keyboard_dump["debug_owner"] == "guitar"
+    assert keyboard_dump["bass_score"] == "0.00"
+    assert keyboard_dump["keyboard_score"] == "0.10"
+    assert keyboard_dump["guitar_score"] == "0.70"
+    assert keyboard_dump["spectral_level"] == "1.00"
+    assert keyboard_dump["noise"] == "0.02"
+    assert keyboard_dump["partial1"] == "1.00"
+    assert keyboard_dump["partial2"] == "0.60"
+    assert keyboard_dump["partial3"] == "0.10"
+    assert keyboard_dump["partial4"] == "0.05"
+    assert keyboard_dump["partial5"] == "0.02"
+    assert keyboard_dump["debug_score_state"] == "scored_owner"
+    assert keyboard_dump["debug_delta"] == "0"
+    assert keyboard_dump["debug_abs_delta"] == "0"
+    assert keyboard_dump["miss_reason"] == "ownership"
+    assert keyboard_dump["expected_row_exact_level"] == "0.600"
+    assert keyboard_dump["expected_row_pitch_level"] == "0.600"
+    assert keyboard_dump["expected_row_pitch_delta"] == "0"
+    assert keyboard_dump["strongest_row_exact_level"] == "1.000"
+    assert keyboard_dump["strongest_row_pitch_level"] == "1.000"
+    assert keyboard_dump["strongest_row_pitch_delta"] == "0"
+    assert keyboard_dump["expected_exact_row_count"] == "2"
+    assert keyboard_dump["expected_pitch_row_count"] == "2"
+    assert keyboard_dump["bass_level"] == "0.00"
+    assert keyboard_dump["guitar_level"] == "1.00"
+    assert keyboard_dump["piano_level"] == "0.60"
+    assert keyboard_dump["piano_visual_level"] == "0.95"
     assert "reed_1" not in dumped.stdout
     assert "\nreed_1\thit\tother\tacoustic\tA4" in family_filtered.stdout
     assert "keyboard_1" not in family_filtered.stdout

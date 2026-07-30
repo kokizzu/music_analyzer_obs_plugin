@@ -1660,7 +1660,7 @@ def main() -> int:
     for text in [
         "MEASURE_REAL_NOTE_FOCUSED_ROW_CONFUSION_PATTERN_ARGS ?= --top-buckets 8",
         "--max-conditions 3",
-        "--protected-scope same-source-correct-row",
+        "--protected-scope all",
     ]:
         assert text in makefile, f"focused row-confusion defaults must include {text}"
     visual_row_confusion_recipe = target_recipe(makefile, "find-real-note-visual-row-confusion-patterns")
@@ -1685,7 +1685,7 @@ def main() -> int:
     )
     for text in [
         "MEASURE_REAL_NOTE_FOCUSED_VISUAL_ROW_CONFUSION_PATTERN_ARGS ?= --top-buckets 8",
-        "--protected-scope same-source-correct-row",
+        "--protected-scope all",
         "--include-row-context",
     ]:
         assert text in makefile, f"focused visual row-confusion defaults must include {text}"
