@@ -3926,6 +3926,33 @@ void check_full_mix_midrange_vocal_recall(Runner &runner)
 	expect_midi_not_duplicated_across_rows(runner, snapshot, 64, "full-mix midrange vocal ownership");
 }
 
+void check_full_mix_stable_vocal_visual_floor(Runner &runner)
+{
+	mao::AnalysisEngine engine;
+	mao::AnalysisSettings settings = mao_test::default_settings();
+	settings.input_mode = mao::AnalysisInputMode::FullMix;
+	settings.analysis_interval_seconds = 0.05f;
+
+	mao_test::Buffer buffer = {};
+	const std::vector<float> measured_open_vocal_profile =
+		{1.0f, 0.042f, 0.018f, 0.024f, 0.038f, 0.0f, 0.0f, 0.034f};
+	add_harmonic_note(buffer, 66, 0.24f, measured_open_vocal_profile);
+
+	mao::AnalysisSnapshot snapshot = engine.analyze(buffer.data(), buffer.size(), settings, "Mic/Aux", 0);
+	expect_global_pitch_class(runner, snapshot, 6, "full-mix stable vocal visual first-frame global");
+	expect_no_pitch_class(runner, snapshot.vocal_notes, 6, "full-mix stable vocal visual first-frame vocal");
+
+	snapshot = engine.analyze(buffer.data(), buffer.size(), settings, "Mic/Aux", 0);
+	const float visual_level = grid_visual_level_for_midi(snapshot.vocal_notes, 66);
+	runner.expect(visual_level >= 0.88f,
+		      std::string("full-mix stable vocal visual: expected bright confirmed vocal F#4, got ") +
+			      std::to_string(visual_level) + ", vocal `" + snapshot.vocal.label +
+			      "`, keyboard `" + snapshot.keyboard.label + "`, guitar `" +
+			      snapshot.guitar.label + "`, other `" + snapshot.other.label +
+			      "`, debug `" + full_mix_debug_summary_for_midi(snapshot, 66) + "`");
+	expect_midi_not_duplicated_across_rows(runner, snapshot, 66, "full-mix stable vocal visual ownership");
+}
+
 void check_full_mix_realistic_vocal_recall(Runner &runner)
 {
 	{
@@ -6264,6 +6291,7 @@ int main()
 	check_blended_ambiguous_debug_scores(runner);
 	check_full_mix_vocal_requires_temporal_confirmation(runner);
 	check_full_mix_midrange_vocal_recall(runner);
+	check_full_mix_stable_vocal_visual_floor(runner);
 	check_full_mix_realistic_vocal_recall(runner);
 	check_mixed_keyboard_guitar_note_bounds(runner);
 	check_sparse_full_mix_other_requires_temporal_confirmation(runner);

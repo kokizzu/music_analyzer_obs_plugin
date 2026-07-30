@@ -578,6 +578,30 @@ NoteCandidate ownership_weighted_candidate(const NoteCandidate &candidate, const
 	return weighted;
 }
 
+bool measured_stable_vocal_display_floor_supported(const NoteCandidate &candidate,
+						   const NoteEvidence &evidence)
+{
+	const float vocal_score =
+		evidence.ownership_scores[static_cast<std::size_t>(InstrumentKind::Vocal)];
+	return candidate.midi >= kFullMixVocalMinMidi && candidate.midi <= kVocalMaxMidi &&
+	       vocal_score >= 0.805f &&
+	       evidence.pitch_confidence >= 0.88f &&
+	       evidence.periodicity >= 0.72f &&
+	       evidence.harmonic_fit_error <= 0.09f &&
+	       evidence.local_noise_level <= 0.17f &&
+	       evidence.spectral_centroid <= 0.20f &&
+	       evidence.third_octave_ratio >= 0.009f;
+}
+
+NoteCandidate vocal_display_weighted_candidate(const NoteCandidate &candidate,
+					       const NoteEvidence &evidence)
+{
+	NoteCandidate weighted = ownership_weighted_candidate(candidate, evidence);
+	if (measured_stable_vocal_display_floor_supported(candidate, evidence))
+		weighted.ownership_confidence = std::max(weighted.ownership_confidence, 0.88f);
+	return weighted;
+}
+
 enum class TimbreKind : std::size_t {
 	Keyboard = 0,
 	Guitar = 1,
@@ -7475,7 +7499,7 @@ FullMixOwnership build_full_mix_ownership(const std::array<float, kNoteProbeCoun
 			break;
 		case InstrumentKind::Vocal:
 			ownership.vocal[index] = true;
-			ownership.vocal_candidates.push_back(ownership_weighted_candidate(candidate, evidence));
+			ownership.vocal_candidates.push_back(vocal_display_weighted_candidate(candidate, evidence));
 			break;
 		case InstrumentKind::Other:
 			ownership.other[index] = true;
