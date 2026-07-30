@@ -76,7 +76,7 @@ byte 2: blue in high nibble, green in low nibble
 byte 3: 1 << (zero-based string + 1); the default right-handed map is bit 1 low E through bit 6 high E
 ```
 
-The app sends `40 00 00 00` to clear before the new scale and paces commands in 20-byte chunks. Android connects and writes through a focused, Android 15-compatible adaptation of Edge Tech Labs' official [`fz-android-sdk`](https://github.com/edgetechlabs/fz-android-sdk), based on SDK commit `6da6d1b`. The adapted module preserves the SDK's core `LEDBLELib` command API while omitting its obsolete UI and firmware-update dependencies. The shared native analyzer remains the source of fret/string colors; the Android controller translates its packet into the SDK's `clear`, `set`, and flush calls. Both Fret Zealot LED generations above are supported.
+The app sends `40 00 00 00` to clear before the new scale and paces commands in 20-byte chunks. Android connects and writes through a focused, Android 15-compatible adaptation of Edge Tech Labs' official [`fz-android-sdk`](https://github.com/edgetechlabs/fz-android-sdk), based on SDK commit `6da6d1b`. The adapted module preserves the SDK's core `LEDBLELib` command API while omitting its obsolete UI and firmware-update dependencies. The shared native analyzer remains the source of fret/string colors; the Android controller translates its packet into the SDK's `clear`, `set`, and flush calls. It always selects the lowest of the three LED intensity tiers: SDK intensity `3`, with each 4-bit color channel scaled to at most `5` out of `15` because the public SDK does not serialize its intensity argument. Both Fret Zealot LED generations above are supported.
 
 ## Hardware validation
 

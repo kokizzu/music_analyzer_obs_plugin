@@ -14,6 +14,8 @@ import java.util.List;
 /** Owns the official Fret Zealot SDK lifecycle and translates shared analyzer packets to its API. */
 final class FretZealotSdkController implements Closeable {
     private static final String TAG = "MusicAnalyzerFZ";
+    private static final byte LOWEST_SDK_INTENSITY = 3;
+    private static final int LOWEST_CHANNEL_MAX = 5;
 
     interface Listener {
         void onConnecting();
@@ -40,6 +42,14 @@ final class FretZealotSdkController implements Closeable {
 
     boolean isReady() {
         return ready;
+    }
+
+    private static byte dimChannel(int channel) {
+        int clamped = Math.max(0, Math.min(15, channel));
+        if (clamped == 0) {
+            return 0;
+        }
+        return (byte) Math.max(1, (clamped * LOWEST_CHANNEL_MAX + 7) / 15);
     }
 
     void connect(BluetoothDevice device) {
@@ -97,10 +107,10 @@ final class FretZealotSdkController implements Closeable {
                 sdk.set(
                         (byte) fret,
                         (byte) string,
-                        (byte) red,
-                        (byte) blue,
-                        (byte) green,
-                        (byte) 15,
+                        dimChannel(red),
+                        dimChannel(blue),
+                        dimChannel(green),
+                        LOWEST_SDK_INTENSITY,
                         (byte) effect);
             }
         }

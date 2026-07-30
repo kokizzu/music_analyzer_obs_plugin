@@ -285,6 +285,12 @@ def main():
             "sdk.set(" in fret_zealot_sdk_controller and
             "sendCommandFlush" in fret_zealot_sdk_controller,
             "Fret Zealot output must use the official SDK command API")
+    require("LOWEST_SDK_INTENSITY = 3" in fret_zealot_sdk_controller and
+            "LOWEST_CHANNEL_MAX = 5" in fret_zealot_sdk_controller and
+            "dimChannel(red)" in fret_zealot_sdk_controller and
+            "dimChannel(blue)" in fret_zealot_sdk_controller and
+            "dimChannel(green)" in fret_zealot_sdk_controller,
+            "Fret Zealot output must always use the dimmest three-level LED setting")
     require("6e400002-b5a3-f393-e0a9-e50e24dcca9e" in fret_zealot_attributes and
             "fb1e4002-54ae-4a28-9f74-dfccb248601d" in fret_zealot_attributes and
             "SampleGattAttributes.LED_2_CH" in fret_zealot_sdk and
