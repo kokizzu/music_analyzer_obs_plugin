@@ -19704,6 +19704,16 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 		if (one_shot_saturated_kick_tom_bleed)
 			cap_drum_level(Tom, 0.28f);
 
+		const bool final_one_shot_measured_hihat_ride_active_bleed =
+			drum_detection_enabled && one_shot_drum_source &&
+			drum_level_[HiHat] > 0.30f &&
+			drum_level_[Ride] > 0.30f &&
+			drum_level_[HiHat] / (drum_level_[Rim] + 1.0e-6f) >= 0.939f &&
+			drum_bands[Snare] >= 19.608f &&
+			snapshot.drum_debug_trigger_thresholds[Snare] >= 1.42f;
+		if (final_one_shot_measured_hihat_ride_active_bleed)
+			cap_drum_level(Ride, 0.28f);
+
 	const bool onset_tempo_event =
 		drum_detection_enabled && rms > kSilenceRms && drum_transient &&
 		(had_previous_audio ? onset >= 1.25f : true);
