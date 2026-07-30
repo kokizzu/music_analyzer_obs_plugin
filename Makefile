@@ -47,6 +47,7 @@ MEASURE_ANALYZER_PATTERN_INSTRUMENT_OWNER_REPORT := $(BUILD_DIR)/measure_analyze
 MEASURE_ANALYZER_PATTERN_INSTRUMENT_STATUS_REPORT := $(BUILD_DIR)/measure_analyzer_pattern_instrument_status.txt
 MEASURE_ANALYZER_PATTERN_REAL_NOTE_REPORT := $(BUILD_DIR)/measure_analyzer_pattern_real_note.txt
 MEASURE_ANALYZER_PATTERN_REAL_NOTE_ROW_CONFUSION_REPORT := $(BUILD_DIR)/measure_analyzer_pattern_real_note_row_confusion.txt
+MEASURE_ANALYZER_PATTERN_REAL_NOTE_VISUAL_ROW_CONFUSION_REPORT := $(BUILD_DIR)/measure_analyzer_pattern_real_note_visual_row_confusion.txt
 MEASURE_ANALYZER_PATTERN_GUITAR_CHORD_REPORT := $(BUILD_DIR)/measure_analyzer_pattern_guitar_chord.txt
 MEASURE_ANALYZER_PATTERN_GUITAR_PRIMARY_ORDER_REPORT := $(BUILD_DIR)/measure_analyzer_pattern_guitar_primary_order.txt
 MEASURE_ANALYZER_PATTERN_GUITAR_CHORD_RECOVERY_REPORT := $(BUILD_DIR)/measure_analyzer_pattern_guitar_chord_recovery.txt
@@ -66,6 +67,7 @@ MEASURE_ANALYZER_PATTERN_SECTION_OUTPUTS := \
 	$(MEASURE_ANALYZER_PATTERN_INSTRUMENT_STATUS_REPORT) \
 	$(MEASURE_ANALYZER_PATTERN_REAL_NOTE_REPORT) \
 	$(MEASURE_ANALYZER_PATTERN_REAL_NOTE_ROW_CONFUSION_REPORT) \
+	$(MEASURE_ANALYZER_PATTERN_REAL_NOTE_VISUAL_ROW_CONFUSION_REPORT) \
 	$(MEASURE_ANALYZER_PATTERN_GUITAR_CHORD_REPORT) \
 	$(MEASURE_ANALYZER_PATTERN_GUITAR_PRIMARY_ORDER_REPORT) \
 	$(MEASURE_ANALYZER_PATTERN_GUITAR_CHORD_RECOVERY_REPORT) \
@@ -1434,6 +1436,9 @@ $(MEASURE_ANALYZER_PATTERN_REAL_NOTE_REPORT): FORCE $(BUILD_DIR)/real_note_full_
 
 $(MEASURE_ANALYZER_PATTERN_REAL_NOTE_ROW_CONFUSION_REPORT): FORCE $(BUILD_DIR)/real_note_full_mix_attributes.tsv scripts/find_real_note_attribute_patterns.py | $(BUILD_DIR)
 	+@tmp="$@.$$$$.tmp"; { printf '%s\n' ""; printf '%s\n' "real-note strongest-row confusion pattern candidates:"; $(MAKE) find-real-note-row-confusion-patterns PATTERN_ARGS="$(MEASURE_REAL_NOTE_ROW_CONFUSION_PATTERN_ARGS)"; } > "$$tmp" && mv "$$tmp" "$@"
+
+$(MEASURE_ANALYZER_PATTERN_REAL_NOTE_VISUAL_ROW_CONFUSION_REPORT): FORCE $(BUILD_DIR)/real_note_full_mix_attributes.tsv scripts/find_real_note_attribute_patterns.py | $(BUILD_DIR)
+	+@tmp="$@.$$$$.tmp"; { printf '%s\n' ""; printf '%s\n' "real-note visual-row confusion pattern candidates:"; $(MAKE) find-real-note-visual-row-confusion-patterns PATTERN_ARGS="$(MEASURE_REAL_NOTE_ROW_CONFUSION_PATTERN_ARGS)"; } > "$$tmp" && mv "$$tmp" "$@"
 
 $(MEASURE_ANALYZER_PATTERN_GUITAR_CHORD_REPORT): FORCE $(BUILD_DIR)/guitar_chord_mix_attributes.tsv scripts/find_guitarset_attribute_patterns.py scripts/inspect_guitarset_attribute_buckets.py | $(BUILD_DIR)
 	+@tmp="$@.$$$$.tmp"; { printf '%s\n' ""; printf '%s\n' "guitar chord pattern candidates:"; $(MAKE) find-guitar-chord-mix-attribute-patterns PATTERN_ARGS="$(MEASURE_GUITAR_PATTERN_ARGS)"; } > "$$tmp" && mv "$$tmp" "$@"
