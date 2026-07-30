@@ -721,6 +721,8 @@ def main() -> int:
     )
     parser.add_argument(
         "--examples",
+        "--rows",
+        dest="examples",
         type=int,
         default=12,
         help="number of sample IDs to include in each bucket header",

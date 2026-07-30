@@ -302,6 +302,21 @@ def main() -> int:
             stderr=subprocess.PIPE,
             check=True,
         )
+        rows_alias = subprocess.run(
+            [
+                sys.executable,
+                str(ROOT / "scripts" / "inspect_real_note_attribute_buckets.py"),
+                str(path),
+                "--misses-only",
+                "--summary-only",
+                "--rows",
+                "0",
+            ],
+            text=True,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            check=True,
+        )
         dumped = subprocess.run(
             [
                 sys.executable,
@@ -434,6 +449,8 @@ def main() -> int:
     assert "ownership_miss:piano/electronic->guitar rows=1 samples=1 examples=keyboard_1" in misses_only.stdout
     assert "hit:other/acoustic->other" not in misses_only.stdout
     assert "debug_conf" not in misses_only.stdout
+    assert "ownership_miss:piano/electronic->guitar rows=1 samples=1 examples=" in rows_alias.stdout
+    assert "examples=keyboard_1" not in rows_alias.stdout
     assert dumped.stdout.startswith("sample_id\tstatus\tfamily\t")
     assert "debug_score_state" in dumped.stdout.splitlines()[0]
     assert "debug_delta" in dumped.stdout.splitlines()[0]
