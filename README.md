@@ -365,6 +365,15 @@ make measure-analyzer-attribute-rows
 MEASURE_ANALYZER_JOBS=8 make measure-analyzer-attribute-rows
 ```
 
+For focused vocal full-mix tuning, Vocadito has the same sharded attribute and pattern path:
+
+```sh
+make analyze-vocadito-full-mix-attributes
+make find-vocadito-full-mix-ownership-patterns
+make find-vocadito-full-mix-row-confusion-patterns
+make find-vocadito-full-mix-visual-row-confusion-patterns
+```
+
 Run the focused MIDI/synthetic range regression:
 
 ```sh
