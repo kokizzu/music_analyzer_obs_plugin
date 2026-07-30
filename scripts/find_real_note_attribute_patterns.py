@@ -189,6 +189,7 @@ class PatternSearchSettings:
     max_conditions: int
     beam_width: int
     exclude_fields: tuple[str, ...]
+    protected_scope: str
 
 
 class SampleCountCache:
@@ -305,11 +306,42 @@ def hit_rows(rows: list[dict[str, str]]) -> list[dict[str, str]]:
     return [row for row in rows if row.get("status") == "hit" and row.get("debug_note")]
 
 
+def protected_row_matches_scope(
+    row: dict[str, str], bucket: tuple[str, str, str, str], protected_scope: str
+) -> bool:
+    if protected_scope == "all":
+        return True
+
+    status, family, source, _target = bucket
+    if row.get("family") != family or row.get("source") != source:
+        return False
+    if protected_scope == "same-source":
+        return True
+
+    expected_row = ROW_FOR_FAMILY.get(family, family)
+    if status == "visual_row_confusion":
+        return row.get("buffer_visual_strongest_row", "") == expected_row
+    if status == "row_confusion":
+        return row.get("buffer_strongest_row", "") == expected_row
+    if status == "ownership_miss":
+        return row.get("detected_expected_row", "") == "1" or row.get("first_row", "") == expected_row
+    if status == "octave_displacement":
+        return row.get("debug_abs_delta", "") in {"", "0"}
+    return True
+
+
 def protected_hit_rows(
-    rows: list[dict[str, str]], positive_rows: list[dict[str, str]]
+    rows: list[dict[str, str]],
+    positive_rows: list[dict[str, str]],
+    bucket: tuple[str, str, str, str],
+    protected_scope: str,
 ) -> list[dict[str, str]]:
     positive_ids = {id(row) for row in positive_rows}
-    return [row for row in hit_rows(rows) if id(row) not in positive_ids]
+    return [
+        row
+        for row in hit_rows(rows)
+        if id(row) not in positive_ids and protected_row_matches_scope(row, bucket, protected_scope)
+    ]
 
 
 def foreign_miss_rows(
@@ -898,9 +930,10 @@ def print_bucket_patterns(
     max_conditions: int,
     beam_width: int,
     exclude_fields: set[str],
+    protected_scope: str,
 ) -> None:
     positive_rows = rows_for_bucket(rows, bucket)
-    negatives = protected_hit_rows(rows, positive_rows)
+    negatives = protected_hit_rows(rows, positive_rows, bucket, protected_scope)
     foreign_rows = foreign_miss_rows(rows, positive_rows)
     positive_samples = sample_count(positive_rows)
     negative_samples = sample_count(negatives)
@@ -1183,6 +1216,7 @@ def bucket_patterns_text(
             settings.max_conditions,
             settings.beam_width,
             set(settings.exclude_fields),
+            settings.protected_scope,
         )
     return output.getvalue()
 
@@ -1223,6 +1257,17 @@ def main() -> int:
     parser.add_argument("--limit", type=int, default=8)
     parser.add_argument("--min-positive-samples", type=int, default=2)
     parser.add_argument("--max-negative-samples", type=int, default=25)
+    parser.add_argument(
+        "--protected-scope",
+        choices=("all", "same-source", "same-source-correct-row"),
+        default="all",
+        help=(
+            "which hit rows are treated as protected negatives; default all preserves "
+            "historical behavior, same-source compares against the same family/source, "
+            "and same-source-correct-row keeps only same family/source rows whose "
+            "display owner matches the expected family"
+        ),
+    )
     parser.add_argument(
         "--include-intervals",
         action="store_true",
@@ -1297,6 +1342,7 @@ def main() -> int:
         max_conditions=max(1, args.max_conditions),
         beam_width=max(1, args.beam_width),
         exclude_fields=tuple(sorted(set(args.exclude_field))),
+        protected_scope=args.protected_scope,
     )
     jobs = min(max(1, args.jobs), len(buckets))
     if jobs <= 1:

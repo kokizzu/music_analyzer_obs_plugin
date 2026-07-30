@@ -86,6 +86,8 @@ MEASURE_INSTRUMENT_STATUS_PATTERN_ARGS ?= --status-bucket miss:strings --status-
 MEASURE_REAL_NOTE_PATTERN_ARGS ?= --limit 4 --min-positive-samples 3 --max-negative-samples 0 --max-conditions 3 --beam-width 160 --show-examples 1
 MEASURE_REAL_NOTE_PRACTICAL_ROW_CONFUSION_PATTERN_ARGS ?= --top-buckets 8 --limit 8 --min-positive-samples 20 --max-negative-samples 20 --max-conditions 2 --beam-width 240 --show-examples 1
 REAL_NOTE_RUNTIME_ROW_CONFUSION_EXCLUDES ?= \
+	--exclude-field buffer_strongest_row \
+	--exclude-field buffer_visual_strongest_row \
 	--exclude-field expected_midi \
 	--exclude-field raw_expected_peak \
 	--exclude-field raw_expected_ratio \

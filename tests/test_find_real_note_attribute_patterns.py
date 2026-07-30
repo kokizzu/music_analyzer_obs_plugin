@@ -813,6 +813,30 @@ def main() -> int:
             stderr=subprocess.PIPE,
             check=True,
         )
+        visual_row_scoped_result = subprocess.run(
+            [
+                sys.executable,
+                str(ROOT / "scripts" / "find_real_note_attribute_patterns.py"),
+                str(visual_path),
+                "--top-buckets",
+                "1",
+                "--bucket-status",
+                "visual_row_confusion",
+                "--protected-scope",
+                "same-source-correct-row",
+                "--include-row-context",
+                "--condition",
+                "buffer_visual_strongest_row=guitar",
+                "--limit",
+                "1",
+                "--max-negative-samples",
+                "2",
+            ],
+            text=True,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            check=True,
+        )
         octave_path = pathlib.Path(tmp) / "octave_attributes.tsv"
         octave_rows = [
             row(
@@ -1097,6 +1121,13 @@ def main() -> int:
     assert (
         "buffer_visual_strongest_row=guitar: pos=2/2 rows=2 neg=1/2 rows=1"
     ) in visual_row_confusion_result.stdout
+    assert (
+        "visual_row_confusion:piano/electronic->guitar positives=2 samples/2 rows "
+        "protected_hits=1 samples/1 rows"
+    ) in visual_row_scoped_result.stdout
+    assert (
+        "buffer_visual_strongest_row=guitar: pos=2/2 rows=2 neg=0/1 rows=0"
+    ) in visual_row_scoped_result.stdout
     assert (
         "octave_displacement:bass/electronic->+12 positives=2 samples/2 rows "
         "protected_hits=2 samples/2 rows"

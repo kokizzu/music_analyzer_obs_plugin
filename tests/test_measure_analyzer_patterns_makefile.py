@@ -1256,6 +1256,11 @@ def main() -> int:
         "practical row-confusion auto-search must not mine circular display-row fields"
     )
     for text in [
+        "--exclude-field buffer_strongest_row",
+        "--exclude-field buffer_visual_strongest_row",
+    ]:
+        assert text in makefile, f"runtime row-confusion excludes must include {text}"
+    for text in [
         "MEASURE_REAL_NOTE_PRACTICAL_ROW_CONFUSION_PATTERN_ARGS ?= --top-buckets 8",
         "--min-positive-samples 20",
         "--max-negative-samples 20",
