@@ -158,6 +158,22 @@ def main() -> int:
     assert "--exclude-fields kick_level" in active_false_args.group("value"), (
         "drum active false pattern defaults must avoid merged expected-level fields"
     )
+    active_false_protected = re.search(
+        r"^MEASURE_DRUM_ACTIVE_EXTRA_PROTECTED_ROWS \?= (?P<value>.*)$",
+        makefile,
+        re.MULTILINE,
+    )
+    assert active_false_protected is not None, "missing active false extra protected row defaults"
+    assert "$(DRUM_FULL_EXACT_ATTRIBUTE_ROWS)" in active_false_protected.group("value"), (
+        "drum active false mining must protect exact full-drum true-hit rows when available"
+    )
+    assert "$(DRUM_FULL_MERGED_EXPECTED_ATTRIBUTE_ROWS)" in active_false_protected.group("value"), (
+        "drum active false mining must protect merged expected-hit rows when available"
+    )
+    active_false_recipe = target_recipe(makefile, "find-drum-active-false-patterns")
+    assert '$(foreach rows,$(DRUM_ACTIVE_EXTRA_PROTECTED_ROWS),--extra-protected-rows "$(rows)")' in active_false_recipe, (
+        "drum active false mining must pass each protected TSV as a separate parser argument"
+    )
     assert "$(MEASURE_ANALYZER_PATTERN_DRUM_SPREAD_MATRIX_REPORT)" in target_recipe(
         makefile, "$(MEASURE_ANALYZER_PATTERN_DRUM_SPREAD_EXACT_REPORT)"
     ).splitlines()[0], (
@@ -593,6 +609,12 @@ def main() -> int:
     assert "DRUM_FULL_EXACT_ATTRIBUTE_PARTS := $(addprefix $(BUILD_DIR)/drum_full_exact_attribute_rows_,$(addsuffix .tsv,$(DRUM_SAMPLE_FULL_SHARD_CATEGORIES)))" in makefile, (
         "full drum exact attribute rows must have deterministic per-category shard parts"
     )
+    assert "DRUM_FULL_MERGED_EXPECTED_ATTRIBUTE_ROWS ?= $(BUILD_DIR)/drum_full_merged_expected_attribute_rows.tsv" in makefile, (
+        "full drum merged expected rows must have a stable aggregate TSV path"
+    )
+    assert "DRUM_FULL_MERGED_EXPECTED_ATTRIBUTE_PARTS := $(addprefix $(BUILD_DIR)/drum_full_merged_expected_attribute_rows_,$(addsuffix .tsv,$(DRUM_SAMPLE_FULL_SHARD_CATEGORIES)))" in makefile, (
+        "full drum merged expected rows must have deterministic per-category shard parts"
+    )
     drum_full_attribute_parallel_recipe = target_recipe(makefile, "analyze-drum-full-gate-matrix-parallel")
     assert "$(RUN_WITH_DURATION) analyzer_drum_samples_full_attribute_rows_parallel" in drum_full_attribute_parallel_recipe, (
         "full drum exact attribute rows must report aggregate parallel duration"
@@ -613,6 +635,30 @@ def main() -> int:
     ]:
         assert text in drum_full_attribute_shard_recipe, (
             f"full drum exact attribute shard target must include {text}"
+        )
+    drum_full_merged_parallel_recipe = target_recipe(makefile, "analyze-drum-full-merged-expected-attribute-rows")
+    assert "$(RUN_WITH_DURATION) analyzer_drum_samples_full_merged_expected_rows_parallel" in drum_full_merged_parallel_recipe, (
+        "full drum merged expected rows must report aggregate parallel duration"
+    )
+    assert "scripts/build_sharded_tsv.sh \"$(DRUM_FULL_MERGED_EXPECTED_ATTRIBUTE_ROWS)\" \"$(MAKE)\" \"$(DRUM_SAMPLE_FULL_TEST_MAKE_JOBS)\" $(DRUM_FULL_MERGED_EXPECTED_ATTRIBUTE_PARTS)" in drum_full_merged_parallel_recipe, (
+        "full drum merged expected rows must be built by the sharded TSV combiner"
+    )
+    drum_full_merged_shard_recipe = target_recipe(
+        makefile, "$(BUILD_DIR)/drum_full_merged_expected_attribute_rows_%.tsv"
+    )
+    assert "FORCE" in drum_full_merged_shard_recipe.splitlines()[0], (
+        "full drum merged expected shard target must use FORCE so each category executes"
+    )
+    for text in [
+        "MUSIC_ANALYZER_DRUM_SAMPLE_REQUIRED_CATEGORIES=\"$*\"",
+        "MUSIC_ANALYZER_DRUM_SAMPLE_FILTER_CATEGORY=\"$*\"",
+        "MUSIC_ANALYZER_DRUM_SAMPLE_VERBOSE_ALL=1",
+        "MUSIC_ANALYZER_DRUM_SAMPLE_VERBOSE_PRIMARY=1",
+        "MUSIC_ANALYZER_DRUM_SAMPLE_VERBOSE_MERGED_EXPECTED=1",
+        "$(PYTHON) scripts/analyze_drum_primary_debug.py --dump-rows --include-debug-rows --include-merged-debug-rows",
+    ]:
+        assert text in drum_full_merged_shard_recipe, (
+            f"full drum merged expected shard target must include {text}"
         )
     full_exact_pattern_recipe = target_recipe(makefile, "find-drum-full-exact-attribute-patterns")
     assert "$(MAKE) analyze-drum-full-gate-matrix-parallel" in full_exact_pattern_recipe, (
@@ -1441,6 +1487,7 @@ def main() -> int:
         "REAL_NOTE_PATTERN_JOBS",
         "DRUM_SPREAD_EXACT_ATTRIBUTE_ROWS",
         "DRUM_FULL_EXACT_ATTRIBUTE_ROWS",
+        "DRUM_FULL_MERGED_EXPECTED_ATTRIBUTE_ROWS",
         "PRIMARY_DRUM_DEBUG_ERRS",
         "FULL_DRUM_DEBUG_ERRS",
         "MEASURE_ANALYZER_JOBS",
