@@ -19411,6 +19411,18 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 		if (strong_low_kick_tom_bleed)
 			cap_drum_level(Tom, 0.28f);
 
+		const bool one_shot_high_band_kick_weighted_tom_bleed =
+			drum_detection_enabled && one_shot_drum_source &&
+			!generated_gm_orchestra_tom_primary_recovery &&
+			!generated_gm_high_tom_primary_recovery &&
+			drum_bands[Tom] >= 443.735f &&
+			tom_kick_band_ratio <= 0.72f &&
+			drum_level_[Tom] > 0.30f;
+		if (one_shot_high_band_kick_weighted_tom_bleed)
+			snapshot.drum_debug_rule_flags |= DrumDebugSaturatedKickTomBleed;
+		if (one_shot_high_band_kick_weighted_tom_bleed)
+			cap_drum_level(Tom, 0.28f);
+
 		const bool one_shot_saturated_kick_tom_bleed =
 			drum_detection_enabled && one_shot_drum_source &&
 			!generated_gm_orchestra_tom_primary_recovery &&
