@@ -9092,6 +9092,7 @@ void suppress_named_owned_same_pitch_vocal_shadows(NoteGrid &vocal_grid, Instrum
 	static constexpr float kMinVocalLevel = 0.04f;
 	static constexpr float kMinOwnerLevel = 0.20f;
 	static constexpr float kMaxVocalToOwnerLevelRatio = 0.72f;
+	static constexpr float kMeasuredOtherMaxVocalToOwnerLevelRatio = 0.35f;
 
 	bool changed = false;
 	for (int midi = kVocalMinMidi; midi <= kVocalMaxMidi; ++midi) {
@@ -9109,11 +9110,19 @@ void suppress_named_owned_same_pitch_vocal_shadows(NoteGrid &vocal_grid, Instrum
 			best_same_midi_vocal_shadow_debug(ownership, midi, owner_row);
 		if (!debug)
 			continue;
-		if (measured_adjacent_vocal_display_supported(*debug))
-			continue;
 		const float owner_score = full_mix_debug_row_score(*debug, owner_row);
-		if (owner_score < kMinOwnerScore ||
-		    debug->vocal_score > owner_score * kMaxVocalToOwnerScoreRatio)
+		const bool owner_score_supported =
+			owner_score >= kMinOwnerScore &&
+			debug->vocal_score <= owner_score * kMaxVocalToOwnerScoreRatio;
+		const bool measured_other_owned_vocal_shadow =
+			owner_row == InstrumentKind::Other &&
+			debug->owner == InstrumentKind::Other &&
+			owner_score_supported &&
+			vocal_level <= owner_level * kMeasuredOtherMaxVocalToOwnerLevelRatio;
+		if (measured_adjacent_vocal_display_supported(*debug) &&
+		    !measured_other_owned_vocal_shadow)
+			continue;
+		if (!owner_score_supported)
 			continue;
 
 		clear_note_grid_midi(vocal_grid, midi);

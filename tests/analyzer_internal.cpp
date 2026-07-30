@@ -291,6 +291,64 @@ void check_same_pitch_guitar_bass_shadow_uses_any_matching_debug(Runner &runner)
 		      "same-pitch guitar bass shadow: expected strong bass E3 to stay visible");
 }
 
+FullMixDebugCandidate make_adjacent_other_vocal_shadow_debug(int midi)
+{
+	FullMixDebugCandidate debug = {};
+	debug.midi = midi;
+	debug.owner = InstrumentKind::Other;
+	debug.ownership_confidence = 0.82f;
+	debug.vocal_score = 0.00f;
+	debug.other_score = 0.82f;
+	debug.spectral_level = 0.75f;
+	debug.pitch_confidence = 0.70f;
+	debug.periodicity = 0.72f;
+	debug.harmonic_fit_error = 0.10f;
+	debug.local_noise_level = 0.10f;
+	debug.adjacent_lower_ratio = 0.04f;
+	debug.harmonic_ratios[1] = 0.40f;
+	debug.harmonic_ratios[2] = 0.20f;
+	return debug;
+}
+
+void check_other_owned_same_pitch_vocal_shadow_uses_measured_threshold(Runner &runner)
+{
+	static constexpr int kShadowMidi = 60;
+	static constexpr int kProtectedMidi = 62;
+
+	NoteGrid vocal_grid = {};
+	set_midi(vocal_grid, kShadowMidi, 0.20f);
+	InstrumentState vocal_state = {};
+	NoteGrid other_grid = {};
+	set_midi(other_grid, kShadowMidi, 0.67f);
+	FullMixOwnership ownership = {};
+	ownership.debug_candidate_count = 1;
+	ownership.debug_candidates[0] = make_adjacent_other_vocal_shadow_debug(kShadowMidi);
+	runner.expect(measured_adjacent_vocal_display_supported(ownership.debug_candidates[0]),
+		      "same-pitch other vocal shadow: expected fixture to exercise adjacent-vocal guard");
+
+	suppress_named_owned_same_pitch_vocal_shadows(vocal_grid, vocal_state, other_grid, ownership,
+						      InstrumentKind::Other, -1);
+	runner.expect(note_grid_midi_visual_level(vocal_grid, kShadowMidi) <= 0.0f,
+		      "same-pitch other vocal shadow: expected measured low-level vocal mirror to clear");
+
+	NoteGrid protected_vocal_grid = {};
+	set_midi(protected_vocal_grid, kProtectedMidi, 0.30f);
+	InstrumentState protected_vocal_state = {};
+	NoteGrid protected_other_grid = {};
+	set_midi(protected_other_grid, kProtectedMidi, 0.67f);
+	FullMixOwnership protected_ownership = {};
+	protected_ownership.debug_candidate_count = 1;
+	protected_ownership.debug_candidates[0] =
+		make_adjacent_other_vocal_shadow_debug(kProtectedMidi);
+	suppress_named_owned_same_pitch_vocal_shadows(protected_vocal_grid,
+						      protected_vocal_state,
+						      protected_other_grid,
+						      protected_ownership,
+						      InstrumentKind::Other, -1);
+	runner.expect(note_grid_midi_visual_level(protected_vocal_grid, kProtectedMidi) > 0.0f,
+		      "same-pitch other vocal shadow: expected stronger protected vocal to stay visible");
+}
+
 int run()
 {
 	Runner runner;
@@ -299,6 +357,7 @@ int run()
 	check_supported_guitar_candidate_alias_merge(runner);
 	check_supported_guitar_display_extension_aliases(runner);
 	check_same_pitch_guitar_bass_shadow_uses_any_matching_debug(runner);
+	check_other_owned_same_pitch_vocal_shadow_uses_measured_threshold(runner);
 	if (runner.failures) {
 		std::fprintf(stderr, "analyzer_internal: %d/%d checks failed\n", runner.failures,
 			     runner.checks);

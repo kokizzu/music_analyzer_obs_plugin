@@ -374,6 +374,15 @@ def shadow_rule_matches(record: dict[str, str], rule: str) -> bool:
             and fit_error <= 0.08
             and noise <= 0.45
         )
+    if rule == "runtime_other_vocal_measured":
+        return (
+            target_row == "vocals"
+            and shadow_row == "other"
+            and owner_is_shadow
+            and shadow_score >= 0.24
+            and target_score <= shadow_score * 0.15
+            and target_level <= shadow_level * 0.35
+        )
     raise ValueError(f"unknown simulation rule `{rule}`")
 
 
@@ -396,6 +405,7 @@ def print_simulations(title: str, records: list[dict[str, str]], source_breakdow
         "runtime_keyboard_bass_guarded",
         "runtime_other_bass_legacy",
         "runtime_other_bass_guarded",
+        "runtime_other_vocal_measured",
     ):
         extra_hits = [record for record in extras if shadow_rule_matches(record, rule)]
         protected_hits = [record for record in protected if shadow_rule_matches(record, rule)]

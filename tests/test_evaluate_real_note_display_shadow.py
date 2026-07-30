@@ -332,6 +332,48 @@ def main() -> int:
                 bass_visual_notes="",
                 guitar_visual_notes="A3:1.00",
             ),
+            row(
+                sample_id="measured_other_vocal_shadow",
+                family="other",
+                source="acoustic",
+                expected_note="C4",
+                expected_midi="60",
+                first_row="other",
+                debug_note="C4",
+                debug_midi="60",
+                debug_owner="other",
+                bass_score="0.00",
+                keyboard_score="0.00",
+                guitar_score="0.00",
+                vocal_score="0.00",
+                other_score="0.82",
+                bass_notes="",
+                guitar_notes="",
+                piano_notes="",
+                vocal_notes="C4:0.20",
+                other_notes="C4:0.67",
+            ),
+            row(
+                sample_id="measured_other_vocal_protected",
+                family="vocals",
+                source="acoustic",
+                expected_note="D4",
+                expected_midi="62",
+                first_row="vocals",
+                debug_note="D4",
+                debug_midi="62",
+                debug_owner="other",
+                bass_score="0.00",
+                keyboard_score="0.00",
+                guitar_score="0.00",
+                vocal_score="0.00",
+                other_score="0.82",
+                bass_notes="",
+                guitar_notes="",
+                piano_notes="",
+                vocal_notes="D4:0.30",
+                other_notes="D4:0.67",
+            ),
         ]
         path.write_text(
             "\t".join(HEADER) + "\n" + "\n".join("\t".join(item) for item in rows) + "\n"
@@ -661,6 +703,25 @@ def main() -> int:
             text=True,
             stdout=subprocess.PIPE,
         )
+        measured_other_vocal_runtime_result = subprocess.run(
+            [
+                sys.executable,
+                str(ROOT / "scripts" / "evaluate_real_note_display_shadow.py"),
+                str(path),
+                "--shadow-row",
+                "other",
+                "--target-row",
+                "vocals",
+                "--min-shadow-level",
+                "0.10",
+                "--min-target-level",
+                "0.10",
+                "--summary-only",
+            ],
+            check=True,
+            text=True,
+            stdout=subprocess.PIPE,
+        )
         protected_threshold_result = subprocess.run(
             [
                 sys.executable,
@@ -762,6 +823,16 @@ def main() -> int:
     assert (
         "runtime_guitar_bass_measured extras=3/4 protected=0/1 precision=100.0% protected_rate=0.0%"
     ) in measured_runtime_output, measured_runtime_output
+    measured_other_vocal_runtime_output = measured_other_vocal_runtime_result.stdout
+    assert (
+        "other->same-pitch vocals extras rows=1 samples=1"
+    ) in measured_other_vocal_runtime_output, measured_other_vocal_runtime_output
+    assert (
+        "other->same-pitch vocals protected rows=1 samples=1"
+    ) in measured_other_vocal_runtime_output, measured_other_vocal_runtime_output
+    assert (
+        "runtime_other_vocal_measured extras=1/1 protected=0/1 precision=100.0% protected_rate=0.0%"
+    ) in measured_other_vocal_runtime_output, measured_other_vocal_runtime_output
     protected_threshold_output = protected_threshold_result.stdout
     assert "protected=1/1 extras=4/4 min_shadow_score=0.24" in protected_threshold_output, protected_threshold_output
     assert "protected measured_guitar_bass_protected@0" in protected_threshold_output, protected_threshold_output
