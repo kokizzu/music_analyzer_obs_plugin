@@ -29,6 +29,7 @@ def run_rule(path: pathlib.Path, *args: str) -> subprocess.CompletedProcess[str]
 def main() -> int:
     with tempfile.TemporaryDirectory() as tmp:
         path = pathlib.Path(tmp) / "attributes.tsv"
+        compare_path = pathlib.Path(tmp) / "compare_attributes.tsv"
         rows = [
             [
                 "sample_id",
@@ -122,6 +123,46 @@ def main() -> int:
             ],
         ]
         path.write_text("\n".join("\t".join(row) for row in rows) + "\n")
+        compare_rows = [
+            rows[0],
+            [
+                "bass_1",
+                "hit",
+                "bass",
+                "electronic",
+                "guitar",
+                "guitar",
+                "guitar",
+                "52",
+                "0.10",
+                "0.20",
+                "0.70",
+                "0",
+                "0",
+                "0.45",
+                "0.20",
+                "0.02",
+            ],
+            [
+                "bass_2",
+                "hit",
+                "bass",
+                "electronic",
+                "bass",
+                "bass",
+                "piano",
+                "52",
+                "0.70",
+                "0.20",
+                "0.10",
+                "0",
+                "0",
+                "0.12",
+                "0.02",
+                "0.01",
+            ],
+        ]
+        compare_path.write_text("\n".join("\t".join(row) for row in compare_rows) + "\n")
 
         result = run_rule(
             path,
@@ -152,6 +193,21 @@ def main() -> int:
             "--group-by",
             "debug_score_state",
         )
+        compare_result = run_rule(
+            path,
+            "--condition",
+            "debug_owner=guitar",
+            "--primary-condition",
+            "family=guitar",
+            "--compare-path",
+            str(compare_path),
+            "--compare-condition",
+            "family=bass",
+            "--compare-group-by",
+            "family",
+            "--compare-group-by",
+            "first_row",
+        )
 
     assert "matched rows=1 samples=1" in result.stdout
     assert "examples keyboard_1" in result.stdout
@@ -163,6 +219,12 @@ def main() -> int:
     assert "groups buffer_strongest_row/debug_score_state" in grouped_result.stdout
     assert "guitar/scored_owner rows=3 samples=3" in grouped_result.stdout
     assert "family/source/first_row" not in grouped_result.stdout
+    assert "matched rows=2 samples=2" in compare_result.stdout
+    assert "matched conditions debug_owner=guitar family=guitar" in compare_result.stdout
+    assert f"compare rows=1 samples=1 path={compare_path}" in compare_result.stdout
+    assert "compare conditions debug_owner=guitar family=bass" in compare_result.stdout
+    assert "compare groups family/first_row" in compare_result.stdout
+    assert "bass/guitar rows=1 samples=1" in compare_result.stdout
     print("test_measure_real_note_attribute_rule: ok")
     return 0
 
