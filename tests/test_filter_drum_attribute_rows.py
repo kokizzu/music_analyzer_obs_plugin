@@ -92,6 +92,114 @@ kick/c.wav	kick	tom	0.80	0.15	0.05	40	18	50	2	30	0	0.82	12	1.42	1	12	12	13	0.10	
         assert "kick/c.wav\t2.777778\t0.05" in numeric
         assert "count\t1" in numeric
 
+        missing_numeric = subprocess.run(
+            [
+                sys.executable,
+                str(SCRIPT),
+                str(rows),
+                "--max",
+                "hihat_rim_shape_score_ratio=2.0",
+                "--columns",
+                "sample,hihat_rim_shape_score_ratio",
+            ],
+            cwd=ROOT,
+            check=True,
+            text=True,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+        ).stdout
+        assert "count\t0" in missing_numeric
+
+        active_route = subprocess.run(
+            [
+                sys.executable,
+                str(SCRIPT),
+                str(rows),
+                "--active-route",
+                "tom:snare",
+                "--columns",
+                "sample,expected,got,snare_level",
+            ],
+            cwd=ROOT,
+            check=True,
+            text=True,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+        ).stdout
+        assert "tom/a.wav\ttom\tsnare\t0.98" in active_route
+        assert "count\t1" in active_route
+
+        active_threshold = subprocess.run(
+            [
+                sys.executable,
+                str(SCRIPT),
+                str(rows),
+                "--active-route",
+                "tom:snare",
+                "--active-threshold",
+                "0.99",
+                "--columns",
+                "sample,expected,got,snare_level",
+            ],
+            cwd=ROOT,
+            check=True,
+            text=True,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+        ).stdout
+        assert "count\t0" in active_threshold
+
+        cymbal_rows = write(
+            root / "cymbals.tsv",
+            """
+sample	expected	got	hihat_level	hihat_trigger	hihat_threshold	hihat_shape_score	hihat_band	hihat_seg	rim_level	rim_trigger	rim_threshold	rim_shape_score	rim_band	rim_seg	crash_level	crash_trigger	crash_threshold	crash_shape_score	crash_band	crash_seg	ride_level	ride_trigger	ride_threshold	ride_shape_score	ride_band	ride_seg
+hihat/d.wav	hihat	crash	0.80	8	4	1.20	60	70	0.20	2	4	1.00	20	30	0.72	6	4	0.90	65	75	0.40	3	4	0.70	35	45
+ride/e.wav	hihat	ride	0.95	7	4	0.80	50	60	0.10	1	4	0.40	10	20	0.20	2	4	0.30	25	35	0.88	4	4	0.60	40	50
+            """,
+        )
+
+        cymbal = subprocess.run(
+            [
+                sys.executable,
+                str(SCRIPT),
+                str(cymbal_rows),
+                "--route",
+                "hihat:crash",
+                "--min",
+                "hihat_rim_shape_score_ratio=1.10",
+                "--columns",
+                "sample,hihat_rim_shape_score_ratio,crash_hihat_level_ratio,ride_hihat_level_ratio",
+            ],
+            cwd=ROOT,
+            check=True,
+            text=True,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+        ).stdout
+        assert "hihat/d.wav\t1.200000\t0.900000\t0.500000" in cymbal
+        assert "count\t1" in cymbal
+
+        ride = subprocess.run(
+            [
+                sys.executable,
+                str(SCRIPT),
+                str(cymbal_rows),
+                "--route",
+                "hihat:ride",
+                "--max",
+                "ride_hihat_level_ratio=0.93",
+                "--columns",
+                "sample,ride_hihat_level_ratio",
+            ],
+            cwd=ROOT,
+            check=True,
+            text=True,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+        ).stdout
+        assert "ride/e.wav\t0.926316" in ride
+        assert "count\t1" in ride
+
     print("test_filter_drum_attribute_rows: ok")
     return 0
 

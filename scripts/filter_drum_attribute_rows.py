@@ -30,9 +30,24 @@ DEFAULT_COLUMNS = [
     "snare_kick_body_ratio",
     "snare_crack_ratio",
     "upper_tom_crack_ratio",
+    "hihat_rim_shape_score_ratio",
+    "crash_hihat_level_ratio",
+    "ride_hihat_level_ratio",
     "body_shape",
     "merged_expected",
 ]
+
+RATIO_PAIRS = (
+    ("tom", "snare"),
+    ("tom", "kick"),
+    ("snare", "kick"),
+    ("hihat", "rim"),
+    ("crash", "hihat"),
+    ("ride", "hihat"),
+    ("kick", "bass"),
+)
+
+RATIO_FIELDS = ("band", "seg", "shape_score", "trigger", "level")
 
 
 def as_float(value: str) -> float:
@@ -40,6 +55,15 @@ def as_float(value: str) -> float:
         return float(value or 0.0)
     except ValueError:
         return 0.0
+
+
+def maybe_float(value: str) -> float | None:
+    if value == "":
+        return None
+    try:
+        return float(value)
+    except ValueError:
+        return None
 
 
 def ratio(numerator: float, denominator: float) -> str:
@@ -87,6 +111,12 @@ def augment_row(row: dict[str, str]) -> dict[str, str]:
     row["snare_kick_body_ratio"] = ratio(snare_body, kick_body)
     row["snare_crack_ratio"] = ratio(snare_crack, snare_body)
     row["upper_tom_crack_ratio"] = ratio(upper_tom, snare_crack)
+    for lhs, rhs in RATIO_PAIRS:
+        for field in RATIO_FIELDS:
+            row[f"{lhs}_{rhs}_{field}_ratio"] = ratio(
+                as_float(row.get(f"{lhs}_{field}", "")),
+                as_float(row.get(f"{rhs}_{field}", "")),
+            )
     return row
 
 
@@ -131,6 +161,15 @@ def filter_rows(rows: list[dict[str, str]], args: argparse.Namespace) -> list[di
     if args.route:
         expected, got = args.route
         selected = [row for row in selected if row.get("expected") == expected and row.get("got") == got]
+    if args.active_route:
+        expected, active = args.active_route
+        selected = [
+            row
+            for row in selected
+            if row.get("expected") == expected
+            and active != expected
+            and as_float(row.get(f"{active}_level", "")) > args.active_threshold
+        ]
     if args.status:
         selected = [row for row in selected if row.get("status") == args.status]
     if args.sample:
@@ -138,9 +177,17 @@ def filter_rows(rows: list[dict[str, str]], args: argparse.Namespace) -> list[di
     for field, expected in args.field:
         selected = [row for row in selected if row.get(field, "") == expected]
     for field, minimum in args.min:
-        selected = [row for row in selected if as_float(row.get(field, "")) >= minimum]
+        selected = [
+            row
+            for row in selected
+            if (value := maybe_float(row.get(field, ""))) is not None and value >= minimum
+        ]
     for field, maximum in args.max:
-        selected = [row for row in selected if as_float(row.get(field, "")) <= maximum]
+        selected = [
+            row
+            for row in selected
+            if (value := maybe_float(row.get(field, ""))) is not None and value <= maximum
+        ]
     return selected
 
 
@@ -166,6 +213,12 @@ def main() -> int:
     parser.add_argument("--expected")
     parser.add_argument("--got")
     parser.add_argument("--route", type=split_route)
+    parser.add_argument(
+        "--active-route",
+        type=split_route,
+        help="select rows where expected matches and the route target is active above --active-threshold",
+    )
+    parser.add_argument("--active-threshold", type=float, default=0.30)
     parser.add_argument("--status", choices=("hit", "miss"))
     parser.add_argument("--sample")
     parser.add_argument("--field", action="append", default=[], type=parse_field_filter)
