@@ -306,6 +306,15 @@ def main() -> int:
     assert '--extra-protected-rows "$$rows"' in active_false_recipe, (
         "drum active false mining must pass each existing protected TSV as a separate parser argument"
     )
+    assert (
+        "find-drum-active-false-patterns-full: DRUM_ACTIVE_EXTRA_PROTECTED_ROWS := "
+        "$(MEASURE_DRUM_ACTIVE_FULL_EXTRA_PROTECTED_ROWS)"
+    ) in makefile, (
+        "full drum active false mining wrapper must opt into full protected row inputs"
+    )
+    assert "find-drum-active-false-patterns-full: find-drum-active-false-patterns" in makefile, (
+        "full drum active false mining wrapper must reuse the direct pattern miner"
+    )
     assert "$(MEASURE_ANALYZER_PATTERN_DRUM_SPREAD_MATRIX_REPORT)" in target_recipe(
         makefile, "$(MEASURE_ANALYZER_PATTERN_DRUM_SPREAD_EXACT_REPORT)"
     ).splitlines()[0], (
