@@ -2,7 +2,9 @@
 
 import argparse
 from collections import OrderedDict, defaultdict
+import hashlib
 import io
+import json
 import os
 from pathlib import Path
 import re
@@ -13,6 +15,7 @@ import zipfile
 
 
 CATEGORIES = ("kick", "snare", "hihat", "crash", "tom", "ride", "rim")
+CACHE_VERSION = 1
 
 EXCLUDE_RE = re.compile(r"(break|loop|groove|pattern|beat|fill|construction|song)", re.I)
 UNSUPPORTED_PERCUSSION_NAME_RE = re.compile(
@@ -290,12 +293,87 @@ def write_manifest(output, manifest):
         for row in manifest:
             file.write("\t".join(row) + "\n")
     tmp_path.replace(manifest_path)
+    try:
+        manifest_metadata_path(output).unlink()
+    except FileNotFoundError:
+        pass
     return manifest_path
 
 
-def manifest_counts_if_complete(output, limit_per_category, source_filter=None):
+def manifest_metadata_path(output):
+    return output / "manifest.meta.json"
+
+
+def source_signature(source, include_archives):
+    suffixes = {".wav"}
+    if include_archives:
+        suffixes.update((".zip", ".rar"))
+
+    digest = hashlib.sha256()
+    file_count = 0
+    total_bytes = 0
+    newest_mtime_ns = 0
+    for path in sorted(source.rglob("*")):
+        if not path.is_file() or path.suffix.lower() not in suffixes:
+            continue
+        try:
+            stat = path.stat()
+            relative = path.relative_to(source).as_posix()
+        except OSError:
+            continue
+        file_count += 1
+        total_bytes += stat.st_size
+        newest_mtime_ns = max(newest_mtime_ns, stat.st_mtime_ns)
+        digest.update(relative.encode("utf-8", errors="surrogateescape"))
+        digest.update(b"\0")
+        digest.update(str(stat.st_size).encode("ascii"))
+        digest.update(b"\0")
+        digest.update(str(stat.st_mtime_ns).encode("ascii"))
+        digest.update(b"\n")
+
+    return {
+        "files": file_count,
+        "bytes": total_bytes,
+        "newest_mtime_ns": newest_mtime_ns,
+        "sha256": digest.hexdigest(),
+    }
+
+
+def cache_metadata(source, limit_per_category, selection, include_archives, source_filter_text, unrar_available):
+    return {
+        "version": CACHE_VERSION,
+        "source": str(source.resolve()),
+        "limit_per_category": limit_per_category,
+        "selection": selection,
+        "include_archives": include_archives,
+        "source_filter": source_filter_text or "",
+        "unrar_available": bool(unrar_available),
+        "source_signature": source_signature(source, include_archives),
+    }
+
+
+def read_manifest_metadata(output):
+    try:
+        with manifest_metadata_path(output).open("r", encoding="utf-8") as file:
+            return json.load(file)
+    except (OSError, json.JSONDecodeError):
+        return None
+
+
+def write_manifest_metadata(output, metadata):
+    metadata_path = manifest_metadata_path(output)
+    tmp_path = output / "manifest.meta.json.tmp"
+    with tmp_path.open("w", encoding="utf-8") as file:
+        json.dump(metadata, file, indent=2, sort_keys=True)
+        file.write("\n")
+    tmp_path.replace(metadata_path)
+
+
+def manifest_counts_if_complete(output, limit_per_category, source_filter=None, expected_metadata=None):
     manifest_path = output / "manifest.tsv"
     if not manifest_path.is_file():
+        return None
+    if expected_metadata is not None and read_manifest_metadata(output) != expected_metadata:
         return None
 
     counts = {category: 0 for category in CATEGORIES}
@@ -449,22 +527,30 @@ def main():
             raise SystemExit(f"prepare_drum_samples: invalid --source-filter regex: {exc}") from exc
 
     if not args.refresh:
-        counts = manifest_counts_if_complete(output, limit_per_category, source_filter=source_filter)
+        unrar = shutil.which(args.unrar) if args.unrar else None
+        expected_metadata = cache_metadata(source, limit_per_category, args.selection, not args.no_archives,
+                                           args.source_filter, unrar is not None)
+        counts = manifest_counts_if_complete(output, limit_per_category, source_filter=source_filter,
+                                             expected_metadata=expected_metadata)
         if counts is not None:
             summary = " ".join(f"{category}={counts[category]}" for category in CATEGORIES)
             print(f"prepare_drum_samples: reused {output / 'manifest.tsv'} ({summary})")
             return
+    else:
+        unrar = shutil.which(args.unrar) if args.unrar else None
+        expected_metadata = cache_metadata(source, limit_per_category, args.selection, not args.no_archives,
+                                           args.source_filter, unrar is not None)
 
-    unrar = shutil.which(args.unrar) if args.unrar else None
     counts, manifest_path = copy_samples(source, output, limit_per_category, args.selection,
                                          unrar=unrar, include_archives=not args.no_archives,
                                          source_filter=source_filter)
     summary = " ".join(f"{category}={counts[category]}" for category in CATEGORIES)
-    print(f"prepare_drum_samples: wrote {manifest_path} ({summary})")
 
     missing = [category for category in CATEGORIES if counts[category] == 0]
     if missing:
         raise SystemExit("prepare_drum_samples: missing categories: " + ", ".join(missing))
+    write_manifest_metadata(output, expected_metadata)
+    print(f"prepare_drum_samples: wrote {manifest_path} ({summary})")
 
 
 if __name__ == "__main__":

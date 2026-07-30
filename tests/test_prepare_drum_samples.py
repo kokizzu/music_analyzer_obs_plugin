@@ -421,6 +421,69 @@ def test_cli_filter_rebuilds_mismatched_manifest():
             raise AssertionError(f"rebuilt manifest should contain only Kit B rows:\n{sources}")
 
 
+def test_cli_unlimited_cache_rebuilds_when_source_or_filter_expands():
+    with tempfile.TemporaryDirectory() as temp:
+        base = Path(temp)
+        source = base / "source"
+        output = base / "out"
+        examples = {
+            "kick": "Kick 01.wav",
+            "snare": "Snare 01.wav",
+            "hihat": "Hat Closed 01.wav",
+            "crash": "Crash 01.wav",
+            "tom": "Tom 01.wav",
+            "ride": "Ride 01.wav",
+            "rim": "Rim Shot 01.wav",
+        }
+
+        for index, filename in enumerate(examples.values()):
+            write_wav(source / "Kit A" / filename, frequency=90.0 + index * 40.0)
+            write_wav(source / "Kit B" / filename, frequency=95.0 + index * 40.0)
+
+        command = [
+            sys.executable,
+            str(ROOT / "scripts" / "prepare_drum_samples.py"),
+            "--source",
+            str(source),
+            "--output",
+            str(output),
+            "--limit-per-category",
+            "0",
+            "--selection",
+            "spread",
+            "--no-archives",
+        ]
+
+        first = subprocess.run(command + ["--source-filter", "Kit A"], check=True, text=True,
+                               stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        second = subprocess.run(command + ["--source-filter", "Kit A"], check=True, text=True,
+                                stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        broadened = subprocess.run(command + ["--source-filter", "Kit A|Kit B"], check=True, text=True,
+                                   stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+
+        rows = rows_by_category(output / "manifest.tsv")
+        if "wrote" not in first.stdout:
+            raise AssertionError(f"first unlimited run should write samples, got: {first.stdout}")
+        if "reused" not in second.stdout:
+            raise AssertionError(f"unchanged unlimited run should reuse metadata, got: {second.stdout}")
+        if "wrote" not in broadened.stdout or "reused" in broadened.stdout:
+            raise AssertionError(f"broader unlimited filter should rebuild, got: {broadened.stdout}")
+        if not (output / "manifest.meta.json").is_file():
+            raise AssertionError("unlimited cache reuse should be guarded by manifest metadata")
+        for category in examples:
+            if len(rows.get(category, [])) != 2:
+                raise AssertionError(f"broader filter should include both kits for {category}: {rows.get(category)}")
+
+        write_wav(source / "Kit B" / "Kick Extra.wav", frequency=120.0)
+        changed_source = subprocess.run(command + ["--source-filter", "Kit A|Kit B"], check=True, text=True,
+                                        stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        rows = rows_by_category(output / "manifest.tsv")
+        if "wrote" not in changed_source.stdout or "reused" in changed_source.stdout:
+            raise AssertionError(f"changed unlimited source should rebuild, got: {changed_source.stdout}")
+        if len(rows.get("kick", [])) != 3:
+            raise AssertionError(f"changed unlimited source should include the new kick: {rows.get('kick')}")
+
+
 def main():
     test_plain_zip_and_optional_rar_samples()
     test_missing_unrar_skips_rar_without_failing()
@@ -433,7 +496,8 @@ def main():
     test_spread_selection_uses_later_buckets()
     test_source_filter_limits_candidate_selection()
     test_cli_filter_rebuilds_mismatched_manifest()
-    print("test_prepare_drum_samples: 11 checks passed")
+    test_cli_unlimited_cache_rebuilds_when_source_or_filter_expands()
+    print("test_prepare_drum_samples: 12 checks passed")
     return 0
 
 
