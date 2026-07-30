@@ -192,6 +192,16 @@ def sample_count(mask: int, row_bits: list[int]) -> int:
     return samples.bit_count()
 
 
+def cached_sample_count(mask: int, row_bits: list[int], cache: dict[int, int] | None) -> int:
+    if cache is None:
+        return sample_count(mask, row_bits)
+    value = cache.get(mask)
+    if value is None:
+        value = sample_count(mask, row_bits)
+        cache[mask] = value
+    return value
+
+
 def selected_examples(rows: list[dict[str, str]], mask: int, limit: int) -> list[dict[str, str]]:
     selected: list[dict[str, str]] = []
     seen: set[str] = set()
@@ -360,9 +370,14 @@ def rank_state(
     protected_rows: list[dict[str, str]],
     positive_bits: list[int],
     protected_bits: list[int],
+    positive_sample_cache: dict[int, int] | None = None,
+    protected_sample_cache: dict[int, int] | None = None,
 ) -> tuple[int, int, int, int, str]:
     return rank_result(
-        result_from_state(state, positive_rows, protected_rows, positive_bits, protected_bits, 0)
+        result_from_state(
+            state, positive_rows, protected_rows, positive_bits, protected_bits, 0,
+            positive_sample_cache, protected_sample_cache
+        )
     )
 
 
@@ -373,14 +388,20 @@ def result_from_state(
     positive_bits: list[int],
     protected_bits: list[int],
     show_examples: int,
+    positive_sample_cache: dict[int, int] | None = None,
+    protected_sample_cache: dict[int, int] | None = None,
 ) -> Result:
     return Result(
         rule=" AND ".join(state.labels),
         constraints=state.constraints,
         positive_rows=state.positive_mask.bit_count(),
-        positive_samples=sample_count(state.positive_mask, positive_bits),
+        positive_samples=cached_sample_count(
+            state.positive_mask, positive_bits, positive_sample_cache
+        ),
         protected_rows=state.protected_mask.bit_count(),
-        protected_samples=sample_count(state.protected_mask, protected_bits),
+        protected_samples=cached_sample_count(
+            state.protected_mask, protected_bits, protected_sample_cache
+        ),
         positive_examples=selected_examples(positive_rows, state.positive_mask, show_examples),
         protected_examples=selected_examples(protected_rows, state.protected_mask, show_examples),
     )
@@ -393,10 +414,14 @@ def search_results(
 ) -> list[Result]:
     positive_bits = sample_bits(positive_rows)
     protected_bits = sample_bits(protected_rows)
+    positive_sample_cache: dict[int, int] = {}
+    protected_sample_cache: dict[int, int] = {}
     matches: list[Match] = []
     for pattern in build_patterns(positive_rows, settings.excluded_fields):
         positive_mask = mask_for(positive_rows, pattern)
-        if sample_count(positive_mask, positive_bits) < settings.min_positive_samples:
+        if cached_sample_count(
+            positive_mask, positive_bits, positive_sample_cache
+        ) < settings.min_positive_samples:
             continue
         matches.append(
             Match(
@@ -424,7 +449,10 @@ def search_results(
     ]
     states = sorted(
         states,
-        key=lambda state: rank_state(state, positive_rows, protected_rows, positive_bits, protected_bits),
+        key=lambda state: rank_state(
+            state, positive_rows, protected_rows, positive_bits, protected_bits,
+            positive_sample_cache, protected_sample_cache
+        ),
     )[: max(1, settings.beam_width)]
     results: dict[tuple[int, int], Result] = {}
     for condition_count in range(1, max(1, settings.max_conditions) + 1):
@@ -432,7 +460,7 @@ def search_results(
         for state in states:
             result = result_from_state(
                 state, positive_rows, protected_rows, positive_bits, protected_bits,
-                settings.show_examples
+                settings.show_examples, positive_sample_cache, protected_sample_cache
             )
             if result.positive_samples >= settings.min_positive_samples:
                 key = (state.positive_mask, state.protected_mask)
@@ -446,7 +474,9 @@ def search_results(
                 if not constraints_compatible(state.constraints, match.constraint):
                     continue
                 positive_mask = state.positive_mask & match.positive_mask
-                if sample_count(positive_mask, positive_bits) < settings.min_positive_samples:
+                if cached_sample_count(
+                    positive_mask, positive_bits, positive_sample_cache
+                ) < settings.min_positive_samples:
                     continue
                 protected_mask = state.protected_mask & match.protected_mask
                 candidate = State(
@@ -464,13 +494,20 @@ def search_results(
                 if previous_state is None:
                     next_states[key] = candidate
                     continue
-                if rank_state(candidate, positive_rows, protected_rows, positive_bits, protected_bits) < rank_state(
-                    previous_state, positive_rows, protected_rows, positive_bits, protected_bits
+                if rank_state(
+                    candidate, positive_rows, protected_rows, positive_bits, protected_bits,
+                    positive_sample_cache, protected_sample_cache
+                ) < rank_state(
+                    previous_state, positive_rows, protected_rows, positive_bits, protected_bits,
+                    positive_sample_cache, protected_sample_cache
                 ):
                     next_states[key] = candidate
         states = sorted(
             next_states.values(),
-            key=lambda state: rank_state(state, positive_rows, protected_rows, positive_bits, protected_bits),
+            key=lambda state: rank_state(
+                state, positive_rows, protected_rows, positive_bits, protected_bits,
+                positive_sample_cache, protected_sample_cache
+            ),
         )[: max(1, settings.beam_width)]
         if not states:
             break
