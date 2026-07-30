@@ -1147,11 +1147,11 @@ analyze-drum-spread-gate-matrix: $(BUILD_DIR)/analyzer_drum_samples prepare-drum
 	@printf '%s\n' "drum spread exact attribute TSV: $(DRUM_SPREAD_EXACT_ATTRIBUTE_ROWS)"
 
 analyze-drum-active-false-rows: scripts/summarize_drum_active_false_rows.py
-	+@if [ ! -f "$(DRUM_SPREAD_EXACT_ATTRIBUTE_ROWS)" ]; then if [ -d "$(DRUM_SAMPLE_SOURCE_DIR)" ]; then $(MAKE) analyze-drum-spread-gate-matrix; else printf '%s\n' "drum active false-row summary: skipped; missing $(DRUM_SAMPLE_SOURCE_DIR) and $(DRUM_SPREAD_EXACT_ATTRIBUTE_ROWS)"; exit 0; fi; fi
+	+@if [ -d "$(DRUM_SAMPLE_SOURCE_DIR)" ]; then if [ ! -f "$(DRUM_SPREAD_EXACT_ATTRIBUTE_ROWS)" ] || [ "$(BUILD_DIR)/analyzer_drum_samples" -nt "$(DRUM_SPREAD_EXACT_ATTRIBUTE_ROWS)" ] || [ "scripts/analyze_drum_primary_debug.py" -nt "$(DRUM_SPREAD_EXACT_ATTRIBUTE_ROWS)" ]; then $(MAKE) analyze-drum-spread-gate-matrix; fi; elif [ ! -f "$(DRUM_SPREAD_EXACT_ATTRIBUTE_ROWS)" ]; then printf '%s\n' "drum active false-row summary: skipped; missing $(DRUM_SAMPLE_SOURCE_DIR) and $(DRUM_SPREAD_EXACT_ATTRIBUTE_ROWS)"; exit 0; fi
 	$(PYTHON) scripts/summarize_drum_active_false_rows.py "$(DRUM_SPREAD_EXACT_ATTRIBUTE_ROWS)" $(DRUM_ACTIVE_FALSE_ARGS)
 
 analyze-drum-rule-flags: scripts/summarize_drum_rule_flags.py
-	+@if [ ! -f "$(DRUM_SPREAD_EXACT_ATTRIBUTE_ROWS)" ]; then if [ -d "$(DRUM_SAMPLE_SOURCE_DIR)" ]; then $(MAKE) analyze-drum-spread-gate-matrix; else printf '%s\n' "drum rule flag summary: skipped; missing $(DRUM_SAMPLE_SOURCE_DIR) and $(DRUM_SPREAD_EXACT_ATTRIBUTE_ROWS)"; exit 0; fi; fi
+	+@if [ -d "$(DRUM_SAMPLE_SOURCE_DIR)" ]; then if [ ! -f "$(DRUM_SPREAD_EXACT_ATTRIBUTE_ROWS)" ] || [ "$(BUILD_DIR)/analyzer_drum_samples" -nt "$(DRUM_SPREAD_EXACT_ATTRIBUTE_ROWS)" ] || [ "scripts/analyze_drum_primary_debug.py" -nt "$(DRUM_SPREAD_EXACT_ATTRIBUTE_ROWS)" ]; then $(MAKE) analyze-drum-spread-gate-matrix; fi; elif [ ! -f "$(DRUM_SPREAD_EXACT_ATTRIBUTE_ROWS)" ]; then printf '%s\n' "drum rule flag summary: skipped; missing $(DRUM_SAMPLE_SOURCE_DIR) and $(DRUM_SPREAD_EXACT_ATTRIBUTE_ROWS)"; exit 0; fi
 	$(PYTHON) scripts/summarize_drum_rule_flags.py "$(DRUM_SPREAD_EXACT_ATTRIBUTE_ROWS)" $(DRUM_RULE_FLAG_ARGS)
 
 compare-drum-gate-matrix: scripts/compare_drum_gate_summaries.py
@@ -1175,7 +1175,7 @@ $(MEASURE_ANALYZER_PATTERN_DRUM_PROTECTED_ROWS_STAMP): $(MEASURE_ANALYZER_PATTER
 	@touch "$@"
 
 analyze-drum-active-thresholds: scripts/simulate_drum_active_thresholds.py
-	+@if [ ! -f "$(DRUM_SPREAD_EXACT_ATTRIBUTE_ROWS)" ]; then if [ -d "$(DRUM_SAMPLE_SOURCE_DIR)" ]; then $(MAKE) analyze-drum-spread-gate-matrix; else printf '%s\n' "drum active threshold simulation: skipped; missing $(DRUM_SAMPLE_SOURCE_DIR) and $(DRUM_SPREAD_EXACT_ATTRIBUTE_ROWS)"; exit 0; fi; fi
+	+@if [ -d "$(DRUM_SAMPLE_SOURCE_DIR)" ]; then if [ ! -f "$(DRUM_SPREAD_EXACT_ATTRIBUTE_ROWS)" ] || [ "$(BUILD_DIR)/analyzer_drum_samples" -nt "$(DRUM_SPREAD_EXACT_ATTRIBUTE_ROWS)" ] || [ "scripts/analyze_drum_primary_debug.py" -nt "$(DRUM_SPREAD_EXACT_ATTRIBUTE_ROWS)" ]; then $(MAKE) analyze-drum-spread-gate-matrix; fi; elif [ ! -f "$(DRUM_SPREAD_EXACT_ATTRIBUTE_ROWS)" ]; then printf '%s\n' "drum active threshold simulation: skipped; missing $(DRUM_SAMPLE_SOURCE_DIR) and $(DRUM_SPREAD_EXACT_ATTRIBUTE_ROWS)"; exit 0; fi
 	$(PYTHON) scripts/simulate_drum_active_thresholds.py "$(DRUM_SPREAD_EXACT_ATTRIBUTE_ROWS)" $(DRUM_ACTIVE_SIM_ARGS)
 
 $(BUILD_DIR)/kick_primary_debug.err: $(BUILD_DIR)/analyzer_drum_samples scripts/run_with_duration.sh | $(DRUM_SAMPLE_SPREAD_BUILD_DIR)/manifest.tsv

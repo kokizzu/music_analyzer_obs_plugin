@@ -346,6 +346,21 @@ def main() -> int:
     assert '--extra-protected-rows "$$rows"' in active_false_recipe, (
         "drum active false mining must pass each existing protected TSV as a separate parser argument"
     )
+    for target in [
+        "analyze-drum-active-false-rows",
+        "analyze-drum-rule-flags",
+        "analyze-drum-active-thresholds",
+    ]:
+        stale_summary_recipe = target_recipe(makefile, target)
+        assert '$(BUILD_DIR)/analyzer_drum_samples" -nt "$(DRUM_SPREAD_EXACT_ATTRIBUTE_ROWS)"' in stale_summary_recipe, (
+            f"{target} must refresh stale spread rows after detector changes"
+        )
+        assert 'scripts/analyze_drum_primary_debug.py" -nt "$(DRUM_SPREAD_EXACT_ATTRIBUTE_ROWS)"' in stale_summary_recipe, (
+            f"{target} must refresh stale spread rows after parser changes"
+        )
+        assert "$(MAKE) analyze-drum-spread-gate-matrix" in stale_summary_recipe, (
+            f"{target} must rebuild spread rows through the matrix target"
+        )
     assert (
         "find-drum-active-false-patterns-full: DRUM_ACTIVE_EXTRA_PROTECTED_ROWS := "
         "$(MEASURE_DRUM_ACTIVE_FULL_EXTRA_PROTECTED_ROWS)"
