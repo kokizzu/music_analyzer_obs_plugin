@@ -25,13 +25,20 @@ def run_analysis(log_text: str) -> str:
         return completed.stdout
 
 
-def run_dump(log_text: str, *, include_debug_rows: bool = False) -> str:
+def run_dump(
+    log_text: str,
+    *,
+    include_debug_rows: bool = False,
+    include_merged_debug_rows: bool = False,
+) -> str:
     with tempfile.TemporaryDirectory() as tmpdir:
         log_path = pathlib.Path(tmpdir) / "drum_primary_debug.err"
         log_path.write_text(log_text, encoding="utf-8")
         command = [sys.executable, str(SCRIPT), str(log_path), "--dump-rows", "--expected", "tom"]
         if include_debug_rows:
             command.append("--include-debug-rows")
+        if include_merged_debug_rows:
+            command.append("--include-merged-debug-rows")
         completed = subprocess.run(
             command,
             cwd=ROOT,
@@ -68,6 +75,17 @@ def main() -> int:
             "rim band=1.00 seg=1.00 shape_score=1.00 trigger=0.20/1.40 shape=0 level=0.00 | "
             "transient=2.10 onset=1.70 energy=0.58/0.32/0.10 "
             "body=4.00/2.00/8.00 crack=0.50 upper_tom=3.00 body_shape=4 rule_flags=0x13 merged_expected=1]",
+            "analyzer_drum_samples: merged debug 100ms tom/001.wav#merged expected tom "
+            "(kick=0.72* snare=0.00 hihat=0.00 crash=0.00 tom=0.92* ride=0.00 rim=0.00) "
+            "[kick band=6.00 seg=7.00 shape_score=8.00 trigger=1.90/0.60 shape=1 level=0.72 | "
+            "snare band=1.00 seg=1.00 shape_score=1.00 trigger=0.20/1.40 shape=0 level=0.00 | "
+            "hihat band=1.00 seg=1.00 shape_score=1.00 trigger=0.20/1.40 shape=0 level=0.00 | "
+            "crash band=1.00 seg=1.00 shape_score=1.00 trigger=0.20/1.40 shape=0 level=0.00 | "
+            "tom band=9.00 seg=11.00 shape_score=8.20 trigger=1.80/1.40 shape=1 level=0.92 | "
+            "ride band=1.00 seg=1.00 shape_score=1.00 trigger=0.20/1.40 shape=0 level=0.00 | "
+            "rim band=1.00 seg=1.00 shape_score=1.00 trigger=0.20/1.40 shape=0 level=0.00 | "
+            "transient=1.80 onset=1.20 energy=0.46/0.50/0.04 "
+            "body=6.00/2.00/9.00 crack=0.40 upper_tom=4.00 body_shape=4 rule_flags=0x12 merged_expected=1]",
             "analyzer_drum_samples: debug 100ms tom/001.wav expected tom "
             "(kick=0.96* snare=0.00 hihat=0.00 crash=0.00 tom=0.71* ride=0.00 rim=0.00) "
             "[kick band=4.00 seg=5.00 shape_score=6.00 trigger=1.60/0.60 shape=1 level=0.96 | "
@@ -118,6 +136,7 @@ def main() -> int:
     output = run_analysis(log_text)
     dumped = run_dump(log_text)
     dumped_with_correct = run_dump(log_text, include_debug_rows=True)
+    dumped_with_merged = run_dump(log_text, include_merged_debug_rows=True)
     require(output, "overall primary misses")
     require(output, "expected snare: tom=1")
     require(output, "expected tom: ambiguous=1 kick=1")
@@ -156,6 +175,15 @@ def main() -> int:
         raise AssertionError(f"expected debug-only primary hit to keep analyzer expected label:\n{dumped_with_correct}")
     if dumped_with_correct.count("tom/001.wav\ttom\tkick") != 1:
         raise AssertionError(f"expected primary miss sample to be dumped once:\n{dumped_with_correct}")
+    if "tom/001.wav#merged" in dumped_with_correct:
+        raise AssertionError(f"merged debug rows must be opt-in:\n{dumped_with_correct}")
+    require(
+        dumped_with_merged,
+        "tom/001.wav#merged\ttom\ttom\t0.460000\t0.500000\t0.040000\t6.000000\t2.000000\t9.000000",
+    )
+    dumped_with_merged_rows = {row["sample"]: row for row in tsv_rows(dumped_with_merged)}
+    if dumped_with_merged_rows["tom/001.wav#merged"]["merged_expected"] != "1":
+        raise AssertionError(f"expected merged frame row to preserve merged_expected=1:\n{dumped_with_merged}")
     if "100000" in output:
         raise AssertionError(f"expected zero-denominator ratios to be skipped:\n{output}")
     print("test_analyze_drum_primary_debug: ok")

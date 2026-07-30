@@ -42,6 +42,7 @@ struct SourceStats {
 
 struct DrumSampleAnalysis {
 	mao::AnalysisSnapshot snapshot = {};
+	mao::AnalysisSnapshot merged_expected_snapshot = {};
 	bool merged_expected_from_later_frame = false;
 };
 
@@ -531,6 +532,7 @@ DrumSampleAnalysis analyze_sample(const mao_test::Buffer &sample, uint32_t sampl
 	// so decay in the next frame does not inflate false-positive counts.
 	DrumSampleAnalysis analysis = {};
 	analysis.snapshot = selected;
+	analysis.merged_expected_snapshot = best_expected;
 	if (expected < mao::kDrumCount && best_expected.drums[expected].level > selected.drums[expected].level) {
 		analysis.merged_expected_from_later_frame = true;
 		selected.drums[expected] = best_expected.drums[expected];
@@ -608,6 +610,8 @@ int main()
 	const bool verbose_misses = std::getenv("MUSIC_ANALYZER_DRUM_SAMPLE_VERBOSE_MISSES") != nullptr;
 	const bool verbose_primary = std::getenv("MUSIC_ANALYZER_DRUM_SAMPLE_VERBOSE_PRIMARY") != nullptr;
 	const bool verbose_all = std::getenv("MUSIC_ANALYZER_DRUM_SAMPLE_VERBOSE_ALL") != nullptr;
+	const bool verbose_merged_expected =
+		std::getenv("MUSIC_ANALYZER_DRUM_SAMPLE_VERBOSE_MERGED_EXPECTED") != nullptr;
 	const bool source_summary = std::getenv("MUSIC_ANALYZER_DRUM_SAMPLE_SOURCE_SUMMARY") != nullptr;
 	const char *filter_category_env = std::getenv("MUSIC_ANALYZER_DRUM_SAMPLE_FILTER_CATEGORY");
 	const char *filter_source_env = std::getenv("MUSIC_ANALYZER_DRUM_SAMPLE_FILTER_SOURCE");
@@ -699,6 +703,15 @@ int main()
 				     fields[1].c_str(), category_name(expected),
 				     active_details(snapshot100).c_str(),
 				     debug_details(snapshot100, analysis100.merged_expected_from_later_frame).c_str());
+		}
+		if (verbose_merged_expected && analysis100.merged_expected_from_later_frame &&
+		    verbose_all_lines < verbose_primary_limit) {
+			++verbose_all_lines;
+			std::fprintf(stderr,
+				     "analyzer_drum_samples: merged debug 100ms %s#merged expected %s (%s) [%s]\n",
+				     fields[1].c_str(), category_name(expected),
+				     active_details(analysis100.merged_expected_snapshot).c_str(),
+				     debug_details(analysis100.merged_expected_snapshot, true).c_str());
 		}
 		++totals[expected];
 		++usable;

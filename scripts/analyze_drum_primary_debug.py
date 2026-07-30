@@ -56,10 +56,15 @@ DETAIL_RE = re.compile(
     r"level=(?P<level>[0-9.]+)"
 )
 MISS_RE = re.compile(
-    r"primary miss 100ms (?P<sample>\S+) expected (?P<expected>\w+) "
+    r"analyzer_drum_samples: primary miss 100ms (?P<sample>\S+) expected (?P<expected>\w+) "
     r"got (?P<got>\w+|ambiguous|none).*?\[(?P<detail>.*)\]$"
 )
-DEBUG_RE = re.compile(r"debug 100ms (?P<sample>\S+) expected (?P<expected>\w+).*?\[(?P<detail>.*)\]$")
+DEBUG_RE = re.compile(
+    r"analyzer_drum_samples: debug 100ms (?P<sample>\S+) expected (?P<expected>\w+).*?\[(?P<detail>.*)\]$"
+)
+MERGED_DEBUG_RE = re.compile(
+    r"analyzer_drum_samples: merged debug 100ms (?P<sample>\S+) expected (?P<expected>\w+).*?\[(?P<detail>.*)\]$"
+)
 ENERGY_RE = re.compile(r"energy=(?P<low>[0-9.]+)/(?P<mid>[0-9.]+)/(?P<high>[0-9.]+)")
 BODY_RE = re.compile(
     r"body=(?P<kick_body>[0-9.]+)/(?P<snare_body>[0-9.]+)/(?P<tom_body>[0-9.]+) "
@@ -122,9 +127,15 @@ def row_from_match(match, got: str):
     }
 
 
-def parse_log(path: pathlib.Path, *, include_debug_rows: bool = False):
+def parse_log(
+    path: pathlib.Path,
+    *,
+    include_debug_rows: bool = False,
+    include_merged_debug_rows: bool = False,
+):
     rows = []
     debug_rows = []
+    merged_debug_rows = []
     miss_keys = set()
     for line in path.read_text(errors="replace").splitlines():
         miss_match = MISS_RE.search(line)
@@ -133,12 +144,19 @@ def parse_log(path: pathlib.Path, *, include_debug_rows: bool = False):
             rows.append(row)
             miss_keys.add((row["sample"], row["expected"]))
             continue
+        if include_merged_debug_rows:
+            merged_debug_match = MERGED_DEBUG_RE.search(line)
+            if merged_debug_match:
+                merged_debug_rows.append(row_from_match(merged_debug_match, merged_debug_match.group("expected")))
+                continue
         if include_debug_rows:
             debug_match = DEBUG_RE.search(line)
             if debug_match:
                 debug_rows.append(row_from_match(debug_match, debug_match.group("expected")))
     if include_debug_rows:
         rows.extend(row for row in debug_rows if (row["sample"], row["expected"]) not in miss_keys)
+    if include_merged_debug_rows:
+        rows.extend(merged_debug_rows)
     return rows
 
 
@@ -354,6 +372,11 @@ def main() -> int:
         help="include analyzer_drum_samples debug rows in --dump-rows output, including correct primaries",
     )
     parser.add_argument(
+        "--include-merged-debug-rows",
+        action="store_true",
+        help="include opt-in later-frame rows emitted for merged expected-hit credit",
+    )
+    parser.add_argument(
         "--dump-limit",
         type=int,
         default=0,
@@ -364,7 +387,11 @@ def main() -> int:
     all_rows = []
     parsed_logs = []
     for path in args.logs:
-        rows = parse_log(path, include_debug_rows=args.include_debug_rows)
+        rows = parse_log(
+            path,
+            include_debug_rows=args.include_debug_rows,
+            include_merged_debug_rows=args.include_merged_debug_rows,
+        )
         parsed_logs.append((path, rows))
         all_rows.extend(rows)
     if args.dump_rows:
