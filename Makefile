@@ -909,11 +909,11 @@ $(BUILD_DIR)/fret_control_tests: $(BUILD_DIR)/fret_control.o $(BUILD_DIR)/fret_c
 	tmp="$@.$$$$.tmp"; $(CXX) -o "$$tmp" $^ && mv "$$tmp" "$@"
 
 $(BUILD_DIR)/standalone.o: src/standalone.cpp src/analyzer.hpp src/visualizer_renderer.hpp $(APP_ICON_HEADER) $(SDL2_DEP) FORCE | $(BUILD_DIR)
-	$(MAKE) check-standalone-deps
+	+$(MAKE) check-standalone-deps
 	tmp="$@.$$$$.tmp"; $(CXX) $(CXXFLAGS) $(SDL2_CFLAGS) -DMAO_STANDALONE_WITH_SDL=1 -DMAO_STANDALONE_VERSION=\"$(STANDALONE_VERSION)\" -Isrc -c $< -o "$$tmp" && mv "$$tmp" "$@"
 
 $(BUILD_DIR)/standalone_bass_guitar.o: src/standalone.cpp src/analyzer.hpp src/visualizer_renderer.hpp $(BASS_GUITAR_APP_ICON_HEADER) $(SDL2_DEP) FORCE | $(BUILD_DIR)
-	$(MAKE) check-standalone-deps
+	+$(MAKE) check-standalone-deps
 	tmp="$@.$$$$.tmp"; $(CXX) $(CXXFLAGS) $(SDL2_CFLAGS) -DMAO_STANDALONE_WITH_SDL=1 -DMAO_STANDALONE_BASS_GUITAR=1 -DMAO_STANDALONE_VERSION=\"$(STANDALONE_VERSION)\" -Isrc -c $< -o "$$tmp" && mv "$$tmp" "$@"
 
 $(STANDALONE_BIN): $(ANALYZER_TEST_OBJ) $(RENDERER_OBJ) $(BUILD_DIR)/standalone.o
@@ -1029,7 +1029,7 @@ prepare-drum-samples-spread: scripts/prepare_drum_samples.py | $(BUILD_DIR)
 	DRUM_SAMPLE_SOURCE_DIR="$(DRUM_SAMPLE_SOURCE_DIR)" DRUM_SAMPLE_BUILD_DIR="$(DRUM_SAMPLE_SPREAD_BUILD_DIR)" DRUM_SAMPLE_LIMIT="$(DRUM_SAMPLE_SPREAD_LIMIT)" DRUM_SAMPLE_SELECTION="spread" DRUM_SAMPLE_SOURCE_FILTER="$(DRUM_SAMPLE_SOURCE_FILTER)" $(PYTHON) scripts/prepare_drum_samples.py --source "$(DRUM_SAMPLE_SOURCE_DIR)" --output "$(DRUM_SAMPLE_SPREAD_BUILD_DIR)" --limit-per-category "$(DRUM_SAMPLE_SPREAD_LIMIT)" --selection "spread" --source-filter "$(DRUM_SAMPLE_SOURCE_FILTER)" --no-archives
 
 $(DRUM_SAMPLE_SPREAD_BUILD_DIR)/manifest.tsv: scripts/prepare_drum_samples.py | $(BUILD_DIR)
-	$(MAKE) prepare-drum-samples-spread
+	+$(MAKE) prepare-drum-samples-spread
 
 test-drum-samples-spread: $(BUILD_DIR)/analyzer_drum_samples prepare-drum-samples-spread scripts/run_with_duration.sh
 	$(RUN_WITH_DURATION) analyzer_drum_samples_spread env MUSIC_ANALYZER_DRUM_SAMPLES_REQUIRED=1 MUSIC_ANALYZER_DRUM_SAMPLE_MIN_RECALL_PERCENT="$(DRUM_SAMPLE_SPREAD_MIN_RECALL_PERCENT)" MUSIC_ANALYZER_DRUM_SAMPLE_MIN_PRECISION_PERCENT="$(DRUM_SAMPLE_SPREAD_MIN_PRECISION_PERCENT)" MUSIC_ANALYZER_DRUM_SAMPLE_MIN_KICK_RECALL_PERCENT="$(DRUM_SAMPLE_SPREAD_MIN_KICK_RECALL_PERCENT)" MUSIC_ANALYZER_DRUM_SAMPLE_MIN_SNARE_RECALL_PERCENT="$(DRUM_SAMPLE_SPREAD_MIN_SNARE_RECALL_PERCENT)" MUSIC_ANALYZER_DRUM_SAMPLE_MIN_HIHAT_RECALL_PERCENT="$(DRUM_SAMPLE_SPREAD_MIN_HIHAT_RECALL_PERCENT)" MUSIC_ANALYZER_DRUM_SAMPLE_MIN_CRASH_RECALL_PERCENT="$(DRUM_SAMPLE_SPREAD_MIN_CRASH_RECALL_PERCENT)" MUSIC_ANALYZER_DRUM_SAMPLE_MIN_TOM_RECALL_PERCENT="$(DRUM_SAMPLE_SPREAD_MIN_TOM_RECALL_PERCENT)" MUSIC_ANALYZER_DRUM_SAMPLE_MIN_RIDE_RECALL_PERCENT="$(DRUM_SAMPLE_SPREAD_MIN_RIDE_RECALL_PERCENT)" MUSIC_ANALYZER_DRUM_SAMPLE_MIN_RIM_RECALL_PERCENT="$(DRUM_SAMPLE_SPREAD_MIN_RIM_RECALL_PERCENT)" MUSIC_ANALYZER_DRUM_SAMPLE_MIN_KICK_PRIMARY_RECALL_PERCENT="$(DRUM_SAMPLE_SPREAD_MIN_KICK_PRIMARY_PERCENT)" MUSIC_ANALYZER_DRUM_SAMPLE_MIN_SNARE_PRIMARY_RECALL_PERCENT="$(DRUM_SAMPLE_SPREAD_MIN_SNARE_PRIMARY_PERCENT)" MUSIC_ANALYZER_DRUM_SAMPLE_MIN_HIHAT_PRIMARY_RECALL_PERCENT="$(DRUM_SAMPLE_SPREAD_MIN_HIHAT_PRIMARY_PERCENT)" MUSIC_ANALYZER_DRUM_SAMPLE_MIN_CRASH_PRIMARY_RECALL_PERCENT="$(DRUM_SAMPLE_SPREAD_MIN_CRASH_PRIMARY_PERCENT)" MUSIC_ANALYZER_DRUM_SAMPLE_MIN_TOM_PRIMARY_RECALL_PERCENT="$(DRUM_SAMPLE_SPREAD_MIN_TOM_PRIMARY_PERCENT)" MUSIC_ANALYZER_DRUM_SAMPLE_MIN_RIDE_PRIMARY_RECALL_PERCENT="$(DRUM_SAMPLE_SPREAD_MIN_RIDE_PRIMARY_PERCENT)" MUSIC_ANALYZER_DRUM_SAMPLE_MIN_RIM_PRIMARY_RECALL_PERCENT="$(DRUM_SAMPLE_SPREAD_MIN_RIM_PRIMARY_PERCENT)" MUSIC_ANALYZER_DRUM_SAMPLE_MAX_KICK_FALSE_PERCENT="$(DRUM_SAMPLE_SPREAD_MAX_KICK_FALSE_PERCENT)" MUSIC_ANALYZER_DRUM_SAMPLE_MAX_TOM_FALSE_PERCENT="$(DRUM_SAMPLE_SPREAD_MAX_TOM_FALSE_PERCENT)" MUSIC_ANALYZER_DRUM_SAMPLES_DIR="$(DRUM_SAMPLE_SPREAD_BUILD_DIR)" $(BUILD_DIR)/analyzer_drum_samples
@@ -1042,11 +1042,11 @@ analyze-drum-spread-gate-matrix: $(BUILD_DIR)/analyzer_drum_samples prepare-drum
 	@printf '%s\n' "drum spread exact attribute TSV: $(DRUM_SPREAD_EXACT_ATTRIBUTE_ROWS)"
 
 analyze-drum-active-false-rows: scripts/summarize_drum_active_false_rows.py
-	@if [ ! -f "$(DRUM_SPREAD_EXACT_ATTRIBUTE_ROWS)" ]; then if [ -d "$(DRUM_SAMPLE_SOURCE_DIR)" ]; then $(MAKE) analyze-drum-spread-gate-matrix; else printf '%s\n' "drum active false-row summary: skipped; missing $(DRUM_SAMPLE_SOURCE_DIR) and $(DRUM_SPREAD_EXACT_ATTRIBUTE_ROWS)"; exit 0; fi; fi
+	+@if [ ! -f "$(DRUM_SPREAD_EXACT_ATTRIBUTE_ROWS)" ]; then if [ -d "$(DRUM_SAMPLE_SOURCE_DIR)" ]; then $(MAKE) analyze-drum-spread-gate-matrix; else printf '%s\n' "drum active false-row summary: skipped; missing $(DRUM_SAMPLE_SOURCE_DIR) and $(DRUM_SPREAD_EXACT_ATTRIBUTE_ROWS)"; exit 0; fi; fi
 	$(PYTHON) scripts/summarize_drum_active_false_rows.py "$(DRUM_SPREAD_EXACT_ATTRIBUTE_ROWS)" $(DRUM_ACTIVE_FALSE_ARGS)
 
 analyze-drum-rule-flags: scripts/summarize_drum_rule_flags.py
-	@if [ ! -f "$(DRUM_SPREAD_EXACT_ATTRIBUTE_ROWS)" ]; then if [ -d "$(DRUM_SAMPLE_SOURCE_DIR)" ]; then $(MAKE) analyze-drum-spread-gate-matrix; else printf '%s\n' "drum rule flag summary: skipped; missing $(DRUM_SAMPLE_SOURCE_DIR) and $(DRUM_SPREAD_EXACT_ATTRIBUTE_ROWS)"; exit 0; fi; fi
+	+@if [ ! -f "$(DRUM_SPREAD_EXACT_ATTRIBUTE_ROWS)" ]; then if [ -d "$(DRUM_SAMPLE_SOURCE_DIR)" ]; then $(MAKE) analyze-drum-spread-gate-matrix; else printf '%s\n' "drum rule flag summary: skipped; missing $(DRUM_SAMPLE_SOURCE_DIR) and $(DRUM_SPREAD_EXACT_ATTRIBUTE_ROWS)"; exit 0; fi; fi
 	$(PYTHON) scripts/summarize_drum_rule_flags.py "$(DRUM_SPREAD_EXACT_ATTRIBUTE_ROWS)" $(DRUM_RULE_FLAG_ARGS)
 
 compare-drum-gate-matrix: scripts/compare_drum_gate_summaries.py
@@ -1054,11 +1054,11 @@ compare-drum-gate-matrix: scripts/compare_drum_gate_summaries.py
 	$(PYTHON) scripts/compare_drum_gate_summaries.py "$(DRUM_GATE_BEFORE)" "$(DRUM_GATE_AFTER)"
 
 find-drum-active-false-patterns: scripts/find_drum_active_false_patterns.py
-	@if [ ! -f "$(DRUM_SPREAD_EXACT_ATTRIBUTE_ROWS)" ]; then if [ -d "$(DRUM_SAMPLE_SOURCE_DIR)" ]; then $(MAKE) analyze-drum-spread-gate-matrix; else printf '%s\n' "drum active false pattern candidates: skipped; missing $(DRUM_SAMPLE_SOURCE_DIR) and $(DRUM_SPREAD_EXACT_ATTRIBUTE_ROWS)"; exit 0; fi; fi
+	+@if [ ! -f "$(DRUM_SPREAD_EXACT_ATTRIBUTE_ROWS)" ]; then if [ -d "$(DRUM_SAMPLE_SOURCE_DIR)" ]; then $(MAKE) analyze-drum-spread-gate-matrix; else printf '%s\n' "drum active false pattern candidates: skipped; missing $(DRUM_SAMPLE_SOURCE_DIR) and $(DRUM_SPREAD_EXACT_ATTRIBUTE_ROWS)"; exit 0; fi; fi
 	$(PYTHON) scripts/find_drum_active_false_patterns.py "$(DRUM_SPREAD_EXACT_ATTRIBUTE_ROWS)" $(if $(DRUM_ACTIVE_EXTRA_PROTECTED_ROWS),--extra-protected-rows "$(DRUM_ACTIVE_EXTRA_PROTECTED_ROWS)") $(if $(PATTERN_ROUTE),--route "$(PATTERN_ROUTE)") --jobs "$(DRUM_PATTERN_JOBS)" $(PATTERN_ARGS)
 
 analyze-drum-active-thresholds: scripts/simulate_drum_active_thresholds.py
-	@if [ ! -f "$(DRUM_SPREAD_EXACT_ATTRIBUTE_ROWS)" ]; then if [ -d "$(DRUM_SAMPLE_SOURCE_DIR)" ]; then $(MAKE) analyze-drum-spread-gate-matrix; else printf '%s\n' "drum active threshold simulation: skipped; missing $(DRUM_SAMPLE_SOURCE_DIR) and $(DRUM_SPREAD_EXACT_ATTRIBUTE_ROWS)"; exit 0; fi; fi
+	+@if [ ! -f "$(DRUM_SPREAD_EXACT_ATTRIBUTE_ROWS)" ]; then if [ -d "$(DRUM_SAMPLE_SOURCE_DIR)" ]; then $(MAKE) analyze-drum-spread-gate-matrix; else printf '%s\n' "drum active threshold simulation: skipped; missing $(DRUM_SAMPLE_SOURCE_DIR) and $(DRUM_SPREAD_EXACT_ATTRIBUTE_ROWS)"; exit 0; fi; fi
 	$(PYTHON) scripts/simulate_drum_active_thresholds.py "$(DRUM_SPREAD_EXACT_ATTRIBUTE_ROWS)" $(DRUM_ACTIVE_SIM_ARGS)
 
 $(BUILD_DIR)/kick_primary_debug.err: $(BUILD_DIR)/analyzer_drum_samples scripts/run_with_duration.sh | $(DRUM_SAMPLE_SPREAD_BUILD_DIR)/manifest.tsv
@@ -1125,24 +1125,24 @@ find-drum-primary-attribute-patterns: $(BUILD_DIR)/drum_primary_miss_attribute_r
 	$(PYTHON) scripts/find_drum_attribute_patterns.py "$(BUILD_DIR)/drum_primary_miss_attribute_rows.tsv" $(if $(PATTERN_ROUTE),--route "$(PATTERN_ROUTE)") --jobs "$(DRUM_PATTERN_JOBS)" $(PATTERN_ARGS)
 
 find-drum-full-attribute-patterns: $(BUILD_DIR)/analyzer_drum_samples scripts/find_drum_attribute_patterns.py scripts/analyze_drum_primary_debug.py
-	@if [ ! -f "$(DRUM_FULL_EXACT_ATTRIBUTE_ROWS)" ] || [ "$(BUILD_DIR)/analyzer_drum_samples" -nt "$(DRUM_FULL_EXACT_ATTRIBUTE_ROWS)" ] || [ "scripts/analyze_drum_primary_debug.py" -nt "$(DRUM_FULL_EXACT_ATTRIBUTE_ROWS)" ]; then $(MAKE) analyze-drum-full-gate-matrix-parallel; fi
+	+@if [ ! -f "$(DRUM_FULL_EXACT_ATTRIBUTE_ROWS)" ] || [ "$(BUILD_DIR)/analyzer_drum_samples" -nt "$(DRUM_FULL_EXACT_ATTRIBUTE_ROWS)" ] || [ "scripts/analyze_drum_primary_debug.py" -nt "$(DRUM_FULL_EXACT_ATTRIBUTE_ROWS)" ]; then $(MAKE) analyze-drum-full-gate-matrix-parallel; fi
 	$(PYTHON) scripts/find_drum_attribute_patterns.py "$(DRUM_FULL_EXACT_ATTRIBUTE_ROWS)" $(if $(PATTERN_ROUTE),--route "$(PATTERN_ROUTE)") --jobs "$(DRUM_PATTERN_JOBS)" $(or $(PATTERN_ARGS),$(MEASURE_DRUM_FULL_PATTERN_ARGS))
 
 find-drum-spread-exact-attribute-patterns: $(BUILD_DIR)/analyzer_drum_samples scripts/find_drum_attribute_patterns.py scripts/analyze_drum_primary_debug.py
-	@if [ -d "$(DRUM_SAMPLE_SOURCE_DIR)" ]; then if [ ! -f "$(DRUM_SPREAD_EXACT_ATTRIBUTE_ROWS)" ] || [ "$(BUILD_DIR)/analyzer_drum_samples" -nt "$(DRUM_SPREAD_EXACT_ATTRIBUTE_ROWS)" ] || [ "scripts/analyze_drum_primary_debug.py" -nt "$(DRUM_SPREAD_EXACT_ATTRIBUTE_ROWS)" ]; then $(MAKE) analyze-drum-spread-gate-matrix; fi; elif [ ! -f "$(DRUM_SPREAD_EXACT_ATTRIBUTE_ROWS)" ]; then printf '%s\n' "drum spread exact pattern candidates: skipped; missing $(DRUM_SAMPLE_SOURCE_DIR) and $(DRUM_SPREAD_EXACT_ATTRIBUTE_ROWS)"; exit 0; fi
+	+@if [ -d "$(DRUM_SAMPLE_SOURCE_DIR)" ]; then if [ ! -f "$(DRUM_SPREAD_EXACT_ATTRIBUTE_ROWS)" ] || [ "$(BUILD_DIR)/analyzer_drum_samples" -nt "$(DRUM_SPREAD_EXACT_ATTRIBUTE_ROWS)" ] || [ "scripts/analyze_drum_primary_debug.py" -nt "$(DRUM_SPREAD_EXACT_ATTRIBUTE_ROWS)" ]; then $(MAKE) analyze-drum-spread-gate-matrix; fi; elif [ ! -f "$(DRUM_SPREAD_EXACT_ATTRIBUTE_ROWS)" ]; then printf '%s\n' "drum spread exact pattern candidates: skipped; missing $(DRUM_SAMPLE_SOURCE_DIR) and $(DRUM_SPREAD_EXACT_ATTRIBUTE_ROWS)"; exit 0; fi
 	@if [ -f "$(DRUM_SPREAD_EXACT_ATTRIBUTE_ROWS)" ]; then $(PYTHON) scripts/find_drum_attribute_patterns.py "$(DRUM_SPREAD_EXACT_ATTRIBUTE_ROWS)" $(if $(PATTERN_ROUTE),--route "$(PATTERN_ROUTE)") --jobs "$(DRUM_PATTERN_JOBS)" $(PATTERN_ARGS); fi
 
 prepare-drum-samples-full: scripts/prepare_drum_samples.py | $(BUILD_DIR)
 	DRUM_SAMPLE_SOURCE_DIR="$(DRUM_SAMPLE_SOURCE_DIR)" DRUM_SAMPLE_BUILD_DIR="$(DRUM_SAMPLE_FULL_BUILD_DIR)" DRUM_SAMPLE_LIMIT="$(DRUM_SAMPLE_FULL_LIMIT)" DRUM_SAMPLE_SELECTION="$(DRUM_SAMPLE_SELECTION)" DRUM_SAMPLE_SOURCE_FILTER="$(DRUM_SAMPLE_SOURCE_FILTER)" $(PYTHON) scripts/prepare_drum_samples.py --source "$(DRUM_SAMPLE_SOURCE_DIR)" --output "$(DRUM_SAMPLE_FULL_BUILD_DIR)" --limit-per-category "$(DRUM_SAMPLE_FULL_LIMIT)" --selection "$(DRUM_SAMPLE_SELECTION)" --source-filter "$(DRUM_SAMPLE_SOURCE_FILTER)" --unrar "$(UNRAR)"
 
 $(DRUM_SAMPLE_FULL_BUILD_DIR)/manifest.tsv: scripts/prepare_drum_samples.py | $(BUILD_DIR)
-	$(MAKE) prepare-drum-samples-full
+	+$(MAKE) prepare-drum-samples-full
 
 test-drum-samples-full: $(BUILD_DIR)/analyzer_drum_samples prepare-drum-samples-full scripts/run_with_duration.sh
 	$(RUN_WITH_DURATION) analyzer_drum_samples_full env MUSIC_ANALYZER_DRUM_SAMPLES_REQUIRED=1 MUSIC_ANALYZER_DRUM_SAMPLES_DIR="$(DRUM_SAMPLE_FULL_BUILD_DIR)" MUSIC_ANALYZER_DRUM_SAMPLE_MIN_RECALL_PERCENT="$(DRUM_SAMPLE_FULL_MIN_RECALL_PERCENT)" MUSIC_ANALYZER_DRUM_SAMPLE_MIN_PRECISION_PERCENT="$(DRUM_SAMPLE_FULL_MIN_PRECISION_PERCENT)" MUSIC_ANALYZER_DRUM_SAMPLE_MIN_KICK_RECALL_PERCENT="$(DRUM_SAMPLE_FULL_MIN_KICK_RECALL_PERCENT)" MUSIC_ANALYZER_DRUM_SAMPLE_MIN_SNARE_RECALL_PERCENT="$(DRUM_SAMPLE_FULL_MIN_SNARE_RECALL_PERCENT)" MUSIC_ANALYZER_DRUM_SAMPLE_MIN_HIHAT_RECALL_PERCENT="$(DRUM_SAMPLE_FULL_MIN_HIHAT_RECALL_PERCENT)" MUSIC_ANALYZER_DRUM_SAMPLE_MIN_CRASH_RECALL_PERCENT="$(DRUM_SAMPLE_FULL_MIN_CRASH_RECALL_PERCENT)" MUSIC_ANALYZER_DRUM_SAMPLE_MIN_TOM_RECALL_PERCENT="$(DRUM_SAMPLE_FULL_MIN_TOM_RECALL_PERCENT)" MUSIC_ANALYZER_DRUM_SAMPLE_MIN_RIDE_RECALL_PERCENT="$(DRUM_SAMPLE_FULL_MIN_RIDE_RECALL_PERCENT)" MUSIC_ANALYZER_DRUM_SAMPLE_MIN_RIM_RECALL_PERCENT="$(DRUM_SAMPLE_FULL_MIN_RIM_RECALL_PERCENT)" MUSIC_ANALYZER_DRUM_SAMPLE_MIN_KICK_PRIMARY_RECALL_PERCENT="$(DRUM_SAMPLE_FULL_MIN_KICK_PRIMARY_PERCENT)" MUSIC_ANALYZER_DRUM_SAMPLE_MIN_SNARE_PRIMARY_RECALL_PERCENT="$(DRUM_SAMPLE_FULL_MIN_SNARE_PRIMARY_PERCENT)" MUSIC_ANALYZER_DRUM_SAMPLE_MIN_HIHAT_PRIMARY_RECALL_PERCENT="$(DRUM_SAMPLE_FULL_MIN_HIHAT_PRIMARY_PERCENT)" MUSIC_ANALYZER_DRUM_SAMPLE_MIN_CRASH_PRIMARY_RECALL_PERCENT="$(DRUM_SAMPLE_FULL_MIN_CRASH_PRIMARY_PERCENT)" MUSIC_ANALYZER_DRUM_SAMPLE_MIN_TOM_PRIMARY_RECALL_PERCENT="$(DRUM_SAMPLE_FULL_MIN_TOM_PRIMARY_PERCENT)" MUSIC_ANALYZER_DRUM_SAMPLE_MIN_RIDE_PRIMARY_RECALL_PERCENT="$(DRUM_SAMPLE_FULL_MIN_RIDE_PRIMARY_PERCENT)" MUSIC_ANALYZER_DRUM_SAMPLE_MIN_RIM_PRIMARY_RECALL_PERCENT="$(DRUM_SAMPLE_FULL_MIN_RIM_PRIMARY_PERCENT)" MUSIC_ANALYZER_DRUM_SAMPLE_MAX_TOM_FALSE_PERCENT="$(DRUM_SAMPLE_FULL_MAX_TOM_FALSE_PERCENT)" $(BUILD_DIR)/analyzer_drum_samples
 
 test-drum-samples-full-parallel: $(BUILD_DIR)/analyzer_drum_samples $(DRUM_SAMPLE_FULL_BUILD_DIR)/manifest.tsv scripts/check_drum_sample_shards.py scripts/run_with_duration.sh
-	$(RUN_WITH_DURATION) analyzer_drum_samples_full_parallel $(MAKE) $(DRUM_SAMPLE_FULL_TEST_MAKE_JOBS) $(DRUM_SAMPLE_FULL_SHARD_TARGETS)
+	+$(RUN_WITH_DURATION) analyzer_drum_samples_full_parallel $(MAKE) $(DRUM_SAMPLE_FULL_TEST_MAKE_JOBS) $(DRUM_SAMPLE_FULL_SHARD_TARGETS)
 	$(PYTHON) scripts/check_drum_sample_shards.py --min-recall-percent "$(DRUM_SAMPLE_FULL_MIN_RECALL_PERCENT)" --min-precision-percent "$(DRUM_SAMPLE_FULL_MIN_PRECISION_PERCENT)" --kick-min-recall-percent "$(DRUM_SAMPLE_FULL_MIN_KICK_RECALL_PERCENT)" --snare-min-recall-percent "$(DRUM_SAMPLE_FULL_MIN_SNARE_RECALL_PERCENT)" --hihat-min-recall-percent "$(DRUM_SAMPLE_FULL_MIN_HIHAT_RECALL_PERCENT)" --crash-min-recall-percent "$(DRUM_SAMPLE_FULL_MIN_CRASH_RECALL_PERCENT)" --tom-min-recall-percent "$(DRUM_SAMPLE_FULL_MIN_TOM_RECALL_PERCENT)" --ride-min-recall-percent "$(DRUM_SAMPLE_FULL_MIN_RIDE_RECALL_PERCENT)" --rim-min-recall-percent "$(DRUM_SAMPLE_FULL_MIN_RIM_RECALL_PERCENT)" --kick-min-primary-recall-percent "$(DRUM_SAMPLE_FULL_MIN_KICK_PRIMARY_PERCENT)" --snare-min-primary-recall-percent "$(DRUM_SAMPLE_FULL_MIN_SNARE_PRIMARY_PERCENT)" --hihat-min-primary-recall-percent "$(DRUM_SAMPLE_FULL_MIN_HIHAT_PRIMARY_PERCENT)" --crash-min-primary-recall-percent "$(DRUM_SAMPLE_FULL_MIN_CRASH_PRIMARY_PERCENT)" --tom-min-primary-recall-percent "$(DRUM_SAMPLE_FULL_MIN_TOM_PRIMARY_PERCENT)" --ride-min-primary-recall-percent "$(DRUM_SAMPLE_FULL_MIN_RIDE_PRIMARY_PERCENT)" --rim-min-primary-recall-percent "$(DRUM_SAMPLE_FULL_MIN_RIM_PRIMARY_PERCENT)" --tom-max-false-percent "$(DRUM_SAMPLE_FULL_MAX_TOM_FALSE_PERCENT)" $(DRUM_SAMPLE_FULL_SHARD_OUTS)
 
 test-drum-samples-full-shard-%: FORCE $(BUILD_DIR)/analyzer_drum_samples $(DRUM_SAMPLE_FULL_BUILD_DIR)/manifest.tsv scripts/run_with_duration.sh
@@ -1156,7 +1156,7 @@ analyze-drum-full-gate-matrix: $(BUILD_DIR)/analyzer_drum_samples prepare-drum-s
 	@printf '%s\n' "drum full exact attribute TSV: $(DRUM_FULL_EXACT_ATTRIBUTE_ROWS)"
 
 analyze-drum-full-gate-matrix-parallel: $(BUILD_DIR)/analyzer_drum_samples $(DRUM_SAMPLE_FULL_BUILD_DIR)/manifest.tsv scripts/analyze_drum_primary_debug.py scripts/build_sharded_tsv.sh scripts/run_with_duration.sh
-	$(RUN_WITH_DURATION) analyzer_drum_samples_full_attribute_rows_parallel $(SHELL) scripts/build_sharded_tsv.sh "$(DRUM_FULL_EXACT_ATTRIBUTE_ROWS)" "$(MAKE)" "$(DRUM_SAMPLE_FULL_TEST_MAKE_JOBS)" $(DRUM_FULL_EXACT_ATTRIBUTE_PARTS)
+	+$(RUN_WITH_DURATION) analyzer_drum_samples_full_attribute_rows_parallel $(SHELL) scripts/build_sharded_tsv.sh "$(DRUM_FULL_EXACT_ATTRIBUTE_ROWS)" "$(MAKE)" "$(DRUM_SAMPLE_FULL_TEST_MAKE_JOBS)" $(DRUM_FULL_EXACT_ATTRIBUTE_PARTS)
 	@printf '%s\n' "drum full exact attribute TSV: $(DRUM_FULL_EXACT_ATTRIBUTE_ROWS)"
 
 $(BUILD_DIR)/drum_full_exact_attribute_rows_%.tsv: FORCE $(BUILD_DIR)/analyzer_drum_samples $(DRUM_SAMPLE_FULL_BUILD_DIR)/manifest.tsv scripts/analyze_drum_primary_debug.py scripts/run_with_duration.sh
@@ -1164,11 +1164,11 @@ $(BUILD_DIR)/drum_full_exact_attribute_rows_%.tsv: FORCE $(BUILD_DIR)/analyzer_d
 	$(PYTHON) scripts/analyze_drum_primary_debug.py --dump-rows --include-debug-rows "$(BUILD_DIR)/drum_full_exact_attribute_rows_$*.err" > "$@"
 
 find-drum-full-exact-attribute-patterns: $(BUILD_DIR)/analyzer_drum_samples scripts/find_drum_attribute_patterns.py scripts/analyze_drum_primary_debug.py
-	@if [ ! -f "$(DRUM_FULL_EXACT_ATTRIBUTE_ROWS)" ] || [ "$(BUILD_DIR)/analyzer_drum_samples" -nt "$(DRUM_FULL_EXACT_ATTRIBUTE_ROWS)" ] || [ "scripts/analyze_drum_primary_debug.py" -nt "$(DRUM_FULL_EXACT_ATTRIBUTE_ROWS)" ]; then $(MAKE) analyze-drum-full-gate-matrix-parallel; fi
+	+@if [ ! -f "$(DRUM_FULL_EXACT_ATTRIBUTE_ROWS)" ] || [ "$(BUILD_DIR)/analyzer_drum_samples" -nt "$(DRUM_FULL_EXACT_ATTRIBUTE_ROWS)" ] || [ "scripts/analyze_drum_primary_debug.py" -nt "$(DRUM_FULL_EXACT_ATTRIBUTE_ROWS)" ]; then $(MAKE) analyze-drum-full-gate-matrix-parallel; fi
 	$(PYTHON) scripts/find_drum_attribute_patterns.py "$(DRUM_FULL_EXACT_ATTRIBUTE_ROWS)" $(if $(PATTERN_ROUTE),--route "$(PATTERN_ROUTE)") --jobs "$(DRUM_PATTERN_JOBS)" $(or $(PATTERN_ARGS),$(MEASURE_DRUM_FULL_PATTERN_ARGS))
 
 find-drum-full-exact-attribute-patterns-cached: scripts/find_drum_attribute_patterns.py scripts/analyze_drum_primary_debug.py
-	@if [ ! -f "$(DRUM_FULL_EXACT_ATTRIBUTE_ROWS)" ]; then $(MAKE) analyze-drum-full-gate-matrix-parallel; else printf '%s\n' "using cached drum full exact attribute TSV: $(DRUM_FULL_EXACT_ATTRIBUTE_ROWS)"; fi
+	+@if [ ! -f "$(DRUM_FULL_EXACT_ATTRIBUTE_ROWS)" ]; then $(MAKE) analyze-drum-full-gate-matrix-parallel; else printf '%s\n' "using cached drum full exact attribute TSV: $(DRUM_FULL_EXACT_ATTRIBUTE_ROWS)"; fi
 	$(PYTHON) scripts/find_drum_attribute_patterns.py "$(DRUM_FULL_EXACT_ATTRIBUTE_ROWS)" $(if $(PATTERN_ROUTE),--route "$(PATTERN_ROUTE)") --jobs "$(DRUM_PATTERN_JOBS)" $(or $(PATTERN_ARGS),$(MEASURE_DRUM_FULL_PATTERN_ARGS))
 
 prepare-drum-machine-samples: scripts/prepare_drum_samples.py | $(BUILD_DIR)
@@ -1189,7 +1189,7 @@ analyze-hf-drum-primary-attribute-rows: $(BUILD_DIR)/analyzer_drum_samples prepa
 	@printf '%s\n' "HF drum-kit primary attribute TSV: $(HF_DRUM_KIT_PRIMARY_ATTRIBUTE_ROWS)"
 
 find-hf-drum-primary-attribute-patterns: scripts/find_drum_attribute_patterns.py scripts/analyze_drum_primary_debug.py
-	@if [ ! -f "$(HF_DRUM_KIT_PRIMARY_ATTRIBUTE_ROWS)" ]; then $(MAKE) analyze-hf-drum-primary-attribute-rows; fi
+	+@if [ ! -f "$(HF_DRUM_KIT_PRIMARY_ATTRIBUTE_ROWS)" ]; then $(MAKE) analyze-hf-drum-primary-attribute-rows; fi
 	$(PYTHON) scripts/find_drum_attribute_patterns.py "$(HF_DRUM_KIT_PRIMARY_ATTRIBUTE_ROWS)" $(if $(PATTERN_ROUTE),--route "$(PATTERN_ROUTE)") --jobs "$(DRUM_PATTERN_JOBS)" $(PATTERN_ARGS)
 
 download-idmt-drums-samples: $(IDMT_DRUMS_ARCHIVE)
@@ -1214,18 +1214,18 @@ analyze-idmt-drum-primary-attribute-rows: $(BUILD_DIR)/analyzer_drum_samples pre
 	@printf '%s\n' "IDMT drum primary attribute TSV: $(IDMT_DRUMS_PRIMARY_ATTRIBUTE_ROWS)"
 
 find-idmt-drum-primary-attribute-patterns: scripts/find_drum_attribute_patterns.py scripts/analyze_drum_primary_debug.py
-	@if [ ! -f "$(IDMT_DRUMS_PRIMARY_ATTRIBUTE_ROWS)" ]; then $(MAKE) analyze-idmt-drum-primary-attribute-rows; fi
+	+@if [ ! -f "$(IDMT_DRUMS_PRIMARY_ATTRIBUTE_ROWS)" ]; then $(MAKE) analyze-idmt-drum-primary-attribute-rows; fi
 	$(PYTHON) scripts/find_drum_attribute_patterns.py "$(IDMT_DRUMS_PRIMARY_ATTRIBUTE_ROWS)" $(if $(PATTERN_ROUTE),--route "$(PATTERN_ROUTE)") --jobs "$(DRUM_PATTERN_JOBS)" $(PATTERN_ARGS)
 
 analyze-protected-drum-primary-attribute-rows:
-	@if [ -d "$(DRUM_SAMPLE_SOURCE_DIR)" ]; then $(MAKE) $(PARALLEL_TEST_MAKE_JOBS) analyze-drum-spread-gate-matrix analyze-hf-drum-primary-attribute-rows analyze-idmt-drum-primary-attribute-rows; else printf '%s\n' "analyze-drum-spread-gate-matrix: skipped; missing $(DRUM_SAMPLE_SOURCE_DIR)"; $(MAKE) $(PARALLEL_TEST_MAKE_JOBS) analyze-hf-drum-primary-attribute-rows analyze-idmt-drum-primary-attribute-rows; fi
+	+@if [ -d "$(DRUM_SAMPLE_SOURCE_DIR)" ]; then $(MAKE) $(PARALLEL_TEST_MAKE_JOBS) analyze-drum-spread-gate-matrix analyze-hf-drum-primary-attribute-rows analyze-idmt-drum-primary-attribute-rows; else printf '%s\n' "analyze-drum-spread-gate-matrix: skipped; missing $(DRUM_SAMPLE_SOURCE_DIR)"; $(MAKE) $(PARALLEL_TEST_MAKE_JOBS) analyze-hf-drum-primary-attribute-rows analyze-idmt-drum-primary-attribute-rows; fi
 	@printf '%s\n' "protected drum primary attribute TSVs:"
 	@printf '%s\n' "  $(DRUM_SPREAD_EXACT_ATTRIBUTE_ROWS)"
 	@printf '%s\n' "  $(HF_DRUM_KIT_PRIMARY_ATTRIBUTE_ROWS)"
 	@printf '%s\n' "  $(IDMT_DRUMS_PRIMARY_ATTRIBUTE_ROWS)"
 
 find-protected-drum-primary-attribute-patterns: scripts/find_drum_attribute_patterns.py scripts/analyze_drum_primary_debug.py
-	@missing=0; for path in $(HF_DRUM_KIT_PRIMARY_ATTRIBUTE_ROWS) $(IDMT_DRUMS_PRIMARY_ATTRIBUTE_ROWS); do if [ ! -f "$$path" ]; then missing=1; fi; done; if [ -d "$(DRUM_SAMPLE_SOURCE_DIR)" ] && [ ! -f "$(DRUM_SPREAD_EXACT_ATTRIBUTE_ROWS)" ]; then missing=1; fi; if [ "$$missing" = "1" ]; then $(MAKE) analyze-protected-drum-primary-attribute-rows; fi
+	+@missing=0; for path in $(HF_DRUM_KIT_PRIMARY_ATTRIBUTE_ROWS) $(IDMT_DRUMS_PRIMARY_ATTRIBUTE_ROWS); do if [ ! -f "$$path" ]; then missing=1; fi; done; if [ -d "$(DRUM_SAMPLE_SOURCE_DIR)" ] && [ ! -f "$(DRUM_SPREAD_EXACT_ATTRIBUTE_ROWS)" ]; then missing=1; fi; if [ "$$missing" = "1" ]; then $(MAKE) analyze-protected-drum-primary-attribute-rows; fi
 	@set --; for path in $(DRUM_PROTECTED_PRIMARY_ATTRIBUTE_INPUTS); do if [ -f "$$path" ]; then set -- "$$@" "$$path"; fi; done; if [ "$$#" -eq 0 ]; then printf '%s\n' "protected drum primary pattern candidates: skipped; no attribute rows"; else $(PYTHON) scripts/find_drum_attribute_patterns.py "$$@" $(if $(PATTERN_ROUTE),--route "$(PATTERN_ROUTE)") --jobs "$(DRUM_PATTERN_JOBS)" $(PATTERN_ARGS); fi
 
 prepare-mdb-drums-samples: scripts/prepare_mdb_drums_samples.py | $(BUILD_DIR)
@@ -1305,7 +1305,7 @@ $(BACH10_MF0_SYNTH_ARCHIVE): | $(BUILD_DIR)
 	$(TAR) -tzf "$(BACH10_MF0_SYNTH_ARCHIVE)" >/dev/null
 
 prepare-bach10-mf0-synth-samples: scripts/prepare_bach10_mf0_synth_musicnet_fixture.py | $(BUILD_DIR)
-	if [ -z "$(BACH10_MF0_SYNTH_SOURCE_ROOT)" ]; then $(MAKE) download-bach10-mf0-synth-samples; fi
+	+if [ -z "$(BACH10_MF0_SYNTH_SOURCE_ROOT)" ]; then $(MAKE) download-bach10-mf0-synth-samples; fi
 	BACH10_MF0_SYNTH_ARCHIVE="$(BACH10_MF0_SYNTH_ARCHIVE)" BACH10_MF0_SYNTH_SOURCE_ROOT="$(BACH10_MF0_SYNTH_SOURCE_ROOT)" BACH10_MF0_SYNTH_SAMPLE_DIR="$(BACH10_MF0_SYNTH_SAMPLE_DIR)" BACH10_MF0_SYNTH_RECORDING_LIMIT="$(BACH10_MF0_SYNTH_RECORDING_LIMIT)" BACH10_MF0_SYNTH_MIN_RECORDINGS="$(BACH10_MF0_SYNTH_MIN_RECORDINGS)" $(PYTHON) scripts/prepare_bach10_mf0_synth_musicnet_fixture.py --archive "$(BACH10_MF0_SYNTH_ARCHIVE)" --source-root "$(BACH10_MF0_SYNTH_SOURCE_ROOT)" --output "$(BACH10_MF0_SYNTH_SAMPLE_DIR)" --limit "$(BACH10_MF0_SYNTH_RECORDING_LIMIT)" --min-recordings "$(BACH10_MF0_SYNTH_MIN_RECORDINGS)"
 
 test-bach10-mf0-synth-samples: $(BUILD_DIR)/analyzer_musicnet prepare-bach10-mf0-synth-samples scripts/run_with_duration.sh
@@ -1315,20 +1315,20 @@ prepare-instrument-samples: scripts/prepare_instrument_samples.py | $(BUILD_DIR)
 	INSTRUMENT_SAMPLE_BUILD_ROOT="$(INSTRUMENT_SAMPLE_BUILD_ROOT)" INSTRUMENT_SAMPLE_SOURCE_DIR="$(INSTRUMENT_SAMPLE_SOURCE_DIR)" INSTRUMENT_SAMPLE_SOUNDFONT="$(INSTRUMENT_SAMPLE_SOUNDFONT)" INSTRUMENT_SAMPLE_SOUNDFONT_PACKAGE="$(INSTRUMENT_SAMPLE_SOUNDFONT_PACKAGE)" INSTRUMENT_SAMPLE_PROGRAMS_PER_FAMILY="$(INSTRUMENT_SAMPLE_PROGRAMS_PER_FAMILY)" INSTRUMENT_SAMPLE_DRUM_KITS="$(INSTRUMENT_SAMPLE_DRUM_KITS)" INSTRUMENT_SAMPLE_TARGET_PER_FAMILY="$(INSTRUMENT_SAMPLE_TARGET_PER_FAMILY)" INSTRUMENT_SAMPLE_JOBS="$(INSTRUMENT_SAMPLE_JOBS)" $(PYTHON) scripts/prepare_instrument_samples.py --output-root "$(INSTRUMENT_SAMPLE_BUILD_ROOT)" --download-dir "$(INSTRUMENT_SAMPLE_SOURCE_DIR)"
 
 $(INSTRUMENT_SAMPLE_MANIFEST_STAMP): scripts/prepare_instrument_samples.py | $(BUILD_DIR)
-	$(MAKE) prepare-instrument-samples
+	+$(MAKE) prepare-instrument-samples
 	@touch "$@"
 
 test-instrument-samples: $(BUILD_DIR)/analyzer_instrument_samples $(INSTRUMENT_SAMPLE_MANIFEST_STAMP) scripts/run_with_duration.sh
 	$(RUN_WITH_DURATION) analyzer_instrument_samples env MUSIC_ANALYZER_INSTRUMENT_SAMPLES_REQUIRED=1 MUSIC_ANALYZER_INSTRUMENT_SAMPLE_ROOT="$(INSTRUMENT_SAMPLE_BUILD_ROOT)" $(BUILD_DIR)/analyzer_instrument_samples
 
 test-instrument-samples-parallel: $(BUILD_DIR)/analyzer_instrument_samples $(INSTRUMENT_SAMPLE_MANIFEST_STAMP) scripts/run_with_duration.sh
-	$(RUN_WITH_DURATION) analyzer_instrument_samples_parallel $(MAKE) $(INSTRUMENT_SAMPLE_TEST_MAKE_JOBS) $(INSTRUMENT_SAMPLE_SHARD_TARGETS)
+	+$(RUN_WITH_DURATION) analyzer_instrument_samples_parallel $(MAKE) $(INSTRUMENT_SAMPLE_TEST_MAKE_JOBS) $(INSTRUMENT_SAMPLE_SHARD_TARGETS)
 
 test-instrument-samples-shard-%: FORCE $(BUILD_DIR)/analyzer_instrument_samples $(INSTRUMENT_SAMPLE_MANIFEST_STAMP) scripts/run_with_duration.sh
 	$(RUN_WITH_DURATION) analyzer_instrument_samples_shard_$* env MUSIC_ANALYZER_INSTRUMENT_SAMPLES_REQUIRED=1 MUSIC_ANALYZER_INSTRUMENT_SAMPLE_ROOT="$(INSTRUMENT_SAMPLE_BUILD_ROOT)" MUSIC_ANALYZER_INSTRUMENT_SAMPLE_SHARD_COUNT="$(INSTRUMENT_SAMPLE_SHARDS)" MUSIC_ANALYZER_INSTRUMENT_SAMPLE_SHARD_INDEX="$*" $(BUILD_DIR)/analyzer_instrument_samples
 
 $(BUILD_DIR)/instrument_sample_attributes.tsv: $(BUILD_DIR)/analyzer_instrument_samples $(INSTRUMENT_SAMPLE_MANIFEST_STAMP) scripts/prepare_instrument_samples.py scripts/build_sharded_tsv.sh | $(BUILD_DIR)
-	$(SHELL) scripts/build_sharded_tsv.sh "$@" "$(MAKE)" "$(INSTRUMENT_SAMPLE_ATTRIBUTE_MAKE_JOBS)" $(INSTRUMENT_SAMPLE_ATTRIBUTE_PARTS)
+	+$(SHELL) scripts/build_sharded_tsv.sh "$@" "$(MAKE)" "$(INSTRUMENT_SAMPLE_ATTRIBUTE_MAKE_JOBS)" $(INSTRUMENT_SAMPLE_ATTRIBUTE_PARTS)
 
 $(BUILD_DIR)/instrument_sample_attributes.shard-%.tsv: $(BUILD_DIR)/analyzer_instrument_samples $(INSTRUMENT_SAMPLE_MANIFEST_STAMP) scripts/prepare_instrument_samples.py | $(BUILD_DIR)
 	-env MUSIC_ANALYZER_INSTRUMENT_SAMPLES_REQUIRED=1 MUSIC_ANALYZER_INSTRUMENT_SAMPLE_ROOT="$(INSTRUMENT_SAMPLE_BUILD_ROOT)" MUSIC_ANALYZER_INSTRUMENT_SAMPLE_SHARD_COUNT="$(INSTRUMENT_SAMPLE_SHARDS)" MUSIC_ANALYZER_INSTRUMENT_SAMPLE_SHARD_INDEX="$*" MUSIC_ANALYZER_INSTRUMENT_ATTRIBUTE_TSV="$@" $(BUILD_DIR)/analyzer_instrument_samples > "$(BUILD_DIR)/instrument_sample_attributes.shard-$*.out"
@@ -1389,8 +1389,8 @@ $(GUITAR_CHORD_MISS_ATTRIBUTE_ROWS): $(BUILD_DIR)/guitar_chord_mix_attributes.ts
 	$(PYTHON) scripts/inspect_guitarset_attribute_buckets.py "$(BUILD_DIR)/guitar_chord_mix_attributes.tsv" --dump-rows --misses-only > "$@"
 
 measure-analyzer-attribute-rows:
-	$(MAKE) $(MEASURE_ANALYZER_MAKE_JOBS) analyze-instrument-sample-attributes analyze-real-note-attributes analyze-guitar-chord-mix-attributes analyze-drum-primary-attribute-rows
-	$(MAKE) $(MEASURE_ANALYZER_MAKE_JOBS) $(MEASURE_ANALYZER_ROW_DUMPS)
+	+$(MAKE) $(MEASURE_ANALYZER_MAKE_JOBS) analyze-instrument-sample-attributes analyze-real-note-attributes analyze-guitar-chord-mix-attributes analyze-drum-primary-attribute-rows
+	+$(MAKE) $(MEASURE_ANALYZER_MAKE_JOBS) $(MEASURE_ANALYZER_ROW_DUMPS)
 	@printf '%s\n' "attribute row dumps:"
 	@printf '%s\n' "  $(INSTRUMENT_DETECTED_ATTRIBUTE_ROWS)"
 	@printf '%s\n' "  $(REAL_NOTE_DETECTED_ATTRIBUTE_ROWS)"
@@ -1411,85 +1411,85 @@ print-analyzer-detected-attributes: $(MEASURE_ANALYZER_ROW_DUMPS) $(BUILD_DIR)/d
 	$(PYTHON) scripts/print_analyzer_detected_attributes.py --instrument "$(INSTRUMENT_DETECTED_ATTRIBUTE_ROWS)" --real-note "$(REAL_NOTE_DETECTED_ATTRIBUTE_ROWS)" --guitar-chord "$(GUITAR_CHORD_DETECTED_ATTRIBUTE_ROWS)" --drum-primary "$(BUILD_DIR)/drum_primary_miss_attribute_rows.tsv" --drum-full "$(BUILD_DIR)/drum_full_attribute_rows.tsv" $(ATTRIBUTE_ROW_REPORT_ARGS)
 
 measure-analyzer-detected-attributes: measure-analyzer-attribute-rows
-	$(MAKE) print-analyzer-detected-attributes
+	+$(MAKE) print-analyzer-detected-attributes
 
 measure-analyzer-detected-attributes-full: measure-analyzer-attribute-rows-full
-	$(MAKE) print-analyzer-detected-attributes
+	+$(MAKE) print-analyzer-detected-attributes
 
 $(MEASURE_ANALYZER_PATTERN_DETECTED_REPORT): FORCE $(MEASURE_ANALYZER_ROW_DUMPS) $(BUILD_DIR)/drum_primary_miss_attribute_rows.tsv scripts/print_analyzer_detected_attributes.py | $(BUILD_DIR)
-	@tmp="$@.$$$$.tmp"; $(MAKE) print-analyzer-detected-attributes > "$$tmp" && mv "$$tmp" "$@"
+	+@tmp="$@.$$$$.tmp"; $(MAKE) print-analyzer-detected-attributes > "$$tmp" && mv "$$tmp" "$@"
 
 $(MEASURE_ANALYZER_PATTERN_SUMMARY_REPORT): FORCE $(MEASURE_ANALYZER_ROW_DUMPS) $(BUILD_DIR)/drum_primary_miss_attribute_rows.tsv scripts/report_analyzer_attribute_patterns.py | $(BUILD_DIR)
 	@tmp="$@.$$$$.tmp"; $(PYTHON) scripts/report_analyzer_attribute_patterns.py --instrument "$(INSTRUMENT_DETECTED_ATTRIBUTE_ROWS)" --real-note "$(REAL_NOTE_DETECTED_ATTRIBUTE_ROWS)" --guitar-chord "$(GUITAR_CHORD_DETECTED_ATTRIBUTE_ROWS)" --drum "$(BUILD_DIR)/drum_primary_miss_attribute_rows.tsv" $(PATTERN_REPORT_ARGS) > "$$tmp" && mv "$$tmp" "$@"
 
 $(MEASURE_ANALYZER_PATTERN_INSTRUMENT_OWNER_REPORT): FORCE $(BUILD_DIR)/instrument_sample_attributes.tsv scripts/find_instrument_owner_patterns.py | $(BUILD_DIR)
-	@tmp="$@.$$$$.tmp"; { printf '%s\n' ""; printf '%s\n' "generated instrument owner pattern candidates:"; $(MAKE) find-instrument-owner-patterns PATTERN_ARGS="$(MEASURE_INSTRUMENT_PATTERN_ARGS)"; } > "$$tmp" && mv "$$tmp" "$@"
+	+@tmp="$@.$$$$.tmp"; { printf '%s\n' ""; printf '%s\n' "generated instrument owner pattern candidates:"; $(MAKE) find-instrument-owner-patterns PATTERN_ARGS="$(MEASURE_INSTRUMENT_PATTERN_ARGS)"; } > "$$tmp" && mv "$$tmp" "$@"
 
 $(MEASURE_ANALYZER_PATTERN_INSTRUMENT_STATUS_REPORT): FORCE $(BUILD_DIR)/instrument_sample_attributes.tsv scripts/find_instrument_owner_patterns.py | $(BUILD_DIR)
-	@tmp="$@.$$$$.tmp"; { printf '%s\n' ""; printf '%s\n' "generated instrument final-status pattern candidates:"; $(MAKE) find-instrument-status-patterns PATTERN_ARGS="$(MEASURE_INSTRUMENT_STATUS_PATTERN_ARGS)"; } > "$$tmp" && mv "$$tmp" "$@"
+	+@tmp="$@.$$$$.tmp"; { printf '%s\n' ""; printf '%s\n' "generated instrument final-status pattern candidates:"; $(MAKE) find-instrument-status-patterns PATTERN_ARGS="$(MEASURE_INSTRUMENT_STATUS_PATTERN_ARGS)"; } > "$$tmp" && mv "$$tmp" "$@"
 
 $(MEASURE_ANALYZER_PATTERN_REAL_NOTE_REPORT): FORCE $(BUILD_DIR)/real_note_full_mix_attributes.tsv scripts/find_real_note_attribute_patterns.py | $(BUILD_DIR)
-	@tmp="$@.$$$$.tmp"; { printf '%s\n' ""; printf '%s\n' "real-note full-mix pattern candidates:"; $(MAKE) find-real-note-attribute-patterns PATTERN_ARGS="$(MEASURE_REAL_NOTE_PATTERN_ARGS)"; } > "$$tmp" && mv "$$tmp" "$@"
+	+@tmp="$@.$$$$.tmp"; { printf '%s\n' ""; printf '%s\n' "real-note full-mix pattern candidates:"; $(MAKE) find-real-note-attribute-patterns PATTERN_ARGS="$(MEASURE_REAL_NOTE_PATTERN_ARGS)"; } > "$$tmp" && mv "$$tmp" "$@"
 
 $(MEASURE_ANALYZER_PATTERN_REAL_NOTE_ROW_CONFUSION_REPORT): FORCE $(BUILD_DIR)/real_note_full_mix_attributes.tsv scripts/find_real_note_attribute_patterns.py | $(BUILD_DIR)
-	@tmp="$@.$$$$.tmp"; { printf '%s\n' ""; printf '%s\n' "real-note strongest-row confusion pattern candidates:"; $(MAKE) find-real-note-row-confusion-patterns PATTERN_ARGS="$(MEASURE_REAL_NOTE_ROW_CONFUSION_PATTERN_ARGS)"; } > "$$tmp" && mv "$$tmp" "$@"
+	+@tmp="$@.$$$$.tmp"; { printf '%s\n' ""; printf '%s\n' "real-note strongest-row confusion pattern candidates:"; $(MAKE) find-real-note-row-confusion-patterns PATTERN_ARGS="$(MEASURE_REAL_NOTE_ROW_CONFUSION_PATTERN_ARGS)"; } > "$$tmp" && mv "$$tmp" "$@"
 
 $(MEASURE_ANALYZER_PATTERN_GUITAR_CHORD_REPORT): FORCE $(BUILD_DIR)/guitar_chord_mix_attributes.tsv scripts/find_guitarset_attribute_patterns.py scripts/inspect_guitarset_attribute_buckets.py | $(BUILD_DIR)
-	@tmp="$@.$$$$.tmp"; { printf '%s\n' ""; printf '%s\n' "guitar chord pattern candidates:"; $(MAKE) find-guitar-chord-mix-attribute-patterns PATTERN_ARGS="$(MEASURE_GUITAR_PATTERN_ARGS)"; } > "$$tmp" && mv "$$tmp" "$@"
+	+@tmp="$@.$$$$.tmp"; { printf '%s\n' ""; printf '%s\n' "guitar chord pattern candidates:"; $(MAKE) find-guitar-chord-mix-attribute-patterns PATTERN_ARGS="$(MEASURE_GUITAR_PATTERN_ARGS)"; } > "$$tmp" && mv "$$tmp" "$@"
 
 $(MEASURE_ANALYZER_PATTERN_GUITAR_PRIMARY_ORDER_REPORT): FORCE $(GUITAR_CHORD_DETECTED_ATTRIBUTE_ROWS) scripts/analyze_guitar_primary_order.py | $(BUILD_DIR)
-	@tmp="$@.$$$$.tmp"; { printf '%s\n' ""; printf '%s\n' "guitar chord primary-order analysis:"; $(MAKE) analyze-guitar-chord-primary-order PRIMARY_ORDER_ARGS="$(PRIMARY_ORDER_ARGS)"; } > "$$tmp" && mv "$$tmp" "$@"
+	+@tmp="$@.$$$$.tmp"; { printf '%s\n' ""; printf '%s\n' "guitar chord primary-order analysis:"; $(MAKE) analyze-guitar-chord-primary-order PRIMARY_ORDER_ARGS="$(PRIMARY_ORDER_ARGS)"; } > "$$tmp" && mv "$$tmp" "$@"
 
 $(MEASURE_ANALYZER_PATTERN_GUITAR_CHORD_RECOVERY_REPORT): FORCE $(BUILD_DIR)/guitar_chord_mix_attributes.tsv scripts/analyze_guitar_chord_recovery.py | $(BUILD_DIR)
-	@tmp="$@.$$$$.tmp"; { printf '%s\n' ""; printf '%s\n' "guitar chord recovery threshold simulation:"; $(MAKE) analyze-guitar-chord-mix-recovery RECOVERY_ARGS="$(RECOVERY_ARGS)"; } > "$$tmp" && mv "$$tmp" "$@"
+	+@tmp="$@.$$$$.tmp"; { printf '%s\n' ""; printf '%s\n' "guitar chord recovery threshold simulation:"; $(MAKE) analyze-guitar-chord-mix-recovery RECOVERY_ARGS="$(RECOVERY_ARGS)"; } > "$$tmp" && mv "$$tmp" "$@"
 
 $(MEASURE_ANALYZER_PATTERN_GUITAR_CHORD_EXTRA_REPORT): FORCE $(BUILD_DIR)/guitar_chord_mix_attributes.tsv scripts/analyze_guitar_chord_extra_components.py | $(BUILD_DIR)
-	@tmp="$@.$$$$.tmp"; { printf '%s\n' ""; printf '%s\n' "guitar chord extra component analysis:"; $(MAKE) analyze-guitar-chord-mix-extra-components EXTRA_COMPONENT_ARGS="$(EXTRA_COMPONENT_ARGS)"; } > "$$tmp" && mv "$$tmp" "$@"
+	+@tmp="$@.$$$$.tmp"; { printf '%s\n' ""; printf '%s\n' "guitar chord extra component analysis:"; $(MAKE) analyze-guitar-chord-mix-extra-components EXTRA_COMPONENT_ARGS="$(EXTRA_COMPONENT_ARGS)"; } > "$$tmp" && mv "$$tmp" "$@"
 
 $(MEASURE_ANALYZER_PATTERN_DRUM_PRIMARY_REPORT): FORCE $(BUILD_DIR)/drum_primary_miss_attribute_rows.tsv scripts/find_drum_attribute_patterns.py scripts/analyze_drum_primary_debug.py | $(BUILD_DIR)
-	@tmp="$@.$$$$.tmp"; { printf '%s\n' ""; printf '%s\n' "drum primary pattern candidates:"; $(MAKE) find-drum-primary-attribute-patterns PATTERN_ARGS="$(MEASURE_DRUM_PATTERN_ARGS)"; } > "$$tmp" && mv "$$tmp" "$@"
+	+@tmp="$@.$$$$.tmp"; { printf '%s\n' ""; printf '%s\n' "drum primary pattern candidates:"; $(MAKE) find-drum-primary-attribute-patterns PATTERN_ARGS="$(MEASURE_DRUM_PATTERN_ARGS)"; } > "$$tmp" && mv "$$tmp" "$@"
 
 $(MEASURE_ANALYZER_PATTERN_DRUM_SPREAD_MATRIX_REPORT): FORCE $(BUILD_DIR)/analyzer_drum_samples scripts/summarize_drum_gate_matrix.py scripts/analyze_drum_primary_debug.py | $(BUILD_DIR)
-	@tmp="$@.$$$$.tmp"; { printf '%s\n' ""; printf '%s\n' "drum spread exact gate matrix:"; if [ -d "$(DRUM_SAMPLE_SOURCE_DIR)" ]; then $(MAKE) analyze-drum-spread-gate-matrix; elif [ -f "$(DRUM_SPREAD_EXACT_ATTRIBUTE_ROWS)" ]; then printf '%s\n' "skipped regeneration; using existing $(DRUM_SPREAD_EXACT_ATTRIBUTE_ROWS)"; else printf '%s\n' "skipped; missing $(DRUM_SAMPLE_SOURCE_DIR)"; fi; } > "$$tmp" && mv "$$tmp" "$@"
+	+@tmp="$@.$$$$.tmp"; { printf '%s\n' ""; printf '%s\n' "drum spread exact gate matrix:"; if [ -d "$(DRUM_SAMPLE_SOURCE_DIR)" ]; then $(MAKE) analyze-drum-spread-gate-matrix; elif [ -f "$(DRUM_SPREAD_EXACT_ATTRIBUTE_ROWS)" ]; then printf '%s\n' "skipped regeneration; using existing $(DRUM_SPREAD_EXACT_ATTRIBUTE_ROWS)"; else printf '%s\n' "skipped; missing $(DRUM_SAMPLE_SOURCE_DIR)"; fi; } > "$$tmp" && mv "$$tmp" "$@"
 
 $(MEASURE_ANALYZER_PATTERN_PROTECTED_DRUM_PRIMARY_REPORT): FORCE $(MEASURE_ANALYZER_PATTERN_DRUM_SPREAD_MATRIX_REPORT) scripts/find_drum_attribute_patterns.py scripts/analyze_drum_primary_debug.py | $(BUILD_DIR)
-	@tmp="$@.$$$$.tmp"; { printf '%s\n' ""; printf '%s\n' "protected drum primary pattern candidates:"; $(MAKE) find-protected-drum-primary-attribute-patterns PATTERN_ARGS="$(MEASURE_DRUM_PATTERN_ARGS)"; } > "$$tmp" && mv "$$tmp" "$@"
+	+@tmp="$@.$$$$.tmp"; { printf '%s\n' ""; printf '%s\n' "protected drum primary pattern candidates:"; $(MAKE) find-protected-drum-primary-attribute-patterns PATTERN_ARGS="$(MEASURE_DRUM_PATTERN_ARGS)"; } > "$$tmp" && mv "$$tmp" "$@"
 
 $(MEASURE_ANALYZER_PATTERN_DRUM_ACTIVE_FALSE_REPORT): FORCE $(MEASURE_ANALYZER_PATTERN_DRUM_SPREAD_MATRIX_REPORT) scripts/summarize_drum_active_false_rows.py scripts/find_drum_active_false_patterns.py | $(BUILD_DIR)
-	@tmp="$@.$$$$.tmp"; { printf '%s\n' ""; printf '%s\n' "drum active false-row summary:"; $(MAKE) analyze-drum-active-false-rows; printf '%s\n' ""; printf '%s\n' "drum active false pattern candidates:"; $(MAKE) find-drum-active-false-patterns $(if $(MEASURE_DRUM_ACTIVE_EXTRA_PROTECTED_ROWS),DRUM_ACTIVE_EXTRA_PROTECTED_ROWS="$(MEASURE_DRUM_ACTIVE_EXTRA_PROTECTED_ROWS)") PATTERN_ARGS="$(MEASURE_DRUM_ACTIVE_FALSE_PATTERN_ARGS)"; } > "$$tmp" && mv "$$tmp" "$@"
+	+@tmp="$@.$$$$.tmp"; { printf '%s\n' ""; printf '%s\n' "drum active false-row summary:"; $(MAKE) analyze-drum-active-false-rows; printf '%s\n' ""; printf '%s\n' "drum active false pattern candidates:"; $(MAKE) find-drum-active-false-patterns $(if $(MEASURE_DRUM_ACTIVE_EXTRA_PROTECTED_ROWS),DRUM_ACTIVE_EXTRA_PROTECTED_ROWS="$(MEASURE_DRUM_ACTIVE_EXTRA_PROTECTED_ROWS)") PATTERN_ARGS="$(MEASURE_DRUM_ACTIVE_FALSE_PATTERN_ARGS)"; } > "$$tmp" && mv "$$tmp" "$@"
 
 $(MEASURE_ANALYZER_PATTERN_DRUM_SPREAD_EXACT_REPORT): FORCE $(MEASURE_ANALYZER_PATTERN_DRUM_SPREAD_MATRIX_REPORT) scripts/find_drum_attribute_patterns.py scripts/analyze_drum_primary_debug.py | $(BUILD_DIR)
-	@tmp="$@.$$$$.tmp"; { printf '%s\n' ""; printf '%s\n' "drum spread exact pattern candidates:"; $(MAKE) find-drum-spread-exact-attribute-patterns PATTERN_ARGS="$(MEASURE_DRUM_PATTERN_ARGS)"; } > "$$tmp" && mv "$$tmp" "$@"
+	+@tmp="$@.$$$$.tmp"; { printf '%s\n' ""; printf '%s\n' "drum spread exact pattern candidates:"; $(MAKE) find-drum-spread-exact-attribute-patterns PATTERN_ARGS="$(MEASURE_DRUM_PATTERN_ARGS)"; } > "$$tmp" && mv "$$tmp" "$@"
 
 $(MEASURE_ANALYZER_PATTERN_FULL_SKIP_REPORT): FORCE | $(BUILD_DIR)
 	@tmp="$@.$$$$.tmp"; { if [ "$(REPORT_FULL_DRUM_SKIP)" = "1" ]; then printf '%s\n' ""; printf '%s\n' "protected drum full-row pattern candidates:"; printf '%s\n' "skipped; run make measure-analyzer-patterns-full for exhaustive protected full-drum rows"; fi; } > "$$tmp" && mv "$$tmp" "$@"
 
 $(MEASURE_ANALYZER_PATTERN_FULL_DRUM_REPORT): FORCE $(BUILD_DIR)/analyzer_drum_samples scripts/find_drum_attribute_patterns.py scripts/analyze_drum_primary_debug.py | $(BUILD_DIR)
-	@tmp="$@.$$$$.tmp"; { printf '%s\n' ""; printf '%s\n' "protected drum full-row pattern candidates:"; $(MAKE) find-drum-full-attribute-patterns PATTERN_ARGS="$(MEASURE_DRUM_FULL_PATTERN_ARGS)"; } > "$$tmp" && mv "$$tmp" "$@"
+	+@tmp="$@.$$$$.tmp"; { printf '%s\n' ""; printf '%s\n' "protected drum full-row pattern candidates:"; $(MAKE) find-drum-full-attribute-patterns PATTERN_ARGS="$(MEASURE_DRUM_FULL_PATTERN_ARGS)"; } > "$$tmp" && mv "$$tmp" "$@"
 
 $(MEASURE_ANALYZER_PATTERN_FULL_DRUM_EXACT_REPORT): FORCE $(BUILD_DIR)/analyzer_drum_samples scripts/find_drum_attribute_patterns.py scripts/analyze_drum_primary_debug.py | $(BUILD_DIR)
-	@tmp="$@.$$$$.tmp"; { printf '%s\n' ""; printf '%s\n' "drum full exact pattern candidates:"; $(MAKE) find-drum-full-exact-attribute-patterns PATTERN_ARGS="$(MEASURE_DRUM_FULL_PATTERN_ARGS)"; } > "$$tmp" && mv "$$tmp" "$@"
+	+@tmp="$@.$$$$.tmp"; { printf '%s\n' ""; printf '%s\n' "drum full exact pattern candidates:"; $(MAKE) find-drum-full-exact-attribute-patterns PATTERN_ARGS="$(MEASURE_DRUM_FULL_PATTERN_ARGS)"; } > "$$tmp" && mv "$$tmp" "$@"
 
 measure-analyzer-pattern-report-sections: $(MEASURE_ANALYZER_PATTERN_SECTION_OUTPUTS)
 	@true
 
 report-analyzer-patterns-from-rows: scripts/run_with_duration.sh scripts/report_analyzer_attribute_patterns.py scripts/print_analyzer_detected_attributes.py
-	$(RUN_WITH_DURATION) analyzer_pattern_report_sections $(MAKE) $(MEASURE_ANALYZER_MAKE_JOBS) measure-analyzer-pattern-report-sections
+	+$(RUN_WITH_DURATION) analyzer_pattern_report_sections $(MAKE) $(MEASURE_ANALYZER_MAKE_JOBS) measure-analyzer-pattern-report-sections
 	@cat $(MEASURE_ANALYZER_PATTERN_SECTION_OUTPUTS)
 
 report-analyzer-patterns-from-rows-full:
-	$(MAKE) report-analyzer-patterns-from-rows REPORT_FULL_DRUM_SKIP=0
-	$(RUN_WITH_DURATION) analyzer_pattern_full_report_sections $(MAKE) $(MEASURE_ANALYZER_MAKE_JOBS) $(MEASURE_ANALYZER_PATTERN_FULL_SECTION_OUTPUTS)
+	+$(MAKE) report-analyzer-patterns-from-rows REPORT_FULL_DRUM_SKIP=0
+	+$(RUN_WITH_DURATION) analyzer_pattern_full_report_sections $(MAKE) $(MEASURE_ANALYZER_MAKE_JOBS) $(MEASURE_ANALYZER_PATTERN_FULL_SECTION_OUTPUTS)
 	@cat $(MEASURE_ANALYZER_PATTERN_FULL_SECTION_OUTPUTS)
 
 measure-analyzer-patterns: measure-analyzer-attribute-rows
-	$(MAKE) report-analyzer-patterns-from-rows
+	+$(MAKE) report-analyzer-patterns-from-rows
 
 measure-analyzer-patterns-full: measure-analyzer-attribute-rows-full analyze-drum-tom-bleed-caps
-	$(MAKE) report-analyzer-patterns-from-rows-full
+	+$(MAKE) report-analyzer-patterns-from-rows-full
 
 measure-analyzer-pattern-report: | $(BUILD_DIR)
-	$(MAKE) measure-analyzer-patterns | tee "$(MEASURE_ANALYZER_REPORT)"
+	+$(MAKE) measure-analyzer-patterns | tee "$(MEASURE_ANALYZER_REPORT)"
 	@printf '%s\n' "measurement report: $(MEASURE_ANALYZER_REPORT)"
 
 download-real-note-samples: $(NSYNTH_SAMPLE_ARCHIVE)
@@ -1506,7 +1506,7 @@ prepare-real-note-samples: scripts/prepare_nsynth_samples.py $(NSYNTH_SAMPLE_ROO
 	NSYNTH_SAMPLE_ROOT="$(NSYNTH_SAMPLE_ROOT)" REAL_NOTE_SAMPLE_DIR="$(REAL_NOTE_SAMPLE_DIR)" REAL_NOTE_SAMPLE_LIMIT="$(REAL_NOTE_SAMPLE_LIMIT)" $(PYTHON) scripts/prepare_nsynth_samples.py --nsynth-root "$(NSYNTH_SAMPLE_ROOT)" --output "$(REAL_NOTE_SAMPLE_DIR)" --limit "$(REAL_NOTE_SAMPLE_LIMIT)"
 
 test-real-note-sample-shards: $(BUILD_DIR)/analyzer_real_note_samples scripts/run_with_duration.sh scripts/check_real_note_sample_shards.py
-	$(RUN_WITH_DURATION) analyzer_real_note_samples_$(REAL_NOTE_SAMPLE_TAG)_parallel $(MAKE) $(REAL_NOTE_SAMPLE_TEST_MAKE_JOBS) $(REAL_NOTE_SAMPLE_SHARD_TARGETS)
+	+$(RUN_WITH_DURATION) analyzer_real_note_samples_$(REAL_NOTE_SAMPLE_TAG)_parallel $(MAKE) $(REAL_NOTE_SAMPLE_TEST_MAKE_JOBS) $(REAL_NOTE_SAMPLE_SHARD_TARGETS)
 	$(PYTHON) scripts/check_real_note_sample_shards.py --min-bass "$(REAL_NOTE_SAMPLE_MIN_BASS)" --min-guitar "$(REAL_NOTE_SAMPLE_MIN_GUITAR)" --min-piano "$(REAL_NOTE_SAMPLE_MIN_PIANO)" --min-vocals "$(REAL_NOTE_SAMPLE_MIN_VOCALS)" --min-other "$(REAL_NOTE_SAMPLE_MIN_OTHER)" --max-failures "$(REAL_NOTE_SAMPLE_MAX_FAILURES)" $(REAL_NOTE_SAMPLE_SHARD_OUTS)
 
 test-real-note-sample-shard-%: FORCE $(BUILD_DIR)/analyzer_real_note_samples scripts/run_with_duration.sh
@@ -1520,18 +1520,18 @@ test-real-note-samples: REAL_NOTE_SAMPLE_MIN_PIANO := $(REAL_NOTE_MIN_PIANO)
 test-real-note-samples: REAL_NOTE_SAMPLE_MIN_VOCALS := $(REAL_NOTE_MIN_VOCALS)
 test-real-note-samples: REAL_NOTE_SAMPLE_MIN_OTHER := $(REAL_NOTE_MIN_OTHER)
 test-real-note-samples: $(BUILD_DIR)/analyzer_real_note_samples prepare-real-note-samples scripts/run_with_duration.sh scripts/check_real_note_sample_shards.py
-	$(RUN_REAL_NOTE_SAMPLE_SHARDS)
+	+$(RUN_REAL_NOTE_SAMPLE_SHARDS)
 
 test-real-note-samples-full-mix: $(BUILD_DIR)/analyzer_real_note_samples prepare-real-note-samples scripts/run_with_duration.sh
 	$(RUN_WITH_DURATION) analyzer_real_note_samples_full_mix env MUSIC_ANALYZER_REAL_NOTE_SAMPLES_REQUIRED=1 MUSIC_ANALYZER_REAL_NOTE_FULL_MIX=1 MUSIC_ANALYZER_REAL_NOTE_SAMPLE_ROOT="$(REAL_NOTE_SAMPLE_DIR)" MUSIC_ANALYZER_REAL_NOTE_MIN_BASS="$(REAL_NOTE_MIN_BASS)" MUSIC_ANALYZER_REAL_NOTE_MIN_GUITAR="$(REAL_NOTE_MIN_GUITAR)" MUSIC_ANALYZER_REAL_NOTE_MIN_PIANO="$(REAL_NOTE_MIN_PIANO)" MUSIC_ANALYZER_REAL_NOTE_MIN_VOCALS="$(REAL_NOTE_MIN_VOCALS)" MUSIC_ANALYZER_REAL_NOTE_MIN_OTHER="$(REAL_NOTE_MIN_OTHER)" $(REAL_NOTE_FULL_MIX_GATE_ENV) $(BUILD_DIR)/analyzer_real_note_samples
 
 test-real-note-samples-full-mix-parallel: $(BUILD_DIR)/analyzer_real_note_samples scripts/run_with_duration.sh scripts/check_real_note_full_mix_shards.py
-	@if [ ! -f "$(REAL_NOTE_SAMPLE_DIR)/manifest.tsv" ] || [ "scripts/prepare_nsynth_samples.py" -nt "$(REAL_NOTE_SAMPLE_DIR)/manifest.tsv" ]; then $(MAKE) prepare-real-note-samples; fi
-	$(RUN_WITH_DURATION) analyzer_real_note_samples_full_mix_parallel $(MAKE) $(REAL_NOTE_FULL_MIX_TEST_MAKE_JOBS) $(REAL_NOTE_FULL_MIX_SHARD_TARGETS)
+	+@if [ ! -f "$(REAL_NOTE_SAMPLE_DIR)/manifest.tsv" ] || [ "scripts/prepare_nsynth_samples.py" -nt "$(REAL_NOTE_SAMPLE_DIR)/manifest.tsv" ]; then $(MAKE) prepare-real-note-samples; fi
+	+$(RUN_WITH_DURATION) analyzer_real_note_samples_full_mix_parallel $(MAKE) $(REAL_NOTE_FULL_MIX_TEST_MAKE_JOBS) $(REAL_NOTE_FULL_MIX_SHARD_TARGETS)
 	$(PYTHON) scripts/check_real_note_full_mix_shards.py --min-any-hit-percent "$(REAL_NOTE_FULL_MIX_MIN_ANY_HIT_PERCENT)" --min-expected-row-percent "$(REAL_NOTE_FULL_MIX_MIN_EXPECTED_ROW_PERCENT)" --min-first-row-percent "$(REAL_NOTE_FULL_MIX_AGG_MIN_FIRST_ROW_PERCENT)" --bass-min-expected-row-percent "$(REAL_NOTE_FULL_MIX_MIN_BASS_EXPECTED_ROW_PERCENT)" --guitar-min-expected-row-percent "$(REAL_NOTE_FULL_MIX_MIN_GUITAR_EXPECTED_ROW_PERCENT)" --piano-min-expected-row-percent "$(REAL_NOTE_FULL_MIX_MIN_PIANO_EXPECTED_ROW_PERCENT)" --vocals-min-expected-row-percent "$(REAL_NOTE_FULL_MIX_MIN_VOCALS_EXPECTED_ROW_PERCENT)" --other-min-expected-row-percent "$(REAL_NOTE_FULL_MIX_MIN_OTHER_EXPECTED_ROW_PERCENT)" --bass-min-first-row-percent "$(REAL_NOTE_FULL_MIX_AGG_MIN_BASS_FIRST_ROW_PERCENT)" --guitar-min-first-row-percent "$(REAL_NOTE_FULL_MIX_AGG_MIN_GUITAR_FIRST_ROW_PERCENT)" --piano-min-first-row-percent "$(REAL_NOTE_FULL_MIX_AGG_MIN_PIANO_FIRST_ROW_PERCENT)" --vocals-min-first-row-percent "$(REAL_NOTE_FULL_MIX_AGG_MIN_VOCALS_FIRST_ROW_PERCENT)" --other-min-first-row-percent "$(REAL_NOTE_FULL_MIX_AGG_MIN_OTHER_FIRST_ROW_PERCENT)" --max-drum-active-percent "$(REAL_NOTE_FULL_MIX_MAX_DRUM_ACTIVE_PERCENT)" $(REAL_NOTE_FULL_MIX_SHARD_OUTS)
 
 test-real-note-samples-full-mix-shard-%: FORCE $(BUILD_DIR)/analyzer_real_note_samples scripts/run_with_duration.sh
-	@if [ ! -f "$(REAL_NOTE_SAMPLE_DIR)/manifest.tsv" ] || [ "scripts/prepare_nsynth_samples.py" -nt "$(REAL_NOTE_SAMPLE_DIR)/manifest.tsv" ]; then $(MAKE) prepare-real-note-samples; fi
+	+@if [ ! -f "$(REAL_NOTE_SAMPLE_DIR)/manifest.tsv" ] || [ "scripts/prepare_nsynth_samples.py" -nt "$(REAL_NOTE_SAMPLE_DIR)/manifest.tsv" ]; then $(MAKE) prepare-real-note-samples; fi
 	$(RUN_WITH_DURATION) analyzer_real_note_samples_full_mix_shard_$* env MUSIC_ANALYZER_REAL_NOTE_SAMPLES_REQUIRED=1 MUSIC_ANALYZER_REAL_NOTE_FULL_MIX=1 MUSIC_ANALYZER_REAL_NOTE_SHARD_COUNT="$(REAL_NOTE_FULL_MIX_SHARDS)" MUSIC_ANALYZER_REAL_NOTE_SHARD_INDEX="$*" MUSIC_ANALYZER_REAL_NOTE_SAMPLE_ROOT="$(REAL_NOTE_SAMPLE_DIR)" MUSIC_ANALYZER_REAL_NOTE_MIN_BASS=0 MUSIC_ANALYZER_REAL_NOTE_MIN_GUITAR=0 MUSIC_ANALYZER_REAL_NOTE_MIN_PIANO=0 MUSIC_ANALYZER_REAL_NOTE_MIN_VOCALS=0 MUSIC_ANALYZER_REAL_NOTE_MIN_OTHER=0 $(REAL_NOTE_FULL_MIX_GATE_ENV) $(BUILD_DIR)/analyzer_real_note_samples > "$(BUILD_DIR)/real_note_full_mix_shard_$*.out" 2> "$(BUILD_DIR)/real_note_full_mix_shard_$*.err"
 
 analyze-real-note-misses: $(BUILD_DIR)/analyzer_real_note_samples prepare-real-note-samples scripts/analyze_real_note_misses.py
@@ -1539,11 +1539,11 @@ analyze-real-note-misses: $(BUILD_DIR)/analyzer_real_note_samples prepare-real-n
 	$(PYTHON) scripts/analyze_real_note_misses.py "$(BUILD_DIR)/real_note_full_mix_verbose.err"
 
 $(BUILD_DIR)/real_note_full_mix_attributes.tsv: $(BUILD_DIR)/analyzer_real_note_samples scripts/prepare_nsynth_samples.py scripts/build_sharded_tsv.sh | $(BUILD_DIR)
-	@if [ ! -f "$(REAL_NOTE_SAMPLE_DIR)/manifest.tsv" ] || [ "scripts/prepare_nsynth_samples.py" -nt "$(REAL_NOTE_SAMPLE_DIR)/manifest.tsv" ]; then $(MAKE) prepare-real-note-samples; fi
-	$(SHELL) scripts/build_sharded_tsv.sh "$@" "$(MAKE)" "$(REAL_NOTE_FULL_MIX_ATTRIBUTE_MAKE_JOBS)" $(REAL_NOTE_FULL_MIX_ATTRIBUTE_PARTS)
+	+@if [ ! -f "$(REAL_NOTE_SAMPLE_DIR)/manifest.tsv" ] || [ "scripts/prepare_nsynth_samples.py" -nt "$(REAL_NOTE_SAMPLE_DIR)/manifest.tsv" ]; then $(MAKE) prepare-real-note-samples; fi
+	+$(SHELL) scripts/build_sharded_tsv.sh "$@" "$(MAKE)" "$(REAL_NOTE_FULL_MIX_ATTRIBUTE_MAKE_JOBS)" $(REAL_NOTE_FULL_MIX_ATTRIBUTE_PARTS)
 
 $(BUILD_DIR)/real_note_full_mix_attributes.shard-%.tsv: $(BUILD_DIR)/analyzer_real_note_samples scripts/prepare_nsynth_samples.py | $(BUILD_DIR)
-	@if [ ! -f "$(REAL_NOTE_SAMPLE_DIR)/manifest.tsv" ] || [ "scripts/prepare_nsynth_samples.py" -nt "$(REAL_NOTE_SAMPLE_DIR)/manifest.tsv" ]; then $(MAKE) prepare-real-note-samples; fi
+	+@if [ ! -f "$(REAL_NOTE_SAMPLE_DIR)/manifest.tsv" ] || [ "scripts/prepare_nsynth_samples.py" -nt "$(REAL_NOTE_SAMPLE_DIR)/manifest.tsv" ]; then $(MAKE) prepare-real-note-samples; fi
 	env MUSIC_ANALYZER_REAL_NOTE_SAMPLES_REQUIRED=1 MUSIC_ANALYZER_REAL_NOTE_FULL_MIX=1 MUSIC_ANALYZER_REAL_NOTE_SHARD_COUNT="$(REAL_NOTE_FULL_MIX_SHARDS)" MUSIC_ANALYZER_REAL_NOTE_SHARD_INDEX="$*" MUSIC_ANALYZER_REAL_NOTE_ATTRIBUTE_TSV="$@" MUSIC_ANALYZER_REAL_NOTE_SAMPLE_ROOT="$(REAL_NOTE_SAMPLE_DIR)" MUSIC_ANALYZER_REAL_NOTE_MIN_BASS=0 MUSIC_ANALYZER_REAL_NOTE_MIN_GUITAR=0 MUSIC_ANALYZER_REAL_NOTE_MIN_PIANO=0 MUSIC_ANALYZER_REAL_NOTE_MIN_VOCALS=0 MUSIC_ANALYZER_REAL_NOTE_MIN_OTHER=0 MUSIC_ANALYZER_REAL_NOTE_MIN_ANY_HIT_PERCENT=0 MUSIC_ANALYZER_REAL_NOTE_MIN_EXPECTED_ROW_PERCENT=0 MUSIC_ANALYZER_REAL_NOTE_MIN_BASS_EXPECTED_ROW_PERCENT=0 MUSIC_ANALYZER_REAL_NOTE_MIN_GUITAR_EXPECTED_ROW_PERCENT=0 MUSIC_ANALYZER_REAL_NOTE_MIN_PIANO_EXPECTED_ROW_PERCENT=0 MUSIC_ANALYZER_REAL_NOTE_MIN_VOCALS_EXPECTED_ROW_PERCENT=0 MUSIC_ANALYZER_REAL_NOTE_MIN_OTHER_EXPECTED_ROW_PERCENT=0 MUSIC_ANALYZER_REAL_NOTE_MAX_DRUM_ACTIVE_PERCENT=100 MUSIC_ANALYZER_REAL_NOTE_MAX_FAILURES=999999 $(BUILD_DIR)/analyzer_real_note_samples > "$(BUILD_DIR)/real_note_full_mix_attributes.shard-$*.out"
 
 analyze-real-note-attributes: $(BUILD_DIR)/real_note_full_mix_attributes.tsv scripts/summarize_real_note_attributes.py
@@ -1584,7 +1584,7 @@ test-guitar-fretboard-note-samples: REAL_NOTE_SAMPLE_REQUIRED_SAMPLES := $(GUITA
 test-guitar-fretboard-note-samples: REAL_NOTE_SAMPLE_MIN_GUITAR := $(GUITAR_FRETBOARD_NOTES_MIN_GUITAR)
 test-guitar-fretboard-note-samples: REAL_NOTE_SAMPLE_MAX_FAILURES := $(GUITAR_FRETBOARD_NOTES_MAX_FAILURES)
 test-guitar-fretboard-note-samples: $(BUILD_DIR)/analyzer_real_note_samples prepare-guitar-fretboard-note-samples scripts/run_with_duration.sh scripts/check_real_note_sample_shards.py
-	$(RUN_REAL_NOTE_SAMPLE_SHARDS)
+	+$(RUN_REAL_NOTE_SAMPLE_SHARDS)
 
 download-guitar-techs-samples: $(GUITAR_TECHS_P1_SINGLENOTES_ARCHIVE) $(GUITAR_TECHS_P2_SINGLENOTES_ARCHIVE)
 
@@ -1613,7 +1613,7 @@ test-guitar-techs-samples: REAL_NOTE_SAMPLE_REQUIRED_SAMPLES := $(GUITAR_TECHS_M
 test-guitar-techs-samples: REAL_NOTE_SAMPLE_MIN_GUITAR := $(GUITAR_TECHS_MIN_GUITAR)
 test-guitar-techs-samples: REAL_NOTE_SAMPLE_MAX_FAILURES := $(GUITAR_TECHS_MAX_FAILURES)
 test-guitar-techs-samples: $(BUILD_DIR)/analyzer_real_note_samples prepare-guitar-techs-samples scripts/run_with_duration.sh scripts/check_real_note_sample_shards.py
-	$(RUN_REAL_NOTE_SAMPLE_SHARDS)
+	+$(RUN_REAL_NOTE_SAMPLE_SHARDS)
 
 download-guitar-techs-chord-samples: $(GUITAR_TECHS_P1_CHORDS_ARCHIVE) $(GUITAR_TECHS_P2_CHORDS_ARCHIVE)
 
@@ -1637,11 +1637,11 @@ prepare-guitar-techs-chord-samples: scripts/prepare_guitar_techs_chord_samples.p
 	GUITAR_TECHS_CHORD_SAMPLE_DIR="$(GUITAR_TECHS_CHORD_SAMPLE_DIR)" GUITAR_TECHS_CHORD_SAMPLE_LIMIT="$(GUITAR_TECHS_CHORD_SAMPLE_LIMIT)" GUITAR_TECHS_CHORD_MIN_EXCERPTS="$(GUITAR_TECHS_CHORD_MIN_EXCERPTS)" FFMPEG="$(FFMPEG)" $(PYTHON) scripts/prepare_guitar_techs_chord_samples.py --archive "$(GUITAR_TECHS_P1_CHORDS_ARCHIVE)" --archive "$(GUITAR_TECHS_P2_CHORDS_ARCHIVE)" --output "$(GUITAR_TECHS_CHORD_SAMPLE_DIR)" --limit "$(GUITAR_TECHS_CHORD_SAMPLE_LIMIT)" --min-samples "$(GUITAR_TECHS_CHORD_MIN_EXCERPTS)" --ffmpeg "$(FFMPEG)"
 
 $(GUITAR_TECHS_CHORD_MANIFEST): scripts/prepare_guitar_techs_chord_samples.py | $(BUILD_DIR)
-	$(MAKE) download-guitar-techs-chord-samples
+	+$(MAKE) download-guitar-techs-chord-samples
 	GUITAR_TECHS_CHORD_SAMPLE_DIR="$(GUITAR_TECHS_CHORD_SAMPLE_DIR)" GUITAR_TECHS_CHORD_SAMPLE_LIMIT="$(GUITAR_TECHS_CHORD_SAMPLE_LIMIT)" GUITAR_TECHS_CHORD_MIN_EXCERPTS="$(GUITAR_TECHS_CHORD_MIN_EXCERPTS)" FFMPEG="$(FFMPEG)" $(PYTHON) scripts/prepare_guitar_techs_chord_samples.py --archive "$(GUITAR_TECHS_P1_CHORDS_ARCHIVE)" --archive "$(GUITAR_TECHS_P2_CHORDS_ARCHIVE)" --output "$(GUITAR_TECHS_CHORD_SAMPLE_DIR)" --limit "$(GUITAR_TECHS_CHORD_SAMPLE_LIMIT)" --min-samples "$(GUITAR_TECHS_CHORD_MIN_EXCERPTS)" --ffmpeg "$(FFMPEG)"
 
 test-guitar-techs-chord-samples: $(BUILD_DIR)/analyzer_guitarset prepare-guitar-techs-chord-samples scripts/run_with_duration.sh scripts/check_guitarset_shards.py
-	$(RUN_WITH_DURATION) analyzer_guitar_techs_chord_samples_parallel $(MAKE) $(GUITAR_TECHS_CHORD_TEST_MAKE_JOBS) $(GUITAR_TECHS_CHORD_SHARD_TARGETS)
+	+$(RUN_WITH_DURATION) analyzer_guitar_techs_chord_samples_parallel $(MAKE) $(GUITAR_TECHS_CHORD_TEST_MAKE_JOBS) $(GUITAR_TECHS_CHORD_SHARD_TARGETS)
 	$(PYTHON) scripts/check_guitarset_shards.py $(GUITAR_TECHS_CHORD_SHARD_OUTS) --required-excerpts "$(GUITAR_TECHS_CHORD_MIN_EXCERPTS)" --required-windows "$(GUITAR_TECHS_CHORD_MIN_WINDOWS)" --min-recall-percent "$(GUITAR_TECHS_CHORD_MIN_RECALL_PERCENT)" --min-precision-percent "$(GUITAR_TECHS_CHORD_MIN_PRECISION_PERCENT)" --min-guitar-recall-percent "$(GUITAR_TECHS_CHORD_MIN_GUITAR_RECALL_PERCENT)" --max-contamination-percent "$(GUITAR_TECHS_CHORD_MAX_CONTAMINATION_PERCENT)" --max-false-vocal-percent "$(GUITAR_TECHS_CHORD_MAX_FALSE_VOCAL_PERCENT)" --min-chord-checks "$(GUITAR_TECHS_CHORD_MIN_WINDOWS)" --min-chord-recall-percent "$(GUITAR_TECHS_CHORD_MIN_CHORD_RECALL_PERCENT)" --min-chord-precision-percent "$(GUITAR_TECHS_CHORD_MIN_CHORD_PRECISION_PERCENT)"
 
 test-guitar-techs-chord-samples-shard-%: FORCE $(BUILD_DIR)/analyzer_guitarset $(GUITAR_TECHS_CHORD_MANIFEST) scripts/run_with_duration.sh
@@ -1657,7 +1657,7 @@ test-guitar-chord-mix-samples: $(BUILD_DIR)/analyzer_guitarset prepare-guitar-ch
 	$(RUN_WITH_DURATION) analyzer_guitar_chord_mix_samples env MUSIC_ANALYZER_GUITARSET_MANIFEST="$(GUITAR_CHORD_MIX_MANIFEST)" MUSIC_ANALYZER_GUITARSET_REQUIRED=1 MUSIC_ANALYZER_GUITARSET_USE_ALL=1 MUSIC_ANALYZER_GUITARSET_REQUIRED_EXCERPTS="$(GUITAR_CHORD_MIX_MIN_EXCERPTS)" MUSIC_ANALYZER_GUITARSET_REQUIRED_WINDOWS="$(GUITAR_CHORD_MIX_MIN_WINDOWS)" MUSIC_ANALYZER_GUITARSET_MAX_WINDOWS_PER_EXCERPT=4 MUSIC_ANALYZER_GUITARSET_MIN_ACTIVE_NOTES=3 MUSIC_ANALYZER_GUITARSET_MIN_PITCH_CLASSES=3 MUSIC_ANALYZER_GUITARSET_MIN_WINDOW_RECALL_PERCENT=0 MUSIC_ANALYZER_GUITARSET_MIN_RECALL_PERCENT="$(GUITAR_CHORD_MIX_MIN_RECALL_PERCENT)" MUSIC_ANALYZER_GUITARSET_MIN_PRECISION_PERCENT="$(GUITAR_CHORD_MIX_MIN_PRECISION_PERCENT)" MUSIC_ANALYZER_GUITARSET_MIN_GUITAR_RECALL_PERCENT="$(GUITAR_CHORD_MIX_MIN_GUITAR_RECALL_PERCENT)" MUSIC_ANALYZER_GUITARSET_MAX_CONTAMINATION_PERCENT="$(GUITAR_CHORD_MIX_MAX_CONTAMINATION_PERCENT)" MUSIC_ANALYZER_GUITARSET_MAX_FALSE_VOCAL_PERCENT="$(GUITAR_CHORD_MIX_MAX_FALSE_VOCAL_PERCENT)" MUSIC_ANALYZER_GUITARSET_MIN_CHORD_RECALL_PERCENT="$(GUITAR_CHORD_MIX_MIN_CHORD_RECALL_PERCENT)" MUSIC_ANALYZER_GUITARSET_MIN_CHORD_PRECISION_PERCENT="$(GUITAR_CHORD_MIX_MIN_CHORD_PRECISION_PERCENT)" MUSIC_ANALYZER_GUITARSET_MIN_CHORD_CHECKS="$(GUITAR_CHORD_MIX_MIN_WINDOWS)" MUSIC_ANALYZER_GUITARSET_MIN_CHORD_HITS="$(GUITAR_CHORD_MIX_MIN_CHORD_HITS)" MUSIC_ANALYZER_GUITARSET_MAX_FAILURE_LINES=80 $(BUILD_DIR)/analyzer_guitarset
 
 test-guitar-chord-mix-samples-parallel: $(BUILD_DIR)/analyzer_guitarset prepare-guitar-chord-mix-samples scripts/run_with_duration.sh
-	$(RUN_WITH_DURATION) analyzer_guitar_chord_mix_samples_parallel $(MAKE) $(GUITAR_CHORD_MIX_TEST_MAKE_JOBS) $(GUITAR_CHORD_MIX_SHARD_TARGETS)
+	+$(RUN_WITH_DURATION) analyzer_guitar_chord_mix_samples_parallel $(MAKE) $(GUITAR_CHORD_MIX_TEST_MAKE_JOBS) $(GUITAR_CHORD_MIX_SHARD_TARGETS)
 
 test-guitar-chord-mix-samples-shard-%: FORCE $(BUILD_DIR)/analyzer_guitarset $(GUITAR_CHORD_MIX_MANIFEST) scripts/run_with_duration.sh
 	$(RUN_WITH_DURATION) analyzer_guitar_chord_mix_samples_shard_$* env MUSIC_ANALYZER_GUITARSET_MANIFEST="$(GUITAR_CHORD_MIX_MANIFEST)" MUSIC_ANALYZER_GUITARSET_REQUIRED=1 MUSIC_ANALYZER_GUITARSET_USE_ALL=1 MUSIC_ANALYZER_GUITARSET_REQUIRED_EXCERPTS="$(GUITAR_CHORD_MIX_MIN_EXCERPTS)" MUSIC_ANALYZER_GUITARSET_REQUIRED_WINDOWS="$(GUITAR_CHORD_MIX_MIN_WINDOWS)" MUSIC_ANALYZER_GUITARSET_MAX_WINDOWS_PER_EXCERPT=4 MUSIC_ANALYZER_GUITARSET_MIN_ACTIVE_NOTES=3 MUSIC_ANALYZER_GUITARSET_MIN_PITCH_CLASSES=3 MUSIC_ANALYZER_GUITARSET_MIN_WINDOW_RECALL_PERCENT=0 MUSIC_ANALYZER_GUITARSET_MIN_RECALL_PERCENT="$(GUITAR_CHORD_MIX_MIN_RECALL_PERCENT)" MUSIC_ANALYZER_GUITARSET_MIN_PRECISION_PERCENT="$(GUITAR_CHORD_MIX_MIN_PRECISION_PERCENT)" MUSIC_ANALYZER_GUITARSET_MIN_GUITAR_RECALL_PERCENT="$(GUITAR_CHORD_MIX_MIN_GUITAR_RECALL_PERCENT)" MUSIC_ANALYZER_GUITARSET_MAX_CONTAMINATION_PERCENT="$(GUITAR_CHORD_MIX_MAX_CONTAMINATION_PERCENT)" MUSIC_ANALYZER_GUITARSET_MAX_FALSE_VOCAL_PERCENT="$(GUITAR_CHORD_MIX_MAX_FALSE_VOCAL_PERCENT)" MUSIC_ANALYZER_GUITARSET_MIN_CHORD_RECALL_PERCENT="$(GUITAR_CHORD_MIX_MIN_CHORD_RECALL_PERCENT)" MUSIC_ANALYZER_GUITARSET_MIN_CHORD_PRECISION_PERCENT="$(GUITAR_CHORD_MIX_MIN_CHORD_PRECISION_PERCENT)" MUSIC_ANALYZER_GUITARSET_MIN_CHORD_CHECKS="$(GUITAR_CHORD_MIX_MIN_WINDOWS)" MUSIC_ANALYZER_GUITARSET_MIN_CHORD_HITS="$(GUITAR_CHORD_MIX_MIN_CHORD_HITS)" MUSIC_ANALYZER_GUITARSET_MAX_FAILURE_LINES=80 MUSIC_ANALYZER_GUITARSET_SHARD_COUNT="$(GUITAR_CHORD_MIX_SHARDS)" MUSIC_ANALYZER_GUITARSET_SHARD_INDEX="$*" $(BUILD_DIR)/analyzer_guitarset
@@ -1667,7 +1667,7 @@ analyze-guitar-chord-mix-misses: $(BUILD_DIR)/analyzer_guitarset prepare-guitar-
 	$(PYTHON) scripts/analyze_guitarset_misses.py "$(GUITAR_CHORD_MIX_MISS_LOG)"
 
 $(BUILD_DIR)/guitar_chord_mix_attributes.tsv: $(BUILD_DIR)/analyzer_guitarset prepare-guitar-chord-mix-samples scripts/build_sharded_tsv.sh | $(BUILD_DIR)
-	$(SHELL) scripts/build_sharded_tsv.sh "$@" "$(MAKE)" "$(GUITAR_CHORD_MIX_ATTRIBUTE_MAKE_JOBS)" $(GUITAR_CHORD_MIX_ATTRIBUTE_PARTS)
+	+$(SHELL) scripts/build_sharded_tsv.sh "$@" "$(MAKE)" "$(GUITAR_CHORD_MIX_ATTRIBUTE_MAKE_JOBS)" $(GUITAR_CHORD_MIX_ATTRIBUTE_PARTS)
 
 $(BUILD_DIR)/guitar_chord_mix_attributes.shard-%.tsv: FORCE $(BUILD_DIR)/analyzer_guitarset $(GUITAR_CHORD_MIX_MANIFEST) | $(BUILD_DIR)
 	@out="$(BUILD_DIR)/guitar_chord_mix_attributes.shard-$*.out"; env MUSIC_ANALYZER_GUITARSET_MANIFEST="$(GUITAR_CHORD_MIX_MANIFEST)" MUSIC_ANALYZER_GUITARSET_REQUIRED=1 MUSIC_ANALYZER_GUITARSET_USE_ALL=1 MUSIC_ANALYZER_GUITARSET_REQUIRED_EXCERPTS="$(GUITAR_CHORD_MIX_MIN_EXCERPTS)" MUSIC_ANALYZER_GUITARSET_REQUIRED_WINDOWS="$(GUITAR_CHORD_MIX_MIN_WINDOWS)" MUSIC_ANALYZER_GUITARSET_MAX_WINDOWS_PER_EXCERPT=4 MUSIC_ANALYZER_GUITARSET_MIN_ACTIVE_NOTES=3 MUSIC_ANALYZER_GUITARSET_MIN_PITCH_CLASSES=3 MUSIC_ANALYZER_GUITARSET_MIN_WINDOW_RECALL_PERCENT=0 MUSIC_ANALYZER_GUITARSET_MIN_RECALL_PERCENT=0 MUSIC_ANALYZER_GUITARSET_MIN_PRECISION_PERCENT=0 MUSIC_ANALYZER_GUITARSET_MIN_GUITAR_RECALL_PERCENT=0 MUSIC_ANALYZER_GUITARSET_MAX_CONTAMINATION_PERCENT=100 MUSIC_ANALYZER_GUITARSET_MAX_FALSE_VOCAL_PERCENT=100 MUSIC_ANALYZER_GUITARSET_MIN_CHORD_RECALL_PERCENT=0 MUSIC_ANALYZER_GUITARSET_MIN_CHORD_PRECISION_PERCENT=0 MUSIC_ANALYZER_GUITARSET_MIN_CHORD_CHECKS="$(GUITAR_CHORD_MIX_MIN_WINDOWS)" MUSIC_ANALYZER_GUITARSET_MIN_CHORD_HITS=0 MUSIC_ANALYZER_GUITARSET_MAX_FAILURE_LINES=80 MUSIC_ANALYZER_GUITARSET_SHARD_COUNT="$(GUITAR_CHORD_MIX_SHARDS)" MUSIC_ANALYZER_GUITARSET_SHARD_INDEX="$*" MUSIC_ANALYZER_GUITARSET_ATTRIBUTE_TSV="$@" $(BUILD_DIR)/analyzer_guitarset > "$$out"
@@ -1698,7 +1698,7 @@ $(EGFXSET_GUITAR_MANIFEST): scripts/prepare_hf_guitar_chord_mix.py | $(BUILD_DIR
 	EGFXSET_GUITAR_SAMPLE_DIR="$(EGFXSET_GUITAR_SAMPLE_DIR)" EGFXSET_GUITAR_SAMPLE_LIMIT="$(EGFXSET_GUITAR_SAMPLE_LIMIT)" EGFXSET_GUITAR_MIN_EXCERPTS="$(EGFXSET_GUITAR_MIN_EXCERPTS)" EGFXSET_GUITAR_DOWNLOAD_JOBS="$(EGFXSET_GUITAR_DOWNLOAD_JOBS)" $(PYTHON) scripts/prepare_hf_guitar_chord_mix.py --output "$(EGFXSET_GUITAR_SAMPLE_DIR)" --sources "egfxset" --limit "$(EGFXSET_GUITAR_SAMPLE_LIMIT)" --min-samples "$(EGFXSET_GUITAR_MIN_EXCERPTS)" --min-notes 1 --min-pitch-classes 1 --jobs "$(EGFXSET_GUITAR_DOWNLOAD_JOBS)"
 
 test-egfxset-guitar-samples: $(BUILD_DIR)/analyzer_guitarset prepare-egfxset-guitar-samples scripts/run_with_duration.sh scripts/check_guitarset_shards.py
-	$(RUN_WITH_DURATION) analyzer_egfxset_guitar_samples_parallel $(MAKE) $(EGFXSET_GUITAR_TEST_MAKE_JOBS) $(EGFXSET_GUITAR_SHARD_TARGETS)
+	+$(RUN_WITH_DURATION) analyzer_egfxset_guitar_samples_parallel $(MAKE) $(EGFXSET_GUITAR_TEST_MAKE_JOBS) $(EGFXSET_GUITAR_SHARD_TARGETS)
 	$(PYTHON) scripts/check_guitarset_shards.py $(EGFXSET_GUITAR_SHARD_OUTS) --required-excerpts "$(EGFXSET_GUITAR_MIN_EXCERPTS)" --required-windows "$(EGFXSET_GUITAR_MIN_WINDOWS)" --min-recall-percent "$(EGFXSET_GUITAR_MIN_RECALL_PERCENT)" --min-precision-percent "$(EGFXSET_GUITAR_MIN_PRECISION_PERCENT)" --min-guitar-recall-percent "$(EGFXSET_GUITAR_MIN_GUITAR_RECALL_PERCENT)" --max-contamination-percent "$(EGFXSET_GUITAR_MAX_CONTAMINATION_PERCENT)" --max-false-vocal-percent "$(EGFXSET_GUITAR_MAX_FALSE_VOCAL_PERCENT)" --min-chord-checks 0 --max-single-note-chord-false-percent "$(EGFXSET_GUITAR_MAX_SINGLE_NOTE_CHORD_FALSE_PERCENT)"
 
 test-egfxset-guitar-samples-shard-%: FORCE $(BUILD_DIR)/analyzer_guitarset $(EGFXSET_GUITAR_MANIFEST) scripts/run_with_duration.sh
@@ -1711,7 +1711,7 @@ $(GAPS_GUITAR_MANIFEST): scripts/prepare_gaps_guitar_samples.py | $(BUILD_DIR)
 	GAPS_GUITAR_SOURCE_DIR="$(GAPS_GUITAR_SOURCE_DIR)" GAPS_GUITAR_SAMPLE_DIR="$(GAPS_GUITAR_SAMPLE_DIR)" GAPS_GUITAR_METADATA_URL="$(GAPS_GUITAR_METADATA_URL)" GAPS_GUITAR_BASE_URL="$(GAPS_GUITAR_BASE_URL)" GAPS_GUITAR_SAMPLE_LIMIT="$(GAPS_GUITAR_SAMPLE_LIMIT)" GAPS_GUITAR_MIN_EXCERPTS="$(GAPS_GUITAR_MIN_EXCERPTS)" GAPS_GUITAR_MIN_NOTES="$(GAPS_GUITAR_MIN_NOTES)" $(PYTHON) scripts/prepare_gaps_guitar_samples.py --source-dir "$(GAPS_GUITAR_SOURCE_DIR)" --output "$(GAPS_GUITAR_SAMPLE_DIR)" --metadata-url "$(GAPS_GUITAR_METADATA_URL)" --base-url "$(GAPS_GUITAR_BASE_URL)" --limit "$(GAPS_GUITAR_SAMPLE_LIMIT)" --min-samples "$(GAPS_GUITAR_MIN_EXCERPTS)" --min-notes "$(GAPS_GUITAR_MIN_NOTES)"
 
 test-gaps-guitar-samples: $(BUILD_DIR)/analyzer_guitarset prepare-gaps-guitar-samples scripts/run_with_duration.sh scripts/check_guitarset_shards.py
-	$(RUN_WITH_DURATION) analyzer_gaps_guitar_samples_parallel $(MAKE) $(GAPS_GUITAR_TEST_MAKE_JOBS) $(GAPS_GUITAR_SHARD_TARGETS)
+	+$(RUN_WITH_DURATION) analyzer_gaps_guitar_samples_parallel $(MAKE) $(GAPS_GUITAR_TEST_MAKE_JOBS) $(GAPS_GUITAR_SHARD_TARGETS)
 	$(PYTHON) scripts/check_guitarset_shards.py $(GAPS_GUITAR_SHARD_OUTS) --required-excerpts "$(GAPS_GUITAR_MIN_EXCERPTS)" --required-windows "$(GAPS_GUITAR_MIN_WINDOWS)" --min-recall-percent "$(GAPS_GUITAR_MIN_RECALL_PERCENT)" --min-precision-percent "$(GAPS_GUITAR_MIN_PRECISION_PERCENT)" --min-guitar-recall-percent "$(GAPS_GUITAR_MIN_GUITAR_RECALL_PERCENT)" --max-contamination-percent "$(GAPS_GUITAR_MAX_CONTAMINATION_PERCENT)" --max-false-vocal-percent "$(GAPS_GUITAR_MAX_FALSE_VOCAL_PERCENT)" --min-chord-checks "$(GAPS_GUITAR_MIN_WINDOWS)" --min-chord-recall-percent "$(GAPS_GUITAR_MIN_CHORD_RECALL_PERCENT)" --min-chord-precision-percent "$(GAPS_GUITAR_MIN_CHORD_PRECISION_PERCENT)"
 
 test-gaps-guitar-samples-shard-%: FORCE $(BUILD_DIR)/analyzer_guitarset $(GAPS_GUITAR_MANIFEST) scripts/run_with_duration.sh
@@ -1728,7 +1728,7 @@ $(GAPS_GUITAR_FULL_MANIFEST): scripts/prepare_gaps_guitar_samples.py | $(BUILD_D
 	GAPS_GUITAR_SOURCE_DIR="$(GAPS_GUITAR_SOURCE_DIR)" GAPS_GUITAR_SAMPLE_DIR="$(GAPS_GUITAR_FULL_SAMPLE_DIR)" GAPS_GUITAR_METADATA_URL="$(GAPS_GUITAR_METADATA_URL)" GAPS_GUITAR_BASE_URL="$(GAPS_GUITAR_BASE_URL)" GAPS_GUITAR_SAMPLE_LIMIT="$(GAPS_GUITAR_FULL_SAMPLE_LIMIT)" GAPS_GUITAR_MIN_EXCERPTS="$(GAPS_GUITAR_FULL_MIN_EXCERPTS)" GAPS_GUITAR_MIN_NOTES="$(GAPS_GUITAR_MIN_NOTES)" $(PYTHON) scripts/prepare_gaps_guitar_samples.py --source-dir "$(GAPS_GUITAR_SOURCE_DIR)" --output "$(GAPS_GUITAR_FULL_SAMPLE_DIR)" --metadata-url "$(GAPS_GUITAR_METADATA_URL)" --base-url "$(GAPS_GUITAR_BASE_URL)" --limit "$(GAPS_GUITAR_FULL_SAMPLE_LIMIT)" --min-samples "$(GAPS_GUITAR_FULL_MIN_EXCERPTS)" --min-notes "$(GAPS_GUITAR_MIN_NOTES)"
 
 test-gaps-guitar-samples-full: $(BUILD_DIR)/analyzer_guitarset prepare-gaps-guitar-samples-full scripts/run_with_duration.sh scripts/check_guitarset_shards.py
-	$(RUN_WITH_DURATION) analyzer_gaps_guitar_samples_full_parallel $(MAKE) $(GAPS_GUITAR_FULL_TEST_MAKE_JOBS) $(GAPS_GUITAR_FULL_SHARD_TARGETS)
+	+$(RUN_WITH_DURATION) analyzer_gaps_guitar_samples_full_parallel $(MAKE) $(GAPS_GUITAR_FULL_TEST_MAKE_JOBS) $(GAPS_GUITAR_FULL_SHARD_TARGETS)
 	$(PYTHON) scripts/check_guitarset_shards.py $(GAPS_GUITAR_FULL_SHARD_OUTS) --required-excerpts "$(GAPS_GUITAR_FULL_MIN_EXCERPTS)" --required-windows "$(GAPS_GUITAR_FULL_MIN_WINDOWS)" --min-recall-percent "$(GAPS_GUITAR_MIN_RECALL_PERCENT)" --min-precision-percent "$(GAPS_GUITAR_MIN_PRECISION_PERCENT)" --min-guitar-recall-percent "$(GAPS_GUITAR_MIN_GUITAR_RECALL_PERCENT)" --max-contamination-percent "$(GAPS_GUITAR_MAX_CONTAMINATION_PERCENT)" --max-false-vocal-percent "$(GAPS_GUITAR_MAX_FALSE_VOCAL_PERCENT)" --min-chord-checks "$(GAPS_GUITAR_FULL_MIN_WINDOWS)" --min-chord-recall-percent "$(GAPS_GUITAR_MIN_CHORD_RECALL_PERCENT)" --min-chord-precision-percent "$(GAPS_GUITAR_MIN_CHORD_PRECISION_PERCENT)"
 
 test-gaps-guitar-samples-full-shard-%: FORCE $(BUILD_DIR)/analyzer_guitarset $(GAPS_GUITAR_FULL_MANIFEST) scripts/run_with_duration.sh
@@ -1750,14 +1750,14 @@ prepare-downloaded-guitarset: download-guitarset-samples
 	MUSIC_ANALYZER_GUITARSET_ROOT="$(GUITARSET_ROOT)" $(PYTHON) tests/prepare_guitarset_manifest.py "$(GUITARSET_MANIFEST)"
 
 $(GUITARSET_MANIFEST): tests/prepare_guitarset_manifest.py | $(BUILD_DIR)
-	$(MAKE) download-guitarset-samples
+	+$(MAKE) download-guitarset-samples
 	mkdir -p "$(GUITARSET_ROOT)"
 	$(PYTHON) -m zipfile -e "$(GUITARSET_SOURCE_DIR)/annotation.zip" "$(GUITARSET_ROOT)"
 	$(PYTHON) -m zipfile -e "$(GUITARSET_SOURCE_DIR)/audio_mono-mic.zip" "$(GUITARSET_ROOT)"
 	MUSIC_ANALYZER_GUITARSET_ROOT="$(GUITARSET_ROOT)" $(PYTHON) tests/prepare_guitarset_manifest.py "$(GUITARSET_MANIFEST)"
 
 test-downloaded-guitarset: $(BUILD_DIR)/analyzer_guitarset prepare-downloaded-guitarset scripts/run_with_duration.sh scripts/check_guitarset_shards.py
-	$(RUN_WITH_DURATION) analyzer_guitarset_downloaded_parallel $(MAKE) $(GUITARSET_TEST_MAKE_JOBS) $(GUITARSET_SHARD_TARGETS)
+	+$(RUN_WITH_DURATION) analyzer_guitarset_downloaded_parallel $(MAKE) $(GUITARSET_TEST_MAKE_JOBS) $(GUITARSET_SHARD_TARGETS)
 	$(PYTHON) scripts/check_guitarset_shards.py $(GUITARSET_SHARD_OUTS) --required-excerpts 200 --required-windows 1000 --min-recall-percent "$(GUITARSET_MIN_RECALL_PERCENT)" --min-precision-percent "$(GUITARSET_MIN_PRECISION_PERCENT)" --min-guitar-recall-percent "$(GUITARSET_MIN_GUITAR_RECALL_PERCENT)" --max-contamination-percent 100 --max-false-vocal-percent 100 --min-chord-checks 1000 --min-chord-recall-percent "$(GUITARSET_MIN_CHORD_RECALL_PERCENT)" --min-chord-precision-percent "$(GUITARSET_MIN_CHORD_PRECISION_PERCENT)" --min-major-minor-chord-recall-percent "$(GUITARSET_MIN_MAJOR_MINOR_CHORD_RECALL_PERCENT)" --min-other-chord-recall-percent "$(GUITARSET_MIN_OTHER_CHORD_RECALL_PERCENT)" --min-simple-chord-recall-percent "$(GUITARSET_MIN_SIMPLE_CHORD_RECALL_PERCENT)" --min-simple-major-minor-chord-recall-percent "$(GUITARSET_MIN_SIMPLE_MAJOR_MINOR_CHORD_RECALL_PERCENT)" --min-simple-other-chord-recall-percent "$(GUITARSET_MIN_SIMPLE_OTHER_CHORD_RECALL_PERCENT)"
 
 test-downloaded-guitarset-shard-%: FORCE $(BUILD_DIR)/analyzer_guitarset $(GUITARSET_MANIFEST) scripts/run_with_duration.sh
@@ -1768,7 +1768,7 @@ analyze-guitarset-misses: $(BUILD_DIR)/analyzer_guitarset prepare-downloaded-gui
 	$(PYTHON) scripts/analyze_guitarset_misses.py "$(GUITARSET_MISS_LOG)"
 
 $(GUITARSET_ATTRIBUTE_TSV): $(BUILD_DIR)/analyzer_guitarset $(GUITARSET_MANIFEST) scripts/build_sharded_tsv.sh | $(BUILD_DIR)
-	$(SHELL) scripts/build_sharded_tsv.sh "$@" "$(MAKE)" "$(GUITARSET_ATTRIBUTE_MAKE_JOBS)" $(GUITARSET_ATTRIBUTE_PARTS)
+	+$(SHELL) scripts/build_sharded_tsv.sh "$@" "$(MAKE)" "$(GUITARSET_ATTRIBUTE_MAKE_JOBS)" $(GUITARSET_ATTRIBUTE_PARTS)
 
 $(BUILD_DIR)/guitarset_attributes.shard-%.tsv: FORCE $(BUILD_DIR)/analyzer_guitarset $(GUITARSET_MANIFEST) | $(BUILD_DIR)
 	@out="$(BUILD_DIR)/guitarset_attributes.shard-$*.out"; env MUSIC_ANALYZER_GUITARSET_MANIFEST="$(GUITARSET_MANIFEST)" MUSIC_ANALYZER_GUITARSET_REQUIRED=1 MUSIC_ANALYZER_GUITARSET_USE_ALL=1 MUSIC_ANALYZER_GUITARSET_REQUIRED_EXCERPTS=200 MUSIC_ANALYZER_GUITARSET_REQUIRED_WINDOWS=1000 MUSIC_ANALYZER_GUITARSET_MAX_WINDOWS_PER_EXCERPT=8 MUSIC_ANALYZER_GUITARSET_MIN_WINDOW_RECALL_PERCENT=0 MUSIC_ANALYZER_GUITARSET_MIN_RECALL_PERCENT=0 MUSIC_ANALYZER_GUITARSET_MIN_PRECISION_PERCENT=0 MUSIC_ANALYZER_GUITARSET_MIN_GUITAR_RECALL_PERCENT=0 MUSIC_ANALYZER_GUITARSET_MIN_CHORD_CHECKS=0 MUSIC_ANALYZER_GUITARSET_MIN_CHORD_RECALL_PERCENT=0 MUSIC_ANALYZER_GUITARSET_MIN_CHORD_PRECISION_PERCENT=0 MUSIC_ANALYZER_GUITARSET_MIN_MAJOR_MINOR_CHORD_RECALL_PERCENT=0 MUSIC_ANALYZER_GUITARSET_MIN_OTHER_CHORD_RECALL_PERCENT=0 MUSIC_ANALYZER_GUITARSET_MIN_SIMPLE_CHORD_RECALL_PERCENT=0 MUSIC_ANALYZER_GUITARSET_MIN_SIMPLE_MAJOR_MINOR_CHORD_RECALL_PERCENT=0 MUSIC_ANALYZER_GUITARSET_MIN_SIMPLE_OTHER_CHORD_RECALL_PERCENT=0 MUSIC_ANALYZER_GUITARSET_MAX_FAILURE_LINES=0 MUSIC_ANALYZER_GUITARSET_SHARD_COUNT="$(GUITARSET_SHARDS)" MUSIC_ANALYZER_GUITARSET_SHARD_INDEX="$*" MUSIC_ANALYZER_GUITARSET_ATTRIBUTE_TSV="$@" $(BUILD_DIR)/analyzer_guitarset > "$$out"
@@ -1799,7 +1799,7 @@ test-philharmonia-samples: REAL_NOTE_SAMPLE_MIN_BASS := $(PHILHARMONIA_MIN_BASS)
 test-philharmonia-samples: REAL_NOTE_SAMPLE_MIN_GUITAR := $(PHILHARMONIA_MIN_GUITAR)
 test-philharmonia-samples: REAL_NOTE_SAMPLE_MIN_OTHER := $(PHILHARMONIA_MIN_OTHER)
 test-philharmonia-samples: $(BUILD_DIR)/analyzer_real_note_samples prepare-philharmonia-samples scripts/run_with_duration.sh scripts/check_real_note_sample_shards.py
-	$(RUN_REAL_NOTE_SAMPLE_SHARDS)
+	+$(RUN_REAL_NOTE_SAMPLE_SHARDS)
 
 prepare-philharmonia-samples-full: scripts/prepare_philharmonia_samples.py download-philharmonia-samples | $(BUILD_DIR)
 	PHILHARMONIA_SOURCE_DIR="$(PHILHARMONIA_SOURCE_DIR)" PHILHARMONIA_SAMPLE_DIR="$(PHILHARMONIA_FULL_SAMPLE_DIR)" PHILHARMONIA_SAMPLE_LIMIT="$(PHILHARMONIA_FULL_SAMPLE_LIMIT)" FFMPEG="$(FFMPEG)" $(PYTHON) scripts/prepare_philharmonia_samples.py --source "$(PHILHARMONIA_SOURCE_DIR)" --output "$(PHILHARMONIA_FULL_SAMPLE_DIR)" --limit "$(PHILHARMONIA_FULL_SAMPLE_LIMIT)" --min-samples "$(PHILHARMONIA_FULL_MIN_SAMPLES)" --progress-every "$(PHILHARMONIA_FULL_PROGRESS_EVERY)" --ffmpeg "$(FFMPEG)"
@@ -1812,7 +1812,7 @@ test-philharmonia-samples-full: REAL_NOTE_SAMPLE_MIN_GUITAR := $(PHILHARMONIA_FU
 test-philharmonia-samples-full: REAL_NOTE_SAMPLE_MIN_OTHER := $(PHILHARMONIA_FULL_MIN_OTHER)
 test-philharmonia-samples-full: REAL_NOTE_SAMPLE_MAX_FAILURES := $(PHILHARMONIA_FULL_MAX_FAILURES)
 test-philharmonia-samples-full: $(BUILD_DIR)/analyzer_real_note_samples prepare-philharmonia-samples-full scripts/run_with_duration.sh scripts/check_real_note_sample_shards.py
-	$(RUN_REAL_NOTE_SAMPLE_SHARDS)
+	+$(RUN_REAL_NOTE_SAMPLE_SHARDS)
 
 download-good-sounds-samples: $(GOOD_SOUNDS_ARCHIVE)
 
@@ -1834,7 +1834,7 @@ test-good-sounds-samples: REAL_NOTE_SAMPLE_MIN_BASS := $(GOOD_SOUNDS_MIN_BASS)
 test-good-sounds-samples: REAL_NOTE_SAMPLE_MIN_OTHER := $(GOOD_SOUNDS_MIN_OTHER)
 test-good-sounds-samples: REAL_NOTE_SAMPLE_MAX_FAILURES := $(GOOD_SOUNDS_MAX_FAILURES)
 test-good-sounds-samples: $(BUILD_DIR)/analyzer_real_note_samples prepare-good-sounds-samples scripts/run_with_duration.sh scripts/check_real_note_sample_shards.py
-	$(RUN_REAL_NOTE_SAMPLE_SHARDS)
+	+$(RUN_REAL_NOTE_SAMPLE_SHARDS)
 
 prepare-iowa-piano-samples: scripts/prepare_iowa_piano_samples.py | $(BUILD_DIR)
 	IOWA_PIANO_PAGE_URL="$(IOWA_PIANO_PAGE_URL)" IOWA_PIANO_FILE_BASE_URL="$(IOWA_PIANO_FILE_BASE_URL)" IOWA_PIANO_SOURCE_DIR="$(IOWA_PIANO_SOURCE_DIR)" IOWA_PIANO_SAMPLE_DIR="$(IOWA_PIANO_SAMPLE_DIR)" IOWA_PIANO_SAMPLE_LIMIT="$(IOWA_PIANO_SAMPLE_LIMIT)" IOWA_PIANO_MIN_SAMPLES="$(IOWA_PIANO_MIN_PIANO)" IOWA_PIANO_DOWNLOAD_RETRIES="$(IOWA_PIANO_DOWNLOAD_RETRIES)" FFMPEG="$(FFMPEG)" CURL="$(CURL)" $(PYTHON) scripts/prepare_iowa_piano_samples.py --page-url "$(IOWA_PIANO_PAGE_URL)" --file-base-url "$(IOWA_PIANO_FILE_BASE_URL)" --source-dir "$(IOWA_PIANO_SOURCE_DIR)" --output "$(IOWA_PIANO_SAMPLE_DIR)" --limit "$(IOWA_PIANO_SAMPLE_LIMIT)" --min-samples "$(IOWA_PIANO_MIN_PIANO)" --download-retries "$(IOWA_PIANO_DOWNLOAD_RETRIES)" --ffmpeg "$(FFMPEG)" --curl "$(CURL)"
@@ -1844,7 +1844,7 @@ test-iowa-piano-samples: REAL_NOTE_SAMPLE_ROOT := $(IOWA_PIANO_SAMPLE_DIR)
 test-iowa-piano-samples: REAL_NOTE_SAMPLE_REQUIRED_SAMPLES := $(IOWA_PIANO_MIN_PIANO)
 test-iowa-piano-samples: REAL_NOTE_SAMPLE_MIN_PIANO := $(IOWA_PIANO_MIN_PIANO)
 test-iowa-piano-samples: $(BUILD_DIR)/analyzer_real_note_samples prepare-iowa-piano-samples scripts/run_with_duration.sh scripts/check_real_note_sample_shards.py
-	$(RUN_REAL_NOTE_SAMPLE_SHARDS)
+	+$(RUN_REAL_NOTE_SAMPLE_SHARDS)
 
 prepare-iowa-bass-samples: scripts/prepare_iowa_zip_samples.py | $(BUILD_DIR)
 	IOWA_ZIP_SOURCE_DIR="$(IOWA_BASS_SOURCE_DIR)" IOWA_ZIP_SAMPLE_DIR="$(IOWA_BASS_SAMPLE_DIR)" IOWA_ZIP_SAMPLE_LIMIT="$(IOWA_BASS_SAMPLE_LIMIT)" IOWA_ZIP_MIN_SAMPLES="$(IOWA_BASS_MIN_BASS)" IOWA_ZIP_DOWNLOAD_RETRIES="$(IOWA_ZIP_DOWNLOAD_RETRIES)" FFMPEG="$(FFMPEG)" CURL="$(CURL)" $(PYTHON) scripts/prepare_iowa_zip_samples.py --spec "bass|bass|iowa-double-bass-pizz-sulE|$(IOWA_BASS_ZIP_URL)" --source-dir "$(IOWA_BASS_SOURCE_DIR)" --output "$(IOWA_BASS_SAMPLE_DIR)" --limit "$(IOWA_BASS_SAMPLE_LIMIT)" --min-samples "$(IOWA_BASS_MIN_BASS)" --download-retries "$(IOWA_ZIP_DOWNLOAD_RETRIES)" --ffmpeg "$(FFMPEG)" --curl "$(CURL)"
@@ -1854,7 +1854,7 @@ test-iowa-bass-samples: REAL_NOTE_SAMPLE_ROOT := $(IOWA_BASS_SAMPLE_DIR)
 test-iowa-bass-samples: REAL_NOTE_SAMPLE_REQUIRED_SAMPLES := $(IOWA_BASS_MIN_BASS)
 test-iowa-bass-samples: REAL_NOTE_SAMPLE_MIN_BASS := $(IOWA_BASS_MIN_BASS)
 test-iowa-bass-samples: $(BUILD_DIR)/analyzer_real_note_samples prepare-iowa-bass-samples scripts/run_with_duration.sh scripts/check_real_note_sample_shards.py
-	$(RUN_REAL_NOTE_SAMPLE_SHARDS)
+	+$(RUN_REAL_NOTE_SAMPLE_SHARDS)
 
 prepare-iowa-strings-samples: scripts/prepare_iowa_zip_samples.py | $(BUILD_DIR)
 	IOWA_ZIP_SOURCE_DIR="$(IOWA_STRINGS_SOURCE_DIR)" IOWA_ZIP_SAMPLE_DIR="$(IOWA_STRINGS_SAMPLE_DIR)" IOWA_ZIP_SAMPLE_LIMIT="$(IOWA_STRINGS_SAMPLE_LIMIT)" IOWA_ZIP_MIN_SAMPLES="$(IOWA_STRINGS_MIN_SAMPLES)" IOWA_ZIP_DOWNLOAD_RETRIES="$(IOWA_ZIP_DOWNLOAD_RETRIES)" FFMPEG="$(FFMPEG)" CURL="$(CURL)" $(PYTHON) scripts/prepare_iowa_zip_samples.py --spec "other|strings|iowa-violin-arco-2012|$(IOWA_STRINGS_VIOLIN_ARCO_SULG_URL)" --source-dir "$(IOWA_STRINGS_SOURCE_DIR)" --output "$(IOWA_STRINGS_SAMPLE_DIR)" --limit "$(IOWA_STRINGS_SAMPLE_LIMIT)" --min-samples "$(IOWA_STRINGS_MIN_SAMPLES)" --download-retries "$(IOWA_ZIP_DOWNLOAD_RETRIES)" --ffmpeg "$(FFMPEG)" --curl "$(CURL)"
@@ -1866,7 +1866,7 @@ test-iowa-strings-samples: REAL_NOTE_SAMPLE_MIN_BASS := $(IOWA_STRINGS_MIN_BASS)
 test-iowa-strings-samples: REAL_NOTE_SAMPLE_MIN_OTHER := $(IOWA_STRINGS_MIN_OTHER)
 test-iowa-strings-samples: REAL_NOTE_SAMPLE_MAX_FAILURES := $(IOWA_STRINGS_MAX_FAILURES)
 test-iowa-strings-samples: $(BUILD_DIR)/analyzer_real_note_samples prepare-iowa-strings-samples scripts/run_with_duration.sh scripts/check_real_note_sample_shards.py
-	$(RUN_REAL_NOTE_SAMPLE_SHARDS)
+	+$(RUN_REAL_NOTE_SAMPLE_SHARDS)
 
 prepare-iowa-orchestra-samples: scripts/prepare_iowa_zip_samples.py | $(BUILD_DIR)
 	IOWA_ZIP_SOURCE_DIR="$(IOWA_ORCHESTRA_SOURCE_DIR)" IOWA_ZIP_SAMPLE_DIR="$(IOWA_ORCHESTRA_SAMPLE_DIR)" IOWA_ZIP_SAMPLE_LIMIT="$(IOWA_ORCHESTRA_SAMPLE_LIMIT)" IOWA_ZIP_MIN_SAMPLES="$(IOWA_ORCHESTRA_MIN_SAMPLES)" IOWA_ZIP_DOWNLOAD_RETRIES="$(IOWA_ZIP_DOWNLOAD_RETRIES)" FFMPEG="$(FFMPEG)" CURL="$(CURL)" $(PYTHON) scripts/prepare_iowa_zip_samples.py $(IOWA_ORCHESTRA_SPEC_ARGS) --source-dir "$(IOWA_ORCHESTRA_SOURCE_DIR)" --output "$(IOWA_ORCHESTRA_SAMPLE_DIR)" --limit "$(IOWA_ORCHESTRA_SAMPLE_LIMIT)" --min-samples "$(IOWA_ORCHESTRA_MIN_SAMPLES)" --download-retries "$(IOWA_ZIP_DOWNLOAD_RETRIES)" --ffmpeg "$(FFMPEG)" --curl "$(CURL)"
@@ -1878,7 +1878,7 @@ test-iowa-orchestra-samples: REAL_NOTE_SAMPLE_MIN_BASS := $(IOWA_ORCHESTRA_MIN_B
 test-iowa-orchestra-samples: REAL_NOTE_SAMPLE_MIN_OTHER := $(IOWA_ORCHESTRA_MIN_OTHER)
 test-iowa-orchestra-samples: REAL_NOTE_SAMPLE_MAX_FAILURES := $(IOWA_ORCHESTRA_MAX_FAILURES)
 test-iowa-orchestra-samples: $(BUILD_DIR)/analyzer_real_note_samples prepare-iowa-orchestra-samples scripts/run_with_duration.sh scripts/check_real_note_sample_shards.py
-	$(RUN_REAL_NOTE_SAMPLE_SHARDS)
+	+$(RUN_REAL_NOTE_SAMPLE_SHARDS)
 
 prepare-iowa-orchestra-full-samples: scripts/prepare_iowa_zip_samples.py | $(BUILD_DIR)
 	IOWA_ZIP_SOURCE_DIR="$(IOWA_ORCHESTRA_FULL_SOURCE_DIR)" IOWA_ZIP_SAMPLE_DIR="$(IOWA_ORCHESTRA_FULL_SAMPLE_DIR)" IOWA_ZIP_SAMPLE_LIMIT="$(IOWA_ORCHESTRA_FULL_SAMPLE_LIMIT)" IOWA_ZIP_MIN_SAMPLES="$(IOWA_ORCHESTRA_FULL_MIN_SAMPLES)" IOWA_ZIP_DOWNLOAD_TIMEOUT="$(IOWA_ORCHESTRA_FULL_DOWNLOAD_TIMEOUT)" IOWA_ZIP_DOWNLOAD_RETRIES="$(IOWA_ORCHESTRA_FULL_DOWNLOAD_RETRIES)" IOWA_ZIP_MAX_DOWNLOAD_FAILURES="$(IOWA_ORCHESTRA_FULL_MAX_DOWNLOAD_FAILURES)" IOWA_ZIP_MAX_ZIPS_PER_PAGE="$(IOWA_ORCHESTRA_FULL_MAX_ZIPS_PER_PAGE)" FFMPEG="$(FFMPEG)" CURL="$(CURL)" $(PYTHON) scripts/prepare_iowa_zip_samples.py $(IOWA_ORCHESTRA_FULL_SPEC_ARGS) $(IOWA_ORCHESTRA_FULL_PAGE_ARGS) --source-dir "$(IOWA_ORCHESTRA_FULL_SOURCE_DIR)" --output "$(IOWA_ORCHESTRA_FULL_SAMPLE_DIR)" --limit "$(IOWA_ORCHESTRA_FULL_SAMPLE_LIMIT)" --min-samples "$(IOWA_ORCHESTRA_FULL_MIN_SAMPLES)" --max-zips-per-page "$(IOWA_ORCHESTRA_FULL_MAX_ZIPS_PER_PAGE)" --download-timeout "$(IOWA_ORCHESTRA_FULL_DOWNLOAD_TIMEOUT)" --download-retries "$(IOWA_ORCHESTRA_FULL_DOWNLOAD_RETRIES)" --max-download-failures "$(IOWA_ORCHESTRA_FULL_MAX_DOWNLOAD_FAILURES)" --ffmpeg "$(FFMPEG)" --curl "$(CURL)"
@@ -1891,7 +1891,7 @@ test-iowa-orchestra-full-samples: REAL_NOTE_SAMPLE_MIN_OTHER := $(IOWA_ORCHESTRA
 test-iowa-orchestra-full-samples: REAL_NOTE_SAMPLE_MAX_FAILURES := $(IOWA_ORCHESTRA_FULL_MAX_FAILURES)
 test-iowa-orchestra-full-samples: REAL_NOTE_SAMPLE_MAX_FAILURE_LINES := 120
 test-iowa-orchestra-full-samples: $(BUILD_DIR)/analyzer_real_note_samples prepare-iowa-orchestra-full-samples scripts/run_with_duration.sh scripts/check_real_note_sample_shards.py
-	$(RUN_REAL_NOTE_SAMPLE_SHARDS)
+	+$(RUN_REAL_NOTE_SAMPLE_SHARDS)
 
 download-idmt-bass-lines-samples: $(IDMT_BASS_LINES_ARCHIVE)
 
@@ -1909,7 +1909,7 @@ test-idmt-bass-lines-samples: REAL_NOTE_SAMPLE_REQUIRED_SAMPLES := $(IDMT_BASS_L
 test-idmt-bass-lines-samples: REAL_NOTE_SAMPLE_MIN_BASS := $(IDMT_BASS_LINES_MIN_BASS)
 test-idmt-bass-lines-samples: REAL_NOTE_SAMPLE_MAX_FAILURES := $(IDMT_BASS_LINES_MAX_FAILURES)
 test-idmt-bass-lines-samples: $(BUILD_DIR)/analyzer_real_note_samples prepare-idmt-bass-lines-samples scripts/run_with_duration.sh scripts/check_real_note_sample_shards.py
-	$(RUN_REAL_NOTE_SAMPLE_SHARDS)
+	+$(RUN_REAL_NOTE_SAMPLE_SHARDS)
 
 download-idmt-guitar-samples: $(IDMT_GUITAR_ARCHIVE)
 
@@ -1930,7 +1930,7 @@ test-idmt-guitar-samples: REAL_NOTE_SAMPLE_REQUIRED_SAMPLES := $(IDMT_GUITAR_MIN
 test-idmt-guitar-samples: REAL_NOTE_SAMPLE_MIN_GUITAR := $(IDMT_GUITAR_MIN_GUITAR)
 test-idmt-guitar-samples: REAL_NOTE_SAMPLE_MAX_FAILURES := $(IDMT_GUITAR_MAX_FAILURES)
 test-idmt-guitar-samples: $(BUILD_DIR)/analyzer_real_note_samples prepare-idmt-guitar-samples scripts/run_with_duration.sh scripts/check_real_note_sample_shards.py
-	$(RUN_REAL_NOTE_SAMPLE_SHARDS)
+	+$(RUN_REAL_NOTE_SAMPLE_SHARDS)
 
 download-tinysol-samples: $(TINYSOL_METADATA_PATH) $(TINYSOL_ARCHIVE)
 
@@ -1957,7 +1957,7 @@ test-tinysol-samples: REAL_NOTE_SAMPLE_MIN_BASS := $(TINYSOL_MIN_BASS)
 test-tinysol-samples: REAL_NOTE_SAMPLE_MIN_PIANO := $(TINYSOL_MIN_PIANO)
 test-tinysol-samples: REAL_NOTE_SAMPLE_MIN_OTHER := $(TINYSOL_MIN_OTHER)
 test-tinysol-samples: $(BUILD_DIR)/analyzer_real_note_samples prepare-tinysol-samples scripts/run_with_duration.sh scripts/check_real_note_sample_shards.py
-	$(RUN_REAL_NOTE_SAMPLE_SHARDS)
+	+$(RUN_REAL_NOTE_SAMPLE_SHARDS)
 
 download-vocadito-samples: $(VOCADITO_ARCHIVE)
 
@@ -1975,7 +1975,7 @@ test-vocadito-samples: REAL_NOTE_SAMPLE_REQUIRED_SAMPLES := $(VOCADITO_MIN_VOCAL
 test-vocadito-samples: REAL_NOTE_SAMPLE_MIN_VOCALS := $(VOCADITO_MIN_VOCALS)
 test-vocadito-samples: REAL_NOTE_SAMPLE_MAX_FAILURES := $(VOCADITO_MAX_FAILURES)
 test-vocadito-samples: $(BUILD_DIR)/analyzer_real_note_samples prepare-vocadito-samples scripts/run_with_duration.sh scripts/check_real_note_sample_shards.py
-	$(RUN_REAL_NOTE_SAMPLE_SHARDS)
+	+$(RUN_REAL_NOTE_SAMPLE_SHARDS)
 
 download-vocalset-samples: $(VOCALSET_ARCHIVE)
 
@@ -1997,7 +1997,7 @@ test-vocalset-samples: REAL_NOTE_SAMPLE_MIN_VOCALS := $(VOCALSET_MIN_VOCALS)
 test-vocalset-samples: REAL_NOTE_SAMPLE_MAX_FAILURES := $(VOCALSET_MAX_FAILURES)
 test-vocalset-samples: REAL_NOTE_SAMPLE_MAX_FAILURE_LINES := 120
 test-vocalset-samples: $(BUILD_DIR)/analyzer_real_note_samples prepare-vocalset-samples scripts/run_with_duration.sh scripts/check_real_note_sample_shards.py
-	$(RUN_REAL_NOTE_SAMPLE_SHARDS)
+	+$(RUN_REAL_NOTE_SAMPLE_SHARDS)
 
 DRUM_REAL_WORLD_SAMPLE_TARGETS := test-hf-drum-kit-samples test-idmt-drums-samples test-mdb-drums-samples test-star-drums-samples test-drum-samples-optional test-drum-samples-spread-optional
 DRUM_REAL_WORLD_SAMPLE_FULL_TARGETS := $(DRUM_REAL_WORLD_SAMPLE_TARGETS) test-drum-machine-samples-optional test-drum-samples-full-parallel-optional
@@ -2005,7 +2005,8 @@ REAL_WORLD_SAMPLE_TARGETS := test-real-note-samples test-real-note-samples-full-
 REAL_WORLD_SAMPLE_FULL_TARGETS := $(REAL_WORLD_SAMPLE_TARGETS) test-guitar-techs-samples test-guitar-techs-chord-samples test-guitar-chord-mix-samples-parallel test-egfxset-guitar-samples test-gaps-guitar-samples test-idmt-guitar-samples test-iowa-strings-samples test-iowa-orchestra-samples test-iowa-orchestra-full-samples test-philharmonia-samples-full test-tinysol-samples test-drum-machine-samples-optional test-drum-samples-full-parallel-optional test-good-sounds-samples-optional test-medley-solos-samples-optional test-maps-piano-samples-optional test-maps-piano-note-samples-optional test-bach10-mf0-synth-samples-optional test-vocalset-samples-optional test-configured-real-world-samples
 REAL_WORLD_SAMPLE_MAX_BASE_TARGETS := $(filter-out test-iowa-piano-samples,$(REAL_WORLD_SAMPLE_TARGETS))
 REAL_WORLD_SAMPLE_MAX_TARGETS := $(REAL_WORLD_SAMPLE_MAX_BASE_TARGETS) test-guitar-techs-samples test-guitar-techs-chord-samples test-guitar-chord-mix-samples-parallel test-egfxset-guitar-samples test-gaps-guitar-samples-full test-idmt-guitar-samples test-iowa-piano-samples-max test-iowa-strings-samples test-iowa-orchestra-samples test-iowa-orchestra-full-samples-max test-philharmonia-samples-full test-tinysol-samples test-good-sounds-samples-max test-medley-solos-samples-max test-maps-piano-samples-max test-maps-piano-note-samples-max test-bach10-mf0-synth-samples test-vocalset-samples test-drum-machine-samples-optional test-drum-samples-full-parallel-optional test-configured-real-world-samples
-DETECTOR_SAMPLE_REGRESSION_TARGETS := test-analyzer-cases test-real-note-samples-full-mix-parallel test-guitar-chord-mix-samples-parallel $(DRUM_REAL_WORLD_SAMPLE_TARGETS) test-drum-samples-full-parallel-optional test-vocadito-samples test-instrument-samples-parallel
+DETECTOR_SAMPLE_REGRESSION_TARGETS := test-analyzer-cases test-real-note-samples-full-mix-parallel test-guitar-chord-mix-samples-parallel $(DRUM_REAL_WORLD_SAMPLE_TARGETS) test-vocadito-samples test-instrument-samples-parallel
+DETECTOR_SAMPLE_REGRESSION_SERIAL_TARGETS := test-drum-samples-full-parallel-optional
 TEST_FIXTURE_PARALLEL_TARGETS := test-real-note-samples test-direct-fit-small-fixture test-synthsod-fixture test-prepared-multitrack-fixture test-multtipop-audio-root-fixture
 .PHONY: test-detector-samples-parallel
 
@@ -2067,64 +2068,65 @@ test-vocalset-samples-optional:
 endif
 
 test-drum-real-world-samples-parallel: scripts/run_with_duration.sh
-	$(RUN_WITH_DURATION) drum_real_world_samples_parallel $(MAKE) $(PARALLEL_TEST_MAKE_JOBS) $(DRUM_REAL_WORLD_SAMPLE_TARGETS)
+	+$(RUN_WITH_DURATION) drum_real_world_samples_parallel $(MAKE) $(PARALLEL_TEST_MAKE_JOBS) $(DRUM_REAL_WORLD_SAMPLE_TARGETS)
 
 test-drum-real-world-samples-full-parallel: scripts/run_with_duration.sh
-	$(RUN_WITH_DURATION) drum_real_world_samples_full_parallel $(MAKE) $(PARALLEL_TEST_MAKE_JOBS) $(DRUM_REAL_WORLD_SAMPLE_FULL_TARGETS)
+	+$(RUN_WITH_DURATION) drum_real_world_samples_full_parallel $(MAKE) $(PARALLEL_TEST_MAKE_JOBS) $(DRUM_REAL_WORLD_SAMPLE_FULL_TARGETS)
 
 test-real-world-samples-parallel: scripts/run_with_duration.sh
-	$(RUN_WITH_DURATION) real_world_samples_parallel $(MAKE) $(PARALLEL_TEST_MAKE_JOBS) $(REAL_WORLD_SAMPLE_TARGETS)
+	+$(RUN_WITH_DURATION) real_world_samples_parallel $(MAKE) $(PARALLEL_TEST_MAKE_JOBS) $(REAL_WORLD_SAMPLE_TARGETS)
 
 test-real-world-samples-full-parallel: scripts/run_with_duration.sh
-	$(RUN_WITH_DURATION) real_world_samples_full_parallel $(MAKE) $(PARALLEL_TEST_MAKE_JOBS) $(REAL_WORLD_SAMPLE_FULL_TARGETS)
+	+$(RUN_WITH_DURATION) real_world_samples_full_parallel $(MAKE) $(PARALLEL_TEST_MAKE_JOBS) $(REAL_WORLD_SAMPLE_FULL_TARGETS)
 
 test-detector-samples-parallel: scripts/run_with_duration.sh
-	$(RUN_WITH_DURATION) detector_samples_parallel $(MAKE) $(PARALLEL_TEST_MAKE_JOBS) $(DETECTOR_SAMPLE_REGRESSION_TARGETS)
+	+$(RUN_WITH_DURATION) detector_samples_parallel $(MAKE) $(PARALLEL_TEST_MAKE_JOBS) $(DETECTOR_SAMPLE_REGRESSION_TARGETS)
+	+$(RUN_WITH_DURATION) detector_samples_serial $(MAKE) $(DETECTOR_SAMPLE_REGRESSION_SERIAL_TARGETS)
 
 test-fixtures-parallel: $(BUILD_DIR)/analyzer_real_note_samples $(BUILD_DIR)/analyzer_urmp $(BUILD_DIR)/analyzer_musicnet $(BUILD_DIR)/analyzer_multtipop scripts/run_with_duration.sh
-	$(RUN_WITH_DURATION) test_fixtures_parallel $(MAKE) $(PARALLEL_TEST_MAKE_JOBS) $(TEST_FIXTURE_PARALLEL_TARGETS)
+	+$(RUN_WITH_DURATION) test_fixtures_parallel $(MAKE) $(PARALLEL_TEST_MAKE_JOBS) $(TEST_FIXTURE_PARALLEL_TARGETS)
 
 test-fixtures-parallel-isolated: scripts/run_with_duration.sh
-	$(RUN_WITH_DURATION) test_fixtures_parallel_isolated $(MAKE) REAL_GOAL_FIXTURE_DIR="$(REAL_GOAL_PARALLEL_FIXTURE_DIR)" test-fixtures-parallel
+	+$(RUN_WITH_DURATION) test_fixtures_parallel_isolated $(MAKE) REAL_GOAL_FIXTURE_DIR="$(REAL_GOAL_PARALLEL_FIXTURE_DIR)" test-fixtures-parallel
 
 test-drum-real-world-samples: scripts/run_with_duration.sh
-	$(MAKE) test-drum-real-world-samples-parallel
+	+$(MAKE) test-drum-real-world-samples-parallel
 
 test-drum-real-world-samples-full: scripts/run_with_duration.sh
-	$(MAKE) test-drum-real-world-samples-full-parallel
+	+$(MAKE) test-drum-real-world-samples-full-parallel
 
 test-real-world-samples: scripts/run_with_duration.sh
-	$(MAKE) test-real-world-samples-parallel
+	+$(MAKE) test-real-world-samples-parallel
 
 test-configured-real-world-samples: tests/run_real_goal_gate.py
-	$(PYTHON) tests/run_real_goal_gate.py optional-20 "$(MAKE)"
+	+$(PYTHON) tests/run_real_goal_gate.py optional-20 "$(MAKE)"
 
 test-real-world-samples-full: scripts/run_with_duration.sh
-	$(MAKE) test-real-world-samples-full-parallel
+	+$(MAKE) test-real-world-samples-full-parallel
 
 test-iowa-piano-samples-max:
-	$(MAKE) IOWA_PIANO_SAMPLE_LIMIT=0 test-iowa-piano-samples
+	+$(MAKE) IOWA_PIANO_SAMPLE_LIMIT=0 test-iowa-piano-samples
 
 test-iowa-orchestra-full-samples-max:
-	$(MAKE) IOWA_ORCHESTRA_FULL_SAMPLE_LIMIT=0 IOWA_ORCHESTRA_FULL_MAX_ZIPS_PER_PAGE=0 test-iowa-orchestra-full-samples
+	+$(MAKE) IOWA_ORCHESTRA_FULL_SAMPLE_LIMIT=0 IOWA_ORCHESTRA_FULL_MAX_ZIPS_PER_PAGE=0 test-iowa-orchestra-full-samples
 
 test-good-sounds-samples-max:
-	$(MAKE) GOOD_SOUNDS_SAMPLE_LIMIT=0 test-good-sounds-samples
+	+$(MAKE) GOOD_SOUNDS_SAMPLE_LIMIT=0 test-good-sounds-samples
 
 test-medley-solos-samples-max:
-	$(MAKE) MEDLEY_SOLOS_LIMIT_PER_INSTRUMENT=0 test-medley-solos-samples
+	+$(MAKE) MEDLEY_SOLOS_LIMIT_PER_INSTRUMENT=0 test-medley-solos-samples
 
 test-maps-piano-samples-max:
-	$(MAKE) MAPS_PIANO_RECORDING_LIMIT=0 test-maps-piano-samples
+	+$(MAKE) MAPS_PIANO_RECORDING_LIMIT=0 test-maps-piano-samples
 
 test-maps-piano-note-samples-max:
-	$(MAKE) MAPS_PIANO_NOTE_RECORDING_LIMIT=0 test-maps-piano-note-samples
+	+$(MAKE) MAPS_PIANO_NOTE_RECORDING_LIMIT=0 test-maps-piano-note-samples
 
 test-real-world-samples-max-parallel: scripts/run_with_duration.sh
-	$(RUN_WITH_DURATION) real_world_samples_max $(MAKE) $(PARALLEL_TEST_MAKE_JOBS) $(REAL_WORLD_SAMPLE_MAX_TARGETS)
+	+$(RUN_WITH_DURATION) real_world_samples_max $(MAKE) $(PARALLEL_TEST_MAKE_JOBS) $(REAL_WORLD_SAMPLE_MAX_TARGETS)
 
 test-real-world-samples-max: scripts/run_with_duration.sh
-	$(MAKE) test-real-world-samples-max-parallel
+	+$(MAKE) test-real-world-samples-max-parallel
 
 test-midi-ranges: $(BUILD_DIR)/analyzer_midi_ranges scripts/run_with_duration.sh
 	$(RUN_WITH_DURATION) analyzer_midi_ranges $(BUILD_DIR)/analyzer_midi_ranges
@@ -2163,7 +2165,7 @@ test-analyzer-egmd: $(BUILD_DIR)/analyzer_egmd scripts/run_with_duration.sh
 	$(RUN_WITH_DURATION) analyzer_egmd $(BUILD_DIR)/analyzer_egmd
 
 test-core-parallel: scripts/run_with_duration.sh
-	$(RUN_WITH_DURATION) test_core_parallel $(MAKE) $(PARALLEL_TEST_MAKE_JOBS) test-analyzer-internal test-analyzer-smoke test-analyzer-cases test-analyzer-midi-ranges test-analyzer-urmp test-analyzer-musicnet test-analyzer-multtipop test-analyzer-guitarset test-analyzer-maestro test-analyzer-egmd
+	+$(RUN_WITH_DURATION) test_core_parallel $(MAKE) $(PARALLEL_TEST_MAKE_JOBS) test-analyzer-internal test-analyzer-smoke test-analyzer-cases test-analyzer-midi-ranges test-analyzer-urmp test-analyzer-musicnet test-analyzer-multtipop test-analyzer-guitarset test-analyzer-maestro test-analyzer-egmd
 
 ANALYSIS_SCRIPT_TEST_TARGETS := inspect-real-dataset-catalog inspect-real-goal-coverage test-musicnet-remote test-medleydb-inspector test-medleydb-prepare test-musdb-inspector test-slakh-inspector test-slakh-prepare test-choralsynth-inspector test-choralsynth-prepare test-cocochorales-inspector test-cocochorales-prepare test-synthsod-remote test-synthsod-archive-extract test-synthsod-inspector test-synthsod-prepare test-polyvocal-inspector test-polyvocal-prepare test-prepared-multitrack-inspector test-prepared-multitrack-prepare test-multtipop-inspector test-spheres-inspector test-guitarset-inspector test-urmp-inspector test-drum-sample-prepare test-hf-drum-kit-prepare test-idmt-drums-prepare test-mdb-drums-prepare test-star-drums-prepare test-medley-solos-prepare test-maps-piano-prepare test-bach10-mf0-synth-prepare test-instrument-sample-attribute-summary test-instrument-sample-owner-buckets test-filter-instrument-attribute-rows test-filter-drum-attribute-rows test-instrument-owner-patterns test-refresh-analyzer-detected-attribute-rows test-print-analyzer-detected-attributes test-analyzer-pattern-report test-measure-analyzer-patterns-target test-build-sharded-tsv test-drum-sample-shard-check test-real-note-full-mix-shard-check test-real-note-sample-shard-check test-guitarset-shard-check test-philharmonia-prepare test-good-sounds-prepare test-iowa-piano-prepare test-iowa-zip-prepare test-idmt-bass-lines-prepare test-idmt-guitar-prepare test-tinysol-prepare test-vocadito-prepare test-vocalset-prepare test-guitar-fretboard-note-prepare test-guitar-techs-prepare test-guitar-techs-chord-prepare test-guitar-chord-mix-prepare test-gaps-guitar-prepare test-guitarset-miss-analysis test-guitarset-attribute-summary test-guitarset-attribute-buckets test-guitarset-attribute-patterns test-guitar-chord-recovery-analysis test-guitar-primary-order-analysis test-guitar-chord-extra-components-analysis test-real-note-miss-analysis test-real-note-attribute-summary test-real-note-attribute-buckets test-real-note-attribute-patterns test-real-note-attribute-rule test-real-note-display-shadow-eval test-egmd-miss-analysis test-egmd-drum-attribute-summary test-egmd-drum-recovery-eval test-drum-debug-row-analysis test-drum-primary-analysis test-drum-gate-matrix-summary test-drum-active-threshold-simulation test-drum-active-false-summary test-drum-active-false-patterns test-real-goal-script android-check
 ANALYSIS_SCRIPT_TEST_TARGETS += test-drum-rule-flag-summary
@@ -2182,13 +2184,13 @@ test-guitarset-shard-check: tests/test_check_guitarset_shards.py scripts/check_g
 	$(PYTHON) tests/test_check_guitarset_shards.py
 
 test-analysis-scripts-parallel: scripts/run_with_duration.sh
-	$(RUN_WITH_DURATION) test_analysis_scripts_parallel $(MAKE) $(PARALLEL_TEST_MAKE_JOBS) $(ANALYSIS_SCRIPT_TEST_TARGETS)
+	+$(RUN_WITH_DURATION) test_analysis_scripts_parallel $(MAKE) $(PARALLEL_TEST_MAKE_JOBS) $(ANALYSIS_SCRIPT_TEST_TARGETS)
 
 test-parallel: scripts/run_with_duration.sh
-	$(RUN_WITH_DURATION) test_parallel $(MAKE) $(PARALLEL_TEST_MAKE_JOBS) test-analysis-scripts-parallel test-core-parallel test-standalone
+	+$(RUN_WITH_DURATION) test_parallel $(MAKE) $(PARALLEL_TEST_MAKE_JOBS) test-analysis-scripts-parallel test-core-parallel test-standalone
 
 test: $(TEST_BINS) scripts/run_with_duration.sh
-	$(RUN_WITH_DURATION) test_fast $(MAKE) $(PARALLEL_TEST_MAKE_JOBS) test-parallel test-detector-samples-parallel test-fret-control test-real-goal-fixture test-fixtures-parallel-isolated
+	+$(RUN_WITH_DURATION) test_fast $(MAKE) $(PARALLEL_TEST_MAKE_JOBS) test-parallel test-detector-samples-parallel test-fret-control test-real-goal-fixture test-fixtures-parallel-isolated
 
 inspect-real-dataset-catalog: tests/inspect_real_dataset_catalog.py tests/real_dataset_catalog.json docs/real_audio_dataset_candidates.md
 	$(PYTHON) tests/inspect_real_dataset_catalog.py
@@ -2504,7 +2506,7 @@ test-real-goal-fixture: $(BUILD_DIR)/analyzer_urmp $(BUILD_DIR)/analyzer_musicne
 	rm -rf $(REAL_GOAL_FIXTURE_DIR)
 	mkdir -p $(REAL_GOAL_FIXTURE_DIR)
 	$(TAR) -xzf $(URMP_FIXTURE_ARCHIVE) -C $(REAL_GOAL_FIXTURE_DIR)
-	$(MAKE) decode-urmp-fixture URMP_FIXTURE_DIR=$(REAL_GOAL_URMP_FIXTURE_DIR)
+	+$(MAKE) decode-urmp-fixture URMP_FIXTURE_DIR=$(REAL_GOAL_URMP_FIXTURE_DIR)
 	$(PYTHON) tests/generate_musicnet_fixture.py $(REAL_GOAL_MUSICNET_FIXTURE_DIR)
 	$(PYTHON) tests/generate_medleydb_fixture.py $(REAL_GOAL_MEDLEYDB_FIXTURE_DIR)
 	$(PYTHON) tests/generate_musdb_fixture.py $(REAL_GOAL_MUSDB_FIXTURE_DIR)
@@ -2519,8 +2521,8 @@ test-real-goal-fixture: $(BUILD_DIR)/analyzer_urmp $(BUILD_DIR)/analyzer_musicne
 	$(PYTHON) tests/generate_guitarset_fixture.py $(REAL_GOAL_GUITARSET_FIXTURE_DIR)
 	$(PYTHON) tests/generate_maestro_fixture.py $(REAL_GOAL_MAESTRO_FIXTURE_DIR)
 	$(PYTHON) tests/generate_egmd_fixture.py $(REAL_GOAL_EGMD_FIXTURE_DIR)
-	MUSIC_ANALYZER_URMP_ROOT=$(REAL_GOAL_URMP_FIXTURE_DIR) MUSIC_ANALYZER_URMP_ALLOW_GENERATED_FIXTURE=1 MUSIC_ANALYZER_MUSICNET_ROOT=$(REAL_GOAL_MUSICNET_FIXTURE_DIR) MUSIC_ANALYZER_MEDLEYDB_ROOT=$(REAL_GOAL_MEDLEYDB_AUDIO_DIR) MUSIC_ANALYZER_MEDLEYDB_ANNOTATIONS_ROOT=$(REAL_GOAL_MEDLEYDB_ANNOTATION_DIR) MUSIC_ANALYZER_MUSDB_ROOT=$(REAL_GOAL_MUSDB_FIXTURE_DIR) MUSIC_ANALYZER_SLAKH_ROOT=$(REAL_GOAL_SLAKH_FIXTURE_DIR) MUSIC_ANALYZER_CHORALSYNTH_ROOT=$(REAL_GOAL_CHORALSYNTH_FIXTURE_DIR) MUSIC_ANALYZER_COCOCHORALES_ROOT=$(REAL_GOAL_COCOCHORALES_FIXTURE_DIR) MUSIC_ANALYZER_SYNTHSOD_ROOT=$(REAL_GOAL_SYNTHSOD_FIXTURE_DIR)/SynthSOD-data MUSIC_ANALYZER_SYNTHSOD_SCORES_ROOT=$(REAL_GOAL_SYNTHSOD_FIXTURE_DIR)/SynthSOD-aligned-scores MUSIC_ANALYZER_POLYVOCAL_ROOT=$(REAL_GOAL_POLYVOCAL_FIXTURE_DIR) MUSIC_ANALYZER_POLYVOCAL_REQUIRE_SOURCE_AUDIO=1 MUSIC_ANALYZER_PREPARED_MULTITRACK_ROOT=$(REAL_GOAL_PREPARED_MULTITRACK_FIXTURE_DIR) MUSIC_ANALYZER_MULTTIPOP_ROOT=$(REAL_GOAL_MULTTIPOP_FIXTURE_DIR) MUSIC_ANALYZER_MULTTIPOP_REQUIRE_AUDIO=1 MUSIC_ANALYZER_SPHERES_ROOT=$(REAL_GOAL_SPHERES_FIXTURE_DIR) MUSIC_ANALYZER_GUITARSET_ROOT=$(REAL_GOAL_GUITARSET_FIXTURE_DIR) MUSIC_ANALYZER_MAESTRO_ROOT=$(REAL_GOAL_MAESTRO_FIXTURE_DIR) MUSIC_ANALYZER_EGMD_ROOT=$(REAL_GOAL_EGMD_FIXTURE_DIR) MUSIC_ANALYZER_EGMD_SOURCE_NAME="E-GMD percussion" $(PYTHON) tests/run_real_goal_gate.py inspect-20 "$(MAKE)"
-	MUSIC_ANALYZER_URMP_ROOT=$(REAL_GOAL_URMP_FIXTURE_DIR) MUSIC_ANALYZER_URMP_ALLOW_GENERATED_FIXTURE=1 MUSIC_ANALYZER_MUSICNET_ROOT=$(REAL_GOAL_MUSICNET_FIXTURE_DIR) MUSIC_ANALYZER_MEDLEYDB_ROOT=$(REAL_GOAL_MEDLEYDB_AUDIO_DIR) MUSIC_ANALYZER_MEDLEYDB_ANNOTATIONS_ROOT=$(REAL_GOAL_MEDLEYDB_ANNOTATION_DIR) MUSIC_ANALYZER_MUSDB_ROOT=$(REAL_GOAL_MUSDB_FIXTURE_DIR) MUSIC_ANALYZER_SLAKH_ROOT=$(REAL_GOAL_SLAKH_FIXTURE_DIR) MUSIC_ANALYZER_CHORALSYNTH_ROOT=$(REAL_GOAL_CHORALSYNTH_FIXTURE_DIR) MUSIC_ANALYZER_COCOCHORALES_ROOT=$(REAL_GOAL_COCOCHORALES_FIXTURE_DIR) MUSIC_ANALYZER_SYNTHSOD_ROOT=$(REAL_GOAL_SYNTHSOD_FIXTURE_DIR)/SynthSOD-data MUSIC_ANALYZER_SYNTHSOD_SCORES_ROOT=$(REAL_GOAL_SYNTHSOD_FIXTURE_DIR)/SynthSOD-aligned-scores MUSIC_ANALYZER_POLYVOCAL_ROOT=$(REAL_GOAL_POLYVOCAL_FIXTURE_DIR) MUSIC_ANALYZER_POLYVOCAL_REQUIRE_SOURCE_AUDIO=1 MUSIC_ANALYZER_PREPARED_MULTITRACK_ROOT=$(REAL_GOAL_PREPARED_MULTITRACK_FIXTURE_DIR) MUSIC_ANALYZER_MULTTIPOP_ROOT=$(REAL_GOAL_MULTTIPOP_FIXTURE_DIR) MUSIC_ANALYZER_MULTTIPOP_REQUIRE_AUDIO=1 MUSIC_ANALYZER_SPHERES_ROOT=$(REAL_GOAL_SPHERES_FIXTURE_DIR) MUSIC_ANALYZER_GUITARSET_ROOT=$(REAL_GOAL_GUITARSET_FIXTURE_DIR) MUSIC_ANALYZER_MAESTRO_ROOT=$(REAL_GOAL_MAESTRO_FIXTURE_DIR) MUSIC_ANALYZER_EGMD_ROOT=$(REAL_GOAL_EGMD_FIXTURE_DIR) MUSIC_ANALYZER_EGMD_SOURCE_NAME="E-GMD percussion" $(PYTHON) tests/run_real_goal_gate.py 20 "$(MAKE)"
+	+MUSIC_ANALYZER_URMP_ROOT=$(REAL_GOAL_URMP_FIXTURE_DIR) MUSIC_ANALYZER_URMP_ALLOW_GENERATED_FIXTURE=1 MUSIC_ANALYZER_MUSICNET_ROOT=$(REAL_GOAL_MUSICNET_FIXTURE_DIR) MUSIC_ANALYZER_MEDLEYDB_ROOT=$(REAL_GOAL_MEDLEYDB_AUDIO_DIR) MUSIC_ANALYZER_MEDLEYDB_ANNOTATIONS_ROOT=$(REAL_GOAL_MEDLEYDB_ANNOTATION_DIR) MUSIC_ANALYZER_MUSDB_ROOT=$(REAL_GOAL_MUSDB_FIXTURE_DIR) MUSIC_ANALYZER_SLAKH_ROOT=$(REAL_GOAL_SLAKH_FIXTURE_DIR) MUSIC_ANALYZER_CHORALSYNTH_ROOT=$(REAL_GOAL_CHORALSYNTH_FIXTURE_DIR) MUSIC_ANALYZER_COCOCHORALES_ROOT=$(REAL_GOAL_COCOCHORALES_FIXTURE_DIR) MUSIC_ANALYZER_SYNTHSOD_ROOT=$(REAL_GOAL_SYNTHSOD_FIXTURE_DIR)/SynthSOD-data MUSIC_ANALYZER_SYNTHSOD_SCORES_ROOT=$(REAL_GOAL_SYNTHSOD_FIXTURE_DIR)/SynthSOD-aligned-scores MUSIC_ANALYZER_POLYVOCAL_ROOT=$(REAL_GOAL_POLYVOCAL_FIXTURE_DIR) MUSIC_ANALYZER_POLYVOCAL_REQUIRE_SOURCE_AUDIO=1 MUSIC_ANALYZER_PREPARED_MULTITRACK_ROOT=$(REAL_GOAL_PREPARED_MULTITRACK_FIXTURE_DIR) MUSIC_ANALYZER_MULTTIPOP_ROOT=$(REAL_GOAL_MULTTIPOP_FIXTURE_DIR) MUSIC_ANALYZER_MULTTIPOP_REQUIRE_AUDIO=1 MUSIC_ANALYZER_SPHERES_ROOT=$(REAL_GOAL_SPHERES_FIXTURE_DIR) MUSIC_ANALYZER_GUITARSET_ROOT=$(REAL_GOAL_GUITARSET_FIXTURE_DIR) MUSIC_ANALYZER_MAESTRO_ROOT=$(REAL_GOAL_MAESTRO_FIXTURE_DIR) MUSIC_ANALYZER_EGMD_ROOT=$(REAL_GOAL_EGMD_FIXTURE_DIR) MUSIC_ANALYZER_EGMD_SOURCE_NAME="E-GMD percussion" $(PYTHON) tests/run_real_goal_gate.py inspect-20 "$(MAKE)"
+	+MUSIC_ANALYZER_URMP_ROOT=$(REAL_GOAL_URMP_FIXTURE_DIR) MUSIC_ANALYZER_URMP_ALLOW_GENERATED_FIXTURE=1 MUSIC_ANALYZER_MUSICNET_ROOT=$(REAL_GOAL_MUSICNET_FIXTURE_DIR) MUSIC_ANALYZER_MEDLEYDB_ROOT=$(REAL_GOAL_MEDLEYDB_AUDIO_DIR) MUSIC_ANALYZER_MEDLEYDB_ANNOTATIONS_ROOT=$(REAL_GOAL_MEDLEYDB_ANNOTATION_DIR) MUSIC_ANALYZER_MUSDB_ROOT=$(REAL_GOAL_MUSDB_FIXTURE_DIR) MUSIC_ANALYZER_SLAKH_ROOT=$(REAL_GOAL_SLAKH_FIXTURE_DIR) MUSIC_ANALYZER_CHORALSYNTH_ROOT=$(REAL_GOAL_CHORALSYNTH_FIXTURE_DIR) MUSIC_ANALYZER_COCOCHORALES_ROOT=$(REAL_GOAL_COCOCHORALES_FIXTURE_DIR) MUSIC_ANALYZER_SYNTHSOD_ROOT=$(REAL_GOAL_SYNTHSOD_FIXTURE_DIR)/SynthSOD-data MUSIC_ANALYZER_SYNTHSOD_SCORES_ROOT=$(REAL_GOAL_SYNTHSOD_FIXTURE_DIR)/SynthSOD-aligned-scores MUSIC_ANALYZER_POLYVOCAL_ROOT=$(REAL_GOAL_POLYVOCAL_FIXTURE_DIR) MUSIC_ANALYZER_POLYVOCAL_REQUIRE_SOURCE_AUDIO=1 MUSIC_ANALYZER_PREPARED_MULTITRACK_ROOT=$(REAL_GOAL_PREPARED_MULTITRACK_FIXTURE_DIR) MUSIC_ANALYZER_MULTTIPOP_ROOT=$(REAL_GOAL_MULTTIPOP_FIXTURE_DIR) MUSIC_ANALYZER_MULTTIPOP_REQUIRE_AUDIO=1 MUSIC_ANALYZER_SPHERES_ROOT=$(REAL_GOAL_SPHERES_FIXTURE_DIR) MUSIC_ANALYZER_GUITARSET_ROOT=$(REAL_GOAL_GUITARSET_FIXTURE_DIR) MUSIC_ANALYZER_MAESTRO_ROOT=$(REAL_GOAL_MAESTRO_FIXTURE_DIR) MUSIC_ANALYZER_EGMD_ROOT=$(REAL_GOAL_EGMD_FIXTURE_DIR) MUSIC_ANALYZER_EGMD_SOURCE_NAME="E-GMD percussion" $(PYTHON) tests/run_real_goal_gate.py 20 "$(MAKE)"
 
 test-musicnet-fixture: $(BUILD_DIR)/analyzer_musicnet tests/generate_musicnet_fixture.py | $(BUILD_DIR)
 	rm -rf $(MUSICNET_FIXTURE_DIR)
@@ -2530,37 +2532,37 @@ test-musicnet-fixture: $(BUILD_DIR)/analyzer_musicnet tests/generate_musicnet_fi
 test-medleydb-fixture: $(BUILD_DIR)/analyzer_musicnet tests/generate_medleydb_fixture.py tests/prepare_medleydb_musicnet_fixture.py | $(BUILD_DIR)
 	rm -rf $(REAL_GOAL_MEDLEYDB_FIXTURE_DIR)
 	$(PYTHON) tests/generate_medleydb_fixture.py $(REAL_GOAL_MEDLEYDB_FIXTURE_DIR)
-	MUSIC_ANALYZER_MEDLEYDB_ROOT=$(REAL_GOAL_MEDLEYDB_AUDIO_DIR) MUSIC_ANALYZER_MEDLEYDB_ANNOTATIONS_ROOT=$(REAL_GOAL_MEDLEYDB_ANNOTATION_DIR) $(MAKE) test-real-medleydb-20
+	+MUSIC_ANALYZER_MEDLEYDB_ROOT=$(REAL_GOAL_MEDLEYDB_AUDIO_DIR) MUSIC_ANALYZER_MEDLEYDB_ANNOTATIONS_ROOT=$(REAL_GOAL_MEDLEYDB_ANNOTATION_DIR) $(MAKE) test-real-medleydb-20
 
 test-slakh-fixture: $(BUILD_DIR)/analyzer_musicnet tests/generate_slakh_fixture.py tests/prepare_slakh_musicnet_fixture.py | $(BUILD_DIR)
 	rm -rf $(REAL_GOAL_SLAKH_FIXTURE_DIR)
 	$(PYTHON) tests/generate_slakh_fixture.py $(REAL_GOAL_SLAKH_FIXTURE_DIR)
-	MUSIC_ANALYZER_SLAKH_ROOT=$(REAL_GOAL_SLAKH_FIXTURE_DIR) $(MAKE) test-real-slakh-20
+	+MUSIC_ANALYZER_SLAKH_ROOT=$(REAL_GOAL_SLAKH_FIXTURE_DIR) $(MAKE) test-real-slakh-20
 
 test-choralsynth-fixture: $(BUILD_DIR)/analyzer_musicnet tests/generate_choralsynth_fixture.py tests/prepare_choralsynth_musicnet_fixture.py | $(BUILD_DIR)
 	rm -rf $(REAL_GOAL_CHORALSYNTH_FIXTURE_DIR)
 	$(PYTHON) tests/generate_choralsynth_fixture.py $(REAL_GOAL_CHORALSYNTH_FIXTURE_DIR)
-	MUSIC_ANALYZER_CHORALSYNTH_ROOT=$(REAL_GOAL_CHORALSYNTH_FIXTURE_DIR) $(MAKE) test-real-choralsynth-20
+	+MUSIC_ANALYZER_CHORALSYNTH_ROOT=$(REAL_GOAL_CHORALSYNTH_FIXTURE_DIR) $(MAKE) test-real-choralsynth-20
 
 test-cocochorales-fixture: $(BUILD_DIR)/analyzer_musicnet tests/generate_cocochorales_fixture.py tests/prepare_cocochorales_musicnet_fixture.py | $(BUILD_DIR)
 	rm -rf $(REAL_GOAL_COCOCHORALES_FIXTURE_DIR)
 	$(PYTHON) tests/generate_cocochorales_fixture.py $(REAL_GOAL_COCOCHORALES_FIXTURE_DIR)
-	MUSIC_ANALYZER_COCOCHORALES_ROOT=$(REAL_GOAL_COCOCHORALES_FIXTURE_DIR) $(MAKE) test-real-cocochorales-20
+	+MUSIC_ANALYZER_COCOCHORALES_ROOT=$(REAL_GOAL_COCOCHORALES_FIXTURE_DIR) $(MAKE) test-real-cocochorales-20
 
 test-synthsod-fixture: $(BUILD_DIR)/analyzer_musicnet tests/generate_synthsod_fixture.py tests/prepare_synthsod_musicnet_fixture.py | $(BUILD_DIR)
 	rm -rf $(REAL_GOAL_SYNTHSOD_FIXTURE_DIR)
 	$(PYTHON) tests/generate_synthsod_fixture.py $(REAL_GOAL_SYNTHSOD_FIXTURE_DIR)
-	MUSIC_ANALYZER_SYNTHSOD_ROOT=$(REAL_GOAL_SYNTHSOD_FIXTURE_DIR)/SynthSOD-data MUSIC_ANALYZER_SYNTHSOD_SCORES_ROOT=$(REAL_GOAL_SYNTHSOD_FIXTURE_DIR)/SynthSOD-aligned-scores $(MAKE) test-real-synthsod-20
+	+MUSIC_ANALYZER_SYNTHSOD_ROOT=$(REAL_GOAL_SYNTHSOD_FIXTURE_DIR)/SynthSOD-data MUSIC_ANALYZER_SYNTHSOD_SCORES_ROOT=$(REAL_GOAL_SYNTHSOD_FIXTURE_DIR)/SynthSOD-aligned-scores $(MAKE) test-real-synthsod-20
 
 test-polyvocal-fixture: $(BUILD_DIR)/analyzer_musicnet tests/generate_polyvocal_fixture.py tests/prepare_polyvocal_musicnet_fixture.py | $(BUILD_DIR)
 	rm -rf $(REAL_GOAL_POLYVOCAL_FIXTURE_DIR)
 	$(PYTHON) tests/generate_polyvocal_fixture.py $(REAL_GOAL_POLYVOCAL_FIXTURE_DIR)
-	MUSIC_ANALYZER_POLYVOCAL_ROOT=$(REAL_GOAL_POLYVOCAL_FIXTURE_DIR) MUSIC_ANALYZER_POLYVOCAL_REQUIRE_SOURCE_AUDIO=1 $(MAKE) test-real-polyvocal-20
+	+MUSIC_ANALYZER_POLYVOCAL_ROOT=$(REAL_GOAL_POLYVOCAL_FIXTURE_DIR) MUSIC_ANALYZER_POLYVOCAL_REQUIRE_SOURCE_AUDIO=1 $(MAKE) test-real-polyvocal-20
 
 test-prepared-multitrack-fixture: $(BUILD_DIR)/analyzer_musicnet tests/generate_prepared_multitrack_fixture.py tests/prepare_prepared_multitrack_musicnet_fixture.py | $(BUILD_DIR)
 	rm -rf $(REAL_GOAL_PREPARED_MULTITRACK_FIXTURE_DIR)
 	$(PYTHON) tests/generate_prepared_multitrack_fixture.py $(REAL_GOAL_PREPARED_MULTITRACK_FIXTURE_DIR)
-	MUSIC_ANALYZER_PREPARED_MULTITRACK_ROOT=$(REAL_GOAL_PREPARED_MULTITRACK_FIXTURE_DIR) $(MAKE) test-real-prepared-multitrack-20
+	+MUSIC_ANALYZER_PREPARED_MULTITRACK_ROOT=$(REAL_GOAL_PREPARED_MULTITRACK_FIXTURE_DIR) $(MAKE) test-real-prepared-multitrack-20
 
 test-multtipop-audio-root-fixture: $(BUILD_DIR)/analyzer_multtipop tests/generate_multtipop_fixture.py | $(BUILD_DIR)
 	rm -rf $(REAL_GOAL_MULTTIPOP_FIXTURE_DIR) $(REAL_GOAL_MULTTIPOP_AUDIO_DIR)
@@ -2590,13 +2592,13 @@ test-bach10-fixture: $(BUILD_DIR)/analyzer_urmp tests/generate_bach10_fixture.py
 test-direct-fit-small-fixture: $(BUILD_DIR)/analyzer_urmp $(DIRECT_FIT_SMALL_FIXTURE_ARCHIVE) | $(BUILD_DIR)
 	rm -rf $(DIRECT_FIT_SMALL_FIXTURE_DIR)
 	$(TAR) -xzf $(DIRECT_FIT_SMALL_FIXTURE_ARCHIVE) -C $(BUILD_DIR)
-	$(MAKE) decode-direct-fit-small-fixture
+	+$(MAKE) decode-direct-fit-small-fixture
 	MUSIC_ANALYZER_URMP_ROOT=$(DIRECT_FIT_SMALL_FIXTURE_DIR) MUSIC_ANALYZER_URMP_ALLOW_GENERATED_FIXTURE=1 MUSIC_ANALYZER_URMP_REQUIRED_PIECES=20 MUSIC_ANALYZER_URMP_REQUIRED_WINDOWS=80 MUSIC_ANALYZER_URMP_MIN_ACTIVE_TRACKS_PER_WINDOW=3 MUSIC_ANALYZER_URMP_MIN_PITCH_CLASSES_PER_WINDOW=3 $(BUILD_DIR)/analyzer_urmp
 
 test-urmp-fixture: $(BUILD_DIR)/analyzer_urmp $(URMP_FIXTURE_ARCHIVE) | $(BUILD_DIR)
 	rm -rf $(URMP_FIXTURE_DIR)
 	$(TAR) -xzf $(URMP_FIXTURE_ARCHIVE) -C $(BUILD_DIR)
-	$(MAKE) decode-urmp-fixture
+	+$(MAKE) decode-urmp-fixture
 	MUSIC_ANALYZER_URMP_ROOT=$(URMP_FIXTURE_DIR) MUSIC_ANALYZER_URMP_ALLOW_GENERATED_FIXTURE=1 $(BUILD_DIR)/analyzer_urmp
 
 test-real-urmp: $(BUILD_DIR)/analyzer_urmp
@@ -2610,16 +2612,16 @@ test-real-multitrack-20: test-real-urmp
 test-real-multitrack-full: test-real-urmp-full
 
 test-real-goal-20: tests/run_real_goal_gate.py
-	$(PYTHON) tests/run_real_goal_gate.py 20 "$(MAKE)"
+	+$(PYTHON) tests/run_real_goal_gate.py 20 "$(MAKE)"
 
 test-real-goal-full: tests/run_real_goal_gate.py
-	$(PYTHON) tests/run_real_goal_gate.py full "$(MAKE)"
+	+$(PYTHON) tests/run_real_goal_gate.py full "$(MAKE)"
 
 inspect-real-goal-20: tests/run_real_goal_gate.py
-	$(PYTHON) tests/run_real_goal_gate.py inspect-20 "$(MAKE)"
+	+$(PYTHON) tests/run_real_goal_gate.py inspect-20 "$(MAKE)"
 
 inspect-real-goal-full: tests/run_real_goal_gate.py
-	$(PYTHON) tests/run_real_goal_gate.py inspect-full "$(MAKE)"
+	+$(PYTHON) tests/run_real_goal_gate.py inspect-full "$(MAKE)"
 
 test-real-musicnet-20: $(BUILD_DIR)/analyzer_musicnet
 	MUSIC_ANALYZER_MUSICNET_REQUIRED=1 $(BUILD_DIR)/analyzer_musicnet
@@ -2716,7 +2718,7 @@ inspect-real-multitrack-full: inspect-real-urmp-full
 inspect-urmp-fixture: $(URMP_FIXTURE_ARCHIVE) tests/inspect_urmp_dataset.py | $(BUILD_DIR)
 	rm -rf $(URMP_FIXTURE_DIR)
 	$(TAR) -xzf $(URMP_FIXTURE_ARCHIVE) -C $(BUILD_DIR)
-	$(MAKE) decode-urmp-fixture
+	+$(MAKE) decode-urmp-fixture
 	MUSIC_ANALYZER_URMP_ROOT=$(URMP_FIXTURE_DIR) MUSIC_ANALYZER_URMP_ALLOW_GENERATED_FIXTURE=1 $(PYTHON) tests/inspect_urmp_dataset.py
 
 decode-urmp-fixture:

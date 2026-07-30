@@ -205,12 +205,18 @@ def main() -> int:
     assert "$(RUN_WITH_DURATION) test_analysis_scripts_parallel" in analysis_scripts_recipe, (
         "analysis script parallel target must report aggregate duration"
     )
+    assert "\n\t+$(RUN_WITH_DURATION) test_analysis_scripts_parallel" in analysis_scripts_recipe, (
+        "analysis script parallel target must preserve the make jobserver through the duration wrapper"
+    )
     assert "$(MAKE) $(PARALLEL_TEST_MAKE_JOBS) $(ANALYSIS_SCRIPT_TEST_TARGETS)" in analysis_scripts_recipe, (
         "analysis script parallel target must fan out through jobserver-aware make"
     )
     default_test_recipe = target_recipe(makefile, "test")
     assert "$(RUN_WITH_DURATION) test_fast" in default_test_recipe, (
         "default test target must report the fast parallel aggregate duration"
+    )
+    assert "\n\t+$(RUN_WITH_DURATION) test_fast" in default_test_recipe, (
+        "default test target must preserve the make jobserver through the duration wrapper"
     )
     assert "$(MAKE) $(PARALLEL_TEST_MAKE_JOBS) test-parallel test-detector-samples-parallel test-fret-control test-real-goal-fixture test-fixtures-parallel-isolated" in default_test_recipe, (
         "default test target must fan out independent test groups and isolated fixtures together"
@@ -226,6 +232,9 @@ def main() -> int:
         "default test target must not run generated instrument samples serially"
     )
     max_samples_parallel_recipe = target_recipe(makefile, "test-real-world-samples-max-parallel")
+    assert "\n\t+$(RUN_WITH_DURATION) real_world_samples_max" in max_samples_parallel_recipe, (
+        "max real-world sample tests must preserve the make jobserver through the duration wrapper"
+    )
     assert "$(MAKE) $(PARALLEL_TEST_MAKE_JOBS) $(REAL_WORLD_SAMPLE_MAX_TARGETS)" in max_samples_parallel_recipe, (
         "max real-world sample tests must fan out through jobserver-aware make"
     )
@@ -239,6 +248,9 @@ def main() -> int:
         wrapper_recipe = target_recipe(makefile, wrapper)
         assert f"$(MAKE) {aggregate}" in wrapper_recipe, (
             f"{wrapper} must delegate to {aggregate}"
+        )
+        assert f"\n\t+$(MAKE) {aggregate}" in wrapper_recipe, (
+            f"{wrapper} must preserve the make jobserver while delegating"
         )
         assert "$(PARALLEL_TEST_MAKE_JOBS)" not in wrapper_recipe, (
             f"{wrapper} must let {aggregate} own its job fanout"
@@ -270,6 +282,9 @@ def main() -> int:
     )
     assert "$(RUN_WITH_DURATION) analyzer_real_note_samples_full_mix_parallel" in real_note_sharded_recipe, (
         "real-note full-mix parallel target must report aggregate duration"
+    )
+    assert "\n\t+$(RUN_WITH_DURATION) analyzer_real_note_samples_full_mix_parallel" in real_note_sharded_recipe, (
+        "real-note full-mix parallel target must preserve the make jobserver through the duration wrapper"
     )
     assert "scripts/prepare_nsynth_samples.py\" -nt \"$(REAL_NOTE_SAMPLE_DIR)/manifest.tsv\"" in real_note_sharded_recipe, (
         "real-note full-mix parallel target must skip sample regeneration when the manifest is fresh"
@@ -353,8 +368,12 @@ def main() -> int:
         assert f"{target}: REAL_NOTE_SAMPLE_TAG := {tag}" in makefile, (
             f"{target} must configure a deterministic isolated real-note shard tag"
         )
-        assert "$(RUN_REAL_NOTE_SAMPLE_SHARDS)" in target_recipe(makefile, target), (
+        recipe_text = target_recipe(makefile, target)
+        assert "$(RUN_REAL_NOTE_SAMPLE_SHARDS)" in recipe_text, (
             f"{target} must delegate to the isolated real-note shard runner"
+        )
+        assert "\n\t+$(RUN_REAL_NOTE_SAMPLE_SHARDS)" in recipe_text, (
+            f"{target} must preserve the make jobserver through the isolated real-note shard runner"
         )
     instrument_sharded_recipe = target_recipe(makefile, "test-instrument-samples-parallel")
     assert "INSTRUMENT_SAMPLE_TEST_MAKE_JOBS = $(if $(filter -j%,$(MAKEFLAGS)),,-j$(INSTRUMENT_SAMPLE_SHARDS))" in makefile, (
@@ -365,6 +384,9 @@ def main() -> int:
     )
     assert "$(RUN_WITH_DURATION) analyzer_instrument_samples_parallel" in instrument_sharded_recipe, (
         "generated instrument sample parallel target must report aggregate duration"
+    )
+    assert "\n\t+$(RUN_WITH_DURATION) analyzer_instrument_samples_parallel" in instrument_sharded_recipe, (
+        "generated instrument sample parallel target must preserve the make jobserver through the duration wrapper"
     )
     assert "$(INSTRUMENT_SAMPLE_MANIFEST_STAMP)" in instrument_sharded_recipe.splitlines()[0], (
         "generated instrument sample parallel target must share a prepared manifest stamp"
@@ -399,8 +421,8 @@ def main() -> int:
     assert "$(DRUM_REAL_WORLD_SAMPLE_TARGETS)" in detector_regression_target_list, (
         "detector sample regression loop must include real-world drum sample gates"
     )
-    assert "test-drum-samples-full-parallel-optional" in detector_regression_target_list, (
-        "detector sample regression loop must include the sharded full-drum gate when local samples exist"
+    assert "test-drum-samples-full-parallel-optional" not in detector_regression_target_list, (
+        "detector sample regression loop must keep the expensive local full-drum gate out of the parallel fanout"
     )
     assert "test-vocadito-samples" in detector_regression_target_list, (
         "detector sample regression loop must include the real vocal note gate"
@@ -410,6 +432,29 @@ def main() -> int:
     )
     assert "test-instrument-samples " not in detector_regression_target_list + " ", (
         "detector sample regression loop must not use the serial generated instrument sample gate"
+    )
+    detector_regression_serial_targets = re.search(
+        r"^DETECTOR_SAMPLE_REGRESSION_SERIAL_TARGETS := (.+)$", makefile, re.MULTILINE
+    )
+    assert detector_regression_serial_targets is not None, (
+        "missing detector sample serial regression target list"
+    )
+    detector_regression_serial_target_list = detector_regression_serial_targets.group(1)
+    assert "test-drum-samples-full-parallel-optional" in detector_regression_serial_target_list, (
+        "detector sample serial regression loop must include the sharded full-drum gate when local samples exist"
+    )
+    detector_regression_recipe = target_recipe(makefile, "test-detector-samples-parallel")
+    assert "\n\t+$(RUN_WITH_DURATION) detector_samples_parallel" in detector_regression_recipe, (
+        "detector sample regression target must preserve the make jobserver through the parallel duration wrapper"
+    )
+    assert "$(MAKE) $(PARALLEL_TEST_MAKE_JOBS) $(DETECTOR_SAMPLE_REGRESSION_TARGETS)" in detector_regression_recipe, (
+        "detector sample regression target must fan out core gates through jobserver-aware make"
+    )
+    assert "\n\t+$(RUN_WITH_DURATION) detector_samples_serial" in detector_regression_recipe, (
+        "detector sample regression target must preserve the make jobserver through the serial duration wrapper"
+    )
+    assert "$(MAKE) $(DETECTOR_SAMPLE_REGRESSION_SERIAL_TARGETS)" in detector_regression_recipe, (
+        "detector sample regression target must run expensive local full-drum coverage after the core fanout"
     )
     real_world_full_targets = re.search(
         r"^REAL_WORLD_SAMPLE_FULL_TARGETS := (.+)$", makefile, re.MULTILINE
@@ -476,6 +521,9 @@ def main() -> int:
     )
     assert "$(RUN_WITH_DURATION) analyzer_drum_samples_full_parallel" in drum_full_parallel_recipe, (
         "full drum parallel target must report aggregate duration"
+    )
+    assert "\n\t+$(RUN_WITH_DURATION) analyzer_drum_samples_full_parallel" in drum_full_parallel_recipe, (
+        "full drum parallel target must preserve the make jobserver through the duration wrapper"
     )
     assert "$(PYTHON) scripts/check_drum_sample_shards.py" in drum_full_parallel_recipe, (
         "full drum parallel target must validate aggregated shard matrices"
@@ -626,6 +674,9 @@ def main() -> int:
         ]:
             assert text in shard_recipe, f"{shard} must include {text}"
     detector_regression_recipe = target_recipe(makefile, "test-detector-samples-parallel")
+    assert "\n\t+$(RUN_WITH_DURATION) detector_samples_parallel" in detector_regression_recipe, (
+        "detector sample regression target must preserve the make jobserver through the duration wrapper"
+    )
     assert "$(MAKE) $(PARALLEL_TEST_MAKE_JOBS) $(DETECTOR_SAMPLE_REGRESSION_TARGETS)" in detector_regression_recipe, (
         "detector sample regression target must fan out through jobserver-aware make"
     )
