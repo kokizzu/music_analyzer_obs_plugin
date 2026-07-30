@@ -244,7 +244,10 @@ def main() -> int:
     compare_conditions = rule_conditions + [
         parse_condition(spec) for spec in args.compare_condition
     ]
-    for compare_path_spec in args.compare_path:
+    compare_paths = args.compare_path
+    if args.compare_condition and not compare_paths:
+        compare_paths = [str(primary_path)]
+    for compare_path_spec in compare_paths:
         compare_path = pathlib.Path(compare_path_spec)
         compare_rows = matching_rows(compare_path, compare_conditions, numeric_buckets)
         print_row_summary(

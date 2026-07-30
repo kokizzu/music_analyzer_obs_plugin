@@ -221,6 +221,17 @@ def main() -> int:
             "--compare-group-by",
             "first_row",
         )
+        default_compare_result = run_rule(
+            path,
+            "--condition",
+            "debug_owner=guitar",
+            "--primary-condition",
+            "family=piano",
+            "--compare-condition",
+            "family=guitar",
+            "--compare-group-by",
+            "family",
+        )
 
     assert "matched rows=1 samples=1" in result.stdout
     assert "examples keyboard_1" in result.stdout
@@ -241,6 +252,11 @@ def main() -> int:
     assert "compare conditions debug_owner=guitar family=bass" in compare_result.stdout
     assert "compare groups family/first_row" in compare_result.stdout
     assert "bass/guitar rows=1 samples=1" in compare_result.stdout
+    assert "matched conditions debug_owner=guitar family=piano" in default_compare_result.stdout
+    assert f"compare rows=2 samples=2 path={path}" in default_compare_result.stdout
+    assert "compare conditions debug_owner=guitar family=guitar" in default_compare_result.stdout
+    assert "compare groups family" in default_compare_result.stdout
+    assert "guitar rows=2 samples=2" in default_compare_result.stdout
     print("test_measure_real_note_attribute_rule: ok")
     return 0
 
