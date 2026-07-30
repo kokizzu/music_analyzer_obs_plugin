@@ -25,7 +25,8 @@ constexpr int kKeyboardMinMidi = 21;
 constexpr int kKeyboardMaxMidi = 108;
 constexpr int kVocalMinMidi = 40;
 constexpr int kVocalMaxMidi = 84;
-constexpr int kFullMixVocalMinMidi = 53;
+constexpr int kFullMixVocalMinMidi = 50;
+constexpr int kFullMixVocalPolyphonicContextMinMidi = 53;
 constexpr int kOtherMinMidi = 21;
 constexpr int kOtherMaxMidi = 108;
 constexpr float kSilenceRms = 0.0025f;
@@ -59,6 +60,7 @@ constexpr float kNoteEnvelopeVisibleFloor = 0.015f;
 constexpr float kNoteEnvelopeNewNoteFloor = 0.010f;
 constexpr float kNoteEnvelopeImmediateConfirmFloor = 0.40f;
 constexpr float kMixedNoteEnvelopeImmediateConfirmFloor = 0.24f;
+constexpr float kMixedVocalConfirmedImmediateFloor = 0.18f;
 constexpr float kAnalyticalChordNoteReleaseSeconds = 0.22f;
 constexpr float kAnalyticalChordNoteVisibleFloor = 0.06f;
 constexpr int kNoteAttackConfirmFrames = 2;
@@ -5802,6 +5804,14 @@ void add_full_mix_display_mirror(NoteCandidateList &candidates, const FullMixOwn
 	const float base_score = row_reference > 1.0e-6f ? row_reference : 1.0f;
 	float candidate_score = base_score * std::clamp(global_level, 0.18f, 1.0f) * 0.52f;
 	float candidate_confidence = row == FullMixDisplayRow::Other ? 0.21f : 0.20f;
+	const bool confirmed_exact_vocal_owner =
+		row == FullMixDisplayRow::Vocal &&
+		display_midi == debug.midi &&
+		debug.owner == InstrumentKind::Vocal &&
+		full_mix_row_midi_active(ownership.vocal, display_midi);
+	if (confirmed_exact_vocal_owner)
+		candidate_confidence = std::max(candidate_confidence,
+						std::clamp(debug.ownership_confidence, 0.0f, 1.0f));
 	if (measured_low_vocal_fundamental_alias) {
 		candidate_score = std::min(candidate_score, base_score * 0.34f);
 		candidate_confidence = std::max(candidate_confidence, 0.24f);
@@ -6991,7 +7001,6 @@ void stabilize_full_mix_vocal_ownership(FullMixOwnership &ownership, int &tracke
 		}
 		return;
 	}
-
 	if (tracked_midi >= 0 && candidate.midi == tracked_midi) {
 		tracked_score = std::max(tracked_score * 0.80f, candidate.score);
 		pending_midi = -1;
@@ -7557,7 +7566,7 @@ FullMixOwnership build_full_mix_ownership(const std::array<float, kNoteProbeCoun
 	float dominant_vocal_candidate_score = 0.0f;
 	float second_vocal_candidate_score = 0.0f;
 	for (const NoteCandidate &candidate : candidates) {
-		if (candidate.midi < kFullMixVocalMinMidi || candidate.midi > kVocalMaxMidi ||
+		if (candidate.midi < kFullMixVocalPolyphonicContextMinMidi || candidate.midi > kVocalMaxMidi ||
 		    candidate.score < strongest_score * 0.35f)
 			continue;
 
@@ -8584,7 +8593,8 @@ void smooth_note_grid_envelope(NoteGrid &grid, InstrumentState &state,
 			       float immediate_confirm_floor = kNoteEnvelopeImmediateConfirmFloor,
 			       float release_seconds = kNoteEnvelopeReleaseSeconds,
 			       float visible_floor = kNoteEnvelopeVisibleFloor,
-			       const NoteCandidateList *display_candidates = nullptr)
+			       const NoteCandidateList *display_candidates = nullptr,
+			       const std::array<float, kNoteProbeCount> *immediate_confirm_floors = nullptr)
 {
 	std::array<float, kNoteProbeCount> raw_levels = {};
 	collect_note_grid_levels(grid, raw_levels);
@@ -8619,9 +8629,13 @@ void smooth_note_grid_envelope(NoteGrid &grid, InstrumentState &state,
 			note.display_scale = raw_display_scale_present[i] ?
 						     std::clamp(raw_display_scales[i], 0.0f, 1.0f) :
 						     1.0f;
+			const float note_immediate_confirm_floor =
+				immediate_confirm_floors ?
+					std::max((*immediate_confirm_floors)[i], 0.0f) :
+					immediate_confirm_floor;
 			if (!note.confirmed &&
 			    (note.consecutive_hits >= std::max(1, attack_confirm_frames) ||
-			     raw_level >= immediate_confirm_floor))
+			     raw_level >= note_immediate_confirm_floor))
 				note.confirmed = true;
 		} else {
 			note.consecutive_hits = 0;
@@ -21326,11 +21340,22 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 
 	if (vocal_enabled) {
 		const int vocal_max_notes = contains_case_insensitive(resolved_source_name, "vocals") ? 2 : 1;
+		std::array<float, kNoteProbeCount> mixed_vocal_immediate_floors = {};
+		const std::array<float, kNoteProbeCount> *vocal_immediate_floors = nullptr;
+		if (mixed_source) {
+			mixed_vocal_immediate_floors.fill(kNoteEnvelopeImmediateConfirmFloor);
+			vocal_immediate_floors = &mixed_vocal_immediate_floors;
+			if (tracked_vocal_midi_ >= kFirstMidi && tracked_vocal_midi_ <= kLastMidi)
+				mixed_vocal_immediate_floors[tracked_vocal_midi_ - kFirstMidi] =
+					kMixedVocalConfirmedImmediateFloor;
+		}
 		smooth_note_grid_envelope(snapshot.vocal_notes, snapshot.vocal, vocal_note_tracking_, -1,
 					  interval_seconds, vocal_max_notes, nullptr, kNoteAttackConfirmFrames,
-					  kNoteEnvelopeImmediateConfirmFloor, kNoteEnvelopeReleaseSeconds,
+					  kNoteEnvelopeImmediateConfirmFloor,
+					  kNoteEnvelopeReleaseSeconds,
 					  kNoteEnvelopeVisibleFloor,
-					  mixed_source ? &mixed_vocal_display_candidates : nullptr);
+					  mixed_source ? &mixed_vocal_display_candidates : nullptr,
+					  vocal_immediate_floors);
 		if (!mixed_source)
 			prefer_supported_lower_octave_display(snapshot.vocal_notes, snapshot.vocal, note_powers,
 							      kVocalMinMidi, 64, -1);

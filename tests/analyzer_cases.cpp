@@ -598,6 +598,24 @@ std::string full_mix_debug_summary_for_midi(const mao::AnalysisSnapshot &snapsho
 	return out.str();
 }
 
+std::string full_mix_debug_summary(const mao::AnalysisSnapshot &snapshot)
+{
+	std::ostringstream out;
+	const std::size_t count =
+		std::min<std::size_t>(snapshot.full_mix_debug_candidate_count,
+				      snapshot.full_mix_debug_candidates.size());
+	for (std::size_t i = 0; i < count; ++i) {
+		const mao::FullMixDebugCandidate &debug = snapshot.full_mix_debug_candidates[i];
+		if (out.tellp() > 0)
+			out << "; ";
+		out << mao_test::note_label(debug.midi) << ":" << instrument_kind_name(debug.owner)
+		    << " conf=" << debug.ownership_confidence << " kgo=" << debug.keyboard_score << ","
+		    << debug.guitar_score << "," << debug.vocal_score << "," << debug.other_score
+		    << " spec=" << debug.spectral_level;
+	}
+	return out.str();
+}
+
 float snapshot_owned_level_for_midi(const mao::AnalysisSnapshot &snapshot, int midi)
 {
 	float level = grid_level_for_midi(snapshot.bass_notes, midi);
@@ -4029,6 +4047,42 @@ void check_full_mix_realistic_vocal_recall(Runner &runner)
 			      "full-mix low fundamental vocal: expected display-safe F3 alias in vocal grid");
 		runner.expect(grid_level_for_midi(snapshot.vocal_notes, 41) <= 0.0f,
 			      "full-mix low fundamental vocal: expected F2 below vocal grid display floor");
+	}
+
+	{
+		mao::AnalysisEngine engine;
+		mao::AnalysisSettings settings = mao_test::default_settings();
+		settings.input_mode = mao::AnalysisInputMode::FullMix;
+		settings.analysis_interval_seconds = 0.05f;
+
+		mao_test::Buffer buffer = {};
+		const std::vector<float> low_vocal_profile = {1.0f, 0.24f, 0.12f, 0.055f, 0.025f};
+		add_harmonic_note(buffer, 50, 0.24f, low_vocal_profile);
+
+		mao::AnalysisSnapshot snapshot = engine.analyze(buffer.data(), buffer.size(), settings, "Mic/Aux", 0);
+		expect_global_pitch_class(runner, snapshot, 2, "full-mix D3 vocal first-frame global");
+		const mao::FullMixDebugCandidate *first_debug = debug_candidate_for_midi(snapshot, 50);
+		runner.expect(first_debug && first_debug->owner == mao::InstrumentKind::Vocal,
+			      std::string("full-mix D3 vocal first-frame owner: expected vocal debug, got `") +
+				      full_mix_debug_summary(snapshot) + "`");
+		runner.expect(!grid_pitch_active(snapshot.vocal_notes, 2),
+			      std::string("full-mix D3 vocal first-frame vocal: expected pending D, got vocal `") +
+				      snapshot.vocal.label + "`, keyboard `" + snapshot.keyboard.label +
+				      "`, debug `" + full_mix_debug_summary(snapshot) + "`");
+
+		snapshot = engine.analyze(buffer.data(), buffer.size(), settings, "Mic/Aux", 0);
+		runner.expect(grid_pitch_active(snapshot.vocal_notes, 2),
+			      std::string("full-mix D3 vocal second-frame vocal: expected D active, got keyboard `") +
+				      snapshot.keyboard.label + "`, guitar `" + snapshot.guitar.label + "`, vocal `" +
+				      snapshot.vocal.label + "`, other `" + snapshot.other.label + "`, global `" +
+				      snapshot.global_chord.label + "`, ambiguous " +
+				      (grid_pitch_active(snapshot.ambiguous_notes, 2) ? "active" : "inactive") +
+				      "`, rms " + std::to_string(snapshot.rms) + ", keyboard grid `" +
+				      note_grid_active_labels(snapshot.keyboard_notes) + "`, vocal grid `" +
+				      note_grid_active_labels(snapshot.vocal_notes) + "`, debug `" +
+				      full_mix_debug_summary_for_midi(snapshot, 50) + "`, all debug `" +
+				      full_mix_debug_summary(snapshot) + "`");
+		expect_midi_not_duplicated_across_rows(runner, snapshot, 50, "full-mix D3 vocal ownership");
 	}
 
 	{
