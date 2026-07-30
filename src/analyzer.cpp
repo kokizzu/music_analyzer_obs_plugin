@@ -20462,9 +20462,10 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 			    parse_root_chord_component(
 				    smoothed_guitar_chord.label,
 				    std::strcspn(smoothed_guitar_chord.label, "="),
-				    smoothed_primary))
+				    smoothed_primary)) {
 				remove_power_aliases_for_root(smoothed_guitar_chord,
 							      smoothed_primary.root);
+			}
 			prune_clean_primary_guitar_aliases(smoothed_guitar_chord, snapshot.guitar_notes,
 							   guitar_chord_grid);
 		}
@@ -20497,8 +20498,9 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 				note_powers, kGuitarMinMidi, kGuitarMaxMidi);
 		if (!mixed_source &&
 		    !primary_guitar_chord_has_playable_voicing(smoothed_guitar_chord, snapshot.guitar_notes,
-							       guitar_chord_grid))
+							       guitar_chord_grid)) {
 			smoothed_guitar_chord = ChordResult{};
+		}
 		const bool raw_changed_by_smoothed =
 			!mixed_source &&
 			promote_smoothed_same_root_guitar_quality(raw_guitar_chord, smoothed_guitar_chord,
