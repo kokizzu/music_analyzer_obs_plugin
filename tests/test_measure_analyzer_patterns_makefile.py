@@ -155,9 +155,27 @@ def main() -> int:
         "--exclude-field expected_row_visual_pitch_delta",
         "--exclude-field expected_visual_exact_row_count",
         "--exclude-field expected_visual_pitch_row_count",
+        "--exclude-field strongest_row_exact_level",
+        "--exclude-field strongest_row_pitch_level",
+        "--exclude-field strongest_row_pitch_delta",
+        "--exclude-field visual_strongest_row_exact_level",
+        "--exclude-field visual_strongest_row_pitch_level",
+        "--exclude-field visual_strongest_row_pitch_delta",
+        "--exclude-field bass_level",
+        "--exclude-field guitar_level",
+        "--exclude-field piano_level",
+        "--exclude-field vocal_level",
+        "--exclude-field other_level",
+        "--exclude-field amb_level",
+        "--exclude-field bass_visual_level",
+        "--exclude-field guitar_visual_level",
+        "--exclude-field piano_visual_level",
+        "--exclude-field vocal_visual_level",
+        "--exclude-field other_visual_level",
+        "--exclude-field amb_visual_level",
     ]:
         assert text in runtime_row_excludes.group("value"), (
-            "runtime visual row-confusion mining must not use expected-row visual fields"
+            "runtime visual row-confusion mining must not use row-output fields"
         )
     assert "$(MEASURE_REAL_NOTE_FOCUSED_VISUAL_ROW_CONFUSION_PATTERN_ARGS)" in visual_report_recipe, (
         "visual row-confusion report should use protected row-context diagnostics"
