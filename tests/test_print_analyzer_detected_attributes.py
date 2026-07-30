@@ -89,6 +89,11 @@ kick.wav	kick	kick	0.9	0.1	0.0	0.9	0.1	0.1	0.1	0.1	1	0	0	0	0	0	0	0.9	0.4	0	0	0	0
     assert "pitch quality=exact=2" in output
     assert "display pitch quality=exact=1 octave_alias=1" in output
     assert "primary pitch quality=exact=2" in output
+    assert (
+        "exact-octave coverage debug[exact=2/2 100.0% pitch-class=2/2 100.0% octave-alias=0/2 0.0%] "
+        "display[exact=1/2 50.0% pitch-class=2/2 100.0% octave-alias=1/2 50.0%] "
+        "primary[exact=2/2 100.0% pitch-class=2/2 100.0% octave-alias=0/2 0.0%]"
+    ) in output
     assert "target octave duplicates=guitar:dup1=1" in output
     assert "display octave alias buckets:" in output
     assert "1 guitar/-- expected=E3/52 detected=E4/+12 status=miss owner=piano" in output
@@ -107,6 +112,9 @@ kick.wav	kick	kick	0.9	0.1	0.0	0.9	0.1	0.1	0.1	0.1	1	0	0	0	0	0	0	0.9	0.4	0	0	0	0
     assert "measured real-note full-mix rows" in output
     assert "debug owner mismatches=piano->guitar=1" in output
     assert "pitch quality=exact=2" in output
+    assert (
+        "exact-octave coverage debug[exact=2/3 66.7% pitch-class=3/3 100.0% octave-alias=1/3 33.3%]"
+    ) in output
     assert "row routing expected-row exact=3/3 100.0% first-row expected=2/3 66.7% strongest-row expected=2/3 66.7%" in output
     assert "first-row routes=guitar/acoustic->guitar=1 piano/electronic->bass=1 bass/electric->bass=1" in output
     assert "same-midi spillover>=0.25 entries=1 samples=1 routes=bass/electric->guitar=1" in output

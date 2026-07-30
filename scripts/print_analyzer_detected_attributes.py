@@ -179,6 +179,36 @@ def primary_pitch_quality_counts(rows: list[dict[str, str]], midi_field: str) ->
     return counts
 
 
+def pitch_coverage_text(counter: collections.Counter[str], total: int) -> str:
+    exact = counter.get("exact", 0)
+    octave_alias = counter.get("octave_alias", 0)
+    pitch_class = exact + octave_alias
+    return (
+        f"exact={count_fraction(exact, total)} "
+        f"pitch-class={count_fraction(pitch_class, total)} "
+        f"octave-alias={count_fraction(octave_alias, total)}"
+    )
+
+
+def pitch_coverage_line(
+    rows: list[dict[str, str]],
+    midi_field: str,
+    *,
+    include_display: bool,
+    include_primary: bool,
+) -> str:
+    parts = [f"debug[{pitch_coverage_text(pitch_quality_counts(rows, midi_field), len(rows))}]"]
+    if include_display:
+        parts.append(
+            f"display[{pitch_coverage_text(display_pitch_quality_counts(rows, midi_field), len(rows))}]"
+        )
+    if include_primary:
+        parts.append(
+            f"primary[{pitch_coverage_text(primary_pitch_quality_counts(rows, midi_field), len(rows))}]"
+        )
+    return " ".join(parts)
+
+
 def note_key(row: dict[str, str], *, midi_field: str, note_field: str, source_field: str) -> tuple[str, str, str]:
     family = cell(row, "family", "unknown")
     source = cell(row, source_field)
@@ -603,6 +633,10 @@ def report_instrument_rows(path: pathlib.Path, row_limit: int) -> None:
     print(f"  pitch quality={compact(pitch_quality_counts(rows, 'midi'))}")
     print(f"  display pitch quality={compact(display_pitch_quality_counts(rows, 'midi'))}")
     print(f"  primary pitch quality={compact(primary_pitch_quality_counts(rows, 'midi'))}")
+    print(
+        "  exact-octave coverage "
+        f"{pitch_coverage_line(rows, 'midi', include_display=True, include_primary=True)}"
+    )
     print(f"  target octave duplicates={compact(target_octave_duplicate_counts(rows))}")
     print_octave_alias_buckets(
         "primary octave alias buckets",
@@ -682,6 +716,10 @@ def report_real_note_rows(path: pathlib.Path, row_limit: int) -> None:
     print(f"  debug owner mismatches={compact(owner_mismatches(rows, 'family'))}")
     print(f"  debug pitch deltas={compact(debug_pitch_deltas(rows, 'expected_midi'))}")
     print(f"  pitch quality={compact(pitch_quality_counts(rows, 'expected_midi'))}")
+    print(
+        "  exact-octave coverage "
+        f"{pitch_coverage_line(rows, 'expected_midi', include_display=False, include_primary=False)}"
+    )
     print(
         f"  row routing expected-row exact="
         f"{count_fraction(sum(1 for row in rows if expected_row_exact_hit(row)), len(rows))} "
