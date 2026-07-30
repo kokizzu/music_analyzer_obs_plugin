@@ -193,6 +193,19 @@ def main() -> int:
             "--group-by",
             "debug_score_state",
         )
+        bucketed_result = run_rule(
+            path,
+            "--condition",
+            "debug_owner=guitar",
+            "--numeric-bucket",
+            "partial2:0.20",
+            "--numeric-bucket",
+            "noise:0.02",
+            "--group-by",
+            "partial2_bucket",
+            "--group-by",
+            "noise_bucket",
+        )
         compare_result = run_rule(
             path,
             "--condition",
@@ -219,6 +232,9 @@ def main() -> int:
     assert "groups buffer_strongest_row/debug_score_state" in grouped_result.stdout
     assert "guitar/scored_owner rows=3 samples=3" in grouped_result.stdout
     assert "family/source/first_row" not in grouped_result.stdout
+    assert "groups partial2_bucket/noise_bucket" in bucketed_result.stdout
+    assert "0.40-0.60/0.00-0.02 rows=1 samples=1" in bucketed_result.stdout
+    assert "0.20-0.40/0.02-0.04 rows=2 samples=2" in bucketed_result.stdout
     assert "matched rows=2 samples=2" in compare_result.stdout
     assert "matched conditions debug_owner=guitar family=guitar" in compare_result.stdout
     assert f"compare rows=1 samples=1 path={compare_path}" in compare_result.stdout

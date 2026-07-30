@@ -8,11 +8,13 @@ import collections
 import csv
 import pathlib
 import re
+from decimal import Decimal, InvalidOperation, ROUND_FLOOR
 
 from inspect_real_note_attribute_buckets import derive_row
 
 
 Condition = tuple[str, str, str]
+NumericBucket = tuple[str, Decimal, int]
 
 CONDITION_RE = re.compile(r"^([^!<>=:]+)(!=|>=|<=|=|>|<|:)(.+)$")
 
@@ -29,6 +31,49 @@ def parse_condition(spec: str) -> Condition:
     if not match:
         raise SystemExit(f"invalid condition `{spec}`")
     return match.group(1), match.group(2), match.group(3)
+
+
+def parse_numeric_bucket(spec: str) -> NumericBucket:
+    try:
+        field, width_spec = spec.split(":", 1)
+    except ValueError as exc:
+        raise SystemExit(f"invalid numeric bucket `{spec}`; expected FIELD:WIDTH") from exc
+    if not field:
+        raise SystemExit(f"invalid numeric bucket `{spec}`; missing field")
+    try:
+        width = Decimal(width_spec)
+    except InvalidOperation as exc:
+        raise SystemExit(f"invalid numeric bucket width `{width_spec}`") from exc
+    if width <= 0:
+        raise SystemExit(f"invalid numeric bucket width `{width_spec}`; must be positive")
+    places = max(0, -width.as_tuple().exponent)
+    return field, width, places
+
+
+def format_decimal(value: Decimal, places: int) -> str:
+    return f"{value:.{places}f}"
+
+
+def apply_numeric_buckets(row: dict[str, str], buckets: list[NumericBucket]) -> dict[str, str]:
+    if not buckets:
+        return row
+    result = dict(row)
+    for field, width, places in buckets:
+        value_spec = result.get(field, "")
+        bucket_field = f"{field}_bucket"
+        if not value_spec:
+            result[bucket_field] = ""
+            continue
+        try:
+            value = Decimal(value_spec)
+        except InvalidOperation:
+            result[bucket_field] = ""
+            continue
+        bucket_index = (value / width).to_integral_value(rounding=ROUND_FLOOR)
+        low = bucket_index * width
+        high = low + width
+        result[bucket_field] = f"{format_decimal(low, places)}-{format_decimal(high, places)}"
+    return result
 
 
 def matches_condition(row: dict[str, str], condition: Condition) -> bool:
@@ -64,15 +109,22 @@ def matches_condition(row: dict[str, str], condition: Condition) -> bool:
     raise AssertionError(op)
 
 
-def load_rows(path: pathlib.Path) -> list[dict[str, str]]:
+def load_rows(path: pathlib.Path, buckets: list[NumericBucket]) -> list[dict[str, str]]:
     with path.open(newline="", errors="replace") as handle:
-        return [derive_row(row) for row in csv.DictReader(handle, delimiter="\t")]
+        return [
+            apply_numeric_buckets(derive_row(row), buckets)
+            for row in csv.DictReader(handle, delimiter="\t")
+        ]
 
 
-def matching_rows(path: pathlib.Path, conditions: list[Condition]) -> list[dict[str, str]]:
+def matching_rows(
+    path: pathlib.Path,
+    conditions: list[Condition],
+    buckets: list[NumericBucket],
+) -> list[dict[str, str]]:
     return [
         row
-        for row in load_rows(path)
+        for row in load_rows(path, buckets)
         if all(matches_condition(row, condition) for condition in conditions)
     ]
 
@@ -152,6 +204,15 @@ def main() -> int:
         help="field to group matches by; repeatable; defaults to family/source/first_row",
     )
     parser.add_argument(
+        "--numeric-bucket",
+        action="append",
+        default=[],
+        help=(
+            "derive FIELD_bucket from numeric FIELD using WIDTH-sized ranges, e.g. "
+            "slope:0.001 then --group-by slope_bucket; repeatable"
+        ),
+    )
+    parser.add_argument(
         "--compare-group-by",
         action="append",
         default=None,
@@ -161,13 +222,14 @@ def main() -> int:
 
     group_by = args.group_by or ["family", "source", "first_row"]
     compare_group_by = args.compare_group_by or group_by
+    numeric_buckets = [parse_numeric_bucket(spec) for spec in args.numeric_bucket]
     rule_conditions = [parse_condition(spec) for spec in args.condition]
     primary_condition_specs = args.condition + args.primary_condition
     primary_conditions = rule_conditions + [
         parse_condition(spec) for spec in args.primary_condition
     ]
     primary_path = pathlib.Path(args.path)
-    rows = matching_rows(primary_path, primary_conditions)
+    rows = matching_rows(primary_path, primary_conditions, numeric_buckets)
     print_row_summary(
         "matched",
         primary_path,
@@ -184,7 +246,7 @@ def main() -> int:
     ]
     for compare_path_spec in args.compare_path:
         compare_path = pathlib.Path(compare_path_spec)
-        compare_rows = matching_rows(compare_path, compare_conditions)
+        compare_rows = matching_rows(compare_path, compare_conditions, numeric_buckets)
         print_row_summary(
             "compare",
             compare_path,
