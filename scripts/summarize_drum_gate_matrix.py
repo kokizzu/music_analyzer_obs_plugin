@@ -4,6 +4,8 @@
 from __future__ import annotations
 
 import argparse
+import csv
+import io
 import pathlib
 import re
 from collections import Counter
@@ -20,6 +22,7 @@ SAMPLE_RE = re.compile(
     r"precision (?P<precision_hit>\d+)/(?P<precision_total>\d+) "
     r"false (?P<false>\d+)(?: (?P<precision_percent>\d+)%)?"
 )
+ACTIVE_THRESHOLD = 0.30
 
 
 def parse_matrix_text(text: str) -> dict[str, dict[str, dict[str, int]]]:
@@ -73,6 +76,96 @@ def parse_sample_metrics(text: str) -> tuple[int | None, int | None, dict[str, d
                 )
             }
     return usable, skipped, metrics
+
+
+def as_float(row: dict[str, str], field: str) -> float:
+    try:
+        return float(row.get(field, "") or 0.0)
+    except ValueError:
+        return 0.0
+
+
+def primary_from_levels(row: dict[str, str]) -> str:
+    best = "none"
+    best_level = 0.0
+    ties = 0
+    for label in CATEGORIES:
+        level = as_float(row, f"{label}_level")
+        if level <= ACTIVE_THRESHOLD:
+            continue
+        if level > best_level + 0.005:
+            best = label
+            best_level = level
+            ties = 1
+        elif abs(level - best_level) <= 0.005:
+            ties += 1
+    return "ambiguous" if ties > 1 else best
+
+
+def parse_tsv_text(text: str) -> tuple[
+    dict[str, dict[str, dict[str, int]]],
+    int | None,
+    int | None,
+    dict[str, dict[str, int]],
+]:
+    handle = io.StringIO(text)
+    reader = csv.DictReader(handle, delimiter="\t")
+    if not reader.fieldnames or not {"sample", "expected", "got"} <= set(reader.fieldnames):
+        return {"active": {}, "primary": {}}, None, None, {}
+
+    active: dict[str, Counter[str]] = {}
+    primary: dict[str, Counter[str]] = {}
+    rows = 0
+    totals: Counter[str] = Counter()
+    recall_hits: Counter[str] = Counter()
+    primary_hits: Counter[str] = Counter()
+    active_hits: Counter[str] = Counter()
+    active_totals: Counter[str] = Counter()
+
+    for row in reader:
+        expected = row.get("expected", "")
+        if expected not in CATEGORIES:
+            continue
+        rows += 1
+        totals[expected] += 1
+        active_counts = active.setdefault(expected, Counter())
+        primary_counts = primary.setdefault(expected, Counter())
+
+        for label in CATEGORIES:
+            if as_float(row, f"{label}_level") > ACTIVE_THRESHOLD:
+                active_counts[label] += 1
+                active_totals[label] += 1
+                if label == expected:
+                    recall_hits[label] += 1
+                    active_hits[label] += 1
+
+        got = row.get("got", "") or primary_from_levels(row)
+        primary_counts[got] += 1
+        if got == expected:
+            primary_hits[expected] += 1
+
+    metrics = {
+        label: {
+            "recall_hit": recall_hits[label],
+            "recall_total": totals[label],
+            "primary_hit": primary_hits[label],
+            "primary_total": totals[label],
+            "precision_hit": active_hits[label],
+            "precision_total": active_totals[label],
+            "false": active_totals[label] - active_hits[label],
+        }
+        for label in CATEGORIES
+        if totals[label] or active_totals[label]
+    }
+    return (
+        {
+            "active": {key: dict(value) for key, value in active.items()},
+            "primary": {key: dict(value) for key, value in primary.items()},
+        },
+        rows,
+        None,
+        metrics,
+    )
 
 
 def top_misses(expected: str, counts: dict[str, int]) -> str:
@@ -152,8 +245,10 @@ def main() -> int:
     args = parser.parse_args()
 
     text = args.log.read_text(errors="replace")
-    matrices = parse_matrix_text(text)
-    usable, skipped, metrics = parse_sample_metrics(text)
+    matrices, usable, skipped, metrics = parse_tsv_text(text)
+    if usable is None:
+        matrices = parse_matrix_text(text)
+        usable, skipped, metrics = parse_sample_metrics(text)
     print(f"drum gate matrix log: {args.log}")
     print_sample_metrics(usable, skipped, metrics)
     for kind in ("active", "primary"):
