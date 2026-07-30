@@ -122,6 +122,7 @@ def main() -> int:
         "$(RECOVERY_ARGS)",
         "$(EXTRA_COMPONENT_ARGS)",
         "$(MEASURE_DRUM_PATTERN_ARGS)",
+        "$(MEASURE_PROTECTED_DRUM_PATTERN_ARGS)",
         "$(MEASURE_DRUM_ACTIVE_FALSE_PATTERN_ARGS)",
         "$(PATTERN_REPORT_ARGS)",
         "measure-analyzer-patterns-full",
@@ -174,6 +175,30 @@ def main() -> int:
     ).splitlines()[0], (
         "protected drum primary report must wait for the shared protected row refresh"
     )
+    protected_drum_recipe = target_recipe(
+        makefile, "$(MEASURE_ANALYZER_PATTERN_PROTECTED_DRUM_PRIMARY_REPORT)"
+    )
+    assert "$(MEASURE_PROTECTED_DRUM_PATTERN_ARGS)" in protected_drum_recipe, (
+        "protected drum primary report must use bounded protected-pattern defaults"
+    )
+    assert 'PATTERN_ARGS="$(MEASURE_DRUM_PATTERN_ARGS)"' not in protected_drum_recipe, (
+        "protected drum primary report must not reuse the expensive generic drum pattern defaults"
+    )
+    protected_drum_args = re.search(
+        r"^MEASURE_PROTECTED_DRUM_PATTERN_ARGS \?= (?P<value>.*)$",
+        makefile,
+        re.MULTILINE,
+    )
+    assert protected_drum_args is not None, "missing protected drum pattern defaults"
+    for text in [
+        "--min-positive-samples 20",
+        "--min-route-positive-samples 20",
+        "--max-conditions 1",
+        "--beam-width 40",
+    ]:
+        assert text in protected_drum_args.group("value"), (
+            "protected drum pattern defaults should stay bounded for the standard report"
+        )
     protected_inputs = re.search(
         r"^DRUM_PROTECTED_PRIMARY_ATTRIBUTE_INPUTS \?= (?P<value>.*)$",
         makefile,

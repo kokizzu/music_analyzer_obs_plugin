@@ -130,6 +130,7 @@ REAL_NOTE_RUNTIME_ROW_CONFUSION_EXCLUDES ?= \
 	--exclude-field debug_abs_delta
 MEASURE_GUITAR_PATTERN_ARGS ?= --top-buckets 4 --limit 4 --min-positive-recordings 3 --max-negative-recordings 0 --max-conditions 3 --beam-width 180 --show-examples 1
 MEASURE_DRUM_PATTERN_ARGS ?= --top-routes 4 --limit 4 --min-positive-samples 3 --max-negative-samples 0 --max-conditions 3 --beam-width 220 --show-examples 1
+MEASURE_PROTECTED_DRUM_PATTERN_ARGS ?= --top-routes 4 --limit 4 --min-positive-samples 20 --min-route-positive-samples 20 --max-negative-samples 0 --max-conditions 1 --beam-width 40 --show-examples 1 --show-near-misses 2
 MEASURE_DRUM_FULL_PATTERN_ARGS ?= --top-routes 4 --limit 4 --min-positive-samples 20 --min-route-positive-samples 20 --max-negative-samples 0 --max-conditions 3 --beam-width 64 --show-examples 1
 MEASURE_DRUM_ACTIVE_FALSE_PATTERN_ARGS ?= --top-routes 6 --limit 6 --min-positive-samples 8 --max-protected-samples 0 --max-conditions 2 --beam-width 160 --show-examples 1 --show-near-misses 2 --protected-margin 0.002 --protected-relative-margin 0.001 --exclude-fields kick_level
 DRUM_PATTERN_JOBS ?= $(PARALLEL_TEST_JOBS)
@@ -1558,7 +1559,7 @@ $(MEASURE_ANALYZER_PATTERN_DRUM_SPREAD_MATRIX_REPORT): FORCE $(BUILD_DIR)/analyz
 	+@tmp="$@.$$$$.tmp"; { printf '%s\n' ""; printf '%s\n' "drum spread exact gate matrix:"; if [ -d "$(DRUM_SAMPLE_SOURCE_DIR)" ]; then $(MAKE) analyze-drum-spread-gate-matrix; elif [ -f "$(DRUM_SPREAD_EXACT_ATTRIBUTE_ROWS)" ]; then printf '%s\n' "skipped regeneration; using existing $(DRUM_SPREAD_EXACT_ATTRIBUTE_ROWS)"; else printf '%s\n' "skipped; missing $(DRUM_SAMPLE_SOURCE_DIR)"; fi; } > "$$tmp" && mv "$$tmp" "$@"
 
 $(MEASURE_ANALYZER_PATTERN_PROTECTED_DRUM_PRIMARY_REPORT): FORCE $(MEASURE_ANALYZER_PATTERN_DRUM_SPREAD_MATRIX_REPORT) $(MEASURE_ANALYZER_PATTERN_DRUM_PROTECTED_ROWS_STAMP) scripts/find_drum_attribute_patterns.py scripts/analyze_drum_primary_debug.py | $(BUILD_DIR)
-	+@tmp="$@.$$$$.tmp"; { printf '%s\n' ""; printf '%s\n' "protected drum primary pattern candidates:"; $(MAKE) find-protected-drum-primary-attribute-patterns PATTERN_ARGS="$(MEASURE_DRUM_PATTERN_ARGS)"; } > "$$tmp" && mv "$$tmp" "$@"
+	+@tmp="$@.$$$$.tmp"; { printf '%s\n' ""; printf '%s\n' "protected drum primary pattern candidates:"; $(MAKE) find-protected-drum-primary-attribute-patterns PATTERN_ARGS="$(MEASURE_PROTECTED_DRUM_PATTERN_ARGS)"; } > "$$tmp" && mv "$$tmp" "$@"
 
 $(MEASURE_ANALYZER_PATTERN_DRUM_ACTIVE_FALSE_REPORT): FORCE $(MEASURE_ANALYZER_PATTERN_DRUM_SPREAD_MATRIX_REPORT) $(MEASURE_ANALYZER_PATTERN_DRUM_PROTECTED_ROWS_STAMP) scripts/summarize_drum_active_false_rows.py scripts/find_drum_active_false_patterns.py | $(BUILD_DIR)
 	+@tmp="$@.$$$$.tmp"; { printf '%s\n' ""; printf '%s\n' "drum active false-row summary:"; $(MAKE) analyze-drum-active-false-rows; printf '%s\n' ""; printf '%s\n' "drum active false pattern candidates:"; $(MAKE) find-drum-active-false-patterns $(if $(MEASURE_DRUM_ACTIVE_EXTRA_PROTECTED_ROWS),DRUM_ACTIVE_EXTRA_PROTECTED_ROWS="$(MEASURE_DRUM_ACTIVE_EXTRA_PROTECTED_ROWS)") PATTERN_ARGS="$(MEASURE_DRUM_ACTIVE_FALSE_PATTERN_ARGS)"; } > "$$tmp" && mv "$$tmp" "$@"
