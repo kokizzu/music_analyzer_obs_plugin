@@ -40,6 +40,12 @@ FIELDS = [
     "vocal_level",
     "other_level",
     "amb_level",
+    "bass_visual_level",
+    "guitar_visual_level",
+    "piano_visual_level",
+    "vocal_visual_level",
+    "other_visual_level",
+    "amb_visual_level",
     "raw_expected_peak",
     "raw_expected_ratio",
     "raw_tuned_peak",
@@ -68,6 +74,14 @@ FIELDS = [
     "strongest_row_pitch_delta",
     "expected_exact_row_count",
     "expected_pitch_row_count",
+    "expected_row_visual_exact_level",
+    "expected_row_visual_pitch_level",
+    "expected_row_visual_pitch_delta",
+    "visual_strongest_row_exact_level",
+    "visual_strongest_row_pitch_level",
+    "visual_strongest_row_pitch_delta",
+    "expected_visual_exact_row_count",
+    "expected_visual_pitch_row_count",
 ]
 
 DEFAULT_BUCKETS = [
@@ -131,6 +145,14 @@ ROW_DUMP_FIELDS = [
     "strongest_row_pitch_delta",
     "expected_exact_row_count",
     "expected_pitch_row_count",
+    "expected_row_visual_exact_level",
+    "expected_row_visual_pitch_level",
+    "expected_row_visual_pitch_delta",
+    "visual_strongest_row_exact_level",
+    "visual_strongest_row_pitch_level",
+    "visual_strongest_row_pitch_delta",
+    "expected_visual_exact_row_count",
+    "expected_visual_pitch_row_count",
     "bass_score",
     "keyboard_score",
     "guitar_score",
@@ -203,6 +225,15 @@ ROW_NOTE_FIELDS = {
     "amb": "amb_notes",
 }
 
+ROW_VISUAL_NOTE_FIELDS = {
+    "bass": "bass_visual_notes",
+    "guitar": "guitar_visual_notes",
+    "piano": "piano_visual_notes",
+    "vocals": "vocal_visual_notes",
+    "other": "other_visual_notes",
+    "amb": "amb_visual_notes",
+}
+
 
 def as_float(row: dict[str, str], field: str) -> float | None:
     try:
@@ -241,15 +272,19 @@ def format_derived_float(value: float | None) -> str:
     return "" if value is None else f"{value:.3f}"
 
 
-def note_row_cells(row: dict[str, str], row_name: str) -> list[tuple[int, float]]:
-    field = ROW_NOTE_FIELDS.get(row_name)
+def note_row_cells(row: dict[str, str], row_name: str, *, visual: bool = False) -> list[tuple[int, float]]:
+    field = (ROW_VISUAL_NOTE_FIELDS if visual else ROW_NOTE_FIELDS).get(row_name)
     if not field:
         return []
+    if visual and field not in row:
+        field = ROW_NOTE_FIELDS.get(row_name, "")
     return parse_note_cells(row.get(field, ""))
 
 
-def note_row_levels(row: dict[str, str], row_name: str, target_midi: int) -> tuple[float, float, int | None]:
-    cells = note_row_cells(row, row_name)
+def note_row_levels(
+    row: dict[str, str], row_name: str, target_midi: int, *, visual: bool = False
+) -> tuple[float, float, int | None]:
+    cells = note_row_cells(row, row_name, visual=visual)
     if not cells:
         return 0.0, 0.0, None
 
@@ -268,14 +303,14 @@ def note_row_levels(row: dict[str, str], row_name: str, target_midi: int) -> tup
     return exact_level, pitch_level, pitch_delta
 
 
-def note_row_counts(row: dict[str, str], target_midi: int) -> tuple[int, int]:
+def note_row_counts(row: dict[str, str], target_midi: int, *, visual: bool = False) -> tuple[int, int]:
     exact_rows = 0
     pitch_rows = 0
     target_pitch = ((target_midi % 12) + 12) % 12
     for row_name in ("bass", "guitar", "piano", "vocals", "other"):
         exact_seen = False
         pitch_seen = False
-        for midi, _level in note_row_cells(row, row_name):
+        for midi, _level in note_row_cells(row, row_name, visual=visual):
             if midi == target_midi:
                 exact_seen = True
             if ((midi % 12) + 12) % 12 == target_pitch:
@@ -356,9 +391,17 @@ def derive_row(row: dict[str, str]) -> dict[str, str]:
         expected_midi = int(round(expected))
         expected_row = ROW_FOR_FAMILY.get(row.get("family", ""), row.get("family", ""))
         strongest_row = row.get("buffer_strongest_row", "")
+        visual_strongest_row = row.get("buffer_visual_strongest_row", "")
         expected_exact, expected_pitch, expected_delta = note_row_levels(row, expected_row, expected_midi)
         strongest_exact, strongest_pitch, strongest_delta = note_row_levels(row, strongest_row, expected_midi)
         exact_count, pitch_count = note_row_counts(row, expected_midi)
+        expected_visual_exact, expected_visual_pitch, expected_visual_delta = note_row_levels(
+            row, expected_row, expected_midi, visual=True
+        )
+        visual_strongest_exact, visual_strongest_pitch, visual_strongest_delta = note_row_levels(
+            row, visual_strongest_row, expected_midi, visual=True
+        )
+        visual_exact_count, visual_pitch_count = note_row_counts(row, expected_midi, visual=True)
         result["expected_row_exact_level"] = format_derived_float(expected_exact)
         result["expected_row_pitch_level"] = format_derived_float(expected_pitch)
         result["expected_row_pitch_delta"] = "" if expected_delta is None else str(expected_delta)
@@ -367,6 +410,18 @@ def derive_row(row: dict[str, str]) -> dict[str, str]:
         result["strongest_row_pitch_delta"] = "" if strongest_delta is None else str(strongest_delta)
         result["expected_exact_row_count"] = str(exact_count)
         result["expected_pitch_row_count"] = str(pitch_count)
+        result["expected_row_visual_exact_level"] = format_derived_float(expected_visual_exact)
+        result["expected_row_visual_pitch_level"] = format_derived_float(expected_visual_pitch)
+        result["expected_row_visual_pitch_delta"] = (
+            "" if expected_visual_delta is None else str(expected_visual_delta)
+        )
+        result["visual_strongest_row_exact_level"] = format_derived_float(visual_strongest_exact)
+        result["visual_strongest_row_pitch_level"] = format_derived_float(visual_strongest_pitch)
+        result["visual_strongest_row_pitch_delta"] = (
+            "" if visual_strongest_delta is None else str(visual_strongest_delta)
+        )
+        result["expected_visual_exact_row_count"] = str(visual_exact_count)
+        result["expected_visual_pitch_row_count"] = str(visual_pitch_count)
     return result
 
 

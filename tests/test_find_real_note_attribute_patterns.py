@@ -204,6 +204,22 @@ def main() -> int:
         )["debug_score_state"]
         == "scored_owner"
     )
+    visual_row = patterns.derive_real_note_row(
+        {
+            "family": "piano",
+            "expected_midi": "60",
+            "buffer_visual_strongest_row": "guitar",
+            "piano_visual_notes": "C4:0.50",
+            "guitar_visual_notes": "C4:0.90",
+        }
+    )
+    assert visual_row["expected_row_visual_exact_level"] == "0.500"
+    assert visual_row["expected_row_visual_pitch_level"] == "0.500"
+    assert visual_row["visual_strongest_row_exact_level"] == "0.900"
+    assert visual_row["visual_strongest_row_pitch_level"] == "0.900"
+    assert visual_row["expected_visual_exact_row_count"] == "2"
+    assert "expected_row_visual_exact_level" in patterns.ROW_CONTEXT_NUMERIC_FIELDS
+    assert "visual_strongest_row_pitch_level" in patterns.ROW_CONTEXT_NUMERIC_FIELDS
 
     with tempfile.TemporaryDirectory() as tmp:
         path = pathlib.Path(tmp) / "attributes.tsv"
