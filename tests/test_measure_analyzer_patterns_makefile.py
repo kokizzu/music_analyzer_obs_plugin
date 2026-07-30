@@ -116,6 +116,7 @@ def main() -> int:
         "$(MEASURE_INSTRUMENT_STATUS_PATTERN_ARGS)",
         "$(MEASURE_REAL_NOTE_PATTERN_ARGS)",
         "$(MEASURE_REAL_NOTE_ROW_CONFUSION_PATTERN_ARGS)",
+        "$(MEASURE_REAL_NOTE_FOCUSED_VISUAL_ROW_CONFUSION_PATTERN_ARGS)",
         "$(MEASURE_GUITAR_PATTERN_ARGS)",
         "$(PRIMARY_ORDER_ARGS)",
         "$(RECOVERY_ARGS)",
@@ -137,6 +138,15 @@ def main() -> int:
     )
     assert "MEASURE_ANALYZER_PATTERN_DRUM_PROTECTED_ROWS_STAMP := $(BUILD_DIR)/measure_analyzer_pattern_drum_protected_rows.stamp" in makefile, (
         "pattern reports must use a shared protected drum row refresh stamp"
+    )
+    visual_report_recipe = target_recipe(
+        makefile, "$(MEASURE_ANALYZER_PATTERN_REAL_NOTE_VISUAL_ROW_CONFUSION_REPORT)"
+    )
+    assert "$(MEASURE_REAL_NOTE_FOCUSED_VISUAL_ROW_CONFUSION_PATTERN_ARGS)" in visual_report_recipe, (
+        "visual row-confusion report should use protected row-context diagnostics"
+    )
+    assert "$(MEASURE_REAL_NOTE_ROW_CONFUSION_PATTERN_ARGS)" not in visual_report_recipe, (
+        "visual row-confusion report must not reuse strongest-row defaults"
     )
     protected_stamp_recipe = target_recipe(
         makefile, "$(MEASURE_ANALYZER_PATTERN_DRUM_PROTECTED_ROWS_STAMP)"
