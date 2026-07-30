@@ -143,6 +143,22 @@ def main() -> int:
     visual_report_recipe = target_recipe(
         makefile, "$(MEASURE_ANALYZER_PATTERN_REAL_NOTE_VISUAL_ROW_CONFUSION_REPORT)"
     )
+    runtime_row_excludes = re.search(
+        r"^REAL_NOTE_RUNTIME_ROW_CONFUSION_EXCLUDES \?= (?P<value>(?:.*\\\n)+.*)$",
+        makefile,
+        re.MULTILINE,
+    )
+    assert runtime_row_excludes is not None, "missing real-note runtime row-confusion excludes"
+    for text in [
+        "--exclude-field expected_row_visual_exact_level",
+        "--exclude-field expected_row_visual_pitch_level",
+        "--exclude-field expected_row_visual_pitch_delta",
+        "--exclude-field expected_visual_exact_row_count",
+        "--exclude-field expected_visual_pitch_row_count",
+    ]:
+        assert text in runtime_row_excludes.group("value"), (
+            "runtime visual row-confusion mining must not use expected-row visual fields"
+        )
     assert "$(MEASURE_REAL_NOTE_FOCUSED_VISUAL_ROW_CONFUSION_PATTERN_ARGS)" in visual_report_recipe, (
         "visual row-confusion report should use protected row-context diagnostics"
     )
