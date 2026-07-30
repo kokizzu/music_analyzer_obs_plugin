@@ -16,6 +16,12 @@ def target_recipe(makefile: str, target: str) -> str:
     return match.group(0)
 
 
+def assert_alias_target(makefile: str, target: str, dependency: str) -> None:
+    assert re.search(
+        rf"^{re.escape(target)}: {re.escape(dependency)}$", makefile, re.MULTILINE
+    ), f"{target} must delegate directly to {dependency}"
+
+
 def assert_atomic_build_recipe(makefile: str, target: str) -> None:
     recipe = target_recipe(makefile, target)
     assert 'tmp="$@.$$$$.tmp"' in recipe, f"{target} must build through a per-process temp file"
@@ -496,6 +502,16 @@ def main() -> int:
     assert "test-real-note-samples-full-mix " not in real_world_target_list + " ", (
         "parallel real-world sample tests must not use the serial real-note full-mix gate"
     )
+    assert_alias_target(
+        makefile, "test-real-note-samples-full-mix", "test-real-note-samples-full-mix-parallel"
+    )
+    real_note_serial_recipe = target_recipe(makefile, "test-real-note-samples-full-mix-serial")
+    assert "$(RUN_WITH_DURATION) analyzer_real_note_samples_full_mix" in real_note_serial_recipe, (
+        "real-note full-mix serial target must preserve the single-process analyzer harness"
+    )
+    assert "MUSIC_ANALYZER_REAL_NOTE_SHARD_COUNT" not in real_note_serial_recipe, (
+        "real-note full-mix serial target must not set shard variables"
+    )
     real_note_sharded_recipe = target_recipe(makefile, "test-real-note-samples-full-mix-parallel")
     assert "REAL_NOTE_FULL_MIX_TEST_MAKE_JOBS = $(if $(filter -j%,$(MAKEFLAGS)),,-j$(REAL_NOTE_FULL_MIX_SHARDS))" in makefile, (
         "real-note shard tests must not force nested jobserver mode"
@@ -671,6 +687,14 @@ def main() -> int:
         ) in makefile, (
             f"NSynth isolated target must pass through strict {family.lower()} recall"
         )
+    assert_alias_target(makefile, "test-instrument-samples", "test-instrument-samples-parallel")
+    instrument_serial_recipe = target_recipe(makefile, "test-instrument-samples-serial")
+    assert "$(RUN_WITH_DURATION) analyzer_instrument_samples env" in instrument_serial_recipe, (
+        "generated instrument serial target must preserve the single-process analyzer harness"
+    )
+    assert "MUSIC_ANALYZER_INSTRUMENT_SAMPLE_SHARD_COUNT" not in instrument_serial_recipe, (
+        "generated instrument serial target must not set shard variables"
+    )
     instrument_sharded_recipe = target_recipe(makefile, "test-instrument-samples-parallel")
     assert "INSTRUMENT_SAMPLE_TEST_MAKE_JOBS = $(if $(filter -j%,$(MAKEFLAGS)),,-j$(INSTRUMENT_SAMPLE_SHARDS))" in makefile, (
         "generated instrument sample shards must not force nested jobserver mode"
@@ -811,6 +835,14 @@ def main() -> int:
     assert "$(MAKE) prepare-drum-samples-full" in drum_full_manifest_recipe, (
         "full drum sample manifest target must delegate to the full prepare target"
     )
+    assert_alias_target(makefile, "test-drum-samples-full", "test-drum-samples-full-parallel")
+    drum_full_serial_recipe = target_recipe(makefile, "test-drum-samples-full-serial")
+    assert "$(RUN_WITH_DURATION) analyzer_drum_samples_full env" in drum_full_serial_recipe, (
+        "full drum serial target must preserve the single-process analyzer harness"
+    )
+    assert "MUSIC_ANALYZER_DRUM_SAMPLE_FILTER_CATEGORY" not in drum_full_serial_recipe, (
+        "full drum serial target must not set per-category shard filters"
+    )
     drum_full_parallel_recipe = target_recipe(makefile, "test-drum-samples-full-parallel")
     assert "DRUM_SAMPLE_FULL_TEST_MAKE_JOBS = $(if $(filter -j%,$(MAKEFLAGS)),,-j$(words $(DRUM_SAMPLE_FULL_SHARD_CATEGORIES)))" in makefile, (
         "full drum shard tests must not force nested jobserver mode"
@@ -922,6 +954,16 @@ def main() -> int:
     )
     assert "$(PYTHON) scripts/find_drum_attribute_patterns.py \"$(DRUM_FULL_EXACT_ATTRIBUTE_ROWS)\"" in drum_full_cached_recipe, (
         "cached full drum pattern target must mine the full drum exact TSV"
+    )
+    assert_alias_target(
+        makefile, "test-guitar-chord-mix-samples", "test-guitar-chord-mix-samples-parallel"
+    )
+    guitar_chord_serial_recipe = target_recipe(makefile, "test-guitar-chord-mix-samples-serial")
+    assert "$(RUN_WITH_DURATION) analyzer_guitar_chord_mix_samples env" in guitar_chord_serial_recipe, (
+        "guitar chord mix serial target must preserve the single-process analyzer harness"
+    )
+    assert "MUSIC_ANALYZER_GUITARSET_SHARD_COUNT" not in guitar_chord_serial_recipe, (
+        "guitar chord mix serial target must not set shard variables"
     )
     guitar_chord_sharded_recipe = target_recipe(makefile, "test-guitar-chord-mix-samples-parallel")
     assert "GUITAR_CHORD_MIX_SHARD_OUTS := $(addprefix $(BUILD_DIR)/guitar_chord_mix_samples_shard_,$(addsuffix .out,$(GUITAR_CHORD_MIX_SHARD_INDEXES)))" in makefile, (
