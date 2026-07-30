@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+import concurrent.futures
 import math
 import re
 import shutil
@@ -6,6 +7,7 @@ import struct
 import subprocess
 import sys
 import tempfile
+import threading
 import wave
 import zipfile
 from pathlib import Path
@@ -188,6 +190,38 @@ def test_cli_preserves_existing_output_until_manifest_replace():
         for category in examples:
             if len(rows.get(category, [])) != 1:
                 raise AssertionError(f"expected one prepared {category} row")
+
+
+def test_concurrent_manifest_writes_use_distinct_temporary_files():
+    with tempfile.TemporaryDirectory() as temp:
+        output = Path(temp)
+        manifest_a = [("kick", "kick/a.wav", "0.100000", "a")]
+        manifest_b = [("snare", "snare/b.wav", "0.100000", "b")]
+        barrier = threading.Barrier(2)
+        original_replace = Path.replace
+
+        def delayed_replace(path, target):
+            if Path(target).name == "manifest.tsv":
+                barrier.wait(timeout=5.0)
+            return original_replace(path, target)
+
+        Path.replace = delayed_replace
+        try:
+            with concurrent.futures.ThreadPoolExecutor(max_workers=2) as pool:
+                futures = [
+                    pool.submit(prepare_drum_samples.write_manifest, output, manifest_a),
+                    pool.submit(prepare_drum_samples.write_manifest, output, manifest_b),
+                ]
+                for future in futures:
+                    future.result(timeout=5.0)
+        finally:
+            Path.replace = original_replace
+
+        if not (output / "manifest.tsv").is_file():
+            raise AssertionError("concurrent writers should leave a completed manifest")
+        leftovers = list(output.glob("*.tmp")) + list(output.glob(".*.tmp"))
+        if leftovers:
+            raise AssertionError(f"temporary manifest files should be replaced: {leftovers}")
 
 
 def test_cli_reuses_complete_manifest_until_refresh():
@@ -489,6 +523,7 @@ def main():
     test_missing_unrar_skips_rar_without_failing()
     test_no_archives_mode_skips_archives()
     test_cli_preserves_existing_output_until_manifest_replace()
+    test_concurrent_manifest_writes_use_distinct_temporary_files()
     test_cli_reuses_complete_manifest_until_refresh()
     test_hihat_aliases_win_over_generic_cymbal_folder()
     test_tom_label_requires_real_tom_token()
@@ -497,7 +532,7 @@ def main():
     test_source_filter_limits_candidate_selection()
     test_cli_filter_rebuilds_mismatched_manifest()
     test_cli_unlimited_cache_rebuilds_when_source_or_filter_expands()
-    print("test_prepare_drum_samples: 12 checks passed")
+    print("test_prepare_drum_samples: 13 checks passed")
     return 0
 
 

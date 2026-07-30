@@ -10,6 +10,7 @@ from pathlib import Path
 import re
 import shutil
 import subprocess
+import tempfile
 import wave
 import zipfile
 
@@ -287,12 +288,21 @@ def copy_candidate(candidate, output, counts, manifest, unrar=None):
 def write_manifest(output, manifest):
     manifest.sort()
     manifest_path = output / "manifest.tsv"
-    tmp_path = output / "manifest.tsv.tmp"
-    with tmp_path.open("w", encoding="utf-8") as file:
+    with tempfile.NamedTemporaryFile("w", encoding="utf-8", dir=output,
+                                     prefix=".manifest.tsv.", suffix=".tmp",
+                                     delete=False) as file:
+        tmp_path = Path(file.name)
         file.write("category\tpath\tduration_seconds\tsource\n")
         for row in manifest:
             file.write("\t".join(row) + "\n")
-    tmp_path.replace(manifest_path)
+    try:
+        tmp_path.replace(manifest_path)
+    except Exception:
+        try:
+            tmp_path.unlink()
+        except FileNotFoundError:
+            pass
+        raise
     try:
         manifest_metadata_path(output).unlink()
     except FileNotFoundError:
@@ -362,11 +372,20 @@ def read_manifest_metadata(output):
 
 def write_manifest_metadata(output, metadata):
     metadata_path = manifest_metadata_path(output)
-    tmp_path = output / "manifest.meta.json.tmp"
-    with tmp_path.open("w", encoding="utf-8") as file:
+    with tempfile.NamedTemporaryFile("w", encoding="utf-8", dir=output,
+                                     prefix=".manifest.meta.json.", suffix=".tmp",
+                                     delete=False) as file:
+        tmp_path = Path(file.name)
         json.dump(metadata, file, indent=2, sort_keys=True)
         file.write("\n")
-    tmp_path.replace(metadata_path)
+    try:
+        tmp_path.replace(metadata_path)
+    except Exception:
+        try:
+            tmp_path.unlink()
+        except FileNotFoundError:
+            pass
+        raise
 
 
 def manifest_counts_if_complete(output, limit_per_category, source_filter=None, expected_metadata=None):
