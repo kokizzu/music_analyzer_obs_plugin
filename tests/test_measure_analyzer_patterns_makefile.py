@@ -180,8 +180,20 @@ def main() -> int:
         "direct drum active false mining must inherit the measured protected row defaults"
     )
     active_false_recipe = target_recipe(makefile, "find-drum-active-false-patterns")
+    assert '$(BUILD_DIR)/analyzer_drum_samples" -nt "$(DRUM_SPREAD_EXACT_ATTRIBUTE_ROWS)"' in active_false_recipe, (
+        "direct drum active false mining must refresh stale spread rows"
+    )
+    assert 'scripts/analyze_drum_primary_debug.py" -nt "$(DRUM_SPREAD_EXACT_ATTRIBUTE_ROWS)"' in active_false_recipe, (
+        "direct drum active false mining must refresh spread rows when the parser changes"
+    )
     assert "for path in $(HF_DRUM_KIT_PRIMARY_ATTRIBUTE_ROWS) $(IDMT_DRUMS_PRIMARY_ATTRIBUTE_ROWS)" in active_false_recipe, (
         "direct drum active false mining must refresh HF and IDMT protected rows when missing"
+    )
+    assert '[ "$(BUILD_DIR)/analyzer_drum_samples" -nt "$$path" ]' in active_false_recipe, (
+        "direct drum active false mining must refresh stale HF and IDMT protected rows"
+    )
+    assert '[ "scripts/analyze_drum_primary_debug.py" -nt "$$path" ]' in active_false_recipe, (
+        "direct drum active false mining must refresh HF and IDMT rows when the parser changes"
     )
     assert "for rows in $(DRUM_ACTIVE_EXTRA_PROTECTED_ROWS)" in active_false_recipe, (
         "drum active false mining must iterate over protected TSV inputs at execution time"
@@ -1034,6 +1046,24 @@ def main() -> int:
         assert "--dump-rows --include-debug-rows" in recipe_text, (
             f"{target} must dump miss rows together with protected correct rows"
         )
+    for target, rows in [
+        ("find-hf-drum-primary-attribute-patterns", "$(HF_DRUM_KIT_PRIMARY_ATTRIBUTE_ROWS)"),
+        ("find-idmt-drum-primary-attribute-patterns", "$(IDMT_DRUMS_PRIMARY_ATTRIBUTE_ROWS)"),
+    ]:
+        recipe_text = target_recipe(makefile, target)
+        assert f'$(BUILD_DIR)/analyzer_drum_samples" -nt "{rows}"' in recipe_text, (
+            f"{target} must not mine stale protected rows"
+        )
+        assert f'scripts/analyze_drum_primary_debug.py" -nt "{rows}"' in recipe_text, (
+            f"{target} must refresh rows when the parser changes"
+        )
+    protected_recipe = target_recipe(makefile, "find-protected-drum-primary-attribute-patterns")
+    assert '[ "$(BUILD_DIR)/analyzer_drum_samples" -nt "$$path" ]' in protected_recipe, (
+        "protected drum primary mining must refresh stale HF and IDMT rows"
+    )
+    assert '$(BUILD_DIR)/analyzer_drum_samples" -nt "$(DRUM_SPREAD_EXACT_ATTRIBUTE_ROWS)"' in protected_recipe, (
+        "protected drum primary mining must refresh stale spread rows"
+    )
 
     row_dump_targets = {
         "$(INSTRUMENT_DETECTED_ATTRIBUTE_ROWS)": (
