@@ -280,6 +280,10 @@ def main() -> int:
             "protected_false promote=Am expected=C primary=C gap=7.830 margin=0.480 "
             "score=p:-1.000/c:6.830 label=C=Am cpp_protected.wav"
         ) in output
+        assert (
+            "displayed_same_root_opposite_quality_probe: candidates=0 rescues=0 "
+            "protected_false=0 neutral=0 directions=--"
+        ) in output
         assert "raw-only primary examples" in output
         assert "smoothed-only primary examples" in output
         assert (
