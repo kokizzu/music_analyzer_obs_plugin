@@ -34,7 +34,7 @@ MEASURE_ANALYZER_REPORT ?= $(BUILD_DIR)/analyzer_measurement_report.txt
 PATTERN_REPORT_ARGS ?= --row-examples 6
 ATTRIBUTE_ROW_REPORT_ARGS ?= --rows 16
 REPORT_FULL_DRUM_SKIP ?= 1
-MEASURE_DRUM_ACTIVE_EXTRA_PROTECTED_ROWS ?= $(wildcard $(DRUM_FULL_EXACT_ATTRIBUTE_ROWS) $(DRUM_FULL_MERGED_EXPECTED_ATTRIBUTE_ROWS))
+MEASURE_DRUM_ACTIVE_EXTRA_PROTECTED_ROWS ?= $(DRUM_FULL_EXACT_ATTRIBUTE_ROWS) $(DRUM_FULL_MERGED_EXPECTED_ATTRIBUTE_ROWS) $(HF_DRUM_KIT_PRIMARY_ATTRIBUTE_ROWS) $(IDMT_DRUMS_PRIMARY_ATTRIBUTE_ROWS)
 DRUM_ACTIVE_EXTRA_PROTECTED_ROWS ?= $(MEASURE_DRUM_ACTIVE_EXTRA_PROTECTED_ROWS)
 INSTRUMENT_DETECTED_ATTRIBUTE_ROWS ?= $(BUILD_DIR)/instrument_detected_attribute_rows.tsv
 REAL_NOTE_DETECTED_ATTRIBUTE_ROWS ?= $(BUILD_DIR)/real_note_detected_attribute_rows.tsv
@@ -1118,7 +1118,8 @@ compare-drum-gate-matrix: scripts/compare_drum_gate_summaries.py
 
 find-drum-active-false-patterns: scripts/find_drum_active_false_patterns.py
 	+@if [ ! -f "$(DRUM_SPREAD_EXACT_ATTRIBUTE_ROWS)" ]; then if [ -d "$(DRUM_SAMPLE_SOURCE_DIR)" ]; then $(MAKE) analyze-drum-spread-gate-matrix; else printf '%s\n' "drum active false pattern candidates: skipped; missing $(DRUM_SAMPLE_SOURCE_DIR) and $(DRUM_SPREAD_EXACT_ATTRIBUTE_ROWS)"; exit 0; fi; fi
-	$(PYTHON) scripts/find_drum_active_false_patterns.py "$(DRUM_SPREAD_EXACT_ATTRIBUTE_ROWS)" $(foreach rows,$(DRUM_ACTIVE_EXTRA_PROTECTED_ROWS),--extra-protected-rows "$(rows)") $(if $(PATTERN_ROUTE),--route "$(PATTERN_ROUTE)") --jobs "$(DRUM_PATTERN_JOBS)" $(PATTERN_ARGS)
+	+@missing=0; for path in $(HF_DRUM_KIT_PRIMARY_ATTRIBUTE_ROWS) $(IDMT_DRUMS_PRIMARY_ATTRIBUTE_ROWS); do if [ ! -f "$$path" ]; then missing=1; fi; done; if [ "$$missing" = "1" ]; then $(MAKE) $(PARALLEL_TEST_MAKE_JOBS) analyze-hf-drum-primary-attribute-rows analyze-idmt-drum-primary-attribute-rows; fi
+	@set --; for rows in $(DRUM_ACTIVE_EXTRA_PROTECTED_ROWS); do if [ -f "$$rows" ]; then set -- "$$@" --extra-protected-rows "$$rows"; fi; done; $(PYTHON) scripts/find_drum_active_false_patterns.py "$(DRUM_SPREAD_EXACT_ATTRIBUTE_ROWS)" "$$@" $(if $(PATTERN_ROUTE),--route "$(PATTERN_ROUTE)") --jobs "$(DRUM_PATTERN_JOBS)" $(PATTERN_ARGS)
 
 analyze-drum-active-thresholds: scripts/simulate_drum_active_thresholds.py
 	+@if [ ! -f "$(DRUM_SPREAD_EXACT_ATTRIBUTE_ROWS)" ]; then if [ -d "$(DRUM_SAMPLE_SOURCE_DIR)" ]; then $(MAKE) analyze-drum-spread-gate-matrix; else printf '%s\n' "drum active threshold simulation: skipped; missing $(DRUM_SAMPLE_SOURCE_DIR) and $(DRUM_SPREAD_EXACT_ATTRIBUTE_ROWS)"; exit 0; fi; fi

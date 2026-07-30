@@ -170,12 +170,24 @@ def main() -> int:
     assert "$(DRUM_FULL_MERGED_EXPECTED_ATTRIBUTE_ROWS)" in active_false_protected.group("value"), (
         "drum active false mining must protect merged expected-hit rows when available"
     )
+    assert "$(HF_DRUM_KIT_PRIMARY_ATTRIBUTE_ROWS)" in active_false_protected.group("value"), (
+        "drum active false mining must protect HF drum-kit primary true-hit rows"
+    )
+    assert "$(IDMT_DRUMS_PRIMARY_ATTRIBUTE_ROWS)" in active_false_protected.group("value"), (
+        "drum active false mining must protect IDMT drum primary true-hit rows"
+    )
     assert "DRUM_ACTIVE_EXTRA_PROTECTED_ROWS ?= $(MEASURE_DRUM_ACTIVE_EXTRA_PROTECTED_ROWS)" in makefile, (
         "direct drum active false mining must inherit the measured protected row defaults"
     )
     active_false_recipe = target_recipe(makefile, "find-drum-active-false-patterns")
-    assert '$(foreach rows,$(DRUM_ACTIVE_EXTRA_PROTECTED_ROWS),--extra-protected-rows "$(rows)")' in active_false_recipe, (
-        "drum active false mining must pass each protected TSV as a separate parser argument"
+    assert "for path in $(HF_DRUM_KIT_PRIMARY_ATTRIBUTE_ROWS) $(IDMT_DRUMS_PRIMARY_ATTRIBUTE_ROWS)" in active_false_recipe, (
+        "direct drum active false mining must refresh HF and IDMT protected rows when missing"
+    )
+    assert "for rows in $(DRUM_ACTIVE_EXTRA_PROTECTED_ROWS)" in active_false_recipe, (
+        "drum active false mining must iterate over protected TSV inputs at execution time"
+    )
+    assert '--extra-protected-rows "$$rows"' in active_false_recipe, (
+        "drum active false mining must pass each existing protected TSV as a separate parser argument"
     )
     assert "$(MEASURE_ANALYZER_PATTERN_DRUM_SPREAD_MATRIX_REPORT)" in target_recipe(
         makefile, "$(MEASURE_ANALYZER_PATTERN_DRUM_SPREAD_EXACT_REPORT)"
