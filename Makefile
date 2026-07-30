@@ -2198,7 +2198,7 @@ REAL_WORLD_SAMPLE_MAX_TARGETS := $(REAL_WORLD_SAMPLE_MAX_BASE_TARGETS) test-guit
 DETECTOR_SAMPLE_REGRESSION_TARGETS := test-analyzer-cases test-real-note-samples-full-mix-parallel test-guitar-chord-mix-samples-parallel $(DRUM_REAL_WORLD_SAMPLE_TARGETS) test-drum-machine-samples-optional test-vocadito-samples test-vocadito-samples-full-mix-parallel test-instrument-samples-parallel test-drum-samples-full-parallel-optional
 DETECTOR_SAMPLE_FULL_REGRESSION_TARGETS := test-analyzer-cases test-instrument-samples-parallel test-real-world-samples-max-parallel
 TEST_FIXTURE_PARALLEL_TARGETS := test-real-note-samples test-direct-fit-small-fixture test-synthsod-fixture test-prepared-multitrack-fixture test-multtipop-audio-root-fixture
-.PHONY: test-detector-samples-parallel test-detector-samples-full-parallel
+.PHONY: test-detector-samples test-detector-samples-full test-detector-samples-parallel test-detector-samples-full-parallel
 
 ifneq ($(wildcard $(DRUM_SAMPLE_SOURCE_DIR)),)
 test-drum-samples-optional: test-drum-samples
@@ -2272,8 +2272,12 @@ test-real-world-samples-full-parallel: scripts/run_with_duration.sh
 test-detector-samples-parallel: scripts/run_with_duration.sh
 	+$(RUN_WITH_DURATION) detector_samples_parallel $(MAKE) $(PARALLEL_TEST_MAKE_JOBS) $(DETECTOR_SAMPLE_REGRESSION_TARGETS)
 
+test-detector-samples: test-detector-samples-parallel
+
 test-detector-samples-full-parallel: scripts/run_with_duration.sh
 	+$(RUN_WITH_DURATION) detector_samples_full_parallel $(MAKE) $(PARALLEL_TEST_MAKE_JOBS) $(DETECTOR_SAMPLE_FULL_REGRESSION_TARGETS)
+
+test-detector-samples-full: test-detector-samples-full-parallel
 
 test-fixtures-parallel: $(BUILD_DIR)/analyzer_real_note_samples $(BUILD_DIR)/analyzer_urmp $(BUILD_DIR)/analyzer_musicnet $(BUILD_DIR)/analyzer_multtipop scripts/run_with_duration.sh
 	+$(RUN_WITH_DURATION) test_fixtures_parallel $(MAKE) $(PARALLEL_TEST_MAKE_JOBS) $(TEST_FIXTURE_PARALLEL_TARGETS)

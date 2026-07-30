@@ -745,6 +745,19 @@ def main() -> int:
     assert "detector_samples_serial" not in detector_regression_recipe, (
         "detector sample regression target must keep detector gates in one jobserver-aware fanout"
     )
+    assert re.search(
+        r"^test-detector-samples: test-detector-samples-parallel$", makefile, re.MULTILINE
+    ), "default detector sample gate must delegate to the parallel target"
+    detector_regression_full_recipe = target_recipe(makefile, "test-detector-samples-full-parallel")
+    assert "\n\t+$(RUN_WITH_DURATION) detector_samples_full_parallel" in detector_regression_full_recipe, (
+        "full detector sample regression target must preserve the make jobserver through the parallel duration wrapper"
+    )
+    assert "$(MAKE) $(PARALLEL_TEST_MAKE_JOBS) $(DETECTOR_SAMPLE_FULL_REGRESSION_TARGETS)" in detector_regression_full_recipe, (
+        "full detector sample regression target must fan out core gates through jobserver-aware make"
+    )
+    assert re.search(
+        r"^test-detector-samples-full: test-detector-samples-full-parallel$", makefile, re.MULTILINE
+    ), "default full detector sample gate must delegate to the parallel target"
     real_world_full_targets = re.search(
         r"^REAL_WORLD_SAMPLE_FULL_TARGETS := (.+)$", makefile, re.MULTILINE
     )
