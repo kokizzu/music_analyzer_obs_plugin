@@ -7,6 +7,7 @@ from pathlib import Path
 import re
 import shutil
 import tarfile
+import tempfile
 
 
 FIXTURE_VERSION = "medley-solos-family-v1"
@@ -172,8 +173,10 @@ def extract_selected(archive, selected, output):
 
 def write_manifest(output, rows):
     manifest = output / "manifest.tsv"
-    tmp = manifest.with_suffix(".tsv.tmp")
-    with tmp.open("w", encoding="utf-8", newline="") as file:
+    with tempfile.NamedTemporaryFile("w", encoding="utf-8", newline="", dir=output,
+                                     prefix=".manifest.tsv.", suffix=".tmp",
+                                     delete=False) as file:
+        tmp = Path(file.name)
         writer = csv.DictWriter(
             file,
             fieldnames=("id", "family", "instrument", "subset", "song_id", "uuid4", "path"),
@@ -181,7 +184,14 @@ def write_manifest(output, rows):
         )
         writer.writeheader()
         writer.writerows(rows)
-    tmp.replace(manifest)
+    try:
+        tmp.replace(manifest)
+    except Exception:
+        try:
+            tmp.unlink()
+        except FileNotFoundError:
+            pass
+        raise
     return manifest
 
 

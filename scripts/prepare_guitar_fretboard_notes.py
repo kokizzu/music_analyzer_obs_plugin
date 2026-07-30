@@ -5,6 +5,7 @@ import json
 import os
 from pathlib import Path
 import re
+import tempfile
 import time
 from urllib import parse, request
 
@@ -94,12 +95,21 @@ def iter_rows(splits, page_size, limit, retries):
 
 def write_manifest(output, manifest_rows):
     manifest = output / "manifest.tsv"
-    tmp = output / "manifest.tsv.tmp"
-    with tmp.open("w", encoding="utf-8") as file:
+    with tempfile.NamedTemporaryFile("w", encoding="utf-8", dir=output,
+                                     prefix=".manifest.tsv.", suffix=".tmp",
+                                     delete=False) as file:
+        tmp = Path(file.name)
         file.write("id\tfamily\tnsynth_family\tsource\tmidi\tnote\tpath\n")
         for row in manifest_rows:
             file.write("\t".join(row) + "\n")
-    tmp.replace(manifest)
+    try:
+        tmp.replace(manifest)
+    except Exception:
+        try:
+            tmp.unlink()
+        except FileNotFoundError:
+            pass
+        raise
     return manifest
 
 
