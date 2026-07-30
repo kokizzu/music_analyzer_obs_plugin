@@ -19328,6 +19328,14 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 		    one_shot_measured_ratio_snare_from_tom_primary_recovery)
 			promote_drum_primary(Snare, 0.90f);
 
+		const bool one_shot_measured_upper_body_tom_from_snare_primary_recovery =
+			drum_detection_enabled && one_shot_drum_source &&
+			drum_level_[Snare] > drum_level_[Tom] &&
+			snare_body <= 52.397f &&
+			upper_tom_body >= 64.093f;
+		if (one_shot_measured_upper_body_tom_from_snare_primary_recovery)
+			promote_drum_primary(Tom, 0.90f);
+
 		const bool one_shot_measured_tom_dense_snare_tie_primary_recovery =
 			drum_detection_enabled && one_shot_drum_source &&
 			drum_level_[Tom] > 0.30f &&
