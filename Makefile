@@ -1616,7 +1616,7 @@ report-analyzer-patterns-from-rows-full:
 measure-analyzer-patterns: measure-analyzer-attribute-rows
 	+$(MAKE) report-analyzer-patterns-from-rows
 
-measure-analyzer-patterns-full: measure-analyzer-attribute-rows-full analyze-drum-tom-bleed-caps-cached
+measure-analyzer-patterns-full: measure-analyzer-attribute-rows analyze-drum-full-gate-matrix-parallel analyze-drum-full-merged-expected-attribute-rows analyze-drum-tom-bleed-caps-cached
 	+$(MAKE) report-analyzer-patterns-from-rows-full
 
 measure-analyzer-pattern-report: | $(BUILD_DIR)

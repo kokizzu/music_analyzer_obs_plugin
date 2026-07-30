@@ -360,7 +360,6 @@ def main() -> int:
     assert "$(MAKE) report-analyzer-patterns-from-rows" in pattern_recipe, (
         "pattern target must reuse the print/report helper"
     )
-
     report_recipe = target_recipe(makefile, "measure-analyzer-pattern-report")
     assert "$(MAKE) -s measure-analyzer-patterns" in report_recipe, (
         "saved report target must reuse the measurement target without make recipe echo"
@@ -1573,8 +1572,18 @@ def main() -> int:
     )
 
     patterns_full_recipe = target_recipe(makefile, "measure-analyzer-patterns-full")
-    assert "measure-analyzer-attribute-rows-full" in patterns_full_recipe, "full pattern target must measure full rows first"
-    assert "analyze-drum-tom-bleed-caps" in patterns_full_recipe, "full pattern target must run full drum diagnostics"
+    assert "measure-analyzer-attribute-rows-full" not in patterns_full_recipe, (
+        "full pattern target must not regenerate legacy serial full-drum debug rows"
+    )
+    assert "analyze-drum-full-gate-matrix-parallel" in patterns_full_recipe, (
+        "full pattern target must measure full exact drum rows through the sharded builder"
+    )
+    assert "analyze-drum-full-merged-expected-attribute-rows" in patterns_full_recipe, (
+        "full pattern target must measure merged full drum rows through the sharded builder"
+    )
+    assert "analyze-drum-tom-bleed-caps-cached" in patterns_full_recipe, (
+        "full pattern target must run full drum diagnostics from cached sharded rows"
+    )
     assert "$(MAKE) report-analyzer-patterns-from-rows-full" in patterns_full_recipe, (
         "full pattern target must use measured rows without rerunning the bounded target"
     )
