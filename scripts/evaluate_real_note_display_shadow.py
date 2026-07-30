@@ -475,6 +475,7 @@ def threshold_search_matches(
     level_ratios: list[float],
     target_level_thresholds: list[float | None],
     max_protected: int,
+    min_extra_hits: int,
     min_pitch_confidence: float | None,
     min_periodicity: float | None,
     max_fit_error: float | None,
@@ -520,7 +521,7 @@ def threshold_search_matches(
                             owner_mode,
                         )
                     )
-                    if extra_hits > 0 and protected_hits <= max_protected:
+                    if extra_hits >= min_extra_hits and protected_hits <= max_protected:
                         matches.append(
                             (
                                 protected_hits,
@@ -581,6 +582,7 @@ def print_threshold_search(
     records: list[dict[str, str]],
     matches: list[ThresholdMatch],
     max_protected: int,
+    min_extra_hits: int,
     limit: int,
     examples: int,
     protected_examples: int,
@@ -592,7 +594,7 @@ def print_threshold_search(
 ) -> None:
     extras = [record for record in records if record["protected"] == "0"]
     protected = [record for record in records if record["protected"] == "1"]
-    print(f"\n{title} threshold search max_protected={max_protected}")
+    print(f"\n{title} threshold search max_protected={max_protected} min_extra_hits={min_extra_hits}")
     if not matches:
         print("  no matching thresholds")
         return
@@ -808,6 +810,12 @@ def main() -> int:
         help="search score/level threshold triples for low-risk shadow suppression",
     )
     parser.add_argument("--max-protected", type=int, default=2)
+    parser.add_argument(
+        "--min-threshold-extra-hits",
+        type=int,
+        default=1,
+        help="minimum extra rows a threshold-search result must suppress before it is reported",
+    )
     parser.add_argument("--threshold-limit", "--top-routes", dest="threshold_limit", type=int, default=12)
     parser.add_argument(
         "--threshold-examples",
@@ -933,6 +941,7 @@ def main() -> int:
                     args.level_ratios,
                     args.target_level_thresholds,
                     args.max_protected,
+                    args.min_threshold_extra_hits,
                     args.min_pitch_confidence,
                     args.min_periodicity,
                     args.max_fit_error,
@@ -950,6 +959,7 @@ def main() -> int:
                     records,
                     matches,
                     args.max_protected,
+                    args.min_threshold_extra_hits,
                     args.threshold_limit,
                     args.threshold_examples,
                     args.threshold_protected_examples,
