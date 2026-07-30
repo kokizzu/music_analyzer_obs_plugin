@@ -159,6 +159,15 @@ def component_root_pc(label: str) -> int | None:
     return NOTE_TO_PC.get(root_name)
 
 
+def first_expected_later_component(
+    components: list[str], expected: set[str]
+) -> tuple[int, str] | None:
+    for index, component in enumerate(components[1:], start=1):
+        if component in expected:
+            return index, component
+    return None
+
+
 def primary_quality_bucket(label: str) -> str:
     if not label or label == "--":
         return "none"
@@ -1250,6 +1259,9 @@ def main() -> int:
     miss_evidence_buckets: collections.Counter[str] = collections.Counter()
     miss_tone_buckets: collections.Counter[str] = collections.Counter()
     miss_root_buckets: collections.Counter[str] = collections.Counter()
+    expected_later_position_buckets: collections.Counter[str] = collections.Counter()
+    expected_later_relation_buckets: collections.Counter[str] = collections.Counter()
+    expected_later_pair_buckets: collections.Counter[str] = collections.Counter()
 
     for row in chord_rows:
         expected = expected_labels(row.get("expected_chords", ""))
@@ -1300,6 +1312,26 @@ def main() -> int:
         if not expected & set(components):
             continue
         expected_later.append(row)
+        later_match = first_expected_later_component(components, expected)
+        if later_match is not None:
+            later_index, expected_component = later_match
+            expected_later_position_buckets[f"index={later_index}"] += 1
+            primary_root = component_root_pc(primary)
+            expected_root = component_root_pc(expected_component)
+            root_delta = (
+                "none"
+                if primary_root is None or expected_root is None
+                else f"+{(expected_root - primary_root) % 12}"
+            )
+            expected_later_relation_buckets[
+                "primary="
+                + primary_quality_bucket(primary)
+                + " expected="
+                + primary_quality_bucket(expected_component)
+                + " root_delta="
+                + root_delta
+            ] += 1
+            expected_later_pair_buckets[f"{primary}->{expected_component}"] += 1
 
         display = pitch_classes(row.get("guitar_pitch_classes", ""))
         analysis = pitch_classes(row.get("guitar_analysis_pitch_classes", ""))
@@ -1359,6 +1391,17 @@ def main() -> int:
     print_counter("primary_miss_evidence_buckets:", miss_evidence_buckets, args.examples)
     print_counter("primary_miss_tone_buckets:", miss_tone_buckets, args.examples)
     print_counter("primary_miss_root_buckets:", miss_root_buckets, args.examples)
+    print_counter(
+        "expected_later_component_position_buckets:",
+        expected_later_position_buckets,
+        args.examples,
+    )
+    print_counter(
+        "expected_later_relation_buckets:",
+        expected_later_relation_buckets,
+        args.examples,
+    )
+    print_counter("expected_later_pair_buckets:", expected_later_pair_buckets, args.examples)
     if score_gaps:
         buckets = collections.Counter()
         for gap in score_gaps:

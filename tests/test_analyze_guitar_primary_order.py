@@ -295,6 +295,16 @@ def main() -> int:
         assert "visible=-- analysis=-- smooth=--=6" in output
         assert "primary_miss_root_buckets:" in output
         assert "rootvis=-- display=-- raw=-- smooth=--=6" in output
+        assert "expected_later_component_position_buckets:" in output
+        assert "index=1=2" in output
+        assert "index=3=2" in output
+        assert "index=4=1" in output
+        assert "expected_later_relation_buckets:" in output
+        assert "primary=plain_major expected=plain_minor root_delta=+9=2" in output
+        assert "primary=plain_major expected=extension root_delta=+0=1" in output
+        assert "expected_later_pair_buckets:" in output
+        assert "C->Am=2" in output
+        assert "C->Cmaj7=1" in output
         assert "gap=7.830 expected=Am primary=C label=C=Am" in output
         assert "gap=0.125 expected=Am primary=C" in output
         assert "cpp-style promotable expected-later rows" in output
