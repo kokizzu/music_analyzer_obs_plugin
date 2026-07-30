@@ -506,6 +506,14 @@ def expected_row_for_family(family: str) -> str:
     return ROW_FOR_FAMILY.get(family, family)
 
 
+def expected_display_row_count(rows: list[dict[str, str]], field: str) -> int:
+    return sum(
+        1
+        for row in rows
+        if row.get(field, "") == expected_row_for_family(row.get("family", ""))
+    )
+
+
 def note_row_cells(row: dict[str, str], row_name: str) -> list[tuple[int, float]]:
     field = row_note_field(row_name)
     if not field:
@@ -687,6 +695,16 @@ def report_real_notes(path: pathlib.Path, limit: int, row_examples: int) -> None
         f"{pitch_coverage_line(rows, 'expected_midi', include_display=False, include_primary=False)}"
     )
     print(f"  grid exact-octave coverage {real_note_grid_coverage_line(rows)}")
+    family_counts = collections.Counter(row.get("family", "unknown") for row in rows)
+    for family, _count in family_counts.most_common(limit):
+        family_rows = [row for row in rows if row.get("family") == family]
+        print(
+            f"  {family}: rows={len(family_rows)} "
+            f"expected-row[exact={ratio(level_positive_count(family_rows, 'expected_row_exact_level'), len(family_rows))} "
+            f"pitch={ratio(level_positive_count(family_rows, 'expected_row_pitch_level'), len(family_rows))}] "
+            f"strongest-row={ratio(expected_display_row_count(family_rows, 'buffer_strongest_row'), len(family_rows))} "
+            f"visual-row={ratio(expected_display_row_count(family_rows, 'buffer_visual_strongest_row'), len(family_rows))}"
+        )
     print(
         f"  debug score states "
         f"{compact(collections.Counter(row.get('debug_score_state', '--') or '--' for row in rows), limit)}"
