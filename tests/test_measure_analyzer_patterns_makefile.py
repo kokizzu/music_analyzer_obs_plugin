@@ -231,6 +231,12 @@ def main() -> int:
     assert "DRUM_ACTIVE_EXTRA_PROTECTED_ROWS ?= $(MEASURE_DRUM_ACTIVE_EXTRA_PROTECTED_ROWS)" in makefile, (
         "direct drum active false mining must inherit the measured protected row defaults"
     )
+    assert (
+        "DRUM_ACTIVE_REFRESH_FULL_ROWS = $(if $(filter $(DRUM_FULL_EXACT_ATTRIBUTE_ROWS) "
+        "$(DRUM_FULL_MERGED_EXPECTED_ATTRIBUTE_ROWS),$(DRUM_ACTIVE_EXTRA_PROTECTED_ROWS)),1,0)"
+    ) in makefile, (
+        "drum active false mining must refresh full rows only when full TSVs are protected inputs"
+    )
     active_false_recipe = target_recipe(makefile, "find-drum-active-false-patterns")
     assert '$(BUILD_DIR)/analyzer_drum_samples" -nt "$(DRUM_SPREAD_EXACT_ATTRIBUTE_ROWS)"' in active_false_recipe, (
         "direct drum active false mining must refresh stale spread rows"
@@ -247,14 +253,14 @@ def main() -> int:
     assert '[ "scripts/analyze_drum_primary_debug.py" -nt "$$path" ]' in active_false_recipe, (
         "direct drum active false mining must refresh HF and IDMT rows when the parser changes"
     )
-    assert '[ -f "$(DRUM_FULL_EXACT_ATTRIBUTE_ROWS)" ]' in active_false_recipe, (
-        "direct drum active false mining must refresh optional full exact rows when already cached"
+    assert '[ "$(DRUM_ACTIVE_REFRESH_FULL_ROWS)" = "1" ] && [ -f "$(DRUM_FULL_EXACT_ATTRIBUTE_ROWS)" ]' in active_false_recipe, (
+        "direct drum active false mining must not refresh optional full exact rows unless enabled"
     )
     assert "$(MAKE) analyze-drum-full-gate-matrix-parallel" in active_false_recipe, (
         "direct drum active false mining must refresh stale full exact rows through the parallel builder"
     )
-    assert '[ -f "$(DRUM_FULL_MERGED_EXPECTED_ATTRIBUTE_ROWS)" ]' in active_false_recipe, (
-        "direct drum active false mining must refresh optional merged expected rows when already cached"
+    assert '[ "$(DRUM_ACTIVE_REFRESH_FULL_ROWS)" = "1" ] && [ -f "$(DRUM_FULL_MERGED_EXPECTED_ATTRIBUTE_ROWS)" ]' in active_false_recipe, (
+        "direct drum active false mining must not refresh optional merged expected rows unless enabled"
     )
     assert "$(MAKE) analyze-drum-full-merged-expected-attribute-rows" in active_false_recipe, (
         "direct drum active false mining must refresh stale merged expected full rows"
