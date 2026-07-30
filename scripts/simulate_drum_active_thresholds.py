@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Simulate drum active thresholds from analyzer_drum_samples attribute rows."""
+"""Simulate drum active thresholds and primary recovery rules from drum rows."""
 
 from __future__ import annotations
 
@@ -103,6 +103,22 @@ class CandidateCap:
         return ",".join(condition.text() for condition in self.conditions)
 
 
+@dataclass(frozen=True)
+class CandidatePromote:
+    name: str
+    target: str
+    minimum_level: float
+    conditions: tuple[Condition, ...]
+    competitor_gap: float = 0.02
+    description: str = ""
+
+    def matches(self, row: dict[str, str]) -> bool:
+        return all(condition.matches(row) for condition in self.conditions)
+
+    def predicate_text(self) -> str:
+        return ",".join(condition.text() for condition in self.conditions)
+
+
 BUILTIN_CAPS = {
     "low-kick-primary-tom": CandidateCap(
         name="low-kick-primary-tom",
@@ -126,6 +142,22 @@ BUILTIN_CAPS = {
             Condition("tom_level", ">", "0.30"),
         ),
         description="probe runtime-style saturated kick-primary tom bleed suppression",
+    ),
+}
+
+BUILTIN_PROMOTES = {
+    "tom-primary-from-close-snare": CandidatePromote(
+        name="tom-primary-from-close-snare",
+        target="tom",
+        minimum_level=0.90,
+        conditions=(
+            Condition("body_shape", "=", "4.000000"),
+            Condition("tom_level", ">", "0.30"),
+            Condition("snare_level", ">", "0.30"),
+            Condition("tom_body", ">=", "snare_body", compare_field="snare_body", compare_multiplier=1.25),
+            Condition("upper_tom_body", ">=", "snare_crack", compare_field="snare_crack", compare_multiplier=6.0),
+        ),
+        description="probe tom-body rows where snare wins by level but tom has stronger shell evidence",
     ),
 }
 
@@ -202,6 +234,88 @@ def add_level_primary(row: dict[str, str]) -> None:
     )
     row["level_primary"] = "ambiguous" if tied > 1 else primary
     row["level_primary_level"] = f"{primary_level:.9f}"
+
+
+def levels_from_row(row: dict[str, str]) -> dict[str, float]:
+    return {
+        category: as_float(row.get(f"{category}_level", ""))
+        for category in CATEGORIES
+    }
+
+
+def primary_from_level_map(row: dict[str, str], levels: dict[str, float]) -> str:
+    primary = "none"
+    primary_level = 0.0
+    for category in CATEGORIES:
+        level = levels.get(category, 0.0)
+        if level <= 0.30 or level <= primary_level:
+            continue
+        primary = category
+        primary_level = level
+    if primary == "none":
+        return primary
+
+    expected = row.get("expected", "")
+    if (
+        row.get("merged_expected") == "1"
+        and expected in CATEGORIES
+        and levels.get(expected, 0.0) > 0.30
+        and levels.get(expected, 0.0) >= 0.90
+        and levels.get(expected, 0.0) + 0.025 >= primary_level
+    ):
+        return expected
+
+    tied = sum(
+        1
+        for category in CATEGORIES
+        if levels.get(category, 0.0) > 0.30
+        and abs(levels.get(category, 0.0) - primary_level) <= 0.005
+    )
+    return "ambiguous" if tied > 1 else primary
+
+
+def before_primary(row: dict[str, str]) -> str:
+    return primary_from_level_map(row, levels_from_row(row))
+
+
+def apply_promote(
+    levels: dict[str, float],
+    candidate: CandidatePromote,
+) -> dict[str, float]:
+    promoted = dict(levels)
+    target = candidate.target
+    strongest_competing_level = max(
+        (level for category, level in promoted.items() if category != target),
+        default=0.0,
+    )
+    target_level = max(
+        promoted.get(target, 0.0),
+        candidate.minimum_level,
+        strongest_competing_level + candidate.competitor_gap,
+    )
+    promoted[target] = min(max(target_level, 0.0), 1.0)
+    for category in CATEGORIES:
+        if category == target or promoted[category] <= 0.30:
+            continue
+        promoted[category] = min(
+            promoted[category],
+            max(0.31, promoted[target] - candidate.competitor_gap),
+        )
+    return promoted
+
+
+def apply_promotes(
+    row: dict[str, str],
+    candidates: list[CandidatePromote],
+) -> tuple[dict[str, float], list[CandidatePromote]]:
+    levels = levels_from_row(row)
+    matched: list[CandidatePromote] = []
+    for candidate in candidates:
+        if not candidate.matches(row):
+            continue
+        levels = apply_promote(levels, candidate)
+        matched.append(candidate)
+    return levels, matched
 
 
 def percent(hit: int, total: int) -> float:
@@ -355,6 +469,40 @@ def parse_candidate_caps(values: list[str]) -> list[CandidateCap]:
     return [parse_candidate_cap(value) for value in values]
 
 
+def parse_candidate_promote(value: str) -> CandidatePromote:
+    if value in BUILTIN_PROMOTES:
+        return BUILTIN_PROMOTES[value]
+
+    parts = value.split(":", 3)
+    if len(parts) != 4:
+        names = ", ".join(sorted(BUILTIN_PROMOTES))
+        raise ValueError(
+            "candidate promote must be a built-in name or "
+            f"`name:target:minimum_level:field=value,...`; built-ins: {names}"
+        )
+
+    name, target, minimum_level_text, condition_text = (part.strip() for part in parts)
+    if target not in CATEGORIES:
+        raise ValueError(f"unknown candidate target: {target}")
+    conditions = tuple(
+        parse_condition(part.strip())
+        for part in condition_text.split(",")
+        if part.strip()
+    )
+    if not name or not conditions:
+        raise ValueError(f"invalid candidate promote: {value}")
+    return CandidatePromote(
+        name=name,
+        target=target,
+        minimum_level=float(minimum_level_text),
+        conditions=conditions,
+    )
+
+
+def parse_candidate_promotes(values: list[str]) -> list[CandidatePromote]:
+    return [parse_candidate_promote(value) for value in values]
+
+
 def print_candidate(
     rows: list[dict[str, str]],
     threshold: float,
@@ -428,6 +576,141 @@ def print_candidate(
         )
 
 
+def primary_summary(rows: list[dict[str, str]], after: dict[int, str] | None = None) -> tuple[int, int]:
+    total = 0
+    hits = 0
+    for index, row in enumerate(rows):
+        expected = row.get("expected", "")
+        if expected not in CATEGORIES:
+            continue
+        total += 1
+        got = after[index] if after is not None else before_primary(row)
+        if got == expected:
+            hits += 1
+    return hits, total
+
+
+def print_primary_promote_candidate(
+    rows: list[dict[str, str]],
+    candidate: CandidatePromote,
+    profile_fields: tuple[str, ...],
+) -> None:
+    after: dict[int, str] = {}
+    matched: list[dict[str, str]] = []
+    fixed: list[dict[str, str]] = []
+    regressed: list[dict[str, str]] = []
+    changed: list[dict[str, str]] = []
+    for index, row in enumerate(rows):
+        levels = levels_from_row(row)
+        if candidate.matches(row):
+            matched.append(row)
+            levels = apply_promote(levels, candidate)
+        before = before_primary(row)
+        now = primary_from_level_map(row, levels)
+        after[index] = now
+        expected = row.get("expected", "")
+        if now != before:
+            changed.append(row)
+        if before != expected and now == expected:
+            fixed.append(row)
+        if before == expected and now != expected:
+            regressed.append(row)
+
+    before_hits, total = primary_summary(rows)
+    after_hits, _ = primary_summary(rows, after)
+    fixed_routes = Counter(f"{row.get('expected', '--')}->{before_primary(row)}" for row in fixed)
+    regressed_routes = Counter(
+        f"{row.get('expected', '--')}->{primary_from_level_map(row, apply_promote(levels_from_row(row), candidate))}"
+        for row in regressed
+    )
+    changed_routes = Counter(
+        f"{before_primary(row)}->{primary_from_level_map(row, apply_promote(levels_from_row(row), candidate))}"
+        for row in changed
+    )
+
+    print(
+        f"candidate-promote {candidate.name} target={candidate.target} "
+        f"minimum={candidate.minimum_level:.2f} matched={len(matched)}"
+    )
+    print(f"  predicate: {candidate.predicate_text()}")
+    if candidate.description:
+        print(f"  description: {candidate.description}")
+    print(
+        f"  matched expected={compact_counter(Counter(row.get('expected', '') for row in matched))} "
+        f"got={compact_counter(Counter(before_primary(row) for row in matched))}"
+    )
+    print(
+        f"  primary before={before_hits}/{total} {percent(before_hits, total):.2f}% "
+        f"after={after_hits}/{total} {percent(after_hits, total):.2f}% "
+        f"delta={after_hits - before_hits:+d}"
+    )
+    print(
+        f"  fixed={len(fixed)} routes={compact_counter(fixed_routes)} "
+        f"regressed={len(regressed)} routes={compact_counter(regressed_routes)} "
+        f"changed={len(changed)} routes={compact_counter(changed_routes)}"
+    )
+    if profile_fields:
+        print(f"  fixed medians: {profile_text(fixed, profile_fields)}")
+        print(f"  regressed medians: {profile_text(regressed, profile_fields)}")
+    for row in fixed[:3]:
+        levels = apply_promote(levels_from_row(row), candidate)
+        print(
+            f"    fixed sample={row.get('sample', '--')} expected={row.get('expected', '--')} "
+            f"got={before_primary(row)}->{primary_from_level_map(row, levels)}"
+        )
+    for row in regressed[:3]:
+        levels = apply_promote(levels_from_row(row), candidate)
+        print(
+            f"    regressed sample={row.get('sample', '--')} expected={row.get('expected', '--')} "
+            f"got={before_primary(row)}->{primary_from_level_map(row, levels)}"
+        )
+
+
+def print_primary_promote_combined(
+    rows: list[dict[str, str]],
+    candidates: list[CandidatePromote],
+) -> None:
+    if not candidates:
+        return
+    after: dict[int, str] = {}
+    matched_names: Counter[str] = Counter()
+    fixed = 0
+    regressed = 0
+    changed = 0
+    fixed_routes: Counter[str] = Counter()
+    regressed_routes: Counter[str] = Counter()
+    for index, row in enumerate(rows):
+        levels, matched = apply_promotes(row, candidates)
+        for candidate in matched:
+            matched_names[candidate.name] += 1
+        before = before_primary(row)
+        now = primary_from_level_map(row, levels)
+        after[index] = now
+        expected = row.get("expected", "")
+        if now != before:
+            changed += 1
+        if before != expected and now == expected:
+            fixed += 1
+            fixed_routes[f"{expected}->{before}"] += 1
+        if before == expected and now != expected:
+            regressed += 1
+            regressed_routes[f"{expected}->{now}"] += 1
+    before_hits, total = primary_summary(rows)
+    after_hits, _ = primary_summary(rows, after)
+    print(
+        "candidate-promote combined "
+        f"rules={len(candidates)} matched={sum(matched_names.values())} "
+        f"primary before={before_hits}/{total} {percent(before_hits, total):.2f}% "
+        f"after={after_hits}/{total} {percent(after_hits, total):.2f}% "
+        f"delta={after_hits - before_hits:+d}"
+    )
+    print(
+        f"  matched={compact_counter(matched_names, len(candidates))} "
+        f"fixed={fixed} routes={compact_counter(fixed_routes)} "
+        f"regressed={regressed} routes={compact_counter(regressed_routes)} changed={changed}"
+    )
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("rows", type=pathlib.Path)
@@ -449,6 +732,15 @@ def main() -> int:
         ),
     )
     parser.add_argument(
+        "--candidate-promote",
+        action="append",
+        default=[],
+        help=(
+            "simulate a candidate primary promotion. Use a built-in name, or custom "
+            "`name:target:minimum_level:field.eq.value,...`; comparators match --candidate-cap."
+        ),
+    )
+    parser.add_argument(
         "--profile-fields",
         default=",".join(DEFAULT_PROFILE_FIELDS),
         help="comma-separated candidate median fields to print; use `none` to disable",
@@ -457,6 +749,7 @@ def main() -> int:
 
     rows = read_rows(args.rows)
     candidates = parse_candidate_caps(args.candidate_cap)
+    promote_candidates = parse_candidate_promotes(args.candidate_promote)
     profile_fields = tuple(
         field.strip()
         for field in args.profile_fields.split(",")
@@ -467,6 +760,9 @@ def main() -> int:
         print_threshold(rows, threshold)
         for candidate in candidates:
             print_candidate(rows, threshold, candidate, profile_fields)
+    for candidate in promote_candidates:
+        print_primary_promote_candidate(rows, candidate, profile_fields)
+    print_primary_promote_combined(rows, promote_candidates)
     return 0
 
 

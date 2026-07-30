@@ -48,6 +48,8 @@ tom/report_protected.wav\ttom\ttom\t0.74\t0.997\t0.15\t0\t0\t0.96\t0\t0
                 "derived-ratio-tom:tom:0.28:tom_kick_level_ratio.gte.2.0",
                 "--candidate-cap",
                 "missing-ratio-crash:crash:0.28:crash_hihat_level_ratio.lte.0.969,crash_level.gt.0.30",
+                "--candidate-promote",
+                "recover-snare:snare:0.90:got.eq.kick,expected.eq.snare",
             ],
             cwd=ROOT,
             check=True,
@@ -89,6 +91,12 @@ tom/report_protected.wav\ttom\ttom\t0.74\t0.997\t0.15\t0\t0\t0.96\t0\t0
     require(output, "  false-active removed=1 routes=snare->tom=1 true-active lost=0")
     require(output, "candidate missing-ratio-crash threshold 0.30 target=crash cap=0.28 matched=0")
     require(output, "  predicate: crash_hihat_level_ratio<=0.969,crash_level>0.30")
+    require(output, "candidate-promote recover-snare target=snare minimum=0.90 matched=1")
+    require(output, "  predicate: got=kick,expected=snare")
+    require(output, "  matched expected=snare=1 got=kick=1")
+    require(output, "  primary before=4/8 50.00% after=5/8 62.50% delta=+1")
+    require(output, "  fixed=1 routes=snare->kick=1 regressed=0 routes=-- changed=1 routes=kick->snare=1")
+    require(output, "candidate-promote combined rules=1 matched=1 primary before=4/8 50.00% after=5/8 62.50% delta=+1")
     print("test_simulate_drum_active_thresholds: ok")
     return 0
 

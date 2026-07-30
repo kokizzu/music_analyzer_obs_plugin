@@ -19132,6 +19132,50 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 		    one_shot_measured_late_tom_from_snare_primary_recovery)
 			promote_drum_primary(Tom, 0.90f);
 
+		const bool one_shot_measured_snare_body_tom_tie_primary_recovery =
+			drum_detection_enabled && one_shot_drum_source &&
+			body_shape == Snare &&
+			drum_level_[Snare] > 0.30f &&
+			drum_level_[Tom] > 0.30f &&
+			tom_snare_level_ratio >= 1.005f &&
+			tom_snare_trigger_ratio <= 0.787f;
+		const bool one_shot_measured_snare_bright_tom_tie_primary_recovery =
+			drum_detection_enabled && one_shot_drum_source &&
+			drum_level_[Snare] > 0.30f &&
+			drum_level_[Tom] >= 0.991f &&
+			drum_bands[Crash] >= 20.908f &&
+			drum_segment_bands[Tom] >= 77.577f &&
+			drum_segment_bands[Tom] <= 171.129f;
+		if (one_shot_measured_snare_body_tom_tie_primary_recovery ||
+		    one_shot_measured_snare_bright_tom_tie_primary_recovery)
+			promote_drum_primary(Snare, 0.90f);
+
+		const bool one_shot_measured_tom_dense_snare_tie_primary_recovery =
+			drum_detection_enabled && one_shot_drum_source &&
+			drum_level_[Tom] > 0.30f &&
+			drum_level_[Snare] > 0.30f &&
+			drum_level_[Kick] > 0.30f &&
+			final_snare_kick_level_ratio >= 1.042f &&
+			tom_kick_trigger_ratio <= 0.703f &&
+			tom_snare_band_ratio >= 1.784f &&
+			final_upper_tom_snare_crack_ratio <= 8.75f &&
+			drum_bands[Tom] >= 50.0f;
+		if (one_shot_measured_tom_dense_snare_tie_primary_recovery)
+			promote_drum_primary(Tom, 0.90f);
+
+		const bool one_shot_measured_kick_dense_tom_tie_primary_recovery =
+			drum_detection_enabled && one_shot_drum_source &&
+			drum_level_[Kick] > 0.30f &&
+			drum_level_[Tom] > 0.30f &&
+			drum_bands[Kick] >= 20.0f &&
+			drum_segment_bands[Crash] <= 0.883f &&
+			tom_kick_level_ratio >= 1.020f &&
+			tom_kick_trigger_ratio <= 0.721f &&
+			snare_crack >= 0.05f &&
+			final_upper_tom_snare_crack_ratio >= 4.557f;
+		if (one_shot_measured_kick_dense_tom_tie_primary_recovery)
+			promote_drum_primary(Kick, 0.90f);
+
 		const bool generated_gm_orchestra_tom_primary_recovery =
 			drum_detection_enabled && generated_gm_drum_source &&
 			drum_level_[Tom] > 0.30f &&
