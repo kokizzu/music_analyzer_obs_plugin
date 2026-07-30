@@ -8,12 +8,49 @@ import collections
 import csv
 import pathlib
 import re
+import statistics
 
 
 DRUMS = ("kick", "snare", "hihat", "crash", "tom", "ride", "rim")
 NOTE_ORDER = ("C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B")
 NOTE_BASE = {note: index for index, note in enumerate(NOTE_ORDER)}
 NOTE_RE = re.compile(r"^([A-G]#?)(-?\d+)$")
+NOTE_BUCKET_FEATURES = (
+    ("raw", "raw_expected_ratio"),
+    ("tuned", "raw_tuned_ratio"),
+    ("cent", "raw_tuned_abs_cent_offset"),
+    ("rank", "raw_expected_rank"),
+    ("pitch", "pitch_confidence"),
+    ("periodic", "periodicity"),
+    ("fit", "fit_error"),
+    ("noise", "noise"),
+)
+NOTE_BUCKET_SCORE_FEATURES = (
+    ("bass", "bass_score"),
+    ("key", "keyboard_score"),
+    ("gtr", "guitar_score"),
+    ("voc", "vocal_score"),
+    ("oth", "other_score"),
+)
+CHORD_BUCKET_CONF_FEATURES = (
+    ("disp", "guitar_chord_confidence"),
+    ("raw", "guitar_raw_chord_confidence"),
+    ("smooth", "guitar_smoothed_chord_confidence"),
+    ("rms", "rms"),
+)
+CHORD_BUCKET_TONE_FEATURES = (
+    ("vr", "visible_root"),
+    ("v3", "visible_third"),
+    ("v5", "visible_fifth"),
+    ("ar", "analysis_root"),
+    ("a3", "analysis_third"),
+    ("a5", "analysis_fifth"),
+    ("rr", "raw_root"),
+    ("r3", "raw_third"),
+    ("r5", "raw_fifth"),
+    ("anchor", "raw_third_anchor_ratio"),
+    ("margin", "raw_third_opposite_margin"),
+)
 
 
 def load_rows(path: pathlib.Path) -> list[dict[str, str]]:
@@ -67,6 +104,33 @@ def parse_float(value: str) -> float | None:
         return float(value)
     except (TypeError, ValueError):
         return None
+
+
+def float_text(value: float) -> str:
+    return f"{value:.3f}".rstrip("0").rstrip(".")
+
+
+def numeric_feature_values(rows: list[dict[str, str]], field: str) -> list[float]:
+    return [value for row in rows if (value := parse_float(row.get(field, ""))) is not None]
+
+
+def numeric_feature_summary(
+    rows: list[dict[str, str]],
+    fields: tuple[tuple[str, str], ...],
+) -> str:
+    parts: list[str] = []
+    for label, field in fields:
+        values = numeric_feature_values(rows, field)
+        if not values:
+            continue
+        median = statistics.median(values)
+        low = min(values)
+        high = max(values)
+        if abs(high - low) < 1.0e-6:
+            parts.append(f"{label}:{float_text(median)}")
+        else:
+            parts.append(f"{label}:{float_text(median)}[{float_text(low)}-{float_text(high)}]")
+    return " ".join(parts) if parts else "--"
 
 
 def midi_range(rows: list[dict[str, str]], field: str) -> str:
@@ -308,7 +372,9 @@ def print_note_group_buckets(
             f"    {family}/{source} expected={expected} rows={len(group_rows)} "
             f"status={compact(status_counts, 4)} "
             f"{' '.join(pitch_parts)} "
-            f"owners={compact(owner_counts, 4)}"
+            f"owners={compact(owner_counts, 4)} "
+            f"features={numeric_feature_summary(group_rows, NOTE_BUCKET_FEATURES)} "
+            f"scores={numeric_feature_summary(group_rows, NOTE_BUCKET_SCORE_FEATURES)}"
         )
 
 
@@ -336,7 +402,9 @@ def print_chord_group_buckets(title: str, rows: list[dict[str, str]], row_limit:
             f"status={compact(collections.Counter(row.get('status', 'unknown') for row in group_rows), 4)} "
             f"match={compact(collections.Counter(cell(row, 'guitar_match_kind') for row in group_rows), 4)} "
             f"display={compact(collections.Counter(cell(row, 'guitar_chord') for row in group_rows), 4)} "
-            f"evidence={compact(collections.Counter(cell(row, 'evidence_class') for row in group_rows), 4)}"
+            f"evidence={compact(collections.Counter(cell(row, 'evidence_class') for row in group_rows), 4)} "
+            f"conf={numeric_feature_summary(group_rows, CHORD_BUCKET_CONF_FEATURES)} "
+            f"tones={numeric_feature_summary(group_rows, CHORD_BUCKET_TONE_FEATURES)}"
         )
 
 

@@ -107,6 +107,8 @@ kick.wav	kick	kick	0.9	0.1	0.0	0.9	0.1	0.1	0.1	0.1	1	0	0	0	0	0	0	0.9	0.4	0	0	0	0
         "guitar/-- expected=E3/52 rows=1 status=miss=1 debug=exact=1 "
         "display=octave_alias=1 primary=exact=1 owners=piano=1"
     ) in output
+    assert "features=raw:0.7 tuned:0.8 cent:4 rank:2 pitch:0.7 periodic:0.6 fit:0.2" in output
+    assert "scores=key:0.8 gtr:0.2 voc:0 oth:0" in output
     assert "miss guitar expected=E3/52 display=E4/12 primary=E3/0 got=E3/piano" in output
     assert "octdup=1" in output
     assert "measured real-note full-mix rows" in output
@@ -134,6 +136,8 @@ kick.wav	kick	kick	0.9	0.1	0.0	0.9	0.1	0.1	0.1	0.1	1	0	0	0	0	0	0	0.9	0.4	0	0	0	0
         "piano/electronic expected=C4/60 rows=1 status=ownership_miss=1 "
         "debug=exact=1 owners=guitar=1"
     ) in output
+    assert "features=raw:1 tuned:1 cent:0 rank:1 pitch:0.8 periodic:0.7 fit:0.1" in output
+    assert "scores=key:0.4 gtr:0.6 voc:0 oth:0" in output
     assert "ownership_miss piano/electronic expected=C4/60 first=bass" in output
     assert "partials=p1:1,p2:0.25,p3:0.11,p4:0.03,p5:0.01 sample=s2" in output
     assert "measured guitar chord rows" in output
@@ -144,6 +148,8 @@ kick.wav	kick	kick	0.9	0.1	0.0	0.9	0.1	0.1	0.1	0.1	1	0	0	0	0	0	0	0.9	0.4	0	0	0	0
         "Am quality=m rows=1 status=chord_miss=1 match=display_same_root_other=1 "
         "display=Asus2=1 evidence=fifth_missing=1"
     ) in output
+    assert "conf=disp:0.4 raw:0.35 smooth:0.34 rms:0.2" in output
+    assert "tones=vr:1 v3:1 v5:0 ar:1 a3:1 a5:0 rr:1 r3:1 r5:0.2 anchor:1 margin:0.9" in output
     assert "miss evidence=fifth_missing=1 sources=grid=1" in output
     assert "miss match kinds=display_same_root_other=1" in output
     assert "miss visible missing=fifth=1 analysis missing=fifth=1 smooth missing=fifth=1" in output
