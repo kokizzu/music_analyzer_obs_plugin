@@ -223,15 +223,15 @@ def main() -> int:
     assert "\n\t+$(RUN_WITH_DURATION) detector_improvement_patterns" in detector_improvement_recipe, (
         "detector improvement workflow must report the bounded pattern-analysis duration"
     )
-    assert "$(MAKE) measure-analyzer-patterns" in detector_improvement_recipe, (
-        "detector improvement workflow must generate measured attribute and pattern reports"
+    assert "$(MAKE) -s measure-analyzer-patterns" in detector_improvement_recipe, (
+        "detector improvement workflow must generate clean measured attribute and pattern reports"
     )
     detector_improvement_full_recipe = target_recipe(makefile, "analyze-detector-improvements-full")
     assert "$(MAKE) test-real-world-samples-max-parallel" in detector_improvement_full_recipe, (
         "full detector improvement workflow must reuse the max real-world parallel gate"
     )
-    assert "$(MAKE) measure-analyzer-patterns-full" in detector_improvement_full_recipe, (
-        "full detector improvement workflow must generate exhaustive pattern reports"
+    assert "$(MAKE) -s measure-analyzer-patterns-full" in detector_improvement_full_recipe, (
+        "full detector improvement workflow must generate clean exhaustive pattern reports"
     )
     default_test_recipe = target_recipe(makefile, "test")
     assert "$(RUN_WITH_DURATION) test_fast" in default_test_recipe, (

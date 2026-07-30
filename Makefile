@@ -2131,11 +2131,11 @@ test-real-world-samples-max: scripts/run_with_duration.sh
 
 analyze-detector-improvements: scripts/run_with_duration.sh
 	+$(RUN_WITH_DURATION) detector_improvement_samples $(MAKE) test-detector-samples-parallel
-	+$(RUN_WITH_DURATION) detector_improvement_patterns $(MAKE) measure-analyzer-patterns
+	+$(RUN_WITH_DURATION) detector_improvement_patterns $(MAKE) -s measure-analyzer-patterns
 
 analyze-detector-improvements-full: scripts/run_with_duration.sh
 	+$(RUN_WITH_DURATION) detector_improvement_samples_full $(MAKE) test-real-world-samples-max-parallel
-	+$(RUN_WITH_DURATION) detector_improvement_patterns_full $(MAKE) measure-analyzer-patterns-full
+	+$(RUN_WITH_DURATION) detector_improvement_patterns_full $(MAKE) -s measure-analyzer-patterns-full
 
 test-midi-ranges: $(BUILD_DIR)/analyzer_midi_ranges scripts/run_with_duration.sh
 	$(RUN_WITH_DURATION) analyzer_midi_ranges $(BUILD_DIR)/analyzer_midi_ranges
