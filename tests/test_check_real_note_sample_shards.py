@@ -79,6 +79,18 @@ def main() -> int:
         raise AssertionError("expected checker to fail the aggregate failure budget")
     require(failed_budget.stderr, "expected isolated real-note failures <= 1, got 2")
 
+    passed_rate = run_checker("--min-bass-hit-percent", "75")
+    if passed_rate.returncode != 0:
+        raise AssertionError(passed_rate.stderr)
+
+    failed_rate = run_checker("--min-bass-hit-percent", "76")
+    if failed_rate.returncode == 0:
+        raise AssertionError("expected checker to fail the bass hit-rate minimum")
+    require(
+        failed_rate.stderr,
+        "expected bass real-note hit rate >= 76%, got 75% (3/4)",
+    )
+
     print("test_check_real_note_sample_shards: ok")
     return 0
 

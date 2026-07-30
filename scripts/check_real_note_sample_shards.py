@@ -65,6 +65,16 @@ def add_summary(total: dict[str, int], part: dict[str, int]) -> None:
         total[key] = total.get(key, 0) + value
 
 
+def hit_percent(hit: int, total: int) -> float:
+    if total <= 0:
+        return 0.0
+    return (100.0 * float(hit)) / float(total)
+
+
+def format_percent(value: float) -> str:
+    return f"{value:.2f}".rstrip("0").rstrip(".")
+
+
 def validate(args: argparse.Namespace, summary: dict[str, int]) -> None:
     if summary["failures"] > args.max_failures:
         fail(
@@ -78,6 +88,14 @@ def validate(args: argparse.Namespace, summary: dict[str, int]) -> None:
             fail(
                 f"expected at least {threshold} {family} real note samples, "
                 f"got {total}"
+            )
+        percent_threshold = getattr(args, f"min_{family}_hit_percent")
+        percent = hit_percent(summary[f"{family}_hit"], total)
+        if percent < percent_threshold:
+            fail(
+                f"expected {family} real-note hit rate >= "
+                f"{format_percent(percent_threshold)}%, got {format_percent(percent)}% "
+                f"({summary[f'{family}_hit']}/{total})"
             )
 
     print(
@@ -97,6 +115,7 @@ def main() -> int:
     parser.add_argument("--max-failures", type=int, default=0)
     for family in FAMILIES:
         parser.add_argument(f"--min-{family}", type=int, default=0)
+        parser.add_argument(f"--min-{family}-hit-percent", type=float, default=0.0)
     args = parser.parse_args()
 
     summary: dict[str, int] = {}
