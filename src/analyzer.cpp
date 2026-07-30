@@ -19752,6 +19752,15 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 		    one_shot_measured_sub_bass_kick_from_tom_primary_recovery)
 			promote_drum_primary(Kick, 0.90f);
 
+		const bool final_one_shot_measured_tom_kick_active_bleed =
+			drum_detection_enabled && one_shot_drum_source &&
+			drum_level_[Kick] > 0.30f &&
+			drum_level_[Tom] > 0.30f &&
+			snapshot.high_energy >= 0.092f &&
+			tom_kick_level_ratio >= 1.02f;
+		if (final_one_shot_measured_tom_kick_active_bleed)
+			cap_drum_level(Kick, 0.28f);
+
 		const bool strong_low_kick_tom_bleed =
 			drum_detection_enabled &&
 			drum_level_[Tom] > 0.30f &&
@@ -19892,6 +19901,14 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 			drum_level_[Snare] > 0.30f &&
 			hihat_rim_band_ratio <= 0.105f;
 		if (final_one_shot_measured_full_tom_snare_active_bleed)
+			cap_drum_level(Snare, 0.28f);
+
+		const bool final_one_shot_measured_ride_band_tom_snare_active_bleed =
+			drum_detection_enabled && one_shot_drum_source &&
+			drum_level_[Tom] >= 0.999f &&
+			drum_level_[Snare] > 0.30f &&
+			ride_hihat_band_ratio >= 1.927f;
+		if (final_one_shot_measured_ride_band_tom_snare_active_bleed)
 			cap_drum_level(Snare, 0.28f);
 
 	const bool onset_tempo_event =
