@@ -11,6 +11,21 @@ import tempfile
 ROOT = pathlib.Path(__file__).resolve().parents[1]
 
 
+def run_rule(path: pathlib.Path, *args: str) -> subprocess.CompletedProcess[str]:
+    return subprocess.run(
+        [
+            sys.executable,
+            str(ROOT / "scripts" / "measure_real_note_attribute_rule.py"),
+            str(path),
+            *args,
+        ],
+        text=True,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        check=True,
+    )
+
+
 def main() -> int:
     with tempfile.TemporaryDirectory() as tmp:
         path = pathlib.Path(tmp) / "attributes.tsv"
@@ -21,43 +36,120 @@ def main() -> int:
                 "family",
                 "source",
                 "first_row",
+                "buffer_strongest_row",
                 "debug_owner",
                 "debug_midi",
+                "bass_score",
+                "keyboard_score",
+                "guitar_score",
+                "vocal_score",
+                "other_score",
                 "partial2",
                 "partial3",
                 "noise",
             ],
-            ["keyboard_1", "hit", "piano", "electronic", "guitar", "guitar", "64", "0.58", "0.32", "0.01"],
-            ["keyboard_2", "hit", "piano", "electronic", "piano", "piano", "64", "0.10", "0.02", "0.01"],
-            ["guitar_1", "hit", "guitar", "electronic", "guitar", "guitar", "60", "0.39", "0.05", "0.03"],
-            ["guitar_2", "hit", "guitar", "acoustic", "guitar", "guitar", "63", "0.27", "0.01", "0.02"],
+            [
+                "keyboard_1",
+                "hit",
+                "piano",
+                "electronic",
+                "guitar",
+                "guitar",
+                "guitar",
+                "64",
+                "0",
+                "0.10",
+                "0.78",
+                "0",
+                "0",
+                "0.58",
+                "0.32",
+                "0.01",
+            ],
+            [
+                "keyboard_2",
+                "hit",
+                "piano",
+                "electronic",
+                "piano",
+                "piano",
+                "amb",
+                "64",
+                "0",
+                "0.70",
+                "0",
+                "0",
+                "0",
+                "0.10",
+                "0.02",
+                "0.01",
+            ],
+            [
+                "guitar_1",
+                "hit",
+                "guitar",
+                "electronic",
+                "guitar",
+                "guitar",
+                "guitar",
+                "60",
+                "0",
+                "0",
+                "0.80",
+                "0",
+                "0",
+                "0.39",
+                "0.05",
+                "0.03",
+            ],
+            [
+                "guitar_2",
+                "hit",
+                "guitar",
+                "acoustic",
+                "guitar",
+                "guitar",
+                "guitar",
+                "63",
+                "0",
+                "0",
+                "0.80",
+                "0",
+                "0",
+                "0.27",
+                "0.01",
+                "0.02",
+            ],
         ]
         path.write_text("\n".join("\t".join(row) for row in rows) + "\n")
 
-        result = subprocess.run(
-            [
-                sys.executable,
-                str(ROOT / "scripts" / "measure_real_note_attribute_rule.py"),
-                str(path),
-                "--condition",
-                "debug_owner=guitar",
-                "--condition",
-                "debug_midi:52:64",
-                "--condition",
-                "partial3>=0.18",
-                "--condition",
-                "noise<=0.02",
-            ],
-            text=True,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
-            check=True,
+        result = run_rule(
+            path,
+            "--condition",
+            "debug_owner=guitar",
+            "--condition",
+            "debug_midi:52:64",
+            "--condition",
+            "partial3>=0.18",
+            "--condition",
+            "noise<=0.02",
+        )
+        derived_result = run_rule(
+            path,
+            "--condition",
+            "debug_score_state=scored_amb",
+            "--condition",
+            "buffer_strongest_row=piano",
+            "--condition",
+            "partial3<=0.03",
         )
 
     assert "matched rows=1 samples=1" in result.stdout
     assert "examples keyboard_1" in result.stdout
     assert "piano/electronic/guitar rows=1 samples=1" in result.stdout
     assert "guitar/electronic/guitar" not in result.stdout
+    assert "matched rows=1 samples=1" in derived_result.stdout
+    assert "examples keyboard_2" in derived_result.stdout
     print("test_measure_real_note_attribute_rule: ok")
     return 0
 

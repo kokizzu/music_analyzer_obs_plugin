@@ -9,6 +9,8 @@ import csv
 import pathlib
 import re
 
+from inspect_real_note_attribute_buckets import derive_row
+
 
 Condition = tuple[str, str, str]
 
@@ -64,7 +66,7 @@ def matches_condition(row: dict[str, str], condition: Condition) -> bool:
 
 def load_rows(path: pathlib.Path) -> list[dict[str, str]]:
     with path.open(newline="", errors="replace") as handle:
-        return list(csv.DictReader(handle, delimiter="\t"))
+        return [derive_row(row) for row in csv.DictReader(handle, delimiter="\t")]
 
 
 def main() -> int:

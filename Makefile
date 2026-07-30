@@ -88,6 +88,10 @@ MEASURE_REAL_NOTE_PATTERN_ARGS ?= --limit 4 --min-positive-samples 3 --max-negat
 MEASURE_REAL_NOTE_PRACTICAL_ROW_CONFUSION_PATTERN_ARGS ?= --top-buckets 8 --limit 8 --min-positive-samples 20 --max-negative-samples 20 --max-conditions 2 --beam-width 240 --show-examples 1
 MEASURE_REAL_NOTE_FOCUSED_ROW_CONFUSION_PATTERN_ARGS ?= --top-buckets 8 --limit 8 --min-positive-samples 20 --max-negative-samples 20 --max-conditions 3 --beam-width 240 --show-examples 1 --protected-scope same-source-correct-row
 MEASURE_REAL_NOTE_FOCUSED_VISUAL_ROW_CONFUSION_PATTERN_ARGS ?= --top-buckets 8 --limit 8 --min-positive-samples 20 --max-negative-samples 20 --max-conditions 2 --beam-width 240 --show-examples 1 --protected-scope same-source-correct-row --include-row-context
+REAL_NOTE_RULE_CONDITIONS ?=
+REAL_NOTE_RULE_GROUP_BY ?=
+REAL_NOTE_RULE_CONDITION_ARGS = $(foreach condition,$(REAL_NOTE_RULE_CONDITIONS),--condition "$(condition)")
+REAL_NOTE_RULE_GROUP_BY_ARGS = $(foreach field,$(REAL_NOTE_RULE_GROUP_BY),--group-by "$(field)")
 REAL_NOTE_RUNTIME_ROW_CONFUSION_EXCLUDES ?= \
 	--exclude-field buffer_strongest_row \
 	--exclude-field buffer_visual_strongest_row \
@@ -1654,7 +1658,7 @@ evaluate-real-note-display-shadow-all: $(BUILD_DIR)/real_note_full_mix_attribute
 	$(PYTHON) scripts/evaluate_real_note_display_shadow.py "$(BUILD_DIR)/real_note_full_mix_attributes.tsv" $(or $(DISPLAY_SHADOW_ARGS),--shadow-row all --target-row all --summary-only --threshold-search --source-breakdown --max-protected 0 --threshold-limit 8)
 
 measure-real-note-attribute-rule: $(BUILD_DIR)/real_note_full_mix_attributes.tsv scripts/measure_real_note_attribute_rule.py
-	$(PYTHON) scripts/measure_real_note_attribute_rule.py "$(BUILD_DIR)/real_note_full_mix_attributes.tsv" $(RULE_ARGS)
+	$(PYTHON) scripts/measure_real_note_attribute_rule.py "$(BUILD_DIR)/real_note_full_mix_attributes.tsv" $(REAL_NOTE_RULE_CONDITION_ARGS) $(REAL_NOTE_RULE_GROUP_BY_ARGS) $(RULE_ARGS)
 
 prepare-guitar-fretboard-note-samples: scripts/prepare_guitar_fretboard_notes.py | $(BUILD_DIR)
 	GUITAR_FRETBOARD_NOTES_SAMPLE_DIR="$(GUITAR_FRETBOARD_NOTES_SAMPLE_DIR)" GUITAR_FRETBOARD_NOTES_LIMIT="$(GUITAR_FRETBOARD_NOTES_LIMIT)" $(PYTHON) scripts/prepare_guitar_fretboard_notes.py --output "$(GUITAR_FRETBOARD_NOTES_SAMPLE_DIR)"

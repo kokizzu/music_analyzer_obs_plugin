@@ -1222,6 +1222,21 @@ def main() -> int:
     assert '$(if $(INSPECT_BUCKET),--bucket "$(INSPECT_BUCKET)")' in real_note_inspect_recipe, (
         "real-note bucket inspection must accept bucket names through INSPECT_BUCKET"
     )
+    real_note_rule_recipe = target_recipe(makefile, "measure-real-note-attribute-rule")
+    assert "$(REAL_NOTE_RULE_CONDITION_ARGS)" in real_note_rule_recipe, (
+        "real-note rule measurement must accept quoted conditions through REAL_NOTE_RULE_CONDITIONS"
+    )
+    assert "$(REAL_NOTE_RULE_GROUP_BY_ARGS)" in real_note_rule_recipe, (
+        "real-note rule measurement must accept quoted grouping fields through REAL_NOTE_RULE_GROUP_BY"
+    )
+    assert "$(RULE_ARGS)" in real_note_rule_recipe, (
+        "real-note rule measurement must keep the low-level RULE_ARGS escape hatch"
+    )
+    for text in [
+        'REAL_NOTE_RULE_CONDITION_ARGS = $(foreach condition,$(REAL_NOTE_RULE_CONDITIONS),--condition "$(condition)")',
+        'REAL_NOTE_RULE_GROUP_BY_ARGS = $(foreach field,$(REAL_NOTE_RULE_GROUP_BY),--group-by "$(field)")',
+    ]:
+        assert text in makefile, f"real-note rule Makefile plumbing must include {text}"
 
     rows_recipe = target_recipe(makefile, "measure-analyzer-attribute-rows")
     assert rows_recipe.splitlines()[0] == "measure-analyzer-attribute-rows:", (
@@ -1481,6 +1496,8 @@ def main() -> int:
         "MEASURE_REAL_NOTE_PRACTICAL_ROW_CONFUSION_PATTERN_ARGS",
         "MEASURE_REAL_NOTE_FOCUSED_ROW_CONFUSION_PATTERN_ARGS",
         "MEASURE_REAL_NOTE_FOCUSED_VISUAL_ROW_CONFUSION_PATTERN_ARGS",
+        "REAL_NOTE_RULE_CONDITIONS",
+        "REAL_NOTE_RULE_GROUP_BY",
         "REAL_NOTE_RUNTIME_ROW_CONFUSION_EXCLUDES",
         "MEASURE_GUITAR_PATTERN_ARGS",
         "MEASURE_DRUM_PATTERN_ARGS",
