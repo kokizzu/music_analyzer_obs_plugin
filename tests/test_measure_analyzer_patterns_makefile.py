@@ -413,6 +413,9 @@ def main() -> int:
     assert "test-real-note-samples-full-mix-parallel" in real_world_target_list, (
         "parallel real-world sample tests must use the sharded real-note full-mix gate"
     )
+    assert "test-vocadito-samples-full-mix-parallel" in real_world_target_list, (
+        "parallel real-world sample tests must include the real vocal full-mix gate"
+    )
     assert "test-real-note-samples-full-mix " not in real_world_target_list + " ", (
         "parallel real-world sample tests must not use the serial real-note full-mix gate"
     )
@@ -470,6 +473,37 @@ def main() -> int:
         "2> \"$(BUILD_DIR)/real_note_full_mix_shard_$*.err\"",
     ]:
         assert text in real_note_shard_recipe, f"real-note shard target must write {text}"
+    vocadito_full_mix_recipe = target_recipe(makefile, "test-vocadito-samples-full-mix-parallel")
+    assert "VOCADITO_FULL_MIX_TEST_MAKE_JOBS = $(if $(filter -j%,$(MAKEFLAGS)),,-j$(VOCADITO_FULL_MIX_SHARDS))" in makefile, (
+        "Vocadito full-mix shards must not force nested jobserver mode"
+    )
+    assert "$(MAKE) $(VOCADITO_FULL_MIX_TEST_MAKE_JOBS) $(VOCADITO_FULL_MIX_SHARD_TARGETS)" in vocadito_full_mix_recipe, (
+        "Vocadito full-mix target must fan out deterministic shards through jobserver-aware make"
+    )
+    assert "$(RUN_WITH_DURATION) analyzer_vocadito_samples_full_mix_parallel" in vocadito_full_mix_recipe, (
+        "Vocadito full-mix target must report aggregate duration"
+    )
+    for text in [
+        "--min-any-hit-percent \"$(VOCADITO_FULL_MIX_MIN_ANY_HIT_PERCENT)\"",
+        "--vocals-min-expected-row-percent \"$(VOCADITO_FULL_MIX_MIN_VOCALS_EXPECTED_ROW_PERCENT)\"",
+        "--vocals-min-first-row-percent \"$(VOCADITO_FULL_MIX_MIN_VOCALS_FIRST_ROW_PERCENT)\"",
+        "--max-drum-active-percent \"$(VOCADITO_FULL_MIX_MAX_DRUM_ACTIVE_PERCENT)\"",
+        "$(VOCADITO_FULL_MIX_SHARD_OUTS)",
+    ]:
+        assert text in vocadito_full_mix_recipe, (
+            f"Vocadito full-mix aggregate checker recipe must include {text}"
+        )
+    vocadito_full_mix_shard_recipe = target_recipe(makefile, "test-vocadito-samples-full-mix-shard-%")
+    for text in [
+        "MUSIC_ANALYZER_REAL_NOTE_FULL_MIX=1",
+        "MUSIC_ANALYZER_REAL_NOTE_SAMPLE_ROOT=\"$(VOCADITO_SAMPLE_DIR)\"",
+        "MUSIC_ANALYZER_REAL_NOTE_SHARD_COUNT=\"$(VOCADITO_FULL_MIX_SHARDS)\"",
+        "MUSIC_ANALYZER_REAL_NOTE_SHARD_INDEX=\"$*\"",
+        "> \"$(BUILD_DIR)/vocadito_full_mix_shard_$*.out\"",
+    ]:
+        assert text in vocadito_full_mix_shard_recipe, (
+            f"Vocadito full-mix shard target must include {text}"
+        )
     for text in [
         "REAL_NOTE_FULL_MIX_GATE_ENV = \\",
         "MUSIC_ANALYZER_REAL_NOTE_MIN_EXPECTED_ROW_PERCENT=\"$(REAL_NOTE_FULL_MIX_MIN_EXPECTED_ROW_PERCENT)\"",
@@ -593,6 +627,9 @@ def main() -> int:
     detector_regression_target_list = detector_regression_targets.group(1)
     assert "test-real-note-samples-full-mix-parallel" in detector_regression_target_list, (
         "detector sample regression loop must use the sharded real-note full-mix gate"
+    )
+    assert "test-vocadito-samples-full-mix-parallel" in detector_regression_target_list, (
+        "detector sample regression loop must include real vocal full-mix ownership coverage"
     )
     assert "test-real-note-samples-full-mix " not in detector_regression_target_list + " ", (
         "detector sample regression loop must not use the serial real-note full-mix gate"
