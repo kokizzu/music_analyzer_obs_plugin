@@ -1974,6 +1974,29 @@ const FullMixDebugCandidate *full_mix_debug_for_midi(const FullMixOwnership &own
 	return nullptr;
 }
 
+bool measured_pure_electronic_keyboard_ambiguous_candidate(const FullMixDebugCandidate &debug)
+{
+	if (debug.owner != InstrumentKind::Ambiguous)
+		return false;
+	if (debug.midi < 60 || debug.midi > kKeyboardMaxMidi)
+		return false;
+
+	return debug.keyboard_score >= 0.55f &&
+	       debug.guitar_score <= 0.001f &&
+	       debug.other_score <= 0.001f &&
+	       debug.spectral_level >= 0.98f &&
+	       debug.pitch_confidence >= 0.93f &&
+	       debug.periodicity >= 0.70f &&
+	       debug.periodicity <= 0.76f &&
+	       debug.harmonic_fit_error <= 0.061f &&
+	       debug.harmonicity <= 0.015f &&
+	       debug.spectral_centroid <= 0.010f &&
+	       debug.spectral_slope <= 0.001f &&
+	       debug.local_noise_level <= 0.003f &&
+	       debug.third_octave_ratio <= 0.001f &&
+	       debug.harmonic_ratios[4] <= 0.00001f;
+}
+
 InstrumentKind strongest_named_owner_hint(const FullMixDebugCandidate &debug)
 {
 	static constexpr float kMinHintScore = 0.55f;
@@ -2025,7 +2048,8 @@ void mirror_ambiguous_full_mix_candidates(FullMixOwnership &ownership)
 		InstrumentKind target = strongest_named_owner_hint(*debug);
 		if (target == InstrumentKind::Keyboard &&
 		    candidate.midi >= kGuitarMinMidi && candidate.midi <= kGuitarMaxMidi &&
-		    count_owned_notes(ownership.guitar) >= 2)
+		    count_owned_notes(ownership.guitar) >= 2 &&
+		    !measured_pure_electronic_keyboard_ambiguous_candidate(*debug))
 			target = InstrumentKind::Guitar;
 		if (target == InstrumentKind::Keyboard &&
 		    candidate.midi >= kKeyboardMinMidi && candidate.midi <= kKeyboardMaxMidi) {
@@ -5653,6 +5677,11 @@ void add_full_mix_display_mirror(NoteCandidateList &candidates, const FullMixOwn
 	if (row == FullMixDisplayRow::Keyboard &&
 	    measured_other_owned_electric_piano_supported(debug))
 		candidate_score = std::max(candidate_score, base_score * 1.04f);
+	if (row == FullMixDisplayRow::Keyboard &&
+	    measured_pure_electronic_keyboard_ambiguous_candidate(debug)) {
+		candidate_score = std::max(candidate_score, base_score * 1.08f);
+		candidate_confidence = std::max(candidate_confidence, 0.86f);
+	}
 	if (row == FullMixDisplayRow::Keyboard &&
 	    guitar_owned_dark_electronic_keyboard_body_supported(debug)) {
 		candidate_score = std::max(candidate_score, base_score * 0.96f);
