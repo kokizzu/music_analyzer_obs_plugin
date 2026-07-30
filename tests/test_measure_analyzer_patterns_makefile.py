@@ -877,6 +877,7 @@ def main() -> int:
         "find-real-note-row-confusion-patterns",
         "find-real-note-practical-row-confusion-patterns",
         "find-real-note-visual-row-confusion-patterns",
+        "find-real-note-focused-visual-row-confusion-patterns",
     ]:
         assert '--jobs "$(REAL_NOTE_PATTERN_JOBS)"' in target_recipe(makefile, target), (
             f"{target} should mine independent real-note buckets in parallel by default"
@@ -1075,6 +1076,7 @@ def main() -> int:
         "find-real-note-attribute-patterns": "$(BUILD_DIR)/real_note_full_mix_attributes.tsv",
         "find-real-note-row-confusion-patterns": "$(BUILD_DIR)/real_note_full_mix_attributes.tsv",
         "find-real-note-practical-row-confusion-patterns": "$(BUILD_DIR)/real_note_full_mix_attributes.tsv",
+        "find-real-note-focused-visual-row-confusion-patterns": "$(BUILD_DIR)/real_note_full_mix_attributes.tsv",
         "evaluate-real-note-display-shadow": "$(BUILD_DIR)/real_note_full_mix_attributes.tsv",
         "analyze-guitar-chord-mix-recovery": "$(BUILD_DIR)/guitar_chord_mix_attributes.tsv",
         "analyze-guitar-chord-mix-extra-components": "$(BUILD_DIR)/guitar_chord_mix_attributes.tsv",
@@ -1277,7 +1279,23 @@ def main() -> int:
     assert "--include-row-context" not in visual_row_confusion_recipe, (
         "visual row-confusion auto-search must not mine circular display-row fields"
     )
-    assert ".PHONY: find-real-note-row-confusion-patterns find-real-note-practical-row-confusion-patterns find-real-note-visual-row-confusion-patterns" in makefile, (
+    focused_visual_row_confusion_recipe = target_recipe(makefile, "find-real-note-focused-visual-row-confusion-patterns")
+    assert "$(REAL_NOTE_RUNTIME_ROW_CONFUSION_EXCLUDES)" in focused_visual_row_confusion_recipe, (
+        "focused visual row-confusion mining should keep runtime field exclusions"
+    )
+    assert "$(MEASURE_REAL_NOTE_FOCUSED_VISUAL_ROW_CONFUSION_PATTERN_ARGS)" in focused_visual_row_confusion_recipe, (
+        "focused visual row-confusion mining should use the protected diagnostic defaults"
+    )
+    assert "--include-row-context" not in focused_visual_row_confusion_recipe, (
+        "focused row-context diagnostics should be controlled by the default args variable"
+    )
+    for text in [
+        "MEASURE_REAL_NOTE_FOCUSED_VISUAL_ROW_CONFUSION_PATTERN_ARGS ?= --top-buckets 8",
+        "--protected-scope same-source-correct-row",
+        "--include-row-context",
+    ]:
+        assert text in makefile, f"focused visual row-confusion defaults must include {text}"
+    assert ".PHONY: find-real-note-row-confusion-patterns find-real-note-practical-row-confusion-patterns find-real-note-visual-row-confusion-patterns find-real-note-focused-visual-row-confusion-patterns" in makefile, (
         "all real-note row-confusion shortcuts should be phony"
     )
     for field in [
@@ -1315,6 +1333,7 @@ def main() -> int:
         "MEASURE_INSTRUMENT_STATUS_PATTERN_ARGS",
         "MEASURE_REAL_NOTE_PATTERN_ARGS",
         "MEASURE_REAL_NOTE_PRACTICAL_ROW_CONFUSION_PATTERN_ARGS",
+        "MEASURE_REAL_NOTE_FOCUSED_VISUAL_ROW_CONFUSION_PATTERN_ARGS",
         "REAL_NOTE_RUNTIME_ROW_CONFUSION_EXCLUDES",
         "MEASURE_GUITAR_PATTERN_ARGS",
         "MEASURE_DRUM_PATTERN_ARGS",
