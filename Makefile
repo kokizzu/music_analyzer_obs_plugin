@@ -1408,9 +1408,12 @@ test-medley-solos-samples: $(BUILD_DIR)/analyzer_instrument_family_samples prepa
 
 download-maps-piano-samples: $(MAPS_PIANO_ARCHIVE)
 
-$(MAPS_PIANO_ARCHIVE): | $(BUILD_DIR)
+$(MAPS_PIANO_ARCHIVE): FORCE | $(BUILD_DIR)
 	mkdir -p "$(MAPS_PIANO_SOURCE_DIR)"
-	curl -fL -C - -o "$(MAPS_PIANO_ARCHIVE)" "$(MAPS_PIANO_URL)"
+	if [ -s "$(MAPS_PIANO_ARCHIVE)" ] && ! $(PYTHON) -m zipfile -t "$(MAPS_PIANO_ARCHIVE)" >/dev/null 2>&1; then mv -f "$(MAPS_PIANO_ARCHIVE)" "$(MAPS_PIANO_ARCHIVE).part"; fi
+	if [ ! -s "$(MAPS_PIANO_ARCHIVE)" ] && [ -s "$(MAPS_PIANO_ARCHIVE).part" ] && $(PYTHON) -m zipfile -t "$(MAPS_PIANO_ARCHIVE).part" >/dev/null 2>&1; then mv "$(MAPS_PIANO_ARCHIVE).part" "$(MAPS_PIANO_ARCHIVE)"; fi
+	if [ ! -s "$(MAPS_PIANO_ARCHIVE)" ]; then curl -fL -C - -o "$(MAPS_PIANO_ARCHIVE).part" "$(MAPS_PIANO_URL)"; fi
+	if [ -s "$(MAPS_PIANO_ARCHIVE).part" ]; then $(PYTHON) -m zipfile -t "$(MAPS_PIANO_ARCHIVE).part" >/dev/null; mv "$(MAPS_PIANO_ARCHIVE).part" "$(MAPS_PIANO_ARCHIVE)"; fi
 	$(PYTHON) -m zipfile -t "$(MAPS_PIANO_ARCHIVE)" >/dev/null
 
 prepare-maps-piano-samples: scripts/prepare_maps_piano_samples.py download-maps-piano-samples | $(BUILD_DIR)

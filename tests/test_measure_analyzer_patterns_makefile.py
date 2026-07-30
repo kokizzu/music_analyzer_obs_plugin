@@ -1571,6 +1571,20 @@ def main() -> int:
         "full detected target must reuse the print-only target"
     )
 
+    maps_archive_recipe = target_recipe(makefile, "$(MAPS_PIANO_ARCHIVE)")
+    assert "$(MAPS_PIANO_ARCHIVE): FORCE" in maps_archive_recipe.splitlines()[0], (
+        "MAPS piano archive target must revalidate existing downloads"
+    )
+    assert 'mv -f "$(MAPS_PIANO_ARCHIVE)" "$(MAPS_PIANO_ARCHIVE).part"' in maps_archive_recipe, (
+        "MAPS piano archive target must quarantine corrupt completed zips"
+    )
+    assert 'zipfile -t "$(MAPS_PIANO_ARCHIVE).part"' in maps_archive_recipe, (
+        "MAPS piano archive target must validate partial zips before promotion"
+    )
+    assert 'curl -fL -C - -o "$(MAPS_PIANO_ARCHIVE).part"' in maps_archive_recipe, (
+        "MAPS piano archive target must resume downloads into a partial file"
+    )
+
     patterns_full_recipe = target_recipe(makefile, "measure-analyzer-patterns-full")
     assert "measure-analyzer-attribute-rows-full" not in patterns_full_recipe, (
         "full pattern target must not regenerate legacy serial full-drum debug rows"
