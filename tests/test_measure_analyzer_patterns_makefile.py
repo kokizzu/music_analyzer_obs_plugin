@@ -149,6 +149,15 @@ def main() -> int:
     ).splitlines()[0], (
         "drum active false report must wait for spread rows to avoid parallel TSV regeneration"
     )
+    active_false_args = re.search(
+        r"^MEASURE_DRUM_ACTIVE_FALSE_PATTERN_ARGS \?= (?P<value>.*)$",
+        makefile,
+        re.MULTILINE,
+    )
+    assert active_false_args is not None, "missing drum active false pattern defaults"
+    assert "--exclude-fields kick_level" in active_false_args.group("value"), (
+        "drum active false pattern defaults must avoid merged expected-level fields"
+    )
     assert "$(MEASURE_ANALYZER_PATTERN_DRUM_SPREAD_MATRIX_REPORT)" in target_recipe(
         makefile, "$(MEASURE_ANALYZER_PATTERN_DRUM_SPREAD_EXACT_REPORT)"
     ).splitlines()[0], (
