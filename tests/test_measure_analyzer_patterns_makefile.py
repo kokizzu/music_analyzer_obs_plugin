@@ -135,6 +135,35 @@ def main() -> int:
     ).splitlines()[0], (
         "protected drum primary report must wait for spread rows to avoid parallel TSV regeneration"
     )
+    assert "MEASURE_ANALYZER_PATTERN_DRUM_PROTECTED_ROWS_STAMP := $(BUILD_DIR)/measure_analyzer_pattern_drum_protected_rows.stamp" in makefile, (
+        "pattern reports must use a shared protected drum row refresh stamp"
+    )
+    protected_stamp_recipe = target_recipe(
+        makefile, "$(MEASURE_ANALYZER_PATTERN_DRUM_PROTECTED_ROWS_STAMP)"
+    )
+    assert "$(MEASURE_ANALYZER_PATTERN_DRUM_SPREAD_MATRIX_REPORT)" in protected_stamp_recipe.splitlines()[0], (
+        "shared protected row refresh must wait for the spread matrix report"
+    )
+    assert "for path in $(HF_DRUM_KIT_PRIMARY_ATTRIBUTE_ROWS) $(IDMT_DRUMS_PRIMARY_ATTRIBUTE_ROWS)" in protected_stamp_recipe, (
+        "shared protected row refresh must refresh HF and IDMT rows when missing or stale"
+    )
+    assert "$(MAKE) $(PARALLEL_TEST_MAKE_JOBS) analyze-hf-drum-primary-attribute-rows analyze-idmt-drum-primary-attribute-rows" in protected_stamp_recipe, (
+        "shared protected row refresh must rebuild HF and IDMT rows in parallel"
+    )
+    assert "$(MAKE) analyze-drum-full-gate-matrix-parallel" in protected_stamp_recipe, (
+        "shared protected row refresh must refresh stale optional full exact rows"
+    )
+    assert "$(MAKE) analyze-drum-full-merged-expected-attribute-rows" in protected_stamp_recipe, (
+        "shared protected row refresh must refresh stale optional merged full rows"
+    )
+    assert 'touch "$@"' in protected_stamp_recipe, (
+        "shared protected row refresh must publish a real stamp for parallel make synchronization"
+    )
+    assert "$(MEASURE_ANALYZER_PATTERN_DRUM_PROTECTED_ROWS_STAMP)" in target_recipe(
+        makefile, "$(MEASURE_ANALYZER_PATTERN_PROTECTED_DRUM_PRIMARY_REPORT)"
+    ).splitlines()[0], (
+        "protected drum primary report must wait for the shared protected row refresh"
+    )
     protected_inputs = re.search(
         r"^DRUM_PROTECTED_PRIMARY_ATTRIBUTE_INPUTS \?= (?P<value>.*)$",
         makefile,
@@ -148,6 +177,11 @@ def main() -> int:
         makefile, "$(MEASURE_ANALYZER_PATTERN_DRUM_ACTIVE_FALSE_REPORT)"
     ).splitlines()[0], (
         "drum active false report must wait for spread rows to avoid parallel TSV regeneration"
+    )
+    assert "$(MEASURE_ANALYZER_PATTERN_DRUM_PROTECTED_ROWS_STAMP)" in target_recipe(
+        makefile, "$(MEASURE_ANALYZER_PATTERN_DRUM_ACTIVE_FALSE_REPORT)"
+    ).splitlines()[0], (
+        "drum active false report must wait for the shared protected row refresh"
     )
     active_false_args = re.search(
         r"^MEASURE_DRUM_ACTIVE_FALSE_PATTERN_ARGS \?= (?P<value>.*)$",
