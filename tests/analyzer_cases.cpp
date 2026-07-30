@@ -558,6 +558,19 @@ const char *instrument_kind_name(mao::InstrumentKind kind)
 	}
 }
 
+const mao::FullMixDebugCandidate *debug_candidate_for_midi(const mao::AnalysisSnapshot &snapshot, int midi)
+{
+	const std::size_t count =
+		std::min<std::size_t>(snapshot.full_mix_debug_candidate_count,
+				      snapshot.full_mix_debug_candidates.size());
+	for (std::size_t i = 0; i < count; ++i) {
+		const mao::FullMixDebugCandidate &debug = snapshot.full_mix_debug_candidates[i];
+		if (debug.midi == midi)
+			return &debug;
+	}
+	return nullptr;
+}
+
 std::string full_mix_debug_summary_for_midi(const mao::AnalysisSnapshot &snapshot, int midi)
 {
 	std::ostringstream out;
@@ -576,7 +589,8 @@ std::string full_mix_debug_summary_for_midi(const mao::AnalysisSnapshot &snapsho
 		    << " spec=" << debug.spectral_level << " pitch=" << debug.pitch_confidence
 		    << " per=" << debug.periodicity << " fit=" << debug.harmonic_fit_error
 		    << " cent=" << debug.spectral_centroid << " slope=" << debug.spectral_slope
-		    << " noise=" << debug.local_noise_level << " third=" << debug.third_octave_ratio
+		    << " noise=" << debug.local_noise_level << " adj=" << debug.adjacent_lower_ratio
+		    << "," << debug.adjacent_upper_ratio << " third=" << debug.third_octave_ratio
 		    << " partials="
 		    << debug.harmonic_ratios[1] << "," << debug.harmonic_ratios[2] << ","
 		    << debug.harmonic_ratios[3] << "," << debug.harmonic_ratios[4];
@@ -4063,6 +4077,42 @@ void check_full_mix_realistic_vocal_recall(Runner &runner)
 				      snapshot.global_chord.label + "`, ambiguous " +
 				      (grid_pitch_active(snapshot.ambiguous_notes, 4) ? "active" : "inactive"));
 		expect_midi_not_duplicated_across_rows(runner, snapshot, 64, "full-mix rich vocal ownership");
+	}
+
+	{
+		mao::AnalysisEngine engine;
+		mao::AnalysisSettings settings = mao_test::default_settings();
+		settings.input_mode = mao::AnalysisInputMode::FullMix;
+		settings.analysis_interval_seconds = 0.05f;
+
+		mao_test::Buffer buffer = {};
+		const std::vector<float> adjacent_voice_profile = {1.0f, 0.50f, 0.18f, 0.06f, 0.025f};
+		add_harmonic_note(buffer, 62, 0.24f, adjacent_voice_profile);
+		add_harmonic_note(buffer, 61, 0.014f, {1.0f});
+		add_harmonic_note(buffer, 63, 0.012f, {1.0f});
+
+		mao::AnalysisSnapshot snapshot = engine.analyze(buffer.data(), buffer.size(), settings, "Mic/Aux", 0);
+		expect_global_pitch_class(runner, snapshot, 2, "full-mix adjacent vocal first-frame global");
+		expect_no_pitch_class(runner, snapshot.vocal_notes, 2,
+				      "full-mix adjacent vocal first-frame vocal");
+
+		snapshot = engine.analyze(buffer.data(), buffer.size(), settings, "Mic/Aux", 0);
+		const mao::FullMixDebugCandidate *debug = debug_candidate_for_midi(snapshot, 62);
+		runner.expect(debug != nullptr,
+			      "full-mix adjacent vocal: expected debug candidate for D4");
+		if (debug) {
+			runner.expect(debug->owner == mao::InstrumentKind::Guitar ||
+				      debug->owner == mao::InstrumentKind::Other,
+				      std::string("full-mix adjacent vocal: expected guitar/other owner before display mirror, got `") +
+					      instrument_kind_name(debug->owner) + "` debug `" +
+					      full_mix_debug_summary_for_midi(snapshot, 62) + "`");
+		}
+		runner.expect(grid_pitch_active(snapshot.vocal_notes, 2),
+			      std::string("full-mix adjacent vocal second-frame vocal: expected D active, got keyboard `") +
+				      snapshot.keyboard.label + "`, guitar `" + snapshot.guitar.label +
+				      "`, vocal `" + snapshot.vocal.label + "`, other `" +
+				      snapshot.other.label + "`, debug `" +
+				      full_mix_debug_summary_for_midi(snapshot, 62) + "`");
 	}
 
 	{

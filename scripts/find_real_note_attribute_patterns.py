@@ -38,6 +38,8 @@ DEBUG_NUMERIC_FIELDS = [
     "centroid",
     "slope",
     "noise",
+    "adjacent_lower_ratio",
+    "adjacent_upper_ratio",
     "third_octave_ratio",
     "partial1",
     "partial2",

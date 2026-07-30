@@ -556,6 +556,8 @@ struct NoteEvidence {
 	float spectral_centroid = 0.0f;
 	float spectral_slope = 0.0f;
 	float local_noise_level = 0.0f;
+	float adjacent_lower_ratio = 0.0f;
+	float adjacent_upper_ratio = 0.0f;
 	float third_octave_ratio = 0.0f;
 	std::array<float, 5> harmonic_ratios = {};
 	std::array<float, 5> ownership_scores = {};
@@ -862,6 +864,14 @@ NoteEvidence build_note_evidence(const std::array<float, kNoteProbeCount> &power
 	const float high_partials = mix.bands[2] + mix.bands[3] + mix.bands[4];
 	evidence.spectral_slope = high_partials / std::max(low_partials, 1.0e-6f);
 	evidence.local_noise_level = local_spectral_noise_ratio(powers, candidate.midi, fundamental);
+	if (candidate.midi - 1 >= kFirstMidi) {
+		const float lower = std::sqrt(std::max(powers[candidate.midi - 1 - kFirstMidi], 0.0f));
+		evidence.adjacent_lower_ratio = std::clamp(lower / fundamental, 0.0f, 1.0f);
+	}
+	if (candidate.midi + 1 <= kLastMidi) {
+		const float upper = std::sqrt(std::max(powers[candidate.midi + 1 - kFirstMidi], 0.0f));
+		evidence.adjacent_upper_ratio = std::clamp(upper / fundamental, 0.0f, 1.0f);
+	}
 	if (candidate.midi + 36 <= kLastMidi) {
 		const float third_octave =
 			std::sqrt(std::max(powers[candidate.midi + 36 - kFirstMidi], 0.0f));
@@ -1198,6 +1208,39 @@ bool measured_low_electronic_bass_octave_debug_supported(const FullMixOwnership 
 	return false;
 }
 
+bool measured_adjacent_vocal_shape_supported(const FullMixDebugCandidate &debug)
+{
+	if (debug.midi < kFullMixVocalMinMidi || debug.midi > 76)
+		return false;
+
+	const float adjacent = std::max(debug.adjacent_lower_ratio, debug.adjacent_upper_ratio);
+	const float second = debug.harmonic_ratios[1];
+	const float third = debug.harmonic_ratios[2];
+	if (adjacent < 0.030f)
+		return false;
+	if (debug.spectral_level < 0.70f || debug.pitch_confidence < 0.62f || debug.periodicity < 0.68f)
+		return false;
+	if (debug.harmonic_fit_error > 0.38f || debug.local_noise_level > 0.55f)
+		return false;
+	if (debug.owner == InstrumentKind::Other && debug.midi <= 69)
+		return second >= 0.24f && second <= 0.85f && third >= 0.10f && third <= 0.90f;
+	if (debug.owner == InstrumentKind::Guitar)
+		return second >= 0.24f && second <= 1.05f && third >= 0.045f && third <= 0.90f;
+	return false;
+}
+
+bool full_mix_midi_has_measured_adjacent_vocal_shape(const FullMixOwnership &ownership, int midi)
+{
+	const std::size_t debug_count =
+		std::min<std::size_t>(ownership.debug_candidate_count, ownership.debug_candidates.size());
+	for (std::size_t i = 0; i < debug_count; ++i) {
+		const FullMixDebugCandidate &debug = ownership.debug_candidates[i];
+		if (debug.midi == midi && measured_adjacent_vocal_shape_supported(debug))
+			return true;
+	}
+	return false;
+}
+
 float confirmed_full_mix_bass_visual_confidence_floor(const FullMixOwnership &ownership,
 						      const std::array<float, kNoteProbeCount> &powers,
 						      const RangeResult &note)
@@ -1281,6 +1324,8 @@ void append_full_mix_debug_candidate(FullMixOwnership &ownership, const NoteCand
 	debug.spectral_centroid = evidence.spectral_centroid;
 	debug.spectral_slope = evidence.spectral_slope;
 	debug.local_noise_level = evidence.local_noise_level;
+	debug.adjacent_lower_ratio = evidence.adjacent_lower_ratio;
+	debug.adjacent_upper_ratio = evidence.adjacent_upper_ratio;
 	debug.third_octave_ratio = evidence.third_octave_ratio;
 	debug.harmonic_ratios = evidence.harmonic_ratios;
 	ownership.debug_candidates[ownership.debug_candidate_count++] = debug;
@@ -1443,6 +1488,9 @@ void suppress_full_mix_low_bass_harmonic_aliases(FullMixOwnership &ownership,
 		auto suppress_row = [&](FullMixDisplayRow row, std::array<bool, kNoteProbeCount> &mask,
 					NoteCandidateList &candidates, float preserve_confidence) {
 			if (confident_full_mix_row_midi(mask, candidates, midi, preserve_confidence))
+				return;
+			if (row == FullMixDisplayRow::Vocal &&
+			    full_mix_midi_has_measured_adjacent_vocal_shape(ownership, midi))
 				return;
 			remove_full_mix_row_midi(mask, candidates, midi);
 			suppress_full_mix_row_display_midi(ownership, row, midi);
@@ -2500,6 +2548,11 @@ bool shared_other_pitch_display_supported(const FullMixDebugCandidate &debug)
 	return sustained_or_bowed;
 }
 
+bool measured_adjacent_vocal_display_supported(const FullMixDebugCandidate &debug)
+{
+	return measured_adjacent_vocal_shape_supported(debug);
+}
+
 bool shared_vocal_pitch_display_supported(const FullMixDebugCandidate &debug)
 {
 	const bool high_keyboard_vocal_octave_alias =
@@ -2539,6 +2592,8 @@ bool shared_vocal_pitch_display_supported(const FullMixDebugCandidate &debug)
 			third <= 0.096f;
 		return debug.ownership_confidence >= 0.58f || measured_low_vocal_owner;
 	}
+	if (measured_adjacent_vocal_display_supported(debug))
+		return true;
 	const bool keyboard_owned_pure_choir =
 		debug.owner == InstrumentKind::Keyboard &&
 		debug.midi >= 69 && debug.midi <= 84 &&
@@ -9053,6 +9108,8 @@ void suppress_named_owned_same_pitch_vocal_shadows(NoteGrid &vocal_grid, Instrum
 		const FullMixDebugCandidate *debug =
 			best_same_midi_vocal_shadow_debug(ownership, midi, owner_row);
 		if (!debug)
+			continue;
+		if (measured_adjacent_vocal_display_supported(*debug))
 			continue;
 		const float owner_score = full_mix_debug_row_score(*debug, owner_row);
 		if (owner_score < kMinOwnerScore ||
