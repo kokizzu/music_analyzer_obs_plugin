@@ -888,6 +888,7 @@ def main() -> int:
         "find-real-note-attribute-patterns",
         "find-real-note-row-confusion-patterns",
         "find-real-note-practical-row-confusion-patterns",
+        "find-real-note-focused-row-confusion-patterns",
         "find-real-note-visual-row-confusion-patterns",
         "find-real-note-focused-visual-row-confusion-patterns",
     ]:
@@ -1088,6 +1089,7 @@ def main() -> int:
         "find-real-note-attribute-patterns": "$(BUILD_DIR)/real_note_full_mix_attributes.tsv",
         "find-real-note-row-confusion-patterns": "$(BUILD_DIR)/real_note_full_mix_attributes.tsv",
         "find-real-note-practical-row-confusion-patterns": "$(BUILD_DIR)/real_note_full_mix_attributes.tsv",
+        "find-real-note-focused-row-confusion-patterns": "$(BUILD_DIR)/real_note_full_mix_attributes.tsv",
         "find-real-note-focused-visual-row-confusion-patterns": "$(BUILD_DIR)/real_note_full_mix_attributes.tsv",
         "evaluate-real-note-display-shadow": "$(BUILD_DIR)/real_note_full_mix_attributes.tsv",
         "analyze-guitar-chord-mix-recovery": "$(BUILD_DIR)/guitar_chord_mix_attributes.tsv",
@@ -1269,6 +1271,16 @@ def main() -> int:
     assert "--include-row-context" not in practical_row_confusion_recipe, (
         "practical row-confusion auto-search must not mine circular display-row fields"
     )
+    focused_row_confusion_recipe = target_recipe(makefile, "find-real-note-focused-row-confusion-patterns")
+    assert "$(REAL_NOTE_RUNTIME_ROW_CONFUSION_EXCLUDES)" in focused_row_confusion_recipe, (
+        "focused row-confusion mining should keep runtime-observable field exclusions"
+    )
+    assert "$(MEASURE_REAL_NOTE_FOCUSED_ROW_CONFUSION_PATTERN_ARGS)" in focused_row_confusion_recipe, (
+        "focused row-confusion mining should use the protected detector-rule defaults"
+    )
+    assert "--include-row-context" not in focused_row_confusion_recipe, (
+        "focused detector-side row-confusion mining must not use circular display-row fields"
+    )
     for text in [
         "--exclude-field buffer_strongest_row",
         "--exclude-field buffer_visual_strongest_row",
@@ -1281,6 +1293,12 @@ def main() -> int:
         "--max-conditions 2",
     ]:
         assert text in makefile, f"practical row-confusion defaults must include {text}"
+    for text in [
+        "MEASURE_REAL_NOTE_FOCUSED_ROW_CONFUSION_PATTERN_ARGS ?= --top-buckets 8",
+        "--max-conditions 3",
+        "--protected-scope same-source-correct-row",
+    ]:
+        assert text in makefile, f"focused row-confusion defaults must include {text}"
     visual_row_confusion_recipe = target_recipe(makefile, "find-real-note-visual-row-confusion-patterns")
     assert "$(REAL_NOTE_RUNTIME_ROW_CONFUSION_EXCLUDES)" in visual_row_confusion_recipe, (
         "visual row-confusion mining should default to runtime-observable fields"
@@ -1307,7 +1325,7 @@ def main() -> int:
         "--include-row-context",
     ]:
         assert text in makefile, f"focused visual row-confusion defaults must include {text}"
-    assert ".PHONY: find-real-note-row-confusion-patterns find-real-note-practical-row-confusion-patterns find-real-note-visual-row-confusion-patterns find-real-note-focused-visual-row-confusion-patterns" in makefile, (
+    assert ".PHONY: find-real-note-row-confusion-patterns find-real-note-practical-row-confusion-patterns find-real-note-focused-row-confusion-patterns find-real-note-visual-row-confusion-patterns find-real-note-focused-visual-row-confusion-patterns" in makefile, (
         "all real-note row-confusion shortcuts should be phony"
     )
     for field in [
@@ -1345,6 +1363,7 @@ def main() -> int:
         "MEASURE_INSTRUMENT_STATUS_PATTERN_ARGS",
         "MEASURE_REAL_NOTE_PATTERN_ARGS",
         "MEASURE_REAL_NOTE_PRACTICAL_ROW_CONFUSION_PATTERN_ARGS",
+        "MEASURE_REAL_NOTE_FOCUSED_ROW_CONFUSION_PATTERN_ARGS",
         "MEASURE_REAL_NOTE_FOCUSED_VISUAL_ROW_CONFUSION_PATTERN_ARGS",
         "REAL_NOTE_RUNTIME_ROW_CONFUSION_EXCLUDES",
         "MEASURE_GUITAR_PATTERN_ARGS",
