@@ -12411,14 +12411,15 @@ void append_chord_label_component(char *dst, std::size_t dst_size, const char *s
 {
 	if (!dst || dst_size == 0 || !start || len == 0)
 		return;
-	if (dst[0])
-		append_text(dst, dst_size, "=");
 	const std::size_t used = std::strlen(dst);
-	if (used + 1 >= dst_size)
+	const std::size_t separator_len = dst[0] ? 1 : 0;
+	if (used + separator_len + len >= dst_size)
 		return;
-	const std::size_t copy_len = std::min(len, dst_size - used - 1);
-	std::memcpy(dst + used, start, copy_len);
-	dst[used + copy_len] = '\0';
+	std::size_t offset = used;
+	if (separator_len > 0)
+		dst[offset++] = '=';
+	std::memcpy(dst + offset, start, len);
+	dst[offset + len] = '\0';
 }
 
 bool chord_component_pitch_mask(const char *start, std::size_t len, unsigned int &mask)
@@ -15479,6 +15480,153 @@ void append_unique_chord_components(char *dst, std::size_t dst_size, const char 
 			break;
 		cursor = end + 1;
 	}
+}
+
+int pitch_mask_tone_count(unsigned int mask)
+{
+	int count = 0;
+	for (int pitch_class = 0; pitch_class < 12; ++pitch_class) {
+		if (mask & (1u << static_cast<unsigned int>(pitch_class)))
+			++count;
+	}
+	return count;
+}
+
+int note_grid_pitch_mask_tone_count(const NoteGrid &grid, unsigned int mask)
+{
+	int count = 0;
+	for (int pitch_class = 0; pitch_class < 12; ++pitch_class) {
+		if ((mask & (1u << static_cast<unsigned int>(pitch_class))) &&
+		    note_grid_pitch_active(grid, pitch_class))
+			++count;
+	}
+	return count;
+}
+
+bool guitar_candidate_alias_supported_for_display(const char *start, std::size_t len,
+						 const NoteGrid &display_grid,
+						 const NoteGrid &analysis_grid)
+{
+	unsigned int mask = 0;
+	if (!chord_component_pitch_mask(start, len, mask))
+		return false;
+
+	const int tones = pitch_mask_tone_count(mask);
+	const int display_tones = note_grid_pitch_mask_tone_count(display_grid, mask);
+	const int analysis_tones = note_grid_pitch_mask_tone_count(analysis_grid, mask);
+	if (tones <= 2)
+		return display_tones >= 2 && analysis_tones >= 2;
+	if (tones == 3)
+		return (display_tones >= 2 && analysis_tones >= 3) ||
+		       (display_tones >= 3 && analysis_tones >= 2);
+	return display_tones >= tones && analysis_tones >= tones;
+}
+
+void append_supported_guitar_candidate_aliases_to_display(InstrumentState &state,
+							  const ChordResult &source,
+							  const NoteGrid &display_grid,
+							  const NoteGrid &analysis_grid)
+{
+	if (!state.label[0] || state.label[0] == '-' || !valid_chord_result(source))
+		return;
+
+	ParsedRootChord displayed_primary;
+	const std::size_t displayed_primary_len = std::strcspn(state.label, "=");
+	const bool displayed_plain_primary =
+		parse_plain_major_minor_component(state.label, displayed_primary_len, displayed_primary);
+	bool displayed_clean_plain_primary = false;
+	if (displayed_plain_primary) {
+		const ChordResult primary =
+			make_guitar_plain_triad(displayed_primary.root,
+						displayed_primary.quality == RootChordQuality::Minor,
+						std::max(state.confidence, kChordConfidenceFloor));
+		displayed_clean_plain_primary =
+			note_grid_active_pitch_class_count(display_grid) == 3 &&
+			note_grid_chord_tone_count(display_grid, primary) == 3 &&
+			primary_major_minor_min_tone_level(display_grid, displayed_primary) >= 0.30f;
+	}
+
+	char merged[sizeof(state.label)] = {};
+	copy_text(merged, sizeof(merged), state.label);
+	const char *cursor = source.label;
+	while (cursor && *cursor) {
+		const char *end = std::strchr(cursor, '=');
+		const std::size_t len =
+			end ? static_cast<std::size_t>(end - cursor) : std::strlen(cursor);
+		ParsedRootChord component;
+		const bool component_plain =
+			parse_plain_major_minor_component(cursor, len, component);
+		if (displayed_clean_plain_primary && component_plain &&
+		    component.root != displayed_primary.root) {
+			if (!end)
+				break;
+			cursor = end + 1;
+			continue;
+		}
+		if (!chord_label_has_component(merged, cursor, len) &&
+		    guitar_candidate_alias_supported_for_display(cursor, len, display_grid, analysis_grid))
+			append_chord_label_component(merged, sizeof(merged), cursor, len);
+		if (!end)
+			break;
+		cursor = end + 1;
+	}
+	if (std::strcmp(merged, state.label) != 0) {
+		copy_text(state.label, sizeof(state.label), merged);
+		state.confidence = std::max(state.confidence, source.confidence);
+	}
+}
+
+void append_supported_guitar_display_extension_aliases(InstrumentState &state,
+						       const NoteGrid &display_grid,
+						       const NoteGrid &analysis_grid)
+{
+	if (!state.label[0] || state.label[0] == '-')
+		return;
+
+	static constexpr int kMaxRecoveredAliases = 2;
+	static constexpr const char *kMajorSuffixes[] = {"7", "maj7", "6", "add9", "9", "maj9"};
+	static constexpr const char *kMinorSuffixes[] = {"m7", "m6", "m9"};
+
+	char original[sizeof(state.label)] = {};
+	copy_text(original, sizeof(original), state.label);
+	char merged[sizeof(state.label)] = {};
+	copy_text(merged, sizeof(merged), state.label);
+	int appended = 0;
+
+	const char *cursor = original;
+	while (cursor && *cursor && appended < kMaxRecoveredAliases) {
+		const char *end = std::strchr(cursor, '=');
+		const std::size_t len =
+			end ? static_cast<std::size_t>(end - cursor) : std::strlen(cursor);
+		ParsedRootChord parsed;
+		if (parse_plain_major_minor_component(cursor, len, parsed)) {
+			const bool minor = parsed.quality == RootChordQuality::Minor;
+			const char *const *suffixes = minor ? kMinorSuffixes : kMajorSuffixes;
+			const std::size_t suffix_count =
+				minor ? std::size(kMinorSuffixes) : std::size(kMajorSuffixes);
+			for (std::size_t i = 0; i < suffix_count && appended < kMaxRecoveredAliases; ++i) {
+				char candidate[16] = {};
+				std::snprintf(candidate, sizeof(candidate), "%s%s",
+					      note_name(parsed.root), suffixes[i]);
+				const std::size_t candidate_len = std::strlen(candidate);
+				if (chord_label_has_component(merged, candidate, candidate_len) ||
+				    !guitar_candidate_alias_supported_for_display(
+					    candidate, candidate_len, display_grid, analysis_grid))
+					continue;
+				const std::size_t before = std::strlen(merged);
+				append_chord_label_component(merged, sizeof(merged), candidate, candidate_len);
+				if (std::strlen(merged) != before &&
+				    chord_label_has_component(merged, candidate, candidate_len))
+					++appended;
+			}
+		}
+		if (!end)
+			break;
+		cursor = end + 1;
+	}
+
+	if (std::strcmp(merged, state.label) != 0)
+		copy_text(state.label, sizeof(state.label), merged);
 }
 
 void promote_displayed_smoothed_power_guitar_primary(InstrumentState &state,
@@ -20516,6 +20664,15 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 		stabilize_chord(snapshot.guitar_chord, guitar_chord_tracking_, raw_guitar_chord,
 				smoothed_guitar_chord, true, interval_seconds, true, false, !mixed_source);
 		if (!mixed_source) {
+			append_supported_guitar_candidate_aliases_to_display(
+				snapshot.guitar_chord, raw_guitar_chord, snapshot.guitar_notes,
+				guitar_chord_detection_grid);
+			append_supported_guitar_candidate_aliases_to_display(
+				snapshot.guitar_chord, smoothed_guitar_chord, snapshot.guitar_notes,
+				guitar_chord_detection_grid);
+			append_supported_guitar_display_extension_aliases(
+				snapshot.guitar_chord, snapshot.guitar_notes,
+				guitar_chord_detection_grid);
 			promote_displayed_smoothed_power_guitar_primary(
 				snapshot.guitar_chord, smoothed_guitar_chord,
 				snapshot.guitar_notes, guitar_chord_detection_grid);

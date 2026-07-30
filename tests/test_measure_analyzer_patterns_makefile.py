@@ -715,6 +715,18 @@ def main() -> int:
             "$(BUILD_DIR)/analyzer_guitarset",
         ]:
             assert text in shard_recipe, f"{shard} must include {text}"
+    guitarset_shard_recipe = target_recipe(makefile, "test-downloaded-guitarset-shard-%")
+    assert "$(GUITARSET_SHARD_GATE_ENV)" in guitarset_shard_recipe, (
+        "downloaded GuitarSet shards must use a permissive per-shard coverage gate"
+    )
+    for text in [
+        "GUITARSET_SHARD_GATE_ENV ?=",
+        "MUSIC_ANALYZER_GUITARSET_REQUIRED_EXCERPTS=1",
+        "MUSIC_ANALYZER_GUITARSET_REQUIRED_WINDOWS=1",
+        "MUSIC_ANALYZER_GUITARSET_MIN_CHORD_CHECKS=0",
+        "MUSIC_ANALYZER_GUITARSET_MIN_CHORD_HITS=0",
+    ]:
+        assert text in makefile, f"GuitarSet shard gate must include {text}"
     detector_regression_recipe = target_recipe(makefile, "test-detector-samples-parallel")
     assert "\n\t+$(RUN_WITH_DURATION) detector_samples_parallel" in detector_regression_recipe, (
         "detector sample regression target must preserve the make jobserver through the duration wrapper"
@@ -1074,6 +1086,7 @@ def main() -> int:
         "MUSIC_ANALYZER_GUITARSET_ATTRIBUTE_TSV=\"$@\"",
         "MUSIC_ANALYZER_GUITARSET_SHARD_COUNT=\"$(GUITARSET_SHARDS)\"",
         "MUSIC_ANALYZER_GUITARSET_SHARD_INDEX=\"$*\"",
+        "$(GUITARSET_SHARD_GATE_ENV)",
         "guitarset_attributes.shard-$*.out",
     ]:
         assert text in downloaded_guitarset_attribute_shard_recipe, (

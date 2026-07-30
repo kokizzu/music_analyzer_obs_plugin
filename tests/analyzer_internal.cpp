@@ -142,6 +142,116 @@ void check_displayed_same_root_plain_guitar_primary(Runner &runner)
 			      protected_state.label + "`");
 }
 
+void check_supported_guitar_candidate_alias_merge(Runner &runner)
+{
+	InstrumentState state = {};
+	std::snprintf(state.label, sizeof(state.label), "D=Bm");
+	state.confidence = 0.55f;
+	ChordResult source = make_crowded_chord("D=Bm=D6=Bm7");
+	source.root = 2;
+	source.confidence = 0.62f;
+
+	NoteGrid display_grid = {};
+	set_pitch(display_grid, 2, 0.88f);
+	set_pitch(display_grid, 6, 0.74f);
+	set_pitch(display_grid, 9, 0.69f);
+	set_pitch(display_grid, 11, 0.64f);
+	NoteGrid analysis_grid = {};
+	set_pitch(analysis_grid, 2, 0.91f);
+	set_pitch(analysis_grid, 6, 0.80f);
+	set_pitch(analysis_grid, 9, 0.71f);
+	set_pitch(analysis_grid, 11, 0.67f);
+
+	append_supported_guitar_candidate_aliases_to_display(state, source,
+							     display_grid, analysis_grid);
+	runner.expect(chord_label_has_exact_component(state.label, "D6"),
+		      std::string("supported guitar alias merge: expected D6 appended, got `") +
+			      state.label + "`");
+	runner.expect(chord_label_has_exact_component(state.label, "Bm7"),
+		      std::string("supported guitar alias merge: expected Bm7 appended, got `") +
+			      state.label + "`");
+	runner.expect(state.confidence >= source.confidence,
+		      "supported guitar alias merge: expected confidence updated from source");
+
+	InstrumentState protected_state = {};
+	std::snprintf(protected_state.label, sizeof(protected_state.label), "D");
+	protected_state.confidence = 0.55f;
+	ChordResult unsupported = make_crowded_chord("D=Dmaj7");
+	unsupported.root = 2;
+	unsupported.confidence = 0.62f;
+	NoteGrid triad_grid = {};
+	set_pitch(triad_grid, 2, 0.90f);
+	set_pitch(triad_grid, 6, 0.76f);
+	set_pitch(triad_grid, 9, 0.70f);
+
+	append_supported_guitar_candidate_aliases_to_display(protected_state, unsupported,
+							     triad_grid, triad_grid);
+	runner.expect(!chord_label_has_exact_component(protected_state.label, "Dmaj7"),
+		      std::string("supported guitar alias merge: expected missing maj7 tone pruned, got `") +
+			      protected_state.label + "`");
+
+	InstrumentState clean_primary_state = {};
+	std::snprintf(clean_primary_state.label, sizeof(clean_primary_state.label), "C");
+	clean_primary_state.confidence = 0.64f;
+	ChordResult relative_minor = make_crowded_chord("C=Em");
+	relative_minor.root = 0;
+	relative_minor.confidence = 0.64f;
+	NoteGrid clean_display = {};
+	set_pitch(clean_display, 0, 0.90f);
+	set_pitch(clean_display, 4, 0.82f);
+	set_pitch(clean_display, 7, 0.74f);
+	NoteGrid analysis_with_relative_minor = clean_display;
+	set_pitch(analysis_with_relative_minor, 11, 0.35f);
+
+	append_supported_guitar_candidate_aliases_to_display(clean_primary_state, relative_minor,
+							     clean_display,
+							     analysis_with_relative_minor);
+	runner.expect(std::strcmp(clean_primary_state.label, "C") == 0,
+		      std::string("supported guitar alias merge: expected clean C primary protected, got `") +
+			      clean_primary_state.label + "`");
+}
+
+void check_supported_guitar_display_extension_aliases(Runner &runner)
+{
+	InstrumentState state = {};
+	std::snprintf(state.label, sizeof(state.label), "Gmaj7=G=Bm=Gmaj9");
+	state.confidence = 0.58f;
+	NoteGrid display_grid = {};
+	for (int pitch_class : {2, 6, 7, 8, 9, 11})
+		set_pitch(display_grid, pitch_class, 0.70f);
+	NoteGrid analysis_grid = display_grid;
+
+	append_supported_guitar_display_extension_aliases(state, display_grid, analysis_grid);
+	runner.expect(chord_label_has_exact_component(state.label, "Gadd9"),
+		      std::string("supported guitar display extensions: expected Gadd9 appended, got `") +
+			      state.label + "`");
+	runner.expect(chord_label_has_exact_component(state.label, "Bm7"),
+		      std::string("supported guitar display extensions: expected Bm7 appended, got `") +
+			      state.label + "`");
+	runner.expect(!chord_label_has_exact_component(state.label, "Bm6"),
+		      std::string("supported guitar display extensions: expected alias cap before Bm6, got `") +
+			      state.label + "`");
+
+	InstrumentState triad_state = {};
+	std::snprintf(triad_state.label, sizeof(triad_state.label), "D");
+	triad_state.confidence = 0.62f;
+	NoteGrid triad_grid = {};
+	set_pitch(triad_grid, 2, 0.86f);
+	set_pitch(triad_grid, 6, 0.74f);
+	set_pitch(triad_grid, 9, 0.69f);
+
+	append_supported_guitar_display_extension_aliases(triad_state, triad_grid, triad_grid);
+	runner.expect(std::strcmp(triad_state.label, "D") == 0,
+		      std::string("supported guitar display extensions: expected missing extension tones ignored, got `") +
+			      triad_state.label + "`");
+
+	char small[7] = "C";
+	append_chord_label_component(small, sizeof(small), "Dmaj7", 5);
+	runner.expect(std::strcmp(small, "C") == 0,
+		      std::string("chord label append: expected partial component skipped, got `") +
+			      small + "`");
+}
+
 void check_same_pitch_guitar_bass_shadow_uses_any_matching_debug(Runner &runner)
 {
 	static constexpr int kMidi = 52;
@@ -186,6 +296,8 @@ int run()
 	Runner runner;
 	check_crowded_guitar_prune_modes(runner);
 	check_displayed_same_root_plain_guitar_primary(runner);
+	check_supported_guitar_candidate_alias_merge(runner);
+	check_supported_guitar_display_extension_aliases(runner);
 	check_same_pitch_guitar_bass_shadow_uses_any_matching_debug(runner);
 	if (runner.failures) {
 		std::fprintf(stderr, "analyzer_internal: %d/%d checks failed\n", runner.failures,
