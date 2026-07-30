@@ -720,6 +720,9 @@ def main() -> int:
     assert "$(DRUM_REAL_WORLD_SAMPLE_TARGETS)" in detector_regression_target_list, (
         "detector sample regression loop must include real-world drum sample gates"
     )
+    assert "test-drum-machine-samples-optional" in detector_regression_target_list, (
+        "detector sample regression loop must include local drum-machine kit coverage"
+    )
     assert "test-drum-samples-full-parallel-optional" in detector_regression_target_list, (
         "detector sample regression loop must include the optional local full-drum gate in the jobserver fanout"
     )
