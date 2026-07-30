@@ -350,6 +350,14 @@ def level_cells(row: dict[str, str], fields: tuple[str, ...]) -> str:
     return ",".join(f"{field.removesuffix('_level')}:{num(row, field)}" for field in fields)
 
 
+def median_cells(rows: list[dict[str, str]], fields: tuple[tuple[str, str], ...]) -> str:
+    parts: list[str] = []
+    for label, field in fields:
+        values = [value for row in rows if (value := as_float(row, field)) is not None]
+        parts.append(f"{label}:{median(values)}")
+    return ",".join(parts)
+
+
 def score_cells(row: dict[str, str]) -> str:
     return ",".join(
         f"{label}:{num(row, field)}"
@@ -663,6 +671,10 @@ def real_note_visual_row_confusion_rows(rows: list[dict[str, str]]) -> list[dict
     return confused
 
 
+def real_note_family_source_bucket(row: dict[str, str]) -> str:
+    return f"{row.get('family', '')}/{row.get('source', '')}"
+
+
 def row_count_summary(rows: list[dict[str, str]], sample_field: str = "sample_id") -> str:
     return f"{len(rows)} rows/{unique_sample_count(rows, sample_field)} samples"
 
@@ -677,6 +689,45 @@ def exact_row_confusion_rows(rows: list[dict[str, str]], min_level: float = 0.25
 
 def visible_visual_row_confusion_rows(rows: list[dict[str, str]], min_level: float = 0.50) -> list[dict[str, str]]:
     return [row for row in rows if float_or(row, "visual_strongest_row_pitch_level", 0.0) >= min_level]
+
+
+def report_real_note_visual_miss_profiles(rows: list[dict[str, str]], limit: int) -> None:
+    visual_confused_rows = real_note_visual_row_confusion_rows(rows)
+    if not visual_confused_rows:
+        return
+
+    buckets: dict[str, list[dict[str, str]]] = collections.defaultdict(list)
+    for row in visual_confused_rows:
+        buckets[real_note_family_source_bucket(row)].append(row)
+
+    print("  visual miss profiles")
+    for bucket, bucket_group in sorted(buckets.items(), key=lambda item: (-len(item[1]), item[0]))[:limit]:
+        target_visible = [
+            row for row in bucket_group if float_or(row, "expected_row_visual_level", 0.0) >= 0.25
+        ]
+        target_hidden = [
+            row for row in bucket_group if float_or(row, "expected_row_visual_level", 0.0) < 0.25
+        ]
+        wrong_bright = visible_visual_row_confusion_rows(bucket_group)
+        raw_rank1 = sum(1 for row in bucket_group if float_or(row, "raw_expected_rank", 99.0) <= 1.0)
+        tuned = sum(1 for row in bucket_group if float_or(row, "raw_tuned_abs_cent_offset", 99.0) <= 9.0)
+        route_counts = collections.Counter(
+            row.get("buffer_visual_strongest_row", "none") or "none" for row in bucket_group
+        )
+        owner_counts = collections.Counter(row.get("debug_owner", "none") or "none" for row in bucket_group)
+        print(
+            f"    {bucket}: rows={len(bucket_group)} "
+            f"samples={unique_sample_count(bucket_group, 'sample_id')} "
+            f"routes={compact(route_counts, 5)} "
+            f"target>=0.25={ratio(len(target_visible), len(bucket_group))} "
+            f"target<0.25={ratio(len(target_hidden), len(bucket_group))} "
+            f"wrong>=0.50={row_count_summary(wrong_bright)} "
+            f"raw_rank1={ratio(raw_rank1, len(bucket_group))} "
+            f"tuned<=9c={ratio(tuned, len(bucket_group))} "
+            f"owners={compact(owner_counts, 5)} "
+            f"score_med={median_cells(bucket_group, (('key', 'keyboard_score'), ('gtr', 'guitar_score'), ('voc', 'vocal_score'), ('oth', 'other_score')))} "
+            f"feature_med={median_cells(bucket_group, (('pitch', 'pitch_confidence'), ('per', 'periodicity'), ('fit', 'fit_error'), ('noise', 'noise'), ('p2', 'partial2'), ('p3', 'partial3'), ('p4', 'partial4')))}"
+        )
 
 
 def report_real_notes(path: pathlib.Path, limit: int, row_examples: int) -> None:
@@ -768,6 +819,7 @@ def report_real_notes(path: pathlib.Path, limit: int, row_examples: int) -> None
                 f"expected_visual_med={median([value for row in bucket_group if (value := as_float(row, 'expected_row_visual_level')) is not None])} "
                 f"strongest_visual_med={median([value for row in bucket_group if (value := as_float(row, 'visual_strongest_row_pitch_level')) is not None])}"
             )
+        report_real_note_visual_miss_profiles(rows, limit)
     miss_rows = [row for row in rows if row.get("status") == "ownership_miss" and row.get("debug_note")]
     print(f"  ownership miss rows={len(miss_rows)} samples={unique_sample_count(miss_rows, 'sample_id')}")
     if miss_rows:

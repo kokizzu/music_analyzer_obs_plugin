@@ -31,10 +31,10 @@ note	hit	piano	piano	grand	E4	64	p.wav	100	1	1	E4	64	0	E4	64	0	E5	guitar	0.7	2	9
         real_note = write(
             root / "real.tsv",
             """
-sample_id	status	family	source	expected_note	expected_midi	first_row	visual_first_row	buffer	buffer_strongest_row	buffer_visual_strongest_row	debug_note	debug_owner	debug_conf	keyboard_score	guitar_score	vocal_score	other_score	raw_expected_ratio	raw_tuned_abs_cent_offset	raw_local_best_note	raw_expected_rank	bass_level	guitar_level	piano_level	vocal_level	other_level	amb_level	bass_visual_level	guitar_visual_level	piano_visual_level	vocal_visual_level	other_visual_level	amb_visual_level	bass_notes	guitar_notes	piano_notes	vocal_notes	other_notes	amb_notes
-p1	ownership_miss	piano	electronic	C4	60	bass	bass	0	bass	bass	C5	guitar	0.9	0.0	0.9	0.0	0.0	1	0	C4	1	1.0	0	0.4	0	0	0	1.0	0	0.4	0	0	0	C4:1.0	--	C4:0.4	--	--	--
-p2	hit	guitar	acoustic	E3	52	guitar	guitar	0	guitar	guitar	E3	guitar	1.0	0.0	1.0	0.0	0.0	1	0	E3	1	0	1.0	0	0	0	0	0	1.0	0	0	0	0	--	E3:1.0	--	--	--	--
-p3	hit	piano	electronic	C4	60	piano	guitar	0	guitar	guitar	C4	guitar	0.8	0.2	0.8	0.0	0.0	1	0	C4	1	0	0.9	0.5	0	0	0	0	0.7	0.3	0	0	0	--	C4:0.9	C4:0.5	--	--	--
+sample_id	status	family	source	expected_note	expected_midi	first_row	visual_first_row	buffer	buffer_strongest_row	buffer_visual_strongest_row	debug_note	debug_owner	debug_conf	keyboard_score	guitar_score	vocal_score	other_score	pitch_confidence	periodicity	fit_error	noise	partial2	partial3	partial4	raw_expected_ratio	raw_tuned_abs_cent_offset	raw_local_best_note	raw_expected_rank	bass_level	guitar_level	piano_level	vocal_level	other_level	amb_level	bass_visual_level	guitar_visual_level	piano_visual_level	vocal_visual_level	other_visual_level	amb_visual_level	bass_notes	guitar_notes	piano_notes	vocal_notes	other_notes	amb_notes
+p1	ownership_miss	piano	electronic	C4	60	bass	bass	0	bass	bass	C5	guitar	0.9	0.0	0.9	0.0	0.0	0.90	0.80	0.05	0.05	0.40	0.20	0.10	1	0	C4	1	1.0	0	0.4	0	0	0	1.0	0	0.4	0	0	0	C4:1.0	--	C4:0.4	--	--	--
+p2	hit	guitar	acoustic	E3	52	guitar	guitar	0	guitar	guitar	E3	guitar	1.0	0.0	1.0	0.0	0.0	0.90	0.80	0.05	0.05	0.40	0.20	0.10	1	0	E3	1	0	1.0	0	0	0	0	0	1.0	0	0	0	0	--	E3:1.0	--	--	--	--
+p3	hit	piano	electronic	C4	60	piano	guitar	0	guitar	guitar	C4	guitar	0.8	0.2	0.8	0.0	0.0	0.90	0.80	0.05	0.05	0.40	0.20	0.10	1	0	C4	1	0	0.9	0.5	0	0	0	0	0.7	0.3	0	0	0	--	C4:0.9	C4:0.5	--	--	--
             """,
         )
         guitar = write(
@@ -120,6 +120,15 @@ snare/1.wav	snare	tom	0.2	0.7	0.1	0.1	0.8	0.9	1.0	0.0	0.5	0.5
         "visible>=0.50=1 rows/1 samples debug_owner=guitar=1 "
         "expected_visual_med=0.3 strongest_visual_med=0.7"
     ) in output
+    assert "visual miss profiles" in output
+    for text in [
+        "piano/electronic: rows=1 samples=1 routes=guitar=1",
+        "target>=0.25=1/1 (100.0%) target<0.25=0/1 (0.0%)",
+        "wrong>=0.50=1 rows/1 samples raw_rank1=1/1 (100.0%) tuned<=9c=1/1 (100.0%)",
+        "owners=guitar=1 score_med=key:0.2,gtr:0.8,voc:0,oth:0",
+        "feature_med=pitch:0.9,per:0.8,fit:0.05,noise:0.05,p2:0.4,p3:0.2,p4:0.1",
+    ]:
+        assert text in output
     assert "ownership_miss:piano/electronic->bass" in output
     assert "debug-midi deltas 12=1" in output
     assert "guitar chord attributes" in output
