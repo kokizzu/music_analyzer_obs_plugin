@@ -195,6 +195,18 @@ def main() -> int:
     assert '[ "scripts/analyze_drum_primary_debug.py" -nt "$$path" ]' in active_false_recipe, (
         "direct drum active false mining must refresh HF and IDMT rows when the parser changes"
     )
+    assert '[ -f "$(DRUM_FULL_EXACT_ATTRIBUTE_ROWS)" ]' in active_false_recipe, (
+        "direct drum active false mining must refresh optional full exact rows when already cached"
+    )
+    assert "$(MAKE) analyze-drum-full-gate-matrix-parallel" in active_false_recipe, (
+        "direct drum active false mining must refresh stale full exact rows through the parallel builder"
+    )
+    assert '[ -f "$(DRUM_FULL_MERGED_EXPECTED_ATTRIBUTE_ROWS)" ]' in active_false_recipe, (
+        "direct drum active false mining must refresh optional merged expected rows when already cached"
+    )
+    assert "$(MAKE) analyze-drum-full-merged-expected-attribute-rows" in active_false_recipe, (
+        "direct drum active false mining must refresh stale merged expected full rows"
+    )
     assert "for rows in $(DRUM_ACTIVE_EXTRA_PROTECTED_ROWS)" in active_false_recipe, (
         "drum active false mining must iterate over protected TSV inputs at execution time"
     )
@@ -1063,6 +1075,12 @@ def main() -> int:
     )
     assert '$(BUILD_DIR)/analyzer_drum_samples" -nt "$(DRUM_SPREAD_EXACT_ATTRIBUTE_ROWS)"' in protected_recipe, (
         "protected drum primary mining must refresh stale spread rows"
+    )
+    assert '[ -f "$(DRUM_FULL_EXACT_ATTRIBUTE_ROWS)" ]' in protected_recipe, (
+        "protected drum primary mining must refresh optional full exact rows when already cached"
+    )
+    assert "$(MAKE) analyze-drum-full-gate-matrix-parallel" in protected_recipe, (
+        "protected drum primary mining must refresh stale full exact rows through the parallel builder"
     )
 
     row_dump_targets = {
