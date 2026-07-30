@@ -281,13 +281,26 @@ def summarize(path: pathlib.Path, examples: int, limit: int, prune_policies: lis
     hit_relation_counter: collections.Counter[str] = collections.Counter()
     subset_counter: collections.Counter[str] = collections.Counter()
     hit_subset_counter: collections.Counter[str] = collections.Counter()
+    label_count_counter: collections.Counter[str] = collections.Counter()
+    extra_count_counter: collections.Counter[str] = collections.Counter()
     rows_with_extras = 0
     hit_rows_with_extras = 0
+    crowded_rows = 0
+    hit_crowded_rows = 0
+    max_components = 0
     examples_by_relation: dict[str, list[tuple[dict[str, str], str]]] = collections.defaultdict(list)
     subset_examples: list[tuple[dict[str, str], str, str]] = []
 
     for row in rows:
+        detected = split_labels(row.get("guitar_chord", ""))
         extras = row_extra_components(row)
+        label_count_counter[str(len(detected))] += 1
+        extra_count_counter[str(len(extras))] += 1
+        max_components = max(max_components, len(detected))
+        if len(detected) >= 7:
+            crowded_rows += 1
+            if row.get("status") == "chord_hit":
+                hit_crowded_rows += 1
         if not extras:
             continue
         rows_with_extras += 1
@@ -315,6 +328,10 @@ def summarize(path: pathlib.Path, examples: int, limit: int, prune_policies: lis
     lines = [
         f"guitar chord extra components rows={rows_with_extras}/{len(rows)} "
         f"components={total_components} hit_rows={hit_rows_with_extras} hit_components={hit_components}",
+        f"label component counts {compact(label_count_counter, limit)}",
+        f"extra component counts {compact(extra_count_counter, limit)}",
+        f"crowded labels >=7 rows={crowded_rows} hit_rows={hit_crowded_rows} "
+        f"max_components={max_components}",
         f"component labels {compact(component_counter, limit)}",
         f"component suffixes {compact(suffix_counter, limit)}",
         f"component relations {compact(relation_counter, limit)}",

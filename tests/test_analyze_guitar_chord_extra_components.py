@@ -53,6 +53,9 @@ miss_unrelated	chord_miss	Dm	A#aug=Dpow	D,F,A	display_different_root	power_only_
         )
     output = completed.stdout
     assert "guitar chord extra components rows=4/4 components=8 hit_rows=3 hit_components=6" in output
+    assert "label component counts 2=3 5=1" in output
+    assert "extra component counts 1=2 4=1 2=1" in output
+    assert "crowded labels >=7 rows=0 hit_rows=0 max_components=5" in output
     assert "component suffixes pow=2 aug=2 sus4=1 6=1 maj7=1 m=1" in output
     assert "component relations" in output
     for text in (
