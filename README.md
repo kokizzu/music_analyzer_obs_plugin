@@ -309,7 +309,7 @@ make test-detector-samples-parallel
 PARALLEL_TEST_JOBS=8 make test-detector-samples-parallel
 ```
 
-This fans out the analyzer cases, NSynth full-mix note samples, Guitar Chord Mix samples, real-world drum sample gates, and generated instrument sample gate.
+This fans out the analyzer cases, NSynth full-mix note samples, Guitar Chord Mix samples, real-world drum sample gates, the optional local full-drum gate, and the generated instrument sample gate through the same GNU make jobserver.
 
 For a full detector-tuning pass that runs the parallel regression gates first, then regenerates measured attribute rows and pattern reports with durations:
 

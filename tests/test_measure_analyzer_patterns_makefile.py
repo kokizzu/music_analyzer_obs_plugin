@@ -484,8 +484,8 @@ def main() -> int:
     assert "$(DRUM_REAL_WORLD_SAMPLE_TARGETS)" in detector_regression_target_list, (
         "detector sample regression loop must include real-world drum sample gates"
     )
-    assert "test-drum-samples-full-parallel-optional" not in detector_regression_target_list, (
-        "detector sample regression loop must keep the expensive local full-drum gate out of the parallel fanout"
+    assert "test-drum-samples-full-parallel-optional" in detector_regression_target_list, (
+        "detector sample regression loop must include the optional local full-drum gate in the jobserver fanout"
     )
     assert "test-vocadito-samples" in detector_regression_target_list, (
         "detector sample regression loop must include the real vocal note gate"
@@ -496,16 +496,6 @@ def main() -> int:
     assert "test-instrument-samples " not in detector_regression_target_list + " ", (
         "detector sample regression loop must not use the serial generated instrument sample gate"
     )
-    detector_regression_serial_targets = re.search(
-        r"^DETECTOR_SAMPLE_REGRESSION_SERIAL_TARGETS := (.+)$", makefile, re.MULTILINE
-    )
-    assert detector_regression_serial_targets is not None, (
-        "missing detector sample serial regression target list"
-    )
-    detector_regression_serial_target_list = detector_regression_serial_targets.group(1)
-    assert "test-drum-samples-full-parallel-optional" in detector_regression_serial_target_list, (
-        "detector sample serial regression loop must include the sharded full-drum gate when local samples exist"
-    )
     detector_regression_recipe = target_recipe(makefile, "test-detector-samples-parallel")
     assert "\n\t+$(RUN_WITH_DURATION) detector_samples_parallel" in detector_regression_recipe, (
         "detector sample regression target must preserve the make jobserver through the parallel duration wrapper"
@@ -513,11 +503,8 @@ def main() -> int:
     assert "$(MAKE) $(PARALLEL_TEST_MAKE_JOBS) $(DETECTOR_SAMPLE_REGRESSION_TARGETS)" in detector_regression_recipe, (
         "detector sample regression target must fan out core gates through jobserver-aware make"
     )
-    assert "\n\t+$(RUN_WITH_DURATION) detector_samples_serial" in detector_regression_recipe, (
-        "detector sample regression target must preserve the make jobserver through the serial duration wrapper"
-    )
-    assert "$(MAKE) $(DETECTOR_SAMPLE_REGRESSION_SERIAL_TARGETS)" in detector_regression_recipe, (
-        "detector sample regression target must run expensive local full-drum coverage after the core fanout"
+    assert "detector_samples_serial" not in detector_regression_recipe, (
+        "detector sample regression target must keep detector gates in one jobserver-aware fanout"
     )
     real_world_full_targets = re.search(
         r"^REAL_WORLD_SAMPLE_FULL_TARGETS := (.+)$", makefile, re.MULTILINE
