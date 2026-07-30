@@ -12,6 +12,30 @@ ROOT = pathlib.Path(__file__).resolve().parents[1]
 SCRIPT = ROOT / "scripts" / "evaluate_drum_tom_bleed_caps.py"
 
 
+def run_script(path: pathlib.Path) -> str:
+    try:
+        completed = subprocess.run(
+            [sys.executable, str(SCRIPT), str(path), "--rule", "snare_crack_clear"],
+            cwd=ROOT,
+            check=True,
+            text=True,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+        )
+    except subprocess.CalledProcessError as exc:
+        sys.stderr.write(exc.stdout or "")
+        sys.stderr.write(exc.stderr or "")
+        raise
+    return completed.stdout
+
+
+def assert_expected_summary(output: str) -> None:
+    assert "rows=2" in output
+    assert "rule=snare_crack_clear" in output
+    assert "false_tom=1->0" in output
+    assert "tom_hit=1->1" in output
+
+
 def main() -> int:
     with tempfile.TemporaryDirectory() as tmpdir:
         log_path = pathlib.Path(tmpdir) / "debug.err"
@@ -44,19 +68,43 @@ def main() -> int:
             ),
             encoding="utf-8",
         )
-        completed = subprocess.run(
-            [sys.executable, str(SCRIPT), str(log_path), "--rule", "snare_crack_clear"],
-            cwd=ROOT,
-            check=True,
-            text=True,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
+        tsv_path = pathlib.Path(tmpdir) / "rows.tsv"
+        tsv_path.write_text(
+            "\n".join(
+                [
+                    "sample\texpected\tgot\tenergy_low\tenergy_mid\tenergy_high\t"
+                    "kick_body\tsnare_body\ttom_body\tsnare_crack\tupper_tom_body\tbody_shape\t"
+                    "kick_band\tkick_seg\tkick_shape_score\tkick_trigger\tkick_threshold\tkick_shape\tkick_level\t"
+                    "snare_band\tsnare_seg\tsnare_shape_score\tsnare_trigger\tsnare_threshold\tsnare_shape\tsnare_level\t"
+                    "hihat_band\thihat_seg\thihat_shape_score\thihat_trigger\thihat_threshold\thihat_shape\thihat_level\t"
+                    "crash_band\tcrash_seg\tcrash_shape_score\tcrash_trigger\tcrash_threshold\tcrash_shape\tcrash_level\t"
+                    "tom_band\ttom_seg\ttom_shape_score\ttom_trigger\ttom_threshold\ttom_shape\ttom_level\t"
+                    "ride_band\tride_seg\tride_shape_score\tride_trigger\tride_threshold\tride_shape\tride_level\t"
+                    "rim_band\trim_seg\trim_shape_score\trim_trigger\trim_threshold\trim_shape\trim_level",
+                    "snare/001.wav\tsnare\tsnare\t0.20\t0.60\t0.20\t"
+                    "2.00\t10.00\t12.00\t2.40\t8.00\t4\t"
+                    "1.00\t1.00\t1.00\t1.00\t1.42\t0\t0.00\t"
+                    "6.00\t6.00\t6.00\t3.00\t1.42\t1\t0.90\t"
+                    "1.00\t1.00\t1.00\t1.00\t1.42\t0\t0.00\t"
+                    "1.00\t1.00\t1.00\t1.00\t1.42\t0\t0.00\t"
+                    "5.00\t5.00\t5.00\t2.50\t1.42\t1\t0.80\t"
+                    "1.00\t1.00\t1.00\t1.00\t1.42\t0\t0.00\t"
+                    "1.00\t1.00\t1.00\t1.00\t1.42\t0\t0.00",
+                    "tom/001.wav\ttom\ttom\t0.20\t0.60\t0.20\t"
+                    "2.00\t10.00\t18.00\t1.00\t10.00\t4\t"
+                    "1.00\t1.00\t1.00\t1.00\t1.42\t0\t0.00\t"
+                    "5.00\t5.00\t5.00\t2.00\t1.42\t1\t0.70\t"
+                    "1.00\t1.00\t1.00\t1.00\t1.42\t0\t0.00\t"
+                    "1.00\t1.00\t1.00\t1.00\t1.42\t0\t0.00\t"
+                    "8.00\t8.00\t8.00\t4.00\t1.42\t1\t0.90\t"
+                    "1.00\t1.00\t1.00\t1.00\t1.42\t0\t0.00\t"
+                    "1.00\t1.00\t1.00\t1.00\t1.42\t0\t0.00",
+                ]
+            ),
+            encoding="utf-8",
         )
-    output = completed.stdout
-    assert "rows=2" in output
-    assert "rule=snare_crack_clear" in output
-    assert "false_tom=1->0" in output
-    assert "tom_hit=1->1" in output
+        assert_expected_summary(run_script(log_path))
+        assert_expected_summary(run_script(tsv_path))
     print("test_evaluate_drum_tom_bleed_caps: ok")
     return 0
 

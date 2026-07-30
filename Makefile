@@ -1198,6 +1198,10 @@ analyze-drum-rule-grid: $(FULL_DRUM_DEBUG_ERRS) scripts/analyze_drum_debug_rows.
 analyze-drum-tom-bleed-caps: $(FULL_DRUM_DEBUG_ERRS) scripts/evaluate_drum_tom_bleed_caps.py
 	$(PYTHON) scripts/evaluate_drum_tom_bleed_caps.py "$(BUILD_DIR)/full_kick_debug.err" "$(BUILD_DIR)/full_snare_debug.err" "$(BUILD_DIR)/full_tom_debug.err" $(DRUM_TOM_BLEED_ARGS)
 
+analyze-drum-tom-bleed-caps-cached: scripts/evaluate_drum_tom_bleed_caps.py scripts/analyze_drum_primary_debug.py
+	+@if [ ! -f "$(DRUM_FULL_EXACT_ATTRIBUTE_ROWS)" ]; then $(MAKE) analyze-drum-full-gate-matrix-parallel; else printf '%s\n' "using cached drum full exact attribute TSV: $(DRUM_FULL_EXACT_ATTRIBUTE_ROWS)"; fi
+	$(PYTHON) scripts/evaluate_drum_tom_bleed_caps.py "$(DRUM_FULL_EXACT_ATTRIBUTE_ROWS)" $(DRUM_TOM_BLEED_ARGS)
+
 $(BUILD_DIR)/drum_full_attribute_rows.tsv: $(FULL_DRUM_DEBUG_ERRS) scripts/analyze_drum_primary_debug.py
 	$(PYTHON) scripts/analyze_drum_primary_debug.py --dump-rows --include-debug-rows "$(BUILD_DIR)/full_kick_debug.err" "$(BUILD_DIR)/full_snare_debug.err" "$(BUILD_DIR)/full_tom_debug.err" "$(BUILD_DIR)/full_rim_debug.err" > "$(BUILD_DIR)/drum_full_attribute_rows.tsv"
 
@@ -1583,7 +1587,7 @@ report-analyzer-patterns-from-rows-full:
 measure-analyzer-patterns: measure-analyzer-attribute-rows
 	+$(MAKE) report-analyzer-patterns-from-rows
 
-measure-analyzer-patterns-full: measure-analyzer-attribute-rows-full analyze-drum-tom-bleed-caps
+measure-analyzer-patterns-full: measure-analyzer-attribute-rows-full analyze-drum-tom-bleed-caps-cached
 	+$(MAKE) report-analyzer-patterns-from-rows-full
 
 measure-analyzer-pattern-report: | $(BUILD_DIR)

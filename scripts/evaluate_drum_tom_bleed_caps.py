@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import argparse
+import csv
 import pathlib
 import re
 from collections import Counter
@@ -32,7 +33,11 @@ BODY_RE = re.compile(
 def parse_rows(paths: list[pathlib.Path]) -> list[dict[str, object]]:
     rows: list[dict[str, object]] = []
     for path in paths:
-        for line in path.read_text(errors="replace").splitlines():
+        text = path.read_text(errors="replace")
+        if text.startswith("sample\texpected\t"):
+            rows.extend(parse_tsv_rows(text))
+            continue
+        for line in text.splitlines():
             row_match = ROW_RE.search(line)
             body_match = BODY_RE.search(line)
             if not row_match or not body_match:
@@ -68,6 +73,42 @@ def parse_rows(paths: list[pathlib.Path]) -> list[dict[str, object]]:
                     **body,
                 }
             )
+    return rows
+
+
+def parse_float(value: str | None) -> float:
+    if value is None or value == "":
+        return 0.0
+    return float(value)
+
+
+def parse_tsv_rows(text: str) -> list[dict[str, object]]:
+    rows: list[dict[str, object]] = []
+    reader = csv.DictReader(text.splitlines(), delimiter="\t")
+    for source in reader:
+        metrics = {
+            category: {
+                field: parse_float(source.get(f"{category}_{field}"))
+                for field in ("band", "seg", "shape_score", "trigger", "threshold", "shape", "level")
+            }
+            for category in CATEGORIES
+        }
+        rows.append(
+            {
+                "sample": source.get("sample", ""),
+                "expected": source.get("expected", ""),
+                "metrics": metrics,
+                "low": parse_float(source.get("energy_low")),
+                "mid": parse_float(source.get("energy_mid")),
+                "high": parse_float(source.get("energy_high")),
+                "kick_body": parse_float(source.get("kick_body")),
+                "snare_body": parse_float(source.get("snare_body")),
+                "tom_body": parse_float(source.get("tom_body")),
+                "snare_crack": parse_float(source.get("snare_crack")),
+                "upper_tom_body": parse_float(source.get("upper_tom_body")),
+                "body_shape": parse_float(source.get("body_shape")),
+            }
+        )
     return rows
 
 
