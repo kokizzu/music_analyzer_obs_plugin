@@ -706,6 +706,24 @@ REAL_NOTE_FULL_MIX_ATTRIBUTE_PARTS := $(addprefix $(BUILD_DIR)/real_note_full_mi
 REAL_NOTE_FULL_MIX_TEST_MAKE_JOBS = $(if $(filter -j%,$(MAKEFLAGS)),,-j$(REAL_NOTE_FULL_MIX_SHARDS))
 REAL_NOTE_FULL_MIX_ATTRIBUTE_MAKE_JOBS = $(if $(filter -j%,$(MAKEFLAGS)),,-j$(REAL_NOTE_FULL_MIX_SHARDS))
 REAL_NOTE_FULL_MIX_MAX_VISUAL_PIANO_ELECTRONIC_GUITAR ?= 160
+REAL_NOTE_FULL_MIX_MAX_ROW_SOURCE_ROUTES ?= \
+	piano/electronic->guitar=320 \
+	other/acoustic->guitar=195 \
+	other/acoustic->piano=180 \
+	piano/electronic->bass=100 \
+	piano/electronic->other=95 \
+	other/acoustic->bass=75 \
+	guitar/acoustic->piano=75
+REAL_NOTE_FULL_MIX_MAX_VISUAL_SOURCE_ROUTES ?= \
+	other/acoustic->piano=190 \
+	piano/electronic->bass=180 \
+	piano/electronic->other=160 \
+	piano/electronic->guitar=$(REAL_NOTE_FULL_MIX_MAX_VISUAL_PIANO_ELECTRONIC_GUITAR) \
+	other/acoustic->bass=140 \
+	guitar/acoustic->piano=135
+REAL_NOTE_FULL_MIX_SOURCE_ROUTE_LIMIT_ARGS = \
+	$(foreach route,$(REAL_NOTE_FULL_MIX_MAX_ROW_SOURCE_ROUTES),--max-row-source-route "$(route)") \
+	$(foreach route,$(REAL_NOTE_FULL_MIX_MAX_VISUAL_SOURCE_ROUTES),--max-visual-source-route "$(route)")
 REAL_NOTE_SAMPLE_SHARDS ?= $(PARALLEL_TEST_JOBS)
 REAL_NOTE_SAMPLE_SHARD_INDEXES := $(shell i=0; while [ $$i -lt $(REAL_NOTE_SAMPLE_SHARDS) ]; do printf '%s ' $$i; i=$$((i + 1)); done)
 REAL_NOTE_SAMPLE_TAG ?= isolated
@@ -1558,7 +1576,7 @@ test-real-note-samples-full-mix: $(BUILD_DIR)/analyzer_real_note_samples prepare
 test-real-note-samples-full-mix-parallel: $(BUILD_DIR)/analyzer_real_note_samples scripts/run_with_duration.sh scripts/check_real_note_full_mix_shards.py
 	+@if [ ! -f "$(REAL_NOTE_SAMPLE_DIR)/manifest.tsv" ] || [ "scripts/prepare_nsynth_samples.py" -nt "$(REAL_NOTE_SAMPLE_DIR)/manifest.tsv" ]; then $(MAKE) prepare-real-note-samples; fi
 	+$(RUN_WITH_DURATION) analyzer_real_note_samples_full_mix_parallel $(MAKE) $(REAL_NOTE_FULL_MIX_TEST_MAKE_JOBS) $(REAL_NOTE_FULL_MIX_SHARD_TARGETS)
-	$(PYTHON) scripts/check_real_note_full_mix_shards.py --min-any-hit-percent "$(REAL_NOTE_FULL_MIX_MIN_ANY_HIT_PERCENT)" --min-expected-row-percent "$(REAL_NOTE_FULL_MIX_MIN_EXPECTED_ROW_PERCENT)" --min-first-row-percent "$(REAL_NOTE_FULL_MIX_AGG_MIN_FIRST_ROW_PERCENT)" --bass-min-expected-row-percent "$(REAL_NOTE_FULL_MIX_MIN_BASS_EXPECTED_ROW_PERCENT)" --guitar-min-expected-row-percent "$(REAL_NOTE_FULL_MIX_MIN_GUITAR_EXPECTED_ROW_PERCENT)" --piano-min-expected-row-percent "$(REAL_NOTE_FULL_MIX_MIN_PIANO_EXPECTED_ROW_PERCENT)" --vocals-min-expected-row-percent "$(REAL_NOTE_FULL_MIX_MIN_VOCALS_EXPECTED_ROW_PERCENT)" --other-min-expected-row-percent "$(REAL_NOTE_FULL_MIX_MIN_OTHER_EXPECTED_ROW_PERCENT)" --bass-min-first-row-percent "$(REAL_NOTE_FULL_MIX_AGG_MIN_BASS_FIRST_ROW_PERCENT)" --guitar-min-first-row-percent "$(REAL_NOTE_FULL_MIX_AGG_MIN_GUITAR_FIRST_ROW_PERCENT)" --piano-min-first-row-percent "$(REAL_NOTE_FULL_MIX_AGG_MIN_PIANO_FIRST_ROW_PERCENT)" --vocals-min-first-row-percent "$(REAL_NOTE_FULL_MIX_AGG_MIN_VOCALS_FIRST_ROW_PERCENT)" --other-min-first-row-percent "$(REAL_NOTE_FULL_MIX_AGG_MIN_OTHER_FIRST_ROW_PERCENT)" --max-drum-active-percent "$(REAL_NOTE_FULL_MIX_MAX_DRUM_ACTIVE_PERCENT)" --max-visual-source-route "piano/electronic->guitar=$(REAL_NOTE_FULL_MIX_MAX_VISUAL_PIANO_ELECTRONIC_GUITAR)" $(REAL_NOTE_FULL_MIX_SHARD_OUTS)
+	$(PYTHON) scripts/check_real_note_full_mix_shards.py --min-any-hit-percent "$(REAL_NOTE_FULL_MIX_MIN_ANY_HIT_PERCENT)" --min-expected-row-percent "$(REAL_NOTE_FULL_MIX_MIN_EXPECTED_ROW_PERCENT)" --min-first-row-percent "$(REAL_NOTE_FULL_MIX_AGG_MIN_FIRST_ROW_PERCENT)" --bass-min-expected-row-percent "$(REAL_NOTE_FULL_MIX_MIN_BASS_EXPECTED_ROW_PERCENT)" --guitar-min-expected-row-percent "$(REAL_NOTE_FULL_MIX_MIN_GUITAR_EXPECTED_ROW_PERCENT)" --piano-min-expected-row-percent "$(REAL_NOTE_FULL_MIX_MIN_PIANO_EXPECTED_ROW_PERCENT)" --vocals-min-expected-row-percent "$(REAL_NOTE_FULL_MIX_MIN_VOCALS_EXPECTED_ROW_PERCENT)" --other-min-expected-row-percent "$(REAL_NOTE_FULL_MIX_MIN_OTHER_EXPECTED_ROW_PERCENT)" --bass-min-first-row-percent "$(REAL_NOTE_FULL_MIX_AGG_MIN_BASS_FIRST_ROW_PERCENT)" --guitar-min-first-row-percent "$(REAL_NOTE_FULL_MIX_AGG_MIN_GUITAR_FIRST_ROW_PERCENT)" --piano-min-first-row-percent "$(REAL_NOTE_FULL_MIX_AGG_MIN_PIANO_FIRST_ROW_PERCENT)" --vocals-min-first-row-percent "$(REAL_NOTE_FULL_MIX_AGG_MIN_VOCALS_FIRST_ROW_PERCENT)" --other-min-first-row-percent "$(REAL_NOTE_FULL_MIX_AGG_MIN_OTHER_FIRST_ROW_PERCENT)" --max-drum-active-percent "$(REAL_NOTE_FULL_MIX_MAX_DRUM_ACTIVE_PERCENT)" $(REAL_NOTE_FULL_MIX_SOURCE_ROUTE_LIMIT_ARGS) $(REAL_NOTE_FULL_MIX_SHARD_OUTS)
 
 test-real-note-samples-full-mix-shard-%: FORCE $(BUILD_DIR)/analyzer_real_note_samples scripts/run_with_duration.sh
 	+@if [ ! -f "$(REAL_NOTE_SAMPLE_DIR)/manifest.tsv" ] || [ "scripts/prepare_nsynth_samples.py" -nt "$(REAL_NOTE_SAMPLE_DIR)/manifest.tsv" ]; then $(MAKE) prepare-real-note-samples; fi

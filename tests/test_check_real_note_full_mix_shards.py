@@ -89,6 +89,28 @@ def main() -> int:
         "other/acoustic->piano=1",
     )
 
+    limited_row_route = run_checker(
+        "--other-min-expected-row-percent",
+        "50",
+        "--max-row-source-route",
+        "guitar/acoustic->piano=1",
+    )
+    if limited_row_route.returncode != 0:
+        raise AssertionError(limited_row_route.stderr)
+
+    failed_row_route = run_checker(
+        "--other-min-expected-row-percent",
+        "50",
+        "--max-row-source-route",
+        "guitar/acoustic->piano=0",
+    )
+    if failed_row_route.returncode == 0:
+        raise AssertionError("expected shard checker to fail the row source-route limit")
+    require(
+        failed_row_route.stderr,
+        "expected full-mix row source route guitar/acoustic->piano <= 0, got 1",
+    )
+
     limited_route = run_checker(
         "--other-min-expected-row-percent",
         "50",

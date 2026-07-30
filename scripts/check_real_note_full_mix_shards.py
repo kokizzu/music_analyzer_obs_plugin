@@ -301,6 +301,11 @@ def validate(
             f"expected full-mix melodic drum-active windows <= {args.max_drum_active_percent}%, "
             f"got {drum_percent}% ({summary['drum_active']}/{summary['drum_windows']})"
         )
+    for spec in args.max_row_source_route:
+        route, limit = parse_route_limit(spec)
+        value = row_source_routes.get(route, 0)
+        if value > limit:
+            fail(f"expected full-mix row source route {route} <= {limit}, got {value}")
     for spec in args.max_visual_source_route:
         route, limit = parse_route_limit(spec)
         value = visual_source_routes.get(route, 0)
@@ -341,6 +346,13 @@ def main() -> int:
     parser.add_argument("--min-expected-row-percent", type=int, default=80)
     parser.add_argument("--min-first-row-percent", type=int, default=25)
     parser.add_argument("--max-drum-active-percent", type=int, default=25)
+    parser.add_argument(
+        "--max-row-source-route",
+        action="append",
+        default=[],
+        metavar="ROUTE=COUNT",
+        help="maximum allowed aggregate row source-route count, for example piano/electronic->guitar=320",
+    )
     parser.add_argument(
         "--max-visual-source-route",
         action="append",
