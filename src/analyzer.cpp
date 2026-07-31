@@ -4662,6 +4662,40 @@ bool vocal_owned_partial_electronic_keyboard_body_supported(const FullMixDebugCa
 	       fifth <= 0.006f;
 }
 
+bool vocal_owned_noisy_acoustic_keyboard_body_supported(const FullMixDebugCandidate &debug)
+{
+	if (debug.owner != InstrumentKind::Vocal)
+		return false;
+	if (debug.midi < 52 || debug.midi > 60)
+		return false;
+
+	const float second = debug.harmonic_ratios[1];
+	const float third = debug.harmonic_ratios[2];
+	const float fourth = debug.harmonic_ratios[3];
+	const float fifth = debug.harmonic_ratios[4];
+	return debug.vocal_score >= 0.794f &&
+	       debug.keyboard_score >= 0.16f &&
+	       debug.keyboard_score <= 0.22f &&
+	       debug.guitar_score <= 0.010f &&
+	       debug.other_score <= 0.010f &&
+	       debug.spectral_level >= 0.90f &&
+	       debug.pitch_confidence >= 0.86f &&
+	       debug.periodicity >= 0.72f &&
+	       debug.harmonic_fit_error <= 0.035f &&
+	       debug.local_noise_level >= 0.080f &&
+	       debug.local_noise_level <= 0.18f &&
+	       debug.spectral_centroid >= 0.13f &&
+	       debug.spectral_centroid <= 0.17f &&
+	       debug.spectral_slope >= 0.16f &&
+	       debug.spectral_slope <= 0.19f &&
+	       second >= 0.10f &&
+	       second <= 0.13f &&
+	       third >= 0.10f &&
+	       third <= 0.14f &&
+	       fourth <= 0.070f &&
+	       fifth <= 0.035f;
+}
+
 bool full_mix_display_mirror_supported(FullMixDisplayRow row, const FullMixDebugCandidate &debug,
 				       int display_midi)
 {
@@ -5072,6 +5106,7 @@ bool full_mix_display_mirror_supported(FullMixDisplayRow row, const FullMixDebug
 		       clean_sustained_keyboard_hint ||
 		       clean_vocal_owned_keyboard_hint ||
 		       vocal_owned_partial_electronic_keyboard_body_supported(debug) ||
+		       vocal_owned_noisy_acoustic_keyboard_body_supported(debug) ||
 		       pure_high_electronic_keyboard_hint ||
 		       low_octave_organ_keyboard_hint ||
 		       measured_low_organ_keyboard_alias ||
@@ -9597,6 +9632,8 @@ void suppress_vocal_owned_same_pitch_non_vocal_shadows(NoteGrid &grid, Instrumen
 		    debug->ownership_confidence < kMinVocalConfidence)
 			continue;
 		if (row == InstrumentKind::Keyboard && vocal_owned_partial_electronic_keyboard_body_supported(*debug))
+			continue;
+		if (row == InstrumentKind::Keyboard && vocal_owned_noisy_acoustic_keyboard_body_supported(*debug))
 			continue;
 		if (row == InstrumentKind::Guitar && vocal_owned_low_acoustic_guitar_body_supported(*debug))
 			continue;
