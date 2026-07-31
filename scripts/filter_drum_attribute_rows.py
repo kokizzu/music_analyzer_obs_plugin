@@ -117,6 +117,14 @@ def augment_row(row: dict[str, str]) -> dict[str, str]:
                 as_float(row.get(f"{lhs}_{field}", "")),
                 as_float(row.get(f"{rhs}_{field}", "")),
             )
+    row["hihat_rim_shape_score_ratio"] = ratio(
+        as_float(row.get("hihat_seg", "")),
+        as_float(row.get("rim_shape_score", "")),
+    )
+    row["ride_hihat_shape_score_ratio"] = ratio(
+        as_float(row.get("ride_seg", "")),
+        as_float(row.get("hihat_seg", "")),
+    )
     return row
 
 

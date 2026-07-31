@@ -168,7 +168,7 @@ ride/e.wav	hihat	ride	0.95	7	4	0.80	50	60	0.10	1	4	0.40	10	20	0.20	2	4	0.30	25	3
                 "--min",
                 "hihat_rim_shape_score_ratio=1.10",
                 "--columns",
-                "sample,hihat_rim_shape_score_ratio,crash_hihat_level_ratio,ride_hihat_level_ratio",
+                "sample,hihat_rim_shape_score_ratio,ride_hihat_shape_score_ratio,crash_hihat_level_ratio,ride_hihat_level_ratio",
             ],
             cwd=ROOT,
             check=True,
@@ -176,7 +176,7 @@ ride/e.wav	hihat	ride	0.95	7	4	0.80	50	60	0.10	1	4	0.40	10	20	0.20	2	4	0.30	25	3
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
         ).stdout
-        assert "hihat/d.wav\t1.200000\t0.900000\t0.500000" in cymbal
+        assert "hihat/d.wav\t70.000000\t0.642857\t0.900000\t0.500000" in cymbal
         assert "count\t1" in cymbal
 
         ride = subprocess.run(
