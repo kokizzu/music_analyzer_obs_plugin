@@ -510,6 +510,35 @@ def main() -> int:
         makefile,
         re.MULTILINE,
     ), "detector improvement pattern helper must generate measured attribute and pattern reports"
+    route_scan_targets = re.search(
+        r"^DETECTOR_IMPROVEMENT_ROUTE_SCAN_TARGETS := (.+)$", makefile, re.MULTILINE
+    )
+    assert route_scan_targets is not None, "missing detector improvement route-scan target list"
+    route_scan_target_list = route_scan_targets.group(1)
+    for target in [
+        "find-real-note-focused-row-confusion-patterns",
+        "find-real-note-focused-visual-row-confusion-patterns",
+        "find-real-note-ownership-patterns",
+        "find-vocadito-full-mix-ownership-patterns",
+        "find-vocadito-full-mix-visual-row-confusion-patterns",
+        "find-instrument-owner-patterns",
+        "find-drum-full-exact-attribute-patterns-cached",
+    ]:
+        assert target in route_scan_target_list, (
+            f"detector improvement route scan must include {target}"
+        )
+    route_scan_recipe = target_recipe(makefile, "analyze-detector-improvement-routes")
+    assert "\n\t+$(RUN_WITH_DURATION) detector_improvement_routes_parallel" in route_scan_recipe, (
+        "detector improvement route scan must preserve the make jobserver through the duration wrapper"
+    )
+    assert "$(MAKE) $(PARALLEL_TEST_MAKE_JOBS) $(DETECTOR_IMPROVEMENT_ROUTE_SCAN_TARGETS)" in route_scan_recipe, (
+        "detector improvement route scan must fan out independent miners through jobserver-aware make"
+    )
+    assert re.search(
+        r"^detector-improvement-routes: analyze-detector-improvement-routes$",
+        makefile,
+        re.MULTILINE,
+    ), "detector improvement route helper must delegate to the parallel route scan"
     detector_improvement_full_recipe = target_recipe(makefile, "analyze-detector-improvements-full")
     assert "\n\t+$(RUN_WITH_DURATION) detector_improvements_full_parallel" in detector_improvement_full_recipe, (
         "full detector improvement workflow must report the aggregate parallel duration"
