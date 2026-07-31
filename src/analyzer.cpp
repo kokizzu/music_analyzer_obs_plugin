@@ -13102,6 +13102,18 @@ void prune_crowded_guitar_display_label(InstrumentState &state, const NoteGrid &
 	const std::size_t primary_len = std::strcspn(state.label, "=");
 	unsigned int primary_mask = 0;
 	const bool have_primary_mask = chord_component_pitch_mask(state.label, primary_len, primary_mask);
+	auto mask_supported_by_visible_or_analysis_grid = [&](unsigned int mask) {
+		if (mask == 0)
+			return false;
+		for (int pitch_class = 0; pitch_class < 12; ++pitch_class) {
+			const unsigned int bit = 1u << static_cast<unsigned int>(pitch_class);
+			if ((mask & bit) &&
+			    !note_grid_pitch_active(display_grid, pitch_class) &&
+			    !note_grid_pitch_active(analysis_grid, pitch_class))
+				return false;
+		}
+		return true;
+	};
 
 	std::array<bool, 12> plain_roots = {};
 	const char *plain_cursor = state.label;
@@ -13133,10 +13145,9 @@ void prune_crowded_guitar_display_label(InstrumentState &state, const NoteGrid &
 			    (have_primary_mask && have_component_mask && component_mask == primary_mask) ||
 			    (have_component_mask &&
 			     observed_guitar_pitch_mask_playable(component_mask, display_grid, analysis_grid));
-		if (!keep && component_count < kGuitarChordCrowdedPruneMinComponents &&
-		    have_primary_mask && have_component_mask) {
-			keep = (component_mask & primary_mask) == primary_mask ||
-			       (component_mask & primary_mask) == component_mask;
+		if (!keep && have_primary_mask && have_component_mask &&
+		    (component_mask & primary_mask) == primary_mask) {
+			keep = mask_supported_by_visible_or_analysis_grid(component_mask & ~primary_mask);
 		}
 		if (!keep && have_component_mask &&
 		    guitar_candidate_alias_supported_for_display(cursor, len, display_grid, analysis_grid)) {

@@ -126,6 +126,19 @@ void check_crowded_guitar_prune_modes(Runner &runner)
 	runner.expect(std::strcmp(unsupported_display.label, "C=Cmaj7=Em") == 0,
 		      std::string("display crowded guitar prune: expected unsupported aliases pruned, got `") +
 			      unsupported_display.label + "`");
+
+	InstrumentState medium_unsupported_display = {};
+	std::snprintf(medium_unsupported_display.label, sizeof(medium_unsupported_display.label),
+		      "C=C13=Cmaj7=Cpow=Em");
+	NoteGrid compact_c_major = {};
+	set_midi(compact_c_major, 48, 0.92f);
+	set_midi(compact_c_major, 52, 0.81f);
+	set_midi(compact_c_major, 55, 0.76f);
+	prune_crowded_guitar_display_label(medium_unsupported_display, compact_c_major,
+					   compact_c_major);
+	runner.expect(std::strcmp(medium_unsupported_display.label, "C=Cpow=Em") == 0,
+		      std::string("display medium guitar prune: expected unsupported extensions pruned, got `") +
+			      medium_unsupported_display.label + "`");
 }
 
 void check_displayed_same_root_plain_guitar_primary(Runner &runner)
