@@ -4183,6 +4183,39 @@ bool measured_mid_acoustic_other_body_supported(const FullMixDebugCandidate &deb
 		debug.guitar_score <= 0.68f &&
 		debug.vocal_score >= 0.20f &&
 		debug.vocal_score <= 0.23f;
+	const bool vocal_owned_c4_string_body =
+		debug.owner == InstrumentKind::Vocal &&
+		debug.midi == 60 &&
+		debug.vocal_score >= 0.54f &&
+		debug.vocal_score <= 0.85f &&
+		debug.keyboard_score <= 0.21f &&
+		debug.guitar_score <= 0.39f &&
+		debug.other_score <= 0.050f &&
+		debug.spectral_level >= 0.90f &&
+		debug.pitch_confidence >= 0.91f &&
+		debug.pitch_confidence <= 0.94f &&
+		debug.periodicity >= 0.74f &&
+		debug.periodicity <= 0.81f &&
+		debug.harmonic_fit_error >= 0.009f &&
+		debug.harmonic_fit_error <= 0.050f &&
+		debug.harmonicity >= 0.33f &&
+		debug.harmonicity <= 0.43f &&
+		debug.local_noise_level >= 0.060f &&
+		debug.local_noise_level <= 0.085f &&
+		debug.spectral_centroid >= 0.070f &&
+		debug.spectral_centroid <= 0.18f &&
+		debug.spectral_slope <= 0.23f &&
+		debug.adjacent_lower_ratio >= 0.22f &&
+		debug.adjacent_lower_ratio <= 0.26f &&
+		debug.third_octave_ratio <= 0.090f &&
+		second >= 0.090f &&
+		second <= 0.30f &&
+		third >= 0.045f &&
+		third <= 0.15f &&
+		fourth <= 0.11f &&
+		fifth <= 0.030f;
+	if (vocal_owned_c4_string_body)
+		return true;
 	return (vocal_owned_body || guitar_owned_body) &&
 	       debug.keyboard_score >= 0.070f &&
 	       debug.keyboard_score <= 0.110f &&
