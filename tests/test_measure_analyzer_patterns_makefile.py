@@ -670,7 +670,10 @@ def main() -> int:
     assert "REAL_NOTE_FULL_MIX_TEST_MAKE_JOBS = $(if $(filter -j%,$(MAKEFLAGS)),,-j$(REAL_NOTE_FULL_MIX_SHARDS))" in makefile, (
         "real-note shard tests must not force nested jobserver mode"
     )
-    assert "REAL_NOTE_FULL_MIX_SHARD_OUTS := $(addprefix $(BUILD_DIR)/real_note_full_mix_shard_,$(addsuffix .out,$(REAL_NOTE_FULL_MIX_SHARD_INDEXES)))" in makefile, (
+    assert "REAL_NOTE_FULL_MIX_SHARD_OUTPUT_PREFIX ?= real_note_full_mix_shard" in makefile, (
+        "real-note full-mix shards must have a configurable output prefix for nested parallel runs"
+    )
+    assert "REAL_NOTE_FULL_MIX_SHARD_OUTS = $(addprefix $(BUILD_DIR)/$(REAL_NOTE_FULL_MIX_SHARD_OUTPUT_PREFIX)_,$(addsuffix .out,$(REAL_NOTE_FULL_MIX_SHARD_INDEXES)))" in makefile, (
         "real-note full-mix aggregate checker must consume deterministic shard outputs"
     )
     for text in [
@@ -679,7 +682,7 @@ def main() -> int:
         "REAL_NOTE_FULL_MIX_AGG_MIN_OTHER_FIRST_ROW_PERCENT ?= 15",
     ]:
         assert text in makefile, f"real-note aggregate gate must include {text}"
-    assert "$(MAKE) $(REAL_NOTE_FULL_MIX_TEST_MAKE_JOBS) $(REAL_NOTE_FULL_MIX_SHARD_TARGETS)" in real_note_sharded_recipe, (
+    assert "$(MAKE) $(REAL_NOTE_FULL_MIX_TEST_MAKE_JOBS) REAL_NOTE_FULL_MIX_SHARD_OUTPUT_PREFIX=\"$(REAL_NOTE_FULL_MIX_SHARD_OUTPUT_PREFIX)\" $(REAL_NOTE_FULL_MIX_SHARD_TARGETS)" in real_note_sharded_recipe, (
         "real-note full-mix parallel target must fan out deterministic shards through jobserver-aware make"
     )
     assert "$(RUN_WITH_DURATION) analyzer_real_note_samples_full_mix_parallel" in real_note_sharded_recipe, (
@@ -716,8 +719,8 @@ def main() -> int:
         "individual real-note shards must not enforce whole-corpus ownership thresholds"
     )
     for text in [
-        "> \"$(BUILD_DIR)/real_note_full_mix_shard_$*.out\"",
-        "2> \"$(BUILD_DIR)/real_note_full_mix_shard_$*.err\"",
+        "> \"$(BUILD_DIR)/$(REAL_NOTE_FULL_MIX_SHARD_OUTPUT_PREFIX)_$*.out\"",
+        "2> \"$(BUILD_DIR)/$(REAL_NOTE_FULL_MIX_SHARD_OUTPUT_PREFIX)_$*.err\"",
     ]:
         assert text in real_note_shard_recipe, f"real-note shard target must write {text}"
     vocadito_full_mix_recipe = target_recipe(makefile, "test-vocadito-samples-full-mix-parallel")
@@ -880,9 +883,22 @@ def main() -> int:
     )
     assert detector_regression_targets is not None, "missing detector sample regression target list"
     detector_regression_target_list = detector_regression_targets.group(1)
-    assert "test-real-note-samples-full-mix-parallel" in detector_regression_target_list, (
-        "detector sample regression loop must use the sharded real-note full-mix gate"
+    assert "test-real-note-samples-full-mix-detector-parallel" in detector_regression_target_list, (
+        "detector sample regression loop must use the isolated sharded real-note full-mix gate"
     )
+    assert "test-real-note-samples-full-mix-parallel" not in detector_regression_target_list, (
+        "detector sample regression loop must not race the public real-note full-mix shard outputs"
+    )
+    assert re.search(
+        r"^test-real-note-samples-full-mix-detector-parallel: REAL_NOTE_FULL_MIX_SHARD_OUTPUT_PREFIX := detector_real_note_full_mix_shard$",
+        makefile,
+        re.MULTILINE,
+    ), "detector real-note full-mix wrapper must isolate shard output names"
+    assert re.search(
+        r"^test-real-note-samples-full-mix-detector-parallel: test-real-note-samples-full-mix-parallel$",
+        makefile,
+        re.MULTILINE,
+    ), "detector real-note full-mix wrapper must delegate to the same sharded gate"
     assert "test-vocadito-samples-full-mix-parallel" in detector_regression_target_list, (
         "detector sample regression loop must include real vocal full-mix ownership coverage"
     )
