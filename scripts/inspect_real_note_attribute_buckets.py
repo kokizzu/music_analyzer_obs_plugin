@@ -450,11 +450,24 @@ def bucket_rows(
     return [row for row in rows if row_matches_bucket(row, status, family, source, first_row)]
 
 
+def octave_displacement_label(row: dict[str, str]) -> str:
+    delta_text, _abs_delta = debug_delta(row)
+    try:
+        delta = int(delta_text)
+    except ValueError:
+        return ""
+    if abs(delta) < 12 or delta % 12 != 0:
+        return ""
+    return f"{delta:+d}"
+
+
 def row_matches_bucket(
     row: dict[str, str], status: str, family: str, source: str, target_row: str
 ) -> bool:
     if row.get("family") != family or row.get("source") != source or not row.get("debug_note"):
         return False
+    if status == "octave_displacement":
+        return row.get("status") == "hit" and octave_displacement_label(row) == target_row
     if status == "row_confusion":
         expected_row = ROW_FOR_FAMILY.get(family, family)
         strongest_row = row.get("buffer_strongest_row", "")
@@ -660,7 +673,12 @@ def top_bucket_keys(
     for row in rows:
         family = row.get("family", "")
         expected_row = ROW_FOR_FAMILY.get(family, family)
-        if bucket_status == "row_confusion":
+        if bucket_status == "octave_displacement":
+            delta_label = octave_displacement_label(row)
+            if row.get("status") != "hit" or not delta_label:
+                continue
+            key = ("octave_displacement", family, row.get("source", ""), delta_label)
+        elif bucket_status == "row_confusion":
             target_row = row.get("buffer_strongest_row", "")
             if row.get("status") != "hit" or not target_row or target_row == expected_row:
                 continue
@@ -746,7 +764,7 @@ def main() -> int:
     )
     parser.add_argument(
         "--bucket-status",
-        choices=("ownership_miss", "row_confusion", "visual_row_confusion"),
+        choices=("ownership_miss", "row_confusion", "visual_row_confusion", "octave_displacement"),
         default="ownership_miss",
         help="status used for automatically selected top buckets",
     )

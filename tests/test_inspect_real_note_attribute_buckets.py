@@ -236,6 +236,61 @@ def main() -> int:
             "",
             "",
         ]
+        other_octave_row = [
+            "hit",
+            "other",
+            "acoustic",
+            "other",
+            "other",
+            "other_octave_1",
+            "A4",
+            "0",
+            "A4",
+            "yes",
+            "yes",
+            "other",
+            "other",
+            "A5",
+            "other",
+            "69",
+            "81",
+            "0.83",
+            "0.00",
+            "0.00",
+            "0.10",
+            "0.00",
+            "0.90",
+            "1.00",
+            "0.88",
+            "0.82",
+            "0.07",
+            "0.22",
+            "0.11",
+            "0.02",
+            "1.00",
+            "0.34",
+            "0.18",
+            "0.05",
+            "0.01",
+            "0.00",
+            "0.20",
+            "0.00",
+            "0.00",
+            "0.80",
+            "0.00",
+            "0.00",
+            "0.20",
+            "0.00",
+            "0.00",
+            "0.80",
+            "0.00",
+            "",
+            "",
+            "",
+            "",
+            "A5:0.80",
+            "",
+        ]
         path.write_text(
             "\t".join(columns)
             + "\n"
@@ -244,6 +299,8 @@ def main() -> int:
             + "\t".join(reed_row)
             + "\n"
             + "\t".join(keyboard_visual_row)
+            + "\n"
+            + "\t".join(other_octave_row)
             + "\n"
         )
 
@@ -432,20 +489,62 @@ def main() -> int:
             stderr=subprocess.PIPE,
             check=True,
         )
+        octave_displacement = subprocess.run(
+            [
+                sys.executable,
+                str(ROOT / "scripts" / "inspect_real_note_attribute_buckets.py"),
+                str(path),
+                "--bucket",
+                "octave_displacement:other/acoustic->+12",
+                "--summary-only",
+            ],
+            text=True,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            check=True,
+        )
+        octave_displacement_dump = subprocess.run(
+            [
+                sys.executable,
+                str(ROOT / "scripts" / "inspect_real_note_attribute_buckets.py"),
+                str(path),
+                "--dump-rows",
+                "--bucket",
+                "octave_displacement:other/acoustic->+12",
+            ],
+            text=True,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            check=True,
+        )
+        octave_displacement_auto = subprocess.run(
+            [
+                sys.executable,
+                str(ROOT / "scripts" / "inspect_real_note_attribute_buckets.py"),
+                str(path),
+                "--bucket-status",
+                "octave_displacement",
+                "--summary-only",
+            ],
+            text=True,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            check=True,
+        )
 
     assert "ownership_miss:piano/electronic->guitar rows=1 samples=1" in result.stdout
-    assert "hit:other/acoustic->other rows=1 samples=1" in result.stdout
+    assert "hit:other/acoustic->other rows=2 samples=2" in result.stdout
     assert "row_confusion:piano/electronic->guitar" not in result.stdout
     assert "debug_score_state" in result.stdout
     assert "scored_owner=1" in result.stdout
     assert "debug_conf" in result.stdout
     assert "partial2" in result.stdout
-    assert "hit:other/acoustic->other rows=1 samples=1" in targeted.stdout
+    assert "hit:other/acoustic->other rows=2 samples=2" in targeted.stdout
     assert "ownership_miss:piano/electronic->guitar" not in targeted.stdout
     assert "sample keyboard_1: status=ownership_miss source=piano/electronic" in targeted.stdout
     assert "scores(b/k/g/v/o)=0.000/0.100/0.700/0.000/0.000" in targeted.stdout
     assert "ownership_miss:piano/electronic->guitar" not in sample_only.stdout
-    assert "hit:other/acoustic->other rows=1 samples=1" not in sample_only.stdout
+    assert "hit:other/acoustic->other rows=2 samples=2" not in sample_only.stdout
     assert "sample reed_1: status=hit source=other/acoustic" in sample_only.stdout
     assert "scores(b/k/g/v/o)=0.000/0.000/0.200/0.000/0.800" in sample_only.stdout
     assert "ownership_miss:piano/electronic->guitar rows=1 samples=1 examples=keyboard_1" in misses_only.stdout
@@ -506,7 +605,7 @@ def main() -> int:
     assert "keyboard_1" not in family_filtered.stdout
     assert "\nkeyboard_1\townership_miss\tpiano\telectronic\tC4" in miss_reason_filtered.stdout
     assert "reed_1" not in miss_reason_filtered.stdout
-    assert "hit:other/acoustic->other rows=1 samples=1" in row_filtered.stdout
+    assert "hit:other/acoustic->other rows=2 samples=2" in row_filtered.stdout
     assert "ownership_miss:piano/electronic->guitar" not in row_filtered.stdout
     assert "row_confusion:piano/electronic->guitar rows=1 samples=1" in row_confusion.stdout
     assert "keyboard_visual_1" in row_confusion.stdout
@@ -520,6 +619,14 @@ def main() -> int:
     assert "reed_1" not in visual_row_confusion_dump.stdout
     assert "visual_row_confusion:piano/electronic->guitar rows=1 samples=1" in visual_row_confusion_auto.stdout
     assert "ownership_miss:piano/electronic->guitar" not in visual_row_confusion_auto.stdout
+    assert "octave_displacement:other/acoustic->+12 rows=1 samples=1" in octave_displacement.stdout
+    assert octave_displacement_dump.stdout.startswith("sample_id\tstatus\tfamily\t")
+    assert "debug_delta" in octave_displacement_dump.stdout.splitlines()[0]
+    assert "\nother_octave_1\thit\tother\tacoustic\tA4" in octave_displacement_dump.stdout
+    assert "\t12\t12\t" in octave_displacement_dump.stdout
+    assert "reed_1" not in octave_displacement_dump.stdout
+    assert "octave_displacement:other/acoustic->+12 rows=1 samples=1" in octave_displacement_auto.stdout
+    assert "ownership_miss:piano/electronic->guitar" not in octave_displacement_auto.stdout
     print("test_inspect_real_note_attribute_buckets: ok")
     return 0
 
