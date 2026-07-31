@@ -19236,6 +19236,12 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 			hihat_rim_level_ratio <= 0.962f &&
 			snare_body <= 17.152f &&
 			snare_crack >= 8.684f;
+		const bool one_shot_measured_hihat_weighted_crash_primary_recovery =
+			drum_detection_enabled && one_shot_drum_source &&
+			drum_level_[Crash] > 0.30f &&
+			drum_level_[Crash] <= 0.703f &&
+			crash_hihat_level_ratio >= 0.349f &&
+			hihat_rim_trigger_ratio <= 0.941f;
 		const bool one_shot_measured_hihat_ambiguous_snare_shape_primary_recovery =
 			drum_detection_enabled && one_shot_drum_source &&
 			drum_level_[HiHat] > 0.30f &&
@@ -19383,7 +19389,8 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 		if (one_shot_measured_crash_from_hihat_band_primary_recovery ||
 		    one_shot_measured_crash_hihat_rim_shape_primary_recovery ||
 		    one_shot_measured_crash_rim_level_primary_recovery ||
-		    one_shot_measured_low_body_crash_from_rim_primary_recovery)
+		    one_shot_measured_low_body_crash_from_rim_primary_recovery ||
+		    one_shot_measured_hihat_weighted_crash_primary_recovery)
 			promote_drum_primary(Crash, 0.90f);
 		if (one_shot_measured_snare_rim_primary_recovery ||
 		    one_shot_measured_snare_rim_saturation_primary_recovery ||
