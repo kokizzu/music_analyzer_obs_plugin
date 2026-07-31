@@ -97,6 +97,41 @@ hit	1	1	other	other	other_harm	other	acoustic	C3	48	0	full_mix	--	--	G4:0.72,C6:
         assert "raw_expected_ratio=1.20" in profiled
         assert "pitch_confidence=0.71" in profiled
 
+        searched = subprocess.run(
+            [
+                sys.executable,
+                str(SCRIPT),
+                str(rows),
+                "--shadow-row",
+                "guitar",
+                "--support-row",
+                "piano",
+                "--support-row",
+                "bass",
+                "--interval-mode",
+                "same-pitch-class",
+                "--details",
+                "--detail-field",
+                "raw_expected_ratio",
+                "--threshold-search",
+                "--search-min-positive",
+                "1",
+                "--search-limit",
+                "2",
+                "--search-examples",
+                "1",
+            ],
+            cwd=ROOT,
+            check=True,
+            text=True,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+        ).stdout
+        assert "threshold_search: candidates=" in searched
+        assert "positive_total=1 protected_total=1 other_total=0" in searched
+        assert "threshold_rule positive=1/1 protected=0/1" in searched
+        assert "threshold_positive\tsample_id=keyboard_alias" in searched
+
         harmonic = subprocess.run(
             [
                 sys.executable,

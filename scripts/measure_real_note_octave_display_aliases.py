@@ -96,6 +96,34 @@ class Alias:
     interval: int
 
 
+@dataclass(frozen=True)
+class AliasRecord:
+    category: str
+    row: dict[str, str]
+    alias: Alias
+
+
+@dataclass(frozen=True)
+class ThresholdRule:
+    owner_mode: str
+    interval_mode: str
+    max_guitar_score: float | None
+    min_non_guitar_score: float | None
+    min_harmonicity: float | None
+    max_shadow_support_ratio: float | None
+    min_support_level: float | None
+    max_fit_error: float | None
+    max_noise: float | None
+
+
+@dataclass(frozen=True)
+class ThresholdMatch:
+    rule: ThresholdRule
+    positive: int
+    protected: int
+    other: int
+
+
 def midi_from_note(note: str) -> int | None:
     match = NOTE_RE.match(note)
     if not match:
@@ -225,6 +253,30 @@ def print_counter(label: str, counter: Counter[str], top: int) -> None:
     print(label, " ".join(f"{key}={value}" for key, value in counter.most_common(top)))
 
 
+def as_float_text(value: str) -> float | None:
+    if value == "":
+        return None
+    try:
+        return float(value)
+    except ValueError:
+        return None
+
+
+def row_float(row: dict[str, str], field: str) -> float | None:
+    return as_float_text(row.get(field, ""))
+
+
+def owner_key(row: dict[str, str]) -> str:
+    owner = (row.get("debug_owner", "") or "").strip().lower()
+    if owner == "keyboard":
+        return "piano"
+    if owner == "ambiguous":
+        return "amb"
+    if owner == "vocal":
+        return "vocals"
+    return owner
+
+
 def alias_text(alias: Alias) -> str:
     return (
         f"{alias.shadow.row}:{alias.shadow.note}:{alias.shadow.level:.2f}"
@@ -264,6 +316,22 @@ def derived_value(row: dict[str, str], alias: Alias, field: str) -> str:
         if alias.support.level <= 0:
             return ""
         return f"{alias.shadow.level / alias.support.level:.6f}"
+    if field == "support_ratio":
+        if alias.shadow.level <= 0:
+            return ""
+        return f"{alias.support.level / alias.shadow.level:.6f}"
+    if field == "support_advantage":
+        return f"{alias.support.level - alias.shadow.level:.6f}"
+    if field == "debug_owner":
+        return owner_key(row)
+    if field == "non_guitar_score":
+        scores = [
+            row_float(row, "bass_score") or 0.0,
+            row_float(row, "keyboard_score") or 0.0,
+            row_float(row, "vocal_score") or 0.0,
+            row_float(row, "other_score") or 0.0,
+        ]
+        return f"{max(scores):.6f}"
     return row.get(field, "")
 
 
@@ -311,6 +379,225 @@ def detail_text(row: dict[str, str], alias: Alias, detail_fields: list[str]) -> 
         if value:
             fields.append(f"{field}={value}")
     return "\t".join(fields)
+
+
+def owner_mode_matches(owner: str, mode: str) -> bool:
+    if mode == "any":
+        return True
+    if mode == "guitar":
+        return owner == "guitar"
+    if mode == "non-guitar":
+        return owner != "guitar"
+    if mode == "other":
+        return owner == "other"
+    if mode == "piano":
+        return owner == "piano"
+    if mode == "other-or-piano":
+        return owner in {"other", "piano"}
+    if mode == "non-guitar-non-amb":
+        return owner not in {"guitar", "amb"}
+    raise AssertionError(mode)
+
+
+def interval_mode_matches(interval: int, mode: str) -> bool:
+    if mode == "any":
+        return True
+    if mode == "exact12":
+        return interval == 12
+    if mode == "max24":
+        return interval <= 24
+    if mode == "max36":
+        return interval <= 36
+    if mode == "min24":
+        return interval >= 24
+    raise AssertionError(mode)
+
+
+def threshold_rule_matches(record: AliasRecord, rule: ThresholdRule) -> bool:
+    row = record.row
+    alias = record.alias
+    if not owner_mode_matches(owner_key(row), rule.owner_mode):
+        return False
+    if not interval_mode_matches(alias.interval, rule.interval_mode):
+        return False
+
+    guitar_score = row_float(row, "guitar_score")
+    non_guitar_score = as_float_text(derived_value(row, alias, "non_guitar_score"))
+    harmonicity = row_float(row, "harmonicity")
+    fit_error = row_float(row, "fit_error")
+    noise = row_float(row, "noise")
+    shadow_support_ratio = as_float_text(derived_value(row, alias, "level_ratio"))
+
+    if rule.max_guitar_score is not None and (
+        guitar_score is None or guitar_score > rule.max_guitar_score
+    ):
+        return False
+    if rule.min_non_guitar_score is not None and (
+        non_guitar_score is None or non_guitar_score < rule.min_non_guitar_score
+    ):
+        return False
+    if rule.min_harmonicity is not None and (
+        harmonicity is None or harmonicity < rule.min_harmonicity
+    ):
+        return False
+    if rule.max_shadow_support_ratio is not None and (
+        shadow_support_ratio is None or shadow_support_ratio > rule.max_shadow_support_ratio
+    ):
+        return False
+    if rule.min_support_level is not None and alias.support.level < rule.min_support_level:
+        return False
+    if rule.max_fit_error is not None and (fit_error is None or fit_error > rule.max_fit_error):
+        return False
+    if rule.max_noise is not None and (noise is None or noise > rule.max_noise):
+        return False
+    return True
+
+
+def rule_parts(rule: ThresholdRule) -> list[str]:
+    parts = [f"owner={rule.owner_mode}", f"interval={rule.interval_mode}"]
+    if rule.max_guitar_score is not None:
+        parts.append(f"max_guitar_score={rule.max_guitar_score:.2f}")
+    if rule.min_non_guitar_score is not None:
+        parts.append(f"min_non_guitar_score={rule.min_non_guitar_score:.2f}")
+    if rule.min_harmonicity is not None:
+        parts.append(f"min_harmonicity={rule.min_harmonicity:.2f}")
+    if rule.max_shadow_support_ratio is not None:
+        parts.append(f"max_shadow_support_ratio={rule.max_shadow_support_ratio:.2f}")
+    if rule.min_support_level is not None:
+        parts.append(f"min_support_level={rule.min_support_level:.2f}")
+    if rule.max_fit_error is not None:
+        parts.append(f"max_fit_error={rule.max_fit_error:.2f}")
+    if rule.max_noise is not None:
+        parts.append(f"max_noise={rule.max_noise:.2f}")
+    return parts
+
+
+def rule_complexity(rule: ThresholdRule) -> int:
+    return sum(
+        1
+        for value in (
+            rule.max_guitar_score,
+            rule.min_non_guitar_score,
+            rule.min_harmonicity,
+            rule.max_shadow_support_ratio,
+            rule.min_support_level,
+            rule.max_fit_error,
+            rule.max_noise,
+        )
+        if value is not None
+    ) + (0 if rule.owner_mode == "any" else 1) + (0 if rule.interval_mode == "any" else 1)
+
+
+def generate_threshold_rules() -> list[ThresholdRule]:
+    owner_modes = ("non-guitar", "other-or-piano", "other", "piano")
+    interval_modes = ("any", "exact12", "max24")
+    max_guitar_scores: tuple[float | None, ...] = (None, 0.20, 0.42)
+    min_non_guitar_scores: tuple[float | None, ...] = (None, 0.70)
+    min_harmonicities: tuple[float | None, ...] = (None, 1.00)
+    max_shadow_support_ratios: tuple[float | None, ...] = (None, 1.00)
+    min_support_levels: tuple[float | None, ...] = (None, 0.65, 0.80)
+    max_fit_errors: tuple[float | None, ...] = (None, 0.18)
+    max_noises: tuple[float | None, ...] = (None, 0.35)
+
+    rules: list[ThresholdRule] = []
+    for owner_mode in owner_modes:
+        for interval_mode in interval_modes:
+            for max_guitar_score in max_guitar_scores:
+                for min_non_guitar_score in min_non_guitar_scores:
+                    for min_harmonicity in min_harmonicities:
+                        for max_shadow_support_ratio in max_shadow_support_ratios:
+                            for min_support_level in min_support_levels:
+                                for max_fit_error in max_fit_errors:
+                                    for max_noise in max_noises:
+                                        rules.append(
+                                            ThresholdRule(
+                                                owner_mode,
+                                                interval_mode,
+                                                max_guitar_score,
+                                                min_non_guitar_score,
+                                                min_harmonicity,
+                                                max_shadow_support_ratio,
+                                                min_support_level,
+                                                max_fit_error,
+                                                max_noise,
+                                            )
+                                        )
+    return rules
+
+
+def threshold_search(
+    records: list[AliasRecord],
+    min_positive: int,
+    max_protected: int,
+) -> list[ThresholdMatch]:
+    matches: list[ThresholdMatch] = []
+    positive_records = [record for record in records if record.category == "positive"]
+    protected_records = [record for record in records if record.category == "protected"]
+    other_records = [record for record in records if record.category == "other"]
+    for rule in generate_threshold_rules():
+        protected = 0
+        for record in protected_records:
+            if threshold_rule_matches(record, rule):
+                protected += 1
+                if protected > max_protected:
+                    break
+        if protected > max_protected:
+            continue
+
+        positive = sum(1 for record in positive_records if threshold_rule_matches(record, rule))
+        if positive < min_positive:
+            continue
+        other = sum(1 for record in other_records if threshold_rule_matches(record, rule))
+        if positive >= min_positive and protected <= max_protected:
+            matches.append(ThresholdMatch(rule, positive, protected, other))
+
+    matches.sort(
+        key=lambda match: (
+            match.protected,
+            -match.positive,
+            match.other,
+            rule_complexity(match.rule),
+            " ".join(rule_parts(match.rule)),
+        )
+    )
+    return matches
+
+
+def print_threshold_search(
+    records: list[AliasRecord],
+    matches: list[ThresholdMatch],
+    limit: int,
+    examples: int,
+    detail_fields: list[str],
+) -> None:
+    totals = Counter(record.category for record in records)
+    print(
+        "threshold_search:"
+        f" candidates={len(matches)}"
+        f" positive_total={totals['positive']}"
+        f" protected_total={totals['protected']}"
+        f" other_total={totals['other']}"
+    )
+    for match in matches[: max(0, limit)]:
+        rule = match.rule
+        print(
+            "threshold_rule"
+            f" positive={match.positive}/{totals['positive']}"
+            f" protected={match.protected}/{totals['protected']}"
+            f" other={match.other}/{totals['other']}"
+            " "
+            + " ".join(rule_parts(rule))
+        )
+        if examples <= 0:
+            continue
+        printed: Counter[str] = Counter()
+        for record in records:
+            if printed[record.category] >= examples:
+                continue
+            if not threshold_rule_matches(record, rule):
+                continue
+            print(f"threshold_{record.category}\t{detail_text(record.row, record.alias, detail_fields)}")
+            printed[record.category] += 1
 
 
 def main() -> int:
@@ -361,6 +648,30 @@ def main() -> int:
             "repeatable"
         ),
     )
+    parser.add_argument(
+        "--threshold-search",
+        action="store_true",
+        help="search simple guitar alias suppression thresholds over positive/protected alias records",
+    )
+    parser.add_argument(
+        "--search-min-positive",
+        type=int,
+        default=8,
+        help="minimum positive alias hits required for threshold-search output",
+    )
+    parser.add_argument(
+        "--search-max-protected",
+        type=int,
+        default=0,
+        help="maximum protected guitar alias hits allowed for threshold-search output",
+    )
+    parser.add_argument("--search-limit", type=int, default=12, help="threshold-search rules to print")
+    parser.add_argument(
+        "--search-examples",
+        type=int,
+        default=2,
+        help="examples per category to print under each threshold-search rule",
+    )
     args = parser.parse_args()
 
     support_rows = args.support_rows or ["piano", "other"]
@@ -387,6 +698,7 @@ def main() -> int:
         "protected": defaultdict(Counter),
         "other": defaultdict(Counter),
     }
+    records: list[AliasRecord] = []
 
     def record_profile(category: str, row: dict[str, str], alias: Alias) -> None:
         if not args.profile:
@@ -427,12 +739,14 @@ def main() -> int:
             positive_visual += 1
             positive_routes[route] += 1
             record_profile("positive", row, alias)
+            records.append(AliasRecord("positive", row, alias))
             if len(examples) < args.examples:
                 examples.append(detail_text(row, alias, detail_fields) if args.details else example)
         elif visual_first == args.shadow_row and expected == args.shadow_row:
             protected_visual += 1
             protected_routes[route] += 1
             record_profile("protected", row, alias)
+            records.append(AliasRecord("protected", row, alias))
             if len(protected_examples) < args.examples:
                 protected_examples.append(
                     detail_text(row, alias, detail_fields) if args.details else example
@@ -440,6 +754,7 @@ def main() -> int:
         else:
             other_alias += 1
             record_profile("other", row, alias)
+            records.append(AliasRecord("other", row, alias))
             if args.details and len(other_examples) < args.examples:
                 other_examples.append(detail_text(row, alias, detail_fields) if args.details else example)
 
@@ -463,6 +778,15 @@ def main() -> int:
         print(f"protected_example\t{example}")
     for example in other_examples:
         print(f"other_example\t{example}")
+    if args.threshold_search:
+        matches = threshold_search(records, args.search_min_positive, args.search_max_protected)
+        print_threshold_search(
+            records,
+            matches,
+            args.search_limit,
+            args.search_examples,
+            detail_fields,
+        )
     return 0
 
 
