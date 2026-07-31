@@ -5994,6 +5994,11 @@ bool non_guitar_debug_pitch_support(const FullMixDebugCandidate &debug)
 	return non_guitar_score >= 0.42f && non_guitar_score >= debug.guitar_score * 1.35f;
 }
 
+float non_guitar_display_score(const FullMixDebugCandidate &debug)
+{
+	return std::max({debug.bass_score, debug.keyboard_score, debug.vocal_score, debug.other_score});
+}
+
 const FullMixDebugCandidate *strongest_same_pitch_non_guitar_debug_at_or_below(
 	const FullMixOwnership &ownership, int midi)
 {
@@ -6220,6 +6225,39 @@ bool guitar_display_candidate_shadowed_by_same_keyboard_pitch(const FullMixOwner
 	       (debug->owner != InstrumentKind::Guitar && debug->ownership_confidence <= 0.78f);
 }
 
+bool non_guitar_owned_octave_alias_blocks_guitar_display(const FullMixDebugCandidate &debug,
+							 const FullMixDebugCandidate &lower,
+							 float candidate_level,
+							 float lower_level,
+							 int interval)
+{
+	if (debug.owner != InstrumentKind::Keyboard && debug.owner != InstrumentKind::Other &&
+	    debug.owner != InstrumentKind::Vocal)
+		return false;
+	if (interval < 12 || interval > 24)
+		return false;
+	if (candidate_level < 0.65f || lower_level < 0.45f)
+		return false;
+	if (debug.guitar_score > 0.20f || non_guitar_display_score(debug) < 0.70f)
+		return false;
+	if (debug.harmonicity < 1.0f)
+		return false;
+	if (shared_guitar_pitch_display_supported(debug) ||
+	    measured_guitar_octave_alias_supported(debug) ||
+	    keyboard_owned_mid_acoustic_guitar_body_supported(debug) ||
+	    other_owned_low_acoustic_guitar_body_supported(debug) ||
+	    noisy_other_owned_low_acoustic_guitar_supported(debug) ||
+	    other_owned_overdrive_guitar_body_supported(debug) ||
+	    other_owned_distorted_guitar_octave_alias_supported(debug) ||
+	    other_owned_noisy_distorted_guitar_octave_up_supported(debug))
+		return false;
+	if (measured_guitar_octave_alias_supported(lower) ||
+	    other_owned_distorted_guitar_octave_alias_supported(lower) ||
+	    other_owned_noisy_distorted_guitar_octave_up_supported(lower))
+		return false;
+	return lower_level >= candidate_level * 0.45f;
+}
+
 bool guitar_display_candidate_shadowed_by_non_guitar_pitch(const FullMixOwnership &ownership,
 							   const NoteCandidate &candidate)
 {
@@ -6286,6 +6324,12 @@ bool guitar_display_candidate_shadowed_by_non_guitar_pitch(const FullMixOwnershi
 
 	if (interval > 24)
 		return false;
+
+	if (non_guitar_owned_octave_alias_blocks_guitar_display(*debug, *lower,
+								ownership_global_note_level(ownership,
+												 candidate.midi),
+								lower_level, interval))
+		return true;
 
 	const bool upper_harmonic_shadow =
 		debug->owner == InstrumentKind::Guitar &&

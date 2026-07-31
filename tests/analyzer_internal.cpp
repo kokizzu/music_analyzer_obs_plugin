@@ -763,6 +763,58 @@ void check_lower_non_guitar_pitch_class_guitar_octave_shadow_uses_measured_level
 		      "lower non-guitar guitar octave shadow: expected weak support to leave alias bright");
 }
 
+FullMixDebugCandidate make_non_guitar_owned_guitar_alias_debug(int midi, InstrumentKind owner)
+{
+	FullMixDebugCandidate debug = {};
+	debug.midi = midi;
+	debug.owner = owner;
+	debug.ownership_confidence = 0.88f;
+	debug.guitar_score = owner == InstrumentKind::Guitar ? 0.88f : 0.12f;
+	debug.other_score = owner == InstrumentKind::Guitar ? 0.00f : 0.88f;
+	debug.spectral_level = 0.70f;
+	debug.pitch_confidence = 0.83f;
+	debug.periodicity = 0.85f;
+	debug.harmonicity = 1.80f;
+	debug.harmonic_fit_error = 0.12f;
+	debug.local_noise_level = 0.25f;
+	debug.spectral_centroid = 0.32f;
+	debug.spectral_slope = 0.10f;
+	return debug;
+}
+
+void check_non_guitar_owned_guitar_octave_alias_display_is_suppressed(Runner &runner)
+{
+	static constexpr int kLowerMidi = 45;
+	static constexpr int kAliasMidi = kLowerMidi + 12;
+
+	FullMixOwnership ownership = {};
+	ownership.debug_candidate_count = 2;
+	ownership.debug_candidates[0] =
+		make_non_guitar_owned_guitar_alias_debug(kAliasMidi, InstrumentKind::Other);
+	ownership.debug_candidates[1] =
+		make_non_guitar_owned_guitar_alias_debug(kLowerMidi, InstrumentKind::Other);
+	ownership.global_note_levels[static_cast<std::size_t>(kAliasMidi - kFirstMidi)] = 0.70f;
+	ownership.global_note_levels[static_cast<std::size_t>(kLowerMidi - kFirstMidi)] = 0.56f;
+	NoteCandidate alias = {};
+	alias.midi = kAliasMidi;
+	alias.score = 0.70f;
+	alias.ownership_confidence = 0.82f;
+
+	runner.expect(guitar_display_candidate_shadowed_by_non_guitar_pitch(ownership, alias),
+		      "non-guitar-owned guitar octave alias: expected upper other-owned alias to suppress");
+
+	FullMixOwnership guitar_owned = ownership;
+	guitar_owned.debug_candidates[0] =
+		make_non_guitar_owned_guitar_alias_debug(kAliasMidi, InstrumentKind::Guitar);
+	runner.expect(!guitar_display_candidate_shadowed_by_non_guitar_pitch(guitar_owned, alias),
+		      "non-guitar-owned guitar octave alias: expected guitar-owned upper note to stay visible");
+
+	FullMixOwnership weak_lower = ownership;
+	weak_lower.global_note_levels[static_cast<std::size_t>(kLowerMidi - kFirstMidi)] = 0.44f;
+	runner.expect(!guitar_display_candidate_shadowed_by_non_guitar_pitch(weak_lower, alias),
+		      "non-guitar-owned guitar octave alias: expected weak lower support to leave alias visible");
+}
+
 void check_display_ownership_scale_keeps_confirmed_mid_confidence_visible(Runner &runner)
 {
 	NoteCandidate weak = {};
@@ -803,6 +855,7 @@ int run()
 	check_electronic_keyboard_other_shadow_is_attenuated(runner);
 	check_lower_other_pitch_class_keyboard_octave_shadow_is_attenuated(runner);
 	check_lower_non_guitar_pitch_class_guitar_octave_shadow_uses_measured_levels(runner);
+	check_non_guitar_owned_guitar_octave_alias_display_is_suppressed(runner);
 	check_display_ownership_scale_keeps_confirmed_mid_confidence_visible(runner);
 	if (runner.failures) {
 		std::fprintf(stderr, "analyzer_internal: %d/%d checks failed\n", runner.failures,
