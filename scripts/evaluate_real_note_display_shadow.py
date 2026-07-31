@@ -105,6 +105,7 @@ SIMULATION_RULES = (
     "runtime_keyboard_bass_guarded",
     "runtime_vocal_bass_owned",
     "runtime_other_bass_legacy",
+    "runtime_other_bass_measured",
     "runtime_other_bass_guarded",
     "runtime_other_vocal_measured",
 )
@@ -395,6 +396,15 @@ def shadow_rule_matches(record: dict[str, str], rule: str) -> bool:
             and shadow_score >= 0.24
             and target_score <= shadow_score * 0.50
             and target_level <= shadow_level * 0.80
+        )
+    if rule == "runtime_other_bass_measured":
+        return (
+            target_row == "bass"
+            and shadow_row == "other"
+            and owner_is_shadow
+            and shadow_score >= 0.24
+            and target_score <= shadow_score * 0.50
+            and target_level <= shadow_level * 0.90
         )
     if rule == "runtime_other_bass_guarded":
         return (

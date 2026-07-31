@@ -9093,6 +9093,7 @@ void suppress_other_dominant_same_pitch_bass_shadows(NoteGrid &bass_grid, Instru
 	static constexpr float kMinOtherScore = 0.24f;
 	static constexpr float kMaxBassToOtherScoreRatio = 0.50f;
 	static constexpr float kMaxBassToOtherLevelRatio = 0.66f;
+	static constexpr float kMeasuredMaxBassToOtherLevelRatio = 0.90f;
 	static constexpr float kGuardedMinOtherScore = 0.18f;
 	static constexpr float kGuardedMaxBassToOtherScoreRatio = 0.20f;
 	static constexpr float kGuardedMaxBassToOtherLevelRatio = 0.80f;
@@ -9109,7 +9110,7 @@ void suppress_other_dominant_same_pitch_bass_shadows(NoteGrid &bass_grid, Instru
 		const float other_level = note_grid_midi_level(other_grid, midi);
 		if (other_level <= 0.0f ||
 		    bass_level > other_level * std::max(kMaxBassToOtherLevelRatio,
-							kGuardedMaxBassToOtherLevelRatio))
+							kMeasuredMaxBassToOtherLevelRatio))
 			continue;
 		const FullMixDebugCandidate *debug =
 			best_same_midi_row_debug(ownership, midi, InstrumentKind::Other);
@@ -9117,7 +9118,13 @@ void suppress_other_dominant_same_pitch_bass_shadows(NoteGrid &bass_grid, Instru
 			continue;
 		const bool legacy_other_shadow =
 			debug->other_score >= kMinOtherScore &&
-			debug->bass_score <= debug->other_score * kMaxBassToOtherScoreRatio;
+			debug->bass_score <= debug->other_score * kMaxBassToOtherScoreRatio &&
+			bass_level <= other_level * kGuardedMaxBassToOtherLevelRatio;
+		const bool measured_owned_other_shadow =
+			debug->owner == InstrumentKind::Other &&
+			debug->other_score >= kMinOtherScore &&
+			debug->bass_score <= debug->other_score * kMaxBassToOtherScoreRatio &&
+			bass_level <= other_level * kMeasuredMaxBassToOtherLevelRatio;
 		const bool guarded_other_shadow =
 			debug->other_score >= kGuardedMinOtherScore &&
 			debug->bass_score <= debug->other_score * kGuardedMaxBassToOtherScoreRatio &&
@@ -9126,7 +9133,7 @@ void suppress_other_dominant_same_pitch_bass_shadows(NoteGrid &bass_grid, Instru
 			debug->periodicity >= kGuardedMinPeriodicity &&
 			debug->harmonic_fit_error <= kGuardedMaxHarmonicFitError &&
 			debug->local_noise_level <= kGuardedMaxNoiseLevel;
-		if (!legacy_other_shadow && !guarded_other_shadow)
+		if (!legacy_other_shadow && !measured_owned_other_shadow && !guarded_other_shadow)
 			continue;
 
 		clear_note_grid_midi(bass_grid, midi);
