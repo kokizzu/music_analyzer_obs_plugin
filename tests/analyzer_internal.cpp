@@ -448,6 +448,30 @@ void check_other_owned_same_pitch_vocal_shadow_uses_measured_threshold(Runner &r
 		      "same-pitch other vocal shadow: expected stronger protected vocal to stay visible");
 }
 
+void check_display_ownership_scale_keeps_confirmed_mid_confidence_visible(Runner &runner)
+{
+	NoteCandidate weak = {};
+	weak.ownership_confidence = 0.20f;
+	runner.expect(note_candidate_display_ownership_scale(weak) == 1.0f,
+		      "display ownership scale: expected weak mirror scale to stay raw-level controlled");
+
+	NoteCandidate mid = {};
+	mid.ownership_confidence = 0.36f;
+	const float mid_scale = note_candidate_display_ownership_scale(mid);
+	runner.expect(mid_scale >= 0.25f && mid_scale < 0.37f,
+		      "display ownership scale: expected mid-confidence candidate to remain visibly lit");
+
+	NoteCandidate high = {};
+	high.ownership_confidence = 0.70f;
+	runner.expect(std::fabs(note_candidate_display_ownership_scale(high) - 0.70f) < 0.001f,
+		      "display ownership scale: expected high-confidence candidate to use linear display scale");
+
+	NoteCandidate strong = {};
+	strong.ownership_confidence = 0.90f;
+	runner.expect(note_candidate_display_ownership_scale(strong) == 1.0f,
+		      "display ownership scale: expected strong ownership to render at full scale");
+}
+
 int run()
 {
 	Runner runner;
@@ -458,6 +482,7 @@ int run()
 	check_same_pitch_guitar_bass_shadow_uses_any_matching_debug(runner);
 	check_keyboard_owned_same_pitch_vocal_shadow_uses_weak_target_guard(runner);
 	check_other_owned_same_pitch_vocal_shadow_uses_measured_threshold(runner);
+	check_display_ownership_scale_keeps_confirmed_mid_confidence_visible(runner);
 	if (runner.failures) {
 		std::fprintf(stderr, "analyzer_internal: %d/%d checks failed\n", runner.failures,
 			     runner.checks);

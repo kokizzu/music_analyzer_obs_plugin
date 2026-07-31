@@ -8367,7 +8367,7 @@ float note_candidate_display_ownership_scale(const NoteCandidate &candidate)
 	/* Low-confidence mirrors are already attenuated when written as raw cell levels. */
 	if (confidence <= 0.24f)
 		return 1.0f;
-	return confidence * confidence;
+	return std::max(0.25f, confidence);
 }
 
 float note_cell_effective_visual_level(const NoteCell &cell)

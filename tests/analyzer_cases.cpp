@@ -2434,8 +2434,8 @@ void check_high_full_mix_cluster_not_vocal_or_other(Runner &runner)
 		expect_pitch_class(runner, snapshot.guitar_notes, 9, "single high pure guitar mirror");
 		const float detected_level = note_grid_pitch_level(snapshot.guitar_notes, 9);
 		const float visual_level = note_grid_pitch_visual_level(snapshot.guitar_notes, 9);
-		runner.expect(visual_level > 0.0f && visual_level < detected_level && visual_level < 0.25f,
-			      "single high pure guitar mirror: expected render-only attenuation, detected " +
+		runner.expect(visual_level >= 0.25f && visual_level < detected_level,
+			      "single high pure guitar mirror: expected readable render-only attenuation, detected " +
 				      std::to_string(detected_level) + " visual " + std::to_string(visual_level));
 	}
 	{
