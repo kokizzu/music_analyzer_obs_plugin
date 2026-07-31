@@ -9282,7 +9282,7 @@ void suppress_vocal_owned_same_pitch_bass_shadows(NoteGrid &bass_grid, Instrumen
 {
 	static constexpr float kMinVocalScore = 0.24f;
 	static constexpr float kMaxBassToVocalScoreRatio = 0.50f;
-	static constexpr float kMaxBassToVocalLevelRatio = 0.90f;
+	static constexpr float kMaxBassToVocalLevelRatio = 0.94f;
 
 	bool changed = false;
 	for (int midi = kBassMinMidi; midi <= kBassMaxMidi; ++midi) {

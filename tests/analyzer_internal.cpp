@@ -484,21 +484,20 @@ void check_vocal_owned_same_pitch_bass_shadow_uses_measured_ratio(Runner &runner
 		      "same-pitch vocal bass shadow: expected vocal-owned bass mirror to clear");
 
 	NoteGrid protected_bass_grid = {};
-	set_midi(protected_bass_grid, kProtectedMidi, 0.74f);
+	set_midi(protected_bass_grid, kProtectedMidi, 0.77f);
 	InstrumentState protected_bass_state = {};
 	NoteGrid protected_vocal_grid = {};
 	set_midi(protected_vocal_grid, kProtectedMidi, 0.80f);
 	FullMixOwnership protected_ownership = {};
 	protected_ownership.debug_candidate_count = 1;
 	protected_ownership.debug_candidates[0] = make_vocal_bass_shadow_debug(kProtectedMidi);
-	protected_ownership.debug_candidates[0].owner = InstrumentKind::Guitar;
 
 	suppress_vocal_owned_same_pitch_bass_shadows(protected_bass_grid,
 						     protected_bass_state,
 						     protected_vocal_grid,
 						     protected_ownership, -1);
 	runner.expect(note_grid_midi_visual_level(protected_bass_grid, kProtectedMidi) > 0.0f,
-		      "same-pitch vocal bass shadow: expected non-vocal-owned bass to stay visible");
+		      "same-pitch vocal bass shadow: expected stronger bass to stay visible");
 }
 
 FullMixDebugCandidate make_other_keyboard_pitch_class_shadow_debug(int midi)

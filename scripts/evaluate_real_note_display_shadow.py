@@ -386,7 +386,7 @@ def shadow_rule_matches(record: dict[str, str], rule: str) -> bool:
             and owner_is_shadow
             and shadow_score >= 0.24
             and target_score <= shadow_score * 0.50
-            and target_level <= shadow_level * 0.90
+            and target_level <= shadow_level * 0.94
         )
     if rule == "runtime_other_bass_legacy":
         return (
@@ -420,7 +420,25 @@ def shadow_rule_matches(record: dict[str, str], rule: str) -> bool:
     raise ValueError(f"unknown simulation rule `{rule}`")
 
 
-def print_simulations(title: str, records: list[dict[str, str]], source_breakdown: bool) -> None:
+def format_example_record(record: dict[str, str], prefix: str = "example") -> str:
+    return (
+        f"  {prefix} "
+        f"{record.get('sample_id', '')}@{record.get('buffer', '')} "
+        f"src={record.get('source_key', '')} expected={record.get('expected_note', '')}/"
+        f"{record.get('expected_midi', '')} target={record.get('target_row', '')}:"
+        f"{record.get('target_level', '')} shadow={record.get('shadow_row', '')}:"
+        f"{record.get('shadow_level', '')} debug={record.get('debug_note', '')}/"
+        f"{record.get('debug_owner', '')} target_score={record.get('target_score', '')} "
+        f"shadow_score={record.get('shadow_score', '')}"
+    )
+
+
+def print_simulations(
+    title: str,
+    records: list[dict[str, str]],
+    source_breakdown: bool,
+    simulation_examples: int,
+) -> None:
     extras = [record for record in records if record["protected"] == "0"]
     protected = [record for record in records if record["protected"] == "1"]
     print(f"\n{title} suppressor simulations")
@@ -440,6 +458,11 @@ def print_simulations(title: str, records: list[dict[str, str]], source_breakdow
         if source_breakdown and total_hits > 0:
             print(f"    extras_sources {source_counts(extra_hits)}")
             print(f"    protected_sources {source_counts(protected_hits)}")
+        if simulation_examples > 0:
+            for record in extra_hits[:simulation_examples]:
+                print(format_example_record(record, "extra"))
+            for record in protected_hits[:simulation_examples]:
+                print(format_example_record(record, "protected"))
 
 
 def best_safe_simulation(records: list[dict[str, str]]) -> tuple[str, int, int] | None:
@@ -923,16 +946,7 @@ def print_group(title: str, records: list[dict[str, str]], examples: int) -> Non
         if values:
             print(f"  {field:18s} {med(values)}")
     for record in records[:examples]:
-        print(
-            "  example "
-            f"{record.get('sample_id', '')}@{record.get('buffer', '')} "
-            f"src={record.get('source_key', '')} expected={record.get('expected_note', '')}/"
-            f"{record.get('expected_midi', '')} target={record.get('target_row', '')}:"
-            f"{record.get('target_level', '')} shadow={record.get('shadow_row', '')}:"
-            f"{record.get('shadow_level', '')} debug={record.get('debug_note', '')}/"
-            f"{record.get('debug_owner', '')} target_score={record.get('target_score', '')} "
-            f"shadow_score={record.get('shadow_score', '')}"
-        )
+        print(format_example_record(record))
 
 
 def print_group_summary(title: str, records: list[dict[str, str]]) -> None:
@@ -967,6 +981,12 @@ def main() -> int:
         "--source-breakdown",
         action="store_true",
         help="include per-source hit counts for each simulated suppression rule",
+    )
+    parser.add_argument(
+        "--simulation-examples",
+        type=int,
+        default=0,
+        help="print this many matching extra/protected rows under each simulated suppression rule",
     )
     parser.add_argument(
         "--threshold-search",
@@ -1125,7 +1145,7 @@ def main() -> int:
                 else:
                     print_group(f"{route} extras", extras, args.examples)
                     print_group(f"{route} protected", protected, args.examples)
-                print_simulations(route, records, args.source_breakdown)
+                print_simulations(route, records, args.source_breakdown, args.simulation_examples)
             matches: list[ThresholdMatch] = []
             if args.threshold_search:
                 threshold_route_count += 1

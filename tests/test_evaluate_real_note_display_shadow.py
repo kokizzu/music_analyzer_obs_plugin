@@ -402,13 +402,13 @@ def main() -> int:
                 first_row="bass",
                 debug_note="A#3",
                 debug_midi="58",
-                debug_owner="guitar",
+                debug_owner="vocals",
                 bass_score="0.08",
                 keyboard_score="0.00",
                 guitar_score="0.00",
                 vocal_score="0.70",
                 other_score="0.00",
-                bass_notes="A#3:0.74",
+                bass_notes="A#3:0.77",
                 guitar_notes="",
                 piano_notes="",
                 vocal_notes="A#3:0.80",
@@ -495,6 +495,8 @@ def main() -> int:
                 "--min-target-level",
                 "0.10",
                 "--summary-only",
+                "--simulation-examples",
+                "1",
             ],
             check=True,
             text=True,
@@ -763,6 +765,8 @@ def main() -> int:
                 "--min-target-level",
                 "0.10",
                 "--summary-only",
+                "--simulation-examples",
+                "1",
             ],
             check=True,
             text=True,
@@ -874,6 +878,8 @@ def main() -> int:
                 "--min-target-level",
                 "0.10",
                 "--summary-only",
+                "--simulation-examples",
+                "1",
             ],
             check=True,
             text=True,
@@ -912,6 +918,8 @@ def main() -> int:
                 "--min-target-level",
                 "0.10",
                 "--summary-only",
+                "--simulation-examples",
+                "1",
             ],
             check=True,
             text=True,
@@ -1070,6 +1078,9 @@ def main() -> int:
     ) in measured_vocal_bass_runtime_output, measured_vocal_bass_runtime_output
     assert (
         "runtime_vocal_bass_owned     extras=1/1 protected=0/1 precision=100.0% protected_rate=0.0%"
+    ) in measured_vocal_bass_runtime_output, measured_vocal_bass_runtime_output
+    assert (
+        "extra measured_vocal_bass_shadow@0 src=vocals/acoustic expected=B3/59"
     ) in measured_vocal_bass_runtime_output, measured_vocal_bass_runtime_output
     protected_threshold_output = protected_threshold_result.stdout
     assert "protected=1/1 extras=4/4 min_shadow_score=0.24" in protected_threshold_output, protected_threshold_output
