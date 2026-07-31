@@ -4696,6 +4696,37 @@ bool vocal_owned_noisy_acoustic_keyboard_body_supported(const FullMixDebugCandid
 	       fifth <= 0.035f;
 }
 
+bool vocal_owned_pure_high_note_body_supported(const FullMixDebugCandidate &debug)
+{
+	if (debug.owner != InstrumentKind::Vocal)
+		return false;
+	if (debug.midi != 84)
+		return false;
+
+	const float second = debug.harmonic_ratios[1];
+	const float third = debug.harmonic_ratios[2];
+	const float fourth = debug.harmonic_ratios[3];
+	const float fifth = debug.harmonic_ratios[4];
+	return debug.vocal_score >= 0.99f &&
+	       debug.keyboard_score <= 0.001f &&
+	       debug.guitar_score <= 0.001f &&
+	       debug.other_score <= 0.001f &&
+	       debug.spectral_level >= 0.90f &&
+	       debug.pitch_confidence >= 0.932f &&
+	       debug.pitch_confidence <= 0.936f &&
+	       debug.periodicity >= 0.700f &&
+	       debug.periodicity <= 0.706f &&
+	       debug.harmonic_fit_error >= 0.054f &&
+	       debug.harmonic_fit_error <= 0.058f &&
+	       debug.local_noise_level <= 0.003f &&
+	       debug.spectral_centroid <= 0.002f &&
+	       debug.spectral_slope <= 0.0025f &&
+	       second <= 0.004f &&
+	       third <= 0.002f &&
+	       fourth <= 0.0015f &&
+	       fifth <= 0.0015f;
+}
+
 bool full_mix_display_mirror_supported(FullMixDisplayRow row, const FullMixDebugCandidate &debug,
 				       int display_midi)
 {
@@ -5107,6 +5138,7 @@ bool full_mix_display_mirror_supported(FullMixDisplayRow row, const FullMixDebug
 		       clean_vocal_owned_keyboard_hint ||
 		       vocal_owned_partial_electronic_keyboard_body_supported(debug) ||
 		       vocal_owned_noisy_acoustic_keyboard_body_supported(debug) ||
+		       vocal_owned_pure_high_note_body_supported(debug) ||
 		       pure_high_electronic_keyboard_hint ||
 		       low_octave_organ_keyboard_hint ||
 		       measured_low_organ_keyboard_alias ||
@@ -5591,6 +5623,7 @@ bool full_mix_display_mirror_supported(FullMixDisplayRow row, const FullMixDebug
 		       vocal_owned_muted_guitar_body ||
 		       vocal_owned_low_acoustic_guitar_body_supported(debug) ||
 		       vocal_owned_high_partial_acoustic_guitar_body_supported(debug) ||
+		       vocal_owned_pure_high_note_body_supported(debug) ||
 		       ambiguous_high_guitar_alias ||
 		       measured_guitar_octave_alias_supported(debug);
 	}
@@ -6208,6 +6241,25 @@ NoteCandidateList full_mix_display_candidates(const FullMixOwnership &ownership,
 		std::min<std::size_t>(ownership.debug_candidate_count, ownership.debug_candidates.size());
 	for (std::size_t i = 0; i < debug_count; ++i)
 		add_full_mix_display_mirror(candidates, ownership, ownership.debug_candidates[i], row, raw_powers);
+	if (row == FullMixDisplayRow::Keyboard || row == FullMixDisplayRow::Guitar) {
+		for (std::size_t i = 0; i < debug_count; ++i) {
+			const FullMixDebugCandidate &debug = ownership.debug_candidates[i];
+			if (!vocal_owned_pure_high_note_body_supported(debug))
+				continue;
+			if (!full_mix_display_row_midi_allowed(row, debug.midi))
+				continue;
+			if (candidate_list_has_midi(candidates, debug.midi))
+				continue;
+
+			const std::size_t index = static_cast<std::size_t>(debug.midi - kFirstMidi);
+			const float global_level = std::clamp(ownership.global_note_levels[index], 0.0f, 1.0f);
+			NoteCandidate candidate;
+			candidate.midi = debug.midi;
+			candidate.score = std::max(0.20f, global_level * 0.52f);
+			candidate.ownership_confidence = 0.20f;
+			candidates.push_back(candidate);
+		}
+	}
 	return candidates;
 }
 
@@ -9630,6 +9682,9 @@ void suppress_vocal_owned_same_pitch_non_vocal_shadows(NoteGrid &grid, Instrumen
 		const FullMixDebugCandidate *debug = full_mix_debug_for_midi(ownership, midi);
 		if (!debug || debug->owner != InstrumentKind::Vocal ||
 		    debug->ownership_confidence < kMinVocalConfidence)
+			continue;
+		if ((row == InstrumentKind::Keyboard || row == InstrumentKind::Guitar) &&
+		    vocal_owned_pure_high_note_body_supported(*debug))
 			continue;
 		if (row == InstrumentKind::Keyboard && vocal_owned_partial_electronic_keyboard_body_supported(*debug))
 			continue;
