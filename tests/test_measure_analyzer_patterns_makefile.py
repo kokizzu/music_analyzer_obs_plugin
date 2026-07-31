@@ -1817,6 +1817,10 @@ def main() -> int:
     assert "$(or $(DISPLAY_SHADOW_ARGS),--summary-only)" in shadow_recipe, (
         "display shadow target should default to concise output"
     )
+    all_shadow_recipe = target_recipe(makefile, "evaluate-real-note-display-shadow-all")
+    assert "--shadow-row all --target-row all --compact-routes --threshold-search" in all_shadow_recipe, (
+        "all-route display shadow mining should default to compact threshold summaries"
+    )
 
     row_confusion_recipe = target_recipe(makefile, "find-real-note-row-confusion-patterns")
     assert "$(REAL_NOTE_RUNTIME_ROW_CONFUSION_EXCLUDES)" in row_confusion_recipe, (

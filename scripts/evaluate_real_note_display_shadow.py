@@ -92,6 +92,20 @@ ROW_OWNER_ALIASES = {
     "other": {"other"},
 }
 
+SIMULATION_RULES = (
+    "owner_shadow_score2_level",
+    "owner_shadow_score15_level",
+    "score2_level_no_owner",
+    "weak_target_shadow_owned",
+    "runtime_guitar_bass_measured",
+    "runtime_keyboard_bass_weak",
+    "runtime_keyboard_bass_dominant",
+    "runtime_keyboard_bass_guarded",
+    "runtime_other_bass_legacy",
+    "runtime_other_bass_guarded",
+    "runtime_other_vocal_measured",
+)
+
 
 def midi_from_note(note: str) -> int | None:
     match = NOTE_RE.match(note or "")
@@ -394,19 +408,7 @@ def print_simulations(title: str, records: list[dict[str, str]], source_breakdow
         print("  no records")
         return
 
-    for rule in (
-        "owner_shadow_score2_level",
-        "owner_shadow_score15_level",
-        "score2_level_no_owner",
-        "weak_target_shadow_owned",
-        "runtime_guitar_bass_measured",
-        "runtime_keyboard_bass_weak",
-        "runtime_keyboard_bass_dominant",
-        "runtime_keyboard_bass_guarded",
-        "runtime_other_bass_legacy",
-        "runtime_other_bass_guarded",
-        "runtime_other_vocal_measured",
-    ):
+    for rule in SIMULATION_RULES:
         extra_hits = [record for record in extras if shadow_rule_matches(record, rule)]
         protected_hits = [record for record in protected if shadow_rule_matches(record, rule)]
         total_hits = len(extra_hits) + len(protected_hits)
@@ -418,6 +420,20 @@ def print_simulations(title: str, records: list[dict[str, str]], source_breakdow
         if source_breakdown and total_hits > 0:
             print(f"    extras_sources {source_counts(extra_hits)}")
             print(f"    protected_sources {source_counts(protected_hits)}")
+
+
+def best_safe_simulation(records: list[dict[str, str]]) -> tuple[str, int, int] | None:
+    extras = [record for record in records if record["protected"] == "0"]
+    protected = [record for record in records if record["protected"] == "1"]
+    best: tuple[str, int, int] | None = None
+    for rule in SIMULATION_RULES:
+        extra_hits = sum(1 for record in extras if shadow_rule_matches(record, rule))
+        protected_hits = sum(1 for record in protected if shadow_rule_matches(record, rule))
+        if extra_hits <= 0 or protected_hits > 0:
+            continue
+        if best is None or extra_hits > best[1]:
+            best = (rule, extra_hits, protected_hits)
+    return best
 
 
 def threshold_rule_matches(
@@ -751,6 +767,80 @@ def print_ranked_threshold_summary(
         )
 
 
+def print_compact_route_summary(
+    route_summaries: list[dict[str, object]],
+    threshold_search: bool,
+    min_pitch_confidence: float | None,
+    min_periodicity: float | None,
+    max_fit_error: float | None,
+    max_noise: float | None,
+    owner_mode: str,
+) -> None:
+    print("\ncompact route summary")
+    if not route_summaries:
+        print("  no routes")
+        return
+
+    routes_with_extras = sum(1 for summary in route_summaries if int(summary["extras_total"]) > 0)
+    safe_simulation_routes = sum(1 for summary in route_summaries if summary["safe_simulation"] is not None)
+    safe_threshold_routes = sum(1 for summary in route_summaries if summary["best_threshold"] is not None)
+    searched_routes = sum(1 for summary in route_summaries if bool(summary["threshold_searched"]))
+    no_safe_threshold_routes = searched_routes - safe_threshold_routes
+    print(
+        f"  routes={len(route_summaries)} routes_with_extras={routes_with_extras} "
+        f"safe_simulation_routes={safe_simulation_routes}"
+    )
+    if threshold_search:
+        print(
+            f"  safe_threshold_routes={safe_threshold_routes} "
+            f"no_safe_threshold_routes={no_safe_threshold_routes}"
+        )
+
+    ranked = sorted(
+        route_summaries,
+        key=lambda summary: (
+            0 if summary["best_threshold"] is not None else 1,
+            -int(summary["best_threshold"][1]) if summary["best_threshold"] is not None else 0,
+            0 if summary["safe_simulation"] is not None else 1,
+            -int(summary["extras_total"]),
+            str(summary["route"]),
+        ),
+    )
+    for summary in ranked:
+        route = str(summary["route"])
+        extras_total = int(summary["extras_total"])
+        extras_samples = int(summary["extras_samples"])
+        protected_total = int(summary["protected_total"])
+        protected_samples = int(summary["protected_samples"])
+        line = (
+            f"  {route} extras={extras_total}/{extras_samples} "
+            f"protected={protected_total}/{protected_samples}"
+        )
+        safe_simulation = summary["safe_simulation"]
+        if safe_simulation is not None:
+            rule, extra_hits, protected_hits = safe_simulation
+            line += f" simulation={rule}:{extra_hits}/{protected_hits}"
+        else:
+            line += " simulation=none"
+        best_threshold = summary["best_threshold"]
+        if threshold_search:
+            if best_threshold is None:
+                line += " threshold=none"
+            else:
+                line += " threshold="
+                line += threshold_match_text(
+                    best_threshold,
+                    extras_total,
+                    protected_total,
+                    min_pitch_confidence,
+                    min_periodicity,
+                    max_fit_error,
+                    max_noise,
+                    owner_mode,
+                )
+        print(line)
+
+
 def print_group(title: str, records: list[dict[str, str]], examples: int) -> None:
     print(f"\n{title} rows={len(records)} samples={len({r.get('sample_id', '') for r in records})}")
     if not records:
@@ -798,6 +888,11 @@ def main() -> int:
         "--summary-only",
         action="store_true",
         help="print counts and simulations without per-field ranges or example rows",
+    )
+    parser.add_argument(
+        "--compact-routes",
+        action="store_true",
+        help="print one ranked summary line per display-row route instead of per-route blocks",
     )
     parser.add_argument(
         "--source-breakdown",
@@ -898,6 +993,7 @@ def main() -> int:
 
     threshold_opportunities: list[tuple[str, int, int, ThresholdMatch]] = []
     threshold_route_count = 0
+    route_summaries: list[dict[str, object]] = []
     for shadow_row in shadow_rows:
         records_by_target: dict[str, list[dict[str, str]]] = collections.defaultdict(list)
         for (_sample_id, _buffer), group_rows in grouped.items():
@@ -925,13 +1021,16 @@ def main() -> int:
             records = records_by_target[target_row]
             extras = [record for record in records if record["protected"] == "0"]
             protected = [record for record in records if record["protected"] == "1"]
-            if args.summary_only:
-                print_group_summary(f"{shadow_row}->same-pitch {target_row} extras", extras)
-                print_group_summary(f"{shadow_row}->same-pitch {target_row} protected", protected)
-            else:
-                print_group(f"{shadow_row}->same-pitch {target_row} extras", extras, args.examples)
-                print_group(f"{shadow_row}->same-pitch {target_row} protected", protected, args.examples)
-            print_simulations(f"{shadow_row}->same-pitch {target_row}", records, args.source_breakdown)
+            route = f"{shadow_row}->same-pitch {target_row}"
+            if not args.compact_routes:
+                if args.summary_only:
+                    print_group_summary(f"{route} extras", extras)
+                    print_group_summary(f"{route} protected", protected)
+                else:
+                    print_group(f"{route} extras", extras, args.examples)
+                    print_group(f"{route} protected", protected, args.examples)
+                print_simulations(route, records, args.source_breakdown)
+            matches: list[ThresholdMatch] = []
             if args.threshold_search:
                 threshold_route_count += 1
                 matches = threshold_search_matches(
@@ -948,28 +1047,51 @@ def main() -> int:
                     args.max_noise,
                     args.threshold_owner_mode,
                 )
-                route = f"{shadow_row}->same-pitch {target_row}"
                 extras_total = sum(1 for record in records if record["protected"] == "0")
                 protected_total = sum(1 for record in records if record["protected"] == "1")
                 threshold_opportunities.extend(
                     (route, extras_total, protected_total, match) for match in matches
                 )
-                print_threshold_search(
-                    route,
-                    records,
-                    matches,
-                    args.max_protected,
-                    args.min_threshold_extra_hits,
-                    args.threshold_limit,
-                    args.threshold_examples,
-                    args.threshold_protected_examples,
-                    args.min_pitch_confidence,
-                    args.min_periodicity,
-                    args.max_fit_error,
-                    args.max_noise,
-                    args.threshold_owner_mode,
+                if not args.compact_routes:
+                    print_threshold_search(
+                        route,
+                        records,
+                        matches,
+                        args.max_protected,
+                        args.min_threshold_extra_hits,
+                        args.threshold_limit,
+                        args.threshold_examples,
+                        args.threshold_protected_examples,
+                        args.min_pitch_confidence,
+                        args.min_periodicity,
+                        args.max_fit_error,
+                        args.max_noise,
+                        args.threshold_owner_mode,
+                    )
+            if args.compact_routes:
+                route_summaries.append(
+                    {
+                        "route": route,
+                        "extras_total": len(extras),
+                        "extras_samples": len({record.get("sample_id", "") for record in extras}),
+                        "protected_total": len(protected),
+                        "protected_samples": len({record.get("sample_id", "") for record in protected}),
+                        "safe_simulation": best_safe_simulation(records),
+                        "best_threshold": matches[0] if matches else None,
+                        "threshold_searched": args.threshold_search,
+                    }
                 )
-    if args.threshold_search and threshold_route_count > 1:
+    if args.compact_routes:
+        print_compact_route_summary(
+            route_summaries,
+            args.threshold_search,
+            args.min_pitch_confidence,
+            args.min_periodicity,
+            args.max_fit_error,
+            args.max_noise,
+            args.threshold_owner_mode,
+        )
+    if args.threshold_search and threshold_route_count > 1 and not args.compact_routes:
         print_ranked_threshold_summary(
             threshold_opportunities,
             args.threshold_limit,

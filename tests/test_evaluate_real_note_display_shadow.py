@@ -716,6 +716,36 @@ def main() -> int:
             text=True,
             stdout=subprocess.PIPE,
         )
+        compact_threshold_result = subprocess.run(
+            [
+                sys.executable,
+                str(ROOT / "scripts" / "evaluate_real_note_display_shadow.py"),
+                str(path),
+                "--shadow-row",
+                "all",
+                "--target-row",
+                "all",
+                "--min-shadow-level",
+                "0.10",
+                "--min-target-level",
+                "0.10",
+                "--compact-routes",
+                "--threshold-search",
+                "--max-protected",
+                "0",
+                "--threshold-limit",
+                "3",
+                "--shadow-score-thresholds",
+                "0.18,0.24",
+                "--score-ratios",
+                "0.50",
+                "--level-ratios",
+                "0.90",
+            ],
+            check=True,
+            text=True,
+            stdout=subprocess.PIPE,
+        )
         measured_runtime_result = subprocess.run(
             [
                 sys.executable,
@@ -858,6 +888,22 @@ def main() -> int:
         "piano->same-pitch bass protected=0/0 extras=1/1 "
         "min_shadow_score=0.18 score_ratio=0.50 level_ratio=0.90"
     ) in all_threshold_output, all_threshold_output
+    compact_threshold_output = compact_threshold_result.stdout
+    assert "compact route summary" in compact_threshold_output, compact_threshold_output
+    assert "routes=20" in compact_threshold_output, compact_threshold_output
+    assert "safe_threshold_routes=3 no_safe_threshold_routes=17" in compact_threshold_output, (
+        compact_threshold_output
+    )
+    assert (
+        "piano->same-pitch guitar extras=3/3 protected=1/1 "
+        "simulation=owner_shadow_score2_level:2/0 "
+        "threshold=protected=0/1 extras=2/3 min_shadow_score=0.18 "
+        "score_ratio=0.50 level_ratio=0.90"
+    ) in compact_threshold_output, compact_threshold_output
+    assert "piano->same-pitch guitar suppressor simulations" not in compact_threshold_output, (
+        compact_threshold_output
+    )
+    assert "threshold search max_protected" not in compact_threshold_output, compact_threshold_output
     measured_runtime_output = measured_runtime_result.stdout
     assert "guitar->same-pitch bass extras rows=4 samples=4" in measured_runtime_output, measured_runtime_output
     assert "runtime_guitar_bass_guarded" not in measured_runtime_output, measured_runtime_output
