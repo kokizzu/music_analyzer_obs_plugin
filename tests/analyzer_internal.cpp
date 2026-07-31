@@ -311,6 +311,45 @@ void check_supported_guitar_display_extension_aliases(Runner &runner)
 			      small + "`");
 }
 
+void check_ambiguous_guitar_power_quality_keeps_both_plain_aliases(Runner &runner)
+{
+	ChordResult ambiguous = make_crowded_chord("Am=Apow");
+	ambiguous.root = 9;
+	NoteGrid power_grid = {};
+	set_pitch(power_grid, 9, 1.00f);
+	set_pitch(power_grid, 4, 0.52f);
+	std::array<float, kNoteProbeCount> powers = {};
+	set_probe_level(powers, 45, 0.40f);
+	set_probe_level(powers, 52, 0.32f);
+
+	append_guitar_probe_opposite_quality_aliases(ambiguous, power_grid, powers,
+						     kGuitarMinMidi, kGuitarMaxMidi);
+	runner.expect(chord_label_has_exact_component(ambiguous.label, "A"),
+		      std::string("ambiguous guitar power quality: expected opposite major alias, got `") +
+			      ambiguous.label + "`");
+	runner.expect(chord_label_has_exact_component(ambiguous.label, "Am"),
+		      std::string("ambiguous guitar power quality: expected existing minor alias kept, got `") +
+			      ambiguous.label + "`");
+
+	ChordResult protected_major = make_crowded_chord("C=Cpow");
+	protected_major.root = 0;
+	NoteGrid major_grid = {};
+	set_pitch(major_grid, 0, 1.00f);
+	set_pitch(major_grid, 4, 0.62f);
+	set_pitch(major_grid, 7, 0.55f);
+	std::array<float, kNoteProbeCount> protected_powers = {};
+	set_probe_level(protected_powers, 48, 0.40f);
+	set_probe_level(protected_powers, 52, 0.30f);
+	set_probe_level(protected_powers, 55, 0.28f);
+
+	append_guitar_probe_opposite_quality_aliases(protected_major, major_grid,
+						     protected_powers, kGuitarMinMidi,
+						     kGuitarMaxMidi);
+	runner.expect(!chord_label_has_exact_component(protected_major.label, "Cm"),
+		      std::string("ambiguous guitar power quality: expected clear major triad protected, got `") +
+			      protected_major.label + "`");
+}
+
 void check_same_pitch_guitar_bass_shadow_uses_any_matching_debug(Runner &runner)
 {
 	static constexpr int kMidi = 52;
@@ -846,6 +885,7 @@ int run()
 	check_displayed_same_root_plain_guitar_primary(runner);
 	check_supported_guitar_candidate_alias_merge(runner);
 	check_supported_guitar_display_extension_aliases(runner);
+	check_ambiguous_guitar_power_quality_keeps_both_plain_aliases(runner);
 	check_same_pitch_guitar_bass_shadow_uses_any_matching_debug(runner);
 	check_keyboard_owned_same_pitch_vocal_shadow_uses_weak_target_guard(runner);
 	check_other_owned_same_pitch_vocal_shadow_uses_measured_threshold(runner);

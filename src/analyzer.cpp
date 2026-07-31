@@ -14539,6 +14539,25 @@ bool parse_power_chord_component(const char *start, std::size_t len, ParsedRootC
 	return suffix_is(suffix, suffix_len, "pow");
 }
 
+bool chord_label_has_root_power_component(const char *label, int root)
+{
+	if (!label || root < 0)
+		return false;
+	root = ((root % 12) + 12) % 12;
+	const char *cursor = label;
+	while (*cursor) {
+		const char *end = std::strchr(cursor, '=');
+		const std::size_t len = end ? static_cast<std::size_t>(end - cursor) : std::strlen(cursor);
+		ParsedRootChord parsed;
+		if (parse_power_chord_component(cursor, len, parsed) && parsed.root == root)
+			return true;
+		if (!end)
+			break;
+		cursor = end + 1;
+	}
+	return false;
+}
+
 void remove_superseded_guitar_power_aliases(ChordResult &chord, const NoteGrid *grid = nullptr)
 {
 	if (chord.root < 0 || !chord.label[0] || chord.label[0] == '-')
@@ -15175,42 +15194,56 @@ void append_guitar_probe_opposite_quality_aliases(ChordResult &chord, const Note
 				if (grid_root >= 0.10f && grid_fifth >= 0.08f) {
 					const float root_probe =
 						strongest_probe_pitch_class_level(powers, root, min_midi,
-										 max_midi);
+										  max_midi);
 					const float fifth_probe =
 						strongest_probe_pitch_class_level(powers, root + 7,
-										 min_midi, max_midi);
+										  min_midi, max_midi);
 					const float anchor = std::max(root_probe, fifth_probe);
 					const float floor =
 						std::max({strongest_probe * 0.003f, anchor * 0.02f,
 							  0.0004f});
+					const float minor_third =
+						strongest_probe_pitch_class_level(powers, root + 3,
+										  min_midi, max_midi);
+					const float major_third =
+						strongest_probe_pitch_class_level(powers, root + 4,
+										  min_midi, max_midi);
+					const bool same_root_power =
+						chord_label_has_root_power_component(chord.label, root);
+					const float grid_anchor = std::min(grid_root, grid_fifth);
+					const float grid_third_floor = std::max(0.12f, grid_anchor * 0.32f);
+					const float grid_minor =
+						note_grid_pitch_supported_level(grid, root + 3,
+										kActiveAliasFloor);
+					const float grid_major =
+						note_grid_pitch_supported_level(grid, root + 4,
+										kActiveAliasFloor);
+					const float ambiguous_probe_third_floor =
+						std::max({strongest_probe * 0.003f, anchor * 0.040f,
+							  0.0004f});
+					const bool ambiguous_power_quality =
+						same_root_power && grid_minor < grid_third_floor &&
+						grid_major < grid_third_floor &&
+						minor_third < ambiguous_probe_third_floor &&
+						major_third < ambiguous_probe_third_floor;
 					AliasToAdd alias;
 					alias.root = root;
 					bool add_alias = false;
-					if (parsed.quality == RootChordQuality::Major) {
-						const float minor_third =
-							strongest_probe_pitch_class_level(powers, root + 3,
-											 min_midi,
-											 max_midi);
-						const float major_third =
-							strongest_probe_pitch_class_level(powers, root + 4,
-											 min_midi,
-											 max_midi);
+					if (ambiguous_power_quality) {
+						copy_text(alias.suffix, sizeof(alias.suffix),
+							  parsed.quality == RootChordQuality::Major ? "m" : "");
+						add_alias = true;
+					} else if (parsed.quality == RootChordQuality::Major) {
 						if (minor_third >= floor &&
-						    (major_third <= floor || minor_third >= major_third * 0.78f)) {
+						    (major_third <= floor ||
+						     minor_third >= major_third * 0.78f)) {
 							copy_text(alias.suffix, sizeof(alias.suffix), "m");
 							add_alias = true;
 						}
 					} else {
-						const float major_third =
-							strongest_probe_pitch_class_level(powers, root + 4,
-											 min_midi,
-											 max_midi);
-						const float minor_third =
-							strongest_probe_pitch_class_level(powers, root + 3,
-											 min_midi,
-											 max_midi);
 						if (major_third >= floor &&
-						    (minor_third <= floor || major_third >= minor_third * 0.78f)) {
+						    (minor_third <= floor ||
+						     major_third >= minor_third * 0.78f)) {
 							copy_text(alias.suffix, sizeof(alias.suffix), "");
 							add_alias = true;
 						}
