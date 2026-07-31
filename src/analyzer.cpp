@@ -19977,8 +19977,18 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 			snapshot.high_energy <= 0.005f &&
 			tom_kick_shape_score_ratio <= 0.611f &&
 			drum_segment_bands[Tom] <= 316.80f;
+		const bool one_shot_measured_low_snare_body_kick_from_tom_primary_recovery =
+			drum_detection_enabled && one_shot_drum_source &&
+			!generated_gm_drum_source &&
+			body_shape == Kick &&
+			drum_level_[Kick] > 0.30f &&
+			drum_level_[Tom] > 0.30f &&
+			drum_shape_supported[Kick] &&
+			snare_kick_body_ratio <= 0.251f &&
+			tom_kick_band_ratio >= 0.749f;
 		if (one_shot_measured_late_deep_kick_from_tom_primary_recovery ||
-		    one_shot_measured_sub_bass_kick_from_tom_primary_recovery)
+		    one_shot_measured_sub_bass_kick_from_tom_primary_recovery ||
+		    one_shot_measured_low_snare_body_kick_from_tom_primary_recovery)
 			promote_drum_primary(Kick, 0.90f);
 
 		const bool final_one_shot_measured_tom_kick_active_bleed =
