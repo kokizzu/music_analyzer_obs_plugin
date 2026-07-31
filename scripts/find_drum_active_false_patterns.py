@@ -165,6 +165,13 @@ def primary_from_levels(row: dict[str, str]) -> str:
 
 
 def add_ratios(row: dict[str, str]) -> None:
+    def add_ratio(label: str, lhs_field: str, rhs_field: str) -> None:
+        lhs_value = as_float(row, lhs_field)
+        rhs_value = as_float(row, rhs_field)
+        if lhs_value is None or rhs_value is None or abs(rhs_value) < 1.0e-6:
+            return
+        row[label] = f"{lhs_value / rhs_value:.9f}"
+
     for lhs, rhs in (
         ("tom", "snare"),
         ("tom", "kick"),
@@ -180,6 +187,11 @@ def add_ratios(row: dict[str, str]) -> None:
             if lhs_value is None or rhs_value is None or abs(rhs_value) < 1.0e-6:
                 continue
             row[f"{lhs}_{rhs}_{field}_ratio"] = f"{lhs_value / rhs_value:.9f}"
+    for label, lhs_field, rhs_field in (
+        ("hihat_rim_shape_score_ratio", "hihat_seg", "rim_shape_score"),
+        ("ride_hihat_shape_score_ratio", "ride_seg", "hihat_seg"),
+    ):
+        add_ratio(label, lhs_field, rhs_field)
     for label, lhs_field, rhs_field in (
         ("tom_snare_body_ratio", "tom_body", "snare_body"),
         ("tom_kick_body_ratio", "tom_body", "kick_body"),

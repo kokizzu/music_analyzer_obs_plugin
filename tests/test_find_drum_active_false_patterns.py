@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import importlib.util
 import pathlib
 import subprocess
 import sys
@@ -17,7 +18,31 @@ def require(text: str, needle: str) -> None:
         raise AssertionError(f"expected `{needle}` in output:\n{text}")
 
 
+def load_script_module():
+    spec = importlib.util.spec_from_file_location("find_drum_active_false_patterns_for_test", SCRIPT)
+    if spec is None or spec.loader is None:
+        raise AssertionError("failed to load find_drum_active_false_patterns.py")
+    module = importlib.util.module_from_spec(spec)
+    sys.modules[spec.name] = module
+    spec.loader.exec_module(module)
+    return module
+
+
 def main() -> int:
+    module = load_script_module()
+    ratio_row = {
+        "hihat_seg": "14.248",
+        "hihat_shape_score": "50.0",
+        "rim_shape_score": "2.0",
+        "ride_seg": "7.124",
+        "ride_shape_score": "3.0",
+    }
+    module.add_ratios(ratio_row)
+    if ratio_row.get("hihat_rim_shape_score_ratio") != "7.124000000":
+        raise AssertionError(f"hihat/rim runtime ratio mismatch: {ratio_row}")
+    if ratio_row.get("ride_hihat_shape_score_ratio") != "0.500000000":
+        raise AssertionError(f"ride/hihat runtime ratio mismatch: {ratio_row}")
+
     header = (
         "sample\texpected\tgot\tbody_shape\tlow\tmid\thigh\tkick_level\tkick_seg\tkick_trigger\t"
         "kick_threshold\tsnare_level\tsnare_seg\tsnare_trigger\tsnare_threshold\thihat_level\t"
