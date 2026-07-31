@@ -1500,10 +1500,13 @@ def main() -> int:
         "protected drum primary mining must refresh stale spread rows"
     )
     assert '[ -f "$(DRUM_FULL_EXACT_ATTRIBUTE_ROWS)" ]' in protected_recipe, (
-        "protected drum primary mining must refresh optional full exact rows when already cached"
+        "protected drum primary mining must consider optional full exact rows when already cached"
     )
-    assert "$(MAKE) analyze-drum-full-gate-matrix-parallel" in protected_recipe, (
-        "protected drum primary mining must refresh stale full exact rows through the parallel builder"
+    assert 'skipped stale optional $(DRUM_FULL_EXACT_ATTRIBUTE_ROWS)' in protected_recipe, (
+        "protected drum primary mining must skip stale optional full exact rows instead of rebuilding archives"
+    )
+    assert "$(MAKE) analyze-drum-full-gate-matrix-parallel" not in protected_recipe, (
+        "protected drum primary mining must not rebuild optional full exact rows during focused searches"
     )
 
     row_dump_targets = {
