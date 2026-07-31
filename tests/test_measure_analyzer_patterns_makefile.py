@@ -518,6 +518,8 @@ def main() -> int:
         "detector improvement route scan must have a stable file-backed report path"
     )
     for variable in [
+        "MEASURE_INSTRUMENT_PATTERN_ARGS",
+        "MEASURE_INSTRUMENT_STATUS_PATTERN_ARGS",
         "MEASURE_REAL_NOTE_PRACTICAL_ROW_CONFUSION_PATTERN_ARGS",
         "MEASURE_REAL_NOTE_FOCUSED_ROW_CONFUSION_PATTERN_ARGS",
         "MEASURE_REAL_NOTE_FOCUSED_VISUAL_ROW_CONFUSION_PATTERN_ARGS",
@@ -536,6 +538,7 @@ def main() -> int:
         "find-vocadito-full-mix-ownership-patterns",
         "find-vocadito-full-mix-visual-row-confusion-patterns",
         "find-instrument-owner-patterns",
+        "find-instrument-status-patterns",
         "find-drum-full-exact-attribute-patterns-cached",
     ]:
         assert target in route_scan_target_list, (

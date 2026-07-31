@@ -206,6 +206,7 @@ class PatternSearchSettings:
     include_display_fields: bool
     field_preset: str
     excluded_fields: tuple[str, ...]
+    profile_fields: int
 
 
 def load_rows(path: pathlib.Path, *, include_all_note_rows: bool = False) -> list[dict[str, str]]:
@@ -480,6 +481,77 @@ def format_value(value: float) -> str:
     return f"{value:.3f}".rstrip("0").rstrip(".")
 
 
+def selected_field_sources(
+    include_display_fields: bool,
+    field_preset: str,
+    excluded_fields: set[str],
+) -> tuple[list[str], list[str]]:
+    if field_preset == "full-mix-debug":
+        category_source = FULL_MIX_DEBUG_CATEGORY_FIELDS
+        numeric_source = FULL_MIX_DEBUG_NUMERIC_FIELDS
+    else:
+        category_source = CATEGORY_FIELDS
+        numeric_source = NUMERIC_FIELDS
+    category_fields = [
+        field
+        for field in category_source + (DISPLAY_CATEGORY_FIELDS if include_display_fields else [])
+        if field not in excluded_fields
+    ]
+    numeric_fields = [
+        field
+        for field in numeric_source + (DISPLAY_NUMERIC_FIELDS if include_display_fields else [])
+        if field not in excluded_fields
+    ]
+    return category_fields, numeric_fields
+
+
+def numeric_summary(values: list[float]) -> str:
+    if not values:
+        return "-"
+    sorted_values = sorted(values)
+    median = statistics.median(sorted_values)
+    low = quantile(sorted_values, 0.10)
+    high = quantile(sorted_values, 0.90)
+    return f"{format_value(median)} [{format_value(low)}..{format_value(high)}]"
+
+
+def numeric_separation(positive_values: list[float], negative_values: list[float]) -> tuple[float, str]:
+    if not positive_values or not negative_values:
+        return 0.0, ">="
+
+    sorted_negatives = sorted(negative_values)
+    less = 0
+    equal = 0
+    for value in positive_values:
+        lower_count = 0
+        upper_count = len(sorted_negatives)
+        while lower_count < upper_count:
+            midpoint = (lower_count + upper_count) // 2
+            if sorted_negatives[midpoint] < value:
+                lower_count = midpoint + 1
+            else:
+                upper_count = midpoint
+        left = lower_count
+        lower_count = 0
+        upper_count = len(sorted_negatives)
+        while lower_count < upper_count:
+            midpoint = (lower_count + upper_count) // 2
+            if sorted_negatives[midpoint] <= value:
+                lower_count = midpoint + 1
+            else:
+                upper_count = midpoint
+        right = lower_count
+        less += left
+        equal += right - left
+
+    pairs = len(positive_values) * len(negative_values)
+    positive_higher = (less + equal * 0.5) / pairs
+    positive_lower = 1.0 - positive_higher
+    if positive_higher >= positive_lower:
+        return positive_higher, ">="
+    return positive_lower, "<="
+
+
 def numeric_pattern(field: str, operator: str, threshold: float) -> Pattern:
     if operator == "<=":
         return Pattern(
@@ -548,22 +620,11 @@ def build_patterns(
     excluded_fields: set[str],
 ) -> list[Pattern]:
     patterns: list[Pattern] = []
-    if field_preset == "full-mix-debug":
-        category_source = FULL_MIX_DEBUG_CATEGORY_FIELDS
-        numeric_source = FULL_MIX_DEBUG_NUMERIC_FIELDS
-    else:
-        category_source = CATEGORY_FIELDS
-        numeric_source = NUMERIC_FIELDS
-    category_fields = [
-        field
-        for field in category_source + (DISPLAY_CATEGORY_FIELDS if include_display_fields else [])
-        if field not in excluded_fields
-    ]
-    numeric_fields = [
-        field
-        for field in numeric_source + (DISPLAY_NUMERIC_FIELDS if include_display_fields else [])
-        if field not in excluded_fields
-    ]
+    category_fields, numeric_fields = selected_field_sources(
+        include_display_fields,
+        field_preset,
+        excluded_fields,
+    )
     for field in category_fields:
         for value in sorted({row.get(field, "") for row in positive_rows if row.get(field, "")}):
             patterns.append(category_pattern(field, value))
@@ -851,6 +912,97 @@ def print_results(
                 print(f"        {format_example(row)}")
 
 
+def print_attribute_profile(
+    positive_rows: list[dict[str, str]],
+    negative_rows: list[dict[str, str]],
+    include_display_fields: bool,
+    field_preset: str,
+    excluded_fields: set[str],
+    limit: int,
+) -> None:
+    if limit <= 0:
+        return
+
+    category_fields, numeric_fields = selected_field_sources(
+        include_display_fields,
+        field_preset,
+        excluded_fields,
+    )
+    numeric_profiles: list[tuple[float, str, str, str, str]] = []
+    for field in numeric_fields:
+        positive_values = [
+            value for row in positive_rows if (value := as_float(row, field)) is not None
+        ]
+        negative_values = [
+            value for row in negative_rows if (value := as_float(row, field)) is not None
+        ]
+        if not positive_values or not negative_values:
+            continue
+        separation, direction = numeric_separation(positive_values, negative_values)
+        numeric_profiles.append(
+            (
+                abs(separation - 0.5),
+                field,
+                direction,
+                numeric_summary(positive_values),
+                numeric_summary(negative_values),
+            )
+        )
+    numeric_profiles.sort(key=lambda item: (-item[0], item[1]))
+
+    category_profiles: list[tuple[float, str, str, int, int, int, int]] = []
+    for field in category_fields:
+        positive_counts = collections.Counter(
+            row.get(field, "") for row in positive_rows if row.get(field, "")
+        )
+        negative_counts = collections.Counter(
+            row.get(field, "") for row in negative_rows if row.get(field, "")
+        )
+        if not positive_counts:
+            continue
+        positive_total = sum(positive_counts.values())
+        negative_total = sum(negative_counts.values())
+        for value, positive_count in positive_counts.items():
+            negative_count = negative_counts.get(value, 0)
+            positive_rate = positive_count / positive_total if positive_total else 0.0
+            negative_rate = negative_count / negative_total if negative_total else 0.0
+            category_profiles.append(
+                (
+                    positive_rate - negative_rate,
+                    field,
+                    value,
+                    positive_count,
+                    positive_total,
+                    negative_count,
+                    negative_total,
+                )
+            )
+    category_profiles.sort(key=lambda item: (-item[0], item[1], item[2]))
+
+    if numeric_profiles:
+        print("  numeric attribute profile:")
+        for separation, field, direction, positive_summary, negative_summary in numeric_profiles[:limit]:
+            print(
+                f"    {field} {direction} sep={separation + 0.5:.3f} "
+                f"pos={positive_summary} protected={negative_summary}"
+            )
+    if category_profiles:
+        print("  category attribute profile:")
+        for (
+            enrichment,
+            field,
+            value,
+            positive_count,
+            positive_total,
+            negative_count,
+            negative_total,
+        ) in category_profiles[:limit]:
+            print(
+                f"    {field}={value} enrich={enrichment:.3f} "
+                f"pos={positive_count}/{positive_total} protected={negative_count}/{negative_total}"
+            )
+
+
 def print_bucket_patterns(
     rows: list[dict[str, str]],
     bucket: tuple[str, str, str],
@@ -866,6 +1018,7 @@ def print_bucket_patterns(
     include_display_fields: bool,
     field_preset: str,
     excluded_fields: set[str],
+    profile_fields: int,
 ) -> None:
     positive_rows = rows_for_bucket(rows, bucket)
     if positive_filters:
@@ -884,6 +1037,14 @@ def print_bucket_patterns(
     )
     if not positive_rows:
         return
+    print_attribute_profile(
+        positive_rows,
+        negatives,
+        include_display_fields,
+        field_preset,
+        excluded_fields,
+        profile_fields,
+    )
 
     positive_bits = sample_bit_map(positive_rows)
     negative_bits = sample_bit_map(negatives)
@@ -978,6 +1139,7 @@ def print_status_patterns(
     include_display_fields: bool,
     field_preset: str,
     excluded_fields: set[str],
+    profile_fields: int,
 ) -> None:
     positive_rows = rows_for_status_bucket(rows, bucket)
     if positive_filters:
@@ -996,6 +1158,14 @@ def print_status_patterns(
     )
     if not positive_rows:
         return
+    print_attribute_profile(
+        positive_rows,
+        negatives,
+        include_display_fields,
+        field_preset,
+        excluded_fields,
+        profile_fields,
+    )
 
     positive_bits = sample_bit_map(positive_rows)
     negative_bits = sample_bit_map(negatives)
@@ -1106,6 +1276,7 @@ def bucket_patterns_text(
             settings.include_display_fields,
             settings.field_preset,
             set(settings.excluded_fields),
+            settings.profile_fields,
         )
     return buffer.getvalue()
 
@@ -1134,6 +1305,7 @@ def status_patterns_text(
             settings.include_display_fields,
             settings.field_preset,
             set(settings.excluded_fields),
+            settings.profile_fields,
         )
     return buffer.getvalue()
 
@@ -1272,6 +1444,12 @@ def main() -> int:
         default=1,
         help="mine independent owner/status buckets in parallel when multiple buckets are selected",
     )
+    parser.add_argument(
+        "--profile-fields",
+        type=int,
+        default=0,
+        help="print this many ranked numeric and category attribute profiles for each bucket",
+    )
     args = parser.parse_args()
 
     settings = PatternSearchSettings(
@@ -1288,6 +1466,7 @@ def main() -> int:
         include_display_fields=args.include_display_fields,
         field_preset=args.field_preset,
         excluded_fields=tuple(args.exclude_field),
+        profile_fields=max(0, args.profile_fields),
     )
     jobs = max(1, args.jobs)
     if args.bucket or not (args.status_bucket or args.status_top_buckets is not None):

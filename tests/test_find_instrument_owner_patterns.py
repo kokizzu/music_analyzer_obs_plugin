@@ -420,6 +420,26 @@ def main() -> int:
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
         )
+        profile_result = subprocess.run(
+            [
+                sys.executable,
+                str(SCRIPT),
+                str(path),
+                "--bucket",
+                "owner_miss:guitar->piano",
+                "--limit",
+                "3",
+                "--max-negative-samples",
+                "0",
+                "--profile-fields",
+                "3",
+            ],
+            cwd=ROOT,
+            check=True,
+            text=True,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+        )
         status_result = subprocess.run(
             [
                 sys.executable,
@@ -677,6 +697,10 @@ def main() -> int:
     assert "partial2<=0.14" in runtime_fields.stdout, runtime_fields.stdout + runtime_fields.stderr
     assert "raw_expected" not in runtime_fields.stdout, runtime_fields.stdout + runtime_fields.stderr
     assert "program_name" not in runtime_fields.stdout, runtime_fields.stdout + runtime_fields.stderr
+    assert "numeric attribute profile:" in profile_result.stdout, profile_result.stdout + profile_result.stderr
+    assert "partial2 <=" in profile_result.stdout, profile_result.stdout + profile_result.stderr
+    assert "category attribute profile:" in profile_result.stdout, profile_result.stdout + profile_result.stderr
+    assert "program_name=Clean Guitar" in profile_result.stdout, profile_result.stdout + profile_result.stderr
     assert (
         "status:miss:strings positives=2 samples/2 rows negatives(same-family-hit)=1 samples/1 rows"
         in status_result.stdout
