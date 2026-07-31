@@ -431,7 +431,7 @@ void check_other_owned_same_pitch_vocal_shadow_uses_measured_threshold(Runner &r
 		      "same-pitch other vocal shadow: expected measured low-level vocal mirror to clear");
 
 	NoteGrid protected_vocal_grid = {};
-	set_midi(protected_vocal_grid, kProtectedMidi, 0.30f);
+	set_midi(protected_vocal_grid, kProtectedMidi, 0.34f);
 	InstrumentState protected_vocal_state = {};
 	NoteGrid protected_other_grid = {};
 	set_midi(protected_other_grid, kProtectedMidi, 0.67f);

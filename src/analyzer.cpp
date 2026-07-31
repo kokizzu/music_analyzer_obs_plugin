@@ -9285,7 +9285,7 @@ void suppress_named_owned_same_pitch_vocal_shadows(NoteGrid &vocal_grid, Instrum
 	static constexpr float kMinVocalLevel = 0.04f;
 	static constexpr float kMinOwnerLevel = 0.20f;
 	static constexpr float kMaxVocalToOwnerLevelRatio = 0.72f;
-	static constexpr float kMeasuredOtherMaxVocalToOwnerLevelRatio = 0.35f;
+	static constexpr float kMeasuredOtherMaxVocalToOwnerLevelRatio = 0.48f;
 	static constexpr float kWeakKeyboardOwnedMaxVocalScore = 0.10f;
 	static constexpr float kWeakKeyboardOwnedMaxVocalLevel = 0.45f;
 	static constexpr float kWeakKeyboardOwnedMinOwnerScore = 0.18f;
