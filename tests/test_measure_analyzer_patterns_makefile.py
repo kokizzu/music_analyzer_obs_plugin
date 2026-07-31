@@ -29,6 +29,22 @@ def assert_atomic_build_recipe(makefile: str, target: str) -> None:
     assert '&& mv "$$tmp" "$@"' in recipe, f"{target} must publish the temp file atomically"
 
 
+def continuation_variable_refs(makefile: str, variable: str) -> list[str]:
+    lines = makefile.splitlines()
+    prefix = f"{variable} := "
+    for index, line in enumerate(lines):
+        if not line.startswith(prefix):
+            continue
+
+        body = [line[len(prefix) :]]
+        while body[-1].rstrip().endswith("\\") and index + 1 < len(lines):
+            index += 1
+            body.append(lines[index])
+        return re.findall(r"\$\([^)]+\)", "\n".join(body))
+
+    raise AssertionError(f"missing {variable}")
+
+
 def main() -> int:
     makefile = MAKEFILE.read_text(encoding="utf-8")
     for target in [
@@ -80,6 +96,13 @@ def main() -> int:
     assert "$(MEASURE_ANALYZER_PATTERN_SECTION_OUTPUTS)" in sections_recipe, (
         "pattern report section fanout must build all default section outputs"
     )
+    for variable in [
+        "MEASURE_ANALYZER_PATTERN_SECTION_OUTPUTS",
+        "MEASURE_ANALYZER_PATTERN_FULL_SECTION_OUTPUTS",
+    ]:
+        refs = continuation_variable_refs(makefile, variable)
+        duplicates = sorted({ref for ref in refs if refs.count(ref) > 1})
+        assert not duplicates, f"{variable} must not list duplicate outputs: {duplicates}"
     section_recipes = "\n".join(
         target_recipe(makefile, target)
         for target in [
