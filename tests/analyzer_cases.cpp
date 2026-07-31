@@ -3227,6 +3227,66 @@ void check_full_mix_single_instrument_precision(Runner &runner)
 
 	{
 		mao_test::Buffer buffer = {};
+		const std::vector<float> upper_acoustic_body_profile =
+			{1.0f, 0.10f, 0.09f, 0.027f, 0.009f};
+		add_harmonic_note(buffer, 69, 0.24f, upper_acoustic_body_profile);
+
+		const auto snapshot =
+			analyze_buffer_with_mode(buffer, mao::AnalysisInputMode::FullMix,
+						 "speaker upper acoustic body", 3);
+		expect_global_pitch_class(runner, snapshot, 9,
+					  "full-mix vocal-owned upper acoustic body global");
+		runner.expect(grid_level_for_midi(snapshot.keyboard_notes, 69) > 0.0f,
+			      std::string("full-mix vocal-owned upper acoustic body: expected keyboard "
+					  "A4 display, got keyboard `") +
+				      snapshot.keyboard.label + "`, guitar `" + snapshot.guitar.label +
+				      "`, vocal `" + snapshot.vocal.label + "`, other `" +
+				      snapshot.other.label + "`, debug `" +
+				      full_mix_debug_summary_for_midi(snapshot, 69) + "`");
+	}
+
+	{
+		mao_test::Buffer buffer = {};
+		const std::vector<float> sparse_electronic_body_profile =
+			{1.0f, 0.120f, 0.012f, 0.010f, 0.0f};
+		add_harmonic_note(buffer, 69, 0.24f, sparse_electronic_body_profile);
+
+		const auto snapshot =
+			analyze_buffer_with_mode(buffer, mao::AnalysisInputMode::FullMix,
+						 "speaker sparse electronic body", 3);
+		expect_global_pitch_class(runner, snapshot, 9,
+					  "full-mix vocal-owned sparse electronic body global");
+		runner.expect(grid_level_for_midi(snapshot.keyboard_notes, 69) > 0.0f,
+			      std::string("full-mix vocal-owned sparse electronic body: expected keyboard "
+					  "A4 display, got keyboard `") +
+				      snapshot.keyboard.label + "`, guitar `" + snapshot.guitar.label +
+				      "`, vocal `" + snapshot.vocal.label + "`, other `" +
+				      snapshot.other.label + "`, debug `" +
+				      full_mix_debug_summary_for_midi(snapshot, 69) + "`");
+	}
+
+	{
+		mao_test::Buffer buffer = {};
+		const std::vector<float> high_electronic_body_profile =
+			{1.0f, 0.033f, 0.0f, 0.001f, 0.0f};
+		add_harmonic_note(buffer, 84, 0.24f, high_electronic_body_profile);
+
+		const auto snapshot =
+			analyze_buffer_with_mode(buffer, mao::AnalysisInputMode::FullMix,
+						 "speaker bright high electronic body", 3);
+		expect_global_pitch_class(runner, snapshot, 0,
+					  "full-mix vocal-owned bright high electronic body global");
+		runner.expect(grid_level_for_midi(snapshot.keyboard_notes, 84) > 0.0f,
+			      std::string("full-mix vocal-owned bright high electronic body: expected "
+					  "keyboard C6 display, got keyboard `") +
+				      snapshot.keyboard.label + "`, guitar `" + snapshot.guitar.label +
+				      "`, vocal `" + snapshot.vocal.label + "`, other `" +
+				      snapshot.other.label + "`, debug `" +
+				      full_mix_debug_summary_for_midi(snapshot, 84) + "`");
+	}
+
+	{
+		mao_test::Buffer buffer = {};
 		const std::vector<float> vocal_owned_noisy_acoustic_keyboard_profile =
 			{1.0f, 0.113f, 0.132f, 0.029f, 0.029f};
 		add_harmonic_note(buffer, 58, 0.24f, vocal_owned_noisy_acoustic_keyboard_profile);

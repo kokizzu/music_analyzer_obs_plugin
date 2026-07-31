@@ -4727,6 +4727,100 @@ bool vocal_owned_pure_high_note_body_supported(const FullMixDebugCandidate &debu
 	       fifth <= 0.0015f;
 }
 
+bool vocal_owned_upper_keyboard_body_supported(const FullMixDebugCandidate &debug)
+{
+	if (debug.owner != InstrumentKind::Vocal)
+		return false;
+
+	const float second = debug.harmonic_ratios[1];
+	const float third = debug.harmonic_ratios[2];
+	const float fourth = debug.harmonic_ratios[3];
+	const float fifth = debug.harmonic_ratios[4];
+	const bool clean_upper_acoustic =
+		debug.midi >= 65 &&
+		debug.midi <= 69 &&
+		debug.vocal_score >= 0.74f &&
+		debug.vocal_score <= 0.80f &&
+		debug.keyboard_score >= 0.14f &&
+		debug.keyboard_score <= 0.21f &&
+		debug.guitar_score <= 0.08f &&
+		debug.other_score <= 0.010f &&
+		debug.spectral_level >= 0.90f &&
+		debug.pitch_confidence >= 0.94f &&
+		debug.periodicity >= 0.75f &&
+		debug.harmonic_fit_error <= 0.040f &&
+		debug.local_noise_level <= 0.020f &&
+		debug.spectral_centroid >= 0.080f &&
+		debug.spectral_centroid <= 0.18f &&
+		debug.spectral_slope >= 0.065f &&
+		debug.spectral_slope <= 0.21f &&
+		debug.adjacent_lower_ratio <= 0.020f &&
+		second >= 0.075f &&
+		second <= 0.20f &&
+		third >= 0.030f &&
+		third <= 0.16f &&
+		fourth <= 0.065f &&
+		fifth <= 0.022f;
+	const bool sparse_electronic =
+		debug.midi >= 69 &&
+		debug.midi <= 70 &&
+		debug.vocal_score >= 0.796f &&
+		debug.vocal_score <= 0.799f &&
+		debug.keyboard_score >= 0.20f &&
+		debug.keyboard_score <= 0.205f &&
+		debug.guitar_score <= 0.010f &&
+		debug.other_score <= 0.010f &&
+		debug.spectral_level >= 0.90f &&
+		debug.pitch_confidence >= 0.953f &&
+		debug.periodicity >= 0.75f &&
+		debug.harmonic_fit_error <= 0.016f &&
+		debug.local_noise_level <= 0.010f &&
+		debug.spectral_centroid >= 0.055f &&
+		debug.spectral_centroid <= 0.085f &&
+		debug.spectral_slope <= 0.050f &&
+		debug.adjacent_upper_ratio <= 0.030f &&
+		second >= 0.11f &&
+		second <= 0.14f &&
+		third >= 0.008f &&
+		third <= 0.022f &&
+		fourth >= 0.008f &&
+		fourth <= 0.034f &&
+		fifth <= 0.0015f;
+	return clean_upper_acoustic || sparse_electronic;
+}
+
+bool vocal_owned_high_electronic_keyboard_body_supported(const FullMixDebugCandidate &debug)
+{
+	if (debug.owner != InstrumentKind::Vocal)
+		return false;
+	if (debug.midi != 84)
+		return false;
+
+	const float second = debug.harmonic_ratios[1];
+	const float third = debug.harmonic_ratios[2];
+	const float fourth = debug.harmonic_ratios[3];
+	const float fifth = debug.harmonic_ratios[4];
+	return debug.vocal_score >= 0.99f &&
+	       debug.keyboard_score <= 0.001f &&
+	       debug.guitar_score <= 0.001f &&
+	       debug.other_score <= 0.001f &&
+	       debug.spectral_level >= 0.90f &&
+	       debug.pitch_confidence >= 0.934f &&
+	       debug.pitch_confidence <= 0.942f &&
+	       debug.periodicity >= 0.705f &&
+	       debug.periodicity <= 0.720f &&
+	       debug.harmonic_fit_error >= 0.038f &&
+	       debug.harmonic_fit_error <= 0.058f &&
+	       debug.local_noise_level <= 0.006f &&
+	       debug.spectral_centroid >= 0.003f &&
+	       debug.spectral_centroid <= 0.020f &&
+	       debug.spectral_slope <= 0.011f &&
+	       second <= 0.045f &&
+	       third <= 0.003f &&
+	       fourth <= 0.012f &&
+	       fifth <= 0.0015f;
+}
+
 bool full_mix_display_mirror_supported(FullMixDisplayRow row, const FullMixDebugCandidate &debug,
 				       int display_midi)
 {
@@ -5139,6 +5233,8 @@ bool full_mix_display_mirror_supported(FullMixDisplayRow row, const FullMixDebug
 		       vocal_owned_partial_electronic_keyboard_body_supported(debug) ||
 		       vocal_owned_noisy_acoustic_keyboard_body_supported(debug) ||
 		       vocal_owned_pure_high_note_body_supported(debug) ||
+		       vocal_owned_upper_keyboard_body_supported(debug) ||
+		       vocal_owned_high_electronic_keyboard_body_supported(debug) ||
 		       pure_high_electronic_keyboard_hint ||
 		       low_octave_organ_keyboard_hint ||
 		       measured_low_organ_keyboard_alias ||
@@ -9689,6 +9785,10 @@ void suppress_vocal_owned_same_pitch_non_vocal_shadows(NoteGrid &grid, Instrumen
 		if (row == InstrumentKind::Keyboard && vocal_owned_partial_electronic_keyboard_body_supported(*debug))
 			continue;
 		if (row == InstrumentKind::Keyboard && vocal_owned_noisy_acoustic_keyboard_body_supported(*debug))
+			continue;
+		if (row == InstrumentKind::Keyboard && vocal_owned_upper_keyboard_body_supported(*debug))
+			continue;
+		if (row == InstrumentKind::Keyboard && vocal_owned_high_electronic_keyboard_body_supported(*debug))
 			continue;
 		if (row == InstrumentKind::Guitar && vocal_owned_low_acoustic_guitar_body_supported(*debug))
 			continue;
