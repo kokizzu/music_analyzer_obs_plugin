@@ -20216,6 +20216,17 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 		if (one_shot_measured_bright_crash_from_hihat_primary_recovery)
 			promote_drum_primary(Crash, 0.90f);
 
+		const bool one_shot_measured_low_rim_shape_crash_from_tom_primary_recovery =
+			drum_detection_enabled && one_shot_drum_source &&
+			!generated_gm_drum_source &&
+			drum_level_[Tom] > 0.30f &&
+			drum_level_[Tom] >= drum_level_[Crash] &&
+			snapshot.low_energy <= 0.65f &&
+			rim_shape_score <= 0.395f &&
+			tom_snare_level_ratio >= 2.858f;
+		if (one_shot_measured_low_rim_shape_crash_from_tom_primary_recovery)
+			promote_drum_primary(Crash, 0.90f);
+
 	const bool onset_tempo_event =
 		drum_detection_enabled && rms > kSilenceRms && drum_transient &&
 		(had_previous_audio ? onset >= 1.25f : true);
