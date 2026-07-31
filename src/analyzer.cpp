@@ -20277,6 +20277,20 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 		if (one_shot_measured_low_kick_body_tom_primary_recovery)
 			promote_drum_primary(Tom, 0.90f);
 
+		const float final_segment_tom_snare_kick_level_ratio =
+			drum_level_[Snare] / (drum_level_[Kick] + 1.0e-6f);
+		const bool one_shot_measured_segment_tom_from_snare_primary_recovery =
+			drum_detection_enabled && one_shot_drum_source &&
+			!generated_gm_drum_source &&
+			body_shape == Tom &&
+			drum_level_[Kick] > 0.30f &&
+			drum_level_[Snare] > 0.30f &&
+			drum_level_[Tom] <= 0.30f &&
+			crash_hihat_segment_ratio >= 0.824f &&
+			final_segment_tom_snare_kick_level_ratio >= 1.113f;
+		if (one_shot_measured_segment_tom_from_snare_primary_recovery)
+			promote_drum_primary(Tom, 0.90f);
+
 		if (one_shot_measured_low_crash_ride_tom_snare_steal)
 			promote_drum_primary(Tom, 0.90f);
 
