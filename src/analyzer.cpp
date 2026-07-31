@@ -20338,6 +20338,16 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 		if (final_measured_shape_dominant_kick_from_tom_primary_recovery)
 			promote_drum_primary(Kick, 0.90f);
 
+		const bool one_shot_measured_silent_bright_ride_recovery =
+			drum_detection_enabled && one_shot_drum_source &&
+			drum_level_[Crash] <= 0.001f &&
+			drum_level_[Ride] <= 0.001f &&
+			drum_bands[Crash] >= 7.109f &&
+			tom_snare_total_band_ratio <= 0.431f;
+		if (one_shot_measured_silent_bright_ride_recovery) {
+			boost_drum_level(Ride, 0.90f);
+		}
+
 	const bool onset_tempo_event =
 		drum_detection_enabled && rms > kSilenceRms && drum_transient &&
 		(had_previous_audio ? onset >= 1.25f : true);
