@@ -105,6 +105,7 @@ class AliasRecord:
 
 @dataclass(frozen=True)
 class ThresholdRule:
+    debug_relation: str
     owner_mode: str
     interval_mode: str
     max_guitar_score: float | None
@@ -266,6 +267,13 @@ def row_float(row: dict[str, str], field: str) -> float | None:
     return as_float_text(row.get(field, ""))
 
 
+def row_int(row: dict[str, str], field: str) -> int | None:
+    value = row_float(row, field)
+    if value is None:
+        return None
+    return int(round(value))
+
+
 def owner_key(row: dict[str, str]) -> str:
     owner = (row.get("debug_owner", "") or "").strip().lower()
     if owner == "keyboard":
@@ -322,6 +330,17 @@ def derived_value(row: dict[str, str], alias: Alias, field: str) -> str:
         return f"{alias.support.level / alias.shadow.level:.6f}"
     if field == "support_advantage":
         return f"{alias.support.level - alias.shadow.level:.6f}"
+    if field == "debug_relation":
+        debug_midi = row_int(row, "debug_midi")
+        if debug_midi is None:
+            return "missing"
+        if debug_midi == alias.shadow.midi:
+            return "shadow"
+        if debug_midi == alias.support.midi:
+            return "support"
+        if pitch_class(debug_midi) == pitch_class(alias.shadow.midi):
+            return "same-pitch-class"
+        return "other"
     if field == "debug_owner":
         return owner_key(row)
     if field == "non_guitar_score":
@@ -399,6 +418,12 @@ def owner_mode_matches(owner: str, mode: str) -> bool:
     raise AssertionError(mode)
 
 
+def debug_relation_matches(relation: str, mode: str) -> bool:
+    if mode == "any":
+        return True
+    return relation == mode
+
+
 def interval_mode_matches(interval: int, mode: str) -> bool:
     if mode == "any":
         return True
@@ -416,6 +441,8 @@ def interval_mode_matches(interval: int, mode: str) -> bool:
 def threshold_rule_matches(record: AliasRecord, rule: ThresholdRule) -> bool:
     row = record.row
     alias = record.alias
+    if not debug_relation_matches(derived_value(row, alias, "debug_relation"), rule.debug_relation):
+        return False
     if not owner_mode_matches(owner_key(row), rule.owner_mode):
         return False
     if not interval_mode_matches(alias.interval, rule.interval_mode):
@@ -454,7 +481,11 @@ def threshold_rule_matches(record: AliasRecord, rule: ThresholdRule) -> bool:
 
 
 def rule_parts(rule: ThresholdRule) -> list[str]:
-    parts = [f"owner={rule.owner_mode}", f"interval={rule.interval_mode}"]
+    parts = [
+        f"debug_relation={rule.debug_relation}",
+        f"owner={rule.owner_mode}",
+        f"interval={rule.interval_mode}",
+    ]
     if rule.max_guitar_score is not None:
         parts.append(f"max_guitar_score={rule.max_guitar_score:.2f}")
     if rule.min_non_guitar_score is not None:
@@ -485,10 +516,13 @@ def rule_complexity(rule: ThresholdRule) -> int:
             rule.max_noise,
         )
         if value is not None
-    ) + (0 if rule.owner_mode == "any" else 1) + (0 if rule.interval_mode == "any" else 1)
+    ) + (0 if rule.debug_relation == "any" else 1) + (0 if rule.owner_mode == "any" else 1) + (
+        0 if rule.interval_mode == "any" else 1
+    )
 
 
 def generate_threshold_rules() -> list[ThresholdRule]:
+    debug_relations = ("shadow",)
     owner_modes = ("non-guitar", "other-or-piano", "other", "piano")
     interval_modes = ("any", "exact12", "max24")
     max_guitar_scores: tuple[float | None, ...] = (None, 0.20, 0.42)
@@ -500,28 +534,30 @@ def generate_threshold_rules() -> list[ThresholdRule]:
     max_noises: tuple[float | None, ...] = (None, 0.35)
 
     rules: list[ThresholdRule] = []
-    for owner_mode in owner_modes:
-        for interval_mode in interval_modes:
-            for max_guitar_score in max_guitar_scores:
-                for min_non_guitar_score in min_non_guitar_scores:
-                    for min_harmonicity in min_harmonicities:
-                        for max_shadow_support_ratio in max_shadow_support_ratios:
-                            for min_support_level in min_support_levels:
-                                for max_fit_error in max_fit_errors:
-                                    for max_noise in max_noises:
-                                        rules.append(
-                                            ThresholdRule(
-                                                owner_mode,
-                                                interval_mode,
-                                                max_guitar_score,
-                                                min_non_guitar_score,
-                                                min_harmonicity,
-                                                max_shadow_support_ratio,
-                                                min_support_level,
-                                                max_fit_error,
-                                                max_noise,
+    for debug_relation in debug_relations:
+        for owner_mode in owner_modes:
+            for interval_mode in interval_modes:
+                for max_guitar_score in max_guitar_scores:
+                    for min_non_guitar_score in min_non_guitar_scores:
+                        for min_harmonicity in min_harmonicities:
+                            for max_shadow_support_ratio in max_shadow_support_ratios:
+                                for min_support_level in min_support_levels:
+                                    for max_fit_error in max_fit_errors:
+                                        for max_noise in max_noises:
+                                            rules.append(
+                                                ThresholdRule(
+                                                    debug_relation,
+                                                    owner_mode,
+                                                    interval_mode,
+                                                    max_guitar_score,
+                                                    min_non_guitar_score,
+                                                    min_harmonicity,
+                                                    max_shadow_support_ratio,
+                                                    min_support_level,
+                                                    max_fit_error,
+                                                    max_noise,
+                                                )
                                             )
-                                        )
     return rules
 
 

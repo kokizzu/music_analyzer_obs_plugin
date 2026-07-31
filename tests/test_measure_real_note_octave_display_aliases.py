@@ -22,10 +22,10 @@ def main() -> int:
         rows = write(
             pathlib.Path(tmpdir) / "real-note.tsv",
             """
-status	detected	detected_expected_row	first_row	visual_first_row	sample_id	family	source	expected_note	expected_midi	buffer	mode	bass_visual_notes	guitar_visual_notes	piano_visual_notes	vocal_visual_notes	other_visual_notes	raw_expected_ratio	pitch_confidence	guitar_score	keyboard_score	other_score
-hit	1	1	guitar	guitar	keyboard_alias	piano	electronic	A1	33	0	full_mix	A2:0.60	A3:0.72	A1:0.80,A2:0.62	--	--	1.20	0.71	0.43	0.81	0.20
-hit	1	1	guitar	guitar	guitar_true	guitar	acoustic	A2	45	0	full_mix	--	A3:0.74	A2:0.58	--	--	0.96	0.88	0.79	0.31	0.10
-hit	1	1	other	other	other_harm	other	acoustic	C3	48	0	full_mix	--	--	G4:0.72,C6:0.91	--	C3:0.80	1.44	0.63	0.12	0.35	0.74
+status	detected	detected_expected_row	first_row	visual_first_row	sample_id	family	source	expected_note	expected_midi	buffer	mode	bass_visual_notes	guitar_visual_notes	piano_visual_notes	vocal_visual_notes	other_visual_notes	debug_midi	debug_owner	raw_expected_ratio	pitch_confidence	guitar_score	keyboard_score	other_score
+hit	1	1	guitar	guitar	keyboard_alias	piano	electronic	A1	33	0	full_mix	A2:0.60	A3:0.72	A1:0.80,A2:0.62	--	--	57	other	1.20	0.71	0.12	0.10	0.88
+hit	1	1	guitar	guitar	guitar_true	guitar	acoustic	A2	45	0	full_mix	--	A3:0.74	A2:0.58	--	--	57	guitar	0.96	0.88	0.79	0.31	0.10
+hit	1	1	other	other	other_harm	other	acoustic	C3	48	0	full_mix	--	--	G4:0.72,C6:0.91	--	C3:0.80	84	other	1.44	0.63	0.12	0.35	0.74
             """,
         )
 
@@ -130,6 +130,7 @@ hit	1	1	other	other	other_harm	other	acoustic	C3	48	0	full_mix	--	--	G4:0.72,C6:
         assert "threshold_search: candidates=" in searched
         assert "positive_total=1 protected_total=1 other_total=0" in searched
         assert "threshold_rule positive=1/1 protected=0/1" in searched
+        assert "debug_relation=shadow" in searched
         assert "threshold_positive\tsample_id=keyboard_alias" in searched
 
         harmonic = subprocess.run(
