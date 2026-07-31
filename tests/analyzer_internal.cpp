@@ -96,6 +96,12 @@ void check_crowded_guitar_prune_modes(Runner &runner)
 		      std::string("mixed crowded guitar prune: expected extension alias pruned, got `") +
 			      mixed.label + "`");
 
+	ChordResult medium_mixed = make_crowded_chord("A=A7=Amaj7=Am");
+	prune_crowded_guitar_chord_label(medium_mixed, true);
+	runner.expect(std::strcmp(medium_mixed.label, "A=Am") == 0,
+		      std::string("mixed medium guitar prune: expected plain major/minor aliases only, got `") +
+			      medium_mixed.label + "`");
+
 	InstrumentState displayed = {};
 	std::snprintf(displayed.label, sizeof(displayed.label),
 		      "C=Cmaj7=C7=C6=C13=Csus4=Gsus4=Em");
@@ -139,6 +145,15 @@ void check_crowded_guitar_prune_modes(Runner &runner)
 	runner.expect(std::strcmp(medium_unsupported_display.label, "C=Cpow=Em") == 0,
 		      std::string("display medium guitar prune: expected unsupported extensions pruned, got `") +
 			      medium_unsupported_display.label + "`");
+
+	InstrumentState compact_supported_display = {};
+	std::snprintf(compact_supported_display.label, sizeof(compact_supported_display.label),
+		      "C=Cmaj7=Em");
+	prune_crowded_guitar_display_label(compact_supported_display, compact_c_major_seventh,
+					   compact_c_major_seventh);
+	runner.expect(std::strcmp(compact_supported_display.label, "C=Cmaj7=Em") == 0,
+		      std::string("display compact guitar prune: expected compact extension label preserved, got `") +
+			      compact_supported_display.label + "`");
 }
 
 void check_displayed_same_root_plain_guitar_primary(Runner &runner)

@@ -344,6 +344,21 @@ def prune_labels(labels: list[str], policy: str, row: dict[str, str] | None = No
     return pruned
 
 
+def parse_prune_policy_spec(spec: str) -> tuple[str, int]:
+    if "@" not in spec:
+        return spec, 0
+    policy, min_components_text = spec.rsplit("@", 1)
+    if not policy:
+        raise ValueError(f"missing prune policy in spec: {spec}")
+    try:
+        min_components = int(min_components_text)
+    except ValueError as exc:
+        raise ValueError(f"invalid prune min component count in spec: {spec}") from exc
+    if min_components < 0:
+        raise ValueError(f"invalid negative prune min component count in spec: {spec}")
+    return policy, min_components
+
+
 def row_extra_components(row: dict[str, str]) -> list[tuple[str, str, str, str]]:
     expected = split_labels(row.get("expected_chords", ""))
     expected_set = set(expected)
@@ -363,7 +378,8 @@ def row_extra_components(row: dict[str, str]) -> list[tuple[str, str, str, str]]
     return extras
 
 
-def summarize_prune_policy(rows: list[dict[str, str]], policy: str, examples: int) -> list[str]:
+def summarize_prune_policy(rows: list[dict[str, str]], policy_spec: str, examples: int) -> list[str]:
+    policy, min_components = parse_prune_policy_spec(policy_spec)
     current_hits = 0
     pruned_hits = 0
     lost_hits = 0
@@ -379,7 +395,7 @@ def summarize_prune_policy(rows: list[dict[str, str]], policy: str, examples: in
     for row in rows:
         expected = split_labels(row.get("expected_chords", ""))
         detected = split_labels(row.get("guitar_chord", ""))
-        pruned = prune_labels(detected, policy, row)
+        pruned = prune_labels(detected, policy, row) if len(detected) >= min_components else detected
         current_hit = chord_hit(detected, expected)
         pruned_hit = chord_hit(pruned, expected)
         current_hits += int(current_hit)
@@ -403,7 +419,7 @@ def summarize_prune_policy(rows: list[dict[str, str]], policy: str, examples: in
             lost_examples.append((row, detected, pruned))
 
     lines = [
-        f"prune policy {policy}: rows={len(rows)} current_hits={current_hits} "
+        f"prune policy {policy_spec}: rows={len(rows)} current_hits={current_hits} "
         f"pruned_hits={pruned_hits} lost_hits={lost_hits} gained_hits={gained_hits} "
         f"components={pruned_components}/{current_components} "
         f"extras={pruned_extras}/{current_extras}",
@@ -567,19 +583,8 @@ def main() -> int:
     parser.add_argument(
         "--simulate-prune",
         action="append",
-        choices=(
-            "none",
-            "primary",
-            "primary-equivalent",
-            "primary-equivalent-plain",
-            "primary-equivalent-plain-observed-playable",
-            "common-observed-playable",
-            "primary-same-root-equivalent",
-            "observed-playable",
-            "primary-equivalent-observed-playable",
-        ),
         default=[],
-        help="append simulated post-detection guitar chord label pruning metrics",
+        help="append simulated post-detection guitar chord label pruning metrics; append @N to only prune labels with at least N components",
     )
     args = parser.parse_args()
 

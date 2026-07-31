@@ -74,6 +74,7 @@ constexpr float kChordStrongExtensionToneFloor = 0.32f;
 constexpr float kChordStrongExtensionCoreRatio = 0.36f;
 constexpr float kGuitarCagedPresenceFloor = 0.50f;
 constexpr int kGuitarChordCrowdedPruneMinComponents = 7;
+constexpr int kMixedGuitarChordCrowdedPruneMinComponents = 4;
 constexpr std::size_t kDrumTransientSegments = 8;
 constexpr float kDrumTransientRatio = 1.55f;
 constexpr float kMixedBassMinBroadScoreRatio = 0.22f;
@@ -13244,8 +13245,10 @@ bool observed_guitar_pitch_mask_playable(unsigned int mask, const NoteGrid &disp
 
 void prune_crowded_guitar_chord_label(ChordResult &chord, bool strict_plain_only)
 {
+	const int min_components = strict_plain_only ? kMixedGuitarChordCrowdedPruneMinComponents :
+						       kGuitarChordCrowdedPruneMinComponents;
 	if (chord.root < 0 || !chord.label[0] || chord.label[0] == '-' ||
-	    chord_label_component_count(chord.label) < kGuitarChordCrowdedPruneMinComponents)
+	    chord_label_component_count(chord.label) < min_components)
 		return;
 
 	const std::size_t primary_len = std::strcspn(chord.label, "=");
