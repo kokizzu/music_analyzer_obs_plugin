@@ -19778,7 +19778,7 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 		if (measured_snare_crack_tom_bleed)
 			cap_drum_level(Tom, 0.28f);
 		const bool one_shot_measured_dense_snare_tom_active_bleed =
-			drum_detection_enabled && one_shot_drum_source &&
+			drum_detection_enabled && one_shot_drum_source && !generated_gm_drum_source &&
 			drum_level_[Snare] >= 0.999f &&
 			drum_level_[Tom] > 0.30f &&
 			drum_segment_bands[Tom] >= 228.597f;
