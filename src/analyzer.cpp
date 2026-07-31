@@ -17965,7 +17965,7 @@ bool compact_guitar_raw_profile_third_quality(const NoteGrid &display_grid,
 					      const std::array<float, kNoteProbeCount> &powers,
 					      int min_midi, int max_midi, int root,
 					      bool require_analysis_third, bool &minor_out,
-					      float &score_out)
+					      float &score_out, float third_ceiling_ratio = 0.030f)
 {
 	root = ((root % 12) + 12) % 12;
 	constexpr float kActiveAliasFloor = 0.12f;
@@ -18010,7 +18010,7 @@ bool compact_guitar_raw_profile_third_quality(const NoteGrid &display_grid,
 	const float major_third =
 		strongest_probe_pitch_class_level(powers, major_third_pc, min_midi, max_midi);
 	const float third_floor = std::max(anchor * 0.005f, 0.005f);
-	const float third_ceiling = std::max(third_floor, anchor * 0.030f);
+	const float third_ceiling = std::max(third_floor, anchor * third_ceiling_ratio);
 	const bool minor_analysis_supported = note_grid_pitch_active(analysis_grid, minor_third_pc);
 	const bool major_analysis_supported = note_grid_pitch_active(analysis_grid, major_third_pc);
 	const float raw_third_margin = require_analysis_third ? 1.02f : 1.05f;
@@ -18030,6 +18030,35 @@ bool compact_guitar_raw_profile_third_quality(const NoteGrid &display_grid,
 	return true;
 }
 
+bool guitar_label_has_supported_plain_root_third_component(const char *label,
+							   const NoteGrid &display_grid,
+							   const NoteGrid &analysis_grid)
+{
+	if (!label || !label[0] || label[0] == '-')
+		return false;
+
+	const char *cursor = label;
+	while (cursor && *cursor) {
+		const char *end = std::strchr(cursor, '=');
+		const std::size_t len =
+			end ? static_cast<std::size_t>(end - cursor) : std::strlen(cursor);
+		ParsedRootChord parsed;
+		if (parse_plain_major_minor_component(cursor, len, parsed)) {
+			const int third = parsed.root +
+					  (parsed.quality == RootChordQuality::Minor ? 3 : 4);
+			if (note_grid_pitch_active(display_grid, parsed.root) &&
+			    note_grid_pitch_active(display_grid, third) &&
+			    note_grid_pitch_active(analysis_grid, parsed.root) &&
+			    note_grid_pitch_active(analysis_grid, third))
+				return true;
+		}
+		if (!end)
+			break;
+		cursor = end + 1;
+	}
+	return false;
+}
+
 void append_compact_guitar_power_raw_profile_aliases_to_display(
 	InstrumentState &state, const NoteGrid &display_grid, const NoteGrid &analysis_grid,
 	const std::array<float, kNoteProbeCount> &powers, int min_midi, int max_midi)
@@ -18037,11 +18066,15 @@ void append_compact_guitar_power_raw_profile_aliases_to_display(
 	if (!state.label[0] || state.label[0] == '-')
 		return;
 	const int components = chord_label_component_count(state.label);
-	if (components < 2 || components > 5)
+	if (components < 2 || components > 8)
+		return;
+	if (components > 5 &&
+	    guitar_label_has_supported_plain_root_third_component(state.label, display_grid, analysis_grid))
 		return;
 
 	char merged[sizeof(state.label)] = {};
 	copy_text(merged, sizeof(merged), state.label);
+	const float third_ceiling_ratio = components > 5 ? 0.250f : 0.030f;
 	const char *cursor = state.label;
 	while (cursor && *cursor) {
 		const char *end = std::strchr(cursor, '=');
@@ -18054,7 +18087,8 @@ void append_compact_guitar_power_raw_profile_aliases_to_display(
 			float score = 0.0f;
 			if (compact_guitar_raw_profile_third_quality(display_grid, analysis_grid,
 								     powers, min_midi, max_midi,
-								     parsed.root, false, minor, score)) {
+								     parsed.root, false, minor, score,
+								     third_ceiling_ratio)) {
 				char alias[16] = {};
 				std::snprintf(alias, sizeof(alias), "%s%s", note_name(parsed.root),
 					      minor ? "m" : "");
@@ -18080,11 +18114,15 @@ void append_compact_guitar_power_raw_profile_aliases_to_chord(
 	if (!valid_chord_result(chord))
 		return;
 	const int components = chord_label_component_count(chord.label);
-	if (components < 2 || components > 5)
+	if (components < 2 || components > 8)
+		return;
+	if (components > 5 &&
+	    guitar_label_has_supported_plain_root_third_component(chord.label, display_grid, analysis_grid))
 		return;
 
 	char merged[sizeof(chord.label)] = {};
 	copy_text(merged, sizeof(merged), chord.label);
+	const float third_ceiling_ratio = components > 5 ? 0.250f : 0.030f;
 	const char *cursor = chord.label;
 	while (cursor && *cursor) {
 		const char *end = std::strchr(cursor, '=');
@@ -18097,7 +18135,7 @@ void append_compact_guitar_power_raw_profile_aliases_to_chord(
 			float score = 0.0f;
 			if (compact_guitar_raw_profile_third_quality(
 				    display_grid, analysis_grid, powers, min_midi, max_midi,
-				    parsed.root, false, minor, score)) {
+				    parsed.root, false, minor, score, third_ceiling_ratio)) {
 				char alias[16] = {};
 				std::snprintf(alias, sizeof(alias), "%s%s", note_name(parsed.root),
 					      minor ? "m" : "");

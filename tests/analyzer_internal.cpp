@@ -526,6 +526,52 @@ void check_compact_guitar_power_raw_profile_third_aliases(Runner &runner)
 	runner.expect(chord_label_has_exact_component(measured_minor.label, "A#m"),
 		      std::string("compact guitar root-fifth raw-profile display: expected A#m alias, got `") +
 			      measured_minor.label + "`");
+
+	InstrumentState crowded_power = {};
+	std::snprintf(crowded_power.label, sizeof(crowded_power.label),
+		      "E=Esus4=Asus2=Edim=Apow=Emaj7");
+	crowded_power.confidence = 0.68f;
+	NoteGrid crowded_display_grid = {};
+	set_pitch(crowded_display_grid, 4, 1.00f);
+	set_pitch(crowded_display_grid, 9, 0.93f);
+	set_pitch(crowded_display_grid, 11, 0.42f);
+	NoteGrid crowded_analysis_grid = {};
+	for (int pitch_class : {3, 4, 5, 7, 8, 9, 10, 11})
+		set_pitch(crowded_analysis_grid, pitch_class, pitch_class == 4 ? 1.00f : 0.24f);
+	std::array<float, kNoteProbeCount> crowded_powers = {};
+	set_probe_level(crowded_powers, 45, 0.914f);
+	set_probe_level(crowded_powers, 48, 0.046f);
+	set_probe_level(crowded_powers, 49, 0.027f);
+	set_probe_level(crowded_powers, 52, 1.000f);
+
+	append_compact_guitar_power_raw_profile_aliases_to_display(
+		crowded_power, crowded_display_grid, crowded_analysis_grid, crowded_powers,
+		kGuitarMinMidi, kGuitarMaxMidi);
+	runner.expect(chord_label_has_exact_component(crowded_power.label, "Am"),
+		      std::string("compact crowded guitar power raw-profile display: expected Am alias, got `") +
+			      crowded_power.label + "`");
+
+	InstrumentState protected_plain = {};
+	std::snprintf(protected_plain.label, sizeof(protected_plain.label),
+		      "D=Cm=Csus2=C#pow=D7=Dmaj7");
+	protected_plain.confidence = 0.62f;
+	NoteGrid protected_display_grid = {};
+	set_pitch(protected_display_grid, 2, 1.00f);
+	set_pitch(protected_display_grid, 6, 0.62f);
+	set_pitch(protected_display_grid, 1, 0.35f);
+	set_pitch(protected_display_grid, 8, 0.24f);
+	NoteGrid protected_analysis_grid = protected_display_grid;
+	std::array<float, kNoteProbeCount> protected_crowded_powers = {};
+	set_probe_level(protected_crowded_powers, 49, 0.45f);
+	set_probe_level(protected_crowded_powers, 52, 0.030f);
+	set_probe_level(protected_crowded_powers, 56, 0.42f);
+
+	append_compact_guitar_power_raw_profile_aliases_to_display(
+		protected_plain, protected_display_grid, protected_analysis_grid,
+		protected_crowded_powers, kGuitarMinMidi, kGuitarMaxMidi);
+	runner.expect(!chord_label_has_exact_component(protected_plain.label, "C#m"),
+		      std::string("compact crowded guitar power raw-profile display: expected supported D protected, got `") +
+			      protected_plain.label + "`");
 }
 
 void check_same_pitch_guitar_bass_shadow_uses_any_matching_debug(Runner &runner)
