@@ -228,6 +228,39 @@ def main() -> int:
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
         )
+        regex_dumped = subprocess.run(
+            [
+                sys.executable,
+                str(SCRIPT),
+                str(path),
+                "--dump-rows",
+                "--recording-regex",
+                "rec[23]",
+                "--dump-limit",
+                "2",
+            ],
+            cwd=ROOT,
+            check=True,
+            text=True,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+        )
+        regex_detail = subprocess.run(
+            [
+                sys.executable,
+                str(SCRIPT),
+                str(path),
+                "--recording-regex",
+                "rec[23]",
+                "--recording-limit",
+                "1",
+            ],
+            cwd=ROOT,
+            check=True,
+            text=True,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+        )
         false_bucket = subprocess.run(
             [
                 sys.executable,
@@ -271,6 +304,13 @@ def main() -> int:
     assert dumped.stdout.startswith("recording_id\tstatus\texpected_chords\t")
     assert "\nrec2\tchord_miss\tG\tmaj\tmaj\tG\tG\tmaj\tno_display_label\t0\t0\t0" in dumped.stdout
     assert "\nrec1\t" not in dumped.stdout
+    assert regex_dumped.stdout.startswith("recording_id\tstatus\texpected_chords\t")
+    assert "\nrec2\t" in regex_dumped.stdout
+    assert "\nrec3\t" in regex_dumped.stdout
+    assert "\nrec1\t" not in regex_dumped.stdout
+    assert "recording-regex: showing 1/2 matching recordings" in regex_detail.stdout
+    assert "recording rec2: status=chord_miss expected=G" in regex_detail.stdout
+    assert "recording rec3:" not in regex_detail.stdout
     assert "single_note_false_chord:any:any rows=1 recordings=1" in false_bucket.stdout
     assert "expected_label                  Fm=1" in false_bucket.stdout
     assert "expected_root                   F=1" in false_bucket.stdout

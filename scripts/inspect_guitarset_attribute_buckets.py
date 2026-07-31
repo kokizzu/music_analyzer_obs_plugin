@@ -694,11 +694,39 @@ def print_recording(rows: list[dict[str, str]], recording_id: str) -> None:
         )
 
 
+def recording_matches(
+    row: dict[str, str],
+    recording_ids: set[str],
+    recording_patterns: list[re.Pattern[str]],
+) -> bool:
+    if not recording_ids and not recording_patterns:
+        return True
+    recording_id = row.get("recording_id", "")
+    return recording_id in recording_ids or any(pattern.search(recording_id) for pattern in recording_patterns)
+
+
+def matching_recording_ids(
+    rows: list[dict[str, str]],
+    recording_ids: list[str],
+    recording_patterns: list[re.Pattern[str]],
+) -> list[str]:
+    explicit = set(recording_ids)
+    return sorted(
+        {
+            row.get("recording_id", "")
+            for row in rows
+            if row.get("recording_id", "")
+            and recording_matches(row, explicit, recording_patterns)
+        }
+    )
+
+
 def dump_rows(
     rows: list[dict[str, str]],
     *,
     buckets: list[tuple[str, str, str]],
     recording_ids: list[str],
+    recording_patterns: list[re.Pattern[str]],
     misses_only: bool,
     limit: int,
 ) -> None:
@@ -711,7 +739,7 @@ def dump_rows(
             continue
         if bucket_filter and not any(bucket_matches(row, bucket) for bucket in bucket_filter):
             continue
-        if recording_filter and row.get("recording_id", "") not in recording_filter:
+        if not recording_matches(row, recording_filter, recording_patterns):
             continue
         print("\t".join(row.get(field, "") for field in ROW_DUMP_FIELDS))
         printed += 1
@@ -734,6 +762,18 @@ def main() -> int:
         action="append",
         default=[],
         help="print detailed derived attributes for this recording id; repeatable",
+    )
+    parser.add_argument(
+        "--recording-regex",
+        action="append",
+        default=[],
+        help="print or dump rows whose recording id matches this regular expression; repeatable",
+    )
+    parser.add_argument(
+        "--recording-limit",
+        type=int,
+        default=20,
+        help="maximum detailed recordings to print for --recording-regex; 0 means all",
     )
     parser.add_argument("--examples", type=int, default=12)
     parser.add_argument(
@@ -761,11 +801,16 @@ def main() -> int:
 
     rows = derive_rows(load_rows(pathlib.Path(args.path)))
     explicit_buckets = [parse_bucket_spec(spec) for spec in args.bucket]
+    try:
+        recording_patterns = [re.compile(pattern) for pattern in args.recording_regex]
+    except re.error as exc:
+        raise SystemExit(f"invalid --recording-regex: {exc}") from exc
     if args.dump_rows:
         dump_rows(
             rows,
             buckets=explicit_buckets,
             recording_ids=args.recording_id,
+            recording_patterns=recording_patterns,
             misses_only=args.misses_only,
             limit=max(0, args.dump_limit),
         )
@@ -773,7 +818,7 @@ def main() -> int:
 
     if explicit_buckets:
         buckets = explicit_buckets
-    elif args.recording_id:
+    elif args.recording_id or recording_patterns:
         buckets = []
     else:
         buckets = top_bucket_keys(rows, args.top_misses, include_comparisons=not args.misses_only)
@@ -787,6 +832,19 @@ def main() -> int:
         )
     for recording_id in args.recording_id:
         print_recording(rows, recording_id)
+    if recording_patterns:
+        matched = [
+            recording_id
+            for recording_id in matching_recording_ids(rows, [], recording_patterns)
+            if recording_id not in set(args.recording_id)
+        ]
+        limit = max(0, args.recording_limit)
+        shown = matched if limit == 0 else matched[:limit]
+        if len(shown) < len(matched):
+            print()
+            print(f"recording-regex: showing {len(shown)}/{len(matched)} matching recordings")
+        for recording_id in shown:
+            print_recording(rows, recording_id)
     return 0
 
 
