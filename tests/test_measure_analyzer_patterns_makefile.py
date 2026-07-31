@@ -1955,12 +1955,18 @@ def main() -> int:
     assert "scripts/evaluate_real_note_display_shadow.py" in shadow_recipe, (
         "display shadow target must use the dedicated evaluator"
     )
-    assert "$(or $(DISPLAY_SHADOW_ARGS),--summary-only)" in shadow_recipe, (
+    assert '$(or $(DISPLAY_SHADOW_ARGS),--summary-only --jobs "$(DISPLAY_SHADOW_JOBS)")' in shadow_recipe, (
         "display shadow target should default to concise output"
+    )
+    assert '--jobs "$(DISPLAY_SHADOW_JOBS)"' in shadow_recipe, (
+        "display shadow target should pass the configured worker count"
     )
     all_shadow_recipe = target_recipe(makefile, "evaluate-real-note-display-shadow-all")
     assert "--shadow-row all --target-row all --compact-routes --threshold-search" in all_shadow_recipe, (
         "all-route display shadow mining should default to compact threshold summaries"
+    )
+    assert '--jobs "$(DISPLAY_SHADOW_JOBS)"' in all_shadow_recipe, (
+        "all-route display shadow mining should run compact route summaries in parallel"
     )
 
     row_confusion_recipe = target_recipe(makefile, "find-real-note-row-confusion-patterns")
@@ -2096,6 +2102,7 @@ def main() -> int:
         "REAL_NOTE_RULE_CONDITIONS",
         "REAL_NOTE_RULE_GROUP_BY",
         "REAL_NOTE_RUNTIME_ROW_CONFUSION_EXCLUDES",
+        "DISPLAY_SHADOW_JOBS",
         "MEASURE_GUITAR_PATTERN_ARGS",
         "MEASURE_DRUM_PATTERN_ARGS",
         "MEASURE_DRUM_FULL_PATTERN_ARGS",

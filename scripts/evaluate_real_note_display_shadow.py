@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import argparse
 import collections
+import concurrent.futures
 import csv
 import pathlib
 import re
@@ -841,6 +842,55 @@ def print_compact_route_summary(
         print(line)
 
 
+def compact_route_summary(payload: tuple[object, ...]) -> dict[str, object]:
+    (
+        route,
+        records,
+        threshold_search,
+        shadow_score_thresholds,
+        score_ratios,
+        level_ratios,
+        target_level_thresholds,
+        max_protected,
+        min_threshold_extra_hits,
+        min_pitch_confidence,
+        min_periodicity,
+        max_fit_error,
+        max_noise,
+        owner_mode,
+    ) = payload
+    route_text = str(route)
+    route_records = list(records)
+    extras = [record for record in route_records if record["protected"] == "0"]
+    protected = [record for record in route_records if record["protected"] == "1"]
+    matches: list[ThresholdMatch] = []
+    if bool(threshold_search):
+        matches = threshold_search_matches(
+            route_records,
+            list(shadow_score_thresholds),
+            list(score_ratios),
+            list(level_ratios),
+            list(target_level_thresholds),
+            int(max_protected),
+            int(min_threshold_extra_hits),
+            min_pitch_confidence,
+            min_periodicity,
+            max_fit_error,
+            max_noise,
+            str(owner_mode),
+        )
+    return {
+        "route": route_text,
+        "extras_total": len(extras),
+        "extras_samples": len({record.get("sample_id", "") for record in extras}),
+        "protected_total": len(protected),
+        "protected_samples": len({record.get("sample_id", "") for record in protected}),
+        "safe_simulation": best_safe_simulation(route_records),
+        "best_threshold": matches[0] if matches else None,
+        "threshold_searched": bool(threshold_search),
+    }
+
+
 def print_group(title: str, records: list[dict[str, str]], examples: int) -> None:
     print(f"\n{title} rows={len(records)} samples={len({r.get('sample_id', '') for r in records})}")
     if not records:
@@ -975,6 +1025,12 @@ def main() -> int:
         default="any",
         help="optional debug-owner requirement for threshold-search matches",
     )
+    parser.add_argument(
+        "--jobs",
+        type=int,
+        default=1,
+        help="parallel route workers for --compact-routes output",
+    )
     args = parser.parse_args()
 
     rows = load_rows(pathlib.Path(args.path))
@@ -994,6 +1050,7 @@ def main() -> int:
     threshold_opportunities: list[tuple[str, int, int, ThresholdMatch]] = []
     threshold_route_count = 0
     route_summaries: list[dict[str, object]] = []
+    compact_route_tasks: list[tuple[object, ...]] = []
     for shadow_row in shadow_rows:
         records_by_target: dict[str, list[dict[str, str]]] = collections.defaultdict(list)
         for (_sample_id, _buffer), group_rows in grouped.items():
@@ -1022,6 +1079,26 @@ def main() -> int:
             extras = [record for record in records if record["protected"] == "0"]
             protected = [record for record in records if record["protected"] == "1"]
             route = f"{shadow_row}->same-pitch {target_row}"
+            if args.compact_routes:
+                compact_route_tasks.append(
+                    (
+                        route,
+                        records,
+                        args.threshold_search,
+                        args.shadow_score_thresholds,
+                        args.score_ratios,
+                        args.level_ratios,
+                        args.target_level_thresholds,
+                        args.max_protected,
+                        args.min_threshold_extra_hits,
+                        args.min_pitch_confidence,
+                        args.min_periodicity,
+                        args.max_fit_error,
+                        args.max_noise,
+                        args.threshold_owner_mode,
+                    )
+                )
+                continue
             if not args.compact_routes:
                 if args.summary_only:
                     print_group_summary(f"{route} extras", extras)
@@ -1068,20 +1145,12 @@ def main() -> int:
                         args.max_noise,
                         args.threshold_owner_mode,
                     )
-            if args.compact_routes:
-                route_summaries.append(
-                    {
-                        "route": route,
-                        "extras_total": len(extras),
-                        "extras_samples": len({record.get("sample_id", "") for record in extras}),
-                        "protected_total": len(protected),
-                        "protected_samples": len({record.get("sample_id", "") for record in protected}),
-                        "safe_simulation": best_safe_simulation(records),
-                        "best_threshold": matches[0] if matches else None,
-                        "threshold_searched": args.threshold_search,
-                    }
-                )
     if args.compact_routes:
+        if args.jobs > 1 and len(compact_route_tasks) > 1:
+            with concurrent.futures.ProcessPoolExecutor(max_workers=args.jobs) as executor:
+                route_summaries = list(executor.map(compact_route_summary, compact_route_tasks))
+        else:
+            route_summaries = [compact_route_summary(task) for task in compact_route_tasks]
         print_compact_route_summary(
             route_summaries,
             args.threshold_search,

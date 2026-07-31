@@ -746,6 +746,38 @@ def main() -> int:
             text=True,
             stdout=subprocess.PIPE,
         )
+        parallel_compact_threshold_result = subprocess.run(
+            [
+                sys.executable,
+                str(ROOT / "scripts" / "evaluate_real_note_display_shadow.py"),
+                str(path),
+                "--shadow-row",
+                "all",
+                "--target-row",
+                "all",
+                "--min-shadow-level",
+                "0.10",
+                "--min-target-level",
+                "0.10",
+                "--compact-routes",
+                "--threshold-search",
+                "--max-protected",
+                "0",
+                "--threshold-limit",
+                "3",
+                "--shadow-score-thresholds",
+                "0.18,0.24",
+                "--score-ratios",
+                "0.50",
+                "--level-ratios",
+                "0.90",
+                "--jobs",
+                "2",
+            ],
+            check=True,
+            text=True,
+            stdout=subprocess.PIPE,
+        )
         measured_runtime_result = subprocess.run(
             [
                 sys.executable,
@@ -904,6 +936,9 @@ def main() -> int:
         compact_threshold_output
     )
     assert "threshold search max_protected" not in compact_threshold_output, compact_threshold_output
+    assert parallel_compact_threshold_result.stdout == compact_threshold_output, (
+        parallel_compact_threshold_result.stdout
+    )
     measured_runtime_output = measured_runtime_result.stdout
     assert "guitar->same-pitch bass extras rows=4 samples=4" in measured_runtime_output, measured_runtime_output
     assert "runtime_guitar_bass_guarded" not in measured_runtime_output, measured_runtime_output
