@@ -1620,6 +1620,16 @@ def main() -> int:
     assert "scripts/build_sharded_tsv.sh" in guitar_attribute_recipe, (
         "guitar chord attribute exporter must publish through the locked sharded TSV helper"
     )
+    assert "EXTRA_COMPONENT_ARGS ?= --simulate-prune primary-equivalent" in makefile, (
+        "default guitar extra-component report must simulate candidate label-pruning policies"
+    )
+    assert "--simulate-prune primary-equivalent-observed-playable" in makefile, (
+        "guitar extra-component report must include observed-playable equivalent pruning"
+    )
+    guitar_extra_recipe = target_recipe(makefile, "$(MEASURE_ANALYZER_PATTERN_GUITAR_CHORD_EXTRA_REPORT)")
+    assert 'EXTRA_COMPONENT_ARGS="$(EXTRA_COMPONENT_ARGS)"' in guitar_extra_recipe, (
+        "guitar extra-component report must pass the default pruning simulation arguments"
+    )
 
     full_rows_recipe = target_recipe(makefile, "measure-analyzer-attribute-rows-full")
     assert "analyze-drum-rule-grid" in full_rows_recipe, "full row target must own full debug drum logs"
