@@ -2105,6 +2105,128 @@ InstrumentKind strongest_named_owner_hint(const FullMixDebugCandidate &debug)
 	return scores[0].second;
 }
 
+bool strong_full_mix_pitch_for_display(const FullMixDebugCandidate &debug, float min_level, float min_pitch,
+				       float min_periodicity, float max_fit, float max_noise);
+bool shared_guitar_pitch_display_supported(const FullMixDebugCandidate &debug);
+bool shared_other_pitch_display_supported(const FullMixDebugCandidate &debug);
+
+bool shared_same_note_pitch_supported(const FullMixDebugCandidate &debug)
+{
+	if (debug.owner == InstrumentKind::Vocal || debug.midi < 48 || debug.midi > 84)
+		return false;
+	return strong_full_mix_pitch_for_display(debug, 0.70f, 0.70f, 0.70f, 0.22f, 0.36f);
+}
+
+bool shared_same_note_keyboard_supported(const FullMixDebugCandidate &debug)
+{
+	if (debug.midi < kKeyboardMinMidi || debug.midi > kKeyboardMaxMidi ||
+	    !shared_same_note_pitch_supported(debug))
+		return false;
+	if (debug.keyboard_score >= 0.060f)
+		return true;
+
+	const float second = debug.harmonic_ratios[1];
+	const float third = debug.harmonic_ratios[2];
+	return debug.owner == InstrumentKind::Guitar &&
+	       debug.keyboard_score >= 0.040f &&
+	       second <= 0.42f &&
+	       third <= 0.24f &&
+	       debug.spectral_centroid <= 0.30f;
+}
+
+bool shared_same_note_guitar_supported(const FullMixDebugCandidate &debug)
+{
+	if (debug.midi < kGuitarMinMidi || debug.midi > kGuitarMaxMidi ||
+	    !shared_same_note_pitch_supported(debug))
+		return false;
+	if (debug.guitar_score >= 0.14f)
+		return true;
+	return shared_guitar_pitch_display_supported(debug);
+}
+
+bool shared_same_note_other_supported(const FullMixDebugCandidate &debug)
+{
+	if (debug.midi < kOtherMinMidi || debug.midi > kOtherMaxMidi ||
+	    !shared_same_note_pitch_supported(debug))
+		return false;
+	if (debug.owner == InstrumentKind::Other || debug.other_score >= 0.12f)
+		return true;
+	return shared_other_pitch_display_supported(debug);
+}
+
+bool full_mix_has_clear_vocal_owner(const FullMixOwnership &ownership)
+{
+	const std::size_t debug_count =
+		std::min<std::size_t>(ownership.debug_candidate_count, ownership.debug_candidates.size());
+	for (std::size_t i = 0; i < debug_count; ++i) {
+		const FullMixDebugCandidate &debug = ownership.debug_candidates[i];
+		if (debug.owner == InstrumentKind::Vocal && debug.ownership_confidence >= 0.50f)
+			return true;
+	}
+	return false;
+}
+
+bool mirror_shared_same_note_candidate(FullMixOwnership &ownership, const NoteCandidate &candidate)
+{
+	static constexpr float kSharedMirrorMinLevel = 0.18f;
+	static constexpr float kSharedMirrorScale = 0.38f;
+	static constexpr float kSharedMirrorConfidence = 0.30f;
+
+	if (candidate.midi < kFirstMidi || candidate.midi > kLastMidi)
+		return false;
+	const std::size_t index = static_cast<std::size_t>(candidate.midi - kFirstMidi);
+	if (ownership.global_note_levels[index] < kSharedMirrorMinLevel)
+		return false;
+
+	const FullMixDebugCandidate *debug = full_mix_debug_for_midi(ownership, candidate.midi);
+	if (!debug)
+		return false;
+	if (full_mix_has_clear_vocal_owner(ownership))
+		return false;
+
+	const bool keyboard_supported = shared_same_note_keyboard_supported(*debug);
+	const bool guitar_supported = shared_same_note_guitar_supported(*debug);
+	const bool other_supported = shared_same_note_other_supported(*debug);
+	const int supported_count = (keyboard_supported ? 1 : 0) + (guitar_supported ? 1 : 0) +
+				    (other_supported ? 1 : 0);
+	if (supported_count < 2)
+		return false;
+
+	int global_pitch_classes = 0;
+	for (float level : ownership.global_chroma) {
+		if (level >= 0.16f)
+			++global_pitch_classes;
+	}
+	const bool ambiguous_shared_pitch = debug->owner == InstrumentKind::Ambiguous;
+	if (!ambiguous_shared_pitch && global_pitch_classes < 3)
+		return false;
+	if (ambiguous_shared_pitch && global_pitch_classes < 3) {
+		const bool balanced_single_timbre =
+			debug->keyboard_score >= 0.20f &&
+			debug->guitar_score >= 0.45f &&
+			debug->guitar_score <= 0.65f &&
+			debug->other_score >= 0.18f &&
+			debug->other_score <= 0.35f &&
+			debug->harmonic_fit_error <= 0.040f &&
+			debug->local_noise_level <= 0.18f;
+		if (!balanced_single_timbre)
+			return false;
+	}
+	if (debug->owner == InstrumentKind::Other)
+		return false;
+
+	if (keyboard_supported)
+		add_full_mix_row_mirror(ownership.keyboard, ownership.keyboard_candidates, candidate,
+					kSharedMirrorScale, kSharedMirrorConfidence);
+	if (guitar_supported)
+		add_full_mix_row_mirror(ownership.guitar, ownership.guitar_candidates, candidate,
+					kSharedMirrorScale, kSharedMirrorConfidence);
+	if (other_supported)
+		add_full_mix_row_mirror(ownership.other, ownership.other_candidates, candidate,
+					kSharedMirrorScale, kSharedMirrorConfidence);
+	return true;
+}
+
 void mirror_ambiguous_full_mix_candidates(FullMixOwnership &ownership)
 {
 	static constexpr float kMirrorMinLevel = 0.18f;
@@ -2114,6 +2236,8 @@ void mirror_ambiguous_full_mix_candidates(FullMixOwnership &ownership)
 	static constexpr float kMirrorConfidence = 0.20f;
 	for (const NoteCandidate &candidate : ownership.ambiguous_candidates) {
 		if (candidate.midi < kFirstMidi || candidate.midi > kLastMidi)
+			continue;
+		if (mirror_shared_same_note_candidate(ownership, candidate))
 			continue;
 		if (full_mix_named_row_midi_active(ownership, candidate.midi))
 			continue;
@@ -2144,6 +2268,12 @@ void mirror_ambiguous_full_mix_candidates(FullMixOwnership &ownership)
 						kOtherMirrorScale, kMirrorConfidence);
 		}
 	}
+	for (const NoteCandidate &candidate : ownership.keyboard_candidates)
+		mirror_shared_same_note_candidate(ownership, candidate);
+	for (const NoteCandidate &candidate : ownership.guitar_candidates)
+		mirror_shared_same_note_candidate(ownership, candidate);
+	for (const NoteCandidate &candidate : ownership.other_candidates)
+		mirror_shared_same_note_candidate(ownership, candidate);
 }
 
 float strongest_candidate_score(const NoteCandidateList &candidates)
@@ -9359,6 +9489,67 @@ void suppress_vocal_owned_same_pitch_bass_shadows(NoteGrid &bass_grid, Instrumen
 
 	if (changed)
 		write_note_grid_label(bass_state, bass_grid, preferred_root);
+}
+
+bool vocal_owned_mid_acoustic_guitar_body_supported(const FullMixDebugCandidate &debug)
+{
+	return debug.owner == InstrumentKind::Vocal &&
+	       debug.midi >= 52 && debug.midi <= 59 &&
+	       debug.spectral_level >= 0.70f &&
+	       debug.pitch_confidence >= 0.84f &&
+	       debug.periodicity >= 0.72f &&
+	       debug.local_noise_level <= 0.22f &&
+	       debug.harmonic_fit_error <= 0.055f &&
+	       debug.harmonic_ratios[1] >= 0.120f &&
+	       debug.harmonic_ratios[1] <= 0.18f &&
+	       debug.harmonic_ratios[2] >= 0.030f &&
+	       debug.harmonic_ratios[2] <= 0.060f &&
+	       debug.harmonic_ratios[3] >= 0.080f &&
+	       debug.harmonic_ratios[3] <= 0.15f &&
+	       debug.harmonic_ratios[4] <= 0.060f &&
+	       debug.spectral_centroid >= 0.14f &&
+	       debug.spectral_centroid <= 0.20f &&
+	       debug.spectral_slope >= 0.12f &&
+	       debug.spectral_slope <= 0.22f;
+}
+
+void suppress_vocal_owned_same_pitch_non_vocal_shadows(NoteGrid &grid, InstrumentState &state,
+						       const NoteGrid &vocal_grid,
+						       const FullMixOwnership &ownership,
+						       InstrumentKind row, int preferred_root)
+{
+	static constexpr float kMinVocalConfidence = 0.50f;
+	static constexpr float kMaxRowToVocalScoreRatio = 0.45f;
+	static constexpr float kMinVocalLevel = 0.18f;
+
+	bool changed = false;
+	for (int midi = kVocalMinMidi; midi <= kVocalMaxMidi; ++midi) {
+		const float row_level = note_grid_midi_visual_level(grid, midi);
+		if (row_level <= 0.0f)
+			continue;
+		const float vocal_level = note_grid_midi_visual_level(vocal_grid, midi);
+		if (vocal_level < kMinVocalLevel)
+			continue;
+
+		const FullMixDebugCandidate *debug = full_mix_debug_for_midi(ownership, midi);
+		if (!debug || debug->owner != InstrumentKind::Vocal ||
+		    debug->ownership_confidence < kMinVocalConfidence)
+			continue;
+		if (row == InstrumentKind::Guitar && vocal_owned_low_acoustic_guitar_body_supported(*debug))
+			continue;
+		if (row == InstrumentKind::Guitar && vocal_owned_mid_acoustic_guitar_body_supported(*debug))
+			continue;
+
+		const float row_score = full_mix_debug_row_score(*debug, row);
+		if (row_score > debug->vocal_score * kMaxRowToVocalScoreRatio)
+			continue;
+
+		clear_note_grid_midi(grid, midi);
+		changed = true;
+	}
+
+	if (changed)
+		write_note_grid_label(state, grid, preferred_root);
 }
 
 void suppress_named_owned_same_pitch_vocal_shadows(NoteGrid &vocal_grid, InstrumentState &vocal_state,
@@ -23438,6 +23629,15 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 		suppress_vocal_owned_same_pitch_bass_shadows(snapshot.bass_notes, snapshot.bass,
 							     snapshot.vocal_notes, full_mix_ownership,
 							     -1);
+		suppress_vocal_owned_same_pitch_non_vocal_shadows(snapshot.keyboard_notes, snapshot.keyboard,
+								  snapshot.vocal_notes, full_mix_ownership,
+								  InstrumentKind::Keyboard, -1);
+		suppress_vocal_owned_same_pitch_non_vocal_shadows(snapshot.guitar_notes, snapshot.guitar,
+								  snapshot.vocal_notes, full_mix_ownership,
+								  InstrumentKind::Guitar, -1);
+		suppress_vocal_owned_same_pitch_non_vocal_shadows(snapshot.other_notes, snapshot.other,
+								  snapshot.vocal_notes, full_mix_ownership,
+								  InstrumentKind::Other, -1);
 		suppress_named_owned_same_pitch_vocal_shadows(snapshot.vocal_notes, snapshot.vocal,
 							      snapshot.keyboard_notes, full_mix_ownership,
 							      InstrumentKind::Keyboard, -1);

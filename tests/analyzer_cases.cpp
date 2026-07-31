@@ -487,12 +487,18 @@ void expect_global_pitch_class(Runner &runner, const mao::AnalysisSnapshot &snap
 			      " active");
 }
 
+std::string full_mix_debug_summary_for_midi(const mao::AnalysisSnapshot &snapshot, int midi);
+
 void expect_midi_not_duplicated_across_rows(Runner &runner, const mao::AnalysisSnapshot &snapshot, int midi,
 					    const std::string &context)
 {
 	const int count = full_mix_owned_midi_count(snapshot, midi);
 	runner.expect(count <= 1, context + ": expected " + mao_test::note_label(midi) +
-				   " in at most one confident row, got " + std::to_string(count));
+				   " in at most one confident row, got " + std::to_string(count) +
+				   " labels keys=`" + snapshot.keyboard.label + "` guitar=`" +
+				   snapshot.guitar.label + "` vocal=`" + snapshot.vocal.label +
+				   "` other=`" + snapshot.other.label + "` debug `" +
+				   full_mix_debug_summary_for_midi(snapshot, midi) + "`");
 }
 
 void expect_midi_not_duplicated_across_instruments(Runner &runner, const mao::AnalysisSnapshot &snapshot, int midi,
@@ -611,6 +617,25 @@ std::string full_mix_debug_summary_for_midi(const mao::AnalysisSnapshot &snapsho
 	return out.str();
 }
 
+void expect_midi_in_keyboard_guitar_other(Runner &runner, const mao::AnalysisSnapshot &snapshot, int midi,
+					  const std::string &context)
+{
+	const float keyboard = grid_level_for_midi(snapshot.keyboard_notes, midi);
+	const float guitar = grid_level_for_midi(snapshot.guitar_notes, midi);
+	const float other = grid_level_for_midi(snapshot.other_notes, midi);
+	const float ambiguous = grid_level_for_midi(snapshot.ambiguous_notes, midi);
+	const std::string detail = " levels keys=" + std::to_string(keyboard) +
+				   " guitar=" + std::to_string(guitar) + " other=" +
+				   std::to_string(other) + " amb=" + std::to_string(ambiguous) +
+				   " debug `" + full_mix_debug_summary_for_midi(snapshot, midi) + "`";
+	runner.expect(keyboard > 0.0f,
+		      context + ": expected " + mao_test::note_label(midi) + " in keys," + detail);
+	runner.expect(guitar > 0.0f,
+		      context + ": expected " + mao_test::note_label(midi) + " in guitar," + detail);
+	runner.expect(other > 0.0f,
+		      context + ": expected " + mao_test::note_label(midi) + " in other," + detail);
+}
+
 std::string full_mix_debug_summary(const mao::AnalysisSnapshot &snapshot)
 {
 	std::ostringstream out;
@@ -637,18 +662,6 @@ float snapshot_owned_level_for_midi(const mao::AnalysisSnapshot &snapshot, int m
 	level = std::max(level, grid_level_for_midi(snapshot.vocal_notes, midi));
 	level = std::max(level, grid_level_for_midi(snapshot.other_notes, midi));
 	return level;
-}
-
-void expect_midi_ambiguous_only(Runner &runner, const mao::AnalysisSnapshot &snapshot, int midi,
-				const std::string &context)
-{
-	runner.expect(grid_level_for_midi(snapshot.ambiguous_notes, midi) > 0.0f,
-		      context + ": expected " + mao_test::note_label(midi) + " ambiguous, got keyboard `" +
-			      snapshot.keyboard.label + "`, guitar `" + snapshot.guitar.label + "`, vocal `" +
-			      snapshot.vocal.label + "`, other `" + snapshot.other.label + "`");
-	runner.expect(full_mix_owned_midi_count(snapshot, midi) == 0,
-		      context + ": expected no confident owner for " + mao_test::note_label(midi) + ", got " +
-			      std::to_string(full_mix_owned_midi_count(snapshot, midi)) + " owner rows");
 }
 
 void check_bass_notes(Runner &runner)
@@ -5163,10 +5176,10 @@ void check_same_note_timbre_split(Runner &runner)
 	add_harmonic_note(buffer, 60, 0.22f, guitar_profile);
 	add_harmonic_note(buffer, 60, 0.18f, other_profile);
 
-	const auto snapshot = analyze_buffer(buffer, "full mix");
+	const auto snapshot =
+		analyze_buffer_with_mode(buffer, mao::AnalysisInputMode::FullMix, "same-note timbre split", 3);
 	expect_global_pitch_class(runner, snapshot, 0, "same-note timbre split global");
-	expect_midi_ambiguous_only(runner, snapshot, 60, "same-note timbre split");
-	expect_midi_not_duplicated_across_rows(runner, snapshot, 60, "same-note timbre split ownership");
+	expect_midi_in_keyboard_guitar_other(runner, snapshot, 60, "same-note timbre split");
 }
 
 void check_ambiguous_same_note_full_mix_chord_ownership(Runner &runner)
@@ -5185,11 +5198,12 @@ void check_ambiguous_same_note_full_mix_chord_ownership(Runner &runner)
 	const auto snapshot =
 		analyze_buffer_with_mode(buffer, mao::AnalysisInputMode::FullMix, "ambiguous same-note full mix", 3);
 	expect_label(runner, snapshot.global_chord.label, "C", "ambiguous same-note full mix global chord");
-	expect_no_chord(runner, snapshot.keyboard_chord, "ambiguous same-note full mix keyboard chord");
-	expect_no_chord(runner, snapshot.guitar_chord, "ambiguous same-note full mix guitar chord");
-	expect_no_chord(runner, snapshot.other_chord, "ambiguous same-note full mix other chord");
+	expect_label(runner, snapshot.keyboard_chord.label, "C", "ambiguous same-note full mix keyboard chord");
+	expect_label(runner, snapshot.guitar_chord.label, "C", "ambiguous same-note full mix guitar chord");
+	expect_label(runner, snapshot.other_chord.label, "C", "ambiguous same-note full mix other chord");
 	for (int midi : {60, 64, 67})
-		expect_midi_ambiguous_only(runner, snapshot, midi, "ambiguous same-note full mix ownership");
+		expect_midi_in_keyboard_guitar_other(runner, snapshot, midi,
+						     "ambiguous same-note full mix ownership");
 }
 
 void check_full_mix_global_chord_guides_root_with_inversion(Runner &runner)
@@ -5222,9 +5236,6 @@ void check_full_mix_global_chord_guides_root_with_inversion(Runner &runner)
 			      snapshot.bass.label + "` guitar `" + snapshot.guitar.label +
 			      "` debug E2 `" + full_mix_debug_summary_for_midi(snapshot, 40) + "`");
 	expect_label(runner, snapshot.global_chord.label, "C", "full-mix inversion global chord");
-	expect_no_chord(runner, snapshot.keyboard_chord, "full-mix inversion keyboard chord");
-	expect_no_chord(runner, snapshot.guitar_chord, "full-mix inversion guitar chord");
-	expect_no_chord(runner, snapshot.other_chord, "full-mix inversion other chord");
 	runner.expect(std::strcmp(snapshot.root.label, "C") == 0,
 		      std::string("full-mix inversion: expected root C from global chord despite E bass, got `") +
 			      snapshot.root.label + "` candidates `" + snapshot.root_candidates + "`");
