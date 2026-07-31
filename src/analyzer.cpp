@@ -2691,6 +2691,78 @@ bool vocal_owned_sparse_electronic_guitar_body_supported(const FullMixDebugCandi
 	       fifth <= 0.001f;
 }
 
+bool vocal_owned_mid_acoustic_guitar_body_supported(const FullMixDebugCandidate &debug)
+{
+	const float second = debug.harmonic_ratios[1];
+	const float third = debug.harmonic_ratios[2];
+	const float fourth = debug.harmonic_ratios[3];
+	const float fifth = debug.harmonic_ratios[4];
+	const bool measured_d4_vocal_body =
+		debug.owner == InstrumentKind::Vocal &&
+		debug.midi == 62 &&
+		debug.vocal_score >= 0.79f &&
+		debug.vocal_score <= 0.81f &&
+		debug.keyboard_score >= 0.19f &&
+		debug.keyboard_score <= 0.205f &&
+		debug.guitar_score <= 0.010f &&
+		debug.other_score <= 0.010f;
+	const bool measured_d4_keyboard_body =
+		debug.owner == InstrumentKind::Keyboard &&
+		debug.midi == 62 &&
+		debug.keyboard_score >= 0.99f &&
+		debug.vocal_score <= 0.010f &&
+		debug.guitar_score <= 0.010f &&
+		debug.other_score <= 0.010f;
+	const bool measured_d4_acoustic_body =
+		(measured_d4_vocal_body || measured_d4_keyboard_body) &&
+		debug.spectral_level >= 0.90f &&
+		debug.pitch_confidence >= 0.918f &&
+		debug.pitch_confidence <= 0.943f &&
+		debug.periodicity >= 0.76f &&
+		debug.periodicity <= 0.80f &&
+		debug.harmonic_fit_error >= 0.023f &&
+		debug.harmonic_fit_error <= 0.070f &&
+		debug.harmonicity >= 0.17f &&
+		debug.harmonicity <= 0.37f &&
+		debug.local_noise_level >= 0.025f &&
+		debug.local_noise_level <= 0.075f &&
+		debug.spectral_centroid >= 0.080f &&
+		debug.spectral_centroid <= 0.19f &&
+		debug.spectral_slope >= 0.070f &&
+		debug.spectral_slope <= 0.20f &&
+		debug.adjacent_lower_ratio >= 0.12f &&
+		debug.adjacent_upper_ratio <= 0.18f &&
+		debug.third_octave_ratio <= 0.020f &&
+		second >= 0.117f &&
+		second <= 0.16f &&
+		third >= 0.014f &&
+		third <= 0.033f &&
+		fourth >= 0.065f &&
+		fourth <= 0.19f &&
+		fifth <= 0.003f;
+	if (measured_d4_acoustic_body)
+		return true;
+
+	return debug.owner == InstrumentKind::Vocal &&
+	       debug.midi >= 52 && debug.midi <= 59 &&
+	       debug.spectral_level >= 0.70f &&
+	       debug.pitch_confidence >= 0.84f &&
+	       debug.periodicity >= 0.72f &&
+	       debug.local_noise_level <= 0.22f &&
+	       debug.harmonic_fit_error <= 0.055f &&
+	       second >= 0.120f &&
+	       second <= 0.18f &&
+	       third >= 0.030f &&
+	       third <= 0.060f &&
+	       fourth >= 0.080f &&
+	       fourth <= 0.15f &&
+	       fifth <= 0.060f &&
+	       debug.spectral_centroid >= 0.14f &&
+	       debug.spectral_centroid <= 0.20f &&
+	       debug.spectral_slope >= 0.12f &&
+	       debug.spectral_slope <= 0.22f;
+}
+
 bool other_owned_low_acoustic_guitar_body_supported(const FullMixDebugCandidate &debug)
 {
 	if (debug.owner != InstrumentKind::Other)
@@ -6066,6 +6138,7 @@ bool full_mix_display_mirror_supported(FullMixDisplayRow row, const FullMixDebug
 		       vocal_owned_high_partial_acoustic_guitar_body_supported(debug) ||
 		       vocal_owned_upper_acoustic_guitar_body_supported(debug) ||
 		       vocal_owned_sparse_electronic_guitar_body_supported(debug) ||
+		       vocal_owned_mid_acoustic_guitar_body_supported(debug) ||
 		       vocal_owned_pure_high_note_body_supported(debug) ||
 		       ambiguous_high_guitar_alias ||
 		       measured_guitar_octave_alias_supported(debug);
@@ -10084,28 +10157,6 @@ void suppress_vocal_owned_same_pitch_bass_shadows(NoteGrid &bass_grid, Instrumen
 
 	if (changed)
 		write_note_grid_label(bass_state, bass_grid, preferred_root);
-}
-
-bool vocal_owned_mid_acoustic_guitar_body_supported(const FullMixDebugCandidate &debug)
-{
-	return debug.owner == InstrumentKind::Vocal &&
-	       debug.midi >= 52 && debug.midi <= 59 &&
-	       debug.spectral_level >= 0.70f &&
-	       debug.pitch_confidence >= 0.84f &&
-	       debug.periodicity >= 0.72f &&
-	       debug.local_noise_level <= 0.22f &&
-	       debug.harmonic_fit_error <= 0.055f &&
-	       debug.harmonic_ratios[1] >= 0.120f &&
-	       debug.harmonic_ratios[1] <= 0.18f &&
-	       debug.harmonic_ratios[2] >= 0.030f &&
-	       debug.harmonic_ratios[2] <= 0.060f &&
-	       debug.harmonic_ratios[3] >= 0.080f &&
-	       debug.harmonic_ratios[3] <= 0.15f &&
-	       debug.harmonic_ratios[4] <= 0.060f &&
-	       debug.spectral_centroid >= 0.14f &&
-	       debug.spectral_centroid <= 0.20f &&
-	       debug.spectral_slope >= 0.12f &&
-	       debug.spectral_slope <= 0.22f;
 }
 
 void suppress_vocal_owned_same_pitch_non_vocal_shadows(NoteGrid &grid, InstrumentState &state,
