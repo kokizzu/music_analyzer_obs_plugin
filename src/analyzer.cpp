@@ -2433,6 +2433,42 @@ bool noisy_other_owned_low_acoustic_guitar_supported(const FullMixDebugCandidate
 	       fifth >= 0.20f;
 }
 
+bool vocal_owned_low_acoustic_guitar_body_supported(const FullMixDebugCandidate &debug)
+{
+	if (debug.owner != InstrumentKind::Vocal)
+		return false;
+	if (debug.midi < 48 || debug.midi > 51)
+		return false;
+
+	const float second = debug.harmonic_ratios[1];
+	const float third = debug.harmonic_ratios[2];
+	const float fourth = debug.harmonic_ratios[3];
+	const float fifth = debug.harmonic_ratios[4];
+	return debug.vocal_score >= 0.72f &&
+	       debug.guitar_score >= 0.045f &&
+	       debug.guitar_score <= 0.12f &&
+	       debug.keyboard_score <= 0.22f &&
+	       debug.other_score <= 0.010f &&
+	       debug.spectral_level >= 0.78f &&
+	       debug.pitch_confidence >= 0.78f &&
+	       debug.periodicity >= 0.68f &&
+	       debug.harmonic_fit_error <= 0.065f &&
+	       debug.local_noise_level >= 0.16f &&
+	       debug.local_noise_level <= 0.32f &&
+	       debug.spectral_centroid >= 0.14f &&
+	       debug.spectral_centroid <= 0.23f &&
+	       debug.spectral_slope >= 0.11f &&
+	       debug.spectral_slope <= 0.26f &&
+	       second >= 0.10f &&
+	       second <= 0.17f &&
+	       third >= 0.030f &&
+	       third <= 0.075f &&
+	       fourth >= 0.075f &&
+	       fourth <= 0.17f &&
+	       fifth >= 0.035f &&
+	       fifth <= 0.095f;
+}
+
 bool other_owned_low_acoustic_guitar_body_supported(const FullMixDebugCandidate &debug)
 {
 	if (debug.owner != InstrumentKind::Other)
@@ -3865,6 +3901,36 @@ bool guitar_owned_measured_string_other_display_supported(const FullMixDebugCand
 	       measured_guitar_string_other_priority_supported(debug);
 }
 
+bool low_acoustic_string_other_display_supported(const FullMixDebugCandidate &debug)
+{
+	if (debug.owner != InstrumentKind::Guitar && debug.owner != InstrumentKind::Ambiguous)
+		return false;
+	if (debug.midi < 48 || debug.midi > 59)
+		return false;
+
+	const float second = debug.harmonic_ratios[1];
+	const float third = debug.harmonic_ratios[2];
+	const float fourth = debug.harmonic_ratios[3];
+	const float fifth = debug.harmonic_ratios[4];
+	return debug.other_score <= 0.010f &&
+	       debug.spectral_level >= 0.70f &&
+	       debug.pitch_confidence >= 0.70f &&
+	       debug.periodicity >= 0.68f &&
+	       debug.harmonic_fit_error <= 0.18f &&
+	       debug.local_noise_level >= 0.20f &&
+	       debug.local_noise_level <= 0.38f &&
+	       debug.spectral_centroid >= 0.14f &&
+	       debug.spectral_centroid <= 0.30f &&
+	       debug.spectral_slope >= 0.050f &&
+	       debug.spectral_slope <= 0.22f &&
+	       second >= 0.30f &&
+	       second <= 0.88f &&
+	       third >= 0.050f &&
+	       third <= 0.28f &&
+	       fourth <= 0.14f &&
+	       fifth <= 0.080f;
+}
+
 bool measured_vocal_synth_other_priority_supported(const FullMixDebugCandidate &debug)
 {
 	return debug.owner == InstrumentKind::Vocal &&
@@ -4185,6 +4251,7 @@ bool clean_owned_chord_context_for_row(const FullMixOwnership &ownership, const 
 		if (debug.owner == InstrumentKind::Guitar && count_owned_notes(ownership.guitar) >= 2 &&
 		    debug.guitar_score >= 0.70f && debug.vocal_score <= 0.02f &&
 		    !guitar_owned_measured_string_other_display_supported(debug) &&
+		    !low_acoustic_string_other_display_supported(debug) &&
 		    !guitar_owned_reed_other_display_supported(debug) &&
 		    !measured_guitar_synth_other_priority_supported(debug) &&
 		    !measured_guitar_synth_other_octave_supported(debug))
@@ -5296,6 +5363,7 @@ bool full_mix_display_mirror_supported(FullMixDisplayRow row, const FullMixDebug
 		       ambiguous_high_steel_guitar_body ||
 		       ambiguous_clean_jazz_guitar_body ||
 		       vocal_owned_muted_guitar_body ||
+		       vocal_owned_low_acoustic_guitar_body_supported(debug) ||
 		       ambiguous_high_guitar_alias ||
 		       measured_guitar_octave_alias_supported(debug);
 	}
@@ -5558,6 +5626,7 @@ bool full_mix_display_mirror_supported(FullMixDisplayRow row, const FullMixDebug
 			guitar_owned_low_contrabass_other ||
 			guitar_owned_high_string_ensemble_other ||
 			guitar_owned_high_violin_other ||
+			low_acoustic_string_other_display_supported(debug) ||
 			vocal_owned_pizzicato_string_other ||
 			vocal_owned_harp_string_other ||
 			vocal_owned_measured_pizzicato_string_other;
@@ -5860,6 +5929,7 @@ void add_full_mix_display_mirror(NoteCandidateList &candidates, const FullMixOwn
 	    (measured_keyboard_synth_other_priority_supported(debug) ||
 	     measured_low_brass_fundamental_other_supported(debug) ||
 	     guitar_owned_measured_string_other_display_supported(debug) ||
+	     low_acoustic_string_other_display_supported(debug) ||
 	     measured_vocal_synth_other_priority_supported(debug) ||
 	     measured_guitar_synth_other_priority_supported(debug) ||
 	     measured_vocal_synth_other_octave_supported(debug) ||
