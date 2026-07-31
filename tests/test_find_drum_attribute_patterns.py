@@ -121,7 +121,8 @@ def run_patterns(
     max_conditions: int = 3, route_name: str = "tom->kick", show_near_misses: int = 0,
     min_route_positive_samples: int = 0, min_route_positive_rows: int = 0,
     use_top_routes: bool = False, top_routes: int = 5, jobs: int = 1,
-    profile_fields: int = 0,
+    profile_fields: int = 0, max_new_active_samples: int | None = None,
+    max_primary_break_samples: int | None = None,
 ) -> str:
     command = [
         sys.executable,
@@ -150,6 +151,10 @@ def run_patterns(
         command.extend(["--show-near-misses", str(show_near_misses)])
     if profile_fields > 0:
         command.extend(["--profile-fields", str(profile_fields)])
+    if max_new_active_samples is not None:
+        command.extend(["--max-new-active-samples", str(max_new_active_samples)])
+    if max_primary_break_samples is not None:
+        command.extend(["--max-primary-break-samples", str(max_primary_break_samples)])
     if include_merged_rows:
         command.append("--include-merged-rows")
     completed = subprocess.run(
@@ -229,6 +234,27 @@ def main() -> int:
         tsv_profile_output = run_patterns(tsv_path, row_examples=0, profile_fields=3)
         tsv_output_one_condition = run_patterns(tsv_path, max_conditions=1)
         tsv_output_with_merged = run_patterns(tsv_path, include_merged_rows=True)
+
+        unsafe_side_effect_path = pathlib.Path(tmpdir) / "unsafe_side_effect.tsv"
+        unsafe_side_effect_path.write_text(
+            "\n".join(
+                [
+                    "\t".join(tsv_header()),
+                    tsv_row("tom/001.wav", "tom", "kick", kick_level=0.90, snare_level=0.10, tom_level=0.20),
+                    tsv_row("tom/002.wav", "tom", "kick", kick_level=0.90, snare_level=0.10, tom_level=0.20),
+                    tsv_row("snare/miss.wav", "snare", "kick", kick_level=0.90, snare_level=0.10, tom_level=0.20),
+                ]
+            )
+            + "\n",
+            encoding="utf-8",
+        )
+        unsafe_side_effect_output = run_patterns(
+            unsafe_side_effect_path,
+            row_examples=0,
+            show_near_misses=1,
+            max_new_active_samples=0,
+            max_primary_break_samples=0,
+        )
 
         tsv_path_2 = pathlib.Path(tmpdir) / "drum_second.tsv"
         tsv_path_2.write_text(
@@ -321,6 +347,11 @@ def main() -> int:
     assert "pos=0.59 [0.58..0.6]" in tsv_profile_output
     assert "category attribute profile:" in tsv_profile_output
     assert "body_shape=4 enrich=0.000 pos=2/2 protected=4/4" in tsv_profile_output
+    assert "route tom->kick positives=2 rows=2 protected_correct=0 rows=0" in unsafe_side_effect_output
+    assert "\n  --\n" in unsafe_side_effect_output
+    assert "nearest over-budget single-condition candidate rules:" in unsafe_side_effect_output
+    assert "new-active=1 rows=1" in unsafe_side_effect_output
+    assert "primary-break=1 rows=1" in unsafe_side_effect_output
     assert "+2 rows=2 -0 rows=0" in tsv_output
     assert "route tom->kick positives=2 rows=2 protected_correct=4 rows=4" in tsv_output_one_condition
     assert "\n  --\n" in tsv_output_one_condition

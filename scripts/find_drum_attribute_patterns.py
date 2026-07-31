@@ -155,6 +155,8 @@ class RoutePatternSettings:
     limit: int
     min_positive_samples: int
     max_negative_samples: int
+    max_new_active_samples: int | None
+    max_primary_break_samples: int | None
     max_conditions: int
     beam_width: int
     show_examples: int
@@ -507,6 +509,8 @@ def result_from_masks(
     side_effect_base: SideEffectMaskSet,
     target_category: str,
     max_negative_samples: int | None,
+    max_new_active_samples: int | None,
+    max_primary_break_samples: int | None,
     show_examples: int,
 ) -> RuleResult | None:
     positive_samples, _positive_exceeded = positive_counter.count(positive_mask)
@@ -517,8 +521,14 @@ def result_from_masks(
         return None
     foreign_mask, new_active_mask, primary_break_mask = side_effect_masks(all_mask, side_effect_base)
     foreign_samples, _foreign_exceeded = all_counter.count(foreign_mask)
-    new_active_samples, _new_active_exceeded = all_counter.count(new_active_mask)
-    primary_break_samples, _primary_break_exceeded = all_counter.count(primary_break_mask)
+    new_active_samples, new_active_exceeded = all_counter.count(new_active_mask, max_new_active_samples)
+    if new_active_exceeded:
+        return None
+    primary_break_samples, primary_break_exceeded = all_counter.count(
+        primary_break_mask, max_primary_break_samples
+    )
+    if primary_break_exceeded:
+        return None
     return RuleResult(
         rule=rule,
         positive_rows=positive_mask.bit_count(),
@@ -589,6 +599,8 @@ def extend_condition_search(
     max_conditions: int,
     beam_width: int,
     show_examples: int,
+    max_new_active_samples: int | None,
+    max_primary_break_samples: int | None,
 ) -> list[RuleResult]:
     if max_conditions < 2 or not matches:
         return []
@@ -666,6 +678,8 @@ def extend_condition_search(
                 side_effect_base,
                 target_category,
                 max_negative_samples,
+                max_new_active_samples,
+                max_primary_break_samples,
                 show_examples,
             )
             if result is not None:
@@ -902,6 +916,8 @@ def print_route_patterns(
     show_near_misses: int,
     include_merged_positives: bool,
     profile_fields: int,
+    max_new_active_samples: int | None,
+    max_primary_break_samples: int | None,
 ) -> None:
     expected, got = route
     positive_rows = route_positive_rows(rows, route, include_merged_positives)
@@ -946,7 +962,12 @@ def print_route_patterns(
         for pattern in patterns
     ]
 
-    def collect_results(max_negative_samples_limit: int | None, include_multi_condition: bool) -> list[RuleResult]:
+    def collect_results(
+        max_negative_samples_limit: int | None,
+        max_new_active_samples_limit: int | None,
+        max_primary_break_samples_limit: int | None,
+        include_multi_condition: bool,
+    ) -> list[RuleResult]:
         results: list[RuleResult] = []
         for match in matches:
             result = result_from_masks(
@@ -963,6 +984,8 @@ def print_route_patterns(
                 side_effect_base,
                 expected,
                 max_negative_samples_limit,
+                max_new_active_samples_limit,
+                max_primary_break_samples_limit,
                 show_examples,
             )
             if result is not None and result.positive_samples >= min_positive_samples:
@@ -984,6 +1007,8 @@ def print_route_patterns(
                     max_conditions,
                     max(1, beam_width),
                     show_examples,
+                    max_new_active_samples_limit,
+                    max_primary_break_samples_limit,
                 )
             )
         deduped: dict[str, RuleResult] = {}
@@ -1021,14 +1046,24 @@ def print_route_patterns(
                 for row in result.primary_break_examples:
                     print(f"      {format_example(row)}")
 
-    ranked = collect_results(max_negative_samples, True)[:limit]
+    ranked = collect_results(max_negative_samples, max_new_active_samples, max_primary_break_samples, True)[:limit]
     if not ranked:
         print("  --")
         if show_near_misses > 0:
             near_misses = [
                 result
-                for result in collect_results(None, False)
-                if result.negative_samples > max_negative_samples
+                for result in collect_results(None, None, None, False)
+                if (
+                    result.negative_samples > max_negative_samples
+                    or (
+                        max_new_active_samples is not None
+                        and result.new_active_samples > max_new_active_samples
+                    )
+                    or (
+                        max_primary_break_samples is not None
+                        and result.primary_break_samples > max_primary_break_samples
+                    )
+                )
             ][:show_near_misses]
             if near_misses:
                 print("  nearest over-budget single-condition candidate rules:")
@@ -1069,6 +1104,8 @@ def route_patterns_text(
             settings.show_near_misses,
             settings.include_merged_rows,
             settings.profile_fields,
+            settings.max_new_active_samples,
+            settings.max_primary_break_samples,
         )
     return buffer.getvalue()
 
@@ -1100,6 +1137,24 @@ def main() -> int:
         help="skip route searches with fewer positive rows before mining candidate rules",
     )
     parser.add_argument("--max-negative-samples", type=int, default=0)
+    parser.add_argument(
+        "--max-new-active-samples",
+        type=int,
+        default=None,
+        help=(
+            "reject rules that would newly activate the repaired drum category on more than this many "
+            "protected non-target samples"
+        ),
+    )
+    parser.add_argument(
+        "--max-primary-break-samples",
+        type=int,
+        default=None,
+        help=(
+            "reject rules that would make the repaired drum category outrank more than this many "
+            "protected correct primary samples"
+        ),
+    )
     parser.add_argument("--max-conditions", type=int, default=3)
     parser.add_argument("--beam-width", type=int, default=220)
     parser.add_argument("--show-examples", "--row-examples", dest="show_examples", type=int, default=0)
@@ -1162,6 +1217,12 @@ def main() -> int:
         limit=max(1, args.limit),
         min_positive_samples=max(1, args.min_positive_samples),
         max_negative_samples=max(0, args.max_negative_samples),
+        max_new_active_samples=(
+            None if args.max_new_active_samples is None else max(0, args.max_new_active_samples)
+        ),
+        max_primary_break_samples=(
+            None if args.max_primary_break_samples is None else max(0, args.max_primary_break_samples)
+        ),
         max_conditions=max(1, args.max_conditions),
         beam_width=max(1, args.beam_width),
         show_examples=max(0, args.show_examples),

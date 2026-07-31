@@ -2070,6 +2070,22 @@ def main() -> int:
     assert "--profile-fields" in drum_full_args.group(1), (
         "full drum pattern defaults must include route attribute profiles"
     )
+    assert "--max-new-active-samples 0" in drum_full_args.group(1), (
+        "full drum pattern defaults must reject rules that newly activate protected non-target drums"
+    )
+    assert "--max-primary-break-samples 0" in drum_full_args.group(1), (
+        "full drum pattern defaults must reject rules that break protected primary labels"
+    )
+    protected_drum_args = re.search(
+        r"^MEASURE_PROTECTED_DRUM_PATTERN_ARGS \?= (.+)$", makefile, re.MULTILINE
+    )
+    assert protected_drum_args is not None, "missing protected drum pattern defaults"
+    assert "--max-new-active-samples 0" in protected_drum_args.group(1), (
+        "protected drum pattern defaults must reject rules that newly activate protected non-target drums"
+    )
+    assert "--max-primary-break-samples 0" in protected_drum_args.group(1), (
+        "protected drum pattern defaults must reject rules that break protected primary labels"
+    )
 
     shadow_recipe = target_recipe(makefile, "evaluate-real-note-display-shadow")
     assert "scripts/evaluate_real_note_display_shadow.py" in shadow_recipe, (
