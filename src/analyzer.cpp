@@ -12808,18 +12808,151 @@ bool guitar_candidate_alias_supported_for_display(const char *start, std::size_t
 						 const NoteGrid &display_grid,
 						 const NoteGrid &analysis_grid);
 
-bool pitch_mask_active_in_grid_pair(unsigned int mask, const NoteGrid &display_grid,
-				    const NoteGrid &analysis_grid)
+struct GuitarObservedPosition {
+	int string_index = -1;
+	int fret = -1;
+};
+
+constexpr std::array<int, 6> kStandardGuitarOpenMidi = {40, 45, 50, 55, 59, 64};
+constexpr int kObservedGuitarMaxFret = 15;
+constexpr int kObservedGuitarMaxFretSpan = 5;
+constexpr float kObservedGuitarMinLevel = 0.12f;
+constexpr std::size_t kObservedGuitarMaxTones = 6;
+constexpr std::size_t kObservedGuitarMaxPositionsPerTone = 32;
+
+bool add_observed_guitar_position(
+	std::array<GuitarObservedPosition, kObservedGuitarMaxPositionsPerTone> &positions,
+	std::size_t &count, int string_index, int fret)
+{
+	for (std::size_t i = 0; i < count; ++i) {
+		if (positions[i].string_index == string_index && positions[i].fret == fret)
+			return true;
+	}
+	if (count >= positions.size())
+		return false;
+	positions[count++] = {string_index, fret};
+	return true;
+}
+
+void add_observed_guitar_midi_positions(
+	std::array<GuitarObservedPosition, kObservedGuitarMaxPositionsPerTone> &positions,
+	std::size_t &count, int midi)
+{
+	if (midi < kGuitarMinMidi || midi > kGuitarMaxMidi)
+		return;
+	for (std::size_t string_index = 0; string_index < kStandardGuitarOpenMidi.size(); ++string_index) {
+		const int fret = midi - kStandardGuitarOpenMidi[string_index];
+		if (fret >= 0 && fret <= kObservedGuitarMaxFret)
+			add_observed_guitar_position(positions, count, static_cast<int>(string_index), fret);
+	}
+}
+
+void collect_observed_guitar_positions(
+	const NoteGrid &grid, int pitch_class,
+	std::array<GuitarObservedPosition, kObservedGuitarMaxPositionsPerTone> &positions,
+	std::size_t &count)
+{
+	pitch_class = ((pitch_class % 12) + 12) % 12;
+	auto consider = [&](const NoteCell &cell) {
+		if (!cell.active || cell.midi < kGuitarMinMidi || cell.midi > kGuitarMaxMidi ||
+		    midi_pitch_class(cell.midi) != pitch_class)
+			return;
+		if (std::max(cell.level, note_cell_effective_visual_level(cell)) < kObservedGuitarMinLevel)
+			return;
+		add_observed_guitar_midi_positions(positions, count, cell.midi);
+	};
+
+	consider(grid.cells[static_cast<std::size_t>(pitch_class)]);
+	for (const auto &row : grid.rows)
+		consider(row[static_cast<std::size_t>(pitch_class)]);
+}
+
+bool observed_guitar_positions_compact(
+	const std::array<GuitarObservedPosition, kObservedGuitarMaxTones> &selected, std::size_t count)
+{
+	int min_fret = kObservedGuitarMaxFret + 1;
+	int max_fret = -1;
+	for (std::size_t i = 0; i < count; ++i) {
+		const int fret = selected[i].fret;
+		if (fret <= 0)
+			continue;
+		min_fret = std::min(min_fret, fret);
+		max_fret = std::max(max_fret, fret);
+	}
+	return max_fret < 0 || max_fret - min_fret <= kObservedGuitarMaxFretSpan;
+}
+
+bool observed_guitar_position_assignment_search(
+	const std::array<std::array<GuitarObservedPosition, kObservedGuitarMaxPositionsPerTone>,
+			 kObservedGuitarMaxTones> &choices,
+	const std::array<std::size_t, kObservedGuitarMaxTones> &choice_counts,
+	const std::array<std::size_t, kObservedGuitarMaxTones> &order, std::size_t tone_count,
+	std::size_t index, std::array<bool, 6> &used_strings,
+	std::array<GuitarObservedPosition, kObservedGuitarMaxTones> &selected)
+{
+	if (index >= tone_count)
+		return observed_guitar_positions_compact(selected, tone_count);
+
+	const std::size_t tone_index = order[index];
+	for (std::size_t choice_index = 0; choice_index < choice_counts[tone_index]; ++choice_index) {
+		const GuitarObservedPosition position = choices[tone_index][choice_index];
+		const std::size_t string_index = static_cast<std::size_t>(position.string_index);
+		if (string_index >= used_strings.size() || used_strings[string_index])
+			continue;
+		used_strings[string_index] = true;
+		selected[index] = position;
+		if (observed_guitar_position_assignment_search(choices, choice_counts, order, tone_count,
+							       index + 1, used_strings, selected))
+			return true;
+		used_strings[string_index] = false;
+	}
+	return false;
+}
+
+bool observed_guitar_pitch_mask_playable_on_grid(unsigned int mask, const NoteGrid &grid)
 {
 	if (mask == 0)
 		return false;
+
+	std::array<std::array<GuitarObservedPosition, kObservedGuitarMaxPositionsPerTone>,
+		   kObservedGuitarMaxTones>
+		choices = {};
+	std::array<std::size_t, kObservedGuitarMaxTones> choice_counts = {};
+	std::size_t tone_count = 0;
 	for (int pitch_class = 0; pitch_class < 12; ++pitch_class) {
 		const unsigned int bit = 1u << static_cast<unsigned int>(pitch_class);
-		if ((mask & bit) && !note_grid_pitch_active(display_grid, pitch_class) &&
-		    !note_grid_pitch_active(analysis_grid, pitch_class))
+		if (!(mask & bit))
+			continue;
+		if (tone_count >= kObservedGuitarMaxTones)
 			return false;
+		collect_observed_guitar_positions(grid, pitch_class, choices[tone_count],
+						  choice_counts[tone_count]);
+		if (choice_counts[tone_count] == 0)
+			return false;
+		++tone_count;
 	}
-	return true;
+
+	std::array<std::size_t, kObservedGuitarMaxTones> order = {};
+	for (std::size_t i = 0; i < tone_count; ++i)
+		order[i] = i;
+	for (std::size_t i = 0; i < tone_count; ++i) {
+		for (std::size_t j = i + 1; j < tone_count; ++j) {
+			if (choice_counts[order[j]] < choice_counts[order[i]])
+				std::swap(order[i], order[j]);
+		}
+	}
+
+	std::array<bool, 6> used_strings = {};
+	std::array<GuitarObservedPosition, kObservedGuitarMaxTones> selected = {};
+	return observed_guitar_position_assignment_search(choices, choice_counts, order, tone_count, 0,
+							  used_strings, selected);
+}
+
+bool observed_guitar_pitch_mask_playable(unsigned int mask, const NoteGrid &display_grid,
+					 const NoteGrid &analysis_grid)
+{
+	return observed_guitar_pitch_mask_playable_on_grid(mask, display_grid) ||
+	       observed_guitar_pitch_mask_playable_on_grid(mask, analysis_grid);
 }
 
 void prune_crowded_guitar_chord_label(ChordResult &chord, bool strict_plain_only)
@@ -12900,11 +13033,24 @@ void prune_crowded_guitar_display_label(InstrumentState &state, const NoteGrid &
 	unsigned int primary_mask = 0;
 	const bool have_primary_mask = chord_component_pitch_mask(state.label, primary_len, primary_mask);
 
+	std::array<bool, 12> plain_roots = {};
+	const char *plain_cursor = state.label;
+	while (plain_cursor && *plain_cursor) {
+		const char *end = std::strchr(plain_cursor, '=');
+		const std::size_t len =
+			end ? static_cast<std::size_t>(end - plain_cursor) : std::strlen(plain_cursor);
+		ParsedRootChord plain;
+		if (chord_component_plain_major_minor(plain_cursor, len) &&
+		    parse_root_chord_component(plain_cursor, len, plain) && plain.root >= 0)
+			plain_roots[static_cast<std::size_t>(plain.root)] = true;
+		if (!end)
+			break;
+		plain_cursor = end + 1;
+	}
+
 	char filtered[sizeof(state.label)] = {};
 	std::array<unsigned int, 32> kept_masks = {};
 	std::size_t kept_mask_count = 0;
-	std::array<unsigned int, 16> kept_plain_masks = {};
-	std::size_t kept_plain_mask_count = 0;
 	const char *cursor = state.label;
 	bool first_component = true;
 	while (cursor && *cursor) {
@@ -12915,21 +13061,18 @@ void prune_crowded_guitar_display_label(InstrumentState &state, const NoteGrid &
 		const bool have_component_mask = chord_component_pitch_mask(cursor, len, component_mask);
 		bool keep = first_component || chord_component_plain_major_minor(cursor, len) ||
 			    (have_primary_mask && have_component_mask && component_mask == primary_mask) ||
-			    guitar_candidate_alias_supported_for_display(cursor, len, display_grid, analysis_grid);
+			    (have_component_mask &&
+			     observed_guitar_pitch_mask_playable(component_mask, display_grid, analysis_grid));
+		if (!keep && have_component_mask &&
+		    guitar_candidate_alias_supported_for_display(cursor, len, display_grid, analysis_grid)) {
+			ParsedRootChord component;
+			if (parse_root_chord_component(cursor, len, component) && component.root >= 0 &&
+			    plain_roots[static_cast<std::size_t>(component.root)])
+				keep = true;
+		}
 		if (!keep && have_component_mask) {
 			for (std::size_t i = 0; i < kept_mask_count; ++i) {
 				if (kept_masks[i] == component_mask) {
-					keep = true;
-					break;
-				}
-			}
-		}
-		if (!keep && have_component_mask) {
-			for (std::size_t i = 0; i < kept_plain_mask_count; ++i) {
-				const unsigned int base_mask = kept_plain_masks[i];
-				const unsigned int extra_mask = component_mask & ~base_mask;
-				if ((component_mask & base_mask) == base_mask &&
-				    pitch_mask_active_in_grid_pair(extra_mask, display_grid, analysis_grid)) {
 					keep = true;
 					break;
 				}
@@ -12939,9 +13082,6 @@ void prune_crowded_guitar_display_label(InstrumentState &state, const NoteGrid &
 			append_chord_label_component(filtered, sizeof(filtered), cursor, len);
 			if (have_component_mask && kept_mask_count < kept_masks.size())
 				kept_masks[kept_mask_count++] = component_mask;
-			if (have_component_mask && chord_component_plain_major_minor(cursor, len) &&
-			    kept_plain_mask_count < kept_plain_masks.size())
-				kept_plain_masks[kept_plain_mask_count++] = component_mask;
 		}
 
 		if (!end)
