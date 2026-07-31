@@ -37,6 +37,10 @@ BUFFER_RE = re.compile(r"^\s+buffer (?P<buffer>\d+) expected=(?P<expected>[A-G]#
 NOTE_LEVEL_RE = re.compile(r"(?P<note>[A-G]#?\d):(?P<level>[0-9.]+)")
 ROW_GRID_RE = re.compile(r"\b(?P<row>bass|keys|guitar|vocal|other)=[^\[]*\[(?P<grid>[^\]]*)\]")
 AMB_RE = re.compile(r"\bamb=(?P<grid>.*?)\s+bass=")
+OWN_RE = re.compile(r"\bown=(?P<own>\S+)")
+OWN_CANDIDATE_RE = re.compile(
+    r"(?P<note>[A-G]#?\d):(?P<owner>[a-z]+|amb)/conf=(?P<confidence>[0-9.eE+-]+)"
+)
 ROW_NAME = {
     "amb": "amb",
     "bass": "bass",
@@ -96,11 +100,55 @@ def expected_pitch_rows(expected: str, row_notes: dict[str, list[tuple[str, floa
 
 def collapsed_row_path(expected: str, buffers) -> tuple[str, ...]:
     path = []
-    for _buffer_expected, _detected_notes, row_notes in buffers:
+    for _buffer_expected, _detected_notes, row_notes, _ownership_candidates in buffers:
         rows = expected_pitch_rows(expected, row_notes)
         if not rows:
             continue
         token = "+".join(rows)
+        if not path or path[-1] != token:
+            path.append(token)
+    return tuple(path)
+
+
+def parse_ownership_candidates(line: str) -> list[tuple[str, str, float]]:
+    own_match = OWN_RE.search(line)
+    if not own_match:
+        return []
+    candidates: list[tuple[str, str, float]] = []
+    for match in OWN_CANDIDATE_RE.finditer(own_match.group("own")):
+        try:
+            confidence = float(match.group("confidence"))
+        except ValueError:
+            confidence = 0.0
+        candidates.append((match.group("note"), match.group("owner"), confidence))
+    return candidates
+
+
+def expected_pitch_ownership_owners(
+    expected: str, ownership_candidates: list[tuple[str, str, float]]
+) -> list[str]:
+    expected_pitch = pitch_name(expected)
+    owner_levels: dict[str, float] = {}
+    for note, owner, confidence in ownership_candidates:
+        if pitch_name(note) != expected_pitch:
+            continue
+        owner_levels[owner] = max(owner_levels.get(owner, 0.0), confidence)
+    return [
+        owner
+        for owner, _confidence in sorted(
+            owner_levels.items(),
+            key=lambda item: (-item[1], ROW_ORDER.get(item[0], 99), item[0]),
+        )
+    ]
+
+
+def collapsed_ownership_path(expected: str, buffers) -> tuple[str, ...]:
+    path = []
+    for _buffer_expected, _detected_notes, _row_notes, ownership_candidates in buffers:
+        owners = expected_pitch_ownership_owners(expected, ownership_candidates)
+        if not owners:
+            continue
+        token = "+".join(owners)
         if not path or path[-1] != token:
             path.append(token)
     return tuple(path)
@@ -136,7 +184,14 @@ def parse_records(paths: list[pathlib.Path]):
                         (match.group("note"), float(match.group("level")))
                         for match in NOTE_LEVEL_RE.finditer(row_match.group("grid"))
                     )
-                pending_buffers.append((buffer_match.group("expected"), detected_notes, row_notes))
+                pending_buffers.append(
+                    (
+                        buffer_match.group("expected"),
+                        detected_notes,
+                        row_notes,
+                        parse_ownership_candidates(line),
+                    )
+                )
                 continue
 
             fail_match = FAIL_RE.match(line)
@@ -167,6 +222,10 @@ def analyze_paths(paths: list[pathlib.Path]) -> list[str]:
         expected_source_debug_rows: collections.Counter[tuple[str, str]] = collections.Counter()
         expected_row_paths: collections.Counter[tuple[str, ...]] = collections.Counter()
         expected_source_row_paths: collections.Counter[tuple[str, tuple[str, ...]]] = collections.Counter()
+        expected_ownership_owners: collections.Counter[str] = collections.Counter()
+        expected_source_ownership_owners: collections.Counter[tuple[str, str]] = collections.Counter()
+        expected_ownership_paths: collections.Counter[tuple[str, ...]] = collections.Counter()
+        expected_source_ownership_paths: collections.Counter[tuple[str, tuple[str, ...]]] = collections.Counter()
         source_examples: dict[str, list[str]] = collections.defaultdict(list)
         source_row_examples: dict[tuple[str, str], list[str]] = collections.defaultdict(list)
         missing_all_notes = 0
@@ -191,7 +250,8 @@ def analyze_paths(paths: list[pathlib.Path]) -> list[str]:
             strongest_level = 0.0
             expected_seen = False
             expected_seen_rows = set()
-            for _buffer_expected, detected_notes, row_notes in buffers:
+            expected_seen_owners = set()
+            for _buffer_expected, detected_notes, row_notes, ownership_candidates in buffers:
                 for detected, level in detected_notes:
                     if pitch_name(detected) == pitch_name(expected):
                         expected_seen = True
@@ -201,15 +261,25 @@ def analyze_paths(paths: list[pathlib.Path]) -> list[str]:
                 for row, notes in row_notes.items():
                     if any(pitch_name(detected) == pitch_name(expected) for detected, _level in notes):
                         expected_seen_rows.add(row)
+                expected_seen_owners.update(
+                    expected_pitch_ownership_owners(expected, ownership_candidates)
+                )
             row_path = collapsed_row_path(expected, buffers)
             if row_path:
                 expected_row_paths[row_path] += 1
                 expected_source_row_paths[(source, row_path)] += 1
+            ownership_path = collapsed_ownership_path(expected, buffers)
+            if ownership_path:
+                expected_ownership_paths[ownership_path] += 1
+                expected_source_ownership_paths[(source, ownership_path)] += 1
             if expected_seen:
                 expected_present_in_debug += 1
             for row in sorted(expected_seen_rows):
                 expected_debug_rows[row] += 1
                 expected_source_debug_rows[(source, row)] += 1
+            for owner in sorted(expected_seen_owners):
+                expected_ownership_owners[owner] += 1
+                expected_source_ownership_owners[(source, owner)] += 1
             if strongest_note:
                 strongest_pairs[(expected, strongest_note)] += 1
                 closest_offsets[closest_pitch_offset(expected, strongest_note)] += 1
@@ -226,6 +296,10 @@ def analyze_paths(paths: list[pathlib.Path]) -> list[str]:
             "expected_source_debug_rows": expected_source_debug_rows,
             "expected_row_paths": expected_row_paths,
             "expected_source_row_paths": expected_source_row_paths,
+            "expected_ownership_owners": expected_ownership_owners,
+            "expected_source_ownership_owners": expected_source_ownership_owners,
+            "expected_ownership_paths": expected_ownership_paths,
+            "expected_source_ownership_paths": expected_source_ownership_paths,
             "source_examples": source_examples,
             "source_row_examples": source_row_examples,
             "missing_all_notes": missing_all_notes,
@@ -275,6 +349,10 @@ def analyze_paths(paths: list[pathlib.Path]) -> list[str]:
         expected_source_debug_rows = summary["expected_source_debug_rows"]
         expected_row_paths = summary["expected_row_paths"]
         expected_source_row_paths = summary["expected_source_row_paths"]
+        expected_ownership_owners = summary["expected_ownership_owners"]
+        expected_source_ownership_owners = summary["expected_source_ownership_owners"]
+        expected_ownership_paths = summary["expected_ownership_paths"]
+        expected_source_ownership_paths = summary["expected_source_ownership_paths"]
         lines.append(f"analyze_real_note_misses: ownership misses {len(ownership)}")
         lines.append(
             "ownership by source "
@@ -318,6 +396,37 @@ def analyze_paths(paths: list[pathlib.Path]) -> list[str]:
                 + " ".join(
                     f"{source}:{format_row_path(path)}={count}"
                     for (source, path), count in expected_source_row_paths.most_common(12)
+                )
+            )
+        if expected_ownership_owners:
+            lines.append(
+                "ownership expected owner candidates "
+                + " ".join(
+                    f"{owner}={count}" for owner, count in expected_ownership_owners.most_common()
+                )
+            )
+        if expected_source_ownership_owners:
+            lines.append(
+                "ownership expected source owner candidates "
+                + " ".join(
+                    f"{source}->{owner}={count}"
+                    for (source, owner), count in expected_source_ownership_owners.most_common(12)
+                )
+            )
+        if expected_ownership_paths:
+            lines.append(
+                "ownership expected owner paths "
+                + " ".join(
+                    f"{format_row_path(path)}={count}"
+                    for path, count in expected_ownership_paths.most_common(12)
+                )
+            )
+        if expected_source_ownership_paths:
+            lines.append(
+                "ownership source owner paths "
+                + " ".join(
+                    f"{source}:{format_row_path(path)}={count}"
+                    for (source, path), count in expected_source_ownership_paths.most_common(12)
                 )
             )
         lines.append(

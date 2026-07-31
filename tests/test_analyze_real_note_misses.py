@@ -75,7 +75,7 @@ def test_aggregates_multiple_shard_logs() -> None:
         ),
         "\n".join(
             [
-                "  buffer 0 expected=A3 row_label=-- row_conf=0 row_grid=no any_grid=yes amb=-- bass=--[--] keys=--[--] guitar=A3[ A3:0.70] vocal=--[--] other=--[--]",
+                "  buffer 0 expected=A3 row_label=-- row_conf=0 row_grid=no any_grid=yes amb=-- bass=--[--] keys=--[--] guitar=A3[ A3:0.70] vocal=--[--] other=--[--] own=A3:guitar/conf=0.70/bkvo=0,0,0.7,0,0/spec=1/pitch=0.8/per=0.7/harm=0.4/fit=0.1/cent=0.2/slope=0.1/noise=0.2/partials=1,0.3,0.1,0.02,0.01",
                 "piano_electronic_002-057-100 piano/electronic A3: expected-row ownership missing first-row=guitar row-label=`--`",
             ]
         ),
@@ -91,6 +91,12 @@ def test_aggregates_multiple_shard_logs() -> None:
     if "ownership by source piano/electronic=1" not in output:
         raise AssertionError(output)
     if "ownership first rows guitar=1" not in output:
+        raise AssertionError(output)
+    if "ownership expected owner candidates guitar=1" not in output:
+        raise AssertionError(output)
+    if "ownership expected source owner candidates piano/electronic->guitar=1" not in output:
+        raise AssertionError(output)
+    if "ownership expected owner paths guitar=1" not in output:
         raise AssertionError(output)
 
 
