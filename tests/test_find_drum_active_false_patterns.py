@@ -43,6 +43,95 @@ def main() -> int:
     if ratio_row.get("ride_hihat_shape_score_ratio") != "0.500000000":
         raise AssertionError(f"ride/hihat runtime ratio mismatch: {ratio_row}")
 
+    primary_rows = [
+        {
+            "source": "unit",
+            "sample": "ride/true.wav",
+            "expected": "ride",
+            "guard": "1",
+            "kick_level": "0",
+            "snare_level": "0",
+            "hihat_level": "0.70",
+            "crash_level": "0",
+            "tom_level": "0",
+            "ride_level": "0.92",
+            "rim_level": "0",
+        },
+        {
+            "source": "unit",
+            "sample": "ride/safe.wav",
+            "expected": "ride",
+            "guard": "0",
+            "kick_level": "0",
+            "snare_level": "0",
+            "hihat_level": "0.65",
+            "crash_level": "0",
+            "tom_level": "0",
+            "ride_level": "0.91",
+            "rim_level": "0",
+        },
+        {
+            "source": "unit",
+            "sample": "hihat/false.wav",
+            "expected": "hihat",
+            "guard": "1",
+            "kick_level": "0",
+            "snare_level": "0",
+            "hihat_level": "0.64",
+            "crash_level": "0",
+            "tom_level": "0",
+            "ride_level": "0.88",
+            "rim_level": "0",
+        },
+        {
+            "source": "unit",
+            "sample": "tom/foreign.wav",
+            "expected": "tom",
+            "guard": "1",
+            "kick_level": "0",
+            "snare_level": "0",
+            "hihat_level": "0",
+            "crash_level": "0",
+            "tom_level": "0.62",
+            "ride_level": "0.86",
+            "rim_level": "0",
+        },
+    ]
+    primary_result = module.Result(
+        rule="guard>=1",
+        constraints=(module.Constraint("guard", "lower", 1.0),),
+        positive_rows=0,
+        positive_samples=0,
+        protected_rows=0,
+        protected_samples=0,
+        foreign_rows=0,
+        foreign_samples=0,
+        positive_examples=[],
+        protected_examples=[],
+        foreign_examples=[],
+    )
+    primary_sim = module.cap_simulation(primary_rows, ("hihat", "ride"), primary_result, 0.30)
+    expected_primary_sim = (
+        primary_sim.true_before_samples,
+        primary_sim.true_after_samples,
+        primary_sim.false_before_samples,
+        primary_sim.false_after_samples,
+        primary_sim.route_before_samples,
+        primary_sim.route_after_samples,
+        primary_sim.foreign_before_samples,
+        primary_sim.foreign_after_samples,
+        primary_sim.true_primary_before_samples,
+        primary_sim.true_primary_after_samples,
+        primary_sim.false_primary_before_samples,
+        primary_sim.false_primary_after_samples,
+        primary_sim.route_primary_before_samples,
+        primary_sim.route_primary_after_samples,
+        primary_sim.foreign_primary_before_samples,
+        primary_sim.foreign_primary_after_samples,
+    )
+    if expected_primary_sim != (2, 1, 2, 0, 1, 0, 1, 0, 2, 1, 2, 0, 1, 0, 1, 0):
+        raise AssertionError(f"unexpected primary cap simulation: {primary_sim}")
+
     header = (
         "sample\texpected\tgot\tbody_shape\tlow\tmid\thigh\tkick_level\tkick_seg\tkick_trigger\t"
         "kick_threshold\tsnare_level\tsnare_seg\tsnare_trigger\tsnare_threshold\thihat_level\t"
@@ -92,6 +181,7 @@ def main() -> int:
     require(output, "near_protected is closest true-active miss-count/normalized-gap; lower is riskier")
     require(output, "candidate kick->snare +2 rows=2 -0 rows=0 foreign=0 rows=0 protected_true_snare=2")
     require(output, "cap_samples=true 2->2 false 2->0 route 2->0 foreign 0->0")
+    require(output, "cap_primary=true 2->2 false 0->0 route 0->0 foreign 0->0")
 
     with tempfile.TemporaryDirectory() as tmpdir:
         table = pathlib.Path(tmpdir) / "drum.tsv"
@@ -195,6 +285,7 @@ def main() -> int:
     require(output, "snare/extra.wav snare->snare")
     require(output, "nearest kick->snare +2 rows=2 -1 rows=1 foreign=0 rows=0 protected_true_snare=3")
     require(output, "cap_samples=true 3->2 false 2->0 route 2->0 foreign 0->0")
+    require(output, "cap_primary=true 2->2 false 0->0 route 0->0 foreign 0->0")
 
     foreign_active_rows = rows + [
         "tom/foreign.wav\ttom\ttom\t0\t0.80\t0.12\t0.08\t0.92\t18\t4.0\t1.0\t0.56\t5\t2.0\t1.0\t0\t0\t0\t1\t0\t0\t0\t1\t0\t0\t0\t1\t0\t0\t0\t1\t0\t0\t0\t1",
@@ -234,6 +325,7 @@ def main() -> int:
     require(output, "tom/foreign.wav tom->snare")
     require(output, "nearest kick->snare +2 rows=2 -0 rows=0 foreign=1 rows=1 protected_true_snare=2")
     require(output, "cap_samples=true 2->2 false 3->0 route 2->0 foreign 1->0")
+    require(output, "cap_primary=true 2->2 false 0->0 route 0->0 foreign 0->0")
 
     guarded_rows = [
         "kick/near-a.wav\tkick\tkick\t1\t0.80\t0.10\t0.10\t0.50\t10\t1.0\t1.0\t0.60\t10\t1.0\t1.0\t0\t0\t0\t1\t0\t0\t0\t1\t0\t0\t0\t1\t0\t0\t0\t1\t0\t0\t0\t1",
@@ -351,6 +443,7 @@ def main() -> int:
     require(output, "nearest guarded rules:")
     require(output, "nearest kick->snare +2 rows=2 -0 rows=0 foreign=0 rows=0 protected_true_snare=2 near_protected=1miss/0.02")
     require(output, "cap_samples=true 2->2 false 2->0 route 2->0 foreign 0->0")
+    require(output, "cap_primary=true 2->2 false 2->0 route 2->0 foreign 0->0")
     if "candidate kick->snare" in output:
         raise AssertionError(f"near-protected candidate should be guarded:\n{output}")
     print("test_find_drum_active_false_patterns: ok")

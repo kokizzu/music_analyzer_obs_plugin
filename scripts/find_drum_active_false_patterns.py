@@ -78,6 +78,14 @@ class CapSimulation:
     route_after_samples: int
     foreign_before_samples: int
     foreign_after_samples: int
+    true_primary_before_samples: int
+    true_primary_after_samples: int
+    false_primary_before_samples: int
+    false_primary_after_samples: int
+    route_primary_before_samples: int
+    route_primary_after_samples: int
+    foreign_primary_before_samples: int
+    foreign_primary_after_samples: int
 
 
 @dataclasses.dataclass(frozen=True)
@@ -757,6 +765,23 @@ def cap_simulation(
     def after_cap(rows_for_bucket: list[dict[str, str]]) -> list[dict[str, str]]:
         return [row for row in rows_for_bucket if not result_matches(row, result)]
 
+    def sample_total(rows_for_bucket: list[dict[str, str]]) -> int:
+        return len({sample_key(row) for row in rows_for_bucket})
+
+    def level_primary_after_cap(row: dict[str, str]) -> str:
+        active_level = as_float(row, f"{active}_level") or 0.0
+        if active_level <= threshold or not result_matches(row, result):
+            return primary_from_levels(row)
+        capped = dict(row)
+        capped[f"{active}_level"] = f"{max(0.0, threshold - 0.02):.9f}"
+        return primary_from_levels(capped)
+
+    def primary_before_rows(predicate: Callable[[dict[str, str]], bool]) -> list[dict[str, str]]:
+        return [row for row in rows if predicate(row) and primary_from_levels(row) == active]
+
+    def primary_after_rows(predicate: Callable[[dict[str, str]], bool]) -> list[dict[str, str]]:
+        return [row for row in rows if predicate(row) and level_primary_after_cap(row) == active]
+
     true_before = active_rows(lambda row: row.get("expected", "") == active)
     false_before = active_rows(lambda row: row.get("expected", "") != active)
     route_before = active_rows(lambda row: row.get("expected", "") == expected)
@@ -765,15 +790,35 @@ def cap_simulation(
     false_after = after_cap(false_before)
     route_after = after_cap(route_before)
     foreign_after = after_cap(foreign_before)
+    true_primary_before = primary_before_rows(lambda row: row.get("expected", "") == active)
+    false_primary_before = primary_before_rows(lambda row: row.get("expected", "") != active)
+    route_primary_before = primary_before_rows(lambda row: row.get("expected", "") == expected)
+    foreign_primary_before = primary_before_rows(
+        lambda row: row.get("expected", "") not in {expected, active}
+    )
+    true_primary_after = primary_after_rows(lambda row: row.get("expected", "") == active)
+    false_primary_after = primary_after_rows(lambda row: row.get("expected", "") != active)
+    route_primary_after = primary_after_rows(lambda row: row.get("expected", "") == expected)
+    foreign_primary_after = primary_after_rows(
+        lambda row: row.get("expected", "") not in {expected, active}
+    )
     return CapSimulation(
-        true_before_samples=len({sample_key(row) for row in true_before}),
-        true_after_samples=len({sample_key(row) for row in true_after}),
-        false_before_samples=len({sample_key(row) for row in false_before}),
-        false_after_samples=len({sample_key(row) for row in false_after}),
-        route_before_samples=len({sample_key(row) for row in route_before}),
-        route_after_samples=len({sample_key(row) for row in route_after}),
-        foreign_before_samples=len({sample_key(row) for row in foreign_before}),
-        foreign_after_samples=len({sample_key(row) for row in foreign_after}),
+        true_before_samples=sample_total(true_before),
+        true_after_samples=sample_total(true_after),
+        false_before_samples=sample_total(false_before),
+        false_after_samples=sample_total(false_after),
+        route_before_samples=sample_total(route_before),
+        route_after_samples=sample_total(route_after),
+        foreign_before_samples=sample_total(foreign_before),
+        foreign_after_samples=sample_total(foreign_after),
+        true_primary_before_samples=sample_total(true_primary_before),
+        true_primary_after_samples=sample_total(true_primary_after),
+        false_primary_before_samples=sample_total(false_primary_before),
+        false_primary_after_samples=sample_total(false_primary_after),
+        route_primary_before_samples=sample_total(route_primary_before),
+        route_primary_after_samples=sample_total(route_primary_after),
+        foreign_primary_before_samples=sample_total(foreign_primary_before),
+        foreign_primary_after_samples=sample_total(foreign_primary_after),
     )
 
 
@@ -849,6 +894,7 @@ def print_ranked_summary(summaries: list[RouteSummary], limit: int) -> None:
     print("ranked active false suppression opportunities")
     print("  attribute-level candidates; validate runtime changes with the full drum gate")
     print("  near_protected is closest true-active miss-count/normalized-gap; lower is riskier")
+    print("  cap_primary recomputes the level winner after the simulated cap")
     if not summaries:
         print("  no matching suppression opportunities")
         return
@@ -874,7 +920,15 @@ def print_ranked_summary(summaries: list[RouteSummary], limit: int) -> None:
             f"route {summary.cap_simulation.route_before_samples}->"
             f"{summary.cap_simulation.route_after_samples} "
             f"foreign {summary.cap_simulation.foreign_before_samples}->"
-            f"{summary.cap_simulation.foreign_after_samples} :: {summary.rule}"
+            f"{summary.cap_simulation.foreign_after_samples} "
+            f"cap_primary=true {summary.cap_simulation.true_primary_before_samples}->"
+            f"{summary.cap_simulation.true_primary_after_samples} "
+            f"false {summary.cap_simulation.false_primary_before_samples}->"
+            f"{summary.cap_simulation.false_primary_after_samples} "
+            f"route {summary.cap_simulation.route_primary_before_samples}->"
+            f"{summary.cap_simulation.route_primary_after_samples} "
+            f"foreign {summary.cap_simulation.foreign_primary_before_samples}->"
+            f"{summary.cap_simulation.foreign_primary_after_samples} :: {summary.rule}"
         )
 
 
