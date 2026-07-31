@@ -4761,6 +4761,42 @@ bool vocal_owned_noisy_acoustic_keyboard_body_supported(const FullMixDebugCandid
 	       fifth <= 0.035f;
 }
 
+bool vocal_owned_mid_acoustic_piano_body_supported(const FullMixDebugCandidate &debug)
+{
+	if (debug.owner != InstrumentKind::Vocal)
+		return false;
+	if (debug.midi < 54 || debug.midi > 62)
+		return false;
+
+	const float second = debug.harmonic_ratios[1];
+	const float third = debug.harmonic_ratios[2];
+	const float fourth = debug.harmonic_ratios[3];
+	const float fifth = debug.harmonic_ratios[4];
+	return debug.vocal_score >= 0.745f &&
+	       debug.vocal_score <= 0.805f &&
+	       debug.keyboard_score >= 0.18f &&
+	       debug.keyboard_score <= 0.205f &&
+	       debug.guitar_score <= 0.010f &&
+	       debug.other_score <= 0.010f &&
+	       debug.spectral_level >= 0.90f &&
+	       debug.pitch_confidence >= 0.86f &&
+	       debug.periodicity >= 0.69f &&
+	       debug.harmonic_fit_error <= 0.045f &&
+	       debug.local_noise_level <= 0.18f &&
+	       debug.spectral_centroid >= 0.060f &&
+	       debug.spectral_centroid <= 0.13f &&
+	       debug.spectral_slope <= 0.14f &&
+	       debug.third_octave_ratio <= 0.002f &&
+	       second >= 0.030f &&
+	       second <= 0.13f &&
+	       third >= 0.030f &&
+	       third <= 0.10f &&
+	       fourth >= 0.017f &&
+	       fourth <= 0.040f &&
+	       fifth >= 0.003f &&
+	       fifth <= 0.023f;
+}
+
 bool vocal_owned_pure_high_note_body_supported(const FullMixDebugCandidate &debug)
 {
 	if (debug.owner != InstrumentKind::Vocal)
@@ -5297,6 +5333,7 @@ bool full_mix_display_mirror_supported(FullMixDisplayRow row, const FullMixDebug
 		       clean_vocal_owned_keyboard_hint ||
 		       vocal_owned_partial_electronic_keyboard_body_supported(debug) ||
 		       vocal_owned_noisy_acoustic_keyboard_body_supported(debug) ||
+		       vocal_owned_mid_acoustic_piano_body_supported(debug) ||
 		       vocal_owned_pure_high_note_body_supported(debug) ||
 		       vocal_owned_upper_keyboard_body_supported(debug) ||
 		       vocal_owned_high_electronic_keyboard_body_supported(debug) ||
@@ -9852,6 +9889,8 @@ void suppress_vocal_owned_same_pitch_non_vocal_shadows(NoteGrid &grid, Instrumen
 		if (row == InstrumentKind::Keyboard && vocal_owned_partial_electronic_keyboard_body_supported(*debug))
 			continue;
 		if (row == InstrumentKind::Keyboard && vocal_owned_noisy_acoustic_keyboard_body_supported(*debug))
+			continue;
+		if (row == InstrumentKind::Keyboard && vocal_owned_mid_acoustic_piano_body_supported(*debug))
 			continue;
 		if (row == InstrumentKind::Keyboard && vocal_owned_upper_keyboard_body_supported(*debug))
 			continue;

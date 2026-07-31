@@ -3347,6 +3347,26 @@ void check_full_mix_single_instrument_precision(Runner &runner)
 
 	{
 		mao_test::Buffer buffer = {};
+		const std::vector<float> vocal_owned_mid_acoustic_piano_profile =
+			{1.0f, 0.084f, 0.040f, 0.029f, 0.006f};
+		add_harmonic_note(buffer, 62, 0.24f, vocal_owned_mid_acoustic_piano_profile);
+
+		const auto snapshot =
+			analyze_buffer_with_mode(buffer, mao::AnalysisInputMode::FullMix,
+						 "speaker mid struck body", 3);
+		expect_global_pitch_class(runner, snapshot, 2,
+					  "full-mix vocal-owned mid acoustic piano body global");
+		runner.expect(grid_level_for_midi(snapshot.keyboard_notes, 62) > 0.0f,
+			      std::string("full-mix vocal-owned mid acoustic piano body: expected keyboard "
+					  "D4 display, got keyboard `") +
+				      snapshot.keyboard.label + "`, bass `" + snapshot.bass.label +
+				      "`, vocal `" + snapshot.vocal.label + "`, other `" +
+				      snapshot.other.label + "`, debug `" +
+				      full_mix_debug_summary_for_midi(snapshot, 62) + "`");
+	}
+
+	{
+		mao_test::Buffer buffer = {};
 		const std::vector<float> measured_electric_piano_tine_profile =
 			{1.0f, 0.44f, 0.10f, 0.010f, 0.025f};
 		add_harmonic_note(buffer, 53, 0.24f, measured_electric_piano_tine_profile);
