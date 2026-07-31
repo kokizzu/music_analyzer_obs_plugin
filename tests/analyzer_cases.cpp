@@ -3407,6 +3407,26 @@ void check_full_mix_single_instrument_precision(Runner &runner)
 
 	{
 		mao_test::Buffer buffer = {};
+		const std::vector<float> noisy_low_electronic_keyboard_profile =
+			{1.0f, 0.111f, 0.055f, 0.021f, 0.001f};
+		add_harmonic_note(buffer, 53, 0.24f, noisy_low_electronic_keyboard_profile);
+
+		const auto snapshot =
+			analyze_buffer_with_mode(buffer, mao::AnalysisInputMode::FullMix,
+						 "speaker noisy low electronic body", 3);
+		expect_global_pitch_class(runner, snapshot, 5,
+					  "full-mix vocal-owned noisy low electronic keyboard global");
+		runner.expect(grid_level_for_midi(snapshot.keyboard_notes, 53) > 0.0f,
+			      std::string("full-mix vocal-owned noisy low electronic keyboard: expected "
+					  "keyboard F3 display, got keyboard `") +
+				      snapshot.keyboard.label + "`, bass `" + snapshot.bass.label +
+				      "`, vocal `" + snapshot.vocal.label + "`, other `" +
+				      snapshot.other.label + "`, debug `" +
+				      full_mix_debug_summary_for_midi(snapshot, 53) + "`");
+	}
+
+	{
+		mao_test::Buffer buffer = {};
 		const std::vector<float> measured_mid_acoustic_other_profile =
 			{1.0f, 0.271f, 0.076f, 0.063f, 0.011f};
 		add_harmonic_note(buffer, 64, 0.24f, measured_mid_acoustic_other_profile);
