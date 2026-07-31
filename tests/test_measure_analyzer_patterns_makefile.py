@@ -1998,6 +1998,9 @@ def main() -> int:
     assert "scripts/evaluate_real_note_display_shadow.py" in shadow_recipe, (
         "display shadow target must use the dedicated evaluator"
     )
+    assert "$(RUN_WITH_DURATION) real_note_display_shadow" in shadow_recipe, (
+        "display shadow target should print duration"
+    )
     assert '$(or $(DISPLAY_SHADOW_ARGS),--summary-only --jobs "$(DISPLAY_SHADOW_JOBS)")' in shadow_recipe, (
         "display shadow target should default to concise output"
     )
@@ -2005,6 +2008,9 @@ def main() -> int:
         "display shadow target should pass the configured worker count"
     )
     all_shadow_recipe = target_recipe(makefile, "evaluate-real-note-display-shadow-all")
+    assert "$(RUN_WITH_DURATION) real_note_display_shadow_all" in all_shadow_recipe, (
+        "all-route display shadow target should print duration"
+    )
     assert "--shadow-row all --target-row all --compact-routes --threshold-search" in all_shadow_recipe, (
         "all-route display shadow mining should default to compact threshold summaries"
     )
