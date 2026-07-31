@@ -1482,6 +1482,8 @@ def main() -> int:
         "find-real-note-focused-row-confusion-patterns",
         "find-real-note-visual-row-confusion-patterns",
         "find-real-note-focused-visual-row-confusion-patterns",
+        "find-real-note-ownership-patterns",
+        "find-real-note-octave-displacement-patterns",
     ]:
         assert '--jobs "$(REAL_NOTE_PATTERN_JOBS)"' in target_recipe(makefile, target), (
             f"{target} should mine independent real-note buckets in parallel by default"
@@ -2100,8 +2102,8 @@ def main() -> int:
         "--include-row-context",
     ]:
         assert text in makefile, f"focused visual row-confusion defaults must include {text}"
-    assert ".PHONY: find-real-note-row-confusion-patterns find-real-note-practical-row-confusion-patterns find-real-note-focused-row-confusion-patterns find-real-note-visual-row-confusion-patterns find-real-note-focused-visual-row-confusion-patterns" in makefile, (
-        "all real-note row-confusion shortcuts should be phony"
+    assert ".PHONY: find-real-note-row-confusion-patterns find-real-note-practical-row-confusion-patterns find-real-note-focused-row-confusion-patterns find-real-note-visual-row-confusion-patterns find-real-note-focused-visual-row-confusion-patterns find-real-note-ownership-patterns find-real-note-octave-displacement-patterns" in makefile, (
+        "all real-note pattern shortcuts should be phony"
     )
     for field in [
         "expected_midi",
