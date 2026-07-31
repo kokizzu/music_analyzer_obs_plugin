@@ -18551,6 +18551,12 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 			drum_segment_bands[HiHat] <= 1.50f &&
 			drum_segment_bands[Crash] <= 0.50f &&
 			snare_crack <= 2.65f;
+		const bool one_shot_measured_snare_weighted_tom_active_bleed =
+			drum_detection_enabled && one_shot_drum_source &&
+			drum_level_[Snare] > 0.30f &&
+			drum_level_[Tom] > 0.30f &&
+			body_shape_scores[1] >= 171.711f &&
+			drum_level_[Tom] <= 0.938f;
 		const bool measured_snare_rim_crack =
 			(drum_level_[Kick] <= 0.001f &&
 			 drum_segment_bands[Crash] <= 1.01f &&
@@ -18596,6 +18602,8 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 			boost_drum_level(Snare, std::max(0.92f, drum_level_[Tom] + 0.04f));
 			cap_drum_level(Tom, std::max(0.31f, drum_level_[Snare] - 0.04f));
 		}
+		if (one_shot_measured_snare_weighted_tom_active_bleed)
+			cap_drum_level(Tom, 0.28f);
 		if (one_shot_measured_near_snare_rim_steal) {
 			boost_drum_level(Snare, std::max(0.90f, drum_level_[Rim] + 0.02f));
 			cap_drum_level(Rim, std::max(0.31f, drum_level_[Snare] - 0.02f));
