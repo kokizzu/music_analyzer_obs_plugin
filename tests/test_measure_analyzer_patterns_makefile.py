@@ -267,6 +267,9 @@ def main() -> int:
     assert "--exclude-fields kick_level" in active_false_args.group("value"), (
         "drum active false pattern defaults must avoid merged expected-level fields"
     )
+    assert "--min-near-protected-score 0.10" in active_false_args.group("value"), (
+        "drum active false pattern defaults must reject fragile near-protected candidates"
+    )
     active_false_protected = re.search(
         r"^MEASURE_DRUM_ACTIVE_EXTRA_PROTECTED_ROWS \?= (?P<value>.*)$",
         makefile,

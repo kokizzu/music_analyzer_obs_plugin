@@ -257,6 +257,44 @@ def main() -> int:
     require(output, "near_protected=1miss/0.02")
     require(output, "snare/near-a.wav snare->snare")
     require(output, "low=0.83 <= 0.81 +0.02")
+
+    with tempfile.TemporaryDirectory() as tmpdir:
+        table = pathlib.Path(tmpdir) / "accepted-near.tsv"
+        table.write_text(header + "\n" + "\n".join(accepted_near_rows) + "\n", encoding="utf-8")
+        completed = subprocess.run(
+            [
+                sys.executable,
+                str(SCRIPT),
+                str(table),
+                "--route",
+                "kick->snare",
+                "--min-positive-samples",
+                "2",
+                "--max-protected-samples",
+                "0",
+                "--max-conditions",
+                "1",
+                "--protected-margin",
+                "0",
+                "--show-near-misses",
+                "1",
+                "--limit",
+                "1",
+                "--min-near-protected-score",
+                "0.05",
+            ],
+            cwd=ROOT,
+            check=True,
+            text=True,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+        )
+    output = completed.stdout
+    require(output, "route kick->snare positives=2 rows=2 protected_true_snare=2 rows=2")
+    require(output, "nearest guarded rules:")
+    require(output, "nearest kick->snare +2 rows=2 -0 rows=0 foreign=0 rows=0 protected_true_snare=2 near_protected=1miss/0.02")
+    if "candidate kick->snare" in output:
+        raise AssertionError(f"near-protected candidate should be guarded:\n{output}")
     print("test_find_drum_active_false_patterns: ok")
     return 0
 

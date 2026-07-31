@@ -111,6 +111,7 @@ class Settings:
     show_near_misses: int
     protected_margin: float
     protected_relative_margin: float
+    min_near_protected_score: float
     excluded_fields: frozenset[str]
 
 
@@ -672,12 +673,15 @@ def analyze_route(
     accepted: list[Result] = []
     if positive_samples >= settings.min_positive_samples:
         candidates = search_results(positive_rows, protected_rows, foreign_rows, settings)
-        accepted = [
-            result
-            for result in candidates
-            if result.protected_samples <= settings.max_protected_samples
-            and result.foreign_samples <= settings.max_foreign_samples
-        ][: settings.limit]
+        for result in candidates:
+            if (
+                result.protected_samples <= settings.max_protected_samples
+                and result.foreign_samples <= settings.max_foreign_samples
+                and near_protected_guard_passes(protected_rows, result, settings)
+            ):
+                accepted.append(result)
+                if len(accepted) >= settings.limit:
+                    break
     return RouteAnalysis(
         route=route,
         positive_rows=positive_rows,
@@ -715,8 +719,7 @@ def route_summaries(analysis: RouteAnalysis, settings: Settings) -> list[RouteSu
     if not summaries:
         over_budget = [
             result for result in analysis.candidates
-            if result.protected_samples > settings.max_protected_samples
-            or result.foreign_samples > settings.max_foreign_samples
+            if result_rejected_by_budget_or_guard(analysis.protected_rows, result, settings)
         ]
         if over_budget:
             result = over_budget[0]
@@ -796,15 +799,19 @@ def route_text_from_analysis(analysis: RouteAnalysis, settings: Settings) -> str
             return buffer.getvalue()
         if not analysis.accepted:
             print("  --")
-            near = [
+            rejected = [
                 result
                 for result in analysis.candidates
-                if result.protected_samples > settings.max_protected_samples
-                or result.foreign_samples > settings.max_foreign_samples
+                if result_rejected_by_budget_or_guard(analysis.protected_rows, result, settings)
             ][: settings.show_near_misses]
-            if near:
-                print("  nearest over-budget rules:")
-                print_results(near, active, settings.show_examples, analysis.protected_rows, 0)
+            if rejected:
+                label = (
+                    "nearest over-budget rules:"
+                    if any(result_rejected_by_budget(result, settings) for result in rejected)
+                    else "nearest guarded rules:"
+                )
+                print(f"  {label}")
+                print_results(rejected, active, settings.show_examples, analysis.protected_rows, 0)
             return buffer.getvalue()
         print_results(
             analysis.accepted,
@@ -898,6 +905,36 @@ def nearest_protected_distance(
     if best is None:
         return None
     return best[0], best[1]
+
+
+def near_protected_guard_passes(
+    protected_rows: list[dict[str, str]],
+    result: Result,
+    settings: Settings,
+) -> bool:
+    if settings.min_near_protected_score <= 0.0:
+        return True
+    nearest = nearest_protected_distance(protected_rows, result)
+    if nearest is None:
+        return True
+    return nearest[1] >= settings.min_near_protected_score
+
+
+def result_rejected_by_budget(result: Result, settings: Settings) -> bool:
+    return (
+        result.protected_samples > settings.max_protected_samples
+        or result.foreign_samples > settings.max_foreign_samples
+    )
+
+
+def result_rejected_by_budget_or_guard(
+    protected_rows: list[dict[str, str]],
+    result: Result,
+    settings: Settings,
+) -> bool:
+    return result_rejected_by_budget(result, settings) or not near_protected_guard_passes(
+        protected_rows, result, settings
+    )
 
 
 def format_constraint_status(row: dict[str, str], constraint: Constraint) -> str:
@@ -1015,6 +1052,15 @@ def main() -> int:
         help="expand numeric rule thresholds by this threshold-relative fraction for protected rows",
     )
     parser.add_argument(
+        "--min-near-protected-score",
+        type=float,
+        default=0.0,
+        help=(
+            "reject candidates whose closest protected true-hit row is below this normalized "
+            "constraint-gap score; 0 disables the guard"
+        ),
+    )
+    parser.add_argument(
         "--exclude-fields",
         default="",
         help=(
@@ -1049,6 +1095,7 @@ def main() -> int:
         show_near_misses=max(0, args.show_near_misses),
         protected_margin=max(0.0, args.protected_margin),
         protected_relative_margin=max(0.0, args.protected_relative_margin),
+        min_near_protected_score=max(0.0, args.min_near_protected_score),
         excluded_fields=frozenset(field.strip() for field in args.exclude_fields.split(",") if field.strip()),
     )
     if not routes:
