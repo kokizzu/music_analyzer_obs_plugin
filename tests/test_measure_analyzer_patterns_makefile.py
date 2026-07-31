@@ -88,6 +88,7 @@ def main() -> int:
             "$(MEASURE_ANALYZER_PATTERN_INSTRUMENT_OWNER_REPORT)",
             "$(MEASURE_ANALYZER_PATTERN_INSTRUMENT_STATUS_REPORT)",
             "$(MEASURE_ANALYZER_PATTERN_REAL_NOTE_REPORT)",
+            "$(MEASURE_ANALYZER_PATTERN_REAL_NOTE_OCTAVE_DISPLACEMENT_REPORT)",
             "$(MEASURE_ANALYZER_PATTERN_REAL_NOTE_ROW_CONFUSION_REPORT)",
             "$(MEASURE_ANALYZER_PATTERN_REAL_NOTE_VISUAL_ROW_CONFUSION_REPORT)",
             "$(MEASURE_ANALYZER_PATTERN_GUITAR_CHORD_REPORT)",
@@ -121,6 +122,7 @@ def main() -> int:
         "$(MEASURE_INSTRUMENT_PATTERN_ARGS)",
         "$(MEASURE_INSTRUMENT_STATUS_PATTERN_ARGS)",
         "$(MEASURE_REAL_NOTE_PATTERN_ARGS)",
+        "$(MEASURE_REAL_NOTE_OCTAVE_DISPLACEMENT_PATTERN_ARGS)",
         "$(MEASURE_REAL_NOTE_ROW_CONFUSION_PATTERN_ARGS)",
         "$(MEASURE_REAL_NOTE_FOCUSED_VISUAL_ROW_CONFUSION_PATTERN_ARGS)",
         "$(MEASURE_GUITAR_PATTERN_ARGS)",
@@ -188,6 +190,22 @@ def main() -> int:
     )
     assert "$(MEASURE_REAL_NOTE_ROW_CONFUSION_PATTERN_ARGS)" not in visual_report_recipe, (
         "visual row-confusion report must not reuse strongest-row defaults"
+    )
+    octave_report_recipe = target_recipe(
+        makefile, "$(MEASURE_ANALYZER_PATTERN_REAL_NOTE_OCTAVE_DISPLACEMENT_REPORT)"
+    )
+    assert "$(MAKE) find-real-note-octave-displacement-patterns" in octave_report_recipe, (
+        "octave displacement report must use the dedicated real-note octave miner"
+    )
+    assert "$(MEASURE_REAL_NOTE_OCTAVE_DISPLACEMENT_PATTERN_ARGS)" in octave_report_recipe, (
+        "octave displacement report must use bounded octave-displacement defaults"
+    )
+    octave_target_recipe = target_recipe(makefile, "find-real-note-octave-displacement-patterns")
+    assert "--bucket-status octave_displacement" in octave_target_recipe, (
+        "octave displacement target must mine octave-displacement buckets"
+    )
+    assert '--jobs "$(REAL_NOTE_PATTERN_JOBS)"' in octave_target_recipe, (
+        "octave displacement target must run pattern search with configured parallel jobs"
     )
     protected_stamp_recipe = target_recipe(
         makefile, "$(MEASURE_ANALYZER_PATTERN_DRUM_PROTECTED_ROWS_STAMP)"
