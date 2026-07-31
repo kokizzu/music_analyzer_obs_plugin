@@ -244,6 +244,10 @@ def bucket_label(bucket: tuple[str, str, str, str]) -> str:
     return f"{status}:{family}/{source}->{first_row}"
 
 
+def bucket_field_matches(actual: str, expected: str) -> bool:
+    return expected == "*" or actual == expected
+
+
 def load_rows(path: pathlib.Path) -> list[dict[str, str]]:
     with path.open(newline="", errors="replace") as handle:
         return [derive_real_note_row(row) for row in csv.DictReader(handle, delimiter="\t")]
@@ -270,9 +274,9 @@ def rows_for_bucket(rows: list[dict[str, str]], bucket: tuple[str, str, str, str
             row
             for row in rows
             if row.get("status") == "hit"
-            and row.get("family") == family
-            and row.get("source") == source
-            and octave_displacement_label(row) == target
+            and bucket_field_matches(row.get("family", ""), family)
+            and bucket_field_matches(row.get("source", ""), source)
+            and bucket_field_matches(octave_displacement_label(row), target)
             and row.get("debug_note")
         ]
     if status == "row_confusion":
@@ -281,9 +285,9 @@ def rows_for_bucket(rows: list[dict[str, str]], bucket: tuple[str, str, str, str
             row
             for row in rows
             if row.get("status") == "hit"
-            and row.get("family") == family
-            and row.get("source") == source
-            and row.get("buffer_strongest_row") == target
+            and bucket_field_matches(row.get("family", ""), family)
+            and bucket_field_matches(row.get("source", ""), source)
+            and bucket_field_matches(row.get("buffer_strongest_row", ""), target)
             and row.get("buffer_strongest_row") != expected_row
             and row.get("debug_note")
         ]
@@ -293,19 +297,19 @@ def rows_for_bucket(rows: list[dict[str, str]], bucket: tuple[str, str, str, str
             row
             for row in rows
             if row.get("status") == "hit"
-            and row.get("family") == family
-            and row.get("source") == source
-            and row.get("buffer_visual_strongest_row") == target
+            and bucket_field_matches(row.get("family", ""), family)
+            and bucket_field_matches(row.get("source", ""), source)
+            and bucket_field_matches(row.get("buffer_visual_strongest_row", ""), target)
             and row.get("buffer_visual_strongest_row") != expected_row
             and row.get("debug_note")
         ]
     return [
         row
         for row in rows
-        if row.get("status") == status
-        and row.get("family") == family
-        and row.get("source") == source
-        and row.get("first_row") == target
+        if bucket_field_matches(row.get("status", ""), status)
+        and bucket_field_matches(row.get("family", ""), family)
+        and bucket_field_matches(row.get("source", ""), source)
+        and bucket_field_matches(row.get("first_row", ""), target)
         and row.get("debug_note")
     ]
 
@@ -321,7 +325,9 @@ def protected_row_matches_scope(
         return True
 
     status, family, source, _target = bucket
-    if row.get("family") != family or row.get("source") != source:
+    if not bucket_field_matches(row.get("family", ""), family):
+        return False
+    if source != "*" and row.get("source") != source:
         return False
     if protected_scope == "same-source":
         return True
