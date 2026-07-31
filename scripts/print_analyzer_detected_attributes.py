@@ -15,6 +15,7 @@ DRUMS = ("kick", "snare", "hihat", "crash", "tom", "ride", "rim")
 NOTE_ORDER = ("C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B")
 NOTE_BASE = {note: index for index, note in enumerate(NOTE_ORDER)}
 NOTE_RE = re.compile(r"^([A-G]#?)(-?\d+)$")
+VISUAL_FULL_HIGHLIGHT_LEVEL = 0.25
 NOTE_BUCKET_FEATURES = (
     ("raw", "raw_expected_ratio"),
     ("tuned", "raw_tuned_ratio"),
@@ -284,6 +285,14 @@ def level_positive_count(rows: list[dict[str, str]], field: str) -> int:
     return sum(1 for row in rows if (value := parse_float(row.get(field, ""))) is not None and value > 0.0)
 
 
+def level_at_least_count(rows: list[dict[str, str]], field: str, threshold: float) -> int:
+    return sum(
+        1
+        for row in rows
+        if (value := parse_float(row.get(field, ""))) is not None and value >= threshold
+    )
+
+
 def int_positive_count(rows: list[dict[str, str]], field: str) -> int:
     return sum(1 for row in rows if (value := parse_int(row.get(field, ""))) is not None and value > 0)
 
@@ -322,6 +331,25 @@ def real_note_visual_grid_coverage_line(rows: list[dict[str, str]]) -> str:
         f"pitch-class={count_fraction(level_positive_count(rows, 'visual_strongest_row_pitch_level'), total)}] "
         f"any-row[exact={count_fraction(int_positive_count(rows, 'expected_visual_exact_row_count'), total)} "
         f"pitch-class={count_fraction(int_positive_count(rows, 'expected_visual_pitch_row_count'), total)}]"
+    )
+
+
+def real_note_visual_full_highlight_coverage_line(
+    rows: list[dict[str, str]], threshold: float = VISUAL_FULL_HIGHLIGHT_LEVEL
+) -> str:
+    has_visual_fields = any(
+        row.get("expected_row_visual_exact_level", "")
+        or row.get("expected_visual_exact_row_count", "")
+        for row in rows
+    )
+    if not has_visual_fields:
+        return ""
+    total = len(rows)
+    return (
+        f"expected-row[exact={count_fraction(level_at_least_count(rows, 'expected_row_visual_exact_level', threshold), total)} "
+        f"pitch-class={count_fraction(level_at_least_count(rows, 'expected_row_visual_pitch_level', threshold), total)}] "
+        f"strongest-row[exact={count_fraction(level_at_least_count(rows, 'visual_strongest_row_exact_level', threshold), total)} "
+        f"pitch-class={count_fraction(level_at_least_count(rows, 'visual_strongest_row_pitch_level', threshold), total)}]"
     )
 
 
@@ -707,9 +735,25 @@ def visual_expected_row_exact_hit(row: dict[str, str]) -> bool:
     return value is not None and value > 0.0
 
 
+def visual_expected_row_exact_lit(row: dict[str, str], threshold: float = VISUAL_FULL_HIGHLIGHT_LEVEL) -> bool:
+    value = parse_float(row.get("expected_row_visual_exact_level", ""))
+    return value is not None and value >= threshold
+
+
 def visual_strongest_row_matches_expected(row: dict[str, str]) -> bool:
     expected_row = expected_row_for_family(row.get("family", ""))
     return row.get("buffer_visual_strongest_row", "") == expected_row
+
+
+def visual_strongest_row_matches_expected_lit(
+    row: dict[str, str], threshold: float = VISUAL_FULL_HIGHLIGHT_LEVEL
+) -> bool:
+    value = parse_float(row.get("visual_strongest_row_exact_level", ""))
+    return (
+        value is not None
+        and value >= threshold
+        and visual_strongest_row_matches_expected(row)
+    )
 
 
 def has_real_note_visual_fields(rows: list[dict[str, str]]) -> bool:
@@ -870,6 +914,12 @@ def report_real_note_rows(path: pathlib.Path, row_limit: int) -> None:
     visual_fields = has_real_note_visual_fields(rows)
     if visual_grid_coverage:
         print(f"  visual grid exact-octave coverage {visual_grid_coverage}")
+    visual_full_highlight_coverage = real_note_visual_full_highlight_coverage_line(rows)
+    if visual_full_highlight_coverage:
+        print(
+            f"  visual full-highlight>={VISUAL_FULL_HIGHLIGHT_LEVEL:.2f} coverage "
+            f"{visual_full_highlight_coverage}"
+        )
     print(
         f"  row routing expected-row exact="
         f"{count_fraction(sum(1 for row in rows if expected_row_exact_hit(row)), len(rows))} "
@@ -882,6 +932,10 @@ def report_real_note_rows(path: pathlib.Path, row_limit: int) -> None:
             f"{count_fraction(sum(1 for row in rows if visual_expected_row_exact_hit(row)), len(rows))} "
             "visual-strongest expected="
             f"{count_fraction(sum(1 for row in rows if visual_strongest_row_matches_expected(row)), len(rows))}"
+            " visual-lit exact="
+            f"{count_fraction(sum(1 for row in rows if visual_expected_row_exact_lit(row)), len(rows))} "
+            "visual-strongest-lit expected="
+            f"{count_fraction(sum(1 for row in rows if visual_strongest_row_matches_expected_lit(row)), len(rows))}"
             if visual_fields
             else ""
         )
@@ -924,7 +978,9 @@ def report_real_note_rows(path: pathlib.Path, row_limit: int) -> None:
             f"strongest-row={count_fraction(sum(1 for row in family_rows if strongest_row_matches_expected(row)), len(family_rows))}"
             + (
                 f" visual-row={count_fraction(sum(1 for row in family_rows if visual_expected_row_exact_hit(row)), len(family_rows))} "
-                f"visual-strongest={count_fraction(sum(1 for row in family_rows if visual_strongest_row_matches_expected(row)), len(family_rows))}"
+                f"visual-strongest={count_fraction(sum(1 for row in family_rows if visual_strongest_row_matches_expected(row)), len(family_rows))} "
+                f"visual-lit={count_fraction(sum(1 for row in family_rows if visual_expected_row_exact_lit(row)), len(family_rows))} "
+                f"visual-strongest-lit={count_fraction(sum(1 for row in family_rows if visual_strongest_row_matches_expected_lit(row)), len(family_rows))}"
                 if visual_fields
                 else ""
             )
