@@ -8976,6 +8976,115 @@ void suppress_other_dominant_same_pitch_keyboard_shadows(NoteGrid &keyboard_grid
 		write_note_grid_label(keyboard_state, keyboard_grid, preferred_root);
 }
 
+bool other_pitch_class_keyboard_shadow_supported(const FullMixDebugCandidate &debug)
+{
+	return debug.owner == InstrumentKind::Other &&
+	       debug.other_score >= 0.70f &&
+	       debug.keyboard_score <= debug.other_score * 0.25f &&
+	       debug.ownership_confidence >= 0.70f &&
+	       debug.pitch_confidence >= 0.30f &&
+	       debug.spectral_slope >= 0.70f;
+}
+
+bool cap_keyboard_pitch_class_alias_cell(NoteCell &cell, int support_midi, float ceiling)
+{
+	if (!cell.active || cell.midi < kFirstMidi || cell.midi > kLastMidi || cell.midi == support_midi)
+		return false;
+	if (cell.midi < support_midi + 24)
+		return false;
+	if (midi_pitch_class(cell.midi) != midi_pitch_class(support_midi))
+		return false;
+	const float current = note_cell_effective_visual_level(cell);
+	if (current <= ceiling)
+		return false;
+	cell.visual_level = ceiling;
+	return true;
+}
+
+void attenuate_other_dominant_pitch_class_keyboard_shadows(NoteGrid &keyboard_grid,
+							   const NoteGrid &other_grid,
+							   const FullMixOwnership &ownership)
+{
+	static constexpr float kMinOtherVisualLevel = 0.70f;
+	static constexpr float kKeyboardAliasCeilingRatio = 0.70f;
+
+	auto process_other_cell = [&](const NoteCell &other_cell) {
+		if (!other_cell.active || other_cell.midi < kFirstMidi || other_cell.midi > kLastMidi)
+			return;
+		const float other_level = note_cell_effective_visual_level(other_cell);
+		if (other_level < kMinOtherVisualLevel)
+			return;
+		const FullMixDebugCandidate *debug =
+			best_same_midi_row_debug(ownership, other_cell.midi, InstrumentKind::Other);
+		if (!debug || !other_pitch_class_keyboard_shadow_supported(*debug))
+			return;
+
+		const float ceiling = std::max(0.04f, other_level * kKeyboardAliasCeilingRatio);
+		const int pitch_class = midi_pitch_class(other_cell.midi);
+		cap_keyboard_pitch_class_alias_cell(keyboard_grid.cells[static_cast<std::size_t>(pitch_class)],
+						    other_cell.midi, ceiling);
+		for (auto &row : keyboard_grid.rows)
+			cap_keyboard_pitch_class_alias_cell(row[static_cast<std::size_t>(pitch_class)],
+							    other_cell.midi, ceiling);
+	};
+
+	for (const NoteCell &cell : other_grid.cells)
+		process_other_cell(cell);
+	for (const auto &row : other_grid.rows) {
+		for (const NoteCell &cell : row)
+			process_other_cell(cell);
+	}
+}
+
+bool measured_electronic_keyboard_other_visual_shadow(const FullMixDebugCandidate &debug)
+{
+	if (debug.owner != InstrumentKind::Other)
+		return false;
+
+	const bool sparse_organ_alias =
+		debug.other_score >= 0.897f &&
+		debug.local_noise_level <= 0.0020f &&
+		debug.harmonic_ratios[2] <= 0.760f &&
+		debug.periodicity <= 0.898f &&
+		debug.pitch_confidence >= 0.670f;
+	const bool measured_electronic_body =
+		debug.other_score >= 0.790f &&
+		debug.keyboard_score <= 0.240f &&
+		debug.pitch_confidence >= 0.500f &&
+		debug.periodicity >= 0.700f &&
+		debug.harmonicity <= 6.500f &&
+		debug.spectral_slope <= 1.150f;
+	return sparse_organ_alias || measured_electronic_body;
+}
+
+void attenuate_measured_electronic_keyboard_other_shadows(NoteGrid &other_grid,
+							  const NoteGrid &keyboard_grid,
+							  const FullMixOwnership &ownership)
+{
+	static constexpr float kMinKeyboardPitchLevel = 0.45f;
+	static constexpr float kOtherCeilingRatio = 0.86f;
+
+	const std::size_t debug_count =
+		std::min<std::size_t>(ownership.debug_candidate_count, ownership.debug_candidates.size());
+	for (std::size_t i = 0; i < debug_count; ++i) {
+		const FullMixDebugCandidate &debug = ownership.debug_candidates[i];
+		if (!measured_electronic_keyboard_other_visual_shadow(debug))
+			continue;
+
+		const int pitch_class = midi_pitch_class(debug.midi);
+		const float keyboard_level = note_grid_pitch_class_visual_level(keyboard_grid, pitch_class);
+		if (keyboard_level < kMinKeyboardPitchLevel)
+			continue;
+
+		const float other_level = note_grid_midi_visual_level(other_grid, debug.midi);
+		if (other_level <= keyboard_level)
+			continue;
+
+		cap_note_grid_midi_visual_level(other_grid, debug.midi,
+						std::max(0.04f, keyboard_level * kOtherCeilingRatio));
+	}
+}
+
 void suppress_other_dominant_same_pitch_bass_shadows(NoteGrid &bass_grid, InstrumentState &bass_state,
 						     const NoteGrid &other_grid,
 						     const FullMixOwnership &ownership,
@@ -9279,6 +9388,21 @@ bool guitar_octave_visual_shadow_protected(const FullMixDebugCandidate &debug)
 	       other_owned_noisy_distorted_guitar_octave_up_supported(debug);
 }
 
+bool keyboard_octave_visual_shadow_protected(const FullMixDebugCandidate &debug)
+{
+	return high_octave_electronic_keyboard_alias_supported(debug) ||
+	       electronic_keyboard_alias_display_supported(debug) ||
+	       measured_keyboard_double_octave_alias_supported(debug) ||
+	       measured_low_organ_keyboard_octave_alias_supported(debug) ||
+	       measured_low_pure_keyboard_octave_alias_supported(debug) ||
+	       measured_pure_electronic_keyboard_ambiguous_candidate(debug) ||
+	       keyboard_owned_synth_other_display_supported(debug) ||
+	       keyboard_owned_string_other_display_supported(debug) ||
+	       measured_keyboard_synth_other_priority_supported(debug) ||
+	       measured_other_owned_electric_piano_supported(debug) ||
+	       measured_other_owned_electric_piano_octave_up_supported(debug);
+}
+
 void attenuate_lower_non_guitar_pitch_class_guitar_octave_shadows(
 	NoteGrid &guitar_grid, InstrumentState &guitar_state, const NoteGrid &keyboard_grid,
 	const NoteGrid &other_grid, const FullMixOwnership &ownership, int preferred_root)
@@ -9317,6 +9441,42 @@ void attenuate_lower_non_guitar_pitch_class_guitar_octave_shadows(
 
 	if (changed)
 		write_note_grid_label(guitar_state, guitar_grid, preferred_root);
+}
+
+void attenuate_lower_other_pitch_class_keyboard_octave_shadows(NoteGrid &keyboard_grid,
+							       InstrumentState &keyboard_state,
+							       const NoteGrid &other_grid,
+							       const FullMixOwnership &ownership,
+							       int preferred_root)
+{
+	static constexpr float kMinKeyboardVisualLevel = 0.72f;
+	static constexpr float kMinOtherSupportVisualLevel = 0.55f;
+	static constexpr float kSupportWinRatio = 0.84f;
+
+	bool changed = false;
+	for (int midi = kKeyboardMinMidi; midi <= kKeyboardMaxMidi; ++midi) {
+		const float keyboard_level = note_grid_midi_visual_level(keyboard_grid, midi);
+		if (keyboard_level < kMinKeyboardVisualLevel)
+			continue;
+
+		const LowerPitchClassVisualSupport support =
+			strongest_lower_pitch_class_visual_support(other_grid, midi);
+		if (support.level < kMinOtherSupportVisualLevel)
+			continue;
+
+		const FullMixDebugCandidate *debug = full_mix_debug_for_midi(ownership, midi);
+		if (debug && keyboard_octave_visual_shadow_protected(*debug))
+			continue;
+
+		const float ceiling = std::max(0.05f, support.level * kSupportWinRatio);
+		if (keyboard_level <= ceiling)
+			continue;
+		cap_note_grid_midi_visual_level(keyboard_grid, midi, ceiling);
+		changed = true;
+	}
+
+	if (changed)
+		write_note_grid_label(keyboard_state, keyboard_grid, preferred_root);
 }
 
 void suppress_measured_other_owned_keyboard_shadows(NoteGrid &keyboard_grid, InstrumentState &keyboard_state,
@@ -21950,10 +22110,19 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 		suppress_measured_other_owned_keyboard_shadows(snapshot.keyboard_notes, snapshot.keyboard,
 							       snapshot.other_notes, full_mix_ownership,
 							       -1);
+		attenuate_lower_other_pitch_class_keyboard_octave_shadows(
+			snapshot.keyboard_notes, snapshot.keyboard, snapshot.other_notes, full_mix_ownership,
+			-1);
+		attenuate_measured_electronic_keyboard_other_shadows(snapshot.other_notes,
+								     snapshot.keyboard_notes,
+								     full_mix_ownership);
 		suppress_other_dominant_same_pitch_keyboard_shadows(snapshot.keyboard_notes,
 								    snapshot.keyboard,
 								    snapshot.other_notes,
 								    full_mix_ownership, -1);
+		attenuate_other_dominant_pitch_class_keyboard_shadows(snapshot.keyboard_notes,
+								      snapshot.other_notes,
+								      full_mix_ownership);
 		if (mixed_synth_source_hint)
 			boost_note_grid_primary_octave_display_level(snapshot.other_notes, snapshot.other, -1);
 		suppress_other_dominant_same_pitch_bass_shadows(snapshot.bass_notes, snapshot.bass,
