@@ -517,6 +517,17 @@ def main() -> int:
     assert "DETECTOR_IMPROVEMENT_ROUTE_REPORT ?= $(BUILD_DIR)/detector_improvement_route_scan.txt" in makefile, (
         "detector improvement route scan must have a stable file-backed report path"
     )
+    for variable in [
+        "MEASURE_REAL_NOTE_PRACTICAL_ROW_CONFUSION_PATTERN_ARGS",
+        "MEASURE_REAL_NOTE_FOCUSED_ROW_CONFUSION_PATTERN_ARGS",
+        "MEASURE_REAL_NOTE_FOCUSED_VISUAL_ROW_CONFUSION_PATTERN_ARGS",
+        "MEASURE_REAL_NOTE_OWNERSHIP_PATTERN_ARGS",
+    ]:
+        match = re.search(rf"^{variable} \?= (.+)$", makefile, re.MULTILINE)
+        assert match is not None, f"missing {variable}"
+        assert "--profile-fields" in match.group(1), (
+            f"{variable} must include attribute-profile output for detector route reports"
+        )
     route_scan_target_list = route_scan_targets.group(1)
     for target in [
         "find-real-note-focused-row-confusion-patterns",
@@ -543,6 +554,13 @@ def main() -> int:
         re.MULTILINE,
     ), "detector improvement route helper must delegate to the parallel route scan"
     route_report_recipe = target_recipe(makefile, "$(DETECTOR_IMPROVEMENT_ROUTE_REPORT)")
+    assert re.search(
+        r"^\$\(DETECTOR_IMPROVEMENT_ROUTE_REPORT\): FORCE Makefile scripts/run_with_duration\.sh "
+        r"scripts/find_real_note_attribute_patterns\.py scripts/find_instrument_owner_patterns\.py "
+        r"scripts/find_drum_attribute_patterns\.py",
+        makefile,
+        re.MULTILINE,
+    ), "detector improvement route report must refresh instead of serving stale miner output"
     assert 'tmp="$@.$$$$.tmp"' in route_report_recipe, (
         "detector improvement route report must write through a per-process temp file"
     )

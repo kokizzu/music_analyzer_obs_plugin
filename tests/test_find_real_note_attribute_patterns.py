@@ -376,6 +376,25 @@ def main() -> int:
             stderr=subprocess.PIPE,
             check=True,
         )
+        profile_result = subprocess.run(
+            [
+                sys.executable,
+                str(ROOT / "scripts" / "find_real_note_attribute_patterns.py"),
+                str(path),
+                "--bucket",
+                "ownership_miss:guitar/acoustic->piano",
+                "--limit",
+                "1",
+                "--max-negative-samples",
+                "2",
+                "--profile-fields",
+                "3",
+            ],
+            text=True,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            check=True,
+        )
         multi_path = pathlib.Path(tmp) / "multi_attributes.tsv"
         multi_rows = [
             row(
@@ -1096,6 +1115,10 @@ def main() -> int:
     assert "keyboard_1 expected=F#4/66 debug=F#4/66 owner=piano" in example_result.stdout
     assert "miss_reason=ownership: pos=2/2 rows=2 neg=0/2 rows=0" in reason_result.stdout
     assert "debug_score_state=scored_owner: pos=2/2 rows=2" in score_state_result.stdout
+    assert "numeric attribute profile:" in profile_result.stdout
+    assert "partial2 <= sep=0.750 pos=0.13 [0.12..0.14] protected=0.375 [0.13..0.62]" in profile_result.stdout
+    assert "category attribute profile:" in profile_result.stdout
+    assert "debug_owner=piano enrich=0.500 pos=2/2 protected=1/2" in profile_result.stdout
     assert (
         "debug_midi<=69 AND partial2<=0.13 AND pitch_confidence>=0.95: "
         "pos=2/2 rows=2 neg=0/3 rows=0"

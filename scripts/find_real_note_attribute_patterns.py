@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import argparse
+import bisect
 import collections
 import concurrent.futures
 import contextlib
@@ -196,6 +197,7 @@ class PatternSearchSettings:
     beam_width: int
     exclude_fields: tuple[str, ...]
     protected_scope: str
+    profile_fields: int
 
 
 class SampleCountCache:
@@ -922,6 +924,140 @@ def format_example(row: dict[str, str]) -> str:
     )
 
 
+def numeric_summary(values: list[float]) -> str:
+    if not values:
+        return "-"
+    sorted_values = sorted(values)
+    median = statistics.median(sorted_values)
+    low = quantile(sorted_values, 0.10)
+    high = quantile(sorted_values, 0.90)
+    return f"{format_value(median)} [{format_value(low)}..{format_value(high)}]"
+
+
+def numeric_separation(
+    positive_values: list[float], negative_values: list[float]
+) -> tuple[float, str]:
+    if not positive_values or not negative_values:
+        return 0.0, ">="
+
+    sorted_negatives = sorted(negative_values)
+    less = 0
+    equal = 0
+    for value in positive_values:
+        left = bisect.bisect_left(sorted_negatives, value)
+        right = bisect.bisect_right(sorted_negatives, value)
+        less += left
+        equal += right - left
+
+    pairs = len(positive_values) * len(negative_values)
+    positive_higher = (less + equal * 0.5) / pairs
+    positive_lower = 1.0 - positive_higher
+    if positive_higher >= positive_lower:
+        return positive_higher, ">="
+    return positive_lower, "<="
+
+
+def print_attribute_profile(
+    positive_rows: list[dict[str, str]],
+    negative_rows: list[dict[str, str]],
+    include_row_context: bool,
+    exclude_fields: set[str],
+    limit: int,
+) -> None:
+    if limit <= 0:
+        return
+
+    numeric_fields = [
+        field
+        for field in DEBUG_NUMERIC_FIELDS + (
+        ROW_CONTEXT_NUMERIC_FIELDS if include_row_context else []
+        )
+        if field not in exclude_fields
+    ]
+    category_fields = [
+        field
+        for field in DEBUG_CATEGORY_FIELDS + (
+        ROW_CONTEXT_CATEGORY_FIELDS if include_row_context else []
+        )
+        if field not in exclude_fields
+    ]
+
+    numeric_profiles: list[tuple[float, str, str, str, str]] = []
+    for field in numeric_fields:
+        positive_values = [
+            value for row in positive_rows if (value := as_float(row, field)) is not None
+        ]
+        negative_values = [
+            value for row in negative_rows if (value := as_float(row, field)) is not None
+        ]
+        if not positive_values or not negative_values:
+            continue
+        separation, direction = numeric_separation(positive_values, negative_values)
+        numeric_profiles.append(
+            (
+                abs(separation - 0.5),
+                field,
+                direction,
+                numeric_summary(positive_values),
+                numeric_summary(negative_values),
+            )
+        )
+
+    category_profiles: list[tuple[float, str, str, int, int, int, int]] = []
+    for field in category_fields:
+        positive_counts = collections.Counter(
+            row.get(field, "") for row in positive_rows if row.get(field, "")
+        )
+        negative_counts = collections.Counter(
+            row.get(field, "") for row in negative_rows if row.get(field, "")
+        )
+        if not positive_counts:
+            continue
+        positive_total = sum(positive_counts.values())
+        negative_total = sum(negative_counts.values())
+        for value, positive_count in positive_counts.items():
+            negative_count = negative_counts.get(value, 0)
+            positive_rate = positive_count / positive_total if positive_total else 0.0
+            negative_rate = negative_count / negative_total if negative_total else 0.0
+            category_profiles.append(
+                (
+                    positive_rate - negative_rate,
+                    field,
+                    value,
+                    positive_count,
+                    positive_total,
+                    negative_count,
+                    negative_total,
+                )
+            )
+
+    numeric_profiles.sort(key=lambda item: (-item[0], item[1]))
+    category_profiles.sort(key=lambda item: (-item[0], item[1], item[2]))
+
+    if numeric_profiles:
+        print("  numeric attribute profile:")
+        for separation, field, direction, positive_summary, negative_summary in numeric_profiles[:limit]:
+            print(
+                f"    {field} {direction} sep={separation + 0.5:.3f} "
+                f"pos={positive_summary} protected={negative_summary}"
+            )
+    if category_profiles:
+        print("  category attribute profile:")
+        for (
+            enrichment,
+            field,
+            value,
+            positive_count,
+            positive_total,
+            negative_count,
+            negative_total,
+        ) in category_profiles[:limit]:
+            print(
+                f"    {field}={value} enrich={enrichment:.3f} "
+                f"pos={positive_count}/{positive_total} protected={negative_count}/{negative_total}"
+            )
+
+
 def print_bucket_patterns(
     rows: list[dict[str, str]],
     bucket: tuple[str, str, str, str],
@@ -937,6 +1073,7 @@ def print_bucket_patterns(
     beam_width: int,
     exclude_fields: set[str],
     protected_scope: str,
+    profile_fields: int,
 ) -> None:
     positive_rows = rows_for_bucket(rows, bucket)
     negatives = protected_hit_rows(rows, positive_rows, bucket, protected_scope)
@@ -952,6 +1089,14 @@ def print_bucket_patterns(
     )
     if not positive_rows:
         return
+
+    print_attribute_profile(
+        positive_rows,
+        negatives,
+        include_row_context,
+        exclude_fields,
+        profile_fields,
+    )
 
     positive_sample_bits, _positive_sample_count = sample_bit_map(positive_rows)
     negative_sample_bits, _negative_sample_count = sample_bit_map(negatives)
@@ -1223,6 +1368,7 @@ def bucket_patterns_text(
             settings.beam_width,
             set(settings.exclude_fields),
             settings.protected_scope,
+            settings.profile_fields,
         )
     return output.getvalue()
 
@@ -1328,6 +1474,15 @@ def main() -> int:
         default=1,
         help="number of independent buckets to mine in parallel",
     )
+    parser.add_argument(
+        "--profile-fields",
+        type=int,
+        default=0,
+        help=(
+            "print this many ranked numeric and category attribute profiles for each bucket "
+            "before candidate rules"
+        ),
+    )
     args = parser.parse_args()
 
     rows = load_rows(pathlib.Path(args.path))
@@ -1349,6 +1504,7 @@ def main() -> int:
         beam_width=max(1, args.beam_width),
         exclude_fields=tuple(sorted(set(args.exclude_field))),
         protected_scope=args.protected_scope,
+        profile_fields=max(0, args.profile_fields),
     )
     jobs = min(max(1, args.jobs), len(buckets))
     if jobs <= 1:

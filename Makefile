@@ -93,10 +93,10 @@ MEASURE_ANALYZER_PATTERN_FULL_SECTION_OUTPUTS := \
 MEASURE_INSTRUMENT_PATTERN_ARGS ?= --limit 4 --min-positive-samples 20 --max-negative-samples 0 --max-conditions 3 --beam-width 160 --show-examples 1
 MEASURE_INSTRUMENT_STATUS_PATTERN_ARGS ?= --status-bucket miss:strings --status-bucket miss:synth --limit 4 --min-positive-samples 2 --max-negative-samples 0 --max-conditions 3 --beam-width 160 --show-examples 2 --exclude-field program_name --exclude-field note --exclude-field raw_local_best_note
 MEASURE_REAL_NOTE_PATTERN_ARGS ?= --limit 4 --min-positive-samples 3 --max-negative-samples 0 --max-conditions 3 --beam-width 160 --show-examples 1
-MEASURE_REAL_NOTE_PRACTICAL_ROW_CONFUSION_PATTERN_ARGS ?= --top-buckets 8 --limit 8 --min-positive-samples 20 --max-negative-samples 20 --max-conditions 2 --beam-width 240 --show-examples 1 --show-near-misses 4
-MEASURE_REAL_NOTE_FOCUSED_ROW_CONFUSION_PATTERN_ARGS ?= --top-buckets 8 --limit 8 --min-positive-samples 20 --max-negative-samples 20 --max-conditions 3 --beam-width 240 --show-examples 1 --show-near-misses 4 --protected-scope all
-MEASURE_REAL_NOTE_FOCUSED_VISUAL_ROW_CONFUSION_PATTERN_ARGS ?= --top-buckets 8 --limit 8 --min-positive-samples 20 --max-negative-samples 20 --max-conditions 2 --beam-width 240 --show-examples 1 --show-near-misses 4 --protected-scope all --include-row-context
-MEASURE_REAL_NOTE_OWNERSHIP_PATTERN_ARGS ?= --top-buckets 8 --limit 4 --min-positive-samples 1 --max-negative-samples 0 --max-conditions 3 --beam-width 160 --show-examples 1 --protected-scope all
+MEASURE_REAL_NOTE_PRACTICAL_ROW_CONFUSION_PATTERN_ARGS ?= --top-buckets 8 --limit 8 --min-positive-samples 20 --max-negative-samples 20 --max-conditions 2 --beam-width 240 --show-examples 1 --show-near-misses 4 --profile-fields 5
+MEASURE_REAL_NOTE_FOCUSED_ROW_CONFUSION_PATTERN_ARGS ?= --top-buckets 8 --limit 8 --min-positive-samples 20 --max-negative-samples 20 --max-conditions 3 --beam-width 240 --show-examples 1 --show-near-misses 4 --protected-scope all --profile-fields 5
+MEASURE_REAL_NOTE_FOCUSED_VISUAL_ROW_CONFUSION_PATTERN_ARGS ?= --top-buckets 8 --limit 8 --min-positive-samples 20 --max-negative-samples 20 --max-conditions 2 --beam-width 240 --show-examples 1 --show-near-misses 4 --protected-scope all --include-row-context --profile-fields 5
+MEASURE_REAL_NOTE_OWNERSHIP_PATTERN_ARGS ?= --top-buckets 8 --limit 4 --min-positive-samples 1 --max-negative-samples 0 --max-conditions 3 --beam-width 160 --show-examples 1 --protected-scope all --profile-fields 5
 MEASURE_REAL_NOTE_OCTAVE_DISPLACEMENT_PATTERN_ARGS ?= --top-buckets 8 --limit 8 --min-positive-samples 20 --max-negative-samples 20 --max-conditions 3 --beam-width 240 --show-examples 1 --show-near-misses 4 --protected-scope all --include-row-context
 REAL_NOTE_RULE_CONDITIONS ?=
 REAL_NOTE_RULE_GROUP_BY ?=
@@ -2463,7 +2463,7 @@ analyze-detector-improvement-routes: scripts/run_with_duration.sh
 detector-improvement-route-report: $(DETECTOR_IMPROVEMENT_ROUTE_REPORT)
 	@printf '%s\n' "detector improvement route report: $(DETECTOR_IMPROVEMENT_ROUTE_REPORT)"
 
-$(DETECTOR_IMPROVEMENT_ROUTE_REPORT): scripts/run_with_duration.sh | $(BUILD_DIR)
+$(DETECTOR_IMPROVEMENT_ROUTE_REPORT): FORCE Makefile scripts/run_with_duration.sh scripts/find_real_note_attribute_patterns.py scripts/find_instrument_owner_patterns.py scripts/find_drum_attribute_patterns.py | $(BUILD_DIR)
 	+@tmp="$@.$$$$.tmp"; $(RUN_WITH_DURATION) detector_improvement_routes_parallel $(MAKE) $(PARALLEL_TEST_MAKE_JOBS) $(DETECTOR_IMPROVEMENT_ROUTE_SCAN_TARGETS) > "$$tmp" 2>&1; status="$$?"; if [ "$$status" -eq 0 ]; then mv "$$tmp" "$@"; tail -n 1 "$@"; else cat "$$tmp"; exit "$$status"; fi
 
 analyze-detector-improvements-full: scripts/run_with_duration.sh
