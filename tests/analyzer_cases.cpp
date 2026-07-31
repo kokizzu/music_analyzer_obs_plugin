@@ -189,6 +189,19 @@ bool has_chord_label(const char *actual, const std::string &expected)
 	return false;
 }
 
+int test_chord_label_component_count(const char *actual)
+{
+	if (!actual || !actual[0] || std::strcmp(actual, "--") == 0)
+		return 0;
+
+	int count = 1;
+	for (const char *cursor = actual; *cursor; ++cursor) {
+		if (*cursor == '=')
+			++count;
+	}
+	return count;
+}
+
 bool chord_primary_label_is(const char *actual, const std::string &expected)
 {
 	if (!actual)
@@ -1172,6 +1185,10 @@ void check_guitar_supported_extension_aliases(Runner &runner)
 			      "guitar crowded symmetric altered noise Gaug");
 	expect_no_chord_label(runner, crowded_augmented_noise_snapshot.guitar_chord.label, "Baug",
 			      "guitar crowded symmetric altered noise Baug");
+	runner.expect(test_chord_label_component_count(crowded_augmented_noise_snapshot.guitar_chord.label) <
+			      7,
+		      std::string("guitar crowded altered noise: expected compact label, got `") +
+			      crowded_augmented_noise_snapshot.guitar_chord.label + "`");
 
 	mao_test::Buffer thirdless_named_dyad = {};
 	add_harmonic_note(thirdless_named_dyad, 48, 0.20f, guitar_profile);
