@@ -518,6 +518,54 @@ def test_cli_unlimited_cache_rebuilds_when_source_or_filter_expands():
             raise AssertionError(f"changed unlimited source should include the new kick: {rows.get('kick')}")
 
 
+def test_cli_audit_reports_candidate_and_selected_counts_without_writing():
+    with tempfile.TemporaryDirectory() as temp:
+        base = Path(temp)
+        source = base / "source"
+        output = base / "out"
+
+        write_wav(source / "kit-a" / "Kick 01.wav", frequency=80.0)
+        write_wav(source / "kit-b" / "Kick 02.wav", frequency=90.0)
+        write_wav(source / "kit-b" / "Clap 01.wav", frequency=900.0)
+
+        zip_member = "pack/Snare 01.wav"
+        zip_wav = base / "zip-snare.wav"
+        write_wav(zip_wav, frequency=250.0)
+        with zipfile.ZipFile(source / "snare-pack.zip", "w") as archive:
+            archive.write(zip_wav, zip_member)
+
+        completed = subprocess.run(
+            [
+                sys.executable,
+                str(ROOT / "scripts" / "prepare_drum_samples.py"),
+                "--source",
+                str(source),
+                "--output",
+                str(output),
+                "--limit-per-category",
+                "1",
+                "--selection",
+                "spread",
+                "--audit",
+            ],
+            check=True,
+            text=True,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+        )
+
+        expected_counts = "kick=2 snare=1 hihat=0 crash=0 tom=0 ride=0 rim=0"
+        expected_selected = "kick=1 snare=1 hihat=0 crash=0 tom=0 ride=0 rim=0"
+        if "prepare_drum_samples audit: candidates=3 plain=2 zip=1 rar=0" not in completed.stdout:
+            raise AssertionError(f"unexpected audit summary:\n{completed.stdout}")
+        if f"candidate counts {expected_counts}" not in completed.stdout:
+            raise AssertionError(f"unexpected candidate counts:\n{completed.stdout}")
+        if f"selected counts limit=1 selection=spread {expected_selected}" not in completed.stdout:
+            raise AssertionError(f"unexpected selected counts:\n{completed.stdout}")
+        if output.exists():
+            raise AssertionError("audit mode should not create or modify the output fixture directory")
+
+
 def main():
     test_plain_zip_and_optional_rar_samples()
     test_missing_unrar_skips_rar_without_failing()
@@ -532,7 +580,8 @@ def main():
     test_source_filter_limits_candidate_selection()
     test_cli_filter_rebuilds_mismatched_manifest()
     test_cli_unlimited_cache_rebuilds_when_source_or_filter_expands()
-    print("test_prepare_drum_samples: 13 checks passed")
+    test_cli_audit_reports_candidate_and_selected_counts_without_writing()
+    print("test_prepare_drum_samples: 14 checks passed")
     return 0
 
 

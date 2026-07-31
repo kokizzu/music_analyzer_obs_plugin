@@ -515,6 +515,75 @@ def copy_samples(source, output, limit_per_category, selection, unrar=None, incl
                               include_archives=include_archives, source_filter=source_filter)
 
 
+def all_candidates(source, unrar=None, include_archives=True, source_filter=None):
+    candidates = [
+        candidate for candidate in collect_plain_wavs(source)
+        if candidate_matches_filter(candidate, source_filter)
+    ]
+    if include_archives:
+        candidates.extend(
+            candidate for candidate in collect_zip_wavs(source, retain_data=False)
+            if candidate_matches_filter(candidate, source_filter)
+        )
+        candidates.extend(
+            candidate for candidate in collect_rar_wavs(source, unrar, retain_data=False)
+            if candidate_matches_filter(candidate, source_filter)
+        )
+    return candidates
+
+
+def first_selection_candidates(candidates, limit_per_category):
+    if limit_per_category <= 0:
+        return list(candidates)
+
+    counts = {category: 0 for category in CATEGORIES}
+    selected = []
+    for candidate in candidates:
+        if reached_sample_limit(counts, limit_per_category):
+            break
+        if counts[candidate.category] >= limit_per_category:
+            continue
+        counts[candidate.category] += 1
+        selected.append(candidate)
+    return selected
+
+
+def count_candidates(candidates):
+    counts = {category: 0 for category in CATEGORIES}
+    kind_counts = defaultdict(int)
+    for candidate in candidates:
+        counts[candidate.category] += 1
+        kind_counts[candidate.kind] += 1
+    return counts, kind_counts
+
+
+def counts_summary(counts):
+    return " ".join(f"{category}={counts.get(category, 0)}" for category in CATEGORIES)
+
+
+def print_sample_audit(source, limit_per_category, selection, unrar=None, include_archives=True,
+                       source_filter=None):
+    candidates = all_candidates(source, unrar=unrar, include_archives=include_archives,
+                                source_filter=source_filter)
+    candidate_counts, kind_counts = count_candidates(candidates)
+    if selection == "spread":
+        selected = select_candidates(candidates, limit_per_category)
+    else:
+        selected = first_selection_candidates(candidates, limit_per_category)
+    selected_counts, _selected_kind_counts = count_candidates(selected)
+
+    print(
+        "prepare_drum_samples audit: "
+        f"candidates={len(candidates)} plain={kind_counts['plain']} "
+        f"zip={kind_counts['zip']} rar={kind_counts['rar']} source={source}"
+    )
+    print(f"candidate counts {counts_summary(candidate_counts)}")
+    print(
+        f"selected counts limit={limit_per_category} selection={selection} "
+        f"{counts_summary(selected_counts)}"
+    )
+
+
 def main():
     parser = argparse.ArgumentParser(description="Copy one-shot drum samples into a build-local fixture directory.")
     parser.add_argument("--source", default=os.environ.get("DRUM_SAMPLE_SOURCE_DIR", "/media/kyz/sshflashtor/DrumSamples"))
@@ -526,6 +595,8 @@ def main():
                         help="copy only plain WAV files; ZIP/RAR archives are skipped")
     parser.add_argument("--source-filter", default=os.environ.get("DRUM_SAMPLE_SOURCE_FILTER", ""),
                         help="optional regex matched against the manifest source label")
+    parser.add_argument("--audit", action="store_true",
+                        help="print candidate and selected category counts without writing samples")
     parser.add_argument("--refresh", action="store_true",
                         default=os.environ.get("DRUM_SAMPLE_REFRESH") == "1",
                         help="rescan sources and rewrite the output manifest even when a complete manifest exists")
@@ -536,7 +607,6 @@ def main():
     if not source.is_dir():
         raise SystemExit(f"prepare_drum_samples: source directory not found: {source}")
 
-    ensure_dirs(output)
     limit_per_category = max(0, args.limit_per_category)
     source_filter = None
     if args.source_filter:
@@ -545,8 +615,14 @@ def main():
         except re.error as exc:
             raise SystemExit(f"prepare_drum_samples: invalid --source-filter regex: {exc}") from exc
 
+    unrar = shutil.which(args.unrar) if args.unrar else None
+    if args.audit:
+        print_sample_audit(source, limit_per_category, args.selection, unrar=unrar,
+                           include_archives=not args.no_archives, source_filter=source_filter)
+        return
+
+    ensure_dirs(output)
     if not args.refresh:
-        unrar = shutil.which(args.unrar) if args.unrar else None
         expected_metadata = cache_metadata(source, limit_per_category, args.selection, not args.no_archives,
                                            args.source_filter, unrar is not None)
         counts = manifest_counts_if_complete(output, limit_per_category, source_filter=source_filter,
@@ -556,7 +632,6 @@ def main():
             print(f"prepare_drum_samples: reused {output / 'manifest.tsv'} ({summary})")
             return
     else:
-        unrar = shutil.which(args.unrar) if args.unrar else None
         expected_metadata = cache_metadata(source, limit_per_category, args.selection, not args.no_archives,
                                            args.source_filter, unrar is not None)
 

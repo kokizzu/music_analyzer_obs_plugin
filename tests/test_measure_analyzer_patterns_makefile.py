@@ -396,6 +396,11 @@ def main() -> int:
     assert "$(MAKE) prepare-drum-samples-spread" in spread_manifest_recipe, (
         "spread sample manifest target must delegate to the spread prepare target"
     )
+    audit_recipe = target_recipe(makefile, "inspect-drum-sample-coverage")
+    assert "--audit" in audit_recipe, "drum sample coverage target must use read-only audit mode"
+    assert "DRUM_SAMPLE_FULL_BUILD_DIR" in audit_recipe, (
+        "drum sample coverage audit should match the full-library spread configuration"
+    )
     assert "MUSIC_ANALYZER_DRUM_SAMPLE_VERBOSE_PRIMARY=1" in spread_matrix_recipe, (
         "spread matrix row dump must include primary miss labels, not only debug rows"
     )
