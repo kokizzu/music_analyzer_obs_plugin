@@ -411,7 +411,7 @@ def main() -> int:
                 bass_notes="",
                 guitar_notes="",
                 piano_notes="",
-                vocal_notes="D4:0.30",
+                vocal_notes="D4:0.34",
                 other_notes="D4:0.67",
             ),
         ]
