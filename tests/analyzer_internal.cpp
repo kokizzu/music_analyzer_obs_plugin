@@ -354,6 +354,61 @@ FullMixDebugCandidate make_adjacent_other_vocal_shadow_debug(int midi)
 	return debug;
 }
 
+FullMixDebugCandidate make_keyboard_vocal_shadow_debug(int midi)
+{
+	FullMixDebugCandidate debug = {};
+	debug.midi = midi;
+	debug.owner = InstrumentKind::Keyboard;
+	debug.ownership_confidence = 0.80f;
+	debug.vocal_score = 0.00f;
+	debug.keyboard_score = 0.20f;
+	debug.spectral_level = 0.90f;
+	debug.pitch_confidence = 0.85f;
+	debug.periodicity = 0.76f;
+	debug.harmonic_fit_error = 0.05f;
+	debug.local_noise_level = 0.05f;
+	return debug;
+}
+
+void check_keyboard_owned_same_pitch_vocal_shadow_uses_weak_target_guard(Runner &runner)
+{
+	static constexpr int kShadowMidi = 64;
+	static constexpr int kProtectedMidi = 65;
+
+	NoteGrid vocal_grid = {};
+	set_midi(vocal_grid, kShadowMidi, 0.20f);
+	InstrumentState vocal_state = {};
+	NoteGrid keyboard_grid = {};
+	set_midi(keyboard_grid, kShadowMidi, 0.10f);
+	FullMixOwnership ownership = {};
+	ownership.debug_candidate_count = 1;
+	ownership.debug_candidates[0] = make_keyboard_vocal_shadow_debug(kShadowMidi);
+
+	suppress_named_owned_same_pitch_vocal_shadows(vocal_grid, vocal_state, keyboard_grid,
+						      ownership, InstrumentKind::Keyboard, -1);
+	runner.expect(note_grid_midi_visual_level(vocal_grid, kShadowMidi) <= 0.0f,
+		      "same-pitch keyboard vocal shadow: expected weak keyboard-owned vocal mirror to clear");
+
+	NoteGrid protected_vocal_grid = {};
+	set_midi(protected_vocal_grid, kProtectedMidi, 0.20f);
+	InstrumentState protected_vocal_state = {};
+	NoteGrid protected_keyboard_grid = {};
+	set_midi(protected_keyboard_grid, kProtectedMidi, 0.10f);
+	FullMixOwnership protected_ownership = {};
+	protected_ownership.debug_candidate_count = 1;
+	protected_ownership.debug_candidates[0] = make_keyboard_vocal_shadow_debug(kProtectedMidi);
+	protected_ownership.debug_candidates[0].owner = InstrumentKind::Vocal;
+	protected_ownership.debug_candidates[0].vocal_score = 0.24f;
+	protected_ownership.debug_candidates[0].keyboard_score = 0.20f;
+	suppress_named_owned_same_pitch_vocal_shadows(protected_vocal_grid,
+						      protected_vocal_state,
+						      protected_keyboard_grid,
+						      protected_ownership,
+						      InstrumentKind::Keyboard, -1);
+	runner.expect(note_grid_midi_visual_level(protected_vocal_grid, kProtectedMidi) > 0.0f,
+		      "same-pitch keyboard vocal shadow: expected vocal-owned note to stay visible");
+}
+
 void check_other_owned_same_pitch_vocal_shadow_uses_measured_threshold(Runner &runner)
 {
 	static constexpr int kShadowMidi = 60;
@@ -401,6 +456,7 @@ int run()
 	check_supported_guitar_candidate_alias_merge(runner);
 	check_supported_guitar_display_extension_aliases(runner);
 	check_same_pitch_guitar_bass_shadow_uses_any_matching_debug(runner);
+	check_keyboard_owned_same_pitch_vocal_shadow_uses_weak_target_guard(runner);
 	check_other_owned_same_pitch_vocal_shadow_uses_measured_threshold(runner);
 	if (runner.failures) {
 		std::fprintf(stderr, "analyzer_internal: %d/%d checks failed\n", runner.failures,

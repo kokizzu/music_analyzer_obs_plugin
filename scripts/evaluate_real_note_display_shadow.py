@@ -97,6 +97,7 @@ SIMULATION_RULES = (
     "owner_shadow_score2_level",
     "owner_shadow_score15_level",
     "score2_level_no_owner",
+    "runtime_keyboard_vocal_weak",
     "weak_target_shadow_owned",
     "runtime_guitar_bass_measured",
     "runtime_keyboard_bass_weak",
@@ -326,6 +327,14 @@ def shadow_rule_matches(record: dict[str, str], rule: str) -> bool:
         return owner_is_shadow and shadow_score_clear and shadow_level_clear
     if rule == "score2_level_no_owner":
         return shadow_score_dominant and shadow_level_dominant
+    if rule == "runtime_keyboard_vocal_weak":
+        return (
+            target_row == "vocals"
+            and shadow_row == "piano"
+            and owner_is_shadow
+            and target_is_weak
+            and shadow_score >= 0.18
+        )
     if rule == "weak_target_shadow_owned":
         return owner_is_shadow and target_is_weak and shadow_score >= 0.18
     if rule == "runtime_guitar_bass_measured":

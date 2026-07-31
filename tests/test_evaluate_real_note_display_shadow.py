@@ -202,6 +202,46 @@ def main() -> int:
                 other_notes="",
             ),
             row(
+                sample_id="keyboard_vocal_shadow",
+                family="piano",
+                source="acoustic",
+                expected_note="E4",
+                expected_midi="64",
+                debug_note="E4",
+                debug_midi="64",
+                debug_owner="piano",
+                bass_score="0.00",
+                keyboard_score="0.20",
+                guitar_score="0.00",
+                vocal_score="0.00",
+                other_score="0.00",
+                bass_notes="",
+                guitar_notes="",
+                piano_notes="E4:0.18",
+                vocal_notes="E4:0.20",
+                other_notes="",
+            ),
+            row(
+                sample_id="protected_keyboard_vocal",
+                family="vocals",
+                source="acoustic",
+                expected_note="F4",
+                expected_midi="65",
+                debug_note="F4",
+                debug_midi="65",
+                debug_owner="vocals",
+                bass_score="0.00",
+                keyboard_score="0.20",
+                guitar_score="0.00",
+                vocal_score="0.24",
+                other_score="0.00",
+                bass_notes="",
+                guitar_notes="",
+                piano_notes="F4:0.90",
+                vocal_notes="F4:0.30",
+                other_notes="",
+            ),
+            row(
                 sample_id="measured_guitar_bass_shadow",
                 family="piano",
                 source="electronic",
@@ -908,6 +948,11 @@ def main() -> int:
     assert "runtime_keyboard_bass_weak" in all_rows_output, all_rows_output
     assert "runtime_keyboard_bass_guarded" in all_rows_output, all_rows_output
     assert "extras=1/1 protected=0/0 precision=100.0%" in all_rows_output, all_rows_output
+    assert "piano->same-pitch vocals extras rows=1 samples=1" in all_rows_output, all_rows_output
+    assert "piano->same-pitch vocals protected rows=1 samples=1" in all_rows_output, all_rows_output
+    assert (
+        "runtime_keyboard_vocal_weak  extras=1/1 protected=0/1 precision=100.0% protected_rate=0.0%"
+    ) in all_rows_output, all_rows_output
     assert "guitar->same-pitch piano extras rows=1 samples=1" in all_rows_output, all_rows_output
     assert "piano->same-pitch piano" not in all_rows_output, all_rows_output
     all_threshold_output = all_threshold_result.stdout

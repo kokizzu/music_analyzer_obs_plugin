@@ -9177,6 +9177,9 @@ void suppress_named_owned_same_pitch_vocal_shadows(NoteGrid &vocal_grid, Instrum
 	static constexpr float kMinOwnerLevel = 0.20f;
 	static constexpr float kMaxVocalToOwnerLevelRatio = 0.72f;
 	static constexpr float kMeasuredOtherMaxVocalToOwnerLevelRatio = 0.35f;
+	static constexpr float kWeakKeyboardOwnedMaxVocalScore = 0.10f;
+	static constexpr float kWeakKeyboardOwnedMaxVocalLevel = 0.45f;
+	static constexpr float kWeakKeyboardOwnedMinOwnerScore = 0.18f;
 
 	bool changed = false;
 	for (int midi = kVocalMinMidi; midi <= kVocalMaxMidi; ++midi) {
@@ -9184,8 +9187,7 @@ void suppress_named_owned_same_pitch_vocal_shadows(NoteGrid &vocal_grid, Instrum
 		if (vocal_level < kMinVocalLevel)
 			continue;
 		const float owner_level = note_grid_midi_visual_level(owner_grid, midi);
-		if (owner_level < kMinOwnerLevel ||
-		    vocal_level > owner_level * kMaxVocalToOwnerLevelRatio)
+		if (owner_level <= 0.0f)
 			continue;
 		if (measured_low_vocal_alias_display_midi_supported(ownership, midi))
 			continue;
@@ -9195,6 +9197,20 @@ void suppress_named_owned_same_pitch_vocal_shadows(NoteGrid &vocal_grid, Instrum
 		if (!debug)
 			continue;
 		const float owner_score = full_mix_debug_row_score(*debug, owner_row);
+		const bool weak_keyboard_owned_vocal_shadow =
+			owner_row == InstrumentKind::Keyboard &&
+			debug->owner == InstrumentKind::Keyboard &&
+			vocal_level <= kWeakKeyboardOwnedMaxVocalLevel &&
+			debug->vocal_score <= kWeakKeyboardOwnedMaxVocalScore &&
+			owner_score >= kWeakKeyboardOwnedMinOwnerScore;
+		if (weak_keyboard_owned_vocal_shadow) {
+			clear_note_grid_midi(vocal_grid, midi);
+			changed = true;
+			continue;
+		}
+		if (owner_level < kMinOwnerLevel ||
+		    vocal_level > owner_level * kMaxVocalToOwnerLevelRatio)
+			continue;
 		const bool owner_score_supported =
 			owner_score >= kMinOwnerScore &&
 			debug->vocal_score <= owner_score * kMaxVocalToOwnerScoreRatio;
