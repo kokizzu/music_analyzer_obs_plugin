@@ -20182,6 +20182,17 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 		if (one_shot_measured_low_crash_ride_tom_snare_steal)
 			promote_drum_primary(Tom, 0.90f);
 
+		const bool one_shot_measured_hihat_from_tom_primary_recovery =
+			drum_detection_enabled && one_shot_drum_source &&
+			!generated_gm_drum_source &&
+			drum_level_[Kick] > 0.30f &&
+			drum_level_[Tom] > 0.30f &&
+			drum_level_[Tom] >= drum_level_[HiHat] + 0.015f &&
+			tom_kick_band_ratio <= 1.143f &&
+			tom_kick_level_ratio >= 1.192f;
+		if (one_shot_measured_hihat_from_tom_primary_recovery)
+			promote_drum_primary(HiHat, 0.90f);
+
 	const bool onset_tempo_event =
 		drum_detection_enabled && rms > kSilenceRms && drum_transient &&
 		(had_previous_audio ? onset >= 1.25f : true);
