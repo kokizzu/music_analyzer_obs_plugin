@@ -3367,6 +3367,46 @@ void check_full_mix_single_instrument_precision(Runner &runner)
 
 	{
 		mao_test::Buffer buffer = {};
+		const std::vector<float> resonant_acoustic_piano_profile =
+			{1.0f, 0.079f, 0.126f, 0.045f, 0.038f};
+		add_harmonic_note(buffer, 58, 0.24f, resonant_acoustic_piano_profile);
+
+		const auto snapshot =
+			analyze_buffer_with_mode(buffer, mao::AnalysisInputMode::FullMix,
+						 "speaker resonant struck body", 3);
+		expect_global_pitch_class(runner, snapshot, 10,
+					  "full-mix measured resonant acoustic piano body global");
+		runner.expect(grid_level_for_midi(snapshot.keyboard_notes, 58) > 0.0f,
+			      std::string("full-mix measured resonant acoustic piano body: expected "
+					  "keyboard A#3 display, got keyboard `") +
+				      snapshot.keyboard.label + "`, bass `" + snapshot.bass.label +
+				      "`, vocal `" + snapshot.vocal.label + "`, other `" +
+				      snapshot.other.label + "`, debug `" +
+				      full_mix_debug_summary_for_midi(snapshot, 58) + "`");
+	}
+
+	{
+		mao_test::Buffer buffer = {};
+		const std::vector<float> high_mallet_piano_profile =
+			{1.0f, 0.004f, 0.064f, 0.009f, 0.0f};
+		add_harmonic_note(buffer, 84, 0.24f, high_mallet_piano_profile);
+
+		const auto snapshot =
+			analyze_buffer_with_mode(buffer, mao::AnalysisInputMode::FullMix,
+						 "speaker high mallet body", 3);
+		expect_global_pitch_class(runner, snapshot, 0,
+					  "full-mix measured high mallet piano body global");
+		runner.expect(grid_level_for_midi(snapshot.keyboard_notes, 84) > 0.0f,
+			      std::string("full-mix measured high mallet piano body: expected "
+					  "keyboard C6 display, got keyboard `") +
+				      snapshot.keyboard.label + "`, guitar `" + snapshot.guitar.label +
+				      "`, vocal `" + snapshot.vocal.label + "`, other `" +
+				      snapshot.other.label + "`, debug `" +
+				      full_mix_debug_summary_for_midi(snapshot, 84) + "`");
+	}
+
+	{
+		mao_test::Buffer buffer = {};
 		const std::vector<float> measured_mid_acoustic_other_profile =
 			{1.0f, 0.271f, 0.076f, 0.063f, 0.011f};
 		add_harmonic_note(buffer, 64, 0.24f, measured_mid_acoustic_other_profile);
