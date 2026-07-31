@@ -598,6 +598,34 @@ void check_lower_other_pitch_class_keyboard_octave_shadow_is_attenuated(Runner &
 		      "lower other keyboard octave shadow: expected electronic keyboard alias to stay bright");
 }
 
+void check_lower_non_guitar_pitch_class_guitar_octave_shadow_uses_measured_levels(Runner &runner)
+{
+	static constexpr int kKeyboardMidi = 45;
+	static constexpr int kGuitarAliasMidi = kKeyboardMidi + 12;
+
+	NoteGrid keyboard_grid = {};
+	set_midi(keyboard_grid, kKeyboardMidi, 0.50f);
+	NoteGrid other_grid = {};
+	NoteGrid guitar_grid = {};
+	set_midi(guitar_grid, kGuitarAliasMidi, 0.70f);
+	InstrumentState guitar_state = {};
+	FullMixOwnership ownership = {};
+
+	attenuate_lower_non_guitar_pitch_class_guitar_octave_shadows(
+		guitar_grid, guitar_state, keyboard_grid, other_grid, ownership, -1);
+	runner.expect(note_grid_midi_visual_level(guitar_grid, kGuitarAliasMidi) < 0.50f,
+		      "lower non-guitar guitar octave shadow: expected measured alias level to attenuate");
+
+	NoteGrid protected_keyboard_grid = {};
+	set_midi(protected_keyboard_grid, kKeyboardMidi, 0.44f);
+	NoteGrid protected_guitar_grid = {};
+	set_midi(protected_guitar_grid, kGuitarAliasMidi, 0.70f);
+	attenuate_lower_non_guitar_pitch_class_guitar_octave_shadows(
+		protected_guitar_grid, guitar_state, protected_keyboard_grid, other_grid, ownership, -1);
+	runner.expect(note_grid_midi_visual_level(protected_guitar_grid, kGuitarAliasMidi) > 0.69f,
+		      "lower non-guitar guitar octave shadow: expected weak support to leave alias bright");
+}
+
 void check_display_ownership_scale_keeps_confirmed_mid_confidence_visible(Runner &runner)
 {
 	NoteCandidate weak = {};
@@ -635,6 +663,7 @@ int run()
 	check_other_owned_pitch_class_keyboard_shadow_is_attenuated(runner);
 	check_electronic_keyboard_other_shadow_is_attenuated(runner);
 	check_lower_other_pitch_class_keyboard_octave_shadow_is_attenuated(runner);
+	check_lower_non_guitar_pitch_class_guitar_octave_shadow_uses_measured_levels(runner);
 	check_display_ownership_scale_keeps_confirmed_mid_confidence_visible(runner);
 	if (runner.failures) {
 		std::fprintf(stderr, "analyzer_internal: %d/%d checks failed\n", runner.failures,
