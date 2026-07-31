@@ -19032,6 +19032,14 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 	if (one_shot_measured_high_band_hihat_crash_active_bleed) {
 		cap_drum_level(Crash, 0.28f);
 	}
+	const bool one_shot_measured_strong_hihat_crash_active_bleed =
+		drum_detection_enabled && one_shot_drum_source &&
+		drum_level_[HiHat] >= 0.938f &&
+		drum_level_[Crash] > 0.30f &&
+		drum_segment_bands[Crash] >= 14.730f;
+	if (one_shot_measured_strong_hihat_crash_active_bleed) {
+		cap_drum_level(Crash, 0.28f);
+	}
 	const bool one_shot_measured_hihat_weighted_crash_active_bleed =
 		drum_detection_enabled && one_shot_drum_source &&
 		drum_level_[HiHat] > 0.30f &&
@@ -19679,6 +19687,17 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 			drum_level_[HiHat] >= 0.88f &&
 			drum_bands[Crash] <= 14.65f &&
 			drum_segment_bands[Crash] >= 14.09f;
+		const bool one_shot_measured_bright_ride_from_crash_primary_recovery =
+			drum_detection_enabled && one_shot_drum_source &&
+			drum_level_[Ride] >= 0.78f &&
+			drum_level_[Crash] >= 0.89f &&
+			drum_level_[HiHat] >= 0.80f &&
+			drum_shape_supported[Ride] &&
+			snapshot.high_energy >= 0.62f &&
+			snapshot.mid_energy <= 0.17f &&
+			crash_hihat_level_ratio >= 1.08f &&
+			ride_hihat_segment_ratio >= 0.45f &&
+			ride_hihat_segment_ratio <= 0.62f;
 		const bool one_shot_measured_ride_from_hihat_quiet_low_primary_recovery =
 			drum_detection_enabled && one_shot_drum_source &&
 			drum_level_[Ride] > 0.30f &&
@@ -19942,7 +19961,8 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 			promote_drum_primary(Tom, 0.90f);
 		if (one_shot_measured_ride_rim_saturated_recovery)
 			promote_drum_primary(Ride, 0.90f);
-		if (one_shot_measured_ride_hihat_primary_recovery)
+		if (one_shot_measured_ride_hihat_primary_recovery ||
+		    one_shot_measured_bright_ride_from_crash_primary_recovery)
 			promote_drum_primary(Ride, 0.90f);
 		if (one_shot_measured_crash_kick_tie_primary_recovery ||
 		    one_shot_measured_crash_ride_tie_primary_recovery)
@@ -20643,6 +20663,24 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 		if (one_shot_measured_low_rim_shape_crash_from_tom_primary_recovery)
 			promote_drum_primary(Crash, 0.90f);
 
+		const float final_ride_hihat_segment_ratio_for_primary =
+			drum_segment_bands[Ride] / (drum_segment_bands[HiHat] + 1.0e-6f);
+		const float final_crash_hihat_level_ratio_for_primary =
+			drum_level_[Crash] / (drum_level_[HiHat] + 1.0e-6f);
+		const bool final_one_shot_measured_bright_ride_from_crash_primary_recovery =
+			drum_detection_enabled && one_shot_drum_source &&
+			drum_level_[Ride] >= 0.78f &&
+			drum_level_[Crash] >= 0.89f &&
+			drum_level_[HiHat] >= 0.80f &&
+			drum_shape_supported[Ride] &&
+			snapshot.high_energy >= 0.62f &&
+			snapshot.mid_energy <= 0.17f &&
+			final_crash_hihat_level_ratio_for_primary >= 1.08f &&
+			final_ride_hihat_segment_ratio_for_primary >= 0.45f &&
+			final_ride_hihat_segment_ratio_for_primary <= 0.62f;
+		if (final_one_shot_measured_bright_ride_from_crash_primary_recovery)
+			promote_drum_primary(Ride, 0.90f);
+
 		const bool final_measured_shape_dominant_kick_from_tom_primary_recovery =
 			drum_detection_enabled && named_drum_source &&
 			!generated_gm_drum_source &&
@@ -20661,6 +20699,33 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 			drum_bands[Crash] >= 7.109f &&
 			tom_snare_total_band_ratio <= 0.431f;
 		if (one_shot_measured_silent_bright_ride_recovery) {
+			boost_drum_level(Ride, 0.90f);
+		}
+		const bool one_shot_measured_synthetic_bright_ride_recovery =
+			drum_detection_enabled && one_shot_drum_source &&
+			drum_level_[Ride] <= 0.30f &&
+			drum_shape_supported[Ride] &&
+			snapshot.drum_debug_trigger_scores[Ride] >= 100000.0f &&
+			drum_bands[Ride] >= 13.0f &&
+			drum_segment_bands[Ride] >= 7.8f &&
+			snapshot.high_energy >= 0.68f &&
+			snapshot.mid_energy <= 0.22f;
+		if (one_shot_measured_synthetic_bright_ride_recovery) {
+			boost_drum_level(Ride, 0.90f);
+		}
+		const bool one_shot_measured_low_body_bright_ride_recovery =
+			drum_detection_enabled && one_shot_drum_source &&
+			drum_level_[Ride] <= 0.30f &&
+			drum_level_[HiHat] <= 0.001f &&
+			drum_level_[Crash] <= 0.001f &&
+			drum_bands[Ride] >= 14.0f &&
+			drum_segment_bands[Ride] >= 4.0f &&
+			snapshot.high_energy >= 0.85f &&
+			snapshot.mid_energy <= 0.13f &&
+			kick_body <= 2.30f &&
+			snare_body <= 4.80f &&
+			tom_body <= 5.30f;
+		if (one_shot_measured_low_body_bright_ride_recovery) {
 			boost_drum_level(Ride, 0.90f);
 		}
 
