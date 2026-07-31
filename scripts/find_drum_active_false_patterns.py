@@ -39,6 +39,7 @@ class Match:
     label: str
     positive_mask: int
     protected_mask: int
+    foreign_mask: int
     constraint: Constraint | None
 
 
@@ -48,6 +49,7 @@ class State:
     constraints: tuple[Constraint, ...]
     positive_mask: int
     protected_mask: int
+    foreign_mask: int
     next_index: int
 
 
@@ -59,8 +61,11 @@ class Result:
     positive_samples: int
     protected_rows: int
     protected_samples: int
+    foreign_rows: int
+    foreign_samples: int
     positive_examples: list[dict[str, str]]
     protected_examples: list[dict[str, str]]
+    foreign_examples: list[dict[str, str]]
 
 
 @dataclasses.dataclass(frozen=True)
@@ -68,8 +73,10 @@ class RouteAnalysis:
     route: tuple[str, str]
     positive_rows: list[dict[str, str]]
     protected_rows: list[dict[str, str]]
+    foreign_rows: list[dict[str, str]]
     positive_samples: int
     protected_samples: int
+    foreign_samples: int
     candidates: list[Result]
     accepted: list[Result]
 
@@ -83,7 +90,10 @@ class RouteSummary:
     positive_rows: int
     protected_samples: int
     protected_rows: int
+    foreign_samples: int
+    foreign_rows: int
     protected_total_samples: int
+    foreign_total_samples: int
     nearest_protected_misses: int | None
     nearest_protected_score: float | None
 
@@ -94,6 +104,7 @@ class Settings:
     limit: int
     min_positive_samples: int
     max_protected_samples: int
+    max_foreign_samples: int
     max_conditions: int
     beam_width: int
     show_examples: int
@@ -356,10 +367,12 @@ def constraints_compatible(existing: tuple[Constraint, ...], new: Constraint | N
     return True
 
 
-def rank_result(result: Result) -> tuple[int, int, int, int, str]:
+def rank_result(result: Result) -> tuple[int, int, int, int, int, int, str]:
     return (
         result.protected_samples,
         result.protected_rows,
+        result.foreign_samples,
+        result.foreign_rows,
         -result.positive_samples,
         result.rule.count(" AND "),
         result.rule,
@@ -370,15 +383,19 @@ def rank_state(
     state: State,
     positive_rows: list[dict[str, str]],
     protected_rows: list[dict[str, str]],
+    foreign_rows: list[dict[str, str]],
     positive_bits: list[int],
     protected_bits: list[int],
+    foreign_bits: list[int],
     positive_sample_cache: dict[int, int] | None = None,
     protected_sample_cache: dict[int, int] | None = None,
-) -> tuple[int, int, int, int, str]:
+    foreign_sample_cache: dict[int, int] | None = None,
+) -> tuple[int, int, int, int, int, int, str]:
     return rank_result(
         result_from_state(
-            state, positive_rows, protected_rows, positive_bits, protected_bits, 0,
-            positive_sample_cache, protected_sample_cache
+            state, positive_rows, protected_rows, foreign_rows, positive_bits, protected_bits,
+            foreign_bits, 0, positive_sample_cache, protected_sample_cache,
+            foreign_sample_cache
         )
     )
 
@@ -387,11 +404,14 @@ def result_from_state(
     state: State,
     positive_rows: list[dict[str, str]],
     protected_rows: list[dict[str, str]],
+    foreign_rows: list[dict[str, str]],
     positive_bits: list[int],
     protected_bits: list[int],
+    foreign_bits: list[int],
     show_examples: int,
     positive_sample_cache: dict[int, int] | None = None,
     protected_sample_cache: dict[int, int] | None = None,
+    foreign_sample_cache: dict[int, int] | None = None,
 ) -> Result:
     return Result(
         rule=" AND ".join(state.labels),
@@ -404,20 +424,28 @@ def result_from_state(
         protected_samples=cached_sample_count(
             state.protected_mask, protected_bits, protected_sample_cache
         ),
+        foreign_rows=state.foreign_mask.bit_count(),
+        foreign_samples=cached_sample_count(
+            state.foreign_mask, foreign_bits, foreign_sample_cache
+        ),
         positive_examples=selected_examples(positive_rows, state.positive_mask, show_examples),
         protected_examples=selected_examples(protected_rows, state.protected_mask, show_examples),
+        foreign_examples=selected_examples(foreign_rows, state.foreign_mask, show_examples),
     )
 
 
 def search_results(
     positive_rows: list[dict[str, str]],
     protected_rows: list[dict[str, str]],
+    foreign_rows: list[dict[str, str]],
     settings: Settings,
 ) -> list[Result]:
     positive_bits = sample_bits(positive_rows)
     protected_bits = sample_bits(protected_rows)
+    foreign_bits = sample_bits(foreign_rows)
     positive_sample_cache: dict[int, int] = {}
     protected_sample_cache: dict[int, int] = {}
+    foreign_sample_cache: dict[int, int] = {}
     matches: list[Match] = []
     for pattern in build_patterns(positive_rows, settings.excluded_fields):
         positive_mask = mask_for(positive_rows, pattern)
@@ -435,6 +463,12 @@ def search_results(
                     settings.protected_margin,
                     settings.protected_relative_margin,
                 ),
+                foreign_mask=mask_for(
+                    foreign_rows,
+                    pattern,
+                    settings.protected_margin,
+                    settings.protected_relative_margin,
+                ),
                 constraint=pattern.constraint,
             )
         )
@@ -445,6 +479,7 @@ def search_results(
             constraints=(match.constraint,) if match.constraint is not None else (),
             positive_mask=match.positive_mask,
             protected_mask=match.protected_mask,
+            foreign_mask=match.foreign_mask,
             next_index=index + 1,
         )
         for index, match in enumerate(ordered)
@@ -452,20 +487,21 @@ def search_results(
     states = sorted(
         states,
         key=lambda state: rank_state(
-            state, positive_rows, protected_rows, positive_bits, protected_bits,
-            positive_sample_cache, protected_sample_cache
+            state, positive_rows, protected_rows, foreign_rows, positive_bits, protected_bits,
+            foreign_bits, positive_sample_cache, protected_sample_cache, foreign_sample_cache
         ),
     )[: max(1, settings.beam_width)]
-    results: dict[tuple[int, int], Result] = {}
+    results: dict[tuple[int, int, int], Result] = {}
     for condition_count in range(1, max(1, settings.max_conditions) + 1):
-        next_states: dict[tuple[int, int], State] = {}
+        next_states: dict[tuple[int, int, int], State] = {}
         for state in states:
             result = result_from_state(
-                state, positive_rows, protected_rows, positive_bits, protected_bits,
-                settings.show_examples, positive_sample_cache, protected_sample_cache
+                state, positive_rows, protected_rows, foreign_rows, positive_bits, protected_bits,
+                foreign_bits, settings.show_examples, positive_sample_cache,
+                protected_sample_cache, foreign_sample_cache
             )
             if result.positive_samples >= settings.min_positive_samples:
-                key = (state.positive_mask, state.protected_mask)
+                key = (state.positive_mask, state.protected_mask, state.foreign_mask)
                 previous = results.get(key)
                 if previous is None or rank_result(result) < rank_result(previous):
                     results[key] = result
@@ -481,6 +517,7 @@ def search_results(
                 ) < settings.min_positive_samples:
                     continue
                 protected_mask = state.protected_mask & match.protected_mask
+                foreign_mask = state.foreign_mask & match.foreign_mask
                 candidate = State(
                     labels=state.labels + (match.label,),
                     constraints=(
@@ -489,26 +526,29 @@ def search_results(
                     ),
                     positive_mask=positive_mask,
                     protected_mask=protected_mask,
+                    foreign_mask=foreign_mask,
                     next_index=match_index + 1,
                 )
-                key = (positive_mask, protected_mask)
+                key = (positive_mask, protected_mask, foreign_mask)
                 previous_state = next_states.get(key)
                 if previous_state is None:
                     next_states[key] = candidate
                     continue
                 if rank_state(
-                    candidate, positive_rows, protected_rows, positive_bits, protected_bits,
-                    positive_sample_cache, protected_sample_cache
+                    candidate, positive_rows, protected_rows, foreign_rows, positive_bits,
+                    protected_bits, foreign_bits, positive_sample_cache, protected_sample_cache,
+                    foreign_sample_cache
                 ) < rank_state(
-                    previous_state, positive_rows, protected_rows, positive_bits, protected_bits,
-                    positive_sample_cache, protected_sample_cache
+                    previous_state, positive_rows, protected_rows, foreign_rows, positive_bits,
+                    protected_bits, foreign_bits, positive_sample_cache, protected_sample_cache,
+                    foreign_sample_cache
                 ):
                     next_states[key] = candidate
         states = sorted(
             next_states.values(),
             key=lambda state: rank_state(
-                state, positive_rows, protected_rows, positive_bits, protected_bits,
-                positive_sample_cache, protected_sample_cache
+                state, positive_rows, protected_rows, foreign_rows, positive_bits, protected_bits,
+                foreign_bits, positive_sample_cache, protected_sample_cache, foreign_sample_cache
             ),
         )[: max(1, settings.beam_width)]
         if not states:
@@ -540,6 +580,20 @@ def protected_rows_for_active(
         row
         for row in rows
         if row.get("expected") == active and (as_float(row, f"{active}_level") or 0.0) > threshold
+    ]
+
+
+def foreign_rows_for_active(
+    rows: list[dict[str, str]],
+    expected: str,
+    active: str,
+    threshold: float,
+) -> list[dict[str, str]]:
+    return [
+        row
+        for row in rows
+        if row.get("expected") not in {expected, active}
+        and (as_float(row, f"{active}_level") or 0.0) > threshold
     ]
 
 
@@ -608,23 +662,30 @@ def analyze_route(
     protected_rows = protected_rows_for_active(rows, active, settings.threshold) + protected_rows_for_active(
         extra_protected_rows, active, settings.threshold
     )
+    foreign_rows = foreign_rows_for_active(rows, expected, active, settings.threshold) + foreign_rows_for_active(
+        extra_protected_rows, expected, active, settings.threshold
+    )
     positive_samples = len({sample_key(row) for row in positive_rows})
     protected_samples = len({sample_key(row) for row in protected_rows})
+    foreign_samples = len({sample_key(row) for row in foreign_rows})
     candidates: list[Result] = []
     accepted: list[Result] = []
     if positive_samples >= settings.min_positive_samples:
-        candidates = search_results(positive_rows, protected_rows, settings)
+        candidates = search_results(positive_rows, protected_rows, foreign_rows, settings)
         accepted = [
             result
             for result in candidates
             if result.protected_samples <= settings.max_protected_samples
+            and result.foreign_samples <= settings.max_foreign_samples
         ][: settings.limit]
     return RouteAnalysis(
         route=route,
         positive_rows=positive_rows,
         protected_rows=protected_rows,
+        foreign_rows=foreign_rows,
         positive_samples=positive_samples,
         protected_samples=protected_samples,
+        foreign_samples=foreign_samples,
         candidates=candidates,
         accepted=accepted,
     )
@@ -643,7 +704,10 @@ def route_summaries(analysis: RouteAnalysis, settings: Settings) -> list[RouteSu
                 positive_rows=result.positive_rows,
                 protected_samples=result.protected_samples,
                 protected_rows=result.protected_rows,
+                foreign_samples=result.foreign_samples,
+                foreign_rows=result.foreign_rows,
                 protected_total_samples=analysis.protected_samples,
+                foreign_total_samples=analysis.foreign_samples,
                 nearest_protected_misses=nearest[0] if nearest is not None else None,
                 nearest_protected_score=nearest[1] if nearest is not None else None,
             )
@@ -652,6 +716,7 @@ def route_summaries(analysis: RouteAnalysis, settings: Settings) -> list[RouteSu
         over_budget = [
             result for result in analysis.candidates
             if result.protected_samples > settings.max_protected_samples
+            or result.foreign_samples > settings.max_foreign_samples
         ]
         if over_budget:
             result = over_budget[0]
@@ -665,7 +730,10 @@ def route_summaries(analysis: RouteAnalysis, settings: Settings) -> list[RouteSu
                     positive_rows=result.positive_rows,
                     protected_samples=result.protected_samples,
                     protected_rows=result.protected_rows,
+                    foreign_samples=result.foreign_samples,
+                    foreign_rows=result.foreign_rows,
                     protected_total_samples=analysis.protected_samples,
+                    foreign_total_samples=analysis.foreign_samples,
                     nearest_protected_misses=nearest[0] if nearest is not None else None,
                     nearest_protected_score=nearest[1] if nearest is not None else None,
                 )
@@ -673,12 +741,14 @@ def route_summaries(analysis: RouteAnalysis, settings: Settings) -> list[RouteSu
     return summaries
 
 
-def summary_rank(summary: RouteSummary) -> tuple[int, int, int, int, str, str]:
+def summary_rank(summary: RouteSummary) -> tuple[int, int, int, int, int, int, str, str]:
     return (
         0 if summary.kind == "candidate" else 1,
         summary.protected_samples,
+        summary.foreign_samples,
         -summary.positive_samples,
         summary.protected_rows,
+        summary.foreign_rows,
         f"{summary.route[0]}->{summary.route[1]}",
         summary.rule,
     )
@@ -704,6 +774,7 @@ def print_ranked_summary(summaries: list[RouteSummary], limit: int) -> None:
             f"  {summary.kind} {expected}->{active} "
             f"+{summary.positive_samples} rows={summary.positive_rows} "
             f"-{summary.protected_samples} rows={summary.protected_rows} "
+            f"foreign={summary.foreign_samples} rows={summary.foreign_rows} "
             f"protected_true_{active}={summary.protected_total_samples}{near} :: {summary.rule}"
         )
 
@@ -716,7 +787,9 @@ def route_text_from_analysis(analysis: RouteAnalysis, settings: Settings) -> str
             f"route {expected}->{active} positives={analysis.positive_samples} "
             f"rows={len(analysis.positive_rows)} "
             f"protected_true_{active}={analysis.protected_samples} "
-            f"rows={len(analysis.protected_rows)}"
+            f"rows={len(analysis.protected_rows)} "
+            f"foreign_active={analysis.foreign_samples} "
+            f"rows={len(analysis.foreign_rows)}"
         )
         if analysis.positive_samples < settings.min_positive_samples:
             print("  --")
@@ -727,6 +800,7 @@ def route_text_from_analysis(analysis: RouteAnalysis, settings: Settings) -> str
                 result
                 for result in analysis.candidates
                 if result.protected_samples > settings.max_protected_samples
+                or result.foreign_samples > settings.max_foreign_samples
             ][: settings.show_near_misses]
             if near:
                 print("  nearest over-budget rules:")
@@ -868,7 +942,8 @@ def print_results(
     for result in results:
         print(
             f"  +{result.positive_samples} rows={result.positive_rows} "
-            f"-{result.protected_samples} rows={result.protected_rows} :: {result.rule}"
+            f"-{result.protected_samples} rows={result.protected_rows} "
+            f"foreign={result.foreign_samples} rows={result.foreign_rows} :: {result.rule}"
         )
         if show_examples > 0:
             if result.positive_examples:
@@ -878,6 +953,10 @@ def print_results(
             if result.protected_examples:
                 print("    protected true-active examples:")
                 for row in result.protected_examples:
+                    print(f"      {format_example(row, active)}")
+            if result.foreign_examples:
+                print("    foreign active examples:")
+                for row in result.foreign_examples:
                     print(f"      {format_example(row, active)}")
         near_examples = nearest_protected_examples(protected_rows, result, show_near_misses)
         if near_examples:
@@ -910,6 +989,15 @@ def main() -> int:
     parser.add_argument("--limit", type=int, default=6)
     parser.add_argument("--min-positive-samples", type=int, default=8)
     parser.add_argument("--max-protected-samples", type=int, default=0)
+    parser.add_argument(
+        "--max-foreign-samples",
+        type=int,
+        default=0,
+        help=(
+            "maximum matched samples from other expected->active false-active routes; "
+            "keeps route-specific suggestions from silently changing unrelated routes"
+        ),
+    )
     parser.add_argument("--max-conditions", type=int, default=2)
     parser.add_argument("--beam-width", type=int, default=160)
     parser.add_argument("--show-examples", type=int, default=0)
@@ -954,6 +1042,7 @@ def main() -> int:
         limit=max(0, args.limit),
         min_positive_samples=max(1, args.min_positive_samples),
         max_protected_samples=max(0, args.max_protected_samples),
+        max_foreign_samples=max(0, args.max_foreign_samples),
         max_conditions=max(1, args.max_conditions),
         beam_width=max(1, args.beam_width),
         show_examples=max(0, args.show_examples),

@@ -65,7 +65,7 @@ def main() -> int:
     require(output, "ranked active false suppression opportunities")
     require(output, "attribute-level candidates; validate runtime changes with the full drum gate")
     require(output, "near_protected is closest true-active miss-count/normalized-gap; lower is riskier")
-    require(output, "candidate kick->snare +2 rows=2 -0 rows=0 protected_true_snare=2")
+    require(output, "candidate kick->snare +2 rows=2 -0 rows=0 foreign=0 rows=0 protected_true_snare=2")
 
     with tempfile.TemporaryDirectory() as tmpdir:
         table = pathlib.Path(tmpdir) / "drum.tsv"
@@ -138,7 +138,45 @@ def main() -> int:
     require(output, "route kick->snare positives=2 rows=2 protected_true_snare=3 rows=3")
     require(output, "nearest over-budget rules:")
     require(output, "snare/extra.wav snare->snare")
-    require(output, "nearest kick->snare +2 rows=2 -1 rows=1 protected_true_snare=3")
+    require(output, "nearest kick->snare +2 rows=2 -1 rows=1 foreign=0 rows=0 protected_true_snare=3")
+
+    foreign_active_rows = rows + [
+        "tom/foreign.wav\ttom\ttom\t0\t0.80\t0.12\t0.08\t0.92\t18\t4.0\t1.0\t0.56\t5\t2.0\t1.0\t0\t0\t0\t1\t0\t0\t0\t1\t0\t0\t0\t1\t0\t0\t0\t1\t0\t0\t0\t1",
+    ]
+    with tempfile.TemporaryDirectory() as tmpdir:
+        table = pathlib.Path(tmpdir) / "foreign.tsv"
+        table.write_text(header + "\n" + "\n".join(foreign_active_rows) + "\n", encoding="utf-8")
+        completed = subprocess.run(
+            [
+                sys.executable,
+                str(SCRIPT),
+                str(table),
+                "--route",
+                "kick->snare",
+                "--min-positive-samples",
+                "2",
+                "--max-protected-samples",
+                "0",
+                "--max-conditions",
+                "1",
+                "--show-examples",
+                "1",
+                "--show-near-misses",
+                "1",
+            ],
+            cwd=ROOT,
+            check=True,
+            text=True,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+        )
+    output = completed.stdout
+    require(output, "foreign_active=1 rows=1")
+    require(output, "nearest over-budget rules:")
+    require(output, "+2 rows=2 -0 rows=0 foreign=1 rows=1")
+    require(output, "foreign active examples:")
+    require(output, "tom/foreign.wav tom->snare")
+    require(output, "nearest kick->snare +2 rows=2 -0 rows=0 foreign=1 rows=1 protected_true_snare=2")
 
     guarded_rows = [
         "kick/near-a.wav\tkick\tkick\t1\t0.80\t0.10\t0.10\t0.50\t10\t1.0\t1.0\t0.60\t10\t1.0\t1.0\t0\t0\t0\t1\t0\t0\t0\t1\t0\t0\t0\t1\t0\t0\t0\t1\t0\t0\t0\t1",
