@@ -981,6 +981,82 @@ def main() -> int:
         "MUSIC_ANALYZER_DRUM_SAMPLE_MIN_PRIMARY_RECALL_PERCENT=0",
     ]:
         assert text in drum_full_shard_recipe, f"full drum shard target must include {text}"
+
+    assert_alias_target(makefile, "test-hf-drum-kit-samples", "test-hf-drum-kit-samples-parallel")
+    assert "HF_DRUM_KIT_TEST_MAKE_JOBS = $(if $(filter -j%,$(MAKEFLAGS)),,-j$(words $(HF_DRUM_KIT_SHARD_CATEGORIES)))" in makefile, (
+        "HF drum-kit shard tests must not force nested jobserver mode"
+    )
+    hf_parallel_recipe = target_recipe(makefile, "test-hf-drum-kit-samples-parallel")
+    assert "$(HF_DRUM_KIT_SAMPLE_DIR)/manifest.tsv" in hf_parallel_recipe.splitlines()[0], (
+        "HF drum-kit parallel target must share a prepared manifest stamp"
+    )
+    assert "$(MAKE) $(HF_DRUM_KIT_TEST_MAKE_JOBS) $(HF_DRUM_KIT_SHARD_TARGETS)" in hf_parallel_recipe, (
+        "HF drum-kit parallel target must fan out category shards through jobserver-aware make"
+    )
+    assert "$(RUN_WITH_DURATION) analyzer_hf_drum_kit_samples_parallel" in hf_parallel_recipe, (
+        "HF drum-kit parallel target must report aggregate duration"
+    )
+    assert "$(PYTHON) scripts/check_drum_sample_shards.py" in hf_parallel_recipe, (
+        "HF drum-kit parallel target must validate aggregated shard matrices"
+    )
+    hf_shard_recipe = target_recipe(makefile, "test-hf-drum-kit-samples-shard-%")
+    for text in [
+        "$(HF_DRUM_KIT_SAMPLE_DIR)/manifest.tsv",
+        "MUSIC_ANALYZER_DRUM_SAMPLE_REQUIRED_CATEGORIES=\"$*\"",
+        "MUSIC_ANALYZER_DRUM_SAMPLE_FILTER_CATEGORY=\"$*\"",
+        "MUSIC_ANALYZER_DRUM_SAMPLE_MIN_RECALL_PERCENT=0",
+    ]:
+        assert text in hf_shard_recipe, f"HF drum-kit shard target must include {text}"
+    assert_alias_target(
+        makefile,
+        "analyze-hf-drum-primary-attribute-rows",
+        "analyze-hf-drum-primary-attribute-rows-parallel",
+    )
+    hf_attribute_parallel_recipe = target_recipe(makefile, "analyze-hf-drum-primary-attribute-rows-parallel")
+    assert "scripts/build_sharded_tsv.sh \"$(HF_DRUM_KIT_PRIMARY_ATTRIBUTE_ROWS)\" \"$(MAKE)\" \"$(HF_DRUM_KIT_TEST_MAKE_JOBS)\" $(HF_DRUM_KIT_PRIMARY_ATTRIBUTE_PARTS)" in hf_attribute_parallel_recipe, (
+        "HF drum-kit attribute rows must be built by the sharded TSV combiner"
+    )
+    hf_attribute_shard_recipe = target_recipe(makefile, "$(BUILD_DIR)/hf_drum_kit_primary_attribute_rows_%.tsv")
+    assert "MUSIC_ANALYZER_DRUM_SAMPLE_VERBOSE_PRIMARY=1" in hf_attribute_shard_recipe, (
+        "HF drum-kit attribute shard must include primary debug rows"
+    )
+
+    assert_alias_target(makefile, "test-idmt-drums-samples", "test-idmt-drums-samples-parallel")
+    assert "IDMT_DRUMS_TEST_MAKE_JOBS = $(if $(filter -j%,$(MAKEFLAGS)),,-j$(words $(IDMT_DRUMS_SHARD_CATEGORIES)))" in makefile, (
+        "IDMT drum shard tests must not force nested jobserver mode"
+    )
+    idmt_parallel_recipe = target_recipe(makefile, "test-idmt-drums-samples-parallel")
+    assert "$(IDMT_DRUMS_SAMPLE_DIR)/manifest.tsv" in idmt_parallel_recipe.splitlines()[0], (
+        "IDMT drum parallel target must share a prepared manifest stamp"
+    )
+    assert "$(MAKE) $(IDMT_DRUMS_TEST_MAKE_JOBS) $(IDMT_DRUMS_SHARD_TARGETS)" in idmt_parallel_recipe, (
+        "IDMT drum parallel target must fan out category shards through jobserver-aware make"
+    )
+    assert "--categories \"kick,snare,hihat\"" in idmt_parallel_recipe, (
+        "IDMT drum parallel checker must validate only dataset categories"
+    )
+    idmt_shard_recipe = target_recipe(makefile, "test-idmt-drums-samples-shard-%")
+    for text in [
+        "$(IDMT_DRUMS_SAMPLE_DIR)/manifest.tsv",
+        "MUSIC_ANALYZER_DRUM_SAMPLE_REQUIRED_CATEGORIES=\"$*\"",
+        "MUSIC_ANALYZER_DRUM_SAMPLE_FILTER_CATEGORY=\"$*\"",
+        "MUSIC_ANALYZER_DRUM_SAMPLE_MIN_RECALL_PERCENT=0",
+    ]:
+        assert text in idmt_shard_recipe, f"IDMT drum shard target must include {text}"
+    assert_alias_target(
+        makefile,
+        "analyze-idmt-drum-primary-attribute-rows",
+        "analyze-idmt-drum-primary-attribute-rows-parallel",
+    )
+    idmt_attribute_parallel_recipe = target_recipe(makefile, "analyze-idmt-drum-primary-attribute-rows-parallel")
+    assert "scripts/build_sharded_tsv.sh \"$(IDMT_DRUMS_PRIMARY_ATTRIBUTE_ROWS)\" \"$(MAKE)\" \"$(IDMT_DRUMS_TEST_MAKE_JOBS)\" $(IDMT_DRUMS_PRIMARY_ATTRIBUTE_PARTS)" in idmt_attribute_parallel_recipe, (
+        "IDMT drum attribute rows must be built by the sharded TSV combiner"
+    )
+    idmt_attribute_shard_recipe = target_recipe(makefile, "$(BUILD_DIR)/idmt_drums_primary_attribute_rows_%.tsv")
+    assert "MUSIC_ANALYZER_DRUM_SAMPLE_VERBOSE_PRIMARY=1" in idmt_attribute_shard_recipe, (
+        "IDMT drum attribute shard must include primary debug rows"
+    )
+
     phony_lines = "\n".join(re.findall(r"^\.PHONY:.*$", makefile, re.MULTILINE))
     drum_full_cached_recipe = target_recipe(makefile, "find-drum-full-exact-attribute-patterns-cached")
     assert "find-drum-full-exact-attribute-patterns-cached" in phony_lines, (
@@ -1386,7 +1462,18 @@ def main() -> int:
     )
     assert "--include-debug-rows" in drum_full_rows_file_recipe, "full drum TSV rows must include correct primary rows"
 
-    for target in ["analyze-hf-drum-primary-attribute-rows", "analyze-idmt-drum-primary-attribute-rows"]:
+    for target in ["analyze-hf-drum-primary-attribute-rows-serial", "analyze-idmt-drum-primary-attribute-rows-serial"]:
+        recipe_text = target_recipe(makefile, target)
+        assert "MUSIC_ANALYZER_DRUM_SAMPLE_VERBOSE_PRIMARY=1" in recipe_text, (
+            f"{target} must include primary miss diagnostics in its row dump"
+        )
+        assert "--dump-rows --include-debug-rows" in recipe_text, (
+            f"{target} must dump miss rows together with protected correct rows"
+        )
+    for target in [
+        "$(BUILD_DIR)/hf_drum_kit_primary_attribute_rows_%.tsv",
+        "$(BUILD_DIR)/idmt_drums_primary_attribute_rows_%.tsv",
+    ]:
         recipe_text = target_recipe(makefile, target)
         assert "MUSIC_ANALYZER_DRUM_SAMPLE_VERBOSE_PRIMARY=1" in recipe_text, (
             f"{target} must include primary miss diagnostics in its row dump"

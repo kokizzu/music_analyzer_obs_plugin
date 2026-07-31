@@ -319,6 +319,11 @@ HF_DRUM_KIT_MAX_KICK_FALSE_PERCENT ?= 12
 HF_DRUM_KIT_PRIMARY_DEBUG_OUT ?= $(BUILD_DIR)/hf_drum_kit_primary_debug.out
 HF_DRUM_KIT_PRIMARY_DEBUG_ERR ?= $(BUILD_DIR)/hf_drum_kit_primary_debug.err
 HF_DRUM_KIT_PRIMARY_ATTRIBUTE_ROWS ?= $(BUILD_DIR)/hf_drum_kit_primary_attribute_rows.tsv
+HF_DRUM_KIT_SHARD_CATEGORIES := kick snare hihat crash tom ride rim
+HF_DRUM_KIT_SHARD_TARGETS := $(addprefix test-hf-drum-kit-samples-shard-,$(HF_DRUM_KIT_SHARD_CATEGORIES))
+HF_DRUM_KIT_SHARD_OUTS := $(addprefix $(BUILD_DIR)/hf_drum_kit_samples_shard_,$(addsuffix .out,$(HF_DRUM_KIT_SHARD_CATEGORIES)))
+HF_DRUM_KIT_PRIMARY_ATTRIBUTE_PARTS := $(addprefix $(BUILD_DIR)/hf_drum_kit_primary_attribute_rows_,$(addsuffix .tsv,$(HF_DRUM_KIT_SHARD_CATEGORIES)))
+HF_DRUM_KIT_TEST_MAKE_JOBS = $(if $(filter -j%,$(MAKEFLAGS)),,-j$(words $(HF_DRUM_KIT_SHARD_CATEGORIES)))
 IDMT_DRUMS_URL ?= https://zenodo.org/api/records/7544164/files/IDMT-SMT-DRUMS-V2.zip/content
 IDMT_DRUMS_SOURCE_DIR ?= $(REAL_SAMPLE_SOURCE_DIR)/idmt_drums
 IDMT_DRUMS_ARCHIVE ?= $(IDMT_DRUMS_SOURCE_DIR)/IDMT-SMT-DRUMS-V2.zip
@@ -334,6 +339,11 @@ IDMT_DRUMS_DOWNLOAD_CONNECTIONS ?= 8
 IDMT_DRUMS_PRIMARY_DEBUG_OUT ?= $(BUILD_DIR)/idmt_drums_primary_debug.out
 IDMT_DRUMS_PRIMARY_DEBUG_ERR ?= $(BUILD_DIR)/idmt_drums_primary_debug.err
 IDMT_DRUMS_PRIMARY_ATTRIBUTE_ROWS ?= $(BUILD_DIR)/idmt_drums_primary_attribute_rows.tsv
+IDMT_DRUMS_SHARD_CATEGORIES := kick snare hihat
+IDMT_DRUMS_SHARD_TARGETS := $(addprefix test-idmt-drums-samples-shard-,$(IDMT_DRUMS_SHARD_CATEGORIES))
+IDMT_DRUMS_SHARD_OUTS := $(addprefix $(BUILD_DIR)/idmt_drums_samples_shard_,$(addsuffix .out,$(IDMT_DRUMS_SHARD_CATEGORIES)))
+IDMT_DRUMS_PRIMARY_ATTRIBUTE_PARTS := $(addprefix $(BUILD_DIR)/idmt_drums_primary_attribute_rows_,$(addsuffix .tsv,$(IDMT_DRUMS_SHARD_CATEGORIES)))
+IDMT_DRUMS_TEST_MAKE_JOBS = $(if $(filter -j%,$(MAKEFLAGS)),,-j$(words $(IDMT_DRUMS_SHARD_CATEGORIES)))
 DRUM_PROTECTED_PRIMARY_ATTRIBUTE_INPUTS ?= $(DRUM_SPREAD_EXACT_ATTRIBUTE_ROWS) $(HF_DRUM_KIT_PRIMARY_ATTRIBUTE_ROWS) $(IDMT_DRUMS_PRIMARY_ATTRIBUTE_ROWS) $(DRUM_FULL_EXACT_ATTRIBUTE_ROWS)
 MDB_DRUMS_SAMPLE_DIR ?= $(BUILD_DIR)/mdb_drums_samples
 MDB_DRUMS_SOURCE_ROOT ?=
@@ -861,11 +871,11 @@ GUITARSET_SHARD_GATE_ENV ?= MUSIC_ANALYZER_GUITARSET_REQUIRED_EXCERPTS=1 MUSIC_A
 .PHONY: test-fret-control android-lint icon-assets
 .PHONY: measure-analyzer-attributes measure-analyzer-attribute-rows measure-analyzer-attribute-rows-full refresh-analyzer-detected-attribute-rows print-analyzer-detected-attributes measure-analyzer-detected-attributes measure-analyzer-detected-attributes-full measure-analyzer-pattern-report-sections report-analyzer-patterns-from-rows report-analyzer-patterns-from-rows-full measure-analyzer-patterns measure-analyzer-patterns-full measure-analyzer-pattern-report inspect-instrument-sample-owner-buckets find-instrument-owner-patterns find-instrument-status-patterns test-instrument-sample-owner-buckets test-filter-instrument-attribute-rows test-instrument-owner-patterns test-refresh-analyzer-detected-attribute-rows test-print-analyzer-detected-attributes test-analyzer-pattern-report test-measure-analyzer-patterns-target analyze-drum-primary-attribute-rows find-drum-primary-attribute-patterns analyze-drum-spread-gate-matrix-serial analyze-drum-spread-gate-matrix-parallel analyze-drum-tom-bleed-caps analyze-drum-tom-bleed-caps-cached
 .PHONY: analyze-drum-spread-gate-matrix analyze-drum-full-gate-matrix analyze-drum-full-gate-matrix-parallel analyze-drum-full-merged-expected-attribute-rows analyze-drum-active-false-rows analyze-drum-rule-flags compare-drum-gate-matrix find-drum-active-false-patterns find-drum-active-false-patterns-full find-drum-spread-exact-attribute-patterns find-drum-full-exact-attribute-patterns find-drum-full-exact-attribute-patterns-cached test-drum-gate-matrix-summary test-compare-drum-gate-summaries test-drum-active-threshold-simulation test-drum-active-false-summary test-drum-rule-flag-summary test-drum-active-false-patterns
-.PHONY: analyze-hf-drum-primary-attribute-rows find-hf-drum-primary-attribute-patterns analyze-idmt-drum-primary-attribute-rows find-idmt-drum-primary-attribute-patterns analyze-protected-drum-primary-attribute-rows find-protected-drum-primary-attribute-patterns
+.PHONY: analyze-hf-drum-primary-attribute-rows analyze-hf-drum-primary-attribute-rows-serial analyze-hf-drum-primary-attribute-rows-parallel find-hf-drum-primary-attribute-patterns analyze-idmt-drum-primary-attribute-rows analyze-idmt-drum-primary-attribute-rows-serial analyze-idmt-drum-primary-attribute-rows-parallel find-idmt-drum-primary-attribute-patterns analyze-protected-drum-primary-attribute-rows find-protected-drum-primary-attribute-patterns
 .PHONY: analyze-guitar-chord-mix-recovery analyze-guitar-chord-primary-order analyze-guitar-chord-mix-extra-components test-guitar-chord-recovery-analysis test-guitar-primary-order-analysis test-guitar-chord-extra-components-analysis test-guitar-chord-mix-samples-serial test-guitar-chord-mix-samples-parallel
 .PHONY: test-parallel test-core-parallel test-analysis-scripts-parallel test-fixtures-parallel test-fixtures-parallel-isolated test-real-note-sample-shards test-real-note-sample-shard-% test-real-note-samples-full-mix-serial test-real-note-samples-full-mix-parallel test-real-note-full-mix-shard-check test-real-note-sample-shard-check test-instrument-samples-serial test-instrument-samples-parallel test-analyzer-internal test-analyzer-smoke test-analyzer-cases test-analyzer-midi-ranges test-analyzer-urmp test-analyzer-musicnet test-analyzer-multtipop test-analyzer-guitarset test-analyzer-maestro test-analyzer-egmd
 .PHONY: test-drum-real-world-samples-parallel test-drum-real-world-samples-full-parallel test-real-world-samples-parallel test-real-world-samples-full-parallel test-real-world-samples-max-parallel test-drum-samples-optional test-drum-samples-spread-optional test-drum-machine-samples-optional test-drum-samples-full-optional test-good-sounds-samples-optional test-medley-solos-samples-optional test-maps-piano-samples-optional test-maps-piano-note-samples-optional test-bach10-mf0-synth-samples-optional test-vocalset-samples-optional
-.PHONY: test-drum-samples-full-serial test-drum-samples-full-parallel test-drum-samples-full-shard-% test-drum-samples-full-parallel-optional test-drum-sample-shard-check
+.PHONY: test-drum-samples-full-serial test-drum-samples-full-parallel test-drum-samples-full-shard-% test-hf-drum-kit-samples-serial test-hf-drum-kit-samples-parallel test-hf-drum-kit-samples-shard-% test-idmt-drums-samples-serial test-idmt-drums-samples-parallel test-idmt-drums-samples-shard-% test-drum-samples-full-parallel-optional test-drum-sample-shard-check
 .PHONY: test-iowa-piano-samples-max test-iowa-orchestra-full-samples-max test-good-sounds-samples-max test-medley-solos-samples-max test-maps-piano-samples-max test-maps-piano-note-samples-max
 .PHONY: detector-improvement-samples detector-improvement-patterns detector-improvement-samples-full detector-improvement-patterns-full analyze-detector-improvements analyze-detector-improvements-full
 
@@ -1337,13 +1347,35 @@ test-drum-machine-samples: $(BUILD_DIR)/analyzer_drum_samples prepare-drum-machi
 prepare-hf-drum-kit-samples: scripts/prepare_hf_drum_kit_samples.py | $(BUILD_DIR)
 	HF_DRUM_KIT_SAMPLE_DIR="$(HF_DRUM_KIT_SAMPLE_DIR)" HF_DRUM_KIT_LIMIT_PER_CATEGORY="$(HF_DRUM_KIT_LIMIT_PER_CATEGORY)" $(PYTHON) scripts/prepare_hf_drum_kit_samples.py --output "$(HF_DRUM_KIT_SAMPLE_DIR)"
 
-test-hf-drum-kit-samples: $(BUILD_DIR)/analyzer_drum_samples prepare-hf-drum-kit-samples scripts/run_with_duration.sh
+$(HF_DRUM_KIT_SAMPLE_DIR)/manifest.tsv: scripts/prepare_hf_drum_kit_samples.py | $(BUILD_DIR)
+	+$(MAKE) prepare-hf-drum-kit-samples
+
+test-hf-drum-kit-samples: test-hf-drum-kit-samples-parallel
+
+test-hf-drum-kit-samples-serial: $(BUILD_DIR)/analyzer_drum_samples prepare-hf-drum-kit-samples scripts/run_with_duration.sh
 	$(RUN_WITH_DURATION) analyzer_hf_drum_kit_samples env MUSIC_ANALYZER_DRUM_SAMPLES_REQUIRED=1 MUSIC_ANALYZER_DRUM_SAMPLES_DIR="$(HF_DRUM_KIT_SAMPLE_DIR)" MUSIC_ANALYZER_DRUM_SAMPLE_MIN_RECALL_PERCENT="$(HF_DRUM_KIT_MIN_RECALL_PERCENT)" MUSIC_ANALYZER_DRUM_SAMPLE_MIN_PRECISION_PERCENT="$(HF_DRUM_KIT_MIN_PRECISION_PERCENT)" MUSIC_ANALYZER_DRUM_SAMPLE_MIN_KICK_PRIMARY_RECALL_PERCENT="$(HF_DRUM_KIT_MIN_KICK_PRIMARY_PERCENT)" MUSIC_ANALYZER_DRUM_SAMPLE_MIN_SNARE_PRIMARY_RECALL_PERCENT="$(HF_DRUM_KIT_MIN_SNARE_PRIMARY_PERCENT)" MUSIC_ANALYZER_DRUM_SAMPLE_MIN_HIHAT_PRIMARY_RECALL_PERCENT="$(HF_DRUM_KIT_MIN_HIHAT_PRIMARY_PERCENT)" MUSIC_ANALYZER_DRUM_SAMPLE_MIN_CRASH_PRIMARY_RECALL_PERCENT="$(HF_DRUM_KIT_MIN_CRASH_PRIMARY_PERCENT)" MUSIC_ANALYZER_DRUM_SAMPLE_MIN_TOM_PRIMARY_RECALL_PERCENT="$(HF_DRUM_KIT_MIN_TOM_PRIMARY_PERCENT)" MUSIC_ANALYZER_DRUM_SAMPLE_MIN_RIDE_PRIMARY_RECALL_PERCENT="$(HF_DRUM_KIT_MIN_RIDE_PRIMARY_PERCENT)" MUSIC_ANALYZER_DRUM_SAMPLE_MIN_RIM_PRIMARY_RECALL_PERCENT="$(HF_DRUM_KIT_MIN_RIM_PRIMARY_PERCENT)" MUSIC_ANALYZER_DRUM_SAMPLE_MAX_KICK_FALSE_PERCENT="$(HF_DRUM_KIT_MAX_KICK_FALSE_PERCENT)" $(BUILD_DIR)/analyzer_drum_samples
 
-analyze-hf-drum-primary-attribute-rows: $(BUILD_DIR)/analyzer_drum_samples prepare-hf-drum-kit-samples scripts/analyze_drum_primary_debug.py scripts/run_with_duration.sh
+test-hf-drum-kit-samples-parallel: $(BUILD_DIR)/analyzer_drum_samples $(HF_DRUM_KIT_SAMPLE_DIR)/manifest.tsv scripts/check_drum_sample_shards.py scripts/run_with_duration.sh
+	+$(RUN_WITH_DURATION) analyzer_hf_drum_kit_samples_parallel $(MAKE) $(HF_DRUM_KIT_TEST_MAKE_JOBS) $(HF_DRUM_KIT_SHARD_TARGETS)
+	$(PYTHON) scripts/check_drum_sample_shards.py --min-recall-percent "$(HF_DRUM_KIT_MIN_RECALL_PERCENT)" --min-precision-percent "$(HF_DRUM_KIT_MIN_PRECISION_PERCENT)" --kick-min-primary-recall-percent "$(HF_DRUM_KIT_MIN_KICK_PRIMARY_PERCENT)" --snare-min-primary-recall-percent "$(HF_DRUM_KIT_MIN_SNARE_PRIMARY_PERCENT)" --hihat-min-primary-recall-percent "$(HF_DRUM_KIT_MIN_HIHAT_PRIMARY_PERCENT)" --crash-min-primary-recall-percent "$(HF_DRUM_KIT_MIN_CRASH_PRIMARY_PERCENT)" --tom-min-primary-recall-percent "$(HF_DRUM_KIT_MIN_TOM_PRIMARY_PERCENT)" --ride-min-primary-recall-percent "$(HF_DRUM_KIT_MIN_RIDE_PRIMARY_PERCENT)" --rim-min-primary-recall-percent "$(HF_DRUM_KIT_MIN_RIM_PRIMARY_PERCENT)" --kick-max-false-percent "$(HF_DRUM_KIT_MAX_KICK_FALSE_PERCENT)" $(HF_DRUM_KIT_SHARD_OUTS)
+
+test-hf-drum-kit-samples-shard-%: FORCE $(BUILD_DIR)/analyzer_drum_samples $(HF_DRUM_KIT_SAMPLE_DIR)/manifest.tsv scripts/run_with_duration.sh
+	$(RUN_WITH_DURATION) analyzer_hf_drum_kit_samples_shard_$* env MUSIC_ANALYZER_DRUM_SAMPLES_REQUIRED=1 MUSIC_ANALYZER_DRUM_SAMPLE_REQUIRED_CATEGORIES="$*" MUSIC_ANALYZER_DRUM_SAMPLE_FILTER_CATEGORY="$*" MUSIC_ANALYZER_DRUM_SAMPLES_DIR="$(HF_DRUM_KIT_SAMPLE_DIR)" MUSIC_ANALYZER_DRUM_SAMPLE_MIN_RECALL_PERCENT=0 MUSIC_ANALYZER_DRUM_SAMPLE_MIN_PRECISION_PERCENT=0 MUSIC_ANALYZER_DRUM_SAMPLE_MIN_PRIMARY_RECALL_PERCENT=0 MUSIC_ANALYZER_DRUM_SAMPLE_MAX_KICK_FALSE_PERCENT=100 $(BUILD_DIR)/analyzer_drum_samples > "$(BUILD_DIR)/hf_drum_kit_samples_shard_$*.out" 2> "$(BUILD_DIR)/hf_drum_kit_samples_shard_$*.err"
+
+analyze-hf-drum-primary-attribute-rows: analyze-hf-drum-primary-attribute-rows-parallel
+
+analyze-hf-drum-primary-attribute-rows-serial: $(BUILD_DIR)/analyzer_drum_samples prepare-hf-drum-kit-samples scripts/analyze_drum_primary_debug.py scripts/run_with_duration.sh
 	$(RUN_WITH_DURATION) analyzer_hf_drum_kit_primary_debug env MUSIC_ANALYZER_DRUM_SAMPLES_REQUIRED=1 MUSIC_ANALYZER_DRUM_SAMPLES_DIR="$(HF_DRUM_KIT_SAMPLE_DIR)" MUSIC_ANALYZER_DRUM_SAMPLE_VERBOSE_ALL=1 MUSIC_ANALYZER_DRUM_SAMPLE_VERBOSE_PRIMARY=1 MUSIC_ANALYZER_DRUM_SAMPLE_VERBOSE_PRIMARY_LIMIT=5000 MUSIC_ANALYZER_DRUM_SAMPLE_MIN_RECALL_PERCENT=0 MUSIC_ANALYZER_DRUM_SAMPLE_MIN_PRIMARY_RECALL_PERCENT=0 MUSIC_ANALYZER_DRUM_SAMPLE_MIN_PRECISION_PERCENT=0 MUSIC_ANALYZER_DRUM_SAMPLE_MAX_KICK_FALSE_PERCENT=100 $(BUILD_DIR)/analyzer_drum_samples > "$(HF_DRUM_KIT_PRIMARY_DEBUG_OUT)" 2> "$(HF_DRUM_KIT_PRIMARY_DEBUG_ERR)"
 	$(PYTHON) scripts/analyze_drum_primary_debug.py --dump-rows --include-debug-rows "$(HF_DRUM_KIT_PRIMARY_DEBUG_ERR)" > "$(HF_DRUM_KIT_PRIMARY_ATTRIBUTE_ROWS)"
 	@printf '%s\n' "HF drum-kit primary attribute TSV: $(HF_DRUM_KIT_PRIMARY_ATTRIBUTE_ROWS)"
+
+analyze-hf-drum-primary-attribute-rows-parallel: $(BUILD_DIR)/analyzer_drum_samples $(HF_DRUM_KIT_SAMPLE_DIR)/manifest.tsv scripts/analyze_drum_primary_debug.py scripts/build_sharded_tsv.sh scripts/run_with_duration.sh
+	+$(RUN_WITH_DURATION) analyzer_hf_drum_kit_primary_debug_parallel $(SHELL) scripts/build_sharded_tsv.sh "$(HF_DRUM_KIT_PRIMARY_ATTRIBUTE_ROWS)" "$(MAKE)" "$(HF_DRUM_KIT_TEST_MAKE_JOBS)" $(HF_DRUM_KIT_PRIMARY_ATTRIBUTE_PARTS)
+	@printf '%s\n' "HF drum-kit primary attribute TSV: $(HF_DRUM_KIT_PRIMARY_ATTRIBUTE_ROWS)"
+
+$(BUILD_DIR)/hf_drum_kit_primary_attribute_rows_%.tsv: FORCE $(BUILD_DIR)/analyzer_drum_samples $(HF_DRUM_KIT_SAMPLE_DIR)/manifest.tsv scripts/analyze_drum_primary_debug.py scripts/run_with_duration.sh
+	$(RUN_WITH_DURATION) analyzer_hf_drum_kit_primary_debug_$* env MUSIC_ANALYZER_DRUM_SAMPLES_REQUIRED=1 MUSIC_ANALYZER_DRUM_SAMPLE_REQUIRED_CATEGORIES="$*" MUSIC_ANALYZER_DRUM_SAMPLE_FILTER_CATEGORY="$*" MUSIC_ANALYZER_DRUM_SAMPLES_DIR="$(HF_DRUM_KIT_SAMPLE_DIR)" MUSIC_ANALYZER_DRUM_SAMPLE_VERBOSE_ALL=1 MUSIC_ANALYZER_DRUM_SAMPLE_VERBOSE_PRIMARY=1 MUSIC_ANALYZER_DRUM_SAMPLE_VERBOSE_PRIMARY_LIMIT=5000 MUSIC_ANALYZER_DRUM_SAMPLE_MIN_RECALL_PERCENT=0 MUSIC_ANALYZER_DRUM_SAMPLE_MIN_PRIMARY_RECALL_PERCENT=0 MUSIC_ANALYZER_DRUM_SAMPLE_MIN_PRECISION_PERCENT=0 MUSIC_ANALYZER_DRUM_SAMPLE_MAX_KICK_FALSE_PERCENT=100 $(BUILD_DIR)/analyzer_drum_samples > "$(BUILD_DIR)/hf_drum_kit_primary_attribute_rows_$*.out" 2> "$(BUILD_DIR)/hf_drum_kit_primary_attribute_rows_$*.err"
+	$(PYTHON) scripts/analyze_drum_primary_debug.py --dump-rows --include-debug-rows "$(BUILD_DIR)/hf_drum_kit_primary_attribute_rows_$*.err" > "$@"
 
 find-hf-drum-primary-attribute-patterns: scripts/find_drum_attribute_patterns.py scripts/analyze_drum_primary_debug.py
 	+@if [ ! -f "$(HF_DRUM_KIT_PRIMARY_ATTRIBUTE_ROWS)" ] || [ "$(BUILD_DIR)/analyzer_drum_samples" -nt "$(HF_DRUM_KIT_PRIMARY_ATTRIBUTE_ROWS)" ] || [ "scripts/analyze_drum_primary_debug.py" -nt "$(HF_DRUM_KIT_PRIMARY_ATTRIBUTE_ROWS)" ]; then $(MAKE) analyze-hf-drum-primary-attribute-rows; fi
@@ -1362,13 +1394,35 @@ $(IDMT_DRUMS_ARCHIVE): FORCE | $(BUILD_DIR)
 prepare-idmt-drums-samples: scripts/prepare_idmt_drums_samples.py download-idmt-drums-samples | $(BUILD_DIR)
 	IDMT_DRUMS_ARCHIVE="$(IDMT_DRUMS_ARCHIVE)" IDMT_DRUMS_SAMPLE_DIR="$(IDMT_DRUMS_SAMPLE_DIR)" IDMT_DRUMS_LIMIT_PER_CATEGORY="$(IDMT_DRUMS_LIMIT_PER_CATEGORY)" IDMT_DRUMS_MIN_PER_CATEGORY="$(IDMT_DRUMS_MIN_PER_CATEGORY)" $(PYTHON) scripts/prepare_idmt_drums_samples.py --archive "$(IDMT_DRUMS_ARCHIVE)" --output "$(IDMT_DRUMS_SAMPLE_DIR)" --limit-per-category "$(IDMT_DRUMS_LIMIT_PER_CATEGORY)" --min-per-category "$(IDMT_DRUMS_MIN_PER_CATEGORY)"
 
-test-idmt-drums-samples: $(BUILD_DIR)/analyzer_drum_samples prepare-idmt-drums-samples scripts/run_with_duration.sh
+$(IDMT_DRUMS_SAMPLE_DIR)/manifest.tsv: scripts/prepare_idmt_drums_samples.py download-idmt-drums-samples | $(BUILD_DIR)
+	+$(MAKE) prepare-idmt-drums-samples
+
+test-idmt-drums-samples: test-idmt-drums-samples-parallel
+
+test-idmt-drums-samples-serial: $(BUILD_DIR)/analyzer_drum_samples prepare-idmt-drums-samples scripts/run_with_duration.sh
 	$(RUN_WITH_DURATION) analyzer_idmt_drums_samples env MUSIC_ANALYZER_DRUM_SAMPLES_REQUIRED=1 MUSIC_ANALYZER_DRUM_SAMPLES_DIR="$(IDMT_DRUMS_SAMPLE_DIR)" MUSIC_ANALYZER_DRUM_SAMPLE_REQUIRED_CATEGORIES="kick,snare,hihat" MUSIC_ANALYZER_DRUM_SAMPLE_MIN_RECALL_PERCENT="$(IDMT_DRUMS_MIN_RECALL_PERCENT)" MUSIC_ANALYZER_DRUM_SAMPLE_MIN_SNARE_RECALL_PERCENT="$(IDMT_DRUMS_MIN_SNARE_RECALL_PERCENT)" MUSIC_ANALYZER_DRUM_SAMPLE_MIN_SNARE_PRIMARY_RECALL_PERCENT="$(IDMT_DRUMS_MIN_SNARE_PRIMARY_RECALL_PERCENT)" MUSIC_ANALYZER_DRUM_SAMPLE_MIN_PRECISION_PERCENT="$(IDMT_DRUMS_MIN_PRECISION_PERCENT)" MUSIC_ANALYZER_DRUM_SAMPLE_MAX_KICK_FALSE_PERCENT="$(IDMT_DRUMS_MAX_KICK_FALSE_PERCENT)" $(BUILD_DIR)/analyzer_drum_samples
 
-analyze-idmt-drum-primary-attribute-rows: $(BUILD_DIR)/analyzer_drum_samples prepare-idmt-drums-samples scripts/analyze_drum_primary_debug.py scripts/run_with_duration.sh
+test-idmt-drums-samples-parallel: $(BUILD_DIR)/analyzer_drum_samples $(IDMT_DRUMS_SAMPLE_DIR)/manifest.tsv scripts/check_drum_sample_shards.py scripts/run_with_duration.sh
+	+$(RUN_WITH_DURATION) analyzer_idmt_drums_samples_parallel $(MAKE) $(IDMT_DRUMS_TEST_MAKE_JOBS) $(IDMT_DRUMS_SHARD_TARGETS)
+	$(PYTHON) scripts/check_drum_sample_shards.py --categories "kick,snare,hihat" --min-recall-percent "$(IDMT_DRUMS_MIN_RECALL_PERCENT)" --snare-min-recall-percent "$(IDMT_DRUMS_MIN_SNARE_RECALL_PERCENT)" --snare-min-primary-recall-percent "$(IDMT_DRUMS_MIN_SNARE_PRIMARY_RECALL_PERCENT)" --min-precision-percent "$(IDMT_DRUMS_MIN_PRECISION_PERCENT)" --kick-max-false-percent "$(IDMT_DRUMS_MAX_KICK_FALSE_PERCENT)" $(IDMT_DRUMS_SHARD_OUTS)
+
+test-idmt-drums-samples-shard-%: FORCE $(BUILD_DIR)/analyzer_drum_samples $(IDMT_DRUMS_SAMPLE_DIR)/manifest.tsv scripts/run_with_duration.sh
+	$(RUN_WITH_DURATION) analyzer_idmt_drums_samples_shard_$* env MUSIC_ANALYZER_DRUM_SAMPLES_REQUIRED=1 MUSIC_ANALYZER_DRUM_SAMPLE_REQUIRED_CATEGORIES="$*" MUSIC_ANALYZER_DRUM_SAMPLE_FILTER_CATEGORY="$*" MUSIC_ANALYZER_DRUM_SAMPLES_DIR="$(IDMT_DRUMS_SAMPLE_DIR)" MUSIC_ANALYZER_DRUM_SAMPLE_MIN_RECALL_PERCENT=0 MUSIC_ANALYZER_DRUM_SAMPLE_MIN_PRECISION_PERCENT=0 MUSIC_ANALYZER_DRUM_SAMPLE_MIN_PRIMARY_RECALL_PERCENT=0 MUSIC_ANALYZER_DRUM_SAMPLE_MAX_KICK_FALSE_PERCENT=100 $(BUILD_DIR)/analyzer_drum_samples > "$(BUILD_DIR)/idmt_drums_samples_shard_$*.out" 2> "$(BUILD_DIR)/idmt_drums_samples_shard_$*.err"
+
+analyze-idmt-drum-primary-attribute-rows: analyze-idmt-drum-primary-attribute-rows-parallel
+
+analyze-idmt-drum-primary-attribute-rows-serial: $(BUILD_DIR)/analyzer_drum_samples prepare-idmt-drums-samples scripts/analyze_drum_primary_debug.py scripts/run_with_duration.sh
 	$(RUN_WITH_DURATION) analyzer_idmt_drums_primary_debug env MUSIC_ANALYZER_DRUM_SAMPLES_REQUIRED=1 MUSIC_ANALYZER_DRUM_SAMPLES_DIR="$(IDMT_DRUMS_SAMPLE_DIR)" MUSIC_ANALYZER_DRUM_SAMPLE_REQUIRED_CATEGORIES="kick,snare,hihat" MUSIC_ANALYZER_DRUM_SAMPLE_VERBOSE_ALL=1 MUSIC_ANALYZER_DRUM_SAMPLE_VERBOSE_PRIMARY=1 MUSIC_ANALYZER_DRUM_SAMPLE_VERBOSE_PRIMARY_LIMIT=4000 MUSIC_ANALYZER_DRUM_SAMPLE_MIN_RECALL_PERCENT=0 MUSIC_ANALYZER_DRUM_SAMPLE_MIN_PRIMARY_RECALL_PERCENT=0 MUSIC_ANALYZER_DRUM_SAMPLE_MIN_SNARE_PRIMARY_RECALL_PERCENT=0 MUSIC_ANALYZER_DRUM_SAMPLE_MIN_PRECISION_PERCENT=0 MUSIC_ANALYZER_DRUM_SAMPLE_MAX_KICK_FALSE_PERCENT=100 $(BUILD_DIR)/analyzer_drum_samples > "$(IDMT_DRUMS_PRIMARY_DEBUG_OUT)" 2> "$(IDMT_DRUMS_PRIMARY_DEBUG_ERR)"
 	$(PYTHON) scripts/analyze_drum_primary_debug.py --dump-rows --include-debug-rows "$(IDMT_DRUMS_PRIMARY_DEBUG_ERR)" > "$(IDMT_DRUMS_PRIMARY_ATTRIBUTE_ROWS)"
 	@printf '%s\n' "IDMT drum primary attribute TSV: $(IDMT_DRUMS_PRIMARY_ATTRIBUTE_ROWS)"
+
+analyze-idmt-drum-primary-attribute-rows-parallel: $(BUILD_DIR)/analyzer_drum_samples $(IDMT_DRUMS_SAMPLE_DIR)/manifest.tsv scripts/analyze_drum_primary_debug.py scripts/build_sharded_tsv.sh scripts/run_with_duration.sh
+	+$(RUN_WITH_DURATION) analyzer_idmt_drums_primary_debug_parallel $(SHELL) scripts/build_sharded_tsv.sh "$(IDMT_DRUMS_PRIMARY_ATTRIBUTE_ROWS)" "$(MAKE)" "$(IDMT_DRUMS_TEST_MAKE_JOBS)" $(IDMT_DRUMS_PRIMARY_ATTRIBUTE_PARTS)
+	@printf '%s\n' "IDMT drum primary attribute TSV: $(IDMT_DRUMS_PRIMARY_ATTRIBUTE_ROWS)"
+
+$(BUILD_DIR)/idmt_drums_primary_attribute_rows_%.tsv: FORCE $(BUILD_DIR)/analyzer_drum_samples $(IDMT_DRUMS_SAMPLE_DIR)/manifest.tsv scripts/analyze_drum_primary_debug.py scripts/run_with_duration.sh
+	$(RUN_WITH_DURATION) analyzer_idmt_drums_primary_debug_$* env MUSIC_ANALYZER_DRUM_SAMPLES_REQUIRED=1 MUSIC_ANALYZER_DRUM_SAMPLE_REQUIRED_CATEGORIES="$*" MUSIC_ANALYZER_DRUM_SAMPLE_FILTER_CATEGORY="$*" MUSIC_ANALYZER_DRUM_SAMPLES_DIR="$(IDMT_DRUMS_SAMPLE_DIR)" MUSIC_ANALYZER_DRUM_SAMPLE_VERBOSE_ALL=1 MUSIC_ANALYZER_DRUM_SAMPLE_VERBOSE_PRIMARY=1 MUSIC_ANALYZER_DRUM_SAMPLE_VERBOSE_PRIMARY_LIMIT=4000 MUSIC_ANALYZER_DRUM_SAMPLE_MIN_RECALL_PERCENT=0 MUSIC_ANALYZER_DRUM_SAMPLE_MIN_PRIMARY_RECALL_PERCENT=0 MUSIC_ANALYZER_DRUM_SAMPLE_MIN_SNARE_PRIMARY_RECALL_PERCENT=0 MUSIC_ANALYZER_DRUM_SAMPLE_MIN_PRECISION_PERCENT=0 MUSIC_ANALYZER_DRUM_SAMPLE_MAX_KICK_FALSE_PERCENT=100 $(BUILD_DIR)/analyzer_drum_samples > "$(BUILD_DIR)/idmt_drums_primary_attribute_rows_$*.out" 2> "$(BUILD_DIR)/idmt_drums_primary_attribute_rows_$*.err"
+	$(PYTHON) scripts/analyze_drum_primary_debug.py --dump-rows --include-debug-rows "$(BUILD_DIR)/idmt_drums_primary_attribute_rows_$*.err" > "$@"
 
 find-idmt-drum-primary-attribute-patterns: scripts/find_drum_attribute_patterns.py scripts/analyze_drum_primary_debug.py
 	+@if [ ! -f "$(IDMT_DRUMS_PRIMARY_ATTRIBUTE_ROWS)" ] || [ "$(BUILD_DIR)/analyzer_drum_samples" -nt "$(IDMT_DRUMS_PRIMARY_ATTRIBUTE_ROWS)" ] || [ "scripts/analyze_drum_primary_debug.py" -nt "$(IDMT_DRUMS_PRIMARY_ATTRIBUTE_ROWS)" ]; then $(MAKE) analyze-idmt-drum-primary-attribute-rows; fi

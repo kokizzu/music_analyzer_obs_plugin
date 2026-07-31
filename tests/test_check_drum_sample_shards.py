@@ -79,6 +79,19 @@ def main() -> int:
         raise AssertionError("expected shard checker to fail the snare primary threshold")
     require(failed.stderr, "expected 100ms snare primary recall >= 90%, got 80% (4/5)")
 
+    subset = run_checker("--categories", "kick,snare,hihat")
+    if subset.returncode != 0:
+        raise AssertionError(subset.stderr)
+    require(subset.stdout, "check_drum_sample_shards: ok (usable 25, skipped 2")
+    require(subset.stdout, "hihat recall 3/3 primary 3/3")
+    if "tom recall" in subset.stdout:
+        raise AssertionError(f"subset checker should not summarize omitted categories:\n{subset.stdout}")
+
+    unknown = run_checker("--categories", "kick,clap")
+    if unknown.returncode == 0:
+        raise AssertionError("expected shard checker to reject unknown categories")
+    require(unknown.stderr, "unknown categories: clap")
+
     print("test_check_drum_sample_shards: ok")
     return 0
 

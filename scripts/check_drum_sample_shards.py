@@ -77,6 +77,16 @@ def fail(message: str) -> None:
     raise SystemExit(1)
 
 
+def parse_categories(text: str) -> tuple[str, ...]:
+    categories = tuple(category.strip() for category in text.split(",") if category.strip())
+    unknown = [category for category in categories if category not in CATEGORIES]
+    if unknown:
+        fail(f"unknown categories: {', '.join(unknown)}")
+    if not categories:
+        fail("expected at least one category")
+    return categories
+
+
 def threshold(args: argparse.Namespace, name: str, category: str) -> int:
     value = getattr(args, f"{category}_{name}")
     if value is not None:
@@ -86,9 +96,10 @@ def threshold(args: argparse.Namespace, name: str, category: str) -> int:
 
 def validate(args: argparse.Namespace, skipped: int, active: dict[str, dict[str, int]],
              primary: dict[str, dict[str, int]]) -> None:
+    expected_categories = parse_categories(args.categories)
     totals = {category: sum(primary.get(category, {}).values()) for category in CATEGORIES}
     usable = sum(totals.values())
-    for category in CATEGORIES:
+    for category in expected_categories:
         total = totals[category]
         if total < 2:
             fail(f"expected at least two usable {category} samples, got {total}")
@@ -142,7 +153,7 @@ def validate(args: argparse.Namespace, skipped: int, active: dict[str, dict[str,
             + f" ambiguous={row.get('ambiguous', 0)} none={row.get('none', 0)}"
         )
     primary_confusion: Counter[str] = Counter()
-    for expected in CATEGORIES:
+    for expected in expected_categories:
         for detected, value in primary.get(expected, {}).items():
             if value <= 0 or detected == expected:
                 continue
@@ -153,7 +164,7 @@ def validate(args: argparse.Namespace, skipped: int, active: dict[str, dict[str,
             + " ".join(f"{route}={value}" for route, value in primary_confusion.most_common(12))
         )
     print(f"check_drum_sample_shards: ok (usable {usable}, skipped {skipped}", end="")
-    for category in CATEGORIES:
+    for category in expected_categories:
         total = totals[category]
         active_hit = active.get(category, {}).get(category, 0)
         primary_hit = primary.get(category, {}).get(category, 0)
@@ -175,6 +186,7 @@ def main() -> int:
     parser.add_argument("--min-precision-percent", type=int, default=3)
     parser.add_argument("--min-primary-recall-percent", type=int, default=0)
     parser.add_argument("--max-false-percent", type=int, default=100)
+    parser.add_argument("--categories", default=",".join(CATEGORIES))
     for category in CATEGORIES:
         parser.add_argument(f"--{category}-min-recall-percent", type=int)
         parser.add_argument(f"--{category}-min-primary-recall-percent", type=int)
