@@ -1121,7 +1121,7 @@ def main() -> int:
     )
     parser.add_argument("--max-conditions", type=int, default=2)
     parser.add_argument("--beam-width", type=int, default=160)
-    parser.add_argument("--show-examples", type=int, default=0)
+    parser.add_argument("--show-examples", "--row-examples", dest="show_examples", type=int, default=0)
     parser.add_argument("--show-near-misses", type=int, default=0)
     parser.add_argument(
         "--protected-margin",

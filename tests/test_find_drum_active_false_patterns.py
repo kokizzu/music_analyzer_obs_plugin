@@ -83,6 +83,35 @@ def main() -> int:
                 "--max-protected-samples",
                 "0",
                 "--max-conditions",
+                "2",
+                "--row-examples",
+                "1",
+            ],
+            cwd=ROOT,
+            check=True,
+            text=True,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+        )
+    output = completed.stdout
+    require(output, "false-active examples:")
+    require(output, "kick/a.wav kick->snare")
+
+    with tempfile.TemporaryDirectory() as tmpdir:
+        table = pathlib.Path(tmpdir) / "drum.tsv"
+        table.write_text(header + "\n" + "\n".join(rows) + "\n", encoding="utf-8")
+        completed = subprocess.run(
+            [
+                sys.executable,
+                str(SCRIPT),
+                str(table),
+                "--route",
+                "kick->snare",
+                "--min-positive-samples",
+                "2",
+                "--max-protected-samples",
+                "0",
+                "--max-conditions",
                 "1",
                 "--limit",
                 "4",
