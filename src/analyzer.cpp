@@ -13095,8 +13095,8 @@ void prune_crowded_guitar_chord_label(ChordResult &chord, bool strict_plain_only
 void prune_crowded_guitar_display_label(InstrumentState &state, const NoteGrid &display_grid,
 					const NoteGrid &analysis_grid)
 {
-	if (!state.label[0] || state.label[0] == '-' ||
-	    chord_label_component_count(state.label) < kGuitarChordCrowdedPruneMinComponents)
+	const int component_count = chord_label_component_count(state.label);
+	if (!state.label[0] || state.label[0] == '-' || component_count < 4)
 		return;
 
 	const std::size_t primary_len = std::strcspn(state.label, "=");
@@ -13133,6 +13133,11 @@ void prune_crowded_guitar_display_label(InstrumentState &state, const NoteGrid &
 			    (have_primary_mask && have_component_mask && component_mask == primary_mask) ||
 			    (have_component_mask &&
 			     observed_guitar_pitch_mask_playable(component_mask, display_grid, analysis_grid));
+		if (!keep && component_count < kGuitarChordCrowdedPruneMinComponents &&
+		    have_primary_mask && have_component_mask) {
+			keep = (component_mask & primary_mask) == primary_mask ||
+			       (component_mask & primary_mask) == component_mask;
+		}
 		if (!keep && have_component_mask &&
 		    guitar_candidate_alias_supported_for_display(cursor, len, display_grid, analysis_grid)) {
 			ParsedRootChord component;
