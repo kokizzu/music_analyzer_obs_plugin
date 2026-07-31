@@ -69,8 +69,21 @@ class Result:
 
 
 @dataclasses.dataclass(frozen=True)
+class CapSimulation:
+    true_before_samples: int
+    true_after_samples: int
+    false_before_samples: int
+    false_after_samples: int
+    route_before_samples: int
+    route_after_samples: int
+    foreign_before_samples: int
+    foreign_after_samples: int
+
+
+@dataclasses.dataclass(frozen=True)
 class RouteAnalysis:
     route: tuple[str, str]
+    simulation_rows: list[dict[str, str]]
     positive_rows: list[dict[str, str]]
     protected_rows: list[dict[str, str]]
     foreign_rows: list[dict[str, str]]
@@ -96,6 +109,7 @@ class RouteSummary:
     foreign_total_samples: int
     nearest_protected_misses: int | None
     nearest_protected_score: float | None
+    cap_simulation: CapSimulation
 
 
 @dataclasses.dataclass(frozen=True)
@@ -341,6 +355,24 @@ def pattern_matches(row: dict[str, str], pattern: Pattern, protected_margin: flo
     if constraint.kind == "lower":
         return value >= threshold - margin
     return pattern.predicate(row)
+
+
+def constraint_matches(row: dict[str, str], constraint: Constraint) -> bool:
+    if constraint.kind == "category":
+        return row.get(constraint.field, "") == str(constraint.value)
+    value = as_float(row, constraint.field)
+    if value is None:
+        return False
+    threshold = float(constraint.value)
+    if constraint.kind == "upper":
+        return value <= threshold
+    if constraint.kind == "lower":
+        return value >= threshold
+    return False
+
+
+def result_matches(row: dict[str, str], result: Result) -> bool:
+    return all(constraint_matches(row, constraint) for constraint in result.constraints)
 
 
 def mask_for(rows: list[dict[str, str]], pattern: Pattern, protected_margin: float = 0.0,
@@ -684,6 +716,7 @@ def analyze_route(
                     break
     return RouteAnalysis(
         route=route,
+        simulation_rows=rows + extra_protected_rows,
         positive_rows=positive_rows,
         protected_rows=protected_rows,
         foreign_rows=foreign_rows,
@@ -692,6 +725,43 @@ def analyze_route(
         foreign_samples=foreign_samples,
         candidates=candidates,
         accepted=accepted,
+    )
+
+
+def cap_simulation(
+    rows: list[dict[str, str]],
+    route: tuple[str, str],
+    result: Result,
+    threshold: float,
+) -> CapSimulation:
+    expected, active = route
+
+    def active_rows(predicate: Callable[[dict[str, str]], bool]) -> list[dict[str, str]]:
+        return [
+            row for row in rows
+            if predicate(row) and (as_float(row, f"{active}_level") or 0.0) > threshold
+        ]
+
+    def after_cap(rows_for_bucket: list[dict[str, str]]) -> list[dict[str, str]]:
+        return [row for row in rows_for_bucket if not result_matches(row, result)]
+
+    true_before = active_rows(lambda row: row.get("expected", "") == active)
+    false_before = active_rows(lambda row: row.get("expected", "") != active)
+    route_before = active_rows(lambda row: row.get("expected", "") == expected)
+    foreign_before = active_rows(lambda row: row.get("expected", "") not in {expected, active})
+    true_after = after_cap(true_before)
+    false_after = after_cap(false_before)
+    route_after = after_cap(route_before)
+    foreign_after = after_cap(foreign_before)
+    return CapSimulation(
+        true_before_samples=len({sample_key(row) for row in true_before}),
+        true_after_samples=len({sample_key(row) for row in true_after}),
+        false_before_samples=len({sample_key(row) for row in false_before}),
+        false_after_samples=len({sample_key(row) for row in false_after}),
+        route_before_samples=len({sample_key(row) for row in route_before}),
+        route_after_samples=len({sample_key(row) for row in route_after}),
+        foreign_before_samples=len({sample_key(row) for row in foreign_before}),
+        foreign_after_samples=len({sample_key(row) for row in foreign_after}),
     )
 
 
@@ -714,6 +784,9 @@ def route_summaries(analysis: RouteAnalysis, settings: Settings) -> list[RouteSu
                 foreign_total_samples=analysis.foreign_samples,
                 nearest_protected_misses=nearest[0] if nearest is not None else None,
                 nearest_protected_score=nearest[1] if nearest is not None else None,
+                cap_simulation=cap_simulation(
+                    analysis.simulation_rows, analysis.route, result, settings.threshold
+                ),
             )
         )
     if not summaries:
@@ -739,6 +812,9 @@ def route_summaries(analysis: RouteAnalysis, settings: Settings) -> list[RouteSu
                     foreign_total_samples=analysis.foreign_samples,
                     nearest_protected_misses=nearest[0] if nearest is not None else None,
                     nearest_protected_score=nearest[1] if nearest is not None else None,
+                    cap_simulation=cap_simulation(
+                        analysis.simulation_rows, analysis.route, result, settings.threshold
+                    ),
                 )
             )
     return summaries
@@ -778,7 +854,15 @@ def print_ranked_summary(summaries: list[RouteSummary], limit: int) -> None:
             f"+{summary.positive_samples} rows={summary.positive_rows} "
             f"-{summary.protected_samples} rows={summary.protected_rows} "
             f"foreign={summary.foreign_samples} rows={summary.foreign_rows} "
-            f"protected_true_{active}={summary.protected_total_samples}{near} :: {summary.rule}"
+            f"protected_true_{active}={summary.protected_total_samples}{near} "
+            f"cap_samples=true {summary.cap_simulation.true_before_samples}->"
+            f"{summary.cap_simulation.true_after_samples} "
+            f"false {summary.cap_simulation.false_before_samples}->"
+            f"{summary.cap_simulation.false_after_samples} "
+            f"route {summary.cap_simulation.route_before_samples}->"
+            f"{summary.cap_simulation.route_after_samples} "
+            f"foreign {summary.cap_simulation.foreign_before_samples}->"
+            f"{summary.cap_simulation.foreign_after_samples} :: {summary.rule}"
         )
 
 
