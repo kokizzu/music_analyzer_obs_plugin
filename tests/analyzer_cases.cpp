@@ -3227,6 +3227,46 @@ void check_full_mix_single_instrument_precision(Runner &runner)
 
 	{
 		mao_test::Buffer buffer = {};
+		const std::vector<float> upper_acoustic_guitar_body_profile =
+			{1.0f, 0.101f, 0.116f, 0.021f, 0.001f};
+		add_harmonic_note(buffer, 69, 0.24f, upper_acoustic_guitar_body_profile);
+
+		const auto snapshot =
+			analyze_buffer_with_mode(buffer, mao::AnalysisInputMode::FullMix,
+						 "speaker upper plucked body", 3);
+		expect_global_pitch_class(runner, snapshot, 9,
+					  "full-mix vocal-owned upper acoustic guitar body global");
+		runner.expect(grid_level_for_midi(snapshot.guitar_notes, 69) > 0.0f,
+			      std::string("full-mix vocal-owned upper acoustic guitar body: expected "
+					  "guitar A4 display, got guitar `") +
+				      snapshot.guitar.label + "`, keyboard `" + snapshot.keyboard.label +
+				      "`, vocal `" + snapshot.vocal.label + "`, other `" +
+				      snapshot.other.label + "`, debug `" +
+				      full_mix_debug_summary_for_midi(snapshot, 69) + "`");
+	}
+
+	{
+		mao_test::Buffer buffer = {};
+		const std::vector<float> sparse_electronic_guitar_body_profile =
+			{1.0f, 0.122f, 0.012f, 0.012f, 0.0f};
+		add_harmonic_note(buffer, 67, 0.24f, sparse_electronic_guitar_body_profile);
+
+		const auto snapshot =
+			analyze_buffer_with_mode(buffer, mao::AnalysisInputMode::FullMix,
+						 "speaker sparse plucked body", 3);
+		expect_global_pitch_class(runner, snapshot, 7,
+					  "full-mix vocal-owned sparse electronic guitar body global");
+		runner.expect(grid_level_for_midi(snapshot.guitar_notes, 67) > 0.0f,
+			      std::string("full-mix vocal-owned sparse electronic guitar body: expected "
+					  "guitar G4 display, got guitar `") +
+				      snapshot.guitar.label + "`, keyboard `" + snapshot.keyboard.label +
+				      "`, vocal `" + snapshot.vocal.label + "`, other `" +
+				      snapshot.other.label + "`, debug `" +
+				      full_mix_debug_summary_for_midi(snapshot, 67) + "`");
+	}
+
+	{
+		mao_test::Buffer buffer = {};
 		const std::vector<float> upper_acoustic_body_profile =
 			{1.0f, 0.10f, 0.09f, 0.027f, 0.009f};
 		add_harmonic_note(buffer, 69, 0.24f, upper_acoustic_body_profile);

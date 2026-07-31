@@ -2626,6 +2626,71 @@ bool vocal_owned_high_partial_acoustic_guitar_body_supported(const FullMixDebugC
 	       fifth >= 0.011f;
 }
 
+bool vocal_owned_upper_acoustic_guitar_body_supported(const FullMixDebugCandidate &debug)
+{
+	if (debug.owner != InstrumentKind::Vocal)
+		return false;
+	if (debug.midi < 68 || debug.midi > 69)
+		return false;
+
+	const float second = debug.harmonic_ratios[1];
+	const float third = debug.harmonic_ratios[2];
+	const float fourth = debug.harmonic_ratios[3];
+	const float fifth = debug.harmonic_ratios[4];
+	return debug.vocal_score >= 0.79f &&
+	       debug.keyboard_score >= 0.14f &&
+	       debug.keyboard_score <= 0.23f &&
+	       debug.guitar_score <= 0.010f &&
+	       debug.other_score <= 0.010f &&
+	       debug.spectral_level >= 0.90f &&
+	       debug.pitch_confidence >= 0.94f &&
+	       debug.periodicity >= 0.72f &&
+	       debug.harmonic_fit_error <= 0.070f &&
+	       debug.local_noise_level <= 0.035f &&
+	       debug.spectral_centroid <= 0.22f &&
+	       debug.spectral_slope <= 0.32f &&
+	       second >= 0.078f &&
+	       second <= 0.112f &&
+	       third >= 0.023f &&
+	       fourth <= 0.150f &&
+	       fifth <= 0.012f;
+}
+
+bool vocal_owned_sparse_electronic_guitar_body_supported(const FullMixDebugCandidate &debug)
+{
+	if (debug.owner != InstrumentKind::Vocal)
+		return false;
+	if (debug.midi != 67)
+		return false;
+
+	const float second = debug.harmonic_ratios[1];
+	const float third = debug.harmonic_ratios[2];
+	const float fourth = debug.harmonic_ratios[3];
+	const float fifth = debug.harmonic_ratios[4];
+	return debug.vocal_score >= 0.796f &&
+	       debug.vocal_score <= 0.799f &&
+	       debug.keyboard_score >= 0.20f &&
+	       debug.keyboard_score <= 0.205f &&
+	       debug.guitar_score <= 0.010f &&
+	       debug.other_score <= 0.010f &&
+	       debug.spectral_level >= 0.90f &&
+	       debug.pitch_confidence >= 0.953f &&
+	       debug.periodicity >= 0.753f &&
+	       debug.harmonic_fit_error >= 0.011f &&
+	       debug.harmonic_fit_error <= 0.016f &&
+	       debug.local_noise_level <= 0.008f &&
+	       debug.adjacent_lower_ratio <= 0.030f &&
+	       debug.spectral_centroid >= 0.058f &&
+	       debug.spectral_centroid <= 0.068f &&
+	       debug.spectral_slope >= 0.016f &&
+	       debug.spectral_slope <= 0.030f &&
+	       second >= 0.118f &&
+	       second <= 0.126f &&
+	       third <= 0.018f &&
+	       fourth <= 0.015f &&
+	       fifth <= 0.001f;
+}
+
 bool other_owned_low_acoustic_guitar_body_supported(const FullMixDebugCandidate &debug)
 {
 	if (debug.owner != InstrumentKind::Other)
@@ -5719,6 +5784,8 @@ bool full_mix_display_mirror_supported(FullMixDisplayRow row, const FullMixDebug
 		       vocal_owned_muted_guitar_body ||
 		       vocal_owned_low_acoustic_guitar_body_supported(debug) ||
 		       vocal_owned_high_partial_acoustic_guitar_body_supported(debug) ||
+		       vocal_owned_upper_acoustic_guitar_body_supported(debug) ||
+		       vocal_owned_sparse_electronic_guitar_body_supported(debug) ||
 		       vocal_owned_pure_high_note_body_supported(debug) ||
 		       ambiguous_high_guitar_alias ||
 		       measured_guitar_octave_alias_supported(debug);
@@ -9793,6 +9860,10 @@ void suppress_vocal_owned_same_pitch_non_vocal_shadows(NoteGrid &grid, Instrumen
 		if (row == InstrumentKind::Guitar && vocal_owned_low_acoustic_guitar_body_supported(*debug))
 			continue;
 		if (row == InstrumentKind::Guitar && vocal_owned_high_partial_acoustic_guitar_body_supported(*debug))
+			continue;
+		if (row == InstrumentKind::Guitar && vocal_owned_upper_acoustic_guitar_body_supported(*debug))
+			continue;
+		if (row == InstrumentKind::Guitar && vocal_owned_sparse_electronic_guitar_body_supported(*debug))
 			continue;
 		if (row == InstrumentKind::Guitar && vocal_owned_mid_acoustic_guitar_body_supported(*debug))
 			continue;
