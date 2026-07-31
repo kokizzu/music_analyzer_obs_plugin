@@ -18454,6 +18454,15 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 		boost_drum_level(Tom, std::max(0.90f, drum_level_[Kick] + 0.02f));
 		cap_drum_level(Kick, std::max(0.31f, drum_level_[Tom] - 0.02f));
 	}
+	const bool one_shot_measured_kick_tom_active_bleed =
+		drum_detection_enabled && one_shot_drum_source &&
+		drum_level_[Kick] > 0.30f &&
+		drum_level_[Tom] > 0.30f &&
+		drum_shape_supported[Kick] &&
+		tom_kick_shape_score_ratio <= 0.593f &&
+		drum_level_[Tom] <= 0.98f;
+	if (one_shot_measured_kick_tom_active_bleed)
+		cap_drum_level(Tom, 0.28f);
 	const bool one_shot_measured_quiet_crash_tom_snare_steal =
 		drum_detection_enabled && one_shot_drum_source &&
 		drum_level_[Snare] > 0.30f &&
