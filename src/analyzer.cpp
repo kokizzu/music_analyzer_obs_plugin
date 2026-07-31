@@ -9448,7 +9448,7 @@ void attenuate_lower_non_guitar_pitch_class_guitar_octave_shadows(
 	NoteGrid &guitar_grid, InstrumentState &guitar_state, const NoteGrid &keyboard_grid,
 	const NoteGrid &other_grid, const FullMixOwnership &ownership, int preferred_root)
 {
-	static constexpr float kMinGuitarVisualLevel = 0.68f;
+	static constexpr float kMinGuitarVisualLevel = 0.66f;
 	static constexpr float kMinSupportVisualLevel = 0.45f;
 	static constexpr float kSupportWinRatio = 0.86f;
 

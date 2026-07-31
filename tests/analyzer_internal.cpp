@@ -720,6 +720,24 @@ void check_lower_non_guitar_pitch_class_guitar_octave_shadow_uses_measured_level
 	runner.expect(note_grid_midi_visual_level(guitar_grid, kGuitarAliasMidi) < 0.50f,
 		      "lower non-guitar guitar octave shadow: expected measured alias level to attenuate");
 
+	NoteGrid measured_threshold_keyboard_grid = {};
+	set_midi(measured_threshold_keyboard_grid, kKeyboardMidi, 0.50f);
+	NoteGrid measured_threshold_guitar_grid = {};
+	set_midi(measured_threshold_guitar_grid, kGuitarAliasMidi, 0.66f);
+	attenuate_lower_non_guitar_pitch_class_guitar_octave_shadows(
+		measured_threshold_guitar_grid, guitar_state, measured_threshold_keyboard_grid, other_grid,
+		ownership, -1);
+	runner.expect(note_grid_midi_visual_level(measured_threshold_guitar_grid, kGuitarAliasMidi) < 0.50f,
+		      "lower non-guitar guitar octave shadow: expected measured 66% alias to attenuate");
+
+	NoteGrid below_threshold_guitar_grid = {};
+	set_midi(below_threshold_guitar_grid, kGuitarAliasMidi, 0.65f);
+	attenuate_lower_non_guitar_pitch_class_guitar_octave_shadows(
+		below_threshold_guitar_grid, guitar_state, measured_threshold_keyboard_grid, other_grid,
+		ownership, -1);
+	runner.expect(note_grid_midi_visual_level(below_threshold_guitar_grid, kGuitarAliasMidi) > 0.64f,
+		      "lower non-guitar guitar octave shadow: expected sub-threshold alias to stay bright");
+
 	NoteGrid protected_keyboard_grid = {};
 	set_midi(protected_keyboard_grid, kKeyboardMidi, 0.44f);
 	NoteGrid protected_guitar_grid = {};
