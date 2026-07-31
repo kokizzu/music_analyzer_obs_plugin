@@ -392,7 +392,11 @@ def main() -> int:
 
     spread_recipe = target_recipe(makefile, "test-drum-samples-spread")
     spread_manifest_recipe = target_recipe(makefile, "$(DRUM_SAMPLE_SPREAD_BUILD_DIR)/manifest.tsv")
-    spread_matrix_recipe = target_recipe(makefile, "analyze-drum-spread-gate-matrix")
+    assert "analyze-drum-spread-gate-matrix: analyze-drum-spread-gate-matrix-parallel" in makefile, (
+        "default spread matrix target must use the parallel spread row builder"
+    )
+    spread_matrix_recipe = target_recipe(makefile, "analyze-drum-spread-gate-matrix-parallel")
+    spread_matrix_shard_recipe = target_recipe(makefile, "$(BUILD_DIR)/drum_spread_exact_attribute_rows_%.tsv")
     assert "$(MAKE) prepare-drum-samples-spread" in spread_manifest_recipe, (
         "spread sample manifest target must delegate to the spread prepare target"
     )
@@ -401,18 +405,17 @@ def main() -> int:
     assert "DRUM_SAMPLE_FULL_BUILD_DIR" in audit_recipe, (
         "drum sample coverage audit should match the full-library spread configuration"
     )
-    assert "MUSIC_ANALYZER_DRUM_SAMPLE_VERBOSE_PRIMARY=1" in spread_matrix_recipe, (
+    assert "MUSIC_ANALYZER_DRUM_SAMPLE_VERBOSE_PRIMARY=1" in spread_matrix_shard_recipe, (
         "spread matrix row dump must include primary miss labels, not only debug rows"
     )
-    for recipe_text, target in (
-        (spread_recipe, "test-drum-samples-spread"),
-        (spread_matrix_recipe, "analyze-drum-spread-gate-matrix"),
-    ):
-        for category in ["KICK", "SNARE", "HIHAT", "CRASH", "TOM", "RIDE", "RIM"]:
-            env_name = f"MUSIC_ANALYZER_DRUM_SAMPLE_MIN_{category}_PRIMARY_RECALL_PERCENT"
-            var_name = f"$(DRUM_SAMPLE_SPREAD_MIN_{category}_PRIMARY_PERCENT)"
-            assert env_name in recipe_text, f"{target} must enforce {env_name}"
-            assert var_name in recipe_text, f"{target} must use {var_name}"
+    for category in ["KICK", "SNARE", "HIHAT", "CRASH", "TOM", "RIDE", "RIM"]:
+        env_name = f"MUSIC_ANALYZER_DRUM_SAMPLE_MIN_{category}_PRIMARY_RECALL_PERCENT"
+        var_name = f"$(DRUM_SAMPLE_SPREAD_MIN_{category}_PRIMARY_PERCENT)"
+        assert env_name in spread_recipe, f"test-drum-samples-spread must enforce {env_name}"
+        assert var_name in spread_recipe, f"test-drum-samples-spread must use {var_name}"
+        assert var_name in spread_matrix_recipe, (
+            "parallel spread matrix checker must enforce the configured primary thresholds"
+        )
 
     assert "ONLINE_CPU_COUNT := $(or $(shell nproc 2>/dev/null)" in makefile, (
         "parallel test defaults must derive the online CPU count"
@@ -1296,6 +1299,35 @@ def main() -> int:
     )
     assert 'scripts/analyze_drum_primary_debug.py" -nt "$(DRUM_SPREAD_EXACT_ATTRIBUTE_ROWS)"' in drum_spread_exact_recipe, (
         "exact spread drum search must regenerate when the row parser changes"
+    )
+    assert "analyze-drum-spread-gate-matrix: analyze-drum-spread-gate-matrix-parallel" in makefile, (
+        "default spread matrix target must use the parallel spread row builder"
+    )
+    spread_parallel_recipe = target_recipe(makefile, "analyze-drum-spread-gate-matrix-parallel")
+    assert "scripts/build_sharded_tsv.sh" in spread_parallel_recipe, (
+        "parallel spread matrix target must concatenate sharded exact TSV rows"
+    )
+    assert "$(DRUM_SPREAD_EXACT_ATTRIBUTE_PARTS)" in spread_parallel_recipe, (
+        "parallel spread matrix target must build the category exact row parts"
+    )
+    assert "scripts/check_drum_sample_shards.py" in spread_parallel_recipe, (
+        "parallel spread matrix target must validate the same drum gate thresholds"
+    )
+    assert "$(DRUM_SAMPLE_SPREAD_SHARD_OUTS)" in spread_parallel_recipe, (
+        "parallel spread matrix target must validate category shard outputs"
+    )
+    assert 'scripts/summarize_drum_gate_matrix.py "$(DRUM_SPREAD_EXACT_ATTRIBUTE_ROWS)"' in spread_parallel_recipe, (
+        "parallel spread matrix target must summarize the concatenated TSV"
+    )
+    spread_shard_recipe = target_recipe(makefile, "$(BUILD_DIR)/drum_spread_exact_attribute_rows_%.tsv")
+    assert 'MUSIC_ANALYZER_DRUM_SAMPLE_REQUIRED_CATEGORIES="$*"' in spread_shard_recipe, (
+        "spread exact TSV shard must run one expected category at a time"
+    )
+    assert 'MUSIC_ANALYZER_DRUM_SAMPLE_FILTER_CATEGORY="$*"' in spread_shard_recipe, (
+        "spread exact TSV shard must filter the manifest category"
+    )
+    assert "--dump-rows --include-debug-rows" in spread_shard_recipe, (
+        "spread exact TSV shard must include protected correct rows"
     )
 
     drum_full_exact_recipe = target_recipe(makefile, "find-drum-full-exact-attribute-patterns")
