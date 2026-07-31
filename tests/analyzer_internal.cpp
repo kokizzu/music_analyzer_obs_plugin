@@ -234,7 +234,54 @@ void check_displayed_supported_plain_guitar_primary(Runner &runner)
 	promote_displayed_supported_plain_guitar_primary(protected_state, protected_grid,
 							protected_grid);
 	runner.expect(std::strcmp(protected_state.label, "Am=E") == 0,
-		      std::string("displayed supported guitar primary: expected protected Am primary, got `") +
+			      std::string("displayed supported guitar primary: expected protected Am primary, got `") +
+			      protected_state.label + "`");
+}
+
+void check_source_supported_plain_guitar_alias_recovery(Runner &runner)
+{
+	InstrumentState state = {};
+	std::snprintf(state.label, sizeof(state.label), "B=Bmaj7");
+	state.confidence = 0.58f;
+	ChordResult source = make_crowded_chord("B=D#m=Bmaj7");
+	source.root = 11;
+	source.confidence = 0.64f;
+	NoteGrid display_grid = {};
+	set_pitch(display_grid, 3, 0.42f);
+	set_pitch(display_grid, 6, 0.84f);
+	set_pitch(display_grid, 11, 1.00f);
+	NoteGrid analysis_grid = {};
+	set_pitch(analysis_grid, 3, 0.38f);
+	set_pitch(analysis_grid, 6, 0.82f);
+	set_pitch(analysis_grid, 10, 0.54f);
+	set_pitch(analysis_grid, 11, 1.00f);
+
+	append_source_supported_plain_guitar_aliases_after_prune(state, source,
+								 display_grid, analysis_grid);
+	runner.expect(chord_label_has_exact_component(state.label, "D#m"),
+		      std::string("source-supported guitar alias recovery: expected D#m appended, got `") +
+			      state.label + "`");
+	runner.expect(state.confidence >= source.confidence,
+		      "source-supported guitar alias recovery: expected confidence updated from source");
+
+	InstrumentState protected_state = {};
+	std::snprintf(protected_state.label, sizeof(protected_state.label),
+		      "E=Esus4=Asus2=Edim=Apow=Emaj7");
+	protected_state.confidence = 0.62f;
+	ChordResult protected_source = make_crowded_chord("E=Esus4=Asus2=Edim=Am=Apow");
+	protected_source.root = 4;
+	protected_source.confidence = 0.69f;
+	NoteGrid protected_display = {};
+	set_pitch(protected_display, 4, 0.88f);
+	set_pitch(protected_display, 9, 0.71f);
+	set_pitch(protected_display, 11, 0.56f);
+	NoteGrid protected_analysis = protected_display;
+	set_pitch(protected_analysis, 0, 0.37f);
+
+	append_source_supported_plain_guitar_aliases_after_prune(protected_state, protected_source,
+								 protected_display, protected_analysis);
+	runner.expect(!chord_label_has_exact_component(protected_state.label, "Am"),
+		      std::string("source-supported guitar alias recovery: expected root-fifth-only Am protected, got `") +
 			      protected_state.label + "`");
 }
 
@@ -921,6 +968,7 @@ int run()
 	check_crowded_guitar_prune_modes(runner);
 	check_displayed_same_root_plain_guitar_primary(runner);
 	check_displayed_supported_plain_guitar_primary(runner);
+	check_source_supported_plain_guitar_alias_recovery(runner);
 	check_supported_guitar_candidate_alias_merge(runner);
 	check_supported_guitar_display_extension_aliases(runner);
 	check_ambiguous_guitar_power_quality_keeps_both_plain_aliases(runner);

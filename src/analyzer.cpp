@@ -17610,6 +17610,77 @@ void promote_displayed_supported_plain_guitar_primary(InstrumentState &state,
 	copy_text(state.label, sizeof(state.label), promoted);
 }
 
+void append_source_supported_plain_guitar_aliases_after_prune(InstrumentState &state,
+							      const ChordResult &source,
+							      const NoteGrid &display_grid,
+							      const NoteGrid &analysis_grid)
+{
+	if (!state.label[0] || state.label[0] == '-' || !valid_chord_result(source))
+		return;
+
+	const int display_pitch_classes = note_grid_active_pitch_class_count(display_grid);
+	const int analysis_pitch_classes = note_grid_active_pitch_class_count(analysis_grid);
+	if (display_pitch_classes < 2 || display_pitch_classes > 4 ||
+	    analysis_pitch_classes < 3 || analysis_pitch_classes > 8)
+		return;
+
+	const std::array<float, 12> display_chroma = note_grid_chroma(display_grid);
+	const std::array<float, 12> analysis_chroma = note_grid_chroma(analysis_grid);
+	if (longest_chromatic_run(display_chroma) >= 4 ||
+	    longest_chromatic_run(analysis_chroma) >= 8)
+		return;
+
+	char merged[sizeof(state.label)] = {};
+	copy_text(merged, sizeof(merged), state.label);
+	int appended = 0;
+	const char *cursor = source.label;
+	while (cursor && *cursor && appended < 1) {
+		const char *end = std::strchr(cursor, '=');
+		const std::size_t len =
+			end ? static_cast<std::size_t>(end - cursor) : std::strlen(cursor);
+		ParsedRootChord component;
+		if (parse_plain_major_minor_component(cursor, len, component)) {
+			char alias[16] = {};
+			std::snprintf(alias, sizeof(alias), "%s%s", note_name(component.root),
+				      component.quality == RootChordQuality::Minor ? "m" : "");
+			if (!chord_label_has_exact_component(merged, alias)) {
+				const bool minor = component.quality == RootChordQuality::Minor;
+				const ChordResult plain =
+					make_guitar_plain_triad(component.root, minor,
+								std::max(state.confidence,
+									 source.confidence));
+				const int third = component.root + (minor ? 3 : 4);
+				const int fifth = component.root + 7;
+				const float visible_root =
+					note_grid_pitch_level(display_grid, component.root);
+				const float visible_third = note_grid_pitch_level(display_grid, third);
+				if (visible_root >= 0.08f && visible_third >= 0.08f &&
+				    note_grid_pitch_active(display_grid, component.root) &&
+				    note_grid_pitch_active(display_grid, third) &&
+				    note_grid_pitch_active(analysis_grid, component.root) &&
+				    note_grid_pitch_active(analysis_grid, third) &&
+				    note_grid_pitch_active(analysis_grid, fifth) &&
+				    note_grid_chord_tone_count(analysis_grid, plain) >= 3) {
+					const std::size_t before = std::strlen(merged);
+					append_chord_label_component(merged, sizeof(merged), alias,
+								     std::strlen(alias));
+					if (std::strlen(merged) != before &&
+					    chord_label_has_exact_component(merged, alias))
+						++appended;
+				}
+			}
+		}
+		if (!end)
+			break;
+		cursor = end + 1;
+	}
+
+	if (std::strcmp(merged, state.label) != 0) {
+		copy_text(state.label, sizeof(state.label), merged);
+		state.confidence = std::max(state.confidence, source.confidence);
+	}
+}
+
 bool promote_smoothed_same_root_guitar_quality(
 	ChordResult &raw, const ChordResult &smoothed,
 	const std::array<float, kNoteProbeCount> &powers, int min_midi, int max_midi)
@@ -23206,6 +23277,14 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 				snapshot.guitar_chord_analysis_notes);
 		prune_crowded_guitar_display_label(snapshot.guitar_chord, snapshot.guitar_notes,
 						   guitar_chord_detection_grid);
+		if (!mixed_source) {
+			append_source_supported_plain_guitar_aliases_after_prune(
+				snapshot.guitar_chord, raw_guitar_chord, snapshot.guitar_notes,
+				guitar_chord_detection_grid);
+			append_source_supported_plain_guitar_aliases_after_prune(
+				snapshot.guitar_chord, smoothed_guitar_chord, snapshot.guitar_notes,
+				guitar_chord_detection_grid);
+		}
 	} else {
 		reset_note_grid_envelope(snapshot.guitar_notes, snapshot.guitar, guitar_note_tracking_);
 		reset_note_grid_envelope(guitar_chord_grid, guitar_chord_note_state, guitar_chord_note_tracking_);
