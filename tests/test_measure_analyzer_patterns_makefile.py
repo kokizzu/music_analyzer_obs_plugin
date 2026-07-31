@@ -1558,6 +1558,13 @@ def main() -> int:
         assert '--jobs "$(REAL_NOTE_PATTERN_JOBS)"' in target_recipe(makefile, target), (
             f"{target} should mine independent real-note buckets in parallel by default"
         )
+    assert "INSTRUMENT_PATTERN_JOBS ?= $(PARALLEL_TEST_JOBS)" in makefile, (
+        "instrument pattern mining should default to the shared parallel job count"
+    )
+    for target in ["find-instrument-owner-patterns", "find-instrument-status-patterns"]:
+        assert '--jobs "$(INSTRUMENT_PATTERN_JOBS)"' in target_recipe(makefile, target), (
+            f"{target} should mine independent instrument buckets in parallel by default"
+        )
 
     drum_full_gate_recipe = target_recipe(makefile, "analyze-drum-full-gate-matrix")
     assert "MUSIC_ANALYZER_DRUM_SAMPLE_VERBOSE_PRIMARY=1" in drum_full_gate_recipe, (
@@ -2237,6 +2244,7 @@ def main() -> int:
         "MEASURE_ANALYZER_ROW_DUMPS",
         "MEASURE_INSTRUMENT_PATTERN_ARGS",
         "MEASURE_INSTRUMENT_STATUS_PATTERN_ARGS",
+        "INSTRUMENT_PATTERN_JOBS",
         "MEASURE_REAL_NOTE_PATTERN_ARGS",
         "MEASURE_REAL_NOTE_PRACTICAL_ROW_CONFUSION_PATTERN_ARGS",
         "MEASURE_REAL_NOTE_FOCUSED_ROW_CONFUSION_PATTERN_ARGS",

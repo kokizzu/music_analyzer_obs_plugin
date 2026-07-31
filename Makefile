@@ -165,6 +165,7 @@ MEASURE_DRUM_FULL_PATTERN_ARGS ?= --top-routes 4 --limit 4 --min-positive-sample
 MEASURE_DRUM_ACTIVE_FALSE_PATTERN_ARGS ?= --top-routes 6 --limit 6 --min-positive-samples 8 --max-protected-samples 0 --max-conditions 2 --beam-width 160 --show-examples 1 --show-near-misses 2 --protected-margin 0.002 --protected-relative-margin 0.001 --min-near-protected-score 0.10 --exclude-fields kick_level
 DRUM_PATTERN_JOBS ?= $(PARALLEL_TEST_JOBS)
 REAL_NOTE_PATTERN_JOBS ?= $(PARALLEL_TEST_JOBS)
+INSTRUMENT_PATTERN_JOBS ?= $(PARALLEL_TEST_JOBS)
 DISPLAY_SHADOW_JOBS ?= $(REAL_NOTE_PATTERN_JOBS)
 OBS_USER_PLUGIN_DIR ?= $(HOME)/.config/obs-studio/plugins/music-analyzer-obs/bin/64bit
 URMP_FIXTURE_ARCHIVE := tests/fixtures/urmp-mini.tar.gz
@@ -1566,10 +1567,10 @@ inspect-instrument-sample-owner-buckets: $(BUILD_DIR)/instrument_sample_attribut
 	$(PYTHON) scripts/inspect_instrument_sample_owner_buckets.py "$(BUILD_DIR)/instrument_sample_attributes.tsv" $(INSPECT_INSTRUMENT_OWNER_ARGS)
 
 find-instrument-owner-patterns: $(BUILD_DIR)/instrument_sample_attributes.tsv scripts/find_instrument_owner_patterns.py
-	$(PYTHON) scripts/find_instrument_owner_patterns.py "$(BUILD_DIR)/instrument_sample_attributes.tsv" $(if $(PATTERN_BUCKET),--bucket "$(PATTERN_BUCKET)") $(PATTERN_ARGS)
+	$(PYTHON) scripts/find_instrument_owner_patterns.py "$(BUILD_DIR)/instrument_sample_attributes.tsv" $(if $(PATTERN_BUCKET),--bucket "$(PATTERN_BUCKET)") --jobs "$(INSTRUMENT_PATTERN_JOBS)" $(PATTERN_ARGS)
 
 find-instrument-status-patterns: $(BUILD_DIR)/instrument_sample_attributes.tsv scripts/find_instrument_owner_patterns.py
-	$(PYTHON) scripts/find_instrument_owner_patterns.py "$(BUILD_DIR)/instrument_sample_attributes.tsv" $(if $(PATTERN_ARGS),--status-top-buckets 0 $(PATTERN_ARGS),$(MEASURE_INSTRUMENT_STATUS_PATTERN_ARGS))
+	$(PYTHON) scripts/find_instrument_owner_patterns.py "$(BUILD_DIR)/instrument_sample_attributes.tsv" --jobs "$(INSTRUMENT_PATTERN_JOBS)" $(if $(PATTERN_ARGS),--status-top-buckets 0 $(PATTERN_ARGS),$(MEASURE_INSTRUMENT_STATUS_PATTERN_ARGS))
 
 filter-instrument-attribute-rows: $(BUILD_DIR)/instrument_sample_attributes.tsv scripts/filter_instrument_attribute_rows.py
 	$(PYTHON) scripts/filter_instrument_attribute_rows.py "$(BUILD_DIR)/instrument_sample_attributes.tsv" $(FILTER_ATTRIBUTE_ARGS)

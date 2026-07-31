@@ -5,8 +5,11 @@ from __future__ import annotations
 
 import argparse
 import collections
+import concurrent.futures
+import contextlib
 import csv
 import dataclasses
+import io
 import pathlib
 import re
 import statistics
@@ -186,6 +189,23 @@ class RuleResult:
     negative_mask: int
     negative_rows: int
     negative_samples: int
+
+
+@dataclasses.dataclass(frozen=True)
+class PatternSearchSettings:
+    limit: int
+    min_positive_samples: int
+    max_negative_samples: int
+    condition_specs: tuple[str, ...]
+    positive_condition_specs: tuple[str, ...]
+    negative_mode: str
+    status_negative_mode: str
+    show_examples: int
+    max_conditions: int
+    beam_width: int
+    include_display_fields: bool
+    field_preset: str
+    excluded_fields: tuple[str, ...]
 
 
 def load_rows(path: pathlib.Path, *, include_all_note_rows: bool = False) -> list[dict[str, str]]:
@@ -1062,6 +1082,96 @@ def print_status_patterns(
     print_results(high_coverage, positive_samples, negative_samples, positive_rows, negatives, show_examples)
 
 
+def bucket_patterns_text(
+    rows: list[dict[str, str]],
+    bucket: tuple[str, str, str],
+    settings: PatternSearchSettings,
+) -> str:
+    buffer = io.StringIO()
+    explicit_patterns = [condition_pattern(spec) for spec in settings.condition_specs]
+    positive_filters = [condition_pattern(spec) for spec in settings.positive_condition_specs]
+    with contextlib.redirect_stdout(buffer):
+        print_bucket_patterns(
+            rows,
+            bucket,
+            settings.limit,
+            settings.min_positive_samples,
+            settings.max_negative_samples,
+            explicit_patterns,
+            positive_filters,
+            settings.negative_mode,
+            settings.show_examples,
+            settings.max_conditions,
+            settings.beam_width,
+            settings.include_display_fields,
+            settings.field_preset,
+            set(settings.excluded_fields),
+        )
+    return buffer.getvalue()
+
+
+def status_patterns_text(
+    rows: list[dict[str, str]],
+    bucket: tuple[str, str],
+    settings: PatternSearchSettings,
+) -> str:
+    buffer = io.StringIO()
+    explicit_patterns = [condition_pattern(spec) for spec in settings.condition_specs]
+    positive_filters = [condition_pattern(spec) for spec in settings.positive_condition_specs]
+    with contextlib.redirect_stdout(buffer):
+        print_status_patterns(
+            rows,
+            bucket,
+            settings.limit,
+            settings.min_positive_samples,
+            settings.max_negative_samples,
+            explicit_patterns,
+            positive_filters,
+            settings.status_negative_mode,
+            settings.show_examples,
+            settings.max_conditions,
+            settings.beam_width,
+            settings.include_display_fields,
+            settings.field_preset,
+            set(settings.excluded_fields),
+        )
+    return buffer.getvalue()
+
+
+def bucket_patterns_worker(
+    task: tuple[int, list[dict[str, str]], tuple[str, str, str], PatternSearchSettings],
+) -> tuple[int, str]:
+    index, rows, bucket, settings = task
+    return index, bucket_patterns_text(rows, bucket, settings)
+
+
+def status_patterns_worker(
+    task: tuple[int, list[dict[str, str]], tuple[str, str], PatternSearchSettings],
+) -> tuple[int, str]:
+    index, rows, bucket, settings = task
+    return index, status_patterns_text(rows, bucket, settings)
+
+
+def print_parallel_outputs(
+    tasks: list[tuple],
+    worker: Callable[[tuple], tuple[int, str]],
+    jobs: int,
+) -> None:
+    if not tasks:
+        return
+    jobs = min(max(1, jobs), len(tasks))
+    if jobs <= 1:
+        for task in tasks:
+            print(worker(task)[1], end="")
+        return
+    outputs: list[str] = [""] * len(tasks)
+    with concurrent.futures.ProcessPoolExecutor(max_workers=jobs) as executor:
+        for index, text in executor.map(worker, tasks):
+            outputs[index] = text
+    for text in outputs:
+        print(text, end="")
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("path", nargs="?", default="build/instrument_sample_attributes.tsv")
@@ -1156,10 +1266,30 @@ def main() -> int:
         default=[],
         help="field to exclude from automatic pattern search; repeatable",
     )
+    parser.add_argument(
+        "--jobs",
+        type=int,
+        default=1,
+        help="mine independent owner/status buckets in parallel when multiple buckets are selected",
+    )
     args = parser.parse_args()
 
-    explicit_patterns = [condition_pattern(spec) for spec in args.condition]
-    positive_filters = [condition_pattern(spec) for spec in args.positive_condition]
+    settings = PatternSearchSettings(
+        limit=max(1, args.limit),
+        min_positive_samples=max(1, args.min_positive_samples),
+        max_negative_samples=max(0, args.max_negative_samples),
+        condition_specs=tuple(args.condition),
+        positive_condition_specs=tuple(args.positive_condition),
+        negative_mode=args.negative_mode,
+        status_negative_mode=args.status_negative_mode,
+        show_examples=max(0, args.show_examples),
+        max_conditions=max(1, args.max_conditions),
+        beam_width=max(1, args.beam_width),
+        include_display_fields=args.include_display_fields,
+        field_preset=args.field_preset,
+        excluded_fields=tuple(args.exclude_field),
+    )
+    jobs = max(1, args.jobs)
     if args.bucket or not (args.status_bucket or args.status_top_buckets is not None):
         owner_rows = load_rows(pathlib.Path(args.path))
         buckets = [parse_bucket_spec(spec) for spec in args.bucket]
@@ -1168,23 +1298,11 @@ def main() -> int:
                 buckets = top_owner_buckets(owner_rows, args.top_buckets, args.bucket_status)
             if not buckets:
                 buckets = [parse_bucket_spec(spec) for spec in DEFAULT_BUCKETS]
-        for bucket in buckets:
-            print_bucket_patterns(
-                owner_rows,
-                bucket,
-                max(1, args.limit),
-                max(1, args.min_positive_samples),
-                max(0, args.max_negative_samples),
-                explicit_patterns,
-                positive_filters,
-                args.negative_mode,
-                max(0, args.show_examples),
-                max(1, args.max_conditions),
-                max(1, args.beam_width),
-                args.include_display_fields,
-                args.field_preset,
-                set(args.exclude_field),
-            )
+        print_parallel_outputs(
+            [(index, owner_rows, bucket, settings) for index, bucket in enumerate(buckets)],
+            bucket_patterns_worker,
+            jobs,
+        )
     if args.status_bucket or args.status_top_buckets is not None:
         status_rows = load_rows(pathlib.Path(args.path), include_all_note_rows=True)
         status_buckets = [parse_status_bucket_spec(spec) for spec in args.status_bucket]
@@ -1194,26 +1312,14 @@ def main() -> int:
                     status_rows,
                     args.status_top_buckets,
                     args.status_bucket_status,
-                )
+            )
             if not status_buckets:
                 status_buckets = [parse_status_bucket_spec(spec) for spec in DEFAULT_STATUS_BUCKETS]
-        for bucket in status_buckets:
-            print_status_patterns(
-                status_rows,
-                bucket,
-                max(1, args.limit),
-                max(1, args.min_positive_samples),
-                max(0, args.max_negative_samples),
-                explicit_patterns,
-                positive_filters,
-                args.status_negative_mode,
-                max(0, args.show_examples),
-                max(1, args.max_conditions),
-                max(1, args.beam_width),
-                args.include_display_fields,
-                args.field_preset,
-                set(args.exclude_field),
-            )
+        print_parallel_outputs(
+            [(index, status_rows, bucket, settings) for index, bucket in enumerate(status_buckets)],
+            status_patterns_worker,
+            jobs,
+        )
     return 0
 
 

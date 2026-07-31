@@ -471,6 +471,58 @@ def main() -> int:
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
         )
+        parallel_auto_owner = subprocess.run(
+            [
+                sys.executable,
+                str(SCRIPT),
+                str(path),
+                "--top-buckets",
+                "2",
+                "--limit",
+                "3",
+                "--min-positive-samples",
+                "1",
+                "--max-negative-samples",
+                "2",
+                "--max-conditions",
+                "2",
+                "--beam-width",
+                "40",
+                "--jobs",
+                "2",
+            ],
+            cwd=ROOT,
+            check=True,
+            text=True,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+        )
+        serial_auto_owner = subprocess.run(
+            [
+                sys.executable,
+                str(SCRIPT),
+                str(path),
+                "--top-buckets",
+                "2",
+                "--limit",
+                "3",
+                "--min-positive-samples",
+                "1",
+                "--max-negative-samples",
+                "2",
+                "--max-conditions",
+                "2",
+                "--beam-width",
+                "40",
+                "--jobs",
+                "1",
+            ],
+            cwd=ROOT,
+            check=True,
+            text=True,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+        )
         auto_status = subprocess.run(
             [
                 sys.executable,
@@ -490,6 +542,62 @@ def main() -> int:
                 "2",
                 "--beam-width",
                 "40",
+            ],
+            cwd=ROOT,
+            check=True,
+            text=True,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+        )
+        parallel_auto_status = subprocess.run(
+            [
+                sys.executable,
+                str(SCRIPT),
+                str(path),
+                "--status-top-buckets",
+                "2",
+                "--status-bucket-status",
+                "miss",
+                "--limit",
+                "3",
+                "--min-positive-samples",
+                "1",
+                "--max-negative-samples",
+                "1",
+                "--max-conditions",
+                "2",
+                "--beam-width",
+                "40",
+                "--jobs",
+                "2",
+            ],
+            cwd=ROOT,
+            check=True,
+            text=True,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+        )
+        serial_auto_status = subprocess.run(
+            [
+                sys.executable,
+                str(SCRIPT),
+                str(path),
+                "--status-top-buckets",
+                "2",
+                "--status-bucket-status",
+                "miss",
+                "--limit",
+                "3",
+                "--min-positive-samples",
+                "1",
+                "--max-negative-samples",
+                "1",
+                "--max-conditions",
+                "2",
+                "--beam-width",
+                "40",
+                "--jobs",
+                "1",
             ],
             cwd=ROOT,
             check=True,
@@ -583,10 +691,12 @@ def main() -> int:
         auto_owner.stdout + auto_owner.stderr
     )
     assert "owner_miss:guitar->other" not in auto_owner.stdout, auto_owner.stdout + auto_owner.stderr
+    assert parallel_auto_owner.stdout == serial_auto_owner.stdout
     assert "status:miss:strings positives=2 samples/2 rows" in auto_status.stdout, (
         auto_status.stdout + auto_status.stderr
     )
     assert "status:hit:" not in auto_status.stdout, auto_status.stdout + auto_status.stderr
+    assert parallel_auto_status.stdout == serial_auto_status.stdout
     assert "miss_reason=ownership: pos=2/2 rows=2 neg=0/1 rows=0" in status_reason.stdout, (
         status_reason.stdout + status_reason.stderr
     )
