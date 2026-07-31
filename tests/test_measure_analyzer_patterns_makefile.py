@@ -535,6 +535,7 @@ def main() -> int:
         "find-real-note-focused-row-confusion-patterns",
         "find-real-note-focused-visual-row-confusion-patterns",
         "find-real-note-ownership-patterns",
+        "evaluate-real-note-display-shadow-all",
         "find-vocadito-full-mix-ownership-patterns",
         "find-vocadito-full-mix-visual-row-confusion-patterns",
         "find-instrument-owner-patterns",
@@ -559,7 +560,8 @@ def main() -> int:
     route_report_recipe = target_recipe(makefile, "$(DETECTOR_IMPROVEMENT_ROUTE_REPORT)")
     assert re.search(
         r"^\$\(DETECTOR_IMPROVEMENT_ROUTE_REPORT\): FORCE Makefile scripts/run_with_duration\.sh "
-        r"scripts/find_real_note_attribute_patterns\.py scripts/find_instrument_owner_patterns\.py "
+        r"scripts/find_real_note_attribute_patterns\.py scripts/evaluate_real_note_display_shadow\.py "
+        r"scripts/find_instrument_owner_patterns\.py "
         r"scripts/find_drum_attribute_patterns\.py",
         makefile,
         re.MULTILINE,

@@ -2324,7 +2324,7 @@ REAL_WORLD_SAMPLE_MAX_BASE_TARGETS := $(filter-out test-iowa-piano-samples,$(REA
 REAL_WORLD_SAMPLE_MAX_TARGETS := $(REAL_WORLD_SAMPLE_MAX_BASE_TARGETS) test-guitar-techs-samples test-guitar-techs-chord-samples test-guitar-chord-mix-samples-parallel test-egfxset-guitar-samples test-gaps-guitar-samples-full test-idmt-guitar-samples test-iowa-piano-samples-max test-iowa-strings-samples test-iowa-orchestra-samples test-iowa-orchestra-full-samples-max test-philharmonia-samples-full test-tinysol-samples test-good-sounds-samples-max test-medley-solos-samples-max test-maps-piano-samples-max test-maps-piano-note-samples-max test-bach10-mf0-synth-samples test-vocalset-samples test-drum-machine-samples-optional test-drum-samples-full-parallel-optional test-configured-real-world-samples
 DETECTOR_SAMPLE_REGRESSION_TARGETS := test-analyzer-cases test-real-note-samples-full-mix-detector-parallel test-guitar-chord-mix-samples-parallel $(DRUM_REAL_WORLD_SAMPLE_TARGETS) test-drum-machine-samples-optional test-vocadito-samples test-vocadito-samples-full-mix-parallel test-instrument-samples-parallel test-drum-samples-full-parallel-optional
 DETECTOR_SAMPLE_FULL_REGRESSION_TARGETS := test-analyzer-cases test-instrument-samples-parallel test-real-world-samples-max-parallel
-DETECTOR_IMPROVEMENT_ROUTE_SCAN_TARGETS := find-real-note-focused-row-confusion-patterns find-real-note-focused-visual-row-confusion-patterns find-real-note-ownership-patterns find-vocadito-full-mix-ownership-patterns find-vocadito-full-mix-visual-row-confusion-patterns find-instrument-owner-patterns find-instrument-status-patterns find-drum-full-exact-attribute-patterns-cached
+DETECTOR_IMPROVEMENT_ROUTE_SCAN_TARGETS := find-real-note-focused-row-confusion-patterns find-real-note-focused-visual-row-confusion-patterns find-real-note-ownership-patterns evaluate-real-note-display-shadow-all find-vocadito-full-mix-ownership-patterns find-vocadito-full-mix-visual-row-confusion-patterns find-instrument-owner-patterns find-instrument-status-patterns find-drum-full-exact-attribute-patterns-cached
 TEST_FIXTURE_PARALLEL_TARGETS := test-real-note-samples test-direct-fit-small-fixture test-synthsod-fixture test-prepared-multitrack-fixture test-multtipop-audio-root-fixture
 .PHONY: test-detector-samples test-detector-samples-full test-detector-samples-parallel test-detector-samples-full-parallel
 
@@ -2471,7 +2471,7 @@ analyze-detector-improvement-routes: scripts/run_with_duration.sh
 detector-improvement-route-report: $(DETECTOR_IMPROVEMENT_ROUTE_REPORT)
 	@printf '%s\n' "detector improvement route report: $(DETECTOR_IMPROVEMENT_ROUTE_REPORT)"
 
-$(DETECTOR_IMPROVEMENT_ROUTE_REPORT): FORCE Makefile scripts/run_with_duration.sh scripts/find_real_note_attribute_patterns.py scripts/find_instrument_owner_patterns.py scripts/find_drum_attribute_patterns.py | $(BUILD_DIR)
+$(DETECTOR_IMPROVEMENT_ROUTE_REPORT): FORCE Makefile scripts/run_with_duration.sh scripts/find_real_note_attribute_patterns.py scripts/evaluate_real_note_display_shadow.py scripts/find_instrument_owner_patterns.py scripts/find_drum_attribute_patterns.py | $(BUILD_DIR)
 	+@tmp="$@.$$$$.tmp"; $(RUN_WITH_DURATION) detector_improvement_routes_parallel $(MAKE) $(PARALLEL_TEST_MAKE_JOBS) $(DETECTOR_IMPROVEMENT_ROUTE_SCAN_TARGETS) > "$$tmp" 2>&1; status="$$?"; if [ "$$status" -eq 0 ]; then mv "$$tmp" "$@"; tail -n 1 "$@"; else cat "$$tmp"; exit "$$status"; fi
 
 analyze-detector-improvements-full: scripts/run_with_duration.sh
