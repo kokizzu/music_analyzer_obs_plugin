@@ -401,7 +401,10 @@ def row_matches(row: dict[str, str], args: argparse.Namespace) -> bool:
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("path", nargs="?", default="build/instrument_sample_attributes.tsv")
-    parser.add_argument("--kind", default="note")
+    parser.add_argument(
+        "--kind",
+        help="optional row kind filter; omit to inspect any supported TSV kind",
+    )
     parser.add_argument("--family")
     parser.add_argument("--not-family")
     parser.add_argument("--program-name")

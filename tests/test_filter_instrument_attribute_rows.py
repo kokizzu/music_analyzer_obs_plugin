@@ -268,6 +268,28 @@ hit	1	0	piano	piano	vocal_b	vocals	acoustic	E4	64	0	full_mix	0	1	0	0	0	--	E4:1.0
         assert "piano\t1" in real_note_count
         assert "count\t2" in real_note_count
 
+        real_note_default_kind = subprocess.run(
+            [
+                sys.executable,
+                str(SCRIPT),
+                str(real_note_rows),
+                "--family",
+                "vocals",
+                "--field",
+                "visual_first_row=piano",
+                "--columns",
+                "kind,family,note,visual_first_row",
+            ],
+            cwd=ROOT,
+            check=True,
+            text=True,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+        ).stdout
+        assert "kind\tfamily\tnote\tvisual_first_row" in real_note_default_kind
+        assert "real-note\tvocals\tE4\tpiano" in real_note_default_kind
+        assert "count\t1" in real_note_default_kind
+
     print("test_filter_instrument_attribute_rows: ok")
     return 0
 
