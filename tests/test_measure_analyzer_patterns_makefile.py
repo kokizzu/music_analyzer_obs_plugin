@@ -514,6 +514,9 @@ def main() -> int:
         r"^DETECTOR_IMPROVEMENT_ROUTE_SCAN_TARGETS := (.+)$", makefile, re.MULTILINE
     )
     assert route_scan_targets is not None, "missing detector improvement route-scan target list"
+    assert "DETECTOR_IMPROVEMENT_ROUTE_REPORT ?= $(BUILD_DIR)/detector_improvement_route_scan.txt" in makefile, (
+        "detector improvement route scan must have a stable file-backed report path"
+    )
     route_scan_target_list = route_scan_targets.group(1)
     for target in [
         "find-real-note-focused-row-confusion-patterns",
@@ -539,6 +542,26 @@ def main() -> int:
         makefile,
         re.MULTILINE,
     ), "detector improvement route helper must delegate to the parallel route scan"
+    route_report_recipe = target_recipe(makefile, "$(DETECTOR_IMPROVEMENT_ROUTE_REPORT)")
+    assert 'tmp="$@.$$$$.tmp"' in route_report_recipe, (
+        "detector improvement route report must write through a per-process temp file"
+    )
+    assert "$(RUN_WITH_DURATION) detector_improvement_routes_parallel" in route_report_recipe, (
+        "detector improvement route report must capture the timed route scan"
+    )
+    assert "> \"$$tmp\" 2>&1" in route_report_recipe, (
+        "detector improvement route report must capture stdout and stderr into the report"
+    )
+    assert 'mv "$$tmp" "$@"' in route_report_recipe, (
+        "detector improvement route report must publish atomically"
+    )
+    assert 'tail -n 1 "$@"' in route_report_recipe, (
+        "detector improvement route report must echo the saved duration line"
+    )
+    route_report_alias = target_recipe(makefile, "detector-improvement-route-report")
+    assert "$(DETECTOR_IMPROVEMENT_ROUTE_REPORT)" in route_report_alias, (
+        "detector improvement route report helper must depend on the file-backed report"
+    )
     detector_improvement_full_recipe = target_recipe(makefile, "analyze-detector-improvements-full")
     assert "\n\t+$(RUN_WITH_DURATION) detector_improvements_full_parallel" in detector_improvement_full_recipe, (
         "full detector improvement workflow must report the aggregate parallel duration"
