@@ -18420,6 +18420,14 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 		  kick_body <= 89.119f &&
 		  drum_segment_bands[Ride] >= 20.281f &&
 		  drum_segment_bands[Ride] <= 21.513f));
+	const bool one_shot_measured_low_crash_ride_tom_snare_steal =
+		drum_detection_enabled && one_shot_drum_source &&
+		body_shape == Tom &&
+		drum_level_[Tom] > 0.30f &&
+		drum_level_[Snare] > 0.30f &&
+		measured_one_shot_tom_shape &&
+		drum_segment_bands[Crash] <= 0.090f &&
+		drum_segment_bands[Ride] >= 1.040f;
 	const bool one_shot_tom_snare_inactive_kick_steal =
 		drum_detection_enabled && one_shot_drum_source &&
 		body_shape == Tom &&
@@ -20149,6 +20157,9 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 			tom_snare_level_ratio >= 1.001f;
 		if (final_one_shot_measured_low_hihat_rim_tom_snare_active_bleed)
 			cap_drum_level(Snare, 0.28f);
+
+		if (one_shot_measured_low_crash_ride_tom_snare_steal)
+			promote_drum_primary(Tom, 0.90f);
 
 	const bool onset_tempo_event =
 		drum_detection_enabled && rms > kSilenceRms && drum_transient &&
