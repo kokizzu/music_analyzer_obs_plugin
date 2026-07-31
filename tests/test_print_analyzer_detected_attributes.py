@@ -31,10 +31,10 @@ note	miss	guitar	E3	52	guitar.wav	E4	64	12	E3	52	0	E3	piano	0	0	0.8	0.2	0	0	0	--
         real_note = write(
             root / "real.tsv",
             """
-sample_id	status	family	source	expected_note	expected_midi	first_row	buffer	row_label	buffer_strongest_row	debug_note	debug_delta	debug_owner	bass_level	guitar_level	piano_level	vocal_level	other_level	amb_level	bass_notes	guitar_notes	piano_notes	vocal_notes	other_notes	amb_notes	expected_row_exact_level	expected_row_pitch_level	strongest_row_exact_level	strongest_row_pitch_level	expected_exact_row_count	expected_pitch_row_count	raw_expected_ratio	raw_tuned_ratio	raw_tuned_abs_cent_offset	raw_expected_rank	keyboard_score	guitar_score	vocal_score	other_score	pitch_confidence	periodicity	fit_error	partial1	partial2	partial3	partial4	partial5
-s1	hit	guitar	acoustic	E3	52	guitar	0	E3	guitar	E3	0	guitar	0	0.9	0.1	0	0	0	--	E3:0.9	--	--	--	--	0.9	0.9	0.9	0.9	1	1	1	1	0	1	0.1	0.9	0	0	0.9	0.8	0.1	1	0.42	0.20	0.08	0.04
-s2	ownership_miss	piano	electronic	C4	60	bass	1	C4	bass	C4	0	guitar	0.8	0.2	0.4	0	0	0	C4:0.8	C4:0.2	C4:0.4	--	--	--	0.4	0.4	0.8	0.8	3	3	1	1	0	1	0.4	0.6	0	0	0.8	0.7	0.1	1	0.25	0.11	0.03	0.01
-s3	hit	bass	electric	E2	40	bass	0	E2	bass	E3	12	bass	0.9	0.2	0.1	0	0	0	E2:0.9	E2:0.3	--	--	--	--	0.9	0.9	0.9	0.9	2	2	1	1	0	1	0.1	0.2	0	0	0.9	0.8	0.1	1	0.36	0.18	0.07	0.02
+sample_id	status	family	source	expected_note	expected_midi	first_row	buffer	row_label	buffer_strongest_row	buffer_visual_strongest_row	debug_note	debug_delta	debug_owner	bass_level	guitar_level	piano_level	vocal_level	other_level	amb_level	bass_notes	guitar_notes	piano_notes	vocal_notes	other_notes	amb_notes	expected_row_exact_level	expected_row_pitch_level	strongest_row_exact_level	strongest_row_pitch_level	expected_exact_row_count	expected_pitch_row_count	expected_row_visual_exact_level	expected_row_visual_pitch_level	visual_strongest_row_exact_level	visual_strongest_row_pitch_level	expected_visual_exact_row_count	expected_visual_pitch_row_count	raw_expected_ratio	raw_tuned_ratio	raw_tuned_abs_cent_offset	raw_expected_rank	keyboard_score	guitar_score	vocal_score	other_score	pitch_confidence	periodicity	fit_error	partial1	partial2	partial3	partial4	partial5
+s1	hit	guitar	acoustic	E3	52	guitar	0	E3	guitar	guitar	E3	0	guitar	0	0.9	0.1	0	0	0	--	E3:0.9	--	--	--	--	0.9	0.9	0.9	0.9	1	1	0.9	0.9	0.9	0.9	1	1	1	1	0	1	0.1	0.9	0	0	0.9	0.8	0.1	1	0.42	0.20	0.08	0.04
+s2	ownership_miss	piano	electronic	C4	60	bass	1	C4	bass	guitar	C4	0	guitar	0.8	0.2	0.4	0	0	0	C4:0.8	C4:0.2	C4:0.4	--	--	--	0.4	0.4	0.8	0.8	3	3	0.4	0.4	0.2	0.2	3	3	1	1	0	1	0.4	0.6	0	0	0.8	0.7	0.1	1	0.25	0.11	0.03	0.01
+s3	hit	bass	electric	E2	40	bass	0	E2	bass	bass	E3	12	bass	0.9	0.2	0.1	0	0	0	E2:0.9	E2:0.3	--	--	--	--	0.9	0.9	0.9	0.9	2	2	0.9	0.9	0.9	0.9	2	2	1	1	0	1	0.1	0.2	0	0	0.9	0.8	0.1	1	0.36	0.18	0.07	0.02
             """,
         )
         guitar = write(
@@ -122,15 +122,25 @@ kick.wav	kick	kick	0.9	0.1	0.0	0.9	0.1	0.1	0.1	0.1	1	0	0	0	0	0	0	0.9	0.4	0	0	0	0
         "strongest-row[exact=3/3 100.0% pitch-class=3/3 100.0%] "
         "any-row[exact=3/3 100.0% pitch-class=3/3 100.0%]"
     ) in output
-    assert "row routing expected-row exact=3/3 100.0% first-row expected=2/3 66.7% strongest-row expected=2/3 66.7%" in output
+    assert (
+        "visual grid exact-octave coverage expected-row[exact=3/3 100.0% pitch-class=3/3 100.0%] "
+        "strongest-row[exact=3/3 100.0% pitch-class=3/3 100.0%] "
+        "any-row[exact=3/3 100.0% pitch-class=3/3 100.0%]"
+    ) in output
+    assert (
+        "row routing expected-row exact=3/3 100.0% first-row expected=2/3 66.7% "
+        "strongest-row expected=2/3 66.7% visual-row exact=3/3 100.0% "
+        "visual-strongest expected=2/3 66.7%"
+    ) in output
     assert "first-row routes=guitar/acoustic->guitar=1 piano/electronic->bass=1 bass/electric->bass=1" in output
+    assert "visual-strongest routes=guitar/acoustic->guitar=1 piano/electronic->guitar=1 bass/electric->bass=1" in output
     assert "same-midi spillover>=0.25 entries=1 samples=1 routes=bass/electric->guitar=1" in output
     assert "detected octave alias buckets:" in output
     assert "1 bass/electric expected=E2/40 detected=E3/+12 status=hit owner=bass" in output
     assert "guitar rows=1 samples=1 notes=1 range=E3/52 hit=1/1 100.0%" in output
-    assert "guitar rows=1 samples=1 notes=1 range=E3/52 hit=1/1 100.0% pitch=exact=1 expected-row=1/1 100.0% first-row=1/1 100.0% strongest-row=1/1 100.0%" in output
+    assert "guitar rows=1 samples=1 notes=1 range=E3/52 hit=1/1 100.0% pitch=exact=1 expected-row=1/1 100.0% first-row=1/1 100.0% strongest-row=1/1 100.0% visual-row=1/1 100.0% visual-strongest=1/1 100.0%" in output
     assert "piano rows=1 samples=1 notes=1 range=C4/60 hit=0/1 0.0%" in output
-    assert "piano rows=1 samples=1 notes=1 range=C4/60 hit=0/1 0.0% pitch=exact=1 expected-row=1/1 100.0% first-row=0/1 0.0% strongest-row=0/1 0.0%" in output
+    assert "piano rows=1 samples=1 notes=1 range=C4/60 hit=0/1 0.0% pitch=exact=1 expected-row=1/1 100.0% first-row=0/1 0.0% strongest-row=0/1 0.0% visual-row=1/1 100.0% visual-strongest=0/1 0.0%" in output
     assert "source/note buckets:" in output
     assert (
         "piano/electronic expected=C4/60 rows=1 status=ownership_miss=1 "

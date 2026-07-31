@@ -306,6 +306,25 @@ def real_note_grid_coverage_line(rows: list[dict[str, str]]) -> str:
     )
 
 
+def real_note_visual_grid_coverage_line(rows: list[dict[str, str]]) -> str:
+    has_visual_fields = any(
+        row.get("expected_row_visual_exact_level", "")
+        or row.get("expected_visual_exact_row_count", "")
+        for row in rows
+    )
+    if not has_visual_fields:
+        return ""
+    total = len(rows)
+    return (
+        f"expected-row[exact={count_fraction(level_positive_count(rows, 'expected_row_visual_exact_level'), total)} "
+        f"pitch-class={count_fraction(level_positive_count(rows, 'expected_row_visual_pitch_level'), total)}] "
+        f"strongest-row[exact={count_fraction(level_positive_count(rows, 'visual_strongest_row_exact_level'), total)} "
+        f"pitch-class={count_fraction(level_positive_count(rows, 'visual_strongest_row_pitch_level'), total)}] "
+        f"any-row[exact={count_fraction(int_positive_count(rows, 'expected_visual_exact_row_count'), total)} "
+        f"pitch-class={count_fraction(int_positive_count(rows, 'expected_visual_pitch_row_count'), total)}]"
+    )
+
+
 def note_key(row: dict[str, str], *, midi_field: str, note_field: str, source_field: str) -> tuple[str, str, str]:
     family = cell(row, "family", "unknown")
     source = cell(row, source_field)
@@ -683,9 +702,32 @@ def strongest_row_matches_expected(row: dict[str, str]) -> bool:
     return row.get("buffer_strongest_row", "") == expected_row
 
 
+def visual_expected_row_exact_hit(row: dict[str, str]) -> bool:
+    value = parse_float(row.get("expected_row_visual_exact_level", ""))
+    return value is not None and value > 0.0
+
+
+def visual_strongest_row_matches_expected(row: dict[str, str]) -> bool:
+    expected_row = expected_row_for_family(row.get("family", ""))
+    return row.get("buffer_visual_strongest_row", "") == expected_row
+
+
+def has_real_note_visual_fields(rows: list[dict[str, str]]) -> bool:
+    return any(
+        row.get("expected_row_visual_exact_level", "")
+        or row.get("buffer_visual_strongest_row", "")
+        for row in rows
+    )
+
+
 def first_row_route(row: dict[str, str]) -> str:
     expected = f"{row.get('family', 'unknown')}/{row.get('source', '--') or '--'}"
     return f"{expected}->{cell(row, 'first_row')}"
+
+
+def visual_strongest_row_route(row: dict[str, str]) -> str:
+    expected = f"{row.get('family', 'unknown')}/{row.get('source', '--') or '--'}"
+    return f"{expected}->{cell(row, 'buffer_visual_strongest_row')}"
 
 
 def partial_cells(row: dict[str, str]) -> str:
@@ -824,6 +866,10 @@ def report_real_note_rows(path: pathlib.Path, row_limit: int) -> None:
     grid_coverage = real_note_grid_coverage_line(rows)
     if grid_coverage:
         print(f"  grid exact-octave coverage {grid_coverage}")
+    visual_grid_coverage = real_note_visual_grid_coverage_line(rows)
+    visual_fields = has_real_note_visual_fields(rows)
+    if visual_grid_coverage:
+        print(f"  visual grid exact-octave coverage {visual_grid_coverage}")
     print(
         f"  row routing expected-row exact="
         f"{count_fraction(sum(1 for row in rows if expected_row_exact_hit(row)), len(rows))} "
@@ -831,8 +877,21 @@ def report_real_note_rows(path: pathlib.Path, row_limit: int) -> None:
         f"{count_fraction(sum(1 for row in rows if first_row_matches_expected(row)), len(rows))} "
         f"strongest-row expected="
         f"{count_fraction(sum(1 for row in rows if strongest_row_matches_expected(row)), len(rows))}"
+        + (
+            " visual-row exact="
+            f"{count_fraction(sum(1 for row in rows if visual_expected_row_exact_hit(row)), len(rows))} "
+            "visual-strongest expected="
+            f"{count_fraction(sum(1 for row in rows if visual_strongest_row_matches_expected(row)), len(rows))}"
+            if visual_fields
+            else ""
+        )
     )
     print(f"  first-row routes={compact(collections.Counter(first_row_route(row) for row in rows))}")
+    if visual_fields:
+        print(
+            "  visual-strongest routes="
+            f"{compact(collections.Counter(visual_strongest_row_route(row) for row in rows))}"
+        )
     spillover_rows = exact_spillover_entries(rows, midi_field="expected_midi", min_level=0.25)
     print(
         f"  same-midi spillover>=0.25 entries={len(spillover_rows)} "
@@ -863,6 +922,12 @@ def report_real_note_rows(path: pathlib.Path, row_limit: int) -> None:
             f"expected-row={count_fraction(sum(1 for row in family_rows if expected_row_exact_hit(row)), len(family_rows))} "
             f"first-row={count_fraction(sum(1 for row in family_rows if first_row_matches_expected(row)), len(family_rows))} "
             f"strongest-row={count_fraction(sum(1 for row in family_rows if strongest_row_matches_expected(row)), len(family_rows))}"
+            + (
+                f" visual-row={count_fraction(sum(1 for row in family_rows if visual_expected_row_exact_hit(row)), len(family_rows))} "
+                f"visual-strongest={count_fraction(sum(1 for row in family_rows if visual_strongest_row_matches_expected(row)), len(family_rows))}"
+                if visual_fields
+                else ""
+            )
         )
     print_note_group_buckets(
         "source/note buckets",
