@@ -7,6 +7,7 @@ import argparse
 from collections import Counter, defaultdict
 import csv
 from dataclasses import dataclass
+from decimal import Decimal, InvalidOperation, ROUND_FLOOR
 import pathlib
 import re
 import sys
@@ -48,6 +49,36 @@ EXPECTED_ROW = {
 }
 
 HARMONIC_INTERVALS = (12, 19, 24, 28, 31, 36, 40, 43, 47, 48, 49, 51, 52, 55, 57, 58, 60)
+DEFAULT_DETAIL_FIELDS = (
+    "raw_expected_ratio",
+    "raw_tuned_abs_cent_offset",
+    "pitch_confidence",
+    "harmonicity",
+    "fit_error",
+    "spectral_level",
+    "bass_score",
+    "keyboard_score",
+    "guitar_score",
+    "vocal_score",
+    "other_score",
+)
+DEFAULT_PROFILE_FIELDS = (
+    "route",
+    "expected_route",
+    "interval",
+    "shadow_level:0.05",
+    "support_level:0.05",
+    "level_delta:0.05",
+    "level_ratio:0.25",
+    "raw_expected_ratio:0.25",
+    "raw_tuned_abs_cent_offset:3",
+    "pitch_confidence:0.10",
+    "harmonicity:0.10",
+    "fit_error:0.05",
+    "guitar_score:0.10",
+    "keyboard_score:0.10",
+    "other_score:0.10",
+)
 
 
 @dataclass(frozen=True)
@@ -202,6 +233,86 @@ def alias_text(alias: Alias) -> str:
     )
 
 
+def derived_value(row: dict[str, str], alias: Alias, field: str) -> str:
+    if field == "route":
+        return f"{source_key(row)}->{alias.shadow.row}"
+    if field == "expected_route":
+        return f"{expected_row(row)}->{alias.shadow.row}"
+    if field == "visual_route":
+        return f"{row.get('visual_first_row', '') or row.get('first_row', '')}->{alias.shadow.row}"
+    if field == "interval":
+        return str(alias.interval)
+    if field == "shadow_row":
+        return alias.shadow.row
+    if field == "support_row":
+        return alias.support.row
+    if field == "shadow_note":
+        return alias.shadow.note
+    if field == "support_note":
+        return alias.support.note
+    if field == "shadow_midi":
+        return str(alias.shadow.midi)
+    if field == "support_midi":
+        return str(alias.support.midi)
+    if field == "shadow_level":
+        return f"{alias.shadow.level:.6f}"
+    if field == "support_level":
+        return f"{alias.support.level:.6f}"
+    if field == "level_delta":
+        return f"{alias.shadow.level - alias.support.level:.6f}"
+    if field == "level_ratio":
+        if alias.support.level <= 0:
+            return ""
+        return f"{alias.shadow.level / alias.support.level:.6f}"
+    return row.get(field, "")
+
+
+def parse_profile_spec(spec: str) -> tuple[str, Decimal | None]:
+    field, separator, width_text = spec.partition(":")
+    if not field:
+        raise SystemExit(f"invalid profile field `{spec}`")
+    if not separator:
+        return field, None
+    try:
+        width = Decimal(width_text)
+    except InvalidOperation as exc:
+        raise SystemExit(f"invalid profile bucket width `{width_text}`") from exc
+    if width <= 0:
+        raise SystemExit(f"invalid profile bucket width `{width_text}`; must be positive")
+    return field, width
+
+
+def bucket_value(value_text: str, width: Decimal | None) -> str:
+    if width is None:
+        return value_text or "-"
+    try:
+        value = Decimal(value_text)
+    except InvalidOperation:
+        return "-"
+    places = max(0, -width.as_tuple().exponent)
+    bucket_index = (value / width).to_integral_value(rounding=ROUND_FLOOR)
+    low = bucket_index * width
+    high = low + width
+    return f"{low:.{places}f}-{high:.{places}f}"
+
+
+def detail_text(row: dict[str, str], alias: Alias, detail_fields: list[str]) -> str:
+    fields = [
+        f"sample_id={row.get('sample_id', '')}",
+        f"buffer={row.get('buffer', '')}",
+        f"family={row.get('family', '')}",
+        f"source={row.get('source', '')}",
+        f"expected={expected_row(row)}/{row.get('expected_note', '')}",
+        f"visual={row.get('visual_first_row', '') or row.get('first_row', '')}",
+        f"alias={alias_text(alias)}",
+    ]
+    for field in detail_fields:
+        value = derived_value(row, alias, field)
+        if value:
+            fields.append(f"{field}={value}")
+    return "\t".join(fields)
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("path", type=pathlib.Path)
@@ -225,6 +336,31 @@ def main() -> int:
     parser.add_argument("--interval-tolerance", type=int, default=1)
     parser.add_argument("--examples", type=int, default=6)
     parser.add_argument("--top", type=int, default=12)
+    parser.add_argument(
+        "--details",
+        action="store_true",
+        help="print structured detail lines for sampled positive/protected/other aliases",
+    )
+    parser.add_argument(
+        "--detail-field",
+        action="append",
+        default=None,
+        help="row or derived field to include in --details output; repeatable",
+    )
+    parser.add_argument(
+        "--profile",
+        action="store_true",
+        help="print bucketed profiles for positive/protected/other aliases",
+    )
+    parser.add_argument(
+        "--profile-field",
+        action="append",
+        default=None,
+        help=(
+            "row or derived field to profile, optionally FIELD:WIDTH for numeric buckets; "
+            "repeatable"
+        ),
+    )
     args = parser.parse_args()
 
     support_rows = args.support_rows or ["piano", "other"]
@@ -243,6 +379,21 @@ def main() -> int:
     interval_counts: Counter[str] = Counter()
     examples: list[str] = []
     protected_examples: list[str] = []
+    other_examples: list[str] = []
+    detail_fields = args.detail_field or list(DEFAULT_DETAIL_FIELDS)
+    profile_specs = [parse_profile_spec(spec) for spec in (args.profile_field or DEFAULT_PROFILE_FIELDS)]
+    profile_counters: dict[str, dict[str, Counter[str]]] = {
+        "positive": defaultdict(Counter),
+        "protected": defaultdict(Counter),
+        "other": defaultdict(Counter),
+    }
+
+    def record_profile(category: str, row: dict[str, str], alias: Alias) -> None:
+        if not args.profile:
+            return
+        for field, width in profile_specs:
+            value = bucket_value(derived_value(row, alias, field), width)
+            profile_counters[category][field][value] += 1
 
     for rows in groups.values():
         row = first_group_row(rows)
@@ -275,15 +426,22 @@ def main() -> int:
         if visual_first == args.shadow_row and expected != args.shadow_row:
             positive_visual += 1
             positive_routes[route] += 1
+            record_profile("positive", row, alias)
             if len(examples) < args.examples:
-                examples.append(example)
+                examples.append(detail_text(row, alias, detail_fields) if args.details else example)
         elif visual_first == args.shadow_row and expected == args.shadow_row:
             protected_visual += 1
             protected_routes[route] += 1
+            record_profile("protected", row, alias)
             if len(protected_examples) < args.examples:
-                protected_examples.append(example)
+                protected_examples.append(
+                    detail_text(row, alias, detail_fields) if args.details else example
+                )
         else:
             other_alias += 1
+            record_profile("other", row, alias)
+            if args.details and len(other_examples) < args.examples:
+                other_examples.append(detail_text(row, alias, detail_fields) if args.details else example)
 
     print(
         "measure_real_note_octave_display_aliases:"
@@ -295,10 +453,16 @@ def main() -> int:
     print_counter("protected_routes", protected_routes, args.top)
     print_counter("alias_routes", alias_routes, args.top)
     print_counter("intervals", interval_counts, args.top)
+    if args.profile:
+        for category in ("positive", "protected", "other"):
+            for field, _width in profile_specs:
+                print_counter(f"{category}_profile {field}", profile_counters[category][field], args.top)
     for example in examples:
         print(f"positive_example\t{example}")
     for example in protected_examples:
         print(f"protected_example\t{example}")
+    for example in other_examples:
+        print(f"other_example\t{example}")
     return 0
 
 
