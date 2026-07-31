@@ -18994,6 +18994,15 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 	if (one_shot_measured_hihat_rim_shape_ride_active_bleed) {
 		cap_drum_level(Ride, 0.28f);
 	}
+	const bool one_shot_measured_plain_hihat_ride_active_bleed =
+		drum_detection_enabled && one_shot_drum_source &&
+		drum_level_[HiHat] > 0.30f &&
+		drum_level_[Ride] > 0.30f &&
+		drum_level_[Crash] <= 0.001f &&
+		drum_level_[Snare] <= 0.001f;
+	if (one_shot_measured_plain_hihat_ride_active_bleed) {
+		cap_drum_level(Ride, 0.28f);
+	}
 	const bool one_shot_measured_hot_hihat_ride_active_bleed =
 		drum_detection_enabled && one_shot_drum_source &&
 		drum_level_[HiHat] >= 0.96f &&
