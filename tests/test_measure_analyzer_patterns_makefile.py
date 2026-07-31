@@ -1848,6 +1848,25 @@ def main() -> int:
     assert "--include-row-context" not in row_confusion_recipe, (
         "row-confusion auto-search must not use display-row fields as candidate rules"
     )
+    ownership_recipe = target_recipe(makefile, "find-real-note-ownership-patterns")
+    assert "--bucket-status ownership_miss" in ownership_recipe, (
+        "real-note ownership mining must select the ownership miss bucket"
+    )
+    assert "$(REAL_NOTE_RUNTIME_ROW_CONFUSION_EXCLUDES)" in ownership_recipe, (
+        "real-note ownership mining should default to runtime-observable fields"
+    )
+    assert "$(MEASURE_REAL_NOTE_OWNERSHIP_PATTERN_ARGS)" in ownership_recipe, (
+        "real-note ownership mining needs ownership-sized default thresholds"
+    )
+    ownership_report_recipe = target_recipe(
+        makefile, "$(MEASURE_ANALYZER_PATTERN_REAL_NOTE_OWNERSHIP_REPORT)"
+    )
+    assert "$(MAKE) find-real-note-ownership-patterns" in ownership_report_recipe, (
+        "pattern report sections must include real-note ownership mining"
+    )
+    assert "$(MEASURE_REAL_NOTE_OWNERSHIP_PATTERN_ARGS)" in ownership_report_recipe, (
+        "real-note ownership report should use ownership-sized default thresholds"
+    )
     practical_row_confusion_recipe = target_recipe(makefile, "find-real-note-practical-row-confusion-patterns")
     assert "$(REAL_NOTE_RUNTIME_ROW_CONFUSION_EXCLUDES)" in practical_row_confusion_recipe, (
         "practical row-confusion mining should keep runtime-observable fields"
