@@ -20205,6 +20205,17 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 		if (one_shot_measured_hihat_from_tom_primary_recovery)
 			promote_drum_primary(HiHat, 0.90f);
 
+		const bool one_shot_measured_bright_crash_from_hihat_primary_recovery =
+			drum_detection_enabled && one_shot_drum_source &&
+			!generated_gm_drum_source &&
+			drum_level_[Crash] > 0.30f &&
+			drum_level_[HiHat] > 0.30f &&
+			drum_level_[HiHat] >= drum_level_[Crash] &&
+			hihat_rim_band_ratio >= 2.026f &&
+			ride_hihat_band_ratio >= 1.704f;
+		if (one_shot_measured_bright_crash_from_hihat_primary_recovery)
+			promote_drum_primary(Crash, 0.90f);
+
 	const bool onset_tempo_event =
 		drum_detection_enabled && rms > kSilenceRms && drum_transient &&
 		(had_previous_audio ? onset >= 1.25f : true);
