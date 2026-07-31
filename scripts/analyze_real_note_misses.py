@@ -110,44 +110,51 @@ def format_row_path(path: tuple[str, ...]) -> str:
     return ">".join(path) if path else "none"
 
 
-def analyze(path: pathlib.Path) -> list[str]:
+def parse_records(paths: list[pathlib.Path]):
     example_limit = 3
     failures = []
     ownership = []
-    pending_buffers = []
-    for line in path.read_text(errors="replace").splitlines():
-        buffer_match = BUFFER_RE.match(line)
-        if buffer_match:
-            detected_notes = [
-                (match.group("note"), float(match.group("level")))
-                for match in NOTE_LEVEL_RE.finditer(line)
-            ]
-            row_notes: dict[str, list[tuple[str, float]]] = collections.defaultdict(list)
-            amb_match = AMB_RE.search(line)
-            if amb_match:
-                row_notes["amb"].extend(
-                    (match.group("note"), float(match.group("level")))
-                    for match in NOTE_LEVEL_RE.finditer(amb_match.group("grid"))
-                )
-            for row_match in ROW_GRID_RE.finditer(line):
-                row = ROW_NAME[row_match.group("row")]
-                row_notes[row].extend(
-                    (match.group("note"), float(match.group("level")))
-                    for match in NOTE_LEVEL_RE.finditer(row_match.group("grid"))
-                )
-            pending_buffers.append((buffer_match.group("expected"), detected_notes, row_notes))
-            continue
-
-        fail_match = FAIL_RE.match(line)
-        if not fail_match:
-            ownership_match = OWNERSHIP_RE.match(line)
-            if not ownership_match:
-                continue
-            ownership.append((ownership_match.groupdict(), pending_buffers))
-            pending_buffers = []
-            continue
-        failures.append((fail_match.groupdict(), pending_buffers))
+    for path in paths:
         pending_buffers = []
+        for line in path.read_text(errors="replace").splitlines():
+            buffer_match = BUFFER_RE.match(line)
+            if buffer_match:
+                detected_notes = [
+                    (match.group("note"), float(match.group("level")))
+                    for match in NOTE_LEVEL_RE.finditer(line)
+                ]
+                row_notes: dict[str, list[tuple[str, float]]] = collections.defaultdict(list)
+                amb_match = AMB_RE.search(line)
+                if amb_match:
+                    row_notes["amb"].extend(
+                        (match.group("note"), float(match.group("level")))
+                        for match in NOTE_LEVEL_RE.finditer(amb_match.group("grid"))
+                    )
+                for row_match in ROW_GRID_RE.finditer(line):
+                    row = ROW_NAME[row_match.group("row")]
+                    row_notes[row].extend(
+                        (match.group("note"), float(match.group("level")))
+                        for match in NOTE_LEVEL_RE.finditer(row_match.group("grid"))
+                    )
+                pending_buffers.append((buffer_match.group("expected"), detected_notes, row_notes))
+                continue
+
+            fail_match = FAIL_RE.match(line)
+            if not fail_match:
+                ownership_match = OWNERSHIP_RE.match(line)
+                if not ownership_match:
+                    continue
+                ownership.append((ownership_match.groupdict(), pending_buffers))
+                pending_buffers = []
+                continue
+            failures.append((fail_match.groupdict(), pending_buffers))
+            pending_buffers = []
+
+    return failures, ownership, example_limit
+
+
+def analyze_paths(paths: list[pathlib.Path]) -> list[str]:
+    failures, ownership, example_limit = parse_records(paths)
 
     def summarize_records(records):
         by_source: collections.Counter[str] = collections.Counter()
@@ -340,8 +347,10 @@ def analyze(path: pathlib.Path) -> list[str]:
 
 
 def main() -> int:
-    path = pathlib.Path(sys.argv[1] if len(sys.argv) > 1 else "build/real_note_full_mix_verbose.err")
-    for line in analyze(path):
+    paths = [pathlib.Path(arg) for arg in sys.argv[1:]]
+    if not paths:
+        paths = [pathlib.Path("build/real_note_full_mix_verbose.err")]
+    for line in analyze_paths(paths):
         print(line)
     return 0
 

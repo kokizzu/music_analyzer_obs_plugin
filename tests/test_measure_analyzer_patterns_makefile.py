@@ -384,6 +384,29 @@ def main() -> int:
     assert "$(MAKE) report-analyzer-patterns-from-rows" in pattern_recipe, (
         "pattern target must reuse the print/report helper"
     )
+    assert_alias_target(makefile, "analyze-real-note-misses", "analyze-real-note-misses-parallel")
+    real_note_misses_serial_recipe = target_recipe(makefile, "analyze-real-note-misses-serial")
+    assert "MUSIC_ANALYZER_REAL_NOTE_MAX_FAILURES=999999" in real_note_misses_serial_recipe, (
+        "serial real-note miss diagnostics must tolerate misses long enough to print the summary"
+    )
+    real_note_misses_parallel_recipe = target_recipe(makefile, "analyze-real-note-misses-parallel")
+    assert "$(REAL_NOTE_FULL_MIX_VERBOSE_SHARD_TARGETS)" in real_note_misses_parallel_recipe, (
+        "parallel real-note miss diagnostics must run every verbose shard target"
+    )
+    assert "$(REAL_NOTE_FULL_MIX_VERBOSE_SHARD_ERRS)" in real_note_misses_parallel_recipe, (
+        "parallel real-note miss diagnostics must aggregate every shard stderr file"
+    )
+    real_note_misses_shard_recipe = target_recipe(makefile, "analyze-real-note-misses-shard-%")
+    for text in [
+        "MUSIC_ANALYZER_REAL_NOTE_VERBOSE_MISSES=1",
+        'MUSIC_ANALYZER_REAL_NOTE_SHARD_COUNT="$(REAL_NOTE_FULL_MIX_SHARDS)"',
+        'MUSIC_ANALYZER_REAL_NOTE_SHARD_INDEX="$*"',
+        "MUSIC_ANALYZER_REAL_NOTE_MAX_FAILURES=999999",
+        '2> "$(BUILD_DIR)/real_note_full_mix_verbose_shard_$*.err"',
+    ]:
+        assert text in real_note_misses_shard_recipe, (
+            f"real-note verbose shard recipe must include {text}"
+        )
     report_recipe = target_recipe(makefile, "measure-analyzer-pattern-report")
     assert "$(MAKE) -s measure-analyzer-patterns" in report_recipe, (
         "saved report target must reuse the measurement target without make recipe echo"

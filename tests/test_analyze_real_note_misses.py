@@ -19,6 +19,19 @@ def run_log(text: str) -> str:
         return subprocess.check_output([sys.executable, str(SCRIPT), str(path)], text=True)
 
 
+def run_logs(*texts: str) -> str:
+    with tempfile.TemporaryDirectory() as tmp:
+        paths = []
+        for index, text in enumerate(texts):
+            path = pathlib.Path(tmp) / f"misses-{index}.err"
+            path.write_text(text)
+            paths.append(path)
+        return subprocess.check_output(
+            [sys.executable, str(SCRIPT), *(str(path) for path in paths)],
+            text=True,
+        )
+
+
 def test_summarizes_full_mix_offsets_and_sources() -> None:
     output = run_log(
         "\n".join(
@@ -49,6 +62,35 @@ def test_counts_expected_pitch_seen_in_any_grid() -> None:
     if "expected present in verbose grids 1/1" not in output:
         raise AssertionError(output)
     if "examples guitar/electronic: guitar_electronic_022-081-050 A5" not in output:
+        raise AssertionError(output)
+
+
+def test_aggregates_multiple_shard_logs() -> None:
+    output = run_logs(
+        "\n".join(
+            [
+                "  buffer 0 expected=E4 row_label=-- row_conf=0 row_grid=no any_grid=no amb=F4:0.33 bass=--[--] keys=--[--] guitar=--[--] vocal=--[--] other=--[--]",
+                "piano_acoustic_001-064-100 piano/acoustic E4: expected detected note, got label `--`",
+            ]
+        ),
+        "\n".join(
+            [
+                "  buffer 0 expected=A3 row_label=-- row_conf=0 row_grid=no any_grid=yes amb=-- bass=--[--] keys=--[--] guitar=A3[ A3:0.70] vocal=--[--] other=--[--]",
+                "piano_electronic_002-057-100 piano/electronic A3: expected-row ownership missing first-row=guitar row-label=`--`",
+            ]
+        ),
+    )
+    if "misses 1" not in output:
+        raise AssertionError(output)
+    if "piano/acoustic=1" not in output:
+        raise AssertionError(output)
+    if "E4->F4=1" not in output:
+        raise AssertionError(output)
+    if "ownership misses 1" not in output:
+        raise AssertionError(output)
+    if "ownership by source piano/electronic=1" not in output:
+        raise AssertionError(output)
+    if "ownership first rows guitar=1" not in output:
         raise AssertionError(output)
 
 
@@ -97,5 +139,6 @@ def test_summarizes_full_mix_ownership_misses() -> None:
 if __name__ == "__main__":
     test_summarizes_full_mix_offsets_and_sources()
     test_counts_expected_pitch_seen_in_any_grid()
+    test_aggregates_multiple_shard_logs()
     test_summarizes_full_mix_ownership_misses()
     print("test_analyze_real_note_misses: ok")
