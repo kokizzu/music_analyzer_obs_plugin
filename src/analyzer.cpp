@@ -18954,24 +18954,27 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 		drum_bands[Crash] >= 22.863f &&
 		drum_level_[Crash] / (drum_level_[HiHat] + 1.0e-6f) <= 0.969f &&
 		snapshot.drum_debug_trigger_thresholds[Crash] >= 1.42f;
-	if (one_shot_measured_hihat_crash_active_bleed)
+	if (one_shot_measured_hihat_crash_active_bleed) {
 		cap_drum_level(Crash, 0.28f);
+	}
 	const bool one_shot_measured_high_band_hihat_crash_active_bleed =
 		drum_detection_enabled && one_shot_drum_source &&
 		drum_level_[HiHat] > 0.30f &&
 		drum_level_[Crash] > 0.30f &&
 		drum_bands[Crash] >= 45.846f &&
 		crash_hihat_level_ratio <= 0.978f;
-	if (one_shot_measured_high_band_hihat_crash_active_bleed)
+	if (one_shot_measured_high_band_hihat_crash_active_bleed) {
 		cap_drum_level(Crash, 0.28f);
+	}
 	const bool one_shot_measured_hihat_weighted_crash_active_bleed =
 		drum_detection_enabled && one_shot_drum_source &&
 		drum_level_[HiHat] > 0.30f &&
 		drum_level_[Crash] > 0.30f &&
 		crash_hihat_band_ratio >= 1.224f &&
 		ride_hihat_level_ratio <= 0.308f;
-	if (one_shot_measured_hihat_weighted_crash_active_bleed)
+	if (one_shot_measured_hihat_weighted_crash_active_bleed) {
 		cap_drum_level(Crash, 0.28f);
+	}
 	const bool one_shot_measured_hihat_ride_active_bleed =
 		drum_detection_enabled && one_shot_drum_source &&
 		drum_level_[HiHat] > 0.30f &&
@@ -18980,6 +18983,15 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 		crash_hihat_level_ratio <= 1.004f &&
 		drum_segment_bands[Ride] <= 8.0f;
 	if (one_shot_measured_hihat_ride_active_bleed) {
+		cap_drum_level(Ride, 0.28f);
+	}
+	const bool one_shot_measured_hihat_rim_shape_ride_active_bleed =
+		drum_detection_enabled && one_shot_drum_source &&
+		drum_level_[HiHat] > 0.30f &&
+		drum_level_[Ride] > 0.30f &&
+		hihat_rim_shape_score_ratio >= 7.295f &&
+		upper_tom_body >= 2.672f;
+	if (one_shot_measured_hihat_rim_shape_ride_active_bleed) {
 		cap_drum_level(Ride, 0.28f);
 	}
 	const bool one_shot_measured_hot_hihat_ride_active_bleed =
