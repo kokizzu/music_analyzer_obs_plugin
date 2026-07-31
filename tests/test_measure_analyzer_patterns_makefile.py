@@ -2063,6 +2063,13 @@ def main() -> int:
     assert "$(MEASURE_DRUM_FULL_PATTERN_ARGS)" in full_section_recipes, (
         "full drum pattern target needs bounded default args"
     )
+    drum_full_args = re.search(
+        r"^MEASURE_DRUM_FULL_PATTERN_ARGS \?= (.+)$", makefile, re.MULTILINE
+    )
+    assert drum_full_args is not None, "missing full drum pattern defaults"
+    assert "--profile-fields" in drum_full_args.group(1), (
+        "full drum pattern defaults must include route attribute profiles"
+    )
 
     shadow_recipe = target_recipe(makefile, "evaluate-real-note-display-shadow")
     assert "scripts/evaluate_real_note_display_shadow.py" in shadow_recipe, (

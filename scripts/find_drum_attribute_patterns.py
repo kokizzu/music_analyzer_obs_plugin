@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import argparse
+import bisect
 import concurrent.futures
 import contextlib
 import csv
@@ -161,6 +162,7 @@ class RoutePatternSettings:
     include_merged_rows: bool
     min_route_positive_samples: int
     min_route_positive_rows: int
+    profile_fields: int
 
 
 def primary_from_levels(row: dict[str, str]) -> str:
@@ -774,6 +776,120 @@ def value_text(row: dict[str, str], field: str) -> str:
     return f"{value:.3f}".rstrip("0").rstrip(".")
 
 
+def numeric_summary(values: list[float]) -> str:
+    if not values:
+        return "-"
+    sorted_values = sorted(values)
+    median = statistics.median(sorted_values)
+    low = quantile(sorted_values, 0.10)
+    high = quantile(sorted_values, 0.90)
+    return f"{format_value(median)} [{format_value(low)}..{format_value(high)}]"
+
+
+def numeric_separation(positive_values: list[float], negative_values: list[float]) -> tuple[float, str]:
+    if not positive_values or not negative_values:
+        return 0.0, ">="
+
+    sorted_negatives = sorted(negative_values)
+    less = 0
+    equal = 0
+    for value in positive_values:
+        left = bisect.bisect_left(sorted_negatives, value)
+        right = bisect.bisect_right(sorted_negatives, value)
+        less += left
+        equal += right - left
+
+    pairs = len(positive_values) * len(negative_values)
+    positive_higher = (less + equal * 0.5) / pairs
+    positive_lower = 1.0 - positive_higher
+    if positive_higher >= positive_lower:
+        return positive_higher, ">="
+    return positive_lower, "<="
+
+
+def print_attribute_profile(
+    positive_rows: list[dict[str, str]],
+    negative_rows: list[dict[str, str]],
+    limit: int,
+) -> None:
+    if limit <= 0:
+        return
+
+    numeric_profiles: list[tuple[float, str, str, str, str]] = []
+    for field in numeric_fields(positive_rows):
+        positive_values = [
+            value for row in positive_rows if (value := as_float(row, field)) is not None
+        ]
+        negative_values = [
+            value for row in negative_rows if (value := as_float(row, field)) is not None
+        ]
+        if not positive_values or not negative_values:
+            continue
+        separation, direction = numeric_separation(positive_values, negative_values)
+        numeric_profiles.append(
+            (
+                abs(separation - 0.5),
+                field,
+                direction,
+                numeric_summary(positive_values),
+                numeric_summary(negative_values),
+            )
+        )
+    numeric_profiles.sort(key=lambda item: (-item[0], item[1]))
+
+    category_profiles: list[tuple[float, str, str, int, int, int, int]] = []
+    for field in ("body_shape", "source"):
+        positive_counts = Counter(
+            row.get(field, "") for row in positive_rows if row.get(field, "")
+        )
+        negative_counts = Counter(
+            row.get(field, "") for row in negative_rows if row.get(field, "")
+        )
+        if not positive_counts:
+            continue
+        positive_total = sum(positive_counts.values())
+        negative_total = sum(negative_counts.values())
+        for value, positive_count in positive_counts.items():
+            negative_count = negative_counts.get(value, 0)
+            positive_rate = positive_count / positive_total if positive_total else 0.0
+            negative_rate = negative_count / negative_total if negative_total else 0.0
+            category_profiles.append(
+                (
+                    positive_rate - negative_rate,
+                    field,
+                    value,
+                    positive_count,
+                    positive_total,
+                    negative_count,
+                    negative_total,
+                )
+            )
+    category_profiles.sort(key=lambda item: (-item[0], item[1], item[2]))
+
+    if numeric_profiles:
+        print("  numeric attribute profile:")
+        for separation, field, direction, positive_summary, negative_summary in numeric_profiles[:limit]:
+            print(
+                f"    {field} {direction} sep={separation + 0.5:.3f} "
+                f"pos={positive_summary} protected={negative_summary}"
+            )
+    if category_profiles:
+        print("  category attribute profile:")
+        for (
+            enrichment,
+            field,
+            value,
+            positive_count,
+            positive_total,
+            negative_count,
+            negative_total,
+        ) in category_profiles[:limit]:
+            print(
+                f"    {field}={value} enrich={enrichment:.3f} "
+                f"pos={positive_count}/{positive_total} protected={negative_count}/{negative_total}"
+            )
+
+
 def print_route_patterns(
     rows: list[dict[str, str]],
     route: tuple[str, str],
@@ -785,6 +901,7 @@ def print_route_patterns(
     show_examples: int,
     show_near_misses: int,
     include_merged_positives: bool,
+    profile_fields: int,
 ) -> None:
     expected, got = route
     positive_rows = route_positive_rows(rows, route, include_merged_positives)
@@ -808,6 +925,7 @@ def print_route_patterns(
         "  protected_by_expected="
         + " ".join(f"{key}={value}" for key, value in sorted(protected_by_expected.items()))
     )
+    print_attribute_profile(positive_rows, negative_rows, profile_fields)
 
     positive_sample_bits = sample_bit_map(positive_rows)
     negative_sample_bits = sample_bit_map(negative_rows)
@@ -950,6 +1068,7 @@ def route_patterns_text(
             settings.show_examples,
             settings.show_near_misses,
             settings.include_merged_rows,
+            settings.profile_fields,
         )
     return buffer.getvalue()
 
@@ -1001,6 +1120,15 @@ def main() -> int:
         default=1,
         help="mine independent routes in parallel when multiple routes are selected",
     )
+    parser.add_argument(
+        "--profile-fields",
+        type=int,
+        default=0,
+        help=(
+            "print this many ranked numeric and category attribute profiles for each route "
+            "before candidate rules"
+        ),
+    )
     args = parser.parse_args()
 
     rows: list[dict[str, str]] = []
@@ -1041,6 +1169,7 @@ def main() -> int:
         include_merged_rows=args.include_merged_rows,
         min_route_positive_samples=min_route_positive_samples,
         min_route_positive_rows=min_route_positive_rows,
+        profile_fields=max(0, args.profile_fields),
     )
     jobs = min(max(1, args.jobs), len(routes))
     if jobs <= 1:

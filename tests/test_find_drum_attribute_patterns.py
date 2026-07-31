@@ -121,6 +121,7 @@ def run_patterns(
     max_conditions: int = 3, route_name: str = "tom->kick", show_near_misses: int = 0,
     min_route_positive_samples: int = 0, min_route_positive_rows: int = 0,
     use_top_routes: bool = False, top_routes: int = 5, jobs: int = 1,
+    profile_fields: int = 0,
 ) -> str:
     command = [
         sys.executable,
@@ -147,6 +148,8 @@ def run_patterns(
         command.extend(["--min-route-positive-rows", str(min_route_positive_rows)])
     if show_near_misses > 0:
         command.extend(["--show-near-misses", str(show_near_misses)])
+    if profile_fields > 0:
+        command.extend(["--profile-fields", str(profile_fields)])
     if include_merged_rows:
         command.append("--include-merged-rows")
     completed = subprocess.run(
@@ -223,6 +226,7 @@ def main() -> int:
             encoding="utf-8",
         )
         tsv_output = run_patterns(tsv_path)
+        tsv_profile_output = run_patterns(tsv_path, row_examples=0, profile_fields=3)
         tsv_output_one_condition = run_patterns(tsv_path, max_conditions=1)
         tsv_output_with_merged = run_patterns(tsv_path, include_merged_rows=True)
 
@@ -312,6 +316,11 @@ def main() -> int:
     assert "route tom->kick positives=2 rows=2 protected_correct=4 rows=4" in tsv_output
     assert "protecting merged expected-credit rows=1; pass --include-merged-rows to mine them" in tsv_output
     assert "protected_by_expected=kick=1 snare=1 tom=2" in tsv_output
+    assert "numeric attribute profile:" in tsv_profile_output
+    assert "tom_level" in tsv_profile_output
+    assert "pos=0.59 [0.58..0.6]" in tsv_profile_output
+    assert "category attribute profile:" in tsv_profile_output
+    assert "body_shape=4 enrich=0.000 pos=2/2 protected=4/4" in tsv_profile_output
     assert "+2 rows=2 -0 rows=0" in tsv_output
     assert "route tom->kick positives=2 rows=2 protected_correct=4 rows=4" in tsv_output_one_condition
     assert "\n  --\n" in tsv_output_one_condition
