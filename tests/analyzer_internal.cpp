@@ -430,8 +430,102 @@ void check_ambiguous_guitar_power_quality_keeps_both_plain_aliases(Runner &runne
 						     protected_powers, kGuitarMinMidi,
 						     kGuitarMaxMidi);
 	runner.expect(!chord_label_has_exact_component(protected_major.label, "Cm"),
-		      std::string("ambiguous guitar power quality: expected clear major triad protected, got `") +
+			      std::string("ambiguous guitar power quality: expected clear major triad protected, got `") +
 			      protected_major.label + "`");
+}
+
+void check_compact_guitar_power_raw_profile_third_aliases(Runner &runner)
+{
+	InstrumentState measured_major = {};
+	std::snprintf(measured_major.label, sizeof(measured_major.label),
+		      "E=Esus4=Edim=Apow=Emaj7");
+	measured_major.confidence = 0.68f;
+	NoteGrid major_display_grid = {};
+	set_pitch(major_display_grid, 9, 1.00f);
+	set_pitch(major_display_grid, 4, 0.91f);
+	set_pitch(major_display_grid, 11, 0.34f);
+	NoteGrid major_analysis_grid = {};
+	for (int pitch_class : {3, 4, 5, 7, 8, 9, 10, 11})
+		set_pitch(major_analysis_grid, pitch_class, pitch_class == 9 ? 1.00f : 0.24f);
+	std::array<float, kNoteProbeCount> major_powers = {};
+	set_probe_level(major_powers, 45, 1.000f);
+	set_probe_level(major_powers, 49, 0.015f);
+	set_probe_level(major_powers, 52, 0.665f);
+
+	bool major_minor = false;
+	float major_score = 0.0f;
+	runner.expect(compact_guitar_raw_profile_third_quality(
+			      major_display_grid, major_analysis_grid, major_powers,
+			      kGuitarMinMidi, kGuitarMaxMidi, 9, false, major_minor,
+			      major_score) &&
+		      !major_minor,
+		      std::string("compact guitar power raw-profile predicate: expected A major, "
+				  "root=") +
+			      std::to_string(strongest_probe_pitch_class_level(
+				      major_powers, 9, kGuitarMinMidi, kGuitarMaxMidi)) +
+			      " third=" +
+			      std::to_string(strongest_probe_pitch_class_level(
+				      major_powers, 1, kGuitarMinMidi, kGuitarMaxMidi)) +
+			      " fifth=" +
+			      std::to_string(strongest_probe_pitch_class_level(
+				      major_powers, 4, kGuitarMinMidi, kGuitarMaxMidi)) +
+			      " display=" + std::to_string(note_grid_pitch_active(major_display_grid, 9)) +
+			      "/" + std::to_string(note_grid_pitch_active(major_display_grid, 4)) +
+			      " analysis=" + std::to_string(note_grid_pitch_active(major_analysis_grid, 9)) +
+			      "/" + std::to_string(note_grid_pitch_active(major_analysis_grid, 4)));
+
+	append_compact_guitar_power_raw_profile_aliases_to_display(
+		measured_major, major_display_grid, major_analysis_grid, major_powers,
+		kGuitarMinMidi, kGuitarMaxMidi);
+	runner.expect(chord_label_has_exact_component(measured_major.label, "A"),
+		      std::string("compact guitar power raw-profile display: expected A alias, got `") +
+			      measured_major.label + "`");
+
+	InstrumentState measured_minor = {};
+	std::snprintf(measured_minor.label, sizeof(measured_minor.label), "--");
+	NoteGrid minor_display_grid = {};
+	set_pitch(minor_display_grid, 10, 0.21f);
+	set_pitch(minor_display_grid, 5, 1.00f);
+	NoteGrid minor_analysis_grid = {};
+	set_pitch(minor_analysis_grid, 1, 0.01f);
+	set_pitch(minor_analysis_grid, 5, 1.00f);
+	set_pitch(minor_analysis_grid, 8, 0.01f);
+	set_pitch(minor_analysis_grid, 10, 0.16f);
+	std::array<float, kNoteProbeCount> minor_powers = {};
+	set_probe_level(minor_powers, 46, 0.195f);
+	set_probe_level(minor_powers, 49, 0.007f);
+	set_probe_level(minor_powers, 50, 0.005f);
+	set_probe_level(minor_powers, 53, 1.000f);
+
+	bool minor_is_minor = false;
+	float minor_score = 0.0f;
+	runner.expect(compact_guitar_raw_profile_third_quality(
+			      minor_display_grid, minor_analysis_grid, minor_powers,
+			      kGuitarMinMidi, kGuitarMaxMidi, 10, true, minor_is_minor,
+			      minor_score) &&
+		      minor_is_minor,
+		      std::string("compact guitar root-fifth raw-profile predicate: expected A#m, "
+				  "root=") +
+			      std::to_string(strongest_probe_pitch_class_level(
+				      minor_powers, 10, kGuitarMinMidi, kGuitarMaxMidi)) +
+			      " third=" +
+			      std::to_string(strongest_probe_pitch_class_level(
+				      minor_powers, 1, kGuitarMinMidi, kGuitarMaxMidi)) +
+			      " fifth=" +
+			      std::to_string(strongest_probe_pitch_class_level(
+				      minor_powers, 5, kGuitarMinMidi, kGuitarMaxMidi)) +
+			      " display=" + std::to_string(note_grid_pitch_active(minor_display_grid, 10)) +
+			      "/" + std::to_string(note_grid_pitch_active(minor_display_grid, 5)) +
+			      " analysis=" + std::to_string(note_grid_pitch_active(minor_analysis_grid, 10)) +
+			      "/" + std::to_string(note_grid_pitch_active(minor_analysis_grid, 5)) +
+			      "/" + std::to_string(note_grid_pitch_active(minor_analysis_grid, 1)));
+
+	recover_compact_guitar_root_fifth_raw_profile_chord(
+		measured_minor, minor_display_grid, minor_analysis_grid, minor_powers,
+		kGuitarMinMidi, kGuitarMaxMidi);
+	runner.expect(chord_label_has_exact_component(measured_minor.label, "A#m"),
+		      std::string("compact guitar root-fifth raw-profile display: expected A#m alias, got `") +
+			      measured_minor.label + "`");
 }
 
 void check_same_pitch_guitar_bass_shadow_uses_any_matching_debug(Runner &runner)
@@ -972,6 +1066,7 @@ int run()
 	check_supported_guitar_candidate_alias_merge(runner);
 	check_supported_guitar_display_extension_aliases(runner);
 	check_ambiguous_guitar_power_quality_keeps_both_plain_aliases(runner);
+	check_compact_guitar_power_raw_profile_third_aliases(runner);
 	check_same_pitch_guitar_bass_shadow_uses_any_matching_debug(runner);
 	check_keyboard_owned_same_pitch_vocal_shadow_uses_weak_target_guard(runner);
 	check_other_owned_same_pitch_vocal_shadow_uses_measured_threshold(runner);
