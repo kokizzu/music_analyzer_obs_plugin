@@ -2600,6 +2600,32 @@ bool vocal_owned_low_acoustic_guitar_body_supported(const FullMixDebugCandidate 
 	       fifth <= 0.095f;
 }
 
+bool vocal_owned_high_partial_acoustic_guitar_body_supported(const FullMixDebugCandidate &debug)
+{
+	if (debug.owner != InstrumentKind::Vocal)
+		return false;
+	if (debug.midi < 60 || debug.midi > 69)
+		return false;
+
+	const float fourth = debug.harmonic_ratios[3];
+	const float fifth = debug.harmonic_ratios[4];
+	return debug.vocal_score >= 0.79f &&
+	       debug.vocal_score <= 0.83f &&
+	       debug.keyboard_score >= 0.18f &&
+	       debug.keyboard_score <= 0.23f &&
+	       debug.guitar_score <= 0.020f &&
+	       debug.other_score <= 0.010f &&
+	       debug.spectral_level >= 0.90f &&
+	       debug.pitch_confidence >= 0.923f &&
+	       debug.periodicity >= 0.70f &&
+	       debug.harmonic_fit_error <= 0.070f &&
+	       debug.local_noise_level <= 0.065f &&
+	       debug.spectral_centroid <= 0.17f &&
+	       debug.spectral_slope <= 0.18f &&
+	       fourth >= 0.127f &&
+	       fifth >= 0.011f;
+}
+
 bool other_owned_low_acoustic_guitar_body_supported(const FullMixDebugCandidate &debug)
 {
 	if (debug.owner != InstrumentKind::Other)
@@ -5495,6 +5521,7 @@ bool full_mix_display_mirror_supported(FullMixDisplayRow row, const FullMixDebug
 		       ambiguous_clean_jazz_guitar_body ||
 		       vocal_owned_muted_guitar_body ||
 		       vocal_owned_low_acoustic_guitar_body_supported(debug) ||
+		       vocal_owned_high_partial_acoustic_guitar_body_supported(debug) ||
 		       ambiguous_high_guitar_alias ||
 		       measured_guitar_octave_alias_supported(debug);
 	}
@@ -9536,6 +9563,8 @@ void suppress_vocal_owned_same_pitch_non_vocal_shadows(NoteGrid &grid, Instrumen
 		    debug->ownership_confidence < kMinVocalConfidence)
 			continue;
 		if (row == InstrumentKind::Guitar && vocal_owned_low_acoustic_guitar_body_supported(*debug))
+			continue;
+		if (row == InstrumentKind::Guitar && vocal_owned_high_partial_acoustic_guitar_body_supported(*debug))
 			continue;
 		if (row == InstrumentKind::Guitar && vocal_owned_mid_acoustic_guitar_body_supported(*debug))
 			continue;

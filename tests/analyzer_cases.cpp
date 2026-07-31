@@ -3563,6 +3563,26 @@ void check_full_mix_single_instrument_precision(Runner &runner)
 
 	{
 		mao_test::Buffer buffer = {};
+		const std::vector<float> high_partial_acoustic_guitar_profile =
+			{1.0f, 0.096f, 0.039f, 0.129f, 0.016f};
+		add_harmonic_note(buffer, 61, 0.24f, high_partial_acoustic_guitar_profile);
+
+		const auto snapshot =
+			analyze_buffer_with_mode(buffer, mao::AnalysisInputMode::FullMix,
+						 "speaker high-partial acoustic guitar", 3);
+		expect_global_pitch_class(runner, snapshot, 1,
+					  "full-mix high-partial acoustic guitar global");
+		runner.expect(grid_level_for_midi(snapshot.guitar_notes, 61) > 0.0f,
+			      std::string("full-mix high-partial acoustic guitar: expected guitar C#4 "
+					  "display, got guitar `") +
+				      snapshot.guitar.label + "`, keyboard `" + snapshot.keyboard.label +
+				      "`, vocal `" + snapshot.vocal.label + "`, other `" +
+				      snapshot.other.label + "`, debug `" +
+				      full_mix_debug_summary_for_midi(snapshot, 61) + "`");
+	}
+
+	{
+		mao_test::Buffer buffer = {};
 		const std::vector<float> low_bowed_string_profile = {1.0f, 0.055f, 0.15f, 0.13f, 0.10f};
 		add_harmonic_note(buffer, 42, 0.24f, low_bowed_string_profile);
 
