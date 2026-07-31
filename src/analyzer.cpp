@@ -20168,6 +20168,17 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 		if (final_one_shot_measured_low_hihat_rim_tom_snare_active_bleed)
 			cap_drum_level(Snare, 0.28f);
 
+		const bool one_shot_measured_low_kick_body_tom_primary_recovery =
+			drum_detection_enabled && one_shot_drum_source &&
+			!generated_gm_drum_source &&
+			body_shape == Tom &&
+			drum_level_[Tom] > 0.25f &&
+			drum_level_[Snare] > 0.30f &&
+			kick_body <= 8.35f &&
+			drum_segment_bands[Kick] >= 9.629f;
+		if (one_shot_measured_low_kick_body_tom_primary_recovery)
+			promote_drum_primary(Tom, 0.90f);
+
 		if (one_shot_measured_low_crash_ride_tom_snare_steal)
 			promote_drum_primary(Tom, 0.90f);
 
