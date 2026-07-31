@@ -201,6 +201,43 @@ void check_displayed_same_root_plain_guitar_primary(Runner &runner)
 			      protected_state.label + "`");
 }
 
+void check_displayed_supported_plain_guitar_primary(Runner &runner)
+{
+	InstrumentState state = {};
+	std::snprintf(state.label, sizeof(state.label), "D#m=B");
+	state.confidence = 0.62f;
+	NoteGrid display_grid = {};
+	set_pitch(display_grid, 3, 0.30f);
+	set_pitch(display_grid, 6, 0.84f);
+	set_pitch(display_grid, 11, 1.00f);
+	NoteGrid analysis_grid = {};
+	set_pitch(analysis_grid, 3, 0.26f);
+	set_pitch(analysis_grid, 4, 0.06f);
+	set_pitch(analysis_grid, 5, 0.08f);
+	set_pitch(analysis_grid, 6, 0.73f);
+	set_pitch(analysis_grid, 7, 0.11f);
+	set_pitch(analysis_grid, 11, 1.00f);
+
+	promote_displayed_supported_plain_guitar_primary(state, display_grid, analysis_grid);
+	runner.expect(std::strcmp(state.label, "B=D#m") == 0,
+		      std::string("displayed supported guitar primary: expected B promoted, got `") +
+			      state.label + "`");
+
+	InstrumentState protected_state = {};
+	std::snprintf(protected_state.label, sizeof(protected_state.label), "Am=E");
+	protected_state.confidence = 0.68f;
+	NoteGrid protected_grid = {};
+	set_pitch(protected_grid, 0, 0.84f);
+	set_pitch(protected_grid, 4, 0.74f);
+	set_pitch(protected_grid, 7, 0.62f);
+	set_pitch(protected_grid, 9, 0.93f);
+	promote_displayed_supported_plain_guitar_primary(protected_state, protected_grid,
+							protected_grid);
+	runner.expect(std::strcmp(protected_state.label, "Am=E") == 0,
+		      std::string("displayed supported guitar primary: expected protected Am primary, got `") +
+			      protected_state.label + "`");
+}
+
 void check_supported_guitar_candidate_alias_merge(Runner &runner)
 {
 	InstrumentState state = {};
@@ -883,6 +920,7 @@ int run()
 	Runner runner;
 	check_crowded_guitar_prune_modes(runner);
 	check_displayed_same_root_plain_guitar_primary(runner);
+	check_displayed_supported_plain_guitar_primary(runner);
 	check_supported_guitar_candidate_alias_merge(runner);
 	check_supported_guitar_display_extension_aliases(runner);
 	check_ambiguous_guitar_power_quality_keeps_both_plain_aliases(runner);
