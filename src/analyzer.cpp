@@ -9275,6 +9275,40 @@ void suppress_keyboard_owned_same_pitch_bass_shadows(NoteGrid &bass_grid, Instru
 		write_note_grid_label(bass_state, bass_grid, preferred_root);
 }
 
+void suppress_vocal_owned_same_pitch_bass_shadows(NoteGrid &bass_grid, InstrumentState &bass_state,
+						  const NoteGrid &vocal_grid,
+						  const FullMixOwnership &ownership,
+						  int preferred_root)
+{
+	static constexpr float kMinVocalScore = 0.24f;
+	static constexpr float kMaxBassToVocalScoreRatio = 0.50f;
+	static constexpr float kMaxBassToVocalLevelRatio = 0.90f;
+
+	bool changed = false;
+	for (int midi = kBassMinMidi; midi <= kBassMaxMidi; ++midi) {
+		const float bass_level = note_grid_midi_visual_level(bass_grid, midi);
+		if (bass_level <= 0.0f)
+			continue;
+		const float vocal_level = note_grid_midi_visual_level(vocal_grid, midi);
+		if (vocal_level <= 0.0f || bass_level > vocal_level * kMaxBassToVocalLevelRatio)
+			continue;
+
+		const FullMixDebugCandidate *debug =
+			best_same_midi_row_debug(ownership, midi, InstrumentKind::Vocal);
+		if (!debug || debug->owner != InstrumentKind::Vocal)
+			continue;
+		if (debug->vocal_score < kMinVocalScore ||
+		    debug->bass_score > debug->vocal_score * kMaxBassToVocalScoreRatio)
+			continue;
+
+		clear_note_grid_midi(bass_grid, midi);
+		changed = true;
+	}
+
+	if (changed)
+		write_note_grid_label(bass_state, bass_grid, preferred_root);
+}
+
 void suppress_named_owned_same_pitch_vocal_shadows(NoteGrid &vocal_grid, InstrumentState &vocal_state,
 						   const NoteGrid &owner_grid,
 						   const FullMixOwnership &ownership,
@@ -22137,6 +22171,9 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 								full_mix_ownership, -1,
 								full_mix_source_hint_mode !=
 									AnalysisInputMode::IsolatedBass);
+		suppress_vocal_owned_same_pitch_bass_shadows(snapshot.bass_notes, snapshot.bass,
+							     snapshot.vocal_notes, full_mix_ownership,
+							     -1);
 		suppress_named_owned_same_pitch_vocal_shadows(snapshot.vocal_notes, snapshot.vocal,
 							      snapshot.keyboard_notes, full_mix_ownership,
 							      InstrumentKind::Keyboard, -1);

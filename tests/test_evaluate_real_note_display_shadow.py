@@ -373,6 +373,48 @@ def main() -> int:
                 guitar_visual_notes="A3:1.00",
             ),
             row(
+                sample_id="measured_vocal_bass_shadow",
+                family="vocals",
+                source="acoustic",
+                expected_note="B3",
+                expected_midi="59",
+                first_row="vocals",
+                debug_note="B3",
+                debug_midi="59",
+                debug_owner="vocals",
+                bass_score="0.08",
+                keyboard_score="0.00",
+                guitar_score="0.00",
+                vocal_score="0.70",
+                other_score="0.00",
+                bass_notes="B3:0.70",
+                guitar_notes="",
+                piano_notes="",
+                vocal_notes="B3:0.80",
+                other_notes="",
+            ),
+            row(
+                sample_id="measured_vocal_bass_protected",
+                family="bass",
+                source="electronic",
+                expected_note="A#3",
+                expected_midi="58",
+                first_row="bass",
+                debug_note="A#3",
+                debug_midi="58",
+                debug_owner="guitar",
+                bass_score="0.08",
+                keyboard_score="0.00",
+                guitar_score="0.00",
+                vocal_score="0.70",
+                other_score="0.00",
+                bass_notes="A#3:0.74",
+                guitar_notes="",
+                piano_notes="",
+                vocal_notes="A#3:0.80",
+                other_notes="",
+            ),
+            row(
                 sample_id="measured_other_vocal_shadow",
                 family="other",
                 source="acoustic",
@@ -856,6 +898,25 @@ def main() -> int:
             text=True,
             stdout=subprocess.PIPE,
         )
+        measured_vocal_bass_runtime_result = subprocess.run(
+            [
+                sys.executable,
+                str(ROOT / "scripts" / "evaluate_real_note_display_shadow.py"),
+                str(path),
+                "--shadow-row",
+                "vocals",
+                "--target-row",
+                "bass",
+                "--min-shadow-level",
+                "0.10",
+                "--min-target-level",
+                "0.10",
+                "--summary-only",
+            ],
+            check=True,
+            text=True,
+            stdout=subprocess.PIPE,
+        )
         protected_threshold_result = subprocess.run(
             [
                 sys.executable,
@@ -968,7 +1029,7 @@ def main() -> int:
     compact_threshold_output = compact_threshold_result.stdout
     assert "compact route summary" in compact_threshold_output, compact_threshold_output
     assert "routes=20" in compact_threshold_output, compact_threshold_output
-    assert "safe_threshold_routes=3 no_safe_threshold_routes=17" in compact_threshold_output, (
+    assert "safe_threshold_routes=4 no_safe_threshold_routes=16" in compact_threshold_output, (
         compact_threshold_output
     )
     assert (
@@ -1000,6 +1061,16 @@ def main() -> int:
     assert (
         "runtime_other_vocal_measured extras=1/1 protected=0/1 precision=100.0% protected_rate=0.0%"
     ) in measured_other_vocal_runtime_output, measured_other_vocal_runtime_output
+    measured_vocal_bass_runtime_output = measured_vocal_bass_runtime_result.stdout
+    assert (
+        "vocals->same-pitch bass extras rows=1 samples=1"
+    ) in measured_vocal_bass_runtime_output, measured_vocal_bass_runtime_output
+    assert (
+        "vocals->same-pitch bass protected rows=1 samples=1"
+    ) in measured_vocal_bass_runtime_output, measured_vocal_bass_runtime_output
+    assert (
+        "runtime_vocal_bass_owned     extras=1/1 protected=0/1 precision=100.0% protected_rate=0.0%"
+    ) in measured_vocal_bass_runtime_output, measured_vocal_bass_runtime_output
     protected_threshold_output = protected_threshold_result.stdout
     assert "protected=1/1 extras=4/4 min_shadow_score=0.24" in protected_threshold_output, protected_threshold_output
     assert "protected measured_guitar_bass_protected@0" in protected_threshold_output, protected_threshold_output
