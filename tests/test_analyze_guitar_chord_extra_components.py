@@ -43,6 +43,8 @@ miss_unrelated	chord_miss	Dm	A#aug=Dpow	D,F,A	D3:0.88,A3:0.80	D3:0.89,A3:0.81	di
                 "--simulate-prune",
                 "primary-equivalent-plain",
                 "--simulate-prune",
+                "primary-equivalent-plain-observed-playable",
+                "--simulate-prune",
                 "primary-same-root-equivalent",
                 "--simulate-prune",
                 "observed-playable",
@@ -108,6 +110,11 @@ miss_unrelated	chord_miss	Dm	A#aug=Dpow	D,F,A	D3:0.88,A3:0.80	D3:0.89,A3:0.81	di
         "lost_hits=0 gained_hits=0 components=6/11 extras=3/8"
     ) in output
     assert "  retained extra suffixes sus4=1 m=1 aug=1" in output
+    assert (
+        "prune policy primary-equivalent-plain-observed-playable: rows=4 current_hits=3 "
+        "pruned_hits=3 lost_hits=0 gained_hits=0 components=10/11 extras=7/8"
+    ) in output
+    assert "  retained extra suffixes pow=2 sus4=1 6=1 maj7=1 m=1 aug=1" in output
     assert (
         "prune policy primary-same-root-equivalent: rows=4 current_hits=3 pruned_hits=3 "
         "lost_hits=0 gained_hits=0 components=8/11 extras=5/8"

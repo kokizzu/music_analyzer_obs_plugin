@@ -1626,6 +1626,9 @@ def main() -> int:
     assert "--simulate-prune primary-equivalent-observed-playable" in makefile, (
         "guitar extra-component report must include observed-playable equivalent pruning"
     )
+    assert "--simulate-prune primary-equivalent-plain-observed-playable" in makefile, (
+        "guitar extra-component report must measure plain-safe pruning that preserves observed extensions"
+    )
     guitar_extra_recipe = target_recipe(makefile, "$(MEASURE_ANALYZER_PATTERN_GUITAR_CHORD_EXTRA_REPORT)")
     assert 'EXTRA_COMPONENT_ARGS="$(EXTRA_COMPONENT_ARGS)"' in guitar_extra_recipe, (
         "guitar extra-component report must pass the default pruning simulation arguments"

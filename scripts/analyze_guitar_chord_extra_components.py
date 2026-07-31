@@ -305,6 +305,12 @@ def prune_labels(labels: list[str], policy: str, row: dict[str, str] | None = No
             keep = same_pitch_set(label, primary)
         elif policy == "primary-equivalent-plain":
             keep = same_pitch_set(label, primary) or is_plain_major_minor(label)
+        elif policy == "primary-equivalent-plain-observed-playable":
+            keep = (
+                same_pitch_set(label, primary)
+                or is_plain_major_minor(label)
+                or (row is not None and observed_playability(label, row) != "unsupported")
+            )
         elif policy == "primary-same-root-equivalent":
             keep = same_root(label, primary) or same_pitch_set(label, primary)
         elif policy == "observed-playable":
@@ -548,6 +554,7 @@ def main() -> int:
             "primary",
             "primary-equivalent",
             "primary-equivalent-plain",
+            "primary-equivalent-plain-observed-playable",
             "primary-same-root-equivalent",
             "observed-playable",
             "primary-equivalent-observed-playable",
