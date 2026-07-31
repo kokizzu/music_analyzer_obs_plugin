@@ -3367,6 +3367,26 @@ void check_full_mix_single_instrument_precision(Runner &runner)
 
 	{
 		mao_test::Buffer buffer = {};
+		const std::vector<float> measured_mid_acoustic_other_profile =
+			{1.0f, 0.271f, 0.076f, 0.063f, 0.011f};
+		add_harmonic_note(buffer, 64, 0.24f, measured_mid_acoustic_other_profile);
+
+		const auto snapshot =
+			analyze_buffer_with_mode(buffer, mao::AnalysisInputMode::FullMix,
+						 "speaker resonant acoustic body", 3);
+		expect_global_pitch_class(runner, snapshot, 4,
+					  "full-mix measured mid acoustic other body global");
+		runner.expect(grid_level_for_midi(snapshot.other_notes, 64) > 0.0f,
+			      std::string("full-mix measured mid acoustic other body: expected other "
+					  "E4 display, got other `") +
+				      snapshot.other.label + "`, guitar `" + snapshot.guitar.label +
+				      "`, vocal `" + snapshot.vocal.label + "`, keyboard `" +
+				      snapshot.keyboard.label + "`, debug `" +
+				      full_mix_debug_summary_for_midi(snapshot, 64) + "`");
+	}
+
+	{
+		mao_test::Buffer buffer = {};
 		const std::vector<float> measured_electric_piano_tine_profile =
 			{1.0f, 0.44f, 0.10f, 0.010f, 0.025f};
 		add_harmonic_note(buffer, 53, 0.24f, measured_electric_piano_tine_profile);
