@@ -547,6 +547,7 @@ def main() -> int:
         "MEASURE_REAL_NOTE_FOCUSED_ROW_CONFUSION_PATTERN_ARGS",
         "MEASURE_REAL_NOTE_FOCUSED_VISUAL_ROW_CONFUSION_PATTERN_ARGS",
         "MEASURE_REAL_NOTE_OWNERSHIP_PATTERN_ARGS",
+        "MEASURE_REAL_NOTE_BROAD_VOCAL_PATTERN_ARGS",
     ]:
         match = re.search(rf"^{variable} \?= (.+)$", makefile, re.MULTILINE)
         assert match is not None, f"missing {variable}"
@@ -560,6 +561,7 @@ def main() -> int:
         "find-real-note-ownership-patterns",
         "evaluate-real-note-display-shadow-all",
         "find-vocadito-full-mix-ownership-patterns",
+        "find-vocadito-full-mix-broad-vocal-ownership-patterns",
         "find-vocadito-full-mix-visual-row-confusion-patterns",
         "find-instrument-owner-patterns",
         "find-instrument-status-patterns",
@@ -568,6 +570,16 @@ def main() -> int:
         assert target in route_scan_target_list, (
             f"detector improvement route scan must include {target}"
         )
+    broad_vocal_recipe = target_recipe(makefile, "find-vocadito-full-mix-broad-vocal-ownership-patterns")
+    assert '--bucket "ownership_miss:vocals/*->*"' in broad_vocal_recipe, (
+        "broad vocal ownership route must mine the cross-source wildcard bucket"
+    )
+    assert '$(MEASURE_REAL_NOTE_BROAD_VOCAL_PATTERN_ARGS)' in broad_vocal_recipe, (
+        "broad vocal ownership route must use bounded route-report defaults"
+    )
+    assert '--jobs "$(REAL_NOTE_PATTERN_JOBS)"' in broad_vocal_recipe, (
+        "broad vocal ownership route must run pattern search with configured parallel jobs"
+    )
     route_scan_recipe = target_recipe(makefile, "analyze-detector-improvement-routes")
     assert "\n\t+$(RUN_WITH_DURATION) detector_improvement_routes_parallel" in route_scan_recipe, (
         "detector improvement route scan must preserve the make jobserver through the duration wrapper"
