@@ -6,6 +6,7 @@ import pathlib
 import subprocess
 import sys
 import tempfile
+import importlib.util
 
 
 ROOT = pathlib.Path(__file__).resolve().parents[1]
@@ -44,6 +45,8 @@ miss_unrelated	chord_miss	Dm	A#aug=Dpow	D,F,A	D3:0.88,A3:0.80	D3:0.89,A3:0.81	di
                 "primary-equivalent-plain",
                 "--simulate-prune",
                 "primary-equivalent-plain-observed-playable",
+                "--simulate-prune",
+                "common-observed-playable",
                 "--simulate-prune",
                 "primary-same-root-equivalent",
                 "--simulate-prune",
@@ -116,6 +119,11 @@ miss_unrelated	chord_miss	Dm	A#aug=Dpow	D,F,A	D3:0.88,A3:0.80	D3:0.89,A3:0.81	di
     ) in output
     assert "  retained extra suffixes pow=2 sus4=1 6=1 maj7=1 m=1 aug=1" in output
     assert (
+        "prune policy common-observed-playable: rows=4 current_hits=3 "
+        "pruned_hits=3 lost_hits=0 gained_hits=0 components=10/11 extras=7/8"
+    ) in output
+    assert "  retained extra suffixes pow=2 sus4=1 6=1 maj7=1 m=1 aug=1" in output
+    assert (
         "prune policy primary-same-root-equivalent: rows=4 current_hits=3 pruned_hits=3 "
         "lost_hits=0 gained_hits=0 components=8/11 extras=5/8"
     ) in output
@@ -129,6 +137,16 @@ miss_unrelated	chord_miss	Dm	A#aug=Dpow	D,F,A	D3:0.88,A3:0.80	D3:0.89,A3:0.81	di
         "prune policy primary-equivalent-observed-playable: rows=4 current_hits=3 pruned_hits=3 "
         "lost_hits=0 gained_hits=0 components=10/11 extras=7/8"
     ) in output
+    sys.path.insert(0, str(SCRIPT.parent))
+    spec = importlib.util.spec_from_file_location("analyze_guitar_chord_extra_components", SCRIPT)
+    assert spec is not None and spec.loader is not None
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    unknown_suffix_row = {
+        "guitar_cells": "C3:0.90,E3:0.80,G3:0.75",
+        "guitar_analysis_cells": "C3:0.90,E3:0.80,G3:0.75",
+    }
+    assert module.prune_labels(["C", "C13"], "common-observed-playable", unknown_suffix_row) == ["C"]
     print("test_analyze_guitar_chord_extra_components: ok")
     return 0
 

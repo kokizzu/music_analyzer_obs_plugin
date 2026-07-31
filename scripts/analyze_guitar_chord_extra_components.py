@@ -53,6 +53,7 @@ TEMPLATES = {
     "m9": (0, 2, 3, 7, 10),
     "add9": (0, 2, 4, 7),
 }
+COMMON_CHORD_SUFFIXES = frozenset(TEMPLATES)
 
 
 def load_rows(path: pathlib.Path) -> list[dict[str, str]]:
@@ -290,6 +291,17 @@ def is_plain_major_minor(label: str) -> bool:
     return parsed is not None and parsed[1] in ("", "m")
 
 
+def is_modeled_common_chord(label: str) -> bool:
+    parsed = parse_label(label)
+    return parsed is not None and parsed[1] in COMMON_CHORD_SUFFIXES
+
+
+def observed_playability_supported(label: str, row: dict[str, str] | None) -> bool:
+    if row is None:
+        return False
+    return observed_playability(label, row) in {"display_analysis", "display_only", "analysis_only"}
+
+
 def prune_labels(labels: list[str], policy: str, row: dict[str, str] | None = None) -> list[str]:
     if not labels:
         return []
@@ -310,6 +322,12 @@ def prune_labels(labels: list[str], policy: str, row: dict[str, str] | None = No
                 same_pitch_set(label, primary)
                 or is_plain_major_minor(label)
                 or (row is not None and observed_playability(label, row) != "unsupported")
+            )
+        elif policy == "common-observed-playable":
+            keep = (
+                same_pitch_set(label, primary)
+                or is_plain_major_minor(label)
+                or (is_modeled_common_chord(label) and observed_playability_supported(label, row))
             )
         elif policy == "primary-same-root-equivalent":
             keep = same_root(label, primary) or same_pitch_set(label, primary)
@@ -555,6 +573,7 @@ def main() -> int:
             "primary-equivalent",
             "primary-equivalent-plain",
             "primary-equivalent-plain-observed-playable",
+            "common-observed-playable",
             "primary-same-root-equivalent",
             "observed-playable",
             "primary-equivalent-observed-playable",

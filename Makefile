@@ -154,7 +154,7 @@ REAL_NOTE_RUNTIME_ROW_CONFUSION_EXCLUDES ?= \
 	--exclude-field debug_delta \
 	--exclude-field debug_abs_delta
 MEASURE_GUITAR_PATTERN_ARGS ?= --top-buckets 4 --limit 4 --min-positive-recordings 3 --max-negative-recordings 0 --max-conditions 3 --beam-width 180 --show-examples 1
-EXTRA_COMPONENT_ARGS ?= --simulate-prune primary-equivalent --simulate-prune primary-equivalent-plain --simulate-prune primary-equivalent-plain-observed-playable --simulate-prune primary-same-root-equivalent --simulate-prune observed-playable --simulate-prune primary-equivalent-observed-playable
+EXTRA_COMPONENT_ARGS ?= --simulate-prune primary-equivalent --simulate-prune primary-equivalent-plain --simulate-prune primary-equivalent-plain-observed-playable --simulate-prune common-observed-playable --simulate-prune primary-same-root-equivalent --simulate-prune observed-playable --simulate-prune primary-equivalent-observed-playable
 MEASURE_DRUM_PATTERN_ARGS ?= --top-routes 4 --limit 4 --min-positive-samples 3 --max-negative-samples 0 --max-conditions 3 --beam-width 220 --show-examples 1
 MEASURE_PROTECTED_DRUM_PATTERN_ARGS ?= --top-routes 4 --limit 4 --min-positive-samples 20 --min-route-positive-samples 20 --max-negative-samples 0 --max-conditions 1 --beam-width 40 --show-examples 1 --show-near-misses 2
 MEASURE_DRUM_FULL_PATTERN_ARGS ?= --top-routes 4 --limit 4 --min-positive-samples 20 --min-route-positive-samples 20 --max-negative-samples 0 --max-conditions 3 --beam-width 64 --show-examples 1
