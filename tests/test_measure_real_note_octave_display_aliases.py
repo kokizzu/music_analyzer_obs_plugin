@@ -26,6 +26,7 @@ status	detected	detected_expected_row	first_row	visual_first_row	sample_id	famil
 hit	1	1	guitar	guitar	keyboard_alias	piano	electronic	A1	33	0	full_mix	A2:0.60	A3:0.72	A1:0.80,A2:0.62	--	--	57	other	1.20	0.71	0.12	0.10	0.88
 hit	1	1	guitar	guitar	guitar_true	guitar	acoustic	A2	45	0	full_mix	--	A3:0.74	A2:0.58	--	--	57	guitar	0.96	0.88	0.79	0.31	0.10
 hit	1	1	other	other	other_harm	other	acoustic	C3	48	0	full_mix	--	--	G4:0.72,C6:0.91	--	C3:0.80	84	other	1.44	0.63	0.12	0.35	0.74
+hit	1	1	guitar	guitar	guitar_non_alias_risk	guitar	electric	B2	47	0	full_mix	--	B2:0.76	--	--	--	47	other	1.08	0.81	0.18	0.16	0.82
             """,
         )
 
@@ -51,7 +52,7 @@ hit	1	1	other	other	other_harm	other	acoustic	C3	48	0	full_mix	--	--	G4:0.72,C6:
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
         ).stdout
-        assert "groups=3 alias_groups=2 positive_visual=1 protected_visual=1" in octave
+        assert "groups=4 alias_groups=2 positive_visual=1 protected_visual=1" in octave
         assert "positive_routes piano/electronic->guitar=1" in octave
         assert "protected_routes guitar/acoustic->guitar=1" in octave
         assert "positive_example\tkeyboard_alias@0" in octave
@@ -128,8 +129,8 @@ hit	1	1	other	other	other_harm	other	acoustic	C3	48	0	full_mix	--	--	G4:0.72,C6:
             stderr=subprocess.PIPE,
         ).stdout
         assert "threshold_search: candidates=" in searched
-        assert "positive_total=1 protected_total=1 other_total=0" in searched
-        assert "threshold_rule positive=1/1 protected=0/1" in searched
+        assert "positive_total=1 protected_total=1 row_protected_total=2 other_total=0" in searched
+        assert "threshold_rule positive=1/1 protected=0/1 row_protected=0/2" in searched
         assert "debug_relation=shadow" in searched
         assert "threshold_positive\tsample_id=keyboard_alias" in searched
 
@@ -151,7 +152,7 @@ hit	1	1	other	other	other_harm	other	acoustic	C3	48	0	full_mix	--	--	G4:0.72,C6:
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
         ).stdout
-        assert "groups=3 alias_groups=1 positive_visual=0 protected_visual=0 other_alias=1" in harmonic
+        assert "groups=4 alias_groups=1 positive_visual=0 protected_visual=0 other_alias=1" in harmonic
         assert "alias_routes other/acoustic->piano=1" in harmonic
         assert "intervals 36=1" in harmonic
 

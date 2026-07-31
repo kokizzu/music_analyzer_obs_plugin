@@ -122,6 +122,7 @@ class ThresholdMatch:
     rule: ThresholdRule
     positive: int
     protected: int
+    row_protected: int
     other: int
 
 
@@ -230,6 +231,17 @@ def find_alias(
                 best = Alias(shadow, support, interval)
                 best_score = score
     return best
+
+
+def visible_debug_alias_record(row: dict[str, str], row_name: str) -> AliasRecord | None:
+    debug_midi = row_int(row, "debug_midi")
+    if debug_midi is None:
+        return None
+    for note in parse_note_levels(row, row_name):
+        if note.midi != debug_midi:
+            continue
+        return AliasRecord("row_protected", row, Alias(note, note, 0))
+    return None
 
 
 def read_groups(path: pathlib.Path) -> dict[tuple[str, str], list[dict[str, str]]]:
@@ -563,8 +575,10 @@ def generate_threshold_rules() -> list[ThresholdRule]:
 
 def threshold_search(
     records: list[AliasRecord],
+    row_protected_records: list[AliasRecord],
     min_positive: int,
     max_protected: int,
+    max_row_protected: int,
 ) -> list[ThresholdMatch]:
     matches: list[ThresholdMatch] = []
     positive_records = [record for record in records if record.category == "positive"]
@@ -580,16 +594,26 @@ def threshold_search(
         if protected > max_protected:
             continue
 
+        row_protected = 0
+        for record in row_protected_records:
+            if threshold_rule_matches(record, rule):
+                row_protected += 1
+                if row_protected > max_row_protected:
+                    break
+        if row_protected > max_row_protected:
+            continue
+
         positive = sum(1 for record in positive_records if threshold_rule_matches(record, rule))
         if positive < min_positive:
             continue
         other = sum(1 for record in other_records if threshold_rule_matches(record, rule))
-        if positive >= min_positive and protected <= max_protected:
-            matches.append(ThresholdMatch(rule, positive, protected, other))
+        if positive >= min_positive and protected <= max_protected and row_protected <= max_row_protected:
+            matches.append(ThresholdMatch(rule, positive, protected, row_protected, other))
 
     matches.sort(
         key=lambda match: (
             match.protected,
+            match.row_protected,
             -match.positive,
             match.other,
             rule_complexity(match.rule),
@@ -601,6 +625,7 @@ def threshold_search(
 
 def print_threshold_search(
     records: list[AliasRecord],
+    row_protected_records: list[AliasRecord],
     matches: list[ThresholdMatch],
     limit: int,
     examples: int,
@@ -612,6 +637,7 @@ def print_threshold_search(
         f" candidates={len(matches)}"
         f" positive_total={totals['positive']}"
         f" protected_total={totals['protected']}"
+        f" row_protected_total={len(row_protected_records)}"
         f" other_total={totals['other']}"
     )
     for match in matches[: max(0, limit)]:
@@ -620,6 +646,7 @@ def print_threshold_search(
             "threshold_rule"
             f" positive={match.positive}/{totals['positive']}"
             f" protected={match.protected}/{totals['protected']}"
+            f" row_protected={match.row_protected}/{len(row_protected_records)}"
             f" other={match.other}/{totals['other']}"
             " "
             + " ".join(rule_parts(rule))
@@ -634,6 +661,14 @@ def print_threshold_search(
                 continue
             print(f"threshold_{record.category}\t{detail_text(record.row, record.alias, detail_fields)}")
             printed[record.category] += 1
+        if printed["row_protected"] < examples:
+            for record in row_protected_records:
+                if printed["row_protected"] >= examples:
+                    break
+                if not threshold_rule_matches(record, rule):
+                    continue
+                print(f"threshold_row_protected\t{detail_text(record.row, record.alias, detail_fields)}")
+                printed["row_protected"] += 1
 
 
 def main() -> int:
@@ -701,6 +736,12 @@ def main() -> int:
         default=0,
         help="maximum protected guitar alias hits allowed for threshold-search output",
     )
+    parser.add_argument(
+        "--search-max-row-protected",
+        type=int,
+        default=0,
+        help="maximum expected-row visible debug candidate hits allowed for threshold-search output",
+    )
     parser.add_argument("--search-limit", type=int, default=12, help="threshold-search rules to print")
     parser.add_argument(
         "--search-examples",
@@ -735,6 +776,7 @@ def main() -> int:
         "other": defaultdict(Counter),
     }
     records: list[AliasRecord] = []
+    row_protected_records: list[AliasRecord] = []
 
     def record_profile(category: str, row: dict[str, str], alias: Alias) -> None:
         if not args.profile:
@@ -745,6 +787,12 @@ def main() -> int:
 
     for rows in groups.values():
         row = first_group_row(rows)
+        expected = expected_row(row)
+        if expected == args.shadow_row:
+            row_protected = visible_debug_alias_record(row, args.shadow_row)
+            if row_protected is not None:
+                row_protected_records.append(row_protected)
+
         alias = find_alias(
             row,
             args.shadow_row,
@@ -760,7 +808,6 @@ def main() -> int:
             continue
 
         alias_groups += 1
-        expected = expected_row(row)
         visual_first = row.get("visual_first_row", "") or row.get("first_row", "")
         route = f"{source_key(row)}->{args.shadow_row}"
         alias_routes[route] += 1
@@ -815,9 +862,16 @@ def main() -> int:
     for example in other_examples:
         print(f"other_example\t{example}")
     if args.threshold_search:
-        matches = threshold_search(records, args.search_min_positive, args.search_max_protected)
+        matches = threshold_search(
+            records,
+            row_protected_records,
+            args.search_min_positive,
+            args.search_max_protected,
+            args.search_max_row_protected,
+        )
         print_threshold_search(
             records,
+            row_protected_records,
             matches,
             args.search_limit,
             args.search_examples,
