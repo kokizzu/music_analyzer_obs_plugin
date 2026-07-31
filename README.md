@@ -318,14 +318,14 @@ make test-detector-samples-full
 PARALLEL_TEST_JOBS=8 make test-detector-samples-full
 ```
 
-For a full detector-tuning pass that runs the parallel regression gates first, then regenerates measured attribute rows and pattern reports with durations:
+For a full detector-tuning pass that runs the parallel regression gates and measured attribute/pattern reports in one coordinated Make job graph with durations:
 
 ```sh
 make analyze-detector-improvements
 PARALLEL_TEST_JOBS=8 MEASURE_ANALYZER_JOBS=8 make analyze-detector-improvements
 ```
 
-Use `make analyze-detector-improvements-full` when you intentionally want `make test-detector-samples-full` followed by the exhaustive full-drum pattern reports.
+Use `make analyze-detector-improvements-full` when you intentionally want the max real-world sample sweep and exhaustive full-drum pattern reports in the same coordinated parallel pass.
 
 For the NSynth full-mix real-note gate alone, the default target splits the manifest across `PARALLEL_TEST_JOBS` analyzer processes and skips rebuilding a fresh manifest:
 

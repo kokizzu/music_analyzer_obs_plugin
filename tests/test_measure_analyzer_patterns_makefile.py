@@ -445,25 +445,39 @@ def main() -> int:
         "analysis script parallel target must fan out through jobserver-aware make"
     )
     detector_improvement_recipe = target_recipe(makefile, "analyze-detector-improvements")
-    assert "\n\t+$(RUN_WITH_DURATION) detector_improvement_samples" in detector_improvement_recipe, (
-        "detector improvement workflow must report the bounded sample-regression duration"
+    assert "\n\t+$(RUN_WITH_DURATION) detector_improvements_parallel" in detector_improvement_recipe, (
+        "detector improvement workflow must report the aggregate parallel duration"
     )
-    assert "$(MAKE) test-detector-samples-parallel" in detector_improvement_recipe, (
-        "detector improvement workflow must reuse the bounded parallel detector sample gate"
+    assert "$(MAKE) $(PARALLEL_TEST_MAKE_JOBS) detector-improvement-samples detector-improvement-patterns" in detector_improvement_recipe, (
+        "detector improvement workflow must fan out sample gates and pattern reports together"
     )
-    assert "\n\t+$(RUN_WITH_DURATION) detector_improvement_patterns" in detector_improvement_recipe, (
-        "detector improvement workflow must report the bounded pattern-analysis duration"
-    )
-    assert "$(MAKE) -s measure-analyzer-patterns" in detector_improvement_recipe, (
-        "detector improvement workflow must generate clean measured attribute and pattern reports"
-    )
+    assert re.search(
+        r"^detector-improvement-samples: test-detector-samples-parallel$",
+        makefile,
+        re.MULTILINE,
+    ), "detector improvement samples helper must reuse the bounded parallel detector sample gate"
+    assert re.search(
+        r"^detector-improvement-patterns: measure-analyzer-patterns$",
+        makefile,
+        re.MULTILINE,
+    ), "detector improvement pattern helper must generate measured attribute and pattern reports"
     detector_improvement_full_recipe = target_recipe(makefile, "analyze-detector-improvements-full")
-    assert "$(MAKE) test-detector-samples-full-parallel" in detector_improvement_full_recipe, (
-        "full detector improvement workflow must reuse the full parallel detector sample gate"
+    assert "\n\t+$(RUN_WITH_DURATION) detector_improvements_full_parallel" in detector_improvement_full_recipe, (
+        "full detector improvement workflow must report the aggregate parallel duration"
     )
-    assert "$(MAKE) -s measure-analyzer-patterns-full" in detector_improvement_full_recipe, (
-        "full detector improvement workflow must generate clean exhaustive pattern reports"
+    assert "$(MAKE) $(PARALLEL_TEST_MAKE_JOBS) detector-improvement-samples-full detector-improvement-patterns-full" in detector_improvement_full_recipe, (
+        "full detector improvement workflow must fan out full sample gates and full pattern reports together"
     )
+    assert re.search(
+        r"^detector-improvement-samples-full: test-detector-samples-full-parallel$",
+        makefile,
+        re.MULTILINE,
+    ), "full detector improvement samples helper must reuse the full parallel detector sample gate"
+    assert re.search(
+        r"^detector-improvement-patterns-full: measure-analyzer-patterns-full$",
+        makefile,
+        re.MULTILINE,
+    ), "full detector improvement pattern helper must generate exhaustive pattern reports"
     default_test_recipe = target_recipe(makefile, "test")
     assert "$(RUN_WITH_DURATION) test_fast" in default_test_recipe, (
         "default test target must report the fast parallel aggregate duration"
