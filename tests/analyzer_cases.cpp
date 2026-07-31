@@ -3180,6 +3180,26 @@ void check_full_mix_single_instrument_precision(Runner &runner)
 
 	{
 		mao_test::Buffer buffer = {};
+		const std::vector<float> vocal_owned_partial_keyboard_profile =
+			{1.0f, 0.148f, 0.019f, 0.086f, 0.002f};
+		add_harmonic_note(buffer, 66, 0.24f, vocal_owned_partial_keyboard_profile);
+
+		const auto snapshot =
+			analyze_buffer_with_mode(buffer, mao::AnalysisInputMode::FullMix,
+						 "speaker vocal-owned partial electronic keyboard", 3);
+		expect_global_pitch_class(runner, snapshot, 6,
+					  "full-mix vocal-owned partial electronic keyboard global");
+		runner.expect(grid_level_for_midi(snapshot.keyboard_notes, 66) > 0.0f,
+			      std::string("full-mix vocal-owned partial electronic keyboard: expected "
+					  "keyboard F#4 display, got keyboard `") +
+				      snapshot.keyboard.label + "`, guitar `" + snapshot.guitar.label +
+				      "`, vocal `" + snapshot.vocal.label + "`, other `" +
+				      snapshot.other.label + "`, debug `" +
+				      full_mix_debug_summary_for_midi(snapshot, 66) + "`");
+	}
+
+	{
+		mao_test::Buffer buffer = {};
 		const std::vector<float> measured_electric_piano_tine_profile =
 			{1.0f, 0.44f, 0.10f, 0.010f, 0.025f};
 		add_harmonic_note(buffer, 53, 0.24f, measured_electric_piano_tine_profile);

@@ -4629,6 +4629,39 @@ bool ambiguous_upper_partial_string_keyboard_spillover(const FullMixDebugCandida
 	       debug.harmonic_ratios[4] >= 0.131f;
 }
 
+bool vocal_owned_partial_electronic_keyboard_body_supported(const FullMixDebugCandidate &debug)
+{
+	if (debug.owner != InstrumentKind::Vocal)
+		return false;
+	if (debug.midi < 60 || debug.midi > 84)
+		return false;
+
+	const float second = debug.harmonic_ratios[1];
+	const float third = debug.harmonic_ratios[2];
+	const float fourth = debug.harmonic_ratios[3];
+	const float fifth = debug.harmonic_ratios[4];
+	return debug.vocal_score >= 0.79f &&
+	       debug.vocal_score <= 0.82f &&
+	       debug.keyboard_score >= 0.18f &&
+	       debug.keyboard_score <= 0.22f &&
+	       debug.guitar_score <= 0.010f &&
+	       debug.other_score <= 0.010f &&
+	       debug.spectral_level >= 0.90f &&
+	       debug.pitch_confidence >= 0.93f &&
+	       debug.periodicity >= 0.76f &&
+	       debug.harmonic_fit_error <= 0.060f &&
+	       debug.local_noise_level <= 0.020f &&
+	       debug.spectral_centroid >= 0.118f &&
+	       debug.spectral_centroid <= 0.124f &&
+	       debug.spectral_slope <= 0.096f &&
+	       second >= 0.14f &&
+	       second <= 0.16f &&
+	       third <= 0.025f &&
+	       fourth >= 0.083f &&
+	       fourth <= 0.10f &&
+	       fifth <= 0.006f;
+}
+
 bool full_mix_display_mirror_supported(FullMixDisplayRow row, const FullMixDebugCandidate &debug,
 				       int display_midi)
 {
@@ -5038,6 +5071,7 @@ bool full_mix_display_mirror_supported(FullMixDisplayRow row, const FullMixDebug
 		       high_octave_alias_electronic_keyboard_hint ||
 		       clean_sustained_keyboard_hint ||
 		       clean_vocal_owned_keyboard_hint ||
+		       vocal_owned_partial_electronic_keyboard_body_supported(debug) ||
 		       pure_high_electronic_keyboard_hint ||
 		       low_octave_organ_keyboard_hint ||
 		       measured_low_organ_keyboard_alias ||
@@ -9561,6 +9595,8 @@ void suppress_vocal_owned_same_pitch_non_vocal_shadows(NoteGrid &grid, Instrumen
 		const FullMixDebugCandidate *debug = full_mix_debug_for_midi(ownership, midi);
 		if (!debug || debug->owner != InstrumentKind::Vocal ||
 		    debug->ownership_confidence < kMinVocalConfidence)
+			continue;
+		if (row == InstrumentKind::Keyboard && vocal_owned_partial_electronic_keyboard_body_supported(*debug))
 			continue;
 		if (row == InstrumentKind::Guitar && vocal_owned_low_acoustic_guitar_body_supported(*debug))
 			continue;
