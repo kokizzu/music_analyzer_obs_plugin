@@ -95,6 +95,23 @@ void check_crowded_guitar_prune_modes(Runner &runner)
 	runner.expect(!chord_label_has_exact_component(mixed.label, "Cmaj7"),
 		      std::string("mixed crowded guitar prune: expected extension alias pruned, got `") +
 			      mixed.label + "`");
+
+	InstrumentState displayed = {};
+	std::snprintf(displayed.label, sizeof(displayed.label),
+		      "C=Cmaj7=C7=C6=C13=Csus4=Gsus4=Em");
+	NoteGrid display_grid = {};
+	set_pitch(display_grid, 0, 0.92f);
+	set_pitch(display_grid, 4, 0.81f);
+	set_pitch(display_grid, 7, 0.76f);
+	set_pitch(display_grid, 10, 0.70f);
+	NoteGrid analysis_grid = display_grid;
+	prune_crowded_guitar_display_label(displayed, display_grid, analysis_grid);
+	runner.expect(std::strcmp(displayed.label, "C=C7=Em") == 0,
+		      std::string("display crowded guitar prune: expected supported common aliases only, got `") +
+			      displayed.label + "`");
+	runner.expect(!chord_label_has_exact_component(displayed.label, "C13"),
+		      std::string("display crowded guitar prune: expected unknown suffix pruned, got `") +
+			      displayed.label + "`");
 }
 
 void check_displayed_same_root_plain_guitar_primary(Runner &runner)
