@@ -506,6 +506,11 @@ def main() -> int:
         assert target in analysis_script_target_list, (
             f"analysis script parallel target list must include {target}"
         )
+    assert re.search(
+        r"^ANALYSIS_SCRIPT_TEST_TARGETS \+= test-detector-route-report-summary$",
+        makefile,
+        re.MULTILINE,
+    ), "analysis script parallel target list must include the detector route summary test"
     analysis_scripts_recipe = target_recipe(makefile, "test-analysis-scripts-parallel")
     assert "$(RUN_WITH_DURATION) test_analysis_scripts_parallel" in analysis_scripts_recipe, (
         "analysis script parallel target must report aggregate duration"
@@ -539,6 +544,9 @@ def main() -> int:
     assert route_scan_targets is not None, "missing detector improvement route-scan target list"
     assert "DETECTOR_IMPROVEMENT_ROUTE_REPORT ?= $(BUILD_DIR)/detector_improvement_route_scan.txt" in makefile, (
         "detector improvement route scan must have a stable file-backed report path"
+    )
+    assert "DETECTOR_IMPROVEMENT_ROUTE_SUMMARY ?= $(BUILD_DIR)/detector_improvement_route_summary.txt" in makefile, (
+        "detector improvement route summary must have a stable file-backed report path"
     )
     for variable in [
         "MEASURE_INSTRUMENT_PATTERN_ARGS",
@@ -619,6 +627,29 @@ def main() -> int:
     route_report_alias = target_recipe(makefile, "detector-improvement-route-report")
     assert "$(DETECTOR_IMPROVEMENT_ROUTE_REPORT)" in route_report_alias, (
         "detector improvement route report helper must depend on the file-backed report"
+    )
+    route_summary_recipe = target_recipe(makefile, "$(DETECTOR_IMPROVEMENT_ROUTE_SUMMARY)")
+    assert re.search(
+        r"^\$\(DETECTOR_IMPROVEMENT_ROUTE_SUMMARY\): \$\(DETECTOR_IMPROVEMENT_ROUTE_REPORT\) "
+        r"scripts/summarize_detector_route_report\.py \| \$\(BUILD_DIR\)",
+        makefile,
+        re.MULTILINE,
+    ), "detector improvement route summary must derive from the saved route report"
+    assert 'tmp="$@.$$$$.tmp"' in route_summary_recipe, (
+        "detector improvement route summary must write through a per-process temp file"
+    )
+    assert 'scripts/summarize_detector_route_report.py "$(DETECTOR_IMPROVEMENT_ROUTE_REPORT)"' in route_summary_recipe, (
+        "detector improvement route summary must run the summary parser against the saved route report"
+    )
+    assert 'mv "$$tmp" "$@"' in route_summary_recipe, (
+        "detector improvement route summary must publish atomically"
+    )
+    assert 'cat "$@"' in route_summary_recipe, (
+        "detector improvement route summary helper must print the compact report"
+    )
+    route_summary_alias = target_recipe(makefile, "detector-improvement-route-summary")
+    assert "$(DETECTOR_IMPROVEMENT_ROUTE_SUMMARY)" in route_summary_alias, (
+        "detector improvement route summary helper must depend on the file-backed summary"
     )
     detector_improvement_full_recipe = target_recipe(makefile, "analyze-detector-improvements-full")
     assert "\n\t+$(RUN_WITH_DURATION) detector_improvements_full_parallel" in detector_improvement_full_recipe, (
