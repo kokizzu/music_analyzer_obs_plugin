@@ -272,6 +272,12 @@ def compact_counter(counter: collections.Counter[str], limit: int = 8) -> str:
     return " ".join(f"{key}={value}" for key, value in counter.most_common(limit))
 
 
+def fraction_text(count: int, total: int) -> str:
+    if total <= 0:
+        return f"{count}/{total} 0.0%"
+    return f"{count}/{total} {count * 100.0 / total:.1f}%"
+
+
 def expected_pitch_class(row: dict[str, str]) -> str:
     match = re.fullmatch(r"([A-G]#?)-?\d+", row.get("expected_note", ""))
     if match:
@@ -307,8 +313,7 @@ def note_row_cells(value: str) -> list[tuple[int, float]]:
     return cells
 
 
-def note_row_levels(row: dict[str, str], row_name: str, target_midi: int) -> tuple[float, float, int | None]:
-    field = ALL_ROW_NOTE_FIELDS.get(row_name)
+def note_field_levels(row: dict[str, str], field: str, target_midi: int) -> tuple[float, float, int | None]:
     if not field:
         return 0.0, 0.0, None
 
@@ -325,6 +330,10 @@ def note_row_levels(row: dict[str, str], row_name: str, target_midi: int) -> tup
             pitch_level = level
             pitch_delta = midi - target_midi
     return exact_level, pitch_level, pitch_delta
+
+
+def note_row_levels(row: dict[str, str], row_name: str, target_midi: int) -> tuple[float, float, int | None]:
+    return note_field_levels(row, ALL_ROW_NOTE_FIELDS.get(row_name, ""), target_midi)
 
 
 def expected_midi(row: dict[str, str]) -> int | None:
@@ -624,6 +633,128 @@ def append_extra_note_row_summary(
         for key, _count in extra_exact_by_source_row.most_common(sample_limit):
             examples = " | ".join(extra_exact_examples.get(key, [])[:sample_limit])
             lines.append(f"  {key} {examples}")
+
+
+def expected_row_coverage_for_fields(
+    context_rows: list[dict[str, str]],
+    note_fields: dict[str, str],
+    *,
+    lit_threshold: float = 0.25,
+) -> dict[str, object]:
+    sample_states: dict[str, dict[str, bool]] = collections.defaultdict(
+        lambda: {"exact": False, "pitch": False, "lit_exact": False, "lit_pitch": False}
+    )
+    family_sample_states: dict[str, dict[str, dict[str, bool]]] = collections.defaultdict(
+        lambda: collections.defaultdict(
+            lambda: {"exact": False, "pitch": False, "lit_exact": False, "lit_pitch": False}
+        )
+    )
+    family_samples: dict[str, set[str]] = collections.defaultdict(set)
+    exact_levels: list[float] = []
+    pitch_levels: list[float] = []
+    exact_buffers = 0
+    pitch_buffers = 0
+    lit_exact_buffers = 0
+    lit_pitch_buffers = 0
+    total_buffers = 0
+
+    for row in context_rows:
+        sample_id = row.get("sample_id", "")
+        family = row.get("family", "")
+        expected_row = ROW_FOR_FAMILY.get(family, "")
+        field = note_fields.get(expected_row, "")
+        midi = expected_midi(row)
+        if not sample_id or not family or not field or midi is None:
+            continue
+
+        total_buffers += 1
+        family_samples[family].add(sample_id)
+        exact_level, pitch_level, _pitch_delta = note_field_levels(row, field, midi)
+        exact_levels.append(exact_level)
+        pitch_levels.append(pitch_level)
+
+        exact = exact_level > 0.0
+        pitch = pitch_level > 0.0
+        lit_exact = exact_level >= lit_threshold
+        lit_pitch = pitch_level >= lit_threshold
+        if exact:
+            exact_buffers += 1
+        if pitch:
+            pitch_buffers += 1
+        if lit_exact:
+            lit_exact_buffers += 1
+        if lit_pitch:
+            lit_pitch_buffers += 1
+
+        state = sample_states[sample_id]
+        family_state = family_sample_states[family][sample_id]
+        for key, value in (
+            ("exact", exact),
+            ("pitch", pitch),
+            ("lit_exact", lit_exact),
+            ("lit_pitch", lit_pitch),
+        ):
+            state[key] = state[key] or value
+            family_state[key] = family_state[key] or value
+
+    def sample_hit_count(key: str) -> int:
+        return sum(1 for state in sample_states.values() if state[key])
+
+    return {
+        "buffers": total_buffers,
+        "samples": len(sample_states),
+        "exact_buffers": exact_buffers,
+        "pitch_buffers": pitch_buffers,
+        "lit_exact_buffers": lit_exact_buffers,
+        "lit_pitch_buffers": lit_pitch_buffers,
+        "exact_samples": sample_hit_count("exact"),
+        "pitch_samples": sample_hit_count("pitch"),
+        "lit_exact_samples": sample_hit_count("lit_exact"),
+        "lit_pitch_samples": sample_hit_count("lit_pitch"),
+        "exact_level_median": statistics.median(exact_levels) if exact_levels else 0.0,
+        "pitch_level_median": statistics.median(pitch_levels) if pitch_levels else 0.0,
+        "family_sample_states": family_sample_states,
+        "family_samples": family_samples,
+    }
+
+
+def append_expected_row_coverage(
+    lines: list[str], rows: list[dict[str, str]], sample_limit: int
+) -> None:
+    context_rows = unique_context_rows(rows)
+    for label, note_fields in (("expected-row", ROW_NOTE_FIELDS), ("visible expected-row", ROW_VISUAL_NOTE_FIELDS)):
+        if label.startswith("visible") and (
+            not context_rows or not all(field in context_rows[0] for field in ROW_VISUAL_NOTE_FIELDS.values())
+        ):
+            continue
+        coverage = expected_row_coverage_for_fields(context_rows, note_fields)
+        lines.append(
+            f"{label} coverage buffers "
+            f"exact={fraction_text(coverage['exact_buffers'], coverage['buffers'])} "
+            f"pitch={fraction_text(coverage['pitch_buffers'], coverage['buffers'])} "
+            f"lit_exact>=0.25={fraction_text(coverage['lit_exact_buffers'], coverage['buffers'])} "
+            f"lit_pitch>=0.25={fraction_text(coverage['lit_pitch_buffers'], coverage['buffers'])} "
+            f"samples exact={fraction_text(coverage['exact_samples'], coverage['samples'])} "
+            f"pitch={fraction_text(coverage['pitch_samples'], coverage['samples'])} "
+            f"lit_exact>=0.25={fraction_text(coverage['lit_exact_samples'], coverage['samples'])} "
+            f"lit_pitch>=0.25={fraction_text(coverage['lit_pitch_samples'], coverage['samples'])} "
+            f"median_exact_level={coverage['exact_level_median']:.3f} "
+            f"median_pitch_level={coverage['pitch_level_median']:.3f}"
+        )
+
+        family_samples = coverage["family_samples"]
+        family_sample_states = coverage["family_sample_states"]
+        if not family_samples:
+            continue
+        limit = max(8, sample_limit if sample_limit > 0 else 8)
+        parts = []
+        for family in sorted(family_samples):
+            total = len(family_samples[family])
+            states = family_sample_states[family]
+            exact = sum(1 for state in states.values() if state["exact"])
+            lit_exact = sum(1 for state in states.values() if state["lit_exact"])
+            parts.append(f"{family}=exact:{fraction_text(exact, total)},lit:{fraction_text(lit_exact, total)}")
+        lines.append(f"{label} sample coverage by family " + " ".join(parts[:limit]))
 
 
 def append_row_confusion_pitch_summary(
@@ -927,6 +1058,7 @@ def summarize(path: pathlib.Path, detail_limit: int = 0, sample_limit: int = 0) 
             )
 
     append_extra_note_row_summary(lines, rows, sample_limit)
+    append_expected_row_coverage(lines, rows, sample_limit)
     append_row_confusion_pitch_summary(lines, rows, sample_limit)
     append_detailed_breakdown(lines, rows, samples, detail_limit, sample_limit)
     return lines

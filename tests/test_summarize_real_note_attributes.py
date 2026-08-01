@@ -305,6 +305,24 @@ def main() -> int:
         "top visible extra pitch source/row piano/electronic->guitar=2 "
         "piano/electronic->other=1"
     ) in result.stdout
+    assert (
+        "expected-row coverage buffers exact=1/2 50.0% pitch=1/2 50.0% "
+        "lit_exact>=0.25=1/2 50.0% lit_pitch>=0.25=1/2 50.0% "
+        "samples exact=1/2 50.0% pitch=1/2 50.0% "
+        "lit_exact>=0.25=1/2 50.0% lit_pitch>=0.25=1/2 50.0% "
+        "median_exact_level=0.500 median_pitch_level=0.500"
+    ) in result.stdout
+    assert (
+        "expected-row sample coverage by family piano=exact:1/2 50.0%,lit:1/2 50.0%"
+        in result.stdout
+    )
+    assert (
+        "visible expected-row coverage buffers exact=1/2 50.0% pitch=1/2 50.0% "
+        "lit_exact>=0.25=1/2 50.0% lit_pitch>=0.25=1/2 50.0% "
+        "samples exact=1/2 50.0% pitch=1/2 50.0% "
+        "lit_exact>=0.25=1/2 50.0% lit_pitch>=0.25=1/2 50.0% "
+        "median_exact_level=0.500 median_pitch_level=0.500"
+    ) in result.stdout
     assert "strongest-row confusion note buckets rows=2 samples=2" in result.stdout
     assert "piano/electronic C4->guitar=1" in result.stdout
     assert "piano/electronic E2->guitar=1" in result.stdout
