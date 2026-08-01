@@ -351,6 +351,13 @@ def main() -> int:
         "exact=0/1 0.0% absent=1/1 100.0% "
         "weak_first_rows=guitar=1 weak_pitch_classes=E=1"
     ) in result.stdout
+    assert (
+        "weak_medians weak_exact_level=0.000 weak_pitch_level=0.000 "
+        "weak_pitch_abs_delta=-- rms=0.100 raw_expected_ratio=0.410 "
+        "raw_tuned_ratio=0.480 raw_tuned_abs_cent_offset=18.000 "
+        "raw_expected_rank=2.000"
+    ) in result.stdout
+    assert "states=absent=1" in result.stdout
     expected_states = (
         "lit_exact=1/2 50.0% dim_exact=0/2 0.0% "
         "lit_octave=0/2 0.0% dim_octave=0/2 0.0% absent=1/2 50.0%"
@@ -379,6 +386,10 @@ def main() -> int:
         "exact=0/1 0.0% absent=1/1 100.0% "
         "weak_first_rows=guitar=1 weak_pitch_classes=E=1"
     ) in result.stdout
+    assert (
+        "visible expected-row weak sample buckets\n  piano/electronic octave=2"
+        in result.stdout
+    )
     assert "strongest-row confusion note buckets rows=2 samples=2" in result.stdout
     assert "piano/electronic C4->guitar=1" in result.stdout
     assert "piano/electronic E2->guitar=1" in result.stdout

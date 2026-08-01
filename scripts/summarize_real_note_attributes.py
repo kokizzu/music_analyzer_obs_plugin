@@ -245,6 +245,23 @@ CONFUSION_PROFILE_FIELDS = [
 ]
 
 
+WEAK_BUCKET_PROFILE_FIELDS = [
+    "weak_exact_level",
+    "weak_pitch_level",
+    "weak_pitch_abs_delta",
+    "rms",
+    "raw_expected_ratio",
+    "raw_tuned_ratio",
+    "raw_tuned_abs_cent_offset",
+    "raw_expected_rank",
+    "expected_row_score",
+    "first_row_score",
+    "visual_first_row_score",
+    "expected_visual_first_score_ratio",
+    "expected_visual_strongest_score_ratio",
+]
+
+
 def source_key(row: dict[str, str]) -> str:
     source = row.get("source") or row.get("nsynth_family") or "unknown"
     return f"{row.get('family', 'unknown')}/{source}"
@@ -929,6 +946,8 @@ def append_expected_row_weak_bucket_summary(
     weak_examples: dict[
         tuple[str, str], dict[str, tuple[tuple[int, float, float, str, str], str]]
     ] = collections.defaultdict(dict)
+    weak_profiles: dict[tuple[str, str], list[dict[str, str]]] = collections.defaultdict(list)
+    weak_buffer_states: dict[tuple[str, str], collections.Counter[str]] = collections.defaultdict(collections.Counter)
 
     weak_state_rank = {
         "absent": 0,
@@ -964,9 +983,17 @@ def append_expected_row_weak_bucket_summary(
             weak_first_rows[bucket][first_row] += 1
             weak_pitch_classes[bucket][expected_pitch_class(row)] += 1
             row_state = expected_row_state(exact_level, pitch_level, 0.25)
+            weak_buffer_states[bucket][row_state] += 1
             pitch_delta_text = "none" if _pitch_delta is None else delta_label(_pitch_delta)
             strongest = row.get("buffer_strongest_row", "") or "none"
             visual = row.get("buffer_visual_strongest_row", "") or "none"
+            profile = dict(row)
+            profile["weak_exact_level"] = format_float(exact_level)
+            profile["weak_pitch_level"] = format_float(pitch_level)
+            profile["weak_pitch_abs_delta"] = (
+                "" if _pitch_delta is None else str(abs(_pitch_delta))
+            )
+            weak_profiles[bucket].append(profile)
             score = (
                 weak_state_rank[row_state],
                 exact_level,
@@ -1035,6 +1062,13 @@ def append_expected_row_weak_bucket_summary(
             f"weak_first_rows={compact_counter(weak_first_rows[bucket], 5)} "
             f"weak_pitch_classes={compact_counter(weak_pitch_classes[bucket], 5)}"
         )
+        if weak_profiles.get(bucket):
+            lines.append(
+                "    weak_medians "
+                + median_parts(weak_profiles[bucket], WEAK_BUCKET_PROFILE_FIELDS)
+                + " states="
+                + compact_counter(weak_buffer_states[bucket], 5)
+            )
         if sample_limit > 0 and weak_examples.get(bucket):
             example_limit = min(4, sample_limit)
             examples = [
