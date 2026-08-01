@@ -1299,6 +1299,9 @@ def main() -> int:
     assert "test-real-note-samples-full-mix-detector-parallel" in detector_regression_target_list, (
         "detector sample regression loop must use the isolated sharded real-note full-mix gate"
     )
+    assert "test-real-note-visual-strength" in detector_regression_target_list, (
+        "detector sample regression loop must guard visible real-note highlight strength"
+    )
     assert "test-real-note-samples-full-mix-parallel" not in detector_regression_target_list, (
         "detector sample regression loop must not race the public real-note full-mix shard outputs"
     )
@@ -1312,6 +1315,25 @@ def main() -> int:
         makefile,
         re.MULTILINE,
     ), "detector real-note full-mix wrapper must delegate to the same sharded gate"
+    visual_strength_recipe = target_recipe(makefile, "test-real-note-visual-strength")
+    assert "$(BUILD_DIR)/real_note_full_mix_attributes.tsv" in visual_strength_recipe.splitlines()[0], (
+        "real-note visual strength gate must reuse the sharded attribute TSV"
+    )
+    assert "$(RUN_WITH_DURATION) real_note_visual_strength" in visual_strength_recipe, (
+        "real-note visual strength gate must report duration"
+    )
+    assert "scripts/summarize_real_note_attributes.py" in visual_strength_recipe, (
+        "real-note visual strength gate must use the attribute summarizer validation path"
+    )
+    assert "$(REAL_NOTE_FULL_MIX_VISUAL_STRENGTH_ARGS)" in visual_strength_recipe, (
+        "real-note visual strength gate must use the configured visible-lit thresholds"
+    )
+    assert "--min-visible-lit-exact-sample-percent" in makefile, (
+        "real-note visible strength thresholds must check overall bright exact-note coverage"
+    )
+    assert "--min-visible-lit-exact-family-sample-percent" in makefile, (
+        "real-note visible strength thresholds must check per-family bright exact-note coverage"
+    )
     assert "test-vocadito-samples-full-mix-parallel" in detector_regression_target_list, (
         "detector sample regression loop must include real vocal full-mix ownership coverage"
     )

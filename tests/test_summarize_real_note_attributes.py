@@ -275,6 +275,35 @@ def main() -> int:
             stderr=subprocess.PIPE,
             check=True,
         )
+        visual_check_result = subprocess.run(
+            [
+                sys.executable,
+                str(ROOT / "scripts" / "summarize_real_note_attributes.py"),
+                str(path),
+                "--check-only",
+                "--min-visible-lit-exact-sample-percent",
+                "50",
+                "--min-visible-lit-exact-family-sample-percent",
+                "piano=50",
+            ],
+            text=True,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            check=True,
+        )
+        failing_visual_check = subprocess.run(
+            [
+                sys.executable,
+                str(ROOT / "scripts" / "summarize_real_note_attributes.py"),
+                str(path),
+                "--check-only",
+                "--min-visible-lit-exact-sample-percent",
+                "51",
+            ],
+            text=True,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+        )
 
     assert "samples 2" in result.stdout
     assert "hit=1" in result.stdout
@@ -390,6 +419,12 @@ def main() -> int:
     assert "ownership_miss:piano/electronic note=E2->guitar samples=1" in detailed_result.stdout
     assert "non-hit sample attributes" in detailed_result.stdout
     assert "keyboard_2 status=ownership_miss source=piano/electronic expected=E2/40" in detailed_result.stdout
+    assert "visual strength checks passed" in visual_check_result.stdout
+    assert failing_visual_check.returncode == 1
+    assert (
+        "visible expected-row lit_exact samples 1/2 50.0% below 51.0%"
+        in failing_visual_check.stderr
+    )
     print("test_summarize_real_note_attributes: ok")
     return 0
 

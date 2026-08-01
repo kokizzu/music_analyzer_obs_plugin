@@ -9,6 +9,7 @@ import csv
 import pathlib
 import re
 import statistics
+import sys
 
 NOTE_BASE = {
     "C": 0,
@@ -276,6 +277,26 @@ def fraction_text(count: int, total: int) -> str:
     if total <= 0:
         return f"{count}/{total} 0.0%"
     return f"{count}/{total} {count * 100.0 / total:.1f}%"
+
+
+def percent_value(count: int, total: int) -> float:
+    return count * 100.0 / total if total > 0 else 0.0
+
+
+def parse_percent_spec(spec: str) -> tuple[str, float]:
+    if "=" not in spec:
+        raise argparse.ArgumentTypeError(f"invalid threshold `{spec}`; expected family=percent")
+    family, percent_text_value = spec.split("=", 1)
+    family = family.strip()
+    if family not in ROW_FOR_FAMILY:
+        raise argparse.ArgumentTypeError(f"invalid family `{family}` in threshold `{spec}`")
+    try:
+        value = float(percent_text_value)
+    except ValueError as exc:
+        raise argparse.ArgumentTypeError(f"invalid percent `{percent_text_value}`") from exc
+    if value < 0.0 or value > 100.0:
+        raise argparse.ArgumentTypeError(f"percent out of range in threshold `{spec}`")
+    return family, value
 
 
 EXPECTED_ROW_STATES = ("lit_exact", "dim_exact", "lit_octave", "dim_octave", "absent")
@@ -830,6 +851,56 @@ def append_expected_row_coverage(
         )
 
 
+def validate_visible_lit_exact_samples(
+    rows: list[dict[str, str]],
+    *,
+    min_sample_percent: float | None,
+    min_family_sample_percent: list[tuple[str, float]],
+) -> list[str]:
+    if min_sample_percent is None and not min_family_sample_percent:
+        return []
+
+    context_rows = unique_context_rows(rows)
+    if not context_rows:
+        return ["visible expected-row lit_exact validation has no rows"]
+    missing_fields = [
+        field for field in ROW_VISUAL_NOTE_FIELDS.values() if field not in context_rows[0]
+    ]
+    if missing_fields:
+        return [
+            "visible expected-row lit_exact validation missing fields "
+            + ",".join(sorted(missing_fields))
+        ]
+
+    coverage = expected_row_coverage_for_fields(context_rows, ROW_VISUAL_NOTE_FIELDS)
+    failures: list[str] = []
+    total_samples = int(coverage["samples"])
+    lit_samples = int(coverage["lit_exact_samples"])
+    if min_sample_percent is not None:
+        actual = percent_value(lit_samples, total_samples)
+        if actual + 1e-9 < min_sample_percent:
+            failures.append(
+                "visible expected-row lit_exact samples "
+                f"{fraction_text(lit_samples, total_samples)} below {min_sample_percent:.1f}%"
+            )
+
+    family_samples = coverage["family_samples"]
+    family_sample_states = coverage["family_sample_states"]
+    for family, threshold in min_family_sample_percent:
+        total = len(family_samples.get(family, set()))
+        states = family_sample_states.get(family, {})
+        lit = sum(1 for state in states.values() if state["lit_exact"])
+        actual = percent_value(lit, total)
+        if total <= 0:
+            failures.append(f"visible expected-row lit_exact {family} has no samples")
+        elif actual + 1e-9 < threshold:
+            failures.append(
+                f"visible expected-row lit_exact {family} samples "
+                f"{fraction_text(lit, total)} below {threshold:.1f}%"
+            )
+    return failures
+
+
 def append_expected_row_weak_bucket_summary(
     lines: list[str],
     label: str,
@@ -1297,14 +1368,50 @@ def main() -> int:
         default=0,
         help="print this many individual non-hit sample attribute summaries",
     )
+    parser.add_argument(
+        "--min-visible-lit-exact-sample-percent",
+        type=float,
+        default=None,
+        help="fail when visible expected-row exact-note sample coverage is below this percent",
+    )
+    parser.add_argument(
+        "--min-visible-lit-exact-family-sample-percent",
+        action="append",
+        type=parse_percent_spec,
+        default=[],
+        metavar="FAMILY=PERCENT",
+        help="fail when a family's visible expected-row exact-note sample coverage is below this percent",
+    )
+    parser.add_argument(
+        "--check-only",
+        action="store_true",
+        help="only run validation checks instead of printing the full summary",
+    )
     args = parser.parse_args()
 
-    for line in summarize(
-        pathlib.Path(args.path),
-        detail_limit=max(0, args.detail_limit),
-        sample_limit=max(0, args.sample_limit),
-    ):
-        print(line)
+    path = pathlib.Path(args.path)
+    rows = load_rows(path)
+    failures = validate_visible_lit_exact_samples(
+        rows,
+        min_sample_percent=args.min_visible_lit_exact_sample_percent,
+        min_family_sample_percent=args.min_visible_lit_exact_family_sample_percent,
+    )
+
+    if not args.check_only:
+        for line in summarize(
+            path,
+            detail_limit=max(0, args.detail_limit),
+            sample_limit=max(0, args.sample_limit),
+        ):
+            print(line)
+
+    if failures:
+        for failure in failures:
+            print(f"summarize_real_note_attributes: {failure}", file=sys.stderr)
+        return 1
+
+    if args.check_only:
+        print("summarize_real_note_attributes: visual strength checks passed")
     return 0
 
 
