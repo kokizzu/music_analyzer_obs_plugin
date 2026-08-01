@@ -13174,6 +13174,96 @@ void prefer_probe_visible_low_keyboard_primary(NoteGrid &grid, InstrumentState &
 		write_note_grid_label(state, grid, preferred_root);
 }
 
+void prefer_raw_supported_mid_keyboard_lower_octave_primary(NoteGrid &grid, InstrumentState &state,
+							    const FullMixOwnership &ownership,
+							    const std::array<float, kNoteProbeCount> &powers,
+							    const std::array<float, kNoteProbeCount> &raw_powers,
+							    int preferred_root)
+{
+	static constexpr int kMidFundamentalMinMidi = 48;
+	static constexpr int kMidFundamentalMaxMidi = 59;
+	static constexpr int kHighAliasMinMidi = 71;
+	static constexpr float kMinLowerSupport = 0.45f;
+	static constexpr float kMinRelativeSupport = 0.42f;
+	bool changed = false;
+
+	for (int pitch_class = 0; pitch_class < 12; ++pitch_class) {
+		NoteCell primary = {};
+		for (const auto &row : grid.rows) {
+			const NoteCell &cell = row[pitch_class];
+			if (cell.active && cell.midi >= kFirstMidi && cell.midi <= kLastMidi) {
+				primary = cell;
+				break;
+			}
+		}
+		const NoteCell &display = grid.cells[pitch_class];
+		if (display.active && display.midi >= kFirstMidi && display.midi <= kLastMidi &&
+		    (!primary.active || display.level > primary.level))
+			primary = display;
+		if (!primary.active || primary.midi < kHighAliasMinMidi)
+			continue;
+
+		const float primary_debug_score =
+			std::max(0.0f, full_mix_debug_keyboard_note_score(ownership, primary.midi));
+		const FullMixDebugCandidate *primary_debug = full_mix_debug_for_midi(ownership, primary.midi);
+		if (primary_debug_score < 0.70f)
+			continue;
+		if (!primary_debug || primary_debug->owner != InstrumentKind::Keyboard ||
+		    primary_debug->harmonic_fit_error > 0.035f ||
+		    primary_debug->harmonic_ratios[1] > 0.12f ||
+		    primary_debug->local_noise_level > 0.18f)
+			continue;
+
+		int supported_midi = -1;
+		float supported_level = 0.0f;
+		for (int octave_delta : {36, 24, 12}) {
+			const int lower_midi = primary.midi - octave_delta;
+			if (lower_midi < kMidFundamentalMinMidi || lower_midi > kMidFundamentalMaxMidi ||
+			    midi_pitch_class(lower_midi) != pitch_class)
+				continue;
+
+			const float lower_probe = probe_level(powers, lower_midi);
+			const float lower_raw_probe = probe_level(raw_powers, lower_midi);
+			const float lower_raw = ownership_global_note_level(ownership, lower_midi);
+			const float lower_visible = note_grid_midi_level(grid, lower_midi);
+			const float lower_support =
+				std::max({lower_probe, lower_raw_probe, lower_raw, lower_visible});
+			const float primary_probe =
+				std::max(probe_level(powers, primary.midi),
+					 probe_level(raw_powers, primary.midi));
+			if (lower_support < kMinLowerSupport)
+				continue;
+			if (primary_probe > 1.0e-6f && lower_support < primary_probe * kMinRelativeSupport)
+				continue;
+
+			const float octave_probe =
+				std::max(probe_level(raw_powers, lower_midi + 12),
+					 probe_level(powers, lower_midi + 12));
+			const float second_octave_probe =
+				std::max(probe_level(raw_powers, lower_midi + 24),
+					 probe_level(powers, lower_midi + 24));
+			const bool octave_stack_supported =
+				octave_probe >= lower_support * 0.48f ||
+				second_octave_probe >= lower_support * 0.32f ||
+				primary.level >= 0.80f;
+			if (!octave_stack_supported)
+				continue;
+
+			if (supported_midi < 0 || lower_midi < supported_midi ||
+			    (lower_midi == supported_midi && lower_support > supported_level)) {
+				supported_midi = lower_midi;
+				supported_level = std::max({primary.level, lower_support, primary_debug_score});
+			}
+		}
+		if (supported_midi < 0)
+			continue;
+		changed = promote_note_grid_primary_midi(grid, supported_midi, supported_level) || changed;
+	}
+
+	if (changed)
+		write_note_grid_label(state, grid, preferred_root);
+}
+
 void promote_source_hinted_keyboard_bass_primary(NoteGrid &grid, InstrumentState &state,
 						 const NoteGrid &bass_grid, int preferred_root)
 {
@@ -24963,6 +25053,10 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 								 full_mix_ownership,
 								 note_powers,
 								 detection_note_powers, -1);
+		if (mixed_source)
+			prefer_raw_supported_mid_keyboard_lower_octave_primary(
+				snapshot.keyboard_notes, snapshot.keyboard, full_mix_ownership,
+				note_powers, detection_note_powers, -1);
 		if (mixed_source && full_mix_source_hint_mode == AnalysisInputMode::IsolatedKeyboard)
 			promote_source_hinted_keyboard_bass_primary(snapshot.keyboard_notes,
 								    snapshot.keyboard,
