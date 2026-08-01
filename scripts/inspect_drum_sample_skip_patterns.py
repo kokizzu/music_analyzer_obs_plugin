@@ -68,6 +68,10 @@ def main() -> int:
     parser.add_argument("--source", default="/media/kyz/sshflashtor/DrumSamples")
     parser.add_argument("--unrar", default="unrar")
     parser.add_argument("--source-filter", default="")
+    parser.add_argument("--skip-label-filter", default="",
+                        help="only report skipped rows whose archive/member label matches this regex")
+    parser.add_argument("--skip-reason", action="append", default=[],
+                        help="only report this skipped reason; may be passed multiple times")
     parser.add_argument("--top", type=int, default=12)
     parser.add_argument("--no-archives", action="store_true")
     args = parser.parse_args()
@@ -77,7 +81,11 @@ def main() -> int:
         print(f"inspect_drum_sample_skip_patterns: skipped; missing {source}")
         return 0
 
-    source_filter = re.compile(args.source_filter, re.I) if args.source_filter else None
+    try:
+        source_filter = re.compile(args.source_filter, re.I) if args.source_filter else None
+        skip_label_filter = re.compile(args.skip_label_filter, re.I) if args.skip_label_filter else None
+    except re.error as exc:
+        raise SystemExit(f"inspect_drum_sample_skip_patterns: invalid regex: {exc}") from exc
     unrar = shutil.which(args.unrar) if args.unrar else None
     audit = CollectingSkipAudit()
     candidates = prepare_drum_samples.all_candidates(
@@ -88,6 +96,14 @@ def main() -> int:
         audit=audit,
     )
     _ = candidates
+
+    skip_reasons = set(args.skip_reason)
+    if skip_label_filter or skip_reasons:
+        audit.rows = [
+            row for row in audit.rows
+            if (not skip_label_filter or skip_label_filter.search(row[2]))
+            and (not skip_reasons or row[1] in skip_reasons)
+        ]
 
     by_reason: dict[str, list[tuple[str, str, str]]] = collections.defaultdict(list)
     by_kind: collections.Counter[str] = collections.Counter()

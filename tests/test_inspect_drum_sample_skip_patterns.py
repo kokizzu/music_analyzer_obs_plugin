@@ -67,8 +67,69 @@ def test_reports_skip_reasons_and_tokens() -> None:
             raise AssertionError(output)
 
 
+def test_filters_skipped_rows_by_label_and_reason() -> None:
+    with tempfile.TemporaryDirectory() as temp:
+        source = Path(temp) / "source"
+        write_wav(source / "kit" / "Noise Burst.wav", frequency=900.0)
+        write_wav(source / "kit" / "Handclap.wav", frequency=850.0)
+
+        completed = subprocess.run(
+            [
+                sys.executable,
+                str(ROOT / "scripts" / "inspect_drum_sample_skip_patterns.py"),
+                "--source",
+                str(source),
+                "--no-archives",
+                "--top",
+                "4",
+                "--skip-label-filter",
+                "noise",
+                "--skip-reason",
+                "uncategorized",
+            ],
+            check=True,
+            text=True,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+        )
+        output = completed.stdout
+
+        if "skipped=1" not in output or "uncategorized=1" not in output:
+            raise AssertionError(output)
+        if "noise burst" not in output or "handclap" in output:
+            raise AssertionError(output)
+
+
+def test_reports_invalid_filter_regex() -> None:
+    with tempfile.TemporaryDirectory() as temp:
+        source = Path(temp) / "source"
+        write_wav(source / "kit" / "Noise Burst.wav", frequency=900.0)
+
+        completed = subprocess.run(
+            [
+                sys.executable,
+                str(ROOT / "scripts" / "inspect_drum_sample_skip_patterns.py"),
+                "--source",
+                str(source),
+                "--no-archives",
+                "--skip-label-filter",
+                "(",
+            ],
+            text=True,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+        )
+
+        if completed.returncode == 0:
+            raise AssertionError("invalid regex should fail")
+        if "invalid regex" not in completed.stderr:
+            raise AssertionError(completed.stderr)
+
+
 def main() -> int:
     test_reports_skip_reasons_and_tokens()
+    test_filters_skipped_rows_by_label_and_reason()
+    test_reports_invalid_filter_regex()
     print("test_inspect_drum_sample_skip_patterns: ok")
     return 0
 

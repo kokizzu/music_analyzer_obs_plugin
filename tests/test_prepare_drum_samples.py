@@ -299,6 +299,122 @@ def test_hihat_aliases_win_over_generic_cymbal_folder():
             raise AssertionError("expected generic CYMBAL_001.wav to be labeled crash")
 
 
+def test_measured_compact_drum_machine_aliases():
+    with tempfile.TemporaryDirectory() as temp:
+        base = Path(temp)
+        source = base / "source"
+        output = base / "out"
+
+        examples = {
+            "kick": (
+                "50 Drums Kits/33/JB_KIC_1.WAV",
+                "808/TR808BD.wav",
+                "909/TR909BD1.wav",
+                "SP1200/BDVinyl.wav",
+            ),
+            "snare": (
+                "Layered/Bright_SNR.wav",
+                "808/TR808SD1.wav",
+            ),
+            "hihat": (
+                "Akai Linndrum/Closed Hat.wav",
+                "Akai Linndrum/Open Hat.wav",
+                "Live Hats/Closed Cymbol [ Mai ].wav",
+                "Alesis/DM5Hat.wav",
+                "Roland/CHH28BD.wav",
+            ),
+            "crash": (
+                "Cymbals/606CYMB.wav",
+                "Cymbals/FX_CYM.wav",
+                "Cymbals/Chaina_CYMBL.wav",
+            ),
+        }
+        for category_index, paths in enumerate(examples.values()):
+            for path_index, relative in enumerate(paths):
+                write_wav(source / relative, frequency=90.0 + category_index * 160.0 + path_index * 12.0)
+
+        prepare_drum_samples.clean_output(output)
+        counts, manifest_path = prepare_drum_samples.copy_samples(source, output, 0, "first", unrar=None)
+        rows = rows_by_category(manifest_path)
+
+        for category, paths in examples.items():
+            sources = "\n".join(row[2] for row in rows.get(category, []))
+            if counts[category] != len(paths):
+                raise AssertionError(f"expected {len(paths)} {category} aliases, got {counts[category]}:\n{sources}")
+            for expected in paths:
+                if Path(expected).name not in sources:
+                    raise AssertionError(f"expected {expected} to be labeled {category}:\n{sources}")
+        if "CHH28BD.wav" not in "\n".join(row[2] for row in rows.get("hihat", [])):
+            raise AssertionError("compact closed-hihat aliases should win over embedded bd text")
+
+
+def test_spread_copy_reuses_zip_handles_for_selected_members():
+    with tempfile.TemporaryDirectory() as temp:
+        base = Path(temp)
+        source = base / "source"
+        output = base / "out"
+        archive_path = source / "kit.zip"
+        source.mkdir(parents=True)
+
+        members = []
+        for index in range(8):
+            member = f"kit/Kick {index:02d}.wav"
+            wav_path = base / f"kick-{index:02d}.wav"
+            write_wav(wav_path, frequency=80.0 + index)
+            members.append((member, wav_path))
+        with zipfile.ZipFile(archive_path, "w") as archive:
+            for member, wav_path in members:
+                archive.write(wav_path, member)
+
+        candidates = [
+            prepare_drum_samples.Candidate(
+                "kick",
+                "zip",
+                archive_path,
+                Path(member).name,
+                0.08,
+                f"{archive_path}!{member}",
+                member_name=member,
+            )
+            for member, _wav_path in members
+        ]
+
+        real_zip_file = prepare_drum_samples.zipfile.ZipFile
+        opened = 0
+
+        class CountingZipFile:
+            def __init__(self, *args, **kwargs):
+                nonlocal opened
+                opened += 1
+                self.handle = real_zip_file(*args, **kwargs)
+
+            def __enter__(self):
+                return self
+
+            def __exit__(self, exc_type, exc, traceback):
+                self.close()
+
+            def read(self, *args, **kwargs):
+                return self.handle.read(*args, **kwargs)
+
+            def close(self):
+                self.handle.close()
+
+        prepare_drum_samples.clean_output(output)
+        prepare_drum_samples.zipfile.ZipFile = CountingZipFile
+        try:
+            counts, manifest_path = prepare_drum_samples.copy_selected_samples(candidates, output, unrar=None)
+        finally:
+            prepare_drum_samples.zipfile.ZipFile = real_zip_file
+
+        if counts["kick"] != len(members):
+            raise AssertionError(f"expected all zip candidates copied, got {counts['kick']}")
+        if opened != 1:
+            raise AssertionError(f"expected one ZipFile open for selected members, got {opened}")
+        if len(rows_by_category(manifest_path).get("kick", [])) != len(members):
+            raise AssertionError("manifest should include all copied zip members")
+
+
 def test_tom_label_requires_real_tom_token():
     with tempfile.TemporaryDirectory() as temp:
         base = Path(temp)
@@ -596,6 +712,8 @@ def main():
     test_concurrent_manifest_writes_use_distinct_temporary_files()
     test_cli_reuses_complete_manifest_until_refresh()
     test_hihat_aliases_win_over_generic_cymbal_folder()
+    test_measured_compact_drum_machine_aliases()
+    test_spread_copy_reuses_zip_handles_for_selected_members()
     test_tom_label_requires_real_tom_token()
     test_side_stick_aliases_win_over_snare_folder()
     test_spread_selection_uses_later_buckets()
@@ -603,7 +721,7 @@ def main():
     test_cli_filter_rebuilds_mismatched_manifest()
     test_cli_unlimited_cache_rebuilds_when_source_or_filter_expands()
     test_cli_audit_reports_candidate_and_selected_counts_without_writing()
-    print("test_prepare_drum_samples: 14 checks passed")
+    print("test_prepare_drum_samples: 16 checks passed")
     return 0
 
 

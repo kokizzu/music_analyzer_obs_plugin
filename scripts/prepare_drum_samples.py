@@ -16,7 +16,7 @@ import zipfile
 
 
 CATEGORIES = ("kick", "snare", "hihat", "crash", "tom", "ride", "rim")
-CACHE_VERSION = 1
+CACHE_VERSION = 2
 SKIP_REASONS = (
     "excluded_loop",
     "unsupported_percussion",
@@ -69,6 +69,27 @@ class SkipAudit:
         return sum(self.counts.values())
 
 
+class ZipReadCache:
+    def __init__(self, limit=16):
+        self.limit = max(1, limit)
+        self.handles = OrderedDict()
+
+    def read(self, archive, member_name):
+        handle = self.handles.pop(archive, None)
+        if handle is None:
+            handle = zipfile.ZipFile(archive)
+        self.handles[archive] = handle
+        while len(self.handles) > self.limit:
+            _old_archive, old_handle = self.handles.popitem(last=False)
+            old_handle.close()
+        return handle.read(member_name)
+
+    def close(self):
+        for handle in self.handles.values():
+            handle.close()
+        self.handles.clear()
+
+
 def sanitize_name(text):
     cleaned = re.sub(r"[^A-Za-z0-9._-]+", "_", text).strip("._-")
     return cleaned[:80] or "sample"
@@ -78,28 +99,41 @@ def category_and_rejection_reason(path):
     text = str(path).replace("\\", "/").lower()
     name = Path(path).name.lower()
     stem = Path(path).stem.lower()
+    compact_stem = re.sub(r"[^a-z0-9]+", "", stem)
 
     if EXCLUDE_RE.search(text):
         return None, "excluded_loop"
     if re.search(r"rim\s*shot|rimshot|(^|[/ _-])rim([0-9 _.-]|$)|side[ _.-]*stick|sideststick", text):
         return "rim", ""
-    if re.search(r"kick|bass\s*drum|bassdrum|bassdm|(^|[/ _-])bd([0-9 _.-]|$)", text):
+    if (re.search(r"kick|(^|[/ _.-])kic([0-9 _.-]|$)|bass\s*drum|bassdrum|bassdm|(^|[/ _-])bd([0-9 _.-]|$)", text) or
+            compact_stem.startswith(("bd", "bdr")) or
+            re.search(r"^tr[0-9]{3,4}bd[0-9]*$", compact_stem)):
         return "kick", ""
     if "roland tr-909 drum samples" in text and stem.startswith("bt"):
         return "kick", ""
-    if re.search(r"snare|snaredm|(^|[/ _-])sd([0-9 _.-]|$)", text):
+    if (re.search(r"snare|snaredm|(^|[/ _-])sd([0-9 _.-]|$)", text) or
+            "snr" in compact_stem or
+            re.search(r"^tr[0-9]{3,4}sd[0-9]*$", compact_stem)):
         return "snare", ""
     if "roland tr-909 drum samples" in text and stem.startswith("st"):
         return "snare", ""
-    if (re.search(r"hihat|hi\s*hat|hat\s*(closed|open|middle|pedal|reverse)|closed\s*hh|open\s*hh|closedhh|openhh|(^|[/ _-])hh[co]?", text) or
+    if (re.search(
+            r"hihat|hi\s*hat|hat\s*(closed|open|middle|pedal|reverse)|"
+            r"(closed|open|middle|pedal|reverse|live)\s*hats?|"
+            r"(closed|open)\s*cym(?:bal|bol|b)|closed\s*hh|open\s*hh|closedhh|openhh|"
+            r"(^|[/ _.-])[co]hh[0-9a-z]*|(^|[/ _.-])hh[co]?",
+            text,
+        ) or
             re.search(r"^(?:[0-9]{2,3}|real|room)?(?:ch|oh)[0-9]?$", stem) or
-            re.search(r"^hh[co]d?[0-9a-f]?$", stem)):
+            re.search(r"^hh[co]d?[0-9a-f]?$", stem) or
+            compact_stem.endswith(("hat", "hats", "hatc", "hato"))):
         return "hihat", ""
     if "roland tr-909 drum samples" in text and (stem.startswith("hhc") or stem.startswith("hho")):
         return "hihat", ""
     if re.search(r"ride|ridecym", text):
         return "ride", ""
-    if re.search(r"crash|crsh|cymbal|cymball|(^|[/ _-])csh", text):
+    if (re.search(r"crash|crsh|cymbal|cymball|cymbol|(^|[/ _.-])cymb?l?([0-9 _.-]|$)|(^|[/ _-])csh", text) or
+            compact_stem.startswith(("cym", "cymb", "cymbl"))):
         return "crash", ""
     if UNSUPPORTED_PERCUSSION_NAME_RE.search(name) and not re.search(r"snare|snr|rim|side\s*stick|sidestick", name):
         return None, "unsupported_percussion"
@@ -310,12 +344,14 @@ def select_candidates(candidates, limit_per_category):
     return selected
 
 
-def candidate_data(candidate, unrar=None):
+def candidate_data(candidate, unrar=None, zip_cache=None):
     if candidate.data is not None:
         return candidate.data
     if candidate.kind == "plain":
         return None
     if candidate.kind == "zip":
+        if zip_cache is not None:
+            return zip_cache.read(candidate.path, candidate.member_name)
         with zipfile.ZipFile(candidate.path) as zf:
             return zf.read(candidate.member_name)
     if candidate.kind == "rar" and unrar:
@@ -329,14 +365,14 @@ def candidate_data(candidate, unrar=None):
     raise RuntimeError(f"unsupported candidate source: {candidate.source_label}")
 
 
-def copy_candidate(candidate, output, counts, manifest, unrar=None):
+def copy_candidate(candidate, output, counts, manifest, unrar=None, zip_cache=None):
     counts[candidate.category] += 1
     dest_name = f"{counts[candidate.category]:03d}_{sanitize_name(candidate.original_name)}"
     dest = output / candidate.category / dest_name
     if candidate.kind == "plain":
         shutil.copy2(candidate.path, dest)
     else:
-        dest.write_bytes(candidate_data(candidate, unrar=unrar))
+        dest.write_bytes(candidate_data(candidate, unrar=unrar, zip_cache=zip_cache))
         candidate.data = None
     manifest.append((candidate.category, str(dest.relative_to(output)), f"{candidate.duration:.6f}",
                      candidate.source_label))
@@ -490,9 +526,13 @@ def manifest_counts_if_complete(output, limit_per_category, source_filter=None, 
 def copy_selected_samples(candidates, output, unrar=None):
     counts = {category: 0 for category in CATEGORIES}
     manifest = []
+    zip_cache = ZipReadCache()
 
-    for candidate in candidates:
-        copy_candidate(candidate, output, counts, manifest, unrar=unrar)
+    try:
+        for candidate in candidates:
+            copy_candidate(candidate, output, counts, manifest, unrar=unrar, zip_cache=zip_cache)
+    finally:
+        zip_cache.close()
 
     return counts, write_manifest(output, manifest)
 
