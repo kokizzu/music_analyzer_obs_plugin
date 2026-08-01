@@ -1254,10 +1254,14 @@ profile-standalone: standalone scripts/profile_standalone.sh
 prepare-drum-samples: scripts/prepare_drum_samples.py | $(BUILD_DIR)
 	DRUM_SAMPLE_SOURCE_DIR="$(DRUM_SAMPLE_SOURCE_DIR)" DRUM_SAMPLE_BUILD_DIR="$(DRUM_SAMPLE_BUILD_DIR)" DRUM_SAMPLE_LIMIT="$(DRUM_SAMPLE_LIMIT)" DRUM_SAMPLE_SELECTION="$(DRUM_SAMPLE_SELECTION)" DRUM_SAMPLE_SOURCE_FILTER="$(DRUM_SAMPLE_SOURCE_FILTER)" $(PYTHON) scripts/prepare_drum_samples.py --source "$(DRUM_SAMPLE_SOURCE_DIR)" --output "$(DRUM_SAMPLE_BUILD_DIR)" --limit-per-category "$(DRUM_SAMPLE_LIMIT)" --selection "$(DRUM_SAMPLE_SELECTION)" --source-filter "$(DRUM_SAMPLE_SOURCE_FILTER)" --unrar "$(UNRAR)"
 
-.PHONY: inspect-drum-sample-coverage
+.PHONY: inspect-drum-sample-coverage inspect-drum-sample-skip-patterns
 inspect-drum-sample-coverage: scripts/prepare_drum_samples.py
 	+@if [ ! -d "$(DRUM_SAMPLE_SOURCE_DIR)" ]; then printf '%s\n' "drum sample coverage: skipped; missing $(DRUM_SAMPLE_SOURCE_DIR)"; exit 0; fi
 	DRUM_SAMPLE_SOURCE_DIR="$(DRUM_SAMPLE_SOURCE_DIR)" DRUM_SAMPLE_BUILD_DIR="$(DRUM_SAMPLE_FULL_BUILD_DIR)" DRUM_SAMPLE_LIMIT="$(DRUM_SAMPLE_FULL_LIMIT)" DRUM_SAMPLE_SELECTION="spread" DRUM_SAMPLE_SOURCE_FILTER="$(DRUM_SAMPLE_SOURCE_FILTER)" $(PYTHON) scripts/prepare_drum_samples.py --source "$(DRUM_SAMPLE_SOURCE_DIR)" --output "$(DRUM_SAMPLE_FULL_BUILD_DIR)" --limit-per-category "$(DRUM_SAMPLE_FULL_LIMIT)" --selection "spread" --source-filter "$(DRUM_SAMPLE_SOURCE_FILTER)" --unrar "$(UNRAR)" --audit
+
+inspect-drum-sample-skip-patterns: scripts/inspect_drum_sample_skip_patterns.py scripts/prepare_drum_samples.py
+	+@if [ ! -d "$(DRUM_SAMPLE_SOURCE_DIR)" ]; then printf '%s\n' "inspect_drum_sample_skip_patterns: skipped; missing $(DRUM_SAMPLE_SOURCE_DIR)"; exit 0; fi
+	$(PYTHON) scripts/inspect_drum_sample_skip_patterns.py --source "$(DRUM_SAMPLE_SOURCE_DIR)" --unrar "$(UNRAR)" --source-filter "$(DRUM_SAMPLE_SOURCE_FILTER)"
 
 test-drum-samples: $(BUILD_DIR)/analyzer_drum_samples prepare-drum-samples scripts/run_with_duration.sh
 	$(RUN_WITH_DURATION) analyzer_drum_samples env MUSIC_ANALYZER_DRUM_SAMPLES_REQUIRED=1 MUSIC_ANALYZER_DRUM_SAMPLE_MIN_PRECISION_PERCENT="$(DRUM_SAMPLE_MIN_PRECISION_PERCENT)" MUSIC_ANALYZER_DRUM_SAMPLE_MIN_KICK_RECALL_PERCENT="$(DRUM_SAMPLE_MIN_KICK_RECALL_PERCENT)" MUSIC_ANALYZER_DRUM_SAMPLE_MIN_SNARE_RECALL_PERCENT="$(DRUM_SAMPLE_MIN_SNARE_RECALL_PERCENT)" MUSIC_ANALYZER_DRUM_SAMPLE_MIN_HIHAT_RECALL_PERCENT="$(DRUM_SAMPLE_MIN_HIHAT_RECALL_PERCENT)" MUSIC_ANALYZER_DRUM_SAMPLE_MIN_CRASH_RECALL_PERCENT="$(DRUM_SAMPLE_MIN_CRASH_RECALL_PERCENT)" MUSIC_ANALYZER_DRUM_SAMPLE_MIN_TOM_RECALL_PERCENT="$(DRUM_SAMPLE_MIN_TOM_RECALL_PERCENT)" MUSIC_ANALYZER_DRUM_SAMPLE_MIN_RIDE_RECALL_PERCENT="$(DRUM_SAMPLE_MIN_RIDE_RECALL_PERCENT)" MUSIC_ANALYZER_DRUM_SAMPLE_MIN_RIM_RECALL_PERCENT="$(DRUM_SAMPLE_MIN_RIM_RECALL_PERCENT)" MUSIC_ANALYZER_DRUM_SAMPLE_MAX_KICK_FALSE_PERCENT="$(DRUM_SAMPLE_MAX_KICK_FALSE_PERCENT)" MUSIC_ANALYZER_DRUM_SAMPLE_MAX_TOM_FALSE_PERCENT="$(DRUM_SAMPLE_MAX_TOM_FALSE_PERCENT)" MUSIC_ANALYZER_DRUM_SAMPLE_MAX_RIM_FALSE_PERCENT=20 MUSIC_ANALYZER_DRUM_SAMPLES_DIR="$(DRUM_SAMPLE_BUILD_DIR)" $(BUILD_DIR)/analyzer_drum_samples
@@ -2734,6 +2738,7 @@ ANALYSIS_SCRIPT_TEST_TARGETS += test-compare-drum-gate-summaries
 ANALYSIS_SCRIPT_TEST_TARGETS += test-real-note-octave-display-aliases
 ANALYSIS_SCRIPT_TEST_TARGETS += test-real-note-vocal-display-fallback-eval
 ANALYSIS_SCRIPT_TEST_TARGETS += test-detector-route-report-summary
+ANALYSIS_SCRIPT_TEST_TARGETS += test-drum-sample-skip-patterns
 
 test-drum-sample-shard-check: tests/test_check_drum_sample_shards.py scripts/check_drum_sample_shards.py
 	$(PYTHON) tests/test_check_drum_sample_shards.py
@@ -2889,6 +2894,9 @@ test-urmp-inspector: tests/test_inspect_urmp_dataset.py tests/inspect_urmp_datas
 
 test-drum-sample-prepare: tests/test_prepare_drum_samples.py scripts/prepare_drum_samples.py
 	$(PYTHON) tests/test_prepare_drum_samples.py
+
+test-drum-sample-skip-patterns: tests/test_inspect_drum_sample_skip_patterns.py scripts/inspect_drum_sample_skip_patterns.py scripts/prepare_drum_samples.py
+	$(PYTHON) tests/test_inspect_drum_sample_skip_patterns.py
 
 test-hf-drum-kit-prepare: tests/test_prepare_hf_drum_kit_samples.py scripts/prepare_hf_drum_kit_samples.py
 	$(PYTHON) tests/test_prepare_hf_drum_kit_samples.py
