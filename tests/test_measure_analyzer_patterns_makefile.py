@@ -292,6 +292,12 @@ def main() -> int:
     assert 'PATTERN_ARGS="$(MEASURE_DRUM_PATTERN_ARGS)"' not in protected_drum_recipe, (
         "protected drum primary report must not reuse the expensive generic drum pattern defaults"
     )
+    protected_drum_target_recipe = target_recipe(
+        makefile, "find-protected-drum-primary-attribute-patterns"
+    )
+    assert "$(or $(PATTERN_ARGS),$(MEASURE_PROTECTED_DRUM_PATTERN_ARGS))" in protected_drum_target_recipe, (
+        "direct protected drum primary mining must use bounded defaults when audit calls it without PATTERN_ARGS"
+    )
     protected_drum_args = re.search(
         r"^MEASURE_PROTECTED_DRUM_PATTERN_ARGS \?= (?P<value>.*)$",
         makefile,
@@ -337,6 +343,10 @@ def main() -> int:
     )
     assert "--min-near-protected-score 0.10" in active_false_args.group("value"), (
         "drum active false pattern defaults must reject fragile near-protected candidates"
+    )
+    active_false_target_recipe = target_recipe(makefile, "find-drum-active-false-patterns")
+    assert "$(or $(PATTERN_ARGS),$(MEASURE_DRUM_ACTIVE_FALSE_PATTERN_ARGS))" in active_false_target_recipe, (
+        "direct drum active-false mining must use bounded defaults when audit calls it without PATTERN_ARGS"
     )
     active_false_protected = re.search(
         r"^MEASURE_DRUM_ACTIVE_EXTRA_PROTECTED_ROWS \?= (?P<value>.*)$",
