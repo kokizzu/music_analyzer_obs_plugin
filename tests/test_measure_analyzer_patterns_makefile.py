@@ -552,7 +552,19 @@ def main() -> int:
         "default spread matrix target must use the parallel spread row builder"
     )
     spread_matrix_recipe = target_recipe(makefile, "analyze-drum-spread-gate-matrix-parallel")
+    spread_matrix_unlocked_recipe = target_recipe(
+        makefile, "analyze-drum-spread-gate-matrix-parallel-unlocked"
+    )
     spread_matrix_shard_recipe = target_recipe(makefile, "$(BUILD_DIR)/drum_spread_exact_attribute_rows_%.tsv")
+    assert "scripts/run_with_lock.sh \"$(DRUM_SPREAD_EXACT_ATTRIBUTE_LOCK_DIR)\"" in spread_matrix_recipe, (
+        "parallel spread matrix target must lock the whole generate/check/report sequence"
+    )
+    assert '"$(MAKE)" analyze-drum-spread-gate-matrix-parallel-unlocked' in spread_matrix_recipe, (
+        "parallel spread matrix target must run the checked implementation under the lock"
+    )
+    assert not re.search(r"\n\t.*scripts/check_drum_sample_shards\.py", spread_matrix_recipe), (
+        "spread matrix checker must not run outside the shared row lock"
+    )
     assert "$(MAKE) prepare-drum-samples-spread" in spread_manifest_recipe, (
         "spread sample manifest target must delegate to the spread prepare target"
     )
@@ -569,7 +581,7 @@ def main() -> int:
         var_name = f"$(DRUM_SAMPLE_SPREAD_MIN_{category}_PRIMARY_PERCENT)"
         assert env_name in spread_recipe, f"test-drum-samples-spread must enforce {env_name}"
         assert var_name in spread_recipe, f"test-drum-samples-spread must use {var_name}"
-        assert var_name in spread_matrix_recipe, (
+        assert var_name in spread_matrix_unlocked_recipe, (
             "parallel spread matrix checker must enforce the configured primary thresholds"
         )
 
@@ -1914,25 +1926,34 @@ def main() -> int:
         "default spread matrix target must use the parallel spread row builder"
     )
     spread_parallel_recipe = target_recipe(makefile, "analyze-drum-spread-gate-matrix-parallel")
+    spread_unlocked_recipe = target_recipe(
+        makefile, "analyze-drum-spread-gate-matrix-parallel-unlocked"
+    )
     assert "DRUM_SPREAD_EXACT_ATTRIBUTE_LOCK_DIR ?= $(BUILD_DIR)/drum_spread_exact_attribute_rows.lock" in makefile, (
         "spread drum exact attribute rows must have a stable lock path"
     )
-    assert "scripts/build_sharded_tsv.sh" in spread_parallel_recipe, (
+    assert '"$(MAKE)" analyze-drum-spread-gate-matrix-parallel-unlocked' in spread_parallel_recipe, (
+        "parallel spread matrix target must run the full implementation under the lock"
+    )
+    assert "scripts/build_sharded_tsv.sh" in spread_unlocked_recipe, (
         "parallel spread matrix target must concatenate sharded exact TSV rows"
     )
     assert "scripts/run_with_lock.sh \"$(DRUM_SPREAD_EXACT_ATTRIBUTE_LOCK_DIR)\"" in spread_parallel_recipe, (
         "parallel spread matrix target must lock shared exact TSV rows"
     )
-    assert "$(DRUM_SPREAD_EXACT_ATTRIBUTE_PARTS)" in spread_parallel_recipe, (
+    assert "$(DRUM_SPREAD_EXACT_ATTRIBUTE_PARTS)" in spread_unlocked_recipe, (
         "parallel spread matrix target must build the category exact row parts"
     )
-    assert "scripts/check_drum_sample_shards.py" in spread_parallel_recipe, (
+    assert "scripts/check_drum_sample_shards.py" in spread_unlocked_recipe, (
         "parallel spread matrix target must validate the same drum gate thresholds"
     )
-    assert "$(DRUM_SAMPLE_SPREAD_SHARD_OUTS)" in spread_parallel_recipe, (
+    assert not re.search(r"\n\t.*scripts/check_drum_sample_shards\.py", spread_parallel_recipe), (
+        "parallel spread matrix checker must stay inside the lock"
+    )
+    assert "$(DRUM_SAMPLE_SPREAD_SHARD_OUTS)" in spread_unlocked_recipe, (
         "parallel spread matrix target must validate category shard outputs"
     )
-    assert 'scripts/summarize_drum_gate_matrix.py "$(DRUM_SPREAD_EXACT_ATTRIBUTE_ROWS)"' in spread_parallel_recipe, (
+    assert 'scripts/summarize_drum_gate_matrix.py "$(DRUM_SPREAD_EXACT_ATTRIBUTE_ROWS)"' in spread_unlocked_recipe, (
         "parallel spread matrix target must summarize the concatenated TSV"
     )
     spread_shard_recipe = target_recipe(makefile, "$(BUILD_DIR)/drum_spread_exact_attribute_rows_%.tsv")
