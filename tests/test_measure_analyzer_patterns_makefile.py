@@ -696,6 +696,27 @@ def main() -> int:
         makefile,
         re.MULTILINE,
     ), "full detector improvement pattern helper must generate exhaustive pattern reports"
+    audit_targets = re.search(
+        r"^DETECTOR_IMPROVEMENT_AUDIT_TARGETS \?= (.+)$", makefile, re.MULTILINE
+    )
+    assert audit_targets is not None, "missing detector improvement audit target list"
+    audit_target_list = audit_targets.group(1)
+    for target in [
+        "detector-improvement-route-summary",
+        "find-protected-drum-primary-attribute-patterns",
+        "find-drum-full-exact-attribute-patterns-cached",
+        "find-drum-active-false-patterns-full",
+    ]:
+        assert target in audit_target_list, (
+            f"detector improvement audit must include {target}"
+        )
+    audit_recipe = target_recipe(makefile, "detector-improvement-audit")
+    assert "\n\t+$(RUN_WITH_DURATION) detector_improvement_audit_parallel" in audit_recipe, (
+        "detector improvement audit must report aggregate duration"
+    )
+    assert "$(MAKE) $(PARALLEL_TEST_MAKE_JOBS) $(DETECTOR_IMPROVEMENT_AUDIT_TARGETS)" in audit_recipe, (
+        "detector improvement audit must fan out route and drum scans through parallel make"
+    )
     default_test_recipe = target_recipe(makefile, "test")
     assert "$(RUN_WITH_DURATION) test_fast" in default_test_recipe, (
         "default test target must report the fast parallel aggregate duration"
