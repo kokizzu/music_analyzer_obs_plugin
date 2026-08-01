@@ -766,9 +766,10 @@ def main() -> int:
         "detector route scans must pass optional IDMT rows as candidate evidence"
     )
     assert (
-        "DETECTOR_REAL_NOTE_PATTERN_EXTRA_PROTECTED_PATHS ?= $(VOCADITO_FULL_MIX_ATTRIBUTE_TSV)"
+        "DETECTOR_REAL_NOTE_PATTERN_EXTRA_PROTECTED_PATHS ?= "
+        "$(DETECTOR_REAL_NOTE_PATTERN_OPTIONAL_PROTECTED_PATHS)"
     ) in makefile, (
-        "detector route scans must keep Vocadito as one-way protected vocal evidence"
+        "detector route scans must keep protected vocal evidence behind an optional path set"
     )
     route_scan_submake = (
         '$(MAKE) $(PARALLEL_TEST_MAKE_JOBS) '
@@ -2283,6 +2284,16 @@ def main() -> int:
             "idmt_guitar_attributes.shard-$*.out",
             "idmt_guitar_attributes.shard-$*.err",
         ),
+        "$(BUILD_DIR)/vocalset_attributes.shard-%.tsv": (
+            "$(VOCALSET_SAMPLE_DIR)/manifest.tsv",
+            "MUSIC_ANALYZER_REAL_NOTE_REQUIRED_SAMPLES=\"$(VOCALSET_MIN_VOCALS)\"",
+            "MUSIC_ANALYZER_REAL_NOTE_SAMPLE_ROOT=\"$(VOCALSET_SAMPLE_DIR)\"",
+            "MUSIC_ANALYZER_REAL_NOTE_ATTRIBUTE_TSV=\"$@\"",
+            "MUSIC_ANALYZER_REAL_NOTE_SHARD_COUNT=\"$(REAL_NOTE_SAMPLE_SHARDS)\"",
+            "MUSIC_ANALYZER_REAL_NOTE_SHARD_INDEX=\"$*\"",
+            "vocalset_attributes.shard-$*.out",
+            "vocalset_attributes.shard-$*.err",
+        ),
     }.items():
         idmt_attribute_shard_recipe = target_recipe(makefile, target)
         for text in required_parts:
@@ -2565,14 +2576,19 @@ def main() -> int:
         "IDMT_GUITAR_ATTRIBUTE_TSV ?= $(BUILD_DIR)/idmt_guitar_attributes.tsv",
         "IDMT_GUITAR_DETECTED_ATTRIBUTE_ROWS ?= $(BUILD_DIR)/idmt_guitar_detected_attribute_rows.tsv",
         "IDMT_GUITAR_MISS_ATTRIBUTE_ROWS ?= $(BUILD_DIR)/idmt_guitar_miss_attribute_rows.tsv",
+        "VOCALSET_ATTRIBUTE_TSV ?= $(BUILD_DIR)/vocalset_attributes.tsv",
+        "VOCALSET_DETECTED_ATTRIBUTE_ROWS ?= $(BUILD_DIR)/vocalset_detected_attribute_rows.tsv",
+        "VOCALSET_MISS_ATTRIBUTE_ROWS ?= $(BUILD_DIR)/vocalset_miss_attribute_rows.tsv",
         "REAL_NOTE_SAMPLE_ATTRIBUTE_EXTRA_DEPS :=",
         "REAL_NOTE_SAMPLE_ATTRIBUTE_EXTRA_ARGS :=",
         "REAL_NOTE_SAMPLE_ATTRIBUTE_EXTRA_DEPS += $(IDMT_BASS_LINES_DETECTED_ATTRIBUTE_ROWS)",
         "REAL_NOTE_SAMPLE_ATTRIBUTE_EXTRA_DEPS += $(IDMT_GUITAR_DETECTED_ATTRIBUTE_ROWS)",
+        "REAL_NOTE_SAMPLE_ATTRIBUTE_EXTRA_DEPS += $(VOCALSET_DETECTED_ATTRIBUTE_ROWS)",
         'REAL_NOTE_SAMPLE_ATTRIBUTE_EXTRA_ARGS += --extra-real-note "IDMT bass lines=$(IDMT_BASS_LINES_DETECTED_ATTRIBUTE_ROWS)"',
         'REAL_NOTE_SAMPLE_ATTRIBUTE_EXTRA_ARGS += --extra-real-note "IDMT guitar=$(IDMT_GUITAR_DETECTED_ATTRIBUTE_ROWS)"',
+        'REAL_NOTE_SAMPLE_ATTRIBUTE_EXTRA_ARGS += --extra-real-note "VocalSet=$(VOCALSET_DETECTED_ATTRIBUTE_ROWS)"',
     ]:
-        assert text in makefile, f"optional IDMT real-note attribute plumbing must include {text}"
+        assert text in makefile, f"optional real-note attribute plumbing must include {text}"
 
     refresh_recipe = target_recipe(makefile, "refresh-analyzer-detected-attribute-rows")
     assert "scripts/refresh_analyzer_detected_attribute_rows.py" in refresh_recipe, (
@@ -2901,6 +2917,12 @@ def main() -> int:
     assert 'REAL_NOTE_PATTERN_EXTRA_CANDIDATE_ARGS = $(foreach path,$(REAL_NOTE_PATTERN_EXTRA_CANDIDATE_PATHS),--extra-candidate-path "$(path)")' in makefile, (
         "real-note candidate TSV inputs must be converted into repeatable pattern-miner arguments"
     )
+    for text in [
+        "DETECTOR_REAL_NOTE_PATTERN_OPTIONAL_PROTECTED_PATHS := $(VOCADITO_FULL_MIX_ATTRIBUTE_TSV)",
+        "DETECTOR_REAL_NOTE_PATTERN_OPTIONAL_PROTECTED_PATHS += $(VOCALSET_DETECTED_ATTRIBUTE_ROWS)",
+        "DETECTOR_REAL_NOTE_PATTERN_EXTRA_PROTECTED_PATHS ?= $(DETECTOR_REAL_NOTE_PATTERN_OPTIONAL_PROTECTED_PATHS)",
+    ]:
+        assert text in makefile, f"detector route protected-set defaults must include {text}"
     for target in [
         "find-real-note-attribute-patterns",
         "find-real-note-row-confusion-patterns",
