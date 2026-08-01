@@ -855,6 +855,17 @@ def append_expected_row_weak_bucket_summary(
     weak_pitch_classes: dict[
         tuple[str, str], collections.Counter[str]
     ] = collections.defaultdict(collections.Counter)
+    weak_examples: dict[
+        tuple[str, str], dict[str, tuple[tuple[int, float, float, str, str], str]]
+    ] = collections.defaultdict(dict)
+
+    weak_state_rank = {
+        "absent": 0,
+        "dim_octave": 1,
+        "lit_octave": 2,
+        "dim_exact": 3,
+        "lit_exact": 4,
+    }
 
     for row in context_rows:
         sample_id = row.get("sample_id", "")
@@ -881,6 +892,27 @@ def append_expected_row_weak_bucket_summary(
             first_row = row.get("first_row", "") or row.get("buffer_strongest_row", "") or "none"
             weak_first_rows[bucket][first_row] += 1
             weak_pitch_classes[bucket][expected_pitch_class(row)] += 1
+            row_state = expected_row_state(exact_level, pitch_level, 0.25)
+            pitch_delta_text = "none" if _pitch_delta is None else delta_label(_pitch_delta)
+            strongest = row.get("buffer_strongest_row", "") or "none"
+            visual = row.get("buffer_visual_strongest_row", "") or "none"
+            score = (
+                weak_state_rank[row_state],
+                exact_level,
+                -pitch_level,
+                sample_id,
+                row.get("buffer", ""),
+            )
+            text = (
+                f"{sample_id}@{row.get('buffer', '')} "
+                f"expected={row.get('expected_note', '')}/{midi} "
+                f"state={row_state} exact={exact_level:.2f} "
+                f"pitch={pitch_level:.2f} delta={pitch_delta_text} "
+                f"first={first_row} strongest={strongest} visual={visual}"
+            )
+            current = weak_examples[bucket].get(sample_id)
+            if current is None or score < current[0]:
+                weak_examples[bucket][sample_id] = (score, text)
 
     records = []
     for bucket, states_by_sample in sample_states.items():
@@ -932,6 +964,15 @@ def append_expected_row_weak_bucket_summary(
             f"weak_first_rows={compact_counter(weak_first_rows[bucket], 5)} "
             f"weak_pitch_classes={compact_counter(weak_pitch_classes[bucket], 5)}"
         )
+        if sample_limit > 0 and weak_examples.get(bucket):
+            example_limit = min(4, sample_limit)
+            examples = [
+                text
+                for _score, text in sorted(weak_examples[bucket].values(), key=lambda item: item[0])[
+                    :example_limit
+                ]
+            ]
+            lines.append("    weak_examples " + " | ".join(examples))
 
 
 def append_row_confusion_pitch_summary(

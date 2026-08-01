@@ -376,6 +376,11 @@ def main() -> int:
         "piano/electronic->guitar keyboard_1@0 expected=C4/60 level=0.60"
         in detailed_result.stdout
     )
+    assert (
+        "weak_examples keyboard_2@0 expected=E2/40 state=absent exact=0.00 "
+        "pitch=0.00 delta=none first=guitar strongest=guitar visual=other"
+        in detailed_result.stdout
+    )
     assert "strongest-row confusion bucket samples" in detailed_result.stdout
     assert "piano/electronic C4->guitar rows=1 samples=1 keyboard_1" in detailed_result.stdout
     assert "strongest-row confusion bucket medians" in detailed_result.stdout
