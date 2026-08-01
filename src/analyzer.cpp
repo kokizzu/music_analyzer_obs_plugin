@@ -21176,6 +21176,17 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 		  tom_kick_trigger_ratio <= 0.743f) ||
 		 (snare_kick_shape_score_ratio <= 0.460f &&
 		  tom_kick_band_ratio >= 4.715f));
+	const bool one_shot_measured_low_synth_tom_kick_steal =
+		drum_detection_enabled && one_shot_drum_source &&
+		!generated_gm_drum_source &&
+		drum_level_[Kick] >= 0.90f &&
+		drum_level_[Tom] <= 0.30f &&
+		drum_level_[Snare] <= 0.30f &&
+		snapshot.low_energy >= 0.80f &&
+		snapshot.mid_energy <= 0.15f &&
+		snapshot.high_energy <= 0.03f &&
+		drum_bands[Tom] >= 835.0f &&
+		upper_tom_body >= snare_body * 0.802f;
 	const bool one_shot_measured_tom_kick_level_steal =
 		drum_detection_enabled && one_shot_drum_source &&
 		drum_level_[Kick] >= 0.90f &&
@@ -21243,6 +21254,10 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 		tom_kick_level_ratio >= 0.957f &&
 		tom_kick_level_ratio <= 0.968f;
 	if (one_shot_measured_tom_kick_band_steal) {
+		boost_drum_level(Tom, std::max(0.90f, drum_level_[Kick] + 0.02f));
+		cap_drum_level(Kick, std::max(0.31f, drum_level_[Tom] - 0.02f));
+	}
+	if (one_shot_measured_low_synth_tom_kick_steal) {
 		boost_drum_level(Tom, std::max(0.90f, drum_level_[Kick] + 0.02f));
 		cap_drum_level(Kick, std::max(0.31f, drum_level_[Tom] - 0.02f));
 	}
