@@ -13,7 +13,7 @@ import wave
 import zipfile
 
 
-FIXTURE_VERSION = "guitar-techs-v1"
+FIXTURE_VERSION = "guitar-techs-v2"
 DEFAULT_PERSPECTIVES = ("directinput", "micamp")
 GUITAR_MIDI_RANGE = (40, 88)
 
@@ -423,7 +423,7 @@ def write_manifest(path, rows, signature):
                 "\t".join([
                     row["id"],
                     "guitar",
-                    "guitar_techs",
+                    row.get("nsynth_family", "guitar_techs"),
                     row["source"],
                     str(row["midi"]),
                     row["note"],
@@ -504,7 +504,8 @@ def prepare_archives(args):
 
                 rows.append({
                     "id": row_id,
-                    "source": f"{archive_id(archive)}:{pair['perspective']}:{pair['token']}",
+                    "nsynth_family": f"guitar_techs:{pair['perspective']}",
+                    "source": "electronic",
                     "midi": note["midi"],
                     "note": label,
                     "path": str(rel_path),

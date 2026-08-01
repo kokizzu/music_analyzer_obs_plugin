@@ -759,6 +759,9 @@ def main() -> int:
     assert "DETECTOR_REAL_NOTE_PATTERN_OPTIONAL_CANDIDATE_PATHS += $(IDMT_GUITAR_DETECTED_ATTRIBUTE_ROWS)" in makefile, (
         "detector route scans should mine candidates from available IDMT guitar rows"
     )
+    assert "DETECTOR_REAL_NOTE_PATTERN_OPTIONAL_CANDIDATE_PATHS += $(GUITAR_TECHS_DETECTED_ATTRIBUTE_ROWS)" in makefile, (
+        "detector route scans should mine candidates from available GuitarTechs electric-guitar rows"
+    )
     assert (
         "DETECTOR_REAL_NOTE_PATTERN_EXTRA_CANDIDATE_PATHS ?= "
         "$(DETECTOR_REAL_NOTE_PATTERN_OPTIONAL_CANDIDATE_PATHS)"
@@ -2171,6 +2174,18 @@ def main() -> int:
             "--include-empty-debug",
             "--status miss",
         ),
+        "$(GUITAR_TECHS_DETECTED_ATTRIBUTE_ROWS)": (
+            "$(GUITAR_TECHS_ATTRIBUTE_TSV)",
+            "inspect_real_note_attribute_buckets.py",
+            "--dump-rows",
+            "--include-empty-debug",
+        ),
+        "$(GUITAR_TECHS_MISS_ATTRIBUTE_ROWS)": (
+            "$(GUITAR_TECHS_ATTRIBUTE_TSV)",
+            "inspect_real_note_attribute_buckets.py",
+            "--include-empty-debug",
+            "--status miss",
+        ),
         "$(GUITAR_CHORD_DETECTED_ATTRIBUTE_ROWS)": (
             "guitar_chord_mix_attributes.tsv",
             "inspect_guitarset_attribute_buckets.py",
@@ -2205,6 +2220,14 @@ def main() -> int:
             "$(IDMT_GUITAR_ATTRIBUTE_LOCK_DIR)",
             "$(IDMT_GUITAR_ATTRIBUTE_PARTS)",
         ),
+        "$(GUITAR_TECHS_ATTRIBUTE_TSV)": (
+            "$(BUILD_DIR)/analyzer_real_note_samples",
+            "$(GUITAR_TECHS_SAMPLE_DIR)/manifest.tsv",
+            "scripts/build_sharded_tsv.sh",
+            "scripts/run_with_lock.sh",
+            "$(GUITAR_TECHS_ATTRIBUTE_LOCK_DIR)",
+            "$(GUITAR_TECHS_ATTRIBUTE_PARTS)",
+        ),
         "$(BUILD_DIR)/guitar_chord_mix_attributes.tsv": (
             "$(BUILD_DIR)/analyzer_guitarset",
             "scripts/build_sharded_tsv.sh",
@@ -2223,6 +2246,9 @@ def main() -> int:
     )
     assert "IDMT_GUITAR_ATTRIBUTE_LOCK_DIR ?= $(BUILD_DIR)/idmt_guitar_attributes.lock" in makefile, (
         "IDMT guitar attribute TSV must have a stable lock path"
+    )
+    assert "GUITAR_TECHS_ATTRIBUTE_LOCK_DIR ?= $(BUILD_DIR)/guitar_techs_attributes.lock" in makefile, (
+        "GuitarTechs attribute TSV must have a stable lock path"
     )
 
     real_note_attribute_recipe = target_recipe(makefile, "$(BUILD_DIR)/real_note_full_mix_attributes.tsv")
@@ -2283,6 +2309,16 @@ def main() -> int:
             "MUSIC_ANALYZER_REAL_NOTE_SHARD_INDEX=\"$*\"",
             "idmt_guitar_attributes.shard-$*.out",
             "idmt_guitar_attributes.shard-$*.err",
+        ),
+        "$(BUILD_DIR)/guitar_techs_attributes.shard-%.tsv": (
+            "$(GUITAR_TECHS_SAMPLE_DIR)/manifest.tsv",
+            "MUSIC_ANALYZER_REAL_NOTE_REQUIRED_SAMPLES=\"$(GUITAR_TECHS_MIN_GUITAR)\"",
+            "MUSIC_ANALYZER_REAL_NOTE_SAMPLE_ROOT=\"$(GUITAR_TECHS_SAMPLE_DIR)\"",
+            "MUSIC_ANALYZER_REAL_NOTE_ATTRIBUTE_TSV=\"$@\"",
+            "MUSIC_ANALYZER_REAL_NOTE_SHARD_COUNT=\"$(REAL_NOTE_SAMPLE_SHARDS)\"",
+            "MUSIC_ANALYZER_REAL_NOTE_SHARD_INDEX=\"$*\"",
+            "guitar_techs_attributes.shard-$*.out",
+            "guitar_techs_attributes.shard-$*.err",
         ),
         "$(BUILD_DIR)/vocalset_attributes.shard-%.tsv": (
             "$(VOCALSET_SAMPLE_DIR)/manifest.tsv",
@@ -2419,6 +2455,7 @@ def main() -> int:
         "evaluate-real-note-display-shadow": "$(BUILD_DIR)/real_note_full_mix_attributes.tsv",
         "analyze-idmt-bass-lines-attributes": "$(IDMT_BASS_LINES_DETECTED_ATTRIBUTE_ROWS)",
         "analyze-idmt-guitar-attributes": "$(IDMT_GUITAR_DETECTED_ATTRIBUTE_ROWS)",
+        "analyze-guitar-techs-attributes": "$(GUITAR_TECHS_DETECTED_ATTRIBUTE_ROWS)",
         "analyze-guitar-chord-mix-recovery": "$(BUILD_DIR)/guitar_chord_mix_attributes.tsv",
         "analyze-guitar-chord-mix-extra-components": "$(BUILD_DIR)/guitar_chord_mix_attributes.tsv",
         "inspect-guitar-chord-mix-attribute-buckets": "$(BUILD_DIR)/guitar_chord_mix_attributes.tsv",
@@ -2576,6 +2613,9 @@ def main() -> int:
         "IDMT_GUITAR_ATTRIBUTE_TSV ?= $(BUILD_DIR)/idmt_guitar_attributes.tsv",
         "IDMT_GUITAR_DETECTED_ATTRIBUTE_ROWS ?= $(BUILD_DIR)/idmt_guitar_detected_attribute_rows.tsv",
         "IDMT_GUITAR_MISS_ATTRIBUTE_ROWS ?= $(BUILD_DIR)/idmt_guitar_miss_attribute_rows.tsv",
+        "GUITAR_TECHS_ATTRIBUTE_TSV ?= $(BUILD_DIR)/guitar_techs_attributes.tsv",
+        "GUITAR_TECHS_DETECTED_ATTRIBUTE_ROWS ?= $(BUILD_DIR)/guitar_techs_detected_attribute_rows.tsv",
+        "GUITAR_TECHS_MISS_ATTRIBUTE_ROWS ?= $(BUILD_DIR)/guitar_techs_miss_attribute_rows.tsv",
         "VOCALSET_ATTRIBUTE_TSV ?= $(BUILD_DIR)/vocalset_attributes.tsv",
         "VOCALSET_DETECTED_ATTRIBUTE_ROWS ?= $(BUILD_DIR)/vocalset_detected_attribute_rows.tsv",
         "VOCALSET_MISS_ATTRIBUTE_ROWS ?= $(BUILD_DIR)/vocalset_miss_attribute_rows.tsv",
@@ -2583,9 +2623,11 @@ def main() -> int:
         "REAL_NOTE_SAMPLE_ATTRIBUTE_EXTRA_ARGS :=",
         "REAL_NOTE_SAMPLE_ATTRIBUTE_EXTRA_DEPS += $(IDMT_BASS_LINES_DETECTED_ATTRIBUTE_ROWS)",
         "REAL_NOTE_SAMPLE_ATTRIBUTE_EXTRA_DEPS += $(IDMT_GUITAR_DETECTED_ATTRIBUTE_ROWS)",
+        "REAL_NOTE_SAMPLE_ATTRIBUTE_EXTRA_DEPS += $(GUITAR_TECHS_DETECTED_ATTRIBUTE_ROWS)",
         "REAL_NOTE_SAMPLE_ATTRIBUTE_EXTRA_DEPS += $(VOCALSET_DETECTED_ATTRIBUTE_ROWS)",
         'REAL_NOTE_SAMPLE_ATTRIBUTE_EXTRA_ARGS += --extra-real-note "IDMT bass lines=$(IDMT_BASS_LINES_DETECTED_ATTRIBUTE_ROWS)"',
         'REAL_NOTE_SAMPLE_ATTRIBUTE_EXTRA_ARGS += --extra-real-note "IDMT guitar=$(IDMT_GUITAR_DETECTED_ATTRIBUTE_ROWS)"',
+        'REAL_NOTE_SAMPLE_ATTRIBUTE_EXTRA_ARGS += --extra-real-note "GuitarTechs=$(GUITAR_TECHS_DETECTED_ATTRIBUTE_ROWS)"',
         'REAL_NOTE_SAMPLE_ATTRIBUTE_EXTRA_ARGS += --extra-real-note "VocalSet=$(VOCALSET_DETECTED_ATTRIBUTE_ROWS)"',
     ]:
         assert text in makefile, f"optional real-note attribute plumbing must include {text}"

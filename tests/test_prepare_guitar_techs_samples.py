@@ -173,16 +173,19 @@ def test_guitar_techs_zip_is_prepared_as_guitar_notes():
         if len(rows) != 4:
             raise AssertionError(f"expected 4 rows, got {len(rows)}")
         families = [row[1] for row in rows]
+        nsynth_families = [row[2] for row in rows]
         notes = [row[5] for row in rows]
         sources = [row[3] for row in rows]
         if families != ["guitar"] * 4:
             raise AssertionError(f"expected guitar family rows, got {families}")
         if notes != ["E2", "C4", "E2", "C4"]:
             raise AssertionError(f"expected E2/C4/E2/C4, got {notes}")
-        if not any(":directinput:" in source for source in sources):
-            raise AssertionError(f"missing directinput source: {sources}")
-        if not any(":micamp:" in source for source in sources):
-            raise AssertionError(f"missing micamp source: {sources}")
+        if sources != ["electronic"] * 4:
+            raise AssertionError(f"expected coarse electronic source rows, got {sources}")
+        if not any(family == "guitar_techs:directinput" for family in nsynth_families):
+            raise AssertionError(f"missing directinput detail: {nsynth_families}")
+        if not any(family == "guitar_techs:micamp" for family in nsynth_families):
+            raise AssertionError(f"missing micamp detail: {nsynth_families}")
         for row in rows:
             if not (output / row[6]).is_file():
                 raise AssertionError(f"missing prepared WAV {row[6]}")
