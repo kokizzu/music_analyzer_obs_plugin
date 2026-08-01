@@ -568,6 +568,7 @@ def main() -> int:
         "find-real-note-focused-visual-row-confusion-patterns",
         "find-real-note-ownership-patterns",
         "evaluate-real-note-display-shadow-all",
+        "evaluate-real-note-vocal-shadow-safety",
         "find-vocadito-full-mix-ownership-patterns",
         "find-vocadito-full-mix-broad-vocal-ownership-patterns",
         "find-vocadito-full-mix-visual-row-confusion-patterns",
@@ -2285,6 +2286,19 @@ def main() -> int:
     )
     assert '--jobs "$(DISPLAY_SHADOW_JOBS)"' in all_shadow_recipe, (
         "all-route display shadow mining should run compact route summaries in parallel"
+    )
+    vocal_shadow_recipe = target_recipe(makefile, "evaluate-real-note-vocal-shadow-safety")
+    assert "$(BUILD_DIR)/real_note_full_mix_attributes.tsv" in vocal_shadow_recipe, (
+        "vocal shadow safety scan should include NSynth full-mix attributes"
+    )
+    assert "$(VOCADITO_FULL_MIX_ATTRIBUTE_TSV)" in vocal_shadow_recipe, (
+        "vocal shadow safety scan should include Vocadito full-mix attributes"
+    )
+    assert "--shadow-row other --target-row vocals --compact-routes --threshold-search" in vocal_shadow_recipe, (
+        "vocal shadow safety scan should focus the risky other-to-vocal route"
+    )
+    assert "--max-protected 0 --threshold-limit 4" in vocal_shadow_recipe, (
+        "vocal shadow safety scan should report only zero-protected candidate thresholds"
     )
 
     row_confusion_recipe = target_recipe(makefile, "find-real-note-row-confusion-patterns")
