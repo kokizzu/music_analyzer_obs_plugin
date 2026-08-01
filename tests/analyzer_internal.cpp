@@ -1230,6 +1230,57 @@ void check_lower_other_pitch_class_keyboard_octave_shadow_is_attenuated(Runner &
 		      "lower other keyboard octave shadow: expected electronic keyboard alias to stay bright");
 }
 
+void check_ambiguous_electronic_keyboard_promotes_exact_lower_octave(Runner &runner)
+{
+	static constexpr int kLowerMidi = 48;
+	static constexpr int kAliasMidi = kLowerMidi + 12;
+
+	NoteGrid grid = {};
+	write_note_grid_cell(grid, NoteCandidate{kAliasMidi, 1.0f}, 1.0f, 1.0f);
+	write_note_grid_cell(grid, NoteCandidate{kLowerMidi, 0.25f}, 1.0f, 1.0f);
+	InstrumentState state = {};
+	write_note_grid_label(state, grid, -1);
+
+	FullMixOwnership ownership = {};
+	ownership.global_note_levels[static_cast<std::size_t>(kLowerMidi - kFirstMidi)] = 1.0f;
+	ownership.debug_candidate_count = 1;
+	FullMixDebugCandidate &debug = ownership.debug_candidates[0];
+	debug.midi = kLowerMidi;
+	debug.owner = InstrumentKind::Ambiguous;
+	debug.ownership_confidence = 0.55f;
+	debug.keyboard_score = 0.55f;
+	debug.guitar_score = 0.45f;
+	debug.spectral_level = 1.0f;
+	debug.pitch_confidence = 0.74f;
+	debug.periodicity = 0.77f;
+	debug.harmonic_fit_error = 0.29f;
+	debug.local_noise_level = 0.29f;
+	debug.harmonic_ratios[1] = 0.28f;
+	debug.harmonic_ratios[2] = 0.83f;
+	debug.harmonic_ratios[3] = 0.49f;
+	debug.harmonic_ratios[4] = 0.44f;
+
+	prefer_exact_debug_keyboard_lower_octave_primary(grid, state, ownership, -1);
+	const NoteCell primary = note_grid_primary_cell_for_pitch_class(grid, midi_pitch_class(kLowerMidi));
+	runner.expect(primary.active && primary.midi == kLowerMidi,
+		      "ambiguous electronic keyboard octave: expected measured lower octave primary");
+
+	NoteGrid guitar_dominant_grid = {};
+	write_note_grid_cell(guitar_dominant_grid, NoteCandidate{kAliasMidi, 1.0f}, 1.0f, 1.0f);
+	write_note_grid_cell(guitar_dominant_grid, NoteCandidate{kLowerMidi, 0.25f}, 1.0f, 1.0f);
+	InstrumentState guitar_dominant_state = {};
+	write_note_grid_label(guitar_dominant_state, guitar_dominant_grid, -1);
+	FullMixOwnership guitar_dominant = ownership;
+	guitar_dominant.debug_candidates[0].keyboard_score = 0.34f;
+	guitar_dominant.debug_candidates[0].guitar_score = 0.80f;
+	prefer_exact_debug_keyboard_lower_octave_primary(guitar_dominant_grid, guitar_dominant_state,
+							 guitar_dominant, -1);
+	const NoteCell guarded_primary =
+		note_grid_primary_cell_for_pitch_class(guitar_dominant_grid, midi_pitch_class(kLowerMidi));
+	runner.expect(guarded_primary.active && guarded_primary.midi == kAliasMidi,
+		      "ambiguous electronic keyboard octave: expected guitar-dominant alias to stay primary");
+}
+
 void check_lower_non_guitar_pitch_class_guitar_octave_shadow_uses_measured_levels(Runner &runner)
 {
 	static constexpr int kKeyboardMidi = 45;
@@ -1607,6 +1658,7 @@ int run()
 	check_other_owned_pitch_class_keyboard_shadow_is_attenuated(runner);
 	check_electronic_keyboard_other_shadow_is_attenuated(runner);
 	check_lower_other_pitch_class_keyboard_octave_shadow_is_attenuated(runner);
+	check_ambiguous_electronic_keyboard_promotes_exact_lower_octave(runner);
 	check_lower_non_guitar_pitch_class_guitar_octave_shadow_uses_measured_levels(runner);
 	check_non_guitar_owned_guitar_octave_alias_display_is_suppressed(runner);
 	check_other_dominant_same_pitch_guitar_display_is_pruned(runner);

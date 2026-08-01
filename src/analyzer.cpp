@@ -12097,14 +12097,33 @@ float full_mix_debug_keyboard_note_score(const FullMixOwnership &ownership, int 
 		const FullMixDebugCandidate &debug = ownership.debug_candidates[i];
 		if (debug.midi != midi)
 			continue;
-		if (debug.owner != InstrumentKind::Keyboard || debug.keyboard_score < 0.68f)
+		const bool owned_keyboard =
+			debug.owner == InstrumentKind::Keyboard &&
+			debug.keyboard_score >= 0.68f;
+		const bool ambiguous_electronic_keyboard =
+			debug.owner == InstrumentKind::Ambiguous &&
+			debug.keyboard_score >= 0.34f &&
+			debug.keyboard_score >= debug.guitar_score * 0.75f &&
+			debug.other_score <= 0.04f &&
+			debug.vocal_score <= 0.04f &&
+			debug.pitch_confidence >= 0.70f &&
+			debug.periodicity >= 0.70f &&
+			debug.harmonic_fit_error <= 0.35f &&
+			debug.local_noise_level <= 0.32f &&
+			debug.harmonic_ratios[2] >= 0.30f &&
+			debug.harmonic_ratios[3] >= 0.10f;
+		if (!owned_keyboard && !ambiguous_electronic_keyboard)
 			continue;
-		if (debug.ownership_confidence < 0.68f && debug.spectral_level < 0.28f)
+		if (owned_keyboard && debug.ownership_confidence < 0.68f && debug.spectral_level < 0.28f)
+			continue;
+		if (ambiguous_electronic_keyboard && debug.spectral_level < 0.70f)
 			continue;
 		const float raw_level = ownership_global_note_level(ownership, debug.midi);
 		if (raw_level < 0.08f && debug.spectral_level < 0.24f)
 			continue;
-		best = std::max(best, debug.ownership_confidence);
+		const float score = owned_keyboard ? debug.ownership_confidence :
+						     std::max(0.72f, debug.keyboard_score);
+		best = std::max(best, score);
 	}
 	return best;
 }
