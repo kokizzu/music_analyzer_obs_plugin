@@ -642,8 +642,16 @@ def main() -> int:
     assert "\n\t+$(RUN_WITH_DURATION) detector_improvement_routes_parallel" in route_scan_recipe, (
         "detector improvement route scan must preserve the make jobserver through the duration wrapper"
     )
-    assert "$(MAKE) $(PARALLEL_TEST_MAKE_JOBS) $(DETECTOR_IMPROVEMENT_ROUTE_SCAN_TARGETS)" in route_scan_recipe, (
-        "detector improvement route scan must fan out independent miners through jobserver-aware make"
+    assert "DETECTOR_REAL_NOTE_PATTERN_EXTRA_PROTECTED_PATHS ?= $(VOCADITO_FULL_MIX_ATTRIBUTE_TSV)" in makefile, (
+        "detector route scans must protect NSynth real-note rule candidates against Vocadito vocals"
+    )
+    route_scan_submake = (
+        '$(MAKE) $(PARALLEL_TEST_MAKE_JOBS) '
+        'REAL_NOTE_PATTERN_EXTRA_PROTECTED_PATHS="$(DETECTOR_REAL_NOTE_PATTERN_EXTRA_PROTECTED_PATHS)" '
+        "$(DETECTOR_IMPROVEMENT_ROUTE_SCAN_TARGETS)"
+    )
+    assert route_scan_submake in route_scan_recipe, (
+        "detector improvement route scan must fan out independent miners with protected vocal rows"
     )
     assert re.search(
         r"^detector-improvement-routes: analyze-detector-improvement-routes$",
@@ -664,6 +672,9 @@ def main() -> int:
     )
     assert "$(RUN_WITH_DURATION) detector_improvement_routes_parallel" in route_report_recipe, (
         "detector improvement route report must capture the timed route scan"
+    )
+    assert route_scan_submake in route_report_recipe, (
+        "detector improvement route report must capture the cross-protected route scan"
     )
     assert "> \"$$tmp\" 2>&1" in route_report_recipe, (
         "detector improvement route report must capture stdout and stderr into the report"
@@ -2631,6 +2642,29 @@ def main() -> int:
     assert "--include-row-context" not in focused_visual_row_confusion_recipe, (
         "focused row-context diagnostics should be controlled by the default args variable"
     )
+    assert "REAL_NOTE_PATTERN_EXTRA_PROTECTED_PATHS ?=" in makefile, (
+        "real-note pattern mining must keep optional protected TSV inputs default-empty for ad hoc reports"
+    )
+    assert 'REAL_NOTE_PATTERN_EXTRA_PROTECTED_ARGS = $(foreach path,$(REAL_NOTE_PATTERN_EXTRA_PROTECTED_PATHS),--extra-protected-path "$(path)")' in makefile, (
+        "real-note protected TSV inputs must be converted into repeatable pattern-miner arguments"
+    )
+    for target in [
+        "find-real-note-attribute-patterns",
+        "find-real-note-row-confusion-patterns",
+        "find-real-note-practical-row-confusion-patterns",
+        "find-real-note-focused-row-confusion-patterns",
+        "find-real-note-visual-row-confusion-patterns",
+        "find-real-note-focused-visual-row-confusion-patterns",
+        "find-real-note-ownership-patterns",
+        "find-real-note-octave-displacement-patterns",
+    ]:
+        real_note_pattern_recipe = target_recipe(makefile, target)
+        assert "$(REAL_NOTE_PATTERN_EXTRA_PROTECTED_PATHS)" in real_note_pattern_recipe.splitlines()[0], (
+            f"{target} must wait for optional protected TSV inputs"
+        )
+        assert "$(REAL_NOTE_PATTERN_EXTRA_PROTECTED_ARGS)" in real_note_pattern_recipe, (
+            f"{target} must pass optional protected TSV inputs to the pattern miner"
+        )
     for text in [
         "MEASURE_REAL_NOTE_FOCUSED_VISUAL_ROW_CONFUSION_PATTERN_ARGS ?= --top-buckets 8",
         "--protected-scope all",
