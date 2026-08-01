@@ -609,12 +609,16 @@ bool simplify_major_minor_chord_label(const char *label, char *dst, std::size_t 
 const NoteCell *strongest_note_cell(const NoteGrid &notes, float min_level)
 {
 	const NoteCell *best = nullptr;
+	float best_level = 0.0f;
 	for (const auto &row : notes.rows) {
 		for (const NoteCell &cell : row) {
-			if (!cell.active || !has_display_label(cell.label) || cell.level < min_level)
+			const float render_level = note_cell_render_level(cell);
+			if (!cell.active || !has_display_label(cell.label) || render_level < min_level)
 				continue;
-			if (!best || cell.level > best->level)
+			if (!best || render_level > best_level) {
 				best = &cell;
+				best_level = render_level;
+			}
 		}
 	}
 	return best;
@@ -635,7 +639,7 @@ StableCandidate stable_candidate_label(const NoteGrid &notes, const InstrumentSt
 	const NoteCell *note = strongest_note_cell(notes, 0.46f);
 	if (note && note->midi >= 0) {
 		copy_label(candidate.label, sizeof(candidate.label), pitch_class_name_from_midi(note->midi));
-		candidate.score = std::clamp(note->level, 0.0f, 1.0f);
+		candidate.score = std::clamp(note_cell_render_level(*note), 0.0f, 1.0f);
 	}
 	return candidate;
 }
