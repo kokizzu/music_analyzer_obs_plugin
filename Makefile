@@ -2507,7 +2507,14 @@ REAL_WORLD_SAMPLE_MAX_BASE_TARGETS := $(filter-out test-iowa-piano-samples,$(REA
 REAL_WORLD_SAMPLE_MAX_TARGETS := $(REAL_WORLD_SAMPLE_MAX_BASE_TARGETS) test-guitar-techs-samples test-guitar-techs-chord-samples test-guitar-chord-mix-samples-parallel test-egfxset-guitar-samples test-gaps-guitar-samples-full test-idmt-guitar-samples test-iowa-piano-samples-max test-iowa-strings-samples test-iowa-orchestra-samples test-iowa-orchestra-full-samples-max test-philharmonia-samples-full test-tinysol-samples test-good-sounds-samples-max test-medley-solos-samples-max test-maps-piano-samples-max test-maps-piano-note-samples-max test-bach10-mf0-synth-samples test-vocalset-samples test-drum-machine-samples-optional test-drum-samples-full-parallel-optional test-configured-real-world-samples
 DETECTOR_SAMPLE_REGRESSION_TARGETS := test-analyzer-cases test-real-note-samples-full-mix-detector-parallel test-guitar-chord-mix-samples-parallel $(DRUM_REAL_WORLD_SAMPLE_TARGETS) test-drum-machine-samples-optional test-idmt-bass-lines-samples-optional test-idmt-guitar-samples-optional test-iowa-strings-samples test-iowa-orchestra-samples test-tinysol-samples test-vocadito-samples test-vocadito-samples-full-mix-parallel test-vocalset-samples-optional test-instrument-samples-parallel test-drum-samples-full-parallel-optional
 DETECTOR_SAMPLE_FULL_REGRESSION_TARGETS := test-analyzer-cases test-instrument-samples-parallel test-real-world-samples-max-parallel
-DETECTOR_REAL_NOTE_PATTERN_EXTRA_PROTECTED_PATHS ?= $(VOCADITO_FULL_MIX_ATTRIBUTE_TSV)
+DETECTOR_REAL_NOTE_PATTERN_OPTIONAL_PROTECTED_PATHS :=
+ifneq ($(wildcard $(IDMT_BASS_LINES_ARCHIVE)),)
+DETECTOR_REAL_NOTE_PATTERN_OPTIONAL_PROTECTED_PATHS += $(IDMT_BASS_LINES_DETECTED_ATTRIBUTE_ROWS)
+endif
+ifneq ($(wildcard $(IDMT_GUITAR_ARCHIVE)),)
+DETECTOR_REAL_NOTE_PATTERN_OPTIONAL_PROTECTED_PATHS += $(IDMT_GUITAR_DETECTED_ATTRIBUTE_ROWS)
+endif
+DETECTOR_REAL_NOTE_PATTERN_EXTRA_PROTECTED_PATHS ?= $(VOCADITO_FULL_MIX_ATTRIBUTE_TSV) $(DETECTOR_REAL_NOTE_PATTERN_OPTIONAL_PROTECTED_PATHS)
 DETECTOR_IMPROVEMENT_ROUTE_SCAN_TARGETS := find-real-note-focused-row-confusion-patterns find-real-note-focused-visual-row-confusion-patterns find-real-note-ownership-patterns evaluate-real-note-display-shadow-all evaluate-real-note-vocal-shadow-safety evaluate-real-note-vocal-display-fallback find-vocadito-full-mix-ownership-patterns find-vocadito-full-mix-broad-vocal-ownership-patterns find-vocadito-full-mix-visual-row-confusion-patterns find-instrument-owner-patterns find-instrument-status-patterns find-drum-full-exact-attribute-patterns-cached
 TEST_FIXTURE_PARALLEL_TARGETS := test-real-note-samples test-direct-fit-small-fixture test-synthsod-fixture test-prepared-multitrack-fixture test-multtipop-audio-root-fixture
 .PHONY: test-detector-samples test-detector-samples-full test-detector-samples-parallel test-detector-samples-full-parallel

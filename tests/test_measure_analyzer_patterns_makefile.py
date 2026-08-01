@@ -719,8 +719,20 @@ def main() -> int:
     assert "\n\t+$(RUN_WITH_DURATION) detector_improvement_routes_parallel" in route_scan_recipe, (
         "detector improvement route scan must preserve the make jobserver through the duration wrapper"
     )
-    assert "DETECTOR_REAL_NOTE_PATTERN_EXTRA_PROTECTED_PATHS ?= $(VOCADITO_FULL_MIX_ATTRIBUTE_TSV)" in makefile, (
-        "detector route scans must protect NSynth real-note rule candidates against Vocadito vocals"
+    assert "DETECTOR_REAL_NOTE_PATTERN_OPTIONAL_PROTECTED_PATHS :=" in makefile, (
+        "detector route scans must define optional protected real-note rows"
+    )
+    assert "DETECTOR_REAL_NOTE_PATTERN_OPTIONAL_PROTECTED_PATHS += $(IDMT_BASS_LINES_DETECTED_ATTRIBUTE_ROWS)" in makefile, (
+        "detector route scans should protect candidates against available IDMT bass rows"
+    )
+    assert "DETECTOR_REAL_NOTE_PATTERN_OPTIONAL_PROTECTED_PATHS += $(IDMT_GUITAR_DETECTED_ATTRIBUTE_ROWS)" in makefile, (
+        "detector route scans should protect candidates against available IDMT guitar rows"
+    )
+    assert (
+        "DETECTOR_REAL_NOTE_PATTERN_EXTRA_PROTECTED_PATHS ?= "
+        "$(VOCADITO_FULL_MIX_ATTRIBUTE_TSV) $(DETECTOR_REAL_NOTE_PATTERN_OPTIONAL_PROTECTED_PATHS)"
+    ) in makefile, (
+        "detector route scans must protect NSynth real-note rule candidates against Vocadito and optional IDMT rows"
     )
     route_scan_submake = (
         '$(MAKE) $(PARALLEL_TEST_MAKE_JOBS) '
