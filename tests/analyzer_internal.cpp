@@ -1473,6 +1473,83 @@ void check_display_ownership_scale_keeps_confirmed_mid_confidence_visible(Runner
 		      "display ownership scale: expected strong ownership to render at full scale");
 }
 
+void check_low_wind_other_octave_alias_promotes_raw_fundamental(Runner &runner)
+{
+	static constexpr int kLowerMidi = 40;
+	static constexpr int kPrimaryMidi = kLowerMidi + 12;
+	FullMixOwnership ownership = {};
+	ownership.debug_candidate_count = 1;
+	FullMixDebugCandidate &debug = ownership.debug_candidates[0];
+	debug.midi = kPrimaryMidi;
+	debug.owner = InstrumentKind::Other;
+	debug.ownership_confidence = 0.86f;
+	debug.other_score = 0.86f;
+	debug.guitar_score = 0.14f;
+	debug.keyboard_score = 0.0f;
+	debug.vocal_score = 0.0f;
+	debug.spectral_level = 0.62f;
+	debug.pitch_confidence = 0.48f;
+	debug.periodicity = 0.75f;
+	debug.harmonic_fit_error = 0.24f;
+	debug.local_noise_level = 0.20f;
+
+	NoteGrid grid = {};
+	InstrumentState state = {};
+	set_midi(grid, kPrimaryMidi, 0.82f);
+	write_note_grid_label(state, grid, -1);
+
+	std::array<float, kNoteProbeCount> powers = {};
+	set_probe_level(powers, kLowerMidi, 0.46f);
+	set_probe_level(powers, kPrimaryMidi, 1.00f);
+	set_probe_level(powers, kLowerMidi + 19, 0.32f);
+	set_probe_level(powers, kLowerMidi + 24, 0.76f);
+	set_probe_level(powers, kLowerMidi + 31, 0.76f);
+	set_probe_level(powers, kLowerMidi + 36, 0.48f);
+
+	prefer_probe_supported_low_wind_other_primary(grid, state, ownership, powers, kOtherMinMidi, -1);
+	const NoteCell primary = note_grid_primary_cell_for_pitch_class(grid, midi_pitch_class(kLowerMidi));
+	runner.expect(primary.active && primary.midi == kLowerMidi,
+		      "low wind other alias: expected raw lower fundamental promoted over octave alias");
+	runner.expect(std::strstr(state.label, "E2") != nullptr,
+		      std::string("low wind other alias: expected E2 label, got `") + state.label + "`");
+}
+
+void check_low_wind_other_octave_alias_requires_upper_stack(Runner &runner)
+{
+	static constexpr int kLowerMidi = 40;
+	static constexpr int kPrimaryMidi = kLowerMidi + 12;
+	FullMixOwnership ownership = {};
+	ownership.debug_candidate_count = 1;
+	FullMixDebugCandidate &debug = ownership.debug_candidates[0];
+	debug.midi = kPrimaryMidi;
+	debug.owner = InstrumentKind::Other;
+	debug.ownership_confidence = 0.86f;
+	debug.other_score = 0.86f;
+	debug.spectral_level = 0.62f;
+	debug.pitch_confidence = 0.48f;
+	debug.periodicity = 0.75f;
+	debug.harmonic_fit_error = 0.24f;
+	debug.local_noise_level = 0.20f;
+
+	NoteGrid grid = {};
+	InstrumentState state = {};
+	set_midi(grid, kPrimaryMidi, 0.82f);
+	write_note_grid_label(state, grid, -1);
+
+	std::array<float, kNoteProbeCount> powers = {};
+	set_probe_level(powers, kLowerMidi, 0.46f);
+	set_probe_level(powers, kPrimaryMidi, 1.00f);
+	set_probe_level(powers, kLowerMidi + 19, 0.08f);
+	set_probe_level(powers, kLowerMidi + 24, 0.12f);
+	set_probe_level(powers, kLowerMidi + 31, 0.08f);
+	set_probe_level(powers, kLowerMidi + 36, 0.10f);
+
+	prefer_probe_supported_low_wind_other_primary(grid, state, ownership, powers, kOtherMinMidi, -1);
+	const NoteCell primary = note_grid_primary_cell_for_pitch_class(grid, midi_pitch_class(kLowerMidi));
+	runner.expect(primary.active && primary.midi == kPrimaryMidi,
+		      "low wind other alias guard: expected weak upper stack to keep original primary");
+}
+
 int run()
 {
 	Runner runner;
@@ -1499,6 +1576,8 @@ int run()
 	check_other_dominant_same_pitch_guitar_display_is_pruned(runner);
 	check_other_dominant_octave_alias_guitar_display_is_pruned(runner);
 	check_display_ownership_scale_keeps_confirmed_mid_confidence_visible(runner);
+	check_low_wind_other_octave_alias_promotes_raw_fundamental(runner);
+	check_low_wind_other_octave_alias_requires_upper_stack(runner);
 	if (runner.failures) {
 		std::fprintf(stderr, "analyzer_internal: %d/%d checks failed\n", runner.failures,
 			     runner.checks);

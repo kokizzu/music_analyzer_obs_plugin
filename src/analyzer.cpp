@@ -12591,6 +12591,114 @@ void prefer_probe_supported_lower_string_primary(NoteGrid &grid, InstrumentState
 		write_note_grid_label(state, grid, preferred_root);
 }
 
+bool low_wind_other_alias_debug_supported(const FullMixOwnership &ownership, int lower_midi, int primary_midi)
+{
+	const int pitch_class = midi_pitch_class(lower_midi);
+	const std::size_t debug_count =
+		std::min<std::size_t>(ownership.debug_candidate_count, ownership.debug_candidates.size());
+	for (std::size_t i = 0; i < debug_count; ++i) {
+		const FullMixDebugCandidate &debug = ownership.debug_candidates[i];
+		if (debug.midi < lower_midi + 12 || debug.midi > lower_midi + 36 ||
+		    debug.midi > std::max(primary_midi, lower_midi + 24) ||
+		    midi_pitch_class(debug.midi) != pitch_class)
+			continue;
+		if (!full_mix_display_mirror_supported(FullMixDisplayRow::Other, debug, debug.midi))
+			continue;
+		if (debug.owner == InstrumentKind::Keyboard && debug.keyboard_score >= 0.70f &&
+		    debug.other_score < 0.35f)
+			continue;
+		if (debug.periodicity < 0.45f && debug.pitch_confidence < 0.12f)
+			continue;
+		if (debug.local_noise_level > 0.82f || debug.harmonic_fit_error > 5.8f)
+			continue;
+		const float other_support = std::max(debug.other_score, debug.ownership_confidence);
+		const bool named_other_support =
+			debug.owner == InstrumentKind::Other && other_support >= 0.58f;
+		const bool ambiguous_wind_support =
+			debug.owner == InstrumentKind::Ambiguous &&
+			(debug.other_score >= 0.20f || debug.guitar_score >= 0.35f);
+		const bool guitar_reed_support =
+			debug.owner == InstrumentKind::Guitar &&
+			(debug.other_score >= 0.20f || guitar_owned_reed_other_display_supported(debug));
+		if (named_other_support || ambiguous_wind_support || guitar_reed_support)
+			return true;
+	}
+	return false;
+}
+
+void prefer_probe_supported_low_wind_other_primary(NoteGrid &grid, InstrumentState &state,
+						   const FullMixOwnership &ownership,
+						   const std::array<float, kNoteProbeCount> &powers,
+						   int min_midi, int preferred_root,
+						   const NoteGrid *bass_grid = nullptr)
+{
+	min_midi = std::max(min_midi, kFirstMidi);
+	bool changed = false;
+
+	for (int pitch_class = 0; pitch_class < 12; ++pitch_class) {
+		const NoteCell primary = note_grid_primary_cell_for_pitch_class(grid, pitch_class);
+		if (!primary.active)
+			continue;
+
+		const float primary_probe = probe_level(powers, primary.midi);
+		if (primary_probe <= 1.0e-6f)
+			continue;
+
+		int supported_midi = -1;
+		float supported_score = 0.0f;
+		for (int octave_delta : {12, 24}) {
+			const int lower_midi = primary.midi - octave_delta;
+			if (lower_midi < min_midi || lower_midi < 36 || lower_midi > 47 ||
+			    midi_pitch_class(lower_midi) != pitch_class)
+				continue;
+			if (bass_grid &&
+			    note_grid_midi_level(*bass_grid, lower_midi) >=
+				    std::max(0.34f, primary.level * 0.30f))
+				continue;
+
+			const float lower_probe = probe_level(powers, lower_midi);
+			if (lower_probe < primary_probe * 0.12f)
+				continue;
+
+			const float fifth = probe_level(powers, lower_midi + 19);
+			const float second_octave = probe_level(powers, lower_midi + 24);
+			const float upper_major_third = probe_level(powers, lower_midi + 28);
+			const float upper_fifth = probe_level(powers, lower_midi + 31);
+			const float third_octave = probe_level(powers, lower_midi + 36);
+			const bool third_octave_shadow =
+				third_octave >= lower_probe * 0.95f &&
+				second_octave >= lower_probe * 0.32f;
+			const bool dense_upper_wind_stack =
+				second_octave >= lower_probe * 0.70f &&
+				upper_fifth >= lower_probe * 0.70f &&
+				fifth >= lower_probe * 0.32f &&
+				upper_major_third <= std::max(lower_probe * 1.10f, second_octave * 0.90f);
+			if (!third_octave_shadow && !dense_upper_wind_stack)
+				continue;
+			if (!low_wind_other_alias_debug_supported(ownership, lower_midi, primary.midi))
+				continue;
+
+			const float score =
+				std::max({lower_probe, fifth * 0.72f, second_octave * 0.82f,
+					  upper_fifth * 0.72f, third_octave * 0.64f});
+			if (supported_midi < 0 || lower_midi < supported_midi ||
+			    (lower_midi == supported_midi && score > supported_score)) {
+				supported_midi = lower_midi;
+				supported_score = score;
+			}
+		}
+
+		if (supported_midi < 0)
+			continue;
+		changed = promote_note_grid_primary_midi(grid, supported_midi,
+							 std::max(primary.level, supported_score)) ||
+			  changed;
+	}
+
+	if (changed)
+		write_note_grid_label(state, grid, preferred_root);
+}
+
 void prefer_weak_debug_string_lower_other_octave_primary(NoteGrid &grid, InstrumentState &state,
 							 const FullMixOwnership &ownership,
 							 int min_midi, int preferred_root)
@@ -25234,6 +25342,11 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 			prefer_debug_supported_lower_other_octave_primary(snapshot.other_notes, snapshot.other,
 									  full_mix_ownership, kOtherMinMidi,
 									  -1);
+			prefer_probe_supported_low_wind_other_primary(snapshot.other_notes, snapshot.other,
+								      full_mix_ownership,
+								      note_powers,
+								      kOtherMinMidi, -1,
+								      &snapshot.bass_notes);
 			if (mixed_string_source_hint || synthetic_other_source_hint)
 				promote_source_hinted_other_debug_primaries(
 					snapshot.other_notes, snapshot.other, full_mix_ownership,
