@@ -25,6 +25,13 @@ DRUM_CANDIDATE_RE = re.compile(
     r"(?: side_rows=\d+ net_rows=-?\d+ gain_per_side=(?:inf|\d+(?:\.\d+)?))? :: "
     r"(?P<rule>.+)$"
 )
+SHADOW_THRESHOLD_RE = re.compile(
+    r"^protected=(?P<protected_rows>\d+)/(?:\d+) extras=(?P<extra_rows>\d+)/(?:\d+) "
+    r"(?P<rule>.+)$"
+)
+SHADOW_SIMULATION_RE = re.compile(
+    r"^(?P<rule>[^: ]+):(?P<extra_rows>\d+)/(?P<protected_rows>\d+)$"
+)
 
 
 @dataclasses.dataclass(frozen=True)
@@ -57,8 +64,53 @@ class Candidate:
 
 def parse_report(path: pathlib.Path) -> list[Candidate]:
     candidates: list[Candidate] = []
+    seen: set[Candidate] = set()
     section = ""
     note_candidate_kind = ""
+
+    def append_candidate(candidate: Candidate) -> None:
+        if candidate in seen:
+            return
+        seen.add(candidate)
+        candidates.append(candidate)
+
+    def parse_shadow_candidate(stripped: str) -> Candidate | None:
+        if "->same-pitch " not in stripped or " simulation=" not in stripped or " threshold=" not in stripped:
+            return None
+
+        route = stripped.split(" extras=", 1)[0]
+        simulation = stripped.split(" simulation=", 1)[1].split(" threshold=", 1)[0]
+        threshold = stripped.split(" threshold=", 1)[1].split(" simulation_net_hits=", 1)[0]
+
+        if threshold != "none":
+            match = SHADOW_THRESHOLD_RE.match(threshold)
+            if not match:
+                return None
+            rule = re.sub(r" net_hits=.*$", "", match.group("rule"))
+            if simulation != "none":
+                rule = f"threshold {rule}; simulation={simulation}"
+            else:
+                rule = f"threshold {rule}"
+            return Candidate(
+                kind="shadow",
+                section=route,
+                rule=rule,
+                pos_rows=int(match.group("extra_rows")),
+                neg_rows=int(match.group("protected_rows")),
+            )
+
+        if simulation == "none":
+            return None
+        match = SHADOW_SIMULATION_RE.match(simulation)
+        if not match:
+            return None
+        return Candidate(
+            kind="shadow",
+            section=route,
+            rule=f"simulation {match.group('rule')}",
+            pos_rows=int(match.group("extra_rows")),
+            neg_rows=int(match.group("protected_rows")),
+        )
 
     for raw_line in path.read_text(errors="replace").splitlines():
         line = raw_line.rstrip()
@@ -83,7 +135,7 @@ def parse_report(path: pathlib.Path) -> list[Candidate]:
         if note_candidate_kind and line.startswith("    ") and stripped and stripped != "--":
             match = NOTE_CANDIDATE_RE.match(stripped)
             if match:
-                candidates.append(
+                append_candidate(
                     Candidate(
                         kind=note_candidate_kind,
                         section=section,
@@ -97,10 +149,15 @@ def parse_report(path: pathlib.Path) -> list[Candidate]:
                 )
             continue
 
+        shadow_candidate = parse_shadow_candidate(stripped)
+        if shadow_candidate:
+            append_candidate(shadow_candidate)
+            continue
+
         if section.startswith("route ") and line.startswith("  +"):
             match = DRUM_CANDIDATE_RE.match(stripped)
             if match:
-                candidates.append(
+                append_candidate(
                     Candidate(
                         kind="drum",
                         section=section,
@@ -117,7 +174,9 @@ def parse_report(path: pathlib.Path) -> list[Candidate]:
 
 
 def candidate_sort_key(candidate: Candidate) -> tuple[int, float, int, int, int, str]:
-    kind_priority = {"low-false": 0, "near-miss": 1, "drum": 2}.get(candidate.kind, 3)
+    kind_priority = {"low-false": 0, "shadow": 1, "near-miss": 2, "drum": 3}.get(
+        candidate.kind, 4
+    )
     return (
         kind_priority,
         -candidate.gain_per_side_effect_row,
@@ -149,6 +208,12 @@ def format_candidate(candidate: Candidate) -> str:
             f"primary_break_rows={candidate.primary_break_rows} "
             f"{utility} :: {candidate.rule}"
         )
+    if candidate.kind == "shadow":
+        return (
+            f"{candidate.kind} {candidate.section} "
+            f"+rows={candidate.pos_rows} protected_rows={candidate.neg_rows} "
+            f"{utility} :: {candidate.rule}"
+        )
     return (
         f"{candidate.kind} {candidate.section} "
         f"+samples={candidate.pos_samples} +rows={candidate.pos_rows} "
@@ -165,6 +230,7 @@ def main() -> int:
 
     candidates = sorted(parse_report(args.report), key=candidate_sort_key)
     low_false = [candidate for candidate in candidates if candidate.kind == "low-false"]
+    shadow = [candidate for candidate in candidates if candidate.kind == "shadow"]
     near_miss = [candidate for candidate in candidates if candidate.kind == "near-miss"]
     drum = [candidate for candidate in candidates if candidate.kind == "drum"]
     positive_net = [candidate for candidate in candidates if candidate.net_rows > 0]
@@ -173,7 +239,7 @@ def main() -> int:
     print(
         "detector_route_summary: "
         f"candidates={len(candidates)} low_false={len(low_false)} "
-        f"near_miss={len(near_miss)} drum={len(drum)} "
+        f"shadow={len(shadow)} near_miss={len(near_miss)} drum={len(drum)} "
         f"positive_net={len(positive_net)} gain_ge_1={len(gain_ge_1)}"
     )
     if not candidates:

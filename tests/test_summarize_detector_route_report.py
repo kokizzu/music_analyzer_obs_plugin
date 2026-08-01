@@ -32,12 +32,17 @@ row_confusion:piano/electronic->amb positives=186 samples/636 rows protected_hit
 route snare->tom positives=492 rows=492 protected_correct=13126 rows=13126
   +24 rows=24 -5 rows=5 foreign=4 rows=4 new-active=0 rows=0 primary-break=4 rows=4 side_rows=13 net_rows=11 gain_per_side=1.85 :: hihat_band>=24.633 AND tom_level>=0.981
   +21 rows=21 -7 rows=7 foreign=6 rows=6 new-active=1 rows=1 primary-break=6 rows=6 side_rows=20 net_rows=1 gain_per_side=1.05 :: hihat_band>=24.633 AND tom_seg<=225.582
+compact route summary
+  routes=2 routes_with_extras=2 safe_simulation_routes=2 safe_simulation_extra_hits=24
+  safe_threshold_routes=1 no_safe_threshold_routes=1 safe_threshold_extra_hits=23 safe_threshold_protected_hits=0
+  other->same-pitch vocals extras=694/310 protected=11/9 simulation=runtime_other_vocal_measured:23/0 threshold=protected=0/11 extras=23/694 min_shadow_score=0.24 score_ratio=0.15 level_ratio=0.48 net_hits=23 gain_per_protected=inf simulation_net_hits=23 simulation_gain_per_protected=inf
+  piano->same-pitch bass extras=2218/520 protected=487/115 simulation=weak_target_shadow_owned:1/0 threshold=none simulation_net_hits=1 simulation_gain_per_protected=inf
 """
     with tempfile.TemporaryDirectory() as tmpdir:
         path = pathlib.Path(tmpdir) / "route_report.txt"
         path.write_text(report, encoding="utf-8")
         result = subprocess.run(
-            [sys.executable, str(SCRIPT), str(path), "--limit", "5"],
+            [sys.executable, str(SCRIPT), str(path), "--limit", "7"],
             check=True,
             text=True,
             stdout=subprocess.PIPE,
@@ -46,11 +51,19 @@ route snare->tom positives=492 rows=492 protected_correct=13126 rows=13126
     output = result.stdout
     require(
         output,
-        "detector_route_summary: candidates=5 low_false=2 near_miss=1 drum=2 positive_net=4 gain_ge_1=4",
+        "detector_route_summary: candidates=7 low_false=2 shadow=2 near_miss=1 drum=2 positive_net=6 gain_ge_1=6",
     )
     require(
         output,
         "low-false row_confusion:piano/electronic->amb +samples=23 +rows=44 -samples=15 -rows=29 foreign_rows=0 side_rows=29 net_rows=15 gain_per_side=1.52",
+    )
+    require(
+        output,
+        "shadow other->same-pitch vocals +rows=23 protected_rows=0 side_rows=0 net_rows=23 gain_per_side=inf :: threshold min_shadow_score=0.24 score_ratio=0.15 level_ratio=0.48; simulation=runtime_other_vocal_measured:23/0",
+    )
+    require(
+        output,
+        "shadow piano->same-pitch bass +rows=1 protected_rows=0 side_rows=0 net_rows=1 gain_per_side=inf :: simulation weak_target_shadow_owned",
     )
     require(
         output,
@@ -62,6 +75,8 @@ route snare->tom positives=492 rows=492 protected_correct=13126 rows=13126
     )
     if output.index("low-false row_confusion") > output.index("drum route snare->tom"):
         raise AssertionError(f"expected low-false candidates before drum routes:\n{output}")
+    if output.index("shadow other->same-pitch vocals") > output.index("near-miss row_confusion"):
+        raise AssertionError(f"expected shadow candidates before near-miss routes:\n{output}")
     if output.index("near-miss row_confusion") > output.index("drum route snare->tom"):
         raise AssertionError(f"expected near-miss candidates before drum routes:\n{output}")
 
