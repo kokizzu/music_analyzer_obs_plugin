@@ -618,7 +618,7 @@ def shadow_rule_matches(record: dict[str, str], rule: str) -> bool:
             target_row == "bass"
             and shadow_row == "piano"
             and owner_is_shadow
-            and target_level <= 0.45
+            and target_level <= 0.46
             and target_score <= 0.10
             and shadow_score >= 0.18
         )
@@ -668,7 +668,7 @@ def shadow_rule_matches(record: dict[str, str], rule: str) -> bool:
             and owner_is_shadow
             and shadow_score >= 0.24
             and target_score <= shadow_score * 0.50
-            and target_level <= shadow_level * 0.90
+            and target_level <= shadow_level * 0.93
         )
     if rule == "runtime_other_bass_guarded":
         return (

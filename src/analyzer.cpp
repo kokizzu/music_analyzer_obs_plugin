@@ -10261,7 +10261,7 @@ void suppress_other_dominant_same_pitch_bass_shadows(NoteGrid &bass_grid, Instru
 	static constexpr float kMinOtherScore = 0.24f;
 	static constexpr float kMaxBassToOtherScoreRatio = 0.50f;
 	static constexpr float kMaxBassToOtherLevelRatio = 0.66f;
-	static constexpr float kMeasuredMaxBassToOtherLevelRatio = 0.90f;
+	static constexpr float kMeasuredMaxBassToOtherLevelRatio = 0.93f;
 	static constexpr float kGuardedMinOtherScore = 0.18f;
 	static constexpr float kGuardedMaxBassToOtherScoreRatio = 0.20f;
 	static constexpr float kGuardedMaxBassToOtherLevelRatio = 0.80f;
@@ -10382,7 +10382,7 @@ void suppress_keyboard_owned_same_pitch_bass_shadows(NoteGrid &bass_grid, Instru
 						     bool allow_dominant_keyboard_shadow)
 {
 	static constexpr float kMaxBassScore = 0.10f;
-	static constexpr float kMaxBassLevel = 0.45f;
+	static constexpr float kMaxBassLevel = 0.46f;
 	static constexpr float kMinKeyboardScore = 0.18f;
 	static constexpr float kDominantMinKeyboardScore = 0.24f;
 	static constexpr float kDominantMaxBassToKeyboardScoreRatio = 0.50f;
