@@ -19,6 +19,15 @@ from collections.abc import Callable
 
 CATEGORIES = ("kick", "snare", "hihat", "crash", "tom", "ride", "rim")
 METRIC_FIELDS = ("band", "seg", "shape_score", "trigger", "threshold", "shape", "level")
+CYMBAL_SHAPE_SCORE_ALIAS_FIELDS = frozenset(
+    {
+        "hihat_shape_score",
+        "crash_shape_score",
+        "ride_shape_score",
+        "crash_hihat_shape_score_ratio",
+        "ride_hihat_shape_score_ratio",
+    }
+)
 ROW_RE = re.compile(r"debug 100ms (?P<sample>\S+) expected (?P<expected>\w+)")
 DETAIL_RE = re.compile(
     r"(?P<cat>kick|snare|hihat|crash|tom|ride|rim) "
@@ -399,6 +408,8 @@ def numeric_fields(rows: list[dict[str, str]]) -> list[str]:
     for row in rows:
         for field, value in row.items():
             if field in {"sample", "expected", "primary", "merged_expected"}:
+                continue
+            if field in CYMBAL_SHAPE_SCORE_ALIAS_FIELDS:
                 continue
             try:
                 float(value)

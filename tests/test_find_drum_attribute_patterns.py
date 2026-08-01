@@ -185,6 +185,26 @@ def main() -> int:
         (patterns.category_pattern("body_shape", "2").constraint,),
         patterns.category_pattern("body_shape", "4").constraint,
     )
+    field_list = patterns.numeric_fields(
+        [
+            {
+                "sample": "hihat/alias.wav",
+                "expected": "hihat",
+                "hihat_seg": "12.0",
+                "hihat_shape_score": "12.0",
+                "crash_hihat_seg_ratio": "0.80",
+                "crash_hihat_shape_score_ratio": "0.80",
+                "rim_shape_score": "4.0",
+                "hihat_rim_shape_score_ratio": "3.0",
+            }
+        ]
+    )
+    assert "hihat_seg" in field_list
+    assert "crash_hihat_seg_ratio" in field_list
+    assert "rim_shape_score" in field_list
+    assert "hihat_rim_shape_score_ratio" in field_list
+    assert "hihat_shape_score" not in field_list
+    assert "crash_hihat_shape_score_ratio" not in field_list
 
     rows = [
         row("tom/001.wav", "tom", details(kick_level=0.90, snare_level=0.10, tom_level=0.60)),
