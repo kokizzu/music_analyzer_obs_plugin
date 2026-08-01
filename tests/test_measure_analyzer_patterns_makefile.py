@@ -1082,7 +1082,13 @@ def main() -> int:
         "full drum serial target must not set per-category shard filters"
     )
     drum_full_parallel_recipe = target_recipe(makefile, "test-drum-samples-full-parallel")
-    assert "DRUM_SAMPLE_FULL_TEST_MAKE_JOBS = $(if $(filter -j%,$(MAKEFLAGS)),,-j$(words $(DRUM_SAMPLE_FULL_SHARD_CATEGORIES)))" in makefile, (
+    assert "DRUM_SAMPLE_FULL_SHARDS_PER_CATEGORY ?= 4" in makefile, (
+        "full drum category shards must be chunked by a configurable per-category shard count"
+    )
+    assert "DRUM_SAMPLE_FULL_SHARD_IDS := $(foreach category,$(DRUM_SAMPLE_FULL_SHARD_CATEGORIES),$(addprefix $(category)-,$(DRUM_SAMPLE_FULL_SHARD_INDEXES)))" in makefile, (
+        "full drum shards must combine category and chunk index deterministically"
+    )
+    assert "DRUM_SAMPLE_FULL_TEST_MAKE_JOBS = $(if $(filter -j%,$(MAKEFLAGS)),,-j$(words $(DRUM_SAMPLE_FULL_SHARD_IDS)))" in makefile, (
         "full drum shard tests must not force nested jobserver mode"
     )
     assert "DRUM_SAMPLE_FULL_LOCK_DIR ?= $(BUILD_DIR)/drum_samples_full.lock" in makefile, (
@@ -1113,14 +1119,14 @@ def main() -> int:
     assert "--tom-max-false-percent \"$(DRUM_SAMPLE_FULL_MAX_TOM_FALSE_PERCENT)\"" in drum_full_parallel_unlocked_recipe, (
         "full drum parallel target must preserve the serial tom false-positive gate"
     )
-    assert "DRUM_FULL_EXACT_ATTRIBUTE_PARTS := $(addprefix $(BUILD_DIR)/drum_full_exact_attribute_rows_,$(addsuffix .tsv,$(DRUM_SAMPLE_FULL_SHARD_CATEGORIES)))" in makefile, (
-        "full drum exact attribute rows must have deterministic per-category shard parts"
+    assert "DRUM_FULL_EXACT_ATTRIBUTE_PARTS := $(addprefix $(BUILD_DIR)/drum_full_exact_attribute_rows_,$(addsuffix .tsv,$(DRUM_SAMPLE_FULL_SHARD_IDS)))" in makefile, (
+        "full drum exact attribute rows must have deterministic category-chunk shard parts"
     )
     assert "DRUM_FULL_MERGED_EXPECTED_ATTRIBUTE_ROWS ?= $(BUILD_DIR)/drum_full_merged_expected_attribute_rows.tsv" in makefile, (
         "full drum merged expected rows must have a stable aggregate TSV path"
     )
-    assert "DRUM_FULL_MERGED_EXPECTED_ATTRIBUTE_PARTS := $(addprefix $(BUILD_DIR)/drum_full_merged_expected_attribute_rows_,$(addsuffix .tsv,$(DRUM_SAMPLE_FULL_SHARD_CATEGORIES)))" in makefile, (
-        "full drum merged expected rows must have deterministic per-category shard parts"
+    assert "DRUM_FULL_MERGED_EXPECTED_ATTRIBUTE_PARTS := $(addprefix $(BUILD_DIR)/drum_full_merged_expected_attribute_rows_,$(addsuffix .tsv,$(DRUM_SAMPLE_FULL_SHARD_IDS)))" in makefile, (
+        "full drum merged expected rows must have deterministic category-chunk shard parts"
     )
     drum_full_attribute_parallel_recipe = target_recipe(makefile, "analyze-drum-full-gate-matrix-parallel")
     assert "$(RUN_WITH_DURATION) analyzer_drum_samples_full_attribute_rows_parallel" in drum_full_attribute_parallel_recipe, (
@@ -1134,8 +1140,13 @@ def main() -> int:
         "full drum exact attribute shard target must use FORCE so each category executes"
     )
     for text in [
-        "MUSIC_ANALYZER_DRUM_SAMPLE_REQUIRED_CATEGORIES=\"$*\"",
-        "MUSIC_ANALYZER_DRUM_SAMPLE_FILTER_CATEGORY=\"$*\"",
+        "stem=\"$*\"",
+        "category=\"$${stem%-*}\"",
+        "shard=\"$${stem##*-}\"",
+        "MUSIC_ANALYZER_DRUM_SAMPLE_REQUIRED_CATEGORIES=\"$$category\"",
+        "MUSIC_ANALYZER_DRUM_SAMPLE_FILTER_CATEGORY=\"$$category\"",
+        "MUSIC_ANALYZER_DRUM_SAMPLE_SHARD_COUNT=\"$(DRUM_SAMPLE_FULL_SHARDS_PER_CATEGORY)\"",
+        "MUSIC_ANALYZER_DRUM_SAMPLE_SHARD_INDEX=\"$$shard\"",
         "MUSIC_ANALYZER_DRUM_SAMPLE_VERBOSE_ALL=1",
         "MUSIC_ANALYZER_DRUM_SAMPLE_VERBOSE_PRIMARY=1",
         "$(PYTHON) scripts/analyze_drum_primary_debug.py --dump-rows --include-debug-rows",
@@ -1157,8 +1168,13 @@ def main() -> int:
         "full drum merged expected shard target must use FORCE so each category executes"
     )
     for text in [
-        "MUSIC_ANALYZER_DRUM_SAMPLE_REQUIRED_CATEGORIES=\"$*\"",
-        "MUSIC_ANALYZER_DRUM_SAMPLE_FILTER_CATEGORY=\"$*\"",
+        "stem=\"$*\"",
+        "category=\"$${stem%-*}\"",
+        "shard=\"$${stem##*-}\"",
+        "MUSIC_ANALYZER_DRUM_SAMPLE_REQUIRED_CATEGORIES=\"$$category\"",
+        "MUSIC_ANALYZER_DRUM_SAMPLE_FILTER_CATEGORY=\"$$category\"",
+        "MUSIC_ANALYZER_DRUM_SAMPLE_SHARD_COUNT=\"$(DRUM_SAMPLE_FULL_SHARDS_PER_CATEGORY)\"",
+        "MUSIC_ANALYZER_DRUM_SAMPLE_SHARD_INDEX=\"$$shard\"",
         "MUSIC_ANALYZER_DRUM_SAMPLE_VERBOSE_ALL=1",
         "MUSIC_ANALYZER_DRUM_SAMPLE_VERBOSE_PRIMARY=1",
         "MUSIC_ANALYZER_DRUM_SAMPLE_VERBOSE_MERGED_EXPECTED=1",
@@ -1182,8 +1198,13 @@ def main() -> int:
         "full drum shard target must depend on the shared manifest stamp"
     )
     for text in [
-        "MUSIC_ANALYZER_DRUM_SAMPLE_REQUIRED_CATEGORIES=\"$*\"",
-        "MUSIC_ANALYZER_DRUM_SAMPLE_FILTER_CATEGORY=\"$*\"",
+        "stem=\"$*\"",
+        "category=\"$${stem%-*}\"",
+        "shard=\"$${stem##*-}\"",
+        "MUSIC_ANALYZER_DRUM_SAMPLE_REQUIRED_CATEGORIES=\"$$category\"",
+        "MUSIC_ANALYZER_DRUM_SAMPLE_FILTER_CATEGORY=\"$$category\"",
+        "MUSIC_ANALYZER_DRUM_SAMPLE_SHARD_COUNT=\"$(DRUM_SAMPLE_FULL_SHARDS_PER_CATEGORY)\"",
+        "MUSIC_ANALYZER_DRUM_SAMPLE_SHARD_INDEX=\"$$shard\"",
         "MUSIC_ANALYZER_DRUM_SAMPLE_MIN_RECALL_PERCENT=0",
         "MUSIC_ANALYZER_DRUM_SAMPLE_MIN_PRECISION_PERCENT=0",
         "MUSIC_ANALYZER_DRUM_SAMPLE_MIN_PRIMARY_RECALL_PERCENT=0",

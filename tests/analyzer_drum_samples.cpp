@@ -599,6 +599,22 @@ int resolve_non_negative_env(const char *name, int fallback)
 	return parsed >= 0 ? parsed : fallback;
 }
 
+int resolve_positive_env(const char *name, int fallback)
+{
+	const char *value = std::getenv(name);
+	if (!value || !*value)
+		return fallback;
+	const int parsed = std::atoi(value);
+	return parsed > 0 ? parsed : fallback;
+}
+
+bool shard_includes_row(std::size_t row_index, int shard_count, int shard_index)
+{
+	if (shard_count <= 1)
+		return true;
+	return static_cast<int>(row_index % static_cast<std::size_t>(shard_count)) == shard_index;
+}
+
 } // namespace
 
 int main()
@@ -616,6 +632,14 @@ int main()
 	const char *filter_category_env = std::getenv("MUSIC_ANALYZER_DRUM_SAMPLE_FILTER_CATEGORY");
 	const char *filter_source_env = std::getenv("MUSIC_ANALYZER_DRUM_SAMPLE_FILTER_SOURCE");
 	const std::string filter_source = filter_source_env && *filter_source_env ? filter_source_env : "";
+	const int shard_count = resolve_positive_env("MUSIC_ANALYZER_DRUM_SAMPLE_SHARD_COUNT", 1);
+	const int shard_index = resolve_non_negative_env("MUSIC_ANALYZER_DRUM_SAMPLE_SHARD_INDEX", 0);
+	if (shard_index >= shard_count) {
+		std::fprintf(stderr,
+			     "analyzer_drum_samples: invalid shard index %d for shard count %d\n",
+			     shard_index, shard_count);
+		return 1;
+	}
 	std::size_t filter_category = mao::kDrumCount;
 	if (filter_category_env && *filter_category_env && !category_token_index(filter_category_env, filter_category)) {
 		std::fprintf(stderr, "analyzer_drum_samples: unknown filter category `%s`\n", filter_category_env);
@@ -659,6 +683,7 @@ int main()
 
 	std::string line;
 	bool header = true;
+	std::size_t filtered_row_index = 0;
 	while (std::getline(manifest, line)) {
 		if (header) {
 			header = false;
@@ -676,6 +701,9 @@ int main()
 			continue;
 		const std::string source_bucket = drum_source_bucket(fields);
 		if (!filter_source.empty() && source_bucket.find(filter_source) == std::string::npos)
+			continue;
+		const std::size_t row_index = filtered_row_index++;
+		if (!shard_includes_row(row_index, shard_count, shard_index))
 			continue;
 
 		const std::string path = join_path(sample_dir, fields[1]);
