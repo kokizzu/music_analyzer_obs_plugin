@@ -689,6 +689,7 @@ def main() -> int:
     assert re.search(
         r"^\$\(DETECTOR_IMPROVEMENT_ROUTE_REPORT\): FORCE Makefile scripts/run_with_duration\.sh "
         r"scripts/find_real_note_attribute_patterns\.py scripts/evaluate_real_note_display_shadow\.py "
+        r"scripts/evaluate_real_note_vocal_display_fallback\.py "
         r"scripts/find_instrument_owner_patterns\.py "
         r"scripts/find_drum_attribute_patterns\.py",
         makefile,
@@ -918,6 +919,9 @@ def main() -> int:
     assert "REAL_NOTE_FULL_MIX_SHARD_OUTPUT_PREFIX ?= real_note_full_mix_shard" in makefile, (
         "real-note full-mix shards must have a configurable output prefix for nested parallel runs"
     )
+    assert "REAL_NOTE_FULL_MIX_LOCK_DIR ?= $(BUILD_DIR)/$(REAL_NOTE_FULL_MIX_SHARD_OUTPUT_PREFIX).lock" in makefile, (
+        "real-note full-mix shards must lock by output prefix for concurrent top-level runs"
+    )
     assert "REAL_NOTE_FULL_MIX_SHARD_OUTS = $(addprefix $(BUILD_DIR)/$(REAL_NOTE_FULL_MIX_SHARD_OUTPUT_PREFIX)_,$(addsuffix .out,$(REAL_NOTE_FULL_MIX_SHARD_INDEXES)))" in makefile, (
         "real-note full-mix aggregate checker must consume deterministic shard outputs"
     )
@@ -930,7 +934,16 @@ def main() -> int:
         "REAL_NOTE_FULL_MIX_AGG_MIN_OTHER_VISUAL_ROW_PERCENT ?= 30",
     ]:
         assert text in makefile, f"real-note aggregate gate must include {text}"
-    assert "$(MAKE) $(REAL_NOTE_FULL_MIX_TEST_MAKE_JOBS) REAL_NOTE_FULL_MIX_SHARD_OUTPUT_PREFIX=\"$(REAL_NOTE_FULL_MIX_SHARD_OUTPUT_PREFIX)\" $(REAL_NOTE_FULL_MIX_SHARD_TARGETS)" in real_note_sharded_recipe, (
+    assert "scripts/run_with_lock.sh \"$(REAL_NOTE_FULL_MIX_LOCK_DIR)\"" in real_note_sharded_recipe, (
+        "real-note full-mix parallel target must lock shared shard outputs"
+    )
+    assert "\"$(MAKE)\" REAL_NOTE_FULL_MIX_SHARD_OUTPUT_PREFIX=\"$(REAL_NOTE_FULL_MIX_SHARD_OUTPUT_PREFIX)\" test-real-note-samples-full-mix-parallel-unlocked" in real_note_sharded_recipe, (
+        "real-note full-mix parallel target must delegate locked work to an internal target"
+    )
+    real_note_sharded_unlocked_recipe = target_recipe(
+        makefile, "test-real-note-samples-full-mix-parallel-unlocked"
+    )
+    assert "$(MAKE) $(REAL_NOTE_FULL_MIX_TEST_MAKE_JOBS) REAL_NOTE_FULL_MIX_SHARD_OUTPUT_PREFIX=\"$(REAL_NOTE_FULL_MIX_SHARD_OUTPUT_PREFIX)\" $(REAL_NOTE_FULL_MIX_SHARD_TARGETS)" in real_note_sharded_unlocked_recipe, (
         "real-note full-mix parallel target must fan out deterministic shards through jobserver-aware make"
     )
     assert "$(RUN_WITH_DURATION) analyzer_real_note_samples_full_mix_parallel" in real_note_sharded_recipe, (
@@ -942,7 +955,7 @@ def main() -> int:
     assert "scripts/prepare_nsynth_samples.py\" -nt \"$(REAL_NOTE_SAMPLE_DIR)/manifest.tsv\"" in real_note_sharded_recipe, (
         "real-note full-mix parallel target must skip sample regeneration when the manifest is fresh"
     )
-    assert "$(PYTHON) scripts/check_real_note_full_mix_shards.py" in real_note_sharded_recipe, (
+    assert "$(PYTHON) scripts/check_real_note_full_mix_shards.py" in real_note_sharded_unlocked_recipe, (
         "real-note full-mix parallel target must validate aggregated shard ownership metrics"
     )
     for text in [
@@ -954,7 +967,7 @@ def main() -> int:
         "--other-min-visual-row-percent \"$(REAL_NOTE_FULL_MIX_AGG_MIN_OTHER_VISUAL_ROW_PERCENT)\"",
         "$(REAL_NOTE_FULL_MIX_SHARD_OUTS)",
     ]:
-        assert text in real_note_sharded_recipe, (
+        assert text in real_note_sharded_unlocked_recipe, (
             f"real-note aggregate checker recipe must include {text}"
         )
     real_note_shard_recipe = target_recipe(makefile, "test-real-note-samples-full-mix-shard-%")
@@ -978,7 +991,19 @@ def main() -> int:
     assert "VOCADITO_FULL_MIX_TEST_MAKE_JOBS = $(if $(filter -j%,$(MAKEFLAGS)),,-j$(VOCADITO_FULL_MIX_SHARDS))" in makefile, (
         "Vocadito full-mix shards must not force nested jobserver mode"
     )
-    assert "$(MAKE) $(VOCADITO_FULL_MIX_TEST_MAKE_JOBS) $(VOCADITO_FULL_MIX_SHARD_TARGETS)" in vocadito_full_mix_recipe, (
+    assert "VOCADITO_FULL_MIX_LOCK_DIR ?= $(BUILD_DIR)/vocadito_full_mix_shard.lock" in makefile, (
+        "Vocadito full-mix shards must have a stable lock path"
+    )
+    assert "scripts/run_with_lock.sh \"$(VOCADITO_FULL_MIX_LOCK_DIR)\"" in vocadito_full_mix_recipe, (
+        "Vocadito full-mix target must lock shared shard outputs"
+    )
+    assert "\"$(MAKE)\" test-vocadito-samples-full-mix-parallel-unlocked" in vocadito_full_mix_recipe, (
+        "Vocadito full-mix target must delegate locked work to an internal target"
+    )
+    vocadito_full_mix_unlocked_recipe = target_recipe(
+        makefile, "test-vocadito-samples-full-mix-parallel-unlocked"
+    )
+    assert "$(MAKE) $(VOCADITO_FULL_MIX_TEST_MAKE_JOBS) $(VOCADITO_FULL_MIX_SHARD_TARGETS)" in vocadito_full_mix_unlocked_recipe, (
         "Vocadito full-mix target must fan out deterministic shards through jobserver-aware make"
     )
     assert "$(RUN_WITH_DURATION) analyzer_vocadito_samples_full_mix_parallel" in vocadito_full_mix_recipe, (
@@ -993,7 +1018,7 @@ def main() -> int:
         "--max-drum-active-percent \"$(VOCADITO_FULL_MIX_MAX_DRUM_ACTIVE_PERCENT)\"",
         "$(VOCADITO_FULL_MIX_SHARD_OUTS)",
     ]:
-        assert text in vocadito_full_mix_recipe, (
+        assert text in vocadito_full_mix_unlocked_recipe, (
             f"Vocadito full-mix aggregate checker recipe must include {text}"
         )
     vocadito_full_mix_shard_recipe = target_recipe(makefile, "test-vocadito-samples-full-mix-shard-%")
