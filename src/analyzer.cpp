@@ -2885,6 +2885,37 @@ bool measured_adjacent_vocal_display_supported(const FullMixDebugCandidate &debu
 	return measured_adjacent_vocal_shape_supported(debug);
 }
 
+bool measured_other_owned_low_confidence_vocal_partial_supported(const FullMixDebugCandidate &debug)
+{
+	const float second = debug.harmonic_ratios[1];
+	return debug.owner == InstrumentKind::Other &&
+	       debug.pitch_confidence <= 0.468f &&
+	       debug.local_noise_level <= 0.028f &&
+	       second >= 0.884f;
+}
+
+bool measured_owned_formant_vocal_partial_supported(const FullMixDebugCandidate &debug)
+{
+	if (debug.midi < kFullMixVocalMinMidi || debug.midi > kVocalMaxMidi)
+		return false;
+
+	const float third = debug.harmonic_ratios[2];
+	const float fourth = debug.harmonic_ratios[3];
+	const bool sparse_other_or_guitar_formant =
+		(debug.owner == InstrumentKind::Other || debug.owner == InstrumentKind::Guitar) &&
+		debug.adjacent_lower_ratio <= 0.279f &&
+		third >= 1.218f &&
+		fourth <= 0.740f;
+	const bool periodic_named_formant =
+		(debug.owner == InstrumentKind::Other ||
+		 debug.owner == InstrumentKind::Guitar ||
+		 debug.owner == InstrumentKind::Ambiguous) &&
+		debug.local_noise_level <= 0.133f &&
+		third >= 1.214f &&
+		debug.periodicity >= 0.699f;
+	return sparse_other_or_guitar_formant || periodic_named_formant;
+}
+
 bool shared_vocal_pitch_display_supported(const FullMixDebugCandidate &debug)
 {
 	const bool high_keyboard_vocal_octave_alias =
@@ -3090,12 +3121,7 @@ bool shared_vocal_pitch_display_supported(const FullMixDebugCandidate &debug)
 	    keyboard_owned_low_confidence_ooh_octave || high_keyboard_vocal_octave_alias)
 		return true;
 
-	const bool measured_owned_formant_vocal_partial =
-		(debug.owner == InstrumentKind::Other || debug.owner == InstrumentKind::Guitar) &&
-		debug.adjacent_lower_ratio <= 0.279f &&
-		third >= 1.218f &&
-		fourth <= 0.740f;
-	if (measured_owned_formant_vocal_partial)
+	if (measured_owned_formant_vocal_partial_supported(debug))
 		return true;
 
 	if (debug.owner != InstrumentKind::Keyboard && debug.owner != InstrumentKind::Other)
@@ -3127,13 +3153,8 @@ bool shared_vocal_pitch_display_supported(const FullMixDebugCandidate &debug)
 		third >= 0.957f &&
 		fourth <= 0.16f &&
 		fifth <= 0.13f;
-	const bool measured_other_owned_low_confidence_vocal_partial =
-		debug.owner == InstrumentKind::Other &&
-		debug.pitch_confidence <= 0.468f &&
-		debug.local_noise_level <= 0.028f &&
-		second >= 0.884f;
 	if (measured_dense_choir_vowel || measured_other_owned_choir_partial ||
-	    measured_other_owned_low_confidence_vocal_partial)
+	    measured_other_owned_low_confidence_vocal_partial_supported(debug))
 		return true;
 	if (!strong_full_mix_pitch_for_display(debug, 0.70f, 0.70f, 0.64f, 0.34f, 0.72f))
 		return false;
@@ -6648,6 +6669,11 @@ void add_full_mix_display_mirror(NoteCandidateList &candidates, const FullMixOwn
 		row == FullMixDisplayRow::Vocal &&
 		display_midi == debug.midi + 12 &&
 		measured_low_vocal_fundamental_alias_supported(debug);
+	const bool measured_vocal_formant_display =
+		row == FullMixDisplayRow::Vocal &&
+		display_midi == debug.midi &&
+		(measured_owned_formant_vocal_partial_supported(debug) ||
+		 measured_other_owned_low_confidence_vocal_partial_supported(debug));
 	if (measured_low_organ_keyboard_alias)
 		global_level = std::max(global_level, 0.34f);
 	if (row == FullMixDisplayRow::Vocal && display_midi != debug.midi &&
@@ -6678,6 +6704,10 @@ void add_full_mix_display_mirror(NoteCandidateList &candidates, const FullMixOwn
 	if (measured_low_vocal_fundamental_alias) {
 		candidate_score = std::min(candidate_score, base_score * 0.34f);
 		candidate_confidence = std::max(candidate_confidence, 0.24f);
+	}
+	if (measured_vocal_formant_display) {
+		candidate_score = std::max(candidate_score, base_score * 0.78f);
+		candidate_confidence = std::max(candidate_confidence, 0.42f);
 	}
 	if (row == FullMixDisplayRow::Vocal && display_midi != debug.midi &&
 	    (measured_vocal_octave_alias_priority_supported(debug) ||
@@ -10268,6 +10298,9 @@ void suppress_named_owned_same_pitch_vocal_shadows(NoteGrid &vocal_grid, Instrum
 		const FullMixDebugCandidate *debug =
 			best_same_midi_vocal_shadow_debug(ownership, midi, owner_row);
 		if (!debug)
+			continue;
+		if (measured_owned_formant_vocal_partial_supported(*debug) ||
+		    measured_other_owned_low_confidence_vocal_partial_supported(*debug))
 			continue;
 		const float owner_score = full_mix_debug_row_score(*debug, owner_row);
 		const bool weak_keyboard_owned_vocal_shadow =
