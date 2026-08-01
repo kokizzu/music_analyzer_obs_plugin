@@ -259,7 +259,24 @@ def format_gain_ratio(candidate: Candidate) -> str:
     return f"{ratio:.2f}"
 
 
-def format_candidate(candidate: Candidate) -> str:
+def candidate_block_reasons(
+    candidate: Candidate, min_actionable_samples: int
+) -> list[str]:
+    reasons: list[str] = []
+    if candidate.net_rows <= 0:
+        reasons.append("negative_net")
+    if candidate.kind in {"low-false", "near-miss"}:
+        if 0 < candidate.pos_samples < min_actionable_samples:
+            reasons.append(f"low_samples<{min_actionable_samples}")
+        if not candidate.source_safe:
+            if candidate.source_rows_reported:
+                reasons.append(f"cross_source_rows={candidate.source_conflict_rows}")
+            else:
+                reasons.append("unknown_source_side_effects")
+    return reasons
+
+
+def format_candidate(candidate: Candidate, min_actionable_samples: int) -> str:
     utility = (
         f"side_rows={candidate.side_effect_rows} "
         f"net_rows={candidate.net_rows} "
@@ -277,26 +294,28 @@ def format_candidate(candidate: Candidate) -> str:
             f" neg_cross_source_rows={candidate.neg_cross_source_rows}"
             f" foreign_cross_source_rows={candidate.foreign_cross_source_rows}"
         )
+    block_reasons = candidate_block_reasons(candidate, min_actionable_samples)
+    block_utility = f" blocked_by={','.join(block_reasons)}" if block_reasons else ""
     if candidate.kind == "drum":
         return (
             f"{candidate.kind} {candidate.section} "
             f"+rows={candidate.pos_rows} -rows={candidate.neg_rows} "
             f"foreign_rows={candidate.foreign_rows} new_active_rows={candidate.new_active_rows} "
             f"primary_break_rows={candidate.primary_break_rows} "
-            f"{utility} :: {candidate.rule}"
+            f"{utility}{block_utility} :: {candidate.rule}"
         )
     if candidate.kind == "shadow":
         return (
             f"{candidate.kind} {candidate.section} "
             f"+rows={candidate.pos_rows} protected_rows={candidate.neg_rows} "
-            f"{utility} :: {candidate.rule}"
+            f"{utility}{block_utility} :: {candidate.rule}"
         )
     return (
         f"{candidate.kind} {candidate.section} "
         f"+samples={candidate.pos_samples} +rows={candidate.pos_rows} "
         f"-samples={candidate.neg_samples} -rows={candidate.neg_rows} "
         f"foreign_rows={candidate.foreign_rows} {utility}{exact_source_utility}"
-        f"{source_utility} :: {candidate.rule}"
+        f"{source_utility}{block_utility} :: {candidate.rule}"
     )
 
 
@@ -336,6 +355,11 @@ def main() -> int:
     if not candidates:
         print("  --")
         return 0
+    if not actionable:
+        print(
+            "  no actionable candidates "
+            f"(min_actionable_samples={args.min_actionable_samples}); showing diagnostics"
+        )
 
     actionable_set = set(actionable)
     ranked_candidates = (
@@ -349,7 +373,7 @@ def main() -> int:
     )
 
     for candidate in ranked_candidates[: max(0, args.limit)]:
-        print("  " + format_candidate(candidate))
+        print("  " + format_candidate(candidate, args.min_actionable_samples))
     return 0
 
 

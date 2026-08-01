@@ -57,6 +57,7 @@ compact route summary
         output,
         "low-false row_confusion:piano/electronic->amb +samples=23 +rows=44 -samples=15 -rows=29 foreign_rows=0 side_rows=29 net_rows=15 gain_per_side=1.52 neg_same_source_rows=27 neg_cross_source_rows=2 foreign_cross_source_rows=0 neg_sources=piano/electronic=27,other/acoustic=2",
     )
+    require(output, "blocked_by=cross_source_rows=2")
     require(
         output,
         "shadow other->same-pitch vocals +rows=23 protected_rows=0 side_rows=0 net_rows=23 gain_per_side=inf :: threshold min_shadow_score=0.24 score_ratio=0.15 level_ratio=0.48; simulation=runtime_other_vocal_measured:23/0; guarded=runtime_other_vocal_cpp_guarded:0/0",
@@ -69,6 +70,7 @@ compact route summary
         output,
         "near-miss row_confusion:piano/electronic->amb +samples=20 +rows=47 -samples=202 -rows=616 foreign_rows=242 side_rows=858 net_rows=-811 gain_per_side=0.05 neg_same_source_rows=0 neg_cross_source_rows=616 foreign_cross_source_rows=242 neg_sources=vocals/example=45 foreign_sources=vocals/other=19",
     )
+    require(output, "blocked_by=negative_net,cross_source_rows=858")
     require(
         output,
         "drum route snare->tom +rows=24 -rows=5 foreign_rows=4 new_active_rows=0 primary_break_rows=4 side_rows=13 net_rows=11 gain_per_side=1.85",
