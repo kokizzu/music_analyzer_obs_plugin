@@ -561,10 +561,23 @@ def category_pattern(field: str, expected: str) -> Pattern:
 
 
 def condition_pattern(spec: str) -> Pattern:
+    range_match = re.fullmatch(r"([A-Za-z0-9_]+):([^:]+):([^:]+)", spec)
+    if range_match:
+        field, raw_low, raw_high = range_match.groups()
+        try:
+            low = float(raw_low.strip())
+            high = float(raw_high.strip())
+        except ValueError as exc:
+            raise SystemExit(f"invalid numeric range in condition `{spec}`") from exc
+        if low > high:
+            raise SystemExit(f"invalid range condition `{spec}`; low must be <= high")
+        return interval_pattern(field, low, high)
+
     match = re.fullmatch(r"([A-Za-z0-9_]+)(<=|>=|<|>|=)(.+)", spec)
     if not match:
         raise SystemExit(
-            f"invalid condition `{spec}`; expected field<=value, field>=value, field<value, field>value, or field=value"
+            f"invalid condition `{spec}`; expected field:min:max, field<=value, field>=value, "
+            "field<value, field>value, or field=value"
         )
     field, operator, raw_value = match.groups()
     value = raw_value.strip()

@@ -336,6 +336,27 @@ def main() -> int:
             stderr=subprocess.PIPE,
             check=True,
         )
+        range_result = subprocess.run(
+            [
+                sys.executable,
+                str(ROOT / "scripts" / "find_real_note_attribute_patterns.py"),
+                str(path),
+                "--bucket",
+                "ownership_miss:guitar/acoustic->piano",
+                "--limit",
+                "1",
+                "--max-negative-samples",
+                "2",
+                "--condition",
+                "debug_midi:66:69",
+                "--condition",
+                "debug_owner=piano",
+            ],
+            text=True,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            check=True,
+        )
         reason_result = subprocess.run(
             [
                 sys.executable,
@@ -1221,6 +1242,9 @@ def main() -> int:
     assert "reason=ownership" in example_result.stdout
     assert "protected-hit examples:" in example_result.stdout
     assert "keyboard_1 expected=F#4/66 debug=F#4/66 owner=piano" in example_result.stdout
+    assert (
+        "66<=debug_midi<=69 AND debug_owner=piano: pos=2/2 rows=2 neg=1/2 rows=1"
+    ) in range_result.stdout
     assert "miss_reason=ownership: pos=2/2 rows=2 neg=0/2 rows=0" in reason_result.stdout
     assert "debug_score_state=scored_owner: pos=2/2 rows=2" in score_state_result.stdout
     assert "numeric attribute profile:" in profile_result.stdout
