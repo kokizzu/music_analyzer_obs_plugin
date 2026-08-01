@@ -37,6 +37,14 @@ s2	ownership_miss	piano	electronic	C4	60	bass	1	C4	bass	guitar	C4	0	guitar	0.8	0
 s3	hit	bass	electric	E2	40	bass	0	E2	bass	bass	E3	12	bass	0.9	0.2	0.1	0	0	0	E2:0.9	E2:0.3	--	--	--	--	0.9	0.9	0.9	0.9	2	2	0.9	0.9	0.9	0.9	2	2	1	1	0	1	0.1	0.2	0	0	0.9	0.8	0.1	1	0.36	0.18	0.07	0.02
             """,
         )
+        compact_no_debug = write(
+            root / "compact_no_debug.tsv",
+            """
+sample_id	status	family	source	expected_note	expected_midi	first_row	buffer	row_label	buffer_strongest_row	bass_level	guitar_level	piano_level	vocal_level	other_level	amb_level	bass_notes	guitar_notes	piano_notes	vocal_notes	other_notes	amb_notes	expected_row_exact_level	expected_row_pitch_level	strongest_row_exact_level	strongest_row_pitch_level	expected_exact_row_count	expected_pitch_row_count
+nd1	hit	guitar	electric	E3	52	guitar	0	E3	guitar	0	0.7	0.1	0	0	0	--	E3:0.7	--	--	--	--	0.7	0.7	0.7	0.7	1	1
+nd2	hit	bass	electric	E2	40	bass	0	E2	bass	0.8	0.2	0.1	0	0	0	E2:0.8	E2:0.2	--	--	--	--	0.8	0.8	0.8	0.8	1	1
+            """,
+        )
         guitar = write(
             root / "guitar.tsv",
             """
@@ -71,6 +79,8 @@ kick.wav	kick	kick	0.9	0.1	0.0	0.9	0.1	0.1	0.1	0.1	1	0	0	0	0	0	0	0.9	0.4	0	0	0	0
                 str(root / "missing_real_note_miss.tsv"),
                 "--extra-real-note",
                 f"IDMT bass lines={real_note}:{root / 'missing_idmt_bass_lines_miss.tsv'}",
+                "--extra-real-note",
+                f"compact no-debug={compact_no_debug}",
                 "--guitar-chord",
                 str(guitar),
                 "--drum-primary",
@@ -168,6 +178,12 @@ kick.wav	kick	kick	0.9	0.1	0.0	0.9	0.1	0.1	0.1	0.1	1	0	0	0	0	0	0	0.9	0.4	0	0	0	0
     assert "scores=key:0.4 gtr:0.6 voc:0 oth:0" in output
     assert "ownership_miss piano/electronic expected=C4/60 first=bass" in output
     assert "partials=p1:1,p2:0.25,p3:0.11,p4:0.03,p5:0.01 sample=s2" in output
+    compact_section = output.split("measured compact no-debug rows", 1)[1].split("measured guitar chord rows", 1)[0]
+    assert "debug pitch deltas=--" in compact_section
+    assert "pitch quality=--" in compact_section
+    assert "exact-octave coverage --" in compact_section
+    assert "pitch quality=unknown" not in compact_section
+    assert "debug=-- owners=--=1" in compact_section
     assert "measured guitar chord rows" in output
     assert "maj chord_hit=1/1 100.0%" in output
     assert "m chord_hit=0/1 0.0%" in output
@@ -193,7 +209,7 @@ kick.wav	kick	kick	0.9	0.1	0.0	0.9	0.1	0.1	0.1	0.1	1	0	0	0	0	0	0	0.9	0.4	0	0	0	0
     assert "snare->tom energy=0.2/0.7/0.1" in output
     assert "measured protected drum full rows" in output
     assert "kick->kick energy=0.9/0.1/0" in output
-    assert output.count("hit-vs-miss feature contrast=") == 4
+    assert output.count("hit-vs-miss feature contrast=") == 5
     print("test_print_analyzer_detected_attributes: ok")
     return 0
 

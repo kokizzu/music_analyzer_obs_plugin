@@ -339,8 +339,18 @@ def pitch_quality(delta: int | None) -> str:
     return "other_pitch"
 
 
+def has_debug_pitch_evidence(
+    rows: list[dict[str, str]],
+    midi_field: str,
+    debug_field: str = "debug_midi",
+) -> bool:
+    return any(debug_pitch_delta(row, midi_field, debug_field) is not None for row in rows)
+
+
 def pitch_quality_counts(rows: list[dict[str, str]], midi_field: str, debug_field: str = "debug_midi") -> collections.Counter[str]:
     counts: collections.Counter[str] = collections.Counter()
+    if not has_debug_pitch_evidence(rows, midi_field, debug_field):
+        return counts
     for row in rows:
         counts[pitch_quality(debug_pitch_delta(row, midi_field, debug_field))] += 1
     return counts
@@ -378,7 +388,10 @@ def pitch_coverage_line(
     include_display: bool,
     include_primary: bool,
 ) -> str:
-    parts = [f"debug[{pitch_coverage_text(pitch_quality_counts(rows, midi_field), len(rows))}]"]
+    parts: list[str] = []
+    debug_counts = pitch_quality_counts(rows, midi_field)
+    if debug_counts:
+        parts.append(f"debug[{pitch_coverage_text(debug_counts, len(rows))}]")
     if include_display:
         parts.append(
             f"display[{pitch_coverage_text(display_pitch_quality_counts(rows, midi_field), len(rows))}]"
@@ -387,7 +400,7 @@ def pitch_coverage_line(
         parts.append(
             f"primary[{pitch_coverage_text(primary_pitch_quality_counts(rows, midi_field), len(rows))}]"
         )
-    return " ".join(parts)
+    return " ".join(parts) if parts else "--"
 
 
 def level_positive_count(rows: list[dict[str, str]], field: str) -> int:
