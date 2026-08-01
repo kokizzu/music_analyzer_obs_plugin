@@ -190,6 +190,20 @@ class RuleResult:
     negative_rows: int
     negative_samples: int
 
+    @property
+    def side_effect_rows(self) -> int:
+        return self.negative_rows
+
+    @property
+    def net_rows(self) -> int:
+        return self.positive_rows - self.side_effect_rows
+
+    @property
+    def gain_per_side_effect_row(self) -> float:
+        if self.side_effect_rows <= 0:
+            return float("inf")
+        return self.positive_rows / self.side_effect_rows
+
 
 @dataclasses.dataclass(frozen=True)
 class PatternSearchSettings:
@@ -879,6 +893,12 @@ def format_example(row: dict[str, str]) -> str:
     )
 
 
+def format_gain_ratio(value: float) -> str:
+    if value == float("inf"):
+        return "inf"
+    return f"{value:.2f}"
+
+
 def print_results(
     results: list[RuleResult],
     positive_total: int,
@@ -896,6 +916,8 @@ def print_results(
             f"    {result.rule}: pos={result.positive_samples}/{positive_total} "
             f"rows={result.positive_rows} neg={result.negative_samples}/{negative_total} "
             f"rows={result.negative_rows}"
+            f" side_rows={result.side_effect_rows} net_rows={result.net_rows} "
+            f"gain_per_side={format_gain_ratio(result.gain_per_side_effect_row)}"
             + (f" neg_sources={negative_sources}" if negative_sources else "")
         )
         if show_examples <= 0:

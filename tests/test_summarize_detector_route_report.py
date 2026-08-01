@@ -30,8 +30,8 @@ row_confusion:piano/electronic->amb positives=186 samples/636 rows protected_hit
       positive examples:
         sample expected=D#3 debug=D#3 owner=other
 route snare->tom positives=492 rows=492 protected_correct=13126 rows=13126
-  +24 rows=24 -5 rows=5 foreign=4 rows=4 new-active=0 rows=0 primary-break=4 rows=4 :: hihat_band>=24.633 AND tom_level>=0.981
-  +21 rows=21 -7 rows=7 foreign=6 rows=6 new-active=1 rows=1 primary-break=6 rows=6 :: hihat_band>=24.633 AND tom_seg<=225.582
+  +24 rows=24 -5 rows=5 foreign=4 rows=4 new-active=0 rows=0 primary-break=4 rows=4 side_rows=13 net_rows=11 gain_per_side=1.85 :: hihat_band>=24.633 AND tom_level>=0.981
+  +21 rows=21 -7 rows=7 foreign=6 rows=6 new-active=1 rows=1 primary-break=6 rows=6 side_rows=20 net_rows=1 gain_per_side=1.05 :: hihat_band>=24.633 AND tom_seg<=225.582
 """
     with tempfile.TemporaryDirectory() as tmpdir:
         path = pathlib.Path(tmpdir) / "route_report.txt"

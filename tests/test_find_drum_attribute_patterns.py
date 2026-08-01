@@ -352,12 +352,14 @@ def main() -> int:
     assert "nearest over-budget single-condition candidate rules:" in unsafe_side_effect_output
     assert "new-active=1 rows=1" in unsafe_side_effect_output
     assert "primary-break=1 rows=1" in unsafe_side_effect_output
+    assert "side_rows=3 net_rows=-1 gain_per_side=0.67" in unsafe_side_effect_output
     assert "+2 rows=2 -0 rows=0" in tsv_output
     assert "route tom->kick positives=2 rows=2 protected_correct=4 rows=4" in tsv_output_one_condition
     assert "\n  --\n" in tsv_output_one_condition
     assert " AND " not in tsv_output_one_condition
     assert "foreign=1 rows=1 new-active=1 rows=1" in tsv_output
     assert "primary-break=1 rows=1" in tsv_output
+    assert "side_rows=3 net_rows=-1 gain_per_side=0.67" in tsv_output
     assert "tom/001.wav tom->kick" in tsv_output
     assert "snare/miss.wav snare->kick" in tsv_output
     assert "route tom->kick positives=3 rows=3 protected_correct=3 rows=3" in tsv_output_with_merged
@@ -371,6 +373,7 @@ def main() -> int:
     assert "\n  --\n" in near_miss_output
     assert "nearest over-budget single-condition candidate rules:" in near_miss_output
     assert "+2 rows=2 -1 rows=1" in near_miss_output
+    assert "side_rows=1 net_rows=1 gain_per_side=2.00" in near_miss_output
     assert (
         "route tom->kick skipped: positives=2 rows=2 "
         "below min-route-positive-samples=3 min-route-positive-rows=0"

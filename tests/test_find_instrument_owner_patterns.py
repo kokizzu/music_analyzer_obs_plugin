@@ -675,11 +675,15 @@ def main() -> int:
         in result.stdout
     ), result.stdout + result.stderr
     assert "AND partial2<=0.14: pos=2/2 rows=2 neg=0/5 rows=0" in result.stdout, result.stdout + result.stderr
+    assert "side_rows=0 net_rows=2 gain_per_side=inf" in result.stdout, result.stdout + result.stderr
     assert "highest-coverage candidate rules" in result.stdout, result.stdout + result.stderr
     assert "detected_expected_row" not in result.stdout, result.stdout + result.stderr
     assert "expected_level" not in result.stdout, result.stdout + result.stderr
     assert "explicit rule:" in example.stdout, example.stdout + example.stderr
     assert "debug_owner=piano: pos=2/2 rows=2 neg=2/5 rows=2" in example.stdout, (
+        example.stdout + example.stderr
+    )
+    assert "side_rows=2 net_rows=0 gain_per_side=1.00" in example.stdout, (
         example.stdout + example.stderr
     )
     assert "positive examples:" in example.stdout, example.stdout + example.stderr
@@ -706,6 +710,9 @@ def main() -> int:
         in status_result.stdout
     ), status_result.stdout + status_result.stderr
     assert "expected_level<=0: pos=2/2 rows=2 neg=0/1 rows=0" in status_result.stdout, (
+        status_result.stdout + status_result.stderr
+    )
+    assert "side_rows=0 net_rows=2 gain_per_side=inf" in status_result.stdout, (
         status_result.stdout + status_result.stderr
     )
     assert "strings Pizzicato Strings G2 path=strings_miss_1.wav status=miss" in status_result.stdout, (

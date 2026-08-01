@@ -90,6 +90,25 @@ class RuleResult:
     new_active_examples: list[dict[str, str]]
     primary_break_examples: list[dict[str, str]]
 
+    @property
+    def side_effect_rows(self) -> int:
+        return (
+            self.negative_rows +
+            self.foreign_rows +
+            self.new_active_rows +
+            self.primary_break_rows
+        )
+
+    @property
+    def net_rows(self) -> int:
+        return self.positive_rows - self.side_effect_rows
+
+    @property
+    def gain_per_side_effect_row(self) -> float:
+        if self.side_effect_rows <= 0:
+            return float("inf")
+        return self.positive_rows / self.side_effect_rows
+
 
 @dataclasses.dataclass
 class SampleCounter:
@@ -702,6 +721,12 @@ def rank_result(result: RuleResult) -> tuple[int, int, int, int, int, int, int, 
     )
 
 
+def format_gain_ratio(value: float) -> str:
+    if value == float("inf"):
+        return "inf"
+    return f"{value:.2f}"
+
+
 def parse_route(route: str) -> tuple[str, str]:
     match = re.fullmatch(r"([a-z]+)->([a-z]+|ambiguous|none)", route)
     if not match:
@@ -1025,7 +1050,9 @@ def print_route_patterns(
                 f"-{result.negative_samples} rows={result.negative_rows} "
                 f"foreign={result.foreign_samples} rows={result.foreign_rows} "
                 f"new-active={result.new_active_samples} rows={result.new_active_rows} "
-                f"primary-break={result.primary_break_samples} rows={result.primary_break_rows} :: {result.rule}"
+                f"primary-break={result.primary_break_samples} rows={result.primary_break_rows} "
+                f"side_rows={result.side_effect_rows} net_rows={result.net_rows} "
+                f"gain_per_side={format_gain_ratio(result.gain_per_side_effect_row)} :: {result.rule}"
             )
             if show_examples <= 0:
                 continue

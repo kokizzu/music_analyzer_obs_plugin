@@ -21,7 +21,8 @@ DRUM_CANDIDATE_RE = re.compile(
     r"^\+(?P<pos_rows>\d+) rows=\d+ -(?P<neg_rows>\d+) rows=\d+ "
     r"foreign=(?P<foreign_samples>\d+) rows=(?P<foreign_rows>\d+) "
     r"new-active=(?P<new_active_samples>\d+) rows=(?P<new_active_rows>\d+) "
-    r"primary-break=(?P<primary_break_samples>\d+) rows=(?P<primary_break_rows>\d+) :: "
+    r"primary-break=(?P<primary_break_samples>\d+) rows=(?P<primary_break_rows>\d+)"
+    r"(?: side_rows=\d+ net_rows=-?\d+ gain_per_side=(?:inf|\d+(?:\.\d+)?))? :: "
     r"(?P<rule>.+)$"
 )
 
