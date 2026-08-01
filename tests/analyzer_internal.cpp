@@ -917,7 +917,7 @@ void check_other_owned_same_pitch_bass_shadow_uses_measured_ratio(Runner &runner
 	static constexpr int kStrongBassMidi = 54;
 
 	NoteGrid bass_grid = {};
-	set_midi(bass_grid, kShadowMidi, 0.92f);
+	set_midi(bass_grid, kShadowMidi, 0.933f);
 	InstrumentState bass_state = {};
 	NoteGrid other_grid = {};
 	set_midi(other_grid, kShadowMidi, 1.00f);
@@ -928,10 +928,10 @@ void check_other_owned_same_pitch_bass_shadow_uses_measured_ratio(Runner &runner
 	suppress_other_dominant_same_pitch_bass_shadows(bass_grid, bass_state, other_grid,
 							ownership, -1);
 	runner.expect(note_grid_midi_visual_level(bass_grid, kShadowMidi) <= 0.0f,
-		      "same-pitch other bass shadow: expected other-owned 93% bass mirror to clear");
+		      "same-pitch other bass shadow: expected other-owned 93.5% bass mirror to clear");
 
 	NoteGrid protected_bass_grid = {};
-	set_midi(protected_bass_grid, kProtectedMidi, 0.92f);
+	set_midi(protected_bass_grid, kProtectedMidi, 0.933f);
 	InstrumentState protected_bass_state = {};
 	NoteGrid protected_other_grid = {};
 	set_midi(protected_other_grid, kProtectedMidi, 1.00f);
@@ -944,7 +944,7 @@ void check_other_owned_same_pitch_bass_shadow_uses_measured_ratio(Runner &runner
 							protected_other_grid,
 							protected_ownership, -1);
 	runner.expect(note_grid_midi_visual_level(protected_bass_grid, kProtectedMidi) > 0.0f,
-		      "same-pitch other bass shadow: expected non-other-owned 93% bass note to stay visible");
+		      "same-pitch other bass shadow: expected non-other-owned 93.5% bass note to stay visible");
 
 	NoteGrid strong_bass_grid = {};
 	set_midi(strong_bass_grid, kStrongBassMidi, 0.95f);
@@ -959,7 +959,7 @@ void check_other_owned_same_pitch_bass_shadow_uses_measured_ratio(Runner &runner
 							strong_other_grid,
 							strong_ownership, -1);
 	runner.expect(note_grid_midi_visual_level(strong_bass_grid, kStrongBassMidi) > 0.0f,
-		      "same-pitch other bass shadow: expected strong owned bass note above 93% to stay visible");
+		      "same-pitch other bass shadow: expected strong owned bass note above 93.5% to stay visible");
 }
 
 FullMixDebugCandidate make_keyboard_bass_shadow_debug(int midi)
@@ -1013,6 +1013,71 @@ void check_keyboard_owned_same_pitch_bass_shadow_uses_weak_ceiling(Runner &runne
 						       false);
 	runner.expect(note_grid_midi_visual_level(protected_bass_grid, kProtectedMidi) > 0.0f,
 		      "same-pitch keyboard bass shadow: expected bass note above 46% to stay visible");
+}
+
+void check_keyboard_owned_same_pitch_bass_shadow_uses_dominant_ratio(Runner &runner)
+{
+	static constexpr int kShadowMidi = 50;
+	static constexpr int kDisabledMidi = 51;
+	static constexpr int kProtectedMidi = 52;
+
+	NoteGrid bass_grid = {};
+	set_midi(bass_grid, kShadowMidi, 0.693f);
+	InstrumentState bass_state = {};
+	NoteGrid keyboard_grid = {};
+	set_midi(keyboard_grid, kShadowMidi, 1.00f);
+	FullMixOwnership ownership = {};
+	ownership.debug_candidate_count = 1;
+	ownership.debug_candidates[0] = make_keyboard_bass_shadow_debug(kShadowMidi);
+	ownership.debug_candidates[0].keyboard_score = 1.00f;
+	ownership.debug_candidates[0].bass_score = 0.00f;
+	ownership.keyboard[static_cast<std::size_t>(kShadowMidi - kFirstMidi)] = true;
+
+	suppress_keyboard_owned_same_pitch_bass_shadows(bass_grid, bass_state, keyboard_grid,
+						       ownership, -1, true);
+	runner.expect(note_grid_midi_visual_level(bass_grid, kShadowMidi) <= 0.0f,
+		      "same-pitch keyboard bass shadow: expected dominant keyboard-owned 69.5% bass mirror to clear");
+
+	NoteGrid disabled_bass_grid = {};
+	set_midi(disabled_bass_grid, kDisabledMidi, 0.685f);
+	InstrumentState disabled_bass_state = {};
+	NoteGrid disabled_keyboard_grid = {};
+	set_midi(disabled_keyboard_grid, kDisabledMidi, 1.00f);
+	FullMixOwnership disabled_ownership = {};
+	disabled_ownership.debug_candidate_count = 1;
+	disabled_ownership.debug_candidates[0] = make_keyboard_bass_shadow_debug(kDisabledMidi);
+	disabled_ownership.debug_candidates[0].keyboard_score = 1.00f;
+	disabled_ownership.debug_candidates[0].bass_score = 0.00f;
+	disabled_ownership.keyboard[static_cast<std::size_t>(kDisabledMidi - kFirstMidi)] = true;
+
+	suppress_keyboard_owned_same_pitch_bass_shadows(disabled_bass_grid,
+						       disabled_bass_state,
+						       disabled_keyboard_grid,
+						       disabled_ownership, -1,
+						       false);
+	runner.expect(note_grid_midi_visual_level(disabled_bass_grid, kDisabledMidi) > 0.0f,
+		      "same-pitch keyboard bass shadow: expected dominant cleanup disabled bass mirror to stay visible");
+
+	NoteGrid protected_bass_grid = {};
+	set_midi(protected_bass_grid, kProtectedMidi, 0.70f);
+	InstrumentState protected_bass_state = {};
+	NoteGrid protected_keyboard_grid = {};
+	set_midi(protected_keyboard_grid, kProtectedMidi, 1.00f);
+	FullMixOwnership protected_ownership = {};
+	protected_ownership.debug_candidate_count = 1;
+	protected_ownership.debug_candidates[0] = make_keyboard_bass_shadow_debug(kProtectedMidi);
+	protected_ownership.debug_candidates[0].keyboard_score = 1.00f;
+	protected_ownership.debug_candidates[0].bass_score = 0.00f;
+	protected_ownership.debug_candidates[0].local_noise_level = 0.50f;
+	protected_ownership.keyboard[static_cast<std::size_t>(kProtectedMidi - kFirstMidi)] = true;
+
+	suppress_keyboard_owned_same_pitch_bass_shadows(protected_bass_grid,
+						       protected_bass_state,
+						       protected_keyboard_grid,
+						       protected_ownership, -1,
+						       true);
+	runner.expect(note_grid_midi_visual_level(protected_bass_grid, kProtectedMidi) > 0.0f,
+		      "same-pitch keyboard bass shadow: expected bass note above 69.5% to stay visible");
 }
 
 FullMixDebugCandidate make_other_keyboard_pitch_class_shadow_debug(int midi)
@@ -1304,6 +1369,7 @@ int run()
 	check_vocal_owned_same_pitch_bass_shadow_uses_measured_ratio(runner);
 	check_other_owned_same_pitch_bass_shadow_uses_measured_ratio(runner);
 	check_keyboard_owned_same_pitch_bass_shadow_uses_weak_ceiling(runner);
+	check_keyboard_owned_same_pitch_bass_shadow_uses_dominant_ratio(runner);
 	check_other_owned_pitch_class_keyboard_shadow_is_attenuated(runner);
 	check_electronic_keyboard_other_shadow_is_attenuated(runner);
 	check_lower_other_pitch_class_keyboard_octave_shadow_is_attenuated(runner);
