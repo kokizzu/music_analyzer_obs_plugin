@@ -1328,6 +1328,47 @@ void check_non_guitar_owned_guitar_octave_alias_display_is_suppressed(Runner &ru
 		      "non-guitar-owned guitar octave alias: expected weak lower support to leave alias visible");
 }
 
+void check_other_dominant_same_pitch_guitar_display_is_pruned(Runner &runner)
+{
+	static constexpr int kMidi = 51;
+
+	FullMixOwnership ownership = {};
+	ownership.debug_candidate_count = 1;
+	ownership.debug_candidates[0].midi = kMidi;
+	ownership.debug_candidates[0].owner = InstrumentKind::Other;
+	ownership.debug_candidates[0].ownership_confidence = 0.86f;
+	ownership.debug_candidates[0].other_score = 0.873f;
+	ownership.debug_candidates[0].guitar_score = 0.127f;
+	ownership.debug_candidates[0].keyboard_score = 0.0f;
+	ownership.debug_candidates[0].spectral_level = 0.52f;
+	ownership.debug_candidates[0].pitch_confidence = 0.36f;
+	ownership.debug_candidates[0].periodicity = 0.70f;
+	ownership.debug_candidates[0].harmonic_fit_error = 0.52f;
+	ownership.debug_candidates[0].local_noise_level = 0.23f;
+	ownership.global_note_levels[static_cast<std::size_t>(kMidi - kFirstMidi)] = 0.70f;
+
+	NoteCandidateList candidates;
+	candidates.push_back(NoteCandidate{kMidi, 1.0f, 0.86f});
+	const NoteCandidateList pruned =
+		prune_shadowed_full_mix_guitar_display_candidates(ownership, candidates);
+	runner.expect(!candidate_list_has_midi(pruned, kMidi),
+		      "other-dominant same-pitch guitar display: expected measured other-owned row to prune guitar");
+
+	FullMixOwnership protected_by_keyboard = ownership;
+	protected_by_keyboard.debug_candidates[0].keyboard_score = 0.02f;
+	const NoteCandidateList keyboard_protected =
+		prune_shadowed_full_mix_guitar_display_candidates(protected_by_keyboard, candidates);
+	runner.expect(candidate_list_has_midi(keyboard_protected, kMidi),
+		      "other-dominant same-pitch guitar display: expected keyboard-supported candidate to stay");
+
+	FullMixOwnership protected_by_guitar_score = ownership;
+	protected_by_guitar_score.debug_candidates[0].guitar_score = 0.18f;
+	const NoteCandidateList guitar_score_protected =
+		prune_shadowed_full_mix_guitar_display_candidates(protected_by_guitar_score, candidates);
+	runner.expect(candidate_list_has_midi(guitar_score_protected, kMidi),
+		      "other-dominant same-pitch guitar display: expected stronger guitar score to stay");
+}
+
 void check_display_ownership_scale_keeps_confirmed_mid_confidence_visible(Runner &runner)
 {
 	NoteCandidate weak = {};
@@ -1375,6 +1416,7 @@ int run()
 	check_lower_other_pitch_class_keyboard_octave_shadow_is_attenuated(runner);
 	check_lower_non_guitar_pitch_class_guitar_octave_shadow_uses_measured_levels(runner);
 	check_non_guitar_owned_guitar_octave_alias_display_is_suppressed(runner);
+	check_other_dominant_same_pitch_guitar_display_is_pruned(runner);
 	check_display_ownership_scale_keeps_confirmed_mid_confidence_visible(runner);
 	if (runner.failures) {
 		std::fprintf(stderr, "analyzer_internal: %d/%d checks failed\n", runner.failures,

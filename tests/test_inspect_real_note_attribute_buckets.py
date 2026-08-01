@@ -643,8 +643,12 @@ def main() -> int:
     assert "debug_delta" in dumped.stdout.splitlines()[0]
     assert "miss_reason" in dumped.stdout.splitlines()[0]
     assert "expected_row_exact_level" in dumped.stdout.splitlines()[0]
+    assert "expected_first_score_ratio" in dumped.stdout.splitlines()[0]
+    assert "first_expected_score_margin" in dumped.stdout.splitlines()[0]
+    assert "expected_strongest_pitch_level_ratio" in dumped.stdout.splitlines()[0]
     assert "expected_row_visual_exact_level" in dumped.stdout.splitlines()[0]
     assert "visual_strongest_row_pitch_level" in dumped.stdout.splitlines()[0]
+    assert "expected_visual_strongest_pitch_level_ratio" in dumped.stdout.splitlines()[0]
     assert "expected_visual_pitch_row_count" in dumped.stdout.splitlines()[0]
     assert "bass_score" in dumped.stdout.splitlines()[0]
     assert "partial2" in dumped.stdout.splitlines()[0]
@@ -676,12 +680,27 @@ def main() -> int:
     assert keyboard_dump["debug_delta"] == "0"
     assert keyboard_dump["debug_abs_delta"] == "0"
     assert keyboard_dump["miss_reason"] == "ownership"
+    assert keyboard_dump["expected_row_score"] == "0.100"
+    assert keyboard_dump["first_row_score"] == "0.700"
+    assert keyboard_dump["visual_first_row_score"] == "0.100"
+    assert keyboard_dump["strongest_row_score"] == "0.700"
+    assert keyboard_dump["visual_strongest_row_score"] == "0.100"
+    assert keyboard_dump["expected_first_score_ratio"] == "0.143"
+    assert keyboard_dump["expected_strongest_score_ratio"] == "0.143"
+    assert keyboard_dump["expected_visual_first_score_ratio"] == "1.000"
+    assert keyboard_dump["expected_visual_strongest_score_ratio"] == "1.000"
+    assert keyboard_dump["first_expected_score_margin"] == "0.600"
+    assert keyboard_dump["strongest_expected_score_margin"] == "0.600"
+    assert keyboard_dump["visual_first_expected_score_margin"] == "0.000"
+    assert keyboard_dump["visual_strongest_expected_score_margin"] == "0.000"
     assert keyboard_dump["expected_row_exact_level"] == "0.600"
     assert keyboard_dump["expected_row_pitch_level"] == "0.600"
     assert keyboard_dump["expected_row_pitch_delta"] == "0"
     assert keyboard_dump["strongest_row_exact_level"] == "1.000"
     assert keyboard_dump["strongest_row_pitch_level"] == "1.000"
     assert keyboard_dump["strongest_row_pitch_delta"] == "0"
+    assert keyboard_dump["expected_strongest_pitch_level_ratio"] == "0.600"
+    assert keyboard_dump["strongest_expected_pitch_level_margin"] == "0.400"
     assert keyboard_dump["expected_exact_row_count"] == "2"
     assert keyboard_dump["expected_pitch_row_count"] == "2"
     assert keyboard_dump["bass_level"] == "0.00"

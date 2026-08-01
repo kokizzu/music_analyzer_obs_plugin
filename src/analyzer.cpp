@@ -7381,6 +7381,28 @@ bool non_guitar_owned_octave_alias_blocks_guitar_display(const FullMixDebugCandi
 	return lower_level >= candidate_level * 0.45f;
 }
 
+bool measured_other_dominant_same_pitch_guitar_display_shadow(const FullMixDebugCandidate &debug)
+{
+	if (debug.owner != InstrumentKind::Other)
+		return false;
+	if (debug.keyboard_score > 1.0e-6f)
+		return false;
+	if (debug.other_score < 0.70f || debug.guitar_score > 0.16f)
+		return false;
+	if (debug.other_score < debug.guitar_score * 5.70f)
+		return false;
+	if (debug.pitch_confidence > 0.742f)
+		return false;
+	if (shared_guitar_pitch_display_supported(debug) ||
+	    measured_guitar_octave_alias_supported(debug) ||
+	    noisy_other_owned_low_acoustic_guitar_supported(debug) ||
+	    other_owned_overdrive_guitar_body_supported(debug) ||
+	    other_owned_distorted_guitar_octave_alias_supported(debug) ||
+	    other_owned_noisy_distorted_guitar_octave_up_supported(debug))
+		return false;
+	return true;
+}
+
 bool guitar_display_candidate_shadowed_by_non_guitar_pitch(const FullMixOwnership &ownership,
 							   const NoteCandidate &candidate)
 {
@@ -7388,6 +7410,8 @@ bool guitar_display_candidate_shadowed_by_non_guitar_pitch(const FullMixOwnershi
 		return false;
 
 	const FullMixDebugCandidate *debug = full_mix_debug_for_midi(ownership, candidate.midi);
+	if (debug && measured_other_dominant_same_pitch_guitar_display_shadow(*debug))
+		return true;
 	if (debug && guitar_owned_measured_tine_attack_keyboard_body_supported(*debug))
 		return true;
 	if (debug && low_slope_electronic_keyboard_guitar_shadow(*debug))

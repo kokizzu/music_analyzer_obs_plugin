@@ -218,6 +218,8 @@ def main() -> int:
     assert visual_row["visual_strongest_row_exact_level"] == "0.900"
     assert visual_row["visual_strongest_row_pitch_level"] == "0.900"
     assert visual_row["expected_visual_exact_row_count"] == "2"
+    assert "expected_first_score_ratio" in patterns.DEBUG_NUMERIC_FIELDS
+    assert "expected_strongest_pitch_level_ratio" in patterns.ROW_CONTEXT_NUMERIC_FIELDS
     assert "expected_row_visual_exact_level" in patterns.ROW_CONTEXT_NUMERIC_FIELDS
     assert "visual_strongest_row_pitch_level" in patterns.ROW_CONTEXT_NUMERIC_FIELDS
 
@@ -392,7 +394,7 @@ def main() -> int:
                 "--extra-protected-path",
                 str(extra_protected_path),
                 "--row-examples",
-                "1",
+                "2",
                 "--condition",
                 "debug_midi:66:69",
                 "--condition",
@@ -455,7 +457,7 @@ def main() -> int:
                 "--max-negative-samples",
                 "2",
                 "--profile-fields",
-                "3",
+                "20",
             ],
             text=True,
             stdout=subprocess.PIPE,
@@ -665,6 +667,25 @@ def main() -> int:
                 "--include-row-context",
                 "--condition",
                 "debug_owner=guitar",
+                "--limit",
+                "1",
+                "--max-negative-samples",
+                "2",
+            ],
+            text=True,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            check=True,
+        )
+        score_ratio_result = subprocess.run(
+            [
+                sys.executable,
+                str(ROOT / "scripts" / "find_real_note_attribute_patterns.py"),
+                str(hit_path),
+                "--bucket",
+                "hit:piano/electronic->guitar",
+                "--condition",
+                "expected_first_score_ratio<=0.01",
                 "--limit",
                 "1",
                 "--max-negative-samples",
@@ -1300,19 +1321,22 @@ def main() -> int:
     assert "miss_reason=ownership: pos=2/2 rows=2 neg=0/2 rows=0" in reason_result.stdout
     assert "debug_score_state=scored_owner: pos=2/2 rows=2" in score_state_result.stdout
     assert "numeric attribute profile:" in profile_result.stdout
-    assert "partial2 <= sep=0.750 pos=0.13 [0.12..0.14] protected=0.375 [0.13..0.62]" in profile_result.stdout
+    assert "expected_first_score_ratio" in profile_result.stdout
+    assert "partial2 <=" in profile_result.stdout
     assert "category attribute profile:" in profile_result.stdout
     assert "debug_owner=piano enrich=0.500 pos=2/2 protected=1/2" in profile_result.stdout
-    assert (
-        "debug_midi<=69 AND partial2<=0.13 AND pitch_confidence>=0.95: "
-        "pos=2/2 rows=2 neg=0/3 rows=0"
-    ) in multi_result.stdout, multi_result.stdout + multi_result.stderr
+    assert "expected_first_score_ratio<=0: pos=2/2 rows=2 neg=0/3 rows=0" in (
+        multi_result.stdout
+    ), multi_result.stdout + multi_result.stderr
     assert "ownership_miss:guitar/acoustic->piano positives=2 samples/2 rows" in auto_result.stdout
     assert (
         "hit:piano/electronic->guitar positives=2 samples/2 rows "
         "protected_hits=2 samples/2 rows"
     ) in hit_result.stdout
     assert "debug_owner=guitar: pos=2/2 rows=2 neg=1/2 rows=1" in hit_result.stdout
+    assert "expected_first_score_ratio<=0.01: pos=2/2 rows=2 neg=0/2 rows=0" in (
+        score_ratio_result.stdout
+    )
     assert (
         "row_confusion:piano/electronic->guitar positives=2 samples/2 rows "
         "protected_hits=2 samples/2 rows"

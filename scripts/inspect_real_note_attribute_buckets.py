@@ -72,12 +72,27 @@ FIELDS = [
     "raw_third_octave_up_ratio",
     "raw_best_debug_delta",
     "raw_best_debug_abs_delta",
+    "expected_row_score",
+    "first_row_score",
+    "visual_first_row_score",
+    "strongest_row_score",
+    "visual_strongest_row_score",
+    "expected_first_score_ratio",
+    "expected_strongest_score_ratio",
+    "expected_visual_first_score_ratio",
+    "expected_visual_strongest_score_ratio",
+    "first_expected_score_margin",
+    "strongest_expected_score_margin",
+    "visual_first_expected_score_margin",
+    "visual_strongest_expected_score_margin",
     "expected_row_exact_level",
     "expected_row_pitch_level",
     "expected_row_pitch_delta",
     "strongest_row_exact_level",
     "strongest_row_pitch_level",
     "strongest_row_pitch_delta",
+    "expected_strongest_pitch_level_ratio",
+    "strongest_expected_pitch_level_margin",
     "expected_exact_row_count",
     "expected_pitch_row_count",
     "expected_row_visual_exact_level",
@@ -86,6 +101,8 @@ FIELDS = [
     "visual_strongest_row_exact_level",
     "visual_strongest_row_pitch_level",
     "visual_strongest_row_pitch_delta",
+    "expected_visual_strongest_pitch_level_ratio",
+    "visual_strongest_expected_pitch_level_margin",
     "expected_visual_exact_row_count",
     "expected_visual_pitch_row_count",
 ]
@@ -109,6 +126,16 @@ ROW_FOR_FAMILY = {
     "piano": "piano",
     "vocals": "vocals",
     "other": "other",
+}
+
+ROW_SCORE_FIELDS = {
+    "bass": "bass_score",
+    "guitar": "guitar_score",
+    "piano": "keyboard_score",
+    "keyboard": "keyboard_score",
+    "vocals": "vocal_score",
+    "vocal": "vocal_score",
+    "other": "other_score",
 }
 
 CATEGORY_FIELDS = [
@@ -147,12 +174,27 @@ ROW_DUMP_FIELDS = [
     "debug_delta",
     "debug_abs_delta",
     "miss_reason",
+    "expected_row_score",
+    "first_row_score",
+    "visual_first_row_score",
+    "strongest_row_score",
+    "visual_strongest_row_score",
+    "expected_first_score_ratio",
+    "expected_strongest_score_ratio",
+    "expected_visual_first_score_ratio",
+    "expected_visual_strongest_score_ratio",
+    "first_expected_score_margin",
+    "strongest_expected_score_margin",
+    "visual_first_expected_score_margin",
+    "visual_strongest_expected_score_margin",
     "expected_row_exact_level",
     "expected_row_pitch_level",
     "expected_row_pitch_delta",
     "strongest_row_exact_level",
     "strongest_row_pitch_level",
     "strongest_row_pitch_delta",
+    "expected_strongest_pitch_level_ratio",
+    "strongest_expected_pitch_level_margin",
     "expected_exact_row_count",
     "expected_pitch_row_count",
     "expected_row_visual_exact_level",
@@ -161,6 +203,8 @@ ROW_DUMP_FIELDS = [
     "visual_strongest_row_exact_level",
     "visual_strongest_row_pitch_level",
     "visual_strongest_row_pitch_delta",
+    "expected_visual_strongest_pitch_level_ratio",
+    "visual_strongest_expected_pitch_level_margin",
     "expected_visual_exact_row_count",
     "expected_visual_pitch_row_count",
     "bass_score",
@@ -284,6 +328,25 @@ def format_derived_float(value: float | None) -> str:
     return "" if value is None else f"{value:.3f}"
 
 
+def format_ratio(numerator: float | None, denominator: float | None) -> str:
+    if numerator is None or denominator is None or denominator <= 1.0e-9:
+        return ""
+    return format_derived_float(numerator / denominator)
+
+
+def format_margin(left: float | None, right: float | None) -> str:
+    if left is None or right is None:
+        return ""
+    return format_derived_float(left - right)
+
+
+def row_score(row: dict[str, str], row_name: str) -> float | None:
+    field = ROW_SCORE_FIELDS.get(row_name)
+    if not field:
+        return None
+    return as_float(row, field)
+
+
 def note_row_cells(row: dict[str, str], row_name: str, *, visual: bool = False) -> list[tuple[int, float]]:
     field = (ROW_VISUAL_NOTE_FIELDS if visual else ROW_NOTE_FIELDS).get(row_name)
     if not field:
@@ -398,12 +461,34 @@ def derive_row(row: dict[str, str]) -> dict[str, str]:
     result["raw_best_debug_abs_delta"] = raw_best_abs_delta
     result["debug_score_state"] = debug_score_state(row)
     result["miss_reason"] = miss_reason(row, abs_delta)
+    expected_row = ROW_FOR_FAMILY.get(row.get("family", ""), row.get("family", ""))
+    first_row = row.get("first_row", "")
+    visual_first_row = row.get("visual_first_row", "")
+    strongest_row = row.get("buffer_strongest_row", "")
+    visual_strongest_row = row.get("buffer_visual_strongest_row", "")
+    expected_score = row_score(row, expected_row)
+    first_score = row_score(row, first_row)
+    visual_first_score = row_score(row, visual_first_row)
+    strongest_score = row_score(row, strongest_row)
+    visual_strongest_score = row_score(row, visual_strongest_row)
+    result["expected_row_score"] = format_derived_float(expected_score)
+    result["first_row_score"] = format_derived_float(first_score)
+    result["visual_first_row_score"] = format_derived_float(visual_first_score)
+    result["strongest_row_score"] = format_derived_float(strongest_score)
+    result["visual_strongest_row_score"] = format_derived_float(visual_strongest_score)
+    result["expected_first_score_ratio"] = format_ratio(expected_score, first_score)
+    result["expected_strongest_score_ratio"] = format_ratio(expected_score, strongest_score)
+    result["expected_visual_first_score_ratio"] = format_ratio(expected_score, visual_first_score)
+    result["expected_visual_strongest_score_ratio"] = format_ratio(expected_score, visual_strongest_score)
+    result["first_expected_score_margin"] = format_margin(first_score, expected_score)
+    result["strongest_expected_score_margin"] = format_margin(strongest_score, expected_score)
+    result["visual_first_expected_score_margin"] = format_margin(visual_first_score, expected_score)
+    result["visual_strongest_expected_score_margin"] = format_margin(
+        visual_strongest_score, expected_score
+    )
     expected = as_float(row, "expected_midi")
     if expected is not None:
         expected_midi = int(round(expected))
-        expected_row = ROW_FOR_FAMILY.get(row.get("family", ""), row.get("family", ""))
-        strongest_row = row.get("buffer_strongest_row", "")
-        visual_strongest_row = row.get("buffer_visual_strongest_row", "")
         expected_exact, expected_pitch, expected_delta = note_row_levels(row, expected_row, expected_midi)
         strongest_exact, strongest_pitch, strongest_delta = note_row_levels(row, strongest_row, expected_midi)
         exact_count, pitch_count = note_row_counts(row, expected_midi)
@@ -420,6 +505,8 @@ def derive_row(row: dict[str, str]) -> dict[str, str]:
         result["strongest_row_exact_level"] = format_derived_float(strongest_exact)
         result["strongest_row_pitch_level"] = format_derived_float(strongest_pitch)
         result["strongest_row_pitch_delta"] = "" if strongest_delta is None else str(strongest_delta)
+        result["expected_strongest_pitch_level_ratio"] = format_ratio(expected_pitch, strongest_pitch)
+        result["strongest_expected_pitch_level_margin"] = format_margin(strongest_pitch, expected_pitch)
         result["expected_exact_row_count"] = str(exact_count)
         result["expected_pitch_row_count"] = str(pitch_count)
         result["expected_row_visual_exact_level"] = format_derived_float(expected_visual_exact)
@@ -431,6 +518,12 @@ def derive_row(row: dict[str, str]) -> dict[str, str]:
         result["visual_strongest_row_pitch_level"] = format_derived_float(visual_strongest_pitch)
         result["visual_strongest_row_pitch_delta"] = (
             "" if visual_strongest_delta is None else str(visual_strongest_delta)
+        )
+        result["expected_visual_strongest_pitch_level_ratio"] = format_ratio(
+            expected_visual_pitch, visual_strongest_pitch
+        )
+        result["visual_strongest_expected_pitch_level_margin"] = format_margin(
+            visual_strongest_pitch, expected_visual_pitch
         )
         result["expected_visual_exact_row_count"] = str(visual_exact_count)
         result["expected_visual_pitch_row_count"] = str(visual_pitch_count)
