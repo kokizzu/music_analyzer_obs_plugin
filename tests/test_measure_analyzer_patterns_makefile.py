@@ -1113,6 +1113,12 @@ def main() -> int:
     assert "test-drum-machine-samples-optional" in detector_regression_target_list, (
         "detector sample regression loop must include local drum-machine kit coverage"
     )
+    assert "test-idmt-bass-lines-samples-optional" in detector_regression_target_list, (
+        "detector sample regression loop must include optional real electric bass-line coverage"
+    )
+    assert "test-idmt-guitar-samples-optional" in detector_regression_target_list, (
+        "detector sample regression loop must include optional real guitar note coverage"
+    )
     assert "test-drum-samples-full-parallel-optional" in detector_regression_target_list, (
         "detector sample regression loop must include the optional local full-drum gate in the jobserver fanout"
     )
@@ -1125,6 +1131,22 @@ def main() -> int:
     assert "test-instrument-samples " not in detector_regression_target_list + " ", (
         "detector sample regression loop must not use the serial generated instrument sample gate"
     )
+    assert re.search(
+        r"^test-idmt-bass-lines-samples-optional: test-idmt-bass-lines-samples$",
+        makefile,
+        re.MULTILINE,
+    ), "optional IDMT bass-line wrapper must run the real sample gate when the archive exists"
+    assert re.search(
+        r"^test-idmt-guitar-samples-optional: test-idmt-guitar-samples$",
+        makefile,
+        re.MULTILINE,
+    ), "optional IDMT guitar wrapper must run the real sample gate when the archive exists"
+    assert 'test-idmt-bass-lines-samples: skipped; missing $(IDMT_BASS_LINES_ARCHIVE)' in target_recipe(
+        makefile, "test-idmt-bass-lines-samples-optional"
+    ), "optional IDMT bass-line wrapper must skip cleanly when the archive is missing"
+    assert 'test-idmt-guitar-samples: skipped; missing $(IDMT_GUITAR_ARCHIVE)' in target_recipe(
+        makefile, "test-idmt-guitar-samples-optional"
+    ), "optional IDMT guitar wrapper must skip cleanly when the archive is missing"
     detector_regression_recipe = target_recipe(makefile, "test-detector-samples-parallel")
     assert "\n\t+$(RUN_WITH_DURATION) detector_samples_parallel" in detector_regression_recipe, (
         "detector sample regression target must preserve the make jobserver through the parallel duration wrapper"
