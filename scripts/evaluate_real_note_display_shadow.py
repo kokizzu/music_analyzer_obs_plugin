@@ -11,6 +11,8 @@ import pathlib
 import re
 import statistics
 
+from inspect_real_note_attribute_buckets import derive_row
+
 
 NOTE_BASE = {
     "C": 0,
@@ -29,6 +31,8 @@ NOTE_BASE = {
 NOTE_RE = re.compile(r"^([A-G]#?)(-?\d+)$")
 NOTE_CELL_RE = re.compile(r"([A-G]#?-?\d+):([0-9.]+)")
 ThresholdMatch = tuple[int, int, float, float, float, float | None]
+Condition = tuple[str, str, str]
+CONDITION_RE = re.compile(r"^([^!<>=:]+)(!=|>=|<=|=|>|<|:)(.+)$")
 
 ROW_FOR_FAMILY = {
     "bass": "bass",
@@ -152,6 +156,13 @@ def as_float(row: dict[str, str], field: str) -> float | None:
         return None
 
 
+def as_float_value(value: str) -> float | None:
+    try:
+        return float(value)
+    except ValueError:
+        return None
+
+
 def as_int(row: dict[str, str], field: str) -> int | None:
     value = as_float(row, field)
     if value is None:
@@ -243,9 +254,53 @@ def parse_optional_float_list(value: str) -> list[float | None]:
     return out
 
 
+def parse_condition(spec: str) -> Condition:
+    match = CONDITION_RE.fullmatch(spec)
+    if not match:
+        raise SystemExit(f"invalid condition `{spec}`")
+    return match.group(1), match.group(2), match.group(3)
+
+
+def matches_condition(row: dict[str, str], condition: Condition) -> bool:
+    field, op, expected = condition
+    actual = row.get(field, "")
+    if op == "=":
+        return actual == expected
+    if op == "!=":
+        return actual != expected
+
+    actual_number = as_float_value(actual)
+    if actual_number is None:
+        return False
+
+    if op == ":":
+        try:
+            low, high = (float(part) for part in expected.split(":", 1))
+        except ValueError as exc:
+            raise SystemExit(f"invalid range condition `{field}:{expected}`") from exc
+        return low <= actual_number <= high
+
+    expected_number = as_float_value(expected)
+    if expected_number is None:
+        raise SystemExit(f"invalid numeric condition `{field}{op}{expected}`")
+    if op == ">=":
+        return actual_number >= expected_number
+    if op == "<=":
+        return actual_number <= expected_number
+    if op == ">":
+        return actual_number > expected_number
+    if op == "<":
+        return actual_number < expected_number
+    raise AssertionError(op)
+
+
+def matches_conditions(row: dict[str, str], conditions: list[Condition]) -> bool:
+    return all(matches_condition(row, condition) for condition in conditions)
+
+
 def load_rows(path: pathlib.Path) -> list[dict[str, str]]:
     with path.open(newline="", errors="replace") as handle:
-        return list(csv.DictReader(handle, delimiter="\t"))
+        return [derive_row(row) for row in csv.DictReader(handle, delimiter="\t")]
 
 
 def best_same_midi_debug(rows: list[dict[str, str]], midi: int, target_row: str) -> dict[str, str] | None:
@@ -1291,6 +1346,15 @@ def main() -> int:
     parser.add_argument("--shadow-row", default="piano")
     parser.add_argument("--min-target-level", type=float, default=0.01)
     parser.add_argument("--min-shadow-level", type=float, default=0.01)
+    parser.add_argument(
+        "--condition",
+        action="append",
+        default=[],
+        help=(
+            "filter built route records: field=value, field!=value, field>=number, "
+            "field<=number, or field:min:max; repeatable"
+        ),
+    )
     parser.add_argument("--examples", "--show-examples", dest="examples", type=int, default=8)
     parser.add_argument(
         "--summary-only",
@@ -1398,6 +1462,7 @@ def main() -> int:
     args = parser.parse_args()
 
     rows = load_rows(pathlib.Path(args.path))
+    conditions = [parse_condition(spec) for spec in args.condition]
     grouped: dict[tuple[str, str], list[dict[str, str]]] = collections.defaultdict(list)
     for row in rows:
         grouped[(row.get("sample_id", ""), row.get("buffer", ""))].append(row)
@@ -1432,9 +1497,10 @@ def main() -> int:
                 if target_level < args.min_target_level:
                     continue
                 debug = best_same_midi_debug(group_rows, midi, shadow_row)
-                records_by_target[target_row].append(
-                    build_record(context, debug, target_row, shadow_row, midi)
-                )
+                record = build_record(context, debug, target_row, shadow_row, midi)
+                if conditions and not matches_conditions(record, conditions):
+                    continue
+                records_by_target[target_row].append(record)
 
         for target_row in target_rows:
             if target_row == shadow_row:

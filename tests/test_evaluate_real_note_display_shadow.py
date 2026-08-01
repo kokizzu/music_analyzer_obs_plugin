@@ -659,6 +659,29 @@ def main() -> int:
             text=True,
             stdout=subprocess.PIPE,
         )
+        filtered_condition_result = subprocess.run(
+            [
+                sys.executable,
+                str(ROOT / "scripts" / "evaluate_real_note_display_shadow.py"),
+                str(path),
+                "--shadow-row",
+                "piano",
+                "--target-row",
+                "guitar",
+                "--min-shadow-level",
+                "0.10",
+                "--min-target-level",
+                "0.10",
+                "--summary-only",
+                "--condition",
+                "expected_pitch_class=C",
+                "--condition",
+                "expected_octave=4",
+            ],
+            check=True,
+            text=True,
+            stdout=subprocess.PIPE,
+        )
         target_level_threshold_result = subprocess.run(
             [
                 sys.executable,
@@ -1160,6 +1183,13 @@ def main() -> int:
     source_breakdown_output = source_breakdown_result.stdout
     assert "extras_sources piano/electronic=2" in source_breakdown_output, source_breakdown_output
     assert "protected_sources --" in source_breakdown_output, source_breakdown_output
+    filtered_condition_output = filtered_condition_result.stdout
+    assert "piano->same-pitch guitar extras rows=1 samples=1" in filtered_condition_output, (
+        filtered_condition_output
+    )
+    assert "piano->same-pitch guitar protected rows=0 samples=0" in filtered_condition_output, (
+        filtered_condition_output
+    )
     summary_output = summary_result.stdout
     assert "piano->same-pitch guitar extras rows=3 samples=3" in summary_output, summary_output
     assert "piano->same-pitch guitar protected rows=1 samples=1" in summary_output, summary_output
