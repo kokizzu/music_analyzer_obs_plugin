@@ -9,6 +9,47 @@ def touch_dir(path):
     os.makedirs(path, exist_ok=True)
 
 
+def all_configured_env():
+    return {
+        "MUSIC_ANALYZER_URMP_ROOT": "/tmp/urmp",
+        "MUSIC_ANALYZER_MUSICNET_ROOT": "/tmp/musicnet",
+        "MUSIC_ANALYZER_MEDLEYDB_ROOT": "/tmp/medleydb",
+        "MUSIC_ANALYZER_MUSDB_ROOT": "/tmp/musdb",
+        "MUSIC_ANALYZER_SLAKH_ROOT": "/tmp/slakh",
+        "MUSIC_ANALYZER_CHORALSYNTH_ROOT": "/tmp/choralsynth",
+        "MUSIC_ANALYZER_COCOCHORALES_ROOT": "/tmp/cocochorales",
+        "MUSIC_ANALYZER_SYNTHSOD_ROOT": "/tmp/synthsod",
+        "MUSIC_ANALYZER_POLYVOCAL_ROOT": "/tmp/polyvocal",
+        "MUSIC_ANALYZER_PREPARED_MULTITRACK_ROOT": "/tmp/prepared",
+        "MUSIC_ANALYZER_MULTTIPOP_ROOT": "/tmp/multtipop",
+        "MUSIC_ANALYZER_MULTTIPOP_REQUIRE_AUDIO": "1",
+        "MUSIC_ANALYZER_SPHERES_ROOT": "/tmp/spheres",
+        "MUSIC_ANALYZER_GUITARSET_ROOT": "/tmp/guitarset",
+        "MUSIC_ANALYZER_MAESTRO_ROOT": "/tmp/maestro",
+        "MUSIC_ANALYZER_EGMD_ROOT": "/tmp/egmd",
+    }
+
+
+def expected_twenty_piece_targets():
+    return [
+        "test-real-multitrack-20",
+        "test-real-musicnet-20",
+        "test-real-medleydb-20",
+        "inspect-real-musdb",
+        "test-real-slakh-20",
+        "test-real-choralsynth-20",
+        "test-real-cocochorales-20",
+        "test-real-synthsod-20",
+        "test-real-polyvocal-20",
+        "test-real-prepared-multitrack-20",
+        "test-real-multtipop-20",
+        "inspect-real-spheres",
+        "test-real-guitarset-20",
+        "test-real-maestro-20",
+        "test-real-egmd-20",
+    ]
+
+
 def test_explicit_musicnet_root_is_configured():
     assert run_real_goal_gate.configured_musicnet({"MUSIC_ANALYZER_MUSICNET_ROOT": "/tmp/musicnet"})
     assert run_real_goal_gate.configured_musicnet({"MUSICNET_PATH": "/tmp/musicnet"})
@@ -403,6 +444,55 @@ def test_invalid_plan_is_rejected():
     assert run_real_goal_gate.resolve_plan("quick") is None
 
 
+def test_make_args_accept_explicit_parallelism():
+    assert run_real_goal_gate.make_argv_from_args(["make", "-j4"]) == ["make", "-j4"]
+    assert run_real_goal_gate.make_argv_from_args(["make -j4"]) == ["make", "-j4"]
+
+
+def test_jobserver_fds_are_parsed_from_makeflags():
+    assert run_real_goal_gate.jobserver_fds_from_makeflags(
+        {"MAKEFLAGS": "s -j --jobserver-auth=3,4"}
+    ) == (3, 4)
+    assert run_real_goal_gate.jobserver_fds_from_makeflags(
+        {"MAKEFLAGS": "--jobserver-fds=5,6 -j"}
+    ) == (5, 6)
+    assert run_real_goal_gate.jobserver_fds_from_makeflags(
+        {"MAKEFLAGS": "--jobserver-auth=fifo:/tmp/gmakefifo"}
+    ) == ()
+    assert run_real_goal_gate.jobserver_fds_from_makeflags({"MAKEFLAGS": "-j32"}) == ()
+
+
+def test_configured_targets_batch_real_goal_gates():
+    targets, skipped = run_real_goal_gate.configured_targets(
+        run_real_goal_gate.resolve_plan("20"),
+        all_configured_env(),
+    )
+    assert skipped == []
+    assert targets == expected_twenty_piece_targets()
+
+
+def test_main_runs_real_goal_targets_in_one_make_invocation():
+    calls = []
+    original_run = run_real_goal_gate.run
+    original_env = os.environ.copy()
+
+    def fake_run(make_argv, targets):
+        calls.append((make_argv, targets))
+        return 0
+
+    try:
+        run_real_goal_gate.run = fake_run
+        os.environ.clear()
+        os.environ.update(all_configured_env())
+        assert run_real_goal_gate.main(["run_real_goal_gate.py", "20", "make", "-j4"]) == 0
+    finally:
+        run_real_goal_gate.run = original_run
+        os.environ.clear()
+        os.environ.update(original_env)
+
+    assert calls == [(["make", "-j4"], expected_twenty_piece_targets())]
+
+
 def main():
     test_explicit_musicnet_root_is_configured()
     test_generic_dataset_root_without_musicnet_layout_is_not_musicnet()
@@ -457,7 +547,11 @@ def main():
     test_twenty_piece_inspect_plan_targets_preflights()
     test_full_inspect_plan_targets_full_preflights()
     test_invalid_plan_is_rejected()
-    print("test_run_real_goal_gate: 53 checks passed")
+    test_make_args_accept_explicit_parallelism()
+    test_jobserver_fds_are_parsed_from_makeflags()
+    test_configured_targets_batch_real_goal_gates()
+    test_main_runs_real_goal_targets_in_one_make_invocation()
+    print("test_run_real_goal_gate: 57 checks passed")
     return 0
 
 

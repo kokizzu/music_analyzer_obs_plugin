@@ -1,5 +1,7 @@
 #!/usr/bin/env python3
 import os
+import re
+import shlex
 import subprocess
 import sys
 
@@ -399,133 +401,136 @@ def resolve_plan(mode):
     return dict(plan) if plan else None
 
 
-def run(make_cmd, target):
-    print(f"run_real_goal_gate: running {make_cmd} {target}", flush=True)
-    return subprocess.call([make_cmd, target])
+def make_argv_from_args(args):
+    if len(args) == 1:
+        return shlex.split(args[0])
+    return list(args)
 
 
-def main(argv):
-    if len(argv) != 3:
-        print("usage: run_real_goal_gate.py 20|full|optional-20|optional-full|inspect-20|inspect-full MAKE", file=sys.stderr)
-        return 2
+def jobserver_fds_from_makeflags(env):
+    match = re.search(r"(?:^|\s)--jobserver-(?:auth|fds)=([^\s]+)", env.get("MAKEFLAGS", ""))
+    if not match:
+        return ()
+    auth = match.group(1)
+    if auth.startswith("fifo:"):
+        return ()
+    parts = auth.split(",", 1)
+    if len(parts) != 2:
+        return ()
+    try:
+        read_fd = int(parts[0])
+        write_fd = int(parts[1])
+    except ValueError:
+        return ()
+    if read_fd < 0 or write_fd < 0:
+        return ()
+    return (read_fd, write_fd)
 
-    plan = resolve_plan(argv[1])
-    if not plan:
-        print("usage: run_real_goal_gate.py 20|full|optional-20|optional-full|inspect-20|inspect-full MAKE", file=sys.stderr)
-        return 2
 
-    make_cmd = argv[2]
-    env = os.environ
+def run(make_argv, targets):
+    if not targets:
+        return 0
+    print(f"run_real_goal_gate: running {' '.join(make_argv + targets)}", flush=True)
+    pass_fds = jobserver_fds_from_makeflags(os.environ)
+    if pass_fds:
+        return subprocess.call(make_argv + targets, pass_fds=pass_fds)
+    return subprocess.call(make_argv + targets)
+
+
+def configured_targets(plan, env):
+    targets = []
+    skipped = []
+
+    def skip(message):
+        skipped.append(message)
 
     if plan.get("requires_multitrack", True):
-        failed = run(make_cmd, plan["multitrack_target"])
-        if failed:
-            return failed
+        targets.append(plan["multitrack_target"])
     elif configured_urmp(env):
-        failed = run(make_cmd, plan["multitrack_target"])
-        if failed:
-            return failed
+        targets.append(plan["multitrack_target"])
     else:
-        print(
+        skip(
             "run_real_goal_gate: skipping optional URMP multitrack analyzer gate; set "
             "MUSIC_ANALYZER_URMP_ROOT/URMP_PATH or place a URMP directory under "
             "MUSIC_ANALYZER_DATASET_ROOT"
         )
 
     if configured_musicnet(env):
-        failed = run(make_cmd, plan["musicnet_target"])
-        if failed:
-            return failed
+        targets.append(plan["musicnet_target"])
     else:
-        print(
+        skip(
             "run_real_goal_gate: skipping optional MusicNet real-mix gate; set "
             "MUSIC_ANALYZER_MUSICNET_ROOT/MUSICNET_PATH or place a MusicNet layout under "
             "MUSIC_ANALYZER_DATASET_ROOT"
         )
 
     if configured_medleydb(env):
-        failed = run(make_cmd, plan["medleydb_target"])
-        if failed:
-            return failed
+        targets.append(plan["medleydb_target"])
     else:
-        print(
+        skip(
             "run_real_goal_gate: skipping optional MedleyDB summed-stem melody-F0 analyzer gate; set "
             "MUSIC_ANALYZER_MEDLEYDB_ROOT/MEDLEYDB_PATH or place a MedleyDB directory under "
             "MUSIC_ANALYZER_DATASET_ROOT"
         )
 
     if configured_musdb(env):
-        failed = run(make_cmd, plan["musdb_target"])
-        if failed:
-            return failed
+        targets.append(plan["musdb_target"])
     else:
-        print(
+        skip(
             "run_real_goal_gate: skipping optional MUSDB18 stem preflight; set "
             "MUSIC_ANALYZER_MUSDB_ROOT/MUSDB_PATH or place a MUSDB18/MUSDB18-HQ directory under "
             "MUSIC_ANALYZER_DATASET_ROOT"
         )
 
     if configured_slakh(env):
-        failed = run(make_cmd, plan["slakh_target"])
-        if failed:
-            return failed
+        targets.append(plan["slakh_target"])
     else:
-        print(
+        skip(
             "run_real_goal_gate: skipping optional Slakh2100 rendered multitrack analyzer gate; set "
             "MUSIC_ANALYZER_SLAKH_ROOT/SLAKH_PATH or place a Slakh2100 directory under "
             "MUSIC_ANALYZER_DATASET_ROOT"
         )
 
     if configured_choralsynth(env):
-        failed = run(make_cmd, plan["choralsynth_target"])
-        if failed:
-            return failed
+        targets.append(plan["choralsynth_target"])
     else:
-        print(
+        skip(
             "run_real_goal_gate: skipping optional ChoralSynth vocal multitrack analyzer gate; set "
             "MUSIC_ANALYZER_CHORALSYNTH_ROOT/CHORALSYNTH_PATH or place a ChoralSynth directory under "
             "MUSIC_ANALYZER_DATASET_ROOT"
         )
 
     if configured_cocochorales(env):
-        failed = run(make_cmd, plan["cocochorales_target"])
-        if failed:
-            return failed
+        targets.append(plan["cocochorales_target"])
     else:
-        print(
+        skip(
             "run_real_goal_gate: skipping optional CocoChorales chamber-ensemble analyzer gate; set "
             "MUSIC_ANALYZER_COCOCHORALES_ROOT/COCOCHORALES_PATH or place a CocoChorales directory under "
             "MUSIC_ANALYZER_DATASET_ROOT"
         )
 
     if configured_synthsod(env):
-        failed = run(make_cmd, plan["synthsod_target"])
-        if failed:
-            return failed
+        targets.append(plan["synthsod_target"])
     else:
-        print(
+        skip(
             "run_real_goal_gate: skipping optional SynthSOD orchestra/ensemble analyzer gate; set "
             "MUSIC_ANALYZER_SYNTHSOD_ROOT/SYNTHSOD_PATH plus MUSIC_ANALYZER_SYNTHSOD_SCORES_ROOT/"
             "SYNTHSOD_SCORES_PATH or place a SynthSOD directory under MUSIC_ANALYZER_DATASET_ROOT"
         )
 
     if configured_polyvocal(env):
-        failed = run(make_cmd, plan["polyvocal_target"])
-        if failed:
-            return failed
+        targets.append(plan["polyvocal_target"])
     else:
-        print(
+        skip(
             "run_real_goal_gate: skipping optional vocal-ensemble F0 analyzer gate; set "
             "MUSIC_ANALYZER_POLYVOCAL_ROOT/POLYVOCAL_PATH or place a polyvocal directory under "
             "MUSIC_ANALYZER_DATASET_ROOT"
         )
 
     if configured_prepared_multitrack(env):
-        failed = run(make_cmd, plan["prepared_multitrack_target"])
-        if failed:
-            return failed
+        targets.append(plan["prepared_multitrack_target"])
     else:
-        print(
+        skip(
             "run_real_goal_gate: skipping optional prepared multitrack note-truth analyzer gate; set "
             "MUSIC_ANALYZER_PREPARED_MULTITRACK_ROOT/PREPARED_MULTITRACK_PATH or place a prepared "
             "multitrack manifest under MUSIC_ANALYZER_DATASET_ROOT"
@@ -533,59 +538,73 @@ def main(argv):
 
     if configured_multtipop(env):
         target = plan["multtipop_audio_target"] if multtipop_audio_configured(env) else plan["multtipop_target"]
-        failed = run(make_cmd, target)
-        if failed:
-            return failed
+        targets.append(target)
     else:
-        print(
+        skip(
             "run_real_goal_gate: skipping optional MulTTiPop multitrack-MIDI preflight; set "
             "MUSIC_ANALYZER_MULTTIPOP_ROOT/MULTTIPOP_PATH or place a MulTTiPop directory under "
             "MUSIC_ANALYZER_DATASET_ROOT"
         )
 
     if configured_spheres(env):
-        failed = run(make_cmd, plan["spheres_target"])
-        if failed:
-            return failed
+        targets.append(plan["spheres_target"])
     else:
-        print(
+        skip(
             "run_real_goal_gate: skipping optional Spheres stem preflight; set "
             "MUSIC_ANALYZER_SPHERES_ROOT/SPHERES_PATH or place a Spheres directory under "
             "MUSIC_ANALYZER_DATASET_ROOT"
         )
 
     if configured_guitarset(env):
-        failed = run(make_cmd, plan["guitarset_target"])
-        if failed:
-            return failed
+        targets.append(plan["guitarset_target"])
     else:
-        print(
+        skip(
             "run_real_goal_gate: skipping optional GuitarSet guitar/fretboard preflight; set "
             "MUSIC_ANALYZER_GUITARSET_ROOT/GUITARSET_PATH or place a GuitarSet directory under "
             "MUSIC_ANALYZER_DATASET_ROOT"
         )
 
     if configured_maestro(env):
-        failed = run(make_cmd, plan["maestro_target"])
-        if failed:
-            return failed
+        targets.append(plan["maestro_target"])
     else:
-        print(
+        skip(
             "run_real_goal_gate: skipping optional MAESTRO piano analyzer gate; set "
             "MUSIC_ANALYZER_MAESTRO_ROOT/MAESTRO_PATH or place a MAESTRO directory under "
             "MUSIC_ANALYZER_DATASET_ROOT"
         )
 
     if configured_egmd(env):
-        failed = run(make_cmd, plan["egmd_target"])
-        if failed:
-            return failed
+        targets.append(plan["egmd_target"])
     else:
-        print(
+        skip(
             "run_real_goal_gate: skipping optional E-GMD drum analyzer gate; set "
             "MUSIC_ANALYZER_EGMD_ROOT/EGMD_PATH or place an E-GMD directory under "
             "MUSIC_ANALYZER_DATASET_ROOT"
         )
+
+    return targets, skipped
+
+
+def main(argv):
+    if len(argv) < 3:
+        print("usage: run_real_goal_gate.py 20|full|optional-20|optional-full|inspect-20|inspect-full MAKE [MAKE_ARGS...]", file=sys.stderr)
+        return 2
+
+    plan = resolve_plan(argv[1])
+    if not plan:
+        print("usage: run_real_goal_gate.py 20|full|optional-20|optional-full|inspect-20|inspect-full MAKE [MAKE_ARGS...]", file=sys.stderr)
+        return 2
+
+    make_argv = make_argv_from_args(argv[2:])
+    env = os.environ
+
+    targets, skipped = configured_targets(plan, env)
+    for message in skipped:
+        print(message)
+
+    failed = run(make_argv, targets)
+    if failed:
+        return failed
 
     if plan["inspect_only"]:
         print("run_real_goal_gate: passed required URMP multitrack preflight and all configured optional preflights")

@@ -698,6 +698,30 @@ def main() -> int:
     assert 'REAL_GOAL_FIXTURE_DIR="$(REAL_GOAL_PARALLEL_FIXTURE_DIR)" test-fixtures-parallel' in isolated_fixture_recipe, (
         "isolated fixture target must run fixtures under a separate real-goal root"
     )
+    assert re.search(r"^REAL_GOAL_MAKE_JOBS \?=", makefile, re.MULTILINE), (
+        "real-goal coordinator must have a make parallelism handoff for no-jobserver invocations"
+    )
+    configured_real_world_recipe = target_recipe(makefile, "test-configured-real-world-samples")
+    assert 'run_real_goal_gate.py optional-20 "$(MAKE)" $(REAL_GOAL_MAKE_JOBS)' in configured_real_world_recipe, (
+        "configured real-world sample gate must pass explicit parallel make args into the Python coordinator"
+    )
+    real_goal_fixture_recipe = target_recipe(makefile, "test-real-goal-fixture")
+    assert 'run_real_goal_gate.py inspect-20 "$(MAKE)" $(REAL_GOAL_MAKE_JOBS)' in real_goal_fixture_recipe, (
+        "real-goal fixture preflight must pass explicit parallel make args into the Python coordinator"
+    )
+    assert 'run_real_goal_gate.py 20 "$(MAKE)" $(REAL_GOAL_MAKE_JOBS)' in real_goal_fixture_recipe, (
+        "real-goal fixture analyzer gate must pass explicit parallel make args into the Python coordinator"
+    )
+    for wrapper in [
+        "test-real-goal-20",
+        "test-real-goal-full",
+        "inspect-real-goal-20",
+        "inspect-real-goal-full",
+    ]:
+        wrapper_recipe = target_recipe(makefile, wrapper)
+        assert '"$(MAKE)" $(REAL_GOAL_MAKE_JOBS)' in wrapper_recipe, (
+            f"{wrapper} must pass explicit parallel make args into the Python coordinator"
+        )
     assert "$(MAKE) test-instrument-samples\n" not in default_test_recipe, (
         "default test target must not run generated instrument samples serially"
     )
