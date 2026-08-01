@@ -1339,6 +1339,35 @@ void check_raw_supported_mid_keyboard_lower_octave_promotes_alias(Runner &runner
 	runner.expect(weak_primary.active && weak_primary.midi == kAliasMidi,
 		      "mid keyboard lower octave: expected weak lower support to keep high alias");
 
+	NoteGrid non_keyboard_alias_grid = {};
+	write_note_grid_cell(non_keyboard_alias_grid, NoteCandidate{kAliasMidi, 1.0f}, 1.0f, 1.0f);
+	InstrumentState non_keyboard_alias_state = {};
+	write_note_grid_label(non_keyboard_alias_state, non_keyboard_alias_grid, -1);
+	FullMixOwnership non_keyboard_alias = ownership;
+	FullMixDebugCandidate &non_keyboard_debug = non_keyboard_alias.debug_candidates[0];
+	non_keyboard_debug.owner = InstrumentKind::Guitar;
+	non_keyboard_debug.keyboard_score = 0.0f;
+	non_keyboard_debug.guitar_score = 1.0f;
+	non_keyboard_debug.spectral_level = 1.0f;
+	non_keyboard_debug.pitch_confidence = 0.92f;
+	non_keyboard_debug.periodicity = 0.86f;
+	non_keyboard_debug.harmonic_fit_error = 0.14f;
+	non_keyboard_debug.local_noise_level = 0.005f;
+	non_keyboard_debug.spectral_centroid = 0.20f;
+	non_keyboard_debug.spectral_slope = 0.06f;
+	non_keyboard_debug.harmonic_ratios[1] = 0.66f;
+	non_keyboard_debug.harmonic_ratios[2] = 0.035f;
+	non_keyboard_debug.harmonic_ratios[3] = 0.009f;
+	non_keyboard_debug.harmonic_ratios[4] = 0.001f;
+	prefer_raw_supported_mid_keyboard_lower_octave_primary(
+		non_keyboard_alias_grid, non_keyboard_alias_state, non_keyboard_alias, powers, raw_powers,
+		-1);
+	const NoteCell non_keyboard_primary =
+		note_grid_primary_cell_for_pitch_class(non_keyboard_alias_grid,
+						       midi_pitch_class(kLowerMidi));
+	runner.expect(non_keyboard_primary.active && non_keyboard_primary.midi == kLowerMidi,
+		      "mid keyboard lower octave: expected display-supported non-keyboard alias to fold to raw lower note");
+
 	NoteGrid unsupported_grid = {};
 	write_note_grid_cell(unsupported_grid, NoteCandidate{kAliasMidi, 1.0f}, 1.0f, 1.0f);
 	InstrumentState unsupported_state = {};

@@ -13242,13 +13242,32 @@ void prefer_raw_supported_mid_keyboard_lower_octave_primary(NoteGrid &grid, Inst
 		const float primary_debug_score =
 			std::max(0.0f, full_mix_debug_keyboard_note_score(ownership, primary.midi));
 		const FullMixDebugCandidate *primary_debug = full_mix_debug_for_midi(ownership, primary.midi);
-		if (primary_debug_score < 0.70f)
+		const bool non_keyboard_display_alias =
+			primary_debug && primary_debug->owner == InstrumentKind::Guitar &&
+			full_mix_display_mirror_supported(FullMixDisplayRow::Keyboard, *primary_debug,
+							 primary.midi) &&
+			primary_debug->spectral_level >= 0.70f &&
+			primary_debug->pitch_confidence >= 0.70f &&
+			primary_debug->periodicity >= 0.64f &&
+			primary_debug->local_noise_level <= 0.24f &&
+			primary_debug->harmonic_fit_error <= 0.20f &&
+			(primary_debug->harmonic_ratios[1] >= 0.10f ||
+			 primary_debug->harmonic_ratios[3] >= 0.006f ||
+			 primary_debug->spectral_centroid >= 0.10f);
+		if (primary_debug_score < 0.70f && !non_keyboard_display_alias)
 			continue;
-		if (!primary_debug || primary_debug->owner != InstrumentKind::Keyboard ||
-		    primary_debug->harmonic_fit_error > 0.035f ||
-		    primary_debug->harmonic_ratios[1] > 0.12f ||
-		    primary_debug->local_noise_level > 0.18f)
+		if (!primary_debug)
 			continue;
+		if (primary_debug->owner == InstrumentKind::Keyboard) {
+			if (primary_debug->harmonic_fit_error > 0.035f ||
+			    primary_debug->harmonic_ratios[1] > 0.12f ||
+			    primary_debug->local_noise_level > 0.18f)
+				continue;
+		} else if (!non_keyboard_display_alias) {
+			continue;
+		}
+		const float effective_primary_debug_score =
+			std::max(primary_debug_score, non_keyboard_display_alias ? 0.72f : 0.0f);
 
 		int supported_midi = -1;
 		float supported_level = 0.0f;
@@ -13288,7 +13307,8 @@ void prefer_raw_supported_mid_keyboard_lower_octave_primary(NoteGrid &grid, Inst
 			if (supported_midi < 0 || lower_midi < supported_midi ||
 			    (lower_midi == supported_midi && lower_support > supported_level)) {
 				supported_midi = lower_midi;
-				supported_level = std::max({primary.level, lower_support, primary_debug_score});
+				supported_level =
+					std::max({primary.level, lower_support, effective_primary_debug_score});
 			}
 		}
 		if (supported_midi < 0)
