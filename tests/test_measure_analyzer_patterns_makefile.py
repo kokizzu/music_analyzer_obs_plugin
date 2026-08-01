@@ -2286,6 +2286,16 @@ def main() -> int:
             "inspect_guitarset_attribute_buckets.py",
             "--misses-only",
         ),
+        "$(EGFXSET_GUITAR_DETECTED_ATTRIBUTE_ROWS)": (
+            "$(EGFXSET_GUITAR_ATTRIBUTE_TSV)",
+            "inspect_guitarset_attribute_buckets.py",
+            "--dump-rows",
+        ),
+        "$(EGFXSET_GUITAR_MISS_ATTRIBUTE_ROWS)": (
+            "$(EGFXSET_GUITAR_ATTRIBUTE_TSV)",
+            "inspect_guitarset_attribute_buckets.py",
+            "--misses-only",
+        ),
     }
     for target, required_parts in row_dump_targets.items():
         row_dump_recipe = target_recipe(makefile, target)
@@ -2372,6 +2382,14 @@ def main() -> int:
             "scripts/run_with_lock.sh",
             "$(GUITAR_CHORD_MIX_ATTRIBUTE_LOCK_DIR)",
             "$(GUITAR_CHORD_MIX_ATTRIBUTE_PARTS)",
+        ),
+        "$(EGFXSET_GUITAR_ATTRIBUTE_TSV)": (
+            "$(BUILD_DIR)/analyzer_guitarset",
+            "$(EGFXSET_GUITAR_MANIFEST)",
+            "scripts/build_sharded_tsv.sh",
+            "scripts/run_with_lock.sh",
+            "$(EGFXSET_GUITAR_ATTRIBUTE_LOCK_DIR)",
+            "$(EGFXSET_GUITAR_ATTRIBUTE_PARTS)",
         ),
     }
     for target, required_parts in source_attribute_targets.items():
@@ -2626,6 +2644,64 @@ def main() -> int:
         "guitar chord attribute shards must not fail uneven shards with the global window floor"
     )
 
+    egfxset_guitar_attribute_recipe = target_recipe(makefile, "$(EGFXSET_GUITAR_ATTRIBUTE_TSV)")
+    assert "EGFXSET_GUITAR_ATTRIBUTE_MAKE_JOBS = $(if $(filter -j%,$(MAKEFLAGS)),,-j$(EGFXSET_GUITAR_SHARDS))" in makefile, (
+        "EGFXSET guitar attribute shards must force -j only when the parent make has no jobserver"
+    )
+    assert "EGFXSET_GUITAR_ATTRIBUTE_LOCK_DIR ?= $(BUILD_DIR)/egfxset_guitar_attributes.lock" in makefile, (
+        "EGFXSET guitar attribute TSV must have a stable lock path"
+    )
+    assert "$(BUILD_DIR)/analyzer_guitarset" in egfxset_guitar_attribute_recipe.splitlines()[0], (
+        "EGFXSET guitar attribute TSV must rebuild when the analyzer binary changes"
+    )
+    assert "$(EGFXSET_GUITAR_MANIFEST)" in egfxset_guitar_attribute_recipe.splitlines()[0], (
+        "EGFXSET guitar attribute TSV must rebuild when the prepared manifest changes"
+    )
+    assert "scripts/build_sharded_tsv.sh" in egfxset_guitar_attribute_recipe.splitlines()[0], (
+        "EGFXSET guitar attribute TSV must rebuild when the sharded TSV helper changes"
+    )
+    assert '$(SHELL) scripts/run_with_lock.sh "$(EGFXSET_GUITAR_ATTRIBUTE_LOCK_DIR)" -- "$(SHELL)" scripts/build_sharded_tsv.sh "$@" "$(MAKE)" "$(EGFXSET_GUITAR_ATTRIBUTE_MAKE_JOBS)" $(EGFXSET_GUITAR_ATTRIBUTE_PARTS)' in egfxset_guitar_attribute_recipe, (
+        "EGFXSET guitar attribute TSV must use the locked helper to build and combine shards"
+    )
+    egfxset_guitar_attribute_shard_recipe = target_recipe(
+        makefile, "$(BUILD_DIR)/egfxset_guitar_attributes.shard-%.tsv"
+    )
+    for text in [
+        "$(BUILD_DIR)/analyzer_guitarset",
+        "MUSIC_ANALYZER_GUITARSET_ATTRIBUTE_TSV=\"$@\"",
+        "MUSIC_ANALYZER_GUITARSET_REQUIRED_EXCERPTS=1",
+        "MUSIC_ANALYZER_GUITARSET_REQUIRED_WINDOWS=1",
+        "MUSIC_ANALYZER_GUITARSET_MIN_ACTIVE_NOTES=1",
+        "MUSIC_ANALYZER_GUITARSET_MIN_PITCH_CLASSES=1",
+        "MUSIC_ANALYZER_GUITARSET_MIN_CHORD_CHECKS=0",
+        "MUSIC_ANALYZER_GUITARSET_MAX_SINGLE_NOTE_CHORD_FALSE_PERCENT=100",
+        "MUSIC_ANALYZER_GUITARSET_SHARD_COUNT=\"$(EGFXSET_GUITAR_SHARDS)\"",
+        "MUSIC_ANALYZER_GUITARSET_SHARD_INDEX=\"$*\"",
+        "egfxset_guitar_attributes.shard-$*.out",
+    ]:
+        assert text in egfxset_guitar_attribute_shard_recipe, (
+            f"EGFXSET guitar attribute shard target must include {text}"
+        )
+    assert "MUSIC_ANALYZER_GUITARSET_REQUIRED_EXCERPTS=\"$(EGFXSET_GUITAR_MIN_EXCERPTS)\"" not in egfxset_guitar_attribute_shard_recipe, (
+        "EGFXSET guitar attribute shards must not fail uneven shards with the global excerpt floor"
+    )
+    assert "MUSIC_ANALYZER_GUITARSET_REQUIRED_WINDOWS=\"$(EGFXSET_GUITAR_MIN_WINDOWS)\"" not in egfxset_guitar_attribute_shard_recipe, (
+        "EGFXSET guitar attribute shards must not fail uneven shards with the global window floor"
+    )
+    egfxset_guitar_pattern_recipe = target_recipe(makefile, "find-egfxset-guitar-attribute-patterns")
+    assert "EGFXSET_GUITAR_PATTERN_BUCKET ?= single_note_false_chord:any:any" in makefile, (
+        "EGFXSET guitar pattern mining should default to the single-note false-chord bucket"
+    )
+    assert "EGFXSET_GUITAR_PATTERN_PROTECTED_BUCKET ?= no_chord:any:any" in makefile, (
+        "EGFXSET guitar pattern mining should protect clean no-chord single-note rows by default"
+    )
+    assert '$(if $(PATTERN_BUCKET),--bucket "$(PATTERN_BUCKET)",--bucket "$(EGFXSET_GUITAR_PATTERN_BUCKET)")' in egfxset_guitar_pattern_recipe, (
+        "EGFXSET guitar pattern mining must use a useful default bucket while allowing PATTERN_BUCKET overrides"
+    )
+    assert '$(if $(PATTERN_PROTECTED_BUCKET),--protected-bucket "$(PATTERN_PROTECTED_BUCKET)",--protected-bucket "$(EGFXSET_GUITAR_PATTERN_PROTECTED_BUCKET)")' in egfxset_guitar_pattern_recipe, (
+        "EGFXSET guitar pattern mining must compare against clean no-chord rows while allowing protected-bucket overrides"
+    )
+
     downloaded_guitarset_attribute_recipe = target_recipe(makefile, "$(GUITARSET_ATTRIBUTE_TSV)")
     assert "GUITARSET_ATTRIBUTE_MAKE_JOBS = $(if $(filter -j%,$(MAKEFLAGS)),,-j$(GUITARSET_SHARDS))" in makefile, (
         "downloaded GuitarSet attribute shards must force -j only when the parent make has no jobserver"
@@ -2682,6 +2758,9 @@ def main() -> int:
         "analyze-guitar-chord-mix-extra-components": "$(BUILD_DIR)/guitar_chord_mix_attributes.tsv",
         "inspect-guitar-chord-mix-attribute-buckets": "$(BUILD_DIR)/guitar_chord_mix_attributes.tsv",
         "find-guitar-chord-mix-attribute-patterns": "$(BUILD_DIR)/guitar_chord_mix_attributes.tsv",
+        "analyze-egfxset-guitar-attributes": "$(EGFXSET_GUITAR_ATTRIBUTE_TSV)",
+        "inspect-egfxset-guitar-attribute-buckets": "$(EGFXSET_GUITAR_ATTRIBUTE_TSV)",
+        "find-egfxset-guitar-attribute-patterns": "$(EGFXSET_GUITAR_ATTRIBUTE_TSV)",
         "analyze-guitarset-attributes": "$(GUITARSET_ATTRIBUTE_TSV)",
         "inspect-guitarset-attribute-buckets": "$(GUITARSET_ATTRIBUTE_TSV)",
         "find-guitarset-attribute-patterns": "$(GUITARSET_ATTRIBUTE_TSV)",

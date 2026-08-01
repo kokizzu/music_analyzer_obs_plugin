@@ -518,6 +518,11 @@ GUITAR_CHORD_MIX_MAX_FALSE_VOCAL_PERCENT ?= 5
 GUITAR_CHORD_MIX_MISS_LOG ?= $(BUILD_DIR)/guitar_chord_mix_misses.log
 EGFXSET_GUITAR_SAMPLE_DIR ?= $(BUILD_DIR)/egfxset_guitar_samples
 EGFXSET_GUITAR_MANIFEST ?= $(EGFXSET_GUITAR_SAMPLE_DIR)/manifest.tsv
+EGFXSET_GUITAR_ATTRIBUTE_TSV ?= $(BUILD_DIR)/egfxset_guitar_attributes.tsv
+EGFXSET_GUITAR_DETECTED_ATTRIBUTE_ROWS ?= $(BUILD_DIR)/egfxset_guitar_detected_attribute_rows.tsv
+EGFXSET_GUITAR_MISS_ATTRIBUTE_ROWS ?= $(BUILD_DIR)/egfxset_guitar_miss_attribute_rows.tsv
+EGFXSET_GUITAR_PATTERN_BUCKET ?= single_note_false_chord:any:any
+EGFXSET_GUITAR_PATTERN_PROTECTED_BUCKET ?= no_chord:any:any
 EGFXSET_GUITAR_SAMPLE_LIMIT ?= 0
 EGFXSET_GUITAR_DOWNLOAD_JOBS ?= 8
 EGFXSET_GUITAR_MIN_EXCERPTS ?= 490
@@ -1006,7 +1011,10 @@ EGFXSET_GUITAR_SHARDS ?= $(PARALLEL_TEST_JOBS)
 EGFXSET_GUITAR_SHARD_INDEXES := $(shell i=0; while [ $$i -lt $(EGFXSET_GUITAR_SHARDS) ]; do printf '%s ' $$i; i=$$((i + 1)); done)
 EGFXSET_GUITAR_SHARD_TARGETS := $(addprefix test-egfxset-guitar-samples-shard-,$(EGFXSET_GUITAR_SHARD_INDEXES))
 EGFXSET_GUITAR_SHARD_OUTS := $(addprefix $(BUILD_DIR)/egfxset_guitar_samples_shard_,$(addsuffix .out,$(EGFXSET_GUITAR_SHARD_INDEXES)))
+EGFXSET_GUITAR_ATTRIBUTE_LOCK_DIR ?= $(BUILD_DIR)/egfxset_guitar_attributes.lock
+EGFXSET_GUITAR_ATTRIBUTE_PARTS := $(addprefix $(BUILD_DIR)/egfxset_guitar_attributes.shard-,$(addsuffix .tsv,$(EGFXSET_GUITAR_SHARD_INDEXES)))
 EGFXSET_GUITAR_TEST_MAKE_JOBS = $(if $(filter -j%,$(MAKEFLAGS)),,-j$(EGFXSET_GUITAR_SHARDS))
+EGFXSET_GUITAR_ATTRIBUTE_MAKE_JOBS = $(if $(filter -j%,$(MAKEFLAGS)),,-j$(EGFXSET_GUITAR_SHARDS))
 GAPS_GUITAR_SHARDS ?= $(PARALLEL_TEST_JOBS)
 GAPS_GUITAR_SHARD_INDEXES := $(shell i=0; while [ $$i -lt $(GAPS_GUITAR_SHARDS) ]; do printf '%s ' $$i; i=$$((i + 1)); done)
 GAPS_GUITAR_SHARD_TARGETS := $(addprefix test-gaps-guitar-samples-shard-,$(GAPS_GUITAR_SHARD_INDEXES))
@@ -1032,7 +1040,7 @@ GUITARSET_SHARD_GATE_ENV ?= MUSIC_ANALYZER_GUITARSET_REQUIRED_EXCERPTS=1 MUSIC_A
 .PHONY: filter-drum-primary-attribute-rows filter-drum-full-attribute-rows test-filter-drum-attribute-rows
 .PHONY: test-build-sharded-tsv test-guitarset-shard-check
 .PHONY: prepare-gaps-guitar-samples-full test-gaps-guitar-samples-full analyze-gaps-guitar-misses-full
-.PHONY: analyze-guitarset-attributes inspect-guitarset-attribute-buckets find-guitarset-attribute-patterns
+.PHONY: analyze-guitarset-attributes inspect-guitarset-attribute-buckets find-guitarset-attribute-patterns analyze-egfxset-guitar-attributes inspect-egfxset-guitar-attribute-buckets find-egfxset-guitar-attribute-patterns
 .PHONY: test-fret-control android-lint icon-assets
 .PHONY: measure-analyzer-attributes measure-analyzer-attribute-rows measure-analyzer-attribute-rows-full refresh-analyzer-detected-attribute-rows print-analyzer-detected-attributes measure-analyzer-detected-attributes measure-analyzer-detected-attributes-full measure-analyzer-pattern-report-sections report-analyzer-patterns-from-rows report-analyzer-patterns-from-rows-full measure-analyzer-patterns measure-analyzer-patterns-full measure-analyzer-pattern-report inspect-instrument-sample-owner-buckets find-instrument-owner-patterns find-instrument-status-patterns test-instrument-sample-owner-buckets test-filter-instrument-attribute-rows test-instrument-owner-patterns test-refresh-analyzer-detected-attribute-rows test-print-analyzer-detected-attributes test-analyzer-pattern-report test-detector-route-report-summary test-measure-analyzer-patterns-target analyze-drum-primary-attribute-rows find-drum-primary-attribute-patterns analyze-drum-spread-gate-matrix-serial analyze-drum-spread-gate-matrix-parallel analyze-drum-spread-gate-matrix-parallel-unlocked analyze-drum-tom-bleed-caps analyze-drum-tom-bleed-caps-cached
 .PHONY: analyze-drum-spread-gate-matrix analyze-drum-full-gate-matrix analyze-drum-full-gate-matrix-parallel analyze-drum-full-merged-expected-attribute-rows analyze-drum-active-false-rows analyze-drum-rule-flags compare-drum-gate-matrix find-drum-active-false-patterns find-drum-active-false-patterns-full find-drum-spread-exact-attribute-patterns find-drum-full-exact-attribute-patterns find-drum-full-exact-attribute-patterns-cached test-drum-gate-matrix-summary test-compare-drum-gate-summaries test-drum-active-threshold-simulation test-drum-active-false-summary test-drum-rule-flag-summary test-drum-active-false-patterns
@@ -2237,6 +2245,28 @@ test-egfxset-guitar-samples: $(BUILD_DIR)/analyzer_guitarset prepare-egfxset-gui
 
 test-egfxset-guitar-samples-shard-%: FORCE $(BUILD_DIR)/analyzer_guitarset $(EGFXSET_GUITAR_MANIFEST) scripts/run_with_duration.sh
 	@out="$(BUILD_DIR)/egfxset_guitar_samples_shard_$*.out"; $(RUN_WITH_DURATION) analyzer_egfxset_guitar_samples_shard_$* env MUSIC_ANALYZER_GUITARSET_MANIFEST="$(EGFXSET_GUITAR_MANIFEST)" MUSIC_ANALYZER_GUITARSET_REQUIRED=1 MUSIC_ANALYZER_GUITARSET_USE_ALL=1 MUSIC_ANALYZER_GUITARSET_REQUIRED_EXCERPTS=1 MUSIC_ANALYZER_GUITARSET_REQUIRED_WINDOWS=1 MUSIC_ANALYZER_GUITARSET_MAX_WINDOWS_PER_EXCERPT=1 MUSIC_ANALYZER_GUITARSET_MIN_ACTIVE_NOTES=1 MUSIC_ANALYZER_GUITARSET_MIN_PITCH_CLASSES=1 MUSIC_ANALYZER_GUITARSET_MIN_WINDOW_RECALL_PERCENT=0 MUSIC_ANALYZER_GUITARSET_MIN_RECALL_PERCENT=0 MUSIC_ANALYZER_GUITARSET_MIN_PRECISION_PERCENT=0 MUSIC_ANALYZER_GUITARSET_MIN_GUITAR_RECALL_PERCENT=0 MUSIC_ANALYZER_GUITARSET_MAX_CONTAMINATION_PERCENT=100 MUSIC_ANALYZER_GUITARSET_MAX_FALSE_VOCAL_PERCENT=100 MUSIC_ANALYZER_GUITARSET_MIN_CHORD_CHECKS=0 MUSIC_ANALYZER_GUITARSET_MAX_SINGLE_NOTE_CHORD_FALSE_PERCENT=100 MUSIC_ANALYZER_GUITARSET_MAX_FAILURE_LINES=80 MUSIC_ANALYZER_GUITARSET_SHARD_COUNT="$(EGFXSET_GUITAR_SHARDS)" MUSIC_ANALYZER_GUITARSET_SHARD_INDEX="$*" $(BUILD_DIR)/analyzer_guitarset > "$$out"
+
+$(EGFXSET_GUITAR_ATTRIBUTE_TSV): $(BUILD_DIR)/analyzer_guitarset $(EGFXSET_GUITAR_MANIFEST) scripts/build_sharded_tsv.sh scripts/run_with_lock.sh | $(BUILD_DIR)
+	+$(SHELL) scripts/run_with_lock.sh "$(EGFXSET_GUITAR_ATTRIBUTE_LOCK_DIR)" -- "$(SHELL)" scripts/build_sharded_tsv.sh "$@" "$(MAKE)" "$(EGFXSET_GUITAR_ATTRIBUTE_MAKE_JOBS)" $(EGFXSET_GUITAR_ATTRIBUTE_PARTS)
+
+$(BUILD_DIR)/egfxset_guitar_attributes.shard-%.tsv: FORCE $(BUILD_DIR)/analyzer_guitarset $(EGFXSET_GUITAR_MANIFEST) | $(BUILD_DIR)
+	@out="$(BUILD_DIR)/egfxset_guitar_attributes.shard-$*.out"; env MUSIC_ANALYZER_GUITARSET_MANIFEST="$(EGFXSET_GUITAR_MANIFEST)" MUSIC_ANALYZER_GUITARSET_REQUIRED=1 MUSIC_ANALYZER_GUITARSET_USE_ALL=1 MUSIC_ANALYZER_GUITARSET_REQUIRED_EXCERPTS=1 MUSIC_ANALYZER_GUITARSET_REQUIRED_WINDOWS=1 MUSIC_ANALYZER_GUITARSET_MAX_WINDOWS_PER_EXCERPT=1 MUSIC_ANALYZER_GUITARSET_MIN_ACTIVE_NOTES=1 MUSIC_ANALYZER_GUITARSET_MIN_PITCH_CLASSES=1 MUSIC_ANALYZER_GUITARSET_MIN_WINDOW_RECALL_PERCENT=0 MUSIC_ANALYZER_GUITARSET_MIN_RECALL_PERCENT=0 MUSIC_ANALYZER_GUITARSET_MIN_PRECISION_PERCENT=0 MUSIC_ANALYZER_GUITARSET_MIN_GUITAR_RECALL_PERCENT=0 MUSIC_ANALYZER_GUITARSET_MAX_CONTAMINATION_PERCENT=100 MUSIC_ANALYZER_GUITARSET_MAX_FALSE_VOCAL_PERCENT=100 MUSIC_ANALYZER_GUITARSET_MIN_CHORD_CHECKS=0 MUSIC_ANALYZER_GUITARSET_MAX_SINGLE_NOTE_CHORD_FALSE_PERCENT=100 MUSIC_ANALYZER_GUITARSET_MAX_FAILURE_LINES=80 MUSIC_ANALYZER_GUITARSET_SHARD_COUNT="$(EGFXSET_GUITAR_SHARDS)" MUSIC_ANALYZER_GUITARSET_SHARD_INDEX="$*" MUSIC_ANALYZER_GUITARSET_ATTRIBUTE_TSV="$@" $(BUILD_DIR)/analyzer_guitarset > "$$out"
+
+$(EGFXSET_GUITAR_DETECTED_ATTRIBUTE_ROWS): $(EGFXSET_GUITAR_ATTRIBUTE_TSV) scripts/inspect_guitarset_attribute_buckets.py | $(BUILD_DIR)
+	$(PYTHON) scripts/inspect_guitarset_attribute_buckets.py "$(EGFXSET_GUITAR_ATTRIBUTE_TSV)" --dump-rows > "$@"
+
+$(EGFXSET_GUITAR_MISS_ATTRIBUTE_ROWS): $(EGFXSET_GUITAR_ATTRIBUTE_TSV) scripts/inspect_guitarset_attribute_buckets.py | $(BUILD_DIR)
+	$(PYTHON) scripts/inspect_guitarset_attribute_buckets.py "$(EGFXSET_GUITAR_ATTRIBUTE_TSV)" --misses-only > "$@"
+
+analyze-egfxset-guitar-attributes: $(EGFXSET_GUITAR_ATTRIBUTE_TSV) scripts/summarize_guitarset_attributes.py
+	$(PYTHON) scripts/summarize_guitarset_attributes.py "$(EGFXSET_GUITAR_ATTRIBUTE_TSV)" $(GUITARSET_ATTRIBUTE_ARGS)
+	@printf '%s\n' "attribute TSV: $(EGFXSET_GUITAR_ATTRIBUTE_TSV)"
+
+inspect-egfxset-guitar-attribute-buckets: $(EGFXSET_GUITAR_ATTRIBUTE_TSV) scripts/inspect_guitarset_attribute_buckets.py scripts/summarize_guitarset_attributes.py
+	$(PYTHON) scripts/inspect_guitarset_attribute_buckets.py "$(EGFXSET_GUITAR_ATTRIBUTE_TSV)" $(BUCKET_ARGS)
+
+find-egfxset-guitar-attribute-patterns: $(EGFXSET_GUITAR_ATTRIBUTE_TSV) scripts/find_guitarset_attribute_patterns.py scripts/inspect_guitarset_attribute_buckets.py scripts/summarize_guitarset_attributes.py
+	$(PYTHON) scripts/find_guitarset_attribute_patterns.py "$(EGFXSET_GUITAR_ATTRIBUTE_TSV)" $(if $(PATTERN_BUCKET),--bucket "$(PATTERN_BUCKET)",--bucket "$(EGFXSET_GUITAR_PATTERN_BUCKET)") $(if $(PATTERN_PROTECTED_BUCKET),--protected-bucket "$(PATTERN_PROTECTED_BUCKET)",--protected-bucket "$(EGFXSET_GUITAR_PATTERN_PROTECTED_BUCKET)") $(PATTERN_ARGS)
 
 prepare-gaps-guitar-samples: scripts/prepare_gaps_guitar_samples.py | $(BUILD_DIR)
 	GAPS_GUITAR_SOURCE_DIR="$(GAPS_GUITAR_SOURCE_DIR)" GAPS_GUITAR_SAMPLE_DIR="$(GAPS_GUITAR_SAMPLE_DIR)" GAPS_GUITAR_METADATA_URL="$(GAPS_GUITAR_METADATA_URL)" GAPS_GUITAR_BASE_URL="$(GAPS_GUITAR_BASE_URL)" GAPS_GUITAR_SAMPLE_LIMIT="$(GAPS_GUITAR_SAMPLE_LIMIT)" GAPS_GUITAR_MIN_EXCERPTS="$(GAPS_GUITAR_MIN_EXCERPTS)" GAPS_GUITAR_MIN_NOTES="$(GAPS_GUITAR_MIN_NOTES)" $(PYTHON) scripts/prepare_gaps_guitar_samples.py --source-dir "$(GAPS_GUITAR_SOURCE_DIR)" --output "$(GAPS_GUITAR_SAMPLE_DIR)" --metadata-url "$(GAPS_GUITAR_METADATA_URL)" --base-url "$(GAPS_GUITAR_BASE_URL)" --limit "$(GAPS_GUITAR_SAMPLE_LIMIT)" --min-samples "$(GAPS_GUITAR_MIN_EXCERPTS)" --min-notes "$(GAPS_GUITAR_MIN_NOTES)"
