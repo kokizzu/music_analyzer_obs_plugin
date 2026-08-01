@@ -16,7 +16,7 @@ import zipfile
 
 
 CATEGORIES = ("kick", "snare", "hihat", "crash", "tom", "ride", "rim")
-CACHE_VERSION = 2
+CACHE_VERSION = 3
 SKIP_REASONS = (
     "excluded_loop",
     "unsupported_percussion",
@@ -31,7 +31,7 @@ UNSUPPORTED_PERCUSSION_NAME_RE = re.compile(
     re.I,
 )
 TOM_TOKEN_RE = re.compile(
-    r"(^|[/ _.-])(?:tom|toms|floor\s*tom|low\s*tom|mid\s*tom|hi\s*tom|hitom|lowtom|midtom|htom|mtom|ltom)([0-9 _.-]|$)",
+    r"(^|[/ _.-])(?:tom|toms|floor\s*tom|low\s*tom|mid\s*tom|hi\s*tom|hitom|lowtom|midtom|htom|mtom|ltom)([0-9 _./-]|$)",
     re.I,
 )
 
@@ -100,20 +100,45 @@ def category_and_rejection_reason(path):
     name = Path(path).name.lower()
     stem = Path(path).stem.lower()
     compact_stem = re.sub(r"[^a-z0-9]+", "", stem)
+    hihat_compact = (
+        compact_stem.startswith(("chh", "ohh", "hh", "hat", "hihat")) or
+        "clsd" in compact_stem or
+        "closedhat" in compact_stem or
+        "openhat" in compact_stem
+    )
+    compact_kick_alias = (
+        re.search(r"(?:^|[0-9])bd[a-z0-9]*$", compact_stem) or
+        re.search(
+            r"^(?:cfm|cpc|csp|dmx|prom|prommer|rz1|r8|xd5|mr10|sp[0-9]+[fr]?|"
+            r"analog|vinyl)[a-z0-9]*bd[a-z0-9]*$",
+            compact_stem,
+        )
+    )
+    compact_snare_alias = (
+        re.search(r"(?:^|[0-9])sd[a-z0-9]*$", compact_stem) or
+        re.search(
+            r"^(?:cfm|cpc|csp|tr[0-9]{3,4}|sdr|dmx|prom|rz1|r8|xd5|mr10|"
+            r"sp[0-9]+[fr]?|analog|vinyl)[a-z0-9]*sd[a-z0-9]*$",
+            compact_stem,
+        )
+    )
+    compact_tom_alias = bool(re.search(r"(?:hitom|lotom|midtom|tomhi|tomlo|tommid)", compact_stem))
 
     if EXCLUDE_RE.search(text):
         return None, "excluded_loop"
-    if re.search(r"rim\s*shot|rimshot|(^|[/ _-])rim([0-9 _.-]|$)|side[ _.-]*stick|sideststick", text):
+    if re.search(r"rim\s*shot|rimshot|rimhot|(^|[/ _-])rim([0-9 _.-]|$)|side[ _.-]*stick|sideststick", text):
         return "rim", ""
     if (re.search(r"kick|(^|[/ _.-])kic([0-9 _.-]|$)|bass\s*drum|bassdrum|bassdm|(^|[/ _-])bd([0-9 _.-]|$)", text) or
             compact_stem.startswith(("bd", "bdr")) or
-            re.search(r"^tr[0-9]{3,4}bd[0-9]*$", compact_stem)):
+            re.search(r"^tr[0-9]{3,4}bd[0-9]*$", compact_stem) or
+            (compact_kick_alias and not hihat_compact)):
         return "kick", ""
     if "roland tr-909 drum samples" in text and stem.startswith("bt"):
         return "kick", ""
     if (re.search(r"snare|snaredm|(^|[/ _-])sd([0-9 _.-]|$)", text) or
             "snr" in compact_stem or
-            re.search(r"^tr[0-9]{3,4}sd[0-9]*$", compact_stem)):
+            re.search(r"^tr[0-9]{3,4}sd[0-9]*$", compact_stem) or
+            (compact_snare_alias and not hihat_compact)):
         return "snare", ""
     if "roland tr-909 drum samples" in text and stem.startswith("st"):
         return "snare", ""
@@ -126,7 +151,8 @@ def category_and_rejection_reason(path):
         ) or
             re.search(r"^(?:[0-9]{2,3}|real|room)?(?:ch|oh)[0-9]?$", stem) or
             re.search(r"^hh[co]d?[0-9a-f]?$", stem) or
-            compact_stem.endswith(("hat", "hats", "hatc", "hato"))):
+            compact_stem.endswith(("hat", "hats", "hatc", "hato")) or
+            ("hat" in compact_stem and "clsd" in compact_stem)):
         return "hihat", ""
     if "roland tr-909 drum samples" in text and (stem.startswith("hhc") or stem.startswith("hho")):
         return "hihat", ""
@@ -137,7 +163,7 @@ def category_and_rejection_reason(path):
         return "crash", ""
     if UNSUPPORTED_PERCUSSION_NAME_RE.search(name) and not re.search(r"snare|snr|rim|side\s*stick|sidestick", name):
         return None, "unsupported_percussion"
-    if TOM_TOKEN_RE.search(text):
+    if TOM_TOKEN_RE.search(text) or compact_tom_alias:
         return "tom", ""
     if "roland tr-909 drum samples" in text and stem[:2] in ("lt", "mt", "ht"):
         return "tom", ""

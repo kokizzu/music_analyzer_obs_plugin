@@ -307,12 +307,19 @@ def test_measured_compact_drum_machine_aliases():
 
         examples = {
             "kick": (
+                "Synthesized Drums/18BD.WAV",
+                "Synthesized Drums/CFM27BD.WAV",
+                "Drum Machines/DMX_AnalogBD1_A.WAV",
                 "50 Drums Kits/33/JB_KIC_1.WAV",
                 "808/TR808BD.wav",
                 "909/TR909BD1.wav",
+                "909/Prommer909_BDX.wav",
                 "SP1200/BDVinyl.wav",
             ),
             "snare": (
+                "Synthesized Drums/18SD.WAV",
+                "Synthesized Drums/CFM28SD.WAV",
+                "909/TR909SDN1.WAV",
                 "Layered/Bright_SNR.wav",
                 "808/TR808SD1.wav",
             ),
@@ -321,12 +328,23 @@ def test_measured_compact_drum_machine_aliases():
                 "Akai Linndrum/Open Hat.wav",
                 "Live Hats/Closed Cymbol [ Mai ].wav",
                 "Alesis/DM5Hat.wav",
+                "Roland/Hat1CLSD.wav",
                 "Roland/CHH28BD.wav",
             ),
             "crash": (
                 "Cymbals/606CYMB.wav",
                 "Cymbals/FX_CYM.wav",
                 "Cymbals/Chaina_CYMBL.wav",
+            ),
+            "tom": (
+                "Toms/78HITOM.WAV",
+                "Toms/78LOTOM.WAV",
+                "Toms/78MIDTOM.WAV",
+                "Machine/ACMIDTOM.WAV",
+                "Machine/TOMLO2.WAV",
+            ),
+            "rim": (
+                "Snares/RIMHOT.WAV",
             ),
         }
         for category_index, paths in enumerate(examples.values()):
