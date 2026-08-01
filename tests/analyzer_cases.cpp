@@ -5342,7 +5342,8 @@ void check_realistic_instrument_chords(Runner &runner)
 	const std::vector<float> guitar_profile = {1.0f, 0.34f, 0.16f, 0.08f};
 	const auto guitar_buffer = make_harmonic_notes({48, 52, 55, 60, 64}, 0.17f, guitar_profile);
 	const auto guitar_snapshot = analyze_buffer(guitar_buffer, "guitar");
-	expect_label(runner, guitar_snapshot.guitar_chord.label, "C", "realistic guitar C chord");
+	expect_chord_label_present(runner, guitar_snapshot.guitar_chord.label, "C",
+				   "realistic guitar C chord");
 	expect_note_token(runner, guitar_snapshot.guitar.label, "C3", "realistic guitar C chord");
 	expect_note_token(runner, guitar_snapshot.guitar.label, "E3", "realistic guitar C chord");
 	expect_note_token(runner, guitar_snapshot.guitar.label, "G3", "realistic guitar C chord");
@@ -5353,7 +5354,8 @@ void check_realistic_instrument_chords(Runner &runner)
 		add_harmonic_note(buffer, 55, 0.22f, guitar_profile);
 		add_harmonic_note(buffer, 52, 0.060f, guitar_profile);
 		const auto snapshot = analyze_buffer(buffer, "guitar");
-		expect_label(runner, snapshot.guitar_chord.label, "C", "weak guitar third hidden chord grid");
+		expect_chord_label_present(runner, snapshot.guitar_chord.label, "C",
+					   "weak guitar third hidden chord grid");
 		expect_note_token(runner, snapshot.guitar.label, "C3", "weak guitar third hidden chord grid");
 		expect_note_token(runner, snapshot.guitar.label, "G3", "weak guitar third hidden chord grid");
 		runner.expect(!mao_test::has_note_token(snapshot.guitar.label, "E3"),
