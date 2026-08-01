@@ -2292,7 +2292,7 @@ bool full_mix_display_row_midi_allowed(FullMixDisplayRow row, int midi)
 	case FullMixDisplayRow::Guitar:
 		return midi >= kGuitarMinMidi && midi <= kGuitarMaxMidi;
 	case FullMixDisplayRow::Vocal:
-		return midi >= kFullMixVocalMinMidi && midi <= kVocalMaxMidi;
+		return midi >= kVocalMinMidi && midi <= kVocalMaxMidi;
 	case FullMixDisplayRow::Other:
 		return midi >= kOtherMinMidi && midi <= kOtherMaxMidi;
 	}
@@ -3005,6 +3005,31 @@ bool measured_other_owned_harmonic_vocal_body_supported(const FullMixDebugCandid
 	       fifth <= 1.45f;
 }
 
+bool measured_low_full_mix_vocal_display_supported(const FullMixDebugCandidate &debug)
+{
+	if (debug.midi < kVocalMinMidi || debug.midi >= kFullMixVocalMinMidi)
+		return false;
+	if (debug.owner != InstrumentKind::Ambiguous && debug.owner != InstrumentKind::Guitar)
+		return false;
+
+	const float second = debug.harmonic_ratios[1];
+	const float third = debug.harmonic_ratios[2];
+	const float fourth = debug.harmonic_ratios[3];
+	const float fifth = debug.harmonic_ratios[4];
+	return debug.spectral_level >= 0.90f &&
+	       debug.pitch_confidence >= 0.50f &&
+	       debug.periodicity >= 0.50f &&
+	       debug.harmonic_fit_error <= 0.18f &&
+	       debug.local_noise_level >= 0.24f &&
+	       debug.local_noise_level <= 0.90f &&
+	       debug.adjacent_upper_ratio >= 0.90f &&
+	       second >= 0.10f &&
+	       second <= 0.95f &&
+	       third <= 0.36f &&
+	       fourth <= 0.34f &&
+	       fifth <= 0.22f;
+}
+
 bool shared_vocal_pitch_display_supported(const FullMixDebugCandidate &debug)
 {
 	const bool high_keyboard_vocal_octave_alias =
@@ -3022,7 +3047,9 @@ bool shared_vocal_pitch_display_supported(const FullMixDebugCandidate &debug)
 		debug.harmonic_ratios[2] <= 0.026f &&
 		debug.harmonic_ratios[3] <= 0.008f &&
 		debug.harmonic_ratios[4] <= 0.008f;
-	if (debug.midi < kFullMixVocalMinMidi || (debug.midi > kVocalMaxMidi && !high_keyboard_vocal_octave_alias))
+	const bool measured_low_vocal_display = measured_low_full_mix_vocal_display_supported(debug);
+	if ((!measured_low_vocal_display && debug.midi < kFullMixVocalMinMidi) ||
+	    (debug.midi > kVocalMaxMidi && !high_keyboard_vocal_octave_alias))
 		return false;
 
 	const float second = debug.harmonic_ratios[1];
@@ -3044,6 +3071,8 @@ bool shared_vocal_pitch_display_supported(const FullMixDebugCandidate &debug)
 			third <= 0.096f;
 		return debug.ownership_confidence >= 0.58f || measured_low_vocal_owner;
 	}
+	if (measured_low_vocal_display)
+		return true;
 	if (measured_adjacent_vocal_display_supported(debug))
 		return true;
 	if (measured_keyboard_owned_vocal_body_supported(debug))
@@ -6816,6 +6845,10 @@ void add_full_mix_display_mirror(NoteCandidateList &candidates, const FullMixOwn
 		row == FullMixDisplayRow::Vocal &&
 		measured_keyboard_owned_vocal_body_supported(debug) &&
 		(display_midi == debug.midi || display_midi == debug.midi - 12);
+	const bool measured_low_vocal_display =
+		row == FullMixDisplayRow::Vocal &&
+		display_midi == debug.midi &&
+		measured_low_full_mix_vocal_display_supported(debug);
 	if (measured_low_organ_keyboard_alias)
 		global_level = std::max(global_level, 0.34f);
 	if (row == FullMixDisplayRow::Vocal && display_midi != debug.midi &&
@@ -6854,6 +6887,10 @@ void add_full_mix_display_mirror(NoteCandidateList &candidates, const FullMixOwn
 	if (measured_keyboard_vocal_display) {
 		candidate_score = std::max(candidate_score, base_score * 0.82f);
 		candidate_confidence = std::max(candidate_confidence, 0.46f);
+	}
+	if (measured_low_vocal_display) {
+		candidate_score = std::max(candidate_score, base_score * 0.72f);
+		candidate_confidence = std::max(candidate_confidence, 0.38f);
 	}
 	if (row == FullMixDisplayRow::Vocal && display_midi != debug.midi &&
 	    (measured_vocal_octave_alias_priority_supported(debug) ||
