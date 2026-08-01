@@ -584,8 +584,11 @@ def ranked_state_key(
     negative_counter: SampleCounter,
     max_negative_samples: int | None,
 ) -> tuple[int, int, int, int, str]:
-    negative_samples = bounded_sample_count(state.negative_mask, negative_counter, max_negative_samples)
-    positive_samples = bounded_sample_count(state.positive_mask, positive_counter, None)
+    # Beam expansion creates many transient masks. Exact sample counts are still
+    # computed for final candidate rules, but row counts are a much cheaper and
+    # sufficiently stable proxy for ordering intermediate states.
+    negative_samples = state.negative_mask.bit_count()
+    positive_samples = state.positive_mask.bit_count()
     return (
         negative_samples,
         -positive_samples,
@@ -637,7 +640,7 @@ def extend_condition_search(
     ordered = sorted(matches, key=lambda match: match.label)
     states: list[SearchState] = []
     for index, match in enumerate(ordered):
-        if bounded_sample_count(match.positive_mask, positive_counter, None) < min_positive_samples:
+        if match.positive_mask.bit_count() < min_positive_samples:
             continue
         states.append(
             SearchState(
@@ -662,7 +665,7 @@ def extend_condition_search(
                 positive_mask = state.positive_mask & match.positive_mask
                 if positive_mask == 0:
                     continue
-                if bounded_sample_count(positive_mask, positive_counter, None) < min_positive_samples:
+                if positive_mask.bit_count() < min_positive_samples:
                     continue
                 negative_mask = state.negative_mask & match.negative_mask
                 all_mask = state.all_mask & match.all_mask
