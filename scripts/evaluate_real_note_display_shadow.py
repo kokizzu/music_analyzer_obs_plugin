@@ -613,9 +613,22 @@ def measured_other_vocal_clear_shadow_supported(record: dict[str, str]) -> bool:
     high_centered_low_fifth_shadow = (
         centroid >= 0.534 and third >= 1.20 and fourth <= 0.95 and fifth <= 0.35
     )
+    strong_other_sparse_shadow = (
+        (as_float(record, "shadow_score") or 0.0) >= 0.82
+        and (as_float(record, "target_score") or 0.0) <= 0.020
+        and centroid <= 0.514
+        and (as_float(record, "noise") or 0.0) <= 0.16
+        and third >= 1.20
+        and fourth <= 0.75
+    )
     return (
         shadow_rule_matches(record, "runtime_other_vocal_measured")
-        and (low_noise_shadow or low_centered_formant_shadow or high_centered_low_fifth_shadow)
+        and (
+            low_noise_shadow
+            or low_centered_formant_shadow
+            or high_centered_low_fifth_shadow
+            or strong_other_sparse_shadow
+        )
     )
 
 

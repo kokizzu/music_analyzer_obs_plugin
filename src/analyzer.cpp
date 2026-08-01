@@ -3089,7 +3089,15 @@ bool measured_other_owned_vocal_shadow_suppression_supported(const FullMixDebugC
 		third >= 1.20f &&
 		fourth <= 0.95f &&
 		fifth <= 0.35f;
-	return low_noise_shadow || low_centered_formant_shadow || high_centered_low_fifth_shadow;
+	const bool strong_other_sparse_shadow =
+		debug.other_score >= 0.82f &&
+		debug.vocal_score <= 0.020f &&
+		debug.spectral_centroid <= 0.514f &&
+		debug.local_noise_level <= 0.16f &&
+		third >= 1.20f &&
+		fourth <= 0.75f;
+	return low_noise_shadow || low_centered_formant_shadow || high_centered_low_fifth_shadow ||
+	       strong_other_sparse_shadow;
 }
 
 bool measured_low_ambiguous_breathy_vowel_supported(const FullMixDebugCandidate &debug)

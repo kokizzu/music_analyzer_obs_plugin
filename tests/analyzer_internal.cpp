@@ -793,6 +793,37 @@ void check_other_owned_same_pitch_vocal_shadow_uses_measured_threshold(Runner &r
 						  kMeasuredFormantShadowMidi) <= 0.0f,
 		      "same-pitch other vocal shadow: expected measured formant shadow to clear");
 
+	static constexpr int kSparseOtherShadowMidi = 64;
+	NoteGrid sparse_other_vocal_grid = {};
+	set_midi(sparse_other_vocal_grid, kSparseOtherShadowMidi, 0.33f);
+	InstrumentState sparse_other_vocal_state = {};
+	NoteGrid sparse_other_grid = {};
+	set_midi(sparse_other_grid, kSparseOtherShadowMidi, 0.84f);
+	FullMixOwnership sparse_other_ownership = {};
+	sparse_other_ownership.debug_candidate_count = 1;
+	sparse_other_ownership.debug_candidates[0] =
+		make_adjacent_other_vocal_shadow_debug(kSparseOtherShadowMidi);
+	sparse_other_ownership.debug_candidates[0].other_score = 0.84f;
+	sparse_other_ownership.debug_candidates[0].vocal_score = 0.0f;
+	sparse_other_ownership.debug_candidates[0].spectral_centroid = 0.50f;
+	sparse_other_ownership.debug_candidates[0].spectral_slope = 0.93f;
+	sparse_other_ownership.debug_candidates[0].local_noise_level = 0.14f;
+	sparse_other_ownership.debug_candidates[0].adjacent_lower_ratio = 0.10f;
+	sparse_other_ownership.debug_candidates[0].harmonic_ratios[2] = 2.20f;
+	sparse_other_ownership.debug_candidates[0].harmonic_ratios[3] = 0.65f;
+	sparse_other_ownership.debug_candidates[0].harmonic_ratios[4] = 0.02f;
+	runner.expect(measured_owned_formant_vocal_partial_supported(
+			      sparse_other_ownership.debug_candidates[0]),
+		      "same-pitch other vocal shadow: expected sparse fixture to exercise formant guard");
+	suppress_named_owned_same_pitch_vocal_shadows(sparse_other_vocal_grid,
+						      sparse_other_vocal_state,
+						      sparse_other_grid,
+						      sparse_other_ownership,
+						      InstrumentKind::Other, -1);
+	runner.expect(note_grid_midi_visual_level(sparse_other_vocal_grid,
+						  kSparseOtherShadowMidi) <= 0.0f,
+		      "same-pitch other vocal shadow: expected strong sparse other-owned mirror to clear");
+
 	static constexpr int kFormantProtectedMidi = 66;
 	NoteGrid formant_vocal_grid = {};
 	set_midi(formant_vocal_grid, kFormantProtectedMidi, 0.42f);

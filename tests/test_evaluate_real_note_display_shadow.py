@@ -1009,6 +1009,38 @@ def main() -> int:
                         other_notes="F4:0.88",
                     ),
                     row(
+                        sample_id="measured_other_vocal_sparse_shadow",
+                        family="other",
+                        source="acoustic",
+                        expected_note="E4",
+                        expected_midi="64",
+                        first_row="other",
+                        debug_note="E4",
+                        debug_midi="64",
+                        debug_owner="other",
+                        bass_score="0.00",
+                        keyboard_score="0.00",
+                        guitar_score="0.00",
+                        vocal_score="0.00",
+                        other_score="0.84",
+                        spectral_level="0.75",
+                        pitch_confidence="0.70",
+                        periodicity="0.72",
+                        fit_error="0.10",
+                        centroid="0.50",
+                        slope="0.93",
+                        noise="0.14",
+                        partial2="0.40",
+                        partial3="2.20",
+                        partial4="0.65",
+                        partial5="0.02",
+                        bass_notes="",
+                        guitar_notes="",
+                        piano_notes="",
+                        vocal_notes="E4:0.33",
+                        other_notes="E4:0.84",
+                    ),
+                    row(
                         sample_id="protected_other_vocal_formant_body",
                         family="other",
                         source="acoustic",
@@ -1304,10 +1336,10 @@ def main() -> int:
     ) in measured_other_vocal_runtime_output, measured_other_vocal_runtime_output
     guarded_other_vocal_output = guarded_other_vocal_result.stdout
     assert (
-        "runtime_other_vocal_measured extras=2/2 protected=1/1 precision=66.7% protected_rate=100.0%"
+        "runtime_other_vocal_measured extras=3/3 protected=1/1 precision=75.0% protected_rate=100.0%"
     ) in guarded_other_vocal_output, guarded_other_vocal_output
     assert (
-        "runtime_other_vocal_cpp_guarded extras=1/2 protected=0/1 precision=100.0% protected_rate=0.0%"
+        "runtime_other_vocal_cpp_guarded extras=2/3 protected=0/1 precision=100.0% protected_rate=0.0%"
     ) in guarded_other_vocal_output, guarded_other_vocal_output
     measured_vocal_bass_runtime_output = measured_vocal_bass_runtime_result.stdout
     assert (
