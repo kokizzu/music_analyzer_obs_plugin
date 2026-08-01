@@ -23363,6 +23363,28 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 		if (one_shot_measured_low_body_bright_ride_recovery) {
 			boost_drum_level(Ride, 0.90f);
 		}
+		const float final_snare_kick_body_ratio_for_primary =
+			snare_body / (kick_body + 1.0e-6f);
+		const float final_tom_kick_level_ratio_for_primary =
+			drum_level_[Tom] / (drum_level_[Kick] + 1.0e-6f);
+		const float final_tom_kick_trigger_ratio_for_primary =
+			snapshot.drum_debug_trigger_scores[Tom] /
+			(snapshot.drum_debug_trigger_scores[Kick] + 1.0e-6f);
+		const float final_tom_snare_trigger_ratio_for_primary =
+			snapshot.drum_debug_trigger_scores[Tom] /
+			(snapshot.drum_debug_trigger_scores[Snare] + 1.0e-6f);
+		const bool final_one_shot_measured_body_ratio_snare_from_tom_primary_recovery =
+			drum_detection_enabled && one_shot_drum_source &&
+			!generated_gm_drum_source &&
+			body_shape == Tom &&
+			drum_level_[Kick] > 0.30f &&
+			drum_level_[Tom] > 0.30f &&
+			final_snare_kick_body_ratio_for_primary >= 2.485f &&
+			final_tom_kick_level_ratio_for_primary >= 1.137f &&
+			final_tom_kick_trigger_ratio_for_primary >= 0.61f &&
+			final_tom_snare_trigger_ratio_for_primary <= 0.877f;
+		if (final_one_shot_measured_body_ratio_snare_from_tom_primary_recovery)
+			promote_drum_primary(Snare, 0.90f);
 
 	const bool onset_tempo_event =
 		drum_detection_enabled && rms > kSilenceRms && drum_transient &&
