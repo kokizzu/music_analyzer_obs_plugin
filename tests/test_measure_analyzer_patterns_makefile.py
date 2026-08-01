@@ -762,6 +762,9 @@ def main() -> int:
     assert "DETECTOR_REAL_NOTE_PATTERN_OPTIONAL_CANDIDATE_PATHS += $(GUITAR_TECHS_DETECTED_ATTRIBUTE_ROWS)" in makefile, (
         "detector route scans should mine candidates from available GuitarTechs electric-guitar rows"
     )
+    assert "DETECTOR_REAL_NOTE_PATTERN_OPTIONAL_CANDIDATE_PATHS += $(GOOD_SOUNDS_DETECTED_ATTRIBUTE_ROWS)" in makefile, (
+        "detector route scans should mine candidates from available Good Sounds real-instrument rows"
+    )
     assert "DETECTOR_REAL_NOTE_PATTERN_OPTIONAL_CANDIDATE_PATHS += $(TINYSOL_DETECTED_ATTRIBUTE_ROWS)" in makefile, (
         "detector route scans should mine candidates from available TinySOL acoustic instrument rows"
     )
@@ -2228,6 +2231,18 @@ def main() -> int:
             "--include-empty-debug",
             "--status miss",
         ),
+        "$(GOOD_SOUNDS_DETECTED_ATTRIBUTE_ROWS)": (
+            "$(GOOD_SOUNDS_ATTRIBUTE_TSV)",
+            "inspect_real_note_attribute_buckets.py",
+            "--dump-rows",
+            "--include-empty-debug",
+        ),
+        "$(GOOD_SOUNDS_MISS_ATTRIBUTE_ROWS)": (
+            "$(GOOD_SOUNDS_ATTRIBUTE_TSV)",
+            "inspect_real_note_attribute_buckets.py",
+            "--include-empty-debug",
+            "--status miss",
+        ),
         "$(TINYSOL_DETECTED_ATTRIBUTE_ROWS)": (
             "$(TINYSOL_ATTRIBUTE_TSV)",
             "inspect_real_note_attribute_buckets.py",
@@ -2352,6 +2367,14 @@ def main() -> int:
             "$(GUITAR_TECHS_ATTRIBUTE_LOCK_DIR)",
             "$(GUITAR_TECHS_ATTRIBUTE_PARTS)",
         ),
+        "$(GOOD_SOUNDS_ATTRIBUTE_TSV)": (
+            "$(BUILD_DIR)/analyzer_real_note_samples",
+            "$(GOOD_SOUNDS_SAMPLE_DIR)/manifest.tsv",
+            "scripts/build_sharded_tsv.sh",
+            "scripts/run_with_lock.sh",
+            "$(GOOD_SOUNDS_ATTRIBUTE_LOCK_DIR)",
+            "$(GOOD_SOUNDS_ATTRIBUTE_PARTS)",
+        ),
         "$(TINYSOL_ATTRIBUTE_TSV)": (
             "$(BUILD_DIR)/analyzer_real_note_samples",
             "$(TINYSOL_SAMPLE_DIR)/manifest.tsv",
@@ -2429,6 +2452,9 @@ def main() -> int:
     )
     assert "GUITAR_TECHS_ATTRIBUTE_LOCK_DIR ?= $(BUILD_DIR)/guitar_techs_attributes.lock" in makefile, (
         "GuitarTechs attribute TSV must have a stable lock path"
+    )
+    assert "GOOD_SOUNDS_ATTRIBUTE_LOCK_DIR ?= $(BUILD_DIR)/good_sounds_attributes.lock" in makefile, (
+        "Good Sounds attribute TSV must have a stable lock path"
     )
     assert "TINYSOL_ATTRIBUTE_LOCK_DIR ?= $(BUILD_DIR)/tinysol_attributes.lock" in makefile, (
         "TinySOL attribute TSV must have a stable lock path"
@@ -2517,6 +2543,16 @@ def main() -> int:
             "MUSIC_ANALYZER_REAL_NOTE_SHARD_INDEX=\"$*\"",
             "guitar_techs_attributes.shard-$*.out",
             "guitar_techs_attributes.shard-$*.err",
+        ),
+        "$(BUILD_DIR)/good_sounds_attributes.shard-%.tsv": (
+            "$(GOOD_SOUNDS_SAMPLE_DIR)/manifest.tsv",
+            "MUSIC_ANALYZER_REAL_NOTE_REQUIRED_SAMPLES=\"$(GOOD_SOUNDS_MIN_SAMPLES)\"",
+            "MUSIC_ANALYZER_REAL_NOTE_SAMPLE_ROOT=\"$(GOOD_SOUNDS_SAMPLE_DIR)\"",
+            "MUSIC_ANALYZER_REAL_NOTE_ATTRIBUTE_TSV=\"$@\"",
+            "MUSIC_ANALYZER_REAL_NOTE_SHARD_COUNT=\"$(REAL_NOTE_SAMPLE_SHARDS)\"",
+            "MUSIC_ANALYZER_REAL_NOTE_SHARD_INDEX=\"$*\"",
+            "good_sounds_attributes.shard-$*.out",
+            "good_sounds_attributes.shard-$*.err",
         ),
         "$(BUILD_DIR)/tinysol_attributes.shard-%.tsv": (
             "$(TINYSOL_SAMPLE_DIR)/manifest.tsv",
@@ -2790,6 +2826,7 @@ def main() -> int:
         "analyze-idmt-bass-lines-attributes": "$(IDMT_BASS_LINES_DETECTED_ATTRIBUTE_ROWS)",
         "analyze-idmt-guitar-attributes": "$(IDMT_GUITAR_DETECTED_ATTRIBUTE_ROWS)",
         "analyze-guitar-techs-attributes": "$(GUITAR_TECHS_DETECTED_ATTRIBUTE_ROWS)",
+        "analyze-good-sounds-attributes": "$(GOOD_SOUNDS_DETECTED_ATTRIBUTE_ROWS)",
         "analyze-tinysol-attributes": "$(TINYSOL_DETECTED_ATTRIBUTE_ROWS)",
         "analyze-iowa-piano-attributes": "$(IOWA_PIANO_DETECTED_ATTRIBUTE_ROWS)",
         "analyze-philharmonia-attributes": "$(PHILHARMONIA_DETECTED_ATTRIBUTE_ROWS)",
@@ -2959,6 +2996,9 @@ def main() -> int:
         "GUITAR_TECHS_ATTRIBUTE_TSV ?= $(BUILD_DIR)/guitar_techs_attributes.tsv",
         "GUITAR_TECHS_DETECTED_ATTRIBUTE_ROWS ?= $(BUILD_DIR)/guitar_techs_detected_attribute_rows.tsv",
         "GUITAR_TECHS_MISS_ATTRIBUTE_ROWS ?= $(BUILD_DIR)/guitar_techs_miss_attribute_rows.tsv",
+        "GOOD_SOUNDS_ATTRIBUTE_TSV ?= $(BUILD_DIR)/good_sounds_attributes.tsv",
+        "GOOD_SOUNDS_DETECTED_ATTRIBUTE_ROWS ?= $(BUILD_DIR)/good_sounds_detected_attribute_rows.tsv",
+        "GOOD_SOUNDS_MISS_ATTRIBUTE_ROWS ?= $(BUILD_DIR)/good_sounds_miss_attribute_rows.tsv",
         "TINYSOL_ATTRIBUTE_TSV ?= $(BUILD_DIR)/tinysol_attributes.tsv",
         "TINYSOL_DETECTED_ATTRIBUTE_ROWS ?= $(BUILD_DIR)/tinysol_detected_attribute_rows.tsv",
         "TINYSOL_MISS_ATTRIBUTE_ROWS ?= $(BUILD_DIR)/tinysol_miss_attribute_rows.tsv",
@@ -2986,6 +3026,7 @@ def main() -> int:
         "REAL_NOTE_SAMPLE_ATTRIBUTE_EXTRA_DEPS += $(IDMT_BASS_LINES_DETECTED_ATTRIBUTE_ROWS)",
         "REAL_NOTE_SAMPLE_ATTRIBUTE_EXTRA_DEPS += $(IDMT_GUITAR_DETECTED_ATTRIBUTE_ROWS)",
         "REAL_NOTE_SAMPLE_ATTRIBUTE_EXTRA_DEPS += $(GUITAR_TECHS_DETECTED_ATTRIBUTE_ROWS)",
+        "REAL_NOTE_SAMPLE_ATTRIBUTE_EXTRA_DEPS += $(GOOD_SOUNDS_DETECTED_ATTRIBUTE_ROWS)",
         "REAL_NOTE_SAMPLE_ATTRIBUTE_EXTRA_DEPS += $(TINYSOL_DETECTED_ATTRIBUTE_ROWS)",
         "REAL_NOTE_SAMPLE_ATTRIBUTE_EXTRA_DEPS += $(VOCALSET_DETECTED_ATTRIBUTE_ROWS)",
         "REAL_NOTE_SAMPLE_ATTRIBUTE_EXTRA_DEPS += $(IOWA_PIANO_DETECTED_ATTRIBUTE_ROWS)",
@@ -2996,6 +3037,7 @@ def main() -> int:
         'REAL_NOTE_SAMPLE_ATTRIBUTE_EXTRA_ARGS += --extra-real-note "IDMT bass lines=$(IDMT_BASS_LINES_DETECTED_ATTRIBUTE_ROWS)"',
         'REAL_NOTE_SAMPLE_ATTRIBUTE_EXTRA_ARGS += --extra-real-note "IDMT guitar=$(IDMT_GUITAR_DETECTED_ATTRIBUTE_ROWS)"',
         'REAL_NOTE_SAMPLE_ATTRIBUTE_EXTRA_ARGS += --extra-real-note "GuitarTechs=$(GUITAR_TECHS_DETECTED_ATTRIBUTE_ROWS)"',
+        'REAL_NOTE_SAMPLE_ATTRIBUTE_EXTRA_ARGS += --extra-real-note "Good Sounds=$(GOOD_SOUNDS_DETECTED_ATTRIBUTE_ROWS)"',
         'REAL_NOTE_SAMPLE_ATTRIBUTE_EXTRA_ARGS += --extra-real-note "TinySOL=$(TINYSOL_DETECTED_ATTRIBUTE_ROWS)"',
         'REAL_NOTE_SAMPLE_ATTRIBUTE_EXTRA_ARGS += --extra-real-note "VocalSet=$(VOCALSET_DETECTED_ATTRIBUTE_ROWS)"',
         'REAL_NOTE_SAMPLE_ATTRIBUTE_EXTRA_ARGS += --extra-real-note "Iowa piano=$(IOWA_PIANO_DETECTED_ATTRIBUTE_ROWS)"',
