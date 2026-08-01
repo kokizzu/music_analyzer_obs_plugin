@@ -318,6 +318,9 @@ def main() -> int:
     assert "--bucket-status weak_expected_row" in weak_target_recipe, (
         "weak expected-row target must mine weak expected-row buckets"
     )
+    assert "$(REAL_NOTE_RUNTIME_ROW_CONFUSION_EXCLUDES)" in weak_target_recipe, (
+        "weak expected-row mining must not report ground-truth fields as detector-rule candidates"
+    )
     assert '--jobs "$(REAL_NOTE_PATTERN_JOBS)"' in weak_target_recipe, (
         "weak expected-row target must run pattern search with configured parallel jobs"
     )
@@ -333,6 +336,9 @@ def main() -> int:
     weak_visual_target_recipe = target_recipe(makefile, "find-real-note-weak-visual-expected-patterns")
     assert "--bucket-status weak_visual_expected_row" in weak_visual_target_recipe, (
         "weak visual expected-row target must mine weak visual expected-row buckets"
+    )
+    assert "$(REAL_NOTE_RUNTIME_ROW_CONFUSION_EXCLUDES)" in weak_visual_target_recipe, (
+        "weak visual expected-row mining must not report ground-truth fields as detector-rule candidates"
     )
     assert '--jobs "$(REAL_NOTE_PATTERN_JOBS)"' in weak_visual_target_recipe, (
         "weak visual expected-row target must run pattern search with configured parallel jobs"
@@ -2047,6 +2053,8 @@ def main() -> int:
         "find-real-note-focused-visual-row-confusion-patterns",
         "find-real-note-ownership-patterns",
         "find-real-note-octave-displacement-patterns",
+        "find-real-note-weak-expected-patterns",
+        "find-real-note-weak-visual-expected-patterns",
     ]:
         assert '--jobs "$(REAL_NOTE_PATTERN_JOBS)"' in target_recipe(makefile, target), (
             f"{target} should mine independent real-note buckets in parallel by default"
@@ -2902,6 +2910,8 @@ def main() -> int:
         "find-real-note-focused-visual-row-confusion-patterns",
         "find-real-note-ownership-patterns",
         "find-real-note-octave-displacement-patterns",
+        "find-real-note-weak-expected-patterns",
+        "find-real-note-weak-visual-expected-patterns",
     ]:
         real_note_pattern_recipe = target_recipe(makefile, target)
         assert "$(REAL_NOTE_PATTERN_EXTRA_CANDIDATE_PATHS)" in real_note_pattern_recipe.splitlines()[0], (
