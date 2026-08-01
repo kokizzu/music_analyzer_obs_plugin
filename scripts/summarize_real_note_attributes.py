@@ -825,6 +825,113 @@ def append_expected_row_coverage(
             lit_exact = sum(1 for state in states.values() if state["lit_exact"])
             parts.append(f"{family}=exact:{fraction_text(exact, total)},lit:{fraction_text(lit_exact, total)}")
         lines.append(f"{label} sample coverage by family " + " ".join(parts[:limit]))
+        append_expected_row_weak_bucket_summary(
+            lines, label, context_rows, note_fields, sample_limit
+        )
+
+
+def append_expected_row_weak_bucket_summary(
+    lines: list[str],
+    label: str,
+    context_rows: list[dict[str, str]],
+    note_fields: dict[str, str],
+    sample_limit: int,
+) -> None:
+    sample_states: dict[
+        tuple[str, str], dict[str, dict[str, bool]]
+    ] = collections.defaultdict(
+        lambda: collections.defaultdict(
+            lambda: {
+                "exact": False,
+                "pitch": False,
+                "lit_exact": False,
+                "lit_pitch": False,
+            }
+        )
+    )
+    weak_first_rows: dict[
+        tuple[str, str], collections.Counter[str]
+    ] = collections.defaultdict(collections.Counter)
+    weak_pitch_classes: dict[
+        tuple[str, str], collections.Counter[str]
+    ] = collections.defaultdict(collections.Counter)
+
+    for row in context_rows:
+        sample_id = row.get("sample_id", "")
+        expected_row = ROW_FOR_FAMILY.get(row.get("family", ""))
+        field = note_fields.get(expected_row, "")
+        midi = expected_midi(row)
+        if not sample_id or not expected_row or not field or midi is None:
+            continue
+
+        bucket = (source_key(row), expected_octave(row))
+        exact_level, pitch_level, _pitch_delta = note_field_levels(row, field, midi)
+
+        state = sample_states[bucket][sample_id]
+        exact = exact_level > 0.0
+        pitch = pitch_level > 0.0
+        lit_exact = exact_level >= 0.25
+        lit_pitch = pitch_level >= 0.25
+        state["exact"] = state["exact"] or exact
+        state["pitch"] = state["pitch"] or pitch
+        state["lit_exact"] = state["lit_exact"] or lit_exact
+        state["lit_pitch"] = state["lit_pitch"] or lit_pitch
+
+        if not lit_exact:
+            first_row = row.get("first_row", "") or row.get("buffer_strongest_row", "") or "none"
+            weak_first_rows[bucket][first_row] += 1
+            weak_pitch_classes[bucket][expected_pitch_class(row)] += 1
+
+    records = []
+    for bucket, states_by_sample in sample_states.items():
+        total = len(states_by_sample)
+        if total <= 0:
+            continue
+        lit_exact = sum(1 for state in states_by_sample.values() if state["lit_exact"])
+        exact = sum(1 for state in states_by_sample.values() if state["exact"])
+        state_counts = collections.Counter(
+            best_expected_row_sample_state(state) for state in states_by_sample.values()
+        )
+        absent = state_counts["absent"]
+        records.append(
+            (
+                lit_exact / total,
+                exact / total,
+                -absent,
+                -total,
+                bucket,
+                total,
+                lit_exact,
+                exact,
+                absent,
+            )
+        )
+
+    if not records:
+        return
+
+    limit = max(8, sample_limit if sample_limit > 0 else 8)
+    lines.append(f"{label} weak sample buckets")
+    for (
+        _lit_ratio,
+        _exact_ratio,
+        _neg_absent,
+        _neg_total,
+        bucket,
+        total,
+        lit_exact,
+        exact,
+        absent,
+    ) in sorted(records)[:limit]:
+        source, octave = bucket
+        lines.append(
+            f"  {source} octave={octave} samples={total} "
+            f"lit_exact={fraction_text(lit_exact, total)} "
+            f"exact={fraction_text(exact, total)} "
+            f"absent={fraction_text(absent, total)} "
+            f"weak_first_rows={compact_counter(weak_first_rows[bucket], 5)} "
+            f"weak_pitch_classes={compact_counter(weak_pitch_classes[bucket], 5)}"
+        )
 
 
 def append_row_confusion_pitch_summary(

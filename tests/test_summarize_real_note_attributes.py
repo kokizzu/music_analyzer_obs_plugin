@@ -316,6 +316,12 @@ def main() -> int:
         "expected-row sample coverage by family piano=exact:1/2 50.0%,lit:1/2 50.0%"
         in result.stdout
     )
+    assert "expected-row weak sample buckets" in result.stdout
+    assert (
+        "piano/electronic octave=2 samples=1 lit_exact=0/1 0.0% "
+        "exact=0/1 0.0% absent=1/1 100.0% "
+        "weak_first_rows=guitar=1 weak_pitch_classes=E=1"
+    ) in result.stdout
     expected_states = (
         "lit_exact=1/2 50.0% dim_exact=0/2 0.0% "
         "lit_octave=0/2 0.0% dim_octave=0/2 0.0% absent=1/2 50.0%"
@@ -338,6 +344,12 @@ def main() -> int:
         f"visible expected-row sample states by family piano[{expected_states}]"
         in result.stdout
     )
+    assert "visible expected-row weak sample buckets" in result.stdout
+    assert (
+        "piano/electronic octave=2 samples=1 lit_exact=0/1 0.0% "
+        "exact=0/1 0.0% absent=1/1 100.0% "
+        "weak_first_rows=guitar=1 weak_pitch_classes=E=1"
+    ) in result.stdout
     assert "strongest-row confusion note buckets rows=2 samples=2" in result.stdout
     assert "piano/electronic C4->guitar=1" in result.stdout
     assert "piano/electronic E2->guitar=1" in result.stdout
