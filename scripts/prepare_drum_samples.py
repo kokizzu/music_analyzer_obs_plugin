@@ -17,6 +17,13 @@ import zipfile
 
 CATEGORIES = ("kick", "snare", "hihat", "crash", "tom", "ride", "rim")
 CACHE_VERSION = 1
+SKIP_REASONS = (
+    "excluded_loop",
+    "unsupported_percussion",
+    "uncategorized",
+    "bad_duration",
+    "archive_error",
+)
 
 EXCLUDE_RE = re.compile(r"(break|loop|groove|pattern|beat|fill|construction|song)", re.I)
 UNSUPPORTED_PERCUSSION_NAME_RE = re.compile(
@@ -41,45 +48,71 @@ class Candidate:
         self.data = data
 
 
+class SkipAudit:
+    def __init__(self):
+        self.counts = defaultdict(int)
+        self.kind_counts = defaultdict(int)
+        self.kind_reason_counts = defaultdict(lambda: {reason: 0 for reason in SKIP_REASONS})
+        self.examples = defaultdict(list)
+
+    def record(self, kind, reason, label):
+        if reason not in SKIP_REASONS:
+            reason = "uncategorized"
+        self.counts[reason] += 1
+        self.kind_counts[kind] += 1
+        self.kind_reason_counts[kind][reason] += 1
+        if len(self.examples[reason]) < 3:
+            self.examples[reason].append(label)
+
+    @property
+    def total(self):
+        return sum(self.counts.values())
+
+
 def sanitize_name(text):
     cleaned = re.sub(r"[^A-Za-z0-9._-]+", "_", text).strip("._-")
     return cleaned[:80] or "sample"
 
 
-def category_for_path(path):
+def category_and_rejection_reason(path):
     text = str(path).replace("\\", "/").lower()
     name = Path(path).name.lower()
     stem = Path(path).stem.lower()
 
     if EXCLUDE_RE.search(text):
-        return None
+        return None, "excluded_loop"
     if re.search(r"rim\s*shot|rimshot|(^|[/ _-])rim([0-9 _.-]|$)|side[ _.-]*stick|sideststick", text):
-        return "rim"
+        return "rim", ""
     if re.search(r"kick|bass\s*drum|bassdrum|bassdm|(^|[/ _-])bd([0-9 _.-]|$)", text):
-        return "kick"
+        return "kick", ""
     if "roland tr-909 drum samples" in text and stem.startswith("bt"):
-        return "kick"
+        return "kick", ""
     if re.search(r"snare|snaredm|(^|[/ _-])sd([0-9 _.-]|$)", text):
-        return "snare"
+        return "snare", ""
     if "roland tr-909 drum samples" in text and stem.startswith("st"):
-        return "snare"
+        return "snare", ""
     if (re.search(r"hihat|hi\s*hat|hat\s*(closed|open|middle|pedal|reverse)|closed\s*hh|open\s*hh|closedhh|openhh|(^|[/ _-])hh[co]?", text) or
             re.search(r"^(?:[0-9]{2,3}|real|room)?(?:ch|oh)[0-9]?$", stem) or
             re.search(r"^hh[co]d?[0-9a-f]?$", stem)):
-        return "hihat"
+        return "hihat", ""
     if "roland tr-909 drum samples" in text and (stem.startswith("hhc") or stem.startswith("hho")):
-        return "hihat"
+        return "hihat", ""
     if re.search(r"ride|ridecym", text):
-        return "ride"
+        return "ride", ""
     if re.search(r"crash|crsh|cymbal|cymball|(^|[/ _-])csh", text):
-        return "crash"
+        return "crash", ""
     if UNSUPPORTED_PERCUSSION_NAME_RE.search(name) and not re.search(r"snare|snr|rim|side\s*stick|sidestick", name):
-        return None
+        return None, "unsupported_percussion"
     if TOM_TOKEN_RE.search(text):
-        return "tom"
+        return "tom", ""
     if "roland tr-909 drum samples" in text and stem[:2] in ("lt", "mt", "ht"):
-        return "tom"
-    return None
+        return "tom", ""
+    return None, "uncategorized"
+
+
+def category_for_path(path):
+    category, _reason = category_and_rejection_reason(path)
+    return category
 
 
 def wav_duration_from_file(path):
@@ -122,41 +155,54 @@ def archive_member_label(source, archive, member_name):
     return Path(archive_name) / member_name
 
 
-def collect_plain_wavs(source):
+def collect_plain_wavs(source, audit=None):
     for path in sorted(source.rglob("*")):
         if not path.is_file() or path.suffix.lower() != ".wav":
             continue
-        category = category_for_path(path)
+        category, reason = category_and_rejection_reason(path)
         if not category:
+            if audit is not None:
+                audit.record("plain", reason, str(path))
             continue
         duration = wav_duration_from_file(path)
         if not one_shot_duration(duration):
+            if audit is not None:
+                audit.record("plain", "bad_duration", str(path))
             continue
         yield Candidate(category, "plain", path, path.name, duration, str(path))
 
 
-def collect_zip_wavs(source, retain_data=False):
+def collect_zip_wavs(source, retain_data=False, audit=None):
     for archive in sorted(source.rglob("*.zip")):
         try:
             with zipfile.ZipFile(archive) as zf:
                 for info in sorted(zf.infolist(), key=lambda item: item.filename):
                     if info.is_dir() or not info.filename.lower().endswith(".wav"):
                         continue
-                    category = category_for_path(archive_member_label(source, archive, info.filename))
+                    source_label = f"{archive}!{info.filename}"
+                    category, reason = category_and_rejection_reason(
+                        archive_member_label(source, archive, info.filename)
+                    )
                     if not category:
+                        if audit is not None:
+                            audit.record("zip", reason, source_label)
                         continue
                     data = zf.read(info)
                     duration = wav_duration_from_bytes(data)
                     if not one_shot_duration(duration):
+                        if audit is not None:
+                            audit.record("zip", "bad_duration", source_label)
                         continue
                     yield Candidate(category, "zip", archive, Path(info.filename).name, duration,
                                     f"{archive}!{info.filename}", member_name=info.filename,
                                     data=data if retain_data else None)
         except (zipfile.BadZipFile, OSError):
+            if audit is not None:
+                audit.record("zip", "archive_error", str(archive))
             continue
 
 
-def collect_rar_wavs(source, unrar, retain_data=False):
+def collect_rar_wavs(source, unrar, retain_data=False, audit=None):
     if not unrar:
         return
     for archive in sorted(source.rglob("*.rar")):
@@ -168,13 +214,20 @@ def collect_rar_wavs(source, unrar, retain_data=False):
                 stderr=subprocess.DEVNULL,
             )
         except (OSError, subprocess.CalledProcessError):
+            if audit is not None:
+                audit.record("rar", "archive_error", str(archive))
             continue
         member_names = listing.stdout.decode("utf-8", errors="replace").splitlines()
         for member_name in member_names:
             if not member_name.lower().endswith(".wav"):
                 continue
-            category = category_for_path(archive_member_label(source, archive, member_name))
+            source_label = f"{archive}!{member_name}"
+            category, reason = category_and_rejection_reason(
+                archive_member_label(source, archive, member_name)
+            )
             if not category:
+                if audit is not None:
+                    audit.record("rar", reason, source_label)
                 continue
             try:
                 extracted = subprocess.run(
@@ -184,10 +237,14 @@ def collect_rar_wavs(source, unrar, retain_data=False):
                     stderr=subprocess.DEVNULL,
                 )
             except (OSError, subprocess.CalledProcessError):
+                if audit is not None:
+                    audit.record("rar", "archive_error", source_label)
                 continue
             data = extracted.stdout
             duration = wav_duration_from_bytes(data)
             if not one_shot_duration(duration):
+                if audit is not None:
+                    audit.record("rar", "bad_duration", source_label)
                 continue
             yield Candidate(category, "rar", archive, Path(member_name).name, duration,
                             f"{archive}!{member_name}", member_name=member_name,
@@ -515,18 +572,18 @@ def copy_samples(source, output, limit_per_category, selection, unrar=None, incl
                               include_archives=include_archives, source_filter=source_filter)
 
 
-def all_candidates(source, unrar=None, include_archives=True, source_filter=None):
+def all_candidates(source, unrar=None, include_archives=True, source_filter=None, audit=None):
     candidates = [
-        candidate for candidate in collect_plain_wavs(source)
+        candidate for candidate in collect_plain_wavs(source, audit=audit)
         if candidate_matches_filter(candidate, source_filter)
     ]
     if include_archives:
         candidates.extend(
-            candidate for candidate in collect_zip_wavs(source, retain_data=False)
+            candidate for candidate in collect_zip_wavs(source, retain_data=False, audit=audit)
             if candidate_matches_filter(candidate, source_filter)
         )
         candidates.extend(
-            candidate for candidate in collect_rar_wavs(source, unrar, retain_data=False)
+            candidate for candidate in collect_rar_wavs(source, unrar, retain_data=False, audit=audit)
             if candidate_matches_filter(candidate, source_filter)
         )
     return candidates
@@ -573,6 +630,40 @@ def kind_category_summary(kind_category_counts):
     return " ".join(parts) if parts else "--"
 
 
+def skip_reason_summary(audit):
+    return (
+        f"total={audit.total} "
+        f"plain={audit.kind_counts['plain']} zip={audit.kind_counts['zip']} "
+        f"rar={audit.kind_counts['rar']} "
+        + " ".join(f"{reason}={audit.counts[reason]}" for reason in SKIP_REASONS)
+    )
+
+
+def skip_kind_reason_summary(audit):
+    parts = []
+    for kind in ("plain", "zip", "rar"):
+        counts = audit.kind_reason_counts.get(kind)
+        if not counts or not any(counts.values()):
+            continue
+        parts.append(
+            f"{kind}[" + " ".join(f"{reason}={counts[reason]}" for reason in SKIP_REASONS) + "]"
+        )
+    return " ".join(parts) if parts else "--"
+
+
+def skip_example_summary(audit):
+    parts = []
+    for reason in SKIP_REASONS:
+        examples = audit.examples.get(reason, [])
+        if not examples:
+            continue
+        parts.append(
+            f"{reason}="
+            + ",".join(compact_bucket_label(example, max_parts=4) for example in examples)
+        )
+    return " ".join(parts) if parts else "--"
+
+
 def compact_bucket_label(label, max_parts=3):
     archive, separator, member = label.partition("!")
     if separator:
@@ -597,8 +688,9 @@ def source_bucket_summary(candidates, limit=8):
 
 def print_sample_audit(source, limit_per_category, selection, unrar=None, include_archives=True,
                        source_filter=None):
+    skip_audit = SkipAudit()
     candidates = all_candidates(source, unrar=unrar, include_archives=include_archives,
-                                source_filter=source_filter)
+                                source_filter=source_filter, audit=skip_audit)
     candidate_counts, kind_counts, candidate_kind_category_counts = count_candidates(candidates)
     if selection == "spread":
         selected = select_candidates(candidates, limit_per_category)
@@ -616,6 +708,9 @@ def print_sample_audit(source, limit_per_category, selection, unrar=None, includ
     print(f"candidate counts {counts_summary(candidate_counts)}")
     print(f"candidate kind/category {kind_category_summary(candidate_kind_category_counts)}")
     print(f"candidate source buckets total={candidate_bucket_count} top={candidate_bucket_top}")
+    print(f"skipped counts {skip_reason_summary(skip_audit)}")
+    print(f"skipped kind/reason {skip_kind_reason_summary(skip_audit)}")
+    print(f"skipped examples {skip_example_summary(skip_audit)}")
     print(
         f"selected counts limit={limit_per_category} selection={selection} "
         f"{counts_summary(selected_counts)}"

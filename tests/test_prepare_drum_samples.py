@@ -564,6 +564,20 @@ def test_cli_audit_reports_candidate_and_selected_counts_without_writing():
             raise AssertionError(f"unexpected candidate kind/category counts:\n{completed.stdout}")
         if "candidate source buckets total=3" not in completed.stdout:
             raise AssertionError(f"unexpected candidate source bucket count:\n{completed.stdout}")
+        if (
+            "skipped counts total=1 plain=1 zip=0 rar=0 excluded_loop=0 "
+            "unsupported_percussion=1 uncategorized=0 bad_duration=0 archive_error=0"
+            not in completed.stdout
+        ):
+            raise AssertionError(f"unexpected skipped counts:\n{completed.stdout}")
+        if (
+            "skipped kind/reason plain[excluded_loop=0 unsupported_percussion=1 "
+            "uncategorized=0 bad_duration=0 archive_error=0]"
+            not in completed.stdout
+        ):
+            raise AssertionError(f"unexpected skipped kind/reason counts:\n{completed.stdout}")
+        if "skipped examples unsupported_percussion=" not in completed.stdout:
+            raise AssertionError(f"expected skipped unsupported percussion examples:\n{completed.stdout}")
         if f"selected counts limit=1 selection=spread {expected_selected}" not in completed.stdout:
             raise AssertionError(f"unexpected selected counts:\n{completed.stdout}")
         if "selected kind/category plain[kick=1 snare=0 hihat=0 crash=0 tom=0 ride=0 rim=0] zip[kick=0 snare=1 hihat=0 crash=0 tom=0 ride=0 rim=0]" not in completed.stdout:
