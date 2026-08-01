@@ -2288,16 +2288,36 @@ def main() -> int:
         "all-route display shadow mining should run compact route summaries in parallel"
     )
     vocal_shadow_recipe = target_recipe(makefile, "evaluate-real-note-vocal-shadow-safety")
-    assert "$(BUILD_DIR)/real_note_full_mix_attributes.tsv" in vocal_shadow_recipe, (
+    assert "$(RUN_WITH_DURATION) real_note_vocal_shadow_safety_parallel" in vocal_shadow_recipe, (
+        "vocal shadow safety scan should print duration for the parallel aggregate"
+    )
+    assert "$(MAKE) $(PARALLEL_TEST_MAKE_JOBS)" in vocal_shadow_recipe, (
+        "vocal shadow safety scan should run dataset checks through parallel make jobs"
+    )
+    assert "evaluate-real-note-vocal-shadow-safety-nsynth" in vocal_shadow_recipe, (
+        "vocal shadow safety scan should include the NSynth subtarget"
+    )
+    assert "evaluate-real-note-vocal-shadow-safety-vocadito" in vocal_shadow_recipe, (
+        "vocal shadow safety scan should include the Vocadito subtarget"
+    )
+    nsynth_vocal_shadow_recipe = target_recipe(makefile, "evaluate-real-note-vocal-shadow-safety-nsynth")
+    assert "$(BUILD_DIR)/real_note_full_mix_attributes.tsv" in nsynth_vocal_shadow_recipe, (
         "vocal shadow safety scan should include NSynth full-mix attributes"
     )
-    assert "$(VOCADITO_FULL_MIX_ATTRIBUTE_TSV)" in vocal_shadow_recipe, (
+    vocadito_vocal_shadow_recipe = target_recipe(makefile, "evaluate-real-note-vocal-shadow-safety-vocadito")
+    assert "$(VOCADITO_FULL_MIX_ATTRIBUTE_TSV)" in vocadito_vocal_shadow_recipe, (
         "vocal shadow safety scan should include Vocadito full-mix attributes"
     )
-    assert "--shadow-row other --target-row vocals --compact-routes --threshold-search" in vocal_shadow_recipe, (
+    assert "--shadow-row other --target-row vocals --compact-routes --threshold-search" in nsynth_vocal_shadow_recipe, (
+        "NSynth vocal shadow safety scan should focus the risky other-to-vocal route"
+    )
+    assert "--shadow-row other --target-row vocals --compact-routes --threshold-search" in vocadito_vocal_shadow_recipe, (
         "vocal shadow safety scan should focus the risky other-to-vocal route"
     )
-    assert "--max-protected 0 --threshold-limit 4" in vocal_shadow_recipe, (
+    assert "--max-protected 0 --threshold-limit 4" in nsynth_vocal_shadow_recipe, (
+        "NSynth vocal shadow safety scan should report only zero-protected candidate thresholds"
+    )
+    assert "--max-protected 0 --threshold-limit 4" in vocadito_vocal_shadow_recipe, (
         "vocal shadow safety scan should report only zero-protected candidate thresholds"
     )
 
