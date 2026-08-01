@@ -84,6 +84,33 @@ def main() -> int:
     ]:
         assert_atomic_build_recipe(makefile, target)
 
+    standalone_recipe = target_recipe(makefile, "test-standalone")
+    assert "$(RUN_WITH_DURATION) test_standalone_parallel" in standalone_recipe, (
+        "standalone checks must be fanned out through the duration wrapper"
+    )
+    assert "$(MAKE) $(PARALLEL_TEST_MAKE_JOBS) $(STANDALONE_TEST_TARGETS)" in standalone_recipe, (
+        "standalone checks must use the configured parallel test jobs"
+    )
+    assert "android-check" in standalone_recipe.splitlines()[0], (
+        "test-standalone must keep the Android build isolation check"
+    )
+    assert (
+        "STANDALONE_TEST_TARGETS := test-standalone-isolation "
+        "test-standalone-version-complete test-standalone-version-bass-guitar "
+        "test-standalone-self-test-complete test-standalone-self-test-bass-guitar"
+    ) in makefile, "standalone parallel target list must include every standalone check"
+    standalone_subtarget_commands = {
+        "test-standalone-isolation": "check_standalone_isolation",
+        "test-standalone-version-complete": "check_standalone_version_complete",
+        "test-standalone-version-bass-guitar": "check_standalone_version_bass_guitar",
+        "test-standalone-self-test-complete": "standalone_self_test",
+        "test-standalone-self-test-bass-guitar": "standalone_bass_guitar_self_test",
+    }
+    for target, duration_label in standalone_subtarget_commands.items():
+        assert duration_label in target_recipe(makefile, target), (
+            f"{target} must preserve the {duration_label} check"
+        )
+
     recipe = target_recipe(makefile, "report-analyzer-patterns-from-rows")
     for text in [
         "$(RUN_WITH_DURATION) analyzer_pattern_report_sections",

@@ -1164,11 +1164,25 @@ $(BUILD_DIR)/analyzer_real_note_samples: $(ANALYZER_TEST_OBJ) $(BUILD_DIR)/analy
 $(BUILD_DIR)/analyzer_instrument_family_samples: $(ANALYZER_TEST_OBJ) $(BUILD_DIR)/analyzer_instrument_family_samples.o
 	tmp="$@.$$$$.tmp"; $(CXX) -o "$$tmp" $^ -lm -pthread && mv "$$tmp" "$@"
 
-test-standalone: $(STANDALONE_BIN) $(BASS_GUITAR_STANDALONE_BIN) tests/check_standalone_isolation.py android-check scripts/run_with_duration.sh
+STANDALONE_TEST_TARGETS := test-standalone-isolation test-standalone-version-complete test-standalone-version-bass-guitar test-standalone-self-test-complete test-standalone-self-test-bass-guitar
+.PHONY: $(STANDALONE_TEST_TARGETS)
+
+test-standalone: android-check scripts/run_with_duration.sh
+	+$(RUN_WITH_DURATION) test_standalone_parallel $(MAKE) $(PARALLEL_TEST_MAKE_JOBS) $(STANDALONE_TEST_TARGETS)
+
+test-standalone-isolation: tests/check_standalone_isolation.py scripts/run_with_duration.sh
 	$(RUN_WITH_DURATION) check_standalone_isolation $(PYTHON) tests/check_standalone_isolation.py
+
+test-standalone-version-complete: $(STANDALONE_BIN) tests/check_standalone_version.py scripts/run_with_duration.sh
 	$(RUN_WITH_DURATION) check_standalone_version_complete $(PYTHON) tests/check_standalone_version.py $(STANDALONE_BIN)
+
+test-standalone-version-bass-guitar: $(BASS_GUITAR_STANDALONE_BIN) tests/check_standalone_version.py scripts/run_with_duration.sh
 	$(RUN_WITH_DURATION) check_standalone_version_bass_guitar $(PYTHON) tests/check_standalone_version.py $(BASS_GUITAR_STANDALONE_BIN)
+
+test-standalone-self-test-complete: $(STANDALONE_BIN) scripts/run_with_duration.sh
 	$(RUN_WITH_DURATION) standalone_self_test env SDL_VIDEODRIVER=dummy SDL_AUDIODRIVER=dummy $(STANDALONE_BIN) --self-test
+
+test-standalone-self-test-bass-guitar: $(BASS_GUITAR_STANDALONE_BIN) scripts/run_with_duration.sh
 	$(RUN_WITH_DURATION) standalone_bass_guitar_self_test env SDL_VIDEODRIVER=dummy SDL_AUDIODRIVER=dummy $(BASS_GUITAR_STANDALONE_BIN) --self-test
 
 profile-standalone: standalone scripts/profile_standalone.sh
