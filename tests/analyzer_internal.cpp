@@ -310,6 +310,18 @@ void check_plain_guitar_voicing_rejects_crowded_root_fifth_quality(Runner &runne
 								 crowded_analysis),
 		      "plain guitar voicing: expected crowded root-fifth harmonics not to validate F");
 
+	ChordResult c_minor = make_crowded_chord("Cm");
+	c_minor.root = 0;
+	NoteGrid single_visible_root = {};
+	set_midi(single_visible_root, 48, 0.92f);
+	NoteGrid analysis_only_minor = single_visible_root;
+	set_midi(analysis_only_minor, 51, 0.44f);
+	set_midi(analysis_only_minor, 55, 0.67f);
+	set_midi(analysis_only_minor, 59, 0.22f);
+	runner.expect(!primary_guitar_chord_has_playable_voicing(c_minor, single_visible_root,
+								 analysis_only_minor),
+		      "plain guitar voicing: expected one visible pitch class not to validate analysis-only Cm");
+
 	NoteGrid visible_root_third = {};
 	set_midi(visible_root_third, 41, 0.95f);
 	set_midi(visible_root_third, 45, 0.52f);

@@ -18024,6 +18024,9 @@ bool primary_guitar_chord_has_playable_voicing(const ChordResult &chord, const N
 	if (!parse_plain_major_minor_component(chord.label, label_len, parsed))
 		return true;
 
+	if (display_pitch_classes < 2)
+		return false;
+
 	const int third = parsed.root + (parsed.quality == RootChordQuality::Minor ? 3 : 4);
 	const int fifth = parsed.root + 7;
 	const bool display_root_third =
