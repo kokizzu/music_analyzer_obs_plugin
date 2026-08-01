@@ -1044,6 +1044,7 @@ def main() -> int:
         in threshold_output
     ), threshold_output
     assert "protected=0/1 extras=2/3 min_shadow_score=0.18 score_ratio=0.50 level_ratio=0.90" in threshold_output, threshold_output
+    assert "net_hits=2 gain_per_protected=inf" in threshold_output, threshold_output
     assert "extra keyboard_note_only_debug@0 src=piano/electronic expected=D4/62" in threshold_output, threshold_output
     min_extra_threshold_output = min_extra_threshold_result.stdout
     assert (
@@ -1100,15 +1101,21 @@ def main() -> int:
     compact_threshold_output = compact_threshold_result.stdout
     assert "compact route summary" in compact_threshold_output, compact_threshold_output
     assert "routes=20" in compact_threshold_output, compact_threshold_output
+    assert "safe_simulation_extra_hits=" in compact_threshold_output, compact_threshold_output
     assert "safe_threshold_routes=4 no_safe_threshold_routes=16" in compact_threshold_output, (
         compact_threshold_output
     )
+    assert "safe_threshold_extra_hits=" in compact_threshold_output, compact_threshold_output
+    assert "safe_threshold_protected_hits=0" in compact_threshold_output, compact_threshold_output
     assert (
         "piano->same-pitch guitar extras=3/3 protected=1/1 "
         "simulation=owner_shadow_score2_level:2/0 "
         "threshold=protected=0/1 extras=2/3 min_shadow_score=0.18 "
         "score_ratio=0.50 level_ratio=0.90"
     ) in compact_threshold_output, compact_threshold_output
+    assert "simulation_net_hits=2 simulation_gain_per_protected=inf" in compact_threshold_output, (
+        compact_threshold_output
+    )
     assert "piano->same-pitch guitar suppressor simulations" not in compact_threshold_output, (
         compact_threshold_output
     )

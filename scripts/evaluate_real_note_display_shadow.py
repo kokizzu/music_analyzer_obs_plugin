@@ -182,6 +182,19 @@ def pct(numerator: int, denominator: int) -> str:
     return f"{numerator * 100.0 / denominator:.1f}%"
 
 
+def gain_per_protected(extra_hits: int, protected_hits: int) -> str:
+    if protected_hits <= 0:
+        return "inf" if extra_hits > 0 else "0.00"
+    return f"{extra_hits / protected_hits:.2f}"
+
+
+def suppression_utility_text(extra_hits: int, protected_hits: int) -> str:
+    return (
+        f"net_hits={extra_hits - protected_hits} "
+        f"gain_per_protected={gain_per_protected(extra_hits, protected_hits)}"
+    )
+
+
 def source_counts(records: list[dict[str, str]], limit: int = 5) -> str:
     counts = collections.Counter(record["source_key"] for record in records)
     if not counts:
@@ -463,7 +476,9 @@ def print_simulations(
         print(
             f"  {rule:28s} extras={len(extra_hits)}/{len(extras)} "
             f"protected={len(protected_hits)}/{len(protected)} "
-            f"precision={pct(len(extra_hits), total_hits)} protected_rate={pct(len(protected_hits), len(protected))}"
+            f"precision={pct(len(extra_hits), total_hits)} "
+            f"protected_rate={pct(len(protected_hits), len(protected))} "
+            f"{suppression_utility_text(len(extra_hits), len(protected_hits))}"
         )
         if source_breakdown and total_hits > 0:
             print(f"    extras_sources {source_counts(extra_hits)}")
@@ -643,6 +658,7 @@ def threshold_match_text(
         line += f" max_noise={max_noise:.2f}"
     if owner_mode != "any":
         line += f" owner_mode={owner_mode}"
+    line += f" {suppression_utility_text(extra_hits, protected_hits)}"
     return line
 
 
@@ -837,16 +853,34 @@ def print_compact_route_summary(
     routes_with_extras = sum(1 for summary in route_summaries if int(summary["extras_total"]) > 0)
     safe_simulation_routes = sum(1 for summary in route_summaries if summary["safe_simulation"] is not None)
     safe_threshold_routes = sum(1 for summary in route_summaries if summary["best_threshold"] is not None)
+    safe_simulation_extra_hits = sum(
+        int(summary["safe_simulation"][1])
+        for summary in route_summaries
+        if summary["safe_simulation"] is not None
+    )
+    safe_threshold_extra_hits = sum(
+        int(summary["best_threshold"][1])
+        for summary in route_summaries
+        if summary["best_threshold"] is not None
+    )
+    safe_threshold_protected_hits = sum(
+        int(summary["best_threshold"][0])
+        for summary in route_summaries
+        if summary["best_threshold"] is not None
+    )
     searched_routes = sum(1 for summary in route_summaries if bool(summary["threshold_searched"]))
     no_safe_threshold_routes = searched_routes - safe_threshold_routes
     print(
         f"  routes={len(route_summaries)} routes_with_extras={routes_with_extras} "
-        f"safe_simulation_routes={safe_simulation_routes}"
+        f"safe_simulation_routes={safe_simulation_routes} "
+        f"safe_simulation_extra_hits={safe_simulation_extra_hits}"
     )
     if threshold_search:
         print(
             f"  safe_threshold_routes={safe_threshold_routes} "
-            f"no_safe_threshold_routes={no_safe_threshold_routes}"
+            f"no_safe_threshold_routes={no_safe_threshold_routes} "
+            f"safe_threshold_extra_hits={safe_threshold_extra_hits} "
+            f"safe_threshold_protected_hits={safe_threshold_protected_hits}"
         )
 
     ranked = sorted(
@@ -891,6 +925,14 @@ def print_compact_route_summary(
                     max_noise,
                     owner_mode,
                 )
+        if safe_simulation is not None:
+            _rule, extra_hits, protected_hits = safe_simulation
+            extra_hits = int(extra_hits)
+            protected_hits = int(protected_hits)
+            line += (
+                f" simulation_net_hits={extra_hits - protected_hits} "
+                f"simulation_gain_per_protected={gain_per_protected(extra_hits, protected_hits)}"
+            )
         print(line)
 
 
