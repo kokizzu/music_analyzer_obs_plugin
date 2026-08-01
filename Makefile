@@ -2567,8 +2567,10 @@ test-analysis-scripts-parallel: scripts/run_with_duration.sh
 test-parallel: scripts/run_with_duration.sh
 	+$(RUN_WITH_DURATION) test_parallel $(MAKE) $(PARALLEL_TEST_MAKE_JOBS) test-analysis-scripts-parallel test-core-parallel test-standalone
 
-test: $(TEST_BINS) scripts/run_with_duration.sh
-	+$(RUN_WITH_DURATION) test_fast $(MAKE) $(PARALLEL_TEST_MAKE_JOBS) test-parallel test-detector-samples-parallel test-fret-control test-real-goal-fixture test-fixtures-parallel-isolated
+TEST_FAST_TARGETS := test-parallel test-detector-samples-parallel test-fret-control test-real-goal-fixture test-fixtures-parallel-isolated
+
+test: scripts/run_with_duration.sh
+	+$(RUN_WITH_DURATION) test_fast $(MAKE) $(PARALLEL_TEST_MAKE_JOBS) $(TEST_BINS) $(TEST_FAST_TARGETS)
 
 inspect-real-dataset-catalog: tests/inspect_real_dataset_catalog.py tests/real_dataset_catalog.json docs/real_audio_dataset_candidates.md
 	$(PYTHON) tests/inspect_real_dataset_catalog.py

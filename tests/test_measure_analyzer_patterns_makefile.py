@@ -675,8 +675,21 @@ def main() -> int:
     assert "\n\t+$(RUN_WITH_DURATION) test_fast" in default_test_recipe, (
         "default test target must preserve the make jobserver through the duration wrapper"
     )
-    assert "$(MAKE) $(PARALLEL_TEST_MAKE_JOBS) test-parallel test-detector-samples-parallel test-fret-control test-real-goal-fixture test-fixtures-parallel-isolated" in default_test_recipe, (
-        "default test target must fan out independent test groups and isolated fixtures together"
+    test_fast_targets = re.search(r"^TEST_FAST_TARGETS := (.+)$", makefile, re.MULTILINE)
+    assert test_fast_targets is not None, "default test target must declare the fast target fanout list"
+    test_fast_target_list = test_fast_targets.group(1)
+    for target in [
+        "test-parallel",
+        "test-detector-samples-parallel",
+        "test-fret-control",
+        "test-real-goal-fixture",
+        "test-fixtures-parallel-isolated",
+    ]:
+        assert target in test_fast_target_list, (
+            f"default test target fanout list must include {target}"
+        )
+    assert "$(MAKE) $(PARALLEL_TEST_MAKE_JOBS) $(TEST_BINS) $(TEST_FAST_TARGETS)" in default_test_recipe, (
+        "default test target must fan out test binaries, independent test groups, and isolated fixtures together"
     )
     isolated_fixture_recipe = target_recipe(makefile, "test-fixtures-parallel-isolated")
     assert "$(RUN_WITH_DURATION) test_fixtures_parallel_isolated" in isolated_fixture_recipe, (
