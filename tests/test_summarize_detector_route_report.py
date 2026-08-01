@@ -73,12 +73,14 @@ compact route summary
         output,
         "drum route snare->tom +rows=24 -rows=5 foreign_rows=4 new_active_rows=0 primary_break_rows=4 side_rows=13 net_rows=11 gain_per_side=1.85",
     )
+    if output.index("shadow other->same-pitch vocals") > output.index("low-false row_confusion"):
+        raise AssertionError(f"expected highest-net shadow candidate before low-false candidates:\n{output}")
     if output.index("low-false row_confusion") > output.index("drum route snare->tom"):
-        raise AssertionError(f"expected low-false candidates before drum routes:\n{output}")
+        raise AssertionError(f"expected higher-net low-false candidates before lower-net drum routes:\n{output}")
     if output.index("shadow other->same-pitch vocals") > output.index("near-miss row_confusion"):
-        raise AssertionError(f"expected shadow candidates before near-miss routes:\n{output}")
-    if output.index("near-miss row_confusion") > output.index("drum route snare->tom"):
-        raise AssertionError(f"expected near-miss candidates before drum routes:\n{output}")
+        raise AssertionError(f"expected positive-net shadow candidates before near-miss routes:\n{output}")
+    if output.index("drum route snare->tom") > output.index("near-miss row_confusion"):
+        raise AssertionError(f"expected positive-net drum candidates before negative-net near misses:\n{output}")
 
     print("test_summarize_detector_route_report: ok")
     return 0

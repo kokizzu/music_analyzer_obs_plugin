@@ -193,6 +193,16 @@ def candidate_sort_key(candidate: Candidate) -> tuple[int, float, int, int, int,
     )
 
 
+def actionable_sort_key(candidate: Candidate) -> tuple[int, float, int, int, str]:
+    return (
+        -candidate.net_rows,
+        -candidate.gain_per_side_effect_row,
+        candidate.side_effect_rows,
+        -candidate.pos_rows,
+        candidate.section,
+    )
+
+
 def format_gain_ratio(candidate: Candidate) -> str:
     ratio = candidate.gain_per_side_effect_row
     if ratio == float("inf"):
@@ -252,7 +262,12 @@ def main() -> int:
         print("  --")
         return 0
 
-    for candidate in candidates[: max(0, args.limit)]:
+    ranked_candidates = sorted(
+        positive_net,
+        key=actionable_sort_key,
+    ) + [candidate for candidate in candidates if candidate.net_rows <= 0]
+
+    for candidate in ranked_candidates[: max(0, args.limit)]:
         print("  " + format_candidate(candidate))
     return 0
 
