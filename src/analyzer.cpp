@@ -23401,6 +23401,17 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 			drum_segment_bands[Tom] >= 109.078f;
 		if (final_one_shot_measured_low_kick_snare_from_tom_primary_recovery)
 			promote_drum_primary(Snare, 0.90f);
+		const bool final_one_shot_measured_low_kick_body_backed_snare_from_tom_primary_recovery =
+			drum_detection_enabled && one_shot_drum_source &&
+			!generated_gm_drum_source &&
+			body_shape == Tom &&
+			drum_level_[Kick] >= 0.27f &&
+			drum_level_[Kick] <= 0.30f &&
+			snapshot.high_energy <= 0.204f &&
+			final_snare_kick_body_ratio_for_primary >= 2.38f &&
+			final_tom_kick_level_ratio_for_primary >= 3.571f;
+		if (final_one_shot_measured_low_kick_body_backed_snare_from_tom_primary_recovery)
+			promote_drum_primary(Snare, 0.90f);
 		const float final_snare_kick_level_ratio_for_primary =
 			drum_level_[Snare] / (drum_level_[Kick] + 1.0e-6f);
 		const bool final_one_shot_measured_low_energy_snare_ambiguous_primary_recovery =
