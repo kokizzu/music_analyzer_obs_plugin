@@ -55,7 +55,7 @@ compact route summary
     )
     require(
         output,
-        "low-false row_confusion:piano/electronic->amb +samples=23 +rows=44 -samples=15 -rows=29 foreign_rows=0 side_rows=29 net_rows=15 gain_per_side=1.52",
+        "low-false row_confusion:piano/electronic->amb +samples=23 +rows=44 -samples=15 -rows=29 foreign_rows=0 side_rows=29 net_rows=15 gain_per_side=1.52 neg_sources=piano/electronic=27,other/acoustic=2",
     )
     require(
         output,
@@ -67,7 +67,7 @@ compact route summary
     )
     require(
         output,
-        "near-miss row_confusion:piano/electronic->amb +samples=20 +rows=47 -samples=202 -rows=616 foreign_rows=242 side_rows=858 net_rows=-811 gain_per_side=0.05",
+        "near-miss row_confusion:piano/electronic->amb +samples=20 +rows=47 -samples=202 -rows=616 foreign_rows=242 side_rows=858 net_rows=-811 gain_per_side=0.05 neg_sources=vocals/example=45 foreign_sources=vocals/other=19",
     )
     require(
         output,

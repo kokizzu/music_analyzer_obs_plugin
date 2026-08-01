@@ -16,6 +16,9 @@ NOTE_CANDIDATE_RE = re.compile(
     r"^(?P<rule>.+?): pos=(?P<pos_samples>\d+)/(?:\d+) rows=(?P<pos_rows>\d+) "
     r"neg=(?P<neg_samples>\d+)/(?:\d+) rows=(?P<neg_rows>\d+)"
     r"(?: foreign_miss=(?P<foreign_samples>\d+)/(?:\d+) rows=(?P<foreign_rows>\d+))?"
+    r"(?: side_rows=\d+ net_rows=-?\d+ gain_per_side=(?:inf|-?\d+(?:\.\d+)?))?"
+    r"(?: neg_sources=(?P<neg_sources>\S+))?"
+    r"(?: foreign_sources=(?P<foreign_sources>\S+))?"
 )
 DRUM_CANDIDATE_RE = re.compile(
     r"^\+(?P<pos_rows>\d+) rows=\d+ -(?P<neg_rows>\d+) rows=\d+ "
@@ -46,6 +49,8 @@ class Candidate:
     foreign_rows: int = 0
     new_active_rows: int = 0
     primary_break_rows: int = 0
+    neg_sources: str = ""
+    foreign_sources: str = ""
 
     @property
     def side_effect_rows(self) -> int:
@@ -151,6 +156,8 @@ def parse_report(path: pathlib.Path) -> list[Candidate]:
                         neg_samples=int(match.group("neg_samples")),
                         neg_rows=int(match.group("neg_rows")),
                         foreign_rows=int(match.group("foreign_rows") or 0),
+                        neg_sources=match.group("neg_sources") or "",
+                        foreign_sources=match.group("foreign_sources") or "",
                     )
                 )
             continue
@@ -216,6 +223,11 @@ def format_candidate(candidate: Candidate) -> str:
         f"net_rows={candidate.net_rows} "
         f"gain_per_side={format_gain_ratio(candidate)}"
     )
+    source_utility = ""
+    if candidate.neg_sources:
+        source_utility += f" neg_sources={candidate.neg_sources}"
+    if candidate.foreign_sources:
+        source_utility += f" foreign_sources={candidate.foreign_sources}"
     if candidate.kind == "drum":
         return (
             f"{candidate.kind} {candidate.section} "
@@ -234,7 +246,7 @@ def format_candidate(candidate: Candidate) -> str:
         f"{candidate.kind} {candidate.section} "
         f"+samples={candidate.pos_samples} +rows={candidate.pos_rows} "
         f"-samples={candidate.neg_samples} -rows={candidate.neg_rows} "
-        f"foreign_rows={candidate.foreign_rows} {utility} :: {candidate.rule}"
+        f"foreign_rows={candidate.foreign_rows} {utility}{source_utility} :: {candidate.rule}"
     )
 
 
