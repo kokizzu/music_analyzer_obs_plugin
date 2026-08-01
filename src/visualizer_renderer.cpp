@@ -47,9 +47,7 @@ float display_highlight_level(float level)
 	if (level <= 0.0f)
 		return 0.0f;
 
-	constexpr float kVisibleHighlightFloor = 0.36f;
-	const float normalized = std::clamp(level / kFullHighlightLevel, 0.0f, 1.0f);
-	return std::clamp(kVisibleHighlightFloor + normalized * (1.0f - kVisibleHighlightFloor), 0.0f, 1.0f);
+	return std::clamp(level / kFullHighlightLevel, 0.0f, 1.0f);
 }
 
 float note_cell_render_level(const NoteCell &cell)

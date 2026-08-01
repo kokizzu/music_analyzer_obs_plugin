@@ -27,8 +27,10 @@ int run_visualizer_renderer_tests()
 
 	expect_true(near(display_highlight_level(0.0f), 0.0f), "zero level should not highlight", &checks,
 		    &failures);
-	expect_true(display_highlight_level(0.01f) > 0.36f && display_highlight_level(0.01f) < 1.0f,
-		    "non-zero note levels should stay visibly lit but below full intensity", &checks, &failures);
+	expect_true(near(display_highlight_level(0.01f), 0.04f),
+		    "weak note levels should fade linearly below the full-highlight threshold", &checks, &failures);
+	expect_true(near(display_highlight_level(0.125f), 0.5f),
+		    "half-threshold note levels should render as half highlight", &checks, &failures);
 	expect_true(near(display_highlight_level(0.25f), 1.0f),
 		    "25 percent note level should render as full highlight", &checks, &failures);
 	expect_true(near(display_highlight_level(1.0f), 1.0f),
