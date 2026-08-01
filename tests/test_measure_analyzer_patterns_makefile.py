@@ -619,6 +619,25 @@ def main() -> int:
     assert '--jobs "$(REAL_NOTE_PATTERN_JOBS)"' in broad_vocal_recipe, (
         "broad vocal ownership route must run pattern search with configured parallel jobs"
     )
+    assert "VOCADITO_PATTERN_EXTRA_PROTECTED_PATHS ?= $(BUILD_DIR)/real_note_full_mix_attributes.tsv" in makefile, (
+        "Vocadito route mining must protect candidate vocal rules against the broad NSynth full-mix TSV"
+    )
+    assert 'VOCADITO_PATTERN_EXTRA_PROTECTED_ARGS = $(foreach path,$(VOCADITO_PATTERN_EXTRA_PROTECTED_PATHS),--extra-protected-path "$(path)")' in makefile, (
+        "Vocadito protected TSV inputs must be converted into repeatable pattern-miner arguments"
+    )
+    for target in [
+        "find-vocadito-full-mix-row-confusion-patterns",
+        "find-vocadito-full-mix-visual-row-confusion-patterns",
+        "find-vocadito-full-mix-ownership-patterns",
+        "find-vocadito-full-mix-broad-vocal-ownership-patterns",
+    ]:
+        vocadito_pattern_recipe = target_recipe(makefile, target)
+        assert "$(VOCADITO_PATTERN_EXTRA_PROTECTED_PATHS)" in vocadito_pattern_recipe.splitlines()[0], (
+            f"{target} must wait for protected real-note TSV inputs"
+        )
+        assert "$(VOCADITO_PATTERN_EXTRA_PROTECTED_ARGS)" in vocadito_pattern_recipe, (
+            f"{target} must pass protected real-note TSV inputs to the pattern miner"
+        )
     route_scan_recipe = target_recipe(makefile, "analyze-detector-improvement-routes")
     assert "\n\t+$(RUN_WITH_DURATION) detector_improvement_routes_parallel" in route_scan_recipe, (
         "detector improvement route scan must preserve the make jobserver through the duration wrapper"

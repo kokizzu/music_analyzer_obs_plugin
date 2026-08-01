@@ -102,6 +102,8 @@ MEASURE_REAL_NOTE_FOCUSED_VISUAL_ROW_CONFUSION_PATTERN_ARGS ?= --top-buckets 8 -
 MEASURE_REAL_NOTE_OWNERSHIP_PATTERN_ARGS ?= --top-buckets 8 --limit 4 --min-positive-samples 1 --max-negative-samples 0 --max-conditions 3 --beam-width 160 --show-examples 1 --protected-scope all --profile-fields 5
 MEASURE_REAL_NOTE_BROAD_VOCAL_PATTERN_ARGS ?= --limit 8 --min-positive-samples 20 --max-negative-samples 25 --max-conditions 3 --beam-width 120 --show-examples 1 --show-near-misses 4 --protected-scope all --profile-fields 5
 MEASURE_REAL_NOTE_OCTAVE_DISPLACEMENT_PATTERN_ARGS ?= --top-buckets 8 --limit 8 --min-positive-samples 20 --max-negative-samples 20 --max-conditions 3 --beam-width 240 --show-examples 1 --show-near-misses 4 --protected-scope all --include-row-context
+VOCADITO_PATTERN_EXTRA_PROTECTED_PATHS ?= $(BUILD_DIR)/real_note_full_mix_attributes.tsv
+VOCADITO_PATTERN_EXTRA_PROTECTED_ARGS = $(foreach path,$(VOCADITO_PATTERN_EXTRA_PROTECTED_PATHS),--extra-protected-path "$(path)")
 REAL_NOTE_RULE_CONDITIONS ?=
 REAL_NOTE_RULE_GROUP_BY ?=
 REAL_NOTE_RULE_CONDITION_ARGS = $(foreach condition,$(REAL_NOTE_RULE_CONDITIONS),--condition "$(condition)")
@@ -1925,17 +1927,17 @@ analyze-vocadito-full-mix-attributes: $(VOCADITO_FULL_MIX_ATTRIBUTE_TSV) scripts
 	$(PYTHON) scripts/summarize_real_note_attributes.py "$(VOCADITO_FULL_MIX_ATTRIBUTE_TSV)" $(REAL_NOTE_ATTRIBUTE_SUMMARY_ARGS)
 	@printf '%s\n' "attribute TSV: $(VOCADITO_FULL_MIX_ATTRIBUTE_TSV)"
 
-find-vocadito-full-mix-row-confusion-patterns: $(VOCADITO_FULL_MIX_ATTRIBUTE_TSV) scripts/find_real_note_attribute_patterns.py
-	$(PYTHON) scripts/find_real_note_attribute_patterns.py "$(VOCADITO_FULL_MIX_ATTRIBUTE_TSV)" $(if $(PATTERN_BUCKET),--bucket "$(PATTERN_BUCKET)") --bucket-status row_confusion $(REAL_NOTE_RUNTIME_ROW_CONFUSION_EXCLUDES) --jobs "$(REAL_NOTE_PATTERN_JOBS)" $(or $(PATTERN_ARGS),$(MEASURE_REAL_NOTE_FOCUSED_ROW_CONFUSION_PATTERN_ARGS))
+find-vocadito-full-mix-row-confusion-patterns: $(VOCADITO_FULL_MIX_ATTRIBUTE_TSV) $(VOCADITO_PATTERN_EXTRA_PROTECTED_PATHS) scripts/find_real_note_attribute_patterns.py
+	$(PYTHON) scripts/find_real_note_attribute_patterns.py "$(VOCADITO_FULL_MIX_ATTRIBUTE_TSV)" $(VOCADITO_PATTERN_EXTRA_PROTECTED_ARGS) $(if $(PATTERN_BUCKET),--bucket "$(PATTERN_BUCKET)") --bucket-status row_confusion $(REAL_NOTE_RUNTIME_ROW_CONFUSION_EXCLUDES) --jobs "$(REAL_NOTE_PATTERN_JOBS)" $(or $(PATTERN_ARGS),$(MEASURE_REAL_NOTE_FOCUSED_ROW_CONFUSION_PATTERN_ARGS))
 
-find-vocadito-full-mix-visual-row-confusion-patterns: $(VOCADITO_FULL_MIX_ATTRIBUTE_TSV) scripts/find_real_note_attribute_patterns.py
-	$(PYTHON) scripts/find_real_note_attribute_patterns.py "$(VOCADITO_FULL_MIX_ATTRIBUTE_TSV)" $(if $(PATTERN_BUCKET),--bucket "$(PATTERN_BUCKET)") --bucket-status visual_row_confusion $(REAL_NOTE_RUNTIME_ROW_CONFUSION_EXCLUDES) --jobs "$(REAL_NOTE_PATTERN_JOBS)" $(or $(PATTERN_ARGS),$(MEASURE_REAL_NOTE_FOCUSED_VISUAL_ROW_CONFUSION_PATTERN_ARGS))
+find-vocadito-full-mix-visual-row-confusion-patterns: $(VOCADITO_FULL_MIX_ATTRIBUTE_TSV) $(VOCADITO_PATTERN_EXTRA_PROTECTED_PATHS) scripts/find_real_note_attribute_patterns.py
+	$(PYTHON) scripts/find_real_note_attribute_patterns.py "$(VOCADITO_FULL_MIX_ATTRIBUTE_TSV)" $(VOCADITO_PATTERN_EXTRA_PROTECTED_ARGS) $(if $(PATTERN_BUCKET),--bucket "$(PATTERN_BUCKET)") --bucket-status visual_row_confusion $(REAL_NOTE_RUNTIME_ROW_CONFUSION_EXCLUDES) --jobs "$(REAL_NOTE_PATTERN_JOBS)" $(or $(PATTERN_ARGS),$(MEASURE_REAL_NOTE_FOCUSED_VISUAL_ROW_CONFUSION_PATTERN_ARGS))
 
-find-vocadito-full-mix-ownership-patterns: $(VOCADITO_FULL_MIX_ATTRIBUTE_TSV) scripts/find_real_note_attribute_patterns.py
-	$(PYTHON) scripts/find_real_note_attribute_patterns.py "$(VOCADITO_FULL_MIX_ATTRIBUTE_TSV)" $(if $(PATTERN_BUCKET),--bucket "$(PATTERN_BUCKET)") --bucket-status ownership_miss $(REAL_NOTE_RUNTIME_ROW_CONFUSION_EXCLUDES) --jobs "$(REAL_NOTE_PATTERN_JOBS)" $(or $(PATTERN_ARGS),$(MEASURE_REAL_NOTE_FOCUSED_ROW_CONFUSION_PATTERN_ARGS))
+find-vocadito-full-mix-ownership-patterns: $(VOCADITO_FULL_MIX_ATTRIBUTE_TSV) $(VOCADITO_PATTERN_EXTRA_PROTECTED_PATHS) scripts/find_real_note_attribute_patterns.py
+	$(PYTHON) scripts/find_real_note_attribute_patterns.py "$(VOCADITO_FULL_MIX_ATTRIBUTE_TSV)" $(VOCADITO_PATTERN_EXTRA_PROTECTED_ARGS) $(if $(PATTERN_BUCKET),--bucket "$(PATTERN_BUCKET)") --bucket-status ownership_miss $(REAL_NOTE_RUNTIME_ROW_CONFUSION_EXCLUDES) --jobs "$(REAL_NOTE_PATTERN_JOBS)" $(or $(PATTERN_ARGS),$(MEASURE_REAL_NOTE_FOCUSED_ROW_CONFUSION_PATTERN_ARGS))
 
-find-vocadito-full-mix-broad-vocal-ownership-patterns: $(VOCADITO_FULL_MIX_ATTRIBUTE_TSV) scripts/find_real_note_attribute_patterns.py
-	$(PYTHON) scripts/find_real_note_attribute_patterns.py "$(VOCADITO_FULL_MIX_ATTRIBUTE_TSV)" --bucket "ownership_miss:vocals/*->*" --jobs "$(REAL_NOTE_PATTERN_JOBS)" $(or $(PATTERN_ARGS),$(MEASURE_REAL_NOTE_BROAD_VOCAL_PATTERN_ARGS))
+find-vocadito-full-mix-broad-vocal-ownership-patterns: $(VOCADITO_FULL_MIX_ATTRIBUTE_TSV) $(VOCADITO_PATTERN_EXTRA_PROTECTED_PATHS) scripts/find_real_note_attribute_patterns.py
+	$(PYTHON) scripts/find_real_note_attribute_patterns.py "$(VOCADITO_FULL_MIX_ATTRIBUTE_TSV)" $(VOCADITO_PATTERN_EXTRA_PROTECTED_ARGS) --bucket "ownership_miss:vocals/*->*" --jobs "$(REAL_NOTE_PATTERN_JOBS)" $(or $(PATTERN_ARGS),$(MEASURE_REAL_NOTE_BROAD_VOCAL_PATTERN_ARGS))
 
 prepare-guitar-fretboard-note-samples: scripts/prepare_guitar_fretboard_notes.py | $(BUILD_DIR)
 	GUITAR_FRETBOARD_NOTES_SAMPLE_DIR="$(GUITAR_FRETBOARD_NOTES_SAMPLE_DIR)" GUITAR_FRETBOARD_NOTES_LIMIT="$(GUITAR_FRETBOARD_NOTES_LIMIT)" $(PYTHON) scripts/prepare_guitar_fretboard_notes.py --output "$(GUITAR_FRETBOARD_NOTES_SAMPLE_DIR)"
