@@ -6926,6 +6926,39 @@ bool full_mix_display_mirror_supported(FullMixDisplayRow row, const FullMixDebug
 	return false;
 }
 
+bool measured_low_acoustic_guitar_display_floor_supported(const FullMixDebugCandidate &debug)
+{
+	if (debug.midi < 40 || debug.midi > 46)
+		return false;
+
+	const float second = debug.harmonic_ratios[1];
+	const float third = debug.harmonic_ratios[2];
+	const float fourth = debug.harmonic_ratios[3];
+	const float fifth = debug.harmonic_ratios[4];
+	const bool strong_low_string_pitch =
+		debug.spectral_level >= 0.70f &&
+		debug.pitch_confidence >= 0.66f &&
+		debug.periodicity >= 0.62f &&
+		debug.harmonic_fit_error <= 0.18f &&
+		debug.local_noise_level >= 0.20f &&
+		debug.local_noise_level <= 0.58f;
+	const bool acoustic_string_stack =
+		second >= 0.22f &&
+		second <= 0.62f &&
+		((third >= 0.035f && fourth >= 0.035f) || fourth >= 0.16f) &&
+		fifth <= 0.22f;
+	const bool guitar_owned =
+		debug.owner == InstrumentKind::Guitar &&
+		debug.guitar_score >= 0.70f &&
+		debug.bass_score <= std::max(0.30f, debug.guitar_score * 0.50f);
+	const bool neighboring_guitar_body =
+		shared_guitar_pitch_display_supported(debug) ||
+		other_owned_low_acoustic_guitar_body_supported(debug) ||
+		ambiguous_low_acoustic_guitar_body_supported(debug);
+
+	return strong_low_string_pitch && acoustic_string_stack && (guitar_owned || neighboring_guitar_body);
+}
+
 void add_full_mix_display_mirror(NoteCandidateList &candidates, const FullMixOwnership &ownership,
 				 const FullMixDebugCandidate &debug, FullMixDisplayRow row,
 				 const std::array<float, kNoteProbeCount> *raw_powers = nullptr)
@@ -6975,6 +7008,10 @@ void add_full_mix_display_mirror(NoteCandidateList &candidates, const FullMixOwn
 		row == FullMixDisplayRow::Vocal &&
 		display_midi == debug.midi &&
 		measured_low_full_mix_vocal_display_supported(debug);
+	const bool measured_low_acoustic_guitar_floor =
+		row == FullMixDisplayRow::Guitar &&
+		display_midi == debug.midi &&
+		measured_low_acoustic_guitar_display_floor_supported(debug);
 	if (measured_low_organ_keyboard_alias)
 		global_level = std::max(global_level, 0.34f);
 	if (row == FullMixDisplayRow::Vocal && display_midi != debug.midi &&
@@ -7035,6 +7072,10 @@ void add_full_mix_display_mirror(NoteCandidateList &candidates, const FullMixOwn
 	if (row == FullMixDisplayRow::Guitar &&
 	    noisy_other_owned_low_acoustic_guitar_supported(debug))
 		candidate_score = std::max(candidate_score, base_score * 1.04f);
+	if (measured_low_acoustic_guitar_floor) {
+		candidate_score = std::max(candidate_score, base_score * 0.74f);
+		candidate_confidence = std::max(candidate_confidence, 0.74f);
+	}
 	if (row == FullMixDisplayRow::Guitar &&
 	    other_owned_overdrive_guitar_body_supported(debug))
 		candidate_score = std::max(candidate_score, base_score * 1.04f);

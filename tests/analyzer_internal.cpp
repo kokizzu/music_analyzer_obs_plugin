@@ -1473,6 +1473,42 @@ void check_display_ownership_scale_keeps_confirmed_mid_confidence_visible(Runner
 		      "display ownership scale: expected strong ownership to render at full scale");
 }
 
+void check_low_acoustic_guitar_display_mirror_gets_bright_score_floor(Runner &runner)
+{
+	static constexpr int kMidi = 45;
+	FullMixOwnership ownership = {};
+	ownership.global_note_levels[static_cast<std::size_t>(kMidi - kFirstMidi)] = 1.0f;
+
+	FullMixDebugCandidate debug = {};
+	debug.midi = kMidi;
+	debug.owner = InstrumentKind::Guitar;
+	debug.ownership_confidence = 0.96f;
+	debug.guitar_score = 0.96f;
+	debug.spectral_level = 0.90f;
+	debug.pitch_confidence = 0.78f;
+	debug.periodicity = 0.74f;
+	debug.harmonic_fit_error = 0.060f;
+	debug.local_noise_level = 0.38f;
+	debug.harmonic_ratios[1] = 0.36f;
+	debug.harmonic_ratios[2] = 0.12f;
+	debug.harmonic_ratios[3] = 0.080f;
+	debug.harmonic_ratios[4] = 0.060f;
+
+	NoteCandidateList candidates;
+	candidates.push_back(NoteCandidate{64, 1.0f, 0.90f});
+	add_full_mix_display_mirror(candidates, ownership, debug, FullMixDisplayRow::Guitar);
+	runner.expect(candidate_score_for_midi(candidates, kMidi) >= 0.739f,
+		      "low acoustic guitar display mirror: expected supported low string to get bright score floor");
+
+	FullMixDebugCandidate bass_like = debug;
+	bass_like.bass_score = 0.80f;
+	NoteCandidateList bass_like_candidates;
+	bass_like_candidates.push_back(NoteCandidate{64, 1.0f, 0.90f});
+	add_full_mix_display_mirror(bass_like_candidates, ownership, bass_like, FullMixDisplayRow::Guitar);
+	runner.expect(candidate_score_for_midi(bass_like_candidates, kMidi) < 0.60f,
+		      "low acoustic guitar display mirror: expected bass-like candidate to keep conservative score");
+}
+
 void check_low_wind_other_octave_alias_promotes_raw_fundamental(Runner &runner)
 {
 	static constexpr int kLowerMidi = 40;
@@ -1576,6 +1612,7 @@ int run()
 	check_other_dominant_same_pitch_guitar_display_is_pruned(runner);
 	check_other_dominant_octave_alias_guitar_display_is_pruned(runner);
 	check_display_ownership_scale_keeps_confirmed_mid_confidence_visible(runner);
+	check_low_acoustic_guitar_display_mirror_gets_bright_score_floor(runner);
 	check_low_wind_other_octave_alias_promotes_raw_fundamental(runner);
 	check_low_wind_other_octave_alias_requires_upper_stack(runner);
 	if (runner.failures) {
