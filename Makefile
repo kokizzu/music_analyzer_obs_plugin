@@ -785,6 +785,7 @@ PARALLEL_TEST_MAKE_JOBS = $(if $(filter -j%,$(MAKEFLAGS)),,-j$(PARALLEL_TEST_JOB
 REAL_GOAL_MAKE_JOBS ?= $(PARALLEL_TEST_MAKE_JOBS)
 MEASURE_ANALYZER_JOBS ?= $(PARALLEL_TEST_JOBS)
 MEASURE_ANALYZER_MAKE_JOBS = $(if $(filter -j%,$(MAKEFLAGS)),,-j$(MEASURE_ANALYZER_JOBS))
+REFRESH_ANALYZER_ATTRIBUTE_JOBS ?= $(MEASURE_ANALYZER_JOBS)
 REAL_NOTE_FULL_MIX_SHARDS ?= $(PARALLEL_TEST_JOBS)
 REAL_NOTE_FULL_MIX_SHARD_INDEXES := $(shell i=0; while [ $$i -lt $(REAL_NOTE_FULL_MIX_SHARDS) ]; do printf '%s ' $$i; i=$$((i + 1)); done)
 REAL_NOTE_FULL_MIX_SHARD_TARGETS := $(addprefix test-real-note-samples-full-mix-shard-,$(REAL_NOTE_FULL_MIX_SHARD_INDEXES))
@@ -1672,7 +1673,7 @@ measure-analyzer-attribute-rows-full: measure-analyzer-attribute-rows analyze-dr
 	@printf '%s\n' "  $(BUILD_DIR)/drum_full_attribute_rows.tsv"
 
 refresh-analyzer-detected-attribute-rows: scripts/refresh_analyzer_detected_attribute_rows.py
-	$(PYTHON) scripts/refresh_analyzer_detected_attribute_rows.py --build-dir "$(BUILD_DIR)" --python "$(PYTHON)"
+	$(PYTHON) scripts/refresh_analyzer_detected_attribute_rows.py --build-dir "$(BUILD_DIR)" --python "$(PYTHON)" --jobs "$(REFRESH_ANALYZER_ATTRIBUTE_JOBS)"
 
 print-analyzer-detected-attributes: $(MEASURE_ANALYZER_ROW_DUMPS) $(BUILD_DIR)/drum_primary_miss_attribute_rows.tsv scripts/print_analyzer_detected_attributes.py scripts/run_with_duration.sh
 	$(RUN_WITH_DURATION) analyzer_detected_attributes $(PYTHON) scripts/print_analyzer_detected_attributes.py --instrument "$(INSTRUMENT_DETECTED_ATTRIBUTE_ROWS)" --real-note "$(REAL_NOTE_DETECTED_ATTRIBUTE_ROWS)" --guitar-chord "$(GUITAR_CHORD_DETECTED_ATTRIBUTE_ROWS)" --drum-primary "$(BUILD_DIR)/drum_primary_miss_attribute_rows.tsv" --drum-full "$(BUILD_DIR)/drum_full_attribute_rows.tsv" $(ATTRIBUTE_ROW_REPORT_ARGS)

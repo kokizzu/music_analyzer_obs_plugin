@@ -39,7 +39,7 @@ def write_helper(path: pathlib.Path, call_log: pathlib.Path) -> None:
     )
 
 
-def run_refresh(script_root: pathlib.Path, build_dir: pathlib.Path) -> None:
+def run_refresh(script_root: pathlib.Path, build_dir: pathlib.Path, jobs: int = 4) -> None:
     subprocess.run(
         [
             sys.executable,
@@ -50,6 +50,8 @@ def run_refresh(script_root: pathlib.Path, build_dir: pathlib.Path) -> None:
             str(build_dir),
             "--python",
             sys.executable,
+            "--jobs",
+            str(jobs),
         ],
         cwd=ROOT,
         check=True,

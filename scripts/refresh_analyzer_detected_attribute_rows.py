@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import argparse
+import concurrent.futures
 import pathlib
 import subprocess
 import sys
@@ -44,20 +45,45 @@ def script(script_root: pathlib.Path, name: str) -> str:
     return str(script_root / "scripts" / name)
 
 
-def refresh(build_dir: pathlib.Path, script_root: pathlib.Path, python: str) -> None:
+def run_commands(
+    commands: list[tuple[pathlib.Path, list[str]]],
+    script_root: pathlib.Path,
+    jobs: int,
+) -> None:
+    if not commands:
+        return
+    if jobs <= 1 or len(commands) == 1:
+        for output, command in commands:
+            write_command(output, command, script_root)
+        return
+
+    workers = min(jobs, len(commands))
+    with concurrent.futures.ThreadPoolExecutor(max_workers=workers) as executor:
+        futures = [
+            executor.submit(write_command, output, command, script_root)
+            for output, command in commands
+        ]
+        for future in concurrent.futures.as_completed(futures):
+            future.result()
+
+
+def refresh(build_dir: pathlib.Path, script_root: pathlib.Path, python: str, jobs: int) -> None:
+    commands: list[tuple[pathlib.Path, list[str]]] = []
+
     instrument_inspector = pathlib.Path(script(script_root, "inspect_instrument_sample_owner_buckets.py"))
     instrument_source = build_dir / "instrument_sample_attributes.tsv"
     instrument_output = build_dir / "instrument_detected_attribute_rows.tsv"
     if stale([instrument_source, instrument_inspector], [instrument_output]):
-        write_command(
-            instrument_output,
-            [
-                python,
-                str(instrument_inspector),
-                str(instrument_source),
-                "--dump-rows",
-            ],
-            script_root,
+        commands.append(
+            (
+                instrument_output,
+                [
+                    python,
+                    str(instrument_inspector),
+                    str(instrument_source),
+                    "--dump-rows",
+                ],
+            )
         )
 
     real_inspector = pathlib.Path(script(script_root, "inspect_real_note_attribute_buckets.py"))
@@ -71,8 +97,8 @@ def refresh(build_dir: pathlib.Path, script_root: pathlib.Path, python: str) -> 
             str(real_source),
             "--dump-rows",
         ]
-        write_command(real_output, base_command, script_root)
-        write_command(real_miss_output, base_command + ["--misses-only"], script_root)
+        commands.append((real_output, base_command))
+        commands.append((real_miss_output, base_command + ["--misses-only"]))
 
     guitar_inspector = pathlib.Path(script(script_root, "inspect_guitarset_attribute_buckets.py"))
     guitar_source = build_dir / "guitar_chord_mix_attributes.tsv"
@@ -85,39 +111,43 @@ def refresh(build_dir: pathlib.Path, script_root: pathlib.Path, python: str) -> 
             str(guitar_source),
             "--dump-rows",
         ]
-        write_command(guitar_output, base_command, script_root)
-        write_command(guitar_miss_output, base_command + ["--misses-only"], script_root)
+        commands.append((guitar_output, base_command))
+        commands.append((guitar_miss_output, base_command + ["--misses-only"]))
 
     drum_analyzer = pathlib.Path(script(script_root, "analyze_drum_primary_debug.py"))
     primary_sources = [build_dir / f"{drum}_primary_debug.err" for drum in DRUMS]
     primary_output = build_dir / "drum_primary_miss_attribute_rows.tsv"
     if stale(primary_sources + [drum_analyzer], [primary_output]):
-        write_command(
-            primary_output,
-            [
-                python,
-                str(drum_analyzer),
-                "--dump-rows",
-                "--include-debug-rows",
-                *(str(path) for path in primary_sources),
-            ],
-            script_root,
+        commands.append(
+            (
+                primary_output,
+                [
+                    python,
+                    str(drum_analyzer),
+                    "--dump-rows",
+                    "--include-debug-rows",
+                    *(str(path) for path in primary_sources),
+                ],
+            )
         )
 
     full_sources = [build_dir / f"full_{drum}_debug.err" for drum in FULL_DRUMS]
     full_output = build_dir / "drum_full_attribute_rows.tsv"
     if stale(full_sources + [drum_analyzer], [full_output]):
-        write_command(
-            full_output,
-            [
-                python,
-                str(drum_analyzer),
-                "--dump-rows",
-                "--include-debug-rows",
-                *(str(path) for path in full_sources),
-            ],
-            script_root,
+        commands.append(
+            (
+                full_output,
+                [
+                    python,
+                    str(drum_analyzer),
+                    "--dump-rows",
+                    "--include-debug-rows",
+                    *(str(path) for path in full_sources),
+                ],
+            )
         )
+
+    run_commands(commands, script_root, jobs)
 
 
 def main() -> int:
@@ -125,9 +155,10 @@ def main() -> int:
     parser.add_argument("--build-dir", type=pathlib.Path, default=pathlib.Path("build"))
     parser.add_argument("--script-root", type=pathlib.Path, default=pathlib.Path(__file__).resolve().parents[1])
     parser.add_argument("--python", default=sys.executable)
+    parser.add_argument("--jobs", type=int, default=1)
     args = parser.parse_args()
 
-    refresh(args.build_dir, args.script_root, args.python)
+    refresh(args.build_dir, args.script_root, args.python, max(1, args.jobs))
     return 0
 
 

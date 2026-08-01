@@ -2206,6 +2206,12 @@ def main() -> int:
     )
     assert "--build-dir \"$(BUILD_DIR)\"" in refresh_recipe, "refresh helper needs the configured build dir"
     assert "--python \"$(PYTHON)\"" in refresh_recipe, "refresh helper needs the configured Python"
+    assert "--jobs \"$(REFRESH_ANALYZER_ATTRIBUTE_JOBS)\"" in refresh_recipe, (
+        "refresh helper must derive independent detected-attribute row dumps in parallel"
+    )
+    assert "REFRESH_ANALYZER_ATTRIBUTE_JOBS ?= $(MEASURE_ANALYZER_JOBS)" in makefile, (
+        "refresh helper needs an overridable job count tied to the measurement workflow"
+    )
     for text in [
         "instrument_sample_attributes.tsv",
         "real_note_full_mix_attributes.tsv",
