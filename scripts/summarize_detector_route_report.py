@@ -12,9 +12,10 @@ import re
 SECTION_RE = re.compile(
     r"^(?P<section>(?:ownership_miss|visual_row_confusion|row_confusion):\S+|route \S+)"
 )
-LOW_FALSE_RE = re.compile(
+NOTE_CANDIDATE_RE = re.compile(
     r"^(?P<rule>.+?): pos=(?P<pos_samples>\d+)/(?:\d+) rows=(?P<pos_rows>\d+) "
     r"neg=(?P<neg_samples>\d+)/(?:\d+) rows=(?P<neg_rows>\d+)"
+    r"(?: foreign_miss=(?P<foreign_samples>\d+)/(?:\d+) rows=(?P<foreign_rows>\d+))?"
 )
 DRUM_CANDIDATE_RE = re.compile(
     r"^\+(?P<pos_rows>\d+) rows=\d+ -(?P<neg_rows>\d+) rows=\d+ "
@@ -46,38 +47,41 @@ class Candidate:
 def parse_report(path: pathlib.Path) -> list[Candidate]:
     candidates: list[Candidate] = []
     section = ""
-    in_low_false = False
+    note_candidate_kind = ""
 
     for raw_line in path.read_text(errors="replace").splitlines():
         line = raw_line.rstrip()
         section_match = SECTION_RE.match(line)
         if section_match:
             section = section_match.group("section")
-            in_low_false = False
+            note_candidate_kind = ""
 
         stripped = line.strip()
         if stripped == "low-false candidate rules:":
-            in_low_false = True
+            note_candidate_kind = "low-false"
             continue
-        if in_low_false and (
+        if stripped.startswith("nearest over-budget"):
+            note_candidate_kind = "near-miss"
+            continue
+        if note_candidate_kind and (
             stripped.startswith("highest-coverage")
-            or stripped.startswith("nearest over-budget")
             or (line and not line.startswith(" "))
         ):
-            in_low_false = False
+            note_candidate_kind = ""
 
-        if in_low_false and line.startswith("    ") and stripped and stripped != "--":
-            match = LOW_FALSE_RE.match(stripped)
+        if note_candidate_kind and line.startswith("    ") and stripped and stripped != "--":
+            match = NOTE_CANDIDATE_RE.match(stripped)
             if match:
                 candidates.append(
                     Candidate(
-                        kind="low-false",
+                        kind=note_candidate_kind,
                         section=section,
                         rule=match.group("rule"),
                         pos_samples=int(match.group("pos_samples")),
                         pos_rows=int(match.group("pos_rows")),
                         neg_samples=int(match.group("neg_samples")),
                         neg_rows=int(match.group("neg_rows")),
+                        foreign_rows=int(match.group("foreign_rows") or 0),
                     )
                 )
             continue
@@ -102,7 +106,7 @@ def parse_report(path: pathlib.Path) -> list[Candidate]:
 
 
 def candidate_sort_key(candidate: Candidate) -> tuple[int, int, int, int, str]:
-    kind_priority = 0 if candidate.kind == "low-false" else 1
+    kind_priority = {"low-false": 0, "near-miss": 1, "drum": 2}.get(candidate.kind, 3)
     return (
         kind_priority,
         candidate.side_effect_rows,
@@ -123,7 +127,8 @@ def format_candidate(candidate: Candidate) -> str:
     return (
         f"{candidate.kind} {candidate.section} "
         f"+samples={candidate.pos_samples} +rows={candidate.pos_rows} "
-        f"-samples={candidate.neg_samples} -rows={candidate.neg_rows} :: {candidate.rule}"
+        f"-samples={candidate.neg_samples} -rows={candidate.neg_rows} "
+        f"foreign_rows={candidate.foreign_rows} :: {candidate.rule}"
     )
 
 
@@ -135,11 +140,13 @@ def main() -> int:
 
     candidates = sorted(parse_report(args.report), key=candidate_sort_key)
     low_false = [candidate for candidate in candidates if candidate.kind == "low-false"]
+    near_miss = [candidate for candidate in candidates if candidate.kind == "near-miss"]
     drum = [candidate for candidate in candidates if candidate.kind == "drum"]
 
     print(
         "detector_route_summary: "
-        f"candidates={len(candidates)} low_false={len(low_false)} drum={len(drum)}"
+        f"candidates={len(candidates)} low_false={len(low_false)} "
+        f"near_miss={len(near_miss)} drum={len(drum)}"
     )
     if not candidates:
         print("  --")
