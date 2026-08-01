@@ -3090,6 +3090,14 @@ bool shared_vocal_pitch_display_supported(const FullMixDebugCandidate &debug)
 	    keyboard_owned_low_confidence_ooh_octave || high_keyboard_vocal_octave_alias)
 		return true;
 
+	const bool measured_owned_formant_vocal_partial =
+		(debug.owner == InstrumentKind::Other || debug.owner == InstrumentKind::Guitar) &&
+		debug.adjacent_lower_ratio <= 0.279f &&
+		third >= 1.218f &&
+		fourth <= 0.740f;
+	if (measured_owned_formant_vocal_partial)
+		return true;
+
 	if (debug.owner != InstrumentKind::Keyboard && debug.owner != InstrumentKind::Other)
 		return false;
 	const bool measured_dense_choir_vowel =
@@ -3124,14 +3132,8 @@ bool shared_vocal_pitch_display_supported(const FullMixDebugCandidate &debug)
 		debug.pitch_confidence <= 0.468f &&
 		debug.local_noise_level <= 0.028f &&
 		second >= 0.884f;
-	const bool measured_owned_formant_vocal_partial =
-		(debug.owner == InstrumentKind::Other || debug.owner == InstrumentKind::Guitar) &&
-		debug.adjacent_lower_ratio <= 0.279f &&
-		third >= 1.218f &&
-		fourth <= 0.740f;
 	if (measured_dense_choir_vowel || measured_other_owned_choir_partial ||
-	    measured_other_owned_low_confidence_vocal_partial ||
-	    measured_owned_formant_vocal_partial)
+	    measured_other_owned_low_confidence_vocal_partial)
 		return true;
 	if (!strong_full_mix_pitch_for_display(debug, 0.70f, 0.70f, 0.64f, 0.34f, 0.72f))
 		return false;
