@@ -551,26 +551,62 @@ def first_selection_candidates(candidates, limit_per_category):
 def count_candidates(candidates):
     counts = {category: 0 for category in CATEGORIES}
     kind_counts = defaultdict(int)
+    kind_category_counts = defaultdict(lambda: {category: 0 for category in CATEGORIES})
     for candidate in candidates:
         counts[candidate.category] += 1
         kind_counts[candidate.kind] += 1
-    return counts, kind_counts
+        kind_category_counts[candidate.kind][candidate.category] += 1
+    return counts, kind_counts, kind_category_counts
 
 
 def counts_summary(counts):
     return " ".join(f"{category}={counts.get(category, 0)}" for category in CATEGORIES)
 
 
+def kind_category_summary(kind_category_counts):
+    parts = []
+    for kind in ("plain", "zip", "rar"):
+        counts = kind_category_counts.get(kind)
+        if not counts or not any(counts.values()):
+            continue
+        parts.append(f"{kind}[{counts_summary(counts)}]")
+    return " ".join(parts) if parts else "--"
+
+
+def compact_bucket_label(label, max_parts=3):
+    archive, separator, member = label.partition("!")
+    if separator:
+        return f"{compact_bucket_label(archive, max_parts)}!{compact_bucket_label(member, max_parts)}"
+    parts = Path(label).parts
+    if len(parts) <= max_parts:
+        return label
+    return "/".join(parts[-max_parts:])
+
+
+def source_bucket_summary(candidates, limit=8):
+    counts = defaultdict(int)
+    for candidate in candidates:
+        counts[candidate_bucket(candidate)] += 1
+    ordered = sorted(counts.items(), key=lambda item: (-item[1], compact_bucket_label(item[0])))
+    top = " ".join(
+        f"{compact_bucket_label(bucket)}={count}"
+        for bucket, count in ordered[:max(0, limit)]
+    )
+    return len(counts), top or "--"
+
+
 def print_sample_audit(source, limit_per_category, selection, unrar=None, include_archives=True,
                        source_filter=None):
     candidates = all_candidates(source, unrar=unrar, include_archives=include_archives,
                                 source_filter=source_filter)
-    candidate_counts, kind_counts = count_candidates(candidates)
+    candidate_counts, kind_counts, candidate_kind_category_counts = count_candidates(candidates)
     if selection == "spread":
         selected = select_candidates(candidates, limit_per_category)
     else:
         selected = first_selection_candidates(candidates, limit_per_category)
-    selected_counts, _selected_kind_counts = count_candidates(selected)
+    selected_counts, _selected_kind_counts, selected_kind_category_counts = count_candidates(selected)
+    candidate_bucket_count, candidate_bucket_top = source_bucket_summary(candidates)
+    selected_bucket_count, selected_bucket_top = source_bucket_summary(selected)
 
     print(
         "prepare_drum_samples audit: "
@@ -578,10 +614,14 @@ def print_sample_audit(source, limit_per_category, selection, unrar=None, includ
         f"zip={kind_counts['zip']} rar={kind_counts['rar']} source={source}"
     )
     print(f"candidate counts {counts_summary(candidate_counts)}")
+    print(f"candidate kind/category {kind_category_summary(candidate_kind_category_counts)}")
+    print(f"candidate source buckets total={candidate_bucket_count} top={candidate_bucket_top}")
     print(
         f"selected counts limit={limit_per_category} selection={selection} "
         f"{counts_summary(selected_counts)}"
     )
+    print(f"selected kind/category {kind_category_summary(selected_kind_category_counts)}")
+    print(f"selected source buckets total={selected_bucket_count} top={selected_bucket_top}")
 
 
 def main():

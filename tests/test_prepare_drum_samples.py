@@ -560,8 +560,16 @@ def test_cli_audit_reports_candidate_and_selected_counts_without_writing():
             raise AssertionError(f"unexpected audit summary:\n{completed.stdout}")
         if f"candidate counts {expected_counts}" not in completed.stdout:
             raise AssertionError(f"unexpected candidate counts:\n{completed.stdout}")
+        if "candidate kind/category plain[kick=2 snare=0 hihat=0 crash=0 tom=0 ride=0 rim=0] zip[kick=0 snare=1 hihat=0 crash=0 tom=0 ride=0 rim=0]" not in completed.stdout:
+            raise AssertionError(f"unexpected candidate kind/category counts:\n{completed.stdout}")
+        if "candidate source buckets total=3" not in completed.stdout:
+            raise AssertionError(f"unexpected candidate source bucket count:\n{completed.stdout}")
         if f"selected counts limit=1 selection=spread {expected_selected}" not in completed.stdout:
             raise AssertionError(f"unexpected selected counts:\n{completed.stdout}")
+        if "selected kind/category plain[kick=1 snare=0 hihat=0 crash=0 tom=0 ride=0 rim=0] zip[kick=0 snare=1 hihat=0 crash=0 tom=0 ride=0 rim=0]" not in completed.stdout:
+            raise AssertionError(f"unexpected selected kind/category counts:\n{completed.stdout}")
+        if "selected source buckets total=2" not in completed.stdout:
+            raise AssertionError(f"unexpected selected source bucket count:\n{completed.stdout}")
         if output.exists():
             raise AssertionError("audit mode should not create or modify the output fixture directory")
 
