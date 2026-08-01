@@ -276,6 +276,16 @@ def candidate_block_reasons(
     return reasons
 
 
+def candidate_additional_samples_needed(
+    candidate: Candidate, min_actionable_samples: int
+) -> int:
+    if candidate.kind not in {"low-false", "near-miss"}:
+        return 0
+    if candidate.pos_samples <= 0 or candidate.pos_samples >= min_actionable_samples:
+        return 0
+    return min_actionable_samples - candidate.pos_samples
+
+
 def format_candidate(candidate: Candidate, min_actionable_samples: int) -> str:
     utility = (
         f"side_rows={candidate.side_effect_rows} "
@@ -343,6 +353,11 @@ def main() -> int:
         for candidate in source_safe_positive_net
         if candidate.pos_samples == 0 or candidate.pos_samples >= args.min_actionable_samples
     ]
+    coverage_blocked = [
+        candidate
+        for candidate in source_safe_positive_net
+        if candidate_additional_samples_needed(candidate, args.min_actionable_samples) > 0
+    ]
 
     print(
         "detector_route_summary: "
@@ -350,7 +365,7 @@ def main() -> int:
         f"shadow={len(shadow)} near_miss={len(near_miss)} drum={len(drum)} "
         f"positive_net={len(positive_net)} gain_ge_1={len(gain_ge_1)} "
         f"source_safe_positive_net={len(source_safe_positive_net)} "
-        f"actionable={len(actionable)}"
+        f"actionable={len(actionable)} coverage_blocked={len(coverage_blocked)}"
     )
     if not candidates:
         print("  --")
@@ -360,6 +375,24 @@ def main() -> int:
             "  no actionable candidates "
             f"(min_actionable_samples={args.min_actionable_samples}); showing diagnostics"
         )
+    if coverage_blocked:
+        print(
+            "  coverage-blocked candidates need more positive samples before detector changes"
+        )
+        for candidate in sorted(coverage_blocked, key=actionable_sort_key)[
+            : max(0, args.limit)
+        ]:
+            needed = candidate_additional_samples_needed(
+                candidate, args.min_actionable_samples
+            )
+            print(
+                "    "
+                f"coverage_need {candidate.kind} {candidate.section} "
+                f"observed_samples={candidate.pos_samples} need_samples={needed} "
+                f"+rows={candidate.pos_rows} side_rows={candidate.side_effect_rows} "
+                f"net_rows={candidate.net_rows} gain_per_side={format_gain_ratio(candidate)} "
+                f":: {candidate.rule}"
+            )
 
     actionable_set = set(actionable)
     ranked_candidates = (
