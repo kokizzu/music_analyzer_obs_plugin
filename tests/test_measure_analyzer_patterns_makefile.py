@@ -1170,19 +1170,29 @@ def main() -> int:
     ]:
         assert text in makefile, f"real-note shard gate env must include {text}"
     isolated_sample_sharded_recipe = target_recipe(makefile, "test-real-note-sample-shards")
+    isolated_sample_unlocked_recipe = target_recipe(makefile, "test-real-note-sample-shards-unlocked")
     assert "REAL_NOTE_SAMPLE_TEST_MAKE_JOBS = $(if $(filter -j%,$(MAKEFLAGS)),,-j$(REAL_NOTE_SAMPLE_SHARDS))" in makefile, (
         "isolated real-note shard tests must not force nested jobserver mode"
     )
     assert "REAL_NOTE_SAMPLE_SHARD_OUTS := $(addprefix $(BUILD_DIR)/real_note_$(REAL_NOTE_SAMPLE_TAG)_shard_,$(addsuffix .out,$(REAL_NOTE_SAMPLE_SHARD_INDEXES)))" in makefile, (
         "isolated real-note aggregate checker must consume deterministic shard outputs"
     )
-    assert "$(MAKE) $(REAL_NOTE_SAMPLE_TEST_MAKE_JOBS) $(REAL_NOTE_SAMPLE_SHARD_TARGETS)" in isolated_sample_sharded_recipe, (
+    assert "REAL_NOTE_SAMPLE_LOCK_DIR ?= $(BUILD_DIR)/real_note_$(REAL_NOTE_SAMPLE_TAG).lock" in makefile, (
+        "isolated real-note shard tests must lock per sample tag"
+    )
+    assert "scripts/run_with_lock.sh" in isolated_sample_sharded_recipe, (
+        "isolated real-note shard wrapper must lock the shard outputs before aggregation"
+    )
+    assert 'scripts/run_with_lock.sh "$(REAL_NOTE_SAMPLE_LOCK_DIR)" -- $(RUN_REAL_NOTE_SAMPLE_SHARDS_UNLOCKED)' in isolated_sample_sharded_recipe, (
+        "isolated real-note shard wrapper must run the unlocked shard target under the tag lock"
+    )
+    assert "$(MAKE) $(REAL_NOTE_SAMPLE_TEST_MAKE_JOBS) $(REAL_NOTE_SAMPLE_SHARD_TARGETS)" in isolated_sample_unlocked_recipe, (
         "isolated real-note parallel target must fan out deterministic shards through jobserver-aware make"
     )
-    assert "$(PYTHON) scripts/check_real_note_sample_shards.py" in isolated_sample_sharded_recipe, (
+    assert "$(PYTHON) scripts/check_real_note_sample_shards.py" in isolated_sample_unlocked_recipe, (
         "isolated real-note parallel target must validate aggregated shard sample metrics"
     )
-    assert "$(REAL_NOTE_SAMPLE_HIT_PERCENT_ARGS)" in isolated_sample_sharded_recipe, (
+    assert "$(REAL_NOTE_SAMPLE_HIT_PERCENT_ARGS)" in isolated_sample_unlocked_recipe, (
         "isolated real-note aggregate checker must validate per-family recall gates"
     )
     for text in [
@@ -1592,16 +1602,23 @@ def main() -> int:
         "HF drum-kit shard tests must not force nested jobserver mode"
     )
     hf_parallel_recipe = target_recipe(makefile, "test-hf-drum-kit-samples-parallel")
+    hf_unlocked_recipe = target_recipe(makefile, "test-hf-drum-kit-samples-parallel-unlocked")
     assert "$(HF_DRUM_KIT_SAMPLE_DIR)/manifest.tsv" in hf_parallel_recipe.splitlines()[0], (
         "HF drum-kit parallel target must share a prepared manifest stamp"
     )
-    assert "$(MAKE) $(HF_DRUM_KIT_TEST_MAKE_JOBS) $(HF_DRUM_KIT_SHARD_TARGETS)" in hf_parallel_recipe, (
+    assert "HF_DRUM_KIT_SHARD_LOCK_DIR ?= $(BUILD_DIR)/hf_drum_kit_samples.lock" in makefile, (
+        "HF drum-kit sample shards must have a stable lock path"
+    )
+    assert 'scripts/run_with_lock.sh "$(HF_DRUM_KIT_SHARD_LOCK_DIR)" -- "$(MAKE)" test-hf-drum-kit-samples-parallel-unlocked' in hf_parallel_recipe, (
+        "HF drum-kit parallel target must lock shared shard outputs"
+    )
+    assert "$(MAKE) $(HF_DRUM_KIT_TEST_MAKE_JOBS) $(HF_DRUM_KIT_SHARD_TARGETS)" in hf_unlocked_recipe, (
         "HF drum-kit parallel target must fan out category shards through jobserver-aware make"
     )
-    assert "$(RUN_WITH_DURATION) analyzer_hf_drum_kit_samples_parallel" in hf_parallel_recipe, (
+    assert "$(RUN_WITH_DURATION) analyzer_hf_drum_kit_samples_parallel" in hf_unlocked_recipe, (
         "HF drum-kit parallel target must report aggregate duration"
     )
-    assert "$(PYTHON) scripts/check_drum_sample_shards.py" in hf_parallel_recipe, (
+    assert "$(PYTHON) scripts/check_drum_sample_shards.py" in hf_unlocked_recipe, (
         "HF drum-kit parallel target must validate aggregated shard matrices"
     )
     hf_shard_recipe = target_recipe(makefile, "test-hf-drum-kit-samples-shard-%")
@@ -1637,13 +1654,20 @@ def main() -> int:
         "IDMT drum shard tests must not force nested jobserver mode"
     )
     idmt_parallel_recipe = target_recipe(makefile, "test-idmt-drums-samples-parallel")
+    idmt_unlocked_recipe = target_recipe(makefile, "test-idmt-drums-samples-parallel-unlocked")
     assert "$(IDMT_DRUMS_SAMPLE_DIR)/manifest.tsv" in idmt_parallel_recipe.splitlines()[0], (
         "IDMT drum parallel target must share a prepared manifest stamp"
     )
-    assert "$(MAKE) $(IDMT_DRUMS_TEST_MAKE_JOBS) $(IDMT_DRUMS_SHARD_TARGETS)" in idmt_parallel_recipe, (
+    assert "IDMT_DRUMS_SHARD_LOCK_DIR ?= $(BUILD_DIR)/idmt_drums_samples.lock" in makefile, (
+        "IDMT drum sample shards must have a stable lock path"
+    )
+    assert 'scripts/run_with_lock.sh "$(IDMT_DRUMS_SHARD_LOCK_DIR)" -- "$(MAKE)" test-idmt-drums-samples-parallel-unlocked' in idmt_parallel_recipe, (
+        "IDMT drum parallel target must lock shared shard outputs"
+    )
+    assert "$(MAKE) $(IDMT_DRUMS_TEST_MAKE_JOBS) $(IDMT_DRUMS_SHARD_TARGETS)" in idmt_unlocked_recipe, (
         "IDMT drum parallel target must fan out category shards through jobserver-aware make"
     )
-    assert "--categories \"kick,snare,hihat\"" in idmt_parallel_recipe, (
+    assert "--categories \"kick,snare,hihat\"" in idmt_unlocked_recipe, (
         "IDMT drum parallel checker must validate only dataset categories"
     )
     idmt_shard_recipe = target_recipe(makefile, "test-idmt-drums-samples-shard-%")
