@@ -172,6 +172,20 @@ class RuleResult:
     foreign_samples: int
     foreign_rows: int
 
+    @property
+    def side_effect_rows(self) -> int:
+        return self.negative_rows + self.foreign_rows
+
+    @property
+    def net_rows(self) -> int:
+        return self.positive_rows - self.side_effect_rows
+
+    @property
+    def gain_per_side_effect_row(self) -> float:
+        if self.side_effect_rows <= 0:
+            return float("inf")
+        return self.positive_rows / self.side_effect_rows
+
 
 @dataclasses.dataclass(frozen=True)
 class SearchState:
@@ -1292,6 +1306,12 @@ def print_bucket_patterns(
             )
 
 
+def format_gain_ratio(value: float) -> str:
+    if value == float("inf"):
+        return "inf"
+    return f"{value:.2f}"
+
+
 def print_results(
     results: list[RuleResult],
     positive_total: int,
@@ -1320,6 +1340,11 @@ def print_results(
                 f" foreign_miss={result.foreign_samples}/{foreign_total} "
                 f"rows={result.foreign_rows}"
                 if foreign_total > 0 else ""
+            )
+            + (
+                f" side_rows={result.side_effect_rows} "
+                f"net_rows={result.net_rows} "
+                f"gain_per_side={format_gain_ratio(result.gain_per_side_effect_row)}"
             )
             + (f" neg_sources={negative_sources}" if negative_sources else "")
             + (f" foreign_sources={foreign_sources}" if foreign_sources else "")
