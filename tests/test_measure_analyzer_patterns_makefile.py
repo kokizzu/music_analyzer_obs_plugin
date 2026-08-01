@@ -890,6 +890,7 @@ def main() -> int:
         "detector-improvement-route-summary",
         "find-protected-drum-primary-attribute-patterns",
         "find-drum-full-exact-attribute-patterns-cached",
+        "find-protected-drum-full-exact-attribute-patterns",
         "find-drum-active-false-patterns-full",
     ]:
         assert target in audit_target_list, (
@@ -1579,6 +1580,21 @@ def main() -> int:
     assert "$(MAKE) analyze-drum-full-gate-matrix;" not in full_exact_pattern_recipe, (
         "stale full drum pattern rows must not use the serial full analyzer path"
     )
+    protected_full_exact_recipe = target_recipe(
+        makefile, "find-protected-drum-full-exact-attribute-patterns"
+    )
+    assert "$(MAKE) analyze-drum-full-gate-matrix-parallel" in protected_full_exact_recipe, (
+        "protected full drum mining must refresh required full exact rows through the sharded builder"
+    )
+    assert "$(MAKE) analyze-protected-drum-primary-attribute-rows" in protected_full_exact_recipe, (
+        "protected full drum mining must refresh spread, HF, and IDMT guard rows when stale"
+    )
+    assert "$(DRUM_PROTECTED_PRIMARY_ATTRIBUTE_INPUTS)" in protected_full_exact_recipe, (
+        "protected full drum mining must mine full rows with spread, HF, and IDMT guard rows"
+    )
+    assert "$(or $(PATTERN_ARGS),$(MEASURE_DRUM_FULL_PATTERN_ARGS))" in protected_full_exact_recipe, (
+        "protected full drum mining must use exhaustive full-drum pattern defaults"
+    )
     drum_full_shard_recipe = target_recipe(makefile, "test-drum-samples-full-shard-%")
     assert "FORCE" in drum_full_shard_recipe.splitlines()[0], (
         "full drum shard pattern must use FORCE so each category executes"
@@ -1705,6 +1721,9 @@ def main() -> int:
     drum_full_cached_recipe = target_recipe(makefile, "find-drum-full-exact-attribute-patterns-cached")
     assert "find-drum-full-exact-attribute-patterns-cached" in phony_lines, (
         "cached full drum pattern target must be phony"
+    )
+    assert "find-protected-drum-full-exact-attribute-patterns" in phony_lines, (
+        "protected full drum pattern target must be phony"
     )
     assert "using cached drum full exact attribute TSV" in drum_full_cached_recipe, (
         "cached full drum pattern target must announce when it reuses existing rows"
@@ -2085,6 +2104,7 @@ def main() -> int:
         "find-drum-spread-exact-attribute-patterns",
         "find-drum-full-exact-attribute-patterns",
         "find-drum-full-exact-attribute-patterns-cached",
+        "find-protected-drum-full-exact-attribute-patterns",
         "find-drum-active-false-patterns",
         "find-hf-drum-primary-attribute-patterns",
         "find-idmt-drum-primary-attribute-patterns",
@@ -3189,8 +3209,8 @@ def main() -> int:
     assert "$(BUILD_DIR)/drum_full_attribute_rows.tsv" not in full_drum_report_recipe.splitlines()[0], (
         "full drum pattern report must not prebuild serial full-row dumps"
     )
-    assert "$(MAKE) find-drum-full-attribute-patterns" in full_section_recipes, (
-        "full report helper must mine protected full-drum rows through the parallel exact TSV"
+    assert "$(MAKE) find-protected-drum-full-exact-attribute-patterns" in full_section_recipes, (
+        "full report helper must mine protected full-drum rows with spread, HF, and IDMT guard rows"
     )
     assert "$(MAKE) find-drum-full-exact-attribute-patterns" in full_section_recipes, (
         "full report helper must mine exact full gate rows"
