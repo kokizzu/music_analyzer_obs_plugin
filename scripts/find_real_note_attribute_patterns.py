@@ -149,6 +149,8 @@ ROW_FOR_FAMILY = {
     "vocals": "vocals",
     "other": "other",
 }
+WEAK_EXPECTED_BUCKET_STATUSES = {"weak_expected_row", "weak_visual_expected_row"}
+LIT_THRESHOLD = 0.25
 
 
 @dataclasses.dataclass(frozen=True)
@@ -299,6 +301,36 @@ def octave_displacement_label(row: dict[str, str]) -> str:
     return f"{rounded:+d}"
 
 
+def expected_row_state_label(row: dict[str, str], *, visual: bool = False) -> str:
+    exact_field = "expected_row_visual_exact_level" if visual else "expected_row_exact_level"
+    pitch_field = "expected_row_visual_pitch_level" if visual else "expected_row_pitch_level"
+    exact_level = as_float(row, exact_field) or 0.0
+    pitch_level = as_float(row, pitch_field) or 0.0
+    if exact_level >= LIT_THRESHOLD:
+        state = "lit_exact"
+    elif exact_level > 0.0:
+        state = "dim_exact"
+    elif pitch_level >= LIT_THRESHOLD:
+        state = "lit_octave"
+    elif pitch_level > 0.0:
+        state = "dim_octave"
+    else:
+        state = "absent"
+    if state == "lit_exact":
+        return ""
+    octave = row.get("expected_octave", "")
+    return f"{state}@{octave}" if octave else state
+
+
+def weak_expected_target_matches(label: str, target: str) -> bool:
+    if not label:
+        return False
+    if target == "*":
+        return True
+    state, _separator, octave = label.partition("@")
+    return target in {label, state, f"{state}@*", f"*@{octave}"}
+
+
 def rows_for_bucket(rows: list[dict[str, str]], bucket: tuple[str, str, str, str]) -> list[dict[str, str]]:
     status, family, source, target = bucket
     if status == "octave_displacement":
@@ -333,6 +365,17 @@ def rows_for_bucket(rows: list[dict[str, str]], bucket: tuple[str, str, str, str
             and bucket_field_matches(row.get("source", ""), source)
             and bucket_field_matches(row.get("buffer_visual_strongest_row", ""), target)
             and row.get("buffer_visual_strongest_row") != expected_row
+            and row.get("debug_note")
+        ]
+    if status in WEAK_EXPECTED_BUCKET_STATUSES:
+        visual = status == "weak_visual_expected_row"
+        return [
+            row
+            for row in rows
+            if row.get("status") == "hit"
+            and bucket_field_matches(row.get("family", ""), family)
+            and bucket_field_matches(row.get("source", ""), source)
+            and weak_expected_target_matches(expected_row_state_label(row, visual=visual), target)
             and row.get("debug_note")
         ]
     return [
@@ -373,6 +416,10 @@ def protected_row_matches_scope(
         return row.get("detected_expected_row", "") == "1" or row.get("first_row", "") == expected_row
     if status == "octave_displacement":
         return row.get("debug_abs_delta", "") in {"", "0"}
+    if status in WEAK_EXPECTED_BUCKET_STATUSES:
+        return not expected_row_state_label(
+            row, visual=status == "weak_visual_expected_row"
+        )
     return True
 
 
@@ -436,6 +483,16 @@ def top_buckets(
             if row.get("status") != "hit" or strongest_row == expected_row or not strongest_row:
                 continue
             counts[("visual_row_confusion", family, row.get("source", ""), strongest_row)] += 1
+        elif bucket_status in WEAK_EXPECTED_BUCKET_STATUSES:
+            if row.get("status") != "hit":
+                continue
+            family = row.get("family", "")
+            label = expected_row_state_label(
+                row, visual=bucket_status == "weak_visual_expected_row"
+            )
+            if not label:
+                continue
+            counts[(bucket_status, family, row.get("source", ""), label)] += 1
         else:
             if row.get("status") != bucket_status:
                 continue
@@ -1498,12 +1555,20 @@ def main() -> int:
     )
     parser.add_argument(
         "--bucket-status",
-        choices=("ownership_miss", "row_confusion", "visual_row_confusion", "octave_displacement"),
+        choices=(
+            "ownership_miss",
+            "row_confusion",
+            "visual_row_confusion",
+            "octave_displacement",
+            "weak_expected_row",
+            "weak_visual_expected_row",
+        ),
         default="ownership_miss",
         help=(
             "status used by --top-buckets; row_confusion means hit rows whose strongest "
             "raw row is wrong, visual_row_confusion means hit rows whose strongest UI row "
-            "is wrong, octave_displacement means hit rows shifted by octave"
+            "is wrong, octave_displacement means hit rows shifted by octave, and weak_* "
+            "statuses mean the expected row is present below the display threshold or absent"
         ),
     )
     parser.add_argument("--limit", type=int, default=8)

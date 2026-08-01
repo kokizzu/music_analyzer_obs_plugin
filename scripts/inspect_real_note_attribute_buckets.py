@@ -131,6 +131,8 @@ ROW_FOR_FAMILY = {
     "vocals": "vocals",
     "other": "other",
 }
+WEAK_EXPECTED_BUCKET_STATUSES = {"weak_expected_row", "weak_visual_expected_row"}
+LIT_THRESHOLD = 0.25
 
 ROW_SCORE_FIELDS = {
     "bass": "bass_score",
@@ -595,6 +597,37 @@ def octave_displacement_label(row: dict[str, str]) -> str:
     return f"{delta:+d}"
 
 
+def expected_row_state_label(row: dict[str, str], *, visual: bool = False) -> str:
+    derived = derive_row(row)
+    exact_field = "expected_row_visual_exact_level" if visual else "expected_row_exact_level"
+    pitch_field = "expected_row_visual_pitch_level" if visual else "expected_row_pitch_level"
+    exact_level = as_float(derived, exact_field) or 0.0
+    pitch_level = as_float(derived, pitch_field) or 0.0
+    if exact_level >= LIT_THRESHOLD:
+        state = "lit_exact"
+    elif exact_level > 0.0:
+        state = "dim_exact"
+    elif pitch_level >= LIT_THRESHOLD:
+        state = "lit_octave"
+    elif pitch_level > 0.0:
+        state = "dim_octave"
+    else:
+        state = "absent"
+    if state == "lit_exact":
+        return ""
+    octave = derived.get("expected_octave", "")
+    return f"{state}@{octave}" if octave else state
+
+
+def weak_expected_target_matches(label: str, target_row: str) -> bool:
+    if not label:
+        return False
+    if target_row == "*":
+        return True
+    state, _separator, octave = label.partition("@")
+    return target_row in {label, state, f"{state}@*", f"*@{octave}"}
+
+
 def row_matches_bucket(
     row: dict[str, str], status: str, family: str, source: str, target_row: str
 ) -> bool:
@@ -610,6 +643,11 @@ def row_matches_bucket(
         expected_row = ROW_FOR_FAMILY.get(family, family)
         strongest_row = row.get("buffer_visual_strongest_row", "")
         return row.get("status") == "hit" and strongest_row == target_row and strongest_row != expected_row
+    if status in WEAK_EXPECTED_BUCKET_STATUSES:
+        return row.get("status") == "hit" and weak_expected_target_matches(
+            expected_row_state_label(row, visual=status == "weak_visual_expected_row"),
+            target_row,
+        )
     return row.get("status") == status and row.get("first_row") == target_row
 
 
@@ -823,6 +861,11 @@ def top_bucket_keys(
             if row.get("status") != "hit" or not target_row or target_row == expected_row:
                 continue
             key = ("visual_row_confusion", family, row.get("source", ""), target_row)
+        elif bucket_status in WEAK_EXPECTED_BUCKET_STATUSES:
+            label = expected_row_state_label(row, visual=bucket_status == "weak_visual_expected_row")
+            if row.get("status") != "hit" or not label:
+                continue
+            key = (bucket_status, family, row.get("source", ""), label)
         else:
             key = (row.get("status", ""), family, row.get("source", ""), row.get("first_row", ""))
         if "" in key:
@@ -899,7 +942,14 @@ def main() -> int:
     )
     parser.add_argument(
         "--bucket-status",
-        choices=("ownership_miss", "row_confusion", "visual_row_confusion", "octave_displacement"),
+        choices=(
+            "ownership_miss",
+            "row_confusion",
+            "visual_row_confusion",
+            "octave_displacement",
+            "weak_expected_row",
+            "weak_visual_expected_row",
+        ),
         default="ownership_miss",
         help="status used for automatically selected top buckets",
     )

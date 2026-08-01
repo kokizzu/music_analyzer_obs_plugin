@@ -107,6 +107,12 @@ HEADER = [
     "vocal_notes",
     "other_notes",
     "amb_notes",
+    "bass_visual_notes",
+    "guitar_visual_notes",
+    "piano_visual_notes",
+    "vocal_visual_notes",
+    "other_visual_notes",
+    "amb_visual_notes",
 ]
 
 
@@ -671,6 +677,166 @@ def main() -> int:
                 "1",
                 "--max-negative-samples",
                 "2",
+            ],
+            text=True,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            check=True,
+        )
+        weak_path = pathlib.Path(tmp) / "weak_attributes.tsv"
+        weak_rows = [
+            row(
+                status="hit",
+                first_row="piano",
+                buffer_strongest_row="guitar",
+                sample_id="piano_weak_1",
+                family="piano",
+                nsynth_family="keyboard",
+                source="electronic",
+                expected_note="F#4",
+                expected_midi="66",
+                debug_owner="guitar",
+                keyboard_score="0.1",
+                guitar_score="0.9",
+                piano_notes="",
+                guitar_notes="F#4:1.00",
+                piano_visual_notes="F#4:0.80",
+            ),
+            row(
+                status="hit",
+                first_row="piano",
+                buffer_strongest_row="guitar",
+                sample_id="piano_weak_2",
+                family="piano",
+                nsynth_family="keyboard",
+                source="electronic",
+                expected_note="A4",
+                expected_midi="69",
+                debug_note="A4",
+                debug_midi="69",
+                debug_owner="guitar",
+                keyboard_score="0.1",
+                guitar_score="0.9",
+                piano_notes="",
+                guitar_notes="A4:1.00",
+                piano_visual_notes="A4:0.80",
+            ),
+            row(
+                status="hit",
+                first_row="piano",
+                buffer_strongest_row="piano",
+                sample_id="piano_lit",
+                family="piano",
+                nsynth_family="keyboard",
+                source="electronic",
+                expected_note="C5",
+                expected_midi="72",
+                debug_note="C5",
+                debug_midi="72",
+                debug_owner="piano",
+                piano_notes="C5:0.80",
+                piano_visual_notes="C5:0.80",
+            ),
+        ]
+        weak_path.write_text(
+            "\t".join(HEADER) + "\n" + "\n".join("\t".join(item) for item in weak_rows) + "\n"
+        )
+        weak_result = subprocess.run(
+            [
+                sys.executable,
+                str(ROOT / "scripts" / "find_real_note_attribute_patterns.py"),
+                str(weak_path),
+                "--top-buckets",
+                "1",
+                "--bucket-status",
+                "weak_expected_row",
+                "--include-row-context",
+                "--condition",
+                "expected_row_exact_level<=0",
+                "--limit",
+                "1",
+                "--max-negative-samples",
+                "1",
+            ],
+            text=True,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            check=True,
+        )
+        weak_visual_path = pathlib.Path(tmp) / "weak_visual_attributes.tsv"
+        weak_visual_rows = [
+            row(
+                status="hit",
+                first_row="piano",
+                buffer_visual_strongest_row="guitar",
+                sample_id="piano_visual_weak_1",
+                family="piano",
+                nsynth_family="keyboard",
+                source="electronic",
+                expected_note="F#4",
+                expected_midi="66",
+                debug_owner="guitar",
+                keyboard_score="0.1",
+                guitar_score="0.9",
+                piano_notes="F#4:0.80",
+                guitar_visual_notes="F#4:1.00",
+                piano_visual_notes="",
+            ),
+            row(
+                status="hit",
+                first_row="piano",
+                buffer_visual_strongest_row="guitar",
+                sample_id="piano_visual_weak_2",
+                family="piano",
+                nsynth_family="keyboard",
+                source="electronic",
+                expected_note="A4",
+                expected_midi="69",
+                debug_note="A4",
+                debug_midi="69",
+                debug_owner="guitar",
+                keyboard_score="0.1",
+                guitar_score="0.9",
+                piano_notes="A4:0.80",
+                guitar_visual_notes="A4:1.00",
+                piano_visual_notes="",
+            ),
+            row(
+                status="hit",
+                first_row="piano",
+                buffer_visual_strongest_row="piano",
+                sample_id="piano_visual_lit",
+                family="piano",
+                nsynth_family="keyboard",
+                source="electronic",
+                expected_note="C5",
+                expected_midi="72",
+                debug_note="C5",
+                debug_midi="72",
+                debug_owner="piano",
+                piano_notes="C5:0.80",
+                piano_visual_notes="C5:0.80",
+            ),
+        ]
+        weak_visual_path.write_text(
+            "\t".join(HEADER) + "\n" + "\n".join("\t".join(item) for item in weak_visual_rows) + "\n"
+        )
+        weak_visual_result = subprocess.run(
+            [
+                sys.executable,
+                str(ROOT / "scripts" / "find_real_note_attribute_patterns.py"),
+                str(weak_visual_path),
+                "--top-buckets",
+                "1",
+                "--bucket-status",
+                "weak_visual_expected_row",
+                "--include-row-context",
+                "--condition",
+                "expected_row_visual_exact_level<=0",
+                "--limit",
+                "1",
+                "--max-negative-samples",
+                "1",
             ],
             text=True,
             stdout=subprocess.PIPE,
@@ -1346,6 +1512,19 @@ def main() -> int:
         "protected_hits=2 samples/2 rows"
     ) in row_confusion_result.stdout
     assert "debug_owner=guitar: pos=2/2 rows=2 neg=1/2 rows=1" in row_confusion_result.stdout
+    assert (
+        "weak_expected_row:piano/electronic->absent@4 positives=2 samples/2 rows "
+        "protected_hits=1 samples/1 rows"
+    ) in weak_result.stdout
+    assert "expected_row_exact_level<=0: pos=2/2 rows=2 neg=0/1 rows=0" in weak_result.stdout
+    assert (
+        "weak_visual_expected_row:piano/electronic->absent@4 positives=2 samples/2 rows "
+        "protected_hits=1 samples/1 rows"
+    ) in weak_visual_result.stdout
+    assert (
+        "expected_row_visual_exact_level<=0: pos=2/2 rows=2 neg=0/1 rows=0"
+        in weak_visual_result.stdout
+    )
     assert serial_bucket_result.stdout == parallel_bucket_result.stdout
     assert "row_confusion:piano/electronic->guitar" in parallel_bucket_result.stdout
     assert "row_confusion:other/acoustic->piano" in parallel_bucket_result.stdout

@@ -70,6 +70,12 @@ def main() -> int:
             "vocal_notes",
             "other_notes",
             "amb_notes",
+            "bass_visual_notes",
+            "guitar_visual_notes",
+            "piano_visual_notes",
+            "vocal_visual_notes",
+            "other_visual_notes",
+            "amb_visual_notes",
         ]
         keyboard_row = [
             "ownership_miss",
@@ -119,6 +125,12 @@ def main() -> int:
             "0.00",
             "0.00",
             "0.00",
+            "",
+            "C4:1.00,C5:0.20",
+            "C4:0.60,E4:0.20",
+            "",
+            "",
+            "",
             "",
             "C4:1.00,C5:0.20",
             "C4:0.60,E4:0.20",
@@ -180,6 +192,12 @@ def main() -> int:
             "",
             "A4:0.80,A5:0.20",
             "",
+            "",
+            "",
+            "",
+            "",
+            "A4:0.80,A5:0.20",
+            "",
         ]
         keyboard_visual_row = [
             "hit",
@@ -232,6 +250,12 @@ def main() -> int:
             "",
             "E3:0.20,E4:0.90",
             "E4:0.72,G4:0.20",
+            "",
+            "",
+            "",
+            "",
+            "E3:0.20,E4:0.90",
+            "",
             "",
             "",
             "",
@@ -290,6 +314,12 @@ def main() -> int:
             "",
             "A5:0.80",
             "",
+            "",
+            "",
+            "",
+            "",
+            "A5:0.80",
+            "",
         ]
         empty_debug_row = [
             "hit",
@@ -339,6 +369,12 @@ def main() -> int:
             "0.00",
             "0.00",
             "0.00",
+            "E2:1.00",
+            "",
+            "",
+            "",
+            "",
+            "",
             "E2:1.00",
             "",
             "",
@@ -617,6 +653,48 @@ def main() -> int:
             stderr=subprocess.PIPE,
             check=True,
         )
+        weak_expected = subprocess.run(
+            [
+                sys.executable,
+                str(ROOT / "scripts" / "inspect_real_note_attribute_buckets.py"),
+                str(path),
+                "--bucket",
+                "weak_expected_row:other/acoustic->lit_octave@4",
+                "--summary-only",
+            ],
+            text=True,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            check=True,
+        )
+        weak_expected_auto = subprocess.run(
+            [
+                sys.executable,
+                str(ROOT / "scripts" / "inspect_real_note_attribute_buckets.py"),
+                str(path),
+                "--bucket-status",
+                "weak_expected_row",
+                "--summary-only",
+            ],
+            text=True,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            check=True,
+        )
+        weak_visual_expected = subprocess.run(
+            [
+                sys.executable,
+                str(ROOT / "scripts" / "inspect_real_note_attribute_buckets.py"),
+                str(path),
+                "--bucket",
+                "weak_visual_expected_row:piano/electronic->absent@4",
+                "--summary-only",
+            ],
+            text=True,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            check=True,
+        )
 
     assert "ownership_miss:piano/electronic->guitar rows=1 samples=1" in result.stdout
     assert "hit:other/acoustic->other rows=2 samples=2" in result.stdout
@@ -745,6 +823,11 @@ def main() -> int:
     assert "reed_1" not in octave_displacement_dump.stdout
     assert "octave_displacement:other/acoustic->+12 rows=1 samples=1" in octave_displacement_auto.stdout
     assert "ownership_miss:piano/electronic->guitar" not in octave_displacement_auto.stdout
+    assert "weak_expected_row:other/acoustic->lit_octave@4 rows=1 samples=1" in weak_expected.stdout
+    assert "other_octave_1" in weak_expected.stdout
+    assert "weak_expected_row:other/acoustic->lit_octave@4 rows=1 samples=1" in weak_expected_auto.stdout
+    assert "weak_visual_expected_row:piano/electronic->absent@4 rows=1 samples=1" in weak_visual_expected.stdout
+    assert "keyboard_visual_1" in weak_visual_expected.stdout
     print("test_inspect_real_note_attribute_buckets: ok")
     return 0
 
