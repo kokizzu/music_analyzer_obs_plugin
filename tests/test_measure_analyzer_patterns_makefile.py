@@ -774,6 +774,9 @@ def main() -> int:
     assert "DETECTOR_REAL_NOTE_PATTERN_OPTIONAL_CANDIDATE_PATHS += $(IOWA_ORCHESTRA_DETECTED_ATTRIBUTE_ROWS)" in makefile, (
         "detector route scans should mine candidates from available Iowa orchestra rows"
     )
+    assert "DETECTOR_REAL_NOTE_PATTERN_OPTIONAL_CANDIDATE_PATHS += $(IOWA_ORCHESTRA_FULL_DETECTED_ATTRIBUTE_ROWS)" in makefile, (
+        "detector route scans should mine candidates from available Iowa orchestra full rows"
+    )
     assert (
         "DETECTOR_REAL_NOTE_PATTERN_EXTRA_CANDIDATE_PATHS ?= "
         "$(DETECTOR_REAL_NOTE_PATTERN_OPTIONAL_CANDIDATE_PATHS)"
@@ -2246,6 +2249,18 @@ def main() -> int:
             "--include-empty-debug",
             "--status miss",
         ),
+        "$(IOWA_ORCHESTRA_FULL_DETECTED_ATTRIBUTE_ROWS)": (
+            "$(IOWA_ORCHESTRA_FULL_ATTRIBUTE_TSV)",
+            "inspect_real_note_attribute_buckets.py",
+            "--dump-rows",
+            "--include-empty-debug",
+        ),
+        "$(IOWA_ORCHESTRA_FULL_MISS_ATTRIBUTE_ROWS)": (
+            "$(IOWA_ORCHESTRA_FULL_ATTRIBUTE_TSV)",
+            "inspect_real_note_attribute_buckets.py",
+            "--include-empty-debug",
+            "--status miss",
+        ),
         "$(GUITAR_CHORD_DETECTED_ATTRIBUTE_ROWS)": (
             "guitar_chord_mix_attributes.tsv",
             "inspect_guitarset_attribute_buckets.py",
@@ -2320,6 +2335,14 @@ def main() -> int:
             "$(IOWA_ORCHESTRA_ATTRIBUTE_LOCK_DIR)",
             "$(IOWA_ORCHESTRA_ATTRIBUTE_PARTS)",
         ),
+        "$(IOWA_ORCHESTRA_FULL_ATTRIBUTE_TSV)": (
+            "$(BUILD_DIR)/analyzer_real_note_samples",
+            "$(IOWA_ORCHESTRA_FULL_SAMPLE_DIR)/manifest.tsv",
+            "scripts/build_sharded_tsv.sh",
+            "scripts/run_with_lock.sh",
+            "$(IOWA_ORCHESTRA_FULL_ATTRIBUTE_LOCK_DIR)",
+            "$(IOWA_ORCHESTRA_FULL_ATTRIBUTE_PARTS)",
+        ),
         "$(BUILD_DIR)/guitar_chord_mix_attributes.tsv": (
             "$(BUILD_DIR)/analyzer_guitarset",
             "scripts/build_sharded_tsv.sh",
@@ -2353,6 +2376,9 @@ def main() -> int:
     )
     assert "IOWA_ORCHESTRA_ATTRIBUTE_LOCK_DIR ?= $(BUILD_DIR)/iowa_orchestra_attributes.lock" in makefile, (
         "Iowa orchestra attribute TSV must have a stable lock path"
+    )
+    assert "IOWA_ORCHESTRA_FULL_ATTRIBUTE_LOCK_DIR ?= $(BUILD_DIR)/iowa_orchestra_full_attributes.lock" in makefile, (
+        "Iowa orchestra full attribute TSV must have a stable lock path"
     )
 
     real_note_attribute_recipe = target_recipe(makefile, "$(BUILD_DIR)/real_note_full_mix_attributes.tsv")
@@ -2463,6 +2489,16 @@ def main() -> int:
             "MUSIC_ANALYZER_REAL_NOTE_SHARD_INDEX=\"$*\"",
             "iowa_orchestra_attributes.shard-$*.out",
             "iowa_orchestra_attributes.shard-$*.err",
+        ),
+        "$(BUILD_DIR)/iowa_orchestra_full_attributes.shard-%.tsv": (
+            "$(IOWA_ORCHESTRA_FULL_SAMPLE_DIR)/manifest.tsv",
+            "MUSIC_ANALYZER_REAL_NOTE_REQUIRED_SAMPLES=\"$(IOWA_ORCHESTRA_FULL_MIN_SAMPLES)\"",
+            "MUSIC_ANALYZER_REAL_NOTE_SAMPLE_ROOT=\"$(IOWA_ORCHESTRA_FULL_SAMPLE_DIR)\"",
+            "MUSIC_ANALYZER_REAL_NOTE_ATTRIBUTE_TSV=\"$@\"",
+            "MUSIC_ANALYZER_REAL_NOTE_SHARD_COUNT=\"$(REAL_NOTE_SAMPLE_SHARDS)\"",
+            "MUSIC_ANALYZER_REAL_NOTE_SHARD_INDEX=\"$*\"",
+            "iowa_orchestra_full_attributes.shard-$*.out",
+            "iowa_orchestra_full_attributes.shard-$*.err",
         ),
         "$(BUILD_DIR)/vocalset_attributes.shard-%.tsv": (
             "$(VOCALSET_SAMPLE_DIR)/manifest.tsv",
@@ -2604,6 +2640,7 @@ def main() -> int:
         "analyze-iowa-piano-attributes": "$(IOWA_PIANO_DETECTED_ATTRIBUTE_ROWS)",
         "analyze-philharmonia-attributes": "$(PHILHARMONIA_DETECTED_ATTRIBUTE_ROWS)",
         "analyze-iowa-orchestra-attributes": "$(IOWA_ORCHESTRA_DETECTED_ATTRIBUTE_ROWS)",
+        "analyze-iowa-orchestra-full-attributes": "$(IOWA_ORCHESTRA_FULL_DETECTED_ATTRIBUTE_ROWS)",
         "analyze-guitar-chord-mix-recovery": "$(BUILD_DIR)/guitar_chord_mix_attributes.tsv",
         "analyze-guitar-chord-mix-extra-components": "$(BUILD_DIR)/guitar_chord_mix_attributes.tsv",
         "inspect-guitar-chord-mix-attribute-buckets": "$(BUILD_DIR)/guitar_chord_mix_attributes.tsv",
@@ -2777,6 +2814,9 @@ def main() -> int:
         "IOWA_ORCHESTRA_ATTRIBUTE_TSV ?= $(BUILD_DIR)/iowa_orchestra_attributes.tsv",
         "IOWA_ORCHESTRA_DETECTED_ATTRIBUTE_ROWS ?= $(BUILD_DIR)/iowa_orchestra_detected_attribute_rows.tsv",
         "IOWA_ORCHESTRA_MISS_ATTRIBUTE_ROWS ?= $(BUILD_DIR)/iowa_orchestra_miss_attribute_rows.tsv",
+        "IOWA_ORCHESTRA_FULL_ATTRIBUTE_TSV ?= $(BUILD_DIR)/iowa_orchestra_full_attributes.tsv",
+        "IOWA_ORCHESTRA_FULL_DETECTED_ATTRIBUTE_ROWS ?= $(BUILD_DIR)/iowa_orchestra_full_detected_attribute_rows.tsv",
+        "IOWA_ORCHESTRA_FULL_MISS_ATTRIBUTE_ROWS ?= $(BUILD_DIR)/iowa_orchestra_full_miss_attribute_rows.tsv",
         "VOCALSET_ATTRIBUTE_TSV ?= $(BUILD_DIR)/vocalset_attributes.tsv",
         "VOCALSET_DETECTED_ATTRIBUTE_ROWS ?= $(BUILD_DIR)/vocalset_detected_attribute_rows.tsv",
         "VOCALSET_MISS_ATTRIBUTE_ROWS ?= $(BUILD_DIR)/vocalset_miss_attribute_rows.tsv",
@@ -2790,6 +2830,7 @@ def main() -> int:
         "REAL_NOTE_SAMPLE_ATTRIBUTE_EXTRA_DEPS += $(IOWA_PIANO_DETECTED_ATTRIBUTE_ROWS)",
         "REAL_NOTE_SAMPLE_ATTRIBUTE_EXTRA_DEPS += $(PHILHARMONIA_DETECTED_ATTRIBUTE_ROWS)",
         "REAL_NOTE_SAMPLE_ATTRIBUTE_EXTRA_DEPS += $(IOWA_ORCHESTRA_DETECTED_ATTRIBUTE_ROWS)",
+        "REAL_NOTE_SAMPLE_ATTRIBUTE_EXTRA_DEPS += $(IOWA_ORCHESTRA_FULL_DETECTED_ATTRIBUTE_ROWS)",
         'REAL_NOTE_SAMPLE_ATTRIBUTE_EXTRA_ARGS += --extra-real-note "IDMT bass lines=$(IDMT_BASS_LINES_DETECTED_ATTRIBUTE_ROWS)"',
         'REAL_NOTE_SAMPLE_ATTRIBUTE_EXTRA_ARGS += --extra-real-note "IDMT guitar=$(IDMT_GUITAR_DETECTED_ATTRIBUTE_ROWS)"',
         'REAL_NOTE_SAMPLE_ATTRIBUTE_EXTRA_ARGS += --extra-real-note "GuitarTechs=$(GUITAR_TECHS_DETECTED_ATTRIBUTE_ROWS)"',
@@ -2798,6 +2839,7 @@ def main() -> int:
         'REAL_NOTE_SAMPLE_ATTRIBUTE_EXTRA_ARGS += --extra-real-note "Iowa piano=$(IOWA_PIANO_DETECTED_ATTRIBUTE_ROWS)"',
         'REAL_NOTE_SAMPLE_ATTRIBUTE_EXTRA_ARGS += --extra-real-note "Philharmonia=$(PHILHARMONIA_DETECTED_ATTRIBUTE_ROWS)"',
         'REAL_NOTE_SAMPLE_ATTRIBUTE_EXTRA_ARGS += --extra-real-note "Iowa orchestra=$(IOWA_ORCHESTRA_DETECTED_ATTRIBUTE_ROWS)"',
+        'REAL_NOTE_SAMPLE_ATTRIBUTE_EXTRA_ARGS += --extra-real-note "Iowa orchestra full=$(IOWA_ORCHESTRA_FULL_DETECTED_ATTRIBUTE_ROWS)"',
     ]:
         assert text in makefile, f"optional real-note attribute plumbing must include {text}"
 
