@@ -3103,6 +3103,28 @@ bool measured_low_full_mix_vocal_display_supported(const FullMixDebugCandidate &
 	const float third = debug.harmonic_ratios[2];
 	const float fourth = debug.harmonic_ratios[3];
 	const float fifth = debug.harmonic_ratios[4];
+	const bool low_ambiguous_breathy_vowel =
+		debug.owner == InstrumentKind::Ambiguous &&
+		debug.spectral_level >= 0.35f &&
+		debug.spectral_level <= 0.72f &&
+		debug.pitch_confidence >= 0.24f &&
+		debug.pitch_confidence <= 0.46f &&
+		debug.periodicity >= 0.49f &&
+		debug.periodicity <= 0.56f &&
+		debug.harmonic_fit_error <= 0.025f &&
+		debug.spectral_centroid >= 0.055f &&
+		debug.spectral_centroid <= 0.075f &&
+		debug.spectral_slope >= 0.015f &&
+		debug.spectral_slope <= 0.045f &&
+		debug.local_noise_level >= 0.64f &&
+		debug.local_noise_level <= 0.76f &&
+		second >= 0.080f &&
+		second <= 0.15f &&
+		third <= 0.025f &&
+		fourth <= 0.030f &&
+		fifth <= 0.015f;
+	if (low_ambiguous_breathy_vowel)
+		return true;
 	return debug.spectral_level >= 0.90f &&
 	       debug.pitch_confidence >= 0.50f &&
 	       debug.periodicity >= 0.50f &&
@@ -24456,7 +24478,7 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 			const int preferred_root = lowest_candidate_pitch_class(vocal_display_candidates);
 			set_instrument_note_set_from_candidates(snapshot.vocal_notes, snapshot.vocal,
 								vocal_display_candidates,
-								preferred_root, vocal_energy, rms, 1);
+								preferred_root, vocal_energy, rms, 2);
 		} else {
 			const int preferred_root =
 				lowest_peak_pitch_class(detection_note_powers, kVocalMinMidi, kVocalMaxMidi);
@@ -25152,7 +25174,8 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 	}
 
 	if (vocal_enabled) {
-		const int vocal_max_notes = contains_case_insensitive(resolved_source_name, "vocals") ? 2 : 1;
+		const int vocal_max_notes =
+			mixed_source || contains_case_insensitive(resolved_source_name, "vocals") ? 2 : 1;
 		std::array<float, kNoteProbeCount> mixed_vocal_immediate_floors = {};
 		const std::array<float, kNoteProbeCount> *vocal_immediate_floors = nullptr;
 		if (mixed_source) {
