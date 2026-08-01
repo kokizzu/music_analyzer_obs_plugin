@@ -695,6 +695,9 @@ TINYSOL_SOURCE_DIR ?= $(REAL_SAMPLE_SOURCE_DIR)/tinysol
 TINYSOL_ARCHIVE ?= $(TINYSOL_SOURCE_DIR)/TinySOL.zip
 TINYSOL_METADATA_PATH ?= $(TINYSOL_SOURCE_DIR)/TinySOL_metadata.csv
 TINYSOL_SAMPLE_DIR ?= $(BUILD_DIR)/tinysol_samples
+TINYSOL_ATTRIBUTE_TSV ?= $(BUILD_DIR)/tinysol_attributes.tsv
+TINYSOL_DETECTED_ATTRIBUTE_ROWS ?= $(BUILD_DIR)/tinysol_detected_attribute_rows.tsv
+TINYSOL_MISS_ATTRIBUTE_ROWS ?= $(BUILD_DIR)/tinysol_miss_attribute_rows.tsv
 TINYSOL_SAMPLE_LIMIT ?= 0
 TINYSOL_MIN_SAMPLES ?= 1000
 TINYSOL_MIN_BASS ?= 100
@@ -900,10 +903,12 @@ REAL_NOTE_SAMPLE_SHARD_OUTS := $(addprefix $(BUILD_DIR)/real_note_$(REAL_NOTE_SA
 IDMT_BASS_LINES_ATTRIBUTE_LOCK_DIR ?= $(BUILD_DIR)/idmt_bass_lines_attributes.lock
 IDMT_GUITAR_ATTRIBUTE_LOCK_DIR ?= $(BUILD_DIR)/idmt_guitar_attributes.lock
 GUITAR_TECHS_ATTRIBUTE_LOCK_DIR ?= $(BUILD_DIR)/guitar_techs_attributes.lock
+TINYSOL_ATTRIBUTE_LOCK_DIR ?= $(BUILD_DIR)/tinysol_attributes.lock
 VOCALSET_ATTRIBUTE_LOCK_DIR ?= $(BUILD_DIR)/vocalset_attributes.lock
 IDMT_BASS_LINES_ATTRIBUTE_PARTS := $(addprefix $(BUILD_DIR)/idmt_bass_lines_attributes.shard-,$(addsuffix .tsv,$(REAL_NOTE_SAMPLE_SHARD_INDEXES)))
 IDMT_GUITAR_ATTRIBUTE_PARTS := $(addprefix $(BUILD_DIR)/idmt_guitar_attributes.shard-,$(addsuffix .tsv,$(REAL_NOTE_SAMPLE_SHARD_INDEXES)))
 GUITAR_TECHS_ATTRIBUTE_PARTS := $(addprefix $(BUILD_DIR)/guitar_techs_attributes.shard-,$(addsuffix .tsv,$(REAL_NOTE_SAMPLE_SHARD_INDEXES)))
+TINYSOL_ATTRIBUTE_PARTS := $(addprefix $(BUILD_DIR)/tinysol_attributes.shard-,$(addsuffix .tsv,$(REAL_NOTE_SAMPLE_SHARD_INDEXES)))
 VOCALSET_ATTRIBUTE_PARTS := $(addprefix $(BUILD_DIR)/vocalset_attributes.shard-,$(addsuffix .tsv,$(REAL_NOTE_SAMPLE_SHARD_INDEXES)))
 REAL_NOTE_SAMPLE_TEST_MAKE_JOBS = $(if $(filter -j%,$(MAKEFLAGS)),,-j$(REAL_NOTE_SAMPLE_SHARDS))
 REAL_NOTE_SAMPLE_HIT_PERCENT_ARGS = --min-bass-hit-percent "$(REAL_NOTE_SAMPLE_MIN_BASS_HIT_PERCENT)" --min-guitar-hit-percent "$(REAL_NOTE_SAMPLE_MIN_GUITAR_HIT_PERCENT)" --min-piano-hit-percent "$(REAL_NOTE_SAMPLE_MIN_PIANO_HIT_PERCENT)" --min-vocals-hit-percent "$(REAL_NOTE_SAMPLE_MIN_VOCALS_HIT_PERCENT)" --min-other-hit-percent "$(REAL_NOTE_SAMPLE_MIN_OTHER_HIT_PERCENT)"
@@ -921,6 +926,10 @@ endif
 ifneq ($(and $(wildcard $(GUITAR_TECHS_P1_SINGLENOTES_ARCHIVE)),$(wildcard $(GUITAR_TECHS_P2_SINGLENOTES_ARCHIVE))),)
 REAL_NOTE_SAMPLE_ATTRIBUTE_EXTRA_DEPS += $(GUITAR_TECHS_DETECTED_ATTRIBUTE_ROWS)
 REAL_NOTE_SAMPLE_ATTRIBUTE_EXTRA_ARGS += --extra-real-note "GuitarTechs=$(GUITAR_TECHS_DETECTED_ATTRIBUTE_ROWS)"
+endif
+ifneq ($(and $(wildcard $(TINYSOL_METADATA_PATH)),$(wildcard $(TINYSOL_ARCHIVE))),)
+REAL_NOTE_SAMPLE_ATTRIBUTE_EXTRA_DEPS += $(TINYSOL_DETECTED_ATTRIBUTE_ROWS)
+REAL_NOTE_SAMPLE_ATTRIBUTE_EXTRA_ARGS += --extra-real-note "TinySOL=$(TINYSOL_DETECTED_ATTRIBUTE_ROWS)"
 endif
 ifneq ($(wildcard $(VOCALSET_ARCHIVE)),)
 REAL_NOTE_SAMPLE_ATTRIBUTE_EXTRA_DEPS += $(VOCALSET_DETECTED_ATTRIBUTE_ROWS)
@@ -973,7 +982,7 @@ GUITARSET_ATTRIBUTE_MAKE_JOBS = $(if $(filter -j%,$(MAKEFLAGS)),,-j$(GUITARSET_S
 GUITARSET_SHARD_GATE_ENV ?= MUSIC_ANALYZER_GUITARSET_REQUIRED_EXCERPTS=1 MUSIC_ANALYZER_GUITARSET_REQUIRED_WINDOWS=1 MUSIC_ANALYZER_GUITARSET_MIN_CHORD_CHECKS=0 MUSIC_ANALYZER_GUITARSET_MIN_CHORD_HITS=0
 
 .PHONY: FORCE all standalone standalone-bass-guitar setup-android setup-android-emulator android-emulator android-emulator-stop android-stop-apps android-uninstall-old-packages android-profile android-profile-bass-guitar android-profile-complete android-audio-status android-route-desktop-audio android-route-desktop-audio-watch android-grant-permissions android-install-bass-guitar android-install-complete android-run android-run-bass-guitar android-run-complete android android-complete android-bass-guitar android-check check-standalone-deps install-standalone-deps test-standalone profile-standalone prepare-drum-samples test-drum-samples prepare-drum-samples-spread test-drum-samples-spread analyze-drum-primary-misses analyze-drum-rule-grid analyze-drum-full-attribute-rows find-drum-attribute-patterns find-drum-full-attribute-patterns prepare-drum-samples-full test-drum-samples-full prepare-drum-machine-samples test-drum-machine-samples prepare-hf-drum-kit-samples test-hf-drum-kit-samples download-idmt-drums-samples prepare-idmt-drums-samples test-idmt-drums-samples prepare-mdb-drums-samples test-mdb-drums-samples analyze-mdb-drums-misses analyze-mdb-drum-attributes download-star-drums-samples prepare-star-drums-samples test-star-drums-samples analyze-star-drums-misses analyze-star-drum-attributes test-drum-real-world-samples test-drum-real-world-samples-full download-medley-solos-samples prepare-medley-solos-samples test-medley-solos-samples download-maps-piano-samples prepare-maps-piano-samples test-maps-piano-samples prepare-maps-piano-note-samples test-maps-piano-note-samples download-bach10-mf0-synth-samples prepare-bach10-mf0-synth-samples test-bach10-mf0-synth-samples prepare-instrument-samples test-instrument-samples analyze-instrument-sample-attributes download-real-note-samples prepare-real-note-samples test-real-note-samples test-real-note-samples-full-mix analyze-real-note-misses analyze-real-note-attributes inspect-real-note-attribute-buckets find-real-note-attribute-patterns prepare-guitar-fretboard-note-samples test-guitar-fretboard-note-samples download-guitar-techs-samples prepare-guitar-techs-samples test-guitar-techs-samples download-guitar-techs-chord-samples prepare-guitar-techs-chord-samples test-guitar-techs-chord-samples prepare-guitar-chord-mix-samples test-guitar-chord-mix-samples analyze-guitar-chord-mix-misses analyze-guitar-chord-mix-attributes analyze-guitar-chord-mix-recovery inspect-guitar-chord-mix-attribute-buckets find-guitar-chord-mix-attribute-patterns prepare-egfxset-guitar-samples test-egfxset-guitar-samples prepare-gaps-guitar-samples test-gaps-guitar-samples analyze-gaps-guitar-misses download-guitarset-samples prepare-downloaded-guitarset test-downloaded-guitarset analyze-guitarset-misses download-philharmonia-samples prepare-philharmonia-samples test-philharmonia-samples prepare-philharmonia-samples-full test-philharmonia-samples-full download-good-sounds-samples prepare-good-sounds-samples test-good-sounds-samples prepare-iowa-piano-samples test-iowa-piano-samples prepare-iowa-bass-samples test-iowa-bass-samples prepare-iowa-strings-samples test-iowa-strings-samples prepare-iowa-orchestra-samples test-iowa-orchestra-samples prepare-iowa-orchestra-full-samples test-iowa-orchestra-full-samples download-idmt-bass-lines-samples prepare-idmt-bass-lines-samples test-idmt-bass-lines-samples download-idmt-guitar-samples prepare-idmt-guitar-samples test-idmt-guitar-samples download-tinysol-samples prepare-tinysol-samples test-tinysol-samples download-vocadito-samples prepare-vocadito-samples test-vocadito-samples test-vocadito-samples-full-mix test-vocadito-samples-full-mix-parallel test-vocadito-samples-full-mix-shard-% download-vocalset-samples prepare-vocalset-samples test-vocalset-samples test-configured-real-world-samples test-real-world-samples test-real-world-samples-full test-real-world-samples-max test-midi-ranges clean clean-pycache deps install-user test real-dataset-sources inspect-real-dataset-catalog inspect-real-goal-coverage inspect-real-goal-20 inspect-real-goal-full inspect-real-medleydb inspect-real-musdb inspect-real-slakh inspect-real-choralsynth inspect-real-cocochorales inspect-real-synthsod-remote inspect-real-synthsod extract-real-synthsod-archives inspect-real-polyvocal inspect-real-prepared-multitrack inspect-real-multtipop inspect-real-musicnet-remote inspect-real-musicnet inspect-real-musicnet-full inspect-real-spheres inspect-real-guitarset inspect-real-maestro inspect-real-egmd test-musicnet-remote test-medleydb-inspector test-medleydb-prepare test-musdb-inspector test-slakh-inspector test-slakh-prepare test-choralsynth-inspector test-choralsynth-prepare test-cocochorales-inspector test-cocochorales-prepare test-synthsod-remote test-synthsod-archive-extract test-synthsod-inspector test-synthsod-prepare test-polyvocal-inspector test-polyvocal-prepare test-prepared-multitrack-inspector test-prepared-multitrack-prepare test-multtipop-inspector test-spheres-inspector test-guitarset-inspector test-urmp-inspector test-drum-sample-prepare test-hf-drum-kit-prepare test-idmt-drums-prepare test-mdb-drums-prepare test-star-drums-prepare test-medley-solos-prepare test-maps-piano-prepare test-bach10-mf0-synth-prepare test-instrument-sample-attribute-summary test-philharmonia-prepare test-good-sounds-prepare test-iowa-piano-prepare test-iowa-zip-prepare test-idmt-bass-lines-prepare test-idmt-guitar-prepare test-tinysol-prepare test-vocadito-prepare test-vocalset-prepare test-guitar-fretboard-note-prepare test-guitar-techs-prepare test-guitar-techs-chord-prepare test-guitar-chord-mix-prepare test-gaps-guitar-prepare test-guitarset-miss-analysis test-guitarset-attribute-summary test-guitarset-attribute-buckets test-guitarset-attribute-patterns test-real-note-miss-analysis test-real-note-attribute-summary test-real-note-attribute-buckets test-real-note-attribute-patterns test-egmd-miss-analysis test-egmd-drum-attribute-summary test-drum-primary-analysis test-real-goal-script test-real-goal-fixture test-musicnet-fixture test-medleydb-fixture test-slakh-fixture test-choralsynth-fixture test-cocochorales-fixture test-synthsod-fixture test-polyvocal-fixture test-prepared-multitrack-fixture test-multtipop-audio-root-fixture test-guitarset-fixture test-maestro-fixture test-egmd-fixture test-bach10-fixture test-direct-fit-small-fixture test-urmp-fixture test-real-goal-20 test-real-goal-full test-real-multitrack-20 test-real-multitrack-full test-real-urmp test-real-urmp-full test-real-musicnet-20 test-real-musicnet-full test-real-medleydb-20 test-real-slakh-20 test-real-slakh-full test-real-choralsynth-20 test-real-cocochorales-20 test-real-synthsod-20 test-real-synthsod-full test-real-polyvocal-20 test-real-prepared-multitrack-20 test-real-prepared-multitrack-full test-real-multtipop-20 test-real-multtipop-full test-real-guitarset-20 test-real-guitarset-full test-real-maestro-20 test-real-maestro-full test-real-egmd-20 test-real-egmd-full inspect-real-multitrack-20 inspect-real-multitrack-full inspect-real-urmp inspect-real-urmp-full inspect-urmp-fixture decode-urmp-fixture decode-direct-fit-small-fixture update-urmp-fixture update-direct-fit-small-fixture
-.PHONY: find-real-note-row-confusion-patterns find-real-note-practical-row-confusion-patterns find-real-note-focused-row-confusion-patterns find-real-note-visual-row-confusion-patterns find-real-note-focused-visual-row-confusion-patterns find-real-note-ownership-patterns find-real-note-octave-displacement-patterns find-real-note-weak-expected-patterns find-real-note-weak-visual-expected-patterns measure-real-note-octave-display-aliases evaluate-real-note-display-shadow evaluate-real-note-vocal-shadow-safety evaluate-real-note-vocal-shadow-safety-nsynth evaluate-real-note-vocal-shadow-safety-vocadito evaluate-real-note-vocal-display-fallback measure-real-note-attribute-rule analyze-vocadito-full-mix-attributes find-vocadito-full-mix-row-confusion-patterns find-vocadito-full-mix-visual-row-confusion-patterns find-vocadito-full-mix-ownership-patterns find-vocadito-full-mix-broad-vocal-ownership-patterns analyze-idmt-bass-lines-attributes analyze-idmt-guitar-attributes analyze-guitar-techs-attributes analyze-vocalset-attributes
+.PHONY: find-real-note-row-confusion-patterns find-real-note-practical-row-confusion-patterns find-real-note-focused-row-confusion-patterns find-real-note-visual-row-confusion-patterns find-real-note-focused-visual-row-confusion-patterns find-real-note-ownership-patterns find-real-note-octave-displacement-patterns find-real-note-weak-expected-patterns find-real-note-weak-visual-expected-patterns measure-real-note-octave-display-aliases evaluate-real-note-display-shadow evaluate-real-note-vocal-shadow-safety evaluate-real-note-vocal-shadow-safety-nsynth evaluate-real-note-vocal-shadow-safety-vocadito evaluate-real-note-vocal-display-fallback measure-real-note-attribute-rule analyze-vocadito-full-mix-attributes find-vocadito-full-mix-row-confusion-patterns find-vocadito-full-mix-visual-row-confusion-patterns find-vocadito-full-mix-ownership-patterns find-vocadito-full-mix-broad-vocal-ownership-patterns analyze-idmt-bass-lines-attributes analyze-idmt-guitar-attributes analyze-guitar-techs-attributes analyze-tinysol-attributes analyze-vocalset-attributes
 .PHONY: filter-drum-primary-attribute-rows filter-drum-full-attribute-rows test-filter-drum-attribute-rows
 .PHONY: test-build-sharded-tsv test-guitarset-shard-check
 .PHONY: prepare-gaps-guitar-samples-full test-gaps-guitar-samples-full analyze-gaps-guitar-misses-full
@@ -2484,6 +2493,10 @@ $(TINYSOL_ARCHIVE): FORCE | $(BUILD_DIR)
 prepare-tinysol-samples: scripts/prepare_tinysol_samples.py download-tinysol-samples | $(BUILD_DIR)
 	TINYSOL_METADATA_PATH="$(TINYSOL_METADATA_PATH)" TINYSOL_ARCHIVE="$(TINYSOL_ARCHIVE)" TINYSOL_SAMPLE_DIR="$(TINYSOL_SAMPLE_DIR)" TINYSOL_SAMPLE_LIMIT="$(TINYSOL_SAMPLE_LIMIT)" TINYSOL_MIN_SAMPLES="$(TINYSOL_MIN_SAMPLES)" $(PYTHON) scripts/prepare_tinysol_samples.py --metadata "$(TINYSOL_METADATA_PATH)" --archive "$(TINYSOL_ARCHIVE)" --output "$(TINYSOL_SAMPLE_DIR)" --limit "$(TINYSOL_SAMPLE_LIMIT)" --min-samples "$(TINYSOL_MIN_SAMPLES)"
 
+$(TINYSOL_SAMPLE_DIR)/manifest.tsv: scripts/prepare_tinysol_samples.py $(TINYSOL_METADATA_PATH) $(TINYSOL_ARCHIVE) | $(BUILD_DIR)
+	+$(MAKE) prepare-tinysol-samples
+	@touch "$(TINYSOL_SAMPLE_DIR)/manifest.tsv"
+
 test-tinysol-samples: REAL_NOTE_SAMPLE_TAG := tinysol
 test-tinysol-samples: REAL_NOTE_SAMPLE_ROOT := $(TINYSOL_SAMPLE_DIR)
 test-tinysol-samples: REAL_NOTE_SAMPLE_REQUIRED_SAMPLES := $(TINYSOL_MIN_SAMPLES)
@@ -2492,6 +2505,23 @@ test-tinysol-samples: REAL_NOTE_SAMPLE_MIN_PIANO := $(TINYSOL_MIN_PIANO)
 test-tinysol-samples: REAL_NOTE_SAMPLE_MIN_OTHER := $(TINYSOL_MIN_OTHER)
 test-tinysol-samples: $(BUILD_DIR)/analyzer_real_note_samples prepare-tinysol-samples scripts/run_with_duration.sh scripts/check_real_note_sample_shards.py
 	+$(RUN_REAL_NOTE_SAMPLE_SHARDS)
+
+$(TINYSOL_ATTRIBUTE_TSV): $(BUILD_DIR)/analyzer_real_note_samples $(TINYSOL_SAMPLE_DIR)/manifest.tsv scripts/build_sharded_tsv.sh scripts/run_with_lock.sh | $(BUILD_DIR)
+	+$(SHELL) scripts/run_with_lock.sh "$(TINYSOL_ATTRIBUTE_LOCK_DIR)" -- "$(SHELL)" scripts/build_sharded_tsv.sh "$@" "$(MAKE)" "$(REAL_NOTE_SAMPLE_TEST_MAKE_JOBS)" $(TINYSOL_ATTRIBUTE_PARTS)
+
+$(BUILD_DIR)/tinysol_attributes.shard-%.tsv: FORCE $(BUILD_DIR)/analyzer_real_note_samples $(TINYSOL_SAMPLE_DIR)/manifest.tsv scripts/run_with_duration.sh | $(BUILD_DIR)
+	$(RUN_WITH_DURATION) analyzer_tinysol_attributes_shard_$* env MUSIC_ANALYZER_REAL_NOTE_SAMPLES_REQUIRED=1 MUSIC_ANALYZER_REAL_NOTE_REQUIRED_SAMPLES="$(TINYSOL_MIN_SAMPLES)" MUSIC_ANALYZER_REAL_NOTE_SAMPLE_ROOT="$(TINYSOL_SAMPLE_DIR)" MUSIC_ANALYZER_REAL_NOTE_MIN_BASS=0 MUSIC_ANALYZER_REAL_NOTE_MIN_GUITAR=0 MUSIC_ANALYZER_REAL_NOTE_MIN_PIANO=0 MUSIC_ANALYZER_REAL_NOTE_MIN_VOCALS=0 MUSIC_ANALYZER_REAL_NOTE_MIN_OTHER=0 MUSIC_ANALYZER_REAL_NOTE_MAX_FAILURES=999999 MUSIC_ANALYZER_REAL_NOTE_MAX_FAILURE_LINES=120 MUSIC_ANALYZER_REAL_NOTE_SHARD_COUNT="$(REAL_NOTE_SAMPLE_SHARDS)" MUSIC_ANALYZER_REAL_NOTE_SHARD_INDEX="$*" MUSIC_ANALYZER_REAL_NOTE_ATTRIBUTE_TSV="$@" $(BUILD_DIR)/analyzer_real_note_samples > "$(BUILD_DIR)/tinysol_attributes.shard-$*.out" 2> "$(BUILD_DIR)/tinysol_attributes.shard-$*.err"
+
+$(TINYSOL_DETECTED_ATTRIBUTE_ROWS): $(TINYSOL_ATTRIBUTE_TSV) scripts/inspect_real_note_attribute_buckets.py | $(BUILD_DIR)
+	$(PYTHON) scripts/inspect_real_note_attribute_buckets.py "$(TINYSOL_ATTRIBUTE_TSV)" --dump-rows --include-empty-debug > "$@"
+
+$(TINYSOL_MISS_ATTRIBUTE_ROWS): $(TINYSOL_ATTRIBUTE_TSV) scripts/inspect_real_note_attribute_buckets.py | $(BUILD_DIR)
+	$(PYTHON) scripts/inspect_real_note_attribute_buckets.py "$(TINYSOL_ATTRIBUTE_TSV)" --dump-rows --include-empty-debug --status miss > "$@"
+
+analyze-tinysol-attributes: $(TINYSOL_DETECTED_ATTRIBUTE_ROWS) $(TINYSOL_MISS_ATTRIBUTE_ROWS)
+	@printf '%s\n' "TinySOL attribute rows:"
+	@printf '%s\n' "  $(TINYSOL_DETECTED_ATTRIBUTE_ROWS)"
+	@printf '%s\n' "  $(TINYSOL_MISS_ATTRIBUTE_ROWS)"
 
 download-vocadito-samples: $(VOCADITO_ARCHIVE)
 
@@ -2584,6 +2614,9 @@ DETECTOR_REAL_NOTE_PATTERN_OPTIONAL_CANDIDATE_PATHS += $(IDMT_GUITAR_DETECTED_AT
 endif
 ifneq ($(and $(wildcard $(GUITAR_TECHS_P1_SINGLENOTES_ARCHIVE)),$(wildcard $(GUITAR_TECHS_P2_SINGLENOTES_ARCHIVE))),)
 DETECTOR_REAL_NOTE_PATTERN_OPTIONAL_CANDIDATE_PATHS += $(GUITAR_TECHS_DETECTED_ATTRIBUTE_ROWS)
+endif
+ifneq ($(and $(wildcard $(TINYSOL_METADATA_PATH)),$(wildcard $(TINYSOL_ARCHIVE))),)
+DETECTOR_REAL_NOTE_PATTERN_OPTIONAL_CANDIDATE_PATHS += $(TINYSOL_DETECTED_ATTRIBUTE_ROWS)
 endif
 DETECTOR_REAL_NOTE_PATTERN_OPTIONAL_PROTECTED_PATHS := $(VOCADITO_FULL_MIX_ATTRIBUTE_TSV)
 ifneq ($(wildcard $(VOCALSET_ARCHIVE)),)
