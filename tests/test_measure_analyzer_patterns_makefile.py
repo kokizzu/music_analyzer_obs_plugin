@@ -719,23 +719,29 @@ def main() -> int:
     assert "\n\t+$(RUN_WITH_DURATION) detector_improvement_routes_parallel" in route_scan_recipe, (
         "detector improvement route scan must preserve the make jobserver through the duration wrapper"
     )
-    assert "DETECTOR_REAL_NOTE_PATTERN_OPTIONAL_PROTECTED_PATHS :=" in makefile, (
-        "detector route scans must define optional protected real-note rows"
+    assert "DETECTOR_REAL_NOTE_PATTERN_OPTIONAL_CANDIDATE_PATHS :=" in makefile, (
+        "detector route scans must define optional candidate real-note rows"
     )
-    assert "DETECTOR_REAL_NOTE_PATTERN_OPTIONAL_PROTECTED_PATHS += $(IDMT_BASS_LINES_DETECTED_ATTRIBUTE_ROWS)" in makefile, (
-        "detector route scans should protect candidates against available IDMT bass rows"
+    assert "DETECTOR_REAL_NOTE_PATTERN_OPTIONAL_CANDIDATE_PATHS += $(IDMT_BASS_LINES_DETECTED_ATTRIBUTE_ROWS)" in makefile, (
+        "detector route scans should mine candidates from available IDMT bass rows"
     )
-    assert "DETECTOR_REAL_NOTE_PATTERN_OPTIONAL_PROTECTED_PATHS += $(IDMT_GUITAR_DETECTED_ATTRIBUTE_ROWS)" in makefile, (
-        "detector route scans should protect candidates against available IDMT guitar rows"
+    assert "DETECTOR_REAL_NOTE_PATTERN_OPTIONAL_CANDIDATE_PATHS += $(IDMT_GUITAR_DETECTED_ATTRIBUTE_ROWS)" in makefile, (
+        "detector route scans should mine candidates from available IDMT guitar rows"
     )
     assert (
-        "DETECTOR_REAL_NOTE_PATTERN_EXTRA_PROTECTED_PATHS ?= "
-        "$(VOCADITO_FULL_MIX_ATTRIBUTE_TSV) $(DETECTOR_REAL_NOTE_PATTERN_OPTIONAL_PROTECTED_PATHS)"
+        "DETECTOR_REAL_NOTE_PATTERN_EXTRA_CANDIDATE_PATHS ?= "
+        "$(DETECTOR_REAL_NOTE_PATTERN_OPTIONAL_CANDIDATE_PATHS)"
     ) in makefile, (
-        "detector route scans must protect NSynth real-note rule candidates against Vocadito and optional IDMT rows"
+        "detector route scans must pass optional IDMT rows as candidate evidence"
+    )
+    assert (
+        "DETECTOR_REAL_NOTE_PATTERN_EXTRA_PROTECTED_PATHS ?= $(VOCADITO_FULL_MIX_ATTRIBUTE_TSV)"
+    ) in makefile, (
+        "detector route scans must keep Vocadito as one-way protected vocal evidence"
     )
     route_scan_submake = (
         '$(MAKE) $(PARALLEL_TEST_MAKE_JOBS) '
+        'REAL_NOTE_PATTERN_EXTRA_CANDIDATE_PATHS="$(DETECTOR_REAL_NOTE_PATTERN_EXTRA_CANDIDATE_PATHS)" '
         'REAL_NOTE_PATTERN_EXTRA_PROTECTED_PATHS="$(DETECTOR_REAL_NOTE_PATTERN_EXTRA_PROTECTED_PATHS)" '
         "$(DETECTOR_IMPROVEMENT_ROUTE_SCAN_TARGETS)"
     )
@@ -2856,6 +2862,12 @@ def main() -> int:
     assert 'REAL_NOTE_PATTERN_EXTRA_PROTECTED_ARGS = $(foreach path,$(REAL_NOTE_PATTERN_EXTRA_PROTECTED_PATHS),--extra-protected-path "$(path)")' in makefile, (
         "real-note protected TSV inputs must be converted into repeatable pattern-miner arguments"
     )
+    assert "REAL_NOTE_PATTERN_EXTRA_CANDIDATE_PATHS ?=" in makefile, (
+        "real-note pattern mining must keep optional candidate TSV inputs default-empty for ad hoc reports"
+    )
+    assert 'REAL_NOTE_PATTERN_EXTRA_CANDIDATE_ARGS = $(foreach path,$(REAL_NOTE_PATTERN_EXTRA_CANDIDATE_PATHS),--extra-candidate-path "$(path)")' in makefile, (
+        "real-note candidate TSV inputs must be converted into repeatable pattern-miner arguments"
+    )
     for target in [
         "find-real-note-attribute-patterns",
         "find-real-note-row-confusion-patterns",
@@ -2867,8 +2879,14 @@ def main() -> int:
         "find-real-note-octave-displacement-patterns",
     ]:
         real_note_pattern_recipe = target_recipe(makefile, target)
+        assert "$(REAL_NOTE_PATTERN_EXTRA_CANDIDATE_PATHS)" in real_note_pattern_recipe.splitlines()[0], (
+            f"{target} must wait for optional candidate TSV inputs"
+        )
         assert "$(REAL_NOTE_PATTERN_EXTRA_PROTECTED_PATHS)" in real_note_pattern_recipe.splitlines()[0], (
             f"{target} must wait for optional protected TSV inputs"
+        )
+        assert "$(REAL_NOTE_PATTERN_EXTRA_CANDIDATE_ARGS)" in real_note_pattern_recipe, (
+            f"{target} must pass optional candidate TSV inputs to the pattern miner"
         )
         assert "$(REAL_NOTE_PATTERN_EXTRA_PROTECTED_ARGS)" in real_note_pattern_recipe, (
             f"{target} must pass optional protected TSV inputs to the pattern miner"

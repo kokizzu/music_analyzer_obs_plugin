@@ -308,6 +308,27 @@ def main() -> int:
         extra_protected_path.write_text(
             "\t".join(HEADER) + "\n" + "\n".join("\t".join(item) for item in extra_protected_rows) + "\n"
         )
+        extra_candidate_path = pathlib.Path(tmp) / "extra_candidate_attributes.tsv"
+        extra_candidate_rows = [
+            row(
+                status="ownership_miss",
+                detected_expected_row="0",
+                first_row="piano",
+                sample_id="extra_guitar_candidate",
+                family="guitar",
+                nsynth_family="guitar",
+                source="electric",
+                expected_note="F#4",
+                expected_midi="66",
+                debug_note="F#4",
+                debug_midi="66",
+                debug_owner="piano",
+                partial2="0.11",
+            )
+        ]
+        extra_candidate_path.write_text(
+            "\t".join(HEADER) + "\n" + "\n".join("\t".join(item) for item in extra_candidate_rows) + "\n"
+        )
         result = subprocess.run(
             [
                 sys.executable,
@@ -405,6 +426,31 @@ def main() -> int:
                 "debug_midi:66:69",
                 "--condition",
                 "debug_owner=piano",
+            ],
+            text=True,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            check=True,
+        )
+        extra_candidate_result = subprocess.run(
+            [
+                sys.executable,
+                str(ROOT / "scripts" / "find_real_note_attribute_patterns.py"),
+                str(path),
+                "--bucket",
+                "ownership_miss:guitar/electric->piano",
+                "--limit",
+                "1",
+                "--min-positive-samples",
+                "1",
+                "--max-negative-samples",
+                "2",
+                "--extra-candidate-path",
+                str(extra_candidate_path),
+                "--condition",
+                "debug_owner=piano",
+                "--row-examples",
+                "1",
             ],
             text=True,
             stdout=subprocess.PIPE,
@@ -1487,6 +1533,13 @@ def main() -> int:
     ) in extra_protected_result.stdout
     assert "extra_keyboard_protected expected=F#4/66 debug=F#4/66 owner=piano" in (
         extra_protected_result.stdout
+    )
+    assert "ownership_miss:guitar/electric->piano positives=1 samples/1 rows" in (
+        extra_candidate_result.stdout
+    )
+    assert "debug_owner=piano: pos=1/1 rows=1" in extra_candidate_result.stdout
+    assert "extra_guitar_candidate expected=F#4/66 debug=F#4/66 owner=piano" in (
+        extra_candidate_result.stdout
     )
     assert "miss_reason=ownership: pos=2/2 rows=2 neg=0/2 rows=0" in reason_result.stdout
     assert "debug_score_state=scored_owner: pos=2/2 rows=2" in score_state_result.stdout

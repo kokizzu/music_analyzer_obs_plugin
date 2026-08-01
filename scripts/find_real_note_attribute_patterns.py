@@ -1611,6 +1611,15 @@ def main() -> int:
         ),
     )
     parser.add_argument(
+        "--extra-candidate-path",
+        action="append",
+        default=[],
+        help=(
+            "additional real-note attribute TSV whose rows are mined as candidate positives "
+            "and normal protected/foreign rows alongside the primary path; repeatable"
+        ),
+    )
+    parser.add_argument(
         "--exclude-field",
         action="append",
         default=[],
@@ -1660,6 +1669,8 @@ def main() -> int:
     args = parser.parse_args()
 
     rows = load_rows(pathlib.Path(args.path))
+    for extra_candidate_path in args.extra_candidate_path:
+        rows.extend(load_rows(pathlib.Path(extra_candidate_path)))
     buckets = [parse_bucket_spec(spec) for spec in args.bucket]
     if not buckets:
         buckets = top_buckets(rows, args.top_buckets, args.bucket_status) or [
