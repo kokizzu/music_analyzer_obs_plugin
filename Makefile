@@ -310,6 +310,7 @@ DRUM_FULL_GATE_ERR ?= $(BUILD_DIR)/drum_samples_full_gate.err
 DRUM_FULL_GATE_SUMMARY ?= $(BUILD_DIR)/drum_samples_full_gate_matrix.txt
 DRUM_FULL_EXACT_ATTRIBUTE_ROWS ?= $(BUILD_DIR)/drum_full_exact_attribute_rows.tsv
 DRUM_FULL_MERGED_EXPECTED_ATTRIBUTE_ROWS ?= $(BUILD_DIR)/drum_full_merged_expected_attribute_rows.tsv
+DRUM_SPREAD_EXACT_ATTRIBUTE_LOCK_DIR ?= $(BUILD_DIR)/drum_spread_exact_attribute_rows.lock
 DRUM_SAMPLE_SPREAD_SHARD_CATEGORIES := kick snare hihat crash tom ride rim
 DRUM_SAMPLE_SPREAD_SHARD_OUTS := $(addprefix $(BUILD_DIR)/drum_samples_spread_shard_,$(addsuffix .out,$(DRUM_SAMPLE_SPREAD_SHARD_CATEGORIES)))
 DRUM_SPREAD_EXACT_ATTRIBUTE_PARTS := $(addprefix $(BUILD_DIR)/drum_spread_exact_attribute_rows_,$(addsuffix .tsv,$(DRUM_SAMPLE_SPREAD_SHARD_CATEGORIES)))
@@ -321,6 +322,8 @@ DRUM_SAMPLE_FULL_SHARD_IDS := $(foreach category,$(DRUM_SAMPLE_FULL_SHARD_CATEGO
 DRUM_SAMPLE_FULL_SHARD_TARGETS := $(addprefix test-drum-samples-full-shard-,$(DRUM_SAMPLE_FULL_SHARD_IDS))
 DRUM_SAMPLE_FULL_SHARD_OUTS := $(addprefix $(BUILD_DIR)/drum_samples_full_shard_,$(addsuffix .out,$(DRUM_SAMPLE_FULL_SHARD_IDS)))
 DRUM_SAMPLE_FULL_LOCK_DIR ?= $(BUILD_DIR)/drum_samples_full.lock
+DRUM_FULL_EXACT_ATTRIBUTE_LOCK_DIR ?= $(BUILD_DIR)/drum_full_exact_attribute_rows.lock
+DRUM_FULL_MERGED_EXPECTED_ATTRIBUTE_LOCK_DIR ?= $(BUILD_DIR)/drum_full_merged_expected_attribute_rows.lock
 DRUM_FULL_EXACT_ATTRIBUTE_PARTS := $(addprefix $(BUILD_DIR)/drum_full_exact_attribute_rows_,$(addsuffix .tsv,$(DRUM_SAMPLE_FULL_SHARD_IDS)))
 DRUM_FULL_MERGED_EXPECTED_ATTRIBUTE_PARTS := $(addprefix $(BUILD_DIR)/drum_full_merged_expected_attribute_rows_,$(addsuffix .tsv,$(DRUM_SAMPLE_FULL_SHARD_IDS)))
 DRUM_SAMPLE_FULL_TEST_MAKE_JOBS = $(if $(filter -j%,$(MAKEFLAGS)),,-j$(words $(DRUM_SAMPLE_FULL_SHARD_IDS)))
@@ -354,6 +357,7 @@ HF_DRUM_KIT_MAX_KICK_FALSE_PERCENT ?= 12
 HF_DRUM_KIT_PRIMARY_DEBUG_OUT ?= $(BUILD_DIR)/hf_drum_kit_primary_debug.out
 HF_DRUM_KIT_PRIMARY_DEBUG_ERR ?= $(BUILD_DIR)/hf_drum_kit_primary_debug.err
 HF_DRUM_KIT_PRIMARY_ATTRIBUTE_ROWS ?= $(BUILD_DIR)/hf_drum_kit_primary_attribute_rows.tsv
+HF_DRUM_KIT_PRIMARY_ATTRIBUTE_LOCK_DIR ?= $(BUILD_DIR)/hf_drum_kit_primary_attribute_rows.lock
 HF_DRUM_KIT_SHARD_CATEGORIES := kick snare hihat crash tom ride rim
 HF_DRUM_KIT_SHARD_TARGETS := $(addprefix test-hf-drum-kit-samples-shard-,$(HF_DRUM_KIT_SHARD_CATEGORIES))
 HF_DRUM_KIT_SHARD_OUTS := $(addprefix $(BUILD_DIR)/hf_drum_kit_samples_shard_,$(addsuffix .out,$(HF_DRUM_KIT_SHARD_CATEGORIES)))
@@ -374,6 +378,7 @@ IDMT_DRUMS_DOWNLOAD_CONNECTIONS ?= 8
 IDMT_DRUMS_PRIMARY_DEBUG_OUT ?= $(BUILD_DIR)/idmt_drums_primary_debug.out
 IDMT_DRUMS_PRIMARY_DEBUG_ERR ?= $(BUILD_DIR)/idmt_drums_primary_debug.err
 IDMT_DRUMS_PRIMARY_ATTRIBUTE_ROWS ?= $(BUILD_DIR)/idmt_drums_primary_attribute_rows.tsv
+IDMT_DRUMS_PRIMARY_ATTRIBUTE_LOCK_DIR ?= $(BUILD_DIR)/idmt_drums_primary_attribute_rows.lock
 IDMT_DRUMS_SHARD_CATEGORIES := kick snare hihat
 IDMT_DRUMS_SHARD_TARGETS := $(addprefix test-idmt-drums-samples-shard-,$(IDMT_DRUMS_SHARD_CATEGORIES))
 IDMT_DRUMS_SHARD_OUTS := $(addprefix $(BUILD_DIR)/idmt_drums_samples_shard_,$(addsuffix .out,$(IDMT_DRUMS_SHARD_CATEGORIES)))
@@ -818,6 +823,7 @@ REAL_NOTE_FULL_MIX_SHARD_INDEXES := $(shell i=0; while [ $$i -lt $(REAL_NOTE_FUL
 REAL_NOTE_FULL_MIX_SHARD_TARGETS := $(addprefix test-real-note-samples-full-mix-shard-,$(REAL_NOTE_FULL_MIX_SHARD_INDEXES))
 REAL_NOTE_FULL_MIX_SHARD_OUTPUT_PREFIX ?= real_note_full_mix_shard
 REAL_NOTE_FULL_MIX_LOCK_DIR ?= $(BUILD_DIR)/$(REAL_NOTE_FULL_MIX_SHARD_OUTPUT_PREFIX).lock
+REAL_NOTE_FULL_MIX_ATTRIBUTE_LOCK_DIR ?= $(BUILD_DIR)/real_note_full_mix_attributes.lock
 REAL_NOTE_FULL_MIX_SHARD_OUTS = $(addprefix $(BUILD_DIR)/$(REAL_NOTE_FULL_MIX_SHARD_OUTPUT_PREFIX)_,$(addsuffix .out,$(REAL_NOTE_FULL_MIX_SHARD_INDEXES)))
 REAL_NOTE_FULL_MIX_ATTRIBUTE_PARTS := $(addprefix $(BUILD_DIR)/real_note_full_mix_attributes.shard-,$(addsuffix .tsv,$(REAL_NOTE_FULL_MIX_SHARD_INDEXES)))
 REAL_NOTE_FULL_MIX_VERBOSE_SHARD_TARGETS := $(addprefix analyze-real-note-misses-shard-,$(REAL_NOTE_FULL_MIX_SHARD_INDEXES))
@@ -831,6 +837,7 @@ VOCADITO_FULL_MIX_SHARD_TARGETS := $(addprefix test-vocadito-samples-full-mix-sh
 VOCADITO_FULL_MIX_SHARD_OUTS := $(addprefix $(BUILD_DIR)/vocadito_full_mix_shard_,$(addsuffix .out,$(VOCADITO_FULL_MIX_SHARD_INDEXES)))
 VOCADITO_FULL_MIX_LOCK_DIR ?= $(BUILD_DIR)/vocadito_full_mix_shard.lock
 VOCADITO_FULL_MIX_ATTRIBUTE_TSV ?= $(BUILD_DIR)/vocadito_full_mix_attributes.tsv
+VOCADITO_FULL_MIX_ATTRIBUTE_LOCK_DIR ?= $(BUILD_DIR)/vocadito_full_mix_attributes.lock
 VOCADITO_FULL_MIX_ATTRIBUTE_PARTS := $(addprefix $(BUILD_DIR)/vocadito_full_mix_attributes.shard-,$(addsuffix .tsv,$(VOCADITO_FULL_MIX_SHARD_INDEXES)))
 VOCADITO_FULL_MIX_TEST_MAKE_JOBS = $(if $(filter -j%,$(MAKEFLAGS)),,-j$(VOCADITO_FULL_MIX_SHARDS))
 VOCADITO_FULL_MIX_ATTRIBUTE_MAKE_JOBS = $(if $(filter -j%,$(MAKEFLAGS)),,-j$(VOCADITO_FULL_MIX_SHARDS))
@@ -873,6 +880,8 @@ REAL_NOTE_SAMPLE_MAX_FAILURE_LINES ?= 80
 REAL_NOTE_SAMPLE_SHARD_MAX_FAILURES ?= 999999
 REAL_NOTE_SAMPLE_SHARD_TARGETS := $(addprefix test-real-note-sample-shard-,$(REAL_NOTE_SAMPLE_SHARD_INDEXES))
 REAL_NOTE_SAMPLE_SHARD_OUTS := $(addprefix $(BUILD_DIR)/real_note_$(REAL_NOTE_SAMPLE_TAG)_shard_,$(addsuffix .out,$(REAL_NOTE_SAMPLE_SHARD_INDEXES)))
+IDMT_BASS_LINES_ATTRIBUTE_LOCK_DIR ?= $(BUILD_DIR)/idmt_bass_lines_attributes.lock
+IDMT_GUITAR_ATTRIBUTE_LOCK_DIR ?= $(BUILD_DIR)/idmt_guitar_attributes.lock
 IDMT_BASS_LINES_ATTRIBUTE_PARTS := $(addprefix $(BUILD_DIR)/idmt_bass_lines_attributes.shard-,$(addsuffix .tsv,$(REAL_NOTE_SAMPLE_SHARD_INDEXES)))
 IDMT_GUITAR_ATTRIBUTE_PARTS := $(addprefix $(BUILD_DIR)/idmt_guitar_attributes.shard-,$(addsuffix .tsv,$(REAL_NOTE_SAMPLE_SHARD_INDEXES)))
 REAL_NOTE_SAMPLE_TEST_MAKE_JOBS = $(if $(filter -j%,$(MAKEFLAGS)),,-j$(REAL_NOTE_SAMPLE_SHARDS))
@@ -891,6 +900,7 @@ endif
 INSTRUMENT_SAMPLE_SHARDS ?= $(PARALLEL_TEST_JOBS)
 INSTRUMENT_SAMPLE_SHARD_INDEXES := $(shell i=0; while [ $$i -lt $(INSTRUMENT_SAMPLE_SHARDS) ]; do printf '%s ' $$i; i=$$((i + 1)); done)
 INSTRUMENT_SAMPLE_SHARD_TARGETS := $(addprefix test-instrument-samples-shard-,$(INSTRUMENT_SAMPLE_SHARD_INDEXES))
+INSTRUMENT_SAMPLE_ATTRIBUTE_LOCK_DIR ?= $(BUILD_DIR)/instrument_sample_attributes.lock
 INSTRUMENT_SAMPLE_ATTRIBUTE_PARTS := $(addprefix $(BUILD_DIR)/instrument_sample_attributes.shard-,$(addsuffix .tsv,$(INSTRUMENT_SAMPLE_SHARD_INDEXES)))
 INSTRUMENT_SAMPLE_TEST_MAKE_JOBS = $(if $(filter -j%,$(MAKEFLAGS)),,-j$(INSTRUMENT_SAMPLE_SHARDS))
 INSTRUMENT_SAMPLE_ATTRIBUTE_MAKE_JOBS = $(if $(filter -j%,$(MAKEFLAGS)),,-j$(INSTRUMENT_SAMPLE_SHARDS))
@@ -899,6 +909,7 @@ GUITAR_CHORD_MIX_SHARDS ?= $(PARALLEL_TEST_JOBS)
 GUITAR_CHORD_MIX_SHARD_INDEXES := $(shell i=0; while [ $$i -lt $(GUITAR_CHORD_MIX_SHARDS) ]; do printf '%s ' $$i; i=$$((i + 1)); done)
 GUITAR_CHORD_MIX_SHARD_TARGETS := $(addprefix test-guitar-chord-mix-samples-shard-,$(GUITAR_CHORD_MIX_SHARD_INDEXES))
 GUITAR_CHORD_MIX_SHARD_OUTS := $(addprefix $(BUILD_DIR)/guitar_chord_mix_samples_shard_,$(addsuffix .out,$(GUITAR_CHORD_MIX_SHARD_INDEXES)))
+GUITAR_CHORD_MIX_ATTRIBUTE_LOCK_DIR ?= $(BUILD_DIR)/guitar_chord_mix_attributes.lock
 GUITAR_CHORD_MIX_ATTRIBUTE_PARTS := $(addprefix $(BUILD_DIR)/guitar_chord_mix_attributes.shard-,$(addsuffix .tsv,$(GUITAR_CHORD_MIX_SHARD_INDEXES)))
 GUITAR_CHORD_MIX_TEST_MAKE_JOBS = $(if $(filter -j%,$(MAKEFLAGS)),,-j$(GUITAR_CHORD_MIX_SHARDS))
 GUITAR_CHORD_MIX_ATTRIBUTE_MAKE_JOBS = $(if $(filter -j%,$(MAKEFLAGS)),,-j$(GUITAR_CHORD_MIX_SHARDS))
@@ -926,6 +937,7 @@ GUITARSET_SHARDS ?= $(PARALLEL_TEST_JOBS)
 GUITARSET_SHARD_INDEXES := $(shell i=0; while [ $$i -lt $(GUITARSET_SHARDS) ]; do printf '%s ' $$i; i=$$((i + 1)); done)
 GUITARSET_SHARD_TARGETS := $(addprefix test-downloaded-guitarset-shard-,$(GUITARSET_SHARD_INDEXES))
 GUITARSET_SHARD_OUTS := $(addprefix $(BUILD_DIR)/guitarset_shard_,$(addsuffix .out,$(GUITARSET_SHARD_INDEXES)))
+GUITARSET_ATTRIBUTE_LOCK_DIR ?= $(BUILD_DIR)/guitarset_attributes.lock
 GUITARSET_ATTRIBUTE_PARTS := $(addprefix $(BUILD_DIR)/guitarset_attributes.shard-,$(addsuffix .tsv,$(GUITARSET_SHARD_INDEXES)))
 GUITARSET_TEST_MAKE_JOBS = $(if $(filter -j%,$(MAKEFLAGS)),,-j$(GUITARSET_SHARDS))
 GUITARSET_ATTRIBUTE_MAKE_JOBS = $(if $(filter -j%,$(MAKEFLAGS)),,-j$(GUITARSET_SHARDS))
@@ -1262,8 +1274,8 @@ analyze-drum-spread-gate-matrix-serial: $(BUILD_DIR)/analyzer_drum_samples prepa
 	@cat "$(DRUM_SPREAD_GATE_SUMMARY)"
 	@printf '%s\n' "drum spread exact attribute TSV: $(DRUM_SPREAD_EXACT_ATTRIBUTE_ROWS)"
 
-analyze-drum-spread-gate-matrix-parallel: $(BUILD_DIR)/analyzer_drum_samples $(DRUM_SAMPLE_SPREAD_BUILD_DIR)/manifest.tsv scripts/check_drum_sample_shards.py scripts/summarize_drum_gate_matrix.py scripts/analyze_drum_primary_debug.py scripts/build_sharded_tsv.sh scripts/run_with_duration.sh
-	+$(RUN_WITH_DURATION) analyzer_drum_samples_spread_attribute_rows_parallel $(SHELL) scripts/build_sharded_tsv.sh "$(DRUM_SPREAD_EXACT_ATTRIBUTE_ROWS)" "$(MAKE)" "$(DRUM_SAMPLE_SPREAD_TEST_MAKE_JOBS)" $(DRUM_SPREAD_EXACT_ATTRIBUTE_PARTS)
+analyze-drum-spread-gate-matrix-parallel: $(BUILD_DIR)/analyzer_drum_samples $(DRUM_SAMPLE_SPREAD_BUILD_DIR)/manifest.tsv scripts/check_drum_sample_shards.py scripts/summarize_drum_gate_matrix.py scripts/analyze_drum_primary_debug.py scripts/build_sharded_tsv.sh scripts/run_with_lock.sh scripts/run_with_duration.sh
+	+$(RUN_WITH_DURATION) analyzer_drum_samples_spread_attribute_rows_parallel $(SHELL) scripts/run_with_lock.sh "$(DRUM_SPREAD_EXACT_ATTRIBUTE_LOCK_DIR)" -- "$(SHELL)" scripts/build_sharded_tsv.sh "$(DRUM_SPREAD_EXACT_ATTRIBUTE_ROWS)" "$(MAKE)" "$(DRUM_SAMPLE_SPREAD_TEST_MAKE_JOBS)" $(DRUM_SPREAD_EXACT_ATTRIBUTE_PARTS)
 	$(RUN_WITH_DURATION) check_drum_sample_spread_shards $(PYTHON) scripts/check_drum_sample_shards.py --min-recall-percent "$(DRUM_SAMPLE_SPREAD_MIN_RECALL_PERCENT)" --min-precision-percent "$(DRUM_SAMPLE_SPREAD_MIN_PRECISION_PERCENT)" --kick-min-recall-percent "$(DRUM_SAMPLE_SPREAD_MIN_KICK_RECALL_PERCENT)" --snare-min-recall-percent "$(DRUM_SAMPLE_SPREAD_MIN_SNARE_RECALL_PERCENT)" --hihat-min-recall-percent "$(DRUM_SAMPLE_SPREAD_MIN_HIHAT_RECALL_PERCENT)" --crash-min-recall-percent "$(DRUM_SAMPLE_SPREAD_MIN_CRASH_RECALL_PERCENT)" --tom-min-recall-percent "$(DRUM_SAMPLE_SPREAD_MIN_TOM_RECALL_PERCENT)" --ride-min-recall-percent "$(DRUM_SAMPLE_SPREAD_MIN_RIDE_RECALL_PERCENT)" --rim-min-recall-percent "$(DRUM_SAMPLE_SPREAD_MIN_RIM_RECALL_PERCENT)" --kick-min-primary-recall-percent "$(DRUM_SAMPLE_SPREAD_MIN_KICK_PRIMARY_PERCENT)" --snare-min-primary-recall-percent "$(DRUM_SAMPLE_SPREAD_MIN_SNARE_PRIMARY_PERCENT)" --hihat-min-primary-recall-percent "$(DRUM_SAMPLE_SPREAD_MIN_HIHAT_PRIMARY_PERCENT)" --crash-min-primary-recall-percent "$(DRUM_SAMPLE_SPREAD_MIN_CRASH_PRIMARY_PERCENT)" --tom-min-primary-recall-percent "$(DRUM_SAMPLE_SPREAD_MIN_TOM_PRIMARY_PERCENT)" --ride-min-primary-recall-percent "$(DRUM_SAMPLE_SPREAD_MIN_RIDE_PRIMARY_PERCENT)" --rim-min-primary-recall-percent "$(DRUM_SAMPLE_SPREAD_MIN_RIM_PRIMARY_PERCENT)" --kick-max-false-percent "$(DRUM_SAMPLE_SPREAD_MAX_KICK_FALSE_PERCENT)" --tom-max-false-percent "$(DRUM_SAMPLE_SPREAD_MAX_TOM_FALSE_PERCENT)" $(DRUM_SAMPLE_SPREAD_SHARD_OUTS)
 	$(PYTHON) scripts/summarize_drum_gate_matrix.py "$(DRUM_SPREAD_EXACT_ATTRIBUTE_ROWS)" > "$(DRUM_SPREAD_GATE_SUMMARY)"
 	@cat "$(DRUM_SPREAD_GATE_SUMMARY)"
@@ -1408,16 +1420,16 @@ analyze-drum-full-gate-matrix: $(BUILD_DIR)/analyzer_drum_samples prepare-drum-s
 	@cat "$(DRUM_FULL_GATE_SUMMARY)"
 	@printf '%s\n' "drum full exact attribute TSV: $(DRUM_FULL_EXACT_ATTRIBUTE_ROWS)"
 
-analyze-drum-full-gate-matrix-parallel: $(BUILD_DIR)/analyzer_drum_samples $(DRUM_SAMPLE_FULL_BUILD_DIR)/manifest.tsv scripts/analyze_drum_primary_debug.py scripts/build_sharded_tsv.sh scripts/run_with_duration.sh
-	+$(RUN_WITH_DURATION) analyzer_drum_samples_full_attribute_rows_parallel $(SHELL) scripts/build_sharded_tsv.sh "$(DRUM_FULL_EXACT_ATTRIBUTE_ROWS)" "$(MAKE)" "$(DRUM_SAMPLE_FULL_TEST_MAKE_JOBS)" $(DRUM_FULL_EXACT_ATTRIBUTE_PARTS)
+analyze-drum-full-gate-matrix-parallel: $(BUILD_DIR)/analyzer_drum_samples $(DRUM_SAMPLE_FULL_BUILD_DIR)/manifest.tsv scripts/analyze_drum_primary_debug.py scripts/build_sharded_tsv.sh scripts/run_with_lock.sh scripts/run_with_duration.sh
+	+$(RUN_WITH_DURATION) analyzer_drum_samples_full_attribute_rows_parallel $(SHELL) scripts/run_with_lock.sh "$(DRUM_FULL_EXACT_ATTRIBUTE_LOCK_DIR)" -- "$(SHELL)" scripts/build_sharded_tsv.sh "$(DRUM_FULL_EXACT_ATTRIBUTE_ROWS)" "$(MAKE)" "$(DRUM_SAMPLE_FULL_TEST_MAKE_JOBS)" $(DRUM_FULL_EXACT_ATTRIBUTE_PARTS)
 	@printf '%s\n' "drum full exact attribute TSV: $(DRUM_FULL_EXACT_ATTRIBUTE_ROWS)"
 
 $(BUILD_DIR)/drum_full_exact_attribute_rows_%.tsv: FORCE $(BUILD_DIR)/analyzer_drum_samples $(DRUM_SAMPLE_FULL_BUILD_DIR)/manifest.tsv scripts/analyze_drum_primary_debug.py scripts/run_with_duration.sh
 	@stem="$*"; category="$${stem%-*}"; shard="$${stem##*-}"; $(RUN_WITH_DURATION) analyzer_drum_samples_full_attribute_rows_$* env MUSIC_ANALYZER_DRUM_SAMPLES_REQUIRED=1 MUSIC_ANALYZER_DRUM_SAMPLE_REQUIRED_CATEGORIES="$$category" MUSIC_ANALYZER_DRUM_SAMPLE_FILTER_CATEGORY="$$category" MUSIC_ANALYZER_DRUM_SAMPLE_SHARD_COUNT="$(DRUM_SAMPLE_FULL_SHARDS_PER_CATEGORY)" MUSIC_ANALYZER_DRUM_SAMPLE_SHARD_INDEX="$$shard" MUSIC_ANALYZER_DRUM_SAMPLE_VERBOSE_ALL=1 MUSIC_ANALYZER_DRUM_SAMPLE_VERBOSE_PRIMARY=1 MUSIC_ANALYZER_DRUM_SAMPLE_VERBOSE_PRIMARY_LIMIT=20000 MUSIC_ANALYZER_DRUM_SAMPLES_DIR="$(DRUM_SAMPLE_FULL_BUILD_DIR)" MUSIC_ANALYZER_DRUM_SAMPLE_MIN_RECALL_PERCENT=0 MUSIC_ANALYZER_DRUM_SAMPLE_MIN_PRECISION_PERCENT=0 MUSIC_ANALYZER_DRUM_SAMPLE_MIN_PRIMARY_RECALL_PERCENT=0 MUSIC_ANALYZER_DRUM_SAMPLE_MAX_KICK_FALSE_PERCENT=100 MUSIC_ANALYZER_DRUM_SAMPLE_MAX_TOM_FALSE_PERCENT=100 $(BUILD_DIR)/analyzer_drum_samples > "$(BUILD_DIR)/drum_full_exact_attribute_rows_$*.out" 2> "$(BUILD_DIR)/drum_full_exact_attribute_rows_$*.err"
 	$(PYTHON) scripts/analyze_drum_primary_debug.py --dump-rows --include-debug-rows "$(BUILD_DIR)/drum_full_exact_attribute_rows_$*.err" > "$@"
 
-analyze-drum-full-merged-expected-attribute-rows: $(BUILD_DIR)/analyzer_drum_samples $(DRUM_SAMPLE_FULL_BUILD_DIR)/manifest.tsv scripts/analyze_drum_primary_debug.py scripts/build_sharded_tsv.sh scripts/run_with_duration.sh
-	+$(RUN_WITH_DURATION) analyzer_drum_samples_full_merged_expected_rows_parallel $(SHELL) scripts/build_sharded_tsv.sh "$(DRUM_FULL_MERGED_EXPECTED_ATTRIBUTE_ROWS)" "$(MAKE)" "$(DRUM_SAMPLE_FULL_TEST_MAKE_JOBS)" $(DRUM_FULL_MERGED_EXPECTED_ATTRIBUTE_PARTS)
+analyze-drum-full-merged-expected-attribute-rows: $(BUILD_DIR)/analyzer_drum_samples $(DRUM_SAMPLE_FULL_BUILD_DIR)/manifest.tsv scripts/analyze_drum_primary_debug.py scripts/build_sharded_tsv.sh scripts/run_with_lock.sh scripts/run_with_duration.sh
+	+$(RUN_WITH_DURATION) analyzer_drum_samples_full_merged_expected_rows_parallel $(SHELL) scripts/run_with_lock.sh "$(DRUM_FULL_MERGED_EXPECTED_ATTRIBUTE_LOCK_DIR)" -- "$(SHELL)" scripts/build_sharded_tsv.sh "$(DRUM_FULL_MERGED_EXPECTED_ATTRIBUTE_ROWS)" "$(MAKE)" "$(DRUM_SAMPLE_FULL_TEST_MAKE_JOBS)" $(DRUM_FULL_MERGED_EXPECTED_ATTRIBUTE_PARTS)
 	@printf '%s\n' "drum full merged expected attribute TSV: $(DRUM_FULL_MERGED_EXPECTED_ATTRIBUTE_ROWS)"
 
 $(BUILD_DIR)/drum_full_merged_expected_attribute_rows_%.tsv: FORCE $(BUILD_DIR)/analyzer_drum_samples $(DRUM_SAMPLE_FULL_BUILD_DIR)/manifest.tsv scripts/analyze_drum_primary_debug.py scripts/run_with_duration.sh
@@ -1463,8 +1475,8 @@ analyze-hf-drum-primary-attribute-rows-serial: $(BUILD_DIR)/analyzer_drum_sample
 	$(PYTHON) scripts/analyze_drum_primary_debug.py --dump-rows --include-debug-rows "$(HF_DRUM_KIT_PRIMARY_DEBUG_ERR)" > "$(HF_DRUM_KIT_PRIMARY_ATTRIBUTE_ROWS)"
 	@printf '%s\n' "HF drum-kit primary attribute TSV: $(HF_DRUM_KIT_PRIMARY_ATTRIBUTE_ROWS)"
 
-analyze-hf-drum-primary-attribute-rows-parallel: $(BUILD_DIR)/analyzer_drum_samples $(HF_DRUM_KIT_SAMPLE_DIR)/manifest.tsv scripts/analyze_drum_primary_debug.py scripts/build_sharded_tsv.sh scripts/run_with_duration.sh
-	+$(RUN_WITH_DURATION) analyzer_hf_drum_kit_primary_debug_parallel $(SHELL) scripts/build_sharded_tsv.sh "$(HF_DRUM_KIT_PRIMARY_ATTRIBUTE_ROWS)" "$(MAKE)" "$(HF_DRUM_KIT_TEST_MAKE_JOBS)" $(HF_DRUM_KIT_PRIMARY_ATTRIBUTE_PARTS)
+analyze-hf-drum-primary-attribute-rows-parallel: $(BUILD_DIR)/analyzer_drum_samples $(HF_DRUM_KIT_SAMPLE_DIR)/manifest.tsv scripts/analyze_drum_primary_debug.py scripts/build_sharded_tsv.sh scripts/run_with_lock.sh scripts/run_with_duration.sh
+	+$(RUN_WITH_DURATION) analyzer_hf_drum_kit_primary_debug_parallel $(SHELL) scripts/run_with_lock.sh "$(HF_DRUM_KIT_PRIMARY_ATTRIBUTE_LOCK_DIR)" -- "$(SHELL)" scripts/build_sharded_tsv.sh "$(HF_DRUM_KIT_PRIMARY_ATTRIBUTE_ROWS)" "$(MAKE)" "$(HF_DRUM_KIT_TEST_MAKE_JOBS)" $(HF_DRUM_KIT_PRIMARY_ATTRIBUTE_PARTS)
 	@printf '%s\n' "HF drum-kit primary attribute TSV: $(HF_DRUM_KIT_PRIMARY_ATTRIBUTE_ROWS)"
 
 $(BUILD_DIR)/hf_drum_kit_primary_attribute_rows_%.tsv: FORCE $(BUILD_DIR)/analyzer_drum_samples $(HF_DRUM_KIT_SAMPLE_DIR)/manifest.tsv scripts/analyze_drum_primary_debug.py scripts/run_with_duration.sh
@@ -1510,8 +1522,8 @@ analyze-idmt-drum-primary-attribute-rows-serial: $(BUILD_DIR)/analyzer_drum_samp
 	$(PYTHON) scripts/analyze_drum_primary_debug.py --dump-rows --include-debug-rows "$(IDMT_DRUMS_PRIMARY_DEBUG_ERR)" > "$(IDMT_DRUMS_PRIMARY_ATTRIBUTE_ROWS)"
 	@printf '%s\n' "IDMT drum primary attribute TSV: $(IDMT_DRUMS_PRIMARY_ATTRIBUTE_ROWS)"
 
-analyze-idmt-drum-primary-attribute-rows-parallel: $(BUILD_DIR)/analyzer_drum_samples $(IDMT_DRUMS_SAMPLE_DIR)/manifest.tsv scripts/analyze_drum_primary_debug.py scripts/build_sharded_tsv.sh scripts/run_with_duration.sh
-	+$(RUN_WITH_DURATION) analyzer_idmt_drums_primary_debug_parallel $(SHELL) scripts/build_sharded_tsv.sh "$(IDMT_DRUMS_PRIMARY_ATTRIBUTE_ROWS)" "$(MAKE)" "$(IDMT_DRUMS_TEST_MAKE_JOBS)" $(IDMT_DRUMS_PRIMARY_ATTRIBUTE_PARTS)
+analyze-idmt-drum-primary-attribute-rows-parallel: $(BUILD_DIR)/analyzer_drum_samples $(IDMT_DRUMS_SAMPLE_DIR)/manifest.tsv scripts/analyze_drum_primary_debug.py scripts/build_sharded_tsv.sh scripts/run_with_lock.sh scripts/run_with_duration.sh
+	+$(RUN_WITH_DURATION) analyzer_idmt_drums_primary_debug_parallel $(SHELL) scripts/run_with_lock.sh "$(IDMT_DRUMS_PRIMARY_ATTRIBUTE_LOCK_DIR)" -- "$(SHELL)" scripts/build_sharded_tsv.sh "$(IDMT_DRUMS_PRIMARY_ATTRIBUTE_ROWS)" "$(MAKE)" "$(IDMT_DRUMS_TEST_MAKE_JOBS)" $(IDMT_DRUMS_PRIMARY_ATTRIBUTE_PARTS)
 	@printf '%s\n' "IDMT drum primary attribute TSV: $(IDMT_DRUMS_PRIMARY_ATTRIBUTE_ROWS)"
 
 $(BUILD_DIR)/idmt_drums_primary_attribute_rows_%.tsv: FORCE $(BUILD_DIR)/analyzer_drum_samples $(IDMT_DRUMS_SAMPLE_DIR)/manifest.tsv scripts/analyze_drum_primary_debug.py scripts/run_with_duration.sh
@@ -1637,8 +1649,8 @@ test-instrument-samples-parallel: $(BUILD_DIR)/analyzer_instrument_samples $(INS
 test-instrument-samples-shard-%: FORCE $(BUILD_DIR)/analyzer_instrument_samples $(INSTRUMENT_SAMPLE_MANIFEST_STAMP) scripts/run_with_duration.sh
 	$(RUN_WITH_DURATION) analyzer_instrument_samples_shard_$* env MUSIC_ANALYZER_INSTRUMENT_SAMPLES_REQUIRED=1 MUSIC_ANALYZER_INSTRUMENT_SAMPLE_ROOT="$(INSTRUMENT_SAMPLE_BUILD_ROOT)" MUSIC_ANALYZER_INSTRUMENT_SAMPLE_SHARD_COUNT="$(INSTRUMENT_SAMPLE_SHARDS)" MUSIC_ANALYZER_INSTRUMENT_SAMPLE_SHARD_INDEX="$*" $(BUILD_DIR)/analyzer_instrument_samples
 
-$(BUILD_DIR)/instrument_sample_attributes.tsv: $(BUILD_DIR)/analyzer_instrument_samples $(INSTRUMENT_SAMPLE_MANIFEST_STAMP) scripts/prepare_instrument_samples.py scripts/build_sharded_tsv.sh | $(BUILD_DIR)
-	+$(SHELL) scripts/build_sharded_tsv.sh "$@" "$(MAKE)" "$(INSTRUMENT_SAMPLE_ATTRIBUTE_MAKE_JOBS)" $(INSTRUMENT_SAMPLE_ATTRIBUTE_PARTS)
+$(BUILD_DIR)/instrument_sample_attributes.tsv: $(BUILD_DIR)/analyzer_instrument_samples $(INSTRUMENT_SAMPLE_MANIFEST_STAMP) scripts/prepare_instrument_samples.py scripts/build_sharded_tsv.sh scripts/run_with_lock.sh | $(BUILD_DIR)
+	+$(SHELL) scripts/run_with_lock.sh "$(INSTRUMENT_SAMPLE_ATTRIBUTE_LOCK_DIR)" -- "$(SHELL)" scripts/build_sharded_tsv.sh "$@" "$(MAKE)" "$(INSTRUMENT_SAMPLE_ATTRIBUTE_MAKE_JOBS)" $(INSTRUMENT_SAMPLE_ATTRIBUTE_PARTS)
 
 $(BUILD_DIR)/instrument_sample_attributes.shard-%.tsv: $(BUILD_DIR)/analyzer_instrument_samples $(INSTRUMENT_SAMPLE_MANIFEST_STAMP) scripts/prepare_instrument_samples.py | $(BUILD_DIR)
 	-env MUSIC_ANALYZER_INSTRUMENT_SAMPLES_REQUIRED=1 MUSIC_ANALYZER_INSTRUMENT_SAMPLE_ROOT="$(INSTRUMENT_SAMPLE_BUILD_ROOT)" MUSIC_ANALYZER_INSTRUMENT_SAMPLE_SHARD_COUNT="$(INSTRUMENT_SAMPLE_SHARDS)" MUSIC_ANALYZER_INSTRUMENT_SAMPLE_SHARD_INDEX="$*" MUSIC_ANALYZER_INSTRUMENT_ATTRIBUTE_TSV="$@" $(BUILD_DIR)/analyzer_instrument_samples > "$(BUILD_DIR)/instrument_sample_attributes.shard-$*.out"
@@ -1881,9 +1893,9 @@ analyze-real-note-misses-shard-%: FORCE $(BUILD_DIR)/analyzer_real_note_samples 
 	+@if [ ! -f "$(REAL_NOTE_SAMPLE_DIR)/manifest.tsv" ] || [ "scripts/prepare_nsynth_samples.py" -nt "$(REAL_NOTE_SAMPLE_DIR)/manifest.tsv" ]; then $(MAKE) prepare-real-note-samples; fi
 	$(RUN_WITH_DURATION) analyzer_real_note_full_mix_verbose_shard_$* env MUSIC_ANALYZER_REAL_NOTE_SAMPLES_REQUIRED=1 MUSIC_ANALYZER_REAL_NOTE_FULL_MIX=1 MUSIC_ANALYZER_REAL_NOTE_VERBOSE_MISSES=1 MUSIC_ANALYZER_REAL_NOTE_SHARD_COUNT="$(REAL_NOTE_FULL_MIX_SHARDS)" MUSIC_ANALYZER_REAL_NOTE_SHARD_INDEX="$*" MUSIC_ANALYZER_REAL_NOTE_SAMPLE_ROOT="$(REAL_NOTE_SAMPLE_DIR)" MUSIC_ANALYZER_REAL_NOTE_MIN_BASS=0 MUSIC_ANALYZER_REAL_NOTE_MIN_GUITAR=0 MUSIC_ANALYZER_REAL_NOTE_MIN_PIANO=0 MUSIC_ANALYZER_REAL_NOTE_MIN_VOCALS=0 MUSIC_ANALYZER_REAL_NOTE_MIN_OTHER=0 MUSIC_ANALYZER_REAL_NOTE_MIN_ANY_HIT_PERCENT=0 MUSIC_ANALYZER_REAL_NOTE_MIN_EXPECTED_ROW_PERCENT=0 MUSIC_ANALYZER_REAL_NOTE_MIN_FIRST_ROW_PERCENT=0 MUSIC_ANALYZER_REAL_NOTE_MIN_BASS_EXPECTED_ROW_PERCENT=0 MUSIC_ANALYZER_REAL_NOTE_MIN_GUITAR_EXPECTED_ROW_PERCENT=0 MUSIC_ANALYZER_REAL_NOTE_MIN_PIANO_EXPECTED_ROW_PERCENT=0 MUSIC_ANALYZER_REAL_NOTE_MIN_VOCALS_EXPECTED_ROW_PERCENT=0 MUSIC_ANALYZER_REAL_NOTE_MIN_OTHER_EXPECTED_ROW_PERCENT=0 MUSIC_ANALYZER_REAL_NOTE_MIN_BASS_FIRST_ROW_PERCENT=0 MUSIC_ANALYZER_REAL_NOTE_MIN_GUITAR_FIRST_ROW_PERCENT=0 MUSIC_ANALYZER_REAL_NOTE_MIN_PIANO_FIRST_ROW_PERCENT=0 MUSIC_ANALYZER_REAL_NOTE_MIN_VOCALS_FIRST_ROW_PERCENT=0 MUSIC_ANALYZER_REAL_NOTE_MIN_OTHER_FIRST_ROW_PERCENT=0 MUSIC_ANALYZER_REAL_NOTE_MAX_DRUM_ACTIVE_PERCENT=100 MUSIC_ANALYZER_REAL_NOTE_MAX_FAILURES=999999 MUSIC_ANALYZER_REAL_NOTE_MAX_FAILURE_LINES=120 $(BUILD_DIR)/analyzer_real_note_samples > "$(BUILD_DIR)/real_note_full_mix_verbose_shard_$*.out" 2> "$(BUILD_DIR)/real_note_full_mix_verbose_shard_$*.err"
 
-$(BUILD_DIR)/real_note_full_mix_attributes.tsv: $(BUILD_DIR)/analyzer_real_note_samples scripts/prepare_nsynth_samples.py scripts/build_sharded_tsv.sh | $(BUILD_DIR)
+$(BUILD_DIR)/real_note_full_mix_attributes.tsv: $(BUILD_DIR)/analyzer_real_note_samples scripts/prepare_nsynth_samples.py scripts/build_sharded_tsv.sh scripts/run_with_lock.sh | $(BUILD_DIR)
 	+@if [ ! -f "$(REAL_NOTE_SAMPLE_DIR)/manifest.tsv" ] || [ "scripts/prepare_nsynth_samples.py" -nt "$(REAL_NOTE_SAMPLE_DIR)/manifest.tsv" ]; then $(MAKE) prepare-real-note-samples; fi
-	+$(SHELL) scripts/build_sharded_tsv.sh "$@" "$(MAKE)" "$(REAL_NOTE_FULL_MIX_ATTRIBUTE_MAKE_JOBS)" $(REAL_NOTE_FULL_MIX_ATTRIBUTE_PARTS)
+	+$(SHELL) scripts/run_with_lock.sh "$(REAL_NOTE_FULL_MIX_ATTRIBUTE_LOCK_DIR)" -- "$(SHELL)" scripts/build_sharded_tsv.sh "$@" "$(MAKE)" "$(REAL_NOTE_FULL_MIX_ATTRIBUTE_MAKE_JOBS)" $(REAL_NOTE_FULL_MIX_ATTRIBUTE_PARTS)
 
 $(BUILD_DIR)/real_note_full_mix_attributes.shard-%.tsv: $(BUILD_DIR)/analyzer_real_note_samples scripts/prepare_nsynth_samples.py | $(BUILD_DIR)
 	+@if [ ! -f "$(REAL_NOTE_SAMPLE_DIR)/manifest.tsv" ] || [ "scripts/prepare_nsynth_samples.py" -nt "$(REAL_NOTE_SAMPLE_DIR)/manifest.tsv" ]; then $(MAKE) prepare-real-note-samples; fi
@@ -1945,8 +1957,8 @@ evaluate-real-note-vocal-display-fallback: $(VOCADITO_FULL_MIX_ATTRIBUTE_TSV) $(
 measure-real-note-attribute-rule: $(BUILD_DIR)/real_note_full_mix_attributes.tsv scripts/measure_real_note_attribute_rule.py
 	$(PYTHON) scripts/measure_real_note_attribute_rule.py "$(BUILD_DIR)/real_note_full_mix_attributes.tsv" $(REAL_NOTE_RULE_CONDITION_ARGS) $(REAL_NOTE_RULE_GROUP_BY_ARGS) $(RULE_ARGS)
 
-$(VOCADITO_FULL_MIX_ATTRIBUTE_TSV): $(BUILD_DIR)/analyzer_real_note_samples prepare-vocadito-samples scripts/build_sharded_tsv.sh | $(BUILD_DIR)
-	+$(SHELL) scripts/build_sharded_tsv.sh "$@" "$(MAKE)" "$(VOCADITO_FULL_MIX_ATTRIBUTE_MAKE_JOBS)" $(VOCADITO_FULL_MIX_ATTRIBUTE_PARTS)
+$(VOCADITO_FULL_MIX_ATTRIBUTE_TSV): $(BUILD_DIR)/analyzer_real_note_samples prepare-vocadito-samples scripts/build_sharded_tsv.sh scripts/run_with_lock.sh | $(BUILD_DIR)
+	+$(SHELL) scripts/run_with_lock.sh "$(VOCADITO_FULL_MIX_ATTRIBUTE_LOCK_DIR)" -- "$(SHELL)" scripts/build_sharded_tsv.sh "$@" "$(MAKE)" "$(VOCADITO_FULL_MIX_ATTRIBUTE_MAKE_JOBS)" $(VOCADITO_FULL_MIX_ATTRIBUTE_PARTS)
 
 $(BUILD_DIR)/vocadito_full_mix_attributes.shard-%.tsv: $(BUILD_DIR)/analyzer_real_note_samples prepare-vocadito-samples | $(BUILD_DIR)
 	env MUSIC_ANALYZER_REAL_NOTE_SAMPLES_REQUIRED=1 MUSIC_ANALYZER_REAL_NOTE_FULL_MIX=1 MUSIC_ANALYZER_REAL_NOTE_SHARD_COUNT="$(VOCADITO_FULL_MIX_SHARDS)" MUSIC_ANALYZER_REAL_NOTE_SHARD_INDEX="$*" MUSIC_ANALYZER_REAL_NOTE_ATTRIBUTE_TSV="$@" MUSIC_ANALYZER_REAL_NOTE_SAMPLE_ROOT="$(VOCADITO_SAMPLE_DIR)" MUSIC_ANALYZER_REAL_NOTE_REQUIRED_SAMPLES="$(VOCADITO_MIN_VOCALS)" MUSIC_ANALYZER_REAL_NOTE_MIN_BASS=0 MUSIC_ANALYZER_REAL_NOTE_MIN_GUITAR=0 MUSIC_ANALYZER_REAL_NOTE_MIN_PIANO=0 MUSIC_ANALYZER_REAL_NOTE_MIN_VOCALS=0 MUSIC_ANALYZER_REAL_NOTE_MIN_OTHER=0 MUSIC_ANALYZER_REAL_NOTE_MIN_ANY_HIT_PERCENT=0 MUSIC_ANALYZER_REAL_NOTE_MIN_EXPECTED_ROW_PERCENT=0 MUSIC_ANALYZER_REAL_NOTE_MIN_FIRST_ROW_PERCENT=0 MUSIC_ANALYZER_REAL_NOTE_MIN_BASS_EXPECTED_ROW_PERCENT=0 MUSIC_ANALYZER_REAL_NOTE_MIN_GUITAR_EXPECTED_ROW_PERCENT=0 MUSIC_ANALYZER_REAL_NOTE_MIN_PIANO_EXPECTED_ROW_PERCENT=0 MUSIC_ANALYZER_REAL_NOTE_MIN_VOCALS_EXPECTED_ROW_PERCENT=0 MUSIC_ANALYZER_REAL_NOTE_MIN_OTHER_EXPECTED_ROW_PERCENT=0 MUSIC_ANALYZER_REAL_NOTE_MIN_BASS_FIRST_ROW_PERCENT=0 MUSIC_ANALYZER_REAL_NOTE_MIN_GUITAR_FIRST_ROW_PERCENT=0 MUSIC_ANALYZER_REAL_NOTE_MIN_PIANO_FIRST_ROW_PERCENT=0 MUSIC_ANALYZER_REAL_NOTE_MIN_VOCALS_FIRST_ROW_PERCENT=0 MUSIC_ANALYZER_REAL_NOTE_MIN_OTHER_FIRST_ROW_PERCENT=0 MUSIC_ANALYZER_REAL_NOTE_MAX_DRUM_ACTIVE_PERCENT=100 MUSIC_ANALYZER_REAL_NOTE_MAX_FAILURES=999999 MUSIC_ANALYZER_REAL_NOTE_MAX_FAILURE_LINES=20 $(BUILD_DIR)/analyzer_real_note_samples > "$(BUILD_DIR)/vocadito_full_mix_attributes.shard-$*.out"
@@ -2061,8 +2073,8 @@ analyze-guitar-chord-mix-misses: $(BUILD_DIR)/analyzer_guitarset prepare-guitar-
 	env MUSIC_ANALYZER_GUITARSET_MANIFEST="$(GUITAR_CHORD_MIX_MANIFEST)" MUSIC_ANALYZER_GUITARSET_REQUIRED=1 MUSIC_ANALYZER_GUITARSET_USE_ALL=1 MUSIC_ANALYZER_GUITARSET_REQUIRED_EXCERPTS="$(GUITAR_CHORD_MIX_MIN_EXCERPTS)" MUSIC_ANALYZER_GUITARSET_REQUIRED_WINDOWS="$(GUITAR_CHORD_MIX_MIN_WINDOWS)" MUSIC_ANALYZER_GUITARSET_MAX_WINDOWS_PER_EXCERPT=4 MUSIC_ANALYZER_GUITARSET_MIN_ACTIVE_NOTES=3 MUSIC_ANALYZER_GUITARSET_MIN_PITCH_CLASSES=3 MUSIC_ANALYZER_GUITARSET_MIN_WINDOW_RECALL_PERCENT=0 MUSIC_ANALYZER_GUITARSET_MIN_RECALL_PERCENT="$(GUITAR_CHORD_MIX_MIN_RECALL_PERCENT)" MUSIC_ANALYZER_GUITARSET_MIN_PRECISION_PERCENT="$(GUITAR_CHORD_MIX_MIN_PRECISION_PERCENT)" MUSIC_ANALYZER_GUITARSET_MIN_GUITAR_RECALL_PERCENT="$(GUITAR_CHORD_MIX_MIN_GUITAR_RECALL_PERCENT)" MUSIC_ANALYZER_GUITARSET_MAX_CONTAMINATION_PERCENT="$(GUITAR_CHORD_MIX_MAX_CONTAMINATION_PERCENT)" MUSIC_ANALYZER_GUITARSET_MAX_FALSE_VOCAL_PERCENT="$(GUITAR_CHORD_MIX_MAX_FALSE_VOCAL_PERCENT)" MUSIC_ANALYZER_GUITARSET_MIN_CHORD_RECALL_PERCENT="$(GUITAR_CHORD_MIX_MIN_CHORD_RECALL_PERCENT)" MUSIC_ANALYZER_GUITARSET_MIN_CHORD_PRECISION_PERCENT="$(GUITAR_CHORD_MIX_MIN_CHORD_PRECISION_PERCENT)" MUSIC_ANALYZER_GUITARSET_MIN_CHORD_CHECKS="$(GUITAR_CHORD_MIX_MIN_WINDOWS)" MUSIC_ANALYZER_GUITARSET_MAX_FAILURE_LINES=0 MUSIC_ANALYZER_GUITARSET_VERBOSE_CHORD_MISSES=1 $(BUILD_DIR)/analyzer_guitarset > "$(GUITAR_CHORD_MIX_MISS_LOG).summary" 2> "$(GUITAR_CHORD_MIX_MISS_LOG)"
 	$(PYTHON) scripts/analyze_guitarset_misses.py "$(GUITAR_CHORD_MIX_MISS_LOG)"
 
-$(BUILD_DIR)/guitar_chord_mix_attributes.tsv: $(BUILD_DIR)/analyzer_guitarset prepare-guitar-chord-mix-samples scripts/build_sharded_tsv.sh | $(BUILD_DIR)
-	+$(SHELL) scripts/build_sharded_tsv.sh "$@" "$(MAKE)" "$(GUITAR_CHORD_MIX_ATTRIBUTE_MAKE_JOBS)" $(GUITAR_CHORD_MIX_ATTRIBUTE_PARTS)
+$(BUILD_DIR)/guitar_chord_mix_attributes.tsv: $(BUILD_DIR)/analyzer_guitarset prepare-guitar-chord-mix-samples scripts/build_sharded_tsv.sh scripts/run_with_lock.sh | $(BUILD_DIR)
+	+$(SHELL) scripts/run_with_lock.sh "$(GUITAR_CHORD_MIX_ATTRIBUTE_LOCK_DIR)" -- "$(SHELL)" scripts/build_sharded_tsv.sh "$@" "$(MAKE)" "$(GUITAR_CHORD_MIX_ATTRIBUTE_MAKE_JOBS)" $(GUITAR_CHORD_MIX_ATTRIBUTE_PARTS)
 
 $(BUILD_DIR)/guitar_chord_mix_attributes.shard-%.tsv: FORCE $(BUILD_DIR)/analyzer_guitarset $(GUITAR_CHORD_MIX_MANIFEST) | $(BUILD_DIR)
 	@out="$(BUILD_DIR)/guitar_chord_mix_attributes.shard-$*.out"; env MUSIC_ANALYZER_GUITARSET_MANIFEST="$(GUITAR_CHORD_MIX_MANIFEST)" MUSIC_ANALYZER_GUITARSET_REQUIRED=1 MUSIC_ANALYZER_GUITARSET_USE_ALL=1 MUSIC_ANALYZER_GUITARSET_REQUIRED_EXCERPTS=1 MUSIC_ANALYZER_GUITARSET_REQUIRED_WINDOWS=1 MUSIC_ANALYZER_GUITARSET_MAX_WINDOWS_PER_EXCERPT=4 MUSIC_ANALYZER_GUITARSET_MIN_ACTIVE_NOTES=3 MUSIC_ANALYZER_GUITARSET_MIN_PITCH_CLASSES=3 MUSIC_ANALYZER_GUITARSET_MIN_WINDOW_RECALL_PERCENT=0 MUSIC_ANALYZER_GUITARSET_MIN_RECALL_PERCENT=0 MUSIC_ANALYZER_GUITARSET_MIN_PRECISION_PERCENT=0 MUSIC_ANALYZER_GUITARSET_MIN_GUITAR_RECALL_PERCENT=0 MUSIC_ANALYZER_GUITARSET_MAX_CONTAMINATION_PERCENT=100 MUSIC_ANALYZER_GUITARSET_MAX_FALSE_VOCAL_PERCENT=100 MUSIC_ANALYZER_GUITARSET_MIN_CHORD_RECALL_PERCENT=0 MUSIC_ANALYZER_GUITARSET_MIN_CHORD_PRECISION_PERCENT=0 MUSIC_ANALYZER_GUITARSET_MIN_CHORD_CHECKS=0 MUSIC_ANALYZER_GUITARSET_MIN_CHORD_HITS=0 MUSIC_ANALYZER_GUITARSET_MAX_FAILURE_LINES=80 MUSIC_ANALYZER_GUITARSET_SHARD_COUNT="$(GUITAR_CHORD_MIX_SHARDS)" MUSIC_ANALYZER_GUITARSET_SHARD_INDEX="$*" MUSIC_ANALYZER_GUITARSET_ATTRIBUTE_TSV="$@" $(BUILD_DIR)/analyzer_guitarset > "$$out"
@@ -2175,8 +2187,8 @@ analyze-guitarset-misses: $(BUILD_DIR)/analyzer_guitarset prepare-downloaded-gui
 	env MUSIC_ANALYZER_GUITARSET_MANIFEST="$(GUITARSET_MANIFEST)" MUSIC_ANALYZER_GUITARSET_REQUIRED=1 MUSIC_ANALYZER_GUITARSET_USE_ALL=1 MUSIC_ANALYZER_GUITARSET_REQUIRED_EXCERPTS=200 MUSIC_ANALYZER_GUITARSET_REQUIRED_WINDOWS=1000 MUSIC_ANALYZER_GUITARSET_MAX_WINDOWS_PER_EXCERPT=8 MUSIC_ANALYZER_GUITARSET_MIN_WINDOW_RECALL_PERCENT=0 MUSIC_ANALYZER_GUITARSET_MIN_RECALL_PERCENT="$(GUITARSET_MIN_RECALL_PERCENT)" MUSIC_ANALYZER_GUITARSET_MIN_PRECISION_PERCENT="$(GUITARSET_MIN_PRECISION_PERCENT)" MUSIC_ANALYZER_GUITARSET_MIN_GUITAR_RECALL_PERCENT="$(GUITARSET_MIN_GUITAR_RECALL_PERCENT)" MUSIC_ANALYZER_GUITARSET_MIN_CHORD_CHECKS=1000 MUSIC_ANALYZER_GUITARSET_MIN_CHORD_RECALL_PERCENT="$(GUITARSET_MIN_CHORD_RECALL_PERCENT)" MUSIC_ANALYZER_GUITARSET_MIN_CHORD_PRECISION_PERCENT="$(GUITARSET_MIN_CHORD_PRECISION_PERCENT)" MUSIC_ANALYZER_GUITARSET_MIN_MAJOR_MINOR_CHORD_RECALL_PERCENT="$(GUITARSET_MIN_MAJOR_MINOR_CHORD_RECALL_PERCENT)" MUSIC_ANALYZER_GUITARSET_MIN_OTHER_CHORD_RECALL_PERCENT="$(GUITARSET_MIN_OTHER_CHORD_RECALL_PERCENT)" MUSIC_ANALYZER_GUITARSET_MIN_SIMPLE_CHORD_RECALL_PERCENT="$(GUITARSET_MIN_SIMPLE_CHORD_RECALL_PERCENT)" MUSIC_ANALYZER_GUITARSET_MIN_SIMPLE_MAJOR_MINOR_CHORD_RECALL_PERCENT="$(GUITARSET_MIN_SIMPLE_MAJOR_MINOR_CHORD_RECALL_PERCENT)" MUSIC_ANALYZER_GUITARSET_MIN_SIMPLE_OTHER_CHORD_RECALL_PERCENT="$(GUITARSET_MIN_SIMPLE_OTHER_CHORD_RECALL_PERCENT)" MUSIC_ANALYZER_GUITARSET_MAX_FAILURE_LINES=0 MUSIC_ANALYZER_GUITARSET_VERBOSE_CHORD_MISSES=1 $(BUILD_DIR)/analyzer_guitarset > "$(GUITARSET_MISS_LOG).summary" 2> "$(GUITARSET_MISS_LOG)"
 	$(PYTHON) scripts/analyze_guitarset_misses.py "$(GUITARSET_MISS_LOG)"
 
-$(GUITARSET_ATTRIBUTE_TSV): $(BUILD_DIR)/analyzer_guitarset $(GUITARSET_MANIFEST) scripts/build_sharded_tsv.sh | $(BUILD_DIR)
-	+$(SHELL) scripts/build_sharded_tsv.sh "$@" "$(MAKE)" "$(GUITARSET_ATTRIBUTE_MAKE_JOBS)" $(GUITARSET_ATTRIBUTE_PARTS)
+$(GUITARSET_ATTRIBUTE_TSV): $(BUILD_DIR)/analyzer_guitarset $(GUITARSET_MANIFEST) scripts/build_sharded_tsv.sh scripts/run_with_lock.sh | $(BUILD_DIR)
+	+$(SHELL) scripts/run_with_lock.sh "$(GUITARSET_ATTRIBUTE_LOCK_DIR)" -- "$(SHELL)" scripts/build_sharded_tsv.sh "$@" "$(MAKE)" "$(GUITARSET_ATTRIBUTE_MAKE_JOBS)" $(GUITARSET_ATTRIBUTE_PARTS)
 
 $(BUILD_DIR)/guitarset_attributes.shard-%.tsv: FORCE $(BUILD_DIR)/analyzer_guitarset $(GUITARSET_MANIFEST) | $(BUILD_DIR)
 	@out="$(BUILD_DIR)/guitarset_attributes.shard-$*.out"; env MUSIC_ANALYZER_GUITARSET_MANIFEST="$(GUITARSET_MANIFEST)" MUSIC_ANALYZER_GUITARSET_REQUIRED=1 MUSIC_ANALYZER_GUITARSET_USE_ALL=1 $(GUITARSET_SHARD_GATE_ENV) MUSIC_ANALYZER_GUITARSET_MAX_WINDOWS_PER_EXCERPT=8 MUSIC_ANALYZER_GUITARSET_MIN_WINDOW_RECALL_PERCENT=0 MUSIC_ANALYZER_GUITARSET_MIN_RECALL_PERCENT=0 MUSIC_ANALYZER_GUITARSET_MIN_PRECISION_PERCENT=0 MUSIC_ANALYZER_GUITARSET_MIN_GUITAR_RECALL_PERCENT=0 MUSIC_ANALYZER_GUITARSET_MIN_CHORD_RECALL_PERCENT=0 MUSIC_ANALYZER_GUITARSET_MIN_CHORD_PRECISION_PERCENT=0 MUSIC_ANALYZER_GUITARSET_MIN_MAJOR_MINOR_CHORD_RECALL_PERCENT=0 MUSIC_ANALYZER_GUITARSET_MIN_OTHER_CHORD_RECALL_PERCENT=0 MUSIC_ANALYZER_GUITARSET_MIN_SIMPLE_CHORD_RECALL_PERCENT=0 MUSIC_ANALYZER_GUITARSET_MIN_SIMPLE_MAJOR_MINOR_CHORD_RECALL_PERCENT=0 MUSIC_ANALYZER_GUITARSET_MIN_SIMPLE_OTHER_CHORD_RECALL_PERCENT=0 MUSIC_ANALYZER_GUITARSET_MAX_FAILURE_LINES=0 MUSIC_ANALYZER_GUITARSET_SHARD_COUNT="$(GUITARSET_SHARDS)" MUSIC_ANALYZER_GUITARSET_SHARD_INDEX="$*" MUSIC_ANALYZER_GUITARSET_ATTRIBUTE_TSV="$@" $(BUILD_DIR)/analyzer_guitarset > "$$out"
@@ -2323,8 +2335,8 @@ test-idmt-bass-lines-samples: REAL_NOTE_SAMPLE_MAX_FAILURES := $(IDMT_BASS_LINES
 test-idmt-bass-lines-samples: $(BUILD_DIR)/analyzer_real_note_samples prepare-idmt-bass-lines-samples scripts/run_with_duration.sh scripts/check_real_note_sample_shards.py
 	+$(RUN_REAL_NOTE_SAMPLE_SHARDS)
 
-$(IDMT_BASS_LINES_ATTRIBUTE_TSV): $(BUILD_DIR)/analyzer_real_note_samples $(IDMT_BASS_LINES_SAMPLE_DIR)/manifest.tsv scripts/build_sharded_tsv.sh | $(BUILD_DIR)
-	+$(SHELL) scripts/build_sharded_tsv.sh "$@" "$(MAKE)" "$(REAL_NOTE_SAMPLE_TEST_MAKE_JOBS)" $(IDMT_BASS_LINES_ATTRIBUTE_PARTS)
+$(IDMT_BASS_LINES_ATTRIBUTE_TSV): $(BUILD_DIR)/analyzer_real_note_samples $(IDMT_BASS_LINES_SAMPLE_DIR)/manifest.tsv scripts/build_sharded_tsv.sh scripts/run_with_lock.sh | $(BUILD_DIR)
+	+$(SHELL) scripts/run_with_lock.sh "$(IDMT_BASS_LINES_ATTRIBUTE_LOCK_DIR)" -- "$(SHELL)" scripts/build_sharded_tsv.sh "$@" "$(MAKE)" "$(REAL_NOTE_SAMPLE_TEST_MAKE_JOBS)" $(IDMT_BASS_LINES_ATTRIBUTE_PARTS)
 
 $(BUILD_DIR)/idmt_bass_lines_attributes.shard-%.tsv: FORCE $(BUILD_DIR)/analyzer_real_note_samples $(IDMT_BASS_LINES_SAMPLE_DIR)/manifest.tsv scripts/run_with_duration.sh | $(BUILD_DIR)
 	$(RUN_WITH_DURATION) analyzer_idmt_bass_lines_attributes_shard_$* env MUSIC_ANALYZER_REAL_NOTE_SAMPLES_REQUIRED=1 MUSIC_ANALYZER_REAL_NOTE_REQUIRED_SAMPLES="$(IDMT_BASS_LINES_MIN_BASS)" MUSIC_ANALYZER_REAL_NOTE_SAMPLE_ROOT="$(IDMT_BASS_LINES_SAMPLE_DIR)" MUSIC_ANALYZER_REAL_NOTE_MIN_BASS=0 MUSIC_ANALYZER_REAL_NOTE_MIN_GUITAR=0 MUSIC_ANALYZER_REAL_NOTE_MIN_PIANO=0 MUSIC_ANALYZER_REAL_NOTE_MIN_VOCALS=0 MUSIC_ANALYZER_REAL_NOTE_MIN_OTHER=0 MUSIC_ANALYZER_REAL_NOTE_MAX_FAILURES=999999 MUSIC_ANALYZER_REAL_NOTE_MAX_FAILURE_LINES=80 MUSIC_ANALYZER_REAL_NOTE_SHARD_COUNT="$(REAL_NOTE_SAMPLE_SHARDS)" MUSIC_ANALYZER_REAL_NOTE_SHARD_INDEX="$*" MUSIC_ANALYZER_REAL_NOTE_ATTRIBUTE_TSV="$@" $(BUILD_DIR)/analyzer_real_note_samples > "$(BUILD_DIR)/idmt_bass_lines_attributes.shard-$*.out" 2> "$(BUILD_DIR)/idmt_bass_lines_attributes.shard-$*.err"
@@ -2365,8 +2377,8 @@ test-idmt-guitar-samples: REAL_NOTE_SAMPLE_MAX_FAILURES := $(IDMT_GUITAR_MAX_FAI
 test-idmt-guitar-samples: $(BUILD_DIR)/analyzer_real_note_samples prepare-idmt-guitar-samples scripts/run_with_duration.sh scripts/check_real_note_sample_shards.py
 	+$(RUN_REAL_NOTE_SAMPLE_SHARDS)
 
-$(IDMT_GUITAR_ATTRIBUTE_TSV): $(BUILD_DIR)/analyzer_real_note_samples $(IDMT_GUITAR_SAMPLE_DIR)/manifest.tsv scripts/build_sharded_tsv.sh | $(BUILD_DIR)
-	+$(SHELL) scripts/build_sharded_tsv.sh "$@" "$(MAKE)" "$(REAL_NOTE_SAMPLE_TEST_MAKE_JOBS)" $(IDMT_GUITAR_ATTRIBUTE_PARTS)
+$(IDMT_GUITAR_ATTRIBUTE_TSV): $(BUILD_DIR)/analyzer_real_note_samples $(IDMT_GUITAR_SAMPLE_DIR)/manifest.tsv scripts/build_sharded_tsv.sh scripts/run_with_lock.sh | $(BUILD_DIR)
+	+$(SHELL) scripts/run_with_lock.sh "$(IDMT_GUITAR_ATTRIBUTE_LOCK_DIR)" -- "$(SHELL)" scripts/build_sharded_tsv.sh "$@" "$(MAKE)" "$(REAL_NOTE_SAMPLE_TEST_MAKE_JOBS)" $(IDMT_GUITAR_ATTRIBUTE_PARTS)
 
 $(BUILD_DIR)/idmt_guitar_attributes.shard-%.tsv: FORCE $(BUILD_DIR)/analyzer_real_note_samples $(IDMT_GUITAR_SAMPLE_DIR)/manifest.tsv scripts/run_with_duration.sh | $(BUILD_DIR)
 	$(RUN_WITH_DURATION) analyzer_idmt_guitar_attributes_shard_$* env MUSIC_ANALYZER_REAL_NOTE_SAMPLES_REQUIRED=1 MUSIC_ANALYZER_REAL_NOTE_REQUIRED_SAMPLES="$(IDMT_GUITAR_MIN_GUITAR)" MUSIC_ANALYZER_REAL_NOTE_SAMPLE_ROOT="$(IDMT_GUITAR_SAMPLE_DIR)" MUSIC_ANALYZER_REAL_NOTE_MIN_BASS=0 MUSIC_ANALYZER_REAL_NOTE_MIN_GUITAR=0 MUSIC_ANALYZER_REAL_NOTE_MIN_PIANO=0 MUSIC_ANALYZER_REAL_NOTE_MIN_VOCALS=0 MUSIC_ANALYZER_REAL_NOTE_MIN_OTHER=0 MUSIC_ANALYZER_REAL_NOTE_MAX_FAILURES=999999 MUSIC_ANALYZER_REAL_NOTE_MAX_FAILURE_LINES=80 MUSIC_ANALYZER_REAL_NOTE_SHARD_COUNT="$(REAL_NOTE_SAMPLE_SHARDS)" MUSIC_ANALYZER_REAL_NOTE_SHARD_INDEX="$*" MUSIC_ANALYZER_REAL_NOTE_ATTRIBUTE_TSV="$@" $(BUILD_DIR)/analyzer_real_note_samples > "$(BUILD_DIR)/idmt_guitar_attributes.shard-$*.out" 2> "$(BUILD_DIR)/idmt_guitar_attributes.shard-$*.err"

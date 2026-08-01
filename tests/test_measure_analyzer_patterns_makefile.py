@@ -1365,11 +1365,17 @@ def main() -> int:
     assert "DRUM_FULL_EXACT_ATTRIBUTE_PARTS := $(addprefix $(BUILD_DIR)/drum_full_exact_attribute_rows_,$(addsuffix .tsv,$(DRUM_SAMPLE_FULL_SHARD_IDS)))" in makefile, (
         "full drum exact attribute rows must have deterministic category-chunk shard parts"
     )
+    assert "DRUM_FULL_EXACT_ATTRIBUTE_LOCK_DIR ?= $(BUILD_DIR)/drum_full_exact_attribute_rows.lock" in makefile, (
+        "full drum exact attribute rows must have a stable lock path"
+    )
     assert "DRUM_FULL_MERGED_EXPECTED_ATTRIBUTE_ROWS ?= $(BUILD_DIR)/drum_full_merged_expected_attribute_rows.tsv" in makefile, (
         "full drum merged expected rows must have a stable aggregate TSV path"
     )
     assert "DRUM_FULL_MERGED_EXPECTED_ATTRIBUTE_PARTS := $(addprefix $(BUILD_DIR)/drum_full_merged_expected_attribute_rows_,$(addsuffix .tsv,$(DRUM_SAMPLE_FULL_SHARD_IDS)))" in makefile, (
         "full drum merged expected rows must have deterministic category-chunk shard parts"
+    )
+    assert "DRUM_FULL_MERGED_EXPECTED_ATTRIBUTE_LOCK_DIR ?= $(BUILD_DIR)/drum_full_merged_expected_attribute_rows.lock" in makefile, (
+        "full drum merged expected rows must have a stable lock path"
     )
     drum_full_attribute_parallel_recipe = target_recipe(makefile, "analyze-drum-full-gate-matrix-parallel")
     assert "$(RUN_WITH_DURATION) analyzer_drum_samples_full_attribute_rows_parallel" in drum_full_attribute_parallel_recipe, (
@@ -1377,6 +1383,9 @@ def main() -> int:
     )
     assert "scripts/build_sharded_tsv.sh \"$(DRUM_FULL_EXACT_ATTRIBUTE_ROWS)\" \"$(MAKE)\" \"$(DRUM_SAMPLE_FULL_TEST_MAKE_JOBS)\" $(DRUM_FULL_EXACT_ATTRIBUTE_PARTS)" in drum_full_attribute_parallel_recipe, (
         "full drum exact attribute rows must be built by the sharded TSV combiner"
+    )
+    assert "scripts/run_with_lock.sh \"$(DRUM_FULL_EXACT_ATTRIBUTE_LOCK_DIR)\"" in drum_full_attribute_parallel_recipe, (
+        "full drum exact attribute rows must lock shared output files"
     )
     drum_full_attribute_shard_recipe = target_recipe(makefile, "$(BUILD_DIR)/drum_full_exact_attribute_rows_%.tsv")
     assert "FORCE" in drum_full_attribute_shard_recipe.splitlines()[0], (
@@ -1403,6 +1412,9 @@ def main() -> int:
     )
     assert "scripts/build_sharded_tsv.sh \"$(DRUM_FULL_MERGED_EXPECTED_ATTRIBUTE_ROWS)\" \"$(MAKE)\" \"$(DRUM_SAMPLE_FULL_TEST_MAKE_JOBS)\" $(DRUM_FULL_MERGED_EXPECTED_ATTRIBUTE_PARTS)" in drum_full_merged_parallel_recipe, (
         "full drum merged expected rows must be built by the sharded TSV combiner"
+    )
+    assert "scripts/run_with_lock.sh \"$(DRUM_FULL_MERGED_EXPECTED_ATTRIBUTE_LOCK_DIR)\"" in drum_full_merged_parallel_recipe, (
+        "full drum merged expected rows must lock shared output files"
     )
     drum_full_merged_shard_recipe = target_recipe(
         makefile, "$(BUILD_DIR)/drum_full_merged_expected_attribute_rows_%.tsv"
@@ -1485,8 +1497,14 @@ def main() -> int:
         "analyze-hf-drum-primary-attribute-rows-parallel",
     )
     hf_attribute_parallel_recipe = target_recipe(makefile, "analyze-hf-drum-primary-attribute-rows-parallel")
+    assert "HF_DRUM_KIT_PRIMARY_ATTRIBUTE_LOCK_DIR ?= $(BUILD_DIR)/hf_drum_kit_primary_attribute_rows.lock" in makefile, (
+        "HF drum-kit attribute rows must have a stable lock path"
+    )
     assert "scripts/build_sharded_tsv.sh \"$(HF_DRUM_KIT_PRIMARY_ATTRIBUTE_ROWS)\" \"$(MAKE)\" \"$(HF_DRUM_KIT_TEST_MAKE_JOBS)\" $(HF_DRUM_KIT_PRIMARY_ATTRIBUTE_PARTS)" in hf_attribute_parallel_recipe, (
         "HF drum-kit attribute rows must be built by the sharded TSV combiner"
+    )
+    assert "scripts/run_with_lock.sh \"$(HF_DRUM_KIT_PRIMARY_ATTRIBUTE_LOCK_DIR)\"" in hf_attribute_parallel_recipe, (
+        "HF drum-kit attribute rows must lock shared output files"
     )
     hf_attribute_shard_recipe = target_recipe(makefile, "$(BUILD_DIR)/hf_drum_kit_primary_attribute_rows_%.tsv")
     assert "MUSIC_ANALYZER_DRUM_SAMPLE_VERBOSE_PRIMARY=1" in hf_attribute_shard_recipe, (
@@ -1521,8 +1539,14 @@ def main() -> int:
         "analyze-idmt-drum-primary-attribute-rows-parallel",
     )
     idmt_attribute_parallel_recipe = target_recipe(makefile, "analyze-idmt-drum-primary-attribute-rows-parallel")
+    assert "IDMT_DRUMS_PRIMARY_ATTRIBUTE_LOCK_DIR ?= $(BUILD_DIR)/idmt_drums_primary_attribute_rows.lock" in makefile, (
+        "IDMT drum attribute rows must have a stable lock path"
+    )
     assert "scripts/build_sharded_tsv.sh \"$(IDMT_DRUMS_PRIMARY_ATTRIBUTE_ROWS)\" \"$(MAKE)\" \"$(IDMT_DRUMS_TEST_MAKE_JOBS)\" $(IDMT_DRUMS_PRIMARY_ATTRIBUTE_PARTS)" in idmt_attribute_parallel_recipe, (
         "IDMT drum attribute rows must be built by the sharded TSV combiner"
+    )
+    assert "scripts/run_with_lock.sh \"$(IDMT_DRUMS_PRIMARY_ATTRIBUTE_LOCK_DIR)\"" in idmt_attribute_parallel_recipe, (
+        "IDMT drum attribute rows must lock shared output files"
     )
     idmt_attribute_shard_recipe = target_recipe(makefile, "$(BUILD_DIR)/idmt_drums_primary_attribute_rows_%.tsv")
     assert "MUSIC_ANALYZER_DRUM_SAMPLE_VERBOSE_PRIMARY=1" in idmt_attribute_shard_recipe, (
@@ -1852,8 +1876,14 @@ def main() -> int:
         "default spread matrix target must use the parallel spread row builder"
     )
     spread_parallel_recipe = target_recipe(makefile, "analyze-drum-spread-gate-matrix-parallel")
+    assert "DRUM_SPREAD_EXACT_ATTRIBUTE_LOCK_DIR ?= $(BUILD_DIR)/drum_spread_exact_attribute_rows.lock" in makefile, (
+        "spread drum exact attribute rows must have a stable lock path"
+    )
     assert "scripts/build_sharded_tsv.sh" in spread_parallel_recipe, (
         "parallel spread matrix target must concatenate sharded exact TSV rows"
+    )
+    assert "scripts/run_with_lock.sh \"$(DRUM_SPREAD_EXACT_ATTRIBUTE_LOCK_DIR)\"" in spread_parallel_recipe, (
+        "parallel spread matrix target must lock shared exact TSV rows"
     )
     assert "$(DRUM_SPREAD_EXACT_ATTRIBUTE_PARTS)" in spread_parallel_recipe, (
         "parallel spread matrix target must build the category exact row parts"
@@ -2052,17 +2082,23 @@ def main() -> int:
             "$(BUILD_DIR)/analyzer_real_note_samples",
             "$(IDMT_BASS_LINES_SAMPLE_DIR)/manifest.tsv",
             "scripts/build_sharded_tsv.sh",
+            "scripts/run_with_lock.sh",
+            "$(IDMT_BASS_LINES_ATTRIBUTE_LOCK_DIR)",
             "$(IDMT_BASS_LINES_ATTRIBUTE_PARTS)",
         ),
         "$(IDMT_GUITAR_ATTRIBUTE_TSV)": (
             "$(BUILD_DIR)/analyzer_real_note_samples",
             "$(IDMT_GUITAR_SAMPLE_DIR)/manifest.tsv",
             "scripts/build_sharded_tsv.sh",
+            "scripts/run_with_lock.sh",
+            "$(IDMT_GUITAR_ATTRIBUTE_LOCK_DIR)",
             "$(IDMT_GUITAR_ATTRIBUTE_PARTS)",
         ),
         "$(BUILD_DIR)/guitar_chord_mix_attributes.tsv": (
             "$(BUILD_DIR)/analyzer_guitarset",
             "scripts/build_sharded_tsv.sh",
+            "scripts/run_with_lock.sh",
+            "$(GUITAR_CHORD_MIX_ATTRIBUTE_LOCK_DIR)",
             "$(GUITAR_CHORD_MIX_ATTRIBUTE_PARTS)",
         ),
     }
@@ -2071,10 +2107,19 @@ def main() -> int:
         for text in required_parts:
             assert text in source_recipe, f"{target} must include {text}"
         assert "| $(BUILD_DIR)" in source_recipe, f"{target} must create output under the build dir"
+    assert "IDMT_BASS_LINES_ATTRIBUTE_LOCK_DIR ?= $(BUILD_DIR)/idmt_bass_lines_attributes.lock" in makefile, (
+        "IDMT bass-line attribute TSV must have a stable lock path"
+    )
+    assert "IDMT_GUITAR_ATTRIBUTE_LOCK_DIR ?= $(BUILD_DIR)/idmt_guitar_attributes.lock" in makefile, (
+        "IDMT guitar attribute TSV must have a stable lock path"
+    )
 
     real_note_attribute_recipe = target_recipe(makefile, "$(BUILD_DIR)/real_note_full_mix_attributes.tsv")
     assert "REAL_NOTE_FULL_MIX_ATTRIBUTE_MAKE_JOBS = $(if $(filter -j%,$(MAKEFLAGS)),,-j$(REAL_NOTE_FULL_MIX_SHARDS))" in makefile, (
         "real-note attribute shards must force -j only when the parent make has no jobserver"
+    )
+    assert "REAL_NOTE_FULL_MIX_ATTRIBUTE_LOCK_DIR ?= $(BUILD_DIR)/real_note_full_mix_attributes.lock" in makefile, (
+        "real-note attribute TSV must have a stable lock path"
     )
     assert "$(BUILD_DIR)/analyzer_real_note_samples" in real_note_attribute_recipe.splitlines()[0], (
         "real-note attribute TSV must rebuild when the analyzer binary changes"
@@ -2082,7 +2127,7 @@ def main() -> int:
     assert "scripts/build_sharded_tsv.sh" in real_note_attribute_recipe.splitlines()[0], (
         "real-note attribute TSV must rebuild when the sharded TSV helper changes"
     )
-    assert '$(SHELL) scripts/build_sharded_tsv.sh "$@" "$(MAKE)" "$(REAL_NOTE_FULL_MIX_ATTRIBUTE_MAKE_JOBS)" $(REAL_NOTE_FULL_MIX_ATTRIBUTE_PARTS)' in real_note_attribute_recipe, (
+    assert '$(SHELL) scripts/run_with_lock.sh "$(REAL_NOTE_FULL_MIX_ATTRIBUTE_LOCK_DIR)" -- "$(SHELL)" scripts/build_sharded_tsv.sh "$@" "$(MAKE)" "$(REAL_NOTE_FULL_MIX_ATTRIBUTE_MAKE_JOBS)" $(REAL_NOTE_FULL_MIX_ATTRIBUTE_PARTS)' in real_note_attribute_recipe, (
         "real-note attribute TSV must use the locked helper to build and combine shards"
     )
     real_note_attribute_shard_recipe = target_recipe(
@@ -2099,6 +2144,14 @@ def main() -> int:
         assert text in real_note_attribute_shard_recipe, (
             f"real-note attribute shard target must include {text}"
         )
+
+    vocadito_attribute_recipe = target_recipe(makefile, "$(VOCADITO_FULL_MIX_ATTRIBUTE_TSV)")
+    assert "VOCADITO_FULL_MIX_ATTRIBUTE_LOCK_DIR ?= $(BUILD_DIR)/vocadito_full_mix_attributes.lock" in makefile, (
+        "Vocadito attribute TSV must have a stable lock path"
+    )
+    assert '$(SHELL) scripts/run_with_lock.sh "$(VOCADITO_FULL_MIX_ATTRIBUTE_LOCK_DIR)" -- "$(SHELL)" scripts/build_sharded_tsv.sh "$@" "$(MAKE)" "$(VOCADITO_FULL_MIX_ATTRIBUTE_MAKE_JOBS)" $(VOCADITO_FULL_MIX_ATTRIBUTE_PARTS)' in vocadito_attribute_recipe, (
+        "Vocadito attribute TSV must use the locked helper to build and combine shards"
+    )
     for target, required_parts in {
         "$(BUILD_DIR)/idmt_bass_lines_attributes.shard-%.tsv": (
             "$(IDMT_BASS_LINES_SAMPLE_DIR)/manifest.tsv",
@@ -2131,6 +2184,9 @@ def main() -> int:
     assert "INSTRUMENT_SAMPLE_ATTRIBUTE_MAKE_JOBS = $(if $(filter -j%,$(MAKEFLAGS)),,-j$(INSTRUMENT_SAMPLE_SHARDS))" in makefile, (
         "instrument attribute shards must force -j only when the parent make has no jobserver"
     )
+    assert "INSTRUMENT_SAMPLE_ATTRIBUTE_LOCK_DIR ?= $(BUILD_DIR)/instrument_sample_attributes.lock" in makefile, (
+        "instrument attribute TSV must have a stable lock path"
+    )
     assert "$(BUILD_DIR)/analyzer_instrument_samples" in instrument_attribute_recipe.splitlines()[0], (
         "instrument attribute TSV must rebuild when the analyzer binary changes"
     )
@@ -2140,7 +2196,7 @@ def main() -> int:
     assert "scripts/build_sharded_tsv.sh" in instrument_attribute_recipe.splitlines()[0], (
         "instrument attribute TSV must rebuild when the sharded TSV helper changes"
     )
-    assert '$(SHELL) scripts/build_sharded_tsv.sh "$@" "$(MAKE)" "$(INSTRUMENT_SAMPLE_ATTRIBUTE_MAKE_JOBS)" $(INSTRUMENT_SAMPLE_ATTRIBUTE_PARTS)' in instrument_attribute_recipe, (
+    assert '$(SHELL) scripts/run_with_lock.sh "$(INSTRUMENT_SAMPLE_ATTRIBUTE_LOCK_DIR)" -- "$(SHELL)" scripts/build_sharded_tsv.sh "$@" "$(MAKE)" "$(INSTRUMENT_SAMPLE_ATTRIBUTE_MAKE_JOBS)" $(INSTRUMENT_SAMPLE_ATTRIBUTE_PARTS)' in instrument_attribute_recipe, (
         "instrument attribute TSV must use the locked helper to build and combine shards"
     )
     instrument_attribute_shard_recipe = target_recipe(
@@ -2162,13 +2218,16 @@ def main() -> int:
     assert "GUITAR_CHORD_MIX_ATTRIBUTE_MAKE_JOBS = $(if $(filter -j%,$(MAKEFLAGS)),,-j$(GUITAR_CHORD_MIX_SHARDS))" in makefile, (
         "guitar chord attribute shards must force -j only when the parent make has no jobserver"
     )
+    assert "GUITAR_CHORD_MIX_ATTRIBUTE_LOCK_DIR ?= $(BUILD_DIR)/guitar_chord_mix_attributes.lock" in makefile, (
+        "guitar chord attribute TSV must have a stable lock path"
+    )
     assert "$(BUILD_DIR)/analyzer_guitarset" in guitar_attribute_recipe.splitlines()[0], (
         "guitar chord attribute TSV must rebuild when the analyzer binary changes"
     )
     assert "scripts/build_sharded_tsv.sh" in guitar_attribute_recipe.splitlines()[0], (
         "guitar chord attribute TSV must rebuild when the sharded TSV helper changes"
     )
-    assert '$(SHELL) scripts/build_sharded_tsv.sh "$@" "$(MAKE)" "$(GUITAR_CHORD_MIX_ATTRIBUTE_MAKE_JOBS)" $(GUITAR_CHORD_MIX_ATTRIBUTE_PARTS)' in guitar_attribute_recipe, (
+    assert '$(SHELL) scripts/run_with_lock.sh "$(GUITAR_CHORD_MIX_ATTRIBUTE_LOCK_DIR)" -- "$(SHELL)" scripts/build_sharded_tsv.sh "$@" "$(MAKE)" "$(GUITAR_CHORD_MIX_ATTRIBUTE_MAKE_JOBS)" $(GUITAR_CHORD_MIX_ATTRIBUTE_PARTS)' in guitar_attribute_recipe, (
         "guitar chord attribute TSV must use the locked helper to build and combine shards"
     )
     guitar_attribute_shard_recipe = target_recipe(
@@ -2198,13 +2257,16 @@ def main() -> int:
     assert "GUITARSET_ATTRIBUTE_MAKE_JOBS = $(if $(filter -j%,$(MAKEFLAGS)),,-j$(GUITARSET_SHARDS))" in makefile, (
         "downloaded GuitarSet attribute shards must force -j only when the parent make has no jobserver"
     )
+    assert "GUITARSET_ATTRIBUTE_LOCK_DIR ?= $(BUILD_DIR)/guitarset_attributes.lock" in makefile, (
+        "downloaded GuitarSet attribute TSV must have a stable lock path"
+    )
     assert "$(BUILD_DIR)/analyzer_guitarset" in downloaded_guitarset_attribute_recipe.splitlines()[0], (
         "downloaded GuitarSet attribute TSV must rebuild when the analyzer binary changes"
     )
     assert "scripts/build_sharded_tsv.sh" in downloaded_guitarset_attribute_recipe.splitlines()[0], (
         "downloaded GuitarSet attribute TSV must rebuild when the sharded TSV helper changes"
     )
-    assert '$(SHELL) scripts/build_sharded_tsv.sh "$@" "$(MAKE)" "$(GUITARSET_ATTRIBUTE_MAKE_JOBS)" $(GUITARSET_ATTRIBUTE_PARTS)' in downloaded_guitarset_attribute_recipe, (
+    assert '$(SHELL) scripts/run_with_lock.sh "$(GUITARSET_ATTRIBUTE_LOCK_DIR)" -- "$(SHELL)" scripts/build_sharded_tsv.sh "$@" "$(MAKE)" "$(GUITARSET_ATTRIBUTE_MAKE_JOBS)" $(GUITARSET_ATTRIBUTE_PARTS)' in downloaded_guitarset_attribute_recipe, (
         "downloaded GuitarSet attribute TSV must use the locked helper to build and combine shards"
     )
     downloaded_guitarset_attribute_shard_recipe = target_recipe(
