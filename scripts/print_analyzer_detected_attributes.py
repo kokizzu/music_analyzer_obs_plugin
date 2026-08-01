@@ -883,6 +883,69 @@ def visual_strongest_row_route(row: dict[str, str]) -> str:
     return f"{expected}->{cell(row, 'buffer_visual_strongest_row')}"
 
 
+def route_sample_count(rows: list[dict[str, str]]) -> int:
+    samples = {row.get("sample_id", "") for row in rows if row.get("sample_id", "")}
+    return len(samples)
+
+
+def print_row_confusion_route_contrasts(
+    title: str,
+    rows: list[dict[str, str]],
+    *,
+    target_row_func,
+    match_func,
+    row_limit: int,
+) -> None:
+    match_rows: dict[tuple[str, str], list[dict[str, str]]] = collections.defaultdict(list)
+    confused_rows: dict[tuple[str, str, str], list[dict[str, str]]] = collections.defaultdict(list)
+
+    for row in rows:
+        family = row.get("family", "unknown")
+        source = row.get("source", "") or "--"
+        base_key = (family, source)
+        if match_func(row):
+            match_rows[base_key].append(row)
+            continue
+
+        target_row = target_row_func(row)
+        if not target_row or target_row == "--":
+            continue
+        confused_rows[(family, source, target_row)].append(row)
+
+    if not confused_rows:
+        print(f"  {title}=--")
+        return
+
+    ranked = sorted(
+        confused_rows.items(),
+        key=lambda item: (-len(item[1]), item[0]),
+    )
+    limit = len(ranked) if row_limit == 0 else max(0, row_limit)
+    print(f"  {title}:")
+    for (family, source, target_row), route_rows in ranked[:limit]:
+        base_key = (family, source)
+        matched = match_rows.get(base_key, [])
+        contrast_rows = matched + route_rows
+        contrast = numeric_feature_contrast(
+            contrast_rows,
+            is_hit=lambda row, expected_family=family, expected_source=source: (
+                row.get("family", "") == expected_family
+                and (row.get("source", "") or "--") == expected_source
+                and match_func(row)
+            ),
+            fields=NOTE_CONTRAST_FEATURES,
+            limit=row_limit,
+            positive_label="match",
+            negative_label="confused",
+        )
+        print(
+            f"    {family}/{source}->{target_row} "
+            f"confused={len(route_rows)} samples={route_sample_count(route_rows)} "
+            f"matched={len(matched)} match_samples={route_sample_count(matched)} "
+            f"contrast={contrast}"
+        )
+
+
 def partial_cells(row: dict[str, str]) -> str:
     return ",".join(
         f"p{index}:{num(row, f'partial{index}')}"
@@ -1065,10 +1128,24 @@ def report_real_note_rows(path: pathlib.Path, miss_path: pathlib.Path, row_limit
         "  first-row match-vs-confusion feature contrast="
         f"{numeric_feature_contrast(rows, is_hit=first_row_matches_expected, fields=NOTE_CONTRAST_FEATURES, limit=row_limit, positive_label='match', negative_label='confused')}"
     )
+    print_row_confusion_route_contrasts(
+        "first-row route contrasts",
+        rows,
+        target_row_func=lambda row: cell(row, "first_row"),
+        match_func=first_row_matches_expected,
+        row_limit=row_limit,
+    )
     if visual_fields:
         print(
             "  visual-row match-vs-confusion feature contrast="
             f"{numeric_feature_contrast(rows, is_hit=visual_strongest_row_matches_expected, fields=NOTE_CONTRAST_FEATURES, limit=row_limit, positive_label='match', negative_label='confused')}"
+        )
+        print_row_confusion_route_contrasts(
+            "visual-row route contrasts",
+            rows,
+            target_row_func=lambda row: cell(row, "buffer_visual_strongest_row"),
+            match_func=visual_strongest_row_matches_expected,
+            row_limit=row_limit,
         )
     print(f"  first-row routes={compact(collections.Counter(first_row_route(row) for row in rows))}")
     if visual_fields:

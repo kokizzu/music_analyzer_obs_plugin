@@ -142,6 +142,10 @@ kick.wav	kick	kick	0.9	0.1	0.0	0.9	0.1	0.1	0.1	0.1	1	0	0	0	0	0	0	0.9	0.4	0	0	0	0
     ) in output
     assert "first-row match-vs-confusion feature contrast=" in output
     assert "visual-row match-vs-confusion feature contrast=" in output
+    assert "first-row route contrasts:" in output
+    assert "piano/electronic->bass confused=1 samples=1 matched=0 match_samples=0 contrast=--" in output
+    assert "visual-row route contrasts:" in output
+    assert "piano/electronic->guitar confused=1 samples=1 matched=0 match_samples=0 contrast=--" in output
     assert "miss=0.4 d=-0.3" in output
     assert "first-row routes=guitar/acoustic->guitar=1 piano/electronic->bass=1 bass/electric->bass=1" in output
     assert "visual-strongest routes=guitar/acoustic->guitar=1 piano/electronic->guitar=1 bass/electric->bass=1" in output
