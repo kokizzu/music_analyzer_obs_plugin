@@ -278,6 +278,37 @@ def fraction_text(count: int, total: int) -> str:
     return f"{count}/{total} {count * 100.0 / total:.1f}%"
 
 
+EXPECTED_ROW_STATES = ("lit_exact", "dim_exact", "lit_octave", "dim_octave", "absent")
+
+
+def expected_row_state(exact_level: float, pitch_level: float, lit_threshold: float) -> str:
+    if exact_level >= lit_threshold:
+        return "lit_exact"
+    if exact_level > 0.0:
+        return "dim_exact"
+    if pitch_level >= lit_threshold:
+        return "lit_octave"
+    if pitch_level > 0.0:
+        return "dim_octave"
+    return "absent"
+
+
+def best_expected_row_sample_state(state: dict[str, bool]) -> str:
+    if state["lit_exact"]:
+        return "lit_exact"
+    if state["exact"]:
+        return "dim_exact"
+    if state["lit_pitch"]:
+        return "lit_octave"
+    if state["pitch"]:
+        return "dim_octave"
+    return "absent"
+
+
+def compact_state_counts(counter: collections.Counter[str], total: int) -> str:
+    return " ".join(f"{state}={fraction_text(counter[state], total)}" for state in EXPECTED_ROW_STATES)
+
+
 def expected_pitch_class(row: dict[str, str]) -> str:
     match = re.fullmatch(r"([A-G]#?)-?\d+", row.get("expected_note", ""))
     if match:
@@ -657,6 +688,8 @@ def expected_row_coverage_for_fields(
     lit_exact_buffers = 0
     lit_pitch_buffers = 0
     total_buffers = 0
+    buffer_states: collections.Counter[str] = collections.Counter()
+    family_buffer_states: dict[str, collections.Counter[str]] = collections.defaultdict(collections.Counter)
 
     for row in context_rows:
         sample_id = row.get("sample_id", "")
@@ -672,6 +705,9 @@ def expected_row_coverage_for_fields(
         exact_level, pitch_level, _pitch_delta = note_field_levels(row, field, midi)
         exact_levels.append(exact_level)
         pitch_levels.append(pitch_level)
+        row_state = expected_row_state(exact_level, pitch_level, lit_threshold)
+        buffer_states[row_state] += 1
+        family_buffer_states[family][row_state] += 1
 
         exact = exact_level > 0.0
         pitch = pitch_level > 0.0
@@ -713,6 +749,8 @@ def expected_row_coverage_for_fields(
         "lit_pitch_samples": sample_hit_count("lit_pitch"),
         "exact_level_median": statistics.median(exact_levels) if exact_levels else 0.0,
         "pitch_level_median": statistics.median(pitch_levels) if pitch_levels else 0.0,
+        "buffer_states": buffer_states,
+        "family_buffer_states": family_buffer_states,
         "family_sample_states": family_sample_states,
         "family_samples": family_samples,
     }
@@ -747,6 +785,38 @@ def append_expected_row_coverage(
         if not family_samples:
             continue
         limit = max(8, sample_limit if sample_limit > 0 else 8)
+        buffer_states = coverage["buffer_states"]
+        family_buffer_states = coverage["family_buffer_states"]
+        lines.append(
+            f"{label} buffer states "
+            + compact_state_counts(buffer_states, coverage["buffers"])
+        )
+        family_buffer_parts = []
+        for family in sorted(family_samples):
+            total_buffers = sum(family_buffer_states[family].values())
+            family_buffer_parts.append(
+                f"{family}[{compact_state_counts(family_buffer_states[family], total_buffers)}]"
+            )
+        lines.append(f"{label} buffer states by family " + " ".join(family_buffer_parts[:limit]))
+
+        sample_states: collections.Counter[str] = collections.Counter()
+        for states in family_sample_states.values():
+            for state in states.values():
+                sample_states[best_expected_row_sample_state(state)] += 1
+        lines.append(
+            f"{label} sample states "
+            + compact_state_counts(sample_states, coverage["samples"])
+        )
+        family_state_parts = []
+        for family in sorted(family_samples):
+            total = len(family_samples[family])
+            states = collections.Counter(
+                best_expected_row_sample_state(state)
+                for state in coverage["family_sample_states"][family].values()
+            )
+            family_state_parts.append(f"{family}[{compact_state_counts(states, total)}]")
+        lines.append(f"{label} sample states by family " + " ".join(family_state_parts[:limit]))
+
         parts = []
         for family in sorted(family_samples):
             total = len(family_samples[family])

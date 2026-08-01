@@ -316,6 +316,14 @@ def main() -> int:
         "expected-row sample coverage by family piano=exact:1/2 50.0%,lit:1/2 50.0%"
         in result.stdout
     )
+    expected_states = (
+        "lit_exact=1/2 50.0% dim_exact=0/2 0.0% "
+        "lit_octave=0/2 0.0% dim_octave=0/2 0.0% absent=1/2 50.0%"
+    )
+    assert f"expected-row buffer states {expected_states}" in result.stdout
+    assert f"expected-row buffer states by family piano[{expected_states}]" in result.stdout
+    assert f"expected-row sample states {expected_states}" in result.stdout
+    assert f"expected-row sample states by family piano[{expected_states}]" in result.stdout
     assert (
         "visible expected-row coverage buffers exact=1/2 50.0% pitch=1/2 50.0% "
         "lit_exact>=0.25=1/2 50.0% lit_pitch>=0.25=1/2 50.0% "
@@ -323,6 +331,13 @@ def main() -> int:
         "lit_exact>=0.25=1/2 50.0% lit_pitch>=0.25=1/2 50.0% "
         "median_exact_level=0.500 median_pitch_level=0.500"
     ) in result.stdout
+    assert f"visible expected-row buffer states {expected_states}" in result.stdout
+    assert f"visible expected-row buffer states by family piano[{expected_states}]" in result.stdout
+    assert f"visible expected-row sample states {expected_states}" in result.stdout
+    assert (
+        f"visible expected-row sample states by family piano[{expected_states}]"
+        in result.stdout
+    )
     assert "strongest-row confusion note buckets rows=2 samples=2" in result.stdout
     assert "piano/electronic C4->guitar=1" in result.stdout
     assert "piano/electronic E2->guitar=1" in result.stdout
