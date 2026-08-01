@@ -3092,6 +3092,37 @@ bool measured_other_owned_vocal_shadow_suppression_supported(const FullMixDebugC
 	return low_noise_shadow || low_centered_formant_shadow || high_centered_low_fifth_shadow;
 }
 
+bool measured_low_ambiguous_breathy_vowel_supported(const FullMixDebugCandidate &debug)
+{
+	if (debug.owner != InstrumentKind::Ambiguous)
+		return false;
+	if (debug.midi < kVocalMinMidi || debug.midi >= kFullMixVocalMinMidi)
+		return false;
+
+	const float second = debug.harmonic_ratios[1];
+	const float third = debug.harmonic_ratios[2];
+	const float fourth = debug.harmonic_ratios[3];
+	const float fifth = debug.harmonic_ratios[4];
+	return debug.spectral_level >= 0.35f &&
+	       debug.spectral_level <= 0.72f &&
+	       debug.pitch_confidence >= 0.24f &&
+	       debug.pitch_confidence <= 0.46f &&
+	       debug.periodicity >= 0.49f &&
+	       debug.periodicity <= 0.56f &&
+	       debug.harmonic_fit_error <= 0.025f &&
+	       debug.spectral_centroid >= 0.055f &&
+	       debug.spectral_centroid <= 0.075f &&
+	       debug.spectral_slope >= 0.015f &&
+	       debug.spectral_slope <= 0.045f &&
+	       debug.local_noise_level >= 0.64f &&
+	       debug.local_noise_level <= 0.76f &&
+	       second >= 0.080f &&
+	       second <= 0.15f &&
+	       third <= 0.025f &&
+	       fourth <= 0.030f &&
+	       fifth <= 0.015f;
+}
+
 bool measured_low_full_mix_vocal_display_supported(const FullMixDebugCandidate &debug)
 {
 	if (debug.midi < kVocalMinMidi || debug.midi >= kFullMixVocalMinMidi)
@@ -3103,27 +3134,7 @@ bool measured_low_full_mix_vocal_display_supported(const FullMixDebugCandidate &
 	const float third = debug.harmonic_ratios[2];
 	const float fourth = debug.harmonic_ratios[3];
 	const float fifth = debug.harmonic_ratios[4];
-	const bool low_ambiguous_breathy_vowel =
-		debug.owner == InstrumentKind::Ambiguous &&
-		debug.spectral_level >= 0.35f &&
-		debug.spectral_level <= 0.72f &&
-		debug.pitch_confidence >= 0.24f &&
-		debug.pitch_confidence <= 0.46f &&
-		debug.periodicity >= 0.49f &&
-		debug.periodicity <= 0.56f &&
-		debug.harmonic_fit_error <= 0.025f &&
-		debug.spectral_centroid >= 0.055f &&
-		debug.spectral_centroid <= 0.075f &&
-		debug.spectral_slope >= 0.015f &&
-		debug.spectral_slope <= 0.045f &&
-		debug.local_noise_level >= 0.64f &&
-		debug.local_noise_level <= 0.76f &&
-		second >= 0.080f &&
-		second <= 0.15f &&
-		third <= 0.025f &&
-		fourth <= 0.030f &&
-		fifth <= 0.015f;
-	if (low_ambiguous_breathy_vowel)
+	if (measured_low_ambiguous_breathy_vowel_supported(debug))
 		return true;
 	return debug.spectral_level >= 0.90f &&
 	       debug.pitch_confidence >= 0.50f &&
@@ -7004,8 +7015,12 @@ void add_full_mix_display_mirror(NoteCandidateList &candidates, const FullMixOwn
 		candidate_confidence = std::max(candidate_confidence, 0.46f);
 	}
 	if (measured_low_vocal_display) {
-		candidate_score = std::max(candidate_score, base_score * 0.72f);
-		candidate_confidence = std::max(candidate_confidence, 0.38f);
+		const bool measured_low_breathy_vocal =
+			measured_low_ambiguous_breathy_vowel_supported(debug);
+		candidate_score = std::max(candidate_score,
+					   base_score * (measured_low_breathy_vocal ? 0.86f : 0.72f));
+		candidate_confidence = std::max(candidate_confidence,
+						measured_low_breathy_vocal ? 0.58f : 0.38f);
 	}
 	if (row == FullMixDisplayRow::Vocal && display_midi != debug.midi &&
 	    (measured_vocal_octave_alias_priority_supported(debug) ||
