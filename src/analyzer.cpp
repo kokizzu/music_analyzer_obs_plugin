@@ -5145,6 +5145,40 @@ bool vocal_owned_noisy_low_electronic_keyboard_body_supported(const FullMixDebug
 	       fifth <= 0.002f;
 }
 
+bool vocal_owned_guitar_blend_electronic_keyboard_body_supported(const FullMixDebugCandidate &debug)
+{
+	if (debug.owner != InstrumentKind::Vocal)
+		return false;
+	if (debug.midi < 55 || debug.midi > 64)
+		return false;
+
+	const float second = debug.harmonic_ratios[1];
+	const float third = debug.harmonic_ratios[2];
+	const float fourth = debug.harmonic_ratios[3];
+	const float fifth = debug.harmonic_ratios[4];
+	return debug.vocal_score >= 0.54f &&
+	       debug.vocal_score <= 0.60f &&
+	       debug.keyboard_score <= 0.020f &&
+	       debug.guitar_score >= 0.39f &&
+	       debug.guitar_score <= 0.43f &&
+	       debug.other_score <= 0.010f &&
+	       debug.spectral_level >= 0.90f &&
+	       debug.pitch_confidence >= 0.84f &&
+	       debug.periodicity >= 0.82f &&
+	       debug.harmonic_fit_error <= 0.080f &&
+	       debug.local_noise_level <= 0.15f &&
+	       debug.spectral_centroid >= 0.18f &&
+	       debug.spectral_centroid <= 0.24f &&
+	       debug.spectral_slope >= 0.10f &&
+	       debug.spectral_slope <= 0.20f &&
+	       second >= 0.36f &&
+	       second <= 0.56f &&
+	       third >= 0.13f &&
+	       third <= 0.25f &&
+	       fourth <= 0.055f &&
+	       fifth <= 0.035f;
+}
+
 bool vocal_owned_pure_high_note_body_supported(const FullMixDebugCandidate &debug)
 {
 	if (debug.owner != InstrumentKind::Vocal)
@@ -5684,6 +5718,7 @@ bool full_mix_display_mirror_supported(FullMixDisplayRow row, const FullMixDebug
 		       vocal_owned_mid_acoustic_piano_body_supported(debug) ||
 		       vocal_owned_measured_acoustic_piano_body_supported(debug) ||
 		       vocal_owned_noisy_low_electronic_keyboard_body_supported(debug) ||
+		       vocal_owned_guitar_blend_electronic_keyboard_body_supported(debug) ||
 		       vocal_owned_pure_high_note_body_supported(debug) ||
 		       vocal_owned_upper_keyboard_body_supported(debug) ||
 		       vocal_owned_high_electronic_keyboard_body_supported(debug) ||
@@ -6736,6 +6771,11 @@ void add_full_mix_display_mirror(NoteCandidateList &candidates, const FullMixOwn
 	if (row == FullMixDisplayRow::Keyboard &&
 	    guitar_owned_dark_electronic_keyboard_body_supported(debug)) {
 		candidate_score = std::max(candidate_score, base_score * 0.96f);
+		candidate_confidence = std::max(candidate_confidence, 0.88f);
+	}
+	if (row == FullMixDisplayRow::Keyboard &&
+	    vocal_owned_guitar_blend_electronic_keyboard_body_supported(debug)) {
+		candidate_score = std::max(candidate_score, base_score * 1.12f);
 		candidate_confidence = std::max(candidate_confidence, 0.88f);
 	}
 	if (measured_low_organ_keyboard_alias)
@@ -10237,6 +10277,9 @@ void suppress_vocal_owned_same_pitch_non_vocal_shadows(NoteGrid &grid, Instrumen
 		if (row == InstrumentKind::Keyboard && vocal_owned_measured_acoustic_piano_body_supported(*debug))
 			continue;
 		if (row == InstrumentKind::Keyboard && vocal_owned_noisy_low_electronic_keyboard_body_supported(*debug))
+			continue;
+		if (row == InstrumentKind::Keyboard &&
+		    vocal_owned_guitar_blend_electronic_keyboard_body_supported(*debug))
 			continue;
 		if (row == InstrumentKind::Keyboard && vocal_owned_upper_keyboard_body_supported(*debug))
 			continue;
