@@ -23309,7 +23309,14 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 			snare_kick_shape_score_ratio <= 0.262f &&
 			snapshot.low_energy >= 0.74f &&
 			drum_segment_bands[Tom] <= 171.277f;
-		if (final_measured_shape_dominant_kick_from_tom_primary_recovery)
+		const bool final_one_shot_measured_shape_ratio_kick_from_tom_primary_recovery =
+			drum_detection_enabled && one_shot_drum_source && !generated_gm_drum_source &&
+			drum_level_[Kick] > 0.30f &&
+			drum_level_[Kick] <= 0.98f &&
+			drum_level_[Tom] > drum_level_[Kick] &&
+			tom_snare_shape_score_ratio >= 3.108f;
+		if (final_measured_shape_dominant_kick_from_tom_primary_recovery ||
+		    final_one_shot_measured_shape_ratio_kick_from_tom_primary_recovery)
 			promote_drum_primary(Kick, 0.90f);
 
 		const bool one_shot_measured_silent_bright_ride_recovery =
