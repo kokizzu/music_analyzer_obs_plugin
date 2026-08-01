@@ -3005,6 +3005,93 @@ bool measured_other_owned_harmonic_vocal_body_supported(const FullMixDebugCandid
 	       fifth <= 1.45f;
 }
 
+bool measured_other_owned_dense_vocal_body_supported(const FullMixDebugCandidate &debug)
+{
+	if (debug.owner != InstrumentKind::Other)
+		return false;
+	if (debug.midi < kFullMixVocalMinMidi || debug.midi > kVocalMaxMidi)
+		return false;
+
+	const float second = debug.harmonic_ratios[1];
+	const float third = debug.harmonic_ratios[2];
+	const float fourth = debug.harmonic_ratios[3];
+	const float fifth = debug.harmonic_ratios[4];
+	return debug.other_score >= 0.82f &&
+	       debug.vocal_score <= 0.020f &&
+	       debug.pitch_confidence >= 0.50f &&
+	       debug.periodicity >= 0.70f &&
+	       debug.harmonic_fit_error >= 0.40f &&
+	       debug.harmonic_fit_error <= 0.56f &&
+	       debug.spectral_centroid >= 0.54f &&
+	       debug.spectral_slope >= 1.50f &&
+	       debug.local_noise_level >= 0.18f &&
+	       second >= 0.45f &&
+	       second <= 0.58f &&
+	       third >= 0.70f &&
+	       third <= 0.95f &&
+	       fourth >= 1.10f &&
+	       fourth <= 1.35f &&
+	       fifth >= 0.30f &&
+	       fifth <= 0.50f;
+}
+
+bool measured_other_owned_rounded_vocal_body_supported(const FullMixDebugCandidate &debug)
+{
+	if (debug.owner != InstrumentKind::Other)
+		return false;
+	if (debug.midi < kFullMixVocalMinMidi || debug.midi > kVocalMaxMidi)
+		return false;
+
+	const float second = debug.harmonic_ratios[1];
+	const float third = debug.harmonic_ratios[2];
+	const float fourth = debug.harmonic_ratios[3];
+	const float fifth = debug.harmonic_ratios[4];
+	return debug.other_score >= 0.84f &&
+	       debug.vocal_score <= 0.020f &&
+	       debug.spectral_level >= 0.90f &&
+	       debug.pitch_confidence >= 0.82f &&
+	       debug.periodicity >= 0.84f &&
+	       debug.harmonic_fit_error >= 0.18f &&
+	       debug.harmonic_fit_error <= 0.30f &&
+	       debug.spectral_centroid >= 0.47f &&
+	       debug.spectral_centroid <= 0.53f &&
+	       debug.spectral_slope >= 1.00f &&
+	       debug.spectral_slope <= 1.30f &&
+	       debug.local_noise_level >= 0.060f &&
+	       debug.local_noise_level <= 0.12f &&
+	       second >= 0.55f &&
+	       second <= 0.66f &&
+	       third >= 0.78f &&
+	       third <= 0.95f &&
+	       fourth >= 0.48f &&
+	       fourth <= 0.62f &&
+	       fifth >= 0.34f &&
+	       fifth <= 0.46f;
+}
+
+bool measured_other_owned_vocal_shadow_suppression_supported(const FullMixDebugCandidate &debug)
+{
+	if (debug.owner != InstrumentKind::Other)
+		return false;
+	if (debug.midi < kFullMixVocalMinMidi || debug.midi > kVocalMaxMidi)
+		return false;
+
+	const float third = debug.harmonic_ratios[2];
+	const float fourth = debug.harmonic_ratios[3];
+	const float fifth = debug.harmonic_ratios[4];
+	const bool low_noise_shadow = debug.local_noise_level <= 0.078f;
+	const bool low_centered_formant_shadow =
+		debug.spectral_centroid <= 0.514f &&
+		third <= 1.24f &&
+		fifth <= 0.35f;
+	const bool high_centered_low_fifth_shadow =
+		debug.spectral_centroid >= 0.534f &&
+		third >= 1.20f &&
+		fourth <= 0.95f &&
+		fifth <= 0.35f;
+	return low_noise_shadow || low_centered_formant_shadow || high_centered_low_fifth_shadow;
+}
+
 bool measured_low_full_mix_vocal_display_supported(const FullMixDebugCandidate &debug)
 {
 	if (debug.midi < kVocalMinMidi || debug.midi >= kFullMixVocalMinMidi)
@@ -3078,6 +3165,10 @@ bool shared_vocal_pitch_display_supported(const FullMixDebugCandidate &debug)
 	if (measured_keyboard_owned_vocal_body_supported(debug))
 		return true;
 	if (measured_other_owned_harmonic_vocal_body_supported(debug))
+		return true;
+	if (measured_other_owned_dense_vocal_body_supported(debug))
+		return true;
+	if (measured_other_owned_rounded_vocal_body_supported(debug))
 		return true;
 	const bool keyboard_owned_pure_choir =
 		debug.owner == InstrumentKind::Keyboard &&
@@ -6840,7 +6931,9 @@ void add_full_mix_display_mirror(NoteCandidateList &candidates, const FullMixOwn
 		display_midi == debug.midi &&
 		(measured_owned_formant_vocal_partial_supported(debug) ||
 		 measured_other_owned_low_confidence_vocal_partial_supported(debug) ||
-		 measured_other_owned_harmonic_vocal_body_supported(debug));
+		 measured_other_owned_harmonic_vocal_body_supported(debug) ||
+		 measured_other_owned_dense_vocal_body_supported(debug) ||
+		 measured_other_owned_rounded_vocal_body_supported(debug));
 	const bool measured_keyboard_vocal_display =
 		row == FullMixDisplayRow::Vocal &&
 		measured_keyboard_owned_vocal_body_supported(debug) &&
@@ -10490,11 +10583,6 @@ void suppress_named_owned_same_pitch_vocal_shadows(NoteGrid &vocal_grid, Instrum
 			best_same_midi_vocal_shadow_debug(ownership, midi, owner_row);
 		if (!debug)
 			continue;
-		if (measured_owned_formant_vocal_partial_supported(*debug) ||
-		    measured_other_owned_low_confidence_vocal_partial_supported(*debug) ||
-		    measured_keyboard_owned_vocal_body_supported(*debug) ||
-		    measured_other_owned_harmonic_vocal_body_supported(*debug))
-			continue;
 		const float owner_score = full_mix_debug_row_score(*debug, owner_row);
 		const bool weak_keyboard_owned_vocal_shadow =
 			owner_row == InstrumentKind::Keyboard &&
@@ -10518,6 +10606,17 @@ void suppress_named_owned_same_pitch_vocal_shadows(NoteGrid &vocal_grid, Instrum
 			debug->owner == InstrumentKind::Other &&
 			owner_score_supported &&
 			vocal_level <= owner_level * kMeasuredOtherMaxVocalToOwnerLevelRatio;
+		const bool measured_other_clear_shadow =
+			measured_other_owned_vocal_shadow &&
+			measured_other_owned_vocal_shadow_suppression_supported(*debug);
+		if (!measured_other_clear_shadow &&
+		    (measured_owned_formant_vocal_partial_supported(*debug) ||
+		     measured_other_owned_low_confidence_vocal_partial_supported(*debug) ||
+		     measured_keyboard_owned_vocal_body_supported(*debug) ||
+		     measured_other_owned_harmonic_vocal_body_supported(*debug) ||
+		     measured_other_owned_dense_vocal_body_supported(*debug) ||
+		     measured_other_owned_rounded_vocal_body_supported(*debug)))
+			continue;
 		if (measured_adjacent_vocal_display_supported(*debug) &&
 		    !measured_other_owned_vocal_shadow)
 			continue;

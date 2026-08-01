@@ -456,12 +456,111 @@ def measured_other_owned_harmonic_vocal_body_supported(record: dict[str, str]) -
     )
 
 
+def measured_other_owned_dense_vocal_body_supported(record: dict[str, str]) -> bool:
+    if not owner_matches("other", record.get("debug_owner", "")):
+        return False
+    midi = record_debug_midi(record)
+    if midi is None or midi < 50 or midi > 84:
+        return False
+
+    second = as_float(record, "partial2") or 0.0
+    third = as_float(record, "partial3") or 0.0
+    fourth = as_float(record, "partial4") or 0.0
+    fifth = as_float(record, "partial5") or 0.0
+    shadow_score = as_float(record, "shadow_score")
+    target_score = as_float(record, "target_score")
+    other_score = shadow_score if shadow_score is not None else (as_float(record, "other_score") or 0.0)
+    vocal_score = target_score if target_score is not None else (as_float(record, "vocal_score") or 0.0)
+    return (
+        other_score >= 0.82
+        and vocal_score <= 0.020
+        and (as_float(record, "pitch_confidence") or 0.0) >= 0.50
+        and (as_float(record, "periodicity") or 0.0) >= 0.70
+        and (as_float(record, "fit_error") or 0.0) >= 0.40
+        and (as_float(record, "fit_error") or 0.0) <= 0.56
+        and (as_float(record, "centroid") or 0.0) >= 0.54
+        and (as_float(record, "slope") or 0.0) >= 1.50
+        and (as_float(record, "noise") or 0.0) >= 0.18
+        and second >= 0.45
+        and second <= 0.58
+        and third >= 0.70
+        and third <= 0.95
+        and fourth >= 1.10
+        and fourth <= 1.35
+        and fifth >= 0.30
+        and fifth <= 0.50
+    )
+
+
+def measured_other_owned_rounded_vocal_body_supported(record: dict[str, str]) -> bool:
+    if not owner_matches("other", record.get("debug_owner", "")):
+        return False
+    midi = record_debug_midi(record)
+    if midi is None or midi < 50 or midi > 84:
+        return False
+
+    second = as_float(record, "partial2") or 0.0
+    third = as_float(record, "partial3") or 0.0
+    fourth = as_float(record, "partial4") or 0.0
+    fifth = as_float(record, "partial5") or 0.0
+    shadow_score = as_float(record, "shadow_score")
+    target_score = as_float(record, "target_score")
+    other_score = shadow_score if shadow_score is not None else (as_float(record, "other_score") or 0.0)
+    vocal_score = target_score if target_score is not None else (as_float(record, "vocal_score") or 0.0)
+    return (
+        other_score >= 0.84
+        and vocal_score <= 0.020
+        and (as_float(record, "spectral_level") or 0.0) >= 0.90
+        and (as_float(record, "pitch_confidence") or 0.0) >= 0.82
+        and (as_float(record, "periodicity") or 0.0) >= 0.84
+        and (as_float(record, "fit_error") or 0.0) >= 0.18
+        and (as_float(record, "fit_error") or 0.0) <= 0.30
+        and (as_float(record, "centroid") or 0.0) >= 0.47
+        and (as_float(record, "centroid") or 0.0) <= 0.53
+        and (as_float(record, "slope") or 0.0) >= 1.00
+        and (as_float(record, "slope") or 0.0) <= 1.30
+        and (as_float(record, "noise") or 0.0) >= 0.060
+        and (as_float(record, "noise") or 0.0) <= 0.12
+        and second >= 0.55
+        and second <= 0.66
+        and third >= 0.78
+        and third <= 0.95
+        and fourth >= 0.48
+        and fourth <= 0.62
+        and fifth >= 0.34
+        and fifth <= 0.46
+    )
+
+
 def cxx_vocal_shadow_preserve_guard(record: dict[str, str]) -> bool:
     return (
         measured_owned_formant_vocal_partial_supported(record)
         or measured_other_owned_low_confidence_vocal_partial_supported(record)
         or measured_keyboard_owned_vocal_body_supported(record)
         or measured_other_owned_harmonic_vocal_body_supported(record)
+        or measured_other_owned_dense_vocal_body_supported(record)
+        or measured_other_owned_rounded_vocal_body_supported(record)
+    )
+
+
+def measured_other_vocal_clear_shadow_supported(record: dict[str, str]) -> bool:
+    if not owner_matches("other", record.get("debug_owner", "")):
+        return False
+    midi = record_debug_midi(record)
+    if midi is None or midi < 50 or midi > 84:
+        return False
+    third = as_float(record, "partial3") or 0.0
+    fourth = as_float(record, "partial4") or 0.0
+    fifth = as_float(record, "partial5") or 0.0
+    centroid = as_float(record, "centroid") or 0.0
+    low_noise_shadow = (as_float(record, "noise") or 0.0) <= 0.078
+    low_centered_formant_shadow = centroid <= 0.514 and third <= 1.24 and fifth <= 0.35
+    high_centered_low_fifth_shadow = (
+        centroid >= 0.534 and third >= 1.20 and fourth <= 0.95 and fifth <= 0.35
+    )
+    return (
+        shadow_rule_matches(record, "runtime_other_vocal_measured")
+        and (low_noise_shadow or low_centered_formant_shadow or high_centered_low_fifth_shadow)
     )
 
 
@@ -593,8 +692,9 @@ def shadow_rule_matches(record: dict[str, str], rule: str) -> bool:
             and target_level <= shadow_level * 0.48
         )
     if rule == "runtime_other_vocal_cpp_guarded":
-        return shadow_rule_matches(record, "runtime_other_vocal_measured") and not cxx_vocal_shadow_preserve_guard(
-            record
+        return shadow_rule_matches(record, "runtime_other_vocal_measured") and (
+            not cxx_vocal_shadow_preserve_guard(record)
+            or measured_other_vocal_clear_shadow_supported(record)
         )
     raise ValueError(f"unknown simulation rule `{rule}`")
 

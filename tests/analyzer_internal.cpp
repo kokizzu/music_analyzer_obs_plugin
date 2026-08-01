@@ -755,6 +755,91 @@ void check_other_owned_same_pitch_vocal_shadow_uses_measured_threshold(Runner &r
 						      InstrumentKind::Other, -1);
 	runner.expect(note_grid_midi_visual_level(protected_vocal_grid, kProtectedMidi) > 0.0f,
 		      "same-pitch other vocal shadow: expected stronger protected vocal to stay visible");
+
+	auto make_formant_shadow = [](int midi) {
+		FullMixDebugCandidate debug = make_adjacent_other_vocal_shadow_debug(midi);
+		debug.other_score = 0.88f;
+		debug.spectral_level = 0.81f;
+		debug.pitch_confidence = 0.65f;
+		debug.periodicity = 0.82f;
+		debug.harmonic_fit_error = 0.35f;
+		debug.local_noise_level = 0.09f;
+		debug.spectral_centroid = 0.504f;
+		debug.spectral_slope = 1.19f;
+		debug.adjacent_lower_ratio = 0.108f;
+		debug.adjacent_upper_ratio = 0.303f;
+		debug.harmonic_ratios[1] = 0.77f;
+		debug.harmonic_ratios[2] = 1.23f;
+		debug.harmonic_ratios[3] = 0.59f;
+		debug.harmonic_ratios[4] = 0.28f;
+		return debug;
+	};
+
+	static constexpr int kMeasuredFormantShadowMidi = 65;
+	NoteGrid measured_formant_vocal_grid = {};
+	set_midi(measured_formant_vocal_grid, kMeasuredFormantShadowMidi, 0.42f);
+	InstrumentState measured_formant_vocal_state = {};
+	NoteGrid measured_formant_other_grid = {};
+	set_midi(measured_formant_other_grid, kMeasuredFormantShadowMidi, 0.88f);
+	FullMixOwnership measured_formant_ownership = {};
+	measured_formant_ownership.debug_candidate_count = 1;
+	measured_formant_ownership.debug_candidates[0] = make_formant_shadow(kMeasuredFormantShadowMidi);
+	suppress_named_owned_same_pitch_vocal_shadows(measured_formant_vocal_grid,
+						      measured_formant_vocal_state,
+						      measured_formant_other_grid,
+						      measured_formant_ownership,
+						      InstrumentKind::Other, -1);
+	runner.expect(note_grid_midi_visual_level(measured_formant_vocal_grid,
+						  kMeasuredFormantShadowMidi) <= 0.0f,
+		      "same-pitch other vocal shadow: expected measured formant shadow to clear");
+
+	static constexpr int kFormantProtectedMidi = 66;
+	NoteGrid formant_vocal_grid = {};
+	set_midi(formant_vocal_grid, kFormantProtectedMidi, 0.42f);
+	InstrumentState formant_vocal_state = {};
+	NoteGrid formant_other_grid = {};
+	set_midi(formant_other_grid, kFormantProtectedMidi, 0.88f);
+	FullMixOwnership formant_ownership = {};
+	formant_ownership.debug_candidate_count = 1;
+	formant_ownership.debug_candidates[0] = make_formant_shadow(kFormantProtectedMidi);
+	formant_ownership.debug_candidates[0].local_noise_level = 0.09f;
+	formant_ownership.debug_candidates[0].spectral_centroid = 0.52f;
+	formant_ownership.debug_candidates[0].harmonic_ratios[2] = 1.35f;
+	suppress_named_owned_same_pitch_vocal_shadows(formant_vocal_grid,
+						      formant_vocal_state,
+						      formant_other_grid,
+						      formant_ownership,
+						      InstrumentKind::Other, -1);
+	runner.expect(note_grid_midi_visual_level(formant_vocal_grid, kFormantProtectedMidi) > 0.0f,
+		      "same-pitch other vocal shadow: expected protected formant-like vocal body to stay visible");
+
+	static constexpr int kDenseVocalBodyMidi = 63;
+	NoteGrid dense_vocal_grid = {};
+	set_midi(dense_vocal_grid, kDenseVocalBodyMidi, 0.42f);
+	InstrumentState dense_vocal_state = {};
+	NoteGrid dense_other_grid = {};
+	set_midi(dense_other_grid, kDenseVocalBodyMidi, 1.00f);
+	FullMixOwnership dense_ownership = {};
+	dense_ownership.debug_candidate_count = 1;
+	dense_ownership.debug_candidates[0] = make_adjacent_other_vocal_shadow_debug(kDenseVocalBodyMidi);
+	dense_ownership.debug_candidates[0].other_score = 0.88f;
+	dense_ownership.debug_candidates[0].pitch_confidence = 0.57f;
+	dense_ownership.debug_candidates[0].periodicity = 0.73f;
+	dense_ownership.debug_candidates[0].harmonic_fit_error = 0.46f;
+	dense_ownership.debug_candidates[0].spectral_centroid = 0.56f;
+	dense_ownership.debug_candidates[0].spectral_slope = 1.64f;
+	dense_ownership.debug_candidates[0].local_noise_level = 0.22f;
+	dense_ownership.debug_candidates[0].harmonic_ratios[1] = 0.51f;
+	dense_ownership.debug_candidates[0].harmonic_ratios[2] = 0.83f;
+	dense_ownership.debug_candidates[0].harmonic_ratios[3] = 1.24f;
+	dense_ownership.debug_candidates[0].harmonic_ratios[4] = 0.40f;
+	suppress_named_owned_same_pitch_vocal_shadows(dense_vocal_grid,
+						      dense_vocal_state,
+						      dense_other_grid,
+						      dense_ownership,
+						      InstrumentKind::Other, -1);
+	runner.expect(note_grid_midi_visual_level(dense_vocal_grid, kDenseVocalBodyMidi) > 0.0f,
+		      "same-pitch other vocal shadow: expected dense vocal body to stay visible");
 }
 
 FullMixDebugCandidate make_vocal_bass_shadow_debug(int midi)
