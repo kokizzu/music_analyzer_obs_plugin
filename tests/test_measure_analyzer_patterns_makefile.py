@@ -785,6 +785,9 @@ def main() -> int:
         "REAL_NOTE_FULL_MIX_AGG_MIN_FIRST_ROW_PERCENT ?= 30",
         "REAL_NOTE_FULL_MIX_AGG_MIN_GUITAR_FIRST_ROW_PERCENT ?= 43",
         "REAL_NOTE_FULL_MIX_AGG_MIN_OTHER_FIRST_ROW_PERCENT ?= 15",
+        "REAL_NOTE_FULL_MIX_AGG_MIN_VISUAL_ROW_PERCENT ?= 38",
+        "REAL_NOTE_FULL_MIX_AGG_MIN_GUITAR_VISUAL_ROW_PERCENT ?= 15",
+        "REAL_NOTE_FULL_MIX_AGG_MIN_OTHER_VISUAL_ROW_PERCENT ?= 30",
     ]:
         assert text in makefile, f"real-note aggregate gate must include {text}"
     assert "$(MAKE) $(REAL_NOTE_FULL_MIX_TEST_MAKE_JOBS) REAL_NOTE_FULL_MIX_SHARD_OUTPUT_PREFIX=\"$(REAL_NOTE_FULL_MIX_SHARD_OUTPUT_PREFIX)\" $(REAL_NOTE_FULL_MIX_SHARD_TARGETS)" in real_note_sharded_recipe, (
@@ -804,8 +807,11 @@ def main() -> int:
     )
     for text in [
         "--min-first-row-percent \"$(REAL_NOTE_FULL_MIX_AGG_MIN_FIRST_ROW_PERCENT)\"",
+        "--min-visual-row-percent \"$(REAL_NOTE_FULL_MIX_AGG_MIN_VISUAL_ROW_PERCENT)\"",
         "--guitar-min-first-row-percent \"$(REAL_NOTE_FULL_MIX_AGG_MIN_GUITAR_FIRST_ROW_PERCENT)\"",
         "--other-min-first-row-percent \"$(REAL_NOTE_FULL_MIX_AGG_MIN_OTHER_FIRST_ROW_PERCENT)\"",
+        "--guitar-min-visual-row-percent \"$(REAL_NOTE_FULL_MIX_AGG_MIN_GUITAR_VISUAL_ROW_PERCENT)\"",
+        "--other-min-visual-row-percent \"$(REAL_NOTE_FULL_MIX_AGG_MIN_OTHER_VISUAL_ROW_PERCENT)\"",
         "$(REAL_NOTE_FULL_MIX_SHARD_OUTS)",
     ]:
         assert text in real_note_sharded_recipe, (
@@ -842,6 +848,8 @@ def main() -> int:
         "--min-any-hit-percent \"$(VOCADITO_FULL_MIX_MIN_ANY_HIT_PERCENT)\"",
         "--vocals-min-expected-row-percent \"$(VOCADITO_FULL_MIX_MIN_VOCALS_EXPECTED_ROW_PERCENT)\"",
         "--vocals-min-first-row-percent \"$(VOCADITO_FULL_MIX_MIN_VOCALS_FIRST_ROW_PERCENT)\"",
+        "--min-visual-row-percent \"$(VOCADITO_FULL_MIX_MIN_VISUAL_ROW_PERCENT)\"",
+        "--vocals-min-visual-row-percent \"$(VOCADITO_FULL_MIX_MIN_VOCALS_VISUAL_ROW_PERCENT)\"",
         "--max-drum-active-percent \"$(VOCADITO_FULL_MIX_MAX_DRUM_ACTIVE_PERCENT)\"",
         "$(VOCADITO_FULL_MIX_SHARD_OUTS)",
     ]:

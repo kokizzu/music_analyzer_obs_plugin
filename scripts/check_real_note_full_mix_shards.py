@@ -32,6 +32,16 @@ def percent(hit: int, total: int) -> int:
     return hit * 100 // total if total > 0 else 0
 
 
+def confusion_pair(confusion: dict[str, dict[str, int]], family: str) -> tuple[int, int]:
+    return confusion[family][family], sum(confusion[family].values())
+
+
+def aggregate_confusion_pair(confusion: dict[str, dict[str, int]]) -> tuple[int, int]:
+    hit = sum(confusion[family][family] for family in FAMILIES)
+    total = sum(sum(confusion[family].values()) for family in FAMILIES)
+    return hit, total
+
+
 def fail(message: str) -> None:
     print(f"check_real_note_full_mix_shards: {message}", file=sys.stderr)
     raise SystemExit(1)
@@ -264,11 +274,13 @@ def validate(
     row_source_routes: Counter[str],
     visual_source_routes: Counter[str],
 ) -> None:
+    aggregate_visual_hit, aggregate_visual_total = aggregate_confusion_pair(visual_confusion)
     checks = [
         ("any-row", summary["any_hit"], summary["any_total"], args.min_any_hit_percent),
         ("expected-row", summary["expected_hit"], summary["expected_total"],
          args.min_expected_row_percent),
         ("first-row", summary["first_hit"], summary["first_total"], args.min_first_row_percent),
+        ("visual-row", aggregate_visual_hit, aggregate_visual_total, args.min_visual_row_percent),
     ]
     for name, hit, total, threshold in checks:
         value = percent(hit, total)
@@ -278,12 +290,15 @@ def validate(
     for family in FAMILIES:
         expected_threshold = arg_threshold(args, family, "min_expected_row_percent")
         first_threshold = arg_threshold(args, family, "min_first_row_percent")
+        visual_threshold = arg_threshold(args, family, "min_visual_row_percent")
         expected_hit = summary[f"{family}_expected_hit"]
         expected_total = summary[f"{family}_expected_total"]
         first_hit = summary[f"{family}_first_hit"]
         first_total = summary[f"{family}_first_total"]
+        visual_hit, visual_total = confusion_pair(visual_confusion, family)
         expected_value = percent(expected_hit, expected_total)
         first_value = percent(first_hit, first_total)
+        visual_value = percent(visual_hit, visual_total)
         if expected_value < expected_threshold:
             fail(
                 f"expected full-mix {family} expected-row >= {expected_threshold}%, "
@@ -293,6 +308,11 @@ def validate(
             fail(
                 f"expected full-mix {family} first-row >= {first_threshold}%, "
                 f"got {first_value}% ({first_hit}/{first_total})"
+            )
+        if visual_value < visual_threshold:
+            fail(
+                f"expected full-mix {family} visual-row >= {visual_threshold}%, "
+                f"got {visual_value}% ({visual_hit}/{visual_total})"
             )
 
     drum_percent = percent(summary["drum_active"], summary["drum_windows"])
@@ -317,6 +337,7 @@ def validate(
         f"(usable {summary['usable']}, any-row {summary['any_hit']}/{summary['any_total']}, "
         f"expected-row {summary['expected_hit']}/{summary['expected_total']}, "
         f"first-row {summary['first_hit']}/{summary['first_total']}, "
+        f"visual-row {aggregate_visual_hit}/{aggregate_visual_total}, "
         f"drum-active-windows {summary['drum_active']}/{summary['drum_windows']})"
     )
     print(
@@ -333,6 +354,14 @@ def validate(
             for family in FAMILIES
         )
     )
+    print(
+        "check_real_note_full_mix_shards: visual-row-by-family "
+        + " ".join(
+            f"{family}={confusion_pair(visual_confusion, family)[0]}/"
+            f"{confusion_pair(visual_confusion, family)[1]}"
+            for family in FAMILIES
+        )
+    )
     print_confusion("row-confusion", confusion)
     print_confusion("visual-row-confusion", visual_confusion)
     print_source_routes("row-confusion", row_source_routes)
@@ -345,6 +374,7 @@ def main() -> int:
     parser.add_argument("--min-any-hit-percent", type=int, default=99)
     parser.add_argument("--min-expected-row-percent", type=int, default=80)
     parser.add_argument("--min-first-row-percent", type=int, default=25)
+    parser.add_argument("--min-visual-row-percent", type=int, default=0)
     parser.add_argument("--max-drum-active-percent", type=int, default=25)
     parser.add_argument(
         "--max-row-source-route",
@@ -363,6 +393,7 @@ def main() -> int:
     for family in FAMILIES:
         parser.add_argument(f"--{family}-min-expected-row-percent", type=int)
         parser.add_argument(f"--{family}-min-first-row-percent", type=int)
+        parser.add_argument(f"--{family}-min-visual-row-percent", type=int)
     args = parser.parse_args()
 
     summary: dict[str, int] = {}
