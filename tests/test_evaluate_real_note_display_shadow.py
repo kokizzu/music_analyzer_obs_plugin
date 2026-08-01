@@ -946,6 +946,64 @@ def main() -> int:
             text=True,
             stdout=subprocess.PIPE,
         )
+        guarded_other_vocal_path = pathlib.Path(tmp) / "guarded_other_vocal.tsv"
+        guarded_other_vocal_path.write_text(
+            "\t".join(HEADER)
+            + "\n"
+            + "\t".join(
+                row(
+                    sample_id="measured_other_vocal_formant_guard",
+                    family="other",
+                    source="acoustic",
+                    expected_note="F4",
+                    expected_midi="65",
+                    first_row="other",
+                    debug_note="F4",
+                    debug_midi="65",
+                    debug_owner="other",
+                    bass_score="0.00",
+                    keyboard_score="0.00",
+                    guitar_score="0.00",
+                    vocal_score="0.00",
+                    other_score="0.88",
+                    spectral_level="0.81",
+                    pitch_confidence="0.65",
+                    periodicity="0.82",
+                    fit_error="0.35",
+                    noise="0.09",
+                    partial2="0.77",
+                    partial3="1.23",
+                    partial4="0.59",
+                    partial5="0.28",
+                    bass_notes="",
+                    guitar_notes="",
+                    piano_notes="",
+                    vocal_notes="F4:0.42",
+                    other_notes="F4:0.88",
+                )
+            )
+            + "\n",
+            encoding="utf-8",
+        )
+        guarded_other_vocal_result = subprocess.run(
+            [
+                sys.executable,
+                str(ROOT / "scripts" / "evaluate_real_note_display_shadow.py"),
+                str(guarded_other_vocal_path),
+                "--shadow-row",
+                "other",
+                "--target-row",
+                "vocals",
+                "--min-shadow-level",
+                "0.10",
+                "--min-target-level",
+                "0.10",
+                "--summary-only",
+            ],
+            check=True,
+            text=True,
+            stdout=subprocess.PIPE,
+        )
         measured_vocal_bass_runtime_result = subprocess.run(
             [
                 sys.executable,
@@ -1116,6 +1174,9 @@ def main() -> int:
     assert "simulation_net_hits=2 simulation_gain_per_protected=inf" in compact_threshold_output, (
         compact_threshold_output
     )
+    assert "guarded=runtime_other_vocal_cpp_guarded:1/0" in compact_threshold_output, (
+        compact_threshold_output
+    )
     assert "piano->same-pitch guitar suppressor simulations" not in compact_threshold_output, (
         compact_threshold_output
     )
@@ -1139,6 +1200,16 @@ def main() -> int:
     assert (
         "runtime_other_vocal_measured extras=1/1 protected=0/1 precision=100.0% protected_rate=0.0%"
     ) in measured_other_vocal_runtime_output, measured_other_vocal_runtime_output
+    assert (
+        "runtime_other_vocal_cpp_guarded extras=1/1 protected=0/1 precision=100.0% protected_rate=0.0%"
+    ) in measured_other_vocal_runtime_output, measured_other_vocal_runtime_output
+    guarded_other_vocal_output = guarded_other_vocal_result.stdout
+    assert (
+        "runtime_other_vocal_measured extras=1/1 protected=0/0 precision=100.0% protected_rate=0.0%"
+    ) in guarded_other_vocal_output, guarded_other_vocal_output
+    assert (
+        "runtime_other_vocal_cpp_guarded extras=0/1 protected=0/0 precision=0.0% protected_rate=0.0%"
+    ) in guarded_other_vocal_output, guarded_other_vocal_output
     measured_vocal_bass_runtime_output = measured_vocal_bass_runtime_result.stdout
     assert (
         "vocals->same-pitch bass extras rows=1 samples=1"

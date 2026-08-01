@@ -81,6 +81,7 @@ def parse_report(path: pathlib.Path) -> list[Candidate]:
         route = stripped.split(" extras=", 1)[0]
         simulation = stripped.split(" simulation=", 1)[1].split(" threshold=", 1)[0]
         threshold = stripped.split(" threshold=", 1)[1].split(" simulation_net_hits=", 1)[0]
+        guarded = stripped.split(" guarded=", 1)[1].split()[0] if " guarded=" in stripped else ""
 
         if threshold != "none":
             match = SHADOW_THRESHOLD_RE.match(threshold)
@@ -91,6 +92,8 @@ def parse_report(path: pathlib.Path) -> list[Candidate]:
                 rule = f"threshold {rule}; simulation={simulation}"
             else:
                 rule = f"threshold {rule}"
+            if guarded:
+                rule = f"{rule}; guarded={guarded}"
             return Candidate(
                 kind="shadow",
                 section=route,
@@ -104,10 +107,13 @@ def parse_report(path: pathlib.Path) -> list[Candidate]:
         match = SHADOW_SIMULATION_RE.match(simulation)
         if not match:
             return None
+        rule = f"simulation {match.group('rule')}"
+        if guarded:
+            rule = f"{rule}; guarded={guarded}"
         return Candidate(
             kind="shadow",
             section=route,
-            rule=f"simulation {match.group('rule')}",
+            rule=rule,
             pos_rows=int(match.group("extra_rows")),
             neg_rows=int(match.group("protected_rows")),
         )

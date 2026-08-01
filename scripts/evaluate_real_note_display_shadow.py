@@ -108,6 +108,7 @@ SIMULATION_RULES = (
     "runtime_other_bass_measured",
     "runtime_other_bass_guarded",
     "runtime_other_vocal_measured",
+    "runtime_other_vocal_cpp_guarded",
 )
 
 
@@ -156,6 +157,13 @@ def as_int(row: dict[str, str], field: str) -> int | None:
     if value is None:
         return None
     return int(round(value))
+
+
+def record_debug_midi(record: dict[str, str]) -> int | None:
+    value = as_int(record, "debug_midi")
+    if value is not None:
+        return value
+    return midi_from_note(record.get("debug_note", ""))
 
 
 def quantile(values: list[float], fraction: float) -> float:
@@ -278,6 +286,7 @@ def build_record(
     if debug:
         for field in (
             "debug_note",
+            "debug_midi",
             "debug_owner",
             "debug_conf",
             "spectral_level",
@@ -302,6 +311,7 @@ def build_record(
         record["shadow_score"] = debug.get(shadow_score_field, "")
     else:
         record["debug_note"] = ""
+        record["debug_midi"] = ""
         record["debug_owner"] = ""
         record["target_score"] = ""
         record["shadow_score"] = ""
@@ -311,6 +321,148 @@ def build_record(
 def owner_matches(row_name: str, owner: str) -> bool:
     aliases = ROW_OWNER_ALIASES.get(row_name, {row_name})
     return (owner or "").strip().lower() in aliases
+
+
+def measured_other_owned_low_confidence_vocal_partial_supported(record: dict[str, str]) -> bool:
+    return (
+        owner_matches("other", record.get("debug_owner", ""))
+        and (as_float(record, "pitch_confidence") or 0.0) <= 0.468
+        and (as_float(record, "noise") or 0.0) <= 0.028
+        and (as_float(record, "partial2") or 0.0) >= 0.884
+    )
+
+
+def measured_owned_formant_vocal_partial_supported(record: dict[str, str]) -> bool:
+    midi = record_debug_midi(record)
+    if midi is None or midi < 50 or midi > 84:
+        return False
+
+    owner = record.get("debug_owner", "")
+    third = as_float(record, "partial3") or 0.0
+    fourth = as_float(record, "partial4") or 0.0
+    sparse_other_or_guitar_formant = (
+        (owner_matches("other", owner) or owner_matches("guitar", owner))
+        and (as_float(record, "adjacent_lower_ratio") or 0.0) <= 0.279
+        and third >= 1.218
+        and fourth <= 0.740
+    )
+    periodic_named_formant = (
+        (
+            owner_matches("other", owner)
+            or owner_matches("guitar", owner)
+            or owner.strip().lower() in {"amb", "ambiguous"}
+        )
+        and (as_float(record, "noise") or 0.0) <= 0.133
+        and third >= 1.214
+        and (as_float(record, "periodicity") or 0.0) >= 0.699
+    )
+    return sparse_other_or_guitar_formant or periodic_named_formant
+
+
+def measured_keyboard_owned_vocal_body_supported(record: dict[str, str]) -> bool:
+    if not owner_matches("piano", record.get("debug_owner", "")):
+        return False
+    midi = record_debug_midi(record)
+    if midi is None or midi < 50 or midi > 84:
+        return False
+
+    keyboard_score = as_float(record, "shadow_score") or as_float(record, "keyboard_score") or 0.0
+    guitar_score = as_float(record, "guitar_score") or 0.0
+    vocal_score = as_float(record, "target_score") or as_float(record, "vocal_score") or 0.0
+    other_score = as_float(record, "other_score") or 0.0
+    second = as_float(record, "partial2") or 0.0
+    third = as_float(record, "partial3") or 0.0
+    fourth = as_float(record, "partial4") or 0.0
+    fifth = as_float(record, "partial5") or 0.0
+    rounded_mid_body = (
+        keyboard_score >= 0.69
+        and keyboard_score <= 0.86
+        and guitar_score >= 0.14
+        and guitar_score <= 0.32
+        and vocal_score <= 0.020
+        and other_score <= 0.020
+        and (as_float(record, "spectral_level") or 0.0) >= 0.62
+        and (as_float(record, "pitch_confidence") or 0.0) >= 0.60
+        and (as_float(record, "periodicity") or 0.0) >= 0.78
+        and (as_float(record, "fit_error") or 0.0) <= 0.12
+        and (as_float(record, "centroid") or 0.0) >= 0.17
+        and (as_float(record, "centroid") or 0.0) <= 0.36
+        and (as_float(record, "slope") or 0.0) >= 0.21
+        and (as_float(record, "slope") or 0.0) <= 0.62
+        and second >= 0.13
+        and second <= 0.40
+        and third >= 0.12
+        and third <= 0.42
+        and fourth <= 0.32
+        and fifth <= 0.18
+    )
+    octave_alias_body = (
+        keyboard_score >= 0.78
+        and guitar_score >= 0.15
+        and guitar_score <= 0.23
+        and vocal_score <= 0.020
+        and other_score <= 0.020
+        and (as_float(record, "spectral_level") or 0.0) >= 0.70
+        and (as_float(record, "pitch_confidence") or 0.0) >= 0.66
+        and (as_float(record, "periodicity") or 0.0) >= 0.81
+        and (as_float(record, "fit_error") or 0.0) <= 0.10
+        and (as_float(record, "slope") or 0.0) >= 0.24
+        and (as_float(record, "slope") or 0.0) <= 0.38
+        and second >= 0.13
+        and second <= 0.22
+        and third >= 0.12
+        and third <= 0.31
+        and fourth <= 0.30
+        and fifth <= 0.08
+    )
+    return rounded_mid_body or octave_alias_body
+
+
+def measured_other_owned_harmonic_vocal_body_supported(record: dict[str, str]) -> bool:
+    if not owner_matches("other", record.get("debug_owner", "")):
+        return False
+    midi = record_debug_midi(record)
+    if midi is None or midi < 50 or midi > 84:
+        return False
+
+    second = as_float(record, "partial2") or 0.0
+    third = as_float(record, "partial3") or 0.0
+    fourth = as_float(record, "partial4") or 0.0
+    fifth = as_float(record, "partial5") or 0.0
+    return (
+        (as_float(record, "other_score") or 0.0) >= 0.82
+        and (as_float(record, "keyboard_score") or 0.0) >= 0.035
+        and (as_float(record, "keyboard_score") or 0.0) <= 0.12
+        and (as_float(record, "guitar_score") or 0.0) <= 0.11
+        and (as_float(record, "vocal_score") or 0.0) <= 0.020
+        and (as_float(record, "spectral_level") or 0.0) >= 0.74
+        and (as_float(record, "pitch_confidence") or 0.0) >= 0.50
+        and (as_float(record, "periodicity") or 0.0) >= 0.56
+        and (as_float(record, "harmonicity") or 0.0) >= 1.80
+        and (as_float(record, "fit_error") or 0.0) <= 0.86
+        and (as_float(record, "centroid") or 0.0) >= 0.49
+        and (as_float(record, "centroid") or 0.0) <= 0.66
+        and (as_float(record, "slope") or 0.0) >= 1.10
+        and (as_float(record, "slope") or 0.0) <= 2.40
+        and (as_float(record, "noise") or 0.0) <= 0.36
+        and second >= 0.30
+        and second <= 0.58
+        and third >= 0.30
+        and third <= 1.10
+        and fourth >= 0.50
+        and fourth <= 2.20
+        and fifth >= 0.18
+        and fifth <= 1.45
+    )
+
+
+def cxx_vocal_shadow_preserve_guard(record: dict[str, str]) -> bool:
+    return (
+        measured_owned_formant_vocal_partial_supported(record)
+        or measured_other_owned_low_confidence_vocal_partial_supported(record)
+        or measured_keyboard_owned_vocal_body_supported(record)
+        or measured_other_owned_harmonic_vocal_body_supported(record)
+    )
 
 
 def shadow_rule_matches(record: dict[str, str], rule: str) -> bool:
@@ -440,6 +592,10 @@ def shadow_rule_matches(record: dict[str, str], rule: str) -> bool:
             and target_score <= shadow_score * 0.15
             and target_level <= shadow_level * 0.48
         )
+    if rule == "runtime_other_vocal_cpp_guarded":
+        return shadow_rule_matches(record, "runtime_other_vocal_measured") and not cxx_vocal_shadow_preserve_guard(
+            record
+        )
     raise ValueError(f"unknown simulation rule `{rule}`")
 
 
@@ -502,6 +658,14 @@ def best_safe_simulation(records: list[dict[str, str]]) -> tuple[str, int, int] 
         if best is None or extra_hits > best[1]:
             best = (rule, extra_hits, protected_hits)
     return best
+
+
+def simulation_result(records: list[dict[str, str]], rule: str) -> tuple[str, int, int]:
+    extras = [record for record in records if record["protected"] == "0"]
+    protected = [record for record in records if record["protected"] == "1"]
+    extra_hits = sum(1 for record in extras if shadow_rule_matches(record, rule))
+    protected_hits = sum(1 for record in protected if shadow_rule_matches(record, rule))
+    return (rule, extra_hits, protected_hits)
 
 
 def threshold_rule_matches(
@@ -933,6 +1097,10 @@ def print_compact_route_summary(
                 f" simulation_net_hits={extra_hits - protected_hits} "
                 f"simulation_gain_per_protected={gain_per_protected(extra_hits, protected_hits)}"
             )
+        guarded_simulation = summary["guarded_simulation"]
+        if guarded_simulation is not None:
+            rule, extra_hits, protected_hits = guarded_simulation
+            line += f" guarded={rule}:{extra_hits}/{protected_hits}"
         print(line)
 
 
@@ -980,6 +1148,11 @@ def compact_route_summary(payload: tuple[object, ...]) -> dict[str, object]:
         "protected_total": len(protected),
         "protected_samples": len({record.get("sample_id", "") for record in protected}),
         "safe_simulation": best_safe_simulation(route_records),
+        "guarded_simulation": (
+            simulation_result(route_records, "runtime_other_vocal_cpp_guarded")
+            if route_text == "other->same-pitch vocals"
+            else None
+        ),
         "best_threshold": matches[0] if matches else None,
         "threshold_searched": bool(threshold_search),
     }

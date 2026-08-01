@@ -35,7 +35,7 @@ route snare->tom positives=492 rows=492 protected_correct=13126 rows=13126
 compact route summary
   routes=2 routes_with_extras=2 safe_simulation_routes=2 safe_simulation_extra_hits=24
   safe_threshold_routes=1 no_safe_threshold_routes=1 safe_threshold_extra_hits=23 safe_threshold_protected_hits=0
-  other->same-pitch vocals extras=694/310 protected=11/9 simulation=runtime_other_vocal_measured:23/0 threshold=protected=0/11 extras=23/694 min_shadow_score=0.24 score_ratio=0.15 level_ratio=0.48 net_hits=23 gain_per_protected=inf simulation_net_hits=23 simulation_gain_per_protected=inf
+  other->same-pitch vocals extras=694/310 protected=11/9 simulation=runtime_other_vocal_measured:23/0 threshold=protected=0/11 extras=23/694 min_shadow_score=0.24 score_ratio=0.15 level_ratio=0.48 net_hits=23 gain_per_protected=inf simulation_net_hits=23 simulation_gain_per_protected=inf guarded=runtime_other_vocal_cpp_guarded:0/0
   piano->same-pitch bass extras=2218/520 protected=487/115 simulation=weak_target_shadow_owned:1/0 threshold=none simulation_net_hits=1 simulation_gain_per_protected=inf
 """
     with tempfile.TemporaryDirectory() as tmpdir:
@@ -59,7 +59,7 @@ compact route summary
     )
     require(
         output,
-        "shadow other->same-pitch vocals +rows=23 protected_rows=0 side_rows=0 net_rows=23 gain_per_side=inf :: threshold min_shadow_score=0.24 score_ratio=0.15 level_ratio=0.48; simulation=runtime_other_vocal_measured:23/0",
+        "shadow other->same-pitch vocals +rows=23 protected_rows=0 side_rows=0 net_rows=23 gain_per_side=inf :: threshold min_shadow_score=0.24 score_ratio=0.15 level_ratio=0.48; simulation=runtime_other_vocal_measured:23/0; guarded=runtime_other_vocal_cpp_guarded:0/0",
     )
     require(
         output,
