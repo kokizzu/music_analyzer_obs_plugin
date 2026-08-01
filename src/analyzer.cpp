@@ -18051,6 +18051,35 @@ bool primary_guitar_chord_has_playable_voicing(const ChordResult &chord, const N
 	       note_grid_chord_tone_count(analysis_grid, primary) >= 3 && third_supported;
 }
 
+bool displayed_guitar_chord_has_single_note_probe_profile(const InstrumentState &displayed_chord,
+							  const InstrumentState &smoothed_chord,
+							  const std::array<float, kNoteProbeCount> &powers,
+							  int min_midi, int max_midi)
+{
+	if (displayed_chord.confidence < 0.95f || !displayed_chord.label[0] ||
+	    displayed_chord.label[0] == '-' || smoothed_chord.confidence >= 0.36f)
+		return false;
+
+	const char *label_end = std::strchr(displayed_chord.label, '=');
+	const std::size_t label_len =
+		label_end ? static_cast<std::size_t>(label_end - displayed_chord.label) :
+			    std::strlen(displayed_chord.label);
+	ParsedRootChord parsed;
+	if (!parse_plain_major_minor_component(displayed_chord.label, label_len, parsed))
+		return false;
+
+	const float strongest_probe = strongest_probe_level(powers, min_midi, max_midi);
+	if (strongest_probe <= 1.0e-6f)
+		return false;
+
+	const int third = parsed.root + (parsed.quality == RootChordQuality::Minor ? 3 : 4);
+	const float root_probe =
+		strongest_probe_pitch_class_level(powers, parsed.root, min_midi, max_midi) / strongest_probe;
+	const float third_probe =
+		strongest_probe_pitch_class_level(powers, third, min_midi, max_midi) / strongest_probe;
+	return root_probe >= 0.812f && third_probe <= 0.238f;
+}
+
 bool primary_major_minor_root_adjacent_noise(const NoteGrid &grid, const ChordResult &chord)
 {
 	if (!valid_chord_result(chord))
@@ -25599,6 +25628,11 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 				guitar_chord_detection_grid, note_powers, kGuitarMinMidi,
 				kGuitarMaxMidi);
 		}
+		if (!mixed_source &&
+		    displayed_guitar_chord_has_single_note_probe_profile(
+			    snapshot.guitar_chord, snapshot.guitar_smoothed_chord, note_powers,
+			    kGuitarMinMidi, kGuitarMaxMidi))
+			clear_instrument_state(snapshot.guitar_chord);
 	} else {
 		reset_note_grid_envelope(snapshot.guitar_notes, snapshot.guitar, guitar_note_tracking_);
 		reset_note_grid_envelope(guitar_chord_grid, guitar_chord_note_state, guitar_chord_note_tracking_);

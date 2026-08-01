@@ -336,6 +336,37 @@ void check_plain_guitar_voicing_rejects_crowded_root_fifth_quality(Runner &runne
 		      "plain guitar voicing: expected root-fifth power chord to remain playable");
 }
 
+void check_displayed_guitar_single_note_probe_profile(Runner &runner)
+{
+	InstrumentState displayed = {};
+	std::snprintf(displayed.label, sizeof(displayed.label), "Fm=Fpow");
+	displayed.confidence = 1.00f;
+	InstrumentState empty_smoothed = {};
+	std::snprintf(empty_smoothed.label, sizeof(empty_smoothed.label), "--");
+	empty_smoothed.confidence = 0.0f;
+
+	std::array<float, kNoteProbeCount> weak_third_powers = {};
+	set_probe_level(weak_third_powers, 53, 0.95f);
+	set_probe_level(weak_third_powers, 56, 0.20f);
+	set_probe_level(weak_third_powers, 60, 0.52f);
+	runner.expect(displayed_guitar_chord_has_single_note_probe_profile(
+			      displayed, empty_smoothed, weak_third_powers, kGuitarMinMidi,
+			      kGuitarMaxMidi),
+		      "displayed guitar single-note profile: expected weak-third Fm probe profile to suppress");
+
+	InstrumentState smoothed = displayed;
+	runner.expect(!displayed_guitar_chord_has_single_note_probe_profile(
+			      displayed, smoothed, weak_third_powers, kGuitarMinMidi, kGuitarMaxMidi),
+		      "displayed guitar single-note profile: expected valid smoothed chord to be preserved");
+
+	std::array<float, kNoteProbeCount> strong_third_powers = weak_third_powers;
+	set_probe_level(strong_third_powers, 56, 0.44f);
+	runner.expect(!displayed_guitar_chord_has_single_note_probe_profile(
+			      displayed, empty_smoothed, strong_third_powers, kGuitarMinMidi,
+			      kGuitarMaxMidi),
+		      "displayed guitar single-note profile: expected strong third probe to be preserved");
+}
+
 void check_supported_guitar_candidate_alias_merge(Runner &runner)
 {
 	InstrumentState state = {};
@@ -1965,6 +1996,7 @@ int run()
 	check_displayed_supported_plain_guitar_primary(runner);
 	check_source_supported_plain_guitar_alias_recovery(runner);
 	check_plain_guitar_voicing_rejects_crowded_root_fifth_quality(runner);
+	check_displayed_guitar_single_note_probe_profile(runner);
 	check_supported_guitar_candidate_alias_merge(runner);
 	check_supported_guitar_display_extension_aliases(runner);
 	check_ambiguous_guitar_power_quality_keeps_both_plain_aliases(runner);
