@@ -782,6 +782,21 @@ def count_fraction(count: int, total: int) -> str:
     return f"{count}/{total} {percent(count, total)}"
 
 
+def sample_groups(rows: list[dict[str, str]]) -> dict[str, list[dict[str, str]]]:
+    groups: dict[str, list[dict[str, str]]] = collections.defaultdict(list)
+    for index, row in enumerate(rows):
+        sample_id = row.get("sample_id", "")
+        key = sample_id if sample_id else f"row:{index}"
+        groups[key].append(row)
+    return groups
+
+
+def sample_fraction(rows: list[dict[str, str]], predicate) -> str:
+    groups = sample_groups(rows)
+    hits = sum(1 for group_rows in groups.values() if any(predicate(row) for row in group_rows))
+    return count_fraction(hits, len(groups))
+
+
 def short_path(value: str, max_parts: int = 3) -> str:
     if not value:
         return "--"
@@ -1138,6 +1153,19 @@ def report_real_note_rows(
             f"{count_fraction(sum(1 for row in rows if visual_expected_row_exact_lit(row)), len(rows))} "
             "visual-strongest-lit expected="
             f"{count_fraction(sum(1 for row in rows if visual_strongest_row_matches_expected_lit(row)), len(rows))}"
+            if visual_fields
+            else ""
+        )
+    )
+    print(
+        f"  sample routing expected-row exact={sample_fraction(rows, expected_row_exact_hit)} "
+        f"first-row expected={sample_fraction(rows, first_row_matches_expected)} "
+        f"strongest-row expected={sample_fraction(rows, strongest_row_matches_expected)}"
+        + (
+            f" visual-row exact={sample_fraction(rows, visual_expected_row_exact_hit)} "
+            f"visual-strongest expected={sample_fraction(rows, visual_strongest_row_matches_expected)} "
+            f"visual-lit exact={sample_fraction(rows, visual_expected_row_exact_lit)} "
+            f"visual-strongest-lit expected={sample_fraction(rows, visual_strongest_row_matches_expected_lit)}"
             if visual_fields
             else ""
         )

@@ -153,6 +153,12 @@ kick.wav	kick	kick	0.9	0.1	0.0	0.9	0.1	0.1	0.1	0.1	1	0	0	0	0	0	0	0.9	0.4	0	0	0	0
         "visual-strongest expected=2/3 66.7% visual-lit exact=2/3 66.7% "
         "visual-strongest-lit expected=2/3 66.7%"
     ) in output
+    assert (
+        "sample routing expected-row exact=3/3 100.0% first-row expected=2/3 66.7% "
+        "strongest-row expected=2/3 66.7% visual-row exact=3/3 100.0% "
+        "visual-strongest expected=2/3 66.7% visual-lit exact=2/3 66.7% "
+        "visual-strongest-lit expected=2/3 66.7%"
+    ) in output
     assert "first-row match-vs-confusion feature contrast=" in output
     assert "visual-row match-vs-confusion feature contrast=" in output
     assert "first-row route contrasts:" in output
@@ -184,6 +190,10 @@ kick.wav	kick	kick	0.9	0.1	0.0	0.9	0.1	0.1	0.1	0.1	1	0	0	0	0	0	0	0.9	0.4	0	0	0	0
     assert "exact-octave coverage --" in compact_section
     assert "pitch quality=unknown" not in compact_section
     assert "debug=-- owners=--=1" in compact_section
+    assert (
+        "sample routing expected-row exact=2/2 100.0% first-row expected=2/2 100.0% "
+        "strongest-row expected=2/2 100.0%"
+    ) in compact_section
     assert "measured guitar chord rows" in output
     assert "maj chord_hit=1/1 100.0%" in output
     assert "m chord_hit=0/1 0.0%" in output
