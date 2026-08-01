@@ -23393,11 +23393,12 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 			body_shape == Tom &&
 			drum_level_[Snare] >= 0.97f &&
 			drum_level_[Tom] >= 0.97f &&
+			drum_level_[Kick] >= 0.27f &&
 			drum_level_[Kick] <= 0.30f &&
 			drum_level_[Rim] <= 0.30f &&
 			snapshot.low_energy <= 0.162f &&
-			final_snare_kick_level_ratio_for_primary >= 3.50f &&
-			snare_kick_shape_score_ratio <= 1.233f;
+			final_snare_kick_level_ratio_for_primary >= 3.49f &&
+			snare_kick_shape_score_ratio <= 1.234f;
 		if (final_one_shot_measured_low_energy_snare_ambiguous_primary_recovery)
 			promote_drum_primary(Snare, 0.90f);
 
