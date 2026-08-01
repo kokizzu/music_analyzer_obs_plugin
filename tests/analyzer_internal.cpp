@@ -1560,6 +1560,74 @@ void check_low_acoustic_guitar_display_mirror_gets_bright_score_floor(Runner &ru
 		      "low acoustic guitar display mirror: expected bass-like candidate to keep conservative score");
 }
 
+void check_vocal_owned_upper_alias_promotes_supported_lower_primary(Runner &runner)
+{
+	static constexpr int kLowerMidi = 50;
+	static constexpr int kUpperMidi = kLowerMidi + 12;
+
+	NoteGrid grid = {};
+	write_note_grid_cell(grid, NoteCandidate{kUpperMidi, 1.0f}, 1.0f, 1.0f);
+	InstrumentState state = {};
+	write_note_grid_label(state, grid, -1);
+
+	FullMixOwnership ownership = {};
+	ownership.global_note_levels[static_cast<std::size_t>(kLowerMidi - kFirstMidi)] = 1.0f;
+	ownership.global_note_levels[static_cast<std::size_t>(kUpperMidi - kFirstMidi)] = 0.72f;
+	ownership.debug_candidate_count = 1;
+	FullMixDebugCandidate &debug = ownership.debug_candidates[0];
+	debug.midi = kUpperMidi;
+	debug.owner = InstrumentKind::Vocal;
+	debug.ownership_confidence = 0.80f;
+	debug.keyboard_score = 0.20f;
+	debug.vocal_score = 0.80f;
+	debug.spectral_level = 1.0f;
+	debug.pitch_confidence = 0.93f;
+	debug.periodicity = 0.74f;
+	debug.harmonic_fit_error = 0.02f;
+	debug.local_noise_level = 0.05f;
+
+	std::array<float, kNoteProbeCount> powers = {};
+	set_probe_level(powers, kLowerMidi, 1.0f);
+	set_probe_level(powers, kUpperMidi, 0.70f);
+
+	prefer_debug_supported_vocal_lower_octave_primary(grid, state, ownership, powers,
+							  kFullMixVocalMinMidi, -1);
+	const NoteCell primary =
+		note_grid_primary_cell_for_pitch_class(grid, midi_pitch_class(kLowerMidi));
+	runner.expect(primary.active && primary.midi == kLowerMidi,
+		      "vocal lower octave primary: expected supported D3 to replace vocal-owned D4 alias");
+
+	NoteGrid keyboard_like_grid = {};
+	write_note_grid_cell(keyboard_like_grid, NoteCandidate{kUpperMidi, 1.0f}, 1.0f, 1.0f);
+	InstrumentState keyboard_like_state = {};
+	write_note_grid_label(keyboard_like_state, keyboard_like_grid, -1);
+	FullMixOwnership keyboard_like = ownership;
+	keyboard_like.debug_candidates[0].keyboard_score = 0.40f;
+	prefer_debug_supported_vocal_lower_octave_primary(keyboard_like_grid, keyboard_like_state,
+							  keyboard_like, powers,
+							  kFullMixVocalMinMidi, -1);
+	const NoteCell keyboard_like_primary =
+		note_grid_primary_cell_for_pitch_class(keyboard_like_grid, midi_pitch_class(kLowerMidi));
+	runner.expect(keyboard_like_primary.active && keyboard_like_primary.midi == kUpperMidi,
+		      "vocal lower octave primary: expected keyboard-heavy upper alias to stay primary");
+
+	NoteGrid weak_lower_grid = {};
+	write_note_grid_cell(weak_lower_grid, NoteCandidate{kUpperMidi, 1.0f}, 1.0f, 1.0f);
+	InstrumentState weak_lower_state = {};
+	write_note_grid_label(weak_lower_state, weak_lower_grid, -1);
+	FullMixOwnership weak_lower = ownership;
+	weak_lower.global_note_levels[static_cast<std::size_t>(kLowerMidi - kFirstMidi)] = 0.08f;
+	std::array<float, kNoteProbeCount> weak_powers = {};
+	set_probe_level(weak_powers, kLowerMidi, 0.08f);
+	set_probe_level(weak_powers, kUpperMidi, 0.70f);
+	prefer_debug_supported_vocal_lower_octave_primary(weak_lower_grid, weak_lower_state, weak_lower,
+							  weak_powers, kFullMixVocalMinMidi, -1);
+	const NoteCell weak_lower_primary =
+		note_grid_primary_cell_for_pitch_class(weak_lower_grid, midi_pitch_class(kLowerMidi));
+	runner.expect(weak_lower_primary.active && weak_lower_primary.midi == kUpperMidi,
+		      "vocal lower octave primary: expected weak lower support to keep upper alias primary");
+}
+
 void check_low_wind_other_octave_alias_promotes_raw_fundamental(Runner &runner)
 {
 	static constexpr int kLowerMidi = 40;
@@ -1665,6 +1733,7 @@ int run()
 	check_other_dominant_octave_alias_guitar_display_is_pruned(runner);
 	check_display_ownership_scale_keeps_confirmed_mid_confidence_visible(runner);
 	check_low_acoustic_guitar_display_mirror_gets_bright_score_floor(runner);
+	check_vocal_owned_upper_alias_promotes_supported_lower_primary(runner);
 	check_low_wind_other_octave_alias_promotes_raw_fundamental(runner);
 	check_low_wind_other_octave_alias_requires_upper_stack(runner);
 	if (runner.failures) {

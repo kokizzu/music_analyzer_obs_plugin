@@ -11220,6 +11220,68 @@ bool promote_note_grid_primary_midi(NoteGrid &grid, int midi, float level)
 	return true;
 }
 
+void prefer_debug_supported_vocal_lower_octave_primary(NoteGrid &grid, InstrumentState &state,
+						       const FullMixOwnership &ownership,
+						       const std::array<float, kNoteProbeCount> &powers,
+						       int min_midi, int preferred_root)
+{
+	min_midi = std::max(min_midi, kFirstMidi);
+	bool changed = false;
+
+	for (int pitch_class = 0; pitch_class < 12; ++pitch_class) {
+		NoteCell primary = {};
+		for (const auto &row : grid.rows) {
+			const NoteCell &cell = row[pitch_class];
+			if (cell.active && cell.midi >= kFirstMidi && cell.midi <= kLastMidi) {
+				primary = cell;
+				break;
+			}
+		}
+		const NoteCell &display = grid.cells[pitch_class];
+		if (display.active && display.midi >= kFirstMidi && display.midi <= kLastMidi &&
+		    (!primary.active || display.level > primary.level))
+			primary = display;
+		if (!primary.active)
+			continue;
+
+		const int lower_midi = primary.midi - 12;
+		if (lower_midi < min_midi || lower_midi > kVocalMaxMidi ||
+		    midi_pitch_class(lower_midi) != pitch_class)
+			continue;
+
+		const FullMixDebugCandidate *debug = full_mix_debug_for_midi(ownership, primary.midi);
+		if (!debug || debug->owner != InstrumentKind::Vocal || debug->midi != primary.midi)
+			continue;
+		if (debug->ownership_confidence < 0.76f || debug->vocal_score < 0.76f)
+			continue;
+		if (debug->keyboard_score > 0.26f || debug->guitar_score > 0.10f ||
+		    debug->other_score > 0.10f || debug->bass_score > 0.10f)
+			continue;
+		if (debug->spectral_level < 0.80f || debug->pitch_confidence < 0.78f ||
+		    debug->periodicity < 0.68f || debug->harmonic_fit_error > 0.10f ||
+		    debug->local_noise_level > 0.18f)
+			continue;
+
+		const float lower_probe = probe_level(powers, lower_midi);
+		const float primary_probe = probe_level(powers, primary.midi);
+		const float lower_raw = ownership_global_note_level(ownership, lower_midi);
+		const float lower_visible = note_grid_midi_level(grid, lower_midi);
+		const float lower_support = std::max({lower_probe, lower_raw, lower_visible});
+		if (lower_support < 0.20f)
+			continue;
+		if (primary_probe > 1.0e-6f && lower_probe < primary_probe * 0.25f &&
+		    lower_raw < primary_probe * 0.25f && lower_visible < primary.level * 0.08f)
+			continue;
+
+		changed = promote_note_grid_primary_midi(
+				  grid, lower_midi, std::max({primary.level, lower_support, debug->vocal_score})) ||
+			  changed;
+	}
+
+	if (changed)
+		write_note_grid_label(state, grid, preferred_root);
+}
+
 void prefer_debug_supported_high_bass_primary(NoteGrid &grid, InstrumentState &state,
 					      const FullMixOwnership &ownership,
 					      const std::array<float, kNoteProbeCount> &powers,
@@ -25378,9 +25440,14 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 		if (!mixed_source)
 			prefer_supported_lower_octave_display(snapshot.vocal_notes, snapshot.vocal, note_powers,
 							      kVocalMinMidi, 64, -1);
-		else
+		else {
 			prefer_visible_lower_octave_primary(snapshot.vocal_notes, snapshot.vocal, kVocalMinMidi,
 							   0.20f, -1, 0.18f);
+			prefer_debug_supported_vocal_lower_octave_primary(snapshot.vocal_notes, snapshot.vocal,
+									  full_mix_ownership,
+									  note_powers,
+									  kFullMixVocalMinMidi, -1);
+		}
 	} else {
 		reset_note_grid_envelope(snapshot.vocal_notes, snapshot.vocal, vocal_note_tracking_);
 	}
