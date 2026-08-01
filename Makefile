@@ -523,6 +523,10 @@ EGFXSET_GUITAR_DETECTED_ATTRIBUTE_ROWS ?= $(BUILD_DIR)/egfxset_guitar_detected_a
 EGFXSET_GUITAR_MISS_ATTRIBUTE_ROWS ?= $(BUILD_DIR)/egfxset_guitar_miss_attribute_rows.tsv
 EGFXSET_GUITAR_PATTERN_BUCKET ?= single_note_false_chord:any:any
 EGFXSET_GUITAR_PATTERN_PROTECTED_BUCKET ?= no_chord:any:any
+EGFXSET_GUITAR_PATTERN_PROTECTED_BUCKETS ?= $(EGFXSET_GUITAR_PATTERN_PROTECTED_BUCKET) chord_hit:any:any
+EGFXSET_GUITAR_PATTERN_PROTECTED_PATHS ?= $(EGFXSET_GUITAR_ATTRIBUTE_TSV) $(BUILD_DIR)/guitar_chord_mix_attributes.tsv
+EGFXSET_GUITAR_PATTERN_PROTECTED_BUCKET_ARGS = $(foreach bucket,$(EGFXSET_GUITAR_PATTERN_PROTECTED_BUCKETS),--protected-bucket "$(bucket)")
+EGFXSET_GUITAR_PATTERN_PROTECTED_PATH_ARGS = $(foreach path,$(EGFXSET_GUITAR_PATTERN_PROTECTED_PATHS),--protected-path "$(path)")
 EGFXSET_GUITAR_SAMPLE_LIMIT ?= 0
 EGFXSET_GUITAR_DOWNLOAD_JOBS ?= 8
 EGFXSET_GUITAR_MIN_EXCERPTS ?= 490
@@ -2265,8 +2269,8 @@ analyze-egfxset-guitar-attributes: $(EGFXSET_GUITAR_ATTRIBUTE_TSV) scripts/summa
 inspect-egfxset-guitar-attribute-buckets: $(EGFXSET_GUITAR_ATTRIBUTE_TSV) scripts/inspect_guitarset_attribute_buckets.py scripts/summarize_guitarset_attributes.py
 	$(PYTHON) scripts/inspect_guitarset_attribute_buckets.py "$(EGFXSET_GUITAR_ATTRIBUTE_TSV)" $(BUCKET_ARGS)
 
-find-egfxset-guitar-attribute-patterns: $(EGFXSET_GUITAR_ATTRIBUTE_TSV) scripts/find_guitarset_attribute_patterns.py scripts/inspect_guitarset_attribute_buckets.py scripts/summarize_guitarset_attributes.py
-	$(PYTHON) scripts/find_guitarset_attribute_patterns.py "$(EGFXSET_GUITAR_ATTRIBUTE_TSV)" $(if $(PATTERN_BUCKET),--bucket "$(PATTERN_BUCKET)",--bucket "$(EGFXSET_GUITAR_PATTERN_BUCKET)") $(if $(PATTERN_PROTECTED_BUCKET),--protected-bucket "$(PATTERN_PROTECTED_BUCKET)",--protected-bucket "$(EGFXSET_GUITAR_PATTERN_PROTECTED_BUCKET)") $(PATTERN_ARGS)
+find-egfxset-guitar-attribute-patterns: $(EGFXSET_GUITAR_ATTRIBUTE_TSV) $(BUILD_DIR)/guitar_chord_mix_attributes.tsv scripts/find_guitarset_attribute_patterns.py scripts/inspect_guitarset_attribute_buckets.py scripts/summarize_guitarset_attributes.py
+	$(PYTHON) scripts/find_guitarset_attribute_patterns.py "$(EGFXSET_GUITAR_ATTRIBUTE_TSV)" $(if $(PATTERN_BUCKET),--bucket "$(PATTERN_BUCKET)",--bucket "$(EGFXSET_GUITAR_PATTERN_BUCKET)") $(if $(PATTERN_PROTECTED_PATHS),$(foreach path,$(PATTERN_PROTECTED_PATHS),--protected-path "$(path)"),$(EGFXSET_GUITAR_PATTERN_PROTECTED_PATH_ARGS)) $(if $(PATTERN_PROTECTED_BUCKET),--protected-bucket "$(PATTERN_PROTECTED_BUCKET)",$(EGFXSET_GUITAR_PATTERN_PROTECTED_BUCKET_ARGS)) $(PATTERN_ARGS)
 
 prepare-gaps-guitar-samples: scripts/prepare_gaps_guitar_samples.py | $(BUILD_DIR)
 	GAPS_GUITAR_SOURCE_DIR="$(GAPS_GUITAR_SOURCE_DIR)" GAPS_GUITAR_SAMPLE_DIR="$(GAPS_GUITAR_SAMPLE_DIR)" GAPS_GUITAR_METADATA_URL="$(GAPS_GUITAR_METADATA_URL)" GAPS_GUITAR_BASE_URL="$(GAPS_GUITAR_BASE_URL)" GAPS_GUITAR_SAMPLE_LIMIT="$(GAPS_GUITAR_SAMPLE_LIMIT)" GAPS_GUITAR_MIN_EXCERPTS="$(GAPS_GUITAR_MIN_EXCERPTS)" GAPS_GUITAR_MIN_NOTES="$(GAPS_GUITAR_MIN_NOTES)" $(PYTHON) scripts/prepare_gaps_guitar_samples.py --source-dir "$(GAPS_GUITAR_SOURCE_DIR)" --output "$(GAPS_GUITAR_SAMPLE_DIR)" --metadata-url "$(GAPS_GUITAR_METADATA_URL)" --base-url "$(GAPS_GUITAR_BASE_URL)" --limit "$(GAPS_GUITAR_SAMPLE_LIMIT)" --min-samples "$(GAPS_GUITAR_MIN_EXCERPTS)" --min-notes "$(GAPS_GUITAR_MIN_NOTES)"

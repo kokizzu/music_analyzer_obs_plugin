@@ -2695,11 +2695,29 @@ def main() -> int:
     assert "EGFXSET_GUITAR_PATTERN_PROTECTED_BUCKET ?= no_chord:any:any" in makefile, (
         "EGFXSET guitar pattern mining should protect clean no-chord single-note rows by default"
     )
+    assert "EGFXSET_GUITAR_PATTERN_PROTECTED_BUCKETS ?= $(EGFXSET_GUITAR_PATTERN_PROTECTED_BUCKET) chord_hit:any:any" in makefile, (
+        "EGFXSET guitar pattern mining should also protect known guitar chord hits by default"
+    )
+    assert "EGFXSET_GUITAR_PATTERN_PROTECTED_PATHS ?= $(EGFXSET_GUITAR_ATTRIBUTE_TSV) $(BUILD_DIR)/guitar_chord_mix_attributes.tsv" in makefile, (
+        "EGFXSET guitar pattern mining should compare against both single-note and chord-hit rows"
+    )
+    assert 'EGFXSET_GUITAR_PATTERN_PROTECTED_BUCKET_ARGS = $(foreach bucket,$(EGFXSET_GUITAR_PATTERN_PROTECTED_BUCKETS),--protected-bucket "$(bucket)")' in makefile, (
+        "EGFXSET guitar pattern mining must expand all default protected buckets"
+    )
+    assert 'EGFXSET_GUITAR_PATTERN_PROTECTED_PATH_ARGS = $(foreach path,$(EGFXSET_GUITAR_PATTERN_PROTECTED_PATHS),--protected-path "$(path)")' in makefile, (
+        "EGFXSET guitar pattern mining must expand all default protected paths"
+    )
+    assert "$(BUILD_DIR)/guitar_chord_mix_attributes.tsv" in egfxset_guitar_pattern_recipe.splitlines()[0], (
+        "EGFXSET guitar pattern mining must refresh real guitar chord-hit protected rows by default"
+    )
     assert '$(if $(PATTERN_BUCKET),--bucket "$(PATTERN_BUCKET)",--bucket "$(EGFXSET_GUITAR_PATTERN_BUCKET)")' in egfxset_guitar_pattern_recipe, (
         "EGFXSET guitar pattern mining must use a useful default bucket while allowing PATTERN_BUCKET overrides"
     )
-    assert '$(if $(PATTERN_PROTECTED_BUCKET),--protected-bucket "$(PATTERN_PROTECTED_BUCKET)",--protected-bucket "$(EGFXSET_GUITAR_PATTERN_PROTECTED_BUCKET)")' in egfxset_guitar_pattern_recipe, (
-        "EGFXSET guitar pattern mining must compare against clean no-chord rows while allowing protected-bucket overrides"
+    assert '$(if $(PATTERN_PROTECTED_PATHS),$(foreach path,$(PATTERN_PROTECTED_PATHS),--protected-path "$(path)"),$(EGFXSET_GUITAR_PATTERN_PROTECTED_PATH_ARGS))' in egfxset_guitar_pattern_recipe, (
+        "EGFXSET guitar pattern mining must allow protected-path overrides"
+    )
+    assert '$(if $(PATTERN_PROTECTED_BUCKET),--protected-bucket "$(PATTERN_PROTECTED_BUCKET)",$(EGFXSET_GUITAR_PATTERN_PROTECTED_BUCKET_ARGS))' in egfxset_guitar_pattern_recipe, (
+        "EGFXSET guitar pattern mining must compare against protected rows while allowing protected-bucket overrides"
     )
 
     downloaded_guitarset_attribute_recipe = target_recipe(makefile, "$(GUITARSET_ATTRIBUTE_TSV)")
