@@ -40,6 +40,40 @@ RUNTIME_NUMERIC_FIELDS = [
     "guitar_pc_count",
     "analysis_pc_count",
     "smooth_pc_count",
+    "visible_tones",
+    "analysis_tones",
+    "smooth_tones",
+    "root_visible",
+    "visible_root",
+    "visible_third",
+    "visible_fifth",
+    "analysis_root",
+    "analysis_third",
+    "analysis_fifth",
+    "smooth_root",
+    "smooth_third",
+    "smooth_fifth",
+    "raw_root",
+    "raw_third",
+    "raw_fifth",
+    "raw_opposite_third",
+    "raw_third_anchor_ratio",
+    "raw_third_opposite_margin",
+    "probe_root",
+    "probe_third",
+    "probe_fifth",
+    "probe_opposite_third",
+    "probe_third_anchor_ratio",
+    "probe_third_opposite_margin",
+    "melodic_probe_root",
+    "melodic_probe_third",
+    "melodic_probe_fifth",
+    "melodic_probe_opposite_third",
+    "melodic_probe_third_anchor_ratio",
+    "melodic_probe_third_opposite_margin",
+    "guitar_chord_confidence",
+    "guitar_raw_chord_confidence",
+    "guitar_smoothed_chord_confidence",
 ]
 RUNTIME_CATEGORY_FIELDS: list[str] = []
 
@@ -138,10 +172,24 @@ def category_pattern(field: str, expected: str) -> Pattern:
     )
 
 
-def build_patterns(positive_rows: list[dict[str, str]], *, runtime_only: bool = False) -> list[Pattern]:
+def build_patterns(
+    positive_rows: list[dict[str, str]],
+    *,
+    runtime_only: bool = False,
+    exclude_fields: set[str] | None = None,
+) -> list[Pattern]:
     patterns: list[Pattern] = []
-    category_fields = RUNTIME_CATEGORY_FIELDS if runtime_only else CATEGORY_FIELDS + ["quality"]
-    numeric_fields = RUNTIME_NUMERIC_FIELDS if runtime_only else PATTERN_NUMERIC_FIELDS
+    exclude_fields = exclude_fields or set()
+    category_fields = [
+        field
+        for field in (RUNTIME_CATEGORY_FIELDS if runtime_only else CATEGORY_FIELDS + ["quality"])
+        if field not in exclude_fields
+    ]
+    numeric_fields = [
+        field
+        for field in (RUNTIME_NUMERIC_FIELDS if runtime_only else PATTERN_NUMERIC_FIELDS)
+        if field not in exclude_fields
+    ]
     for field in category_fields:
         values = sorted({row.get(field, "") for row in positive_rows if row.get(field, "")})
         for value in values:
@@ -474,6 +522,7 @@ def print_patterns(
     max_conditions: int,
     beam_width: int,
     runtime_only: bool,
+    exclude_fields: set[str],
 ) -> None:
     positive_rows = [row for row in rows if bucket_matches(row, bucket)]
     if protected_buckets:
@@ -491,7 +540,11 @@ def print_patterns(
     if not positive_rows:
         return
 
-    base_patterns = build_patterns(positive_rows, runtime_only=runtime_only)
+    base_patterns = build_patterns(
+        positive_rows,
+        runtime_only=runtime_only,
+        exclude_fields=exclude_fields,
+    )
     positive_recording_bits = recording_bit_map(positive_rows)
     negative_recording_bits = recording_bit_map(negative_rows)
     results: list[RuleResult] = []
@@ -605,7 +658,13 @@ def main() -> int:
     parser.add_argument(
         "--runtime-only",
         action="store_true",
-        help="mine only runtime-observable count and energy fields, excluding ground-truth labels and outcomes",
+        help="mine only runtime-observable fields, excluding ground-truth labels and outcomes",
+    )
+    parser.add_argument(
+        "--exclude-field",
+        action="append",
+        default=[],
+        help="omit a field from generated candidate rules; repeatable",
     )
     args = parser.parse_args()
 
@@ -635,6 +694,7 @@ def main() -> int:
             max(1, args.max_conditions),
             max(1, args.beam_width),
             args.runtime_only,
+            set(args.exclude_field),
         )
     return 0
 

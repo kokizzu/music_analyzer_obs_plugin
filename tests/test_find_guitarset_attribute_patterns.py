@@ -17,6 +17,23 @@ import find_guitarset_attribute_patterns as patterns
 
 
 def main() -> int:
+    for field in [
+        "visible_third",
+        "analysis_third",
+        "smooth_third",
+        "raw_third_anchor_ratio",
+        "probe_third_opposite_margin",
+        "melodic_probe_third_anchor_ratio",
+        "guitar_chord_confidence",
+    ]:
+        assert field in patterns.RUNTIME_NUMERIC_FIELDS, (
+            f"{field} must be available to runtime-only guitar pattern mining"
+        )
+    for field in patterns.OUTCOME_NUMERIC_FIELDS:
+        assert field not in patterns.RUNTIME_NUMERIC_FIELDS, (
+            f"{field} must remain excluded from runtime-only guitar pattern mining"
+        )
+
     assert not patterns.constraints_compatible(
         (patterns.numeric_pattern("raw_root", "<=", 0.5).constraint,),
         patterns.numeric_pattern("raw_root", ">=", 0.5).constraint,
@@ -265,6 +282,33 @@ def main() -> int:
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
         )
+        runtime_exclude_field = subprocess.run(
+            [
+                sys.executable,
+                str(SCRIPT),
+                str(path),
+                "--bucket",
+                "single_note_false_chord:any:any",
+                "--protected-path",
+                str(protected_path),
+                "--protected-bucket",
+                "chord_hit:any:any",
+                "--runtime-only",
+                "--exclude-field",
+                "guitar_pc_count",
+                "--min-positive-recordings",
+                "1",
+                "--max-negative-recordings",
+                "0",
+                "--show-examples",
+                "1",
+            ],
+            cwd=ROOT,
+            check=True,
+            text=True,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+        )
         multi_condition_rows = [
             row(
                 status="chord_miss",
@@ -424,6 +468,9 @@ def main() -> int:
     assert "bucket single_note_false_chord:any:any positives=1" in runtime_single_note_false.stdout
     assert "guitar_pc_count<=2" in runtime_single_note_false.stdout
     assert "expected_chord_qualities" not in runtime_single_note_false.stdout
+    assert "bucket single_note_false_chord:any:any positives=1" in runtime_exclude_field.stdout
+    assert "guitar_pc_count" not in runtime_exclude_field.stdout
+    assert "expected_chord_qualities" not in runtime_exclude_field.stdout
     assert "raw_fifth>=1 AND raw_root>=1 AND raw_third>=1" in multi_condition.stdout
     assert "miss1@1.000s expected=G guitar=--" in multi_condition.stdout
     print("test_find_guitarset_attribute_patterns: ok")
