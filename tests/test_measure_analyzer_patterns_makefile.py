@@ -575,6 +575,9 @@ def main() -> int:
     assert "DETECTOR_IMPROVEMENT_ROUTE_SUMMARY ?= $(BUILD_DIR)/detector_improvement_route_summary.txt" in makefile, (
         "detector improvement route summary must have a stable file-backed report path"
     )
+    assert "DETECTOR_IMPROVEMENT_AUDIT_REPORT ?= $(BUILD_DIR)/detector_improvement_audit.txt" in makefile, (
+        "detector improvement audit must have a stable file-backed report path"
+    )
     for variable in [
         "MEASURE_INSTRUMENT_PATTERN_ARGS",
         "MEASURE_INSTRUMENT_STATUS_PATTERN_ARGS",
@@ -716,6 +719,37 @@ def main() -> int:
     )
     assert "$(MAKE) $(PARALLEL_TEST_MAKE_JOBS) $(DETECTOR_IMPROVEMENT_AUDIT_TARGETS)" in audit_recipe, (
         "detector improvement audit must fan out route and drum scans through parallel make"
+    )
+    audit_report_recipe = target_recipe(makefile, "$(DETECTOR_IMPROVEMENT_AUDIT_REPORT)")
+    assert re.search(
+        r"^\$\(DETECTOR_IMPROVEMENT_AUDIT_REPORT\): FORCE Makefile scripts/run_with_duration\.sh "
+        r"scripts/summarize_detector_route_report\.py scripts/find_real_note_attribute_patterns\.py "
+        r"scripts/evaluate_real_note_display_shadow\.py scripts/find_drum_attribute_patterns\.py "
+        r"scripts/find_drum_active_false_patterns\.py",
+        makefile,
+        re.MULTILINE,
+    ), "detector improvement audit report must refresh instead of serving stale miner output"
+    assert 'tmp="$@.$$$$.tmp"' in audit_report_recipe, (
+        "detector improvement audit report must write through a per-process temp file"
+    )
+    assert "$(RUN_WITH_DURATION) detector_improvement_audit_parallel" in audit_report_recipe, (
+        "detector improvement audit report must capture the timed parallel audit"
+    )
+    assert "$(MAKE) $(PARALLEL_TEST_MAKE_JOBS) $(DETECTOR_IMPROVEMENT_AUDIT_TARGETS)" in audit_report_recipe, (
+        "detector improvement audit report must fan out the configured audit targets"
+    )
+    assert "> \"$$tmp\" 2>&1" in audit_report_recipe, (
+        "detector improvement audit report must capture stdout and stderr into the report"
+    )
+    assert 'mv "$$tmp" "$@"' in audit_report_recipe, (
+        "detector improvement audit report must publish atomically"
+    )
+    assert 'tail -n 60 "$@"' in audit_report_recipe, (
+        "detector improvement audit report must print the final decision context"
+    )
+    audit_report_alias = target_recipe(makefile, "detector-improvement-audit-report")
+    assert "$(DETECTOR_IMPROVEMENT_AUDIT_REPORT)" in audit_report_alias, (
+        "detector improvement audit report helper must depend on the file-backed report"
     )
     default_test_recipe = target_recipe(makefile, "test")
     assert "$(RUN_WITH_DURATION) test_fast" in default_test_recipe, (
