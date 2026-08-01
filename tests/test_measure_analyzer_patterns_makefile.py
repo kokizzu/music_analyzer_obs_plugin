@@ -1147,6 +1147,17 @@ def main() -> int:
     assert 'test-idmt-guitar-samples: skipped; missing $(IDMT_GUITAR_ARCHIVE)' in target_recipe(
         makefile, "test-idmt-guitar-samples-optional"
     ), "optional IDMT guitar wrapper must skip cleanly when the archive is missing"
+    for target, prepare_target in {
+        "$(IDMT_BASS_LINES_SAMPLE_DIR)/manifest.tsv": "prepare-idmt-bass-lines-samples",
+        "$(IDMT_GUITAR_SAMPLE_DIR)/manifest.tsv": "prepare-idmt-guitar-samples",
+    }.items():
+        manifest_recipe = target_recipe(makefile, target)
+        assert f"$(MAKE) {prepare_target}" in manifest_recipe, (
+            f"{target} must refresh through {prepare_target}"
+        )
+        assert f'@touch "{target.removesuffix("/manifest.tsv")}/manifest.tsv"' in manifest_recipe, (
+            f"{target} must update its timestamp after an idempotent prepare"
+        )
     detector_regression_recipe = target_recipe(makefile, "test-detector-samples-parallel")
     assert "\n\t+$(RUN_WITH_DURATION) detector_samples_parallel" in detector_regression_recipe, (
         "detector sample regression target must preserve the make jobserver through the parallel duration wrapper"
@@ -1913,6 +1924,30 @@ def main() -> int:
             "inspect_real_note_attribute_buckets.py",
             "--misses-only",
         ),
+        "$(IDMT_BASS_LINES_DETECTED_ATTRIBUTE_ROWS)": (
+            "$(IDMT_BASS_LINES_ATTRIBUTE_TSV)",
+            "inspect_real_note_attribute_buckets.py",
+            "--dump-rows",
+            "--include-empty-debug",
+        ),
+        "$(IDMT_BASS_LINES_MISS_ATTRIBUTE_ROWS)": (
+            "$(IDMT_BASS_LINES_ATTRIBUTE_TSV)",
+            "inspect_real_note_attribute_buckets.py",
+            "--include-empty-debug",
+            "--status miss",
+        ),
+        "$(IDMT_GUITAR_DETECTED_ATTRIBUTE_ROWS)": (
+            "$(IDMT_GUITAR_ATTRIBUTE_TSV)",
+            "inspect_real_note_attribute_buckets.py",
+            "--dump-rows",
+            "--include-empty-debug",
+        ),
+        "$(IDMT_GUITAR_MISS_ATTRIBUTE_ROWS)": (
+            "$(IDMT_GUITAR_ATTRIBUTE_TSV)",
+            "inspect_real_note_attribute_buckets.py",
+            "--include-empty-debug",
+            "--status miss",
+        ),
         "$(GUITAR_CHORD_DETECTED_ATTRIBUTE_ROWS)": (
             "guitar_chord_mix_attributes.tsv",
             "inspect_guitarset_attribute_buckets.py",
@@ -1931,6 +1966,18 @@ def main() -> int:
         assert '> "$@"' in row_dump_recipe, f"{target} must write to its file target"
 
     source_attribute_targets = {
+        "$(IDMT_BASS_LINES_ATTRIBUTE_TSV)": (
+            "$(BUILD_DIR)/analyzer_real_note_samples",
+            "$(IDMT_BASS_LINES_SAMPLE_DIR)/manifest.tsv",
+            "scripts/build_sharded_tsv.sh",
+            "$(IDMT_BASS_LINES_ATTRIBUTE_PARTS)",
+        ),
+        "$(IDMT_GUITAR_ATTRIBUTE_TSV)": (
+            "$(BUILD_DIR)/analyzer_real_note_samples",
+            "$(IDMT_GUITAR_SAMPLE_DIR)/manifest.tsv",
+            "scripts/build_sharded_tsv.sh",
+            "$(IDMT_GUITAR_ATTRIBUTE_PARTS)",
+        ),
         "$(BUILD_DIR)/guitar_chord_mix_attributes.tsv": (
             "$(BUILD_DIR)/analyzer_guitarset",
             "scripts/build_sharded_tsv.sh",
@@ -1970,6 +2017,33 @@ def main() -> int:
         assert text in real_note_attribute_shard_recipe, (
             f"real-note attribute shard target must include {text}"
         )
+    for target, required_parts in {
+        "$(BUILD_DIR)/idmt_bass_lines_attributes.shard-%.tsv": (
+            "$(IDMT_BASS_LINES_SAMPLE_DIR)/manifest.tsv",
+            "MUSIC_ANALYZER_REAL_NOTE_REQUIRED_SAMPLES=\"$(IDMT_BASS_LINES_MIN_BASS)\"",
+            "MUSIC_ANALYZER_REAL_NOTE_SAMPLE_ROOT=\"$(IDMT_BASS_LINES_SAMPLE_DIR)\"",
+            "MUSIC_ANALYZER_REAL_NOTE_ATTRIBUTE_TSV=\"$@\"",
+            "MUSIC_ANALYZER_REAL_NOTE_SHARD_COUNT=\"$(REAL_NOTE_SAMPLE_SHARDS)\"",
+            "MUSIC_ANALYZER_REAL_NOTE_SHARD_INDEX=\"$*\"",
+            "idmt_bass_lines_attributes.shard-$*.out",
+            "idmt_bass_lines_attributes.shard-$*.err",
+        ),
+        "$(BUILD_DIR)/idmt_guitar_attributes.shard-%.tsv": (
+            "$(IDMT_GUITAR_SAMPLE_DIR)/manifest.tsv",
+            "MUSIC_ANALYZER_REAL_NOTE_REQUIRED_SAMPLES=\"$(IDMT_GUITAR_MIN_GUITAR)\"",
+            "MUSIC_ANALYZER_REAL_NOTE_SAMPLE_ROOT=\"$(IDMT_GUITAR_SAMPLE_DIR)\"",
+            "MUSIC_ANALYZER_REAL_NOTE_ATTRIBUTE_TSV=\"$@\"",
+            "MUSIC_ANALYZER_REAL_NOTE_SHARD_COUNT=\"$(REAL_NOTE_SAMPLE_SHARDS)\"",
+            "MUSIC_ANALYZER_REAL_NOTE_SHARD_INDEX=\"$*\"",
+            "idmt_guitar_attributes.shard-$*.out",
+            "idmt_guitar_attributes.shard-$*.err",
+        ),
+    }.items():
+        idmt_attribute_shard_recipe = target_recipe(makefile, target)
+        for text in required_parts:
+            assert text in idmt_attribute_shard_recipe, (
+                f"{target} must include {text}"
+            )
 
     instrument_attribute_recipe = target_recipe(makefile, "$(BUILD_DIR)/instrument_sample_attributes.tsv")
     assert "INSTRUMENT_SAMPLE_ATTRIBUTE_MAKE_JOBS = $(if $(filter -j%,$(MAKEFLAGS)),,-j$(INSTRUMENT_SAMPLE_SHARDS))" in makefile, (
@@ -2078,6 +2152,8 @@ def main() -> int:
         "find-real-note-focused-row-confusion-patterns": "$(BUILD_DIR)/real_note_full_mix_attributes.tsv",
         "find-real-note-focused-visual-row-confusion-patterns": "$(BUILD_DIR)/real_note_full_mix_attributes.tsv",
         "evaluate-real-note-display-shadow": "$(BUILD_DIR)/real_note_full_mix_attributes.tsv",
+        "analyze-idmt-bass-lines-attributes": "$(IDMT_BASS_LINES_DETECTED_ATTRIBUTE_ROWS)",
+        "analyze-idmt-guitar-attributes": "$(IDMT_GUITAR_DETECTED_ATTRIBUTE_ROWS)",
         "analyze-guitar-chord-mix-recovery": "$(BUILD_DIR)/guitar_chord_mix_attributes.tsv",
         "analyze-guitar-chord-mix-extra-components": "$(BUILD_DIR)/guitar_chord_mix_attributes.tsv",
         "inspect-guitar-chord-mix-attribute-buckets": "$(BUILD_DIR)/guitar_chord_mix_attributes.tsv",
@@ -2177,6 +2253,9 @@ def main() -> int:
     assert "$(MEASURE_ANALYZER_ROW_DUMPS)" in print_recipe, (
         "print target must depend on stale-aware row dumps"
     )
+    assert "$(REAL_NOTE_SAMPLE_ATTRIBUTE_EXTRA_DEPS)" in print_recipe, (
+        "print target must depend on optional real-note dataset row dumps when those archives exist"
+    )
     assert "$(BUILD_DIR)/drum_primary_miss_attribute_rows.tsv" in print_recipe, (
         "print target must depend on stale-aware drum primary rows"
     )
@@ -2190,6 +2269,9 @@ def main() -> int:
     assert "scripts/run_with_duration.sh" in print_recipe, (
         "print target needs the duration helper dependency"
     )
+    assert "$(REAL_NOTE_SAMPLE_ATTRIBUTE_EXTRA_ARGS)" in print_recipe, (
+        "print target must pass optional real-note dataset sections to the report"
+    )
     assert "$(ATTRIBUTE_ROW_REPORT_ARGS)" in print_recipe, "print target needs overridable args"
     assert "$(INSTRUMENT_DETECTED_ATTRIBUTE_ROWS)" in print_recipe, "print target needs instrument rows"
     assert "$(REAL_NOTE_DETECTED_ATTRIBUTE_ROWS)" in print_recipe, "print target needs real-note rows"
@@ -2199,6 +2281,21 @@ def main() -> int:
     assert "analyze-instrument-sample-attributes" not in print_recipe, (
         "print-only target must not regenerate analyzer TSVs"
     )
+    for text in [
+        "IDMT_BASS_LINES_ATTRIBUTE_TSV ?= $(BUILD_DIR)/idmt_bass_lines_attributes.tsv",
+        "IDMT_BASS_LINES_DETECTED_ATTRIBUTE_ROWS ?= $(BUILD_DIR)/idmt_bass_lines_detected_attribute_rows.tsv",
+        "IDMT_BASS_LINES_MISS_ATTRIBUTE_ROWS ?= $(BUILD_DIR)/idmt_bass_lines_miss_attribute_rows.tsv",
+        "IDMT_GUITAR_ATTRIBUTE_TSV ?= $(BUILD_DIR)/idmt_guitar_attributes.tsv",
+        "IDMT_GUITAR_DETECTED_ATTRIBUTE_ROWS ?= $(BUILD_DIR)/idmt_guitar_detected_attribute_rows.tsv",
+        "IDMT_GUITAR_MISS_ATTRIBUTE_ROWS ?= $(BUILD_DIR)/idmt_guitar_miss_attribute_rows.tsv",
+        "REAL_NOTE_SAMPLE_ATTRIBUTE_EXTRA_DEPS :=",
+        "REAL_NOTE_SAMPLE_ATTRIBUTE_EXTRA_ARGS :=",
+        "REAL_NOTE_SAMPLE_ATTRIBUTE_EXTRA_DEPS += $(IDMT_BASS_LINES_DETECTED_ATTRIBUTE_ROWS)",
+        "REAL_NOTE_SAMPLE_ATTRIBUTE_EXTRA_DEPS += $(IDMT_GUITAR_DETECTED_ATTRIBUTE_ROWS)",
+        'REAL_NOTE_SAMPLE_ATTRIBUTE_EXTRA_ARGS += --extra-real-note "IDMT bass lines=$(IDMT_BASS_LINES_DETECTED_ATTRIBUTE_ROWS)"',
+        'REAL_NOTE_SAMPLE_ATTRIBUTE_EXTRA_ARGS += --extra-real-note "IDMT guitar=$(IDMT_GUITAR_DETECTED_ATTRIBUTE_ROWS)"',
+    ]:
+        assert text in makefile, f"optional IDMT real-note attribute plumbing must include {text}"
 
     refresh_recipe = target_recipe(makefile, "refresh-analyzer-detected-attribute-rows")
     assert "scripts/refresh_analyzer_detected_attribute_rows.py" in refresh_recipe, (

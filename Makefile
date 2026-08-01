@@ -629,6 +629,9 @@ IDMT_BASS_LINES_URL ?= https://zenodo.org/api/records/7544099/files/IDMT-SMT-BAS
 IDMT_BASS_LINES_SOURCE_DIR ?= $(REAL_SAMPLE_SOURCE_DIR)/idmt_bass_lines
 IDMT_BASS_LINES_ARCHIVE ?= $(IDMT_BASS_LINES_SOURCE_DIR)/IDMT-SMT-BASS-SINGLE-TRACKS.zip
 IDMT_BASS_LINES_SAMPLE_DIR ?= $(BUILD_DIR)/idmt_bass_lines_samples
+IDMT_BASS_LINES_ATTRIBUTE_TSV ?= $(BUILD_DIR)/idmt_bass_lines_attributes.tsv
+IDMT_BASS_LINES_DETECTED_ATTRIBUTE_ROWS ?= $(BUILD_DIR)/idmt_bass_lines_detected_attribute_rows.tsv
+IDMT_BASS_LINES_MISS_ATTRIBUTE_ROWS ?= $(BUILD_DIR)/idmt_bass_lines_miss_attribute_rows.tsv
 IDMT_BASS_LINES_SAMPLE_LIMIT ?= 0
 IDMT_BASS_LINES_MIN_BASS ?= 600
 IDMT_BASS_LINES_MAX_FAILURES ?= 0
@@ -638,6 +641,9 @@ IDMT_GUITAR_URL ?= https://zenodo.org/api/records/7544110/files/IDMT-SMT-GUITAR_
 IDMT_GUITAR_SOURCE_DIR ?= $(REAL_SAMPLE_SOURCE_DIR)/idmt_guitar
 IDMT_GUITAR_ARCHIVE ?= $(IDMT_GUITAR_SOURCE_DIR)/IDMT-SMT-GUITAR_V2.zip
 IDMT_GUITAR_SAMPLE_DIR ?= $(BUILD_DIR)/idmt_guitar_samples
+IDMT_GUITAR_ATTRIBUTE_TSV ?= $(BUILD_DIR)/idmt_guitar_attributes.tsv
+IDMT_GUITAR_DETECTED_ATTRIBUTE_ROWS ?= $(BUILD_DIR)/idmt_guitar_detected_attribute_rows.tsv
+IDMT_GUITAR_MISS_ATTRIBUTE_ROWS ?= $(BUILD_DIR)/idmt_guitar_miss_attribute_rows.tsv
 IDMT_GUITAR_SAMPLE_LIMIT ?= 0
 IDMT_GUITAR_MIN_GUITAR ?= 200
 IDMT_GUITAR_MAX_FAILURES ?= 8
@@ -844,9 +850,21 @@ REAL_NOTE_SAMPLE_MAX_FAILURE_LINES ?= 80
 REAL_NOTE_SAMPLE_SHARD_MAX_FAILURES ?= 999999
 REAL_NOTE_SAMPLE_SHARD_TARGETS := $(addprefix test-real-note-sample-shard-,$(REAL_NOTE_SAMPLE_SHARD_INDEXES))
 REAL_NOTE_SAMPLE_SHARD_OUTS := $(addprefix $(BUILD_DIR)/real_note_$(REAL_NOTE_SAMPLE_TAG)_shard_,$(addsuffix .out,$(REAL_NOTE_SAMPLE_SHARD_INDEXES)))
+IDMT_BASS_LINES_ATTRIBUTE_PARTS := $(addprefix $(BUILD_DIR)/idmt_bass_lines_attributes.shard-,$(addsuffix .tsv,$(REAL_NOTE_SAMPLE_SHARD_INDEXES)))
+IDMT_GUITAR_ATTRIBUTE_PARTS := $(addprefix $(BUILD_DIR)/idmt_guitar_attributes.shard-,$(addsuffix .tsv,$(REAL_NOTE_SAMPLE_SHARD_INDEXES)))
 REAL_NOTE_SAMPLE_TEST_MAKE_JOBS = $(if $(filter -j%,$(MAKEFLAGS)),,-j$(REAL_NOTE_SAMPLE_SHARDS))
 REAL_NOTE_SAMPLE_HIT_PERCENT_ARGS = --min-bass-hit-percent "$(REAL_NOTE_SAMPLE_MIN_BASS_HIT_PERCENT)" --min-guitar-hit-percent "$(REAL_NOTE_SAMPLE_MIN_GUITAR_HIT_PERCENT)" --min-piano-hit-percent "$(REAL_NOTE_SAMPLE_MIN_PIANO_HIT_PERCENT)" --min-vocals-hit-percent "$(REAL_NOTE_SAMPLE_MIN_VOCALS_HIT_PERCENT)" --min-other-hit-percent "$(REAL_NOTE_SAMPLE_MIN_OTHER_HIT_PERCENT)"
 RUN_REAL_NOTE_SAMPLE_SHARDS = $(MAKE) REAL_NOTE_SAMPLE_SHARDS="$(REAL_NOTE_SAMPLE_SHARDS)" REAL_NOTE_SAMPLE_TAG="$(REAL_NOTE_SAMPLE_TAG)" REAL_NOTE_SAMPLE_ROOT="$(REAL_NOTE_SAMPLE_ROOT)" REAL_NOTE_SAMPLE_REQUIRED_SAMPLES="$(REAL_NOTE_SAMPLE_REQUIRED_SAMPLES)" REAL_NOTE_SAMPLE_MIN_BASS="$(REAL_NOTE_SAMPLE_MIN_BASS)" REAL_NOTE_SAMPLE_MIN_GUITAR="$(REAL_NOTE_SAMPLE_MIN_GUITAR)" REAL_NOTE_SAMPLE_MIN_PIANO="$(REAL_NOTE_SAMPLE_MIN_PIANO)" REAL_NOTE_SAMPLE_MIN_VOCALS="$(REAL_NOTE_SAMPLE_MIN_VOCALS)" REAL_NOTE_SAMPLE_MIN_OTHER="$(REAL_NOTE_SAMPLE_MIN_OTHER)" REAL_NOTE_SAMPLE_MIN_BASS_HIT_PERCENT="$(REAL_NOTE_SAMPLE_MIN_BASS_HIT_PERCENT)" REAL_NOTE_SAMPLE_MIN_GUITAR_HIT_PERCENT="$(REAL_NOTE_SAMPLE_MIN_GUITAR_HIT_PERCENT)" REAL_NOTE_SAMPLE_MIN_PIANO_HIT_PERCENT="$(REAL_NOTE_SAMPLE_MIN_PIANO_HIT_PERCENT)" REAL_NOTE_SAMPLE_MIN_VOCALS_HIT_PERCENT="$(REAL_NOTE_SAMPLE_MIN_VOCALS_HIT_PERCENT)" REAL_NOTE_SAMPLE_MIN_OTHER_HIT_PERCENT="$(REAL_NOTE_SAMPLE_MIN_OTHER_HIT_PERCENT)" REAL_NOTE_SAMPLE_MAX_FAILURES="$(REAL_NOTE_SAMPLE_MAX_FAILURES)" REAL_NOTE_SAMPLE_MAX_FAILURE_LINES="$(REAL_NOTE_SAMPLE_MAX_FAILURE_LINES)" REAL_NOTE_SAMPLE_SHARD_MAX_FAILURES="$(REAL_NOTE_SAMPLE_SHARD_MAX_FAILURES)" test-real-note-sample-shards
+REAL_NOTE_SAMPLE_ATTRIBUTE_EXTRA_DEPS :=
+REAL_NOTE_SAMPLE_ATTRIBUTE_EXTRA_ARGS :=
+ifneq ($(wildcard $(IDMT_BASS_LINES_ARCHIVE)),)
+REAL_NOTE_SAMPLE_ATTRIBUTE_EXTRA_DEPS += $(IDMT_BASS_LINES_DETECTED_ATTRIBUTE_ROWS)
+REAL_NOTE_SAMPLE_ATTRIBUTE_EXTRA_ARGS += --extra-real-note "IDMT bass lines=$(IDMT_BASS_LINES_DETECTED_ATTRIBUTE_ROWS)"
+endif
+ifneq ($(wildcard $(IDMT_GUITAR_ARCHIVE)),)
+REAL_NOTE_SAMPLE_ATTRIBUTE_EXTRA_DEPS += $(IDMT_GUITAR_DETECTED_ATTRIBUTE_ROWS)
+REAL_NOTE_SAMPLE_ATTRIBUTE_EXTRA_ARGS += --extra-real-note "IDMT guitar=$(IDMT_GUITAR_DETECTED_ATTRIBUTE_ROWS)"
+endif
 INSTRUMENT_SAMPLE_SHARDS ?= $(PARALLEL_TEST_JOBS)
 INSTRUMENT_SAMPLE_SHARD_INDEXES := $(shell i=0; while [ $$i -lt $(INSTRUMENT_SAMPLE_SHARDS) ]; do printf '%s ' $$i; i=$$((i + 1)); done)
 INSTRUMENT_SAMPLE_SHARD_TARGETS := $(addprefix test-instrument-samples-shard-,$(INSTRUMENT_SAMPLE_SHARD_INDEXES))
@@ -891,7 +909,7 @@ GUITARSET_ATTRIBUTE_MAKE_JOBS = $(if $(filter -j%,$(MAKEFLAGS)),,-j$(GUITARSET_S
 GUITARSET_SHARD_GATE_ENV ?= MUSIC_ANALYZER_GUITARSET_REQUIRED_EXCERPTS=1 MUSIC_ANALYZER_GUITARSET_REQUIRED_WINDOWS=1 MUSIC_ANALYZER_GUITARSET_MIN_CHORD_CHECKS=0 MUSIC_ANALYZER_GUITARSET_MIN_CHORD_HITS=0
 
 .PHONY: FORCE all standalone standalone-bass-guitar setup-android setup-android-emulator android-emulator android-emulator-stop android-stop-apps android-uninstall-old-packages android-profile android-profile-bass-guitar android-profile-complete android-audio-status android-route-desktop-audio android-route-desktop-audio-watch android-grant-permissions android-install-bass-guitar android-install-complete android-run android-run-bass-guitar android-run-complete android android-complete android-bass-guitar android-check check-standalone-deps install-standalone-deps test-standalone profile-standalone prepare-drum-samples test-drum-samples prepare-drum-samples-spread test-drum-samples-spread analyze-drum-primary-misses analyze-drum-rule-grid analyze-drum-full-attribute-rows find-drum-attribute-patterns find-drum-full-attribute-patterns prepare-drum-samples-full test-drum-samples-full prepare-drum-machine-samples test-drum-machine-samples prepare-hf-drum-kit-samples test-hf-drum-kit-samples download-idmt-drums-samples prepare-idmt-drums-samples test-idmt-drums-samples prepare-mdb-drums-samples test-mdb-drums-samples analyze-mdb-drums-misses analyze-mdb-drum-attributes download-star-drums-samples prepare-star-drums-samples test-star-drums-samples analyze-star-drums-misses analyze-star-drum-attributes test-drum-real-world-samples test-drum-real-world-samples-full download-medley-solos-samples prepare-medley-solos-samples test-medley-solos-samples download-maps-piano-samples prepare-maps-piano-samples test-maps-piano-samples prepare-maps-piano-note-samples test-maps-piano-note-samples download-bach10-mf0-synth-samples prepare-bach10-mf0-synth-samples test-bach10-mf0-synth-samples prepare-instrument-samples test-instrument-samples analyze-instrument-sample-attributes download-real-note-samples prepare-real-note-samples test-real-note-samples test-real-note-samples-full-mix analyze-real-note-misses analyze-real-note-attributes inspect-real-note-attribute-buckets find-real-note-attribute-patterns prepare-guitar-fretboard-note-samples test-guitar-fretboard-note-samples download-guitar-techs-samples prepare-guitar-techs-samples test-guitar-techs-samples download-guitar-techs-chord-samples prepare-guitar-techs-chord-samples test-guitar-techs-chord-samples prepare-guitar-chord-mix-samples test-guitar-chord-mix-samples analyze-guitar-chord-mix-misses analyze-guitar-chord-mix-attributes analyze-guitar-chord-mix-recovery inspect-guitar-chord-mix-attribute-buckets find-guitar-chord-mix-attribute-patterns prepare-egfxset-guitar-samples test-egfxset-guitar-samples prepare-gaps-guitar-samples test-gaps-guitar-samples analyze-gaps-guitar-misses download-guitarset-samples prepare-downloaded-guitarset test-downloaded-guitarset analyze-guitarset-misses download-philharmonia-samples prepare-philharmonia-samples test-philharmonia-samples prepare-philharmonia-samples-full test-philharmonia-samples-full download-good-sounds-samples prepare-good-sounds-samples test-good-sounds-samples prepare-iowa-piano-samples test-iowa-piano-samples prepare-iowa-bass-samples test-iowa-bass-samples prepare-iowa-strings-samples test-iowa-strings-samples prepare-iowa-orchestra-samples test-iowa-orchestra-samples prepare-iowa-orchestra-full-samples test-iowa-orchestra-full-samples download-idmt-bass-lines-samples prepare-idmt-bass-lines-samples test-idmt-bass-lines-samples download-idmt-guitar-samples prepare-idmt-guitar-samples test-idmt-guitar-samples download-tinysol-samples prepare-tinysol-samples test-tinysol-samples download-vocadito-samples prepare-vocadito-samples test-vocadito-samples test-vocadito-samples-full-mix test-vocadito-samples-full-mix-parallel test-vocadito-samples-full-mix-shard-% download-vocalset-samples prepare-vocalset-samples test-vocalset-samples test-configured-real-world-samples test-real-world-samples test-real-world-samples-full test-real-world-samples-max test-midi-ranges clean clean-pycache deps install-user test real-dataset-sources inspect-real-dataset-catalog inspect-real-goal-coverage inspect-real-goal-20 inspect-real-goal-full inspect-real-medleydb inspect-real-musdb inspect-real-slakh inspect-real-choralsynth inspect-real-cocochorales inspect-real-synthsod-remote inspect-real-synthsod extract-real-synthsod-archives inspect-real-polyvocal inspect-real-prepared-multitrack inspect-real-multtipop inspect-real-musicnet-remote inspect-real-musicnet inspect-real-musicnet-full inspect-real-spheres inspect-real-guitarset inspect-real-maestro inspect-real-egmd test-musicnet-remote test-medleydb-inspector test-medleydb-prepare test-musdb-inspector test-slakh-inspector test-slakh-prepare test-choralsynth-inspector test-choralsynth-prepare test-cocochorales-inspector test-cocochorales-prepare test-synthsod-remote test-synthsod-archive-extract test-synthsod-inspector test-synthsod-prepare test-polyvocal-inspector test-polyvocal-prepare test-prepared-multitrack-inspector test-prepared-multitrack-prepare test-multtipop-inspector test-spheres-inspector test-guitarset-inspector test-urmp-inspector test-drum-sample-prepare test-hf-drum-kit-prepare test-idmt-drums-prepare test-mdb-drums-prepare test-star-drums-prepare test-medley-solos-prepare test-maps-piano-prepare test-bach10-mf0-synth-prepare test-instrument-sample-attribute-summary test-philharmonia-prepare test-good-sounds-prepare test-iowa-piano-prepare test-iowa-zip-prepare test-idmt-bass-lines-prepare test-idmt-guitar-prepare test-tinysol-prepare test-vocadito-prepare test-vocalset-prepare test-guitar-fretboard-note-prepare test-guitar-techs-prepare test-guitar-techs-chord-prepare test-guitar-chord-mix-prepare test-gaps-guitar-prepare test-guitarset-miss-analysis test-guitarset-attribute-summary test-guitarset-attribute-buckets test-guitarset-attribute-patterns test-real-note-miss-analysis test-real-note-attribute-summary test-real-note-attribute-buckets test-real-note-attribute-patterns test-egmd-miss-analysis test-egmd-drum-attribute-summary test-drum-primary-analysis test-real-goal-script test-real-goal-fixture test-musicnet-fixture test-medleydb-fixture test-slakh-fixture test-choralsynth-fixture test-cocochorales-fixture test-synthsod-fixture test-polyvocal-fixture test-prepared-multitrack-fixture test-multtipop-audio-root-fixture test-guitarset-fixture test-maestro-fixture test-egmd-fixture test-bach10-fixture test-direct-fit-small-fixture test-urmp-fixture test-real-goal-20 test-real-goal-full test-real-multitrack-20 test-real-multitrack-full test-real-urmp test-real-urmp-full test-real-musicnet-20 test-real-musicnet-full test-real-medleydb-20 test-real-slakh-20 test-real-slakh-full test-real-choralsynth-20 test-real-cocochorales-20 test-real-synthsod-20 test-real-synthsod-full test-real-polyvocal-20 test-real-prepared-multitrack-20 test-real-prepared-multitrack-full test-real-multtipop-20 test-real-multtipop-full test-real-guitarset-20 test-real-guitarset-full test-real-maestro-20 test-real-maestro-full test-real-egmd-20 test-real-egmd-full inspect-real-multitrack-20 inspect-real-multitrack-full inspect-real-urmp inspect-real-urmp-full inspect-urmp-fixture decode-urmp-fixture decode-direct-fit-small-fixture update-urmp-fixture update-direct-fit-small-fixture
-.PHONY: find-real-note-row-confusion-patterns find-real-note-practical-row-confusion-patterns find-real-note-focused-row-confusion-patterns find-real-note-visual-row-confusion-patterns find-real-note-focused-visual-row-confusion-patterns find-real-note-ownership-patterns find-real-note-octave-displacement-patterns measure-real-note-octave-display-aliases evaluate-real-note-display-shadow evaluate-real-note-vocal-shadow-safety evaluate-real-note-vocal-shadow-safety-nsynth evaluate-real-note-vocal-shadow-safety-vocadito measure-real-note-attribute-rule analyze-vocadito-full-mix-attributes find-vocadito-full-mix-row-confusion-patterns find-vocadito-full-mix-visual-row-confusion-patterns find-vocadito-full-mix-ownership-patterns find-vocadito-full-mix-broad-vocal-ownership-patterns
+.PHONY: find-real-note-row-confusion-patterns find-real-note-practical-row-confusion-patterns find-real-note-focused-row-confusion-patterns find-real-note-visual-row-confusion-patterns find-real-note-focused-visual-row-confusion-patterns find-real-note-ownership-patterns find-real-note-octave-displacement-patterns measure-real-note-octave-display-aliases evaluate-real-note-display-shadow evaluate-real-note-vocal-shadow-safety evaluate-real-note-vocal-shadow-safety-nsynth evaluate-real-note-vocal-shadow-safety-vocadito measure-real-note-attribute-rule analyze-vocadito-full-mix-attributes find-vocadito-full-mix-row-confusion-patterns find-vocadito-full-mix-visual-row-confusion-patterns find-vocadito-full-mix-ownership-patterns find-vocadito-full-mix-broad-vocal-ownership-patterns analyze-idmt-bass-lines-attributes analyze-idmt-guitar-attributes
 .PHONY: filter-drum-primary-attribute-rows filter-drum-full-attribute-rows test-filter-drum-attribute-rows
 .PHONY: test-build-sharded-tsv test-guitarset-shard-check
 .PHONY: prepare-gaps-guitar-samples-full test-gaps-guitar-samples-full analyze-gaps-guitar-misses-full
@@ -1675,8 +1693,8 @@ measure-analyzer-attribute-rows-full: measure-analyzer-attribute-rows analyze-dr
 refresh-analyzer-detected-attribute-rows: scripts/refresh_analyzer_detected_attribute_rows.py
 	$(PYTHON) scripts/refresh_analyzer_detected_attribute_rows.py --build-dir "$(BUILD_DIR)" --python "$(PYTHON)" --jobs "$(REFRESH_ANALYZER_ATTRIBUTE_JOBS)"
 
-print-analyzer-detected-attributes: $(MEASURE_ANALYZER_ROW_DUMPS) $(BUILD_DIR)/drum_primary_miss_attribute_rows.tsv scripts/print_analyzer_detected_attributes.py scripts/run_with_duration.sh
-	$(RUN_WITH_DURATION) analyzer_detected_attributes $(PYTHON) scripts/print_analyzer_detected_attributes.py --instrument "$(INSTRUMENT_DETECTED_ATTRIBUTE_ROWS)" --real-note "$(REAL_NOTE_DETECTED_ATTRIBUTE_ROWS)" --guitar-chord "$(GUITAR_CHORD_DETECTED_ATTRIBUTE_ROWS)" --drum-primary "$(BUILD_DIR)/drum_primary_miss_attribute_rows.tsv" --drum-full "$(BUILD_DIR)/drum_full_attribute_rows.tsv" $(ATTRIBUTE_ROW_REPORT_ARGS)
+print-analyzer-detected-attributes: $(MEASURE_ANALYZER_ROW_DUMPS) $(REAL_NOTE_SAMPLE_ATTRIBUTE_EXTRA_DEPS) $(BUILD_DIR)/drum_primary_miss_attribute_rows.tsv scripts/print_analyzer_detected_attributes.py scripts/run_with_duration.sh
+	$(RUN_WITH_DURATION) analyzer_detected_attributes $(PYTHON) scripts/print_analyzer_detected_attributes.py --instrument "$(INSTRUMENT_DETECTED_ATTRIBUTE_ROWS)" --real-note "$(REAL_NOTE_DETECTED_ATTRIBUTE_ROWS)" --guitar-chord "$(GUITAR_CHORD_DETECTED_ATTRIBUTE_ROWS)" --drum-primary "$(BUILD_DIR)/drum_primary_miss_attribute_rows.tsv" --drum-full "$(BUILD_DIR)/drum_full_attribute_rows.tsv" $(REAL_NOTE_SAMPLE_ATTRIBUTE_EXTRA_ARGS) $(ATTRIBUTE_ROW_REPORT_ARGS)
 
 measure-analyzer-detected-attributes: measure-analyzer-attribute-rows
 	+$(MAKE) print-analyzer-detected-attributes
@@ -2263,6 +2281,10 @@ $(IDMT_BASS_LINES_ARCHIVE): | $(BUILD_DIR)
 prepare-idmt-bass-lines-samples: scripts/prepare_idmt_bass_lines_samples.py download-idmt-bass-lines-samples | $(BUILD_DIR)
 	IDMT_BASS_LINES_ARCHIVE="$(IDMT_BASS_LINES_ARCHIVE)" IDMT_BASS_LINES_SAMPLE_DIR="$(IDMT_BASS_LINES_SAMPLE_DIR)" IDMT_BASS_LINES_SAMPLE_LIMIT="$(IDMT_BASS_LINES_SAMPLE_LIMIT)" IDMT_BASS_LINES_MIN_BASS="$(IDMT_BASS_LINES_MIN_BASS)" IDMT_BASS_LINES_EXPRESSIONS="$(IDMT_BASS_LINES_EXPRESSIONS)" IDMT_BASS_LINES_MIN_NOTE_DURATION="$(IDMT_BASS_LINES_MIN_NOTE_DURATION)" $(PYTHON) scripts/prepare_idmt_bass_lines_samples.py --archive "$(IDMT_BASS_LINES_ARCHIVE)" --output "$(IDMT_BASS_LINES_SAMPLE_DIR)" --limit "$(IDMT_BASS_LINES_SAMPLE_LIMIT)" --min-samples "$(IDMT_BASS_LINES_MIN_BASS)" --expressions "$(IDMT_BASS_LINES_EXPRESSIONS)" --min-note-duration "$(IDMT_BASS_LINES_MIN_NOTE_DURATION)"
 
+$(IDMT_BASS_LINES_SAMPLE_DIR)/manifest.tsv: scripts/prepare_idmt_bass_lines_samples.py $(IDMT_BASS_LINES_ARCHIVE) | $(BUILD_DIR)
+	+$(MAKE) prepare-idmt-bass-lines-samples
+	@touch "$(IDMT_BASS_LINES_SAMPLE_DIR)/manifest.tsv"
+
 test-idmt-bass-lines-samples: REAL_NOTE_SAMPLE_TAG := idmt_bass_lines
 test-idmt-bass-lines-samples: REAL_NOTE_SAMPLE_ROOT := $(IDMT_BASS_LINES_SAMPLE_DIR)
 test-idmt-bass-lines-samples: REAL_NOTE_SAMPLE_REQUIRED_SAMPLES := $(IDMT_BASS_LINES_MIN_BASS)
@@ -2270,6 +2292,23 @@ test-idmt-bass-lines-samples: REAL_NOTE_SAMPLE_MIN_BASS := $(IDMT_BASS_LINES_MIN
 test-idmt-bass-lines-samples: REAL_NOTE_SAMPLE_MAX_FAILURES := $(IDMT_BASS_LINES_MAX_FAILURES)
 test-idmt-bass-lines-samples: $(BUILD_DIR)/analyzer_real_note_samples prepare-idmt-bass-lines-samples scripts/run_with_duration.sh scripts/check_real_note_sample_shards.py
 	+$(RUN_REAL_NOTE_SAMPLE_SHARDS)
+
+$(IDMT_BASS_LINES_ATTRIBUTE_TSV): $(BUILD_DIR)/analyzer_real_note_samples $(IDMT_BASS_LINES_SAMPLE_DIR)/manifest.tsv scripts/build_sharded_tsv.sh | $(BUILD_DIR)
+	+$(SHELL) scripts/build_sharded_tsv.sh "$@" "$(MAKE)" "$(REAL_NOTE_SAMPLE_TEST_MAKE_JOBS)" $(IDMT_BASS_LINES_ATTRIBUTE_PARTS)
+
+$(BUILD_DIR)/idmt_bass_lines_attributes.shard-%.tsv: FORCE $(BUILD_DIR)/analyzer_real_note_samples $(IDMT_BASS_LINES_SAMPLE_DIR)/manifest.tsv scripts/run_with_duration.sh | $(BUILD_DIR)
+	$(RUN_WITH_DURATION) analyzer_idmt_bass_lines_attributes_shard_$* env MUSIC_ANALYZER_REAL_NOTE_SAMPLES_REQUIRED=1 MUSIC_ANALYZER_REAL_NOTE_REQUIRED_SAMPLES="$(IDMT_BASS_LINES_MIN_BASS)" MUSIC_ANALYZER_REAL_NOTE_SAMPLE_ROOT="$(IDMT_BASS_LINES_SAMPLE_DIR)" MUSIC_ANALYZER_REAL_NOTE_MIN_BASS=0 MUSIC_ANALYZER_REAL_NOTE_MIN_GUITAR=0 MUSIC_ANALYZER_REAL_NOTE_MIN_PIANO=0 MUSIC_ANALYZER_REAL_NOTE_MIN_VOCALS=0 MUSIC_ANALYZER_REAL_NOTE_MIN_OTHER=0 MUSIC_ANALYZER_REAL_NOTE_MAX_FAILURES=999999 MUSIC_ANALYZER_REAL_NOTE_MAX_FAILURE_LINES=80 MUSIC_ANALYZER_REAL_NOTE_SHARD_COUNT="$(REAL_NOTE_SAMPLE_SHARDS)" MUSIC_ANALYZER_REAL_NOTE_SHARD_INDEX="$*" MUSIC_ANALYZER_REAL_NOTE_ATTRIBUTE_TSV="$@" $(BUILD_DIR)/analyzer_real_note_samples > "$(BUILD_DIR)/idmt_bass_lines_attributes.shard-$*.out" 2> "$(BUILD_DIR)/idmt_bass_lines_attributes.shard-$*.err"
+
+$(IDMT_BASS_LINES_DETECTED_ATTRIBUTE_ROWS): $(IDMT_BASS_LINES_ATTRIBUTE_TSV) scripts/inspect_real_note_attribute_buckets.py | $(BUILD_DIR)
+	$(PYTHON) scripts/inspect_real_note_attribute_buckets.py "$(IDMT_BASS_LINES_ATTRIBUTE_TSV)" --dump-rows --include-empty-debug > "$@"
+
+$(IDMT_BASS_LINES_MISS_ATTRIBUTE_ROWS): $(IDMT_BASS_LINES_ATTRIBUTE_TSV) scripts/inspect_real_note_attribute_buckets.py | $(BUILD_DIR)
+	$(PYTHON) scripts/inspect_real_note_attribute_buckets.py "$(IDMT_BASS_LINES_ATTRIBUTE_TSV)" --dump-rows --include-empty-debug --status miss > "$@"
+
+analyze-idmt-bass-lines-attributes: $(IDMT_BASS_LINES_DETECTED_ATTRIBUTE_ROWS) $(IDMT_BASS_LINES_MISS_ATTRIBUTE_ROWS)
+	@printf '%s\n' "IDMT bass lines attribute rows:"
+	@printf '%s\n' "  $(IDMT_BASS_LINES_DETECTED_ATTRIBUTE_ROWS)"
+	@printf '%s\n' "  $(IDMT_BASS_LINES_MISS_ATTRIBUTE_ROWS)"
 
 download-idmt-guitar-samples: $(IDMT_GUITAR_ARCHIVE)
 
@@ -2284,6 +2323,10 @@ $(IDMT_GUITAR_ARCHIVE): FORCE | $(BUILD_DIR)
 prepare-idmt-guitar-samples: scripts/prepare_idmt_guitar_samples.py download-idmt-guitar-samples | $(BUILD_DIR)
 	IDMT_GUITAR_ARCHIVE="$(IDMT_GUITAR_ARCHIVE)" IDMT_GUITAR_SAMPLE_DIR="$(IDMT_GUITAR_SAMPLE_DIR)" IDMT_GUITAR_SAMPLE_LIMIT="$(IDMT_GUITAR_SAMPLE_LIMIT)" IDMT_GUITAR_MIN_GUITAR="$(IDMT_GUITAR_MIN_GUITAR)" IDMT_GUITAR_EXPRESSIONS="$(IDMT_GUITAR_EXPRESSIONS)" FFMPEG="$(FFMPEG)" $(PYTHON) scripts/prepare_idmt_guitar_samples.py --archive "$(IDMT_GUITAR_ARCHIVE)" --output "$(IDMT_GUITAR_SAMPLE_DIR)" --limit "$(IDMT_GUITAR_SAMPLE_LIMIT)" --min-samples "$(IDMT_GUITAR_MIN_GUITAR)" --expressions "$(IDMT_GUITAR_EXPRESSIONS)" --ffmpeg "$(FFMPEG)"
 
+$(IDMT_GUITAR_SAMPLE_DIR)/manifest.tsv: scripts/prepare_idmt_guitar_samples.py $(IDMT_GUITAR_ARCHIVE) | $(BUILD_DIR)
+	+$(MAKE) prepare-idmt-guitar-samples
+	@touch "$(IDMT_GUITAR_SAMPLE_DIR)/manifest.tsv"
+
 test-idmt-guitar-samples: REAL_NOTE_SAMPLE_TAG := idmt_guitar
 test-idmt-guitar-samples: REAL_NOTE_SAMPLE_ROOT := $(IDMT_GUITAR_SAMPLE_DIR)
 test-idmt-guitar-samples: REAL_NOTE_SAMPLE_REQUIRED_SAMPLES := $(IDMT_GUITAR_MIN_GUITAR)
@@ -2291,6 +2334,23 @@ test-idmt-guitar-samples: REAL_NOTE_SAMPLE_MIN_GUITAR := $(IDMT_GUITAR_MIN_GUITA
 test-idmt-guitar-samples: REAL_NOTE_SAMPLE_MAX_FAILURES := $(IDMT_GUITAR_MAX_FAILURES)
 test-idmt-guitar-samples: $(BUILD_DIR)/analyzer_real_note_samples prepare-idmt-guitar-samples scripts/run_with_duration.sh scripts/check_real_note_sample_shards.py
 	+$(RUN_REAL_NOTE_SAMPLE_SHARDS)
+
+$(IDMT_GUITAR_ATTRIBUTE_TSV): $(BUILD_DIR)/analyzer_real_note_samples $(IDMT_GUITAR_SAMPLE_DIR)/manifest.tsv scripts/build_sharded_tsv.sh | $(BUILD_DIR)
+	+$(SHELL) scripts/build_sharded_tsv.sh "$@" "$(MAKE)" "$(REAL_NOTE_SAMPLE_TEST_MAKE_JOBS)" $(IDMT_GUITAR_ATTRIBUTE_PARTS)
+
+$(BUILD_DIR)/idmt_guitar_attributes.shard-%.tsv: FORCE $(BUILD_DIR)/analyzer_real_note_samples $(IDMT_GUITAR_SAMPLE_DIR)/manifest.tsv scripts/run_with_duration.sh | $(BUILD_DIR)
+	$(RUN_WITH_DURATION) analyzer_idmt_guitar_attributes_shard_$* env MUSIC_ANALYZER_REAL_NOTE_SAMPLES_REQUIRED=1 MUSIC_ANALYZER_REAL_NOTE_REQUIRED_SAMPLES="$(IDMT_GUITAR_MIN_GUITAR)" MUSIC_ANALYZER_REAL_NOTE_SAMPLE_ROOT="$(IDMT_GUITAR_SAMPLE_DIR)" MUSIC_ANALYZER_REAL_NOTE_MIN_BASS=0 MUSIC_ANALYZER_REAL_NOTE_MIN_GUITAR=0 MUSIC_ANALYZER_REAL_NOTE_MIN_PIANO=0 MUSIC_ANALYZER_REAL_NOTE_MIN_VOCALS=0 MUSIC_ANALYZER_REAL_NOTE_MIN_OTHER=0 MUSIC_ANALYZER_REAL_NOTE_MAX_FAILURES=999999 MUSIC_ANALYZER_REAL_NOTE_MAX_FAILURE_LINES=80 MUSIC_ANALYZER_REAL_NOTE_SHARD_COUNT="$(REAL_NOTE_SAMPLE_SHARDS)" MUSIC_ANALYZER_REAL_NOTE_SHARD_INDEX="$*" MUSIC_ANALYZER_REAL_NOTE_ATTRIBUTE_TSV="$@" $(BUILD_DIR)/analyzer_real_note_samples > "$(BUILD_DIR)/idmt_guitar_attributes.shard-$*.out" 2> "$(BUILD_DIR)/idmt_guitar_attributes.shard-$*.err"
+
+$(IDMT_GUITAR_DETECTED_ATTRIBUTE_ROWS): $(IDMT_GUITAR_ATTRIBUTE_TSV) scripts/inspect_real_note_attribute_buckets.py | $(BUILD_DIR)
+	$(PYTHON) scripts/inspect_real_note_attribute_buckets.py "$(IDMT_GUITAR_ATTRIBUTE_TSV)" --dump-rows --include-empty-debug > "$@"
+
+$(IDMT_GUITAR_MISS_ATTRIBUTE_ROWS): $(IDMT_GUITAR_ATTRIBUTE_TSV) scripts/inspect_real_note_attribute_buckets.py | $(BUILD_DIR)
+	$(PYTHON) scripts/inspect_real_note_attribute_buckets.py "$(IDMT_GUITAR_ATTRIBUTE_TSV)" --dump-rows --include-empty-debug --status miss > "$@"
+
+analyze-idmt-guitar-attributes: $(IDMT_GUITAR_DETECTED_ATTRIBUTE_ROWS) $(IDMT_GUITAR_MISS_ATTRIBUTE_ROWS)
+	@printf '%s\n' "IDMT guitar attribute rows:"
+	@printf '%s\n' "  $(IDMT_GUITAR_DETECTED_ATTRIBUTE_ROWS)"
+	@printf '%s\n' "  $(IDMT_GUITAR_MISS_ATTRIBUTE_ROWS)"
 
 download-tinysol-samples: $(TINYSOL_METADATA_PATH) $(TINYSOL_ARCHIVE)
 

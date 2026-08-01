@@ -599,6 +599,7 @@ def dump_rows(
     buckets: list[tuple[str, str, str, str]],
     sample_ids: list[str],
     misses_only: bool,
+    include_empty_debug: bool,
     limit: int,
 ) -> None:
     bucket_filter = set(buckets)
@@ -606,7 +607,7 @@ def dump_rows(
     printed = 0
     print("\t".join(ROW_DUMP_FIELDS))
     for row in rows:
-        if not row.get("debug_note"):
+        if not include_empty_debug and not row.get("debug_note"):
             continue
         if misses_only and row.get("status") != "ownership_miss":
             continue
@@ -784,6 +785,11 @@ def main() -> int:
         default=0,
         help="maximum rows to print in --dump-rows mode; 0 means all",
     )
+    parser.add_argument(
+        "--include-empty-debug",
+        action="store_true",
+        help="include rows without a debug-note winner in --dump-rows mode",
+    )
     parser.add_argument("--status", action="append", default=[], help="include only this row status; repeatable")
     parser.add_argument("--family", action="append", default=[], help="include only this expected family; repeatable")
     parser.add_argument("--source", action="append", default=[], help="include only this source subtype; repeatable")
@@ -821,6 +827,7 @@ def main() -> int:
             buckets=explicit_buckets,
             sample_ids=args.sample_id,
             misses_only=args.misses_only,
+            include_empty_debug=args.include_empty_debug,
             limit=max(0, args.dump_limit),
         )
         return 0

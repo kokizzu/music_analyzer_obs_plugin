@@ -1063,11 +1063,16 @@ def report_instrument_rows(path: pathlib.Path, row_limit: int) -> None:
         )
 
 
-def report_real_note_rows(path: pathlib.Path, miss_path: pathlib.Path, row_limit: int) -> None:
+def report_real_note_rows(
+    path: pathlib.Path,
+    miss_path: pathlib.Path | None,
+    row_limit: int,
+    title: str = "measured real-note full-mix rows",
+) -> None:
     rows = [row for row in load_rows(path) if row.get("sample_id")]
-    miss_rows = [row for row in load_rows(miss_path) if row.get("sample_id")]
+    miss_rows = [row for row in load_rows(miss_path) if row.get("sample_id")] if miss_path else []
     contrast_rows = append_unique_rows(rows, miss_rows)
-    section("measured real-note full-mix rows")
+    section(title)
     if not rows:
         print(f"  missing rows: {path}")
         return
@@ -1332,6 +1337,20 @@ def report_drum_rows(path: pathlib.Path, title: str, row_limit: int) -> None:
         )
 
 
+def parse_extra_real_note(value: str) -> tuple[str, pathlib.Path, pathlib.Path | None]:
+    title, separator, paths = value.partition("=")
+    if not separator or not title.strip() or not paths.strip():
+        raise SystemExit("--extra-real-note must be TITLE=ROWS[:MISS_ROWS]")
+    row_path, miss_separator, miss_path = paths.partition(":")
+    if not row_path.strip():
+        raise SystemExit("--extra-real-note must include a row TSV path")
+    return (
+        title.strip(),
+        pathlib.Path(row_path.strip()),
+        pathlib.Path(miss_path.strip()) if miss_separator and miss_path.strip() else None,
+    )
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--instrument", type=pathlib.Path, default=pathlib.Path("build/instrument_detected_attribute_rows.tsv"))
@@ -1340,6 +1359,13 @@ def main() -> int:
     parser.add_argument("--guitar-chord", type=pathlib.Path, default=pathlib.Path("build/guitar_chord_detected_attribute_rows.tsv"))
     parser.add_argument("--drum-primary", type=pathlib.Path, default=pathlib.Path("build/drum_primary_miss_attribute_rows.tsv"))
     parser.add_argument("--drum-full", type=pathlib.Path, default=pathlib.Path("build/drum_full_attribute_rows.tsv"))
+    parser.add_argument(
+        "--extra-real-note",
+        action="append",
+        default=[],
+        metavar="TITLE=ROWS[:MISS_ROWS]",
+        help="print an additional real-note attribute row section from another TSV",
+    )
     parser.add_argument(
         "--rows",
         "--row-limit",
@@ -1354,6 +1380,9 @@ def main() -> int:
     row_limit = max(0, args.rows)
     report_instrument_rows(args.instrument, row_limit)
     report_real_note_rows(args.real_note, args.real_note_miss, row_limit)
+    for value in args.extra_real_note:
+        title, path, miss_path = parse_extra_real_note(value)
+        report_real_note_rows(path, miss_path, row_limit, f"measured {title} rows")
     report_guitar_chord_rows(args.guitar_chord, row_limit)
     report_drum_rows(args.drum_primary, "measured drum primary rows", row_limit)
     report_drum_rows(args.drum_full, "measured protected drum full rows", row_limit)

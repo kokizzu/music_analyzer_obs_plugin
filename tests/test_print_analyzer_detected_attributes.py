@@ -69,6 +69,8 @@ kick.wav	kick	kick	0.9	0.1	0.0	0.9	0.1	0.1	0.1	0.1	1	0	0	0	0	0	0	0.9	0.4	0	0	0	0
                 str(real_note),
                 "--real-note-miss",
                 str(root / "missing_real_note_miss.tsv"),
+                "--extra-real-note",
+                f"IDMT bass lines={real_note}:{root / 'missing_idmt_bass_lines_miss.tsv'}",
                 "--guitar-chord",
                 str(guitar),
                 "--drum-primary",
@@ -115,6 +117,7 @@ kick.wav	kick	kick	0.9	0.1	0.0	0.9	0.1	0.1	0.1	0.1	1	0	0	0	0	0	0	0.9	0.4	0	0	0	0
     assert "miss guitar expected=E3/52 display=E4/12 primary=E3/0 got=E3/piano" in output
     assert "octdup=1" in output
     assert "measured real-note full-mix rows" in output
+    assert "measured IDMT bass lines rows" in output
     assert "debug owner mismatches=piano->guitar=1" in output
     assert "pitch quality=exact=2" in output
     assert (
@@ -190,7 +193,7 @@ kick.wav	kick	kick	0.9	0.1	0.0	0.9	0.1	0.1	0.1	0.1	1	0	0	0	0	0	0	0.9	0.4	0	0	0	0
     assert "snare->tom energy=0.2/0.7/0.1" in output
     assert "measured protected drum full rows" in output
     assert "kick->kick energy=0.9/0.1/0" in output
-    assert output.count("hit-vs-miss feature contrast=") == 3
+    assert output.count("hit-vs-miss feature contrast=") == 4
     print("test_print_analyzer_detected_attributes: ok")
     return 0
 

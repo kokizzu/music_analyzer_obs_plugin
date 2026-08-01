@@ -291,6 +291,61 @@ def main() -> int:
             "A5:0.80",
             "",
         ]
+        empty_debug_row = [
+            "hit",
+            "bass",
+            "electric",
+            "bass",
+            "bass",
+            "bass_empty_debug",
+            "E2",
+            "0",
+            "E2",
+            "yes",
+            "yes",
+            "bass",
+            "bass",
+            "",
+            "",
+            "40",
+            "",
+            "",
+            "0.90",
+            "0.05",
+            "0.05",
+            "0.00",
+            "0.00",
+            "1.00",
+            "0.70",
+            "0.80",
+            "0.04",
+            "0.10",
+            "0.02",
+            "0.01",
+            "1.00",
+            "0.50",
+            "0.20",
+            "0.05",
+            "0.02",
+            "1.00",
+            "0.00",
+            "0.00",
+            "0.00",
+            "0.00",
+            "0.00",
+            "1.00",
+            "0.00",
+            "0.00",
+            "0.00",
+            "0.00",
+            "0.00",
+            "E2:1.00",
+            "",
+            "",
+            "",
+            "",
+            "",
+        ]
         path.write_text(
             "\t".join(columns)
             + "\n"
@@ -301,6 +356,8 @@ def main() -> int:
             + "\t".join(keyboard_visual_row)
             + "\n"
             + "\t".join(other_octave_row)
+            + "\n"
+            + "\t".join(empty_debug_row)
             + "\n"
         )
 
@@ -383,6 +440,35 @@ def main() -> int:
                 str(path),
                 "--dump-rows",
                 "--misses-only",
+            ],
+            text=True,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            check=True,
+        )
+        empty_debug_default_dump = subprocess.run(
+            [
+                sys.executable,
+                str(ROOT / "scripts" / "inspect_real_note_attribute_buckets.py"),
+                str(path),
+                "--dump-rows",
+                "--sample-id",
+                "bass_empty_debug",
+            ],
+            text=True,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            check=True,
+        )
+        empty_debug_included_dump = subprocess.run(
+            [
+                sys.executable,
+                str(ROOT / "scripts" / "inspect_real_note_attribute_buckets.py"),
+                str(path),
+                "--dump-rows",
+                "--include-empty-debug",
+                "--sample-id",
+                "bass_empty_debug",
             ],
             text=True,
             stdout=subprocess.PIPE,
@@ -566,6 +652,8 @@ def main() -> int:
     assert "buffer_visual_strongest_row" in dumped.stdout.splitlines()[0]
     assert "piano_visual_level" in dumped.stdout.splitlines()[0]
     assert "\nkeyboard_1\townership_miss\tpiano\telectronic\tC4" in dumped.stdout
+    assert "bass_empty_debug" not in empty_debug_default_dump.stdout
+    assert "\nbass_empty_debug\thit\tbass\telectric\tE2" in empty_debug_included_dump.stdout
     dumped_rows = list(csv.DictReader(io.StringIO(dumped.stdout), delimiter="\t"))
     assert len(dumped_rows) == 1
     keyboard_dump = dumped_rows[0]
