@@ -44,18 +44,21 @@ route snare->tom positives=492 rows=492 protected_correct=13126 rows=13126
         )
 
     output = result.stdout
-    require(output, "detector_route_summary: candidates=5 low_false=2 near_miss=1 drum=2")
     require(
         output,
-        "low-false row_confusion:piano/electronic->amb +samples=23 +rows=44 -samples=15 -rows=29 foreign_rows=0",
+        "detector_route_summary: candidates=5 low_false=2 near_miss=1 drum=2 positive_net=4 gain_ge_1=4",
     )
     require(
         output,
-        "near-miss row_confusion:piano/electronic->amb +samples=20 +rows=47 -samples=202 -rows=616 foreign_rows=242",
+        "low-false row_confusion:piano/electronic->amb +samples=23 +rows=44 -samples=15 -rows=29 foreign_rows=0 side_rows=29 net_rows=15 gain_per_side=1.52",
     )
     require(
         output,
-        "drum route snare->tom +rows=24 -rows=5 foreign_rows=4 new_active_rows=0 primary_break_rows=4",
+        "near-miss row_confusion:piano/electronic->amb +samples=20 +rows=47 -samples=202 -rows=616 foreign_rows=242 side_rows=858 net_rows=-811 gain_per_side=0.05",
+    )
+    require(
+        output,
+        "drum route snare->tom +rows=24 -rows=5 foreign_rows=4 new_active_rows=0 primary_break_rows=4 side_rows=13 net_rows=11 gain_per_side=1.85",
     )
     if output.index("low-false row_confusion") > output.index("drum route snare->tom"):
         raise AssertionError(f"expected low-false candidates before drum routes:\n{output}")

@@ -43,6 +43,16 @@ class Candidate:
     def side_effect_rows(self) -> int:
         return self.neg_rows + self.foreign_rows + self.new_active_rows + self.primary_break_rows
 
+    @property
+    def net_rows(self) -> int:
+        return self.pos_rows - self.side_effect_rows
+
+    @property
+    def gain_per_side_effect_row(self) -> float:
+        if self.side_effect_rows <= 0:
+            return float("inf")
+        return self.pos_rows / self.side_effect_rows
+
 
 def parse_report(path: pathlib.Path) -> list[Candidate]:
     candidates: list[Candidate] = []
@@ -105,30 +115,44 @@ def parse_report(path: pathlib.Path) -> list[Candidate]:
     return candidates
 
 
-def candidate_sort_key(candidate: Candidate) -> tuple[int, int, int, int, str]:
+def candidate_sort_key(candidate: Candidate) -> tuple[int, float, int, int, int, str]:
     kind_priority = {"low-false": 0, "near-miss": 1, "drum": 2}.get(candidate.kind, 3)
     return (
         kind_priority,
+        -candidate.gain_per_side_effect_row,
+        -candidate.net_rows,
         candidate.side_effect_rows,
         -candidate.pos_rows,
-        -candidate.pos_samples,
         candidate.section,
     )
 
 
+def format_gain_ratio(candidate: Candidate) -> str:
+    ratio = candidate.gain_per_side_effect_row
+    if ratio == float("inf"):
+        return "inf"
+    return f"{ratio:.2f}"
+
+
 def format_candidate(candidate: Candidate) -> str:
+    utility = (
+        f"side_rows={candidate.side_effect_rows} "
+        f"net_rows={candidate.net_rows} "
+        f"gain_per_side={format_gain_ratio(candidate)}"
+    )
     if candidate.kind == "drum":
         return (
             f"{candidate.kind} {candidate.section} "
             f"+rows={candidate.pos_rows} -rows={candidate.neg_rows} "
             f"foreign_rows={candidate.foreign_rows} new_active_rows={candidate.new_active_rows} "
-            f"primary_break_rows={candidate.primary_break_rows} :: {candidate.rule}"
+            f"primary_break_rows={candidate.primary_break_rows} "
+            f"{utility} :: {candidate.rule}"
         )
     return (
         f"{candidate.kind} {candidate.section} "
         f"+samples={candidate.pos_samples} +rows={candidate.pos_rows} "
         f"-samples={candidate.neg_samples} -rows={candidate.neg_rows} "
-        f"foreign_rows={candidate.foreign_rows} :: {candidate.rule}"
+        f"foreign_rows={candidate.foreign_rows} {utility} :: {candidate.rule}"
     )
 
 
@@ -142,11 +166,14 @@ def main() -> int:
     low_false = [candidate for candidate in candidates if candidate.kind == "low-false"]
     near_miss = [candidate for candidate in candidates if candidate.kind == "near-miss"]
     drum = [candidate for candidate in candidates if candidate.kind == "drum"]
+    positive_net = [candidate for candidate in candidates if candidate.net_rows > 0]
+    gain_ge_1 = [candidate for candidate in candidates if candidate.gain_per_side_effect_row >= 1.0]
 
     print(
         "detector_route_summary: "
         f"candidates={len(candidates)} low_false={len(low_false)} "
-        f"near_miss={len(near_miss)} drum={len(drum)}"
+        f"near_miss={len(near_miss)} drum={len(drum)} "
+        f"positive_net={len(positive_net)} gain_ge_1={len(gain_ge_1)}"
     )
     if not candidates:
         print("  --")
