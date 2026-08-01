@@ -7403,6 +7403,28 @@ bool measured_other_dominant_same_pitch_guitar_display_shadow(const FullMixDebug
 	return true;
 }
 
+bool measured_other_dominant_octave_alias_guitar_display_shadow(const FullMixDebugCandidate &lower,
+								const FullMixDebugCandidate *debug,
+								float candidate_level,
+								float lower_level,
+								int interval)
+{
+	if (interval != 24)
+		return false;
+	if (!measured_other_dominant_same_pitch_guitar_display_shadow(lower))
+		return false;
+	if (lower_level < 0.18f || lower_level < candidate_level * 0.18f)
+		return false;
+	if (debug && guitar_display_candidate_has_confident_body(*debug))
+		return false;
+	if (debug && (shared_guitar_pitch_display_supported(*debug) ||
+		      measured_guitar_octave_alias_supported(*debug) ||
+		      other_owned_distorted_guitar_octave_alias_supported(*debug) ||
+		      other_owned_noisy_distorted_guitar_octave_up_supported(*debug)))
+		return false;
+	return true;
+}
+
 bool guitar_display_candidate_shadowed_by_non_guitar_pitch(const FullMixOwnership &ownership,
 							   const NoteCandidate &candidate)
 {
@@ -7471,6 +7493,12 @@ bool guitar_display_candidate_shadowed_by_non_guitar_pitch(const FullMixOwnershi
 
 	if (interval > 24)
 		return false;
+
+	if (measured_other_dominant_octave_alias_guitar_display_shadow(*lower, debug,
+								       ownership_global_note_level(
+									       ownership, candidate.midi),
+								       lower_level, interval))
+		return true;
 
 	if (non_guitar_owned_octave_alias_blocks_guitar_display(*debug, *lower,
 								ownership_global_note_level(ownership,

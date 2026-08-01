@@ -1369,6 +1369,86 @@ void check_other_dominant_same_pitch_guitar_display_is_pruned(Runner &runner)
 		      "other-dominant same-pitch guitar display: expected stronger guitar score to stay");
 }
 
+void check_other_dominant_octave_alias_guitar_display_is_pruned(Runner &runner)
+{
+	static constexpr int kLowerMidi = 51;
+	static constexpr int kAlias12 = kLowerMidi + 12;
+	static constexpr int kAlias24 = kLowerMidi + 24;
+
+	FullMixOwnership ownership = {};
+	ownership.debug_candidate_count = 3;
+	ownership.debug_candidates[0].midi = kAlias12;
+	ownership.debug_candidates[0].owner = InstrumentKind::Guitar;
+	ownership.debug_candidates[0].ownership_confidence = 0.88f;
+	ownership.debug_candidates[0].guitar_score = 0.42f;
+	ownership.debug_candidates[0].spectral_level = 0.52f;
+	ownership.debug_candidates[0].pitch_confidence = 0.32f;
+	ownership.debug_candidates[0].periodicity = 0.70f;
+	ownership.debug_candidates[0].harmonicity = 0.70f;
+	ownership.debug_candidates[0].harmonic_fit_error = 0.52f;
+	ownership.debug_candidates[0].local_noise_level = 0.22f;
+	ownership.debug_candidates[0].spectral_centroid = 0.50f;
+	ownership.debug_candidates[0].spectral_slope = 0.64f;
+	ownership.debug_candidates[1] = ownership.debug_candidates[0];
+	ownership.debug_candidates[1].midi = kAlias24;
+	ownership.debug_candidates[2].midi = kLowerMidi;
+	ownership.debug_candidates[2].owner = InstrumentKind::Other;
+	ownership.debug_candidates[2].ownership_confidence = 0.86f;
+	ownership.debug_candidates[2].other_score = 0.90f;
+	ownership.debug_candidates[2].guitar_score = 0.10f;
+	ownership.debug_candidates[2].keyboard_score = 0.0f;
+	ownership.debug_candidates[2].spectral_level = 0.78f;
+	ownership.debug_candidates[2].pitch_confidence = 0.51f;
+	ownership.debug_candidates[2].periodicity = 0.72f;
+	ownership.debug_candidates[2].harmonic_fit_error = 0.30f;
+	ownership.debug_candidates[2].local_noise_level = 0.24f;
+
+	ownership.global_note_levels[static_cast<std::size_t>(kLowerMidi - kFirstMidi)] = 1.0f;
+	ownership.global_note_levels[static_cast<std::size_t>(kAlias12 - kFirstMidi)] = 0.70f;
+	ownership.global_note_levels[static_cast<std::size_t>(kAlias24 - kFirstMidi)] = 0.62f;
+
+	NoteCandidateList candidates;
+	candidates.push_back(NoteCandidate{kAlias12, 0.70f, 0.88f});
+	candidates.push_back(NoteCandidate{kAlias24, 0.62f, 0.88f});
+	const NoteCandidateList pruned =
+		prune_shadowed_full_mix_guitar_display_candidates(ownership, candidates);
+	runner.expect(candidate_list_has_midi(pruned, kAlias12),
+		      "other-dominant octave alias guitar display: expected +12 alias to stay");
+	runner.expect(!candidate_list_has_midi(pruned, kAlias24),
+		      "other-dominant octave alias guitar display: expected +24 alias to prune");
+
+	FullMixOwnership keyboard_supported_lower = ownership;
+	keyboard_supported_lower.debug_candidates[2].keyboard_score = 0.02f;
+	const NoteCandidateList keyboard_protected =
+		prune_shadowed_full_mix_guitar_display_candidates(keyboard_supported_lower, candidates);
+	runner.expect(candidate_list_has_midi(keyboard_protected, kAlias12),
+		      "other-dominant octave alias guitar display: expected keyboard-supported lower pitch to keep +12");
+	runner.expect(candidate_list_has_midi(keyboard_protected, kAlias24),
+		      "other-dominant octave alias guitar display: expected keyboard-supported lower pitch to protect +24");
+
+	FullMixOwnership guitar_supported_lower = ownership;
+	guitar_supported_lower.debug_candidates[2].guitar_score = 0.18f;
+	const NoteCandidateList guitar_protected =
+		prune_shadowed_full_mix_guitar_display_candidates(guitar_supported_lower, candidates);
+	runner.expect(candidate_list_has_midi(guitar_protected, kAlias12),
+		      "other-dominant octave alias guitar display: expected guitar-supported lower pitch to keep +12");
+	runner.expect(candidate_list_has_midi(guitar_protected, kAlias24),
+		      "other-dominant octave alias guitar display: expected guitar-supported lower pitch to protect +24");
+
+	FullMixOwnership confident_upper = ownership;
+	confident_upper.debug_candidates[0].guitar_score = 0.92f;
+	confident_upper.debug_candidates[0].pitch_confidence = 0.90f;
+	confident_upper.debug_candidates[0].periodicity = 0.84f;
+	confident_upper.debug_candidates[1] = confident_upper.debug_candidates[0];
+	confident_upper.debug_candidates[1].midi = kAlias24;
+	const NoteCandidateList confident_protected =
+		prune_shadowed_full_mix_guitar_display_candidates(confident_upper, candidates);
+	runner.expect(candidate_list_has_midi(confident_protected, kAlias12),
+		      "other-dominant octave alias guitar display: expected confident guitar upper to protect +12");
+	runner.expect(candidate_list_has_midi(confident_protected, kAlias24),
+		      "other-dominant octave alias guitar display: expected confident guitar upper to protect +24");
+}
+
 void check_display_ownership_scale_keeps_confirmed_mid_confidence_visible(Runner &runner)
 {
 	NoteCandidate weak = {};
@@ -1417,6 +1497,7 @@ int run()
 	check_lower_non_guitar_pitch_class_guitar_octave_shadow_uses_measured_levels(runner);
 	check_non_guitar_owned_guitar_octave_alias_display_is_suppressed(runner);
 	check_other_dominant_same_pitch_guitar_display_is_pruned(runner);
+	check_other_dominant_octave_alias_guitar_display_is_pruned(runner);
 	check_display_ownership_scale_keeps_confirmed_mid_confidence_visible(runner);
 	if (runner.failures) {
 		std::fprintf(stderr, "analyzer_internal: %d/%d checks failed\n", runner.failures,
