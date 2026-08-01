@@ -212,6 +212,7 @@ class PatternSearchSettings:
     exclude_fields: tuple[str, ...]
     protected_scope: str
     profile_fields: int
+    extra_protected_paths: tuple[str, ...]
 
 
 class SampleCountCache:
@@ -1094,6 +1095,7 @@ def print_attribute_profile(
 def print_bucket_patterns(
     rows: list[dict[str, str]],
     bucket: tuple[str, str, str, str],
+    extra_protected_rows: list[dict[str, str]],
     limit: int,
     min_positive_samples: int,
     max_negative_samples: int,
@@ -1110,6 +1112,13 @@ def print_bucket_patterns(
 ) -> None:
     positive_rows = rows_for_bucket(rows, bucket)
     negatives = protected_hit_rows(rows, positive_rows, bucket, protected_scope)
+    if extra_protected_rows:
+        positive_ids = {id(row) for row in positive_rows}
+        negatives.extend(
+            row
+            for row in extra_protected_rows
+            if id(row) not in positive_ids and row.get("status") == "hit" and row.get("debug_note")
+        )
     foreign_rows = foreign_miss_rows(rows, positive_rows)
     positive_samples = sample_count(positive_rows)
     negative_samples = sample_count(negatives)
@@ -1396,10 +1405,14 @@ def bucket_patterns_text(
     explicit_patterns = [
         condition_pattern(spec) for spec in settings.condition_specs
     ]
+    extra_protected_rows: list[dict[str, str]] = []
+    for path in settings.extra_protected_paths:
+        extra_protected_rows.extend(load_rows(pathlib.Path(path)))
     with contextlib.redirect_stdout(output):
         print_bucket_patterns(
             rows,
             bucket,
+            extra_protected_rows,
             settings.limit,
             settings.min_positive_samples,
             settings.max_negative_samples,
@@ -1481,6 +1494,15 @@ def main() -> int:
         help="explicit ANDed condition to measure, such as debug_owner=guitar or pitch_confidence>=0.8",
     )
     parser.add_argument(
+        "--extra-protected-path",
+        action="append",
+        default=[],
+        help=(
+            "additional real-note attribute TSV whose hit/debug rows are treated as protected "
+            "negatives while mining patterns from the primary path; repeatable"
+        ),
+    )
+    parser.add_argument(
         "--exclude-field",
         action="append",
         default=[],
@@ -1549,6 +1571,7 @@ def main() -> int:
         exclude_fields=tuple(sorted(set(args.exclude_field))),
         protected_scope=args.protected_scope,
         profile_fields=max(0, args.profile_fields),
+        extra_protected_paths=tuple(args.extra_protected_path),
     )
     jobs = min(max(1, args.jobs), len(buckets))
     if jobs <= 1:

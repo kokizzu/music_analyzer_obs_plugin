@@ -279,6 +279,27 @@ def main() -> int:
             ),
         ]
         path.write_text("\t".join(HEADER) + "\n" + "\n".join("\t".join(item) for item in rows) + "\n")
+        extra_protected_path = pathlib.Path(tmp) / "extra_protected_attributes.tsv"
+        extra_protected_rows = [
+            row(
+                status="hit",
+                first_row="piano",
+                buffer_strongest_row="piano",
+                sample_id="extra_keyboard_protected",
+                family="piano",
+                nsynth_family="keyboard",
+                source="electronic",
+                expected_note="F#4",
+                expected_midi="66",
+                debug_note="F#4",
+                debug_midi="66",
+                debug_owner="piano",
+                partial2="0.13",
+            )
+        ]
+        extra_protected_path.write_text(
+            "\t".join(HEADER) + "\n" + "\n".join("\t".join(item) for item in extra_protected_rows) + "\n"
+        )
         result = subprocess.run(
             [
                 sys.executable,
@@ -347,6 +368,31 @@ def main() -> int:
                 "1",
                 "--max-negative-samples",
                 "2",
+                "--condition",
+                "debug_midi:66:69",
+                "--condition",
+                "debug_owner=piano",
+            ],
+            text=True,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            check=True,
+        )
+        extra_protected_result = subprocess.run(
+            [
+                sys.executable,
+                str(ROOT / "scripts" / "find_real_note_attribute_patterns.py"),
+                str(path),
+                "--bucket",
+                "ownership_miss:guitar/acoustic->piano",
+                "--limit",
+                "1",
+                "--max-negative-samples",
+                "3",
+                "--extra-protected-path",
+                str(extra_protected_path),
+                "--row-examples",
+                "1",
                 "--condition",
                 "debug_midi:66:69",
                 "--condition",
@@ -1245,6 +1291,12 @@ def main() -> int:
     assert (
         "66<=debug_midi<=69 AND debug_owner=piano: pos=2/2 rows=2 neg=1/2 rows=1"
     ) in range_result.stdout
+    assert (
+        "66<=debug_midi<=69 AND debug_owner=piano: pos=2/2 rows=2 neg=2/3 rows=2"
+    ) in extra_protected_result.stdout
+    assert "extra_keyboard_protected expected=F#4/66 debug=F#4/66 owner=piano" in (
+        extra_protected_result.stdout
+    )
     assert "miss_reason=ownership: pos=2/2 rows=2 neg=0/2 rows=0" in reason_result.stdout
     assert "debug_score_state=scored_owner: pos=2/2 rows=2" in score_state_result.stdout
     assert "numeric attribute profile:" in profile_result.stdout
