@@ -23385,6 +23385,21 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 			final_tom_snare_trigger_ratio_for_primary <= 0.877f;
 		if (final_one_shot_measured_body_ratio_snare_from_tom_primary_recovery)
 			promote_drum_primary(Snare, 0.90f);
+		const float final_snare_kick_level_ratio_for_primary =
+			drum_level_[Snare] / (drum_level_[Kick] + 1.0e-6f);
+		const bool final_one_shot_measured_low_energy_snare_ambiguous_primary_recovery =
+			drum_detection_enabled && one_shot_drum_source &&
+			!generated_gm_drum_source &&
+			body_shape == Tom &&
+			drum_level_[Snare] >= 0.97f &&
+			drum_level_[Tom] >= 0.97f &&
+			drum_level_[Kick] <= 0.30f &&
+			drum_level_[Rim] <= 0.30f &&
+			snapshot.low_energy <= 0.162f &&
+			final_snare_kick_level_ratio_for_primary >= 3.50f &&
+			snare_kick_shape_score_ratio <= 1.233f;
+		if (final_one_shot_measured_low_energy_snare_ambiguous_primary_recovery)
+			promote_drum_primary(Snare, 0.90f);
 
 	const bool onset_tempo_event =
 		drum_detection_enabled && rms > kSilenceRms && drum_transient &&
