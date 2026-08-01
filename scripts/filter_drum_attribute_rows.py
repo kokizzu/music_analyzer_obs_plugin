@@ -29,7 +29,9 @@ DEFAULT_COLUMNS = [
     "tom_kick_body_ratio",
     "snare_kick_body_ratio",
     "snare_crack_ratio",
+    "upper_tom_snare_body_ratio",
     "upper_tom_crack_ratio",
+    "upper_tom_snare_crack_ratio",
     "hihat_rim_shape_score_ratio",
     "crash_hihat_level_ratio",
     "ride_hihat_level_ratio",
@@ -110,7 +112,9 @@ def augment_row(row: dict[str, str]) -> dict[str, str]:
     row["tom_kick_body_ratio"] = ratio(tom_body, kick_body)
     row["snare_kick_body_ratio"] = ratio(snare_body, kick_body)
     row["snare_crack_ratio"] = ratio(snare_crack, snare_body)
+    row["upper_tom_snare_body_ratio"] = ratio(upper_tom, snare_body)
     row["upper_tom_crack_ratio"] = ratio(upper_tom, snare_crack)
+    row["upper_tom_snare_crack_ratio"] = row["upper_tom_crack_ratio"]
     for lhs, rhs in RATIO_PAIRS:
         for field in RATIO_FIELDS:
             row[f"{lhs}_{rhs}_{field}_ratio"] = ratio(

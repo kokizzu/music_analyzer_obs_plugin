@@ -38,7 +38,7 @@ kick/c.wav	kick	tom	0.80	0.15	0.05	40	18	50	2	30	0	0.82	12	1.42	1	12	12	13	0.10	
                 "--route",
                 "tom:snare",
                 "--columns",
-                "sample,expected,got,status,expected_level,got_level,tom_snare_body_ratio,upper_tom_crack_ratio",
+                "sample,expected,got,status,expected_level,got_level,tom_snare_body_ratio,upper_tom_snare_body_ratio,upper_tom_crack_ratio,upper_tom_snare_crack_ratio",
             ],
             cwd=ROOT,
             check=True,
@@ -46,7 +46,7 @@ kick/c.wav	kick	tom	0.80	0.15	0.05	40	18	50	2	30	0	0.82	12	1.42	1	12	12	13	0.10	
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
         ).stdout
-        assert "tom/a.wav\ttom\tsnare\tmiss\t0.68\t0.98\t1.600000\t5.000000" in route
+        assert "tom/a.wav\ttom\tsnare\tmiss\t0.68\t0.98\t1.600000\t1.000000\t5.000000\t5.000000" in route
         assert "count\t1" in route
 
         counts = subprocess.run(
@@ -91,6 +91,27 @@ kick/c.wav	kick	tom	0.80	0.15	0.05	40	18	50	2	30	0	0.82	12	1.42	1	12	12	13	0.10	
         ).stdout
         assert "kick/c.wav\t2.777778\t0.05" in numeric
         assert "count\t1" in numeric
+
+        upper_tom_ratio = subprocess.run(
+            [
+                sys.executable,
+                str(SCRIPT),
+                str(rows),
+                "--min",
+                "upper_tom_snare_body_ratio=1.5",
+                "--max",
+                "upper_tom_snare_crack_ratio=16",
+                "--columns",
+                "sample,upper_tom_snare_body_ratio,upper_tom_snare_crack_ratio",
+            ],
+            cwd=ROOT,
+            check=True,
+            text=True,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+        ).stdout
+        assert "kick/c.wav\t1.666667\t15.000000" in upper_tom_ratio
+        assert "count\t1" in upper_tom_ratio
 
         missing_numeric = subprocess.run(
             [
