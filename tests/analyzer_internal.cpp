@@ -285,6 +285,45 @@ void check_source_supported_plain_guitar_alias_recovery(Runner &runner)
 			      protected_state.label + "`");
 }
 
+void check_plain_guitar_voicing_rejects_crowded_root_fifth_quality(Runner &runner)
+{
+	ChordResult f_major = make_crowded_chord("F");
+	f_major.root = 5;
+
+	NoteGrid compact_root_fifth = {};
+	set_midi(compact_root_fifth, 41, 0.95f);
+	set_midi(compact_root_fifth, 48, 0.72f);
+
+	NoteGrid compact_with_third = compact_root_fifth;
+	set_midi(compact_with_third, 45, 0.28f);
+	runner.expect(primary_guitar_chord_has_playable_voicing(f_major, compact_root_fifth,
+								compact_with_third),
+		      "plain guitar voicing: expected compact hidden-third F chord to remain playable");
+
+	NoteGrid crowded_analysis = compact_with_third;
+	set_midi(crowded_analysis, 46, 0.18f);
+	set_midi(crowded_analysis, 50, 0.16f);
+	set_midi(crowded_analysis, 53, 0.14f);
+	set_midi(crowded_analysis, 55, 0.13f);
+	set_midi(crowded_analysis, 56, 0.12f);
+	runner.expect(!primary_guitar_chord_has_playable_voicing(f_major, compact_root_fifth,
+								 crowded_analysis),
+		      "plain guitar voicing: expected crowded root-fifth harmonics not to validate F");
+
+	NoteGrid visible_root_third = {};
+	set_midi(visible_root_third, 41, 0.95f);
+	set_midi(visible_root_third, 45, 0.52f);
+	runner.expect(primary_guitar_chord_has_playable_voicing(f_major, visible_root_third,
+								crowded_analysis),
+		      "plain guitar voicing: expected visible root-third F chord to remain playable");
+
+	ChordResult f_power = make_crowded_chord("Fpow");
+	f_power.root = 5;
+	runner.expect(primary_guitar_chord_has_playable_voicing(f_power, compact_root_fifth,
+								crowded_analysis),
+		      "plain guitar voicing: expected root-fifth power chord to remain playable");
+}
+
 void check_supported_guitar_candidate_alias_merge(Runner &runner)
 {
 	InstrumentState state = {};
@@ -1913,6 +1952,7 @@ int run()
 	check_displayed_same_root_plain_guitar_primary(runner);
 	check_displayed_supported_plain_guitar_primary(runner);
 	check_source_supported_plain_guitar_alias_recovery(runner);
+	check_plain_guitar_voicing_rejects_crowded_root_fifth_quality(runner);
 	check_supported_guitar_candidate_alias_merge(runner);
 	check_supported_guitar_display_extension_aliases(runner);
 	check_ambiguous_guitar_power_quality_keeps_both_plain_aliases(runner);

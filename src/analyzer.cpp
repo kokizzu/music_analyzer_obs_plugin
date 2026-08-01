@@ -17989,8 +17989,9 @@ bool primary_guitar_chord_has_playable_voicing(const ChordResult &chord, const N
 
 	const int display_pitch_classes = note_grid_active_pitch_class_count(display_grid);
 	const int analysis_pitch_classes = note_grid_active_pitch_class_count(analysis_grid);
-	if (display_pitch_classes > 2 || analysis_pitch_classes > 4)
+	if (display_pitch_classes > 2)
 		return true;
+	const bool compact_display_crowded_analysis = analysis_pitch_classes >= 7;
 
 	if (parse_power_chord_component(chord.label, label_len, parsed))
 		return note_grid_has_guitar_root_fifth_voicing(display_grid, parsed.root, parsed.root + 7) ||
@@ -18025,25 +18026,20 @@ bool primary_guitar_chord_has_playable_voicing(const ChordResult &chord, const N
 
 	const int third = parsed.root + (parsed.quality == RootChordQuality::Minor ? 3 : 4);
 	const int fifth = parsed.root + 7;
-	const bool root_third =
-		note_grid_has_guitar_root_third_voicing(display_grid, parsed.root, third) ||
+	const bool display_root_third =
+		note_grid_has_guitar_root_third_voicing(display_grid, parsed.root, third);
+	const bool analysis_root_third =
 		note_grid_has_guitar_root_third_voicing(analysis_grid, parsed.root, third);
+	const bool root_third = display_root_third || (!compact_display_crowded_analysis && analysis_root_third);
 	const bool root_fifth =
 		note_grid_has_guitar_root_fifth_voicing(display_grid, parsed.root, fifth) ||
 		note_grid_has_guitar_root_fifth_voicing(analysis_grid, parsed.root, fifth);
 	const bool third_supported =
 		note_grid_pitch_supported_level(display_grid, third, 0.12f) >= 0.12f ||
 		note_grid_pitch_supported_level(analysis_grid, third, 0.12f) >= 0.12f;
-	const bool fifth_supported =
-		note_grid_pitch_supported_level(display_grid, fifth, 0.12f) >= 0.12f ||
-		note_grid_pitch_supported_level(analysis_grid, fifth, 0.12f) >= 0.12f;
 	if (root_third)
 		return true;
-	if (root_fifth)
-		return true;
-	if (root_third && (root_fifth || fifth_supported))
-		return true;
-	if (root_fifth && third_supported)
+	if (root_fifth && !compact_display_crowded_analysis)
 		return true;
 
 	ChordResult primary = make_guitar_plain_triad(parsed.root, parsed.quality == RootChordQuality::Minor,
