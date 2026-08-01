@@ -154,6 +154,7 @@ def main() -> int:
             "$(MEASURE_ANALYZER_PATTERN_SUMMARY_REPORT)",
             "$(MEASURE_ANALYZER_PATTERN_INSTRUMENT_OWNER_REPORT)",
             "$(MEASURE_ANALYZER_PATTERN_INSTRUMENT_STATUS_REPORT)",
+            "$(MEASURE_ANALYZER_PATTERN_REAL_NOTE_SUMMARY_REPORT)",
             "$(MEASURE_ANALYZER_PATTERN_REAL_NOTE_REPORT)",
             "$(MEASURE_ANALYZER_PATTERN_REAL_NOTE_OCTAVE_DISPLACEMENT_REPORT)",
             "$(MEASURE_ANALYZER_PATTERN_REAL_NOTE_ROW_CONFUSION_REPORT)",
@@ -177,6 +178,8 @@ def main() -> int:
         "scripts/report_analyzer_attribute_patterns.py",
         "$(MAKE) find-instrument-owner-patterns",
         "$(MAKE) find-instrument-status-patterns",
+        "scripts/summarize_real_note_attributes.py",
+        "$(MEASURE_REAL_NOTE_SUMMARY_ARGS)",
         "$(MAKE) find-real-note-attribute-patterns",
         "$(MAKE) find-real-note-row-confusion-patterns",
         "$(MAKE) find-real-note-visual-row-confusion-patterns",
@@ -210,6 +213,28 @@ def main() -> int:
     ]
     for text in expected:
         assert text in section_recipes, f"pattern report section recipes do not include {text}"
+    assert (
+        "MEASURE_REAL_NOTE_SUMMARY_ARGS ?= --detail-limit 8 --sample-limit 5"
+    ) in makefile, (
+        "standard analyzer pattern reports must include bounded real-note weak bucket diagnostics"
+    )
+    assert "$(MEASURE_ANALYZER_PATTERN_REAL_NOTE_SUMMARY_REPORT)" in continuation_variable_body(
+        makefile, "MEASURE_ANALYZER_PATTERN_SECTION_OUTPUTS"
+    ), (
+        "standard pattern report fanout must include the real-note coverage summary"
+    )
+    real_note_summary_recipe = target_recipe(
+        makefile, "$(MEASURE_ANALYZER_PATTERN_REAL_NOTE_SUMMARY_REPORT)"
+    )
+    assert "real-note full-mix coverage summary:" in real_note_summary_recipe, (
+        "real-note coverage section must be labeled in the measurement report"
+    )
+    assert "$(PYTHON) scripts/summarize_real_note_attributes.py" in real_note_summary_recipe, (
+        "real-note coverage section must run the real-note attribute summarizer"
+    )
+    assert "$(MEASURE_REAL_NOTE_SUMMARY_ARGS)" in real_note_summary_recipe, (
+        "real-note coverage section must use bounded detailed summary defaults"
+    )
     assert "$(MAKE) find-drum-full-attribute-patterns" not in recipe, (
         "default pattern report must not mine exhaustive full-drum rows"
     )

@@ -30,6 +30,7 @@ BUILD_COMMIT := $(shell git rev-parse --short HEAD 2>/dev/null || echo unknown)
 STANDALONE_VERSION := $(BUILD_TIME).$(BUILD_COMMIT)
 RUN_WITH_DURATION := $(SHELL) scripts/run_with_duration.sh
 REAL_NOTE_ATTRIBUTE_SUMMARY_ARGS ?=
+MEASURE_REAL_NOTE_SUMMARY_ARGS ?= --detail-limit 8 --sample-limit 5
 MEASURE_ANALYZER_REPORT ?= $(BUILD_DIR)/analyzer_measurement_report.txt
 PATTERN_REPORT_ARGS ?= --row-examples 6
 ATTRIBUTE_ROW_REPORT_ARGS ?= --rows 16
@@ -48,6 +49,7 @@ MEASURE_ANALYZER_PATTERN_DETECTED_REPORT := $(BUILD_DIR)/measure_analyzer_patter
 MEASURE_ANALYZER_PATTERN_SUMMARY_REPORT := $(BUILD_DIR)/measure_analyzer_pattern_summary.txt
 MEASURE_ANALYZER_PATTERN_INSTRUMENT_OWNER_REPORT := $(BUILD_DIR)/measure_analyzer_pattern_instrument_owner.txt
 MEASURE_ANALYZER_PATTERN_INSTRUMENT_STATUS_REPORT := $(BUILD_DIR)/measure_analyzer_pattern_instrument_status.txt
+MEASURE_ANALYZER_PATTERN_REAL_NOTE_SUMMARY_REPORT := $(BUILD_DIR)/measure_analyzer_pattern_real_note_summary.txt
 MEASURE_ANALYZER_PATTERN_REAL_NOTE_REPORT := $(BUILD_DIR)/measure_analyzer_pattern_real_note.txt
 MEASURE_ANALYZER_PATTERN_REAL_NOTE_OWNERSHIP_REPORT := $(BUILD_DIR)/measure_analyzer_pattern_real_note_ownership.txt
 MEASURE_ANALYZER_PATTERN_REAL_NOTE_OCTAVE_DISPLACEMENT_REPORT := $(BUILD_DIR)/measure_analyzer_pattern_real_note_octave_displacement.txt
@@ -77,6 +79,7 @@ MEASURE_ANALYZER_PATTERN_SECTION_OUTPUTS := \
 	$(MEASURE_ANALYZER_PATTERN_SUMMARY_REPORT) \
 	$(MEASURE_ANALYZER_PATTERN_INSTRUMENT_OWNER_REPORT) \
 	$(MEASURE_ANALYZER_PATTERN_INSTRUMENT_STATUS_REPORT) \
+	$(MEASURE_ANALYZER_PATTERN_REAL_NOTE_SUMMARY_REPORT) \
 	$(MEASURE_ANALYZER_PATTERN_REAL_NOTE_REPORT) \
 	$(MEASURE_ANALYZER_PATTERN_REAL_NOTE_OWNERSHIP_REPORT) \
 	$(MEASURE_ANALYZER_PATTERN_REAL_NOTE_OCTAVE_DISPLACEMENT_REPORT) \
@@ -1764,6 +1767,9 @@ $(MEASURE_ANALYZER_PATTERN_INSTRUMENT_OWNER_REPORT): FORCE $(BUILD_DIR)/instrume
 
 $(MEASURE_ANALYZER_PATTERN_INSTRUMENT_STATUS_REPORT): FORCE $(BUILD_DIR)/instrument_sample_attributes.tsv scripts/find_instrument_owner_patterns.py | $(BUILD_DIR)
 	+@tmp="$@.$$$$.tmp"; { printf '%s\n' ""; printf '%s\n' "generated instrument final-status pattern candidates:"; $(MAKE) find-instrument-status-patterns PATTERN_ARGS="$(MEASURE_INSTRUMENT_STATUS_PATTERN_ARGS)"; } > "$$tmp" && mv "$$tmp" "$@"
+
+$(MEASURE_ANALYZER_PATTERN_REAL_NOTE_SUMMARY_REPORT): FORCE $(BUILD_DIR)/real_note_full_mix_attributes.tsv scripts/summarize_real_note_attributes.py | $(BUILD_DIR)
+	@tmp="$@.$$$$.tmp"; { printf '%s\n' ""; printf '%s\n' "real-note full-mix coverage summary:"; $(PYTHON) scripts/summarize_real_note_attributes.py "$(BUILD_DIR)/real_note_full_mix_attributes.tsv" $(MEASURE_REAL_NOTE_SUMMARY_ARGS); } > "$$tmp" && mv "$$tmp" "$@"
 
 $(MEASURE_ANALYZER_PATTERN_REAL_NOTE_REPORT): FORCE $(BUILD_DIR)/real_note_full_mix_attributes.tsv scripts/find_real_note_attribute_patterns.py | $(BUILD_DIR)
 	+@tmp="$@.$$$$.tmp"; { printf '%s\n' ""; printf '%s\n' "real-note full-mix pattern candidates:"; $(MAKE) find-real-note-attribute-patterns PATTERN_ARGS="$(MEASURE_REAL_NOTE_PATTERN_ARGS)"; } > "$$tmp" && mv "$$tmp" "$@"
