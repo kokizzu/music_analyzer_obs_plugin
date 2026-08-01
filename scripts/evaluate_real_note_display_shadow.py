@@ -613,11 +613,15 @@ def measured_other_vocal_clear_shadow_supported(record: dict[str, str]) -> bool:
     high_centered_low_fifth_shadow = (
         centroid >= 0.534 and third >= 1.20 and fourth <= 0.95 and fifth <= 0.35
     )
+    target_level = as_float(record, "target_level") or 0.0
+    shadow_level = as_float(record, "shadow_level") or 0.0
+    low_visual_ratio = shadow_level > 0.0 and target_level <= shadow_level * 0.40
+    noise = as_float(record, "noise") or 0.0
     strong_other_sparse_shadow = (
         (as_float(record, "shadow_score") or 0.0) >= 0.82
         and (as_float(record, "target_score") or 0.0) <= 0.020
         and centroid <= 0.514
-        and (as_float(record, "noise") or 0.0) <= 0.16
+        and (noise <= 0.16 or (noise <= 0.17 and low_visual_ratio))
         and third >= 1.20
         and fourth <= 0.75
     )

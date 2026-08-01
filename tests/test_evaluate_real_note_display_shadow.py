@@ -1029,7 +1029,7 @@ def main() -> int:
                         fit_error="0.10",
                         centroid="0.50",
                         slope="0.93",
-                        noise="0.14",
+                        noise="0.164",
                         partial2="0.40",
                         partial3="2.20",
                         partial4="0.65",
@@ -1039,6 +1039,38 @@ def main() -> int:
                         piano_notes="",
                         vocal_notes="E4:0.33",
                         other_notes="E4:0.84",
+                    ),
+                    row(
+                        sample_id="protected_other_vocal_sparse_ratio",
+                        family="vocals",
+                        source="acoustic",
+                        expected_note="E4",
+                        expected_midi="64",
+                        first_row="vocals",
+                        debug_note="E4",
+                        debug_midi="64",
+                        debug_owner="other",
+                        bass_score="0.00",
+                        keyboard_score="0.00",
+                        guitar_score="0.00",
+                        vocal_score="0.00",
+                        other_score="0.86",
+                        spectral_level="0.74",
+                        pitch_confidence="0.41",
+                        periodicity="0.77",
+                        fit_error="0.41",
+                        centroid="0.485",
+                        slope="0.93",
+                        noise="0.168",
+                        partial2="0.05",
+                        partial3="1.35",
+                        partial4="0.43",
+                        partial5="0.25",
+                        bass_notes="",
+                        guitar_notes="",
+                        piano_notes="",
+                        vocal_notes="E4:0.10",
+                        other_notes="E4:0.21",
                     ),
                     row(
                         sample_id="protected_other_vocal_formant_body",
@@ -1336,10 +1368,10 @@ def main() -> int:
     ) in measured_other_vocal_runtime_output, measured_other_vocal_runtime_output
     guarded_other_vocal_output = guarded_other_vocal_result.stdout
     assert (
-        "runtime_other_vocal_measured extras=3/3 protected=1/1 precision=75.0% protected_rate=100.0%"
+        "runtime_other_vocal_measured extras=3/3 protected=2/2 precision=60.0% protected_rate=100.0%"
     ) in guarded_other_vocal_output, guarded_other_vocal_output
     assert (
-        "runtime_other_vocal_cpp_guarded extras=2/3 protected=0/1 precision=100.0% protected_rate=0.0%"
+        "runtime_other_vocal_cpp_guarded extras=2/3 protected=0/2 precision=100.0% protected_rate=0.0%"
     ) in guarded_other_vocal_output, guarded_other_vocal_output
     measured_vocal_bass_runtime_output = measured_vocal_bass_runtime_result.stdout
     assert (

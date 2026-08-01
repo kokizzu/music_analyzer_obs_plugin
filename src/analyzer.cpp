@@ -3069,7 +3069,8 @@ bool measured_other_owned_rounded_vocal_body_supported(const FullMixDebugCandida
 	       fifth <= 0.46f;
 }
 
-bool measured_other_owned_vocal_shadow_suppression_supported(const FullMixDebugCandidate &debug)
+bool measured_other_owned_vocal_shadow_suppression_supported(const FullMixDebugCandidate &debug,
+							     float vocal_level, float owner_level)
 {
 	if (debug.owner != InstrumentKind::Other)
 		return false;
@@ -3089,11 +3090,13 @@ bool measured_other_owned_vocal_shadow_suppression_supported(const FullMixDebugC
 		third >= 1.20f &&
 		fourth <= 0.95f &&
 		fifth <= 0.35f;
+	const bool low_visual_ratio = owner_level > 0.0f && vocal_level <= owner_level * 0.40f;
 	const bool strong_other_sparse_shadow =
 		debug.other_score >= 0.82f &&
 		debug.vocal_score <= 0.020f &&
 		debug.spectral_centroid <= 0.514f &&
-		debug.local_noise_level <= 0.16f &&
+		(debug.local_noise_level <= 0.16f ||
+		 (debug.local_noise_level <= 0.17f && low_visual_ratio)) &&
 		third >= 1.20f &&
 		fourth <= 0.75f;
 	return low_noise_shadow || low_centered_formant_shadow || high_centered_low_fifth_shadow ||
@@ -10782,7 +10785,8 @@ void suppress_named_owned_same_pitch_vocal_shadows(NoteGrid &vocal_grid, Instrum
 			vocal_level <= owner_level * kMeasuredOtherMaxVocalToOwnerLevelRatio;
 		const bool measured_other_clear_shadow =
 			measured_other_owned_vocal_shadow &&
-			measured_other_owned_vocal_shadow_suppression_supported(*debug);
+			measured_other_owned_vocal_shadow_suppression_supported(*debug, vocal_level,
+										owner_level);
 		if (!measured_other_clear_shadow &&
 		    (measured_owned_formant_vocal_partial_supported(*debug) ||
 		     measured_other_owned_low_confidence_vocal_partial_supported(*debug) ||

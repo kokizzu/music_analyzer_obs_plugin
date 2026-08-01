@@ -807,7 +807,7 @@ void check_other_owned_same_pitch_vocal_shadow_uses_measured_threshold(Runner &r
 	sparse_other_ownership.debug_candidates[0].vocal_score = 0.0f;
 	sparse_other_ownership.debug_candidates[0].spectral_centroid = 0.50f;
 	sparse_other_ownership.debug_candidates[0].spectral_slope = 0.93f;
-	sparse_other_ownership.debug_candidates[0].local_noise_level = 0.14f;
+	sparse_other_ownership.debug_candidates[0].local_noise_level = 0.164f;
 	sparse_other_ownership.debug_candidates[0].adjacent_lower_ratio = 0.10f;
 	sparse_other_ownership.debug_candidates[0].harmonic_ratios[2] = 2.20f;
 	sparse_other_ownership.debug_candidates[0].harmonic_ratios[3] = 0.65f;
@@ -823,6 +823,34 @@ void check_other_owned_same_pitch_vocal_shadow_uses_measured_threshold(Runner &r
 	runner.expect(note_grid_midi_visual_level(sparse_other_vocal_grid,
 						  kSparseOtherShadowMidi) <= 0.0f,
 		      "same-pitch other vocal shadow: expected strong sparse other-owned mirror to clear");
+
+	static constexpr int kSparseProtectedVocalMidi = 67;
+	NoteGrid sparse_protected_vocal_grid = {};
+	set_midi(sparse_protected_vocal_grid, kSparseProtectedVocalMidi, 0.10f);
+	InstrumentState sparse_protected_vocal_state = {};
+	NoteGrid sparse_protected_other_grid = {};
+	set_midi(sparse_protected_other_grid, kSparseProtectedVocalMidi, 0.21f);
+	FullMixOwnership sparse_protected_ownership = {};
+	sparse_protected_ownership.debug_candidate_count = 1;
+	sparse_protected_ownership.debug_candidates[0] =
+		make_adjacent_other_vocal_shadow_debug(kSparseProtectedVocalMidi);
+	sparse_protected_ownership.debug_candidates[0].other_score = 0.86f;
+	sparse_protected_ownership.debug_candidates[0].vocal_score = 0.0f;
+	sparse_protected_ownership.debug_candidates[0].spectral_centroid = 0.485f;
+	sparse_protected_ownership.debug_candidates[0].spectral_slope = 0.93f;
+	sparse_protected_ownership.debug_candidates[0].local_noise_level = 0.168f;
+	sparse_protected_ownership.debug_candidates[0].adjacent_lower_ratio = 0.05f;
+	sparse_protected_ownership.debug_candidates[0].harmonic_ratios[2] = 1.35f;
+	sparse_protected_ownership.debug_candidates[0].harmonic_ratios[3] = 0.43f;
+	sparse_protected_ownership.debug_candidates[0].harmonic_ratios[4] = 0.25f;
+	suppress_named_owned_same_pitch_vocal_shadows(sparse_protected_vocal_grid,
+						      sparse_protected_vocal_state,
+						      sparse_protected_other_grid,
+						      sparse_protected_ownership,
+						      InstrumentKind::Other, -1);
+	runner.expect(note_grid_midi_visual_level(sparse_protected_vocal_grid,
+						  kSparseProtectedVocalMidi) > 0.0f,
+		      "same-pitch other vocal shadow: expected low-level protected vocal ratio to stay visible");
 
 	static constexpr int kFormantProtectedMidi = 66;
 	NoteGrid formant_vocal_grid = {};
