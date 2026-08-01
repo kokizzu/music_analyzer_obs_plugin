@@ -33,6 +33,15 @@ NOTE_BUCKET_SCORE_FEATURES = (
     ("voc", "vocal_score"),
     ("oth", "other_score"),
 )
+NOTE_LEVEL_FEATURES = (
+    ("bassLvl", "bass_level"),
+    ("gtrLvl", "guitar_level"),
+    ("keyLvl", "piano_level"),
+    ("vocLvl", "vocal_level"),
+    ("othLvl", "other_level"),
+    ("ambLvl", "amb_level"),
+)
+NOTE_CONTRAST_FEATURES = NOTE_BUCKET_FEATURES + NOTE_BUCKET_SCORE_FEATURES + NOTE_LEVEL_FEATURES
 CHORD_BUCKET_CONF_FEATURES = (
     ("disp", "guitar_chord_confidence"),
     ("raw", "guitar_raw_chord_confidence"),
@@ -52,6 +61,31 @@ CHORD_BUCKET_TONE_FEATURES = (
     ("anchor", "raw_third_anchor_ratio"),
     ("margin", "raw_third_opposite_margin"),
 )
+CHORD_CONTRAST_FEATURES = CHORD_BUCKET_CONF_FEATURES + CHORD_BUCKET_TONE_FEATURES
+DRUM_CONTRAST_FEATURES = (
+    ("low", "energy_low"),
+    ("mid", "energy_mid"),
+    ("high", "energy_high"),
+    ("kickBody", "kick_body"),
+    ("snareBody", "snare_body"),
+    ("tomBody", "tom_body"),
+    ("snareCrack", "snare_crack"),
+    ("upperTom", "upper_tom_body"),
+    ("kickLvl", "kick_level"),
+    ("snareLvl", "snare_level"),
+    ("hihatLvl", "hihat_level"),
+    ("crashLvl", "crash_level"),
+    ("tomLvl", "tom_level"),
+    ("rideLvl", "ride_level"),
+    ("rimLvl", "rim_level"),
+    ("kickTrig", "kick_trigger"),
+    ("snareTrig", "snare_trigger"),
+    ("hihatTrig", "hihat_trigger"),
+    ("crashTrig", "crash_trigger"),
+    ("tomTrig", "tom_trigger"),
+    ("rideTrig", "ride_trigger"),
+    ("rimTrig", "rim_trigger"),
+)
 
 
 def load_rows(path: pathlib.Path) -> list[dict[str, str]]:
@@ -59,6 +93,37 @@ def load_rows(path: pathlib.Path) -> list[dict[str, str]]:
         return []
     with path.open(newline="", errors="replace") as handle:
         return list(csv.DictReader(handle, delimiter="\t"))
+
+
+def row_identity(row: dict[str, str]) -> tuple[str, ...]:
+    return (
+        row.get("sample_id", ""),
+        row.get("recording_id", ""),
+        row.get("path", ""),
+        row.get("sample", ""),
+        row.get("buffer", ""),
+        row.get("family", ""),
+        row.get("source", ""),
+        row.get("expected_note", ""),
+        row.get("expected_midi", ""),
+        row.get("expected_chords", ""),
+        row.get("status", ""),
+    )
+
+
+def append_unique_rows(
+    rows: list[dict[str, str]],
+    extra_rows: list[dict[str, str]],
+) -> list[dict[str, str]]:
+    combined = list(rows)
+    seen = {row_identity(row) for row in combined}
+    for row in extra_rows:
+        identity = row_identity(row)
+        if identity in seen:
+            continue
+        seen.add(identity)
+        combined.append(row)
+    return combined
 
 
 def cell(row: dict[str, str], field: str, default: str = "--") -> str:
@@ -132,6 +197,50 @@ def numeric_feature_summary(
         else:
             parts.append(f"{label}:{float_text(median)}[{float_text(low)}-{float_text(high)}]")
     return " ".join(parts) if parts else "--"
+
+
+def numeric_feature_contrast(
+    rows: list[dict[str, str]],
+    *,
+    is_hit,
+    fields: tuple[tuple[str, str], ...],
+    limit: int,
+    positive_label: str = "hit",
+    negative_label: str = "miss",
+) -> str:
+    contrasts: list[tuple[float, float, str, float, float]] = []
+    for label, field in fields:
+        hit_values: list[float] = []
+        miss_values: list[float] = []
+        for row in rows:
+            value = parse_float(row.get(field, ""))
+            if value is None:
+                continue
+            if is_hit(row):
+                hit_values.append(value)
+            else:
+                miss_values.append(value)
+        if not hit_values or not miss_values:
+            continue
+        hit_median = statistics.median(hit_values)
+        miss_median = statistics.median(miss_values)
+        low = min(hit_values + miss_values)
+        high = max(hit_values + miss_values)
+        spread = max(high - low, 1.0e-6)
+        delta = hit_median - miss_median
+        contrasts.append((abs(delta) / spread, abs(delta), label, hit_median, miss_median))
+
+    if not contrasts:
+        return "--"
+
+    contrasts.sort(key=lambda item: (-item[0], -item[1], item[2]))
+    selected = contrasts if limit == 0 else contrasts[: max(0, limit)]
+    return " ".join(
+        f"{label}:{positive_label}={float_text(hit_median)} "
+        f"{negative_label}={float_text(miss_median)} "
+        f"d={float_text(hit_median - miss_median)}"
+        for _, _, label, hit_median, miss_median in selected
+    )
 
 
 def midi_range(rows: list[dict[str, str]], field: str) -> str:
@@ -645,10 +754,10 @@ def target_octave_duplicate_counts(rows: list[dict[str, str]], family_field: str
 
 
 def note_count(rows: list[dict[str, str]], midi_field: str, note_field: str) -> int:
-	midi_values = {row.get(midi_field, "") for row in rows if row.get(midi_field, "")}
-	if midi_values:
-		return len(midi_values)
-	return len({row.get(note_field, "") for row in rows if row.get(note_field, "")})
+    midi_values = {row.get(midi_field, "") for row in rows if row.get(midi_field, "")}
+    if midi_values:
+        return len(midi_values)
+    return len({row.get(note_field, "") for row in rows if row.get(note_field, "")})
 
 
 def status_fraction(rows: list[dict[str, str]], hit_value: str) -> str:
@@ -824,6 +933,10 @@ def report_instrument_rows(path: pathlib.Path, row_limit: int) -> None:
         "  exact-octave coverage "
         f"{pitch_coverage_line(rows, 'midi', include_display=True, include_primary=True)}"
     )
+    print(
+        "  hit-vs-miss feature contrast="
+        f"{numeric_feature_contrast(rows, is_hit=lambda row: row.get('status') == 'hit', fields=NOTE_CONTRAST_FEATURES, limit=row_limit)}"
+    )
     print(f"  target octave duplicates={compact(target_octave_duplicate_counts(rows))}")
     print_octave_alias_buckets(
         "primary octave alias buckets",
@@ -887,8 +1000,10 @@ def report_instrument_rows(path: pathlib.Path, row_limit: int) -> None:
         )
 
 
-def report_real_note_rows(path: pathlib.Path, row_limit: int) -> None:
+def report_real_note_rows(path: pathlib.Path, miss_path: pathlib.Path, row_limit: int) -> None:
     rows = [row for row in load_rows(path) if row.get("sample_id")]
+    miss_rows = [row for row in load_rows(miss_path) if row.get("sample_id")]
+    contrast_rows = append_unique_rows(rows, miss_rows)
     section("measured real-note full-mix rows")
     if not rows:
         print(f"  missing rows: {path}")
@@ -907,6 +1022,12 @@ def report_real_note_rows(path: pathlib.Path, row_limit: int) -> None:
         "  exact-octave coverage "
         f"{pitch_coverage_line(rows, 'expected_midi', include_display=False, include_primary=False)}"
     )
+    print(
+        "  hit-vs-miss feature contrast="
+        f"{numeric_feature_contrast(contrast_rows, is_hit=lambda row: row.get('status') == 'hit', fields=NOTE_CONTRAST_FEATURES, limit=row_limit)}"
+    )
+    if miss_rows:
+        print(f"  miss-only contrast rows={len(miss_rows)} source={miss_path}")
     grid_coverage = real_note_grid_coverage_line(rows)
     if grid_coverage:
         print(f"  grid exact-octave coverage {grid_coverage}")
@@ -940,6 +1061,15 @@ def report_real_note_rows(path: pathlib.Path, row_limit: int) -> None:
             else ""
         )
     )
+    print(
+        "  first-row match-vs-confusion feature contrast="
+        f"{numeric_feature_contrast(rows, is_hit=first_row_matches_expected, fields=NOTE_CONTRAST_FEATURES, limit=row_limit, positive_label='match', negative_label='confused')}"
+    )
+    if visual_fields:
+        print(
+            "  visual-row match-vs-confusion feature contrast="
+            f"{numeric_feature_contrast(rows, is_hit=visual_strongest_row_matches_expected, fields=NOTE_CONTRAST_FEATURES, limit=row_limit, positive_label='match', negative_label='confused')}"
+        )
     print(f"  first-row routes={compact(collections.Counter(first_row_route(row) for row in rows))}")
     if visual_fields:
         print(
@@ -1040,6 +1170,10 @@ def report_guitar_chord_rows(path: pathlib.Path, row_limit: int) -> None:
         "  match kinds="
         f"{compact(collections.Counter(cell(row, 'guitar_match_kind') for row in rows))}"
     )
+    print(
+        "  hit-vs-miss feature contrast="
+        f"{numeric_feature_contrast(rows, is_hit=lambda row: row.get('status') == 'chord_hit', fields=CHORD_CONTRAST_FEATURES, limit=row_limit)}"
+    )
     miss_rows = [row for row in rows if row.get("status") == "chord_miss"]
     if miss_rows:
         print(
@@ -1096,6 +1230,10 @@ def report_drum_rows(path: pathlib.Path, title: str, row_limit: int) -> None:
         return
     routes = collections.Counter(f"{row.get('expected', '')}->{row.get('got', '')}" for row in rows)
     print(f"  rows={len(rows)} routes={compact(routes)}")
+    print(
+        "  correct-vs-wrong feature contrast="
+        f"{numeric_feature_contrast(rows, is_hit=lambda row: row.get('expected') == row.get('got'), fields=DRUM_CONTRAST_FEATURES, limit=row_limit, positive_label='correct', negative_label='wrong')}"
+    )
     ordered = sorted(
         rows,
         key=lambda row: (
@@ -1121,6 +1259,7 @@ def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--instrument", type=pathlib.Path, default=pathlib.Path("build/instrument_detected_attribute_rows.tsv"))
     parser.add_argument("--real-note", type=pathlib.Path, default=pathlib.Path("build/real_note_detected_attribute_rows.tsv"))
+    parser.add_argument("--real-note-miss", type=pathlib.Path, default=pathlib.Path("build/real_note_miss_attribute_rows.tsv"))
     parser.add_argument("--guitar-chord", type=pathlib.Path, default=pathlib.Path("build/guitar_chord_detected_attribute_rows.tsv"))
     parser.add_argument("--drum-primary", type=pathlib.Path, default=pathlib.Path("build/drum_primary_miss_attribute_rows.tsv"))
     parser.add_argument("--drum-full", type=pathlib.Path, default=pathlib.Path("build/drum_full_attribute_rows.tsv"))
@@ -1137,7 +1276,7 @@ def main() -> int:
 
     row_limit = max(0, args.rows)
     report_instrument_rows(args.instrument, row_limit)
-    report_real_note_rows(args.real_note, row_limit)
+    report_real_note_rows(args.real_note, args.real_note_miss, row_limit)
     report_guitar_chord_rows(args.guitar_chord, row_limit)
     report_drum_rows(args.drum_primary, "measured drum primary rows", row_limit)
     report_drum_rows(args.drum_full, "measured protected drum full rows", row_limit)

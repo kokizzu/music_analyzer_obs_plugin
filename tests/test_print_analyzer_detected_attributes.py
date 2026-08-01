@@ -67,6 +67,8 @@ kick.wav	kick	kick	0.9	0.1	0.0	0.9	0.1	0.1	0.1	0.1	1	0	0	0	0	0	0	0.9	0.4	0	0	0	0
                 str(instrument),
                 "--real-note",
                 str(real_note),
+                "--real-note-miss",
+                str(root / "missing_real_note_miss.tsv"),
                 "--guitar-chord",
                 str(guitar),
                 "--drum-primary",
@@ -94,6 +96,7 @@ kick.wav	kick	kick	0.9	0.1	0.0	0.9	0.1	0.1	0.1	0.1	1	0	0	0	0	0	0	0.9	0.4	0	0	0	0
         "display[exact=1/2 50.0% pitch-class=2/2 100.0% octave-alias=1/2 50.0%] "
         "primary[exact=2/2 100.0% pitch-class=2/2 100.0% octave-alias=0/2 0.0%]"
     ) in output
+    assert "hit-vs-miss feature contrast=cent:hit=0 miss=4 d=-4 rank:hit=1 miss=2 d=-1" in output
     assert "target octave duplicates=guitar:dup1=1" in output
     assert "display octave alias buckets:" in output
     assert "1 guitar/-- expected=E3/52 detected=E4/+12 status=miss owner=piano" in output
@@ -137,6 +140,9 @@ kick.wav	kick	kick	0.9	0.1	0.0	0.9	0.1	0.1	0.1	0.1	1	0	0	0	0	0	0	0.9	0.4	0	0	0	0
         "visual-strongest expected=2/3 66.7% visual-lit exact=2/3 66.7% "
         "visual-strongest-lit expected=2/3 66.7%"
     ) in output
+    assert "first-row match-vs-confusion feature contrast=" in output
+    assert "visual-row match-vs-confusion feature contrast=" in output
+    assert "miss=0.4 d=-0.3" in output
     assert "first-row routes=guitar/acoustic->guitar=1 piano/electronic->bass=1 bass/electric->bass=1" in output
     assert "visual-strongest routes=guitar/acoustic->guitar=1 piano/electronic->guitar=1 bass/electric->bass=1" in output
     assert "same-midi spillover>=0.25 entries=1 samples=1 routes=bass/electric->guitar=1" in output
@@ -165,6 +171,7 @@ kick.wav	kick	kick	0.9	0.1	0.0	0.9	0.1	0.1	0.1	0.1	1	0	0	0	0	0	0	0.9	0.4	0	0	0	0
     ) in output
     assert "conf=disp:0.4 raw:0.35 smooth:0.34 rms:0.2" in output
     assert "tones=vr:1 v3:1 v5:0 ar:1 a3:1 a5:0 rr:1 r3:1 r5:0.2 anchor:1 margin:0.9" in output
+    assert "hit-vs-miss feature contrast=a5:hit=1 miss=0 d=1 v5:hit=1 miss=0 d=1" in output
     assert "miss evidence=fifth_missing=1 sources=grid=1" in output
     assert "miss match kinds=display_same_root_other=1" in output
     assert "miss visible missing=fifth=1 analysis missing=fifth=1 smooth missing=fifth=1" in output
@@ -175,9 +182,11 @@ kick.wav	kick	kick	0.9	0.1	0.0	0.9	0.1	0.1	0.1	0.1	1	0	0	0	0	0	0	0.9	0.4	0	0	0	0
     assert "third_margin=0.9" in output
     assert "missing=v:fifth a:fifth s:fifth" in output
     assert "measured drum primary rows" in output
+    assert "correct-vs-wrong feature contrast=--" in output
     assert "snare->tom energy=0.2/0.7/0.1" in output
     assert "measured protected drum full rows" in output
     assert "kick->kick energy=0.9/0.1/0" in output
+    assert output.count("hit-vs-miss feature contrast=") == 3
     print("test_print_analyzer_detected_attributes: ok")
     return 0
 
