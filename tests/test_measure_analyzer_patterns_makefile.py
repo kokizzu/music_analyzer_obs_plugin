@@ -158,6 +158,8 @@ def main() -> int:
             "$(MEASURE_ANALYZER_PATTERN_REAL_NOTE_OCTAVE_DISPLACEMENT_REPORT)",
             "$(MEASURE_ANALYZER_PATTERN_REAL_NOTE_ROW_CONFUSION_REPORT)",
             "$(MEASURE_ANALYZER_PATTERN_REAL_NOTE_VISUAL_ROW_CONFUSION_REPORT)",
+            "$(MEASURE_ANALYZER_PATTERN_REAL_NOTE_WEAK_EXPECTED_REPORT)",
+            "$(MEASURE_ANALYZER_PATTERN_REAL_NOTE_WEAK_VISUAL_EXPECTED_REPORT)",
             "$(MEASURE_ANALYZER_PATTERN_GUITAR_CHORD_REPORT)",
             "$(MEASURE_ANALYZER_PATTERN_GUITAR_PRIMARY_ORDER_REPORT)",
             "$(MEASURE_ANALYZER_PATTERN_GUITAR_CHORD_RECOVERY_REPORT)",
@@ -178,6 +180,8 @@ def main() -> int:
         "$(MAKE) find-real-note-attribute-patterns",
         "$(MAKE) find-real-note-row-confusion-patterns",
         "$(MAKE) find-real-note-visual-row-confusion-patterns",
+        "$(MAKE) find-real-note-weak-expected-patterns",
+        "$(MAKE) find-real-note-weak-visual-expected-patterns",
         "$(MAKE) find-guitar-chord-mix-attribute-patterns",
         "$(MAKE) analyze-guitar-chord-primary-order",
         "$(MAKE) analyze-guitar-chord-mix-recovery",
@@ -192,6 +196,8 @@ def main() -> int:
         "$(MEASURE_REAL_NOTE_OCTAVE_DISPLACEMENT_PATTERN_ARGS)",
         "$(MEASURE_REAL_NOTE_ROW_CONFUSION_PATTERN_ARGS)",
         "$(MEASURE_REAL_NOTE_FOCUSED_VISUAL_ROW_CONFUSION_PATTERN_ARGS)",
+        "$(MEASURE_REAL_NOTE_WEAK_EXPECTED_PATTERN_ARGS)",
+        "$(MEASURE_REAL_NOTE_WEAK_VISUAL_EXPECTED_PATTERN_ARGS)",
         "$(MEASURE_GUITAR_PATTERN_ARGS)",
         "$(PRIMARY_ORDER_ARGS)",
         "$(RECOVERY_ARGS)",
@@ -273,6 +279,38 @@ def main() -> int:
     )
     assert '--jobs "$(REAL_NOTE_PATTERN_JOBS)"' in octave_target_recipe, (
         "octave displacement target must run pattern search with configured parallel jobs"
+    )
+    weak_report_recipe = target_recipe(
+        makefile, "$(MEASURE_ANALYZER_PATTERN_REAL_NOTE_WEAK_EXPECTED_REPORT)"
+    )
+    assert "$(MAKE) find-real-note-weak-expected-patterns" in weak_report_recipe, (
+        "weak expected-row report must use the dedicated real-note weak-row miner"
+    )
+    assert "$(MEASURE_REAL_NOTE_WEAK_EXPECTED_PATTERN_ARGS)" in weak_report_recipe, (
+        "weak expected-row report must use bounded weak-row defaults"
+    )
+    weak_target_recipe = target_recipe(makefile, "find-real-note-weak-expected-patterns")
+    assert "--bucket-status weak_expected_row" in weak_target_recipe, (
+        "weak expected-row target must mine weak expected-row buckets"
+    )
+    assert '--jobs "$(REAL_NOTE_PATTERN_JOBS)"' in weak_target_recipe, (
+        "weak expected-row target must run pattern search with configured parallel jobs"
+    )
+    weak_visual_report_recipe = target_recipe(
+        makefile, "$(MEASURE_ANALYZER_PATTERN_REAL_NOTE_WEAK_VISUAL_EXPECTED_REPORT)"
+    )
+    assert "$(MAKE) find-real-note-weak-visual-expected-patterns" in weak_visual_report_recipe, (
+        "weak visual expected-row report must use the dedicated real-note weak-row miner"
+    )
+    assert "$(MEASURE_REAL_NOTE_WEAK_VISUAL_EXPECTED_PATTERN_ARGS)" in weak_visual_report_recipe, (
+        "weak visual expected-row report must use bounded weak-row defaults"
+    )
+    weak_visual_target_recipe = target_recipe(makefile, "find-real-note-weak-visual-expected-patterns")
+    assert "--bucket-status weak_visual_expected_row" in weak_visual_target_recipe, (
+        "weak visual expected-row target must mine weak visual expected-row buckets"
+    )
+    assert '--jobs "$(REAL_NOTE_PATTERN_JOBS)"' in weak_visual_target_recipe, (
+        "weak visual expected-row target must run pattern search with configured parallel jobs"
     )
     protected_stamp_recipe = target_recipe(
         makefile, "$(MEASURE_ANALYZER_PATTERN_DRUM_PROTECTED_ROWS_STAMP)"
