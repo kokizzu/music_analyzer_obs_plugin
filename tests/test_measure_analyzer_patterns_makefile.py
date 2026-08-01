@@ -1054,10 +1054,20 @@ def main() -> int:
     assert "DRUM_SAMPLE_FULL_TEST_MAKE_JOBS = $(if $(filter -j%,$(MAKEFLAGS)),,-j$(words $(DRUM_SAMPLE_FULL_SHARD_CATEGORIES)))" in makefile, (
         "full drum shard tests must not force nested jobserver mode"
     )
+    assert "DRUM_SAMPLE_FULL_LOCK_DIR ?= $(BUILD_DIR)/drum_samples_full.lock" in makefile, (
+        "full drum shard aggregation must have a stable lock path"
+    )
     assert "$(DRUM_SAMPLE_FULL_BUILD_DIR)/manifest.tsv" in drum_full_parallel_recipe.splitlines()[0], (
         "full drum parallel target must share a prepared manifest stamp"
     )
-    assert "$(MAKE) $(DRUM_SAMPLE_FULL_TEST_MAKE_JOBS) $(DRUM_SAMPLE_FULL_SHARD_TARGETS)" in drum_full_parallel_recipe, (
+    assert "scripts/run_with_lock.sh \"$(DRUM_SAMPLE_FULL_LOCK_DIR)\"" in drum_full_parallel_recipe, (
+        "full drum parallel target must lock shared shard outputs"
+    )
+    assert "\"$(MAKE)\" test-drum-samples-full-parallel-unlocked" in drum_full_parallel_recipe, (
+        "full drum parallel target must delegate the locked work to an internal target"
+    )
+    drum_full_parallel_unlocked_recipe = target_recipe(makefile, "test-drum-samples-full-parallel-unlocked")
+    assert "$(MAKE) $(DRUM_SAMPLE_FULL_TEST_MAKE_JOBS) $(DRUM_SAMPLE_FULL_SHARD_TARGETS)" in drum_full_parallel_unlocked_recipe, (
         "full drum parallel target must fan out category shards through jobserver-aware make"
     )
     assert "$(RUN_WITH_DURATION) analyzer_drum_samples_full_parallel" in drum_full_parallel_recipe, (
@@ -1066,10 +1076,10 @@ def main() -> int:
     assert "\n\t+$(RUN_WITH_DURATION) analyzer_drum_samples_full_parallel" in drum_full_parallel_recipe, (
         "full drum parallel target must preserve the make jobserver through the duration wrapper"
     )
-    assert "$(PYTHON) scripts/check_drum_sample_shards.py" in drum_full_parallel_recipe, (
+    assert "$(PYTHON) scripts/check_drum_sample_shards.py" in drum_full_parallel_unlocked_recipe, (
         "full drum parallel target must validate aggregated shard matrices"
     )
-    assert "--tom-max-false-percent \"$(DRUM_SAMPLE_FULL_MAX_TOM_FALSE_PERCENT)\"" in drum_full_parallel_recipe, (
+    assert "--tom-max-false-percent \"$(DRUM_SAMPLE_FULL_MAX_TOM_FALSE_PERCENT)\"" in drum_full_parallel_unlocked_recipe, (
         "full drum parallel target must preserve the serial tom false-positive gate"
     )
     assert "DRUM_FULL_EXACT_ATTRIBUTE_PARTS := $(addprefix $(BUILD_DIR)/drum_full_exact_attribute_rows_,$(addsuffix .tsv,$(DRUM_SAMPLE_FULL_SHARD_CATEGORIES)))" in makefile, (
