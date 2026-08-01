@@ -32,6 +32,14 @@ OUTCOME_NUMERIC_FIELDS = {
     "expected_label_in_smooth",
 }
 PATTERN_NUMERIC_FIELDS = [field for field in NUMERIC_FIELDS if field not in OUTCOME_NUMERIC_FIELDS]
+RAW_DIAGNOSTIC_NUMERIC_FIELDS = [
+    "raw_root",
+    "raw_third",
+    "raw_fifth",
+    "raw_opposite_third",
+    "raw_third_anchor_ratio",
+    "raw_third_opposite_margin",
+]
 RUNTIME_NUMERIC_FIELDS = [
     "rms",
     "low",
@@ -53,12 +61,6 @@ RUNTIME_NUMERIC_FIELDS = [
     "smooth_root",
     "smooth_third",
     "smooth_fifth",
-    "raw_root",
-    "raw_third",
-    "raw_fifth",
-    "raw_opposite_third",
-    "raw_third_anchor_ratio",
-    "raw_third_opposite_margin",
     "probe_root",
     "probe_third",
     "probe_fifth",
@@ -176,6 +178,7 @@ def build_patterns(
     positive_rows: list[dict[str, str]],
     *,
     runtime_only: bool = False,
+    include_raw_diagnostics: bool = False,
     exclude_fields: set[str] | None = None,
 ) -> list[Pattern]:
     patterns: list[Pattern] = []
@@ -185,9 +188,13 @@ def build_patterns(
         for field in (RUNTIME_CATEGORY_FIELDS if runtime_only else CATEGORY_FIELDS + ["quality"])
         if field not in exclude_fields
     ]
+    runtime_numeric_fields = (
+        RUNTIME_NUMERIC_FIELDS + RAW_DIAGNOSTIC_NUMERIC_FIELDS
+        if include_raw_diagnostics else RUNTIME_NUMERIC_FIELDS
+    )
     numeric_fields = [
         field
-        for field in (RUNTIME_NUMERIC_FIELDS if runtime_only else PATTERN_NUMERIC_FIELDS)
+        for field in (runtime_numeric_fields if runtime_only else PATTERN_NUMERIC_FIELDS)
         if field not in exclude_fields
     ]
     for field in category_fields:
@@ -522,6 +529,7 @@ def print_patterns(
     max_conditions: int,
     beam_width: int,
     runtime_only: bool,
+    include_raw_diagnostics: bool,
     exclude_fields: set[str],
 ) -> None:
     positive_rows = [row for row in rows if bucket_matches(row, bucket)]
@@ -543,6 +551,7 @@ def print_patterns(
     base_patterns = build_patterns(
         positive_rows,
         runtime_only=runtime_only,
+        include_raw_diagnostics=include_raw_diagnostics,
         exclude_fields=exclude_fields,
     )
     positive_recording_bits = recording_bit_map(positive_rows)
@@ -661,6 +670,11 @@ def main() -> int:
         help="mine only runtime-observable fields, excluding ground-truth labels and outcomes",
     )
     parser.add_argument(
+        "--include-raw-diagnostics",
+        action="store_true",
+        help="include offline raw-profile diagnostic fields in runtime-only mining",
+    )
+    parser.add_argument(
         "--exclude-field",
         action="append",
         default=[],
@@ -694,6 +708,7 @@ def main() -> int:
             max(1, args.max_conditions),
             max(1, args.beam_width),
             args.runtime_only,
+            args.include_raw_diagnostics,
             set(args.exclude_field),
         )
     return 0

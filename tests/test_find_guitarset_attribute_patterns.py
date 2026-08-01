@@ -21,7 +21,6 @@ def main() -> int:
         "visible_third",
         "analysis_third",
         "smooth_third",
-        "raw_third_anchor_ratio",
         "probe_third_opposite_margin",
         "melodic_probe_third_anchor_ratio",
         "guitar_chord_confidence",
@@ -33,6 +32,31 @@ def main() -> int:
         assert field not in patterns.RUNTIME_NUMERIC_FIELDS, (
             f"{field} must remain excluded from runtime-only guitar pattern mining"
         )
+    for field in patterns.RAW_DIAGNOSTIC_NUMERIC_FIELDS:
+        assert field not in patterns.RUNTIME_NUMERIC_FIELDS, (
+            f"{field} must require --include-raw-diagnostics in runtime-only guitar pattern mining"
+        )
+    runtime_pattern_labels = {
+        pattern.label
+        for pattern in patterns.build_patterns(
+            [{"raw_root": "1.0", "probe_root": "1.0"}],
+            runtime_only=True,
+        )
+    }
+    assert not any(label.startswith("raw_root") for label in runtime_pattern_labels), (
+        "runtime-only guitar pattern mining must exclude raw diagnostics by default"
+    )
+    runtime_raw_pattern_labels = {
+        pattern.label
+        for pattern in patterns.build_patterns(
+            [{"raw_root": "1.0", "probe_root": "1.0"}],
+            runtime_only=True,
+            include_raw_diagnostics=True,
+        )
+    }
+    assert any(label.startswith("raw_root") for label in runtime_raw_pattern_labels), (
+        "--include-raw-diagnostics must opt runtime-only mining into raw diagnostics"
+    )
 
     assert not patterns.constraints_compatible(
         (patterns.numeric_pattern("raw_root", "<=", 0.5).constraint,),
