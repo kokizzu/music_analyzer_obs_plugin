@@ -1650,8 +1650,8 @@ measure-analyzer-attribute-rows-full: measure-analyzer-attribute-rows analyze-dr
 refresh-analyzer-detected-attribute-rows: scripts/refresh_analyzer_detected_attribute_rows.py
 	$(PYTHON) scripts/refresh_analyzer_detected_attribute_rows.py --build-dir "$(BUILD_DIR)" --python "$(PYTHON)"
 
-print-analyzer-detected-attributes: $(MEASURE_ANALYZER_ROW_DUMPS) $(BUILD_DIR)/drum_primary_miss_attribute_rows.tsv scripts/print_analyzer_detected_attributes.py
-	$(PYTHON) scripts/print_analyzer_detected_attributes.py --instrument "$(INSTRUMENT_DETECTED_ATTRIBUTE_ROWS)" --real-note "$(REAL_NOTE_DETECTED_ATTRIBUTE_ROWS)" --guitar-chord "$(GUITAR_CHORD_DETECTED_ATTRIBUTE_ROWS)" --drum-primary "$(BUILD_DIR)/drum_primary_miss_attribute_rows.tsv" --drum-full "$(BUILD_DIR)/drum_full_attribute_rows.tsv" $(ATTRIBUTE_ROW_REPORT_ARGS)
+print-analyzer-detected-attributes: $(MEASURE_ANALYZER_ROW_DUMPS) $(BUILD_DIR)/drum_primary_miss_attribute_rows.tsv scripts/print_analyzer_detected_attributes.py scripts/run_with_duration.sh
+	$(RUN_WITH_DURATION) analyzer_detected_attributes $(PYTHON) scripts/print_analyzer_detected_attributes.py --instrument "$(INSTRUMENT_DETECTED_ATTRIBUTE_ROWS)" --real-note "$(REAL_NOTE_DETECTED_ATTRIBUTE_ROWS)" --guitar-chord "$(GUITAR_CHORD_DETECTED_ATTRIBUTE_ROWS)" --drum-primary "$(BUILD_DIR)/drum_primary_miss_attribute_rows.tsv" --drum-full "$(BUILD_DIR)/drum_full_attribute_rows.tsv" $(ATTRIBUTE_ROW_REPORT_ARGS)
 
 measure-analyzer-detected-attributes: measure-analyzer-attribute-rows
 	+$(MAKE) print-analyzer-detected-attributes

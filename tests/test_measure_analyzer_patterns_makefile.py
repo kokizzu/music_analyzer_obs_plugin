@@ -2071,6 +2071,12 @@ def main() -> int:
         "print target must not use the refresh-only helper because it can report stale detector rows"
     )
     assert "scripts/print_analyzer_detected_attributes.py" in print_recipe, "missing measured row printer"
+    assert "$(RUN_WITH_DURATION) analyzer_detected_attributes" in print_recipe, (
+        "print target should report duration for comparing detector iterations"
+    )
+    assert "scripts/run_with_duration.sh" in print_recipe, (
+        "print target needs the duration helper dependency"
+    )
     assert "$(ATTRIBUTE_ROW_REPORT_ARGS)" in print_recipe, "print target needs overridable args"
     assert "$(INSTRUMENT_DETECTED_ATTRIBUTE_ROWS)" in print_recipe, "print target needs instrument rows"
     assert "$(REAL_NOTE_DETECTED_ATTRIBUTE_ROWS)" in print_recipe, "print target needs real-note rows"
