@@ -432,6 +432,37 @@ void check_ambiguous_guitar_power_quality_keeps_both_plain_aliases(Runner &runne
 	runner.expect(!chord_label_has_exact_component(protected_major.label, "Cm"),
 			      std::string("ambiguous guitar power quality: expected clear major triad protected, got `") +
 			      protected_major.label + "`");
+
+	ChordResult power_only = make_crowded_chord("A=Apow");
+	power_only.root = 9;
+	NoteGrid power_only_grid = {};
+	set_pitch(power_only_grid, 9, 1.00f);
+	set_pitch(power_only_grid, 4, 0.55f);
+	std::array<float, kNoteProbeCount> power_only_powers = {};
+	set_probe_level(power_only_powers, 45, 0.48f);
+	set_probe_level(power_only_powers, 52, 0.36f);
+
+	append_guitar_power_quality_candidates(power_only, power_only_grid,
+					       power_only_powers, kGuitarMinMidi,
+					       kGuitarMaxMidi);
+	runner.expect(chord_label_has_exact_component(power_only.label, "A"),
+		      std::string("ambiguous guitar power quality: expected major alias kept, got `") +
+			      power_only.label + "`");
+	runner.expect(chord_label_has_exact_component(power_only.label, "Am"),
+		      std::string("ambiguous guitar power quality: expected minor alias appended, got `") +
+			      power_only.label + "`");
+	runner.expect(chord_label_has_exact_component(power_only.label, "Apow"),
+		      std::string("ambiguous guitar power quality: expected power alias kept, got `") +
+			      power_only.label + "`");
+
+	ChordResult clear_power_major = make_crowded_chord("C=Cpow");
+	clear_power_major.root = 0;
+	append_guitar_power_quality_candidates(clear_power_major, major_grid,
+					       protected_powers, kGuitarMinMidi,
+					       kGuitarMaxMidi);
+	runner.expect(!chord_label_has_exact_component(clear_power_major.label, "Cm"),
+		      std::string("ambiguous guitar power quality: expected clear major power alias protected, got `") +
+			      clear_power_major.label + "`");
 }
 
 void check_compact_guitar_power_raw_profile_third_aliases(Runner &runner)
