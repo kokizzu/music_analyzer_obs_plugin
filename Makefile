@@ -114,6 +114,23 @@ REAL_NOTE_RUNTIME_ROW_CONFUSION_EXCLUDES ?= \
 	--exclude-field buffer_strongest_row \
 	--exclude-field buffer_visual_strongest_row \
 	--exclude-field expected_midi \
+	--exclude-field expected_row_score \
+	--exclude-field first_row_score \
+	--exclude-field visual_first_row_score \
+	--exclude-field strongest_row_score \
+	--exclude-field visual_strongest_row_score \
+	--exclude-field expected_first_score_ratio \
+	--exclude-field expected_strongest_score_ratio \
+	--exclude-field expected_visual_first_score_ratio \
+	--exclude-field expected_visual_strongest_score_ratio \
+	--exclude-field first_expected_score_margin \
+	--exclude-field strongest_expected_score_margin \
+	--exclude-field visual_first_expected_score_margin \
+	--exclude-field visual_strongest_expected_score_margin \
+	--exclude-field expected_strongest_pitch_level_ratio \
+	--exclude-field strongest_expected_pitch_level_margin \
+	--exclude-field expected_visual_strongest_pitch_level_ratio \
+	--exclude-field visual_strongest_expected_pitch_level_margin \
 	--exclude-field raw_expected_peak \
 	--exclude-field raw_expected_ratio \
 	--exclude-field raw_tuned_peak \

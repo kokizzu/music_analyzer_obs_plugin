@@ -45,6 +45,23 @@ def continuation_variable_refs(makefile: str, variable: str) -> list[str]:
     raise AssertionError(f"missing {variable}")
 
 
+def continuation_variable_body(makefile: str, variable: str) -> str:
+    lines = makefile.splitlines()
+    prefix_re = re.compile(rf"^{re.escape(variable)}\s*[?:+]?=\s*")
+    for index, line in enumerate(lines):
+        match = prefix_re.match(line)
+        if not match:
+            continue
+
+        body = [line[match.end() :]]
+        while body[-1].rstrip().endswith("\\") and index + 1 < len(lines):
+            index += 1
+            body.append(lines[index])
+        return "\n".join(body)
+
+    raise AssertionError(f"missing {variable}")
+
+
 def main() -> int:
     makefile = MAKEFILE.read_text(encoding="utf-8")
     for target in [
@@ -2227,6 +2244,29 @@ def main() -> int:
         'REAL_NOTE_RULE_GROUP_BY_ARGS = $(foreach field,$(REAL_NOTE_RULE_GROUP_BY),--group-by "$(field)")',
     ]:
         assert text in makefile, f"real-note rule Makefile plumbing must include {text}"
+    runtime_excludes = continuation_variable_body(makefile, "REAL_NOTE_RUNTIME_ROW_CONFUSION_EXCLUDES")
+    for field in [
+        "expected_row_score",
+        "first_row_score",
+        "visual_first_row_score",
+        "strongest_row_score",
+        "visual_strongest_row_score",
+        "expected_first_score_ratio",
+        "expected_strongest_score_ratio",
+        "expected_visual_first_score_ratio",
+        "expected_visual_strongest_score_ratio",
+        "first_expected_score_margin",
+        "strongest_expected_score_margin",
+        "visual_first_expected_score_margin",
+        "visual_strongest_expected_score_margin",
+        "expected_strongest_pitch_level_ratio",
+        "strongest_expected_pitch_level_margin",
+        "expected_visual_strongest_pitch_level_ratio",
+        "visual_strongest_expected_pitch_level_margin",
+    ]:
+        assert f"--exclude-field {field}" in runtime_excludes, (
+            f"runtime route scans must exclude ground-truth-derived field {field}"
+        )
 
     rows_recipe = target_recipe(makefile, "measure-analyzer-attribute-rows")
     assert rows_recipe.splitlines()[0] == "measure-analyzer-attribute-rows:", (
