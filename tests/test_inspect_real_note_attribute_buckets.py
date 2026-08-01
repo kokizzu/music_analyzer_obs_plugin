@@ -650,6 +650,10 @@ def main() -> int:
     assert "visual_strongest_row_pitch_level" in dumped.stdout.splitlines()[0]
     assert "expected_visual_strongest_pitch_level_ratio" in dumped.stdout.splitlines()[0]
     assert "expected_visual_pitch_row_count" in dumped.stdout.splitlines()[0]
+    assert "expected_pitch_class" in dumped.stdout.splitlines()[0]
+    assert "expected_octave" in dumped.stdout.splitlines()[0]
+    assert "debug_pitch_class" in dumped.stdout.splitlines()[0]
+    assert "debug_octave" in dumped.stdout.splitlines()[0]
     assert "bass_score" in dumped.stdout.splitlines()[0]
     assert "partial2" in dumped.stdout.splitlines()[0]
     assert "visual_first_row" in dumped.stdout.splitlines()[0]
@@ -665,6 +669,13 @@ def main() -> int:
     assert keyboard_dump["first_row"] == "guitar"
     assert keyboard_dump["visual_first_row"] == "piano"
     assert keyboard_dump["debug_note"] == "C4"
+    assert keyboard_dump["expected_pitch_class"] == "C"
+    assert keyboard_dump["expected_pitch_class_index"] == "0"
+    assert keyboard_dump["expected_octave"] == "4"
+    assert keyboard_dump["debug_midi"] == "60"
+    assert keyboard_dump["debug_pitch_class"] == "C"
+    assert keyboard_dump["debug_pitch_class_index"] == "0"
+    assert keyboard_dump["debug_octave"] == "4"
     assert keyboard_dump["debug_owner"] == "guitar"
     assert keyboard_dump["bass_score"] == "0.00"
     assert keyboard_dump["keyboard_score"] == "0.10"

@@ -206,6 +206,15 @@ def main() -> int:
             "--group-by",
             "noise_bucket",
         )
+        derived_midi_group_result = run_rule(
+            path,
+            "--condition",
+            "debug_owner=guitar",
+            "--group-by",
+            "debug_pitch_class",
+            "--group-by",
+            "debug_octave",
+        )
         compare_result = run_rule(
             path,
             "--condition",
@@ -246,6 +255,10 @@ def main() -> int:
     assert "groups partial2_bucket/noise_bucket" in bucketed_result.stdout
     assert "0.40-0.60/0.00-0.02 rows=1 samples=1" in bucketed_result.stdout
     assert "0.20-0.40/0.02-0.04 rows=2 samples=2" in bucketed_result.stdout
+    assert "groups debug_pitch_class/debug_octave" in derived_midi_group_result.stdout
+    assert "E/4 rows=1 samples=1" in derived_midi_group_result.stdout
+    assert "C/4 rows=1 samples=1" in derived_midi_group_result.stdout
+    assert "D#/4 rows=1 samples=1" in derived_midi_group_result.stdout
     assert "matched rows=2 samples=2" in compare_result.stdout
     assert "matched conditions debug_owner=guitar family=guitar" in compare_result.stdout
     assert f"compare rows=1 samples=1 path={compare_path}" in compare_result.stdout

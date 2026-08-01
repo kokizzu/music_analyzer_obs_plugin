@@ -14,7 +14,11 @@ import sys
 
 FIELDS = [
     "expected_midi",
+    "expected_pitch_class_index",
+    "expected_octave",
     "debug_midi",
+    "debug_pitch_class_index",
+    "debug_octave",
     "debug_conf",
     "onset_strength",
     "decay_rate",
@@ -140,7 +144,11 @@ ROW_SCORE_FIELDS = {
 
 CATEGORY_FIELDS = [
     "expected_note",
+    "expected_pitch_class",
+    "expected_octave",
     "debug_note",
+    "debug_pitch_class",
+    "debug_octave",
     "debug_owner",
     "debug_score_state",
     "row_label",
@@ -155,6 +163,9 @@ ROW_DUMP_FIELDS = [
     "source",
     "expected_note",
     "expected_midi",
+    "expected_pitch_class",
+    "expected_pitch_class_index",
+    "expected_octave",
     "first_row",
     "visual_first_row",
     "buffer",
@@ -164,6 +175,10 @@ ROW_DUMP_FIELDS = [
     "buffer_strongest_row",
     "buffer_visual_strongest_row",
     "debug_note",
+    "debug_midi",
+    "debug_pitch_class",
+    "debug_pitch_class_index",
+    "debug_octave",
     "debug_owner",
     "debug_conf",
     "onset_strength",
@@ -269,6 +284,20 @@ NOTE_BASE = {
     "A#": 10,
     "B": 11,
 }
+NOTE_NAMES = [
+    "C",
+    "C#",
+    "D",
+    "D#",
+    "E",
+    "F",
+    "F#",
+    "G",
+    "G#",
+    "A",
+    "A#",
+    "B",
+]
 NOTE_RE = re.compile(r"^([A-G]#?)(-?\d+)$")
 NOTE_CELL_RE = re.compile(r"([A-G]#?-?\d+):([0-9.]+)")
 
@@ -309,6 +338,13 @@ def midi_from_note(value: str) -> int | None:
     if not match:
         return None
     return NOTE_BASE[match.group(1)] + (int(match.group(2)) + 1) * 12
+
+
+def add_midi_derived_fields(result: dict[str, str], prefix: str, midi: int) -> None:
+    pitch_class = midi % 12
+    result[f"{prefix}_pitch_class"] = NOTE_NAMES[pitch_class]
+    result[f"{prefix}_pitch_class_index"] = str(pitch_class)
+    result[f"{prefix}_octave"] = str(midi // 12 - 1)
 
 
 def parse_note_cells(value: str) -> list[tuple[int, float]]:
@@ -453,6 +489,12 @@ def miss_reason(row: dict[str, str], abs_delta: str) -> str:
 
 def derive_row(row: dict[str, str]) -> dict[str, str]:
     result = dict(row)
+    expected_number = as_float(row, "expected_midi")
+    if expected_number is not None:
+        add_midi_derived_fields(result, "expected", int(round(expected_number)))
+    debug_number = as_float(row, "debug_midi")
+    if debug_number is not None:
+        add_midi_derived_fields(result, "debug", int(round(debug_number)))
     delta, abs_delta = debug_delta(row)
     result["debug_delta"] = delta
     result["debug_abs_delta"] = abs_delta
@@ -486,9 +528,8 @@ def derive_row(row: dict[str, str]) -> dict[str, str]:
     result["visual_strongest_expected_score_margin"] = format_margin(
         visual_strongest_score, expected_score
     )
-    expected = as_float(row, "expected_midi")
-    if expected is not None:
-        expected_midi = int(round(expected))
+    if expected_number is not None:
+        expected_midi = int(round(expected_number))
         expected_exact, expected_pitch, expected_delta = note_row_levels(row, expected_row, expected_midi)
         strongest_exact, strongest_pitch, strongest_delta = note_row_levels(row, strongest_row, expected_midi)
         exact_count, pitch_count = note_row_counts(row, expected_midi)
