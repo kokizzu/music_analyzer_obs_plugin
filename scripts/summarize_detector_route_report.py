@@ -17,6 +17,9 @@ NOTE_CANDIDATE_RE = re.compile(
     r"neg=(?P<neg_samples>\d+)/(?:\d+) rows=(?P<neg_rows>\d+)"
     r"(?: foreign_miss=(?P<foreign_samples>\d+)/(?:\d+) rows=(?P<foreign_rows>\d+))?"
     r"(?: side_rows=\d+ net_rows=-?\d+ gain_per_side=(?:inf|-?\d+(?:\.\d+)?))?"
+    r"(?: neg_same_source_rows=(?P<neg_same_source_rows>\d+))?"
+    r"(?: neg_cross_source_rows=(?P<neg_cross_source_rows>\d+))?"
+    r"(?: foreign_cross_source_rows=(?P<foreign_cross_source_rows>\d+))?"
     r"(?: neg_sources=(?P<neg_sources>\S+))?"
     r"(?: foreign_sources=(?P<foreign_sources>\S+))?"
 )
@@ -49,6 +52,10 @@ class Candidate:
     foreign_rows: int = 0
     new_active_rows: int = 0
     primary_break_rows: int = 0
+    neg_same_source_rows: int = 0
+    neg_cross_source_rows: int = 0
+    foreign_cross_source_rows: int = 0
+    source_rows_reported: bool = False
     neg_sources: str = ""
     foreign_sources: str = ""
 
@@ -65,6 +72,26 @@ class Candidate:
         if self.side_effect_rows <= 0:
             return float("inf")
         return self.pos_rows / self.side_effect_rows
+
+    @property
+    def source_conflict_rows(self) -> int:
+        return self.neg_cross_source_rows + self.foreign_cross_source_rows
+
+    @property
+    def has_exact_source_rows(self) -> bool:
+        return bool(
+            self.neg_same_source_rows
+            or self.neg_cross_source_rows
+            or self.foreign_cross_source_rows
+        )
+
+    @property
+    def source_safe(self) -> bool:
+        if self.kind not in {"low-false", "near-miss"}:
+            return True
+        if self.side_effect_rows == 0:
+            return True
+        return self.source_rows_reported and self.source_conflict_rows == 0
 
 
 def parse_report(path: pathlib.Path) -> list[Candidate]:
@@ -156,6 +183,20 @@ def parse_report(path: pathlib.Path) -> list[Candidate]:
                         neg_samples=int(match.group("neg_samples")),
                         neg_rows=int(match.group("neg_rows")),
                         foreign_rows=int(match.group("foreign_rows") or 0),
+                        neg_same_source_rows=int(
+                            match.group("neg_same_source_rows") or 0
+                        ),
+                        neg_cross_source_rows=int(
+                            match.group("neg_cross_source_rows") or 0
+                        ),
+                        foreign_cross_source_rows=int(
+                            match.group("foreign_cross_source_rows") or 0
+                        ),
+                        source_rows_reported=bool(
+                            match.group("neg_same_source_rows") is not None
+                            or match.group("neg_cross_source_rows") is not None
+                            or match.group("foreign_cross_source_rows") is not None
+                        ),
                         neg_sources=match.group("neg_sources") or "",
                         foreign_sources=match.group("foreign_sources") or "",
                     )
@@ -200,8 +241,9 @@ def candidate_sort_key(candidate: Candidate) -> tuple[int, float, int, int, int,
     )
 
 
-def actionable_sort_key(candidate: Candidate) -> tuple[int, float, int, int, str]:
+def actionable_sort_key(candidate: Candidate) -> tuple[int, int, float, int, int, str]:
     return (
+        candidate.source_conflict_rows,
         -candidate.net_rows,
         -candidate.gain_per_side_effect_row,
         candidate.side_effect_rows,
@@ -228,6 +270,13 @@ def format_candidate(candidate: Candidate) -> str:
         source_utility += f" neg_sources={candidate.neg_sources}"
     if candidate.foreign_sources:
         source_utility += f" foreign_sources={candidate.foreign_sources}"
+    exact_source_utility = ""
+    if candidate.has_exact_source_rows:
+        exact_source_utility = (
+            f" neg_same_source_rows={candidate.neg_same_source_rows}"
+            f" neg_cross_source_rows={candidate.neg_cross_source_rows}"
+            f" foreign_cross_source_rows={candidate.foreign_cross_source_rows}"
+        )
     if candidate.kind == "drum":
         return (
             f"{candidate.kind} {candidate.section} "
@@ -246,7 +295,8 @@ def format_candidate(candidate: Candidate) -> str:
         f"{candidate.kind} {candidate.section} "
         f"+samples={candidate.pos_samples} +rows={candidate.pos_rows} "
         f"-samples={candidate.neg_samples} -rows={candidate.neg_rows} "
-        f"foreign_rows={candidate.foreign_rows} {utility}{source_utility} :: {candidate.rule}"
+        f"foreign_rows={candidate.foreign_rows} {utility}{exact_source_utility}"
+        f"{source_utility} :: {candidate.rule}"
     )
 
 
@@ -254,6 +304,7 @@ def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("report", type=pathlib.Path)
     parser.add_argument("--limit", type=int, default=20)
+    parser.add_argument("--min-actionable-samples", type=int, default=5)
     args = parser.parse_args()
 
     candidates = sorted(parse_report(args.report), key=candidate_sort_key)
@@ -263,21 +314,39 @@ def main() -> int:
     drum = [candidate for candidate in candidates if candidate.kind == "drum"]
     positive_net = [candidate for candidate in candidates if candidate.net_rows > 0]
     gain_ge_1 = [candidate for candidate in candidates if candidate.gain_per_side_effect_row >= 1.0]
+    source_safe_positive_net = [
+        candidate
+        for candidate in positive_net
+        if candidate.source_safe
+    ]
+    actionable = [
+        candidate
+        for candidate in source_safe_positive_net
+        if candidate.pos_samples == 0 or candidate.pos_samples >= args.min_actionable_samples
+    ]
 
     print(
         "detector_route_summary: "
         f"candidates={len(candidates)} low_false={len(low_false)} "
         f"shadow={len(shadow)} near_miss={len(near_miss)} drum={len(drum)} "
-        f"positive_net={len(positive_net)} gain_ge_1={len(gain_ge_1)}"
+        f"positive_net={len(positive_net)} gain_ge_1={len(gain_ge_1)} "
+        f"source_safe_positive_net={len(source_safe_positive_net)} "
+        f"actionable={len(actionable)}"
     )
     if not candidates:
         print("  --")
         return 0
 
-    ranked_candidates = sorted(
-        positive_net,
-        key=actionable_sort_key,
-    ) + [candidate for candidate in candidates if candidate.net_rows <= 0]
+    actionable_set = set(actionable)
+    ranked_candidates = (
+        sorted(actionable, key=actionable_sort_key)
+        + [
+            candidate
+            for candidate in sorted(positive_net, key=actionable_sort_key)
+            if candidate not in actionable_set
+        ]
+        + [candidate for candidate in candidates if candidate.net_rows <= 0]
+    )
 
     for candidate in ranked_candidates[: max(0, args.limit)]:
         print("  " + format_candidate(candidate))

@@ -1298,10 +1298,14 @@ def main() -> int:
     assert "ownership_miss:guitar/acoustic->piano positives=2 samples/2 rows" in result.stdout
     assert "debug_owner=piano AND partial2<=0.14: pos=2/2 rows=2 neg=0/2 rows=0" in result.stdout
     assert "side_rows=0 net_rows=2 gain_per_side=inf" in result.stdout
+    assert "neg_same_source_rows=0 neg_cross_source_rows=0 foreign_cross_source_rows=0" in result.stdout
     assert "highest-coverage candidate rules" in result.stdout
     assert "nearest over-budget single-condition candidate rules:" in near_miss_result.stdout
     assert "pos=2/2 rows=2 neg=1/2 rows=1" in near_miss_result.stdout
     assert "side_rows=1 net_rows=1 gain_per_side=2.00" in near_miss_result.stdout
+    assert "neg_same_source_rows=0 neg_cross_source_rows=1 foreign_cross_source_rows=0" in (
+        near_miss_result.stdout
+    )
     assert "explicit rule:" in example_result.stdout
     assert "debug_owner=piano: pos=2/2 rows=2 neg=1/2 rows=1" in example_result.stdout
     assert "positive examples:" in example_result.stdout
@@ -1374,6 +1378,9 @@ def main() -> int:
         "foreign_miss=1/1 rows=1"
     ) in foreign_result.stdout
     assert "side_rows=2 net_rows=0 gain_per_side=1.00" in foreign_result.stdout
+    assert "neg_same_source_rows=0 neg_cross_source_rows=1 foreign_cross_source_rows=1" in (
+        foreign_result.stdout
+    )
     assert "foreign-miss examples:" in foreign_result.stdout
     assert "bass_foreign expected=E2/40 debug=E2/40 owner=piano" in foreign_result.stdout
     assert (

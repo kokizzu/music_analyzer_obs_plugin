@@ -21,12 +21,12 @@ def main() -> int:
     report = """candidate rules are attribute selectors; rerun gates
 row_confusion:piano/electronic->amb positives=186 samples/636 rows protected_hits=2209 samples/22357 rows foreign_misses=0 samples/0 rows
   low-false candidate rules:
-    debug_conf<=0.542 AND partial3>=2.46 AND partial5<=0.02: pos=23/186 rows=44 neg=15/2209 rows=29 neg_sources=piano/electronic=27,other/acoustic=2
-    debug_conf<=0.542 AND partial3>=2.46 AND slope>=0.655: pos=23/186 rows=44 neg=16/2209 rows=29 neg_sources=piano/electronic=24,other/acoustic=5
+    debug_conf<=0.542 AND partial3>=2.46 AND partial5<=0.02: pos=23/186 rows=44 neg=15/2209 rows=29 side_rows=29 net_rows=15 gain_per_side=1.52 neg_same_source_rows=27 neg_cross_source_rows=2 foreign_cross_source_rows=0 neg_sources=piano/electronic=27,other/acoustic=2
+    debug_conf<=0.542 AND partial3>=2.46 AND slope>=0.655: pos=23/186 rows=44 neg=16/2209 rows=29 side_rows=29 net_rows=15 gain_per_side=1.52 neg_same_source_rows=24 neg_cross_source_rows=5 foreign_cross_source_rows=0 neg_sources=piano/electronic=24,other/acoustic=5
   highest-coverage candidate rules:
-    debug_conf<=0.542 AND partial3>=2.46 AND partial5<=0.02: pos=23/186 rows=44 neg=15/2209 rows=29 neg_sources=piano/electronic=27,other/acoustic=2
+    debug_conf<=0.542 AND partial3>=2.46 AND partial5<=0.02: pos=23/186 rows=44 neg=15/2209 rows=29 side_rows=29 net_rows=15 gain_per_side=1.52 neg_same_source_rows=27 neg_cross_source_rows=2 foreign_cross_source_rows=0 neg_sources=piano/electronic=27,other/acoustic=2
   nearest over-budget single-condition candidate rules:
-    slope>=0.203: pos=20/22 rows=47 neg=202/254 rows=616 foreign_miss=75/93 rows=242 neg_sources=vocals/example=45 foreign_sources=vocals/other=19
+    slope>=0.203: pos=20/22 rows=47 neg=202/254 rows=616 foreign_miss=75/93 rows=242 side_rows=858 net_rows=-811 gain_per_side=0.05 neg_same_source_rows=0 neg_cross_source_rows=616 foreign_cross_source_rows=242 neg_sources=vocals/example=45 foreign_sources=vocals/other=19
       positive examples:
         sample expected=D#3 debug=D#3 owner=other
 route snare->tom positives=492 rows=492 protected_correct=13126 rows=13126
@@ -51,11 +51,11 @@ compact route summary
     output = result.stdout
     require(
         output,
-        "detector_route_summary: candidates=7 low_false=2 shadow=2 near_miss=1 drum=2 positive_net=6 gain_ge_1=6",
+        "detector_route_summary: candidates=7 low_false=2 shadow=2 near_miss=1 drum=2 positive_net=6 gain_ge_1=6 source_safe_positive_net=4 actionable=4",
     )
     require(
         output,
-        "low-false row_confusion:piano/electronic->amb +samples=23 +rows=44 -samples=15 -rows=29 foreign_rows=0 side_rows=29 net_rows=15 gain_per_side=1.52 neg_sources=piano/electronic=27,other/acoustic=2",
+        "low-false row_confusion:piano/electronic->amb +samples=23 +rows=44 -samples=15 -rows=29 foreign_rows=0 side_rows=29 net_rows=15 gain_per_side=1.52 neg_same_source_rows=27 neg_cross_source_rows=2 foreign_cross_source_rows=0 neg_sources=piano/electronic=27,other/acoustic=2",
     )
     require(
         output,
@@ -67,16 +67,16 @@ compact route summary
     )
     require(
         output,
-        "near-miss row_confusion:piano/electronic->amb +samples=20 +rows=47 -samples=202 -rows=616 foreign_rows=242 side_rows=858 net_rows=-811 gain_per_side=0.05 neg_sources=vocals/example=45 foreign_sources=vocals/other=19",
+        "near-miss row_confusion:piano/electronic->amb +samples=20 +rows=47 -samples=202 -rows=616 foreign_rows=242 side_rows=858 net_rows=-811 gain_per_side=0.05 neg_same_source_rows=0 neg_cross_source_rows=616 foreign_cross_source_rows=242 neg_sources=vocals/example=45 foreign_sources=vocals/other=19",
     )
     require(
         output,
         "drum route snare->tom +rows=24 -rows=5 foreign_rows=4 new_active_rows=0 primary_break_rows=4 side_rows=13 net_rows=11 gain_per_side=1.85",
     )
-    if output.index("shadow other->same-pitch vocals") > output.index("low-false row_confusion"):
-        raise AssertionError(f"expected highest-net shadow candidate before low-false candidates:\n{output}")
-    if output.index("low-false row_confusion") > output.index("drum route snare->tom"):
-        raise AssertionError(f"expected higher-net low-false candidates before lower-net drum routes:\n{output}")
+    if output.index("shadow other->same-pitch vocals") > output.index("drum route snare->tom"):
+        raise AssertionError(f"expected highest-net source-safe candidate first:\n{output}")
+    if output.index("drum route snare->tom") > output.index("low-false row_confusion"):
+        raise AssertionError(f"expected source-safe drum routes before cross-source-risky note routes:\n{output}")
     if output.index("shadow other->same-pitch vocals") > output.index("near-miss row_confusion"):
         raise AssertionError(f"expected positive-net shadow candidates before near-miss routes:\n{output}")
     if output.index("drum route snare->tom") > output.index("near-miss row_confusion"):

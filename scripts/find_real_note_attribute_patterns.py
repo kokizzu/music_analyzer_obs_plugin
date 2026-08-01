@@ -509,6 +509,22 @@ def summarize_negative_sources_from_mask(
     return ",".join(f"{key}={value}" for key, value in counts.most_common(limit))
 
 
+def source_side_effect_rows(
+    rows: list[dict[str, str]], row_mask: int, positive_sources: set[str]
+) -> tuple[int, int]:
+    same_source_rows = 0
+    cross_source_rows = 0
+    while row_mask:
+        bit = row_mask & -row_mask
+        index = bit.bit_length() - 1
+        if source_key(rows[index]) in positive_sources:
+            same_source_rows += 1
+        else:
+            cross_source_rows += 1
+        row_mask ^= bit
+    return same_source_rows, cross_source_rows
+
+
 def quantile(values: list[float], fraction: float) -> float:
     if not values:
         return 0.0
@@ -1364,12 +1380,19 @@ def print_results(
     if not results:
         print("    --")
         return
+    positive_sources = {source_key(row) for row in positive_rows}
     for result in results:
         negative_sources = summarize_negative_sources_from_mask(
             negative_rows, result.negative_row_mask
         )
         foreign_sources = summarize_negative_sources_from_mask(
             foreign_rows, result.foreign_row_mask
+        )
+        neg_same_source_rows, neg_cross_source_rows = source_side_effect_rows(
+            negative_rows, result.negative_row_mask, positive_sources
+        )
+        _foreign_same_source_rows, foreign_cross_source_rows = source_side_effect_rows(
+            foreign_rows, result.foreign_row_mask, positive_sources
         )
         print(
             f"    {result.rule}: pos={result.positive_samples}/{positive_total} "
@@ -1385,6 +1408,9 @@ def print_results(
                 f"net_rows={result.net_rows} "
                 f"gain_per_side={format_gain_ratio(result.gain_per_side_effect_row)}"
             )
+            + f" neg_same_source_rows={neg_same_source_rows}"
+            + f" neg_cross_source_rows={neg_cross_source_rows}"
+            + f" foreign_cross_source_rows={foreign_cross_source_rows}"
             + (f" neg_sources={negative_sources}" if negative_sources else "")
             + (f" foreign_sources={foreign_sources}" if foreign_sources else "")
         )
