@@ -25,6 +25,7 @@ FLAG_FIELDS = (
     "flag_high_band_kick_body_tom_bleed",
     "flag_massive_tom_body_snare_primary_recovery",
     "flag_upper_tom_snare_active_bleed",
+    "flag_bright_kick_active_bleed",
 )
 
 

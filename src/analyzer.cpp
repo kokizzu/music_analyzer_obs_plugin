@@ -24229,6 +24229,17 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 		if (final_one_shot_measured_tom_kick_active_bleed)
 			cap_drum_level(Kick, 0.28f);
 
+		const bool final_one_shot_measured_bright_kick_active_bleed =
+			drum_detection_enabled && one_shot_drum_source &&
+			!generated_gm_drum_source &&
+			drum_level_[Kick] > 0.30f &&
+			snapshot.high_energy >= 0.13f &&
+			hihat_rim_band_ratio >= 0.432f;
+		if (final_one_shot_measured_bright_kick_active_bleed)
+			snapshot.drum_debug_rule_flags |= DrumDebugBrightKickActiveBleed;
+		if (final_one_shot_measured_bright_kick_active_bleed)
+			cap_drum_level(Kick, 0.28f);
+
 		const bool strong_low_kick_tom_bleed =
 			drum_detection_enabled &&
 			drum_level_[Tom] > 0.30f &&
