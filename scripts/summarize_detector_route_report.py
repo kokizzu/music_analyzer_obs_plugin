@@ -366,6 +366,18 @@ def candidate_additional_samples_needed(
     return min_actionable_samples - candidate.pos_samples
 
 
+def block_reason_summary(
+    candidates: list[Candidate], min_actionable_samples: int
+) -> list[tuple[str, int]]:
+    counts: dict[str, int] = {}
+    for candidate in candidates:
+        for reason in candidate_block_reasons(candidate, min_actionable_samples):
+            if reason.startswith("cross_source_rows="):
+                reason = "cross_source_rows"
+            counts[reason] = counts.get(reason, 0) + 1
+    return sorted(counts.items(), key=lambda item: (-item[1], item[0]))
+
+
 def format_candidate(candidate: Candidate, min_actionable_samples: int) -> str:
     utility = (
         f"side_rows={candidate.side_effect_rows} "
@@ -569,6 +581,12 @@ def main() -> int:
         print(
             "  no actionable candidates "
             f"(min_actionable_samples={args.min_actionable_samples}); showing diagnostics"
+        )
+    blocked_reasons = block_reason_summary(candidates, args.min_actionable_samples)
+    if blocked_reasons:
+        print(
+            "  blocked-reason summary "
+            + " ".join(f"{reason}={count}" for reason, count in blocked_reasons)
         )
     if coverage_blocked:
         print(

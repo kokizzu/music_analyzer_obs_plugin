@@ -65,6 +65,10 @@ compact route summary
     )
     require(
         output,
+        "blocked-reason summary cross_source_rows=3 low_samples<5=2 negative_net=1",
+    )
+    require(
+        output,
         "coverage-blocked candidates need more positive samples before detector changes",
     )
     require(
