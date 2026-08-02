@@ -109,7 +109,7 @@ without additional annotation.
 | Dataset | Useful for | Missing for this project |
 | --- | --- | --- |
 | [MedleyDB / MedleyDB 2.0](https://medleydb.weebly.com/) | Real multitrack songs, melody F0, instrument activation, optional `make test-real-medleydb-20` melody analyzer gate | Full multitrack MIDI/note truth. Audio is on restricted [Zenodo](https://zenodo.org/records/1649325) records; annotations and metadata are public on [GitHub](https://github.com/marl/medleydb). |
-| [Medley-solos-DB](https://zenodo.org/records/3464194) | Real solo-instrument timbre row-routing gate with `make test-medley-solos-samples` | Pitch/chord labels. It has 21,571 three-second real solo clips with one of eight instrument labels, so the implemented gate checks guitar, keyboard, vocal, and other row activity but cannot verify exact notes or chords. |
+| [Medley-solos-DB](https://zenodo.org/records/3464194) | Real solo-instrument timbre row-routing gate with `make test-medley-solos-samples` | Pitch/chord labels. It has 21,571 three-second real solo clips with one of eight instrument labels, so the implemented sharded gate checks guitar, keyboard, vocal, and other row activity but cannot verify exact notes or chords. |
 | [MUSDB18 / MUSDB18-HQ](https://sigsep.github.io/datasets/musdb.html) | Drums, bass, vocals, other stem layout with optional `make inspect-real-musdb` preflight | MIDI/note truth and fine instrument classes. |
 | [MoisesDB](https://arxiv.org/abs/2307.15913) | Fine-grained real stems beyond 4-stem separation | MIDI/note truth. |
 | [RawStems](https://arxiv.org/abs/2505.21827) | Large unprocessed stem corpus and stem categories | MIDI/note truth. |
@@ -419,8 +419,11 @@ without additional annotation.
   piano, and female singer to guitar, keyboard, and vocal rows, and maps
   clarinet, flute, tenor saxophone, trumpet, and violin to other. Because the
   dataset has no pitch or chord labels, this is a timbre row-routing regression
-  gate only. `make test-real-world-samples-full` runs it only when the archive
-  is already cached.
+  gate only. The default target shards the manifest and aggregates the original
+  sample-count and per-family recall gates; use `make
+  test-medley-solos-samples-serial` for single-process comparison. `make
+  test-real-world-samples-full` runs it only when the archive is already
+  cached.
 - Use `make test-maps-piano-samples` to download the 2.6 GB MAPS `ENSTDkCl`
   ZIP from Zenodo, extract paired WAV/MIDI recordings from the usual-chord,
   random-chord, and music folders into a MAESTRO-shaped fixture, and run the

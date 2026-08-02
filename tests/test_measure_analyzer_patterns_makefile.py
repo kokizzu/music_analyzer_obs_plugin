@@ -691,6 +691,7 @@ def main() -> int:
         "test-drum-sample-shard-check",
         "test-egmd-shard-check",
         "test-maestro-shard-check",
+        "test-instrument-family-shard-check",
         "test-real-note-full-mix-shard-check",
         "test-real-note-sample-shard-check",
         "android-check",
@@ -747,6 +748,32 @@ def main() -> int:
         assert "MUSIC_ANALYZER_EGMD_SHARD_COUNT" not in serial_recipe, (
             f"{label} serial fallback must keep the original unsharded harness"
         )
+    assert_alias_target(makefile, "test-medley-solos-samples", "test-medley-solos-samples-parallel")
+    medley_parallel_recipe = target_recipe(makefile, "test-medley-solos-samples-parallel")
+    medley_unlocked_recipe = target_recipe(makefile, "test-medley-solos-samples-parallel-unlocked")
+    medley_shard_recipe = target_recipe(makefile, "test-medley-solos-samples-shard-%")
+    medley_serial_recipe = target_recipe(makefile, "test-medley-solos-samples-serial")
+    assert "scripts/check_instrument_family_shards.py" in medley_parallel_recipe, (
+        "Medley-solos parallel target must depend on the instrument-family shard checker"
+    )
+    assert "scripts/run_with_lock.sh" in medley_parallel_recipe, (
+        "Medley-solos parallel target must lock shared shard outputs"
+    )
+    assert "$(MAKE) $(MEDLEY_SOLOS_TEST_MAKE_JOBS) $(MEDLEY_SOLOS_SHARD_TARGETS)" in medley_unlocked_recipe, (
+        "Medley-solos parallel target must fan out deterministic sample shards"
+    )
+    assert "$(MEDLEY_SOLOS_SHARD_OUTS)" in medley_unlocked_recipe, (
+        "Medley-solos parallel checker must aggregate every shard output"
+    )
+    assert 'MUSIC_ANALYZER_INSTRUMENT_FAMILY_SHARD_COUNT="$(MEDLEY_SOLOS_SHARDS)"' in medley_shard_recipe, (
+        "Medley-solos shard target must pass the configured shard count"
+    )
+    assert 'MUSIC_ANALYZER_INSTRUMENT_FAMILY_SHARD_INDEX="$$shard"' in medley_shard_recipe, (
+        "Medley-solos shard target must pass its concrete shard index"
+    )
+    assert "MUSIC_ANALYZER_INSTRUMENT_FAMILY_SHARD_COUNT" not in medley_serial_recipe, (
+        "Medley-solos serial fallback must keep the original unsharded harness"
+    )
     for target, var_prefix, label in [
         ("test-maps-piano-samples", "MAPS_PIANO", "MAPS piano chord/music"),
         ("test-maps-piano-note-samples", "MAPS_PIANO_NOTE", "MAPS piano note"),

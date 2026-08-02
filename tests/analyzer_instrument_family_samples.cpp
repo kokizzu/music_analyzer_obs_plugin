@@ -420,6 +420,14 @@ int main()
 	const bool required = std::getenv("MUSIC_ANALYZER_INSTRUMENT_FAMILY_SAMPLES_REQUIRED") != nullptr;
 	const int required_samples = positive_int_env("MUSIC_ANALYZER_INSTRUMENT_FAMILY_REQUIRED_SAMPLES", 600);
 	const int min_recall_percent = percent_env("MUSIC_ANALYZER_INSTRUMENT_FAMILY_MIN_RECALL_PERCENT", 20);
+	const int shard_count = positive_int_env("MUSIC_ANALYZER_INSTRUMENT_FAMILY_SHARD_COUNT", 1);
+	const int shard_index = nonnegative_int_env("MUSIC_ANALYZER_INSTRUMENT_FAMILY_SHARD_INDEX", 0);
+	if (shard_index >= shard_count) {
+		std::fprintf(stderr,
+			     "analyzer_instrument_family_samples: shard index %d outside shard count %d\n",
+			     shard_index, shard_count);
+		return 1;
+	}
 
 	std::vector<SampleRow> rows;
 	const std::string manifest_path = join_path(root, "manifest.tsv");
@@ -443,7 +451,14 @@ int main()
 	std::array<FamilyStats, 4> stats = {};
 	std::map<std::string, FamilyStats> instrument_stats;
 	int usable = 0;
+	std::size_t row_ordinal = 0;
 	for (const SampleRow &row : rows) {
+		const std::size_t current_row_ordinal = row_ordinal++;
+		if (shard_count > 1 &&
+		    current_row_ordinal % static_cast<std::size_t>(shard_count) !=
+			    static_cast<std::size_t>(shard_index))
+			continue;
+
 		std::vector<float> samples;
 		uint32_t sample_rate = 0;
 		std::string error;
