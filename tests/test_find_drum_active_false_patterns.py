@@ -132,6 +132,76 @@ def main() -> int:
     if expected_primary_sim != (2, 1, 2, 0, 1, 0, 1, 0, 2, 1, 2, 0, 1, 0, 1, 0):
         raise AssertionError(f"unexpected primary cap simulation: {primary_sim}")
 
+    visual_only_summary = module.RouteSummary(
+        kind="candidate",
+        route=("hihat", "crash"),
+        rule="visual-only",
+        positive_samples=8,
+        positive_rows=8,
+        protected_samples=0,
+        protected_rows=0,
+        foreign_samples=0,
+        foreign_rows=0,
+        protected_total_samples=2,
+        foreign_total_samples=0,
+        nearest_protected_misses=None,
+        nearest_protected_score=None,
+        cap_simulation=module.CapSimulation(
+            true_before_samples=2,
+            true_after_samples=2,
+            false_before_samples=8,
+            false_after_samples=0,
+            route_before_samples=8,
+            route_after_samples=0,
+            foreign_before_samples=0,
+            foreign_after_samples=0,
+            true_primary_before_samples=2,
+            true_primary_after_samples=2,
+            false_primary_before_samples=0,
+            false_primary_after_samples=0,
+            route_primary_before_samples=0,
+            route_primary_after_samples=0,
+            foreign_primary_before_samples=0,
+            foreign_primary_after_samples=0,
+        ),
+    )
+    primary_gain_summary = module.RouteSummary(
+        kind="candidate",
+        route=("tom", "snare"),
+        rule="primary-gain",
+        positive_samples=6,
+        positive_rows=6,
+        protected_samples=1,
+        protected_rows=1,
+        foreign_samples=0,
+        foreign_rows=0,
+        protected_total_samples=2,
+        foreign_total_samples=0,
+        nearest_protected_misses=None,
+        nearest_protected_score=None,
+        cap_simulation=module.CapSimulation(
+            true_before_samples=2,
+            true_after_samples=1,
+            false_before_samples=6,
+            false_after_samples=0,
+            route_before_samples=6,
+            route_after_samples=0,
+            foreign_before_samples=0,
+            foreign_after_samples=0,
+            true_primary_before_samples=2,
+            true_primary_after_samples=2,
+            false_primary_before_samples=4,
+            false_primary_after_samples=0,
+            route_primary_before_samples=4,
+            route_primary_after_samples=0,
+            foreign_primary_before_samples=0,
+            foreign_primary_after_samples=0,
+        ),
+    )
+    ranked = sorted([visual_only_summary, primary_gain_summary], key=module.summary_rank)
+    if ranked[0].rule != "primary-gain":
+        raise AssertionError(f"primary-net-positive summary should rank first: {ranked}")
+
     header = (
         "sample\texpected\tgot\tbody_shape\tlow\tmid\thigh\tkick_level\tkick_seg\tkick_trigger\t"
         "kick_threshold\tsnare_level\tsnare_seg\tsnare_trigger\tsnare_threshold\thihat_level\t"

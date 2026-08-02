@@ -917,11 +917,16 @@ def route_summaries(analysis: RouteAnalysis, settings: Settings) -> list[RouteSu
     return summaries
 
 
-def summary_rank(summary: RouteSummary) -> tuple[int, int, int, int, int, int, str, str]:
+def summary_rank(summary: RouteSummary) -> tuple[int, int, int, int, int, int, int, int, int, int, str, str]:
+    cap = summary.cap_simulation
     return (
         0 if summary.kind == "candidate" else 1,
+        -cap.primary_net,
+        -cap.route_primary_net,
         summary.protected_samples,
         summary.foreign_samples,
+        -cap.sample_net,
+        -cap.route_sample_net,
         -summary.positive_samples,
         summary.protected_rows,
         summary.foreign_rows,
