@@ -20033,7 +20033,7 @@ bool displayed_guitar_chord_has_distorted_single_note_root_residue(const Instrum
 								   const NoteGrid &analysis_grid,
 								   float rms)
 {
-	if (rms < 0.416f || displayed_chord.confidence < 0.45f || !displayed_chord.label[0] ||
+	if (rms < 0.384f || displayed_chord.confidence < 0.45f || !displayed_chord.label[0] ||
 	    displayed_chord.label[0] == '-' || smoothed_chord.confidence >= 0.36f)
 		return false;
 
