@@ -1003,6 +1003,34 @@ void check_displayed_guitar_single_note_probe_profile(Runner &runner)
 			      displayed, empty_smoothed, full_analysis, weak_third_powers, kGuitarMinMidi,
 			      kGuitarMaxMidi),
 		      "displayed guitar single-note profile: expected analysis-supported Fm triad to be preserved");
+
+	NoteGrid smoothed_f_minor = {};
+	set_pitch(smoothed_f_minor, 5, 0.82f);
+	set_pitch(smoothed_f_minor, 8, 0.64f);
+	set_pitch(smoothed_f_minor, 0, 0.58f);
+	set_pitch(smoothed_f_minor, 2, 0.22f);
+	set_pitch(smoothed_f_minor, 11, 0.20f);
+	set_pitch(smoothed_f_minor, 10, 0.18f);
+	InstrumentState noisy_displayed = {};
+	std::snprintf(noisy_displayed.label, sizeof(noisy_displayed.label), "Fm=C#dim");
+	noisy_displayed.confidence = 1.00f;
+	std::array<float, kNoteProbeCount> noisy_opposite_third = {};
+	set_probe_level(noisy_opposite_third, 53, 0.80f);
+	set_probe_level(noisy_opposite_third, 56, 0.68f);
+	set_probe_level(noisy_opposite_third, 57, 0.95f);
+	runner.expect(displayed_guitar_chord_has_noisy_smoothed_single_note_residue(
+			      noisy_displayed, smoothed_f_minor, smoothed_f_minor, smoothed_f_minor,
+			      noisy_opposite_third, kGuitarMinMidi, kGuitarMaxMidi, 0.34f, 0.30f),
+		      "displayed guitar noisy smoothed residue: expected opposite-third probe to suppress");
+
+	std::array<float, kNoteProbeCount> clean_smoothed_triad = {};
+	set_probe_level(clean_smoothed_triad, 53, 0.80f);
+	set_probe_level(clean_smoothed_triad, 56, 0.68f);
+	set_probe_level(clean_smoothed_triad, 60, 0.72f);
+	runner.expect(!displayed_guitar_chord_has_noisy_smoothed_single_note_residue(
+			      noisy_displayed, smoothed_f_minor, smoothed_f_minor, smoothed_f_minor,
+			      clean_smoothed_triad, kGuitarMinMidi, kGuitarMaxMidi, 0.34f, 0.30f),
+		      "displayed guitar noisy smoothed residue: expected clean smoothed triad to remain");
 }
 
 void check_displayed_guitar_root_residue_rejects_harmonic_stack(Runner &runner)
