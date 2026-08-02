@@ -1283,6 +1283,26 @@ void check_guitar_supported_extension_aliases(Runner &runner)
 						.guitar_chord_analysis_notes) +
 				"`");
 
+	mao_test::Buffer distorted_root_residue_single_note = {};
+	const std::vector<float> distorted_root_profile = {1.0f, 0.62f, 0.36f, 0.22f, 0.12f};
+	add_harmonic_note(distorted_root_residue_single_note, 45, 0.54f, distorted_root_profile);
+	add_harmonic_note(distorted_root_residue_single_note, 44, 0.22f, {1.0f, 0.24f});
+	add_harmonic_note(distorted_root_residue_single_note, 46, 0.22f, {1.0f, 0.24f});
+
+	const auto distorted_root_residue_snapshot =
+		analyze_buffer(distorted_root_residue_single_note, "guitar");
+	expect_note_token(runner, distorted_root_residue_snapshot.guitar.label, "A2",
+			  "guitar distorted single-note root-residue rejection");
+	expect_no_chord(runner, distorted_root_residue_snapshot.guitar_chord,
+			std::string("guitar distorted single-note root-residue rejection raw `") +
+				distorted_root_residue_snapshot.guitar_raw_chord.label + "` smooth `" +
+				distorted_root_residue_snapshot.guitar_smoothed_chord.label + "` notes `" +
+				note_grid_pitch_classes(distorted_root_residue_snapshot.guitar_notes) +
+				"` analysis `" +
+				note_grid_pitch_classes(
+					distorted_root_residue_snapshot.guitar_chord_analysis_notes) +
+				"`");
+
 	mao_test::Buffer flanked_thirdless_named_dyad = {};
 	add_harmonic_note(flanked_thirdless_named_dyad, 48, 0.22f, guitar_profile);
 	add_harmonic_note(flanked_thirdless_named_dyad, 55, 0.20f, guitar_profile);

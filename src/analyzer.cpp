@@ -20028,6 +20028,40 @@ bool displayed_guitar_chord_has_single_note_probe_profile(const InstrumentState 
 	return root_probe >= 0.812f && third_probe <= 0.238f;
 }
 
+bool displayed_guitar_chord_has_distorted_single_note_root_residue(const InstrumentState &displayed_chord,
+								   const InstrumentState &smoothed_chord,
+								   const NoteGrid &analysis_grid,
+								   float rms)
+{
+	if (rms < 0.416f || displayed_chord.confidence < 0.45f || !displayed_chord.label[0] ||
+	    displayed_chord.label[0] == '-' || smoothed_chord.confidence >= 0.36f)
+		return false;
+
+	const char *label_end = std::strchr(displayed_chord.label, '=');
+	const std::size_t label_len =
+		label_end ? static_cast<std::size_t>(label_end - displayed_chord.label) :
+			    std::strlen(displayed_chord.label);
+	ParsedRootChord parsed;
+	if (!parse_plain_major_minor_component(displayed_chord.label, label_len, parsed))
+		return false;
+
+	ChordResult primary = make_guitar_plain_triad(parsed.root,
+						      parsed.quality == RootChordQuality::Minor,
+						      displayed_chord.confidence);
+	const int third = parsed.root + (parsed.quality == RootChordQuality::Minor ? 3 : 4);
+	const int fifth = parsed.root + 7;
+	const float analysis_root = note_grid_pitch_level(analysis_grid, parsed.root);
+	const float analysis_third = note_grid_pitch_level(analysis_grid, third);
+	const float analysis_fifth = note_grid_pitch_level(analysis_grid, fifth);
+	if (analysis_root < 0.02f || analysis_third >= 0.20f)
+		return false;
+
+	const bool analysis_triad_supported =
+		analysis_root >= 0.12f && analysis_third >= 0.12f && analysis_fifth >= 0.12f &&
+		note_grid_chord_tone_count(analysis_grid, primary) >= 3;
+	return !analysis_triad_supported;
+}
+
 bool primary_major_minor_root_adjacent_noise(const NoteGrid &grid, const ChordResult &chord)
 {
 	if (!valid_chord_result(chord))
@@ -28539,10 +28573,13 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 				kGuitarMaxMidi);
 		}
 		if (!mixed_source &&
-		    displayed_guitar_chord_has_single_note_probe_profile(
-			    snapshot.guitar_chord, snapshot.guitar_smoothed_chord,
-			    guitar_chord_detection_grid, note_powers, kGuitarMinMidi,
-			    kGuitarMaxMidi))
+		    (displayed_guitar_chord_has_single_note_probe_profile(
+			     snapshot.guitar_chord, snapshot.guitar_smoothed_chord,
+			     guitar_chord_detection_grid, note_powers, kGuitarMinMidi,
+			     kGuitarMaxMidi) ||
+		     displayed_guitar_chord_has_distorted_single_note_root_residue(
+			     snapshot.guitar_chord, snapshot.guitar_smoothed_chord,
+			     guitar_chord_detection_grid, rms)))
 			clear_instrument_state(snapshot.guitar_chord);
 	} else {
 		reset_note_grid_envelope(snapshot.guitar_notes, snapshot.guitar, guitar_note_tracking_);
