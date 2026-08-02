@@ -15696,6 +15696,34 @@ bool chroma_supports_weak_relative_major_seventh(const std::array<float, 12> &ch
 	return strongest_extra <= std::max(0.32f, primary_anchor * 0.70f);
 }
 
+bool chroma_supports_weak_relative_dominant_seventh(const std::array<float, 12> &chroma,
+						    const ParsedRootChord &primary,
+						    int primary_tones, int &alias_root)
+{
+	if (primary.quality != RootChordQuality::Minor || primary_tones != 3)
+		return false;
+
+	alias_root = (primary.root + 8) % 12;
+	const float root_level = chroma[static_cast<std::size_t>(alias_root)];
+	const float major_third = chroma[static_cast<std::size_t>((alias_root + 4) % 12)];
+	const float fifth = chroma[static_cast<std::size_t>((alias_root + 7) % 12)];
+	const float flat_seventh = chroma[static_cast<std::size_t>((alias_root + 10) % 12)];
+	const float major_seventh = chroma[static_cast<std::size_t>((alias_root + 11) % 12)];
+	if (root_level < 0.14f || major_third < 0.24f || fifth < 0.40f ||
+	    flat_seventh < 0.55f || flat_seventh < major_seventh * 1.08f)
+		return false;
+
+	float strongest_other = 0.0f;
+	for (int pitch_class = 0; pitch_class < 12; ++pitch_class) {
+		const int interval = (pitch_class - alias_root + 12) % 12;
+		if (interval == 0 || interval == 4 || interval == 7 || interval == 10 ||
+		    interval == 11)
+			continue;
+		strongest_other = std::max(strongest_other, chroma[static_cast<std::size_t>(pitch_class)]);
+	}
+	return strongest_other <= 0.32f;
+}
+
 void append_mixed_global_extension_aliases(InstrumentState &state, const std::array<float, 12> &chroma,
 					   int preferred_root)
 {
@@ -15787,6 +15815,17 @@ void append_mixed_global_extension_aliases(InstrumentState &state, const std::ar
 						       weak_major_seventh_root)) {
 		char label[16] = {};
 		std::snprintf(label, sizeof(label), "%smaj7", note_name(weak_major_seventh_root));
+		const std::size_t label_len = std::strlen(label);
+		if (!chord_label_has_component(merged, label, label_len))
+			append_chord_label_component(merged, sizeof(merged), label, label_len);
+	}
+
+	int weak_dominant_seventh_root = -1;
+	if (appended < 4 &&
+	    chroma_supports_weak_relative_dominant_seventh(chroma, primary, primary_tones,
+							   weak_dominant_seventh_root)) {
+		char label[16] = {};
+		std::snprintf(label, sizeof(label), "%s7", note_name(weak_dominant_seventh_root));
 		const std::size_t label_len = std::strlen(label);
 		if (!chord_label_has_component(merged, label, label_len))
 			append_chord_label_component(merged, sizeof(merged), label, label_len);
