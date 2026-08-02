@@ -1037,6 +1037,23 @@ void check_displayed_guitar_root_residue_rejects_harmonic_stack(Runner &runner)
 			      unflanked_harmonic_stack, 0.44f),
 		      "displayed guitar root residue: expected compact harmonic-only A# triad to suppress");
 
+	InstrumentState noisy_harmonic_displayed = {};
+	std::snprintf(noisy_harmonic_displayed.label, sizeof(noisy_harmonic_displayed.label), "F#");
+	noisy_harmonic_displayed.confidence = 1.00f;
+	InstrumentState noisy_harmonic_smoothed = noisy_harmonic_displayed;
+	noisy_harmonic_smoothed.confidence = 1.00f;
+	NoteGrid noisy_harmonic_display = {};
+	set_midi(noisy_harmonic_display, 42, 0.62f);
+	set_midi(noisy_harmonic_display, 61, 0.90f);
+	set_midi(noisy_harmonic_display, 70, 0.28f);
+	NoteGrid noisy_harmonic_analysis = noisy_harmonic_display;
+	set_midi(noisy_harmonic_analysis, 48, 0.16f);
+	set_midi(noisy_harmonic_analysis, 50, 0.14f);
+	runner.expect(displayed_guitar_chord_has_distorted_single_note_root_residue(
+			      noisy_harmonic_displayed, noisy_harmonic_smoothed, noisy_harmonic_display,
+			      noisy_harmonic_analysis, 0.46f),
+		      "displayed guitar root residue: expected noisy high-RMS harmonic-only F# triad to suppress");
+
 	NoteGrid played_voicing = {};
 	set_midi(played_voicing, 42, 0.12f);
 	set_midi(played_voicing, 43, 0.95f);
@@ -1046,6 +1063,17 @@ void check_displayed_guitar_root_residue_rejects_harmonic_stack(Runner &runner)
 	runner.expect(!displayed_guitar_chord_has_distorted_single_note_root_residue(
 			      displayed, smoothed, played_voicing, played_voicing, 0.46f),
 		      "displayed guitar root residue: expected nearby G-B-D voicing to remain valid");
+
+	NoteGrid layered_played_voicing = {};
+	set_midi(layered_played_voicing, 43, 0.30f);
+	set_midi(layered_played_voicing, 55, 0.62f);
+	set_midi(layered_played_voicing, 59, 0.50f);
+	set_midi(layered_played_voicing, 62, 0.50f);
+	set_midi(layered_played_voicing, 71, 0.30f);
+	runner.expect(!displayed_guitar_chord_has_distorted_single_note_root_residue(
+			      displayed, smoothed, layered_played_voicing, layered_played_voicing,
+			      0.46f),
+		      "displayed guitar root residue: expected higher G-B-D voicing to remain valid");
 }
 
 void check_supported_guitar_candidate_alias_merge(Runner &runner)

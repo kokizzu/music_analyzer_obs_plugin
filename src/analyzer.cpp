@@ -20104,6 +20104,63 @@ bool guitar_high_harmonic_triad_residue(const NoteGrid &display_grid, const Note
 	return std::max(third_level, fifth_level) >= 0.20f;
 }
 
+bool guitar_loud_harmonic_only_single_note_residue(const NoteGrid &display_grid,
+						   const NoteGrid &analysis_grid, int root,
+						   int third, float rms)
+{
+	if (rms < 0.426f)
+		return false;
+	if (note_grid_active_pitch_class_count(display_grid) > 4 ||
+	    note_grid_active_pitch_class_count(analysis_grid) > 7)
+		return false;
+
+	const int low_root = guitar_low_visible_root_midi(display_grid, root, 0.18f);
+	if (low_root < 0)
+		return false;
+
+	const int third_interval = midi_pitch_class(third - root);
+	if (third_interval != 3 && third_interval != 4)
+		return false;
+
+	for (int midi = kGuitarMinMidi; midi <= 55; ++midi) {
+		if (midi_pitch_class(midi) != midi_pitch_class(root))
+			continue;
+		if (note_grid_midi_level(display_grid, midi) < 0.18f)
+			continue;
+		if (note_grid_midi_level(display_grid, midi + third_interval) >= 0.12f ||
+		    note_grid_midi_level(display_grid, midi + 7) >= 0.12f)
+			return false;
+	}
+
+	const float played_lower_third = note_grid_midi_level(display_grid, low_root + third_interval);
+	const float played_lower_fifth = note_grid_midi_level(display_grid, low_root + 7);
+	if (played_lower_third >= 0.12f || played_lower_fifth >= 0.12f)
+		return false;
+
+	const float harmonic_octave =
+		std::max(note_grid_midi_level(display_grid, low_root + 12),
+			 note_grid_midi_level(analysis_grid, low_root + 12));
+	const float harmonic_second_octave =
+		std::max(note_grid_midi_level(display_grid, low_root + 24),
+			 note_grid_midi_level(analysis_grid, low_root + 24));
+	const float harmonic_fifth =
+		std::max({note_grid_midi_level(display_grid, low_root + 19),
+			  note_grid_midi_level(analysis_grid, low_root + 19),
+			  note_grid_midi_level(display_grid, low_root + 31),
+			  note_grid_midi_level(analysis_grid, low_root + 31)});
+	const int harmonic_third_interval = third_interval == 3 ? 27 : 28;
+	const float harmonic_third =
+		std::max(note_grid_midi_level(display_grid, low_root + harmonic_third_interval),
+			 note_grid_midi_level(analysis_grid, low_root + harmonic_third_interval));
+
+	int evidence = 0;
+	evidence += harmonic_octave >= 0.20f ? 1 : 0;
+	evidence += harmonic_second_octave >= 0.16f ? 1 : 0;
+	evidence += harmonic_fifth >= 0.12f ? 1 : 0;
+	evidence += harmonic_third >= 0.12f ? 1 : 0;
+	return evidence >= 2 && (harmonic_fifth >= 0.12f || harmonic_third >= 0.12f);
+}
+
 bool label_has_supported_same_root_no_third_component(const char *label, int root,
 						      const NoteGrid &display_grid,
 						      const NoteGrid &analysis_grid,
@@ -20174,16 +20231,20 @@ bool displayed_guitar_chord_has_distorted_single_note_root_residue(const Instrum
 	if (!parse_root_chord_component(displayed_chord.label, label_len, parsed) ||
 	    (parsed.quality != RootChordQuality::Major && parsed.quality != RootChordQuality::Minor))
 		return false;
-	if (label_has_supported_same_root_no_third_component(
-		    displayed_chord.label, parsed.root, display_grid, analysis_grid,
-		    smoothed_chord.confidence >= 0.36f))
-		return false;
 
 	ChordResult primary = make_guitar_plain_triad(parsed.root,
 						      parsed.quality == RootChordQuality::Minor,
 						      displayed_chord.confidence);
 	const int third = parsed.root + (parsed.quality == RootChordQuality::Minor ? 3 : 4);
 	const int fifth = parsed.root + 7;
+	if (guitar_loud_harmonic_only_single_note_residue(display_grid, analysis_grid, parsed.root,
+							  third, rms))
+		return true;
+	if (label_has_supported_same_root_no_third_component(
+		    displayed_chord.label, parsed.root, display_grid, analysis_grid,
+		    smoothed_chord.confidence >= 0.36f))
+		return false;
+
 	const float analysis_root = note_grid_pitch_level(analysis_grid, parsed.root);
 	const float analysis_third = note_grid_pitch_level(analysis_grid, third);
 	const float analysis_fifth = note_grid_pitch_level(analysis_grid, fifth);
