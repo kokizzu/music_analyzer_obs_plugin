@@ -2173,6 +2173,28 @@ void check_display_ownership_scale_keeps_confirmed_mid_confidence_visible(Runner
 		      "display ownership scale: expected strong ownership to render at full scale");
 }
 
+void check_low_confidence_mirror_cell_uses_visual_floor_without_changing_level(Runner &runner)
+{
+	static constexpr int kMidi = 60;
+
+	NoteGrid grid = {};
+	write_note_grid_cell(grid, NoteCandidate{kMidi, 1.0f, 0.20f}, 1.0f, 1.0f);
+	const NoteCell primary = note_grid_primary_cell_for_pitch_class(grid, midi_pitch_class(kMidi));
+	runner.expect(std::fabs(primary.level - 0.20f) < 0.001f,
+		      "low confidence mirror visual floor: expected analytic level to stay ownership-scaled");
+	runner.expect(std::fabs(note_grid_midi_visual_level(grid, kMidi) - 0.25f) < 0.001f,
+		      "low confidence mirror visual floor: expected full-strength mirror to render at floor");
+
+	NoteGrid weak_score_grid = {};
+	write_note_grid_cell(weak_score_grid, NoteCandidate{kMidi, 0.50f, 0.20f}, 1.0f, 1.0f);
+	const NoteCell weak_score_primary =
+		note_grid_primary_cell_for_pitch_class(weak_score_grid, midi_pitch_class(kMidi));
+	runner.expect(std::fabs(weak_score_primary.level - 0.10f) < 0.001f,
+		      "low confidence mirror visual floor: expected weak analytic level to stay relative");
+	runner.expect(std::fabs(note_grid_midi_visual_level(weak_score_grid, kMidi) - 0.125f) < 0.001f,
+		      "low confidence mirror visual floor: expected visual floor to preserve relative score");
+}
+
 void check_low_acoustic_guitar_display_mirror_gets_bright_score_floor(Runner &runner)
 {
 	static constexpr int kMidi = 45;
@@ -2565,6 +2587,7 @@ int run()
 	check_other_dominant_same_pitch_guitar_display_is_pruned(runner);
 	check_other_dominant_octave_alias_guitar_display_is_pruned(runner);
 	check_display_ownership_scale_keeps_confirmed_mid_confidence_visible(runner);
+	check_low_confidence_mirror_cell_uses_visual_floor_without_changing_level(runner);
 	check_low_acoustic_guitar_display_mirror_gets_bright_score_floor(runner);
 	check_high_clean_acoustic_guitar_display_mirror_gets_bright_score_floor(runner);
 	check_existing_upper_clean_guitar_visual_note_is_brightened(runner);

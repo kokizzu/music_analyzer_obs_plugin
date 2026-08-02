@@ -75,6 +75,7 @@ constexpr float kChordStrongExtensionCoreRatio = 0.36f;
 constexpr float kGuitarCagedPresenceFloor = 0.50f;
 constexpr float kFullMixDisplayMirrorScoreScale = 0.52f;
 constexpr float kFullMixOtherDisplayMirrorScoreScale = 0.74f;
+constexpr float kLowConfidenceMirrorVisualFloor = 0.25f;
 constexpr float kCompactGuitarRawThirdCeilingRatio = 0.250f;
 constexpr int kGuitarChordCrowdedPruneMinComponents = 7;
 constexpr int kMixedGuitarChordCrowdedPruneMinComponents = 4;
@@ -10154,13 +10155,17 @@ void write_note_grid_cell(NoteGrid &grid, const NoteCandidate &candidate, float 
 	const float ownership_scale =
 		candidate.ownership_confidence <= 0.24f ? std::clamp(candidate.ownership_confidence, 0.0f, 1.0f) :
 							  1.0f;
-	const float level = strongest_score > 1.0e-6f ?
-				    std::clamp(candidate.score / strongest_score * visual_loudness * ownership_scale,
-					       0.0f, 1.0f) :
-				    0.0f;
+	const float raw_visual_level = strongest_score > 1.0e-6f ?
+					       std::clamp(candidate.score / strongest_score * visual_loudness,
+							  0.0f, 1.0f) :
+					       0.0f;
+	const float level = std::clamp(raw_visual_level * ownership_scale, 0.0f, 1.0f);
 	if (level <= 1.0e-6f)
 		return;
 	cell.level = level;
+	if (candidate.ownership_confidence > 0.0f && candidate.ownership_confidence <= 0.24f)
+		cell.visual_level =
+			raw_visual_level * std::max(ownership_scale, kLowConfidenceMirrorVisualFloor);
 	cell.midi = candidate.midi;
 	cell.active = true;
 
