@@ -398,6 +398,77 @@ void check_supported_guitar_candidate_alias_merge(Runner &runner)
 	runner.expect(state.confidence >= source.confidence,
 		      "supported guitar alias merge: expected confidence updated from source");
 
+	InstrumentState weak_minor_state = {};
+	std::snprintf(weak_minor_state.label, sizeof(weak_minor_state.label), "A#m");
+	weak_minor_state.confidence = 0.52f;
+	ChordResult weak_minor_source = make_crowded_chord("A#m=A#m7=C#6");
+	weak_minor_source.root = 10;
+	weak_minor_source.confidence = 0.63f;
+	NoteGrid weak_minor_display = {};
+	set_pitch(weak_minor_display, 10, 0.22f);
+	set_pitch(weak_minor_display, 1, 0.20f);
+	set_pitch(weak_minor_display, 5, 0.18f);
+	NoteGrid weak_minor_analysis = weak_minor_display;
+	std::array<float, kNoteProbeCount> weak_minor_powers = {};
+	set_probe_level(weak_minor_powers, 46, 1.00f);
+	set_probe_level(weak_minor_powers, 49, 0.80f);
+	set_probe_level(weak_minor_powers, 53, 0.70f);
+	set_probe_level(weak_minor_powers, 56, 0.16f);
+	append_supported_guitar_candidate_aliases_to_display(
+		weak_minor_state, weak_minor_source, weak_minor_display, weak_minor_analysis,
+		&weak_minor_powers, kGuitarMinMidi, kGuitarMaxMidi);
+	runner.expect(chord_label_has_exact_component(weak_minor_state.label, "A#m7"),
+		      std::string("supported guitar alias merge: expected weak probe-backed A#m7, got `") +
+			      weak_minor_state.label + "`");
+	runner.expect(chord_label_has_exact_component(weak_minor_state.label, "C#6"),
+		      std::string("supported guitar alias merge: expected equivalent C#6 partner, got `") +
+			      weak_minor_state.label + "`");
+
+	InstrumentState post_prune_state = {};
+	std::snprintf(post_prune_state.label, sizeof(post_prune_state.label), "A#m=A#m7=C#6");
+	post_prune_state.confidence = 0.60f;
+	prune_crowded_guitar_display_label(post_prune_state, weak_minor_display, weak_minor_analysis);
+	runner.expect(!chord_label_has_exact_component(post_prune_state.label, "A#m7") &&
+			      !chord_label_has_exact_component(post_prune_state.label, "C#6"),
+		      std::string("supported guitar alias merge: expected prune to remove weak-grid extensions, got `") +
+			      post_prune_state.label + "`");
+	append_probe_supported_guitar_source_extension_aliases_after_prune(
+		post_prune_state, weak_minor_source, weak_minor_display, weak_minor_analysis,
+		weak_minor_powers, kGuitarMinMidi, kGuitarMaxMidi);
+	runner.expect(chord_label_has_exact_component(post_prune_state.label, "A#m7"),
+		      std::string("supported guitar alias merge: expected post-prune A#m7 recovery, got `") +
+			      post_prune_state.label + "`");
+	runner.expect(chord_label_has_exact_component(post_prune_state.label, "C#6"),
+		      std::string("supported guitar alias merge: expected post-prune C#6 recovery, got `") +
+			      post_prune_state.label + "`");
+
+	InstrumentState weak_extension_state = {};
+	std::snprintf(weak_extension_state.label, sizeof(weak_extension_state.label), "A#m");
+	weak_extension_state.confidence = 0.52f;
+	std::array<float, kNoteProbeCount> weak_extension_powers = weak_minor_powers;
+	set_probe_level(weak_extension_powers, 56, 0.07f);
+	append_supported_guitar_candidate_aliases_to_display(
+		weak_extension_state, weak_minor_source, weak_minor_display, weak_minor_analysis,
+		&weak_extension_powers, kGuitarMinMidi, kGuitarMaxMidi);
+	runner.expect(!chord_label_has_exact_component(weak_extension_state.label, "A#m7"),
+		      std::string("supported guitar alias merge: expected weak seventh pruned, got `") +
+			      weak_extension_state.label + "`");
+	runner.expect(!chord_label_has_exact_component(weak_extension_state.label, "C#6"),
+		      std::string("supported guitar alias merge: expected weak equivalent sixth pruned, got `") +
+			      weak_extension_state.label + "`");
+	InstrumentState weak_post_prune_state = {};
+	std::snprintf(weak_post_prune_state.label, sizeof(weak_post_prune_state.label), "A#m");
+	weak_post_prune_state.confidence = 0.60f;
+	append_probe_supported_guitar_source_extension_aliases_after_prune(
+		weak_post_prune_state, weak_minor_source, weak_minor_display, weak_minor_analysis,
+		weak_extension_powers, kGuitarMinMidi, kGuitarMaxMidi);
+	runner.expect(!chord_label_has_exact_component(weak_post_prune_state.label, "A#m7"),
+		      std::string("supported guitar alias merge: expected weak post-prune seventh protected, got `") +
+			      weak_post_prune_state.label + "`");
+	runner.expect(!chord_label_has_exact_component(weak_post_prune_state.label, "C#6"),
+		      std::string("supported guitar alias merge: expected weak post-prune sixth protected, got `") +
+			      weak_post_prune_state.label + "`");
+
 	InstrumentState protected_state = {};
 	std::snprintf(protected_state.label, sizeof(protected_state.label), "D");
 	protected_state.confidence = 0.55f;

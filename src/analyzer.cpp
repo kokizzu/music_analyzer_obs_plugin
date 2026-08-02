@@ -19292,6 +19292,52 @@ void append_unique_chord_components(char *dst, std::size_t dst_size, const char 
 	}
 }
 
+bool equivalent_sixth_seventh_partner_label(const char *start, std::size_t len,
+					    const ParsedRootChord &component,
+					    char *dst, std::size_t dst_size)
+{
+	if (!start || !dst || dst_size == 0)
+		return false;
+	dst[0] = '\0';
+
+	std::size_t root_len = 1;
+	if (len > 1 && start[1] == '#')
+		root_len = 2;
+	const char *suffix = start + root_len;
+	const std::size_t suffix_len = len - root_len;
+
+	int partner_root = -1;
+	const char *partner_suffix = nullptr;
+	if (component.quality == RootChordQuality::Major && suffix_is(suffix, suffix_len, "6")) {
+		partner_root = (component.root + 9) % 12;
+		partner_suffix = "m7";
+	} else if (component.quality == RootChordQuality::Minor && suffix_is(suffix, suffix_len, "m7")) {
+		partner_root = (component.root + 3) % 12;
+		partner_suffix = "6";
+	} else if (component.quality == RootChordQuality::Minor && suffix_is(suffix, suffix_len, "m6")) {
+		partner_root = (component.root + 9) % 12;
+		partner_suffix = "m7b5";
+	} else if (component.quality == RootChordQuality::Diminished &&
+		   suffix_is(suffix, suffix_len, "m7b5")) {
+		partner_root = (component.root + 3) % 12;
+		partner_suffix = "m6";
+	}
+	if (partner_root < 0 || !partner_suffix)
+		return false;
+
+	std::snprintf(dst, dst_size, "%s%s", note_name(partner_root), partner_suffix);
+	return dst[0] != '\0';
+}
+
+bool equivalent_sixth_seventh_partner_in_label(const char *label, const char *start, std::size_t len,
+					       const ParsedRootChord &component)
+{
+	char partner[16] = {};
+	return equivalent_sixth_seventh_partner_label(start, len, component, partner,
+						     sizeof(partner)) &&
+	       chord_label_has_exact_component(label, partner);
+}
+
 int pitch_mask_tone_count(unsigned int mask)
 {
 	int count = 0;
@@ -19737,7 +19783,7 @@ void append_supported_guitar_candidate_aliases_to_display(InstrumentState &state
 		    guitar_probe_supported_hidden_root_plain_component(
 			    component, display_grid, analysis_grid, *powers, min_midi, max_midi))
 			supported = true;
-		if (!supported && powers && displayed_clean_plain_primary &&
+		if (!supported && powers && displayed_plain_primary &&
 		    parse_root_chord_component(cursor, len, rooted_component) &&
 		    guitar_probe_supported_same_root_extension_component(
 			    cursor, len, rooted_component, displayed_primary, display_grid,
@@ -19754,6 +19800,74 @@ void append_supported_guitar_candidate_aliases_to_display(InstrumentState &state
 			break;
 		cursor = end + 1;
 	}
+	cursor = source.label;
+	while (cursor && *cursor) {
+		const char *end = std::strchr(cursor, '=');
+		const std::size_t len =
+			end ? static_cast<std::size_t>(end - cursor) : std::strlen(cursor);
+		ParsedRootChord rooted_component;
+		if (!chord_label_has_component(merged, cursor, len) &&
+		    parse_root_chord_component(cursor, len, rooted_component) &&
+		    equivalent_sixth_seventh_partner_in_label(merged, cursor, len,
+							      rooted_component))
+			append_chord_label_component(merged, sizeof(merged), cursor, len);
+		if (!end)
+			break;
+		cursor = end + 1;
+	}
+	if (std::strcmp(merged, state.label) != 0) {
+		copy_text(state.label, sizeof(state.label), merged);
+		state.confidence = std::max(state.confidence, source.confidence);
+	}
+}
+
+void append_probe_supported_guitar_source_extension_aliases_after_prune(
+	InstrumentState &state, const ChordResult &source, const NoteGrid &display_grid,
+	const NoteGrid &analysis_grid, const std::array<float, kNoteProbeCount> &powers, int min_midi,
+	int max_midi)
+{
+	if (!state.label[0] || state.label[0] == '-' || !valid_chord_result(source))
+		return;
+
+	ParsedRootChord displayed_primary;
+	const std::size_t displayed_primary_len = std::strcspn(state.label, "=");
+	if (!parse_plain_major_minor_component(state.label, displayed_primary_len, displayed_primary))
+		return;
+
+	char merged[sizeof(state.label)] = {};
+	copy_text(merged, sizeof(merged), state.label);
+	const char *cursor = source.label;
+	while (cursor && *cursor) {
+		const char *end = std::strchr(cursor, '=');
+		const std::size_t len =
+			end ? static_cast<std::size_t>(end - cursor) : std::strlen(cursor);
+		ParsedRootChord component;
+		if (!chord_label_has_component(merged, cursor, len) &&
+		    parse_root_chord_component(cursor, len, component) &&
+		    guitar_probe_supported_same_root_extension_component(
+			    cursor, len, component, displayed_primary, display_grid, analysis_grid,
+			    powers, min_midi, max_midi))
+			append_chord_label_component(merged, sizeof(merged), cursor, len);
+		if (!end)
+			break;
+		cursor = end + 1;
+	}
+
+	cursor = source.label;
+	while (cursor && *cursor) {
+		const char *end = std::strchr(cursor, '=');
+		const std::size_t len =
+			end ? static_cast<std::size_t>(end - cursor) : std::strlen(cursor);
+		ParsedRootChord component;
+		if (!chord_label_has_component(merged, cursor, len) &&
+		    parse_root_chord_component(cursor, len, component) &&
+		    equivalent_sixth_seventh_partner_in_label(merged, cursor, len, component))
+			append_chord_label_component(merged, sizeof(merged), cursor, len);
+		if (!end)
+			break;
+		cursor = end + 1;
+	}
+
 	if (std::strcmp(merged, state.label) != 0) {
 		copy_text(state.label, sizeof(state.label), merged);
 		state.confidence = std::max(state.confidence, source.confidence);
@@ -26577,29 +26691,37 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 			append_source_supported_plain_guitar_aliases_after_prune(
 				snapshot.guitar_chord, smoothed_guitar_chord, snapshot.guitar_notes,
 				guitar_chord_detection_grid);
-			append_compact_guitar_power_raw_profile_aliases_to_display(
-				snapshot.guitar_chord, snapshot.guitar_notes,
-				guitar_chord_detection_grid, note_powers, kGuitarMinMidi,
-				kGuitarMaxMidi);
-			recover_compact_guitar_root_fifth_raw_profile_chord(
-				snapshot.guitar_chord, snapshot.guitar_notes,
-				guitar_chord_detection_grid, note_powers, kGuitarMinMidi,
-				kGuitarMaxMidi);
-			append_probe_supported_guitar_display_seventh_aliases(
-				snapshot.guitar_chord, snapshot.guitar_notes,
-				guitar_chord_detection_grid, note_powers, kGuitarMinMidi,
-				kGuitarMaxMidi);
-			append_supported_guitar_diminished_triad_display_aliases(
-				snapshot.guitar_chord, snapshot.guitar_notes,
-				guitar_chord_detection_grid);
-			prune_crowded_guitar_display_label(snapshot.guitar_chord, snapshot.guitar_notes,
-							   guitar_chord_detection_grid);
-		}
-		if (!mixed_source &&
-		    displayed_guitar_chord_has_single_note_probe_profile(
-			    snapshot.guitar_chord, snapshot.guitar_smoothed_chord, note_powers,
-			    kGuitarMinMidi, kGuitarMaxMidi))
-			clear_instrument_state(snapshot.guitar_chord);
+            append_compact_guitar_power_raw_profile_aliases_to_display(
+                snapshot.guitar_chord, snapshot.guitar_notes,
+                guitar_chord_detection_grid, note_powers, kGuitarMinMidi,
+                kGuitarMaxMidi);
+            recover_compact_guitar_root_fifth_raw_profile_chord(
+                snapshot.guitar_chord, snapshot.guitar_notes,
+                guitar_chord_detection_grid, note_powers, kGuitarMinMidi,
+                kGuitarMaxMidi);
+            append_probe_supported_guitar_display_seventh_aliases(
+                snapshot.guitar_chord, snapshot.guitar_notes,
+                guitar_chord_detection_grid, note_powers, kGuitarMinMidi,
+                kGuitarMaxMidi);
+            append_supported_guitar_diminished_triad_display_aliases(
+                snapshot.guitar_chord, snapshot.guitar_notes,
+                guitar_chord_detection_grid);
+            prune_crowded_guitar_display_label(snapshot.guitar_chord, snapshot.guitar_notes,
+                                               guitar_chord_detection_grid);
+            append_probe_supported_guitar_source_extension_aliases_after_prune(
+                snapshot.guitar_chord, raw_guitar_chord, snapshot.guitar_notes,
+                guitar_chord_detection_grid, note_powers, kGuitarMinMidi,
+                kGuitarMaxMidi);
+            append_probe_supported_guitar_source_extension_aliases_after_prune(
+                snapshot.guitar_chord, smoothed_guitar_chord, snapshot.guitar_notes,
+                guitar_chord_detection_grid, note_powers, kGuitarMinMidi,
+                kGuitarMaxMidi);
+        }
+        if (!mixed_source &&
+            displayed_guitar_chord_has_single_note_probe_profile(
+                snapshot.guitar_chord, snapshot.guitar_smoothed_chord, note_powers,
+                kGuitarMinMidi, kGuitarMaxMidi))
+            clear_instrument_state(snapshot.guitar_chord);
 	} else {
 		reset_note_grid_envelope(snapshot.guitar_notes, snapshot.guitar, guitar_note_tracking_);
 		reset_note_grid_envelope(guitar_chord_grid, guitar_chord_note_state, guitar_chord_note_tracking_);
