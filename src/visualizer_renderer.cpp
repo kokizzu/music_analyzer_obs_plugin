@@ -50,6 +50,10 @@ float display_highlight_level(float level)
 	return std::clamp(level / kFullHighlightLevel, 0.0f, 1.0f);
 }
 
+constexpr float kUpperPitchClassShadowThreshold = 0.55f;
+constexpr float kGuitarUpperPitchClassShadowScale = 0.40f;
+constexpr float kPianoUpperPitchClassShadowScale = 0.40f;
+
 float note_cell_render_level(const NoteCell &cell)
 {
 	if (!cell.active)
@@ -832,8 +836,8 @@ float guitar_note_grid_midi_level(const NoteGrid &notes, int midi)
 {
 	const float raw_level = note_grid_midi_level(notes, midi);
 	const float lower_level = note_grid_lower_same_pitch_level(notes, midi);
-	if (raw_level > 0.0f && lower_level >= raw_level * 0.55f)
-		return raw_level * 0.14f;
+	if (raw_level > 0.0f && lower_level >= raw_level * kUpperPitchClassShadowThreshold)
+		return raw_level * kGuitarUpperPitchClassShadowScale;
 	return raw_level;
 }
 
@@ -860,8 +864,8 @@ float piano_key_level(const NoteGrid &notes, int midi)
 		}
 	}
 	const float lower_level = note_grid_lower_same_pitch_level(notes, midi);
-	if (level > 0.0f && lower_level >= level * 0.55f)
-		level *= 0.18f;
+	if (level > 0.0f && lower_level >= level * kUpperPitchClassShadowThreshold)
+		level *= kPianoUpperPitchClassShadowScale;
 	return std::clamp(level, 0.0f, 1.0f);
 }
 

@@ -86,9 +86,11 @@ def main():
     require("guitar_note_grid_midi_level" in renderer and
             "note_grid_lower_same_pitch_level" in renderer and
             "const float raw_level = guitar_note_grid_midi_level(notes, midi);" in renderer and
-            "return raw_level * 0.14f;" in renderer and
+            "kGuitarUpperPitchClassShadowScale = 0.40f" in renderer and
+            "return raw_level * kGuitarUpperPitchClassShadowScale;" in renderer and
             renderer.count("note_grid_lower_same_pitch_level(notes, midi)") >= 2 and
-            "level *= 0.18f;" in renderer,
+            "kPianoUpperPitchClassShadowScale = 0.40f" in renderer and
+            "level *= kPianoUpperPitchClassShadowScale;" in renderer,
             "piano and guitar renderers must attenuate upper same-pitch harmonic markers without changing analyzer state")
 
     require("#pragma GCC diagnostic push" in standalone, "standalone SDL include must be warning-guarded")

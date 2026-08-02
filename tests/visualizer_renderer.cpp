@@ -46,6 +46,24 @@ int run_visualizer_renderer_tests()
 	expect_true(near(display_highlight_level(1.0f), 1.0f),
 		    "levels above the full-highlight threshold should clamp to full highlight", &checks, &failures);
 
+	NoteGrid grid;
+	set_note_cell(grid.rows[0][0], 40, 0.90f, 0.90f);
+	set_note_cell(grid.rows[0][1], 52, 0.80f, 0.80f);
+	expect_true(near(guitar_note_grid_midi_level(grid, 52), 0.80f * kGuitarUpperPitchClassShadowScale),
+		    "guitar upper same-pitch marker should be softened but still visible", &checks, &failures);
+	expect_true(display_highlight_level(guitar_note_grid_midi_level(grid, 52)) >= 1.0f,
+		    "strong guitar upper same-pitch marker should still render at full brightness", &checks,
+		    &failures);
+
+	NoteGrid piano_grid;
+	set_note_cell(piano_grid.rows[0][0], 60, 0.90f, 0.90f);
+	set_note_cell(piano_grid.rows[0][1], 72, 0.80f, 0.80f);
+	expect_true(near(piano_key_level(piano_grid, 72), 0.80f * kPianoUpperPitchClassShadowScale),
+		    "piano upper same-pitch marker should be softened but still visible", &checks, &failures);
+	expect_true(display_highlight_level(piano_key_level(piano_grid, 72)) >= 1.0f,
+		    "strong piano upper same-pitch marker should still render at full brightness", &checks,
+		    &failures);
+
 	VisualizerRenderer renderer;
 	renderer.layout_mode = VisualizerLayoutMode::Complete;
 	resize_visualizer(&renderer, 960, 540);
