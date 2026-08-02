@@ -17270,6 +17270,177 @@ float strongest_probe_level(const std::array<float, kNoteProbeCount> &powers, in
 	return level;
 }
 
+bool guitar_extension_component_implies_plain_base(const char *start, std::size_t len,
+						   ParsedRootChord &parsed)
+{
+	if (!parse_root_chord_component(start, len, parsed) ||
+	    (parsed.quality != RootChordQuality::Major && parsed.quality != RootChordQuality::Minor))
+		return false;
+
+	std::size_t root_len = 1;
+	if (len > 1 && start[1] == '#')
+		root_len = 2;
+	const char *suffix = start + root_len;
+	const std::size_t suffix_len = len - root_len;
+
+	if (parsed.quality == RootChordQuality::Major) {
+		return suffix_is(suffix, suffix_len, "6") || suffix_is(suffix, suffix_len, "7") ||
+		       suffix_is(suffix, suffix_len, "9") || suffix_is(suffix, suffix_len, "maj7") ||
+		       suffix_is(suffix, suffix_len, "maj9") || suffix_is(suffix, suffix_len, "add9");
+	}
+
+	return suffix_is(suffix, suffix_len, "m6") || suffix_is(suffix, suffix_len, "m7") ||
+	       suffix_is(suffix, suffix_len, "m9");
+}
+
+bool probe_supported_guitar_base_alias_from_extension(const NoteGrid &display_grid,
+						      const NoteGrid &analysis_grid,
+						      const std::array<float, kNoteProbeCount> &powers,
+						      int min_midi, int max_midi, int root,
+						      bool minor)
+{
+	root = ((root % 12) + 12) % 12;
+
+	const int display_pitch_classes = note_grid_active_pitch_class_count(display_grid);
+	const int analysis_pitch_classes = note_grid_active_pitch_class_count(analysis_grid);
+	if (display_pitch_classes < 2 || display_pitch_classes > 8 ||
+	    analysis_pitch_classes < 2 || analysis_pitch_classes > 11)
+		return false;
+
+	const std::array<float, 12> display_chroma = note_grid_chroma(display_grid);
+	const std::array<float, 12> analysis_chroma = note_grid_chroma(analysis_grid);
+	if (longest_chromatic_run(display_chroma) >= 5 || longest_chromatic_run(analysis_chroma) >= 8)
+		return false;
+
+	float strongest_grid = 0.0f;
+	for (int pitch_class = 0; pitch_class < 12; ++pitch_class) {
+		strongest_grid =
+			std::max(strongest_grid,
+				 strongest_grid_pitch_level(display_grid, analysis_grid, pitch_class));
+	}
+
+	const float strongest_probe = strongest_probe_level(powers, min_midi, max_midi);
+	if (strongest_grid <= 1.0e-6f || strongest_probe <= 1.0e-6f)
+		return false;
+
+	constexpr float kActiveAliasFloor = 0.08f;
+	const int third = root + (minor ? 3 : 4);
+	const int opposite_third = root + (minor ? 4 : 3);
+	const int fifth = root + 7;
+	const float root_grid = std::max(note_grid_pitch_supported_level(display_grid, root, kActiveAliasFloor),
+					 note_grid_pitch_supported_level(analysis_grid, root, kActiveAliasFloor));
+	const float third_grid =
+		std::max(note_grid_pitch_supported_level(display_grid, third, kActiveAliasFloor),
+			 note_grid_pitch_supported_level(analysis_grid, third, kActiveAliasFloor));
+	const float fifth_grid =
+		std::max(note_grid_pitch_supported_level(display_grid, fifth, kActiveAliasFloor),
+			 note_grid_pitch_supported_level(analysis_grid, fifth, kActiveAliasFloor));
+	const float opposite_grid =
+		std::max(note_grid_pitch_supported_level(display_grid, opposite_third, kActiveAliasFloor),
+			 note_grid_pitch_supported_level(analysis_grid, opposite_third, kActiveAliasFloor));
+
+	const float root_probe =
+		strongest_probe_pitch_class_level(powers, root, min_midi, max_midi) / strongest_probe;
+	const float third_probe =
+		strongest_probe_pitch_class_level(powers, third, min_midi, max_midi) / strongest_probe;
+	const float fifth_probe =
+		strongest_probe_pitch_class_level(powers, fifth, min_midi, max_midi) / strongest_probe;
+	const float opposite_probe =
+		strongest_probe_pitch_class_level(powers, opposite_third, min_midi, max_midi) /
+		strongest_probe;
+
+	if (root_grid < std::max(0.055f, strongest_grid * 0.045f) ||
+	    third_grid < std::max(0.055f, strongest_grid * 0.040f))
+		return false;
+	if (root_probe < 0.16f || third_probe < 0.08f || fifth_probe < 0.10f)
+		return false;
+	if (fifth_grid < std::max(0.050f, strongest_grid * 0.035f) && fifth_probe < 0.18f)
+		return false;
+	if (opposite_probe > std::max(0.12f, third_probe * 0.72f) ||
+	    opposite_grid > std::max(0.12f, third_grid * 0.80f))
+		return false;
+	if (note_grid_pitch_active(display_grid, root - 1) &&
+	    note_grid_pitch_active(display_grid, root + 1))
+		return false;
+
+	return true;
+}
+
+void append_probe_supported_guitar_base_triad_aliases_for_extensions_after_prune(
+	InstrumentState &state, const NoteGrid &display_grid, const NoteGrid &analysis_grid,
+	const std::array<float, kNoteProbeCount> &powers, int min_midi, int max_midi)
+{
+	const int component_count = chord_label_component_count(state.label);
+	if (!state.label[0] || state.label[0] == '-' || component_count > 10 ||
+	    std::strstr(state.label, "pow") != nullptr)
+		return;
+
+	std::array<int, 12> major_extension_counts = {};
+	std::array<int, 12> minor_extension_counts = {};
+	const char *count_cursor = state.label;
+	while (count_cursor && *count_cursor) {
+		const char *end = std::strchr(count_cursor, '=');
+		const std::size_t len =
+			end ? static_cast<std::size_t>(end - count_cursor) : std::strlen(count_cursor);
+		ParsedRootChord parsed;
+		if (guitar_extension_component_implies_plain_base(count_cursor, len, parsed)) {
+			const int root = ((parsed.root % 12) + 12) % 12;
+			if (parsed.quality == RootChordQuality::Minor)
+				++minor_extension_counts[static_cast<std::size_t>(root)];
+			else
+				++major_extension_counts[static_cast<std::size_t>(root)];
+		}
+		if (!end)
+			break;
+		count_cursor = end + 1;
+	}
+
+	char merged[sizeof(state.label)] = {};
+	copy_text(merged, sizeof(merged), state.label);
+	std::array<bool, 12> considered_major = {};
+	std::array<bool, 12> considered_minor = {};
+	int appended = 0;
+	const char *cursor = state.label;
+	while (cursor && *cursor && appended < 2) {
+		const char *end = std::strchr(cursor, '=');
+		const std::size_t len =
+			end ? static_cast<std::size_t>(end - cursor) : std::strlen(cursor);
+		ParsedRootChord parsed;
+		if (guitar_extension_component_implies_plain_base(cursor, len, parsed)) {
+			const int root = ((parsed.root % 12) + 12) % 12;
+			const bool minor = parsed.quality == RootChordQuality::Minor;
+			bool &considered =
+				minor ? considered_minor[static_cast<std::size_t>(root)] :
+					considered_major[static_cast<std::size_t>(root)];
+			const int same_quality_extension_count =
+				minor ? minor_extension_counts[static_cast<std::size_t>(root)] :
+					major_extension_counts[static_cast<std::size_t>(root)];
+			char alias[16] = {};
+			std::snprintf(alias, sizeof(alias), "%s%s", note_name(root), minor ? "m" : "");
+			if (!considered && same_quality_extension_count == 1 &&
+			    !chord_label_has_exact_component(merged, alias) &&
+			    probe_supported_guitar_base_alias_from_extension(
+				    display_grid, analysis_grid, powers, min_midi, max_midi, root, minor)) {
+				const std::size_t before = std::strlen(merged);
+				append_chord_label_component(merged, sizeof(merged), alias,
+							     std::strlen(alias));
+				if (std::strlen(merged) != before &&
+				    chord_label_has_exact_component(merged, alias))
+					++appended;
+			}
+			considered = true;
+		}
+		if (!end)
+			break;
+		cursor = end + 1;
+	}
+
+	if (std::strcmp(merged, state.label) != 0) {
+		copy_text(state.label, sizeof(state.label), merged);
+		state.confidence = std::max(state.confidence, 0.58f);
+	}
+}
+
 float strongest_melodic_probe_pitch_class_level(const std::array<float, kNoteProbeCount> &powers,
 						int pitch_class, int min_midi, int max_midi)
 {
@@ -27612,6 +27783,10 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 			append_visible_root_fifth_guitar_power_aliases_after_prune(
 				snapshot.guitar_chord, snapshot.guitar_notes,
 				guitar_chord_detection_grid, &note_powers, kGuitarMinMidi,
+				kGuitarMaxMidi);
+			append_probe_supported_guitar_base_triad_aliases_for_extensions_after_prune(
+				snapshot.guitar_chord, snapshot.guitar_notes,
+				guitar_chord_detection_grid, note_powers, kGuitarMinMidi,
 				kGuitarMaxMidi);
 		}
 		if (!mixed_source &&

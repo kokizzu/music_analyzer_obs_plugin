@@ -314,6 +314,72 @@ void check_source_supported_plain_guitar_alias_recovery(Runner &runner)
 			      opposite_third_state.label + "`");
 }
 
+void check_probe_supported_guitar_extension_base_alias_recovery(Runner &runner)
+{
+	InstrumentState state = {};
+	std::snprintf(state.label, sizeof(state.label),
+		      "E=Em=A#m=A#dim=E7=E6=C#m7");
+	state.confidence = 0.60f;
+	NoteGrid display_grid = {};
+	set_pitch(display_grid, 1, 0.72f);
+	set_pitch(display_grid, 4, 1.00f);
+	set_pitch(display_grid, 8, 0.18f);
+	NoteGrid analysis_grid = {};
+	set_pitch(analysis_grid, 1, 1.00f);
+	set_pitch(analysis_grid, 4, 0.57f);
+	set_pitch(analysis_grid, 8, 0.42f);
+	set_pitch(analysis_grid, 11, 0.18f);
+	std::array<float, kNoteProbeCount> powers = {};
+	set_probe_level(powers, 49, 1.00f);
+	set_probe_level(powers, 52, 0.57f);
+	set_probe_level(powers, 56, 0.42f);
+	set_probe_level(powers, 53, 0.02f);
+
+	append_probe_supported_guitar_base_triad_aliases_for_extensions_after_prune(
+		state, display_grid, analysis_grid, powers, kGuitarMinMidi, kGuitarMaxMidi);
+	runner.expect(chord_label_has_exact_component(state.label, "C#m"),
+		      std::string("probe-supported guitar extension base alias: expected C#m recovered, got `") +
+			      state.label + "`");
+
+	InstrumentState diminished_state = {};
+	std::snprintf(diminished_state.label, sizeof(diminished_state.label), "Bm7b5");
+	diminished_state.confidence = 0.60f;
+	NoteGrid diminished_grid = {};
+	set_pitch(diminished_grid, 11, 1.00f);
+	set_pitch(diminished_grid, 2, 0.72f);
+	set_pitch(diminished_grid, 6, 0.64f);
+	std::array<float, kNoteProbeCount> diminished_powers = {};
+	set_probe_level(diminished_powers, 47, 1.00f);
+	set_probe_level(diminished_powers, 50, 0.72f);
+	set_probe_level(diminished_powers, 54, 0.64f);
+	append_probe_supported_guitar_base_triad_aliases_for_extensions_after_prune(
+		diminished_state, diminished_grid, diminished_grid, diminished_powers,
+		kGuitarMinMidi, kGuitarMaxMidi);
+	runner.expect(!chord_label_has_exact_component(diminished_state.label, "Bm"),
+		      std::string("probe-supported guitar extension base alias: expected Bm7b5 not to become Bm, got `") +
+			      diminished_state.label + "`");
+
+	InstrumentState opposite_third_state = {};
+	std::snprintf(opposite_third_state.label, sizeof(opposite_third_state.label), "C#m7");
+	opposite_third_state.confidence = 0.60f;
+	NoteGrid opposite_grid = {};
+	set_pitch(opposite_grid, 1, 0.72f);
+	set_pitch(opposite_grid, 4, 0.18f);
+	set_pitch(opposite_grid, 5, 0.40f);
+	set_pitch(opposite_grid, 8, 0.42f);
+	std::array<float, kNoteProbeCount> opposite_powers = {};
+	set_probe_level(opposite_powers, 49, 1.00f);
+	set_probe_level(opposite_powers, 52, 0.12f);
+	set_probe_level(opposite_powers, 53, 0.24f);
+	set_probe_level(opposite_powers, 56, 0.42f);
+	append_probe_supported_guitar_base_triad_aliases_for_extensions_after_prune(
+		opposite_third_state, opposite_grid, opposite_grid, opposite_powers,
+		kGuitarMinMidi, kGuitarMaxMidi);
+	runner.expect(!chord_label_has_exact_component(opposite_third_state.label, "C#m"),
+		      std::string("probe-supported guitar extension base alias: expected opposite third to block C#m, got `") +
+			      opposite_third_state.label + "`");
+}
+
 void check_visible_diminished_guitar_alias_recovery(Runner &runner)
 {
 	NoteGrid display_grid = {};
@@ -3281,6 +3347,7 @@ int run()
 	check_displayed_same_root_plain_guitar_primary(runner);
 	check_displayed_supported_plain_guitar_primary(runner);
 	check_source_supported_plain_guitar_alias_recovery(runner);
+	check_probe_supported_guitar_extension_base_alias_recovery(runner);
 	check_visible_diminished_guitar_alias_recovery(runner);
 	check_visible_augmented_guitar_alias_recovery(runner);
 	check_plain_guitar_voicing_rejects_crowded_root_fifth_quality(runner);
