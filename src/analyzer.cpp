@@ -3856,6 +3856,40 @@ bool measured_low_organ_keyboard_octave_alias_supported(const FullMixDebugCandid
 	return measured_low_organ_alias || measured_b1_organ_alias;
 }
 
+bool measured_low_electronic_keyboard_octave_alias_supported(const FullMixDebugCandidate &debug)
+{
+	const int lowered = debug.midi - 12;
+	if (lowered < kKeyboardMinMidi || lowered > 36)
+		return false;
+	if (debug.owner != InstrumentKind::Other &&
+	    debug.owner != InstrumentKind::Guitar &&
+	    debug.owner != InstrumentKind::Ambiguous)
+		return false;
+	if (debug.midi < 40 || debug.midi > 48)
+		return false;
+
+	const float second = debug.harmonic_ratios[1];
+	const float third = debug.harmonic_ratios[2];
+	const float fourth = debug.harmonic_ratios[3];
+	const float fifth = debug.harmonic_ratios[4];
+	const float competing_score = std::max(debug.other_score, debug.guitar_score);
+	return competing_score >= 0.70f &&
+	       debug.keyboard_score <= 0.20f &&
+	       debug.vocal_score <= 0.020f &&
+	       debug.spectral_level >= 0.30f &&
+	       debug.pitch_confidence >= 0.15f &&
+	       debug.periodicity >= 0.50f &&
+	       debug.harmonic_fit_error <= 1.10f &&
+	       debug.local_noise_level >= 0.20f &&
+	       debug.local_noise_level <= 0.70f &&
+	       debug.spectral_centroid <= 0.62f &&
+	       debug.spectral_slope <= 1.10f &&
+	       second >= 1.40f &&
+	       third <= 2.80f &&
+	       fourth <= 1.25f &&
+	       fifth <= 0.70f;
+}
+
 bool measured_guitar_octave_alias_supported(const FullMixDebugCandidate &debug)
 {
 	if (debug.owner != InstrumentKind::Keyboard)
@@ -5062,6 +5096,12 @@ int full_mix_display_mirror_midi(FullMixDisplayRow row, const FullMixDebugCandid
 			return lowered;
 	}
 	if (row == FullMixDisplayRow::Keyboard &&
+	    measured_low_electronic_keyboard_octave_alias_supported(debug)) {
+		const int lowered = debug.midi - 12;
+		if (ownership_global_note_level(ownership, lowered) >= 0.006f)
+			return lowered;
+	}
+	if (row == FullMixDisplayRow::Keyboard &&
 	    measured_other_owned_electric_piano_octave_up_supported(debug)) {
 		const int raised = debug.midi + 12;
 		if (ownership_global_note_level(ownership, raised) >=
@@ -5638,6 +5678,9 @@ bool full_mix_display_mirror_supported(FullMixDisplayRow row, const FullMixDebug
 	const bool measured_low_organ_keyboard_alias =
 		row == FullMixDisplayRow::Keyboard &&
 		measured_low_organ_keyboard_octave_alias_supported(debug);
+	const bool measured_low_electronic_keyboard_alias =
+		row == FullMixDisplayRow::Keyboard &&
+		measured_low_electronic_keyboard_octave_alias_supported(debug);
 	const bool measured_low_confidence_electronic_keyboard_partial =
 		row == FullMixDisplayRow::Keyboard &&
 		measured_low_confidence_electronic_keyboard_partial_supported(debug);
@@ -5647,6 +5690,7 @@ bool full_mix_display_mirror_supported(FullMixDisplayRow row, const FullMixDebug
 		display_midi == debug.midi + 12;
 	if ((debug.spectral_level < 0.16f || debug.pitch_confidence < 0.055f) &&
 	    !measured_low_organ_keyboard_alias &&
+	    !measured_low_electronic_keyboard_alias &&
 	    !measured_low_confidence_electronic_keyboard_partial &&
 	    !measured_noisy_guitar_octave_up_alias)
 		return false;
@@ -6056,6 +6100,7 @@ bool full_mix_display_mirror_supported(FullMixDisplayRow row, const FullMixDebug
 		       pure_high_electronic_keyboard_hint ||
 		       low_octave_organ_keyboard_hint ||
 		       measured_low_organ_keyboard_alias ||
+		       measured_low_electronic_keyboard_alias ||
 		       bright_ambiguous_piano_keyboard_hint ||
 		       measured_keyboard_double_octave_alias_supported(debug) ||
 		       ambiguous_high_acoustic_piano_body ||
@@ -7091,6 +7136,10 @@ void add_full_mix_display_mirror(NoteCandidateList &candidates, const FullMixOwn
 		row == FullMixDisplayRow::Keyboard &&
 		display_midi != debug.midi &&
 		measured_low_organ_keyboard_octave_alias_supported(debug);
+	const bool measured_low_electronic_keyboard_alias =
+		row == FullMixDisplayRow::Keyboard &&
+		display_midi != debug.midi &&
+		measured_low_electronic_keyboard_octave_alias_supported(debug);
 	const bool measured_low_vocal_fundamental_alias =
 		row == FullMixDisplayRow::Vocal &&
 		display_midi == debug.midi + 12 &&
@@ -7119,7 +7168,7 @@ void add_full_mix_display_mirror(NoteCandidateList &candidates, const FullMixOwn
 		row == FullMixDisplayRow::Guitar &&
 		display_midi == debug.midi &&
 		measured_high_clean_acoustic_guitar_display_floor_supported(debug);
-	if (measured_low_organ_keyboard_alias)
+	if (measured_low_organ_keyboard_alias || measured_low_electronic_keyboard_alias)
 		global_level = std::max(global_level, 0.34f);
 	if (measured_high_clean_acoustic_guitar_floor)
 		global_level = std::max(global_level, 0.18f);
@@ -7242,7 +7291,7 @@ void add_full_mix_display_mirror(NoteCandidateList &candidates, const FullMixOwn
 		candidate_score = std::max(candidate_score, base_score * 1.04f);
 		candidate_confidence = std::max(candidate_confidence, 0.58f);
 	}
-	if (measured_low_organ_keyboard_alias) {
+	if (measured_low_organ_keyboard_alias || measured_low_electronic_keyboard_alias) {
 		candidate_score = std::max(candidate_score, base_score * 0.72f);
 		candidate_confidence = std::max(candidate_confidence, 0.58f);
 	}
