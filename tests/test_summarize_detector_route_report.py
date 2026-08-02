@@ -95,6 +95,31 @@ compact route summary
     if output.index("drum route snare->tom") > output.index("near-miss row_confusion"):
         raise AssertionError(f"expected positive-net drum candidates before negative-net near misses:\n{output}")
 
+    veto_report = """compact route summary
+  routes=1 routes_with_extras=1 safe_simulation_routes=0 safe_simulation_extra_hits=0
+  safe_threshold_routes=1 no_safe_threshold_routes=0 safe_threshold_extra_hits=3 safe_threshold_protected_hits=0
+  other->same-pitch vocals extras=737/326 protected=25/13 simulation=none threshold=protected=0/25 extras=3/737 min_shadow_score=0.24 score_ratio=0.15 level_ratio=0.35 net_hits=3 gain_per_protected=inf guarded=runtime_other_vocal_cpp_guarded:0/0
+compact route summary
+  routes=1 routes_with_extras=1 safe_simulation_routes=0 safe_simulation_extra_hits=0
+  safe_threshold_routes=0 no_safe_threshold_routes=1 safe_threshold_extra_hits=0 safe_threshold_protected_hits=0
+  other->same-pitch vocals extras=737/326 protected=25/13 simulation=none threshold=none guarded=runtime_other_vocal_cpp_guarded:0/0
+"""
+    with tempfile.TemporaryDirectory() as tmpdir:
+        path = pathlib.Path(tmpdir) / "route_report.txt"
+        path.write_text(veto_report, encoding="utf-8")
+        result = subprocess.run(
+            [sys.executable, str(SCRIPT), str(path), "--limit", "8"],
+            check=True,
+            text=True,
+            stdout=subprocess.PIPE,
+        )
+    veto_output = result.stdout
+    require(
+        veto_output,
+        "detector_route_summary: candidates=0 low_false=0 shadow=0 near_miss=0 drum=0 positive_net=0 gain_ge_1=0 source_safe_positive_net=0 actionable=0 coverage_blocked=0",
+    )
+    require(veto_output, "  --")
+
     print("test_summarize_detector_route_report: ok")
     return 0
 

@@ -38,6 +38,11 @@ SHADOW_THRESHOLD_RE = re.compile(
 SHADOW_SIMULATION_RE = re.compile(
     r"^(?P<rule>[^: ]+):(?P<extra_rows>\d+)/(?P<protected_rows>\d+)$"
 )
+COMPACT_SHADOW_ROUTE_RE = re.compile(
+    r"^(?P<route>\S+->same-pitch \S+) extras=(?P<extra_rows>\d+)/(?:\d+) "
+    r"protected=(?P<protected_rows>\d+)/(?:\d+) simulation=(?P<simulation>\S+) "
+    r"threshold=(?P<threshold>.+)$"
+)
 
 
 @dataclasses.dataclass(frozen=True)
@@ -97,6 +102,7 @@ class Candidate:
 def parse_report(path: pathlib.Path) -> list[Candidate]:
     candidates: list[Candidate] = []
     seen: set[Candidate] = set()
+    blocked_shadow_routes: set[str] = set()
     section = ""
     note_candidate_kind = ""
 
@@ -106,13 +112,21 @@ def parse_report(path: pathlib.Path) -> list[Candidate]:
         seen.add(candidate)
         candidates.append(candidate)
 
+    def normalize_shadow_threshold(raw_threshold: str) -> str:
+        return (
+            raw_threshold.split(" simulation_net_hits=", 1)[0]
+            .split(" guarded=", 1)[0]
+            .strip()
+        )
+
     def parse_shadow_candidate(stripped: str) -> Candidate | None:
-        if "->same-pitch " not in stripped or " simulation=" not in stripped or " threshold=" not in stripped:
+        match = COMPACT_SHADOW_ROUTE_RE.match(stripped)
+        if not match:
             return None
 
-        route = stripped.split(" extras=", 1)[0]
-        simulation = stripped.split(" simulation=", 1)[1].split(" threshold=", 1)[0]
-        threshold = stripped.split(" threshold=", 1)[1].split(" simulation_net_hits=", 1)[0]
+        route = match.group("route")
+        simulation = match.group("simulation")
+        threshold = normalize_shadow_threshold(match.group("threshold"))
         guarded = stripped.split(" guarded=", 1)[1].split()[0] if " guarded=" in stripped else ""
 
         if threshold != "none":
@@ -207,6 +221,15 @@ def parse_report(path: pathlib.Path) -> list[Candidate]:
         if shadow_candidate:
             append_candidate(shadow_candidate)
             continue
+        shadow_route_match = COMPACT_SHADOW_ROUTE_RE.match(stripped)
+        if shadow_route_match:
+            extra_rows = int(shadow_route_match.group("extra_rows"))
+            protected_rows = int(shadow_route_match.group("protected_rows"))
+            threshold = normalize_shadow_threshold(shadow_route_match.group("threshold"))
+            simulation = shadow_route_match.group("simulation")
+            if extra_rows > 0 and protected_rows > 0 and threshold == "none" and simulation == "none":
+                blocked_shadow_routes.add(shadow_route_match.group("route"))
+            continue
 
         if section.startswith("route ") and line.startswith("  +"):
             match = DRUM_CANDIDATE_RE.match(stripped)
@@ -224,7 +247,11 @@ def parse_report(path: pathlib.Path) -> list[Candidate]:
                     )
                 )
 
-    return candidates
+    return [
+        candidate
+        for candidate in candidates
+        if not (candidate.kind == "shadow" and candidate.section in blocked_shadow_routes)
+    ]
 
 
 def candidate_sort_key(candidate: Candidate) -> tuple[int, float, int, int, int, str]:
