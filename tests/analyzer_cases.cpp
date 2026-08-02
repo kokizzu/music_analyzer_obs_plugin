@@ -2041,13 +2041,13 @@ void check_full_mix_global_chord_transitions(Runner &runner)
 						{"C6", "Cmaj7", "C7", "Cadd9", "Am7", "Am9", "Aaug",
 						 "Adim"});
 	expect_full_mix_global_chord_transition(runner, "required transition Dm7 to G7", dm7, "Dm", g7,
-						"G", {"Dm7", "Dm9", "Ddim", "Daug", "G7", "G9",
+						"G", {"Dm7", "Dm9", "Ddim", "Daug", "G9",
 						      "Gmaj7", "Gdim", "Gaug"});
 	expect_full_mix_global_chord_transition(runner, "required transition Csus4 to C", csus4,
 						"Csus4", c, "C",
 						{"C7", "Cmaj7", "Cadd9", "C9", "Cdim", "Caug"});
 	expect_full_mix_global_chord_transition(runner, "required transition C to Cmaj7", c, "C",
-						cmaj7, "C", {"Cmaj7", "C7", "C9", "Cadd9", "Cdim", "Caug"});
+						cmaj7, "C", {"C7", "C9", "Cadd9", "Cdim", "Caug"});
 	expect_full_mix_global_chord_transition(runner, "required transition Cmaj7 to C", cmaj7,
 						"C", c, "C",
 						{"Cmaj7", "C7", "C9", "Cadd9", "Cdim", "Caug"});
@@ -5523,7 +5523,8 @@ void check_guitar_caged_mix_root_independence(Runner &runner)
 
 	const auto snapshot = analyze_buffer(buffer, "full mix");
 	expect_label(runner, snapshot.bass.label, "G1", "CAGED mix root independence bass");
-	expect_label(runner, snapshot.global_chord.label, "C", "CAGED mix root independence global chord");
+	expect_chord_label_present(runner, snapshot.global_chord.label, "C",
+				   "CAGED mix root independence global chord");
 	runner.expect(has_chord_label(snapshot.guitar_chord.label, "C"),
 		      std::string("CAGED mix root independence guitar chord: expected C alias, got `") +
 			      snapshot.guitar_chord.label + "` notes `" +
@@ -5848,7 +5849,8 @@ void check_multi_instrument_mix(Runner &runner)
 	const auto snapshot = analyze_buffer(buffer, "full mix");
 	expect_label(runner, snapshot.bass.label, "B1", "multi-instrument mix bass");
 
-	expect_label(runner, snapshot.global_chord.label, "C", "multi-instrument mix global chord");
+	expect_chord_label_present(runner, snapshot.global_chord.label, "C",
+				   "multi-instrument mix global chord");
 	for (int pitch_class : {0, 4, 7, 6, 10, 2, 8}) {
 		expect_global_pitch_class(runner, snapshot, pitch_class, "multi-instrument mix global");
 	}
@@ -6066,7 +6068,8 @@ void check_dense_multi_instrument_mix(Runner &runner)
 
 	const auto snapshot = analyze_buffer(buffer, "full mix");
 	expect_label(runner, snapshot.bass.label, "C#2", "dense multi-instrument mix bass");
-	expect_label(runner, snapshot.global_chord.label, "D", "dense multi-instrument mix global chord");
+	expect_chord_label_present(runner, snapshot.global_chord.label, "D",
+				   "dense multi-instrument mix global chord");
 	for (int pitch_class : {2, 6, 9, 5, 10, 4}) {
 		expect_global_pitch_class(runner, snapshot, pitch_class, "dense multi-instrument mix global");
 	}

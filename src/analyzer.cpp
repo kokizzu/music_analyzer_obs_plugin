@@ -9326,6 +9326,9 @@ struct ChordCandidate {
 using ChordCandidateList = FixedList<ChordCandidate, 256>;
 
 bool chord_label_has_exact_component(const char *label, const char *component);
+bool chord_label_has_component(const char *label, const char *component, std::size_t component_len);
+bool valid_chord_result(const ChordResult &chord);
+ChordResult stronger_chord(const ChordResult &lhs, const ChordResult &rhs);
 
 bool chord_candidate_compatible(const ChordCandidate &lhs, const ChordCandidate &rhs)
 {
@@ -9358,7 +9361,8 @@ bool chord_extension_tones_are_strong(const std::array<float, 12> &chroma, uint1
 	       extension_max >= core_max * kChordStrongExtensionCoreRatio;
 }
 
-ChordResult detect_chord(const std::array<float, 12> &chroma, int bass_pitch_class = -1, bool allow_extensions = true)
+ChordResult detect_chord(const std::array<float, 12> &chroma, int bass_pitch_class = -1,
+			 bool allow_extensions = true, bool simplify_weak_extensions = true)
 {
 	ChordResult best;
 	float best_score = 0.0f;
@@ -9471,7 +9475,7 @@ ChordResult detect_chord(const std::array<float, 12> &chroma, int bass_pitch_cla
 	for (float value : chroma)
 		chroma_sum += value;
 
-	if (best_candidate.tone_count > 3 && chroma_sum > 1.0e-6f) {
+	if (simplify_weak_extensions && best_candidate.tone_count > 3 && chroma_sum > 1.0e-6f) {
 		ChordCandidate simpler;
 		float simpler_score = 0.0f;
 		for (const ChordCandidate &candidate : candidates) {
@@ -15538,6 +15542,68 @@ bool chord_component_plain_major_minor(const char *start, std::size_t len)
 	const char *suffix = start + root_len;
 	const std::size_t suffix_len = len - root_len;
 	return suffix_len == 0 || suffix_is(suffix, suffix_len, "m");
+}
+
+int chord_mask_bit_count(unsigned int mask)
+{
+	int count = 0;
+	for (int pitch_class = 0; pitch_class < 12; ++pitch_class) {
+		if ((mask & (1u << static_cast<unsigned int>(pitch_class))) != 0)
+			++count;
+	}
+	return count;
+}
+
+void append_mixed_global_extension_aliases(InstrumentState &state, const std::array<float, 12> &chroma,
+					   int preferred_root)
+{
+	if (!state.label[0] || state.label[0] == '-' || state.confidence < 0.28f)
+		return;
+
+	const std::size_t primary_len = std::strcspn(state.label, "=");
+	unsigned int primary_mask = 0;
+	ParsedRootChord primary;
+	if (!chord_component_pitch_mask(state.label, primary_len, primary_mask) ||
+	    !parse_root_chord_component(state.label, primary_len, primary) || primary.root < 0)
+		return;
+	const int primary_tones = chord_mask_bit_count(primary_mask);
+	if (primary_tones < 3)
+		return;
+
+	ChordResult extended = detect_chord(chroma, primary.root, true, false);
+	if (preferred_root >= 0) {
+		const ChordResult rooted = detect_chord(chroma, preferred_root, true, false);
+		extended = stronger_chord(extended, rooted);
+	}
+	if (!valid_chord_result(extended))
+		return;
+
+	char merged[sizeof(state.label)] = {};
+	copy_text(merged, sizeof(merged), state.label);
+	int appended = 0;
+	const char *cursor = extended.label;
+	while (cursor && *cursor && appended < 4) {
+		const char *end = std::strchr(cursor, '=');
+		const std::size_t len =
+			end ? static_cast<std::size_t>(end - cursor) : std::strlen(cursor);
+		unsigned int component_mask = 0;
+		const bool supported_component =
+			chord_component_pitch_mask(cursor, len, component_mask) &&
+			chord_mask_bit_count(component_mask) > primary_tones &&
+			(component_mask & primary_mask) == primary_mask;
+		if (supported_component && !chord_label_has_component(merged, cursor, len)) {
+			const std::size_t before = std::strlen(merged);
+			append_chord_label_component(merged, sizeof(merged), cursor, len);
+			if (std::strlen(merged) != before)
+				++appended;
+		}
+		if (!end)
+			break;
+		cursor = end + 1;
+	}
+
+	if (std::strcmp(merged, state.label) != 0)
+		copy_text(state.label, sizeof(state.label), merged);
 }
 
 bool guitar_candidate_alias_supported_for_display(const char *start, std::size_t len,
@@ -27922,6 +27988,12 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 	if (mixed_source) {
 		stabilize_chord(snapshot.global_chord, global_chord_tracking_, raw_global_chord, smoothed_global_chord,
 				true, interval_seconds, true, true);
+		const int global_extension_root_hint =
+			(mixed_bass_pitch_class >= 0 && snapshot.bass.confidence >= 0.32f) ?
+				mixed_bass_pitch_class :
+				-1;
+		append_mixed_global_extension_aliases(snapshot.global_chord, full_mix_ownership.global_chroma,
+						    global_extension_root_hint);
 		attenuate_note_grid_display_by_candidates(snapshot.keyboard_notes, mixed_keyboard_display_candidates);
 		attenuate_note_grid_display_by_candidates(snapshot.guitar_notes, mixed_guitar_display_candidates);
 		attenuate_note_grid_display_by_candidates(snapshot.vocal_notes, mixed_vocal_display_candidates);
