@@ -2195,6 +2195,45 @@ void check_low_confidence_mirror_cell_uses_visual_floor_without_changing_level(R
 		      "low confidence mirror visual floor: expected visual floor to preserve relative score");
 }
 
+void check_note_smoothing_preserves_visual_floor_and_display_attenuation(Runner &runner)
+{
+	static constexpr int kMidi = 60;
+
+	NoteGrid low_confidence_grid = {};
+	NoteCandidate low_confidence{kMidi, 1.0f, 0.20f};
+	write_note_grid_cell(low_confidence_grid, low_confidence, 1.0f, 1.0f);
+	InstrumentState low_confidence_state = {};
+	std::array<NoteTrackingState, kNoteProbeCount> low_confidence_tracking = {};
+	NoteCandidateList low_confidence_candidates;
+	low_confidence_candidates.push_back(low_confidence);
+	smooth_note_grid_envelope(low_confidence_grid, low_confidence_state, low_confidence_tracking, -1,
+				  0.05f, 1, nullptr, 1, 0.0f, kNoteEnvelopeReleaseSeconds,
+				  kNoteEnvelopeVisibleFloor, &low_confidence_candidates);
+	const NoteCell low_confidence_primary =
+		note_grid_primary_cell_for_pitch_class(low_confidence_grid, midi_pitch_class(kMidi));
+	runner.expect(std::fabs(low_confidence_primary.level - 0.20f) < 0.001f,
+		      "note smoothing visual floor: expected low-confidence analytic level to stay dim");
+	runner.expect(std::fabs(note_grid_midi_visual_level(low_confidence_grid, kMidi) - 0.25f) < 0.001f,
+		      "note smoothing visual floor: expected low-confidence visual floor to survive smoothing");
+
+	NoteGrid mid_confidence_grid = {};
+	NoteCandidate mid_confidence{kMidi, 1.0f, 0.36f};
+	write_note_grid_cell(mid_confidence_grid, mid_confidence, 1.0f, 1.0f);
+	InstrumentState mid_confidence_state = {};
+	std::array<NoteTrackingState, kNoteProbeCount> mid_confidence_tracking = {};
+	NoteCandidateList mid_confidence_candidates;
+	mid_confidence_candidates.push_back(mid_confidence);
+	smooth_note_grid_envelope(mid_confidence_grid, mid_confidence_state, mid_confidence_tracking, -1,
+				  0.05f, 1, nullptr, 1, 0.0f, kNoteEnvelopeReleaseSeconds,
+				  kNoteEnvelopeVisibleFloor, &mid_confidence_candidates);
+	const NoteCell mid_confidence_primary =
+		note_grid_primary_cell_for_pitch_class(mid_confidence_grid, midi_pitch_class(kMidi));
+	runner.expect(std::fabs(mid_confidence_primary.level - 1.0f) < 0.001f,
+		      "note smoothing visual floor: expected mid-confidence analytic level to stay full");
+	runner.expect(std::fabs(note_grid_midi_visual_level(mid_confidence_grid, kMidi) - 0.36f) < 0.001f,
+		      "note smoothing visual floor: expected mid-confidence visual attenuation to survive smoothing");
+}
+
 void check_low_acoustic_guitar_display_mirror_gets_bright_score_floor(Runner &runner)
 {
 	static constexpr int kMidi = 45;
@@ -2588,6 +2627,7 @@ int run()
 	check_other_dominant_octave_alias_guitar_display_is_pruned(runner);
 	check_display_ownership_scale_keeps_confirmed_mid_confidence_visible(runner);
 	check_low_confidence_mirror_cell_uses_visual_floor_without_changing_level(runner);
+	check_note_smoothing_preserves_visual_floor_and_display_attenuation(runner);
 	check_low_acoustic_guitar_display_mirror_gets_bright_score_floor(runner);
 	check_high_clean_acoustic_guitar_display_mirror_gets_bright_score_floor(runner);
 	check_existing_upper_clean_guitar_visual_note_is_brightened(runner);

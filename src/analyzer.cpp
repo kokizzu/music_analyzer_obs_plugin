@@ -10333,6 +10333,19 @@ void collect_note_grid_levels(const NoteGrid &grid, std::array<float, kNoteProbe
 	}
 }
 
+void collect_note_grid_visual_levels(const NoteGrid &grid, std::array<float, kNoteProbeCount> &levels)
+{
+	levels.fill(0.0f);
+	for (const auto &row : grid.rows) {
+		for (const NoteCell &cell : row) {
+			if (!cell.active || cell.midi < kFirstMidi || cell.midi > kLastMidi)
+				continue;
+			levels[cell.midi - kFirstMidi] =
+				std::max(levels[cell.midi - kFirstMidi], note_cell_effective_visual_level(cell));
+		}
+	}
+}
+
 void smooth_note_grid_envelope(NoteGrid &grid, InstrumentState &state,
 			       std::array<NoteTrackingState, kNoteProbeCount> &tracking,
 			       int preferred_root, float interval_seconds, int max_notes,
@@ -10346,6 +10359,8 @@ void smooth_note_grid_envelope(NoteGrid &grid, InstrumentState &state,
 {
 	std::array<float, kNoteProbeCount> raw_levels = {};
 	collect_note_grid_levels(grid, raw_levels);
+	std::array<float, kNoteProbeCount> raw_visual_levels = {};
+	collect_note_grid_visual_levels(grid, raw_visual_levels);
 	std::array<float, kNoteProbeCount> raw_display_scales = {};
 	std::array<bool, kNoteProbeCount> raw_display_scale_present = {};
 	if (display_candidates) {
@@ -10374,9 +10389,13 @@ void smooth_note_grid_envelope(NoteGrid &grid, InstrumentState &state,
 		if (raw_level > 0.0f) {
 			note.consecutive_hits = std::min(note.consecutive_hits + 1, 1000);
 			note.consecutive_misses = 0;
-			note.display_scale = raw_display_scale_present[i] ?
-						     std::clamp(raw_display_scales[i], 0.0f, 1.0f) :
-						     1.0f;
+			float display_scale =
+				raw_level > 1.0e-6f ?
+					std::clamp(raw_visual_levels[i] / raw_level, 0.0f, 4.0f) :
+					1.0f;
+			if (raw_display_scale_present[i])
+				display_scale *= std::clamp(raw_display_scales[i], 0.0f, 1.0f);
+			note.display_scale = std::clamp(display_scale, 0.0f, 4.0f);
 			const float note_immediate_confirm_floor =
 				immediate_confirm_floors ?
 					std::max((*immediate_confirm_floors)[i], 0.0f) :
