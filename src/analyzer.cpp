@@ -73,6 +73,7 @@ constexpr float kChordWeakExtensionMargin = 0.16f;
 constexpr float kChordStrongExtensionToneFloor = 0.32f;
 constexpr float kChordStrongExtensionCoreRatio = 0.36f;
 constexpr float kGuitarCagedPresenceFloor = 0.50f;
+constexpr float kCompactGuitarRawThirdCeilingRatio = 0.250f;
 constexpr int kGuitarChordCrowdedPruneMinComponents = 7;
 constexpr int kMixedGuitarChordCrowdedPruneMinComponents = 4;
 constexpr std::size_t kDrumTransientSegments = 8;
@@ -19502,6 +19503,9 @@ bool compact_guitar_raw_profile_third_quality(const NoteGrid &display_grid,
 	    !note_grid_pitch_active(analysis_grid, root) ||
 	    !note_grid_pitch_active(analysis_grid, fifth))
 		return false;
+	if (note_grid_pitch_active(display_grid, root - 1) &&
+	    note_grid_pitch_active(display_grid, root + 1))
+		return false;
 
 	const float root_probe = strongest_probe_pitch_class_level(powers, root, min_midi, max_midi);
 	const float fifth_probe = strongest_probe_pitch_class_level(powers, fifth, min_midi, max_midi);
@@ -19597,7 +19601,7 @@ void append_compact_guitar_power_raw_profile_aliases_to_display(
 
 	char merged[sizeof(state.label)] = {};
 	copy_text(merged, sizeof(merged), state.label);
-	const float third_ceiling_ratio = components > 5 ? 0.250f : 0.030f;
+	constexpr float third_ceiling_ratio = kCompactGuitarRawThirdCeilingRatio;
 	const char *cursor = state.label;
 	while (cursor && *cursor) {
 		const char *end = std::strchr(cursor, '=');
@@ -19645,7 +19649,7 @@ void append_compact_guitar_power_raw_profile_aliases_to_chord(
 
 	char merged[sizeof(chord.label)] = {};
 	copy_text(merged, sizeof(merged), chord.label);
-	const float third_ceiling_ratio = components > 5 ? 0.250f : 0.030f;
+	constexpr float third_ceiling_ratio = kCompactGuitarRawThirdCeilingRatio;
 	const char *cursor = chord.label;
 	while (cursor && *cursor) {
 		const char *end = std::strchr(cursor, '=');

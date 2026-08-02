@@ -664,6 +664,43 @@ void check_compact_guitar_power_raw_profile_third_aliases(Runner &runner)
 		      std::string("compact crowded guitar power raw-profile display: expected Am alias, got `") +
 			      crowded_power.label + "`");
 
+	InstrumentState short_power = {};
+	std::snprintf(short_power.label, sizeof(short_power.label),
+		      "E=Esus4=Asus2=Edim=Apow");
+	short_power.confidence = 0.68f;
+	std::array<float, kNoteProbeCount> short_powers = {};
+	set_probe_level(short_powers, 45, 0.928f);
+	set_probe_level(short_powers, 48, 0.202f);
+	set_probe_level(short_powers, 49, 0.027f);
+	set_probe_level(short_powers, 52, 1.000f);
+	append_compact_guitar_power_raw_profile_aliases_to_display(
+		short_power, crowded_display_grid, crowded_analysis_grid, short_powers,
+		kGuitarMinMidi, kGuitarMaxMidi);
+	runner.expect(chord_label_has_exact_component(short_power.label, "Am"),
+		      std::string("compact short guitar power raw-profile display: expected Am alias, got `") +
+			      short_power.label + "`");
+
+	InstrumentState flanked_power = {};
+	std::snprintf(flanked_power.label, sizeof(flanked_power.label), "G=Cpow");
+	flanked_power.confidence = 0.60f;
+	NoteGrid flanked_display_grid = {};
+	for (int pitch_class : {11, 0, 1, 7})
+		set_pitch(flanked_display_grid, pitch_class, pitch_class == 0 ? 1.00f : 0.68f);
+	NoteGrid flanked_analysis_grid = flanked_display_grid;
+	set_pitch(flanked_analysis_grid, 10, 0.20f);
+	std::array<float, kNoteProbeCount> flanked_powers = {};
+	set_probe_level(flanked_powers, 48, 0.94f);
+	set_probe_level(flanked_powers, 51, 0.054f);
+	set_probe_level(flanked_powers, 52, 0.012f);
+	set_probe_level(flanked_powers, 55, 1.000f);
+	set_probe_level(flanked_powers, 59, 0.73f);
+	append_compact_guitar_power_raw_profile_aliases_to_display(
+		flanked_power, flanked_display_grid, flanked_analysis_grid, flanked_powers,
+		kGuitarMinMidi, kGuitarMaxMidi);
+	runner.expect(!chord_label_has_exact_component(flanked_power.label, "Cm"),
+		      std::string("compact flanked guitar power raw-profile display: expected Cm blocked, got `") +
+			      flanked_power.label + "`");
+
 	InstrumentState protected_plain = {};
 	std::snprintf(protected_plain.label, sizeof(protected_plain.label),
 		      "D=Cm=Csus2=C#pow=D7=Dmaj7");
