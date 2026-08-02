@@ -24647,6 +24647,14 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 			snapshot.drum_debug_rule_flags |= DrumDebugUpperTomSnareActiveBleed;
 		if (final_one_shot_measured_upper_tom_snare_active_bleed)
 			cap_drum_level(Snare, 0.28f);
+		const bool final_one_shot_measured_upper_tom_from_snare_active_bleed =
+			final_one_shot_measured_upper_tom_snare_active_bleed &&
+			drum_level_[Tom] > 0.30f &&
+			drum_bands[HiHat] >= 26.563f;
+		if (final_one_shot_measured_upper_tom_from_snare_active_bleed)
+			snapshot.drum_debug_rule_flags |= DrumDebugUpperTomFromSnareActiveBleed;
+		if (final_one_shot_measured_upper_tom_from_snare_active_bleed)
+			cap_drum_level(Tom, 0.28f);
 
 	const bool onset_tempo_event =
 		drum_detection_enabled && rms > kSilenceRms && drum_transient &&
