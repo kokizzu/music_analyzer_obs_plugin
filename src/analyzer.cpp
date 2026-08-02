@@ -15558,6 +15558,70 @@ int chord_mask_bit_count(unsigned int mask)
 	return count;
 }
 
+struct ChromaChordAliasTemplate {
+	const char *suffix;
+	std::array<int, 5> intervals;
+	int count;
+};
+
+unsigned int chroma_chord_template_mask(int root, const ChromaChordAliasTemplate &chord_template)
+{
+	unsigned int mask = 0;
+	for (int i = 0; i < chord_template.count; ++i) {
+		const int pitch_class = (root + chord_template.intervals[static_cast<std::size_t>(i)] + 120) % 12;
+		mask |= 1u << static_cast<unsigned int>(pitch_class);
+	}
+	return mask;
+}
+
+bool chroma_supports_superset_mask(const std::array<float, 12> &chroma, unsigned int component_mask,
+				   unsigned int primary_mask)
+{
+	if ((primary_mask & ~component_mask) != 0)
+		return false;
+
+	float strongest = 0.0f;
+	for (float level : chroma)
+		strongest = std::max(strongest, level);
+	if (strongest <= 1.0e-6f)
+		return false;
+
+	constexpr float kRequiredToneFloor = 0.18f;
+	float primary_anchor = 1.0f;
+	bool has_primary_tone = false;
+	for (int pitch_class = 0; pitch_class < 12; ++pitch_class) {
+		if ((primary_mask & (1u << static_cast<unsigned int>(pitch_class))) == 0)
+			continue;
+		primary_anchor = std::min(primary_anchor, chroma[static_cast<std::size_t>(pitch_class)]);
+		has_primary_tone = true;
+	}
+	if (!has_primary_tone)
+		return false;
+
+	const float extension_floor = std::max({kRequiredToneFloor, strongest * 0.12f, primary_anchor * 0.45f});
+	for (int pitch_class = 0; pitch_class < 12; ++pitch_class) {
+		const unsigned int bit = 1u << static_cast<unsigned int>(pitch_class);
+		if ((component_mask & bit) == 0)
+			continue;
+		const float level = chroma[static_cast<std::size_t>(pitch_class)];
+		if (level < kRequiredToneFloor)
+			return false;
+		if ((primary_mask & bit) == 0 && level < extension_floor)
+			return false;
+	}
+	return true;
+}
+
+bool chroma_supports_superset_alias(const std::array<float, 12> &chroma, int root,
+				    const ChromaChordAliasTemplate &chord_template,
+				    unsigned int primary_mask, int primary_tones)
+{
+	const unsigned int component_mask = chroma_chord_template_mask(root, chord_template);
+	if (chord_mask_bit_count(component_mask) <= primary_tones)
+		return false;
+	return chroma_supports_superset_mask(chroma, component_mask, primary_mask);
+}
+
 void append_mixed_global_extension_aliases(InstrumentState &state, const std::array<float, 12> &chroma,
 					   int preferred_root)
 {
@@ -15579,32 +15643,69 @@ void append_mixed_global_extension_aliases(InstrumentState &state, const std::ar
 		const ChordResult rooted = detect_chord(chroma, preferred_root, true, false);
 		extended = stronger_chord(extended, rooted);
 	}
-	if (!valid_chord_result(extended))
-		return;
 
 	char merged[sizeof(state.label)] = {};
 	copy_text(merged, sizeof(merged), state.label);
 	int appended = 0;
-	const char *cursor = extended.label;
-	while (cursor && *cursor && appended < 4) {
-		const char *end = std::strchr(cursor, '=');
-		const std::size_t len =
-			end ? static_cast<std::size_t>(end - cursor) : std::strlen(cursor);
-		unsigned int component_mask = 0;
-		const bool supported_component =
-			chord_component_pitch_mask(cursor, len, component_mask) &&
-			chord_mask_bit_count(component_mask) > primary_tones &&
-			(component_mask & primary_mask) == primary_mask;
-		if (supported_component && !chord_label_has_component(merged, cursor, len)) {
+	if (valid_chord_result(extended)) {
+		const char *cursor = extended.label;
+		while (cursor && *cursor && appended < 4) {
+			const char *end = std::strchr(cursor, '=');
+			const std::size_t len =
+				end ? static_cast<std::size_t>(end - cursor) : std::strlen(cursor);
+			unsigned int component_mask = 0;
+			const bool supported_component =
+				chord_component_pitch_mask(cursor, len, component_mask) &&
+				chord_mask_bit_count(component_mask) > primary_tones &&
+				chroma_supports_superset_mask(chroma, component_mask, primary_mask);
+			if (supported_component && !chord_label_has_component(merged, cursor, len)) {
+				const std::size_t before = std::strlen(merged);
+				append_chord_label_component(merged, sizeof(merged), cursor, len);
+				if (std::strlen(merged) != before)
+					++appended;
+			}
+			if (!end)
+				break;
+			cursor = end + 1;
+		}
+	}
+
+	static constexpr std::array<ChromaChordAliasTemplate, 11> kSupersetAliases = {{
+		{"9", {0, 2, 4, 7, 10}, 5},      {"maj9", {0, 2, 4, 7, 11}, 5},
+		{"m9", {0, 2, 3, 7, 10}, 5},     {"dim7", {0, 3, 6, 9, 0}, 4},
+		{"m7b5", {0, 3, 6, 10, 0}, 4},   {"7", {0, 4, 7, 10, 0}, 4},
+		{"maj7", {0, 4, 7, 11, 0}, 4},   {"m7", {0, 3, 7, 10, 0}, 4},
+		{"6", {0, 4, 7, 9, 0},           4}, {"m6", {0, 3, 7, 9, 0}, 4},
+		{"add9", {0, 2, 4, 7, 0}, 4},
+	}};
+	std::array<bool, 12> scanned_roots = {};
+	auto scan_root = [&](int root) {
+		root = ((root % 12) + 12) % 12;
+		if (scanned_roots[static_cast<std::size_t>(root)])
+			return;
+		scanned_roots[static_cast<std::size_t>(root)] = true;
+		for (const ChromaChordAliasTemplate &chord_template : kSupersetAliases) {
+			if (appended >= 4)
+				return;
+			if (!chroma_supports_superset_alias(chroma, root, chord_template, primary_mask,
+							    primary_tones))
+				continue;
+			char label[16] = {};
+			std::snprintf(label, sizeof(label), "%s%s", note_name(root), chord_template.suffix);
+			const std::size_t label_len = std::strlen(label);
+			if (chord_label_has_component(merged, label, label_len))
+				continue;
 			const std::size_t before = std::strlen(merged);
-			append_chord_label_component(merged, sizeof(merged), cursor, len);
+			append_chord_label_component(merged, sizeof(merged), label, label_len);
 			if (std::strlen(merged) != before)
 				++appended;
 		}
-		if (!end)
-			break;
-		cursor = end + 1;
-	}
+	};
+	if (preferred_root >= 0)
+		scan_root(preferred_root);
+	scan_root(primary.root);
+	for (int root = 0; root < 12 && appended < 4; ++root)
+		scan_root(root);
 
 	if (std::strcmp(merged, state.label) != 0)
 		copy_text(state.label, sizeof(state.label), merged);

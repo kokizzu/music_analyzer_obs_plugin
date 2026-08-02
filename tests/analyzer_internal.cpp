@@ -604,6 +604,55 @@ void check_visible_augmented_guitar_alias_recovery(Runner &runner)
 			      protected_state.label + "`");
 }
 
+void check_mixed_global_superset_extension_aliases(Runner &runner)
+{
+	{
+		InstrumentState state = {};
+		std::snprintf(state.label, sizeof(state.label), "Em");
+		state.confidence = 0.62f;
+		std::array<float, 12> chroma = {};
+		chroma[0] = 0.42f;
+		chroma[4] = 0.86f;
+		chroma[7] = 0.70f;
+		chroma[11] = 0.68f;
+		append_mixed_global_extension_aliases(state, chroma, -1);
+		runner.expect(chord_label_has_exact_component(state.label, "Cmaj7"),
+			      std::string("mixed global superset extension alias: expected Em to include Cmaj7, got `") +
+				      state.label + "`");
+	}
+	{
+		InstrumentState state = {};
+		std::snprintf(state.label, sizeof(state.label), "F");
+		state.confidence = 0.62f;
+		std::array<float, 12> chroma = {};
+		chroma[0] = 0.68f;
+		chroma[2] = 0.46f;
+		chroma[5] = 0.82f;
+		chroma[9] = 0.70f;
+		append_mixed_global_extension_aliases(state, chroma, -1);
+		runner.expect(chord_label_has_exact_component(state.label, "F6"),
+			      std::string("mixed global superset extension alias: expected F to include F6, got `") +
+				      state.label + "`");
+		runner.expect(chord_label_has_exact_component(state.label, "Dm7"),
+			      std::string("mixed global superset extension alias: expected F to include Dm7, got `") +
+				      state.label + "`");
+	}
+	{
+		InstrumentState state = {};
+		std::snprintf(state.label, sizeof(state.label), "Em");
+		state.confidence = 0.62f;
+		std::array<float, 12> chroma = {};
+		chroma[0] = 0.08f;
+		chroma[4] = 0.86f;
+		chroma[7] = 0.70f;
+		chroma[11] = 0.68f;
+		append_mixed_global_extension_aliases(state, chroma, -1);
+		runner.expect(!chord_label_has_exact_component(state.label, "Cmaj7"),
+			      std::string("mixed global superset extension alias: expected weak root guard, got `") +
+				      state.label + "`");
+	}
+}
+
 void check_plain_guitar_voicing_rejects_crowded_root_fifth_quality(Runner &runner)
 {
 	ChordResult f_major = make_crowded_chord("F");
@@ -3378,6 +3427,7 @@ int run()
 	check_probe_supported_guitar_extension_base_alias_recovery(runner);
 	check_visible_diminished_guitar_alias_recovery(runner);
 	check_visible_augmented_guitar_alias_recovery(runner);
+	check_mixed_global_superset_extension_aliases(runner);
 	check_plain_guitar_voicing_rejects_crowded_root_fifth_quality(runner);
 	check_displayed_guitar_single_note_probe_profile(runner);
 	check_supported_guitar_candidate_alias_merge(runner);
