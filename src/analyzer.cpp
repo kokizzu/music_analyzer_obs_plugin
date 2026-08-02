@@ -73,6 +73,8 @@ constexpr float kChordWeakExtensionMargin = 0.16f;
 constexpr float kChordStrongExtensionToneFloor = 0.32f;
 constexpr float kChordStrongExtensionCoreRatio = 0.36f;
 constexpr float kGuitarCagedPresenceFloor = 0.50f;
+constexpr float kFullMixDisplayMirrorScoreScale = 0.52f;
+constexpr float kFullMixOtherDisplayMirrorScoreScale = 0.74f;
 constexpr float kCompactGuitarRawThirdCeilingRatio = 0.250f;
 constexpr int kGuitarChordCrowdedPruneMinComponents = 7;
 constexpr int kMixedGuitarChordCrowdedPruneMinComponents = 4;
@@ -7131,7 +7133,11 @@ void add_full_mix_display_mirror(NoteCandidateList &candidates, const FullMixOwn
 
 	const float row_reference = strongest_candidate_score(candidates);
 	const float base_score = row_reference > 1.0e-6f ? row_reference : 1.0f;
-	float candidate_score = base_score * std::clamp(global_level, 0.18f, 1.0f) * 0.52f;
+	const float mirror_score_scale = row == FullMixDisplayRow::Other ?
+					 kFullMixOtherDisplayMirrorScoreScale :
+					 kFullMixDisplayMirrorScoreScale;
+	float candidate_score = base_score * std::clamp(global_level, 0.18f, 1.0f) *
+				mirror_score_scale;
 	float candidate_confidence = row == FullMixDisplayRow::Other ? 0.21f : 0.20f;
 	const bool confirmed_exact_vocal_owner =
 		row == FullMixDisplayRow::Vocal &&
@@ -7289,7 +7295,7 @@ NoteCandidateList full_mix_display_candidates(const FullMixOwnership &ownership,
 			const float global_level = std::clamp(ownership.global_note_levels[index], 0.0f, 1.0f);
 			NoteCandidate candidate;
 			candidate.midi = debug.midi;
-			candidate.score = std::max(0.20f, global_level * 0.52f);
+			candidate.score = std::max(0.20f, global_level * kFullMixDisplayMirrorScoreScale);
 			candidate.ownership_confidence = 0.20f;
 			candidates.push_back(candidate);
 		}
