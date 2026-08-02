@@ -15724,6 +15724,34 @@ bool chroma_supports_weak_relative_dominant_seventh(const std::array<float, 12> 
 	return strongest_other <= 0.32f;
 }
 
+bool chroma_supports_weak_primary_major_sixth(const std::array<float, 12> &chroma,
+					      const ParsedRootChord &primary,
+					      unsigned int primary_mask, int primary_tones)
+{
+	if (primary.quality != RootChordQuality::Major || primary_tones != 3)
+		return false;
+
+	const unsigned int major_triad_mask =
+		(1u << static_cast<unsigned int>(primary.root)) |
+		(1u << static_cast<unsigned int>((primary.root + 4) % 12)) |
+		(1u << static_cast<unsigned int>((primary.root + 7) % 12));
+	if ((primary_mask & ~major_triad_mask) != 0)
+		return false;
+
+	float primary_anchor = 1.0f;
+	for (int pitch_class = 0; pitch_class < 12; ++pitch_class) {
+		if ((primary_mask & (1u << static_cast<unsigned int>(pitch_class))) == 0)
+			continue;
+		primary_anchor = std::min(primary_anchor, chroma[static_cast<std::size_t>(pitch_class)]);
+	}
+
+	const float sixth = chroma[static_cast<std::size_t>((primary.root + 9) % 12)];
+	const float flat_seventh = chroma[static_cast<std::size_t>((primary.root + 10) % 12)];
+	const float major_seventh = chroma[static_cast<std::size_t>((primary.root + 11) % 12)];
+	return primary_anchor >= 0.50f && sixth >= 0.20f && sixth >= primary_anchor * 0.32f &&
+	       flat_seventh < sixth * 0.85f && major_seventh < sixth * 0.85f;
+}
+
 void append_mixed_global_extension_aliases(InstrumentState &state, const std::array<float, 12> &chroma,
 					   int preferred_root)
 {
@@ -15826,6 +15854,15 @@ void append_mixed_global_extension_aliases(InstrumentState &state, const std::ar
 							   weak_dominant_seventh_root)) {
 		char label[16] = {};
 		std::snprintf(label, sizeof(label), "%s7", note_name(weak_dominant_seventh_root));
+		const std::size_t label_len = std::strlen(label);
+		if (!chord_label_has_component(merged, label, label_len))
+			append_chord_label_component(merged, sizeof(merged), label, label_len);
+	}
+
+	if (appended < 4 &&
+	    chroma_supports_weak_primary_major_sixth(chroma, primary, primary_mask, primary_tones)) {
+		char label[16] = {};
+		std::snprintf(label, sizeof(label), "%s6", note_name(primary.root));
 		const std::size_t label_len = std::strlen(label);
 		if (!chord_label_has_component(merged, label, label_len))
 			append_chord_label_component(merged, sizeof(merged), label, label_len);

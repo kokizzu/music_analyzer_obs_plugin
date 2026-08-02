@@ -698,6 +698,36 @@ void check_mixed_global_superset_extension_aliases(Runner &runner)
 	}
 	{
 		InstrumentState state = {};
+		std::snprintf(state.label, sizeof(state.label), "A#=A#add9");
+		state.confidence = 0.62f;
+		std::array<float, 12> chroma = {};
+		chroma[10] = 0.90f;
+		chroma[2] = 1.00f;
+		chroma[5] = 0.57f;
+		chroma[7] = 0.22f;
+		chroma[0] = 0.38f;
+		append_mixed_global_extension_aliases(state, chroma, -1);
+		runner.expect(chord_label_has_exact_component(state.label, "A#6"),
+			      std::string("mixed global weak primary sixth alias: expected A# to include A#6, got `") +
+				      state.label + "`");
+	}
+	{
+		InstrumentState state = {};
+		std::snprintf(state.label, sizeof(state.label), "A#=A#add9");
+		state.confidence = 0.62f;
+		std::array<float, 12> chroma = {};
+		chroma[10] = 0.90f;
+		chroma[2] = 1.00f;
+		chroma[5] = 0.57f;
+		chroma[7] = 0.22f;
+		chroma[8] = 0.24f;
+		append_mixed_global_extension_aliases(state, chroma, -1);
+		runner.expect(!chord_label_has_exact_component(state.label, "A#6"),
+			      std::string("mixed global weak primary sixth alias: expected seventh conflict to block A#6, got `") +
+				      state.label + "`");
+	}
+	{
+		InstrumentState state = {};
 		std::snprintf(state.label, sizeof(state.label), "Em");
 		state.confidence = 0.62f;
 		std::array<float, 12> chroma = {};
