@@ -63,6 +63,7 @@ class Candidate:
     source_rows_reported: bool = False
     neg_sources: str = ""
     foreign_sources: str = ""
+    examples: tuple[str, ...] = dataclasses.field(default_factory=tuple, compare=False)
 
     @property
     def side_effect_rows(self) -> int:
@@ -102,15 +103,31 @@ class Candidate:
 def parse_report(path: pathlib.Path) -> list[Candidate]:
     candidates: list[Candidate] = []
     seen: set[Candidate] = set()
+    indexes: dict[Candidate, int] = {}
     blocked_shadow_routes: set[str] = set()
     section = ""
     note_candidate_kind = ""
+    last_candidate_index: int | None = None
+    example_candidate_index: int | None = None
 
-    def append_candidate(candidate: Candidate) -> None:
+    def append_candidate(candidate: Candidate) -> int | None:
+        nonlocal last_candidate_index
         if candidate in seen:
-            return
+            last_candidate_index = indexes.get(candidate)
+            return last_candidate_index
         seen.add(candidate)
+        indexes[candidate] = len(candidates)
         candidates.append(candidate)
+        last_candidate_index = len(candidates) - 1
+        return last_candidate_index
+
+    def append_example(index: int, example: str) -> None:
+        candidate = candidates[index]
+        if example in candidate.examples:
+            return
+        candidates[index] = dataclasses.replace(
+            candidate, examples=candidate.examples + (example,)
+        )
 
     def normalize_shadow_threshold(raw_threshold: str) -> str:
         return (
@@ -166,23 +183,36 @@ def parse_report(path: pathlib.Path) -> list[Candidate]:
 
     for raw_line in path.read_text(errors="replace").splitlines():
         line = raw_line.rstrip()
+        stripped = line.strip()
+
+        if example_candidate_index is not None:
+            if line.startswith("        ") and stripped:
+                append_example(example_candidate_index, stripped)
+                continue
+            example_candidate_index = None
+
         section_match = SECTION_RE.match(line)
         if section_match:
             section = section_match.group("section")
             note_candidate_kind = ""
 
-        stripped = line.strip()
         if stripped == "low-false candidate rules:":
             note_candidate_kind = "low-false"
+            last_candidate_index = None
             continue
         if stripped.startswith("nearest over-budget"):
             note_candidate_kind = "near-miss"
+            last_candidate_index = None
+            continue
+        if stripped == "positive examples:" and last_candidate_index is not None:
+            example_candidate_index = last_candidate_index
             continue
         if note_candidate_kind and (
             stripped.startswith("highest-coverage")
             or (line and not line.startswith(" "))
         ):
             note_candidate_kind = ""
+            last_candidate_index = None
 
         if note_candidate_kind and line.startswith("    ") and stripped and stripped != "--":
             match = NOTE_CANDIDATE_RE.match(stripped)
@@ -356,10 +386,37 @@ def format_candidate(candidate: Candidate, min_actionable_samples: int) -> str:
     )
 
 
+def compact_example(example: str) -> str:
+    tokens = example.split()
+    if not tokens:
+        return "--"
+    useful_prefixes = (
+        "expected=",
+        "debug=",
+        "owner=",
+        "delta=",
+        "reason=",
+        "first_row=",
+        "strongest=",
+        "scores(",
+        "spec=",
+        "pitch=",
+        "per=",
+        "fit=",
+        "cent=",
+        "raw_best=",
+        "raw_rank=",
+    )
+    kept = [tokens[0]]
+    kept.extend(token for token in tokens[1:] if token.startswith(useful_prefixes))
+    return " ".join(kept)
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("report", type=pathlib.Path)
     parser.add_argument("--limit", type=int, default=20)
+    parser.add_argument("--example-limit", type=int, default=2)
     parser.add_argument("--min-actionable-samples", type=int, default=5)
     args = parser.parse_args()
 
@@ -420,6 +477,8 @@ def main() -> int:
                 f"net_rows={candidate.net_rows} gain_per_side={format_gain_ratio(candidate)} "
                 f":: {candidate.rule}"
             )
+            for example in candidate.examples[: max(0, args.example_limit)]:
+                print(f"      example {compact_example(example)}")
 
     actionable_set = set(actionable)
     ranked_candidates = (

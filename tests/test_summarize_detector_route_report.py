@@ -32,6 +32,8 @@ row_confusion:piano/electronic->amb positives=186 samples/636 rows protected_hit
 ownership_miss:guitar/electronic->piano positives=3 samples/6 rows protected_hits=120 samples/480 rows foreign_misses=0 samples/0 rows
   low-false candidate rules:
     adjacent_lower_ratio<=0.698 AND partial3>=1.817: pos=2/3 rows=5 neg=0/120 rows=0 side_rows=0 net_rows=5 gain_per_side=inf neg_same_source_rows=0 neg_cross_source_rows=0 foreign_cross_source_rows=0
+      positive examples:
+        guitar_electronic_001 expected=E3/52 debug=E3/52 owner=piano delta=0 reason=hit first_row=piano strongest=piano scores(b/k/g/v/o)=0/1/0/0/0 spec=0.42 pitch=0.71 per=0.81 fit=0.09 cent=0.01 raw_best=E3/92.4 raw_rank=1 ignored=1
 route snare->tom positives=492 rows=492 protected_correct=13126 rows=13126
   +24 rows=24 -5 rows=5 foreign=4 rows=4 new-active=0 rows=0 primary-break=4 rows=4 side_rows=13 net_rows=11 gain_per_side=1.85 :: hihat_band>=24.633 AND tom_level>=0.981
   +21 rows=21 -7 rows=7 foreign=6 rows=6 new-active=1 rows=1 primary-break=6 rows=6 side_rows=20 net_rows=1 gain_per_side=1.05 :: hihat_band>=24.633 AND tom_seg<=225.582
@@ -63,6 +65,10 @@ compact route summary
     require(
         output,
         "coverage_need low-false ownership_miss:guitar/electronic->piano observed_samples=2 need_samples=3 +rows=5 side_rows=0 net_rows=5 gain_per_side=inf :: adjacent_lower_ratio<=0.698 AND partial3>=1.817",
+    )
+    require(
+        output,
+        "example guitar_electronic_001 expected=E3/52 debug=E3/52 owner=piano delta=0 reason=hit first_row=piano strongest=piano scores(b/k/g/v/o)=0/1/0/0/0 spec=0.42 pitch=0.71 per=0.81 fit=0.09 cent=0.01 raw_best=E3/92.4 raw_rank=1",
     )
     require(
         output,
