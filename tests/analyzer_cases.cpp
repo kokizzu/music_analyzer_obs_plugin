@@ -1042,6 +1042,23 @@ void check_guitar_supported_extension_aliases(Runner &runner)
 		      std::string("guitar low-root extension aliases: expected C#m7 alias, got `") +
 			      low_root_minor_seventh_snapshot.guitar_chord.label + "`");
 
+	mao_test::Buffer diminished_with_seventh = {};
+	for (int midi : {57, 60, 63})
+		add_harmonic_note(diminished_with_seventh, midi, 0.22f, guitar_profile);
+	add_harmonic_note(diminished_with_seventh, 67, 0.10f, guitar_profile);
+
+	const auto diminished_with_seventh_snapshot = analyze_buffer(diminished_with_seventh, "guitar");
+	runner.expect(has_chord_label(diminished_with_seventh_snapshot.guitar_chord.label, "Adim"),
+		      std::string("guitar diminished triad alias recovery: expected Adim, got `") +
+			      diminished_with_seventh_snapshot.guitar_chord.label + "` raw `" +
+			      diminished_with_seventh_snapshot.guitar_raw_chord.label + "` smooth `" +
+			      diminished_with_seventh_snapshot.guitar_smoothed_chord.label + "` notes `" +
+			      note_grid_pitch_classes(diminished_with_seventh_snapshot.guitar_notes) +
+			      "` analysis `" +
+			      note_grid_pitch_classes(
+				      diminished_with_seventh_snapshot.guitar_chord_analysis_notes) +
+			      "`");
+
 	mao_test::Buffer ambiguous_root_extension = {};
 	for (int midi : {45, 48, 52, 55, 59})
 		add_harmonic_note(ambiguous_root_extension, midi, 0.18f, guitar_profile);
