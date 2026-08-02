@@ -787,6 +787,21 @@ def main() -> int:
     assert "DETECTOR_REAL_NOTE_PATTERN_OPTIONAL_CANDIDATE_PATHS += $(IOWA_ORCHESTRA_FULL_DETECTED_ATTRIBUTE_ROWS)" in makefile, (
         "detector route scans should mine candidates from available Iowa orchestra full rows"
     )
+    assert "--show-examples 4 --protected-scope all" in continuation_variable_body(
+        makefile, "MEASURE_REAL_NOTE_COVERAGE_ROW_CONFUSION_PATTERN_ARGS"
+    ), (
+        "coverage row-confusion scans should retain enough examples for sample-family grouping"
+    )
+    assert "--show-examples 4 --protected-scope all --include-row-context" in continuation_variable_body(
+        makefile, "MEASURE_REAL_NOTE_COVERAGE_VISUAL_ROW_CONFUSION_PATTERN_ARGS"
+    ), (
+        "coverage visual-row scans should retain enough examples for sample-family grouping"
+    )
+    assert "--show-examples 4 --protected-scope all" in continuation_variable_body(
+        makefile, "MEASURE_REAL_NOTE_OWNERSHIP_PATTERN_ARGS"
+    ), (
+        "ownership scans should retain enough examples for sample-family grouping"
+    )
     assert (
         "DETECTOR_REAL_NOTE_PATTERN_EXTRA_CANDIDATE_PATHS ?= "
         "$(DETECTOR_REAL_NOTE_PATTERN_OPTIONAL_CANDIDATE_PATHS)"
