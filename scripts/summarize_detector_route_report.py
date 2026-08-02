@@ -43,6 +43,9 @@ COMPACT_SHADOW_ROUTE_RE = re.compile(
     r"protected=(?P<protected_rows>\d+)/(?:\d+) simulation=(?P<simulation>\S+) "
     r"threshold=(?P<threshold>.+)$"
 )
+POSITIVE_SAMPLE_PROFILE_RE = re.compile(
+    r"^positive sample profile: groups=(?P<groups>\S+) sources=(?P<sources>\S+)"
+)
 
 
 @dataclasses.dataclass(frozen=True)
@@ -63,6 +66,8 @@ class Candidate:
     source_rows_reported: bool = False
     neg_sources: str = ""
     foreign_sources: str = ""
+    profile_groups: str = dataclasses.field(default="", compare=False)
+    profile_sources: str = dataclasses.field(default="", compare=False)
     examples: tuple[str, ...] = dataclasses.field(default_factory=tuple, compare=False)
 
     @property
@@ -106,6 +111,8 @@ def parse_report(path: pathlib.Path) -> list[Candidate]:
     indexes: dict[Candidate, int] = {}
     blocked_shadow_routes: set[str] = set()
     section = ""
+    section_profile_groups = ""
+    section_profile_sources = ""
     note_candidate_kind = ""
     last_candidate_index: int | None = None
     example_candidate_index: int | None = None
@@ -194,7 +201,15 @@ def parse_report(path: pathlib.Path) -> list[Candidate]:
         section_match = SECTION_RE.match(line)
         if section_match:
             section = section_match.group("section")
+            section_profile_groups = ""
+            section_profile_sources = ""
             note_candidate_kind = ""
+
+        profile_match = POSITIVE_SAMPLE_PROFILE_RE.match(stripped)
+        if profile_match:
+            section_profile_groups = profile_match.group("groups")
+            section_profile_sources = profile_match.group("sources")
+            continue
 
         if stripped == "low-false candidate rules:":
             note_candidate_kind = "low-false"
@@ -243,6 +258,8 @@ def parse_report(path: pathlib.Path) -> list[Candidate]:
                         ),
                         neg_sources=match.group("neg_sources") or "",
                         foreign_sources=match.group("foreign_sources") or "",
+                        profile_groups=section_profile_groups,
+                        profile_sources=section_profile_sources,
                     )
                 )
             continue
@@ -438,6 +455,8 @@ class CoverageRouteCluster:
     total_net_rows: int = 0
     sample_ids: list[str] = dataclasses.field(default_factory=list)
     sample_groups: dict[str, int] = dataclasses.field(default_factory=dict)
+    profile_groups: str = ""
+    profile_sources: str = ""
 
 
 def coverage_route_clusters(
@@ -459,6 +478,10 @@ def coverage_route_clusters(
         )
         cluster.min_needed_samples = min(cluster.min_needed_samples, needed)
         cluster.total_net_rows += candidate.net_rows
+        if candidate.profile_groups and not cluster.profile_groups:
+            cluster.profile_groups = candidate.profile_groups
+        if candidate.profile_sources and not cluster.profile_sources:
+            cluster.profile_sources = candidate.profile_sources
 
         sample_seen = seen_samples.setdefault(candidate.section, set())
         for example in candidate.examples:
@@ -561,7 +584,7 @@ def main() -> int:
                     cluster.sample_ids[: max(0, args.example_limit)]
                 )
                 example_text = f" examples={examples}" if examples else ""
-                groups = ",".join(
+                groups = cluster.profile_groups or ",".join(
                     f"{group}={count}"
                     for group, count in sorted(
                         cluster.sample_groups.items(),
@@ -569,6 +592,10 @@ def main() -> int:
                     )[: max(0, args.coverage_group_limit)]
                 )
                 group_text = f" groups={groups}" if groups else ""
+                source_text = (
+                    f" sources={cluster.profile_sources}"
+                    if cluster.profile_sources else ""
+                )
                 print(
                     "    "
                     f"coverage_route {cluster.section} "
@@ -578,6 +605,7 @@ def main() -> int:
                     f"total_net_rows={cluster.total_net_rows}"
                     f"{example_text}"
                     f"{group_text}"
+                    f"{source_text}"
                 )
 
     actionable_set = set(actionable)

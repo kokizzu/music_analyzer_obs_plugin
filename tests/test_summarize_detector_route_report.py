@@ -20,6 +20,7 @@ def require(text: str, needle: str) -> None:
 def main() -> int:
     report = """candidate rules are attribute selectors; rerun gates
 row_confusion:piano/electronic->amb positives=186 samples/636 rows protected_hits=2209 samples/22357 rows foreign_misses=0 samples/0 rows
+  positive sample profile: groups=organ_electronic=120,keyboard_electronic=66 sources=piano/electronic=186
   low-false candidate rules:
     debug_conf<=0.542 AND partial3>=2.46 AND partial5<=0.02: pos=23/186 rows=44 neg=15/2209 rows=29 side_rows=29 net_rows=15 gain_per_side=1.52 neg_same_source_rows=27 neg_cross_source_rows=2 foreign_cross_source_rows=0 neg_sources=piano/electronic=27,other/acoustic=2
     debug_conf<=0.542 AND partial3>=2.46 AND slope>=0.655: pos=23/186 rows=44 neg=16/2209 rows=29 side_rows=29 net_rows=15 gain_per_side=1.52 neg_same_source_rows=24 neg_cross_source_rows=5 foreign_cross_source_rows=0 neg_sources=piano/electronic=24,other/acoustic=5
@@ -30,6 +31,7 @@ row_confusion:piano/electronic->amb positives=186 samples/636 rows protected_hit
       positive examples:
         sample expected=D#3 debug=D#3 owner=other
 ownership_miss:guitar/electronic->piano positives=3 samples/6 rows protected_hits=120 samples/480 rows foreign_misses=0 samples/0 rows
+  positive sample profile: groups=guitar_electronic=2,guitar_synth=1 sources=guitar/electronic=3
   low-false candidate rules:
     adjacent_lower_ratio<=0.698 AND partial3>=1.817: pos=2/3 rows=5 neg=0/120 rows=0 side_rows=0 net_rows=5 gain_per_side=inf neg_same_source_rows=0 neg_cross_source_rows=0 foreign_cross_source_rows=0
       positive examples:
@@ -76,7 +78,7 @@ compact route summary
     require(output, "  coverage-route clusters")
     require(
         output,
-        "coverage_route ownership_miss:guitar/electronic->piano candidates=2 best_observed_samples=2 min_need_samples=3 total_net_rows=7 examples=guitar_electronic_001,guitar_electronic_002 groups=guitar_electronic=2",
+        "coverage_route ownership_miss:guitar/electronic->piano candidates=2 best_observed_samples=2 min_need_samples=3 total_net_rows=7 examples=guitar_electronic_001,guitar_electronic_002 groups=guitar_electronic=2,guitar_synth=1 sources=guitar/electronic=3",
     )
     require(
         output,
