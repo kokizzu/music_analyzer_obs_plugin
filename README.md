@@ -290,7 +290,9 @@ PARALLEL_TEST_JOBS=8 make test
 
 `make test` runs the script/core/standalone/detector group, the combined
 real-goal fixture gate, and the smaller fixture aggregate in the first
-jobserver fanout. The smaller fixture aggregate runs through
+jobserver fanout. The combined real-goal fixture gate also fans out its
+per-dataset fixture generators through `prepare-real-goal-fixtures-parallel`
+before running the preflight and analyzer gates. The smaller fixture aggregate runs through
 `test-fixtures-parallel-isolated`, which uses `build/real-goal-fixture-parallel`
 so its fixture generators cannot race the combined real-goal fixture target that
 writes `build/real-goal-fixture`.

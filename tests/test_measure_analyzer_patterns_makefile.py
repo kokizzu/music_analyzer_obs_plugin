@@ -976,11 +976,45 @@ def main() -> int:
         "configured real-world sample gate must pass explicit parallel make args into the Python coordinator"
     )
     real_goal_fixture_recipe = target_recipe(makefile, "test-real-goal-fixture")
+    assert "prepare-real-goal-fixtures-parallel" in real_goal_fixture_recipe.splitlines()[0], (
+        "real-goal fixture gate must build its generated fixtures through the parallel prep target"
+    )
     assert 'run_real_goal_gate.py inspect-20 "$(MAKE)" $(REAL_GOAL_MAKE_JOBS)' in real_goal_fixture_recipe, (
         "real-goal fixture preflight must pass explicit parallel make args into the Python coordinator"
     )
     assert 'run_real_goal_gate.py 20 "$(MAKE)" $(REAL_GOAL_MAKE_JOBS)' in real_goal_fixture_recipe, (
         "real-goal fixture analyzer gate must pass explicit parallel make args into the Python coordinator"
+    )
+    real_goal_fixture_prep_targets = continuation_variable_body(makefile, "REAL_GOAL_FIXTURE_PREP_TARGETS")
+    for target in [
+        "prepare-real-goal-urmp-fixture",
+        "prepare-real-goal-musicnet-fixture",
+        "prepare-real-goal-medleydb-fixture",
+        "prepare-real-goal-musdb-fixture",
+        "prepare-real-goal-slakh-fixture",
+        "prepare-real-goal-choralsynth-fixture",
+        "prepare-real-goal-cocochorales-fixture",
+        "prepare-real-goal-synthsod-fixture",
+        "prepare-real-goal-polyvocal-fixture",
+        "prepare-real-goal-prepared-multitrack-fixture",
+        "prepare-real-goal-multtipop-fixture",
+        "prepare-real-goal-spheres-fixture",
+        "prepare-real-goal-guitarset-fixture",
+        "prepare-real-goal-maestro-fixture",
+        "prepare-real-goal-egmd-fixture",
+    ]:
+        assert target in real_goal_fixture_prep_targets, (
+            f"real-goal fixture prep fanout must include {target}"
+        )
+    real_goal_fixture_prep_recipe = target_recipe(makefile, "prepare-real-goal-fixtures-parallel")
+    assert "$(RUN_WITH_DURATION) real_goal_fixture_generation_parallel" in real_goal_fixture_prep_recipe, (
+        "real-goal fixture prep must report aggregate parallel generation duration"
+    )
+    assert "$(MAKE) $(PARALLEL_TEST_MAKE_JOBS) $(REAL_GOAL_FIXTURE_PREP_TARGETS)" in real_goal_fixture_prep_recipe, (
+        "real-goal fixture prep must fan out dataset generators through jobserver-aware make"
+    )
+    assert "rm -rf $(REAL_GOAL_FIXTURE_DIR)" in real_goal_fixture_prep_recipe, (
+        "real-goal fixture prep must still reset the shared generated fixture root once before fanout"
     )
     for wrapper in [
         "test-real-goal-20",
