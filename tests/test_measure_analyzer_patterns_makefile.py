@@ -951,9 +951,12 @@ def main() -> int:
         assert f"$(MAKE) {delegated}" in recipe, (
             f"{target} must delegate to {delegated}"
         )
-        assert 'PATTERN_ARGS="$(MEASURE_GUITAR_PATTERN_ARGS)"' in recipe, (
+        assert 'PATTERN_ARGS="$(MEASURE_GUITAR_ROUTE_PATTERN_ARGS)"' in recipe, (
             f"{target} must use bounded route-report guitar pattern args"
         )
+    assert "MEASURE_GUITAR_ROUTE_PATTERN_ARGS ?= $(MEASURE_GUITAR_PATTERN_ARGS) --runtime-only" in makefile, (
+        "route guitar pattern mining must only emit runtime-observable candidate fields"
+    )
     assert "VOCADITO_PATTERN_EXTRA_PROTECTED_PATHS ?= $(BUILD_DIR)/real_note_full_mix_attributes.tsv" in makefile, (
         "Vocadito route mining must protect candidate vocal rules against the broad NSynth full-mix TSV"
     )
@@ -4132,6 +4135,7 @@ def main() -> int:
         "REAL_NOTE_RUNTIME_ROW_CONFUSION_EXCLUDES",
         "DISPLAY_SHADOW_JOBS",
         "MEASURE_GUITAR_PATTERN_ARGS",
+        "MEASURE_GUITAR_ROUTE_PATTERN_ARGS",
         "MEASURE_DRUM_PATTERN_ARGS",
         "MEASURE_DRUM_FULL_PATTERN_ARGS",
         "MEASURE_DRUM_ACTIVE_FALSE_PATTERN_ARGS",
