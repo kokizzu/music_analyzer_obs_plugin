@@ -792,6 +792,37 @@ void check_strict_symmetric_dim7_global_recovery(Runner &runner)
 			      incomplete.label + "`");
 }
 
+void check_strict_weak_root_dominant_global_recovery(Runner &runner)
+{
+	std::array<float, 12> chroma = {};
+	chroma[2] = 0.80f;
+	chroma[4] = 0.17f;
+	chroma[8] = 0.55f;
+	chroma[11] = 1.00f;
+	ChordResult dominant = detect_strict_weak_root_dominant_chord(chroma);
+	runner.expect(valid_chord_result(dominant) &&
+			      chord_label_has_exact_component(dominant.label, "E7"),
+		      std::string("strict weak-root dominant global recovery: expected E7, got `") +
+			      dominant.label + "`");
+
+	std::array<float, 12> missing_third = {};
+	missing_third[0] = 0.17f;
+	missing_third[2] = 0.28f;
+	missing_third[7] = 1.00f;
+	missing_third[9] = 1.00f;
+	ChordResult missing = detect_strict_weak_root_dominant_chord(missing_third);
+	runner.expect(!valid_chord_result(missing),
+		      std::string("strict weak-root dominant global recovery: expected weak third to block, got `") +
+			      missing.label + "`");
+
+	std::array<float, 12> strong_extra = chroma;
+	strong_extra[9] = 0.80f;
+	ChordResult crowded = detect_strict_weak_root_dominant_chord(strong_extra);
+	runner.expect(!valid_chord_result(crowded),
+		      std::string("strict weak-root dominant global recovery: expected strong extra tone to block, got `") +
+			      crowded.label + "`");
+}
+
 void check_mixed_global_display_chord_fallback(Runner &runner)
 {
 	NoteGrid bass = {};
@@ -3611,6 +3642,7 @@ int run()
 	check_visible_augmented_guitar_alias_recovery(runner);
 	check_mixed_global_superset_extension_aliases(runner);
 	check_strict_symmetric_dim7_global_recovery(runner);
+	check_strict_weak_root_dominant_global_recovery(runner);
 	check_mixed_global_display_chord_fallback(runner);
 	check_plain_guitar_voicing_rejects_crowded_root_fifth_quality(runner);
 	check_displayed_guitar_single_note_probe_profile(runner);

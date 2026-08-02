@@ -20379,6 +20379,58 @@ ChordResult detect_strict_symmetric_dim7_chord(const std::array<float, 12> &chro
 	return best;
 }
 
+ChordResult detect_strict_weak_root_dominant_chord(const std::array<float, 12> &chroma)
+{
+	ChordResult best;
+	float best_score = 0.0f;
+	for (int root = 0; root < 12; ++root) {
+		const float root_level = chroma[static_cast<std::size_t>(root)];
+		const float major_third = chroma[static_cast<std::size_t>((root + 4) % 12)];
+		const float fifth = chroma[static_cast<std::size_t>((root + 7) % 12)];
+		const float flat_seventh = chroma[static_cast<std::size_t>((root + 10) % 12)];
+		const float minor_third = chroma[static_cast<std::size_t>((root + 3) % 12)];
+		const float fourth = chroma[static_cast<std::size_t>((root + 5) % 12)];
+		const float major_seventh = chroma[static_cast<std::size_t>((root + 11) % 12)];
+		if (root_level < 0.12f || root_level >= 0.24f || major_third < 0.45f ||
+		    fifth < 0.55f || flat_seventh < 0.55f)
+			continue;
+		if (minor_third >= major_third * 0.60f || fourth >= 0.34f ||
+		    major_seventh >= flat_seventh * 0.55f)
+			continue;
+
+		float strongest_extra = 0.0f;
+		for (int pitch_class = 0; pitch_class < 12; ++pitch_class) {
+			const int interval = (pitch_class - root + 12) % 12;
+			if (interval == 0 || interval == 4 || interval == 7 || interval == 10)
+				continue;
+			strongest_extra = std::max(strongest_extra,
+						   chroma[static_cast<std::size_t>(pitch_class)]);
+		}
+		if (strongest_extra > 0.36f)
+			continue;
+
+		const float core_min = std::min({major_third, fifth, flat_seventh});
+		const float score = core_min + root_level * 0.60f - strongest_extra * 0.25f;
+		if (score <= best_score)
+			continue;
+
+		best_score = score;
+		best = {};
+		best.root = root;
+		best.tones.fill(false);
+		best.tones[static_cast<std::size_t>(root)] = true;
+		best.tones[static_cast<std::size_t>((root + 4) % 12)] = true;
+		best.tones[static_cast<std::size_t>((root + 7) % 12)] = true;
+		best.tones[static_cast<std::size_t>((root + 10) % 12)] = true;
+		best.confidence = std::clamp(0.38f + core_min * 0.22f + root_level * 0.18f,
+					     kChordConfidenceFloor, 0.62f);
+		best.margin = std::clamp(core_min - strongest_extra * 0.70f, 0.0f, 1.0f);
+		best.uncertain = false;
+		std::snprintf(best.label, sizeof(best.label), "%s7", note_name(root));
+	}
+	return best;
+}
+
 ChordResult prefer_strict_symmetric_dim7_global_chord(const ChordResult &current,
 						      const std::array<float, 12> &chroma)
 {
@@ -20399,6 +20451,15 @@ ChordResult prefer_strict_symmetric_dim7_global_chord(const ChordResult &current
 	    diminished.confidence + 0.18f >= current.confidence)
 		return diminished;
 	return current;
+}
+
+ChordResult prefer_strict_weak_root_dominant_global_chord(const ChordResult &current,
+							  const std::array<float, 12> &chroma)
+{
+	if (valid_chord_result(current))
+		return current;
+	const ChordResult dominant = detect_strict_weak_root_dominant_chord(chroma);
+	return valid_chord_result(dominant) ? dominant : current;
 }
 
 bool chord_result_primary(const ChordResult &chord, ParsedRootChord &parsed)
@@ -27068,6 +27129,9 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 		raw_global_chord =
 			prefer_strict_symmetric_dim7_global_chord(raw_global_chord,
 								  full_mix_ownership.global_chroma);
+		raw_global_chord =
+			prefer_strict_weak_root_dominant_global_chord(raw_global_chord,
+								      full_mix_ownership.global_chroma);
 		prefer_keyboard_same_root_quality(raw_global_chord);
 		prefer_major_when_both_thirds_present(raw_global_chord, full_mix_ownership.global_chroma);
 
@@ -27083,6 +27147,9 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 		smoothed_global_chord =
 			prefer_strict_symmetric_dim7_global_chord(smoothed_global_chord,
 								  smoothed_global_chroma);
+		smoothed_global_chord =
+			prefer_strict_weak_root_dominant_global_chord(smoothed_global_chord,
+								      smoothed_global_chroma);
 		prefer_keyboard_same_root_quality(smoothed_global_chord);
 		prefer_major_when_both_thirds_present(smoothed_global_chord, smoothed_global_chroma);
 	}
