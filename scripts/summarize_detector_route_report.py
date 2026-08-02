@@ -17,6 +17,8 @@ NOTE_CANDIDATE_RE = re.compile(
     r"neg=(?P<neg_samples>\d+)/(?:\d+) rows=(?P<neg_rows>\d+)"
     r"(?: foreign_miss=(?P<foreign_samples>\d+)/(?:\d+) rows=(?P<foreign_rows>\d+))?"
     r"(?: side_rows=\d+ net_rows=-?\d+ gain_per_side=(?:inf|-?\d+(?:\.\d+)?))?"
+    r"(?: pos_groups=(?P<pos_groups>\S+))?"
+    r"(?: pos_sources=(?P<pos_sources>\S+))?"
     r"(?: neg_same_source_rows=(?P<neg_same_source_rows>\d+))?"
     r"(?: neg_cross_source_rows=(?P<neg_cross_source_rows>\d+))?"
     r"(?: foreign_cross_source_rows=(?P<foreign_cross_source_rows>\d+))?"
@@ -66,6 +68,8 @@ class Candidate:
     source_rows_reported: bool = False
     neg_sources: str = ""
     foreign_sources: str = ""
+    rule_groups: str = dataclasses.field(default="", compare=False)
+    rule_sources: str = dataclasses.field(default="", compare=False)
     profile_groups: str = dataclasses.field(default="", compare=False)
     profile_sources: str = dataclasses.field(default="", compare=False)
     examples: tuple[str, ...] = dataclasses.field(default_factory=tuple, compare=False)
@@ -258,6 +262,8 @@ def parse_report(path: pathlib.Path) -> list[Candidate]:
                         ),
                         neg_sources=match.group("neg_sources") or "",
                         foreign_sources=match.group("foreign_sources") or "",
+                        rule_groups=match.group("pos_groups") or "",
+                        rule_sources=match.group("pos_sources") or "",
                         profile_groups=section_profile_groups,
                         profile_sources=section_profile_sources,
                     )
@@ -367,6 +373,11 @@ def format_candidate(candidate: Candidate, min_actionable_samples: int) -> str:
         f"gain_per_side={format_gain_ratio(candidate)}"
     )
     source_utility = ""
+    positive_utility = ""
+    if candidate.rule_groups:
+        positive_utility += f" pos_groups={candidate.rule_groups}"
+    if candidate.rule_sources:
+        positive_utility += f" pos_sources={candidate.rule_sources}"
     if candidate.neg_sources:
         source_utility += f" neg_sources={candidate.neg_sources}"
     if candidate.foreign_sources:
@@ -399,7 +410,7 @@ def format_candidate(candidate: Candidate, min_actionable_samples: int) -> str:
         f"+samples={candidate.pos_samples} +rows={candidate.pos_rows} "
         f"-samples={candidate.neg_samples} -rows={candidate.neg_rows} "
         f"foreign_rows={candidate.foreign_rows} {utility}{exact_source_utility}"
-        f"{source_utility}{block_utility} :: {candidate.rule}"
+        f"{positive_utility}{source_utility}{block_utility} :: {candidate.rule}"
     )
 
 
@@ -455,6 +466,8 @@ class CoverageRouteCluster:
     total_net_rows: int = 0
     sample_ids: list[str] = dataclasses.field(default_factory=list)
     sample_groups: dict[str, int] = dataclasses.field(default_factory=dict)
+    rule_groups: str = ""
+    rule_sources: str = ""
     profile_groups: str = ""
     profile_sources: str = ""
 
@@ -478,6 +491,10 @@ def coverage_route_clusters(
         )
         cluster.min_needed_samples = min(cluster.min_needed_samples, needed)
         cluster.total_net_rows += candidate.net_rows
+        if candidate.rule_groups and candidate.rule_groups != "--" and not cluster.rule_groups:
+            cluster.rule_groups = candidate.rule_groups
+        if candidate.rule_sources and candidate.rule_sources != "--" and not cluster.rule_sources:
+            cluster.rule_sources = candidate.rule_sources
         if candidate.profile_groups and not cluster.profile_groups:
             cluster.profile_groups = candidate.profile_groups
         if candidate.profile_sources and not cluster.profile_sources:
@@ -584,7 +601,7 @@ def main() -> int:
                     cluster.sample_ids[: max(0, args.example_limit)]
                 )
                 example_text = f" examples={examples}" if examples else ""
-                groups = cluster.profile_groups or ",".join(
+                groups = cluster.rule_groups or ",".join(
                     f"{group}={count}"
                     for group, count in sorted(
                         cluster.sample_groups.items(),
@@ -593,7 +610,15 @@ def main() -> int:
                 )
                 group_text = f" groups={groups}" if groups else ""
                 source_text = (
-                    f" sources={cluster.profile_sources}"
+                    f" sources={cluster.rule_sources}"
+                    if cluster.rule_sources else ""
+                )
+                bucket_group_text = (
+                    f" bucket_groups={cluster.profile_groups}"
+                    if cluster.profile_groups else ""
+                )
+                bucket_source_text = (
+                    f" bucket_sources={cluster.profile_sources}"
                     if cluster.profile_sources else ""
                 )
                 print(
@@ -606,6 +631,8 @@ def main() -> int:
                     f"{example_text}"
                     f"{group_text}"
                     f"{source_text}"
+                    f"{bucket_group_text}"
+                    f"{bucket_source_text}"
                 )
 
     actionable_set = set(actionable)

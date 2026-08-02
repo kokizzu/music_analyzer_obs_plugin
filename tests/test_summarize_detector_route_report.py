@@ -22,10 +22,10 @@ def main() -> int:
 row_confusion:piano/electronic->amb positives=186 samples/636 rows protected_hits=2209 samples/22357 rows foreign_misses=0 samples/0 rows
   positive sample profile: groups=organ_electronic=120,keyboard_electronic=66 sources=piano/electronic=186
   low-false candidate rules:
-    debug_conf<=0.542 AND partial3>=2.46 AND partial5<=0.02: pos=23/186 rows=44 neg=15/2209 rows=29 side_rows=29 net_rows=15 gain_per_side=1.52 neg_same_source_rows=27 neg_cross_source_rows=2 foreign_cross_source_rows=0 neg_sources=piano/electronic=27,other/acoustic=2
+    debug_conf<=0.542 AND partial3>=2.46 AND partial5<=0.02: pos=23/186 rows=44 neg=15/2209 rows=29 side_rows=29 net_rows=15 gain_per_side=1.52 pos_groups=organ_electronic=14,keyboard_electronic=9 pos_sources=piano/electronic=23 neg_same_source_rows=27 neg_cross_source_rows=2 foreign_cross_source_rows=0 neg_sources=piano/electronic=27,other/acoustic=2
     debug_conf<=0.542 AND partial3>=2.46 AND slope>=0.655: pos=23/186 rows=44 neg=16/2209 rows=29 side_rows=29 net_rows=15 gain_per_side=1.52 neg_same_source_rows=24 neg_cross_source_rows=5 foreign_cross_source_rows=0 neg_sources=piano/electronic=24,other/acoustic=5
   highest-coverage candidate rules:
-    debug_conf<=0.542 AND partial3>=2.46 AND partial5<=0.02: pos=23/186 rows=44 neg=15/2209 rows=29 side_rows=29 net_rows=15 gain_per_side=1.52 neg_same_source_rows=27 neg_cross_source_rows=2 foreign_cross_source_rows=0 neg_sources=piano/electronic=27,other/acoustic=2
+    debug_conf<=0.542 AND partial3>=2.46 AND partial5<=0.02: pos=23/186 rows=44 neg=15/2209 rows=29 side_rows=29 net_rows=15 gain_per_side=1.52 pos_groups=organ_electronic=14,keyboard_electronic=9 pos_sources=piano/electronic=23 neg_same_source_rows=27 neg_cross_source_rows=2 foreign_cross_source_rows=0 neg_sources=piano/electronic=27,other/acoustic=2
   nearest over-budget single-condition candidate rules:
     slope>=0.203: pos=20/22 rows=47 neg=202/254 rows=616 foreign_miss=75/93 rows=242 side_rows=858 net_rows=-811 gain_per_side=0.05 neg_same_source_rows=0 neg_cross_source_rows=616 foreign_cross_source_rows=242 neg_sources=vocals/example=45 foreign_sources=vocals/other=19
       positive examples:
@@ -33,7 +33,7 @@ row_confusion:piano/electronic->amb positives=186 samples/636 rows protected_hit
 ownership_miss:guitar/electronic->piano positives=3 samples/6 rows protected_hits=120 samples/480 rows foreign_misses=0 samples/0 rows
   positive sample profile: groups=guitar_electronic=2,guitar_synth=1 sources=guitar/electronic=3
   low-false candidate rules:
-    adjacent_lower_ratio<=0.698 AND partial3>=1.817: pos=2/3 rows=5 neg=0/120 rows=0 side_rows=0 net_rows=5 gain_per_side=inf neg_same_source_rows=0 neg_cross_source_rows=0 foreign_cross_source_rows=0
+    adjacent_lower_ratio<=0.698 AND partial3>=1.817: pos=2/3 rows=5 neg=0/120 rows=0 side_rows=0 net_rows=5 gain_per_side=inf pos_groups=guitar_electronic=2 pos_sources=guitar/electronic=2 neg_same_source_rows=0 neg_cross_source_rows=0 foreign_cross_source_rows=0
       positive examples:
         guitar_electronic_001 expected=E3/52 debug=E3/52 owner=piano delta=0 reason=hit first_row=piano strongest=piano scores(b/k/g/v/o)=0/1/0/0/0 spec=0.42 pitch=0.71 per=0.81 fit=0.09 cent=0.01 raw_best=E3/92.4 raw_rank=1 ignored=1
     centroid>=0.4 AND partial5<=0.2: pos=1/3 rows=2 neg=0/120 rows=0 side_rows=0 net_rows=2 gain_per_side=inf neg_same_source_rows=0 neg_cross_source_rows=0 foreign_cross_source_rows=0
@@ -78,11 +78,11 @@ compact route summary
     require(output, "  coverage-route clusters")
     require(
         output,
-        "coverage_route ownership_miss:guitar/electronic->piano candidates=2 best_observed_samples=2 min_need_samples=3 total_net_rows=7 examples=guitar_electronic_001,guitar_electronic_002 groups=guitar_electronic=2,guitar_synth=1 sources=guitar/electronic=3",
+        "coverage_route ownership_miss:guitar/electronic->piano candidates=2 best_observed_samples=2 min_need_samples=3 total_net_rows=7 examples=guitar_electronic_001,guitar_electronic_002 groups=guitar_electronic=2 sources=guitar/electronic=2 bucket_groups=guitar_electronic=2,guitar_synth=1 bucket_sources=guitar/electronic=3",
     )
     require(
         output,
-        "low-false row_confusion:piano/electronic->amb +samples=23 +rows=44 -samples=15 -rows=29 foreign_rows=0 side_rows=29 net_rows=15 gain_per_side=1.52 neg_same_source_rows=27 neg_cross_source_rows=2 foreign_cross_source_rows=0 neg_sources=piano/electronic=27,other/acoustic=2",
+        "low-false row_confusion:piano/electronic->amb +samples=23 +rows=44 -samples=15 -rows=29 foreign_rows=0 side_rows=29 net_rows=15 gain_per_side=1.52 neg_same_source_rows=27 neg_cross_source_rows=2 foreign_cross_source_rows=0 pos_groups=organ_electronic=14,keyboard_electronic=9 pos_sources=piano/electronic=23 neg_sources=piano/electronic=27,other/acoustic=2",
     )
     require(output, "blocked_by=cross_source_rows=2")
     require(

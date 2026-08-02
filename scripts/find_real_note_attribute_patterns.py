@@ -529,6 +529,25 @@ def counter_summary(counter: collections.Counter[str], limit: int = 6) -> str:
     return ",".join(f"{key}={count}" for key, count in counter.most_common(limit))
 
 
+def positive_sample_profile_from_mask(
+    rows: list[dict[str, str]], row_mask: int, limit: int = 6
+) -> tuple[str, str]:
+    sample_groups: collections.Counter[str] = collections.Counter()
+    sources: collections.Counter[str] = collections.Counter()
+    seen_samples: set[str] = set()
+    while row_mask:
+        bit = row_mask & -row_mask
+        index = bit.bit_length() - 1
+        row = rows[index]
+        sample_id = row.get("sample_id", "")
+        if sample_id and sample_id not in seen_samples:
+            seen_samples.add(sample_id)
+            sample_groups[sample_group(sample_id)] += 1
+            sources[source_key(row)] += 1
+        row_mask ^= bit
+    return counter_summary(sample_groups, limit), counter_summary(sources, limit)
+
+
 def print_positive_sample_profile(rows: list[dict[str, str]], limit: int = 6) -> None:
     sample_groups: collections.Counter[str] = collections.Counter()
     sources: collections.Counter[str] = collections.Counter()
@@ -1489,6 +1508,9 @@ def print_results(
         _foreign_same_source_rows, foreign_cross_source_rows = source_side_effect_rows(
             foreign_rows, result.foreign_row_mask, positive_sources
         )
+        positive_groups, positive_source_summary = positive_sample_profile_from_mask(
+            positive_rows, result.positive_row_mask
+        )
         print(
             f"    {result.rule}: pos={result.positive_samples}/{positive_total} "
             f"rows={result.positive_rows} neg={result.negative_samples}/{negative_total} "
@@ -1503,6 +1525,8 @@ def print_results(
                 f"net_rows={result.net_rows} "
                 f"gain_per_side={format_gain_ratio(result.gain_per_side_effect_row)}"
             )
+            + f" pos_groups={positive_groups}"
+            + f" pos_sources={positive_source_summary}"
             + f" neg_same_source_rows={neg_same_source_rows}"
             + f" neg_cross_source_rows={neg_cross_source_rows}"
             + f" foreign_cross_source_rows={foreign_cross_source_rows}"
