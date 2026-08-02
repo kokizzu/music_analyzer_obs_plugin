@@ -76,6 +76,7 @@ constexpr float kGuitarCagedPresenceFloor = 0.50f;
 constexpr float kCompactGuitarRawThirdCeilingRatio = 0.250f;
 constexpr int kGuitarChordCrowdedPruneMinComponents = 7;
 constexpr int kMixedGuitarChordCrowdedPruneMinComponents = 4;
+constexpr int kGuitarDisplayChordCrowdedPruneMinComponents = 3;
 constexpr std::size_t kDrumTransientSegments = 8;
 constexpr float kDrumTransientRatio = 1.55f;
 constexpr float kMixedBassMinBroadScoreRatio = 0.22f;
@@ -15635,7 +15636,8 @@ void prune_crowded_guitar_display_label(InstrumentState &state, const NoteGrid &
 					const NoteGrid &analysis_grid)
 {
 	const int component_count = chord_label_component_count(state.label);
-	if (!state.label[0] || state.label[0] == '-' || component_count < 4)
+	if (!state.label[0] || state.label[0] == '-' ||
+	    component_count < kGuitarDisplayChordCrowdedPruneMinComponents)
 		return;
 
 	const std::size_t primary_len = std::strcspn(state.label, "=");
@@ -26180,6 +26182,8 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 				snapshot.guitar_chord, snapshot.guitar_notes,
 				guitar_chord_detection_grid, note_powers, kGuitarMinMidi,
 				kGuitarMaxMidi);
+			prune_crowded_guitar_display_label(snapshot.guitar_chord, snapshot.guitar_notes,
+							   guitar_chord_detection_grid);
 		}
 		if (!mixed_source &&
 		    displayed_guitar_chord_has_single_note_probe_profile(
