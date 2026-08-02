@@ -20008,10 +20008,13 @@ bool displayed_guitar_chord_has_single_note_probe_profile(const InstrumentState 
 						      displayed_chord.confidence);
 	const int third = parsed.root + (parsed.quality == RootChordQuality::Minor ? 3 : 4);
 	const int fifth = parsed.root + 7;
-	if (note_grid_pitch_active(analysis_grid, parsed.root) &&
-	    note_grid_pitch_active(analysis_grid, third) &&
-	    note_grid_pitch_active(analysis_grid, fifth) &&
-	    note_grid_chord_tone_count(analysis_grid, primary) >= 3)
+	const float analysis_root = note_grid_pitch_level(analysis_grid, parsed.root);
+	const float analysis_third = note_grid_pitch_level(analysis_grid, third);
+	const float analysis_fifth = note_grid_pitch_level(analysis_grid, fifth);
+	const bool analysis_triad_supported =
+		analysis_root >= 0.12f && analysis_third >= 0.12f && analysis_fifth >= 0.12f &&
+		note_grid_chord_tone_count(analysis_grid, primary) >= 3;
+	if (analysis_triad_supported)
 		return false;
 
 	const float strongest_probe = strongest_probe_level(powers, min_midi, max_midi);

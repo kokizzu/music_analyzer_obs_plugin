@@ -1262,6 +1262,27 @@ void check_guitar_supported_extension_aliases(Runner &runner)
 				note_grid_pitch_classes(harmonic_single_note_snapshot.guitar_chord_analysis_notes) +
 				"`");
 
+	mao_test::Buffer weak_third_harmonic_single_note = {};
+	const std::vector<float> weak_third_single_note_profile = {1.0f, 0.87f, 0.24f, 0.06f, 0.13f};
+	add_harmonic_note(weak_third_harmonic_single_note, 54, 0.24f, weak_third_single_note_profile);
+
+	const auto weak_third_harmonic_single_note_snapshot =
+		analyze_buffer(weak_third_harmonic_single_note, "guitar");
+	expect_note_token(runner, weak_third_harmonic_single_note_snapshot.guitar.label, "F#3",
+			  "guitar weak-third single-note harmonic chord rejection");
+	expect_no_chord(runner, weak_third_harmonic_single_note_snapshot.guitar_chord,
+			std::string("guitar weak-third single-note harmonic chord rejection raw `") +
+				weak_third_harmonic_single_note_snapshot.guitar_raw_chord.label +
+				"` smooth `" +
+				weak_third_harmonic_single_note_snapshot.guitar_smoothed_chord.label +
+				"` notes `" +
+				note_grid_pitch_classes(weak_third_harmonic_single_note_snapshot.guitar_notes) +
+				"` analysis `" +
+				note_grid_pitch_classes(
+					weak_third_harmonic_single_note_snapshot
+						.guitar_chord_analysis_notes) +
+				"`");
+
 	mao_test::Buffer flanked_thirdless_named_dyad = {};
 	add_harmonic_note(flanked_thirdless_named_dyad, 48, 0.22f, guitar_profile);
 	add_harmonic_note(flanked_thirdless_named_dyad, 55, 0.20f, guitar_profile);
