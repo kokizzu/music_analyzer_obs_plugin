@@ -73,8 +73,9 @@ def main():
             '" RMS %.2f"' in renderer and renderer.find('" CPU %.0f"') < renderer.find('" RMS %.2f"'),
             "AGE must use an unpadded lowercase-s unit and RMS must appear after CPU")
     require('LOW %s MID %s HIGH %s' in renderer and "format_band_percentage" in renderer and
-            'percentage > 99.0f' in renderer and '"MAX"' in renderer and '"%.0f%%"' in renderer,
-            "LOW/MID/HIGH status percentages must be unpadded and show MAX above 99 percent")
+            'percentage > 99.0f' in renderer and '"MAX"' in renderer and '"%2.0f%%"' in renderer and
+            '"%02.0f%%"' not in renderer,
+            "LOW/MID/HIGH status percentages must be fixed-width without zero padding and show MAX above 99 percent")
     require('DROP %llu' in renderer and 'DROP %03llu' not in renderer,
             "DROP status count must not be zero-padded")
     require("apply_process_metrics(&snapshot)" in plugin and "snapshot->cpu_percent" in plugin and

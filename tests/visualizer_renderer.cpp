@@ -35,6 +35,20 @@ int run_visualizer_renderer_tests()
 	int checks = 0;
 	int failures = 0;
 
+	char band[8] = {};
+	format_band_percentage(band, sizeof(band), 0.0f);
+	expect_true(std::strcmp(band, " 0%") == 0, "zero band percentage should use fixed width", &checks,
+		    &failures);
+	format_band_percentage(band, sizeof(band), 0.09f);
+	expect_true(std::strcmp(band, " 9%") == 0, "single-digit band percentage should space-pad", &checks,
+		    &failures);
+	format_band_percentage(band, sizeof(band), 0.10f);
+	expect_true(std::strcmp(band, "10%") == 0, "double-digit band percentage should not zero-pad",
+		    &checks, &failures);
+	format_band_percentage(band, sizeof(band), 1.0f);
+	expect_true(std::strcmp(band, "MAX") == 0, "full band percentage should render as MAX", &checks,
+		    &failures);
+
 	expect_true(near(display_highlight_level(0.0f), 0.0f), "zero level should not highlight", &checks,
 		    &failures);
 	expect_true(near(display_highlight_level(0.01f), 0.04f),

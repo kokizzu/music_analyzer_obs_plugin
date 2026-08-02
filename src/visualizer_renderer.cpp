@@ -380,7 +380,7 @@ void format_band_percentage(char *output, std::size_t output_size, float energy)
 	if (percentage > 99.0f)
 		std::snprintf(output, output_size, "MAX");
 	else
-		std::snprintf(output, output_size, "%.0f%%", percentage);
+		std::snprintf(output, output_size, "%2.0f%%", percentage);
 }
 
 void draw_status_line(VisualizerRenderer *visualizer, const AnalysisSnapshot &snapshot, float snapshot_age,
