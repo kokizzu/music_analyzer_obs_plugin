@@ -669,6 +669,62 @@ void check_supported_guitar_display_extension_aliases(Runner &runner)
 			      small + "`");
 }
 
+void check_analysis_complete_guitar_display_major_seventh_aliases(Runner &runner)
+{
+	InstrumentState state = {};
+	std::snprintf(state.label, sizeof(state.label), "A#");
+	state.confidence = 0.58f;
+	NoteGrid display_grid = {};
+	set_pitch(display_grid, 10, 0.86f);
+	set_pitch(display_grid, 2, 0.74f);
+	set_pitch(display_grid, 5, 0.69f);
+	NoteGrid analysis_grid = display_grid;
+	set_pitch(analysis_grid, 9, 0.36f);
+
+	append_analysis_complete_guitar_display_major_seventh_aliases(state, display_grid,
+								      analysis_grid);
+	runner.expect(chord_label_has_exact_component(state.label, "A#maj7"),
+		      std::string("analysis-complete guitar display maj7: expected A#maj7 appended, got `") +
+			      state.label + "`");
+
+	InstrumentState dominant_conflict = {};
+	std::snprintf(dominant_conflict.label, sizeof(dominant_conflict.label), "A#");
+	dominant_conflict.confidence = 0.58f;
+	NoteGrid dominant_analysis_grid = analysis_grid;
+	set_pitch(dominant_analysis_grid, 8, 0.34f);
+
+	append_analysis_complete_guitar_display_major_seventh_aliases(
+		dominant_conflict, display_grid, dominant_analysis_grid);
+	runner.expect(!chord_label_has_exact_component(dominant_conflict.label, "A#maj7"),
+		      std::string("analysis-complete guitar display maj7: expected flat seventh conflict protected, got `") +
+			      dominant_conflict.label + "`");
+
+	InstrumentState missing_seventh = {};
+	std::snprintf(missing_seventh.label, sizeof(missing_seventh.label), "A#");
+	missing_seventh.confidence = 0.58f;
+
+	append_analysis_complete_guitar_display_major_seventh_aliases(missing_seventh, display_grid,
+								      display_grid);
+	runner.expect(!chord_label_has_exact_component(missing_seventh.label, "A#maj7"),
+		      std::string("analysis-complete guitar display maj7: expected missing seventh ignored, got `") +
+			      missing_seventh.label + "`");
+
+	InstrumentState crowded = {};
+	std::snprintf(crowded.label, sizeof(crowded.label), "B=G#m7=Emaj9=G#m9=Bdim=Epow");
+	crowded.confidence = 0.58f;
+	NoteGrid crowded_grid = {};
+	set_pitch(crowded_grid, 11, 0.72f);
+	set_pitch(crowded_grid, 3, 0.54f);
+	set_pitch(crowded_grid, 6, 0.50f);
+	set_pitch(crowded_grid, 10, 0.34f);
+
+	append_analysis_complete_guitar_display_major_seventh_aliases(crowded, crowded_grid,
+								      crowded_grid);
+	runner.expect(!chord_label_has_exact_component(crowded.label, "Bmaj7"),
+		      std::string("analysis-complete guitar display maj7: expected crowded label protected, got `") +
+			      crowded.label + "`");
+}
+
 void check_ambiguous_guitar_power_quality_keeps_both_plain_aliases(Runner &runner)
 {
 	ChordResult ambiguous = make_crowded_chord("Am=Apow");
@@ -2828,6 +2884,7 @@ int run()
 	check_displayed_guitar_single_note_probe_profile(runner);
 	check_supported_guitar_candidate_alias_merge(runner);
 	check_supported_guitar_display_extension_aliases(runner);
+	check_analysis_complete_guitar_display_major_seventh_aliases(runner);
 	check_ambiguous_guitar_power_quality_keeps_both_plain_aliases(runner);
 	check_compact_guitar_power_raw_profile_third_aliases(runner);
 	check_same_pitch_guitar_bass_shadow_uses_any_matching_debug(runner);
