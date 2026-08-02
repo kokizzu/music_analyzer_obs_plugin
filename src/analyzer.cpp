@@ -10014,6 +10014,52 @@ void boost_existing_upper_clean_guitar_visual_notes(NoteGrid &guitar_grid,
 	}
 }
 
+bool existing_reed_brass_other_visual_boost_supported(const FullMixDebugCandidate &debug)
+{
+	if (debug.owner != InstrumentKind::Guitar &&
+	    debug.owner != InstrumentKind::Ambiguous &&
+	    debug.owner != InstrumentKind::Other)
+		return false;
+	if (debug.midi < 52 || debug.midi > 72)
+		return false;
+
+	const float second = debug.harmonic_ratios[1];
+	const float third = debug.harmonic_ratios[2];
+	const float fourth = debug.harmonic_ratios[3];
+	const float fifth = debug.harmonic_ratios[4];
+	return debug.spectral_level >= 0.90f &&
+	       debug.pitch_confidence >= 0.76f &&
+	       debug.periodicity >= 0.70f &&
+	       debug.harmonic_fit_error <= 0.16f &&
+	       debug.local_noise_level <= 0.060f &&
+	       debug.spectral_centroid >= 0.10f &&
+	       debug.spectral_centroid <= 0.30f &&
+	       debug.spectral_slope <= 0.28f &&
+	       second >= 0.24f &&
+	       second <= 0.62f &&
+	       third >= 0.10f &&
+	       third <= 0.42f &&
+	       fourth <= 0.22f &&
+	       fifth <= 0.12f;
+}
+
+void boost_existing_reed_brass_other_visual_notes(NoteGrid &other_grid,
+						  const FullMixOwnership &ownership)
+{
+	static constexpr float kMinExistingOtherLevel = 0.18f;
+	static constexpr float kBrightVisualFloor = 0.58f;
+	const std::size_t debug_count =
+		std::min<std::size_t>(ownership.debug_candidate_count, ownership.debug_candidates.size());
+	for (std::size_t i = 0; i < debug_count; ++i) {
+		const FullMixDebugCandidate &debug = ownership.debug_candidates[i];
+		if (!existing_reed_brass_other_visual_boost_supported(debug))
+			continue;
+		if (note_grid_midi_level(other_grid, debug.midi) < kMinExistingOtherLevel)
+			continue;
+		boost_note_grid_midi_visual_level(other_grid, debug.midi, kBrightVisualFloor);
+	}
+}
+
 void attenuate_ambiguous_note_cell_by_named_rows(NoteCell &cell, const NoteGrid &bass,
 						 const NoteGrid &keyboard, const NoteGrid &guitar,
 						 const NoteGrid &vocal, const NoteGrid &other)
@@ -26157,6 +26203,7 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 		suppress_named_owned_same_pitch_vocal_shadows(snapshot.vocal_notes, snapshot.vocal,
 							      snapshot.other_notes, full_mix_ownership,
 							      InstrumentKind::Other, -1);
+		boost_existing_reed_brass_other_visual_notes(snapshot.other_notes, full_mix_ownership);
 		attenuate_ambiguous_note_grid_by_named_rows(snapshot.ambiguous_notes, snapshot.bass_notes,
 							    snapshot.keyboard_notes, snapshot.guitar_notes,
 							    snapshot.vocal_notes, snapshot.other_notes);

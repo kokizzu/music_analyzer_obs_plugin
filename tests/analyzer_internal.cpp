@@ -2078,6 +2078,52 @@ void check_existing_upper_clean_guitar_visual_note_is_brightened(Runner &runner)
 		      "existing upper clean guitar visual: expected weak guitar cell to stay dim");
 }
 
+void check_existing_reed_brass_other_visual_note_is_brightened(Runner &runner)
+{
+	static constexpr int kMidi = 67;
+
+	NoteGrid other_grid = {};
+	set_midi(other_grid, kMidi, 0.21f);
+	FullMixOwnership ownership = {};
+	ownership.debug_candidate_count = 1;
+	FullMixDebugCandidate &debug = ownership.debug_candidates[0];
+	debug.midi = kMidi;
+	debug.owner = InstrumentKind::Guitar;
+	debug.guitar_score = 0.90f;
+	debug.spectral_level = 1.0f;
+	debug.pitch_confidence = 0.91f;
+	debug.periodicity = 0.77f;
+	debug.harmonic_fit_error = 0.049f;
+	debug.local_noise_level = 0.011f;
+	debug.spectral_centroid = 0.24f;
+	debug.spectral_slope = 0.19f;
+	debug.harmonic_ratios[1] = 0.49f;
+	debug.harmonic_ratios[2] = 0.21f;
+	debug.harmonic_ratios[3] = 0.033f;
+	debug.harmonic_ratios[4] = 0.035f;
+
+	boost_existing_reed_brass_other_visual_notes(other_grid, ownership);
+	runner.expect(note_grid_midi_visual_level(other_grid, kMidi) >= 0.579f,
+		      "existing reed/brass other visual: expected existing other note to be brightened");
+	runner.expect(note_grid_midi_level(other_grid, kMidi) < 0.22f,
+		      "existing reed/brass other visual: expected analytic other level to stay unchanged");
+
+	NoteGrid weak_other_grid = {};
+	set_midi(weak_other_grid, kMidi, 0.10f);
+	boost_existing_reed_brass_other_visual_notes(weak_other_grid, ownership);
+	runner.expect(note_grid_midi_visual_level(weak_other_grid, kMidi) < 0.11f,
+		      "existing reed/brass other visual: expected weak other cell to stay dim");
+
+	NoteGrid noisy_other_grid = {};
+	set_midi(noisy_other_grid, kMidi, 0.21f);
+	FullMixOwnership noisy_ownership = ownership;
+	noisy_ownership.debug_candidates[0].local_noise_level = 0.25f;
+	noisy_ownership.debug_candidates[0].spectral_centroid = 0.42f;
+	boost_existing_reed_brass_other_visual_notes(noisy_other_grid, noisy_ownership);
+	runner.expect(note_grid_midi_visual_level(noisy_other_grid, kMidi) < 0.22f,
+		      "existing reed/brass other visual: expected noisy keyboard-like body to stay dim");
+}
+
 void check_vocal_owned_upper_alias_promotes_supported_lower_primary(Runner &runner)
 {
 	static constexpr int kLowerMidi = 50;
@@ -2257,6 +2303,7 @@ int run()
 	check_low_acoustic_guitar_display_mirror_gets_bright_score_floor(runner);
 	check_high_clean_acoustic_guitar_display_mirror_gets_bright_score_floor(runner);
 	check_existing_upper_clean_guitar_visual_note_is_brightened(runner);
+	check_existing_reed_brass_other_visual_note_is_brightened(runner);
 	check_vocal_owned_upper_alias_promotes_supported_lower_primary(runner);
 	check_low_wind_other_octave_alias_promotes_raw_fundamental(runner);
 	check_low_wind_other_octave_alias_requires_upper_stack(runner);
