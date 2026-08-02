@@ -128,6 +128,28 @@ def main() -> int:
             f"{target} must preserve the {duration_label} check"
         )
 
+    assert_alias_target(makefile, "test-drum-samples-spread", "test-drum-samples-spread-parallel")
+    spread_parallel_recipe = target_recipe(makefile, "test-drum-samples-spread-parallel")
+    assert "$(RUN_WITH_DURATION) analyzer_drum_samples_spread_parallel" in spread_parallel_recipe, (
+        "spread drum sample gate must be fanned out through the duration wrapper"
+    )
+    assert "scripts/run_with_lock.sh" in spread_parallel_recipe, (
+        "spread drum sample gate must serialize writes to shared shard outputs"
+    )
+    spread_unlocked_recipe = target_recipe(makefile, "test-drum-samples-spread-parallel-unlocked")
+    for text in [
+        "$(MAKE) $(DRUM_SAMPLE_SPREAD_TEST_MAKE_JOBS) $(DRUM_SAMPLE_SPREAD_SHARD_TARGETS)",
+        "scripts/check_drum_sample_shards.py",
+        "$(DRUM_SAMPLE_SPREAD_TEST_SHARD_OUTS)",
+    ]:
+        assert text in spread_unlocked_recipe, (
+            f"spread drum sample parallel gate must include {text}"
+        )
+    spread_serial_recipe = target_recipe(makefile, "test-drum-samples-spread-serial")
+    assert "analyzer_drum_samples_spread env" in spread_serial_recipe, (
+        "spread drum sample serial fallback must keep the original single-process gate"
+    )
+
     recipe = target_recipe(makefile, "report-analyzer-patterns-from-rows")
     for text in [
         "$(RUN_WITH_DURATION) analyzer_pattern_report_sections",
@@ -577,7 +599,7 @@ def main() -> int:
     )
     assert "$(MEASURE_ANALYZER_REPORT)" in report_recipe, "report target must write the configured report path"
 
-    spread_recipe = target_recipe(makefile, "test-drum-samples-spread")
+    spread_recipe = target_recipe(makefile, "test-drum-samples-spread-serial")
     spread_manifest_recipe = target_recipe(makefile, "$(DRUM_SAMPLE_SPREAD_BUILD_DIR)/manifest.tsv")
     assert "analyze-drum-spread-gate-matrix: analyze-drum-spread-gate-matrix-parallel" in makefile, (
         "default spread matrix target must use the parallel spread row builder"
@@ -610,8 +632,12 @@ def main() -> int:
     for category in ["KICK", "SNARE", "HIHAT", "CRASH", "TOM", "RIDE", "RIM"]:
         env_name = f"MUSIC_ANALYZER_DRUM_SAMPLE_MIN_{category}_PRIMARY_RECALL_PERCENT"
         var_name = f"$(DRUM_SAMPLE_SPREAD_MIN_{category}_PRIMARY_PERCENT)"
-        assert env_name in spread_recipe, f"test-drum-samples-spread must enforce {env_name}"
-        assert var_name in spread_recipe, f"test-drum-samples-spread must use {var_name}"
+        assert env_name in spread_recipe, (
+            f"test-drum-samples-spread-serial must enforce {env_name}"
+        )
+        assert var_name in spread_recipe, (
+            f"test-drum-samples-spread-serial must use {var_name}"
+        )
         assert var_name in spread_matrix_unlocked_recipe, (
             "parallel spread matrix checker must enforce the configured primary thresholds"
         )
