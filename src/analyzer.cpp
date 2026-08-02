@@ -19087,6 +19087,104 @@ void append_source_supported_guitar_diminished_triad_aliases_after_prune(
 	}
 }
 
+bool probe_supported_guitar_diminished_seventh_alias(int root, const NoteGrid &display_grid,
+						     const NoteGrid &analysis_grid,
+						     const std::array<float, kNoteProbeCount> &powers,
+						     int min_midi, int max_midi)
+{
+	root = ((root % 12) + 12) % 12;
+	if (!supported_guitar_diminished_triad_alias(root, display_grid, analysis_grid))
+		return false;
+
+	const int display_pitch_classes = note_grid_active_pitch_class_count(display_grid);
+	const int analysis_pitch_classes = note_grid_active_pitch_class_count(analysis_grid);
+	if (display_pitch_classes < 2 || display_pitch_classes > 8 ||
+	    analysis_pitch_classes < 3 || analysis_pitch_classes > 11)
+		return false;
+
+	const std::array<float, 12> display_chroma = note_grid_chroma(display_grid);
+	const std::array<float, 12> analysis_chroma = note_grid_chroma(analysis_grid);
+	if (longest_chromatic_run(display_chroma) >= 5 || longest_chromatic_run(analysis_chroma) >= 8)
+		return false;
+
+	const float strongest_probe = strongest_probe_level(powers, min_midi, max_midi);
+	if (strongest_probe <= 1.0e-6f)
+		return false;
+
+	const float root_level = strongest_grid_pitch_level(display_grid, analysis_grid, root);
+	const float minor_third_level =
+		strongest_grid_pitch_level(display_grid, analysis_grid, root + 3);
+	const float diminished_fifth_level =
+		strongest_grid_pitch_level(display_grid, analysis_grid, root + 6);
+	const float core_anchor =
+		std::min({root_level, minor_third_level, diminished_fifth_level});
+	if (core_anchor < 0.070f)
+		return false;
+
+	const int diminished_seventh = root + 9;
+	if (note_grid_pitch_active(display_grid, diminished_seventh) ||
+	    note_grid_pitch_active(analysis_grid, diminished_seventh))
+		return true;
+
+	const float probe_level =
+		strongest_probe_pitch_class_level(powers, diminished_seventh, min_midi, max_midi) /
+		strongest_probe;
+	return probe_level >= std::max(0.095f, core_anchor * 0.18f);
+}
+
+void append_probe_supported_guitar_diminished_seventh_aliases_after_prune(
+	InstrumentState &state, const NoteGrid &display_grid, const NoteGrid &analysis_grid,
+	const std::array<float, kNoteProbeCount> &powers, int min_midi, int max_midi)
+{
+	if (!state.label[0] || state.label[0] == '-')
+		return;
+	if (chord_label_component_count(state.label) > 8)
+		return;
+
+	char original[sizeof(state.label)] = {};
+	copy_text(original, sizeof(original), state.label);
+	char merged[sizeof(state.label)] = {};
+	copy_text(merged, sizeof(merged), state.label);
+
+	const char *cursor = original;
+	int appended = 0;
+	while (cursor && *cursor && appended < 2) {
+		const char *end = std::strchr(cursor, '=');
+		const std::size_t len =
+			end ? static_cast<std::size_t>(end - cursor) : std::strlen(cursor);
+		ParsedRootChord parsed;
+		std::size_t root_len = 1;
+		if (len > 1 && cursor[1] == '#')
+			root_len = 2;
+		const char *suffix = cursor + root_len;
+		const std::size_t suffix_len = len > root_len ? len - root_len : 0;
+		if (parse_root_chord_component(cursor, len, parsed) &&
+		    parsed.quality == RootChordQuality::Diminished &&
+		    suffix_is(suffix, suffix_len, "dim") &&
+		    probe_supported_guitar_diminished_seventh_alias(
+			    parsed.root, display_grid, analysis_grid, powers, min_midi, max_midi)) {
+			char alias[16] = {};
+			std::snprintf(alias, sizeof(alias), "%sdim7", note_name(parsed.root));
+			if (!chord_label_has_exact_component(merged, alias)) {
+				const std::size_t before = std::strlen(merged);
+				append_chord_label_component(merged, sizeof(merged), alias,
+							     std::strlen(alias));
+				if (std::strlen(merged) != before &&
+				    chord_label_has_exact_component(merged, alias))
+					++appended;
+			}
+		}
+		if (!end)
+			break;
+		cursor = end + 1;
+	}
+
+	if (std::strcmp(merged, state.label) != 0) {
+		copy_text(state.label, sizeof(state.label), merged);
+		state.confidence = std::max(state.confidence, 0.58f);
+	}
+}
+
 bool primary_chord_is_plain_major_minor(const ChordResult &chord)
 {
 	if (!valid_chord_result(chord))
@@ -27464,6 +27562,10 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 				kGuitarMaxMidi);
 			append_probe_supported_guitar_source_extension_aliases_after_prune(
 				snapshot.guitar_chord, smoothed_guitar_chord, snapshot.guitar_notes,
+				guitar_chord_detection_grid, note_powers, kGuitarMinMidi,
+				kGuitarMaxMidi);
+			append_probe_supported_guitar_diminished_seventh_aliases_after_prune(
+				snapshot.guitar_chord, snapshot.guitar_notes,
 				guitar_chord_detection_grid, note_powers, kGuitarMinMidi,
 				kGuitarMaxMidi);
 			append_visible_root_fifth_guitar_power_aliases_after_prune(

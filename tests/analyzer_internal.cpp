@@ -442,6 +442,49 @@ void check_visible_diminished_guitar_alias_recovery(Runner &runner)
 	runner.expect(!chord_label_has_exact_component(crowded_post_prune_state.label, "Gdim"),
 		      std::string("source-backed post-prune diminished recovery: expected crowded label protected, got `") +
 			      crowded_post_prune_state.label + "`");
+
+	InstrumentState diminished_seventh_state = {};
+	std::snprintf(diminished_seventh_state.label, sizeof(diminished_seventh_state.label), "Adim=Am");
+	diminished_seventh_state.confidence = 1.00f;
+	NoteGrid diminished_seventh_display = {};
+	set_pitch(diminished_seventh_display, 0, 0.78f);
+	set_pitch(diminished_seventh_display, 3, 1.00f);
+	set_pitch(diminished_seventh_display, 9, 0.90f);
+	NoteGrid diminished_seventh_analysis = diminished_seventh_display;
+	std::array<float, kNoteProbeCount> diminished_seventh_powers = {};
+	set_probe_level(diminished_seventh_powers, 45, 0.90f);
+	set_probe_level(diminished_seventh_powers, 48, 0.78f);
+	set_probe_level(diminished_seventh_powers, 51, 1.00f);
+	set_probe_level(diminished_seventh_powers, 54, 0.25f);
+	append_probe_supported_guitar_diminished_seventh_aliases_after_prune(
+		diminished_seventh_state, diminished_seventh_display, diminished_seventh_analysis,
+		diminished_seventh_powers, kGuitarMinMidi, kGuitarMaxMidi);
+	runner.expect(chord_label_has_exact_component(diminished_seventh_state.label, "Adim7"),
+		      std::string("probe-backed post-prune diminished seventh: expected Adim7, got `") +
+			      diminished_seventh_state.label + "`");
+
+	InstrumentState missing_diminished_seventh = {};
+	std::snprintf(missing_diminished_seventh.label, sizeof(missing_diminished_seventh.label),
+		      "Adim=Am");
+	missing_diminished_seventh.confidence = 1.00f;
+	std::array<float, kNoteProbeCount> missing_diminished_seventh_powers = diminished_seventh_powers;
+	set_probe_level(missing_diminished_seventh_powers, 54, 0.04f);
+	append_probe_supported_guitar_diminished_seventh_aliases_after_prune(
+		missing_diminished_seventh, diminished_seventh_display, diminished_seventh_analysis,
+		missing_diminished_seventh_powers, kGuitarMinMidi, kGuitarMaxMidi);
+	runner.expect(!chord_label_has_exact_component(missing_diminished_seventh.label, "Adim7"),
+		      std::string("probe-backed post-prune diminished seventh: expected weak extension protected, got `") +
+			      missing_diminished_seventh.label + "`");
+
+	InstrumentState half_diminished_state = {};
+	std::snprintf(half_diminished_state.label, sizeof(half_diminished_state.label), "Am7b5");
+	half_diminished_state.confidence = 1.00f;
+	append_probe_supported_guitar_diminished_seventh_aliases_after_prune(
+		half_diminished_state, diminished_seventh_display, diminished_seventh_analysis,
+		diminished_seventh_powers, kGuitarMinMidi, kGuitarMaxMidi);
+	runner.expect(!chord_label_has_exact_component(half_diminished_state.label, "Adim7"),
+		      std::string("probe-backed post-prune diminished seventh: expected m7b5 not promoted, got `") +
+			      half_diminished_state.label + "`");
 }
 
 void check_visible_augmented_guitar_alias_recovery(Runner &runner)
