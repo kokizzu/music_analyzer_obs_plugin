@@ -3161,10 +3161,32 @@ def main() -> int:
     assert "$(REAL_NOTE_CANDIDATE_ARGS)" in real_note_candidate_recipe, (
         "real-note candidate inspection must keep an argument escape hatch"
     )
+    detector_coverage_recipe = target_recipe(makefile, "inspect-detector-coverage-candidates")
+    assert "$(DETECTOR_IMPROVEMENT_ROUTE_SUMMARY)" not in detector_coverage_recipe.splitlines()[0], (
+        "detector coverage inspection must not force-refresh the route summary"
+    )
+    assert 'test -f "$(DETECTOR_IMPROVEMENT_ROUTE_SUMMARY)"' in detector_coverage_recipe, (
+        "detector coverage inspection must require an existing saved route summary"
+    )
+    assert '"$(DETECTOR_IMPROVEMENT_ROUTE_SUMMARY)"' in detector_coverage_recipe, (
+        "detector coverage inspection must pass the saved route summary to the helper"
+    )
+    assert "scripts/inspect_detector_coverage_candidates.py" in detector_coverage_recipe, (
+        "detector coverage inspection must use the dedicated coverage helper"
+    )
+    assert "$(DETECTOR_COVERAGE_CANDIDATE_ARGS)" in detector_coverage_recipe, (
+        "detector coverage inspection must keep an argument escape hatch"
+    )
+    assert "$(DETECTOR_COVERAGE_CANDIDATE_ROW_PATHS)" in detector_coverage_recipe, (
+        "detector coverage inspection must accept cached TSV paths through Make"
+    )
     for text in [
         "REAL_NOTE_CANDIDATE_ROW_PATHS ?= $(BUILD_DIR)/real_note_full_mix_attributes.tsv",
         "REAL_NOTE_CANDIDATE_RULE ?=",
         "REAL_NOTE_CANDIDATE_ARGS ?=",
+        "DETECTOR_COVERAGE_CANDIDATE_ROW_PATHS ?= $(wildcard $(REAL_NOTE_CANDIDATE_ROW_PATHS) $(DETECTOR_REAL_NOTE_PATTERN_EXTRA_CANDIDATE_PATHS) $(DETECTOR_REAL_NOTE_PATTERN_EXTRA_PROTECTED_PATHS))",
+        "DETECTOR_COVERAGE_CANDIDATE_ARGS ?=",
+        "ANALYSIS_SCRIPT_TEST_TARGETS += test-inspect-detector-coverage-candidates",
     ]:
         assert text in makefile, f"real-note candidate Makefile plumbing must include {text}"
     runtime_excludes = continuation_variable_body(makefile, "REAL_NOTE_RUNTIME_ROW_CONFUSION_EXCLUDES")
