@@ -20110,6 +20110,136 @@ ChordResult stronger_chord(const ChordResult &lhs, const ChordResult &rhs)
 	return rhs.margin > lhs.margin ? rhs : lhs;
 }
 
+ChordResult detect_strict_symmetric_dim7_chord(const std::array<float, 12> &chroma)
+{
+	ChordResult best;
+	const float strongest = *std::max_element(chroma.begin(), chroma.end());
+	if (strongest <= 1.0e-6f)
+		return best;
+
+	static constexpr int kDim7ToneCount = 4;
+	static constexpr float kToneFloor = 0.24f;
+	const float tone_floor = std::max(kToneFloor, strongest * 0.30f);
+
+	float best_score = 0.0f;
+	int best_root = -1;
+	std::array<int, kDim7ToneCount> best_tones = {};
+	for (int family_root = 0; family_root < 3; ++family_root) {
+		std::array<int, kDim7ToneCount> tones = {
+			family_root,
+			(family_root + 3) % 12,
+			(family_root + 6) % 12,
+			(family_root + 9) % 12,
+		};
+
+		float core_min = 1.0f;
+		float core_sum = 0.0f;
+		int strongest_tone = tones[0];
+		bool complete = true;
+		for (int pitch_class : tones) {
+			const float level = chroma[static_cast<std::size_t>(pitch_class)];
+			if (level < tone_floor) {
+				complete = false;
+				break;
+			}
+			core_min = std::min(core_min, level);
+			core_sum += level;
+			if (level > chroma[static_cast<std::size_t>(strongest_tone)])
+				strongest_tone = pitch_class;
+		}
+		if (!complete)
+			continue;
+
+		float extra_max = 0.0f;
+		float extra_sum = 0.0f;
+		int strong_extra_count = 0;
+		for (int pitch_class = 0; pitch_class < 12; ++pitch_class) {
+			bool core_tone = false;
+			for (int tone : tones) {
+				if (tone == pitch_class) {
+					core_tone = true;
+					break;
+				}
+			}
+			if (core_tone)
+				continue;
+			const float level = chroma[static_cast<std::size_t>(pitch_class)];
+			extra_max = std::max(extra_max, level);
+			extra_sum += level;
+			if (level >= std::max(0.20f, core_min * 0.75f))
+				++strong_extra_count;
+		}
+
+		if (extra_max > core_min * 1.15f || extra_sum > core_sum * 0.50f ||
+		    strong_extra_count > 2)
+			continue;
+
+		const float score = core_sum + core_min * 0.80f - extra_sum * 0.35f - extra_max * 0.25f;
+		if (score <= best_score)
+			continue;
+		best_score = score;
+		best_root = strongest_tone;
+		best_tones = tones;
+	}
+
+	if (best_root < 0)
+		return best;
+
+	best.root = best_root;
+	best.tones.fill(false);
+	float core_min = 1.0f;
+	float core_sum = 0.0f;
+	float extra_max = 0.0f;
+	for (int pitch_class = 0; pitch_class < 12; ++pitch_class) {
+		bool core_tone = false;
+		for (int tone : best_tones) {
+			if (tone == pitch_class) {
+				core_tone = true;
+				break;
+			}
+		}
+		if (core_tone) {
+			best.tones[static_cast<std::size_t>(pitch_class)] = true;
+			const float level = chroma[static_cast<std::size_t>(pitch_class)];
+			core_min = std::min(core_min, level);
+			core_sum += level;
+		} else {
+			extra_max = std::max(extra_max, chroma[static_cast<std::size_t>(pitch_class)]);
+		}
+	}
+
+	const float core_mean = core_sum / static_cast<float>(kDim7ToneCount);
+	best.confidence = std::clamp(0.42f + core_min * 0.28f + std::max(0.0f, core_mean - extra_max) * 0.12f,
+				     kChordConfidenceFloor, 0.72f);
+	best.margin = std::clamp((core_min - extra_max * 0.55f) / (strongest + 1.0e-6f), 0.0f, 1.0f);
+	best.uncertain = false;
+	for (int offset = 0; offset < 12; offset += 3)
+		append_chord_alias(best, best_root + offset, "dim7");
+	return best;
+}
+
+ChordResult prefer_strict_symmetric_dim7_global_chord(const ChordResult &current,
+						      const std::array<float, 12> &chroma)
+{
+	const ChordResult diminished = detect_strict_symmetric_dim7_chord(chroma);
+	if (!valid_chord_result(diminished))
+		return current;
+	if (!valid_chord_result(current))
+		return diminished;
+
+	const std::size_t primary_len = std::strcspn(current.label, "=");
+	ParsedRootChord primary;
+	if (!parse_root_chord_component(current.label, primary_len, primary))
+		return current;
+	if (primary.quality == RootChordQuality::Diminished)
+		return stronger_chord(current, diminished);
+	if ((primary.quality == RootChordQuality::Major || primary.quality == RootChordQuality::Minor ||
+	     primary.quality == RootChordQuality::NoThird) &&
+	    diminished.confidence + 0.18f >= current.confidence)
+		return diminished;
+	return current;
+}
+
 ChordResult detect_mixed_chord_from_grid(const NoteGrid &grid, int preferred_root, bool allow_extensions)
 {
 	const std::array<float, 12> chroma = note_grid_chroma(grid);
@@ -26692,6 +26822,9 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 			    !valid_chord_result(raw_global_chord))
 				raw_global_chord = bass_hint_chord;
 		}
+		raw_global_chord =
+			prefer_strict_symmetric_dim7_global_chord(raw_global_chord,
+								  full_mix_ownership.global_chroma);
 		prefer_keyboard_same_root_quality(raw_global_chord);
 		prefer_major_when_both_thirds_present(raw_global_chord, full_mix_ownership.global_chroma);
 
@@ -26704,6 +26837,9 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 			    !valid_chord_result(smoothed_global_chord))
 				smoothed_global_chord = smoothed_bass_hint_chord;
 		}
+		smoothed_global_chord =
+			prefer_strict_symmetric_dim7_global_chord(smoothed_global_chord,
+								  smoothed_global_chroma);
 		prefer_keyboard_same_root_quality(smoothed_global_chord);
 		prefer_major_when_both_thirds_present(smoothed_global_chord, smoothed_global_chroma);
 	}

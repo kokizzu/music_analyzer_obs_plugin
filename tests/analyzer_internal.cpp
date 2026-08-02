@@ -653,6 +653,56 @@ void check_mixed_global_superset_extension_aliases(Runner &runner)
 	}
 }
 
+void check_strict_symmetric_dim7_global_recovery(Runner &runner)
+{
+	std::array<float, 12> chroma = {};
+	chroma[2] = 1.00f;
+	chroma[5] = 0.39f;
+	chroma[8] = 0.50f;
+	chroma[11] = 0.56f;
+	chroma[3] = 0.22f;
+	ChordResult diminished = detect_strict_symmetric_dim7_chord(chroma);
+	runner.expect(valid_chord_result(diminished),
+		      "strict mixed global dim7 recovery: expected complete dim7 chroma to be valid");
+	runner.expect(chord_label_has_exact_component(diminished.label, "Ddim7") &&
+			      chord_label_has_exact_component(diminished.label, "Fdim7") &&
+			      chord_label_has_exact_component(diminished.label, "G#dim7") &&
+			      chord_label_has_exact_component(diminished.label, "Bdim7"),
+		      std::string("strict mixed global dim7 recovery: expected all equivalent labels, got `") +
+			      diminished.label + "`");
+
+	std::array<float, 12> misleading_minor_chroma = {};
+	misleading_minor_chroma[0] = 0.37f;
+	misleading_minor_chroma[2] = 0.63f;
+	misleading_minor_chroma[5] = 0.40f;
+	misleading_minor_chroma[8] = 1.00f;
+	misleading_minor_chroma[11] = 0.41f;
+	ChordResult misleading_minor = make_crowded_chord("Fm");
+	misleading_minor.root = 5;
+	misleading_minor.confidence = 0.63f;
+	misleading_minor.uncertain = false;
+	ChordResult recovered =
+		prefer_strict_symmetric_dim7_global_chord(misleading_minor, misleading_minor_chroma);
+	runner.expect(chord_label_has_exact_component(recovered.label, "Ddim7") &&
+			      chord_label_has_exact_component(recovered.label, "G#dim7"),
+		      std::string("strict mixed global dim7 recovery: expected dim7 to replace weak-extra Fm, got `") +
+			      recovered.label + "`");
+
+	std::array<float, 12> crowded_chroma = chroma;
+	crowded_chroma[0] = 0.70f;
+	ChordResult crowded = detect_strict_symmetric_dim7_chord(crowded_chroma);
+	runner.expect(!valid_chord_result(crowded),
+		      std::string("strict mixed global dim7 recovery: expected strong extra tone to block, got `") +
+			      crowded.label + "`");
+
+	std::array<float, 12> incomplete_chroma = chroma;
+	incomplete_chroma[11] = 0.12f;
+	ChordResult incomplete = detect_strict_symmetric_dim7_chord(incomplete_chroma);
+	runner.expect(!valid_chord_result(incomplete),
+		      std::string("strict mixed global dim7 recovery: expected missing fourth tone to block, got `") +
+			      incomplete.label + "`");
+}
+
 void check_plain_guitar_voicing_rejects_crowded_root_fifth_quality(Runner &runner)
 {
 	ChordResult f_major = make_crowded_chord("F");
@@ -3428,6 +3478,7 @@ int run()
 	check_visible_diminished_guitar_alias_recovery(runner);
 	check_visible_augmented_guitar_alias_recovery(runner);
 	check_mixed_global_superset_extension_aliases(runner);
+	check_strict_symmetric_dim7_global_recovery(runner);
 	check_plain_guitar_voicing_rejects_crowded_root_fifth_quality(runner);
 	check_displayed_guitar_single_note_probe_profile(runner);
 	check_supported_guitar_candidate_alias_merge(runner);
