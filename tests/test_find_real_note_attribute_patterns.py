@@ -1508,6 +1508,7 @@ def main() -> int:
         )
 
     assert "ownership_miss:guitar/acoustic->piano positives=2 samples/2 rows" in result.stdout
+    assert "positive sample profile: groups=guitar=2 sources=guitar/acoustic=2" in result.stdout
     assert "debug_owner=piano AND partial2<=0.14: pos=2/2 rows=2 neg=0/2 rows=0" in result.stdout
     assert "side_rows=0 net_rows=2 gain_per_side=inf" in result.stdout
     assert "neg_same_source_rows=0 neg_cross_source_rows=0 foreign_cross_source_rows=0" in result.stdout
@@ -1618,6 +1619,9 @@ def main() -> int:
     assert (
         "ownership_miss:guitar/*->* positives=2 samples/2 rows protected_hits=2 samples/2 rows"
     ) in wildcard_result.stdout
+    assert "positive sample profile: groups=guitar_acoustic_hidden=1,guitar_electric_hidden=1 sources=guitar/acoustic=1,guitar/electric=1" in (
+        wildcard_result.stdout
+    )
     assert "miss_reason=ownership: pos=2/2 rows=2 neg=0/2 rows=0" in wildcard_result.stdout
     assert (
         "ownership_miss:guitar/*->* positives=2 samples/2 rows protected_hits=1 samples/1 rows"

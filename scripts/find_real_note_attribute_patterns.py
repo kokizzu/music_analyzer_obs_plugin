@@ -511,6 +511,42 @@ def sample_count(rows: list[dict[str, str]]) -> int:
     return len({row.get("sample_id", "") for row in rows if row.get("sample_id", "")})
 
 
+SAMPLE_GROUP_RE = re.compile(r"^(?P<group>.+?)_\d+(?:[-_].*)?$")
+
+
+def sample_group(sample_id: str) -> str:
+    pathless = sample_id.rsplit("/", 1)[-1]
+    stem = pathless.rsplit(".", 1)[0]
+    match = SAMPLE_GROUP_RE.match(stem)
+    if match:
+        return match.group("group")
+    return stem or "--"
+
+
+def counter_summary(counter: collections.Counter[str], limit: int = 6) -> str:
+    if not counter:
+        return "--"
+    return ",".join(f"{key}={count}" for key, count in counter.most_common(limit))
+
+
+def print_positive_sample_profile(rows: list[dict[str, str]], limit: int = 6) -> None:
+    sample_groups: collections.Counter[str] = collections.Counter()
+    sources: collections.Counter[str] = collections.Counter()
+    seen_samples: set[str] = set()
+    for row in rows:
+        sample_id = row.get("sample_id", "")
+        if not sample_id or sample_id in seen_samples:
+            continue
+        seen_samples.add(sample_id)
+        sample_groups[sample_group(sample_id)] += 1
+        sources[source_key(row)] += 1
+    print(
+        "  positive sample profile: "
+        f"groups={counter_summary(sample_groups, limit)} "
+        f"sources={counter_summary(sources, limit)}"
+    )
+
+
 def sample_bit_map(rows: list[dict[str, str]]) -> tuple[list[int], int]:
     sample_bits: dict[str, int] = {}
     row_bits: list[int] = []
@@ -1221,6 +1257,8 @@ def print_bucket_patterns(
     )
     if not positive_rows:
         return
+
+    print_positive_sample_profile(positive_rows)
 
     print_attribute_profile(
         positive_rows,
