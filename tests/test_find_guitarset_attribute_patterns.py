@@ -26,6 +26,10 @@ def main() -> int:
         "display_primary_analysis_third",
         "probe_third_opposite_margin",
         "melodic_probe_third_anchor_ratio",
+        "display_primary_harmonic_only",
+        "display_primary_harmonic_evidence",
+        "display_primary_harmonic_fifth",
+        "display_primary_harmonic_third",
         "guitar_chord_confidence",
     ]:
         assert field in patterns.RUNTIME_NUMERIC_FIELDS, (

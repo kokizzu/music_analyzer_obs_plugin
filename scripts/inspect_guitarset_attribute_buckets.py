@@ -96,6 +96,16 @@ NUMERIC_FIELDS = [
     "display_primary_melodic_probe_opposite_third",
     "display_primary_melodic_probe_third_anchor_ratio",
     "display_primary_melodic_probe_third_opposite_margin",
+    "display_primary_low_root_midi",
+    "display_primary_low_root_level",
+    "display_primary_played_lower_third",
+    "display_primary_played_lower_fifth",
+    "display_primary_harmonic_octave",
+    "display_primary_harmonic_second_octave",
+    "display_primary_harmonic_fifth",
+    "display_primary_harmonic_third",
+    "display_primary_harmonic_evidence",
+    "display_primary_harmonic_only",
     "guitar_chord_confidence",
     "guitar_raw_chord_confidence",
     "guitar_smoothed_chord_confidence",
@@ -229,6 +239,16 @@ ROW_DUMP_FIELDS = [
     "display_primary_melodic_probe_opposite_third",
     "display_primary_melodic_probe_third_anchor_ratio",
     "display_primary_melodic_probe_third_opposite_margin",
+    "display_primary_low_root_midi",
+    "display_primary_low_root_level",
+    "display_primary_played_lower_third",
+    "display_primary_played_lower_fifth",
+    "display_primary_harmonic_octave",
+    "display_primary_harmonic_second_octave",
+    "display_primary_harmonic_fifth",
+    "display_primary_harmonic_third",
+    "display_primary_harmonic_evidence",
+    "display_primary_harmonic_only",
     "quality_raw",
     "raw_pitch_class_levels",
     "guitar_probe_pitch_class_levels",
@@ -376,6 +396,119 @@ def max_level(levels: dict[int, float], pitch_classes: list[int]) -> float:
     return value
 
 
+CELL_WITH_OCTAVE_RE = re.compile(r"([A-G]#?)(-?\d+):([-+0-9.eE]+)")
+
+
+def midi_for_note(note: str, octave: str) -> int | None:
+    if note not in NOTE_TO_PC:
+        return None
+    try:
+        octave_value = int(octave)
+    except ValueError:
+        return None
+    return (octave_value + 1) * 12 + NOTE_TO_PC[note]
+
+
+def parse_midi_cell_levels(text: str) -> dict[int, float]:
+    levels: dict[int, float] = {}
+    if not text or text == "--":
+        return levels
+    for match in CELL_WITH_OCTAVE_RE.finditer(text):
+        midi = midi_for_note(match.group(1), match.group(2))
+        if midi is None:
+            continue
+        try:
+            level = float(match.group(3))
+        except ValueError:
+            continue
+        levels[midi] = max(levels.get(midi, 0.0), level)
+    return levels
+
+
+def midi_level(levels: dict[int, float], midi: int) -> float:
+    return levels.get(midi, 0.0)
+
+
+def pitch_class_for_midi(midi: int) -> int:
+    return ((midi % 12) + 12) % 12
+
+
+def add_display_primary_harmonic_fields(
+    result: dict[str, str],
+    label: str,
+    visible_midi_levels: dict[int, float],
+    analysis_midi_levels: dict[int, float],
+) -> None:
+    root = chord_root(label)
+    quality = chord_quality(label)
+    root_pc = NOTE_TO_PC.get(root)
+    low_root_midi = -1
+    low_root_level = 0.0
+    if root_pc is not None:
+        for midi, level in sorted(visible_midi_levels.items()):
+            if midi < 40 or midi > 55 or pitch_class_for_midi(midi) != root_pc:
+                continue
+            if low_root_midi < 0 or midi < low_root_midi or (
+                midi == low_root_midi and level > low_root_level
+            ):
+                low_root_midi = midi
+                low_root_level = level
+
+    played_lower_third = 0.0
+    played_lower_fifth = 0.0
+    harmonic_octave = 0.0
+    harmonic_second_octave = 0.0
+    harmonic_fifth = 0.0
+    harmonic_third = 0.0
+    if low_root_midi >= 0:
+        third_interval = 3 if quality in {"m", "m6", "m7", "m9", "dim", "dim7", "m7b5"} else 4
+        harmonic_third_interval = 27 if third_interval == 3 else 28
+        played_lower_third = midi_level(visible_midi_levels, low_root_midi + third_interval)
+        played_lower_fifth = midi_level(visible_midi_levels, low_root_midi + 7)
+        harmonic_octave = max(
+            midi_level(visible_midi_levels, low_root_midi + 12),
+            midi_level(analysis_midi_levels, low_root_midi + 12),
+        )
+        harmonic_second_octave = max(
+            midi_level(visible_midi_levels, low_root_midi + 24),
+            midi_level(analysis_midi_levels, low_root_midi + 24),
+        )
+        harmonic_fifth = max(
+            midi_level(visible_midi_levels, low_root_midi + 19),
+            midi_level(analysis_midi_levels, low_root_midi + 19),
+            midi_level(visible_midi_levels, low_root_midi + 31),
+            midi_level(analysis_midi_levels, low_root_midi + 31),
+        )
+        harmonic_third = max(
+            midi_level(visible_midi_levels, low_root_midi + harmonic_third_interval),
+            midi_level(analysis_midi_levels, low_root_midi + harmonic_third_interval),
+        )
+    evidence = int(harmonic_octave >= 0.20) + int(harmonic_second_octave >= 0.16)
+    evidence += int(harmonic_fifth >= 0.12) + int(harmonic_third >= 0.12)
+    harmonic_only = int(
+        low_root_midi >= 0
+        and low_root_level >= 0.18
+        and played_lower_third < 0.12
+        and played_lower_fifth < 0.12
+        and evidence >= 2
+        and (harmonic_fifth >= 0.12 or harmonic_third >= 0.12)
+    )
+    result.update(
+        {
+            "display_primary_low_root_midi": str(low_root_midi),
+            "display_primary_low_root_level": f"{low_root_level:.6f}",
+            "display_primary_played_lower_third": f"{played_lower_third:.6f}",
+            "display_primary_played_lower_fifth": f"{played_lower_fifth:.6f}",
+            "display_primary_harmonic_octave": f"{harmonic_octave:.6f}",
+            "display_primary_harmonic_second_octave": f"{harmonic_second_octave:.6f}",
+            "display_primary_harmonic_fifth": f"{harmonic_fifth:.6f}",
+            "display_primary_harmonic_third": f"{harmonic_third:.6f}",
+            "display_primary_harmonic_evidence": str(evidence),
+            "display_primary_harmonic_only": str(harmonic_only),
+        }
+    )
+
+
 def tone_classes_for_label(label: str) -> dict[str, list[int]]:
     tone_classes: dict[str, list[int]] = collections.defaultdict(list)
     for name, pitch_class in chord_tones(label):
@@ -482,6 +615,8 @@ def derive_row(row: dict[str, str]) -> dict[str, str]:
     visible_levels = parse_cell_levels(row.get("guitar_cells", ""))
     analysis_levels = parse_cell_levels(row.get("guitar_analysis_cells", ""))
     smooth_levels = parse_cell_levels(row.get("guitar_smoothed_cells", ""))
+    visible_midi_levels = parse_midi_cell_levels(row.get("guitar_cells", ""))
+    analysis_midi_levels = parse_midi_cell_levels(row.get("guitar_analysis_cells", ""))
     raw_levels = parse_cell_levels(row.get("raw_pitch_class_levels", ""))
     if not raw_levels:
         raw_levels = parse_cell_levels(row.get("expected_raw_cells", ""))
@@ -574,6 +709,9 @@ def derive_row(row: dict[str, str]) -> dict[str, str]:
         raw_levels,
         probe_levels,
         melodic_probe_levels,
+    )
+    add_display_primary_harmonic_fields(
+        result, display_primary_label, visible_midi_levels, analysis_midi_levels
     )
     opposite_third = opposite_third_pitch_class(expected_label)
     raw_opposite_third = raw_levels.get(opposite_third, 0.0) if opposite_third is not None else 0.0

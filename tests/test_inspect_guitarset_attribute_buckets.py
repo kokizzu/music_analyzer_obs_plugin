@@ -177,6 +177,37 @@ def main() -> int:
                 guitar_probe_pitch_class_levels="C:0.993,F:1.000,G#:0.008",
                 guitar_melodic_probe_pitch_class_levels="C:0.900,F:1.000,G#:0.007",
             ),
+            row(
+                status="single_note_false_chord",
+                recording_id="rec4",
+                expected_midis="G2",
+                expected_pitch_classes="G",
+                expected_pitch_class_count="1",
+                expected_chords="--",
+                expected_chord_qualities="--",
+                expected_chord_tone_count="0",
+                guitar_note_hits="1",
+                expected_note_count="1",
+                guitar_false_positive_pitch_classes="2",
+                chord_hit="0",
+                simple_chord_hit="0",
+                guitar_chord_hit="0",
+                global_chord="--",
+                guitar_chord="G=Gmaj7",
+                guitar_raw_chord="G",
+                guitar_smoothed_chord="G",
+                guitar_pitch_classes="D,G,B",
+                guitar_cells="D4:1.00,G2:0.67,B4:0.45",
+                guitar_analysis_pitch_classes="D,G,B",
+                guitar_analysis_cells="D4:0.70,G2:1.00,B4:0.38",
+                guitar_smoothed_pitch_classes="D,G,B",
+                guitar_smoothed_cells="D4:0.70,G2:1.00,B4:0.38",
+                expected_raw_peak="10.0",
+                expected_raw_cells="G2:1.000",
+                raw_pitch_class_levels="D:1.000,G:0.732,B:0.375",
+                guitar_probe_pitch_class_levels="D:1.000,G:0.671,B:0.445",
+                guitar_melodic_probe_pitch_class_levels="D:0.698,G:1.000,B:0.359",
+            ),
         ]
         path.write_text(
             "\t".join(HEADER) + "\n" + "\n".join("\t".join(item) for item in rows) + "\n",
@@ -276,6 +307,21 @@ def main() -> int:
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
         )
+        false_dump = subprocess.run(
+            [
+                sys.executable,
+                str(SCRIPT),
+                str(path),
+                "--bucket",
+                "single_note_false_chord:any:any",
+                "--dump-rows",
+            ],
+            cwd=ROOT,
+            check=True,
+            text=True,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+        )
 
     output = completed.stdout
     assert "chord_miss:maj:visible2_analysis3_smooth3_rootvis1 rows=1 recordings=1" in output
@@ -313,13 +359,16 @@ def main() -> int:
     assert "recording-regex: showing 1/2 matching recordings" in regex_detail.stdout
     assert "recording rec2: status=chord_miss expected=G" in regex_detail.stdout
     assert "recording rec3:" not in regex_detail.stdout
-    assert "single_note_false_chord:any:any rows=1 recordings=1" in false_bucket.stdout
-    assert "expected_label                  Fm=1" in false_bucket.stdout
-    assert "expected_root                   F=1" in false_bucket.stdout
-    assert "display_primary_label           Fm=1" in false_bucket.stdout
-    assert "display_primary_root            F=1" in false_bucket.stdout
-    assert "display_primary_quality         m=1" in false_bucket.stdout
-    assert "support                         visible2_analysis3_smooth2_rootvis1=1" in false_bucket.stdout
+    assert "single_note_false_chord:any:any rows=2 recordings=2" in false_bucket.stdout
+    assert "expected_label                  Fm=1 G=1" in false_bucket.stdout
+    assert "expected_root                   F=1 G=1" in false_bucket.stdout
+    assert "display_primary_label           Fm=1 G=1" in false_bucket.stdout
+    assert "display_primary_root            F=1 G=1" in false_bucket.stdout
+    assert "display_primary_quality         m=1 maj=1" in false_bucket.stdout
+    assert "support                         visible2_analysis3_smooth2_rootvis1=1 visible3_analysis3_smooth3_rootvis1=1" in false_bucket.stdout
+    assert "display_primary_harmonic_only" in false_dump.stdout
+    assert "\nrec4\t" in false_dump.stdout
+    assert "\t43\t0.670000\t0.000000\t0.000000\t0.000000\t0.000000\t1.000000\t0.450000\t2\t1\t" in false_dump.stdout
     print("test_inspect_guitarset_attribute_buckets: ok")
     return 0
 
