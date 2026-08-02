@@ -692,6 +692,8 @@ def main() -> int:
         "MEASURE_REAL_NOTE_PRACTICAL_ROW_CONFUSION_PATTERN_ARGS",
         "MEASURE_REAL_NOTE_FOCUSED_ROW_CONFUSION_PATTERN_ARGS",
         "MEASURE_REAL_NOTE_FOCUSED_VISUAL_ROW_CONFUSION_PATTERN_ARGS",
+        "MEASURE_REAL_NOTE_COVERAGE_ROW_CONFUSION_PATTERN_ARGS",
+        "MEASURE_REAL_NOTE_COVERAGE_VISUAL_ROW_CONFUSION_PATTERN_ARGS",
         "MEASURE_REAL_NOTE_OWNERSHIP_PATTERN_ARGS",
         "MEASURE_REAL_NOTE_BROAD_VOCAL_PATTERN_ARGS",
     ]:
@@ -703,7 +705,9 @@ def main() -> int:
     route_scan_target_list = route_scan_targets.group(1)
     for target in [
         "find-real-note-focused-row-confusion-patterns",
+        "find-real-note-coverage-row-confusion-patterns",
         "find-real-note-focused-visual-row-confusion-patterns",
+        "find-real-note-coverage-visual-row-confusion-patterns",
         "find-real-note-ownership-patterns",
         "evaluate-real-note-display-shadow-all",
         "evaluate-real-note-vocal-shadow-safety",
@@ -2140,8 +2144,10 @@ def main() -> int:
         "find-real-note-row-confusion-patterns",
         "find-real-note-practical-row-confusion-patterns",
         "find-real-note-focused-row-confusion-patterns",
+        "find-real-note-coverage-row-confusion-patterns",
         "find-real-note-visual-row-confusion-patterns",
         "find-real-note-focused-visual-row-confusion-patterns",
+        "find-real-note-coverage-visual-row-confusion-patterns",
         "find-real-note-ownership-patterns",
         "find-real-note-octave-displacement-patterns",
         "find-real-note-weak-expected-patterns",
@@ -3454,7 +3460,7 @@ def main() -> int:
         "--include-row-context",
     ]:
         assert text in makefile, f"focused visual row-confusion defaults must include {text}"
-    assert ".PHONY: find-real-note-row-confusion-patterns find-real-note-practical-row-confusion-patterns find-real-note-focused-row-confusion-patterns find-real-note-visual-row-confusion-patterns find-real-note-focused-visual-row-confusion-patterns find-real-note-ownership-patterns find-real-note-octave-displacement-patterns" in makefile, (
+    assert ".PHONY: find-real-note-row-confusion-patterns find-real-note-practical-row-confusion-patterns find-real-note-focused-row-confusion-patterns find-real-note-coverage-row-confusion-patterns find-real-note-visual-row-confusion-patterns find-real-note-focused-visual-row-confusion-patterns find-real-note-coverage-visual-row-confusion-patterns find-real-note-ownership-patterns find-real-note-octave-displacement-patterns" in makefile, (
         "all real-note pattern shortcuts should be phony"
     )
     for field in [
