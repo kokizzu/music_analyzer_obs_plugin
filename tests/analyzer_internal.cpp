@@ -1101,6 +1101,39 @@ void check_other_owned_same_pitch_bass_shadow_uses_measured_ratio(Runner &runner
 							strong_ownership, -1);
 	runner.expect(note_grid_midi_visual_level(strong_bass_grid, kStrongBassMidi) > 0.0f,
 		      "same-pitch other bass shadow: expected strong owned bass note above 93.5% to stay visible");
+
+	static constexpr int kBlendMidi = 41;
+	NoteGrid blend_bass_grid = {};
+	set_midi(blend_bass_grid, kBlendMidi, 0.82f);
+	InstrumentState blend_bass_state = {};
+	NoteGrid blend_other_grid = {};
+	set_midi(blend_other_grid, kBlendMidi, 1.00f);
+	FullMixOwnership blend_ownership = {};
+	blend_ownership.debug_candidate_count = 1;
+	FullMixDebugCandidate blend_debug = make_other_bass_shadow_debug(kBlendMidi);
+	blend_debug.guitar_score = 0.13f;
+	blend_debug.other_score = 0.87f;
+	blend_debug.spectral_level = 1.0f;
+	blend_debug.pitch_confidence = 0.58f;
+	blend_debug.periodicity = 0.61f;
+	blend_debug.harmonic_fit_error = 0.41f;
+	blend_debug.spectral_centroid = 0.57f;
+	blend_debug.spectral_slope = 1.32f;
+	blend_debug.local_noise_level = 0.59f;
+	blend_debug.adjacent_lower_ratio = 0.88f;
+	blend_debug.adjacent_upper_ratio = 0.88f;
+	blend_debug.third_octave_ratio = 0.51f;
+	blend_debug.harmonic_ratios[1] = 0.85f;
+	blend_debug.harmonic_ratios[2] = 0.69f;
+	blend_debug.harmonic_ratios[3] = 0.88f;
+	blend_debug.harmonic_ratios[4] = 0.88f;
+	blend_ownership.debug_candidates[0] = blend_debug;
+	suppress_other_dominant_same_pitch_bass_shadows(blend_bass_grid,
+							blend_bass_state,
+							blend_other_grid,
+							blend_ownership, -1);
+	runner.expect(note_grid_midi_visual_level(blend_bass_grid, kBlendMidi) > 0.0f,
+		      "same-pitch other bass shadow: expected dense low bass blend to preserve bass");
 }
 
 FullMixDebugCandidate make_keyboard_bass_shadow_debug(int midi)
@@ -2124,6 +2157,55 @@ void check_existing_reed_brass_other_visual_note_is_brightened(Runner &runner)
 		      "existing reed/brass other visual: expected noisy keyboard-like body to stay dim");
 }
 
+void check_other_owned_low_wind_alias_maps_to_lower_octave(Runner &runner)
+{
+	static constexpr int kLowerMidi = 38;
+	static constexpr int kAliasMidi = kLowerMidi + 12;
+
+	FullMixOwnership ownership = {};
+	ownership.global_note_levels[static_cast<std::size_t>(kLowerMidi - kFirstMidi)] = 0.26f;
+	ownership.global_note_levels[static_cast<std::size_t>(kAliasMidi - kFirstMidi)] = 0.82f;
+
+	FullMixDebugCandidate debug = {};
+	debug.midi = kAliasMidi;
+	debug.owner = InstrumentKind::Other;
+	debug.other_score = 0.86f;
+	debug.guitar_score = 0.13f;
+	debug.keyboard_score = 0.02f;
+	debug.spectral_level = 0.31f;
+	debug.pitch_confidence = 0.18f;
+	debug.periodicity = 0.64f;
+	debug.harmonicity = 3.8f;
+	debug.local_noise_level = 0.27f;
+	debug.spectral_centroid = 0.53f;
+	debug.spectral_slope = 1.44f;
+	debug.harmonic_ratios[1] = 0.96f;
+	debug.harmonic_ratios[2] = 2.02f;
+	debug.harmonic_ratios[3] = 0.26f;
+	debug.harmonic_ratios[4] = 0.55f;
+
+	NoteCandidateList candidates;
+	add_full_mix_display_mirror(candidates, ownership, debug, FullMixDisplayRow::Other);
+	runner.expect(candidate_list_has_midi(candidates, kLowerMidi),
+		      "other low wind octave alias: expected supported first-overtone candidate to map down");
+	runner.expect(!candidate_list_has_midi(candidates, kAliasMidi),
+		      "other low wind octave alias: expected alias octave not to be emitted");
+
+	FullMixOwnership weak_lower = ownership;
+	weak_lower.global_note_levels[static_cast<std::size_t>(kLowerMidi - kFirstMidi)] = 0.05f;
+	NoteCandidateList weak_candidates;
+	add_full_mix_display_mirror(weak_candidates, weak_lower, debug, FullMixDisplayRow::Other);
+	runner.expect(!candidate_list_has_midi(weak_candidates, kLowerMidi),
+		      "other low wind octave alias: expected weak lower support not to map down");
+
+	FullMixDebugCandidate bass_shaped = debug;
+	bass_shaped.bass_score = 0.24f;
+	NoteCandidateList bass_shaped_candidates;
+	add_full_mix_display_mirror(bass_shaped_candidates, ownership, bass_shaped, FullMixDisplayRow::Other);
+	runner.expect(!candidate_list_has_midi(bass_shaped_candidates, kLowerMidi),
+		      "other low wind octave alias: expected bass-shaped alias not to map down");
+}
+
 void check_vocal_owned_upper_alias_promotes_supported_lower_primary(Runner &runner)
 {
 	static constexpr int kLowerMidi = 50;
@@ -2304,6 +2386,7 @@ int run()
 	check_high_clean_acoustic_guitar_display_mirror_gets_bright_score_floor(runner);
 	check_existing_upper_clean_guitar_visual_note_is_brightened(runner);
 	check_existing_reed_brass_other_visual_note_is_brightened(runner);
+	check_other_owned_low_wind_alias_maps_to_lower_octave(runner);
 	check_vocal_owned_upper_alias_promotes_supported_lower_primary(runner);
 	check_low_wind_other_octave_alias_promotes_raw_fundamental(runner);
 	check_low_wind_other_octave_alias_requires_upper_stack(runner);

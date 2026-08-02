@@ -4732,6 +4732,39 @@ bool measured_low_acoustic_string_other_octave_supported(const FullMixDebugCandi
 	       fifth <= 0.012f;
 }
 
+bool measured_other_owned_low_wind_octave_alias_supported(const FullMixDebugCandidate &debug)
+{
+	if (debug.owner != InstrumentKind::Other)
+		return false;
+	if (debug.midi - 12 < kOtherMinMidi || debug.midi - 12 > kOtherMaxMidi)
+		return false;
+	if (debug.midi < 48 || debug.midi > 59)
+		return false;
+
+	const float second = debug.harmonic_ratios[1];
+	const float third = debug.harmonic_ratios[2];
+	const float fourth = debug.harmonic_ratios[3];
+	const float fifth = debug.harmonic_ratios[4];
+	return debug.other_score >= 0.80f &&
+	       debug.bass_score <= 0.050f &&
+	       debug.guitar_score <= 0.22f &&
+	       debug.keyboard_score <= 0.18f &&
+	       debug.vocal_score <= 0.030f &&
+	       debug.spectral_level >= 0.09f &&
+	       debug.pitch_confidence >= 0.030f &&
+	       debug.periodicity >= 0.39f &&
+	       debug.harmonicity >= 2.0f &&
+	       debug.local_noise_level >= 0.18f &&
+	       debug.local_noise_level <= 0.82f &&
+	       debug.spectral_centroid >= 0.48f &&
+	       debug.spectral_centroid <= 0.72f &&
+	       debug.spectral_slope >= 1.0f &&
+	       second >= 0.25f &&
+	       third >= 0.18f &&
+	       fourth >= 0.20f &&
+	       fifth >= 0.20f;
+}
+
 bool measured_other_octave_alias_supported(const FullMixDebugCandidate &debug)
 {
 	if (debug.midi - 12 < kOtherMinMidi || debug.midi - 12 > kOtherMaxMidi)
@@ -4793,7 +4826,8 @@ bool measured_other_octave_alias_supported(const FullMixDebugCandidate &debug)
 	return low_keyboard_synth_octave || low_keyboard_string_octave ||
 	       ambiguous_high_string_octave || low_ambiguous_string_octave ||
 	       measured_ambiguous_contrabass_octave || measured_ambiguous_cello_octave ||
-	       measured_low_acoustic_string_other_octave_supported(debug);
+	       measured_low_acoustic_string_other_octave_supported(debug) ||
+	       measured_other_owned_low_wind_octave_alias_supported(debug);
 }
 
 bool measured_other_weak_octave_alias_supported(const FullMixDebugCandidate &debug)
@@ -10788,6 +10822,37 @@ void attenuate_measured_electronic_keyboard_other_shadows(NoteGrid &other_grid,
 		write_note_grid_label(other_state, other_grid, preferred_root);
 }
 
+bool low_dense_other_bass_blend_shadow_protected(const FullMixDebugCandidate &debug)
+{
+	if (debug.owner != InstrumentKind::Other)
+		return false;
+	if (debug.midi < 40 || debug.midi > 47)
+		return false;
+
+	return debug.other_score >= 0.70f &&
+	       debug.guitar_score >= 0.080f &&
+	       debug.guitar_score <= 0.25f &&
+	       debug.keyboard_score <= 0.020f &&
+	       debug.vocal_score <= 0.020f &&
+	       debug.spectral_level >= 0.70f &&
+	       debug.pitch_confidence >= 0.35f &&
+	       debug.pitch_confidence <= 0.70f &&
+	       debug.periodicity >= 0.55f &&
+	       debug.periodicity <= 0.70f &&
+	       debug.harmonic_fit_error >= 0.30f &&
+	       debug.spectral_centroid >= 0.50f &&
+	       debug.spectral_centroid <= 0.70f &&
+	       debug.spectral_slope >= 1.0f &&
+	       debug.local_noise_level >= 0.45f &&
+	       debug.adjacent_lower_ratio >= 0.75f &&
+	       debug.adjacent_upper_ratio >= 0.75f &&
+	       debug.third_octave_ratio >= 0.45f &&
+	       debug.harmonic_ratios[1] >= 0.70f &&
+	       debug.harmonic_ratios[2] >= 0.50f &&
+	       debug.harmonic_ratios[3] >= 0.70f &&
+	       debug.harmonic_ratios[4] >= 0.70f;
+}
+
 void suppress_other_dominant_same_pitch_bass_shadows(NoteGrid &bass_grid, InstrumentState &bass_state,
 						     const NoteGrid &other_grid,
 						     const FullMixOwnership &ownership,
@@ -10837,6 +10902,8 @@ void suppress_other_dominant_same_pitch_bass_shadows(NoteGrid &bass_grid, Instru
 			debug->harmonic_fit_error <= kGuardedMaxHarmonicFitError &&
 			debug->local_noise_level <= kGuardedMaxNoiseLevel;
 		if (!legacy_other_shadow && !measured_owned_other_shadow && !guarded_other_shadow)
+			continue;
+		if (low_dense_other_bass_blend_shadow_protected(*debug))
 			continue;
 
 		clear_note_grid_midi(bass_grid, midi);

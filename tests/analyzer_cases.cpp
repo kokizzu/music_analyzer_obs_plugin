@@ -4986,8 +4986,13 @@ void check_slakh_style_multitrack_song_regressions(Runner &runner)
 		const std::string chord = std::string(mao_test::note_name(song.root_pitch_class)) +
 					  (song.minor ? "m" : "");
 		const std::string context = std::string("Slakh-style multitrack ") + song.name + " " + chord;
+		const std::string bass_context =
+			context + " bass levels bass=" +
+			std::to_string(grid_level_for_midi(snapshot.bass_notes, bass_midi)) +
+			" other=" + std::to_string(grid_level_for_midi(snapshot.other_notes, bass_midi)) +
+			" debug `" + full_mix_debug_summary_for_midi(snapshot, bass_midi) + "`";
 
-		expect_label(runner, snapshot.bass.label, mao_test::note_label(bass_midi), context + " bass");
+		expect_label(runner, snapshot.bass.label, mao_test::note_label(bass_midi), bass_context);
 		runner.expect(has_chord_label(snapshot.global_chord.label, chord),
 			      context + ": expected global chord `" + chord + "`, got `" +
 				      snapshot.global_chord.label + "`");
@@ -5115,9 +5120,14 @@ void check_public_multitrack_dataset_style_regressions(Runner &runner)
 		const auto snapshot = analyze_buffer(buffer, "public dataset full mix");
 
 		if (dataset.bass) {
-			expect_label(runner, snapshot.bass.label,
-				     mao_test::note_label(bass_midi_for_pitch_class(dataset.root_pitch_class)),
-				     context + " bass");
+			const int bass_midi = bass_midi_for_pitch_class(dataset.root_pitch_class);
+			const std::string bass_context =
+				context + " bass levels bass=" +
+				std::to_string(grid_level_for_midi(snapshot.bass_notes, bass_midi)) +
+				" other=" +
+				std::to_string(grid_level_for_midi(snapshot.other_notes, bass_midi)) +
+				" debug `" + full_mix_debug_summary_for_midi(snapshot, bass_midi) + "`";
+			expect_label(runner, snapshot.bass.label, mao_test::note_label(bass_midi), bass_context);
 		}
 		if (dataset.keyboard || dataset.guitar || dataset.other) {
 			runner.expect(has_chord_label(snapshot.global_chord.label, chord),
