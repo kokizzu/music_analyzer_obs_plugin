@@ -24141,6 +24141,12 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 		if (generated_gm_low_tom_primary_recovery)
 			promote_drum_primary(Tom, 0.90f);
 
+		const bool measured_bright_tom_snare_crack_recovery =
+			drum_detection_enabled &&
+			drum_level_[Tom] > 0.30f &&
+			drum_level_[Snare] >= 0.70f &&
+			snapshot.drum_debug_trigger_scores[Crash] >= 56.136f &&
+			drum_segment_bands[Ride] <= 9.442f;
 		const bool one_shot_measured_tom_snare_crack_bleed_recovery =
 			drum_detection_enabled && one_shot_drum_source &&
 			drum_level_[Tom] > 0.30f &&
@@ -24164,9 +24170,10 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 			!generated_gm_orchestra_tom_primary_recovery;
 		if (measured_snare_crack_tom_bleed)
 			snapshot.drum_debug_rule_flags |= DrumDebugSnareCrackTomBleed;
-		if (measured_snare_crack_tom_bleed)
+		if (measured_snare_crack_tom_bleed && !measured_bright_tom_snare_crack_recovery)
 			cap_drum_level(Tom, 0.28f);
-		if (one_shot_measured_tom_snare_crack_bleed_recovery)
+		if (one_shot_measured_tom_snare_crack_bleed_recovery ||
+		    (measured_snare_crack_tom_bleed && measured_bright_tom_snare_crack_recovery))
 			promote_drum_primary(Tom, 0.90f);
 		const bool one_shot_measured_dense_snare_tom_active_bleed =
 			drum_detection_enabled && one_shot_drum_source && !generated_gm_drum_source &&
