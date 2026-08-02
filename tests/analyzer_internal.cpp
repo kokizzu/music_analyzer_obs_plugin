@@ -2033,6 +2033,51 @@ void check_high_clean_acoustic_guitar_display_mirror_gets_bright_score_floor(Run
 		      "high clean acoustic guitar display mirror: expected noisy high candidate to stay suppressed");
 }
 
+void check_existing_upper_clean_guitar_visual_note_is_brightened(Runner &runner)
+{
+	static constexpr int kMidi = 86;
+
+	NoteGrid guitar_grid = {};
+	set_midi(guitar_grid, kMidi, 1.0f);
+	guitar_grid.cells[static_cast<std::size_t>(midi_pitch_class(kMidi))].visual_level = 0.36f;
+	NoteGrid keyboard_grid = {};
+	set_midi(keyboard_grid, kMidi, 1.0f);
+
+	FullMixOwnership ownership = {};
+	ownership.debug_candidate_count = 1;
+	FullMixDebugCandidate &debug = ownership.debug_candidates[0];
+	debug.midi = kMidi;
+	debug.owner = InstrumentKind::Keyboard;
+	debug.keyboard_score = 1.0f;
+	debug.spectral_level = 1.0f;
+	debug.pitch_confidence = 0.94f;
+	debug.periodicity = 0.72f;
+	debug.harmonic_fit_error = 0.055f;
+	debug.local_noise_level = 0.004f;
+	debug.spectral_slope = 0.001f;
+	debug.adjacent_lower_ratio = 0.002f;
+	debug.adjacent_upper_ratio = 0.002f;
+	debug.harmonic_ratios[1] = 0.010f;
+	debug.harmonic_ratios[2] = 0.001f;
+	debug.harmonic_ratios[3] = 0.0f;
+	debug.harmonic_ratios[4] = 0.0f;
+
+	boost_existing_upper_clean_guitar_visual_notes(guitar_grid, keyboard_grid, ownership);
+	runner.expect(note_grid_midi_visual_level(guitar_grid, kMidi) >= 0.739f,
+		      "existing upper clean guitar visual: expected D6 visual level to be brightened");
+	runner.expect(note_grid_midi_level(guitar_grid, kMidi) > 0.99f,
+		      "existing upper clean guitar visual: expected analytic guitar level to stay unchanged");
+	runner.expect(note_grid_midi_visual_level(keyboard_grid, kMidi) > 0.99f,
+		      "existing upper clean guitar visual: expected keyboard visual level to stay unchanged");
+
+	NoteGrid weak_guitar_grid = {};
+	set_midi(weak_guitar_grid, kMidi, 0.50f);
+	weak_guitar_grid.cells[static_cast<std::size_t>(midi_pitch_class(kMidi))].visual_level = 0.20f;
+	boost_existing_upper_clean_guitar_visual_notes(weak_guitar_grid, keyboard_grid, ownership);
+	runner.expect(note_grid_midi_visual_level(weak_guitar_grid, kMidi) < 0.21f,
+		      "existing upper clean guitar visual: expected weak guitar cell to stay dim");
+}
+
 void check_vocal_owned_upper_alias_promotes_supported_lower_primary(Runner &runner)
 {
 	static constexpr int kLowerMidi = 50;
@@ -2211,6 +2256,7 @@ int run()
 	check_display_ownership_scale_keeps_confirmed_mid_confidence_visible(runner);
 	check_low_acoustic_guitar_display_mirror_gets_bright_score_floor(runner);
 	check_high_clean_acoustic_guitar_display_mirror_gets_bright_score_floor(runner);
+	check_existing_upper_clean_guitar_visual_note_is_brightened(runner);
 	check_vocal_owned_upper_alias_promotes_supported_lower_primary(runner);
 	check_low_wind_other_octave_alias_promotes_raw_fundamental(runner);
 	check_low_wind_other_octave_alias_requires_upper_stack(runner);

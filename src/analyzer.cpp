@@ -9938,6 +9938,82 @@ void cap_note_grid_midi_level_and_visual_level(NoteGrid &grid, int midi, float c
 	}
 }
 
+void boost_note_cell_visual_level(NoteCell &cell, float floor)
+{
+	if (!cell.active)
+		return;
+	const float clamped_floor = std::clamp(floor, 0.0f, 1.0f);
+	const float current = note_cell_effective_visual_level(cell);
+	cell.visual_level = std::max(current, clamped_floor);
+}
+
+void boost_note_grid_midi_visual_level(NoteGrid &grid, int midi, float floor)
+{
+	if (midi < kFirstMidi || midi > kLastMidi)
+		return;
+
+	const int pitch_class = midi_pitch_class(midi);
+	NoteCell &pitch_cell = grid.cells[static_cast<std::size_t>(pitch_class)];
+	if (pitch_cell.active && pitch_cell.midi == midi)
+		boost_note_cell_visual_level(pitch_cell, floor);
+	for (auto &row : grid.rows) {
+		NoteCell &cell = row[static_cast<std::size_t>(pitch_class)];
+		if (cell.active && cell.midi == midi)
+			boost_note_cell_visual_level(cell, floor);
+	}
+}
+
+bool upper_clean_existing_guitar_visual_boost_supported(const FullMixDebugCandidate &debug)
+{
+	if (debug.midi < 80 || debug.midi > 88)
+		return false;
+
+	const bool measured_owner =
+		(debug.owner == InstrumentKind::Keyboard && debug.keyboard_score >= 0.78f) ||
+		(debug.owner == InstrumentKind::Vocal && debug.vocal_score >= 0.78f);
+	if (!measured_owner)
+		return false;
+
+	return debug.spectral_level >= 0.90f &&
+	       debug.pitch_confidence >= 0.93f &&
+	       debug.periodicity >= 0.70f &&
+	       debug.periodicity <= 0.78f &&
+	       debug.harmonic_fit_error <= 0.060f &&
+	       debug.local_noise_level <= 0.012f &&
+	       debug.spectral_slope <= 0.050f &&
+	       debug.adjacent_lower_ratio <= 0.060f &&
+	       debug.adjacent_upper_ratio <= 0.060f &&
+	       debug.harmonic_ratios[1] <= 0.13f &&
+	       debug.harmonic_ratios[2] <= 0.040f &&
+	       debug.harmonic_ratios[3] <= 0.040f &&
+	       debug.harmonic_ratios[4] <= 0.012f;
+}
+
+float note_grid_midi_level(const NoteGrid &grid, int midi);
+
+void boost_existing_upper_clean_guitar_visual_notes(NoteGrid &guitar_grid,
+						    const NoteGrid &keyboard_grid,
+						    const FullMixOwnership &ownership)
+{
+	static constexpr float kMinExistingGuitarLevel = 0.90f;
+	static constexpr float kBrightVisualFloor = 0.74f;
+	const std::size_t debug_count =
+		std::min<std::size_t>(ownership.debug_candidate_count, ownership.debug_candidates.size());
+	for (std::size_t i = 0; i < debug_count; ++i) {
+		const FullMixDebugCandidate &debug = ownership.debug_candidates[i];
+		if (!upper_clean_existing_guitar_visual_boost_supported(debug))
+			continue;
+		const float guitar_level = note_grid_midi_level(guitar_grid, debug.midi);
+		if (guitar_level < kMinExistingGuitarLevel)
+			continue;
+		const float keyboard_level = note_grid_midi_level(keyboard_grid, debug.midi);
+		if (keyboard_level > guitar_level * 1.05f)
+			continue;
+		boost_note_grid_midi_visual_level(guitar_grid, debug.midi,
+						  std::min(guitar_level, kBrightVisualFloor));
+	}
+}
+
 void attenuate_ambiguous_note_cell_by_named_rows(NoteCell &cell, const NoteGrid &bass,
 						 const NoteGrid &keyboard, const NoteGrid &guitar,
 						 const NoteGrid &vocal, const NoteGrid &other)
@@ -26016,6 +26092,9 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 		attenuate_note_grid_display_by_candidates(snapshot.guitar_notes, mixed_guitar_display_candidates);
 		attenuate_note_grid_display_by_candidates(snapshot.vocal_notes, mixed_vocal_display_candidates);
 		attenuate_note_grid_display_by_candidates(snapshot.other_notes, mixed_other_display_candidates);
+		boost_existing_upper_clean_guitar_visual_notes(snapshot.guitar_notes,
+							      snapshot.keyboard_notes,
+							      full_mix_ownership);
 		attenuate_lower_non_guitar_pitch_class_guitar_octave_shadows(
 			snapshot.guitar_notes, snapshot.guitar, snapshot.keyboard_notes, snapshot.other_notes,
 			full_mix_ownership, -1);
