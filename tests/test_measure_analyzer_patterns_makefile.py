@@ -841,6 +841,20 @@ def main() -> int:
     assert "MUSIC_ANALYZER_MUSICNET_SHARD_COUNT" not in bach_serial_recipe, (
         "Bach10 serial fallback must keep the original unsharded harness"
     )
+    bach_chord_miss_recipe = target_recipe(makefile, "analyze-bach10-mf0-synth-chord-misses")
+    assert "$(RUN_WITH_DURATION) analyze_bach10_mf0_synth_chord_misses" in bach_chord_miss_recipe, (
+        "Bach10 chord-miss diagnostics must report their duration"
+    )
+    assert "prepare-bach10-mf0-synth-samples" in bach_chord_miss_recipe, (
+        "Bach10 chord-miss diagnostics must prepare the real synth fixture"
+    )
+    for text in [
+        "MUSIC_ANALYZER_MUSICNET_VERBOSE_CHORD_MISSES=1",
+        "MUSIC_ANALYZER_MUSICNET_MIN_CHORD_RECALL_PERCENT=0",
+        "MUSIC_ANALYZER_MUSICNET_MIN_GLOBAL_CHORD_PRECISION_PERCENT=0",
+        "MUSIC_ANALYZER_MUSICNET_MIN_CHORD_CHECKS=1",
+    ]:
+        assert text in bach_chord_miss_recipe, f"Bach10 chord-miss diagnostics must include {text}"
     detector_improvement_recipe = target_recipe(makefile, "analyze-detector-improvements")
     assert "\n\t+$(RUN_WITH_DURATION) detector_improvements_parallel" in detector_improvement_recipe, (
         "detector improvement workflow must report the aggregate parallel duration"
