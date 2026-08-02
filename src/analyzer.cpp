@@ -10563,6 +10563,38 @@ std::array<float, 12> note_grid_chroma(const NoteGrid &grid)
 	return chroma;
 }
 
+void merge_note_grid_chroma(std::array<float, 12> &chroma, const NoteGrid &grid, float scale = 1.0f)
+{
+	const float clamped_scale = std::clamp(scale, 0.0f, 1.0f);
+	auto merge_cell = [&](const NoteCell &cell) {
+		if (!cell.active || cell.midi < 0)
+			return;
+		const int pitch_class = ((cell.midi % 12) + 12) % 12;
+		chroma[static_cast<std::size_t>(pitch_class)] =
+			std::max(chroma[static_cast<std::size_t>(pitch_class)], cell.level * clamped_scale);
+	};
+	for (const NoteCell &cell : grid.cells)
+		merge_cell(cell);
+	for (const auto &row : grid.rows) {
+		for (const NoteCell &cell : row)
+			merge_cell(cell);
+	}
+}
+
+std::array<float, 12> mixed_global_display_chroma(const NoteGrid &bass, const NoteGrid &keyboard,
+						  const NoteGrid &guitar, const NoteGrid &vocal,
+						  const NoteGrid &other, const NoteGrid &ambiguous)
+{
+	std::array<float, 12> chroma = {};
+	merge_note_grid_chroma(chroma, bass, 0.80f);
+	merge_note_grid_chroma(chroma, keyboard, 1.00f);
+	merge_note_grid_chroma(chroma, guitar, 1.00f);
+	merge_note_grid_chroma(chroma, other, 1.00f);
+	merge_note_grid_chroma(chroma, ambiguous, 0.72f);
+	merge_note_grid_chroma(chroma, vocal, 0.45f);
+	return chroma;
+}
+
 int note_grid_active_pitch_class_count(const NoteGrid &grid)
 {
 	int count = 0;
@@ -20240,6 +20272,88 @@ ChordResult prefer_strict_symmetric_dim7_global_chord(const ChordResult &current
 	return current;
 }
 
+bool chord_result_primary(const ChordResult &chord, ParsedRootChord &parsed)
+{
+	if (!valid_chord_result(chord))
+		return false;
+	const std::size_t primary_len = std::strcspn(chord.label, "=");
+	return parse_root_chord_component(chord.label, primary_len, parsed);
+}
+
+bool chroma_is_not_too_crowded_for_chord(const std::array<float, 12> &chroma,
+					 const ChordResult &chord)
+{
+	if (!valid_chord_result(chord))
+		return false;
+
+	float core_min = 1.0f;
+	float core_sum = 0.0f;
+	int core_count = 0;
+	float extra_sum = 0.0f;
+	float extra_max = 0.0f;
+	int strong_extra_count = 0;
+	for (int pitch_class = 0; pitch_class < 12; ++pitch_class) {
+		const float level = chroma[static_cast<std::size_t>(pitch_class)];
+		if (chord.tones[static_cast<std::size_t>(pitch_class)]) {
+			core_min = std::min(core_min, level);
+			core_sum += level;
+			++core_count;
+			continue;
+		}
+		extra_sum += level;
+		extra_max = std::max(extra_max, level);
+		if (level >= 0.35f)
+			++strong_extra_count;
+	}
+	if (core_count < 3 || core_min < 0.24f)
+		return false;
+	if (strong_extra_count > 2)
+		return false;
+	return extra_max <= std::max(0.55f, core_min * 1.20f) && extra_sum <= core_sum * 0.85f;
+}
+
+ChordResult detect_mixed_display_global_chord(const std::array<float, 12> &chroma, int preferred_root)
+{
+	const std::array<float, 12> pruned = strongest_chord_chroma(chroma);
+	ChordResult best = detect_chord(chroma, preferred_root, false);
+	best = stronger_chord(best, detect_chord(chroma, -1, false));
+	best = stronger_chord(best, detect_chord(pruned, preferred_root, false));
+	best = stronger_chord(best, detect_chord(pruned, -1, false));
+	best = prefer_strict_symmetric_dim7_global_chord(best, chroma);
+	if (!chroma_is_not_too_crowded_for_chord(chroma, best))
+		return ChordResult{};
+	return best;
+}
+
+ChordResult prefer_mixed_display_global_chord(const ChordResult &current, const ChordResult &display)
+{
+	if (!valid_chord_result(display))
+		return current;
+
+	ParsedRootChord display_primary;
+	if (!chord_result_primary(display, display_primary))
+		return current;
+	const bool display_has_third = display_primary.quality == RootChordQuality::Major ||
+				       display_primary.quality == RootChordQuality::Minor ||
+				       display_primary.quality == RootChordQuality::Diminished;
+	if (!display_has_third)
+		return current;
+
+	if (!valid_chord_result(current))
+		return display;
+
+	ParsedRootChord current_primary;
+	if (!chord_result_primary(current, current_primary))
+		return current;
+	if (current_primary.quality == RootChordQuality::NoThird &&
+	    display.confidence + 0.12f >= current.confidence)
+		return display;
+	if (current_primary.root == display_primary.root &&
+	    current_primary.quality == RootChordQuality::NoThird)
+		return display;
+	return current;
+}
+
 ChordResult detect_mixed_chord_from_grid(const NoteGrid &grid, int preferred_root, bool allow_extensions)
 {
 	const std::array<float, 12> chroma = note_grid_chroma(grid);
@@ -28239,6 +28353,15 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 	}
 
 	if (mixed_source) {
+		const std::array<float, 12> display_global_chroma =
+			mixed_global_display_chroma(snapshot.bass_notes, snapshot.keyboard_notes,
+						    snapshot.guitar_notes, snapshot.vocal_notes,
+						    snapshot.other_notes, snapshot.ambiguous_notes);
+		const ChordResult display_global_chord =
+			detect_mixed_display_global_chord(display_global_chroma, mixed_bass_pitch_class);
+		raw_global_chord = prefer_mixed_display_global_chord(raw_global_chord, display_global_chord);
+		smoothed_global_chord =
+			prefer_mixed_display_global_chord(smoothed_global_chord, display_global_chord);
 		stabilize_chord(snapshot.global_chord, global_chord_tracking_, raw_global_chord, smoothed_global_chord,
 				true, interval_seconds, true, true);
 		const int global_extension_root_hint =

@@ -703,6 +703,49 @@ void check_strict_symmetric_dim7_global_recovery(Runner &runner)
 			      incomplete.label + "`");
 }
 
+void check_mixed_global_display_chord_fallback(Runner &runner)
+{
+	NoteGrid bass = {};
+	NoteGrid keyboard = {};
+	NoteGrid guitar = {};
+	NoteGrid vocal = {};
+	NoteGrid other = {};
+	NoteGrid ambiguous = {};
+	set_pitch(bass, 2, 0.85f);
+	set_pitch(keyboard, 5, 1.00f);
+	set_pitch(ambiguous, 9, 0.52f);
+
+	const std::array<float, 12> chroma =
+		mixed_global_display_chroma(bass, keyboard, guitar, vocal, other, ambiguous);
+	ChordResult display = detect_mixed_display_global_chord(chroma, 2);
+	runner.expect(chord_label_has_exact_component(display.label, "Dm"),
+		      std::string("mixed global display fallback: expected visible D-F-A to recover Dm, got `") +
+			      display.label + "`");
+
+	ChordResult empty;
+	ChordResult recovered = prefer_mixed_display_global_chord(empty, display);
+	runner.expect(chord_label_has_exact_component(recovered.label, "Dm"),
+		      std::string("mixed global display fallback: expected invalid global to use Dm, got `") +
+			      recovered.label + "`");
+
+	ChordResult power = make_crowded_chord("Dpow");
+	power.root = 2;
+	power.confidence = 0.50f;
+	recovered = prefer_mixed_display_global_chord(power, display);
+	runner.expect(chord_label_has_exact_component(recovered.label, "Dm"),
+		      std::string("mixed global display fallback: expected Dpow to upgrade to Dm, got `") +
+			      recovered.label + "`");
+
+	ChordResult existing_minor = make_crowded_chord("Em");
+	existing_minor.root = 4;
+	existing_minor.confidence = 0.50f;
+	recovered = prefer_mixed_display_global_chord(existing_minor, display);
+	runner.expect(chord_label_has_exact_component(recovered.label, "Em") &&
+			      !chord_label_has_exact_component(recovered.label, "Dm"),
+		      std::string("mixed global display fallback: expected established Em to be preserved, got `") +
+			      recovered.label + "`");
+}
+
 void check_plain_guitar_voicing_rejects_crowded_root_fifth_quality(Runner &runner)
 {
 	ChordResult f_major = make_crowded_chord("F");
@@ -3479,6 +3522,7 @@ int run()
 	check_visible_augmented_guitar_alias_recovery(runner);
 	check_mixed_global_superset_extension_aliases(runner);
 	check_strict_symmetric_dim7_global_recovery(runner);
+	check_mixed_global_display_chord_fallback(runner);
 	check_plain_guitar_voicing_rejects_crowded_root_fifth_quality(runner);
 	check_displayed_guitar_single_note_probe_profile(runner);
 	check_supported_guitar_candidate_alias_merge(runner);
