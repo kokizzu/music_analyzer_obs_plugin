@@ -360,6 +360,59 @@ void check_visible_diminished_guitar_alias_recovery(Runner &runner)
 	runner.expect(!chord_label_has_exact_component(crowded_state.label, "Adim"),
 		      std::string("rootless diminished guitar alias recovery: expected crowded label protected, got `") +
 			      crowded_state.label + "`");
+
+	InstrumentState post_prune_state = {};
+	std::snprintf(post_prune_state.label, sizeof(post_prune_state.label),
+		      "A#m=A#m7=A#m6=Gm7b5=C#6");
+	post_prune_state.confidence = 0.58f;
+	ChordResult post_prune_source = make_crowded_chord("A#m=Gm7b5=A#m6=A#m7=C#6");
+	post_prune_source.root = 10;
+	post_prune_source.confidence = 0.66f;
+	NoteGrid post_prune_display = {};
+	set_pitch(post_prune_display, 1, 0.30f);
+	set_pitch(post_prune_display, 10, 0.25f);
+	NoteGrid post_prune_analysis = post_prune_display;
+	set_pitch(post_prune_analysis, 7, 0.38f);
+	append_source_supported_guitar_diminished_triad_aliases_after_prune(
+		post_prune_state, post_prune_source, post_prune_display, post_prune_analysis);
+	runner.expect(chord_label_has_exact_component(post_prune_state.label, "Gdim"),
+		      std::string("source-backed post-prune diminished recovery: expected Gdim, got `") +
+			      post_prune_state.label + "`");
+
+	InstrumentState unsupported_source_state = {};
+	std::snprintf(unsupported_source_state.label, sizeof(unsupported_source_state.label), "A#m=C#6");
+	unsupported_source_state.confidence = 0.58f;
+	ChordResult unsupported_source = make_crowded_chord("A#m=C#6");
+	unsupported_source.root = 10;
+	unsupported_source.confidence = 0.66f;
+	append_source_supported_guitar_diminished_triad_aliases_after_prune(
+		unsupported_source_state, unsupported_source, post_prune_display,
+		post_prune_analysis);
+	runner.expect(!chord_label_has_exact_component(unsupported_source_state.label, "Gdim"),
+		      std::string("source-backed post-prune diminished recovery: expected source guard, got `") +
+			      unsupported_source_state.label + "`");
+
+	InstrumentState natural_fifth_state = {};
+	std::snprintf(natural_fifth_state.label, sizeof(natural_fifth_state.label), "Gm7b5");
+	natural_fifth_state.confidence = 0.58f;
+	NoteGrid natural_fifth_grid = post_prune_analysis;
+	set_pitch(natural_fifth_grid, 2, 0.45f);
+	append_source_supported_guitar_diminished_triad_aliases_after_prune(
+		natural_fifth_state, post_prune_source, post_prune_display, natural_fifth_grid);
+	runner.expect(!chord_label_has_exact_component(natural_fifth_state.label, "Gdim"),
+		      std::string("source-backed post-prune diminished recovery: expected natural fifth protected, got `") +
+			      natural_fifth_state.label + "`");
+
+	InstrumentState crowded_post_prune_state = {};
+	std::snprintf(crowded_post_prune_state.label, sizeof(crowded_post_prune_state.label),
+		      "G#=Cm=Cdim=F#dim=G#sus4=G#pow");
+	crowded_post_prune_state.confidence = 0.58f;
+	append_source_supported_guitar_diminished_triad_aliases_after_prune(
+		crowded_post_prune_state, post_prune_source, post_prune_display,
+		post_prune_analysis);
+	runner.expect(!chord_label_has_exact_component(crowded_post_prune_state.label, "Gdim"),
+		      std::string("source-backed post-prune diminished recovery: expected crowded label protected, got `") +
+			      crowded_post_prune_state.label + "`");
 }
 
 void check_visible_augmented_guitar_alias_recovery(Runner &runner)
