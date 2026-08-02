@@ -19545,6 +19545,7 @@ bool guitar_probe_supported_same_root_extension_component(
 
 	std::array<int, 2> required_extensions = {};
 	int required_count = 0;
+	bool major_seventh_component = false;
 	auto require_extension = [&](int interval) {
 		required_extensions[static_cast<std::size_t>(required_count++)] = interval;
 	};
@@ -19554,7 +19555,8 @@ bool guitar_probe_supported_same_root_extension_component(
 		   suffix_is(suffix, suffix_len, "m7")) {
 		require_extension(10);
 	} else if (suffix_is(suffix, suffix_len, "maj7")) {
-		return false;
+		require_extension(11);
+		major_seventh_component = true;
 	} else if (suffix_is(suffix, suffix_len, "maj9")) {
 		return false;
 	} else if (suffix_is(suffix, suffix_len, "9") || suffix_is(suffix, suffix_len, "m9")) {
@@ -19603,6 +19605,15 @@ bool guitar_probe_supported_same_root_extension_component(
 		    note_grid_pitch_active(analysis_grid, component.root + interval))
 			continue;
 		if (probe_norm(component.root + interval) < std::max(0.095f, core_anchor * 0.20f))
+			return false;
+	}
+	if (major_seventh_component) {
+		const float major_seventh_support = support(component.root + 11);
+		const float flat_seventh_support = support(component.root + 10);
+		if (major_seventh_support < std::max(0.110f, core_anchor * 0.24f))
+			return false;
+		if (flat_seventh_support >= std::max(0.100f, major_seventh_support * 0.82f) &&
+		    flat_seventh_support >= core_anchor * 0.18f)
 			return false;
 	}
 	return true;

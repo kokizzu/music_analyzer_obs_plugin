@@ -415,6 +415,37 @@ void check_supported_guitar_candidate_alias_merge(Runner &runner)
 		      std::string("supported guitar alias merge: expected missing maj7 tone pruned, got `") +
 			      protected_state.label + "`");
 
+	InstrumentState probe_major_seventh_state = {};
+	std::snprintf(probe_major_seventh_state.label, sizeof(probe_major_seventh_state.label), "D");
+	probe_major_seventh_state.confidence = 0.58f;
+	ChordResult probe_major_seventh_source = make_crowded_chord("D=Dmaj7");
+	probe_major_seventh_source.root = 2;
+	probe_major_seventh_source.confidence = 0.64f;
+	std::array<float, kNoteProbeCount> probe_major_seventh_powers = {};
+	set_probe_level(probe_major_seventh_powers, 50, 0.82f);
+	set_probe_level(probe_major_seventh_powers, 54, 0.60f);
+	set_probe_level(probe_major_seventh_powers, 57, 0.55f);
+	set_probe_level(probe_major_seventh_powers, 61, 0.24f);
+
+	append_supported_guitar_candidate_aliases_to_display(
+		probe_major_seventh_state, probe_major_seventh_source, triad_grid, triad_grid,
+		&probe_major_seventh_powers, kGuitarMinMidi, kGuitarMaxMidi);
+	runner.expect(chord_label_has_exact_component(probe_major_seventh_state.label, "Dmaj7"),
+		      std::string("supported guitar alias merge: expected probe-backed Dmaj7 appended, got `") +
+			      probe_major_seventh_state.label + "`");
+
+	InstrumentState dominant_conflict_state = {};
+	std::snprintf(dominant_conflict_state.label, sizeof(dominant_conflict_state.label), "D");
+	dominant_conflict_state.confidence = 0.58f;
+	std::array<float, kNoteProbeCount> dominant_conflict_powers = probe_major_seventh_powers;
+	set_probe_level(dominant_conflict_powers, 60, 0.34f);
+	append_supported_guitar_candidate_aliases_to_display(
+		dominant_conflict_state, probe_major_seventh_source, triad_grid, triad_grid,
+		&dominant_conflict_powers, kGuitarMinMidi, kGuitarMaxMidi);
+	runner.expect(!chord_label_has_exact_component(dominant_conflict_state.label, "Dmaj7"),
+		      std::string("supported guitar alias merge: expected flat-seventh conflict protected, got `") +
+			      dominant_conflict_state.label + "`");
+
 	InstrumentState clean_primary_state = {};
 	std::snprintf(clean_primary_state.label, sizeof(clean_primary_state.label), "C");
 	clean_primary_state.confidence = 0.64f;
