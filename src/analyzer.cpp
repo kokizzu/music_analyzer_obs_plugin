@@ -15752,6 +15752,63 @@ bool chroma_supports_weak_primary_major_sixth(const std::array<float, 12> &chrom
 	       flat_seventh < sixth * 0.85f && major_seventh < sixth * 0.85f;
 }
 
+bool chroma_supports_sus_polluted_dominant_seventh(const std::array<float, 12> &chroma,
+						   const ParsedRootChord &primary,
+						   unsigned int primary_mask, int primary_tones,
+						   int &alias_root)
+{
+	if (primary.quality != RootChordQuality::NoThird || primary_tones != 3)
+		return false;
+
+	float best_score = 0.0f;
+	int best_root = -1;
+	for (int root = 0; root < 12; ++root) {
+		const unsigned int sus4_mask =
+			(1u << static_cast<unsigned int>(root)) |
+			(1u << static_cast<unsigned int>((root + 5) % 12)) |
+			(1u << static_cast<unsigned int>((root + 7) % 12));
+		if ((primary_mask & ~sus4_mask) != 0 || (primary_mask & sus4_mask) != sus4_mask)
+			continue;
+
+		const float root_level = chroma[static_cast<std::size_t>(root)];
+		const float major_third = chroma[static_cast<std::size_t>((root + 4) % 12)];
+		const float fourth = chroma[static_cast<std::size_t>((root + 5) % 12)];
+		const float fifth = chroma[static_cast<std::size_t>((root + 7) % 12)];
+		const float flat_seventh = chroma[static_cast<std::size_t>((root + 10) % 12)];
+		const float minor_third = chroma[static_cast<std::size_t>((root + 3) % 12)];
+		const float major_seventh = chroma[static_cast<std::size_t>((root + 11) % 12)];
+		if (root_level < 0.28f || major_third < 0.48f || fifth < 0.45f ||
+		    flat_seventh < 0.42f || fourth < 0.70f)
+			continue;
+		if (minor_third >= major_third * 0.55f || major_seventh >= flat_seventh * 0.55f)
+			continue;
+
+		float strongest_other = 0.0f;
+		for (int pitch_class = 0; pitch_class < 12; ++pitch_class) {
+			const int interval = (pitch_class - root + 12) % 12;
+			if (interval == 0 || interval == 4 || interval == 5 || interval == 7 ||
+			    interval == 10)
+				continue;
+			strongest_other = std::max(strongest_other,
+						   chroma[static_cast<std::size_t>(pitch_class)]);
+		}
+		if (strongest_other > 0.34f)
+			continue;
+
+		const float score = root_level * 0.55f + major_third + fifth + flat_seventh -
+				    strongest_other * 0.35f;
+		if (score <= best_score)
+			continue;
+		best_score = score;
+		best_root = root;
+	}
+
+	if (best_root < 0)
+		return false;
+	alias_root = best_root;
+	return true;
+}
+
 void append_mixed_global_extension_aliases(InstrumentState &state, const std::array<float, 12> &chroma,
 					   int preferred_root)
 {
@@ -15863,6 +15920,17 @@ void append_mixed_global_extension_aliases(InstrumentState &state, const std::ar
 	    chroma_supports_weak_primary_major_sixth(chroma, primary, primary_mask, primary_tones)) {
 		char label[16] = {};
 		std::snprintf(label, sizeof(label), "%s6", note_name(primary.root));
+		const std::size_t label_len = std::strlen(label);
+		if (!chord_label_has_component(merged, label, label_len))
+			append_chord_label_component(merged, sizeof(merged), label, label_len);
+	}
+
+	int sus_polluted_dominant_root = -1;
+	if (appended < 4 &&
+	    chroma_supports_sus_polluted_dominant_seventh(chroma, primary, primary_mask, primary_tones,
+							  sus_polluted_dominant_root)) {
+		char label[16] = {};
+		std::snprintf(label, sizeof(label), "%s7", note_name(sus_polluted_dominant_root));
 		const std::size_t label_len = std::strlen(label);
 		if (!chord_label_has_component(merged, label, label_len))
 			append_chord_label_component(merged, sizeof(merged), label, label_len);

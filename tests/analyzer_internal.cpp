@@ -728,6 +728,52 @@ void check_mixed_global_superset_extension_aliases(Runner &runner)
 	}
 	{
 		InstrumentState state = {};
+		std::snprintf(state.label, sizeof(state.label), "Asus2=Esus4");
+		state.confidence = 0.62f;
+		std::array<float, 12> chroma = {};
+		chroma[2] = 0.48f;
+		chroma[4] = 0.30f;
+		chroma[8] = 0.55f;
+		chroma[9] = 1.00f;
+		chroma[11] = 0.58f;
+		append_mixed_global_extension_aliases(state, chroma, -1);
+		runner.expect(chord_label_has_exact_component(state.label, "E7"),
+			      std::string("mixed global sus-polluted dominant alias: expected Asus2/Esus4 to include E7, got `") +
+				      state.label + "`");
+	}
+	{
+		InstrumentState state = {};
+		std::snprintf(state.label, sizeof(state.label), "Esus4=Asus2");
+		state.confidence = 0.62f;
+		std::array<float, 12> chroma = {};
+		chroma[2] = 0.48f;
+		chroma[4] = 0.30f;
+		chroma[8] = 0.20f;
+		chroma[9] = 1.00f;
+		chroma[11] = 0.58f;
+		append_mixed_global_extension_aliases(state, chroma, -1);
+		runner.expect(!chord_label_has_exact_component(state.label, "E7"),
+			      std::string("mixed global sus-polluted dominant alias: expected missing third to block E7, got `") +
+				      state.label + "`");
+	}
+	{
+		InstrumentState state = {};
+		std::snprintf(state.label, sizeof(state.label), "Asus2=Esus4");
+		state.confidence = 0.62f;
+		std::array<float, 12> chroma = {};
+		chroma[0] = 0.39f;
+		chroma[2] = 0.48f;
+		chroma[4] = 0.30f;
+		chroma[8] = 0.55f;
+		chroma[9] = 1.00f;
+		chroma[11] = 0.58f;
+		append_mixed_global_extension_aliases(state, chroma, -1);
+		runner.expect(!chord_label_has_exact_component(state.label, "E7"),
+			      std::string("mixed global sus-polluted dominant alias: expected crowded chroma to block E7, got `") +
+				      state.label + "`");
+	}
+	{
+		InstrumentState state = {};
 		std::snprintf(state.label, sizeof(state.label), "Em");
 		state.confidence = 0.62f;
 		std::array<float, 12> chroma = {};
