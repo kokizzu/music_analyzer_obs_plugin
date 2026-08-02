@@ -1343,6 +1343,39 @@ void check_compact_guitar_power_raw_profile_third_aliases(Runner &runner)
 		      std::string("visible root-fifth guitar power display: expected Apow recovered, got `") +
 			      gaps_power_display.label + "`");
 
+	InstrumentState crowded_plain_power_display = {};
+	std::snprintf(crowded_plain_power_display.label, sizeof(crowded_plain_power_display.label),
+		      "D=Dmaj7=Gmaj9=Gsus2=Gm");
+	crowded_plain_power_display.confidence = 0.85f;
+	NoteGrid crowded_plain_power_display_grid = {};
+	set_pitch(crowded_plain_power_display_grid, 2, 0.76f);
+	set_pitch(crowded_plain_power_display_grid, 9, 1.00f);
+	NoteGrid crowded_plain_power_analysis_grid = {};
+	set_pitch(crowded_plain_power_analysis_grid, 2, 0.51f);
+	set_pitch(crowded_plain_power_analysis_grid, 9, 1.00f);
+	std::array<float, kNoteProbeCount> crowded_plain_power_powers = {};
+	set_probe_level(crowded_plain_power_powers, 50, 0.51f);
+	set_probe_level(crowded_plain_power_powers, 54, 0.05f);
+	set_probe_level(crowded_plain_power_powers, 57, 1.00f);
+	append_visible_root_fifth_guitar_power_aliases_after_prune(
+		crowded_plain_power_display, crowded_plain_power_display_grid,
+		crowded_plain_power_analysis_grid, &crowded_plain_power_powers,
+		kGuitarMinMidi, kGuitarMaxMidi);
+	runner.expect(chord_label_has_exact_component(crowded_plain_power_display.label, "Dpow"),
+		      std::string("visible root-fifth guitar power display: expected crowded plain Dpow recovered, got `") +
+			      crowded_plain_power_display.label + "`");
+
+	InstrumentState small_plain_power_display = {};
+	std::snprintf(small_plain_power_display.label, sizeof(small_plain_power_display.label), "D=Dmaj7");
+	small_plain_power_display.confidence = 0.85f;
+	append_visible_root_fifth_guitar_power_aliases_after_prune(
+		small_plain_power_display, crowded_plain_power_display_grid,
+		crowded_plain_power_analysis_grid, &crowded_plain_power_powers,
+		kGuitarMinMidi, kGuitarMaxMidi);
+	runner.expect(!chord_label_has_exact_component(small_plain_power_display.label, "Dpow"),
+		      std::string("visible root-fifth guitar power display: expected compact plain label protected, got `") +
+			      small_plain_power_display.label + "`");
+
 	InstrumentState adjacent_noise_display = {};
 	std::snprintf(adjacent_noise_display.label, sizeof(adjacent_noise_display.label), "C");
 	adjacent_noise_display.confidence = 0.58f;
