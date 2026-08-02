@@ -913,6 +913,7 @@ def main() -> int:
         "find-vocadito-full-mix-ownership-patterns",
         "find-vocadito-full-mix-broad-vocal-ownership-patterns",
         "find-vocadito-full-mix-visual-row-confusion-patterns",
+        "$(DETECTOR_GUITAR_PATTERN_ROUTE_TARGETS)",
         "find-instrument-owner-patterns",
         "find-instrument-status-patterns",
         "find-drum-full-exact-attribute-patterns-cached",
@@ -930,6 +931,29 @@ def main() -> int:
     assert '--jobs "$(REAL_NOTE_PATTERN_JOBS)"' in broad_vocal_recipe, (
         "broad vocal ownership route must run pattern search with configured parallel jobs"
     )
+    for text in [
+        "DETECTOR_GUITAR_PATTERN_ROUTE_TARGETS :=",
+        "DETECTOR_GUITAR_PATTERN_ROUTE_TARGETS += find-egfxset-guitar-route-patterns",
+        "DETECTOR_GUITAR_PATTERN_ROUTE_TARGETS += find-gaps-guitar-route-patterns",
+        "DETECTOR_GUITAR_PATTERN_ROUTE_TARGETS += find-gaps-guitar-full-route-patterns",
+        "DETECTOR_GUITAR_PATTERN_ROUTE_TARGETS += find-guitarset-route-patterns",
+    ]:
+        assert text in makefile, (
+            f"detector route scans must optionally include guitar evidence target {text}"
+        )
+    for target, delegated in {
+        "find-egfxset-guitar-route-patterns": "find-egfxset-guitar-attribute-patterns",
+        "find-gaps-guitar-route-patterns": "find-gaps-guitar-attribute-patterns",
+        "find-gaps-guitar-full-route-patterns": "find-gaps-guitar-full-attribute-patterns",
+        "find-guitarset-route-patterns": "find-guitarset-attribute-patterns",
+    }.items():
+        recipe = target_recipe(makefile, target)
+        assert f"$(MAKE) {delegated}" in recipe, (
+            f"{target} must delegate to {delegated}"
+        )
+        assert 'PATTERN_ARGS="$(MEASURE_GUITAR_PATTERN_ARGS)"' in recipe, (
+            f"{target} must use bounded route-report guitar pattern args"
+        )
     assert "VOCADITO_PATTERN_EXTRA_PROTECTED_PATHS ?= $(BUILD_DIR)/real_note_full_mix_attributes.tsv" in makefile, (
         "Vocadito route mining must protect candidate vocal rules against the broad NSynth full-mix TSV"
     )
@@ -1033,7 +1057,10 @@ def main() -> int:
     route_report_recipe = target_recipe(makefile, "$(DETECTOR_IMPROVEMENT_ROUTE_REPORT)")
     assert re.search(
         r"^\$\(DETECTOR_IMPROVEMENT_ROUTE_REPORT\): FORCE Makefile scripts/run_with_duration\.sh "
-        r"scripts/find_real_note_attribute_patterns\.py scripts/evaluate_real_note_display_shadow\.py "
+        r"scripts/find_real_note_attribute_patterns\.py "
+        r"scripts/find_guitarset_attribute_patterns\.py "
+        r"scripts/inspect_guitarset_attribute_buckets\.py "
+        r"scripts/evaluate_real_note_display_shadow\.py "
         r"scripts/evaluate_real_note_vocal_display_fallback\.py "
         r"scripts/find_instrument_owner_patterns\.py "
         r"scripts/find_drum_attribute_patterns\.py",

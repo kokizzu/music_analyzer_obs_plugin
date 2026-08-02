@@ -42,6 +42,11 @@ ownership_miss:guitar/electronic->piano positives=3 samples/6 rows protected_hit
 route snare->tom positives=492 rows=492 protected_correct=13126 rows=13126
   +24 rows=24 -5 rows=5 foreign=4 rows=4 new-active=0 rows=0 primary-break=4 rows=4 side_rows=13 net_rows=11 gain_per_side=1.85 :: hihat_band>=24.633 AND tom_level>=0.981
   +21 rows=21 -7 rows=7 foreign=6 rows=6 new-active=1 rows=1 primary-break=6 rows=6 side_rows=20 net_rows=1 gain_per_side=1.05 :: hihat_band>=24.633 AND tom_seg<=225.582
+bucket chord_miss:7:visible3_analysis3_smooth3_rootvis1 positives=6 positive_rows=9 protected_hits=38
+  +3 rows=3 -0 rows=0 :: evidence_source=raw
+    030_rpswc@93.498s expected=A#7 guitar=E=Esus2 support=visible3_analysis3_smooth3_rootvis1 raw(root/third/fifth)=0.25/0.10/1.00 analysis=E,F,F#,G#,A,A#,B visible=E,F,F#,G#,A,A#,B
+  +5 rows=6 -1 rows=1 :: evidence_class=raw_quality_gap
+    031_rpswc@94.100s expected=A#7 guitar=A#7 support=visible3_analysis3_smooth3_rootvis1 raw(root/third/fifth)=1.00/0.70/0.80 analysis=A#,D,F,G# visible=A#,D,F,G#
 compact route summary
   routes=2 routes_with_extras=2 safe_simulation_routes=2 safe_simulation_extra_hits=24
   safe_threshold_routes=1 no_safe_threshold_routes=1 safe_threshold_extra_hits=23 safe_threshold_protected_hits=0
@@ -61,11 +66,11 @@ compact route summary
     output = result.stdout
     require(
         output,
-        "detector_route_summary: candidates=9 low_false=4 shadow=2 near_miss=1 drum=2 positive_net=8 gain_ge_1=8 source_safe_positive_net=6 actionable=4 coverage_blocked=2",
+        "detector_route_summary: candidates=11 low_false=4 shadow=2 near_miss=1 guitar=2 drum=2 positive_net=10 gain_ge_1=10 source_safe_positive_net=8 actionable=5 coverage_blocked=3",
     )
     require(
         output,
-        "blocked-reason summary cross_source_rows=3 low_samples<5=2 negative_net=1",
+        "blocked-reason summary cross_source_rows=3 low_samples<5=3 negative_net=1",
     )
     require(
         output,
@@ -74,6 +79,10 @@ compact route summary
     require(
         output,
         "coverage_need low-false ownership_miss:guitar/electronic->piano observed_samples=2 need_samples=3 +rows=5 side_rows=0 net_rows=5 gain_per_side=inf :: adjacent_lower_ratio<=0.698 AND partial3>=1.817",
+    )
+    require(
+        output,
+        "coverage_need guitar bucket chord_miss:7:visible3_analysis3_smooth3_rootvis1 observed_samples=3 need_samples=2 +rows=3 side_rows=0 net_rows=3 gain_per_side=inf :: evidence_source=raw",
     )
     require(
         output,
@@ -99,6 +108,10 @@ compact route summary
     )
     require(
         output,
+        "guitar bucket chord_miss:7:visible3_analysis3_smooth3_rootvis1 +recordings=5 +rows=6 -recordings=1 -rows=1 side_rows=1 net_rows=5 gain_per_side=6.00 :: evidence_class=raw_quality_gap",
+    )
+    require(
+        output,
         "near-miss row_confusion:piano/electronic->amb +samples=20 +rows=47 -samples=202 -rows=616 foreign_rows=242 side_rows=858 net_rows=-811 gain_per_side=0.05 neg_same_source_rows=0 neg_cross_source_rows=616 foreign_cross_source_rows=242 neg_sources=vocals/example=45 foreign_sources=vocals/other=19",
     )
     require(output, "blocked_by=negative_net,cross_source_rows=858")
@@ -110,6 +123,8 @@ compact route summary
         raise AssertionError(f"expected highest-net source-safe candidate first:\n{output}")
     if output.index("drum route snare->tom") > output.index("low-false row_confusion"):
         raise AssertionError(f"expected source-safe drum routes before cross-source-risky note routes:\n{output}")
+    if output.index("guitar bucket chord_miss") > output.index("low-false row_confusion"):
+        raise AssertionError(f"expected source-safe guitar routes before cross-source-risky note routes:\n{output}")
     if output.index("shadow other->same-pitch vocals") > output.index("near-miss row_confusion"):
         raise AssertionError(f"expected positive-net shadow candidates before near-miss routes:\n{output}")
     if output.index("drum route snare->tom") > output.index("near-miss row_confusion"):
@@ -136,7 +151,7 @@ compact route summary
     veto_output = result.stdout
     require(
         veto_output,
-        "detector_route_summary: candidates=0 low_false=0 shadow=0 near_miss=0 drum=0 positive_net=0 gain_ge_1=0 source_safe_positive_net=0 actionable=0 coverage_blocked=0",
+        "detector_route_summary: candidates=0 low_false=0 shadow=0 near_miss=0 guitar=0 drum=0 positive_net=0 gain_ge_1=0 source_safe_positive_net=0 actionable=0 coverage_blocked=0",
     )
     require(veto_output, "  --")
 

@@ -10,7 +10,7 @@ import re
 
 
 SECTION_RE = re.compile(
-    r"^(?P<section>(?:ownership_miss|visual_row_confusion|row_confusion):\S+|route \S+)"
+    r"^(?P<section>(?:ownership_miss|visual_row_confusion|row_confusion):\S+|route \S+|bucket \S+)"
 )
 NOTE_CANDIDATE_RE = re.compile(
     r"^(?P<rule>.+?): pos=(?P<pos_samples>\d+)/(?:\d+) rows=(?P<pos_rows>\d+) "
@@ -33,6 +33,10 @@ DRUM_CANDIDATE_RE = re.compile(
     r"(?: side_rows=\d+ net_rows=-?\d+ gain_per_side=(?:inf|\d+(?:\.\d+)?))? :: "
     r"(?P<rule>.+)$"
 )
+GUITAR_CANDIDATE_RE = re.compile(
+    r"^\+(?P<pos_samples>\d+) rows=(?P<pos_rows>\d+) "
+    r"-(?P<neg_samples>\d+) rows=(?P<neg_rows>\d+) :: (?P<rule>.+)$"
+)
 SHADOW_THRESHOLD_RE = re.compile(
     r"^protected=(?P<protected_rows>\d+)/(?:\d+) extras=(?P<extra_rows>\d+)/(?:\d+) "
     r"(?P<rule>.+)$"
@@ -48,6 +52,7 @@ COMPACT_SHADOW_ROUTE_RE = re.compile(
 POSITIVE_SAMPLE_PROFILE_RE = re.compile(
     r"^positive sample profile: groups=(?P<groups>\S+) sources=(?P<sources>\S+)"
 )
+SAMPLE_SENSITIVE_KINDS = {"low-false", "near-miss", "guitar"}
 
 
 @dataclasses.dataclass(frozen=True)
@@ -120,6 +125,7 @@ def parse_report(path: pathlib.Path) -> list[Candidate]:
     note_candidate_kind = ""
     last_candidate_index: int | None = None
     example_candidate_index: int | None = None
+    example_indent = "        "
 
     def append_candidate(candidate: Candidate) -> int | None:
         nonlocal last_candidate_index
@@ -197,10 +203,11 @@ def parse_report(path: pathlib.Path) -> list[Candidate]:
         stripped = line.strip()
 
         if example_candidate_index is not None:
-            if line.startswith("        ") and stripped:
+            if line.startswith(example_indent) and stripped:
                 append_example(example_candidate_index, stripped)
                 continue
             example_candidate_index = None
+            example_indent = "        "
 
         section_match = SECTION_RE.match(line)
         if section_match:
@@ -225,6 +232,7 @@ def parse_report(path: pathlib.Path) -> list[Candidate]:
             continue
         if stripped == "positive examples:" and last_candidate_index is not None:
             example_candidate_index = last_candidate_index
+            example_indent = "        "
             continue
         if note_candidate_kind and (
             stripped.startswith("highest-coverage")
@@ -299,6 +307,25 @@ def parse_report(path: pathlib.Path) -> list[Candidate]:
                         primary_break_rows=int(match.group("primary_break_rows")),
                     )
                 )
+            continue
+
+        if section.startswith("bucket ") and line.startswith("  +"):
+            match = GUITAR_CANDIDATE_RE.match(stripped)
+            if match:
+                index = append_candidate(
+                    Candidate(
+                        kind="guitar",
+                        section=section,
+                        rule=match.group("rule"),
+                        pos_samples=int(match.group("pos_samples")),
+                        pos_rows=int(match.group("pos_rows")),
+                        neg_samples=int(match.group("neg_samples")),
+                        neg_rows=int(match.group("neg_rows")),
+                    )
+                )
+                example_candidate_index = index
+                example_indent = "    "
+            continue
 
     return [
         candidate
@@ -308,7 +335,7 @@ def parse_report(path: pathlib.Path) -> list[Candidate]:
 
 
 def candidate_sort_key(candidate: Candidate) -> tuple[int, float, int, int, int, str]:
-    kind_priority = {"low-false": 0, "shadow": 1, "near-miss": 2, "drum": 3}.get(
+    kind_priority = {"low-false": 0, "shadow": 1, "near-miss": 2, "guitar": 3, "drum": 4}.get(
         candidate.kind, 4
     )
     return (
@@ -345,9 +372,10 @@ def candidate_block_reasons(
     reasons: list[str] = []
     if candidate.net_rows <= 0:
         reasons.append("negative_net")
-    if candidate.kind in {"low-false", "near-miss"}:
+    if candidate.kind in SAMPLE_SENSITIVE_KINDS:
         if 0 < candidate.pos_samples < min_actionable_samples:
             reasons.append(f"low_samples<{min_actionable_samples}")
+    if candidate.kind in {"low-false", "near-miss"}:
         if not candidate.source_safe:
             if candidate.source_rows_reported:
                 reasons.append(f"cross_source_rows={candidate.source_conflict_rows}")
@@ -359,7 +387,7 @@ def candidate_block_reasons(
 def candidate_additional_samples_needed(
     candidate: Candidate, min_actionable_samples: int
 ) -> int:
-    if candidate.kind not in {"low-false", "near-miss"}:
+    if candidate.kind not in SAMPLE_SENSITIVE_KINDS:
         return 0
     if candidate.pos_samples <= 0 or candidate.pos_samples >= min_actionable_samples:
         return 0
@@ -411,6 +439,13 @@ def format_candidate(candidate: Candidate, min_actionable_samples: int) -> str:
             f"primary_break_rows={candidate.primary_break_rows} "
             f"{utility}{block_utility} :: {candidate.rule}"
         )
+    if candidate.kind == "guitar":
+        return (
+            f"{candidate.kind} {candidate.section} "
+            f"+recordings={candidate.pos_samples} +rows={candidate.pos_rows} "
+            f"-recordings={candidate.neg_samples} -rows={candidate.neg_rows} "
+            f"{utility}{block_utility} :: {candidate.rule}"
+        )
     if candidate.kind == "shadow":
         return (
             f"{candidate.kind} {candidate.section} "
@@ -432,6 +467,11 @@ def compact_example(example: str) -> str:
         return "--"
     useful_prefixes = (
         "expected=",
+        "guitar=",
+        "support=",
+        "raw(root/third/fifth)=",
+        "analysis=",
+        "visible=",
         "debug=",
         "owner=",
         "delta=",
@@ -547,6 +587,7 @@ def main() -> int:
     low_false = [candidate for candidate in candidates if candidate.kind == "low-false"]
     shadow = [candidate for candidate in candidates if candidate.kind == "shadow"]
     near_miss = [candidate for candidate in candidates if candidate.kind == "near-miss"]
+    guitar = [candidate for candidate in candidates if candidate.kind == "guitar"]
     drum = [candidate for candidate in candidates if candidate.kind == "drum"]
     positive_net = [candidate for candidate in candidates if candidate.net_rows > 0]
     gain_ge_1 = [candidate for candidate in candidates if candidate.gain_per_side_effect_row >= 1.0]
@@ -569,7 +610,8 @@ def main() -> int:
     print(
         "detector_route_summary: "
         f"candidates={len(candidates)} low_false={len(low_false)} "
-        f"shadow={len(shadow)} near_miss={len(near_miss)} drum={len(drum)} "
+        f"shadow={len(shadow)} near_miss={len(near_miss)} guitar={len(guitar)} "
+        f"drum={len(drum)} "
         f"positive_net={len(positive_net)} gain_ge_1={len(gain_ge_1)} "
         f"source_safe_positive_net={len(source_safe_positive_net)} "
         f"actionable={len(actionable)} coverage_blocked={len(coverage_blocked)}"
