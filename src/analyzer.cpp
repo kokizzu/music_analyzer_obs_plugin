@@ -26683,6 +26683,7 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 			full_mix_ownership.global_chroma[mixed_bass_pitch_class] =
 				std::max(full_mix_ownership.global_chroma[mixed_bass_pitch_class],
 					 snapshot.bass.confidence * 0.55f);
+		snapshot.global_chord_debug_chroma = full_mix_ownership.global_chroma;
 		raw_global_chord = detect_chord(full_mix_ownership.global_chroma, -1, false);
 		if (strong_bass_hint) {
 			const ChordResult bass_hint_chord =

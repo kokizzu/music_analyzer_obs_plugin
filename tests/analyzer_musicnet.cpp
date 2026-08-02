@@ -1116,12 +1116,13 @@ void check_recall(Runner &runner, const mao::AnalysisSnapshot &snapshot, const C
 			const std::array<float, 12> detected_levels = detected_pitch_class_levels(snapshot);
 			std::fprintf(stderr,
 				     "%s: chord opportunity `%s`, expected pcs `%s`, detected pcs `%s`, "
-				     "detected levels `%s`, detected global `%s`, key `%s`, guitar `%s`, "
-				     "other `%s`, candidates `%s`\n",
+				     "detected levels `%s`, raw chroma `%s`, detected global `%s`, key `%s`, "
+				     "guitar `%s`, other `%s`, candidates `%s`\n",
 				     context.c_str(), join_labels(candidate.chord_labels).c_str(),
 				     pitch_class_list(candidate.pitch_classes).c_str(),
 				     pitch_class_list(detected).c_str(),
 				     pitch_class_level_list(detected_levels).c_str(),
+				     pitch_class_level_list(snapshot.global_chord_debug_chroma).c_str(),
 				     snapshot.global_chord.label, snapshot.keyboard_chord.label,
 				     snapshot.guitar_chord.label, snapshot.other_chord.label,
 				     full_mix_candidate_list(snapshot).c_str());

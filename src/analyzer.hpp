@@ -180,6 +180,7 @@ struct AnalysisSnapshot {
 	InstrumentState root = {};
 	char root_candidates[64] = {};
 	InstrumentState global_chord = {};
+	std::array<float, 12> global_chord_debug_chroma = {};
 	NoteGrid ambiguous_notes = {};
 	InstrumentState bass = {};
 	NoteGrid bass_notes = {};
