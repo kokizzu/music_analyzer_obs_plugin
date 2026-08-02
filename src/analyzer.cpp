@@ -20125,7 +20125,7 @@ bool guitar_loud_harmonic_only_single_note_residue(const NoteGrid &display_grid,
 	for (int midi = kGuitarMinMidi; midi <= 55; ++midi) {
 		if (midi_pitch_class(midi) != midi_pitch_class(root))
 			continue;
-		if (note_grid_midi_level(display_grid, midi) < 0.18f)
+		if (note_grid_midi_level(display_grid, midi) < 0.30f)
 			continue;
 		if (note_grid_midi_level(display_grid, midi + third_interval) >= 0.12f ||
 		    note_grid_midi_level(display_grid, midi + 7) >= 0.12f)
