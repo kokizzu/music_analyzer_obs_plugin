@@ -23686,6 +23686,13 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 			drum_detection_enabled && one_shot_drum_source &&
 			drum_bands[Snare] >= 202.549f &&
 			drum_segment_bands[Crash] <= 0.889f;
+		const bool one_shot_measured_compact_band_snare_from_tom_primary_recovery =
+			drum_detection_enabled && one_shot_drum_source &&
+			drum_level_[Snare] > 0.30f &&
+			drum_level_[Tom] >= 0.944f &&
+			drum_bands[Snare] >= 196.969f &&
+			snare_body <= 83.753f &&
+			tom_snare_band_ratio >= 0.988f;
 		const float measured_hihat_rim_level_ratio =
 			drum_level_[HiHat] / (drum_level_[Rim] + 1.0e-9f);
 		const float measured_tom_kick_level_ratio =
@@ -23955,6 +23962,7 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 		    one_shot_measured_low_trigger_snare_from_tom_primary_recovery ||
 		    one_shot_measured_rim_trigger_snare_from_tom_primary_recovery ||
 		    one_shot_measured_high_band_snare_from_tom_primary_recovery ||
+		    one_shot_measured_compact_band_snare_from_tom_primary_recovery ||
 		    one_shot_measured_saturated_snare_from_tom_primary_recovery ||
 		    one_shot_measured_high_band_snare_primary_recovery ||
 		    one_shot_measured_bright_segment_snare_primary_recovery ||
