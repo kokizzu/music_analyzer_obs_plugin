@@ -27,6 +27,7 @@ RULE_FLAG_BITS = (
     ("flag_bright_kick_active_bleed", 1 << 14),
     ("flag_upper_tom_from_snare_active_bleed", 1 << 15),
     ("flag_deep_kick_snare_active_bleed", 1 << 16),
+    ("flag_crash_hihat_active_bleed", 1 << 17),
 )
 ROW_DUMP_FIELDS = (
     [
