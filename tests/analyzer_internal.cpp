@@ -1191,6 +1191,64 @@ void check_compact_guitar_power_raw_profile_third_aliases(Runner &runner)
 	runner.expect(chord_label_has_exact_component(hidden_root_display_state.label, "B"),
 		      std::string("probe hidden-root guitar display alias: expected B beside D#m, got `") +
 			      hidden_root_display_state.label + "`");
+
+	InstrumentState clean_power_display = {};
+	std::snprintf(clean_power_display.label, sizeof(clean_power_display.label), "F");
+	clean_power_display.confidence = 0.58f;
+	NoteGrid clean_power_grid = {};
+	set_pitch(clean_power_grid, 5, 0.62f);
+	set_pitch(clean_power_grid, 9, 0.36f);
+	set_pitch(clean_power_grid, 0, 0.58f);
+	append_visible_root_fifth_guitar_power_aliases_after_prune(
+		clean_power_display, clean_power_grid, clean_power_grid);
+	runner.expect(!chord_label_has_exact_component(clean_power_display.label, "Fpow"),
+		      std::string("visible root-fifth guitar power display: expected plain triad protected, got `") +
+			      clean_power_display.label + "`");
+
+	InstrumentState gaps_power_display = {};
+	std::snprintf(gaps_power_display.label, sizeof(gaps_power_display.label),
+		      "E=Am=Eadd9=Esus2=Esus4=Asus2=Epow=Em=Bsus4=Am6");
+	gaps_power_display.confidence = 0.60f;
+	NoteGrid gaps_power_display_grid = {};
+	set_pitch(gaps_power_display_grid, 9, 0.11f);
+	set_pitch(gaps_power_display_grid, 4, 1.00f);
+	set_pitch(gaps_power_display_grid, 0, 0.30f);
+	NoteGrid gaps_power_analysis_grid = {};
+	set_pitch(gaps_power_analysis_grid, 9, 0.19f);
+	set_pitch(gaps_power_analysis_grid, 4, 1.00f);
+	set_pitch(gaps_power_analysis_grid, 0, 0.26f);
+	append_visible_root_fifth_guitar_power_aliases_after_prune(
+		gaps_power_display, gaps_power_display_grid, gaps_power_analysis_grid);
+	runner.expect(chord_label_has_exact_component(gaps_power_display.label, "Apow"),
+		      std::string("visible root-fifth guitar power display: expected Apow recovered, got `") +
+			      gaps_power_display.label + "`");
+
+	InstrumentState adjacent_noise_display = {};
+	std::snprintf(adjacent_noise_display.label, sizeof(adjacent_noise_display.label), "C");
+	adjacent_noise_display.confidence = 0.58f;
+	NoteGrid adjacent_noise_grid = {};
+	for (int pitch_class : {11, 0, 1, 7})
+		set_pitch(adjacent_noise_grid, pitch_class, pitch_class == 0 ? 1.00f : 0.64f);
+	append_visible_root_fifth_guitar_power_aliases_after_prune(
+		adjacent_noise_display, adjacent_noise_grid, adjacent_noise_grid);
+	runner.expect(!chord_label_has_exact_component(adjacent_noise_display.label, "Cpow"),
+		      std::string("visible root-fifth guitar power display: expected adjacent root noise protected, got `") +
+			      adjacent_noise_display.label + "`");
+
+	InstrumentState altered_noise_power = {};
+	std::snprintf(altered_noise_power.label, sizeof(altered_noise_power.label),
+		      "B=G#m7=Emaj9=G#m9=Bdim=Epow");
+	altered_noise_power.confidence = 0.58f;
+	NoteGrid altered_noise_grid = {};
+	set_pitch(altered_noise_grid, 11, 0.72f);
+	set_pitch(altered_noise_grid, 3, 0.54f);
+	set_pitch(altered_noise_grid, 6, 0.50f);
+	set_pitch(altered_noise_grid, 10, 0.34f);
+	append_visible_root_fifth_guitar_power_aliases_after_prune(
+		altered_noise_power, altered_noise_grid, altered_noise_grid);
+	runner.expect(!chord_label_has_exact_component(altered_noise_power.label, "Bpow"),
+		      std::string("visible root-fifth guitar power display: expected same-root altered noise protected, got `") +
+			      altered_noise_power.label + "`");
 }
 
 void check_same_pitch_guitar_bass_shadow_uses_any_matching_debug(Runner &runner)

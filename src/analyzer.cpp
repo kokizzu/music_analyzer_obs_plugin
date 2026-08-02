@@ -17065,6 +17065,144 @@ void remove_power_aliases_for_root(ChordResult &chord, int root)
 	copy_text(chord.label, sizeof(chord.label), filtered);
 }
 
+bool visible_guitar_root_fifth_power_alias_supported(const NoteGrid &display_grid,
+						     const NoteGrid &analysis_grid,
+						     int root)
+{
+	root = ((root % 12) + 12) % 12;
+	const int display_pitch_classes = note_grid_active_pitch_class_count(display_grid);
+	const int analysis_pitch_classes = note_grid_active_pitch_class_count(analysis_grid);
+	if (display_pitch_classes < 2 || analysis_pitch_classes < 2 ||
+	    display_pitch_classes > 8 || analysis_pitch_classes > 11)
+		return false;
+
+	const std::array<float, 12> display_chroma = note_grid_chroma(display_grid);
+	const std::array<float, 12> analysis_chroma = note_grid_chroma(analysis_grid);
+	if (longest_chromatic_run(display_chroma) >= 5 || longest_chromatic_run(analysis_chroma) >= 8)
+		return false;
+	if (note_grid_pitch_active(display_grid, root - 1) &&
+	    note_grid_pitch_active(display_grid, root + 1))
+		return false;
+
+	float strongest_display = 0.0f;
+	float strongest_analysis = 0.0f;
+	for (int pitch_class = 0; pitch_class < 12; ++pitch_class) {
+		strongest_display = std::max(strongest_display,
+					     note_grid_pitch_level(display_grid, pitch_class));
+		strongest_analysis = std::max(strongest_analysis,
+					      note_grid_pitch_level(analysis_grid, pitch_class));
+	}
+	if (strongest_display <= 1.0e-6f || strongest_analysis <= 1.0e-6f)
+		return false;
+
+	const float display_root = note_grid_pitch_level(display_grid, root);
+	const float display_fifth = note_grid_pitch_level(display_grid, root + 7);
+	const float analysis_root = note_grid_pitch_level(analysis_grid, root);
+	const float analysis_fifth = note_grid_pitch_level(analysis_grid, root + 7);
+	if (display_root < std::max(0.070f, strongest_display * 0.065f) ||
+	    display_fifth < std::max(0.080f, strongest_display * 0.080f) ||
+	    analysis_root < std::max(0.050f, strongest_analysis * 0.045f) ||
+	    analysis_fifth < std::max(0.055f, strongest_analysis * 0.050f))
+		return false;
+
+	return note_grid_has_guitar_root_fifth_voicing(display_grid, root, root + 7) ||
+	       note_grid_has_guitar_root_fifth_voicing(analysis_grid, root, root + 7);
+}
+
+void append_visible_root_fifth_guitar_power_aliases_after_prune(InstrumentState &state,
+							const NoteGrid &display_grid,
+							const NoteGrid &analysis_grid)
+{
+	if (!state.label[0] || state.label[0] == '-')
+		return;
+
+	auto label_has_same_root_altered_component = [](const char *label, int root) {
+		root = ((root % 12) + 12) % 12;
+		const char *scan = label;
+		while (scan && *scan) {
+			const char *end = std::strchr(scan, '=');
+			const std::size_t len =
+				end ? static_cast<std::size_t>(end - scan) : std::strlen(scan);
+			ParsedRootChord component;
+			if (parse_root_chord_component(scan, len, component) && component.root == root) {
+				std::size_t root_len = 1;
+				if (len > 1 && scan[1] == '#')
+					root_len = 2;
+				const char *suffix = scan + root_len;
+				const std::size_t suffix_len = len - root_len;
+				if (component.quality == RootChordQuality::Diminished ||
+				    suffix_is(suffix, suffix_len, "aug"))
+					return true;
+			}
+			if (!end)
+				break;
+			scan = end + 1;
+		}
+		return false;
+	};
+
+	bool label_has_power_component = false;
+	const char *power_scan = state.label;
+	while (power_scan && *power_scan) {
+		const char *end = std::strchr(power_scan, '=');
+		const std::size_t len =
+			end ? static_cast<std::size_t>(end - power_scan) : std::strlen(power_scan);
+		ParsedRootChord parsed;
+		if (parse_power_chord_component(power_scan, len, parsed)) {
+			label_has_power_component = true;
+			break;
+		}
+		if (!end)
+			break;
+		power_scan = end + 1;
+	}
+	if (!label_has_power_component)
+		return;
+
+	char merged[sizeof(state.label)] = {};
+	copy_text(merged, sizeof(merged), state.label);
+	std::array<bool, 12> considered = {};
+	int appended = 0;
+	const char *cursor = state.label;
+	while (cursor && *cursor && appended < 2) {
+		const char *end = std::strchr(cursor, '=');
+		const std::size_t len =
+			end ? static_cast<std::size_t>(end - cursor) : std::strlen(cursor);
+		ParsedRootChord parsed;
+		if (parse_root_chord_component(cursor, len, parsed)) {
+			const int root = ((parsed.root % 12) + 12) % 12;
+			const bool supported_quality =
+				parsed.quality == RootChordQuality::Major ||
+				parsed.quality == RootChordQuality::Minor ||
+				parsed.quality == RootChordQuality::NoThird;
+			if (supported_quality && !considered[static_cast<std::size_t>(root)] &&
+			    !label_has_same_root_altered_component(state.label, root) &&
+			    !chord_label_has_root_power_component(merged, root) &&
+			    visible_guitar_root_fifth_power_alias_supported(display_grid,
+									    analysis_grid,
+									    root)) {
+				char alias[16] = {};
+				std::snprintf(alias, sizeof(alias), "%spow", note_name(root));
+				const std::size_t before = std::strlen(merged);
+				append_chord_label_component(merged, sizeof(merged), alias,
+							     std::strlen(alias));
+				if (std::strlen(merged) != before &&
+				    chord_label_has_exact_component(merged, alias))
+					++appended;
+			}
+			considered[static_cast<std::size_t>(root)] = true;
+		}
+		if (!end)
+			break;
+		cursor = end + 1;
+	}
+
+	if (std::strcmp(merged, state.label) != 0) {
+		copy_text(state.label, sizeof(state.label), merged);
+		state.confidence = std::max(state.confidence, 0.54f);
+	}
+}
+
 float strongest_probe_pitch_class_level(const std::array<float, kNoteProbeCount> &powers, int pitch_class,
 					int min_midi, int max_midi)
 {
@@ -27259,6 +27397,9 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 				snapshot.guitar_chord, smoothed_guitar_chord, snapshot.guitar_notes,
 				guitar_chord_detection_grid, note_powers, kGuitarMinMidi,
 				kGuitarMaxMidi);
+			append_visible_root_fifth_guitar_power_aliases_after_prune(
+				snapshot.guitar_chord, snapshot.guitar_notes,
+				guitar_chord_detection_grid);
 		}
 		if (!mixed_source &&
 		    displayed_guitar_chord_has_single_note_probe_profile(
