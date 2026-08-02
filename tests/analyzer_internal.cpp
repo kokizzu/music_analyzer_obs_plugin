@@ -722,6 +722,35 @@ void check_compact_guitar_power_raw_profile_third_aliases(Runner &runner)
 	runner.expect(!chord_label_has_exact_component(protected_plain.label, "C#m"),
 		      std::string("compact crowded guitar power raw-profile display: expected supported D protected, got `") +
 			      protected_plain.label + "`");
+
+	ChordResult hidden_root_source = make_guitar_plain_triad(3, true, 0.58f);
+	NoteGrid hidden_root_display = {};
+	set_pitch(hidden_root_display, 3, 0.32f);
+	set_pitch(hidden_root_display, 6, 1.00f);
+	set_pitch(hidden_root_display, 5, 0.16f);
+	set_pitch(hidden_root_display, 7, 0.14f);
+	NoteGrid hidden_root_analysis = hidden_root_display;
+	std::array<float, kNoteProbeCount> hidden_root_powers = {};
+	set_probe_level(hidden_root_powers, 47, 0.11f);
+	set_probe_level(hidden_root_powers, 51, 0.42f);
+	set_probe_level(hidden_root_powers, 54, 1.00f);
+
+	append_probe_supported_guitar_rootless_plain_triad_aliases(
+		hidden_root_source, hidden_root_display, hidden_root_analysis,
+		hidden_root_powers, kGuitarMinMidi, kGuitarMaxMidi);
+	runner.expect(chord_label_has_exact_component(hidden_root_source.label, "B"),
+		      std::string("probe hidden-root guitar source alias: expected B beside D#m, got `") +
+			      hidden_root_source.label + "`");
+
+	InstrumentState hidden_root_display_state = {};
+	std::snprintf(hidden_root_display_state.label, sizeof(hidden_root_display_state.label), "D#m");
+	hidden_root_display_state.confidence = 0.58f;
+	append_supported_guitar_candidate_aliases_to_display(
+		hidden_root_display_state, hidden_root_source, hidden_root_display,
+		hidden_root_analysis, &hidden_root_powers, kGuitarMinMidi, kGuitarMaxMidi);
+	runner.expect(chord_label_has_exact_component(hidden_root_display_state.label, "B"),
+		      std::string("probe hidden-root guitar display alias: expected B beside D#m, got `") +
+			      hidden_root_display_state.label + "`");
 }
 
 void check_same_pitch_guitar_bass_shadow_uses_any_matching_debug(Runner &runner)
