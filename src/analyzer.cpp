@@ -15654,6 +15654,48 @@ bool chroma_supports_superset_alias(const std::array<float, 12> &chroma, int roo
 	return chroma_supports_superset_mask(chroma, component_mask, primary_mask);
 }
 
+bool chroma_supports_weak_relative_major_seventh(const std::array<float, 12> &chroma,
+						 const ParsedRootChord &primary,
+						 unsigned int primary_mask, int primary_tones,
+						 int &alias_root)
+{
+	if (primary.quality != RootChordQuality::Minor || primary_tones != 3)
+		return false;
+
+	alias_root = (primary.root + 8) % 12;
+	const unsigned int alias_mask =
+		(1u << static_cast<unsigned int>(alias_root)) |
+		(1u << static_cast<unsigned int>((alias_root + 4) % 12)) |
+		(1u << static_cast<unsigned int>((alias_root + 7) % 12)) |
+		(1u << static_cast<unsigned int>((alias_root + 11) % 12));
+	if ((primary_mask & ~alias_mask) != 0)
+		return false;
+
+	float primary_anchor = 1.0f;
+	for (int pitch_class = 0; pitch_class < 12; ++pitch_class) {
+		if ((primary_mask & (1u << static_cast<unsigned int>(pitch_class))) == 0)
+			continue;
+		primary_anchor = std::min(primary_anchor, chroma[static_cast<std::size_t>(pitch_class)]);
+	}
+
+	const float root_level = chroma[static_cast<std::size_t>(alias_root)];
+	const float third = chroma[static_cast<std::size_t>((alias_root + 4) % 12)];
+	const float fifth = chroma[static_cast<std::size_t>((alias_root + 7) % 12)];
+	const float seventh = chroma[static_cast<std::size_t>((alias_root + 11) % 12)];
+	if (root_level < 0.10f || primary_anchor < 0.42f ||
+	    root_level < primary_anchor * 0.16f || third < 0.42f ||
+	    fifth < 0.42f || seventh < 0.42f)
+		return false;
+
+	float strongest_extra = 0.0f;
+	for (int pitch_class = 0; pitch_class < 12; ++pitch_class) {
+		if ((alias_mask & (1u << static_cast<unsigned int>(pitch_class))) != 0)
+			continue;
+		strongest_extra = std::max(strongest_extra, chroma[static_cast<std::size_t>(pitch_class)]);
+	}
+	return strongest_extra <= std::max(0.32f, primary_anchor * 0.70f);
+}
+
 void append_mixed_global_extension_aliases(InstrumentState &state, const std::array<float, 12> &chroma,
 					   int preferred_root)
 {
@@ -15738,6 +15780,17 @@ void append_mixed_global_extension_aliases(InstrumentState &state, const std::ar
 	scan_root(primary.root);
 	for (int root = 0; root < 12 && appended < 4; ++root)
 		scan_root(root);
+
+	int weak_major_seventh_root = -1;
+	if (appended < 4 &&
+	    chroma_supports_weak_relative_major_seventh(chroma, primary, primary_mask, primary_tones,
+						       weak_major_seventh_root)) {
+		char label[16] = {};
+		std::snprintf(label, sizeof(label), "%smaj7", note_name(weak_major_seventh_root));
+		const std::size_t label_len = std::strlen(label);
+		if (!chord_label_has_component(merged, label, label_len))
+			append_chord_label_component(merged, sizeof(merged), label, label_len);
+	}
 
 	if (std::strcmp(merged, state.label) != 0)
 		copy_text(state.label, sizeof(state.label), merged);
