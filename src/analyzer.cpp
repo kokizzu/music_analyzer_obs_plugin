@@ -20051,17 +20051,14 @@ int guitar_low_visible_root_midi(const NoteGrid &grid, int root, float min_level
 	return -1;
 }
 
-bool guitar_root_adjacent_high_harmonic_triad_residue(const NoteGrid &display_grid,
-						       const NoteGrid &analysis_grid, int root,
-						       int third, int fifth)
+bool guitar_high_harmonic_triad_residue(const NoteGrid &display_grid, const NoteGrid &analysis_grid,
+					int root, int third, int fifth)
 {
 	const bool root_flanked =
 		(note_grid_pitch_active(display_grid, root - 1) &&
 		 note_grid_pitch_active(display_grid, root + 1)) ||
 		(note_grid_pitch_active(analysis_grid, root - 1) &&
 		 note_grid_pitch_active(analysis_grid, root + 1));
-	if (!root_flanked)
-		return false;
 
 	int low_root = guitar_low_visible_root_midi(display_grid, root, 0.12f);
 	if (low_root < 0)
@@ -20091,6 +20088,13 @@ bool guitar_root_adjacent_high_harmonic_triad_residue(const NoteGrid &display_gr
 		note_grid_pitch_in_midi_window(analysis_grid, fifth, low_root + 19,
 					       std::min(low_root + 40, kGuitarMaxMidi));
 	if (!harmonic_third && !harmonic_fifth)
+		return false;
+
+	const bool compact_harmonic_triad =
+		harmonic_third && harmonic_fifth &&
+		note_grid_active_pitch_class_count(display_grid) <= 3 &&
+		note_grid_active_pitch_class_count(analysis_grid) <= 4;
+	if (!root_flanked && !compact_harmonic_triad)
 		return false;
 
 	const float third_level = std::max(note_grid_pitch_level(display_grid, third),
@@ -20184,8 +20188,8 @@ bool displayed_guitar_chord_has_distorted_single_note_root_residue(const Instrum
 	const float analysis_third = note_grid_pitch_level(analysis_grid, third);
 	const float analysis_fifth = note_grid_pitch_level(analysis_grid, fifth);
 	const bool high_harmonic_residue =
-		guitar_root_adjacent_high_harmonic_triad_residue(display_grid, analysis_grid,
-								 parsed.root, third, fifth);
+		guitar_high_harmonic_triad_residue(display_grid, analysis_grid, parsed.root, third,
+						   fifth);
 	if (!high_harmonic_residue && (analysis_root < 0.02f || analysis_third >= 0.20f))
 		return false;
 

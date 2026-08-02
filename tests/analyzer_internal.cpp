@@ -1023,6 +1023,20 @@ void check_displayed_guitar_root_residue_rejects_harmonic_stack(Runner &runner)
 			      displayed, smoothed, harmonic_stack, harmonic_stack, 0.46f),
 		      "displayed guitar root residue: expected flanked low-root harmonic stack to suppress G");
 
+	InstrumentState unflanked_displayed = {};
+	std::snprintf(unflanked_displayed.label, sizeof(unflanked_displayed.label), "A#");
+	unflanked_displayed.confidence = 1.00f;
+	InstrumentState unflanked_smoothed = unflanked_displayed;
+	unflanked_smoothed.confidence = 1.00f;
+	NoteGrid unflanked_harmonic_stack = {};
+	set_midi(unflanked_harmonic_stack, 46, 0.62f);
+	set_midi(unflanked_harmonic_stack, 65, 1.00f);
+	set_midi(unflanked_harmonic_stack, 74, 0.26f);
+	runner.expect(displayed_guitar_chord_has_distorted_single_note_root_residue(
+			      unflanked_displayed, unflanked_smoothed, unflanked_harmonic_stack,
+			      unflanked_harmonic_stack, 0.44f),
+		      "displayed guitar root residue: expected compact harmonic-only A# triad to suppress");
+
 	NoteGrid played_voicing = {};
 	set_midi(played_voicing, 42, 0.12f);
 	set_midi(played_voicing, 43, 0.95f);
