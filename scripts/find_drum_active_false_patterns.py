@@ -87,6 +87,46 @@ class CapSimulation:
     foreign_primary_before_samples: int
     foreign_primary_after_samples: int
 
+    @property
+    def true_sample_loss(self) -> int:
+        return self.true_before_samples - self.true_after_samples
+
+    @property
+    def false_sample_reduction(self) -> int:
+        return self.false_before_samples - self.false_after_samples
+
+    @property
+    def route_sample_reduction(self) -> int:
+        return self.route_before_samples - self.route_after_samples
+
+    @property
+    def true_primary_loss(self) -> int:
+        return self.true_primary_before_samples - self.true_primary_after_samples
+
+    @property
+    def false_primary_reduction(self) -> int:
+        return self.false_primary_before_samples - self.false_primary_after_samples
+
+    @property
+    def route_primary_reduction(self) -> int:
+        return self.route_primary_before_samples - self.route_primary_after_samples
+
+    @property
+    def sample_net(self) -> int:
+        return self.false_sample_reduction - self.true_sample_loss
+
+    @property
+    def route_sample_net(self) -> int:
+        return self.route_sample_reduction - self.true_sample_loss
+
+    @property
+    def primary_net(self) -> int:
+        return self.false_primary_reduction - self.true_primary_loss
+
+    @property
+    def route_primary_net(self) -> int:
+        return self.route_primary_reduction - self.true_primary_loss
+
 
 @dataclasses.dataclass(frozen=True)
 class RouteAnalysis:
@@ -895,6 +935,7 @@ def print_ranked_summary(summaries: list[RouteSummary], limit: int) -> None:
     print("  attribute-level candidates; validate runtime changes with the full drum gate")
     print("  near_protected is closest true-active miss-count/normalized-gap; lower is riskier")
     print("  cap_primary recomputes the level winner after the simulated cap")
+    print("  cap_net subtracts protected true-active losses from false-active reductions")
     if not summaries:
         print("  no matching suppression opportunities")
         return
@@ -928,7 +969,11 @@ def print_ranked_summary(summaries: list[RouteSummary], limit: int) -> None:
             f"route {summary.cap_simulation.route_primary_before_samples}->"
             f"{summary.cap_simulation.route_primary_after_samples} "
             f"foreign {summary.cap_simulation.foreign_primary_before_samples}->"
-            f"{summary.cap_simulation.foreign_primary_after_samples} :: {summary.rule}"
+            f"{summary.cap_simulation.foreign_primary_after_samples} "
+            f"cap_net=samples {summary.cap_simulation.sample_net} "
+            f"route {summary.cap_simulation.route_sample_net} "
+            f"primary {summary.cap_simulation.primary_net} "
+            f"primary_route {summary.cap_simulation.route_primary_net} :: {summary.rule}"
         )
 
 

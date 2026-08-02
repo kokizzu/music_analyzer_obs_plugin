@@ -179,9 +179,11 @@ def main() -> int:
     require(output, "ranked active false suppression opportunities")
     require(output, "attribute-level candidates; validate runtime changes with the full drum gate")
     require(output, "near_protected is closest true-active miss-count/normalized-gap; lower is riskier")
+    require(output, "cap_net subtracts protected true-active losses from false-active reductions")
     require(output, "candidate kick->snare +2 rows=2 -0 rows=0 foreign=0 rows=0 protected_true_snare=2")
     require(output, "cap_samples=true 2->2 false 2->0 route 2->0 foreign 0->0")
     require(output, "cap_primary=true 2->2 false 0->0 route 0->0 foreign 0->0")
+    require(output, "cap_net=samples 2 route 2 primary 0 primary_route 0")
 
     with tempfile.TemporaryDirectory() as tmpdir:
         table = pathlib.Path(tmpdir) / "drum.tsv"
@@ -286,6 +288,7 @@ def main() -> int:
     require(output, "nearest kick->snare +2 rows=2 -1 rows=1 foreign=0 rows=0 protected_true_snare=3")
     require(output, "cap_samples=true 3->2 false 2->0 route 2->0 foreign 0->0")
     require(output, "cap_primary=true 2->2 false 0->0 route 0->0 foreign 0->0")
+    require(output, "cap_net=samples 1 route 1 primary 0 primary_route 0")
 
     foreign_active_rows = rows + [
         "tom/foreign.wav\ttom\ttom\t0\t0.80\t0.12\t0.08\t0.92\t18\t4.0\t1.0\t0.56\t5\t2.0\t1.0\t0\t0\t0\t1\t0\t0\t0\t1\t0\t0\t0\t1\t0\t0\t0\t1\t0\t0\t0\t1",
@@ -326,6 +329,7 @@ def main() -> int:
     require(output, "nearest kick->snare +2 rows=2 -0 rows=0 foreign=1 rows=1 protected_true_snare=2")
     require(output, "cap_samples=true 2->2 false 3->0 route 2->0 foreign 1->0")
     require(output, "cap_primary=true 2->2 false 0->0 route 0->0 foreign 0->0")
+    require(output, "cap_net=samples 3 route 2 primary 0 primary_route 0")
 
     guarded_rows = [
         "kick/near-a.wav\tkick\tkick\t1\t0.80\t0.10\t0.10\t0.50\t10\t1.0\t1.0\t0.60\t10\t1.0\t1.0\t0\t0\t0\t1\t0\t0\t0\t1\t0\t0\t0\t1\t0\t0\t0\t1\t0\t0\t0\t1",
@@ -444,6 +448,7 @@ def main() -> int:
     require(output, "nearest kick->snare +2 rows=2 -0 rows=0 foreign=0 rows=0 protected_true_snare=2 near_protected=1miss/0.02")
     require(output, "cap_samples=true 2->2 false 2->0 route 2->0 foreign 0->0")
     require(output, "cap_primary=true 2->2 false 2->0 route 2->0 foreign 0->0")
+    require(output, "cap_net=samples 2 route 2 primary 2 primary_route 2")
     if "candidate kick->snare" in output:
         raise AssertionError(f"near-protected candidate should be guarded:\n{output}")
     print("test_find_drum_active_false_patterns: ok")
