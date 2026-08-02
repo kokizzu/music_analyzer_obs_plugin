@@ -3211,7 +3211,9 @@ DETECTOR_REAL_NOTE_PATTERN_EXTRA_CANDIDATE_PATHS ?= $(DETECTOR_REAL_NOTE_PATTERN
 DETECTOR_REAL_NOTE_PATTERN_EXTRA_PROTECTED_PATHS ?= $(DETECTOR_REAL_NOTE_PATTERN_OPTIONAL_PROTECTED_PATHS)
 DETECTOR_IMPROVEMENT_ROUTE_SCAN_TARGETS := find-real-note-focused-row-confusion-patterns find-real-note-coverage-row-confusion-patterns find-real-note-focused-visual-row-confusion-patterns find-real-note-coverage-visual-row-confusion-patterns find-real-note-ownership-patterns evaluate-real-note-display-shadow-all evaluate-real-note-vocal-shadow-safety evaluate-real-note-vocal-display-fallback find-vocadito-full-mix-ownership-patterns find-vocadito-full-mix-broad-vocal-ownership-patterns find-vocadito-full-mix-visual-row-confusion-patterns find-instrument-owner-patterns find-instrument-status-patterns find-drum-full-exact-attribute-patterns-cached
 TEST_FIXTURE_PARALLEL_TARGETS := test-real-note-samples test-direct-fit-small-fixture test-synthsod-fixture test-prepared-multitrack-fixture test-multtipop-audio-root-fixture
+SAMPLE_MANIFEST_SUMMARY_PATHS ?= $(sort $(wildcard $(BUILD_DIR)/*samples*/manifest.tsv $(BUILD_DIR)/*_samples/manifest.tsv $(BUILD_DIR)/*-manifest.tsv $(BUILD_DIR)/guitarset-manifest.tsv))
 .PHONY: test-detector-samples test-detector-samples-full test-detector-samples-parallel test-detector-samples-full-parallel
+.PHONY: summarize-sample-manifests test-sample-manifest-summary
 
 ifneq ($(wildcard $(DRUM_SAMPLE_SOURCE_DIR)),)
 test-drum-samples-optional: test-drum-samples
@@ -3351,6 +3353,9 @@ test-real-world-samples-max-parallel: scripts/run_with_duration.sh
 test-real-world-samples-max: scripts/run_with_duration.sh
 	+$(MAKE) test-real-world-samples-max-parallel
 
+summarize-sample-manifests: scripts/summarize_sample_manifests.py scripts/run_with_duration.sh
+	$(RUN_WITH_DURATION) sample_manifest_summary $(PYTHON) scripts/summarize_sample_manifests.py $(SAMPLE_MANIFEST_SUMMARY_PATHS)
+
 detector-improvement-samples: test-detector-samples-parallel
 
 detector-improvement-patterns: measure-analyzer-patterns
@@ -3440,6 +3445,7 @@ ANALYSIS_SCRIPT_TEST_TARGETS += test-real-note-octave-display-aliases
 ANALYSIS_SCRIPT_TEST_TARGETS += test-real-note-vocal-display-fallback-eval
 ANALYSIS_SCRIPT_TEST_TARGETS += test-detector-route-report-summary
 ANALYSIS_SCRIPT_TEST_TARGETS += test-drum-sample-skip-patterns
+ANALYSIS_SCRIPT_TEST_TARGETS += test-sample-manifest-summary
 ANALYSIS_SCRIPT_TEST_TARGETS += test-inspect-drum-candidate-rows
 ANALYSIS_SCRIPT_TEST_TARGETS += test-inspect-real-note-candidate-rows
 ANALYSIS_SCRIPT_TEST_TARGETS += test-inspect-detector-coverage-candidates
@@ -3730,6 +3736,9 @@ test-real-note-vocal-display-fallback-eval: tests/test_evaluate_real_note_vocal_
 
 test-real-note-octave-display-aliases: tests/test_measure_real_note_octave_display_aliases.py scripts/measure_real_note_octave_display_aliases.py
 	$(PYTHON) tests/test_measure_real_note_octave_display_aliases.py
+
+test-sample-manifest-summary: tests/test_summarize_sample_manifests.py scripts/summarize_sample_manifests.py scripts/run_with_duration.sh
+	$(RUN_WITH_DURATION) test_sample_manifest_summary $(PYTHON) tests/test_summarize_sample_manifests.py
 
 test-instrument-sample-attribute-summary: tests/test_summarize_instrument_sample_attributes.py scripts/summarize_instrument_sample_attributes.py
 	$(PYTHON) tests/test_summarize_instrument_sample_attributes.py
