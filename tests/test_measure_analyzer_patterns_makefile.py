@@ -3268,6 +3268,35 @@ def main() -> int:
     assert "analyze-instrument-sample-attributes" not in print_recipe, (
         "print-only target must not regenerate analyzer TSVs"
     )
+
+    cached_print_recipe = target_recipe(makefile, "print-analyzer-detected-attributes-cached")
+    assert "$(MEASURE_ANALYZER_ROW_DUMPS)" not in cached_print_recipe, (
+        "cached print target must not refresh stale-aware row dumps"
+    )
+    assert "$(REAL_NOTE_SAMPLE_ATTRIBUTE_EXTRA_DEPS)" not in cached_print_recipe, (
+        "cached print target must not trigger optional dataset refreshes"
+    )
+    assert "scripts/print_analyzer_detected_attributes.py" in cached_print_recipe, (
+        "cached print target must use the same measured row printer"
+    )
+    assert "$(RUN_WITH_DURATION) analyzer_detected_attributes_cached" in cached_print_recipe, (
+        "cached print target should report its own duration label"
+    )
+    assert "$(ATTRIBUTE_ROW_REPORT_ARGS)" in cached_print_recipe, (
+        "cached print target needs the same overridable args"
+    )
+    assert "$(INSTRUMENT_DETECTED_ATTRIBUTE_ROWS)" in cached_print_recipe, (
+        "cached print target needs instrument rows"
+    )
+    assert "$(REAL_NOTE_DETECTED_ATTRIBUTE_ROWS)" in cached_print_recipe, (
+        "cached print target needs real-note rows"
+    )
+    assert "$(GUITAR_CHORD_DETECTED_ATTRIBUTE_ROWS)" in cached_print_recipe, (
+        "cached print target needs guitar rows"
+    )
+    assert "drum_primary_miss_attribute_rows.tsv" in cached_print_recipe, (
+        "cached print target needs drum primary rows"
+    )
     for text in [
         "IDMT_BASS_LINES_ATTRIBUTE_TSV ?= $(BUILD_DIR)/idmt_bass_lines_attributes.tsv",
         "IDMT_BASS_LINES_DETECTED_ATTRIBUTE_ROWS ?= $(BUILD_DIR)/idmt_bass_lines_detected_attribute_rows.tsv",
