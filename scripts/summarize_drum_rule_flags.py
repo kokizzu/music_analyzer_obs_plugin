@@ -29,6 +29,7 @@ FLAG_FIELDS = (
     "flag_upper_tom_from_snare_active_bleed",
     "flag_deep_kick_snare_active_bleed",
     "flag_crash_hihat_active_bleed",
+    "flag_hihat_crash_active_bleed",
 )
 
 
