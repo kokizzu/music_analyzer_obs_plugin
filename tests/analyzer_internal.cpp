@@ -1267,6 +1267,99 @@ void check_other_owned_pitch_class_keyboard_shadow_is_attenuated(Runner &runner)
 							      protected_ownership);
 	runner.expect(note_grid_midi_visual_level(protected_keyboard_grid, kProtectedNearbyAliasMidi) > 0.99f,
 		      "other pitch-class keyboard shadow: expected nearby keyboard alias to stay bright");
+
+	NoteGrid fundamental_other_grid = {};
+	set_midi(fundamental_other_grid, kOtherMidi, 1.00f);
+	NoteGrid fundamental_keyboard_grid = {};
+	set_midi(fundamental_keyboard_grid, kProtectedNearbyAliasMidi, 1.00f);
+	FullMixOwnership fundamental_ownership = {};
+	fundamental_ownership.debug_candidate_count = 1;
+	fundamental_ownership.debug_candidates[0] =
+		make_other_keyboard_pitch_class_shadow_debug(kOtherMidi);
+	fundamental_ownership.debug_candidates[0].harmonicity = 1.20f;
+	attenuate_other_dominant_pitch_class_keyboard_shadows(fundamental_keyboard_grid,
+							      fundamental_other_grid,
+							      fundamental_ownership);
+	const float fundamental_keyboard_level =
+		note_grid_midi_visual_level(fundamental_keyboard_grid, kProtectedNearbyAliasMidi);
+	runner.expect(fundamental_keyboard_level < 1.00f && fundamental_keyboard_level > 0.0f,
+		      "other pitch-class keyboard shadow: expected measured one-octave alias attenuation");
+
+	static constexpr int kLowerKeyboardAliasMidi = kOtherMidi - 12;
+	NoteGrid lower_alias_keyboard_grid = {};
+	set_midi(lower_alias_keyboard_grid, kLowerKeyboardAliasMidi, 1.00f);
+	attenuate_other_dominant_pitch_class_keyboard_shadows(lower_alias_keyboard_grid,
+							      fundamental_other_grid,
+							      fundamental_ownership);
+	const float lower_alias_level =
+		note_grid_midi_visual_level(lower_alias_keyboard_grid, kLowerKeyboardAliasMidi);
+	runner.expect(lower_alias_level < 1.00f && lower_alias_level > 0.0f,
+		      "other pitch-class keyboard shadow: expected measured lower-octave alias attenuation");
+
+	NoteGrid debug_only_keyboard_grid = {};
+	set_midi(debug_only_keyboard_grid, kOtherMidi, 1.00f);
+	set_midi(debug_only_keyboard_grid, kProtectedNearbyAliasMidi, 0.95f);
+	InstrumentState debug_only_keyboard_state = {};
+	FullMixOwnership debug_only_ownership = {};
+	debug_only_ownership.debug_candidate_count = 1;
+	debug_only_ownership.debug_candidates[0] =
+		make_other_keyboard_pitch_class_shadow_debug(kOtherMidi);
+	debug_only_ownership.debug_candidates[0].harmonicity = 1.20f;
+	debug_only_ownership.debug_candidates[0].spectral_level = 0.45f;
+	attenuate_measured_other_debug_pitch_class_keyboard_shadows(debug_only_keyboard_grid,
+								    debug_only_keyboard_state,
+								    debug_only_ownership, -1);
+	runner.expect(note_grid_midi_visual_level(debug_only_keyboard_grid, kOtherMidi) < 1.00f,
+		      "other pitch-class keyboard shadow: expected debug-only exact keyboard note attenuation");
+	runner.expect(note_grid_midi_visual_level(debug_only_keyboard_grid, kProtectedNearbyAliasMidi) <
+			      0.95f,
+		      "other pitch-class keyboard shadow: expected debug-only keyboard alias attenuation");
+
+	NoteGrid weak_debug_keyboard_grid = {};
+	set_midi(weak_debug_keyboard_grid, kOtherMidi, 1.00f);
+	InstrumentState weak_debug_keyboard_state = {};
+	FullMixOwnership weak_debug_ownership = debug_only_ownership;
+	weak_debug_ownership.debug_candidates[0].harmonicity = 0.0f;
+	weak_debug_ownership.debug_candidates[0].harmonic_fit_error = 0.0f;
+	weak_debug_ownership.debug_candidates[0].harmonic_ratios[1] = 0.0f;
+	weak_debug_ownership.debug_candidates[0].local_noise_level = 0.0f;
+	attenuate_measured_other_debug_pitch_class_keyboard_shadows(weak_debug_keyboard_grid,
+								    weak_debug_keyboard_state,
+								    weak_debug_ownership, -1);
+	runner.expect(note_grid_midi_visual_level(weak_debug_keyboard_grid, kOtherMidi) > 0.99f,
+		      "other pitch-class keyboard shadow: expected weak debug-only fundamental to keep keyboard note");
+}
+
+void check_measured_other_fundamental_display_level_boost(Runner &runner)
+{
+	static constexpr int kMidi = 62;
+	NoteGrid grid = {};
+	set_midi(grid, kMidi, 0.21f);
+	InstrumentState state = {};
+	write_note_grid_label(state, grid, -1);
+
+	FullMixOwnership ownership = {};
+	ownership.debug_candidate_count = 1;
+	ownership.global_note_levels[static_cast<std::size_t>(kMidi - kFirstMidi)] = 0.64f;
+	FullMixDebugCandidate &debug = ownership.debug_candidates[0];
+	debug.midi = kMidi;
+	debug.owner = InstrumentKind::Other;
+	debug.ownership_confidence = 0.84f;
+	debug.other_score = 0.84f;
+	debug.spectral_level = 0.70f;
+	debug.pitch_confidence = 0.74f;
+	debug.periodicity = 0.70f;
+	debug.harmonicity = 1.20f;
+
+	boost_measured_other_fundamental_display_level(grid, state, ownership, -1);
+	runner.expect(note_grid_midi_level(grid, kMidi) >= 0.78f,
+		      "measured other fundamental boost: expected existing note to brighten");
+
+	NoteGrid missing_grid = {};
+	InstrumentState missing_state = {};
+	boost_measured_other_fundamental_display_level(missing_grid, missing_state, ownership, -1);
+	runner.expect(note_grid_midi_level(missing_grid, kMidi) <= 0.0f,
+		      "measured other fundamental boost: expected missing note not to be created");
 }
 
 FullMixDebugCandidate make_electronic_keyboard_other_shadow_debug(int midi)
@@ -1295,27 +1388,34 @@ void check_electronic_keyboard_other_shadow_is_attenuated(Runner &runner)
 	set_midi(keyboard_grid, kKeyboardMidi, 0.66f);
 	NoteGrid other_grid = {};
 	set_midi(other_grid, kOtherAliasMidi, 1.00f);
+	InstrumentState other_state = {};
 	FullMixOwnership ownership = {};
 	ownership.debug_candidate_count = 1;
 	ownership.debug_candidates[0] =
 		make_electronic_keyboard_other_shadow_debug(kOtherAliasMidi);
 
-	attenuate_measured_electronic_keyboard_other_shadows(other_grid, keyboard_grid, ownership);
+	attenuate_measured_electronic_keyboard_other_shadows(other_grid, other_state, keyboard_grid,
+							     ownership, -1);
 	runner.expect(note_grid_midi_visual_level(other_grid, kOtherAliasMidi) < 0.66f,
 		      "electronic keyboard other shadow: expected synthetic other octave alias below keyboard support");
+	runner.expect(note_grid_midi_level(other_grid, kOtherAliasMidi) < 0.66f,
+		      "electronic keyboard other shadow: expected row level below keyboard support");
 	runner.expect(note_grid_midi_visual_level(other_grid, kOtherAliasMidi) > 0.0f,
 		      "electronic keyboard other shadow: expected alias attenuated, not removed");
 
 	NoteGrid protected_other_grid = {};
 	set_midi(protected_other_grid, kOtherAliasMidi, 1.00f);
+	InstrumentState protected_other_state = {};
 	FullMixOwnership protected_ownership = {};
 	protected_ownership.debug_candidate_count = 1;
 	protected_ownership.debug_candidates[0] =
 		make_electronic_keyboard_other_shadow_debug(kOtherAliasMidi);
 	protected_ownership.debug_candidates[0].spectral_slope = 1.30f;
 	protected_ownership.debug_candidates[0].harmonic_ratios[2] = 0.90f;
-	attenuate_measured_electronic_keyboard_other_shadows(protected_other_grid, keyboard_grid,
-							     protected_ownership);
+	attenuate_measured_electronic_keyboard_other_shadows(protected_other_grid,
+							     protected_other_state,
+							     keyboard_grid,
+							     protected_ownership, -1);
 	runner.expect(note_grid_midi_visual_level(protected_other_grid, kOtherAliasMidi) > 0.99f,
 		      "electronic keyboard other shadow: expected noisy protected other note to stay bright");
 }
@@ -1460,6 +1560,94 @@ void check_raw_supported_mid_keyboard_lower_octave_promotes_alias(Runner &runner
 	runner.expect(primary.active && primary.midi == kLowerMidi,
 		      "mid keyboard lower octave: expected raw-supported B3 to replace B5 alias");
 
+	{
+		static constexpr int kAdjacentLowerMidi = 41;
+		static constexpr int kAdjacentAliasMidi = kAdjacentLowerMidi + 12;
+		NoteGrid adjacent_grid = {};
+		write_note_grid_cell(adjacent_grid, NoteCandidate{kAdjacentAliasMidi, 0.90f}, 1.0f, 1.0f);
+		InstrumentState adjacent_state = {};
+		write_note_grid_label(adjacent_state, adjacent_grid, -1);
+
+		FullMixOwnership adjacent_ownership = {};
+		adjacent_ownership.global_note_levels[static_cast<std::size_t>(kAdjacentLowerMidi -
+											kFirstMidi)] = 0.58f;
+		adjacent_ownership.global_note_levels[static_cast<std::size_t>(kAdjacentAliasMidi -
+											kFirstMidi)] = 0.72f;
+		adjacent_ownership.debug_candidate_count = 1;
+		FullMixDebugCandidate &adjacent_debug = adjacent_ownership.debug_candidates[0];
+		adjacent_debug.midi = kAdjacentAliasMidi;
+		adjacent_debug.owner = InstrumentKind::Keyboard;
+		adjacent_debug.ownership_confidence = 0.88f;
+		adjacent_debug.keyboard_score = 0.90f;
+		adjacent_debug.spectral_level = 0.84f;
+		adjacent_debug.pitch_confidence = 0.80f;
+		adjacent_debug.periodicity = 0.70f;
+		adjacent_debug.harmonic_fit_error = 0.09f;
+		adjacent_debug.local_noise_level = 0.24f;
+		adjacent_debug.harmonic_ratios[1] = 0.20f;
+
+		std::array<float, kNoteProbeCount> adjacent_powers = {};
+		std::array<float, kNoteProbeCount> adjacent_raw_powers = {};
+		set_probe_level(adjacent_powers, kAdjacentLowerMidi, 0.58f);
+		set_probe_level(adjacent_powers, kAdjacentAliasMidi, 0.72f);
+		set_probe_level(adjacent_raw_powers, kAdjacentLowerMidi, 0.60f);
+		set_probe_level(adjacent_raw_powers, kAdjacentAliasMidi, 0.72f);
+
+		prefer_raw_supported_mid_keyboard_lower_octave_primary(
+			adjacent_grid, adjacent_state, adjacent_ownership, adjacent_powers,
+			adjacent_raw_powers, -1);
+		const NoteCell adjacent_primary = note_grid_primary_cell_for_pitch_class(
+			adjacent_grid, midi_pitch_class(kAdjacentLowerMidi));
+		runner.expect(adjacent_primary.active && adjacent_primary.midi == kAdjacentLowerMidi,
+			      "mid keyboard lower octave: expected raw-supported F2 to replace F3 alias");
+
+		NoteGrid weak_adjacent_grid = {};
+		write_note_grid_cell(weak_adjacent_grid, NoteCandidate{kAdjacentAliasMidi, 0.90f}, 1.0f,
+				     1.0f);
+		InstrumentState weak_adjacent_state = {};
+		write_note_grid_label(weak_adjacent_state, weak_adjacent_grid, -1);
+		FullMixOwnership weak_adjacent_ownership = adjacent_ownership;
+		weak_adjacent_ownership.global_note_levels[static_cast<std::size_t>(
+			kAdjacentLowerMidi - kFirstMidi)] = 0.20f;
+		std::array<float, kNoteProbeCount> weak_adjacent_powers = {};
+		std::array<float, kNoteProbeCount> weak_adjacent_raw_powers = {};
+		set_probe_level(weak_adjacent_powers, kAdjacentLowerMidi, 0.20f);
+		set_probe_level(weak_adjacent_powers, kAdjacentAliasMidi, 0.72f);
+		set_probe_level(weak_adjacent_raw_powers, kAdjacentLowerMidi, 0.20f);
+		set_probe_level(weak_adjacent_raw_powers, kAdjacentAliasMidi, 0.72f);
+		prefer_raw_supported_mid_keyboard_lower_octave_primary(
+			weak_adjacent_grid, weak_adjacent_state, weak_adjacent_ownership,
+			weak_adjacent_powers, weak_adjacent_raw_powers, -1);
+		const NoteCell weak_adjacent_primary = note_grid_primary_cell_for_pitch_class(
+			weak_adjacent_grid, midi_pitch_class(kAdjacentLowerMidi));
+		runner.expect(weak_adjacent_primary.active &&
+				      weak_adjacent_primary.midi == kAdjacentAliasMidi,
+			      "mid keyboard lower octave: expected weak adjacent lower support to keep alias");
+
+		NoteGrid guitar_adjacent_grid = {};
+		write_note_grid_cell(guitar_adjacent_grid, NoteCandidate{kAdjacentAliasMidi, 0.90f},
+				     1.0f, 1.0f);
+		InstrumentState guitar_adjacent_state = {};
+		write_note_grid_label(guitar_adjacent_state, guitar_adjacent_grid, -1);
+		FullMixOwnership guitar_adjacent_ownership = adjacent_ownership;
+		FullMixDebugCandidate &guitar_adjacent_debug =
+			guitar_adjacent_ownership.debug_candidates[0];
+		guitar_adjacent_debug.owner = InstrumentKind::Guitar;
+		guitar_adjacent_debug.keyboard_score = 0.0f;
+		guitar_adjacent_debug.guitar_score = 0.95f;
+		guitar_adjacent_debug.harmonic_ratios[1] = 0.0f;
+		guitar_adjacent_debug.harmonic_ratios[3] = 0.0f;
+		guitar_adjacent_debug.spectral_centroid = 0.0f;
+		prefer_raw_supported_mid_keyboard_lower_octave_primary(
+			guitar_adjacent_grid, guitar_adjacent_state, guitar_adjacent_ownership,
+			adjacent_powers, adjacent_raw_powers, -1);
+		const NoteCell guitar_adjacent_primary = note_grid_primary_cell_for_pitch_class(
+			guitar_adjacent_grid, midi_pitch_class(kAdjacentLowerMidi));
+		runner.expect(guitar_adjacent_primary.active &&
+				      guitar_adjacent_primary.midi == kAdjacentAliasMidi,
+			      "mid keyboard lower octave: expected unsupported adjacent guitar alias to stay primary");
+	}
+
 	NoteGrid weak_grid = {};
 	write_note_grid_cell(weak_grid, NoteCandidate{kAliasMidi, 1.0f}, 1.0f, 1.0f);
 	InstrumentState weak_state = {};
@@ -1542,6 +1730,8 @@ void check_lower_non_guitar_pitch_class_guitar_octave_shadow_uses_measured_level
 		guitar_grid, guitar_state, keyboard_grid, other_grid, ownership, -1);
 	runner.expect(note_grid_midi_visual_level(guitar_grid, kGuitarAliasMidi) < 0.50f,
 		      "lower non-guitar guitar octave shadow: expected measured alias level to attenuate");
+	runner.expect(note_grid_midi_level(guitar_grid, kGuitarAliasMidi) < 0.50f,
+		      "lower non-guitar guitar octave shadow: expected row level to attenuate");
 
 	NoteGrid measured_threshold_keyboard_grid = {};
 	set_midi(measured_threshold_keyboard_grid, kKeyboardMidi, 0.50f);
@@ -2009,6 +2199,7 @@ int run()
 	check_keyboard_owned_same_pitch_bass_shadow_uses_weak_ceiling(runner);
 	check_keyboard_owned_same_pitch_bass_shadow_uses_dominant_ratio(runner);
 	check_other_owned_pitch_class_keyboard_shadow_is_attenuated(runner);
+	check_measured_other_fundamental_display_level_boost(runner);
 	check_electronic_keyboard_other_shadow_is_attenuated(runner);
 	check_lower_other_pitch_class_keyboard_octave_shadow_is_attenuated(runner);
 	check_ambiguous_electronic_keyboard_promotes_exact_lower_octave(runner);
