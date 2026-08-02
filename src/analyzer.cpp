@@ -607,8 +607,12 @@ NoteCandidate vocal_display_weighted_candidate(const NoteCandidate &candidate,
 					       const NoteEvidence &evidence)
 {
 	NoteCandidate weighted = ownership_weighted_candidate(candidate, evidence);
-	if (measured_stable_vocal_display_floor_supported(candidate, evidence))
-		weighted.ownership_confidence = std::max(weighted.ownership_confidence, 0.88f);
+	if (measured_stable_vocal_display_floor_supported(candidate, evidence)) {
+		constexpr float kStableVocalDisplayFloor = 0.88f;
+		weighted.ownership_confidence = std::max(weighted.ownership_confidence,
+							 kStableVocalDisplayFloor);
+		weighted.score = std::max(weighted.score, candidate.score * kStableVocalDisplayFloor);
+	}
 	return weighted;
 }
 

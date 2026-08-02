@@ -2919,6 +2919,34 @@ void check_display_ownership_scale_keeps_confirmed_mid_confidence_visible(Runner
 		      "display ownership scale: expected strong ownership to render at full scale");
 }
 
+void check_stable_vocal_display_floor_keeps_score_and_confidence_in_sync(Runner &runner)
+{
+	static constexpr int kMidi = 66;
+	static constexpr float kOriginalScore = 1.0f;
+
+	NoteCandidate candidate{kMidi, kOriginalScore, 0.0f};
+	NoteEvidence evidence = {};
+	evidence.ownership_confidence = 0.40f;
+	evidence.ownership_scores[static_cast<std::size_t>(InstrumentKind::Vocal)] = 0.82f;
+	evidence.pitch_confidence = 0.90f;
+	evidence.periodicity = 0.76f;
+	evidence.harmonic_fit_error = 0.040f;
+	evidence.local_noise_level = 0.080f;
+	evidence.spectral_centroid = 0.12f;
+	evidence.third_octave_ratio = 0.020f;
+
+	const NoteCandidate weighted = vocal_display_weighted_candidate(candidate, evidence);
+	runner.expect(weighted.ownership_confidence >= 0.879f,
+		      "stable vocal display floor: expected confidence to reach bright display floor");
+	runner.expect(weighted.score >= kOriginalScore * 0.879f,
+		      "stable vocal display floor: expected score to match bright display floor");
+
+	NoteGrid grid = {};
+	write_note_grid_cell(grid, weighted, kOriginalScore, 1.0f);
+	runner.expect(note_grid_midi_visual_level(grid, kMidi) >= 0.879f,
+		      "stable vocal display floor: expected bright visual level against original score reference");
+}
+
 void check_low_confidence_mirror_cell_uses_visual_floor_without_changing_level(Runner &runner)
 {
 	static constexpr int kMidi = 60;
@@ -3378,6 +3406,7 @@ int run()
 	check_other_dominant_same_pitch_guitar_display_is_pruned(runner);
 	check_other_dominant_octave_alias_guitar_display_is_pruned(runner);
 	check_display_ownership_scale_keeps_confirmed_mid_confidence_visible(runner);
+	check_stable_vocal_display_floor_keeps_score_and_confidence_in_sync(runner);
 	check_low_confidence_mirror_cell_uses_visual_floor_without_changing_level(runner);
 	check_note_smoothing_preserves_visual_floor_and_display_attenuation(runner);
 	check_low_acoustic_guitar_display_mirror_gets_bright_score_floor(runner);
