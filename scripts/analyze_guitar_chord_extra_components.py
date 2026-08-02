@@ -225,6 +225,10 @@ def compact(counter: collections.Counter[str], limit: int) -> str:
     return " ".join(f"{key}={value}" for key, value in counter.most_common(limit))
 
 
+def compact_bracket(counter: collections.Counter[str], limit: int) -> str:
+    return f"[{compact(counter, limit)}]"
+
+
 def expected_roots(labels: list[str]) -> set[int]:
     roots: set[int] = set()
     for label in labels:
@@ -390,6 +394,11 @@ def summarize_prune_policy(rows: list[dict[str, str]], policy_spec: str, example
     pruned_extras = 0
     removed_counter: collections.Counter[str] = collections.Counter()
     retained_extra_counter: collections.Counter[str] = collections.Counter()
+    expected_suffix_counter: collections.Counter[str] = collections.Counter()
+    current_hit_suffix_counter: collections.Counter[str] = collections.Counter()
+    pruned_hit_suffix_counter: collections.Counter[str] = collections.Counter()
+    lost_hit_suffix_counter: collections.Counter[str] = collections.Counter()
+    gained_hit_suffix_counter: collections.Counter[str] = collections.Counter()
     lost_examples: list[tuple[dict[str, str], list[str], list[str]]] = []
 
     for row in rows:
@@ -398,6 +407,17 @@ def summarize_prune_policy(rows: list[dict[str, str]], policy_spec: str, example
         pruned = prune_labels(detected, policy, row) if len(detected) >= min_components else detected
         current_hit = chord_hit(detected, expected)
         pruned_hit = chord_hit(pruned, expected)
+        expected_suffixes = {label_suffix(label) for label in expected}
+        for suffix in sorted(expected_suffixes):
+            expected_suffix_counter[suffix] += 1
+            if current_hit:
+                current_hit_suffix_counter[suffix] += 1
+            if pruned_hit:
+                pruned_hit_suffix_counter[suffix] += 1
+            if current_hit and not pruned_hit:
+                lost_hit_suffix_counter[suffix] += 1
+            if pruned_hit and not current_hit:
+                gained_hit_suffix_counter[suffix] += 1
         current_hits += int(current_hit)
         pruned_hits += int(pruned_hit)
         lost_hits += int(current_hit and not pruned_hit)
@@ -425,6 +445,11 @@ def summarize_prune_policy(rows: list[dict[str, str]], policy_spec: str, example
         f"extras={pruned_extras}/{current_extras}",
         f"  removed suffixes {compact(removed_counter, 10)}",
         f"  retained extra suffixes {compact(retained_extra_counter, 10)}",
+        f"  expected suffix hits current{compact_bracket(current_hit_suffix_counter, 10)} "
+        f"pruned{compact_bracket(pruned_hit_suffix_counter, 10)} "
+        f"lost{compact_bracket(lost_hit_suffix_counter, 10)} "
+        f"gained{compact_bracket(gained_hit_suffix_counter, 10)} "
+        f"expected{compact_bracket(expected_suffix_counter, 10)}",
     ]
     if lost_examples:
         lines.append("  lost hit examples")

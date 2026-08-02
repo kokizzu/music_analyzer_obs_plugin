@@ -111,6 +111,11 @@ miss_unrelated	chord_miss	Dm	A#aug=Dpow	D,F,A	D3:0.88,A3:0.80	D3:0.89,A3:0.81	di
     assert "  removed suffixes pow=2 6=1 maj7=1 aug=1 m=1" in output
     assert "  retained extra suffixes sus4=1 aug=1" in output
     assert (
+        "  expected suffix hits current[sus2=1 m=1 maj=1] "
+        "pruned[sus2=1 m=1 maj=1] lost[--] gained[--] "
+        "expected[m=2 sus2=1 maj=1]"
+    ) in output
+    assert (
         "prune policy primary-equivalent-plain: rows=4 current_hits=3 pruned_hits=3 "
         "lost_hits=0 gained_hits=0 components=6/11 extras=3/8"
     ) in output
