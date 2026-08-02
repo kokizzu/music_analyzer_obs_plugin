@@ -1031,6 +1031,95 @@ void check_displayed_guitar_single_note_probe_profile(Runner &runner)
 			      noisy_displayed, smoothed_f_minor, smoothed_f_minor, smoothed_f_minor,
 			      clean_smoothed_triad, kGuitarMinMidi, kGuitarMaxMidi, 0.34f, 0.30f),
 		      "displayed guitar noisy smoothed residue: expected clean smoothed triad to remain");
+
+	InstrumentState extension_first_displayed = {};
+	std::snprintf(extension_first_displayed.label, sizeof(extension_first_displayed.label),
+		      "E=E7=A=Asus2");
+	extension_first_displayed.confidence = 0.70f;
+	NoteGrid smoothed_e_major = {};
+	set_pitch(smoothed_e_major, 4, 0.55f);
+	set_pitch(smoothed_e_major, 8, 1.00f);
+	set_pitch(smoothed_e_major, 11, 0.48f);
+	set_pitch(smoothed_e_major, 9, 0.18f);
+	std::array<float, kNoteProbeCount> low_mid_extension_residue = {};
+	set_probe_level(low_mid_extension_residue, 52, 0.55f);
+	set_probe_level(low_mid_extension_residue, 56, 1.00f);
+	set_probe_level(low_mid_extension_residue, 55, 0.24f);
+	runner.expect(displayed_guitar_chord_has_low_mid_smoothed_single_note_residue(
+			      extension_first_displayed, smoothed_e_major, low_mid_extension_residue,
+			      kGuitarMinMidi, kGuitarMaxMidi, 0.213f, 0.096f),
+		      "displayed guitar low-mid residue: expected plain-primary E single-note residue to suppress");
+
+	InstrumentState diminished_displayed = {};
+	std::snprintf(diminished_displayed.label, sizeof(diminished_displayed.label), "Edim=Em");
+	diminished_displayed.confidence = 0.50f;
+	NoteGrid smoothed_e_diminished = {};
+	set_pitch(smoothed_e_diminished, 4, 0.12f);
+	set_pitch(smoothed_e_diminished, 7, 1.00f);
+	set_pitch(smoothed_e_diminished, 10, 0.10f);
+	set_pitch(smoothed_e_diminished, 2, 0.11f);
+	std::array<float, kNoteProbeCount> low_mid_dim_residue = {};
+	set_probe_level(low_mid_dim_residue, 52, 0.12f);
+	set_probe_level(low_mid_dim_residue, 55, 1.00f);
+	set_probe_level(low_mid_dim_residue, 56, 0.08f);
+	runner.expect(displayed_guitar_chord_has_low_mid_smoothed_single_note_residue(
+			      diminished_displayed, smoothed_e_diminished, low_mid_dim_residue,
+			      kGuitarMinMidi, kGuitarMaxMidi, 0.302f, 0.040f),
+		      "displayed guitar low-mid residue: expected diminished-primary single-note residue to suppress");
+
+	runner.expect(!displayed_guitar_chord_has_low_mid_smoothed_single_note_residue(
+			      extension_first_displayed, smoothed_e_major, clean_smoothed_triad,
+			      kGuitarMinMidi, kGuitarMaxMidi, 0.213f, 0.096f),
+		      "displayed guitar low-mid residue: expected clean triad probe to remain");
+
+	NoteGrid exact_e_major = {};
+	set_pitch(exact_e_major, 4, 0.55f);
+	set_pitch(exact_e_major, 8, 1.00f);
+	set_pitch(exact_e_major, 11, 0.48f);
+	runner.expect(!displayed_guitar_chord_has_low_mid_smoothed_single_note_residue(
+			      extension_first_displayed, exact_e_major, low_mid_extension_residue,
+			      kGuitarMinMidi, kGuitarMaxMidi, 0.213f, 0.096f),
+		      "displayed guitar low-mid residue: expected exact triad without residue to remain");
+
+	InstrumentState stronger_later_root_displayed = {};
+	std::snprintf(stronger_later_root_displayed.label,
+		      sizeof(stronger_later_root_displayed.label), "F#=F#sus4=F#dim=Bpow=B");
+	stronger_later_root_displayed.confidence = 0.68f;
+	NoteGrid smoothed_b_root_fifth = {};
+	set_pitch(smoothed_b_root_fifth, 11, 1.00f);
+	set_pitch(smoothed_b_root_fifth, 6, 0.23f);
+	set_pitch(smoothed_b_root_fifth, 10, 0.58f);
+	set_pitch(smoothed_b_root_fifth, 1, 0.25f);
+	std::array<float, kNoteProbeCount> stronger_b_probe = {};
+	set_probe_level(stronger_b_probe, 47, 1.00f);
+	set_probe_level(stronger_b_probe, 54, 0.23f);
+	set_probe_level(stronger_b_probe, 46, 0.65f);
+	set_probe_level(stronger_b_probe, 49, 0.25f);
+	set_probe_level(stronger_b_probe, 45, 0.20f);
+	runner.expect(!displayed_guitar_chord_has_low_mid_smoothed_single_note_residue(
+			      stronger_later_root_displayed, smoothed_b_root_fifth, stronger_b_probe,
+			      kGuitarMinMidi, kGuitarMaxMidi, 0.350f, 0.401f),
+		      "displayed guitar low-mid residue: expected stronger later B root/fifth alias to remain");
+	runner.expect(!displayed_guitar_chord_has_noisy_smoothed_single_note_residue(
+			      stronger_later_root_displayed, smoothed_b_root_fifth,
+			      smoothed_b_root_fifth, smoothed_b_root_fifth, stronger_b_probe,
+			      kGuitarMinMidi, kGuitarMaxMidi, 0.350f, 0.401f),
+		      "displayed guitar noisy smoothed residue: expected stronger later B root/fifth alias to remain");
+
+	InstrumentState incomplete_stronger_root_display = {};
+	std::snprintf(incomplete_stronger_root_display.label,
+		      sizeof(incomplete_stronger_root_display.label), "F#=F#sus4=F#dim");
+	incomplete_stronger_root_display.confidence = 0.68f;
+	ChordResult stronger_root_source = make_crowded_chord("F#=F#sus4=F#dim=Bpow=B");
+	stronger_root_source.confidence = 0.68f;
+	runner.expect(recover_stronger_later_plain_guitar_root_alias_from_source(
+			      incomplete_stronger_root_display, stronger_root_source,
+			      smoothed_b_root_fifth, stronger_b_probe, kGuitarMinMidi,
+			      kGuitarMaxMidi),
+		      "displayed guitar source rescue: expected stronger later B root/fifth alias to recover");
+	runner.expect(std::strcmp(incomplete_stronger_root_display.label, "B") == 0,
+		      std::string("displayed guitar source rescue: expected B label, got `") +
+			      incomplete_stronger_root_display.label + "`");
 }
 
 void check_displayed_guitar_root_residue_rejects_harmonic_stack(Runner &runner)

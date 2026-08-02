@@ -20028,6 +20028,108 @@ bool displayed_guitar_chord_has_single_note_probe_profile(const InstrumentState 
 	return root_probe >= 0.812f && third_probe <= 0.238f;
 }
 
+bool root_chord_component_has_plain_base_suffix(const char *start, std::size_t len,
+						const ParsedRootChord &parsed)
+{
+	if (!start || len == 0)
+		return false;
+	std::size_t root_len = 1;
+	if (len > 1 && start[1] == '#')
+		root_len = 2;
+	if (root_len > len)
+		return false;
+	const char *suffix = start + root_len;
+	const std::size_t suffix_len = len - root_len;
+	return parsed.quality == RootChordQuality::Minor ? suffix_is(suffix, suffix_len, "m") :
+	       parsed.quality == RootChordQuality::Diminished ?
+		       suffix_is(suffix, suffix_len, "dim") :
+	       parsed.quality == RootChordQuality::Major ? suffix_len == 0 :
+							 false;
+}
+
+bool guitar_label_find_stronger_later_plain_root_alias(
+	const char *label, const ParsedRootChord &primary, const NoteGrid &smoothed_grid,
+	const std::array<float, kNoteProbeCount> &powers, int min_midi, int max_midi,
+	char *alias_out = nullptr, std::size_t alias_out_size = 0)
+{
+	const float primary_root_level = note_grid_pitch_level(smoothed_grid, primary.root);
+	if (primary_root_level >= 0.45f)
+		return false;
+
+	const char *cursor = label;
+	bool first_component = true;
+	while (cursor && *cursor) {
+		const char *end = std::strchr(cursor, '=');
+		const std::size_t len =
+			end ? static_cast<std::size_t>(end - cursor) : std::strlen(cursor);
+		ParsedRootChord component;
+		if (!first_component && parse_root_chord_component(cursor, len, component) &&
+		    component.root != primary.root &&
+		    root_chord_component_has_plain_base_suffix(cursor, len, component)) {
+			const int fifth = component.root +
+					  (component.quality == RootChordQuality::Diminished ? 6 : 7);
+			const float root_level = std::max(
+				note_grid_pitch_level(smoothed_grid, component.root),
+				strongest_melodic_probe_pitch_class_level(
+					powers, component.root, min_midi, max_midi));
+			const float fifth_level = std::max(
+				note_grid_pitch_level(smoothed_grid, fifth),
+				strongest_melodic_probe_pitch_class_level(
+					powers, fifth, min_midi, max_midi));
+			if (root_level >= 0.82f && root_level >= primary_root_level * 2.25f &&
+			    fifth_level >= 0.16f) {
+				if (alias_out && alias_out_size > 0) {
+					const std::size_t copy_len = std::min(len, alias_out_size - 1);
+					std::memcpy(alias_out, cursor, copy_len);
+					alias_out[copy_len] = '\0';
+				}
+				return true;
+			}
+		}
+		if (!end)
+			break;
+		cursor = end + 1;
+		first_component = false;
+	}
+	return false;
+}
+
+bool displayed_guitar_label_has_stronger_later_plain_root_alias(
+	const InstrumentState &displayed_chord, const ParsedRootChord &primary,
+	const NoteGrid &smoothed_grid, const std::array<float, kNoteProbeCount> &powers, int min_midi,
+	int max_midi)
+{
+	return guitar_label_find_stronger_later_plain_root_alias(
+		displayed_chord.label, primary, smoothed_grid, powers, min_midi, max_midi);
+}
+
+bool recover_stronger_later_plain_guitar_root_alias_from_source(
+	InstrumentState &state, const ChordResult &source, const NoteGrid &smoothed_grid,
+	const std::array<float, kNoteProbeCount> &powers, int min_midi, int max_midi)
+{
+	if (source.confidence < kChordConfidenceFloor || source.uncertain || !source.label[0] ||
+	    source.label[0] == '-')
+		return false;
+
+	const char *label_end = std::strchr(source.label, '=');
+	const std::size_t label_len =
+		label_end ? static_cast<std::size_t>(label_end - source.label) : std::strlen(source.label);
+	ParsedRootChord primary;
+	if (!parse_root_chord_component(source.label, label_len, primary))
+		return false;
+
+	char alias[16] = {};
+	if (!guitar_label_find_stronger_later_plain_root_alias(
+		    source.label, primary, smoothed_grid, powers, min_midi, max_midi, alias,
+		    sizeof(alias)) ||
+	    !alias[0])
+		return false;
+
+	copy_text(state.label, sizeof(state.label), alias);
+	state.confidence = std::max({state.confidence, source.confidence, 0.52f});
+	return true;
+}
+
 bool displayed_guitar_chord_has_noisy_smoothed_single_note_residue(
 	const InstrumentState &displayed_chord, const NoteGrid &display_grid,
 	const NoteGrid &analysis_grid, const NoteGrid &smoothed_grid,
@@ -20065,6 +20167,10 @@ bool displayed_guitar_chord_has_noisy_smoothed_single_note_residue(
 	if (label_has_supported_same_root_alias_for_primary(displayed_as_chord, parsed, display_grid,
 							    analysis_grid))
 		return false;
+	if (rms < 0.384f && mid_energy >= 0.30f &&
+	    displayed_guitar_label_has_stronger_later_plain_root_alias(
+		    displayed_chord, parsed, smoothed_grid, powers, min_midi, max_midi))
+		return false;
 
 	const bool minor = parsed.quality == RootChordQuality::Minor;
 	const ChordResult primary = make_guitar_plain_triad(parsed.root, minor, displayed_chord.confidence);
@@ -20072,6 +20178,82 @@ bool displayed_guitar_chord_has_noisy_smoothed_single_note_residue(
 		return false;
 
 	const int opposite_third = parsed.root + (minor ? 4 : 3);
+	const float opposite_third_probe =
+		strongest_melodic_probe_pitch_class_level(powers, opposite_third, min_midi, max_midi);
+	return opposite_third_probe >= 0.064f;
+}
+
+bool displayed_guitar_chord_has_low_mid_smoothed_single_note_residue(
+	const InstrumentState &displayed_chord, const NoteGrid &smoothed_grid,
+	const std::array<float, kNoteProbeCount> &powers, int min_midi, int max_midi, float rms,
+	float mid_energy)
+{
+	if (rms < 0.208f || mid_energy > 0.544f || displayed_chord.confidence < 0.45f ||
+	    !displayed_chord.label[0] || displayed_chord.label[0] == '-')
+		return false;
+	if (chord_label_component_count(displayed_chord.label) < 2)
+		return false;
+	if (note_grid_active_pitch_class_count(smoothed_grid) < 4)
+		return false;
+
+	const char *label_end = std::strchr(displayed_chord.label, '=');
+	const std::size_t label_len =
+		label_end ? static_cast<std::size_t>(label_end - displayed_chord.label) :
+			    std::strlen(displayed_chord.label);
+	ParsedRootChord parsed;
+	if (!parse_root_chord_component(displayed_chord.label, label_len, parsed))
+		return false;
+	std::size_t root_len = 1;
+	if (label_len > 1 && displayed_chord.label[1] == '#')
+		root_len = 2;
+	const char *suffix = displayed_chord.label + root_len;
+	const std::size_t suffix_len = label_len - root_len;
+	const bool plain_primary =
+		parsed.quality == RootChordQuality::Minor ? suffix_is(suffix, suffix_len, "m") :
+		parsed.quality == RootChordQuality::Diminished ? suffix_is(suffix, suffix_len, "dim") :
+								  suffix_len == 0;
+	if (!plain_primary)
+		return false;
+
+	ChordResult primary = {};
+	primary.root = parsed.root;
+	primary.confidence = displayed_chord.confidence;
+	primary.uncertain = false;
+	primary.tones[parsed.root] = true;
+
+	int third = -1;
+	int fifth = -1;
+	int opposite_third = -1;
+	if (parsed.quality == RootChordQuality::Major) {
+		third = parsed.root + 4;
+		fifth = parsed.root + 7;
+		opposite_third = parsed.root + 3;
+	} else if (parsed.quality == RootChordQuality::Minor) {
+		third = parsed.root + 3;
+		fifth = parsed.root + 7;
+		opposite_third = parsed.root + 4;
+	} else if (parsed.quality == RootChordQuality::Diminished) {
+		third = parsed.root + 3;
+		fifth = parsed.root + 6;
+		opposite_third = parsed.root + 4;
+	} else {
+		return false;
+	}
+
+	primary.tones[third % 12] = true;
+	primary.tones[fifth % 12] = true;
+	if (note_grid_chord_tone_count(smoothed_grid, primary) < 3)
+		return false;
+	if (rms < 0.384f && mid_energy >= 0.30f &&
+	    displayed_guitar_label_has_stronger_later_plain_root_alias(
+		    displayed_chord, parsed, smoothed_grid, powers, min_midi, max_midi))
+		return false;
+	const float smoothed_root = note_grid_pitch_level(smoothed_grid, parsed.root);
+	const float smoothed_third = note_grid_pitch_level(smoothed_grid, third);
+	const float smoothed_fifth = note_grid_pitch_level(smoothed_grid, fifth);
+	if (smoothed_root >= 0.95f && smoothed_third >= 0.50f && smoothed_fifth >= 0.50f)
+		return false;
+
 	const float opposite_third_probe =
 		strongest_melodic_probe_pitch_class_level(powers, opposite_third, min_midi, max_midi);
 	return opposite_third_probe >= 0.064f;
@@ -28826,19 +29008,49 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 				guitar_chord_detection_grid, note_powers, kGuitarMinMidi,
 				kGuitarMaxMidi);
 		}
-		if (!mixed_source &&
-		    (displayed_guitar_chord_has_single_note_probe_profile(
-			     snapshot.guitar_chord, snapshot.guitar_smoothed_chord,
-			     guitar_chord_detection_grid, note_powers, kGuitarMinMidi,
-			     kGuitarMaxMidi) ||
-		     displayed_guitar_chord_has_noisy_smoothed_single_note_residue(
-			     snapshot.guitar_chord, snapshot.guitar_notes, guitar_chord_detection_grid,
-			     snapshot.guitar_chord_smoothed_notes, note_powers, kGuitarMinMidi,
-			     kGuitarMaxMidi, rms, snapshot.mid_energy) ||
-		     displayed_guitar_chord_has_distorted_single_note_root_residue(
-			     snapshot.guitar_chord, snapshot.guitar_smoothed_chord,
-			     snapshot.guitar_notes, guitar_chord_detection_grid, rms)))
-			clear_instrument_state(snapshot.guitar_chord);
+		if (!mixed_source) {
+			const bool clear_guitar_residue =
+				displayed_guitar_chord_has_single_note_probe_profile(
+					snapshot.guitar_chord, snapshot.guitar_smoothed_chord,
+					guitar_chord_detection_grid, note_powers, kGuitarMinMidi,
+					kGuitarMaxMidi) ||
+				displayed_guitar_chord_has_low_mid_smoothed_single_note_residue(
+					snapshot.guitar_chord, snapshot.guitar_chord_smoothed_notes,
+					note_powers, kGuitarMinMidi, kGuitarMaxMidi, rms,
+					snapshot.mid_energy) ||
+				displayed_guitar_chord_has_noisy_smoothed_single_note_residue(
+					snapshot.guitar_chord, snapshot.guitar_notes,
+					guitar_chord_detection_grid, snapshot.guitar_chord_smoothed_notes,
+					note_powers, kGuitarMinMidi, kGuitarMaxMidi, rms,
+					snapshot.mid_energy) ||
+				displayed_guitar_chord_has_distorted_single_note_root_residue(
+					snapshot.guitar_chord, snapshot.guitar_smoothed_chord,
+					snapshot.guitar_notes, guitar_chord_detection_grid, rms);
+			const bool allow_root_fifth_recovery =
+				rms < 0.384f && snapshot.mid_energy >= 0.30f;
+			if (clear_guitar_residue &&
+			    !(allow_root_fifth_recovery &&
+			      recover_stronger_later_plain_guitar_root_alias_from_source(
+				    snapshot.guitar_chord, raw_guitar_chord,
+				    snapshot.guitar_chord_smoothed_notes, note_powers, kGuitarMinMidi,
+				    kGuitarMaxMidi)) &&
+			    !(allow_root_fifth_recovery &&
+			      recover_stronger_later_plain_guitar_root_alias_from_source(
+				    snapshot.guitar_chord, smoothed_guitar_chord,
+				    snapshot.guitar_chord_smoothed_notes, note_powers, kGuitarMinMidi,
+				    kGuitarMaxMidi)))
+				clear_instrument_state(snapshot.guitar_chord);
+			if (allow_root_fifth_recovery &&
+			    (!snapshot.guitar_chord.label[0] || snapshot.guitar_chord.label[0] == '-') &&
+			    !recover_stronger_later_plain_guitar_root_alias_from_source(
+				    snapshot.guitar_chord, raw_guitar_chord,
+				    snapshot.guitar_chord_smoothed_notes, note_powers, kGuitarMinMidi,
+				    kGuitarMaxMidi))
+				recover_stronger_later_plain_guitar_root_alias_from_source(
+					snapshot.guitar_chord, smoothed_guitar_chord,
+					snapshot.guitar_chord_smoothed_notes, note_powers, kGuitarMinMidi,
+					kGuitarMaxMidi);
+		}
 	} else {
 		reset_note_grid_envelope(snapshot.guitar_notes, snapshot.guitar, guitar_note_tracking_);
 		reset_note_grid_envelope(guitar_chord_grid, guitar_chord_note_state, guitar_chord_note_tracking_);
