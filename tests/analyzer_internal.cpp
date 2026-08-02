@@ -324,6 +324,57 @@ void check_visible_diminished_guitar_alias_recovery(Runner &runner)
 			      protected_state.label + "`");
 }
 
+void check_visible_augmented_guitar_alias_recovery(Runner &runner)
+{
+	NoteGrid display_grid = {};
+	set_pitch(display_grid, 0, 0.20f);
+	set_pitch(display_grid, 4, 0.18f);
+	set_pitch(display_grid, 8, 0.16f);
+	NoteGrid analysis_grid = {};
+	set_pitch(analysis_grid, 0, 0.78f);
+	set_pitch(analysis_grid, 4, 0.83f);
+	set_pitch(analysis_grid, 8, 0.74f);
+
+	ChordResult chord = make_crowded_chord("C=Em=Cmaj7");
+	chord.root = 0;
+	chord.confidence = 0.64f;
+	append_supported_guitar_augmented_triad_aliases(chord, display_grid, analysis_grid);
+	runner.expect(chord_label_has_exact_component(chord.label, "Caug"),
+		      std::string("visible augmented guitar alias recovery: expected Caug chord alias, got `") +
+			      chord.label + "`");
+	runner.expect(chord_label_has_exact_component(chord.label, "Eaug"),
+		      std::string("visible augmented guitar alias recovery: expected Eaug equivalent, got `") +
+			      chord.label + "`");
+	runner.expect(chord_label_has_exact_component(chord.label, "G#aug"),
+		      std::string("visible augmented guitar alias recovery: expected G#aug equivalent, got `") +
+			      chord.label + "`");
+
+	InstrumentState state = {};
+	std::snprintf(state.label, sizeof(state.label), "C=Em=Cmaj7");
+	state.confidence = 0.62f;
+	append_supported_guitar_augmented_triad_display_aliases(state, display_grid, analysis_grid);
+	runner.expect(chord_label_has_exact_component(state.label, "Caug"),
+		      std::string("visible augmented guitar alias recovery: expected Caug display alias, got `") +
+			      state.label + "`");
+	runner.expect(chord_label_has_exact_component(state.label, "Eaug"),
+		      std::string("visible augmented guitar alias recovery: expected Eaug display alias, got `") +
+			      state.label + "`");
+	runner.expect(chord_label_has_exact_component(state.label, "G#aug"),
+		      std::string("visible augmented guitar alias recovery: expected G#aug display alias, got `") +
+			      state.label + "`");
+
+	InstrumentState protected_state = {};
+	std::snprintf(protected_state.label, sizeof(protected_state.label), "C=Em");
+	protected_state.confidence = 0.62f;
+	NoteGrid natural_fifth_analysis = analysis_grid;
+	set_pitch(natural_fifth_analysis, 7, 0.82f);
+	append_supported_guitar_augmented_triad_display_aliases(protected_state, display_grid,
+								 natural_fifth_analysis);
+	runner.expect(!chord_label_has_exact_component(protected_state.label, "Caug"),
+		      std::string("visible augmented guitar alias recovery: expected natural fifth to block Caug, got `") +
+			      protected_state.label + "`");
+}
+
 void check_plain_guitar_voicing_rejects_crowded_root_fifth_quality(Runner &runner)
 {
 	ChordResult f_major = make_crowded_chord("F");
@@ -2772,6 +2823,7 @@ int run()
 	check_displayed_supported_plain_guitar_primary(runner);
 	check_source_supported_plain_guitar_alias_recovery(runner);
 	check_visible_diminished_guitar_alias_recovery(runner);
+	check_visible_augmented_guitar_alias_recovery(runner);
 	check_plain_guitar_voicing_rejects_crowded_root_fifth_quality(runner);
 	check_displayed_guitar_single_note_probe_profile(runner);
 	check_supported_guitar_candidate_alias_merge(runner);
