@@ -689,6 +689,7 @@ def main() -> int:
         "test-real-note-attribute-patterns",
         "test-drum-gate-matrix-summary",
         "test-drum-sample-shard-check",
+        "test-egmd-shard-check",
         "test-real-note-full-mix-shard-check",
         "test-real-note-sample-shard-check",
         "android-check",
@@ -711,6 +712,40 @@ def main() -> int:
     assert "$(MAKE) $(PARALLEL_TEST_MAKE_JOBS) $(ANALYSIS_SCRIPT_TEST_TARGETS)" in analysis_scripts_recipe, (
         "analysis script parallel target must fan out through jobserver-aware make"
     )
+    for dataset, var_prefix, label in [
+        ("mdb", "MDB_DRUMS", "MDB Drums"),
+        ("star", "STAR_DRUMS", "STAR Drums"),
+    ]:
+        target = f"test-{dataset}-drums-samples"
+        assert_alias_target(makefile, target, f"{target}-parallel")
+        parallel_recipe = target_recipe(makefile, f"{target}-parallel")
+        unlocked_recipe = target_recipe(makefile, f"{target}-parallel-unlocked")
+        shard_recipe = target_recipe(makefile, f"{target}-shard-%")
+        serial_recipe = target_recipe(makefile, f"{target}-serial")
+        assert "scripts/check_egmd_shards.py" in parallel_recipe, (
+            f"{label} parallel target must depend on the E-GMD shard checker"
+        )
+        assert "scripts/run_with_lock.sh" in parallel_recipe, (
+            f"{label} parallel target must lock shared shard outputs"
+        )
+        assert f"$(MAKE) $({var_prefix}_TEST_MAKE_JOBS) $({var_prefix}_SHARD_TARGETS)" in unlocked_recipe, (
+            f"{label} parallel target must fan out deterministic recording shards"
+        )
+        assert f"$({var_prefix}_SHARD_OUTS)" in unlocked_recipe, (
+            f"{label} parallel checker must aggregate every shard output"
+        )
+        assert f'MUSIC_ANALYZER_EGMD_SHARD_COUNT="$({var_prefix}_SHARDS)"' in shard_recipe, (
+            f"{label} shard target must pass the configured shard count"
+        )
+        assert 'MUSIC_ANALYZER_EGMD_SHARD_INDEX="$$shard"' in shard_recipe, (
+            f"{label} shard target must pass its concrete shard index"
+        )
+        assert "MUSIC_ANALYZER_EGMD_MIN_WINDOW_RECALL_PERCENT" in shard_recipe, (
+            f"{label} shard target must preserve the per-window recall gate"
+        )
+        assert "MUSIC_ANALYZER_EGMD_SHARD_COUNT" not in serial_recipe, (
+            f"{label} serial fallback must keep the original unsharded harness"
+        )
     detector_improvement_recipe = target_recipe(makefile, "analyze-detector-improvements")
     assert "\n\t+$(RUN_WITH_DURATION) detector_improvements_parallel" in detector_improvement_recipe, (
         "detector improvement workflow must report the aggregate parallel duration"

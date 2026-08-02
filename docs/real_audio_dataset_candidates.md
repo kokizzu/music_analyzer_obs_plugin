@@ -392,22 +392,26 @@ without additional annotation.
   label those classes in this target.
 - Use `make test-mdb-drums-samples` to download MDB Drums from GitHub, map
   real drum class/subclass onset annotations into GM drum MIDI, and run the
-  shared E-GMD-shaped drum-loop analyzer gate. The current cached gate covers
-  23 recordings and 92 evaluated windows, with 89/192 drum-category hits,
-  50.86% precision, 46.35% recall, and 63.04% false-positive windows. This
-  adds real drum-only loop coverage for kick, snare, side-stick/rim, hi-hat,
-  cymbal, tom, and ride labels.
+  shared E-GMD-shaped drum-loop analyzer gate. The default target shards the
+  sorted recordings and aggregates the original global gate; use
+  `make test-mdb-drums-samples-serial` for single-process comparison. The
+  current cached gate covers 23 recordings and 92 evaluated windows, with
+  154/192 drum-category hits, 62.10% precision, 80.21% recall, and 63.04%
+  false-positive windows. This adds real drum-only loop coverage for kick,
+  snare, side-stick/rim, hi-hat, cymbal, tom, and ride labels.
 - Use `make test-star-drums-samples` to download the 96.7 MB STAR Drums
   preview ZIP from Zenodo, convert the preview annotations into GM drum MIDI,
   convert the selected FLAC audio flavor into WAV, and run the shared E-GMD
   drum-loop analyzer gate. The default `STAR_DRUMS_AUDIO_FLAVOR=mix` tests the
   mixed-song previews; `re_synthesized_drum` and `original_drum` are available
-  for drum-stem debugging. The current preview gate prepares 4 recordings and
-  checks 16 windows, with 26/56 drum-category hits, 70.27% precision, 46.43%
-  recall, and 56.25% false-positive windows. STAR Drums is useful because it
-  mixes annotated drums with real non-drum recordings, but the annotated drum
-  stem is re-synthesized from automatic transcription, so it is not a
-  replacement for real-drum ground truth.
+  for drum-stem debugging. The default target shards the sorted recordings and
+  aggregates the original global gate; use `make test-star-drums-samples-serial`
+  for single-process comparison. The current preview gate prepares 4 recordings
+  and checks 16 windows, with 39/56 drum-category hits, 76.47% precision,
+  69.64% recall, and 62.50% false-positive windows. STAR Drums is useful
+  because it mixes annotated drums with real non-drum recordings, but the
+  annotated drum stem is re-synthesized from automatic transcription, so it is
+  not a replacement for real-drum ground truth.
 - Use `make test-medley-solos-samples` to download Medley-solos-DB metadata
   plus the full 7.9 GB audio archive from Zenodo, prepare a bounded
   source-balanced set under `build/medley_solos_samples`, and run the

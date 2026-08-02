@@ -440,6 +440,12 @@ MDB_DRUMS_MIN_WINDOW_RECALL_PERCENT ?= 0
 MDB_DRUMS_MIN_PRECISION_PERCENT ?= 55
 MDB_DRUMS_MAX_FALSE_POSITIVE_WINDOWS_PERCENT ?= 70
 MDB_DRUMS_MISS_LOG ?= $(BUILD_DIR)/mdb_drums_misses.log
+MDB_DRUMS_SHARDS ?= 4
+MDB_DRUMS_SHARD_INDEXES := $(shell i=0; while [ $$i -lt $(MDB_DRUMS_SHARDS) ]; do printf '%s ' $$i; i=$$((i + 1)); done)
+MDB_DRUMS_SHARD_TARGETS := $(addprefix test-mdb-drums-samples-shard-,$(MDB_DRUMS_SHARD_INDEXES))
+MDB_DRUMS_SHARD_OUTS := $(addprefix $(BUILD_DIR)/mdb_drums_samples_shard_,$(addsuffix .out,$(MDB_DRUMS_SHARD_INDEXES)))
+MDB_DRUMS_LOCK_DIR ?= $(BUILD_DIR)/mdb_drums_samples.lock
+MDB_DRUMS_TEST_MAKE_JOBS = $(if $(filter -j%,$(MAKEFLAGS)),,-j$(words $(MDB_DRUMS_SHARD_INDEXES)))
 STAR_DRUMS_URL ?= https://zenodo.org/records/15690078/files/STAR_Drums_preview.zip?download=1
 STAR_DRUMS_SOURCE_DIR ?= $(REAL_SAMPLE_SOURCE_DIR)/star_drums
 STAR_DRUMS_ARCHIVE ?= $(STAR_DRUMS_SOURCE_DIR)/STAR_Drums_preview.zip
@@ -453,6 +459,12 @@ STAR_DRUMS_MIN_WINDOW_RECALL_PERCENT ?= 0
 STAR_DRUMS_MIN_PRECISION_PERCENT ?= 65
 STAR_DRUMS_MAX_FALSE_POSITIVE_WINDOWS_PERCENT ?= 75
 STAR_DRUMS_MISS_LOG ?= $(BUILD_DIR)/star_drums_misses.log
+STAR_DRUMS_SHARDS ?= 4
+STAR_DRUMS_SHARD_INDEXES := $(shell i=0; while [ $$i -lt $(STAR_DRUMS_SHARDS) ]; do printf '%s ' $$i; i=$$((i + 1)); done)
+STAR_DRUMS_SHARD_TARGETS := $(addprefix test-star-drums-samples-shard-,$(STAR_DRUMS_SHARD_INDEXES))
+STAR_DRUMS_SHARD_OUTS := $(addprefix $(BUILD_DIR)/star_drums_samples_shard_,$(addsuffix .out,$(STAR_DRUMS_SHARD_INDEXES)))
+STAR_DRUMS_LOCK_DIR ?= $(BUILD_DIR)/star_drums_samples.lock
+STAR_DRUMS_TEST_MAKE_JOBS = $(if $(filter -j%,$(MAKEFLAGS)),,-j$(words $(STAR_DRUMS_SHARD_INDEXES)))
 MEDLEY_SOLOS_URL ?= https://zenodo.org/api/records/3464194/files/Medley-solos-DB.tar.gz/content
 MEDLEY_SOLOS_METADATA_URL ?= https://zenodo.org/api/records/3464194/files/Medley-solos-DB_metadata.csv/content
 MEDLEY_SOLOS_SOURCE_DIR ?= $(REAL_SAMPLE_SOURCE_DIR)/medley_solos
@@ -1765,8 +1777,20 @@ find-protected-drum-primary-attribute-patterns: scripts/find_drum_attribute_patt
 prepare-mdb-drums-samples: scripts/prepare_mdb_drums_samples.py | $(BUILD_DIR)
 	MDB_DRUMS_SAMPLE_DIR="$(MDB_DRUMS_SAMPLE_DIR)" MDB_DRUMS_SOURCE_ROOT="$(MDB_DRUMS_SOURCE_ROOT)" MDB_DRUMS_RECORDING_LIMIT="$(MDB_DRUMS_RECORDING_LIMIT)" MDB_DRUMS_MIN_RECORDINGS="$(MDB_DRUMS_MIN_RECORDINGS)" $(PYTHON) scripts/prepare_mdb_drums_samples.py --output "$(MDB_DRUMS_SAMPLE_DIR)" --source-root "$(MDB_DRUMS_SOURCE_ROOT)" --limit "$(MDB_DRUMS_RECORDING_LIMIT)" --min-recordings "$(MDB_DRUMS_MIN_RECORDINGS)"
 
-test-mdb-drums-samples: $(BUILD_DIR)/analyzer_egmd prepare-mdb-drums-samples scripts/run_with_duration.sh
+test-mdb-drums-samples: test-mdb-drums-samples-parallel
+
+test-mdb-drums-samples-serial: $(BUILD_DIR)/analyzer_egmd prepare-mdb-drums-samples scripts/run_with_duration.sh
 	$(RUN_WITH_DURATION) analyzer_mdb_drums_samples env MUSIC_ANALYZER_EGMD_ROOT="$(MDB_DRUMS_SAMPLE_DIR)" MUSIC_ANALYZER_EGMD_REQUIRED=1 MUSIC_ANALYZER_EGMD_REQUIRED_RECORDINGS="$(MDB_DRUMS_MIN_RECORDINGS)" MUSIC_ANALYZER_EGMD_REQUIRED_WINDOWS="$(MDB_DRUMS_REQUIRED_WINDOWS)" MUSIC_ANALYZER_EGMD_MIN_RECALL_PERCENT="$(MDB_DRUMS_MIN_RECALL_PERCENT)" MUSIC_ANALYZER_EGMD_MIN_WINDOW_RECALL_PERCENT="$(MDB_DRUMS_MIN_WINDOW_RECALL_PERCENT)" MUSIC_ANALYZER_EGMD_MIN_PRECISION_PERCENT="$(MDB_DRUMS_MIN_PRECISION_PERCENT)" MUSIC_ANALYZER_EGMD_MAX_FALSE_POSITIVE_WINDOWS_PERCENT="$(MDB_DRUMS_MAX_FALSE_POSITIVE_WINDOWS_PERCENT)" $(BUILD_DIR)/analyzer_egmd
+
+test-mdb-drums-samples-parallel: $(BUILD_DIR)/analyzer_egmd prepare-mdb-drums-samples scripts/check_egmd_shards.py scripts/run_with_lock.sh scripts/run_with_duration.sh
+	+$(RUN_WITH_DURATION) analyzer_mdb_drums_samples_parallel $(SHELL) scripts/run_with_lock.sh "$(MDB_DRUMS_LOCK_DIR)" -- "$(MAKE)" test-mdb-drums-samples-parallel-unlocked
+
+test-mdb-drums-samples-parallel-unlocked: $(BUILD_DIR)/analyzer_egmd prepare-mdb-drums-samples scripts/check_egmd_shards.py scripts/run_with_duration.sh
+	+$(MAKE) $(MDB_DRUMS_TEST_MAKE_JOBS) $(MDB_DRUMS_SHARD_TARGETS)
+	$(RUN_WITH_DURATION) check_mdb_drums_shards $(PYTHON) scripts/check_egmd_shards.py --min-recordings "$(MDB_DRUMS_MIN_RECORDINGS)" --min-windows "$(MDB_DRUMS_REQUIRED_WINDOWS)" --min-recall-percent "$(MDB_DRUMS_MIN_RECALL_PERCENT)" --min-precision-percent "$(MDB_DRUMS_MIN_PRECISION_PERCENT)" --max-false-positive-windows-percent "$(MDB_DRUMS_MAX_FALSE_POSITIVE_WINDOWS_PERCENT)" $(MDB_DRUMS_SHARD_OUTS)
+
+test-mdb-drums-samples-shard-%: FORCE $(BUILD_DIR)/analyzer_egmd prepare-mdb-drums-samples scripts/run_with_duration.sh
+	@shard="$*"; $(RUN_WITH_DURATION) analyzer_mdb_drums_samples_shard_$* env MUSIC_ANALYZER_EGMD_ROOT="$(MDB_DRUMS_SAMPLE_DIR)" MUSIC_ANALYZER_EGMD_REQUIRED=1 MUSIC_ANALYZER_EGMD_REQUIRED_RECORDINGS=1 MUSIC_ANALYZER_EGMD_REQUIRED_WINDOWS=1 MUSIC_ANALYZER_EGMD_MAX_WINDOWS_PER_RECORDING=4 MUSIC_ANALYZER_EGMD_MIN_RECALL_PERCENT=0 MUSIC_ANALYZER_EGMD_MIN_WINDOW_RECALL_PERCENT="$(MDB_DRUMS_MIN_WINDOW_RECALL_PERCENT)" MUSIC_ANALYZER_EGMD_MIN_PRECISION_PERCENT=0 MUSIC_ANALYZER_EGMD_MAX_FALSE_POSITIVE_WINDOWS_PERCENT=100 MUSIC_ANALYZER_EGMD_SHARD_COUNT="$(MDB_DRUMS_SHARDS)" MUSIC_ANALYZER_EGMD_SHARD_INDEX="$$shard" $(BUILD_DIR)/analyzer_egmd > "$(BUILD_DIR)/mdb_drums_samples_shard_$*.out" 2> "$(BUILD_DIR)/mdb_drums_samples_shard_$*.err"
 
 analyze-mdb-drums-misses: $(BUILD_DIR)/analyzer_egmd prepare-mdb-drums-samples scripts/analyze_egmd_misses.py
 	env MUSIC_ANALYZER_EGMD_ROOT="$(MDB_DRUMS_SAMPLE_DIR)" MUSIC_ANALYZER_EGMD_REQUIRED=1 MUSIC_ANALYZER_EGMD_REQUIRED_RECORDINGS="$(MDB_DRUMS_MIN_RECORDINGS)" MUSIC_ANALYZER_EGMD_REQUIRED_WINDOWS="$(MDB_DRUMS_REQUIRED_WINDOWS)" MUSIC_ANALYZER_EGMD_MIN_RECALL_PERCENT=0 MUSIC_ANALYZER_EGMD_MIN_WINDOW_RECALL_PERCENT=0 MUSIC_ANALYZER_EGMD_MIN_PRECISION_PERCENT=0 MUSIC_ANALYZER_EGMD_MAX_FALSE_POSITIVE_WINDOWS_PERCENT=100 MUSIC_ANALYZER_EGMD_VERBOSE_MISSES=1 MUSIC_ANALYZER_EGMD_VERBOSE_MISS_LIMIT=240 MUSIC_ANALYZER_EGMD_VERBOSE_FALSE_POSITIVES=1 MUSIC_ANALYZER_EGMD_VERBOSE_FALSE_POSITIVE_LIMIT=240 $(BUILD_DIR)/analyzer_egmd > "$(MDB_DRUMS_MISS_LOG).summary" 2> "$(MDB_DRUMS_MISS_LOG)"
@@ -1785,8 +1809,20 @@ $(STAR_DRUMS_ARCHIVE): | $(BUILD_DIR)
 prepare-star-drums-samples: scripts/prepare_star_drums_samples.py download-star-drums-samples | $(BUILD_DIR)
 	STAR_DRUMS_ARCHIVE="$(STAR_DRUMS_ARCHIVE)" STAR_DRUMS_SAMPLE_DIR="$(STAR_DRUMS_SAMPLE_DIR)" STAR_DRUMS_AUDIO_FLAVOR="$(STAR_DRUMS_AUDIO_FLAVOR)" STAR_DRUMS_RECORDING_LIMIT="$(STAR_DRUMS_RECORDING_LIMIT)" STAR_DRUMS_MIN_RECORDINGS="$(STAR_DRUMS_MIN_RECORDINGS)" FFMPEG="$(FFMPEG)" $(PYTHON) scripts/prepare_star_drums_samples.py --archive "$(STAR_DRUMS_ARCHIVE)" --output "$(STAR_DRUMS_SAMPLE_DIR)" --audio-flavor "$(STAR_DRUMS_AUDIO_FLAVOR)" --limit "$(STAR_DRUMS_RECORDING_LIMIT)" --min-recordings "$(STAR_DRUMS_MIN_RECORDINGS)" --ffmpeg "$(FFMPEG)"
 
-test-star-drums-samples: $(BUILD_DIR)/analyzer_egmd prepare-star-drums-samples scripts/run_with_duration.sh
+test-star-drums-samples: test-star-drums-samples-parallel
+
+test-star-drums-samples-serial: $(BUILD_DIR)/analyzer_egmd prepare-star-drums-samples scripts/run_with_duration.sh
 	$(RUN_WITH_DURATION) analyzer_star_drums_samples env MUSIC_ANALYZER_EGMD_ROOT="$(STAR_DRUMS_SAMPLE_DIR)" MUSIC_ANALYZER_EGMD_REQUIRED=1 MUSIC_ANALYZER_EGMD_REQUIRED_RECORDINGS="$(STAR_DRUMS_MIN_RECORDINGS)" MUSIC_ANALYZER_EGMD_REQUIRED_WINDOWS="$(STAR_DRUMS_REQUIRED_WINDOWS)" MUSIC_ANALYZER_EGMD_MIN_RECALL_PERCENT="$(STAR_DRUMS_MIN_RECALL_PERCENT)" MUSIC_ANALYZER_EGMD_MIN_WINDOW_RECALL_PERCENT="$(STAR_DRUMS_MIN_WINDOW_RECALL_PERCENT)" MUSIC_ANALYZER_EGMD_MIN_PRECISION_PERCENT="$(STAR_DRUMS_MIN_PRECISION_PERCENT)" MUSIC_ANALYZER_EGMD_MAX_FALSE_POSITIVE_WINDOWS_PERCENT="$(STAR_DRUMS_MAX_FALSE_POSITIVE_WINDOWS_PERCENT)" $(BUILD_DIR)/analyzer_egmd
+
+test-star-drums-samples-parallel: $(BUILD_DIR)/analyzer_egmd prepare-star-drums-samples scripts/check_egmd_shards.py scripts/run_with_lock.sh scripts/run_with_duration.sh
+	+$(RUN_WITH_DURATION) analyzer_star_drums_samples_parallel $(SHELL) scripts/run_with_lock.sh "$(STAR_DRUMS_LOCK_DIR)" -- "$(MAKE)" test-star-drums-samples-parallel-unlocked
+
+test-star-drums-samples-parallel-unlocked: $(BUILD_DIR)/analyzer_egmd prepare-star-drums-samples scripts/check_egmd_shards.py scripts/run_with_duration.sh
+	+$(MAKE) $(STAR_DRUMS_TEST_MAKE_JOBS) $(STAR_DRUMS_SHARD_TARGETS)
+	$(RUN_WITH_DURATION) check_star_drums_shards $(PYTHON) scripts/check_egmd_shards.py --min-recordings "$(STAR_DRUMS_MIN_RECORDINGS)" --min-windows "$(STAR_DRUMS_REQUIRED_WINDOWS)" --min-recall-percent "$(STAR_DRUMS_MIN_RECALL_PERCENT)" --min-precision-percent "$(STAR_DRUMS_MIN_PRECISION_PERCENT)" --max-false-positive-windows-percent "$(STAR_DRUMS_MAX_FALSE_POSITIVE_WINDOWS_PERCENT)" $(STAR_DRUMS_SHARD_OUTS)
+
+test-star-drums-samples-shard-%: FORCE $(BUILD_DIR)/analyzer_egmd prepare-star-drums-samples scripts/run_with_duration.sh
+	@shard="$*"; $(RUN_WITH_DURATION) analyzer_star_drums_samples_shard_$* env MUSIC_ANALYZER_EGMD_ROOT="$(STAR_DRUMS_SAMPLE_DIR)" MUSIC_ANALYZER_EGMD_REQUIRED=1 MUSIC_ANALYZER_EGMD_REQUIRED_RECORDINGS=1 MUSIC_ANALYZER_EGMD_REQUIRED_WINDOWS=1 MUSIC_ANALYZER_EGMD_MAX_WINDOWS_PER_RECORDING=4 MUSIC_ANALYZER_EGMD_MIN_RECALL_PERCENT=0 MUSIC_ANALYZER_EGMD_MIN_WINDOW_RECALL_PERCENT="$(STAR_DRUMS_MIN_WINDOW_RECALL_PERCENT)" MUSIC_ANALYZER_EGMD_MIN_PRECISION_PERCENT=0 MUSIC_ANALYZER_EGMD_MAX_FALSE_POSITIVE_WINDOWS_PERCENT=100 MUSIC_ANALYZER_EGMD_SHARD_COUNT="$(STAR_DRUMS_SHARDS)" MUSIC_ANALYZER_EGMD_SHARD_INDEX="$$shard" $(BUILD_DIR)/analyzer_egmd > "$(BUILD_DIR)/star_drums_samples_shard_$*.out" 2> "$(BUILD_DIR)/star_drums_samples_shard_$*.err"
 
 analyze-star-drums-misses: $(BUILD_DIR)/analyzer_egmd prepare-star-drums-samples scripts/analyze_egmd_misses.py
 	env MUSIC_ANALYZER_EGMD_ROOT="$(STAR_DRUMS_SAMPLE_DIR)" MUSIC_ANALYZER_EGMD_REQUIRED=1 MUSIC_ANALYZER_EGMD_REQUIRED_RECORDINGS="$(STAR_DRUMS_MIN_RECORDINGS)" MUSIC_ANALYZER_EGMD_REQUIRED_WINDOWS="$(STAR_DRUMS_REQUIRED_WINDOWS)" MUSIC_ANALYZER_EGMD_MIN_RECALL_PERCENT=0 MUSIC_ANALYZER_EGMD_MIN_WINDOW_RECALL_PERCENT=0 MUSIC_ANALYZER_EGMD_MIN_PRECISION_PERCENT=0 MUSIC_ANALYZER_EGMD_MAX_FALSE_POSITIVE_WINDOWS_PERCENT=100 MUSIC_ANALYZER_EGMD_VERBOSE_MISSES=1 MUSIC_ANALYZER_EGMD_VERBOSE_MISS_LIMIT=120 MUSIC_ANALYZER_EGMD_VERBOSE_FALSE_POSITIVES=1 MUSIC_ANALYZER_EGMD_VERBOSE_FALSE_POSITIVE_LIMIT=120 $(BUILD_DIR)/analyzer_egmd > "$(STAR_DRUMS_MISS_LOG).summary" 2> "$(STAR_DRUMS_MISS_LOG)"
@@ -3225,7 +3261,7 @@ test-analyzer-egmd: $(BUILD_DIR)/analyzer_egmd scripts/run_with_duration.sh
 test-core-parallel: scripts/run_with_duration.sh
 	+$(RUN_WITH_DURATION) test_core_parallel $(MAKE) $(PARALLEL_TEST_MAKE_JOBS) test-visualizer-renderer test-analyzer-internal test-analyzer-smoke test-analyzer-cases test-analyzer-midi-ranges test-analyzer-urmp test-analyzer-musicnet test-analyzer-multtipop test-analyzer-guitarset test-analyzer-maestro test-analyzer-egmd
 
-ANALYSIS_SCRIPT_TEST_TARGETS := inspect-real-dataset-catalog inspect-real-goal-coverage test-musicnet-remote test-medleydb-inspector test-medleydb-prepare test-musdb-inspector test-slakh-inspector test-slakh-prepare test-choralsynth-inspector test-choralsynth-prepare test-cocochorales-inspector test-cocochorales-prepare test-synthsod-remote test-synthsod-archive-extract test-synthsod-inspector test-synthsod-prepare test-polyvocal-inspector test-polyvocal-prepare test-prepared-multitrack-inspector test-prepared-multitrack-prepare test-multtipop-inspector test-spheres-inspector test-guitarset-inspector test-urmp-inspector test-drum-sample-prepare test-hf-drum-kit-prepare test-idmt-drums-prepare test-mdb-drums-prepare test-star-drums-prepare test-medley-solos-prepare test-maps-piano-prepare test-bach10-mf0-synth-prepare test-instrument-sample-attribute-summary test-instrument-sample-owner-buckets test-filter-instrument-attribute-rows test-filter-drum-attribute-rows test-instrument-owner-patterns test-refresh-analyzer-detected-attribute-rows test-print-analyzer-detected-attributes test-analyzer-pattern-report test-measure-analyzer-patterns-target test-build-sharded-tsv test-drum-sample-shard-check test-real-note-full-mix-shard-check test-real-note-sample-shard-check test-guitarset-shard-check test-philharmonia-prepare test-good-sounds-prepare test-iowa-piano-prepare test-iowa-zip-prepare test-idmt-bass-lines-prepare test-idmt-guitar-prepare test-tinysol-prepare test-vocadito-prepare test-vocalset-prepare test-guitar-fretboard-note-prepare test-guitar-techs-prepare test-guitar-techs-chord-prepare test-guitar-chord-mix-prepare test-gaps-guitar-prepare test-guitarset-miss-analysis test-guitarset-attribute-summary test-guitarset-attribute-buckets test-guitarset-attribute-patterns test-guitar-chord-recovery-analysis test-guitar-primary-order-analysis test-guitar-chord-extra-components-analysis test-real-note-miss-analysis test-real-note-attribute-summary test-real-note-attribute-buckets test-real-note-attribute-patterns test-real-note-attribute-rule test-real-note-display-shadow-eval test-egmd-miss-analysis test-egmd-drum-attribute-summary test-egmd-drum-recovery-eval test-drum-debug-row-analysis test-drum-primary-analysis test-drum-gate-matrix-summary test-drum-active-threshold-simulation test-drum-active-false-summary test-drum-active-false-patterns test-real-goal-script android-check
+ANALYSIS_SCRIPT_TEST_TARGETS := inspect-real-dataset-catalog inspect-real-goal-coverage test-musicnet-remote test-medleydb-inspector test-medleydb-prepare test-musdb-inspector test-slakh-inspector test-slakh-prepare test-choralsynth-inspector test-choralsynth-prepare test-cocochorales-inspector test-cocochorales-prepare test-synthsod-remote test-synthsod-archive-extract test-synthsod-inspector test-synthsod-prepare test-polyvocal-inspector test-polyvocal-prepare test-prepared-multitrack-inspector test-prepared-multitrack-prepare test-multtipop-inspector test-spheres-inspector test-guitarset-inspector test-urmp-inspector test-drum-sample-prepare test-hf-drum-kit-prepare test-idmt-drums-prepare test-mdb-drums-prepare test-star-drums-prepare test-medley-solos-prepare test-maps-piano-prepare test-bach10-mf0-synth-prepare test-instrument-sample-attribute-summary test-instrument-sample-owner-buckets test-filter-instrument-attribute-rows test-filter-drum-attribute-rows test-instrument-owner-patterns test-refresh-analyzer-detected-attribute-rows test-print-analyzer-detected-attributes test-analyzer-pattern-report test-measure-analyzer-patterns-target test-build-sharded-tsv test-drum-sample-shard-check test-egmd-shard-check test-real-note-full-mix-shard-check test-real-note-sample-shard-check test-guitarset-shard-check test-philharmonia-prepare test-good-sounds-prepare test-iowa-piano-prepare test-iowa-zip-prepare test-idmt-bass-lines-prepare test-idmt-guitar-prepare test-tinysol-prepare test-vocadito-prepare test-vocalset-prepare test-guitar-fretboard-note-prepare test-guitar-techs-prepare test-guitar-techs-chord-prepare test-guitar-chord-mix-prepare test-gaps-guitar-prepare test-guitarset-miss-analysis test-guitarset-attribute-summary test-guitarset-attribute-buckets test-guitarset-attribute-patterns test-guitar-chord-recovery-analysis test-guitar-primary-order-analysis test-guitar-chord-extra-components-analysis test-real-note-miss-analysis test-real-note-attribute-summary test-real-note-attribute-buckets test-real-note-attribute-patterns test-real-note-attribute-rule test-real-note-display-shadow-eval test-egmd-miss-analysis test-egmd-drum-attribute-summary test-egmd-drum-recovery-eval test-drum-debug-row-analysis test-drum-primary-analysis test-drum-gate-matrix-summary test-drum-active-threshold-simulation test-drum-active-false-summary test-drum-active-false-patterns test-real-goal-script android-check
 ANALYSIS_SCRIPT_TEST_TARGETS += test-drum-rule-flag-summary
 ANALYSIS_SCRIPT_TEST_TARGETS += test-compare-drum-gate-summaries
 ANALYSIS_SCRIPT_TEST_TARGETS += test-real-note-octave-display-aliases
@@ -3235,6 +3271,9 @@ ANALYSIS_SCRIPT_TEST_TARGETS += test-drum-sample-skip-patterns
 
 test-drum-sample-shard-check: tests/test_check_drum_sample_shards.py scripts/check_drum_sample_shards.py
 	$(PYTHON) tests/test_check_drum_sample_shards.py
+
+test-egmd-shard-check: tests/test_check_egmd_shards.py scripts/check_egmd_shards.py
+	$(PYTHON) tests/test_check_egmd_shards.py
 
 test-real-note-full-mix-shard-check: tests/test_check_real_note_full_mix_shards.py scripts/check_real_note_full_mix_shards.py
 	$(PYTHON) tests/test_check_real_note_full_mix_shards.py

@@ -783,6 +783,15 @@ int resolve_positive_int_env(const char *name, int fallback)
 	return parsed > 0 ? parsed : fallback;
 }
 
+int resolve_nonnegative_int_env(const char *name, int fallback)
+{
+	const char *value = std::getenv(name);
+	if (!value || !*value)
+		return fallback;
+	const int parsed = std::atoi(value);
+	return parsed >= 0 ? parsed : fallback;
+}
+
 int resolve_percent_env(const char *name, int fallback)
 {
 	const char *value = std::getenv(name);
@@ -1082,6 +1091,7 @@ std::string drum_precision_summary(const DrumPrecisionStats &stats)
 	       percent_string(stats.true_positives, stats.true_positives + stats.false_negatives) +
 	       ", F1 " + f1_string(stats.true_positives, stats.false_positives, stats.false_negatives) +
 	       ", false-positive windows " + percent_string(stats.false_positive_windows, stats.windows) +
+	       " (" + std::to_string(stats.false_positive_windows) + "/" + std::to_string(stats.windows) + ")" +
 	       ", recall by category " + recall_by_category +
 	       ", fp by category " + by_category + ", tp/fp/fn " + std::to_string(stats.true_positives) +
 	       "/" + std::to_string(stats.false_positives) + "/" + std::to_string(stats.false_negatives);
@@ -1200,6 +1210,13 @@ int main()
 		resolve_positive_int_env("MUSIC_ANALYZER_EGMD_VERBOSE_FALSE_POSITIVE_LIMIT", 24);
 	const bool verbose_misses = env_truthy("MUSIC_ANALYZER_EGMD_VERBOSE_MISSES");
 	const int verbose_miss_limit = resolve_positive_int_env("MUSIC_ANALYZER_EGMD_VERBOSE_MISS_LIMIT", 24);
+	const int shard_count = resolve_positive_int_env("MUSIC_ANALYZER_EGMD_SHARD_COUNT", 1);
+	const int shard_index = resolve_nonnegative_int_env("MUSIC_ANALYZER_EGMD_SHARD_INDEX", 0);
+	if (shard_index >= shard_count) {
+		std::fprintf(stderr, "analyzer_egmd: shard index %d outside shard count %d\n", shard_index,
+			     shard_count);
+		return 1;
+	}
 	const char *analyzer_source_name = std::getenv("MUSIC_ANALYZER_EGMD_SOURCE_NAME");
 	if (!analyzer_source_name || !*analyzer_source_name)
 		analyzer_source_name = "E-GMD drums";
@@ -1215,7 +1232,14 @@ int main()
 	int verbose_false_positive_lines = 0;
 	int verbose_miss_lines = 0;
 
+	std::size_t recording_ordinal = 0;
 	for (const Recording &recording : recordings) {
+		const std::size_t current_recording_ordinal = recording_ordinal++;
+		if (shard_count > 1 &&
+		    current_recording_ordinal % static_cast<std::size_t>(shard_count) !=
+			    static_cast<std::size_t>(shard_index))
+			continue;
+
 		const std::vector<CandidateWindow> candidates =
 			select_candidate_windows(recording, max_windows_per_recording);
 		if (candidates.empty()) {
