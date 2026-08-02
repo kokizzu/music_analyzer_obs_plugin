@@ -917,6 +917,83 @@ void check_analysis_complete_guitar_source_dominant_seventh_aliases_after_prune(
 			      crowded.label + "`");
 }
 
+void check_probe_supported_guitar_source_dominant_seventh_aliases_after_prune(Runner &runner)
+{
+	InstrumentState gaps_source_backed = {};
+	std::snprintf(gaps_source_backed.label, sizeof(gaps_source_backed.label),
+		      "E=Esus2=Bsus4=Eadd9=Esus4=B=A#pow=A#=E7=Emaj7=E6=C#m7=Epow=Bpow");
+	gaps_source_backed.confidence = 0.68f;
+	ChordResult gaps_source = make_crowded_chord(
+		"E=Esus2=Bsus4=Eadd9=Esus4=E7=Emaj7=E6=B=C#m7=A#pow=A#=A#7");
+	gaps_source.root = 4;
+	gaps_source.confidence = 0.68f;
+	NoteGrid gaps_display_grid = {};
+	set_pitch(gaps_display_grid, 4, 0.80f);
+	set_pitch(gaps_display_grid, 5, 1.00f);
+	set_pitch(gaps_display_grid, 6, 0.83f);
+	set_pitch(gaps_display_grid, 8, 0.15f);
+	set_pitch(gaps_display_grid, 9, 0.45f);
+	set_pitch(gaps_display_grid, 10, 0.55f);
+	set_pitch(gaps_display_grid, 11, 0.40f);
+	NoteGrid gaps_analysis_grid = {};
+	set_pitch(gaps_analysis_grid, 4, 0.79f);
+	set_pitch(gaps_analysis_grid, 5, 1.00f);
+	set_pitch(gaps_analysis_grid, 6, 0.80f);
+	set_pitch(gaps_analysis_grid, 8, 0.23f);
+	set_pitch(gaps_analysis_grid, 9, 0.43f);
+	set_pitch(gaps_analysis_grid, 10, 0.55f);
+	set_pitch(gaps_analysis_grid, 11, 0.38f);
+	std::array<float, kNoteProbeCount> gaps_powers = {};
+	set_probe_level(gaps_powers, 46, 0.55f);
+	set_probe_level(gaps_powers, 50, 0.24f);
+	set_probe_level(gaps_powers, 53, 1.00f);
+	set_probe_level(gaps_powers, 56, 0.22f);
+
+	append_probe_supported_guitar_source_dominant_seventh_aliases_after_prune(
+		gaps_source_backed, gaps_source, gaps_display_grid, gaps_analysis_grid,
+		gaps_powers, kGuitarMinMidi, kGuitarMaxMidi);
+	runner.expect(chord_label_has_exact_component(gaps_source_backed.label, "A#7"),
+		      std::string("probe-supported guitar source 7: expected A#7 recovered, got `") +
+			      gaps_source_backed.label + "`");
+
+	InstrumentState missing_display_root = {};
+	std::snprintf(missing_display_root.label, sizeof(missing_display_root.label),
+		      "E=Esus2=Bsus4=Eadd9");
+	missing_display_root.confidence = 0.68f;
+	append_probe_supported_guitar_source_dominant_seventh_aliases_after_prune(
+		missing_display_root, gaps_source, gaps_display_grid, gaps_analysis_grid,
+		gaps_powers, kGuitarMinMidi, kGuitarMaxMidi);
+	runner.expect(!chord_label_has_exact_component(missing_display_root.label, "A#7"),
+		      std::string("probe-supported guitar source 7: expected same-root display label required, got `") +
+			      missing_display_root.label + "`");
+
+	InstrumentState clean_major = {};
+	std::snprintf(clean_major.label, sizeof(clean_major.label), "F#=F#maj7");
+	clean_major.confidence = 1.00f;
+	ChordResult clean_source = make_crowded_chord("F#7");
+	clean_source.root = 6;
+	clean_source.confidence = 1.00f;
+	NoteGrid clean_display_grid = {};
+	set_pitch(clean_display_grid, 1, 0.12f);
+	set_pitch(clean_display_grid, 6, 0.34f);
+	set_pitch(clean_display_grid, 10, 0.18f);
+	NoteGrid clean_analysis_grid = {};
+	set_pitch(clean_analysis_grid, 1, 0.43f);
+	set_pitch(clean_analysis_grid, 6, 1.00f);
+	set_pitch(clean_analysis_grid, 10, 0.60f);
+	std::array<float, kNoteProbeCount> clean_powers = {};
+	set_probe_level(clean_powers, 42, 1.00f);
+	set_probe_level(clean_powers, 46, 0.53f);
+	set_probe_level(clean_powers, 49, 0.35f);
+
+	append_probe_supported_guitar_source_dominant_seventh_aliases_after_prune(
+		clean_major, clean_source, clean_display_grid, clean_analysis_grid,
+		clean_powers, kGuitarMinMidi, kGuitarMaxMidi);
+	runner.expect(!chord_label_has_exact_component(clean_major.label, "F#7"),
+		      std::string("probe-supported guitar source 7: expected missing flat seventh protected, got `") +
+			      clean_major.label + "`");
+}
+
 void check_ambiguous_guitar_power_quality_keeps_both_plain_aliases(Runner &runner)
 {
 	ChordResult ambiguous = make_crowded_chord("Am=Apow");
@@ -3136,6 +3213,7 @@ int run()
 	check_supported_guitar_display_extension_aliases(runner);
 	check_analysis_complete_guitar_display_major_seventh_aliases(runner);
 	check_analysis_complete_guitar_source_dominant_seventh_aliases_after_prune(runner);
+	check_probe_supported_guitar_source_dominant_seventh_aliases_after_prune(runner);
 	check_ambiguous_guitar_power_quality_keeps_both_plain_aliases(runner);
 	check_compact_guitar_power_raw_profile_third_aliases(runner);
 	check_same_pitch_guitar_bass_shadow_uses_any_matching_debug(runner);

@@ -20869,6 +20869,67 @@ void append_analysis_complete_guitar_source_dominant_seventh_aliases_after_prune
 	}
 }
 
+void append_probe_supported_guitar_source_dominant_seventh_aliases_after_prune(
+	InstrumentState &state, const ChordResult &source, const NoteGrid &display_grid,
+	const NoteGrid &analysis_grid, const std::array<float, kNoteProbeCount> &powers, int min_midi,
+	int max_midi)
+{
+	if (!state.label[0] || state.label[0] == '-' || !valid_chord_result(source))
+		return;
+
+	const int display_pitch_classes = note_grid_active_pitch_class_count(display_grid);
+	const int analysis_pitch_classes = note_grid_active_pitch_class_count(analysis_grid);
+	if (display_pitch_classes < 2 || display_pitch_classes > 8 ||
+	    analysis_pitch_classes < 3 || analysis_pitch_classes > 11)
+		return;
+
+	const std::array<float, 12> display_chroma = note_grid_chroma(display_grid);
+	const std::array<float, 12> analysis_chroma = note_grid_chroma(analysis_grid);
+	if (longest_chromatic_run(display_chroma) >= 5 || longest_chromatic_run(analysis_chroma) >= 8)
+		return;
+
+	char merged[sizeof(state.label)] = {};
+	copy_text(merged, sizeof(merged), state.label);
+	const char *cursor = source.label;
+	int appended = 0;
+	while (cursor && *cursor && appended < 2) {
+		const char *end = std::strchr(cursor, '=');
+		const std::size_t len =
+			end ? static_cast<std::size_t>(end - cursor) : std::strlen(cursor);
+		ParsedRootChord component;
+		std::size_t root_len = 1;
+		if (len > 1 && cursor[1] == '#')
+			root_len = 2;
+		const char *suffix = cursor + root_len;
+		const std::size_t suffix_len = len > root_len ? len - root_len : 0;
+		if (parse_root_chord_component(cursor, len, component) &&
+		    component.quality == RootChordQuality::Major &&
+		    suffix_is(suffix, suffix_len, "7") &&
+		    !chord_label_has_component(merged, cursor, len) &&
+		    chord_label_has_root_component(merged, component.root)) {
+			ParsedRootChord primary = component;
+			primary.quality = RootChordQuality::Major;
+			if (guitar_probe_supported_same_root_extension_component(
+				    cursor, len, component, primary, display_grid, analysis_grid,
+				    powers, min_midi, max_midi)) {
+				const std::size_t before = std::strlen(merged);
+				append_chord_label_component(merged, sizeof(merged), cursor, len);
+				if (std::strlen(merged) != before &&
+				    chord_label_has_component(merged, cursor, len))
+					++appended;
+			}
+		}
+		if (!end)
+			break;
+		cursor = end + 1;
+	}
+
+	if (std::strcmp(merged, state.label) != 0) {
+		copy_text(state.label, sizeof(state.label), merged);
+		state.confidence = std::max({state.confidence, source.confidence, 0.58f});
+	}
+}
+
 void append_analysis_visible_guitar_display_extension_aliases(InstrumentState &state,
 							      const NoteGrid &display_grid,
 							      const NoteGrid &analysis_grid)
@@ -27389,6 +27450,14 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 			append_analysis_complete_guitar_source_dominant_seventh_aliases_after_prune(
 				snapshot.guitar_chord, smoothed_guitar_chord, snapshot.guitar_notes,
 				guitar_chord_detection_grid);
+			append_probe_supported_guitar_source_dominant_seventh_aliases_after_prune(
+				snapshot.guitar_chord, raw_guitar_chord, snapshot.guitar_notes,
+				guitar_chord_detection_grid, note_powers, kGuitarMinMidi,
+				kGuitarMaxMidi);
+			append_probe_supported_guitar_source_dominant_seventh_aliases_after_prune(
+				snapshot.guitar_chord, smoothed_guitar_chord, snapshot.guitar_notes,
+				guitar_chord_detection_grid, note_powers, kGuitarMinMidi,
+				kGuitarMaxMidi);
 			append_probe_supported_guitar_source_extension_aliases_after_prune(
 				snapshot.guitar_chord, raw_guitar_chord, snapshot.guitar_notes,
 				guitar_chord_detection_grid, note_powers, kGuitarMinMidi,
