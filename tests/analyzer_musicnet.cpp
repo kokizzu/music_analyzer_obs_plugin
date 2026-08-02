@@ -461,6 +461,15 @@ int resolve_positive_int_env(const char *name, int fallback)
 	return parsed > 0 ? parsed : fallback;
 }
 
+int resolve_nonnegative_int_env(const char *name, int fallback)
+{
+	const char *value = std::getenv(name);
+	if (!value || !*value)
+		return fallback;
+	const int parsed = std::atoi(value);
+	return parsed >= 0 ? parsed : fallback;
+}
+
 int resolve_percent_env(const char *name, int fallback)
 {
 	const char *value = std::getenv(name);
@@ -1154,6 +1163,13 @@ int main()
 	const int min_global_simple_chord_recall_percent =
 		resolve_percent_env("MUSIC_ANALYZER_MUSICNET_MIN_GLOBAL_SIMPLE_CHORD_RECALL_PERCENT", 0);
 	const int min_chord_checks = resolve_positive_int_env("MUSIC_ANALYZER_MUSICNET_MIN_CHORD_CHECKS", 5);
+	const int shard_count = resolve_positive_int_env("MUSIC_ANALYZER_MUSICNET_SHARD_COUNT", 1);
+	const int shard_index = resolve_nonnegative_int_env("MUSIC_ANALYZER_MUSICNET_SHARD_INDEX", 0);
+	if (shard_index >= shard_count) {
+		std::fprintf(stderr, "analyzer_musicnet: shard index %d outside shard count %d\n", shard_index,
+			     shard_count);
+		return 1;
+	}
 	const bool inspect_only = env_truthy("MUSIC_ANALYZER_MUSICNET_INSPECT_ONLY");
 	const bool verbose_chord_misses =
 		env_truthy("MUSIC_ANALYZER_MUSICNET_VERBOSE_CHORD_MISSES") || min_chord_recall_percent > 0;
@@ -1169,7 +1185,14 @@ int main()
 	int read_failures = 0;
 	int no_candidate_recordings = 0;
 
+	std::size_t recording_ordinal = 0;
 	for (const Recording &recording : recordings) {
+		const std::size_t current_recording_ordinal = recording_ordinal++;
+		if (shard_count > 1 &&
+		    current_recording_ordinal % static_cast<std::size_t>(shard_count) !=
+			    static_cast<std::size_t>(shard_index))
+			continue;
+
 		const std::vector<CandidateWindow> candidates =
 			select_candidate_windows(recording, max_windows_per_recording, min_active_notes,
 						 min_active_instruments, min_pitch_classes);

@@ -692,6 +692,7 @@ def main() -> int:
         "test-egmd-shard-check",
         "test-maestro-shard-check",
         "test-instrument-family-shard-check",
+        "test-musicnet-shard-check",
         "test-real-note-full-mix-shard-check",
         "test-real-note-sample-shard-check",
         "android-check",
@@ -807,6 +808,39 @@ def main() -> int:
         assert "MUSIC_ANALYZER_MAESTRO_SHARD_COUNT" not in serial_recipe, (
             f"{label} serial fallback must keep the original unsharded harness"
         )
+    assert_alias_target(
+        makefile,
+        "test-bach10-mf0-synth-samples",
+        "test-bach10-mf0-synth-samples-parallel",
+    )
+    bach_parallel_recipe = target_recipe(makefile, "test-bach10-mf0-synth-samples-parallel")
+    bach_unlocked_recipe = target_recipe(makefile, "test-bach10-mf0-synth-samples-parallel-unlocked")
+    bach_shard_recipe = target_recipe(makefile, "test-bach10-mf0-synth-samples-shard-%")
+    bach_serial_recipe = target_recipe(makefile, "test-bach10-mf0-synth-samples-serial")
+    assert "scripts/check_musicnet_shards.py" in bach_parallel_recipe, (
+        "Bach10 parallel target must depend on the MusicNet shard checker"
+    )
+    assert "scripts/run_with_lock.sh" in bach_parallel_recipe, (
+        "Bach10 parallel target must lock shared shard outputs"
+    )
+    assert "$(MAKE) $(BACH10_MF0_SYNTH_TEST_MAKE_JOBS) $(BACH10_MF0_SYNTH_SHARD_TARGETS)" in bach_unlocked_recipe, (
+        "Bach10 parallel target must fan out deterministic recording shards"
+    )
+    assert "$(BACH10_MF0_SYNTH_SHARD_OUTS)" in bach_unlocked_recipe, (
+        "Bach10 parallel checker must aggregate every shard output"
+    )
+    assert 'MUSIC_ANALYZER_MUSICNET_SHARD_COUNT="$(BACH10_MF0_SYNTH_SHARDS)"' in bach_shard_recipe, (
+        "Bach10 shard target must pass the configured shard count"
+    )
+    assert 'MUSIC_ANALYZER_MUSICNET_SHARD_INDEX="$$shard"' in bach_shard_recipe, (
+        "Bach10 shard target must pass its concrete shard index"
+    )
+    assert "MUSIC_ANALYZER_MUSICNET_MIN_RECALL_PERCENT" in bach_shard_recipe, (
+        "Bach10 shard target must preserve the per-window pitch recall gate"
+    )
+    assert "MUSIC_ANALYZER_MUSICNET_SHARD_COUNT" not in bach_serial_recipe, (
+        "Bach10 serial fallback must keep the original unsharded harness"
+    )
     detector_improvement_recipe = target_recipe(makefile, "analyze-detector-improvements")
     assert "\n\t+$(RUN_WITH_DURATION) detector_improvements_parallel" in detector_improvement_recipe, (
         "detector improvement workflow must report the aggregate parallel duration"
