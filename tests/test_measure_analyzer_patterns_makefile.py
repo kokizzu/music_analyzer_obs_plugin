@@ -960,6 +960,9 @@ def main() -> int:
     assert "DETECTOR_REAL_NOTE_PATTERN_OPTIONAL_CANDIDATE_PATHS += $(IOWA_PIANO_DETECTED_ATTRIBUTE_ROWS)" in makefile, (
         "detector route scans should mine candidates from available Iowa piano rows"
     )
+    assert "DETECTOR_REAL_NOTE_PATTERN_OPTIONAL_CANDIDATE_PATHS += $(IOWA_STRINGS_DETECTED_ATTRIBUTE_ROWS)" in makefile, (
+        "detector route scans should mine candidates from available Iowa strings rows"
+    )
     assert "DETECTOR_REAL_NOTE_PATTERN_OPTIONAL_CANDIDATE_PATHS += $(PHILHARMONIA_DETECTED_ATTRIBUTE_ROWS)" in makefile, (
         "detector route scans should mine candidates from available Philharmonia rows"
     )
@@ -1485,6 +1488,22 @@ def main() -> int:
         assert "\n\t+$(RUN_REAL_NOTE_SAMPLE_SHARDS)" in recipe_text, (
             f"{target} must preserve the make jobserver through the isolated real-note shard runner"
         )
+    iowa_strings_recipe = target_recipe(makefile, "prepare-iowa-strings-samples")
+    for text in [
+        "IOWA_STRINGS_SOURCE_DIR ?= $(REAL_SAMPLE_SOURCE_DIR)/iowa_orchestra",
+        "IOWA_STRINGS_SAMPLE_LIMIT ?= 80",
+        "IOWA_STRINGS_MIN_SAMPLES ?= 60",
+        "IOWA_STRINGS_MIN_OTHER ?= 60",
+        "IOWA_STRINGS_MAX_FAILURES ?= 8",
+        "IOWA_STRINGS_SPEC_ARGS =",
+        "IOWA_STRINGS_VIOLIN_ARCO_SULG_URL",
+        "IOWA_STRINGS_VIOLA_ARCO_SULC_URL",
+        "IOWA_STRINGS_CELLO_ARCO_SULC_URL",
+    ]:
+        assert text in makefile, f"Iowa strings coverage must keep {text}"
+    assert "$(IOWA_STRINGS_SPEC_ARGS)" in iowa_strings_recipe, (
+        "Iowa strings preparation must use the multi-source spec list"
+    )
     for family in ["BASS", "GUITAR", "PIANO", "VOCALS", "OTHER"]:
         assert f"REAL_NOTE_MIN_{family}_HIT_PERCENT ?= 100" in makefile, (
             f"NSynth isolated target must default to strict {family.lower()} recall"
@@ -2549,6 +2568,18 @@ def main() -> int:
             "--include-empty-debug",
             "--status miss",
         ),
+        "$(IOWA_STRINGS_DETECTED_ATTRIBUTE_ROWS)": (
+            "$(IOWA_STRINGS_ATTRIBUTE_TSV)",
+            "inspect_real_note_attribute_buckets.py",
+            "--dump-rows",
+            "--include-empty-debug",
+        ),
+        "$(IOWA_STRINGS_MISS_ATTRIBUTE_ROWS)": (
+            "$(IOWA_STRINGS_ATTRIBUTE_TSV)",
+            "inspect_real_note_attribute_buckets.py",
+            "--include-empty-debug",
+            "--status miss",
+        ),
         "$(PHILHARMONIA_DETECTED_ATTRIBUTE_ROWS)": (
             "$(PHILHARMONIA_ATTRIBUTE_TSV)",
             "inspect_real_note_attribute_buckets.py",
@@ -2703,6 +2734,14 @@ def main() -> int:
             "$(IOWA_PIANO_ATTRIBUTE_LOCK_DIR)",
             "$(IOWA_PIANO_ATTRIBUTE_PARTS)",
         ),
+        "$(IOWA_STRINGS_ATTRIBUTE_TSV)": (
+            "$(BUILD_DIR)/analyzer_real_note_samples",
+            "$(IOWA_STRINGS_SAMPLE_DIR)/manifest.tsv",
+            "scripts/build_sharded_tsv.sh",
+            "scripts/run_with_lock.sh",
+            "$(IOWA_STRINGS_ATTRIBUTE_LOCK_DIR)",
+            "$(IOWA_STRINGS_ATTRIBUTE_PARTS)",
+        ),
         "$(PHILHARMONIA_ATTRIBUTE_TSV)": (
             "$(BUILD_DIR)/analyzer_real_note_samples",
             "$(PHILHARMONIA_SAMPLE_DIR)/manifest.tsv",
@@ -2800,6 +2839,9 @@ def main() -> int:
     )
     assert "IOWA_PIANO_ATTRIBUTE_LOCK_DIR ?= $(BUILD_DIR)/iowa_piano_attributes.lock" in makefile, (
         "Iowa piano attribute TSV must have a stable lock path"
+    )
+    assert "IOWA_STRINGS_ATTRIBUTE_LOCK_DIR ?= $(BUILD_DIR)/iowa_strings_attributes.lock" in makefile, (
+        "Iowa strings attribute TSV must have a stable lock path"
     )
     assert "PHILHARMONIA_ATTRIBUTE_LOCK_DIR ?= $(BUILD_DIR)/philharmonia_attributes.lock" in makefile, (
         "Philharmonia attribute TSV must have a stable lock path"
@@ -2942,6 +2984,16 @@ def main() -> int:
             "MUSIC_ANALYZER_REAL_NOTE_SHARD_INDEX=\"$*\"",
             "iowa_orchestra_attributes.shard-$*.out",
             "iowa_orchestra_attributes.shard-$*.err",
+        ),
+        "$(BUILD_DIR)/iowa_strings_attributes.shard-%.tsv": (
+            "$(IOWA_STRINGS_SAMPLE_DIR)/manifest.tsv",
+            "MUSIC_ANALYZER_REAL_NOTE_REQUIRED_SAMPLES=\"$(IOWA_STRINGS_MIN_SAMPLES)\"",
+            "MUSIC_ANALYZER_REAL_NOTE_SAMPLE_ROOT=\"$(IOWA_STRINGS_SAMPLE_DIR)\"",
+            "MUSIC_ANALYZER_REAL_NOTE_ATTRIBUTE_TSV=\"$@\"",
+            "MUSIC_ANALYZER_REAL_NOTE_SHARD_COUNT=\"$(REAL_NOTE_SAMPLE_SHARDS)\"",
+            "MUSIC_ANALYZER_REAL_NOTE_SHARD_INDEX=\"$*\"",
+            "iowa_strings_attributes.shard-$*.out",
+            "iowa_strings_attributes.shard-$*.err",
         ),
         "$(BUILD_DIR)/iowa_orchestra_full_attributes.shard-%.tsv": (
             "$(IOWA_ORCHESTRA_FULL_SAMPLE_DIR)/manifest.tsv",
@@ -3268,6 +3320,7 @@ def main() -> int:
         "analyze-good-sounds-attributes": "$(GOOD_SOUNDS_DETECTED_ATTRIBUTE_ROWS)",
         "analyze-tinysol-attributes": "$(TINYSOL_DETECTED_ATTRIBUTE_ROWS)",
         "analyze-iowa-piano-attributes": "$(IOWA_PIANO_DETECTED_ATTRIBUTE_ROWS)",
+        "analyze-iowa-strings-attributes": "$(IOWA_STRINGS_DETECTED_ATTRIBUTE_ROWS)",
         "analyze-philharmonia-attributes": "$(PHILHARMONIA_DETECTED_ATTRIBUTE_ROWS)",
         "analyze-philharmonia-full-attributes": "$(PHILHARMONIA_FULL_DETECTED_ATTRIBUTE_ROWS)",
         "analyze-iowa-orchestra-attributes": "$(IOWA_ORCHESTRA_DETECTED_ATTRIBUTE_ROWS)",
@@ -3517,6 +3570,9 @@ def main() -> int:
         "IOWA_PIANO_ATTRIBUTE_TSV ?= $(BUILD_DIR)/iowa_piano_attributes.tsv",
         "IOWA_PIANO_DETECTED_ATTRIBUTE_ROWS ?= $(BUILD_DIR)/iowa_piano_detected_attribute_rows.tsv",
         "IOWA_PIANO_MISS_ATTRIBUTE_ROWS ?= $(BUILD_DIR)/iowa_piano_miss_attribute_rows.tsv",
+        "IOWA_STRINGS_ATTRIBUTE_TSV ?= $(BUILD_DIR)/iowa_strings_attributes.tsv",
+        "IOWA_STRINGS_DETECTED_ATTRIBUTE_ROWS ?= $(BUILD_DIR)/iowa_strings_detected_attribute_rows.tsv",
+        "IOWA_STRINGS_MISS_ATTRIBUTE_ROWS ?= $(BUILD_DIR)/iowa_strings_miss_attribute_rows.tsv",
         "PHILHARMONIA_ATTRIBUTE_TSV ?= $(BUILD_DIR)/philharmonia_attributes.tsv",
         "PHILHARMONIA_DETECTED_ATTRIBUTE_ROWS ?= $(BUILD_DIR)/philharmonia_detected_attribute_rows.tsv",
         "PHILHARMONIA_MISS_ATTRIBUTE_ROWS ?= $(BUILD_DIR)/philharmonia_miss_attribute_rows.tsv",
@@ -3542,6 +3598,7 @@ def main() -> int:
         "REAL_NOTE_SAMPLE_ATTRIBUTE_EXTRA_DEPS += $(TINYSOL_DETECTED_ATTRIBUTE_ROWS)",
         "REAL_NOTE_SAMPLE_ATTRIBUTE_EXTRA_DEPS += $(VOCALSET_DETECTED_ATTRIBUTE_ROWS)",
         "REAL_NOTE_SAMPLE_ATTRIBUTE_EXTRA_DEPS += $(IOWA_PIANO_DETECTED_ATTRIBUTE_ROWS)",
+        "REAL_NOTE_SAMPLE_ATTRIBUTE_EXTRA_DEPS += $(IOWA_STRINGS_DETECTED_ATTRIBUTE_ROWS)",
         "REAL_NOTE_SAMPLE_ATTRIBUTE_EXTRA_DEPS += $(PHILHARMONIA_DETECTED_ATTRIBUTE_ROWS)",
         "REAL_NOTE_SAMPLE_ATTRIBUTE_EXTRA_DEPS += $(PHILHARMONIA_FULL_DETECTED_ATTRIBUTE_ROWS)",
         "REAL_NOTE_SAMPLE_ATTRIBUTE_EXTRA_DEPS += $(IOWA_ORCHESTRA_DETECTED_ATTRIBUTE_ROWS)",
@@ -3553,6 +3610,7 @@ def main() -> int:
         'REAL_NOTE_SAMPLE_ATTRIBUTE_EXTRA_ARGS += --extra-real-note "TinySOL=$(TINYSOL_DETECTED_ATTRIBUTE_ROWS)"',
         'REAL_NOTE_SAMPLE_ATTRIBUTE_EXTRA_ARGS += --extra-real-note "VocalSet=$(VOCALSET_DETECTED_ATTRIBUTE_ROWS)"',
         'REAL_NOTE_SAMPLE_ATTRIBUTE_EXTRA_ARGS += --extra-real-note "Iowa piano=$(IOWA_PIANO_DETECTED_ATTRIBUTE_ROWS)"',
+        'REAL_NOTE_SAMPLE_ATTRIBUTE_EXTRA_ARGS += --extra-real-note "Iowa strings=$(IOWA_STRINGS_DETECTED_ATTRIBUTE_ROWS)"',
         'REAL_NOTE_SAMPLE_ATTRIBUTE_EXTRA_ARGS += --extra-real-note "Philharmonia=$(PHILHARMONIA_DETECTED_ATTRIBUTE_ROWS)"',
         'REAL_NOTE_SAMPLE_ATTRIBUTE_EXTRA_ARGS += --extra-real-note "Philharmonia full=$(PHILHARMONIA_FULL_DETECTED_ATTRIBUTE_ROWS)"',
         'REAL_NOTE_SAMPLE_ATTRIBUTE_EXTRA_ARGS += --extra-real-note "Iowa orchestra=$(IOWA_ORCHESTRA_DETECTED_ATTRIBUTE_ROWS)"',
