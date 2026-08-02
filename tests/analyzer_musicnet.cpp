@@ -525,6 +525,34 @@ std::array<bool, 12> detected_pitch_classes(const mao::AnalysisSnapshot &snapsho
 	return pitch_classes;
 }
 
+float grid_pitch_class_level(const mao::NoteGrid &grid, int pitch_class)
+{
+	float level = 0.0f;
+	if (grid.cells[pitch_class].active)
+		level = std::max(level, grid.cells[pitch_class].level);
+	for (const auto &row : grid.rows) {
+		if (row[pitch_class].active)
+			level = std::max(level, row[pitch_class].level);
+	}
+	return level;
+}
+
+std::array<float, 12> detected_pitch_class_levels(const mao::AnalysisSnapshot &snapshot)
+{
+	std::array<float, 12> levels = {};
+	auto add_grid = [&](const mao::NoteGrid &grid) {
+		for (int pitch_class = 0; pitch_class < 12; ++pitch_class)
+			levels[pitch_class] = std::max(levels[pitch_class], grid_pitch_class_level(grid, pitch_class));
+	};
+	add_grid(snapshot.bass_notes);
+	add_grid(snapshot.keyboard_notes);
+	add_grid(snapshot.guitar_notes);
+	add_grid(snapshot.vocal_notes);
+	add_grid(snapshot.other_notes);
+	add_grid(snapshot.ambiguous_notes);
+	return levels;
+}
+
 bool has_chord_label(const char *actual, const std::string &expected)
 {
 	if (!actual)
@@ -699,6 +727,63 @@ std::string pitch_class_list(const std::array<bool, 12> &pitch_classes)
 		joined += mao_test::note_name(pitch_class);
 	}
 	return joined.empty() ? "--" : joined;
+}
+
+std::string pitch_class_level_list(const std::array<float, 12> &levels)
+{
+	std::string joined;
+	for (int pitch_class = 0; pitch_class < 12; ++pitch_class) {
+		if (levels[pitch_class] <= 0.0f)
+			continue;
+		if (!joined.empty())
+			joined += " ";
+		char item[24] = {};
+		std::snprintf(item, sizeof(item), "%s:%d", mao_test::note_name(pitch_class),
+			      static_cast<int>(levels[pitch_class] * 100.0f + 0.5f));
+		joined += item;
+	}
+	return joined.empty() ? "--" : joined;
+}
+
+const char *owner_name(mao::InstrumentKind owner)
+{
+	switch (owner) {
+	case mao::InstrumentKind::Bass:
+		return "bass";
+	case mao::InstrumentKind::Keyboard:
+		return "keys";
+	case mao::InstrumentKind::Guitar:
+		return "guitar";
+	case mao::InstrumentKind::Vocal:
+		return "vocal";
+	case mao::InstrumentKind::Other:
+		return "other";
+	case mao::InstrumentKind::Ambiguous:
+	default:
+		return "amb";
+	}
+}
+
+std::string full_mix_candidate_list(const mao::AnalysisSnapshot &snapshot)
+{
+	std::string text;
+	const std::size_t count =
+		std::min<std::size_t>(snapshot.full_mix_debug_candidate_count,
+				      snapshot.full_mix_debug_candidates.size());
+	for (std::size_t i = 0; i < count; ++i) {
+		const mao::FullMixDebugCandidate &candidate = snapshot.full_mix_debug_candidates[i];
+		if (candidate.midi < 0)
+			continue;
+		if (!text.empty())
+			text += " ";
+		char item[64] = {};
+		std::snprintf(item, sizeof(item), "%s%d/%s:%d@%d", mao_test::note_name(candidate.midi),
+			      candidate.midi / 12 - 1, owner_name(candidate.owner),
+			      static_cast<int>(candidate.ownership_confidence * 100.0f + 0.5f),
+			      static_cast<int>(candidate.spectral_level * 1000.0f + 0.5f));
+		text += item;
+	}
+	return text.empty() ? "--" : text;
 }
 
 struct ActiveNote {
@@ -1028,14 +1113,18 @@ void check_recall(Runner &runner, const mao::AnalysisSnapshot &snapshot, const C
 		if (chord_hit) {
 			++stats.chord_hits;
 		} else if (verbose_chord_misses) {
+			const std::array<float, 12> detected_levels = detected_pitch_class_levels(snapshot);
 			std::fprintf(stderr,
 				     "%s: chord opportunity `%s`, expected pcs `%s`, detected pcs `%s`, "
-				     "detected global `%s`, key `%s`, guitar `%s`, other `%s`\n",
+				     "detected levels `%s`, detected global `%s`, key `%s`, guitar `%s`, "
+				     "other `%s`, candidates `%s`\n",
 				     context.c_str(), join_labels(candidate.chord_labels).c_str(),
 				     pitch_class_list(candidate.pitch_classes).c_str(),
-				     pitch_class_list(detected).c_str(), snapshot.global_chord.label,
-				     snapshot.keyboard_chord.label, snapshot.guitar_chord.label,
-				     snapshot.other_chord.label);
+				     pitch_class_list(detected).c_str(),
+				     pitch_class_level_list(detected_levels).c_str(),
+				     snapshot.global_chord.label, snapshot.keyboard_chord.label,
+				     snapshot.guitar_chord.label, snapshot.other_chord.label,
+				     full_mix_candidate_list(snapshot).c_str());
 		}
 		if (simple_chord_hit)
 			++stats.simple_chord_hits;
