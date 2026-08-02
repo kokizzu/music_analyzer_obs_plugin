@@ -44,6 +44,7 @@ enum DrumDebugRuleFlag : uint64_t {
 	DrumDebugBrightKickActiveBleed = 1ull << 14,
 	DrumDebugUpperTomFromSnareActiveBleed = 1ull << 15,
 	DrumDebugDeepKickSnareActiveBleed = 1ull << 16,
+	DrumDebugCrashHihatActiveBleed = 1ull << 17,
 };
 
 enum class AnalysisInputMode {
