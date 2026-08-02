@@ -24362,6 +24362,19 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 		if (final_one_shot_measured_tom_kick_active_bleed)
 			cap_drum_level(Kick, 0.28f);
 
+		const bool final_one_shot_measured_cymbal_tom_kick_active_bleed =
+			drum_detection_enabled && one_shot_drum_source &&
+			drum_level_[Kick] > 0.30f &&
+			drum_level_[Tom] > 0.30f &&
+			drum_segment_bands[Crash] >= 4.529f &&
+			kick_body <= 162.082f &&
+			snapshot.drum_debug_trigger_scores[Ride] >= 35.984f &&
+			drum_bands[Rim] >= 13.772f;
+		if (final_one_shot_measured_cymbal_tom_kick_active_bleed)
+			snapshot.drum_debug_rule_flags |= DrumDebugCymbalTomKickActiveBleed;
+		if (final_one_shot_measured_cymbal_tom_kick_active_bleed)
+			cap_drum_level(Kick, 0.28f);
+
 		const bool final_one_shot_measured_bright_kick_active_bleed =
 			drum_detection_enabled && one_shot_drum_source &&
 			!generated_gm_drum_source &&

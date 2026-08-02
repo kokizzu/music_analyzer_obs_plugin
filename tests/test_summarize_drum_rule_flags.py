@@ -25,20 +25,21 @@ def main() -> int:
         "flag_strong_low_kick_tom_bleed\tflag_saturated_kick_tom_bleed\t"
         "flag_high_band_kick_body_tom_bleed\tflag_upper_tom_snare_active_bleed\t"
         "flag_bright_kick_active_bleed\tflag_upper_tom_from_snare_active_bleed\t"
-        "flag_deep_kick_snare_active_bleed\tflag_hihat_ride_active_bleed"
+        "flag_deep_kick_snare_active_bleed\tflag_hihat_ride_active_bleed\t"
+        "flag_cymbal_tom_kick_active_bleed"
     )
     rows = [
-        "kick/a.wav\tkick\tkick\t0.95\t0.10\t0\t0\t0.62\t0\t0\t1\t0\t1\t0\t0\t1\t1\t0\t0\t0\t0\t0",
-        "kick/b.wav\tkick\tkick\t0.90\t0.10\t0\t0\t0.66\t0\t0\t1\t0\t1\t0\t0\t1\t1\t0\t0\t0\t0\t0",
-        "kick/c.wav\tkick\tkick\t0.95\t0.74\t0\t0\t0.00\t0\t0\t1\t0\t0\t0\t0\t0\t0\t0\t0\t0\t1\t0",
-        "tom/a.wav\ttom\ttom\t0.20\t0.10\t0\t0\t0.91\t0\t0\t0\t1\t1\t1\t0\t0\t0\t0\t0\t0\t0\t0",
-        "tom/b.wav\ttom\ttom\t0.18\t0.10\t0\t0\t0.88\t0\t0\t0\t1\t0\t0\t0\t0\t0\t0\t0\t0\t0\t0",
-        "tom/c.wav\ttom\ttom\t0.18\t0.76\t0\t0\t1.00\t0\t0\t1\t0\t0\t0\t0\t0\t0\t1\t0\t0\t0\t0",
-        "tom/d.wav\ttom\tkick\t0.72\t0.10\t0\t0\t0.00\t0\t0\t1\t0\t0\t0\t0\t0\t0\t0\t1\t0\t0\t0",
-        "snare/a.wav\tsnare\tsnare\t0.15\t0.92\t0\t0\t0.40\t0\t0\t0\t1\t0\t0\t1\t0\t0\t0\t0\t0\t0\t0",
-        "snare/b.wav\tsnare\ttom\t0.10\t0.28\t0\t0\t0.78\t0\t0\t1\t0\t0\t0\t0\t0\t0\t1\t0\t1\t0\t0",
-        "hihat/a.wav\thihat\thihat\t0.00\t0.00\t0.90\t0\t0.00\t0.82\t0\t1\t0\t0\t0\t0\t0\t0\t0\t0\t0\t0\t1",
-        "ride/a.wav\tride\tride\t0.00\t0.00\t0.20\t0\t0.00\t0.89\t0\t1\t0\t0\t0\t0\t0\t0\t0\t0\t0\t0\t0",
+        "kick/a.wav\tkick\tkick\t0.95\t0.10\t0\t0\t0.62\t0\t0\t1\t0\t1\t0\t0\t1\t1\t0\t0\t0\t0\t0\t0",
+        "kick/b.wav\tkick\tkick\t0.90\t0.10\t0\t0\t0.66\t0\t0\t1\t0\t1\t0\t0\t1\t1\t0\t0\t0\t0\t0\t0",
+        "kick/c.wav\tkick\tkick\t0.95\t0.74\t0\t0\t0.00\t0\t0\t1\t0\t0\t0\t0\t0\t0\t0\t0\t0\t1\t0\t0",
+        "tom/a.wav\ttom\ttom\t0.20\t0.10\t0\t0\t0.91\t0\t0\t0\t1\t1\t1\t0\t0\t0\t0\t0\t0\t0\t0\t0",
+        "tom/b.wav\ttom\ttom\t0.18\t0.10\t0\t0\t0.88\t0\t0\t0\t1\t0\t0\t0\t0\t0\t0\t0\t0\t0\t0\t0",
+        "tom/c.wav\ttom\ttom\t0.18\t0.76\t0\t0\t1.00\t0\t0\t1\t0\t0\t0\t0\t0\t0\t1\t0\t0\t0\t0\t0",
+        "tom/d.wav\ttom\tkick\t0.72\t0.10\t0\t0\t0.00\t0\t0\t1\t0\t0\t0\t0\t0\t0\t0\t1\t0\t0\t0\t1",
+        "snare/a.wav\tsnare\tsnare\t0.15\t0.92\t0\t0\t0.40\t0\t0\t0\t1\t0\t0\t1\t0\t0\t0\t0\t0\t0\t0\t0",
+        "snare/b.wav\tsnare\ttom\t0.10\t0.28\t0\t0\t0.78\t0\t0\t1\t0\t0\t0\t0\t0\t0\t1\t0\t1\t0\t0\t0",
+        "hihat/a.wav\thihat\thihat\t0.00\t0.00\t0.90\t0\t0.00\t0.82\t0\t1\t0\t0\t0\t0\t0\t0\t0\t0\t0\t0\t1\t0",
+        "ride/a.wav\tride\tride\t0.00\t0.00\t0.20\t0\t0.00\t0.89\t0\t1\t0\t0\t0\t0\t0\t0\t0\t0\t0\t0\t0\t0",
     ]
     with tempfile.TemporaryDirectory() as tmpdir:
         table = pathlib.Path(tmpdir) / "drums.tsv"
@@ -126,9 +127,14 @@ def main() -> int:
     output = completed.stdout
     require(output, "route tom->kick false=1 protected_true_kick=3")
     require(output, "flag_bright_kick_active_bleed=1/1 100.0%")
+    require(output, "flag_cymbal_tom_kick_active_bleed=1/1 100.0%")
     require(
         output,
         "flag_bright_kick_active_bleed=false 1/1 100.0% protected 0/3 0.0%",
+    )
+    require(
+        output,
+        "flag_cymbal_tom_kick_active_bleed=false 1/1 100.0% protected 0/3 0.0%",
     )
     require(output, "sample=tom/d.wav got=kick kick_level=0.720 tom_level=0.000")
     with tempfile.TemporaryDirectory() as tmpdir:
