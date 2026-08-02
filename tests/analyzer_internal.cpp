@@ -322,6 +322,44 @@ void check_visible_diminished_guitar_alias_recovery(Runner &runner)
 	runner.expect(!chord_label_has_exact_component(protected_state.label, "Edim"),
 		      std::string("visible diminished guitar alias recovery: expected natural fifth to block Edim, got `") +
 			      protected_state.label + "`");
+
+	InstrumentState rootless_state = {};
+	std::snprintf(rootless_state.label, sizeof(rootless_state.label), "G#=Cm");
+	rootless_state.confidence = 0.54f;
+	NoteGrid rootless_display = {};
+	set_pitch(rootless_display, 0, 0.22f);
+	set_pitch(rootless_display, 3, 0.18f);
+	set_pitch(rootless_display, 8, 0.09f);
+	NoteGrid rootless_analysis = {};
+	set_pitch(rootless_analysis, 9, 0.025f);
+	set_pitch(rootless_analysis, 0, 0.22f);
+	set_pitch(rootless_analysis, 3, 0.18f);
+	append_rootless_analysis_complete_guitar_diminished_triad_display_aliases(
+		rootless_state, rootless_display, rootless_analysis);
+	runner.expect(chord_label_has_exact_component(rootless_state.label, "Adim"),
+		      std::string("rootless diminished guitar alias recovery: expected Adim display alias, got `") +
+			      rootless_state.label + "`");
+
+	InstrumentState conflict_state = {};
+	std::snprintf(conflict_state.label, sizeof(conflict_state.label), "G#=Cm");
+	conflict_state.confidence = 0.54f;
+	NoteGrid conflict_analysis = rootless_analysis;
+	set_pitch(conflict_analysis, 4, 0.17f);
+	append_rootless_analysis_complete_guitar_diminished_triad_display_aliases(
+		conflict_state, rootless_display, conflict_analysis);
+	runner.expect(!chord_label_has_exact_component(conflict_state.label, "Adim"),
+		      std::string("rootless diminished guitar alias recovery: expected natural fifth conflict protected, got `") +
+			      conflict_state.label + "`");
+
+	InstrumentState crowded_state = {};
+	std::snprintf(crowded_state.label, sizeof(crowded_state.label),
+		      "G#=Cm=Cdim=F#dim=G#sus4=G#pow");
+	crowded_state.confidence = 0.54f;
+	append_rootless_analysis_complete_guitar_diminished_triad_display_aliases(
+		crowded_state, rootless_display, rootless_analysis);
+	runner.expect(!chord_label_has_exact_component(crowded_state.label, "Adim"),
+		      std::string("rootless diminished guitar alias recovery: expected crowded label protected, got `") +
+			      crowded_state.label + "`");
 }
 
 void check_visible_augmented_guitar_alias_recovery(Runner &runner)
