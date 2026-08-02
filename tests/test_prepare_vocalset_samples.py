@@ -52,13 +52,13 @@ def make_all_files_fixture(path):
         archive.writestr(
             "VocalSet/annotations/extended 4/all files.csv",
             "\n".join([
-                "Filename,Gender,Singer name,The technique,Type of music,Vowel,BPM,File duration in milliseconds,Sequence,Start time,End time,Duration,Type,Average F0,Median F0,Min F0,Max F0,STD F0,Average F0 in range of STD,Estimated MIDI code,Ground truth Note name,Ground Truth Frequency,Ground Truth MIDI code,Lyric",
-                "f1_arpeggios_a_straight.wav,Female,f1,straight,arpeggios,a,120,2000,1,0.100,0.800,0.700,Sound,261.626,261.626,261,262,0.1,261.626,60,C4,261.626,60,la",
-                "f1_arpeggios_a_straight.wav,Female,f1,straight,arpeggios,a,120,2000,2,0.900,1.500,0.600,Sound,277.183,277.183,277,278,0.1,277.183,61,C#4,277.183,61,la",
-                "f1_arpeggios_a_straight.wav,Female,f1,straight,arpeggios,a,120,2000,3,1.600,1.800,0.200,Sound,329.628,329.628,329,330,0.1,329.628,64,E4,329.628,64,la",
-                "f1_arpeggios_a_straight.wav,Female,f1,straight,arpeggios,a,120,2000,4,1.000,1.700,0.700,Rest,391.995,391.995,391,392,0.1,391.995,67,G4,391.995,67,la",
-                "m1_scales_e_belt.wav,Male,m1,belt,scales,e,120,2000,1,0.200,1.000,0.800,Sound,293.665,293.665,293,294,0.1,293.665,62,D4,293.665,62,la",
-                "m1_scales_e_belt.wav,Male,m1,spoken,scales,e,120,2000,2,1.100,1.800,0.700,Sound,311.127,311.127,311,312,0.1,311.127,63,D#4,311.127,63,la",
+                "File Name,Gender,Singer name,Technique,Music Type,Vowel,BPM,File duration in milliseconds,Sequence,Start time,End time,Duration,Type,Average F0,Median F0,Min F0,Max F0,STD F0,Average F0 in range of STD,Estimated MIDI code,Ground truth Note name,Ground Truth Frequency,Ground Truth MIDI code,Lyric",
+                "f1_arpeggios_a_straight,Female,f1,straight,arpeggios,a,120,2000,1,0.100,0.800,0.700,Sound,261.626,261.626,261,262,0.1,261.626,60,C4,261.626,60,la",
+                "f1_arpeggios_a_straight,Female,f1,straight,arpeggios,a,120,2000,2,0.900,1.500,0.600,Sound,277.183,277.183,277,278,0.1,277.183,61,C#4,277.183,61,la",
+                "f1_arpeggios_a_straight,Female,f1,straight,arpeggios,a,120,2000,3,1.600,1.800,0.200,Sound,329.628,329.628,329,330,0.1,329.628,64,E4,329.628,64,la",
+                "f1_arpeggios_a_straight,Female,f1,straight,arpeggios,a,120,2000,4,1.000,1.700,0.700,Rest,391.995,391.995,391,392,0.1,391.995,67,G4,391.995,67,la",
+                "m1_scales_e_belt,Male,m1,Belt_Harsh,scales,e,120,2000,1,0.200,1.000,0.800,Sound,293.665,293.665,293,294,0.1,293.665,62,D4,293.665,62,la",
+                "m1_scales_e_belt,Male,m1,spoken,scales,e,120,2000,2,1.100,1.800,0.700,Sound,311.127,311.127,311,312,0.1,311.127,63,D#4,311.127,63,la",
             ]) + "\n",
         )
 

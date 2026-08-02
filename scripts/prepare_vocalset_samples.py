@@ -23,6 +23,21 @@ AUDIO_RE = re.compile(r"(^|/)VocalSet/FULL/([^/]+)/([^/]+)/([^/]+)/([^/]+)\.wav$
 EXTENDED_FILE_RE = re.compile(
     r"(^|/)VocalSet/annotations/extended 4/(?:with|without) file header/([^/]+)/([^/]+)\.csv$"
 )
+FILENAME_KEYS = ("filename", "file_name", "file", "audio_file", "wav_file")
+TECHNIQUE_ALIASES = {
+    "belt_harsh": "belt",
+    "fast_articulated_forte": "fast_forte",
+    "fast_articulated_piano": "fast_piano",
+    "fullvoice": "forte",
+    "messadivoce": "messa",
+    "moltovibrato": "vibrato",
+    "slow_legato_forte": "slow_forte",
+    "slow_legato_piano": "slow_piano",
+    "slow_moltovibrato": "vibrato",
+    "slow_straighttone": "straight",
+    "straighttone": "straight",
+    "verybreathy": "breathy",
+}
 
 
 EXTENDED_WITHOUT_HEADER = [
@@ -87,6 +102,13 @@ def parse_allowed_techniques(text):
     if not str(text).strip():
         return set()
     return {normalize_key(part) for part in str(text).split(",") if normalize_key(part)}
+
+
+def normalized_technique_keys(technique, audio_technique):
+    technique_key = normalize_key(technique)
+    if not technique_key:
+        return {normalize_key(audio_technique)}
+    return {technique_key, TECHNIQUE_ALIASES.get(technique_key, technique_key)}
 
 
 def parse_float(value):
@@ -175,7 +197,7 @@ def read_annotation_rows(archive, members):
             header = rows[0]
             for row in rows[1:]:
                 normalized = normalize_dict_row(header, row)
-                if "filename" not in normalized:
+                if not any(str(normalized.get(key, "")).strip() for key in FILENAME_KEYS):
                     normalized["filename"] = derived_stem
                 yield member, normalized
             continue
@@ -259,7 +281,7 @@ def candidate_clip_window(start, duration, min_duration, attack_margin, release_
 
 def row_to_candidate(row, audio_by_stem, allowed_techniques, min_note_duration, max_cents,
                      attack_margin, release_margin, clip_seconds, skipped):
-    filename = first_value(row, ["filename", "file", "audio_file", "wav_file", "file_name"])
+    filename = first_value(row, FILENAME_KEYS)
     stem = normalize_stem(filename)
     if not stem:
         skipped["missing_filename"] = skipped.get("missing_filename", 0) + 1
@@ -275,7 +297,8 @@ def row_to_candidate(row, audio_by_stem, allowed_techniques, min_note_duration, 
         return None
 
     technique = first_value(row, ["the_technique", "technique"]) or audio_meta["technique"]
-    if allowed_techniques and normalize_key(technique) not in allowed_techniques:
+    technique_keys = normalized_technique_keys(technique, audio_meta["technique"])
+    if allowed_techniques and technique_keys.isdisjoint(allowed_techniques):
         skipped["filtered_technique"] = skipped.get("filtered_technique", 0) + 1
         return None
 
