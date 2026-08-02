@@ -34,6 +34,9 @@ ownership_miss:guitar/electronic->piano positives=3 samples/6 rows protected_hit
     adjacent_lower_ratio<=0.698 AND partial3>=1.817: pos=2/3 rows=5 neg=0/120 rows=0 side_rows=0 net_rows=5 gain_per_side=inf neg_same_source_rows=0 neg_cross_source_rows=0 foreign_cross_source_rows=0
       positive examples:
         guitar_electronic_001 expected=E3/52 debug=E3/52 owner=piano delta=0 reason=hit first_row=piano strongest=piano scores(b/k/g/v/o)=0/1/0/0/0 spec=0.42 pitch=0.71 per=0.81 fit=0.09 cent=0.01 raw_best=E3/92.4 raw_rank=1 ignored=1
+    centroid>=0.4 AND partial5<=0.2: pos=1/3 rows=2 neg=0/120 rows=0 side_rows=0 net_rows=2 gain_per_side=inf neg_same_source_rows=0 neg_cross_source_rows=0 foreign_cross_source_rows=0
+      positive examples:
+        guitar_electronic_002 expected=F3/53 debug=F3/53 owner=piano delta=0 reason=hit first_row=piano strongest=piano spec=0.52 pitch=0.61
 route snare->tom positives=492 rows=492 protected_correct=13126 rows=13126
   +24 rows=24 -5 rows=5 foreign=4 rows=4 new-active=0 rows=0 primary-break=4 rows=4 side_rows=13 net_rows=11 gain_per_side=1.85 :: hihat_band>=24.633 AND tom_level>=0.981
   +21 rows=21 -7 rows=7 foreign=6 rows=6 new-active=1 rows=1 primary-break=6 rows=6 side_rows=20 net_rows=1 gain_per_side=1.05 :: hihat_band>=24.633 AND tom_seg<=225.582
@@ -47,7 +50,7 @@ compact route summary
         path = pathlib.Path(tmpdir) / "route_report.txt"
         path.write_text(report, encoding="utf-8")
         result = subprocess.run(
-            [sys.executable, str(SCRIPT), str(path), "--limit", "8"],
+            [sys.executable, str(SCRIPT), str(path), "--limit", "12"],
             check=True,
             text=True,
             stdout=subprocess.PIPE,
@@ -56,7 +59,7 @@ compact route summary
     output = result.stdout
     require(
         output,
-        "detector_route_summary: candidates=8 low_false=3 shadow=2 near_miss=1 drum=2 positive_net=7 gain_ge_1=7 source_safe_positive_net=5 actionable=4 coverage_blocked=1",
+        "detector_route_summary: candidates=9 low_false=4 shadow=2 near_miss=1 drum=2 positive_net=8 gain_ge_1=8 source_safe_positive_net=6 actionable=4 coverage_blocked=2",
     )
     require(
         output,
@@ -69,6 +72,11 @@ compact route summary
     require(
         output,
         "example guitar_electronic_001 expected=E3/52 debug=E3/52 owner=piano delta=0 reason=hit first_row=piano strongest=piano scores(b/k/g/v/o)=0/1/0/0/0 spec=0.42 pitch=0.71 per=0.81 fit=0.09 cent=0.01 raw_best=E3/92.4 raw_rank=1",
+    )
+    require(output, "  coverage-route clusters")
+    require(
+        output,
+        "coverage_route ownership_miss:guitar/electronic->piano candidates=2 best_observed_samples=2 min_need_samples=3 total_net_rows=7 examples=guitar_electronic_001,guitar_electronic_002",
     )
     require(
         output,

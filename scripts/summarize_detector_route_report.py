@@ -412,11 +412,66 @@ def compact_example(example: str) -> str:
     return " ".join(kept)
 
 
+def example_sample_id(example: str) -> str:
+    tokens = example.split()
+    return tokens[0] if tokens else ""
+
+
+@dataclasses.dataclass
+class CoverageRouteCluster:
+    section: str
+    candidates: int = 0
+    best_observed_samples: int = 0
+    min_needed_samples: int = 0
+    total_net_rows: int = 0
+    sample_ids: list[str] = dataclasses.field(default_factory=list)
+
+
+def coverage_route_clusters(
+    candidates: list[Candidate], min_actionable_samples: int
+) -> list[CoverageRouteCluster]:
+    clusters: dict[str, CoverageRouteCluster] = {}
+    seen_samples: dict[str, set[str]] = {}
+    for candidate in candidates:
+        needed = candidate_additional_samples_needed(candidate, min_actionable_samples)
+        if needed <= 0:
+            continue
+        cluster = clusters.setdefault(
+            candidate.section,
+            CoverageRouteCluster(section=candidate.section, min_needed_samples=needed),
+        )
+        cluster.candidates += 1
+        cluster.best_observed_samples = max(
+            cluster.best_observed_samples, candidate.pos_samples
+        )
+        cluster.min_needed_samples = min(cluster.min_needed_samples, needed)
+        cluster.total_net_rows += candidate.net_rows
+
+        sample_seen = seen_samples.setdefault(candidate.section, set())
+        for example in candidate.examples:
+            sample_id = example_sample_id(example)
+            if not sample_id or sample_id in sample_seen:
+                continue
+            sample_seen.add(sample_id)
+            cluster.sample_ids.append(sample_id)
+
+    return sorted(
+        clusters.values(),
+        key=lambda cluster: (
+            cluster.min_needed_samples,
+            -cluster.best_observed_samples,
+            -cluster.total_net_rows,
+            cluster.section,
+        ),
+    )
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("report", type=pathlib.Path)
     parser.add_argument("--limit", type=int, default=20)
     parser.add_argument("--example-limit", type=int, default=2)
+    parser.add_argument("--coverage-route-limit", type=int, default=8)
     parser.add_argument("--min-actionable-samples", type=int, default=5)
     args = parser.parse_args()
 
@@ -479,6 +534,26 @@ def main() -> int:
             )
             for example in candidate.examples[: max(0, args.example_limit)]:
                 print(f"      example {compact_example(example)}")
+        clusters = coverage_route_clusters(
+            sorted(coverage_blocked, key=actionable_sort_key),
+            args.min_actionable_samples,
+        )
+        if clusters:
+            print("  coverage-route clusters")
+            for cluster in clusters[: max(0, args.coverage_route_limit)]:
+                examples = ",".join(
+                    cluster.sample_ids[: max(0, args.example_limit)]
+                )
+                example_text = f" examples={examples}" if examples else ""
+                print(
+                    "    "
+                    f"coverage_route {cluster.section} "
+                    f"candidates={cluster.candidates} "
+                    f"best_observed_samples={cluster.best_observed_samples} "
+                    f"min_need_samples={cluster.min_needed_samples} "
+                    f"total_net_rows={cluster.total_net_rows}"
+                    f"{example_text}"
+                )
 
     actionable_set = set(actionable)
     ranked_candidates = (
