@@ -2607,6 +2607,16 @@ def main() -> int:
             "inspect_guitarset_attribute_buckets.py",
             "--misses-only",
         ),
+        "$(GUITAR_TECHS_CHORD_DETECTED_ATTRIBUTE_ROWS)": (
+            "$(GUITAR_TECHS_CHORD_ATTRIBUTE_TSV)",
+            "inspect_guitarset_attribute_buckets.py",
+            "--dump-rows",
+        ),
+        "$(GUITAR_TECHS_CHORD_MISS_ATTRIBUTE_ROWS)": (
+            "$(GUITAR_TECHS_CHORD_ATTRIBUTE_TSV)",
+            "inspect_guitarset_attribute_buckets.py",
+            "--misses-only",
+        ),
         "$(EGFXSET_GUITAR_DETECTED_ATTRIBUTE_ROWS)": (
             "$(EGFXSET_GUITAR_ATTRIBUTE_TSV)",
             "inspect_guitarset_attribute_buckets.py",
@@ -2712,6 +2722,14 @@ def main() -> int:
             "$(GUITAR_CHORD_MIX_ATTRIBUTE_LOCK_DIR)",
             "$(GUITAR_CHORD_MIX_ATTRIBUTE_PARTS)",
         ),
+        "$(GUITAR_TECHS_CHORD_ATTRIBUTE_TSV)": (
+            "$(BUILD_DIR)/analyzer_guitarset",
+            "$(GUITAR_TECHS_CHORD_MANIFEST)",
+            "scripts/build_sharded_tsv.sh",
+            "scripts/run_with_lock.sh",
+            "$(GUITAR_TECHS_CHORD_ATTRIBUTE_LOCK_DIR)",
+            "$(GUITAR_TECHS_CHORD_ATTRIBUTE_PARTS)",
+        ),
         "$(EGFXSET_GUITAR_ATTRIBUTE_TSV)": (
             "$(BUILD_DIR)/analyzer_guitarset",
             "$(EGFXSET_GUITAR_MANIFEST)",
@@ -2734,6 +2752,9 @@ def main() -> int:
     )
     assert "GUITAR_TECHS_ATTRIBUTE_LOCK_DIR ?= $(BUILD_DIR)/guitar_techs_attributes.lock" in makefile, (
         "GuitarTechs attribute TSV must have a stable lock path"
+    )
+    assert "GUITAR_TECHS_CHORD_ATTRIBUTE_LOCK_DIR ?= $(BUILD_DIR)/guitar_techs_chord_attributes.lock" in makefile, (
+        "GuitarTechs chord attribute TSV must have a stable lock path"
     )
     assert "GOOD_SOUNDS_ATTRIBUTE_LOCK_DIR ?= $(BUILD_DIR)/good_sounds_attributes.lock" in makefile, (
         "Good Sounds attribute TSV must have a stable lock path"
@@ -2984,6 +3005,46 @@ def main() -> int:
     )
     assert "MUSIC_ANALYZER_GUITARSET_REQUIRED_WINDOWS=\"$(GUITAR_CHORD_MIX_MIN_WINDOWS)\"" not in guitar_attribute_shard_recipe, (
         "guitar chord attribute shards must not fail uneven shards with the global window floor"
+    )
+
+    guitar_techs_chord_attribute_recipe = target_recipe(makefile, "$(GUITAR_TECHS_CHORD_ATTRIBUTE_TSV)")
+    assert "GUITAR_TECHS_CHORD_ATTRIBUTE_MAKE_JOBS = $(if $(filter -j%,$(MAKEFLAGS)),,-j$(GUITAR_TECHS_CHORD_SHARDS))" in makefile, (
+        "GuitarTechs chord attribute shards must force -j only when the parent make has no jobserver"
+    )
+    assert "$(BUILD_DIR)/analyzer_guitarset" in guitar_techs_chord_attribute_recipe.splitlines()[0], (
+        "GuitarTechs chord attribute TSV must rebuild when the analyzer binary changes"
+    )
+    assert "$(GUITAR_TECHS_CHORD_MANIFEST)" in guitar_techs_chord_attribute_recipe.splitlines()[0], (
+        "GuitarTechs chord attribute TSV must rebuild when the prepared manifest changes"
+    )
+    assert "scripts/build_sharded_tsv.sh" in guitar_techs_chord_attribute_recipe.splitlines()[0], (
+        "GuitarTechs chord attribute TSV must rebuild when the sharded TSV helper changes"
+    )
+    assert '$(SHELL) scripts/run_with_lock.sh "$(GUITAR_TECHS_CHORD_ATTRIBUTE_LOCK_DIR)" -- "$(SHELL)" scripts/build_sharded_tsv.sh "$@" "$(MAKE)" "$(GUITAR_TECHS_CHORD_ATTRIBUTE_MAKE_JOBS)" $(GUITAR_TECHS_CHORD_ATTRIBUTE_PARTS)' in guitar_techs_chord_attribute_recipe, (
+        "GuitarTechs chord attribute TSV must use the locked helper to build and combine shards"
+    )
+    guitar_techs_chord_attribute_shard_recipe = target_recipe(
+        makefile, "$(BUILD_DIR)/guitar_techs_chord_attributes.shard-%.tsv"
+    )
+    for text in [
+        "$(BUILD_DIR)/analyzer_guitarset",
+        "MUSIC_ANALYZER_GUITARSET_ATTRIBUTE_TSV=\"$@\"",
+        "MUSIC_ANALYZER_GUITARSET_REQUIRED_EXCERPTS=1",
+        "MUSIC_ANALYZER_GUITARSET_REQUIRED_WINDOWS=1",
+        "MUSIC_ANALYZER_GUITARSET_MIN_CHORD_CHECKS=0",
+        "MUSIC_ANALYZER_GUITARSET_MIN_CHORD_HITS=0",
+        "MUSIC_ANALYZER_GUITARSET_SHARD_COUNT=\"$(GUITAR_TECHS_CHORD_SHARDS)\"",
+        "MUSIC_ANALYZER_GUITARSET_SHARD_INDEX=\"$*\"",
+        "guitar_techs_chord_attributes.shard-$*.out",
+    ]:
+        assert text in guitar_techs_chord_attribute_shard_recipe, (
+            f"GuitarTechs chord attribute shard target must include {text}"
+        )
+    assert "MUSIC_ANALYZER_GUITARSET_REQUIRED_EXCERPTS=\"$(GUITAR_TECHS_CHORD_MIN_EXCERPTS)\"" not in guitar_techs_chord_attribute_shard_recipe, (
+        "GuitarTechs chord attribute shards must not fail uneven shards with the global excerpt floor"
+    )
+    assert "MUSIC_ANALYZER_GUITARSET_REQUIRED_WINDOWS=\"$(GUITAR_TECHS_CHORD_MIN_WINDOWS)\"" not in guitar_techs_chord_attribute_shard_recipe, (
+        "GuitarTechs chord attribute shards must not fail uneven shards with the global window floor"
     )
 
     egfxset_guitar_attribute_recipe = target_recipe(makefile, "$(EGFXSET_GUITAR_ATTRIBUTE_TSV)")
