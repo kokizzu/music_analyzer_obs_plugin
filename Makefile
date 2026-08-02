@@ -854,6 +854,7 @@ VOCALSET_MAX_FAILURES ?= 30
 VOCALSET_MAX_CENTS ?= 25
 VOCALSET_MIN_NOTE_DURATION ?= 0.22
 VOCALSET_ALLOWED_TECHNIQUES ?= belt,breathy,fast_forte,fast_piano,forte,lip_trill,messa,slow_forte,slow_piano,straight,trill,trillo,vibrato
+VOCALSET_DOWNLOAD_CONNECTIONS ?= 8
 REAL_NOTE_MIN_BASS ?= 100
 REAL_NOTE_MIN_GUITAR ?= 300
 REAL_NOTE_MIN_PIANO ?= 1000
@@ -3124,7 +3125,7 @@ $(VOCALSET_ARCHIVE): | $(BUILD_DIR)
 	mkdir -p "$(VOCALSET_SOURCE_DIR)"
 	if [ -s "$(VOCALSET_ARCHIVE)" ] && ! $(PYTHON) -m zipfile -t "$(VOCALSET_ARCHIVE)" >/dev/null 2>&1; then mv -f "$(VOCALSET_ARCHIVE)" "$(VOCALSET_ARCHIVE).part"; fi
 	if [ ! -s "$(VOCALSET_ARCHIVE)" ] && [ -s "$(VOCALSET_ARCHIVE).part" ] && $(PYTHON) -m zipfile -t "$(VOCALSET_ARCHIVE).part" >/dev/null 2>&1; then mv "$(VOCALSET_ARCHIVE).part" "$(VOCALSET_ARCHIVE)"; fi
-	if [ ! -s "$(VOCALSET_ARCHIVE)" ]; then curl -fL -C - -o "$(VOCALSET_ARCHIVE).part" "$(VOCALSET_URL)"; fi
+	if [ ! -s "$(VOCALSET_ARCHIVE)" ]; then if command -v aria2c >/dev/null 2>&1; then aria2c --continue=true --allow-overwrite=true --auto-file-renaming=false --max-tries=5 --retry-wait=5 --max-connection-per-server="$(VOCALSET_DOWNLOAD_CONNECTIONS)" --split="$(VOCALSET_DOWNLOAD_CONNECTIONS)" --min-split-size=1M --dir "$(VOCALSET_SOURCE_DIR)" --out "VocalSet.zip.part" "$(VOCALSET_URL)"; else curl -fL -C - -o "$(VOCALSET_ARCHIVE).part" "$(VOCALSET_URL)"; fi; fi
 	if [ -s "$(VOCALSET_ARCHIVE).part" ]; then $(PYTHON) -m zipfile -t "$(VOCALSET_ARCHIVE).part" >/dev/null; mv "$(VOCALSET_ARCHIVE).part" "$(VOCALSET_ARCHIVE)"; fi
 	$(PYTHON) -m zipfile -t "$(VOCALSET_ARCHIVE)" >/dev/null
 

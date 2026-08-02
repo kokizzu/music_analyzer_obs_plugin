@@ -3626,6 +3626,29 @@ def main() -> int:
         "Medley Solos archive target must resume downloads into a partial file"
     )
 
+    vocalset_archive_recipe = target_recipe(makefile, "$(VOCALSET_ARCHIVE)")
+    assert "VOCALSET_DOWNLOAD_CONNECTIONS ?= 8" in makefile, (
+        "VocalSet download parallelism must be configurable"
+    )
+    assert 'mv -f "$(VOCALSET_ARCHIVE)" "$(VOCALSET_ARCHIVE).part"' in vocalset_archive_recipe, (
+        "VocalSet archive target must quarantine corrupt completed zips"
+    )
+    assert 'zipfile -t "$(VOCALSET_ARCHIVE).part"' in vocalset_archive_recipe, (
+        "VocalSet archive target must validate partial zips before promotion"
+    )
+    assert "command -v aria2c" in vocalset_archive_recipe, (
+        "VocalSet archive target must use aria2c when available"
+    )
+    assert '--max-connection-per-server="$(VOCALSET_DOWNLOAD_CONNECTIONS)"' in vocalset_archive_recipe, (
+        "VocalSet aria2c download must use the configured connection count"
+    )
+    assert '--split="$(VOCALSET_DOWNLOAD_CONNECTIONS)"' in vocalset_archive_recipe, (
+        "VocalSet aria2c download must split the transfer across configured connections"
+    )
+    assert 'curl -fL -C - -o "$(VOCALSET_ARCHIVE).part" "$(VOCALSET_URL)"' in vocalset_archive_recipe, (
+        "VocalSet archive target must keep a resumable curl fallback"
+    )
+
     assert "GUITARSET_ANNOTATION_ARCHIVE ?= $(GUITARSET_SOURCE_DIR)/annotation.zip" in makefile, (
         "downloaded GuitarSet annotation archive must have a named cache path"
     )
