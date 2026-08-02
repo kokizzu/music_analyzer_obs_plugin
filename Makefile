@@ -1765,9 +1765,12 @@ $(MEDLEY_SOLOS_METADATA): | $(BUILD_DIR)
 	mkdir -p "$(MEDLEY_SOLOS_SOURCE_DIR)"
 	curl -fL -C - -o "$(MEDLEY_SOLOS_METADATA)" "$(MEDLEY_SOLOS_METADATA_URL)"
 
-$(MEDLEY_SOLOS_ARCHIVE): | $(BUILD_DIR)
+$(MEDLEY_SOLOS_ARCHIVE): FORCE | $(BUILD_DIR)
 	mkdir -p "$(MEDLEY_SOLOS_SOURCE_DIR)"
-	curl -fL -C - -o "$(MEDLEY_SOLOS_ARCHIVE)" "$(MEDLEY_SOLOS_URL)"
+	if [ -s "$(MEDLEY_SOLOS_ARCHIVE)" ] && ! $(TAR) -tzf "$(MEDLEY_SOLOS_ARCHIVE)" >/dev/null 2>&1; then mv -f "$(MEDLEY_SOLOS_ARCHIVE)" "$(MEDLEY_SOLOS_ARCHIVE).part"; fi
+	if [ ! -s "$(MEDLEY_SOLOS_ARCHIVE)" ] && [ -s "$(MEDLEY_SOLOS_ARCHIVE).part" ] && $(TAR) -tzf "$(MEDLEY_SOLOS_ARCHIVE).part" >/dev/null 2>&1; then mv "$(MEDLEY_SOLOS_ARCHIVE).part" "$(MEDLEY_SOLOS_ARCHIVE)"; fi
+	if [ ! -s "$(MEDLEY_SOLOS_ARCHIVE)" ]; then curl -fL -C - -o "$(MEDLEY_SOLOS_ARCHIVE).part" "$(MEDLEY_SOLOS_URL)"; fi
+	if [ -s "$(MEDLEY_SOLOS_ARCHIVE).part" ]; then $(TAR) -tzf "$(MEDLEY_SOLOS_ARCHIVE).part" >/dev/null; mv "$(MEDLEY_SOLOS_ARCHIVE).part" "$(MEDLEY_SOLOS_ARCHIVE)"; fi
 	$(TAR) -tzf "$(MEDLEY_SOLOS_ARCHIVE)" >/dev/null
 
 prepare-medley-solos-samples: scripts/prepare_medley_solos_samples.py download-medley-solos-samples | $(BUILD_DIR)

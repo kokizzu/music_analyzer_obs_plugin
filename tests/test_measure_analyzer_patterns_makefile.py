@@ -3182,6 +3182,20 @@ def main() -> int:
         "MAPS piano archive target must resume downloads into a partial file"
     )
 
+    medley_archive_recipe = target_recipe(makefile, "$(MEDLEY_SOLOS_ARCHIVE)")
+    assert "$(MEDLEY_SOLOS_ARCHIVE): FORCE" in medley_archive_recipe.splitlines()[0], (
+        "Medley Solos archive target must revalidate existing downloads"
+    )
+    assert 'mv -f "$(MEDLEY_SOLOS_ARCHIVE)" "$(MEDLEY_SOLOS_ARCHIVE).part"' in medley_archive_recipe, (
+        "Medley Solos archive target must quarantine corrupt completed tarballs"
+    )
+    assert '$(TAR) -tzf "$(MEDLEY_SOLOS_ARCHIVE).part"' in medley_archive_recipe, (
+        "Medley Solos archive target must validate partial tarballs before promotion"
+    )
+    assert 'curl -fL -C - -o "$(MEDLEY_SOLOS_ARCHIVE).part"' in medley_archive_recipe, (
+        "Medley Solos archive target must resume downloads into a partial file"
+    )
+
     assert "GUITARSET_ANNOTATION_ARCHIVE ?= $(GUITARSET_SOURCE_DIR)/annotation.zip" in makefile, (
         "downloaded GuitarSet annotation archive must have a named cache path"
     )
