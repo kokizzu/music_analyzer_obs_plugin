@@ -622,6 +622,9 @@ EGFXSET_GUITAR_MAX_SINGLE_NOTE_CHORD_FALSE_PERCENT ?= 20
 GAPS_GUITAR_SOURCE_DIR ?= $(REAL_SAMPLE_SOURCE_DIR)/gaps
 GAPS_GUITAR_SAMPLE_DIR ?= $(BUILD_DIR)/gaps_guitar_samples
 GAPS_GUITAR_MANIFEST ?= $(GAPS_GUITAR_SAMPLE_DIR)/manifest.tsv
+GAPS_GUITAR_ATTRIBUTE_TSV ?= $(BUILD_DIR)/gaps_guitar_attributes.tsv
+GAPS_GUITAR_DETECTED_ATTRIBUTE_ROWS ?= $(BUILD_DIR)/gaps_guitar_detected_attribute_rows.tsv
+GAPS_GUITAR_MISS_ATTRIBUTE_ROWS ?= $(BUILD_DIR)/gaps_guitar_miss_attribute_rows.tsv
 GAPS_GUITAR_METADATA_URL ?= https://huggingface.co/datasets/xavriley/GAPS/raw/main/gaps_metadata_with_splits.csv
 GAPS_GUITAR_BASE_URL ?= https://huggingface.co/datasets/xavriley/GAPS/resolve/main
 GAPS_GUITAR_SAMPLE_LIMIT ?= 42
@@ -638,9 +641,12 @@ GAPS_GUITAR_MAX_FALSE_VOCAL_PERCENT ?= 10
 GAPS_GUITAR_MISS_LOG ?= $(BUILD_DIR)/gaps_guitar_misses.log
 GAPS_GUITAR_FULL_SAMPLE_DIR ?= $(BUILD_DIR)/gaps_guitar_samples_full
 GAPS_GUITAR_FULL_MANIFEST ?= $(GAPS_GUITAR_FULL_SAMPLE_DIR)/manifest.tsv
+GAPS_GUITAR_FULL_ATTRIBUTE_TSV ?= $(BUILD_DIR)/gaps_guitar_full_attributes.tsv
+GAPS_GUITAR_FULL_DETECTED_ATTRIBUTE_ROWS ?= $(BUILD_DIR)/gaps_guitar_full_detected_attribute_rows.tsv
+GAPS_GUITAR_FULL_MISS_ATTRIBUTE_ROWS ?= $(BUILD_DIR)/gaps_guitar_full_miss_attribute_rows.tsv
 GAPS_GUITAR_FULL_SAMPLE_LIMIT ?= 0
-GAPS_GUITAR_FULL_MIN_EXCERPTS ?= 250
-GAPS_GUITAR_FULL_MIN_WINDOWS ?= 1000
+GAPS_GUITAR_FULL_MIN_EXCERPTS ?= 90
+GAPS_GUITAR_FULL_MIN_WINDOWS ?= 500
 GAPS_GUITAR_FULL_MISS_LOG ?= $(BUILD_DIR)/gaps_guitar_full_misses.log
 GUITARSET_SOURCE_DIR ?= $(REAL_SAMPLE_SOURCE_DIR)/guitarset
 GUITARSET_ROOT ?= $(BUILD_DIR)/guitarset
@@ -1134,12 +1140,18 @@ GAPS_GUITAR_SHARDS ?= $(PARALLEL_TEST_JOBS)
 GAPS_GUITAR_SHARD_INDEXES := $(shell i=0; while [ $$i -lt $(GAPS_GUITAR_SHARDS) ]; do printf '%s ' $$i; i=$$((i + 1)); done)
 GAPS_GUITAR_SHARD_TARGETS := $(addprefix test-gaps-guitar-samples-shard-,$(GAPS_GUITAR_SHARD_INDEXES))
 GAPS_GUITAR_SHARD_OUTS := $(addprefix $(BUILD_DIR)/gaps_guitar_samples_shard_,$(addsuffix .out,$(GAPS_GUITAR_SHARD_INDEXES)))
+GAPS_GUITAR_ATTRIBUTE_LOCK_DIR ?= $(BUILD_DIR)/gaps_guitar_attributes.lock
+GAPS_GUITAR_ATTRIBUTE_PARTS := $(addprefix $(BUILD_DIR)/gaps_guitar_attributes.shard-,$(addsuffix .tsv,$(GAPS_GUITAR_SHARD_INDEXES)))
 GAPS_GUITAR_TEST_MAKE_JOBS = $(if $(filter -j%,$(MAKEFLAGS)),,-j$(GAPS_GUITAR_SHARDS))
+GAPS_GUITAR_ATTRIBUTE_MAKE_JOBS = $(if $(filter -j%,$(MAKEFLAGS)),,-j$(GAPS_GUITAR_SHARDS))
 GAPS_GUITAR_FULL_SHARDS ?= $(PARALLEL_TEST_JOBS)
 GAPS_GUITAR_FULL_SHARD_INDEXES := $(shell i=0; while [ $$i -lt $(GAPS_GUITAR_FULL_SHARDS) ]; do printf '%s ' $$i; i=$$((i + 1)); done)
 GAPS_GUITAR_FULL_SHARD_TARGETS := $(addprefix test-gaps-guitar-samples-full-shard-,$(GAPS_GUITAR_FULL_SHARD_INDEXES))
 GAPS_GUITAR_FULL_SHARD_OUTS := $(addprefix $(BUILD_DIR)/gaps_guitar_samples_full_shard_,$(addsuffix .out,$(GAPS_GUITAR_FULL_SHARD_INDEXES)))
+GAPS_GUITAR_FULL_ATTRIBUTE_LOCK_DIR ?= $(BUILD_DIR)/gaps_guitar_full_attributes.lock
+GAPS_GUITAR_FULL_ATTRIBUTE_PARTS := $(addprefix $(BUILD_DIR)/gaps_guitar_full_attributes.shard-,$(addsuffix .tsv,$(GAPS_GUITAR_FULL_SHARD_INDEXES)))
 GAPS_GUITAR_FULL_TEST_MAKE_JOBS = $(if $(filter -j%,$(MAKEFLAGS)),,-j$(GAPS_GUITAR_FULL_SHARDS))
+GAPS_GUITAR_FULL_ATTRIBUTE_MAKE_JOBS = $(if $(filter -j%,$(MAKEFLAGS)),,-j$(GAPS_GUITAR_FULL_SHARDS))
 GUITARSET_SHARDS ?= $(PARALLEL_TEST_JOBS)
 GUITARSET_SHARD_INDEXES := $(shell i=0; while [ $$i -lt $(GUITARSET_SHARDS) ]; do printf '%s ' $$i; i=$$((i + 1)); done)
 GUITARSET_SHARD_TARGETS := $(addprefix test-downloaded-guitarset-shard-,$(GUITARSET_SHARD_INDEXES))
@@ -1154,7 +1166,7 @@ GUITARSET_SHARD_GATE_ENV ?= MUSIC_ANALYZER_GUITARSET_REQUIRED_EXCERPTS=1 MUSIC_A
 .PHONY: find-real-note-row-confusion-patterns find-real-note-practical-row-confusion-patterns find-real-note-focused-row-confusion-patterns find-real-note-coverage-row-confusion-patterns find-real-note-visual-row-confusion-patterns find-real-note-focused-visual-row-confusion-patterns find-real-note-coverage-visual-row-confusion-patterns find-real-note-ownership-patterns find-real-note-octave-displacement-patterns find-real-note-weak-expected-patterns find-real-note-weak-visual-expected-patterns inspect-real-note-candidate-rows inspect-detector-coverage-candidates measure-real-note-octave-display-aliases evaluate-real-note-display-shadow evaluate-real-note-vocal-shadow-safety evaluate-real-note-vocal-shadow-safety-nsynth evaluate-real-note-vocal-shadow-safety-vocadito evaluate-real-note-vocal-display-fallback measure-real-note-attribute-rule analyze-vocadito-attributes analyze-vocadito-full-mix-attributes find-vocadito-full-mix-row-confusion-patterns find-vocadito-full-mix-visual-row-confusion-patterns find-vocadito-full-mix-ownership-patterns find-vocadito-full-mix-broad-vocal-ownership-patterns analyze-idmt-bass-lines-attributes analyze-idmt-guitar-attributes analyze-guitar-techs-attributes analyze-tinysol-attributes analyze-vocalset-attributes analyze-iowa-piano-attributes analyze-philharmonia-attributes analyze-philharmonia-full-attributes analyze-iowa-orchestra-attributes analyze-iowa-orchestra-full-attributes
 .PHONY: filter-drum-primary-attribute-rows filter-drum-full-attribute-rows test-filter-drum-attribute-rows
 .PHONY: test-build-sharded-tsv test-guitarset-shard-check test-instrument-family-shard-check test-musicnet-shard-check
-.PHONY: prepare-gaps-guitar-samples-full test-gaps-guitar-samples-full analyze-gaps-guitar-misses-full
+.PHONY: prepare-gaps-guitar-samples-full test-gaps-guitar-samples-full analyze-gaps-guitar-misses-full analyze-gaps-guitar-attributes inspect-gaps-guitar-attribute-buckets find-gaps-guitar-attribute-patterns analyze-gaps-guitar-full-attributes inspect-gaps-guitar-full-attribute-buckets find-gaps-guitar-full-attribute-patterns
 .PHONY: analyze-guitarset-attributes inspect-guitarset-attribute-buckets find-guitarset-attribute-patterns analyze-egfxset-guitar-attributes inspect-egfxset-guitar-attribute-buckets find-egfxset-guitar-attribute-patterns
 .PHONY: test-fret-control android-lint icon-assets
 .PHONY: measure-analyzer-attributes measure-analyzer-attribute-rows measure-analyzer-attribute-rows-full refresh-analyzer-detected-attribute-rows print-analyzer-detected-attributes print-analyzer-detected-attributes-cached measure-analyzer-detected-attributes measure-analyzer-detected-attributes-full measure-analyzer-pattern-report-sections report-analyzer-patterns-from-rows report-analyzer-patterns-from-rows-full measure-analyzer-patterns measure-analyzer-patterns-full measure-analyzer-pattern-report inspect-instrument-sample-owner-buckets find-instrument-owner-patterns find-instrument-status-patterns test-instrument-sample-owner-buckets test-filter-instrument-attribute-rows test-instrument-owner-patterns test-refresh-analyzer-detected-attribute-rows test-print-analyzer-detected-attributes test-analyzer-pattern-report test-detector-route-report-summary test-measure-analyzer-patterns-target analyze-drum-primary-attribute-rows find-drum-primary-attribute-patterns analyze-drum-spread-gate-matrix-serial analyze-drum-spread-gate-matrix-parallel analyze-drum-spread-gate-matrix-parallel-unlocked analyze-drum-tom-bleed-caps analyze-drum-tom-bleed-caps-cached
@@ -2566,6 +2578,28 @@ test-gaps-guitar-samples: $(BUILD_DIR)/analyzer_guitarset prepare-gaps-guitar-sa
 test-gaps-guitar-samples-shard-%: FORCE $(BUILD_DIR)/analyzer_guitarset $(GAPS_GUITAR_MANIFEST) scripts/run_with_duration.sh
 	@out="$(BUILD_DIR)/gaps_guitar_samples_shard_$*.out"; $(RUN_WITH_DURATION) analyzer_gaps_guitar_samples_shard_$* env MUSIC_ANALYZER_GUITARSET_MANIFEST="$(GAPS_GUITAR_MANIFEST)" MUSIC_ANALYZER_GUITARSET_REQUIRED=1 MUSIC_ANALYZER_GUITARSET_USE_ALL=1 MUSIC_ANALYZER_GUITARSET_REQUIRED_EXCERPTS=1 MUSIC_ANALYZER_GUITARSET_REQUIRED_WINDOWS=1 MUSIC_ANALYZER_GUITARSET_MAX_WINDOWS_PER_EXCERPT=6 MUSIC_ANALYZER_GUITARSET_MIN_ACTIVE_NOTES=2 MUSIC_ANALYZER_GUITARSET_MIN_PITCH_CLASSES=2 MUSIC_ANALYZER_GUITARSET_MIN_WINDOW_RECALL_PERCENT=0 MUSIC_ANALYZER_GUITARSET_MIN_RECALL_PERCENT=0 MUSIC_ANALYZER_GUITARSET_MIN_PRECISION_PERCENT=0 MUSIC_ANALYZER_GUITARSET_MIN_GUITAR_RECALL_PERCENT=0 MUSIC_ANALYZER_GUITARSET_MAX_CONTAMINATION_PERCENT=100 MUSIC_ANALYZER_GUITARSET_MAX_FALSE_VOCAL_PERCENT=100 MUSIC_ANALYZER_GUITARSET_MIN_CHORD_RECALL_PERCENT=0 MUSIC_ANALYZER_GUITARSET_MIN_CHORD_PRECISION_PERCENT=0 MUSIC_ANALYZER_GUITARSET_MIN_CHORD_CHECKS=0 MUSIC_ANALYZER_GUITARSET_MAX_FAILURE_LINES=80 MUSIC_ANALYZER_GUITARSET_SHARD_COUNT="$(GAPS_GUITAR_SHARDS)" MUSIC_ANALYZER_GUITARSET_SHARD_INDEX="$*" $(BUILD_DIR)/analyzer_guitarset > "$$out"
 
+$(GAPS_GUITAR_ATTRIBUTE_TSV): $(BUILD_DIR)/analyzer_guitarset $(GAPS_GUITAR_MANIFEST) scripts/build_sharded_tsv.sh scripts/run_with_lock.sh | $(BUILD_DIR)
+	+$(SHELL) scripts/run_with_lock.sh "$(GAPS_GUITAR_ATTRIBUTE_LOCK_DIR)" -- "$(SHELL)" scripts/build_sharded_tsv.sh "$@" "$(MAKE)" "$(GAPS_GUITAR_ATTRIBUTE_MAKE_JOBS)" $(GAPS_GUITAR_ATTRIBUTE_PARTS)
+
+$(BUILD_DIR)/gaps_guitar_attributes.shard-%.tsv: FORCE $(BUILD_DIR)/analyzer_guitarset $(GAPS_GUITAR_MANIFEST) | $(BUILD_DIR)
+	@out="$(BUILD_DIR)/gaps_guitar_attributes.shard-$*.out"; env MUSIC_ANALYZER_GUITARSET_MANIFEST="$(GAPS_GUITAR_MANIFEST)" MUSIC_ANALYZER_GUITARSET_REQUIRED=1 MUSIC_ANALYZER_GUITARSET_USE_ALL=1 MUSIC_ANALYZER_GUITARSET_REQUIRED_EXCERPTS=1 MUSIC_ANALYZER_GUITARSET_REQUIRED_WINDOWS=1 MUSIC_ANALYZER_GUITARSET_MAX_WINDOWS_PER_EXCERPT=6 MUSIC_ANALYZER_GUITARSET_MIN_ACTIVE_NOTES=2 MUSIC_ANALYZER_GUITARSET_MIN_PITCH_CLASSES=2 MUSIC_ANALYZER_GUITARSET_MIN_WINDOW_RECALL_PERCENT=0 MUSIC_ANALYZER_GUITARSET_MIN_RECALL_PERCENT=0 MUSIC_ANALYZER_GUITARSET_MIN_PRECISION_PERCENT=0 MUSIC_ANALYZER_GUITARSET_MIN_GUITAR_RECALL_PERCENT=0 MUSIC_ANALYZER_GUITARSET_MAX_CONTAMINATION_PERCENT=100 MUSIC_ANALYZER_GUITARSET_MAX_FALSE_VOCAL_PERCENT=100 MUSIC_ANALYZER_GUITARSET_MIN_CHORD_RECALL_PERCENT=0 MUSIC_ANALYZER_GUITARSET_MIN_CHORD_PRECISION_PERCENT=0 MUSIC_ANALYZER_GUITARSET_MIN_CHORD_CHECKS=0 MUSIC_ANALYZER_GUITARSET_MAX_FAILURE_LINES=80 MUSIC_ANALYZER_GUITARSET_SHARD_COUNT="$(GAPS_GUITAR_SHARDS)" MUSIC_ANALYZER_GUITARSET_SHARD_INDEX="$*" MUSIC_ANALYZER_GUITARSET_ATTRIBUTE_TSV="$@" $(BUILD_DIR)/analyzer_guitarset > "$$out"
+
+$(GAPS_GUITAR_DETECTED_ATTRIBUTE_ROWS): $(GAPS_GUITAR_ATTRIBUTE_TSV) scripts/inspect_guitarset_attribute_buckets.py | $(BUILD_DIR)
+	$(PYTHON) scripts/inspect_guitarset_attribute_buckets.py "$(GAPS_GUITAR_ATTRIBUTE_TSV)" --dump-rows > "$@"
+
+$(GAPS_GUITAR_MISS_ATTRIBUTE_ROWS): $(GAPS_GUITAR_ATTRIBUTE_TSV) scripts/inspect_guitarset_attribute_buckets.py | $(BUILD_DIR)
+	$(PYTHON) scripts/inspect_guitarset_attribute_buckets.py "$(GAPS_GUITAR_ATTRIBUTE_TSV)" --misses-only > "$@"
+
+analyze-gaps-guitar-attributes: $(GAPS_GUITAR_ATTRIBUTE_TSV) scripts/summarize_guitarset_attributes.py
+	$(PYTHON) scripts/summarize_guitarset_attributes.py "$(GAPS_GUITAR_ATTRIBUTE_TSV)" $(GUITARSET_ATTRIBUTE_ARGS)
+	@printf '%s\n' "attribute TSV: $(GAPS_GUITAR_ATTRIBUTE_TSV)"
+
+inspect-gaps-guitar-attribute-buckets: $(GAPS_GUITAR_ATTRIBUTE_TSV) scripts/inspect_guitarset_attribute_buckets.py scripts/summarize_guitarset_attributes.py
+	$(PYTHON) scripts/inspect_guitarset_attribute_buckets.py "$(GAPS_GUITAR_ATTRIBUTE_TSV)" $(BUCKET_ARGS)
+
+find-gaps-guitar-attribute-patterns: $(GAPS_GUITAR_ATTRIBUTE_TSV) scripts/find_guitarset_attribute_patterns.py scripts/inspect_guitarset_attribute_buckets.py scripts/summarize_guitarset_attributes.py
+	$(PYTHON) scripts/find_guitarset_attribute_patterns.py "$(GAPS_GUITAR_ATTRIBUTE_TSV)" $(PATTERN_ARGS)
+
 analyze-gaps-guitar-misses: $(BUILD_DIR)/analyzer_guitarset prepare-gaps-guitar-samples scripts/analyze_guitarset_misses.py
 	env MUSIC_ANALYZER_GUITARSET_MANIFEST="$(GAPS_GUITAR_MANIFEST)" MUSIC_ANALYZER_GUITARSET_REQUIRED=1 MUSIC_ANALYZER_GUITARSET_USE_ALL=1 MUSIC_ANALYZER_GUITARSET_REQUIRED_EXCERPTS="$(GAPS_GUITAR_MIN_EXCERPTS)" MUSIC_ANALYZER_GUITARSET_REQUIRED_WINDOWS="$(GAPS_GUITAR_MIN_WINDOWS)" MUSIC_ANALYZER_GUITARSET_MAX_WINDOWS_PER_EXCERPT=6 MUSIC_ANALYZER_GUITARSET_MIN_ACTIVE_NOTES=2 MUSIC_ANALYZER_GUITARSET_MIN_PITCH_CLASSES=2 MUSIC_ANALYZER_GUITARSET_MIN_WINDOW_RECALL_PERCENT=0 MUSIC_ANALYZER_GUITARSET_MIN_RECALL_PERCENT="$(GAPS_GUITAR_MIN_RECALL_PERCENT)" MUSIC_ANALYZER_GUITARSET_MIN_PRECISION_PERCENT="$(GAPS_GUITAR_MIN_PRECISION_PERCENT)" MUSIC_ANALYZER_GUITARSET_MIN_GUITAR_RECALL_PERCENT="$(GAPS_GUITAR_MIN_GUITAR_RECALL_PERCENT)" MUSIC_ANALYZER_GUITARSET_MAX_CONTAMINATION_PERCENT="$(GAPS_GUITAR_MAX_CONTAMINATION_PERCENT)" MUSIC_ANALYZER_GUITARSET_MAX_FALSE_VOCAL_PERCENT="$(GAPS_GUITAR_MAX_FALSE_VOCAL_PERCENT)" MUSIC_ANALYZER_GUITARSET_MIN_CHORD_RECALL_PERCENT="$(GAPS_GUITAR_MIN_CHORD_RECALL_PERCENT)" MUSIC_ANALYZER_GUITARSET_MIN_CHORD_PRECISION_PERCENT="$(GAPS_GUITAR_MIN_CHORD_PRECISION_PERCENT)" MUSIC_ANALYZER_GUITARSET_MIN_CHORD_CHECKS="$(GAPS_GUITAR_MIN_WINDOWS)" MUSIC_ANALYZER_GUITARSET_MAX_FAILURE_LINES=0 MUSIC_ANALYZER_GUITARSET_VERBOSE_CHORD_MISSES=1 $(BUILD_DIR)/analyzer_guitarset > "$(GAPS_GUITAR_MISS_LOG).summary" 2> "$(GAPS_GUITAR_MISS_LOG)"
 	$(PYTHON) scripts/analyze_guitarset_misses.py "$(GAPS_GUITAR_MISS_LOG)"
@@ -2582,6 +2616,28 @@ test-gaps-guitar-samples-full: $(BUILD_DIR)/analyzer_guitarset prepare-gaps-guit
 
 test-gaps-guitar-samples-full-shard-%: FORCE $(BUILD_DIR)/analyzer_guitarset $(GAPS_GUITAR_FULL_MANIFEST) scripts/run_with_duration.sh
 	@out="$(BUILD_DIR)/gaps_guitar_samples_full_shard_$*.out"; $(RUN_WITH_DURATION) analyzer_gaps_guitar_samples_full_shard_$* env MUSIC_ANALYZER_GUITARSET_MANIFEST="$(GAPS_GUITAR_FULL_MANIFEST)" MUSIC_ANALYZER_GUITARSET_REQUIRED=1 MUSIC_ANALYZER_GUITARSET_USE_ALL=1 MUSIC_ANALYZER_GUITARSET_REQUIRED_EXCERPTS=1 MUSIC_ANALYZER_GUITARSET_REQUIRED_WINDOWS=1 MUSIC_ANALYZER_GUITARSET_MAX_WINDOWS_PER_EXCERPT=6 MUSIC_ANALYZER_GUITARSET_MIN_ACTIVE_NOTES=2 MUSIC_ANALYZER_GUITARSET_MIN_PITCH_CLASSES=2 MUSIC_ANALYZER_GUITARSET_MIN_WINDOW_RECALL_PERCENT=0 MUSIC_ANALYZER_GUITARSET_MIN_RECALL_PERCENT=0 MUSIC_ANALYZER_GUITARSET_MIN_PRECISION_PERCENT=0 MUSIC_ANALYZER_GUITARSET_MIN_GUITAR_RECALL_PERCENT=0 MUSIC_ANALYZER_GUITARSET_MAX_CONTAMINATION_PERCENT=100 MUSIC_ANALYZER_GUITARSET_MAX_FALSE_VOCAL_PERCENT=100 MUSIC_ANALYZER_GUITARSET_MIN_CHORD_RECALL_PERCENT=0 MUSIC_ANALYZER_GUITARSET_MIN_CHORD_PRECISION_PERCENT=0 MUSIC_ANALYZER_GUITARSET_MIN_CHORD_CHECKS=0 MUSIC_ANALYZER_GUITARSET_MAX_FAILURE_LINES=80 MUSIC_ANALYZER_GUITARSET_SHARD_COUNT="$(GAPS_GUITAR_FULL_SHARDS)" MUSIC_ANALYZER_GUITARSET_SHARD_INDEX="$*" $(BUILD_DIR)/analyzer_guitarset > "$$out"
+
+$(GAPS_GUITAR_FULL_ATTRIBUTE_TSV): $(BUILD_DIR)/analyzer_guitarset $(GAPS_GUITAR_FULL_MANIFEST) scripts/build_sharded_tsv.sh scripts/run_with_lock.sh | $(BUILD_DIR)
+	+$(SHELL) scripts/run_with_lock.sh "$(GAPS_GUITAR_FULL_ATTRIBUTE_LOCK_DIR)" -- "$(SHELL)" scripts/build_sharded_tsv.sh "$@" "$(MAKE)" "$(GAPS_GUITAR_FULL_ATTRIBUTE_MAKE_JOBS)" $(GAPS_GUITAR_FULL_ATTRIBUTE_PARTS)
+
+$(BUILD_DIR)/gaps_guitar_full_attributes.shard-%.tsv: FORCE $(BUILD_DIR)/analyzer_guitarset $(GAPS_GUITAR_FULL_MANIFEST) | $(BUILD_DIR)
+	@out="$(BUILD_DIR)/gaps_guitar_full_attributes.shard-$*.out"; env MUSIC_ANALYZER_GUITARSET_MANIFEST="$(GAPS_GUITAR_FULL_MANIFEST)" MUSIC_ANALYZER_GUITARSET_REQUIRED=1 MUSIC_ANALYZER_GUITARSET_USE_ALL=1 MUSIC_ANALYZER_GUITARSET_REQUIRED_EXCERPTS=1 MUSIC_ANALYZER_GUITARSET_REQUIRED_WINDOWS=1 MUSIC_ANALYZER_GUITARSET_MAX_WINDOWS_PER_EXCERPT=6 MUSIC_ANALYZER_GUITARSET_MIN_ACTIVE_NOTES=2 MUSIC_ANALYZER_GUITARSET_MIN_PITCH_CLASSES=2 MUSIC_ANALYZER_GUITARSET_MIN_WINDOW_RECALL_PERCENT=0 MUSIC_ANALYZER_GUITARSET_MIN_RECALL_PERCENT=0 MUSIC_ANALYZER_GUITARSET_MIN_PRECISION_PERCENT=0 MUSIC_ANALYZER_GUITARSET_MIN_GUITAR_RECALL_PERCENT=0 MUSIC_ANALYZER_GUITARSET_MAX_CONTAMINATION_PERCENT=100 MUSIC_ANALYZER_GUITARSET_MAX_FALSE_VOCAL_PERCENT=100 MUSIC_ANALYZER_GUITARSET_MIN_CHORD_RECALL_PERCENT=0 MUSIC_ANALYZER_GUITARSET_MIN_CHORD_PRECISION_PERCENT=0 MUSIC_ANALYZER_GUITARSET_MIN_CHORD_CHECKS=0 MUSIC_ANALYZER_GUITARSET_MAX_FAILURE_LINES=80 MUSIC_ANALYZER_GUITARSET_SHARD_COUNT="$(GAPS_GUITAR_FULL_SHARDS)" MUSIC_ANALYZER_GUITARSET_SHARD_INDEX="$*" MUSIC_ANALYZER_GUITARSET_ATTRIBUTE_TSV="$@" $(BUILD_DIR)/analyzer_guitarset > "$$out"
+
+$(GAPS_GUITAR_FULL_DETECTED_ATTRIBUTE_ROWS): $(GAPS_GUITAR_FULL_ATTRIBUTE_TSV) scripts/inspect_guitarset_attribute_buckets.py | $(BUILD_DIR)
+	$(PYTHON) scripts/inspect_guitarset_attribute_buckets.py "$(GAPS_GUITAR_FULL_ATTRIBUTE_TSV)" --dump-rows > "$@"
+
+$(GAPS_GUITAR_FULL_MISS_ATTRIBUTE_ROWS): $(GAPS_GUITAR_FULL_ATTRIBUTE_TSV) scripts/inspect_guitarset_attribute_buckets.py | $(BUILD_DIR)
+	$(PYTHON) scripts/inspect_guitarset_attribute_buckets.py "$(GAPS_GUITAR_FULL_ATTRIBUTE_TSV)" --misses-only > "$@"
+
+analyze-gaps-guitar-full-attributes: $(GAPS_GUITAR_FULL_ATTRIBUTE_TSV) scripts/summarize_guitarset_attributes.py
+	$(PYTHON) scripts/summarize_guitarset_attributes.py "$(GAPS_GUITAR_FULL_ATTRIBUTE_TSV)" $(GUITARSET_ATTRIBUTE_ARGS)
+	@printf '%s\n' "attribute TSV: $(GAPS_GUITAR_FULL_ATTRIBUTE_TSV)"
+
+inspect-gaps-guitar-full-attribute-buckets: $(GAPS_GUITAR_FULL_ATTRIBUTE_TSV) scripts/inspect_guitarset_attribute_buckets.py scripts/summarize_guitarset_attributes.py
+	$(PYTHON) scripts/inspect_guitarset_attribute_buckets.py "$(GAPS_GUITAR_FULL_ATTRIBUTE_TSV)" $(BUCKET_ARGS)
+
+find-gaps-guitar-full-attribute-patterns: $(GAPS_GUITAR_FULL_ATTRIBUTE_TSV) scripts/find_guitarset_attribute_patterns.py scripts/inspect_guitarset_attribute_buckets.py scripts/summarize_guitarset_attributes.py
+	$(PYTHON) scripts/find_guitarset_attribute_patterns.py "$(GAPS_GUITAR_FULL_ATTRIBUTE_TSV)" $(PATTERN_ARGS)
 
 analyze-gaps-guitar-misses-full: $(BUILD_DIR)/analyzer_guitarset prepare-gaps-guitar-samples-full scripts/analyze_guitarset_misses.py
 	env MUSIC_ANALYZER_GUITARSET_MANIFEST="$(GAPS_GUITAR_FULL_MANIFEST)" MUSIC_ANALYZER_GUITARSET_REQUIRED=1 MUSIC_ANALYZER_GUITARSET_USE_ALL=1 MUSIC_ANALYZER_GUITARSET_REQUIRED_EXCERPTS="$(GAPS_GUITAR_FULL_MIN_EXCERPTS)" MUSIC_ANALYZER_GUITARSET_REQUIRED_WINDOWS="$(GAPS_GUITAR_FULL_MIN_WINDOWS)" MUSIC_ANALYZER_GUITARSET_MAX_WINDOWS_PER_EXCERPT=6 MUSIC_ANALYZER_GUITARSET_MIN_ACTIVE_NOTES=2 MUSIC_ANALYZER_GUITARSET_MIN_PITCH_CLASSES=2 MUSIC_ANALYZER_GUITARSET_MIN_WINDOW_RECALL_PERCENT=0 MUSIC_ANALYZER_GUITARSET_MIN_RECALL_PERCENT="$(GAPS_GUITAR_MIN_RECALL_PERCENT)" MUSIC_ANALYZER_GUITARSET_MIN_PRECISION_PERCENT="$(GAPS_GUITAR_MIN_PRECISION_PERCENT)" MUSIC_ANALYZER_GUITARSET_MIN_GUITAR_RECALL_PERCENT="$(GAPS_GUITAR_MIN_GUITAR_RECALL_PERCENT)" MUSIC_ANALYZER_GUITARSET_MAX_CONTAMINATION_PERCENT="$(GAPS_GUITAR_MAX_CONTAMINATION_PERCENT)" MUSIC_ANALYZER_GUITARSET_MAX_FALSE_VOCAL_PERCENT="$(GAPS_GUITAR_MAX_FALSE_VOCAL_PERCENT)" MUSIC_ANALYZER_GUITARSET_MIN_CHORD_RECALL_PERCENT="$(GAPS_GUITAR_MIN_CHORD_RECALL_PERCENT)" MUSIC_ANALYZER_GUITARSET_MIN_CHORD_PRECISION_PERCENT="$(GAPS_GUITAR_MIN_CHORD_PRECISION_PERCENT)" MUSIC_ANALYZER_GUITARSET_MIN_CHORD_CHECKS="$(GAPS_GUITAR_FULL_MIN_WINDOWS)" MUSIC_ANALYZER_GUITARSET_MAX_FAILURE_LINES=0 MUSIC_ANALYZER_GUITARSET_VERBOSE_CHORD_MISSES=1 $(BUILD_DIR)/analyzer_guitarset > "$(GAPS_GUITAR_FULL_MISS_LOG).summary" 2> "$(GAPS_GUITAR_FULL_MISS_LOG)"

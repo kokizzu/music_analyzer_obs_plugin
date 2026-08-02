@@ -2627,6 +2627,26 @@ def main() -> int:
             "inspect_guitarset_attribute_buckets.py",
             "--misses-only",
         ),
+        "$(GAPS_GUITAR_DETECTED_ATTRIBUTE_ROWS)": (
+            "$(GAPS_GUITAR_ATTRIBUTE_TSV)",
+            "inspect_guitarset_attribute_buckets.py",
+            "--dump-rows",
+        ),
+        "$(GAPS_GUITAR_MISS_ATTRIBUTE_ROWS)": (
+            "$(GAPS_GUITAR_ATTRIBUTE_TSV)",
+            "inspect_guitarset_attribute_buckets.py",
+            "--misses-only",
+        ),
+        "$(GAPS_GUITAR_FULL_DETECTED_ATTRIBUTE_ROWS)": (
+            "$(GAPS_GUITAR_FULL_ATTRIBUTE_TSV)",
+            "inspect_guitarset_attribute_buckets.py",
+            "--dump-rows",
+        ),
+        "$(GAPS_GUITAR_FULL_MISS_ATTRIBUTE_ROWS)": (
+            "$(GAPS_GUITAR_FULL_ATTRIBUTE_TSV)",
+            "inspect_guitarset_attribute_buckets.py",
+            "--misses-only",
+        ),
     }
     for target, required_parts in row_dump_targets.items():
         row_dump_recipe = target_recipe(makefile, target)
@@ -2737,6 +2757,22 @@ def main() -> int:
             "scripts/run_with_lock.sh",
             "$(EGFXSET_GUITAR_ATTRIBUTE_LOCK_DIR)",
             "$(EGFXSET_GUITAR_ATTRIBUTE_PARTS)",
+        ),
+        "$(GAPS_GUITAR_ATTRIBUTE_TSV)": (
+            "$(BUILD_DIR)/analyzer_guitarset",
+            "$(GAPS_GUITAR_MANIFEST)",
+            "scripts/build_sharded_tsv.sh",
+            "scripts/run_with_lock.sh",
+            "$(GAPS_GUITAR_ATTRIBUTE_LOCK_DIR)",
+            "$(GAPS_GUITAR_ATTRIBUTE_PARTS)",
+        ),
+        "$(GAPS_GUITAR_FULL_ATTRIBUTE_TSV)": (
+            "$(BUILD_DIR)/analyzer_guitarset",
+            "$(GAPS_GUITAR_FULL_MANIFEST)",
+            "scripts/build_sharded_tsv.sh",
+            "scripts/run_with_lock.sh",
+            "$(GAPS_GUITAR_FULL_ATTRIBUTE_LOCK_DIR)",
+            "$(GAPS_GUITAR_FULL_ATTRIBUTE_PARTS)",
         ),
     }
     for target, required_parts in source_attribute_targets.items():
@@ -3123,6 +3159,66 @@ def main() -> int:
         "EGFXSET guitar pattern mining must compare against protected rows while allowing protected-bucket overrides"
     )
 
+    for label, target, manifest, shards, lock_dir, parts, shard_target, out_name in [
+        (
+            "GAPS guitar",
+            "$(GAPS_GUITAR_ATTRIBUTE_TSV)",
+            "$(GAPS_GUITAR_MANIFEST)",
+            "$(GAPS_GUITAR_SHARDS)",
+            "$(GAPS_GUITAR_ATTRIBUTE_LOCK_DIR)",
+            "$(GAPS_GUITAR_ATTRIBUTE_PARTS)",
+            "$(BUILD_DIR)/gaps_guitar_attributes.shard-%.tsv",
+            "gaps_guitar_attributes.shard-$*.out",
+        ),
+        (
+            "full GAPS guitar",
+            "$(GAPS_GUITAR_FULL_ATTRIBUTE_TSV)",
+            "$(GAPS_GUITAR_FULL_MANIFEST)",
+            "$(GAPS_GUITAR_FULL_SHARDS)",
+            "$(GAPS_GUITAR_FULL_ATTRIBUTE_LOCK_DIR)",
+            "$(GAPS_GUITAR_FULL_ATTRIBUTE_PARTS)",
+            "$(BUILD_DIR)/gaps_guitar_full_attributes.shard-%.tsv",
+            "gaps_guitar_full_attributes.shard-$*.out",
+        ),
+    ]:
+        attribute_recipe = target_recipe(makefile, target)
+        assert "$(BUILD_DIR)/analyzer_guitarset" in attribute_recipe.splitlines()[0], (
+            f"{label} attribute TSV must rebuild when the analyzer binary changes"
+        )
+        assert manifest in attribute_recipe.splitlines()[0], (
+            f"{label} attribute TSV must rebuild when the prepared manifest changes"
+        )
+        assert "scripts/build_sharded_tsv.sh" in attribute_recipe.splitlines()[0], (
+            f"{label} attribute TSV must rebuild when the sharded TSV helper changes"
+        )
+        assert f'$(SHELL) scripts/run_with_lock.sh "{lock_dir}" -- "$(SHELL)" scripts/build_sharded_tsv.sh "$@" "$(MAKE)" "' in attribute_recipe, (
+            f"{label} attribute TSV must use the locked helper to build and combine shards"
+        )
+        assert parts in attribute_recipe, f"{label} attribute TSV must combine all shard parts"
+
+        shard_recipe = target_recipe(makefile, shard_target)
+        for text in [
+            "$(BUILD_DIR)/analyzer_guitarset",
+            f'MUSIC_ANALYZER_GUITARSET_MANIFEST="{manifest}"',
+            "MUSIC_ANALYZER_GUITARSET_ATTRIBUTE_TSV=\"$@\"",
+            "MUSIC_ANALYZER_GUITARSET_REQUIRED_EXCERPTS=1",
+            "MUSIC_ANALYZER_GUITARSET_REQUIRED_WINDOWS=1",
+            "MUSIC_ANALYZER_GUITARSET_MIN_ACTIVE_NOTES=2",
+            "MUSIC_ANALYZER_GUITARSET_MIN_PITCH_CLASSES=2",
+            "MUSIC_ANALYZER_GUITARSET_MIN_CHORD_CHECKS=0",
+            f"MUSIC_ANALYZER_GUITARSET_SHARD_COUNT=\"{shards}\"",
+            "MUSIC_ANALYZER_GUITARSET_SHARD_INDEX=\"$*\"",
+            out_name,
+        ]:
+            assert text in shard_recipe, f"{label} attribute shard target must include {text}"
+
+    assert "GAPS_GUITAR_ATTRIBUTE_MAKE_JOBS = $(if $(filter -j%,$(MAKEFLAGS)),,-j$(GAPS_GUITAR_SHARDS))" in makefile, (
+        "GAPS guitar attribute shards must force -j only when the parent make has no jobserver"
+    )
+    assert "GAPS_GUITAR_FULL_ATTRIBUTE_MAKE_JOBS = $(if $(filter -j%,$(MAKEFLAGS)),,-j$(GAPS_GUITAR_FULL_SHARDS))" in makefile, (
+        "full GAPS guitar attribute shards must force -j only when the parent make has no jobserver"
+    )
+
     downloaded_guitarset_attribute_recipe = target_recipe(makefile, "$(GUITARSET_ATTRIBUTE_TSV)")
     assert "GUITARSET_ATTRIBUTE_MAKE_JOBS = $(if $(filter -j%,$(MAKEFLAGS)),,-j$(GUITARSET_SHARDS))" in makefile, (
         "downloaded GuitarSet attribute shards must force -j only when the parent make has no jobserver"
@@ -3183,6 +3279,12 @@ def main() -> int:
         "analyze-egfxset-guitar-attributes": "$(EGFXSET_GUITAR_ATTRIBUTE_TSV)",
         "inspect-egfxset-guitar-attribute-buckets": "$(EGFXSET_GUITAR_ATTRIBUTE_TSV)",
         "find-egfxset-guitar-attribute-patterns": "$(EGFXSET_GUITAR_ATTRIBUTE_TSV)",
+        "analyze-gaps-guitar-attributes": "$(GAPS_GUITAR_ATTRIBUTE_TSV)",
+        "inspect-gaps-guitar-attribute-buckets": "$(GAPS_GUITAR_ATTRIBUTE_TSV)",
+        "find-gaps-guitar-attribute-patterns": "$(GAPS_GUITAR_ATTRIBUTE_TSV)",
+        "analyze-gaps-guitar-full-attributes": "$(GAPS_GUITAR_FULL_ATTRIBUTE_TSV)",
+        "inspect-gaps-guitar-full-attribute-buckets": "$(GAPS_GUITAR_FULL_ATTRIBUTE_TSV)",
+        "find-gaps-guitar-full-attribute-patterns": "$(GAPS_GUITAR_FULL_ATTRIBUTE_TSV)",
         "analyze-guitarset-attributes": "$(GUITARSET_ATTRIBUTE_TSV)",
         "inspect-guitarset-attribute-buckets": "$(GUITARSET_ATTRIBUTE_TSV)",
         "find-guitarset-attribute-patterns": "$(GUITARSET_ATTRIBUTE_TSV)",
