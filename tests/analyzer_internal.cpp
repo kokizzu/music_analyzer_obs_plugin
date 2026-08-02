@@ -1249,6 +1249,32 @@ void check_keyboard_owned_same_pitch_bass_shadow_uses_dominant_ratio(Runner &run
 	runner.expect(note_grid_midi_visual_level(disabled_bass_grid, kDisabledMidi) > 0.0f,
 		      "same-pitch keyboard bass shadow: expected dominant cleanup disabled bass mirror to stay visible");
 
+	NoteGrid high_pure_bass_grid = {};
+	set_midi(high_pure_bass_grid, 55, 1.00f);
+	InstrumentState high_pure_bass_state = {};
+	NoteGrid high_pure_keyboard_grid = {};
+	set_midi(high_pure_keyboard_grid, 55, 0.20f);
+	FullMixOwnership high_pure_ownership = {};
+	high_pure_ownership.debug_candidate_count = 1;
+	FullMixDebugCandidate &high_pure_debug = high_pure_ownership.debug_candidates[0];
+	high_pure_debug = make_keyboard_bass_shadow_debug(55);
+	high_pure_debug.bass_score = 0.0f;
+	high_pure_debug.keyboard_score = 1.0f;
+	high_pure_debug.pitch_confidence = 0.88f;
+	high_pure_debug.harmonic_fit_error = 0.052f;
+	high_pure_debug.spectral_centroid = 0.057f;
+	high_pure_debug.harmonic_ratios[2] = 0.078f;
+	high_pure_debug.harmonic_ratios[3] = 0.006f;
+	high_pure_ownership.keyboard[static_cast<std::size_t>(55 - kFirstMidi)] = true;
+
+	suppress_keyboard_owned_same_pitch_bass_shadows(high_pure_bass_grid,
+						       high_pure_bass_state,
+						       high_pure_keyboard_grid,
+						       high_pure_ownership, -1,
+						       true);
+	runner.expect(note_grid_midi_visual_level(high_pure_bass_grid, 55) <= 0.0f,
+		      "same-pitch keyboard bass shadow: expected high pure keyboard bass mirror to clear");
+
 	NoteGrid protected_bass_grid = {};
 	set_midi(protected_bass_grid, kProtectedMidi, 0.70f);
 	InstrumentState protected_bass_state = {};
@@ -1453,6 +1479,31 @@ void check_electronic_keyboard_other_shadow_is_attenuated(Runner &runner)
 	runner.expect(note_grid_midi_visual_level(other_grid, kOtherAliasMidi) > 0.0f,
 		      "electronic keyboard other shadow: expected alias attenuated, not removed");
 
+	NoteGrid high_keyboard_grid = {};
+	set_midi(high_keyboard_grid, 89, 0.72f);
+	NoteGrid high_other_grid = {};
+	set_midi(high_other_grid, 77, 1.00f);
+	InstrumentState high_other_state = {};
+	FullMixOwnership high_ownership = {};
+	high_ownership.debug_candidate_count = 1;
+	FullMixDebugCandidate &high_debug = high_ownership.debug_candidates[0];
+	high_debug.midi = 77;
+	high_debug.owner = InstrumentKind::Other;
+	high_debug.other_score = 0.86f;
+	high_debug.pitch_confidence = 0.08f;
+	high_debug.periodicity = 0.44f;
+	high_debug.harmonic_fit_error = 2.50f;
+	high_debug.spectral_level = 0.20f;
+	high_debug.spectral_centroid = 0.59f;
+	high_debug.spectral_slope = 0.90f;
+	high_debug.harmonic_ratios[1] = 4.0f;
+	high_debug.harmonic_ratios[3] = 4.5f;
+	attenuate_measured_electronic_keyboard_other_shadows(high_other_grid, high_other_state,
+							     high_keyboard_grid,
+							     high_ownership, -1);
+	runner.expect(note_grid_midi_visual_level(high_other_grid, 77) < 0.72f,
+		      "electronic keyboard other shadow: expected weak high organ alias below keyboard support");
+
 	NoteGrid protected_other_grid = {};
 	set_midi(protected_other_grid, kOtherAliasMidi, 1.00f);
 	InstrumentState protected_other_state = {};
@@ -1519,6 +1570,83 @@ void check_lower_other_pitch_class_keyboard_octave_shadow_is_attenuated(Runner &
 		protected_keyboard_grid, keyboard_state, other_grid, protected_ownership, -1);
 	runner.expect(note_grid_midi_visual_level(protected_keyboard_grid, kKeyboardAliasMidi) > 0.99f,
 		      "lower other keyboard octave shadow: expected electronic keyboard alias to stay bright");
+}
+
+void check_low_electronic_bass_alias_promotes_fundamental_display(Runner &runner)
+{
+	static constexpr int kBassMidi = 28;
+	static constexpr int kAliasMidi = kBassMidi + 12;
+
+	FullMixOwnership ownership = {};
+	ownership.debug_candidate_count = 1;
+	FullMixDebugCandidate &debug = ownership.debug_candidates[0];
+	debug.midi = kAliasMidi;
+	debug.owner = InstrumentKind::Ambiguous;
+	debug.ownership_confidence = 0.0f;
+	debug.spectral_level = 0.68f;
+	debug.pitch_confidence = 0.58f;
+	debug.periodicity = 0.56f;
+	debug.harmonic_ratios[3] = 0.0005f;
+	debug.harmonic_ratios[4] = 0.018f;
+	ownership.global_note_levels[static_cast<std::size_t>(kBassMidi - kFirstMidi)] = 0.04f;
+
+	NoteGrid bass_grid = {};
+	write_note_grid_cell(bass_grid, NoteCandidate{kBassMidi, 0.04f}, 1.0f, 1.0f);
+	write_note_grid_cell(bass_grid, NoteCandidate{kAliasMidi, 0.54f}, 1.0f, 1.0f);
+	InstrumentState bass_state = {};
+	NoteGrid keyboard_grid = {};
+	promote_low_electronic_bass_alias_display(bass_grid, bass_state, keyboard_grid, ownership, -1);
+	runner.expect(note_grid_midi_visual_level(bass_grid, kBassMidi) >= 0.90f,
+		      "low electronic bass alias display: expected E1 fundamental to be promoted");
+	const NoteCell primary =
+		note_grid_primary_cell_for_pitch_class(bass_grid, midi_pitch_class(kBassMidi));
+	runner.expect(primary.active && primary.midi == kBassMidi,
+		      "low electronic bass alias display: expected E1 to become primary");
+	runner.expect(note_grid_midi_visual_level(bass_grid, kAliasMidi) <= 0.0f,
+		      "low electronic bass alias display: expected octave alias to be hidden after promotion");
+
+	NoteGrid no_lower_grid = {};
+	set_midi(no_lower_grid, kAliasMidi, 0.54f);
+	FullMixOwnership no_lower = ownership;
+	no_lower.global_note_levels[static_cast<std::size_t>(kBassMidi - kFirstMidi)] = 0.0f;
+	InstrumentState no_lower_state = {};
+	promote_low_electronic_bass_alias_display(no_lower_grid, no_lower_state, keyboard_grid,
+						  no_lower, -1);
+	runner.expect(note_grid_midi_visual_level(no_lower_grid, kBassMidi) <= 0.0f,
+		      "low electronic bass alias display: expected alias without lower support to stay unchanged");
+
+	NoteGrid keyboard_supported_grid = {};
+	set_midi(keyboard_supported_grid, kBassMidi, 0.80f);
+	NoteGrid cross_row_grid = {};
+	set_midi(cross_row_grid, kAliasMidi, 0.54f);
+	FullMixOwnership cross_row_ownership = ownership;
+	cross_row_ownership.global_note_levels[static_cast<std::size_t>(kBassMidi - kFirstMidi)] = 0.0f;
+	InstrumentState cross_row_state = {};
+	promote_low_electronic_bass_alias_display(cross_row_grid, cross_row_state,
+						  keyboard_supported_grid, cross_row_ownership,
+						  -1);
+	runner.expect(note_grid_midi_visual_level(cross_row_grid, kBassMidi) >= 0.90f,
+		      "low electronic bass alias display: expected keyboard-supported lower bass to promote");
+
+	NoteGrid unsupported_grid = {};
+	write_note_grid_cell(unsupported_grid, NoteCandidate{kBassMidi, 0.04f}, 1.0f, 1.0f);
+	write_note_grid_cell(unsupported_grid, NoteCandidate{kAliasMidi, 0.54f}, 1.0f, 1.0f);
+	FullMixOwnership unsupported = ownership;
+	unsupported.debug_candidates[0].harmonic_ratios[3] = 0.010f;
+	InstrumentState unsupported_state = {};
+	promote_low_electronic_bass_alias_display(unsupported_grid, unsupported_state, keyboard_grid,
+						  unsupported, -1);
+	runner.expect(note_grid_midi_visual_level(unsupported_grid, kBassMidi) < 0.90f,
+		      "low electronic bass alias display: expected non-matching evidence to stay unchanged");
+
+	NoteGrid weak_alias_grid = {};
+	write_note_grid_cell(weak_alias_grid, NoteCandidate{kBassMidi, 0.04f}, 1.0f, 1.0f);
+	write_note_grid_cell(weak_alias_grid, NoteCandidate{kAliasMidi, 0.40f}, 1.0f, 1.0f);
+	InstrumentState weak_alias_state = {};
+	promote_low_electronic_bass_alias_display(weak_alias_grid, weak_alias_state, keyboard_grid,
+						  ownership, -1);
+	runner.expect(note_grid_midi_visual_level(weak_alias_grid, kBassMidi) < 0.90f,
+		      "low electronic bass alias display: expected weak alias to stay hidden");
 }
 
 void check_ambiguous_electronic_keyboard_promotes_exact_lower_octave(Runner &runner)
@@ -2392,6 +2520,7 @@ int run()
 	check_measured_other_fundamental_display_level_boost(runner);
 	check_electronic_keyboard_other_shadow_is_attenuated(runner);
 	check_lower_other_pitch_class_keyboard_octave_shadow_is_attenuated(runner);
+	check_low_electronic_bass_alias_promotes_fundamental_display(runner);
 	check_ambiguous_electronic_keyboard_promotes_exact_lower_octave(runner);
 	check_raw_supported_mid_keyboard_lower_octave_promotes_alias(runner);
 	check_lower_non_guitar_pitch_class_guitar_octave_shadow_uses_measured_levels(runner);
