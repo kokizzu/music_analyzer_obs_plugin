@@ -8888,6 +8888,14 @@ InstrumentKind choose_full_mix_owner(const std::array<float, kNoteProbeCount> &p
 		evidence.harmonicity >= 2.55f &&
 		evidence.local_noise_level <= 0.008f &&
 		!lower_mid_bright_other_candidate;
+	const bool measured_electronic_organ_keyboard_profile =
+		candidate.midi >= 72 && candidate.midi <= 84 &&
+		third >= 3.20f &&
+		fourth <= 0.025f &&
+		fifth <= 0.025f &&
+		evidence.spectral_centroid >= 0.50f &&
+		evidence.local_noise_level <= 0.015f &&
+		evidence.periodicity >= 0.42f;
 	const bool distorted_harmonic_guitar_profile =
 		candidate.midi >= 64 && candidate.midi <= 72 &&
 		second >= 1.20f &&
@@ -8912,7 +8920,8 @@ InstrumentKind choose_full_mix_owner(const std::array<float, kNoteProbeCount> &p
 	}
 
 	const bool normal_keyboard_profile_supported =
-		candidate.midi >= 48 && candidate.midi <= 83 && second <= 0.56f;
+		(candidate.midi >= 48 && candidate.midi <= 83 && second <= 0.56f) ||
+		measured_electronic_organ_keyboard_profile;
 	const bool high_keyboard_profile_supported =
 		candidate.midi > kVocalMaxMidi && candidate.midi <= 95 && second <= 0.42f && third <= 0.20f &&
 		(other_weight <= keyboard_weight * 1.45f || second <= 0.20f);
@@ -8930,6 +8939,8 @@ InstrumentKind choose_full_mix_owner(const std::array<float, kNoteProbeCount> &p
 			scores[0] += 0.08f;
 		if (evidence.spectral_centroid > 0.34f || evidence.spectral_slope > 0.18f)
 			scores[0] *= 0.78f;
+		if (measured_electronic_organ_keyboard_profile)
+			scores[0] += 3.20f + std::min(third, 5.0f) * 0.12f;
 	}
 	if (candidate.midi >= kGuitarMinMidi && candidate.midi <= kGuitarMaxMidi &&
 	    ((second >= 0.12f && third >= 0.035f) || octave_stack_guitar_profile ||
