@@ -22,14 +22,15 @@ def main() -> int:
         "got",
         "crash_level",
         "hihat_level",
+        "ride_level",
         "rim_band",
         "snare_band",
         "energy_high",
     ]
     rows = [
-        ["hihat/a.wav", "hihat", "hihat", "0.90", "0.92", "4.00", "2.00", "0.70"],
-        ["hihat/b.wav", "hihat", "hihat", "0.40", "0.88", "2.00", "1.00", "0.50"],
-        ["crash/a.wav", "crash", "crash", "0.95", "0.10", "5.00", "1.50", "0.80"],
+        ["hihat/a.wav", "hihat", "hihat", "0.90", "0.92", "0.88", "4.00", "2.00", "0.70"],
+        ["hihat/b.wav", "hihat", "hihat", "0.40", "0.88", "0.60", "2.00", "1.00", "0.50"],
+        ["crash/a.wav", "crash", "crash", "0.95", "0.10", "0.50", "5.00", "1.50", "0.80"],
     ]
     with tempfile.TemporaryDirectory() as tmpdir:
         path = pathlib.Path(tmpdir) / "rows.tsv"
@@ -49,6 +50,8 @@ def main() -> int:
                 "rim_band>=3.00",
                 "--condition",
                 "snare_band<=2.50",
+                "--condition",
+                "ride_level/hihat_level<0.97",
                 "--field",
                 "crash_level",
                 "--field",

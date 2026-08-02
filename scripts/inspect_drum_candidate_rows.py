@@ -12,7 +12,9 @@ from collections import Counter
 from statistics import median
 
 
-CONDITION_RE = re.compile(r"^([A-Za-z0-9_]+)(<=|>=|==|<|>)(-?[0-9]+(?:\.[0-9]+)?)$")
+CONDITION_RE = re.compile(
+    r"^([A-Za-z0-9_]+(?:/[A-Za-z0-9_]+)?)(<=|>=|==|<|>)(-?[0-9]+(?:\.[0-9]+)?)$"
+)
 OPS = {
     "<": operator.lt,
     "<=": operator.le,
@@ -48,9 +50,19 @@ def read_rows(path: pathlib.Path) -> list[dict[str, str]]:
         ]
 
 
+def condition_value(row: dict[str, str], expression: str) -> float:
+    if "/" not in expression:
+        return as_float(row.get(expression))
+    numerator, denominator = expression.split("/", 1)
+    denominator_value = as_float(row.get(denominator))
+    if abs(denominator_value) < 1.0e-9:
+        return float("inf") if as_float(row.get(numerator)) > 0.0 else 0.0
+    return as_float(row.get(numerator)) / denominator_value
+
+
 def matches(row: dict[str, str], conditions) -> bool:
     for field, op_name, value in conditions:
-        if not OPS[op_name](as_float(row.get(field)), value):
+        if not OPS[op_name](condition_value(row, field), value):
             return False
     return True
 
