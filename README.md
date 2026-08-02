@@ -358,7 +358,7 @@ make test-real-world-samples-max
 PARALLEL_TEST_JOBS=8 make test-real-world-samples-max-parallel
 ```
 
-The parallel real-world sweeps use the sharded NSynth full-mix gate instead of the serial full-mix target, so `PARALLEL_TEST_JOBS` applies to that expensive note pass as well as to the independent dataset targets.
+The parallel real-world sweeps use the sharded NSynth full-mix gate instead of the serial full-mix target, so `PARALLEL_TEST_JOBS` applies to that expensive note pass as well as to the independent dataset targets. The MAPS piano chord/music and isolated-note gates also default to sharded analyzer runs; use `make test-maps-piano-samples-serial` or `make test-maps-piano-note-samples-serial` only when comparing against the old single-process output.
 
 The analyzer attribute measurement loop also uses the Makefile fanout for its independent row producers:
 
@@ -480,6 +480,8 @@ make test-real-world-samples-full-parallel
 make test-real-world-samples-max-parallel
 make test-real-world-samples-max
 ```
+
+The MAPS piano targets above default to deterministic shard fanout with aggregate MAESTRO-style precision/recall checks. Tune the fanout with `MAPS_PIANO_SHARDS`, `MAPS_PIANO_NOTE_SHARDS`, and `PARALLEL_TEST_JOBS`; use `make test-maps-piano-samples-serial` or `make test-maps-piano-note-samples-serial` for single-process comparisons.
 
 The cached full real-world sweep on 2026-07-23 passes and gives the current tuning baseline: NSynth covers 2,212 accepted one-note samples in isolated-source mode and now also runs a generic full-mix note/drum false-positive and row-ownership gate; Guitar Fretboard Notes covers 390 guitar notes; HF Drum Kit covers 2,100 one-shots; IDMT-SMT-Drums covers 1,823 annotated kick/snare/hi-hat clips; MDB Drums covers 23 real drum recordings / 92 evaluated windows; STAR Drums preview covers 4 mixed-song drum recordings / 16 evaluated windows; GuitarSet covers 1,491 chord-checkable real guitar windows; Guitar-TECHS covers 547 single-note guitar clips plus 7,788 chord windows; Guitar Chord Mix covers 511 major/minor chord windows; GAPS covers 244 classical-guitar chord windows in the bounded gate and has a dedicated full target for all available performances; IDMT-SMT-Guitar covers 2,173 monophonic guitar clips; Philharmonia full covers 7,285 acoustic one-note samples; Iowa orchestra full covers 682 one-note samples; TinySOL covers 2,435 orchestral one-note samples; Vocadito covers 354 pitch-reference-filtered vocal clips; and the local full drum library covers 15,683 usable one-shots when `/media/kyz/sshflashtor/DrumSamples` is present. VocalSet is also wired as a large optional vocal target for cached/full and max runs. The sample evidence shows isolated pitch and broad timbre detection are already strongly covered; the remaining high-value tuning areas are full-mix timbre ownership, real guitar chord recall in performance-style datasets, drum cross-class lighting/primary ambiguity in broad one-shot libraries, and real expressive vocal coverage. The downloaded audio stays under `build/` and is not vendored into git.
 

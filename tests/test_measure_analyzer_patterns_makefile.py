@@ -690,6 +690,7 @@ def main() -> int:
         "test-drum-gate-matrix-summary",
         "test-drum-sample-shard-check",
         "test-egmd-shard-check",
+        "test-maestro-shard-check",
         "test-real-note-full-mix-shard-check",
         "test-real-note-sample-shard-check",
         "android-check",
@@ -744,6 +745,39 @@ def main() -> int:
             f"{label} shard target must preserve the per-window recall gate"
         )
         assert "MUSIC_ANALYZER_EGMD_SHARD_COUNT" not in serial_recipe, (
+            f"{label} serial fallback must keep the original unsharded harness"
+        )
+    for target, var_prefix, label in [
+        ("test-maps-piano-samples", "MAPS_PIANO", "MAPS piano chord/music"),
+        ("test-maps-piano-note-samples", "MAPS_PIANO_NOTE", "MAPS piano note"),
+    ]:
+        assert_alias_target(makefile, target, f"{target}-parallel")
+        parallel_recipe = target_recipe(makefile, f"{target}-parallel")
+        unlocked_recipe = target_recipe(makefile, f"{target}-parallel-unlocked")
+        shard_recipe = target_recipe(makefile, f"{target}-shard-%")
+        serial_recipe = target_recipe(makefile, f"{target}-serial")
+        assert "scripts/check_maestro_shards.py" in parallel_recipe, (
+            f"{label} parallel target must depend on the MAESTRO shard checker"
+        )
+        assert "scripts/run_with_lock.sh" in parallel_recipe, (
+            f"{label} parallel target must lock shared shard outputs"
+        )
+        assert f"$(MAKE) $({var_prefix}_TEST_MAKE_JOBS) $({var_prefix}_SHARD_TARGETS)" in unlocked_recipe, (
+            f"{label} parallel target must fan out deterministic recording shards"
+        )
+        assert f"$({var_prefix}_SHARD_OUTS)" in unlocked_recipe, (
+            f"{label} parallel checker must aggregate every shard output"
+        )
+        assert f'MUSIC_ANALYZER_MAESTRO_SHARD_COUNT="$({var_prefix}_SHARDS)"' in shard_recipe, (
+            f"{label} shard target must pass the configured shard count"
+        )
+        assert 'MUSIC_ANALYZER_MAESTRO_SHARD_INDEX="$$shard"' in shard_recipe, (
+            f"{label} shard target must pass its concrete shard index"
+        )
+        assert "MUSIC_ANALYZER_MAESTRO_MIN_RECALL_PERCENT" in shard_recipe, (
+            f"{label} shard target must preserve the pitch-class recall gate"
+        )
+        assert "MUSIC_ANALYZER_MAESTRO_SHARD_COUNT" not in serial_recipe, (
             f"{label} serial fallback must keep the original unsharded harness"
         )
     detector_improvement_recipe = target_recipe(makefile, "analyze-detector-improvements")

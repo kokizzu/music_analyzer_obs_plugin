@@ -750,6 +750,15 @@ int resolve_positive_int_env(const char *name, int fallback)
 	return parsed > 0 ? parsed : fallback;
 }
 
+int resolve_nonnegative_int_env(const char *name, int fallback)
+{
+	const char *value = std::getenv(name);
+	if (!value || !*value)
+		return fallback;
+	const int parsed = std::atoi(value);
+	return parsed >= 0 ? parsed : fallback;
+}
+
 int resolve_percent_env(const char *name, int fallback)
 {
 	const char *value = std::getenv(name);
@@ -1187,7 +1196,10 @@ std::string keyboard_precision_summary(const KeyboardPrecisionStats &stats)
 	       percent_string(stats.true_positives, stats.true_positives + stats.false_negatives) +
 	       ", F1 " + f1_string(stats.true_positives, stats.false_positives, stats.false_negatives) +
 	       ", contamination " + percent_string(stats.contaminated_pitch_classes, stats.expected_pitch_classes) +
+	       " (" + std::to_string(stats.contaminated_pitch_classes) + "/" +
+	       std::to_string(stats.expected_pitch_classes) + ")" +
 	       ", false non-keyboard windows " + percent_string(stats.false_non_keyboard_windows, stats.windows) +
+	       " (" + std::to_string(stats.false_non_keyboard_windows) + "/" + std::to_string(stats.windows) + ")" +
 	       ", ambiguous " + std::to_string(stats.ambiguous_pitch_classes) + "/" +
 	       std::to_string(stats.expected_pitch_classes) + ", row leaks bass/guitar/vocal/other " +
 	       std::to_string(stats.bass_contamination) + "/" + std::to_string(stats.guitar_contamination) +
@@ -1349,6 +1361,13 @@ int main()
 	const int min_chord_precision_percent =
 		resolve_percent_env("MUSIC_ANALYZER_MAESTRO_MIN_CHORD_PRECISION_PERCENT", 85);
 	const int min_chord_checks = resolve_positive_int_env("MUSIC_ANALYZER_MAESTRO_MIN_CHORD_CHECKS", 5);
+	const int shard_count = resolve_positive_int_env("MUSIC_ANALYZER_MAESTRO_SHARD_COUNT", 1);
+	const int shard_index = resolve_nonnegative_int_env("MUSIC_ANALYZER_MAESTRO_SHARD_INDEX", 0);
+	if (shard_index >= shard_count) {
+		std::fprintf(stderr, "analyzer_maestro: shard index %d outside shard count %d\n", shard_index,
+			     shard_count);
+		return 1;
+	}
 	const bool inspect_only = env_truthy("MUSIC_ANALYZER_MAESTRO_INSPECT_ONLY");
 
 	Runner runner;
@@ -1361,7 +1380,14 @@ int main()
 	int read_failures = 0;
 	int no_candidate_recordings = 0;
 
+	std::size_t recording_ordinal = 0;
 	for (const Recording &recording : recordings) {
+		const std::size_t current_recording_ordinal = recording_ordinal++;
+		if (shard_count > 1 &&
+		    current_recording_ordinal % static_cast<std::size_t>(shard_count) !=
+			    static_cast<std::size_t>(shard_index))
+			continue;
+
 		const std::vector<CandidateWindow> candidates =
 			select_candidate_windows(recording, max_windows_per_recording, min_active_notes,
 						 min_pitch_classes);

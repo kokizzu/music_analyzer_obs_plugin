@@ -424,12 +424,17 @@ without additional annotation.
 - Use `make test-maps-piano-samples` to download the 2.6 GB MAPS `ENSTDkCl`
   ZIP from Zenodo, extract paired WAV/MIDI recordings from the usual-chord,
   random-chord, and music folders into a MAESTRO-shaped fixture, and run the
-  isolated-keyboard MAESTRO analyzer harness. Use `make
+  isolated-keyboard MAESTRO analyzer harness. The default target shards the
+  sorted recordings and aggregates the original global pitch, keyboard-row, and
+  chord gates; use `make test-maps-piano-samples-serial` for single-process
+  comparison. Use `make
   test-maps-piano-note-samples` to reuse the same archive for MAPS isolated
   note (`ISOL`) WAV/MIDI pairs with one-note candidate windows and chord checks
-  disabled. Together these add real Disklavier note/chord pressure beyond the
-  smaller Iowa single-note target. `make test-real-world-samples-full` runs
-  both targets only when the archive is already cached.
+  disabled. The isolated-note target is sharded the same way and keeps `make
+  test-maps-piano-note-samples-serial` for comparison. Together these add real
+  Disklavier note/chord pressure beyond the smaller Iowa single-note target.
+  `make test-real-world-samples-full` runs both targets only when the archive is
+  already cached.
 - Use `make test-bach10-mf0-synth-samples` to download the 127 MB
   Bach10-mf0-synth archive from Zenodo, convert `audio_mix` WAV files and
   per-stem `annotation_stems` F0 CSV files into a MusicNet-shaped fixture under
