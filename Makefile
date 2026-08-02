@@ -697,6 +697,7 @@ GOOD_SOUNDS_MIN_SAMPLES ?= 500
 GOOD_SOUNDS_MIN_BASS ?= 50
 GOOD_SOUNDS_MIN_OTHER ?= 450
 GOOD_SOUNDS_MAX_FAILURES ?= 20
+GOOD_SOUNDS_DOWNLOAD_CONNECTIONS ?= 8
 IOWA_PIANO_PAGE_URL ?= https://theremin.music.uiowa.edu/MISpiano.html
 IOWA_PIANO_FILE_BASE_URL ?= https://theremin.music.uiowa.edu/sound files/MIS/Piano_Other/piano/
 IOWA_PIANO_SOURCE_DIR ?= $(REAL_SAMPLE_SOURCE_DIR)/iowa_piano
@@ -2781,7 +2782,7 @@ $(GOOD_SOUNDS_ARCHIVE): FORCE | $(BUILD_DIR)
 	mkdir -p "$(GOOD_SOUNDS_SOURCE_DIR)"
 	if [ -s "$(GOOD_SOUNDS_ARCHIVE)" ] && ! $(PYTHON) -m zipfile -t "$(GOOD_SOUNDS_ARCHIVE)" >/dev/null 2>&1; then mv -f "$(GOOD_SOUNDS_ARCHIVE)" "$(GOOD_SOUNDS_ARCHIVE).part"; fi
 	if [ ! -s "$(GOOD_SOUNDS_ARCHIVE)" ] && [ -s "$(GOOD_SOUNDS_ARCHIVE).part" ] && $(PYTHON) -m zipfile -t "$(GOOD_SOUNDS_ARCHIVE).part" >/dev/null 2>&1; then mv "$(GOOD_SOUNDS_ARCHIVE).part" "$(GOOD_SOUNDS_ARCHIVE)"; fi
-	if [ ! -s "$(GOOD_SOUNDS_ARCHIVE)" ]; then curl -fL -C - -o "$(GOOD_SOUNDS_ARCHIVE).part" "$(GOOD_SOUNDS_URL)"; fi
+	if [ ! -s "$(GOOD_SOUNDS_ARCHIVE)" ]; then if command -v "$(ARIA2C)" >/dev/null 2>&1; then "$(ARIA2C)" -c -x "$(GOOD_SOUNDS_DOWNLOAD_CONNECTIONS)" -s "$(GOOD_SOUNDS_DOWNLOAD_CONNECTIONS)" -k 1M --file-allocation=none --allow-overwrite=true --auto-file-renaming=false --dir "$(GOOD_SOUNDS_SOURCE_DIR)" --out "good-sounds.zip.part" "$(GOOD_SOUNDS_URL)"; else curl -fL -C - -o "$(GOOD_SOUNDS_ARCHIVE).part" "$(GOOD_SOUNDS_URL)"; fi; fi
 	if [ -s "$(GOOD_SOUNDS_ARCHIVE).part" ]; then $(PYTHON) -m zipfile -t "$(GOOD_SOUNDS_ARCHIVE).part" >/dev/null; mv "$(GOOD_SOUNDS_ARCHIVE).part" "$(GOOD_SOUNDS_ARCHIVE)"; fi
 	$(PYTHON) -m zipfile -t "$(GOOD_SOUNDS_ARCHIVE)" >/dev/null
 

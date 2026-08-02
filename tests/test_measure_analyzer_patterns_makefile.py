@@ -3626,6 +3626,32 @@ def main() -> int:
         "Medley Solos archive target must resume downloads into a partial file"
     )
 
+    good_sounds_archive_recipe = target_recipe(makefile, "$(GOOD_SOUNDS_ARCHIVE)")
+    assert "GOOD_SOUNDS_DOWNLOAD_CONNECTIONS ?= 8" in makefile, (
+        "Good Sounds download parallelism must be configurable"
+    )
+    assert "$(GOOD_SOUNDS_ARCHIVE): FORCE" in good_sounds_archive_recipe.splitlines()[0], (
+        "Good Sounds archive target must revalidate existing downloads"
+    )
+    assert 'mv -f "$(GOOD_SOUNDS_ARCHIVE)" "$(GOOD_SOUNDS_ARCHIVE).part"' in good_sounds_archive_recipe, (
+        "Good Sounds archive target must quarantine corrupt completed zips"
+    )
+    assert 'zipfile -t "$(GOOD_SOUNDS_ARCHIVE).part"' in good_sounds_archive_recipe, (
+        "Good Sounds archive target must validate partial zips before promotion"
+    )
+    assert 'command -v "$(ARIA2C)"' in good_sounds_archive_recipe, (
+        "Good Sounds archive target must use aria2c when available"
+    )
+    assert '-x "$(GOOD_SOUNDS_DOWNLOAD_CONNECTIONS)"' in good_sounds_archive_recipe, (
+        "Good Sounds aria2c download must use the configured connection count"
+    )
+    assert '-s "$(GOOD_SOUNDS_DOWNLOAD_CONNECTIONS)"' in good_sounds_archive_recipe, (
+        "Good Sounds aria2c download must split the transfer across configured connections"
+    )
+    assert 'curl -fL -C - -o "$(GOOD_SOUNDS_ARCHIVE).part" "$(GOOD_SOUNDS_URL)"' in good_sounds_archive_recipe, (
+        "Good Sounds archive target must keep a resumable curl fallback"
+    )
+
     vocalset_archive_recipe = target_recipe(makefile, "$(VOCALSET_ARCHIVE)")
     assert "VOCALSET_DOWNLOAD_CONNECTIONS ?= 8" in makefile, (
         "VocalSet download parallelism must be configurable"
