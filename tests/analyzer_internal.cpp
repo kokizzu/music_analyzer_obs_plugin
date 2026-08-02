@@ -1071,6 +1071,23 @@ void check_other_owned_same_pitch_bass_shadow_uses_measured_ratio(Runner &runner
 	runner.expect(note_grid_midi_visual_level(bass_grid, kShadowMidi) <= 0.0f,
 		      "same-pitch other bass shadow: expected other-owned 93.5% bass mirror to clear");
 
+	static constexpr int kMeasuredEdgeMidi = 48;
+	NoteGrid measured_edge_bass_grid = {};
+	set_midi(measured_edge_bass_grid, kMeasuredEdgeMidi, 0.659514f);
+	InstrumentState measured_edge_bass_state = {};
+	NoteGrid measured_edge_other_grid = {};
+	set_midi(measured_edge_other_grid, kMeasuredEdgeMidi, 0.7052f);
+	FullMixOwnership measured_edge_ownership = {};
+	measured_edge_ownership.debug_candidate_count = 1;
+	measured_edge_ownership.debug_candidates[0] = make_other_bass_shadow_debug(kMeasuredEdgeMidi);
+	measured_edge_ownership.debug_candidates[0].other_score = 0.88389f;
+	suppress_other_dominant_same_pitch_bass_shadows(measured_edge_bass_grid,
+							measured_edge_bass_state,
+							measured_edge_other_grid,
+							measured_edge_ownership, -1);
+	runner.expect(note_grid_midi_visual_level(measured_edge_bass_grid, kMeasuredEdgeMidi) <= 0.0f,
+		      "same-pitch other bass shadow: expected measured guitar C3 bass mirror to clear");
+
 	NoteGrid protected_bass_grid = {};
 	set_midi(protected_bass_grid, kProtectedMidi, 0.933f);
 	InstrumentState protected_bass_state = {};
