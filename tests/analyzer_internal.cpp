@@ -1005,6 +1005,35 @@ void check_displayed_guitar_single_note_probe_profile(Runner &runner)
 		      "displayed guitar single-note profile: expected analysis-supported Fm triad to be preserved");
 }
 
+void check_displayed_guitar_root_residue_rejects_harmonic_stack(Runner &runner)
+{
+	InstrumentState displayed = {};
+	std::snprintf(displayed.label, sizeof(displayed.label), "G=Gmaj7");
+	displayed.confidence = 0.70f;
+	InstrumentState smoothed = displayed;
+	smoothed.confidence = 0.60f;
+
+	NoteGrid harmonic_stack = {};
+	set_midi(harmonic_stack, 42, 0.34f);
+	set_midi(harmonic_stack, 43, 1.00f);
+	set_midi(harmonic_stack, 44, 0.32f);
+	set_midi(harmonic_stack, 62, 0.70f);
+	set_midi(harmonic_stack, 71, 0.38f);
+	runner.expect(displayed_guitar_chord_has_distorted_single_note_root_residue(
+			      displayed, smoothed, harmonic_stack, harmonic_stack, 0.46f),
+		      "displayed guitar root residue: expected flanked low-root harmonic stack to suppress G");
+
+	NoteGrid played_voicing = {};
+	set_midi(played_voicing, 42, 0.12f);
+	set_midi(played_voicing, 43, 0.95f);
+	set_midi(played_voicing, 44, 0.12f);
+	set_midi(played_voicing, 47, 0.58f);
+	set_midi(played_voicing, 50, 0.64f);
+	runner.expect(!displayed_guitar_chord_has_distorted_single_note_root_residue(
+			      displayed, smoothed, played_voicing, played_voicing, 0.46f),
+		      "displayed guitar root residue: expected nearby G-B-D voicing to remain valid");
+}
+
 void check_supported_guitar_candidate_alias_merge(Runner &runner)
 {
 	InstrumentState state = {};
@@ -3749,6 +3778,7 @@ int run()
 	check_mixed_global_display_chord_fallback(runner);
 	check_plain_guitar_voicing_rejects_crowded_root_fifth_quality(runner);
 	check_displayed_guitar_single_note_probe_profile(runner);
+	check_displayed_guitar_root_residue_rejects_harmonic_stack(runner);
 	check_supported_guitar_candidate_alias_merge(runner);
 	check_supported_guitar_display_extension_aliases(runner);
 	check_analysis_complete_guitar_display_major_seventh_aliases(runner);

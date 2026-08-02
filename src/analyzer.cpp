@@ -20040,6 +20040,66 @@ float guitar_low_visible_root_level(const NoteGrid &grid, int root)
 	return 0.0f;
 }
 
+int guitar_low_visible_root_midi(const NoteGrid &grid, int root, float min_level)
+{
+	for (int midi = kGuitarMinMidi; midi <= 55; ++midi) {
+		if (midi_pitch_class(midi) != midi_pitch_class(root))
+			continue;
+		if (note_grid_midi_level(grid, midi) >= min_level)
+			return midi;
+	}
+	return -1;
+}
+
+bool guitar_root_adjacent_high_harmonic_triad_residue(const NoteGrid &display_grid,
+						       const NoteGrid &analysis_grid, int root,
+						       int third, int fifth)
+{
+	const bool root_flanked =
+		(note_grid_pitch_active(display_grid, root - 1) &&
+		 note_grid_pitch_active(display_grid, root + 1)) ||
+		(note_grid_pitch_active(analysis_grid, root - 1) &&
+		 note_grid_pitch_active(analysis_grid, root + 1));
+	if (!root_flanked)
+		return false;
+
+	int low_root = guitar_low_visible_root_midi(display_grid, root, 0.12f);
+	if (low_root < 0)
+		low_root = guitar_low_visible_root_midi(analysis_grid, root, 0.12f);
+	if (low_root < 0)
+		return false;
+
+	const int nearby_min = low_root + 1;
+	const int nearby_max = std::min(low_root + 12, kGuitarMaxMidi);
+	const bool nearby_third =
+		note_grid_pitch_in_midi_window(display_grid, third, nearby_min, nearby_max) ||
+		note_grid_pitch_in_midi_window(analysis_grid, third, nearby_min, nearby_max);
+	const bool nearby_fifth =
+		note_grid_pitch_in_midi_window(display_grid, fifth, nearby_min, nearby_max) ||
+		note_grid_pitch_in_midi_window(analysis_grid, fifth, nearby_min, nearby_max);
+	if (nearby_third || nearby_fifth)
+		return false;
+
+	const bool harmonic_third =
+		note_grid_pitch_in_midi_window(display_grid, third, low_root + 19,
+					       std::min(low_root + 40, kGuitarMaxMidi)) ||
+		note_grid_pitch_in_midi_window(analysis_grid, third, low_root + 19,
+					       std::min(low_root + 40, kGuitarMaxMidi));
+	const bool harmonic_fifth =
+		note_grid_pitch_in_midi_window(display_grid, fifth, low_root + 19,
+					       std::min(low_root + 40, kGuitarMaxMidi)) ||
+		note_grid_pitch_in_midi_window(analysis_grid, fifth, low_root + 19,
+					       std::min(low_root + 40, kGuitarMaxMidi));
+	if (!harmonic_third && !harmonic_fifth)
+		return false;
+
+	const float third_level = std::max(note_grid_pitch_level(display_grid, third),
+					   note_grid_pitch_level(analysis_grid, third));
+	const float fifth_level = std::max(note_grid_pitch_level(display_grid, fifth),
+					   note_grid_pitch_level(analysis_grid, fifth));
+	return std::max(third_level, fifth_level) >= 0.20f;
+}
+
 bool label_has_supported_same_root_no_third_component(const char *label, int root,
 						      const NoteGrid &display_grid,
 						      const NoteGrid &analysis_grid,
@@ -20107,7 +20167,8 @@ bool displayed_guitar_chord_has_distorted_single_note_root_residue(const Instrum
 		label_end ? static_cast<std::size_t>(label_end - displayed_chord.label) :
 			    std::strlen(displayed_chord.label);
 	ParsedRootChord parsed;
-	if (!parse_plain_major_minor_component(displayed_chord.label, label_len, parsed))
+	if (!parse_root_chord_component(displayed_chord.label, label_len, parsed) ||
+	    (parsed.quality != RootChordQuality::Major && parsed.quality != RootChordQuality::Minor))
 		return false;
 	if (label_has_supported_same_root_no_third_component(
 		    displayed_chord.label, parsed.root, display_grid, analysis_grid,
@@ -20122,14 +20183,19 @@ bool displayed_guitar_chord_has_distorted_single_note_root_residue(const Instrum
 	const float analysis_root = note_grid_pitch_level(analysis_grid, parsed.root);
 	const float analysis_third = note_grid_pitch_level(analysis_grid, third);
 	const float analysis_fifth = note_grid_pitch_level(analysis_grid, fifth);
-	if (analysis_root < 0.02f || analysis_third >= 0.20f)
+	const bool high_harmonic_residue =
+		guitar_root_adjacent_high_harmonic_triad_residue(display_grid, analysis_grid,
+								 parsed.root, third, fifth);
+	if (!high_harmonic_residue && (analysis_root < 0.02f || analysis_third >= 0.20f))
 		return false;
 
 	const bool analysis_triad_supported =
 		analysis_root >= 0.12f && analysis_third >= 0.12f && analysis_fifth >= 0.12f &&
 		note_grid_chord_tone_count(analysis_grid, primary) >= 3;
-	if (analysis_triad_supported)
+	if (analysis_triad_supported && !high_harmonic_residue)
 		return false;
+	if (high_harmonic_residue)
+		return true;
 	if (smoothed_chord.confidence < 0.36f)
 		return true;
 
