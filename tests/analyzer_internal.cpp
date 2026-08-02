@@ -283,6 +283,35 @@ void check_source_supported_plain_guitar_alias_recovery(Runner &runner)
 	runner.expect(!chord_label_has_exact_component(protected_state.label, "Am"),
 		      std::string("source-supported guitar alias recovery: expected root-fifth-only Am protected, got `") +
 			      protected_state.label + "`");
+
+	InstrumentState no_display_state = {};
+	std::snprintf(no_display_state.label, sizeof(no_display_state.label), "--");
+	ChordResult no_display_source = make_crowded_chord("A=Amaj7");
+	no_display_source.root = 9;
+	no_display_source.confidence = 0.62f;
+	NoteGrid no_display_grid = {};
+	set_pitch(no_display_grid, 9, 0.02f);
+	NoteGrid no_display_analysis = no_display_grid;
+	set_pitch(no_display_analysis, 9, 1.00f);
+	set_pitch(no_display_analysis, 1, 0.18f);
+	set_pitch(no_display_analysis, 4, 0.51f);
+	set_pitch(no_display_analysis, 8, 0.02f);
+	append_source_supported_plain_guitar_aliases_after_prune(
+		no_display_state, no_display_source, no_display_grid, no_display_analysis);
+	runner.expect(chord_label_has_exact_component(no_display_state.label, "A"),
+		      std::string("source-supported guitar alias recovery: expected no-display A, got `") +
+			      no_display_state.label + "`");
+
+	InstrumentState opposite_third_state = {};
+	std::snprintf(opposite_third_state.label, sizeof(opposite_third_state.label), "--");
+	NoteGrid opposite_third_analysis = no_display_analysis;
+	set_pitch(opposite_third_analysis, 0, 0.22f);
+	append_source_supported_plain_guitar_aliases_after_prune(
+		opposite_third_state, no_display_source, no_display_grid,
+		opposite_third_analysis);
+	runner.expect(!chord_label_has_exact_component(opposite_third_state.label, "A"),
+		      std::string("source-supported guitar alias recovery: expected opposite-third protection, got `") +
+			      opposite_third_state.label + "`");
 }
 
 void check_visible_diminished_guitar_alias_recovery(Runner &runner)
@@ -530,22 +559,33 @@ void check_displayed_guitar_single_note_probe_profile(Runner &runner)
 	set_probe_level(weak_third_powers, 53, 0.95f);
 	set_probe_level(weak_third_powers, 56, 0.20f);
 	set_probe_level(weak_third_powers, 60, 0.52f);
+	NoteGrid empty_analysis = {};
 	runner.expect(displayed_guitar_chord_has_single_note_probe_profile(
-			      displayed, empty_smoothed, weak_third_powers, kGuitarMinMidi,
+			      displayed, empty_smoothed, empty_analysis, weak_third_powers, kGuitarMinMidi,
 			      kGuitarMaxMidi),
 		      "displayed guitar single-note profile: expected weak-third Fm probe profile to suppress");
 
 	InstrumentState smoothed = displayed;
 	runner.expect(!displayed_guitar_chord_has_single_note_probe_profile(
-			      displayed, smoothed, weak_third_powers, kGuitarMinMidi, kGuitarMaxMidi),
+			      displayed, smoothed, empty_analysis, weak_third_powers, kGuitarMinMidi,
+			      kGuitarMaxMidi),
 		      "displayed guitar single-note profile: expected valid smoothed chord to be preserved");
 
 	std::array<float, kNoteProbeCount> strong_third_powers = weak_third_powers;
 	set_probe_level(strong_third_powers, 56, 0.44f);
 	runner.expect(!displayed_guitar_chord_has_single_note_probe_profile(
-			      displayed, empty_smoothed, strong_third_powers, kGuitarMinMidi,
+			      displayed, empty_smoothed, empty_analysis, strong_third_powers, kGuitarMinMidi,
 			      kGuitarMaxMidi),
 		      "displayed guitar single-note profile: expected strong third probe to be preserved");
+
+	NoteGrid full_analysis = {};
+	set_pitch(full_analysis, 5, 1.00f);
+	set_pitch(full_analysis, 8, 0.22f);
+	set_pitch(full_analysis, 0, 0.54f);
+	runner.expect(!displayed_guitar_chord_has_single_note_probe_profile(
+			      displayed, empty_smoothed, full_analysis, weak_third_powers, kGuitarMinMidi,
+			      kGuitarMaxMidi),
+		      "displayed guitar single-note profile: expected analysis-supported Fm triad to be preserved");
 }
 
 void check_supported_guitar_candidate_alias_merge(Runner &runner)
