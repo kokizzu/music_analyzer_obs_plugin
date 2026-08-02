@@ -287,6 +287,7 @@ def main() -> int:
     assert "guitar_match_kind" in output
     assert "no_display_label=1" in output
     assert "raw_third_anchor_ratio" in output
+    assert "display-primary -- probe(root/third/fifth)=0.000/0.000/0.000" in output
     assert "recording rec2: status=chord_miss expected=G" in output
     assert "match=no_display_label" in output
     assert "evidence=analysis_full_tone_label_gap/analysis" in output
@@ -296,13 +297,14 @@ def main() -> int:
     assert "chord_hit:maj:all" not in compact.stdout
     assert "raw_third" not in compact.stdout
     assert "evidence_class" in dumped.stdout
+    assert "display_primary_probe_root" in dumped.stdout
     assert "guitar_cells" in dumped.stdout
     assert "G3:0.70,D4:0.40" in dumped.stdout
     assert "guitar_analysis_cells" in dumped.stdout
     assert "G3:0.90,B3:0.35,D4:0.55" in dumped.stdout
     assert "\tanalysis_full_tone_label_gap\tanalysis\t" in dumped.stdout
     assert dumped.stdout.startswith("recording_id\tstatus\texpected_chords\t")
-    assert "\nrec2\tchord_miss\tG\tmaj\tmaj\tG\tG\tmaj\tno_display_label\t0\t0\t0" in dumped.stdout
+    assert "\nrec2\tchord_miss\tG\tmaj\tmaj\tG\tG\tmaj\t--\t--\t--\tno_display_label\t0\t0\t0" in dumped.stdout
     assert "\nrec1\t" not in dumped.stdout
     assert regex_dumped.stdout.startswith("recording_id\tstatus\texpected_chords\t")
     assert "\nrec2\t" in regex_dumped.stdout
@@ -314,6 +316,9 @@ def main() -> int:
     assert "single_note_false_chord:any:any rows=1 recordings=1" in false_bucket.stdout
     assert "expected_label                  Fm=1" in false_bucket.stdout
     assert "expected_root                   F=1" in false_bucket.stdout
+    assert "display_primary_label           Fm=1" in false_bucket.stdout
+    assert "display_primary_root            F=1" in false_bucket.stdout
+    assert "display_primary_quality         m=1" in false_bucket.stdout
     assert "support                         visible2_analysis3_smooth2_rootvis1=1" in false_bucket.stdout
     print("test_inspect_guitarset_attribute_buckets: ok")
     return 0

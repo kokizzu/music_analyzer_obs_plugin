@@ -39,6 +39,12 @@ RAW_DIAGNOSTIC_NUMERIC_FIELDS = [
     "raw_opposite_third",
     "raw_third_anchor_ratio",
     "raw_third_opposite_margin",
+    "display_primary_raw_root",
+    "display_primary_raw_third",
+    "display_primary_raw_fifth",
+    "display_primary_raw_opposite_third",
+    "display_primary_raw_third_anchor_ratio",
+    "display_primary_raw_third_opposite_margin",
 ]
 RUNTIME_NUMERIC_FIELDS = [
     "rms",
@@ -73,11 +79,34 @@ RUNTIME_NUMERIC_FIELDS = [
     "melodic_probe_opposite_third",
     "melodic_probe_third_anchor_ratio",
     "melodic_probe_third_opposite_margin",
+    "display_primary_visible_root",
+    "display_primary_visible_third",
+    "display_primary_visible_fifth",
+    "display_primary_analysis_root",
+    "display_primary_analysis_third",
+    "display_primary_analysis_fifth",
+    "display_primary_smooth_root",
+    "display_primary_smooth_third",
+    "display_primary_smooth_fifth",
+    "display_primary_probe_root",
+    "display_primary_probe_third",
+    "display_primary_probe_fifth",
+    "display_primary_probe_opposite_third",
+    "display_primary_probe_third_anchor_ratio",
+    "display_primary_probe_third_opposite_margin",
+    "display_primary_melodic_probe_root",
+    "display_primary_melodic_probe_third",
+    "display_primary_melodic_probe_fifth",
+    "display_primary_melodic_probe_opposite_third",
+    "display_primary_melodic_probe_third_anchor_ratio",
+    "display_primary_melodic_probe_third_opposite_margin",
     "guitar_chord_confidence",
     "guitar_raw_chord_confidence",
     "guitar_smoothed_chord_confidence",
 ]
-RUNTIME_CATEGORY_FIELDS: list[str] = []
+RUNTIME_CATEGORY_FIELDS = [
+    "display_primary_quality",
+]
 
 
 @dataclasses.dataclass(frozen=True)

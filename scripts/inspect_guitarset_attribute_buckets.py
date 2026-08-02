@@ -69,6 +69,33 @@ NUMERIC_FIELDS = [
     "melodic_probe_opposite_third",
     "melodic_probe_third_anchor_ratio",
     "melodic_probe_third_opposite_margin",
+    "display_primary_visible_root",
+    "display_primary_visible_third",
+    "display_primary_visible_fifth",
+    "display_primary_analysis_root",
+    "display_primary_analysis_third",
+    "display_primary_analysis_fifth",
+    "display_primary_smooth_root",
+    "display_primary_smooth_third",
+    "display_primary_smooth_fifth",
+    "display_primary_raw_root",
+    "display_primary_raw_third",
+    "display_primary_raw_fifth",
+    "display_primary_raw_opposite_third",
+    "display_primary_raw_third_anchor_ratio",
+    "display_primary_raw_third_opposite_margin",
+    "display_primary_probe_root",
+    "display_primary_probe_third",
+    "display_primary_probe_fifth",
+    "display_primary_probe_opposite_third",
+    "display_primary_probe_third_anchor_ratio",
+    "display_primary_probe_third_opposite_margin",
+    "display_primary_melodic_probe_root",
+    "display_primary_melodic_probe_third",
+    "display_primary_melodic_probe_fifth",
+    "display_primary_melodic_probe_opposite_third",
+    "display_primary_melodic_probe_third_anchor_ratio",
+    "display_primary_melodic_probe_third_opposite_margin",
     "guitar_chord_confidence",
     "guitar_raw_chord_confidence",
     "guitar_smoothed_chord_confidence",
@@ -87,6 +114,9 @@ CATEGORY_FIELDS = [
     "expected_label",
     "expected_root",
     "expected_quality_compact",
+    "display_primary_label",
+    "display_primary_root",
+    "display_primary_quality",
     "guitar_chord",
     "guitar_raw_chord",
     "guitar_smoothed_chord",
@@ -114,6 +144,9 @@ ROW_DUMP_FIELDS = [
     "expected_label",
     "expected_root",
     "expected_quality_compact",
+    "display_primary_label",
+    "display_primary_root",
+    "display_primary_quality",
     "guitar_match_kind",
     "chord_hit",
     "simple_chord_hit",
@@ -169,6 +202,33 @@ ROW_DUMP_FIELDS = [
     "melodic_probe_opposite_third",
     "melodic_probe_third_anchor_ratio",
     "melodic_probe_third_opposite_margin",
+    "display_primary_visible_root",
+    "display_primary_visible_third",
+    "display_primary_visible_fifth",
+    "display_primary_analysis_root",
+    "display_primary_analysis_third",
+    "display_primary_analysis_fifth",
+    "display_primary_smooth_root",
+    "display_primary_smooth_third",
+    "display_primary_smooth_fifth",
+    "display_primary_raw_root",
+    "display_primary_raw_third",
+    "display_primary_raw_fifth",
+    "display_primary_raw_opposite_third",
+    "display_primary_raw_third_anchor_ratio",
+    "display_primary_raw_third_opposite_margin",
+    "display_primary_probe_root",
+    "display_primary_probe_third",
+    "display_primary_probe_fifth",
+    "display_primary_probe_opposite_third",
+    "display_primary_probe_third_anchor_ratio",
+    "display_primary_probe_third_opposite_margin",
+    "display_primary_melodic_probe_root",
+    "display_primary_melodic_probe_third",
+    "display_primary_melodic_probe_fifth",
+    "display_primary_melodic_probe_opposite_third",
+    "display_primary_melodic_probe_third_anchor_ratio",
+    "display_primary_melodic_probe_third_opposite_margin",
     "quality_raw",
     "raw_pitch_class_levels",
     "guitar_probe_pitch_class_levels",
@@ -208,6 +268,11 @@ def split_chord_labels(value: str) -> list[str]:
 def compact_quality(label: str) -> str:
     quality = chord_quality(label)
     return "maj" if quality == "" and label else quality or "--"
+
+
+def primary_chord_label(value: str) -> str:
+    labels = split_chord_labels(value)
+    return labels[0] if labels else "--"
 
 
 def label_pitch_classes(label: str) -> set[int]:
@@ -311,6 +376,68 @@ def max_level(levels: dict[int, float], pitch_classes: list[int]) -> float:
     return value
 
 
+def tone_classes_for_label(label: str) -> dict[str, list[int]]:
+    tone_classes: dict[str, list[int]] = collections.defaultdict(list)
+    for name, pitch_class in chord_tones(label):
+        tone_classes[tone_key(name)].append(pitch_class)
+    return tone_classes
+
+
+def third_ratio_fields(
+    levels: dict[int, float],
+    tone_classes: dict[str, list[int]],
+    opposite_third: int | None,
+) -> tuple[float, float, float, float, float, float]:
+    root = max_level(levels, tone_classes.get("root", []))
+    third = max_level(levels, tone_classes.get("third", []))
+    fifth = max_level(levels, tone_classes.get("fifth", []))
+    opposite = levels.get(opposite_third, 0.0) if opposite_third is not None else 0.0
+    anchor = max(root, fifth)
+    ratio = third / anchor if anchor > 1.0e-6 else 0.0
+    margin = third - opposite
+    return root, third, fifth, opposite, ratio, margin
+
+
+def add_label_tone_level_fields(
+    result: dict[str, str],
+    prefix: str,
+    label: str,
+    visible_levels: dict[int, float],
+    analysis_levels: dict[int, float],
+    smooth_levels: dict[int, float],
+    raw_levels: dict[int, float],
+    probe_levels: dict[int, float],
+    melodic_probe_levels: dict[int, float],
+) -> None:
+    tone_classes = tone_classes_for_label(label)
+    for key in ("root", "third", "fifth"):
+        pitch_classes = tone_classes.get(key, [])
+        result[f"{prefix}_visible_{key}"] = f"{max_level(visible_levels, pitch_classes):.6f}"
+        result[f"{prefix}_analysis_{key}"] = f"{max_level(analysis_levels, pitch_classes):.6f}"
+        result[f"{prefix}_smooth_{key}"] = f"{max_level(smooth_levels, pitch_classes):.6f}"
+        result[f"{prefix}_raw_{key}"] = f"{max_level(raw_levels, pitch_classes):.6f}"
+        result[f"{prefix}_probe_{key}"] = f"{max_level(probe_levels, pitch_classes):.6f}"
+        result[f"{prefix}_melodic_probe_{key}"] = (
+            f"{max_level(melodic_probe_levels, pitch_classes):.6f}"
+        )
+
+    opposite_third = opposite_third_pitch_class(label)
+    for source_prefix, levels in (
+        (f"{prefix}_raw", raw_levels),
+        (f"{prefix}_probe", probe_levels),
+        (f"{prefix}_melodic_probe", melodic_probe_levels),
+    ):
+        root, third, fifth, opposite, ratio, margin = third_ratio_fields(
+            levels, tone_classes, opposite_third
+        )
+        result[f"{source_prefix}_root"] = f"{root:.6f}"
+        result[f"{source_prefix}_third"] = f"{third:.6f}"
+        result[f"{source_prefix}_fifth"] = f"{fifth:.6f}"
+        result[f"{source_prefix}_opposite_third"] = f"{opposite:.6f}"
+        result[f"{source_prefix}_third_anchor_ratio"] = f"{ratio:.6f}"
+        result[f"{source_prefix}_third_opposite_margin"] = f"{margin:.6f}"
+
+
 def tone_present(tone_classes: dict[str, list[int]], pitch_classes: set[int], key: str) -> bool:
     return any(pitch_class in pitch_classes for pitch_class in tone_classes.get(key, []))
 
@@ -342,10 +469,12 @@ def derive_row(row: dict[str, str]) -> dict[str, str]:
         detected_labels = split_chord_labels(row.get("guitar_chord", ""))
         if detected_labels:
             expected_label = detected_labels[0]
+    display_primary_label = primary_chord_label(row.get("guitar_chord", ""))
+    display_primary_root = chord_root(display_primary_label)
+    if display_primary_root not in NOTE_TO_PC:
+        display_primary_root = "--"
     quality = normalized_quality(row, expected_label)
-    tone_classes: dict[str, list[int]] = collections.defaultdict(list)
-    for name, pitch_class in chord_tones(expected_label):
-        tone_classes[tone_key(name)].append(pitch_class)
+    tone_classes = tone_classes_for_label(expected_label)
 
     visible = parse_pitch_classes(row.get("guitar_pitch_classes", ""))
     analysis = parse_pitch_classes(row.get("guitar_analysis_pitch_classes", ""))
@@ -392,6 +521,9 @@ def derive_row(row: dict[str, str]) -> dict[str, str]:
             "expected_label": expected_label,
             "expected_root": root_name,
             "expected_quality_compact": compact_quality(expected_label),
+            "display_primary_label": display_primary_label,
+            "display_primary_root": display_primary_root,
+            "display_primary_quality": compact_quality(display_primary_label),
             "quality": quality,
             "support": support,
             "guitar_match_kind": guitar_match_kind(
@@ -432,6 +564,17 @@ def derive_row(row: dict[str, str]) -> dict[str, str]:
         result[f"raw_{key}"] = f"{max_level(raw_levels, pitch_classes):.6f}"
         result[f"probe_{key}"] = f"{max_level(probe_levels, pitch_classes):.6f}"
         result[f"melodic_probe_{key}"] = f"{max_level(melodic_probe_levels, pitch_classes):.6f}"
+    add_label_tone_level_fields(
+        result,
+        "display_primary",
+        display_primary_label,
+        visible_levels,
+        analysis_levels,
+        smooth_levels,
+        raw_levels,
+        probe_levels,
+        melodic_probe_levels,
+    )
     opposite_third = opposite_third_pitch_class(expected_label)
     raw_opposite_third = raw_levels.get(opposite_third, 0.0) if opposite_third is not None else 0.0
     probe_opposite_third = probe_levels.get(opposite_third, 0.0) if opposite_third is not None else 0.0
@@ -691,6 +834,22 @@ def print_recording(rows: list[dict[str, str]], recording_id: str) -> None:
             f"{format_score(as_float_opt(row, 'visible_root'))}/"
             f"{format_score(as_float_opt(row, 'visible_third'))}/"
             f"{format_score(as_float_opt(row, 'visible_fifth'))}"
+        )
+        print(
+            "  display-primary "
+            f"{row.get('display_primary_label', '--')} "
+            "probe(root/third/fifth)="
+            f"{format_score(as_float_opt(row, 'display_primary_probe_root'))}/"
+            f"{format_score(as_float_opt(row, 'display_primary_probe_third'))}/"
+            f"{format_score(as_float_opt(row, 'display_primary_probe_fifth'))} "
+            "analysis="
+            f"{format_score(as_float_opt(row, 'display_primary_analysis_root'))}/"
+            f"{format_score(as_float_opt(row, 'display_primary_analysis_third'))}/"
+            f"{format_score(as_float_opt(row, 'display_primary_analysis_fifth'))} "
+            "visible="
+            f"{format_score(as_float_opt(row, 'display_primary_visible_root'))}/"
+            f"{format_score(as_float_opt(row, 'display_primary_visible_third'))}/"
+            f"{format_score(as_float_opt(row, 'display_primary_visible_fifth'))}"
         )
 
 

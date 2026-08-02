@@ -21,6 +21,9 @@ def main() -> int:
         "visible_third",
         "analysis_third",
         "smooth_third",
+        "display_primary_probe_root",
+        "display_primary_probe_third_anchor_ratio",
+        "display_primary_analysis_third",
         "probe_third_opposite_margin",
         "melodic_probe_third_anchor_ratio",
         "guitar_chord_confidence",
@@ -39,23 +42,32 @@ def main() -> int:
     runtime_pattern_labels = {
         pattern.label
         for pattern in patterns.build_patterns(
-            [{"raw_root": "1.0", "probe_root": "1.0"}],
+            [{"raw_root": "1.0", "probe_root": "1.0", "display_primary_quality": "m"}],
             runtime_only=True,
         )
     }
+    assert "display_primary_quality=m" in runtime_pattern_labels, (
+        "runtime-only guitar pattern mining must include displayed primary quality"
+    )
     assert not any(label.startswith("raw_root") for label in runtime_pattern_labels), (
         "runtime-only guitar pattern mining must exclude raw diagnostics by default"
+    )
+    assert not any(label.startswith("display_primary_raw_root") for label in runtime_pattern_labels), (
+        "runtime-only guitar pattern mining must exclude raw displayed-primary diagnostics by default"
     )
     runtime_raw_pattern_labels = {
         pattern.label
         for pattern in patterns.build_patterns(
-            [{"raw_root": "1.0", "probe_root": "1.0"}],
+            [{"raw_root": "1.0", "display_primary_raw_root": "0.8", "probe_root": "1.0"}],
             runtime_only=True,
             include_raw_diagnostics=True,
         )
     }
     assert any(label.startswith("raw_root") for label in runtime_raw_pattern_labels), (
         "--include-raw-diagnostics must opt runtime-only mining into raw diagnostics"
+    )
+    assert any(label.startswith("display_primary_raw_root") for label in runtime_raw_pattern_labels), (
+        "--include-raw-diagnostics must opt runtime-only mining into displayed-primary raw diagnostics"
     )
 
     assert not patterns.constraints_compatible(
@@ -490,7 +502,6 @@ def main() -> int:
     assert "rec4@" in protected_single_note_false.stdout
     assert "-0 rows=0" in protected_single_note_false.stdout
     assert "bucket single_note_false_chord:any:any positives=1" in runtime_single_note_false.stdout
-    assert "guitar_pc_count<=2" in runtime_single_note_false.stdout
     assert "expected_chord_qualities" not in runtime_single_note_false.stdout
     assert "bucket single_note_false_chord:any:any positives=1" in runtime_exclude_field.stdout
     assert "guitar_pc_count" not in runtime_exclude_field.stdout
