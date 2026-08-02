@@ -1557,11 +1557,11 @@ $(BUILD_DIR)/drum_spread_exact_attribute_rows_%.tsv: FORCE $(BUILD_DIR)/analyzer
 	$(RUN_WITH_DURATION) analyzer_drum_samples_spread_attribute_rows_$* env MUSIC_ANALYZER_DRUM_SAMPLES_REQUIRED=1 MUSIC_ANALYZER_DRUM_SAMPLE_REQUIRED_CATEGORIES="$*" MUSIC_ANALYZER_DRUM_SAMPLE_FILTER_CATEGORY="$*" MUSIC_ANALYZER_DRUM_SAMPLE_VERBOSE_ALL=1 MUSIC_ANALYZER_DRUM_SAMPLE_VERBOSE_PRIMARY=1 MUSIC_ANALYZER_DRUM_SAMPLE_VERBOSE_PRIMARY_LIMIT=2000 MUSIC_ANALYZER_DRUM_SAMPLE_MIN_RECALL_PERCENT=0 MUSIC_ANALYZER_DRUM_SAMPLE_MIN_PRECISION_PERCENT=0 MUSIC_ANALYZER_DRUM_SAMPLE_MIN_PRIMARY_RECALL_PERCENT=0 MUSIC_ANALYZER_DRUM_SAMPLE_MAX_KICK_FALSE_PERCENT=100 MUSIC_ANALYZER_DRUM_SAMPLE_MAX_TOM_FALSE_PERCENT=100 MUSIC_ANALYZER_DRUM_SAMPLES_DIR="$(DRUM_SAMPLE_SPREAD_BUILD_DIR)" $(BUILD_DIR)/analyzer_drum_samples > "$(BUILD_DIR)/drum_samples_spread_shard_$*.out" 2> "$(BUILD_DIR)/drum_spread_exact_attribute_rows_$*.err"
 	$(PYTHON) scripts/analyze_drum_primary_debug.py --dump-rows --include-debug-rows "$(BUILD_DIR)/drum_spread_exact_attribute_rows_$*.err" > "$@"
 
-analyze-drum-active-false-rows: scripts/summarize_drum_active_false_rows.py
+analyze-drum-active-false-rows: $(BUILD_DIR)/analyzer_drum_samples scripts/summarize_drum_active_false_rows.py scripts/analyze_drum_primary_debug.py
 	+@if [ -d "$(DRUM_SAMPLE_SOURCE_DIR)" ]; then if [ ! -f "$(DRUM_SPREAD_EXACT_ATTRIBUTE_ROWS)" ] || [ "$(BUILD_DIR)/analyzer_drum_samples" -nt "$(DRUM_SPREAD_EXACT_ATTRIBUTE_ROWS)" ] || [ "scripts/analyze_drum_primary_debug.py" -nt "$(DRUM_SPREAD_EXACT_ATTRIBUTE_ROWS)" ]; then $(MAKE) analyze-drum-spread-gate-matrix; fi; elif [ ! -f "$(DRUM_SPREAD_EXACT_ATTRIBUTE_ROWS)" ]; then printf '%s\n' "drum active false-row summary: skipped; missing $(DRUM_SAMPLE_SOURCE_DIR) and $(DRUM_SPREAD_EXACT_ATTRIBUTE_ROWS)"; exit 0; fi
 	$(PYTHON) scripts/summarize_drum_active_false_rows.py "$(DRUM_SPREAD_EXACT_ATTRIBUTE_ROWS)" $(DRUM_ACTIVE_FALSE_ARGS)
 
-analyze-drum-rule-flags: scripts/summarize_drum_rule_flags.py
+analyze-drum-rule-flags: $(BUILD_DIR)/analyzer_drum_samples scripts/summarize_drum_rule_flags.py scripts/analyze_drum_primary_debug.py
 	+@if [ -d "$(DRUM_SAMPLE_SOURCE_DIR)" ]; then if [ ! -f "$(DRUM_SPREAD_EXACT_ATTRIBUTE_ROWS)" ] || [ "$(BUILD_DIR)/analyzer_drum_samples" -nt "$(DRUM_SPREAD_EXACT_ATTRIBUTE_ROWS)" ] || [ "scripts/analyze_drum_primary_debug.py" -nt "$(DRUM_SPREAD_EXACT_ATTRIBUTE_ROWS)" ]; then $(MAKE) analyze-drum-spread-gate-matrix; fi; elif [ ! -f "$(DRUM_SPREAD_EXACT_ATTRIBUTE_ROWS)" ]; then printf '%s\n' "drum rule flag summary: skipped; missing $(DRUM_SAMPLE_SOURCE_DIR) and $(DRUM_SPREAD_EXACT_ATTRIBUTE_ROWS)"; exit 0; fi
 	$(PYTHON) scripts/summarize_drum_rule_flags.py "$(DRUM_SPREAD_EXACT_ATTRIBUTE_ROWS)" $(DRUM_RULE_FLAG_ARGS)
 
@@ -1569,7 +1569,7 @@ compare-drum-gate-matrix: scripts/compare_drum_gate_summaries.py
 	@if [ -z "$(DRUM_GATE_BEFORE)" ] || [ -z "$(DRUM_GATE_AFTER)" ]; then printf '%s\n' "compare-drum-gate-matrix: set DRUM_GATE_BEFORE=/path/before and DRUM_GATE_AFTER=/path/after"; exit 2; fi
 	$(PYTHON) scripts/compare_drum_gate_summaries.py "$(DRUM_GATE_BEFORE)" "$(DRUM_GATE_AFTER)"
 
-find-drum-active-false-patterns: scripts/find_drum_active_false_patterns.py
+find-drum-active-false-patterns: $(BUILD_DIR)/analyzer_drum_samples scripts/find_drum_active_false_patterns.py scripts/analyze_drum_primary_debug.py
 	+@if [ -d "$(DRUM_SAMPLE_SOURCE_DIR)" ]; then if [ ! -f "$(DRUM_SPREAD_EXACT_ATTRIBUTE_ROWS)" ] || [ "$(BUILD_DIR)/analyzer_drum_samples" -nt "$(DRUM_SPREAD_EXACT_ATTRIBUTE_ROWS)" ] || [ "scripts/analyze_drum_primary_debug.py" -nt "$(DRUM_SPREAD_EXACT_ATTRIBUTE_ROWS)" ]; then $(MAKE) analyze-drum-spread-gate-matrix; fi; elif [ ! -f "$(DRUM_SPREAD_EXACT_ATTRIBUTE_ROWS)" ]; then printf '%s\n' "drum active false pattern candidates: skipped; missing $(DRUM_SAMPLE_SOURCE_DIR) and $(DRUM_SPREAD_EXACT_ATTRIBUTE_ROWS)"; exit 0; fi
 	+@missing=0; for path in $(HF_DRUM_KIT_PRIMARY_ATTRIBUTE_ROWS) $(IDMT_DRUMS_PRIMARY_ATTRIBUTE_ROWS); do if [ ! -f "$$path" ] || [ "$(BUILD_DIR)/analyzer_drum_samples" -nt "$$path" ] || [ "scripts/analyze_drum_primary_debug.py" -nt "$$path" ]; then missing=1; fi; done; if [ "$$missing" = "1" ]; then $(MAKE) $(PARALLEL_TEST_MAKE_JOBS) analyze-hf-drum-primary-attribute-rows analyze-idmt-drum-primary-attribute-rows; fi
 	+@if [ "$(DRUM_ACTIVE_REFRESH_FULL_ROWS)" = "1" ] && [ -f "$(DRUM_FULL_EXACT_ATTRIBUTE_ROWS)" ] && { [ "$(BUILD_DIR)/analyzer_drum_samples" -nt "$(DRUM_FULL_EXACT_ATTRIBUTE_ROWS)" ] || [ "scripts/analyze_drum_primary_debug.py" -nt "$(DRUM_FULL_EXACT_ATTRIBUTE_ROWS)" ]; }; then $(MAKE) analyze-drum-full-gate-matrix-parallel; fi
@@ -1585,7 +1585,7 @@ $(MEASURE_ANALYZER_PATTERN_DRUM_PROTECTED_ROWS_STAMP): $(MEASURE_ANALYZER_PATTER
 	+@if [ "$(DRUM_ACTIVE_REFRESH_FULL_ROWS)" = "1" ] && [ -f "$(DRUM_FULL_MERGED_EXPECTED_ATTRIBUTE_ROWS)" ] && { [ "$(BUILD_DIR)/analyzer_drum_samples" -nt "$(DRUM_FULL_MERGED_EXPECTED_ATTRIBUTE_ROWS)" ] || [ "scripts/analyze_drum_primary_debug.py" -nt "$(DRUM_FULL_MERGED_EXPECTED_ATTRIBUTE_ROWS)" ]; }; then $(MAKE) analyze-drum-full-merged-expected-attribute-rows; fi
 	@touch "$@"
 
-analyze-drum-active-thresholds: scripts/simulate_drum_active_thresholds.py
+analyze-drum-active-thresholds: $(BUILD_DIR)/analyzer_drum_samples scripts/simulate_drum_active_thresholds.py scripts/analyze_drum_primary_debug.py
 	+@if [ -d "$(DRUM_SAMPLE_SOURCE_DIR)" ]; then if [ ! -f "$(DRUM_SPREAD_EXACT_ATTRIBUTE_ROWS)" ] || [ "$(BUILD_DIR)/analyzer_drum_samples" -nt "$(DRUM_SPREAD_EXACT_ATTRIBUTE_ROWS)" ] || [ "scripts/analyze_drum_primary_debug.py" -nt "$(DRUM_SPREAD_EXACT_ATTRIBUTE_ROWS)" ]; then $(MAKE) analyze-drum-spread-gate-matrix; fi; elif [ ! -f "$(DRUM_SPREAD_EXACT_ATTRIBUTE_ROWS)" ]; then printf '%s\n' "drum active threshold simulation: skipped; missing $(DRUM_SAMPLE_SOURCE_DIR) and $(DRUM_SPREAD_EXACT_ATTRIBUTE_ROWS)"; exit 0; fi
 	$(PYTHON) scripts/simulate_drum_active_thresholds.py "$(DRUM_SPREAD_EXACT_ATTRIBUTE_ROWS)" $(DRUM_ACTIVE_SIM_ARGS)
 
@@ -1839,7 +1839,7 @@ analyze-protected-drum-primary-attribute-rows:
 	@printf '%s\n' "  $(HF_DRUM_KIT_PRIMARY_ATTRIBUTE_ROWS)"
 	@printf '%s\n' "  $(IDMT_DRUMS_PRIMARY_ATTRIBUTE_ROWS)"
 
-find-protected-drum-primary-attribute-patterns: scripts/find_drum_attribute_patterns.py scripts/analyze_drum_primary_debug.py
+find-protected-drum-primary-attribute-patterns: $(BUILD_DIR)/analyzer_drum_samples scripts/find_drum_attribute_patterns.py scripts/analyze_drum_primary_debug.py
 	+@missing=0; for path in $(HF_DRUM_KIT_PRIMARY_ATTRIBUTE_ROWS) $(IDMT_DRUMS_PRIMARY_ATTRIBUTE_ROWS); do if [ ! -f "$$path" ] || [ "$(BUILD_DIR)/analyzer_drum_samples" -nt "$$path" ] || [ "scripts/analyze_drum_primary_debug.py" -nt "$$path" ]; then missing=1; fi; done; if [ -d "$(DRUM_SAMPLE_SOURCE_DIR)" ] && { [ ! -f "$(DRUM_SPREAD_EXACT_ATTRIBUTE_ROWS)" ] || [ "$(BUILD_DIR)/analyzer_drum_samples" -nt "$(DRUM_SPREAD_EXACT_ATTRIBUTE_ROWS)" ] || [ "scripts/analyze_drum_primary_debug.py" -nt "$(DRUM_SPREAD_EXACT_ATTRIBUTE_ROWS)" ]; }; then missing=1; fi; if [ "$$missing" = "1" ]; then $(MAKE) analyze-protected-drum-primary-attribute-rows; fi
 	@set --; for path in $(DRUM_SPREAD_EXACT_ATTRIBUTE_ROWS) $(HF_DRUM_KIT_PRIMARY_ATTRIBUTE_ROWS) $(IDMT_DRUMS_PRIMARY_ATTRIBUTE_ROWS); do if [ -f "$$path" ]; then set -- "$$@" "$$path"; fi; done; if [ -f "$(DRUM_FULL_EXACT_ATTRIBUTE_ROWS)" ]; then if [ "$(BUILD_DIR)/analyzer_drum_samples" -nt "$(DRUM_FULL_EXACT_ATTRIBUTE_ROWS)" ] || [ "scripts/analyze_drum_primary_debug.py" -nt "$(DRUM_FULL_EXACT_ATTRIBUTE_ROWS)" ]; then printf '%s\n' "protected drum primary pattern candidates: skipped stale optional $(DRUM_FULL_EXACT_ATTRIBUTE_ROWS); run make analyze-drum-full-gate-matrix-parallel to refresh it"; else set -- "$$@" "$(DRUM_FULL_EXACT_ATTRIBUTE_ROWS)"; fi; fi; if [ "$$#" -eq 0 ]; then printf '%s\n' "protected drum primary pattern candidates: skipped; no attribute rows"; else $(PYTHON) scripts/find_drum_attribute_patterns.py "$$@" $(if $(PATTERN_ROUTE),--route "$(PATTERN_ROUTE)") --jobs "$(DRUM_PATTERN_JOBS)" $(or $(PATTERN_ARGS),$(MEASURE_PROTECTED_DRUM_PATTERN_ARGS)); fi
 
