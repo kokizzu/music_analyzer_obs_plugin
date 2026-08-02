@@ -371,6 +371,11 @@ DRUM_MACHINE_MIN_RIDE_RECALL_PERCENT ?= 85
 DRUM_MACHINE_MIN_RIM_RECALL_PERCENT ?= 60
 DRUM_MACHINE_MAX_KICK_FALSE_PERCENT ?= 24
 DRUM_MACHINE_MAX_TOM_FALSE_PERCENT ?= 64
+DRUM_MACHINE_SHARD_CATEGORIES := kick snare hihat crash tom ride rim
+DRUM_MACHINE_SHARD_TARGETS := $(addprefix test-drum-machine-samples-shard-,$(DRUM_MACHINE_SHARD_CATEGORIES))
+DRUM_MACHINE_SHARD_OUTS := $(addprefix $(BUILD_DIR)/drum_machine_samples_shard_,$(addsuffix .out,$(DRUM_MACHINE_SHARD_CATEGORIES)))
+DRUM_MACHINE_SAMPLE_LOCK_DIR ?= $(BUILD_DIR)/drum_machine_samples.lock
+DRUM_MACHINE_TEST_MAKE_JOBS = $(if $(filter -j%,$(MAKEFLAGS)),,-j$(words $(DRUM_MACHINE_SHARD_CATEGORIES)))
 HF_DRUM_KIT_SAMPLE_DIR ?= $(BUILD_DIR)/hf_drum_kit_samples
 HF_DRUM_KIT_LIMIT_PER_CATEGORY ?= 0
 HF_DRUM_KIT_MIN_RECALL_PERCENT ?= 20
@@ -1092,7 +1097,7 @@ GUITARSET_SHARD_GATE_ENV ?= MUSIC_ANALYZER_GUITARSET_REQUIRED_EXCERPTS=1 MUSIC_A
 .PHONY: test-parallel test-core-parallel test-analysis-scripts-parallel test-fixtures-parallel test-fixtures-parallel-isolated test-real-note-sample-shards test-real-note-sample-shards-unlocked test-real-note-sample-shard-% test-real-note-samples-full-mix-serial test-real-note-samples-full-mix-parallel test-real-note-samples-full-mix-parallel-unlocked test-real-note-samples-full-mix-detector-parallel test-real-note-visual-strength test-real-note-full-mix-shard-check test-real-note-sample-shard-check test-instrument-samples-serial test-instrument-samples-parallel test-visualizer-renderer test-analyzer-internal test-analyzer-smoke test-analyzer-cases test-analyzer-midi-ranges test-analyzer-urmp test-analyzer-musicnet test-analyzer-multtipop test-analyzer-guitarset test-analyzer-maestro test-analyzer-egmd
 .PHONY: prepare-real-goal-fixtures-parallel $(REAL_GOAL_FIXTURE_PREP_TARGETS)
 .PHONY: test-drum-real-world-samples-parallel test-drum-real-world-samples-full-parallel test-real-world-samples-parallel test-real-world-samples-full-parallel test-real-world-samples-max-parallel test-drum-samples-optional test-drum-samples-spread-optional test-drum-machine-samples-optional test-drum-samples-full-optional test-idmt-bass-lines-samples-optional test-idmt-guitar-samples-optional test-good-sounds-samples-optional test-medley-solos-samples-optional test-maps-piano-samples-optional test-maps-piano-note-samples-optional test-bach10-mf0-synth-samples-optional test-vocalset-samples-optional
-.PHONY: test-drum-samples-full-serial test-drum-samples-full-parallel test-drum-samples-full-parallel-unlocked test-drum-samples-full-shard-% test-hf-drum-kit-samples-serial test-hf-drum-kit-samples-parallel test-hf-drum-kit-samples-parallel-unlocked test-hf-drum-kit-samples-shard-% test-idmt-drums-samples-serial test-idmt-drums-samples-parallel test-idmt-drums-samples-parallel-unlocked test-idmt-drums-samples-shard-% test-drum-samples-full-parallel-optional test-drum-sample-shard-check
+.PHONY: test-drum-samples-full-serial test-drum-samples-full-parallel test-drum-samples-full-parallel-unlocked test-drum-samples-full-shard-% test-drum-machine-samples-serial test-drum-machine-samples-parallel test-drum-machine-samples-parallel-unlocked test-drum-machine-samples-shard-% test-hf-drum-kit-samples-serial test-hf-drum-kit-samples-parallel test-hf-drum-kit-samples-parallel-unlocked test-hf-drum-kit-samples-shard-% test-idmt-drums-samples-serial test-idmt-drums-samples-parallel test-idmt-drums-samples-parallel-unlocked test-idmt-drums-samples-shard-% test-drum-samples-full-parallel-optional test-drum-sample-shard-check
 .PHONY: test-iowa-piano-samples-max test-iowa-orchestra-full-samples-max test-good-sounds-samples-max test-medley-solos-samples-max test-maps-piano-samples-max test-maps-piano-note-samples-max
 .PHONY: detector-improvement-samples detector-improvement-patterns detector-improvement-routes detector-improvement-route-report detector-improvement-route-summary detector-improvement-samples-full detector-improvement-patterns-full detector-improvement-audit detector-improvement-audit-report analyze-detector-improvements analyze-detector-improvement-routes analyze-detector-improvements-full
 
@@ -1593,8 +1598,23 @@ find-protected-drum-full-exact-attribute-patterns: $(BUILD_DIR)/analyzer_drum_sa
 prepare-drum-machine-samples: scripts/prepare_drum_samples.py | $(BUILD_DIR)
 	DRUM_SAMPLE_SOURCE_DIR="$(DRUM_SAMPLE_SOURCE_DIR)" DRUM_SAMPLE_BUILD_DIR="$(DRUM_MACHINE_SAMPLE_BUILD_DIR)" DRUM_SAMPLE_LIMIT="$(DRUM_MACHINE_SAMPLE_LIMIT)" DRUM_SAMPLE_SELECTION="spread" DRUM_SAMPLE_SOURCE_FILTER="$(DRUM_MACHINE_SAMPLE_FILTER)" $(PYTHON) scripts/prepare_drum_samples.py --source "$(DRUM_SAMPLE_SOURCE_DIR)" --output "$(DRUM_MACHINE_SAMPLE_BUILD_DIR)" --limit-per-category "$(DRUM_MACHINE_SAMPLE_LIMIT)" --selection "spread" --source-filter "$(DRUM_MACHINE_SAMPLE_FILTER)" --unrar "$(UNRAR)"
 
-test-drum-machine-samples: $(BUILD_DIR)/analyzer_drum_samples prepare-drum-machine-samples scripts/run_with_duration.sh
+$(DRUM_MACHINE_SAMPLE_BUILD_DIR)/manifest.tsv: scripts/prepare_drum_samples.py | $(BUILD_DIR)
+	+$(MAKE) prepare-drum-machine-samples
+
+test-drum-machine-samples: test-drum-machine-samples-parallel
+
+test-drum-machine-samples-serial: $(BUILD_DIR)/analyzer_drum_samples prepare-drum-machine-samples scripts/run_with_duration.sh
 	$(RUN_WITH_DURATION) analyzer_drum_machine_samples env MUSIC_ANALYZER_DRUM_SAMPLES_REQUIRED=1 MUSIC_ANALYZER_DRUM_SAMPLES_DIR="$(DRUM_MACHINE_SAMPLE_BUILD_DIR)" MUSIC_ANALYZER_DRUM_SAMPLE_MIN_RECALL_PERCENT="$(DRUM_MACHINE_MIN_RECALL_PERCENT)" MUSIC_ANALYZER_DRUM_SAMPLE_MIN_PRECISION_PERCENT="$(DRUM_MACHINE_MIN_PRECISION_PERCENT)" MUSIC_ANALYZER_DRUM_SAMPLE_MIN_KICK_RECALL_PERCENT="$(DRUM_MACHINE_MIN_KICK_RECALL_PERCENT)" MUSIC_ANALYZER_DRUM_SAMPLE_MIN_SNARE_RECALL_PERCENT="$(DRUM_MACHINE_MIN_SNARE_RECALL_PERCENT)" MUSIC_ANALYZER_DRUM_SAMPLE_MIN_HIHAT_RECALL_PERCENT="$(DRUM_MACHINE_MIN_HIHAT_RECALL_PERCENT)" MUSIC_ANALYZER_DRUM_SAMPLE_MIN_CRASH_RECALL_PERCENT="$(DRUM_MACHINE_MIN_CRASH_RECALL_PERCENT)" MUSIC_ANALYZER_DRUM_SAMPLE_MIN_TOM_RECALL_PERCENT="$(DRUM_MACHINE_MIN_TOM_RECALL_PERCENT)" MUSIC_ANALYZER_DRUM_SAMPLE_MIN_RIDE_RECALL_PERCENT="$(DRUM_MACHINE_MIN_RIDE_RECALL_PERCENT)" MUSIC_ANALYZER_DRUM_SAMPLE_MIN_RIM_RECALL_PERCENT="$(DRUM_MACHINE_MIN_RIM_RECALL_PERCENT)" MUSIC_ANALYZER_DRUM_SAMPLE_MAX_KICK_FALSE_PERCENT="$(DRUM_MACHINE_MAX_KICK_FALSE_PERCENT)" MUSIC_ANALYZER_DRUM_SAMPLE_MAX_TOM_FALSE_PERCENT="$(DRUM_MACHINE_MAX_TOM_FALSE_PERCENT)" $(BUILD_DIR)/analyzer_drum_samples
+
+test-drum-machine-samples-parallel: $(BUILD_DIR)/analyzer_drum_samples $(DRUM_MACHINE_SAMPLE_BUILD_DIR)/manifest.tsv scripts/check_drum_sample_shards.py scripts/run_with_duration.sh scripts/run_with_lock.sh
+	+$(RUN_WITH_DURATION) analyzer_drum_machine_samples_parallel $(SHELL) scripts/run_with_lock.sh "$(DRUM_MACHINE_SAMPLE_LOCK_DIR)" -- "$(MAKE)" test-drum-machine-samples-parallel-unlocked
+
+test-drum-machine-samples-parallel-unlocked: $(BUILD_DIR)/analyzer_drum_samples $(DRUM_MACHINE_SAMPLE_BUILD_DIR)/manifest.tsv scripts/check_drum_sample_shards.py scripts/run_with_duration.sh
+	+$(MAKE) $(DRUM_MACHINE_TEST_MAKE_JOBS) $(DRUM_MACHINE_SHARD_TARGETS)
+	$(RUN_WITH_DURATION) check_drum_machine_sample_shards $(PYTHON) scripts/check_drum_sample_shards.py --min-recall-percent "$(DRUM_MACHINE_MIN_RECALL_PERCENT)" --min-precision-percent "$(DRUM_MACHINE_MIN_PRECISION_PERCENT)" --kick-min-recall-percent "$(DRUM_MACHINE_MIN_KICK_RECALL_PERCENT)" --snare-min-recall-percent "$(DRUM_MACHINE_MIN_SNARE_RECALL_PERCENT)" --hihat-min-recall-percent "$(DRUM_MACHINE_MIN_HIHAT_RECALL_PERCENT)" --crash-min-recall-percent "$(DRUM_MACHINE_MIN_CRASH_RECALL_PERCENT)" --tom-min-recall-percent "$(DRUM_MACHINE_MIN_TOM_RECALL_PERCENT)" --ride-min-recall-percent "$(DRUM_MACHINE_MIN_RIDE_RECALL_PERCENT)" --rim-min-recall-percent "$(DRUM_MACHINE_MIN_RIM_RECALL_PERCENT)" --kick-max-false-percent "$(DRUM_MACHINE_MAX_KICK_FALSE_PERCENT)" --tom-max-false-percent "$(DRUM_MACHINE_MAX_TOM_FALSE_PERCENT)" $(DRUM_MACHINE_SHARD_OUTS)
+
+test-drum-machine-samples-shard-%: FORCE $(BUILD_DIR)/analyzer_drum_samples $(DRUM_MACHINE_SAMPLE_BUILD_DIR)/manifest.tsv scripts/run_with_duration.sh
+	@category="$*"; $(RUN_WITH_DURATION) analyzer_drum_machine_samples_shard_$* env MUSIC_ANALYZER_DRUM_SAMPLES_REQUIRED=1 MUSIC_ANALYZER_DRUM_SAMPLE_REQUIRED_CATEGORIES="$$category" MUSIC_ANALYZER_DRUM_SAMPLE_FILTER_CATEGORY="$$category" MUSIC_ANALYZER_DRUM_SAMPLES_DIR="$(DRUM_MACHINE_SAMPLE_BUILD_DIR)" MUSIC_ANALYZER_DRUM_SAMPLE_MIN_RECALL_PERCENT=0 MUSIC_ANALYZER_DRUM_SAMPLE_MIN_PRECISION_PERCENT=0 MUSIC_ANALYZER_DRUM_SAMPLE_MAX_KICK_FALSE_PERCENT=100 MUSIC_ANALYZER_DRUM_SAMPLE_MAX_TOM_FALSE_PERCENT=100 $(BUILD_DIR)/analyzer_drum_samples > "$(BUILD_DIR)/drum_machine_samples_shard_$*.out" 2> "$(BUILD_DIR)/drum_machine_samples_shard_$*.err"
 
 prepare-hf-drum-kit-samples: scripts/prepare_hf_drum_kit_samples.py | $(BUILD_DIR)
 	HF_DRUM_KIT_SAMPLE_DIR="$(HF_DRUM_KIT_SAMPLE_DIR)" HF_DRUM_KIT_LIMIT_PER_CATEGORY="$(HF_DRUM_KIT_LIMIT_PER_CATEGORY)" $(PYTHON) scripts/prepare_hf_drum_kit_samples.py --output "$(HF_DRUM_KIT_SAMPLE_DIR)"
