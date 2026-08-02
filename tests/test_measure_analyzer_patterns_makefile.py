@@ -128,6 +128,35 @@ def main() -> int:
             f"{target} must preserve the {duration_label} check"
         )
 
+    assert_alias_target(makefile, "test-drum-samples", "test-drum-samples-parallel")
+    drum_parallel_recipe = target_recipe(makefile, "test-drum-samples-parallel")
+    assert "$(RUN_WITH_DURATION) analyzer_drum_samples_parallel" in drum_parallel_recipe, (
+        "default drum sample gate must be fanned out through the duration wrapper"
+    )
+    assert "scripts/run_with_lock.sh" in drum_parallel_recipe, (
+        "default drum sample gate must serialize writes to shared shard outputs"
+    )
+    drum_unlocked_recipe = target_recipe(makefile, "test-drum-samples-parallel-unlocked")
+    for text in [
+        "$(MAKE) $(DRUM_SAMPLE_TEST_MAKE_JOBS) $(DRUM_SAMPLE_SHARD_TARGETS)",
+        "scripts/check_drum_sample_shards.py",
+        "$(DRUM_SAMPLE_SHARD_OUTS)",
+        '--rim-max-false-percent "$(DRUM_SAMPLE_MAX_RIM_FALSE_PERCENT)"',
+    ]:
+        assert text in drum_unlocked_recipe, (
+            f"default drum sample parallel gate must include {text}"
+        )
+    drum_serial_recipe = target_recipe(makefile, "test-drum-samples-serial")
+    assert "analyzer_drum_samples env" in drum_serial_recipe, (
+        "default drum serial fallback must keep the original single-process gate"
+    )
+    assert 'MUSIC_ANALYZER_DRUM_SAMPLE_MAX_RIM_FALSE_PERCENT="$(DRUM_SAMPLE_MAX_RIM_FALSE_PERCENT)"' in drum_serial_recipe, (
+        "default drum serial fallback must keep the configurable rim false-positive gate"
+    )
+    assert "DRUM_SAMPLE_LOCK_DIR ?= $(BUILD_DIR)/drum_samples.lock" in makefile, (
+        "default drum shard aggregation must have a stable lock path"
+    )
+
     assert_alias_target(makefile, "test-drum-samples-spread", "test-drum-samples-spread-parallel")
     spread_parallel_recipe = target_recipe(makefile, "test-drum-samples-spread-parallel")
     assert "$(RUN_WITH_DURATION) analyzer_drum_samples_spread_parallel" in spread_parallel_recipe, (
