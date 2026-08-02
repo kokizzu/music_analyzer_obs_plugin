@@ -27,6 +27,16 @@ def run_script(*paths: pathlib.Path) -> str:
     return result.stdout
 
 
+def run_script_args(*args: str) -> str:
+    result = subprocess.run(
+        [sys.executable, str(SCRIPT), "--top-sources", "3", *args],
+        check=True,
+        text=True,
+        capture_output=True,
+    )
+    return result.stdout
+
+
 def test_header_manifest_summary() -> None:
     with tempfile.TemporaryDirectory() as tmpdir:
         manifest = pathlib.Path(tmpdir) / "real_note_samples" / "manifest.tsv"
@@ -148,9 +158,46 @@ def test_midi_drum_kit_header_uses_drum_family_and_categories() -> None:
     require(output, "midi=35-40(B1-E2)")
 
 
+def test_discovers_build_manifests_when_no_paths_are_provided() -> None:
+    with tempfile.TemporaryDirectory() as tmpdir:
+        root = pathlib.Path(tmpdir)
+        piano = root / "piano_samples" / "manifest.tsv"
+        piano.parent.mkdir()
+        piano.write_text(
+            "\n".join(
+                [
+                    "id\tfamily\tnsynth_family\tsource\tmidi\tnote\tpath\tqualities",
+                    "p1\tpiano\tkeyboard\telectronic\t60\tC4\tp1.wav\t",
+                    "p2\tpiano\tkeyboard\telectronic\t64\tE4\tp2.wav\t",
+                ]
+            )
+            + "\n",
+            encoding="utf-8",
+        )
+        guitarset = root / "guitarset-manifest.tsv"
+        guitarset.write_text(
+            "\n".join(
+                [
+                    "AUDIO\tclip-a\ta.wav",
+                    "NOTE\tclip-a\t0.000\t0.400\t40",
+                ]
+            )
+            + "\n",
+            encoding="utf-8",
+        )
+
+        output = run_script_args("--root", str(root))
+
+    require(output, f"sample_manifest path={guitarset}")
+    require(output, f"sample_manifest path={piano}")
+    require(output, "sample_manifest_total manifests=2 rows=4 audio=1 notes=1")
+    require(output, "families=guitar=2,piano=2")
+
+
 if __name__ == "__main__":
     test_header_manifest_summary()
     test_event_manifest_summary()
     test_combines_multiple_manifests()
     test_midi_drum_kit_header_uses_drum_family_and_categories()
+    test_discovers_build_manifests_when_no_paths_are_provided()
     print("test_summarize_sample_manifests: ok")

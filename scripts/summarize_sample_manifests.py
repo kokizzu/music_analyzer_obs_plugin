@@ -6,6 +6,7 @@ from __future__ import annotations
 import argparse
 import collections
 import csv
+import glob
 import pathlib
 import sys
 
@@ -225,15 +226,42 @@ def merge_summaries(summaries: list[ManifestSummary]) -> ManifestSummary:
     return total
 
 
+def discover_manifests(root: pathlib.Path) -> list[pathlib.Path]:
+    patterns = (
+        "*samples*/manifest.tsv",
+        "*_samples/manifest.tsv",
+        "*-manifest.tsv",
+        "guitarset-manifest.tsv",
+    )
+    paths: list[pathlib.Path] = []
+    seen: set[pathlib.Path] = set()
+    for pattern in patterns:
+        for match in glob.glob(str(root / pattern)):
+            path = pathlib.Path(match)
+            normalized = path.resolve()
+            if normalized in seen:
+                continue
+            seen.add(normalized)
+            paths.append(path)
+    return sorted(paths)
+
+
 def main(argv: list[str]) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("manifests", nargs="*", type=pathlib.Path)
+    parser.add_argument(
+        "--root",
+        type=pathlib.Path,
+        default=pathlib.Path("build"),
+        help="directory scanned for prepared manifests when no manifest paths are provided",
+    )
     parser.add_argument("--top-sources", type=int, default=5)
     args = parser.parse_args(argv)
 
+    manifest_paths = args.manifests if args.manifests else discover_manifests(args.root)
     unique_paths = []
     seen: set[pathlib.Path] = set()
-    for path in args.manifests:
+    for path in manifest_paths:
         normalized = path.resolve()
         if normalized in seen:
             continue
