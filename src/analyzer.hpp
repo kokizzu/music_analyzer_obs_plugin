@@ -40,6 +40,7 @@ enum DrumDebugRuleFlag : uint64_t {
 	DrumDebugGmHighTomRecovery = 1ull << 10,
 	DrumDebugHighBandKickBodyTomBleed = 1ull << 11,
 	DrumDebugMassiveTomBodySnarePrimaryRecovery = 1ull << 12,
+	DrumDebugUpperTomSnareActiveBleed = 1ull << 13,
 };
 
 enum class AnalysisInputMode {
