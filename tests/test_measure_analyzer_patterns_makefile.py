@@ -3151,6 +3151,22 @@ def main() -> int:
         'REAL_NOTE_RULE_GROUP_BY_ARGS = $(foreach field,$(REAL_NOTE_RULE_GROUP_BY),--group-by "$(field)")',
     ]:
         assert text in makefile, f"real-note rule Makefile plumbing must include {text}"
+    real_note_candidate_recipe = target_recipe(makefile, "inspect-real-note-candidate-rows")
+    assert "$(REAL_NOTE_CANDIDATE_ROW_PATHS)" in real_note_candidate_recipe, (
+        "real-note candidate inspection must accept TSV paths through REAL_NOTE_CANDIDATE_ROW_PATHS"
+    )
+    assert '--rule "$(REAL_NOTE_CANDIDATE_RULE)"' in real_note_candidate_recipe, (
+        "real-note candidate inspection must pass route-summary rules as one quoted --rule"
+    )
+    assert "$(REAL_NOTE_CANDIDATE_ARGS)" in real_note_candidate_recipe, (
+        "real-note candidate inspection must keep an argument escape hatch"
+    )
+    for text in [
+        "REAL_NOTE_CANDIDATE_ROW_PATHS ?= $(BUILD_DIR)/real_note_full_mix_attributes.tsv",
+        "REAL_NOTE_CANDIDATE_RULE ?=",
+        "REAL_NOTE_CANDIDATE_ARGS ?=",
+    ]:
+        assert text in makefile, f"real-note candidate Makefile plumbing must include {text}"
     runtime_excludes = continuation_variable_body(makefile, "REAL_NOTE_RUNTIME_ROW_CONFUSION_EXCLUDES")
     for field in [
         "expected_row_score",

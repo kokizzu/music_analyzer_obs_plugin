@@ -87,6 +87,13 @@ def parse_condition(text: str) -> Condition:
     return match.group(1), match.group(2), match.group(3)
 
 
+def parse_rule(text: str) -> list[Condition]:
+    parts = [part.strip() for part in text.split(" AND ") if part.strip()]
+    if not parts:
+        raise argparse.ArgumentTypeError("rule must include at least one condition")
+    return [parse_condition(part) for part in parts]
+
+
 def as_float(value: str | None) -> float | None:
     try:
         return float(value or "")
@@ -201,6 +208,13 @@ def main() -> int:
     parser.add_argument("rows", nargs="+", type=pathlib.Path)
     parser.add_argument("--condition", action="append", type=parse_condition, default=[])
     parser.add_argument(
+        "--rule",
+        action="append",
+        type=parse_rule,
+        default=[],
+        help="candidate rule using ` AND ` between conditions, matching route-summary output",
+    )
+    parser.add_argument(
         "--field",
         action="append",
         default=[],
@@ -225,10 +239,13 @@ def main() -> int:
     fields = args.field or DEFAULT_FIELDS
     group_by = args.group_by or ["status", "family", "source", "first_row", "visual_first_row"]
     example_fields = args.example_field or DEFAULT_EXAMPLE_FIELDS
+    conditions = list(args.condition)
+    for rule in args.rule:
+        conditions.extend(rule)
 
     for path in args.rows:
         rows = read_rows(path)
-        selected = [row for row in rows if row_matches(row, args.condition)]
+        selected = [row for row in rows if row_matches(row, conditions)]
         selected_samples = {sample_key(row) for row in selected if sample_key(row)}
         print(f"{path}: rows={len(rows)} selected={len(selected)} samples={len(selected_samples)}")
         print_groups(selected, group_by, args.top)
