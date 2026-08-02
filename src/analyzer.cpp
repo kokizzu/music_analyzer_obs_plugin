@@ -20028,13 +20028,47 @@ bool displayed_guitar_chord_has_single_note_probe_profile(const InstrumentState 
 	return root_probe >= 0.812f && third_probe <= 0.238f;
 }
 
+float guitar_low_visible_root_level(const NoteGrid &grid, int root)
+{
+	for (int midi = kGuitarMinMidi; midi <= 55; ++midi) {
+		if (midi_pitch_class(midi) != midi_pitch_class(root))
+			continue;
+		const float level = note_grid_midi_level(grid, midi);
+		if (level > 0.0f)
+			return level;
+	}
+	return 0.0f;
+}
+
+bool label_has_same_root_no_third_component(const char *label, int root)
+{
+	if (!label)
+		return false;
+	const char *cursor = label;
+	while (*cursor) {
+		const char *end = std::strchr(cursor, '=');
+		const std::size_t len =
+			end ? static_cast<std::size_t>(end - cursor) : std::strlen(cursor);
+		ParsedRootChord component;
+		if (parse_root_chord_component(cursor, len, component) &&
+		    component.root == midi_pitch_class(root) &&
+		    component.quality == RootChordQuality::NoThird)
+			return true;
+		if (!end)
+			break;
+		cursor = end + 1;
+	}
+	return false;
+}
+
 bool displayed_guitar_chord_has_distorted_single_note_root_residue(const InstrumentState &displayed_chord,
 								   const InstrumentState &smoothed_chord,
+								   const NoteGrid &display_grid,
 								   const NoteGrid &analysis_grid,
 								   float rms)
 {
 	if (rms < 0.384f || displayed_chord.confidence < 0.45f || !displayed_chord.label[0] ||
-	    displayed_chord.label[0] == '-' || smoothed_chord.confidence >= 0.36f)
+	    displayed_chord.label[0] == '-')
 		return false;
 
 	const char *label_end = std::strchr(displayed_chord.label, '=');
@@ -20043,6 +20077,8 @@ bool displayed_guitar_chord_has_distorted_single_note_root_residue(const Instrum
 			    std::strlen(displayed_chord.label);
 	ParsedRootChord parsed;
 	if (!parse_plain_major_minor_component(displayed_chord.label, label_len, parsed))
+		return false;
+	if (label_has_same_root_no_third_component(displayed_chord.label, parsed.root))
 		return false;
 
 	ChordResult primary = make_guitar_plain_triad(parsed.root,
@@ -20059,7 +20095,12 @@ bool displayed_guitar_chord_has_distorted_single_note_root_residue(const Instrum
 	const bool analysis_triad_supported =
 		analysis_root >= 0.12f && analysis_third >= 0.12f && analysis_fifth >= 0.12f &&
 		note_grid_chord_tone_count(analysis_grid, primary) >= 3;
-	return !analysis_triad_supported;
+	if (analysis_triad_supported)
+		return false;
+	if (smoothed_chord.confidence < 0.36f)
+		return true;
+
+	return guitar_low_visible_root_level(display_grid, parsed.root) <= 0.90f;
 }
 
 bool primary_major_minor_root_adjacent_noise(const NoteGrid &grid, const ChordResult &chord)
@@ -28579,7 +28620,7 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 			     kGuitarMaxMidi) ||
 		     displayed_guitar_chord_has_distorted_single_note_root_residue(
 			     snapshot.guitar_chord, snapshot.guitar_smoothed_chord,
-			     guitar_chord_detection_grid, rms)))
+			     snapshot.guitar_notes, guitar_chord_detection_grid, rms)))
 			clear_instrument_state(snapshot.guitar_chord);
 	} else {
 		reset_note_grid_envelope(snapshot.guitar_notes, snapshot.guitar, guitar_note_tracking_);
