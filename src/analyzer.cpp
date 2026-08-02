@@ -15682,9 +15682,9 @@ bool chroma_supports_weak_relative_major_seventh(const std::array<float, 12> &ch
 	const float third = chroma[static_cast<std::size_t>((alias_root + 4) % 12)];
 	const float fifth = chroma[static_cast<std::size_t>((alias_root + 7) % 12)];
 	const float seventh = chroma[static_cast<std::size_t>((alias_root + 11) % 12)];
-	if (root_level < 0.10f || primary_anchor < 0.42f ||
+	if (root_level < 0.10f || primary_anchor < 0.34f ||
 	    root_level < primary_anchor * 0.16f || third < 0.42f ||
-	    fifth < 0.42f || seventh < 0.42f)
+	    fifth < 0.34f || seventh < 0.34f)
 		return false;
 
 	float strongest_extra = 0.0f;

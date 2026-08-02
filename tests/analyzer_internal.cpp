@@ -636,6 +636,21 @@ void check_mixed_global_superset_extension_aliases(Runner &runner)
 	}
 	{
 		InstrumentState state = {};
+		std::snprintf(state.label, sizeof(state.label), "Am=Am7=C6");
+		state.confidence = 0.62f;
+		std::array<float, 12> chroma = {};
+		chroma[0] = 0.53f;
+		chroma[4] = 0.35f;
+		chroma[5] = 0.17f;
+		chroma[7] = 0.19f;
+		chroma[9] = 1.00f;
+		append_mixed_global_extension_aliases(state, chroma, -1);
+		runner.expect(chord_label_has_exact_component(state.label, "Fmaj7"),
+			      std::string("mixed global weak-root extension alias: expected Am to include Fmaj7, got `") +
+				      state.label + "`");
+	}
+	{
+		InstrumentState state = {};
 		std::snprintf(state.label, sizeof(state.label), "F");
 		state.confidence = 0.62f;
 		std::array<float, 12> chroma = {};
