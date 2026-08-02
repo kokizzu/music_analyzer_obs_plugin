@@ -76,7 +76,7 @@ compact route summary
     require(output, "  coverage-route clusters")
     require(
         output,
-        "coverage_route ownership_miss:guitar/electronic->piano candidates=2 best_observed_samples=2 min_need_samples=3 total_net_rows=7 examples=guitar_electronic_001,guitar_electronic_002",
+        "coverage_route ownership_miss:guitar/electronic->piano candidates=2 best_observed_samples=2 min_need_samples=3 total_net_rows=7 examples=guitar_electronic_001,guitar_electronic_002 groups=guitar_electronic=2",
     )
     require(
         output,

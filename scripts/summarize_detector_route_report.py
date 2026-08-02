@@ -417,6 +417,18 @@ def example_sample_id(example: str) -> str:
     return tokens[0] if tokens else ""
 
 
+SAMPLE_GROUP_RE = re.compile(r"^(?P<group>.+?)_\d{3}(?:[-_].*)?$")
+
+
+def sample_group(sample_id: str) -> str:
+    pathless = sample_id.rsplit("/", 1)[-1]
+    stem = pathless.rsplit(".", 1)[0]
+    match = SAMPLE_GROUP_RE.match(stem)
+    if match:
+        return match.group("group")
+    return stem or "--"
+
+
 @dataclasses.dataclass
 class CoverageRouteCluster:
     section: str
@@ -425,6 +437,7 @@ class CoverageRouteCluster:
     min_needed_samples: int = 0
     total_net_rows: int = 0
     sample_ids: list[str] = dataclasses.field(default_factory=list)
+    sample_groups: dict[str, int] = dataclasses.field(default_factory=dict)
 
 
 def coverage_route_clusters(
@@ -454,6 +467,8 @@ def coverage_route_clusters(
                 continue
             sample_seen.add(sample_id)
             cluster.sample_ids.append(sample_id)
+            group = sample_group(sample_id)
+            cluster.sample_groups[group] = cluster.sample_groups.get(group, 0) + 1
 
     return sorted(
         clusters.values(),
@@ -472,6 +487,7 @@ def main() -> int:
     parser.add_argument("--limit", type=int, default=20)
     parser.add_argument("--example-limit", type=int, default=2)
     parser.add_argument("--coverage-route-limit", type=int, default=8)
+    parser.add_argument("--coverage-group-limit", type=int, default=4)
     parser.add_argument("--min-actionable-samples", type=int, default=5)
     args = parser.parse_args()
 
@@ -545,6 +561,14 @@ def main() -> int:
                     cluster.sample_ids[: max(0, args.example_limit)]
                 )
                 example_text = f" examples={examples}" if examples else ""
+                groups = ",".join(
+                    f"{group}={count}"
+                    for group, count in sorted(
+                        cluster.sample_groups.items(),
+                        key=lambda item: (-item[1], item[0]),
+                    )[: max(0, args.coverage_group_limit)]
+                )
+                group_text = f" groups={groups}" if groups else ""
                 print(
                     "    "
                     f"coverage_route {cluster.section} "
@@ -553,6 +577,7 @@ def main() -> int:
                     f"min_need_samples={cluster.min_needed_samples} "
                     f"total_net_rows={cluster.total_net_rows}"
                     f"{example_text}"
+                    f"{group_text}"
                 )
 
     actionable_set = set(actionable)
