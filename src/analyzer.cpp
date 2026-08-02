@@ -20040,7 +20040,10 @@ float guitar_low_visible_root_level(const NoteGrid &grid, int root)
 	return 0.0f;
 }
 
-bool label_has_same_root_no_third_component(const char *label, int root)
+bool label_has_supported_same_root_no_third_component(const char *label, int root,
+						      const NoteGrid &display_grid,
+						      const NoteGrid &analysis_grid,
+						      bool allow_power_only)
 {
 	if (!label)
 		return false;
@@ -20052,8 +20055,36 @@ bool label_has_same_root_no_third_component(const char *label, int root)
 		ParsedRootChord component;
 		if (parse_root_chord_component(cursor, len, component) &&
 		    component.root == midi_pitch_class(root) &&
-		    component.quality == RootChordQuality::NoThird)
-			return true;
+		    component.quality == RootChordQuality::NoThird) {
+			std::size_t root_len = 1;
+			if (len > 1 && cursor[1] == '#')
+				root_len = 2;
+			const char *suffix = cursor + root_len;
+			const std::size_t suffix_len = len - root_len;
+
+			const bool root_fifth =
+				note_grid_has_guitar_root_fifth_voicing(display_grid, component.root,
+								 component.root + 7) ||
+				note_grid_has_guitar_root_fifth_voicing(analysis_grid, component.root,
+								 component.root + 7);
+			if (allow_power_only && suffix_is(suffix, suffix_len, "pow") && root_fifth)
+				return true;
+
+			int suspended_tone = -1;
+			if (suffix_is(suffix, suffix_len, "sus2"))
+				suspended_tone = component.root + 2;
+			else if (suffix_is(suffix, suffix_len, "sus4"))
+				suspended_tone = component.root + 5;
+			if (suspended_tone >= 0) {
+				const bool suspended_supported =
+					note_grid_pitch_supported_level(display_grid, suspended_tone,
+									0.12f) >= 0.12f ||
+					note_grid_pitch_supported_level(analysis_grid, suspended_tone,
+									0.12f) >= 0.12f;
+				if (root_fifth && suspended_supported)
+					return true;
+			}
+		}
 		if (!end)
 			break;
 		cursor = end + 1;
@@ -20078,7 +20109,9 @@ bool displayed_guitar_chord_has_distorted_single_note_root_residue(const Instrum
 	ParsedRootChord parsed;
 	if (!parse_plain_major_minor_component(displayed_chord.label, label_len, parsed))
 		return false;
-	if (label_has_same_root_no_third_component(displayed_chord.label, parsed.root))
+	if (label_has_supported_same_root_no_third_component(
+		    displayed_chord.label, parsed.root, display_grid, analysis_grid,
+		    smoothed_chord.confidence >= 0.36f))
 		return false;
 
 	ChordResult primary = make_guitar_plain_triad(parsed.root,
