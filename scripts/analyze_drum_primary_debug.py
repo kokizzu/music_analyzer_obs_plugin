@@ -33,6 +33,7 @@ RULE_FLAG_BITS = (
     ("flag_rim_snare_active_bleed", 1 << 20),
     ("flag_hihat_ride_active_bleed", 1 << 21),
     ("flag_cymbal_tom_kick_active_bleed", 1 << 22),
+    ("flag_snare_body_hihat_active_bleed", 1 << 23),
 )
 ROW_DUMP_FIELDS = (
     [
