@@ -1265,6 +1265,22 @@ std::string tempo_summary(const TempoStats &stats)
 	return buffer;
 }
 
+std::string tempo_candidate_summary(const mao::AnalysisSnapshot &snapshot)
+{
+	std::string text;
+	for (std::size_t i = 0; i < snapshot.tempo_debug_candidate_count; ++i) {
+		const mao::TempoDebugCandidate &candidate = snapshot.tempo_debug_candidates[i];
+		char part[160] = {};
+		std::snprintf(part, sizeof(part), "%s%d(s=%.2f,a=%.2f,b=%.2f,ba=%.2f,sub=%.2f,suba=%.2f)",
+			      text.empty() ? "" : " ", candidate.bpm, candidate.score,
+			      candidate.adjacent_score, candidate.body_score,
+			      candidate.adjacent_body_score, candidate.subdivision_score,
+			      candidate.adjacent_subdivision_score);
+		text += part;
+	}
+	return text.empty() ? "-" : text;
+}
+
 } // namespace
 
 int main()
@@ -1383,10 +1399,11 @@ int main()
 					++tempo.hits;
 				else if (verbose_misses && verbose_miss_lines < verbose_miss_limit) {
 					std::fprintf(stderr,
-						     "E-GMD tempo miss %s expected %.2f got %.2f confidence %.2f: %s\n",
+						     "E-GMD tempo miss %s expected %.2f got %.2f confidence %.2f candidates %s: %s\n",
 						     recording.id.c_str(), recording.tempo_bpm,
 						     tempo_snapshot.estimated_bpm,
 						     tempo_snapshot.bpm_confidence,
+						     tempo_candidate_summary(tempo_snapshot).c_str(),
 						     drum_debug_details(tempo_snapshot).c_str());
 					++verbose_miss_lines;
 				}
