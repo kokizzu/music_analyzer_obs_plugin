@@ -3713,6 +3713,9 @@ test-analyzer-maestro: $(BUILD_DIR)/analyzer_maestro scripts/run_with_duration.s
 test-analyzer-egmd: $(BUILD_DIR)/analyzer_egmd scripts/run_with_duration.sh
 	$(RUN_WITH_DURATION) analyzer_egmd $(BUILD_DIR)/analyzer_egmd
 
+.PHONY: test-bpm-regression
+test-bpm-regression: test-analyzer-cases test-egmd-fixture
+
 test-core-parallel: scripts/run_with_duration.sh
 	+$(RUN_WITH_DURATION) test_core_parallel $(MAKE) $(PARALLEL_TEST_MAKE_JOBS) test-visualizer-renderer test-analyzer-internal test-analyzer-smoke test-analyzer-cases test-analyzer-midi-ranges test-analyzer-urmp test-analyzer-musicnet test-analyzer-multtipop test-analyzer-guitarset test-analyzer-maestro test-analyzer-egmd
 

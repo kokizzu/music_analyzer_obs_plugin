@@ -38,7 +38,8 @@ def main() -> int:
             "no-candidate recordings 0, unusable 0, drum hits 12/16, drum precision 75.00%, "
             "drum recall 75.00%, F1 75.00%, false-positive windows 25.00% (2/8), "
             "recall by category kick:4/4-0/snare:2/4-2, fp by category kick:1/snare:3, "
-            "tp/fp/fn 12/4/4, hits min/avg/max 1/2.00/3, categories min/avg/max 1/2.00/3)\n",
+            "tp/fp/fn 12/4/4, hits min/avg/max 1/2.00/3, categories min/avg/max 1/2.00/3, "
+            "tempo hits 1/2, no-estimate 0, read failures 0, mean abs error 3.00, max abs error 5.00)\n",
         )
         shard_b = write_log(
             root,
@@ -47,7 +48,8 @@ def main() -> int:
             "no-candidate recordings 0, unusable 0, drum hits 13/16, drum precision 81.25%, "
             "drum recall 81.25%, F1 81.25%, false-positive windows 12.50% (1/8), "
             "recall by category kick:5/5-0/snare:3/4-1, fp by category kick:2/snare:1, "
-            "tp/fp/fn 13/3/3, hits min/avg/max 1/2.00/3, categories min/avg/max 1/2.00/3)\n",
+            "tp/fp/fn 13/3/3, hits min/avg/max 1/2.00/3, categories min/avg/max 1/2.00/3, "
+            "tempo hits 2/2, no-estimate 0, read failures 0, mean abs error 2.00, max abs error 4.00)\n",
         )
 
         result = run_checker(
@@ -61,6 +63,10 @@ def main() -> int:
             "75",
             "--max-false-positive-windows-percent",
             "20",
+            "--min-tempo-recordings",
+            "4",
+            "--min-tempo-pass-percent",
+            "75",
             str(shard_a),
             str(shard_b),
         )
@@ -68,6 +74,7 @@ def main() -> int:
         assert "check_egmd_shards: ok" in result.stdout
         assert "recordings 4/4" in result.stdout
         assert "drum hits 25/32" in result.stdout
+        assert "tempo hits 3/4" in result.stdout
 
         fail_result = run_checker(
             "--min-recordings",
@@ -85,6 +92,27 @@ def main() -> int:
         )
         assert fail_result.returncode == 1
         assert "expected drum-category recall >= 80%" in fail_result.stderr
+
+        tempo_fail_result = run_checker(
+            "--min-recordings",
+            "4",
+            "--min-windows",
+            "16",
+            "--min-recall-percent",
+            "75",
+            "--min-precision-percent",
+            "75",
+            "--max-false-positive-windows-percent",
+            "20",
+            "--min-tempo-recordings",
+            "4",
+            "--min-tempo-pass-percent",
+            "80",
+            str(shard_a),
+            str(shard_b),
+        )
+        assert tempo_fail_result.returncode == 1
+        assert "expected tempo accuracy >= 80%" in tempo_fail_result.stderr
 
         bad = write_log(root, "bad.out", "analyzer_egmd: 1 checks passed (recordings 1/1)\n")
         bad_result = run_checker(

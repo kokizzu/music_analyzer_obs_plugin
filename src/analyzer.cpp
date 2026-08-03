@@ -24228,41 +24228,6 @@ void AnalysisEngine::update_tempo(float raw_event_strength, float raw_event_body
 		}
 	}
 
-	for (int slot = 0; slot < static_cast<int>(snapshot.tempo_debug_candidates.size()); ++slot) {
-		float slot_score = 0.0f;
-		int slot_bpm = 0;
-		for (int bpm = kMinTempoBpm; bpm <= kMaxTempoBpm; ++bpm) {
-			const std::size_t index = static_cast<std::size_t>(bpm - kMinTempoBpm);
-			const float score = bpm_scores[index];
-			if (score <= slot_score)
-				continue;
-			bool already_listed = false;
-			for (int previous = 0; previous < slot; ++previous) {
-				if (snapshot.tempo_debug_candidates[static_cast<std::size_t>(previous)].bpm == bpm) {
-					already_listed = true;
-					break;
-				}
-			}
-			if (already_listed)
-				continue;
-			slot_score = score;
-			slot_bpm = bpm;
-		}
-		if (slot_bpm <= 0)
-			break;
-		const std::size_t score_index = static_cast<std::size_t>(slot_bpm - kMinTempoBpm);
-		TempoDebugCandidate &candidate =
-			snapshot.tempo_debug_candidates[static_cast<std::size_t>(slot)];
-		candidate.bpm = slot_bpm;
-		candidate.score = bpm_scores[score_index];
-		candidate.adjacent_score = adjacent_bpm_scores[score_index];
-		candidate.body_score = body_bpm_scores[score_index];
-		candidate.adjacent_body_score = adjacent_body_bpm_scores[score_index];
-		candidate.subdivision_score = subdivision_bpm_scores[score_index];
-		candidate.adjacent_subdivision_score = adjacent_subdivision_bpm_scores[score_index];
-		snapshot.tempo_debug_candidate_count = static_cast<std::size_t>(slot + 1);
-	}
-
 	if (best_bpm > 0 && best_bpm * 2 <= kMaxTempoBpm) {
 		const int double_bpm = best_bpm * 2;
 		const std::size_t best_index = static_cast<std::size_t>(best_bpm - kMinTempoBpm);
@@ -24325,6 +24290,48 @@ void AnalysisEngine::update_tempo(float raw_event_strength, float raw_event_body
 		}
 	}
 
+	auto debug_candidate_already_listed = [&](int slot_count, int bpm) {
+		for (int previous = 0; previous < slot_count; ++previous) {
+			if (snapshot.tempo_debug_candidates[static_cast<std::size_t>(previous)].bpm == bpm)
+				return true;
+		}
+		return false;
+	};
+	auto append_debug_candidate = [&](int slot, int bpm) {
+		if (bpm < kMinTempoBpm || bpm > kMaxTempoBpm)
+			return false;
+		const std::size_t score_index = static_cast<std::size_t>(bpm - kMinTempoBpm);
+		TempoDebugCandidate &candidate =
+			snapshot.tempo_debug_candidates[static_cast<std::size_t>(slot)];
+		candidate.bpm = bpm;
+		candidate.score = bpm_scores[score_index];
+		candidate.adjacent_score = adjacent_bpm_scores[score_index];
+		candidate.body_score = body_bpm_scores[score_index];
+		candidate.adjacent_body_score = adjacent_body_bpm_scores[score_index];
+		candidate.subdivision_score = subdivision_bpm_scores[score_index];
+		candidate.adjacent_subdivision_score = adjacent_subdivision_bpm_scores[score_index];
+		snapshot.tempo_debug_candidate_count = static_cast<std::size_t>(slot + 1);
+		return true;
+	};
+	int debug_slot = 0;
+	if (best_bpm > 0 && append_debug_candidate(debug_slot, best_bpm))
+		++debug_slot;
+	for (; debug_slot < static_cast<int>(snapshot.tempo_debug_candidates.size()); ++debug_slot) {
+		float slot_score = 0.0f;
+		int slot_bpm = 0;
+		for (int bpm = kMinTempoBpm; bpm <= kMaxTempoBpm; ++bpm) {
+			const std::size_t index = static_cast<std::size_t>(bpm - kMinTempoBpm);
+			const float score = bpm_scores[index];
+			if (score <= slot_score || debug_candidate_already_listed(debug_slot, bpm))
+				continue;
+			slot_score = score;
+			slot_bpm = bpm;
+		}
+		if (slot_bpm <= 0)
+			break;
+		append_debug_candidate(debug_slot, slot_bpm);
+	}
+
 	float cluster_sum = 0.0f;
 	float cluster_weight = 0.0f;
 	float second_score = 0.0f;
@@ -24356,6 +24363,15 @@ void AnalysisEngine::update_tempo(float raw_event_strength, float raw_event_body
 		const std::size_t best_index = static_cast<std::size_t>(best_bpm - kMinTempoBpm);
 		const float direct_pulse_score =
 			adjacent_bpm_scores[best_index] + adjacent_body_bpm_scores[best_index] * 0.45f;
+		const float direct_support = std::clamp(
+			direct_pulse_score /
+				std::max(std::max(best_score * 0.11f, combined_total_strength * 0.08f),
+					 1.0e-6f),
+			0.0f, 1.0f);
+		if (direct_support < 0.10f)
+			target_confidence = std::min(target_confidence, 0.30f);
+		else if (direct_support < 0.35f)
+			target_confidence = std::min(target_confidence, 0.48f);
 		const float direct_pulse_confidence =
 			std::clamp(direct_pulse_score / std::max(combined_total_strength * 1.15f, 1.0e-6f),
 				   0.0f, 0.30f);

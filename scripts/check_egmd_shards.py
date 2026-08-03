@@ -14,6 +14,10 @@ WINDOWS_RE = re.compile(r"\bwindows (?P<windows>\d+)")
 DRUM_HITS_RE = re.compile(r"\bdrum hits (?P<hits>\d+)/(?P<expected>\d+)")
 FALSE_WINDOWS_RE = re.compile(r"\bfalse-positive windows [^,]+ \((?P<false>\d+)/(?P<windows>\d+)\)")
 TP_FP_FN_RE = re.compile(r"\btp/fp/fn (?P<tp>\d+)/(?P<fp>\d+)/(?P<fn>\d+)")
+TEMPO_RE = re.compile(
+    r"\btempo hits (?P<hits>\d+)/(?P<checked>\d+), no-estimate (?P<no_estimate>\d+), "
+    r"read failures (?P<read_failures>\d+)"
+)
 
 
 def percent_floor(numerator: int, denominator: int) -> int:
@@ -45,6 +49,7 @@ def parse_shard(path: pathlib.Path) -> dict[str, int]:
     drum_hits = parse_required(DRUM_HITS_RE, summary, path)
     false_windows = parse_required(FALSE_WINDOWS_RE, summary, path)
     tp_fp_fn = parse_required(TP_FP_FN_RE, summary, path)
+    tempo = TEMPO_RE.search(summary)
 
     return {
         "recordings": int(recordings.group("with")),
@@ -57,6 +62,10 @@ def parse_shard(path: pathlib.Path) -> dict[str, int]:
         "tp": int(tp_fp_fn.group("tp")),
         "fp": int(tp_fp_fn.group("fp")),
         "fn": int(tp_fp_fn.group("fn")),
+        "tempo_hits": int(tempo.group("hits")) if tempo else 0,
+        "tempo_checked": int(tempo.group("checked")) if tempo else 0,
+        "tempo_no_estimate": int(tempo.group("no_estimate")) if tempo else 0,
+        "tempo_read_failures": int(tempo.group("read_failures")) if tempo else 0,
     }
 
 
@@ -68,6 +77,8 @@ def validate(args: argparse.Namespace, totals: dict[str, int]) -> None:
     true_positives = totals["tp"]
     false_positives = totals["fp"]
     false_positive_windows = totals["false_positive_windows"]
+    tempo_hits = totals["tempo_hits"]
+    tempo_checked = totals["tempo_checked"]
 
     if recordings < args.min_recordings:
         fail(f"expected at least {args.min_recordings} recordings, got {recordings}")
@@ -96,6 +107,15 @@ def validate(args: argparse.Namespace, totals: dict[str, int]) -> None:
             f"expected false-positive windows <= {args.max_false_positive_windows_percent}%, got "
             f"{false_window_percent}% ({false_positive_windows}/{windows})"
         )
+    if tempo_checked < args.min_tempo_recordings:
+        fail(f"expected at least {args.min_tempo_recordings} tempo-checked recordings, got {tempo_checked}")
+    if tempo_checked > 0:
+        tempo_pass = percent_floor(tempo_hits, tempo_checked)
+        if tempo_pass < args.min_tempo_pass_percent:
+            fail(
+                f"expected tempo accuracy >= {args.min_tempo_pass_percent}%, got "
+                f"{tempo_pass}% ({tempo_hits}/{tempo_checked})"
+            )
 
 
 def main() -> int:
@@ -106,6 +126,8 @@ def main() -> int:
     parser.add_argument("--min-recall-percent", type=int, required=True)
     parser.add_argument("--min-precision-percent", type=int, required=True)
     parser.add_argument("--max-false-positive-windows-percent", type=int, required=True)
+    parser.add_argument("--min-tempo-recordings", type=int, default=0)
+    parser.add_argument("--min-tempo-pass-percent", type=int, default=0)
     args = parser.parse_args()
 
     totals = {
@@ -119,6 +141,10 @@ def main() -> int:
         "tp": 0,
         "fp": 0,
         "fn": 0,
+        "tempo_hits": 0,
+        "tempo_checked": 0,
+        "tempo_no_estimate": 0,
+        "tempo_read_failures": 0,
     }
     for path in args.logs:
         shard = parse_shard(path)
@@ -140,7 +166,8 @@ def main() -> int:
         f"(recordings {totals['recordings']}/{totals['total_recordings']}, "
         f"windows {totals['windows']}, drum hits {totals['drum_hits']}/{totals['drum_expected']}, "
         f"precision {totals['tp']}/{totals['tp'] + totals['fp']}, "
-        f"false-positive windows {totals['false_positive_windows']}/{totals['windows']})"
+        f"false-positive windows {totals['false_positive_windows']}/{totals['windows']}, "
+        f"tempo hits {totals['tempo_hits']}/{totals['tempo_checked']})"
     )
     return 0
 

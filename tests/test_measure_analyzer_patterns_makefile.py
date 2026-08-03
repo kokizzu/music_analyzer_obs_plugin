@@ -1875,6 +1875,11 @@ def main() -> int:
     assert "test-analyzer-cases" in detector_regression_target_list, (
         "detector sample regression loop must include synthetic temporal/chord/analyzer cases"
     )
+    assert re.search(
+        r"^test-bpm-regression: test-analyzer-cases test-egmd-fixture$",
+        makefile,
+        re.MULTILINE,
+    ), "BPM regression target must cover synthetic tempo cases and generated E-GMD tempo fixtures"
     for target in [
         "test-real-note-samples-parallel",
         "test-guitar-fretboard-note-samples-parallel",
