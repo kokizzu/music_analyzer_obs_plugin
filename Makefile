@@ -1737,6 +1737,8 @@ analyze-drum-full-gate-matrix: $(BUILD_DIR)/analyzer_drum_samples prepare-drum-s
 
 analyze-drum-full-gate-matrix-parallel: $(BUILD_DIR)/analyzer_drum_samples $(DRUM_SAMPLE_FULL_BUILD_DIR)/manifest.tsv scripts/analyze_drum_primary_debug.py scripts/build_sharded_tsv.sh scripts/run_with_lock.sh scripts/run_with_duration.sh
 	+$(RUN_WITH_DURATION) analyzer_drum_samples_full_attribute_rows_parallel $(SHELL) scripts/run_with_lock.sh "$(DRUM_FULL_EXACT_ATTRIBUTE_LOCK_DIR)" -- "$(SHELL)" scripts/build_sharded_tsv.sh "$(DRUM_FULL_EXACT_ATTRIBUTE_ROWS)" "$(MAKE)" "$(DRUM_SAMPLE_FULL_TEST_MAKE_JOBS)" $(DRUM_FULL_EXACT_ATTRIBUTE_PARTS)
+	$(PYTHON) scripts/summarize_drum_gate_matrix.py "$(DRUM_FULL_EXACT_ATTRIBUTE_ROWS)" > "$(DRUM_FULL_GATE_SUMMARY)"
+	@cat "$(DRUM_FULL_GATE_SUMMARY)"
 	@printf '%s\n' "drum full exact attribute TSV: $(DRUM_FULL_EXACT_ATTRIBUTE_ROWS)"
 
 $(BUILD_DIR)/drum_full_exact_attribute_rows_%.tsv: FORCE $(BUILD_DIR)/analyzer_drum_samples $(DRUM_SAMPLE_FULL_BUILD_DIR)/manifest.tsv scripts/analyze_drum_primary_debug.py scripts/run_with_duration.sh

@@ -2175,6 +2175,12 @@ def main() -> int:
     assert "scripts/run_with_lock.sh \"$(DRUM_FULL_EXACT_ATTRIBUTE_LOCK_DIR)\"" in drum_full_attribute_parallel_recipe, (
         "full drum exact attribute rows must lock shared output files"
     )
+    assert "$(PYTHON) scripts/summarize_drum_gate_matrix.py \"$(DRUM_FULL_EXACT_ATTRIBUTE_ROWS)\" > \"$(DRUM_FULL_GATE_SUMMARY)\"" in drum_full_attribute_parallel_recipe, (
+        "full drum exact parallel target must refresh the gate matrix summary from the TSV"
+    )
+    assert "@cat \"$(DRUM_FULL_GATE_SUMMARY)\"" in drum_full_attribute_parallel_recipe, (
+        "full drum exact parallel target must print the refreshed matrix summary"
+    )
     drum_full_attribute_shard_recipe = target_recipe(makefile, "$(BUILD_DIR)/drum_full_exact_attribute_rows_%.tsv")
     assert "FORCE" in drum_full_attribute_shard_recipe.splitlines()[0], (
         "full drum exact attribute shard target must use FORCE so each category executes"
