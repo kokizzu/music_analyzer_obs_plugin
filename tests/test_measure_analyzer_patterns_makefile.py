@@ -1059,7 +1059,10 @@ def main() -> int:
     ), "detector improvement route helper must delegate to the parallel route scan"
     route_report_recipe = target_recipe(makefile, "$(DETECTOR_IMPROVEMENT_ROUTE_REPORT)")
     assert re.search(
-        r"^\$\(DETECTOR_IMPROVEMENT_ROUTE_REPORT\): FORCE Makefile scripts/run_with_duration\.sh "
+        r"^\$\(DETECTOR_IMPROVEMENT_ROUTE_REPORT\): Makefile src/analyzer\.cpp src/analyzer\.hpp "
+        r"tests/analyzer_guitarset\.cpp tests/analyzer_real_note_samples\.cpp "
+        r"tests/analyzer_instrument_samples\.cpp tests/analyzer_drum_samples\.cpp "
+        r"scripts/run_with_duration\.sh "
         r"scripts/find_real_note_attribute_patterns\.py "
         r"scripts/find_guitarset_attribute_patterns\.py "
         r"scripts/inspect_guitarset_attribute_buckets\.py "
@@ -1069,7 +1072,7 @@ def main() -> int:
         r"scripts/find_drum_attribute_patterns\.py",
         makefile,
         re.MULTILINE,
-    ), "detector improvement route report must refresh instead of serving stale miner output"
+    ), "detector improvement route report must cache output until detector or mining inputs change"
     assert 'tmp="$@.$$$$.tmp"' in route_report_recipe, (
         "detector improvement route report must write through a per-process temp file"
     )
@@ -1091,6 +1094,10 @@ def main() -> int:
     route_report_alias = target_recipe(makefile, "detector-improvement-route-report")
     assert "$(DETECTOR_IMPROVEMENT_ROUTE_REPORT)" in route_report_alias, (
         "detector improvement route report helper must depend on the file-backed report"
+    )
+    route_report_refresh_recipe = target_recipe(makefile, "detector-improvement-route-report-refresh")
+    assert "$(MAKE) --always-make $(DETECTOR_IMPROVEMENT_ROUTE_REPORT)" in route_report_refresh_recipe, (
+        "detector improvement route report refresh helper must force the expensive miner run"
     )
     route_summary_recipe = target_recipe(makefile, "$(DETECTOR_IMPROVEMENT_ROUTE_SUMMARY)")
     assert re.search(
@@ -1115,6 +1122,10 @@ def main() -> int:
     assert "$(DETECTOR_IMPROVEMENT_ROUTE_SUMMARY)" in route_summary_alias, (
         "detector improvement route summary helper must depend on the file-backed summary"
     )
+    route_summary_refresh_recipe = target_recipe(makefile, "detector-improvement-route-summary-refresh")
+    assert "$(MAKE) --always-make $(DETECTOR_IMPROVEMENT_ROUTE_SUMMARY)" in route_summary_refresh_recipe, (
+        "detector improvement route summary refresh helper must force a fresh route report and summary"
+    )
     detector_improvement_full_recipe = target_recipe(makefile, "analyze-detector-improvements-full")
     assert "\n\t+$(RUN_WITH_DURATION) detector_improvements_full_parallel" in detector_improvement_full_recipe, (
         "full detector improvement workflow must report the aggregate parallel duration"
@@ -1138,7 +1149,7 @@ def main() -> int:
     assert audit_targets is not None, "missing detector improvement audit target list"
     audit_target_list = audit_targets.group(1)
     for target in [
-        "detector-improvement-route-summary",
+        "detector-improvement-route-summary-refresh",
         "find-protected-drum-primary-attribute-patterns",
         "find-drum-full-exact-attribute-patterns-cached",
         "find-protected-drum-full-exact-attribute-patterns",
