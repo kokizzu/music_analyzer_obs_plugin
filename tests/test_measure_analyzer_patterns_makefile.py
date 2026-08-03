@@ -696,6 +696,40 @@ def main() -> int:
     assert "measure-analyzer-attribute-rows" not in cached_pattern_recipe.splitlines()[0], (
         "cached pattern target must not regenerate bounded analyzer rows"
     )
+    assert (
+        "MEASURE_ANALYZER_CACHED_PATTERN_CANDIDATE_SUMMARY := "
+        "$(BUILD_DIR)/measure_analyzer_cached_pattern_candidate_summary.txt"
+    ) in makefile, (
+        "cached pattern candidate summary must have a stable file-backed output path"
+    )
+    assert re.search(
+        r"^\$\(MEASURE_ANALYZER_CACHED_PATTERN_CANDIDATE_SUMMARY\): "
+        r"\$\(MEASURE_ANALYZER_CACHED_PATTERN_SECTION_OUTPUTS\) "
+        r"scripts/summarize_detector_route_report\.py \| \$\(BUILD_DIR\)",
+        makefile,
+        re.MULTILINE,
+    ), "cached candidate summary must derive from saved cached pattern sections"
+    cached_summary_recipe = target_recipe(
+        makefile, "$(MEASURE_ANALYZER_CACHED_PATTERN_CANDIDATE_SUMMARY)"
+    )
+    for required in [
+        'tmp_report="$@.$$$$.report"',
+        'tmp="$@.$$$$.tmp"',
+        'cat $(MEASURE_ANALYZER_CACHED_PATTERN_SECTION_OUTPUTS) > "$$tmp_report"',
+        '$(PYTHON) scripts/summarize_detector_route_report.py "$$tmp_report" > "$$tmp"',
+        'rm -f "$$tmp_report"',
+        'mv "$$tmp" "$@"',
+    ]:
+        assert required in cached_summary_recipe, (
+            f"cached candidate summary recipe must include {required}"
+        )
+    cached_summary_alias = target_recipe(makefile, "measure-analyzer-patterns-cached-summary")
+    assert "$(MEASURE_ANALYZER_CACHED_PATTERN_CANDIDATE_SUMMARY)" in cached_summary_alias.splitlines()[0], (
+        "cached summary helper must depend on the file-backed summary"
+    )
+    assert 'cat "$(MEASURE_ANALYZER_CACHED_PATTERN_CANDIDATE_SUMMARY)"' in cached_summary_alias, (
+        "cached summary helper must print the compact candidate report"
+    )
     assert_alias_target(makefile, "analyze-real-note-misses", "analyze-real-note-misses-parallel")
     real_note_misses_serial_recipe = target_recipe(makefile, "analyze-real-note-misses-serial")
     assert "MUSIC_ANALYZER_REAL_NOTE_MAX_FAILURES=999999" in real_note_misses_serial_recipe, (
@@ -974,6 +1008,12 @@ def main() -> int:
         makefile,
         re.MULTILINE,
     ), "detector improvement cached pattern helper must reuse cached measured rows"
+    assert re.search(
+        r"^detector-improvement-patterns-cached-summary: "
+        r"measure-analyzer-patterns-cached-summary$",
+        makefile,
+        re.MULTILINE,
+    ), "detector improvement cached summary helper must reuse the cached candidate summary"
     route_scan_targets = re.search(
         r"^DETECTOR_IMPROVEMENT_ROUTE_SCAN_TARGETS := (.+)$", makefile, re.MULTILINE
     )
