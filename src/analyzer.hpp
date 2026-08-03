@@ -276,6 +276,8 @@ private:
 	std::array<Probe, 15> drum_probes_ = {};
 	uint32_t sample_rate_ = 0;
 	float previous_rms_ = 0.0f;
+	std::array<float, 3> previous_tempo_band_levels_ = {};
+	std::array<float, 3> tempo_band_average_ = {};
 	std::array<float, kDrumCount> drum_average_ = {};
 	std::array<float, kDrumCount> drum_level_ = {};
 	std::array<RootVote, kMaxRootVotes> root_votes_ = {};

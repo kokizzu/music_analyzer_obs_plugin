@@ -289,6 +289,13 @@ void add_tempo_backing(mao_test::Buffer &buffer, uint64_t sample_offset)
 	add_harmonic_note_at_offset(buffer, 55, 0.0038f, {1.0f, 0.12f}, sample_offset);
 }
 
+void add_tempo_tonal_pulse(mao_test::Buffer &buffer, uint64_t sample_offset)
+{
+	add_harmonic_note_at_offset(buffer, 48, 0.050f, {1.0f, 0.22f, 0.08f}, sample_offset);
+	add_harmonic_note_at_offset(buffer, 55, 0.043f, {1.0f, 0.18f, 0.06f}, sample_offset);
+	add_harmonic_note_at_offset(buffer, 64, 0.026f, {1.0f, 0.14f}, sample_offset);
+}
+
 void add_detuned_harmonic_note_at_offset(mao_test::Buffer &buffer, int midi, float amp,
 					 const std::vector<float> &profile, float cents,
 					 uint64_t sample_offset)
@@ -4853,6 +4860,36 @@ mao::AnalysisSnapshot run_sparse_body_hihat_tempo_pattern(mao::AnalysisEngine &e
 	return snapshot;
 }
 
+mao::AnalysisSnapshot run_tonal_pulse_tempo_pattern(mao::AnalysisEngine &engine,
+						     const mao::AnalysisSettings &settings,
+						     float bpm, int frames)
+{
+	const float beat_seconds = 60.0f / bpm;
+	const float interval_seconds = settings.analysis_interval_seconds;
+	const uint64_t hop_samples = static_cast<uint64_t>(
+		std::lround(settings.analysis_interval_seconds * static_cast<float>(settings.sample_rate)));
+	mao::AnalysisSnapshot snapshot = {};
+	float next_pulse_seconds = 0.0f;
+
+	for (int frame = 0; frame < frames; ++frame) {
+		mao_test::Buffer buffer = {};
+		const uint64_t sample_offset = static_cast<uint64_t>(frame) * hop_samples;
+		add_tempo_backing(buffer, sample_offset);
+		const float frame_seconds = static_cast<float>(frame) * interval_seconds;
+		const float frame_center_seconds = frame_seconds + interval_seconds * 0.5f;
+
+		if (next_pulse_seconds <= frame_center_seconds) {
+			add_tempo_tonal_pulse(buffer, sample_offset);
+			while (next_pulse_seconds <= frame_center_seconds)
+				next_pulse_seconds += beat_seconds;
+		}
+
+		snapshot = engine.analyze(buffer.data(), buffer.size(), settings, "tonal tempo test", 0);
+	}
+
+	return snapshot;
+}
+
 void expect_bpm_near(Runner &runner, const mao::AnalysisSnapshot &snapshot, float expected, float tolerance,
 		     const std::string &context)
 {
@@ -4932,6 +4969,16 @@ void check_explicit_input_mode_and_bpm(Runner &runner)
 			run_sparse_body_hihat_tempo_pattern(engine, settings, 96.0f, 300, 2.0f, 0.70f);
 		expect_bpm_near(runner, snapshot, 96.0f, 7.0f,
 				"BPM estimate should not double sparse eighth-hat groove");
+	}
+
+	{
+		mao::AnalysisEngine engine;
+		const mao::AnalysisSettings settings = tempo_test_settings();
+		const mao::AnalysisSnapshot snapshot = run_tonal_pulse_tempo_pattern(engine, settings, 112.0f, 260);
+		expect_bpm_near(runner, snapshot, 112.0f, 7.0f,
+				"BPM estimate from broad tonal pulses");
+		expect_tempo_candidate_near(runner, snapshot, 112.0f, 4.0f,
+					    "BPM diagnostics broad tonal pulses");
 	}
 
 	{

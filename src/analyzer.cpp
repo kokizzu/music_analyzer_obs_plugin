@@ -23790,6 +23790,8 @@ void AnalysisEngine::reset_analysis_state()
 	drum_average_.fill(0.0f);
 	drum_level_.fill(0.0f);
 	previous_rms_ = 0.0f;
+	previous_tempo_band_levels_.fill(0.0f);
+	tempo_band_average_.fill(0.0f);
 	silence_seconds_ = 0.0f;
 	tempo_events_.fill(0.0f);
 	tempo_event_strengths_.fill(0.0f);
@@ -24786,6 +24788,26 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 	snapshot.mid_energy = mid / total;
 	snapshot.high_energy = high / total;
 	const float interval_seconds = std::clamp(settings.analysis_interval_seconds, 0.01f, 1.0f);
+
+	std::array<float, 3> tempo_band_levels = {low, mid, high};
+	std::array<float, 3> tempo_band_onsets = {};
+	for (std::size_t i = 0; i < tempo_band_levels.size(); ++i) {
+		const float level = tempo_band_levels[i];
+		const float previous = previous_tempo_band_levels_[i];
+		const float average = tempo_band_average_[i] > 0.0f ? tempo_band_average_[i] : level;
+		const float baseline = std::max(previous * 1.12f, average * 1.18f);
+		if (level >= 0.18f && baseline > 1.0e-6f && level > baseline) {
+			const float ratio = level / baseline - 1.0f;
+			tempo_band_onsets[i] = std::clamp(ratio * 0.95f, 0.0f, 0.58f);
+		}
+		previous_tempo_band_levels_[i] = level;
+		tempo_band_average_[i] = average * 0.92f + level * 0.08f;
+	}
+	const float broad_tempo_body_strength =
+		std::max(tempo_band_onsets[0], tempo_band_onsets[1] * 0.86f);
+	const float broad_tempo_subdivision_strength = tempo_band_onsets[2] * 0.72f;
+	const float broad_tempo_strength =
+		std::max(broad_tempo_body_strength, broad_tempo_subdivision_strength);
 
 	const bool had_previous_audio = previous_rms_ > kSilenceRms;
 	const float onset = previous_rms_ > 1.0e-5f ? rms / previous_rms_ : (rms > kSilenceRms ? 2.0f : 0.0f);
@@ -28177,6 +28199,12 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 			tempo_body_strength = std::max(tempo_body_strength, onset_strength * 0.75f);
 		else
 			tempo_subdivision_strength = std::max(tempo_subdivision_strength, onset_strength);
+	}
+	if (broad_tempo_strength >= 0.08f) {
+		tempo_strength = std::max(tempo_strength, broad_tempo_strength);
+		tempo_body_strength = std::max(tempo_body_strength, broad_tempo_body_strength);
+		tempo_subdivision_strength =
+			std::max(tempo_subdivision_strength, broad_tempo_subdivision_strength);
 	}
 	update_tempo(tempo_strength, tempo_body_strength, tempo_subdivision_strength, interval_seconds, rms,
 		     snapshot);
