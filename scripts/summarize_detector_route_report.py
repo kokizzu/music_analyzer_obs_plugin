@@ -99,6 +99,14 @@ GUITAR_MISSING_NOTE_EVIDENCE_RULE_MARKERS = (
     "smooth_pc_count<=0",
     "smooth_tones<=0",
 )
+GUITAR_MISSING_NO_THIRD_QUALITY_NOTE_RULE_MARKERS = (
+    "analysis_tones<=1",
+    "analysis_root<=0",
+    "analysis_fifth<=0",
+    "smooth_tones<=1",
+    "smooth_root<=0",
+    "smooth_fifth<=0",
+)
 GUITAR_MISSING_QUALITY_TONE_RULE_MARKERS = (
     "analysis_third<=",
     "display_primary_analysis_third<=",
@@ -479,7 +487,8 @@ def guitar_examples_have_no_visible_analysis(candidate: Candidate) -> bool:
 
 
 def guitar_missing_note_evidence(candidate: Candidate) -> bool:
-    if not guitar_chord_miss_quality(candidate):
+    quality = guitar_chord_miss_quality(candidate)
+    if not quality:
         return False
 
     if any(marker in candidate.section for marker in GUITAR_MISSING_NOTE_EVIDENCE_SUPPORTS):
@@ -491,6 +500,14 @@ def guitar_missing_note_evidence(candidate: Candidate) -> bool:
         for marker in GUITAR_MISSING_NOTE_EVIDENCE_RULE_MARKERS
     ):
         return True
+    if not guitar_quality_requires_third(quality):
+        if any(
+            marker.replace(" ", "") in compact_rule
+            for marker in GUITAR_MISSING_NO_THIRD_QUALITY_NOTE_RULE_MARKERS
+        ):
+            return True
+        if guitar_examples_missing_required_analysis_tone(candidate):
+            return True
     return guitar_examples_have_no_visible_analysis(candidate)
 
 

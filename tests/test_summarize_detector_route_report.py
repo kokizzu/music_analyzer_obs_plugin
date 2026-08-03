@@ -189,6 +189,45 @@ bucket chord_miss:m:visible0_analysis0_smooth0_rootvis0 positives=36 positive_ro
     require(extended_quality_output, "chord_miss:m:visible0")
     require(extended_quality_output, "blocked_by=missing_note_evidence")
 
+    power_note_evidence_report = """bucket chord_miss:pow:visible1_analysis1_smooth1_rootvis0 positives=4 positive_rows=7 protected_hits=0
+  +4 rows=7 -0 rows=0 :: analysis_root<=0
+    clips_isolated-chords_Cpow_1@0.750s expected=Cpow guitar=Gpow support=visible1_analysis1_smooth1_rootvis0 raw(root/third/fifth)=0.00/0.00/1.00 analysis=G visible=G
+bucket chord_miss:pow:visible2_analysis2_smooth2_rootvis1 positives=4 positive_rows=4 protected_hits=0
+  +4 rows=4 -0 rows=0 :: analysis_fifth>=0.32 AND analysis_tones<=2
+    clips_isolated-chords_Cpow_2@0.750s expected=Cpow guitar=-- support=visible2_analysis2_smooth2_rootvis1 raw(root/third/fifth)=1.00/0.00/1.00 analysis=C,G visible=C,G
+"""
+    with tempfile.TemporaryDirectory() as tmpdir:
+        path = pathlib.Path(tmpdir) / "route_report.txt"
+        path.write_text(power_note_evidence_report, encoding="utf-8")
+        result = subprocess.run(
+            [sys.executable, str(SCRIPT), str(path), "--limit", "8"],
+            check=True,
+            text=True,
+            stdout=subprocess.PIPE,
+        )
+    power_note_evidence_output = result.stdout
+    require(
+        power_note_evidence_output,
+        "detector_route_summary: candidates=2 low_false=0 shadow=0 near_miss=0 guitar=2 drum=0 positive_net=2 gain_ge_1=2 source_safe_positive_net=2 actionable=0 coverage_blocked=1",
+    )
+    require(
+        power_note_evidence_output,
+        "blocked-reason summary low_samples<5=2 missing_note_evidence=1",
+    )
+    require(
+        power_note_evidence_output,
+        "coverage_need guitar bucket chord_miss:pow:visible2_analysis2_smooth2_rootvis1 observed_samples=4 need_samples=1",
+    )
+    if "coverage_need guitar bucket chord_miss:pow:visible1_analysis1_smooth1_rootvis0" in power_note_evidence_output:
+        raise AssertionError(
+            "power-chord routes without root/fifth evidence must not be reported as coverage needs:\n"
+            + power_note_evidence_output
+        )
+    require(
+        power_note_evidence_output,
+        "bucket chord_miss:pow:visible1_analysis1_smooth1_rootvis0 +recordings=4 +rows=7 -recordings=0 -rows=0 side_rows=0 net_rows=7 gain_per_side=inf blocked_by=missing_note_evidence,low_samples<5 :: analysis_root<=0",
+    )
+
     veto_report = """compact route summary
   routes=1 routes_with_extras=1 safe_simulation_routes=0 safe_simulation_extra_hits=0
   safe_threshold_routes=1 no_safe_threshold_routes=0 safe_threshold_extra_hits=3 safe_threshold_protected_hits=0
