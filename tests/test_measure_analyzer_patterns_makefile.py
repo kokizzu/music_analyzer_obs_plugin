@@ -1224,6 +1224,13 @@ def main() -> int:
     assert "detector-improvement-route-summary-cached detector-improvement-audit-report-cached" in cached_audit_recipe, (
         "cached audit helper must combine cached route and audit evidence"
     )
+    cached_status_recipe = target_recipe(makefile, "detector-improvement-status-cached")
+    assert "detector-improvement-coverage-cached detector-improvement-audit-cached" in cached_status_recipe, (
+        "cached detector status helper must combine cached coverage and audit evidence"
+    )
+    assert "$(MAKE)" not in cached_status_recipe, (
+        "cached detector status helper must not trigger an expensive refresh itself"
+    )
     assert "DETECTOR_IMPROVEMENT_AUDIT_TAIL_LINES ?= 60" in makefile, (
         "audit tail length must remain overrideable for cached and refresh reports"
     )
@@ -3645,6 +3652,7 @@ def main() -> int:
         "DETECTOR_COVERAGE_CANDIDATE_ROW_PATHS ?= $(wildcard $(REAL_NOTE_CANDIDATE_ROW_PATHS) $(GUITAR_CANDIDATE_ROW_PATHS) $(DETECTOR_REAL_NOTE_PATTERN_EXTRA_CANDIDATE_PATHS) $(DETECTOR_REAL_NOTE_PATTERN_EXTRA_PROTECTED_PATHS))",
         "DETECTOR_COVERAGE_CANDIDATE_ARGS ?=",
         "DETECTOR_COVERAGE_SUMMARY_ARGS ?= --summary-only --top 12",
+        "detector-improvement-status-cached",
         "ANALYSIS_SCRIPT_TEST_TARGETS += test-inspect-detector-coverage-candidates",
     ]:
         assert text in makefile, f"real-note candidate Makefile plumbing must include {text}"
