@@ -4979,6 +4979,75 @@ mao::AnalysisSnapshot run_windowed_tempo_pattern(mao::AnalysisEngine &engine,
 	return snapshot;
 }
 
+mao::AnalysisSnapshot run_prehit_body_tempo_pattern(mao::AnalysisEngine &engine,
+						    const mao::AnalysisSettings &settings,
+						    float bpm, int frames)
+{
+	const float beat_seconds = 60.0f / bpm;
+	const float eighth_seconds = beat_seconds * 0.5f;
+	const int64_t hop_samples = static_cast<int64_t>(
+		std::llround(settings.analysis_interval_seconds * static_cast<float>(settings.sample_rate)));
+	const int64_t window_samples = static_cast<int64_t>(std::clamp<std::size_t>(
+		static_cast<std::size_t>(
+			std::llround(settings.analysis_window_seconds * static_cast<float>(settings.sample_rate))),
+		1, mao::kAnalysisWindow));
+	const int64_t total_samples = static_cast<int64_t>(frames + 1) * hop_samples;
+	const int64_t prehit_offset =
+		static_cast<int64_t>(std::llround(0.055f * static_cast<float>(settings.sample_rate)));
+	std::vector<TimelineTempoHit> hits;
+	int beat = 0;
+	for (double seconds = 0.0;
+	     static_cast<int64_t>(std::llround(seconds * mao_test::kSampleRate)) < total_samples;
+	     seconds += static_cast<double>(beat_seconds)) {
+		const bool backbeat = beat % 4 == 1 || beat % 4 == 3;
+		const int64_t beat_sample = static_cast<int64_t>(std::llround(seconds * mao_test::kSampleRate));
+		if (!backbeat && beat_sample > prehit_offset) {
+			hits.push_back(TimelineTempoHit{
+				beat_sample - prehit_offset,
+				TempoHitKind::Kick,
+				0.34f,
+			});
+		}
+		hits.push_back(TimelineTempoHit{
+			beat_sample,
+			backbeat ? TempoHitKind::Snare : TempoHitKind::Kick,
+			backbeat ? 0.86f : 1.0f,
+		});
+		++beat;
+	}
+	for (double seconds = static_cast<double>(eighth_seconds);
+	     static_cast<int64_t>(std::llround(seconds * mao_test::kSampleRate)) < total_samples;
+	     seconds += static_cast<double>(eighth_seconds)) {
+		hits.push_back(TimelineTempoHit{
+			static_cast<int64_t>(std::llround(seconds * mao_test::kSampleRate)),
+			TempoHitKind::HiHat,
+			0.44f,
+		});
+	}
+	std::sort(hits.begin(), hits.end(), [](const TimelineTempoHit &a, const TimelineTempoHit &b) {
+		return a.sample < b.sample;
+	});
+
+	mao::AnalysisSnapshot snapshot = {};
+	for (int frame = 0; frame < frames; ++frame) {
+		mao_test::Buffer buffer = {};
+		const int64_t window_end = static_cast<int64_t>(frame + 1) * hop_samples;
+		const int64_t window_start = window_end - window_samples;
+		add_tempo_backing_window(buffer, window_start, static_cast<std::size_t>(window_samples));
+		for (const TimelineTempoHit &hit : hits) {
+			if (hit.sample >= window_end)
+				break;
+			if (hit.sample + 1800 < window_start)
+				continue;
+			add_tempo_hit_window(buffer, hit, window_start, static_cast<std::size_t>(window_samples));
+		}
+		snapshot = engine.analyze(buffer.data(), static_cast<std::size_t>(window_samples), settings,
+					  "prehit body tempo test", 0);
+	}
+
+	return snapshot;
+}
+
 mao::AnalysisSnapshot run_tempo_pattern(mao::AnalysisEngine &engine, const mao::AnalysisSettings &settings,
 					float bpm, int frames, bool eighth_hats, bool one_frame_fill)
 {
@@ -5809,6 +5878,17 @@ void check_explicit_input_mode_and_bpm(Runner &runner)
 		expect_tempo_candidate_near(runner, snapshot, 137.0f, 3.0f,
 					    "BPM diagnostics rolling-window transient timing");
 		expect_best_tempo_phase_support(runner, snapshot, "BPM phase support rolling-window transient timing");
+	}
+
+	{
+		mao::AnalysisEngine engine;
+		const mao::AnalysisSettings settings = tempo_test_settings();
+		const mao::AnalysisSnapshot snapshot =
+			run_prehit_body_tempo_pattern(engine, settings, 120.0f, 420);
+		expect_bpm_near(runner, snapshot, 120.0f, 6.0f,
+				"BPM estimate should anchor to strong body hits over weak pre-hit tails", 0.18f);
+		expect_tempo_candidate_near(runner, snapshot, 120.0f, 4.0f,
+					    "BPM diagnostics pre-hit body timing");
 	}
 
 	{

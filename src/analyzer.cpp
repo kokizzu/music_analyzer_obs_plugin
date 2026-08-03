@@ -24906,6 +24906,25 @@ void AnalysisEngine::update_tempo(float raw_event_strength, float raw_event_body
 			best_score = bpm_scores[double_index];
 			phase_grid_recovered_tempo = true;
 		}
+		const bool double_grid_is_phase_complete =
+			phase_body_coverages[double_index] >= 0.82f &&
+			phase_all_coverages[double_index] >= 0.82f &&
+			phase_body_coverages[double_index] + 0.08f >= phase_body_coverages[best_index] &&
+			phase_all_coverages[double_index] + 0.08f >= phase_all_coverages[best_index];
+		const bool double_grid_has_stronger_phase =
+			phase_bpm_scores[double_index] >=
+			std::max(phase_bpm_scores[best_index] * 1.18f,
+				 combined_total_body_strength * 0.055f);
+		const bool double_grid_has_enough_body =
+			body_bpm_scores[double_index] >= body_bpm_scores[best_index] * 0.42f ||
+			adjacent_body_bpm_scores[double_index] >=
+				adjacent_body_bpm_scores[best_index] * 0.42f;
+		if (best_bpm < 66 && double_grid_is_phase_complete && double_grid_has_stronger_phase &&
+		    double_grid_has_enough_body && bpm_scores[double_index] >= best_score * 0.52f) {
+			best_bpm = double_bpm;
+			best_score = bpm_scores[double_index];
+			phase_grid_recovered_tempo = true;
+		}
 	}
 
 	if (combined_total_body_strength >= 0.65f) {
