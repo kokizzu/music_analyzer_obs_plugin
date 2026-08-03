@@ -342,6 +342,64 @@ void check_source_supported_plain_guitar_alias_recovery(Runner &runner)
 			      opposite_third_state.label + "`");
 }
 
+void check_crowded_probe_supported_guitar_rootless_plain_alias(Runner &runner)
+{
+	InstrumentState state = {};
+	std::snprintf(state.label, sizeof(state.label),
+		      "B=A#sus2=Fsus4=F=Fm=A#=A#m=Fsus2=Bpow=Bmaj7=Badd9=B7=F7");
+	state.confidence = 0.50f;
+
+	NoteGrid display_grid = {};
+	set_pitch(display_grid, 0, 0.12f);
+	set_pitch(display_grid, 5, 0.14f);
+	set_pitch(display_grid, 6, 0.77f);
+	set_pitch(display_grid, 7, 0.98f);
+	set_pitch(display_grid, 10, 1.00f);
+	set_pitch(display_grid, 11, 0.52f);
+	NoteGrid analysis_grid = {};
+	for (int pitch = 0; pitch < 12; ++pitch)
+		set_pitch(analysis_grid, pitch, 0.025f);
+	set_pitch(analysis_grid, 3, 0.27f);
+	set_pitch(analysis_grid, 6, 0.77f);
+	set_pitch(analysis_grid, 7, 0.58f);
+	set_pitch(analysis_grid, 10, 1.00f);
+
+	std::array<float, kNoteProbeCount> powers = {};
+	set_probe_level(powers, 51, 0.25f);
+	set_probe_level(powers, 54, 0.35f);
+	set_probe_level(powers, 55, 0.03f);
+	set_probe_level(powers, 58, 1.00f);
+
+	append_crowded_probe_supported_guitar_rootless_plain_alias(
+		state, display_grid, analysis_grid, powers, kGuitarMinMidi, kGuitarMaxMidi);
+	runner.expect(chord_label_has_exact_component(state.label, "D#m"),
+		      std::string("crowded rootless guitar plain alias: expected D#m recovered, got `") +
+			      state.label + "`");
+
+	InstrumentState missing_upper = {};
+	std::snprintf(missing_upper.label, sizeof(missing_upper.label), "%s", "B=Bmaj7");
+	NoteGrid missing_upper_display = {};
+	set_pitch(missing_upper_display, 6, 0.77f);
+	set_pitch(missing_upper_display, 11, 0.52f);
+	append_crowded_probe_supported_guitar_rootless_plain_alias(
+		missing_upper, missing_upper_display, analysis_grid, powers, kGuitarMinMidi,
+		kGuitarMaxMidi);
+	runner.expect(!chord_label_has_exact_component(missing_upper.label, "D#m"),
+		      std::string("crowded rootless guitar plain alias: expected missing upper tone to block D#m, got `") +
+			      missing_upper.label + "`");
+
+	InstrumentState opposite_third = {};
+	std::snprintf(opposite_third.label, sizeof(opposite_third.label), "%s", "B=Bmaj7");
+	NoteGrid opposite_analysis_grid = analysis_grid;
+	set_pitch(opposite_analysis_grid, 7, 0.90f);
+	append_crowded_probe_supported_guitar_rootless_plain_alias(
+		opposite_third, display_grid, opposite_analysis_grid, powers, kGuitarMinMidi,
+		kGuitarMaxMidi);
+	runner.expect(!chord_label_has_exact_component(opposite_third.label, "D#m"),
+		      std::string("crowded rootless guitar plain alias: expected analysis opposite third to block D#m, got `") +
+			      opposite_third.label + "`");
+}
+
 void check_probe_supported_guitar_extension_base_alias_recovery(Runner &runner)
 {
 	InstrumentState state = {};
@@ -4401,6 +4459,7 @@ int run()
 	check_displayed_same_root_plain_guitar_primary(runner);
 	check_displayed_supported_plain_guitar_primary(runner);
 	check_source_supported_plain_guitar_alias_recovery(runner);
+	check_crowded_probe_supported_guitar_rootless_plain_alias(runner);
 	check_probe_supported_guitar_extension_base_alias_recovery(runner);
 	check_probe_supported_guitar_plain_triad_replaces_weak_relative_primary(runner);
 	check_probe_only_guitar_plain_triad_recovery(runner);
