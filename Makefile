@@ -1194,7 +1194,7 @@ GUITARSET_ATTRIBUTE_GATE_ENV ?= MUSIC_ANALYZER_GUITARSET_ATTRIBUTE_ONLY=1 MUSIC_
 .PHONY: measure-analyzer-attributes measure-analyzer-attribute-rows measure-analyzer-attribute-rows-full refresh-analyzer-detected-attribute-rows print-analyzer-detected-attributes print-analyzer-detected-attributes-cached measure-analyzer-detected-attributes measure-analyzer-detected-attributes-full measure-analyzer-pattern-report-sections report-analyzer-patterns-from-rows report-analyzer-patterns-from-rows-full measure-analyzer-patterns measure-analyzer-patterns-full measure-analyzer-pattern-report inspect-instrument-sample-owner-buckets find-instrument-owner-patterns find-instrument-status-patterns test-instrument-sample-owner-buckets test-filter-instrument-attribute-rows test-instrument-owner-patterns test-refresh-analyzer-detected-attribute-rows test-print-analyzer-detected-attributes test-analyzer-pattern-report test-detector-route-report-summary test-measure-analyzer-patterns-target analyze-drum-primary-attribute-rows find-drum-primary-attribute-patterns analyze-drum-spread-gate-matrix-serial analyze-drum-spread-gate-matrix-parallel analyze-drum-spread-gate-matrix-parallel-unlocked analyze-drum-tom-bleed-caps analyze-drum-tom-bleed-caps-cached
 .PHONY: analyze-drum-spread-gate-matrix analyze-drum-full-gate-matrix analyze-drum-full-gate-matrix-parallel analyze-drum-full-merged-expected-attribute-rows analyze-drum-active-false-rows analyze-drum-rule-flags compare-drum-gate-matrix find-drum-active-false-patterns find-drum-active-false-patterns-full find-drum-spread-exact-attribute-patterns find-drum-full-exact-attribute-patterns find-drum-full-exact-attribute-patterns-cached find-protected-drum-full-exact-attribute-patterns test-drum-gate-matrix-summary test-compare-drum-gate-summaries test-drum-active-threshold-simulation test-drum-active-false-summary test-drum-rule-flag-summary test-drum-active-false-patterns test-inspect-drum-candidate-rows test-inspect-real-note-candidate-rows test-inspect-detector-coverage-candidates
 .PHONY: analyze-hf-drum-primary-attribute-rows analyze-hf-drum-primary-attribute-rows-serial analyze-hf-drum-primary-attribute-rows-parallel find-hf-drum-primary-attribute-patterns analyze-idmt-drum-primary-attribute-rows analyze-idmt-drum-primary-attribute-rows-serial analyze-idmt-drum-primary-attribute-rows-parallel find-idmt-drum-primary-attribute-patterns analyze-protected-drum-primary-attribute-rows find-protected-drum-primary-attribute-patterns
-.PHONY: analyze-guitar-chord-mix-recovery analyze-guitar-chord-primary-order analyze-guitar-chord-mix-extra-components find-egfxset-guitar-route-patterns find-gaps-guitar-route-patterns find-gaps-guitar-full-route-patterns find-guitarset-route-patterns test-guitar-chord-recovery-analysis test-guitar-primary-order-analysis test-guitar-chord-extra-components-analysis test-guitar-chord-mix-samples-serial test-guitar-chord-mix-samples-parallel
+.PHONY: analyze-guitar-chord-mix-recovery analyze-guitar-chord-primary-order analyze-guitar-chord-mix-extra-components inspect-guitar-techs-chord-attribute-buckets find-guitar-techs-chord-attribute-patterns find-guitar-techs-chord-route-patterns find-egfxset-guitar-route-patterns find-gaps-guitar-route-patterns find-gaps-guitar-full-route-patterns find-guitarset-route-patterns test-guitar-chord-recovery-analysis test-guitar-primary-order-analysis test-guitar-chord-extra-components-analysis test-guitar-chord-mix-samples-serial test-guitar-chord-mix-samples-parallel
 .PHONY: analyze-real-note-misses-serial analyze-real-note-misses-parallel analyze-real-note-misses-shard-%
 .PHONY: test-vocadito-samples-full-mix-parallel-unlocked
 .PHONY: test-parallel test-core-parallel test-analysis-scripts-parallel test-fixtures-parallel test-fixtures-parallel-isolated test-real-note-sample-shards test-real-note-sample-shards-unlocked test-real-note-sample-shard-% test-real-note-samples-full-mix-serial test-real-note-samples-full-mix-parallel test-real-note-samples-full-mix-parallel-unlocked test-real-note-samples-full-mix-detector-parallel test-real-note-visual-strength test-real-note-full-mix-shard-check test-real-note-sample-shard-check test-instrument-samples-serial test-instrument-samples-parallel test-visualizer-renderer test-analyzer-internal test-analyzer-smoke test-analyzer-cases test-analyzer-midi-ranges test-analyzer-urmp test-analyzer-musicnet test-analyzer-multtipop test-analyzer-guitarset test-analyzer-maestro test-analyzer-egmd
@@ -2508,6 +2508,15 @@ analyze-guitar-techs-chord-attributes: $(GUITAR_TECHS_CHORD_ATTRIBUTE_TSV) scrip
 analyze-guitar-techs-chord-extra-components: $(GUITAR_TECHS_CHORD_ATTRIBUTE_TSV) scripts/analyze_guitar_chord_extra_components.py
 	$(PYTHON) scripts/analyze_guitar_chord_extra_components.py "$(GUITAR_TECHS_CHORD_ATTRIBUTE_TSV)" $(EXTRA_COMPONENT_ARGS)
 
+inspect-guitar-techs-chord-attribute-buckets: $(GUITAR_TECHS_CHORD_ATTRIBUTE_TSV) scripts/inspect_guitarset_attribute_buckets.py scripts/summarize_guitarset_attributes.py
+	$(PYTHON) scripts/inspect_guitarset_attribute_buckets.py "$(GUITAR_TECHS_CHORD_ATTRIBUTE_TSV)" $(BUCKET_ARGS)
+
+find-guitar-techs-chord-attribute-patterns: $(GUITAR_TECHS_CHORD_ATTRIBUTE_TSV) scripts/find_guitarset_attribute_patterns.py scripts/inspect_guitarset_attribute_buckets.py scripts/summarize_guitarset_attributes.py
+	$(PYTHON) scripts/find_guitarset_attribute_patterns.py "$(GUITAR_TECHS_CHORD_ATTRIBUTE_TSV)" $(PATTERN_ARGS)
+
+find-guitar-techs-chord-route-patterns:
+	+$(MAKE) find-guitar-techs-chord-attribute-patterns PATTERN_ARGS="$(MEASURE_GUITAR_ROUTE_PATTERN_ARGS)"
+
 $(GUITAR_CHORD_MIX_MANIFEST): | $(BUILD_DIR) scripts/prepare_hf_guitar_chord_mix.py
 	GUITAR_CHORD_MIX_SAMPLE_DIR="$(GUITAR_CHORD_MIX_SAMPLE_DIR)" GUITAR_CHORD_MIX_LIMIT="$(GUITAR_CHORD_MIX_LIMIT)" GUITAR_CHORD_MIX_MIN_EXCERPTS="$(GUITAR_CHORD_MIX_MIN_EXCERPTS)" $(PYTHON) scripts/prepare_hf_guitar_chord_mix.py --output "$(GUITAR_CHORD_MIX_SAMPLE_DIR)" --limit "$(GUITAR_CHORD_MIX_LIMIT)" --min-samples "$(GUITAR_CHORD_MIX_MIN_EXCERPTS)"
 
@@ -3275,6 +3284,9 @@ ifneq ($(wildcard $(VOCALSET_ARCHIVE)),)
 DETECTOR_REAL_NOTE_PATTERN_OPTIONAL_PROTECTED_PATHS += $(VOCALSET_DETECTED_ATTRIBUTE_ROWS)
 endif
 DETECTOR_GUITAR_PATTERN_ROUTE_TARGETS :=
+ifneq ($(wildcard $(GUITAR_TECHS_CHORD_MANIFEST)),)
+DETECTOR_GUITAR_PATTERN_ROUTE_TARGETS += find-guitar-techs-chord-route-patterns
+endif
 ifneq ($(wildcard $(EGFXSET_GUITAR_MANIFEST)),)
 DETECTOR_GUITAR_PATTERN_ROUTE_TARGETS += find-egfxset-guitar-route-patterns
 endif

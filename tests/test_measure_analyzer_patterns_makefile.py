@@ -933,6 +933,7 @@ def main() -> int:
     )
     for text in [
         "DETECTOR_GUITAR_PATTERN_ROUTE_TARGETS :=",
+        "DETECTOR_GUITAR_PATTERN_ROUTE_TARGETS += find-guitar-techs-chord-route-patterns",
         "DETECTOR_GUITAR_PATTERN_ROUTE_TARGETS += find-egfxset-guitar-route-patterns",
         "DETECTOR_GUITAR_PATTERN_ROUTE_TARGETS += find-gaps-guitar-route-patterns",
         "DETECTOR_GUITAR_PATTERN_ROUTE_TARGETS += find-gaps-guitar-full-route-patterns",
@@ -942,6 +943,7 @@ def main() -> int:
             f"detector route scans must optionally include guitar evidence target {text}"
         )
     for target, delegated in {
+        "find-guitar-techs-chord-route-patterns": "find-guitar-techs-chord-attribute-patterns",
         "find-egfxset-guitar-route-patterns": "find-egfxset-guitar-attribute-patterns",
         "find-gaps-guitar-route-patterns": "find-gaps-guitar-attribute-patterns",
         "find-gaps-guitar-full-route-patterns": "find-gaps-guitar-full-attribute-patterns",
