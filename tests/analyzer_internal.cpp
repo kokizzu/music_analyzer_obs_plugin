@@ -1959,6 +1959,57 @@ void check_ambiguous_guitar_power_quality_keeps_both_plain_aliases(Runner &runne
 			      clear_power_major.label + "`");
 }
 
+void check_display_guitar_power_opposite_quality_alias(Runner &runner)
+{
+	InstrumentState display = {};
+	std::snprintf(display.label, sizeof(display.label),
+		      "Dm=D#maj7=D#=Dpow=Cm=D#6=Cm6=Adim=Adim7=D#pow");
+	display.confidence = 0.50f;
+
+	NoteGrid display_grid = {};
+	set_pitch(display_grid, 0, 0.30f);
+	set_pitch(display_grid, 2, 0.93f);
+	set_pitch(display_grid, 3, 0.60f);
+	set_pitch(display_grid, 9, 1.00f);
+	set_pitch(display_grid, 10, 0.62f);
+	set_pitch(display_grid, 11, 0.70f);
+	NoteGrid analysis_grid = {};
+	set_pitch(analysis_grid, 0, 0.20f);
+	set_pitch(analysis_grid, 2, 1.00f);
+	set_pitch(analysis_grid, 3, 0.40f);
+	set_pitch(analysis_grid, 7, 0.16f);
+	set_pitch(analysis_grid, 9, 0.93f);
+	set_pitch(analysis_grid, 10, 0.50f);
+	set_pitch(analysis_grid, 11, 0.60f);
+
+	std::array<float, kNoteProbeCount> powers = {};
+	set_probe_level(powers, 50, 0.34f);
+	set_probe_level(powers, 53, 0.11f);
+	set_probe_level(powers, 54, 0.15f);
+	set_probe_level(powers, 57, 1.00f);
+
+	append_display_guitar_power_opposite_quality_aliases(
+		display, display_grid, analysis_grid, powers, kGuitarMinMidi, kGuitarMaxMidi);
+	runner.expect(chord_label_has_exact_component(display.label, "D"),
+		      std::string("display guitar power opposite quality: expected D alias, got `") +
+			      display.label + "`");
+	runner.expect(chord_label_has_exact_component(display.label, "Dm"),
+		      std::string("display guitar power opposite quality: expected Dm preserved, got `") +
+			      display.label + "`");
+	runner.expect(chord_label_has_exact_component(display.label, "Dpow"),
+		      std::string("display guitar power opposite quality: expected Dpow preserved, got `") +
+			      display.label + "`");
+
+	InstrumentState protected_minor = display;
+	std::snprintf(protected_minor.label, sizeof(protected_minor.label), "%s", "Dm");
+	append_display_guitar_power_opposite_quality_aliases(
+		protected_minor, display_grid, analysis_grid, powers, kGuitarMinMidi,
+		kGuitarMaxMidi);
+	runner.expect(!chord_label_has_exact_component(protected_minor.label, "D"),
+		      std::string("display guitar power opposite quality: expected missing power anchor blocked, got `") +
+			      protected_minor.label + "`");
+}
+
 void check_compact_guitar_power_raw_profile_third_aliases(Runner &runner)
 {
 	InstrumentState measured_major = {};
@@ -4479,6 +4530,7 @@ int run()
 	check_analysis_complete_guitar_source_dominant_seventh_aliases_after_prune(runner);
 	check_probe_supported_guitar_source_dominant_seventh_aliases_after_prune(runner);
 	check_ambiguous_guitar_power_quality_keeps_both_plain_aliases(runner);
+	check_display_guitar_power_opposite_quality_alias(runner);
 	check_compact_guitar_power_raw_profile_third_aliases(runner);
 	check_same_pitch_guitar_bass_shadow_uses_any_matching_debug(runner);
 	check_keyboard_owned_same_pitch_vocal_shadow_uses_weak_target_guard(runner);
