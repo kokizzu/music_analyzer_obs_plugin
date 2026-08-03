@@ -252,7 +252,7 @@ private:
 	};
 
 	static constexpr std::size_t kMaxRootVotes = 1500;
-	static constexpr std::size_t kMaxTempoEvents = 64;
+	static constexpr std::size_t kMaxTempoEvents = 96;
 
 	std::array<float, kAnalysisWindow> window_ = {};
 	std::array<Probe, kNoteProbeCount> note_probes_ = {};
@@ -264,6 +264,7 @@ private:
 	std::array<RootVote, kMaxRootVotes> root_votes_ = {};
 	std::array<float, 12> root_sum_ = {};
 	std::array<float, kMaxTempoEvents> tempo_events_ = {};
+	std::array<float, kMaxTempoEvents> tempo_event_strengths_ = {};
 	int tracked_bass_midi_ = -1;
 	int pending_bass_midi_ = -1;
 	int pending_bass_hits_ = 0;
@@ -298,6 +299,7 @@ private:
 	int locked_root_ = -1;
 	float silence_seconds_ = 0.0f;
 	float tempo_clock_seconds_ = 0.0f;
+	float tempo_silence_seconds_ = 0.0f;
 	float last_tempo_event_seconds_ = -10.0f;
 	float estimated_bpm_ = 0.0f;
 	float bpm_confidence_ = 0.0f;
@@ -310,7 +312,7 @@ private:
 	void rebuild_window(std::size_t window_samples);
 	void reset_note_envelopes();
 	void reset_analysis_state();
-	void update_tempo(bool transient_event, float interval_seconds, float rms);
+	void update_tempo(float transient_strength, float interval_seconds, float rms);
 	float goertzel_power(const float *samples, std::size_t count, float mean, const Probe &probe) const;
 	float goertzel_power_at_frequency(const float *samples, std::size_t count, float mean, float freq) const;
 	TuningProbeResult chromatic_tuning_probe(const float *samples, std::size_t count, float mean, int midi,

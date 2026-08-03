@@ -236,6 +236,36 @@ void add_decayed_sine(mao_test::Buffer &buffer, float freq, float amp, std::size
 	}
 }
 
+void add_tempo_kick(mao_test::Buffer &buffer, float scale = 1.0f)
+{
+	add_decayed_sine(buffer, 65.0f, 0.78f * scale, 1500);
+	add_decayed_sine(buffer, 90.0f, 0.22f * scale, 1100);
+	add_decayed_sine(buffer, 1100.0f, 0.26f * scale, 520);
+}
+
+void add_tempo_snare(mao_test::Buffer &buffer, float scale = 1.0f)
+{
+	add_decayed_sine(buffer, 170.0f, 0.16f * scale, 1300);
+	add_decayed_sine(buffer, 650.0f, 0.065f * scale, 760);
+	add_decayed_sine(buffer, 1800.0f, 0.16f * scale, 620);
+	add_decayed_sine(buffer, 3600.0f, 0.055f * scale, 460);
+}
+
+void add_tempo_hihat(mao_test::Buffer &buffer, float scale = 1.0f)
+{
+	add_decayed_sine(buffer, 5600.0f, 0.070f * scale, 900);
+	add_decayed_sine(buffer, 7600.0f, 0.090f * scale, 820);
+	add_decayed_sine(buffer, 9800.0f, 0.065f * scale, 620);
+}
+
+void add_tempo_fill(mao_test::Buffer &buffer)
+{
+	add_decayed_sine(buffer, 140.0f, 0.20f, 1200);
+	add_decayed_sine(buffer, 220.0f, 0.16f, 1000);
+	add_decayed_sine(buffer, 3600.0f, 0.16f, 580);
+	add_decayed_sine(buffer, 7600.0f, 0.18f, 560);
+}
+
 void add_sine_at_offset(mao_test::Buffer &buffer, float freq, float amp, uint64_t sample_offset)
 {
 	for (std::size_t i = 0; i < buffer.size(); ++i) {
@@ -251,6 +281,12 @@ void add_harmonic_note_at_offset(mao_test::Buffer &buffer, int midi, float amp,
 	for (std::size_t harmonic = 0; harmonic < profile.size(); ++harmonic)
 		add_sine_at_offset(buffer, base * static_cast<float>(harmonic + 1), amp * profile[harmonic],
 				   sample_offset);
+}
+
+void add_tempo_backing(mao_test::Buffer &buffer, uint64_t sample_offset)
+{
+	add_harmonic_note_at_offset(buffer, 48, 0.0050f, {1.0f, 0.16f}, sample_offset);
+	add_harmonic_note_at_offset(buffer, 55, 0.0038f, {1.0f, 0.12f}, sample_offset);
 }
 
 void add_detuned_harmonic_note_at_offset(mao_test::Buffer &buffer, int midi, float amp,
@@ -4721,6 +4757,59 @@ void check_sparse_full_mix_other_requires_temporal_confirmation(Runner &runner)
 	expect_midi_not_duplicated_across_rows(runner, snapshot, 74, "sparse full-mix other confirmation ownership");
 }
 
+mao::AnalysisSettings tempo_test_settings()
+{
+	mao::AnalysisSettings settings = mao_test::default_settings();
+	settings.input_mode = mao::AnalysisInputMode::FullMix;
+	settings.analysis_interval_seconds = 0.05f;
+	settings.analysis_window_seconds = 0.10f;
+	settings.analysis_window_samples = 0;
+	return settings;
+}
+
+mao::AnalysisSnapshot run_tempo_pattern(mao::AnalysisEngine &engine, const mao::AnalysisSettings &settings,
+					float bpm, int frames, bool eighth_hats, bool one_frame_fill)
+{
+	const int beat_frames = std::max(1, static_cast<int>(
+					   std::lround((60.0f / bpm) / settings.analysis_interval_seconds)));
+	const int half_beat_frames = std::max(1, beat_frames / 2);
+	const uint64_t hop_samples = static_cast<uint64_t>(
+		std::lround(settings.analysis_interval_seconds * static_cast<float>(settings.sample_rate)));
+	mao::AnalysisSnapshot snapshot = {};
+
+	for (int frame = 0; frame < frames; ++frame) {
+		mao_test::Buffer buffer = {};
+		add_tempo_backing(buffer, static_cast<uint64_t>(frame) * hop_samples);
+
+		if (eighth_hats && frame % half_beat_frames == 0)
+			add_tempo_hihat(buffer, 0.70f);
+		if (frame % beat_frames == 0) {
+			const int beat = frame / beat_frames;
+			if (beat % 4 == 1 || beat % 4 == 3)
+				add_tempo_snare(buffer);
+			else
+				add_tempo_kick(buffer);
+		}
+		if (one_frame_fill && frame == frames / 2 + half_beat_frames / 2)
+			add_tempo_fill(buffer);
+
+		snapshot = engine.analyze(buffer.data(), buffer.size(), settings, "tempo test", 0);
+	}
+
+	return snapshot;
+}
+
+void expect_bpm_near(Runner &runner, const mao::AnalysisSnapshot &snapshot, float expected, float tolerance,
+		     const std::string &context)
+{
+	runner.expect(std::fabs(snapshot.estimated_bpm - expected) <= tolerance,
+		      context + ": expected BPM " + std::to_string(snapshot.estimated_bpm) + " near " +
+			      std::to_string(expected));
+	runner.expect(snapshot.bpm_confidence >= 0.22f,
+		      context + ": expected confidence >= 22%, got " +
+			      std::to_string(snapshot.bpm_confidence));
+}
+
 void check_explicit_input_mode_and_bpm(Runner &runner)
 {
 	{
@@ -4739,24 +4828,38 @@ void check_explicit_input_mode_and_bpm(Runner &runner)
 
 	{
 		mao::AnalysisEngine engine;
-		mao::AnalysisSettings settings = mao_test::default_settings();
-		settings.analysis_interval_seconds = 0.05f;
-		settings.input_mode = mao::AnalysisInputMode::FullMix;
-		mao::AnalysisSnapshot snapshot = {};
-		for (int frame = 0; frame < 108; ++frame) {
-			mao_test::Buffer buffer = {};
-			if (frame % 12 == 0) {
-				add_decayed_sine(buffer, 65.0f, 0.90f, 1400);
-				add_decayed_sine(buffer, 1100.0f, 0.30f, 520);
-			}
-			snapshot = engine.analyze(buffer.data(), buffer.size(), settings, "tempo test", 0);
-		}
+		const mao::AnalysisSettings settings = tempo_test_settings();
+		const mao::AnalysisSnapshot snapshot = run_tempo_pattern(engine, settings, 100.0f, 180, false, false);
+		expect_bpm_near(runner, snapshot, 100.0f, 5.0f, "BPM estimate 100");
+	}
 
-		runner.expect(snapshot.estimated_bpm >= 70.0f && snapshot.estimated_bpm <= 130.0f,
-			      "BPM estimate: expected plausible tempo from synthetic pulse, got " +
-				      std::to_string(snapshot.estimated_bpm));
-		runner.expect(snapshot.bpm_confidence >= 0.20f,
-			      "BPM estimate: expected confidence >= 20%, got " +
+	{
+		mao::AnalysisEngine engine;
+		const mao::AnalysisSettings settings = tempo_test_settings();
+		const mao::AnalysisSnapshot snapshot = run_tempo_pattern(engine, settings, 120.0f, 220, true, true);
+		expect_bpm_near(runner, snapshot, 120.0f, 5.0f, "BPM estimate with eighth hats and fill");
+	}
+
+	{
+		mao::AnalysisEngine engine;
+		const mao::AnalysisSettings settings = tempo_test_settings();
+		mao::AnalysisSnapshot snapshot = run_tempo_pattern(engine, settings, 100.0f, 150, false, false);
+		expect_bpm_near(runner, snapshot, 100.0f, 6.0f, "BPM estimate before tempo change");
+		snapshot = run_tempo_pattern(engine, settings, 140.0f, 180, false, false);
+		expect_bpm_near(runner, snapshot, 140.0f, 7.0f, "BPM estimate after tempo change");
+	}
+
+	{
+		mao::AnalysisEngine engine;
+		const mao::AnalysisSettings settings = tempo_test_settings();
+		mao::AnalysisSnapshot snapshot = run_tempo_pattern(engine, settings, 120.0f, 180, false, false);
+		expect_bpm_near(runner, snapshot, 120.0f, 5.0f, "BPM estimate before silence");
+		mao_test::Buffer silence = {};
+		for (int frame = 0; frame < 90; ++frame)
+			snapshot = engine.analyze(silence.data(), silence.size(), settings, "tempo test", 0);
+		runner.expect(snapshot.estimated_bpm == 0.0f && snapshot.bpm_confidence == 0.0f,
+			      "BPM estimate: expected silence to clear tempo, got BPM " +
+				      std::to_string(snapshot.estimated_bpm) + " confidence " +
 				      std::to_string(snapshot.bpm_confidence));
 	}
 }

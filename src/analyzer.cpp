@@ -23792,34 +23792,57 @@ void AnalysisEngine::reset_analysis_state()
 	previous_rms_ = 0.0f;
 	silence_seconds_ = 0.0f;
 	tempo_events_.fill(0.0f);
+	tempo_event_strengths_.fill(0.0f);
 	tempo_event_pos_ = 0;
 	tempo_event_count_ = 0;
 	tempo_clock_seconds_ = 0.0f;
+	tempo_silence_seconds_ = 0.0f;
 	last_tempo_event_seconds_ = -10.0f;
 	estimated_bpm_ = 0.0f;
 	bpm_confidence_ = 0.0f;
 }
 
-void AnalysisEngine::update_tempo(bool transient_event, float interval_seconds, float rms)
+void AnalysisEngine::update_tempo(float transient_strength, float interval_seconds, float rms)
 {
 	const float clamped_interval = std::clamp(interval_seconds, 0.01f, 1.0f);
 	tempo_clock_seconds_ += clamped_interval;
 
 	if (rms <= kSilenceRms) {
-		estimated_bpm_ *= 0.992f;
-		bpm_confidence_ *= 0.985f;
+		tempo_silence_seconds_ += clamped_interval;
+		const float confidence_decay = tempo_silence_seconds_ >= 1.0f ?
+						       std::exp(-clamped_interval / 0.45f) :
+						       std::exp(-clamped_interval / 2.5f);
+		bpm_confidence_ *= confidence_decay;
 		if (bpm_confidence_ < 0.05f) {
 			estimated_bpm_ = 0.0f;
 			bpm_confidence_ = 0.0f;
 		}
+		if (tempo_silence_seconds_ >= 4.0f) {
+			tempo_events_.fill(0.0f);
+			tempo_event_strengths_.fill(0.0f);
+			tempo_event_pos_ = 0;
+			tempo_event_count_ = 0;
+			last_tempo_event_seconds_ = -10.0f;
+		}
 		return;
 	}
+	tempo_silence_seconds_ = 0.0f;
 
-	if (transient_event && tempo_clock_seconds_ - last_tempo_event_seconds_ >= 0.30f) {
-		tempo_events_[tempo_event_pos_] = tempo_clock_seconds_;
-		tempo_event_pos_ = (tempo_event_pos_ + 1) % tempo_events_.size();
-		tempo_event_count_ = std::min<std::size_t>(tempo_event_count_ + 1, tempo_events_.size());
-		last_tempo_event_seconds_ = tempo_clock_seconds_;
+	const float event_strength = std::clamp(transient_strength, 0.0f, 1.25f);
+	if (event_strength >= 0.08f) {
+		if (tempo_event_count_ > 0 && tempo_clock_seconds_ - last_tempo_event_seconds_ < 0.18f) {
+			const std::size_t last_index =
+				(tempo_event_pos_ + tempo_events_.size() - 1) % tempo_events_.size();
+			tempo_event_strengths_[last_index] =
+				std::max(tempo_event_strengths_[last_index], event_strength);
+		} else {
+			tempo_events_[tempo_event_pos_] = tempo_clock_seconds_;
+			tempo_event_strengths_[tempo_event_pos_] = event_strength;
+			tempo_event_pos_ = (tempo_event_pos_ + 1) % tempo_events_.size();
+			tempo_event_count_ = std::min<std::size_t>(tempo_event_count_ + 1,
+								   tempo_events_.size());
+			last_tempo_event_seconds_ = tempo_clock_seconds_;
+		}
 	}
 
 	if (tempo_event_count_ < 3) {
@@ -23827,94 +23850,125 @@ void AnalysisEngine::update_tempo(bool transient_event, float interval_seconds, 
 		return;
 	}
 
-	static constexpr std::size_t kMaxTempoCandidates = 512;
 	std::array<float, kMaxTempoEvents> recent_events = {};
-	std::array<float, kMaxTempoCandidates> candidates = {};
-	std::array<float, kMaxTempoCandidates> weights = {};
-	std::size_t candidate_count = 0;
+	std::array<float, kMaxTempoEvents> recent_strengths = {};
 	std::size_t recent_count = 0;
+	float total_recent_strength = 0.0f;
 
 	for (std::size_t i = 0; i < tempo_event_count_; ++i) {
 		const std::size_t index =
 			(tempo_event_pos_ + tempo_events_.size() - tempo_event_count_ + i) % tempo_events_.size();
 		const float event_time = tempo_events_[index];
-		if (tempo_clock_seconds_ - event_time <= 12.0f)
-			recent_events[recent_count++] = event_time;
+		const float event_age = tempo_clock_seconds_ - event_time;
+		if (event_age <= 14.0f && tempo_event_strengths_[index] >= 0.05f) {
+			recent_events[recent_count] = event_time;
+			recent_strengths[recent_count] = tempo_event_strengths_[index];
+			total_recent_strength += tempo_event_strengths_[index];
+			++recent_count;
+		}
 	}
 
-	for (std::size_t older_index = 0; older_index < recent_count; ++older_index) {
-		for (std::size_t newer_index = older_index + 1; newer_index < recent_count; ++newer_index) {
-			const float newer = recent_events[newer_index];
-			const float older = recent_events[older_index];
-			const float delta = newer - older;
-			if (delta < 0.30f || delta > 4.0f)
-				continue;
+	if (recent_count < 3 || total_recent_strength < 1.0f) {
+		bpm_confidence_ *= std::exp(-clamped_interval / 6.0f);
+		return;
+	}
 
-			for (int beat_span = 1; beat_span <= 4; ++beat_span) {
-				const float bpm = 60.0f * static_cast<float>(beat_span) / delta;
-				if (bpm < 70.0f || bpm > 190.0f)
+	static constexpr int kMinTempoBpm = 70;
+	static constexpr int kMaxTempoBpm = 190;
+	static constexpr std::size_t kTempoBpmCount =
+		static_cast<std::size_t>(kMaxTempoBpm - kMinTempoBpm + 1);
+	std::array<float, kTempoBpmCount> bpm_scores = {};
+	float best_score = 0.0f;
+	int best_bpm = 0;
+
+	for (int bpm = kMinTempoBpm; bpm <= kMaxTempoBpm; ++bpm) {
+		const float period = 60.0f / static_cast<float>(bpm);
+		const float tolerance = std::clamp(period * 0.115f, 0.035f, 0.080f);
+		float score = 0.0f;
+
+		for (std::size_t older_index = 0; older_index < recent_count; ++older_index) {
+			for (std::size_t newer_index = older_index + 1; newer_index < recent_count;
+			     ++newer_index) {
+				const float newer = recent_events[newer_index];
+				const float older = recent_events[older_index];
+				const float delta = newer - older;
+				if (delta < 0.28f || delta > 8.0f)
 					continue;
-				if (candidate_count >= candidates.size())
-					break;
+
+				const float beat_distance = delta / period;
+				const float nearest_beats = std::round(beat_distance);
+				if (nearest_beats < 1.0f || nearest_beats > 8.0f)
+					continue;
+
+				const float phase_error = std::abs(delta - nearest_beats * period);
+				if (phase_error > tolerance)
+					continue;
+
+				const float error_weight = 1.0f - phase_error / tolerance;
 				const float age = tempo_clock_seconds_ - newer;
-				const float recency = std::max(0.15f, 1.0f - age / 12.0f);
-				const float span_weight = 1.0f / std::sqrt(static_cast<float>(beat_span));
-				candidates[candidate_count] = bpm;
-				weights[candidate_count] = recency * span_weight;
-				++candidate_count;
+				const float recency = std::max(0.18f, 1.0f - age / 14.0f);
+				const float span_weight = 1.0f / std::sqrt(nearest_beats);
+				const float strength_weight =
+					std::sqrt(recent_strengths[older_index] * recent_strengths[newer_index]);
+				score += strength_weight * recency * span_weight * error_weight * error_weight;
 			}
 		}
-	}
 
-	if (candidate_count < 2) {
-		bpm_confidence_ *= 0.98f;
-		return;
-	}
-
-	float best_cluster_weight = 0.0f;
-	float best_cluster_sum = 0.0f;
-	float best_cluster_weight_sum = 0.0f;
-	for (std::size_t i = 0; i < candidate_count; ++i) {
-		float cluster_weight = 0.0f;
-		float cluster_sum = 0.0f;
-		for (std::size_t j = 0; j < candidate_count; ++j) {
-			if (std::abs(candidates[i] - candidates[j]) > 4.0f)
-				continue;
-			cluster_weight += weights[j];
-			cluster_sum += candidates[j] * weights[j];
+		if (estimated_bpm_ > 0.0f && bpm_confidence_ > 0.15f) {
+			const float continuity_error = std::abs(static_cast<float>(bpm) - estimated_bpm_);
+			if (continuity_error <= 8.0f)
+				score *= 1.0f + bpm_confidence_ * 0.16f *
+						     (1.0f - continuity_error / 8.0f);
 		}
-		if (cluster_weight > best_cluster_weight) {
-			best_cluster_weight = cluster_weight;
-			best_cluster_sum = cluster_sum;
-			best_cluster_weight_sum = cluster_weight;
+
+		const std::size_t score_index = static_cast<std::size_t>(bpm - kMinTempoBpm);
+		bpm_scores[score_index] = score;
+		if (score > best_score) {
+			best_score = score;
+			best_bpm = bpm;
 		}
 	}
 
-	if (best_cluster_weight_sum <= 0.0f) {
-		bpm_confidence_ *= 0.98f;
+	if (best_score <= 1.0e-6f) {
+		bpm_confidence_ *= std::exp(-clamped_interval / 6.0f);
 		return;
 	}
 
-	const float mean_bpm = best_cluster_sum / best_cluster_weight_sum;
-	float variance = 0.0f;
-	float variance_weight = 0.0f;
-	for (std::size_t i = 0; i < candidate_count; ++i) {
-		if (std::abs(candidates[i] - mean_bpm) > 4.0f)
+	float cluster_sum = 0.0f;
+	float cluster_weight = 0.0f;
+	float second_score = 0.0f;
+	for (int bpm = kMinTempoBpm; bpm <= kMaxTempoBpm; ++bpm) {
+		const float score = bpm_scores[static_cast<std::size_t>(bpm - kMinTempoBpm)];
+		const int distance = std::abs(bpm - best_bpm);
+		if (distance <= 3) {
+			cluster_sum += static_cast<float>(bpm) * score;
+			cluster_weight += score;
 			continue;
-		const float delta = candidates[i] - mean_bpm;
-		variance += delta * delta * weights[i];
-		variance_weight += weights[i];
+		}
+		if (score > second_score)
+			second_score = score;
 	}
-	variance /= std::max(variance_weight, 1.0e-6f);
-	const float stdev = std::sqrt(std::max(variance, 0.0f));
-	const float count_confidence = std::clamp(best_cluster_weight / 10.0f, 0.0f, 1.0f);
-	const float stability_confidence = std::clamp(1.0f - stdev / std::max(mean_bpm * 0.10f, 1.0f), 0.0f, 1.0f);
-	const float target_confidence = count_confidence * stability_confidence;
+	const float mean_bpm = cluster_weight > 1.0e-6f ? cluster_sum / cluster_weight :
+							   static_cast<float>(best_bpm);
+	const float density_confidence = std::clamp(total_recent_strength / 10.0f, 0.0f, 1.0f);
+	const float score_confidence =
+		std::clamp(best_score / std::max(total_recent_strength * 1.45f, 1.0e-6f), 0.0f, 1.0f);
+	const float dominance_confidence =
+		second_score > 1.0e-6f ?
+			std::clamp((best_score - second_score * 0.82f) / best_score, 0.0f, 1.0f) :
+			1.0f;
+	const float target_confidence =
+		std::clamp(density_confidence * score_confidence *
+				   (0.58f + dominance_confidence * 0.42f),
+			   0.0f, 1.0f);
 
 	if (estimated_bpm_ <= 0.0f)
 		estimated_bpm_ = mean_bpm;
-	else
-		estimated_bpm_ = estimated_bpm_ * 0.72f + mean_bpm * 0.28f;
+	else {
+		const float difference = std::abs(mean_bpm - estimated_bpm_);
+		const float smoothing = difference >= 14.0f && target_confidence >= 0.24f ? 0.42f : 0.24f;
+		estimated_bpm_ = estimated_bpm_ * (1.0f - smoothing) + mean_bpm * smoothing;
+	}
 	bpm_confidence_ = bpm_confidence_ * 0.70f + target_confidence * 0.30f;
 }
 
@@ -27783,7 +27837,23 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 	const bool onset_tempo_event =
 		drum_detection_enabled && rms > kSilenceRms && drum_transient &&
 		(had_previous_audio ? onset >= 1.25f : true);
-	update_tempo(tempo_event || onset_tempo_event, interval_seconds, rms);
+	float tempo_strength = 0.0f;
+	if (tempo_event) {
+		static constexpr std::array<float, kDrumCount> kTempoDrumWeights = {
+			1.16f, 1.10f, 0.68f, 0.58f, 1.00f, 0.64f, 1.04f};
+		for (std::size_t i = 0; i < kDrumCount; ++i) {
+			if (!snapshot.drums[i].active)
+				continue;
+			tempo_strength = std::max(tempo_strength, snapshot.drums[i].level * kTempoDrumWeights[i]);
+		}
+	}
+	if (onset_tempo_event) {
+		const float onset_component = std::clamp((onset - 1.0f) / 2.8f, 0.0f, 0.62f);
+		const float transient_component =
+			std::clamp((drum_transient_ratio - kDrumTransientRatio) / 1.7f, 0.0f, 0.38f);
+		tempo_strength = std::max(tempo_strength, onset_component + transient_component);
+	}
+	update_tempo(tempo_strength, interval_seconds, rms);
 	snapshot.estimated_bpm = estimated_bpm_;
 	snapshot.bpm_confidence = bpm_confidence_;
 
