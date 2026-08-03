@@ -28045,6 +28045,28 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 	if (final_one_shot_measured_hihat_rim_seg_crash_active_bleed)
 		cap_drum_level(Crash, 0.28f);
 
+	const bool final_one_shot_measured_hot_hihat_tom_active_bleed =
+		drum_detection_enabled && one_shot_drum_source &&
+		!generated_gm_drum_source &&
+		drum_level_[Tom] > 0.30f &&
+		drum_level_[HiHat] >= 0.98f &&
+		snare_kick_segment_ratio >= 1.224f;
+	if (final_one_shot_measured_hot_hihat_tom_active_bleed)
+		snapshot.drum_debug_rule_flags |= DrumDebugHihatTomActiveBleed;
+	if (final_one_shot_measured_hot_hihat_tom_active_bleed)
+		cap_drum_level(Tom, 0.28f);
+
+	const bool final_one_shot_measured_hot_hihat_crash_active_bleed =
+		drum_detection_enabled && one_shot_drum_source &&
+		!generated_gm_drum_source &&
+		drum_level_[Crash] > 0.30f &&
+		drum_level_[Crash] <= 0.90f &&
+		drum_level_[HiHat] >= 0.993f;
+	if (final_one_shot_measured_hot_hihat_crash_active_bleed)
+		snapshot.drum_debug_rule_flags |= DrumDebugHihatCrashActiveBleed;
+	if (final_one_shot_measured_hot_hihat_crash_active_bleed)
+		cap_drum_level(Crash, 0.28f);
+
 	const bool final_one_shot_measured_kick_tom_active_bleed =
 		drum_detection_enabled && one_shot_drum_source &&
 		!generated_gm_drum_source &&

@@ -34,6 +34,7 @@ FLAG_FIELDS = (
     "flag_rim_snare_active_bleed",
     "flag_hihat_ride_active_bleed",
     "flag_cymbal_tom_kick_active_bleed",
+    "flag_hihat_tom_active_bleed",
 )
 
 
