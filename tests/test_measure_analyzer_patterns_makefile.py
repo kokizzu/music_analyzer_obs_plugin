@@ -1130,6 +1130,16 @@ def main() -> int:
     assert "$(MAKE) --always-make $(DETECTOR_IMPROVEMENT_ROUTE_SUMMARY)" in route_summary_refresh_recipe, (
         "detector improvement route summary refresh helper must force a fresh route report and summary"
     )
+    route_summary_cached_recipe = target_recipe(makefile, "detector-improvement-route-summary-cached")
+    assert "run make detector-improvement-route-summary-refresh" in route_summary_cached_recipe, (
+        "cached route summary helper must tell users how to refresh missing evidence"
+    )
+    assert 'cat "$(DETECTOR_IMPROVEMENT_ROUTE_SUMMARY)"' in route_summary_cached_recipe, (
+        "cached route summary helper must print the existing summary directly"
+    )
+    assert "$(MAKE)" not in route_summary_cached_recipe, (
+        "cached route summary helper must not trigger Make prerequisites"
+    )
     detector_improvement_full_recipe = target_recipe(makefile, "analyze-detector-improvements-full")
     assert "\n\t+$(RUN_WITH_DURATION) detector_improvements_full_parallel" in detector_improvement_full_recipe, (
         "full detector improvement workflow must report the aggregate parallel duration"
@@ -1193,12 +1203,29 @@ def main() -> int:
     assert 'mv "$$tmp" "$@"' in audit_report_recipe, (
         "detector improvement audit report must publish atomically"
     )
-    assert 'tail -n 60 "$@"' in audit_report_recipe, (
+    assert 'tail -n "$(DETECTOR_IMPROVEMENT_AUDIT_TAIL_LINES)" "$@"' in audit_report_recipe, (
         "detector improvement audit report must print the final decision context"
     )
     audit_report_alias = target_recipe(makefile, "detector-improvement-audit-report")
     assert "$(DETECTOR_IMPROVEMENT_AUDIT_REPORT)" in audit_report_alias, (
         "detector improvement audit report helper must depend on the file-backed report"
+    )
+    cached_audit_report_recipe = target_recipe(makefile, "detector-improvement-audit-report-cached")
+    assert "run make detector-improvement-audit-report" in cached_audit_report_recipe, (
+        "cached audit report helper must tell users how to generate missing evidence"
+    )
+    assert 'tail -n "$(DETECTOR_IMPROVEMENT_AUDIT_TAIL_LINES)" "$(DETECTOR_IMPROVEMENT_AUDIT_REPORT)"' in cached_audit_report_recipe, (
+        "cached audit report helper must print the existing final decision context"
+    )
+    assert "$(MAKE)" not in cached_audit_report_recipe, (
+        "cached audit report helper must not trigger the expensive audit refresh"
+    )
+    cached_audit_recipe = target_recipe(makefile, "detector-improvement-audit-cached")
+    assert "detector-improvement-route-summary-cached detector-improvement-audit-report-cached" in cached_audit_recipe, (
+        "cached audit helper must combine cached route and audit evidence"
+    )
+    assert "DETECTOR_IMPROVEMENT_AUDIT_TAIL_LINES ?= 60" in makefile, (
+        "audit tail length must remain overrideable for cached and refresh reports"
     )
     default_test_recipe = target_recipe(makefile, "test")
     assert "$(RUN_WITH_DURATION) test_fast" in default_test_recipe, (
