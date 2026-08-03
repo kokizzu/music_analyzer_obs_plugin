@@ -343,6 +343,10 @@ def main() -> int:
     assert "chord_hit:maj:all" not in compact.stdout
     assert "raw_third" not in compact.stdout
     assert "evidence_class" in dumped.stdout
+    assert "visible_tones" in dumped.stdout
+    assert "analysis_tones" in dumped.stdout
+    assert "smooth_tones" in dumped.stdout
+    assert "root_visible" in dumped.stdout
     assert "display_primary_probe_root" in dumped.stdout
     assert "guitar_cells" in dumped.stdout
     assert "G3:0.70,D4:0.40" in dumped.stdout

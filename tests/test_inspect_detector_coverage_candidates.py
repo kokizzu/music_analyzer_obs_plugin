@@ -18,8 +18,9 @@ def require(text: str, needle: str) -> None:
 
 
 def main() -> int:
-    summary = """detector_route_summary: candidates=2 low_false=2 shadow=0 near_miss=0 drum=0 positive_net=2 gain_ge_1=2 source_safe_positive_net=2 actionable=0 coverage_blocked=2
+    summary = """detector_route_summary: candidates=3 low_false=2 shadow=0 near_miss=0 guitar=1 drum=0 positive_net=3 gain_ge_1=3 source_safe_positive_net=3 actionable=0 coverage_blocked=3
   coverage-blocked candidates need more positive samples before detector changes
+    coverage_need guitar bucket chord_miss:pow:visible1_analysis1_smooth1_rootvis0 observed_samples=4 need_samples=1 +rows=7 side_rows=0 net_rows=7 gain_per_side=inf :: analysis_root<=0 AND smooth_tones<=1
     coverage_need low-false row_confusion:piano/electronic->guitar observed_samples=4 need_samples=1 +rows=4 side_rows=0 net_rows=4 gain_per_side=inf :: centroid>=0.52 AND partial4<=0.018 AND partial4>=0
     coverage_need low-false visual_row_confusion:piano/electronic->other observed_samples=2 need_samples=3 +rows=4 side_rows=0 net_rows=4 gain_per_side=inf :: adjacent_lower_ratio>=0.006 AND adjacent_upper_ratio<=0 AND bass_score<=0
 """
@@ -113,14 +114,85 @@ def main() -> int:
             "0.100",
         ],
     ]
+    guitar_header = [
+        "recording_id",
+        "status",
+        "quality",
+        "expected_label",
+        "guitar_match_kind",
+        "support",
+        "guitar_chord",
+        "analysis_root",
+        "smooth_tones",
+        "rms",
+        "low",
+        "mid",
+        "high",
+        "audio_path",
+    ]
+    guitar_rows = [
+        [
+            "168_QM1wc",
+            "chord_miss",
+            "pow",
+            "Fpow",
+            "different_root",
+            "visible1_analysis1_smooth1_rootvis0",
+            "Am=Am9=Am7=C=C7=C6",
+            "0.000",
+            "1.000",
+            "0.020",
+            "0.200",
+            "0.700",
+            "0.100",
+            "/tmp/168_QM1wc.wav",
+        ],
+        [
+            "168_QM1wc",
+            "chord_miss",
+            "pow",
+            "Fpow",
+            "different_root",
+            "visible1_analysis1_smooth1_rootvis0",
+            "Am=Am9=Am7=C=C7=C6",
+            "0.000",
+            "1.000",
+            "0.021",
+            "0.201",
+            "0.699",
+            "0.100",
+            "/tmp/168_QM1wc.wav",
+        ],
+        [
+            "single_note_no_chord",
+            "no_chord",
+            "--",
+            "--",
+            "no_display_label",
+            "visible0_analysis0_smooth0_rootvis0",
+            "--",
+            "0.000",
+            "0.000",
+            "0.010",
+            "0.100",
+            "0.800",
+            "0.100",
+            "/tmp/single_note_no_chord.wav",
+        ],
+    ]
 
     with tempfile.TemporaryDirectory() as tmpdir:
         tmp_path = pathlib.Path(tmpdir)
         summary_path = tmp_path / "detector_summary.txt"
         rows_path = tmp_path / "real_note_rows.tsv"
+        guitar_rows_path = tmp_path / "guitar_rows.tsv"
         summary_path.write_text(summary, encoding="utf-8")
         rows_path.write_text(
             "\n".join(["\t".join(header)] + ["\t".join(row) for row in rows]) + "\n",
+            encoding="utf-8",
+        )
+        guitar_rows_path.write_text(
+            "\n".join(["\t".join(guitar_header)] + ["\t".join(row) for row in guitar_rows]) + "\n",
             encoding="utf-8",
         )
         completed = subprocess.run(
@@ -129,14 +201,19 @@ def main() -> int:
                 str(SCRIPT),
                 str(summary_path),
                 "--limit",
-                "2",
+                "3",
                 "--examples",
                 "1",
                 "--field",
                 "centroid",
                 "--field",
                 "partial4",
+                "--field",
+                "analysis_root",
+                "--field",
+                "smooth_tones",
                 str(rows_path),
+                str(guitar_rows_path),
             ],
             cwd=ROOT,
             text=True,
@@ -150,7 +227,16 @@ def main() -> int:
             )
 
     output = completed.stdout
-    require(output, "coverage_candidate_inspection: candidates=2 row_paths=1/1")
+    require(output, "coverage_candidate_inspection: candidates=3 row_paths=2/2")
+    require(
+        output,
+        "coverage_candidate guitar bucket chord_miss:pow:visible1_analysis1_smooth1_rootvis0 observed_samples=4 selected_samples=1 selected_rows=2 need_samples=1 expanded_samples=-3 :: analysis_root<=0 AND smooth_tones<=1",
+    )
+    require(output, "groups _coverage_path/status/quality/guitar_match_kind/support")
+    require(output, "chord_miss/pow/different_root/visible1_analysis1_smooth1_rootvis0 rows=2 samples=1")
+    require(output, "analysis_root: min=0.000 med=0.000 max=0.000")
+    require(output, "smooth_tones: min=1.000 med=1.000 max=1.000")
+    require(output, "example recording_id=168_QM1wc status=chord_miss expected_label=Fpow")
     require(
         output,
         "coverage_candidate low-false row_confusion:piano/electronic->guitar observed_samples=4 selected_samples=1 selected_rows=1 need_samples=1 expanded_samples=-3 :: centroid>=0.52 AND partial4<=0.018 AND partial4>=0",

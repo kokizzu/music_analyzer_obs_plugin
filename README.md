@@ -328,6 +328,7 @@ PARALLEL_TEST_JOBS=8 MEASURE_ANALYZER_JOBS=8 make analyze-detector-improvements
 ```
 
 Use `make analyze-detector-improvements-full` when you intentionally want the max real-world sample sweep and exhaustive full-drum pattern reports in the same coordinated parallel pass.
+After a route scan, use `make inspect-detector-coverage-candidates` to inspect cached row TSVs behind coverage-blocked rules; it now checks both real-note row-confusion candidates and guitar chord coverage blockers without forcing a fresh analyzer run.
 
 For the NSynth full-mix real-note gate alone, the default target splits the manifest across `PARALLEL_TEST_JOBS` analyzer processes and skips rebuilding a fresh manifest:
 

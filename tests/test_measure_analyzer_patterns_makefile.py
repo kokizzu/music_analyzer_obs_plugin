@@ -3467,11 +3467,19 @@ def main() -> int:
         "REAL_NOTE_CANDIDATE_ROW_PATHS ?= $(BUILD_DIR)/real_note_full_mix_attributes.tsv",
         "REAL_NOTE_CANDIDATE_RULE ?=",
         "REAL_NOTE_CANDIDATE_ARGS ?=",
-        "DETECTOR_COVERAGE_CANDIDATE_ROW_PATHS ?= $(wildcard $(REAL_NOTE_CANDIDATE_ROW_PATHS) $(DETECTOR_REAL_NOTE_PATTERN_EXTRA_CANDIDATE_PATHS) $(DETECTOR_REAL_NOTE_PATTERN_EXTRA_PROTECTED_PATHS))",
+        "GUITAR_CANDIDATE_ROW_PATHS ?= $(GUITAR_CHORD_DETECTED_ATTRIBUTE_ROWS) $(GUITARSET_DETECTED_ATTRIBUTE_ROWS) $(GUITAR_TECHS_CHORD_DETECTED_ATTRIBUTE_ROWS) $(EGFXSET_GUITAR_DETECTED_ATTRIBUTE_ROWS) $(GAPS_GUITAR_DETECTED_ATTRIBUTE_ROWS) $(GAPS_GUITAR_FULL_DETECTED_ATTRIBUTE_ROWS)",
+        "DETECTOR_COVERAGE_CANDIDATE_ROW_PATHS ?= $(wildcard $(REAL_NOTE_CANDIDATE_ROW_PATHS) $(GUITAR_CANDIDATE_ROW_PATHS) $(DETECTOR_REAL_NOTE_PATTERN_EXTRA_CANDIDATE_PATHS) $(DETECTOR_REAL_NOTE_PATTERN_EXTRA_PROTECTED_PATHS))",
         "DETECTOR_COVERAGE_CANDIDATE_ARGS ?=",
         "ANALYSIS_SCRIPT_TEST_TARGETS += test-inspect-detector-coverage-candidates",
     ]:
         assert text in makefile, f"real-note candidate Makefile plumbing must include {text}"
+    assert "GUITARSET_DETECTED_ATTRIBUTE_ROWS ?= $(BUILD_DIR)/guitarset_detected_attribute_rows.tsv" in makefile, (
+        "GuitarSet coverage inspection must have a cached derived-row target"
+    )
+    guitarset_detected_recipe = target_recipe(makefile, "$(GUITARSET_DETECTED_ATTRIBUTE_ROWS)")
+    assert "--dump-rows" in guitarset_detected_recipe, (
+        "GuitarSet coverage rows must expose derived chord evidence columns"
+    )
     runtime_excludes = continuation_variable_body(makefile, "REAL_NOTE_RUNTIME_ROW_CONFUSION_EXCLUDES")
     for field in [
         "expected_row_score",

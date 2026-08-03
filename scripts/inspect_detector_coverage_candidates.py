@@ -22,7 +22,7 @@ from inspect_real_note_candidate_rows import (
 
 
 COVERAGE_NEED_RE = re.compile(
-    r"^\s+coverage_need (?P<kind>\S+) (?P<section>\S+) "
+    r"^\s+coverage_need (?P<kind>\S+) (?P<section>.+?) "
     r"observed_samples=(?P<observed>\d+) need_samples=(?P<needed>\d+) "
     r"\+rows=(?P<rows>\d+) side_rows=(?P<side_rows>\d+) "
     r"net_rows=(?P<net_rows>-?\d+) gain_per_side=(?P<gain>\S+) :: (?P<rule>.+)$"
@@ -53,16 +53,23 @@ DEFAULT_FIELDS = [
 
 DEFAULT_EXAMPLE_FIELDS = [
     "sample_id",
+    "recording_id",
     "status",
     "family",
     "source",
     "expected_note",
+    "expected_label",
+    "expected_chords",
     "debug_note",
     "first_row",
     "visual_first_row",
     "debug_owner",
     "owner_status",
     "miss_reason",
+    "quality",
+    "guitar_match_kind",
+    "support",
+    "guitar_chord",
 ]
 
 
@@ -116,6 +123,28 @@ def row_matches(row: dict[str, str], conditions: tuple[Condition, ...]) -> bool:
     return all(matches_condition(row, condition) for condition in conditions)
 
 
+def guitar_bucket_matches(row: dict[str, str], section: str) -> bool:
+    if not section.startswith("bucket "):
+        return True
+    parts = section.removeprefix("bucket ").split(":", 2)
+    if len(parts) != 3:
+        return True
+    expected_status, expected_quality, expected_support = parts
+    if expected_status != "any" and row.get("status", "") != expected_status:
+        return False
+    if expected_quality != "any" and row.get("quality", "") != expected_quality:
+        return False
+    if expected_support != "any" and row.get("support", "") != expected_support:
+        return False
+    return True
+
+
+def candidate_matches_row(row: dict[str, str], candidate: CoverageNeed) -> bool:
+    if candidate.kind == "guitar" and not guitar_bucket_matches(row, candidate.section):
+        return False
+    return row_matches(row, candidate.conditions)
+
+
 def read_matching_rows(
     paths: list[pathlib.Path], candidates: list[CoverageNeed]
 ) -> dict[CoverageNeed, list[dict[str, str]]]:
@@ -136,7 +165,7 @@ def read_matching_rows(
                 )
                 row["_coverage_path"] = str(path)
                 for candidate in candidates:
-                    if row_matches(row, candidate.conditions):
+                    if candidate_matches_row(row, candidate):
                         matches[candidate].append(row)
     return matches
 
@@ -150,15 +179,40 @@ def grouped_counts(
     return counts
 
 
+def coverage_sample_key(row: dict[str, str]) -> str:
+    return (
+        sample_key(row)
+        or row.get("recording_id", "")
+        or row.get("audio_path", "")
+        or row.get("path", "")
+    )
+
+
 def selected_samples(rows: list[dict[str, str]]) -> set[str]:
-    return {key for key in (sample_key(row) for row in rows) if key}
+    return {key for key in (coverage_sample_key(row) for row in rows) if key}
+
+
+def default_group_fields(rows: list[dict[str, str]]) -> list[str]:
+    if any(
+        row.get("guitar_match_kind") or row.get("support") or row.get("quality")
+        for row in rows
+    ):
+        return ["_coverage_path", "status", "quality", "guitar_match_kind", "support"]
+    return [
+        "_coverage_path",
+        "status",
+        "family",
+        "source",
+        "first_row",
+        "visual_first_row",
+    ]
 
 
 def print_group_summary(rows: list[dict[str, str]], fields: list[str], top: int) -> None:
     samples_by_key: dict[tuple[str, ...], set[str]] = collections.defaultdict(set)
     for row in rows:
         key = tuple(row.get(field, "") for field in fields)
-        row_sample = sample_key(row)
+        row_sample = coverage_sample_key(row)
         if row_sample:
             samples_by_key[key].add(row_sample)
 
@@ -241,14 +295,7 @@ def main() -> int:
         return 0
 
     matches = read_matching_rows(existing_rows, candidates)
-    group_by = args.group_by or [
-        "_coverage_path",
-        "status",
-        "family",
-        "source",
-        "first_row",
-        "visual_first_row",
-    ]
+    configured_group_by = args.group_by
     example_fields = args.example_field or DEFAULT_EXAMPLE_FIELDS
 
     for candidate in candidates:
@@ -261,6 +308,7 @@ def main() -> int:
             f"need_samples={candidate.needed_samples} "
             f"{summarize_sample_delta(candidate, rows)} :: {candidate.rule}"
         )
+        group_by = configured_group_by or default_group_fields(rows)
         print_group_summary(rows, group_by, args.top)
         fields = args.field or list(
             dict.fromkeys(rule_fields(candidate.conditions) + DEFAULT_FIELDS)
