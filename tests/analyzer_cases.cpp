@@ -5,6 +5,7 @@
 #include <array>
 #include <cmath>
 #include <cstdio>
+#include <cstdlib>
 #include <cstdint>
 #include <cstring>
 #include <sstream>
@@ -5776,6 +5777,66 @@ mao::AnalysisSnapshot run_sixteenth_strum_body_tempo_pattern(mao::AnalysisEngine
 	return snapshot;
 }
 
+mao::AnalysisSnapshot run_shuffle_strum_body_tempo_pattern(mao::AnalysisEngine &engine,
+							    const mao::AnalysisSettings &settings,
+							    float bpm, int frames)
+{
+	const float beat_seconds = 60.0f / bpm;
+	const float shuffle_seconds = beat_seconds * (2.0f / 3.0f);
+	const float offbeat_seconds = beat_seconds * 0.5f;
+	const float interval_seconds = settings.analysis_interval_seconds;
+	const uint64_t hop_samples = static_cast<uint64_t>(
+		std::lround(settings.analysis_interval_seconds * static_cast<float>(settings.sample_rate)));
+	mao::AnalysisSnapshot snapshot = {};
+	float next_beat_seconds = 0.0f;
+	float next_hat_seconds = shuffle_seconds;
+	float next_strum_seconds = offbeat_seconds;
+	int beat = 0;
+	int hat = 0;
+	int strum = 0;
+
+	for (int frame = 0; frame < frames; ++frame) {
+		mao_test::Buffer buffer = {};
+		const uint64_t sample_offset = static_cast<uint64_t>(frame) * hop_samples;
+		add_tempo_backing(buffer, sample_offset);
+		const float frame_seconds = static_cast<float>(frame) * interval_seconds;
+		const float frame_center_seconds = frame_seconds + interval_seconds * 0.5f;
+
+		if (next_hat_seconds <= frame_center_seconds) {
+			add_tempo_hihat(buffer, hat % 3 == 0 ? 1.36f : 1.14f);
+			++hat;
+			while (next_hat_seconds <= frame_center_seconds)
+				next_hat_seconds += shuffle_seconds;
+		}
+		if (next_strum_seconds <= frame_center_seconds) {
+			const float accent = (strum % 4 == 1 || strum % 4 == 3) ? 1.24f : 0.94f;
+			add_harmonic_note_at_offset(buffer, 43, 0.036f * accent,
+						   {1.0f, 0.38f, 0.18f, 0.08f}, sample_offset);
+			add_harmonic_note_at_offset(buffer, 50, 0.031f * accent,
+						   {1.0f, 0.30f, 0.12f}, sample_offset);
+			add_harmonic_note_at_offset(buffer, 55, 0.026f * accent,
+						   {1.0f, 0.24f, 0.10f}, sample_offset);
+			++strum;
+			while (next_strum_seconds <= frame_center_seconds)
+				next_strum_seconds += beat_seconds;
+		}
+		if (next_beat_seconds <= frame_center_seconds) {
+			if (beat % 4 == 1 || beat % 4 == 3)
+				add_tempo_snare(buffer, beat % 8 == 3 ? 0.46f : 0.40f);
+			else
+				add_tempo_kick(buffer, beat % 8 == 4 ? 0.34f : 0.42f);
+			++beat;
+			while (next_beat_seconds <= frame_center_seconds)
+				next_beat_seconds += beat_seconds;
+		}
+
+		snapshot = engine.analyze(buffer.data(), buffer.size(), settings,
+					  "shuffle strum body tempo test", 0);
+	}
+
+	return snapshot;
+}
+
 void expect_bpm_near(Runner &runner, const mao::AnalysisSnapshot &snapshot, float expected, float tolerance,
 		     const std::string &context, float min_confidence = 0.22f)
 {
@@ -5842,6 +5903,27 @@ void expect_best_tempo_phase_support(Runner &runner, const mao::AnalysisSnapshot
 			      std::to_string(candidate.phase_body_coverage));
 	runner.expect(candidate.phase_offset_seconds >= 0.0f,
 		      context + ": expected non-negative phase offset");
+}
+
+void debug_tempo_snapshot(const mao::AnalysisSnapshot &snapshot, const char *context)
+{
+	if (!std::getenv("MUSIC_ANALYZER_DEBUG_TEMPO_CASES"))
+		return;
+
+	std::fprintf(stderr, "%s bpm=%.2f conf=%.2f event=%.3f body=%.3f sub=%.3f candidates",
+		     context, snapshot.estimated_bpm, snapshot.bpm_confidence,
+		     snapshot.tempo_debug_event_strength, snapshot.tempo_debug_body_strength,
+		     snapshot.tempo_debug_subdivision_strength);
+	for (std::size_t i = 0; i < snapshot.tempo_debug_candidate_count; ++i) {
+		const mao::TempoDebugCandidate &candidate = snapshot.tempo_debug_candidates[i];
+		std::fprintf(stderr,
+			     " %d(s=%.3f,a=%.3f,b=%.3f,ba=%.3f,sub=%.3f,suba=%.3f,ph=%.3f,phb=%.2f,pha=%.2f)",
+			     candidate.bpm, candidate.score, candidate.adjacent_score, candidate.body_score,
+			     candidate.adjacent_body_score, candidate.subdivision_score,
+			     candidate.adjacent_subdivision_score, candidate.phase_score,
+			     candidate.phase_body_coverage, candidate.phase_all_coverage);
+	}
+	std::fprintf(stderr, "\n");
 }
 
 void check_explicit_input_mode_and_bpm(Runner &runner)
@@ -6100,6 +6182,22 @@ void check_explicit_input_mode_and_bpm(Runner &runner)
 				"BPM estimate should not follow dense sixteenth-note strums", 0.18f);
 		expect_tempo_candidate_near(runner, snapshot, 92.0f, 5.0f,
 					    "BPM diagnostics dense sixteenth strums");
+	}
+
+	{
+		mao::AnalysisEngine engine;
+		const mao::AnalysisSettings settings = tempo_test_settings();
+		const mao::AnalysisSnapshot snapshot =
+			run_shuffle_strum_body_tempo_pattern(engine, settings, 128.0f, 460);
+		debug_tempo_snapshot(snapshot, "shuffle strum body tempo test");
+		expect_bpm_near(runner, snapshot, 128.0f, 8.0f,
+				"BPM estimate should prefer weak body pulse over loud shuffle/strum subdivisions",
+				0.16f);
+		runner.expect(snapshot.bpm_confidence <= 0.42f,
+			      "BPM estimate should lower confidence for a near-tied half-time candidate, got " +
+				      std::to_string(snapshot.bpm_confidence));
+		expect_tempo_candidate_near(runner, snapshot, 128.0f, 5.0f,
+					    "BPM diagnostics shuffle strums over weak body");
 	}
 
 	{

@@ -25476,8 +25476,28 @@ void AnalysisEngine::update_tempo(float raw_event_strength, float raw_event_body
 	float cluster_sum = 0.0f;
 	float cluster_weight = 0.0f;
 	float second_score = 0.0f;
+	float harmonic_rival_score = 0.0f;
+	int harmonic_rival_bpm = 0;
+	const auto harmonic_related_bpm = [](int base_bpm, int candidate_bpm) {
+		if (base_bpm <= 0 || candidate_bpm <= 0)
+			return false;
+		static constexpr std::array<std::array<int, 2>, 6> kTempoRatios = {
+			std::array<int, 2>{1, 2}, std::array<int, 2>{2, 1},
+			std::array<int, 2>{2, 3}, std::array<int, 2>{3, 2},
+			std::array<int, 2>{3, 4}, std::array<int, 2>{4, 3},
+		};
+		for (const auto &ratio : kTempoRatios) {
+			const int expected = static_cast<int>(
+				std::lround(static_cast<float>(base_bpm * ratio[0]) /
+					    static_cast<float>(ratio[1])));
+			if (std::abs(candidate_bpm - expected) <= 2)
+				return true;
+		}
+		return false;
+	};
 	for (int bpm = kMinTempoBpm; bpm <= kMaxTempoBpm; ++bpm) {
-		const float score = bpm_scores[static_cast<std::size_t>(bpm - kMinTempoBpm)];
+		const std::size_t score_index = static_cast<std::size_t>(bpm - kMinTempoBpm);
+		const float score = bpm_scores[score_index];
 		const int distance = std::abs(bpm - best_bpm);
 		if (distance <= 3) {
 			cluster_sum += static_cast<float>(bpm) * score;
@@ -25486,6 +25506,10 @@ void AnalysisEngine::update_tempo(float raw_event_strength, float raw_event_body
 		}
 		if (score > second_score)
 			second_score = score;
+		if (harmonic_related_bpm(best_bpm, bpm) && score > harmonic_rival_score) {
+			harmonic_rival_score = score;
+			harmonic_rival_bpm = bpm;
+		}
 	}
 	const float mean_bpm = cluster_weight > 1.0e-6f ? cluster_sum / cluster_weight :
 							   static_cast<float>(best_bpm);
@@ -25541,6 +25565,22 @@ void AnalysisEngine::update_tempo(float raw_event_strength, float raw_event_body
 		if (phase_confidence >= 0.08f)
 			tempo_phase_offset_seconds_ = phase_offsets[best_index];
 	}
+	float harmonic_confidence_cap = 1.0f;
+	if (harmonic_rival_bpm > 0 && best_score > 1.0e-6f) {
+		const std::size_t best_index = static_cast<std::size_t>(best_bpm - kMinTempoBpm);
+		const std::size_t rival_index = static_cast<std::size_t>(harmonic_rival_bpm - kMinTempoBpm);
+		const float rival_ratio = harmonic_rival_score / best_score;
+		const bool rival_phase_plausible =
+			phase_body_coverages[rival_index] + 0.10f >= phase_body_coverages[best_index] ||
+			phase_all_coverages[rival_index] + 0.10f >= phase_all_coverages[best_index];
+		if (rival_phase_plausible && rival_ratio >= 0.94f)
+			harmonic_confidence_cap = 0.38f;
+		else if (rival_phase_plausible && rival_ratio >= 0.84f)
+			harmonic_confidence_cap = 0.50f;
+		else if (rival_ratio >= 0.74f)
+			harmonic_confidence_cap = 0.62f;
+		target_confidence = std::min(target_confidence, harmonic_confidence_cap);
+	}
 
 	if (estimated_bpm_ <= 0.0f)
 		estimated_bpm_ = mean_bpm;
@@ -25562,6 +25602,7 @@ void AnalysisEngine::update_tempo(float raw_event_strength, float raw_event_body
 		estimated_bpm_ = estimated_bpm_ * (1.0f - smoothing) + mean_bpm * smoothing;
 	}
 	bpm_confidence_ = bpm_confidence_ * 0.70f + target_confidence * 0.30f;
+	bpm_confidence_ = std::min(bpm_confidence_, harmonic_confidence_cap);
 }
 
 float AnalysisEngine::goertzel_power(const float *samples, std::size_t count, float mean, const Probe &probe) const

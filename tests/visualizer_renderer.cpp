@@ -61,6 +61,13 @@ int run_visualizer_renderer_tests()
 	format_bpm_candidate_list(bpm_candidates, sizeof(bpm_candidates), tempo_snapshot);
 	expect_true(std::strcmp(bpm_candidates, "CAND 126:100 63:75 189:50") == 0,
 		    "BPM candidate formatter should show relative scores", &checks, &failures);
+	tempo_snapshot.estimated_bpm = 126.0f;
+	tempo_snapshot.bpm_confidence = kBpmDisplayConfidenceThreshold - 0.01f;
+	expect_true(!has_displayable_bpm(tempo_snapshot),
+		    "BPM display should hide estimates below the confidence threshold", &checks, &failures);
+	tempo_snapshot.bpm_confidence = kBpmDisplayConfidenceThreshold;
+	expect_true(has_displayable_bpm(tempo_snapshot),
+		    "BPM display should show estimates at the confidence threshold", &checks, &failures);
 
 	expect_true(near(display_highlight_level(0.0f), 0.0f), "zero level should not highlight", &checks,
 		    &failures);

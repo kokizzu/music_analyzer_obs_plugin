@@ -27,6 +27,7 @@ static constexpr int kBassGuitarContentShiftY = -8;
 static constexpr int kHalfMusicKeyboardFirstRow = 1;
 static constexpr int kHalfMusicKeyboardRowCount = 2;
 static constexpr int kHalfMusicGuitarY = 284;
+static constexpr float kBpmDisplayConfidenceThreshold = 0.15f;
 
 uint8_t blend_channel(uint8_t from, uint8_t to, float amount)
 {
@@ -1228,6 +1229,11 @@ void format_bpm_candidate_list(char *output, std::size_t output_size, const Anal
 		output[0] = '\0';
 }
 
+bool has_displayable_bpm(const AnalysisSnapshot &snapshot)
+{
+	return snapshot.estimated_bpm > 0.0f && snapshot.bpm_confidence >= kBpmDisplayConfidenceThreshold;
+}
+
 void draw_root_and_bpm(VisualizerRenderer *visualizer, const AnalysisSnapshot &snapshot, int root_y,
 		       int bpm_y_override = -1)
 {
@@ -1235,7 +1241,7 @@ void draw_root_and_bpm(VisualizerRenderer *visualizer, const AnalysisSnapshot &s
 
 	char bpm_value[16] = {};
 	char bpm_confidence[16] = {};
-	if (snapshot.estimated_bpm > 0.0f && snapshot.bpm_confidence > 0.05f) {
+	if (has_displayable_bpm(snapshot)) {
 		std::snprintf(bpm_value, sizeof(bpm_value), "%.0f", snapshot.estimated_bpm);
 		std::snprintf(bpm_confidence, sizeof(bpm_confidence), "%.0f%%",
 			      snapshot.bpm_confidence * 100.0f);
