@@ -25600,6 +25600,20 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 		tom_snare_band_ratio <= 0.919f &&
 		tom_body >= snare_body * 1.25f &&
 		upper_tom_body >= snare_crack * 6.0f;
+	const bool one_shot_measured_tom_body_level_snare_steal =
+		drum_detection_enabled && one_shot_drum_source &&
+		drum_level_[Tom] > 0.30f &&
+		drum_level_[Snare] > 0.30f &&
+		tom_kick_level_ratio >= 3.25f &&
+		tom_snare_body_ratio >= 1.888f &&
+		tom_snare_level_ratio <= 0.987f;
+	const bool one_shot_measured_tom_hihat_rim_snare_steal =
+		drum_detection_enabled && one_shot_drum_source &&
+		drum_level_[Tom] > 0.30f &&
+		drum_level_[Snare] > 0.30f &&
+		hihat_rim_trigger_ratio >= 0.844f &&
+		snare_kick_level_ratio >= 3.372f &&
+		snare_kick_segment_ratio <= 1.035f;
 	if (one_shot_tom_snare_steal) {
 		boost_drum_level(Tom, std::max(0.90f, drum_level_[Snare] + 0.02f));
 		cap_drum_level(Snare, std::max(0.31f, drum_level_[Tom] - 0.02f));
@@ -25629,6 +25643,11 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 		cap_drum_level(Snare, std::max(0.31f, drum_level_[Tom] - 0.02f));
 	}
 	if (one_shot_tom_snare_inactive_kick_steal) {
+		boost_drum_level(Tom, std::max(0.90f, drum_level_[Snare] + 0.02f));
+		cap_drum_level(Snare, std::max(0.31f, drum_level_[Tom] - 0.02f));
+	}
+	if (one_shot_measured_tom_body_level_snare_steal ||
+	    one_shot_measured_tom_hihat_rim_snare_steal) {
 		boost_drum_level(Tom, std::max(0.90f, drum_level_[Snare] + 0.02f));
 		cap_drum_level(Snare, std::max(0.31f, drum_level_[Tom] - 0.02f));
 	}
@@ -27745,6 +27764,25 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 			snare_kick_shape_score_ratio <= 1.234f;
 		if (final_one_shot_measured_low_energy_snare_ambiguous_primary_recovery)
 			promote_drum_primary(Snare, 0.90f);
+
+		const bool final_one_shot_snare_primary_over_tom =
+			drum_level_[Snare] > 0.30f &&
+			drum_level_[Tom] > 0.30f &&
+			drum_level_[Snare] >= drum_level_[Tom] &&
+			drum_level_[Snare] >= drum_level_[Kick] &&
+			drum_level_[Snare] >= drum_level_[HiHat] &&
+			drum_level_[Snare] >= drum_level_[Crash] &&
+			drum_level_[Snare] >= drum_level_[Ride] &&
+			drum_level_[Snare] >= drum_level_[Rim];
+		const bool final_one_shot_measured_hihat_rim_tom_from_snare_primary_recovery =
+			drum_detection_enabled && one_shot_drum_source &&
+			!generated_gm_drum_source &&
+			final_one_shot_snare_primary_over_tom &&
+			hihat_rim_trigger_ratio >= 0.848f &&
+			final_snare_kick_level_ratio_for_primary >= 3.372f &&
+			snare_kick_shape_score_ratio <= 0.789f;
+		if (final_one_shot_measured_hihat_rim_tom_from_snare_primary_recovery)
+			promote_drum_primary(Tom, 0.90f);
 
 		const bool final_one_shot_measured_upper_tom_snare_active_bleed =
 			drum_detection_enabled && one_shot_drum_source &&
