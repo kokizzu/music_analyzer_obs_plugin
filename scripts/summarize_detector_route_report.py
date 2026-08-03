@@ -613,6 +613,7 @@ def main() -> int:
     parser.add_argument("report", type=pathlib.Path)
     parser.add_argument("--limit", type=int, default=20)
     parser.add_argument("--example-limit", type=int, default=2)
+    parser.add_argument("--ranked-example-limit", type=int, default=1)
     parser.add_argument("--coverage-route-limit", type=int, default=8)
     parser.add_argument("--coverage-group-limit", type=int, default=4)
     parser.add_argument("--min-actionable-samples", type=int, default=5)
@@ -743,6 +744,9 @@ def main() -> int:
 
     for candidate in ranked_candidates[: max(0, args.limit)]:
         print("  " + format_candidate(candidate, args.min_actionable_samples))
+        if candidate in actionable_set:
+            for example in candidate.examples[: max(0, args.ranked_example_limit)]:
+                print(f"    example {compact_example(example)}")
     return 0
 
 

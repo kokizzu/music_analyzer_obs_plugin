@@ -112,6 +112,10 @@ compact route summary
     )
     require(
         output,
+        "example 031_rpswc@94.100s expected=A#7 guitar=A#7 support=visible3_analysis3_smooth3_rootvis1 raw(root/third/fifth)=1.00/0.70/0.80 analysis=A#,D,F,G# visible=A#,D,F,G#",
+    )
+    require(
+        output,
         "near-miss row_confusion:piano/electronic->amb +samples=20 +rows=47 -samples=202 -rows=616 foreign_rows=242 side_rows=858 net_rows=-811 gain_per_side=0.05 neg_same_source_rows=0 neg_cross_source_rows=616 foreign_cross_source_rows=242 neg_sources=vocals/example=45 foreign_sources=vocals/other=19",
     )
     require(output, "blocked_by=negative_net,cross_source_rows=858")
