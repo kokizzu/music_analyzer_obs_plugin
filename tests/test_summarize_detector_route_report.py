@@ -50,6 +50,8 @@ route snare->tom positives=492 rows=492 protected_correct=13126 rows=13126
   +21 rows=21 -7 rows=7 foreign=6 rows=6 new-active=1 rows=1 primary-break=6 rows=6 side_rows=20 net_rows=1 gain_per_side=1.05 :: hihat_band>=24.633 AND tom_seg<=225.582
 route tom->snare positives=4 rows=4 protected_correct=13126 rows=13126
   +4 rows=4 -0 rows=0 foreign=0 rows=0 new-active=0 rows=0 primary-break=0 rows=0 side_rows=0 net_rows=4 gain_per_side=inf :: snare_kick_level_ratio>=3.362 AND tom_snare_body_ratio>=1.824
+    positive examples:
+      drum_primary_miss_attribute_rows:tom/012_Tom_H-01.wav tom->snare energy=0.333/0.476/0.191 body=76.844/82.144/149.866 crack=13.959 upper_tom=72.417 body_shape=4.000000 tom:level=0.893 trigger=31.146 snare:level=0.971 trigger=37.811 kick:level=0.28 trigger=39.628
 bucket chord_miss:7:visible3_analysis3_smooth3_rootvis1 positives=6 positive_rows=9 protected_hits=38
   +3 rows=3 -0 rows=0 :: evidence_source=raw
     030_rpswc@93.498s expected=A#7 guitar=E=Esus2 support=visible3_analysis3_smooth3_rootvis1 raw(root/third/fifth)=0.25/0.10/1.00 analysis=E,F,F#,G#,A,A#,B visible=E,F,F#,G#,A,A#,B
@@ -91,6 +93,10 @@ compact route summary
     require(
         output,
         "coverage_need drum route tom->snare observed_rows=4 need_rows=1 +rows=4 side_rows=0 net_rows=4 gain_per_side=inf :: snare_kick_level_ratio>=3.362 AND tom_snare_body_ratio>=1.824",
+    )
+    require(
+        output,
+        "example drum_primary_miss_attribute_rows:tom/012_Tom_H-01.wav tom->snare energy=0.333/0.476/0.191 body=76.844/82.144/149.866 crack=13.959 upper_tom=72.417 body_shape=4.000000 tom:level=0.893 snare:level=0.971 kick:level=0.28",
     )
     require(
         output,

@@ -311,7 +311,7 @@ def parse_report(path: pathlib.Path) -> list[Candidate]:
             continue
         if stripped == "positive examples:" and last_candidate_index is not None:
             example_candidate_index = last_candidate_index
-            example_indent = "        "
+            example_indent = line[: len(line) - len(line.lstrip())] + "  "
             continue
         if note_candidate_kind and (
             stripped.startswith("highest-coverage")
@@ -780,9 +780,25 @@ def compact_example(example: str) -> str:
         "cent=",
         "raw_best=",
         "raw_rank=",
+        "energy=",
+        "body=",
+        "crack=",
+        "upper_tom=",
+        "body_shape=",
+        "kick:level=",
+        "snare:level=",
+        "hihat:level=",
+        "crash:level=",
+        "tom:level=",
+        "ride:level=",
+        "rim:level=",
     )
     kept = [tokens[0]]
-    kept.extend(token for token in tokens[1:] if token.startswith(useful_prefixes))
+    kept.extend(
+        token
+        for token in tokens[1:]
+        if "->" in token or token.startswith(useful_prefixes)
+    )
     return " ".join(kept)
 
 
