@@ -143,6 +143,10 @@ struct TempoDebugCandidate {
 	float adjacent_body_score = 0.0f;
 	float subdivision_score = 0.0f;
 	float adjacent_subdivision_score = 0.0f;
+	float phase_score = 0.0f;
+	float phase_body_coverage = 0.0f;
+	float phase_all_coverage = 0.0f;
+	float phase_offset_seconds = 0.0f;
 };
 
 struct AnalysisSnapshot {
@@ -331,6 +335,8 @@ private:
 	float previous_tempo_flux_level_ = 0.0f;
 	float estimated_bpm_ = 0.0f;
 	float bpm_confidence_ = 0.0f;
+	float tempo_phase_offset_seconds_ = 0.0f;
+	float tempo_phase_confidence_ = 0.0f;
 	std::size_t analysis_window_samples_ = 0;
 	AnalysisInputMode active_input_mode_ = AnalysisInputMode::Auto;
 	bool has_active_input_mode_ = false;

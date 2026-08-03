@@ -23810,6 +23810,8 @@ void AnalysisEngine::reset_analysis_state()
 	previous_tempo_flux_level_ = 0.0f;
 	estimated_bpm_ = 0.0f;
 	bpm_confidence_ = 0.0f;
+	tempo_phase_offset_seconds_ = 0.0f;
+	tempo_phase_confidence_ = 0.0f;
 }
 
 void AnalysisEngine::update_tempo(float raw_event_strength, float raw_event_body_strength,
@@ -23848,9 +23850,11 @@ void AnalysisEngine::update_tempo(float raw_event_strength, float raw_event_body
 						       std::exp(-clamped_interval / 0.45f) :
 						       std::exp(-clamped_interval / 2.5f);
 		bpm_confidence_ *= confidence_decay;
+		tempo_phase_confidence_ *= confidence_decay;
 		if (bpm_confidence_ < 0.05f) {
 			estimated_bpm_ = 0.0f;
 			bpm_confidence_ = 0.0f;
+			tempo_phase_confidence_ = 0.0f;
 			snapshot.tempo_debug_candidate_count = 0;
 		}
 		if (tempo_silence_seconds_ >= 4.0f) {
@@ -23867,6 +23871,8 @@ void AnalysisEngine::update_tempo(float raw_event_strength, float raw_event_body
 			tempo_flux_count_ = 0;
 			last_tempo_event_seconds_ = -10.0f;
 			previous_tempo_flux_level_ = 0.0f;
+			tempo_phase_offset_seconds_ = 0.0f;
+			tempo_phase_confidence_ = 0.0f;
 		}
 		return;
 	}
@@ -23977,8 +23983,16 @@ void AnalysisEngine::update_tempo(float raw_event_strength, float raw_event_body
 	std::array<float, kTempoBpmCount> adjacent_body_bpm_scores = {};
 	std::array<float, kTempoBpmCount> subdivision_bpm_scores = {};
 	std::array<float, kTempoBpmCount> adjacent_subdivision_bpm_scores = {};
+	std::array<float, kTempoBpmCount> phase_bpm_scores = {};
+	std::array<float, kTempoBpmCount> phase_body_coverages = {};
+	std::array<float, kTempoBpmCount> phase_all_coverages = {};
+	std::array<float, kTempoBpmCount> phase_offsets = {};
 	float best_score = 0.0f;
 	int best_bpm = 0;
+	const float flux_window_start =
+		tempo_clock_seconds_ -
+		static_cast<float>(recent_flux_count > 0 ? recent_flux_count - 1 : 0) * clamped_interval;
+	static constexpr int kTempoPhaseBins = 24;
 
 	for (int bpm = kMinTempoBpm; bpm <= kMaxTempoBpm; ++bpm) {
 		const float period = 60.0f / static_cast<float>(bpm);
@@ -24144,11 +24158,121 @@ void AnalysisEngine::update_tempo(float raw_event_strength, float raw_event_body
 		adjacent_body_bpm_scores[score_index] += flux_adjacent_body_score * flux_score_gain;
 		adjacent_subdivision_bpm_scores[score_index] += flux_adjacent_subdivision_score * flux_score_gain;
 
+		float phase_score = 0.0f;
+		float phase_body_coverage = 0.0f;
+		float phase_all_coverage = 0.0f;
+		float phase_offset = 0.0f;
+		const float phase_step = period / static_cast<float>(kTempoPhaseBins);
+		if (recent_flux_count >= minimum_flux_frames) {
+			const int search_radius =
+				std::max(1, static_cast<int>(std::ceil(tolerance / clamped_interval)));
+			for (int phase_bin = 0; phase_bin < kTempoPhaseBins; ++phase_bin) {
+				const float candidate_offset = phase_step * static_cast<float>(phase_bin);
+				const float first_cycle =
+					std::ceil((flux_window_start - candidate_offset) / period);
+				float grid_time = candidate_offset + first_cycle * period;
+				if (grid_time < flux_window_start - clamped_interval * 0.5f)
+					grid_time += period;
+
+				int expected_pulses = 0;
+				int body_pulses = 0;
+				int all_pulses = 0;
+				float body_grid_score = 0.0f;
+				float all_grid_score = 0.0f;
+				float subdivision_grid_score = 0.0f;
+				while (grid_time <= tempo_clock_seconds_ + clamped_interval * 0.5f) {
+					const int center_index = static_cast<int>(
+						std::lround((grid_time - flux_window_start) / clamped_interval));
+					float best_all_flux = 0.0f;
+					float best_body_flux = 0.0f;
+					float best_subdivision_flux = 0.0f;
+					for (int offset = -search_radius; offset <= search_radius; ++offset) {
+						const int flux_index = center_index + offset;
+						if (flux_index < 0 ||
+						    static_cast<std::size_t>(flux_index) >= recent_flux_count)
+							continue;
+						const float distance =
+							std::abs(static_cast<float>(flux_index) *
+									 clamped_interval +
+								 flux_window_start - grid_time);
+						if (distance > tolerance)
+							continue;
+						const float error_weight = 1.0f - distance / tolerance;
+						const std::size_t index = static_cast<std::size_t>(flux_index);
+						best_all_flux = std::max(best_all_flux,
+									 recent_flux[index] * error_weight);
+						best_body_flux = std::max(best_body_flux,
+									  recent_body_flux[index] *
+									  error_weight);
+						best_subdivision_flux =
+							std::max(best_subdivision_flux,
+								 recent_subdivision_flux[index] *
+								 error_weight);
+					}
+
+					const float age = tempo_clock_seconds_ - grid_time;
+					const float recency = std::max(0.20f, 1.0f - age / 14.0f);
+					++expected_pulses;
+					if (best_body_flux >= 0.010f) {
+						++body_pulses;
+						body_grid_score += std::sqrt(best_body_flux) * recency;
+					}
+					if (best_all_flux >= 0.012f) {
+						++all_pulses;
+						all_grid_score += std::sqrt(best_all_flux) * recency;
+					}
+					if (best_subdivision_flux >= 0.010f)
+						subdivision_grid_score += std::sqrt(best_subdivision_flux) * recency;
+					grid_time += period;
+				}
+
+				if (expected_pulses < 3)
+					continue;
+				const float body_coverage =
+					static_cast<float>(body_pulses) / static_cast<float>(expected_pulses);
+				const float all_coverage =
+					static_cast<float>(all_pulses) / static_cast<float>(expected_pulses);
+				const float coverage_weight =
+					std::clamp(body_coverage * 1.30f + all_coverage * 0.25f, 0.0f, 1.0f);
+				const float candidate_phase_score =
+					(body_grid_score * 1.28f + all_grid_score * 0.32f +
+					 subdivision_grid_score * 0.08f) *
+					(0.35f + coverage_weight * 0.65f);
+				if (candidate_phase_score > phase_score) {
+					phase_score = candidate_phase_score;
+					phase_body_coverage = body_coverage;
+					phase_all_coverage = all_coverage;
+					phase_offset = candidate_offset;
+				}
+			}
+		}
+		phase_bpm_scores[score_index] = phase_score;
+		phase_body_coverages[score_index] = phase_body_coverage;
+		phase_all_coverages[score_index] = phase_all_coverage;
+		phase_offsets[score_index] = phase_offset;
+		score += phase_score * 0.56f;
+		body_bpm_scores[score_index] += phase_score * phase_body_coverage * 0.38f;
+
+		if (phase_all_coverage >= 0.50f && phase_body_coverage < 0.34f && bpm >= 140 &&
+		    subdivision_bpm_scores[score_index] >= body_bpm_scores[score_index] * 0.90f)
+			score *= 0.88f;
+
 		if (estimated_bpm_ > 0.0f && bpm_confidence_ > 0.15f) {
 			const float continuity_error = std::abs(static_cast<float>(bpm) - estimated_bpm_);
-			if (continuity_error <= 8.0f)
+			if (continuity_error <= 8.0f) {
 				score *= 1.0f + bpm_confidence_ * 0.16f *
 						     (1.0f - continuity_error / 8.0f);
+				if (tempo_phase_confidence_ > 0.12f && period > 1.0e-6f) {
+					const float previous_phase =
+						std::fmod(tempo_phase_offset_seconds_, period);
+					const float phase_delta_raw = std::abs(previous_phase - phase_offset);
+					const float phase_delta = std::min(phase_delta_raw, period - phase_delta_raw);
+					const float phase_tolerance = std::max(tolerance * 1.5f, phase_step * 1.25f);
+					if (phase_delta <= phase_tolerance)
+						score *= 1.0f + tempo_phase_confidence_ * 0.10f *
+								     (1.0f - phase_delta / phase_tolerance);
+				}
+			}
 		}
 
 		const float adjacent_support =
@@ -24371,6 +24495,10 @@ void AnalysisEngine::update_tempo(float raw_event_strength, float raw_event_body
 		candidate.adjacent_body_score = adjacent_body_bpm_scores[score_index];
 		candidate.subdivision_score = subdivision_bpm_scores[score_index];
 		candidate.adjacent_subdivision_score = adjacent_subdivision_bpm_scores[score_index];
+		candidate.phase_score = phase_bpm_scores[score_index];
+		candidate.phase_body_coverage = phase_body_coverages[score_index];
+		candidate.phase_all_coverage = phase_all_coverages[score_index];
+		candidate.phase_offset_seconds = phase_offsets[score_index];
 		snapshot.tempo_debug_candidate_count = static_cast<std::size_t>(slot + 1);
 		return true;
 	};
@@ -24437,6 +24565,23 @@ void AnalysisEngine::update_tempo(float raw_event_strength, float raw_event_body
 			std::clamp(direct_pulse_score / std::max(combined_total_strength * 1.15f, 1.0e-6f),
 				   0.0f, 0.30f);
 		target_confidence = std::max(target_confidence, direct_pulse_confidence);
+
+		const float phase_confidence =
+			std::clamp(phase_bpm_scores[best_index] /
+					   std::max(std::max(best_score * 0.32f,
+							     combined_total_strength * 0.18f),
+						    1.0e-6f),
+				   0.0f, 1.0f) *
+			std::clamp(phase_body_coverages[best_index] * 1.15f +
+					   phase_all_coverages[best_index] * 0.18f,
+				   0.0f, 1.0f);
+		if (phase_confidence < 0.14f)
+			target_confidence = std::min(target_confidence, 0.42f);
+		else
+			target_confidence = std::max(target_confidence, phase_confidence * 0.36f);
+		tempo_phase_confidence_ = tempo_phase_confidence_ * 0.70f + phase_confidence * 0.30f;
+		if (phase_confidence >= 0.08f)
+			tempo_phase_offset_seconds_ = phase_offsets[best_index];
 	}
 
 	if (estimated_bpm_ <= 0.0f)

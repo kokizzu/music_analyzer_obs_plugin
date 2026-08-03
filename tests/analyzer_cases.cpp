@@ -5113,7 +5113,10 @@ void expect_bpm_near(Runner &runner, const mao::AnalysisSnapshot &snapshot, floa
 		candidates << " " << candidate.bpm << "(s=" << candidate.score
 			   << ",a=" << candidate.adjacent_score << ",b=" << candidate.body_score
 			   << ",ba=" << candidate.adjacent_body_score << ",sub=" << candidate.subdivision_score
-			   << ",suba=" << candidate.adjacent_subdivision_score << ")";
+			   << ",suba=" << candidate.adjacent_subdivision_score
+			   << ",ph=" << candidate.phase_score
+			   << ",phb=" << candidate.phase_body_coverage
+			   << ",pha=" << candidate.phase_all_coverage << ")";
 	}
 	runner.expect(std::fabs(snapshot.estimated_bpm - expected) <= tolerance,
 		      context + ": expected BPM " + std::to_string(snapshot.estimated_bpm) + " near " +
@@ -5135,7 +5138,10 @@ void expect_tempo_candidate_near(Runner &runner, const mao::AnalysisSnapshot &sn
 		candidates << " " << candidate.bpm << "(s=" << candidate.score
 			   << ",a=" << candidate.adjacent_score << ",b=" << candidate.body_score
 			   << ",ba=" << candidate.adjacent_body_score << ",sub=" << candidate.subdivision_score
-			   << ",suba=" << candidate.adjacent_subdivision_score << ")";
+			   << ",suba=" << candidate.adjacent_subdivision_score
+			   << ",ph=" << candidate.phase_score
+			   << ",phb=" << candidate.phase_body_coverage
+			   << ",pha=" << candidate.phase_all_coverage << ")";
 		if (std::fabs(static_cast<float>(snapshot.tempo_debug_candidates[i].bpm) - expected) <= tolerance) {
 			found = true;
 			break;
@@ -5143,6 +5149,26 @@ void expect_tempo_candidate_near(Runner &runner, const mao::AnalysisSnapshot &sn
 	}
 	runner.expect(found, context + ": expected top tempo candidates to include BPM near " +
 				    std::to_string(expected) + candidates.str());
+}
+
+void expect_best_tempo_phase_support(Runner &runner, const mao::AnalysisSnapshot &snapshot,
+				     const std::string &context)
+{
+	runner.expect(snapshot.tempo_debug_candidate_count > 0,
+		      context + ": expected at least one tempo debug candidate");
+	if (snapshot.tempo_debug_candidate_count == 0)
+		return;
+	const mao::TempoDebugCandidate &candidate = snapshot.tempo_debug_candidates[0];
+	runner.expect(candidate.phase_score > 0.0f,
+		      context + ": expected best tempo candidate to have phase score");
+	runner.expect(candidate.phase_all_coverage >= 0.25f,
+		      context + ": expected best tempo candidate phase all coverage >= 25%, got " +
+			      std::to_string(candidate.phase_all_coverage));
+	runner.expect(candidate.phase_body_coverage >= 0.15f,
+		      context + ": expected best tempo candidate phase body coverage >= 15%, got " +
+			      std::to_string(candidate.phase_body_coverage));
+	runner.expect(candidate.phase_offset_seconds >= 0.0f,
+		      context + ": expected non-negative phase offset");
 }
 
 void check_explicit_input_mode_and_bpm(Runner &runner)
@@ -5166,6 +5192,7 @@ void check_explicit_input_mode_and_bpm(Runner &runner)
 		const mao::AnalysisSettings settings = tempo_test_settings();
 		const mao::AnalysisSnapshot snapshot = run_tempo_pattern(engine, settings, 100.0f, 180, false, false);
 		expect_bpm_near(runner, snapshot, 100.0f, 5.0f, "BPM estimate 100");
+		expect_best_tempo_phase_support(runner, snapshot, "BPM phase support 100");
 	}
 
 	{
@@ -5201,6 +5228,7 @@ void check_explicit_input_mode_and_bpm(Runner &runner)
 				"BPM estimate should prefer weak body pulse over loud eighth hats");
 		expect_tempo_candidate_near(runner, snapshot, 104.0f, 4.0f,
 					    "BPM diagnostics dense subdivision groove");
+		expect_best_tempo_phase_support(runner, snapshot, "BPM phase support dense subdivision groove");
 	}
 
 	{
@@ -5233,6 +5261,7 @@ void check_explicit_input_mode_and_bpm(Runner &runner)
 				"BPM estimate should reject loud sixteenth-hat subdivision with weak body");
 		expect_tempo_candidate_near(runner, snapshot, 100.0f, 4.0f,
 					    "BPM diagnostics weak-body sixteenth hats");
+		expect_best_tempo_phase_support(runner, snapshot, "BPM phase support weak-body sixteenth hats");
 	}
 
 	{
