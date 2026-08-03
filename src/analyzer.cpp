@@ -26810,8 +26810,18 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 			drum_level_[Tom] > 0.30f &&
 			tom_snare_level_ratio >= 1.005f &&
 			tom_snare_trigger_ratio <= 0.788f;
+		const bool one_shot_measured_upper_tom_rim_snare_from_tom_primary_recovery =
+			drum_detection_enabled && one_shot_drum_source &&
+			!generated_gm_drum_source &&
+			drum_level_[Snare] >= 0.29f &&
+			drum_level_[Tom] > 0.30f &&
+			drum_bands[Rim] >= 39.577f &&
+			tom_snare_level_ratio >= 1.007f &&
+			tom_snare_trigger_ratio >= 0.814f &&
+			upper_tom_body >= 21.35f;
 		if (one_shot_measured_late_snare_tom_level_primary_recovery ||
-		    one_shot_measured_body_snare_from_tom_primary_recovery)
+		    one_shot_measured_body_snare_from_tom_primary_recovery ||
+		    one_shot_measured_upper_tom_rim_snare_from_tom_primary_recovery)
 			promote_drum_primary(Snare, 0.90f);
 		const bool one_shot_measured_late_snare_rim_low_kick_primary_recovery =
 			drum_detection_enabled && one_shot_drum_source &&
