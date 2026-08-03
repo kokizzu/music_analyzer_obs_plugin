@@ -39,6 +39,12 @@ ownership_miss:guitar/electronic->piano positives=3 samples/6 rows protected_hit
     centroid>=0.4 AND partial5<=0.2: pos=1/3 rows=2 neg=0/120 rows=0 side_rows=0 net_rows=2 gain_per_side=inf neg_same_source_rows=0 neg_cross_source_rows=0 foreign_cross_source_rows=0
       positive examples:
         guitar_electronic_002 expected=F3/53 debug=F3/53 owner=piano delta=0 reason=hit first_row=piano strongest=piano spec=0.52 pitch=0.61
+octave_displacement:piano/electronic->-12 positives=61 samples/410 rows protected_hits=0 samples/0 rows foreign_misses=0 samples/0 rows
+  positive sample profile: groups=organ_electronic=61 sources=piano/electronic=61
+  low-false candidate rules:
+    debug_delta<=-12 AND noise<=0.121: pos=61/61 rows=410 neg=0/0 rows=0 side_rows=0 net_rows=410 gain_per_side=inf pos_groups=organ_electronic=61 pos_sources=piano/electronic=61 neg_same_source_rows=0 neg_cross_source_rows=0 foreign_cross_source_rows=0
+      positive examples:
+        organ_electronic_001 expected=A#4/70 debug=A#3/58 owner=amb delta=-12 reason=hit first_row=amb strongest=amb scores(b/k/g/v/o)=0/0.4/0.6/0/0 spec=1 pitch=0.9 per=0.8 fit=0.05 cent=0.2 raw_best=A#3/624 raw_rank=2
 route snare->tom positives=492 rows=492 protected_correct=13126 rows=13126
   +24 rows=24 -5 rows=5 foreign=4 rows=4 new-active=0 rows=0 primary-break=4 rows=4 side_rows=13 net_rows=11 gain_per_side=1.85 :: hihat_band>=24.633 AND tom_level>=0.981
   +21 rows=21 -7 rows=7 foreign=6 rows=6 new-active=1 rows=1 primary-break=6 rows=6 side_rows=20 net_rows=1 gain_per_side=1.05 :: hihat_band>=24.633 AND tom_seg<=225.582
@@ -66,11 +72,11 @@ compact route summary
     output = result.stdout
     require(
         output,
-        "detector_route_summary: candidates=11 low_false=4 shadow=2 near_miss=1 guitar=2 drum=2 positive_net=10 gain_ge_1=10 source_safe_positive_net=8 actionable=5 coverage_blocked=2",
+        "detector_route_summary: candidates=12 low_false=5 shadow=2 near_miss=1 guitar=2 drum=2 positive_net=11 gain_ge_1=11 source_safe_positive_net=9 actionable=5 coverage_blocked=2",
     )
     require(
         output,
-        "blocked-reason summary cross_source_rows=3 low_samples<5=3 missing_quality_tone=1 negative_net=1",
+        "blocked-reason summary cross_source_rows=3 low_samples<5=3 diagnostic_octave_displacement=1 missing_quality_tone=1 negative_net=1",
     )
     require(
         output,
@@ -119,6 +125,10 @@ compact route summary
         "near-miss row_confusion:piano/electronic->amb +samples=20 +rows=47 -samples=202 -rows=616 foreign_rows=242 side_rows=858 net_rows=-811 gain_per_side=0.05 neg_same_source_rows=0 neg_cross_source_rows=616 foreign_cross_source_rows=242 neg_sources=vocals/example=45 foreign_sources=vocals/other=19",
     )
     require(output, "blocked_by=negative_net,cross_source_rows=858")
+    require(
+        output,
+        "low-false octave_displacement:piano/electronic->-12 +samples=61 +rows=410 -samples=0 -rows=0 foreign_rows=0 side_rows=0 net_rows=410 gain_per_side=inf pos_groups=organ_electronic=61 pos_sources=piano/electronic=61 blocked_by=diagnostic_octave_displacement :: debug_delta<=-12 AND noise<=0.121",
+    )
     require(
         output,
         "drum route snare->tom +rows=24 -rows=5 foreign_rows=4 new_active_rows=0 primary_break_rows=4 side_rows=13 net_rows=11 gain_per_side=1.85",

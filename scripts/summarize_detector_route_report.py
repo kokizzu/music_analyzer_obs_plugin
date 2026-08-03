@@ -449,6 +449,8 @@ def candidate_block_reasons(
     candidate: Candidate, min_actionable_samples: int
 ) -> list[str]:
     reasons: list[str] = []
+    if candidate.section.startswith("octave_displacement:"):
+        reasons.append("diagnostic_octave_displacement")
     if candidate.net_rows <= 0:
         reasons.append("negative_net")
     if guitar_missing_note_evidence(candidate):
