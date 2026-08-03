@@ -106,6 +106,63 @@ def main() -> int:
         if stale_target.exists():
             raise AssertionError("target was published from stale shard files")
 
+        jobserver_target = tmp / "jobserver-combined.tsv"
+        jobserver_part_a = tmp / "jobserver-part-a.tsv"
+        jobserver_part_b = tmp / "jobserver-part-b.tsv"
+        jobserver_started_a = tmp / "jobserver-started-a"
+        jobserver_started_b = tmp / "jobserver-started-b"
+        jobserver_makefile = tmp / "Makefile"
+        jobserver_makefile.write_text(
+            "\n".join(
+                [
+                    f"SCRIPT := {SCRIPT}",
+                    f"TARGET := {jobserver_target}",
+                    f"PART_A := {jobserver_part_a}",
+                    f"PART_B := {jobserver_part_b}",
+                    "",
+                    "all:",
+                    '\t+sh "$(SCRIPT)" "$(TARGET)" "$(MAKE)" "" "$(PART_A)" "$(PART_B)"',
+                    "",
+                    "$(PART_A):",
+                    f'\t@touch "{jobserver_started_a}"',
+                    (
+                        f'\t@i=0; while [ ! -e "{jobserver_started_b}" ] '
+                        '&& [ $$i -lt 80 ]; do sleep 0.05; '
+                        'i=$$((i + 1)); done; '
+                        f'[ -e "{jobserver_started_b}" ]'
+                    ),
+                    "\t@printf 'name\\nalpha\\n' > \"$@\"",
+                    "",
+                    "$(PART_B):",
+                    f'\t@touch "{jobserver_started_b}"',
+                    (
+                        f'\t@i=0; while [ ! -e "{jobserver_started_a}" ] '
+                        '&& [ $$i -lt 80 ]; do sleep 0.05; '
+                        'i=$$((i + 1)); done; '
+                        f'[ -e "{jobserver_started_a}" ]'
+                    ),
+                    "\t@printf 'name\\nbeta\\n' > \"$@\"",
+                ]
+            )
+            + "\n",
+            encoding="utf-8",
+        )
+        jobserver = subprocess.run(
+            ["make", "-j3", "all"],
+            cwd=tmp,
+            text=True,
+            capture_output=True,
+            timeout=10,
+        )
+        if jobserver.returncode != 0:
+            raise AssertionError(
+                "empty MAKE_JOBS path did not inherit the parent make jobserver:\n"
+                f"stdout={jobserver.stdout}\nstderr={jobserver.stderr}"
+            )
+        jobserver_combined = jobserver_target.read_text(encoding="utf-8").splitlines()
+        if jobserver_combined != ["name", "alpha", "beta"]:
+            raise AssertionError(f"unexpected jobserver TSV: {jobserver_combined!r}")
+
     print("test_build_sharded_tsv: ok")
     return 0
 
