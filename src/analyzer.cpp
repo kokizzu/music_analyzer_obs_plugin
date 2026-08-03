@@ -27458,6 +27458,8 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 
 		const float final_ride_hihat_segment_ratio_for_primary =
 			drum_segment_bands[Ride] / (drum_segment_bands[HiHat] + 1.0e-6f);
+		const float final_ride_hihat_level_ratio_for_primary =
+			drum_level_[Ride] / (drum_level_[HiHat] + 1.0e-6f);
 		const float final_crash_hihat_level_ratio_for_primary =
 			drum_level_[Crash] / (drum_level_[HiHat] + 1.0e-6f);
 		const bool final_one_shot_measured_bright_ride_from_crash_primary_recovery =
@@ -27471,7 +27473,20 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 			final_crash_hihat_level_ratio_for_primary >= 1.08f &&
 			final_ride_hihat_segment_ratio_for_primary >= 0.45f &&
 			final_ride_hihat_segment_ratio_for_primary <= 0.62f;
-		if (final_one_shot_measured_bright_ride_from_crash_primary_recovery)
+		const bool final_one_shot_measured_tie_ride_from_hihat_primary_recovery =
+			drum_detection_enabled && one_shot_drum_source &&
+			!generated_gm_drum_source &&
+			drum_level_[Ride] > 0.30f &&
+			drum_level_[HiHat] > 0.30f &&
+			drum_level_[Crash] > 0.30f &&
+			drum_level_[Snare] <= 0.30f &&
+			drum_level_[Rim] <= 0.90f &&
+			final_ride_hihat_level_ratio_for_primary >= 0.9725f &&
+			final_ride_hihat_level_ratio_for_primary <= 0.9745f &&
+			final_snare_kick_band_ratio <= 1.577f &&
+			final_tom_snare_trigger_ratio <= 0.919f;
+		if (final_one_shot_measured_bright_ride_from_crash_primary_recovery ||
+		    final_one_shot_measured_tie_ride_from_hihat_primary_recovery)
 			promote_drum_primary(Ride, 0.90f);
 
 		const bool final_measured_shape_dominant_kick_from_tom_primary_recovery =
