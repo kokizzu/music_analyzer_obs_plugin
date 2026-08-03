@@ -935,6 +935,23 @@ def summary_rank(summary: RouteSummary) -> tuple[int, int, int, int, int, int, i
     )
 
 
+def summary_review_reasons(summary: RouteSummary) -> tuple[str, ...]:
+    reasons: list[str] = []
+    cap = summary.cap_simulation
+    if summary.kind != "candidate":
+        reasons.append("budget_or_guard")
+    if summary.protected_samples > 0 or cap.true_sample_loss > 0 or cap.true_primary_loss > 0:
+        reasons.append("protected_loss")
+    return tuple(reasons)
+
+
+def summary_status(summary: RouteSummary) -> str:
+    reasons = summary_review_reasons(summary)
+    if not reasons:
+        return "runtime_candidate"
+    return f"review_only:{','.join(reasons)}"
+
+
 def print_ranked_summary(summaries: list[RouteSummary], limit: int) -> None:
     print("ranked active false suppression opportunities")
     print("  attribute-level candidates; validate runtime changes with the full drum gate")
@@ -944,7 +961,14 @@ def print_ranked_summary(summaries: list[RouteSummary], limit: int) -> None:
     if not summaries:
         print("  no matching suppression opportunities")
         return
-    for summary in sorted(summaries, key=summary_rank)[: max(0, limit)]:
+    ranked = sorted(summaries, key=summary_rank)[: max(0, limit)]
+    runtime_candidates = sum(1 for summary in ranked if not summary_review_reasons(summary))
+    print(
+        f"  shown_runtime_candidates={runtime_candidates} "
+        f"shown_review_only={len(ranked) - runtime_candidates}"
+    )
+    print("  status=runtime_candidate requires no direct or simulated protected true-hit loss")
+    for summary in ranked:
         expected, active = summary.route
         near = ""
         if summary.nearest_protected_misses is not None and summary.nearest_protected_score is not None:
@@ -978,7 +1002,8 @@ def print_ranked_summary(summaries: list[RouteSummary], limit: int) -> None:
             f"cap_net=samples {summary.cap_simulation.sample_net} "
             f"route {summary.cap_simulation.route_sample_net} "
             f"primary {summary.cap_simulation.primary_net} "
-            f"primary_route {summary.cap_simulation.route_primary_net} :: {summary.rule}"
+            f"primary_route {summary.cap_simulation.route_primary_net} "
+            f"status={summary_status(summary)} :: {summary.rule}"
         )
 
 
