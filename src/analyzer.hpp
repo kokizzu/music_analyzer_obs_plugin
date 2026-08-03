@@ -348,7 +348,8 @@ private:
 	void reset_analysis_state();
 	void update_tempo(float event_strength, float event_body_strength, float event_subdivision_strength,
 			  float flux_strength, float flux_body_strength, float flux_subdivision_strength,
-			  float interval_seconds, float rms, AnalysisSnapshot &snapshot);
+			  float event_time_offset_seconds, float interval_seconds, float rms,
+			  AnalysisSnapshot &snapshot);
 	float goertzel_power(const float *samples, std::size_t count, float mean, const Probe &probe) const;
 	float goertzel_power_at_frequency(const float *samples, std::size_t count, float mean, float freq) const;
 	TuningProbeResult chromatic_tuning_probe(const float *samples, std::size_t count, float mean, int midi,

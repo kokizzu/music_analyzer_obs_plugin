@@ -5,6 +5,7 @@
 #include <array>
 #include <cmath>
 #include <cstdio>
+#include <cstdint>
 #include <cstring>
 #include <sstream>
 #include <string>
@@ -236,6 +237,35 @@ void add_decayed_sine(mao_test::Buffer &buffer, float freq, float amp, std::size
 	}
 }
 
+void add_sine_window(mao_test::Buffer &buffer, float freq, float amp, int64_t sample_offset, std::size_t count)
+{
+	count = std::min(count, buffer.size());
+	for (std::size_t i = 0; i < count; ++i) {
+		const float sample = static_cast<float>(sample_offset + static_cast<int64_t>(i));
+		buffer[i] += amp * std::sin(2.0f * mao_test::kPi * freq * sample / mao_test::kSampleRate);
+	}
+}
+
+void add_decayed_sine_window(mao_test::Buffer &buffer, float freq, float amp, std::size_t samples,
+			     int64_t event_sample, int64_t window_start, std::size_t window_samples)
+{
+	if (samples == 0)
+		return;
+	const int64_t window_count = static_cast<int64_t>(std::min<std::size_t>(window_samples, buffer.size()));
+	const int64_t first = std::max<int64_t>(0, event_sample - window_start);
+	const int64_t last =
+		std::min<int64_t>(window_count, event_sample + static_cast<int64_t>(samples) - window_start);
+	for (int64_t i = first; i < last; ++i) {
+		const int64_t age = window_start + i - event_sample;
+		if (age < 0 || age >= static_cast<int64_t>(samples))
+			continue;
+		const float decay = 1.0f - static_cast<float>(age) / static_cast<float>(samples);
+		buffer[static_cast<std::size_t>(i)] +=
+			amp * decay *
+			std::sin(2.0f * mao_test::kPi * freq * static_cast<float>(age) / mao_test::kSampleRate);
+	}
+}
+
 void add_tempo_kick(mao_test::Buffer &buffer, float scale = 1.0f)
 {
 	add_decayed_sine(buffer, 65.0f, 0.78f * scale, 1500);
@@ -264,6 +294,75 @@ void add_tempo_fill(mao_test::Buffer &buffer)
 	add_decayed_sine(buffer, 220.0f, 0.16f, 1000);
 	add_decayed_sine(buffer, 3600.0f, 0.16f, 580);
 	add_decayed_sine(buffer, 7600.0f, 0.18f, 560);
+}
+
+enum class TempoHitKind {
+	Kick,
+	Snare,
+	HiHat,
+};
+
+struct TimelineTempoHit {
+	int64_t sample = 0;
+	TempoHitKind kind = TempoHitKind::Kick;
+	float scale = 1.0f;
+};
+
+void add_tempo_kick_window(mao_test::Buffer &buffer, int64_t event_sample, int64_t window_start,
+			   std::size_t window_samples, float scale = 1.0f)
+{
+	add_decayed_sine_window(buffer, 65.0f, 0.78f * scale, 1500, event_sample, window_start,
+				window_samples);
+	add_decayed_sine_window(buffer, 90.0f, 0.22f * scale, 1100, event_sample, window_start,
+				window_samples);
+	add_decayed_sine_window(buffer, 1100.0f, 0.26f * scale, 520, event_sample, window_start,
+				window_samples);
+}
+
+void add_tempo_snare_window(mao_test::Buffer &buffer, int64_t event_sample, int64_t window_start,
+			    std::size_t window_samples, float scale = 1.0f)
+{
+	add_decayed_sine_window(buffer, 170.0f, 0.16f * scale, 1300, event_sample, window_start,
+				window_samples);
+	add_decayed_sine_window(buffer, 650.0f, 0.065f * scale, 760, event_sample, window_start,
+				window_samples);
+	add_decayed_sine_window(buffer, 1800.0f, 0.16f * scale, 620, event_sample, window_start,
+				window_samples);
+	add_decayed_sine_window(buffer, 3600.0f, 0.055f * scale, 460, event_sample, window_start,
+				window_samples);
+}
+
+void add_tempo_hihat_window(mao_test::Buffer &buffer, int64_t event_sample, int64_t window_start,
+			    std::size_t window_samples, float scale = 1.0f)
+{
+	add_decayed_sine_window(buffer, 5600.0f, 0.070f * scale, 900, event_sample, window_start,
+				window_samples);
+	add_decayed_sine_window(buffer, 7600.0f, 0.090f * scale, 820, event_sample, window_start,
+				window_samples);
+	add_decayed_sine_window(buffer, 9800.0f, 0.065f * scale, 620, event_sample, window_start,
+				window_samples);
+}
+
+void add_tempo_backing_window(mao_test::Buffer &buffer, int64_t window_start, std::size_t window_samples)
+{
+	add_sine_window(buffer, mao_test::midi_frequency(48), 0.0050f, window_start, window_samples);
+	add_sine_window(buffer, mao_test::midi_frequency(55), 0.0038f, window_start, window_samples);
+}
+
+void add_tempo_hit_window(mao_test::Buffer &buffer, const TimelineTempoHit &hit, int64_t window_start,
+			  std::size_t window_samples)
+{
+	switch (hit.kind) {
+	case TempoHitKind::Kick:
+		add_tempo_kick_window(buffer, hit.sample, window_start, window_samples, hit.scale);
+		break;
+	case TempoHitKind::Snare:
+		add_tempo_snare_window(buffer, hit.sample, window_start, window_samples, hit.scale);
+		break;
+	case TempoHitKind::HiHat:
+		add_tempo_hihat_window(buffer, hit.sample, window_start, window_samples, hit.scale);
+		break;
+	}
 }
 
 void add_sine_at_offset(mao_test::Buffer &buffer, float freq, float amp, uint64_t sample_offset)
@@ -369,6 +468,7 @@ std::string note_grid_active_labels(const mao::NoteGrid &grid)
 			out += level;
 		}
 	}
+
 	return out.empty() ? "--" : out;
 }
 
@@ -4774,6 +4874,68 @@ mao::AnalysisSettings tempo_test_settings()
 	return settings;
 }
 
+mao::AnalysisSnapshot run_windowed_tempo_pattern(mao::AnalysisEngine &engine,
+						 const mao::AnalysisSettings &settings,
+						 float bpm, int frames, float phase_seconds,
+						 bool eighth_hats = false)
+{
+	const float beat_seconds = 60.0f / bpm;
+	const float eighth_seconds = beat_seconds * 0.5f;
+	const int64_t hop_samples = static_cast<int64_t>(
+		std::llround(settings.analysis_interval_seconds * static_cast<float>(settings.sample_rate)));
+	const int64_t window_samples = static_cast<int64_t>(std::clamp<std::size_t>(
+		static_cast<std::size_t>(
+			std::llround(settings.analysis_window_seconds * static_cast<float>(settings.sample_rate))),
+		1, mao::kAnalysisWindow));
+	const int64_t total_samples = static_cast<int64_t>(frames + 1) * hop_samples;
+	std::vector<TimelineTempoHit> hits;
+	int beat = 0;
+	for (double seconds = phase_seconds;
+	     static_cast<int64_t>(std::llround(seconds * mao_test::kSampleRate)) < total_samples;
+	     seconds += static_cast<double>(beat_seconds)) {
+		const bool backbeat = beat % 4 == 1 || beat % 4 == 3;
+		hits.push_back(TimelineTempoHit{
+			static_cast<int64_t>(std::llround(seconds * mao_test::kSampleRate)),
+			backbeat ? TempoHitKind::Snare : TempoHitKind::Kick,
+			backbeat ? 0.94f : 1.0f,
+		});
+		++beat;
+	}
+	if (eighth_hats) {
+		for (double seconds = phase_seconds + static_cast<double>(eighth_seconds);
+		     static_cast<int64_t>(std::llround(seconds * mao_test::kSampleRate)) < total_samples;
+		     seconds += static_cast<double>(eighth_seconds)) {
+			hits.push_back(TimelineTempoHit{
+				static_cast<int64_t>(std::llround(seconds * mao_test::kSampleRate)),
+				TempoHitKind::HiHat,
+				0.64f,
+			});
+		}
+	}
+	std::sort(hits.begin(), hits.end(), [](const TimelineTempoHit &a, const TimelineTempoHit &b) {
+		return a.sample < b.sample;
+	});
+
+	mao::AnalysisSnapshot snapshot = {};
+	for (int frame = 0; frame < frames; ++frame) {
+		mao_test::Buffer buffer = {};
+		const int64_t window_end = static_cast<int64_t>(frame + 1) * hop_samples;
+		const int64_t window_start = window_end - window_samples;
+		add_tempo_backing_window(buffer, window_start, static_cast<std::size_t>(window_samples));
+		for (const TimelineTempoHit &hit : hits) {
+			if (hit.sample >= window_end)
+				break;
+			if (hit.sample + 1600 < window_start)
+				continue;
+			add_tempo_hit_window(buffer, hit, window_start, static_cast<std::size_t>(window_samples));
+		}
+		snapshot = engine.analyze(buffer.data(), static_cast<std::size_t>(window_samples), settings,
+					  "rolling tempo test", 0);
+	}
+
+	return snapshot;
+}
+
 mao::AnalysisSnapshot run_tempo_pattern(mao::AnalysisEngine &engine, const mao::AnalysisSettings &settings,
 					float bpm, int frames, bool eighth_hats, bool one_frame_fill)
 {
@@ -5348,6 +5510,18 @@ void check_explicit_input_mode_and_bpm(Runner &runner)
 		const mao::AnalysisSnapshot snapshot = run_tempo_pattern(engine, settings, 100.0f, 180, false, false);
 		expect_bpm_near(runner, snapshot, 100.0f, 5.0f, "BPM estimate 100");
 		expect_best_tempo_phase_support(runner, snapshot, "BPM phase support 100");
+	}
+
+	{
+		mao::AnalysisEngine engine;
+		const mao::AnalysisSettings settings = tempo_test_settings();
+		const mao::AnalysisSnapshot snapshot =
+			run_windowed_tempo_pattern(engine, settings, 137.0f, 420, 0.027f, true);
+		expect_bpm_near(runner, snapshot, 137.0f, 4.0f,
+				"BPM estimate with rolling-window transient timing", 0.18f);
+		expect_tempo_candidate_near(runner, snapshot, 137.0f, 3.0f,
+					    "BPM diagnostics rolling-window transient timing");
+		expect_best_tempo_phase_support(runner, snapshot, "BPM phase support rolling-window transient timing");
 	}
 
 	{

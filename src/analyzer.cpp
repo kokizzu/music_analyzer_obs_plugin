@@ -24035,7 +24035,8 @@ void AnalysisEngine::reset_analysis_state()
 void AnalysisEngine::update_tempo(float raw_event_strength, float raw_event_body_strength,
 				  float raw_event_subdivision_strength, float raw_flux_strength,
 				  float raw_flux_body_strength, float raw_flux_subdivision_strength,
-				  float interval_seconds, float rms, AnalysisSnapshot &snapshot)
+				  float event_time_offset_seconds, float interval_seconds, float rms,
+				  AnalysisSnapshot &snapshot)
 {
 	snapshot.tempo_debug_event_strength = std::clamp(raw_event_strength, 0.0f, 1.25f);
 	snapshot.tempo_debug_body_strength = std::clamp(raw_event_body_strength, 0.0f, 1.25f);
@@ -24095,6 +24096,9 @@ void AnalysisEngine::update_tempo(float raw_event_strength, float raw_event_body
 		return;
 	}
 	tempo_silence_seconds_ = 0.0f;
+	const float event_time = std::max(
+		0.0f,
+		tempo_clock_seconds_ + std::clamp(event_time_offset_seconds, -1.0f, 0.0f));
 	const float tempo_flux_baseline = previous_tempo_flux_level_ * 1.04f;
 	const float onset_flux =
 		flux_level > tempo_flux_baseline ?
@@ -24107,10 +24111,10 @@ void AnalysisEngine::update_tempo(float raw_event_strength, float raw_event_body
 
 	if (event_strength >= 0.08f) {
 		bool append_event = true;
-		if (tempo_event_count_ > 0 && tempo_clock_seconds_ - last_tempo_event_seconds_ < 0.18f) {
+		if (tempo_event_count_ > 0 && event_time - last_tempo_event_seconds_ < 0.18f) {
 			const std::size_t last_index =
 				(tempo_event_pos_ + tempo_events_.size() - 1) % tempo_events_.size();
-			const float event_gap = tempo_clock_seconds_ - last_tempo_event_seconds_;
+			const float event_gap = event_time - last_tempo_event_seconds_;
 			const float last_strength = tempo_event_strengths_[last_index];
 			const float last_body = tempo_event_body_strengths_[last_index];
 			const float last_subdivision = tempo_event_subdivision_strengths_[last_index];
@@ -24140,14 +24144,14 @@ void AnalysisEngine::update_tempo(float raw_event_strength, float raw_event_body
 			}
 		}
 		if (append_event) {
-			tempo_events_[tempo_event_pos_] = tempo_clock_seconds_;
+			tempo_events_[tempo_event_pos_] = event_time;
 			tempo_event_strengths_[tempo_event_pos_] = event_strength;
 			tempo_event_body_strengths_[tempo_event_pos_] = event_body_strength;
 			tempo_event_subdivision_strengths_[tempo_event_pos_] = event_subdivision_strength;
 			tempo_event_pos_ = (tempo_event_pos_ + 1) % tempo_events_.size();
 			tempo_event_count_ = std::min<std::size_t>(tempo_event_count_ + 1,
 								   tempo_events_.size());
-			last_tempo_event_seconds_ = tempo_clock_seconds_;
+			last_tempo_event_seconds_ = event_time;
 		}
 	}
 
@@ -24567,6 +24571,15 @@ void AnalysisEngine::update_tempo(float raw_event_strength, float raw_event_body
 				adjacent_bpm_scores[candidate_index] +
 				adjacent_body_bpm_scores[candidate_index] * 0.45f +
 				adjacent_subdivision_bpm_scores[candidate_index] * 0.12f;
+			const bool stable_low_grid =
+				best_bpm < 78 && candidate_bpm == best_bpm * 2 &&
+				phase_body_coverages[current_index] >= 0.86f &&
+				phase_all_coverages[current_index] >= 0.86f &&
+				phase_body_coverages[candidate_index] + 0.24f <
+					phase_body_coverages[current_index] &&
+				bpm_scores[candidate_index] <= best_score * 1.05f;
+			if (stable_low_grid)
+				return;
 			const bool candidate_has_stronger_direct_pulse =
 				candidate_adjacent_support >=
 				std::max(current_adjacent_support * 1.35f,
@@ -24610,13 +24623,24 @@ void AnalysisEngine::update_tempo(float raw_event_strength, float raw_event_body
 				strongest_adjacent_body = adjacent_body;
 				adjacent_body_bpm = bpm;
 			}
-			if (adjacent_body_bpm > 0 &&
-			    strongest_adjacent_body >=
-				    std::max(current_adjacent_body * 1.15f,
-					     combined_total_body_strength * 0.075f)) {
-				best_bpm = adjacent_body_bpm;
-				best_score = bpm_scores[static_cast<std::size_t>(best_bpm - kMinTempoBpm)];
-			}
+				if (adjacent_body_bpm > 0 &&
+				    strongest_adjacent_body >=
+					    std::max(current_adjacent_body * 1.15f,
+						     combined_total_body_strength * 0.075f)) {
+					const std::size_t adjacent_body_index =
+						static_cast<std::size_t>(adjacent_body_bpm - kMinTempoBpm);
+					const bool stable_low_grid =
+						best_bpm < 78 && adjacent_body_bpm == best_bpm * 2 &&
+						phase_body_coverages[current_index] >= 0.86f &&
+						phase_all_coverages[current_index] >= 0.86f &&
+						phase_body_coverages[adjacent_body_index] + 0.24f <
+							phase_body_coverages[current_index] &&
+						bpm_scores[adjacent_body_index] <= best_score * 1.05f;
+					if (!stable_low_grid) {
+						best_bpm = adjacent_body_bpm;
+						best_score = bpm_scores[static_cast<std::size_t>(best_bpm - kMinTempoBpm)];
+					}
+				}
 		}
 	}
 
@@ -24624,13 +24648,19 @@ void AnalysisEngine::update_tempo(float raw_event_strength, float raw_event_body
 		const int double_bpm = best_bpm * 2;
 		const std::size_t best_index = static_cast<std::size_t>(best_bpm - kMinTempoBpm);
 		const std::size_t double_index = static_cast<std::size_t>(double_bpm - kMinTempoBpm);
+		const bool stable_low_grid =
+			best_bpm < 78 && phase_body_coverages[best_index] >= 0.86f &&
+			phase_all_coverages[best_index] >= 0.86f &&
+			phase_body_coverages[double_index] + 0.24f < phase_body_coverages[best_index] &&
+			bpm_scores[double_index] <= best_score * 1.05f;
 		if (bpm_scores[double_index] >= best_score * 0.30f &&
 		    adjacent_bpm_scores[double_index] >=
 			    std::max(adjacent_bpm_scores[best_index] * 1.60f, combined_total_strength * 0.10f) &&
 		    (combined_total_body_strength < 0.65f ||
 		     adjacent_body_bpm_scores[double_index] >=
 			     std::max(adjacent_body_bpm_scores[best_index] * 1.35f,
-				      combined_total_body_strength * 0.055f))) {
+				      combined_total_body_strength * 0.055f)) &&
+		    !stable_low_grid) {
 			best_bpm = double_bpm;
 			best_score = bpm_scores[double_index];
 		}
@@ -24657,7 +24687,7 @@ void AnalysisEngine::update_tempo(float raw_event_strength, float raw_event_body
 			adjacent_subdivision_bpm_scores[double_index] * 0.18f;
 		const bool low_grid_is_weakly_direct =
 			adjacent_bpm_scores[best_index] + adjacent_body_bpm_scores[best_index] * 0.45f <
-			combined_total_strength * 0.035f;
+			combined_total_strength * 0.060f;
 		const bool double_grid_has_pulse_evidence =
 			double_body_score >= best_body_score * 0.34f ||
 			double_subdivision_score >= best_subdivision_score * 0.48f ||
@@ -25268,13 +25298,17 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 	const float mean = static_cast<float>(sum / static_cast<double>(usable));
 	const float rms = std::sqrt(static_cast<float>(square_sum / static_cast<double>(usable)));
 	float strongest_segment_rms = 0.0f;
+	std::size_t strongest_segment_index = 0;
 	for (std::size_t i = 0; i < kDrumTransientSegments; ++i) {
 		if (segment_counts[i] == 0)
 			continue;
-		strongest_segment_rms =
-			std::max(strongest_segment_rms,
-				 std::sqrt(static_cast<float>(segment_square_sum[i] /
-							      static_cast<double>(segment_counts[i]))));
+		const float segment_rms =
+			std::sqrt(static_cast<float>(segment_square_sum[i] /
+						     static_cast<double>(segment_counts[i])));
+		if (segment_rms > strongest_segment_rms) {
+			strongest_segment_rms = segment_rms;
+			strongest_segment_index = i;
+		}
 	}
 	const float drum_transient_ratio = rms > 1.0e-6f ? strongest_segment_rms / rms : 0.0f;
 	const bool drum_transient = drum_transient_ratio >= kDrumTransientRatio;
@@ -28948,9 +28982,19 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 		tempo_event_subdivision_strength =
 			std::max(tempo_event_subdivision_strength, broad_tempo_subdivision_strength);
 	}
+	float tempo_event_offset_seconds = 0.0f;
+	if ((tempo_event || onset_tempo_event) && usable > 0 && sample_rate_ > 0 &&
+	    strongest_segment_rms >= std::max(rms * 1.06f, kSilenceRms)) {
+		const float window_seconds = static_cast<float>(usable) / static_cast<float>(sample_rate_);
+		const float segment_center_seconds =
+			(static_cast<float>(strongest_segment_index) + 0.5f) * window_seconds /
+			static_cast<float>(kDrumTransientSegments);
+		tempo_event_offset_seconds =
+			std::clamp(segment_center_seconds - window_seconds, -window_seconds, 0.0f);
+	}
 	update_tempo(tempo_event_strength, tempo_event_body_strength, tempo_event_subdivision_strength,
 		     broad_tempo_strength, broad_tempo_body_strength, broad_tempo_subdivision_strength,
-		     interval_seconds, rms, snapshot);
+		     tempo_event_offset_seconds, interval_seconds, rms, snapshot);
 	snapshot.estimated_bpm = estimated_bpm_;
 	snapshot.bpm_confidence = bpm_confidence_;
 
