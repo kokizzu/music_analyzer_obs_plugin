@@ -658,11 +658,24 @@ def guitar_quality_tone_missing(candidate: Candidate) -> bool:
 def candidate_additional_samples_needed(
     candidate: Candidate, min_actionable_samples: int
 ) -> int:
-    if candidate.kind not in SAMPLE_SENSITIVE_KINDS:
+    observed = candidate_observed_coverage(candidate)
+    if observed <= 0 or observed >= min_actionable_samples:
         return 0
-    if candidate.pos_samples <= 0 or candidate.pos_samples >= min_actionable_samples:
-        return 0
-    return min_actionable_samples - candidate.pos_samples
+    if candidate.kind in SAMPLE_SENSITIVE_KINDS or candidate.kind == "drum":
+        return min_actionable_samples - observed
+    return 0
+
+
+def candidate_observed_coverage(candidate: Candidate) -> int:
+    if candidate.kind == "drum":
+        return candidate.pos_rows
+    return candidate.pos_samples
+
+
+def candidate_coverage_unit(candidate: Candidate) -> str:
+    if candidate.kind == "drum":
+        return "rows"
+    return "samples"
 
 
 def block_reason_summary(
@@ -683,7 +696,7 @@ def candidate_non_sample_block_reasons(
     return [
         reason
         for reason in candidate_block_reasons(candidate, min_actionable_samples)
-        if not reason.startswith("low_samples<")
+        if not reason.startswith("low_samples<") and not reason.startswith("low_rows<")
     ]
 
 
@@ -814,13 +827,15 @@ def coverage_route_clusters(
         needed = candidate_additional_samples_needed(candidate, min_actionable_samples)
         if needed <= 0:
             continue
+        if candidate.kind == "drum":
+            continue
         cluster = clusters.setdefault(
             candidate.section,
             CoverageRouteCluster(section=candidate.section, min_needed_samples=needed),
         )
         cluster.candidates += 1
         cluster.best_observed_samples = max(
-            cluster.best_observed_samples, candidate.pos_samples
+            cluster.best_observed_samples, candidate_observed_coverage(candidate)
         )
         cluster.min_needed_samples = min(cluster.min_needed_samples, needed)
         cluster.total_net_rows += candidate.net_rows
@@ -923,10 +938,12 @@ def main() -> int:
             needed = candidate_additional_samples_needed(
                 candidate, args.min_actionable_samples
             )
+            coverage_unit = candidate_coverage_unit(candidate)
+            observed = candidate_observed_coverage(candidate)
             print(
                 "    "
                 f"coverage_need {candidate.kind} {candidate.section} "
-                f"observed_samples={candidate.pos_samples} need_samples={needed} "
+                f"observed_{coverage_unit}={observed} need_{coverage_unit}={needed} "
                 f"+rows={candidate.pos_rows} side_rows={candidate.side_effect_rows} "
                 f"net_rows={candidate.net_rows} gain_per_side={format_gain_ratio(candidate)} "
                 f":: {candidate.rule}"

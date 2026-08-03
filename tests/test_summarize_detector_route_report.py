@@ -74,7 +74,7 @@ compact route summary
     output = result.stdout
     require(
         output,
-        "detector_route_summary: candidates=13 low_false=5 shadow=2 near_miss=1 guitar=2 drum=3 positive_net=12 gain_ge_1=12 source_safe_positive_net=10 actionable=5 coverage_blocked=2",
+        "detector_route_summary: candidates=13 low_false=5 shadow=2 near_miss=1 guitar=2 drum=3 positive_net=12 gain_ge_1=12 source_safe_positive_net=10 actionable=5 coverage_blocked=3",
     )
     require(
         output,
@@ -87,6 +87,10 @@ compact route summary
     require(
         output,
         "coverage_need low-false ownership_miss:guitar/electronic->piano observed_samples=2 need_samples=3 +rows=5 side_rows=0 net_rows=5 gain_per_side=inf :: adjacent_lower_ratio<=0.698 AND partial3>=1.817",
+    )
+    require(
+        output,
+        "coverage_need drum route tom->snare observed_rows=4 need_rows=1 +rows=4 side_rows=0 net_rows=4 gain_per_side=inf :: snare_kick_level_ratio>=3.362 AND tom_snare_body_ratio>=1.824",
     )
     require(
         output,
