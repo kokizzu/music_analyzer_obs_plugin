@@ -4987,6 +4987,48 @@ mao::AnalysisSnapshot run_dense_sixteenth_hat_tempo_pattern(mao::AnalysisEngine 
 	return snapshot;
 }
 
+mao::AnalysisSnapshot run_triplet_hat_tempo_pattern(mao::AnalysisEngine &engine,
+						     const mao::AnalysisSettings &settings,
+						     float bpm, int frames)
+{
+	const float beat_seconds = 60.0f / bpm;
+	const float triplet_seconds = beat_seconds * (2.0f / 3.0f);
+	const float interval_seconds = settings.analysis_interval_seconds;
+	const uint64_t hop_samples = static_cast<uint64_t>(
+		std::lround(settings.analysis_interval_seconds * static_cast<float>(settings.sample_rate)));
+	mao::AnalysisSnapshot snapshot = {};
+	float next_beat_seconds = 0.0f;
+	float next_hat_seconds = 0.0f;
+	int beat = 0;
+
+	for (int frame = 0; frame < frames; ++frame) {
+		mao_test::Buffer buffer = {};
+		add_tempo_backing(buffer, static_cast<uint64_t>(frame) * hop_samples);
+		const float frame_seconds = static_cast<float>(frame) * interval_seconds;
+		const float frame_center_seconds = frame_seconds + interval_seconds * 0.5f;
+
+		if (next_hat_seconds <= frame_center_seconds) {
+			add_tempo_hihat(buffer, 1.28f);
+			while (next_hat_seconds <= frame_center_seconds)
+				next_hat_seconds += triplet_seconds;
+		}
+		if (next_beat_seconds <= frame_center_seconds) {
+			if (beat % 4 == 1 || beat % 4 == 3)
+				add_tempo_snare(buffer, 0.42f);
+			else
+				add_tempo_kick(buffer, beat % 8 == 4 ? 0.36f : 0.50f);
+			++beat;
+			while (next_beat_seconds <= frame_center_seconds)
+				next_beat_seconds += beat_seconds;
+		}
+
+		snapshot = engine.analyze(buffer.data(), buffer.size(), settings,
+					  "triplet subdivision tempo test", 0);
+	}
+
+	return snapshot;
+}
+
 mao::AnalysisSnapshot run_offbeat_hat_tempo_pattern(mao::AnalysisEngine &engine,
 						    const mao::AnalysisSettings &settings,
 						    float bpm, int frames)
@@ -5250,6 +5292,17 @@ void check_explicit_input_mode_and_bpm(Runner &runner)
 				"BPM estimate should not follow loud sixteenth hats");
 		expect_tempo_candidate_near(runner, snapshot, 92.0f, 4.0f,
 					    "BPM diagnostics dense sixteenth hats");
+	}
+
+	{
+		mao::AnalysisEngine engine;
+		const mao::AnalysisSettings settings = tempo_test_settings();
+		const mao::AnalysisSnapshot snapshot =
+			run_triplet_hat_tempo_pattern(engine, settings, 120.0f, 360);
+		expect_bpm_near(runner, snapshot, 120.0f, 7.0f,
+				"BPM estimate should reject loud triplet-hat subdivision");
+		expect_tempo_candidate_near(runner, snapshot, 120.0f, 4.0f,
+					    "BPM diagnostics triplet hats");
 	}
 
 	{

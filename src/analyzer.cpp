@@ -24106,17 +24106,40 @@ void AnalysisEngine::update_tempo(float raw_event_strength, float raw_event_body
 	previous_tempo_flux_level_ = std::max(flux_level, previous_tempo_flux_level_ * 0.78f);
 
 	if (event_strength >= 0.08f) {
+		bool append_event = true;
 		if (tempo_event_count_ > 0 && tempo_clock_seconds_ - last_tempo_event_seconds_ < 0.18f) {
 			const std::size_t last_index =
 				(tempo_event_pos_ + tempo_events_.size() - 1) % tempo_events_.size();
-			tempo_event_strengths_[last_index] =
-				std::max(tempo_event_strengths_[last_index], event_strength);
-			tempo_event_body_strengths_[last_index] =
-				std::max(tempo_event_body_strengths_[last_index], event_body_strength);
-			tempo_event_subdivision_strengths_[last_index] =
-				std::max(tempo_event_subdivision_strengths_[last_index],
-					 event_subdivision_strength);
-		} else {
+			const float event_gap = tempo_clock_seconds_ - last_tempo_event_seconds_;
+			const float last_strength = tempo_event_strengths_[last_index];
+			const float last_body = tempo_event_body_strengths_[last_index];
+			const float last_subdivision = tempo_event_subdivision_strengths_[last_index];
+			const bool last_body_dominant =
+				last_body >= std::max(last_subdivision * 1.15f, last_strength * 0.35f);
+			const bool last_subdivision_dominant =
+				last_subdivision >= std::max(last_body * 1.15f, last_strength * 0.35f);
+			const bool event_body_dominant =
+				event_body_strength >=
+				std::max(event_subdivision_strength * 1.15f, event_strength * 0.35f);
+			const bool event_subdivision_dominant =
+				event_subdivision_strength >=
+				std::max(event_body_strength * 1.15f, event_strength * 0.35f);
+			const bool close_distinct_family =
+				event_gap >= 0.055f &&
+				((last_body_dominant && event_subdivision_dominant) ||
+				 (last_subdivision_dominant && event_body_dominant));
+			if (!close_distinct_family) {
+				tempo_event_strengths_[last_index] =
+					std::max(tempo_event_strengths_[last_index], event_strength);
+				tempo_event_body_strengths_[last_index] =
+					std::max(tempo_event_body_strengths_[last_index], event_body_strength);
+				tempo_event_subdivision_strengths_[last_index] =
+					std::max(tempo_event_subdivision_strengths_[last_index],
+						 event_subdivision_strength);
+				append_event = false;
+			}
+		}
+		if (append_event) {
 			tempo_events_[tempo_event_pos_] = tempo_clock_seconds_;
 			tempo_event_strengths_[tempo_event_pos_] = event_strength;
 			tempo_event_body_strengths_[tempo_event_pos_] = event_body_strength;
@@ -24688,6 +24711,57 @@ void AnalysisEngine::update_tempo(float raw_event_strength, float raw_event_body
 				lower_score >= best_score * 0.68f;
 			if (lower_has_body_pulse) {
 				best_bpm = lower_body_bpm;
+				best_score = bpm_scores[static_cast<std::size_t>(best_bpm - kMinTempoBpm)];
+			}
+		}
+	}
+
+	if (best_bpm >= 135 && best_bpm <= 180) {
+		const std::size_t current_index = static_cast<std::size_t>(best_bpm - kMinTempoBpm);
+		const float current_body_score = body_bpm_scores[current_index];
+		const float current_subdivision_score = subdivision_bpm_scores[current_index];
+		const float current_phase_score = phase_bpm_scores[current_index];
+		const bool current_has_weak_phase_grid =
+			phase_body_coverages[current_index] < 0.34f &&
+			phase_all_coverages[current_index] < 0.46f;
+		const bool current_is_subdivision_weighted =
+			current_subdivision_score >= current_body_score * 0.55f ||
+			adjacent_subdivision_bpm_scores[current_index] >=
+				adjacent_body_bpm_scores[current_index] * 0.85f;
+		if (current_has_weak_phase_grid && current_is_subdivision_weighted) {
+			int recovered_bpm = 0;
+			float recovered_rank = 0.0f;
+			for (int bpm = 85; bpm <= 145; ++bpm) {
+				if (bpm < kMinTempoBpm || bpm > kMaxTempoBpm ||
+				    std::abs(bpm - best_bpm) <= 8)
+					continue;
+				const std::size_t index = static_cast<std::size_t>(bpm - kMinTempoBpm);
+				const float candidate_score = bpm_scores[index];
+				if (candidate_score < best_score * 0.38f)
+					continue;
+				if (current_body_score > 0.0f &&
+				    body_bpm_scores[index] < current_body_score * 0.50f)
+					continue;
+				if (phase_body_coverages[index] <
+				    std::max(phase_body_coverages[current_index] * 1.80f, 0.42f))
+					continue;
+				if (phase_all_coverages[index] <
+				    std::max(phase_all_coverages[current_index] * 1.45f, 0.42f))
+					continue;
+				if (phase_bpm_scores[index] <
+				    std::max(current_phase_score * 1.45f, combined_total_body_strength * 0.045f))
+					continue;
+				const float rank =
+					candidate_score * 0.25f +
+					phase_bpm_scores[index] *
+						(0.75f + phase_body_coverages[index] * 0.75f);
+				if (rank <= recovered_rank)
+					continue;
+				recovered_rank = rank;
+				recovered_bpm = bpm;
+			}
+			if (recovered_bpm > 0) {
+				best_bpm = recovered_bpm;
 				best_score = bpm_scores[static_cast<std::size_t>(best_bpm - kMinTempoBpm)];
 			}
 		}
