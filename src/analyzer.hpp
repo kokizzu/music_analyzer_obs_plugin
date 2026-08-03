@@ -144,6 +144,8 @@ struct TempoDebugCandidate {
 	float subdivision_score = 0.0f;
 	float adjacent_subdivision_score = 0.0f;
 	float phase_score = 0.0f;
+	float phase_locked_score = 0.0f;
+	float meter_score = 0.0f;
 	float phase_body_coverage = 0.0f;
 	float phase_all_coverage = 0.0f;
 	float phase_offset_seconds = 0.0f;

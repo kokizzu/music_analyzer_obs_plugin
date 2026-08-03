@@ -5837,6 +5837,70 @@ mao::AnalysisSnapshot run_shuffle_strum_body_tempo_pattern(mao::AnalysisEngine &
 	return snapshot;
 }
 
+mao::AnalysisSnapshot run_downbeat_meter_subdivision_tempo_pattern(mao::AnalysisEngine &engine,
+								    const mao::AnalysisSettings &settings,
+								    float bpm, int frames)
+{
+	const float beat_seconds = 60.0f / bpm;
+	const float eighth_seconds = beat_seconds * 0.5f;
+	const float dotted_subdivision_seconds = beat_seconds * 0.75f;
+	const float interval_seconds = settings.analysis_interval_seconds;
+	const uint64_t hop_samples = static_cast<uint64_t>(
+		std::lround(settings.analysis_interval_seconds * static_cast<float>(settings.sample_rate)));
+	mao::AnalysisSnapshot snapshot = {};
+	float next_beat_seconds = 0.0f;
+	float next_hihat_seconds = eighth_seconds;
+	float next_accent_hihat_seconds = dotted_subdivision_seconds;
+	int beat = 0;
+	int hat = 0;
+	int accent_hat = 0;
+
+	for (int frame = 0; frame < frames; ++frame) {
+		mao_test::Buffer buffer = {};
+		const uint64_t sample_offset = static_cast<uint64_t>(frame) * hop_samples;
+		add_tempo_backing(buffer, sample_offset);
+		const float frame_seconds = static_cast<float>(frame) * interval_seconds;
+		const float frame_center_seconds = frame_seconds + interval_seconds * 0.5f;
+
+		if (next_hihat_seconds <= frame_center_seconds) {
+			add_tempo_hihat(buffer, hat % 4 == 1 ? 1.30f : 1.04f);
+			++hat;
+			while (next_hihat_seconds <= frame_center_seconds)
+				next_hihat_seconds += eighth_seconds;
+		}
+		if (next_accent_hihat_seconds <= frame_center_seconds) {
+			add_tempo_hihat(buffer, accent_hat % 3 == 0 ? 1.34f : 1.12f);
+			++accent_hat;
+			while (next_accent_hihat_seconds <= frame_center_seconds)
+				next_accent_hihat_seconds += dotted_subdivision_seconds;
+		}
+		if (next_beat_seconds <= frame_center_seconds) {
+			switch (beat & 3) {
+			case 0:
+				add_tempo_kick(buffer, 0.78f);
+				break;
+			case 1:
+				add_tempo_snare(buffer, 0.70f);
+				break;
+			case 2:
+				add_tempo_kick(buffer, 0.54f);
+				break;
+			default:
+				add_tempo_snare(buffer, 0.64f);
+				break;
+			}
+			++beat;
+			while (next_beat_seconds <= frame_center_seconds)
+				next_beat_seconds += beat_seconds;
+		}
+
+		snapshot = engine.analyze(buffer.data(), buffer.size(), settings,
+					  "downbeat meter subdivision tempo test", 0);
+	}
+
+	return snapshot;
+}
+
 void expect_bpm_near(Runner &runner, const mao::AnalysisSnapshot &snapshot, float expected, float tolerance,
 		     const std::string &context, float min_confidence = 0.22f)
 {
@@ -5849,6 +5913,8 @@ void expect_bpm_near(Runner &runner, const mao::AnalysisSnapshot &snapshot, floa
 			   << ",ba=" << candidate.adjacent_body_score << ",sub=" << candidate.subdivision_score
 			   << ",suba=" << candidate.adjacent_subdivision_score
 			   << ",ph=" << candidate.phase_score
+			   << ",lock=" << candidate.phase_locked_score
+			   << ",meter=" << candidate.meter_score
 			   << ",phb=" << candidate.phase_body_coverage
 			   << ",pha=" << candidate.phase_all_coverage << ")";
 	}
@@ -5874,6 +5940,8 @@ void expect_tempo_candidate_near(Runner &runner, const mao::AnalysisSnapshot &sn
 			   << ",ba=" << candidate.adjacent_body_score << ",sub=" << candidate.subdivision_score
 			   << ",suba=" << candidate.adjacent_subdivision_score
 			   << ",ph=" << candidate.phase_score
+			   << ",lock=" << candidate.phase_locked_score
+			   << ",meter=" << candidate.meter_score
 			   << ",phb=" << candidate.phase_body_coverage
 			   << ",pha=" << candidate.phase_all_coverage << ")";
 		if (std::fabs(static_cast<float>(snapshot.tempo_debug_candidates[i].bpm) - expected) <= tolerance) {
@@ -5905,6 +5973,20 @@ void expect_best_tempo_phase_support(Runner &runner, const mao::AnalysisSnapshot
 		      context + ": expected non-negative phase offset");
 }
 
+void expect_best_tempo_locked_meter_support(Runner &runner, const mao::AnalysisSnapshot &snapshot,
+					    const std::string &context)
+{
+	runner.expect(snapshot.tempo_debug_candidate_count > 0,
+		      context + ": expected at least one tempo debug candidate");
+	if (snapshot.tempo_debug_candidate_count == 0)
+		return;
+	const mao::TempoDebugCandidate &candidate = snapshot.tempo_debug_candidates[0];
+	runner.expect(candidate.phase_locked_score > 0.0f,
+		      context + ": expected best tempo candidate to have phase-locked beat score");
+	runner.expect(candidate.meter_score > 0.0f,
+		      context + ": expected best tempo candidate to have 4-beat body-meter score");
+}
+
 void debug_tempo_snapshot(const mao::AnalysisSnapshot &snapshot, const char *context)
 {
 	if (!std::getenv("MUSIC_ANALYZER_DEBUG_TEMPO_CASES"))
@@ -5917,10 +5999,11 @@ void debug_tempo_snapshot(const mao::AnalysisSnapshot &snapshot, const char *con
 	for (std::size_t i = 0; i < snapshot.tempo_debug_candidate_count; ++i) {
 		const mao::TempoDebugCandidate &candidate = snapshot.tempo_debug_candidates[i];
 		std::fprintf(stderr,
-			     " %d(s=%.3f,a=%.3f,b=%.3f,ba=%.3f,sub=%.3f,suba=%.3f,ph=%.3f,phb=%.2f,pha=%.2f)",
+			     " %d(s=%.3f,a=%.3f,b=%.3f,ba=%.3f,sub=%.3f,suba=%.3f,ph=%.3f,lock=%.3f,meter=%.3f,phb=%.2f,pha=%.2f)",
 			     candidate.bpm, candidate.score, candidate.adjacent_score, candidate.body_score,
 			     candidate.adjacent_body_score, candidate.subdivision_score,
 			     candidate.adjacent_subdivision_score, candidate.phase_score,
+			     candidate.phase_locked_score, candidate.meter_score,
 			     candidate.phase_body_coverage, candidate.phase_all_coverage);
 	}
 	std::fprintf(stderr, "\n");
@@ -6198,6 +6281,21 @@ void check_explicit_input_mode_and_bpm(Runner &runner)
 				      std::to_string(snapshot.bpm_confidence));
 		expect_tempo_candidate_near(runner, snapshot, 128.0f, 5.0f,
 					    "BPM diagnostics shuffle strums over weak body");
+	}
+
+	{
+		mao::AnalysisEngine engine;
+		const mao::AnalysisSettings settings = tempo_test_settings();
+		const mao::AnalysisSnapshot snapshot =
+			run_downbeat_meter_subdivision_tempo_pattern(engine, settings, 124.0f, 480);
+		debug_tempo_snapshot(snapshot, "downbeat meter subdivision tempo test");
+		expect_bpm_near(runner, snapshot, 124.0f, 7.0f,
+				"BPM estimate should use phase-locked body meter through off-grid subdivisions",
+				0.18f);
+		expect_tempo_candidate_near(runner, snapshot, 124.0f, 5.0f,
+					    "BPM diagnostics phase-locked body meter");
+		expect_best_tempo_locked_meter_support(runner, snapshot,
+						       "BPM phase-locked body-meter diagnostics");
 	}
 
 	{

@@ -24609,6 +24609,8 @@ void AnalysisEngine::update_tempo(float raw_event_strength, float raw_event_body
 	std::array<float, kTempoBpmCount> comb_body_bpm_scores = {};
 	std::array<float, kTempoBpmCount> comb_subdivision_bpm_scores = {};
 	std::array<float, kTempoBpmCount> phase_bpm_scores = {};
+	std::array<float, kTempoBpmCount> phase_locked_bpm_scores = {};
+	std::array<float, kTempoBpmCount> meter_bpm_scores = {};
 	std::array<float, kTempoBpmCount> phase_body_coverages = {};
 	std::array<float, kTempoBpmCount> phase_all_coverages = {};
 	std::array<float, kTempoBpmCount> phase_offsets = {};
@@ -24908,9 +24910,12 @@ void AnalysisEngine::update_tempo(float raw_event_strength, float raw_event_body
 		comb_subdivision_bpm_scores[score_index] = comb_subdivision_score;
 
 		float phase_score = 0.0f;
+		float phase_locked_score = 0.0f;
+		float meter_score = 0.0f;
 		float phase_body_coverage = 0.0f;
 		float phase_all_coverage = 0.0f;
 		float phase_offset = 0.0f;
+		float phase_rank = 0.0f;
 		const float phase_step = period / static_cast<float>(kTempoPhaseBins);
 		if (recent_flux_count >= minimum_flux_frames) {
 			const int search_radius =
@@ -24929,11 +24934,21 @@ void AnalysisEngine::update_tempo(float raw_event_strength, float raw_event_body
 				float body_grid_score = 0.0f;
 				float all_grid_score = 0.0f;
 				float subdivision_grid_score = 0.0f;
+				float locked_path_score = 0.0f;
+				float locked_path_state = 0.0f;
+				int locked_path_hits = 0;
+				int locked_path_misses = 0;
+				std::array<float, 4> low_by_meter = {};
+				std::array<float, 4> mid_by_meter = {};
+				std::array<float, 4> body_by_meter = {};
+				int meter_position = 0;
 				while (grid_time <= tempo_clock_seconds_ + clamped_interval * 0.5f) {
 					const int center_index = static_cast<int>(
 						std::lround((grid_time - flux_window_start) / clamped_interval));
 					float best_all_flux = 0.0f;
 					float best_body_flux = 0.0f;
+					float best_low_body_flux = 0.0f;
+					float best_mid_body_flux = 0.0f;
 					float best_subdivision_flux = 0.0f;
 					for (int offset = -search_radius; offset <= search_radius; ++offset) {
 						const int flux_index = center_index + offset;
@@ -24953,6 +24968,14 @@ void AnalysisEngine::update_tempo(float raw_event_strength, float raw_event_body
 						best_body_flux = std::max(best_body_flux,
 									  recent_body_flux[index] *
 									  error_weight);
+						best_low_body_flux =
+							std::max(best_low_body_flux,
+								 recent_low_body_flux[index] *
+								 error_weight);
+						best_mid_body_flux =
+							std::max(best_mid_body_flux,
+								 recent_mid_body_flux[index] *
+								 error_weight);
 						best_subdivision_flux =
 							std::max(best_subdivision_flux,
 								 recent_subdivision_flux[index] *
@@ -24972,6 +24995,34 @@ void AnalysisEngine::update_tempo(float raw_event_strength, float raw_event_body
 					}
 					if (best_subdivision_flux >= 0.010f)
 						subdivision_grid_score += std::sqrt(best_subdivision_flux) * recency;
+					const float locked_evidence =
+						std::sqrt(std::max(best_body_flux, 0.0f)) * 1.18f +
+						std::sqrt(std::max(best_all_flux, 0.0f)) * 0.20f +
+						std::sqrt(std::max(best_subdivision_flux, 0.0f)) * 0.05f;
+					if (locked_evidence >= 0.095f) {
+						const float continuity =
+							locked_path_hits > 0 ? 1.12f : 0.88f;
+						locked_path_state =
+							std::max(locked_evidence * 0.62f,
+								 locked_path_state * 0.80f +
+									 locked_evidence * continuity);
+						locked_path_score += locked_path_state * recency;
+						++locked_path_hits;
+						locked_path_misses = 0;
+					} else {
+						++locked_path_misses;
+						locked_path_hits = 0;
+						locked_path_state *= locked_path_misses <= 1 ? 0.72f : 0.48f;
+						locked_path_score += locked_path_state * recency * 0.08f;
+					}
+					const std::size_t meter_index = static_cast<std::size_t>(meter_position & 3);
+					low_by_meter[meter_index] += std::sqrt(std::max(best_low_body_flux, 0.0f)) *
+								     recency;
+					mid_by_meter[meter_index] += std::sqrt(std::max(best_mid_body_flux, 0.0f)) *
+								     recency;
+					body_by_meter[meter_index] += std::sqrt(std::max(best_body_flux, 0.0f)) *
+								      recency;
+					++meter_position;
 					grid_time += period;
 				}
 
@@ -24987,8 +25038,49 @@ void AnalysisEngine::update_tempo(float raw_event_strength, float raw_event_body
 					(body_grid_score * 1.28f + all_grid_score * 0.32f +
 					 subdivision_grid_score * 0.08f) *
 					(0.35f + coverage_weight * 0.65f);
-				if (candidate_phase_score > phase_score) {
+				float candidate_meter_score = 0.0f;
+				if (expected_pulses >= 4) {
+					for (int offset = 0; offset < 4; ++offset) {
+						const int beat_one = offset;
+						const int beat_two = (offset + 1) & 3;
+						const int beat_three = (offset + 2) & 3;
+						const int beat_four = (offset + 3) & 3;
+						const float low_downbeat =
+							low_by_meter[beat_one] + low_by_meter[beat_three] * 0.82f;
+						const float mid_backbeat =
+							mid_by_meter[beat_two] + mid_by_meter[beat_four] * 0.88f;
+						const float body_grid =
+							body_by_meter[beat_one] * 0.26f +
+							body_by_meter[beat_two] * 0.18f +
+							body_by_meter[beat_three] * 0.22f +
+							body_by_meter[beat_four] * 0.18f;
+						const float contradiction =
+							(mid_by_meter[beat_one] + mid_by_meter[beat_three]) * 0.18f +
+							(low_by_meter[beat_two] + low_by_meter[beat_four]) * 0.12f;
+						candidate_meter_score = std::max(
+							candidate_meter_score,
+							low_downbeat * 0.58f + mid_backbeat * 0.46f +
+								body_grid - contradiction);
+					}
+					candidate_meter_score =
+						std::max(0.0f, candidate_meter_score) *
+						(0.45f + coverage_weight * 0.55f);
+				}
+				const float candidate_locked_score =
+					locked_path_score * (0.28f + coverage_weight * 0.72f);
+				const float candidate_locked_body_weight =
+					std::clamp(body_coverage * body_coverage * 1.15f +
+							   all_coverage * 0.08f,
+						   0.0f, 1.0f);
+				const float candidate_phase_rank =
+					candidate_phase_score +
+					candidate_locked_score * 0.24f * candidate_locked_body_weight +
+					candidate_meter_score * 0.22f;
+				if (candidate_phase_rank > phase_rank) {
+					phase_rank = candidate_phase_rank;
 					phase_score = candidate_phase_score;
+					phase_locked_score = candidate_locked_score;
+					meter_score = candidate_meter_score;
 					phase_body_coverage = body_coverage;
 					phase_all_coverage = all_coverage;
 					phase_offset = candidate_offset;
@@ -24996,11 +25088,20 @@ void AnalysisEngine::update_tempo(float raw_event_strength, float raw_event_body
 			}
 		}
 		phase_bpm_scores[score_index] = phase_score;
+		phase_locked_bpm_scores[score_index] = phase_locked_score;
+		meter_bpm_scores[score_index] = meter_score;
 		phase_body_coverages[score_index] = phase_body_coverage;
 		phase_all_coverages[score_index] = phase_all_coverage;
 		phase_offsets[score_index] = phase_offset;
-		score += phase_score * 0.56f;
-		body_bpm_scores[score_index] += phase_score * phase_body_coverage * 0.38f;
+		const float locked_body_weight =
+			std::clamp(phase_body_coverage * phase_body_coverage * 1.15f +
+					   phase_all_coverage * 0.08f,
+				   0.0f, 1.0f);
+		score += phase_score * 0.50f + phase_locked_score * 0.18f * locked_body_weight +
+			 meter_score * 0.16f;
+		body_bpm_scores[score_index] += phase_score * phase_body_coverage * 0.34f +
+						 phase_locked_score * locked_body_weight * 0.16f +
+						 meter_score * 0.28f;
 
 		if (phase_all_coverage >= 0.50f && phase_body_coverage < 0.34f && bpm >= 140 &&
 		    subdivision_bpm_scores[score_index] >= body_bpm_scores[score_index] * 0.90f)
@@ -25448,6 +25549,8 @@ void AnalysisEngine::update_tempo(float raw_event_strength, float raw_event_body
 		candidate.subdivision_score = subdivision_bpm_scores[score_index];
 		candidate.adjacent_subdivision_score = adjacent_subdivision_bpm_scores[score_index];
 		candidate.phase_score = phase_bpm_scores[score_index];
+		candidate.phase_locked_score = phase_locked_bpm_scores[score_index];
+		candidate.meter_score = meter_bpm_scores[score_index];
 		candidate.phase_body_coverage = phase_body_coverages[score_index];
 		candidate.phase_all_coverage = phase_all_coverages[score_index];
 		candidate.phase_offset_seconds = phase_offsets[score_index];
@@ -25574,9 +25677,9 @@ void AnalysisEngine::update_tempo(float raw_event_strength, float raw_event_body
 			phase_body_coverages[rival_index] + 0.10f >= phase_body_coverages[best_index] ||
 			phase_all_coverages[rival_index] + 0.10f >= phase_all_coverages[best_index];
 		if (rival_phase_plausible && rival_ratio >= 0.94f)
-			harmonic_confidence_cap = 0.38f;
+			harmonic_confidence_cap = 0.34f;
 		else if (rival_phase_plausible && rival_ratio >= 0.84f)
-			harmonic_confidence_cap = 0.50f;
+			harmonic_confidence_cap = 0.40f;
 		else if (rival_ratio >= 0.74f)
 			harmonic_confidence_cap = 0.62f;
 		target_confidence = std::min(target_confidence, harmonic_confidence_cap);
