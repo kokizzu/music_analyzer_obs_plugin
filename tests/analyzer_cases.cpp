@@ -5374,6 +5374,109 @@ mao::AnalysisSnapshot run_subdivision_intro_tempo_pattern(mao::AnalysisEngine &e
 	return snapshot;
 }
 
+mao::AnalysisSnapshot run_cluttered_comb_tempo_pattern(mao::AnalysisEngine &engine,
+						       const mao::AnalysisSettings &settings,
+						       float bpm, int frames)
+{
+	const float beat_seconds = 60.0f / bpm;
+	const float eighth_seconds = beat_seconds * 0.5f;
+	const float sixteenth_seconds = beat_seconds * 0.25f;
+	const float interval_seconds = settings.analysis_interval_seconds;
+	const uint64_t hop_samples = static_cast<uint64_t>(
+		std::lround(settings.analysis_interval_seconds * static_cast<float>(settings.sample_rate)));
+	mao::AnalysisSnapshot snapshot = {};
+	float next_beat_seconds = 0.0f;
+	float next_hat_seconds = 0.0f;
+	float next_strum_seconds = eighth_seconds * 0.5f;
+	int beat = 0;
+	int hat = 0;
+	int strum = 0;
+
+	for (int frame = 0; frame < frames; ++frame) {
+		mao_test::Buffer buffer = {};
+		const uint64_t sample_offset = static_cast<uint64_t>(frame) * hop_samples;
+		add_tempo_backing(buffer, sample_offset);
+		const float frame_seconds = static_cast<float>(frame) * interval_seconds;
+		const float frame_center_seconds = frame_seconds + interval_seconds * 0.5f;
+
+		if (next_hat_seconds <= frame_center_seconds) {
+			add_tempo_hihat(buffer, hat % 4 == 0 ? 1.34f : 1.08f);
+			++hat;
+			while (next_hat_seconds <= frame_center_seconds)
+				next_hat_seconds += sixteenth_seconds;
+		}
+		if (next_strum_seconds <= frame_center_seconds) {
+			const float accent = (strum % 4 == 1) ? 1.22f : 0.96f;
+			add_harmonic_note_at_offset(buffer, 52, 0.034f * accent,
+						   {1.0f, 0.34f, 0.15f, 0.07f}, sample_offset);
+			add_harmonic_note_at_offset(buffer, 59, 0.030f * accent,
+						   {1.0f, 0.28f, 0.12f}, sample_offset);
+			add_harmonic_note_at_offset(buffer, 64, 0.026f * accent,
+						   {1.0f, 0.22f, 0.09f}, sample_offset);
+			++strum;
+			while (next_strum_seconds <= frame_center_seconds)
+				next_strum_seconds += eighth_seconds;
+		}
+		if (next_beat_seconds <= frame_center_seconds) {
+			const bool body_dropout = beat % 16 == 10;
+			if (!body_dropout) {
+				if (beat % 4 == 1 || beat % 4 == 3)
+					add_tempo_snare(buffer, beat % 8 == 3 ? 0.54f : 0.46f);
+				else
+					add_tempo_kick(buffer, beat % 8 == 4 ? 0.42f : 0.52f);
+			}
+			++beat;
+			while (next_beat_seconds <= frame_center_seconds)
+				next_beat_seconds += beat_seconds;
+		}
+
+		snapshot = engine.analyze(buffer.data(), buffer.size(), settings,
+					  "cluttered comb tempo test", 0);
+	}
+
+	return snapshot;
+}
+
+mao::AnalysisSnapshot run_missing_body_comb_tempo_pattern(mao::AnalysisEngine &engine,
+							  const mao::AnalysisSettings &settings,
+							  float bpm, int frames)
+{
+	const float beat_seconds = 60.0f / bpm;
+	const float interval_seconds = settings.analysis_interval_seconds;
+	const uint64_t hop_samples = static_cast<uint64_t>(
+		std::lround(settings.analysis_interval_seconds * static_cast<float>(settings.sample_rate)));
+	mao::AnalysisSnapshot snapshot = {};
+	float next_beat_seconds = 0.0f;
+	int beat = 0;
+
+	for (int frame = 0; frame < frames; ++frame) {
+		mao_test::Buffer buffer = {};
+		const uint64_t sample_offset = static_cast<uint64_t>(frame) * hop_samples;
+		add_tempo_backing(buffer, sample_offset);
+		const float frame_seconds = static_cast<float>(frame) * interval_seconds;
+		const float frame_center_seconds = frame_seconds + interval_seconds * 0.5f;
+
+		if (next_beat_seconds <= frame_center_seconds) {
+			add_tempo_tonal_pulse(buffer, sample_offset, beat % 4 == 0 ? 0.36f : 0.24f);
+			const bool body_dropout = beat % 8 == 5 || beat % 16 == 14;
+			if (!body_dropout) {
+				if (beat % 4 == 1 || beat % 4 == 3)
+					add_tempo_snare(buffer, 0.58f);
+				else
+					add_tempo_kick(buffer, beat % 8 == 4 ? 0.44f : 0.62f);
+			}
+			++beat;
+			while (next_beat_seconds <= frame_center_seconds)
+				next_beat_seconds += beat_seconds;
+		}
+
+		snapshot = engine.analyze(buffer.data(), buffer.size(), settings,
+					  "missing body comb tempo test", 0);
+	}
+
+	return snapshot;
+}
+
 mao::AnalysisSnapshot run_tonal_pulse_tempo_pattern(mao::AnalysisEngine &engine,
 						     const mao::AnalysisSettings &settings,
 						     float bpm, int frames, float pulse_scale = 1.0f)
@@ -5742,6 +5845,28 @@ void check_explicit_input_mode_and_bpm(Runner &runner)
 				"BPM estimate should recover after subdivision-only intro", 0.18f);
 		expect_tempo_candidate_near(runner, snapshot, 124.0f, 5.0f,
 					    "BPM diagnostics subdivision intro recovery");
+	}
+
+	{
+		mao::AnalysisEngine engine;
+		const mao::AnalysisSettings settings = tempo_test_settings();
+		const mao::AnalysisSnapshot snapshot =
+			run_cluttered_comb_tempo_pattern(engine, settings, 126.0f, 460);
+		expect_bpm_near(runner, snapshot, 126.0f, 8.0f,
+				"BPM estimate should use comb evidence through loud subdivision clutter", 0.18f);
+		expect_tempo_candidate_near(runner, snapshot, 126.0f, 5.0f,
+					    "BPM diagnostics comb subdivision clutter");
+	}
+
+	{
+		mao::AnalysisEngine engine;
+		const mao::AnalysisSettings settings = tempo_test_settings();
+		const mao::AnalysisSnapshot snapshot =
+			run_missing_body_comb_tempo_pattern(engine, settings, 134.0f, 420);
+		expect_bpm_near(runner, snapshot, 134.0f, 8.0f,
+				"BPM estimate should use comb evidence through missing body hits", 0.18f);
+		expect_tempo_candidate_near(runner, snapshot, 134.0f, 5.0f,
+					    "BPM diagnostics comb missing body hits");
 	}
 
 	{

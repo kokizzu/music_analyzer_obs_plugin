@@ -24285,6 +24285,9 @@ void AnalysisEngine::update_tempo(float raw_event_strength, float raw_event_body
 	std::array<float, kTempoBpmCount> adjacent_body_bpm_scores = {};
 	std::array<float, kTempoBpmCount> subdivision_bpm_scores = {};
 	std::array<float, kTempoBpmCount> adjacent_subdivision_bpm_scores = {};
+	std::array<float, kTempoBpmCount> comb_bpm_scores = {};
+	std::array<float, kTempoBpmCount> comb_body_bpm_scores = {};
+	std::array<float, kTempoBpmCount> comb_subdivision_bpm_scores = {};
 	std::array<float, kTempoBpmCount> phase_bpm_scores = {};
 	std::array<float, kTempoBpmCount> phase_body_coverages = {};
 	std::array<float, kTempoBpmCount> phase_all_coverages = {};
@@ -24459,6 +24462,74 @@ void AnalysisEngine::update_tempo(float raw_event_strength, float raw_event_body
 		adjacent_bpm_scores[score_index] += flux_adjacent_score * 0.75f * flux_score_gain;
 		adjacent_body_bpm_scores[score_index] += flux_adjacent_body_score * flux_score_gain;
 		adjacent_subdivision_bpm_scores[score_index] += flux_adjacent_subdivision_score * flux_score_gain;
+
+		float comb_score = 0.0f;
+		float comb_body_score = 0.0f;
+		float comb_subdivision_score = 0.0f;
+		if (enough_flux_evidence) {
+			for (int multiple = 1; multiple <= 4; ++multiple) {
+				const float target_seconds = period * static_cast<float>(multiple);
+				if (target_seconds < 0.28f || target_seconds > 8.0f)
+					continue;
+				const int center_lag = static_cast<int>(std::lround(target_seconds / clamped_interval));
+				const float lag_tolerance =
+					std::clamp(target_seconds * 0.055f,
+						   std::max(0.035f, clamped_interval * 0.72f),
+						   0.120f);
+				const int lag_radius =
+					std::max(1, static_cast<int>(std::ceil(lag_tolerance / clamped_interval)));
+				const float multiple_weight = 1.0f / std::sqrt(static_cast<float>(multiple));
+				for (int lag = center_lag - lag_radius; lag <= center_lag + lag_radius; ++lag) {
+					if (lag <= 0 || static_cast<std::size_t>(lag) >= recent_flux_count)
+						continue;
+					const float lag_seconds = static_cast<float>(lag) * clamped_interval;
+					const float phase_error = std::abs(lag_seconds - target_seconds);
+					if (phase_error > lag_tolerance)
+						continue;
+					const float error_weight = 1.0f - phase_error / lag_tolerance;
+					const float lag_weight = multiple_weight * error_weight * error_weight;
+					for (std::size_t newer_index = static_cast<std::size_t>(lag);
+					     newer_index < recent_flux_count; ++newer_index) {
+						const std::size_t older_index =
+							newer_index - static_cast<std::size_t>(lag);
+						const float newer_flux = recent_flux[newer_index];
+						const float older_flux = recent_flux[older_index];
+						if (newer_flux < 0.010f || older_flux < 0.010f)
+							continue;
+						const float age =
+							static_cast<float>(recent_flux_count - 1 - newer_index) *
+							clamped_interval;
+						const float recency = std::max(0.18f, 1.0f - age / 14.0f);
+						const float weighted = std::sqrt(newer_flux * older_flux) *
+								       recency * lag_weight;
+						comb_score += weighted;
+						const float body_older = std::max(recent_body_flux[older_index],
+										  older_flux * 0.10f);
+						const float body_newer = std::max(recent_body_flux[newer_index],
+										  newer_flux * 0.10f);
+						comb_body_score += std::sqrt(body_older * body_newer) *
+								   recency * lag_weight;
+						const float subdivision_older =
+							std::max(recent_subdivision_flux[older_index],
+								 older_flux * 0.06f);
+						const float subdivision_newer =
+							std::max(recent_subdivision_flux[newer_index],
+								 newer_flux * 0.06f);
+						comb_subdivision_score +=
+							std::sqrt(subdivision_older * subdivision_newer) *
+							recency * lag_weight;
+					}
+				}
+			}
+		}
+		const float comb_score_gain = enough_event_evidence ? 0.28f : 0.82f;
+		score += comb_score_gain *
+			 (comb_score * 0.16f + comb_body_score * 0.92f + comb_subdivision_score * 0.20f);
+		body_bpm_scores[score_index] += comb_body_score * comb_score_gain * 0.68f;
+		subdivision_bpm_scores[score_index] += comb_subdivision_score * comb_score_gain * 0.42f;
+		comb_bpm_scores[score_index] = comb_score;
+		comb_body_bpm_scores[score_index] = comb_body_score;
+		comb_subdivision_bpm_scores[score_index] = comb_subdivision_score;
 
 		float phase_score = 0.0f;
 		float phase_body_coverage = 0.0f;
@@ -24765,9 +24836,13 @@ void AnalysisEngine::update_tempo(float raw_event_strength, float raw_event_body
 		const float current_subdivision_score = subdivision_bpm_scores[current_index];
 		const float current_adjacent_body_score = adjacent_body_bpm_scores[current_index];
 		const float current_adjacent_subdivision_score = adjacent_subdivision_bpm_scores[current_index];
+		const bool comb_subdivision_weighted =
+			comb_subdivision_bpm_scores[current_index] >=
+			comb_body_bpm_scores[current_index] * 0.78f;
 		const bool high_candidate_is_subdivision =
-			current_subdivision_score >= current_body_score * 0.72f &&
-			current_adjacent_subdivision_score >= current_adjacent_body_score * 1.25f;
+			(current_subdivision_score >= current_body_score * 0.72f &&
+			 current_adjacent_subdivision_score >= current_adjacent_body_score * 1.25f) ||
+			(comb_subdivision_weighted && current_subdivision_score >= current_body_score * 0.55f);
 		if (high_candidate_is_subdivision) {
 			const int lower_min = std::max(kMinTempoBpm,
 						      static_cast<int>(std::floor(static_cast<float>(best_bpm) *
@@ -25012,6 +25087,12 @@ void AnalysisEngine::update_tempo(float raw_event_strength, float raw_event_body
 			std::clamp(direct_pulse_score / std::max(combined_total_strength * 1.15f, 1.0e-6f),
 				   0.0f, 0.30f);
 		target_confidence = std::max(target_confidence, direct_pulse_confidence);
+		const float comb_pulse_score =
+			comb_body_bpm_scores[best_index] + comb_bpm_scores[best_index] * 0.14f;
+		const float comb_confidence =
+			std::clamp(comb_pulse_score / std::max(combined_total_strength * 2.40f, 1.0e-6f),
+				   0.0f, 0.34f);
+		target_confidence = std::max(target_confidence, comb_confidence);
 
 		const float phase_confidence =
 			std::clamp(phase_bpm_scores[best_index] /
