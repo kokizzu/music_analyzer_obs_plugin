@@ -1120,6 +1120,94 @@ void check_displayed_guitar_single_note_probe_profile(Runner &runner)
 	runner.expect(std::strcmp(incomplete_stronger_root_display.label, "B") == 0,
 		      std::string("displayed guitar source rescue: expected B label, got `") +
 			      incomplete_stronger_root_display.label + "`");
+
+	InstrumentState distorted_am_residue = {};
+	std::snprintf(distorted_am_residue.label, sizeof(distorted_am_residue.label),
+		      "Am=Am9=Am7=Asus2=C6");
+	distorted_am_residue.confidence = 0.68f;
+	NoteGrid distorted_am_display = {};
+	set_pitch(distorted_am_display, 9, 1.00f);
+	set_pitch(distorted_am_display, 7, 0.20f);
+	NoteGrid distorted_am_analysis = distorted_am_display;
+	set_pitch(distorted_am_analysis, 1, 0.34f);
+	set_pitch(distorted_am_analysis, 4, 0.02f);
+	set_pitch(distorted_am_analysis, 0, 0.18f);
+	std::array<float, kNoteProbeCount> distorted_am_probe = {};
+	set_probe_level(distorted_am_probe, 57, 1.00f);
+	set_probe_level(distorted_am_probe, 61, 0.34f);
+	set_probe_level(distorted_am_probe, 64, 0.02f);
+	set_probe_level(distorted_am_probe, 60, 0.18f);
+	runner.expect(displayed_guitar_chord_has_distorted_opposite_third_single_note_residue(
+			      distorted_am_residue, distorted_am_display, distorted_am_analysis,
+			      distorted_am_analysis, distorted_am_probe, kGuitarMinMidi, kGuitarMaxMidi,
+			      0.424f, 0.182f),
+		      "displayed guitar distorted opposite-third residue: expected Am single-note residue to suppress");
+
+	InstrumentState distorted_dim_residue = {};
+	std::snprintf(distorted_dim_residue.label, sizeof(distorted_dim_residue.label), "Edim=Em");
+	distorted_dim_residue.confidence = 0.50f;
+	NoteGrid distorted_dim_grid = {};
+	set_pitch(distorted_dim_grid, 4, 0.10f);
+	set_pitch(distorted_dim_grid, 7, 1.00f);
+	set_pitch(distorted_dim_grid, 10, 0.02f);
+	std::array<float, kNoteProbeCount> distorted_dim_probe = {};
+	set_probe_level(distorted_dim_probe, 55, 1.00f);
+	set_probe_level(distorted_dim_probe, 56, 0.08f);
+	runner.expect(!displayed_guitar_chord_has_distorted_opposite_third_single_note_residue(
+			      distorted_dim_residue, distorted_dim_grid, distorted_dim_grid,
+			      distorted_dim_grid, distorted_dim_probe, kGuitarMinMidi, kGuitarMaxMidi,
+			      0.302f, 0.040f),
+		      "displayed guitar distorted opposite-third residue: expected compact diminished label to remain");
+
+	InstrumentState distorted_e_residue = {};
+	std::snprintf(distorted_e_residue.label, sizeof(distorted_e_residue.label),
+		      "E7=E=A=Asus2=Asus4=Em");
+	distorted_e_residue.confidence = 0.68f;
+	NoteGrid distorted_e_display = {};
+	set_pitch(distorted_e_display, 4, 0.29f);
+	set_pitch(distorted_e_display, 8, 0.26f);
+	set_pitch(distorted_e_display, 11, 0.48f);
+	set_pitch(distorted_e_display, 7, 0.50f);
+	NoteGrid distorted_e_analysis = distorted_e_display;
+	set_pitch(distorted_e_analysis, 9, 0.42f);
+	std::array<float, kNoteProbeCount> distorted_e_probe = {};
+	set_probe_level(distorted_e_probe, 52, 0.29f);
+	set_probe_level(distorted_e_probe, 56, 0.26f);
+	set_probe_level(distorted_e_probe, 59, 0.48f);
+	set_probe_level(distorted_e_probe, 55, 0.70f);
+	runner.expect(displayed_guitar_chord_has_distorted_opposite_third_single_note_residue(
+			      distorted_e_residue, distorted_e_display, distorted_e_analysis,
+			      distorted_e_analysis, distorted_e_probe, kGuitarMinMidi, kGuitarMaxMidi,
+			      0.431f, 0.379f),
+		      "displayed guitar distorted opposite-third residue: expected E opposite-third residue to suppress");
+
+	InstrumentState low_rms_sus_displayed = {};
+	std::snprintf(low_rms_sus_displayed.label, sizeof(low_rms_sus_displayed.label),
+		      "D=Dsus4=Gsus2=Dpow=Gpow");
+	low_rms_sus_displayed.confidence = 0.70f;
+	NoteGrid low_rms_sus_grid = {};
+	set_pitch(low_rms_sus_grid, 2, 0.66f);
+	set_pitch(low_rms_sus_grid, 7, 0.78f);
+	std::array<float, kNoteProbeCount> low_rms_sus_probe = {};
+	set_probe_level(low_rms_sus_probe, 62, 0.66f);
+	set_probe_level(low_rms_sus_probe, 65, 0.30f);
+	set_probe_level(low_rms_sus_probe, 69, 0.78f);
+	runner.expect(!displayed_guitar_chord_has_distorted_opposite_third_single_note_residue(
+			      low_rms_sus_displayed, low_rms_sus_grid, low_rms_sus_grid,
+			      low_rms_sus_grid, low_rms_sus_probe, kGuitarMinMidi, kGuitarMaxMidi,
+			      0.350f, 0.20f),
+		      "displayed guitar distorted opposite-third residue: expected low-RMS sus label to remain");
+	runner.expect(!displayed_guitar_chord_has_distorted_opposite_third_single_note_residue(
+			      low_rms_sus_displayed, low_rms_sus_grid, low_rms_sus_grid,
+			      low_rms_sus_grid, low_rms_sus_probe, kGuitarMinMidi, kGuitarMaxMidi,
+			      0.387f, 0.999f),
+		      "displayed guitar distorted opposite-third residue: expected clean high-mid sus label to remain");
+
+	runner.expect(!displayed_guitar_chord_has_distorted_opposite_third_single_note_residue(
+			      stronger_later_root_displayed, smoothed_b_root_fifth,
+			      smoothed_b_root_fifth, smoothed_b_root_fifth, stronger_b_probe,
+			      kGuitarMinMidi, kGuitarMaxMidi, 0.350f, 0.401f),
+		      "displayed guitar distorted opposite-third residue: expected stronger later B root/fifth alias to remain");
 }
 
 void check_displayed_guitar_root_residue_rejects_harmonic_stack(Runner &runner)

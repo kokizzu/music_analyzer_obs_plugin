@@ -20259,6 +20259,67 @@ bool displayed_guitar_chord_has_low_mid_smoothed_single_note_residue(
 	return opposite_third_probe >= 0.064f;
 }
 
+bool displayed_guitar_chord_has_distorted_opposite_third_single_note_residue(
+	const InstrumentState &displayed_chord, const NoteGrid &display_grid,
+	const NoteGrid &analysis_grid, const NoteGrid &smoothed_grid,
+	const std::array<float, kNoteProbeCount> &powers, int min_midi, int max_midi, float rms,
+	float mid_energy)
+{
+	if (rms < 0.301f || displayed_chord.confidence < 0.45f || !displayed_chord.label[0] ||
+	    displayed_chord.label[0] == '-')
+		return false;
+	const int components = chord_label_component_count(displayed_chord.label);
+	if (components < 5)
+		return false;
+	if (note_grid_active_pitch_class_count(analysis_grid) > 7)
+		return false;
+
+	const char *label_end = std::strchr(displayed_chord.label, '=');
+	const std::size_t label_len =
+		label_end ? static_cast<std::size_t>(label_end - displayed_chord.label) :
+			    std::strlen(displayed_chord.label);
+	ParsedRootChord parsed;
+	if (!parse_root_chord_component(displayed_chord.label, label_len, parsed))
+		return false;
+	if (parsed.quality != RootChordQuality::Major && parsed.quality != RootChordQuality::Minor &&
+	    parsed.quality != RootChordQuality::Diminished)
+		return false;
+	if (rms < 0.384f && mid_energy >= 0.30f &&
+	    displayed_guitar_label_has_stronger_later_plain_root_alias(
+		    displayed_chord, parsed, smoothed_grid, powers, min_midi, max_midi))
+		return false;
+
+	const int third = parsed.root +
+			  (parsed.quality == RootChordQuality::Major ? 4 : 3);
+	const int fifth = parsed.root +
+			  (parsed.quality == RootChordQuality::Diminished ? 6 : 7);
+	const float display_root = note_grid_pitch_level(display_grid, parsed.root);
+	const float display_third = note_grid_pitch_level(display_grid, third);
+	const float display_fifth = note_grid_pitch_level(display_grid, fifth);
+	const float analysis_root = note_grid_pitch_level(analysis_grid, parsed.root);
+	const float analysis_third = note_grid_pitch_level(analysis_grid, third);
+	const float analysis_fifth = note_grid_pitch_level(analysis_grid, fifth);
+	if (display_root >= 0.60f && display_third >= 0.25f && display_fifth >= 0.25f)
+		return false;
+	if (analysis_root >= 0.65f && analysis_third >= 0.35f && analysis_fifth >= 0.35f)
+		return false;
+	if (rms < 0.384f && std::strstr(displayed_chord.label, "sus"))
+		return false;
+	if (mid_energy >= 0.95f && std::strstr(displayed_chord.label, "sus"))
+		return false;
+	if (rms < 0.384f && display_root >= 0.95f && display_third < 0.05f &&
+	    display_fifth >= 0.95f)
+		return false;
+	if (rms < 0.384f && mid_energy >= 0.50f)
+		return false;
+
+	const int opposite_third =
+		parsed.root + (parsed.quality == RootChordQuality::Major ? 3 : 4);
+	const float opposite_third_probe =
+		strongest_melodic_probe_pitch_class_level(powers, opposite_third, min_midi, max_midi);
+	return opposite_third_probe >= 0.064f;
+}
+
 float guitar_low_visible_root_level(const NoteGrid &grid, int root)
 {
 	for (int midi = kGuitarMinMidi; midi <= 55; ++midi) {
@@ -29009,23 +29070,36 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 				kGuitarMaxMidi);
 		}
 		if (!mixed_source) {
-			const bool clear_guitar_residue =
+			const bool single_note_probe_residue =
 				displayed_guitar_chord_has_single_note_probe_profile(
 					snapshot.guitar_chord, snapshot.guitar_smoothed_chord,
 					guitar_chord_detection_grid, note_powers, kGuitarMinMidi,
-					kGuitarMaxMidi) ||
+					kGuitarMaxMidi);
+			const bool low_mid_smoothed_residue =
 				displayed_guitar_chord_has_low_mid_smoothed_single_note_residue(
 					snapshot.guitar_chord, snapshot.guitar_chord_smoothed_notes,
 					note_powers, kGuitarMinMidi, kGuitarMaxMidi, rms,
-					snapshot.mid_energy) ||
+					snapshot.mid_energy);
+			const bool noisy_smoothed_residue =
 				displayed_guitar_chord_has_noisy_smoothed_single_note_residue(
 					snapshot.guitar_chord, snapshot.guitar_notes,
 					guitar_chord_detection_grid, snapshot.guitar_chord_smoothed_notes,
 					note_powers, kGuitarMinMidi, kGuitarMaxMidi, rms,
-					snapshot.mid_energy) ||
+					snapshot.mid_energy);
+			const bool distorted_opposite_third_residue =
+				displayed_guitar_chord_has_distorted_opposite_third_single_note_residue(
+					snapshot.guitar_chord, snapshot.guitar_notes,
+					guitar_chord_detection_grid, snapshot.guitar_chord_smoothed_notes,
+					note_powers, kGuitarMinMidi, kGuitarMaxMidi, rms,
+					snapshot.mid_energy);
+			const bool distorted_root_residue =
 				displayed_guitar_chord_has_distorted_single_note_root_residue(
 					snapshot.guitar_chord, snapshot.guitar_smoothed_chord,
 					snapshot.guitar_notes, guitar_chord_detection_grid, rms);
+			const bool clear_guitar_residue =
+				single_note_probe_residue || low_mid_smoothed_residue ||
+				noisy_smoothed_residue || distorted_opposite_third_residue ||
+				distorted_root_residue;
 			const bool allow_root_fifth_recovery =
 				rms < 0.384f && snapshot.mid_energy >= 0.30f;
 			if (clear_guitar_residue &&
