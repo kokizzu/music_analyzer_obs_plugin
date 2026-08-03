@@ -543,7 +543,7 @@ def manifest_counts_if_complete(output, limit_per_category, source_filter=None, 
     except OSError:
         return None
 
-    required = 1 if limit_per_category <= 0 else limit_per_category
+    required = 1 if expected_metadata is not None or limit_per_category <= 0 else limit_per_category
     if any(counts[category] < required for category in CATEGORIES):
         return None
     return counts

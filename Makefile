@@ -339,7 +339,7 @@ DRUM_SAMPLE_MAX_TOM_FALSE_PERCENT ?= 38
 DRUM_SAMPLE_MAX_RIM_FALSE_PERCENT ?= 20
 UNRAR ?= unrar
 DRUM_SAMPLE_SPREAD_BUILD_DIR ?= $(BUILD_DIR)/drum_samples_spread
-DRUM_SAMPLE_SPREAD_LIMIT ?= 160
+DRUM_SAMPLE_SPREAD_LIMIT ?= 240
 DRUM_SAMPLE_SPREAD_MIN_RECALL_PERCENT ?= 40
 DRUM_SAMPLE_SPREAD_MIN_PRECISION_PERCENT ?= 15
 DRUM_SAMPLE_SPREAD_MIN_KICK_RECALL_PERCENT ?= 55
@@ -1526,7 +1526,7 @@ profile-standalone: standalone scripts/profile_standalone.sh
 prepare-drum-samples: scripts/prepare_drum_samples.py | $(BUILD_DIR)
 	DRUM_SAMPLE_SOURCE_DIR="$(DRUM_SAMPLE_SOURCE_DIR)" DRUM_SAMPLE_BUILD_DIR="$(DRUM_SAMPLE_BUILD_DIR)" DRUM_SAMPLE_LIMIT="$(DRUM_SAMPLE_LIMIT)" DRUM_SAMPLE_SELECTION="$(DRUM_SAMPLE_SELECTION)" DRUM_SAMPLE_SOURCE_FILTER="$(DRUM_SAMPLE_SOURCE_FILTER)" $(PYTHON) scripts/prepare_drum_samples.py --source "$(DRUM_SAMPLE_SOURCE_DIR)" --output "$(DRUM_SAMPLE_BUILD_DIR)" --limit-per-category "$(DRUM_SAMPLE_LIMIT)" --selection "$(DRUM_SAMPLE_SELECTION)" --source-filter "$(DRUM_SAMPLE_SOURCE_FILTER)" --unrar "$(UNRAR)"
 
-$(DRUM_SAMPLE_BUILD_DIR)/manifest.tsv: scripts/prepare_drum_samples.py | $(BUILD_DIR)
+$(DRUM_SAMPLE_BUILD_DIR)/manifest.tsv: FORCE scripts/prepare_drum_samples.py | $(BUILD_DIR)
 	+$(MAKE) prepare-drum-samples
 
 .PHONY: inspect-drum-sample-coverage inspect-drum-sample-skip-patterns
@@ -1556,7 +1556,7 @@ test-drum-samples-shard-%: FORCE $(BUILD_DIR)/analyzer_drum_samples $(DRUM_SAMPL
 prepare-drum-samples-spread: scripts/prepare_drum_samples.py | $(BUILD_DIR)
 	DRUM_SAMPLE_SOURCE_DIR="$(DRUM_SAMPLE_SOURCE_DIR)" DRUM_SAMPLE_BUILD_DIR="$(DRUM_SAMPLE_SPREAD_BUILD_DIR)" DRUM_SAMPLE_LIMIT="$(DRUM_SAMPLE_SPREAD_LIMIT)" DRUM_SAMPLE_SELECTION="spread" DRUM_SAMPLE_SOURCE_FILTER="$(DRUM_SAMPLE_SOURCE_FILTER)" $(PYTHON) scripts/prepare_drum_samples.py --source "$(DRUM_SAMPLE_SOURCE_DIR)" --output "$(DRUM_SAMPLE_SPREAD_BUILD_DIR)" --limit-per-category "$(DRUM_SAMPLE_SPREAD_LIMIT)" --selection "spread" --source-filter "$(DRUM_SAMPLE_SOURCE_FILTER)" --no-archives
 
-$(DRUM_SAMPLE_SPREAD_BUILD_DIR)/manifest.tsv: scripts/prepare_drum_samples.py | $(BUILD_DIR)
+$(DRUM_SAMPLE_SPREAD_BUILD_DIR)/manifest.tsv: FORCE scripts/prepare_drum_samples.py | $(BUILD_DIR)
 	+$(MAKE) prepare-drum-samples-spread
 
 test-drum-samples-spread: test-drum-samples-spread-parallel
@@ -1707,7 +1707,7 @@ find-drum-spread-exact-attribute-patterns: $(BUILD_DIR)/analyzer_drum_samples sc
 prepare-drum-samples-full: scripts/prepare_drum_samples.py | $(BUILD_DIR)
 	DRUM_SAMPLE_SOURCE_DIR="$(DRUM_SAMPLE_SOURCE_DIR)" DRUM_SAMPLE_BUILD_DIR="$(DRUM_SAMPLE_FULL_BUILD_DIR)" DRUM_SAMPLE_LIMIT="$(DRUM_SAMPLE_FULL_LIMIT)" DRUM_SAMPLE_SELECTION="$(DRUM_SAMPLE_SELECTION)" DRUM_SAMPLE_SOURCE_FILTER="$(DRUM_SAMPLE_SOURCE_FILTER)" $(PYTHON) scripts/prepare_drum_samples.py --source "$(DRUM_SAMPLE_SOURCE_DIR)" --output "$(DRUM_SAMPLE_FULL_BUILD_DIR)" --limit-per-category "$(DRUM_SAMPLE_FULL_LIMIT)" --selection "$(DRUM_SAMPLE_SELECTION)" --source-filter "$(DRUM_SAMPLE_SOURCE_FILTER)" --unrar "$(UNRAR)"
 
-$(DRUM_SAMPLE_FULL_BUILD_DIR)/manifest.tsv: scripts/prepare_drum_samples.py | $(BUILD_DIR)
+$(DRUM_SAMPLE_FULL_BUILD_DIR)/manifest.tsv: FORCE scripts/prepare_drum_samples.py | $(BUILD_DIR)
 	+$(MAKE) prepare-drum-samples-full
 
 test-drum-samples-full: test-drum-samples-full-parallel
@@ -1764,7 +1764,7 @@ find-protected-drum-full-exact-attribute-patterns: $(BUILD_DIR)/analyzer_drum_sa
 prepare-drum-machine-samples: scripts/prepare_drum_samples.py | $(BUILD_DIR)
 	DRUM_SAMPLE_SOURCE_DIR="$(DRUM_SAMPLE_SOURCE_DIR)" DRUM_SAMPLE_BUILD_DIR="$(DRUM_MACHINE_SAMPLE_BUILD_DIR)" DRUM_SAMPLE_LIMIT="$(DRUM_MACHINE_SAMPLE_LIMIT)" DRUM_SAMPLE_SELECTION="spread" DRUM_SAMPLE_SOURCE_FILTER="$(DRUM_MACHINE_SAMPLE_FILTER)" $(PYTHON) scripts/prepare_drum_samples.py --source "$(DRUM_SAMPLE_SOURCE_DIR)" --output "$(DRUM_MACHINE_SAMPLE_BUILD_DIR)" --limit-per-category "$(DRUM_MACHINE_SAMPLE_LIMIT)" --selection "spread" --source-filter "$(DRUM_MACHINE_SAMPLE_FILTER)" --unrar "$(UNRAR)"
 
-$(DRUM_MACHINE_SAMPLE_BUILD_DIR)/manifest.tsv: scripts/prepare_drum_samples.py | $(BUILD_DIR)
+$(DRUM_MACHINE_SAMPLE_BUILD_DIR)/manifest.tsv: FORCE scripts/prepare_drum_samples.py | $(BUILD_DIR)
 	+$(MAKE) prepare-drum-machine-samples
 
 test-drum-machine-samples: test-drum-machine-samples-parallel

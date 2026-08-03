@@ -652,6 +652,59 @@ def test_cli_unlimited_cache_rebuilds_when_source_or_filter_expands():
             raise AssertionError(f"changed unlimited source should include the new kick: {rows.get('kick')}")
 
 
+def test_cli_reuses_limited_manifest_when_source_has_fewer_than_limit():
+    with tempfile.TemporaryDirectory() as temp:
+        base = Path(temp)
+        source = base / "source"
+        output = base / "out"
+        examples = {
+            "kick": ["Kick 01.wav", "Kick 02.wav"],
+            "snare": ["Snare 01.wav"],
+            "hihat": ["Hat Closed 01.wav"],
+            "crash": ["Crash 01.wav"],
+            "tom": ["Tom 01.wav"],
+            "ride": ["Ride 01.wav"],
+            "rim": ["Rim Shot 01.wav"],
+        }
+
+        frequency = 90.0
+        for category, filenames in examples.items():
+            for filename in filenames:
+                write_wav(source / category / filename, frequency=frequency)
+                frequency += 30.0
+
+        command = [
+            sys.executable,
+            str(ROOT / "scripts" / "prepare_drum_samples.py"),
+            "--source",
+            str(source),
+            "--output",
+            str(output),
+            "--limit-per-category",
+            "2",
+            "--selection",
+            "spread",
+            "--no-archives",
+        ]
+
+        first = subprocess.run(command, check=True, text=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        second = subprocess.run(command, check=True, text=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        rows = rows_by_category(output / "manifest.tsv")
+
+        if "wrote" not in first.stdout:
+            raise AssertionError(f"first limited partial run should write samples, got: {first.stdout}")
+        if "reused" not in second.stdout:
+            raise AssertionError(
+                "metadata-matched limited run with fewer available samples should reuse manifest, "
+                f"got: {second.stdout}"
+            )
+        if len(rows.get("kick", [])) != 2:
+            raise AssertionError(f"available kick samples should still be capped at two: {rows.get('kick')}")
+        for category in prepare_drum_samples.CATEGORIES:
+            if category != "kick" and len(rows.get(category, [])) != 1:
+                raise AssertionError(f"{category} should keep its one available sample: {rows.get(category)}")
+
+
 def test_cli_audit_reports_candidate_and_selected_counts_without_writing():
     with tempfile.TemporaryDirectory() as temp:
         base = Path(temp)
@@ -738,8 +791,9 @@ def main():
     test_source_filter_limits_candidate_selection()
     test_cli_filter_rebuilds_mismatched_manifest()
     test_cli_unlimited_cache_rebuilds_when_source_or_filter_expands()
+    test_cli_reuses_limited_manifest_when_source_has_fewer_than_limit()
     test_cli_audit_reports_candidate_and_selected_counts_without_writing()
-    print("test_prepare_drum_samples: 16 checks passed")
+    print("test_prepare_drum_samples: 17 checks passed")
     return 0
 
 

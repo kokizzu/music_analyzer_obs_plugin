@@ -759,8 +759,18 @@ def main() -> int:
     )
     assert "$(MEASURE_ANALYZER_REPORT)" in report_recipe, "report target must write the configured report path"
 
+    drum_manifest_recipe = target_recipe(makefile, "$(DRUM_SAMPLE_BUILD_DIR)/manifest.tsv")
+    assert "FORCE" in drum_manifest_recipe.splitlines()[0], (
+        "default drum sample manifest target must rerun the metadata-aware preparer"
+    )
+    assert "$(MAKE) prepare-drum-samples" in drum_manifest_recipe, (
+        "default drum sample manifest target must delegate to the default prepare target"
+    )
     spread_recipe = target_recipe(makefile, "test-drum-samples-spread-serial")
     spread_manifest_recipe = target_recipe(makefile, "$(DRUM_SAMPLE_SPREAD_BUILD_DIR)/manifest.tsv")
+    assert "FORCE" in spread_manifest_recipe.splitlines()[0], (
+        "spread drum sample manifest target must rerun the metadata-aware preparer"
+    )
     assert "analyze-drum-spread-gate-matrix: analyze-drum-spread-gate-matrix-parallel" in makefile, (
         "default spread matrix target must use the parallel spread row builder"
     )
@@ -1966,6 +1976,13 @@ def main() -> int:
     assert 'test-idmt-guitar-samples: skipped; missing $(IDMT_GUITAR_ARCHIVE)' in target_recipe(
         makefile, "test-idmt-guitar-samples-optional"
     ), "optional IDMT guitar wrapper must skip cleanly when the archive is missing"
+    drum_machine_manifest_recipe = target_recipe(makefile, "$(DRUM_MACHINE_SAMPLE_BUILD_DIR)/manifest.tsv")
+    assert "FORCE" in drum_machine_manifest_recipe.splitlines()[0], (
+        "drum-machine sample manifest target must rerun the metadata-aware preparer"
+    )
+    assert "$(MAKE) prepare-drum-machine-samples" in drum_machine_manifest_recipe, (
+        "drum-machine sample manifest target must delegate to the drum-machine prepare target"
+    )
     for target, prepare_target in {
         "$(IDMT_BASS_LINES_SAMPLE_DIR)/manifest.tsv": "prepare-idmt-bass-lines-samples",
         "$(IDMT_GUITAR_SAMPLE_DIR)/manifest.tsv": "prepare-idmt-guitar-samples",
@@ -2081,6 +2098,9 @@ def main() -> int:
         "max real-world sample tests must not use the serial full-drum sample gate"
     )
     drum_full_manifest_recipe = target_recipe(makefile, "$(DRUM_SAMPLE_FULL_BUILD_DIR)/manifest.tsv")
+    assert "FORCE" in drum_full_manifest_recipe.splitlines()[0], (
+        "full drum sample manifest target must rerun the metadata-aware preparer"
+    )
     assert "$(MAKE) prepare-drum-samples-full" in drum_full_manifest_recipe, (
         "full drum sample manifest target must delegate to the full prepare target"
     )
