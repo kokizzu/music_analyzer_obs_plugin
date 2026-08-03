@@ -227,7 +227,7 @@ def main() -> int:
             )
 
     output = completed.stdout
-    require(output, "coverage_candidate_inspection: candidates=3 row_paths=2/2 expanded_ready=0")
+    require(output, "coverage_candidate_inspection: candidates=3/3 row_paths=2/2 expanded_ready=0")
     require(
         output,
         "coverage_status_summary expanded_ready=0 expanded_partial=0 still_short=3 total_short_by=12",
@@ -345,7 +345,7 @@ def main() -> int:
                 f"stdout:\n{ready_completed.stdout}\nstderr:\n{ready_completed.stderr}"
             )
     ready_output = ready_completed.stdout
-    require(ready_output, "coverage_candidate_inspection: candidates=2 row_paths=1/1 expanded_ready=1")
+    require(ready_output, "coverage_candidate_inspection: candidates=2/2 row_paths=1/1 expanded_ready=1")
     require(
         ready_output,
         "coverage_status_summary expanded_ready=1 expanded_partial=0 still_short=1 total_short_by=5",

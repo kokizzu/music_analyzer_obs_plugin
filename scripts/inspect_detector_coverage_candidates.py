@@ -381,7 +381,7 @@ def main() -> int:
         key=lambda candidate: candidate_display_sort_key(candidate, all_matches),
     )[: max(0, args.limit)]
     print(
-        f"coverage_candidate_inspection: candidates={len(candidates)} "
+        f"coverage_candidate_inspection: candidates={len(candidates)}/{len(all_candidates)} "
         f"row_paths={len(existing_rows)}/{len(args.rows)} "
         f"expanded_ready={expanded_ready_count}"
     )
