@@ -243,6 +243,21 @@ def summarize_sample_delta(candidate: CoverageNeed, rows: list[dict[str, str]]) 
     return "expanded_samples=0"
 
 
+def required_samples(candidate: CoverageNeed) -> int:
+    return candidate.observed_samples + candidate.needed_samples
+
+
+def coverage_status(candidate: CoverageNeed, rows: list[dict[str, str]]) -> str:
+    samples = len(selected_samples(rows))
+    required = required_samples(candidate)
+    if samples >= required:
+        return "coverage_status=expanded_ready"
+    short_by = required - samples
+    if samples > candidate.observed_samples:
+        return f"coverage_status=expanded_partial short_by={short_by}"
+    return f"coverage_status=still_short_by={short_by}"
+
+
 def median_numeric(rows: list[dict[str, str]], field: str) -> float | None:
     values: list[float] = []
     for row in rows:
@@ -262,6 +277,15 @@ def candidate_sort_key(candidate: CoverageNeed) -> tuple[int, int, int, str]:
     )
 
 
+def candidate_display_sort_key(
+    candidate: CoverageNeed, rows_by_candidate: dict[CoverageNeed, list[dict[str, str]]]
+) -> tuple[int, int, tuple[int, int, int, str]]:
+    rows = rows_by_candidate.get(candidate, [])
+    samples = len(selected_samples(rows))
+    ready_priority = 0 if samples >= required_samples(candidate) else 1
+    return (ready_priority, -max(0, samples - candidate.observed_samples), candidate_sort_key(candidate))
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("summary", type=pathlib.Path)
@@ -279,13 +303,26 @@ def main() -> int:
     parser.add_argument("--example-field", action="append", default=[])
     args = parser.parse_intermixed_args()
 
-    candidates = sorted(parse_summary(args.summary), key=candidate_sort_key)[
-        : max(0, args.limit)
-    ]
+    all_candidates = sorted(parse_summary(args.summary), key=candidate_sort_key)
     existing_rows = [path for path in args.rows if path.exists()]
+    all_matches = (
+        read_matching_rows(existing_rows, all_candidates)
+        if existing_rows
+        else {candidate: [] for candidate in all_candidates}
+    )
+    expanded_ready_count = sum(
+        1
+        for candidate in all_candidates
+        if len(selected_samples(all_matches.get(candidate, []))) >= required_samples(candidate)
+    )
+    candidates = sorted(
+        all_candidates,
+        key=lambda candidate: candidate_display_sort_key(candidate, all_matches),
+    )[: max(0, args.limit)]
     print(
         f"coverage_candidate_inspection: candidates={len(candidates)} "
-        f"row_paths={len(existing_rows)}/{len(args.rows)}"
+        f"row_paths={len(existing_rows)}/{len(args.rows)} "
+        f"expanded_ready={expanded_ready_count}"
     )
     if not candidates:
         print("  --")
@@ -294,19 +331,19 @@ def main() -> int:
         print("  no existing row TSV paths supplied")
         return 0
 
-    matches = read_matching_rows(existing_rows, candidates)
     configured_group_by = args.group_by
     example_fields = args.example_field or DEFAULT_EXAMPLE_FIELDS
 
     for candidate in candidates:
-        rows = matches[candidate]
+        rows = all_matches[candidate]
         samples = selected_samples(rows)
         print(
             f"coverage_candidate {candidate.kind} {candidate.section} "
             f"observed_samples={candidate.observed_samples} "
             f"selected_samples={len(samples)} selected_rows={len(rows)} "
             f"need_samples={candidate.needed_samples} "
-            f"{summarize_sample_delta(candidate, rows)} :: {candidate.rule}"
+            f"{summarize_sample_delta(candidate, rows)} "
+            f"{coverage_status(candidate, rows)} :: {candidate.rule}"
         )
         group_by = configured_group_by or default_group_fields(rows)
         print_group_summary(rows, group_by, args.top)

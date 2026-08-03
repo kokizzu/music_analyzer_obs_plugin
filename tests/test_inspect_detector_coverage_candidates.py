@@ -227,10 +227,10 @@ def main() -> int:
             )
 
     output = completed.stdout
-    require(output, "coverage_candidate_inspection: candidates=3 row_paths=2/2")
+    require(output, "coverage_candidate_inspection: candidates=3 row_paths=2/2 expanded_ready=0")
     require(
         output,
-        "coverage_candidate guitar bucket chord_miss:pow:visible1_analysis1_smooth1_rootvis0 observed_samples=4 selected_samples=1 selected_rows=2 need_samples=1 expanded_samples=-3 :: analysis_root<=0 AND smooth_tones<=1",
+        "coverage_candidate guitar bucket chord_miss:pow:visible1_analysis1_smooth1_rootvis0 observed_samples=4 selected_samples=1 selected_rows=2 need_samples=1 expanded_samples=-3 coverage_status=still_short_by=4 :: analysis_root<=0 AND smooth_tones<=1",
     )
     require(output, "groups _coverage_path/status/quality/guitar_match_kind/support")
     require(output, "chord_miss/pow/different_root/visible1_analysis1_smooth1_rootvis0 rows=2 samples=1")
@@ -239,7 +239,7 @@ def main() -> int:
     require(output, "example recording_id=168_QM1wc status=chord_miss expected_label=Fpow")
     require(
         output,
-        "coverage_candidate low-false row_confusion:piano/electronic->guitar observed_samples=4 selected_samples=1 selected_rows=1 need_samples=1 expanded_samples=-3 :: centroid>=0.52 AND partial4<=0.018 AND partial4>=0",
+        "coverage_candidate low-false row_confusion:piano/electronic->guitar observed_samples=4 selected_samples=1 selected_rows=1 need_samples=1 expanded_samples=-3 coverage_status=still_short_by=4 :: centroid>=0.52 AND partial4<=0.018 AND partial4>=0",
     )
     require(output, "groups _coverage_path/status/family/source/first_row/visual_first_row")
     require(output, "hit/piano/electronic/guitar/guitar rows=1 samples=1")
@@ -249,8 +249,102 @@ def main() -> int:
     require(output, "example sample_id=organ_1 status=hit family=piano source=electronic")
     require(
         output,
-        "coverage_candidate low-false visual_row_confusion:piano/electronic->other observed_samples=2 selected_samples=1 selected_rows=1 need_samples=3 expanded_samples=-1 :: adjacent_lower_ratio>=0.006 AND adjacent_upper_ratio<=0 AND bass_score<=0",
+        "coverage_candidate low-false visual_row_confusion:piano/electronic->other observed_samples=2 selected_samples=1 selected_rows=1 need_samples=3 expanded_samples=-1 coverage_status=still_short_by=4 :: adjacent_lower_ratio>=0.006 AND adjacent_upper_ratio<=0 AND bass_score<=0",
     )
+
+    ready_summary = """detector_route_summary: candidates=2 low_false=2 shadow=0 near_miss=0 guitar=0 drum=0 positive_net=2 gain_ge_1=2 source_safe_positive_net=2 actionable=0 coverage_blocked=2
+  coverage-blocked candidates need more positive samples before detector changes
+    coverage_need low-false row_confusion:piano/electronic->other observed_samples=4 need_samples=1 +rows=4 side_rows=0 net_rows=4 gain_per_side=inf :: partial4>=0.8
+    coverage_need low-false row_confusion:piano/electronic->guitar observed_samples=2 need_samples=1 +rows=3 side_rows=0 net_rows=3 gain_per_side=inf :: centroid>=0.5
+"""
+    ready_rows = [
+        row[:]
+        for row in rows
+    ] + [
+        [
+            "organ_3",
+            "hit",
+            "piano",
+            "electronic",
+            "G5",
+            "79",
+            "guitar",
+            "guitar",
+            "G5",
+            "79",
+            "guitar",
+            "0.610",
+            "0.010",
+            "0.000",
+            "0.000",
+            "0.000",
+            "0.433",
+            "0.255",
+            "0.649",
+            "0.198",
+        ],
+        [
+            "organ_4",
+            "hit",
+            "piano",
+            "electronic",
+            "A5",
+            "81",
+            "guitar",
+            "guitar",
+            "A5",
+            "81",
+            "guitar",
+            "0.720",
+            "0.010",
+            "0.000",
+            "0.000",
+            "0.000",
+            "0.533",
+            "0.355",
+            "0.749",
+            "0.298",
+        ],
+    ]
+    with tempfile.TemporaryDirectory() as tmpdir:
+        tmp_path = pathlib.Path(tmpdir)
+        summary_path = tmp_path / "detector_summary.txt"
+        rows_path = tmp_path / "real_note_rows.tsv"
+        summary_path.write_text(ready_summary, encoding="utf-8")
+        rows_path.write_text(
+            "\n".join(["\t".join(header)] + ["\t".join(row) for row in ready_rows]) + "\n",
+            encoding="utf-8",
+        )
+        ready_completed = subprocess.run(
+            [
+                sys.executable,
+                str(SCRIPT),
+                str(summary_path),
+                "--limit",
+                "2",
+                "--examples",
+                "0",
+                str(rows_path),
+            ],
+            cwd=ROOT,
+            text=True,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+        )
+        if ready_completed.returncode != 0:
+            raise AssertionError(
+                f"coverage ready candidate inspector failed with {ready_completed.returncode}\n"
+                f"stdout:\n{ready_completed.stdout}\nstderr:\n{ready_completed.stderr}"
+            )
+    ready_output = ready_completed.stdout
+    require(ready_output, "coverage_candidate_inspection: candidates=2 row_paths=1/1 expanded_ready=1")
+    first_ready_line = next(
+        line for line in ready_output.splitlines() if line.startswith("coverage_candidate ")
+    )
+    if "row_confusion:piano/electronic->guitar" not in first_ready_line:
+        raise AssertionError(f"expanded-ready candidate should be listed first:\n{ready_output}")
+    require(ready_output, "coverage_status=expanded_ready :: centroid>=0.5")
+    require(ready_output, "coverage_status=still_short_by=5 :: partial4>=0.8")
     print("test_inspect_detector_coverage_candidates: ok")
     return 0
 
