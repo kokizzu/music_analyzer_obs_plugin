@@ -66,11 +66,11 @@ compact route summary
     output = result.stdout
     require(
         output,
-        "detector_route_summary: candidates=11 low_false=4 shadow=2 near_miss=1 guitar=2 drum=2 positive_net=10 gain_ge_1=10 source_safe_positive_net=8 actionable=5 coverage_blocked=3",
+        "detector_route_summary: candidates=11 low_false=4 shadow=2 near_miss=1 guitar=2 drum=2 positive_net=10 gain_ge_1=10 source_safe_positive_net=8 actionable=5 coverage_blocked=2",
     )
     require(
         output,
-        "blocked-reason summary cross_source_rows=3 low_samples<5=3 negative_net=1",
+        "blocked-reason summary cross_source_rows=3 low_samples<5=3 missing_quality_tone=1 negative_net=1",
     )
     require(
         output,
@@ -79,10 +79,6 @@ compact route summary
     require(
         output,
         "coverage_need low-false ownership_miss:guitar/electronic->piano observed_samples=2 need_samples=3 +rows=5 side_rows=0 net_rows=5 gain_per_side=inf :: adjacent_lower_ratio<=0.698 AND partial3>=1.817",
-    )
-    require(
-        output,
-        "coverage_need guitar bucket chord_miss:7:visible3_analysis3_smooth3_rootvis1 observed_samples=3 need_samples=2 +rows=3 side_rows=0 net_rows=3 gain_per_side=inf :: evidence_source=raw",
     )
     require(
         output,
@@ -109,6 +105,10 @@ compact route summary
     require(
         output,
         "guitar bucket chord_miss:7:visible3_analysis3_smooth3_rootvis1 +recordings=5 +rows=6 -recordings=1 -rows=1 side_rows=1 net_rows=5 gain_per_side=6.00 :: evidence_class=raw_quality_gap",
+    )
+    require(
+        output,
+        "guitar bucket chord_miss:7:visible3_analysis3_smooth3_rootvis1 +recordings=3 +rows=3 -recordings=0 -rows=0 side_rows=0 net_rows=3 gain_per_side=inf blocked_by=missing_quality_tone,low_samples<5 :: evidence_source=raw",
     )
     require(
         output,

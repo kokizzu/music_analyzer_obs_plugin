@@ -57,6 +57,38 @@ GUITAR_CHORD_MISS_RE = re.compile(r"^bucket chord_miss:(?P<quality>[^:]+):")
 RAW_ROOT_THIRD_FIFTH_RE = re.compile(
     r"raw\(root/third/fifth\)=(-?\d+(?:\.\d+)?)/(-?\d+(?:\.\d+)?)/(-?\d+(?:\.\d+)?)"
 )
+EXAMPLE_EXPECTED_RE = re.compile(r"(?:^|\s)expected=(?P<label>\S+)")
+EXAMPLE_ANALYSIS_RE = re.compile(r"(?:^|\s)analysis=(?P<pitch_classes>\S+)")
+NOTE_PITCH_CLASSES = {
+    "C": 0,
+    "C#": 1,
+    "D": 2,
+    "D#": 3,
+    "E": 4,
+    "F": 5,
+    "F#": 6,
+    "G": 7,
+    "G#": 8,
+    "A": 9,
+    "A#": 10,
+    "B": 11,
+}
+GUITAR_REQUIRED_QUALITY_OFFSETS = {
+    "maj": (0, 4, 7),
+    "": (0, 4, 7),
+    "m": (0, 3, 7),
+    "7": (0, 4, 7, 10),
+    "maj7": (0, 4, 7, 11),
+    "m7": (0, 3, 7, 10),
+    "6": (0, 4, 7, 9),
+    "m6": (0, 3, 7, 9),
+    "m7b5": (0, 3, 6, 10),
+    "dim": (0, 3, 6),
+    "aug": (0, 4, 8),
+    "sus2": (0, 2, 7),
+    "sus4": (0, 5, 7),
+    "pow": (0, 7),
+}
 GUITAR_NO_QUALITY_THIRD_NAMES = {"pow", "sus2", "sus4"}
 GUITAR_MISSING_NOTE_EVIDENCE_SUPPORTS = (
     "visible0_analysis0_smooth0_rootvis0",
@@ -476,6 +508,70 @@ def guitar_examples_have_weak_third(candidate: Candidate) -> bool:
     return bool(third_levels) and max(third_levels) < GUITAR_EXAMPLE_THIRD_EVIDENCE_FLOOR
 
 
+def split_expected_label(label: str) -> tuple[int, str] | None:
+    label = label.split("/", 1)[0].split("=", 1)[0]
+    if not label or label == "--":
+        return None
+    root_len = 2 if len(label) > 1 and label[1] == "#" else 1
+    root_name = label[:root_len]
+    if root_name not in NOTE_PITCH_CLASSES:
+        return None
+    suffix = label[root_len:]
+    quality = "maj" if suffix == "" else suffix
+    return NOTE_PITCH_CLASSES[root_name], quality
+
+
+def example_expected_quality(example: str, fallback_quality: str) -> tuple[int, str] | None:
+    match = EXAMPLE_EXPECTED_RE.search(example)
+    if not match:
+        return None
+    parsed = split_expected_label(match.group("label"))
+    if parsed:
+        return parsed
+    quality_names = [quality for quality in fallback_quality.split("/") if quality]
+    if not quality_names:
+        return None
+    root_match = re.match(r"([A-G]#?)", match.group("label"))
+    if not root_match:
+        return None
+    root_name = root_match.group(1)
+    if root_name not in NOTE_PITCH_CLASSES:
+        return None
+    return NOTE_PITCH_CLASSES[root_name], quality_names[0]
+
+
+def example_analysis_pitch_classes(example: str) -> set[int] | None:
+    match = EXAMPLE_ANALYSIS_RE.search(example)
+    if not match:
+        return None
+    raw = match.group("pitch_classes")
+    if not raw or raw == "--":
+        return set()
+    pitch_classes: set[int] = set()
+    for token in raw.split(","):
+        token = token.strip()
+        if token in NOTE_PITCH_CLASSES:
+            pitch_classes.add(NOTE_PITCH_CLASSES[token])
+    return pitch_classes
+
+
+def guitar_examples_missing_required_analysis_tone(candidate: Candidate) -> bool:
+    fallback_quality = guitar_chord_miss_quality(candidate)
+    for example in candidate.examples:
+        expected = example_expected_quality(example, fallback_quality)
+        analysis_pitch_classes = example_analysis_pitch_classes(example)
+        if expected is None or analysis_pitch_classes is None:
+            continue
+        root, quality = expected
+        offsets = GUITAR_REQUIRED_QUALITY_OFFSETS.get(quality)
+        if not offsets:
+            continue
+        required = {((root + offset) % 12) for offset in offsets}
+        if not required.issubset(analysis_pitch_classes):
+            return True
+    return False
+
+
 def guitar_quality_tone_missing(candidate: Candidate) -> bool:
     quality = guitar_chord_miss_quality(candidate)
     if not guitar_quality_requires_third(quality):
@@ -492,6 +588,9 @@ def guitar_quality_tone_missing(candidate: Candidate) -> bool:
         for marker in GUITAR_WEAK_QUALITY_TONE_RULE_MARKERS
     ):
         return guitar_examples_have_weak_third(candidate)
+
+    if guitar_examples_missing_required_analysis_tone(candidate):
+        return True
 
     return guitar_examples_have_weak_third(candidate)
 
@@ -516,6 +615,16 @@ def block_reason_summary(
                 reason = "cross_source_rows"
             counts[reason] = counts.get(reason, 0) + 1
     return sorted(counts.items(), key=lambda item: (-item[1], item[0]))
+
+
+def candidate_non_sample_block_reasons(
+    candidate: Candidate, min_actionable_samples: int
+) -> list[str]:
+    return [
+        reason
+        for reason in candidate_block_reasons(candidate, min_actionable_samples)
+        if not reason.startswith("low_samples<")
+    ]
 
 
 def format_candidate(candidate: Candidate, min_actionable_samples: int) -> str:
@@ -718,6 +827,7 @@ def main() -> int:
         candidate
         for candidate in source_safe_positive_net
         if candidate_additional_samples_needed(candidate, args.min_actionable_samples) > 0
+        and not candidate_non_sample_block_reasons(candidate, args.min_actionable_samples)
     ]
 
     print(
