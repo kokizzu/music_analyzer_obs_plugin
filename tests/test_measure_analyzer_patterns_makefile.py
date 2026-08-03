@@ -3630,6 +3630,13 @@ def main() -> int:
     assert "$(DETECTOR_COVERAGE_CANDIDATE_ROW_PATHS)" in detector_coverage_recipe, (
         "detector coverage inspection must accept cached TSV paths through Make"
     )
+    detector_coverage_cached_recipe = target_recipe(makefile, "detector-improvement-coverage-cached")
+    assert "inspect-detector-coverage-candidates" in detector_coverage_cached_recipe, (
+        "cached detector coverage helper must reuse the inspector target"
+    )
+    assert 'DETECTOR_COVERAGE_CANDIDATE_ARGS="$(DETECTOR_COVERAGE_SUMMARY_ARGS)"' in detector_coverage_cached_recipe, (
+        "cached detector coverage helper must use the compact summary args"
+    )
     for text in [
         "REAL_NOTE_CANDIDATE_ROW_PATHS ?= $(BUILD_DIR)/real_note_full_mix_attributes.tsv",
         "REAL_NOTE_CANDIDATE_RULE ?=",
@@ -3637,6 +3644,7 @@ def main() -> int:
         "GUITAR_CANDIDATE_ROW_PATHS ?= $(GUITAR_CHORD_DETECTED_ATTRIBUTE_ROWS) $(GUITARSET_DETECTED_ATTRIBUTE_ROWS) $(GUITAR_TECHS_CHORD_DETECTED_ATTRIBUTE_ROWS) $(EGFXSET_GUITAR_DETECTED_ATTRIBUTE_ROWS) $(GAPS_GUITAR_DETECTED_ATTRIBUTE_ROWS) $(GAPS_GUITAR_FULL_DETECTED_ATTRIBUTE_ROWS)",
         "DETECTOR_COVERAGE_CANDIDATE_ROW_PATHS ?= $(wildcard $(REAL_NOTE_CANDIDATE_ROW_PATHS) $(GUITAR_CANDIDATE_ROW_PATHS) $(DETECTOR_REAL_NOTE_PATTERN_EXTRA_CANDIDATE_PATHS) $(DETECTOR_REAL_NOTE_PATTERN_EXTRA_PROTECTED_PATHS))",
         "DETECTOR_COVERAGE_CANDIDATE_ARGS ?=",
+        "DETECTOR_COVERAGE_SUMMARY_ARGS ?= --summary-only --top 12",
         "ANALYSIS_SCRIPT_TEST_TARGETS += test-inspect-detector-coverage-candidates",
     ]:
         assert text in makefile, f"real-note candidate Makefile plumbing must include {text}"

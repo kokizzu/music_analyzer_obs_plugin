@@ -354,6 +354,11 @@ def main() -> int:
     parser.add_argument("--limit", type=int, default=8)
     parser.add_argument("--top", type=int, default=8)
     parser.add_argument("--examples", type=int, default=3)
+    parser.add_argument(
+        "--summary-only",
+        action="store_true",
+        help="print only aggregate coverage status and nearest shortfalls",
+    )
     parser.add_argument("--field", action="append", default=[])
     parser.add_argument(
         "--group-by",
@@ -380,8 +385,9 @@ def main() -> int:
         all_candidates,
         key=lambda candidate: candidate_display_sort_key(candidate, all_matches),
     )[: max(0, args.limit)]
+    header_candidate_count = len(all_candidates) if args.summary_only else len(candidates)
     print(
-        f"coverage_candidate_inspection: candidates={len(candidates)}/{len(all_candidates)} "
+        f"coverage_candidate_inspection: candidates={header_candidate_count}/{len(all_candidates)} "
         f"row_paths={len(existing_rows)}/{len(args.rows)} "
         f"expanded_ready={expanded_ready_count}"
     )
@@ -392,6 +398,8 @@ def main() -> int:
         print("  no existing row TSV paths supplied")
         return 0
     print_coverage_status_summary(all_candidates, all_matches, args.top)
+    if args.summary_only:
+        return 0
 
     configured_group_by = args.group_by
     example_fields = args.example_field or DEFAULT_EXAMPLE_FIELDS

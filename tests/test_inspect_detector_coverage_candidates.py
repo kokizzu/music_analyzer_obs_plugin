@@ -260,6 +260,50 @@ def main() -> int:
         "coverage_candidate low-false visual_row_confusion:piano/electronic->other observed_samples=2 selected_samples=1 selected_rows=1 need_samples=3 expanded_samples=-1 coverage_status=still_short_by=4 :: adjacent_lower_ratio>=0.006 AND adjacent_upper_ratio<=0 AND bass_score<=0",
     )
 
+    with tempfile.TemporaryDirectory() as tmpdir:
+        tmp_path = pathlib.Path(tmpdir)
+        summary_path = tmp_path / "detector_summary.txt"
+        rows_path = tmp_path / "real_note_rows.tsv"
+        guitar_rows_path = tmp_path / "guitar_rows.tsv"
+        summary_path.write_text(summary, encoding="utf-8")
+        rows_path.write_text(
+            "\n".join(["\t".join(header)] + ["\t".join(row) for row in rows]) + "\n",
+            encoding="utf-8",
+        )
+        guitar_rows_path.write_text(
+            "\n".join(["\t".join(guitar_header)] + ["\t".join(row) for row in guitar_rows]) + "\n",
+            encoding="utf-8",
+        )
+        summary_only_completed = subprocess.run(
+            [
+                sys.executable,
+                str(SCRIPT),
+                str(summary_path),
+                "--limit",
+                "3",
+                "--summary-only",
+                str(rows_path),
+                str(guitar_rows_path),
+            ],
+            cwd=ROOT,
+            text=True,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+        )
+        if summary_only_completed.returncode != 0:
+            raise AssertionError(
+                "coverage summary-only inspector failed with "
+                f"{summary_only_completed.returncode}\n"
+                f"stdout:\n{summary_only_completed.stdout}\n"
+                f"stderr:\n{summary_only_completed.stderr}"
+            )
+    summary_only_output = summary_only_completed.stdout
+    require(summary_only_output, "coverage_candidate_inspection: candidates=3/3")
+    require(summary_only_output, "coverage_status_summary expanded_ready=0")
+    require(summary_only_output, "nearest_coverage guitar bucket")
+    if "coverage_candidate guitar bucket" in summary_only_output:
+        raise AssertionError(f"summary-only output should omit candidate details:\n{summary_only_output}")
+
     ready_summary = """detector_route_summary: candidates=2 low_false=2 shadow=0 near_miss=0 guitar=0 drum=0 positive_net=2 gain_ge_1=2 source_safe_positive_net=2 actionable=0 coverage_blocked=2
   coverage-blocked candidates need more positive samples before detector changes
     coverage_need low-false row_confusion:piano/electronic->other observed_samples=4 need_samples=1 +rows=4 side_rows=0 net_rows=4 gain_per_side=inf :: partial4>=0.8
