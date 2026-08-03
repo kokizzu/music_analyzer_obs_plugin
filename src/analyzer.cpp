@@ -11503,6 +11503,21 @@ bool keyboard_octave_visual_shadow_protected(const FullMixDebugCandidate &debug)
 	       measured_other_owned_electric_piano_octave_up_supported(debug);
 }
 
+bool keyboard_octave_visual_shadow_protected_from_lower_debug(const FullMixOwnership &ownership,
+							      int display_midi)
+{
+	const int lower_midi = display_midi - 12;
+	if (lower_midi < kFirstMidi || lower_midi > kLastMidi)
+		return false;
+	const FullMixDebugCandidate *lower_debug = full_mix_debug_for_midi(ownership, lower_midi);
+	if (!lower_debug)
+		return false;
+	if (lower_debug->midi + 12 != display_midi)
+		return false;
+	return measured_other_owned_electric_piano_octave_up_supported(*lower_debug) ||
+	       measured_other_owned_electronic_keyboard_octave_up_supported(*lower_debug);
+}
+
 void attenuate_lower_non_guitar_pitch_class_guitar_octave_shadows(
 	NoteGrid &guitar_grid, InstrumentState &guitar_state, const NoteGrid &keyboard_grid,
 	const NoteGrid &other_grid, const FullMixOwnership &ownership, int preferred_root)
@@ -11565,7 +11580,8 @@ void attenuate_lower_other_pitch_class_keyboard_octave_shadows(NoteGrid &keyboar
 			continue;
 
 		const FullMixDebugCandidate *debug = full_mix_debug_for_midi(ownership, midi);
-		if (debug && keyboard_octave_visual_shadow_protected(*debug))
+		if ((debug && keyboard_octave_visual_shadow_protected(*debug)) ||
+		    keyboard_octave_visual_shadow_protected_from_lower_debug(ownership, midi))
 			continue;
 
 		const float ceiling = std::max(0.05f, support.level * kSupportWinRatio);

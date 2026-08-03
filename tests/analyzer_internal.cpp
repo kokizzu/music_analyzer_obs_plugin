@@ -3146,6 +3146,27 @@ void check_other_owned_electronic_keyboard_alias_mirrors_upper_note(Runner &runn
 		full_mix_display_candidates(weak_shape, FullMixDisplayRow::Keyboard);
 	runner.expect(!candidate_list_has_midi(weak_shape_candidates, kUpperMidi),
 		      "other-owned electronic keyboard octave alias: expected measured fourth-partial guard");
+
+	NoteGrid keyboard_grid = {};
+	write_note_grid_cell(keyboard_grid, NoteCandidate{kUpperMidi, 1.0f}, 1.0f, 1.0f);
+	InstrumentState keyboard_state = {};
+	write_note_grid_label(keyboard_state, keyboard_grid, -1);
+	NoteGrid other_grid = {};
+	write_note_grid_cell(other_grid, NoteCandidate{kAliasMidi, 1.0f}, 1.0f, 1.0f);
+	attenuate_lower_other_pitch_class_keyboard_octave_shadows(keyboard_grid, keyboard_state,
+								  other_grid, ownership, -1);
+	runner.expect(note_grid_midi_visual_level(keyboard_grid, kUpperMidi) >= 0.95f,
+		      "other-owned electronic keyboard octave alias: expected upper mirror to survive lower shadow attenuation");
+
+	NoteGrid weak_keyboard_grid = {};
+	write_note_grid_cell(weak_keyboard_grid, NoteCandidate{kUpperMidi, 1.0f}, 1.0f, 1.0f);
+	InstrumentState weak_keyboard_state = {};
+	write_note_grid_label(weak_keyboard_state, weak_keyboard_grid, -1);
+	attenuate_lower_other_pitch_class_keyboard_octave_shadows(weak_keyboard_grid,
+								  weak_keyboard_state, other_grid,
+								  weak_shape, -1);
+	runner.expect(note_grid_midi_visual_level(weak_keyboard_grid, kUpperMidi) < 0.90f,
+		      "other-owned electronic keyboard octave alias: expected unsupported upper mirror to be attenuated");
 }
 
 void check_low_electronic_bass_alias_promotes_fundamental_display(Runner &runner)
