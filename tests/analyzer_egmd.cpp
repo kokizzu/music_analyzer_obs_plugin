@@ -1270,15 +1270,35 @@ std::string tempo_candidate_summary(const mao::AnalysisSnapshot &snapshot)
 	std::string text;
 	for (std::size_t i = 0; i < snapshot.tempo_debug_candidate_count; ++i) {
 		const mao::TempoDebugCandidate &candidate = snapshot.tempo_debug_candidates[i];
-		char part[160] = {};
-		std::snprintf(part, sizeof(part), "%s%d(s=%.2f,a=%.2f,b=%.2f,ba=%.2f,sub=%.2f,suba=%.2f)",
+		char part[256] = {};
+		std::snprintf(part, sizeof(part),
+			      "%s%d(s=%.2f,a=%.2f,b=%.2f,ba=%.2f,sub=%.2f,suba=%.2f,ph=%.2f,lock=%.2f,m=%.2f,cov=%.0f/%.0f,off=%.3f)",
 			      text.empty() ? "" : " ", candidate.bpm, candidate.score,
 			      candidate.adjacent_score, candidate.body_score,
 			      candidate.adjacent_body_score, candidate.subdivision_score,
-			      candidate.adjacent_subdivision_score);
+			      candidate.adjacent_subdivision_score, candidate.phase_score,
+			      candidate.phase_locked_score, candidate.meter_score,
+			      candidate.phase_body_coverage * 100.0f,
+			      candidate.phase_all_coverage * 100.0f, candidate.phase_offset_seconds);
 		text += part;
 	}
 	return text.empty() ? "-" : text;
+}
+
+void print_tempo_diagnostic(const Recording &recording, const mao::AnalysisSnapshot &snapshot,
+			    double bpm_tolerance)
+{
+	const double estimated = static_cast<double>(snapshot.estimated_bpm);
+	const double error = estimated > 0.0 ? std::abs(estimated - recording.tempo_bpm) :
+					       bpm_tolerance + 1.0;
+	const char *status = estimated <= 0.0 ? "no-estimate" :
+			     error <= bpm_tolerance ? "hit" :
+						      "miss";
+	std::fprintf(stderr,
+		     "E-GMD tempo diag\tid=%s\texpected=%.2f\tgot=%.2f\tconfidence=%.3f\terror=%.2f\tstatus=%s\tcandidates=%s\tdrums=%s\n",
+		     recording.id.c_str(), recording.tempo_bpm, estimated, snapshot.bpm_confidence,
+		     error, status, tempo_candidate_summary(snapshot).c_str(),
+		     drum_debug_details(snapshot).c_str());
 }
 
 } // namespace
@@ -1327,6 +1347,9 @@ int main()
 		resolve_positive_int_env("MUSIC_ANALYZER_EGMD_VERBOSE_FALSE_POSITIVE_LIMIT", 24);
 	const bool verbose_misses = env_truthy("MUSIC_ANALYZER_EGMD_VERBOSE_MISSES");
 	const int verbose_miss_limit = resolve_positive_int_env("MUSIC_ANALYZER_EGMD_VERBOSE_MISS_LIMIT", 24);
+	const bool verbose_tempo = env_truthy("MUSIC_ANALYZER_EGMD_VERBOSE_TEMPO");
+	const int verbose_tempo_limit =
+		resolve_positive_int_env("MUSIC_ANALYZER_EGMD_VERBOSE_TEMPO_LIMIT", 4000);
 	const bool validate_bpm = env_truthy("MUSIC_ANALYZER_EGMD_VALIDATE_BPM");
 	const int required_tempo_recordings =
 		resolve_nonnegative_int_env("MUSIC_ANALYZER_EGMD_REQUIRED_TEMPO_RECORDINGS",
@@ -1357,6 +1380,7 @@ int main()
 	int no_candidate_recordings = 0;
 	int verbose_false_positive_lines = 0;
 	int verbose_miss_lines = 0;
+	int verbose_tempo_lines = 0;
 
 	std::size_t recording_ordinal = 0;
 	for (const Recording &recording : recordings) {
@@ -1397,7 +1421,10 @@ int main()
 				tempo.max_error = std::max(tempo.max_error, error_bpm);
 				if (tempo_snapshot.estimated_bpm > 0.0f && error_bpm <= bpm_tolerance)
 					++tempo.hits;
-				else if (verbose_misses && verbose_miss_lines < verbose_miss_limit) {
+				if (verbose_tempo && verbose_tempo_lines < verbose_tempo_limit) {
+					print_tempo_diagnostic(recording, tempo_snapshot, bpm_tolerance);
+					++verbose_tempo_lines;
+				} else if (verbose_misses && verbose_miss_lines < verbose_miss_limit) {
 					std::fprintf(stderr,
 						     "E-GMD tempo miss %s expected %.2f got %.2f confidence %.2f candidates %s: %s\n",
 						     recording.id.c_str(), recording.tempo_bpm,
