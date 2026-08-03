@@ -17896,6 +17896,224 @@ float strongest_probe_level(const std::array<float, kNoteProbeCount> &powers, in
 	return level;
 }
 
+struct ProbeOnlyGuitarTone {
+	int midi = -1;
+	float level = 0.0f;
+};
+
+void insert_probe_only_guitar_tone(std::array<ProbeOnlyGuitarTone, 8> &tones, int &count,
+				   ProbeOnlyGuitarTone tone)
+{
+	if (tone.midi < 0 || tone.level <= 1.0e-6f)
+		return;
+	int insert_at = count;
+	while (insert_at > 0 && tones[static_cast<std::size_t>(insert_at - 1)].level < tone.level)
+		--insert_at;
+	if (insert_at >= static_cast<int>(tones.size()))
+		return;
+	const int limit = std::min(count, static_cast<int>(tones.size()) - 1);
+	for (int index = limit; index > insert_at; --index)
+		tones[static_cast<std::size_t>(index)] = tones[static_cast<std::size_t>(index - 1)];
+	tones[static_cast<std::size_t>(insert_at)] = tone;
+	count = std::min(static_cast<int>(tones.size()), count + 1);
+}
+
+int collect_probe_only_guitar_tones(const std::array<float, kNoteProbeCount> &powers, int pitch_class,
+				    int min_midi, int max_midi, float min_level,
+				    std::array<ProbeOnlyGuitarTone, 8> &tones)
+{
+	pitch_class = ((pitch_class % 12) + 12) % 12;
+	min_midi = std::max(min_midi, kFirstMidi);
+	max_midi = std::min(max_midi, kLastMidi);
+
+	int count = 0;
+	for (int midi = min_midi; midi <= max_midi; ++midi) {
+		if (midi_pitch_class(midi) != pitch_class)
+			continue;
+		const float level = probe_level(powers, midi);
+		if (level < min_level)
+			continue;
+		insert_probe_only_guitar_tone(tones, count, ProbeOnlyGuitarTone{midi, level});
+	}
+	return count;
+}
+
+bool probe_only_guitar_plain_triad_voicing(const std::array<float, kNoteProbeCount> &powers,
+					   int min_midi, int max_midi, float strongest_probe,
+					   int root, bool minor,
+					   std::array<ProbeOnlyGuitarTone, 3> &voicing)
+{
+	if (strongest_probe <= 1.0e-6f)
+		return false;
+
+	root = ((root % 12) + 12) % 12;
+	const int third = (root + (minor ? 3 : 4)) % 12;
+	const int fifth = (root + 7) % 12;
+
+	std::array<ProbeOnlyGuitarTone, 8> root_tones = {};
+	std::array<ProbeOnlyGuitarTone, 8> third_tones = {};
+	std::array<ProbeOnlyGuitarTone, 8> fifth_tones = {};
+	const int root_count = collect_probe_only_guitar_tones(
+		powers, root, min_midi, max_midi, strongest_probe * 0.20f, root_tones);
+	const int third_count = collect_probe_only_guitar_tones(
+		powers, third, min_midi, max_midi, strongest_probe * 0.22f, third_tones);
+	const int fifth_count = collect_probe_only_guitar_tones(
+		powers, fifth, min_midi, max_midi, strongest_probe * 0.18f, fifth_tones);
+	if (root_count <= 0 || third_count <= 0 || fifth_count <= 0)
+		return false;
+
+	float best_score = -1.0f;
+	std::array<ProbeOnlyGuitarTone, 3> best_voicing = {};
+	for (int root_index = 0; root_index < root_count; ++root_index) {
+		for (int third_index = 0; third_index < third_count; ++third_index) {
+			for (int fifth_index = 0; fifth_index < fifth_count; ++fifth_index) {
+				const ProbeOnlyGuitarTone root_tone =
+					root_tones[static_cast<std::size_t>(root_index)];
+				const ProbeOnlyGuitarTone third_tone =
+					third_tones[static_cast<std::size_t>(third_index)];
+				const ProbeOnlyGuitarTone fifth_tone =
+					fifth_tones[static_cast<std::size_t>(fifth_index)];
+				const int lowest = std::min({root_tone.midi, third_tone.midi, fifth_tone.midi});
+				const int highest = std::max({root_tone.midi, third_tone.midi, fifth_tone.midi});
+				const int span = highest - lowest;
+				if (span > 28)
+					continue;
+				const int root_third_interval = third_tone.midi - root_tone.midi;
+				const bool root_third_voicing =
+					(root_third_interval >= 3 && root_third_interval <= 16) ||
+					(root_tone.midi > lowest + 2 && third_tone.midi >= root_tone.midi - 12 &&
+					 third_tone.midi <= root_tone.midi - 3);
+				const int root_fifth_interval = fifth_tone.midi - root_tone.midi;
+				const bool root_fifth_voicing =
+					root_fifth_interval >= -14 && root_fifth_interval <= 14;
+				if (!root_third_voicing && !root_fifth_voicing)
+					continue;
+				const float score = root_tone.level + third_tone.level + fifth_tone.level -
+						    static_cast<float>(span) * strongest_probe * 0.006f;
+				if (score <= best_score)
+					continue;
+				best_score = score;
+				best_voicing = {root_tone, third_tone, fifth_tone};
+			}
+		}
+	}
+	if (best_score <= 0.0f)
+		return false;
+
+	voicing = best_voicing;
+	return true;
+}
+
+ChordResult detect_probe_only_guitar_plain_triad(const std::array<float, kNoteProbeCount> &powers,
+						 int min_midi, int max_midi, int preferred_root,
+						 NoteGrid *support_grid = nullptr)
+{
+	ChordResult best;
+	copy_text(best.label, sizeof(best.label), "--");
+
+	const float strongest_probe = strongest_probe_level(powers, min_midi, max_midi);
+	if (strongest_probe <= 1.0e-6f)
+		return best;
+
+	constexpr float kRootFloor = 0.28f;
+	constexpr float kThirdFloor = 0.32f;
+	constexpr float kFifthFloor = 0.24f;
+	constexpr float kOppositeMargin = 1.50f;
+	constexpr float kExtraFloor = 0.34f;
+	constexpr float kMinGap = 0.20f;
+	constexpr int kMaxExtras = 2;
+
+	auto probe_norm = [&](int pitch_class) {
+		return strongest_probe_pitch_class_level(powers, pitch_class, min_midi, max_midi) /
+		       strongest_probe;
+	};
+
+	std::array<float, 12> levels = {};
+	for (int pitch_class = 0; pitch_class < 12; ++pitch_class)
+		levels[static_cast<std::size_t>(pitch_class)] = probe_norm(pitch_class);
+
+	struct Candidate {
+		float score = 0.0f;
+		int root = -1;
+		bool minor = false;
+		std::array<ProbeOnlyGuitarTone, 3> voicing = {};
+	};
+	Candidate best_candidate;
+	float runner_up_score = 0.0f;
+
+	auto score_candidate = [&](int root, bool minor, std::array<ProbeOnlyGuitarTone, 3> *voicing) {
+		root = ((root % 12) + 12) % 12;
+		const int third = (root + (minor ? 3 : 4)) % 12;
+		const int opposite_third = (root + (minor ? 4 : 3)) % 12;
+		const int fifth = (root + 7) % 12;
+		const float root_level = levels[static_cast<std::size_t>(root)];
+		const float third_level = levels[static_cast<std::size_t>(third)];
+		const float fifth_level = levels[static_cast<std::size_t>(fifth)];
+		const float opposite_level = levels[static_cast<std::size_t>(opposite_third)];
+		if (root_level < kRootFloor || third_level < kThirdFloor || fifth_level < kFifthFloor)
+			return -1.0f;
+		if (third_level < opposite_level * kOppositeMargin)
+			return -1.0f;
+
+		int extras = 0;
+		float extra_sum = 0.0f;
+		for (int pitch_class = 0; pitch_class < 12; ++pitch_class) {
+			if (pitch_class == root || pitch_class == third || pitch_class == fifth)
+				continue;
+			const float level = levels[static_cast<std::size_t>(pitch_class)];
+			if (level < kExtraFloor)
+				continue;
+			++extras;
+			extra_sum += level;
+		}
+		if (extras > kMaxExtras)
+			return -1.0f;
+
+		std::array<ProbeOnlyGuitarTone, 3> candidate_voicing = {};
+		if (!probe_only_guitar_plain_triad_voicing(powers, min_midi, max_midi, strongest_probe,
+							   root, minor, candidate_voicing))
+			return -1.0f;
+
+		const float anchor = std::min(root_level, fifth_level);
+		float score = root_level * 0.42f + third_level * 0.38f + fifth_level * 0.42f;
+		score += std::min({root_level, third_level, fifth_level}) * 0.50f;
+		score += anchor * 0.22f;
+		score -= opposite_level * 0.45f + extra_sum * 0.10f;
+		if (preferred_root >= 0 && root == ((preferred_root % 12) + 12) % 12)
+			score += 0.10f;
+		if (voicing)
+			*voicing = candidate_voicing;
+		return score;
+	};
+
+	for (int root = 0; root < 12; ++root) {
+		for (bool minor : {false, true}) {
+			std::array<ProbeOnlyGuitarTone, 3> voicing = {};
+			const float score = score_candidate(root, minor, &voicing);
+			if (score < 0.0f)
+				continue;
+			if (score > best_candidate.score) {
+				runner_up_score = best_candidate.score;
+				best_candidate = Candidate{score, root, minor, voicing};
+			} else {
+				runner_up_score = std::max(runner_up_score, score);
+			}
+		}
+	}
+	if (best_candidate.root < 0 || best_candidate.score < runner_up_score + kMinGap)
+		return best;
+
+	best = make_guitar_plain_triad(best_candidate.root, best_candidate.minor,
+				       std::clamp(0.42f + best_candidate.score * 0.08f, 0.46f, 0.62f));
+	if (support_grid) {
+		const float visual_loudness = 1.0f;
+		for (ProbeOnlyGuitarTone tone : best_candidate.voicing)
+			write_note_grid_cell(*support_grid, NoteCandidate{tone.midi, tone.level}, strongest_probe,
+					     visual_loudness);
+	}
+	return best;
+}
+
 bool guitar_extension_component_implies_plain_base(const char *start, std::size_t len,
 						   ParsedRootChord &parsed)
 {
@@ -29124,7 +29342,7 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 		};
 		bool raw_guitar_valid = guitar_chord_valid_for_display(raw_guitar_chord);
 		const bool display_guitar_valid = guitar_chord_valid_for_display(display_guitar_chord);
-		const int displayed_guitar_pitch_classes = note_grid_active_pitch_class_count(snapshot.guitar_notes);
+		int displayed_guitar_pitch_classes = note_grid_active_pitch_class_count(snapshot.guitar_notes);
 		auto guitar_note_grid_pitch_class_active = [&](int pitch_class) {
 			pitch_class = ((pitch_class % 12) + 12) % 12;
 			if (snapshot.guitar_notes.cells[pitch_class].active)
@@ -29150,6 +29368,27 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 			       analysis_chord_tone_count(raw_guitar_chord) >= 3 &&
 			       displayed_chord_tone_count(raw_guitar_chord) >= 2;
 		};
+		bool probe_only_guitar_chord_recovered = false;
+		if (!mixed_source && !raw_guitar_valid && !display_guitar_valid &&
+		    displayed_guitar_pitch_classes == 0 &&
+		    note_grid_active_pitch_class_count(guitar_chord_detection_grid) == 0) {
+			NoteGrid probe_only_chord_grid = {};
+			ChordResult probe_only_guitar_chord =
+				detect_probe_only_guitar_plain_triad(note_powers, min_midi, kGuitarMaxMidi,
+								    preferred_root,
+								    &probe_only_chord_grid);
+			if (guitar_chord_valid_for_display(probe_only_guitar_chord)) {
+				snapshot.guitar_notes = probe_only_chord_grid;
+				write_note_grid_label(snapshot.guitar, snapshot.guitar_notes, preferred_root);
+				guitar_chord_detection_grid = probe_only_chord_grid;
+				raw_guitar_chord = probe_only_guitar_chord;
+				raw_guitar_valid = true;
+				probe_only_guitar_chord_recovered = true;
+				displayed_guitar_pitch_classes =
+					note_grid_active_pitch_class_count(snapshot.guitar_notes);
+				snapshot.guitar_chord_analysis_notes = guitar_chord_detection_grid;
+			}
+		}
 		const ChordResult analysis_supported_guitar_triad =
 			mixed_source ? ChordResult{} :
 				       detect_display_supported_guitar_analysis_triad(
@@ -29175,7 +29414,7 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 				raw_guitar_chord = display_guitar_root_active ? display_guitar_chord : ChordResult{};
 			raw_guitar_valid = guitar_chord_valid_for_display(raw_guitar_chord);
 		}
-		if (!mixed_source && raw_guitar_valid && !display_guitar_valid &&
+		if (!mixed_source && raw_guitar_valid && !display_guitar_valid && !probe_only_guitar_chord_recovered &&
 		    displayed_guitar_pitch_classes < 3 && !analysis_simple_triad_supported()) {
 			raw_guitar_chord = ChordResult{};
 			raw_guitar_valid = false;

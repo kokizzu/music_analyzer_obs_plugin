@@ -455,6 +455,49 @@ void check_probe_supported_guitar_plain_triad_replaces_weak_relative_primary(Run
 		      "probe-supported guitar plain triad: expected clean F# primary to be protected");
 }
 
+void check_probe_only_guitar_plain_triad_recovery(Runner &runner)
+{
+	std::array<float, kNoteProbeCount> powers = {};
+	set_probe_level(powers, 49, 0.57f);
+	set_probe_level(powers, 52, 0.63f);
+	set_probe_level(powers, 56, 1.00f);
+	set_probe_level(powers, 53, 0.012f);
+	NoteGrid support_grid = {};
+
+	const ChordResult recovered =
+		detect_probe_only_guitar_plain_triad(powers, kGuitarMinMidi, kGuitarMaxMidi, -1,
+						     &support_grid);
+	runner.expect(std::strcmp(recovered.label, "C#m") == 0,
+		      std::string("probe-only guitar plain triad: expected C#m, got `") +
+			      recovered.label + "`");
+	runner.expect(note_grid_pitch_active(support_grid, 1) && note_grid_pitch_active(support_grid, 4) &&
+			      note_grid_pitch_active(support_grid, 8),
+		      "probe-only guitar plain triad: expected support grid to contain C#, E, and G#");
+	runner.expect(primary_guitar_chord_has_playable_voicing(recovered, support_grid, support_grid),
+		      "probe-only guitar plain triad: expected recovered support grid to pass guitar voicing");
+
+	std::array<float, kNoteProbeCount> ambiguous = {};
+	set_probe_level(ambiguous, 49, 0.57f);
+	set_probe_level(ambiguous, 52, 0.40f);
+	set_probe_level(ambiguous, 53, 0.42f);
+	set_probe_level(ambiguous, 56, 1.00f);
+	const ChordResult blocked_by_opposite =
+		detect_probe_only_guitar_plain_triad(ambiguous, kGuitarMinMidi, kGuitarMaxMidi, -1);
+	runner.expect(!valid_chord_result(blocked_by_opposite),
+		      std::string("probe-only guitar plain triad: expected opposite third to block, got `") +
+			      blocked_by_opposite.label + "`");
+
+	std::array<float, kNoteProbeCount> impossible_span = {};
+	set_probe_level(impossible_span, 49, 0.70f);
+	set_probe_level(impossible_span, 76, 0.60f);
+	set_probe_level(impossible_span, 80, 1.00f);
+	const ChordResult blocked_by_voicing =
+		detect_probe_only_guitar_plain_triad(impossible_span, kGuitarMinMidi, kGuitarMaxMidi, -1);
+	runner.expect(!valid_chord_result(blocked_by_voicing),
+		      std::string("probe-only guitar plain triad: expected wide voicing to block, got `") +
+			      blocked_by_voicing.label + "`");
+}
+
 void check_visible_diminished_guitar_alias_recovery(Runner &runner)
 {
 	NoteGrid display_grid = {};
@@ -4302,6 +4345,7 @@ int run()
 	check_source_supported_plain_guitar_alias_recovery(runner);
 	check_probe_supported_guitar_extension_base_alias_recovery(runner);
 	check_probe_supported_guitar_plain_triad_replaces_weak_relative_primary(runner);
+	check_probe_only_guitar_plain_triad_recovery(runner);
 	check_visible_diminished_guitar_alias_recovery(runner);
 	check_visible_augmented_guitar_alias_recovery(runner);
 	check_mixed_global_superset_extension_aliases(runner);
