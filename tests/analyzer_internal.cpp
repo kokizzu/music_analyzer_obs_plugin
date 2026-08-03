@@ -3924,7 +3924,7 @@ void check_low_confidence_mirror_cell_uses_visual_floor_without_changing_level(R
 	const NoteCell primary = note_grid_primary_cell_for_pitch_class(grid, midi_pitch_class(kMidi));
 	runner.expect(std::fabs(primary.level - 0.20f) < 0.001f,
 		      "low confidence mirror visual floor: expected analytic level to stay ownership-scaled");
-	runner.expect(std::fabs(note_grid_midi_visual_level(grid, kMidi) - 0.35f) < 0.001f,
+	runner.expect(std::fabs(note_grid_midi_visual_level(grid, kMidi) - 0.50f) < 0.001f,
 		      "low confidence mirror visual floor: expected full-strength mirror to render at floor");
 
 	NoteGrid weak_score_grid = {};
@@ -3933,8 +3933,8 @@ void check_low_confidence_mirror_cell_uses_visual_floor_without_changing_level(R
 		note_grid_primary_cell_for_pitch_class(weak_score_grid, midi_pitch_class(kMidi));
 	runner.expect(std::fabs(weak_score_primary.level - 0.10f) < 0.001f,
 		      "low confidence mirror visual floor: expected weak analytic level to stay relative");
-	runner.expect(std::fabs(note_grid_midi_visual_level(weak_score_grid, kMidi) - 0.175f) < 0.001f,
-		      "low confidence mirror visual floor: expected visual floor to preserve relative score");
+	runner.expect(std::fabs(note_grid_midi_visual_level(weak_score_grid, kMidi) - 0.25f) < 0.001f,
+		      "low confidence mirror visual floor: expected half-strength mirror to reach lit threshold");
 }
 
 void check_note_smoothing_preserves_visual_floor_and_display_attenuation(Runner &runner)
@@ -3955,7 +3955,7 @@ void check_note_smoothing_preserves_visual_floor_and_display_attenuation(Runner 
 		note_grid_primary_cell_for_pitch_class(low_confidence_grid, midi_pitch_class(kMidi));
 	runner.expect(std::fabs(low_confidence_primary.level - 0.20f) < 0.001f,
 		      "note smoothing visual floor: expected low-confidence analytic level to stay dim");
-	runner.expect(std::fabs(note_grid_midi_visual_level(low_confidence_grid, kMidi) - 0.35f) < 0.001f,
+	runner.expect(std::fabs(note_grid_midi_visual_level(low_confidence_grid, kMidi) - 0.50f) < 0.001f,
 		      "note smoothing visual floor: expected low-confidence visual floor to survive smoothing");
 
 	NoteGrid mid_confidence_grid = {};
