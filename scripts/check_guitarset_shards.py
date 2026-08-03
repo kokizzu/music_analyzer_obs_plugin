@@ -16,6 +16,7 @@ SUMMARY_RE = re.compile(
     r"chord hits (?P<chord_hits>\d+)/(?P<chord_total>\d+), (?P<body>.+)\)$"
 )
 PAIR_PATTERNS = {
+    "primary": re.compile(r"\bprimary chord hits (?P<hit>\d+)/(?P<total>\d+)"),
     "major_minor": re.compile(r"\bmajor/minor chord hits (?P<hit>\d+)/(?P<total>\d+)"),
     "other": re.compile(r"\bother chord hits (?P<hit>\d+)/(?P<total>\d+)"),
     "simple": re.compile(r"\bsimple chord hits (?P<hit>\d+)/(?P<total>\d+)"),
@@ -61,6 +62,8 @@ def empty_summary() -> dict[str, float]:
         "note_total": 0,
         "chord_hits": 0,
         "chord_total": 0,
+        "primary_hits": 0,
+        "primary_total": 0,
         "major_minor_hits": 0,
         "major_minor_total": 0,
         "other_hits": 0,
@@ -96,6 +99,7 @@ def parse_shard(path: pathlib.Path) -> dict[str, float]:
             summary[key] += int(match.group(key))
 
         for name, prefix in (
+            ("primary", "primary"),
             ("major_minor", "major_minor"),
             ("other", "other"),
             ("simple", "simple"),
@@ -192,6 +196,11 @@ def validate(args: argparse.Namespace, summary: dict[str, float]) -> None:
                          args.min_chord_recall_percent)
     if args.min_chord_hits > 0 and int(summary["chord_hits"]) < args.min_chord_hits:
         fail(f"expected at least {args.min_chord_hits} chord hits, got {int(summary['chord_hits'])}")
+    if args.min_primary_chord_hits > 0 and int(summary["primary_hits"]) < args.min_primary_chord_hits:
+        fail(
+            "expected at least "
+            f"{args.min_primary_chord_hits} primary chord hits, got {int(summary['primary_hits'])}"
+        )
     if args.min_chord_checks > 0:
         require_min_pair("guitar chord precision", int(summary["chord_tp"]),
                          int(summary["chord_tp"] + summary["chord_fp"]),
@@ -234,6 +243,7 @@ def main() -> int:
     parser.add_argument("--min-chord-checks", type=int, default=5)
     parser.add_argument("--min-chord-recall-percent", type=int, default=30)
     parser.add_argument("--min-chord-hits", type=int, default=0)
+    parser.add_argument("--min-primary-chord-hits", type=int, default=0)
     parser.add_argument("--min-chord-precision-percent", type=int, default=85)
     parser.add_argument("--min-major-minor-chord-recall-percent", type=int, default=0)
     parser.add_argument("--min-other-chord-recall-percent", type=int, default=0)
@@ -255,6 +265,7 @@ def main() -> int:
         f"(excerpts {int(summary['excerpts'])}, windows {int(summary['windows'])}, "
         f"note hits {int(summary['note_hits'])}/{int(summary['note_total'])}, "
         f"chord hits {int(summary['chord_hits'])}/{int(summary['chord_total'])}, "
+        f"primary chord hits {int(summary['primary_hits'])}/{int(summary['primary_total'])}, "
         f"guitar tp/fp/fn {int(summary['guitar_tp'])}/{int(summary['guitar_fp'])}/"
         f"{int(summary['guitar_fn'])}, chord tp/fp/fn {int(summary['chord_tp'])}/"
         f"{int(summary['chord_fp'])}/{int(summary['chord_fn'])})"

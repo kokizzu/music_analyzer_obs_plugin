@@ -2408,6 +2408,9 @@ def main() -> int:
     assert "MUSIC_ANALYZER_GUITARSET_SHARD_COUNT" not in guitar_chord_serial_recipe, (
         "guitar chord mix serial target must not set shard variables"
     )
+    assert "MUSIC_ANALYZER_GUITARSET_MIN_PRIMARY_CHORD_HITS=\"$(GUITAR_CHORD_MIX_MIN_PRIMARY_CHORD_HITS)\"" in guitar_chord_serial_recipe, (
+        "guitar chord mix serial target must enforce primary chord hits"
+    )
     guitar_chord_sharded_recipe = target_recipe(makefile, "test-guitar-chord-mix-samples-parallel")
     assert "GUITAR_CHORD_MIX_SHARD_OUTS := $(addprefix $(BUILD_DIR)/guitar_chord_mix_samples_shard_,$(addsuffix .out,$(GUITAR_CHORD_MIX_SHARD_INDEXES)))" in makefile, (
         "guitar chord mix parallel target must define deterministic shard output logs"
@@ -2425,6 +2428,7 @@ def main() -> int:
         "--required-excerpts \"$(GUITAR_CHORD_MIX_MIN_EXCERPTS)\"",
         "--required-windows \"$(GUITAR_CHORD_MIX_MIN_WINDOWS)\"",
         "--min-chord-hits \"$(GUITAR_CHORD_MIX_MIN_CHORD_HITS)\"",
+        "--min-primary-chord-hits \"$(GUITAR_CHORD_MIX_MIN_PRIMARY_CHORD_HITS)\"",
     ]:
         assert text in guitar_chord_sharded_recipe, (
             f"guitar chord mix aggregate checker must include {text}"
@@ -2450,6 +2454,7 @@ def main() -> int:
         "MUSIC_ANALYZER_GUITARSET_REQUIRED_WINDOWS=1",
         "MUSIC_ANALYZER_GUITARSET_MIN_CHORD_CHECKS=0",
         "MUSIC_ANALYZER_GUITARSET_MIN_CHORD_HITS=0",
+        "MUSIC_ANALYZER_GUITARSET_MIN_PRIMARY_CHORD_HITS=0",
     ]:
         assert text in guitar_chord_shard_recipe, (
             f"guitar chord mix shard target must include {text}"

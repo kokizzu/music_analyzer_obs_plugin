@@ -609,6 +609,8 @@ struct RecallStats {
 	int expected = 0;
 	int chord_hits = 0;
 	int chord_checks = 0;
+	int primary_chord_hits = 0;
+	int primary_chord_checks = 0;
 	int simple_chord_hits = 0;
 	int major_minor_chord_hits = 0;
 	int major_minor_chord_checks = 0;
@@ -856,6 +858,14 @@ std::vector<std::string> split_chord_labels(const char *label)
 	}
 
 	return labels;
+}
+
+bool first_chord_label_matches(const char *actual, const std::vector<std::string> &expected)
+{
+	const std::vector<std::string> labels = split_chord_labels(actual);
+	if (labels.empty())
+		return false;
+	return std::find(expected.begin(), expected.end(), labels.front()) != expected.end();
 }
 
 std::vector<std::string> snapshot_chord_labels(const mao::AnalysisSnapshot &snapshot)
@@ -1121,6 +1131,7 @@ void check_recall(Runner &runner, const mao::AnalysisSnapshot &snapshot, const C
 
 	if (!candidate.chord_labels.empty()) {
 		++stats.chord_checks;
+		++stats.primary_chord_checks;
 		const bool major_minor_opportunity =
 			std::any_of(candidate.chord_labels.begin(), candidate.chord_labels.end(),
 				    chord_label_is_plain_major_or_minor);
@@ -1132,6 +1143,8 @@ void check_recall(Runner &runner, const mao::AnalysisSnapshot &snapshot, const C
 				    [&](const std::string &label) {
 					    return snapshot_has_simplified_chord_label(snapshot, label);
 				    });
+		const bool primary_chord_hit =
+			first_chord_label_matches(snapshot.guitar_chord.label, candidate.chord_labels);
 		if (chord_hit) {
 			++stats.chord_hits;
 		} else if (env_truthy("MUSIC_ANALYZER_GUITARSET_VERBOSE_CHORD_MISSES")) {
@@ -1155,6 +1168,8 @@ void check_recall(Runner &runner, const mao::AnalysisSnapshot &snapshot, const C
 				     pitch_class_list(guitar_smoothed).c_str(),
 				     grid_cell_list(snapshot.guitar_chord_smoothed_notes).c_str());
 		}
+		if (primary_chord_hit)
+			++stats.primary_chord_hits;
 		if (simple_chord_hit)
 			++stats.simple_chord_hits;
 		if (major_minor_opportunity) {
@@ -1496,6 +1511,16 @@ void require_chord_hits(Runner &runner, const RecallStats &stats, int min_hits)
 			      std::to_string(stats.chord_checks));
 }
 
+void require_primary_chord_hits(Runner &runner, const RecallStats &stats, int min_hits)
+{
+	if (min_hits <= 0)
+		return;
+	runner.expect(stats.primary_chord_hits >= min_hits,
+		      "GuitarSet primary chord hits: expected at least " + std::to_string(min_hits) +
+			      ", got " + std::to_string(stats.primary_chord_hits) + "/" +
+			      std::to_string(stats.primary_chord_checks));
+}
+
 void require_chord_bucket_recall(Runner &runner, const char *label, int hits, int checks, int min_percent)
 {
 	if (min_percent <= 0)
@@ -1646,6 +1671,8 @@ int main()
 		resolve_percent_env("MUSIC_ANALYZER_GUITARSET_MIN_SIMPLE_OTHER_CHORD_RECALL_PERCENT", 0);
 	const int min_chord_checks = resolve_nonnegative_int_env("MUSIC_ANALYZER_GUITARSET_MIN_CHORD_CHECKS", 5);
 	const int min_chord_hits = resolve_nonnegative_int_env("MUSIC_ANALYZER_GUITARSET_MIN_CHORD_HITS", 0);
+	const int min_primary_chord_hits =
+		resolve_nonnegative_int_env("MUSIC_ANALYZER_GUITARSET_MIN_PRIMARY_CHORD_HITS", 0);
 	const int max_single_note_chord_false_percent =
 		resolve_percent_env("MUSIC_ANALYZER_GUITARSET_MAX_SINGLE_NOTE_CHORD_FALSE_PERCENT", -1);
 	const int shard_count = resolve_positive_int_env("MUSIC_ANALYZER_GUITARSET_SHARD_COUNT", 1);
@@ -1663,6 +1690,7 @@ int main()
 	const int shard_required_windows = shard_required_count(required_windows);
 	const int shard_min_chord_checks = shard_required_count(min_chord_checks);
 	const int shard_min_chord_hits = shard_required_count(min_chord_hits);
+	const int shard_min_primary_chord_hits = shard_required_count(min_primary_chord_hits);
 	const bool inspect_only = env_truthy("MUSIC_ANALYZER_GUITARSET_INSPECT_ONLY");
 	const bool attribute_only = env_truthy("MUSIC_ANALYZER_GUITARSET_ATTRIBUTE_ONLY");
 	const bool use_all_recordings = env_truthy("MUSIC_ANALYZER_GUITARSET_USE_ALL");
@@ -1761,6 +1789,7 @@ int main()
 					 max_false_vocal_percent);
 		require_chord_recall(runner, recall, shard_min_chord_checks, min_chord_recall_percent);
 		require_chord_hits(runner, recall, shard_min_chord_hits);
+		require_primary_chord_hits(runner, recall, shard_min_primary_chord_hits);
 		require_chord_bucket_recall(runner, "GuitarSet major/minor chord recall",
 					    recall.major_minor_chord_hits,
 					    recall.major_minor_chord_checks,
@@ -1788,12 +1817,14 @@ int main()
 		std::fprintf(stderr,
 			     "analyzer_guitarset: %d/%d checks failed (excerpts %d/%d, windows %d/%d, "
 			     "read failures %d, no-candidate excerpts %d, unusable %d, note hits %d/%d, "
-			     "chord hits %d/%d, major/minor chord hits %d/%d, other chord hits %d/%d, "
+			     "chord hits %d/%d, primary chord hits %d/%d, major/minor chord hits %d/%d, "
+			     "other chord hits %d/%d, "
 			     "%s, %s, %s, %s)\n",
 			     runner.failures, runner.checks, tested_recordings, required_recordings,
 			     tested_windows, required_windows, read_failures, no_candidate_recordings,
 			     unusable_recordings, recall.hits, recall.expected, recall.chord_hits,
-			     recall.chord_checks, recall.major_minor_chord_hits,
+			     recall.chord_checks, recall.primary_chord_hits, recall.primary_chord_checks,
+			     recall.major_minor_chord_hits,
 			     recall.major_minor_chord_checks, recall.other_chord_hits,
 			     recall.other_chord_checks, guitar_precision_summary(precision).c_str(),
 			     chord_precision_summary(guitar_chord_precision).c_str(),
@@ -1815,7 +1846,9 @@ int main()
 			runner.checks, tested_recordings, required_recordings, tested_windows, read_failures,
 			no_candidate_recordings, unusable_recordings, recall.hits, recall.expected,
 			recall.chord_hits, recall.chord_checks,
-			("major/minor chord hits " + std::to_string(recall.major_minor_chord_hits) + "/" +
+			("primary chord hits " + std::to_string(recall.primary_chord_hits) + "/" +
+			 std::to_string(recall.primary_chord_checks) + ", major/minor chord hits " +
+			 std::to_string(recall.major_minor_chord_hits) + "/" +
 			 std::to_string(recall.major_minor_chord_checks) + ", other chord hits " +
 			 std::to_string(recall.other_chord_hits) + "/" +
 			 std::to_string(recall.other_chord_checks) + ", " +

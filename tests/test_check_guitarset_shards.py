@@ -13,11 +13,15 @@ SCRIPT = ROOT / "scripts" / "check_guitarset_shards.py"
 
 def write_log(path: pathlib.Path, excerpts: int, windows: int, note_hits: int, note_total: int,
               chord_hits: int, chord_total: int, guitar_tp: int, guitar_fp: int, guitar_fn: int,
-              chord_tp: int, chord_fp: int, chord_fn: int) -> None:
+              chord_tp: int, chord_fp: int, chord_fn: int,
+              primary_chord_hits: int | None = None) -> None:
+    if primary_chord_hits is None:
+        primary_chord_hits = chord_hits
     path.write_text(
         "analyzer_guitarset: 74 checks passed "
         f"(excerpts {excerpts}/40, windows {windows}, read failures 0, no-candidate excerpts 0, "
         f"unusable 0, note hits {note_hits}/{note_total}, chord hits {chord_hits}/{chord_total}, "
+        f"primary chord hits {primary_chord_hits}/{chord_total}, "
         f"major/minor chord hits {chord_hits}/{chord_total}, other chord hits 0/0, "
         "guitar precision 70.00%, guitar recall 75.00%, F1 72.00%, contamination 0.00%, "
         "false vocal windows 0.00%, ambiguous 0/100, row leaks bass/keys/vocal/other 0/0/0/0, "
@@ -59,6 +63,7 @@ def test_aggregates_shards_before_thresholds() -> None:
             "--min-chord-checks", "120",
             "--min-chord-recall-percent", "60",
             "--min-chord-precision-percent", "60",
+            "--min-primary-chord-hits", "75",
             "--min-major-minor-chord-recall-percent", "60",
             "--min-simple-chord-recall-percent", "60",
         )
@@ -108,10 +113,35 @@ def test_single_note_gate_skips_chord_recall() -> None:
             raise AssertionError(result.stderr)
 
 
+def test_fails_primary_chord_hits() -> None:
+    with tempfile.TemporaryDirectory() as temp:
+        root = pathlib.Path(temp)
+        only = root / "only.out"
+        write_log(only, 20, 120, 120, 120, 100, 120, 120, 0, 0, 100, 0, 20,
+                  primary_chord_hits=70)
+        result = run_checker(
+            [only],
+            "--required-excerpts", "20",
+            "--required-windows", "120",
+            "--min-recall-percent", "100",
+            "--min-precision-percent", "100",
+            "--min-guitar-recall-percent", "100",
+            "--min-chord-checks", "120",
+            "--min-chord-recall-percent", "80",
+            "--min-chord-precision-percent", "80",
+            "--min-primary-chord-hits", "90",
+        )
+        if result.returncode == 0:
+            raise AssertionError("expected primary chord hit failure")
+        if "primary chord hits" not in result.stderr:
+            raise AssertionError(result.stderr)
+
+
 def main() -> int:
     test_aggregates_shards_before_thresholds()
     test_fails_aggregate_precision()
     test_single_note_gate_skips_chord_recall()
+    test_fails_primary_chord_hits()
     print("test_check_guitarset_shards: ok")
     return 0
 
