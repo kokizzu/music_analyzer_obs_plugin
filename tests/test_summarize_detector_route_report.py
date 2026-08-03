@@ -48,6 +48,8 @@ octave_displacement:piano/electronic->-12 positives=61 samples/410 rows protecte
 route snare->tom positives=492 rows=492 protected_correct=13126 rows=13126
   +24 rows=24 -5 rows=5 foreign=4 rows=4 new-active=0 rows=0 primary-break=4 rows=4 side_rows=13 net_rows=11 gain_per_side=1.85 :: hihat_band>=24.633 AND tom_level>=0.981
   +21 rows=21 -7 rows=7 foreign=6 rows=6 new-active=1 rows=1 primary-break=6 rows=6 side_rows=20 net_rows=1 gain_per_side=1.05 :: hihat_band>=24.633 AND tom_seg<=225.582
+route tom->snare positives=4 rows=4 protected_correct=13126 rows=13126
+  +4 rows=4 -0 rows=0 foreign=0 rows=0 new-active=0 rows=0 primary-break=0 rows=0 side_rows=0 net_rows=4 gain_per_side=inf :: snare_kick_level_ratio>=3.362 AND tom_snare_body_ratio>=1.824
 bucket chord_miss:7:visible3_analysis3_smooth3_rootvis1 positives=6 positive_rows=9 protected_hits=38
   +3 rows=3 -0 rows=0 :: evidence_source=raw
     030_rpswc@93.498s expected=A#7 guitar=E=Esus2 support=visible3_analysis3_smooth3_rootvis1 raw(root/third/fifth)=0.25/0.10/1.00 analysis=E,F,F#,G#,A,A#,B visible=E,F,F#,G#,A,A#,B
@@ -63,7 +65,7 @@ compact route summary
         path = pathlib.Path(tmpdir) / "route_report.txt"
         path.write_text(report, encoding="utf-8")
         result = subprocess.run(
-            [sys.executable, str(SCRIPT), str(path), "--limit", "12"],
+            [sys.executable, str(SCRIPT), str(path), "--limit", "16"],
             check=True,
             text=True,
             stdout=subprocess.PIPE,
@@ -72,11 +74,11 @@ compact route summary
     output = result.stdout
     require(
         output,
-        "detector_route_summary: candidates=12 low_false=5 shadow=2 near_miss=1 guitar=2 drum=2 positive_net=11 gain_ge_1=11 source_safe_positive_net=9 actionable=5 coverage_blocked=2",
+        "detector_route_summary: candidates=13 low_false=5 shadow=2 near_miss=1 guitar=2 drum=3 positive_net=12 gain_ge_1=12 source_safe_positive_net=10 actionable=5 coverage_blocked=2",
     )
     require(
         output,
-        "blocked-reason summary cross_source_rows=3 low_samples<5=3 diagnostic_octave_displacement=1 missing_quality_tone=1 negative_net=1",
+        "blocked-reason summary cross_source_rows=3 low_samples<5=3 diagnostic_octave_displacement=1 low_rows<5=1 missing_quality_tone=1 negative_net=1",
     )
     require(
         output,
@@ -132,6 +134,10 @@ compact route summary
     require(
         output,
         "drum route snare->tom +rows=24 -rows=5 foreign_rows=4 new_active_rows=0 primary_break_rows=4 side_rows=13 net_rows=11 gain_per_side=1.85",
+    )
+    require(
+        output,
+        "drum route tom->snare +rows=4 -rows=0 foreign_rows=0 new_active_rows=0 primary_break_rows=0 side_rows=0 net_rows=4 gain_per_side=inf blocked_by=low_rows<5 :: snare_kick_level_ratio>=3.362 AND tom_snare_body_ratio>=1.824",
     )
     if output.index("shadow other->same-pitch vocals") > output.index("drum route snare->tom"):
         raise AssertionError(f"expected highest-net source-safe candidate first:\n{output}")

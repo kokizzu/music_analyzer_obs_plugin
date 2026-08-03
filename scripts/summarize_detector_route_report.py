@@ -438,6 +438,36 @@ def actionable_sort_key(candidate: Candidate) -> tuple[int, int, float, int, int
     )
 
 
+def blocked_candidate_sort_key(
+    candidate: Candidate, min_actionable_samples: int
+) -> tuple[int, int, int, float, int, int, str]:
+    reasons = candidate_block_reasons(candidate, min_actionable_samples)
+    has_diagnostic = "diagnostic_octave_displacement" in reasons
+    has_negative = "negative_net" in reasons
+    has_cross_source = any(reason.startswith("cross_source_rows=") for reason in reasons)
+    has_missing_evidence = any(
+        reason in {"missing_note_evidence", "missing_quality_tone"} for reason in reasons
+    )
+    priority = 0
+    if has_missing_evidence:
+        priority = 1
+    if has_cross_source:
+        priority = 2
+    if has_diagnostic:
+        priority = 3
+    if has_negative:
+        priority = 4
+    return (
+        priority,
+        candidate.source_conflict_rows,
+        -candidate.net_rows,
+        -candidate.gain_per_side_effect_row,
+        candidate.side_effect_rows,
+        -candidate.pos_rows,
+        candidate.section,
+    )
+
+
 def format_gain_ratio(candidate: Candidate) -> str:
     ratio = candidate.gain_per_side_effect_row
     if ratio == float("inf"):
@@ -460,6 +490,9 @@ def candidate_block_reasons(
     if candidate.kind in SAMPLE_SENSITIVE_KINDS:
         if 0 < candidate.pos_samples < min_actionable_samples:
             reasons.append(f"low_samples<{min_actionable_samples}")
+    if candidate.kind == "drum":
+        if 0 < candidate.pos_rows < min_actionable_samples:
+            reasons.append(f"low_rows<{min_actionable_samples}")
     if candidate.kind in {"low-false", "near-miss"}:
         if not candidate.source_safe:
             if candidate.source_rows_reported:
@@ -946,13 +979,19 @@ def main() -> int:
                 )
 
     actionable_set = set(actionable)
+    blocked_positive = [
+        candidate
+        for candidate in positive_net
+        if candidate not in actionable_set
+    ]
     ranked_candidates = (
         sorted(actionable, key=actionable_sort_key)
-        + [
-            candidate
-            for candidate in sorted(positive_net, key=actionable_sort_key)
-            if candidate not in actionable_set
-        ]
+        + sorted(
+            blocked_positive,
+            key=lambda candidate: blocked_candidate_sort_key(
+                candidate, args.min_actionable_samples
+            ),
+        )
         + [candidate for candidate in candidates if candidate.net_rows <= 0]
     )
 
