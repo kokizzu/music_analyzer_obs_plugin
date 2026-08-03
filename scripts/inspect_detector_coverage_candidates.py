@@ -330,13 +330,11 @@ def default_example_fields(candidate: CoverageNeed) -> list[str]:
 
 
 def summarize_sample_delta(candidate: CoverageNeed, rows: list[dict[str, str]]) -> str:
-    selected = selected_coverage_count(candidate, rows)
-    delta = selected - candidate.observed
+    evidence = coverage_evidence_count(candidate, rows)
+    delta = evidence - candidate.observed
     label = "expanded_rows" if candidate.coverage_unit == "rows" else "expanded_samples"
     if delta > 0:
         return f"{label}=+{delta}"
-    if delta < 0:
-        return f"{label}={delta}"
     return f"{label}=0"
 
 
@@ -350,8 +348,12 @@ def selected_coverage_count(candidate: CoverageNeed, rows: list[dict[str, str]])
     return len(selected_samples(rows))
 
 
+def coverage_evidence_count(candidate: CoverageNeed, rows: list[dict[str, str]]) -> int:
+    return max(candidate.observed, selected_coverage_count(candidate, rows))
+
+
 def coverage_status(candidate: CoverageNeed, rows: list[dict[str, str]]) -> str:
-    samples = selected_coverage_count(candidate, rows)
+    samples = coverage_evidence_count(candidate, rows)
     required = required_samples(candidate)
     if samples >= required:
         return "coverage_status=expanded_ready"
@@ -362,7 +364,7 @@ def coverage_status(candidate: CoverageNeed, rows: list[dict[str, str]]) -> str:
 
 
 def coverage_state(candidate: CoverageNeed, rows: list[dict[str, str]]) -> tuple[str, int]:
-    samples = selected_coverage_count(candidate, rows)
+    samples = coverage_evidence_count(candidate, rows)
     required = required_samples(candidate)
     short_by = max(0, required - samples)
     if samples >= required:
@@ -395,7 +397,7 @@ def candidate_display_sort_key(
     candidate: CoverageNeed, rows_by_candidate: dict[CoverageNeed, list[dict[str, str]]]
 ) -> tuple[int, int, tuple[int, int, int, str]]:
     rows = rows_by_candidate.get(candidate, [])
-    samples = selected_coverage_count(candidate, rows)
+    samples = coverage_evidence_count(candidate, rows)
     ready_priority = 0 if samples >= required_samples(candidate) else 1
     return (ready_priority, -max(0, samples - candidate.observed), candidate_sort_key(candidate))
 
@@ -421,7 +423,7 @@ def print_coverage_status_summary(
     waiting = [
         (
             short_by,
-            -selected_coverage_count(candidate, rows_by_candidate.get(candidate, [])),
+            -coverage_evidence_count(candidate, rows_by_candidate.get(candidate, [])),
             candidate_sort_key(candidate),
             candidate.kind,
             candidate.section,
@@ -443,9 +445,12 @@ def print_coverage_status_summary(
     ) in sorted(waiting)[: max(0, top)]:
         rows = rows_by_candidate.get(candidate, [])
         unit = candidate.coverage_unit
+        evidence = coverage_evidence_count(candidate, rows)
+        selected = selected_coverage_count(candidate, rows)
         print(
             f"  nearest_coverage {candidate.kind} {candidate.section} "
-            f"selected_{unit}={selected_coverage_count(candidate, rows)} "
+            f"coverage_{unit}={evidence} "
+            f"selected_{unit}={selected} "
             f"required_{unit}={required_samples(candidate)} "
             f"short_by={short_by} :: {candidate.rule}"
         )
@@ -483,7 +488,8 @@ def main() -> int:
     expanded_ready_count = sum(
         1
         for candidate in all_candidates
-        if len(selected_samples(all_matches.get(candidate, []))) >= required_samples(candidate)
+        if coverage_evidence_count(candidate, all_matches.get(candidate, []))
+        >= required_samples(candidate)
     )
     candidates = sorted(
         all_candidates,
@@ -516,10 +522,12 @@ def main() -> int:
             if unit == "rows"
             else f"selected_samples={len(samples)} selected_rows={len(rows)}"
         )
+        evidence_text = f"coverage_{unit}={coverage_evidence_count(candidate, rows)}"
         print(
             f"coverage_candidate {candidate.kind} {candidate.section} "
             f"observed_{unit}={candidate.observed} "
             f"{selected_text} "
+            f"{evidence_text} "
             f"need_{unit}={candidate.needed} "
             f"{summarize_sample_delta(candidate, rows)} "
             f"{coverage_status(candidate, rows)} :: {candidate.rule}"

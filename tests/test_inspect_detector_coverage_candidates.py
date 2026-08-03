@@ -230,15 +230,15 @@ def main() -> int:
     require(output, "coverage_candidate_inspection: candidates=3/3 row_paths=2/2 expanded_ready=0")
     require(
         output,
-        "coverage_status_summary expanded_ready=0 expanded_partial=0 still_short=3 total_short_by=12",
+        "coverage_status_summary expanded_ready=0 expanded_partial=0 still_short=3 total_short_by=5",
     )
     require(
         output,
-        "nearest_coverage guitar bucket chord_miss:pow:visible1_analysis1_smooth1_rootvis0 selected_samples=1 required_samples=5 short_by=4 :: analysis_root<=0 AND smooth_tones<=1",
+        "nearest_coverage guitar bucket chord_miss:pow:visible1_analysis1_smooth1_rootvis0 coverage_samples=4 selected_samples=1 required_samples=5 short_by=1 :: analysis_root<=0 AND smooth_tones<=1",
     )
     require(
         output,
-        "coverage_candidate guitar bucket chord_miss:pow:visible1_analysis1_smooth1_rootvis0 observed_samples=4 selected_samples=1 selected_rows=2 need_samples=1 expanded_samples=-3 coverage_status=still_short_by=4 :: analysis_root<=0 AND smooth_tones<=1",
+        "coverage_candidate guitar bucket chord_miss:pow:visible1_analysis1_smooth1_rootvis0 observed_samples=4 selected_samples=1 selected_rows=2 coverage_samples=4 need_samples=1 expanded_samples=0 coverage_status=still_short_by=1 :: analysis_root<=0 AND smooth_tones<=1",
     )
     require(output, "groups _coverage_path/status/quality/guitar_match_kind/support")
     require(output, "chord_miss/pow/different_root/visible1_analysis1_smooth1_rootvis0 rows=2 samples=1")
@@ -247,7 +247,7 @@ def main() -> int:
     require(output, "example recording_id=168_QM1wc status=chord_miss expected_label=Fpow")
     require(
         output,
-        "coverage_candidate low-false row_confusion:piano/electronic->guitar observed_samples=4 selected_samples=1 selected_rows=1 need_samples=1 expanded_samples=-3 coverage_status=still_short_by=4 :: centroid>=0.52 AND partial4<=0.018 AND partial4>=0",
+        "coverage_candidate low-false row_confusion:piano/electronic->guitar observed_samples=4 selected_samples=1 selected_rows=1 coverage_samples=4 need_samples=1 expanded_samples=0 coverage_status=still_short_by=1 :: centroid>=0.52 AND partial4<=0.018 AND partial4>=0",
     )
     require(output, "groups _coverage_path/status/family/source/first_row/visual_first_row")
     require(output, "hit/piano/electronic/guitar/guitar rows=1 samples=1")
@@ -257,7 +257,7 @@ def main() -> int:
     require(output, "example sample_id=organ_1 status=hit family=piano source=electronic")
     require(
         output,
-        "coverage_candidate low-false visual_row_confusion:piano/electronic->other observed_samples=2 selected_samples=1 selected_rows=1 need_samples=3 expanded_samples=-1 coverage_status=still_short_by=4 :: adjacent_lower_ratio>=0.006 AND adjacent_upper_ratio<=0 AND bass_score<=0",
+        "coverage_candidate low-false visual_row_confusion:piano/electronic->other observed_samples=2 selected_samples=1 selected_rows=1 coverage_samples=2 need_samples=3 expanded_samples=0 coverage_status=still_short_by=3 :: adjacent_lower_ratio>=0.006 AND adjacent_upper_ratio<=0 AND bass_score<=0",
     )
 
     with tempfile.TemporaryDirectory() as tmpdir:
@@ -412,11 +412,11 @@ def main() -> int:
     require(drum_output, "coverage_candidate_inspection: candidates=1/1 row_paths=1/1 expanded_ready=0")
     require(
         drum_output,
-        "nearest_coverage drum route tom->snare selected_rows=2 required_rows=5 short_by=3 :: snare_kick_level_ratio>=3.362 AND tom_snare_body_ratio>=1.824",
+        "nearest_coverage drum route tom->snare coverage_rows=4 selected_rows=2 required_rows=5 short_by=1 :: snare_kick_level_ratio>=3.362 AND tom_snare_body_ratio>=1.824",
     )
     require(
         drum_output,
-        "coverage_candidate drum route tom->snare observed_rows=4 selected_rows=2 need_rows=1 expanded_rows=-2 coverage_status=still_short_by=3 :: snare_kick_level_ratio>=3.362 AND tom_snare_body_ratio>=1.824",
+        "coverage_candidate drum route tom->snare observed_rows=4 selected_rows=2 coverage_rows=4 need_rows=1 expanded_rows=0 coverage_status=still_short_by=1 :: snare_kick_level_ratio>=3.362 AND tom_snare_body_ratio>=1.824",
     )
     require(drum_output, "groups _coverage_path/expected/got")
     require(drum_output, "tom/snare rows=2 samples=2")
@@ -512,11 +512,11 @@ def main() -> int:
     require(ready_output, "coverage_candidate_inspection: candidates=2/2 row_paths=1/1 expanded_ready=1")
     require(
         ready_output,
-        "coverage_status_summary expanded_ready=1 expanded_partial=0 still_short=1 total_short_by=5",
+        "coverage_status_summary expanded_ready=1 expanded_partial=0 still_short=1 total_short_by=1",
     )
     require(
         ready_output,
-        "nearest_coverage low-false row_confusion:piano/electronic->other selected_samples=0 required_samples=5 short_by=5 :: partial4>=0.8",
+        "nearest_coverage low-false row_confusion:piano/electronic->other coverage_samples=4 selected_samples=0 required_samples=5 short_by=1 :: partial4>=0.8",
     )
     first_ready_line = next(
         line for line in ready_output.splitlines() if line.startswith("coverage_candidate ")
@@ -524,7 +524,7 @@ def main() -> int:
     if "row_confusion:piano/electronic->guitar" not in first_ready_line:
         raise AssertionError(f"expanded-ready candidate should be listed first:\n{ready_output}")
     require(ready_output, "coverage_status=expanded_ready :: centroid>=0.5")
-    require(ready_output, "coverage_status=still_short_by=5 :: partial4>=0.8")
+    require(ready_output, "coverage_status=still_short_by=1 :: partial4>=0.8")
     print("test_inspect_detector_coverage_candidates: ok")
     return 0
 
