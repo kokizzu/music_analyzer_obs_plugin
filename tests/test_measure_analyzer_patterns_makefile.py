@@ -1318,6 +1318,33 @@ def main() -> int:
     real_world_targets = re.search(r"^REAL_WORLD_SAMPLE_TARGETS := (.+)$", makefile, re.MULTILINE)
     assert real_world_targets is not None, "missing real-world sample target list"
     real_world_target_list = real_world_targets.group(1)
+    real_world_target_names = real_world_target_list.split()
+    for target in [
+        "test-real-note-samples-parallel",
+        "test-guitar-fretboard-note-samples-parallel",
+        "test-downloaded-guitarset-parallel",
+        "test-philharmonia-samples-parallel",
+        "test-iowa-piano-samples-parallel",
+        "test-iowa-bass-samples-parallel",
+        "test-idmt-bass-lines-samples-parallel",
+        "test-vocadito-samples-parallel",
+    ]:
+        assert target in real_world_target_names, (
+            f"parallel real-world sample tests must call {target} directly"
+        )
+    for target in [
+        "test-real-note-samples",
+        "test-guitar-fretboard-note-samples",
+        "test-downloaded-guitarset",
+        "test-philharmonia-samples",
+        "test-iowa-piano-samples",
+        "test-iowa-bass-samples",
+        "test-idmt-bass-lines-samples",
+        "test-vocadito-samples",
+    ]:
+        assert target not in real_world_target_names, (
+            f"parallel real-world sample tests must not route through {target}"
+        )
     assert "test-real-note-samples-full-mix-parallel" in real_world_target_list, (
         "parallel real-world sample tests must use the sharded real-note full-mix gate"
     )
@@ -1614,7 +1641,8 @@ def main() -> int:
     )
     assert detector_regression_targets is not None, "missing detector sample regression target list"
     detector_regression_target_list = detector_regression_targets.group(1)
-    assert "test-real-note-samples-full-mix-detector-parallel" in detector_regression_target_list, (
+    detector_regression_target_names = detector_regression_target_list.split()
+    assert "test-real-note-samples-full-mix-detector-parallel" in detector_regression_target_names, (
         "detector sample regression loop must use the isolated sharded real-note full-mix gate"
     )
     assert "test-real-note-visual-strength" in detector_regression_target_list, (
@@ -1652,7 +1680,7 @@ def main() -> int:
     assert "--min-visible-lit-exact-family-sample-percent" in makefile, (
         "real-note visible strength thresholds must check per-family bright exact-note coverage"
     )
-    assert "test-vocadito-samples-full-mix-parallel" in detector_regression_target_list, (
+    assert "test-vocadito-samples-full-mix-parallel" in detector_regression_target_names, (
         "detector sample regression loop must include real vocal full-mix ownership coverage"
     )
     assert "test-real-note-samples-full-mix " not in detector_regression_target_list + " ", (
@@ -1661,7 +1689,49 @@ def main() -> int:
     assert "test-analyzer-cases" in detector_regression_target_list, (
         "detector sample regression loop must include synthetic temporal/chord/analyzer cases"
     )
-    assert "test-guitar-chord-mix-samples" in detector_regression_target_list, (
+    for target in [
+        "test-real-note-samples-parallel",
+        "test-guitar-fretboard-note-samples-parallel",
+        "test-guitar-techs-samples-parallel",
+        "test-guitar-techs-chord-samples-parallel",
+        "test-guitar-chord-mix-samples-parallel",
+        "test-egfxset-guitar-samples-parallel",
+        "test-gaps-guitar-samples-parallel",
+        "test-downloaded-guitarset-parallel",
+        "test-philharmonia-samples-parallel",
+        "test-philharmonia-samples-full-parallel",
+        "test-iowa-piano-samples-parallel",
+        "test-iowa-bass-samples-parallel",
+        "test-iowa-strings-samples-parallel",
+        "test-iowa-orchestra-samples-parallel",
+        "test-tinysol-samples-parallel",
+        "test-vocadito-samples-parallel",
+    ]:
+        assert target in detector_regression_target_names, (
+            f"detector sample regression loop must call {target} directly"
+        )
+    for target in [
+        "test-real-note-samples",
+        "test-guitar-fretboard-note-samples",
+        "test-guitar-techs-samples",
+        "test-guitar-techs-chord-samples",
+        "test-guitar-chord-mix-samples",
+        "test-egfxset-guitar-samples",
+        "test-gaps-guitar-samples",
+        "test-downloaded-guitarset",
+        "test-philharmonia-samples",
+        "test-philharmonia-samples-full",
+        "test-iowa-piano-samples",
+        "test-iowa-bass-samples",
+        "test-iowa-strings-samples",
+        "test-iowa-orchestra-samples",
+        "test-tinysol-samples",
+        "test-vocadito-samples",
+    ]:
+        assert target not in detector_regression_target_names, (
+            f"detector sample regression loop must not route through {target}"
+        )
+    assert "test-guitar-chord-mix-samples-parallel" in detector_regression_target_names, (
         "detector sample regression loop must include the real guitar chord mix gate"
     )
     assert "$(DRUM_REAL_WORLD_SAMPLE_TARGETS)" in detector_regression_target_list, (
@@ -1679,25 +1749,41 @@ def main() -> int:
     assert "test-drum-samples-full-parallel-optional" in detector_regression_target_list, (
         "detector sample regression loop must include the optional local full-drum gate in the jobserver fanout"
     )
-    assert "test-vocadito-samples" in detector_regression_target_list, (
+    assert "test-vocadito-samples-parallel" in detector_regression_target_names, (
         "detector sample regression loop must include the real vocal note gate"
     )
-    assert "test-instrument-samples-parallel" in detector_regression_target_list, (
+    assert "test-instrument-samples-parallel" in detector_regression_target_names, (
         "detector sample regression loop must use the sharded generated instrument sample gate"
     )
     assert "test-instrument-samples " not in detector_regression_target_list + " ", (
         "detector sample regression loop must not use the serial generated instrument sample gate"
     )
     assert re.search(
-        r"^test-idmt-bass-lines-samples-optional: test-idmt-bass-lines-samples$",
+        r"^test-idmt-bass-lines-samples-optional: test-idmt-bass-lines-samples-parallel$",
         makefile,
         re.MULTILINE,
     ), "optional IDMT bass-line wrapper must run the real sample gate when the archive exists"
     assert re.search(
-        r"^test-idmt-guitar-samples-optional: test-idmt-guitar-samples$",
+        r"^test-idmt-guitar-samples-optional: test-idmt-guitar-samples-parallel$",
         makefile,
         re.MULTILINE,
     ), "optional IDMT guitar wrapper must run the real sample gate when the archive exists"
+    for optional_target, parallel_target in {
+        "test-drum-samples-optional": "test-drum-samples-parallel",
+        "test-drum-samples-spread-optional": "test-drum-samples-spread-parallel",
+        "test-drum-machine-samples-optional": "test-drum-machine-samples-parallel",
+        "test-good-sounds-samples-optional": "test-good-sounds-samples-parallel",
+        "test-medley-solos-samples-optional": "test-medley-solos-samples-parallel",
+        "test-maps-piano-samples-optional": "test-maps-piano-samples-parallel",
+        "test-maps-piano-note-samples-optional": "test-maps-piano-note-samples-parallel",
+        "test-bach10-mf0-synth-samples-optional": "test-bach10-mf0-synth-samples-parallel",
+        "test-vocalset-samples-optional": "test-vocalset-samples-parallel",
+    }.items():
+        assert re.search(
+            rf"^{re.escape(optional_target)}: {re.escape(parallel_target)}$",
+            makefile,
+            re.MULTILINE,
+        ), f"{optional_target} must use {parallel_target} when its data is present"
     assert 'test-idmt-bass-lines-samples: skipped; missing $(IDMT_BASS_LINES_ARCHIVE)' in target_recipe(
         makefile, "test-idmt-bass-lines-samples-optional"
     ), "optional IDMT bass-line wrapper must skip cleanly when the archive is missing"
@@ -1743,16 +1829,46 @@ def main() -> int:
     )
     assert real_world_full_targets is not None, "missing full real-world sample target list"
     real_world_full_target_list = real_world_full_targets.group(1)
-    assert "test-guitar-chord-mix-samples-parallel" in real_world_full_target_list, (
+    real_world_full_target_names = real_world_full_target_list.split()
+    for target in [
+        "test-guitar-techs-samples-parallel",
+        "test-guitar-techs-chord-samples-parallel",
+        "test-guitar-chord-mix-samples-parallel",
+        "test-egfxset-guitar-samples-parallel",
+        "test-gaps-guitar-samples-parallel",
+        "test-idmt-guitar-samples-parallel",
+        "test-iowa-strings-samples-parallel",
+        "test-iowa-orchestra-samples-parallel",
+        "test-iowa-orchestra-full-samples-parallel",
+        "test-philharmonia-samples-full-parallel",
+        "test-tinysol-samples-parallel",
+    ]:
+        assert target in real_world_full_target_names, (
+            f"full real-world sample tests must call {target} directly"
+        )
+    for target in [
+        "test-guitar-techs-samples",
+        "test-guitar-techs-chord-samples",
+        "test-guitar-chord-mix-samples",
+        "test-egfxset-guitar-samples",
+        "test-gaps-guitar-samples",
+        "test-idmt-guitar-samples",
+        "test-iowa-strings-samples",
+        "test-iowa-orchestra-samples",
+        "test-iowa-orchestra-full-samples",
+        "test-philharmonia-samples-full",
+        "test-tinysol-samples",
+    ]:
+        assert target not in real_world_full_target_names, (
+            f"full real-world sample tests must not route through {target}"
+        )
+    assert "test-guitar-chord-mix-samples-parallel" in real_world_full_target_names, (
         "full real-world sample tests must use the sharded guitar chord mix gate"
     )
-    assert "test-guitar-chord-mix-samples " not in real_world_full_target_list + " ", (
-        "full real-world sample tests must not use the serial guitar chord mix gate"
-    )
-    assert "test-drum-samples-full-parallel-optional" in real_world_full_target_list, (
+    assert "test-drum-samples-full-parallel-optional" in real_world_full_target_names, (
         "full real-world sample tests must use the sharded full-drum sample gate"
     )
-    assert "test-drum-samples-full-optional " not in real_world_full_target_list + " ", (
+    assert "test-drum-samples-full-optional" not in real_world_full_target_names, (
         "full real-world sample tests must not use the serial full-drum sample gate"
     )
     drum_real_world_full_targets = re.search(
@@ -1760,10 +1876,11 @@ def main() -> int:
     )
     assert drum_real_world_full_targets is not None, "missing full drum real-world sample target list"
     drum_real_world_full_target_list = drum_real_world_full_targets.group(1)
-    assert "test-drum-samples-full-parallel-optional" in drum_real_world_full_target_list, (
+    drum_real_world_full_target_names = drum_real_world_full_target_list.split()
+    assert "test-drum-samples-full-parallel-optional" in drum_real_world_full_target_names, (
         "full drum real-world sample tests must use the sharded full-drum sample gate"
     )
-    assert "test-drum-samples-full-optional " not in drum_real_world_full_target_list + " ", (
+    assert "test-drum-samples-full-optional" not in drum_real_world_full_target_names, (
         "full drum real-world sample tests must not use the serial full-drum sample gate"
     )
     real_world_full_recipe = target_recipe(makefile, "test-real-world-samples-full")
@@ -2260,18 +2377,29 @@ def main() -> int:
     assert "$(RUN_WITH_DURATION) real_world_samples_max" in max_samples_parallel_recipe, (
         "max real-world sample parallel target must report aggregate duration"
     )
-    for target, override in {
-        "test-iowa-piano-samples-max": "IOWA_PIANO_SAMPLE_LIMIT=0",
-        "test-iowa-orchestra-full-samples-max": (
-            "IOWA_ORCHESTRA_FULL_SAMPLE_LIMIT=0 IOWA_ORCHESTRA_FULL_MAX_ZIPS_PER_PAGE=0"
+    for target, override, parallel_target in [
+        ("test-iowa-piano-samples-max", "IOWA_PIANO_SAMPLE_LIMIT=0", "test-iowa-piano-samples-parallel"),
+        (
+            "test-iowa-orchestra-full-samples-max",
+            "IOWA_ORCHESTRA_FULL_SAMPLE_LIMIT=0 IOWA_ORCHESTRA_FULL_MAX_ZIPS_PER_PAGE=0",
+            "test-iowa-orchestra-full-samples-parallel",
         ),
-        "test-good-sounds-samples-max": "GOOD_SOUNDS_SAMPLE_LIMIT=0",
-        "test-medley-solos-samples-max": "MEDLEY_SOLOS_LIMIT_PER_INSTRUMENT=0",
-        "test-maps-piano-samples-max": "MAPS_PIANO_RECORDING_LIMIT=0",
-        "test-maps-piano-note-samples-max": "MAPS_PIANO_NOTE_RECORDING_LIMIT=0",
-    }.items():
+        ("test-good-sounds-samples-max", "GOOD_SOUNDS_SAMPLE_LIMIT=0", "test-good-sounds-samples-parallel"),
+        (
+            "test-medley-solos-samples-max",
+            "MEDLEY_SOLOS_LIMIT_PER_INSTRUMENT=0",
+            "test-medley-solos-samples-parallel",
+        ),
+        ("test-maps-piano-samples-max", "MAPS_PIANO_RECORDING_LIMIT=0", "test-maps-piano-samples-parallel"),
+        (
+            "test-maps-piano-note-samples-max",
+            "MAPS_PIANO_NOTE_RECORDING_LIMIT=0",
+            "test-maps-piano-note-samples-parallel",
+        ),
+    ]:
         max_helper_recipe = target_recipe(makefile, target)
         assert override in max_helper_recipe, f"{target} must preserve its max override"
+        assert parallel_target in max_helper_recipe, f"{target} must delegate to {parallel_target}"
 
     for category in ["kick", "snare", "tom", "rim"]:
         debug_target = target_recipe(makefile, f"$(BUILD_DIR)/full_{category}_debug.err")

@@ -3280,13 +3280,13 @@ analyze-vocalset-attributes: $(VOCALSET_DETECTED_ATTRIBUTE_ROWS) $(VOCALSET_MISS
 	@printf '%s\n' "  $(VOCALSET_DETECTED_ATTRIBUTE_ROWS)"
 	@printf '%s\n' "  $(VOCALSET_MISS_ATTRIBUTE_ROWS)"
 
-DRUM_REAL_WORLD_SAMPLE_TARGETS := test-hf-drum-kit-samples test-idmt-drums-samples test-mdb-drums-samples test-star-drums-samples test-drum-samples-optional test-drum-samples-spread-optional
+DRUM_REAL_WORLD_SAMPLE_TARGETS := test-hf-drum-kit-samples-parallel test-idmt-drums-samples-parallel test-mdb-drums-samples-parallel test-star-drums-samples-parallel test-drum-samples-optional test-drum-samples-spread-optional
 DRUM_REAL_WORLD_SAMPLE_FULL_TARGETS := $(DRUM_REAL_WORLD_SAMPLE_TARGETS) test-drum-machine-samples-optional test-drum-samples-full-parallel-optional
-REAL_WORLD_SAMPLE_TARGETS := test-real-note-samples test-real-note-samples-full-mix-parallel test-guitar-fretboard-note-samples test-hf-drum-kit-samples test-idmt-drums-samples test-mdb-drums-samples test-star-drums-samples test-downloaded-guitarset test-philharmonia-samples test-iowa-piano-samples test-iowa-bass-samples test-idmt-bass-lines-samples test-vocadito-samples test-vocadito-samples-full-mix-parallel
-REAL_WORLD_SAMPLE_FULL_TARGETS := $(REAL_WORLD_SAMPLE_TARGETS) test-guitar-techs-samples test-guitar-techs-chord-samples test-guitar-chord-mix-samples-parallel test-egfxset-guitar-samples test-gaps-guitar-samples test-idmt-guitar-samples test-iowa-strings-samples test-iowa-orchestra-samples test-iowa-orchestra-full-samples test-philharmonia-samples-full test-tinysol-samples test-drum-machine-samples-optional test-drum-samples-full-parallel-optional test-good-sounds-samples-optional test-medley-solos-samples-optional test-maps-piano-samples-optional test-maps-piano-note-samples-optional test-bach10-mf0-synth-samples-optional test-vocalset-samples-optional test-configured-real-world-samples
-REAL_WORLD_SAMPLE_MAX_BASE_TARGETS := $(filter-out test-iowa-piano-samples,$(REAL_WORLD_SAMPLE_TARGETS))
-REAL_WORLD_SAMPLE_MAX_TARGETS := $(REAL_WORLD_SAMPLE_MAX_BASE_TARGETS) test-guitar-techs-samples test-guitar-techs-chord-samples test-guitar-chord-mix-samples-parallel test-egfxset-guitar-samples test-gaps-guitar-samples-full test-idmt-guitar-samples test-iowa-piano-samples-max test-iowa-strings-samples test-iowa-orchestra-samples test-iowa-orchestra-full-samples-max test-philharmonia-samples-full test-tinysol-samples test-good-sounds-samples-max test-medley-solos-samples-max test-maps-piano-samples-max test-maps-piano-note-samples-max test-bach10-mf0-synth-samples test-vocalset-samples test-drum-machine-samples-optional test-drum-samples-full-parallel-optional test-configured-real-world-samples
-DETECTOR_SAMPLE_REGRESSION_TARGETS := test-analyzer-cases test-real-note-samples test-real-note-samples-full-mix-detector-parallel test-real-note-visual-strength test-guitar-fretboard-note-samples test-guitar-techs-samples test-guitar-techs-chord-samples test-guitar-chord-mix-samples-parallel test-egfxset-guitar-samples test-gaps-guitar-samples test-downloaded-guitarset $(DRUM_REAL_WORLD_SAMPLE_TARGETS) test-drum-machine-samples-optional test-idmt-bass-lines-samples-optional test-idmt-guitar-samples-optional test-philharmonia-samples test-philharmonia-samples-full test-iowa-piano-samples test-iowa-bass-samples test-iowa-strings-samples test-iowa-orchestra-samples test-maps-piano-samples-optional test-maps-piano-note-samples-optional test-bach10-mf0-synth-samples-optional test-tinysol-samples test-vocadito-samples test-vocadito-samples-full-mix-parallel test-vocalset-samples-optional test-instrument-samples-parallel test-drum-samples-full-parallel-optional
+REAL_WORLD_SAMPLE_TARGETS := test-real-note-samples-parallel test-real-note-samples-full-mix-parallel test-guitar-fretboard-note-samples-parallel test-hf-drum-kit-samples-parallel test-idmt-drums-samples-parallel test-mdb-drums-samples-parallel test-star-drums-samples-parallel test-downloaded-guitarset-parallel test-philharmonia-samples-parallel test-iowa-piano-samples-parallel test-iowa-bass-samples-parallel test-idmt-bass-lines-samples-parallel test-vocadito-samples-parallel test-vocadito-samples-full-mix-parallel
+REAL_WORLD_SAMPLE_FULL_TARGETS := $(REAL_WORLD_SAMPLE_TARGETS) test-guitar-techs-samples-parallel test-guitar-techs-chord-samples-parallel test-guitar-chord-mix-samples-parallel test-egfxset-guitar-samples-parallel test-gaps-guitar-samples-parallel test-idmt-guitar-samples-parallel test-iowa-strings-samples-parallel test-iowa-orchestra-samples-parallel test-iowa-orchestra-full-samples-parallel test-philharmonia-samples-full-parallel test-tinysol-samples-parallel test-drum-machine-samples-optional test-drum-samples-full-parallel-optional test-good-sounds-samples-optional test-medley-solos-samples-optional test-maps-piano-samples-optional test-maps-piano-note-samples-optional test-bach10-mf0-synth-samples-optional test-vocalset-samples-optional test-configured-real-world-samples
+REAL_WORLD_SAMPLE_MAX_BASE_TARGETS := $(filter-out test-iowa-piano-samples-parallel,$(REAL_WORLD_SAMPLE_TARGETS))
+REAL_WORLD_SAMPLE_MAX_TARGETS := $(REAL_WORLD_SAMPLE_MAX_BASE_TARGETS) test-guitar-techs-samples-parallel test-guitar-techs-chord-samples-parallel test-guitar-chord-mix-samples-parallel test-egfxset-guitar-samples-parallel test-gaps-guitar-samples-full-parallel test-idmt-guitar-samples-parallel test-iowa-piano-samples-max test-iowa-strings-samples-parallel test-iowa-orchestra-samples-parallel test-iowa-orchestra-full-samples-max test-philharmonia-samples-full-parallel test-tinysol-samples-parallel test-good-sounds-samples-max test-medley-solos-samples-max test-maps-piano-samples-max test-maps-piano-note-samples-max test-bach10-mf0-synth-samples-parallel test-vocalset-samples-parallel test-drum-machine-samples-optional test-drum-samples-full-parallel-optional test-configured-real-world-samples
+DETECTOR_SAMPLE_REGRESSION_TARGETS := test-analyzer-cases test-real-note-samples-parallel test-real-note-samples-full-mix-detector-parallel test-real-note-visual-strength test-guitar-fretboard-note-samples-parallel test-guitar-techs-samples-parallel test-guitar-techs-chord-samples-parallel test-guitar-chord-mix-samples-parallel test-egfxset-guitar-samples-parallel test-gaps-guitar-samples-parallel test-downloaded-guitarset-parallel $(DRUM_REAL_WORLD_SAMPLE_TARGETS) test-drum-machine-samples-optional test-idmt-bass-lines-samples-optional test-idmt-guitar-samples-optional test-philharmonia-samples-parallel test-philharmonia-samples-full-parallel test-iowa-piano-samples-parallel test-iowa-bass-samples-parallel test-iowa-strings-samples-parallel test-iowa-orchestra-samples-parallel test-maps-piano-samples-optional test-maps-piano-note-samples-optional test-bach10-mf0-synth-samples-optional test-tinysol-samples-parallel test-vocadito-samples-parallel test-vocadito-samples-full-mix-parallel test-vocalset-samples-optional test-instrument-samples-parallel test-drum-samples-full-parallel-optional
 DETECTOR_SAMPLE_FULL_REGRESSION_TARGETS := test-analyzer-cases test-instrument-samples-parallel test-real-world-samples-max-parallel
 DETECTOR_REAL_NOTE_PATTERN_OPTIONAL_CANDIDATE_PATHS :=
 ifneq ($(wildcard $(IDMT_BASS_LINES_ARCHIVE)),)
@@ -3360,9 +3360,9 @@ SAMPLE_MANIFEST_SUMMARY_PATHS ?= $(sort $(wildcard $(BUILD_DIR)/*samples*/manife
 .PHONY: summarize-sample-manifests test-sample-manifest-summary
 
 ifneq ($(wildcard $(DRUM_SAMPLE_SOURCE_DIR)),)
-test-drum-samples-optional: test-drum-samples
-test-drum-samples-spread-optional: test-drum-samples-spread
-test-drum-machine-samples-optional: test-drum-machine-samples
+test-drum-samples-optional: test-drum-samples-parallel
+test-drum-samples-spread-optional: test-drum-samples-spread-parallel
+test-drum-machine-samples-optional: test-drum-machine-samples-parallel
 test-drum-samples-full-optional: test-drum-samples-full
 test-drum-samples-full-parallel-optional: test-drum-samples-full-parallel
 else
@@ -3379,36 +3379,36 @@ test-drum-samples-full-parallel-optional:
 endif
 
 ifneq ($(wildcard $(GOOD_SOUNDS_ARCHIVE)),)
-test-good-sounds-samples-optional: test-good-sounds-samples
+test-good-sounds-samples-optional: test-good-sounds-samples-parallel
 else
 test-good-sounds-samples-optional:
 	printf '%s\n' "test-good-sounds-samples: skipped; missing $(GOOD_SOUNDS_ARCHIVE)"
 endif
 
 ifneq ($(wildcard $(IDMT_BASS_LINES_ARCHIVE)),)
-test-idmt-bass-lines-samples-optional: test-idmt-bass-lines-samples
+test-idmt-bass-lines-samples-optional: test-idmt-bass-lines-samples-parallel
 else
 test-idmt-bass-lines-samples-optional:
 	printf '%s\n' "test-idmt-bass-lines-samples: skipped; missing $(IDMT_BASS_LINES_ARCHIVE)"
 endif
 
 ifneq ($(wildcard $(IDMT_GUITAR_ARCHIVE)),)
-test-idmt-guitar-samples-optional: test-idmt-guitar-samples
+test-idmt-guitar-samples-optional: test-idmt-guitar-samples-parallel
 else
 test-idmt-guitar-samples-optional:
 	printf '%s\n' "test-idmt-guitar-samples: skipped; missing $(IDMT_GUITAR_ARCHIVE)"
 endif
 
 ifneq ($(wildcard $(MEDLEY_SOLOS_ARCHIVE)),)
-test-medley-solos-samples-optional: test-medley-solos-samples
+test-medley-solos-samples-optional: test-medley-solos-samples-parallel
 else
 test-medley-solos-samples-optional:
 	printf '%s\n' "test-medley-solos-samples: skipped; missing $(MEDLEY_SOLOS_ARCHIVE)"
 endif
 
 ifneq ($(wildcard $(MAPS_PIANO_ARCHIVE)),)
-test-maps-piano-samples-optional: test-maps-piano-samples
-test-maps-piano-note-samples-optional: test-maps-piano-note-samples
+test-maps-piano-samples-optional: test-maps-piano-samples-parallel
+test-maps-piano-note-samples-optional: test-maps-piano-note-samples-parallel
 else
 test-maps-piano-samples-optional:
 	printf '%s\n' "test-maps-piano-samples: skipped; missing $(MAPS_PIANO_ARCHIVE)"
@@ -3417,14 +3417,14 @@ test-maps-piano-note-samples-optional:
 endif
 
 ifneq ($(or $(BACH10_MF0_SYNTH_SOURCE_ROOT),$(wildcard $(BACH10_MF0_SYNTH_ARCHIVE))),)
-test-bach10-mf0-synth-samples-optional: test-bach10-mf0-synth-samples
+test-bach10-mf0-synth-samples-optional: test-bach10-mf0-synth-samples-parallel
 else
 test-bach10-mf0-synth-samples-optional:
 	printf '%s\n' "test-bach10-mf0-synth-samples: skipped; missing $(BACH10_MF0_SYNTH_ARCHIVE)"
 endif
 
 ifneq ($(wildcard $(VOCALSET_ARCHIVE)),)
-test-vocalset-samples-optional: test-vocalset-samples
+test-vocalset-samples-optional: test-vocalset-samples-parallel
 else
 test-vocalset-samples-optional:
 	printf '%s\n' "test-vocalset-samples: skipped; missing $(VOCALSET_ARCHIVE)"
@@ -3474,22 +3474,22 @@ test-real-world-samples-full: scripts/run_with_duration.sh
 	+$(MAKE) test-real-world-samples-full-parallel
 
 test-iowa-piano-samples-max:
-	+$(MAKE) IOWA_PIANO_SAMPLE_LIMIT=0 test-iowa-piano-samples
+	+$(MAKE) IOWA_PIANO_SAMPLE_LIMIT=0 test-iowa-piano-samples-parallel
 
 test-iowa-orchestra-full-samples-max:
-	+$(MAKE) IOWA_ORCHESTRA_FULL_SAMPLE_LIMIT=0 IOWA_ORCHESTRA_FULL_MAX_ZIPS_PER_PAGE=0 test-iowa-orchestra-full-samples
+	+$(MAKE) IOWA_ORCHESTRA_FULL_SAMPLE_LIMIT=0 IOWA_ORCHESTRA_FULL_MAX_ZIPS_PER_PAGE=0 test-iowa-orchestra-full-samples-parallel
 
 test-good-sounds-samples-max:
-	+$(MAKE) GOOD_SOUNDS_SAMPLE_LIMIT=0 test-good-sounds-samples
+	+$(MAKE) GOOD_SOUNDS_SAMPLE_LIMIT=0 test-good-sounds-samples-parallel
 
 test-medley-solos-samples-max:
-	+$(MAKE) MEDLEY_SOLOS_LIMIT_PER_INSTRUMENT=0 test-medley-solos-samples
+	+$(MAKE) MEDLEY_SOLOS_LIMIT_PER_INSTRUMENT=0 test-medley-solos-samples-parallel
 
 test-maps-piano-samples-max:
-	+$(MAKE) MAPS_PIANO_RECORDING_LIMIT=0 test-maps-piano-samples
+	+$(MAKE) MAPS_PIANO_RECORDING_LIMIT=0 test-maps-piano-samples-parallel
 
 test-maps-piano-note-samples-max:
-	+$(MAKE) MAPS_PIANO_NOTE_RECORDING_LIMIT=0 test-maps-piano-note-samples
+	+$(MAKE) MAPS_PIANO_NOTE_RECORDING_LIMIT=0 test-maps-piano-note-samples-parallel
 
 test-real-world-samples-max-parallel: scripts/run_with_duration.sh
 	+$(RUN_WITH_DURATION) real_world_samples_max $(MAKE) $(PARALLEL_TEST_MAKE_JOBS) $(REAL_WORLD_SAMPLE_MAX_TARGETS)
