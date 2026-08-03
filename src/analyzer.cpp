@@ -18090,7 +18090,11 @@ void append_visible_root_fifth_guitar_power_aliases_after_prune(InstrumentState 
 						root_len = 2;
 					const std::size_t suffix_len =
 						scan_len > root_len ? scan_len - root_len : 0;
-					same_root_extension = same_root_extension || suffix_len > 1;
+					const char *suffix = scan + root_len;
+					const bool numeric_extension =
+						suffix_len == 1 && suffix[0] >= '0' && suffix[0] <= '9';
+					same_root_extension =
+						same_root_extension || suffix_len > 1 || numeric_extension;
 				} else {
 					cross_root_alias = true;
 				}
@@ -31477,6 +31481,10 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 				kGuitarMaxMidi);
 			append_visible_root_fifth_guitar_power_aliases_after_prune(
 				snapshot.guitar_chord, snapshot.guitar_notes,
+				guitar_chord_detection_grid, &note_powers, kGuitarMinMidi,
+				kGuitarMaxMidi);
+			append_visible_root_fifth_guitar_power_aliases_after_prune(
+				snapshot.guitar_chord, snapshot.guitar_chord_smoothed_notes,
 				guitar_chord_detection_grid, &note_powers, kGuitarMinMidi,
 				kGuitarMaxMidi);
 			append_display_guitar_power_opposite_quality_aliases(

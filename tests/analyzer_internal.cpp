@@ -1652,6 +1652,35 @@ void check_visible_root_fifth_power_alias_survives_probe_third_leak(Runner &runn
 	runner.expect(std::strncmp(state.label, "C=", 2) == 0,
 		      std::string("visible root/fifth power alias: expected primary label unchanged, got `") +
 			      state.label + "`");
+
+	InstrumentState smoothed_recovery = {};
+	std::snprintf(smoothed_recovery.label, sizeof(smoothed_recovery.label), "Am=Am7=C6=Fmaj7=C=C7");
+	smoothed_recovery.confidence = 0.52f;
+
+	NoteGrid raw_display_grid = {};
+	set_midi(raw_display_grid, 45, 1.00f);
+	set_midi(raw_display_grid, 48, 0.87f);
+	set_midi(raw_display_grid, 52, 0.56f);
+	set_midi(raw_display_grid, 57, 0.87f);
+
+	NoteGrid smoothed_display_grid = raw_display_grid;
+	set_midi(smoothed_display_grid, 43, 0.22f);
+	set_midi(smoothed_display_grid, 46, 0.23f);
+
+	NoteGrid noisy_analysis_grid = smoothed_display_grid;
+	set_midi(noisy_analysis_grid, 51, 0.04f);
+	set_midi(noisy_analysis_grid, 53, 0.01f);
+
+	append_visible_root_fifth_guitar_power_aliases_after_prune(
+		smoothed_recovery, raw_display_grid, noisy_analysis_grid);
+	runner.expect(!chord_label_has_exact_component(smoothed_recovery.label, "Cpow"),
+		      std::string("visible root/fifth power alias: expected missing display fifth protected, got `") +
+			      smoothed_recovery.label + "`");
+	append_visible_root_fifth_guitar_power_aliases_after_prune(
+		smoothed_recovery, smoothed_display_grid, noisy_analysis_grid);
+	runner.expect(chord_label_has_exact_component(smoothed_recovery.label, "Cpow"),
+		      std::string("visible root/fifth power alias: expected smoothed-grid Cpow recovery, got `") +
+			      smoothed_recovery.label + "`");
 }
 
 void check_supported_guitar_display_extension_aliases(Runner &runner)
