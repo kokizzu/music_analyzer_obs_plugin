@@ -52,6 +52,8 @@ DETECTOR_COVERAGE_CANDIDATE_ROW_PATHS ?= $(wildcard $(REAL_NOTE_CANDIDATE_ROW_PA
 DETECTOR_COVERAGE_CANDIDATE_ARGS ?=
 DETECTOR_COVERAGE_SUMMARY_ARGS ?= --summary-only --top 12
 MEASURE_ANALYZER_ROW_DUMPS ?= $(INSTRUMENT_DETECTED_ATTRIBUTE_ROWS) $(REAL_NOTE_DETECTED_ATTRIBUTE_ROWS) $(REAL_NOTE_MISS_ATTRIBUTE_ROWS) $(GUITAR_CHORD_DETECTED_ATTRIBUTE_ROWS) $(GUITAR_CHORD_MISS_ATTRIBUTE_ROWS)
+CACHED_ANALYZER_ATTRIBUTE_ROW_PATHS ?= $(MEASURE_ANALYZER_ROW_DUMPS) $(BUILD_DIR)/drum_primary_miss_attribute_rows.tsv
+CACHED_ANALYZER_PATTERN_INPUT_PATHS ?= $(CACHED_ANALYZER_ATTRIBUTE_ROW_PATHS) $(BUILD_DIR)/instrument_sample_attributes.tsv $(BUILD_DIR)/real_note_full_mix_attributes.tsv $(BUILD_DIR)/guitar_chord_mix_attributes.tsv
 MEASURE_ANALYZER_PATTERN_DETECTED_REPORT := $(BUILD_DIR)/measure_analyzer_pattern_detected.txt
 MEASURE_ANALYZER_PATTERN_SUMMARY_REPORT := $(BUILD_DIR)/measure_analyzer_pattern_summary.txt
 MEASURE_ANALYZER_PATTERN_INSTRUMENT_OWNER_REPORT := $(BUILD_DIR)/measure_analyzer_pattern_instrument_owner.txt
@@ -108,6 +110,23 @@ MEASURE_ANALYZER_PATTERN_SECTION_OUTPUTS := \
 MEASURE_ANALYZER_PATTERN_FULL_SECTION_OUTPUTS := \
 	$(MEASURE_ANALYZER_PATTERN_FULL_DRUM_REPORT) \
 	$(MEASURE_ANALYZER_PATTERN_FULL_DRUM_EXACT_REPORT)
+MEASURE_ANALYZER_CACHED_PATTERN_DETECTED_REPORT := $(BUILD_DIR)/measure_analyzer_cached_pattern_detected.txt
+MEASURE_ANALYZER_CACHED_PATTERN_SUMMARY_REPORT := $(BUILD_DIR)/measure_analyzer_cached_pattern_summary.txt
+MEASURE_ANALYZER_CACHED_PATTERN_INSTRUMENT_OWNER_REPORT := $(BUILD_DIR)/measure_analyzer_cached_pattern_instrument_owner.txt
+MEASURE_ANALYZER_CACHED_PATTERN_INSTRUMENT_STATUS_REPORT := $(BUILD_DIR)/measure_analyzer_cached_pattern_instrument_status.txt
+MEASURE_ANALYZER_CACHED_PATTERN_REAL_NOTE_SUMMARY_REPORT := $(BUILD_DIR)/measure_analyzer_cached_pattern_real_note_summary.txt
+MEASURE_ANALYZER_CACHED_PATTERN_REAL_NOTE_REPORT := $(BUILD_DIR)/measure_analyzer_cached_pattern_real_note.txt
+MEASURE_ANALYZER_CACHED_PATTERN_GUITAR_CHORD_REPORT := $(BUILD_DIR)/measure_analyzer_cached_pattern_guitar_chord.txt
+MEASURE_ANALYZER_CACHED_PATTERN_DRUM_PRIMARY_REPORT := $(BUILD_DIR)/measure_analyzer_cached_pattern_drum_primary.txt
+MEASURE_ANALYZER_CACHED_PATTERN_SECTION_OUTPUTS := \
+	$(MEASURE_ANALYZER_CACHED_PATTERN_DETECTED_REPORT) \
+	$(MEASURE_ANALYZER_CACHED_PATTERN_SUMMARY_REPORT) \
+	$(MEASURE_ANALYZER_CACHED_PATTERN_INSTRUMENT_OWNER_REPORT) \
+	$(MEASURE_ANALYZER_CACHED_PATTERN_INSTRUMENT_STATUS_REPORT) \
+	$(MEASURE_ANALYZER_CACHED_PATTERN_REAL_NOTE_SUMMARY_REPORT) \
+	$(MEASURE_ANALYZER_CACHED_PATTERN_REAL_NOTE_REPORT) \
+	$(MEASURE_ANALYZER_CACHED_PATTERN_GUITAR_CHORD_REPORT) \
+	$(MEASURE_ANALYZER_CACHED_PATTERN_DRUM_PRIMARY_REPORT)
 MEASURE_INSTRUMENT_PATTERN_ARGS ?= --limit 4 --min-positive-samples 20 --max-negative-samples 0 --max-conditions 3 --beam-width 160 --show-examples 1 --profile-fields 5
 MEASURE_INSTRUMENT_STATUS_PATTERN_ARGS ?= --status-bucket miss:strings --status-bucket miss:synth --limit 4 --min-positive-samples 2 --max-negative-samples 0 --max-conditions 3 --beam-width 160 --show-examples 2 --profile-fields 5 --exclude-field program_name --exclude-field note --exclude-field raw_local_best_note
 MEASURE_REAL_NOTE_PATTERN_ARGS ?= --limit 4 --min-positive-samples 3 --max-negative-samples 0 --max-conditions 3 --beam-width 160 --show-examples 1
@@ -1194,7 +1213,7 @@ GUITARSET_ATTRIBUTE_GATE_ENV ?= MUSIC_ANALYZER_GUITARSET_ATTRIBUTE_ONLY=1 MUSIC_
 .PHONY: prepare-gaps-guitar-samples-full test-gaps-guitar-samples-full analyze-gaps-guitar-misses-full analyze-gaps-guitar-attributes inspect-gaps-guitar-attribute-buckets find-gaps-guitar-attribute-patterns analyze-gaps-guitar-full-attributes inspect-gaps-guitar-full-attribute-buckets find-gaps-guitar-full-attribute-patterns
 .PHONY: analyze-guitarset-attributes inspect-guitarset-attribute-buckets find-guitarset-attribute-patterns analyze-egfxset-guitar-attributes inspect-egfxset-guitar-attribute-buckets find-egfxset-guitar-attribute-patterns
 .PHONY: test-fret-control android-lint icon-assets
-.PHONY: measure-analyzer-attributes measure-analyzer-attribute-rows measure-analyzer-attribute-rows-full refresh-analyzer-detected-attribute-rows print-analyzer-detected-attributes print-analyzer-detected-attributes-cached measure-analyzer-detected-attributes measure-analyzer-detected-attributes-full measure-analyzer-pattern-report-sections report-analyzer-patterns-from-rows report-analyzer-patterns-from-rows-full measure-analyzer-patterns measure-analyzer-patterns-full measure-analyzer-pattern-report inspect-instrument-sample-owner-buckets find-instrument-owner-patterns find-instrument-status-patterns test-instrument-sample-owner-buckets test-filter-instrument-attribute-rows test-instrument-owner-patterns test-refresh-analyzer-detected-attribute-rows test-print-analyzer-detected-attributes test-analyzer-pattern-report test-detector-route-report-summary test-measure-analyzer-patterns-target analyze-drum-primary-attribute-rows find-drum-primary-attribute-patterns analyze-drum-spread-gate-matrix-serial analyze-drum-spread-gate-matrix-parallel analyze-drum-spread-gate-matrix-parallel-unlocked analyze-drum-tom-bleed-caps analyze-drum-tom-bleed-caps-cached
+.PHONY: measure-analyzer-attributes measure-analyzer-attribute-rows measure-analyzer-attribute-rows-full require-cached-analyzer-attribute-rows refresh-analyzer-detected-attribute-rows print-analyzer-detected-attributes print-analyzer-detected-attributes-cached measure-analyzer-detected-attributes measure-analyzer-detected-attributes-full measure-analyzer-pattern-report-sections report-analyzer-patterns-from-rows report-analyzer-patterns-from-cached-rows report-analyzer-patterns-from-rows-full measure-analyzer-patterns measure-analyzer-patterns-cached measure-analyzer-patterns-full measure-analyzer-pattern-report inspect-instrument-sample-owner-buckets find-instrument-owner-patterns find-instrument-status-patterns test-instrument-sample-owner-buckets test-filter-instrument-attribute-rows test-instrument-owner-patterns test-refresh-analyzer-detected-attribute-rows test-print-analyzer-detected-attributes test-analyzer-pattern-report test-detector-route-report-summary test-measure-analyzer-patterns-target analyze-drum-primary-attribute-rows find-drum-primary-attribute-patterns analyze-drum-spread-gate-matrix-serial analyze-drum-spread-gate-matrix-parallel analyze-drum-spread-gate-matrix-parallel-unlocked analyze-drum-tom-bleed-caps analyze-drum-tom-bleed-caps-cached
 .PHONY: analyze-drum-spread-gate-matrix analyze-drum-full-gate-matrix analyze-drum-full-gate-matrix-parallel analyze-drum-full-merged-expected-attribute-rows analyze-drum-active-false-rows analyze-drum-rule-flags compare-drum-gate-matrix find-drum-active-false-patterns find-drum-active-false-patterns-full find-drum-spread-exact-attribute-patterns find-drum-full-exact-attribute-patterns find-drum-full-exact-attribute-patterns-cached find-protected-drum-full-exact-attribute-patterns test-drum-gate-matrix-summary test-compare-drum-gate-summaries test-drum-active-threshold-simulation test-drum-active-false-summary test-drum-rule-flag-summary test-drum-active-false-patterns test-inspect-drum-candidate-rows test-inspect-real-note-candidate-rows test-inspect-detector-coverage-candidates
 .PHONY: analyze-hf-drum-primary-attribute-rows analyze-hf-drum-primary-attribute-rows-serial analyze-hf-drum-primary-attribute-rows-parallel find-hf-drum-primary-attribute-patterns analyze-idmt-drum-primary-attribute-rows analyze-idmt-drum-primary-attribute-rows-serial analyze-idmt-drum-primary-attribute-rows-parallel find-idmt-drum-primary-attribute-patterns analyze-protected-drum-primary-attribute-rows find-protected-drum-primary-attribute-patterns
 .PHONY: analyze-guitar-chord-mix-recovery analyze-guitar-chord-primary-order analyze-guitar-chord-mix-extra-components inspect-guitar-techs-chord-attribute-buckets find-guitar-techs-chord-attribute-patterns find-guitar-techs-chord-route-patterns find-guitar-chord-mix-route-patterns find-egfxset-guitar-route-patterns find-gaps-guitar-route-patterns find-gaps-guitar-full-route-patterns find-guitarset-route-patterns test-guitar-chord-recovery-analysis test-guitar-primary-order-analysis test-guitar-chord-extra-components-analysis test-guitar-techs-chord-samples-parallel test-guitar-chord-mix-samples-serial test-guitar-chord-mix-samples-parallel test-egfxset-guitar-samples-parallel test-gaps-guitar-samples-parallel test-gaps-guitar-samples-full-parallel test-downloaded-guitarset-parallel
@@ -1205,7 +1224,7 @@ GUITARSET_ATTRIBUTE_GATE_ENV ?= MUSIC_ANALYZER_GUITARSET_ATTRIBUTE_ONLY=1 MUSIC_
 .PHONY: test-drum-real-world-samples-parallel test-drum-real-world-samples-full-parallel test-real-world-samples-parallel test-real-world-samples-full-parallel test-real-world-samples-max-parallel test-drum-samples-optional test-drum-samples-spread-optional test-drum-machine-samples-optional test-drum-samples-full-optional test-idmt-bass-lines-samples-optional test-idmt-guitar-samples-optional test-good-sounds-samples-optional test-medley-solos-samples-optional test-medley-solos-samples-serial test-medley-solos-samples-parallel test-medley-solos-samples-parallel-unlocked test-medley-solos-samples-shard-% test-maps-piano-samples-optional test-maps-piano-note-samples-optional test-bach10-mf0-synth-samples-optional test-bach10-mf0-synth-samples-serial test-bach10-mf0-synth-samples-parallel test-bach10-mf0-synth-samples-parallel-unlocked test-bach10-mf0-synth-samples-shard-% analyze-bach10-mf0-synth-chord-misses test-vocalset-samples-optional
 .PHONY: test-drum-samples-full-serial test-drum-samples-full-parallel test-drum-samples-full-parallel-unlocked test-drum-samples-full-shard-% test-drum-machine-samples-serial test-drum-machine-samples-parallel test-drum-machine-samples-parallel-unlocked test-drum-machine-samples-shard-% test-hf-drum-kit-samples-serial test-hf-drum-kit-samples-parallel test-hf-drum-kit-samples-parallel-unlocked test-hf-drum-kit-samples-shard-% test-idmt-drums-samples-serial test-idmt-drums-samples-parallel test-idmt-drums-samples-parallel-unlocked test-idmt-drums-samples-shard-% test-drum-samples-full-parallel-optional test-drum-sample-shard-check
 .PHONY: test-iowa-piano-samples-max test-iowa-orchestra-full-samples-max test-good-sounds-samples-max test-medley-solos-samples-max test-maps-piano-samples-max test-maps-piano-note-samples-max
-.PHONY: detector-improvement-samples detector-improvement-patterns detector-improvement-routes detector-improvement-route-report detector-improvement-route-report-refresh detector-improvement-route-summary detector-improvement-route-summary-cached detector-improvement-route-summary-refresh detector-improvement-coverage-cached detector-improvement-status-cached detector-improvement-samples-full detector-improvement-patterns-full detector-improvement-audit detector-improvement-audit-cached detector-improvement-audit-report detector-improvement-audit-report-cached analyze-detector-improvements analyze-detector-improvement-routes analyze-detector-improvements-full
+.PHONY: detector-improvement-samples detector-improvement-patterns detector-improvement-patterns-cached detector-improvement-routes detector-improvement-route-report detector-improvement-route-report-refresh detector-improvement-route-summary detector-improvement-route-summary-cached detector-improvement-route-summary-refresh detector-improvement-coverage-cached detector-improvement-status-cached detector-improvement-samples-full detector-improvement-patterns-full detector-improvement-audit detector-improvement-audit-cached detector-improvement-audit-report detector-improvement-audit-report-cached analyze-detector-improvements analyze-detector-improvement-routes analyze-detector-improvements-full
 
 .PRECIOUS: $(NSYNTH_SAMPLE_ARCHIVE) $(TINYSOL_ARCHIVE) $(GOOD_SOUNDS_ARCHIVE) $(GUITAR_TECHS_P1_SINGLENOTES_ARCHIVE) $(GUITAR_TECHS_P2_SINGLENOTES_ARCHIVE) $(GUITAR_TECHS_P1_CHORDS_ARCHIVE) $(GUITAR_TECHS_P2_CHORDS_ARCHIVE) $(GUITARSET_ANNOTATION_ARCHIVE) $(GUITARSET_AUDIO_ARCHIVE) $(IDMT_DRUMS_ARCHIVE) $(IDMT_GUITAR_ARCHIVE) $(STAR_DRUMS_ARCHIVE) $(MEDLEY_SOLOS_ARCHIVE) $(MAPS_PIANO_ARCHIVE) $(BACH10_MF0_SYNTH_ARCHIVE) $(VOCALSET_ARCHIVE)
 
@@ -2109,6 +2128,9 @@ measure-analyzer-attribute-rows-full: measure-analyzer-attribute-rows analyze-dr
 	@printf '%s\n' "full drum attribute row dump:"
 	@printf '%s\n' "  $(BUILD_DIR)/drum_full_attribute_rows.tsv"
 
+require-cached-analyzer-attribute-rows:
+	@missing=0; for rows in $(CACHED_ANALYZER_PATTERN_INPUT_PATHS); do if [ ! -f "$$rows" ]; then printf '%s\n' "missing cached analyzer pattern input: $$rows"; missing=1; fi; done; if [ "$$missing" -ne 0 ]; then printf '%s\n' "run make measure-analyzer-attribute-rows to regenerate cached analyzer rows"; exit 2; fi
+
 refresh-analyzer-detected-attribute-rows: scripts/refresh_analyzer_detected_attribute_rows.py
 	$(PYTHON) scripts/refresh_analyzer_detected_attribute_rows.py --build-dir "$(BUILD_DIR)" --python "$(PYTHON)" --jobs "$(REFRESH_ANALYZER_ATTRIBUTE_JOBS)"
 
@@ -2203,6 +2225,34 @@ report-analyzer-patterns-from-rows: scripts/run_with_duration.sh scripts/report_
 	+$(RUN_WITH_DURATION) analyzer_pattern_report_sections $(MAKE) $(MEASURE_ANALYZER_MAKE_JOBS) measure-analyzer-pattern-report-sections
 	@cat $(MEASURE_ANALYZER_PATTERN_SECTION_OUTPUTS)
 
+$(MEASURE_ANALYZER_CACHED_PATTERN_DETECTED_REPORT): FORCE require-cached-analyzer-attribute-rows scripts/print_analyzer_detected_attributes.py scripts/run_with_duration.sh | $(BUILD_DIR)
+	@tmp="$@.$$$$.tmp"; $(RUN_WITH_DURATION) analyzer_detected_attributes_cached $(PYTHON) scripts/print_analyzer_detected_attributes.py --instrument "$(INSTRUMENT_DETECTED_ATTRIBUTE_ROWS)" --real-note "$(REAL_NOTE_DETECTED_ATTRIBUTE_ROWS)" --guitar-chord "$(GUITAR_CHORD_DETECTED_ATTRIBUTE_ROWS)" --drum-primary "$(BUILD_DIR)/drum_primary_miss_attribute_rows.tsv" --drum-full "$(BUILD_DIR)/drum_full_attribute_rows.tsv" $(REAL_NOTE_SAMPLE_ATTRIBUTE_EXTRA_ARGS) $(ATTRIBUTE_ROW_REPORT_ARGS) > "$$tmp" && mv "$$tmp" "$@"
+
+$(MEASURE_ANALYZER_CACHED_PATTERN_SUMMARY_REPORT): FORCE require-cached-analyzer-attribute-rows scripts/report_analyzer_attribute_patterns.py | $(BUILD_DIR)
+	@tmp="$@.$$$$.tmp"; $(PYTHON) scripts/report_analyzer_attribute_patterns.py --instrument "$(INSTRUMENT_DETECTED_ATTRIBUTE_ROWS)" --real-note "$(REAL_NOTE_DETECTED_ATTRIBUTE_ROWS)" --guitar-chord "$(GUITAR_CHORD_DETECTED_ATTRIBUTE_ROWS)" --drum "$(BUILD_DIR)/drum_primary_miss_attribute_rows.tsv" $(PATTERN_REPORT_ARGS) > "$$tmp" && mv "$$tmp" "$@"
+
+$(MEASURE_ANALYZER_CACHED_PATTERN_INSTRUMENT_OWNER_REPORT): FORCE require-cached-analyzer-attribute-rows scripts/find_instrument_owner_patterns.py | $(BUILD_DIR)
+	@tmp="$@.$$$$.tmp"; { printf '%s\n' ""; printf '%s\n' "generated instrument owner pattern candidates:"; $(PYTHON) scripts/find_instrument_owner_patterns.py "$(BUILD_DIR)/instrument_sample_attributes.tsv" --jobs "$(INSTRUMENT_PATTERN_JOBS)" $(MEASURE_INSTRUMENT_PATTERN_ARGS); } > "$$tmp" && mv "$$tmp" "$@"
+
+$(MEASURE_ANALYZER_CACHED_PATTERN_INSTRUMENT_STATUS_REPORT): FORCE require-cached-analyzer-attribute-rows scripts/find_instrument_owner_patterns.py | $(BUILD_DIR)
+	@tmp="$@.$$$$.tmp"; { printf '%s\n' ""; printf '%s\n' "generated instrument final-status pattern candidates:"; $(PYTHON) scripts/find_instrument_owner_patterns.py "$(BUILD_DIR)/instrument_sample_attributes.tsv" --jobs "$(INSTRUMENT_PATTERN_JOBS)" $(MEASURE_INSTRUMENT_STATUS_PATTERN_ARGS); } > "$$tmp" && mv "$$tmp" "$@"
+
+$(MEASURE_ANALYZER_CACHED_PATTERN_REAL_NOTE_SUMMARY_REPORT): FORCE require-cached-analyzer-attribute-rows scripts/summarize_real_note_attributes.py | $(BUILD_DIR)
+	@tmp="$@.$$$$.tmp"; { printf '%s\n' ""; printf '%s\n' "real-note full-mix coverage summary:"; $(PYTHON) scripts/summarize_real_note_attributes.py "$(BUILD_DIR)/real_note_full_mix_attributes.tsv" $(MEASURE_REAL_NOTE_SUMMARY_ARGS); } > "$$tmp" && mv "$$tmp" "$@"
+
+$(MEASURE_ANALYZER_CACHED_PATTERN_REAL_NOTE_REPORT): FORCE require-cached-analyzer-attribute-rows scripts/find_real_note_attribute_patterns.py | $(BUILD_DIR)
+	@tmp="$@.$$$$.tmp"; { printf '%s\n' ""; printf '%s\n' "real-note full-mix pattern candidates:"; $(PYTHON) scripts/find_real_note_attribute_patterns.py "$(BUILD_DIR)/real_note_full_mix_attributes.tsv" $(REAL_NOTE_PATTERN_EXTRA_CANDIDATE_ARGS) $(REAL_NOTE_PATTERN_EXTRA_PROTECTED_ARGS) --jobs "$(REAL_NOTE_PATTERN_JOBS)" $(MEASURE_REAL_NOTE_PATTERN_ARGS); } > "$$tmp" && mv "$$tmp" "$@"
+
+$(MEASURE_ANALYZER_CACHED_PATTERN_GUITAR_CHORD_REPORT): FORCE require-cached-analyzer-attribute-rows scripts/find_guitarset_attribute_patterns.py scripts/inspect_guitarset_attribute_buckets.py | $(BUILD_DIR)
+	@tmp="$@.$$$$.tmp"; { printf '%s\n' ""; printf '%s\n' "guitar chord pattern candidates:"; $(PYTHON) scripts/find_guitarset_attribute_patterns.py "$(BUILD_DIR)/guitar_chord_mix_attributes.tsv" $(MEASURE_GUITAR_PATTERN_ARGS); } > "$$tmp" && mv "$$tmp" "$@"
+
+$(MEASURE_ANALYZER_CACHED_PATTERN_DRUM_PRIMARY_REPORT): FORCE require-cached-analyzer-attribute-rows scripts/find_drum_attribute_patterns.py scripts/analyze_drum_primary_debug.py | $(BUILD_DIR)
+	@tmp="$@.$$$$.tmp"; { printf '%s\n' ""; printf '%s\n' "drum primary pattern candidates:"; $(PYTHON) scripts/find_drum_attribute_patterns.py "$(BUILD_DIR)/drum_primary_miss_attribute_rows.tsv" --jobs "$(DRUM_PATTERN_JOBS)" $(MEASURE_DRUM_PATTERN_ARGS); } > "$$tmp" && mv "$$tmp" "$@"
+
+report-analyzer-patterns-from-cached-rows: require-cached-analyzer-attribute-rows scripts/run_with_duration.sh
+	+$(RUN_WITH_DURATION) analyzer_cached_pattern_report_sections $(MAKE) $(MEASURE_ANALYZER_MAKE_JOBS) $(MEASURE_ANALYZER_CACHED_PATTERN_SECTION_OUTPUTS)
+	@cat $(MEASURE_ANALYZER_CACHED_PATTERN_SECTION_OUTPUTS)
+
 report-analyzer-patterns-from-rows-full:
 	+$(MAKE) report-analyzer-patterns-from-rows REPORT_FULL_DRUM_SKIP=0 MEASURE_DRUM_ACTIVE_EXTRA_PROTECTED_ROWS="$(MEASURE_DRUM_ACTIVE_FULL_EXTRA_PROTECTED_ROWS)"
 	+$(RUN_WITH_DURATION) analyzer_pattern_full_report_sections $(MAKE) $(MEASURE_ANALYZER_MAKE_JOBS) $(MEASURE_ANALYZER_PATTERN_FULL_SECTION_OUTPUTS)
@@ -2210,6 +2260,9 @@ report-analyzer-patterns-from-rows-full:
 
 measure-analyzer-patterns: measure-analyzer-attribute-rows
 	+$(MAKE) report-analyzer-patterns-from-rows
+
+measure-analyzer-patterns-cached: require-cached-analyzer-attribute-rows
+	+$(MAKE) report-analyzer-patterns-from-cached-rows
 
 measure-analyzer-patterns-full: measure-analyzer-attribute-rows analyze-drum-full-gate-matrix-parallel analyze-drum-full-merged-expected-attribute-rows analyze-drum-tom-bleed-caps-cached
 	+$(MAKE) report-analyzer-patterns-from-rows-full
@@ -3508,6 +3561,8 @@ summarize-sample-manifests: scripts/summarize_sample_manifests.py scripts/run_wi
 detector-improvement-samples: test-detector-samples-parallel
 
 detector-improvement-patterns: measure-analyzer-patterns
+
+detector-improvement-patterns-cached: measure-analyzer-patterns-cached
 
 detector-improvement-routes: analyze-detector-improvement-routes
 

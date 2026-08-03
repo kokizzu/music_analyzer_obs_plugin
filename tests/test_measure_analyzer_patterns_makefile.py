@@ -599,6 +599,54 @@ def main() -> int:
     assert "$(MAKE) report-analyzer-patterns-from-rows" in pattern_recipe, (
         "pattern target must reuse the print/report helper"
     )
+    require_cached_rows_recipe = target_recipe(makefile, "require-cached-analyzer-attribute-rows")
+    assert "$(CACHED_ANALYZER_PATTERN_INPUT_PATHS)" in require_cached_rows_recipe, (
+        "cached row guard must check the full cached pattern input list"
+    )
+    assert "missing cached analyzer pattern input:" in require_cached_rows_recipe, (
+        "cached row guard must print every missing input path"
+    )
+    assert "run make measure-analyzer-attribute-rows" in require_cached_rows_recipe, (
+        "cached row guard must tell users how to regenerate analyzer rows"
+    )
+    cached_report_recipe = target_recipe(makefile, "report-analyzer-patterns-from-cached-rows")
+    assert "require-cached-analyzer-attribute-rows" in cached_report_recipe, (
+        "cached report helper must validate row files before mining patterns"
+    )
+    assert "analyzer_cached_pattern_report_sections" in cached_report_recipe, (
+        "cached report helper must report a distinct aggregate duration"
+    )
+    assert "$(MAKE) $(MEASURE_ANALYZER_MAKE_JOBS) $(MEASURE_ANALYZER_CACHED_PATTERN_SECTION_OUTPUTS)" in cached_report_recipe, (
+        "cached report helper must mine cached report sections in parallel"
+    )
+    assert "measure-analyzer-pattern-report-sections" not in cached_report_recipe, (
+        "cached report helper must not call normal report sections that can rebuild analyzer TSVs"
+    )
+    cached_detected_recipe = target_recipe(
+        makefile, "$(MEASURE_ANALYZER_CACHED_PATTERN_DETECTED_REPORT)"
+    )
+    assert "print_analyzer_detected_attributes.py" in cached_detected_recipe, (
+        "cached detected report must call the print script directly"
+    )
+    for forbidden in [
+        "$(BUILD_DIR)/analyzer_real_note_samples",
+        "$(BUILD_DIR)/analyzer_instrument_samples",
+        "prepare-real-note-samples",
+        "analyze-drum-spread-gate-matrix",
+    ]:
+        assert forbidden not in cached_detected_recipe, (
+            f"cached detected report must not depend on {forbidden}"
+        )
+    cached_pattern_recipe = target_recipe(makefile, "measure-analyzer-patterns-cached")
+    assert "require-cached-analyzer-attribute-rows" in cached_pattern_recipe, (
+        "cached pattern target must fail fast when row files are missing"
+    )
+    assert "$(MAKE) report-analyzer-patterns-from-cached-rows" in cached_pattern_recipe, (
+        "cached pattern target must reuse the cached report helper"
+    )
+    assert "measure-analyzer-attribute-rows" not in cached_pattern_recipe.splitlines()[0], (
+        "cached pattern target must not regenerate bounded analyzer rows"
+    )
     assert_alias_target(makefile, "analyze-real-note-misses", "analyze-real-note-misses-parallel")
     real_note_misses_serial_recipe = target_recipe(makefile, "analyze-real-note-misses-serial")
     assert "MUSIC_ANALYZER_REAL_NOTE_MAX_FAILURES=999999" in real_note_misses_serial_recipe, (
@@ -872,6 +920,11 @@ def main() -> int:
         makefile,
         re.MULTILINE,
     ), "detector improvement pattern helper must generate measured attribute and pattern reports"
+    assert re.search(
+        r"^detector-improvement-patterns-cached: measure-analyzer-patterns-cached$",
+        makefile,
+        re.MULTILINE,
+    ), "detector improvement cached pattern helper must reuse cached measured rows"
     route_scan_targets = re.search(
         r"^DETECTOR_IMPROVEMENT_ROUTE_SCAN_TARGETS := (.+)$", makefile, re.MULTILINE
     )
