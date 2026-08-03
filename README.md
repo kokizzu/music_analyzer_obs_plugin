@@ -79,7 +79,7 @@ The small status text at the top is for checking whether the analyzer is receivi
 - `RAM`: process RAM usage in MB. In OBS this is the OBS process, including the plugin; in standalone and Android this is the app process.
 - `CPU`: uncapped process CPU usage sampled about once per second, displayed after RAM and without a percent sign. In OBS this is the OBS process, including the plugin; in standalone and Android this is the app process. `100` means roughly one full CPU core, `200` means two cores, and so on.
 - `RMS`: current overall loudness of the analyzer window, displayed at the far right so its changing width does not shift the other status fields.
-- `BPM`: bottom-right estimated tempo. The percentage is confidence from recent weighted drum/onset periodicity; strong adjacent beat evidence is used to avoid half-time locks after tempo changes. Sparse intros, rubato, or weak drums may show `BPM --` or a low-confidence estimate.
+- `BPM`: bottom-right estimated tempo. The percentage is confidence from recent weighted drum/onset periodicity across roughly 50-220 BPM; body-drum evidence is tracked separately from cymbal/subdivision evidence to reduce half-time and double-time locks. Sparse intros, rubato, or weak drums may show `BPM --` or a low-confidence estimate.
 
 `Analyzer interval (ms)` controls how often a new rolling window is evaluated. The default is 50 ms. `Analysis window (ms)` controls the amount of recent audio inside each evaluation window. The default is 100 ms, so consecutive evaluations overlap. Enable `Use legacy 4096-sample analysis window` to switch back to the original fixed-size window.
 

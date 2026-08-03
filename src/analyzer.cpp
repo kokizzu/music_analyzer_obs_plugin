@@ -23793,6 +23793,8 @@ void AnalysisEngine::reset_analysis_state()
 	silence_seconds_ = 0.0f;
 	tempo_events_.fill(0.0f);
 	tempo_event_strengths_.fill(0.0f);
+	tempo_event_body_strengths_.fill(0.0f);
+	tempo_event_subdivision_strengths_.fill(0.0f);
 	tempo_event_pos_ = 0;
 	tempo_event_count_ = 0;
 	tempo_clock_seconds_ = 0.0f;
@@ -23802,8 +23804,15 @@ void AnalysisEngine::reset_analysis_state()
 	bpm_confidence_ = 0.0f;
 }
 
-void AnalysisEngine::update_tempo(float transient_strength, float interval_seconds, float rms)
+void AnalysisEngine::update_tempo(float transient_strength, float body_strength, float subdivision_strength,
+				  float interval_seconds, float rms, AnalysisSnapshot &snapshot)
 {
+	snapshot.tempo_debug_event_strength = std::clamp(transient_strength, 0.0f, 1.25f);
+	snapshot.tempo_debug_body_strength = std::clamp(body_strength, 0.0f, 1.25f);
+	snapshot.tempo_debug_subdivision_strength = std::clamp(subdivision_strength, 0.0f, 1.25f);
+	snapshot.tempo_debug_candidate_count = 0;
+	snapshot.tempo_debug_candidates = {};
+
 	const float clamped_interval = std::clamp(interval_seconds, 0.01f, 1.0f);
 	tempo_clock_seconds_ += clamped_interval;
 
@@ -23816,10 +23825,13 @@ void AnalysisEngine::update_tempo(float transient_strength, float interval_secon
 		if (bpm_confidence_ < 0.05f) {
 			estimated_bpm_ = 0.0f;
 			bpm_confidence_ = 0.0f;
+			snapshot.tempo_debug_candidate_count = 0;
 		}
 		if (tempo_silence_seconds_ >= 4.0f) {
 			tempo_events_.fill(0.0f);
 			tempo_event_strengths_.fill(0.0f);
+			tempo_event_body_strengths_.fill(0.0f);
+			tempo_event_subdivision_strengths_.fill(0.0f);
 			tempo_event_pos_ = 0;
 			tempo_event_count_ = 0;
 			last_tempo_event_seconds_ = -10.0f;
@@ -23829,15 +23841,24 @@ void AnalysisEngine::update_tempo(float transient_strength, float interval_secon
 	tempo_silence_seconds_ = 0.0f;
 
 	const float event_strength = std::clamp(transient_strength, 0.0f, 1.25f);
+	const float event_body_strength = std::clamp(body_strength, 0.0f, event_strength);
+	const float event_subdivision_strength = std::clamp(subdivision_strength, 0.0f, event_strength);
 	if (event_strength >= 0.08f) {
 		if (tempo_event_count_ > 0 && tempo_clock_seconds_ - last_tempo_event_seconds_ < 0.18f) {
 			const std::size_t last_index =
 				(tempo_event_pos_ + tempo_events_.size() - 1) % tempo_events_.size();
 			tempo_event_strengths_[last_index] =
 				std::max(tempo_event_strengths_[last_index], event_strength);
+			tempo_event_body_strengths_[last_index] =
+				std::max(tempo_event_body_strengths_[last_index], event_body_strength);
+			tempo_event_subdivision_strengths_[last_index] =
+				std::max(tempo_event_subdivision_strengths_[last_index],
+					 event_subdivision_strength);
 		} else {
 			tempo_events_[tempo_event_pos_] = tempo_clock_seconds_;
 			tempo_event_strengths_[tempo_event_pos_] = event_strength;
+			tempo_event_body_strengths_[tempo_event_pos_] = event_body_strength;
+			tempo_event_subdivision_strengths_[tempo_event_pos_] = event_subdivision_strength;
 			tempo_event_pos_ = (tempo_event_pos_ + 1) % tempo_events_.size();
 			tempo_event_count_ = std::min<std::size_t>(tempo_event_count_ + 1,
 								   tempo_events_.size());
@@ -23852,8 +23873,11 @@ void AnalysisEngine::update_tempo(float transient_strength, float interval_secon
 
 	std::array<float, kMaxTempoEvents> recent_events = {};
 	std::array<float, kMaxTempoEvents> recent_strengths = {};
+	std::array<float, kMaxTempoEvents> recent_body_strengths = {};
+	std::array<float, kMaxTempoEvents> recent_subdivision_strengths = {};
 	std::size_t recent_count = 0;
 	float total_recent_strength = 0.0f;
+	float total_recent_body_strength = 0.0f;
 
 	for (std::size_t i = 0; i < tempo_event_count_; ++i) {
 		const std::size_t index =
@@ -23863,7 +23887,11 @@ void AnalysisEngine::update_tempo(float transient_strength, float interval_secon
 		if (event_age <= 14.0f && tempo_event_strengths_[index] >= 0.05f) {
 			recent_events[recent_count] = event_time;
 			recent_strengths[recent_count] = tempo_event_strengths_[index];
+			recent_body_strengths[recent_count] = tempo_event_body_strengths_[index];
+			recent_subdivision_strengths[recent_count] =
+				tempo_event_subdivision_strengths_[index];
 			total_recent_strength += tempo_event_strengths_[index];
+			total_recent_body_strength += tempo_event_body_strengths_[index];
 			++recent_count;
 		}
 	}
@@ -23873,12 +23901,16 @@ void AnalysisEngine::update_tempo(float transient_strength, float interval_secon
 		return;
 	}
 
-	static constexpr int kMinTempoBpm = 70;
-	static constexpr int kMaxTempoBpm = 190;
+	static constexpr int kMinTempoBpm = 50;
+	static constexpr int kMaxTempoBpm = 220;
 	static constexpr std::size_t kTempoBpmCount =
 		static_cast<std::size_t>(kMaxTempoBpm - kMinTempoBpm + 1);
 	std::array<float, kTempoBpmCount> bpm_scores = {};
 	std::array<float, kTempoBpmCount> adjacent_bpm_scores = {};
+	std::array<float, kTempoBpmCount> body_bpm_scores = {};
+	std::array<float, kTempoBpmCount> adjacent_body_bpm_scores = {};
+	std::array<float, kTempoBpmCount> subdivision_bpm_scores = {};
+	std::array<float, kTempoBpmCount> adjacent_subdivision_bpm_scores = {};
 	float best_score = 0.0f;
 	int best_bpm = 0;
 
@@ -23913,6 +23945,24 @@ void AnalysisEngine::update_tempo(float transient_strength, float interval_secon
 				const float strength_weight =
 					std::sqrt(recent_strengths[older_index] * recent_strengths[newer_index]);
 				score += strength_weight * recency * span_weight * error_weight * error_weight;
+				const float body_older = std::max(recent_body_strengths[older_index],
+								  recent_strengths[older_index] * 0.18f);
+				const float body_newer = std::max(recent_body_strengths[newer_index],
+								  recent_strengths[newer_index] * 0.18f);
+				const float body_weight = std::sqrt(body_older * body_newer);
+				body_bpm_scores[static_cast<std::size_t>(bpm - kMinTempoBpm)] +=
+					body_weight * recency * span_weight * error_weight * error_weight;
+				const float subdivision_older =
+					std::max(recent_subdivision_strengths[older_index],
+						 recent_strengths[older_index] * 0.10f);
+				const float subdivision_newer =
+					std::max(recent_subdivision_strengths[newer_index],
+						 recent_strengths[newer_index] * 0.10f);
+				const float subdivision_weight =
+					std::sqrt(subdivision_older * subdivision_newer);
+				subdivision_bpm_scores[static_cast<std::size_t>(bpm - kMinTempoBpm)] +=
+					subdivision_weight * recency * span_weight * error_weight *
+					error_weight;
 			}
 		}
 
@@ -23935,6 +23985,26 @@ void AnalysisEngine::update_tempo(float transient_strength, float interval_secon
 			const float strength_weight =
 				std::sqrt(recent_strengths[newer_index - 1] * recent_strengths[newer_index]);
 			adjacent_score += strength_weight * recency * error_weight * error_weight;
+			const float body_floor =
+				std::min(recent_body_strengths[newer_index - 1],
+					 recent_body_strengths[newer_index]);
+			if (body_floor >= 0.18f) {
+				const float body_weight =
+					std::sqrt(recent_body_strengths[newer_index - 1] *
+						  recent_body_strengths[newer_index]);
+				adjacent_body_bpm_scores[static_cast<std::size_t>(bpm - kMinTempoBpm)] +=
+					body_weight * recency * error_weight * error_weight;
+			}
+			const float subdivision_floor =
+				std::min(recent_subdivision_strengths[newer_index - 1],
+					 recent_subdivision_strengths[newer_index]);
+			if (subdivision_floor >= 0.10f) {
+				const float subdivision_weight =
+					std::sqrt(recent_subdivision_strengths[newer_index - 1] *
+						  recent_subdivision_strengths[newer_index]);
+				adjacent_subdivision_bpm_scores[static_cast<std::size_t>(bpm - kMinTempoBpm)] +=
+					subdivision_weight * recency * error_weight * error_weight;
+			}
 		}
 		score += adjacent_score * 2.40f;
 
@@ -23959,13 +24029,113 @@ void AnalysisEngine::update_tempo(float transient_strength, float interval_secon
 		return;
 	}
 
+	{
+		const std::size_t current_index = static_cast<std::size_t>(best_bpm - kMinTempoBpm);
+		const float current_body_score = body_bpm_scores[current_index];
+		int corrected_bpm = 0;
+		float corrected_score = best_score;
+		auto consider_subharmonic_correction = [&](int numerator, int denominator) {
+			const int candidate_bpm =
+				static_cast<int>(std::lround(static_cast<float>(best_bpm * numerator) /
+							    static_cast<float>(denominator)));
+			if (candidate_bpm <= best_bpm || candidate_bpm < kMinTempoBpm ||
+			    candidate_bpm > kMaxTempoBpm)
+				return;
+			const std::size_t candidate_index =
+				static_cast<std::size_t>(candidate_bpm - kMinTempoBpm);
+			if (bpm_scores[candidate_index] < best_score * 0.72f)
+				return;
+			if (current_body_score > 0.0f &&
+			    body_bpm_scores[candidate_index] < current_body_score * 0.70f)
+				return;
+			if (bpm_scores[candidate_index] > corrected_score) {
+				corrected_score = bpm_scores[candidate_index];
+				corrected_bpm = candidate_bpm;
+			} else if (corrected_bpm <= 0) {
+				corrected_bpm = candidate_bpm;
+				corrected_score = bpm_scores[candidate_index];
+			}
+		};
+		consider_subharmonic_correction(3, 2);
+		consider_subharmonic_correction(2, 1);
+		if (corrected_bpm > 0) {
+			best_bpm = corrected_bpm;
+			best_score = bpm_scores[static_cast<std::size_t>(best_bpm - kMinTempoBpm)];
+		}
+	}
+
+	if (total_recent_body_strength >= 0.65f) {
+		const std::size_t current_index = static_cast<std::size_t>(best_bpm - kMinTempoBpm);
+		const float current_adjacent_body = adjacent_body_bpm_scores[current_index];
+		const float current_body_score = body_bpm_scores[current_index];
+		float strongest_adjacent_body = current_adjacent_body;
+		int adjacent_body_bpm = 0;
+		for (int bpm = kMinTempoBpm; bpm <= kMaxTempoBpm; ++bpm) {
+			const std::size_t index = static_cast<std::size_t>(bpm - kMinTempoBpm);
+			if (bpm_scores[index] < best_score * 0.28f)
+				continue;
+			if (current_body_score > 0.0f && body_bpm_scores[index] < current_body_score * 0.50f)
+				continue;
+			const float adjacent_body = adjacent_body_bpm_scores[index];
+			if (adjacent_body <= strongest_adjacent_body)
+				continue;
+			strongest_adjacent_body = adjacent_body;
+			adjacent_body_bpm = bpm;
+		}
+		if (adjacent_body_bpm > 0 &&
+		    strongest_adjacent_body >=
+			    std::max(current_adjacent_body * 1.15f, total_recent_body_strength * 0.075f)) {
+			best_bpm = adjacent_body_bpm;
+			best_score = bpm_scores[static_cast<std::size_t>(best_bpm - kMinTempoBpm)];
+		}
+	}
+
+	for (int slot = 0; slot < static_cast<int>(snapshot.tempo_debug_candidates.size()); ++slot) {
+		float slot_score = 0.0f;
+		int slot_bpm = 0;
+		for (int bpm = kMinTempoBpm; bpm <= kMaxTempoBpm; ++bpm) {
+			const std::size_t index = static_cast<std::size_t>(bpm - kMinTempoBpm);
+			const float score = bpm_scores[index];
+			if (score <= slot_score)
+				continue;
+			bool already_listed = false;
+			for (int previous = 0; previous < slot; ++previous) {
+				if (snapshot.tempo_debug_candidates[static_cast<std::size_t>(previous)].bpm == bpm) {
+					already_listed = true;
+					break;
+				}
+			}
+			if (already_listed)
+				continue;
+			slot_score = score;
+			slot_bpm = bpm;
+		}
+		if (slot_bpm <= 0)
+			break;
+		const std::size_t score_index = static_cast<std::size_t>(slot_bpm - kMinTempoBpm);
+		TempoDebugCandidate &candidate =
+			snapshot.tempo_debug_candidates[static_cast<std::size_t>(slot)];
+		candidate.bpm = slot_bpm;
+		candidate.score = bpm_scores[score_index];
+		candidate.adjacent_score = adjacent_bpm_scores[score_index];
+		candidate.body_score = body_bpm_scores[score_index];
+		candidate.adjacent_body_score = adjacent_body_bpm_scores[score_index];
+		candidate.subdivision_score = subdivision_bpm_scores[score_index];
+		candidate.adjacent_subdivision_score = adjacent_subdivision_bpm_scores[score_index];
+		snapshot.tempo_debug_candidate_count = static_cast<std::size_t>(slot + 1);
+	}
+
 	if (best_bpm > 0 && best_bpm * 2 <= kMaxTempoBpm) {
 		const int double_bpm = best_bpm * 2;
 		const std::size_t best_index = static_cast<std::size_t>(best_bpm - kMinTempoBpm);
 		const std::size_t double_index = static_cast<std::size_t>(double_bpm - kMinTempoBpm);
 		if (bpm_scores[double_index] >= best_score * 0.30f &&
 		    adjacent_bpm_scores[double_index] >=
-			    std::max(adjacent_bpm_scores[best_index] * 1.60f, total_recent_strength * 0.10f)) {
+			    std::max(adjacent_bpm_scores[best_index] * 1.60f, total_recent_strength * 0.10f) &&
+		    (total_recent_body_strength < 0.65f ||
+		     adjacent_body_bpm_scores[double_index] >=
+			     std::max(adjacent_body_bpm_scores[best_index] * 1.35f,
+				      total_recent_body_strength * 0.055f))) {
 			best_bpm = double_bpm;
 			best_score = bpm_scores[double_index];
 		}
@@ -27913,22 +28083,35 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 		drum_detection_enabled && rms > kSilenceRms && drum_transient &&
 		(had_previous_audio ? onset >= 1.25f : true);
 	float tempo_strength = 0.0f;
+	float tempo_body_strength = 0.0f;
+	float tempo_subdivision_strength = 0.0f;
 	if (tempo_event) {
 		static constexpr std::array<float, kDrumCount> kTempoDrumWeights = {
 			1.16f, 1.10f, 0.68f, 0.58f, 1.00f, 0.64f, 1.04f};
 		for (std::size_t i = 0; i < kDrumCount; ++i) {
 			if (!snapshot.drums[i].active)
 				continue;
-			tempo_strength = std::max(tempo_strength, snapshot.drums[i].level * kTempoDrumWeights[i]);
+			const float weighted_level = snapshot.drums[i].level * kTempoDrumWeights[i];
+			tempo_strength = std::max(tempo_strength, weighted_level);
+			if (i == HiHat || i == Crash || i == Ride)
+				tempo_subdivision_strength = std::max(tempo_subdivision_strength, weighted_level);
+			else
+				tempo_body_strength = std::max(tempo_body_strength, weighted_level);
 		}
 	}
 	if (onset_tempo_event) {
 		const float onset_component = std::clamp((onset - 1.0f) / 2.8f, 0.0f, 0.62f);
 		const float transient_component =
 			std::clamp((drum_transient_ratio - kDrumTransientRatio) / 1.7f, 0.0f, 0.38f);
-		tempo_strength = std::max(tempo_strength, onset_component + transient_component);
+		const float onset_strength = onset_component + transient_component;
+		tempo_strength = std::max(tempo_strength, onset_strength);
+		if (snapshot.low_energy + snapshot.mid_energy >= snapshot.high_energy * 0.90f)
+			tempo_body_strength = std::max(tempo_body_strength, onset_strength * 0.75f);
+		else
+			tempo_subdivision_strength = std::max(tempo_subdivision_strength, onset_strength);
 	}
-	update_tempo(tempo_strength, interval_seconds, rms);
+	update_tempo(tempo_strength, tempo_body_strength, tempo_subdivision_strength, interval_seconds, rms,
+		     snapshot);
 	snapshot.estimated_bpm = estimated_bpm_;
 	snapshot.bpm_confidence = bpm_confidence_;
 

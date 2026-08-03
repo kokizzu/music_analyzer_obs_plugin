@@ -4813,12 +4813,35 @@ mao::AnalysisSnapshot run_tempo_pattern(mao::AnalysisEngine &engine, const mao::
 void expect_bpm_near(Runner &runner, const mao::AnalysisSnapshot &snapshot, float expected, float tolerance,
 		     const std::string &context)
 {
+	std::ostringstream candidates;
+	candidates << " candidates";
+	for (std::size_t i = 0; i < snapshot.tempo_debug_candidate_count; ++i) {
+		const mao::TempoDebugCandidate &candidate = snapshot.tempo_debug_candidates[i];
+		candidates << " " << candidate.bpm << "(s=" << candidate.score
+			   << ",a=" << candidate.adjacent_score << ",b=" << candidate.body_score
+			   << ",ba=" << candidate.adjacent_body_score << ",sub=" << candidate.subdivision_score
+			   << ",suba=" << candidate.adjacent_subdivision_score << ")";
+	}
 	runner.expect(std::fabs(snapshot.estimated_bpm - expected) <= tolerance,
 		      context + ": expected BPM " + std::to_string(snapshot.estimated_bpm) + " near " +
-			      std::to_string(expected));
+			      std::to_string(expected) + candidates.str());
 	runner.expect(snapshot.bpm_confidence >= 0.22f,
 		      context + ": expected confidence >= 22%, got " +
 			      std::to_string(snapshot.bpm_confidence));
+}
+
+void expect_tempo_candidate_near(Runner &runner, const mao::AnalysisSnapshot &snapshot, float expected,
+				 float tolerance, const std::string &context)
+{
+	bool found = false;
+	for (std::size_t i = 0; i < snapshot.tempo_debug_candidate_count; ++i) {
+		if (std::fabs(static_cast<float>(snapshot.tempo_debug_candidates[i].bpm) - expected) <= tolerance) {
+			found = true;
+			break;
+		}
+	}
+	runner.expect(found, context + ": expected top tempo candidates to include BPM near " +
+				    std::to_string(expected));
 }
 
 void check_explicit_input_mode_and_bpm(Runner &runner)
@@ -4857,6 +4880,24 @@ void check_explicit_input_mode_and_bpm(Runner &runner)
 		const mao::AnalysisSnapshot snapshot = run_tempo_pattern(engine, settings, 90.0f, 240, true, false);
 		expect_bpm_near(runner, snapshot, 90.0f, 7.0f,
 				"BPM estimate should not double slower eighth-hat groove");
+	}
+
+	{
+		mao::AnalysisEngine engine;
+		const mao::AnalysisSettings settings = tempo_test_settings();
+		const mao::AnalysisSnapshot snapshot = run_tempo_pattern(engine, settings, 64.0f, 280, true, false);
+		expect_bpm_near(runner, snapshot, 64.0f, 5.0f, "BPM estimate low-tempo groove");
+		expect_tempo_candidate_near(runner, snapshot, 64.0f, 3.0f,
+					    "BPM diagnostics low-tempo groove");
+	}
+
+	{
+		mao::AnalysisEngine engine;
+		const mao::AnalysisSettings settings = tempo_test_settings();
+		const mao::AnalysisSnapshot snapshot = run_tempo_pattern(engine, settings, 205.0f, 240, false, false);
+		expect_bpm_near(runner, snapshot, 205.0f, 8.0f, "BPM estimate fast-tempo groove");
+		expect_tempo_candidate_near(runner, snapshot, 205.0f, 4.0f,
+					    "BPM diagnostics fast-tempo groove");
 	}
 
 	{

@@ -12,6 +12,7 @@ constexpr uint32_t kDefaultAnalysisWindowMs = 100;
 constexpr std::size_t kDrumCount = 7;
 constexpr std::size_t kNoteRowCount = 3;
 constexpr std::size_t kFullMixDebugCandidateCount = 24;
+constexpr std::size_t kTempoDebugCandidateCount = 5;
 constexpr int kFirstAnalyzedMidi = 21;
 constexpr int kLastAnalyzedMidi = 108;
 constexpr std::size_t kNoteProbeCount = static_cast<std::size_t>(kLastAnalyzedMidi - kFirstAnalyzedMidi + 1);
@@ -133,6 +134,16 @@ struct FullMixDebugCandidate {
 	std::array<float, 5> harmonic_ratios = {};
 };
 
+struct TempoDebugCandidate {
+	int bpm = 0;
+	float score = 0.0f;
+	float adjacent_score = 0.0f;
+	float body_score = 0.0f;
+	float adjacent_body_score = 0.0f;
+	float subdivision_score = 0.0f;
+	float adjacent_subdivision_score = 0.0f;
+};
+
 struct AnalysisSnapshot {
 	uint64_t sequence = 0;
 	char source[64] = {};
@@ -143,6 +154,11 @@ struct AnalysisSnapshot {
 	float high_energy = 0.0f;
 	float estimated_bpm = 0.0f;
 	float bpm_confidence = 0.0f;
+	float tempo_debug_event_strength = 0.0f;
+	float tempo_debug_body_strength = 0.0f;
+	float tempo_debug_subdivision_strength = 0.0f;
+	std::size_t tempo_debug_candidate_count = 0;
+	std::array<TempoDebugCandidate, kTempoDebugCandidateCount> tempo_debug_candidates = {};
 	uint64_t dropped_windows = 0;
 	uint64_t audio_frames = 0;
 	uint64_t analyzed_windows = 0;
@@ -265,6 +281,8 @@ private:
 	std::array<float, 12> root_sum_ = {};
 	std::array<float, kMaxTempoEvents> tempo_events_ = {};
 	std::array<float, kMaxTempoEvents> tempo_event_strengths_ = {};
+	std::array<float, kMaxTempoEvents> tempo_event_body_strengths_ = {};
+	std::array<float, kMaxTempoEvents> tempo_event_subdivision_strengths_ = {};
 	int tracked_bass_midi_ = -1;
 	int pending_bass_midi_ = -1;
 	int pending_bass_hits_ = 0;
@@ -312,7 +330,8 @@ private:
 	void rebuild_window(std::size_t window_samples);
 	void reset_note_envelopes();
 	void reset_analysis_state();
-	void update_tempo(float transient_strength, float interval_seconds, float rms);
+	void update_tempo(float transient_strength, float body_strength, float subdivision_strength,
+			  float interval_seconds, float rms, AnalysisSnapshot &snapshot);
 	float goertzel_power(const float *samples, std::size_t count, float mean, const Probe &probe) const;
 	float goertzel_power_at_frequency(const float *samples, std::size_t count, float mean, float freq) const;
 	TuningProbeResult chromatic_tuning_probe(const float *samples, std::size_t count, float mean, int midi,
