@@ -4810,6 +4810,49 @@ mao::AnalysisSnapshot run_tempo_pattern(mao::AnalysisEngine &engine, const mao::
 	return snapshot;
 }
 
+mao::AnalysisSnapshot run_sparse_body_hihat_tempo_pattern(mao::AnalysisEngine &engine,
+						  const mao::AnalysisSettings &settings,
+						  float bpm, int frames, float hihat_division,
+						  float hihat_scale)
+{
+	const float beat_seconds = 60.0f / bpm;
+	const float hihat_seconds = beat_seconds / hihat_division;
+	const float body_seconds = beat_seconds * 2.0f;
+	const float interval_seconds = settings.analysis_interval_seconds;
+	const uint64_t hop_samples = static_cast<uint64_t>(
+		std::lround(settings.analysis_interval_seconds * static_cast<float>(settings.sample_rate)));
+	mao::AnalysisSnapshot snapshot = {};
+	float next_body_seconds = 0.0f;
+	float next_hihat_seconds = 0.0f;
+	int body_hit = 0;
+
+	for (int frame = 0; frame < frames; ++frame) {
+		mao_test::Buffer buffer = {};
+		add_tempo_backing(buffer, static_cast<uint64_t>(frame) * hop_samples);
+		const float frame_seconds = static_cast<float>(frame) * interval_seconds;
+		const float frame_center_seconds = frame_seconds + interval_seconds * 0.5f;
+
+		if (next_hihat_seconds <= frame_center_seconds) {
+			add_tempo_hihat(buffer, hihat_scale);
+			while (next_hihat_seconds <= frame_center_seconds)
+				next_hihat_seconds += hihat_seconds;
+		}
+		if (next_body_seconds <= frame_center_seconds) {
+			if (body_hit % 2 == 0)
+				add_tempo_kick(buffer);
+			else
+				add_tempo_snare(buffer);
+			++body_hit;
+			while (next_body_seconds <= frame_center_seconds)
+				next_body_seconds += body_seconds;
+		}
+
+		snapshot = engine.analyze(buffer.data(), buffer.size(), settings, "tempo test", 0);
+	}
+
+	return snapshot;
+}
+
 void expect_bpm_near(Runner &runner, const mao::AnalysisSnapshot &snapshot, float expected, float tolerance,
 		     const std::string &context)
 {
@@ -4880,6 +4923,15 @@ void check_explicit_input_mode_and_bpm(Runner &runner)
 		const mao::AnalysisSnapshot snapshot = run_tempo_pattern(engine, settings, 90.0f, 240, true, false);
 		expect_bpm_near(runner, snapshot, 90.0f, 7.0f,
 				"BPM estimate should not double slower eighth-hat groove");
+	}
+
+	{
+		mao::AnalysisEngine engine;
+		const mao::AnalysisSettings settings = tempo_test_settings();
+		const mao::AnalysisSnapshot snapshot =
+			run_sparse_body_hihat_tempo_pattern(engine, settings, 96.0f, 300, 2.0f, 0.70f);
+		expect_bpm_near(runner, snapshot, 96.0f, 7.0f,
+				"BPM estimate should not double sparse eighth-hat groove");
 	}
 
 	{

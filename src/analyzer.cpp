@@ -24141,6 +24141,52 @@ void AnalysisEngine::update_tempo(float transient_strength, float body_strength,
 		}
 	}
 
+	if (best_bpm >= 150) {
+		const std::size_t current_index = static_cast<std::size_t>(best_bpm - kMinTempoBpm);
+		const float current_body_score = body_bpm_scores[current_index];
+		const float current_subdivision_score = subdivision_bpm_scores[current_index];
+		const float current_adjacent_body_score = adjacent_body_bpm_scores[current_index];
+		const float current_adjacent_subdivision_score = adjacent_subdivision_bpm_scores[current_index];
+		const bool high_candidate_is_subdivision =
+			current_subdivision_score >= current_body_score * 0.72f &&
+			current_adjacent_subdivision_score >= current_adjacent_body_score * 1.25f;
+		if (high_candidate_is_subdivision) {
+			const int lower_min = std::max(kMinTempoBpm,
+						      static_cast<int>(std::floor(static_cast<float>(best_bpm) *
+										       0.46f)));
+			const int lower_max = std::min(kMaxTempoBpm,
+						      static_cast<int>(std::ceil(static_cast<float>(best_bpm) *
+										      0.52f)));
+			int lower_body_bpm = 0;
+			float lower_body_score = 0.0f;
+			float lower_score = 0.0f;
+			float lower_subdivision_score = 0.0f;
+			for (int bpm = lower_min; bpm <= lower_max; ++bpm) {
+				const std::size_t index = static_cast<std::size_t>(bpm - kMinTempoBpm);
+				const float score = bpm_scores[index];
+				const float body_score = body_bpm_scores[index];
+				if (score < best_score * 0.52f)
+					continue;
+				if (body_score < lower_body_score)
+					continue;
+				lower_body_bpm = bpm;
+				lower_body_score = body_score;
+				lower_score = score;
+				lower_subdivision_score = subdivision_bpm_scores[index];
+			}
+			const bool lower_has_body_pulse =
+				lower_body_bpm > 0 &&
+				lower_body_score >= std::max(current_body_score * 1.05f,
+						       total_recent_body_strength * 0.20f) &&
+				lower_body_score >= lower_subdivision_score * 0.82f &&
+				lower_score >= best_score * 0.68f;
+			if (lower_has_body_pulse) {
+				best_bpm = lower_body_bpm;
+				best_score = bpm_scores[static_cast<std::size_t>(best_bpm - kMinTempoBpm)];
+			}
+		}
+	}
+
 	float cluster_sum = 0.0f;
 	float cluster_weight = 0.0f;
 	float second_score = 0.0f;
