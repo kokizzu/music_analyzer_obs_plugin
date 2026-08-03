@@ -3806,6 +3806,26 @@ def main() -> int:
     assert 'DETECTOR_COVERAGE_CANDIDATE_ARGS="$(DETECTOR_COVERAGE_SUMMARY_ARGS)"' in detector_coverage_cached_recipe, (
         "cached detector coverage helper must use the compact summary args"
     )
+    cached_pattern_coverage_recipe = target_recipe(makefile, "measure-analyzer-patterns-cached-coverage")
+    assert "$(MEASURE_ANALYZER_CACHED_PATTERN_CANDIDATE_SUMMARY)" in cached_pattern_coverage_recipe, (
+        "cached pattern coverage must inspect the existing cached candidate summary"
+    )
+    assert "scripts/inspect_detector_coverage_candidates.py" in cached_pattern_coverage_recipe, (
+        "cached pattern coverage must reuse the detector coverage inspector"
+    )
+    assert "$(DETECTOR_COVERAGE_SUMMARY_ARGS)" in cached_pattern_coverage_recipe, (
+        "cached pattern coverage must use compact coverage output by default"
+    )
+    assert "$(DETECTOR_COVERAGE_CANDIDATE_ROW_PATHS)" in cached_pattern_coverage_recipe, (
+        "cached pattern coverage must inspect configured cached candidate row paths"
+    )
+    assert 'if [ ! -f "$(MEASURE_ANALYZER_CACHED_PATTERN_CANDIDATE_SUMMARY)" ]' in cached_pattern_coverage_recipe, (
+        "cached pattern coverage should rebuild the candidate summary only when it is missing"
+    )
+    cached_pattern_summary_recipe = target_recipe(makefile, "measure-analyzer-patterns-cached-summary")
+    assert "measure-analyzer-patterns-cached-coverage" in cached_pattern_summary_recipe, (
+        "cached pattern summary should print expanded coverage status beside candidate blockers"
+    )
     for text in [
         "REAL_NOTE_CANDIDATE_ROW_PATHS ?= $(BUILD_DIR)/real_note_full_mix_attributes.tsv",
         "REAL_NOTE_CANDIDATE_RULE ?=",
@@ -3813,6 +3833,7 @@ def main() -> int:
         "GUITAR_CANDIDATE_ROW_PATHS ?= $(GUITAR_CHORD_DETECTED_ATTRIBUTE_ROWS) $(GUITARSET_DETECTED_ATTRIBUTE_ROWS) $(GUITAR_TECHS_CHORD_DETECTED_ATTRIBUTE_ROWS) $(EGFXSET_GUITAR_DETECTED_ATTRIBUTE_ROWS) $(GAPS_GUITAR_DETECTED_ATTRIBUTE_ROWS) $(GAPS_GUITAR_FULL_DETECTED_ATTRIBUTE_ROWS)",
         "DRUM_CANDIDATE_ROW_PATHS ?= $(DRUM_FULL_EXACT_ATTRIBUTE_ROWS) $(DRUM_SPREAD_EXACT_ATTRIBUTE_ROWS) $(HF_DRUM_KIT_PRIMARY_ATTRIBUTE_ROWS) $(IDMT_DRUMS_PRIMARY_ATTRIBUTE_ROWS) $(BUILD_DIR)/drum_primary_miss_attribute_rows.tsv",
         "DETECTOR_COVERAGE_CANDIDATE_ROW_PATHS ?= $(wildcard $(REAL_NOTE_CANDIDATE_ROW_PATHS) $(GUITAR_CANDIDATE_ROW_PATHS) $(DRUM_CANDIDATE_ROW_PATHS) $(DETECTOR_REAL_NOTE_PATTERN_EXTRA_CANDIDATE_PATHS) $(DETECTOR_REAL_NOTE_PATTERN_EXTRA_PROTECTED_PATHS))",
+        "MEASURE_ANALYZER_CACHED_PATTERN_COVERAGE_SUMMARY := $(BUILD_DIR)/measure_analyzer_cached_pattern_coverage_summary.txt",
         "DETECTOR_COVERAGE_CANDIDATE_ARGS ?=",
         "DETECTOR_COVERAGE_SUMMARY_ARGS ?= --summary-only --top 12",
         "detector-improvement-status-cached",
