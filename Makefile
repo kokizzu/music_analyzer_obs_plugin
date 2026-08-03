@@ -116,6 +116,12 @@ MEASURE_ANALYZER_CACHED_PATTERN_INSTRUMENT_OWNER_REPORT := $(BUILD_DIR)/measure_
 MEASURE_ANALYZER_CACHED_PATTERN_INSTRUMENT_STATUS_REPORT := $(BUILD_DIR)/measure_analyzer_cached_pattern_instrument_status.txt
 MEASURE_ANALYZER_CACHED_PATTERN_REAL_NOTE_SUMMARY_REPORT := $(BUILD_DIR)/measure_analyzer_cached_pattern_real_note_summary.txt
 MEASURE_ANALYZER_CACHED_PATTERN_REAL_NOTE_REPORT := $(BUILD_DIR)/measure_analyzer_cached_pattern_real_note.txt
+MEASURE_ANALYZER_CACHED_PATTERN_REAL_NOTE_OWNERSHIP_REPORT := $(BUILD_DIR)/measure_analyzer_cached_pattern_real_note_ownership.txt
+MEASURE_ANALYZER_CACHED_PATTERN_REAL_NOTE_OCTAVE_DISPLACEMENT_REPORT := $(BUILD_DIR)/measure_analyzer_cached_pattern_real_note_octave_displacement.txt
+MEASURE_ANALYZER_CACHED_PATTERN_REAL_NOTE_ROW_CONFUSION_REPORT := $(BUILD_DIR)/measure_analyzer_cached_pattern_real_note_row_confusion.txt
+MEASURE_ANALYZER_CACHED_PATTERN_REAL_NOTE_VISUAL_ROW_CONFUSION_REPORT := $(BUILD_DIR)/measure_analyzer_cached_pattern_real_note_visual_row_confusion.txt
+MEASURE_ANALYZER_CACHED_PATTERN_REAL_NOTE_WEAK_EXPECTED_REPORT := $(BUILD_DIR)/measure_analyzer_cached_pattern_real_note_weak_expected.txt
+MEASURE_ANALYZER_CACHED_PATTERN_REAL_NOTE_WEAK_VISUAL_EXPECTED_REPORT := $(BUILD_DIR)/measure_analyzer_cached_pattern_real_note_weak_visual_expected.txt
 MEASURE_ANALYZER_CACHED_PATTERN_GUITAR_CHORD_REPORT := $(BUILD_DIR)/measure_analyzer_cached_pattern_guitar_chord.txt
 MEASURE_ANALYZER_CACHED_PATTERN_DRUM_PRIMARY_REPORT := $(BUILD_DIR)/measure_analyzer_cached_pattern_drum_primary.txt
 MEASURE_ANALYZER_CACHED_PATTERN_SECTION_OUTPUTS := \
@@ -125,6 +131,12 @@ MEASURE_ANALYZER_CACHED_PATTERN_SECTION_OUTPUTS := \
 	$(MEASURE_ANALYZER_CACHED_PATTERN_INSTRUMENT_STATUS_REPORT) \
 	$(MEASURE_ANALYZER_CACHED_PATTERN_REAL_NOTE_SUMMARY_REPORT) \
 	$(MEASURE_ANALYZER_CACHED_PATTERN_REAL_NOTE_REPORT) \
+	$(MEASURE_ANALYZER_CACHED_PATTERN_REAL_NOTE_OWNERSHIP_REPORT) \
+	$(MEASURE_ANALYZER_CACHED_PATTERN_REAL_NOTE_OCTAVE_DISPLACEMENT_REPORT) \
+	$(MEASURE_ANALYZER_CACHED_PATTERN_REAL_NOTE_ROW_CONFUSION_REPORT) \
+	$(MEASURE_ANALYZER_CACHED_PATTERN_REAL_NOTE_VISUAL_ROW_CONFUSION_REPORT) \
+	$(MEASURE_ANALYZER_CACHED_PATTERN_REAL_NOTE_WEAK_EXPECTED_REPORT) \
+	$(MEASURE_ANALYZER_CACHED_PATTERN_REAL_NOTE_WEAK_VISUAL_EXPECTED_REPORT) \
 	$(MEASURE_ANALYZER_CACHED_PATTERN_GUITAR_CHORD_REPORT) \
 	$(MEASURE_ANALYZER_CACHED_PATTERN_DRUM_PRIMARY_REPORT)
 MEASURE_INSTRUMENT_PATTERN_ARGS ?= --limit 4 --min-positive-samples 20 --max-negative-samples 0 --max-conditions 3 --beam-width 160 --show-examples 1 --profile-fields 5
@@ -135,6 +147,7 @@ MEASURE_REAL_NOTE_FOCUSED_ROW_CONFUSION_PATTERN_ARGS ?= --top-buckets 8 --limit 
 MEASURE_REAL_NOTE_FOCUSED_VISUAL_ROW_CONFUSION_PATTERN_ARGS ?= --top-buckets 8 --limit 8 --min-positive-samples 20 --max-negative-samples 20 --max-conditions 2 --beam-width 240 --show-examples 1 --show-near-misses 4 --protected-scope all --include-row-context --profile-fields 5
 MEASURE_REAL_NOTE_COVERAGE_ROW_CONFUSION_PATTERN_ARGS ?= --top-buckets 8 --limit 8 --min-positive-samples 2 --max-negative-samples 0 --max-conditions 3 --beam-width 160 --show-examples 4 --protected-scope all --profile-fields 5
 MEASURE_REAL_NOTE_COVERAGE_VISUAL_ROW_CONFUSION_PATTERN_ARGS ?= --top-buckets 8 --limit 8 --min-positive-samples 2 --max-negative-samples 0 --max-conditions 3 --beam-width 160 --show-examples 4 --protected-scope all --include-row-context --profile-fields 5
+MEASURE_REAL_NOTE_ROW_CONFUSION_PATTERN_ARGS ?= $(MEASURE_REAL_NOTE_FOCUSED_ROW_CONFUSION_PATTERN_ARGS)
 MEASURE_REAL_NOTE_OWNERSHIP_PATTERN_ARGS ?= --top-buckets 8 --limit 4 --min-positive-samples 1 --max-negative-samples 0 --max-conditions 3 --beam-width 160 --show-examples 4 --protected-scope all --profile-fields 5
 MEASURE_REAL_NOTE_BROAD_VOCAL_PATTERN_ARGS ?= --limit 8 --min-positive-samples 20 --max-negative-samples 25 --max-conditions 3 --beam-width 120 --show-examples 1 --show-near-misses 4 --protected-scope all --profile-fields 5
 MEASURE_REAL_NOTE_OCTAVE_DISPLACEMENT_PATTERN_ARGS ?= --top-buckets 8 --limit 8 --min-positive-samples 20 --max-negative-samples 20 --max-conditions 3 --beam-width 240 --show-examples 1 --show-near-misses 4 --protected-scope all --include-row-context
@@ -2242,6 +2255,24 @@ $(MEASURE_ANALYZER_CACHED_PATTERN_REAL_NOTE_SUMMARY_REPORT): FORCE require-cache
 
 $(MEASURE_ANALYZER_CACHED_PATTERN_REAL_NOTE_REPORT): FORCE require-cached-analyzer-attribute-rows scripts/find_real_note_attribute_patterns.py | $(BUILD_DIR)
 	@tmp="$@.$$$$.tmp"; { printf '%s\n' ""; printf '%s\n' "real-note full-mix pattern candidates:"; $(PYTHON) scripts/find_real_note_attribute_patterns.py "$(BUILD_DIR)/real_note_full_mix_attributes.tsv" $(REAL_NOTE_PATTERN_EXTRA_CANDIDATE_ARGS) $(REAL_NOTE_PATTERN_EXTRA_PROTECTED_ARGS) --jobs "$(REAL_NOTE_PATTERN_JOBS)" $(MEASURE_REAL_NOTE_PATTERN_ARGS); } > "$$tmp" && mv "$$tmp" "$@"
+
+$(MEASURE_ANALYZER_CACHED_PATTERN_REAL_NOTE_OWNERSHIP_REPORT): FORCE require-cached-analyzer-attribute-rows scripts/find_real_note_attribute_patterns.py | $(BUILD_DIR)
+	@tmp="$@.$$$$.tmp"; { printf '%s\n' ""; printf '%s\n' "real-note ownership-miss pattern candidates:"; $(PYTHON) scripts/find_real_note_attribute_patterns.py "$(BUILD_DIR)/real_note_full_mix_attributes.tsv" $(REAL_NOTE_PATTERN_EXTRA_CANDIDATE_ARGS) $(REAL_NOTE_PATTERN_EXTRA_PROTECTED_ARGS) --bucket-status ownership_miss $(REAL_NOTE_RUNTIME_ROW_CONFUSION_EXCLUDES) --jobs "$(REAL_NOTE_PATTERN_JOBS)" $(MEASURE_REAL_NOTE_OWNERSHIP_PATTERN_ARGS); } > "$$tmp" && mv "$$tmp" "$@"
+
+$(MEASURE_ANALYZER_CACHED_PATTERN_REAL_NOTE_OCTAVE_DISPLACEMENT_REPORT): FORCE require-cached-analyzer-attribute-rows scripts/find_real_note_attribute_patterns.py | $(BUILD_DIR)
+	@tmp="$@.$$$$.tmp"; { printf '%s\n' ""; printf '%s\n' "real-note octave-displacement pattern candidates:"; $(PYTHON) scripts/find_real_note_attribute_patterns.py "$(BUILD_DIR)/real_note_full_mix_attributes.tsv" $(REAL_NOTE_PATTERN_EXTRA_CANDIDATE_ARGS) $(REAL_NOTE_PATTERN_EXTRA_PROTECTED_ARGS) --bucket-status octave_displacement --jobs "$(REAL_NOTE_PATTERN_JOBS)" $(MEASURE_REAL_NOTE_OCTAVE_DISPLACEMENT_PATTERN_ARGS); } > "$$tmp" && mv "$$tmp" "$@"
+
+$(MEASURE_ANALYZER_CACHED_PATTERN_REAL_NOTE_ROW_CONFUSION_REPORT): FORCE require-cached-analyzer-attribute-rows scripts/find_real_note_attribute_patterns.py | $(BUILD_DIR)
+	@tmp="$@.$$$$.tmp"; { printf '%s\n' ""; printf '%s\n' "real-note strongest-row confusion pattern candidates:"; $(PYTHON) scripts/find_real_note_attribute_patterns.py "$(BUILD_DIR)/real_note_full_mix_attributes.tsv" $(REAL_NOTE_PATTERN_EXTRA_CANDIDATE_ARGS) $(REAL_NOTE_PATTERN_EXTRA_PROTECTED_ARGS) --bucket-status row_confusion $(REAL_NOTE_RUNTIME_ROW_CONFUSION_EXCLUDES) --jobs "$(REAL_NOTE_PATTERN_JOBS)" $(MEASURE_REAL_NOTE_ROW_CONFUSION_PATTERN_ARGS); } > "$$tmp" && mv "$$tmp" "$@"
+
+$(MEASURE_ANALYZER_CACHED_PATTERN_REAL_NOTE_VISUAL_ROW_CONFUSION_REPORT): FORCE require-cached-analyzer-attribute-rows scripts/find_real_note_attribute_patterns.py | $(BUILD_DIR)
+	@tmp="$@.$$$$.tmp"; { printf '%s\n' ""; printf '%s\n' "real-note visual-row confusion pattern candidates:"; $(PYTHON) scripts/find_real_note_attribute_patterns.py "$(BUILD_DIR)/real_note_full_mix_attributes.tsv" $(REAL_NOTE_PATTERN_EXTRA_CANDIDATE_ARGS) $(REAL_NOTE_PATTERN_EXTRA_PROTECTED_ARGS) --bucket-status visual_row_confusion $(REAL_NOTE_RUNTIME_ROW_CONFUSION_EXCLUDES) --jobs "$(REAL_NOTE_PATTERN_JOBS)" $(MEASURE_REAL_NOTE_FOCUSED_VISUAL_ROW_CONFUSION_PATTERN_ARGS); } > "$$tmp" && mv "$$tmp" "$@"
+
+$(MEASURE_ANALYZER_CACHED_PATTERN_REAL_NOTE_WEAK_EXPECTED_REPORT): FORCE require-cached-analyzer-attribute-rows scripts/find_real_note_attribute_patterns.py | $(BUILD_DIR)
+	@tmp="$@.$$$$.tmp"; { printf '%s\n' ""; printf '%s\n' "real-note weak expected-row pattern candidates:"; $(PYTHON) scripts/find_real_note_attribute_patterns.py "$(BUILD_DIR)/real_note_full_mix_attributes.tsv" $(REAL_NOTE_PATTERN_EXTRA_CANDIDATE_ARGS) $(REAL_NOTE_PATTERN_EXTRA_PROTECTED_ARGS) --bucket-status weak_expected_row $(REAL_NOTE_RUNTIME_ROW_CONFUSION_EXCLUDES) --jobs "$(REAL_NOTE_PATTERN_JOBS)" $(MEASURE_REAL_NOTE_WEAK_EXPECTED_PATTERN_ARGS); } > "$$tmp" && mv "$$tmp" "$@"
+
+$(MEASURE_ANALYZER_CACHED_PATTERN_REAL_NOTE_WEAK_VISUAL_EXPECTED_REPORT): FORCE require-cached-analyzer-attribute-rows scripts/find_real_note_attribute_patterns.py | $(BUILD_DIR)
+	@tmp="$@.$$$$.tmp"; { printf '%s\n' ""; printf '%s\n' "real-note weak visual expected-row pattern candidates:"; $(PYTHON) scripts/find_real_note_attribute_patterns.py "$(BUILD_DIR)/real_note_full_mix_attributes.tsv" $(REAL_NOTE_PATTERN_EXTRA_CANDIDATE_ARGS) $(REAL_NOTE_PATTERN_EXTRA_PROTECTED_ARGS) --bucket-status weak_visual_expected_row $(REAL_NOTE_RUNTIME_ROW_CONFUSION_EXCLUDES) --jobs "$(REAL_NOTE_PATTERN_JOBS)" $(MEASURE_REAL_NOTE_WEAK_VISUAL_EXPECTED_PATTERN_ARGS); } > "$$tmp" && mv "$$tmp" "$@"
 
 $(MEASURE_ANALYZER_CACHED_PATTERN_GUITAR_CHORD_REPORT): FORCE require-cached-analyzer-attribute-rows scripts/find_guitarset_attribute_patterns.py scripts/inspect_guitarset_attribute_buckets.py | $(BUILD_DIR)
 	@tmp="$@.$$$$.tmp"; { printf '%s\n' ""; printf '%s\n' "guitar chord pattern candidates:"; $(PYTHON) scripts/find_guitarset_attribute_patterns.py "$(BUILD_DIR)/guitar_chord_mix_attributes.tsv" $(MEASURE_GUITAR_PATTERN_ARGS); } > "$$tmp" && mv "$$tmp" "$@"

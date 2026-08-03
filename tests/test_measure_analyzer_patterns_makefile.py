@@ -622,6 +622,20 @@ def main() -> int:
     assert "measure-analyzer-pattern-report-sections" not in cached_report_recipe, (
         "cached report helper must not call normal report sections that can rebuild analyzer TSVs"
     )
+    cached_section_refs = continuation_variable_refs(
+        makefile, "MEASURE_ANALYZER_CACHED_PATTERN_SECTION_OUTPUTS"
+    )
+    for report_var in [
+        "$(MEASURE_ANALYZER_CACHED_PATTERN_REAL_NOTE_OWNERSHIP_REPORT)",
+        "$(MEASURE_ANALYZER_CACHED_PATTERN_REAL_NOTE_OCTAVE_DISPLACEMENT_REPORT)",
+        "$(MEASURE_ANALYZER_CACHED_PATTERN_REAL_NOTE_ROW_CONFUSION_REPORT)",
+        "$(MEASURE_ANALYZER_CACHED_PATTERN_REAL_NOTE_VISUAL_ROW_CONFUSION_REPORT)",
+        "$(MEASURE_ANALYZER_CACHED_PATTERN_REAL_NOTE_WEAK_EXPECTED_REPORT)",
+        "$(MEASURE_ANALYZER_CACHED_PATTERN_REAL_NOTE_WEAK_VISUAL_EXPECTED_REPORT)",
+    ]:
+        assert report_var in cached_section_refs, (
+            f"cached analyzer report sections must include {report_var}"
+        )
     cached_detected_recipe = target_recipe(
         makefile, "$(MEASURE_ANALYZER_CACHED_PATTERN_DETECTED_REPORT)"
     )
@@ -637,6 +651,41 @@ def main() -> int:
         assert forbidden not in cached_detected_recipe, (
             f"cached detected report must not depend on {forbidden}"
         )
+    cached_real_note_row_recipe = target_recipe(
+        makefile, "$(MEASURE_ANALYZER_CACHED_PATTERN_REAL_NOTE_ROW_CONFUSION_REPORT)"
+    )
+    for required in [
+        "scripts/find_real_note_attribute_patterns.py",
+        "--bucket-status row_confusion",
+        "$(REAL_NOTE_RUNTIME_ROW_CONFUSION_EXCLUDES)",
+        "$(MEASURE_REAL_NOTE_ROW_CONFUSION_PATTERN_ARGS)",
+    ]:
+        assert required in cached_real_note_row_recipe, (
+            f"cached real-note row-confusion report must include {required}"
+        )
+    cached_real_note_visual_row_recipe = target_recipe(
+        makefile, "$(MEASURE_ANALYZER_CACHED_PATTERN_REAL_NOTE_VISUAL_ROW_CONFUSION_REPORT)"
+    )
+    for required in [
+        "--bucket-status visual_row_confusion",
+        "$(REAL_NOTE_RUNTIME_ROW_CONFUSION_EXCLUDES)",
+        "$(MEASURE_REAL_NOTE_FOCUSED_VISUAL_ROW_CONFUSION_PATTERN_ARGS)",
+    ]:
+        assert required in cached_real_note_visual_row_recipe, (
+            f"cached real-note visual-row report must include {required}"
+        )
+    for recipe_name, cached_recipe in [
+        ("row-confusion", cached_real_note_row_recipe),
+        ("visual-row-confusion", cached_real_note_visual_row_recipe),
+    ]:
+        for forbidden in [
+            "$(MAKE) find-real-note",
+            "$(BUILD_DIR)/analyzer_real_note_samples",
+            "prepare-real-note-samples",
+        ]:
+            assert forbidden not in cached_recipe, (
+                f"cached real-note {recipe_name} report must not call rebuild path {forbidden}"
+            )
     cached_pattern_recipe = target_recipe(makefile, "measure-analyzer-patterns-cached")
     assert "require-cached-analyzer-attribute-rows" in cached_pattern_recipe, (
         "cached pattern target must fail fast when row files are missing"
