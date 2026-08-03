@@ -24134,7 +24134,7 @@ void AnalysisEngine::update_tempo(float raw_event_strength, float raw_event_body
 				}
 			}
 		}
-		const float flux_score_gain = enough_event_evidence ? 0.0f : 1.0f;
+		const float flux_score_gain = enough_event_evidence ? 0.35f : 1.0f;
 		score += flux_score_gain *
 			 (flux_score * 0.22f + flux_body_score * 1.35f + flux_subdivision_score * 0.42f);
 		const std::size_t score_index = static_cast<std::size_t>(bpm - kMinTempoBpm);
@@ -24150,6 +24150,15 @@ void AnalysisEngine::update_tempo(float raw_event_strength, float raw_event_body
 				score *= 1.0f + bpm_confidence_ * 0.16f *
 						     (1.0f - continuity_error / 8.0f);
 		}
+
+		const float adjacent_support =
+			adjacent_score + adjacent_bpm_scores[score_index] +
+			adjacent_body_bpm_scores[score_index] * 0.45f +
+			adjacent_subdivision_bpm_scores[score_index] * 0.12f;
+		if (adjacent_support <= 1.0e-6f)
+			score *= 0.88f;
+		else if (adjacent_support < combined_total_strength * 0.012f)
+			score *= 0.94f;
 
 		bpm_scores[score_index] = score;
 		adjacent_bpm_scores[score_index] += adjacent_score;
@@ -24167,6 +24176,10 @@ void AnalysisEngine::update_tempo(float raw_event_strength, float raw_event_body
 	{
 		const std::size_t current_index = static_cast<std::size_t>(best_bpm - kMinTempoBpm);
 		const float current_body_score = body_bpm_scores[current_index];
+		const float current_adjacent_support =
+			adjacent_bpm_scores[current_index] +
+			adjacent_body_bpm_scores[current_index] * 0.45f +
+			adjacent_subdivision_bpm_scores[current_index] * 0.12f;
 		int corrected_bpm = 0;
 		float corrected_score = best_score;
 		auto consider_subharmonic_correction = [&](int numerator, int denominator) {
@@ -24183,10 +24196,22 @@ void AnalysisEngine::update_tempo(float raw_event_strength, float raw_event_body
 			if (current_body_score > 0.0f &&
 			    body_bpm_scores[candidate_index] < current_body_score * 0.70f)
 				return;
+			const float candidate_adjacent_support =
+				adjacent_bpm_scores[candidate_index] +
+				adjacent_body_bpm_scores[candidate_index] * 0.45f +
+				adjacent_subdivision_bpm_scores[candidate_index] * 0.12f;
+			const bool candidate_has_stronger_direct_pulse =
+				candidate_adjacent_support >=
+				std::max(current_adjacent_support * 1.35f,
+					 combined_total_strength * 0.050f);
+			const bool candidate_recovers_low_grid =
+				best_bpm < 90 && candidate_bpm <= 145 &&
+				candidate_adjacent_support >= current_adjacent_support * 0.45f;
 			if (bpm_scores[candidate_index] > corrected_score) {
 				corrected_score = bpm_scores[candidate_index];
 				corrected_bpm = candidate_bpm;
-			} else if (corrected_bpm <= 0) {
+			} else if (corrected_bpm <= 0 &&
+				   (candidate_has_stronger_direct_pulse || candidate_recovers_low_grid)) {
 				corrected_bpm = candidate_bpm;
 				corrected_score = bpm_scores[candidate_index];
 			}

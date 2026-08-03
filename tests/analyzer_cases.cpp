@@ -5227,6 +5227,17 @@ void check_explicit_input_mode_and_bpm(Runner &runner)
 	{
 		mao::AnalysisEngine engine;
 		const mao::AnalysisSettings settings = tempo_test_settings();
+		const mao::AnalysisSnapshot snapshot =
+			run_dense_subdivision_tempo_pattern(engine, settings, 100.0f, 360, 4.0f, 1.62f, 0.16f);
+		expect_bpm_near(runner, snapshot, 100.0f, 7.0f,
+				"BPM estimate should reject loud sixteenth-hat subdivision with weak body");
+		expect_tempo_candidate_near(runner, snapshot, 100.0f, 4.0f,
+					    "BPM diagnostics weak-body sixteenth hats");
+	}
+
+	{
+		mao::AnalysisEngine engine;
+		const mao::AnalysisSettings settings = tempo_test_settings();
 		const mao::AnalysisSnapshot snapshot = run_offbeat_hat_tempo_pattern(engine, settings, 116.0f, 420);
 		expect_bpm_near(runner, snapshot, 116.0f, 7.0f,
 				"BPM estimate should prefer beat body over offbeat hats", 0.18f);
