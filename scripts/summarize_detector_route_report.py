@@ -53,6 +53,21 @@ POSITIVE_SAMPLE_PROFILE_RE = re.compile(
     r"^positive sample profile: groups=(?P<groups>\S+) sources=(?P<sources>\S+)"
 )
 SAMPLE_SENSITIVE_KINDS = {"low-false", "near-miss", "guitar"}
+GUITAR_PLAIN_QUALITY_MISS_RE = re.compile(r"^bucket chord_miss:(?:maj|m):")
+RAW_ROOT_THIRD_FIFTH_RE = re.compile(
+    r"raw\(root/third/fifth\)=(-?\d+(?:\.\d+)?)/(-?\d+(?:\.\d+)?)/(-?\d+(?:\.\d+)?)"
+)
+GUITAR_MISSING_QUALITY_TONE_RULE_MARKERS = (
+    "analysis_third<=",
+    "melodic_probe_third<=",
+    "evidence_class=power_only_ambiguous",
+    "evidence_class=third_missing",
+    "analysis_missing_tones=fifth,third",
+    "analysis_missing_tones=third",
+    "smooth_missing_tones=fifth,third",
+    "smooth_missing_tones=third",
+)
+GUITAR_EXAMPLE_THIRD_EVIDENCE_FLOOR = 0.06
 
 
 @dataclasses.dataclass(frozen=True)
@@ -372,6 +387,8 @@ def candidate_block_reasons(
     reasons: list[str] = []
     if candidate.net_rows <= 0:
         reasons.append("negative_net")
+    if guitar_plain_quality_missing(candidate):
+        reasons.append("missing_quality_tone")
     if candidate.kind in SAMPLE_SENSITIVE_KINDS:
         if 0 < candidate.pos_samples < min_actionable_samples:
             reasons.append(f"low_samples<{min_actionable_samples}")
@@ -382,6 +399,24 @@ def candidate_block_reasons(
             else:
                 reasons.append("unknown_source_side_effects")
     return reasons
+
+
+def guitar_plain_quality_missing(candidate: Candidate) -> bool:
+    if candidate.kind != "guitar":
+        return False
+    if not GUITAR_PLAIN_QUALITY_MISS_RE.match(candidate.section):
+        return False
+
+    compact_rule = candidate.rule.replace(" ", "")
+    if any(marker.replace(" ", "") in compact_rule for marker in GUITAR_MISSING_QUALITY_TONE_RULE_MARKERS):
+        return True
+
+    third_levels: list[float] = []
+    for example in candidate.examples:
+        match = RAW_ROOT_THIRD_FIFTH_RE.search(example)
+        if match:
+            third_levels.append(float(match.group(2)))
+    return bool(third_levels) and max(third_levels) < GUITAR_EXAMPLE_THIRD_EVIDENCE_FLOOR
 
 
 def candidate_additional_samples_needed(
@@ -599,7 +634,7 @@ def main() -> int:
     actionable = [
         candidate
         for candidate in source_safe_positive_net
-        if candidate.pos_samples == 0 or candidate.pos_samples >= args.min_actionable_samples
+        if not candidate_block_reasons(candidate, args.min_actionable_samples)
     ]
     coverage_blocked = [
         candidate

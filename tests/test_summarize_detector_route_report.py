@@ -130,6 +130,27 @@ compact route summary
     if output.index("drum route snare->tom") > output.index("near-miss row_confusion"):
         raise AssertionError(f"expected positive-net drum candidates before negative-net near misses:\n{output}")
 
+    low_quality_report = """bucket chord_miss:maj:visible2_analysis2_smooth2_rootvis1 positives=5 positive_rows=5 protected_hits=465
+  +5 rows=5 -0 rows=0 :: analysis_third<=0 AND display_primary_analysis_fifth<=0
+    clips_isolated-chords_A_A_acoustic_guitar_fender_fa_series_1@3.216s expected=A guitar=E=Apow support=visible2_analysis2_smooth2_rootvis1 raw(root/third/fifth)=1.00/0.02/0.42 analysis=E,A visible=E,A
+"""
+    with tempfile.TemporaryDirectory() as tmpdir:
+        path = pathlib.Path(tmpdir) / "route_report.txt"
+        path.write_text(low_quality_report, encoding="utf-8")
+        result = subprocess.run(
+            [sys.executable, str(SCRIPT), str(path), "--limit", "8"],
+            check=True,
+            text=True,
+            stdout=subprocess.PIPE,
+        )
+    low_quality_output = result.stdout
+    require(
+        low_quality_output,
+        "detector_route_summary: candidates=1 low_false=0 shadow=0 near_miss=0 guitar=1 drum=0 positive_net=1 gain_ge_1=1 source_safe_positive_net=1 actionable=0 coverage_blocked=0",
+    )
+    require(low_quality_output, "blocked-reason summary missing_quality_tone=1")
+    require(low_quality_output, "blocked_by=missing_quality_tone")
+
     veto_report = """compact route summary
   routes=1 routes_with_extras=1 safe_simulation_routes=0 safe_simulation_extra_hits=0
   safe_threshold_routes=1 no_safe_threshold_routes=0 safe_threshold_extra_hits=3 safe_threshold_protected_hits=0
