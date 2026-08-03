@@ -24244,6 +24244,42 @@ void AnalysisEngine::update_tempo(float raw_event_strength, float raw_event_body
 		}
 	}
 
+	if (best_bpm > 0 && best_bpm < 78 && best_bpm * 2 <= kMaxTempoBpm) {
+		// Offbeat cymbals can make a true mid-tempo groove look like a low half-time grid.
+		// Recover only when the low grid itself has weak direct-pulse support.
+		const int double_bpm = best_bpm * 2;
+		const std::size_t best_index = static_cast<std::size_t>(best_bpm - kMinTempoBpm);
+		const std::size_t double_index = static_cast<std::size_t>(double_bpm - kMinTempoBpm);
+		const float double_score = bpm_scores[double_index];
+		const float best_body_score = body_bpm_scores[best_index];
+		const float double_body_score = body_bpm_scores[double_index];
+		const float best_subdivision_score = subdivision_bpm_scores[best_index];
+		const float double_subdivision_score = subdivision_bpm_scores[double_index];
+		const float best_support =
+			best_body_score + best_subdivision_score * 0.18f +
+			adjacent_body_bpm_scores[best_index] * 0.70f +
+			adjacent_subdivision_bpm_scores[best_index] * 0.12f;
+		const float double_support =
+			double_body_score + double_subdivision_score * 0.24f +
+			adjacent_body_bpm_scores[double_index] * 0.70f +
+			adjacent_subdivision_bpm_scores[double_index] * 0.18f;
+		const bool low_grid_is_weakly_direct =
+			adjacent_bpm_scores[best_index] + adjacent_body_bpm_scores[best_index] * 0.45f <
+			combined_total_strength * 0.035f;
+		const bool double_grid_has_pulse_evidence =
+			double_body_score >= best_body_score * 0.34f ||
+			double_subdivision_score >= best_subdivision_score * 0.48f ||
+			adjacent_bpm_scores[double_index] >= combined_total_strength * 0.050f;
+		const bool double_grid_is_not_simple_subdivision =
+			adjacent_bpm_scores[double_index] < best_score * 0.025f;
+		if (low_grid_is_weakly_direct && double_score >= best_score * 0.38f &&
+		    double_support >= best_support * 0.42f && double_grid_has_pulse_evidence &&
+		    double_grid_is_not_simple_subdivision) {
+			best_bpm = double_bpm;
+			best_score = double_score;
+		}
+	}
+
 	if (best_bpm >= 150) {
 		const std::size_t current_index = static_cast<std::size_t>(best_bpm - kMinTempoBpm);
 		const float current_body_score = body_bpm_scores[current_index];

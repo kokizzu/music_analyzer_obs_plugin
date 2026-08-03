@@ -4945,6 +4945,134 @@ mao::AnalysisSnapshot run_syncopated_tempo_pattern(mao::AnalysisEngine &engine,
 	return snapshot;
 }
 
+mao::AnalysisSnapshot run_dense_sixteenth_hat_tempo_pattern(mao::AnalysisEngine &engine,
+							     const mao::AnalysisSettings &settings,
+							     float bpm, int frames)
+{
+	const float beat_seconds = 60.0f / bpm;
+	const float sixteenth_seconds = beat_seconds * 0.25f;
+	const float interval_seconds = settings.analysis_interval_seconds;
+	const uint64_t hop_samples = static_cast<uint64_t>(
+		std::lround(settings.analysis_interval_seconds * static_cast<float>(settings.sample_rate)));
+	mao::AnalysisSnapshot snapshot = {};
+	float next_beat_seconds = 0.0f;
+	float next_hihat_seconds = 0.0f;
+	int beat = 0;
+
+	for (int frame = 0; frame < frames; ++frame) {
+		mao_test::Buffer buffer = {};
+		add_tempo_backing(buffer, static_cast<uint64_t>(frame) * hop_samples);
+		const float frame_seconds = static_cast<float>(frame) * interval_seconds;
+		const float frame_center_seconds = frame_seconds + interval_seconds * 0.5f;
+
+		if (next_hihat_seconds <= frame_center_seconds) {
+			add_tempo_hihat(buffer, (beat % 2 == 0) ? 1.22f : 1.08f);
+			while (next_hihat_seconds <= frame_center_seconds)
+				next_hihat_seconds += sixteenth_seconds;
+		}
+		if (next_beat_seconds <= frame_center_seconds) {
+			if (beat % 4 == 1 || beat % 4 == 3)
+				add_tempo_snare(buffer, 0.46f);
+			else
+				add_tempo_kick(buffer, 0.44f);
+			++beat;
+			while (next_beat_seconds <= frame_center_seconds)
+				next_beat_seconds += beat_seconds;
+		}
+
+		snapshot = engine.analyze(buffer.data(), buffer.size(), settings,
+					  "dense sixteenth hat tempo test", 0);
+	}
+
+	return snapshot;
+}
+
+mao::AnalysisSnapshot run_offbeat_hat_tempo_pattern(mao::AnalysisEngine &engine,
+						    const mao::AnalysisSettings &settings,
+						    float bpm, int frames)
+{
+	const float beat_seconds = 60.0f / bpm;
+	const float interval_seconds = settings.analysis_interval_seconds;
+	const uint64_t hop_samples = static_cast<uint64_t>(
+		std::lround(settings.analysis_interval_seconds * static_cast<float>(settings.sample_rate)));
+	mao::AnalysisSnapshot snapshot = {};
+	float next_beat_seconds = 0.0f;
+	float next_offbeat_seconds = beat_seconds * 0.5f;
+	int beat = 0;
+
+	for (int frame = 0; frame < frames; ++frame) {
+		mao_test::Buffer buffer = {};
+		add_tempo_backing(buffer, static_cast<uint64_t>(frame) * hop_samples);
+		const float frame_seconds = static_cast<float>(frame) * interval_seconds;
+		const float frame_center_seconds = frame_seconds + interval_seconds * 0.5f;
+
+		if (next_offbeat_seconds <= frame_center_seconds) {
+			add_tempo_hihat(buffer, 1.24f);
+			while (next_offbeat_seconds <= frame_center_seconds)
+				next_offbeat_seconds += beat_seconds;
+		}
+		if (next_beat_seconds <= frame_center_seconds) {
+			if (beat % 4 == 1 || beat % 4 == 3)
+				add_tempo_snare(buffer, 0.58f);
+			else
+				add_tempo_kick(buffer, beat % 8 == 4 ? 0.44f : 0.64f);
+			++beat;
+			while (next_beat_seconds <= frame_center_seconds)
+				next_beat_seconds += beat_seconds;
+		}
+
+		snapshot = engine.analyze(buffer.data(), buffer.size(), settings, "offbeat hat tempo test", 0);
+	}
+
+	return snapshot;
+}
+
+mao::AnalysisSnapshot run_body_dropout_tempo_pattern(mao::AnalysisEngine &engine,
+						     const mao::AnalysisSettings &settings,
+						     float bpm, int frames)
+{
+	const float beat_seconds = 60.0f / bpm;
+	const float eighth_seconds = beat_seconds * 0.5f;
+	const float interval_seconds = settings.analysis_interval_seconds;
+	const uint64_t hop_samples = static_cast<uint64_t>(
+		std::lround(settings.analysis_interval_seconds * static_cast<float>(settings.sample_rate)));
+	mao::AnalysisSnapshot snapshot = {};
+	float next_beat_seconds = 0.0f;
+	float next_hihat_seconds = 0.0f;
+	int beat = 0;
+
+	for (int frame = 0; frame < frames; ++frame) {
+		mao_test::Buffer buffer = {};
+		add_tempo_backing(buffer, static_cast<uint64_t>(frame) * hop_samples);
+		const float frame_seconds = static_cast<float>(frame) * interval_seconds;
+		const float frame_center_seconds = frame_seconds + interval_seconds * 0.5f;
+
+		if (next_hihat_seconds <= frame_center_seconds) {
+			add_tempo_hihat(buffer, beat % 2 == 0 ? 0.76f : 0.96f);
+			while (next_hihat_seconds <= frame_center_seconds)
+				next_hihat_seconds += eighth_seconds;
+		}
+		if (next_beat_seconds <= frame_center_seconds) {
+			const bool dropout = beat % 16 == 6 || beat % 16 == 14;
+			if (!dropout) {
+				if (beat % 4 == 1 || beat % 4 == 3)
+					add_tempo_snare(buffer, beat % 8 == 3 ? 0.76f : 0.68f);
+				else
+					add_tempo_kick(buffer, beat % 8 == 4 ? 0.54f : 0.82f);
+			}
+			if (beat % 16 == 11)
+				add_tempo_fill(buffer);
+			++beat;
+			while (next_beat_seconds <= frame_center_seconds)
+				next_beat_seconds += beat_seconds;
+		}
+
+		snapshot = engine.analyze(buffer.data(), buffer.size(), settings, "body dropout tempo test", 0);
+	}
+
+	return snapshot;
+}
+
 mao::AnalysisSnapshot run_tonal_pulse_tempo_pattern(mao::AnalysisEngine &engine,
 						     const mao::AnalysisSettings &settings,
 						     float bpm, int frames, float pulse_scale = 1.0f)
@@ -4976,7 +5104,7 @@ mao::AnalysisSnapshot run_tonal_pulse_tempo_pattern(mao::AnalysisEngine &engine,
 }
 
 void expect_bpm_near(Runner &runner, const mao::AnalysisSnapshot &snapshot, float expected, float tolerance,
-		     const std::string &context)
+		     const std::string &context, float min_confidence = 0.22f)
 {
 	std::ostringstream candidates;
 	candidates << " candidates";
@@ -4990,8 +5118,9 @@ void expect_bpm_near(Runner &runner, const mao::AnalysisSnapshot &snapshot, floa
 	runner.expect(std::fabs(snapshot.estimated_bpm - expected) <= tolerance,
 		      context + ": expected BPM " + std::to_string(snapshot.estimated_bpm) + " near " +
 			      std::to_string(expected) + candidates.str());
-	runner.expect(snapshot.bpm_confidence >= 0.22f,
-		      context + ": expected confidence >= 22%, got " +
+	runner.expect(snapshot.bpm_confidence >= min_confidence,
+		      context + ": expected confidence >= " + std::to_string(min_confidence * 100.0f) +
+			      "%, got " +
 			      std::to_string(snapshot.bpm_confidence));
 }
 
@@ -5082,6 +5211,38 @@ void check_explicit_input_mode_and_bpm(Runner &runner)
 				"BPM estimate should survive syncopated kick and fill");
 		expect_tempo_candidate_near(runner, snapshot, 128.0f, 4.0f,
 					    "BPM diagnostics syncopated groove");
+	}
+
+	{
+		mao::AnalysisEngine engine;
+		const mao::AnalysisSettings settings = tempo_test_settings();
+		const mao::AnalysisSnapshot snapshot =
+			run_dense_sixteenth_hat_tempo_pattern(engine, settings, 92.0f, 360);
+		expect_bpm_near(runner, snapshot, 92.0f, 7.0f,
+				"BPM estimate should not follow loud sixteenth hats");
+		expect_tempo_candidate_near(runner, snapshot, 92.0f, 4.0f,
+					    "BPM diagnostics dense sixteenth hats");
+	}
+
+	{
+		mao::AnalysisEngine engine;
+		const mao::AnalysisSettings settings = tempo_test_settings();
+		const mao::AnalysisSnapshot snapshot = run_offbeat_hat_tempo_pattern(engine, settings, 116.0f, 420);
+		expect_bpm_near(runner, snapshot, 116.0f, 7.0f,
+				"BPM estimate should prefer beat body over offbeat hats", 0.18f);
+		expect_tempo_candidate_near(runner, snapshot, 116.0f, 4.0f,
+					    "BPM diagnostics offbeat hats");
+	}
+
+	{
+		mao::AnalysisEngine engine;
+		const mao::AnalysisSettings settings = tempo_test_settings();
+		const mao::AnalysisSnapshot snapshot =
+			run_body_dropout_tempo_pattern(engine, settings, 132.0f, 360);
+		expect_bpm_near(runner, snapshot, 132.0f, 8.0f,
+				"BPM estimate should survive body dropouts and one fill");
+		expect_tempo_candidate_near(runner, snapshot, 132.0f, 5.0f,
+					    "BPM diagnostics body dropouts");
 	}
 
 	{
