@@ -224,7 +224,17 @@ def main() -> int:
     assert visual_row["visual_strongest_row_exact_level"] == "0.900"
     assert visual_row["visual_strongest_row_pitch_level"] == "0.900"
     assert visual_row["expected_visual_exact_row_count"] == "2"
+    score_ratio_row = patterns.derive_real_note_row(
+        {"keyboard_score": "0.2", "guitar_score": "0.5", "other_score": "0.8"}
+    )
+    assert score_ratio_row["keyboard_guitar_score_ratio"] == "0.400"
+    assert score_ratio_row["guitar_keyboard_score_ratio"] == "2.500"
+    assert score_ratio_row["other_guitar_score_ratio"] == "1.600"
+    assert score_ratio_row["guitar_other_score_ratio"] == "0.625"
+    assert score_ratio_row["keyboard_bass_score_ratio"] == ""
     assert "expected_first_score_ratio" in patterns.DEBUG_NUMERIC_FIELDS
+    assert "keyboard_guitar_score_ratio" in patterns.DEBUG_NUMERIC_FIELDS
+    assert "other_guitar_score_ratio" in patterns.DEBUG_NUMERIC_FIELDS
     assert "expected_strongest_pitch_level_ratio" in patterns.ROW_CONTEXT_NUMERIC_FIELDS
     assert "expected_row_visual_exact_level" in patterns.ROW_CONTEXT_NUMERIC_FIELDS
     assert "visual_strongest_row_pitch_level" in patterns.ROW_CONTEXT_NUMERIC_FIELDS

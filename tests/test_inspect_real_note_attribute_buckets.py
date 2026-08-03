@@ -722,6 +722,8 @@ def main() -> int:
     assert "miss_reason" in dumped.stdout.splitlines()[0]
     assert "expected_row_exact_level" in dumped.stdout.splitlines()[0]
     assert "expected_first_score_ratio" in dumped.stdout.splitlines()[0]
+    assert "keyboard_guitar_score_ratio" in dumped.stdout.splitlines()[0]
+    assert "guitar_keyboard_score_ratio" in dumped.stdout.splitlines()[0]
     assert "first_expected_score_margin" in dumped.stdout.splitlines()[0]
     assert "expected_strongest_pitch_level_ratio" in dumped.stdout.splitlines()[0]
     assert "expected_row_visual_exact_level" in dumped.stdout.splitlines()[0]
@@ -778,6 +780,9 @@ def main() -> int:
     assert keyboard_dump["expected_strongest_score_ratio"] == "0.143"
     assert keyboard_dump["expected_visual_first_score_ratio"] == "1.000"
     assert keyboard_dump["expected_visual_strongest_score_ratio"] == "1.000"
+    assert keyboard_dump["keyboard_guitar_score_ratio"] == "0.143"
+    assert keyboard_dump["guitar_keyboard_score_ratio"] == "7.000"
+    assert keyboard_dump["bass_guitar_score_ratio"] == "0.000"
     assert keyboard_dump["first_expected_score_margin"] == "0.600"
     assert keyboard_dump["strongest_expected_score_margin"] == "0.600"
     assert keyboard_dump["visual_first_expected_score_margin"] == "0.000"

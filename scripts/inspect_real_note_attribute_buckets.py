@@ -29,6 +29,26 @@ FIELDS = [
     "guitar_score",
     "vocal_score",
     "other_score",
+    "bass_keyboard_score_ratio",
+    "keyboard_bass_score_ratio",
+    "bass_guitar_score_ratio",
+    "guitar_bass_score_ratio",
+    "bass_vocal_score_ratio",
+    "vocal_bass_score_ratio",
+    "bass_other_score_ratio",
+    "other_bass_score_ratio",
+    "keyboard_guitar_score_ratio",
+    "guitar_keyboard_score_ratio",
+    "keyboard_vocal_score_ratio",
+    "vocal_keyboard_score_ratio",
+    "keyboard_other_score_ratio",
+    "other_keyboard_score_ratio",
+    "guitar_vocal_score_ratio",
+    "vocal_guitar_score_ratio",
+    "guitar_other_score_ratio",
+    "other_guitar_score_ratio",
+    "vocal_other_score_ratio",
+    "other_vocal_score_ratio",
     "spectral_level",
     "pitch_confidence",
     "periodicity",
@@ -144,6 +164,29 @@ ROW_SCORE_FIELDS = {
     "other": "other_score",
 }
 
+SCORE_RATIO_FIELDS = [
+    ("bass_keyboard_score_ratio", "bass_score", "keyboard_score"),
+    ("keyboard_bass_score_ratio", "keyboard_score", "bass_score"),
+    ("bass_guitar_score_ratio", "bass_score", "guitar_score"),
+    ("guitar_bass_score_ratio", "guitar_score", "bass_score"),
+    ("bass_vocal_score_ratio", "bass_score", "vocal_score"),
+    ("vocal_bass_score_ratio", "vocal_score", "bass_score"),
+    ("bass_other_score_ratio", "bass_score", "other_score"),
+    ("other_bass_score_ratio", "other_score", "bass_score"),
+    ("keyboard_guitar_score_ratio", "keyboard_score", "guitar_score"),
+    ("guitar_keyboard_score_ratio", "guitar_score", "keyboard_score"),
+    ("keyboard_vocal_score_ratio", "keyboard_score", "vocal_score"),
+    ("vocal_keyboard_score_ratio", "vocal_score", "keyboard_score"),
+    ("keyboard_other_score_ratio", "keyboard_score", "other_score"),
+    ("other_keyboard_score_ratio", "other_score", "keyboard_score"),
+    ("guitar_vocal_score_ratio", "guitar_score", "vocal_score"),
+    ("vocal_guitar_score_ratio", "vocal_score", "guitar_score"),
+    ("guitar_other_score_ratio", "guitar_score", "other_score"),
+    ("other_guitar_score_ratio", "other_score", "guitar_score"),
+    ("vocal_other_score_ratio", "vocal_score", "other_score"),
+    ("other_vocal_score_ratio", "other_score", "vocal_score"),
+]
+
 CATEGORY_FIELDS = [
     "expected_note",
     "expected_pitch_class",
@@ -229,6 +272,26 @@ ROW_DUMP_FIELDS = [
     "guitar_score",
     "vocal_score",
     "other_score",
+    "bass_keyboard_score_ratio",
+    "keyboard_bass_score_ratio",
+    "bass_guitar_score_ratio",
+    "guitar_bass_score_ratio",
+    "bass_vocal_score_ratio",
+    "vocal_bass_score_ratio",
+    "bass_other_score_ratio",
+    "other_bass_score_ratio",
+    "keyboard_guitar_score_ratio",
+    "guitar_keyboard_score_ratio",
+    "keyboard_vocal_score_ratio",
+    "vocal_keyboard_score_ratio",
+    "keyboard_other_score_ratio",
+    "other_keyboard_score_ratio",
+    "guitar_vocal_score_ratio",
+    "vocal_guitar_score_ratio",
+    "guitar_other_score_ratio",
+    "other_guitar_score_ratio",
+    "vocal_other_score_ratio",
+    "other_vocal_score_ratio",
     "spectral_level",
     "pitch_confidence",
     "periodicity",
@@ -385,6 +448,14 @@ def row_score(row: dict[str, str], row_name: str) -> float | None:
     return as_float(row, field)
 
 
+def add_score_ratio_fields(result: dict[str, str], row: dict[str, str]) -> None:
+    for output_field, numerator_field, denominator_field in SCORE_RATIO_FIELDS:
+        result[output_field] = format_ratio(
+            as_float(row, numerator_field),
+            as_float(row, denominator_field),
+        )
+
+
 def note_row_cells(row: dict[str, str], row_name: str, *, visual: bool = False) -> list[tuple[int, float]]:
     field = (ROW_VISUAL_NOTE_FIELDS if visual else ROW_NOTE_FIELDS).get(row_name)
     if not field:
@@ -530,6 +601,7 @@ def derive_row(row: dict[str, str]) -> dict[str, str]:
     result["visual_strongest_expected_score_margin"] = format_margin(
         visual_strongest_score, expected_score
     )
+    add_score_ratio_fields(result, row)
     if expected_number is not None:
         expected_midi = int(round(expected_number))
         expected_exact, expected_pitch, expected_delta = note_row_levels(row, expected_row, expected_midi)
