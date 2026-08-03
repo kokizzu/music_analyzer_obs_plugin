@@ -4770,27 +4770,38 @@ mao::AnalysisSettings tempo_test_settings()
 mao::AnalysisSnapshot run_tempo_pattern(mao::AnalysisEngine &engine, const mao::AnalysisSettings &settings,
 					float bpm, int frames, bool eighth_hats, bool one_frame_fill)
 {
-	const int beat_frames = std::max(1, static_cast<int>(
-					   std::lround((60.0f / bpm) / settings.analysis_interval_seconds)));
-	const int half_beat_frames = std::max(1, beat_frames / 2);
+	const float beat_seconds = 60.0f / bpm;
+	const float half_beat_seconds = beat_seconds * 0.5f;
+	const float interval_seconds = settings.analysis_interval_seconds;
 	const uint64_t hop_samples = static_cast<uint64_t>(
 		std::lround(settings.analysis_interval_seconds * static_cast<float>(settings.sample_rate)));
 	mao::AnalysisSnapshot snapshot = {};
+	float next_beat_seconds = 0.0f;
+	float next_hihat_seconds = 0.0f;
+	int beat = 0;
 
 	for (int frame = 0; frame < frames; ++frame) {
 		mao_test::Buffer buffer = {};
 		add_tempo_backing(buffer, static_cast<uint64_t>(frame) * hop_samples);
+		const float frame_seconds = static_cast<float>(frame) * interval_seconds;
+		const float frame_center_seconds = frame_seconds + interval_seconds * 0.5f;
 
-		if (eighth_hats && frame % half_beat_frames == 0)
+		if (eighth_hats && next_hihat_seconds <= frame_center_seconds) {
 			add_tempo_hihat(buffer, 0.70f);
-		if (frame % beat_frames == 0) {
-			const int beat = frame / beat_frames;
+			while (next_hihat_seconds <= frame_center_seconds)
+				next_hihat_seconds += half_beat_seconds;
+		}
+		if (next_beat_seconds <= frame_center_seconds) {
 			if (beat % 4 == 1 || beat % 4 == 3)
 				add_tempo_snare(buffer);
 			else
 				add_tempo_kick(buffer);
+			++beat;
+			while (next_beat_seconds <= frame_center_seconds)
+				next_beat_seconds += beat_seconds;
 		}
-		if (one_frame_fill && frame == frames / 2 + half_beat_frames / 2)
+		if (one_frame_fill && frame == frames / 2 + static_cast<int>(std::lround(half_beat_seconds /
+										      interval_seconds * 0.5f)))
 			add_tempo_fill(buffer);
 
 		snapshot = engine.analyze(buffer.data(), buffer.size(), settings, "tempo test", 0);
@@ -4838,6 +4849,14 @@ void check_explicit_input_mode_and_bpm(Runner &runner)
 		const mao::AnalysisSettings settings = tempo_test_settings();
 		const mao::AnalysisSnapshot snapshot = run_tempo_pattern(engine, settings, 120.0f, 220, true, true);
 		expect_bpm_near(runner, snapshot, 120.0f, 5.0f, "BPM estimate with eighth hats and fill");
+	}
+
+	{
+		mao::AnalysisEngine engine;
+		const mao::AnalysisSettings settings = tempo_test_settings();
+		const mao::AnalysisSnapshot snapshot = run_tempo_pattern(engine, settings, 90.0f, 240, true, false);
+		expect_bpm_near(runner, snapshot, 90.0f, 7.0f,
+				"BPM estimate should not double slower eighth-hat groove");
 	}
 
 	{

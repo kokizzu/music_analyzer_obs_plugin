@@ -23878,6 +23878,7 @@ void AnalysisEngine::update_tempo(float transient_strength, float interval_secon
 	static constexpr std::size_t kTempoBpmCount =
 		static_cast<std::size_t>(kMaxTempoBpm - kMinTempoBpm + 1);
 	std::array<float, kTempoBpmCount> bpm_scores = {};
+	std::array<float, kTempoBpmCount> adjacent_bpm_scores = {};
 	float best_score = 0.0f;
 	int best_bpm = 0;
 
@@ -23885,6 +23886,7 @@ void AnalysisEngine::update_tempo(float transient_strength, float interval_secon
 		const float period = 60.0f / static_cast<float>(bpm);
 		const float tolerance = std::clamp(period * 0.115f, 0.035f, 0.080f);
 		float score = 0.0f;
+		float adjacent_score = 0.0f;
 
 		for (std::size_t older_index = 0; older_index < recent_count; ++older_index) {
 			for (std::size_t newer_index = older_index + 1; newer_index < recent_count;
@@ -23914,6 +23916,28 @@ void AnalysisEngine::update_tempo(float transient_strength, float interval_secon
 			}
 		}
 
+		for (std::size_t newer_index = 1; newer_index < recent_count; ++newer_index) {
+			const float newer = recent_events[newer_index];
+			const float older = recent_events[newer_index - 1];
+			const float delta = newer - older;
+			if (delta < 0.28f || delta > 1.20f)
+				continue;
+			const float pair_floor =
+				std::min(recent_strengths[newer_index - 1], recent_strengths[newer_index]);
+			if (pair_floor < 0.46f)
+				continue;
+			const float phase_error = std::abs(delta - period);
+			if (phase_error > tolerance)
+				continue;
+			const float error_weight = 1.0f - phase_error / tolerance;
+			const float age = tempo_clock_seconds_ - newer;
+			const float recency = std::max(0.22f, 1.0f - age / 10.0f);
+			const float strength_weight =
+				std::sqrt(recent_strengths[newer_index - 1] * recent_strengths[newer_index]);
+			adjacent_score += strength_weight * recency * error_weight * error_weight;
+		}
+		score += adjacent_score * 2.40f;
+
 		if (estimated_bpm_ > 0.0f && bpm_confidence_ > 0.15f) {
 			const float continuity_error = std::abs(static_cast<float>(bpm) - estimated_bpm_);
 			if (continuity_error <= 8.0f)
@@ -23923,6 +23947,7 @@ void AnalysisEngine::update_tempo(float transient_strength, float interval_secon
 
 		const std::size_t score_index = static_cast<std::size_t>(bpm - kMinTempoBpm);
 		bpm_scores[score_index] = score;
+		adjacent_bpm_scores[score_index] = adjacent_score;
 		if (score > best_score) {
 			best_score = score;
 			best_bpm = bpm;
@@ -23932,6 +23957,18 @@ void AnalysisEngine::update_tempo(float transient_strength, float interval_secon
 	if (best_score <= 1.0e-6f) {
 		bpm_confidence_ *= std::exp(-clamped_interval / 6.0f);
 		return;
+	}
+
+	if (best_bpm > 0 && best_bpm * 2 <= kMaxTempoBpm) {
+		const int double_bpm = best_bpm * 2;
+		const std::size_t best_index = static_cast<std::size_t>(best_bpm - kMinTempoBpm);
+		const std::size_t double_index = static_cast<std::size_t>(double_bpm - kMinTempoBpm);
+		if (bpm_scores[double_index] >= best_score * 0.30f &&
+		    adjacent_bpm_scores[double_index] >=
+			    std::max(adjacent_bpm_scores[best_index] * 1.60f, total_recent_strength * 0.10f)) {
+			best_bpm = double_bpm;
+			best_score = bpm_scores[double_index];
+		}
 	}
 
 	float cluster_sum = 0.0f;
