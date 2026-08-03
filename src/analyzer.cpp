@@ -22960,12 +22960,16 @@ void promote_displayed_supported_plain_guitar_primary(InstrumentState &state,
 void append_source_supported_plain_guitar_aliases_after_prune(InstrumentState &state,
 							      const ChordResult &source,
 							      const NoteGrid &display_grid,
-							      const NoteGrid &analysis_grid)
+							      const NoteGrid &analysis_grid,
+							      const std::array<float, kNoteProbeCount> *powers = nullptr,
+							      int min_midi = kFirstMidi,
+							      int max_midi = kLastMidi)
 {
 	if (!valid_chord_result(source))
 		return;
 
 	const bool has_display_label = state.label[0] && state.label[0] != '-';
+	const int display_label_components = chord_label_component_count(state.label);
 	const int display_pitch_classes = note_grid_active_pitch_class_count(display_grid);
 	const int analysis_pitch_classes = note_grid_active_pitch_class_count(analysis_grid);
 	if (display_pitch_classes < (has_display_label ? 2 : 1) || display_pitch_classes > 4 ||
@@ -23012,6 +23016,45 @@ void append_source_supported_plain_guitar_aliases_after_prune(InstrumentState &s
 						 note_grid_pitch_active(display_grid, component.root) &&
 						 note_grid_pitch_active(display_grid, third) &&
 						 full_analysis;
+				if (!supported && has_display_label && display_label_components <= 4 &&
+				    display_pitch_classes <= 4 && analysis_pitch_classes <= 4 &&
+				    source.confidence >= 0.40f && visible_root >= 0.08f &&
+				    visible_third >= 0.08f &&
+				    note_grid_pitch_active(display_grid, component.root) &&
+				    note_grid_pitch_active(display_grid, third) &&
+				    note_grid_pitch_active(analysis_grid, component.root) &&
+				    note_grid_pitch_active(analysis_grid, third) && powers) {
+					const float strongest_probe =
+						strongest_probe_level(*powers, min_midi, max_midi);
+					if (strongest_probe > 1.0e-6f) {
+						const int opposite_third = component.root + (minor ? 4 : 3);
+						const float root_probe =
+							strongest_probe_pitch_class_level(
+								*powers, component.root, min_midi,
+								max_midi) /
+							strongest_probe;
+						const float third_probe =
+							strongest_probe_pitch_class_level(
+								*powers, third, min_midi, max_midi) /
+							strongest_probe;
+						const float fifth_probe =
+							strongest_probe_pitch_class_level(
+								*powers, fifth, min_midi, max_midi) /
+							strongest_probe;
+						const float opposite_probe =
+							strongest_probe_pitch_class_level(
+								*powers, opposite_third, min_midi,
+								max_midi) /
+							strongest_probe;
+						const float anchor_probe = std::max(root_probe, fifth_probe);
+						supported = root_probe >= 0.45f &&
+							    third_probe >= 0.24f &&
+							    fifth_probe >= 0.24f &&
+							    third_probe >= anchor_probe * 0.16f &&
+							    fifth_probe >= anchor_probe * 0.16f &&
+							    third_probe >= opposite_probe;
+					}
+				}
 				if (!supported && !has_display_label &&
 				    display_pitch_classes <= 2 && visible_root >= 0.015f &&
 				    note_grid_pitch_active(display_grid, component.root) &&
@@ -28992,10 +29035,12 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 		if (!mixed_source) {
 			append_source_supported_plain_guitar_aliases_after_prune(
 				snapshot.guitar_chord, raw_guitar_chord, snapshot.guitar_notes,
-				guitar_chord_detection_grid);
+				guitar_chord_detection_grid, &note_powers, kGuitarMinMidi,
+				kGuitarMaxMidi);
 			append_source_supported_plain_guitar_aliases_after_prune(
 				snapshot.guitar_chord, smoothed_guitar_chord, snapshot.guitar_notes,
-				guitar_chord_detection_grid);
+				guitar_chord_detection_grid, &note_powers, kGuitarMinMidi,
+				kGuitarMaxMidi);
 			append_compact_guitar_power_raw_profile_aliases_to_display(
 				snapshot.guitar_chord, snapshot.guitar_notes,
 				guitar_chord_detection_grid, note_powers, kGuitarMinMidi,
@@ -29024,10 +29069,12 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 							   guitar_chord_detection_grid);
 			append_source_supported_plain_guitar_aliases_after_prune(
 				snapshot.guitar_chord, raw_guitar_chord, snapshot.guitar_notes,
-				guitar_chord_detection_grid);
+				guitar_chord_detection_grid, &note_powers, kGuitarMinMidi,
+				kGuitarMaxMidi);
 			append_source_supported_plain_guitar_aliases_after_prune(
 				snapshot.guitar_chord, smoothed_guitar_chord, snapshot.guitar_notes,
-				guitar_chord_detection_grid);
+				guitar_chord_detection_grid, &note_powers, kGuitarMinMidi,
+				kGuitarMaxMidi);
 			append_source_supported_guitar_diminished_triad_aliases_after_prune(
 				snapshot.guitar_chord, raw_guitar_chord, snapshot.guitar_notes,
 				guitar_chord_detection_grid);

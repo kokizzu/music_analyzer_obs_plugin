@@ -78,6 +78,22 @@ def main() -> int:
                 guitar_probe_pitch_class_levels="C:1.000,D#:0.420,G:0.900",
                 guitar_melodic_probe_pitch_class_levels="C:1.000,D#:0.420,G:0.900",
             ),
+            row(
+                status="chord_miss",
+                recording_id="source_primary_rescue",
+                expected_chords="F#",
+                guitar_chord="Gm=Gm7",
+                guitar_raw_chord="F#=F#maj7=F#add9",
+                guitar_smoothed_chord="F#=F#maj7=F#add9",
+                guitar_pitch_classes="F#,G,A,A#",
+                guitar_cells="F#3:1.00,G3:0.74,A2:0.38,A#3:0.39",
+                guitar_analysis_pitch_classes="F#,G,A,A#",
+                guitar_analysis_cells="F#3:1.00,G3:0.61,A2:0.32,A#3:0.35",
+                guitar_smoothed_pitch_classes="F#,G,A,A#",
+                raw_pitch_class_levels="F#:1.000,G:0.244,A:0.259,A#:0.495,C#:0.415",
+                guitar_probe_pitch_class_levels="F#:1.000,G:0.737,A:0.385,A#:0.389,C#:0.299",
+                guitar_melodic_probe_pitch_class_levels="F#:1.000,G:0.573,A:0.481,A#:0.512,C#:0.424",
+            ),
         ]
         path.write_text(
             "\t".join(HEADER) + "\n" + "\n".join("\t".join(item) for item in rows) + "\n",
@@ -92,9 +108,13 @@ def main() -> int:
             stderr=subprocess.PIPE,
         )
         output = completed.stdout
-        assert "guitar chord recovery rows=4" in output
-        assert "evidence classes analysis_full_tone_label_gap=2 raw_quality_gap=2" in output
-        assert "evidence sources analysis=2 raw=2" in output
+        assert "guitar chord recovery rows=5" in output
+        assert (
+            "evidence classes analysis_full_tone_label_gap=2 "
+            "raw_quality_gap=2 raw_exact_not_displayed=1"
+            in output
+        )
+        assert "evidence sources raw=3 analysis=2" in output
         assert "guitar_pitch_classes root+fifth=3" in output
         assert "guitar_analysis_pitch_classes root+fifth=3" in output
         assert "guitar_smoothed_pitch_classes root+fifth=3" in output
@@ -123,6 +143,14 @@ def main() -> int:
         assert "recover=2 same_root_pow=1" in ranked
         assert "labels<=5" in ranked
         assert "protected_false=0" in ranked
+        assert "ranked source-primary rescue opportunities" in output
+        source_ranked = output.split("ranked source-primary rescue opportunities", 1)[1]
+        assert "best_zero_false raw-chord-primary" in source_ranked
+        assert "recover=1" in source_ranked
+        assert (
+            "source_primary_rescue expected=F# got=Gm=Gm7 rescued=F# raw=1/0.495/0.415"
+            in source_ranked
+        )
         limited = subprocess.run(
             [sys.executable, str(SCRIPT), str(path), "--examples", "2", "--limit", "1"],
             cwd=ROOT,
@@ -134,6 +162,7 @@ def main() -> int:
         assert "internal-probe same-root promotion simulation" in limited.stdout
         assert limited.stdout.count("    visible_and_analysis expected=G got=Gpow") == 18
         assert limited.stdout.count("      bounded visible_and_analysis labels=1") == 18
+        assert "ranked source-primary rescue opportunities" in limited.stdout
     print("test_analyze_guitar_chord_recovery: ok")
     return 0
 

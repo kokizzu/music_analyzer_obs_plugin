@@ -41,6 +41,13 @@ PROMOTION_SCOPES = (
     ("first_power", "first_power", None),
     ("primary_power", "primary_power", None),
 )
+SOURCE_PRIMARY_CHORD_FIELDS = (
+    ("guitar_raw_chord", "raw-chord-primary"),
+    ("guitar_smoothed_chord", "smoothed-chord-primary"),
+)
+SOURCE_PRIMARY_LEVEL_FLOORS = (0.20, 0.30, 0.40)
+SOURCE_PRIMARY_OPPOSITE_MARGINS = (1.20, 1.50, 1.80)
+SOURCE_PRIMARY_MAX_PITCH_CLASSES = (4, 5, 6)
 
 
 def chord_root(label: str) -> str:
@@ -280,6 +287,124 @@ def displayed_label_count(row: dict[str, str]) -> int:
     return len(split_labels(row.get("guitar_chord", "")))
 
 
+def plain_primary_label(value: str) -> str:
+    labels = split_labels(value)
+    if not labels:
+        return ""
+    return labels[0] if is_plain_major_or_minor(labels[0]) else ""
+
+
+def root_third_supported_by_grids(row: dict[str, str], label: str, root: int) -> bool:
+    third = expected_third(label, root) % 12
+    display_levels = parse_cell_levels(row.get("guitar_cells", ""))
+    analysis_levels = parse_cell_levels(row.get("guitar_analysis_cells", ""))
+    visible = pitch_classes(row.get("guitar_pitch_classes", ""))
+    analysis = pitch_classes(row.get("guitar_analysis_pitch_classes", ""))
+    return (
+        root in visible
+        and third in visible
+        and root in analysis
+        and third in analysis
+        and display_levels.get(root, 0.0) >= 0.08
+        and display_levels.get(third, 0.0) >= 0.08
+        and analysis_levels.get(root, 0.0) >= 0.08
+        and analysis_levels.get(third, 0.0) >= 0.08
+    )
+
+
+def source_primary_rescue_candidate(
+    row: dict[str, str],
+    chord_field: str,
+    level_source: str,
+    level_floor: float,
+    opposite_margin: float,
+    max_pitch_classes: int,
+) -> str:
+    source_primary = plain_primary_label(row.get(chord_field, ""))
+    if not source_primary:
+        return ""
+    displayed_labels = split_labels(row.get("guitar_chord", ""))
+    if displayed_labels and displayed_labels[0] == source_primary:
+        return ""
+    if displayed_label_count(row) > max_pitch_classes:
+        return ""
+    if len(pitch_classes(row.get("guitar_pitch_classes", ""))) > max_pitch_classes:
+        return ""
+    if len(pitch_classes(row.get("guitar_analysis_pitch_classes", ""))) > max_pitch_classes:
+        return ""
+
+    root = expected_root(source_primary)
+    if root is None or not root_third_supported_by_grids(row, source_primary, root):
+        return ""
+
+    levels = source_levels(row, level_source)
+    if not levels:
+        return ""
+    third = expected_third(source_primary, root)
+    fifth = (root + 7) % 12
+    opposite_third = (root + (4 if is_minor_label(source_primary) else 3)) % 12
+    root_level = levels.get(root, 0.0)
+    third_level = levels.get(third % 12, 0.0)
+    fifth_level = levels.get(fifth, 0.0)
+    opposite_level = levels.get(opposite_third, 0.0)
+    anchor = max(root_level, fifth_level)
+    if anchor <= 0.0:
+        return ""
+    if third_level < level_floor or fifth_level < level_floor:
+        return ""
+    if third_level < anchor * 0.16 or fifth_level < anchor * 0.16:
+        return ""
+    if third_level < opposite_level * opposite_margin:
+        return ""
+    return source_primary
+
+
+def source_primary_rescue_rows(
+    rows: list[dict[str, str]],
+    chord_field: str,
+    level_source: str,
+    level_floor: float,
+    opposite_margin: float,
+    max_pitch_classes: int,
+) -> list[dict[str, str]]:
+    candidates: list[dict[str, str]] = []
+    for row in rows:
+        expected = {
+            label for label in split_labels(row.get("expected_chords", "")) if is_plain_major_or_minor(label)
+        }
+        if not expected:
+            continue
+        rescued = source_primary_rescue_candidate(
+            row, chord_field, level_source, level_floor, opposite_margin, max_pitch_classes
+        )
+        if rescued and rescued in expected:
+            candidates.append(row)
+    return candidates
+
+
+def protected_false_source_primary_rescues(
+    rows: list[dict[str, str]],
+    chord_field: str,
+    level_source: str,
+    level_floor: float,
+    opposite_margin: float,
+    max_pitch_classes: int,
+) -> list[tuple[dict[str, str], str]]:
+    false_promotions: list[tuple[dict[str, str], str]] = []
+    for row in rows:
+        expected = {
+            label for label in split_labels(row.get("expected_chords", "")) if is_plain_major_or_minor(label)
+        }
+        if not expected:
+            continue
+        rescued = source_primary_rescue_candidate(
+            row, chord_field, level_source, level_floor, opposite_margin, max_pitch_classes
+        )
+        if rescued and rescued not in expected:
+            false_promotions.append((row, rescued))
+    return false_promotions
+
+
 def protected_false_promotions(
     rows: list[dict[str, str]],
     ratio: float,
@@ -420,6 +545,176 @@ def append_ranked_promotion_summary(lines: list[str], options: list[dict[str, ob
             f"recover={option['recover']} same_root_pow={option['same_root_pow']} "
             f"protected_false={option['protected_false']}"
         )
+
+
+def ranked_source_primary_rescues(
+    rows: list[dict[str, str]], protected_rows: list[dict[str, str]]
+) -> list[dict[str, object]]:
+    options: list[dict[str, object]] = []
+    for chord_field, chord_label in SOURCE_PRIMARY_CHORD_FIELDS:
+        if not any(plain_primary_label(row.get(chord_field, "")) for row in rows):
+            continue
+        for level_source, level_label in PROMOTION_SOURCES:
+            if not any(source_levels(row, level_source) for row in rows):
+                continue
+            for level_floor in SOURCE_PRIMARY_LEVEL_FLOORS:
+                for opposite_margin in SOURCE_PRIMARY_OPPOSITE_MARGINS:
+                    for max_pitch_classes in SOURCE_PRIMARY_MAX_PITCH_CLASSES:
+                        candidates = source_primary_rescue_rows(
+                            rows,
+                            chord_field,
+                            level_source,
+                            level_floor,
+                            opposite_margin,
+                            max_pitch_classes,
+                        )
+                        if not candidates:
+                            continue
+                        false_promotions = protected_false_source_primary_rescues(
+                            protected_rows,
+                            chord_field,
+                            level_source,
+                            level_floor,
+                            opposite_margin,
+                            max_pitch_classes,
+                        )
+                        options.append(
+                            {
+                                "chord": chord_label,
+                                "source": level_label,
+                                "floor": level_floor,
+                                "opposite_margin": opposite_margin,
+                                "max_pitch_classes": max_pitch_classes,
+                                "recover": len(candidates),
+                                "protected_false": len(false_promotions),
+                            }
+                        )
+
+    best_by_scope: dict[tuple[str, str, int], dict[str, object]] = {}
+    for option in options:
+        key = (
+            str(option["chord"]),
+            str(option["source"]),
+            int(option["max_pitch_classes"]),
+        )
+        current = best_by_scope.get(key)
+        if current is None:
+            best_by_scope[key] = option
+            continue
+        option_key = (
+            int(option["protected_false"]),
+            -int(option["recover"]),
+            -float(option["floor"]),
+            -float(option["opposite_margin"]),
+        )
+        current_key = (
+            int(current["protected_false"]),
+            -int(current["recover"]),
+            -float(current["floor"]),
+            -float(current["opposite_margin"]),
+        )
+        if option_key < current_key:
+            best_by_scope[key] = option
+
+    return sorted(
+        best_by_scope.values(),
+        key=lambda option: (
+            int(option["protected_false"]),
+            -int(option["recover"]),
+            str(option["chord"]),
+            str(option["source"]),
+            int(option["max_pitch_classes"]),
+            -float(option["floor"]),
+            -float(option["opposite_margin"]),
+        ),
+    )
+
+
+def append_source_primary_rescue_summary(
+    lines: list[str], rows: list[dict[str, str]], protected_rows: list[dict[str, str]], limit: int
+) -> None:
+    options = ranked_source_primary_rescues(rows, protected_rows)
+    lines.append("ranked source-primary rescue opportunities")
+    if not options:
+        lines.append("  no source-primary rescue opportunities")
+        return
+
+    zero_false = [option for option in options if int(option["protected_false"]) == 0]
+    if zero_false:
+        best = zero_false[0]
+        lines.append(
+            "  best_zero_false "
+            f"{best['chord']} {best['source']} "
+            f"floor={float(best['floor']):.2f} opposite_margin={float(best['opposite_margin']):.2f} "
+            f"max_pc={best['max_pitch_classes']} recover={best['recover']}"
+        )
+    else:
+        lines.append("  no zero-protected source-primary rescue option found")
+
+    printed = 0
+    for option in options[: max(0, limit)]:
+        lines.append(
+            "  "
+            f"{option['chord']} {option['source']} "
+            f"floor={float(option['floor']):.2f} "
+            f"opposite_margin={float(option['opposite_margin']):.2f} "
+            f"max_pc={option['max_pitch_classes']} recover={option['recover']} "
+            f"protected_false={option['protected_false']}"
+        )
+        if printed >= limit:
+            continue
+        chord_field = next(
+            field for field, label in SOURCE_PRIMARY_CHORD_FIELDS if label == option["chord"]
+        )
+        level_source = next(
+            source for source, label in PROMOTION_SOURCES if label == option["source"]
+        )
+        candidates = source_primary_rescue_rows(
+            rows,
+            chord_field,
+            level_source,
+            float(option["floor"]),
+            float(option["opposite_margin"]),
+            int(option["max_pitch_classes"]),
+        )
+        for row in candidates[: max(0, limit - printed)]:
+            rescued = source_primary_rescue_candidate(
+                row,
+                chord_field,
+                level_source,
+                float(option["floor"]),
+                float(option["opposite_margin"]),
+                int(option["max_pitch_classes"]),
+            )
+            levels = source_levels(row, level_source)
+            root = expected_root(rescued) if rescued else None
+            root_value = third_value = fifth_value = "--"
+            if root is not None:
+                root_value = level(levels, root)
+                third_value = level(levels, expected_third(rescued, root))
+                fifth_value = level(levels, root + 7)
+            lines.append(
+                "    "
+                f"{row.get('recording_id', '')} expected={row.get('expected_chords', '')} "
+                f"got={row.get('guitar_chord', '--')} rescued={rescued} "
+                f"{level_source}={root_value}/{third_value}/{fifth_value}"
+            )
+            printed += 1
+        false_promotions = protected_false_source_primary_rescues(
+            protected_rows,
+            chord_field,
+            level_source,
+            float(option["floor"]),
+            float(option["opposite_margin"]),
+            int(option["max_pitch_classes"]),
+        )
+        for row, rescued in false_promotions[: max(0, limit - printed)]:
+            lines.append(
+                "    protected "
+                f"{row.get('recording_id', '')} expected={row.get('expected_chords', '')} "
+                f"got={row.get('guitar_chord', '--')} rescued={rescued}"
+            )
+            printed += 1
 
 
 def summarize(path: pathlib.Path, examples: int, limit: int) -> list[str]:
@@ -586,6 +881,7 @@ def summarize(path: pathlib.Path, examples: int, limit: int) -> list[str]:
                     f"got={row.get('guitar_chord', '--')} promoted={promoted}"
                 )
     append_ranked_promotion_summary(lines, ranked_promotion_opportunities(rows, protected_rows), limit)
+    append_source_primary_rescue_summary(lines, rows, protected_rows, limit)
     return lines
 
 

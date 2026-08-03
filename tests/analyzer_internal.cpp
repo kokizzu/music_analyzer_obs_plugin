@@ -284,6 +284,34 @@ void check_source_supported_plain_guitar_alias_recovery(Runner &runner)
 		      std::string("source-supported guitar alias recovery: expected root-fifth-only Am protected, got `") +
 			      protected_state.label + "`");
 
+	InstrumentState probe_state = {};
+	std::snprintf(probe_state.label, sizeof(probe_state.label), "Gm=Gm7");
+	probe_state.confidence = 0.43f;
+	ChordResult probe_source = make_crowded_chord("F#=F#maj7=F#add9");
+	probe_source.root = 6;
+	probe_source.confidence = 0.43f;
+	NoteGrid probe_display = {};
+	set_pitch(probe_display, 6, 1.00f);
+	set_pitch(probe_display, 7, 0.74f);
+	set_pitch(probe_display, 9, 0.38f);
+	set_pitch(probe_display, 10, 0.39f);
+	NoteGrid probe_analysis = {};
+	set_pitch(probe_analysis, 6, 1.00f);
+	set_pitch(probe_analysis, 7, 0.61f);
+	set_pitch(probe_analysis, 9, 0.32f);
+	set_pitch(probe_analysis, 10, 0.35f);
+	std::array<float, kNoteProbeCount> probe_powers = {};
+	set_probe_level(probe_powers, 42, 1.00f);
+	set_probe_level(probe_powers, 46, 0.39f);
+	set_probe_level(probe_powers, 49, 0.30f);
+	set_probe_level(probe_powers, 57, 0.38f);
+	append_source_supported_plain_guitar_aliases_after_prune(
+		probe_state, probe_source, probe_display, probe_analysis, &probe_powers,
+		kGuitarMinMidi, kGuitarMaxMidi);
+	runner.expect(chord_label_has_exact_component(probe_state.label, "F#"),
+		      std::string("source-supported guitar alias recovery: expected probe-backed F#, got `") +
+			      probe_state.label + "`");
+
 	InstrumentState no_display_state = {};
 	std::snprintf(no_display_state.label, sizeof(no_display_state.label), "--");
 	ChordResult no_display_source = make_crowded_chord("A=Amaj7");
