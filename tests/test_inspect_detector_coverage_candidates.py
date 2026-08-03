@@ -304,6 +304,126 @@ def main() -> int:
     if "coverage_candidate guitar bucket" in summary_only_output:
         raise AssertionError(f"summary-only output should omit candidate details:\n{summary_only_output}")
 
+    drum_summary = """detector_route_summary: candidates=1 low_false=0 shadow=0 near_miss=0 guitar=0 drum=1 positive_net=1 gain_ge_1=1 source_safe_positive_net=1 actionable=0 coverage_blocked=1
+  coverage-blocked candidates need more positive samples before detector changes
+    coverage_need drum route tom->snare observed_rows=4 need_rows=1 +rows=4 side_rows=0 net_rows=4 gain_per_side=inf :: snare_kick_level_ratio>=3.362 AND tom_snare_body_ratio>=1.824
+"""
+    drum_header = [
+        "sample",
+        "expected",
+        "got",
+        "energy_low",
+        "energy_mid",
+        "energy_high",
+        "kick_level",
+        "snare_level",
+        "tom_level",
+        "kick_body",
+        "snare_body",
+        "tom_body",
+        "snare_band",
+        "tom_band",
+    ]
+    drum_rows = [
+        [
+            "tom/012_Tom_H-01.wav",
+            "tom",
+            "snare",
+            "0.333",
+            "0.476",
+            "0.191",
+            "0.280",
+            "0.971",
+            "0.893",
+            "76.844",
+            "82.144",
+            "149.866",
+            "229.669",
+            "277.926",
+        ],
+        [
+            "tom/078_Tom.wav",
+            "tom",
+            "snare",
+            "0.260",
+            "0.608",
+            "0.132",
+            "0.100",
+            "0.900",
+            "0.980",
+            "52.777",
+            "64.176",
+            "123.731",
+            "183.845",
+            "212.893",
+        ],
+        [
+            "tom/protected_tom.wav",
+            "tom",
+            "tom",
+            "0.300",
+            "0.500",
+            "0.200",
+            "0.100",
+            "0.900",
+            "1.000",
+            "50.000",
+            "60.000",
+            "120.000",
+            "100.000",
+            "220.000",
+        ],
+    ]
+    with tempfile.TemporaryDirectory() as tmpdir:
+        tmp_path = pathlib.Path(tmpdir)
+        summary_path = tmp_path / "detector_summary.txt"
+        rows_path = tmp_path / "drum_rows.tsv"
+        summary_path.write_text(drum_summary, encoding="utf-8")
+        rows_path.write_text(
+            "\n".join(["\t".join(drum_header)] + ["\t".join(row) for row in drum_rows]) + "\n",
+            encoding="utf-8",
+        )
+        drum_completed = subprocess.run(
+            [
+                sys.executable,
+                str(SCRIPT),
+                str(summary_path),
+                "--limit",
+                "1",
+                "--examples",
+                "1",
+                "--field",
+                "snare_kick_level_ratio",
+                "--field",
+                "tom_snare_body_ratio",
+                str(rows_path),
+            ],
+            cwd=ROOT,
+            text=True,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+        )
+        if drum_completed.returncode != 0:
+            raise AssertionError(
+                f"drum coverage candidate inspector failed with {drum_completed.returncode}\n"
+                f"stdout:\n{drum_completed.stdout}\nstderr:\n{drum_completed.stderr}"
+            )
+    drum_output = drum_completed.stdout
+    require(drum_output, "coverage_candidate_inspection: candidates=1/1 row_paths=1/1 expanded_ready=0")
+    require(
+        drum_output,
+        "nearest_coverage drum route tom->snare selected_rows=2 required_rows=5 short_by=3 :: snare_kick_level_ratio>=3.362 AND tom_snare_body_ratio>=1.824",
+    )
+    require(
+        drum_output,
+        "coverage_candidate drum route tom->snare observed_rows=4 selected_rows=2 need_rows=1 expanded_rows=-2 coverage_status=still_short_by=3 :: snare_kick_level_ratio>=3.362 AND tom_snare_body_ratio>=1.824",
+    )
+    require(drum_output, "groups _coverage_path/expected/got")
+    require(drum_output, "tom/snare rows=2 samples=2")
+    require(drum_output, "snare_kick_level_ratio: min=3.468 med=6.234 max=9.000")
+    require(drum_output, "tom_snare_body_ratio: min=1.824 med=1.876 max=1.928")
+    require(drum_output, "example sample=tom/012_Tom_H-01.wav expected=tom got=snare")
+
     ready_summary = """detector_route_summary: candidates=2 low_false=2 shadow=0 near_miss=0 guitar=0 drum=0 positive_net=2 gain_ge_1=2 source_safe_positive_net=2 actionable=0 coverage_blocked=2
   coverage-blocked candidates need more positive samples before detector changes
     coverage_need low-false row_confusion:piano/electronic->other observed_samples=4 need_samples=1 +rows=4 side_rows=0 net_rows=4 gain_per_side=inf :: partial4>=0.8

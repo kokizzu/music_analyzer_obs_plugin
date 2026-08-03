@@ -23,7 +23,8 @@ from inspect_real_note_candidate_rows import (
 
 COVERAGE_NEED_RE = re.compile(
     r"^\s+coverage_need (?P<kind>\S+) (?P<section>.+?) "
-    r"observed_samples=(?P<observed>\d+) need_samples=(?P<needed>\d+) "
+    r"observed_(?P<unit>samples|rows)=(?P<observed>\d+) "
+    r"need_(?P=unit)=(?P<needed>\d+) "
     r"\+rows=(?P<rows>\d+) side_rows=(?P<side_rows>\d+) "
     r"net_rows=(?P<net_rows>-?\d+) gain_per_side=(?P<gain>\S+) :: (?P<rule>.+)$"
 )
@@ -70,6 +71,39 @@ DEFAULT_EXAMPLE_FIELDS = [
     "guitar_match_kind",
     "support",
     "guitar_chord",
+    "sample",
+    "expected",
+    "got",
+    "primary",
+    "energy_low",
+    "energy_mid",
+    "energy_high",
+    "kick_level",
+    "snare_level",
+    "hihat_level",
+    "crash_level",
+    "tom_level",
+    "ride_level",
+    "rim_level",
+]
+
+DEFAULT_DRUM_EXAMPLE_FIELDS = [
+    "sample",
+    "expected",
+    "got",
+    "energy_low",
+    "energy_mid",
+    "energy_high",
+    "kick_level",
+    "snare_level",
+    "hihat_level",
+    "crash_level",
+    "tom_level",
+    "ride_level",
+    "rim_level",
+    "kick_body",
+    "snare_body",
+    "tom_body",
 ]
 
 
@@ -77,8 +111,9 @@ DEFAULT_EXAMPLE_FIELDS = [
 class CoverageNeed:
     kind: str
     section: str
-    observed_samples: int
-    needed_samples: int
+    coverage_unit: str
+    observed: int
+    needed: int
     rows: int
     side_rows: int
     net_rows: int
@@ -97,8 +132,9 @@ def parse_summary(path: pathlib.Path) -> list[CoverageNeed]:
             CoverageNeed(
                 kind=match.group("kind"),
                 section=match.group("section"),
-                observed_samples=int(match.group("observed")),
-                needed_samples=int(match.group("needed")),
+                coverage_unit=match.group("unit"),
+                observed=int(match.group("observed")),
+                needed=int(match.group("needed")),
                 rows=int(match.group("rows")),
                 side_rows=int(match.group("side_rows")),
                 net_rows=int(match.group("net_rows")),
@@ -142,7 +178,58 @@ def guitar_bucket_matches(row: dict[str, str], section: str) -> bool:
 def candidate_matches_row(row: dict[str, str], candidate: CoverageNeed) -> bool:
     if candidate.kind == "guitar" and not guitar_bucket_matches(row, candidate.section):
         return False
+    if candidate.kind == "drum" and candidate.section.startswith("route "):
+        route = candidate.section.removeprefix("route ")
+        if "->" in route:
+            expected, got = route.split("->", 1)
+            if row.get("expected", "") != expected or row.get("got", row.get("primary", "")) != got:
+                return False
     return row_matches(row, candidate.conditions)
+
+
+def add_drum_ratios(row: dict[str, str]) -> None:
+    for source, target in (
+        ("energy_low", "low"),
+        ("energy_mid", "mid"),
+        ("energy_high", "high"),
+    ):
+        if row.get(source) and not row.get(target):
+            row[target] = row[source]
+
+    for lhs, rhs in (
+        ("tom", "snare"),
+        ("tom", "kick"),
+        ("snare", "kick"),
+        ("hihat", "rim"),
+        ("crash", "hihat"),
+        ("ride", "hihat"),
+    ):
+        for field in ("band", "seg", "shape_score", "trigger", "level"):
+            lhs_value = numeric_cell(row.get(f"{lhs}_{field}"))
+            rhs_value = numeric_cell(row.get(f"{rhs}_{field}"))
+            if lhs_value is None or rhs_value is None or abs(rhs_value) < 1.0e-6:
+                continue
+            row[f"{lhs}_{rhs}_{field}_ratio"] = f"{lhs_value / rhs_value:.9f}"
+
+    for label, lhs_field, rhs_field in (
+        ("tom_snare_body_ratio", "tom_body", "snare_body"),
+        ("tom_kick_body_ratio", "tom_body", "kick_body"),
+        ("snare_kick_body_ratio", "snare_body", "kick_body"),
+        ("upper_tom_snare_body_ratio", "upper_tom_body", "snare_body"),
+        ("upper_tom_snare_crack_ratio", "upper_tom_body", "snare_crack"),
+    ):
+        lhs_value = numeric_cell(row.get(lhs_field))
+        rhs_value = numeric_cell(row.get(rhs_field))
+        if lhs_value is None or rhs_value is None or abs(rhs_value) < 1.0e-6:
+            continue
+        row[label] = f"{lhs_value / rhs_value:.9f}"
+
+
+def numeric_cell(value: str | None) -> float | None:
+    try:
+        return float(value or "")
+    except ValueError:
+        return None
 
 
 def read_matching_rows(
@@ -163,6 +250,7 @@ def read_matching_rows(
                         if key and value is not None
                     }
                 )
+                add_drum_ratios(row)
                 row["_coverage_path"] = str(path)
                 for candidate in candidates:
                     if candidate_matches_row(row, candidate):
@@ -198,6 +286,8 @@ def default_group_fields(rows: list[dict[str, str]]) -> list[str]:
         for row in rows
     ):
         return ["_coverage_path", "status", "quality", "guitar_match_kind", "support"]
+    if any(row.get("expected") or row.get("got") or row.get("kick_level") for row in rows):
+        return ["_coverage_path", "expected", "got"]
     return [
         "_coverage_path",
         "status",
@@ -233,38 +323,51 @@ def print_examples(rows: list[dict[str, str]], fields: list[str], examples: int)
             print("  example " + " ".join(parts))
 
 
+def default_example_fields(candidate: CoverageNeed) -> list[str]:
+    if candidate.kind == "drum":
+        return DEFAULT_DRUM_EXAMPLE_FIELDS
+    return DEFAULT_EXAMPLE_FIELDS
+
+
 def summarize_sample_delta(candidate: CoverageNeed, rows: list[dict[str, str]]) -> str:
-    samples = len(selected_samples(rows))
-    delta = samples - candidate.observed_samples
+    selected = selected_coverage_count(candidate, rows)
+    delta = selected - candidate.observed
+    label = "expanded_rows" if candidate.coverage_unit == "rows" else "expanded_samples"
     if delta > 0:
-        return f"expanded_samples=+{delta}"
+        return f"{label}=+{delta}"
     if delta < 0:
-        return f"expanded_samples={delta}"
-    return "expanded_samples=0"
+        return f"{label}={delta}"
+    return f"{label}=0"
 
 
 def required_samples(candidate: CoverageNeed) -> int:
-    return candidate.observed_samples + candidate.needed_samples
+    return candidate.observed + candidate.needed
+
+
+def selected_coverage_count(candidate: CoverageNeed, rows: list[dict[str, str]]) -> int:
+    if candidate.coverage_unit == "rows":
+        return len(rows)
+    return len(selected_samples(rows))
 
 
 def coverage_status(candidate: CoverageNeed, rows: list[dict[str, str]]) -> str:
-    samples = len(selected_samples(rows))
+    samples = selected_coverage_count(candidate, rows)
     required = required_samples(candidate)
     if samples >= required:
         return "coverage_status=expanded_ready"
     short_by = required - samples
-    if samples > candidate.observed_samples:
+    if samples > candidate.observed:
         return f"coverage_status=expanded_partial short_by={short_by}"
     return f"coverage_status=still_short_by={short_by}"
 
 
 def coverage_state(candidate: CoverageNeed, rows: list[dict[str, str]]) -> tuple[str, int]:
-    samples = len(selected_samples(rows))
+    samples = selected_coverage_count(candidate, rows)
     required = required_samples(candidate)
     short_by = max(0, required - samples)
     if samples >= required:
         return "expanded_ready", 0
-    if samples > candidate.observed_samples:
+    if samples > candidate.observed:
         return "expanded_partial", short_by
     return "still_short", short_by
 
@@ -281,8 +384,8 @@ def median_numeric(rows: list[dict[str, str]], field: str) -> float | None:
 
 def candidate_sort_key(candidate: CoverageNeed) -> tuple[int, int, int, str]:
     return (
-        candidate.needed_samples,
-        -candidate.observed_samples,
+        candidate.needed,
+        -candidate.observed,
         -candidate.net_rows,
         candidate.section,
     )
@@ -292,9 +395,9 @@ def candidate_display_sort_key(
     candidate: CoverageNeed, rows_by_candidate: dict[CoverageNeed, list[dict[str, str]]]
 ) -> tuple[int, int, tuple[int, int, int, str]]:
     rows = rows_by_candidate.get(candidate, [])
-    samples = len(selected_samples(rows))
+    samples = selected_coverage_count(candidate, rows)
     ready_priority = 0 if samples >= required_samples(candidate) else 1
-    return (ready_priority, -max(0, samples - candidate.observed_samples), candidate_sort_key(candidate))
+    return (ready_priority, -max(0, samples - candidate.observed), candidate_sort_key(candidate))
 
 
 def print_coverage_status_summary(
@@ -318,7 +421,7 @@ def print_coverage_status_summary(
     waiting = [
         (
             short_by,
-            -len(selected_samples(rows_by_candidate.get(candidate, []))),
+            -selected_coverage_count(candidate, rows_by_candidate.get(candidate, [])),
             candidate_sort_key(candidate),
             candidate.kind,
             candidate.section,
@@ -339,10 +442,11 @@ def print_coverage_status_summary(
         candidate,
     ) in sorted(waiting)[: max(0, top)]:
         rows = rows_by_candidate.get(candidate, [])
+        unit = candidate.coverage_unit
         print(
             f"  nearest_coverage {candidate.kind} {candidate.section} "
-            f"selected_samples={len(selected_samples(rows))} "
-            f"required_samples={required_samples(candidate)} "
+            f"selected_{unit}={selected_coverage_count(candidate, rows)} "
+            f"required_{unit}={required_samples(candidate)} "
             f"short_by={short_by} :: {candidate.rule}"
         )
 
@@ -402,16 +506,21 @@ def main() -> int:
         return 0
 
     configured_group_by = args.group_by
-    example_fields = args.example_field or DEFAULT_EXAMPLE_FIELDS
-
     for candidate in candidates:
         rows = all_matches[candidate]
         samples = selected_samples(rows)
+        unit = candidate.coverage_unit
+        selected_unit_count = selected_coverage_count(candidate, rows)
+        selected_text = (
+            f"selected_rows={selected_unit_count}"
+            if unit == "rows"
+            else f"selected_samples={len(samples)} selected_rows={len(rows)}"
+        )
         print(
             f"coverage_candidate {candidate.kind} {candidate.section} "
-            f"observed_samples={candidate.observed_samples} "
-            f"selected_samples={len(samples)} selected_rows={len(rows)} "
-            f"need_samples={candidate.needed_samples} "
+            f"observed_{unit}={candidate.observed} "
+            f"{selected_text} "
+            f"need_{unit}={candidate.needed} "
             f"{summarize_sample_delta(candidate, rows)} "
             f"{coverage_status(candidate, rows)} :: {candidate.rule}"
         )
@@ -428,6 +537,7 @@ def main() -> int:
             value = median_numeric(rows, field)
             if value is not None:
                 print(f"  quick_pattern {field}_median={value:.3f}")
+        example_fields = args.example_field or default_example_fields(candidate)
         print_examples(rows, example_fields, args.examples)
 
     return 0
