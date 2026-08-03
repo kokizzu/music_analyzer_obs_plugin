@@ -27292,6 +27292,18 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 		if (final_one_shot_measured_snare_hihat_active_bleed)
 			cap_drum_level(HiHat, 0.28f);
 
+		const bool final_one_shot_measured_snare_body_hihat_active_bleed =
+			drum_detection_enabled && one_shot_drum_source &&
+			!generated_gm_drum_source &&
+			drum_level_[HiHat] > 0.30f &&
+			drum_level_[Snare] > 0.30f &&
+			snare_body >= 86.584f &&
+			tom_body <= 152.295f;
+		if (final_one_shot_measured_snare_body_hihat_active_bleed)
+			snapshot.drum_debug_rule_flags |= DrumDebugSnareBodyHihatActiveBleed;
+		if (final_one_shot_measured_snare_body_hihat_active_bleed)
+			cap_drum_level(HiHat, 0.28f);
+
 		const bool final_one_shot_measured_snare_tom_active_bleed =
 			drum_detection_enabled && one_shot_drum_source &&
 			drum_level_[Tom] > 0.30f &&
