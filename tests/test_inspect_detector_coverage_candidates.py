@@ -230,6 +230,14 @@ def main() -> int:
     require(output, "coverage_candidate_inspection: candidates=3 row_paths=2/2 expanded_ready=0")
     require(
         output,
+        "coverage_status_summary expanded_ready=0 expanded_partial=0 still_short=3 total_short_by=12",
+    )
+    require(
+        output,
+        "nearest_coverage guitar bucket chord_miss:pow:visible1_analysis1_smooth1_rootvis0 selected_samples=1 required_samples=5 short_by=4 :: analysis_root<=0 AND smooth_tones<=1",
+    )
+    require(
+        output,
         "coverage_candidate guitar bucket chord_miss:pow:visible1_analysis1_smooth1_rootvis0 observed_samples=4 selected_samples=1 selected_rows=2 need_samples=1 expanded_samples=-3 coverage_status=still_short_by=4 :: analysis_root<=0 AND smooth_tones<=1",
     )
     require(output, "groups _coverage_path/status/quality/guitar_match_kind/support")
@@ -338,6 +346,14 @@ def main() -> int:
             )
     ready_output = ready_completed.stdout
     require(ready_output, "coverage_candidate_inspection: candidates=2 row_paths=1/1 expanded_ready=1")
+    require(
+        ready_output,
+        "coverage_status_summary expanded_ready=1 expanded_partial=0 still_short=1 total_short_by=5",
+    )
+    require(
+        ready_output,
+        "nearest_coverage low-false row_confusion:piano/electronic->other selected_samples=0 required_samples=5 short_by=5 :: partial4>=0.8",
+    )
     first_ready_line = next(
         line for line in ready_output.splitlines() if line.startswith("coverage_candidate ")
     )

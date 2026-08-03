@@ -258,6 +258,17 @@ def coverage_status(candidate: CoverageNeed, rows: list[dict[str, str]]) -> str:
     return f"coverage_status=still_short_by={short_by}"
 
 
+def coverage_state(candidate: CoverageNeed, rows: list[dict[str, str]]) -> tuple[str, int]:
+    samples = len(selected_samples(rows))
+    required = required_samples(candidate)
+    short_by = max(0, required - samples)
+    if samples >= required:
+        return "expanded_ready", 0
+    if samples > candidate.observed_samples:
+        return "expanded_partial", short_by
+    return "still_short", short_by
+
+
 def median_numeric(rows: list[dict[str, str]], field: str) -> float | None:
     values: list[float] = []
     for row in rows:
@@ -284,6 +295,56 @@ def candidate_display_sort_key(
     samples = len(selected_samples(rows))
     ready_priority = 0 if samples >= required_samples(candidate) else 1
     return (ready_priority, -max(0, samples - candidate.observed_samples), candidate_sort_key(candidate))
+
+
+def print_coverage_status_summary(
+    candidates: list[CoverageNeed],
+    rows_by_candidate: dict[CoverageNeed, list[dict[str, str]]],
+    top: int,
+) -> None:
+    counts: collections.Counter[str] = collections.Counter()
+    total_short_by = 0
+    for candidate in candidates:
+        status, short_by = coverage_state(candidate, rows_by_candidate.get(candidate, []))
+        counts[status] += 1
+        total_short_by += short_by
+    print(
+        "  coverage_status_summary "
+        f"expanded_ready={counts['expanded_ready']} "
+        f"expanded_partial={counts['expanded_partial']} "
+        f"still_short={counts['still_short']} "
+        f"total_short_by={total_short_by}"
+    )
+    waiting = [
+        (
+            short_by,
+            -len(selected_samples(rows_by_candidate.get(candidate, []))),
+            candidate_sort_key(candidate),
+            candidate.kind,
+            candidate.section,
+            candidate.rule,
+            candidate,
+        )
+        for candidate in candidates
+        for _status, short_by in [coverage_state(candidate, rows_by_candidate.get(candidate, []))]
+        if short_by > 0
+    ]
+    for (
+        short_by,
+        _negative_samples,
+        _sort_key,
+        _kind,
+        _section,
+        _rule,
+        candidate,
+    ) in sorted(waiting)[: max(0, top)]:
+        rows = rows_by_candidate.get(candidate, [])
+        print(
+            f"  nearest_coverage {candidate.kind} {candidate.section} "
+            f"selected_samples={len(selected_samples(rows))} "
+            f"required_samples={required_samples(candidate)} "
+            f"short_by={short_by} :: {candidate.rule}"
+        )
 
 
 def main() -> int:
@@ -330,6 +391,7 @@ def main() -> int:
     if not existing_rows:
         print("  no existing row TSV paths supplied")
         return 0
+    print_coverage_status_summary(all_candidates, all_matches, args.top)
 
     configured_group_by = args.group_by
     example_fields = args.example_field or DEFAULT_EXAMPLE_FIELDS
