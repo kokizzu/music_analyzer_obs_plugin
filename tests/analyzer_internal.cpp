@@ -408,6 +408,53 @@ void check_probe_supported_guitar_extension_base_alias_recovery(Runner &runner)
 			      opposite_third_state.label + "`");
 }
 
+void check_probe_supported_guitar_plain_triad_replaces_weak_relative_primary(Runner &runner)
+{
+	NoteGrid display_grid = {};
+	set_pitch(display_grid, 1, 0.48f);
+	set_pitch(display_grid, 2, 1.00f);
+	set_pitch(display_grid, 3, 0.78f);
+	set_pitch(display_grid, 4, 0.14f);
+	set_pitch(display_grid, 6, 0.46f);
+	NoteGrid analysis_grid = {};
+	set_pitch(analysis_grid, 1, 0.37f);
+	set_pitch(analysis_grid, 2, 1.00f);
+	set_pitch(analysis_grid, 3, 0.68f);
+	set_pitch(analysis_grid, 4, 0.10f);
+	set_pitch(analysis_grid, 6, 0.35f);
+	set_pitch(analysis_grid, 10, 0.05f);
+	std::array<float, kNoteProbeCount> powers = {};
+	set_probe_level(powers, 49, 0.48f);
+	set_probe_level(powers, 50, 1.00f);
+	set_probe_level(powers, 51, 0.68f);
+	set_probe_level(powers, 52, 0.14f);
+	set_probe_level(powers, 57, 0.15f);
+	set_probe_level(powers, 66, 0.46f);
+
+	const ChordResult recovered = detect_probe_supported_guitar_plain_triad(
+		display_grid, analysis_grid, powers, kGuitarMinMidi, kGuitarMaxMidi, -1);
+	runner.expect(std::strcmp(recovered.label, "D") == 0,
+		      std::string("probe-supported guitar plain triad: expected D over weak relative aliases, got `") +
+			      recovered.label + "`");
+
+	ChordResult weak_relative = make_guitar_plain_triad(6, false, 0.58f);
+	std::snprintf(weak_relative.label, sizeof(weak_relative.label), "F#=D#m=D#m7=F#6=F#7");
+	runner.expect(probe_supported_guitar_triad_should_replace(
+			      weak_relative, recovered, display_grid, analysis_grid),
+		      "probe-supported guitar plain triad: expected D to replace weak F# primary");
+
+	NoteGrid clean_display = {};
+	set_pitch(clean_display, 1, 0.72f);
+	set_pitch(clean_display, 6, 1.00f);
+	set_pitch(clean_display, 10, 0.68f);
+	NoteGrid clean_analysis = clean_display;
+	ChordResult clean_fsharp = make_guitar_plain_triad(6, false, 0.60f);
+	ChordResult weak_d = make_guitar_plain_triad(2, false, 0.54f);
+	runner.expect(!probe_supported_guitar_triad_should_replace(
+			      clean_fsharp, weak_d, clean_display, clean_analysis),
+		      "probe-supported guitar plain triad: expected clean F# primary to be protected");
+}
+
 void check_visible_diminished_guitar_alias_recovery(Runner &runner)
 {
 	NoteGrid display_grid = {};
@@ -4045,6 +4092,7 @@ int run()
 	check_displayed_supported_plain_guitar_primary(runner);
 	check_source_supported_plain_guitar_alias_recovery(runner);
 	check_probe_supported_guitar_extension_base_alias_recovery(runner);
+	check_probe_supported_guitar_plain_triad_replaces_weak_relative_primary(runner);
 	check_visible_diminished_guitar_alias_recovery(runner);
 	check_visible_augmented_guitar_alias_recovery(runner);
 	check_mixed_global_superset_extension_aliases(runner);
