@@ -1537,15 +1537,17 @@ def main() -> int:
         "test-vocadito-samples": "vocadito",
         "test-vocalset-samples": "vocalset",
     }.items():
-        assert f"{target}: REAL_NOTE_SAMPLE_TAG := {tag}" in makefile, (
-            f"{target} must configure a deterministic isolated real-note shard tag"
+        parallel_target = f"{target}-parallel"
+        assert_alias_target(makefile, target, parallel_target)
+        assert f"{target} {parallel_target}: REAL_NOTE_SAMPLE_TAG := {tag}" in makefile, (
+            f"{target} and {parallel_target} must configure the same deterministic isolated real-note shard tag"
         )
-        recipe_text = target_recipe(makefile, target)
+        recipe_text = target_recipe(makefile, parallel_target)
         assert "$(RUN_REAL_NOTE_SAMPLE_SHARDS)" in recipe_text, (
-            f"{target} must delegate to the isolated real-note shard runner"
+            f"{parallel_target} must delegate to the isolated real-note shard runner"
         )
         assert "\n\t+$(RUN_REAL_NOTE_SAMPLE_SHARDS)" in recipe_text, (
-            f"{target} must preserve the make jobserver through the isolated real-note shard runner"
+            f"{parallel_target} must preserve the make jobserver through the isolated real-note shard runner"
         )
     iowa_strings_recipe = target_recipe(makefile, "prepare-iowa-strings-samples")
     for text in [
@@ -1568,7 +1570,7 @@ def main() -> int:
             f"NSynth isolated target must default to strict {family.lower()} recall"
         )
         assert (
-            f"test-real-note-samples: REAL_NOTE_SAMPLE_MIN_{family}_HIT_PERCENT := "
+            f"test-real-note-samples test-real-note-samples-parallel: REAL_NOTE_SAMPLE_MIN_{family}_HIT_PERCENT := "
             f"$(REAL_NOTE_MIN_{family}_HIT_PERCENT)"
         ) in makefile, (
             f"NSynth isolated target must pass through strict {family.lower()} recall"

@@ -1039,6 +1039,7 @@ REAL_NOTE_SAMPLE_MAX_FAILURES ?= 0
 REAL_NOTE_SAMPLE_MAX_FAILURE_LINES ?= 80
 REAL_NOTE_SAMPLE_SHARD_MAX_FAILURES ?= 999999
 REAL_NOTE_SAMPLE_SHARD_TARGETS := $(addprefix test-real-note-sample-shard-,$(REAL_NOTE_SAMPLE_SHARD_INDEXES))
+REAL_NOTE_SAMPLE_PARALLEL_TARGETS := test-real-note-samples-parallel test-guitar-fretboard-note-samples-parallel test-guitar-techs-samples-parallel test-philharmonia-samples-parallel test-philharmonia-samples-full-parallel test-good-sounds-samples-parallel test-iowa-piano-samples-parallel test-iowa-bass-samples-parallel test-iowa-strings-samples-parallel test-iowa-orchestra-samples-parallel test-iowa-orchestra-full-samples-parallel test-idmt-bass-lines-samples-parallel test-idmt-guitar-samples-parallel test-tinysol-samples-parallel test-vocadito-samples-parallel test-vocalset-samples-parallel
 REAL_NOTE_SAMPLE_SHARD_OUTS := $(addprefix $(BUILD_DIR)/real_note_$(REAL_NOTE_SAMPLE_TAG)_shard_,$(addsuffix .out,$(REAL_NOTE_SAMPLE_SHARD_INDEXES)))
 REAL_NOTE_SAMPLE_LOCK_DIR ?= $(BUILD_DIR)/real_note_$(REAL_NOTE_SAMPLE_TAG).lock
 IDMT_BASS_LINES_ATTRIBUTE_LOCK_DIR ?= $(BUILD_DIR)/idmt_bass_lines_attributes.lock
@@ -1197,7 +1198,7 @@ GUITARSET_ATTRIBUTE_GATE_ENV ?= MUSIC_ANALYZER_GUITARSET_ATTRIBUTE_ONLY=1 MUSIC_
 .PHONY: analyze-guitar-chord-mix-recovery analyze-guitar-chord-primary-order analyze-guitar-chord-mix-extra-components inspect-guitar-techs-chord-attribute-buckets find-guitar-techs-chord-attribute-patterns find-guitar-techs-chord-route-patterns find-guitar-chord-mix-route-patterns find-egfxset-guitar-route-patterns find-gaps-guitar-route-patterns find-gaps-guitar-full-route-patterns find-guitarset-route-patterns test-guitar-chord-recovery-analysis test-guitar-primary-order-analysis test-guitar-chord-extra-components-analysis test-guitar-techs-chord-samples-parallel test-guitar-chord-mix-samples-serial test-guitar-chord-mix-samples-parallel test-egfxset-guitar-samples-parallel test-gaps-guitar-samples-parallel test-gaps-guitar-samples-full-parallel test-downloaded-guitarset-parallel
 .PHONY: analyze-real-note-misses-serial analyze-real-note-misses-parallel analyze-real-note-misses-shard-%
 .PHONY: test-vocadito-samples-full-mix-parallel-unlocked
-.PHONY: test-parallel test-core-parallel test-analysis-scripts-parallel test-fixtures-parallel test-fixtures-parallel-isolated test-real-note-sample-shards test-real-note-sample-shards-unlocked test-real-note-sample-shard-% test-real-note-samples-full-mix-serial test-real-note-samples-full-mix-parallel test-real-note-samples-full-mix-parallel-unlocked test-real-note-samples-full-mix-detector-parallel test-real-note-visual-strength test-real-note-full-mix-shard-check test-real-note-sample-shard-check test-instrument-samples-serial test-instrument-samples-parallel test-visualizer-renderer test-analyzer-internal test-analyzer-smoke test-analyzer-cases test-analyzer-midi-ranges test-analyzer-urmp test-analyzer-musicnet test-analyzer-multtipop test-analyzer-guitarset test-analyzer-maestro test-analyzer-egmd
+.PHONY: test-parallel test-core-parallel test-analysis-scripts-parallel test-fixtures-parallel test-fixtures-parallel-isolated test-real-note-sample-shards test-real-note-sample-shards-unlocked test-real-note-sample-shard-% $(REAL_NOTE_SAMPLE_PARALLEL_TARGETS) test-real-note-samples-full-mix-serial test-real-note-samples-full-mix-parallel test-real-note-samples-full-mix-parallel-unlocked test-real-note-samples-full-mix-detector-parallel test-real-note-visual-strength test-real-note-full-mix-shard-check test-real-note-sample-shard-check test-instrument-samples-serial test-instrument-samples-parallel test-visualizer-renderer test-analyzer-internal test-analyzer-smoke test-analyzer-cases test-analyzer-midi-ranges test-analyzer-urmp test-analyzer-musicnet test-analyzer-multtipop test-analyzer-guitarset test-analyzer-maestro test-analyzer-egmd
 .PHONY: prepare-real-goal-fixtures-parallel $(REAL_GOAL_FIXTURE_PREP_TARGETS)
 .PHONY: test-drum-real-world-samples-parallel test-drum-real-world-samples-full-parallel test-real-world-samples-parallel test-real-world-samples-full-parallel test-real-world-samples-max-parallel test-drum-samples-optional test-drum-samples-spread-optional test-drum-machine-samples-optional test-drum-samples-full-optional test-idmt-bass-lines-samples-optional test-idmt-guitar-samples-optional test-good-sounds-samples-optional test-medley-solos-samples-optional test-medley-solos-samples-serial test-medley-solos-samples-parallel test-medley-solos-samples-parallel-unlocked test-medley-solos-samples-shard-% test-maps-piano-samples-optional test-maps-piano-note-samples-optional test-bach10-mf0-synth-samples-optional test-bach10-mf0-synth-samples-serial test-bach10-mf0-synth-samples-parallel test-bach10-mf0-synth-samples-parallel-unlocked test-bach10-mf0-synth-samples-shard-% analyze-bach10-mf0-synth-chord-misses test-vocalset-samples-optional
 .PHONY: test-drum-samples-full-serial test-drum-samples-full-parallel test-drum-samples-full-parallel-unlocked test-drum-samples-full-shard-% test-drum-machine-samples-serial test-drum-machine-samples-parallel test-drum-machine-samples-parallel-unlocked test-drum-machine-samples-shard-% test-hf-drum-kit-samples-serial test-hf-drum-kit-samples-parallel test-hf-drum-kit-samples-parallel-unlocked test-hf-drum-kit-samples-shard-% test-idmt-drums-samples-serial test-idmt-drums-samples-parallel test-idmt-drums-samples-parallel-unlocked test-idmt-drums-samples-shard-% test-drum-samples-full-parallel-optional test-drum-sample-shard-check
@@ -2238,19 +2239,21 @@ test-real-note-sample-shards-unlocked: $(BUILD_DIR)/analyzer_real_note_samples s
 test-real-note-sample-shard-%: FORCE $(BUILD_DIR)/analyzer_real_note_samples scripts/run_with_duration.sh
 	$(RUN_WITH_DURATION) analyzer_real_note_samples_$(REAL_NOTE_SAMPLE_TAG)_shard_$* env MUSIC_ANALYZER_REAL_NOTE_SAMPLES_REQUIRED=1 MUSIC_ANALYZER_REAL_NOTE_REQUIRED_SAMPLES="$(REAL_NOTE_SAMPLE_REQUIRED_SAMPLES)" MUSIC_ANALYZER_REAL_NOTE_SAMPLE_ROOT="$(REAL_NOTE_SAMPLE_ROOT)" MUSIC_ANALYZER_REAL_NOTE_MIN_BASS=0 MUSIC_ANALYZER_REAL_NOTE_MIN_GUITAR=0 MUSIC_ANALYZER_REAL_NOTE_MIN_PIANO=0 MUSIC_ANALYZER_REAL_NOTE_MIN_VOCALS=0 MUSIC_ANALYZER_REAL_NOTE_MIN_OTHER=0 MUSIC_ANALYZER_REAL_NOTE_MAX_FAILURES="$(REAL_NOTE_SAMPLE_SHARD_MAX_FAILURES)" MUSIC_ANALYZER_REAL_NOTE_MAX_FAILURE_LINES="$(REAL_NOTE_SAMPLE_MAX_FAILURE_LINES)" MUSIC_ANALYZER_REAL_NOTE_SHARD_COUNT="$(REAL_NOTE_SAMPLE_SHARDS)" MUSIC_ANALYZER_REAL_NOTE_SHARD_INDEX="$*" $(BUILD_DIR)/analyzer_real_note_samples > "$(BUILD_DIR)/real_note_$(REAL_NOTE_SAMPLE_TAG)_shard_$*.out" 2> "$(BUILD_DIR)/real_note_$(REAL_NOTE_SAMPLE_TAG)_shard_$*.err"
 
-test-real-note-samples: REAL_NOTE_SAMPLE_TAG := nsynth
-test-real-note-samples: REAL_NOTE_SAMPLE_ROOT := $(REAL_NOTE_SAMPLE_DIR)
-test-real-note-samples: REAL_NOTE_SAMPLE_MIN_BASS := $(REAL_NOTE_MIN_BASS)
-test-real-note-samples: REAL_NOTE_SAMPLE_MIN_GUITAR := $(REAL_NOTE_MIN_GUITAR)
-test-real-note-samples: REAL_NOTE_SAMPLE_MIN_PIANO := $(REAL_NOTE_MIN_PIANO)
-test-real-note-samples: REAL_NOTE_SAMPLE_MIN_VOCALS := $(REAL_NOTE_MIN_VOCALS)
-test-real-note-samples: REAL_NOTE_SAMPLE_MIN_OTHER := $(REAL_NOTE_MIN_OTHER)
-test-real-note-samples: REAL_NOTE_SAMPLE_MIN_BASS_HIT_PERCENT := $(REAL_NOTE_MIN_BASS_HIT_PERCENT)
-test-real-note-samples: REAL_NOTE_SAMPLE_MIN_GUITAR_HIT_PERCENT := $(REAL_NOTE_MIN_GUITAR_HIT_PERCENT)
-test-real-note-samples: REAL_NOTE_SAMPLE_MIN_PIANO_HIT_PERCENT := $(REAL_NOTE_MIN_PIANO_HIT_PERCENT)
-test-real-note-samples: REAL_NOTE_SAMPLE_MIN_VOCALS_HIT_PERCENT := $(REAL_NOTE_MIN_VOCALS_HIT_PERCENT)
-test-real-note-samples: REAL_NOTE_SAMPLE_MIN_OTHER_HIT_PERCENT := $(REAL_NOTE_MIN_OTHER_HIT_PERCENT)
-test-real-note-samples: $(BUILD_DIR)/analyzer_real_note_samples prepare-real-note-samples scripts/run_with_duration.sh scripts/check_real_note_sample_shards.py
+test-real-note-samples test-real-note-samples-parallel: REAL_NOTE_SAMPLE_TAG := nsynth
+test-real-note-samples test-real-note-samples-parallel: REAL_NOTE_SAMPLE_ROOT := $(REAL_NOTE_SAMPLE_DIR)
+test-real-note-samples test-real-note-samples-parallel: REAL_NOTE_SAMPLE_MIN_BASS := $(REAL_NOTE_MIN_BASS)
+test-real-note-samples test-real-note-samples-parallel: REAL_NOTE_SAMPLE_MIN_GUITAR := $(REAL_NOTE_MIN_GUITAR)
+test-real-note-samples test-real-note-samples-parallel: REAL_NOTE_SAMPLE_MIN_PIANO := $(REAL_NOTE_MIN_PIANO)
+test-real-note-samples test-real-note-samples-parallel: REAL_NOTE_SAMPLE_MIN_VOCALS := $(REAL_NOTE_MIN_VOCALS)
+test-real-note-samples test-real-note-samples-parallel: REAL_NOTE_SAMPLE_MIN_OTHER := $(REAL_NOTE_MIN_OTHER)
+test-real-note-samples test-real-note-samples-parallel: REAL_NOTE_SAMPLE_MIN_BASS_HIT_PERCENT := $(REAL_NOTE_MIN_BASS_HIT_PERCENT)
+test-real-note-samples test-real-note-samples-parallel: REAL_NOTE_SAMPLE_MIN_GUITAR_HIT_PERCENT := $(REAL_NOTE_MIN_GUITAR_HIT_PERCENT)
+test-real-note-samples test-real-note-samples-parallel: REAL_NOTE_SAMPLE_MIN_PIANO_HIT_PERCENT := $(REAL_NOTE_MIN_PIANO_HIT_PERCENT)
+test-real-note-samples test-real-note-samples-parallel: REAL_NOTE_SAMPLE_MIN_VOCALS_HIT_PERCENT := $(REAL_NOTE_MIN_VOCALS_HIT_PERCENT)
+test-real-note-samples test-real-note-samples-parallel: REAL_NOTE_SAMPLE_MIN_OTHER_HIT_PERCENT := $(REAL_NOTE_MIN_OTHER_HIT_PERCENT)
+test-real-note-samples: test-real-note-samples-parallel
+
+test-real-note-samples-parallel: $(BUILD_DIR)/analyzer_real_note_samples prepare-real-note-samples scripts/run_with_duration.sh scripts/check_real_note_sample_shards.py
 	+$(RUN_REAL_NOTE_SAMPLE_SHARDS)
 
 test-real-note-samples-full-mix: test-real-note-samples-full-mix-parallel
@@ -2399,12 +2402,14 @@ find-vocadito-full-mix-broad-vocal-ownership-patterns: $(VOCADITO_FULL_MIX_ATTRI
 prepare-guitar-fretboard-note-samples: scripts/prepare_guitar_fretboard_notes.py | $(BUILD_DIR)
 	GUITAR_FRETBOARD_NOTES_SAMPLE_DIR="$(GUITAR_FRETBOARD_NOTES_SAMPLE_DIR)" GUITAR_FRETBOARD_NOTES_LIMIT="$(GUITAR_FRETBOARD_NOTES_LIMIT)" $(PYTHON) scripts/prepare_guitar_fretboard_notes.py --output "$(GUITAR_FRETBOARD_NOTES_SAMPLE_DIR)"
 
-test-guitar-fretboard-note-samples: REAL_NOTE_SAMPLE_TAG := guitar_fretboard
-test-guitar-fretboard-note-samples: REAL_NOTE_SAMPLE_ROOT := $(GUITAR_FRETBOARD_NOTES_SAMPLE_DIR)
-test-guitar-fretboard-note-samples: REAL_NOTE_SAMPLE_REQUIRED_SAMPLES := $(GUITAR_FRETBOARD_NOTES_MIN_GUITAR)
-test-guitar-fretboard-note-samples: REAL_NOTE_SAMPLE_MIN_GUITAR := $(GUITAR_FRETBOARD_NOTES_MIN_GUITAR)
-test-guitar-fretboard-note-samples: REAL_NOTE_SAMPLE_MAX_FAILURES := $(GUITAR_FRETBOARD_NOTES_MAX_FAILURES)
-test-guitar-fretboard-note-samples: $(BUILD_DIR)/analyzer_real_note_samples prepare-guitar-fretboard-note-samples scripts/run_with_duration.sh scripts/check_real_note_sample_shards.py
+test-guitar-fretboard-note-samples test-guitar-fretboard-note-samples-parallel: REAL_NOTE_SAMPLE_TAG := guitar_fretboard
+test-guitar-fretboard-note-samples test-guitar-fretboard-note-samples-parallel: REAL_NOTE_SAMPLE_ROOT := $(GUITAR_FRETBOARD_NOTES_SAMPLE_DIR)
+test-guitar-fretboard-note-samples test-guitar-fretboard-note-samples-parallel: REAL_NOTE_SAMPLE_REQUIRED_SAMPLES := $(GUITAR_FRETBOARD_NOTES_MIN_GUITAR)
+test-guitar-fretboard-note-samples test-guitar-fretboard-note-samples-parallel: REAL_NOTE_SAMPLE_MIN_GUITAR := $(GUITAR_FRETBOARD_NOTES_MIN_GUITAR)
+test-guitar-fretboard-note-samples test-guitar-fretboard-note-samples-parallel: REAL_NOTE_SAMPLE_MAX_FAILURES := $(GUITAR_FRETBOARD_NOTES_MAX_FAILURES)
+test-guitar-fretboard-note-samples: test-guitar-fretboard-note-samples-parallel
+
+test-guitar-fretboard-note-samples-parallel: $(BUILD_DIR)/analyzer_real_note_samples prepare-guitar-fretboard-note-samples scripts/run_with_duration.sh scripts/check_real_note_sample_shards.py
 	+$(RUN_REAL_NOTE_SAMPLE_SHARDS)
 
 download-guitar-techs-samples: $(GUITAR_TECHS_P1_SINGLENOTES_ARCHIVE) $(GUITAR_TECHS_P2_SINGLENOTES_ARCHIVE)
@@ -2432,12 +2437,14 @@ $(GUITAR_TECHS_SAMPLE_DIR)/manifest.tsv: scripts/prepare_guitar_techs_samples.py
 	+$(MAKE) prepare-guitar-techs-samples
 	@touch "$(GUITAR_TECHS_SAMPLE_DIR)/manifest.tsv"
 
-test-guitar-techs-samples: REAL_NOTE_SAMPLE_TAG := guitar_techs
-test-guitar-techs-samples: REAL_NOTE_SAMPLE_ROOT := $(GUITAR_TECHS_SAMPLE_DIR)
-test-guitar-techs-samples: REAL_NOTE_SAMPLE_REQUIRED_SAMPLES := $(GUITAR_TECHS_MIN_GUITAR)
-test-guitar-techs-samples: REAL_NOTE_SAMPLE_MIN_GUITAR := $(GUITAR_TECHS_MIN_GUITAR)
-test-guitar-techs-samples: REAL_NOTE_SAMPLE_MAX_FAILURES := $(GUITAR_TECHS_MAX_FAILURES)
-test-guitar-techs-samples: $(BUILD_DIR)/analyzer_real_note_samples prepare-guitar-techs-samples scripts/run_with_duration.sh scripts/check_real_note_sample_shards.py
+test-guitar-techs-samples test-guitar-techs-samples-parallel: REAL_NOTE_SAMPLE_TAG := guitar_techs
+test-guitar-techs-samples test-guitar-techs-samples-parallel: REAL_NOTE_SAMPLE_ROOT := $(GUITAR_TECHS_SAMPLE_DIR)
+test-guitar-techs-samples test-guitar-techs-samples-parallel: REAL_NOTE_SAMPLE_REQUIRED_SAMPLES := $(GUITAR_TECHS_MIN_GUITAR)
+test-guitar-techs-samples test-guitar-techs-samples-parallel: REAL_NOTE_SAMPLE_MIN_GUITAR := $(GUITAR_TECHS_MIN_GUITAR)
+test-guitar-techs-samples test-guitar-techs-samples-parallel: REAL_NOTE_SAMPLE_MAX_FAILURES := $(GUITAR_TECHS_MAX_FAILURES)
+test-guitar-techs-samples: test-guitar-techs-samples-parallel
+
+test-guitar-techs-samples-parallel: $(BUILD_DIR)/analyzer_real_note_samples prepare-guitar-techs-samples scripts/run_with_duration.sh scripts/check_real_note_sample_shards.py
 	+$(RUN_REAL_NOTE_SAMPLE_SHARDS)
 
 $(GUITAR_TECHS_ATTRIBUTE_TSV): $(BUILD_DIR)/analyzer_real_note_samples $(GUITAR_TECHS_SAMPLE_DIR)/manifest.tsv scripts/build_sharded_tsv.sh scripts/run_with_lock.sh | $(BUILD_DIR)
@@ -2779,13 +2786,15 @@ $(PHILHARMONIA_SAMPLE_DIR)/manifest.tsv: scripts/prepare_philharmonia_samples.py
 	+$(MAKE) prepare-philharmonia-samples
 	@touch "$(PHILHARMONIA_SAMPLE_DIR)/manifest.tsv"
 
-test-philharmonia-samples: REAL_NOTE_SAMPLE_TAG := philharmonia
-test-philharmonia-samples: REAL_NOTE_SAMPLE_ROOT := $(PHILHARMONIA_SAMPLE_DIR)
-test-philharmonia-samples: REAL_NOTE_SAMPLE_REQUIRED_SAMPLES := $(PHILHARMONIA_MIN_SAMPLES)
-test-philharmonia-samples: REAL_NOTE_SAMPLE_MIN_BASS := $(PHILHARMONIA_MIN_BASS)
-test-philharmonia-samples: REAL_NOTE_SAMPLE_MIN_GUITAR := $(PHILHARMONIA_MIN_GUITAR)
-test-philharmonia-samples: REAL_NOTE_SAMPLE_MIN_OTHER := $(PHILHARMONIA_MIN_OTHER)
-test-philharmonia-samples: $(BUILD_DIR)/analyzer_real_note_samples prepare-philharmonia-samples scripts/run_with_duration.sh scripts/check_real_note_sample_shards.py
+test-philharmonia-samples test-philharmonia-samples-parallel: REAL_NOTE_SAMPLE_TAG := philharmonia
+test-philharmonia-samples test-philharmonia-samples-parallel: REAL_NOTE_SAMPLE_ROOT := $(PHILHARMONIA_SAMPLE_DIR)
+test-philharmonia-samples test-philharmonia-samples-parallel: REAL_NOTE_SAMPLE_REQUIRED_SAMPLES := $(PHILHARMONIA_MIN_SAMPLES)
+test-philharmonia-samples test-philharmonia-samples-parallel: REAL_NOTE_SAMPLE_MIN_BASS := $(PHILHARMONIA_MIN_BASS)
+test-philharmonia-samples test-philharmonia-samples-parallel: REAL_NOTE_SAMPLE_MIN_GUITAR := $(PHILHARMONIA_MIN_GUITAR)
+test-philharmonia-samples test-philharmonia-samples-parallel: REAL_NOTE_SAMPLE_MIN_OTHER := $(PHILHARMONIA_MIN_OTHER)
+test-philharmonia-samples: test-philharmonia-samples-parallel
+
+test-philharmonia-samples-parallel: $(BUILD_DIR)/analyzer_real_note_samples prepare-philharmonia-samples scripts/run_with_duration.sh scripts/check_real_note_sample_shards.py
 	+$(RUN_REAL_NOTE_SAMPLE_SHARDS)
 
 $(PHILHARMONIA_ATTRIBUTE_TSV): $(BUILD_DIR)/analyzer_real_note_samples $(PHILHARMONIA_SAMPLE_DIR)/manifest.tsv scripts/build_sharded_tsv.sh scripts/run_with_lock.sh | $(BUILD_DIR)
@@ -2812,14 +2821,16 @@ $(PHILHARMONIA_FULL_SAMPLE_DIR)/manifest.tsv: scripts/prepare_philharmonia_sampl
 	+$(MAKE) prepare-philharmonia-samples-full
 	@touch "$(PHILHARMONIA_FULL_SAMPLE_DIR)/manifest.tsv"
 
-test-philharmonia-samples-full: REAL_NOTE_SAMPLE_TAG := philharmonia_full
-test-philharmonia-samples-full: REAL_NOTE_SAMPLE_ROOT := $(PHILHARMONIA_FULL_SAMPLE_DIR)
-test-philharmonia-samples-full: REAL_NOTE_SAMPLE_REQUIRED_SAMPLES := $(PHILHARMONIA_FULL_MIN_SAMPLES)
-test-philharmonia-samples-full: REAL_NOTE_SAMPLE_MIN_BASS := $(PHILHARMONIA_FULL_MIN_BASS)
-test-philharmonia-samples-full: REAL_NOTE_SAMPLE_MIN_GUITAR := $(PHILHARMONIA_FULL_MIN_GUITAR)
-test-philharmonia-samples-full: REAL_NOTE_SAMPLE_MIN_OTHER := $(PHILHARMONIA_FULL_MIN_OTHER)
-test-philharmonia-samples-full: REAL_NOTE_SAMPLE_MAX_FAILURES := $(PHILHARMONIA_FULL_MAX_FAILURES)
-test-philharmonia-samples-full: $(BUILD_DIR)/analyzer_real_note_samples prepare-philharmonia-samples-full scripts/run_with_duration.sh scripts/check_real_note_sample_shards.py
+test-philharmonia-samples-full test-philharmonia-samples-full-parallel: REAL_NOTE_SAMPLE_TAG := philharmonia_full
+test-philharmonia-samples-full test-philharmonia-samples-full-parallel: REAL_NOTE_SAMPLE_ROOT := $(PHILHARMONIA_FULL_SAMPLE_DIR)
+test-philharmonia-samples-full test-philharmonia-samples-full-parallel: REAL_NOTE_SAMPLE_REQUIRED_SAMPLES := $(PHILHARMONIA_FULL_MIN_SAMPLES)
+test-philharmonia-samples-full test-philharmonia-samples-full-parallel: REAL_NOTE_SAMPLE_MIN_BASS := $(PHILHARMONIA_FULL_MIN_BASS)
+test-philharmonia-samples-full test-philharmonia-samples-full-parallel: REAL_NOTE_SAMPLE_MIN_GUITAR := $(PHILHARMONIA_FULL_MIN_GUITAR)
+test-philharmonia-samples-full test-philharmonia-samples-full-parallel: REAL_NOTE_SAMPLE_MIN_OTHER := $(PHILHARMONIA_FULL_MIN_OTHER)
+test-philharmonia-samples-full test-philharmonia-samples-full-parallel: REAL_NOTE_SAMPLE_MAX_FAILURES := $(PHILHARMONIA_FULL_MAX_FAILURES)
+test-philharmonia-samples-full: test-philharmonia-samples-full-parallel
+
+test-philharmonia-samples-full-parallel: $(BUILD_DIR)/analyzer_real_note_samples prepare-philharmonia-samples-full scripts/run_with_duration.sh scripts/check_real_note_sample_shards.py
 	+$(RUN_REAL_NOTE_SAMPLE_SHARDS)
 
 $(PHILHARMONIA_FULL_ATTRIBUTE_TSV): $(BUILD_DIR)/analyzer_real_note_samples $(PHILHARMONIA_FULL_SAMPLE_DIR)/manifest.tsv scripts/build_sharded_tsv.sh scripts/run_with_lock.sh | $(BUILD_DIR)
@@ -2852,13 +2863,15 @@ $(GOOD_SOUNDS_ARCHIVE): FORCE | $(BUILD_DIR)
 prepare-good-sounds-samples: scripts/prepare_good_sounds_samples.py download-good-sounds-samples | $(BUILD_DIR)
 	GOOD_SOUNDS_ARCHIVE="$(GOOD_SOUNDS_ARCHIVE)" GOOD_SOUNDS_SAMPLE_DIR="$(GOOD_SOUNDS_SAMPLE_DIR)" GOOD_SOUNDS_SAMPLE_LIMIT="$(GOOD_SOUNDS_SAMPLE_LIMIT)" GOOD_SOUNDS_MIN_SAMPLES="$(GOOD_SOUNDS_MIN_SAMPLES)" FFMPEG="$(FFMPEG)" $(PYTHON) scripts/prepare_good_sounds_samples.py --archive "$(GOOD_SOUNDS_ARCHIVE)" --output "$(GOOD_SOUNDS_SAMPLE_DIR)" --limit "$(GOOD_SOUNDS_SAMPLE_LIMIT)" --min-samples "$(GOOD_SOUNDS_MIN_SAMPLES)" --ffmpeg "$(FFMPEG)"
 
-test-good-sounds-samples: REAL_NOTE_SAMPLE_TAG := good_sounds
-test-good-sounds-samples: REAL_NOTE_SAMPLE_ROOT := $(GOOD_SOUNDS_SAMPLE_DIR)
-test-good-sounds-samples: REAL_NOTE_SAMPLE_REQUIRED_SAMPLES := $(GOOD_SOUNDS_MIN_SAMPLES)
-test-good-sounds-samples: REAL_NOTE_SAMPLE_MIN_BASS := $(GOOD_SOUNDS_MIN_BASS)
-test-good-sounds-samples: REAL_NOTE_SAMPLE_MIN_OTHER := $(GOOD_SOUNDS_MIN_OTHER)
-test-good-sounds-samples: REAL_NOTE_SAMPLE_MAX_FAILURES := $(GOOD_SOUNDS_MAX_FAILURES)
-test-good-sounds-samples: $(BUILD_DIR)/analyzer_real_note_samples prepare-good-sounds-samples scripts/run_with_duration.sh scripts/check_real_note_sample_shards.py
+test-good-sounds-samples test-good-sounds-samples-parallel: REAL_NOTE_SAMPLE_TAG := good_sounds
+test-good-sounds-samples test-good-sounds-samples-parallel: REAL_NOTE_SAMPLE_ROOT := $(GOOD_SOUNDS_SAMPLE_DIR)
+test-good-sounds-samples test-good-sounds-samples-parallel: REAL_NOTE_SAMPLE_REQUIRED_SAMPLES := $(GOOD_SOUNDS_MIN_SAMPLES)
+test-good-sounds-samples test-good-sounds-samples-parallel: REAL_NOTE_SAMPLE_MIN_BASS := $(GOOD_SOUNDS_MIN_BASS)
+test-good-sounds-samples test-good-sounds-samples-parallel: REAL_NOTE_SAMPLE_MIN_OTHER := $(GOOD_SOUNDS_MIN_OTHER)
+test-good-sounds-samples test-good-sounds-samples-parallel: REAL_NOTE_SAMPLE_MAX_FAILURES := $(GOOD_SOUNDS_MAX_FAILURES)
+test-good-sounds-samples: test-good-sounds-samples-parallel
+
+test-good-sounds-samples-parallel: $(BUILD_DIR)/analyzer_real_note_samples prepare-good-sounds-samples scripts/run_with_duration.sh scripts/check_real_note_sample_shards.py
 	+$(RUN_REAL_NOTE_SAMPLE_SHARDS)
 
 $(GOOD_SOUNDS_SAMPLE_DIR)/manifest.tsv: scripts/prepare_good_sounds_samples.py $(GOOD_SOUNDS_ARCHIVE) | $(BUILD_DIR)
@@ -2889,11 +2902,13 @@ $(IOWA_PIANO_SAMPLE_DIR)/manifest.tsv: scripts/prepare_iowa_piano_samples.py | $
 	+$(MAKE) prepare-iowa-piano-samples
 	@touch "$(IOWA_PIANO_SAMPLE_DIR)/manifest.tsv"
 
-test-iowa-piano-samples: REAL_NOTE_SAMPLE_TAG := iowa_piano
-test-iowa-piano-samples: REAL_NOTE_SAMPLE_ROOT := $(IOWA_PIANO_SAMPLE_DIR)
-test-iowa-piano-samples: REAL_NOTE_SAMPLE_REQUIRED_SAMPLES := $(IOWA_PIANO_MIN_PIANO)
-test-iowa-piano-samples: REAL_NOTE_SAMPLE_MIN_PIANO := $(IOWA_PIANO_MIN_PIANO)
-test-iowa-piano-samples: $(BUILD_DIR)/analyzer_real_note_samples prepare-iowa-piano-samples scripts/run_with_duration.sh scripts/check_real_note_sample_shards.py
+test-iowa-piano-samples test-iowa-piano-samples-parallel: REAL_NOTE_SAMPLE_TAG := iowa_piano
+test-iowa-piano-samples test-iowa-piano-samples-parallel: REAL_NOTE_SAMPLE_ROOT := $(IOWA_PIANO_SAMPLE_DIR)
+test-iowa-piano-samples test-iowa-piano-samples-parallel: REAL_NOTE_SAMPLE_REQUIRED_SAMPLES := $(IOWA_PIANO_MIN_PIANO)
+test-iowa-piano-samples test-iowa-piano-samples-parallel: REAL_NOTE_SAMPLE_MIN_PIANO := $(IOWA_PIANO_MIN_PIANO)
+test-iowa-piano-samples: test-iowa-piano-samples-parallel
+
+test-iowa-piano-samples-parallel: $(BUILD_DIR)/analyzer_real_note_samples prepare-iowa-piano-samples scripts/run_with_duration.sh scripts/check_real_note_sample_shards.py
 	+$(RUN_REAL_NOTE_SAMPLE_SHARDS)
 
 $(IOWA_PIANO_ATTRIBUTE_TSV): $(BUILD_DIR)/analyzer_real_note_samples $(IOWA_PIANO_SAMPLE_DIR)/manifest.tsv scripts/build_sharded_tsv.sh scripts/run_with_lock.sh | $(BUILD_DIR)
@@ -2916,23 +2931,27 @@ analyze-iowa-piano-attributes: $(IOWA_PIANO_DETECTED_ATTRIBUTE_ROWS) $(IOWA_PIAN
 prepare-iowa-bass-samples: scripts/prepare_iowa_zip_samples.py | $(BUILD_DIR)
 	IOWA_ZIP_SOURCE_DIR="$(IOWA_BASS_SOURCE_DIR)" IOWA_ZIP_SAMPLE_DIR="$(IOWA_BASS_SAMPLE_DIR)" IOWA_ZIP_SAMPLE_LIMIT="$(IOWA_BASS_SAMPLE_LIMIT)" IOWA_ZIP_MIN_SAMPLES="$(IOWA_BASS_MIN_BASS)" IOWA_ZIP_DOWNLOAD_RETRIES="$(IOWA_ZIP_DOWNLOAD_RETRIES)" FFMPEG="$(FFMPEG)" CURL="$(CURL)" $(PYTHON) scripts/prepare_iowa_zip_samples.py --spec "bass|bass|iowa-double-bass-pizz-sulE|$(IOWA_BASS_ZIP_URL)" --source-dir "$(IOWA_BASS_SOURCE_DIR)" --output "$(IOWA_BASS_SAMPLE_DIR)" --limit "$(IOWA_BASS_SAMPLE_LIMIT)" --min-samples "$(IOWA_BASS_MIN_BASS)" --download-retries "$(IOWA_ZIP_DOWNLOAD_RETRIES)" --ffmpeg "$(FFMPEG)" --curl "$(CURL)"
 
-test-iowa-bass-samples: REAL_NOTE_SAMPLE_TAG := iowa_bass
-test-iowa-bass-samples: REAL_NOTE_SAMPLE_ROOT := $(IOWA_BASS_SAMPLE_DIR)
-test-iowa-bass-samples: REAL_NOTE_SAMPLE_REQUIRED_SAMPLES := $(IOWA_BASS_MIN_BASS)
-test-iowa-bass-samples: REAL_NOTE_SAMPLE_MIN_BASS := $(IOWA_BASS_MIN_BASS)
-test-iowa-bass-samples: $(BUILD_DIR)/analyzer_real_note_samples prepare-iowa-bass-samples scripts/run_with_duration.sh scripts/check_real_note_sample_shards.py
+test-iowa-bass-samples test-iowa-bass-samples-parallel: REAL_NOTE_SAMPLE_TAG := iowa_bass
+test-iowa-bass-samples test-iowa-bass-samples-parallel: REAL_NOTE_SAMPLE_ROOT := $(IOWA_BASS_SAMPLE_DIR)
+test-iowa-bass-samples test-iowa-bass-samples-parallel: REAL_NOTE_SAMPLE_REQUIRED_SAMPLES := $(IOWA_BASS_MIN_BASS)
+test-iowa-bass-samples test-iowa-bass-samples-parallel: REAL_NOTE_SAMPLE_MIN_BASS := $(IOWA_BASS_MIN_BASS)
+test-iowa-bass-samples: test-iowa-bass-samples-parallel
+
+test-iowa-bass-samples-parallel: $(BUILD_DIR)/analyzer_real_note_samples prepare-iowa-bass-samples scripts/run_with_duration.sh scripts/check_real_note_sample_shards.py
 	+$(RUN_REAL_NOTE_SAMPLE_SHARDS)
 
 prepare-iowa-strings-samples: scripts/prepare_iowa_zip_samples.py | $(BUILD_DIR)
 	IOWA_ZIP_SOURCE_DIR="$(IOWA_STRINGS_SOURCE_DIR)" IOWA_ZIP_SAMPLE_DIR="$(IOWA_STRINGS_SAMPLE_DIR)" IOWA_ZIP_SAMPLE_LIMIT="$(IOWA_STRINGS_SAMPLE_LIMIT)" IOWA_ZIP_MIN_SAMPLES="$(IOWA_STRINGS_MIN_SAMPLES)" IOWA_ZIP_DOWNLOAD_RETRIES="$(IOWA_ZIP_DOWNLOAD_RETRIES)" FFMPEG="$(FFMPEG)" CURL="$(CURL)" $(PYTHON) scripts/prepare_iowa_zip_samples.py $(IOWA_STRINGS_SPEC_ARGS) --source-dir "$(IOWA_STRINGS_SOURCE_DIR)" --output "$(IOWA_STRINGS_SAMPLE_DIR)" --limit "$(IOWA_STRINGS_SAMPLE_LIMIT)" --min-samples "$(IOWA_STRINGS_MIN_SAMPLES)" --download-retries "$(IOWA_ZIP_DOWNLOAD_RETRIES)" --ffmpeg "$(FFMPEG)" --curl "$(CURL)"
 
-test-iowa-strings-samples: REAL_NOTE_SAMPLE_TAG := iowa_strings
-test-iowa-strings-samples: REAL_NOTE_SAMPLE_ROOT := $(IOWA_STRINGS_SAMPLE_DIR)
-test-iowa-strings-samples: REAL_NOTE_SAMPLE_REQUIRED_SAMPLES := $(IOWA_STRINGS_MIN_SAMPLES)
-test-iowa-strings-samples: REAL_NOTE_SAMPLE_MIN_BASS := $(IOWA_STRINGS_MIN_BASS)
-test-iowa-strings-samples: REAL_NOTE_SAMPLE_MIN_OTHER := $(IOWA_STRINGS_MIN_OTHER)
-test-iowa-strings-samples: REAL_NOTE_SAMPLE_MAX_FAILURES := $(IOWA_STRINGS_MAX_FAILURES)
-test-iowa-strings-samples: $(BUILD_DIR)/analyzer_real_note_samples prepare-iowa-strings-samples scripts/run_with_duration.sh scripts/check_real_note_sample_shards.py
+test-iowa-strings-samples test-iowa-strings-samples-parallel: REAL_NOTE_SAMPLE_TAG := iowa_strings
+test-iowa-strings-samples test-iowa-strings-samples-parallel: REAL_NOTE_SAMPLE_ROOT := $(IOWA_STRINGS_SAMPLE_DIR)
+test-iowa-strings-samples test-iowa-strings-samples-parallel: REAL_NOTE_SAMPLE_REQUIRED_SAMPLES := $(IOWA_STRINGS_MIN_SAMPLES)
+test-iowa-strings-samples test-iowa-strings-samples-parallel: REAL_NOTE_SAMPLE_MIN_BASS := $(IOWA_STRINGS_MIN_BASS)
+test-iowa-strings-samples test-iowa-strings-samples-parallel: REAL_NOTE_SAMPLE_MIN_OTHER := $(IOWA_STRINGS_MIN_OTHER)
+test-iowa-strings-samples test-iowa-strings-samples-parallel: REAL_NOTE_SAMPLE_MAX_FAILURES := $(IOWA_STRINGS_MAX_FAILURES)
+test-iowa-strings-samples: test-iowa-strings-samples-parallel
+
+test-iowa-strings-samples-parallel: $(BUILD_DIR)/analyzer_real_note_samples prepare-iowa-strings-samples scripts/run_with_duration.sh scripts/check_real_note_sample_shards.py
 	+$(RUN_REAL_NOTE_SAMPLE_SHARDS)
 
 $(IOWA_STRINGS_SAMPLE_DIR)/manifest.tsv: scripts/prepare_iowa_zip_samples.py | $(BUILD_DIR)
@@ -2963,13 +2982,15 @@ $(IOWA_ORCHESTRA_SAMPLE_DIR)/manifest.tsv: scripts/prepare_iowa_zip_samples.py |
 	+$(MAKE) prepare-iowa-orchestra-samples
 	@touch "$(IOWA_ORCHESTRA_SAMPLE_DIR)/manifest.tsv"
 
-test-iowa-orchestra-samples: REAL_NOTE_SAMPLE_TAG := iowa_orchestra
-test-iowa-orchestra-samples: REAL_NOTE_SAMPLE_ROOT := $(IOWA_ORCHESTRA_SAMPLE_DIR)
-test-iowa-orchestra-samples: REAL_NOTE_SAMPLE_REQUIRED_SAMPLES := $(IOWA_ORCHESTRA_MIN_SAMPLES)
-test-iowa-orchestra-samples: REAL_NOTE_SAMPLE_MIN_BASS := $(IOWA_ORCHESTRA_MIN_BASS)
-test-iowa-orchestra-samples: REAL_NOTE_SAMPLE_MIN_OTHER := $(IOWA_ORCHESTRA_MIN_OTHER)
-test-iowa-orchestra-samples: REAL_NOTE_SAMPLE_MAX_FAILURES := $(IOWA_ORCHESTRA_MAX_FAILURES)
-test-iowa-orchestra-samples: $(BUILD_DIR)/analyzer_real_note_samples prepare-iowa-orchestra-samples scripts/run_with_duration.sh scripts/check_real_note_sample_shards.py
+test-iowa-orchestra-samples test-iowa-orchestra-samples-parallel: REAL_NOTE_SAMPLE_TAG := iowa_orchestra
+test-iowa-orchestra-samples test-iowa-orchestra-samples-parallel: REAL_NOTE_SAMPLE_ROOT := $(IOWA_ORCHESTRA_SAMPLE_DIR)
+test-iowa-orchestra-samples test-iowa-orchestra-samples-parallel: REAL_NOTE_SAMPLE_REQUIRED_SAMPLES := $(IOWA_ORCHESTRA_MIN_SAMPLES)
+test-iowa-orchestra-samples test-iowa-orchestra-samples-parallel: REAL_NOTE_SAMPLE_MIN_BASS := $(IOWA_ORCHESTRA_MIN_BASS)
+test-iowa-orchestra-samples test-iowa-orchestra-samples-parallel: REAL_NOTE_SAMPLE_MIN_OTHER := $(IOWA_ORCHESTRA_MIN_OTHER)
+test-iowa-orchestra-samples test-iowa-orchestra-samples-parallel: REAL_NOTE_SAMPLE_MAX_FAILURES := $(IOWA_ORCHESTRA_MAX_FAILURES)
+test-iowa-orchestra-samples: test-iowa-orchestra-samples-parallel
+
+test-iowa-orchestra-samples-parallel: $(BUILD_DIR)/analyzer_real_note_samples prepare-iowa-orchestra-samples scripts/run_with_duration.sh scripts/check_real_note_sample_shards.py
 	+$(RUN_REAL_NOTE_SAMPLE_SHARDS)
 
 $(IOWA_ORCHESTRA_ATTRIBUTE_TSV): $(BUILD_DIR)/analyzer_real_note_samples $(IOWA_ORCHESTRA_SAMPLE_DIR)/manifest.tsv scripts/build_sharded_tsv.sh scripts/run_with_lock.sh | $(BUILD_DIR)
@@ -2996,14 +3017,16 @@ $(IOWA_ORCHESTRA_FULL_SAMPLE_DIR)/manifest.tsv: scripts/prepare_iowa_zip_samples
 	+$(MAKE) prepare-iowa-orchestra-full-samples
 	@touch "$(IOWA_ORCHESTRA_FULL_SAMPLE_DIR)/manifest.tsv"
 
-test-iowa-orchestra-full-samples: REAL_NOTE_SAMPLE_TAG := iowa_orchestra_full
-test-iowa-orchestra-full-samples: REAL_NOTE_SAMPLE_ROOT := $(IOWA_ORCHESTRA_FULL_SAMPLE_DIR)
-test-iowa-orchestra-full-samples: REAL_NOTE_SAMPLE_REQUIRED_SAMPLES := $(IOWA_ORCHESTRA_FULL_MIN_SAMPLES)
-test-iowa-orchestra-full-samples: REAL_NOTE_SAMPLE_MIN_BASS := $(IOWA_ORCHESTRA_FULL_MIN_BASS)
-test-iowa-orchestra-full-samples: REAL_NOTE_SAMPLE_MIN_OTHER := $(IOWA_ORCHESTRA_FULL_MIN_OTHER)
-test-iowa-orchestra-full-samples: REAL_NOTE_SAMPLE_MAX_FAILURES := $(IOWA_ORCHESTRA_FULL_MAX_FAILURES)
-test-iowa-orchestra-full-samples: REAL_NOTE_SAMPLE_MAX_FAILURE_LINES := 120
-test-iowa-orchestra-full-samples: $(BUILD_DIR)/analyzer_real_note_samples prepare-iowa-orchestra-full-samples scripts/run_with_duration.sh scripts/check_real_note_sample_shards.py
+test-iowa-orchestra-full-samples test-iowa-orchestra-full-samples-parallel: REAL_NOTE_SAMPLE_TAG := iowa_orchestra_full
+test-iowa-orchestra-full-samples test-iowa-orchestra-full-samples-parallel: REAL_NOTE_SAMPLE_ROOT := $(IOWA_ORCHESTRA_FULL_SAMPLE_DIR)
+test-iowa-orchestra-full-samples test-iowa-orchestra-full-samples-parallel: REAL_NOTE_SAMPLE_REQUIRED_SAMPLES := $(IOWA_ORCHESTRA_FULL_MIN_SAMPLES)
+test-iowa-orchestra-full-samples test-iowa-orchestra-full-samples-parallel: REAL_NOTE_SAMPLE_MIN_BASS := $(IOWA_ORCHESTRA_FULL_MIN_BASS)
+test-iowa-orchestra-full-samples test-iowa-orchestra-full-samples-parallel: REAL_NOTE_SAMPLE_MIN_OTHER := $(IOWA_ORCHESTRA_FULL_MIN_OTHER)
+test-iowa-orchestra-full-samples test-iowa-orchestra-full-samples-parallel: REAL_NOTE_SAMPLE_MAX_FAILURES := $(IOWA_ORCHESTRA_FULL_MAX_FAILURES)
+test-iowa-orchestra-full-samples test-iowa-orchestra-full-samples-parallel: REAL_NOTE_SAMPLE_MAX_FAILURE_LINES := 120
+test-iowa-orchestra-full-samples: test-iowa-orchestra-full-samples-parallel
+
+test-iowa-orchestra-full-samples-parallel: $(BUILD_DIR)/analyzer_real_note_samples prepare-iowa-orchestra-full-samples scripts/run_with_duration.sh scripts/check_real_note_sample_shards.py
 	+$(RUN_REAL_NOTE_SAMPLE_SHARDS)
 
 $(IOWA_ORCHESTRA_FULL_ATTRIBUTE_TSV): $(BUILD_DIR)/analyzer_real_note_samples $(IOWA_ORCHESTRA_FULL_SAMPLE_DIR)/manifest.tsv scripts/build_sharded_tsv.sh scripts/run_with_lock.sh | $(BUILD_DIR)
@@ -3037,12 +3060,14 @@ $(IDMT_BASS_LINES_SAMPLE_DIR)/manifest.tsv: scripts/prepare_idmt_bass_lines_samp
 	+$(MAKE) prepare-idmt-bass-lines-samples
 	@touch "$(IDMT_BASS_LINES_SAMPLE_DIR)/manifest.tsv"
 
-test-idmt-bass-lines-samples: REAL_NOTE_SAMPLE_TAG := idmt_bass_lines
-test-idmt-bass-lines-samples: REAL_NOTE_SAMPLE_ROOT := $(IDMT_BASS_LINES_SAMPLE_DIR)
-test-idmt-bass-lines-samples: REAL_NOTE_SAMPLE_REQUIRED_SAMPLES := $(IDMT_BASS_LINES_MIN_BASS)
-test-idmt-bass-lines-samples: REAL_NOTE_SAMPLE_MIN_BASS := $(IDMT_BASS_LINES_MIN_BASS)
-test-idmt-bass-lines-samples: REAL_NOTE_SAMPLE_MAX_FAILURES := $(IDMT_BASS_LINES_MAX_FAILURES)
-test-idmt-bass-lines-samples: $(BUILD_DIR)/analyzer_real_note_samples prepare-idmt-bass-lines-samples scripts/run_with_duration.sh scripts/check_real_note_sample_shards.py
+test-idmt-bass-lines-samples test-idmt-bass-lines-samples-parallel: REAL_NOTE_SAMPLE_TAG := idmt_bass_lines
+test-idmt-bass-lines-samples test-idmt-bass-lines-samples-parallel: REAL_NOTE_SAMPLE_ROOT := $(IDMT_BASS_LINES_SAMPLE_DIR)
+test-idmt-bass-lines-samples test-idmt-bass-lines-samples-parallel: REAL_NOTE_SAMPLE_REQUIRED_SAMPLES := $(IDMT_BASS_LINES_MIN_BASS)
+test-idmt-bass-lines-samples test-idmt-bass-lines-samples-parallel: REAL_NOTE_SAMPLE_MIN_BASS := $(IDMT_BASS_LINES_MIN_BASS)
+test-idmt-bass-lines-samples test-idmt-bass-lines-samples-parallel: REAL_NOTE_SAMPLE_MAX_FAILURES := $(IDMT_BASS_LINES_MAX_FAILURES)
+test-idmt-bass-lines-samples: test-idmt-bass-lines-samples-parallel
+
+test-idmt-bass-lines-samples-parallel: $(BUILD_DIR)/analyzer_real_note_samples prepare-idmt-bass-lines-samples scripts/run_with_duration.sh scripts/check_real_note_sample_shards.py
 	+$(RUN_REAL_NOTE_SAMPLE_SHARDS)
 
 $(IDMT_BASS_LINES_ATTRIBUTE_TSV): $(BUILD_DIR)/analyzer_real_note_samples $(IDMT_BASS_LINES_SAMPLE_DIR)/manifest.tsv scripts/build_sharded_tsv.sh scripts/run_with_lock.sh | $(BUILD_DIR)
@@ -3079,12 +3104,14 @@ $(IDMT_GUITAR_SAMPLE_DIR)/manifest.tsv: scripts/prepare_idmt_guitar_samples.py $
 	+$(MAKE) prepare-idmt-guitar-samples
 	@touch "$(IDMT_GUITAR_SAMPLE_DIR)/manifest.tsv"
 
-test-idmt-guitar-samples: REAL_NOTE_SAMPLE_TAG := idmt_guitar
-test-idmt-guitar-samples: REAL_NOTE_SAMPLE_ROOT := $(IDMT_GUITAR_SAMPLE_DIR)
-test-idmt-guitar-samples: REAL_NOTE_SAMPLE_REQUIRED_SAMPLES := $(IDMT_GUITAR_MIN_GUITAR)
-test-idmt-guitar-samples: REAL_NOTE_SAMPLE_MIN_GUITAR := $(IDMT_GUITAR_MIN_GUITAR)
-test-idmt-guitar-samples: REAL_NOTE_SAMPLE_MAX_FAILURES := $(IDMT_GUITAR_MAX_FAILURES)
-test-idmt-guitar-samples: $(BUILD_DIR)/analyzer_real_note_samples prepare-idmt-guitar-samples scripts/run_with_duration.sh scripts/check_real_note_sample_shards.py
+test-idmt-guitar-samples test-idmt-guitar-samples-parallel: REAL_NOTE_SAMPLE_TAG := idmt_guitar
+test-idmt-guitar-samples test-idmt-guitar-samples-parallel: REAL_NOTE_SAMPLE_ROOT := $(IDMT_GUITAR_SAMPLE_DIR)
+test-idmt-guitar-samples test-idmt-guitar-samples-parallel: REAL_NOTE_SAMPLE_REQUIRED_SAMPLES := $(IDMT_GUITAR_MIN_GUITAR)
+test-idmt-guitar-samples test-idmt-guitar-samples-parallel: REAL_NOTE_SAMPLE_MIN_GUITAR := $(IDMT_GUITAR_MIN_GUITAR)
+test-idmt-guitar-samples test-idmt-guitar-samples-parallel: REAL_NOTE_SAMPLE_MAX_FAILURES := $(IDMT_GUITAR_MAX_FAILURES)
+test-idmt-guitar-samples: test-idmt-guitar-samples-parallel
+
+test-idmt-guitar-samples-parallel: $(BUILD_DIR)/analyzer_real_note_samples prepare-idmt-guitar-samples scripts/run_with_duration.sh scripts/check_real_note_sample_shards.py
 	+$(RUN_REAL_NOTE_SAMPLE_SHARDS)
 
 $(IDMT_GUITAR_ATTRIBUTE_TSV): $(BUILD_DIR)/analyzer_real_note_samples $(IDMT_GUITAR_SAMPLE_DIR)/manifest.tsv scripts/build_sharded_tsv.sh scripts/run_with_lock.sh | $(BUILD_DIR)
@@ -3126,13 +3153,15 @@ $(TINYSOL_SAMPLE_DIR)/manifest.tsv: scripts/prepare_tinysol_samples.py $(TINYSOL
 	+$(MAKE) prepare-tinysol-samples
 	@touch "$(TINYSOL_SAMPLE_DIR)/manifest.tsv"
 
-test-tinysol-samples: REAL_NOTE_SAMPLE_TAG := tinysol
-test-tinysol-samples: REAL_NOTE_SAMPLE_ROOT := $(TINYSOL_SAMPLE_DIR)
-test-tinysol-samples: REAL_NOTE_SAMPLE_REQUIRED_SAMPLES := $(TINYSOL_MIN_SAMPLES)
-test-tinysol-samples: REAL_NOTE_SAMPLE_MIN_BASS := $(TINYSOL_MIN_BASS)
-test-tinysol-samples: REAL_NOTE_SAMPLE_MIN_PIANO := $(TINYSOL_MIN_PIANO)
-test-tinysol-samples: REAL_NOTE_SAMPLE_MIN_OTHER := $(TINYSOL_MIN_OTHER)
-test-tinysol-samples: $(BUILD_DIR)/analyzer_real_note_samples prepare-tinysol-samples scripts/run_with_duration.sh scripts/check_real_note_sample_shards.py
+test-tinysol-samples test-tinysol-samples-parallel: REAL_NOTE_SAMPLE_TAG := tinysol
+test-tinysol-samples test-tinysol-samples-parallel: REAL_NOTE_SAMPLE_ROOT := $(TINYSOL_SAMPLE_DIR)
+test-tinysol-samples test-tinysol-samples-parallel: REAL_NOTE_SAMPLE_REQUIRED_SAMPLES := $(TINYSOL_MIN_SAMPLES)
+test-tinysol-samples test-tinysol-samples-parallel: REAL_NOTE_SAMPLE_MIN_BASS := $(TINYSOL_MIN_BASS)
+test-tinysol-samples test-tinysol-samples-parallel: REAL_NOTE_SAMPLE_MIN_PIANO := $(TINYSOL_MIN_PIANO)
+test-tinysol-samples test-tinysol-samples-parallel: REAL_NOTE_SAMPLE_MIN_OTHER := $(TINYSOL_MIN_OTHER)
+test-tinysol-samples: test-tinysol-samples-parallel
+
+test-tinysol-samples-parallel: $(BUILD_DIR)/analyzer_real_note_samples prepare-tinysol-samples scripts/run_with_duration.sh scripts/check_real_note_sample_shards.py
 	+$(RUN_REAL_NOTE_SAMPLE_SHARDS)
 
 $(TINYSOL_ATTRIBUTE_TSV): $(BUILD_DIR)/analyzer_real_note_samples $(TINYSOL_SAMPLE_DIR)/manifest.tsv scripts/build_sharded_tsv.sh scripts/run_with_lock.sh | $(BUILD_DIR)
@@ -3166,12 +3195,14 @@ $(VOCADITO_SAMPLE_DIR)/manifest.tsv: scripts/prepare_vocadito_samples.py $(VOCAD
 	+$(MAKE) prepare-vocadito-samples
 	@touch "$(VOCADITO_SAMPLE_DIR)/manifest.tsv"
 
-test-vocadito-samples: REAL_NOTE_SAMPLE_TAG := vocadito
-test-vocadito-samples: REAL_NOTE_SAMPLE_ROOT := $(VOCADITO_SAMPLE_DIR)
-test-vocadito-samples: REAL_NOTE_SAMPLE_REQUIRED_SAMPLES := $(VOCADITO_MIN_VOCALS)
-test-vocadito-samples: REAL_NOTE_SAMPLE_MIN_VOCALS := $(VOCADITO_MIN_VOCALS)
-test-vocadito-samples: REAL_NOTE_SAMPLE_MAX_FAILURES := $(VOCADITO_MAX_FAILURES)
-test-vocadito-samples: $(BUILD_DIR)/analyzer_real_note_samples prepare-vocadito-samples scripts/run_with_duration.sh scripts/check_real_note_sample_shards.py
+test-vocadito-samples test-vocadito-samples-parallel: REAL_NOTE_SAMPLE_TAG := vocadito
+test-vocadito-samples test-vocadito-samples-parallel: REAL_NOTE_SAMPLE_ROOT := $(VOCADITO_SAMPLE_DIR)
+test-vocadito-samples test-vocadito-samples-parallel: REAL_NOTE_SAMPLE_REQUIRED_SAMPLES := $(VOCADITO_MIN_VOCALS)
+test-vocadito-samples test-vocadito-samples-parallel: REAL_NOTE_SAMPLE_MIN_VOCALS := $(VOCADITO_MIN_VOCALS)
+test-vocadito-samples test-vocadito-samples-parallel: REAL_NOTE_SAMPLE_MAX_FAILURES := $(VOCADITO_MAX_FAILURES)
+test-vocadito-samples: test-vocadito-samples-parallel
+
+test-vocadito-samples-parallel: $(BUILD_DIR)/analyzer_real_note_samples prepare-vocadito-samples scripts/run_with_duration.sh scripts/check_real_note_sample_shards.py
 	+$(RUN_REAL_NOTE_SAMPLE_SHARDS)
 
 $(VOCADITO_ATTRIBUTE_TSV): $(BUILD_DIR)/analyzer_real_note_samples $(VOCADITO_SAMPLE_DIR)/manifest.tsv scripts/build_sharded_tsv.sh scripts/run_with_lock.sh | $(BUILD_DIR)
@@ -3221,13 +3252,15 @@ $(VOCALSET_SAMPLE_DIR)/manifest.tsv: scripts/prepare_vocalset_samples.py $(VOCAL
 	+$(MAKE) prepare-vocalset-samples
 	@touch "$(VOCALSET_SAMPLE_DIR)/manifest.tsv"
 
-test-vocalset-samples: REAL_NOTE_SAMPLE_TAG := vocalset
-test-vocalset-samples: REAL_NOTE_SAMPLE_ROOT := $(VOCALSET_SAMPLE_DIR)
-test-vocalset-samples: REAL_NOTE_SAMPLE_REQUIRED_SAMPLES := $(VOCALSET_MIN_VOCALS)
-test-vocalset-samples: REAL_NOTE_SAMPLE_MIN_VOCALS := $(VOCALSET_MIN_VOCALS)
-test-vocalset-samples: REAL_NOTE_SAMPLE_MAX_FAILURES := $(VOCALSET_MAX_FAILURES)
-test-vocalset-samples: REAL_NOTE_SAMPLE_MAX_FAILURE_LINES := 120
-test-vocalset-samples: $(BUILD_DIR)/analyzer_real_note_samples prepare-vocalset-samples scripts/run_with_duration.sh scripts/check_real_note_sample_shards.py
+test-vocalset-samples test-vocalset-samples-parallel: REAL_NOTE_SAMPLE_TAG := vocalset
+test-vocalset-samples test-vocalset-samples-parallel: REAL_NOTE_SAMPLE_ROOT := $(VOCALSET_SAMPLE_DIR)
+test-vocalset-samples test-vocalset-samples-parallel: REAL_NOTE_SAMPLE_REQUIRED_SAMPLES := $(VOCALSET_MIN_VOCALS)
+test-vocalset-samples test-vocalset-samples-parallel: REAL_NOTE_SAMPLE_MIN_VOCALS := $(VOCALSET_MIN_VOCALS)
+test-vocalset-samples test-vocalset-samples-parallel: REAL_NOTE_SAMPLE_MAX_FAILURES := $(VOCALSET_MAX_FAILURES)
+test-vocalset-samples test-vocalset-samples-parallel: REAL_NOTE_SAMPLE_MAX_FAILURE_LINES := 120
+test-vocalset-samples: test-vocalset-samples-parallel
+
+test-vocalset-samples-parallel: $(BUILD_DIR)/analyzer_real_note_samples prepare-vocalset-samples scripts/run_with_duration.sh scripts/check_real_note_sample_shards.py
 	+$(RUN_REAL_NOTE_SAMPLE_SHARDS)
 
 $(VOCALSET_ATTRIBUTE_TSV): $(BUILD_DIR)/analyzer_real_note_samples $(VOCALSET_SAMPLE_DIR)/manifest.tsv scripts/build_sharded_tsv.sh scripts/run_with_lock.sh | $(BUILD_DIR)
