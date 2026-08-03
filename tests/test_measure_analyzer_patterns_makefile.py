@@ -2128,9 +2128,10 @@ def main() -> int:
         assert text in guitar_chord_shard_recipe, (
             f"guitar chord mix shard target must include {text}"
         )
-    for aggregate, shard, jobs_var, shards_var, targets_var, duration in [
+    for public_target, aggregate, shard, jobs_var, shards_var, targets_var, duration in [
         (
             "test-guitar-techs-chord-samples",
+            "test-guitar-techs-chord-samples-parallel",
             "test-guitar-techs-chord-samples-shard-%",
             "GUITAR_TECHS_CHORD_TEST_MAKE_JOBS",
             "GUITAR_TECHS_CHORD_SHARDS",
@@ -2139,6 +2140,7 @@ def main() -> int:
         ),
         (
             "test-egfxset-guitar-samples",
+            "test-egfxset-guitar-samples-parallel",
             "test-egfxset-guitar-samples-shard-%",
             "EGFXSET_GUITAR_TEST_MAKE_JOBS",
             "EGFXSET_GUITAR_SHARDS",
@@ -2147,6 +2149,7 @@ def main() -> int:
         ),
         (
             "test-gaps-guitar-samples",
+            "test-gaps-guitar-samples-parallel",
             "test-gaps-guitar-samples-shard-%",
             "GAPS_GUITAR_TEST_MAKE_JOBS",
             "GAPS_GUITAR_SHARDS",
@@ -2155,6 +2158,7 @@ def main() -> int:
         ),
         (
             "test-gaps-guitar-samples-full",
+            "test-gaps-guitar-samples-full-parallel",
             "test-gaps-guitar-samples-full-shard-%",
             "GAPS_GUITAR_FULL_TEST_MAKE_JOBS",
             "GAPS_GUITAR_FULL_SHARDS",
@@ -2163,6 +2167,7 @@ def main() -> int:
         ),
         (
             "test-downloaded-guitarset",
+            "test-downloaded-guitarset-parallel",
             "test-downloaded-guitarset-shard-%",
             "GUITARSET_TEST_MAKE_JOBS",
             "GUITARSET_SHARDS",
@@ -2173,6 +2178,7 @@ def main() -> int:
         assert f"{jobs_var} = $(if $(filter -j%,$(MAKEFLAGS)),,-j$({shards_var}))" in makefile, (
             f"{aggregate} shard fanout must reuse an inherited GNU make jobserver"
         )
+        assert_alias_target(makefile, public_target, aggregate)
         aggregate_recipe = target_recipe(makefile, aggregate)
         assert f"$(MAKE) $({jobs_var}) $({targets_var})" in aggregate_recipe, (
             f"{aggregate} must fan out deterministic shards through jobserver-aware make"
