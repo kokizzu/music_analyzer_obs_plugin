@@ -275,6 +275,10 @@ private:
 	static constexpr std::size_t kMaxRootVotes = 1500;
 	static constexpr std::size_t kMaxTempoEvents = 96;
 	static constexpr std::size_t kMaxTempoFluxFrames = 360;
+	static constexpr int kMinTempoBpm = 50;
+	static constexpr int kMaxTempoBpm = 220;
+	static constexpr std::size_t kTempoBpmCount =
+		static_cast<std::size_t>(kMaxTempoBpm - kMinTempoBpm + 1);
 
 	std::array<float, kAnalysisWindow> window_ = {};
 	std::array<Probe, kNoteProbeCount> note_probes_ = {};
@@ -290,9 +294,13 @@ private:
 	std::array<float, kMaxTempoEvents> tempo_events_ = {};
 	std::array<float, kMaxTempoEvents> tempo_event_strengths_ = {};
 	std::array<float, kMaxTempoEvents> tempo_event_body_strengths_ = {};
+	std::array<float, kMaxTempoEvents> tempo_event_low_body_strengths_ = {};
+	std::array<float, kMaxTempoEvents> tempo_event_mid_body_strengths_ = {};
 	std::array<float, kMaxTempoEvents> tempo_event_subdivision_strengths_ = {};
 	std::array<float, kMaxTempoFluxFrames> tempo_flux_ = {};
 	std::array<float, kMaxTempoFluxFrames> tempo_body_flux_ = {};
+	std::array<float, kMaxTempoFluxFrames> tempo_low_body_flux_ = {};
+	std::array<float, kMaxTempoFluxFrames> tempo_mid_body_flux_ = {};
 	std::array<float, kMaxTempoFluxFrames> tempo_subdivision_flux_ = {};
 	int tracked_bass_midi_ = -1;
 	int pending_bass_midi_ = -1;
@@ -346,8 +354,10 @@ private:
 	void rebuild_window(std::size_t window_samples);
 	void reset_note_envelopes();
 	void reset_analysis_state();
-	void update_tempo(float event_strength, float event_body_strength, float event_subdivision_strength,
-			  float flux_strength, float flux_body_strength, float flux_subdivision_strength,
+	void update_tempo(float event_strength, float event_body_strength, float event_low_body_strength,
+			  float event_mid_body_strength, float event_subdivision_strength,
+			  float flux_strength, float flux_body_strength, float flux_low_body_strength,
+			  float flux_mid_body_strength, float flux_subdivision_strength,
 			  float event_time_offset_seconds, float interval_seconds, float rms,
 			  AnalysisSnapshot &snapshot);
 	float goertzel_power(const float *samples, std::size_t count, float mean, const Probe &probe) const;

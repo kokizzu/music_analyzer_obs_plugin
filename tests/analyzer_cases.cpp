@@ -3908,6 +3908,28 @@ void check_full_mix_single_instrument_precision(Runner &runner)
 
 	{
 		mao_test::Buffer buffer = {};
+		const std::vector<float> measured_mid_brass_guitar_guard_profile =
+			{1.0f, 0.27f, 0.076f, 0.059f, 0.008f, 0.0f, 0.0f, 0.148f};
+		add_harmonic_note(buffer, 64, 0.24f, measured_mid_brass_guitar_guard_profile);
+
+		const auto snapshot =
+			analyze_buffer_with_mode(buffer, mao::AnalysisInputMode::FullMix,
+						 "speaker measured mid brass guitar guard", 3);
+		expect_global_pitch_class(runner, snapshot, 4,
+					  "full-mix measured mid brass guitar guard global");
+		const float other_visual = grid_visual_level_for_midi(snapshot.other_notes, 64);
+		const float guitar_visual = grid_visual_level_for_midi(snapshot.guitar_notes, 64);
+		runner.expect(other_visual > 0.0f && other_visual >= guitar_visual,
+			      std::string("full-mix measured mid brass guitar guard: expected other E4 "
+					  "visual to beat guitar, got other visual ") +
+				      std::to_string(other_visual) + ", guitar visual " +
+				      std::to_string(guitar_visual) + ", other `" +
+				      snapshot.other.label + "`, guitar `" + snapshot.guitar.label +
+				      "`, debug `" + full_mix_debug_summary_for_midi(snapshot, 64) + "`");
+	}
+
+	{
+		mao_test::Buffer buffer = {};
 		const std::vector<float> bright_high_brass_profile = {1.0f, 0.18f, 0.54f, 0.58f, 0.012f};
 		add_harmonic_note(buffer, 79, 0.22f, bright_high_brass_profile);
 
@@ -5350,6 +5372,50 @@ mao::AnalysisSnapshot run_backbeat_dominant_tempo_pattern(mao::AnalysisEngine &e
 	return snapshot;
 }
 
+mao::AnalysisSnapshot run_backbeat_only_hihat_tempo_pattern(mao::AnalysisEngine &engine,
+							    const mao::AnalysisSettings &settings,
+							    float bpm, int frames)
+{
+	const float beat_seconds = 60.0f / bpm;
+	const float eighth_seconds = beat_seconds * 0.5f;
+	const float interval_seconds = settings.analysis_interval_seconds;
+	const uint64_t hop_samples = static_cast<uint64_t>(
+		std::lround(settings.analysis_interval_seconds * static_cast<float>(settings.sample_rate)));
+	mao::AnalysisSnapshot snapshot = {};
+	float next_beat_seconds = 0.0f;
+	float next_hihat_seconds = 0.0f;
+	int beat = 0;
+	int hat = 0;
+
+	for (int frame = 0; frame < frames; ++frame) {
+		mao_test::Buffer buffer = {};
+		add_tempo_backing(buffer, static_cast<uint64_t>(frame) * hop_samples);
+		const float frame_seconds = static_cast<float>(frame) * interval_seconds;
+		const float frame_center_seconds = frame_seconds + interval_seconds * 0.5f;
+
+		if (next_hihat_seconds <= frame_center_seconds) {
+			add_tempo_hihat(buffer, hat % 2 == 0 ? 0.86f : 0.74f);
+			++hat;
+			while (next_hihat_seconds <= frame_center_seconds)
+				next_hihat_seconds += eighth_seconds;
+		}
+		if (next_beat_seconds <= frame_center_seconds) {
+			if (beat % 4 == 1 || beat % 4 == 3)
+				add_tempo_snare(buffer, beat % 8 == 3 ? 1.12f : 1.00f);
+			else if (beat % 8 == 0)
+				add_tempo_kick(buffer, 0.12f);
+			++beat;
+			while (next_beat_seconds <= frame_center_seconds)
+				next_beat_seconds += beat_seconds;
+		}
+
+		snapshot = engine.analyze(buffer.data(), buffer.size(), settings,
+					  "backbeat only hihat tempo test", 0);
+	}
+
+	return snapshot;
+}
+
 mao::AnalysisSnapshot run_subdivision_intro_tempo_pattern(mao::AnalysisEngine &engine,
 							   const mao::AnalysisSettings &settings,
 							   float bpm, int intro_frames,
@@ -5855,6 +5921,17 @@ void check_explicit_input_mode_and_bpm(Runner &runner)
 				"BPM estimate should not lock to backbeat/offbeat subdivisions", 0.18f);
 		expect_tempo_candidate_near(runner, snapshot, 128.0f, 5.0f,
 					    "BPM diagnostics backbeat dominant groove");
+	}
+
+	{
+		mao::AnalysisEngine engine;
+		const mao::AnalysisSettings settings = tempo_test_settings();
+		const mao::AnalysisSnapshot snapshot =
+			run_backbeat_only_hihat_tempo_pattern(engine, settings, 120.0f, 460);
+		expect_bpm_near(runner, snapshot, 120.0f, 8.0f,
+				"BPM estimate should recover sparse kick backbeat from half-time", 0.16f);
+		expect_tempo_candidate_near(runner, snapshot, 120.0f, 5.0f,
+					    "BPM diagnostics sparse kick backbeat");
 	}
 
 	{
