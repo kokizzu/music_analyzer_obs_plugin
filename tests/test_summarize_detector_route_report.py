@@ -155,6 +155,40 @@ compact route summary
     require(low_quality_output, "blocked-reason summary missing_quality_tone=1")
     require(low_quality_output, "blocked_by=missing_quality_tone")
 
+    extended_quality_report = """bucket chord_miss:maj7:visible3_analysis3_smooth3_rootvis1 positives=9 positive_rows=12 protected_hits=0
+  +9 rows=12 -0 rows=0 :: analysis_tones<=3 AND melodic_probe_third>=0.2 AND probe_third<=0.059
+    guitar_techs_chords_P1_chords_micamp_drop3_maj7_0021_0297@0.750s expected=F#maj7 guitar=F#=C#=F#pow support=visible3_analysis3_smooth3_rootvis1 raw(root/third/fifth)=0.24/0.03/0.39 analysis=C#,F,F# visible=C#,F,F#
+bucket chord_miss:m6/m7b5:visible3_analysis3_smooth3_rootvis1 positives=12 positive_rows=16 protected_hits=0
+  +12 rows=16 -0 rows=0 :: analysis_fifth<=0 AND analysis_third<=0
+    guitar_techs_chords_P1_chords_directinput_drop3_m7b5_0072_0619@0.750s expected=Gm7b5/A#m6 guitar=C#=C#add9 support=visible3_analysis3_smooth3_rootvis1 raw(root/third/fifth)=0.45/0.20/0.00 analysis=C#,D#,F,G,G# visible=C#,F,G
+bucket chord_miss:m:visible0_analysis0_smooth0_rootvis0 positives=36 positive_rows=44 protected_hits=0
+  +36 rows=44 -0 rows=0 :: analysis_pc_count<=0
+    guitar_techs_chords_P1_chords_directinput_drop3_maj7_0027_0214@0.750s expected=C#m guitar=-- support=visible0_analysis0_smooth0_rootvis0 raw(root/third/fifth)=0.13/1.00/0.38 analysis=-- visible=--
+"""
+    with tempfile.TemporaryDirectory() as tmpdir:
+        path = pathlib.Path(tmpdir) / "route_report.txt"
+        path.write_text(extended_quality_report, encoding="utf-8")
+        result = subprocess.run(
+            [sys.executable, str(SCRIPT), str(path), "--limit", "8"],
+            check=True,
+            text=True,
+            stdout=subprocess.PIPE,
+        )
+    extended_quality_output = result.stdout
+    require(
+        extended_quality_output,
+        "detector_route_summary: candidates=3 low_false=0 shadow=0 near_miss=0 guitar=3 drum=0 positive_net=3 gain_ge_1=3 source_safe_positive_net=3 actionable=0 coverage_blocked=0",
+    )
+    require(
+        extended_quality_output,
+        "blocked-reason summary missing_quality_tone=2 missing_note_evidence=1",
+    )
+    require(extended_quality_output, "chord_miss:maj7")
+    require(extended_quality_output, "blocked_by=missing_quality_tone")
+    require(extended_quality_output, "chord_miss:m6/m7b5")
+    require(extended_quality_output, "chord_miss:m:visible0")
+    require(extended_quality_output, "blocked_by=missing_note_evidence")
+
     veto_report = """compact route summary
   routes=1 routes_with_extras=1 safe_simulation_routes=0 safe_simulation_extra_hits=0
   safe_threshold_routes=1 no_safe_threshold_routes=0 safe_threshold_extra_hits=3 safe_threshold_protected_hits=0

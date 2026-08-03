@@ -53,19 +53,35 @@ POSITIVE_SAMPLE_PROFILE_RE = re.compile(
     r"^positive sample profile: groups=(?P<groups>\S+) sources=(?P<sources>\S+)"
 )
 SAMPLE_SENSITIVE_KINDS = {"low-false", "near-miss", "guitar"}
-GUITAR_PLAIN_QUALITY_MISS_RE = re.compile(r"^bucket chord_miss:(?:maj|m):")
+GUITAR_CHORD_MISS_RE = re.compile(r"^bucket chord_miss:(?P<quality>[^:]+):")
 RAW_ROOT_THIRD_FIFTH_RE = re.compile(
     r"raw\(root/third/fifth\)=(-?\d+(?:\.\d+)?)/(-?\d+(?:\.\d+)?)/(-?\d+(?:\.\d+)?)"
 )
+GUITAR_NO_QUALITY_THIRD_NAMES = {"pow", "sus2", "sus4"}
+GUITAR_MISSING_NOTE_EVIDENCE_SUPPORTS = (
+    "visible0_analysis0_smooth0_rootvis0",
+)
+GUITAR_MISSING_NOTE_EVIDENCE_RULE_MARKERS = (
+    "analysis_pc_count<=0",
+    "analysis_tones<=0",
+    "smooth_pc_count<=0",
+    "smooth_tones<=0",
+)
 GUITAR_MISSING_QUALITY_TONE_RULE_MARKERS = (
     "analysis_third<=",
+    "display_primary_analysis_third<=",
     "melodic_probe_third<=",
+    "display_primary_melodic_probe_third<=",
     "evidence_class=power_only_ambiguous",
     "evidence_class=third_missing",
     "analysis_missing_tones=fifth,third",
     "analysis_missing_tones=third",
     "smooth_missing_tones=fifth,third",
     "smooth_missing_tones=third",
+)
+GUITAR_WEAK_QUALITY_TONE_RULE_MARKERS = (
+    "probe_third<=",
+    "display_primary_probe_third<=",
 )
 GUITAR_EXAMPLE_THIRD_EVIDENCE_FLOOR = 0.06
 
@@ -387,7 +403,9 @@ def candidate_block_reasons(
     reasons: list[str] = []
     if candidate.net_rows <= 0:
         reasons.append("negative_net")
-    if guitar_plain_quality_missing(candidate):
+    if guitar_missing_note_evidence(candidate):
+        reasons.append("missing_note_evidence")
+    elif guitar_quality_tone_missing(candidate):
         reasons.append("missing_quality_tone")
     if candidate.kind in SAMPLE_SENSITIVE_KINDS:
         if 0 < candidate.pos_samples < min_actionable_samples:
@@ -401,22 +419,81 @@ def candidate_block_reasons(
     return reasons
 
 
-def guitar_plain_quality_missing(candidate: Candidate) -> bool:
+def guitar_chord_miss_quality(candidate: Candidate) -> str:
     if candidate.kind != "guitar":
+        return ""
+    match = GUITAR_CHORD_MISS_RE.match(candidate.section)
+    if not match:
+        return ""
+    return match.group("quality")
+
+
+def guitar_quality_requires_third(quality: str) -> bool:
+    if not quality:
         return False
-    if not GUITAR_PLAIN_QUALITY_MISS_RE.match(candidate.section):
+    quality_names = {name for name in quality.split("/") if name}
+    if not quality_names:
+        return False
+    return any(name not in GUITAR_NO_QUALITY_THIRD_NAMES for name in quality_names)
+
+
+def guitar_examples_have_no_visible_analysis(candidate: Candidate) -> bool:
+    if not candidate.examples:
+        return False
+    for example in candidate.examples:
+        if "analysis=--" not in example or "visible=--" not in example:
+            return False
+    return True
+
+
+def guitar_missing_note_evidence(candidate: Candidate) -> bool:
+    if not guitar_chord_miss_quality(candidate):
         return False
 
-    compact_rule = candidate.rule.replace(" ", "")
-    if any(marker.replace(" ", "") in compact_rule for marker in GUITAR_MISSING_QUALITY_TONE_RULE_MARKERS):
+    if any(marker in candidate.section for marker in GUITAR_MISSING_NOTE_EVIDENCE_SUPPORTS):
         return True
 
+    compact_rule = candidate.rule.replace(" ", "")
+    if any(
+        marker.replace(" ", "") in compact_rule
+        for marker in GUITAR_MISSING_NOTE_EVIDENCE_RULE_MARKERS
+    ):
+        return True
+    return guitar_examples_have_no_visible_analysis(candidate)
+
+
+def guitar_example_third_levels(candidate: Candidate) -> list[float]:
     third_levels: list[float] = []
     for example in candidate.examples:
         match = RAW_ROOT_THIRD_FIFTH_RE.search(example)
         if match:
             third_levels.append(float(match.group(2)))
+    return third_levels
+
+
+def guitar_examples_have_weak_third(candidate: Candidate) -> bool:
+    third_levels = guitar_example_third_levels(candidate)
     return bool(third_levels) and max(third_levels) < GUITAR_EXAMPLE_THIRD_EVIDENCE_FLOOR
+
+
+def guitar_quality_tone_missing(candidate: Candidate) -> bool:
+    quality = guitar_chord_miss_quality(candidate)
+    if not guitar_quality_requires_third(quality):
+        return False
+
+    compact_rule = candidate.rule.replace(" ", "")
+    if any(
+        marker.replace(" ", "") in compact_rule
+        for marker in GUITAR_MISSING_QUALITY_TONE_RULE_MARKERS
+    ):
+        return True
+    if any(
+        marker.replace(" ", "") in compact_rule
+        for marker in GUITAR_WEAK_QUALITY_TONE_RULE_MARKERS
+    ):
+        return guitar_examples_have_weak_third(candidate)
+
+    return guitar_examples_have_weak_third(candidate)
 
 
 def candidate_additional_samples_needed(
