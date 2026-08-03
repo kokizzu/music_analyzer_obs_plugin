@@ -4211,7 +4211,7 @@ test-maestro-fixture: $(BUILD_DIR)/analyzer_maestro tests/generate_maestro_fixtu
 test-egmd-fixture: $(BUILD_DIR)/analyzer_egmd tests/generate_egmd_fixture.py | $(BUILD_DIR)
 	rm -rf $(REAL_GOAL_EGMD_FIXTURE_DIR)
 	$(PYTHON) tests/generate_egmd_fixture.py $(REAL_GOAL_EGMD_FIXTURE_DIR)
-	MUSIC_ANALYZER_EGMD_ROOT=$(REAL_GOAL_EGMD_FIXTURE_DIR) MUSIC_ANALYZER_EGMD_SOURCE_NAME="E-GMD percussion" MUSIC_ANALYZER_EGMD_REQUIRED=1 $(BUILD_DIR)/analyzer_egmd
+	MUSIC_ANALYZER_EGMD_ROOT=$(REAL_GOAL_EGMD_FIXTURE_DIR) MUSIC_ANALYZER_EGMD_SOURCE_NAME="E-GMD percussion" MUSIC_ANALYZER_EGMD_REQUIRED=1 MUSIC_ANALYZER_EGMD_VALIDATE_BPM=1 MUSIC_ANALYZER_EGMD_MIN_BPM_PASS_PERCENT=80 $(BUILD_DIR)/analyzer_egmd
 
 test-bach10-fixture: $(BUILD_DIR)/analyzer_urmp tests/generate_bach10_fixture.py | $(BUILD_DIR)
 	$(PYTHON) tests/generate_bach10_fixture.py $(BACH10_FIXTURE_DIR)

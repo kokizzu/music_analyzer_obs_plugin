@@ -362,6 +362,24 @@ double tick_to_seconds(const std::vector<TempoPoint> &points, uint64_t tick, int
 				 (static_cast<double>(division) * 1000000.0);
 }
 
+double tempo_bpm_at_tick(std::vector<TempoEvent> tempo_events, uint64_t tick)
+{
+	std::sort(tempo_events.begin(), tempo_events.end(), [](const TempoEvent &a, const TempoEvent &b) {
+		if (a.tick != b.tick)
+			return a.tick < b.tick;
+		return a.microseconds_per_quarter < b.microseconds_per_quarter;
+	});
+
+	int microseconds_per_quarter = 500000;
+	for (const TempoEvent &event : tempo_events) {
+		if (event.tick > tick)
+			break;
+		microseconds_per_quarter = event.microseconds_per_quarter;
+	}
+	return microseconds_per_quarter > 0 ? 60000000.0 / static_cast<double>(microseconds_per_quarter) :
+					      0.0;
+}
+
 struct DrumHit {
 	double seconds = 0.0;
 	int midi = 0;
@@ -419,7 +437,8 @@ struct RawHit {
 	mao::DrumIndex category = mao::Kick;
 };
 
-bool read_egmd_midi(const std::string &path, std::vector<DrumHit> &hits, std::string &error)
+bool read_egmd_midi(const std::string &path, std::vector<DrumHit> &hits, double &tempo_bpm,
+		    std::string &error)
 {
 	std::vector<unsigned char> bytes;
 	if (!read_file_bytes(path, bytes, error))
@@ -554,6 +573,10 @@ bool read_egmd_midi(const std::string &path, std::vector<DrumHit> &hits, std::st
 	}
 
 	const std::vector<TempoPoint> tempo_points = build_tempo_points(tempo_events, division);
+	uint64_t last_hit_tick = 0;
+	for (const RawHit &raw : raw_hits)
+		last_hit_tick = std::max(last_hit_tick, raw.tick);
+	tempo_bpm = tempo_bpm_at_tick(tempo_events, last_hit_tick);
 	for (const RawHit &raw : raw_hits)
 		hits.push_back(DrumHit{tick_to_seconds(tempo_points, raw.tick, division), raw.midi, raw.velocity,
 				       raw.category});
@@ -682,6 +705,7 @@ struct Recording {
 	std::string midi_path;
 	uint32_t sample_rate = 0;
 	uint64_t frame_count = 0;
+	double tempo_bpm = 0.0;
 	std::vector<DrumHit> hits;
 };
 
@@ -694,7 +718,8 @@ bool load_recording(const std::string &root, const std::string &id, const std::s
 	if (!read_wav_format(audio_path, format, error))
 		return false;
 	std::vector<DrumHit> hits;
-	if (!read_egmd_midi(midi_path, hits, error))
+	double tempo_bpm = 0.0;
+	if (!read_egmd_midi(midi_path, hits, tempo_bpm, error))
 		return false;
 
 	recording.id = id;
@@ -702,6 +727,7 @@ bool load_recording(const std::string &root, const std::string &id, const std::s
 	recording.midi_path = midi_path;
 	recording.sample_rate = format.sample_rate;
 	recording.frame_count = format.frame_count;
+	recording.tempo_bpm = tempo_bpm;
 	recording.hits = std::move(hits);
 	return true;
 }
@@ -799,6 +825,15 @@ int resolve_percent_env(const char *name, int fallback)
 		return fallback;
 	const int parsed = std::atoi(value);
 	return parsed >= 0 && parsed <= 100 ? parsed : fallback;
+}
+
+double resolve_positive_double_env(const char *name, double fallback)
+{
+	const char *value = std::getenv(name);
+	if (!value || !*value)
+		return fallback;
+	const double parsed = std::atof(value);
+	return parsed > 0.0 ? parsed : fallback;
 }
 
 struct CandidateWindow {
@@ -901,6 +936,52 @@ bool analyze_drum_window_sequence(const std::string &audio_path, uint64_t center
 			return false;
 		settings.sample_rate = sample_rate;
 		snapshot = engine.analyze(buffer.data(), buffer.size(), settings, analyzer_source_name, 0);
+	}
+	return true;
+}
+
+bool analyze_tempo_sequence(const Recording &recording, const char *analyzer_source_name,
+			    double max_seconds, mao::AnalysisSnapshot &snapshot, std::string &error)
+{
+	mao::AnalysisEngine engine;
+	mao::AnalysisSettings settings = mao_test::default_settings();
+	settings.analysis_interval_seconds = 0.05f;
+	settings.analysis_window_seconds = static_cast<float>(mao::kDefaultAnalysisWindowMs) / 1000.0f;
+	settings.analysis_window_samples = 0;
+	settings.input_mode = mao::AnalysisInputMode::FullMix;
+	settings.sample_rate = recording.sample_rate;
+
+	mao_test::Buffer buffer = {};
+	const uint64_t analyzer_window_samples =
+		static_cast<uint64_t>(mao::resolve_analysis_window_samples(settings));
+	if (recording.frame_count < analyzer_window_samples) {
+		error = "audio shorter than analyzer tempo window";
+		return false;
+	}
+
+	const uint64_t max_frame = std::min<uint64_t>(
+		recording.frame_count,
+		static_cast<uint64_t>(std::llround(max_seconds * static_cast<double>(recording.sample_rate))));
+	const uint64_t read_center_offset =
+		buffer.size() > analyzer_window_samples ? (buffer.size() - analyzer_window_samples) / 2 : 0;
+	const uint64_t interval_samples =
+		std::max<uint64_t>(1, static_cast<uint64_t>(std::llround(settings.analysis_interval_seconds *
+								       static_cast<double>(recording.sample_rate))));
+	uint64_t center_sample = analyzer_window_samples / 2;
+	bool analyzed = false;
+	while (center_sample < max_frame) {
+		uint32_t sample_rate = 0;
+		if (!read_wav_window(recording.audio_path, center_sample + read_center_offset, buffer,
+				     sample_rate, error))
+			return false;
+		settings.sample_rate = sample_rate;
+		snapshot = engine.analyze(buffer.data(), buffer.size(), settings, analyzer_source_name, 0);
+		analyzed = true;
+		center_sample += interval_samples;
+	}
+	if (!analyzed) {
+		error = "no tempo frames analyzed";
+		return false;
 	}
 	return true;
 }
@@ -1128,6 +1209,15 @@ struct CompositionStats {
 	int max_categories = 0;
 };
 
+struct TempoStats {
+	int checked = 0;
+	int hits = 0;
+	int no_estimate = 0;
+	int read_failures = 0;
+	double error_sum = 0.0;
+	double max_error = 0.0;
+};
+
 void add_composition(CompositionStats &stats, const CandidateWindow &candidate)
 {
 	++stats.windows;
@@ -1162,6 +1252,17 @@ std::string composition_summary(const CompositionStats &stats)
 	       average_string(stats.hit_sum, stats.windows) + "/" + std::to_string(stats.max_hits) +
 	       ", categories min/avg/max " + std::to_string(stats.min_categories) + "/" +
 	       average_string(stats.category_sum, stats.windows) + "/" + std::to_string(stats.max_categories);
+}
+
+std::string tempo_summary(const TempoStats &stats)
+{
+	char buffer[192] = {};
+	std::snprintf(buffer, sizeof(buffer),
+		      "tempo hits %d/%d, no-estimate %d, read failures %d, mean abs error %.2f, max abs error %.2f",
+		      stats.hits, stats.checked, stats.no_estimate, stats.read_failures,
+		      stats.checked > 0 ? stats.error_sum / static_cast<double>(stats.checked) : 0.0,
+		      stats.max_error);
+	return buffer;
 }
 
 } // namespace
@@ -1210,6 +1311,14 @@ int main()
 		resolve_positive_int_env("MUSIC_ANALYZER_EGMD_VERBOSE_FALSE_POSITIVE_LIMIT", 24);
 	const bool verbose_misses = env_truthy("MUSIC_ANALYZER_EGMD_VERBOSE_MISSES");
 	const int verbose_miss_limit = resolve_positive_int_env("MUSIC_ANALYZER_EGMD_VERBOSE_MISS_LIMIT", 24);
+	const bool validate_bpm = env_truthy("MUSIC_ANALYZER_EGMD_VALIDATE_BPM");
+	const int required_tempo_recordings =
+		resolve_nonnegative_int_env("MUSIC_ANALYZER_EGMD_REQUIRED_TEMPO_RECORDINGS",
+					    validate_bpm ? required_recordings : 0);
+	const int min_bpm_pass_percent = resolve_percent_env("MUSIC_ANALYZER_EGMD_MIN_BPM_PASS_PERCENT", 70);
+	const double bpm_tolerance = resolve_positive_double_env("MUSIC_ANALYZER_EGMD_BPM_TOLERANCE", 8.0);
+	const double bpm_max_seconds =
+		resolve_positive_double_env("MUSIC_ANALYZER_EGMD_BPM_MAX_SECONDS", 12.0);
 	const int shard_count = resolve_positive_int_env("MUSIC_ANALYZER_EGMD_SHARD_COUNT", 1);
 	const int shard_index = resolve_nonnegative_int_env("MUSIC_ANALYZER_EGMD_SHARD_INDEX", 0);
 	if (shard_index >= shard_count) {
@@ -1225,6 +1334,7 @@ int main()
 	RecallStats recall;
 	DrumPrecisionStats precision;
 	CompositionStats composition;
+	TempoStats tempo;
 	int recordings_with_windows = 0;
 	int tested_windows = 0;
 	int read_failures = 0;
@@ -1245,6 +1355,42 @@ int main()
 		if (candidates.empty()) {
 			++no_candidate_recordings;
 			continue;
+		}
+
+		if (validate_bpm && !inspect_only && recording.tempo_bpm >= 50.0 && recording.tempo_bpm <= 220.0) {
+			mao::AnalysisSnapshot tempo_snapshot;
+			std::string error;
+			if (!analyze_tempo_sequence(recording, analyzer_source_name, bpm_max_seconds,
+						    tempo_snapshot, error)) {
+				++tempo.read_failures;
+				if (verbose_misses && verbose_miss_lines < verbose_miss_limit) {
+					std::fprintf(stderr, "E-GMD tempo read failure %s: %s\n",
+						     recording.id.c_str(), error.c_str());
+					++verbose_miss_lines;
+				}
+			} else {
+				++tempo.checked;
+				if (tempo_snapshot.estimated_bpm <= 0.0f)
+					++tempo.no_estimate;
+				const double error_bpm =
+					tempo_snapshot.estimated_bpm > 0.0f ?
+						std::abs(static_cast<double>(tempo_snapshot.estimated_bpm) -
+							 recording.tempo_bpm) :
+						bpm_tolerance + 1.0;
+				tempo.error_sum += error_bpm;
+				tempo.max_error = std::max(tempo.max_error, error_bpm);
+				if (tempo_snapshot.estimated_bpm > 0.0f && error_bpm <= bpm_tolerance)
+					++tempo.hits;
+				else if (verbose_misses && verbose_miss_lines < verbose_miss_limit) {
+					std::fprintf(stderr,
+						     "E-GMD tempo miss %s expected %.2f got %.2f confidence %.2f: %s\n",
+						     recording.id.c_str(), recording.tempo_bpm,
+						     tempo_snapshot.estimated_bpm,
+						     tempo_snapshot.bpm_confidence,
+						     drum_debug_details(tempo_snapshot).c_str());
+					++verbose_miss_lines;
+				}
+			}
 		}
 
 		int recording_windows = 0;
@@ -1342,17 +1488,33 @@ int main()
 					      percent_string(precision.false_positive_windows, precision.windows) +
 					      " (" + drum_precision_summary(precision) + ")");
 		}
+		if (validate_bpm) {
+			runner.expect(tempo.checked >= required_tempo_recordings,
+				      "E-GMD tempo coverage: expected at least " +
+					      std::to_string(required_tempo_recordings) +
+					      " tempo-checked recordings, got " + std::to_string(tempo.checked) +
+					      " (" + tempo_summary(tempo) + ")");
+			if (tempo.checked > 0) {
+				runner.expect(percentage_floor(tempo.hits, tempo.checked) >=
+						      min_bpm_pass_percent,
+					      "E-GMD tempo accuracy: expected >=" +
+						      std::to_string(min_bpm_pass_percent) + "% within " +
+						      std::to_string(bpm_tolerance) + " BPM, got " +
+						      percent_string(tempo.hits, tempo.checked) + " (" +
+						      tempo_summary(tempo) + ")");
+			}
+		}
 	}
 
 	if (runner.failures != 0) {
 		std::fprintf(stderr,
 			     "analyzer_egmd: %d/%d checks failed (recordings %d/%zu, windows %d, "
 			     "read failures %d, no-candidate recordings %d, unusable %d, "
-			     "drum hits %d/%d, %s, %s)\n",
+			     "drum hits %d/%d, %s, %s, %s)\n",
 			     runner.failures, runner.checks, recordings_with_windows, recordings.size(),
 			     tested_windows, read_failures, no_candidate_recordings, unusable, recall.hits,
 			     recall.expected, drum_precision_summary(precision).c_str(),
-			     composition_summary(composition).c_str());
+			     composition_summary(composition).c_str(), tempo_summary(tempo).c_str());
 		return 1;
 	}
 
@@ -1364,10 +1526,11 @@ int main()
 	} else {
 		std::printf("analyzer_egmd: %d checks passed (recordings %d/%zu, windows %d, "
 			    "read failures %d, no-candidate recordings %d, unusable %d, "
-			    "drum hits %d/%d, %s, %s)\n",
+			    "drum hits %d/%d, %s, %s, %s)\n",
 			    runner.checks, recordings_with_windows, recordings.size(), tested_windows,
 			    read_failures, no_candidate_recordings, unusable, recall.hits, recall.expected,
-			    drum_precision_summary(precision).c_str(), composition_summary(composition).c_str());
+			    drum_precision_summary(precision).c_str(), composition_summary(composition).c_str(),
+			    tempo_summary(tempo).c_str());
 	}
 	return 0;
 }
