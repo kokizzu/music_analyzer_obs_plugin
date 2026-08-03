@@ -289,6 +289,8 @@ private:
 	float previous_rms_ = 0.0f;
 	std::array<float, 3> previous_tempo_band_levels_ = {};
 	std::array<float, 3> tempo_band_average_ = {};
+	std::array<float, 12> previous_tempo_chroma_ = {};
+	std::array<float, 12> previous_tempo_bass_chroma_ = {};
 	std::array<float, kDrumCount> drum_average_ = {};
 	std::array<float, kDrumCount> drum_level_ = {};
 	std::array<RootVote, kMaxRootVotes> root_votes_ = {};
@@ -347,6 +349,9 @@ private:
 	float bpm_confidence_ = 0.0f;
 	float tempo_phase_offset_seconds_ = 0.0f;
 	float tempo_phase_confidence_ = 0.0f;
+	float pending_tempo_bpm_ = 0.0f;
+	float pending_tempo_confidence_ = 0.0f;
+	float pending_tempo_seconds_ = 0.0f;
 	std::size_t analysis_window_samples_ = 0;
 	AnalysisInputMode active_input_mode_ = AnalysisInputMode::Auto;
 	bool has_active_input_mode_ = false;

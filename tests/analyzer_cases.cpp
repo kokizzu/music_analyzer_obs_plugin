@@ -5664,6 +5664,75 @@ mao::AnalysisSnapshot run_tonal_pulse_tempo_pattern(mao::AnalysisEngine &engine,
 	return snapshot;
 }
 
+mao::AnalysisSnapshot run_bass_chord_progression_tempo_pattern(mao::AnalysisEngine &engine,
+							       const mao::AnalysisSettings &settings,
+							       float bpm, int frames)
+{
+	const float beat_seconds = 60.0f / bpm;
+	const float interval_seconds = settings.analysis_interval_seconds;
+	const uint64_t hop_samples = static_cast<uint64_t>(
+		std::lround(settings.analysis_interval_seconds * static_cast<float>(settings.sample_rate)));
+	static constexpr std::array<std::array<int, 4>, 4> kProgression = {
+		std::array<int, 4>{36, 60, 64, 67},
+		std::array<int, 4>{31, 55, 59, 62},
+		std::array<int, 4>{33, 57, 60, 64},
+		std::array<int, 4>{29, 53, 57, 60},
+	};
+	const std::vector<float> bass_profile = {1.0f, 0.30f, 0.12f};
+	const std::vector<float> chord_profile = {1.0f, 0.18f, 0.07f};
+	mao::AnalysisSnapshot snapshot = {};
+
+	for (int frame = 0; frame < frames; ++frame) {
+		mao_test::Buffer buffer = {};
+		const uint64_t sample_offset = static_cast<uint64_t>(frame) * hop_samples;
+		const float frame_seconds = static_cast<float>(frame) * interval_seconds;
+		const std::size_t chord_index =
+			static_cast<std::size_t>(std::floor(frame_seconds / beat_seconds)) %
+			kProgression.size();
+		const auto &chord = kProgression[chord_index];
+		add_harmonic_note_at_offset(buffer, chord[0], 0.070f, bass_profile, sample_offset);
+		for (std::size_t i = 1; i < chord.size(); ++i)
+			add_harmonic_note_at_offset(buffer, chord[i], 0.028f, chord_profile, sample_offset);
+
+		snapshot = engine.analyze(buffer.data(), buffer.size(), settings,
+					  "bass chord progression tempo test", 0);
+	}
+
+	return snapshot;
+}
+
+mao::AnalysisSnapshot run_misleading_subdivision_burst(mao::AnalysisEngine &engine,
+						       const mao::AnalysisSettings &settings,
+						       float bpm, int frames)
+{
+	const float beat_seconds = 60.0f / bpm;
+	const float sixteenth_seconds = beat_seconds * 0.25f;
+	const float interval_seconds = settings.analysis_interval_seconds;
+	const uint64_t hop_samples = static_cast<uint64_t>(
+		std::lround(settings.analysis_interval_seconds * static_cast<float>(settings.sample_rate)));
+	mao::AnalysisSnapshot snapshot = {};
+	float next_hat_seconds = 0.0f;
+	int hat = 0;
+
+	for (int frame = 0; frame < frames; ++frame) {
+		mao_test::Buffer buffer = {};
+		add_tempo_backing(buffer, static_cast<uint64_t>(frame) * hop_samples);
+		const float frame_seconds = static_cast<float>(frame) * interval_seconds;
+		const float frame_center_seconds = frame_seconds + interval_seconds * 0.5f;
+
+		if (next_hat_seconds <= frame_center_seconds) {
+			add_tempo_hihat(buffer, hat % 2 == 0 ? 1.55f : 1.25f);
+			++hat;
+			while (next_hat_seconds <= frame_center_seconds)
+				next_hat_seconds += sixteenth_seconds;
+		}
+
+		snapshot = engine.analyze(buffer.data(), buffer.size(), settings, "tempo test", 0);
+	}
+
+	return snapshot;
+}
+
 mao::AnalysisSnapshot run_eighth_strum_body_tempo_pattern(mao::AnalysisEngine &engine,
 							  const mao::AnalysisSettings &settings,
 							  float bpm, int frames, float strum_scale = 1.0f,
@@ -6237,6 +6306,18 @@ void check_explicit_input_mode_and_bpm(Runner &runner)
 		mao::AnalysisEngine engine;
 		const mao::AnalysisSettings settings = tempo_test_settings();
 		const mao::AnalysisSnapshot snapshot =
+			run_bass_chord_progression_tempo_pattern(engine, settings, 110.0f, 520);
+		debug_tempo_snapshot(snapshot, "bass chord progression tempo test");
+		expect_bpm_near(runner, snapshot, 110.0f, 8.0f,
+				"BPM estimate from bass and chord progression changes", 0.16f);
+		expect_tempo_candidate_near(runner, snapshot, 110.0f, 5.0f,
+					    "BPM diagnostics bass and chord progression changes");
+	}
+
+	{
+		mao::AnalysisEngine engine;
+		const mao::AnalysisSettings settings = tempo_test_settings();
+		const mao::AnalysisSnapshot snapshot =
 			run_eighth_strum_body_tempo_pattern(engine, settings, 108.0f, 440);
 		expect_bpm_near(runner, snapshot, 108.0f, 8.0f,
 				"BPM estimate should not double repeated guitar/keyboard strums", 0.18f);
@@ -6296,6 +6377,17 @@ void check_explicit_input_mode_and_bpm(Runner &runner)
 					    "BPM diagnostics phase-locked body meter");
 		expect_best_tempo_locked_meter_support(runner, snapshot,
 						       "BPM phase-locked body-meter diagnostics");
+	}
+
+	{
+		mao::AnalysisEngine engine;
+		const mao::AnalysisSettings settings = tempo_test_settings();
+		mao::AnalysisSnapshot snapshot = run_tempo_pattern(engine, settings, 120.0f, 240, true, false);
+		expect_bpm_near(runner, snapshot, 120.0f, 5.0f, "BPM estimate before misleading burst");
+		snapshot = run_misleading_subdivision_burst(engine, settings, 180.0f, 12);
+		debug_tempo_snapshot(snapshot, "misleading subdivision burst tempo test");
+		expect_bpm_near(runner, snapshot, 120.0f, 8.0f,
+				"BPM display should hold through a short misleading subdivision burst", 0.16f);
 	}
 
 	{

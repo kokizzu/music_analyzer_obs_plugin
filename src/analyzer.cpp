@@ -24504,6 +24504,8 @@ void AnalysisEngine::reset_analysis_state()
 	previous_rms_ = 0.0f;
 	previous_tempo_band_levels_.fill(0.0f);
 	tempo_band_average_.fill(0.0f);
+	previous_tempo_chroma_.fill(0.0f);
+	previous_tempo_bass_chroma_.fill(0.0f);
 	silence_seconds_ = 0.0f;
 	tempo_events_.fill(0.0f);
 	tempo_event_strengths_.fill(0.0f);
@@ -24528,6 +24530,9 @@ void AnalysisEngine::reset_analysis_state()
 	bpm_confidence_ = 0.0f;
 	tempo_phase_offset_seconds_ = 0.0f;
 	tempo_phase_confidence_ = 0.0f;
+	pending_tempo_bpm_ = 0.0f;
+	pending_tempo_confidence_ = 0.0f;
+	pending_tempo_seconds_ = 0.0f;
 }
 
 void AnalysisEngine::update_tempo(float raw_event_strength, float raw_event_body_strength,
@@ -24585,6 +24590,9 @@ void AnalysisEngine::update_tempo(float raw_event_strength, float raw_event_body
 			estimated_bpm_ = 0.0f;
 			bpm_confidence_ = 0.0f;
 			tempo_phase_confidence_ = 0.0f;
+			pending_tempo_bpm_ = 0.0f;
+			pending_tempo_confidence_ = 0.0f;
+			pending_tempo_seconds_ = 0.0f;
 			snapshot.tempo_debug_candidate_count = 0;
 		}
 		if (tempo_silence_seconds_ >= 4.0f) {
@@ -24607,6 +24615,9 @@ void AnalysisEngine::update_tempo(float raw_event_strength, float raw_event_body
 			previous_tempo_flux_level_ = 0.0f;
 			tempo_phase_offset_seconds_ = 0.0f;
 			tempo_phase_confidence_ = 0.0f;
+			pending_tempo_bpm_ = 0.0f;
+			pending_tempo_confidence_ = 0.0f;
+			pending_tempo_seconds_ = 0.0f;
 		}
 		return;
 	}
@@ -25712,6 +25723,27 @@ void AnalysisEngine::update_tempo(float raw_event_strength, float raw_event_body
 		}
 	}
 
+	if (best_bpm >= 110 && best_bpm / 2 >= kMinTempoBpm) {
+		const int half_bpm = best_bpm / 2;
+		const std::size_t current_index = static_cast<std::size_t>(best_bpm - kMinTempoBpm);
+		const std::size_t half_index = static_cast<std::size_t>(half_bpm - kMinTempoBpm);
+		const bool half_has_body_grid =
+			phase_body_coverages[half_index] >= 0.82f &&
+			phase_all_coverages[half_index] >= 0.82f &&
+			body_bpm_scores[half_index] >= body_bpm_scores[current_index] * 0.92f &&
+			meter_bpm_scores[half_index] >= meter_bpm_scores[current_index] * 1.10f;
+		const bool current_is_subdivision_weighted =
+			subdivision_bpm_scores[current_index] >= body_bpm_scores[current_index] * 0.58f ||
+			adjacent_subdivision_bpm_scores[current_index] >=
+				adjacent_body_bpm_scores[current_index] * 1.08f;
+		if (half_has_body_grid && current_is_subdivision_weighted &&
+		    bpm_scores[half_index] >= best_score * 0.86f) {
+			best_bpm = half_bpm;
+			best_score = bpm_scores[half_index];
+			phase_grid_recovered_tempo = true;
+		}
+	}
+
 	auto debug_candidate_already_listed = [&](int slot_count, int bpm) {
 		for (int previous = 0; previous < slot_count; ++previous) {
 			if (snapshot.tempo_debug_candidates[static_cast<std::size_t>(previous)].bpm == bpm)
@@ -25869,26 +25901,176 @@ void AnalysisEngine::update_tempo(float raw_event_strength, float raw_event_body
 		target_confidence = std::min(target_confidence, harmonic_confidence_cap);
 	}
 
-	if (estimated_bpm_ <= 0.0f)
+	const std::size_t smoothing_best_index = static_cast<std::size_t>(best_bpm - kMinTempoBpm);
+	const float best_direct_pulse_score =
+		adjacent_bpm_scores[smoothing_best_index] +
+		adjacent_body_bpm_scores[smoothing_best_index] * 0.45f +
+		adjacent_subdivision_bpm_scores[smoothing_best_index] * 0.12f;
+	const bool best_has_stable_phase_grid =
+		phase_body_coverages[smoothing_best_index] >= 0.88f &&
+		phase_all_coverages[smoothing_best_index] >= 0.88f &&
+		phase_bpm_scores[smoothing_best_index] >= combined_total_body_strength * 0.040f;
+	const bool best_has_direct_pulse =
+		best_direct_pulse_score >= std::max(combined_total_strength * 0.055f, best_score * 0.035f);
+	auto tempo_close = [](float lhs, float rhs, float percent, float minimum) {
+		return std::abs(lhs - rhs) <= std::max(minimum, std::max(lhs, rhs) * percent);
+	};
+	auto tempo_harmonic_related = [&](float base, float candidate) {
+		if (base <= 0.0f || candidate <= 0.0f)
+			return false;
+		static constexpr std::array<std::array<float, 2>, 6> kRatios = {
+			std::array<float, 2>{1.0f, 2.0f}, std::array<float, 2>{2.0f, 1.0f},
+			std::array<float, 2>{2.0f, 3.0f}, std::array<float, 2>{3.0f, 2.0f},
+			std::array<float, 2>{3.0f, 4.0f}, std::array<float, 2>{4.0f, 3.0f},
+		};
+		for (const auto &ratio : kRatios) {
+			const float expected = base * ratio[0] / ratio[1];
+			if (tempo_close(candidate, expected, 0.035f, 3.0f))
+				return true;
+		}
+		return false;
+	};
+	float confidence_smoothing = 0.30f;
+	if (estimated_bpm_ <= 0.0f) {
 		estimated_bpm_ = mean_bpm;
-	else {
+		pending_tempo_bpm_ = 0.0f;
+		pending_tempo_confidence_ = 0.0f;
+		pending_tempo_seconds_ = 0.0f;
+	} else {
 		const float difference = std::abs(mean_bpm - estimated_bpm_);
-		const std::size_t smoothing_best_index = static_cast<std::size_t>(best_bpm - kMinTempoBpm);
-		const bool best_has_stable_phase_grid =
-			phase_body_coverages[smoothing_best_index] >= 0.88f &&
-			phase_all_coverages[smoothing_best_index] >= 0.88f &&
-			phase_bpm_scores[smoothing_best_index] >= combined_total_body_strength * 0.040f;
-		const float smoothing =
-			(phase_grid_recovered_tempo ||
-			 best_has_stable_phase_grid) &&
-					difference >= 16.0f && target_confidence >= 0.24f ?
-				0.94f :
-			difference >= 14.0f && target_confidence >= 0.24f ?
-				0.42f :
-				0.24f;
-		estimated_bpm_ = estimated_bpm_ * (1.0f - smoothing) + mean_bpm * smoothing;
+		const bool close_to_displayed = tempo_close(mean_bpm, estimated_bpm_, 0.045f, 4.0f);
+		if (close_to_displayed) {
+			const bool close_candidate_has_evidence =
+				best_has_stable_phase_grid || best_has_direct_pulse || phase_grid_recovered_tempo ||
+				(phase_locked_bpm_scores[smoothing_best_index] > 0.05f &&
+				 phase_locked_bpm_scores[smoothing_best_index] >=
+					 combined_total_body_strength * 0.080f) ||
+				(meter_bpm_scores[smoothing_best_index] > 0.02f &&
+				 meter_bpm_scores[smoothing_best_index] >=
+					 combined_total_body_strength * 0.012f);
+			const float smoothing =
+				!close_candidate_has_evidence ? 0.025f :
+				best_has_stable_phase_grid && target_confidence >= 0.24f ? 0.30f :
+									      0.18f;
+			estimated_bpm_ = estimated_bpm_ * (1.0f - smoothing) + mean_bpm * smoothing;
+			if (!close_candidate_has_evidence) {
+				confidence_smoothing = 0.10f;
+				target_confidence = std::max(target_confidence, bpm_confidence_ * 0.92f);
+			}
+			pending_tempo_bpm_ = 0.0f;
+			pending_tempo_confidence_ = 0.0f;
+			pending_tempo_seconds_ = 0.0f;
+		} else {
+			bool previous_grid_still_supported = false;
+			float previous_grid_score = 0.0f;
+			float previous_grid_phase_score = 0.0f;
+			const int previous_bpm = static_cast<int>(std::lround(estimated_bpm_));
+			if (previous_bpm >= kMinTempoBpm && previous_bpm <= kMaxTempoBpm) {
+				const std::size_t previous_index =
+					static_cast<std::size_t>(previous_bpm - kMinTempoBpm);
+				previous_grid_score = bpm_scores[previous_index];
+				previous_grid_phase_score = phase_bpm_scores[previous_index];
+				const float previous_direct_pulse =
+					adjacent_bpm_scores[previous_index] +
+					adjacent_body_bpm_scores[previous_index] * 0.45f +
+					adjacent_subdivision_bpm_scores[previous_index] * 0.12f;
+				previous_grid_still_supported =
+					previous_grid_score >= best_score * 0.72f ||
+					previous_direct_pulse >= best_direct_pulse_score * 0.70f ||
+					(phase_body_coverages[previous_index] >= 0.62f &&
+					 phase_all_coverages[previous_index] >= 0.62f &&
+					 previous_grid_phase_score >= phase_bpm_scores[smoothing_best_index] * 0.62f);
+			}
+			const bool harmonic_jump = tempo_harmonic_related(estimated_bpm_, mean_bpm);
+			const bool candidate_stronger_than_current_grid =
+				previous_bpm < kMinTempoBpm || previous_bpm > kMaxTempoBpm ||
+				best_score >= previous_grid_score * 1.18f ||
+				(best_has_stable_phase_grid &&
+				 phase_bpm_scores[smoothing_best_index] >= previous_grid_phase_score * 1.22f);
+			const bool strong_change_evidence =
+				target_confidence >= std::max(0.28f, bpm_confidence_ + 0.08f) &&
+				(best_has_stable_phase_grid || best_has_direct_pulse || phase_grid_recovered_tempo);
+			const bool recovered_from_low_half_time =
+				estimated_bpm_ < 78.0f && mean_bpm >= 90.0f && mean_bpm <= 150.0f;
+			const bool recovered_from_high_double_time =
+				estimated_bpm_ >= mean_bpm * 1.45f && mean_bpm >= 70.0f && mean_bpm <= 150.0f;
+			const bool recovered_low_tempo_from_double_time =
+				estimated_bpm_ >= mean_bpm * 1.65f && mean_bpm >= 50.0f && mean_bpm < 78.0f;
+			const bool corrected_midtempo_grid =
+				harmonic_jump &&
+				(recovered_from_low_half_time || recovered_from_high_double_time ||
+				 recovered_low_tempo_from_double_time) &&
+				phase_body_coverages[smoothing_best_index] >= 0.48f &&
+				phase_all_coverages[smoothing_best_index] >= 0.48f &&
+				phase_bpm_scores[smoothing_best_index] >= combined_total_body_strength * 0.035f &&
+				(best_has_direct_pulse ||
+				 phase_locked_bpm_scores[smoothing_best_index] >=
+					 combined_total_body_strength * 0.090f ||
+				 meter_bpm_scores[smoothing_best_index] >=
+					 combined_total_body_strength * 0.012f);
+			const bool hold_harmonic_display =
+				harmonic_jump && !phase_grid_recovered_tempo && !corrected_midtempo_grid &&
+				previous_grid_still_supported &&
+				(!candidate_stronger_than_current_grid || target_confidence < 0.42f);
+			if (hold_harmonic_display) {
+				confidence_smoothing = 0.16f;
+				target_confidence =
+					std::min(target_confidence, std::max(0.12f, bpm_confidence_ * 0.94f));
+				pending_tempo_bpm_ = 0.0f;
+				pending_tempo_confidence_ = 0.0f;
+				pending_tempo_seconds_ = 0.0f;
+			} else {
+				if (pending_tempo_bpm_ > 0.0f &&
+				    tempo_close(mean_bpm, pending_tempo_bpm_, 0.045f, 4.0f)) {
+					pending_tempo_seconds_ += clamped_interval;
+					pending_tempo_bpm_ = pending_tempo_bpm_ * 0.72f + mean_bpm * 0.28f;
+					pending_tempo_confidence_ =
+						std::max(pending_tempo_confidence_, target_confidence);
+				} else {
+					pending_tempo_bpm_ = mean_bpm;
+					pending_tempo_confidence_ = target_confidence;
+					pending_tempo_seconds_ = clamped_interval;
+				}
+				const float required_seconds =
+					corrected_midtempo_grid ? 0.14f :
+					harmonic_jump ? 0.70f :
+					strong_change_evidence ? 0.14f :
+								  0.32f;
+				const bool switch_has_minimum_evidence =
+					strong_change_evidence || corrected_midtempo_grid ||
+					target_confidence >= std::max(0.22f, bpm_confidence_ + 0.02f) ||
+					best_has_stable_phase_grid ||
+					(best_direct_pulse_score > 0.05f &&
+					 best_direct_pulse_score >= combined_total_strength * 0.075f);
+				const bool accept_pending =
+					pending_tempo_seconds_ >= required_seconds &&
+					switch_has_minimum_evidence &&
+					(!harmonic_jump || corrected_midtempo_grid ||
+					 candidate_stronger_than_current_grid ||
+					 !previous_grid_still_supported);
+				if (accept_pending) {
+					const float smoothing =
+						(phase_grid_recovered_tempo || best_has_stable_phase_grid ||
+						 difference >= 16.0f) ?
+							0.86f :
+							0.48f;
+					estimated_bpm_ = estimated_bpm_ * (1.0f - smoothing) +
+							 pending_tempo_bpm_ * smoothing;
+					target_confidence = std::max(target_confidence, pending_tempo_confidence_);
+					pending_tempo_bpm_ = 0.0f;
+					pending_tempo_confidence_ = 0.0f;
+					pending_tempo_seconds_ = 0.0f;
+				} else {
+					confidence_smoothing = 0.16f;
+					target_confidence =
+						std::min(target_confidence,
+							 std::max(0.10f, bpm_confidence_ * 0.92f));
+				}
+			}
+		}
 	}
-	bpm_confidence_ = bpm_confidence_ * 0.70f + target_confidence * 0.30f;
+	bpm_confidence_ = bpm_confidence_ * (1.0f - confidence_smoothing) +
+			  target_confidence * confidence_smoothing;
 	bpm_confidence_ = std::min(bpm_confidence_, harmonic_confidence_cap);
 }
 
@@ -26458,6 +26640,65 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 	snapshot.high_energy = high / total;
 	const float interval_seconds = std::clamp(settings.analysis_interval_seconds, 0.01f, 1.0f);
 
+	std::array<float, 12> tempo_chroma = {};
+	std::array<float, 12> tempo_bass_chroma = {};
+	float strongest_tempo_chroma_level = 0.0f;
+	float strongest_tempo_bass_level = 0.0f;
+	for (int midi = kFirstMidi; midi <= kLastMidi; ++midi) {
+		const float level = probe_level(detection_note_powers, midi);
+		if (level <= 1.0e-7f)
+			continue;
+		const std::size_t pitch_class = static_cast<std::size_t>(midi % 12);
+		tempo_chroma[pitch_class] = std::max(tempo_chroma[pitch_class], level);
+		strongest_tempo_chroma_level = std::max(strongest_tempo_chroma_level, level);
+		if (midi >= kBassMinMidi && midi <= 40) {
+			tempo_bass_chroma[pitch_class] = std::max(tempo_bass_chroma[pitch_class], level);
+			strongest_tempo_bass_level = std::max(strongest_tempo_bass_level, level);
+		}
+	}
+
+	float musical_chroma_flux = 0.0f;
+	float musical_bass_flux = 0.0f;
+	const float chroma_follow =
+		1.0f - std::exp(-interval_seconds / 0.42f);
+	const float bass_follow =
+		1.0f - std::exp(-interval_seconds / 0.30f);
+	if (rms > kSilenceRms && strongest_tempo_chroma_level > 1.0e-6f) {
+		for (std::size_t pitch_class = 0; pitch_class < tempo_chroma.size(); ++pitch_class) {
+			const float normalized =
+				std::clamp(tempo_chroma[pitch_class] / strongest_tempo_chroma_level,
+					   0.0f, 1.0f);
+			const float previous = previous_tempo_chroma_[pitch_class];
+			if (normalized >= 0.18f && normalized > previous * 1.18f + 0.06f)
+				musical_chroma_flux += normalized - previous * 0.72f;
+			previous_tempo_chroma_[pitch_class] =
+				previous * (1.0f - chroma_follow) + normalized * chroma_follow;
+		}
+	} else {
+		for (float &level : previous_tempo_chroma_)
+			level *= std::exp(-interval_seconds / 0.95f);
+	}
+	if (rms > kSilenceRms && strongest_tempo_bass_level > 1.0e-6f) {
+		for (std::size_t pitch_class = 0; pitch_class < tempo_bass_chroma.size(); ++pitch_class) {
+			const float normalized =
+				std::clamp(tempo_bass_chroma[pitch_class] / strongest_tempo_bass_level,
+					   0.0f, 1.0f);
+			const float previous = previous_tempo_bass_chroma_[pitch_class];
+			if (normalized >= 0.20f && normalized > previous * 1.12f + 0.04f)
+				musical_bass_flux += normalized - previous * 0.64f;
+			previous_tempo_bass_chroma_[pitch_class] =
+				previous * (1.0f - bass_follow) + normalized * bass_follow;
+		}
+	} else {
+		for (float &level : previous_tempo_bass_chroma_)
+			level *= std::exp(-interval_seconds / 0.60f);
+	}
+	const float musical_bass_body_strength = std::clamp(musical_bass_flux * 0.36f, 0.0f, 0.58f);
+	const float musical_chroma_body_strength = std::clamp(musical_chroma_flux * 0.075f, 0.0f, 0.24f);
+	const float musical_body_strength =
+		std::max(musical_bass_body_strength,
+			 musical_bass_body_strength >= 0.08f ? musical_chroma_body_strength * 0.82f : 0.0f);
+
 	std::array<float, 3> tempo_band_levels = {low, mid, high};
 	std::array<float, 3> tempo_band_onsets = {};
 	for (std::size_t i = 0; i < tempo_band_levels.size(); ++i) {
@@ -26472,11 +26713,27 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 		previous_tempo_band_levels_[i] = level;
 		tempo_band_average_[i] = average * 0.92f + level * 0.08f;
 	}
-	const float broad_tempo_body_strength =
+	const float spectral_broad_tempo_body_strength =
 		std::max(tempo_band_onsets[0], tempo_band_onsets[1] * 0.86f);
-	const float broad_tempo_low_body_strength = tempo_band_onsets[0];
-	const float broad_tempo_mid_body_strength = tempo_band_onsets[1] * 0.86f;
-	const float broad_tempo_subdivision_strength = tempo_band_onsets[2] * 0.72f;
+	const float spectral_broad_tempo_subdivision_strength = tempo_band_onsets[2] * 0.72f;
+	const float spectral_broad_tempo_strength =
+		std::max(spectral_broad_tempo_body_strength, spectral_broad_tempo_subdivision_strength);
+	const bool use_musical_tempo_context =
+		!drum_transient && spectral_broad_tempo_strength < 0.08f &&
+		musical_bass_body_strength >= 0.08f;
+	const float broad_tempo_body_strength =
+		use_musical_tempo_context ?
+			std::max(spectral_broad_tempo_body_strength, musical_body_strength) :
+			spectral_broad_tempo_body_strength;
+	const float broad_tempo_low_body_strength =
+		use_musical_tempo_context ?
+			std::max(tempo_band_onsets[0], musical_bass_body_strength) :
+			tempo_band_onsets[0];
+	const float broad_tempo_mid_body_strength =
+		use_musical_tempo_context ?
+			std::max(tempo_band_onsets[1] * 0.86f, musical_chroma_body_strength) :
+			tempo_band_onsets[1] * 0.86f;
+	const float broad_tempo_subdivision_strength = spectral_broad_tempo_subdivision_strength;
 	const float broad_tempo_strength =
 		std::max(broad_tempo_body_strength, broad_tempo_subdivision_strength);
 
