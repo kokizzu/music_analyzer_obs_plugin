@@ -3319,6 +3319,15 @@ def main() -> int:
     assert "GUITARSET_ATTRIBUTE_MAKE_JOBS = $(if $(filter -j%,$(MAKEFLAGS)),,-j$(GUITARSET_SHARDS))" in makefile, (
         "downloaded GuitarSet attribute shards must force -j only when the parent make has no jobserver"
     )
+    assert "GUITARSET_ATTRIBUTE_GATE_ENV ?=" in makefile, (
+        "downloaded GuitarSet attribute shards must have a separate permissive coverage gate"
+    )
+    for text in [
+        "MUSIC_ANALYZER_GUITARSET_ATTRIBUTE_ONLY=1",
+        "MUSIC_ANALYZER_GUITARSET_REQUIRED_EXCERPTS=0",
+        "MUSIC_ANALYZER_GUITARSET_REQUIRED_WINDOWS=0",
+    ]:
+        assert text in makefile, f"downloaded GuitarSet attribute gate must include {text}"
     assert "GUITARSET_ATTRIBUTE_LOCK_DIR ?= $(BUILD_DIR)/guitarset_attributes.lock" in makefile, (
         "downloaded GuitarSet attribute TSV must have a stable lock path"
     )
@@ -3339,12 +3348,15 @@ def main() -> int:
         "MUSIC_ANALYZER_GUITARSET_ATTRIBUTE_TSV=\"$@\"",
         "MUSIC_ANALYZER_GUITARSET_SHARD_COUNT=\"$(GUITARSET_SHARDS)\"",
         "MUSIC_ANALYZER_GUITARSET_SHARD_INDEX=\"$*\"",
-        "$(GUITARSET_SHARD_GATE_ENV)",
+        "$(GUITARSET_ATTRIBUTE_GATE_ENV)",
         "guitarset_attributes.shard-$*.out",
     ]:
         assert text in downloaded_guitarset_attribute_shard_recipe, (
             f"downloaded GuitarSet attribute shard target must include {text}"
         )
+    assert "$(GUITARSET_SHARD_GATE_ENV)" not in downloaded_guitarset_attribute_shard_recipe, (
+        "downloaded GuitarSet attribute shards must not fail just because a shard has no usable excerpts"
+    )
 
     stale_aware_attribute_shortcuts = {
         "inspect-instrument-sample-owner-buckets": "$(BUILD_DIR)/instrument_sample_attributes.tsv",

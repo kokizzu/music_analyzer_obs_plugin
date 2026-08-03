@@ -1664,6 +1664,7 @@ int main()
 	const int shard_min_chord_checks = shard_required_count(min_chord_checks);
 	const int shard_min_chord_hits = shard_required_count(min_chord_hits);
 	const bool inspect_only = env_truthy("MUSIC_ANALYZER_GUITARSET_INSPECT_ONLY");
+	const bool attribute_only = env_truthy("MUSIC_ANALYZER_GUITARSET_ATTRIBUTE_ONLY");
 	const bool use_all_recordings = env_truthy("MUSIC_ANALYZER_GUITARSET_USE_ALL");
 	const char *attribute_path_env = std::getenv("MUSIC_ANALYZER_GUITARSET_ATTRIBUTE_TSV");
 	std::ofstream attribute_file;
@@ -1741,16 +1742,19 @@ int main()
 		}
 	}
 
-	runner.expect(tested_recordings >= shard_required_recordings,
-		      "GuitarSet coverage: expected at least " + std::to_string(shard_required_recordings) +
-			      " usable excerpts, got " + std::to_string(tested_recordings));
-	runner.expect(tested_windows >= shard_required_windows,
-		      "GuitarSet coverage: expected at least " + std::to_string(shard_required_windows) +
-			      " windows, got " + std::to_string(tested_windows));
+	if (!attribute_only) {
+		runner.expect(tested_recordings >= shard_required_recordings,
+			      "GuitarSet coverage: expected at least " +
+				      std::to_string(shard_required_recordings) +
+				      " usable excerpts, got " + std::to_string(tested_recordings));
+		runner.expect(tested_windows >= shard_required_windows,
+			      "GuitarSet coverage: expected at least " + std::to_string(shard_required_windows) +
+				      " windows, got " + std::to_string(tested_windows));
+	}
 	runner.expect(read_failures == 0,
 		      "GuitarSet audio read failures: expected 0, got " + std::to_string(read_failures));
 
-	if (!inspect_only) {
+	if (!inspect_only && !attribute_only) {
 		require_recall(runner, recall, "GuitarSet guitar pitch-class recall", min_recall_percent);
 		require_guitar_precision(runner, precision, min_guitar_precision_percent,
 					 min_guitar_row_recall_percent, max_guitar_contamination_percent,
