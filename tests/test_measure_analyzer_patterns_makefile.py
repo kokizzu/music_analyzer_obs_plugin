@@ -4082,6 +4082,11 @@ def main() -> int:
     ]:
         assert text in makefile, f"optional real-note attribute plumbing must include {text}"
 
+    vocalset_analyze_recipe = target_recipe(makefile, "analyze-vocalset-attributes")
+    assert '$(PYTHON) scripts/summarize_real_note_attributes.py "$(VOCALSET_DETECTED_ATTRIBUTE_ROWS)"' in vocalset_analyze_recipe, (
+        "VocalSet attribute analysis should print the same sample-level summary as other real-note diagnostics"
+    )
+
     refresh_recipe = target_recipe(makefile, "refresh-analyzer-detected-attribute-rows")
     assert "scripts/refresh_analyzer_detected_attribute_rows.py" in refresh_recipe, (
         "refresh target must use the refresh helper"
@@ -4472,6 +4477,11 @@ def main() -> int:
     assert 'REAL_NOTE_PATTERN_EXTRA_CANDIDATE_ARGS = $(foreach path,$(REAL_NOTE_PATTERN_EXTRA_CANDIDATE_PATHS),--extra-candidate-path "$(path)")' in makefile, (
         "real-note candidate TSV inputs must be converted into repeatable pattern-miner arguments"
     )
+    for text in [
+        "DETECTOR_REAL_NOTE_PATTERN_OPTIONAL_CANDIDATE_PATHS += $(VOCALSET_DETECTED_ATTRIBUTE_ROWS)",
+        "DETECTOR_REAL_NOTE_PATTERN_EXTRA_CANDIDATE_PATHS ?= $(DETECTOR_REAL_NOTE_PATTERN_OPTIONAL_CANDIDATE_PATHS)",
+    ]:
+        assert text in makefile, f"detector route candidate-set defaults must include {text}"
     for text in [
         "DETECTOR_REAL_NOTE_PATTERN_OPTIONAL_PROTECTED_PATHS := $(VOCADITO_FULL_MIX_ATTRIBUTE_TSV)",
         "DETECTOR_REAL_NOTE_PATTERN_OPTIONAL_PROTECTED_PATHS += $(VOCALSET_DETECTED_ATTRIBUTE_ROWS)",

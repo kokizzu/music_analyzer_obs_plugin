@@ -3387,6 +3387,7 @@ analyze-vocalset-attributes: $(VOCALSET_DETECTED_ATTRIBUTE_ROWS) $(VOCALSET_MISS
 	@printf '%s\n' "VocalSet attribute rows:"
 	@printf '%s\n' "  $(VOCALSET_DETECTED_ATTRIBUTE_ROWS)"
 	@printf '%s\n' "  $(VOCALSET_MISS_ATTRIBUTE_ROWS)"
+	$(PYTHON) scripts/summarize_real_note_attributes.py "$(VOCALSET_DETECTED_ATTRIBUTE_ROWS)"
 
 DRUM_REAL_WORLD_SAMPLE_TARGETS := test-hf-drum-kit-samples-parallel test-idmt-drums-samples-parallel test-mdb-drums-samples-parallel test-star-drums-samples-parallel test-drum-samples-optional test-drum-samples-spread-optional
 DRUM_REAL_WORLD_SAMPLE_FULL_TARGETS := $(DRUM_REAL_WORLD_SAMPLE_TARGETS) test-drum-machine-samples-optional test-drum-samples-full-parallel-optional
@@ -3414,6 +3415,9 @@ DETECTOR_REAL_NOTE_PATTERN_OPTIONAL_CANDIDATE_PATHS += $(TINYSOL_DETECTED_ATTRIB
 endif
 ifneq ($(wildcard $(VOCADITO_ARCHIVE)),)
 DETECTOR_REAL_NOTE_PATTERN_OPTIONAL_CANDIDATE_PATHS += $(VOCADITO_DETECTED_ATTRIBUTE_ROWS)
+endif
+ifneq ($(wildcard $(VOCALSET_ARCHIVE)),)
+DETECTOR_REAL_NOTE_PATTERN_OPTIONAL_CANDIDATE_PATHS += $(VOCALSET_DETECTED_ATTRIBUTE_ROWS)
 endif
 ifneq ($(wildcard $(IOWA_PIANO_SAMPLE_DIR)/manifest.tsv),)
 DETECTOR_REAL_NOTE_PATTERN_OPTIONAL_CANDIDATE_PATHS += $(IOWA_PIANO_DETECTED_ATTRIBUTE_ROWS)
