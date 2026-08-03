@@ -14123,10 +14123,21 @@ void prefer_measured_low_keyboard_octave_alias_primary(NoteGrid &grid, Instrumen
 			measured_low_electronic_keyboard_octave_alias_supported(*debug);
 		const bool low_organ_alias =
 			measured_low_organ_keyboard_octave_alias_supported(*debug);
-		if (!low_electronic_alias && !low_organ_alias)
+		const bool low_owned_double_alias =
+			debug->owner == InstrumentKind::Keyboard &&
+			debug->keyboard_score >= 0.92f &&
+			debug->midi <= 49 &&
+			debug->spectral_level >= 0.70f &&
+			debug->pitch_confidence >= 0.58f &&
+			debug->periodicity >= 0.55f &&
+			debug->harmonic_fit_error <= 0.16f &&
+			debug->local_noise_level <= 0.40f &&
+			debug->harmonic_ratios[2] <= 0.104f &&
+			debug->harmonic_ratios[4] <= 0.020f;
+		if (!low_electronic_alias && !low_organ_alias && !low_owned_double_alias)
 			continue;
 
-		const int lower_midi = primary.midi - 12;
+		const int lower_midi = primary.midi - (low_owned_double_alias ? 24 : 12);
 		if (lower_midi < kKeyboardMinMidi || lower_midi >= primary.midi ||
 		    midi_pitch_class(lower_midi) != pitch_class)
 			continue;
@@ -14139,7 +14150,9 @@ void prefer_measured_low_keyboard_octave_alias_primary(NoteGrid &grid, Instrumen
 			std::max({ownership_global_note_level(ownership, primary.midi),
 				  probe_level(powers, primary.midi), probe_level(raw_powers, primary.midi)});
 		const bool lower_supported =
-			lower_visible >= 0.08f || lower_raw >= 0.006f ||
+			lower_visible >= 0.08f ||
+			((low_electronic_alias || low_organ_alias) && lower_raw >= 0.006f) ||
+			(low_owned_double_alias && lower_raw >= 0.035f) ||
 			(low_organ_alias && alias_raw >= 0.10f);
 		if (!lower_supported)
 			continue;

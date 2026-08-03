@@ -3541,6 +3541,64 @@ void check_measured_low_keyboard_octave_alias_becomes_primary(Runner &runner)
 		      "low keyboard octave alias primary: expected alias without lower support to stay primary");
 }
 
+void check_measured_low_keyboard_double_octave_alias_becomes_primary(Runner &runner)
+{
+	static constexpr int kLowerMidi = 25;
+	static constexpr int kAliasMidi = kLowerMidi + 24;
+
+	NoteGrid grid = {};
+	write_note_grid_cell(grid, NoteCandidate{kAliasMidi, 1.0f}, 1.0f, 1.0f);
+	InstrumentState state = {};
+	write_note_grid_label(state, grid, -1);
+
+	FullMixOwnership ownership = {};
+	ownership.global_note_levels[static_cast<std::size_t>(kLowerMidi - kFirstMidi)] = 0.078f;
+	ownership.global_note_levels[static_cast<std::size_t>(kAliasMidi - kFirstMidi)] = 0.60f;
+	ownership.debug_candidate_count = 1;
+	FullMixDebugCandidate &debug = ownership.debug_candidates[0];
+	debug.midi = kAliasMidi;
+	debug.owner = InstrumentKind::Keyboard;
+	debug.ownership_confidence = 1.0f;
+	debug.keyboard_score = 1.0f;
+	debug.spectral_level = 1.0f;
+	debug.pitch_confidence = 0.76f;
+	debug.periodicity = 0.61f;
+	debug.harmonic_fit_error = 0.049f;
+	debug.local_noise_level = 0.38f;
+	debug.harmonic_ratios[1] = 0.015f;
+	debug.harmonic_ratios[2] = 0.072f;
+	debug.harmonic_ratios[3] = 0.014f;
+	debug.harmonic_ratios[4] = 0.002f;
+
+	std::array<float, kNoteProbeCount> powers = {};
+	std::array<float, kNoteProbeCount> raw_powers = {};
+	set_probe_level(powers, kLowerMidi, 0.078f);
+	set_probe_level(powers, kAliasMidi, 0.60f);
+	set_probe_level(raw_powers, kLowerMidi, 0.078f);
+	set_probe_level(raw_powers, kAliasMidi, 0.60f);
+
+	prefer_measured_low_keyboard_octave_alias_primary(grid, state, ownership, powers, raw_powers,
+							  -1);
+	const NoteCell primary =
+		note_grid_primary_cell_for_pitch_class(grid, midi_pitch_class(kLowerMidi));
+	runner.expect(primary.active && primary.midi == kLowerMidi,
+		      "low keyboard double-octave alias primary: expected lower note to replace C3/C#3 alias");
+
+	NoteGrid unsupported_grid = {};
+	write_note_grid_cell(unsupported_grid, NoteCandidate{kAliasMidi, 1.0f}, 1.0f, 1.0f);
+	InstrumentState unsupported_state = {};
+	write_note_grid_label(unsupported_state, unsupported_grid, -1);
+	FullMixOwnership unsupported_ownership = ownership;
+	unsupported_ownership.debug_candidates[0].harmonic_ratios[2] = 0.20f;
+	prefer_measured_low_keyboard_octave_alias_primary(unsupported_grid, unsupported_state,
+							  unsupported_ownership, powers, raw_powers,
+							  -1);
+	const NoteCell unsupported_primary = note_grid_primary_cell_for_pitch_class(
+		unsupported_grid, midi_pitch_class(kLowerMidi));
+	runner.expect(unsupported_primary.active && unsupported_primary.midi == kAliasMidi,
+		      "low keyboard double-octave alias primary: expected stronger third partial to keep alias");
+}
+
 void check_lower_non_guitar_pitch_class_guitar_octave_shadow_uses_measured_levels(Runner &runner)
 {
 	static constexpr int kKeyboardMidi = 45;
@@ -4278,6 +4336,7 @@ int run()
 	check_ambiguous_electronic_keyboard_promotes_exact_lower_octave(runner);
 	check_raw_supported_mid_keyboard_lower_octave_promotes_alias(runner);
 	check_measured_low_keyboard_octave_alias_becomes_primary(runner);
+	check_measured_low_keyboard_double_octave_alias_becomes_primary(runner);
 	check_lower_non_guitar_pitch_class_guitar_octave_shadow_uses_measured_levels(runner);
 	check_non_guitar_owned_guitar_octave_alias_display_is_suppressed(runner);
 	check_other_dominant_same_pitch_guitar_display_is_pruned(runner);
