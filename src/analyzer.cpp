@@ -14091,6 +14091,67 @@ void prefer_raw_supported_mid_keyboard_lower_octave_primary(NoteGrid &grid, Inst
 		write_note_grid_label(state, grid, preferred_root);
 }
 
+void prefer_measured_low_keyboard_octave_alias_primary(NoteGrid &grid, InstrumentState &state,
+						       const FullMixOwnership &ownership,
+						       const std::array<float, kNoteProbeCount> &powers,
+						       const std::array<float, kNoteProbeCount> &raw_powers,
+						       int preferred_root)
+{
+	bool changed = false;
+
+	for (int pitch_class = 0; pitch_class < 12; ++pitch_class) {
+		NoteCell primary = {};
+		for (const auto &row : grid.rows) {
+			const NoteCell &cell = row[pitch_class];
+			if (cell.active && cell.midi >= kFirstMidi && cell.midi <= kLastMidi) {
+				primary = cell;
+				break;
+			}
+		}
+		const NoteCell &display = grid.cells[pitch_class];
+		if (display.active && display.midi >= kFirstMidi && display.midi <= kLastMidi &&
+		    (!primary.active || display.level > primary.level))
+			primary = display;
+		if (!primary.active)
+			continue;
+
+		const FullMixDebugCandidate *debug = full_mix_debug_for_midi(ownership, primary.midi);
+		if (!debug)
+			continue;
+
+		const bool low_electronic_alias =
+			measured_low_electronic_keyboard_octave_alias_supported(*debug);
+		const bool low_organ_alias =
+			measured_low_organ_keyboard_octave_alias_supported(*debug);
+		if (!low_electronic_alias && !low_organ_alias)
+			continue;
+
+		const int lower_midi = primary.midi - 12;
+		if (lower_midi < kKeyboardMinMidi || lower_midi >= primary.midi ||
+		    midi_pitch_class(lower_midi) != pitch_class)
+			continue;
+
+		const float lower_visible = note_grid_midi_level(grid, lower_midi);
+		const float lower_raw =
+			std::max({ownership_global_note_level(ownership, lower_midi),
+				  probe_level(powers, lower_midi), probe_level(raw_powers, lower_midi)});
+		const float alias_raw =
+			std::max({ownership_global_note_level(ownership, primary.midi),
+				  probe_level(powers, primary.midi), probe_level(raw_powers, primary.midi)});
+		const bool lower_supported =
+			lower_visible >= 0.08f || lower_raw >= 0.006f ||
+			(low_organ_alias && alias_raw >= 0.10f);
+		if (!lower_supported)
+			continue;
+
+		const float promoted_level = std::max({primary.level, lower_visible, alias_raw});
+		changed = promote_note_grid_primary_midi(grid, lower_midi, promoted_level) || changed;
+	}
+
+	if (changed)
+		write_note_grid_label(state, grid, preferred_root);
+}
+
 void promote_source_hinted_keyboard_bass_primary(NoteGrid &grid, InstrumentState &state,
 						 const NoteGrid &bass_grid, int preferred_root)
 {
@@ -28839,6 +28900,10 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 								 detection_note_powers, -1);
 		if (mixed_source)
 			prefer_raw_supported_mid_keyboard_lower_octave_primary(
+				snapshot.keyboard_notes, snapshot.keyboard, full_mix_ownership,
+				note_powers, detection_note_powers, -1);
+		if (mixed_source)
+			prefer_measured_low_keyboard_octave_alias_primary(
 				snapshot.keyboard_notes, snapshot.keyboard, full_mix_ownership,
 				note_powers, detection_note_powers, -1);
 		if (mixed_source && full_mix_source_hint_mode == AnalysisInputMode::IsolatedKeyboard)

@@ -3488,6 +3488,59 @@ void check_raw_supported_mid_keyboard_lower_octave_promotes_alias(Runner &runner
 		      "mid keyboard lower octave: expected unsupported guitar alias to stay primary");
 }
 
+void check_measured_low_keyboard_octave_alias_becomes_primary(Runner &runner)
+{
+	static constexpr int kLowerMidi = 35;
+	static constexpr int kAliasMidi = kLowerMidi + 12;
+
+	NoteGrid grid = {};
+	write_note_grid_cell(grid, NoteCandidate{kAliasMidi, 1.0f}, 1.0f, 1.0f);
+	write_note_grid_cell(grid, NoteCandidate{kLowerMidi, 0.18f}, 1.0f, 1.0f);
+	InstrumentState state = {};
+	write_note_grid_label(state, grid, -1);
+
+	FullMixOwnership ownership = {};
+	ownership.global_note_levels[static_cast<std::size_t>(kLowerMidi - kFirstMidi)] = 0.012f;
+	ownership.global_note_levels[static_cast<std::size_t>(kAliasMidi - kFirstMidi)] = 0.44f;
+	ownership.debug_candidate_count = 1;
+	ownership.debug_candidates[0] = make_low_electronic_keyboard_octave_alias_debug(kAliasMidi);
+
+	std::array<float, kNoteProbeCount> powers = {};
+	std::array<float, kNoteProbeCount> raw_powers = {};
+	set_probe_level(powers, kLowerMidi, 0.012f);
+	set_probe_level(powers, kAliasMidi, 0.44f);
+	set_probe_level(raw_powers, kLowerMidi, 0.012f);
+	set_probe_level(raw_powers, kAliasMidi, 0.44f);
+
+	prefer_measured_low_keyboard_octave_alias_primary(grid, state, ownership, powers, raw_powers,
+							  -1);
+	const NoteCell primary =
+		note_grid_primary_cell_for_pitch_class(grid, midi_pitch_class(kLowerMidi));
+	runner.expect(primary.active && primary.midi == kLowerMidi,
+		      "low keyboard octave alias primary: expected supported lower note to replace alias");
+
+	NoteGrid unsupported_grid = {};
+	write_note_grid_cell(unsupported_grid, NoteCandidate{kAliasMidi, 1.0f}, 1.0f, 1.0f);
+	InstrumentState unsupported_state = {};
+	write_note_grid_label(unsupported_state, unsupported_grid, -1);
+	FullMixOwnership unsupported_ownership = ownership;
+	unsupported_ownership.global_note_levels[static_cast<std::size_t>(kLowerMidi -
+										kFirstMidi)] = 0.0f;
+	std::array<float, kNoteProbeCount> unsupported_powers = {};
+	std::array<float, kNoteProbeCount> unsupported_raw_powers = {};
+	set_probe_level(unsupported_powers, kAliasMidi, 0.44f);
+	set_probe_level(unsupported_raw_powers, kAliasMidi, 0.44f);
+
+	prefer_measured_low_keyboard_octave_alias_primary(unsupported_grid, unsupported_state,
+							  unsupported_ownership,
+							  unsupported_powers,
+							  unsupported_raw_powers, -1);
+	const NoteCell unsupported_primary = note_grid_primary_cell_for_pitch_class(
+		unsupported_grid, midi_pitch_class(kLowerMidi));
+	runner.expect(unsupported_primary.active && unsupported_primary.midi == kAliasMidi,
+		      "low keyboard octave alias primary: expected alias without lower support to stay primary");
+}
+
 void check_lower_non_guitar_pitch_class_guitar_octave_shadow_uses_measured_levels(Runner &runner)
 {
 	static constexpr int kKeyboardMidi = 45;
@@ -4224,6 +4277,7 @@ int run()
 	check_low_electronic_bass_alias_promotes_fundamental_display(runner);
 	check_ambiguous_electronic_keyboard_promotes_exact_lower_octave(runner);
 	check_raw_supported_mid_keyboard_lower_octave_promotes_alias(runner);
+	check_measured_low_keyboard_octave_alias_becomes_primary(runner);
 	check_lower_non_guitar_pitch_class_guitar_octave_shadow_uses_measured_levels(runner);
 	check_non_guitar_owned_guitar_octave_alias_display_is_suppressed(runner);
 	check_other_dominant_same_pitch_guitar_display_is_pruned(runner);
