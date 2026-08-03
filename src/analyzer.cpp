@@ -24538,6 +24538,8 @@ void AnalysisEngine::update_tempo(float raw_event_strength, float raw_event_body
 		return;
 	}
 
+	bool phase_grid_recovered_tempo = false;
+
 	{
 		const std::size_t current_index = static_cast<std::size_t>(best_bpm - kMinTempoBpm);
 		const float current_body_score = body_bpm_scores[current_index];
@@ -24763,6 +24765,72 @@ void AnalysisEngine::update_tempo(float raw_event_strength, float raw_event_body
 			if (recovered_bpm > 0) {
 				best_bpm = recovered_bpm;
 				best_score = bpm_scores[static_cast<std::size_t>(best_bpm - kMinTempoBpm)];
+				phase_grid_recovered_tempo = true;
+			}
+		}
+	}
+
+	{
+		const std::size_t current_index = static_cast<std::size_t>(best_bpm - kMinTempoBpm);
+		const float current_score = best_score;
+		const float current_body_score = body_bpm_scores[current_index];
+		const float current_subdivision_score = subdivision_bpm_scores[current_index];
+		const float current_phase_score = phase_bpm_scores[current_index];
+		const float current_phase_body_coverage = phase_body_coverages[current_index];
+		const float current_phase_all_coverage = phase_all_coverages[current_index];
+		const bool current_has_weak_phase_grid =
+			current_phase_body_coverage < 0.78f || current_phase_all_coverage < 0.78f;
+		const bool current_has_dense_adjacent_grid =
+			best_bpm >= 150 &&
+			adjacent_bpm_scores[current_index] >=
+				std::max(adjacent_body_bpm_scores[current_index] * 0.72f,
+					 combined_total_strength * 0.055f);
+		if (current_has_weak_phase_grid || current_has_dense_adjacent_grid) {
+			int recovered_bpm = 0;
+			float recovered_rank = 0.0f;
+			for (int bpm = 70; bpm <= 150; ++bpm) {
+				if (bpm < kMinTempoBpm || bpm > kMaxTempoBpm ||
+				    std::abs(bpm - best_bpm) <= 8)
+					continue;
+				const std::size_t index = static_cast<std::size_t>(bpm - kMinTempoBpm);
+				const float candidate_score = bpm_scores[index];
+				const float candidate_body_score = body_bpm_scores[index];
+				const float candidate_subdivision_score = subdivision_bpm_scores[index];
+				const float candidate_phase_score = phase_bpm_scores[index];
+				const float candidate_phase_body_coverage = phase_body_coverages[index];
+				const float candidate_phase_all_coverage = phase_all_coverages[index];
+				if (candidate_score < current_score * 0.72f)
+					continue;
+				if (current_body_score > 0.0f &&
+				    candidate_body_score < current_body_score * 0.82f)
+					continue;
+				if (current_subdivision_score > 0.0f &&
+				    candidate_body_score < candidate_subdivision_score * 0.74f)
+					continue;
+				if (candidate_phase_body_coverage < 0.82f || candidate_phase_all_coverage < 0.82f)
+					continue;
+				if (candidate_phase_body_coverage <
+					    std::max(current_phase_body_coverage + 0.18f, 0.82f) &&
+				    candidate_phase_all_coverage <
+					    std::max(current_phase_all_coverage + 0.18f, 0.82f))
+					continue;
+				if (candidate_phase_score <
+				    std::max(current_phase_score * 1.32f, combined_total_body_strength * 0.045f))
+					continue;
+				const float rank =
+					candidate_score * 0.20f +
+					candidate_body_score * 0.10f +
+					candidate_phase_score *
+						(0.92f + candidate_phase_body_coverage * 0.72f +
+						 candidate_phase_all_coverage * 0.28f);
+				if (rank <= recovered_rank)
+					continue;
+				recovered_rank = rank;
+				recovered_bpm = bpm;
+			}
+			if (recovered_bpm > 0) {
+				best_bpm = recovered_bpm;
+				best_score = bpm_scores[static_cast<std::size_t>(best_bpm - kMinTempoBpm)];
 			}
 		}
 	}
@@ -24880,7 +24948,19 @@ void AnalysisEngine::update_tempo(float raw_event_strength, float raw_event_body
 		estimated_bpm_ = mean_bpm;
 	else {
 		const float difference = std::abs(mean_bpm - estimated_bpm_);
-		const float smoothing = difference >= 14.0f && target_confidence >= 0.24f ? 0.42f : 0.24f;
+		const std::size_t smoothing_best_index = static_cast<std::size_t>(best_bpm - kMinTempoBpm);
+		const bool best_has_stable_phase_grid =
+			phase_body_coverages[smoothing_best_index] >= 0.88f &&
+			phase_all_coverages[smoothing_best_index] >= 0.88f &&
+			phase_bpm_scores[smoothing_best_index] >= combined_total_body_strength * 0.040f;
+		const float smoothing =
+			(phase_grid_recovered_tempo ||
+			 best_has_stable_phase_grid) &&
+					difference >= 16.0f && target_confidence >= 0.24f ?
+				0.94f :
+			difference >= 14.0f && target_confidence >= 0.24f ?
+				0.42f :
+				0.24f;
 		estimated_bpm_ = estimated_bpm_ * (1.0f - smoothing) + mean_bpm * smoothing;
 	}
 	bpm_confidence_ = bpm_confidence_ * 0.70f + target_confidence * 0.30f;

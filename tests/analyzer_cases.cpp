@@ -5145,6 +5145,119 @@ mao::AnalysisSnapshot run_tonal_pulse_tempo_pattern(mao::AnalysisEngine &engine,
 	return snapshot;
 }
 
+mao::AnalysisSnapshot run_eighth_strum_body_tempo_pattern(mao::AnalysisEngine &engine,
+							  const mao::AnalysisSettings &settings,
+							  float bpm, int frames, float strum_scale = 1.0f,
+							  float body_scale = 0.42f,
+							  bool offbeat_strums = false,
+							  bool eighth_hats = false,
+							  float hat_scale = 0.0f)
+{
+	const float beat_seconds = 60.0f / bpm;
+	const float eighth_seconds = beat_seconds * 0.5f;
+	const float interval_seconds = settings.analysis_interval_seconds;
+	const uint64_t hop_samples = static_cast<uint64_t>(
+		std::lround(settings.analysis_interval_seconds * static_cast<float>(settings.sample_rate)));
+	mao::AnalysisSnapshot snapshot = {};
+	float next_beat_seconds = 0.0f;
+	float next_strum_seconds = offbeat_strums ? eighth_seconds * 0.5f : 0.0f;
+	float next_hihat_seconds = eighth_seconds;
+	int beat = 0;
+	int strum = 0;
+
+	for (int frame = 0; frame < frames; ++frame) {
+		mao_test::Buffer buffer = {};
+		const uint64_t sample_offset = static_cast<uint64_t>(frame) * hop_samples;
+		add_tempo_backing(buffer, sample_offset);
+		const float frame_seconds = static_cast<float>(frame) * interval_seconds;
+		const float frame_center_seconds = frame_seconds + interval_seconds * 0.5f;
+
+		if (next_strum_seconds <= frame_center_seconds) {
+			const float accent = (strum % 2 == 0) ? 0.82f : 1.18f;
+			add_harmonic_note_at_offset(buffer, 52, 0.030f * strum_scale * accent,
+						   {1.0f, 0.35f, 0.16f, 0.08f}, sample_offset);
+			add_harmonic_note_at_offset(buffer, 59, 0.025f * strum_scale * accent,
+						   {1.0f, 0.28f, 0.11f}, sample_offset);
+			add_harmonic_note_at_offset(buffer, 64, 0.020f * strum_scale * accent,
+						   {1.0f, 0.22f, 0.08f}, sample_offset);
+			++strum;
+			while (next_strum_seconds <= frame_center_seconds)
+				next_strum_seconds += eighth_seconds;
+		}
+		if (eighth_hats && next_hihat_seconds <= frame_center_seconds) {
+			add_tempo_hihat(buffer, hat_scale);
+			while (next_hihat_seconds <= frame_center_seconds)
+				next_hihat_seconds += eighth_seconds;
+		}
+		if (next_beat_seconds <= frame_center_seconds) {
+			if (beat % 4 == 1 || beat % 4 == 3)
+				add_tempo_snare(buffer, body_scale);
+			else
+				add_tempo_kick(buffer, beat % 8 == 4 ? body_scale * 0.82f : body_scale);
+			++beat;
+			while (next_beat_seconds <= frame_center_seconds)
+				next_beat_seconds += beat_seconds;
+		}
+
+		snapshot = engine.analyze(buffer.data(), buffer.size(), settings,
+					  "eighth strum body tempo test", 0);
+	}
+
+	return snapshot;
+}
+
+mao::AnalysisSnapshot run_sixteenth_strum_body_tempo_pattern(mao::AnalysisEngine &engine,
+							     const mao::AnalysisSettings &settings,
+							     float bpm, int frames, float strum_scale,
+							     float body_scale)
+{
+	const float beat_seconds = 60.0f / bpm;
+	const float sixteenth_seconds = beat_seconds * 0.25f;
+	const float interval_seconds = settings.analysis_interval_seconds;
+	const uint64_t hop_samples = static_cast<uint64_t>(
+		std::lround(settings.analysis_interval_seconds * static_cast<float>(settings.sample_rate)));
+	mao::AnalysisSnapshot snapshot = {};
+	float next_beat_seconds = 0.0f;
+	float next_strum_seconds = 0.0f;
+	int beat = 0;
+	int strum = 0;
+
+	for (int frame = 0; frame < frames; ++frame) {
+		mao_test::Buffer buffer = {};
+		const uint64_t sample_offset = static_cast<uint64_t>(frame) * hop_samples;
+		add_tempo_backing(buffer, sample_offset);
+		const float frame_seconds = static_cast<float>(frame) * interval_seconds;
+		const float frame_center_seconds = frame_seconds + interval_seconds * 0.5f;
+
+		if (next_strum_seconds <= frame_center_seconds) {
+			const float accent = (strum % 4 == 0) ? 0.82f : 1.18f;
+			add_harmonic_note_at_offset(buffer, 52, 0.030f * strum_scale * accent,
+						   {1.0f, 0.35f, 0.16f, 0.08f}, sample_offset);
+			add_harmonic_note_at_offset(buffer, 59, 0.025f * strum_scale * accent,
+						   {1.0f, 0.28f, 0.11f}, sample_offset);
+			add_harmonic_note_at_offset(buffer, 64, 0.020f * strum_scale * accent,
+						   {1.0f, 0.22f, 0.08f}, sample_offset);
+			++strum;
+			while (next_strum_seconds <= frame_center_seconds)
+				next_strum_seconds += sixteenth_seconds;
+		}
+		if (next_beat_seconds <= frame_center_seconds) {
+			if (beat % 4 == 1 || beat % 4 == 3)
+				add_tempo_snare(buffer, body_scale);
+			else
+				add_tempo_kick(buffer, beat % 8 == 4 ? body_scale * 0.82f : body_scale);
+			++beat;
+			while (next_beat_seconds <= frame_center_seconds)
+				next_beat_seconds += beat_seconds;
+		}
+
+		snapshot = engine.analyze(buffer.data(), buffer.size(), settings,
+					  "sixteenth strum body tempo test", 0);
+	}
+
+	return snapshot;
+}
+
 void expect_bpm_near(Runner &runner, const mao::AnalysisSnapshot &snapshot, float expected, float tolerance,
 		     const std::string &context, float min_confidence = 0.22f)
 {
@@ -5357,6 +5470,40 @@ void check_explicit_input_mode_and_bpm(Runner &runner)
 				"BPM estimate from weak broad tonal pulses");
 		expect_tempo_candidate_near(runner, snapshot, 118.0f, 5.0f,
 					    "BPM diagnostics weak broad tonal pulses");
+	}
+
+	{
+		mao::AnalysisEngine engine;
+		const mao::AnalysisSettings settings = tempo_test_settings();
+		const mao::AnalysisSnapshot snapshot =
+			run_eighth_strum_body_tempo_pattern(engine, settings, 108.0f, 440);
+		expect_bpm_near(runner, snapshot, 108.0f, 8.0f,
+				"BPM estimate should not double repeated guitar/keyboard strums", 0.18f);
+		expect_tempo_candidate_near(runner, snapshot, 108.0f, 5.0f,
+					    "BPM diagnostics eighth strums over weak body");
+	}
+
+	{
+		mao::AnalysisEngine engine;
+		const mao::AnalysisSettings settings = tempo_test_settings();
+		const mao::AnalysisSnapshot snapshot =
+			run_eighth_strum_body_tempo_pattern(engine, settings, 116.0f, 460, 1.80f, 0.22f,
+							   true, true, 0.70f);
+		expect_bpm_near(runner, snapshot, 116.0f, 8.0f,
+				"BPM estimate should recover offbeat strums to the beat grid", 0.18f);
+		expect_tempo_candidate_near(runner, snapshot, 116.0f, 5.0f,
+					    "BPM diagnostics offbeat strums over weak body");
+	}
+
+	{
+		mao::AnalysisEngine engine;
+		const mao::AnalysisSettings settings = tempo_test_settings();
+		const mao::AnalysisSnapshot snapshot =
+			run_sixteenth_strum_body_tempo_pattern(engine, settings, 92.0f, 460, 1.80f, 0.22f);
+		expect_bpm_near(runner, snapshot, 92.0f, 8.0f,
+				"BPM estimate should not follow dense sixteenth-note strums", 0.18f);
+		expect_tempo_candidate_near(runner, snapshot, 92.0f, 5.0f,
+					    "BPM diagnostics dense sixteenth strums");
 	}
 
 	{
