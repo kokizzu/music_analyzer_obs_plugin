@@ -1527,6 +1527,32 @@ void check_supported_guitar_candidate_alias_merge(Runner &runner)
 			      clean_primary_state.label + "`");
 }
 
+void check_visible_root_fifth_power_alias_survives_probe_third_leak(Runner &runner)
+{
+	InstrumentState state = {};
+	std::snprintf(state.label, sizeof(state.label), "C=Cadd9=Am=Cmaj7");
+	state.confidence = 0.52f;
+
+	NoteGrid display_grid = {};
+	set_midi(display_grid, 48, 0.82f);
+	set_midi(display_grid, 52, 0.46f);
+	set_midi(display_grid, 55, 0.74f);
+
+	NoteGrid analysis_grid = {};
+	set_midi(analysis_grid, 48, 0.78f);
+	set_midi(analysis_grid, 52, 0.16f);
+	set_midi(analysis_grid, 55, 0.66f);
+
+	append_visible_root_fifth_guitar_power_aliases_after_prune(state, display_grid,
+								   analysis_grid);
+	runner.expect(chord_label_has_exact_component(state.label, "Cpow"),
+		      std::string("visible root/fifth power alias: expected Cpow recovery, got `") +
+			      state.label + "`");
+	runner.expect(std::strncmp(state.label, "C=", 2) == 0,
+		      std::string("visible root/fifth power alias: expected primary label unchanged, got `") +
+			      state.label + "`");
+}
+
 void check_supported_guitar_display_extension_aliases(Runner &runner)
 {
 	InstrumentState state = {};
@@ -4103,6 +4129,7 @@ int run()
 	check_displayed_guitar_single_note_probe_profile(runner);
 	check_displayed_guitar_root_residue_rejects_harmonic_stack(runner);
 	check_supported_guitar_candidate_alias_merge(runner);
+	check_visible_root_fifth_power_alias_survives_probe_third_leak(runner);
 	check_supported_guitar_display_extension_aliases(runner);
 	check_analysis_complete_guitar_display_major_seventh_aliases(runner);
 	check_analysis_complete_guitar_source_dominant_seventh_aliases_after_prune(runner);

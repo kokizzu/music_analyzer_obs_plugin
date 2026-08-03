@@ -17647,6 +17647,46 @@ void append_visible_root_fifth_guitar_power_aliases_after_prune(InstrumentState 
 		return root_level >= 0.20f && fifth_level >= 0.22f &&
 		       strongest_third <= std::max(0.25f, std::max(root_level, fifth_level) * 0.26f);
 	};
+	auto analysis_root_fifth_power_shape = [&](int root) {
+		root = ((root % 12) + 12) % 12;
+		const int display_pitch_classes = note_grid_active_pitch_class_count(display_grid);
+		const int analysis_pitch_classes = note_grid_active_pitch_class_count(analysis_grid);
+		if (display_pitch_classes < 2 || analysis_pitch_classes < 2 ||
+		    display_pitch_classes > 8 || analysis_pitch_classes > 8)
+			return false;
+
+		const std::array<float, 12> analysis_chroma = note_grid_chroma(analysis_grid);
+		if (longest_chromatic_run(analysis_chroma) >= 8)
+			return false;
+
+		float strongest_analysis = 0.0f;
+		for (int pitch_class = 0; pitch_class < 12; ++pitch_class)
+			strongest_analysis = std::max(strongest_analysis,
+						      note_grid_pitch_level(analysis_grid,
+									    pitch_class));
+		if (strongest_analysis <= 1.0e-6f)
+			return false;
+
+		constexpr float kActiveAliasFloor = 0.08f;
+		const float analysis_root =
+			note_grid_pitch_supported_level(analysis_grid, root, kActiveAliasFloor);
+		const float analysis_fifth =
+			note_grid_pitch_supported_level(analysis_grid, root + 7, kActiveAliasFloor);
+		if (analysis_root < std::max(0.12f, strongest_analysis * 0.12f) ||
+		    analysis_fifth < std::max(0.12f, strongest_analysis * 0.12f))
+			return false;
+
+		const float anchor = std::min(analysis_root, analysis_fifth);
+		const float major =
+			note_grid_pitch_supported_level(analysis_grid, root + 4, kActiveAliasFloor);
+		const float minor =
+			note_grid_pitch_supported_level(analysis_grid, root + 3, kActiveAliasFloor);
+		if (std::max(major, minor) >= std::max(0.22f, anchor * 0.70f))
+			return false;
+
+		return note_grid_has_guitar_root_fifth_voicing(display_grid, root, root + 7) ||
+		       note_grid_has_guitar_root_fifth_voicing(analysis_grid, root, root + 7);
+	};
 
 	char merged[sizeof(state.label)] = {};
 	copy_text(merged, sizeof(merged), state.label);
@@ -17667,7 +17707,8 @@ void append_visible_root_fifth_guitar_power_aliases_after_prune(InstrumentState 
 			if (supported_quality && !considered[static_cast<std::size_t>(root)] &&
 			    !label_has_same_root_altered_component(state.label, root) &&
 			    !chord_label_has_root_power_component(merged, root) &&
-			    (label_has_power_component || probe_thirdless_power_shape(root)) &&
+			    (label_has_power_component || probe_thirdless_power_shape(root) ||
+			     analysis_root_fifth_power_shape(root)) &&
 			    visible_guitar_root_fifth_power_alias_supported(display_grid,
 									    analysis_grid,
 									    root)) {
