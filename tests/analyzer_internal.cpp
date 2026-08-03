@@ -2246,6 +2246,32 @@ void check_compact_guitar_power_raw_profile_third_aliases(Runner &runner)
 		      std::string("visible root-fifth guitar power display: expected Apow recovered, got `") +
 			      gaps_power_display.label + "`");
 
+	InstrumentState gaps_epow_display = {};
+	std::snprintf(gaps_epow_display.label, sizeof(gaps_epow_display.label),
+		      "E=Eadd9=Asus2=Am=Emaj7");
+	gaps_epow_display.confidence = 0.58f;
+	NoteGrid gaps_epow_display_grid = {};
+	set_pitch(gaps_epow_display_grid, 4, 0.33f);
+	set_pitch(gaps_epow_display_grid, 8, 1.00f);
+	set_pitch(gaps_epow_display_grid, 11, 0.25f);
+	NoteGrid gaps_epow_analysis_grid = {};
+	set_pitch(gaps_epow_analysis_grid, 4, 0.67f);
+	set_pitch(gaps_epow_analysis_grid, 6, 0.12f);
+	set_pitch(gaps_epow_analysis_grid, 8, 1.00f);
+	set_pitch(gaps_epow_analysis_grid, 9, 0.12f);
+	set_pitch(gaps_epow_analysis_grid, 11, 0.34f);
+	std::array<float, kNoteProbeCount> gaps_epow_powers = {};
+	set_probe_level(gaps_epow_powers, 64, 0.67f);
+	set_probe_level(gaps_epow_powers, 68, 1.00f);
+	set_probe_level(gaps_epow_powers, 71, 0.34f);
+	set_probe_level(gaps_epow_powers, 76, 0.44f);
+	append_visible_root_fifth_guitar_power_aliases_after_prune(
+		gaps_epow_display, gaps_epow_display_grid, gaps_epow_analysis_grid,
+		&gaps_epow_powers, kGuitarMinMidi, kGuitarMaxMidi);
+	runner.expect(chord_label_has_exact_component(gaps_epow_display.label, "Epow"),
+		      std::string("visible root-fifth guitar power display: expected GAPS Epow recovered, got `") +
+			      gaps_epow_display.label + "`");
+
 	InstrumentState crowded_plain_power_display = {};
 	std::snprintf(crowded_plain_power_display.label, sizeof(crowded_plain_power_display.label),
 		      "D=Dmaj7=Gmaj9=Gsus2=Gm");

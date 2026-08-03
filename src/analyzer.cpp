@@ -18025,6 +18025,83 @@ void append_visible_root_fifth_guitar_power_aliases_after_prune(InstrumentState 
 		return note_grid_has_guitar_root_fifth_voicing(display_grid, root, root + 7) ||
 		       note_grid_has_guitar_root_fifth_voicing(analysis_grid, root, root + 7);
 	};
+	auto crowded_visible_root_fifth_power_shape = [&](int root) {
+		root = ((root % 12) + 12) % 12;
+		if (chord_label_component_count(state.label) < 5 ||
+		    !visible_guitar_root_fifth_power_alias_supported(display_grid, analysis_grid, root))
+			return false;
+
+		constexpr float kActiveAliasFloor = 0.08f;
+		float strongest_display = 0.0f;
+		float strongest_analysis = 0.0f;
+		for (int pitch_class = 0; pitch_class < 12; ++pitch_class) {
+			strongest_display = std::max(strongest_display,
+						     note_grid_pitch_level(display_grid,
+									    pitch_class));
+			strongest_analysis = std::max(strongest_analysis,
+						      note_grid_pitch_level(analysis_grid,
+									    pitch_class));
+		}
+		if (strongest_display <= 1.0e-6f || strongest_analysis <= 1.0e-6f)
+			return false;
+
+		const float display_root =
+			note_grid_pitch_supported_level(display_grid, root, kActiveAliasFloor);
+		const float display_fifth =
+			note_grid_pitch_supported_level(display_grid, root + 7, kActiveAliasFloor);
+		const float analysis_root =
+			note_grid_pitch_supported_level(analysis_grid, root, kActiveAliasFloor);
+		const float analysis_fifth =
+			note_grid_pitch_supported_level(analysis_grid, root + 7, kActiveAliasFloor);
+		if (display_root < std::max(0.12f, strongest_display * 0.12f) ||
+		    display_fifth < std::max(0.12f, strongest_display * 0.12f) ||
+		    analysis_root < std::max(0.12f, strongest_analysis * 0.12f) ||
+		    analysis_fifth < std::max(0.12f, strongest_analysis * 0.12f))
+			return false;
+
+		const float display_anchor = std::min(display_root, display_fifth);
+		const float analysis_anchor = std::min(analysis_root, analysis_fifth);
+		const float display_third = std::max(
+			note_grid_pitch_supported_level(display_grid, root + 3, kActiveAliasFloor),
+			note_grid_pitch_supported_level(display_grid, root + 4, kActiveAliasFloor));
+		const float analysis_third = std::max(
+			note_grid_pitch_supported_level(analysis_grid, root + 3, kActiveAliasFloor),
+			note_grid_pitch_supported_level(analysis_grid, root + 4, kActiveAliasFloor));
+		const bool display_balanced_triad =
+			display_third >= 0.12f && display_anchor >= display_third * 0.55f;
+		const bool analysis_balanced_triad =
+			analysis_third >= 0.12f && analysis_anchor >= analysis_third * 0.55f;
+		if (display_balanced_triad && analysis_balanced_triad)
+			return false;
+
+		bool same_root_extension = false;
+		bool cross_root_alias = false;
+		const char *scan = state.label;
+		while (scan && *scan) {
+			const char *scan_end = std::strchr(scan, '=');
+			const std::size_t scan_len =
+				scan_end ? static_cast<std::size_t>(scan_end - scan) :
+					   std::strlen(scan);
+			ParsedRootChord component;
+			if (parse_root_chord_component(scan, scan_len, component)) {
+				if (((component.root % 12) + 12) % 12 == root) {
+					std::size_t root_len = 1;
+					if (scan_len > 1 && scan[1] == '#')
+						root_len = 2;
+					const std::size_t suffix_len =
+						scan_len > root_len ? scan_len - root_len : 0;
+					same_root_extension = same_root_extension || suffix_len > 1;
+				} else {
+					cross_root_alias = true;
+				}
+			}
+			if (!scan_end)
+				break;
+			scan = scan_end + 1;
+		}
+
+		return same_root_extension && cross_root_alias;
+	};
 
 	char merged[sizeof(state.label)] = {};
 	copy_text(merged, sizeof(merged), state.label);
@@ -18046,7 +18123,8 @@ void append_visible_root_fifth_guitar_power_aliases_after_prune(InstrumentState 
 			    !label_has_same_root_altered_component(state.label, root) &&
 			    !chord_label_has_root_power_component(merged, root) &&
 			    (label_has_power_component || probe_thirdless_power_shape(root) ||
-			     analysis_root_fifth_power_shape(root)) &&
+			     analysis_root_fifth_power_shape(root) ||
+			     crowded_visible_root_fifth_power_shape(root)) &&
 			    visible_guitar_root_fifth_power_alias_supported(display_grid,
 									    analysis_grid,
 									    root)) {
