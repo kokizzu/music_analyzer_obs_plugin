@@ -134,6 +134,34 @@ compact route summary
     if output.index("drum route snare->tom") > output.index("near-miss row_confusion"):
         raise AssertionError(f"expected positive-net drum candidates before negative-net near misses:\n{output}")
 
+    weak_row_report = """ownership_miss:guitar/acoustic->bass positives=0 samples/0 rows protected_hits=100 samples/100 rows foreign_misses=0 samples/0 rows
+weak_visual_expected_row:piano/electronic->lit_octave@2 positives=7 samples/11 rows protected_hits=100 samples/100 rows foreign_misses=0 samples/0 rows
+  positive sample profile: groups=organ_electronic=7 sources=piano/electronic=7
+  low-false candidate rules:
+    partial4>=2.0 AND noise>=0.3: pos=6/7 rows=8 neg=0/100 rows=0 side_rows=0 net_rows=8 gain_per_side=inf pos_groups=organ_electronic=6 pos_sources=piano/electronic=6 neg_same_source_rows=0 neg_cross_source_rows=0 foreign_cross_source_rows=0
+      positive examples:
+        organ_electronic_001 expected=C3/48 debug=C3/48 owner=other delta=0 reason=hit first_row=other strongest=other spec=0.52 pitch=0.61
+"""
+    with tempfile.TemporaryDirectory() as tmpdir:
+        path = pathlib.Path(tmpdir) / "route_report.txt"
+        path.write_text(weak_row_report, encoding="utf-8")
+        result = subprocess.run(
+            [sys.executable, str(SCRIPT), str(path), "--limit", "4"],
+            check=True,
+            text=True,
+            stdout=subprocess.PIPE,
+        )
+    weak_row_output = result.stdout
+    require(
+        weak_row_output,
+        "low-false weak_visual_expected_row:piano/electronic->lit_octave@2 +samples=6 +rows=8 -samples=0 -rows=0 foreign_rows=0 side_rows=0 net_rows=8 gain_per_side=inf",
+    )
+    if "low-false ownership_miss:guitar/acoustic->bass +samples=6" in weak_row_output:
+        raise AssertionError(
+            "weak-row candidates must not inherit the preceding zero-positive ownership section:\n"
+            + weak_row_output
+        )
+
     low_quality_report = """bucket chord_miss:maj:visible2_analysis2_smooth2_rootvis1 positives=5 positive_rows=5 protected_hits=465
   +5 rows=5 -0 rows=0 :: analysis_third<=0 AND display_primary_analysis_fifth<=0
     clips_isolated-chords_A_A_acoustic_guitar_fender_fa_series_1@3.216s expected=A guitar=E=Apow support=visible2_analysis2_smooth2_rootvis1 raw(root/third/fifth)=1.00/0.02/0.42 analysis=E,A visible=E,A

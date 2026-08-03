@@ -9,8 +9,16 @@ import pathlib
 import re
 
 
+NOTE_SECTION_KINDS = (
+    "ownership_miss",
+    "visual_row_confusion",
+    "row_confusion",
+    "octave_displacement",
+    "weak_expected_row",
+    "weak_visual_expected_row",
+)
 SECTION_RE = re.compile(
-    r"^(?P<section>(?:ownership_miss|visual_row_confusion|row_confusion):\S+|route \S+|bucket \S+)"
+    r"^(?P<section>(?:" + "|".join(NOTE_SECTION_KINDS) + r"):\S+|route \S+|bucket \S+)"
 )
 NOTE_CANDIDATE_RE = re.compile(
     r"^(?P<rule>.+?): pos=(?P<pos_samples>\d+)/(?:\d+) rows=(?P<pos_rows>\d+) "
