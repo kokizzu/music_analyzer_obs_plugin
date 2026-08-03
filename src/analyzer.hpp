@@ -270,6 +270,7 @@ private:
 
 	static constexpr std::size_t kMaxRootVotes = 1500;
 	static constexpr std::size_t kMaxTempoEvents = 96;
+	static constexpr std::size_t kMaxTempoFluxFrames = 360;
 
 	std::array<float, kAnalysisWindow> window_ = {};
 	std::array<Probe, kNoteProbeCount> note_probes_ = {};
@@ -286,6 +287,9 @@ private:
 	std::array<float, kMaxTempoEvents> tempo_event_strengths_ = {};
 	std::array<float, kMaxTempoEvents> tempo_event_body_strengths_ = {};
 	std::array<float, kMaxTempoEvents> tempo_event_subdivision_strengths_ = {};
+	std::array<float, kMaxTempoFluxFrames> tempo_flux_ = {};
+	std::array<float, kMaxTempoFluxFrames> tempo_body_flux_ = {};
+	std::array<float, kMaxTempoFluxFrames> tempo_subdivision_flux_ = {};
 	int tracked_bass_midi_ = -1;
 	int pending_bass_midi_ = -1;
 	int pending_bass_hits_ = 0;
@@ -317,11 +321,14 @@ private:
 	std::size_t root_vote_target_ = 0;
 	std::size_t tempo_event_pos_ = 0;
 	std::size_t tempo_event_count_ = 0;
+	std::size_t tempo_flux_pos_ = 0;
+	std::size_t tempo_flux_count_ = 0;
 	int locked_root_ = -1;
 	float silence_seconds_ = 0.0f;
 	float tempo_clock_seconds_ = 0.0f;
 	float tempo_silence_seconds_ = 0.0f;
 	float last_tempo_event_seconds_ = -10.0f;
+	float previous_tempo_flux_level_ = 0.0f;
 	float estimated_bpm_ = 0.0f;
 	float bpm_confidence_ = 0.0f;
 	std::size_t analysis_window_samples_ = 0;
@@ -333,7 +340,8 @@ private:
 	void rebuild_window(std::size_t window_samples);
 	void reset_note_envelopes();
 	void reset_analysis_state();
-	void update_tempo(float transient_strength, float body_strength, float subdivision_strength,
+	void update_tempo(float event_strength, float event_body_strength, float event_subdivision_strength,
+			  float flux_strength, float flux_body_strength, float flux_subdivision_strength,
 			  float interval_seconds, float rms, AnalysisSnapshot &snapshot);
 	float goertzel_power(const float *samples, std::size_t count, float mean, const Probe &probe) const;
 	float goertzel_power_at_frequency(const float *samples, std::size_t count, float mean, float freq) const;

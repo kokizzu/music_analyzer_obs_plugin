@@ -289,11 +289,11 @@ void add_tempo_backing(mao_test::Buffer &buffer, uint64_t sample_offset)
 	add_harmonic_note_at_offset(buffer, 55, 0.0038f, {1.0f, 0.12f}, sample_offset);
 }
 
-void add_tempo_tonal_pulse(mao_test::Buffer &buffer, uint64_t sample_offset)
+void add_tempo_tonal_pulse(mao_test::Buffer &buffer, uint64_t sample_offset, float scale = 1.0f)
 {
-	add_harmonic_note_at_offset(buffer, 48, 0.050f, {1.0f, 0.22f, 0.08f}, sample_offset);
-	add_harmonic_note_at_offset(buffer, 55, 0.043f, {1.0f, 0.18f, 0.06f}, sample_offset);
-	add_harmonic_note_at_offset(buffer, 64, 0.026f, {1.0f, 0.14f}, sample_offset);
+	add_harmonic_note_at_offset(buffer, 48, 0.050f * scale, {1.0f, 0.22f, 0.08f}, sample_offset);
+	add_harmonic_note_at_offset(buffer, 55, 0.043f * scale, {1.0f, 0.18f, 0.06f}, sample_offset);
+	add_harmonic_note_at_offset(buffer, 64, 0.026f * scale, {1.0f, 0.14f}, sample_offset);
 }
 
 void add_detuned_harmonic_note_at_offset(mao_test::Buffer &buffer, int midi, float amp,
@@ -4862,7 +4862,7 @@ mao::AnalysisSnapshot run_sparse_body_hihat_tempo_pattern(mao::AnalysisEngine &e
 
 mao::AnalysisSnapshot run_tonal_pulse_tempo_pattern(mao::AnalysisEngine &engine,
 						     const mao::AnalysisSettings &settings,
-						     float bpm, int frames)
+						     float bpm, int frames, float pulse_scale = 1.0f)
 {
 	const float beat_seconds = 60.0f / bpm;
 	const float interval_seconds = settings.analysis_interval_seconds;
@@ -4879,7 +4879,7 @@ mao::AnalysisSnapshot run_tonal_pulse_tempo_pattern(mao::AnalysisEngine &engine,
 		const float frame_center_seconds = frame_seconds + interval_seconds * 0.5f;
 
 		if (next_pulse_seconds <= frame_center_seconds) {
-			add_tempo_tonal_pulse(buffer, sample_offset);
+			add_tempo_tonal_pulse(buffer, sample_offset, pulse_scale);
 			while (next_pulse_seconds <= frame_center_seconds)
 				next_pulse_seconds += beat_seconds;
 		}
@@ -4979,6 +4979,17 @@ void check_explicit_input_mode_and_bpm(Runner &runner)
 				"BPM estimate from broad tonal pulses");
 		expect_tempo_candidate_near(runner, snapshot, 112.0f, 4.0f,
 					    "BPM diagnostics broad tonal pulses");
+	}
+
+	{
+		mao::AnalysisEngine engine;
+		const mao::AnalysisSettings settings = tempo_test_settings();
+		const mao::AnalysisSnapshot snapshot =
+			run_tonal_pulse_tempo_pattern(engine, settings, 118.0f, 450, 0.28f);
+		expect_bpm_near(runner, snapshot, 118.0f, 8.0f,
+				"BPM estimate from weak broad tonal pulses");
+		expect_tempo_candidate_near(runner, snapshot, 118.0f, 5.0f,
+					    "BPM diagnostics weak broad tonal pulses");
 	}
 
 	{
