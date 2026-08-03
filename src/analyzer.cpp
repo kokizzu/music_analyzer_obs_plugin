@@ -8992,6 +8992,23 @@ InstrumentKind choose_full_mix_owner(const std::array<float, kNoteProbeCount> &p
 		third >= 0.075f && third <= 0.22f &&
 		fourth <= 0.12f && fifth <= 0.10f &&
 		evidence.spectral_centroid >= 0.18f;
+	const bool measured_midrange_brass_other_profile =
+		candidate.midi >= 63 && candidate.midi <= 67 &&
+		evidence.spectral_level >= 0.90f &&
+		evidence.pitch_confidence >= 0.78f &&
+		evidence.periodicity >= 0.78f &&
+		evidence.harmonic_fit_error <= 0.050f &&
+		evidence.spectral_centroid >= 0.10f &&
+		evidence.spectral_centroid <= 0.22f &&
+		evidence.spectral_slope >= 0.050f &&
+		evidence.spectral_slope <= 0.18f &&
+		evidence.third_octave_ratio >= 0.10f &&
+		second >= 0.18f &&
+		second <= 0.34f &&
+		third >= 0.050f &&
+		third <= 0.14f &&
+		fourth <= 0.085f &&
+		fifth <= 0.075f;
 	const bool low_other_profile_supported =
 		(low_other_candidate && second >= 0.30f && third >= 0.12f &&
 		 (fourth >= 0.075f || fifth >= 0.045f) &&
@@ -9186,6 +9203,18 @@ InstrumentKind choose_full_mix_owner(const std::array<float, kNoteProbeCount> &p
 		if (distorted_harmonic_guitar_profile)
 			scores[3] *= 0.34f;
 	}
+	if (measured_midrange_brass_other_profile) {
+		scores[3] = std::max(scores[3],
+				     other_weight * 1.12f + 0.72f + second * 0.22f +
+					     evidence.third_octave_ratio * 0.18f);
+		if (scores[2] > 0.0f && scores[1] > 0.0f &&
+		    scores[0] <= scores[2] * 0.20f &&
+		    scores[2] <= scores[1] * 14.0f) {
+			const float original_vocal_score = scores[2];
+			scores[2] *= 0.42f;
+			scores[3] = std::max(scores[3], original_vocal_score * 1.04f);
+		}
+	}
 	for (float &score : scores)
 		score *= noise_penalty * fit_penalty;
 
@@ -9228,6 +9257,7 @@ InstrumentKind choose_full_mix_owner(const std::array<float, kNoteProbeCount> &p
 	const bool supported_distorted_harmonic_guitar_winner =
 		best == 1 && distorted_harmonic_guitar_profile;
 	const bool supported_lower_mid_bright_other_winner = best == 3 && lower_mid_bright_other_candidate;
+	const bool supported_midrange_brass_other_winner = best == 3 && measured_midrange_brass_other_profile;
 	const bool supported_low_other_winner = best == 3 && low_other_profile_supported;
 	const bool blended_non_vocal = (competing_timbres || blended_partials) && !supported_vocal_winner;
 	const float probability_floor =
@@ -9237,7 +9267,7 @@ InstrumentKind choose_full_mix_owner(const std::array<float, kNoteProbeCount> &p
 		 supported_upper_clean_guitar_winner ||
 		 supported_upper_harmonic_guitar_winner ||
 		 supported_distorted_harmonic_guitar_winner) ? 0.38f :
-		supported_lower_mid_bright_other_winner ? 0.34f :
+		(supported_lower_mid_bright_other_winner || supported_midrange_brass_other_winner) ? 0.34f :
 		(supported_vocal_winner || supported_low_other_winner) ? 0.44f :
 		blended_non_vocal ? 0.68f :
 				     0.65f;
@@ -9248,7 +9278,7 @@ InstrumentKind choose_full_mix_owner(const std::array<float, kNoteProbeCount> &p
 		 supported_upper_clean_guitar_winner ||
 		 supported_upper_harmonic_guitar_winner ||
 		 supported_distorted_harmonic_guitar_winner) ? 0.08f :
-		supported_lower_mid_bright_other_winner ? 0.04f :
+		(supported_lower_mid_bright_other_winner || supported_midrange_brass_other_winner) ? 0.04f :
 		(supported_vocal_winner || supported_low_other_winner) ? 0.12f :
 		blended_non_vocal ? 0.24f :
 				     0.20f;

@@ -3887,6 +3887,27 @@ void check_full_mix_single_instrument_precision(Runner &runner)
 
 	{
 		mao_test::Buffer buffer = {};
+		const std::vector<float> measured_mid_brass_profile =
+			{1.0f, 0.29f, 0.075f, 0.062f, 0.024f, 0.0f, 0.0f, 0.14f};
+		add_harmonic_note(buffer, 66, 0.24f, measured_mid_brass_profile);
+
+		const auto snapshot =
+			analyze_buffer_with_mode(buffer, mao::AnalysisInputMode::FullMix,
+						 "speaker measured mid brass other", 3);
+		expect_global_pitch_class(runner, snapshot, 6, "full-mix measured mid brass global");
+		const float other_level = grid_level_for_midi(snapshot.other_notes, 66);
+		const float vocal_level = grid_level_for_midi(snapshot.vocal_notes, 66);
+		runner.expect(other_level > 0.0f && other_level >= vocal_level,
+			      std::string("full-mix measured mid brass: expected other F#4 "
+					  "to beat vocal, got other level ") +
+				      std::to_string(other_level) + ", vocal level " +
+				      std::to_string(vocal_level) + ", other `" +
+				      snapshot.other.label + "`, vocal `" + snapshot.vocal.label +
+				      "`, debug `" + full_mix_debug_summary_for_midi(snapshot, 66) + "`");
+	}
+
+	{
+		mao_test::Buffer buffer = {};
 		const std::vector<float> bright_high_brass_profile = {1.0f, 0.18f, 0.54f, 0.58f, 0.012f};
 		add_harmonic_note(buffer, 79, 0.22f, bright_high_brass_profile);
 
