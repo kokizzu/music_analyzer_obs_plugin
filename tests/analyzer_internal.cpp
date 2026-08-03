@@ -3102,6 +3102,31 @@ FullMixDebugCandidate make_other_owned_electronic_keyboard_octave_up_debug(int m
 	return debug;
 }
 
+FullMixDebugCandidate make_clean_organ_keyboard_octave_up_debug(int midi)
+{
+	FullMixDebugCandidate debug = {};
+	debug.midi = midi;
+	debug.owner = InstrumentKind::Other;
+	debug.ownership_confidence = 0.84f;
+	debug.keyboard_score = 0.0f;
+	debug.guitar_score = 0.14f;
+	debug.vocal_score = 0.0f;
+	debug.other_score = 0.86f;
+	debug.spectral_level = 1.0f;
+	debug.pitch_confidence = 0.90f;
+	debug.periodicity = 0.91f;
+	debug.harmonic_fit_error = 0.24f;
+	debug.local_noise_level = 0.009f;
+	debug.spectral_centroid = 0.45f;
+	debug.spectral_slope = 0.86f;
+	debug.third_octave_ratio = 0.020f;
+	debug.harmonic_ratios[1] = 0.76f;
+	debug.harmonic_ratios[2] = 0.87f;
+	debug.harmonic_ratios[3] = 0.63f;
+	debug.harmonic_ratios[4] = 0.001f;
+	return debug;
+}
+
 void check_lower_other_pitch_class_keyboard_octave_shadow_is_attenuated(Runner &runner)
 {
 	static constexpr int kOtherMidi = 60;
@@ -3210,6 +3235,39 @@ void check_other_owned_electronic_keyboard_alias_mirrors_upper_note(Runner &runn
 								  weak_shape, -1);
 	runner.expect(note_grid_midi_visual_level(weak_keyboard_grid, kUpperMidi) < 0.90f,
 		      "other-owned electronic keyboard octave alias: expected unsupported upper mirror to be attenuated");
+}
+
+void check_clean_organ_keyboard_alias_mirrors_supported_upper_note(Runner &runner)
+{
+	static constexpr int kAliasMidi = 66;
+	static constexpr int kUpperMidi = kAliasMidi + 12;
+
+	FullMixOwnership ownership = {};
+	ownership.global_note_levels[static_cast<std::size_t>(kAliasMidi - kFirstMidi)] = 0.70f;
+	ownership.global_note_levels[static_cast<std::size_t>(kUpperMidi - kFirstMidi)] = 0.18f;
+	ownership.debug_candidate_count = 1;
+	ownership.debug_candidates[0] = make_clean_organ_keyboard_octave_up_debug(kAliasMidi);
+
+	const NoteCandidateList candidates =
+		full_mix_display_candidates(ownership, FullMixDisplayRow::Keyboard);
+	runner.expect(candidate_list_has_midi(candidates, kUpperMidi),
+		      "clean organ keyboard octave alias: expected supported upper keyboard note");
+	runner.expect(!candidate_list_has_midi(candidates, kAliasMidi),
+		      "clean organ keyboard octave alias: expected lower alias not to be mirrored");
+
+	FullMixOwnership weak_upper = ownership;
+	weak_upper.global_note_levels[static_cast<std::size_t>(kUpperMidi - kFirstMidi)] = 0.05f;
+	const NoteCandidateList weak_upper_candidates =
+		full_mix_display_candidates(weak_upper, FullMixDisplayRow::Keyboard);
+	runner.expect(!candidate_list_has_midi(weak_upper_candidates, kUpperMidi),
+		      "clean organ keyboard octave alias: expected upper support guard");
+
+	FullMixOwnership weak_shape = ownership;
+	weak_shape.debug_candidates[0].local_noise_level = 0.040f;
+	const NoteCandidateList weak_shape_candidates =
+		full_mix_display_candidates(weak_shape, FullMixDisplayRow::Keyboard);
+	runner.expect(!candidate_list_has_midi(weak_shape_candidates, kUpperMidi),
+		      "clean organ keyboard octave alias: expected measured clean-shape guard");
 }
 
 void check_low_electronic_bass_alias_promotes_fundamental_display(Runner &runner)
@@ -4376,6 +4434,7 @@ int run()
 	check_lower_other_pitch_class_keyboard_octave_shadow_is_attenuated(runner);
 	check_low_electronic_keyboard_octave_alias_mirrors_lower_note(runner);
 	check_other_owned_electronic_keyboard_alias_mirrors_upper_note(runner);
+	check_clean_organ_keyboard_alias_mirrors_supported_upper_note(runner);
 	check_low_electronic_bass_alias_promotes_fundamental_display(runner);
 	check_ambiguous_electronic_keyboard_promotes_exact_lower_octave(runner);
 	check_raw_supported_mid_keyboard_lower_octave_promotes_alias(runner);
