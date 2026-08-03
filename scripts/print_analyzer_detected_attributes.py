@@ -1002,7 +1002,7 @@ def section(title: str) -> None:
     print(title)
 
 
-def report_instrument_rows(path: pathlib.Path, row_limit: int) -> None:
+def report_instrument_rows(path: pathlib.Path, row_limit: int, summary_only: bool = False) -> None:
     rows = [row for row in load_rows(path) if row.get("kind") == "note"]
     section("measured generated instrument note rows")
     if not rows:
@@ -1064,6 +1064,8 @@ def report_instrument_rows(path: pathlib.Path, row_limit: int) -> None:
             f"primary={compact(primary_pitch_quality_counts(family_rows, 'midi'), 4)} "
             f"octdup={compact(collections.Counter(str(target_octave_duplicate_count(row)) for row in family_rows), 4)}"
         )
+    if summary_only:
+        return
     print_note_group_buckets(
         "program/note buckets",
         rows,
@@ -1096,6 +1098,7 @@ def report_real_note_rows(
     miss_path: pathlib.Path | None,
     row_limit: int,
     title: str = "measured real-note full-mix rows",
+    summary_only: bool = False,
 ) -> None:
     rows = [row for row in load_rows(path) if row.get("sample_id")]
     miss_rows = [row for row in load_rows(miss_path) if row.get("sample_id")] if miss_path else []
@@ -1174,25 +1177,27 @@ def report_real_note_rows(
         "  first-row match-vs-confusion feature contrast="
         f"{numeric_feature_contrast(rows, is_hit=first_row_matches_expected, fields=NOTE_CONTRAST_FEATURES, limit=row_limit, positive_label='match', negative_label='confused')}"
     )
-    print_row_confusion_route_contrasts(
-        "first-row route contrasts",
-        rows,
-        target_row_func=lambda row: cell(row, "first_row"),
-        match_func=first_row_matches_expected,
-        row_limit=row_limit,
-    )
+    if not summary_only:
+        print_row_confusion_route_contrasts(
+            "first-row route contrasts",
+            rows,
+            target_row_func=lambda row: cell(row, "first_row"),
+            match_func=first_row_matches_expected,
+            row_limit=row_limit,
+        )
     if visual_fields:
         print(
             "  visual-row match-vs-confusion feature contrast="
             f"{numeric_feature_contrast(rows, is_hit=visual_strongest_row_matches_expected, fields=NOTE_CONTRAST_FEATURES, limit=row_limit, positive_label='match', negative_label='confused')}"
         )
-        print_row_confusion_route_contrasts(
-            "visual-row route contrasts",
-            rows,
-            target_row_func=lambda row: cell(row, "buffer_visual_strongest_row"),
-            match_func=visual_strongest_row_matches_expected,
-            row_limit=row_limit,
-        )
+        if not summary_only:
+            print_row_confusion_route_contrasts(
+                "visual-row route contrasts",
+                rows,
+                target_row_func=lambda row: cell(row, "buffer_visual_strongest_row"),
+                match_func=visual_strongest_row_matches_expected,
+                row_limit=row_limit,
+            )
     print(f"  first-row routes={compact(collections.Counter(first_row_route(row) for row in rows))}")
     if visual_fields:
         print(
@@ -1238,6 +1243,8 @@ def report_real_note_rows(
                 else ""
             )
         )
+    if summary_only:
+        return
     print_note_group_buckets(
         "source/note buckets",
         rows,
@@ -1265,7 +1272,7 @@ def report_real_note_rows(
         )
 
 
-def report_guitar_chord_rows(path: pathlib.Path, row_limit: int) -> None:
+def report_guitar_chord_rows(path: pathlib.Path, row_limit: int, summary_only: bool = False) -> None:
     rows = [row for row in load_rows(path) if row.get("recording_id")]
     section("measured guitar chord rows")
     if not rows:
@@ -1315,6 +1322,8 @@ def report_guitar_chord_rows(path: pathlib.Path, row_limit: int) -> None:
     for quality in sorted({row.get("quality", "unknown") for row in rows}):
         quality_rows = [row for row in rows if row.get("quality", "unknown") == quality]
         print(f"    {quality} chord_hit={status_fraction(quality_rows, 'chord_hit')}")
+    if summary_only:
+        return
     print_chord_group_buckets("expected chord buckets", rows, row_limit)
     for row in limited_rows(rows, row_limit, {"chord_hit", "no_chord"}):
         print(
@@ -1345,7 +1354,7 @@ def drum_trigger_cells(row: dict[str, str]) -> str:
     return ",".join(f"{drum}:{num(row, drum + '_trigger')}/{num(row, drum + '_threshold')}" for drum in DRUMS)
 
 
-def report_drum_rows(path: pathlib.Path, title: str, row_limit: int) -> None:
+def report_drum_rows(path: pathlib.Path, title: str, row_limit: int, summary_only: bool = False) -> None:
     rows = [row for row in load_rows(path) if row.get("sample")]
     section(title)
     if not rows:
@@ -1357,6 +1366,8 @@ def report_drum_rows(path: pathlib.Path, title: str, row_limit: int) -> None:
         "  correct-vs-wrong feature contrast="
         f"{numeric_feature_contrast(rows, is_hit=lambda row: row.get('expected') == row.get('got'), fields=DRUM_CONTRAST_FEATURES, limit=row_limit, positive_label='correct', negative_label='wrong')}"
     )
+    if summary_only:
+        return
     ordered = sorted(
         rows,
         key=lambda row: (
@@ -1416,17 +1427,22 @@ def main() -> int:
         default=12,
         help="rows to print per section; 0 prints all measured rows",
     )
+    parser.add_argument(
+        "--summary-only",
+        action="store_true",
+        help="print aggregate detector metrics and per-family/chord-quality summaries without example rows",
+    )
     args = parser.parse_args()
 
     row_limit = max(0, args.rows)
-    report_instrument_rows(args.instrument, row_limit)
-    report_real_note_rows(args.real_note, args.real_note_miss, row_limit)
+    report_instrument_rows(args.instrument, row_limit, args.summary_only)
+    report_real_note_rows(args.real_note, args.real_note_miss, row_limit, summary_only=args.summary_only)
     for value in args.extra_real_note:
         title, path, miss_path = parse_extra_real_note(value)
-        report_real_note_rows(path, miss_path, row_limit, f"measured {title} rows")
-    report_guitar_chord_rows(args.guitar_chord, row_limit)
-    report_drum_rows(args.drum_primary, "measured drum primary rows", row_limit)
-    report_drum_rows(args.drum_full, "measured protected drum full rows", row_limit)
+        report_real_note_rows(path, miss_path, row_limit, f"measured {title} rows", summary_only=args.summary_only)
+    report_guitar_chord_rows(args.guitar_chord, row_limit, args.summary_only)
+    report_drum_rows(args.drum_primary, "measured drum primary rows", row_limit, args.summary_only)
+    report_drum_rows(args.drum_full, "measured protected drum full rows", row_limit, args.summary_only)
     return 0
 
 

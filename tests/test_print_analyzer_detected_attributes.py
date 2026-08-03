@@ -96,7 +96,36 @@ kick.wav	kick	kick	0.9	0.1	0.0	0.9	0.1	0.1	0.1	0.1	1	0	0	0	0	0	0	0.9	0.4	0	0	0	0
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
         )
+        summary_result = subprocess.run(
+            [
+                sys.executable,
+                str(SCRIPT),
+                "--instrument",
+                str(instrument),
+                "--real-note",
+                str(real_note),
+                "--real-note-miss",
+                str(root / "missing_real_note_miss.tsv"),
+                "--extra-real-note",
+                f"compact no-debug={compact_no_debug}",
+                "--guitar-chord",
+                str(guitar),
+                "--drum-primary",
+                str(drum_primary),
+                "--drum-full",
+                str(drum_full),
+                "--top",
+                "2",
+                "--summary-only",
+            ],
+            cwd=ROOT,
+            check=True,
+            text=True,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+        )
     output = result.stdout
+    summary_output = summary_result.stdout
     assert "measured generated instrument note rows" in output
     assert "debug owner mismatches=guitar->piano=1" in output
     assert "debug pitch deltas=+0=2" in output
@@ -220,6 +249,23 @@ kick.wav	kick	kick	0.9	0.1	0.0	0.9	0.1	0.1	0.1	0.1	1	0	0	0	0	0	0	0.9	0.4	0	0	0	0
     assert "measured protected drum full rows" in output
     assert "kick->kick energy=0.9/0.1/0" in output
     assert output.count("hit-vs-miss feature contrast=") == 5
+    assert "measured generated instrument note rows" in summary_output
+    assert "measured compact no-debug rows" in summary_output
+    assert "measured guitar chord rows" in summary_output
+    assert "measured drum primary rows" in summary_output
+    assert "family ranges:" in summary_output
+    assert "quality recall:" in summary_output
+    assert "row routing expected-row exact=" in summary_output
+    assert "program/note buckets:" not in summary_output
+    assert "source/note buckets:" not in summary_output
+    assert "first-row route contrasts:" not in summary_output
+    assert "visual-row route contrasts:" not in summary_output
+    assert "expected chord buckets:" not in summary_output
+    assert "miss guitar expected=E3/52" not in summary_output
+    assert "ownership_miss piano/electronic expected=C4/60" not in summary_output
+    assert "chord_miss quality=m expected=Am" not in summary_output
+    assert "snare->tom energy=0.2/0.7/0.1" not in summary_output
+    assert "kick->kick energy=0.9/0.1/0" not in summary_output
     print("test_print_analyzer_detected_attributes: ok")
     return 0
 

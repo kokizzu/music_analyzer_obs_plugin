@@ -3935,6 +3935,9 @@ def main() -> int:
         "print target must pass optional real-note dataset sections to the report"
     )
     assert "$(ATTRIBUTE_ROW_REPORT_ARGS)" in print_recipe, "print target needs overridable args"
+    assert "$(PRINT_ANALYZER_DETECTED_ATTRIBUTES_ARGS)" in print_recipe, (
+        "print target needs a dedicated escape hatch for summary/filtered report args"
+    )
     assert "$(INSTRUMENT_DETECTED_ATTRIBUTE_ROWS)" in print_recipe, "print target needs instrument rows"
     assert "$(REAL_NOTE_DETECTED_ATTRIBUTE_ROWS)" in print_recipe, "print target needs real-note rows"
     assert "$(GUITAR_CHORD_DETECTED_ATTRIBUTE_ROWS)" in print_recipe, "print target needs guitar rows"
@@ -3959,6 +3962,9 @@ def main() -> int:
     )
     assert "$(ATTRIBUTE_ROW_REPORT_ARGS)" in cached_print_recipe, (
         "cached print target needs the same overridable args"
+    )
+    assert "$(PRINT_ANALYZER_DETECTED_ATTRIBUTES_ARGS)" in cached_print_recipe, (
+        "cached print target needs the same dedicated report args"
     )
     assert "$(INSTRUMENT_DETECTED_ATTRIBUTE_ROWS)" in cached_print_recipe, (
         "cached print target needs instrument rows"
