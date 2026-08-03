@@ -1190,6 +1190,44 @@ void draw_note_column_headers(VisualizerRenderer *visualizer, const VisualLayout
 		draw_text(visualizer, layout.count_x, y, "NOTES", 2, kLabelColor);
 }
 
+void format_bpm_candidate_list(char *output, std::size_t output_size, const AnalysisSnapshot &snapshot)
+{
+	if (!output || output_size == 0)
+		return;
+	output[0] = '\0';
+	if (snapshot.tempo_debug_candidate_count == 0)
+		return;
+
+	const float best_score = snapshot.tempo_debug_candidates[0].score;
+	if (best_score <= 1.0e-6f)
+		return;
+
+	std::size_t used = 0;
+	int written = std::snprintf(output, output_size, "CAND");
+	if (written <= 0)
+		return;
+	used = std::min<std::size_t>(static_cast<std::size_t>(written), output_size - 1);
+
+	const std::size_t count =
+		std::min<std::size_t>(snapshot.tempo_debug_candidate_count, snapshot.tempo_debug_candidates.size());
+	std::size_t emitted = 0;
+	for (std::size_t i = 0; i < count && emitted < 4 && used + 1 < output_size; ++i) {
+		const TempoDebugCandidate &candidate = snapshot.tempo_debug_candidates[i];
+		if (candidate.bpm <= 0 || candidate.score <= 0.0f)
+			continue;
+		const int relative_score =
+			std::clamp(static_cast<int>(std::lround(candidate.score / best_score * 100.0f)), 0, 999);
+		written = std::snprintf(output + used, output_size - used, " %d:%d", candidate.bpm,
+					relative_score);
+		if (written <= 0)
+			break;
+		used = std::min<std::size_t>(used + static_cast<std::size_t>(written), output_size - 1);
+		++emitted;
+	}
+	if (emitted == 0)
+		output[0] = '\0';
+}
+
 void draw_root_and_bpm(VisualizerRenderer *visualizer, const AnalysisSnapshot &snapshot, int root_y,
 		       int bpm_y_override = -1)
 {
@@ -1209,6 +1247,19 @@ void draw_root_and_bpm(VisualizerRenderer *visualizer, const AnalysisSnapshot &s
 	const int total_width = text_width("BPM ", 2) + text_width(bpm_value, 2) +
 				(bpm_confidence[0] ? text_width(" ", 2) + text_width(bpm_confidence, 2) : 0);
 	int bpm_x = std::max(28, static_cast<int>(visualizer->width) - 28 - total_width);
+	char bpm_candidates[64] = {};
+	format_bpm_candidate_list(bpm_candidates, sizeof(bpm_candidates), snapshot);
+	if (bpm_candidates[0]) {
+		const int candidate_w = text_width(bpm_candidates, 1);
+		const int candidate_x = std::max(28, static_cast<int>(visualizer->width) - 28 - candidate_w);
+		const int candidate_y = std::max(0, bpm_y - 12);
+		static constexpr char kCandidateLabel[] = "CAND";
+		draw_text(visualizer, candidate_x, candidate_y, kCandidateLabel, 1, kLabelColor);
+		const int label_w = text_width(kCandidateLabel, 1);
+		if (bpm_candidates[4])
+			draw_text(visualizer, candidate_x + label_w, candidate_y, bpm_candidates + 4, 1,
+				  kValueTextColor);
+	}
 	if (visualizer->external_control.visible) {
 		constexpr std::array<const char *, 12> kRootNames = {
 			"C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B",

@@ -49,6 +49,19 @@ int run_visualizer_renderer_tests()
 	expect_true(std::strcmp(band, "MAX") == 0, "full band percentage should render as MAX", &checks,
 		    &failures);
 
+	AnalysisSnapshot tempo_snapshot;
+	tempo_snapshot.tempo_debug_candidate_count = 3;
+	tempo_snapshot.tempo_debug_candidates[0].bpm = 126;
+	tempo_snapshot.tempo_debug_candidates[0].score = 8.0f;
+	tempo_snapshot.tempo_debug_candidates[1].bpm = 63;
+	tempo_snapshot.tempo_debug_candidates[1].score = 6.0f;
+	tempo_snapshot.tempo_debug_candidates[2].bpm = 189;
+	tempo_snapshot.tempo_debug_candidates[2].score = 4.0f;
+	char bpm_candidates[64] = {};
+	format_bpm_candidate_list(bpm_candidates, sizeof(bpm_candidates), tempo_snapshot);
+	expect_true(std::strcmp(bpm_candidates, "CAND 126:100 63:75 189:50") == 0,
+		    "BPM candidate formatter should show relative scores", &checks, &failures);
+
 	expect_true(near(display_highlight_level(0.0f), 0.0f), "zero level should not highlight", &checks,
 		    &failures);
 	expect_true(near(display_highlight_level(0.01f), 0.04f),
