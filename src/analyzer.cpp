@@ -25467,6 +25467,8 @@ void AnalysisEngine::update_tempo(float raw_event_strength, float raw_event_body
 			float lower_body_score = 0.0f;
 			float lower_score = 0.0f;
 			float lower_subdivision_score = 0.0f;
+			float lower_adjacent_score = 0.0f;
+			float lower_adjacent_body_score = 0.0f;
 			for (int bpm = lower_min; bpm <= lower_max; ++bpm) {
 				const std::size_t index = static_cast<std::size_t>(bpm - kMinTempoBpm);
 				const float score = bpm_scores[index];
@@ -25479,13 +25481,27 @@ void AnalysisEngine::update_tempo(float raw_event_strength, float raw_event_body
 				lower_body_score = body_score;
 				lower_score = score;
 				lower_subdivision_score = subdivision_bpm_scores[index];
+				lower_adjacent_score = adjacent_bpm_scores[index];
+				lower_adjacent_body_score = adjacent_body_bpm_scores[index];
 			}
+			const bool high_has_stronger_adjacent_body_pulse =
+				current_adjacent_body_score >=
+				std::max(lower_adjacent_body_score * 1.65f,
+					 combined_total_body_strength * 0.035f);
+			const bool high_has_dominant_direct_grid =
+				best_score >= lower_score * 1.12f &&
+				adjacent_bpm_scores[current_index] >=
+					std::max(lower_adjacent_score * 3.5f,
+						 combined_total_strength * 0.060f) &&
+				phase_all_coverages[current_index] >= 0.78f;
 			const bool lower_has_body_pulse =
 				lower_body_bpm > 0 &&
 				lower_body_score >= std::max(current_body_score * 1.05f,
 						       combined_total_body_strength * 0.20f) &&
 				lower_body_score >= lower_subdivision_score * 0.82f &&
-				lower_score >= best_score * 0.68f;
+				lower_score >= best_score * 0.68f &&
+				!high_has_stronger_adjacent_body_pulse &&
+				!high_has_dominant_direct_grid;
 			if (lower_has_body_pulse) {
 				best_bpm = lower_body_bpm;
 				best_score = bpm_scores[static_cast<std::size_t>(best_bpm - kMinTempoBpm)];

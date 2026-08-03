@@ -9,14 +9,24 @@ import wave
 
 DEFAULT_RECORDING_COUNT = 20
 SAMPLE_RATE = 44100
-DURATION_SECONDS = 2.0
+DURATION_SECONDS = 8.0
 TICKS_PER_QUARTER = 480
-TICKS_PER_SECOND = 960
-HITS = [
-    (0.25, 36, 108),
-    (0.75, 38, 112),
-    (1.25, 42, 96),
-    (1.75, 45, 104),
+TEMPOS = [
+    64,
+    72,
+    84,
+    92,
+    100,
+    108,
+    116,
+    120,
+    128,
+    137,
+    145,
+    156,
+    168,
+    184,
+    205,
 ]
 
 
@@ -29,8 +39,12 @@ def vlq(value):
     return bytes(bytes_out)
 
 
-def seconds_to_ticks(seconds):
-    return int(round(seconds * TICKS_PER_SECOND))
+def tempo_us_per_quarter(bpm):
+    return int(round(60000000.0 / bpm))
+
+
+def seconds_to_ticks(seconds, bpm):
+    return int(round(seconds * bpm / 60.0 * TICKS_PER_QUARTER))
 
 
 def track_chunk(events):
@@ -43,12 +57,51 @@ def track_chunk(events):
     return b"MTrk" + struct.pack(">I", len(payload)) + bytes(payload)
 
 
-def write_midi(path):
+def build_hits(bpm, variant):
+    beat_seconds = 60.0 / bpm
+    hits = []
+    beat = 0
+    seconds = beat_seconds * 0.50
+    while seconds < DURATION_SECONDS - 0.12:
+        position = beat % 4
+        if position == 0:
+            hits.append((seconds, 36, 112))
+            if variant % 3 == 0:
+                hits.append((seconds + beat_seconds * 0.50, 42, 82))
+        elif position == 1:
+            hits.append((seconds, 42, 88))
+        elif position == 2:
+            hits.append((seconds, 38, 114))
+            if variant % 4 == 0:
+                hits.append((seconds + beat_seconds * 0.50, 42, 78))
+        else:
+            hits.append((seconds, 45 if variant % 2 == 0 else 51, 96))
+        seconds += beat_seconds
+        beat += 1
+    return hits
+
+
+def write_midi(path, hits, bpm):
     os.makedirs(os.path.dirname(path), exist_ok=True)
-    absolute_events = [(0, b"\xff\x51\x03\x07\xa1\x20")]
-    for seconds, midi, velocity in HITS:
-        start = seconds_to_ticks(seconds)
-        end = seconds_to_ticks(seconds + 0.08)
+    tempo = tempo_us_per_quarter(bpm)
+    absolute_events = [
+        (
+            0,
+            bytes(
+                [
+                    0xFF,
+                    0x51,
+                    0x03,
+                    (tempo >> 16) & 0xFF,
+                    (tempo >> 8) & 0xFF,
+                    tempo & 0xFF,
+                ]
+            ),
+        )
+    ]
+    for seconds, midi, velocity in hits:
+        start = seconds_to_ticks(seconds, bpm)
+        end = seconds_to_ticks(seconds + 0.08, bpm)
         absolute_events.append((start, bytes([0x99, midi, velocity])))
         absolute_events.append((end, bytes([0x89, midi, 0])))
     absolute_events.sort(key=lambda item: (item[0], item[1][0], item[1][1] if len(item[1]) > 1 else 0))
@@ -100,11 +153,11 @@ def add_hit(samples, midi, seconds):
         add_decaying_sine(samples, 9800.0, seconds, 0.06, 0.30)
 
 
-def write_wav(path):
+def write_wav(path, hits):
     os.makedirs(os.path.dirname(path), exist_ok=True)
     samples = [0.0 for _ in range(int(DURATION_SECONDS * SAMPLE_RATE))]
     add_background_floor(samples)
-    for seconds, midi, _velocity in HITS:
+    for seconds, midi, _velocity in hits:
         add_hit(samples, midi, seconds)
     with wave.open(path, "wb") as wav:
         wav.setnchannels(2)
@@ -122,18 +175,20 @@ def write_fixture(root, recording_count=DEFAULT_RECORDING_COUNT):
     os.makedirs(os.path.join(root, "drummer1", "session1"), exist_ok=True)
     rows = []
     for index in range(1, recording_count + 1):
+        bpm = TEMPOS[(index - 1) % len(TEMPOS)]
+        hits = build_hits(bpm, index)
         stem = f"fixture_egmd_{index:03d}"
         midi_filename = f"drummer1/session1/{stem}.mid"
         audio_filename = f"drummer1/session1/{stem}.wav"
-        write_midi(os.path.join(root, midi_filename))
-        write_wav(os.path.join(root, audio_filename))
+        write_midi(os.path.join(root, midi_filename), hits, bpm)
+        write_wav(os.path.join(root, audio_filename), hits)
         rows.append(
             {
                 "drummer": "drummer1",
                 "session": "session1",
                 "id": stem,
                 "style": "fixture/rock",
-                "bpm": "120",
+                "bpm": str(bpm),
                 "beat_type": "beat",
                 "time_signature": "4-4",
                 "midi_filename": midi_filename,
