@@ -18,7 +18,7 @@ constexpr std::size_t kOverlayTitleWidth = 34;
 constexpr auto kAudaciousPollInterval = std::chrono::seconds(1);
 constexpr auto kScrollInterval = std::chrono::milliseconds(250);
 
-std::string sanitize_audacious_tuple_title(const std::string &value)
+std::string sanitize_audacious_tuple_text(const std::string &value)
 {
 	std::string output;
 	output.reserve(value.size());
@@ -69,19 +69,23 @@ std::string read_command_text(const char *command)
 		output += buffer;
 	}
 	pclose(pipe);
-	return sanitize_audacious_tuple_title(output);
+	return sanitize_audacious_tuple_text(output);
 #else
 	(void)command;
 	return {};
 #endif
 }
 
-std::string read_audacious_tuple_title()
+std::string read_audacious_tuple_field(const char *field)
 {
-	std::string title = read_command_text("audtool current-song-tuple-data title 2>/dev/null");
-	if (title.empty())
-		title = read_command_text("audtool --current-song-tuple-data title 2>/dev/null");
-	return title;
+	char command[160] = {};
+	std::snprintf(command, sizeof(command), "audtool current-song-tuple-data %s 2>/dev/null", field);
+	std::string value = read_command_text(command);
+	if (!value.empty())
+		return value;
+
+	std::snprintf(command, sizeof(command), "audtool --current-song-tuple-data %s 2>/dev/null", field);
+	return read_command_text(command);
 }
 
 class AudaciousOverlayPoller {
@@ -132,12 +136,14 @@ private:
 	{
 		for (;;) {
 			AudaciousNowPlaying next;
-			const std::string tuple_title = read_audacious_tuple_title();
+			const std::string tuple_title = read_audacious_tuple_field("title");
 			if (!tuple_title.empty()) {
+				const std::string tuple_artist = read_audacious_tuple_field("artist");
 				next.running = true;
-				next.song_title = tuple_title;
+				next.song_title = format_audacious_artist_title(tuple_artist, tuple_title);
 			} else {
 				next = read_audacious_now_playing();
+				next.song_title = format_audacious_artist_title({}, next.song_title);
 			}
 
 			{
