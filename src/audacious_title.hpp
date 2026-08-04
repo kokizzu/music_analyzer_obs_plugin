@@ -177,20 +177,12 @@ inline std::string strip_audacious_presentation_qualifiers(std::string title)
 	return strip_audacious_transport_suffixes(collapse_audacious_spaces(title));
 }
 
-inline std::string format_audacious_artist_title(std::string artist, std::string title)
+inline std::string clean_audacious_title(std::string title)
 {
-	artist = collapse_audacious_spaces(artist);
 	title = strip_audacious_presentation_qualifiers(collapse_audacious_spaces(title));
-	if (artist == "(null)" || artist == "null")
-		artist.clear();
 	if (title == "(null)" || title == "null")
 		title.clear();
-
-	if (artist.empty())
-		return title;
-	if (title.empty())
-		return artist;
-	return artist + " - " + title;
+	return title;
 }
 
 std::string find_audacious_window_title(const std::string &wmctrl_output);
