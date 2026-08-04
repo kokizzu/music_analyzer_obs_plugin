@@ -2,11 +2,18 @@
 
 #include <cassert>
 #include <iostream>
+#include <string>
 
 int main()
 {
 	using mao::extract_audacious_song_title;
+	using mao::find_audacious_window_title;
 	using mao::make_scrolling_title;
+
+	const std::string wmctrl_output =
+		"0x03a00007  0 audacious.Audacious host Artist - Album - Song title\n"
+		"0x03a00008  0 audacious.Audacious host Audacious Preferences\n";
+	assert(find_audacious_window_title(wmctrl_output) == "Artist - Album - Song title");
 
 	assert(extract_audacious_song_title("Artist - Album - Song title") == "Song title");
 	assert(extract_audacious_song_title("Artist - Album - Song - Live - Audacious") == "Song - Live");
