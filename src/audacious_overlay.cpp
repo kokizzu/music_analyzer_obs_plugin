@@ -203,7 +203,9 @@ obs_source_t *create_unicode_text_source()
 	obs_source_t *source = obs_source_create_private("text_ft2_source", nullptr, settings);
 	obs_data_release(font);
 	obs_data_release(settings);
-	if (!source)
+	if (source)
+		obs_source_inc_showing(source);
+	else
 		blog(LOG_WARNING, "Music Analyzer: OBS FreeType text source is unavailable; Unicode song title is disabled");
 	return source;
 }
@@ -271,8 +273,10 @@ void destroy_audacious_unicode_overlay(AudaciousUnicodeOverlay *overlay)
 {
 	if (!overlay)
 		return;
-	if (overlay->text_source)
+	if (overlay->text_source) {
+		obs_source_dec_showing(overlay->text_source);
 		obs_source_release(overlay->text_source);
+	}
 	delete overlay;
 }
 
