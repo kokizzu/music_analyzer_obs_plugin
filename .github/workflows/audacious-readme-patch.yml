@@ -1,15 +1,20 @@
 name: Temporary Audacious README patch
 
 on:
-  push:
+  pull_request:
     branches:
-      - agent/audacious-song-title-overlay
+      - master
+    types:
+      - opened
+      - synchronize
+      - reopened
 
 permissions:
   contents: write
 
 jobs:
   patch-readme-and-test:
+    if: github.event.pull_request.head.repo.full_name == github.repository && github.event.pull_request.head.ref == 'agent/audacious-song-title-overlay'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
