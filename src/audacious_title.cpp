@@ -7,6 +7,9 @@
 #include <string>
 #include <vector>
 
+#if defined(__linux__)
+#include <dirent.h>
+#endif
 #if defined(__unix__) || defined(__APPLE__)
 #include <sys/wait.h>
 #endif
@@ -103,6 +106,47 @@ CommandResult run_command(const char *command)
 	(void)command;
 #endif
 	return result;
+}
+
+bool is_decimal_pid(const char *name)
+{
+	if (!name || !*name)
+		return false;
+	for (const unsigned char *p = reinterpret_cast<const unsigned char *>(name); *p; ++p) {
+		if (!std::isdigit(*p))
+			return false;
+	}
+	return true;
+}
+
+bool audacious_process_running()
+{
+#if defined(__linux__)
+	DIR *proc = opendir("/proc");
+	if (!proc)
+		return false;
+
+	bool found = false;
+	while (dirent *entry = readdir(proc)) {
+		if (!is_decimal_pid(entry->d_name))
+			continue;
+		const std::string path = std::string("/proc/") + entry->d_name + "/comm";
+		FILE *file = std::fopen(path.c_str(), "r");
+		if (!file)
+			continue;
+		char comm[64] = {};
+		const bool read_ok = std::fgets(comm, sizeof(comm), file) != nullptr;
+		std::fclose(file);
+		if (read_ok && trim(comm) == "audacious") {
+			found = true;
+			break;
+		}
+	}
+	closedir(proc);
+	return found;
+#else
+	return false;
+#endif
 }
 
 std::string best_audacious_wmctrl_title(const std::string &output)
@@ -230,8 +274,7 @@ AudaciousNowPlaying read_audacious_now_playing()
 {
 	AudaciousNowPlaying now_playing;
 #if defined(__linux__)
-	const CommandResult process = run_command("pgrep -x audacious 2>/dev/null");
-	now_playing.running = process.exit_code == 0 && !trim(process.output).empty();
+	now_playing.running = audacious_process_running();
 	if (!now_playing.running)
 		return now_playing;
 
