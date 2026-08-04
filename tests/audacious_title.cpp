@@ -8,6 +8,7 @@ int main()
 {
 	using mao::extract_audacious_song_title;
 	using mao::find_audacious_window_title;
+	using mao::format_audacious_artist_title;
 	using mao::make_scrolling_title;
 
 	const std::string wmctrl_output =
@@ -21,6 +22,14 @@ int main()
 	assert(extract_audacious_song_title("Audacious - filename.mp3") == "filename.mp3");
 	assert(extract_audacious_song_title("filename.ogg [Audacious]") == "filename.ogg");
 	assert(extract_audacious_song_title("Artist - Album - Tést") == "T?st");
+
+	assert(format_audacious_artist_title("GMS Live", "Sambut Sang Raja (Official Video...) ") ==
+	       "GMS Live - Sambut Sang Raja");
+	assert(format_audacious_artist_title("GMS Live", "Sambut Sang Raja (Live at Jakarta)") ==
+	       "GMS Live - Sambut Sang Raja");
+	assert(format_audacious_artist_title("", "Sambut Sang Raja (Official Video)") == "Sambut Sang Raja");
+	assert(format_audacious_artist_title("GMS Live", "Sambut Sang Raja") ==
+	       "GMS Live - Sambut Sang Raja");
 
 	assert(make_scrolling_title("Short", 12, 100) == "Short");
 	assert(make_scrolling_title("ABCDEFGHIJ", 5, 0) == "ABCDE");
