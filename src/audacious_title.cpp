@@ -50,7 +50,7 @@ std::string collapse_whitespace(const std::string &value)
 	output.reserve(value.size());
 	bool pending_space = false;
 	for (unsigned char c : value) {
-		if (std::isspace(c)) {
+		if (c < 0x80 && std::isspace(c)) {
 			pending_space = !output.empty();
 			continue;
 		}
@@ -62,7 +62,20 @@ std::string collapse_whitespace(const std::string &value)
 	return trim(output);
 }
 
-std::string visualizer_safe_ascii(const std::string &value)
+std::size_t utf8_sequence_length(unsigned char lead)
+{
+	if (lead < 0x80)
+		return 1;
+	if ((lead & 0xe0) == 0xc0)
+		return 2;
+	if ((lead & 0xf0) == 0xe0)
+		return 3;
+	if ((lead & 0xf8) == 0xf0)
+		return 4;
+	return 0;
+}
+
+std::string visualizer_safe_utf8(const std::string &value)
 {
 	std::string output;
 	output.reserve(value.size());
@@ -77,12 +90,44 @@ std::string visualizer_safe_ascii(const std::string &value)
 			continue;
 		}
 
-		output.push_back('?');
-		++i;
-		while (i < value.size() && (static_cast<unsigned char>(value[i]) & 0xc0) == 0x80)
+		const std::size_t length = utf8_sequence_length(c);
+		bool valid = length > 1 && i + length <= value.size();
+		for (std::size_t j = 1; valid && j < length; ++j) {
+			if ((static_cast<unsigned char>(value[i + j]) & 0xc0) != 0x80)
+				valid = false;
+		}
+		if (!valid) {
+			output.push_back('?');
 			++i;
+			continue;
+		}
+		output.append(value, i, length);
+		i += length;
 	}
 	return collapse_whitespace(output);
+}
+
+std::vector<std::string> utf8_units(const std::string &value)
+{
+	std::vector<std::string> units;
+	for (std::size_t i = 0; i < value.size();) {
+		const unsigned char c = static_cast<unsigned char>(value[i]);
+		std::size_t length = utf8_sequence_length(c);
+		if (length == 0 || i + length > value.size())
+			length = 1;
+		bool valid = true;
+		for (std::size_t j = 1; j < length; ++j) {
+			if ((static_cast<unsigned char>(value[i + j]) & 0xc0) != 0x80) {
+				valid = false;
+				break;
+			}
+		}
+		if (!valid)
+			length = 1;
+		units.emplace_back(value.substr(i, length));
+		i += length;
+	}
+	return units;
 }
 
 CommandResult run_command(const char *command)
@@ -251,22 +296,24 @@ std::string extract_audacious_song_title(const std::string &titlebar)
 		song = title;
 	}
 
-	return visualizer_safe_ascii(trim(song));
+	return visualizer_safe_utf8(strip_audacious_presentation_qualifiers(trim(song)));
 }
 
 std::string make_scrolling_title(const std::string &title, std::size_t width, std::size_t offset)
 {
 	if (width == 0 || title.empty())
 		return {};
-	if (title.size() <= width)
+	const std::vector<std::string> title_units = utf8_units(title);
+	if (title_units.size() <= width)
 		return title;
 
-	const std::string loop = title + "   ---   ";
+	std::vector<std::string> loop = title_units;
+	const std::vector<std::string> gap_units = utf8_units("   ---   ");
+	loop.insert(loop.end(), gap_units.begin(), gap_units.end());
 	offset %= loop.size();
 	std::string output;
-	output.reserve(width);
 	for (std::size_t i = 0; i < width; ++i)
-		output.push_back(loop[(offset + i) % loop.size()]);
+		output += loop[(offset + i) % loop.size()];
 	return output;
 }
 
@@ -292,7 +339,7 @@ AudaciousNowPlaying read_audacious_now_playing()
 	if (now_playing.song_title.empty()) {
 		const CommandResult filename = run_command("audtool current-song-filename 2>/dev/null");
 		if (filename.exit_code == 0)
-			now_playing.song_title = visualizer_safe_ascii(basename_from_uri_or_path(filename.output));
+			now_playing.song_title = visualizer_safe_utf8(basename_from_uri_or_path(filename.output));
 	}
 #else
 	now_playing.running = false;
