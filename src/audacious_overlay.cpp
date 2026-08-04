@@ -1,10 +1,5 @@
-#include "audacious_overlay.hpp"
 #include "audacious_title.hpp"
 #include "visualizer_renderer.hpp"
-
-#include <obs-module.h>
-#include <obs.h>
-#include <graphics/graphics.h>
 
 #include <algorithm>
 #include <cctype>
@@ -19,30 +14,37 @@
 namespace mao {
 namespace {
 
+constexpr std::size_t kOverlayTitleWidth = 34;
 constexpr auto kAudaciousPollInterval = std::chrono::seconds(1);
-constexpr auto kTitleScrollInterval = std::chrono::milliseconds(250);
-constexpr std::size_t kTitleWindowCharacters = 28;
-constexpr float kTitleStartX = 316.0f;
-constexpr float kTitleTopY = 12.0f;
-constexpr float kTitleTargetHeight = 24.0f;
-constexpr float kTitleRightMargin = 28.0f;
+constexpr auto kScrollInterval = std::chrono::milliseconds(250);
 
 std::string sanitize_audacious_tuple_text(const std::string &value)
 {
 	std::string output;
 	output.reserve(value.size());
 	bool pending_space = false;
-	for (const unsigned char c : value) {
-		if (c < 0x80 && std::isspace(c)) {
-			pending_space = !output.empty();
+	for (std::size_t i = 0; i < value.size();) {
+		const unsigned char c = static_cast<unsigned char>(value[i]);
+		if (c < 0x80) {
+			if (std::isspace(c)) {
+				pending_space = !output.empty();
+			} else if (c >= 0x20 && c != 0x7f) {
+				if (pending_space)
+					output.push_back(' ');
+				output.push_back(static_cast<char>(c));
+				pending_space = false;
+			}
+			++i;
 			continue;
 		}
-		if (c < 0x20 || c == 0x7f)
-			continue;
+
 		if (pending_space)
 			output.push_back(' ');
-		output.push_back(static_cast<char>(c));
+		output.push_back('?');
 		pending_space = false;
+		++i;
+		while (i < value.size() && (static_cast<unsigned char>(value[i]) & 0xc0) == 0x80)
+			++i;
 	}
 
 	while (!output.empty() && output.back() == ' ')
@@ -86,25 +88,6 @@ std::string read_audacious_tuple_field(const char *field)
 	return read_command_text(command);
 }
 
-std::string resolve_unicode_font_face()
-{
-#if defined(__linux__)
-	std::string face = read_command_text("fc-match -f '%{family[0]}' 'sans-serif:lang=ja' 2>/dev/null");
-	const std::size_t comma = face.find(',');
-	if (comma != std::string::npos)
-		face.resize(comma);
-	face = trim_audacious_field(face);
-	if (!face.empty())
-		return face;
-#endif
-	return "Sans Serif";
-}
-
-struct AudaciousDisplaySnapshot {
-	std::string text;
-	std::chrono::steady_clock::time_point started = std::chrono::steady_clock::now();
-};
-
 class AudaciousOverlayPoller {
 public:
 	AudaciousOverlayPoller() : worker_(&AudaciousOverlayPoller::worker_loop, this) {}
@@ -120,20 +103,32 @@ public:
 			worker_.join();
 	}
 
-	AudaciousDisplaySnapshot display_snapshot() const
+	std::string display_text() const
 	{
-		std::lock_guard<std::mutex> lock(mutex_);
-		AudaciousDisplaySnapshot snapshot;
-		snapshot.started = title_started_;
-		if (!initialized_)
-			snapshot.text = "AUDACIOUS CHECKING";
-		else if (!now_playing_.running)
-			snapshot.text = "AUDACIOUS NOT RUNNING";
-		else if (now_playing_.song_title.empty())
-			snapshot.text = "AUDACIOUS TITLE UNAVAILABLE";
-		else
-			snapshot.text = now_playing_.song_title;
-		return snapshot;
+		AudaciousNowPlaying current;
+		std::chrono::steady_clock::time_point title_started;
+		bool initialized = false;
+		{
+			std::lock_guard<std::mutex> lock(mutex_);
+			current = now_playing_;
+			title_started = title_started_;
+			initialized = initialized_;
+		}
+
+		if (!initialized)
+			return "AUDACIOUS CHECKING";
+		if (!current.running)
+			return "AUDACIOUS NOT RUNNING";
+		if (current.song_title.empty())
+			return "AUDACIOUS TITLE UNAVAILABLE";
+		if (current.song_title.size() <= kOverlayTitleWidth)
+			return current.song_title;
+
+		const auto elapsed = std::chrono::steady_clock::now() - title_started;
+		const auto step_count = std::chrono::duration_cast<std::chrono::milliseconds>(elapsed).count() /
+					kScrollInterval.count();
+		return make_scrolling_title(current.song_title, kOverlayTitleWidth,
+					    static_cast<std::size_t>(std::max<int64_t>(0, step_count)));
 	}
 
 private:
@@ -174,71 +169,10 @@ private:
 	bool stop_ = false;
 };
 
-AudaciousOverlayPoller &audacious_poller()
+std::string audacious_overlay_text()
 {
 	static AudaciousOverlayPoller poller;
-	return poller;
-}
-
-obs_source_t *create_unicode_text_source()
-{
-	obs_data_t *settings = obs_data_create();
-	obs_data_t *font = obs_data_create();
-	const std::string face = resolve_unicode_font_face();
-	obs_data_set_string(font, "face", face.c_str());
-	obs_data_set_string(font, "style", "");
-	obs_data_set_int(font, "size", 32);
-	obs_data_set_int(font, "flags", 0);
-	obs_data_set_obj(settings, "font", font);
-	obs_data_set_string(settings, "text", "AUDACIOUS CHECKING");
-	obs_data_set_bool(settings, "from_file", false);
-	obs_data_set_bool(settings, "antialiasing", true);
-	obs_data_set_bool(settings, "word_wrap", false);
-	obs_data_set_bool(settings, "outline", false);
-	obs_data_set_bool(settings, "drop_shadow", false);
-	obs_data_set_int(settings, "custom_width", 0);
-	obs_data_set_int(settings, "color1", 0xffffffff);
-	obs_data_set_int(settings, "color2", 0xffffffff);
-
-	obs_source_t *source = obs_source_create_private("text_ft2_source", nullptr, settings);
-	obs_data_release(font);
-	obs_data_release(settings);
-	if (source)
-		obs_source_inc_showing(source);
-	else
-		blog(LOG_WARNING, "Music Analyzer: OBS FreeType text source is unavailable; Unicode song title is disabled");
-	return source;
-}
-
-void draw_text_source(obs_source_t *source, float x, float y, float scale)
-{
-	gs_matrix_push();
-	gs_matrix_translate3f(x, y, 0.0f);
-	gs_matrix_scale3f(scale, scale, 1.0f);
-	obs_source_video_render(source);
-	gs_matrix_pop();
-}
-
-} // namespace
-
-struct AudaciousUnicodeOverlay {
-	obs_source_t *text_source = nullptr;
-	std::string full_text;
-	std::string rendered_text;
-	std::chrono::steady_clock::time_point started = std::chrono::steady_clock::now();
-};
-
-namespace {
-
-struct GlobalOverlayHolder {
-	AudaciousUnicodeOverlay *overlay = create_audacious_unicode_overlay(nullptr);
-	~GlobalOverlayHolder() { destroy_audacious_unicode_overlay(overlay); }
-};
-
-AudaciousUnicodeOverlay *global_audacious_unicode_overlay()
-{
-	static GlobalOverlayHolder holder;
-	return holder.overlay;
+	return poller.display_text();
 }
 
 } // namespace
@@ -247,89 +181,12 @@ void render_visualizer_with_audacious(VisualizerRenderer *visualizer, const Anal
 				      float snapshot_age)
 {
 #if defined(__linux__)
-	tick_audacious_unicode_overlay(global_audacious_unicode_overlay());
 	AnalysisSnapshot display_snapshot = snapshot;
-	display_snapshot.source[0] = ' ';
-	display_snapshot.source[1] = '\0';
+	const std::string title = audacious_overlay_text();
+	std::snprintf(display_snapshot.source, sizeof(display_snapshot.source), "%s", title.c_str());
 	render_visualizer(visualizer, display_snapshot, snapshot_age);
 #else
 	render_visualizer(visualizer, snapshot, snapshot_age);
-#endif
-}
-
-AudaciousUnicodeOverlay *create_audacious_unicode_overlay(obs_source_t *)
-{
-#if defined(__linux__)
-	auto *overlay = new AudaciousUnicodeOverlay();
-	overlay->text_source = create_unicode_text_source();
-	tick_audacious_unicode_overlay(overlay);
-	return overlay;
-#else
-	return nullptr;
-#endif
-}
-
-void destroy_audacious_unicode_overlay(AudaciousUnicodeOverlay *overlay)
-{
-	if (!overlay)
-		return;
-	if (overlay->text_source) {
-		obs_source_dec_showing(overlay->text_source);
-		obs_source_release(overlay->text_source);
-	}
-	delete overlay;
-}
-
-void tick_audacious_unicode_overlay(AudaciousUnicodeOverlay *overlay)
-{
-	if (!overlay || !overlay->text_source)
-		return;
-
-	const AudaciousDisplaySnapshot snapshot = audacious_poller().display_snapshot();
-	if (snapshot.text != overlay->full_text) {
-		overlay->full_text = snapshot.text;
-		overlay->started = snapshot.started;
-		overlay->rendered_text.clear();
-	}
-
-	const auto elapsed = std::chrono::steady_clock::now() - overlay->started;
-	const auto steps = std::chrono::duration_cast<std::chrono::milliseconds>(elapsed).count() /
-			   kTitleScrollInterval.count();
-	const std::string visible = make_scrolling_title(overlay->full_text, kTitleWindowCharacters,
-						       static_cast<std::size_t>(std::max<int64_t>(0, steps)));
-	if (visible == overlay->rendered_text)
-		return;
-
-	overlay->rendered_text = visible;
-	obs_data_t *settings = obs_source_get_settings(overlay->text_source);
-	obs_data_set_string(settings, "text", overlay->rendered_text.c_str());
-	obs_source_update(overlay->text_source, settings);
-	obs_data_release(settings);
-}
-
-void render_audacious_unicode_overlay(AudaciousUnicodeOverlay *overlay, uint32_t width, uint32_t)
-{
-	if (!overlay || !overlay->text_source || width <= static_cast<uint32_t>(kTitleStartX + kTitleRightMargin))
-		return;
-
-	const uint32_t source_width = obs_source_get_width(overlay->text_source);
-	const uint32_t source_height = obs_source_get_height(overlay->text_source);
-	if (source_width == 0 || source_height == 0)
-		return;
-
-	const float available_width = static_cast<float>(width) - kTitleStartX - kTitleRightMargin;
-	const float height_scale = kTitleTargetHeight / static_cast<float>(source_height);
-	const float width_scale = available_width / static_cast<float>(source_width);
-	const float scale = std::min(height_scale, width_scale);
-	draw_text_source(overlay->text_source, kTitleStartX, kTitleTopY, scale);
-}
-
-void audacious_obs_source_draw(gs_texture_t *texture, uint32_t x, uint32_t y, uint32_t width, uint32_t height,
-			      bool flip)
-{
-	::obs_source_draw(texture, x, y, width, height, flip);
-#if defined(__linux__)
-	render_audacious_unicode_overlay(global_audacious_unicode_overlay(), width, height);
 #endif
 }
 
