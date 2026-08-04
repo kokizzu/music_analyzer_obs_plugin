@@ -23,6 +23,42 @@ inline std::string trim_audacious_field(std::string value)
 	return value.substr(begin, end - begin);
 }
 
+inline std::string collapse_audacious_spaces(const std::string &value)
+{
+	std::string output;
+	output.reserve(value.size());
+	bool pending_space = false;
+	for (const unsigned char c : value) {
+		if (c < 0x80 && std::isspace(c)) {
+			pending_space = !output.empty();
+			continue;
+		}
+		if (pending_space)
+			output.push_back(' ');
+		output.push_back(static_cast<char>(c));
+		pending_space = false;
+	}
+	return trim_audacious_field(output);
+}
+
+inline std::string lower_audacious_ascii(std::string value)
+{
+	for (char &c : value) {
+		const unsigned char byte = static_cast<unsigned char>(c);
+		if (byte < 0x80)
+			c = static_cast<char>(std::tolower(byte));
+	}
+	return value;
+}
+
+inline bool ends_with_audacious_ascii(const std::string &value, const std::string &suffix)
+{
+	if (suffix.size() > value.size())
+		return false;
+	return lower_audacious_ascii(value.substr(value.size() - suffix.size())) ==
+	       lower_audacious_ascii(suffix);
+}
+
 inline std::string normalize_audacious_qualifier(const std::string &value)
 {
 	std::string normalized;
@@ -40,16 +76,76 @@ inline std::string normalize_audacious_qualifier(const std::string &value)
 	return normalized;
 }
 
+inline bool audacious_qualifier_has_word(const std::string &qualifier, const std::string &word)
+{
+	std::size_t start = 0;
+	while (start < qualifier.size()) {
+		const std::size_t end = qualifier.find(' ', start);
+		const std::size_t length = end == std::string::npos ? qualifier.size() - start : end - start;
+		if (qualifier.compare(start, length, word) == 0)
+			return true;
+		if (end == std::string::npos)
+			break;
+		start = end + 1;
+	}
+	return false;
+}
+
 inline bool is_removable_audacious_qualifier(const std::string &value)
 {
 	const std::string qualifier = normalize_audacious_qualifier(value);
-	return qualifier == "live" || qualifier == "live video" || qualifier == "live performance" ||
-	       qualifier == "music video" || qualifier == "lyric video" || qualifier == "lyrics video" ||
-	       qualifier == "official video" || qualifier == "official music video" ||
-	       qualifier == "official lyric video" || qualifier == "official lyrics video" ||
-	       qualifier == "official audio" || qualifier == "official visualizer" || qualifier == "official mv" ||
-	       qualifier == "official live" || qualifier == "official live video" ||
-	       qualifier == "official performance" || qualifier == "official live performance";
+	if (qualifier.empty())
+		return false;
+	if (qualifier == "live" || qualifier == "live video" || qualifier == "live performance" ||
+	    qualifier == "music video" || qualifier == "video music" || qualifier == "lyric video" ||
+	    qualifier == "lyrics video")
+		return true;
+
+	const bool official = audacious_qualifier_has_word(qualifier, "official");
+	const bool presentation = audacious_qualifier_has_word(qualifier, "video") ||
+				  audacious_qualifier_has_word(qualifier, "audio") ||
+				  audacious_qualifier_has_word(qualifier, "visualizer") ||
+				  audacious_qualifier_has_word(qualifier, "mv") ||
+				  audacious_qualifier_has_word(qualifier, "live") ||
+				  audacious_qualifier_has_word(qualifier, "performance") ||
+				  audacious_qualifier_has_word(qualifier, "lyric") ||
+				  audacious_qualifier_has_word(qualifier, "lyrics") ||
+				  audacious_qualifier_has_word(qualifier, "music");
+	if (official && presentation)
+		return true;
+
+	const bool lyric_video = (audacious_qualifier_has_word(qualifier, "lyric") ||
+				  audacious_qualifier_has_word(qualifier, "lyrics")) &&
+				 audacious_qualifier_has_word(qualifier, "video");
+	return lyric_video;
+}
+
+inline std::string strip_audacious_transport_suffixes(std::string title)
+{
+	title = trim_audacious_field(title);
+	static constexpr const char *kSuffixes[] = {
+		" - music-yt",
+		" .music-yt",
+		"_music-yt",
+		".music-yt",
+		" music-yt",
+		"-music-yt",
+	};
+
+	bool removed = true;
+	while (removed && !title.empty()) {
+		removed = false;
+		for (const char *suffix : kSuffixes) {
+			const std::string suffix_text(suffix);
+			if (!ends_with_audacious_ascii(title, suffix_text))
+				continue;
+			title.resize(title.size() - suffix_text.size());
+			title = trim_audacious_field(title);
+			removed = true;
+			break;
+		}
+	}
+	return title;
 }
 
 inline std::string strip_audacious_presentation_qualifiers(std::string title)
@@ -78,13 +174,13 @@ inline std::string strip_audacious_presentation_qualifiers(std::string title)
 		title.erase(erase_begin, end - erase_begin + 1);
 		pos = erase_begin;
 	}
-	return trim_audacious_field(title);
+	return strip_audacious_transport_suffixes(collapse_audacious_spaces(title));
 }
 
 inline std::string format_audacious_artist_title(std::string artist, std::string title)
 {
-	artist = trim_audacious_field(artist);
-	title = strip_audacious_presentation_qualifiers(trim_audacious_field(title));
+	artist = collapse_audacious_spaces(artist);
+	title = strip_audacious_presentation_qualifiers(collapse_audacious_spaces(title));
 	if (artist == "(null)" || artist == "null")
 		artist.clear();
 	if (title == "(null)" || title == "null")
