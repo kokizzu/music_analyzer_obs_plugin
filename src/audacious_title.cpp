@@ -116,9 +116,9 @@ std::string best_audacious_wmctrl_title(const std::string &output)
 		std::istringstream fields(line);
 		std::string window_id;
 		std::string desktop;
-		std::string host;
 		std::string window_class;
-		if (!(fields >> window_id >> desktop >> host >> window_class))
+		std::string host;
+		if (!(fields >> window_id >> desktop >> window_class >> host))
 			continue;
 		if (lower_ascii(window_class).find("audacious") == std::string::npos)
 			continue;
@@ -161,6 +161,11 @@ std::string basename_from_uri_or_path(std::string value)
 }
 
 } // namespace
+
+std::string find_audacious_window_title(const std::string &wmctrl_output)
+{
+	return best_audacious_wmctrl_title(wmctrl_output);
+}
 
 std::string extract_audacious_song_title(const std::string &titlebar)
 {
