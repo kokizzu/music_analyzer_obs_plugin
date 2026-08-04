@@ -2,6 +2,7 @@
 #include "visualizer_renderer.hpp"
 
 #include <algorithm>
+#include <cctype>
 #include <chrono>
 #include <condition_variable>
 #include <cstdint>
@@ -16,6 +17,61 @@ namespace {
 constexpr std::size_t kOverlayTitleWidth = 34;
 constexpr auto kAudaciousPollInterval = std::chrono::seconds(1);
 constexpr auto kScrollInterval = std::chrono::milliseconds(250);
+
+std::string sanitize_audacious_tuple_title(const std::string &value)
+{
+	std::string output;
+	output.reserve(value.size());
+	bool pending_space = false;
+	for (std::size_t i = 0; i < value.size();) {
+		const unsigned char c = static_cast<unsigned char>(value[i]);
+		if (c < 0x80) {
+			if (std::isspace(c)) {
+				pending_space = !output.empty();
+			} else if (c >= 0x20 && c != 0x7f) {
+				if (pending_space)
+					output.push_back(' ');
+				output.push_back(static_cast<char>(c));
+				pending_space = false;
+			}
+			++i;
+			continue;
+		}
+
+		if (pending_space)
+			output.push_back(' ');
+		output.push_back('?');
+		pending_space = false;
+		++i;
+		while (i < value.size() && (static_cast<unsigned char>(value[i]) & 0xc0) == 0x80)
+			++i;
+	}
+
+	while (!output.empty() && output.back() == ' ')
+		output.pop_back();
+	return output;
+}
+
+std::string read_audacious_tuple_title()
+{
+#if defined(__linux__)
+	FILE *pipe = popen("audtool current-song-tuple-data title 2>/dev/null", "r");
+	if (!pipe)
+		return {};
+
+	std::string output;
+	char buffer[512] = {};
+	while (std::fgets(buffer, sizeof(buffer), pipe)) {
+		if (output.size() >= 4096)
+			break;
+		output += buffer;
+	}
+	pclose(pipe);
+	return sanitize_audacious_tuple_title(output);
+#else
+	return {};
+#endif
+}
 
 class AudaciousOverlayPoller {
 public:
@@ -64,7 +120,15 @@ private:
 	void worker_loop()
 	{
 		for (;;) {
-			const AudaciousNowPlaying next = read_audacious_now_playing();
+			AudaciousNowPlaying next;
+			const std::string tuple_title = read_audacious_tuple_title();
+			if (!tuple_title.empty()) {
+				next.running = true;
+				next.song_title = tuple_title;
+			} else {
+				next = read_audacious_now_playing();
+			}
+
 			{
 				std::lock_guard<std::mutex> lock(mutex_);
 				if (next.song_title != now_playing_.song_title || next.running != now_playing_.running)
