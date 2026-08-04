@@ -2,17 +2,18 @@
 
 ## Audacious Song Title in the OBS Overlay
 
-On Linux, the OBS plugin replaces the input/source-name text in the `MUSIC ANALYZER` header with Audacious's current `Artist - Song title`. This is OBS-only; the standalone and Android renderers keep their existing input/source labels.
+On Linux, the OBS plugin replaces the input/source-name text in the `MUSIC ANALYZER` header with Audacious's cleaned **Title** field. Audacious Artist and Album metadata are deliberately ignored. This is OBS-only; the standalone and Android renderers keep their existing input/source labels.
 
 ### Detection and display rules
 
-- The normal fast path asks `audtool current-song-tuple-data artist` and `audtool current-song-tuple-data title` for dedicated metadata fields. This avoids depending on a customized or truncated titlebar such as `playlist - output - artist - song title`.
-- The displayed value combines the available fields as `Artist - Song title`; if either field is missing, the available field is shown by itself.
+- The normal fast path asks only `audtool current-song-tuple-data title` for the dedicated Title field.
+- Artist and Album are ignored. In the reported setup, Artist is `music-yt`, Album is `flac_output`, and the wanted `GMS Live - Sambut Sang Raja ...` text is already entirely inside Title.
+- For example, `GMS Live - Sambut Sang Raja (Official Music Video) [drKw4ogAqsAJ]` becomes `GMS Live - Sambut Sang Raja [drKw4ogAqsAJ]`.
 - Presentation-only groups are removed selectively. Recognized forms include `(Live)`, `(Official Video)`, `(Official Music Video)`, `(Official Video Music)`, `(Official Lyric Video)`, `(Official Lyrics Video)`, official-audio/visualizer equivalents, and the same labels in square brackets.
 - Ordinary descriptive groups are preserved. For example, `OCEANS (Pop-Punk Cover) [OVvN_YzWEgc]` remains unchanged.
 - YouTube ID groups are preserved with their brackets. Trailing transport markers such as `music-yt` and `.music-yt` are removed, so `OCEANS (Official Video Music) [OVvN_YzWEgc] music-yt` becomes `OCEANS [OVvN_YzWEgc]`.
-- If the dedicated title tuple is unavailable, the plugin checks Audacious through Linux `/proc`, reads `wmctrl -lx`, and selects the most likely Audacious playback window.
-- The titlebar fallback accepts `Artist - Album - Song title/filename`, a two-field `Artist - filename.flac`, or a plain title/filename.
+- If the dedicated Title tuple is unavailable, the plugin checks Audacious through Linux `/proc`, reads `wmctrl -lx`, and selects the most likely Audacious playback window.
+- The customized titlebar fallback accepts `playlist - output - artist - song title/filename`; the first two fields are discarded and the remaining artist/title portion is retained.
 - Optional Audacious application decorations such as ` - Audacious`, `[Audacious]`, and an `Audacious - ` prefix are removed.
 - When neither the tuple nor a usable window title is available, including native Wayland windows hidden from `wmctrl`, the plugin falls back to `audtool current-song`, then to the basename from `audtool current-song-filename`.
 - Before the first background check completes, the header shows `AUDACIOUS CHECKING`.
@@ -35,8 +36,8 @@ On Linux, the OBS plugin replaces the input/source-name text in the `MUSIC ANALY
 ### Efficiency requirements
 
 - Audacious metadata detection runs only in a lazy background poller, at most once per second.
-- The usual tuple path launches short `audtool` queries per poll and skips `/proc` plus `wmctrl` when successful.
-- `/proc`, `wmctrl`, and the additional fallback commands run only when the tuple-title path fails.
+- The usual tuple path launches one short `audtool` Title query per poll and skips `/proc` plus `wmctrl` when successful.
+- `/proc`, `wmctrl`, and the additional fallback commands run only when the Title tuple path fails.
 - The render path uses only the cached metadata and current marquee window; it performs no external metadata command.
 - Unicode rendering touches only the small header region in the existing CPU pixel buffer.
 - The analyzer audio callback, analyzer ring buffer, DSP worker, OBS source registration, and texture upload path are unchanged.
@@ -44,7 +45,7 @@ On Linux, the OBS plugin replaces the input/source-name text in the `MUSIC ANALY
 
 ### Runtime dependencies
 
-- `audtool` supplies the preferred artist/title tuples and fallback title/filename data.
+- `audtool` supplies the preferred Title tuple and fallback title/filename data.
 - The normal Pop!_OS/Ubuntu desktop Pango, PangoCairo, Cairo, and GLib runtime libraries provide Unicode rasterization. The plugin loads their versioned shared libraries dynamically.
 - An installed Japanese-capable system font, such as Noto Sans CJK, is required for Japanese glyphs. Pango automatically chooses an appropriate fallback font.
 - Linux `/proc` is used for fallback process detection.
