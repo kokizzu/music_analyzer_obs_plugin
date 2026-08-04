@@ -8,18 +8,20 @@ On Linux, the OBS plugin replaces the input/source-name text in the `MUSIC ANALY
 
 - The normal fast path asks only `audtool current-song-tuple-data title` for the dedicated Title field.
 - Artist and Album are ignored. In the reported setup, Artist is `music-yt`, Album is `flac_output`, and the wanted `GMS Live - Sambut Sang Raja ...` text is already entirely inside Title.
-- For example, `GMS Live - Sambut Sang Raja (Official Music Video) [drKw4ogAqsAJ]` becomes `GMS Live - Sambut Sang Raja [drKw4ogAqsAJ]`.
+- The exact fallback format is `Artist - Album - Title (extra) [youtubeID]`. The first two fields are discarded, and only the cleaned `Title [youtubeID]` portion is rendered.
+- For example, `music-yt - flac_output - GMS Live - Sambut Sang Raja (Official Music Video) [drKw4ogAqsAJ]` becomes `GMS Live - Sambut Sang Raja [drKw4ogAqsAJ]`.
 - Presentation-only groups are removed selectively. Recognized forms include `(Live)`, `(Official Video)`, `(Official Music Video)`, `(Official Video Music)`, `(Official Lyric Video)`, `(Official Lyrics Video)`, official-audio/visualizer equivalents, and the same labels in square brackets.
 - Ordinary descriptive groups are preserved. For example, `OCEANS (Pop-Punk Cover) [OVvN_YzWEgc]` remains unchanged.
 - YouTube ID groups are preserved with their brackets. Trailing transport markers such as `music-yt` and `.music-yt` are removed, so `OCEANS (Official Video Music) [OVvN_YzWEgc] music-yt` becomes `OCEANS [OVvN_YzWEgc]`.
 - If the dedicated Title tuple is unavailable, the plugin checks Audacious through Linux `/proc`, reads `wmctrl -lx`, and selects the most likely Audacious playback window.
-- The customized titlebar fallback accepts `playlist - output - artist - song title/filename`; the first two fields are discarded and the remaining artist/title portion is retained.
 - Optional Audacious application decorations such as ` - Audacious`, `[Audacious]`, and an `Audacious - ` prefix are removed.
 - When neither the tuple nor a usable window title is available, including native Wayland windows hidden from `wmctrl`, the plugin falls back to `audtool current-song`, then to the basename from `audtool current-song-filename`.
 - Before the first background check completes, the header shows `AUDACIOUS CHECKING`.
 - When Audacious is not running, the header shows `AUDACIOUS NOT RUNNING`.
 - When Audacious is running but no usable title is available, the header shows `AUDACIOUS TITLE UNAVAILABLE`.
-- Long titles advance one UTF-8 code point every 250 ms and loop with a visible separator. Multibyte characters are never split.
+- The title starts immediately after the existing `MUSIC ANALYZER` heading at x=316.
+- The muted/silent microphone marker starts at `width - 52`. The title ends 8 pixels before it, so the title region is `width - 376` pixels wide. At the default 960-pixel source width, the title receives the full 584-pixel region from x=316 through x=899.
+- Long Unicode titles scroll by pixels across that entire region at 52 pixels per second and loop with an 80-pixel gap. They are no longer limited to a fixed 34-character window.
 - Japanese and other Unicode text is rasterized directly into the analyzer's existing RGBA pixel buffer through the system Pango/Cairo runtime. No nested OBS source, source-registration change, or alternate texture path is used.
 - If the runtime Unicode libraries are unavailable, the renderer reruns the original bitmap path as a safety fallback; failure of the title layer cannot remove the keyboard, guitar, drums, or status display.
 
@@ -31,15 +33,15 @@ On Linux, the OBS plugin replaces the input/source-name text in the `MUSIC ANALY
 - CMake builds include the same sources and link through the platform dynamic-loader library.
 - The Makefile path forces `plugin.o` to rebuild after this integration is pulled, preventing a stale object from being reinstalled.
 - Run `make test-audacious-title` for metadata-cleanup and UTF-8 marquee tests.
-- Run `make test-audacious-unicode` for an actual Japanese text rasterization test.
+- Run `make test-audacious-unicode` for Japanese rasterization, full-width clipping, and scrolling coverage.
 
 ### Efficiency requirements
 
 - Audacious metadata detection runs only in a lazy background poller, at most once per second.
 - The usual tuple path launches one short `audtool` Title query per poll and skips `/proc` plus `wmctrl` when successful.
 - `/proc`, `wmctrl`, and the additional fallback commands run only when the Title tuple path fails.
-- The render path uses only the cached metadata and current marquee window; it performs no external metadata command.
-- Unicode rendering touches only the small header region in the existing CPU pixel buffer.
+- The render path uses only cached metadata and elapsed time; it performs no external metadata command.
+- Unicode rendering touches only the small title region in the existing CPU pixel buffer.
 - The analyzer audio callback, analyzer ring buffer, DSP worker, OBS source registration, and texture upload path are unchanged.
 - The poller starts lazily when the OBS-aware renderer is first used and stops cleanly when the plugin unloads.
 
