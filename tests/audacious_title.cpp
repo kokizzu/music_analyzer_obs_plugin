@@ -38,6 +38,13 @@ int main()
 	assert(format_audacious_artist_title("GMS Live", "Sambut Sang Raja (Live at Jakarta)") ==
 	       "GMS Live - Sambut Sang Raja (Live at Jakarta)");
 
+	// Real Audacious metadata from the reported setup: Artist is "music-yt",
+	// Album is "flac_output", and the complete wanted display is already in Title.
+	// The OBS poller intentionally passes an empty artist and cleans only Title.
+	assert(format_audacious_artist_title(
+		       "", "GMS Live - Sambut Sang Raja (Official Music Video) [drKw4ogAqsAJ]") ==
+	       "GMS Live - Sambut Sang Raja [drKw4ogAqsAJ]");
+
 	assert(format_audacious_artist_title("", "OCEANS (Pop-Punk Cover) [OVvN_YzWEgc]") ==
 	       "OCEANS (Pop-Punk Cover) [OVvN_YzWEgc]");
 	assert(format_audacious_artist_title("", "OCEANS (Official Music Video) [OVvN_YzWEgc]") ==
