@@ -292,11 +292,11 @@ void render_audacious_unicode_overlay(AudaciousUnicodeOverlay *overlay, uint32_t
 	const gs_rect clip = {static_cast<int>(kTitleStartX), 8, static_cast<int>(available_width), 34};
 	gs_set_scissor_rect(&clip);
 
-	float offset = 0.0f;
 	if (scaled_width > available_width) {
 		const float elapsed = std::chrono::duration<float>(std::chrono::steady_clock::now() - overlay->started).count();
 		const float cycle_width = scaled_width + kTitleScrollGap;
-		offset = std::fmod(std::max(0.0f, elapsed) * kTitleScrollPixelsPerSecond, cycle_width);
+		const float offset =
+			std::fmod(std::max(0.0f, elapsed) * kTitleScrollPixelsPerSecond, cycle_width);
 		draw_text_source(overlay->text_source, kTitleStartX - offset, kTitleTopY, scale);
 		draw_text_source(overlay->text_source, kTitleStartX - offset + cycle_width, kTitleTopY, scale);
 	} else {
@@ -304,6 +304,21 @@ void render_audacious_unicode_overlay(AudaciousUnicodeOverlay *overlay, uint32_t
 	}
 
 	gs_set_scissor_rect(nullptr);
+}
+
+void audacious_obs_source_draw(gs_texture_t *texture, uint32_t x, uint32_t y, uint32_t width, uint32_t height,
+			      bool flip)
+{
+	::obs_source_draw(texture, x, y, width, height, flip);
+#if defined(__linux__)
+	struct GlobalOverlayHolder {
+		AudaciousUnicodeOverlay *overlay = create_audacious_unicode_overlay(nullptr);
+		~GlobalOverlayHolder() { destroy_audacious_unicode_overlay(overlay); }
+	};
+	static GlobalOverlayHolder holder;
+	tick_audacious_unicode_overlay(holder.overlay);
+	render_audacious_unicode_overlay(holder.overlay, width, height);
+#endif
 }
 
 } // namespace mao
