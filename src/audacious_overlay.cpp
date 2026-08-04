@@ -16,12 +16,16 @@
 namespace mao {
 namespace {
 
-constexpr std::size_t kOverlayTitleWidth = 34;
 constexpr auto kAudaciousPollInterval = std::chrono::seconds(1);
-constexpr auto kScrollInterval = std::chrono::milliseconds(250);
+constexpr auto kBitmapScrollInterval = std::chrono::milliseconds(250);
 constexpr int kTitleStartX = 316;
-constexpr int kTitleRightMargin = 28;
 constexpr int kTitleHeight = 26;
+constexpr int kSilentIndicatorSize = 34;
+constexpr int kSilentIndicatorRightMargin = 18;
+constexpr int kTitleToSilentIndicatorGap = 8;
+constexpr int kSilentIndicatorReserve =
+	kSilentIndicatorSize + kSilentIndicatorRightMargin + kTitleToSilentIndicatorGap;
+constexpr int kBitmapCharacterWidth = 18; // scale 3: 6 pixels per glyph column.
 
 std::string sanitize_audacious_tuple_text(const std::string &value)
 {
@@ -90,17 +94,18 @@ std::string read_command_text(const char *command)
 #endif
 }
 
-std::string read_audacious_tuple_field(const char *field)
+std::string read_audacious_title_tuple()
 {
-	char command[160] = {};
-	std::snprintf(command, sizeof(command), "audtool current-song-tuple-data %s 2>/dev/null", field);
-	std::string value = read_command_text(command);
+	std::string value = read_command_text("audtool current-song-tuple-data title 2>/dev/null");
 	if (!value.empty())
 		return value;
-
-	std::snprintf(command, sizeof(command), "audtool --current-song-tuple-data %s 2>/dev/null", field);
-	return read_command_text(command);
+	return read_command_text("audtool --current-song-tuple-data title 2>/dev/null");
 }
+
+struct AudaciousDisplaySnapshot {
+	std::string text;
+	std::chrono::steady_clock::time_point started = std::chrono::steady_clock::now();
+};
 
 class AudaciousOverlayPoller {
 public:
@@ -117,30 +122,20 @@ public:
 			worker_.join();
 	}
 
-	std::string display_text() const
+	AudaciousDisplaySnapshot display_snapshot() const
 	{
-		AudaciousNowPlaying current;
-		std::chrono::steady_clock::time_point title_started;
-		bool initialized = false;
-		{
-			std::lock_guard<std::mutex> lock(mutex_);
-			current = now_playing_;
-			title_started = title_started_;
-			initialized = initialized_;
-		}
-
-		if (!initialized)
-			return "AUDACIOUS CHECKING";
-		if (!current.running)
-			return "AUDACIOUS NOT RUNNING";
-		if (current.song_title.empty())
-			return "AUDACIOUS TITLE UNAVAILABLE";
-
-		const auto elapsed = std::chrono::steady_clock::now() - title_started;
-		const auto step_count = std::chrono::duration_cast<std::chrono::milliseconds>(elapsed).count() /
-					kScrollInterval.count();
-		return make_scrolling_title(current.song_title, kOverlayTitleWidth,
-					    static_cast<std::size_t>(std::max<int64_t>(0, step_count)));
+		std::lock_guard<std::mutex> lock(mutex_);
+		AudaciousDisplaySnapshot snapshot;
+		snapshot.started = title_started_;
+		if (!initialized_)
+			snapshot.text = "AUDACIOUS CHECKING";
+		else if (!now_playing_.running)
+			snapshot.text = "AUDACIOUS NOT RUNNING";
+		else if (now_playing_.song_title.empty())
+			snapshot.text = "AUDACIOUS TITLE UNAVAILABLE";
+		else
+			snapshot.text = now_playing_.song_title;
+		return snapshot;
 	}
 
 private:
@@ -148,16 +143,19 @@ private:
 	{
 		for (;;) {
 			AudaciousNowPlaying next;
-			const std::string tuple_title = read_audacious_tuple_field("title");
+			const std::string tuple_title = read_audacious_title_tuple();
 			if (!tuple_title.empty()) {
-				// Audacious commonly stores transport/source labels such as
-				// "music-yt" in the Artist field. The actual display value in
-				// this setup is already entirely contained in the Title field.
+				// The Title tuple already contains the complete user-facing
+				// value. Artist/Album may be transport labels such as
+				// "music-yt" and "flac_output", so never prepend them.
 				next.running = true;
-				next.song_title = format_audacious_artist_title({}, tuple_title);
+				next.song_title = clean_audacious_title(tuple_title);
 			} else {
+				// Window-title fallback accepts:
+				// Artist - Album - Title (presentation tag) [youtubeID]
+				// and extracts only Title [youtubeID].
 				next = read_audacious_now_playing();
-				next.song_title = format_audacious_artist_title({}, next.song_title);
+				next.song_title = clean_audacious_title(next.song_title);
 			}
 
 			{
@@ -183,10 +181,10 @@ private:
 	bool stop_ = false;
 };
 
-std::string audacious_overlay_text()
+AudaciousDisplaySnapshot audacious_overlay_snapshot()
 {
 	static AudaciousOverlayPoller poller;
-	return poller.display_text();
+	return poller.display_snapshot();
 }
 
 } // namespace
@@ -195,7 +193,7 @@ void render_visualizer_with_audacious(VisualizerRenderer *visualizer, const Anal
 				      float snapshot_age)
 {
 #if defined(__linux__)
-	const std::string title = audacious_overlay_text();
+	const AudaciousDisplaySnapshot title_snapshot = audacious_overlay_snapshot();
 
 	AnalysisSnapshot display_snapshot = snapshot;
 	display_snapshot.source[0] = ' ';
@@ -203,14 +201,29 @@ void render_visualizer_with_audacious(VisualizerRenderer *visualizer, const Anal
 	render_visualizer(visualizer, display_snapshot, snapshot_age);
 
 	const int title_y = visualizer->layout_mode == VisualizerLayoutMode::BassGuitar ? 14 : 12;
-	const int available_width = static_cast<int>(visualizer->width) - kTitleStartX - kTitleRightMargin;
-	if (render_unicode_header_title(visualizer, title, kTitleStartX, title_y, available_width, kTitleHeight))
+	const int available_width =
+		static_cast<int>(visualizer->width) - kTitleStartX - kSilentIndicatorReserve;
+	const float elapsed_seconds = std::max(
+		0.0f, std::chrono::duration<float>(std::chrono::steady_clock::now() - title_snapshot.started).count());
+
+	if (available_width > 0 &&
+	    render_unicode_header_title(visualizer, title_snapshot.text, kTitleStartX, title_y, available_width,
+					kTitleHeight, elapsed_seconds))
 		return;
 
 	// Runtime Pango/Cairo is optional. If unavailable, rerender the unchanged
-	// analyzer with the old bitmap title so the complete overlay is never lost.
+	// analyzer with a bitmap marquee sized to the exact available header width.
 	display_snapshot = snapshot;
-	const std::string fallback = bitmap_ascii_fallback(title);
+	const std::size_t fallback_width = static_cast<std::size_t>(
+		std::max(1, available_width > 0 ? available_width / kBitmapCharacterWidth : 1));
+	const auto elapsed = std::chrono::steady_clock::now() - title_snapshot.started;
+	const auto step_count =
+		std::chrono::duration_cast<std::chrono::milliseconds>(elapsed).count() /
+		kBitmapScrollInterval.count();
+	const std::string fallback_window =
+		make_scrolling_title(title_snapshot.text, fallback_width,
+				     static_cast<std::size_t>(std::max<int64_t>(0, step_count)));
+	const std::string fallback = bitmap_ascii_fallback(fallback_window);
 	std::snprintf(display_snapshot.source, sizeof(display_snapshot.source), "%s", fallback.c_str());
 	render_visualizer(visualizer, display_snapshot, snapshot_age);
 #else
