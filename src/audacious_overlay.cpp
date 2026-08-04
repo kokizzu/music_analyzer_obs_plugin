@@ -226,10 +226,26 @@ struct AudaciousUnicodeOverlay {
 	std::chrono::steady_clock::time_point started = std::chrono::steady_clock::now();
 };
 
+namespace {
+
+struct GlobalOverlayHolder {
+	AudaciousUnicodeOverlay *overlay = create_audacious_unicode_overlay(nullptr);
+	~GlobalOverlayHolder() { destroy_audacious_unicode_overlay(overlay); }
+};
+
+AudaciousUnicodeOverlay *global_audacious_unicode_overlay()
+{
+	static GlobalOverlayHolder holder;
+	return holder.overlay;
+}
+
+} // namespace
+
 void render_visualizer_with_audacious(VisualizerRenderer *visualizer, const AnalysisSnapshot &snapshot,
 				      float snapshot_age)
 {
 #if defined(__linux__)
+	tick_audacious_unicode_overlay(global_audacious_unicode_overlay());
 	AnalysisSnapshot display_snapshot = snapshot;
 	display_snapshot.source[0] = ' ';
 	display_snapshot.source[1] = '\0';
@@ -311,13 +327,7 @@ void audacious_obs_source_draw(gs_texture_t *texture, uint32_t x, uint32_t y, ui
 {
 	::obs_source_draw(texture, x, y, width, height, flip);
 #if defined(__linux__)
-	struct GlobalOverlayHolder {
-		AudaciousUnicodeOverlay *overlay = create_audacious_unicode_overlay(nullptr);
-		~GlobalOverlayHolder() { destroy_audacious_unicode_overlay(overlay); }
-	};
-	static GlobalOverlayHolder holder;
-	tick_audacious_unicode_overlay(holder.overlay);
-	render_audacious_unicode_overlay(holder.overlay, width, height);
+	render_audacious_unicode_overlay(global_audacious_unicode_overlay(), width, height);
 #endif
 }
 
