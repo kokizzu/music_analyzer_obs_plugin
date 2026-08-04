@@ -16,8 +16,16 @@ set(LOCAL_SIMDE_INCLUDE "${CMAKE_CURRENT_SOURCE_DIR}/build/deps/usr/include")
 
 add_library(music-analyzer-obs MODULE
     src/analyzer.cpp
+    src/audacious_title.cpp
+    src/audacious_overlay.cpp
     src/visualizer_renderer.cpp
     src/plugin.cpp
+)
+
+# Keep Audacious title replacement exclusive to the OBS plugin. The standalone
+# applications continue calling the normal renderer directly.
+set_source_files_properties(src/plugin.cpp PROPERTIES
+    COMPILE_DEFINITIONS "render_visualizer=render_visualizer_with_audacious"
 )
 
 target_include_directories(music-analyzer-obs PRIVATE
@@ -54,6 +62,12 @@ target_include_directories(fret_control_tests PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/src
 )
 target_compile_options(fret_control_tests PRIVATE -Wall -Wextra)
+
+add_executable(audacious_title_tests tests/audacious_title.cpp src/audacious_title.cpp)
+target_include_directories(audacious_title_tests PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}/src
+)
+target_compile_options(audacious_title_tests PRIVATE -Wall -Wextra)
 
 pkg_check_modules(SDL2 sdl2)
 if(SDL2_FOUND)
@@ -100,6 +114,7 @@ enable_testing()
 add_test(NAME analyzer_smoke COMMAND analyzer_smoke)
 add_test(NAME analyzer_cases COMMAND analyzer_cases)
 add_test(NAME fret_control_tests COMMAND fret_control_tests)
+add_test(NAME audacious_title_tests COMMAND audacious_title_tests)
 if(SDL2_FOUND)
     add_test(NAME standalone_self_test COMMAND music-analyzer-standalone --self-test)
     set_tests_properties(standalone_self_test PROPERTIES
