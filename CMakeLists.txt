@@ -18,6 +18,7 @@ add_library(music-analyzer-obs MODULE
     src/analyzer.cpp
     src/audacious_title.cpp
     src/audacious_overlay.cpp
+    src/unicode_title_renderer.cpp
     src/visualizer_renderer.cpp
     src/plugin.cpp
 )
@@ -43,7 +44,7 @@ target_compile_options(music-analyzer-obs PRIVATE
     -Wextra
 )
 target_link_directories(music-analyzer-obs PRIVATE ${LIBOBS_LIBRARY_DIRS})
-target_link_libraries(music-analyzer-obs PRIVATE ${LIBOBS_LIBRARIES} pthread)
+target_link_libraries(music-analyzer-obs PRIVATE ${LIBOBS_LIBRARIES} pthread ${CMAKE_DL_LIBS})
 set_target_properties(music-analyzer-obs PROPERTIES PREFIX "")
 
 add_executable(analyzer_smoke tests/analyzer_smoke.cpp src/analyzer.cpp)
@@ -71,6 +72,13 @@ target_include_directories(audacious_title_tests PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/src
 )
 target_compile_options(audacious_title_tests PRIVATE -Wall -Wextra)
+
+add_executable(unicode_title_renderer_tests tests/unicode_title_renderer.cpp src/unicode_title_renderer.cpp)
+target_include_directories(unicode_title_renderer_tests PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}/src
+)
+target_compile_options(unicode_title_renderer_tests PRIVATE -Wall -Wextra)
+target_link_libraries(unicode_title_renderer_tests PRIVATE ${CMAKE_DL_LIBS})
 
 pkg_check_modules(SDL2 sdl2)
 if(SDL2_FOUND)
@@ -118,6 +126,7 @@ add_test(NAME analyzer_smoke COMMAND analyzer_smoke)
 add_test(NAME analyzer_cases COMMAND analyzer_cases)
 add_test(NAME fret_control_tests COMMAND fret_control_tests)
 add_test(NAME audacious_title_tests COMMAND audacious_title_tests)
+add_test(NAME unicode_title_renderer_tests COMMAND unicode_title_renderer_tests)
 if(SDL2_FOUND)
     add_test(NAME standalone_self_test COMMAND music-analyzer-standalone --self-test)
     set_tests_properties(standalone_self_test PROPERTIES
