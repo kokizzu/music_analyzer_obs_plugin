@@ -6,9 +6,9 @@
 
 int main()
 {
+	using mao::clean_audacious_title;
 	using mao::extract_audacious_song_title;
 	using mao::find_audacious_window_title;
-	using mao::format_audacious_artist_title;
 	using mao::make_scrolling_title;
 
 	const std::string wmctrl_output =
@@ -23,37 +23,37 @@ int main()
 	assert(extract_audacious_song_title("filename.ogg [Audacious]") == "filename.ogg");
 	assert(extract_audacious_song_title("Artist - Album - Tést") == "Tést");
 
-	assert(format_audacious_artist_title("GMS Live", "Sambut Sang Raja (Official Video...)") ==
-	       "GMS Live - Sambut Sang Raja");
-	assert(format_audacious_artist_title("GMS Live", "Sambut Sang Raja (Official Music Video)") ==
-	       "GMS Live - Sambut Sang Raja");
-	assert(format_audacious_artist_title("GMS Live", "Sambut Sang Raja (Official Lyric Video)") ==
-	       "GMS Live - Sambut Sang Raja");
-	assert(format_audacious_artist_title("GMS Live", "Sambut Sang Raja (Official Lyrics Video)") ==
-	       "GMS Live - Sambut Sang Raja");
-	assert(format_audacious_artist_title("GMS Live", "Sambut Sang Raja (Official Video Music)") ==
-	       "GMS Live - Sambut Sang Raja");
-	assert(format_audacious_artist_title("GMS Live", "Sambut Sang Raja (Live)") ==
-	       "GMS Live - Sambut Sang Raja");
-	assert(format_audacious_artist_title("GMS Live", "Sambut Sang Raja (Live at Jakarta)") ==
-	       "GMS Live - Sambut Sang Raja (Live at Jakarta)");
-
-	// Real Audacious metadata from the reported setup: Artist is "music-yt",
-	// Album is "flac_output", and the complete wanted display is already in Title.
-	// The OBS poller intentionally passes an empty artist and cleans only Title.
-	assert(format_audacious_artist_title(
-		       "", "GMS Live - Sambut Sang Raja (Official Music Video) [drKw4ogAqsAJ]") ==
+	// Exact window-title rule: remove Artist and Album, keep only the Title
+	// field and YouTube ID, then strip recognized presentation-only tags.
+	assert(extract_audacious_song_title(
+		       "music-yt - flac_output - GMS Live - Sambut Sang Raja "
+		       "(Official Music Video) [drKw4ogAqsAJ]") ==
 	       "GMS Live - Sambut Sang Raja [drKw4ogAqsAJ]");
 
-	assert(format_audacious_artist_title("", "OCEANS (Pop-Punk Cover) [OVvN_YzWEgc]") ==
+	assert(clean_audacious_title("GMS Live - Sambut Sang Raja (Official Video...)") ==
+	       "GMS Live - Sambut Sang Raja");
+	assert(clean_audacious_title("GMS Live - Sambut Sang Raja (Official Music Video)") ==
+	       "GMS Live - Sambut Sang Raja");
+	assert(clean_audacious_title("GMS Live - Sambut Sang Raja (Official Lyric Video)") ==
+	       "GMS Live - Sambut Sang Raja");
+	assert(clean_audacious_title("GMS Live - Sambut Sang Raja (Official Lyrics Video)") ==
+	       "GMS Live - Sambut Sang Raja");
+	assert(clean_audacious_title("GMS Live - Sambut Sang Raja (Official Video Music)") ==
+	       "GMS Live - Sambut Sang Raja");
+	assert(clean_audacious_title("GMS Live - Sambut Sang Raja (Live)") ==
+	       "GMS Live - Sambut Sang Raja");
+	assert(clean_audacious_title("GMS Live - Sambut Sang Raja (Live at Jakarta)") ==
+	       "GMS Live - Sambut Sang Raja (Live at Jakarta)");
+
+	assert(clean_audacious_title("OCEANS (Pop-Punk Cover) [OVvN_YzWEgc]") ==
 	       "OCEANS (Pop-Punk Cover) [OVvN_YzWEgc]");
-	assert(format_audacious_artist_title("", "OCEANS (Official Music Video) [OVvN_YzWEgc]") ==
+	assert(clean_audacious_title("OCEANS (Official Music Video) [OVvN_YzWEgc]") ==
 	       "OCEANS [OVvN_YzWEgc]");
-	assert(format_audacious_artist_title("", "OCEANS (Official Video Music) [OVvN_YzWEgc] music-yt") ==
+	assert(clean_audacious_title("OCEANS (Official Video Music) [OVvN_YzWEgc] music-yt") ==
 	       "OCEANS [OVvN_YzWEgc]");
-	assert(format_audacious_artist_title("", "OCEANS (Official Video Music) [OVvN_YzWEgc].music-yt") ==
+	assert(clean_audacious_title("OCEANS (Official Video Music) [OVvN_YzWEgc].music-yt") ==
 	       "OCEANS [OVvN_YzWEgc]");
-	assert(format_audacious_artist_title("", "愛昧ショコラーテ -PandaBoYremix- [0qomiyjPNDc]") ==
+	assert(clean_audacious_title("愛昧ショコラーテ -PandaBoYremix- [0qomiyjPNDc]") ==
 	       "愛昧ショコラーテ -PandaBoYremix- [0qomiyjPNDc]");
 
 	assert(make_scrolling_title("Short", 12, 100) == "Short");
