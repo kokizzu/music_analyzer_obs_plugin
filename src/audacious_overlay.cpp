@@ -150,9 +150,11 @@ private:
 			AudaciousNowPlaying next;
 			const std::string tuple_title = read_audacious_tuple_field("title");
 			if (!tuple_title.empty()) {
-				const std::string tuple_artist = read_audacious_tuple_field("artist");
+				// Audacious commonly stores transport/source labels such as
+				// "music-yt" in the Artist field. The actual display value in
+				// this setup is already entirely contained in the Title field.
 				next.running = true;
-				next.song_title = format_audacious_artist_title(tuple_artist, tuple_title);
+				next.song_title = format_audacious_artist_title({}, tuple_title);
 			} else {
 				next = read_audacious_now_playing();
 				next.song_title = format_audacious_artist_title({}, next.song_title);
