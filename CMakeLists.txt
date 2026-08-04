@@ -22,11 +22,15 @@ add_library(music-analyzer-obs MODULE
     src/plugin.cpp
 )
 
-# Keep Audacious title replacement exclusive to the OBS plugin. The standalone
-# applications continue calling the normal renderer directly.
-set_source_files_properties(src/plugin.cpp PROPERTIES
-    COMPILE_DEFINITIONS "render_visualizer=render_visualizer_with_audacious"
-)
+# Keep Audacious title replacement exclusive to the Linux OBS plugin. The
+# pre-included header parses libobs declarations before redirecting only the
+# renderer and final texture draw call in plugin.cpp.
+if(CMAKE_SYSTEM_NAME STREQUAL "Linux")
+    set_property(SOURCE src/plugin.cpp APPEND PROPERTY COMPILE_OPTIONS
+        "-include"
+        "${CMAKE_CURRENT_SOURCE_DIR}/src/audacious_plugin_redirect.hpp"
+    )
+endif()
 
 target_include_directories(music-analyzer-obs PRIVATE
     ${LIBOBS_INCLUDE_DIRS}
