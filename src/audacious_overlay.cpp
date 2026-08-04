@@ -49,13 +49,15 @@ std::string sanitize_audacious_tuple_title(const std::string &value)
 
 	while (!output.empty() && output.back() == ' ')
 		output.pop_back();
+	if (output == "(null)" || output == "null")
+		return {};
 	return output;
 }
 
-std::string read_audacious_tuple_title()
+std::string read_command_text(const char *command)
 {
 #if defined(__linux__)
-	FILE *pipe = popen("audtool current-song-tuple-data title 2>/dev/null", "r");
+	FILE *pipe = popen(command, "r");
 	if (!pipe)
 		return {};
 
@@ -69,8 +71,17 @@ std::string read_audacious_tuple_title()
 	pclose(pipe);
 	return sanitize_audacious_tuple_title(output);
 #else
+	(void)command;
 	return {};
 #endif
+}
+
+std::string read_audacious_tuple_title()
+{
+	std::string title = read_command_text("audtool current-song-tuple-data title 2>/dev/null");
+	if (title.empty())
+		title = read_command_text("audtool --current-song-tuple-data title 2>/dev/null");
+	return title;
 }
 
 class AudaciousOverlayPoller {
