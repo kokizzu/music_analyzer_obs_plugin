@@ -9,7 +9,6 @@
 #include <algorithm>
 #include <cctype>
 #include <chrono>
-#include <cmath>
 #include <condition_variable>
 #include <cstdint>
 #include <cstdio>
@@ -21,12 +20,12 @@ namespace mao {
 namespace {
 
 constexpr auto kAudaciousPollInterval = std::chrono::seconds(1);
+constexpr auto kTitleScrollInterval = std::chrono::milliseconds(250);
+constexpr std::size_t kTitleWindowCharacters = 28;
 constexpr float kTitleStartX = 316.0f;
 constexpr float kTitleTopY = 12.0f;
 constexpr float kTitleTargetHeight = 24.0f;
 constexpr float kTitleRightMargin = 28.0f;
-constexpr float kTitleScrollPixelsPerSecond = 52.0f;
-constexpr float kTitleScrollGap = 80.0f;
 
 std::string sanitize_audacious_tuple_text(const std::string &value)
 {
@@ -222,7 +221,8 @@ void draw_text_source(obs_source_t *source, float x, float y, float scale)
 
 struct AudaciousUnicodeOverlay {
 	obs_source_t *text_source = nullptr;
-	std::string text;
+	std::string full_text;
+	std::string rendered_text;
 	std::chrono::steady_clock::time_point started = std::chrono::steady_clock::now();
 };
 
@@ -280,14 +280,25 @@ void tick_audacious_unicode_overlay(AudaciousUnicodeOverlay *overlay)
 {
 	if (!overlay || !overlay->text_source)
 		return;
+
 	const AudaciousDisplaySnapshot snapshot = audacious_poller().display_snapshot();
-	if (snapshot.text == overlay->text)
+	if (snapshot.text != overlay->full_text) {
+		overlay->full_text = snapshot.text;
+		overlay->started = snapshot.started;
+		overlay->rendered_text.clear();
+	}
+
+	const auto elapsed = std::chrono::steady_clock::now() - overlay->started;
+	const auto steps = std::chrono::duration_cast<std::chrono::milliseconds>(elapsed).count() /
+			   kTitleScrollInterval.count();
+	const std::string visible = make_scrolling_title(overlay->full_text, kTitleWindowCharacters,
+						       static_cast<std::size_t>(std::max<int64_t>(0, steps)));
+	if (visible == overlay->rendered_text)
 		return;
 
-	overlay->text = snapshot.text;
-	overlay->started = snapshot.started;
+	overlay->rendered_text = visible;
 	obs_data_t *settings = obs_source_get_settings(overlay->text_source);
-	obs_data_set_string(settings, "text", overlay->text.c_str());
+	obs_data_set_string(settings, "text", overlay->rendered_text.c_str());
 	obs_source_update(overlay->text_source, settings);
 	obs_data_release(settings);
 }
@@ -302,24 +313,11 @@ void render_audacious_unicode_overlay(AudaciousUnicodeOverlay *overlay, uint32_t
 	if (source_width == 0 || source_height == 0)
 		return;
 
-	const float scale = kTitleTargetHeight / static_cast<float>(source_height);
-	const float scaled_width = static_cast<float>(source_width) * scale;
 	const float available_width = static_cast<float>(width) - kTitleStartX - kTitleRightMargin;
-	const gs_rect clip = {static_cast<int>(kTitleStartX), 8, static_cast<int>(available_width), 34};
-	gs_set_scissor_rect(&clip);
-
-	if (scaled_width > available_width) {
-		const float elapsed = std::chrono::duration<float>(std::chrono::steady_clock::now() - overlay->started).count();
-		const float cycle_width = scaled_width + kTitleScrollGap;
-		const float offset =
-			std::fmod(std::max(0.0f, elapsed) * kTitleScrollPixelsPerSecond, cycle_width);
-		draw_text_source(overlay->text_source, kTitleStartX - offset, kTitleTopY, scale);
-		draw_text_source(overlay->text_source, kTitleStartX - offset + cycle_width, kTitleTopY, scale);
-	} else {
-		draw_text_source(overlay->text_source, kTitleStartX, kTitleTopY, scale);
-	}
-
-	gs_set_scissor_rect(nullptr);
+	const float height_scale = kTitleTargetHeight / static_cast<float>(source_height);
+	const float width_scale = available_width / static_cast<float>(source_width);
+	const float scale = std::min(height_scale, width_scale);
+	draw_text_source(overlay->text_source, kTitleStartX, kTitleTopY, scale);
 }
 
 void audacious_obs_source_draw(gs_texture_t *texture, uint32_t x, uint32_t y, uint32_t width, uint32_t height,
