@@ -2,6 +2,7 @@
 #include "visualizer_renderer.hpp"
 
 #include <algorithm>
+#include <cmath>
 #include <cstdint>
 #include <cstring>
 #include <mutex>
@@ -28,6 +29,10 @@ constexpr int kCairoFormatArgb32 = 0;
 constexpr int kCairoOperatorSource = 1;
 constexpr int kCairoOperatorOver = 2;
 constexpr int kPangoScale = 1024;
+constexpr double kFontPixels = 24.0;
+constexpr double kMinimumFontPixels = 14.0;
+constexpr double kScrollPixelsPerSecond = 52.0;
+constexpr double kScrollGapPixels = 80.0;
 
 struct UnicodeTextApi {
 	void *cairo_library = nullptr;
@@ -134,12 +139,69 @@ UnicodeTextApi &unicode_text_api()
 	return api;
 }
 
+void blend_surface_into_visualizer(VisualizerRenderer *visualizer, cairo_surface_t *surface, int x, int y,
+				   int width, int height, UnicodeTextApi &api, bool &painted)
+{
+	api.cairo_surface_flush(surface);
+	unsigned char *source = api.cairo_image_surface_get_data(surface);
+	const int stride = api.cairo_image_surface_get_stride(surface);
+	if (!source || stride <= 0)
+		return;
+
+	for (int source_y = 0; source_y < height; ++source_y) {
+		const int destination_y = y + source_y;
+		if (destination_y < 0 || destination_y >= static_cast<int>(visualizer->height))
+			continue;
+		const unsigned char *row = source + source_y * stride;
+		for (int source_x = 0; source_x < width; ++source_x) {
+			const int destination_x = x + source_x;
+			if (destination_x < 0 || destination_x >= static_cast<int>(visualizer->width))
+				continue;
+
+			uint32_t argb = 0;
+			std::memcpy(&argb, row + source_x * 4, sizeof(argb));
+			const uint8_t alpha = static_cast<uint8_t>((argb >> 24) & 0xffu);
+			if (alpha == 0)
+				continue;
+			const uint8_t red = static_cast<uint8_t>((argb >> 16) & 0xffu);
+			const uint8_t green = static_cast<uint8_t>((argb >> 8) & 0xffu);
+			const uint8_t blue = static_cast<uint8_t>(argb & 0xffu);
+			const uint16_t inverse_alpha = static_cast<uint16_t>(255 - alpha);
+			const std::size_t destination =
+				(static_cast<std::size_t>(destination_y) * visualizer->width +
+				 static_cast<std::size_t>(destination_x)) *
+				4;
+
+			visualizer->pixels[destination + 0] = static_cast<uint8_t>(std::min(
+				255, static_cast<int>(red) +
+					     (static_cast<int>(visualizer->pixels[destination + 0]) *
+						      inverse_alpha +
+					      127) /
+						     255));
+			visualizer->pixels[destination + 1] = static_cast<uint8_t>(std::min(
+				255, static_cast<int>(green) +
+					     (static_cast<int>(visualizer->pixels[destination + 1]) *
+						      inverse_alpha +
+					      127) /
+						     255));
+			visualizer->pixels[destination + 2] = static_cast<uint8_t>(std::min(
+				255, static_cast<int>(blue) +
+					     (static_cast<int>(visualizer->pixels[destination + 2]) *
+						      inverse_alpha +
+					      127) /
+						     255));
+			visualizer->pixels[destination + 3] = 255;
+			painted = true;
+		}
+	}
+}
+
 #endif
 
 } // namespace
 
 bool render_unicode_header_title(VisualizerRenderer *visualizer, const std::string &text, int x, int y,
-				 int max_width, int target_height)
+				 int max_width, int target_height, float scroll_seconds)
 {
 #if defined(__linux__)
 	UnicodeTextApi &api = unicode_text_api();
@@ -176,10 +238,8 @@ bool render_unicode_header_title(VisualizerRenderer *visualizer, const std::stri
 		return false;
 	}
 
-	constexpr double kInitialFontPixels = 24.0;
-	constexpr double kMinimumFontPixels = 14.0;
 	api.pango_font_description_set_family(font, "Sans");
-	api.pango_font_description_set_absolute_size(font, kInitialFontPixels * kPangoScale);
+	api.pango_font_description_set_absolute_size(font, kFontPixels * kPangoScale);
 	api.pango_layout_set_font_description(layout, font);
 	api.pango_layout_set_text(layout, text.c_str(), -1);
 	api.pango_layout_set_single_paragraph_mode(layout, 1);
@@ -187,69 +247,37 @@ bool render_unicode_header_title(VisualizerRenderer *visualizer, const std::stri
 	int text_width = 0;
 	int text_height = 0;
 	api.pango_layout_get_pixel_size(layout, &text_width, &text_height);
-	if (text_width > 0 && text_height > 0 && (text_width > max_width || text_height > target_height)) {
-		const double width_ratio = static_cast<double>(max_width) / static_cast<double>(text_width);
-		const double height_ratio = static_cast<double>(target_height) / static_cast<double>(text_height);
+	if (text_height > target_height && text_height > 0) {
 		const double adjusted_size =
-			std::max(kMinimumFontPixels, kInitialFontPixels * std::min(width_ratio, height_ratio));
+			std::max(kMinimumFontPixels,
+				 kFontPixels * static_cast<double>(target_height) / static_cast<double>(text_height));
 		api.pango_font_description_set_absolute_size(font, adjusted_size * kPangoScale);
 		api.pango_layout_set_font_description(layout, font);
 		api.pango_layout_get_pixel_size(layout, &text_width, &text_height);
 	}
 
 	const int text_y = std::max(0, (target_height - text_height) / 2);
-	api.cairo_move_to(context, 0.0, static_cast<double>(text_y));
 	api.cairo_set_source_rgba(context, 246.0 / 255.0, 248.0 / 255.0, 251.0 / 255.0, 1.0);
-	api.pango_cairo_show_layout(context, layout);
-	api.cairo_surface_flush(surface);
 
-	unsigned char *source = api.cairo_image_surface_get_data(surface);
-	const int stride = api.cairo_image_surface_get_stride(surface);
-	bool painted = false;
-	if (source && stride > 0) {
-		for (int source_y = 0; source_y < target_height; ++source_y) {
-			const int destination_y = y + source_y;
-			if (destination_y < 0 || destination_y >= static_cast<int>(visualizer->height))
-				continue;
-			const unsigned char *row = source + source_y * stride;
-			for (int source_x = 0; source_x < max_width; ++source_x) {
-				const int destination_x = x + source_x;
-				if (destination_x < 0 || destination_x >= static_cast<int>(visualizer->width))
-					continue;
+	const auto draw_layout = [&](double draw_x) {
+		api.cairo_move_to(context, draw_x, static_cast<double>(text_y));
+		api.pango_cairo_show_layout(context, layout);
+	};
 
-				uint32_t argb = 0;
-				std::memcpy(&argb, row + source_x * 4, sizeof(argb));
-				const uint8_t alpha = static_cast<uint8_t>((argb >> 24) & 0xffu);
-				if (alpha == 0)
-					continue;
-				const uint8_t red = static_cast<uint8_t>((argb >> 16) & 0xffu);
-				const uint8_t green = static_cast<uint8_t>((argb >> 8) & 0xffu);
-				const uint8_t blue = static_cast<uint8_t>(argb & 0xffu);
-				const uint16_t inverse_alpha = static_cast<uint16_t>(255 - alpha);
-				const std::size_t destination =
-					(static_cast<std::size_t>(destination_y) * visualizer->width +
-					 static_cast<std::size_t>(destination_x)) *
-					4;
-				visualizer->pixels[destination + 0] = static_cast<uint8_t>(std::min(
-					255, static_cast<int>(red) +
-						     (static_cast<int>(visualizer->pixels[destination + 0]) * inverse_alpha +
-						      127) /
-							     255));
-				visualizer->pixels[destination + 1] = static_cast<uint8_t>(std::min(
-					255, static_cast<int>(green) +
-						     (static_cast<int>(visualizer->pixels[destination + 1]) * inverse_alpha +
-						      127) /
-							     255));
-				visualizer->pixels[destination + 2] = static_cast<uint8_t>(std::min(
-					255, static_cast<int>(blue) +
-						     (static_cast<int>(visualizer->pixels[destination + 2]) * inverse_alpha +
-						      127) /
-							     255));
-				visualizer->pixels[destination + 3] = 255;
-				painted = true;
-			}
-		}
+	if (text_width <= max_width) {
+		draw_layout(0.0);
+	} else {
+		const double cycle_width = static_cast<double>(text_width) + kScrollGapPixels;
+		const double offset =
+			std::fmod(std::max(0.0, static_cast<double>(scroll_seconds)) *
+					  kScrollPixelsPerSecond,
+				  cycle_width);
+		draw_layout(-offset);
+		draw_layout(-offset + cycle_width);
 	}
+
+	bool painted = false;
+	blend_surface_into_visualizer(visualizer, surface, x, y, max_width, target_height, api, painted);
 
 	api.pango_font_description_free(font);
 	api.g_object_unref(layout);
@@ -263,6 +291,7 @@ bool render_unicode_header_title(VisualizerRenderer *visualizer, const std::stri
 	(void)y;
 	(void)max_width;
 	(void)target_height;
+	(void)scroll_seconds;
 	return false;
 #endif
 }
