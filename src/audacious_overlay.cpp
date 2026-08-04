@@ -1,62 +1,97 @@
 #include "audacious_title.hpp"
 #include "visualizer_renderer.hpp"
 
+#include <algorithm>
 #include <chrono>
+#include <condition_variable>
+#include <cstdint>
 #include <cstdio>
 #include <mutex>
 #include <string>
+#include <thread>
 
 namespace mao {
 namespace {
 
-constexpr std::size_t kOverlayTitleWidth = 38;
+constexpr std::size_t kOverlayTitleWidth = 34;
 constexpr auto kAudaciousPollInterval = std::chrono::seconds(1);
 constexpr auto kScrollInterval = std::chrono::milliseconds(250);
 
-struct AudaciousOverlayState {
-	std::mutex mutex;
-	std::chrono::steady_clock::time_point last_poll = {};
-	std::chrono::steady_clock::time_point last_scroll = {};
-	AudaciousNowPlaying now_playing;
-	std::string last_song_title;
-	std::size_t scroll_offset = 0;
-	bool initialized = false;
-};
+class AudaciousOverlayPoller {
+public:
+	AudaciousOverlayPoller() : worker_(&AudaciousOverlayPoller::worker_loop, this) {}
 
-AudaciousOverlayState g_audacious_overlay;
+	~AudaciousOverlayPoller()
+	{
+		{
+			std::lock_guard<std::mutex> lock(mutex_);
+			stop_ = true;
+		}
+		wake_.notify_one();
+		if (worker_.joinable())
+			worker_.join();
+	}
 
-std::string audacious_overlay_text()
-{
-	std::lock_guard<std::mutex> lock(g_audacious_overlay.mutex);
-	const auto now = std::chrono::steady_clock::now();
-	if (!g_audacious_overlay.initialized || now - g_audacious_overlay.last_poll >= kAudaciousPollInterval) {
-		g_audacious_overlay.now_playing = read_audacious_now_playing();
-		g_audacious_overlay.last_poll = now;
-		g_audacious_overlay.initialized = true;
-		if (g_audacious_overlay.now_playing.song_title != g_audacious_overlay.last_song_title) {
-			g_audacious_overlay.last_song_title = g_audacious_overlay.now_playing.song_title;
-			g_audacious_overlay.scroll_offset = 0;
-			g_audacious_overlay.last_scroll = now;
+	std::string display_text() const
+	{
+		AudaciousNowPlaying current;
+		std::chrono::steady_clock::time_point title_started;
+		bool initialized = false;
+		{
+			std::lock_guard<std::mutex> lock(mutex_);
+			current = now_playing_;
+			title_started = title_started_;
+			initialized = initialized_;
+		}
+
+		if (!initialized)
+			return "AUDACIOUS CHECKING";
+		if (!current.running)
+			return "AUDACIOUS NOT RUNNING";
+		if (current.song_title.empty())
+			return "AUDACIOUS TITLE UNAVAILABLE";
+		if (current.song_title.size() <= kOverlayTitleWidth)
+			return current.song_title;
+
+		const auto elapsed = std::chrono::steady_clock::now() - title_started;
+		const auto step_count = std::chrono::duration_cast<std::chrono::milliseconds>(elapsed).count() /
+					kScrollInterval.count();
+		return make_scrolling_title(current.song_title, kOverlayTitleWidth,
+					    static_cast<std::size_t>(std::max<int64_t>(0, step_count)));
+	}
+
+private:
+	void worker_loop()
+	{
+		for (;;) {
+			const AudaciousNowPlaying next = read_audacious_now_playing();
+			{
+				std::lock_guard<std::mutex> lock(mutex_);
+				if (next.song_title != now_playing_.song_title || next.running != now_playing_.running)
+					title_started_ = std::chrono::steady_clock::now();
+				now_playing_ = next;
+				initialized_ = true;
+			}
+
+			std::unique_lock<std::mutex> lock(mutex_);
+			if (wake_.wait_for(lock, kAudaciousPollInterval, [&]() { return stop_; }))
+				return;
 		}
 	}
 
-	if (!g_audacious_overlay.now_playing.running)
-		return "AUDACIOUS NOT RUNNING";
-	if (g_audacious_overlay.now_playing.song_title.empty())
-		return "AUDACIOUS TITLE UNAVAILABLE";
+	mutable std::mutex mutex_;
+	std::condition_variable wake_;
+	std::thread worker_;
+	AudaciousNowPlaying now_playing_;
+	std::chrono::steady_clock::time_point title_started_ = std::chrono::steady_clock::now();
+	bool initialized_ = false;
+	bool stop_ = false;
+};
 
-	if (g_audacious_overlay.last_scroll.time_since_epoch().count() == 0)
-		g_audacious_overlay.last_scroll = now;
-	const auto elapsed = now - g_audacious_overlay.last_scroll;
-	const auto steps = std::chrono::duration_cast<std::chrono::milliseconds>(elapsed).count() /
-			   kScrollInterval.count();
-	if (steps > 0) {
-		g_audacious_overlay.scroll_offset += static_cast<std::size_t>(steps);
-		g_audacious_overlay.last_scroll += kScrollInterval * steps;
-	}
-
-	return make_scrolling_title(g_audacious_overlay.now_playing.song_title, kOverlayTitleWidth,
-				    g_audacious_overlay.scroll_offset);
+std::string audacious_overlay_text()
+{
+	static AudaciousOverlayPoller poller;
+	return poller.display_text();
 }
 
 } // namespace
