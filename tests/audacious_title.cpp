@@ -31,13 +31,20 @@ int main()
 	       "GMS Live - Sambut Sang Raja");
 	assert(format_audacious_artist_title("GMS Live", "Sambut Sang Raja (Official Lyrics Video)") ==
 	       "GMS Live - Sambut Sang Raja");
+	assert(format_audacious_artist_title("GMS Live", "Sambut Sang Raja (Official Video Music)") ==
+	       "GMS Live - Sambut Sang Raja");
 	assert(format_audacious_artist_title("GMS Live", "Sambut Sang Raja (Live)") ==
 	       "GMS Live - Sambut Sang Raja");
 	assert(format_audacious_artist_title("GMS Live", "Sambut Sang Raja (Live at Jakarta)") ==
 	       "GMS Live - Sambut Sang Raja (Live at Jakarta)");
+
 	assert(format_audacious_artist_title("", "OCEANS (Pop-Punk Cover) [OVvN_YzWEgc]") ==
 	       "OCEANS (Pop-Punk Cover) [OVvN_YzWEgc]");
 	assert(format_audacious_artist_title("", "OCEANS (Official Music Video) [OVvN_YzWEgc]") ==
+	       "OCEANS [OVvN_YzWEgc]");
+	assert(format_audacious_artist_title("", "OCEANS (Official Video Music) [OVvN_YzWEgc] music-yt") ==
+	       "OCEANS [OVvN_YzWEgc]");
+	assert(format_audacious_artist_title("", "OCEANS (Official Video Music) [OVvN_YzWEgc].music-yt") ==
 	       "OCEANS [OVvN_YzWEgc]");
 	assert(format_audacious_artist_title("", "愛昧ショコラーテ -PandaBoYremix- [0qomiyjPNDc]") ==
 	       "愛昧ショコラーテ -PandaBoYremix- [0qomiyjPNDc]");
