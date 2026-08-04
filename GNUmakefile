@@ -13,15 +13,16 @@ AUDACIOUS_TITLE_TEST_BIN := $(BUILD_DIR)/audacious_title_tests
 # shared-library target.
 $(BUILD_DIR)/music-analyzer-obs.so: $(AUDACIOUS_OBJS)
 
-# Redirect only plugin.cpp's renderer calls. Depending on GNUmakefile also
-# forces an existing pre-fix plugin.o to be rebuilt after git pull.
-$(BUILD_DIR)/plugin.o: GNUmakefile
-$(BUILD_DIR)/plugin.o: CXXFLAGS += -Drender_visualizer=render_visualizer_with_audacious
+# Pre-include the redirect only for plugin.cpp. The header parses the original
+# libobs declarations first, then redirects the analyzer renderer and final
+# texture draw without affecting libobs headers or standalone builds.
+$(BUILD_DIR)/plugin.o: GNUmakefile src/audacious_plugin_redirect.hpp src/audacious_overlay.hpp
+$(BUILD_DIR)/plugin.o: CXXFLAGS += -include src/audacious_plugin_redirect.hpp
 
 $(AUDACIOUS_TITLE_OBJ): src/audacious_title.cpp src/audacious_title.hpp GNUmakefile | $(BUILD_DIR)
 	$(CXX) $(CXXFLAGS) $(OBS_CFLAGS) $(LOCAL_SIMDE_CFLAGS) -I$(OBS_INCLUDEDIR)/obs -Isrc -c $< -o $@
 
-$(AUDACIOUS_OVERLAY_OBJ): src/audacious_overlay.cpp src/audacious_title.hpp src/visualizer_renderer.hpp GNUmakefile | $(BUILD_DIR)
+$(AUDACIOUS_OVERLAY_OBJ): src/audacious_overlay.cpp src/audacious_overlay.hpp src/audacious_title.hpp src/visualizer_renderer.hpp GNUmakefile | $(BUILD_DIR)
 	$(CXX) $(CXXFLAGS) $(OBS_CFLAGS) $(LOCAL_SIMDE_CFLAGS) -I$(OBS_INCLUDEDIR)/obs -Isrc -c $< -o $@
 
 $(AUDACIOUS_TITLE_TEST_BIN): tests/audacious_title.cpp src/audacious_title.cpp src/audacious_title.hpp GNUmakefile | $(BUILD_DIR)
