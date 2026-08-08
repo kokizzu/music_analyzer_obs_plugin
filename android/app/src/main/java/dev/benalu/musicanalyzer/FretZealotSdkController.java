@@ -53,6 +53,11 @@ final class FretZealotSdkController implements Closeable {
     // Splitting those operations keeps each legacy board frame small enough to
     // apply reliably without blacking out the whole fretboard.
     private boolean activeScaleFrameRequiresClearPass;
+    // A legacy Fret Zealot can acknowledge a complete BLE payload before its
+    // LED processor has applied every command. Reassert targets once before
+    // any stale-pixel clear so a dropped first pass never becomes a partial
+    // scale that remains on the board.
+    private boolean activeScaleFrameRequiresTargetReassert;
 
     FretZealotSdkController(Context context, Listener listener) {
         sdk = LEDBLELib.getInstance(context.getApplicationContext());
@@ -257,6 +262,7 @@ final class FretZealotSdkController implements Closeable {
         queuedScaleFrame = null;
         queuedScaleFrameRequiresReconciliation = false;
         activeScaleFrameRequiresClearPass = false;
+        activeScaleFrameRequiresTargetReassert = false;
     }
 
     private void onScaleFrameFlushed(ScaleFrame completed) {
@@ -265,6 +271,13 @@ final class FretZealotSdkController implements Closeable {
 
     private void finishScaleFrame(ScaleFrame completed) {
         if (!active || closing || activeScaleFrame != completed) {
+            return;
+        }
+        if (activeScaleFrameRequiresTargetReassert) {
+            activeScaleFrameRequiresTargetReassert = false;
+            sdk.sendCommandBufferClear();
+            writeScaleFrameReconciliation(completed);
+            sdk.sendCommandFlush(() -> onScaleFrameFlushed(completed));
             return;
         }
         if (activeScaleFrameRequiresClearPass) {
@@ -296,14 +309,18 @@ final class FretZealotSdkController implements Closeable {
             needsInitialScaleReset = false;
             boardReset = true;
         }
-        if (reconcileWholeBoard && !boardReset) {
+        if (reconcileWholeBoard) {
             writeScaleFrameReconciliation(target);
-            activeScaleFrameRequiresClearPass = true;
+            // The second target pass runs after the first pass has settled.
+            // It is deliberately ordered before stale clears: a frame that
+            // loses one legacy command must not commit a partial new scale.
+            activeScaleFrameRequiresTargetReassert = true;
+            activeScaleFrameRequiresClearPass = !boardReset;
         } else {
-            // A session reset has already blackened every non-target pixel.
-            // Sending another 90 clear commands here can overrun legacy Fret
-            // Zealot firmware and leave only a partial scale visible.
+            // Manual updates are deltas. Sending a full clear here can overrun
+            // legacy firmware and leave only a partial scale visible.
             writeScaleFrameDelta(committedScaleFrame, target);
+            activeScaleFrameRequiresTargetReassert = false;
             activeScaleFrameRequiresClearPass = false;
         }
         activeScaleFrame = target;

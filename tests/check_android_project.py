@@ -398,9 +398,13 @@ def main():
             "writeScaleFrameNonTargetClear" in fret_zealot_sdk_controller and
             "The target LEDs are now all present." in fret_zealot_sdk_controller,
             "Fret Zealot AUTO scale replacement must clear obsolete LEDs only after target LEDs settle")
+    require("activeScaleFrameRequiresTargetReassert" in fret_zealot_sdk_controller and
+            "writeScaleFrameReconciliation(completed);" in fret_zealot_sdk_controller and
+            "must not commit a partial new scale" in fret_zealot_sdk_controller,
+            "Fret Zealot scale reconciliation must reassert target LEDs before stale clears")
     require("boolean boardReset = false;" in fret_zealot_sdk_controller and
-            "if (reconcileWholeBoard && !boardReset)" in fret_zealot_sdk_controller,
-            "Fret Zealot must avoid redundant legacy clear writes after its session reset")
+            "activeScaleFrameRequiresClearPass = !boardReset;" in fret_zealot_sdk_controller,
+            "Fret Zealot must skip stale-pixel clears after its session reset")
     require("Fret Zealot LED service ready; sending current scale" in fret_zealot_sdk_controller and
             "listener.onReady();" in fret_zealot_sdk_controller,
             "Fret Zealot must render the current scale directly after its session is ready")
