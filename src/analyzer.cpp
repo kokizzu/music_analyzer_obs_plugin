@@ -20904,7 +20904,7 @@ void restore_tightly_labeled_dominant_seventh_guitar_tones_from_analysis(
 {
 	const int label_components = chord_label_component_count(chord_state.label);
 	if (!chord_state.label[0] || chord_state.label[0] == '-' ||
-	    label_components > 4 ||
+	    label_components > 5 ||
 	    note_grid_active_pitch_class_count(display_grid) > 8 ||
 	    note_grid_active_pitch_class_count(analysis_grid) > 8)
 		return;
@@ -20961,8 +20961,9 @@ void restore_tightly_labeled_major_guitar_tones_from_analysis(
 		return;
 
 	// Keep this to an explicit, unextended major component in a small alias
-	// set.  The major third may be recovered at four aliases; its fifth is
-	// restricted to two aliases to avoid treating extension residue as a note.
+	// set.  A high-confidence root can survive five aliases; the major third
+	// may be recovered at four, while its fifth is restricted to two to avoid
+	// treating extension residue as a note.
 	const char *cursor = chord_state.label;
 	while (cursor && *cursor) {
 		const char *end = std::strchr(cursor, '=');
@@ -20974,13 +20975,25 @@ void restore_tightly_labeled_major_guitar_tones_from_analysis(
 		const std::size_t suffix_len = len > root_len ? len - root_len : 0;
 		if (parse_root_chord_component(cursor, len, component) &&
 		    component.quality == RootChordQuality::Major && suffix_len == 0) {
-			const int third = (component.root + 4) % 12;
-			if (!note_grid_pitch_active(display_grid, third) &&
-			    note_grid_pitch_active(analysis_grid, third) &&
-			    note_grid_pitch_level(analysis_grid, third) >= 0.50f) {
-				const NoteCell &source = analysis_grid.cells[static_cast<std::size_t>(third)];
-				if (source.active)
-					promote_note_grid_primary_midi(display_grid, source.midi, source.level);
+			if (label_components <= 5) {
+				const int root = component.root;
+				if (!note_grid_pitch_active(display_grid, root) &&
+				    note_grid_pitch_active(analysis_grid, root) &&
+				    note_grid_pitch_level(analysis_grid, root) >= 0.60f) {
+					const NoteCell &source = analysis_grid.cells[static_cast<std::size_t>(root)];
+					if (source.active)
+						promote_note_grid_primary_midi(display_grid, source.midi, source.level);
+				}
+			}
+			if (label_components <= 4) {
+				const int third = (component.root + 4) % 12;
+				if (!note_grid_pitch_active(display_grid, third) &&
+				    note_grid_pitch_active(analysis_grid, third) &&
+				    note_grid_pitch_level(analysis_grid, third) >= 0.50f) {
+					const NoteCell &source = analysis_grid.cells[static_cast<std::size_t>(third)];
+					if (source.active)
+						promote_note_grid_primary_midi(display_grid, source.midi, source.level);
+				}
 			}
 			if (label_components <= 2) {
 				const int fifth = (component.root + 7) % 12;
