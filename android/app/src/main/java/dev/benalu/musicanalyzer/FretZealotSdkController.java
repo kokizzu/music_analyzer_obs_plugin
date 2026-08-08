@@ -67,6 +67,10 @@ final class FretZealotSdkController implements Closeable {
         return ready;
     }
 
+    boolean isScaleFrameInFlight() {
+        return activeScaleFrame != null;
+    }
+
     private static byte dimChannel(int channel) {
         int clamped = Math.max(0, Math.min(15, channel));
         if (clamped == 0) {

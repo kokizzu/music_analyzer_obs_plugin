@@ -66,7 +66,11 @@ final class ExternalDeviceManager implements Closeable {
     // A first-generation Fret Zealot takes a few hundred milliseconds to
     // apply a frame. Keep its last complete AUTO scale visible until a root
     // has been quiet long enough for one reliable two-phase replacement.
-    private static final long FRET_ZEALOT_AUTO_ROOT_STABLE_MILLIS = 750;
+    // A full legacy-board replacement includes a target pass and a stale-pixel
+    // clear pass. Do not start it until the estimator has stayed on one root
+    // long enough for the previous full frame to be useful.
+    private static final long FRET_ZEALOT_AUTO_ROOT_STABLE_MILLIS = 1250;
+    private static final long FRET_ZEALOT_FRAME_IDLE_RETRY_MILLIS = 100;
 
     private final Context context;
     private final long nativeHandle;
@@ -140,12 +144,20 @@ final class ExternalDeviceManager implements Closeable {
             }
         });
         sendStableFretZealotPacket = () -> {
-            fretZealotAutoReconciliationScheduled = false;
             if (!started || !fretZealot.isReady() || pendingFretZealotPacket == null) {
+                fretZealotAutoReconciliationScheduled = false;
+                return;
+            }
+            if (fretZealot.isScaleFrameInFlight()) {
+                // Do not turn a stable update into a queued frame. A legacy
+                // board can visibly retain only a prefix if a replacement
+                // starts before its previous target/clear pass has settled.
+                retryFretZealotAutoReconciliation();
                 return;
             }
             byte[] packet = pendingFretZealotPacket;
             pendingFretZealotPacket = null;
+            fretZealotAutoReconciliationScheduled = false;
             // A genuinely stable AUTO root gets one complete scale replay.
             // Do not stream deltas while the estimator is still revising its
             // root: legacy boards can apply only a prefix of those frames.
@@ -826,6 +838,11 @@ final class ExternalDeviceManager implements Closeable {
         handler.removeCallbacks(sendStableFretZealotPacket);
         fretZealotAutoReconciliationScheduled = true;
         handler.postDelayed(sendStableFretZealotPacket, FRET_ZEALOT_AUTO_ROOT_STABLE_MILLIS);
+    }
+
+    private void retryFretZealotAutoReconciliation() {
+        handler.postDelayed(sendStableFretZealotPacket,
+                FRET_ZEALOT_FRAME_IDLE_RETRY_MILLIS);
     }
 
     private void sendMidi(MidiInputPort inputPort, byte[] messages) {

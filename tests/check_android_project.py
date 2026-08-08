@@ -298,11 +298,14 @@ def main():
             "fretZealot.sendPacket" in external_devices and
             "connectBle(fretZealot" not in external_devices,
             "Android BLE manager must delegate Fret Zealot connection and output to the SDK")
-    require("FRET_ZEALOT_AUTO_ROOT_STABLE_MILLIS = 750" in external_devices and
+    require("FRET_ZEALOT_AUTO_ROOT_STABLE_MILLIS = 1250" in external_devices and
             "nativeIsAutomaticRootMode" in external_devices and
             "sendStableFretZealotPacket" in external_devices and
             "fretZealotAutoReconciliationScheduled" in external_devices and
             "handler.removeCallbacks(sendStableFretZealotPacket);" in external_devices and
+            "fretZealot.isScaleFrameInFlight()" in external_devices and
+            "FRET_ZEALOT_FRAME_IDLE_RETRY_MILLIS" in external_devices and
+            "retryFretZealotAutoReconciliation();" in external_devices and
             "partial scales are worse than a briefly older root" in external_devices and
             "handler.removeCallbacks(sendStableFretZealotPacket);" in external_devices and
             "fretZealot.sendPacket(packet, true);" in external_devices,
@@ -316,6 +319,9 @@ def main():
             "sdk.set(" in fret_zealot_sdk_controller and
             "sendCommandFlush" in fret_zealot_sdk_controller,
             "Fret Zealot output must use the official SDK command API")
+    require("boolean isScaleFrameInFlight()" in fret_zealot_sdk_controller and
+            "return activeScaleFrame != null;" in fret_zealot_sdk_controller,
+            "Fret Zealot AUTO updates must wait for an active legacy frame to finish")
     require("LOWEST_SDK_INTENSITY = 3" in fret_zealot_sdk_controller and
             "LOWEST_CHANNEL_MAX = 3" in fret_zealot_sdk_controller and
             "byte red = dimChannel(packet[offset + 1] & 0x0f)" in fret_zealot_sdk_controller and
