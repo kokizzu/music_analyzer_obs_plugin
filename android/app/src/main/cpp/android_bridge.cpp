@@ -394,6 +394,19 @@ Java_dev_benalu_musicanalyzer_MusicAnalyzerNative_nativeApplyControlAction(JNIEn
 }
 
 extern "C" JNIEXPORT jboolean JNICALL
+Java_dev_benalu_musicanalyzer_MusicAnalyzerNative_nativeSetManualRoot(JNIEnv *, jclass, jlong handle,
+									jint pitch_class)
+{
+	AndroidAnalyzer *state = from_handle(handle);
+	if (!state || pitch_class < 0 || pitch_class >= 12)
+		return JNI_FALSE;
+	std::lock_guard<std::mutex> lock(state->control_mutex);
+	const bool root_changed = state->fret_control.set_manual_root(pitch_class);
+	const bool mode_changed = state->fret_control.set_mode(mao::RootControlMode::Manual);
+	return root_changed || mode_changed ? JNI_TRUE : JNI_FALSE;
+}
+
+extern "C" JNIEXPORT jboolean JNICALL
 Java_dev_benalu_musicanalyzer_MusicAnalyzerNative_nativeHandleApcPad(JNIEnv *, jclass, jlong handle, jint note,
 								jint velocity)
 {

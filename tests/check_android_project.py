@@ -22,6 +22,7 @@ def main():
     route_audio_script = (ROOT / "scripts" / "route_android_emulator_audio.sh").read_text(encoding="utf-8")
     android_profile_script = (ROOT / "scripts" / "profile_android_app.sh").read_text(encoding="utf-8")
     android_audio_status_script = (ROOT / "scripts" / "android_audio_status.sh").read_text(encoding="utf-8")
+    android_root_script = (ROOT / "scripts" / "set_android_debug_root.sh").read_text(encoding="utf-8")
     native_cmake = (ROOT / "android" / "app" / "src" / "main" / "cpp" / "CMakeLists.txt").read_text(
         encoding="utf-8"
     )
@@ -103,7 +104,14 @@ def main():
     require("android-route-desktop-audio:" in makefile, "Makefile android-route-desktop-audio target missing")
     require("android-route-desktop-audio-watch:" in makefile,
             "Makefile android-route-desktop-audio-watch target missing")
+    require("android-set-root:" in makefile and "scripts/set_android_debug_root.sh" in makefile and
+            "ANDROID_DEBUG_ROOT ?= $(ROOT)" in makefile,
+            "Makefile debug root target missing")
     require("--watch" in makefile, "Makefile must expose persistent Android audio routing")
+    require("--activity-single-top" in android_root_script and "DEBUG_MANUAL_ROOT" in android_root_script and
+            "dev.benalu.musicanalyzer.MainActivity" in android_root_script and "Error type" in android_root_script and
+            "G) pitch_class=7" in android_root_script and "F\\#|GB" in android_root_script,
+            "Android debug root script must map named roots to the running debug app")
     require("android-install-bass-guitar:" in makefile, "Makefile android-install-bass-guitar target missing")
     require("android-run-bass-guitar:" in makefile, "Makefile android-run-bass-guitar target missing")
     require("dev.benalu.musicanalyzer.bassguitar" in makefile,
@@ -123,6 +131,12 @@ def main():
     require("ANDROID_SDK_ROOT" in makefile, "Makefile Android SDK root missing")
     require("ANDROID_AVD_HOME" in makefile, "Makefile Android AVD home missing")
     require("ANDROID_GRADLE_VERSION" in makefile, "Makefile Android Gradle version missing")
+    require("nativeSetManualRoot" in native_api and "nativeSetManualRoot" in bridge and
+            "RootControlMode::Manual" in bridge,
+            "Android native API must expose manual root control")
+    require("EXTRA_DEBUG_MANUAL_ROOT" in activity and "BuildConfig.DEBUG" in activity and
+            "onNewIntent(Intent intent)" in activity,
+            "Android debug root intent must be debug-only and update the running activity")
 
     require("sdkmanager" in setup_script, "setup-android must install SDK packages with sdkmanager")
     require("android_sdk_packages_installed" in setup_script,

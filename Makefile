@@ -14,6 +14,8 @@ ANDROID_EMULATOR_IMAGE ?= google_apis
 ANDROID_AVD_NAME ?= music_analyzer_api$(ANDROID_EMULATOR_API)_$(ANDROID_EMULATOR_ABI)
 ANDROID_AVD_HOME ?= $(CURDIR)/$(BUILD_DIR)/android-avd
 ANDROID_ROUTE_INTERVAL ?= 1
+ROOT ?= G
+ANDROID_DEBUG_ROOT ?= $(ROOT)
 ANDROID_ADB := $(ANDROID_SDK_ROOT)/platform-tools/adb
 ANDROID_PROFILE_PACKAGE ?= dev.benalu.musicanalyzer.bassguitar
 BASS_GUITAR_APK := android/app/build/outputs/apk/bassGuitar/debug/app-bassGuitar-debug.apk
@@ -1306,6 +1308,11 @@ android-route-desktop-audio: scripts/route_android_emulator_audio.sh
 
 android-route-desktop-audio-watch: scripts/route_android_emulator_audio.sh
 	ANDROID_MIC_SOURCE="$(ANDROID_MIC_SOURCE)" ANDROID_ROUTE_INTERVAL="$(ANDROID_ROUTE_INTERVAL)" $(SHELL) scripts/route_android_emulator_audio.sh --watch
+
+android-set-root: scripts/set_android_debug_root.sh
+	ANDROID_ADB="$(ANDROID_ADB)" ANDROID_DEBUG_ROOT="$(ANDROID_DEBUG_ROOT)" $(SHELL) scripts/set_android_debug_root.sh
+
+.PHONY: android-set-root
 
 android-grant-permissions:
 	"$(ANDROID_ADB)" wait-for-device

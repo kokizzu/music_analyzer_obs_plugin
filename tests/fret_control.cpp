@@ -30,6 +30,8 @@ void test_root_state()
 	assert(state.manual_root() == 11);
 	assert(state.set_manual_root(19));
 	assert(state.manual_root() == 7);
+	assert(state.mode() == mao::RootControlMode::Manual);
+	assert(state.effective_root() == 7);
 	assert(state.toggle_mode());
 	assert(state.effective_root() == 6);
 	assert(mao::pitch_class_from_root_label("Db") == 1);

@@ -21,6 +21,8 @@ final class MusicAnalyzerNative {
 
     static native boolean nativeApplyControlAction(long handle, int actionKind, int value);
 
+    static native boolean nativeSetManualRoot(long handle, int pitchClass);
+
     static native boolean nativeHandleApcPad(long handle, int note, int velocity);
 
     static native boolean nativeHandleMvaveSwitch(long handle, int switchIndex, boolean held);

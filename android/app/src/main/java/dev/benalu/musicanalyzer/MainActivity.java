@@ -2,6 +2,7 @@ package dev.benalu.musicanalyzer;
 
 import android.Manifest;
 import android.app.Activity;
+import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.graphics.Bitmap;
 import android.graphics.Canvas;
@@ -35,6 +36,8 @@ public final class MainActivity extends Activity {
     private static final long ACTIVE_FRAME_DELAY_MS = 50;
     private static final long IDLE_FRAME_DELAY_MS = 250;
     private static final long CAPTURE_LOG_INTERVAL_NANOS = 1_000_000_000L;
+    private static final String EXTRA_DEBUG_MANUAL_ROOT =
+            "dev.benalu.musicanalyzer.DEBUG_MANUAL_ROOT";
 
     private AnalyzerView analyzerView;
     private ExternalDeviceManager externalDevices;
@@ -80,11 +83,39 @@ public final class MainActivity extends Activity {
 
         externalDevices = new ExternalDeviceManager(this, nativeHandle, () -> analyzerView.invalidate());
         externalDevices.start();
+        applyDebugManualRootIntent(getIntent());
 
         if (hasPermission(Manifest.permission.RECORD_AUDIO)) {
             startAudio();
         }
         requestMissingPermissions();
+    }
+
+    @Override
+    protected void onNewIntent(Intent intent) {
+        super.onNewIntent(intent);
+        setIntent(intent);
+        applyDebugManualRootIntent(intent);
+    }
+
+    private void applyDebugManualRootIntent(Intent intent) {
+        if (!BuildConfig.DEBUG || nativeHandle == 0 || intent == null
+                || !intent.hasExtra(EXTRA_DEBUG_MANUAL_ROOT)) {
+            return;
+        }
+        int pitchClass = intent.getIntExtra(EXTRA_DEBUG_MANUAL_ROOT, -1);
+        if (pitchClass < 0 || pitchClass >= 12) {
+            Log.w(TAG, "Ignoring invalid debug manual root " + pitchClass);
+            return;
+        }
+        if (MusicAnalyzerNative.nativeSetManualRoot(nativeHandle, pitchClass)) {
+            if (externalDevices != null) {
+                externalDevices.onAnalyzerChanged();
+            }
+            if (analyzerView != null) {
+                analyzerView.invalidate();
+            }
+        }
     }
 
     @Override
