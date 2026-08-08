@@ -4552,6 +4552,25 @@ void check_vocal_owned_upper_alias_promotes_supported_lower_primary(Runner &runn
 		      "vocal lower octave primary: expected weak lower support to keep upper alias primary");
 }
 
+void check_visible_lower_octave_primary_preserves_visual_strength(Runner &runner)
+{
+	static constexpr int kLowerMidi = 57;
+	static constexpr int kUpperMidi = kLowerMidi + 12;
+
+	NoteGrid grid = {};
+	write_note_grid_cell(grid, NoteCandidate{kLowerMidi, 0.20f}, 0.20f, 0.20f);
+	write_note_grid_cell(grid, NoteCandidate{kUpperMidi, 1.00f}, 1.00f, 0.82f);
+	InstrumentState state = {};
+	write_note_grid_label(state, grid, -1);
+
+	prefer_visible_lower_octave_primary(grid, state, kFullMixVocalMinMidi, 0.20f, -1, 0.18f);
+	const NoteCell primary = note_grid_primary_cell_for_pitch_class(grid, midi_pitch_class(kLowerMidi));
+	runner.expect(primary.active && primary.midi == kLowerMidi,
+		      "visible lower octave primary: expected A3 to replace A4");
+	runner.expect(note_grid_midi_visual_level(grid, kLowerMidi) >= 0.82f,
+		      "visible lower octave primary: expected promoted A3 to retain A4 visual strength");
+}
+
 void check_low_wind_other_octave_alias_promotes_raw_fundamental(Runner &runner)
 {
 	static constexpr int kLowerMidi = 40;
@@ -4692,6 +4711,7 @@ int run()
 	check_existing_reed_brass_other_visual_note_is_brightened(runner);
 	check_other_owned_low_wind_alias_maps_to_lower_octave(runner);
 	check_vocal_owned_upper_alias_promotes_supported_lower_primary(runner);
+	check_visible_lower_octave_primary_preserves_visual_strength(runner);
 	check_low_wind_other_octave_alias_promotes_raw_fundamental(runner);
 	check_low_wind_other_octave_alias_requires_upper_stack(runner);
 	if (runner.failures) {

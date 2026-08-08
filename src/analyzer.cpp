@@ -12018,6 +12018,10 @@ void prefer_visible_lower_octave_primary(NoteGrid &grid, InstrumentState &state,
 			continue;
 
 		lower.level = std::max(lower.level, primary.level);
+		// The promoted octave is the note the UI will actually present. Keep its
+		// visual envelope in step with the selected primary so a valid lower
+		// fundamental does not remain dim after promotion.
+		lower.visual_level = std::max(lower.visual_level, primary.visual_level);
 		std::array<NoteCell, kNoteRowCount> reordered = {};
 		reordered[0] = lower;
 		std::size_t write = 1;
