@@ -18,7 +18,6 @@ final class FretZealotSdkController implements Closeable {
     // 1/15 makes every nonzero RGB component identical, collapsing orange into
     // yellow. 3/15 retains the calibrated Fret Zealot hue order at low power.
     private static final int LOWEST_CHANNEL_MAX = 3;
-    private static final int VIOLET_BLUE_CHANNEL_LEVEL = 4;
 
     interface Listener {
         void onConnecting();
@@ -53,15 +52,6 @@ final class FretZealotSdkController implements Closeable {
             return 0;
         }
         return (byte) Math.max(1, (clamped * LOWEST_CHANNEL_MAX + 7) / 15);
-    }
-
-    private static byte dimBlueChannel(int red, int green, int blue) {
-        // The Fret Zealot's red LED is comparatively strong. Keep its minimum
-        // purple component but give blue one extra step for a blue-violet hue.
-        if (red == 4 && green == 0 && blue == 15) {
-            return VIOLET_BLUE_CHANNEL_LEVEL;
-        }
-        return dimChannel(blue);
     }
 
     private static byte fretZealotPixelForStandardTuningString(int lowToHighString) {
@@ -127,7 +117,7 @@ final class FretZealotSdkController implements Closeable {
                         fretZealotPixelForStandardTuningString(string),
                         dimChannel(red),
                         dimChannel(green),
-                        dimBlueChannel(red, green, blue),
+                        dimChannel(blue),
                         LOWEST_SDK_INTENSITY,
                         (byte) effect);
             }

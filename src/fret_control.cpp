@@ -22,13 +22,13 @@ constexpr std::array<RgbColor, kScaleDegreeCount> kMajorColors = {
 // the shared violet toward magenta. These values retain the LiteJam hue order
 // after its lower per-channel quantization.
 constexpr std::array<RgbColor, kScaleDegreeCount> kFretZealotMajorColors = {
-	RgbColor{255, 0, 0},
-	RgbColor{255, 96, 0},
-	RgbColor{255, 192, 0},
-	RgbColor{0, 255, 0},
-	RgbColor{0, 96, 192},
-	RgbColor{0, 0, 255},
-	RgbColor{64, 0, 255},
+	RgbColor{64, 0, 0},
+	RgbColor{128, 64, 0},
+	RgbColor{64, 64, 0},
+	RgbColor{0, 64, 0},
+	RgbColor{0, 64, 192},
+	RgbColor{0, 0, 64},
+	RgbColor{64, 0, 64},
 };
 constexpr std::array<int, 6> kStandardTuningLowToHigh = {40, 45, 50, 55, 59, 64};
 constexpr std::array<const char *, kPitchClassCount> kPitchClassNames = {

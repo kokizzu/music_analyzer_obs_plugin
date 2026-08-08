@@ -310,8 +310,7 @@ def main():
             "dimChannel(green)" in fret_zealot_sdk_controller,
             "Fret Zealot output must preserve scale hues at low LED intensity")
     require("dimChannel(red),\n                        dimChannel(green)," in fret_zealot_sdk_controller and
-            "dimBlueChannel(red, green, blue),\n                        LOWEST_SDK_INTENSITY" in fret_zealot_sdk_controller and
-            "VIOLET_BLUE_CHANNEL_LEVEL = 4" in fret_zealot_sdk_controller,
+            "dimChannel(blue),\n                        LOWEST_SDK_INTENSITY" in fret_zealot_sdk_controller,
             "Fret Zealot adapter must compensate for the vendor SDK's swapped RGB arguments")
     require("6e400002-b5a3-f393-e0a9-e50e24dcca9e" in fret_zealot_attributes and
             "fb1e4002-54ae-4a28-9f74-dfccb248601d" in fret_zealot_attributes and
@@ -343,7 +342,7 @@ def main():
             "Fret Zealot output must map analyzer E-A-D-G-B-E strings to hardware order")
     require("dimChannel(red)," in fret_zealot_sdk_controller and
             "dimChannel(green)," in fret_zealot_sdk_controller and
-            "dimBlueChannel(red, green, blue)," in fret_zealot_sdk_controller,
+            "dimChannel(blue)," in fret_zealot_sdk_controller,
             "Fret Zealot output must preserve the shared RGB scale palette")
     require("Fret Zealot LED service ready; sending current scale" in fret_zealot_sdk_controller and
             "listener.onReady();" in fret_zealot_sdk_controller,

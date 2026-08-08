@@ -157,8 +157,8 @@ void test_fret_zealot_packet()
 	assert(packet.size() > 4 && packet.size() % 4 == 0);
 	assert(packet[0] == 0x40 && packet[1] == 0 && packet[2] == 0 && packet[3] == 0);
 	assert(packet[4] == 0x00);
-	assert(packet[5] == 0x0f);
-	assert(packet[6] == 0xb0);
+	assert(packet[5] == 0x04);
+	assert(packet[6] == 0x40);
 	assert(packet[7] == 0x02);
 	for (std::size_t offset = 4; offset < packet.size(); offset += 4) {
 		assert(packet[offset] == 0x00);
@@ -166,26 +166,34 @@ void test_fret_zealot_packet()
 		assert(packet[offset + 3] == 2 || packet[offset + 3] == 4 || packet[offset + 3] == 8 ||
 		       packet[offset + 3] == 16 || packet[offset + 3] == 32 || packet[offset + 3] == 64);
 	}
-	bool found_orange = false;
+	bool found_fret_zealot_red = false;
+	bool found_fret_zealot_orange = false;
 	for (std::size_t offset = 4; offset < packet.size(); offset += 4) {
-		if ((packet[offset + 1] & 0x0f) == 15 && packet[offset + 2] == 0x60) {
-			found_orange = true;
+		if ((packet[offset + 1] & 0x0f) == 4 && packet[offset + 2] == 0) {
+			found_fret_zealot_red = true;
 			break;
 		}
 	}
-	assert(found_orange);
-	bool found_fret_zealot_soft_yellow = false;
+	assert(found_fret_zealot_red);
+	bool found_fret_zealot_dim_yellow = false;
+	bool found_fret_zealot_green = false;
 	bool found_fret_zealot_light_blue = false;
 	bool found_fret_zealot_violet = false;
 	for (std::size_t offset = 4; offset < packet.size(); offset += 4) {
-		if ((packet[offset + 1] & 0x0f) == 15 && packet[offset + 2] == 0xb0)
-			found_fret_zealot_soft_yellow = true;
-		if ((packet[offset + 1] & 0x0f) == 0 && packet[offset + 2] == 0x6b)
+		if ((packet[offset + 1] & 0x0f) == 8 && packet[offset + 2] == 0x40)
+			found_fret_zealot_orange = true;
+		if ((packet[offset + 1] & 0x0f) == 4 && packet[offset + 2] == 0x40)
+			found_fret_zealot_dim_yellow = true;
+		if ((packet[offset + 1] & 0x0f) == 0 && packet[offset + 2] == 0x40)
+			found_fret_zealot_green = true;
+		if ((packet[offset + 1] & 0x0f) == 0 && packet[offset + 2] == 0x4b)
 			found_fret_zealot_light_blue = true;
-		if ((packet[offset + 1] & 0x0f) == 4 && packet[offset + 2] == 0x0f)
+		if ((packet[offset + 1] & 0x0f) == 4 && packet[offset + 2] == 0x04)
 			found_fret_zealot_violet = true;
 	}
-	assert(found_fret_zealot_soft_yellow);
+	assert(found_fret_zealot_orange);
+	assert(found_fret_zealot_dim_yellow);
+	assert(found_fret_zealot_green);
 	assert(found_fret_zealot_light_blue);
 	assert(found_fret_zealot_violet);
 
@@ -195,7 +203,7 @@ void test_fret_zealot_packet()
 	bool found_d_g = false;
 	bool found_open_g = false;
 	for (std::size_t offset = 4; offset < g_packet.size(); offset += 4) {
-		const bool root_red = (g_packet[offset + 1] & 0x0f) == 15 && g_packet[offset + 2] == 0;
+		const bool root_red = (g_packet[offset + 1] & 0x0f) == 4 && g_packet[offset + 2] == 0;
 		if (!root_red)
 			continue;
 		const int fret = g_packet[offset + 1] >> 4;
