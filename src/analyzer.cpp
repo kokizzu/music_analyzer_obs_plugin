@@ -20964,10 +20964,14 @@ bool recover_stronger_later_plain_guitar_root_alias_from_source(
 	return true;
 }
 
+bool guitar_loud_harmonic_only_single_note_residue(const NoteGrid &display_grid,
+						   const NoteGrid &analysis_grid, int root,
+						   int third, float rms);
+
 bool recover_clean_smoothed_plain_guitar_display(
 	InstrumentState &state, const ChordResult &source, const NoteGrid &display_grid,
 	const NoteGrid &analysis_grid, const NoteGrid &smoothed_grid,
-	const std::array<float, kNoteProbeCount> &powers, int min_midi, int max_midi)
+	const std::array<float, kNoteProbeCount> &powers, int min_midi, int max_midi, float rms)
 {
 	if (state.label[0] && state.label[0] != '-')
 		return false;
@@ -20993,6 +20997,9 @@ bool recover_clean_smoothed_plain_guitar_display(
 	const int third = root + (minor ? 3 : 4);
 	const int fifth = root + 7;
 	const int opposite_third = root + (minor ? 4 : 3);
+	if (guitar_loud_harmonic_only_single_note_residue(display_grid, analysis_grid, root, third,
+								      rms))
+		return false;
 	const ChordResult triad = make_guitar_plain_triad(root, minor, source.confidence);
 	if (note_grid_chord_tone_count(smoothed_grid, triad) < 3 ||
 	    note_grid_chord_tone_count(analysis_grid, triad) < 3)
@@ -32003,7 +32010,7 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 					snapshot.guitar_chord, smoothed_guitar_chord,
 					snapshot.guitar_notes, guitar_chord_detection_grid,
 					snapshot.guitar_chord_smoothed_notes, note_powers,
-					kGuitarMinMidi, kGuitarMaxMidi);
+					kGuitarMinMidi, kGuitarMaxMidi, rms);
 		}
 	} else {
 		reset_note_grid_envelope(snapshot.guitar_notes, snapshot.guitar, guitar_note_tracking_);

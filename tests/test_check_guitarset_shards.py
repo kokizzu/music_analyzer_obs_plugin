@@ -113,6 +113,27 @@ def test_single_note_gate_skips_chord_recall() -> None:
             raise AssertionError(result.stderr)
 
 
+def test_fails_single_note_chord_false_count() -> None:
+    with tempfile.TemporaryDirectory() as temp:
+        root = pathlib.Path(temp)
+        only = root / "only.out"
+        write_log(only, 20, 120, 120, 120, 0, 0, 120, 0, 0, 0, 3, 0)
+        result = run_checker(
+            [only],
+            "--required-excerpts", "20",
+            "--required-windows", "120",
+            "--min-recall-percent", "100",
+            "--min-precision-percent", "100",
+            "--min-guitar-recall-percent", "100",
+            "--min-chord-checks", "0",
+            "--max-single-note-chord-false-count", "2",
+        )
+        if result.returncode == 0:
+            raise AssertionError("expected single-note chord false-count failure")
+        if "single-note chord false positives <= 2" not in result.stderr:
+            raise AssertionError(result.stderr)
+
+
 def test_fails_primary_chord_hits() -> None:
     with tempfile.TemporaryDirectory() as temp:
         root = pathlib.Path(temp)
@@ -141,6 +162,7 @@ def main() -> int:
     test_aggregates_shards_before_thresholds()
     test_fails_aggregate_precision()
     test_single_note_gate_skips_chord_recall()
+    test_fails_single_note_chord_false_count()
     test_fails_primary_chord_hits()
     print("test_check_guitarset_shards: ok")
     return 0

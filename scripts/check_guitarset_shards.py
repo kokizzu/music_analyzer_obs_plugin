@@ -228,6 +228,13 @@ def validate(args: argparse.Namespace, summary: dict[str, float]) -> None:
                 "expected single-note chord false positives <= "
                 f"{args.max_single_note_chord_false_percent}%, got {actual}% ({predicted}/{windows})"
             )
+    if args.max_single_note_chord_false_count >= 0 and chord_total == 0:
+        predicted = int(summary["chord_tp"] + summary["chord_fp"])
+        if predicted > args.max_single_note_chord_false_count:
+            fail(
+                "expected single-note chord false positives <= "
+                f"{args.max_single_note_chord_false_count}, got {predicted}/{windows}"
+            )
 
 
 def main() -> int:
@@ -251,6 +258,7 @@ def main() -> int:
     parser.add_argument("--min-simple-major-minor-chord-recall-percent", type=int, default=0)
     parser.add_argument("--min-simple-other-chord-recall-percent", type=int, default=0)
     parser.add_argument("--max-single-note-chord-false-percent", type=int, default=-1)
+    parser.add_argument("--max-single-note-chord-false-count", type=int, default=-1)
     args = parser.parse_args()
 
     summary = empty_summary()
