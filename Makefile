@@ -455,6 +455,7 @@ HF_DRUM_KIT_PRIMARY_DEBUG_ERR ?= $(BUILD_DIR)/hf_drum_kit_primary_debug.err
 HF_DRUM_KIT_PRIMARY_ATTRIBUTE_ROWS ?= $(BUILD_DIR)/hf_drum_kit_primary_attribute_rows.tsv
 HF_DRUM_KIT_PRIMARY_ATTRIBUTE_LOCK_DIR ?= $(BUILD_DIR)/hf_drum_kit_primary_attribute_rows.lock
 HF_DRUM_KIT_SHARD_LOCK_DIR ?= $(BUILD_DIR)/hf_drum_kit_samples.lock
+HF_DRUM_KIT_PREP_LOCK_DIR ?= $(BUILD_DIR)/hf_drum_kit_prepare.lock
 HF_DRUM_KIT_SHARD_CATEGORIES := kick snare hihat crash tom ride rim
 HF_DRUM_KIT_SHARD_TARGETS := $(addprefix test-hf-drum-kit-samples-shard-,$(HF_DRUM_KIT_SHARD_CATEGORIES))
 HF_DRUM_KIT_SHARD_OUTS := $(addprefix $(BUILD_DIR)/hf_drum_kit_samples_shard_,$(addsuffix .out,$(HF_DRUM_KIT_SHARD_CATEGORIES)))
@@ -477,6 +478,8 @@ IDMT_DRUMS_PRIMARY_DEBUG_ERR ?= $(BUILD_DIR)/idmt_drums_primary_debug.err
 IDMT_DRUMS_PRIMARY_ATTRIBUTE_ROWS ?= $(BUILD_DIR)/idmt_drums_primary_attribute_rows.tsv
 IDMT_DRUMS_PRIMARY_ATTRIBUTE_LOCK_DIR ?= $(BUILD_DIR)/idmt_drums_primary_attribute_rows.lock
 IDMT_DRUMS_SHARD_LOCK_DIR ?= $(BUILD_DIR)/idmt_drums_samples.lock
+IDMT_DRUMS_ARCHIVE_LOCK_DIR ?= $(BUILD_DIR)/idmt_drums_archive.lock
+IDMT_DRUMS_PREP_LOCK_DIR ?= $(BUILD_DIR)/idmt_drums_prepare.lock
 IDMT_DRUMS_SHARD_CATEGORIES := kick snare hihat
 IDMT_DRUMS_SHARD_TARGETS := $(addprefix test-idmt-drums-samples-shard-,$(IDMT_DRUMS_SHARD_CATEGORIES))
 IDMT_DRUMS_SHARD_OUTS := $(addprefix $(BUILD_DIR)/idmt_drums_samples_shard_,$(addsuffix .out,$(IDMT_DRUMS_SHARD_CATEGORIES)))
@@ -1823,8 +1826,8 @@ test-drum-machine-samples-parallel-unlocked: $(BUILD_DIR)/analyzer_drum_samples 
 test-drum-machine-samples-shard-%: FORCE $(BUILD_DIR)/analyzer_drum_samples $(DRUM_MACHINE_SAMPLE_BUILD_DIR)/manifest.tsv scripts/run_with_duration.sh
 	@category="$*"; $(RUN_WITH_DURATION) analyzer_drum_machine_samples_shard_$* env MUSIC_ANALYZER_DRUM_SAMPLES_REQUIRED=1 MUSIC_ANALYZER_DRUM_SAMPLE_REQUIRED_CATEGORIES="$$category" MUSIC_ANALYZER_DRUM_SAMPLE_FILTER_CATEGORY="$$category" MUSIC_ANALYZER_DRUM_SAMPLES_DIR="$(DRUM_MACHINE_SAMPLE_BUILD_DIR)" MUSIC_ANALYZER_DRUM_SAMPLE_MIN_RECALL_PERCENT=0 MUSIC_ANALYZER_DRUM_SAMPLE_MIN_PRECISION_PERCENT=0 MUSIC_ANALYZER_DRUM_SAMPLE_MAX_KICK_FALSE_PERCENT=100 MUSIC_ANALYZER_DRUM_SAMPLE_MAX_TOM_FALSE_PERCENT=100 $(BUILD_DIR)/analyzer_drum_samples > "$(BUILD_DIR)/drum_machine_samples_shard_$*.out" 2> "$(BUILD_DIR)/drum_machine_samples_shard_$*.err"
 
-prepare-hf-drum-kit-samples: scripts/prepare_hf_drum_kit_samples.py | $(BUILD_DIR)
-	HF_DRUM_KIT_SAMPLE_DIR="$(HF_DRUM_KIT_SAMPLE_DIR)" HF_DRUM_KIT_LIMIT_PER_CATEGORY="$(HF_DRUM_KIT_LIMIT_PER_CATEGORY)" $(PYTHON) scripts/prepare_hf_drum_kit_samples.py --output "$(HF_DRUM_KIT_SAMPLE_DIR)"
+prepare-hf-drum-kit-samples: scripts/prepare_hf_drum_kit_samples.py scripts/run_with_lock.sh | $(BUILD_DIR)
+	$(SHELL) scripts/run_with_lock.sh "$(HF_DRUM_KIT_PREP_LOCK_DIR)" -- env HF_DRUM_KIT_SAMPLE_DIR="$(HF_DRUM_KIT_SAMPLE_DIR)" HF_DRUM_KIT_LIMIT_PER_CATEGORY="$(HF_DRUM_KIT_LIMIT_PER_CATEGORY)" $(PYTHON) scripts/prepare_hf_drum_kit_samples.py --output "$(HF_DRUM_KIT_SAMPLE_DIR)"
 
 $(HF_DRUM_KIT_SAMPLE_DIR)/manifest.tsv: scripts/prepare_hf_drum_kit_samples.py | $(BUILD_DIR)
 	+$(MAKE) prepare-hf-drum-kit-samples
@@ -1865,16 +1868,11 @@ find-hf-drum-primary-attribute-patterns: scripts/find_drum_attribute_patterns.py
 
 download-idmt-drums-samples: $(IDMT_DRUMS_ARCHIVE)
 
-$(IDMT_DRUMS_ARCHIVE): FORCE | $(BUILD_DIR)
-	mkdir -p "$(IDMT_DRUMS_SOURCE_DIR)"
-	if [ -s "$(IDMT_DRUMS_ARCHIVE)" ] && ! $(PYTHON) -m zipfile -t "$(IDMT_DRUMS_ARCHIVE)" >/dev/null 2>&1; then mv -f "$(IDMT_DRUMS_ARCHIVE)" "$(IDMT_DRUMS_ARCHIVE).part"; fi
-	if [ ! -s "$(IDMT_DRUMS_ARCHIVE)" ] && [ -s "$(IDMT_DRUMS_ARCHIVE).part" ] && $(PYTHON) -m zipfile -t "$(IDMT_DRUMS_ARCHIVE).part" >/dev/null 2>&1; then mv "$(IDMT_DRUMS_ARCHIVE).part" "$(IDMT_DRUMS_ARCHIVE)"; fi
-	if [ ! -s "$(IDMT_DRUMS_ARCHIVE)" ]; then if command -v "$(ARIA2C)" >/dev/null 2>&1; then "$(ARIA2C)" -c -x "$(IDMT_DRUMS_DOWNLOAD_CONNECTIONS)" -s "$(IDMT_DRUMS_DOWNLOAD_CONNECTIONS)" -k 1M --file-allocation=none --allow-overwrite=true --auto-file-renaming=false --dir "$(IDMT_DRUMS_SOURCE_DIR)" --out "IDMT-SMT-DRUMS-V2.zip.part" "$(IDMT_DRUMS_URL)"; else curl -fL -C - -o "$(IDMT_DRUMS_ARCHIVE).part" "$(IDMT_DRUMS_URL)"; fi; fi
-	if [ -s "$(IDMT_DRUMS_ARCHIVE).part" ]; then $(PYTHON) -m zipfile -t "$(IDMT_DRUMS_ARCHIVE).part" >/dev/null; mv "$(IDMT_DRUMS_ARCHIVE).part" "$(IDMT_DRUMS_ARCHIVE)"; fi
-	$(PYTHON) -m zipfile -t "$(IDMT_DRUMS_ARCHIVE)" >/dev/null
+$(IDMT_DRUMS_ARCHIVE): FORCE scripts/download_idmt_drums_archive.sh scripts/run_with_lock.sh | $(BUILD_DIR)
+	$(SHELL) scripts/run_with_lock.sh "$(IDMT_DRUMS_ARCHIVE_LOCK_DIR)" -- $(SHELL) scripts/download_idmt_drums_archive.sh "$(IDMT_DRUMS_ARCHIVE)" "$(IDMT_DRUMS_URL)" "$(IDMT_DRUMS_DOWNLOAD_CONNECTIONS)" "$(ARIA2C)" "$(PYTHON)"
 
-prepare-idmt-drums-samples: scripts/prepare_idmt_drums_samples.py download-idmt-drums-samples | $(BUILD_DIR)
-	IDMT_DRUMS_ARCHIVE="$(IDMT_DRUMS_ARCHIVE)" IDMT_DRUMS_SAMPLE_DIR="$(IDMT_DRUMS_SAMPLE_DIR)" IDMT_DRUMS_LIMIT_PER_CATEGORY="$(IDMT_DRUMS_LIMIT_PER_CATEGORY)" IDMT_DRUMS_MIN_PER_CATEGORY="$(IDMT_DRUMS_MIN_PER_CATEGORY)" $(PYTHON) scripts/prepare_idmt_drums_samples.py --archive "$(IDMT_DRUMS_ARCHIVE)" --output "$(IDMT_DRUMS_SAMPLE_DIR)" --limit-per-category "$(IDMT_DRUMS_LIMIT_PER_CATEGORY)" --min-per-category "$(IDMT_DRUMS_MIN_PER_CATEGORY)"
+prepare-idmt-drums-samples: scripts/prepare_idmt_drums_samples.py download-idmt-drums-samples scripts/run_with_lock.sh | $(BUILD_DIR)
+	$(SHELL) scripts/run_with_lock.sh "$(IDMT_DRUMS_PREP_LOCK_DIR)" -- env IDMT_DRUMS_ARCHIVE="$(IDMT_DRUMS_ARCHIVE)" IDMT_DRUMS_SAMPLE_DIR="$(IDMT_DRUMS_SAMPLE_DIR)" IDMT_DRUMS_LIMIT_PER_CATEGORY="$(IDMT_DRUMS_LIMIT_PER_CATEGORY)" IDMT_DRUMS_MIN_PER_CATEGORY="$(IDMT_DRUMS_MIN_PER_CATEGORY)" $(PYTHON) scripts/prepare_idmt_drums_samples.py --archive "$(IDMT_DRUMS_ARCHIVE)" --output "$(IDMT_DRUMS_SAMPLE_DIR)" --limit-per-category "$(IDMT_DRUMS_LIMIT_PER_CATEGORY)" --min-per-category "$(IDMT_DRUMS_MIN_PER_CATEGORY)"
 
 $(IDMT_DRUMS_SAMPLE_DIR)/manifest.tsv: scripts/prepare_idmt_drums_samples.py download-idmt-drums-samples | $(BUILD_DIR)
 	+$(MAKE) prepare-idmt-drums-samples

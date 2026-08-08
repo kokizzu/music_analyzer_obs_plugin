@@ -2292,6 +2292,13 @@ def main() -> int:
     assert "HF_DRUM_KIT_SHARD_LOCK_DIR ?= $(BUILD_DIR)/hf_drum_kit_samples.lock" in makefile, (
         "HF drum-kit sample shards must have a stable lock path"
     )
+    assert "HF_DRUM_KIT_PREP_LOCK_DIR ?= $(BUILD_DIR)/hf_drum_kit_prepare.lock" in makefile, (
+        "HF drum-kit fixture preparation must have a stable lock path"
+    )
+    hf_prepare_recipe = target_recipe(makefile, "prepare-hf-drum-kit-samples")
+    assert 'scripts/run_with_lock.sh "$(HF_DRUM_KIT_PREP_LOCK_DIR)" -- env' in hf_prepare_recipe, (
+        "HF drum-kit fixture preparation must lock its shared output directory"
+    )
     assert 'scripts/run_with_lock.sh "$(HF_DRUM_KIT_SHARD_LOCK_DIR)" -- "$(MAKE)" test-hf-drum-kit-samples-parallel-unlocked' in hf_parallel_recipe, (
         "HF drum-kit parallel target must lock shared shard outputs"
     )
@@ -2343,6 +2350,23 @@ def main() -> int:
     )
     assert "IDMT_DRUMS_SHARD_LOCK_DIR ?= $(BUILD_DIR)/idmt_drums_samples.lock" in makefile, (
         "IDMT drum sample shards must have a stable lock path"
+    )
+    assert "IDMT_DRUMS_ARCHIVE_LOCK_DIR ?= $(BUILD_DIR)/idmt_drums_archive.lock" in makefile, (
+        "IDMT drum archive download must have a stable lock path"
+    )
+    assert "IDMT_DRUMS_PREP_LOCK_DIR ?= $(BUILD_DIR)/idmt_drums_prepare.lock" in makefile, (
+        "IDMT drum fixture preparation must have a stable lock path"
+    )
+    idmt_archive_recipe = target_recipe(makefile, "$(IDMT_DRUMS_ARCHIVE)")
+    assert 'scripts/run_with_lock.sh "$(IDMT_DRUMS_ARCHIVE_LOCK_DIR)"' in idmt_archive_recipe, (
+        "IDMT drum archive download must lock its partial archive"
+    )
+    assert "scripts/download_idmt_drums_archive.sh" in idmt_archive_recipe, (
+        "IDMT drum archive download must use the atomic archive helper"
+    )
+    idmt_prepare_recipe = target_recipe(makefile, "prepare-idmt-drums-samples")
+    assert 'scripts/run_with_lock.sh "$(IDMT_DRUMS_PREP_LOCK_DIR)" -- env' in idmt_prepare_recipe, (
+        "IDMT drum fixture preparation must lock its shared output directory"
     )
     assert 'scripts/run_with_lock.sh "$(IDMT_DRUMS_SHARD_LOCK_DIR)" -- "$(MAKE)" test-idmt-drums-samples-parallel-unlocked' in idmt_parallel_recipe, (
         "IDMT drum parallel target must lock shared shard outputs"
