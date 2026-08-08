@@ -20875,19 +20875,20 @@ void restore_tightly_labeled_minor_seventh_guitar_thirds_from_analysis(
 	}
 }
 
-void restore_tightly_labeled_dominant_seventh_guitar_sevenths_from_analysis(
+void restore_tightly_labeled_dominant_seventh_guitar_tones_from_analysis(
 	NoteGrid &display_grid, const InstrumentState &chord_state, const NoteGrid &analysis_grid)
 {
+	const int label_components = chord_label_component_count(chord_state.label);
 	if (!chord_state.label[0] || chord_state.label[0] == '-' ||
-	    chord_label_component_count(chord_state.label) > 4 ||
+	    label_components > 4 ||
 	    note_grid_active_pitch_class_count(display_grid) > 8 ||
 	    note_grid_active_pitch_class_count(analysis_grid) > 8)
 		return;
 
 	// In compact dominant-seventh labels, a retained flat seventh in the
-	// analysis grid is a reliable missing string fundamental.  Restrict this
-	// to very small alias sets: wider candidate sets commonly include unrelated
-	// extension and harmonic residue.
+	// analysis grid is a reliable missing string fundamental.  The major third
+	// needs the still tighter three-alias bound, where its harmonic residue is
+	// distinguishable from a genuinely missing string fundamental.
 	const char *cursor = chord_state.label;
 	while (cursor && *cursor) {
 		const char *end = std::strchr(cursor, '=');
@@ -20907,6 +20908,16 @@ void restore_tightly_labeled_dominant_seventh_guitar_sevenths_from_analysis(
 				const NoteCell &source = analysis_grid.cells[static_cast<std::size_t>(seventh)];
 				if (source.active)
 					promote_note_grid_primary_midi(display_grid, source.midi, source.level);
+			}
+			if (label_components <= 3) {
+				const int third = (component.root + 4) % 12;
+				if (!note_grid_pitch_active(display_grid, third) &&
+				    note_grid_pitch_active(analysis_grid, third) &&
+				    note_grid_pitch_level(analysis_grid, third) >= 0.60f) {
+					const NoteCell &source = analysis_grid.cells[static_cast<std::size_t>(third)];
+					if (source.active)
+						promote_note_grid_primary_midi(display_grid, source.midi, source.level);
+				}
 			}
 		}
 		if (!end)
@@ -32371,7 +32382,7 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 				snapshot.guitar_notes, snapshot.guitar_chord, guitar_chord_detection_grid);
 			restore_tightly_labeled_minor_seventh_guitar_thirds_from_analysis(
 				snapshot.guitar_notes, snapshot.guitar_chord, guitar_chord_detection_grid);
-			restore_tightly_labeled_dominant_seventh_guitar_sevenths_from_analysis(
+			restore_tightly_labeled_dominant_seventh_guitar_tones_from_analysis(
 				snapshot.guitar_notes, snapshot.guitar_chord, guitar_chord_detection_grid);
 			restore_tightly_labeled_major_guitar_thirds_from_analysis(
 				snapshot.guitar_notes, snapshot.guitar_chord, guitar_chord_detection_grid);
