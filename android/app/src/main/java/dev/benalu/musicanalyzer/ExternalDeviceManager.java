@@ -785,10 +785,10 @@ final class ExternalDeviceManager implements Closeable {
             return;
         }
         if (!force && Arrays.equals(packet, lastFretZealotPacket)) {
-            if (pendingFretZealotPacket != null && Arrays.equals(packet, pendingFretZealotPacket)) {
-                handler.removeCallbacks(sendStableFretZealotPacket);
-                pendingFretZealotPacket = null;
-            }
+            // A device-state revision can refresh outputs without changing the
+            // scale. Preserve the delayed AUTO reconciliation in that case:
+            // cancelling it leaves a first-generation board showing only the
+            // portion of its preceding LED delta that it happened to apply.
             return;
         }
         lastFretZealotPacket = Arrays.copyOf(packet, packet.length);

@@ -302,6 +302,9 @@ def main():
             "nativeIsAutomaticRootMode" in external_devices and
             "sendStableFretZealotPacket" in external_devices,
             "Android must wait for a stable AUTO root before updating Fret Zealot LEDs")
+    require("if (!force && Arrays.equals(packet, lastFretZealotPacket)) {\n            // A device-state revision" in external_devices and
+            "cancelling it leaves a first-generation board showing only the" in external_devices,
+            "An unchanged Fret Zealot packet must not cancel its scheduled AUTO reconciliation")
     require("LEDBLELib.getInstance" in fret_zealot_sdk_controller and
             "sendCommandBufferClear" in fret_zealot_sdk_controller and
             "sdk.set_all" in fret_zealot_sdk_controller and
