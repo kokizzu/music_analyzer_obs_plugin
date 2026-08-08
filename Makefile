@@ -918,6 +918,14 @@ VOCALSET_MAX_CENTS ?= 25
 VOCALSET_MIN_NOTE_DURATION ?= 0.22
 VOCALSET_ALLOWED_TECHNIQUES ?= belt,breathy,fast_forte,fast_piano,forte,lip_trill,messa,slow_forte,slow_piano,straight,trill,trillo,vibrato
 VOCALSET_DOWNLOAD_CONNECTIONS ?= 8
+VOCALSET_FULL_MIX_MIN_ANY_HIT_PERCENT ?= 99
+VOCALSET_FULL_MIX_MIN_EXPECTED_ROW_PERCENT ?= 50
+VOCALSET_FULL_MIX_MIN_VOCALS_EXPECTED_ROW_PERCENT ?= 50
+VOCALSET_FULL_MIX_MIN_FIRST_ROW_PERCENT ?= 5
+VOCALSET_FULL_MIX_MIN_VOCALS_FIRST_ROW_PERCENT ?= 5
+VOCALSET_FULL_MIX_MIN_VISUAL_ROW_PERCENT ?= 6
+VOCALSET_FULL_MIX_MIN_VOCALS_VISUAL_ROW_PERCENT ?= 6
+VOCALSET_FULL_MIX_MAX_DRUM_ACTIVE_PERCENT ?= 25
 REAL_NOTE_MIN_BASS ?= 100
 REAL_NOTE_MIN_GUITAR ?= 300
 REAL_NOTE_MIN_PIANO ?= 1000
@@ -1071,6 +1079,12 @@ REAL_NOTE_FULL_MIX_VISUAL_STRENGTH_ARGS = \
 	$(foreach threshold,$(REAL_NOTE_FULL_MIX_MIN_VISIBLE_LIT_EXACT_FAMILY_SAMPLE_PERCENT),--min-visible-lit-exact-family-sample-percent "$(threshold)")
 REAL_NOTE_SAMPLE_SHARDS ?= $(PARALLEL_TEST_JOBS)
 REAL_NOTE_SAMPLE_SHARD_INDEXES := $(shell i=0; while [ $$i -lt $(REAL_NOTE_SAMPLE_SHARDS) ]; do printf '%s ' $$i; i=$$((i + 1)); done)
+VOCALSET_FULL_MIX_SHARDS ?= $(REAL_NOTE_SAMPLE_SHARDS)
+VOCALSET_FULL_MIX_SHARD_INDEXES := $(shell i=0; while [ $$i -lt $(VOCALSET_FULL_MIX_SHARDS) ]; do printf '%s ' $$i; i=$$((i + 1)); done)
+VOCALSET_FULL_MIX_SHARD_TARGETS := $(addprefix test-vocalset-samples-full-mix-shard-,$(VOCALSET_FULL_MIX_SHARD_INDEXES))
+VOCALSET_FULL_MIX_SHARD_OUTS := $(addprefix $(BUILD_DIR)/vocalset_full_mix_shard_,$(addsuffix .out,$(VOCALSET_FULL_MIX_SHARD_INDEXES)))
+VOCALSET_FULL_MIX_LOCK_DIR ?= $(BUILD_DIR)/vocalset_full_mix_shard.lock
+VOCALSET_FULL_MIX_TEST_MAKE_JOBS = $(if $(filter -j%,$(MAKEFLAGS)),,-j$(VOCALSET_FULL_MIX_SHARDS))
 REAL_NOTE_SAMPLE_TAG ?= isolated
 REAL_NOTE_SAMPLE_ROOT ?= $(REAL_NOTE_SAMPLE_DIR)
 REAL_NOTE_SAMPLE_REQUIRED_SAMPLES ?= 1000
@@ -3399,6 +3413,19 @@ test-vocalset-samples: test-vocalset-samples-parallel
 
 test-vocalset-samples-parallel: $(BUILD_DIR)/analyzer_real_note_samples prepare-vocalset-samples scripts/run_with_duration.sh scripts/check_real_note_sample_shards.py
 	+$(RUN_REAL_NOTE_SAMPLE_SHARDS)
+
+test-vocalset-samples-full-mix:
+	+$(MAKE) test-vocalset-samples-full-mix-parallel
+
+test-vocalset-samples-full-mix-parallel: $(BUILD_DIR)/analyzer_real_note_samples prepare-vocalset-samples scripts/run_with_duration.sh scripts/run_with_lock.sh scripts/check_real_note_full_mix_shards.py
+	+$(RUN_WITH_DURATION) analyzer_vocalset_samples_full_mix_parallel $(SHELL) scripts/run_with_lock.sh "$(VOCALSET_FULL_MIX_LOCK_DIR)" -- "$(MAKE)" test-vocalset-samples-full-mix-parallel-unlocked
+
+test-vocalset-samples-full-mix-parallel-unlocked: $(BUILD_DIR)/analyzer_real_note_samples prepare-vocalset-samples scripts/run_with_duration.sh scripts/check_real_note_full_mix_shards.py
+	+$(MAKE) $(VOCALSET_FULL_MIX_TEST_MAKE_JOBS) $(VOCALSET_FULL_MIX_SHARD_TARGETS)
+	$(RUN_WITH_DURATION) check_vocalset_full_mix_shards $(PYTHON) scripts/check_real_note_full_mix_shards.py --min-any-hit-percent "$(VOCALSET_FULL_MIX_MIN_ANY_HIT_PERCENT)" --min-expected-row-percent "$(VOCALSET_FULL_MIX_MIN_EXPECTED_ROW_PERCENT)" --min-first-row-percent "$(VOCALSET_FULL_MIX_MIN_FIRST_ROW_PERCENT)" --min-visual-row-percent "$(VOCALSET_FULL_MIX_MIN_VISUAL_ROW_PERCENT)" --bass-min-expected-row-percent 0 --guitar-min-expected-row-percent 0 --piano-min-expected-row-percent 0 --vocals-min-expected-row-percent "$(VOCALSET_FULL_MIX_MIN_VOCALS_EXPECTED_ROW_PERCENT)" --other-min-expected-row-percent 0 --bass-min-first-row-percent 0 --guitar-min-first-row-percent 0 --piano-min-first-row-percent 0 --vocals-min-first-row-percent "$(VOCALSET_FULL_MIX_MIN_VOCALS_FIRST_ROW_PERCENT)" --other-min-first-row-percent 0 --bass-min-visual-row-percent 0 --guitar-min-visual-row-percent 0 --piano-min-visual-row-percent 0 --vocals-min-visual-row-percent "$(VOCALSET_FULL_MIX_MIN_VOCALS_VISUAL_ROW_PERCENT)" --other-min-visual-row-percent 0 --max-drum-active-percent "$(VOCALSET_FULL_MIX_MAX_DRUM_ACTIVE_PERCENT)" $(VOCALSET_FULL_MIX_SHARD_OUTS)
+
+test-vocalset-samples-full-mix-shard-%: FORCE $(BUILD_DIR)/analyzer_real_note_samples prepare-vocalset-samples scripts/run_with_duration.sh
+	$(RUN_WITH_DURATION) analyzer_vocalset_samples_full_mix_shard_$* env MUSIC_ANALYZER_REAL_NOTE_SAMPLES_REQUIRED=1 MUSIC_ANALYZER_REAL_NOTE_FULL_MIX=1 MUSIC_ANALYZER_REAL_NOTE_SHARD_COUNT="$(VOCALSET_FULL_MIX_SHARDS)" MUSIC_ANALYZER_REAL_NOTE_SHARD_INDEX="$*" MUSIC_ANALYZER_REAL_NOTE_SAMPLE_ROOT="$(VOCALSET_SAMPLE_DIR)" MUSIC_ANALYZER_REAL_NOTE_REQUIRED_SAMPLES="$(VOCALSET_MIN_VOCALS)" MUSIC_ANALYZER_REAL_NOTE_MIN_BASS=0 MUSIC_ANALYZER_REAL_NOTE_MIN_GUITAR=0 MUSIC_ANALYZER_REAL_NOTE_MIN_PIANO=0 MUSIC_ANALYZER_REAL_NOTE_MIN_VOCALS=0 MUSIC_ANALYZER_REAL_NOTE_MIN_OTHER=0 MUSIC_ANALYZER_REAL_NOTE_MIN_ANY_HIT_PERCENT=0 MUSIC_ANALYZER_REAL_NOTE_MIN_EXPECTED_ROW_PERCENT=0 MUSIC_ANALYZER_REAL_NOTE_MIN_FIRST_ROW_PERCENT=0 MUSIC_ANALYZER_REAL_NOTE_MIN_BASS_EXPECTED_ROW_PERCENT=0 MUSIC_ANALYZER_REAL_NOTE_MIN_GUITAR_EXPECTED_ROW_PERCENT=0 MUSIC_ANALYZER_REAL_NOTE_MIN_PIANO_EXPECTED_ROW_PERCENT=0 MUSIC_ANALYZER_REAL_NOTE_MIN_VOCALS_EXPECTED_ROW_PERCENT=0 MUSIC_ANALYZER_REAL_NOTE_MIN_OTHER_EXPECTED_ROW_PERCENT=0 MUSIC_ANALYZER_REAL_NOTE_MIN_BASS_FIRST_ROW_PERCENT=0 MUSIC_ANALYZER_REAL_NOTE_MIN_GUITAR_FIRST_ROW_PERCENT=0 MUSIC_ANALYZER_REAL_NOTE_MIN_PIANO_FIRST_ROW_PERCENT=0 MUSIC_ANALYZER_REAL_NOTE_MIN_VOCALS_FIRST_ROW_PERCENT=0 MUSIC_ANALYZER_REAL_NOTE_MIN_OTHER_FIRST_ROW_PERCENT=0 MUSIC_ANALYZER_REAL_NOTE_MAX_DRUM_ACTIVE_PERCENT=100 MUSIC_ANALYZER_REAL_NOTE_MAX_FAILURES=999999 MUSIC_ANALYZER_REAL_NOTE_MAX_FAILURE_LINES=20 $(BUILD_DIR)/analyzer_real_note_samples > "$(BUILD_DIR)/vocalset_full_mix_shard_$*.out" 2> "$(BUILD_DIR)/vocalset_full_mix_shard_$*.err"
 
 $(VOCALSET_ATTRIBUTE_TSV): $(BUILD_DIR)/analyzer_real_note_samples $(VOCALSET_SAMPLE_DIR)/manifest.tsv scripts/build_sharded_tsv.sh scripts/run_with_lock.sh | $(BUILD_DIR)
 	+$(SHELL) scripts/run_with_lock.sh "$(VOCALSET_ATTRIBUTE_LOCK_DIR)" -- "$(SHELL)" scripts/build_sharded_tsv.sh "$@" "$(MAKE)" "$(REAL_NOTE_SAMPLE_TEST_MAKE_JOBS)" $(VOCALSET_ATTRIBUTE_PARTS)
