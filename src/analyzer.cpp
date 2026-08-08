@@ -20793,6 +20793,48 @@ void append_probe_supported_guitar_omitted_third_major_seventh_aliases_after_pru
 	}
 }
 
+void restore_compact_major_seventh_guitar_fifths_from_analysis(
+	NoteGrid &display_grid, const InstrumentState &chord_state, const NoteGrid &analysis_grid)
+{
+	if (!chord_state.label[0] || chord_state.label[0] == '-' ||
+	    note_grid_active_pitch_class_count(display_grid) > 8 ||
+	    note_grid_active_pitch_class_count(analysis_grid) > 8)
+		return;
+
+	// A major-seventh label is only retained when its leading tone has survived
+	// the chord pipeline.  When its fifth is also a strong compact analysis
+	// candidate, but was removed from the rendered note grid, mirror that
+	// existing analysis note.  Dense chromatic grids are excluded: their fifth
+	// candidates are predominantly harmonic/noise spill rather than a missing
+	// string fundamental.
+	const char *cursor = chord_state.label;
+	while (cursor && *cursor) {
+		const char *end = std::strchr(cursor, '=');
+		const std::size_t len = end ? static_cast<std::size_t>(end - cursor) : std::strlen(cursor);
+		ParsedRootChord component;
+		std::size_t root_len = 1;
+		if (len > 1 && cursor[1] == '#')
+			root_len = 2;
+		const char *suffix = cursor + root_len;
+		const std::size_t suffix_len = len > root_len ? len - root_len : 0;
+		if (parse_root_chord_component(cursor, len, component) &&
+		    component.quality == RootChordQuality::Major &&
+		    suffix_is(suffix, suffix_len, "maj7")) {
+			const int fifth = (component.root + 7) % 12;
+			if (!note_grid_pitch_active(display_grid, fifth) &&
+			    note_grid_pitch_active(analysis_grid, fifth) &&
+			    note_grid_pitch_level(analysis_grid, fifth) >= 0.40f) {
+				const NoteCell &source = analysis_grid.cells[static_cast<std::size_t>(fifth)];
+				if (source.active)
+					promote_note_grid_primary_midi(display_grid, source.midi, source.level);
+			}
+		}
+		if (!end)
+			break;
+		cursor = end + 1;
+	}
+}
+
 void append_probe_supported_guitar_diminished_seventh_aliases_after_prune(
 	InstrumentState &state, const NoteGrid &display_grid, const NoteGrid &analysis_grid,
 	const std::array<float, kNoteProbeCount> &powers, int min_midi, int max_midi)
@@ -32168,6 +32210,8 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 				snapshot.guitar_chord, snapshot.guitar_notes,
 				guitar_chord_detection_grid, detection_note_powers, kGuitarMinMidi,
 				kGuitarMaxMidi);
+			restore_compact_major_seventh_guitar_fifths_from_analysis(
+				snapshot.guitar_notes, snapshot.guitar_chord, guitar_chord_detection_grid);
 		}
 		if (!mixed_source) {
 			const bool single_note_probe_residue =
