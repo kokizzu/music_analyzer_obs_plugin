@@ -37,7 +37,7 @@ On Linux, the OBS plugin replaces the input/source-name text in the `MUSIC ANALY
 
 ### Efficiency requirements
 
-- Audacious metadata detection runs only in a lazy background poller, at most once per second.
+- Audacious metadata detection runs in a lazy background poller once per second. Each wait is measured from the start of the previous probe, so a slow probe is followed immediately by the next attempt instead of adding another full-second delay.
 - The usual tuple path launches one short `audtool` Title query per poll and skips `/proc` plus `wmctrl` when successful.
 - `/proc`, `wmctrl`, and the additional fallback commands run only when the Title tuple path fails.
 - The render path uses only cached metadata and elapsed time; it performs no external metadata command.

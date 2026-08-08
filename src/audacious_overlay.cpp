@@ -1,4 +1,5 @@
 #include "audacious_overlay.hpp"
+#include "audacious_poll_schedule.hpp"
 #include "audacious_title.hpp"
 #include "unicode_title_renderer.hpp"
 #include "visualizer_renderer.hpp"
@@ -16,7 +17,6 @@
 namespace mao {
 namespace {
 
-constexpr auto kAudaciousPollInterval = std::chrono::seconds(1);
 constexpr auto kBitmapScrollInterval = std::chrono::milliseconds(250);
 constexpr int kTitleStartX = 316;
 constexpr int kTitleHeight = 26;
@@ -142,6 +142,7 @@ private:
 	void worker_loop()
 	{
 		for (;;) {
+			const auto poll_started = std::chrono::steady_clock::now();
 			AudaciousNowPlaying next;
 			const std::string tuple_title = read_audacious_title_tuple();
 			if (!tuple_title.empty()) {
@@ -166,8 +167,10 @@ private:
 				initialized_ = true;
 			}
 
+			const auto poll_elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(
+				std::chrono::steady_clock::now() - poll_started);
 			std::unique_lock<std::mutex> lock(mutex_);
-			if (wake_.wait_for(lock, kAudaciousPollInterval, [&]() { return stop_; }))
+			if (wake_.wait_for(lock, audacious_title_poll_wait(poll_elapsed), [&]() { return stop_; }))
 				return;
 		}
 	}

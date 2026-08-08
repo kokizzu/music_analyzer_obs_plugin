@@ -26,13 +26,13 @@ $(BUILD_DIR)/plugin.o: CXXFLAGS += -include src/audacious_plugin_redirect.hpp
 $(AUDACIOUS_TITLE_OBJ): src/audacious_title.cpp src/audacious_title.hpp GNUmakefile | $(BUILD_DIR)
 	$(CXX) $(CXXFLAGS) $(OBS_CFLAGS) $(LOCAL_SIMDE_CFLAGS) -I$(OBS_INCLUDEDIR)/obs -Isrc -c $< -o $@
 
-$(AUDACIOUS_OVERLAY_OBJ): src/audacious_overlay.cpp src/audacious_overlay.hpp src/audacious_title.hpp src/unicode_title_renderer.hpp src/visualizer_renderer.hpp GNUmakefile | $(BUILD_DIR)
+$(AUDACIOUS_OVERLAY_OBJ): src/audacious_overlay.cpp src/audacious_overlay.hpp src/audacious_poll_schedule.hpp src/audacious_title.hpp src/unicode_title_renderer.hpp src/visualizer_renderer.hpp GNUmakefile | $(BUILD_DIR)
 	$(CXX) $(CXXFLAGS) $(OBS_CFLAGS) $(LOCAL_SIMDE_CFLAGS) -I$(OBS_INCLUDEDIR)/obs -Isrc -c $< -o $@
 
 $(UNICODE_TITLE_RENDERER_OBJ): src/unicode_title_renderer.cpp src/unicode_title_renderer.hpp src/visualizer_renderer.hpp GNUmakefile | $(BUILD_DIR)
 	$(CXX) $(CXXFLAGS) $(OBS_CFLAGS) $(LOCAL_SIMDE_CFLAGS) -I$(OBS_INCLUDEDIR)/obs -Isrc -c $< -o $@
 
-$(AUDACIOUS_TITLE_TEST_BIN): tests/audacious_title.cpp src/audacious_title.cpp src/audacious_title.hpp GNUmakefile | $(BUILD_DIR)
+$(AUDACIOUS_TITLE_TEST_BIN): tests/audacious_title.cpp src/audacious_poll_schedule.hpp src/audacious_title.cpp src/audacious_title.hpp GNUmakefile | $(BUILD_DIR)
 	$(CXX) $(CXXFLAGS) -Isrc tests/audacious_title.cpp src/audacious_title.cpp -o $@
 
 $(UNICODE_TITLE_TEST_BIN): tests/unicode_title_renderer.cpp src/unicode_title_renderer.cpp src/unicode_title_renderer.hpp src/visualizer_renderer.hpp GNUmakefile | $(BUILD_DIR)

@@ -1,3 +1,4 @@
+#include "audacious_poll_schedule.hpp"
 #include "audacious_title.hpp"
 
 #include <cassert>
@@ -7,6 +8,7 @@
 int main()
 {
 	using mao::clean_audacious_title;
+	using mao::audacious_title_poll_wait;
 	using mao::extract_audacious_song_title;
 	using mao::find_audacious_window_title;
 	using mao::make_scrolling_title;
@@ -62,6 +64,13 @@ int main()
 	assert(make_scrolling_title("ABCDEFGHIJ", 5, 10) == "   --");
 	assert(make_scrolling_title("愛昧ショコラーテ", 4, 0) == "愛昧ショ");
 	assert(make_scrolling_title("ABCDEFGHIJ", 0, 0).empty());
+
+	using namespace std::chrono_literals;
+	assert(audacious_title_poll_wait(0ms) == 1000ms);
+	assert(audacious_title_poll_wait(50ms) == 950ms);
+	assert(audacious_title_poll_wait(999ms) == 1ms);
+	assert(audacious_title_poll_wait(1000ms) == 0ms);
+	assert(audacious_title_poll_wait(1750ms) == 0ms);
 
 	std::cout << "audacious title tests passed\n";
 	return 0;
