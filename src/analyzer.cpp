@@ -30079,6 +30079,11 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 			snapshot.drum_debug_rule_flags |= DrumDebugUpperTomSnareActiveBleed;
 		if (final_one_shot_measured_upper_tom_snare_active_bleed)
 			cap_drum_level(Snare, 0.28f);
+		const bool final_one_shot_measured_snare_from_upper_tom_active_bleed_primary_recovery =
+			final_one_shot_measured_upper_tom_snare_active_bleed &&
+			snapshot.drum_debug_trigger_scores[Kick] <= 43.573f && snare_crack <= 9.561f;
+		if (final_one_shot_measured_snare_from_upper_tom_active_bleed_primary_recovery)
+			promote_drum_primary(Snare, 0.90f);
 		const bool final_one_shot_measured_upper_tom_from_snare_active_bleed =
 			final_one_shot_measured_upper_tom_snare_active_bleed &&
 			drum_level_[Tom] > 0.30f &&
