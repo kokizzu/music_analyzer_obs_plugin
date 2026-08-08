@@ -157,12 +157,12 @@ void test_fret_zealot_packet()
 	assert(packet.size() > 4 && packet.size() % 4 == 0);
 	assert(packet[0] == 0x40 && packet[1] == 0 && packet[2] == 0 && packet[3] == 0);
 	assert(packet[4] == 0x00);
-	assert(packet[5] == 0x00);
+	assert(packet[5] == 0x10);
 	assert(packet[6] == 0xf0);
 	assert(packet[7] == 0x02);
 	for (std::size_t offset = 4; offset < packet.size(); offset += 4) {
 		assert(packet[offset] == 0x00);
-		assert((packet[offset + 1] >> 4) <= 14);
+		assert((packet[offset + 1] >> 4) >= 1 && (packet[offset + 1] >> 4) <= 15);
 		assert(packet[offset + 3] == 2 || packet[offset + 3] == 4 || packet[offset + 3] == 8 ||
 		       packet[offset + 3] == 16 || packet[offset + 3] == 32 || packet[offset + 3] == 64);
 	}
@@ -174,6 +174,26 @@ void test_fret_zealot_packet()
 		}
 	}
 	assert(found_orange);
+
+	const auto g_packet = mao::build_fret_zealot_major_scale_packet(7);
+	constexpr int standard_tuning[] = {40, 45, 50, 55, 59, 64};
+	bool found_low_e_g = false;
+	bool found_d_g = false;
+	for (std::size_t offset = 4; offset < g_packet.size(); offset += 4) {
+		const bool root_red = (g_packet[offset + 1] & 0x0f) == 15 && g_packet[offset + 2] == 0;
+		if (!root_red)
+			continue;
+		const int fret = g_packet[offset + 1] >> 4;
+		const int mask = g_packet[offset + 3];
+		int string = 0;
+		while (mask != (1 << (string + 1)))
+			++string;
+		assert((standard_tuning[string] + fret) % 12 == 7);
+		found_low_e_g = found_low_e_g || (string == 0 && fret == 3);
+		found_d_g = found_d_g || (string == 2 && fret == 5);
+	}
+	assert(found_low_e_g);
+	assert(found_d_g);
 }
 
 } // namespace

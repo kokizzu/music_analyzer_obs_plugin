@@ -416,15 +416,14 @@ std::vector<uint8_t> build_fret_zealot_major_scale_packet(int root_pitch_class)
 	std::vector<uint8_t> packet = {0x40, 0x00, 0x00, 0x00};
 	packet.reserve(256);
 	for (std::size_t string = 0; string < kStandardTuningLowToHigh.size(); ++string) {
-		for (int led_fret = 0; led_fret < 15; ++led_fret) {
-			const int musical_fret = led_fret + 1;
+		for (int musical_fret = 1; musical_fret <= 15; ++musical_fret) {
 			const int note = normalize_pitch_class(kStandardTuningLowToHigh[string] + musical_fret);
 			const int degree = major_scale_degree(root_pitch_class, note);
 			if (degree < 0)
 				continue;
 			const RgbColor color = kMajorColors[static_cast<std::size_t>(degree)];
 			packet.push_back(0x00);
-			packet.push_back(static_cast<uint8_t>((led_fret << 4) | scale_nibble(color.red)));
+			packet.push_back(static_cast<uint8_t>((musical_fret << 4) | scale_nibble(color.red)));
 			packet.push_back(static_cast<uint8_t>((scale_nibble(color.green) << 4) | scale_nibble(color.blue)));
 			packet.push_back(static_cast<uint8_t>(1u << (static_cast<int>(string) + 1)));
 		}
