@@ -114,8 +114,8 @@ final class FretZealotSdkController implements Closeable {
                         (byte) fret,
                         fretZealotPixelForStandardTuningString(string),
                         dimChannel(red),
-                        dimChannel(blue),
                         dimChannel(green),
+                        dimChannel(blue),
                         LOWEST_SDK_INTENSITY,
                         (byte) effect);
             }

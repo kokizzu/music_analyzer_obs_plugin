@@ -416,7 +416,7 @@ std::vector<uint8_t> build_fret_zealot_major_scale_packet(int root_pitch_class)
 	std::vector<uint8_t> packet = {0x40, 0x00, 0x00, 0x00};
 	packet.reserve(256);
 	for (std::size_t string = 0; string < kStandardTuningLowToHigh.size(); ++string) {
-		for (int musical_fret = 1; musical_fret <= 15; ++musical_fret) {
+		for (int musical_fret = 0; musical_fret <= 15; ++musical_fret) {
 			const int note = normalize_pitch_class(kStandardTuningLowToHigh[string] + musical_fret);
 			const int degree = major_scale_degree(root_pitch_class, note);
 			if (degree < 0)
