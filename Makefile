@@ -894,6 +894,7 @@ VOCADITO_MAX_FAILURES ?= 0
 VOCADITO_ANNOTATOR ?= A1
 VOCADITO_MAX_CENTS ?= 25
 VOCADITO_MIN_NOTE_DURATION ?= 0.22
+VOCADITO_DOWNLOAD_CONNECTIONS ?= 8
 VOCADITO_FULL_MIX_MIN_ANY_HIT_PERCENT ?= 100
 VOCADITO_FULL_MIX_MIN_EXPECTED_ROW_PERCENT ?= 25
 VOCADITO_FULL_MIX_MIN_VOCALS_EXPECTED_ROW_PERCENT ?= 74
@@ -3308,9 +3309,14 @@ analyze-tinysol-attributes: $(TINYSOL_DETECTED_ATTRIBUTE_ROWS) $(TINYSOL_MISS_AT
 
 download-vocadito-samples: $(VOCADITO_ARCHIVE)
 
-$(VOCADITO_ARCHIVE): | $(BUILD_DIR)
+$(VOCADITO_ARCHIVE): FORCE | $(BUILD_DIR)
 	mkdir -p "$(VOCADITO_SOURCE_DIR)"
-	if [ ! -s "$(VOCADITO_ARCHIVE)" ] || ! $(PYTHON) -m zipfile -t "$(VOCADITO_ARCHIVE)" >/dev/null 2>&1; then curl -fL -C - -o "$(VOCADITO_ARCHIVE)" "$(VOCADITO_URL)"; fi
+	if [ -s "$(VOCADITO_ARCHIVE)" ] && ! $(PYTHON) -m zipfile -t "$(VOCADITO_ARCHIVE)" >/dev/null 2>&1; then mv -f "$(VOCADITO_ARCHIVE)" "$(VOCADITO_ARCHIVE).part"; fi
+	if [ ! -s "$(VOCADITO_ARCHIVE)" ] && [ -s "$(VOCADITO_ARCHIVE).part" ] && $(PYTHON) -m zipfile -t "$(VOCADITO_ARCHIVE).part" >/dev/null 2>&1; then mv "$(VOCADITO_ARCHIVE).part" "$(VOCADITO_ARCHIVE)"; fi
+	# Keep an incomplete archive: aria2/curl can resume it on the next invocation.
+	# Only a complete ZIP is promoted to the final filename below.
+	if [ ! -s "$(VOCADITO_ARCHIVE)" ]; then if command -v aria2c >/dev/null 2>&1; then aria2c --continue=true --allow-overwrite=true --auto-file-renaming=false --max-tries=5 --retry-wait=5 --max-connection-per-server="$(VOCADITO_DOWNLOAD_CONNECTIONS)" --split="$(VOCADITO_DOWNLOAD_CONNECTIONS)" --min-split-size=1M --dir "$(VOCADITO_SOURCE_DIR)" --out "vocadito.zip.part" "$(VOCADITO_URL)"; else curl -fL -C - -o "$(VOCADITO_ARCHIVE).part" "$(VOCADITO_URL)"; fi; fi
+	if [ -s "$(VOCADITO_ARCHIVE).part" ]; then $(PYTHON) -m zipfile -t "$(VOCADITO_ARCHIVE).part" >/dev/null; mv -f "$(VOCADITO_ARCHIVE).part" "$(VOCADITO_ARCHIVE)"; fi
 	$(PYTHON) -m zipfile -t "$(VOCADITO_ARCHIVE)" >/dev/null
 
 prepare-vocadito-samples: scripts/prepare_vocadito_samples.py download-vocadito-samples | $(BUILD_DIR)
@@ -3362,7 +3368,7 @@ test-vocadito-samples-full-mix-shard-%: FORCE $(BUILD_DIR)/analyzer_real_note_sa
 
 download-vocalset-samples: $(VOCALSET_ARCHIVE)
 
-$(VOCALSET_ARCHIVE): | $(BUILD_DIR)
+$(VOCALSET_ARCHIVE): FORCE | $(BUILD_DIR)
 	mkdir -p "$(VOCALSET_SOURCE_DIR)"
 	if [ -s "$(VOCALSET_ARCHIVE)" ] && ! $(PYTHON) -m zipfile -t "$(VOCALSET_ARCHIVE)" >/dev/null 2>&1; then mv -f "$(VOCALSET_ARCHIVE)" "$(VOCALSET_ARCHIVE).part"; fi
 	if [ ! -s "$(VOCALSET_ARCHIVE)" ] && [ -s "$(VOCALSET_ARCHIVE).part" ] && $(PYTHON) -m zipfile -t "$(VOCALSET_ARCHIVE).part" >/dev/null 2>&1; then mv "$(VOCALSET_ARCHIVE).part" "$(VOCALSET_ARCHIVE)"; fi
