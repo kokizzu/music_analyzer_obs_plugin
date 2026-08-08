@@ -313,6 +313,48 @@ def main() -> int:
         assert "gap=0.125 expected=Am primary=C" in output
         assert "cpp-style promotable expected-later rows" in output
         assert "invalid_power_minor" not in output
+        protected_path = pathlib.Path(tmpdir) / "protected.tsv"
+        protected_path.write_text(
+            "\t".join(HEADER)
+            + "\n"
+            + "\t".join(
+                row(
+                    recording_id="protected_cpp_regression",
+                    expected_chords="C",
+                    expected_chord_qualities="maj",
+                    guitar_chord="C=Am",
+                    guitar_raw_chord="C=Am",
+                    guitar_smoothed_chord="C=Am",
+                    guitar_pitch_classes="C,E,A",
+                    guitar_cells="C3:0.80,E3:1.00,A2:1.00",
+                    guitar_analysis_pitch_classes="C,E,A",
+                    guitar_analysis_cells="C3:0.80,E3:1.00,A2:1.00",
+                )
+            )
+            + "\n",
+            encoding="utf-8",
+        )
+        protected_completed = subprocess.run(
+            [
+                sys.executable,
+                str(SCRIPT),
+                str(path),
+                "--examples",
+                "4",
+                "--protected-path",
+                str(protected_path),
+            ],
+            cwd=ROOT,
+            check=True,
+            text=True,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+        )
+        assert (
+            "cpp_style_cross_corpus: focus_candidates=2 focus_rescues=1 "
+            "focus_regressions=1 protected_candidates=1 protected_regressions=1"
+            in protected_completed.stdout
+        )
     print("test_analyze_guitar_primary_order: ok")
     return 0
 

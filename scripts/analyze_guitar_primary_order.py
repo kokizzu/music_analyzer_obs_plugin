@@ -566,6 +566,28 @@ def print_score_safe_rules(
             break
 
 
+def cpp_style_regressions(
+    rows: list[dict[str, str]],
+) -> tuple[
+    list[tuple[float, float, str, str, float, float, dict[str, str]]],
+    list[tuple[float, float, str, str, float, float, dict[str, str]]],
+]:
+    candidates = []
+    regressions = []
+    for row in rows:
+        expected = expected_labels(row.get("expected_chords", ""))
+        primary = primary_component(row.get("guitar_chord", ""))
+        candidate = cpp_style_promotion_candidate(row)
+        if candidate is None:
+            continue
+        gap, margin, promoted, candidate_primary, primary_score, promoted_score = candidate
+        scored = (gap, margin, promoted, candidate_primary, primary_score, promoted_score, row)
+        candidates.append(scored)
+        if primary in expected and promoted not in expected:
+            regressions.append(scored)
+    return candidates, regressions
+
+
 def cpp_style_promotion_candidate(
     row: dict[str, str],
 ) -> tuple[float, float, str, str, float, float] | None:
@@ -899,10 +921,22 @@ def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("path", type=pathlib.Path)
     parser.add_argument("--examples", type=int, default=12)
+    parser.add_argument(
+        "--protected-path",
+        action="append",
+        type=pathlib.Path,
+        default=[],
+        help="labelled corpus that must not regress under a candidate promotion",
+    )
     args = parser.parse_args()
 
     with args.path.open(newline="", errors="replace") as handle:
         rows = list(csv.DictReader(handle, delimiter="\t"))
+
+    protected_rows: list[dict[str, str]] = []
+    for path in args.protected_path:
+        with path.open(newline="", errors="replace") as handle:
+            protected_rows.extend(csv.DictReader(handle, delimiter="\t"))
 
     chord_rows = [row for row in rows if row.get("expected_chords", "--") not in ("", "--")]
     for field in ("guitar_chord", "guitar_raw_chord", "guitar_smoothed_chord"):
@@ -1354,6 +1388,16 @@ def main() -> int:
             f"score=p:{primary_score:.3f}/c:{promoted_score:.3f}",
             f"label={row.get('guitar_chord', '--')}",
             pathlib.Path(row.get("audio_path", "")).name,
+        )
+    if protected_rows:
+        protected_candidates, protected_regressions = cpp_style_regressions(protected_rows)
+        print(
+            "cpp_style_cross_corpus:",
+            f"focus_candidates={len(cpp_style_promotion_candidates)}",
+            f"focus_rescues={len(cpp_style_promotion_rescues)}",
+            f"focus_regressions={len(cpp_style_promotion_protected_false)}",
+            f"protected_candidates={len(protected_candidates)}",
+            f"protected_regressions={len(protected_regressions)}",
         )
 
     print(
