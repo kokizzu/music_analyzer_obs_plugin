@@ -2327,15 +2327,22 @@ measure-analyzer-pattern-report: | $(BUILD_DIR)
 	+$(MAKE) -s measure-analyzer-patterns | tee "$(MEASURE_ANALYZER_REPORT)"
 	@printf '%s\n' "measurement report: $(MEASURE_ANALYZER_REPORT)"
 
-download-real-note-samples: $(NSYNTH_SAMPLE_ARCHIVE)
+download-real-note-samples: FORCE | $(BUILD_DIR)
+	mkdir -p "$(REAL_SAMPLE_SOURCE_DIR)"
+	@if [ -s "$(NSYNTH_SAMPLE_ARCHIVE)" ] && ! $(TAR) -tzf "$(NSYNTH_SAMPLE_ARCHIVE)" >/dev/null 2>&1; then mv -f "$(NSYNTH_SAMPLE_ARCHIVE)" "$(NSYNTH_SAMPLE_ARCHIVE).corrupt"; fi
+	@if [ ! -s "$(NSYNTH_SAMPLE_ARCHIVE)" ]; then curl -fL -C - -o "$(NSYNTH_SAMPLE_ARCHIVE)" "$(NSYNTH_SAMPLE_URL)"; fi
+	@$(TAR) -tzf "$(NSYNTH_SAMPLE_ARCHIVE)" >/dev/null
 
 $(NSYNTH_SAMPLE_ARCHIVE): | $(BUILD_DIR)
 	mkdir -p "$(REAL_SAMPLE_SOURCE_DIR)"
-	curl -L -C - -o "$(NSYNTH_SAMPLE_ARCHIVE)" "$(NSYNTH_SAMPLE_URL)"
+	@if [ ! -s "$(NSYNTH_SAMPLE_ARCHIVE)" ]; then curl -fL -C - -o "$(NSYNTH_SAMPLE_ARCHIVE)" "$(NSYNTH_SAMPLE_URL)"; fi
+	@$(TAR) -tzf "$(NSYNTH_SAMPLE_ARCHIVE)" >/dev/null
 
 $(NSYNTH_SAMPLE_ROOT)/examples.json: $(NSYNTH_SAMPLE_ARCHIVE) | $(BUILD_DIR)
 	mkdir -p "$(REAL_SAMPLE_SOURCE_DIR)"
+	@if ! $(TAR) -tzf "$(NSYNTH_SAMPLE_ARCHIVE)" >/dev/null 2>&1; then mv -f "$(NSYNTH_SAMPLE_ARCHIVE)" "$(NSYNTH_SAMPLE_ARCHIVE).corrupt"; curl -fL -o "$(NSYNTH_SAMPLE_ARCHIVE)" "$(NSYNTH_SAMPLE_URL)"; fi
 	$(TAR) -xzf "$(NSYNTH_SAMPLE_ARCHIVE)" -C "$(REAL_SAMPLE_SOURCE_DIR)"
+	touch "$@"
 
 prepare-real-note-samples: scripts/prepare_nsynth_samples.py $(NSYNTH_SAMPLE_ROOT)/examples.json | $(BUILD_DIR)
 	NSYNTH_SAMPLE_ROOT="$(NSYNTH_SAMPLE_ROOT)" REAL_NOTE_SAMPLE_DIR="$(REAL_NOTE_SAMPLE_DIR)" REAL_NOTE_SAMPLE_LIMIT="$(REAL_NOTE_SAMPLE_LIMIT)" $(PYTHON) scripts/prepare_nsynth_samples.py --nsynth-root "$(NSYNTH_SAMPLE_ROOT)" --output "$(REAL_NOTE_SAMPLE_DIR)" --limit "$(REAL_NOTE_SAMPLE_LIMIT)"
