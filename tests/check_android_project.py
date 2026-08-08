@@ -296,6 +296,9 @@ def main():
             "SampleGattAttributes.LED_2_CH" in fret_zealot_sdk and
             "SampleGattAttributes.LED_CH" in fret_zealot_sdk,
             "Fret Zealot SDK module must support both Fret Zealot LED generations")
+    require("if (SampleGattAttributes.LED_CH.equals(uuid))" in fret_zealot_sdk and
+            "else if (SampleGattAttributes.LED_2_CH.equals(uuid)" in fret_zealot_sdk,
+            "Fret Zealot SDK must prefer the v1-compatible command characteristic when both exist")
     require("strand, red, green, blue, pixel" in fret_zealot_sdk and
             "((green & 0x0f) << 4) | (blue & 0x0f)" in fret_zealot_sdk,
             "Fret Zealot SDK adaptation must preserve the official R/B/G API and wire ordering")

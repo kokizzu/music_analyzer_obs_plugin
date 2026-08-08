@@ -1312,13 +1312,9 @@ android-grant-permissions:
 	-"$(ANDROID_ADB)" shell pm grant dev.benalu.musicanalyzer.bassguitar android.permission.RECORD_AUDIO
 	-"$(ANDROID_ADB)" shell pm grant dev.benalu.musicanalyzer.bassguitar android.permission.BLUETOOTH_SCAN
 	-"$(ANDROID_ADB)" shell pm grant dev.benalu.musicanalyzer.bassguitar android.permission.BLUETOOTH_CONNECT
-	-"$(ANDROID_ADB)" shell pm grant dev.benalu.musicanalyzer.bassguitar android.permission.ACCESS_COARSE_LOCATION
-	-"$(ANDROID_ADB)" shell pm grant dev.benalu.musicanalyzer.bassguitar android.permission.ACCESS_FINE_LOCATION
 	-"$(ANDROID_ADB)" shell pm grant dev.benalu.musicanalyzer.complete android.permission.RECORD_AUDIO
 	-"$(ANDROID_ADB)" shell pm grant dev.benalu.musicanalyzer.complete android.permission.BLUETOOTH_SCAN
 	-"$(ANDROID_ADB)" shell pm grant dev.benalu.musicanalyzer.complete android.permission.BLUETOOTH_CONNECT
-	-"$(ANDROID_ADB)" shell pm grant dev.benalu.musicanalyzer.complete android.permission.ACCESS_COARSE_LOCATION
-	-"$(ANDROID_ADB)" shell pm grant dev.benalu.musicanalyzer.complete android.permission.ACCESS_FINE_LOCATION
 
 android-install-bass-guitar: android-bass-guitar
 	"$(ANDROID_ADB)" wait-for-device
@@ -1326,8 +1322,6 @@ android-install-bass-guitar: android-bass-guitar
 	-"$(ANDROID_ADB)" shell pm grant dev.benalu.musicanalyzer.bassguitar android.permission.RECORD_AUDIO
 	-"$(ANDROID_ADB)" shell pm grant dev.benalu.musicanalyzer.bassguitar android.permission.BLUETOOTH_SCAN
 	-"$(ANDROID_ADB)" shell pm grant dev.benalu.musicanalyzer.bassguitar android.permission.BLUETOOTH_CONNECT
-	-"$(ANDROID_ADB)" shell pm grant dev.benalu.musicanalyzer.bassguitar android.permission.ACCESS_COARSE_LOCATION
-	-"$(ANDROID_ADB)" shell pm grant dev.benalu.musicanalyzer.bassguitar android.permission.ACCESS_FINE_LOCATION
 
 android-install-complete: android-complete
 	"$(ANDROID_ADB)" wait-for-device
@@ -1335,8 +1329,6 @@ android-install-complete: android-complete
 	-"$(ANDROID_ADB)" shell pm grant dev.benalu.musicanalyzer.complete android.permission.RECORD_AUDIO
 	-"$(ANDROID_ADB)" shell pm grant dev.benalu.musicanalyzer.complete android.permission.BLUETOOTH_SCAN
 	-"$(ANDROID_ADB)" shell pm grant dev.benalu.musicanalyzer.complete android.permission.BLUETOOTH_CONNECT
-	-"$(ANDROID_ADB)" shell pm grant dev.benalu.musicanalyzer.complete android.permission.ACCESS_COARSE_LOCATION
-	-"$(ANDROID_ADB)" shell pm grant dev.benalu.musicanalyzer.complete android.permission.ACCESS_FINE_LOCATION
 
 android-run: android-run-bass-guitar
 

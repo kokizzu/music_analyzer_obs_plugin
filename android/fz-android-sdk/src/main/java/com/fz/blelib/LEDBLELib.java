@@ -69,6 +69,7 @@ public final class LEDBLELib {
     private byte[] activePayload;
     private byte[] pendingPayload;
     private int activeOffset;
+    private int activeChunkBytes;
     private boolean writeInFlight;
 
     public static synchronized LEDBLELib getInstance(Context context) {
@@ -333,6 +334,7 @@ public final class LEDBLELib {
             notifyDisconnected();
             return;
         }
+        activeChunkBytes = chunk.length;
         activeOffset = end;
         writeInFlight = true;
     }
@@ -340,7 +342,10 @@ public final class LEDBLELib {
     private void onWriteComplete(int status) {
         writeInFlight = false;
         if (status != BluetoothGatt.GATT_SUCCESS) {
-            Log.w(TAG, "Fret Zealot LED write failed: " + status);
+            String characteristic = ledCharacteristic == null
+                    ? "none" : ledCharacteristic.getUuid().toString();
+            Log.w(TAG, "Fret Zealot LED write failed: status=" + status
+                    + " uuid=" + characteristic + " bytes=" + activeChunkBytes);
             clearWrites();
             notifyDisconnected();
             return;
@@ -353,6 +358,7 @@ public final class LEDBLELib {
         activePayload = null;
         pendingPayload = null;
         activeOffset = 0;
+        activeChunkBytes = 0;
         writeInFlight = false;
     }
 
@@ -361,9 +367,11 @@ public final class LEDBLELib {
         for (BluetoothGattService service : services) {
             for (BluetoothGattCharacteristic characteristic : service.getCharacteristics()) {
                 UUID uuid = characteristic.getUuid();
-                if (SampleGattAttributes.LED_2_CH.equals(uuid)) {
+                // Current Fret Zealot hardware exposes both services, but its v2 endpoint
+                // rejects the public v1 command frame. Prefer the vendor SDK's v1 endpoint.
+                if (SampleGattAttributes.LED_CH.equals(uuid)) {
                     ledCharacteristic = characteristic;
-                } else if (SampleGattAttributes.LED_CH.equals(uuid) && ledCharacteristic == null) {
+                } else if (SampleGattAttributes.LED_2_CH.equals(uuid) && ledCharacteristic == null) {
                     ledCharacteristic = characteristic;
                 } else if (SampleGattAttributes.BATTERY.equals(uuid)) {
                     batteryCharacteristic = characteristic;
