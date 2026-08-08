@@ -86,6 +86,9 @@ final class ExternalDeviceManager implements Closeable {
     private long lastOutputRevision;
     private byte[] lastFretZealotPacket;
     private byte[] pendingFretZealotPacket;
+    // Bound AUTO-root coalescing. Replacing the delayed task on every root
+    // revision can starve a first-generation board while music is playing.
+    private boolean fretZealotAutoReconciliationScheduled;
     private final Runnable sendStableFretZealotPacket;
 
     private MidiManager midiManager;
@@ -136,6 +139,7 @@ final class ExternalDeviceManager implements Closeable {
             }
         });
         sendStableFretZealotPacket = () -> {
+            fretZealotAutoReconciliationScheduled = false;
             if (!started || !fretZealot.isReady() || pendingFretZealotPacket == null) {
                 return;
             }
@@ -664,6 +668,7 @@ final class ExternalDeviceManager implements Closeable {
     private void closeFretZealot(int finalState) {
         handler.removeCallbacks(sendStableFretZealotPacket);
         pendingFretZealotPacket = null;
+        fretZealotAutoReconciliationScheduled = false;
         lastFretZealotPacket = null;
         fretZealot.close();
         setDeviceState(DEVICE_FRET_ZEALOT, finalState);
@@ -795,12 +800,18 @@ final class ExternalDeviceManager implements Closeable {
         if (force || !MusicAnalyzerNative.nativeIsAutomaticRootMode(nativeHandle)) {
             handler.removeCallbacks(sendStableFretZealotPacket);
             pendingFretZealotPacket = null;
-            fretZealot.sendPacket(packet, false);
+            fretZealotAutoReconciliationScheduled = false;
+            // The initial connection has no confirmed device frame. Reassert
+            // the whole target so a partial legacy write cannot leave a
+            // truncated scale until the next root change.
+            fretZealot.sendPacket(packet, force);
             return;
         }
         pendingFretZealotPacket = Arrays.copyOf(packet, packet.length);
-        handler.removeCallbacks(sendStableFretZealotPacket);
-        handler.postDelayed(sendStableFretZealotPacket, FRET_ZEALOT_AUTO_ROOT_STABLE_MILLIS);
+        if (!fretZealotAutoReconciliationScheduled) {
+            fretZealotAutoReconciliationScheduled = true;
+            handler.postDelayed(sendStableFretZealotPacket, FRET_ZEALOT_AUTO_ROOT_STABLE_MILLIS);
+        }
     }
 
     private void sendMidi(MidiInputPort inputPort, byte[] messages) {

@@ -300,8 +300,10 @@ def main():
             "Android BLE manager must delegate Fret Zealot connection and output to the SDK")
     require("FRET_ZEALOT_AUTO_ROOT_STABLE_MILLIS = 750" in external_devices and
             "nativeIsAutomaticRootMode" in external_devices and
-            "sendStableFretZealotPacket" in external_devices,
-            "Android must wait for a stable AUTO root before updating Fret Zealot LEDs")
+            "sendStableFretZealotPacket" in external_devices and
+            "fretZealotAutoReconciliationScheduled" in external_devices and
+            "if (!fretZealotAutoReconciliationScheduled)" in external_devices,
+            "Android must coalesce AUTO roots without indefinitely postponing Fret Zealot updates")
     require("if (!force && Arrays.equals(packet, lastFretZealotPacket)) {\n            // A device-state revision" in external_devices and
             "cancelling it leaves a first-generation board showing only the" in external_devices,
             "An unchanged Fret Zealot packet must not cancel its scheduled AUTO reconciliation")
@@ -383,6 +385,8 @@ def main():
     require("writeScaleFrameReconciliation" in fret_zealot_sdk_controller and
             "if (!target.lit[string][fret])" in fret_zealot_sdk_controller,
             "A stable Fret Zealot AUTO root must reconcile every board pixel")
+    require("fretZealot.sendPacket(packet, force);" in external_devices,
+            "Fret Zealot readiness must reconcile the initial complete scale frame")
     require("Fret Zealot LED service ready; sending current scale" in fret_zealot_sdk_controller and
             "listener.onReady();" in fret_zealot_sdk_controller,
             "Fret Zealot must render the current scale directly after its session is ready")
