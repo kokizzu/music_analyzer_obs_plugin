@@ -16,10 +16,15 @@ final class FretZealotSdkController implements Closeable {
     private static final String TAG = "MusicAnalyzerFZ";
     private static final byte LOWEST_SDK_INTENSITY = 3;
     private static final int STRING_COUNT = 6;
-    private static final int FRET_COUNT = 16;
+    // Physical LED indices 0-14 correspond to musical frets 1-15.
+    private static final int FRET_COUNT = 15;
     // 1/15 makes every nonzero RGB component identical, collapsing orange into
     // yellow. 3/15 retains the calibrated Fret Zealot hue order at low power.
     private static final int LOWEST_CHANNEL_MAX = 3;
+    // The original Fret Zealot reports GATT completion before the last legacy
+    // packet is applied to its LEDs. Keep the frame active briefly so AUTO
+    // root changes coalesce instead of building deltas from an unfinished map.
+    private static final long LEGACY_FRAME_SETTLE_MILLIS = 150L;
 
     interface Listener {
         void onConnecting();
@@ -243,6 +248,13 @@ final class FretZealotSdkController implements Closeable {
     }
 
     private void onScaleFrameFlushed(ScaleFrame completed) {
+        handler.postDelayed(() -> finishScaleFrame(completed), LEGACY_FRAME_SETTLE_MILLIS);
+    }
+
+    private void finishScaleFrame(ScaleFrame completed) {
+        if (!active || closing || activeScaleFrame != completed) {
+            return;
+        }
         committedScaleFrame = completed;
         activeScaleFrame = null;
         if (queuedScaleFrame != null) {

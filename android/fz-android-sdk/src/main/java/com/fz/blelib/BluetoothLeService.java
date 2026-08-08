@@ -66,6 +66,15 @@ public final class BluetoothLeService extends Service {
                 try {
                     negotiatedMtu = DEFAULT_MTU;
                     serviceDiscoveryStarted = false;
+                    // The upstream SDK's original transport is callback-paced
+                    // in 20-byte chunks. Requesting a high-priority connection
+                    // before those writes cuts root changes from roughly one
+                    // connection interval per chunk to the active interval.
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
+                        boolean priorityRequested = gatt.requestConnectionPriority(
+                                BluetoothGatt.CONNECTION_PRIORITY_HIGH);
+                        Log.i(TAG, "Fret Zealot high-priority connection=" + priorityRequested);
+                    }
                     if (Build.VERSION.SDK_INT < Build.VERSION_CODES.LOLLIPOP
                             || !gatt.requestMtu(REQUESTED_MTU)) {
                         discoverServices(gatt);

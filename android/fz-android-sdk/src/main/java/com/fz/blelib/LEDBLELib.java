@@ -17,6 +17,7 @@ import android.content.ServiceConnection;
 import android.os.Handler;
 import android.os.IBinder;
 import android.os.Looper;
+import android.os.SystemClock;
 import android.util.Log;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -32,6 +33,12 @@ public final class LEDBLELib {
     private static final long SCAN_PERIOD_MILLIS = 10_000L;
     private static final int LEGACY_CHUNK_BYTES = 20;
     private static final int FRET_ZEALOT_2_COMMAND_BYTES = 500;
+    // First-generation Fret Zealot acknowledges a GATT write before its LED
+    // processor has consumed all commands in the packet. Give that processor
+    // a small interval between legacy packets; Fret Zealot 2 uses its larger
+    // packet format and does not need this conservative pace.
+    private static final long LEGACY_CHUNK_SETTLE_MILLIS = 12L;
+    private static final long MODERN_CHUNK_SETTLE_MILLIS = 1L;
 
     public static final int FadeNotActive = 0;
     public static final int FadeInShort = 1;
@@ -75,6 +82,7 @@ public final class LEDBLELib {
     private Runnable pendingPayloadCompleteCallback;
     private int activeOffset;
     private int activeChunkBytes;
+    private long activePayloadStartedAtMillis;
     private boolean writeInFlight;
     private int writeChunkBytes = LEGACY_CHUNK_BYTES;
 
@@ -329,6 +337,7 @@ public final class LEDBLELib {
         pendingPayload = null;
         pendingPayloadCompleteCallback = null;
         activeOffset = 0;
+        activePayloadStartedAtMillis = SystemClock.elapsedRealtime();
         sendNextChunk();
     }
 
@@ -337,8 +346,11 @@ public final class LEDBLELib {
             return;
         }
         if (activeOffset >= activePayload.length) {
+            int completedBytes = activePayload.length;
             activePayload = null;
             activeOffset = 0;
+            Log.i(TAG, "Fret Zealot LED flush bytes=" + completedBytes
+                    + " elapsedMs=" + (SystemClock.elapsedRealtime() - activePayloadStartedAtMillis));
             Runnable completeCallback = activePayloadCompleteCallback;
             activePayloadCompleteCallback = null;
             if (completeCallback != null) {
@@ -375,7 +387,9 @@ public final class LEDBLELib {
             notifyDisconnected();
             return;
         }
-        mainHandler.postDelayed(this::sendNextChunk, 1);
+        long settleMillis = writeChunkBytes <= LEGACY_CHUNK_BYTES
+                ? LEGACY_CHUNK_SETTLE_MILLIS : MODERN_CHUNK_SETTLE_MILLIS;
+        mainHandler.postDelayed(this::sendNextChunk, settleMillis);
     }
 
     private void clearWrites() {

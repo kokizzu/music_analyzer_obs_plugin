@@ -328,6 +328,18 @@ def main():
     require("BluetoothGatt.CONNECTION_PRIORITY_HIGH" in fret_zealot_gatt and
             "gatt.requestConnectionPriority" in fret_zealot_gatt,
             "Fret Zealot's callback-paced legacy writes must request a high-priority BLE link")
+    require("writeCharacteristic(ledCharacteristic, chunk)" in fret_zealot_sdk and
+            "WRITE_TYPE_DEFAULT" in fret_zealot_gatt and
+            "writeInFlight = true" in fret_zealot_sdk,
+            "Fret Zealot frame deltas must wait for transport acknowledgement before committing")
+    require("LEGACY_CHUNK_SETTLE_MILLIS = 12L" in fret_zealot_sdk and
+            "writeChunkBytes <= LEGACY_CHUNK_BYTES" in fret_zealot_sdk and
+            "mainHandler.postDelayed(this::sendNextChunk, settleMillis)" in fret_zealot_sdk,
+            "First-generation Fret Zealot packets must be paced for its LED processor")
+    require("LEGACY_FRAME_SETTLE_MILLIS = 150L" in fret_zealot_sdk_controller and
+            "handler.postDelayed(() -> finishScaleFrame(completed)" in fret_zealot_sdk_controller and
+            "activeScaleFrame != completed" in fret_zealot_sdk_controller,
+            "Fret Zealot must not commit a root frame before its LEDs settle")
     require("enableNotifications" in fret_zealot_gatt and
             "CLIENT_CHARACTERISTIC_CONFIG" in fret_zealot_attributes and
             "ledNotificationCharacteristic" in fret_zealot_sdk,

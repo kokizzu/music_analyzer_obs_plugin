@@ -1314,7 +1314,12 @@ android-route-desktop-audio-watch: scripts/route_android_emulator_audio.sh
 android-set-root: scripts/set_android_debug_root.sh
 	ANDROID_ADB="$(ANDROID_ADB)" ANDROID_DEBUG_ROOT="$(ANDROID_DEBUG_ROOT)" $(SHELL) scripts/set_android_debug_root.sh
 
-.PHONY: android-set-root
+.PHONY: android-set-root android-measure-fret-zealot-update android-verify-fret-zealot-update
+
+android-measure-fret-zealot-update: scripts/measure_fret_zealot_update.sh
+	ANDROID_ADB="$(ANDROID_ADB)" $(SHELL) scripts/measure_fret_zealot_update.sh
+
+android-verify-fret-zealot-update: android-check android-install-complete android-measure-fret-zealot-update
 
 android-grant-permissions:
 	"$(ANDROID_ADB)" wait-for-device
