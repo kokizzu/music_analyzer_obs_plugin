@@ -13,7 +13,11 @@ DURATION_SECONDS = 2.0
 STANDARD_TUNING = [40, 45, 50, 55, 59, 64]
 CHORD_WINDOWS = [
     (0.25, "C:maj", [0, 3, 2, 0, 1, 0]),
-    (0.75, "G:maj", [3, 2, 0, 0, 0, 3]),
+    # Standard B half-diminished guitar shape: x2323x.  Keeping the muted
+    # outer strings in the fixture makes the generated audio and note truth
+    # exercise the four-tone m7b5 recognition path used by real Guitar-TECHS
+    # drop voicings.
+    (0.75, "B:m7b5", [None, 2, 3, 2, 3, None]),
     (1.25, "A:min", [0, 0, 2, 2, 1, 0]),
     (1.65, "F:maj", [1, 3, 3, 2, 1, 1]),
 ]
@@ -39,6 +43,8 @@ def write_hex_wav(path, transpose):
     samples = [[0.0 for _ in STANDARD_TUNING] for _ in range(frame_count)]
     for center, _chord, frets in CHORD_WINDOWS:
         for string_index, fret in enumerate(frets):
+            if fret is None:
+                continue
             midi = STANDARD_TUNING[string_index] + fret + (transpose % 3)
             add_tone(samples, string_index, midi, center, 0.32, 0.38)
 
@@ -60,6 +66,8 @@ def write_mic_wav(path, transpose):
     samples = [0.0 for _ in range(frame_count)]
     for center, _chord, frets in CHORD_WINDOWS:
         for string_index, fret in enumerate(frets):
+            if fret is None:
+                continue
             midi = STANDARD_TUNING[string_index] + fret + (transpose % 3)
             start = max(0, int((center - 0.16) * SAMPLE_RATE))
             end = min(frame_count, int((center + 0.16) * SAMPLE_RATE))
@@ -83,7 +91,10 @@ def write_mic_wav(path, transpose):
 def note_annotation_for_string(string_index, transpose):
     data = []
     for center, _chord, frets in CHORD_WINDOWS:
-        midi = STANDARD_TUNING[string_index] + frets[string_index] + (transpose % 3)
+        fret = frets[string_index]
+        if fret is None:
+            continue
+        midi = STANDARD_TUNING[string_index] + fret + (transpose % 3)
         data.append(
             {
                 "time": round(center - 0.16, 4),
@@ -124,7 +135,10 @@ def chord_annotation(transpose, performed):
 def pitch_annotation_for_string(string_index, transpose):
     data = []
     for center, _chord, frets in CHORD_WINDOWS:
-        midi = STANDARD_TUNING[string_index] + frets[string_index] + (transpose % 3)
+        fret = frets[string_index]
+        if fret is None:
+            continue
+        midi = STANDARD_TUNING[string_index] + fret + (transpose % 3)
         data.append(
             {
                 "time": round(center, 4),

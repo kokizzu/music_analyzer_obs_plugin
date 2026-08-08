@@ -20663,18 +20663,35 @@ bool probe_supported_guitar_half_diminished_alias(int root, const NoteGrid &disp
 						  int min_midi, int max_midi)
 {
 	root = ((root % 12) + 12) % 12;
-	if (!supported_guitar_diminished_triad_alias(root, display_grid, analysis_grid))
-		return false;
 
 	const int display_pitch_classes = note_grid_active_pitch_class_count(display_grid);
 	const int analysis_pitch_classes = note_grid_active_pitch_class_count(analysis_grid);
 	if (display_pitch_classes < 3 || display_pitch_classes > 5 ||
-	    analysis_pitch_classes < 3 || analysis_pitch_classes > 4)
+	    analysis_pitch_classes < 3 || analysis_pitch_classes > 5)
 		return false;
-	if (!note_grid_pitch_active(display_grid, root) ||
+	// The caller already requires a published diminished component.  A compact
+	// guitar voicing can lose its root from the rendered display grid while the
+	// analysis grid still retains the complete B-D-F core; keep the third and
+	// flat fifth visible, but accept that displayed-root dropout only when the
+	// raw flat-seventh probe and natural-fifth exclusion below agree.
+	if (!note_grid_pitch_active(analysis_grid, root) ||
+	    !note_grid_pitch_active(analysis_grid, root + 3) ||
+	    !note_grid_pitch_active(analysis_grid, root + 6) ||
 	    !note_grid_pitch_active(display_grid, root + 3) ||
 	    !note_grid_pitch_active(display_grid, root + 6) ||
 	    note_grid_pitch_supported_level(display_grid, root + 3, 0.0f) < 0.60f)
+		return false;
+	for (int pitch_class = 0; pitch_class < 12; ++pitch_class) {
+		if (!note_grid_pitch_active(analysis_grid, pitch_class))
+			continue;
+		const int interval = (pitch_class - root + 12) % 12;
+		// A partial one semitone below the root is the measured compact-voicing
+		// artifact.  Do not use this relaxation for arbitrary extra pitch classes.
+		if (interval != 0 && interval != 3 && interval != 6 && interval != 10 && interval != 11)
+			return false;
+	}
+	if (note_grid_pitch_active(display_grid, root + 7) ||
+	    note_grid_pitch_active(analysis_grid, root + 7))
 		return false;
 
 	const float strongest_probe = strongest_probe_level(powers, min_midi, max_midi);
@@ -20684,9 +20701,6 @@ bool probe_supported_guitar_half_diminished_alias(int root, const NoteGrid &disp
 		return strongest_probe_pitch_class_level(powers, pitch_class, min_midi, max_midi) /
 		       strongest_probe;
 	};
-	if (probe_norm(root + 7) > 0.004f)
-		return false;
-
 	auto support = [&](int pitch_class) {
 		return std::max(probe_norm(pitch_class),
 				std::max(note_grid_pitch_level(display_grid, pitch_class),
@@ -20695,7 +20709,8 @@ bool probe_supported_guitar_half_diminished_alias(int root, const NoteGrid &disp
 	const float core_anchor = std::min({support(root), support(root + 3), support(root + 6)});
 	if (core_anchor < 0.10f)
 		return false;
-	return probe_norm(root + 10) >= std::max(0.075f, core_anchor * 0.14f);
+	return probe_norm(root + 10) >=
+	       std::max({0.075f, core_anchor * 0.14f, probe_norm(root + 7) * 1.6f});
 }
 
 void append_probe_supported_guitar_diminished_seventh_aliases_after_prune(
