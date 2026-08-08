@@ -303,8 +303,9 @@ def main():
             "sendStableFretZealotPacket" in external_devices and
             "fretZealotAutoReconciliationScheduled" in external_devices and
             "handler.removeCallbacks(sendStableFretZealotPacket);" in external_devices and
-            "fretZealot.sendPacket(packet, false);" in external_devices,
-            "Android must apply AUTO roots as deltas and replay only after a quiet period")
+            "Preserve the last complete scale while AUTO root estimates change" in external_devices and
+            "fretZealot.sendPacket(packet, true);" in external_devices,
+            "Android must preserve the complete AUTO scale and replace it only after a quiet period")
     require("if (!force && Arrays.equals(packet, lastFretZealotPacket)) {\n            // A device-state revision" in external_devices and
             "cancelling it leaves a first-generation board showing only the" in external_devices,
             "An unchanged Fret Zealot packet must not cancel its scheduled AUTO reconciliation")
@@ -386,6 +387,10 @@ def main():
     require("writeScaleFrameReconciliation" in fret_zealot_sdk_controller and
             "Reassert every target pixel." in fret_zealot_sdk_controller,
             "A stable Fret Zealot AUTO root must replay every scale pixel")
+    require("activeScaleFrameRequiresClearPass" in fret_zealot_sdk_controller and
+            "writeScaleFrameNonTargetClear" in fret_zealot_sdk_controller and
+            "The target LEDs are now all present." in fret_zealot_sdk_controller,
+            "Fret Zealot AUTO scale replacement must clear obsolete LEDs only after target LEDs settle")
     require("boolean boardReset = false;" in fret_zealot_sdk_controller and
             "if (reconcileWholeBoard && !boardReset)" in fret_zealot_sdk_controller,
             "Fret Zealot must avoid redundant legacy clear writes after its session reset")

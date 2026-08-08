@@ -49,6 +49,10 @@ final class FretZealotSdkController implements Closeable {
     private ScaleFrame activeScaleFrame;
     private ScaleFrame queuedScaleFrame;
     private boolean queuedScaleFrameRequiresReconciliation;
+    // A complete replacement is sent as target LEDs then non-target clears.
+    // Splitting those operations keeps each legacy board frame small enough to
+    // apply reliably without blacking out the whole fretboard.
+    private boolean activeScaleFrameRequiresClearPass;
 
     FretZealotSdkController(Context context, Listener listener) {
         sdk = LEDBLELib.getInstance(context.getApplicationContext());
@@ -248,6 +252,7 @@ final class FretZealotSdkController implements Closeable {
         activeScaleFrame = null;
         queuedScaleFrame = null;
         queuedScaleFrameRequiresReconciliation = false;
+        activeScaleFrameRequiresClearPass = false;
     }
 
     private void onScaleFrameFlushed(ScaleFrame completed) {
@@ -256,6 +261,15 @@ final class FretZealotSdkController implements Closeable {
 
     private void finishScaleFrame(ScaleFrame completed) {
         if (!active || closing || activeScaleFrame != completed) {
+            return;
+        }
+        if (activeScaleFrameRequiresClearPass) {
+            activeScaleFrameRequiresClearPass = false;
+            // The target LEDs are now all present. Clear the rest in a second,
+            // smaller frame so a new AUTO root never appears only partially.
+            sdk.sendCommandBufferClear();
+            writeScaleFrameNonTargetClear(completed);
+            sdk.sendCommandFlush(() -> onScaleFrameFlushed(completed));
             return;
         }
         committedScaleFrame = completed;
@@ -280,11 +294,13 @@ final class FretZealotSdkController implements Closeable {
         }
         if (reconcileWholeBoard && !boardReset) {
             writeScaleFrameReconciliation(target);
+            activeScaleFrameRequiresClearPass = true;
         } else {
             // A session reset has already blackened every non-target pixel.
             // Sending another 90 clear commands here can overrun legacy Fret
             // Zealot firmware and leave only a partial scale visible.
             writeScaleFrameDelta(committedScaleFrame, target);
+            activeScaleFrameRequiresClearPass = false;
         }
         activeScaleFrame = target;
         sdk.sendCommandFlush(() -> onScaleFrameFlushed(target));
@@ -321,6 +337,16 @@ final class FretZealotSdkController implements Closeable {
                 if (target.lit[string][fret]) {
                     setPixel(string, fret, target.red[string][fret], target.green[string][fret],
                             target.blue[string][fret], target.effect[string][fret]);
+                }
+            }
+        }
+    }
+
+    private void writeScaleFrameNonTargetClear(ScaleFrame target) {
+        for (int string = 0; string < STRING_COUNT; ++string) {
+            for (int fret = 0; fret < FRET_COUNT; ++fret) {
+                if (!target.lit[string][fret]) {
+                    setPixel(string, fret, (byte) 0, (byte) 0, (byte) 0, (byte) 0);
                 }
             }
         }
