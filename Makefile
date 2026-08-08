@@ -913,6 +913,7 @@ VOCALSET_URL ?= https://zenodo.org/api/records/10200775/files/VocalSet.zip/conte
 VOCALSET_SOURCE_DIR ?= $(REAL_SAMPLE_SOURCE_DIR)/vocalset
 VOCALSET_ARCHIVE ?= $(VOCALSET_SOURCE_DIR)/VocalSet.zip
 VOCALSET_SAMPLE_DIR ?= $(BUILD_DIR)/vocalset_samples
+VOCALSET_DOWNLOAD_LOCK_DIR ?= $(BUILD_DIR)/vocalset_download.lock
 VOCALSET_ATTRIBUTE_TSV ?= $(BUILD_DIR)/vocalset_attributes.tsv
 VOCALSET_DETECTED_ATTRIBUTE_ROWS ?= $(BUILD_DIR)/vocalset_detected_attribute_rows.tsv
 VOCALSET_MISS_ATTRIBUTE_ROWS ?= $(BUILD_DIR)/vocalset_miss_attribute_rows.tsv
@@ -3402,7 +3403,12 @@ test-vocadito-samples-full-mix-parallel-unlocked: $(BUILD_DIR)/analyzer_real_not
 test-vocadito-samples-full-mix-shard-%: FORCE $(BUILD_DIR)/analyzer_real_note_samples prepare-vocadito-samples scripts/run_with_duration.sh
 	$(RUN_WITH_DURATION) analyzer_vocadito_samples_full_mix_shard_$* env MUSIC_ANALYZER_REAL_NOTE_SAMPLES_REQUIRED=1 MUSIC_ANALYZER_REAL_NOTE_FULL_MIX=1 MUSIC_ANALYZER_REAL_NOTE_SHARD_COUNT="$(VOCADITO_FULL_MIX_SHARDS)" MUSIC_ANALYZER_REAL_NOTE_SHARD_INDEX="$*" MUSIC_ANALYZER_REAL_NOTE_SAMPLE_ROOT="$(VOCADITO_SAMPLE_DIR)" MUSIC_ANALYZER_REAL_NOTE_REQUIRED_SAMPLES="$(VOCADITO_MIN_VOCALS)" MUSIC_ANALYZER_REAL_NOTE_MIN_BASS=0 MUSIC_ANALYZER_REAL_NOTE_MIN_GUITAR=0 MUSIC_ANALYZER_REAL_NOTE_MIN_PIANO=0 MUSIC_ANALYZER_REAL_NOTE_MIN_VOCALS=0 MUSIC_ANALYZER_REAL_NOTE_MIN_OTHER=0 MUSIC_ANALYZER_REAL_NOTE_MIN_ANY_HIT_PERCENT=0 MUSIC_ANALYZER_REAL_NOTE_MIN_EXPECTED_ROW_PERCENT=0 MUSIC_ANALYZER_REAL_NOTE_MIN_FIRST_ROW_PERCENT=0 MUSIC_ANALYZER_REAL_NOTE_MIN_BASS_EXPECTED_ROW_PERCENT=0 MUSIC_ANALYZER_REAL_NOTE_MIN_GUITAR_EXPECTED_ROW_PERCENT=0 MUSIC_ANALYZER_REAL_NOTE_MIN_PIANO_EXPECTED_ROW_PERCENT=0 MUSIC_ANALYZER_REAL_NOTE_MIN_VOCALS_EXPECTED_ROW_PERCENT=0 MUSIC_ANALYZER_REAL_NOTE_MIN_OTHER_EXPECTED_ROW_PERCENT=0 MUSIC_ANALYZER_REAL_NOTE_MIN_BASS_FIRST_ROW_PERCENT=0 MUSIC_ANALYZER_REAL_NOTE_MIN_GUITAR_FIRST_ROW_PERCENT=0 MUSIC_ANALYZER_REAL_NOTE_MIN_PIANO_FIRST_ROW_PERCENT=0 MUSIC_ANALYZER_REAL_NOTE_MIN_VOCALS_FIRST_ROW_PERCENT=0 MUSIC_ANALYZER_REAL_NOTE_MIN_OTHER_FIRST_ROW_PERCENT=0 MUSIC_ANALYZER_REAL_NOTE_MAX_DRUM_ACTIVE_PERCENT=100 MUSIC_ANALYZER_REAL_NOTE_MAX_FAILURES=999999 MUSIC_ANALYZER_REAL_NOTE_MAX_FAILURE_LINES=20 $(BUILD_DIR)/analyzer_real_note_samples > "$(BUILD_DIR)/vocadito_full_mix_shard_$*.out" 2> "$(BUILD_DIR)/vocadito_full_mix_shard_$*.err"
 
-download-vocalset-samples: $(VOCALSET_ARCHIVE)
+.PHONY: vocalset-download-samples-unlocked
+
+download-vocalset-samples: scripts/run_with_lock.sh
+	+$(SHELL) scripts/run_with_lock.sh "$(VOCALSET_DOWNLOAD_LOCK_DIR)" -- "$(MAKE)" vocalset-download-samples-unlocked
+
+vocalset-download-samples-unlocked: $(VOCALSET_ARCHIVE)
 
 $(VOCALSET_ARCHIVE): FORCE | $(BUILD_DIR)
 	mkdir -p "$(VOCALSET_SOURCE_DIR)"
@@ -3433,17 +3439,17 @@ test-vocalset-samples-parallel: $(BUILD_DIR)/analyzer_real_note_samples prepare-
 test-vocalset-samples-full-mix:
 	+$(MAKE) test-vocalset-samples-full-mix-parallel
 
-test-vocalset-samples-full-mix-parallel: $(BUILD_DIR)/analyzer_real_note_samples prepare-vocalset-samples scripts/run_with_duration.sh scripts/run_with_lock.sh scripts/check_real_note_full_mix_shards.py
+test-vocalset-samples-full-mix-parallel: $(BUILD_DIR)/analyzer_real_note_samples $(VOCALSET_SAMPLE_DIR)/manifest.tsv scripts/run_with_duration.sh scripts/run_with_lock.sh scripts/check_real_note_full_mix_shards.py
 	+$(RUN_WITH_DURATION) analyzer_vocalset_samples_full_mix_parallel $(SHELL) scripts/run_with_lock.sh "$(VOCALSET_FULL_MIX_LOCK_DIR)" -- "$(MAKE)" test-vocalset-samples-full-mix-parallel-unlocked
 
-test-vocalset-samples-full-mix-parallel-unlocked: $(BUILD_DIR)/analyzer_real_note_samples prepare-vocalset-samples scripts/run_with_duration.sh scripts/check_real_note_full_mix_shards.py
+test-vocalset-samples-full-mix-parallel-unlocked: $(BUILD_DIR)/analyzer_real_note_samples $(VOCALSET_SAMPLE_DIR)/manifest.tsv scripts/run_with_duration.sh scripts/check_real_note_full_mix_shards.py
 	+$(MAKE) $(VOCALSET_FULL_MIX_TEST_MAKE_JOBS) $(VOCALSET_FULL_MIX_SHARD_TARGETS)
 	$(RUN_WITH_DURATION) check_vocalset_full_mix_shards $(PYTHON) scripts/check_real_note_full_mix_shards.py --min-any-hit-percent "$(VOCALSET_FULL_MIX_MIN_ANY_HIT_PERCENT)" --min-expected-row-percent "$(VOCALSET_FULL_MIX_MIN_EXPECTED_ROW_PERCENT)" --min-first-row-percent "$(VOCALSET_FULL_MIX_MIN_FIRST_ROW_PERCENT)" --min-visual-row-percent "$(VOCALSET_FULL_MIX_MIN_VISUAL_ROW_PERCENT)" --bass-min-expected-row-percent 0 --guitar-min-expected-row-percent 0 --piano-min-expected-row-percent 0 --vocals-min-expected-row-percent "$(VOCALSET_FULL_MIX_MIN_VOCALS_EXPECTED_ROW_PERCENT)" --other-min-expected-row-percent 0 --bass-min-first-row-percent 0 --guitar-min-first-row-percent 0 --piano-min-first-row-percent 0 --vocals-min-first-row-percent "$(VOCALSET_FULL_MIX_MIN_VOCALS_FIRST_ROW_PERCENT)" --other-min-first-row-percent 0 --bass-min-visual-row-percent 0 --guitar-min-visual-row-percent 0 --piano-min-visual-row-percent 0 --vocals-min-visual-row-percent "$(VOCALSET_FULL_MIX_MIN_VOCALS_VISUAL_ROW_PERCENT)" --other-min-visual-row-percent 0 --max-drum-active-percent "$(VOCALSET_FULL_MIX_MAX_DRUM_ACTIVE_PERCENT)" $(VOCALSET_FULL_MIX_SHARD_OUTS)
 
-test-vocalset-samples-full-mix-shard-%: FORCE $(BUILD_DIR)/analyzer_real_note_samples prepare-vocalset-samples scripts/run_with_duration.sh
+test-vocalset-samples-full-mix-shard-%: FORCE $(BUILD_DIR)/analyzer_real_note_samples $(VOCALSET_SAMPLE_DIR)/manifest.tsv scripts/run_with_duration.sh
 	$(RUN_WITH_DURATION) analyzer_vocalset_samples_full_mix_shard_$* env MUSIC_ANALYZER_REAL_NOTE_SAMPLES_REQUIRED=1 MUSIC_ANALYZER_REAL_NOTE_FULL_MIX=1 MUSIC_ANALYZER_REAL_NOTE_SHARD_COUNT="$(VOCALSET_FULL_MIX_SHARDS)" MUSIC_ANALYZER_REAL_NOTE_SHARD_INDEX="$*" MUSIC_ANALYZER_REAL_NOTE_SAMPLE_ROOT="$(VOCALSET_SAMPLE_DIR)" MUSIC_ANALYZER_REAL_NOTE_REQUIRED_SAMPLES="$(VOCALSET_MIN_VOCALS)" MUSIC_ANALYZER_REAL_NOTE_MIN_BASS=0 MUSIC_ANALYZER_REAL_NOTE_MIN_GUITAR=0 MUSIC_ANALYZER_REAL_NOTE_MIN_PIANO=0 MUSIC_ANALYZER_REAL_NOTE_MIN_VOCALS=0 MUSIC_ANALYZER_REAL_NOTE_MIN_OTHER=0 MUSIC_ANALYZER_REAL_NOTE_MIN_ANY_HIT_PERCENT=0 MUSIC_ANALYZER_REAL_NOTE_MIN_EXPECTED_ROW_PERCENT=0 MUSIC_ANALYZER_REAL_NOTE_MIN_FIRST_ROW_PERCENT=0 MUSIC_ANALYZER_REAL_NOTE_MIN_BASS_EXPECTED_ROW_PERCENT=0 MUSIC_ANALYZER_REAL_NOTE_MIN_GUITAR_EXPECTED_ROW_PERCENT=0 MUSIC_ANALYZER_REAL_NOTE_MIN_PIANO_EXPECTED_ROW_PERCENT=0 MUSIC_ANALYZER_REAL_NOTE_MIN_VOCALS_EXPECTED_ROW_PERCENT=0 MUSIC_ANALYZER_REAL_NOTE_MIN_OTHER_EXPECTED_ROW_PERCENT=0 MUSIC_ANALYZER_REAL_NOTE_MIN_BASS_FIRST_ROW_PERCENT=0 MUSIC_ANALYZER_REAL_NOTE_MIN_GUITAR_FIRST_ROW_PERCENT=0 MUSIC_ANALYZER_REAL_NOTE_MIN_PIANO_FIRST_ROW_PERCENT=0 MUSIC_ANALYZER_REAL_NOTE_MIN_VOCALS_FIRST_ROW_PERCENT=0 MUSIC_ANALYZER_REAL_NOTE_MIN_OTHER_FIRST_ROW_PERCENT=0 MUSIC_ANALYZER_REAL_NOTE_MAX_DRUM_ACTIVE_PERCENT=100 MUSIC_ANALYZER_REAL_NOTE_MAX_FAILURES=999999 MUSIC_ANALYZER_REAL_NOTE_MAX_FAILURE_LINES=20 $(BUILD_DIR)/analyzer_real_note_samples > "$(BUILD_DIR)/vocalset_full_mix_shard_$*.out" 2> "$(BUILD_DIR)/vocalset_full_mix_shard_$*.err"
 
-$(VOCALSET_FULL_MIX_ATTRIBUTE_TSV): $(BUILD_DIR)/analyzer_real_note_samples prepare-vocalset-samples scripts/build_sharded_tsv.sh scripts/run_with_lock.sh | $(BUILD_DIR)
+$(VOCALSET_FULL_MIX_ATTRIBUTE_TSV): $(BUILD_DIR)/analyzer_real_note_samples $(VOCALSET_SAMPLE_DIR)/manifest.tsv scripts/build_sharded_tsv.sh scripts/run_with_lock.sh | $(BUILD_DIR)
 	+$(SHELL) scripts/run_with_lock.sh "$(VOCALSET_FULL_MIX_ATTRIBUTE_LOCK_DIR)" -- "$(SHELL)" scripts/build_sharded_tsv.sh "$@" "$(MAKE)" "$(VOCALSET_FULL_MIX_ATTRIBUTE_MAKE_JOBS)" $(VOCALSET_FULL_MIX_ATTRIBUTE_PARTS)
 
 $(BUILD_DIR)/vocalset_full_mix_attributes.shard-%.tsv: $(BUILD_DIR)/analyzer_real_note_samples prepare-vocalset-samples | $(BUILD_DIR)
