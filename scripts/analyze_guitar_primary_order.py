@@ -28,6 +28,7 @@ NOTE_TO_PC = {
 
 PC_TO_NOTE = {value: key for key, value in NOTE_TO_PC.items()}
 CELL_RE = re.compile(r"([A-G]#?)(?:-?\d+)?:([-+0-9.eE]+)")
+MIDI_CELL_RE = re.compile(r"([A-G]#?)(-?\d+):([-+0-9.eE]+)")
 CHORD_INTERVALS = {
     "": (0, 4, 7),
     "m": (0, 3, 7),
@@ -141,6 +142,29 @@ def parse_cells(value: str) -> dict[int, float]:
         pc = NOTE_TO_PC[note]
         levels[pc] = max(levels.get(pc, 0.0), level)
     return levels
+
+
+def parse_midi_cells(value: str) -> list[tuple[int, float]]:
+    cells: list[tuple[int, float]] = []
+    for match in MIDI_CELL_RE.finditer(value or ""):
+        note = match.group(1)
+        if note not in NOTE_TO_PC:
+            continue
+        try:
+            octave = int(match.group(2))
+            level = float(match.group(3))
+        except ValueError:
+            continue
+        cells.append(((octave + 1) * 12 + NOTE_TO_PC[note], level))
+    return cells
+
+
+def lowest_midi_pitch_class(value: str) -> tuple[int, int, float] | None:
+    cells = parse_midi_cells(value)
+    if not cells:
+        return None
+    midi, level = min(cells, key=lambda cell: cell[0])
+    return midi, midi % 12, level
 
 
 def cell_level_min(levels: dict[int, float], pitch_classes: set[int]) -> float:
@@ -710,6 +734,80 @@ def expected_labels(value: str) -> set[str]:
     return set(split_components(value))
 
 
+def expected_root_pitch_classes(value: str) -> set[int]:
+    roots = set()
+    for label in expected_labels(value):
+        root = component_root_pc(label)
+        if root is not None:
+            roots.add(root)
+    return roots
+
+
+def print_lowest_analysis_root_bias(
+    rows: list[dict[str, str]], protected_rows: list[dict[str, str]], limit: int
+) -> None:
+    def classify(row: dict[str, str]) -> tuple[str, tuple[int, int, float] | None]:
+        expected_roots = expected_root_pitch_classes(row.get("expected_chords", ""))
+        primary_root = component_root_pc(primary_component(row.get("guitar_chord", "")))
+        lowest = lowest_midi_pitch_class(row.get("guitar_analysis_cells", ""))
+        if lowest is None:
+            return "no_lowest", None
+        _midi, lowest_root, _level = lowest
+        expected_match = lowest_root in expected_roots
+        primary_match = primary_root is not None and lowest_root == primary_root
+        if expected_match and primary_match:
+            return "expected_and_primary", lowest
+        if expected_match:
+            return "expected_only", lowest
+        if primary_match:
+            return "primary_only", lowest
+        return "neither", lowest
+
+    focus_misses = [
+        row
+        for row in rows
+        if row.get("expected_chords", "--") not in ("", "--")
+        and primary_component(row.get("guitar_chord", "")) not in expected_labels(row.get("expected_chords", ""))
+    ]
+    protected_hits = [
+        row
+        for row in protected_rows
+        if row.get("expected_chords", "--") not in ("", "--")
+        and primary_component(row.get("guitar_chord", "")) in expected_labels(row.get("expected_chords", ""))
+    ]
+    focus_buckets: collections.Counter[str] = collections.Counter()
+    protected_buckets: collections.Counter[str] = collections.Counter()
+    focus_primary_only: list[tuple[dict[str, str], tuple[int, int, float]]] = []
+    for row in focus_misses:
+        bucket, lowest = classify(row)
+        focus_buckets[bucket] += 1
+        if bucket == "primary_only" and lowest is not None:
+            focus_primary_only.append((row, lowest))
+    for row in protected_hits:
+        bucket, _lowest = classify(row)
+        protected_buckets[bucket] += 1
+
+    print(
+        "lowest_analysis_root_bias:",
+        f"focus_primary_misses={len(focus_misses)}",
+        f"protected_primary_hits={len(protected_hits)}",
+    )
+    print_counter("  focus:", focus_buckets, 8)
+    print_counter("  protected:", protected_buckets, 8)
+    print("lowest_analysis_primary_only_examples:")
+    if not focus_primary_only:
+        print("  --")
+        return
+    for row, (midi, root, level) in focus_primary_only[:limit]:
+        print(
+            "  ",
+            f"expected={compact_value(row.get('expected_chords'))}",
+            f"primary={compact_value(primary_component(row.get('guitar_chord', '')))}",
+            f"lowest={PC_TO_NOTE[root]}{midi // 12 - 1}:{level:.2f}",
+            compact_value(row.get("audio_path")),
+        )
+
+
 def confidence_value(row: dict[str, str], field: str) -> str:
     value = row.get(field, "")
     return value if value else "--"
@@ -958,6 +1056,8 @@ def main() -> int:
             f"later={later_hits}",
             f"miss={misses}",
         )
+
+    print_lowest_analysis_root_bias(rows, protected_rows, args.examples)
 
     relationship_buckets: collections.Counter[str] = collections.Counter()
     raw_rescues = []

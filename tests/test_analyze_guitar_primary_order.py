@@ -202,6 +202,9 @@ def main() -> int:
         assert "guitar_chord: primary=4/11 later=5 miss=2" in output
         assert "guitar_raw_chord: primary=5/11 later=4 miss=2" in output
         assert "guitar_smoothed_chord: primary=5/11 later=4 miss=2" in output
+        assert "lowest_analysis_root_bias: focus_primary_misses=7 protected_primary_hits=0" in output
+        assert "  focus:" in output
+        assert "  primary_only=1" in output
         assert (
             "candidate primary relationships: display0_raw0_smooth0=5 "
             "display0_raw0_smooth1=1 "
