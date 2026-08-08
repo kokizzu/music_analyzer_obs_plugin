@@ -78,6 +78,21 @@ def write_fixture_zip(path):
             archive.write(mic_path, "P1_chords/audio/micamp/micamp_chords.wav")
 
 
+def append_second_fixture_pair(path):
+    with tempfile.TemporaryDirectory() as temp:
+        temp_path = Path(temp)
+        midi_path = temp_path / "midi_extra.mid"
+        direct_path = temp_path / "directinput_extra.wav"
+        mic_path = temp_path / "micamp_extra.wav"
+        write_chord_midi(midi_path)
+        write_placeholder_wav(direct_path)
+        write_placeholder_wav(mic_path)
+        with zipfile.ZipFile(path, "a") as archive:
+            archive.write(midi_path, "P1_chords/midi/midi_extra.mid")
+            archive.write(direct_path, "P1_chords/audio/directinput/directinput_extra.wav")
+            archive.write(mic_path, "P1_chords/audio/micamp/micamp_extra.wav")
+
+
 def write_fake_ffmpeg(path):
     write_executable(
         path,
@@ -172,11 +187,49 @@ def test_minimum_sample_failure_writes_partial_manifest():
             raise AssertionError("expected min-samples failure")
 
 
+def test_corrupt_member_is_skipped_when_other_pairs_are_usable():
+    with tempfile.TemporaryDirectory() as temp:
+        base = Path(temp)
+        archive = base / "P1_chords.zip"
+        output = base / "out"
+        ffmpeg = base / "fake-ffmpeg"
+        write_fixture_zip(archive)
+        append_second_fixture_pair(archive)
+        write_fake_ffmpeg(ffmpeg)
+
+        original_cache_member = prepare_guitar_techs_chord_samples.single_notes.cache_member
+
+        def cache_member_with_corrupt_first_midi(zip_path, member, cache_dir):
+            if member.endswith("midi_chords.mid"):
+                raise zipfile.BadZipFile("injected corrupt MIDI member")
+            return original_cache_member(zip_path, member, cache_dir)
+
+        prepare_guitar_techs_chord_samples.single_notes.cache_member = cache_member_with_corrupt_first_midi
+        try:
+            prepare_guitar_techs_chord_samples.main([
+                "--archive", str(archive),
+                "--output", str(output),
+                "--cache-dir", str(base / "cache"),
+                "--min-samples", "2",
+                "--ffmpeg", str(ffmpeg),
+            ])
+        finally:
+            prepare_guitar_techs_chord_samples.single_notes.cache_member = original_cache_member
+
+        rows = read_manifest(output / "manifest.tsv")
+        audio_rows = [row for row in rows if row[0] == "AUDIO"]
+        if len(audio_rows) != 4:
+            raise AssertionError(f"expected valid pair to yield four clips, got {len(audio_rows)}")
+        if any("extra" not in row[1] for row in audio_rows):
+            raise AssertionError("corrupt MIDI pair should not appear in the manifest")
+
+
 def main():
     test_guitar_techs_chords_are_prepared_as_guitarset_manifest()
     test_limit_is_enforced_after_candidate_spread()
     test_minimum_sample_failure_writes_partial_manifest()
-    print("test_prepare_guitar_techs_chord_samples: 3 checks passed")
+    test_corrupt_member_is_skipped_when_other_pairs_are_usable()
+    print("test_prepare_guitar_techs_chord_samples: 4 checks passed")
     return 0
 
 

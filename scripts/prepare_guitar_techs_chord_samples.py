@@ -6,6 +6,7 @@ import os
 from pathlib import Path
 import subprocess
 import sys
+import zipfile
 
 import prepare_guitar_techs_samples as single_notes
 
@@ -238,7 +239,7 @@ def prepare(args):
                     midi_cache[midi_member] = single_notes.cache_member(archive, midi_member, cache_dir)
                 notes = single_notes.parse_midi_notes(midi_cache[midi_member])
                 windows = candidate_windows(notes, args)
-            except (OSError, ValueError) as exc:
+            except (OSError, ValueError, zipfile.BadZipFile) as exc:
                 skipped_errors.append((midi_member, str(exc)))
                 continue
 
@@ -271,7 +272,7 @@ def prepare(args):
             )
             output_path = output_dir / "audio" / f"{row_id}.wav"
             convert_clip(ffmpeg, audio_cache[cache_key], output_path, window["start"], window["duration"])
-        except (subprocess.CalledProcessError, OSError) as exc:
+        except (subprocess.CalledProcessError, OSError, zipfile.BadZipFile) as exc:
             skipped_errors.append((audio_member, str(exc)))
             continue
 
@@ -320,7 +321,7 @@ def main(argv=None):
                                                                  ",".join(single_notes.DEFAULT_PERSPECTIVES)))
     parser.add_argument("--limit", type=int, default=int(os.environ.get("GUITAR_TECHS_CHORD_SAMPLE_LIMIT", "0")))
     parser.add_argument("--min-samples", type=int,
-                        default=int(os.environ.get("GUITAR_TECHS_CHORD_MIN_EXCERPTS", "7000")))
+                        default=int(os.environ.get("GUITAR_TECHS_CHORD_MIN_EXCERPTS", "3000")))
     parser.add_argument("--min-notes", type=int,
                         default=int(os.environ.get("GUITAR_TECHS_CHORD_MIN_NOTES", "3")))
     parser.add_argument("--min-pitch-classes", type=int,
