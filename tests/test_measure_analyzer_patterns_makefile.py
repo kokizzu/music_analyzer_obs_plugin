@@ -1317,13 +1317,16 @@ def main() -> int:
     for target in [
         "detector-improvement-route-summary-refresh",
         "find-protected-drum-primary-attribute-patterns",
-        "find-drum-full-exact-attribute-patterns-cached",
         "find-protected-drum-full-exact-attribute-patterns",
         "find-drum-active-false-patterns-full",
     ]:
         assert target in audit_target_list, (
             f"detector improvement audit must include {target}"
         )
+    assert audit_target_list.count("find-drum-full-exact-attribute-patterns-cached") == 0, (
+        "detector improvement audit must not duplicate the cached full-drum scan already included "
+        "by the route summary"
+    )
     audit_recipe = target_recipe(makefile, "detector-improvement-audit")
     assert "\n\t+$(RUN_WITH_DURATION) detector_improvement_audit_parallel" in audit_recipe, (
         "detector improvement audit must report aggregate duration"
@@ -2294,6 +2297,9 @@ def main() -> int:
     )
     assert "HF_DRUM_KIT_PREP_LOCK_DIR ?= $(BUILD_DIR)/hf_drum_kit_prepare.lock" in makefile, (
         "HF drum-kit fixture preparation must have a stable lock path"
+    )
+    assert "HF_DRUM_KIT_LIMIT_PER_CATEGORY ?= 300" in makefile, (
+        "HF drum-kit fixture preparation must default to a bounded balanced corpus"
     )
     hf_prepare_recipe = target_recipe(makefile, "prepare-hf-drum-kit-samples")
     assert 'scripts/run_with_lock.sh "$(HF_DRUM_KIT_PREP_LOCK_DIR)" -- env' in hf_prepare_recipe, (

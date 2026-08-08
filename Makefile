@@ -87,7 +87,7 @@ DETECTOR_IMPROVEMENT_ROUTE_REPORT ?= $(BUILD_DIR)/detector_improvement_route_sca
 DETECTOR_IMPROVEMENT_ROUTE_SUMMARY ?= $(BUILD_DIR)/detector_improvement_route_summary.txt
 DETECTOR_IMPROVEMENT_AUDIT_REPORT ?= $(BUILD_DIR)/detector_improvement_audit.txt
 DETECTOR_IMPROVEMENT_AUDIT_TAIL_LINES ?= 60
-DETECTOR_IMPROVEMENT_AUDIT_TARGETS ?= detector-improvement-route-summary-refresh find-protected-drum-primary-attribute-patterns find-drum-full-exact-attribute-patterns-cached find-protected-drum-full-exact-attribute-patterns find-drum-active-false-patterns-full
+DETECTOR_IMPROVEMENT_AUDIT_TARGETS ?= detector-improvement-route-summary-refresh find-protected-drum-primary-attribute-patterns find-protected-drum-full-exact-attribute-patterns find-drum-active-false-patterns-full
 MEASURE_ANALYZER_PATTERN_SECTION_OUTPUTS := \
 	$(MEASURE_ANALYZER_PATTERN_DETECTED_REPORT) \
 	$(MEASURE_ANALYZER_PATTERN_SUMMARY_REPORT) \
@@ -439,7 +439,7 @@ DRUM_MACHINE_SHARD_OUTS := $(addprefix $(BUILD_DIR)/drum_machine_samples_shard_,
 DRUM_MACHINE_SAMPLE_LOCK_DIR ?= $(BUILD_DIR)/drum_machine_samples.lock
 DRUM_MACHINE_TEST_MAKE_JOBS = $(if $(filter -j%,$(MAKEFLAGS)),,-j$(words $(DRUM_MACHINE_SHARD_CATEGORIES)))
 HF_DRUM_KIT_SAMPLE_DIR ?= $(BUILD_DIR)/hf_drum_kit_samples
-HF_DRUM_KIT_LIMIT_PER_CATEGORY ?= 0
+HF_DRUM_KIT_LIMIT_PER_CATEGORY ?= 300
 HF_DRUM_KIT_MIN_RECALL_PERCENT ?= 20
 HF_DRUM_KIT_MIN_PRECISION_PERCENT ?= 18
 HF_DRUM_KIT_MIN_KICK_PRIMARY_PERCENT ?= 90
