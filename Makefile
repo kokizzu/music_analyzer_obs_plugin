@@ -2866,21 +2866,23 @@ download-guitarset-samples: scripts/run_with_lock.sh
 
 guitarset-download-samples-unlocked: $(GUITARSET_ANNOTATION_ARCHIVE) $(GUITARSET_AUDIO_ARCHIVE)
 
-$(GUITARSET_ANNOTATION_ARCHIVE): FORCE | $(BUILD_DIR)
+$(GUITARSET_ANNOTATION_ARCHIVE): FORCE scripts/check_zip_archive.py | $(BUILD_DIR)
 	mkdir -p "$(GUITARSET_SOURCE_DIR)"
-	if [ -s "$(GUITARSET_ANNOTATION_ARCHIVE)" ] && ! $(PYTHON) -m zipfile -t "$(GUITARSET_ANNOTATION_ARCHIVE)" >/dev/null 2>&1; then mv -f "$(GUITARSET_ANNOTATION_ARCHIVE)" "$(GUITARSET_ANNOTATION_ARCHIVE).part"; fi
-	if [ ! -s "$(GUITARSET_ANNOTATION_ARCHIVE)" ] && [ -s "$(GUITARSET_ANNOTATION_ARCHIVE).part" ] && $(PYTHON) -m zipfile -t "$(GUITARSET_ANNOTATION_ARCHIVE).part" >/dev/null 2>&1; then mv "$(GUITARSET_ANNOTATION_ARCHIVE).part" "$(GUITARSET_ANNOTATION_ARCHIVE)"; fi
+	if [ -s "$(GUITARSET_ANNOTATION_ARCHIVE)" ] && ! $(PYTHON) scripts/check_zip_archive.py "$(GUITARSET_ANNOTATION_ARCHIVE)" >/dev/null 2>&1; then mv -f "$(GUITARSET_ANNOTATION_ARCHIVE)" "$(GUITARSET_ANNOTATION_ARCHIVE).part"; fi
+	if [ -s "$(GUITARSET_ANNOTATION_ARCHIVE).part" ] && ! $(PYTHON) scripts/check_zip_archive.py "$(GUITARSET_ANNOTATION_ARCHIVE).part" >/dev/null 2>&1; then mv -f "$(GUITARSET_ANNOTATION_ARCHIVE).part" "$(GUITARSET_ANNOTATION_ARCHIVE).corrupt"; fi
+	if [ ! -s "$(GUITARSET_ANNOTATION_ARCHIVE)" ] && [ -s "$(GUITARSET_ANNOTATION_ARCHIVE).part" ] && $(PYTHON) scripts/check_zip_archive.py "$(GUITARSET_ANNOTATION_ARCHIVE).part" >/dev/null 2>&1; then mv "$(GUITARSET_ANNOTATION_ARCHIVE).part" "$(GUITARSET_ANNOTATION_ARCHIVE)"; fi
 	if [ ! -s "$(GUITARSET_ANNOTATION_ARCHIVE)" ]; then curl -fL -C - -o "$(GUITARSET_ANNOTATION_ARCHIVE).part" "$(GUITARSET_ANNOTATION_URL)"; fi
-	if [ -s "$(GUITARSET_ANNOTATION_ARCHIVE).part" ]; then $(PYTHON) -m zipfile -t "$(GUITARSET_ANNOTATION_ARCHIVE).part" >/dev/null; mv "$(GUITARSET_ANNOTATION_ARCHIVE).part" "$(GUITARSET_ANNOTATION_ARCHIVE)"; fi
-	$(PYTHON) -m zipfile -t "$(GUITARSET_ANNOTATION_ARCHIVE)" >/dev/null
+	if [ -s "$(GUITARSET_ANNOTATION_ARCHIVE).part" ]; then $(PYTHON) scripts/check_zip_archive.py "$(GUITARSET_ANNOTATION_ARCHIVE).part"; mv "$(GUITARSET_ANNOTATION_ARCHIVE).part" "$(GUITARSET_ANNOTATION_ARCHIVE)"; fi
+	$(PYTHON) scripts/check_zip_archive.py "$(GUITARSET_ANNOTATION_ARCHIVE)"
 
-$(GUITARSET_AUDIO_ARCHIVE): FORCE | $(BUILD_DIR)
+$(GUITARSET_AUDIO_ARCHIVE): FORCE scripts/check_zip_archive.py | $(BUILD_DIR)
 	mkdir -p "$(GUITARSET_SOURCE_DIR)"
-	if [ -s "$(GUITARSET_AUDIO_ARCHIVE)" ] && ! $(PYTHON) -m zipfile -t "$(GUITARSET_AUDIO_ARCHIVE)" >/dev/null 2>&1; then mv -f "$(GUITARSET_AUDIO_ARCHIVE)" "$(GUITARSET_AUDIO_ARCHIVE).part"; fi
-	if [ ! -s "$(GUITARSET_AUDIO_ARCHIVE)" ] && [ -s "$(GUITARSET_AUDIO_ARCHIVE).part" ] && $(PYTHON) -m zipfile -t "$(GUITARSET_AUDIO_ARCHIVE).part" >/dev/null 2>&1; then mv "$(GUITARSET_AUDIO_ARCHIVE).part" "$(GUITARSET_AUDIO_ARCHIVE)"; fi
+	if [ -s "$(GUITARSET_AUDIO_ARCHIVE)" ] && ! $(PYTHON) scripts/check_zip_archive.py "$(GUITARSET_AUDIO_ARCHIVE)" >/dev/null 2>&1; then mv -f "$(GUITARSET_AUDIO_ARCHIVE)" "$(GUITARSET_AUDIO_ARCHIVE).part"; fi
+	if [ -s "$(GUITARSET_AUDIO_ARCHIVE).part" ] && ! $(PYTHON) scripts/check_zip_archive.py "$(GUITARSET_AUDIO_ARCHIVE).part" >/dev/null 2>&1; then mv -f "$(GUITARSET_AUDIO_ARCHIVE).part" "$(GUITARSET_AUDIO_ARCHIVE).corrupt"; fi
+	if [ ! -s "$(GUITARSET_AUDIO_ARCHIVE)" ] && [ -s "$(GUITARSET_AUDIO_ARCHIVE).part" ] && $(PYTHON) scripts/check_zip_archive.py "$(GUITARSET_AUDIO_ARCHIVE).part" >/dev/null 2>&1; then mv "$(GUITARSET_AUDIO_ARCHIVE).part" "$(GUITARSET_AUDIO_ARCHIVE)"; fi
 	if [ ! -s "$(GUITARSET_AUDIO_ARCHIVE)" ]; then curl -fL -C - -o "$(GUITARSET_AUDIO_ARCHIVE).part" "$(GUITARSET_AUDIO_URL)"; fi
-	if [ -s "$(GUITARSET_AUDIO_ARCHIVE).part" ]; then $(PYTHON) -m zipfile -t "$(GUITARSET_AUDIO_ARCHIVE).part" >/dev/null; mv "$(GUITARSET_AUDIO_ARCHIVE).part" "$(GUITARSET_AUDIO_ARCHIVE)"; fi
-	$(PYTHON) -m zipfile -t "$(GUITARSET_AUDIO_ARCHIVE)" >/dev/null
+	if [ -s "$(GUITARSET_AUDIO_ARCHIVE).part" ]; then $(PYTHON) scripts/check_zip_archive.py "$(GUITARSET_AUDIO_ARCHIVE).part"; mv "$(GUITARSET_AUDIO_ARCHIVE).part" "$(GUITARSET_AUDIO_ARCHIVE)"; fi
+	$(PYTHON) scripts/check_zip_archive.py "$(GUITARSET_AUDIO_ARCHIVE)"
 
 prepare-downloaded-guitarset: download-guitarset-samples
 	mkdir -p "$(GUITARSET_ROOT)"
