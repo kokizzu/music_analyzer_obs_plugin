@@ -59,6 +59,30 @@ void set_probe_level(std::array<float, kNoteProbeCount> &powers, int midi, float
 	powers[static_cast<std::size_t>(midi - kFirstMidi)] = level * level;
 }
 
+void check_auto_source_mode_resolution(Runner &runner)
+{
+	AnalysisSettings settings = {};
+	settings.input_mode = AnalysisInputMode::Auto;
+	runner.expect(resolve_input_mode(settings, "Electric Bass") == AnalysisInputMode::IsolatedBass,
+		      "auto source mode: expected bass source to use isolated bass mode");
+	runner.expect(resolve_input_mode(settings, "Lead Guitar") == AnalysisInputMode::IsolatedGuitar,
+		      "auto source mode: expected guitar source to use isolated guitar mode");
+	runner.expect(resolve_input_mode(settings, "Piano Keys") == AnalysisInputMode::IsolatedKeyboard,
+		      "auto source mode: expected keyboard source to use isolated keyboard mode");
+	runner.expect(resolve_input_mode(settings, "Lead Vocal") == AnalysisInputMode::IsolatedVocal,
+		      "auto source mode: expected vocal source to use isolated vocal mode");
+	runner.expect(resolve_input_mode(settings, "Brass Section") == AnalysisInputMode::IsolatedOther,
+		      "auto source mode: expected brass source to use isolated other mode");
+	runner.expect(resolve_input_mode(settings, "MIC/AUX") == AnalysisInputMode::FullMix,
+		      "auto source mode: expected generic mic source to stay full mix");
+	runner.expect(resolve_input_mode(settings, "OBS MIX") == AnalysisInputMode::FullMix,
+		      "auto source mode: expected generic OBS mix to stay full mix");
+
+	settings.input_mode = AnalysisInputMode::FullMix;
+	runner.expect(resolve_input_mode(settings, "Lead Vocal") == AnalysisInputMode::FullMix,
+		      "explicit source mode: expected configured full mix to override source name");
+}
+
 void check_crowded_guitar_prune_modes(Runner &runner)
 {
 	static constexpr const char *kCrowdedLabel = "Csus2=Gsus4=C=Cm=Cmaj7=Cpow=Caug";
@@ -4608,6 +4632,7 @@ void check_low_wind_other_octave_alias_requires_upper_stack(Runner &runner)
 int run()
 {
 	Runner runner;
+	check_auto_source_mode_resolution(runner);
 	check_crowded_guitar_prune_modes(runner);
 	check_displayed_same_root_plain_guitar_primary(runner);
 	check_displayed_supported_plain_guitar_primary(runner);
