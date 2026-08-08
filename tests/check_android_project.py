@@ -330,22 +330,19 @@ def main():
             "CLIENT_CHARACTERISTIC_CONFIG" in fret_zealot_attributes and
             "ledNotificationCharacteristic" in fret_zealot_sdk,
             "Fret Zealot LED notifications must be enabled before commands are sent")
-    require("readFirmwareRevision" in fret_zealot_sdk and
-            "initializeFretZealot2Session" in fret_zealot_sdk_controller,
-            "Fret Zealot 2 must use the official app's device-information priming sequence")
-    require("clearBoard()" in fret_zealot_sdk_controller,
-            "Fret Zealot must clear the board immediately after connecting")
+    require("readFirmwareRevision" in fret_zealot_sdk,
+            "Fret Zealot SDK must retain device-information support")
+    require("command == 0x04" in fret_zealot_sdk_controller and
+            "sdk.set_all((byte) 0, (byte) 0, (byte) 0" in fret_zealot_sdk_controller,
+            "Fret Zealot scale packets must reset the board before drawing the scale")
     require("sdk.set_all((byte) 0, (byte) 0, (byte) 0" in fret_zealot_sdk_controller,
             "Fret Zealot 2 must use the vendor full-board black reset command")
     require("fretZealotPixelForStandardTuningString" in fret_zealot_sdk_controller and
             "return (byte) (5 - lowToHighString);" in fret_zealot_sdk_controller,
             "Fret Zealot output must map analyzer E-A-D-G-B-E strings to hardware order")
-    require("initializeFretZealot2Session();" in fret_zealot_sdk_controller and
-            "Fret Zealot LED service ready; preparing current scale" in fret_zealot_sdk_controller and
+    require("Fret Zealot LED service ready; sending current scale" in fret_zealot_sdk_controller and
             "listener.onReady();" in fret_zealot_sdk_controller,
             "Fret Zealot must render the current scale directly after its session is ready")
-    require("Unable to clear Fret Zealot board before scale output" in fret_zealot_sdk_controller,
-            "Fret Zealot board preparation failures must not crash the analyzer")
     require("strand, red, green, blue, pixel" in fret_zealot_sdk and
             "((green & 0x0f) << 4) | (blue & 0x0f)" in fret_zealot_sdk,
             "Fret Zealot SDK adaptation must preserve the official R/B/G API and wire ordering")

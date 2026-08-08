@@ -123,24 +123,6 @@ final class FretZealotSdkController implements Closeable {
         sdk.sendCommandFlush();
     }
 
-    private void clearBoard() {
-        sdk.sendCommandBufferClear();
-        // Fret Zealot 2's official app uses SET_ALL black when it leaves a display
-        // mode. Unlike the legacy CLEAR command, that also resets its blue background.
-        sdk.set_all((byte) 0, (byte) 0, (byte) 0, LOWEST_SDK_INTENSITY, (byte) 0);
-        sdk.sendCommandFlush();
-    }
-
-    private void initializeFretZealot2Session() {
-        // Mirror the official app's FZ2 session priming before it starts LED writes.
-        sdk.readManufacturerName();
-        handler.postDelayed(sdk::readModelNumberString, 50L);
-        handler.postDelayed(sdk::readBattery, 100L);
-        handler.postDelayed(sdk::readHardwareRevision, 150L);
-        handler.postDelayed(sdk::readSerialNumber, 200L);
-        handler.postDelayed(sdk::readFirmwareRevision, 250L);
-    }
-
     @Override
     public void close() {
         closing = true;
@@ -190,26 +172,16 @@ final class FretZealotSdkController implements Closeable {
                     listener.onError();
                     return;
                 }
-                // The vendor SDK subscribes to the LED notification characteristic before
-                // its first command. Prime the FZ2 session, then render the current scale.
+                // Let the notification descriptor write finish before the first LED packet.
+                // The scale packet itself starts with a full-board black command, so do not
+                // issue a separate write or optional GATT reads before it.
                 handler.postDelayed(() -> {
                     if (!active || closing || !sdk.isLED()) {
                         return;
                     }
-                    Log.i(TAG, "Fret Zealot LED service ready; preparing current scale");
-                    initializeFretZealot2Session();
-                    handler.postDelayed(() -> {
-                        if (!active || closing || !sdk.isLED()) {
-                            return;
-                        }
-                        try {
-                            clearBoard();
-                        } catch (RuntimeException exception) {
-                            Log.w(TAG, "Unable to clear Fret Zealot board before scale output", exception);
-                        }
-                        ready = true;
-                        listener.onReady();
-                    }, 300L);
+                    Log.i(TAG, "Fret Zealot LED service ready; sending current scale");
+                    ready = true;
+                    listener.onReady();
                 }, 150L);
             });
         }
