@@ -20846,8 +20846,9 @@ void restore_tightly_labeled_minor_seventh_guitar_thirds_from_analysis(
 		return;
 
 	// A tightly bounded minor-seventh interpretation can recover its missing
-	// minor third directly from the compact analysis grid.  Broader alias sets
-	// are deliberately excluded because they admit harmonic third spill.
+	// minor third directly from the compact analysis grid.  A flat seventh is
+	// admitted only for a four-component label and a stronger evidence floor;
+	// broader alias sets admit harmonic seventh spill.
 	const char *cursor = chord_state.label;
 	while (cursor && *cursor) {
 		const char *end = std::strchr(cursor, '=');
@@ -20867,6 +20868,16 @@ void restore_tightly_labeled_minor_seventh_guitar_thirds_from_analysis(
 				const NoteCell &source = analysis_grid.cells[static_cast<std::size_t>(third)];
 				if (source.active)
 					promote_note_grid_primary_midi(display_grid, source.midi, source.level);
+			}
+			if (chord_label_component_count(chord_state.label) <= 4) {
+				const int seventh = (component.root + 10) % 12;
+				if (!note_grid_pitch_active(display_grid, seventh) &&
+				    note_grid_pitch_active(analysis_grid, seventh) &&
+				    note_grid_pitch_level(analysis_grid, seventh) >= 0.42f) {
+					const NoteCell &source = analysis_grid.cells[static_cast<std::size_t>(seventh)];
+					if (source.active)
+						promote_note_grid_primary_midi(display_grid, source.midi, source.level);
+				}
 			}
 		}
 		if (!end)
