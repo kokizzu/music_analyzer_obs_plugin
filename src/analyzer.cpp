@@ -20839,16 +20839,17 @@ void restore_compact_guitar_seventh_fifths_from_analysis(
 void restore_tightly_labeled_minor_seventh_guitar_thirds_from_analysis(
 	NoteGrid &display_grid, const InstrumentState &chord_state, const NoteGrid &analysis_grid)
 {
+	const int label_components = chord_label_component_count(chord_state.label);
 	if (!chord_state.label[0] || chord_state.label[0] == '-' ||
-	    chord_label_component_count(chord_state.label) > 6 ||
+	    label_components > 6 ||
 	    note_grid_active_pitch_class_count(display_grid) > 8 ||
 	    note_grid_active_pitch_class_count(analysis_grid) > 8)
 		return;
 
 	// A tightly bounded minor-seventh interpretation can recover its missing
-	// minor third directly from the compact analysis grid.  A flat seventh is
-	// admitted only for a four-component label and a stronger evidence floor;
-	// broader alias sets admit harmonic seventh spill.
+	// minor third directly from the compact analysis grid.  Its root and flat
+	// seventh are admitted only for a four-component label: those tones need
+	// the extra structural anchor to avoid promoting harmonic spill.
 	const char *cursor = chord_state.label;
 	while (cursor && *cursor) {
 		const char *end = std::strchr(cursor, '=');
@@ -20861,6 +20862,16 @@ void restore_tightly_labeled_minor_seventh_guitar_thirds_from_analysis(
 		const std::size_t suffix_len = len > root_len ? len - root_len : 0;
 		if (parse_root_chord_component(cursor, len, component) &&
 		    component.quality == RootChordQuality::Minor && suffix_is(suffix, suffix_len, "m7")) {
+			if (label_components <= 4) {
+				const int root = component.root;
+				if (!note_grid_pitch_active(display_grid, root) &&
+				    note_grid_pitch_active(analysis_grid, root) &&
+				    note_grid_pitch_level(analysis_grid, root) >= 0.50f) {
+					const NoteCell &source = analysis_grid.cells[static_cast<std::size_t>(root)];
+					if (source.active)
+						promote_note_grid_primary_midi(display_grid, source.midi, source.level);
+				}
+			}
 			const int third = (component.root + 3) % 12;
 			if (!note_grid_pitch_active(display_grid, third) &&
 			    note_grid_pitch_active(analysis_grid, third) &&
@@ -20869,7 +20880,7 @@ void restore_tightly_labeled_minor_seventh_guitar_thirds_from_analysis(
 				if (source.active)
 					promote_note_grid_primary_midi(display_grid, source.midi, source.level);
 			}
-			if (chord_label_component_count(chord_state.label) <= 4) {
+			if (label_components <= 4) {
 				const int seventh = (component.root + 10) % 12;
 				if (!note_grid_pitch_active(display_grid, seventh) &&
 				    note_grid_pitch_active(analysis_grid, seventh) &&
