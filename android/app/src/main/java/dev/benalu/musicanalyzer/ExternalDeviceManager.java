@@ -64,8 +64,8 @@ final class ExternalDeviceManager implements Closeable {
     private static final long WRITE_WITHOUT_RESPONSE_DELAY_MILLIS = 12;
     private static final long BLE_RETRY_DELAY_MILLIS = 1500;
     // A first-generation Fret Zealot takes a few hundred milliseconds to
-    // apply a frame. Do not keep replacing its target while the analyzer's
-    // automatic-root estimate is still moving.
+    // apply a frame. AUTO roots still update as deltas, but wait for a quiet
+    // period before replaying the complete current scale.
     private static final long FRET_ZEALOT_AUTO_ROOT_STABLE_MILLIS = 750;
 
     private final Context context;
@@ -145,8 +145,9 @@ final class ExternalDeviceManager implements Closeable {
             }
             byte[] packet = pendingFretZealotPacket;
             pendingFretZealotPacket = null;
-            // A stable AUTO root gets a complete state replay. That repairs any
-            // interrupted legacy delta without issuing a full-board black reset.
+            // A genuinely stable AUTO root gets one complete scale replay.
+            // Continuous root changes use deltas below, so the legacy board is
+            // not repeatedly flooded with legacy frames it can only partly apply.
             fretZealot.sendPacket(packet, true);
         };
     }
@@ -797,21 +798,22 @@ final class ExternalDeviceManager implements Closeable {
             return;
         }
         lastFretZealotPacket = Arrays.copyOf(packet, packet.length);
-        if (force || !MusicAnalyzerNative.nativeIsAutomaticRootMode(nativeHandle)) {
+        if (!MusicAnalyzerNative.nativeIsAutomaticRootMode(nativeHandle)) {
             handler.removeCallbacks(sendStableFretZealotPacket);
             pendingFretZealotPacket = null;
             fretZealotAutoReconciliationScheduled = false;
-            // The initial connection has no confirmed device frame. Reassert
-            // the whole target so a partial legacy write cannot leave a
-            // truncated scale until the next root change.
-            fretZealot.sendPacket(packet, force);
+            // The controller clears the board once after each connection, then
+            // writes this delta. Manual root changes consequently never blink.
+            fretZealot.sendPacket(packet, false);
             return;
         }
         pendingFretZealotPacket = Arrays.copyOf(packet, packet.length);
-        if (!fretZealotAutoReconciliationScheduled) {
-            fretZealotAutoReconciliationScheduled = true;
-            handler.postDelayed(sendStableFretZealotPacket, FRET_ZEALOT_AUTO_ROOT_STABLE_MILLIS);
-        }
+        // Apply the newest root promptly. Repeated full-frame writes were the
+        // cause of partial scales on first-generation Fret Zealot hardware.
+        fretZealot.sendPacket(packet, false);
+        handler.removeCallbacks(sendStableFretZealotPacket);
+        fretZealotAutoReconciliationScheduled = true;
+        handler.postDelayed(sendStableFretZealotPacket, FRET_ZEALOT_AUTO_ROOT_STABLE_MILLIS);
     }
 
     private void sendMidi(MidiInputPort inputPort, byte[] messages) {

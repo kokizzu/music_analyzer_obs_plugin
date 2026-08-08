@@ -272,13 +272,18 @@ final class FretZealotSdkController implements Closeable {
     private void startScaleFrame(ScaleFrame target, boolean containsScaleResetMarker,
             boolean reconcileWholeBoard) {
         sdk.sendCommandBufferClear();
+        boolean boardReset = false;
         if (containsScaleResetMarker && needsInitialScaleReset) {
             sdk.set_all((byte) 0, (byte) 0, (byte) 0, LOWEST_SDK_INTENSITY, (byte) 0);
             needsInitialScaleReset = false;
+            boardReset = true;
         }
-        if (reconcileWholeBoard) {
+        if (reconcileWholeBoard && !boardReset) {
             writeScaleFrameReconciliation(target);
         } else {
+            // A session reset has already blackened every non-target pixel.
+            // Sending another 90 clear commands here can overrun legacy Fret
+            // Zealot firmware and leave only a partial scale visible.
             writeScaleFrameDelta(committedScaleFrame, target);
         }
         activeScaleFrame = target;
@@ -307,21 +312,15 @@ final class FretZealotSdkController implements Closeable {
     }
 
     // The legacy board can occasionally finish only part of a previous frame
-    // while AUTO root estimates are changing. Reassert every target pixel,
-    // then clear every non-target pixel without a visible board-wide reset.
+    // while AUTO root estimates are changing. Reassert every target pixel.
+    // The preceding delta already retires obsolete pixels, and batching those
+    // clears here makes the recovery frame large enough to fail partially.
     private void writeScaleFrameReconciliation(ScaleFrame target) {
         for (int string = 0; string < STRING_COUNT; ++string) {
             for (int fret = 0; fret < FRET_COUNT; ++fret) {
                 if (target.lit[string][fret]) {
                     setPixel(string, fret, target.red[string][fret], target.green[string][fret],
                             target.blue[string][fret], target.effect[string][fret]);
-                }
-            }
-        }
-        for (int string = 0; string < STRING_COUNT; ++string) {
-            for (int fret = 0; fret < FRET_COUNT; ++fret) {
-                if (!target.lit[string][fret]) {
-                    setPixel(string, fret, (byte) 0, (byte) 0, (byte) 0, (byte) 0);
                 }
             }
         }

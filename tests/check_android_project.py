@@ -302,8 +302,9 @@ def main():
             "nativeIsAutomaticRootMode" in external_devices and
             "sendStableFretZealotPacket" in external_devices and
             "fretZealotAutoReconciliationScheduled" in external_devices and
-            "if (!fretZealotAutoReconciliationScheduled)" in external_devices,
-            "Android must coalesce AUTO roots without indefinitely postponing Fret Zealot updates")
+            "handler.removeCallbacks(sendStableFretZealotPacket);" in external_devices and
+            "fretZealot.sendPacket(packet, false);" in external_devices,
+            "Android must apply AUTO roots as deltas and replay only after a quiet period")
     require("if (!force && Arrays.equals(packet, lastFretZealotPacket)) {\n            // A device-state revision" in external_devices and
             "cancelling it leaves a first-generation board showing only the" in external_devices,
             "An unchanged Fret Zealot packet must not cancel its scheduled AUTO reconciliation")
@@ -383,10 +384,11 @@ def main():
             "if (current.lit[string][fret] && !target.lit[string][fret])" in fret_zealot_sdk_controller,
             "Fret Zealot must light new notes before turning obsolete notes off")
     require("writeScaleFrameReconciliation" in fret_zealot_sdk_controller and
-            "if (!target.lit[string][fret])" in fret_zealot_sdk_controller,
-            "A stable Fret Zealot AUTO root must reconcile every board pixel")
-    require("fretZealot.sendPacket(packet, force);" in external_devices,
-            "Fret Zealot readiness must reconcile the initial complete scale frame")
+            "Reassert every target pixel." in fret_zealot_sdk_controller,
+            "A stable Fret Zealot AUTO root must replay every scale pixel")
+    require("boolean boardReset = false;" in fret_zealot_sdk_controller and
+            "if (reconcileWholeBoard && !boardReset)" in fret_zealot_sdk_controller,
+            "Fret Zealot must avoid redundant legacy clear writes after its session reset")
     require("Fret Zealot LED service ready; sending current scale" in fret_zealot_sdk_controller and
             "listener.onReady();" in fret_zealot_sdk_controller,
             "Fret Zealot must render the current scale directly after its session is ready")
