@@ -337,9 +337,12 @@ def main():
             "Fret Zealot must clear the board immediately after connecting")
     require("sdk.set_all((byte) 0, (byte) 0, (byte) 0" in fret_zealot_sdk_controller,
             "Fret Zealot 2 must use the vendor full-board black reset command")
-    require("MUSIC_GLYPHS" in fret_zealot_sdk_controller and
-            "showConnectionAnimation" in fret_zealot_sdk_controller,
-            "Fret Zealot must show its bounded connection animation before the scale")
+    require("initializeFretZealot2Session();" in fret_zealot_sdk_controller and
+            "Fret Zealot LED service ready; preparing current scale" in fret_zealot_sdk_controller and
+            "listener.onReady();" in fret_zealot_sdk_controller,
+            "Fret Zealot must render the current scale directly after its session is ready")
+    require("Unable to clear Fret Zealot board before scale output" in fret_zealot_sdk_controller,
+            "Fret Zealot board preparation failures must not crash the analyzer")
     require("strand, red, green, blue, pixel" in fret_zealot_sdk and
             "((green & 0x0f) << 4) | (blue & 0x0f)" in fret_zealot_sdk,
             "Fret Zealot SDK adaptation must preserve the official R/B/G API and wire ordering")
