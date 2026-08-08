@@ -53,6 +53,8 @@ enum DrumDebugRuleFlag : uint64_t {
 	DrumDebugCymbalTomKickActiveBleed = 1ull << 22,
 	DrumDebugSnareBodyHihatActiveBleed = 1ull << 23,
 	DrumDebugHihatTomActiveBleed = 1ull << 24,
+	DrumDebugInitialBrightCrash = 1ull << 25,
+	DrumDebugInitialAmbiguousCrash = 1ull << 26,
 };
 
 enum class AnalysisInputMode {
@@ -189,6 +191,7 @@ struct AnalysisSnapshot {
 	float drum_debug_tom_body = 0.0f;
 	float drum_debug_upper_tom_body = 0.0f;
 	int drum_debug_body_shape = -1;
+	int drum_debug_cymbal_shape = -1;
 	uint64_t drum_debug_rule_flags = 0;
 	int bass_debug_spectral_midi = -1;
 	float bass_debug_spectral_confidence = 0.0f;

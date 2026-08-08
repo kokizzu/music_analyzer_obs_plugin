@@ -26844,6 +26844,7 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 		cymbal_shape = Crash;
 	else if (cymbal_low > cymbal_mid * 1.15f && cymbal_low > cymbal_high * 1.15f)
 		cymbal_shape = Ride;
+	snapshot.drum_debug_cymbal_shape = static_cast<int>(cymbal_shape);
 	const bool hihat_family_shape =
 		strongest_cymbal_drum > 0.0f && drum_segment_bands[HiHat] >= strongest_cymbal_drum * 0.58f;
 	const bool crash_family_shape =
@@ -27067,6 +27068,7 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 		 current_bass_drum_suppression_hint.confidence >= 0.20f ||
 		 tracked_bass_confidence_ >= 0.20f);
 	bool tempo_event = false;
+	bool initial_crash_onset_detected = false;
 	for (std::size_t i = 0; i < kDrumCount; ++i) {
 		if (drum_average_[i] <= 0.0f)
 			drum_average_[i] = drum_bands[i];
@@ -27125,6 +27127,39 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 		const bool soft_cymbal_transient =
 			!tonal_soft_drum_suppressed && had_previous_audio && cymbal &&
 			cymbal_family_evidence && soft_cymbal_separable && transient_ratio >= 0.65f;
+		// The first audible window has no prior audio state, so it cannot use
+		// the normal soft-cymbal path. Some real crash onsets have a long-ride
+		// or dense-hihat spectral centroid, but retain a bright, low-body crash
+		// envelope. Keep those families separate from ordinary hats instead of
+		// lowering the initial cymbal threshold for every class.
+		const bool initial_bright_cymbal_onset =
+			!tonal_soft_drum_suppressed && !had_previous_audio && i == Crash &&
+			crash_family_shape && cymbal_family_evidence && soft_cymbal_separable &&
+			drum_transient_ratio >= 1.30f && snapshot.high_energy >= 0.75f &&
+			snapshot.low_energy <= 0.10f && snapshot.mid_energy <= 0.20f;
+		const bool initial_long_cymbal_crash =
+			cymbal_shape == Ride &&
+			drum_segment_bands[Ride] >= drum_segment_bands[HiHat] * 1.70f;
+		const bool initial_dense_cymbal_crash =
+			cymbal_shape == HiHat && snapshot.high_energy >= 0.80f &&
+			snapshot.low_energy <= 0.03f && snapshot.mid_energy >= 0.10f &&
+			snapshot.mid_energy <= 0.18f &&
+			drum_segment_bands[Crash] >= drum_segment_bands[HiHat] * 1.05f;
+		const bool initial_bright_crash_transient =
+			initial_bright_cymbal_onset &&
+			(cymbal_shape == Crash || initial_long_cymbal_crash || initial_dense_cymbal_crash);
+		// A short window cannot always separate a bright crash from an equally
+		// bright hat. Keep the crash visible at low confidence without allowing
+		// it to replace the dominant hat result. The crash and hat envelopes must
+		// remain comparable; a strongly crash-weighted onset is more likely a ride
+		// bell or an already-resolved crash, which the normal classifier handles.
+		const bool initial_ambiguous_cymbal_crash =
+			initial_bright_cymbal_onset && cymbal_shape == HiHat &&
+			drum_segment_bands[Crash] >= drum_segment_bands[HiHat] * 0.65f &&
+			drum_segment_bands[Crash] <= drum_segment_bands[HiHat] * 1.30f &&
+			drum_segment_bands[Ride] <= drum_segment_bands[HiHat] * 0.80f;
+		const bool initial_crash_onset =
+			initial_bright_crash_transient || initial_ambiguous_cymbal_crash;
 		const bool embedded_hihat_transient =
 			!tonal_soft_drum_suppressed && hihat &&
 			((had_previous_audio &&
@@ -27188,6 +27223,16 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 		const float effective_threshold = trigger_threshold * threshold_scale;
 		snapshot.drum_debug_trigger_scores[i] = score;
 		snapshot.drum_debug_trigger_thresholds[i] = effective_threshold;
+		const bool initial_crash_onset_supported =
+			drum_detection_enabled && rms > kSilenceRms && initial_crash_onset &&
+			score > trigger_threshold * 0.26f;
+		if (initial_crash_onset_supported) {
+			initial_crash_onset_detected = true;
+			if (initial_bright_crash_transient)
+				snapshot.drum_debug_rule_flags |= DrumDebugInitialBrightCrash;
+			if (initial_ambiguous_cymbal_crash)
+				snapshot.drum_debug_rule_flags |= DrumDebugInitialAmbiguousCrash;
+		}
 		if (drum_detection_enabled && rms > kSilenceRms && shape_supported && (!kick || kick_click_transient) &&
 		    (drum_transient || soft_cymbal_transient || quiet_cymbal_shape ||
 		     embedded_hihat_transient || soft_body_transient) &&
@@ -30098,6 +30143,12 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 		snapshot.drum_debug_rule_flags |= DrumDebugCrashHihatActiveBleed;
 	if (final_one_shot_measured_crash_hihat_active_bleed)
 		cap_drum_level(HiHat, 0.28f);
+
+	// Preserve a validated bright first-window crash candidate only after the
+	// normal cymbal arbitration has completed. This avoids perturbing the hat
+	// and ride decision with a transient crash co-candidate.
+	if (initial_crash_onset_detected)
+		boost_drum_level(Crash, 0.34f);
 
 	const bool onset_tempo_event =
 		drum_detection_enabled && rms > kSilenceRms && drum_transient &&
