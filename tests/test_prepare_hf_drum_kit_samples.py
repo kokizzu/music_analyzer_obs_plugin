@@ -69,6 +69,21 @@ def fake_urlopen(url, timeout=0):
     return FakeResponse(wav_bytes())
 
 
+def interrupted_urlopen(max_audio_downloads):
+    audio_downloads = 0
+
+    def fetch(url, timeout=0):
+        nonlocal audio_downloads
+        if url.startswith(prep.ROWS_ENDPOINT):
+            return fake_urlopen(url, timeout)
+        audio_downloads += 1
+        if audio_downloads > max_audio_downloads:
+            raise RuntimeError("simulated interrupted download")
+        return FakeResponse(wav_bytes())
+
+    return fetch
+
+
 def main():
     with tempfile.TemporaryDirectory() as tmp:
         with mock.patch.object(prep.request, "urlopen", side_effect=fake_urlopen):
@@ -93,6 +108,37 @@ def main():
                                  cache_min_per_category=1)
 
         assert count == cached_count
+
+    with tempfile.TemporaryDirectory() as tmp:
+        root = Path(tmp)
+        with mock.patch.object(prep.request, "urlopen", side_effect=interrupted_urlopen(3)):
+            try:
+                prep.prepare(root, splits=("test",), page_size=100, retries=1,
+                             limit_per_category=1, manifest_checkpoint=1)
+            except RuntimeError as exc:
+                assert "simulated interrupted download" in str(exc)
+            else:
+                raise AssertionError("interrupted fixture preparation unexpectedly succeeded")
+
+        checkpoint_rows, checkpoint_counts = prep.read_cached_manifest(root)
+        assert len(checkpoint_rows) == 3
+        assert checkpoint_counts == {
+            "kick": 1,
+            "snare": 1,
+            "hihat": 1,
+            "crash": 0,
+            "tom": 0,
+            "ride": 0,
+            "rim": 0,
+        }
+        with mock.patch.object(prep.request, "urlopen", side_effect=fake_urlopen):
+            count = prep.prepare(root, splits=("test",), page_size=100, retries=1,
+                                 limit_per_category=1, manifest_checkpoint=1)
+
+        rows, counts = prep.read_cached_manifest(root)
+        assert count == 7
+        assert len(rows) == 7
+        assert counts == {category: 1 for category in prep.LABEL_MAP.values()}
 
 
 if __name__ == "__main__":

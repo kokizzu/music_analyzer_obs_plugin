@@ -153,7 +153,7 @@ def counts_text(counts):
 
 
 def prepare(output, splits=SPLITS, page_size=100, limit_per_category=0, retries=3,
-            cache_min_per_category=300):
+            cache_min_per_category=300, manifest_checkpoint=50):
     output = Path(output)
     output.mkdir(parents=True, exist_ok=True)
     for category in LABEL_MAP.values():
@@ -166,9 +166,11 @@ def prepare(output, splits=SPLITS, page_size=100, limit_per_category=0, retries=
               f"({counts_text(cached_counts)})", flush=True)
         return len(cached_rows)
 
-    counts = {category: 0 for category in LABEL_MAP.values()}
+    counts = dict(cached_counts)
     skipped = {}
-    manifest_rows = []
+    manifest_rows = list(cached_rows)
+    cached_sources = {source for _category, _path, _duration, source in cached_rows}
+    pending_since_manifest = 0
     try:
         row_iter = iter_rows(splits, page_size, retries)
         for split, row_index, row in row_iter:
@@ -185,12 +187,19 @@ def prepare(output, splits=SPLITS, page_size=100, limit_per_category=0, retries=
                 skipped[f"{label}:no_audio"] = skipped.get(f"{label}:no_audio", 0) + 1
                 continue
 
+            source = f"{DATASET}:{split}:{row_index}:{label}"
+            if source in cached_sources:
+                continue
             counts[category] += 1
             sample_id = f"{split}_{row_index:04d}_{label}_{counts[category]:04d}"
             relative_path = Path(category) / (sanitize(sample_id) + ".wav")
             download_file(audio[0]["src"], output / relative_path, retries=retries)
-            manifest_rows.append((category, str(relative_path), "0.000000", f"{DATASET}:{split}:{row_index}:{label}"))
-            if len(manifest_rows) % 50 == 0:
+            manifest_rows.append((category, str(relative_path), "0.000000", source))
+            cached_sources.add(source)
+            pending_since_manifest += 1
+            if pending_since_manifest >= manifest_checkpoint:
+                write_manifest(output, manifest_rows)
+                pending_since_manifest = 0
                 print(f"prepare_hf_drum_kit_samples: downloaded {len(manifest_rows)} samples...", flush=True)
     except RuntimeError as exc:
         if cache_satisfies(cached_counts, required_cache_count):
@@ -220,12 +229,15 @@ def main():
     parser.add_argument("--retries", type=int, default=int(os.environ.get("HF_DRUM_KIT_RETRIES", "3")))
     parser.add_argument("--cache-min-per-category", type=int,
                         default=int(os.environ.get("HF_DRUM_KIT_CACHE_MIN_PER_CATEGORY", "300")))
+    parser.add_argument("--manifest-checkpoint", type=int,
+                        default=int(os.environ.get("HF_DRUM_KIT_MANIFEST_CHECKPOINT", "50")))
     args = parser.parse_args()
 
     splits = tuple(split.strip() for split in args.splits.split(",") if split.strip())
     count = prepare(args.output, splits=splits, page_size=max(1, args.page_size),
                     limit_per_category=max(0, args.limit_per_category), retries=max(1, args.retries),
-                    cache_min_per_category=max(1, args.cache_min_per_category))
+                    cache_min_per_category=max(1, args.cache_min_per_category),
+                    manifest_checkpoint=max(1, args.manifest_checkpoint))
     if count == 0:
         raise SystemExit("prepare_hf_drum_kit_samples: no samples downloaded")
 
