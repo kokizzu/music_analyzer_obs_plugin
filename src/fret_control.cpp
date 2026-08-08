@@ -18,6 +18,18 @@ constexpr std::array<RgbColor, kScaleDegreeCount> kMajorColors = {
 	RgbColor{0, 0, 255},
 	RgbColor{160, 0, 255},
 };
+// Fret Zealot's 4-bit LEDs render pure yellow harshly at low power and shift
+// the shared violet toward magenta. These values retain the LiteJam hue order
+// after its lower per-channel quantization.
+constexpr std::array<RgbColor, kScaleDegreeCount> kFretZealotMajorColors = {
+	RgbColor{255, 0, 0},
+	RgbColor{255, 96, 0},
+	RgbColor{255, 255, 32},
+	RgbColor{0, 255, 0},
+	RgbColor{128, 200, 255},
+	RgbColor{0, 0, 255},
+	RgbColor{64, 0, 255},
+};
 constexpr std::array<int, 6> kStandardTuningLowToHigh = {40, 45, 50, 55, 59, 64};
 constexpr std::array<const char *, kPitchClassCount> kPitchClassNames = {
 	"C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B",
@@ -421,7 +433,7 @@ std::vector<uint8_t> build_fret_zealot_major_scale_packet(int root_pitch_class)
 			const int degree = major_scale_degree(root_pitch_class, note);
 			if (degree < 0)
 				continue;
-			const RgbColor color = kMajorColors[static_cast<std::size_t>(degree)];
+			const RgbColor color = kFretZealotMajorColors[static_cast<std::size_t>(degree)];
 			packet.push_back(0x00);
 			packet.push_back(static_cast<uint8_t>((musical_fret << 4) | scale_nibble(color.red)));
 			packet.push_back(static_cast<uint8_t>((scale_nibble(color.green) << 4) | scale_nibble(color.blue)));

@@ -16,8 +16,8 @@ final class FretZealotSdkController implements Closeable {
     private static final String TAG = "MusicAnalyzerFZ";
     private static final byte LOWEST_SDK_INTENSITY = 3;
     // 1/15 makes every nonzero RGB component identical, collapsing orange into
-    // yellow. 2/15 is the lowest level that preserves the scale's hue order.
-    private static final int LOWEST_CHANNEL_MAX = 2;
+    // yellow. 3/15 retains the calibrated Fret Zealot hue order at low power.
+    private static final int LOWEST_CHANNEL_MAX = 3;
 
     interface Listener {
         void onConnecting();

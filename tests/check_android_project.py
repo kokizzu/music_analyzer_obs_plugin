@@ -304,7 +304,7 @@ def main():
             "sendCommandFlush" in fret_zealot_sdk_controller,
             "Fret Zealot output must use the official SDK command API")
     require("LOWEST_SDK_INTENSITY = 3" in fret_zealot_sdk_controller and
-            "LOWEST_CHANNEL_MAX = 2" in fret_zealot_sdk_controller and
+            "LOWEST_CHANNEL_MAX = 3" in fret_zealot_sdk_controller and
             "dimChannel(red)" in fret_zealot_sdk_controller and
             "dimChannel(blue)" in fret_zealot_sdk_controller and
             "dimChannel(green)" in fret_zealot_sdk_controller,
@@ -368,7 +368,8 @@ def main():
             "displayedSuffix" in external_devices and "M-VAVE MIDI" in external_devices and
             "M-VAVE BLE raw" in external_devices,
             "M-VAVE handling must capture arbitrary MIDI values, program banks, and hardware diagnostics")
-    require("kMajorColors" in fret_control and "build_litejam_major_scale_packet" in fret_control and
+    require("kMajorColors" in fret_control and "kFretZealotMajorColors" in fret_control and
+            "build_litejam_major_scale_packet" in fret_control and
             "build_fret_zealot_major_scale_packet" in fret_control and "build_apc_led_messages" in fret_control,
             "shared fret control must contain rainbow scale and APC output encoders")
     require("CubeSuite" in external_control_docs and "Note On" in external_control_docs and
