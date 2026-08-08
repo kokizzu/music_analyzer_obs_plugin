@@ -50,6 +50,7 @@ HEADER = [
     "expected_raw_cells",
     "raw_pitch_class_levels",
     "guitar_probe_pitch_class_levels",
+    "guitar_detection_pitch_class_levels",
     "guitar_melodic_probe_pitch_class_levels",
     "expected_quality_raw_profile",
     "bass_pitch_classes",

@@ -216,6 +216,7 @@ struct AnalysisSnapshot {
 	NoteGrid guitar_chord_analysis_notes = {};
 	NoteGrid guitar_chord_smoothed_notes = {};
 	std::array<float, 12> guitar_chord_debug_probe_levels = {};
+	std::array<float, 12> guitar_chord_debug_detection_levels = {};
 	std::array<float, 12> guitar_chord_debug_melodic_probe_levels = {};
 	InstrumentState keyboard = {};
 	NoteGrid keyboard_notes = {};

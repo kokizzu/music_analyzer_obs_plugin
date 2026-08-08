@@ -1391,7 +1391,8 @@ void print_guitarset_attribute_header(std::ostream &out)
 	    << "\tguitar_pitch_classes\tguitar_cells\tguitar_analysis_pitch_classes"
 	    << "\tguitar_analysis_cells\tguitar_smoothed_pitch_classes\tguitar_smoothed_cells"
 	    << "\texpected_raw_peak\texpected_raw_cells\traw_pitch_class_levels"
-	    << "\tguitar_probe_pitch_class_levels\tguitar_melodic_probe_pitch_class_levels"
+	    << "\tguitar_probe_pitch_class_levels\tguitar_detection_pitch_class_levels"
+	    << "\tguitar_melodic_probe_pitch_class_levels"
 	    << "\texpected_quality_raw_profile"
 	    << "\tbass_pitch_classes\tkeyboard_pitch_classes\tvocal_pitch_classes"
 	    << "\tother_pitch_classes\tambiguous_pitch_classes"
@@ -1460,6 +1461,7 @@ void append_guitarset_attribute_row(std::ostream &out, const Recording &recordin
 	append_tsv(line, expected_raw_cell_list(candidate, buffer, sample_rate, raw_peak));
 	append_tsv(line, raw_pitch_class_level_list(raw_profile));
 	append_tsv(line, raw_pitch_class_level_list(snapshot.guitar_chord_debug_probe_levels));
+	append_tsv(line, raw_pitch_class_level_list(snapshot.guitar_chord_debug_detection_levels));
 	append_tsv(line, raw_pitch_class_level_list(snapshot.guitar_chord_debug_melodic_probe_levels));
 	append_tsv(line, expected_quality_raw_profile(candidate, raw_profile));
 	append_tsv(line, pitch_class_list(bass));

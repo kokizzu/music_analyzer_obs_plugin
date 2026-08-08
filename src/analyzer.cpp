@@ -30706,9 +30706,12 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 			snapshot.guitar_chord_debug_probe_levels[pitch_class] =
 				strongest_probe_pitch_class_level(note_powers, pitch_class, min_midi,
 								  kGuitarMaxMidi);
+			snapshot.guitar_chord_debug_detection_levels[pitch_class] =
+				strongest_probe_pitch_class_level(detection_note_powers, pitch_class, min_midi,
+								  kGuitarMaxMidi);
 			snapshot.guitar_chord_debug_melodic_probe_levels[pitch_class] =
 				strongest_melodic_probe_pitch_class_level(note_powers, pitch_class, min_midi,
-									  kGuitarMaxMidi);
+								  kGuitarMaxMidi);
 		}
 		raw_guitar_chord = detect_guitar_chord_from_grid(guitar_chord_detection_grid, allow_extensions);
 		const ChordResult display_guitar_chord = detect_guitar_chord_from_grid(
