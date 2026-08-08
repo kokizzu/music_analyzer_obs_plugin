@@ -37,7 +37,7 @@ public final class LEDBLELib {
     // processor has consumed all commands in the packet. Give that processor
     // a small interval between legacy packets; Fret Zealot 2 uses its larger
     // packet format and does not need this conservative pace.
-    private static final long LEGACY_CHUNK_SETTLE_MILLIS = 12L;
+    private static final long LEGACY_CHUNK_SETTLE_MILLIS = 20L;
     private static final long MODERN_CHUNK_SETTLE_MILLIS = 1L;
 
     public static final int FadeNotActive = 0;

@@ -303,10 +303,10 @@ def main():
             "sendStableFretZealotPacket" in external_devices and
             "fretZealotAutoReconciliationScheduled" in external_devices and
             "handler.removeCallbacks(sendStableFretZealotPacket);" in external_devices and
-            "which otherwise starves the board of a complete replacement" in external_devices and
-            "if (fretZealotAutoReconciliationScheduled) {\n            return;\n        }" in external_devices and
+            "partial scales are worse than a briefly older root" in external_devices and
+            "handler.removeCallbacks(sendStableFretZealotPacket);" in external_devices and
             "fretZealot.sendPacket(packet, true);" in external_devices,
-            "Android must coalesce AUTO scale updates without starving a complete replacement")
+            "Android must debounce AUTO scale updates without leaving partial scales")
     require("if (!force && Arrays.equals(packet, lastFretZealotPacket)) {\n            // A device-state revision" in external_devices and
             "cancelling it leaves a first-generation board showing only the" in external_devices,
             "An unchanged Fret Zealot packet must not cancel its scheduled AUTO reconciliation")
@@ -345,11 +345,11 @@ def main():
             "WRITE_TYPE_DEFAULT" in fret_zealot_gatt and
             "writeInFlight = true" in fret_zealot_sdk,
             "Fret Zealot frame deltas must wait for transport acknowledgement before committing")
-    require("LEGACY_CHUNK_SETTLE_MILLIS = 12L" in fret_zealot_sdk and
+    require("LEGACY_CHUNK_SETTLE_MILLIS = 20L" in fret_zealot_sdk and
             "writeChunkBytes <= LEGACY_CHUNK_BYTES" in fret_zealot_sdk and
             "mainHandler.postDelayed(this::sendNextChunk, settleMillis)" in fret_zealot_sdk,
             "First-generation Fret Zealot packets must be paced for its LED processor")
-    require("LEGACY_FRAME_SETTLE_MILLIS = 150L" in fret_zealot_sdk_controller and
+    require("LEGACY_FRAME_SETTLE_MILLIS = 250L" in fret_zealot_sdk_controller and
             "handler.postDelayed(() -> finishScaleFrame(completed)" in fret_zealot_sdk_controller and
             "activeScaleFrame != completed" in fret_zealot_sdk_controller,
             "Fret Zealot must not commit a root frame before its LEDs settle")

@@ -86,8 +86,9 @@ final class ExternalDeviceManager implements Closeable {
     private long lastOutputRevision;
     private byte[] lastFretZealotPacket;
     private byte[] pendingFretZealotPacket;
-    // Bound AUTO-root coalescing. Replacing the delayed task on every root
-    // revision can starve a first-generation board while music is playing.
+    // AUTO-root revisions are debounced before they reach the legacy board.
+    // While the estimator is still changing, keep its last complete scale
+    // rather than risking a partly applied replacement.
     private boolean fretZealotAutoReconciliationScheduled;
     private final Runnable sendStableFretZealotPacket;
 
@@ -818,13 +819,11 @@ final class ExternalDeviceManager implements Closeable {
             return;
         }
         pendingFretZealotPacket = Arrays.copyOf(packet, packet.length);
-        // Preserve the last complete scale while AUTO root estimates change.
-        // Keep the latest packet, but do not restart an already scheduled
-        // reconciliation: a musical AUTO root can keep changing indefinitely,
-        // which otherwise starves the board of a complete replacement.
-        if (fretZealotAutoReconciliationScheduled) {
-            return;
-        }
+        // Preserve the last complete scale until the root has been quiet long
+        // enough for the slow first-generation controller to apply one full
+        // replacement. A constantly changing estimate must not stream frames
+        // to the board: partial scales are worse than a briefly older root.
+        handler.removeCallbacks(sendStableFretZealotPacket);
         fretZealotAutoReconciliationScheduled = true;
         handler.postDelayed(sendStableFretZealotPacket, FRET_ZEALOT_AUTO_ROOT_STABLE_MILLIS);
     }

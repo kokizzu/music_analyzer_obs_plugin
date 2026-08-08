@@ -24,7 +24,7 @@ final class FretZealotSdkController implements Closeable {
     // The original Fret Zealot reports GATT completion before the last legacy
     // packet is applied to its LEDs. Keep the frame active briefly so AUTO
     // root changes coalesce instead of building deltas from an unfinished map.
-    private static final long LEGACY_FRAME_SETTLE_MILLIS = 150L;
+    private static final long LEGACY_FRAME_SETTLE_MILLIS = 250L;
 
     interface Listener {
         void onConnecting();
