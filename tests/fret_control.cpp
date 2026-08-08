@@ -180,7 +180,7 @@ void test_fret_zealot_packet()
 	for (std::size_t offset = 4; offset < packet.size(); offset += 4) {
 		if ((packet[offset + 1] & 0x0f) == 15 && packet[offset + 2] == 0xb0)
 			found_fret_zealot_soft_yellow = true;
-		if ((packet[offset + 1] & 0x0f) == 4 && packet[offset + 2] == 0x8f)
+		if ((packet[offset + 1] & 0x0f) == 2 && packet[offset + 2] == 0x6b)
 			found_fret_zealot_light_blue = true;
 		if ((packet[offset + 1] & 0x0f) == 4 && packet[offset + 2] == 0x0f)
 			found_fret_zealot_violet = true;
