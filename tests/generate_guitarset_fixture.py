@@ -12,7 +12,8 @@ SAMPLE_RATE = 44100
 DURATION_SECONDS = 2.0
 STANDARD_TUNING = [40, 45, 50, 55, 59, 64]
 CHORD_WINDOWS = [
-    (0.25, "C:maj", [0, 3, 2, 0, 1, 0]),
+    # Standard C major-seventh shape: x32000.
+    (0.25, "C:maj7", [None, 3, 2, 0, 0, 0]),
     # Standard B half-diminished guitar shape: x2323x.  Keeping the muted
     # outer strings in the fixture makes the generated audio and note truth
     # exercise the four-tone m7b5 recognition path used by real Guitar-TECHS
