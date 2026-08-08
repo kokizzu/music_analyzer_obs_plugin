@@ -21025,18 +21025,19 @@ void restore_tightly_labeled_major_seventh_guitar_roots_from_analysis(
 	}
 }
 
-void restore_tightly_labeled_minor_guitar_roots_from_analysis(
+void restore_tightly_labeled_minor_guitar_tones_from_analysis(
 	NoteGrid &display_grid, const InstrumentState &chord_state, const NoteGrid &analysis_grid)
 {
+	const int label_components = chord_label_component_count(chord_state.label);
 	if (!chord_state.label[0] || chord_state.label[0] == '-' ||
-	    chord_label_component_count(chord_state.label) > 2 ||
+	    label_components > 2 ||
 	    note_grid_active_pitch_class_count(display_grid) > 8 ||
 	    note_grid_active_pitch_class_count(analysis_grid) > 8)
 		return;
 
 	// A two-component minor/diminished interpretation is specific enough to
-	// restore a high-confidence minor root from the analysis grid.  Larger
-	// alias sets often contain unrelated relative-minor alternatives.
+	// restore a high-confidence minor root from the analysis grid.  Its fifth
+	// is restored only for an unambiguous one-label minor interpretation.
 	const char *cursor = chord_state.label;
 	while (cursor && *cursor) {
 		const char *end = std::strchr(cursor, '=');
@@ -21056,6 +21057,16 @@ void restore_tightly_labeled_minor_guitar_roots_from_analysis(
 				const NoteCell &source = analysis_grid.cells[static_cast<std::size_t>(root)];
 				if (source.active)
 					promote_note_grid_primary_midi(display_grid, source.midi, source.level);
+			}
+			if (label_components == 1) {
+				const int fifth = (component.root + 7) % 12;
+				if (!note_grid_pitch_active(display_grid, fifth) &&
+				    note_grid_pitch_active(analysis_grid, fifth) &&
+				    note_grid_pitch_level(analysis_grid, fifth) >= 0.40f) {
+					const NoteCell &source = analysis_grid.cells[static_cast<std::size_t>(fifth)];
+					if (source.active)
+						promote_note_grid_primary_midi(display_grid, source.midi, source.level);
+				}
 			}
 		}
 		if (!end)
@@ -32449,7 +32460,7 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 				snapshot.guitar_notes, snapshot.guitar_chord, guitar_chord_detection_grid);
 			restore_tightly_labeled_major_seventh_guitar_roots_from_analysis(
 				snapshot.guitar_notes, snapshot.guitar_chord, guitar_chord_detection_grid);
-			restore_tightly_labeled_minor_guitar_roots_from_analysis(
+			restore_tightly_labeled_minor_guitar_tones_from_analysis(
 				snapshot.guitar_notes, snapshot.guitar_chord, guitar_chord_detection_grid);
 		}
 		if (!mixed_source) {
