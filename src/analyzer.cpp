@@ -20713,6 +20713,86 @@ bool probe_supported_guitar_half_diminished_alias(int root, const NoteGrid &disp
 	       std::max({0.075f, core_anchor * 0.14f, probe_norm(root + 7) * 1.6f});
 }
 
+bool probe_supported_guitar_omitted_third_major_seventh_alias(
+	int root, const NoteGrid &display_grid, const NoteGrid &analysis_grid,
+	const std::array<float, kNoteProbeCount> &powers, int min_midi, int max_midi)
+{
+	root = ((root % 12) + 12) % 12;
+	// A small number of close-miked major-seventh voicings retain the root,
+	// fifth, and leading-tone while the third falls below both note grids.  Do
+	// not generalize this to arbitrary root/fifth dyads: this is deliberately
+	// limited to the compact R-5-7 shape, with at most the adjacent augmented
+	// fifth residue observed in the real recordings.
+	const int display_pitch_classes = note_grid_active_pitch_class_count(display_grid);
+	const int analysis_pitch_classes = note_grid_active_pitch_class_count(analysis_grid);
+	if (display_pitch_classes < 3 || display_pitch_classes > 3 ||
+	    analysis_pitch_classes < 3 || analysis_pitch_classes > 4)
+		return false;
+	if (!note_grid_pitch_active(display_grid, root) ||
+	    !note_grid_pitch_active(display_grid, root + 7) ||
+	    !note_grid_pitch_active(display_grid, root + 11) ||
+	    !note_grid_pitch_active(analysis_grid, root) ||
+	    !note_grid_pitch_active(analysis_grid, root + 7) ||
+	    !note_grid_pitch_active(analysis_grid, root + 11) ||
+	    note_grid_pitch_active(display_grid, root + 3) ||
+	    note_grid_pitch_active(display_grid, root + 4) ||
+	    note_grid_pitch_active(analysis_grid, root + 3) ||
+	    note_grid_pitch_active(analysis_grid, root + 4) ||
+	    note_grid_pitch_active(display_grid, root + 10) ||
+	    note_grid_pitch_active(analysis_grid, root + 10))
+		return false;
+	for (int pitch_class = 0; pitch_class < 12; ++pitch_class) {
+		if (!note_grid_pitch_active(analysis_grid, pitch_class))
+			continue;
+		const int interval = (pitch_class - root + 12) % 12;
+		if (interval != 0 && interval != 7 && interval != 8 && interval != 11)
+			return false;
+	}
+
+	const float strongest_probe = strongest_probe_level(powers, min_midi, max_midi);
+	if (strongest_probe <= 1.0e-6f)
+		return false;
+	auto probe_norm = [&](int pitch_class) {
+		return strongest_probe_pitch_class_level(powers, pitch_class, min_midi, max_midi) /
+		       strongest_probe;
+	};
+	auto support = [&](int pitch_class) {
+		return std::max(probe_norm(pitch_class),
+				std::max(note_grid_pitch_level(display_grid, pitch_class),
+					 note_grid_pitch_level(analysis_grid, pitch_class)));
+	};
+	const float core_anchor = std::min({support(root), support(root + 7), support(root + 11)});
+	if (core_anchor < 0.10f)
+		return false;
+	const float major_seventh = probe_norm(root + 11);
+	return major_seventh >= std::max(0.075f, core_anchor * 0.14f) &&
+	       major_seventh >= probe_norm(root + 10) * 1.35f;
+}
+
+void append_probe_supported_guitar_omitted_third_major_seventh_aliases_after_prune(
+	InstrumentState &state, const NoteGrid &display_grid, const NoteGrid &analysis_grid,
+	const std::array<float, kNoteProbeCount> &powers, int min_midi, int max_midi)
+{
+	if (!state.label[0] || state.label[0] == '-' || chord_label_component_count(state.label) > 8)
+		return;
+
+	char merged[sizeof(state.label)] = {};
+	copy_text(merged, sizeof(merged), state.label);
+	for (int root = 0; root < 12; ++root) {
+		if (!probe_supported_guitar_omitted_third_major_seventh_alias(
+			root, display_grid, analysis_grid, powers, min_midi, max_midi))
+			continue;
+		char alias[16] = {};
+		std::snprintf(alias, sizeof(alias), "%smaj7", note_name(root));
+		if (!chord_label_has_exact_component(merged, alias))
+			append_chord_label_component(merged, sizeof(merged), alias, std::strlen(alias));
+	}
+	if (std::strcmp(merged, state.label) != 0) {
+		copy_text(state.label, sizeof(state.label), merged);
+		state.confidence = std::max(state.confidence, 0.58f);
+	}
+}
+
 void append_probe_supported_guitar_diminished_seventh_aliases_after_prune(
 	InstrumentState &state, const NoteGrid &display_grid, const NoteGrid &analysis_grid,
 	const std::array<float, kNoteProbeCount> &powers, int min_midi, int max_midi)
@@ -32061,6 +32141,10 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 				guitar_chord_detection_grid, note_powers, kGuitarMinMidi,
 				kGuitarMaxMidi);
 			append_probe_supported_guitar_half_diminished_aliases_after_prune(
+				snapshot.guitar_chord, snapshot.guitar_notes,
+				guitar_chord_detection_grid, note_powers, kGuitarMinMidi,
+				kGuitarMaxMidi);
+			append_probe_supported_guitar_omitted_third_major_seventh_aliases_after_prune(
 				snapshot.guitar_chord, snapshot.guitar_notes,
 				guitar_chord_detection_grid, note_powers, kGuitarMinMidi,
 				kGuitarMaxMidi);
