@@ -1145,7 +1145,7 @@ public:
 		settings_.analysis_window_samples =
 			options.legacy_window ? static_cast<uint32_t>(mao::kLegacyAnalysisWindow) : 0;
 		settings_.root_window_seconds = 15.0f;
-		settings_.input_mode = mao::AnalysisInputMode::FullMix;
+		settings_.input_mode = mao::AnalysisInputMode::Auto;
 		hop_samples_ = std::max<uint32_t>(1, options.sample_rate * options.update_ms / 1000);
 		samples_until_analysis_ = hop_samples_;
 		window_samples_ = mao::resolve_analysis_window_samples(settings_);

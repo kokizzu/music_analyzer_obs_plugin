@@ -46,6 +46,8 @@ def main():
 
     require("#include <SDL.h>" not in plugin, "OBS plugin source must not include SDL")
     require("SDL_" not in plugin, "OBS plugin source must not call SDL")
+    require(plugin.count("input_mode = mao::AnalysisInputMode::Auto") >= 2,
+            "OBS plugin must allow specialized source-name modes while generic sources remain FullMix")
     require("#include <SDL.h>" not in renderer, "shared renderer must not include SDL")
     require("SDL_" not in renderer, "shared renderer must not call SDL")
     require("c == 'p'" in renderer and "c == 'o'" in renderer and "c == 'w'" in renderer,
@@ -101,6 +103,8 @@ def main():
             "kAppIconRgba" in bass_guitar_icon_header,
             "standalone windows must use flavor-specific embedded generated app icons")
     require("MAO_STANDALONE_WITH_SDL" in standalone, "standalone compile guard missing")
+    require("settings_.input_mode = mao::AnalysisInputMode::Auto" in standalone,
+            "standalone must honor source-name mode inference")
     close_process = standalone.split("void close_process()", 1)[1].split("\n\t}\n};", 1)[0]
     sigkill_index = close_process.find("(void)kill(pid, SIGKILL);")
     close_index = close_process.find("close(read_fd)")

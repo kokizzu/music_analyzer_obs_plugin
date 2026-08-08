@@ -207,7 +207,7 @@ void copy_ring_to_pending(FilterData *filter, const char *source_label)
 		filter->legacy_window.load(std::memory_order_relaxed) ?
 			static_cast<uint32_t>(mao::kLegacyAnalysisWindow) :
 			0;
-	filter->pending_settings.input_mode = mao::AnalysisInputMode::FullMix;
+	filter->pending_settings.input_mode = mao::AnalysisInputMode::Auto;
 	const std::size_t window_samples = mao::resolve_analysis_window_samples(filter->pending_settings);
 	copy_text(filter->pending_source_name, sizeof(filter->pending_source_name),
 		  source_label && *source_label ? source_label : filter->source_name);
@@ -252,7 +252,7 @@ void publish_filter_ready(FilterData *filter)
 		filter->legacy_window.load(std::memory_order_relaxed) ?
 			static_cast<uint32_t>(mao::kLegacyAnalysisWindow) :
 			0;
-	settings.input_mode = mao::AnalysisInputMode::FullMix;
+	settings.input_mode = mao::AnalysisInputMode::Auto;
 
 	{
 		std::lock_guard<std::mutex> lock(filter->worker_mutex);
