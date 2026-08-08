@@ -305,12 +305,11 @@ def main():
             "Fret Zealot output must use the official SDK command API")
     require("LOWEST_SDK_INTENSITY = 3" in fret_zealot_sdk_controller and
             "LOWEST_CHANNEL_MAX = 3" in fret_zealot_sdk_controller and
-            "dimChannel(red)" in fret_zealot_sdk_controller and
-            "dimChannel(blue)" in fret_zealot_sdk_controller and
-            "dimChannel(green)" in fret_zealot_sdk_controller,
+            "byte red = dimChannel(packet[offset + 1] & 0x0f)" in fret_zealot_sdk_controller and
+            "byte green = dimChannel((packet[offset + 2] >>> 4) & 0x0f)" in fret_zealot_sdk_controller and
+            "byte blue = dimChannel(packet[offset + 2] & 0x0f)" in fret_zealot_sdk_controller,
             "Fret Zealot output must preserve scale hues at low LED intensity")
-    require("dimChannel(red),\n                        dimChannel(green)," in fret_zealot_sdk_controller and
-            "dimChannel(blue),\n                        LOWEST_SDK_INTENSITY" in fret_zealot_sdk_controller,
+    require("red,\n                green,\n                blue,\n                LOWEST_SDK_INTENSITY" in fret_zealot_sdk_controller,
             "Fret Zealot adapter must compensate for the vendor SDK's swapped RGB arguments")
     require("6e400002-b5a3-f393-e0a9-e50e24dcca9e" in fret_zealot_attributes and
             "fb1e4002-54ae-4a28-9f74-dfccb248601d" in fret_zealot_attributes and
@@ -326,6 +325,9 @@ def main():
             "gatt.requestMtu(REQUESTED_MTU)" in fret_zealot_gatt and
             "onMtuChanged" in fret_zealot_gatt,
             "Fret Zealot 2 must negotiate the official app's MTU before service discovery")
+    require("BluetoothGatt.CONNECTION_PRIORITY_HIGH" in fret_zealot_gatt and
+            "gatt.requestConnectionPriority" in fret_zealot_gatt,
+            "Fret Zealot's callback-paced legacy writes must request a high-priority BLE link")
     require("enableNotifications" in fret_zealot_gatt and
             "CLIENT_CHARACTERISTIC_CONFIG" in fret_zealot_attributes and
             "ledNotificationCharacteristic" in fret_zealot_sdk,
@@ -333,17 +335,31 @@ def main():
     require("readFirmwareRevision" in fret_zealot_sdk,
             "Fret Zealot SDK must retain device-information support")
     require("command == 0x04" in fret_zealot_sdk_controller and
-            "sdk.set_all((byte) 0, (byte) 0, (byte) 0" in fret_zealot_sdk_controller,
-            "Fret Zealot scale packets must reset the board before drawing the scale")
+            "needsInitialScaleReset" in fret_zealot_sdk_controller and
+            "if (containsScaleResetMarker && needsInitialScaleReset)" in fret_zealot_sdk_controller,
+            "Fret Zealot scale packets must reset the board only after a new connection")
+    require("ScaleFrame" in fret_zealot_sdk_controller and
+            "writeScaleFrameDelta" in fret_zealot_sdk_controller and
+            "STRING_COUNT" in fret_zealot_sdk_controller and
+            "FRET_COUNT" in fret_zealot_sdk_controller,
+            "Fret Zealot root changes must calculate a non-blinking LED delta")
     require("sdk.set_all((byte) 0, (byte) 0, (byte) 0" in fret_zealot_sdk_controller,
-            "Fret Zealot 2 must use the vendor full-board black reset command")
+            "Fret Zealot must use the vendor full-board black reset command once per session")
     require("fretZealotPixelForStandardTuningString" in fret_zealot_sdk_controller and
             "return (byte) (5 - lowToHighString);" in fret_zealot_sdk_controller,
             "Fret Zealot output must map analyzer E-A-D-G-B-E strings to hardware order")
-    require("dimChannel(red)," in fret_zealot_sdk_controller and
-            "dimChannel(green)," in fret_zealot_sdk_controller and
-            "dimChannel(blue)," in fret_zealot_sdk_controller,
+    require("target.red[string][fret] = red" in fret_zealot_sdk_controller and
+            "target.green[string][fret] = green" in fret_zealot_sdk_controller and
+            "target.blue[string][fret] = blue" in fret_zealot_sdk_controller,
             "Fret Zealot output must preserve the shared RGB scale palette")
+    require("queuedScaleFrame" in fret_zealot_sdk_controller and
+            "if (activeScaleFrame != null)" in fret_zealot_sdk_controller and
+            "startScaleFrame(queued, false)" in fret_zealot_sdk_controller,
+            "Fret Zealot root changes must coalesce safely while BLE writes are active")
+    require("writeScaleFrameDelta" in fret_zealot_sdk_controller and
+            "if (target.lit[string][fret]" in fret_zealot_sdk_controller and
+            "if (current.lit[string][fret] && !target.lit[string][fret])" in fret_zealot_sdk_controller,
+            "Fret Zealot must light new notes before turning obsolete notes off")
     require("Fret Zealot LED service ready; sending current scale" in fret_zealot_sdk_controller and
             "listener.onReady();" in fret_zealot_sdk_controller,
             "Fret Zealot must render the current scale directly after its session is ready")

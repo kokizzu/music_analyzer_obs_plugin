@@ -71,6 +71,8 @@ public final class LEDBLELib {
 
     private byte[] activePayload;
     private byte[] pendingPayload;
+    private Runnable activePayloadCompleteCallback;
+    private Runnable pendingPayloadCompleteCallback;
     private int activeOffset;
     private int activeChunkBytes;
     private boolean writeInFlight;
@@ -224,11 +226,17 @@ public final class LEDBLELib {
     }
 
     public void sendCommandFlush() {
+        sendCommandFlush(null);
+    }
+
+    /** Runs {@code onComplete} after this exact LED batch finishes. */
+    public void sendCommandFlush(Runnable onComplete) {
         byte[] payload = new byte[commandBuffer.size()];
         for (int index = 0; index < commandBuffer.size(); ++index) {
             payload[index] = commandBuffer.get(index);
         }
         pendingPayload = payload;
+        pendingPayloadCompleteCallback = onComplete;
         startPendingWriteIfIdle();
     }
 
@@ -317,7 +325,9 @@ public final class LEDBLELib {
             return;
         }
         activePayload = pendingPayload;
+        activePayloadCompleteCallback = pendingPayloadCompleteCallback;
         pendingPayload = null;
+        pendingPayloadCompleteCallback = null;
         activeOffset = 0;
         sendNextChunk();
     }
@@ -329,6 +339,11 @@ public final class LEDBLELib {
         if (activeOffset >= activePayload.length) {
             activePayload = null;
             activeOffset = 0;
+            Runnable completeCallback = activePayloadCompleteCallback;
+            activePayloadCompleteCallback = null;
+            if (completeCallback != null) {
+                completeCallback.run();
+            }
             startPendingWriteIfIdle();
             return;
         }
@@ -367,6 +382,8 @@ public final class LEDBLELib {
         commandBuffer.clear();
         activePayload = null;
         pendingPayload = null;
+        activePayloadCompleteCallback = null;
+        pendingPayloadCompleteCallback = null;
         activeOffset = 0;
         activeChunkBytes = 0;
         writeInFlight = false;

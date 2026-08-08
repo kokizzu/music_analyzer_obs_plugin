@@ -15,6 +15,8 @@ import java.util.List;
 final class FretZealotSdkController implements Closeable {
     private static final String TAG = "MusicAnalyzerFZ";
     private static final byte LOWEST_SDK_INTENSITY = 3;
+    private static final int STRING_COUNT = 6;
+    private static final int FRET_COUNT = 16;
     // 1/15 makes every nonzero RGB component identical, collapsing orange into
     // yellow. 3/15 retains the calibrated Fret Zealot hue order at low power.
     private static final int LOWEST_CHANNEL_MAX = 3;
@@ -32,6 +34,15 @@ final class FretZealotSdkController implements Closeable {
     private boolean active;
     private boolean ready;
     private boolean closing;
+    // Scale packets include a reset marker for controllers that need one, but
+    // sending set_all on every root change produces a visible full-board blink.
+    private boolean needsInitialScaleReset = true;
+    // A scale update can take longer than an AUTO-root revision. Keep only the
+    // latest request while one packet is in flight, then build its delta from
+    // the frame that the guitar actually confirmed.
+    private ScaleFrame committedScaleFrame = new ScaleFrame();
+    private ScaleFrame activeScaleFrame;
+    private ScaleFrame queuedScaleFrame;
 
     FretZealotSdkController(Context context, Listener listener) {
         sdk = LEDBLELib.getInstance(context.getApplicationContext());
@@ -75,6 +86,8 @@ final class FretZealotSdkController implements Closeable {
         active = true;
         ready = false;
         closing = false;
+        needsInitialScaleReset = true;
+        clearScaleFrames();
         listener.onConnecting();
         try {
             sdk.startService(address, sdkCallback);
@@ -91,38 +104,45 @@ final class FretZealotSdkController implements Closeable {
         if (!ready || packet == null || packet.length == 0 || packet.length % 4 != 0) {
             return;
         }
-        sdk.sendCommandBufferClear();
+        ScaleFrame target = new ScaleFrame();
+
+        boolean containsScaleResetMarker = false;
         for (int offset = 0; offset < packet.length; offset += 4) {
             int command = (packet[offset] >>> 4) & 0x0f;
-            int effect = packet[offset] & 0x0f;
             if (command == 0x04) {
-                sdk.set_all((byte) 0, (byte) 0, (byte) 0, LOWEST_SDK_INTENSITY, (byte) 0);
+                containsScaleResetMarker = true;
                 continue;
             }
             if (command != 0x00) {
                 Log.w(TAG, "Ignoring unsupported SDK LED command " + command);
                 continue;
             }
-            int fret = (packet[offset + 1] >>> 4) & 0x0f;
-            int red = packet[offset + 1] & 0x0f;
-            int green = (packet[offset + 2] >>> 4) & 0x0f;
-            int blue = packet[offset + 2] & 0x0f;
             int stringMask = packet[offset + 3] & 0xff;
-            for (int string = 0; string < 6; ++string) {
+            int fret = (packet[offset + 1] >>> 4) & 0x0f;
+            if (fret >= FRET_COUNT) {
+                continue;
+            }
+            byte red = dimChannel(packet[offset + 1] & 0x0f);
+            byte green = dimChannel((packet[offset + 2] >>> 4) & 0x0f);
+            byte blue = dimChannel(packet[offset + 2] & 0x0f);
+            byte effect = (byte) (packet[offset] & 0x0f);
+            for (int string = 0; string < STRING_COUNT; ++string) {
                 if ((stringMask & (1 << (string + 1))) == 0) {
                     continue;
                 }
-                sdk.set(
-                        (byte) fret,
-                        fretZealotPixelForStandardTuningString(string),
-                        dimChannel(red),
-                        dimChannel(green),
-                        dimChannel(blue),
-                        LOWEST_SDK_INTENSITY,
-                        (byte) effect);
+                target.lit[string][fret] = true;
+                target.red[string][fret] = red;
+                target.green[string][fret] = green;
+                target.blue[string][fret] = blue;
+                target.effect[string][fret] = effect;
             }
         }
-        sdk.sendCommandFlush();
+
+        if (activeScaleFrame != null) {
+            queuedScaleFrame = target;
+            return;
+        }
+        startScaleFrame(target, containsScaleResetMarker);
     }
 
     @Override
@@ -130,6 +150,8 @@ final class FretZealotSdkController implements Closeable {
         closing = true;
         active = false;
         ready = false;
+        needsInitialScaleReset = true;
+        clearScaleFrames();
         try {
             sdk.onPause();
             sdk.stopService();
@@ -158,6 +180,8 @@ final class FretZealotSdkController implements Closeable {
                 }
                 active = false;
                 ready = false;
+                needsInitialScaleReset = true;
+                clearScaleFrames();
                 listener.onDisconnected();
             });
         }
@@ -175,8 +199,7 @@ final class FretZealotSdkController implements Closeable {
                     return;
                 }
                 // Let the notification descriptor write finish before the first LED packet.
-                // The scale packet itself starts with a full-board black command, so do not
-                // issue a separate write or optional GATT reads before it.
+                // Its reset marker performs the one required full-board clear for this session.
                 handler.postDelayed(() -> {
                     if (!active || closing || !sdk.isLED()) {
                         return;
@@ -212,4 +235,79 @@ final class FretZealotSdkController implements Closeable {
         public void onHardwareRevisionString(String value) {
         }
     };
+
+    private void clearScaleFrames() {
+        committedScaleFrame = new ScaleFrame();
+        activeScaleFrame = null;
+        queuedScaleFrame = null;
+    }
+
+    private void onScaleFrameFlushed(ScaleFrame completed) {
+        committedScaleFrame = completed;
+        activeScaleFrame = null;
+        if (queuedScaleFrame != null) {
+            ScaleFrame queued = queuedScaleFrame;
+            queuedScaleFrame = null;
+            startScaleFrame(queued, false);
+        }
+    }
+
+    private void startScaleFrame(ScaleFrame target, boolean containsScaleResetMarker) {
+        sdk.sendCommandBufferClear();
+        if (containsScaleResetMarker && needsInitialScaleReset) {
+            sdk.set_all((byte) 0, (byte) 0, (byte) 0, LOWEST_SDK_INTENSITY, (byte) 0);
+            needsInitialScaleReset = false;
+        }
+        writeScaleFrameDelta(committedScaleFrame, target);
+        activeScaleFrame = target;
+        sdk.sendCommandFlush(() -> onScaleFrameFlushed(target));
+    }
+
+    // The controller applies set commands serially, including within one BLE
+    // batch. Light new/recoloured notes first, then clear obsolete notes, so
+    // first-generation 20-byte writes retain a continuous visible scale.
+    private void writeScaleFrameDelta(ScaleFrame current, ScaleFrame target) {
+        for (int string = 0; string < STRING_COUNT; ++string) {
+            for (int fret = 0; fret < FRET_COUNT; ++fret) {
+                if (target.lit[string][fret] && !target.samePixel(current, string, fret)) {
+                    setPixel(string, fret, target.red[string][fret], target.green[string][fret],
+                            target.blue[string][fret], target.effect[string][fret]);
+                }
+            }
+        }
+        for (int string = 0; string < STRING_COUNT; ++string) {
+            for (int fret = 0; fret < FRET_COUNT; ++fret) {
+                if (current.lit[string][fret] && !target.lit[string][fret]) {
+                    setPixel(string, fret, (byte) 0, (byte) 0, (byte) 0, (byte) 0);
+                }
+            }
+        }
+    }
+
+    private void setPixel(int string, int fret, byte red, byte green, byte blue, byte effect) {
+        sdk.set(
+                (byte) fret,
+                fretZealotPixelForStandardTuningString(string),
+                red,
+                green,
+                blue,
+                LOWEST_SDK_INTENSITY,
+                effect);
+    }
+
+    private static final class ScaleFrame {
+        final boolean[][] lit = new boolean[STRING_COUNT][FRET_COUNT];
+        final byte[][] red = new byte[STRING_COUNT][FRET_COUNT];
+        final byte[][] green = new byte[STRING_COUNT][FRET_COUNT];
+        final byte[][] blue = new byte[STRING_COUNT][FRET_COUNT];
+        final byte[][] effect = new byte[STRING_COUNT][FRET_COUNT];
+
+        boolean samePixel(ScaleFrame other, int string, int fret) {
+            return other.lit[string][fret]
+                    && red[string][fret] == other.red[string][fret]
+                    && green[string][fret] == other.green[string][fret]
+                    && blue[string][fret] == other.blue[string][fret]
+                    && effect[string][fret] == other.effect[string][fret];
+        }
+    }
 }
