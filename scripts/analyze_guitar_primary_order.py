@@ -808,6 +808,39 @@ def print_lowest_analysis_root_bias(
         )
 
 
+def print_expected_pitch_detection_retention(rows: list[dict[str, str]]) -> None:
+    groups = {
+        "chord_hit": collections.Counter(),
+        "chord_miss": collections.Counter(),
+    }
+    for row in rows:
+        group = "chord_hit" if row.get("chord_hit") == "1" else "chord_miss"
+        expected = pitch_classes(row.get("expected_pitch_classes", ""))
+        probe = parse_cells(row.get("guitar_probe_pitch_class_levels", ""))
+        detection = parse_cells(row.get("guitar_detection_pitch_class_levels", ""))
+        for pitch_class in expected:
+            probe_level = probe.get(pitch_class, 0.0)
+            detection_level = detection.get(pitch_class, 0.0)
+            if probe_level < 0.12:
+                bucket = "weak_probe"
+            elif detection_level < probe_level * 0.20:
+                bucket = "post_tuning_loss"
+            elif detection_level < probe_level * 0.60:
+                bucket = "attenuated"
+            else:
+                bucket = "retained"
+            groups[group][bucket] += 1
+
+    print("expected_pitch_detection_retention:")
+    for group in ("chord_hit", "chord_miss"):
+        total = sum(groups[group].values())
+        buckets = " ".join(
+            f"{bucket}={groups[group][bucket]}"
+            for bucket in ("retained", "attenuated", "post_tuning_loss", "weak_probe")
+        )
+        print(f"  {group}: expected={total} {buckets}")
+
+
 def confidence_value(row: dict[str, str], field: str) -> str:
     value = row.get(field, "")
     return value if value else "--"
@@ -1058,6 +1091,7 @@ def main() -> int:
         )
 
     print_lowest_analysis_root_bias(rows, protected_rows, args.examples)
+    print_expected_pitch_detection_retention(rows)
 
     relationship_buckets: collections.Counter[str] = collections.Counter()
     raw_rescues = []

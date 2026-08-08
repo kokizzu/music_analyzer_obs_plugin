@@ -185,6 +185,24 @@ def main() -> int:
                 raw_pitch_class_levels="D#:0.260,F#:0.320,G:0.020,A#:0.900",
                 guitar_melodic_probe_pitch_class_levels="D#:0.300,F#:0.620,G:0.080,A#:0.800",
             ),
+            row(
+                recording_id="post_tuning_loss",
+                expected_chords="--",
+                expected_chord_qualities="--",
+                chord_hit="0",
+                expected_pitch_classes="C",
+                guitar_probe_pitch_class_levels="C:0.80",
+                guitar_detection_pitch_class_levels="C:0.01",
+            ),
+            row(
+                recording_id="retained_detection",
+                expected_chords="--",
+                expected_chord_qualities="--",
+                chord_hit="1",
+                expected_pitch_classes="G",
+                guitar_probe_pitch_class_levels="G:0.80",
+                guitar_detection_pitch_class_levels="G:0.70",
+            ),
         ]
         path.write_text(
             "\t".join(HEADER) + "\n" + "\n".join("\t".join(item) for item in rows) + "\n",
@@ -205,6 +223,8 @@ def main() -> int:
         assert "lowest_analysis_root_bias: focus_primary_misses=7 protected_primary_hits=0" in output
         assert "  focus:" in output
         assert "  primary_only=1" in output
+        assert "expected_pitch_detection_retention:" in output
+        assert "post_tuning_loss=" in output
         assert (
             "candidate primary relationships: display0_raw0_smooth0=5 "
             "display0_raw0_smooth1=1 "
