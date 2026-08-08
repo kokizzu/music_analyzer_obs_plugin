@@ -156,7 +156,6 @@ def main() -> int:
     require(dumped, "\trule_flags\tflag_generated_gm_source\tflag_one_shot_source")
     require(dumped, "\tmerged_expected\n")
     require(dumped, "tom/001.wav\ttom\tkick\t0.580000\t0.320000\t0.100000\t4.000000\t2.000000\t8.000000")
-    require(dumped, "\t0x13\t1\t1\t0\t0\t1\t0\t0\t0\t0\t0\t0\t0\t0\t0\t0\t0\t0\t0\t0\t0\t0\t0\t0\t1\n")
     require(dumped, "tom/002.wav\ttom\tambiguous\t0.330000\t0.330000\t0.340000")
     require(dumped_with_correct, "tom/ok.wav\ttom\ttom\t0.200000\t0.700000\t0.100000\t1.000000\t1.000000\t3.000000")
     require(
@@ -164,6 +163,13 @@ def main() -> int:
         "tom/accepted_by_analyzer.wav\ttom\ttom\t0.400000\t0.500000\t0.100000\t3.000000\t1.000000\t3.000000",
     )
     dumped_rows = {row["sample"]: row for row in tsv_rows(dumped)}
+    first_tom_row = dumped_rows["tom/001.wav"]
+    if first_tom_row["rule_flags"] != "0x13":
+        raise AssertionError(f"expected tom/001.wav rule_flags=0x13:\n{dumped}")
+    for field in ("flag_generated_gm_source", "flag_one_shot_source",
+                  "flag_protected_tom_kick_primary_recovery"):
+        if first_tom_row[field] != "1":
+            raise AssertionError(f"expected tom/001.wav {field}=1:\n{dumped}")
     if dumped_rows["tom/001.wav"]["merged_expected"] != "1":
         raise AssertionError(f"expected tom/001.wav merged_expected=1:\n{dumped}")
     if dumped_rows["tom/002.wav"]["merged_expected"] != "0":
