@@ -37,6 +37,8 @@ final class MusicAnalyzerNative {
 
     static native long nativeGetControlRevision(long handle);
 
+    static native boolean nativeIsAutomaticRootMode(long handle);
+
     static native byte[] nativeGetApcLedMessages(long handle);
 
     static native byte[] nativeGetLiteJamPacket(long handle);

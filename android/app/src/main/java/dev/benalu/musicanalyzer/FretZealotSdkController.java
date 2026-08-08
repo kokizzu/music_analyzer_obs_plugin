@@ -48,6 +48,7 @@ final class FretZealotSdkController implements Closeable {
     private ScaleFrame committedScaleFrame = new ScaleFrame();
     private ScaleFrame activeScaleFrame;
     private ScaleFrame queuedScaleFrame;
+    private boolean queuedScaleFrameRequiresReconciliation;
 
     FretZealotSdkController(Context context, Listener listener) {
         sdk = LEDBLELib.getInstance(context.getApplicationContext());
@@ -105,7 +106,7 @@ final class FretZealotSdkController implements Closeable {
         }
     }
 
-    void sendPacket(byte[] packet) {
+    void sendPacket(byte[] packet, boolean reconcileWholeBoard) {
         if (!ready || packet == null || packet.length == 0 || packet.length % 4 != 0) {
             return;
         }
@@ -145,9 +146,10 @@ final class FretZealotSdkController implements Closeable {
 
         if (activeScaleFrame != null) {
             queuedScaleFrame = target;
+            queuedScaleFrameRequiresReconciliation |= reconcileWholeBoard;
             return;
         }
-        startScaleFrame(target, containsScaleResetMarker);
+        startScaleFrame(target, containsScaleResetMarker, reconcileWholeBoard);
     }
 
     @Override
@@ -245,6 +247,7 @@ final class FretZealotSdkController implements Closeable {
         committedScaleFrame = new ScaleFrame();
         activeScaleFrame = null;
         queuedScaleFrame = null;
+        queuedScaleFrameRequiresReconciliation = false;
     }
 
     private void onScaleFrameFlushed(ScaleFrame completed) {
@@ -259,18 +262,25 @@ final class FretZealotSdkController implements Closeable {
         activeScaleFrame = null;
         if (queuedScaleFrame != null) {
             ScaleFrame queued = queuedScaleFrame;
+            boolean reconcileWholeBoard = queuedScaleFrameRequiresReconciliation;
             queuedScaleFrame = null;
-            startScaleFrame(queued, false);
+            queuedScaleFrameRequiresReconciliation = false;
+            startScaleFrame(queued, false, reconcileWholeBoard);
         }
     }
 
-    private void startScaleFrame(ScaleFrame target, boolean containsScaleResetMarker) {
+    private void startScaleFrame(ScaleFrame target, boolean containsScaleResetMarker,
+            boolean reconcileWholeBoard) {
         sdk.sendCommandBufferClear();
         if (containsScaleResetMarker && needsInitialScaleReset) {
             sdk.set_all((byte) 0, (byte) 0, (byte) 0, LOWEST_SDK_INTENSITY, (byte) 0);
             needsInitialScaleReset = false;
         }
-        writeScaleFrameDelta(committedScaleFrame, target);
+        if (reconcileWholeBoard) {
+            writeScaleFrameReconciliation(target);
+        } else {
+            writeScaleFrameDelta(committedScaleFrame, target);
+        }
         activeScaleFrame = target;
         sdk.sendCommandFlush(() -> onScaleFrameFlushed(target));
     }
@@ -290,6 +300,27 @@ final class FretZealotSdkController implements Closeable {
         for (int string = 0; string < STRING_COUNT; ++string) {
             for (int fret = 0; fret < FRET_COUNT; ++fret) {
                 if (current.lit[string][fret] && !target.lit[string][fret]) {
+                    setPixel(string, fret, (byte) 0, (byte) 0, (byte) 0, (byte) 0);
+                }
+            }
+        }
+    }
+
+    // The legacy board can occasionally finish only part of a previous frame
+    // while AUTO root estimates are changing. Reassert every target pixel,
+    // then clear every non-target pixel without a visible board-wide reset.
+    private void writeScaleFrameReconciliation(ScaleFrame target) {
+        for (int string = 0; string < STRING_COUNT; ++string) {
+            for (int fret = 0; fret < FRET_COUNT; ++fret) {
+                if (target.lit[string][fret]) {
+                    setPixel(string, fret, target.red[string][fret], target.green[string][fret],
+                            target.blue[string][fret], target.effect[string][fret]);
+                }
+            }
+        }
+        for (int string = 0; string < STRING_COUNT; ++string) {
+            for (int fret = 0; fret < FRET_COUNT; ++fret) {
+                if (!target.lit[string][fret]) {
                     setPixel(string, fret, (byte) 0, (byte) 0, (byte) 0, (byte) 0);
                 }
             }

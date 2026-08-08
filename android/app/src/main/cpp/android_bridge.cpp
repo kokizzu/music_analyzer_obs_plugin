@@ -494,6 +494,16 @@ Java_dev_benalu_musicanalyzer_MusicAnalyzerNative_nativeGetControlRevision(JNIEn
 	return static_cast<jlong>(state->fret_control.revision());
 }
 
+extern "C" JNIEXPORT jboolean JNICALL
+Java_dev_benalu_musicanalyzer_MusicAnalyzerNative_nativeIsAutomaticRootMode(JNIEnv *, jclass, jlong handle)
+{
+	AndroidAnalyzer *state = from_handle(handle);
+	if (!state)
+		return JNI_FALSE;
+	std::lock_guard<std::mutex> lock(state->control_mutex);
+	return state->fret_control.mode() == mao::RootControlMode::Auto ? JNI_TRUE : JNI_FALSE;
+}
+
 extern "C" JNIEXPORT jbyteArray JNICALL
 Java_dev_benalu_musicanalyzer_MusicAnalyzerNative_nativeGetApcLedMessages(JNIEnv *env, jclass, jlong handle)
 {

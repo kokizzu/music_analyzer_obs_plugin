@@ -63,6 +63,10 @@ final class ExternalDeviceManager implements Closeable {
     private static final int BLE_CHUNK_BYTES = 20;
     private static final long WRITE_WITHOUT_RESPONSE_DELAY_MILLIS = 12;
     private static final long BLE_RETRY_DELAY_MILLIS = 1500;
+    // A first-generation Fret Zealot takes a few hundred milliseconds to
+    // apply a frame. Do not keep replacing its target while the analyzer's
+    // automatic-root estimate is still moving.
+    private static final long FRET_ZEALOT_AUTO_ROOT_STABLE_MILLIS = 750;
 
     private final Context context;
     private final long nativeHandle;
@@ -80,6 +84,9 @@ final class ExternalDeviceManager implements Closeable {
     private boolean started;
     private boolean autoconnect = true;
     private long lastOutputRevision;
+    private byte[] lastFretZealotPacket;
+    private byte[] pendingFretZealotPacket;
+    private final Runnable sendStableFretZealotPacket;
 
     private MidiManager midiManager;
     private boolean midiCallbackRegistered;
@@ -128,6 +135,16 @@ final class ExternalDeviceManager implements Closeable {
                 scheduleBleScanRetry();
             }
         });
+        sendStableFretZealotPacket = () -> {
+            if (!started || !fretZealot.isReady() || pendingFretZealotPacket == null) {
+                return;
+            }
+            byte[] packet = pendingFretZealotPacket;
+            pendingFretZealotPacket = null;
+            // A stable AUTO root gets a complete state replay. That repairs any
+            // interrupted legacy delta without issuing a full-board black reset.
+            fretZealot.sendPacket(packet, true);
+        };
     }
 
     void start() {
@@ -645,6 +662,9 @@ final class ExternalDeviceManager implements Closeable {
     }
 
     private void closeFretZealot(int finalState) {
+        handler.removeCallbacks(sendStableFretZealotPacket);
+        pendingFretZealotPacket = null;
+        lastFretZealotPacket = null;
         fretZealot.close();
         setDeviceState(DEVICE_FRET_ZEALOT, finalState);
     }
@@ -752,10 +772,35 @@ final class ExternalDeviceManager implements Closeable {
         if (liteJam.characteristic != null) {
             queuePacket(liteJam, MusicAnalyzerNative.nativeGetLiteJamPacket(nativeHandle));
         }
-        if (fretZealot.isReady()) {
-            fretZealot.sendPacket(MusicAnalyzerNative.nativeGetFretZealotPacket(nativeHandle));
-        }
+        refreshFretZealotOutput(force);
         invalidateDisplay.run();
+    }
+
+    private void refreshFretZealotOutput(boolean force) {
+        if (!fretZealot.isReady()) {
+            return;
+        }
+        byte[] packet = MusicAnalyzerNative.nativeGetFretZealotPacket(nativeHandle);
+        if (packet == null || packet.length == 0) {
+            return;
+        }
+        if (!force && Arrays.equals(packet, lastFretZealotPacket)) {
+            if (pendingFretZealotPacket != null && Arrays.equals(packet, pendingFretZealotPacket)) {
+                handler.removeCallbacks(sendStableFretZealotPacket);
+                pendingFretZealotPacket = null;
+            }
+            return;
+        }
+        lastFretZealotPacket = Arrays.copyOf(packet, packet.length);
+        if (force || !MusicAnalyzerNative.nativeIsAutomaticRootMode(nativeHandle)) {
+            handler.removeCallbacks(sendStableFretZealotPacket);
+            pendingFretZealotPacket = null;
+            fretZealot.sendPacket(packet, false);
+            return;
+        }
+        pendingFretZealotPacket = Arrays.copyOf(packet, packet.length);
+        handler.removeCallbacks(sendStableFretZealotPacket);
+        handler.postDelayed(sendStableFretZealotPacket, FRET_ZEALOT_AUTO_ROOT_STABLE_MILLIS);
     }
 
     private void sendMidi(MidiInputPort inputPort, byte[] messages) {

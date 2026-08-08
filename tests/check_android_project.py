@@ -254,7 +254,7 @@ def main():
     require("nativeHandleMvaveSwitch" in bridge and "mvave_action_for_switch" in bridge,
             "Android JNI must route M-VAVE press/hold actions through the shared control map")
     require("nativeGetLiteJamPacket" in bridge and "nativeGetFretZealotPacket" in bridge and
-            "nativeGetApcLedMessages" in bridge,
+            "nativeGetApcLedMessages" in bridge and "nativeIsAutomaticRootMode" in bridge,
             "Android JNI must expose all external-device output encoders")
 
     require("android.permission.BLUETOOTH_SCAN" in manifest and
@@ -285,7 +285,8 @@ def main():
             "Android activity must request runtime BLE permissions")
     require("readAppCpuPercent" in activity and "Math.min(999.0f" not in activity,
             "Android app CPU must remain uncapped so multi-core usage is visible")
-    require("nativeGetControlRevision" in native_api and "nativeSetDeviceState" in native_api,
+    require("nativeGetControlRevision" in native_api and "nativeSetDeviceState" in native_api and
+            "nativeIsAutomaticRootMode" in native_api,
             "Android native API must expose synchronized external control state")
 
     require("Lite Jam RGB".lower() in external_devices.lower() and
@@ -297,6 +298,10 @@ def main():
             "fretZealot.sendPacket" in external_devices and
             "connectBle(fretZealot" not in external_devices,
             "Android BLE manager must delegate Fret Zealot connection and output to the SDK")
+    require("FRET_ZEALOT_AUTO_ROOT_STABLE_MILLIS = 750" in external_devices and
+            "nativeIsAutomaticRootMode" in external_devices and
+            "sendStableFretZealotPacket" in external_devices,
+            "Android must wait for a stable AUTO root before updating Fret Zealot LEDs")
     require("LEDBLELib.getInstance" in fret_zealot_sdk_controller and
             "sendCommandBufferClear" in fret_zealot_sdk_controller and
             "sdk.set_all" in fret_zealot_sdk_controller and
@@ -366,12 +371,15 @@ def main():
             "Fret Zealot output must preserve the shared RGB scale palette")
     require("queuedScaleFrame" in fret_zealot_sdk_controller and
             "if (activeScaleFrame != null)" in fret_zealot_sdk_controller and
-            "startScaleFrame(queued, false)" in fret_zealot_sdk_controller,
+            "startScaleFrame(queued, false, reconcileWholeBoard)" in fret_zealot_sdk_controller,
             "Fret Zealot root changes must coalesce safely while BLE writes are active")
     require("writeScaleFrameDelta" in fret_zealot_sdk_controller and
             "if (target.lit[string][fret]" in fret_zealot_sdk_controller and
             "if (current.lit[string][fret] && !target.lit[string][fret])" in fret_zealot_sdk_controller,
             "Fret Zealot must light new notes before turning obsolete notes off")
+    require("writeScaleFrameReconciliation" in fret_zealot_sdk_controller and
+            "if (!target.lit[string][fret])" in fret_zealot_sdk_controller,
+            "A stable Fret Zealot AUTO root must reconcile every board pixel")
     require("Fret Zealot LED service ready; sending current scale" in fret_zealot_sdk_controller and
             "listener.onReady();" in fret_zealot_sdk_controller,
             "Fret Zealot must render the current scale directly after its session is ready")
