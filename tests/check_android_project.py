@@ -53,6 +53,10 @@ def main():
         ROOT / "android" / "fz-android-sdk" / "src" / "main" / "java" / "com" / "fz" / "blelib" /
         "SampleGattAttributes.java"
     ).read_text(encoding="utf-8")
+    fret_zealot_gatt = (
+        ROOT / "android" / "fz-android-sdk" / "src" / "main" / "java" / "com" / "fz" / "blelib" /
+        "BluetoothLeService.java"
+    ).read_text(encoding="utf-8")
     fret_zealot_manifest = (
         ROOT / "android" / "fz-android-sdk" / "src" / "main" / "AndroidManifest.xml"
     ).read_text(encoding="utf-8")
@@ -295,7 +299,7 @@ def main():
             "Android BLE manager must delegate Fret Zealot connection and output to the SDK")
     require("LEDBLELib.getInstance" in fret_zealot_sdk_controller and
             "sendCommandBufferClear" in fret_zealot_sdk_controller and
-            "sdk.clear()" in fret_zealot_sdk_controller and
+            "sdk.set_all" in fret_zealot_sdk_controller and
             "sdk.set(" in fret_zealot_sdk_controller and
             "sendCommandFlush" in fret_zealot_sdk_controller,
             "Fret Zealot output must use the official SDK command API")
@@ -305,17 +309,37 @@ def main():
             "dimChannel(blue)" in fret_zealot_sdk_controller and
             "dimChannel(green)" in fret_zealot_sdk_controller,
             "Fret Zealot output must use the minimum nonzero channel intensity")
-    require("dimChannel(red),\n                        dimChannel(green)," in fret_zealot_sdk_controller and
-            "dimChannel(blue),\n                        LOWEST_SDK_INTENSITY" in fret_zealot_sdk_controller,
-            "Fret Zealot adapter must use the physical v1 endpoint's green/blue order")
+    require("dimChannel(red),\n                        dimChannel(blue)," in fret_zealot_sdk_controller and
+            "dimChannel(green),\n                        LOWEST_SDK_INTENSITY" in fret_zealot_sdk_controller,
+            "Fret Zealot adapter must preserve the vendor SDK RGB argument order")
     require("6e400002-b5a3-f393-e0a9-e50e24dcca9e" in fret_zealot_attributes and
             "fb1e4002-54ae-4a28-9f74-dfccb248601d" in fret_zealot_attributes and
             "SampleGattAttributes.LED_2_CH" in fret_zealot_sdk and
             "SampleGattAttributes.LED_CH" in fret_zealot_sdk,
             "Fret Zealot SDK module must support both Fret Zealot LED generations")
-    require("if (SampleGattAttributes.LED_CH.equals(uuid))" in fret_zealot_sdk and
-            "else if (SampleGattAttributes.LED_2_CH.equals(uuid)" in fret_zealot_sdk,
-            "Fret Zealot SDK must prefer the v1-compatible command characteristic when both exist")
+    require("if (SampleGattAttributes.LED_2_CH.equals(uuid))" in fret_zealot_sdk and
+            "FRET_ZEALOT_2_COMMAND_BYTES = 500" in fret_zealot_sdk and
+            "service.maxWritePayloadBytes()" in fret_zealot_sdk and
+            "SampleGattAttributes.LED_CH.equals(uuid)" in fret_zealot_sdk,
+            "Fret Zealot SDK must use the legacy LED endpoint with Fret Zealot 2 batches")
+    require("REQUESTED_MTU = 517" in fret_zealot_gatt and
+            "gatt.requestMtu(REQUESTED_MTU)" in fret_zealot_gatt and
+            "onMtuChanged" in fret_zealot_gatt,
+            "Fret Zealot 2 must negotiate the official app's MTU before service discovery")
+    require("enableNotifications" in fret_zealot_gatt and
+            "CLIENT_CHARACTERISTIC_CONFIG" in fret_zealot_attributes and
+            "ledNotificationCharacteristic" in fret_zealot_sdk,
+            "Fret Zealot LED notifications must be enabled before commands are sent")
+    require("readFirmwareRevision" in fret_zealot_sdk and
+            "initializeFretZealot2Session" in fret_zealot_sdk_controller,
+            "Fret Zealot 2 must use the official app's device-information priming sequence")
+    require("clearBoard()" in fret_zealot_sdk_controller,
+            "Fret Zealot must clear the board immediately after connecting")
+    require("sdk.set_all((byte) 0, (byte) 0, (byte) 0" in fret_zealot_sdk_controller,
+            "Fret Zealot 2 must use the vendor full-board black reset command")
+    require("MUSIC_GLYPHS" in fret_zealot_sdk_controller and
+            "showConnectionAnimation" in fret_zealot_sdk_controller,
+            "Fret Zealot must show its bounded connection animation before the scale")
     require("strand, red, green, blue, pixel" in fret_zealot_sdk and
             "((green & 0x0f) << 4) | (blue & 0x0f)" in fret_zealot_sdk,
             "Fret Zealot SDK adaptation must preserve the official R/B/G API and wire ordering")

@@ -14,6 +14,8 @@ public final class SampleGattAttributes {
             UUID.fromString("6e400002-b5a3-f393-e0a9-e50e24dcca9e");
     public static final UUID LED_CH_NOTI =
             UUID.fromString("6e400003-b5a3-f393-e0a9-e50e24dcca9e");
+    public static final UUID CLIENT_CHARACTERISTIC_CONFIG =
+            UUID.fromString("00002902-0000-1000-8000-00805f9b34fb");
     public static final UUID LED_2_SERVICE =
             UUID.fromString("fb1e4001-54ae-4a28-9f74-dfccb248601d");
     public static final UUID LED_2_CH =
@@ -29,6 +31,8 @@ public final class SampleGattAttributes {
             UUID.fromString("00002a25-0000-1000-8000-00805f9b34fb");
     public static final UUID HARDWARE_REVISION =
             UUID.fromString("00002a27-0000-1000-8000-00805f9b34fb");
+    public static final UUID FIRMWARE_REVISION =
+            UUID.fromString("00002a26-0000-1000-8000-00805f9b34fb");
 
     private SampleGattAttributes() {
     }

@@ -16,6 +16,17 @@ final class FretZealotSdkController implements Closeable {
     private static final String TAG = "MusicAnalyzerFZ";
     private static final byte LOWEST_SDK_INTENSITY = 3;
     private static final int LOWEST_CHANNEL_MAX = 1;
+    private static final long CONNECT_ANIMATION_MILLIS = 1_000L;
+    private static final String[][] MUSIC_GLYPHS = {
+            {"#.#", "#.#", ".##", "###", ".##"},
+            {"###", "#.#", "#..", ".#.", "#.."},
+            {"###", "#.#", ".#.", ".#.", "#.."},
+            {"#.#", "#.#", "..#", ".#.", "#.."},
+            {"#.#", ".#.", "##.", "###", ".##"}
+    };
+    private static final int[][] RAINBOW = {
+            {15, 0, 0}, {15, 6, 0}, {15, 15, 0}, {0, 15, 0}, {0, 0, 15}
+    };
 
     interface Listener {
         void onConnecting();
@@ -88,7 +99,7 @@ final class FretZealotSdkController implements Closeable {
             int command = (packet[offset] >>> 4) & 0x0f;
             int effect = packet[offset] & 0x0f;
             if (command == 0x04) {
-                sdk.clear();
+                sdk.set_all((byte) 0, (byte) 0, (byte) 0, LOWEST_SDK_INTENSITY, (byte) 0);
                 continue;
             }
             if (command != 0x00) {
@@ -108,15 +119,51 @@ final class FretZealotSdkController implements Closeable {
                         (byte) fret,
                         (byte) string,
                         dimChannel(red),
-                        dimChannel(green),
-                        // The v1 endpoint used by physical Fret Zealot hardware expects
-                        // green then blue here, despite the public SDK parameter labels.
                         dimChannel(blue),
+                        dimChannel(green),
                         LOWEST_SDK_INTENSITY,
                         (byte) effect);
             }
         }
         sdk.sendCommandFlush();
+    }
+
+    private void clearBoard() {
+        sdk.sendCommandBufferClear();
+        // Fret Zealot 2's official app uses SET_ALL black when it leaves a display
+        // mode. Unlike the legacy CLEAR command, that also resets its blue background.
+        sdk.set_all((byte) 0, (byte) 0, (byte) 0, LOWEST_SDK_INTENSITY, (byte) 0);
+        sdk.sendCommandFlush();
+    }
+
+    private void showConnectionAnimation() {
+        sdk.sendCommandBufferClear();
+        sdk.set_all((byte) 0, (byte) 0, (byte) 0, LOWEST_SDK_INTENSITY, (byte) 0);
+        for (int letter = 0; letter < MUSIC_GLYPHS[0].length; ++letter) {
+            int[] color = RAINBOW[letter];
+            for (int row = 0; row < MUSIC_GLYPHS.length; ++row) {
+                String glyphRow = MUSIC_GLYPHS[row][letter];
+                for (int column = 0; column < glyphRow.length(); ++column) {
+                    if (glyphRow.charAt(column) != '#') {
+                        continue;
+                    }
+                    sdk.set((byte) (letter * 3 + column), (byte) (5 - row),
+                            dimChannel(color[0]), dimChannel(color[2]), dimChannel(color[1]),
+                            LOWEST_SDK_INTENSITY, (byte) 0);
+                }
+            }
+        }
+        sdk.sendCommandFlush();
+    }
+
+    private void initializeFretZealot2Session() {
+        // Mirror the official app's FZ2 session priming before it starts LED writes.
+        sdk.readManufacturerName();
+        handler.postDelayed(sdk::readModelNumberString, 50L);
+        handler.postDelayed(sdk::readBattery, 100L);
+        handler.postDelayed(sdk::readHardwareRevision, 150L);
+        handler.postDelayed(sdk::readSerialNumber, 200L);
+        handler.postDelayed(sdk::readFirmwareRevision, 250L);
     }
 
     @Override
@@ -168,8 +215,29 @@ final class FretZealotSdkController implements Closeable {
                     listener.onError();
                     return;
                 }
-                ready = true;
-                listener.onReady();
+                // The vendor SDK subscribes to the LED notification characteristic before
+                // its first command. Give that descriptor write time to complete.
+                handler.postDelayed(() -> {
+                    if (!active || closing || !sdk.isLED()) {
+                        return;
+                    }
+                    Log.i(TAG, "Fret Zealot LED service ready; showing connection animation");
+                    handler.postDelayed(() -> {
+                        if (!active || closing || !sdk.isLED()) {
+                            return;
+                        }
+                        showConnectionAnimation();
+                        handler.postDelayed(() -> {
+                            if (!active || closing || !sdk.isLED()) {
+                                return;
+                            }
+                            clearBoard();
+                            ready = true;
+                            listener.onReady();
+                        }, CONNECT_ANIMATION_MILLIS);
+                    }, 300L);
+                    initializeFretZealot2Session();
+                }, 150L);
             });
         }
 

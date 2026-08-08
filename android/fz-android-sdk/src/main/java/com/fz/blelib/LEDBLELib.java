@@ -30,7 +30,8 @@ import java.util.UUID;
 public final class LEDBLELib {
     private static final String TAG = "FretZealotSdk";
     private static final long SCAN_PERIOD_MILLIS = 10_000L;
-    private static final int CHUNK_BYTES = 20;
+    private static final int LEGACY_CHUNK_BYTES = 20;
+    private static final int FRET_ZEALOT_2_COMMAND_BYTES = 500;
 
     public static final int FadeNotActive = 0;
     public static final int FadeInShort = 1;
@@ -60,17 +61,20 @@ public final class LEDBLELib {
     private LEDBLELibCallback callback;
     private BluetoothLeService bluetoothLeService;
     private BluetoothGattCharacteristic ledCharacteristic;
+    private BluetoothGattCharacteristic ledNotificationCharacteristic;
     private BluetoothGattCharacteristic batteryCharacteristic;
     private BluetoothGattCharacteristic manufacturerCharacteristic;
     private BluetoothGattCharacteristic modelCharacteristic;
     private BluetoothGattCharacteristic serialCharacteristic;
     private BluetoothGattCharacteristic hardwareCharacteristic;
+    private BluetoothGattCharacteristic firmwareCharacteristic;
 
     private byte[] activePayload;
     private byte[] pendingPayload;
     private int activeOffset;
     private int activeChunkBytes;
     private boolean writeInFlight;
+    private int writeChunkBytes = LEGACY_CHUNK_BYTES;
 
     public static synchronized LEDBLELib getInstance(Context context) {
         if (instance == null) {
@@ -297,6 +301,10 @@ public final class LEDBLELib {
         readCharacteristic(hardwareCharacteristic);
     }
 
+    public void readFirmwareRevision() {
+        readCharacteristic(firmwareCharacteristic);
+    }
+
     private void readCharacteristic(BluetoothGattCharacteristic characteristic) {
         BluetoothLeService service = bluetoothLeService;
         if (service != null && characteristic != null) {
@@ -324,8 +332,10 @@ public final class LEDBLELib {
             startPendingWriteIfIdle();
             return;
         }
-        int end = Math.min(activePayload.length, activeOffset + CHUNK_BYTES);
-        byte[] chunk = Arrays.copyOfRange(activePayload, activeOffset, end);
+        int sourceEnd = Math.min(activePayload.length, activeOffset + writeChunkBytes);
+        int sourceBytes = sourceEnd - activeOffset;
+        byte[] chunk = new byte[sourceBytes];
+        System.arraycopy(activePayload, activeOffset, chunk, 0, sourceBytes);
         BluetoothLeService service = bluetoothLeService;
         if (service == null || ledCharacteristic == null
                 || !service.writeCharacteristic(ledCharacteristic, chunk)) {
@@ -335,7 +345,7 @@ public final class LEDBLELib {
             return;
         }
         activeChunkBytes = chunk.length;
-        activeOffset = end;
+        activeOffset = sourceEnd;
         writeInFlight = true;
     }
 
@@ -350,7 +360,7 @@ public final class LEDBLELib {
             notifyDisconnected();
             return;
         }
-        sendNextChunk();
+        mainHandler.postDelayed(this::sendNextChunk, 1);
     }
 
     private void clearWrites() {
@@ -364,15 +374,16 @@ public final class LEDBLELib {
 
     private void findCharacteristics(List<BluetoothGattService> services) {
         clearCharacteristics();
+        boolean fretZealot2 = false;
         for (BluetoothGattService service : services) {
             for (BluetoothGattCharacteristic characteristic : service.getCharacteristics()) {
                 UUID uuid = characteristic.getUuid();
-                // Current Fret Zealot hardware exposes both services, but its v2 endpoint
-                // rejects the public v1 command frame. Prefer the vendor SDK's v1 endpoint.
-                if (SampleGattAttributes.LED_CH.equals(uuid)) {
+                if (SampleGattAttributes.LED_2_CH.equals(uuid)) {
+                    fretZealot2 = true;
+                } else if (SampleGattAttributes.LED_CH.equals(uuid)) {
                     ledCharacteristic = characteristic;
-                } else if (SampleGattAttributes.LED_2_CH.equals(uuid) && ledCharacteristic == null) {
-                    ledCharacteristic = characteristic;
+                } else if (SampleGattAttributes.LED_CH_NOTI.equals(uuid)) {
+                    ledNotificationCharacteristic = characteristic;
                 } else if (SampleGattAttributes.BATTERY.equals(uuid)) {
                     batteryCharacteristic = characteristic;
                 } else if (SampleGattAttributes.MANUFACTURER_NAME.equals(uuid)) {
@@ -383,18 +394,32 @@ public final class LEDBLELib {
                     serialCharacteristic = characteristic;
                 } else if (SampleGattAttributes.HARDWARE_REVISION.equals(uuid)) {
                     hardwareCharacteristic = characteristic;
+                } else if (SampleGattAttributes.FIRMWARE_REVISION.equals(uuid)) {
+                    firmwareCharacteristic = characteristic;
                 }
             }
+        }
+        BluetoothLeService service = bluetoothLeService;
+        if (fretZealot2 && service != null) {
+            writeChunkBytes = Math.min(FRET_ZEALOT_2_COMMAND_BYTES, service.maxWritePayloadBytes());
+            Log.i(TAG, "Fret Zealot 2 LED batch size=" + writeChunkBytes);
+        }
+        if (service != null && ledNotificationCharacteristic != null
+                && !service.enableNotifications(ledNotificationCharacteristic)) {
+            Log.w(TAG, "Unable to enable Fret Zealot LED notifications");
         }
     }
 
     private void clearCharacteristics() {
         ledCharacteristic = null;
+        ledNotificationCharacteristic = null;
+        writeChunkBytes = LEGACY_CHUNK_BYTES;
         batteryCharacteristic = null;
         manufacturerCharacteristic = null;
         modelCharacteristic = null;
         serialCharacteristic = null;
         hardwareCharacteristic = null;
+        firmwareCharacteristic = null;
     }
 
     private void dispatchRead(BluetoothGattCharacteristic characteristic, byte[] value) {

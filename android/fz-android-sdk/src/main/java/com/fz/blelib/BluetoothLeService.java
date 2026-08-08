@@ -11,6 +11,7 @@ import android.bluetooth.BluetoothDevice;
 import android.bluetooth.BluetoothGatt;
 import android.bluetooth.BluetoothGattCallback;
 import android.bluetooth.BluetoothGattCharacteristic;
+import android.bluetooth.BluetoothGattDescriptor;
 import android.bluetooth.BluetoothGattService;
 import android.bluetooth.BluetoothManager;
 import android.bluetooth.BluetoothProfile;
@@ -29,6 +30,8 @@ import java.util.List;
  */
 public final class BluetoothLeService extends Service {
     private static final String TAG = "FretZealotGatt";
+    private static final int DEFAULT_MTU = 23;
+    private static final int REQUESTED_MTU = 517;
 
     interface Listener {
         void onConnected();
@@ -43,6 +46,8 @@ public final class BluetoothLeService extends Service {
     private BluetoothGatt bluetoothGatt;
     private String bluetoothDeviceAddress;
     private Listener listener;
+    private int negotiatedMtu = DEFAULT_MTU;
+    private boolean serviceDiscoveryStarted;
 
     private final BluetoothGattCallback gattCallback = new BluetoothGattCallback() {
         @Override
@@ -59,11 +64,14 @@ public final class BluetoothLeService extends Service {
                     current.onConnected();
                 }
                 try {
-                    if (!gatt.discoverServices()) {
-                        notifyDisconnected(BluetoothGatt.GATT_FAILURE);
+                    negotiatedMtu = DEFAULT_MTU;
+                    serviceDiscoveryStarted = false;
+                    if (Build.VERSION.SDK_INT < Build.VERSION_CODES.LOLLIPOP
+                            || !gatt.requestMtu(REQUESTED_MTU)) {
+                        discoverServices(gatt);
                     }
                 } catch (SecurityException exception) {
-                    Log.w(TAG, "Unable to discover Fret Zealot services", exception);
+                    Log.w(TAG, "Unable to prepare Fret Zealot services", exception);
                     notifyDisconnected(BluetoothGatt.GATT_FAILURE);
                 }
             } else if (newState == BluetoothProfile.STATE_DISCONNECTED
@@ -78,6 +86,19 @@ public final class BluetoothLeService extends Service {
             if (gatt == bluetoothGatt && current != null) {
                 current.onServicesDiscovered(gatt.getServices(), status);
             }
+        }
+
+        @Override
+        public void onMtuChanged(BluetoothGatt gatt, int mtu, int status) {
+            if (gatt != bluetoothGatt) {
+                return;
+            }
+            if (status == BluetoothGatt.GATT_SUCCESS) {
+                negotiatedMtu = mtu;
+            } else {
+                Log.w(TAG, "Fret Zealot MTU request failed: status=" + status);
+            }
+            discoverServices(gatt);
         }
 
         @Override
@@ -209,6 +230,8 @@ public final class BluetoothLeService extends Service {
         BluetoothGatt gatt = bluetoothGatt;
         bluetoothGatt = null;
         bluetoothDeviceAddress = null;
+        negotiatedMtu = DEFAULT_MTU;
+        serviceDiscoveryStarted = false;
         closeGatt(gatt);
     }
 
@@ -231,6 +254,26 @@ public final class BluetoothLeService extends Service {
         }
     }
 
+    @SuppressLint("MissingPermission")
+    private void discoverServices(BluetoothGatt gatt) {
+        if (serviceDiscoveryStarted || gatt != bluetoothGatt) {
+            return;
+        }
+        serviceDiscoveryStarted = true;
+        try {
+            if (!gatt.discoverServices()) {
+                notifyDisconnected(BluetoothGatt.GATT_FAILURE);
+            }
+        } catch (SecurityException exception) {
+            Log.w(TAG, "Unable to discover Fret Zealot services", exception);
+            notifyDisconnected(BluetoothGatt.GATT_FAILURE);
+        }
+    }
+
+    int maxWritePayloadBytes() {
+        return Math.max(1, negotiatedMtu - 3);
+    }
+
     List<BluetoothGattService> getSupportedGattServices() {
         BluetoothGatt gatt = bluetoothGatt;
         return gatt == null ? Collections.emptyList() : gatt.getServices();
@@ -245,6 +288,34 @@ public final class BluetoothLeService extends Service {
             return bluetoothGatt.readCharacteristic(characteristic);
         } catch (SecurityException exception) {
             Log.w(TAG, "Unable to read Fret Zealot characteristic", exception);
+            return false;
+        }
+    }
+
+    @SuppressLint("MissingPermission")
+    @SuppressWarnings("deprecation")
+    boolean enableNotifications(BluetoothGattCharacteristic characteristic) {
+        if (bluetoothGatt == null || characteristic == null) {
+            return false;
+        }
+        try {
+            if (!bluetoothGatt.setCharacteristicNotification(characteristic, true)) {
+                return false;
+            }
+            BluetoothGattDescriptor descriptor =
+                    characteristic.getDescriptor(SampleGattAttributes.CLIENT_CHARACTERISTIC_CONFIG);
+            if (descriptor == null) {
+                return false;
+            }
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                return bluetoothGatt.writeDescriptor(
+                        descriptor, BluetoothGattDescriptor.ENABLE_NOTIFICATION_VALUE)
+                        == BluetoothStatusCodes.SUCCESS;
+            }
+            descriptor.setValue(BluetoothGattDescriptor.ENABLE_NOTIFICATION_VALUE);
+            return bluetoothGatt.writeDescriptor(descriptor);
+        } catch (SecurityException exception) {
+            Log.w(TAG, "Unable to enable Fret Zealot notifications", exception);
             return false;
         }
     }
