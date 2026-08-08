@@ -44,6 +44,7 @@ constexpr float kIsolatedComplexTuningFallbackScale = 0.78f;
 constexpr float kIsolatedDetunedFallbackScale = 0.0f;
 constexpr float kIsolatedNamedInstrumentTuningFallbackScale = 0.78f;
 constexpr float kIsolatedPolyphonicTuningFallbackScale = 0.78f;
+constexpr float kIsolatedPolyphonicTuningFallbackRelativeFloor = 0.20f;
 constexpr float kHarmonicMaskRatio = 0.62f;
 constexpr int kChromaticTuneMinMidi = kGuitarMinMidi;
 constexpr float kChromaticTuneToleranceCents = 9.0f;
@@ -26484,8 +26485,9 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 			raw_note_level >= strongest_note_level * 0.45f &&
 			isolated_fallback_local_peak &&
 			chromatic_tuning_match(samples, usable, mean, midi, kChromaticActiveTuneToleranceCents, true);
-		const bool strong_isolated_polyphonic_fallback_note =
-			raw_note_level >= strongest_note_level * 0.30f && isolated_fallback_local_peak;
+	const bool strong_isolated_polyphonic_fallback_note =
+		raw_note_level >= strongest_note_level * kIsolatedPolyphonicTuningFallbackRelativeFloor &&
+		isolated_fallback_local_peak;
 		const bool isolated_polyphonic_context = !mixed_source && strict_tuned_note_count >= 2;
 		const bool isolated_guitar_single_note_context =
 			input_mode == AnalysisInputMode::IsolatedGuitar && !isolated_polyphonic_context;
