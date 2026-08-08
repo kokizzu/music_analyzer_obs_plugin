@@ -70,7 +70,7 @@ final class ExternalDeviceManager implements Closeable {
     private final Handler handler = new Handler(Looper.getMainLooper());
     private final BleTarget liteJam = new BleTarget(DEVICE_LITEJAM, false);
     private final FretZealotSdkController fretZealot;
-    private final boolean[] deviceAutoconnect = {true, false, true, false};
+    private final boolean[] deviceAutoconnect = {false, true, true, false};
     private final boolean[] mvavePressed = new boolean[4];
     private final long[] mvavePressedAt = new long[4];
 

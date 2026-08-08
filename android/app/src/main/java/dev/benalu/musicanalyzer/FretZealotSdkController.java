@@ -15,7 +15,7 @@ import java.util.List;
 final class FretZealotSdkController implements Closeable {
     private static final String TAG = "MusicAnalyzerFZ";
     private static final byte LOWEST_SDK_INTENSITY = 3;
-    private static final int LOWEST_CHANNEL_MAX = 5;
+    private static final int LOWEST_CHANNEL_MAX = 1;
 
     interface Listener {
         void onConnecting();
@@ -108,8 +108,10 @@ final class FretZealotSdkController implements Closeable {
                         (byte) fret,
                         (byte) string,
                         dimChannel(red),
-                        dimChannel(blue),
                         dimChannel(green),
+                        // The v1 endpoint used by physical Fret Zealot hardware expects
+                        // green then blue here, despite the public SDK parameter labels.
+                        dimChannel(blue),
                         LOWEST_SDK_INTENSITY,
                         (byte) effect);
             }

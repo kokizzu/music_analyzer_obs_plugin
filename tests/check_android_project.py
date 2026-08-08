@@ -300,11 +300,14 @@ def main():
             "sendCommandFlush" in fret_zealot_sdk_controller,
             "Fret Zealot output must use the official SDK command API")
     require("LOWEST_SDK_INTENSITY = 3" in fret_zealot_sdk_controller and
-            "LOWEST_CHANNEL_MAX = 5" in fret_zealot_sdk_controller and
+            "LOWEST_CHANNEL_MAX = 1" in fret_zealot_sdk_controller and
             "dimChannel(red)" in fret_zealot_sdk_controller and
             "dimChannel(blue)" in fret_zealot_sdk_controller and
             "dimChannel(green)" in fret_zealot_sdk_controller,
-            "Fret Zealot output must always use the dimmest three-level LED setting")
+            "Fret Zealot output must use the minimum nonzero channel intensity")
+    require("dimChannel(red),\n                        dimChannel(green)," in fret_zealot_sdk_controller and
+            "dimChannel(blue),\n                        LOWEST_SDK_INTENSITY" in fret_zealot_sdk_controller,
+            "Fret Zealot adapter must use the physical v1 endpoint's green/blue order")
     require("6e400002-b5a3-f393-e0a9-e50e24dcca9e" in fret_zealot_attributes and
             "fb1e4002-54ae-4a28-9f74-dfccb248601d" in fret_zealot_attributes and
             "SampleGattAttributes.LED_2_CH" in fret_zealot_sdk and
@@ -324,10 +327,10 @@ def main():
             "Android device manager must support direct BLE MIDI, controller input, and APC LED output")
     require("getBondedDevices" in external_devices and "openBondedMvaveIfAvailable" in external_devices,
             "Android MIDI manager must reopen an already bonded M-VAVE controller")
-    require("boolean[] deviceAutoconnect = {true, false, true, false}" in external_devices and
+    require("boolean[] deviceAutoconnect = {false, true, true, false}" in external_devices and
             "toggleDeviceAutoconnect" in external_devices and "shouldAutoconnectDevice" in external_devices and
             "allEnabledBleDevicesConnected" in external_devices,
-            "Android must default to LiteJam/APC-only autoconnect and toggle each device independently")
+            "Android must default to Fret Zealot/APC-only autoconnect and toggle each device independently")
     require("MVAVE_HOLD_MILLIS" in external_devices and "mvaveRelease" in external_devices and
             "controller >= 32 && controller <= 35" in external_devices and
             "controller % 4" in external_devices and "mvaveProgramToSwitch" in external_devices and
