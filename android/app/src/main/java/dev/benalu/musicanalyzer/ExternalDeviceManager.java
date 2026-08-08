@@ -819,9 +819,12 @@ final class ExternalDeviceManager implements Closeable {
         }
         pendingFretZealotPacket = Arrays.copyOf(packet, packet.length);
         // Preserve the last complete scale while AUTO root estimates change.
-        // Repeated legacy deltas can leave the board showing only a prefix of
-        // its target scale; the delayed reconciliation below replaces it once.
-        handler.removeCallbacks(sendStableFretZealotPacket);
+        // Keep the latest packet, but do not restart an already scheduled
+        // reconciliation: a musical AUTO root can keep changing indefinitely,
+        // which otherwise starves the board of a complete replacement.
+        if (fretZealotAutoReconciliationScheduled) {
+            return;
+        }
         fretZealotAutoReconciliationScheduled = true;
         handler.postDelayed(sendStableFretZealotPacket, FRET_ZEALOT_AUTO_ROOT_STABLE_MILLIS);
     }

@@ -303,9 +303,10 @@ def main():
             "sendStableFretZealotPacket" in external_devices and
             "fretZealotAutoReconciliationScheduled" in external_devices and
             "handler.removeCallbacks(sendStableFretZealotPacket);" in external_devices and
-            "Preserve the last complete scale while AUTO root estimates change" in external_devices and
+            "which otherwise starves the board of a complete replacement" in external_devices and
+            "if (fretZealotAutoReconciliationScheduled) {\n            return;\n        }" in external_devices and
             "fretZealot.sendPacket(packet, true);" in external_devices,
-            "Android must preserve the complete AUTO scale and replace it only after a quiet period")
+            "Android must coalesce AUTO scale updates without starving a complete replacement")
     require("if (!force && Arrays.equals(packet, lastFretZealotPacket)) {\n            // A device-state revision" in external_devices and
             "cancelling it leaves a first-generation board showing only the" in external_devices,
             "An unchanged Fret Zealot packet must not cancel its scheduled AUTO reconciliation")
