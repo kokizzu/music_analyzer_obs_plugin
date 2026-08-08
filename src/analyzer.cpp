@@ -30122,19 +30122,6 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 			snapshot.drum_debug_rule_flags |= DrumDebugUpperTomFromSnareActiveBleed;
 		if (final_one_shot_measured_upper_tom_from_snare_active_bleed)
 			cap_drum_level(Tom, 0.28f);
-		const float final_low_snare_kick_level_ratio =
-			drum_level_[Snare] / (drum_level_[Kick] + 1.0e-6f);
-		const bool final_one_shot_measured_low_snare_kick_tom_primary_recovery =
-			drum_detection_enabled && one_shot_drum_source &&
-			final_low_snare_kick_level_ratio <= 0.281f &&
-			tom_snare_shape_score_ratio <= 1.243f &&
-			final_upper_tom_snare_crack_ratio >= 11.285f;
-		// A narrow set of one-shot toms accumulates snare and kick activation despite a
-		// dominant upper-tom body.  This profile recovered fourteen tom->kick errors
-		// with no protected or foreign matches in the merged drum fixture corpus.
-		if (final_one_shot_measured_low_snare_kick_tom_primary_recovery)
-			promote_drum_primary(Tom, 0.90f);
-
 	const bool final_one_shot_measured_hihat_rim_active_bleed =
 		drum_detection_enabled && one_shot_drum_source &&
 		!generated_gm_drum_source &&
