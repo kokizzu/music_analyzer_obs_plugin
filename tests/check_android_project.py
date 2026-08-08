@@ -337,6 +337,9 @@ def main():
             "Fret Zealot must clear the board immediately after connecting")
     require("sdk.set_all((byte) 0, (byte) 0, (byte) 0" in fret_zealot_sdk_controller,
             "Fret Zealot 2 must use the vendor full-board black reset command")
+    require("fretZealotPixelForStandardTuningString" in fret_zealot_sdk_controller and
+            "return (byte) (5 - lowToHighString);" in fret_zealot_sdk_controller,
+            "Fret Zealot output must map analyzer E-A-D-G-B-E strings to hardware order")
     require("initializeFretZealot2Session();" in fret_zealot_sdk_controller and
             "Fret Zealot LED service ready; preparing current scale" in fret_zealot_sdk_controller and
             "listener.onReady();" in fret_zealot_sdk_controller,

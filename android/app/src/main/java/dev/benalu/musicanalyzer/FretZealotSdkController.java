@@ -52,6 +52,12 @@ final class FretZealotSdkController implements Closeable {
         return (byte) Math.max(1, (clamped * LOWEST_CHANNEL_MAX + 7) / 15);
     }
 
+    private static byte fretZealotPixelForStandardTuningString(int lowToHighString) {
+        // Analyzer packets use E-A-D-G-B-E. The Fret Zealot SDK labels the
+        // physical pixels in the opposite, high-E-to-low-E order.
+        return (byte) (5 - lowToHighString);
+    }
+
     void connect(BluetoothDevice device) {
         if (active || device == null) {
             return;
@@ -106,7 +112,7 @@ final class FretZealotSdkController implements Closeable {
                 }
                 sdk.set(
                         (byte) fret,
-                        (byte) string,
+                        fretZealotPixelForStandardTuningString(string),
                         dimChannel(red),
                         dimChannel(blue),
                         dimChannel(green),
