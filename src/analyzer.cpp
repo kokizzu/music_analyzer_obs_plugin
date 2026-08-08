@@ -568,6 +568,8 @@ struct NoteEvidence {
 	float adjacent_lower_ratio = 0.0f;
 	float adjacent_upper_ratio = 0.0f;
 	float third_octave_ratio = 0.0f;
+	bool vocal_tone_profile_supported = false;
+	bool vocal_rejected_for_polyphony = false;
 	std::array<float, 5> harmonic_ratios = {};
 	std::array<float, 5> ownership_scores = {};
 	InstrumentKind owner = InstrumentKind::Ambiguous;
@@ -1340,6 +1342,8 @@ void append_full_mix_debug_candidate(FullMixOwnership &ownership, const NoteCand
 	debug.adjacent_lower_ratio = evidence.adjacent_lower_ratio;
 	debug.adjacent_upper_ratio = evidence.adjacent_upper_ratio;
 	debug.third_octave_ratio = evidence.third_octave_ratio;
+	debug.vocal_tone_profile_supported = evidence.vocal_tone_profile_supported;
+	debug.vocal_rejected_for_polyphony = evidence.vocal_rejected_for_polyphony;
 	debug.harmonic_ratios = evidence.harmonic_ratios;
 	ownership.debug_candidates[ownership.debug_candidate_count++] = debug;
 }
@@ -8873,11 +8877,9 @@ bool measured_full_mix_sustained_voice_profile(const NoteEvidence &evidence, int
 	return choir_vowel_stack_voice || voice_lead_sustained_voice || synth_voice_sustained_voice;
 }
 
-bool full_mix_vocal_profile_supported(const NoteEvidence &evidence, int midi, float second, float third,
-				      float fourth, float fifth, bool polyphonic_vocal_context)
+bool full_mix_vocal_tone_profile_supported(const NoteEvidence &evidence, int midi, float second, float third,
+					   float fourth, float fifth)
 {
-	if (polyphonic_vocal_context)
-		return false;
 	const bool high_register = midi >= 72;
 	if (evidence.simultaneous_onset > (high_register ? 0.35f : 0.42f))
 		return false;
@@ -8909,6 +8911,27 @@ bool full_mix_vocal_profile_supported(const NoteEvidence &evidence, int midi, fl
 		measured_full_mix_sustained_voice_profile(evidence, midi, second, third, fourth, fifth);
 	return clean_sustained_like_partials || near_pure_tone_voice || midrange_sustained_voice ||
 	       rich_sustained_voice || measured_sustained_voice;
+}
+
+bool full_mix_polyphonic_vocal_profile_supported(int midi, float second)
+{
+	// Real low-register voices regularly share an analysis window with
+	// accompaniment. Keep this narrow: the light second partial distinguishes
+	// them from the denser keyboard profile used in the full-mix regressions.
+	return midi <= 64 && second <= 0.15f;
+}
+
+bool full_mix_vocal_profile_supported(NoteEvidence &evidence, int midi, float second, float third,
+				      float fourth, float fifth, bool polyphonic_vocal_context)
+{
+	const bool tone_profile =
+		full_mix_vocal_tone_profile_supported(evidence, midi, second, third, fourth, fifth);
+	evidence.vocal_tone_profile_supported = tone_profile;
+	const bool polyphonic_profile_supported =
+		full_mix_polyphonic_vocal_profile_supported(midi, second);
+	evidence.vocal_rejected_for_polyphony =
+		tone_profile && polyphonic_vocal_context && !polyphonic_profile_supported;
+	return tone_profile && (!polyphonic_vocal_context || polyphonic_profile_supported);
 }
 
 bool competing_full_mix_timbres(float keyboard_weight, float guitar_weight, float other_weight)
@@ -9249,7 +9272,8 @@ InstrumentKind choose_full_mix_owner(const std::array<float, kNoteProbeCount> &p
 	evidence.ownership_scores[static_cast<std::size_t>(InstrumentKind::Vocal)] = scores[2] / total;
 	evidence.ownership_scores[static_cast<std::size_t>(InstrumentKind::Other)] = scores[3] / total;
 	evidence.ownership_confidence = best_probability;
-	if (best == 2 && polyphonic_vocal_context)
+	if (best == 2 && polyphonic_vocal_context &&
+	    !full_mix_polyphonic_vocal_profile_supported(candidate.midi, second))
 		return InstrumentKind::Ambiguous;
 	const bool supported_vocal_winner = best == 2 && vocal_supported;
 	const bool supported_measured_sustained_voice_winner = best == 2 && measured_sustained_voice;

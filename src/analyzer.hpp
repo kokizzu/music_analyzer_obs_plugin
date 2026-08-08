@@ -134,6 +134,8 @@ struct FullMixDebugCandidate {
 	float adjacent_lower_ratio = 0.0f;
 	float adjacent_upper_ratio = 0.0f;
 	float third_octave_ratio = 0.0f;
+	bool vocal_tone_profile_supported = false;
+	bool vocal_rejected_for_polyphony = false;
 	std::array<float, 5> harmonic_ratios = {};
 };
 

@@ -4630,6 +4630,36 @@ void check_full_mix_midrange_vocal_recall(Runner &runner)
 	expect_midi_not_duplicated_across_rows(runner, snapshot, 64, "full-mix midrange vocal ownership");
 }
 
+void check_full_mix_low_polyphonic_vocal_recall(Runner &runner)
+{
+	mao::AnalysisEngine engine;
+	mao::AnalysisSettings settings = mao_test::default_settings();
+	settings.input_mode = mao::AnalysisInputMode::FullMix;
+	settings.analysis_interval_seconds = 0.05f;
+
+	mao_test::Buffer buffer = {};
+	const std::vector<float> vocal_profile = {1.0f, 0.070f, 0.032f, 0.016f};
+	const std::vector<float> accompaniment_profile = {1.0f, 0.14f, 0.05f, 0.02f};
+	add_harmonic_note(buffer, 60, 0.24f, vocal_profile);
+	// A4 avoids the C4/G4 three-to-two harmonic overlap that would turn the
+	// synthetic vocal's third partial into accompaniment energy.
+	add_harmonic_note(buffer, 69, 0.22f, accompaniment_profile);
+
+	mao::AnalysisSnapshot snapshot = engine.analyze(buffer.data(), buffer.size(), settings, "Mic/Aux", 0);
+	expect_global_pitch_class(runner, snapshot, 0, "full-mix low polyphonic vocal first-frame global");
+	expect_no_pitch_class(runner, snapshot.vocal_notes, 0,
+			      "full-mix low polyphonic vocal first-frame vocal");
+
+	snapshot = engine.analyze(buffer.data(), buffer.size(), settings, "Mic/Aux", 0);
+	runner.expect(grid_pitch_active(snapshot.vocal_notes, 0),
+		      std::string("full-mix low polyphonic vocal second-frame vocal: expected C active, got keyboard `") +
+			      snapshot.keyboard.label + "`, guitar `" + snapshot.guitar.label + "`, vocal `" +
+			      snapshot.vocal.label + "`, other `" + snapshot.other.label + "`, debug `" +
+			      full_mix_debug_summary_for_midi(snapshot, 60) + "`");
+	expect_midi_not_duplicated_across_rows(runner, snapshot, 60,
+			      "full-mix low polyphonic vocal ownership");
+}
+
 void check_full_mix_stable_vocal_visual_floor(Runner &runner)
 {
 	mao::AnalysisEngine engine;
@@ -8593,6 +8623,7 @@ int main()
 	check_blended_ambiguous_debug_scores(runner);
 	check_full_mix_vocal_requires_temporal_confirmation(runner);
 	check_full_mix_midrange_vocal_recall(runner);
+	check_full_mix_low_polyphonic_vocal_recall(runner);
 	check_full_mix_stable_vocal_visual_floor(runner);
 	check_full_mix_realistic_vocal_recall(runner);
 	check_mixed_keyboard_guitar_note_bounds(runner);
