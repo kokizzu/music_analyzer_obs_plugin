@@ -1260,7 +1260,7 @@ GUITARSET_ATTRIBUTE_GATE_ENV ?= MUSIC_ANALYZER_GUITARSET_ATTRIBUTE_ONLY=1 MUSIC_
 .PHONY: analyze-guitarset-attributes inspect-guitarset-attribute-buckets find-guitarset-attribute-patterns analyze-egfxset-guitar-attributes inspect-egfxset-guitar-attribute-buckets find-egfxset-guitar-attribute-patterns
 .PHONY: test-fret-control android-lint icon-assets
 .PHONY: measure-analyzer-attributes measure-analyzer-attribute-rows measure-analyzer-attribute-rows-full require-cached-analyzer-attribute-rows refresh-analyzer-detected-attribute-rows print-analyzer-detected-attributes print-analyzer-detected-attributes-cached measure-analyzer-detected-attributes measure-analyzer-detected-attributes-full measure-analyzer-pattern-report-sections report-analyzer-patterns-from-rows report-analyzer-patterns-from-cached-rows report-analyzer-patterns-from-rows-full measure-analyzer-patterns measure-analyzer-patterns-cached measure-analyzer-patterns-cached-summary measure-analyzer-patterns-cached-coverage measure-analyzer-patterns-full measure-analyzer-pattern-report inspect-instrument-sample-owner-buckets find-instrument-owner-patterns find-instrument-status-patterns test-instrument-sample-owner-buckets test-filter-instrument-attribute-rows test-instrument-owner-patterns test-refresh-analyzer-detected-attribute-rows test-print-analyzer-detected-attributes test-analyzer-pattern-report test-detector-route-report-summary test-measure-analyzer-patterns-target analyze-drum-primary-attribute-rows find-drum-primary-attribute-patterns analyze-drum-spread-gate-matrix-serial analyze-drum-spread-gate-matrix-parallel analyze-drum-spread-gate-matrix-parallel-unlocked analyze-drum-tom-bleed-caps analyze-drum-tom-bleed-caps-cached
-.PHONY: analyze-drum-spread-gate-matrix analyze-drum-full-gate-matrix analyze-drum-full-gate-matrix-parallel analyze-drum-full-merged-expected-attribute-rows analyze-drum-active-false-rows analyze-drum-rule-flags compare-drum-gate-matrix find-drum-active-false-patterns find-drum-active-false-patterns-full find-drum-spread-exact-attribute-patterns find-drum-full-exact-attribute-patterns find-drum-full-exact-attribute-patterns-cached find-protected-drum-full-exact-attribute-patterns test-drum-gate-matrix-summary test-compare-drum-gate-summaries test-drum-active-threshold-simulation test-drum-active-false-summary test-drum-rule-flag-summary test-drum-active-false-patterns test-inspect-drum-candidate-rows test-inspect-real-note-candidate-rows test-inspect-detector-coverage-candidates
+.PHONY: analyze-drum-spread-gate-matrix analyze-drum-full-gate-matrix analyze-drum-full-gate-matrix-parallel analyze-drum-full-merged-expected-attribute-rows analyze-drum-active-false-rows analyze-drum-rule-flags compare-drum-gate-matrix compare-drum-primary-scores find-drum-active-false-patterns find-drum-active-false-patterns-full find-drum-spread-exact-attribute-patterns find-drum-full-exact-attribute-patterns find-drum-full-exact-attribute-patterns-cached find-protected-drum-full-exact-attribute-patterns test-drum-gate-matrix-summary test-compare-drum-gate-summaries test-drum-active-threshold-simulation test-drum-active-false-summary test-drum-rule-flag-summary test-drum-active-false-patterns test-inspect-drum-candidate-rows test-inspect-real-note-candidate-rows test-inspect-detector-coverage-candidates
 .PHONY: analyze-hf-drum-primary-attribute-rows analyze-hf-drum-primary-attribute-rows-serial analyze-hf-drum-primary-attribute-rows-parallel find-hf-drum-primary-attribute-patterns analyze-idmt-drum-primary-attribute-rows analyze-idmt-drum-primary-attribute-rows-serial analyze-idmt-drum-primary-attribute-rows-parallel find-idmt-drum-primary-attribute-patterns analyze-protected-drum-primary-attribute-rows find-protected-drum-primary-attribute-patterns
 .PHONY: analyze-guitar-chord-mix-recovery analyze-guitar-chord-primary-order analyze-guitar-chord-mix-extra-components inspect-guitar-techs-chord-attribute-buckets find-guitar-techs-chord-attribute-patterns find-guitar-techs-chord-route-patterns find-guitar-chord-mix-route-patterns find-egfxset-guitar-route-patterns find-gaps-guitar-route-patterns find-gaps-guitar-full-route-patterns find-guitarset-route-patterns test-guitar-chord-recovery-analysis test-guitar-primary-order-analysis test-guitar-chord-extra-components-analysis test-guitar-techs-chord-samples-parallel test-guitar-chord-mix-samples-serial test-guitar-chord-mix-samples-parallel test-egfxset-guitar-samples-parallel test-gaps-guitar-samples-parallel test-gaps-guitar-samples-full-parallel test-downloaded-guitarset-parallel
 .PHONY: analyze-real-note-misses-serial analyze-real-note-misses-parallel analyze-real-note-misses-shard-%
@@ -1642,6 +1642,11 @@ analyze-drum-rule-flags: $(BUILD_DIR)/analyzer_drum_samples scripts/summarize_dr
 compare-drum-gate-matrix: scripts/compare_drum_gate_summaries.py
 	@if [ -z "$(DRUM_GATE_BEFORE)" ] || [ -z "$(DRUM_GATE_AFTER)" ]; then printf '%s\n' "compare-drum-gate-matrix: set DRUM_GATE_BEFORE=/path/before and DRUM_GATE_AFTER=/path/after"; exit 2; fi
 	$(PYTHON) scripts/compare_drum_gate_summaries.py "$(DRUM_GATE_BEFORE)" "$(DRUM_GATE_AFTER)"
+
+compare-drum-primary-scores: scripts/compare_drum_primary_scores.py
+	@if [ ! -f "$(DRUM_FULL_EXACT_ATTRIBUTE_ROWS)" ]; then $(MAKE) analyze-drum-full-gate-matrix; fi
+	$(PYTHON) scripts/compare_drum_primary_scores.py "$(DRUM_FULL_EXACT_ATTRIBUTE_ROWS)"
+	@if [ -f "$(DRUM_SPREAD_EXACT_ATTRIBUTE_ROWS)" ]; then $(PYTHON) scripts/compare_drum_primary_scores.py "$(DRUM_SPREAD_EXACT_ATTRIBUTE_ROWS)"; fi
 
 find-drum-active-false-patterns: $(BUILD_DIR)/analyzer_drum_samples scripts/find_drum_active_false_patterns.py scripts/analyze_drum_primary_debug.py
 	+@if [ -d "$(DRUM_SAMPLE_SOURCE_DIR)" ]; then if [ ! -f "$(DRUM_SPREAD_EXACT_ATTRIBUTE_ROWS)" ] || [ "$(BUILD_DIR)/analyzer_drum_samples" -nt "$(DRUM_SPREAD_EXACT_ATTRIBUTE_ROWS)" ] || [ "scripts/analyze_drum_primary_debug.py" -nt "$(DRUM_SPREAD_EXACT_ATTRIBUTE_ROWS)" ]; then $(MAKE) analyze-drum-spread-gate-matrix; fi; elif [ ! -f "$(DRUM_SPREAD_EXACT_ATTRIBUTE_ROWS)" ]; then printf '%s\n' "drum active false pattern candidates: skipped; missing $(DRUM_SAMPLE_SOURCE_DIR) and $(DRUM_SPREAD_EXACT_ATTRIBUTE_ROWS)"; exit 0; fi
@@ -3829,7 +3834,7 @@ ANALYSIS_SCRIPT_TEST_TARGETS += test-drum-sample-skip-patterns
 ANALYSIS_SCRIPT_TEST_TARGETS += test-sample-manifest-summary
 ANALYSIS_SCRIPT_TEST_TARGETS += test-inspect-drum-candidate-rows
 ANALYSIS_SCRIPT_TEST_TARGETS += test-inspect-real-note-candidate-rows
-ANALYSIS_SCRIPT_TEST_TARGETS += test-inspect-detector-coverage-candidates
+ANALYSIS_SCRIPT_TEST_TARGETS += test-inspect-detector-coverage-candidates test-compare-drum-primary-scores
 
 test-drum-sample-shard-check: tests/test_check_drum_sample_shards.py scripts/check_drum_sample_shards.py
 	$(PYTHON) tests/test_check_drum_sample_shards.py
@@ -4181,6 +4186,9 @@ test-drum-primary-analysis: tests/test_analyze_drum_primary_debug.py tests/test_
 
 test-drum-gate-matrix-summary: tests/test_summarize_drum_gate_matrix.py scripts/summarize_drum_gate_matrix.py
 	$(PYTHON) tests/test_summarize_drum_gate_matrix.py
+
+test-compare-drum-primary-scores: tests/test_compare_drum_primary_scores.py scripts/compare_drum_primary_scores.py
+	$(PYTHON) tests/test_compare_drum_primary_scores.py
 
 test-compare-drum-gate-summaries: tests/test_compare_drum_gate_summaries.py scripts/compare_drum_gate_summaries.py
 	$(PYTHON) tests/test_compare_drum_gate_summaries.py
