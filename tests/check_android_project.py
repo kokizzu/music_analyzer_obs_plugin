@@ -304,11 +304,11 @@ def main():
             "sendCommandFlush" in fret_zealot_sdk_controller,
             "Fret Zealot output must use the official SDK command API")
     require("LOWEST_SDK_INTENSITY = 3" in fret_zealot_sdk_controller and
-            "LOWEST_CHANNEL_MAX = 1" in fret_zealot_sdk_controller and
+            "LOWEST_CHANNEL_MAX = 2" in fret_zealot_sdk_controller and
             "dimChannel(red)" in fret_zealot_sdk_controller and
             "dimChannel(blue)" in fret_zealot_sdk_controller and
             "dimChannel(green)" in fret_zealot_sdk_controller,
-            "Fret Zealot output must use the minimum nonzero channel intensity")
+            "Fret Zealot output must preserve scale hues at low LED intensity")
     require("dimChannel(red),\n                        dimChannel(green)," in fret_zealot_sdk_controller and
             "dimChannel(blue),\n                        LOWEST_SDK_INTENSITY" in fret_zealot_sdk_controller,
             "Fret Zealot adapter must compensate for the vendor SDK's swapped RGB arguments")

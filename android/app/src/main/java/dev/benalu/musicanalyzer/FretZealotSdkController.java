@@ -15,7 +15,9 @@ import java.util.List;
 final class FretZealotSdkController implements Closeable {
     private static final String TAG = "MusicAnalyzerFZ";
     private static final byte LOWEST_SDK_INTENSITY = 3;
-    private static final int LOWEST_CHANNEL_MAX = 1;
+    // 1/15 makes every nonzero RGB component identical, collapsing orange into
+    // yellow. 2/15 is the lowest level that preserves the scale's hue order.
+    private static final int LOWEST_CHANNEL_MAX = 2;
 
     interface Listener {
         void onConnecting();
