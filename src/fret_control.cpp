@@ -24,9 +24,9 @@ constexpr std::array<RgbColor, kScaleDegreeCount> kMajorColors = {
 constexpr std::array<RgbColor, kScaleDegreeCount> kFretZealotMajorColors = {
 	RgbColor{255, 0, 0},
 	RgbColor{255, 96, 0},
-	RgbColor{255, 255, 32},
+	RgbColor{255, 192, 0},
 	RgbColor{0, 255, 0},
-	RgbColor{128, 200, 255},
+	RgbColor{64, 128, 255},
 	RgbColor{0, 0, 255},
 	RgbColor{64, 0, 255},
 };
