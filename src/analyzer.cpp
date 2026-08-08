@@ -20875,6 +20875,46 @@ void restore_tightly_labeled_minor_seventh_guitar_thirds_from_analysis(
 	}
 }
 
+void restore_tightly_labeled_dominant_seventh_guitar_sevenths_from_analysis(
+	NoteGrid &display_grid, const InstrumentState &chord_state, const NoteGrid &analysis_grid)
+{
+	if (!chord_state.label[0] || chord_state.label[0] == '-' ||
+	    chord_label_component_count(chord_state.label) > 4 ||
+	    note_grid_active_pitch_class_count(display_grid) > 8 ||
+	    note_grid_active_pitch_class_count(analysis_grid) > 8)
+		return;
+
+	// In compact dominant-seventh labels, a retained flat seventh in the
+	// analysis grid is a reliable missing string fundamental.  Restrict this
+	// to very small alias sets: wider candidate sets commonly include unrelated
+	// extension and harmonic residue.
+	const char *cursor = chord_state.label;
+	while (cursor && *cursor) {
+		const char *end = std::strchr(cursor, '=');
+		const std::size_t len = end ? static_cast<std::size_t>(end - cursor) : std::strlen(cursor);
+		ParsedRootChord component;
+		std::size_t root_len = 1;
+		if (len > 1 && cursor[1] == '#')
+			root_len = 2;
+		const char *suffix = cursor + root_len;
+		const std::size_t suffix_len = len > root_len ? len - root_len : 0;
+		if (parse_root_chord_component(cursor, len, component) &&
+		    component.quality == RootChordQuality::Major && suffix_is(suffix, suffix_len, "7")) {
+			const int seventh = (component.root + 10) % 12;
+			if (!note_grid_pitch_active(display_grid, seventh) &&
+			    note_grid_pitch_active(analysis_grid, seventh) &&
+			    note_grid_pitch_level(analysis_grid, seventh) >= 0.60f) {
+				const NoteCell &source = analysis_grid.cells[static_cast<std::size_t>(seventh)];
+				if (source.active)
+					promote_note_grid_primary_midi(display_grid, source.midi, source.level);
+			}
+		}
+		if (!end)
+			break;
+		cursor = end + 1;
+	}
+}
+
 void append_probe_supported_guitar_diminished_seventh_aliases_after_prune(
 	InstrumentState &state, const NoteGrid &display_grid, const NoteGrid &analysis_grid,
 	const std::array<float, kNoteProbeCount> &powers, int min_midi, int max_midi)
@@ -32253,6 +32293,8 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 			restore_compact_guitar_seventh_fifths_from_analysis(
 				snapshot.guitar_notes, snapshot.guitar_chord, guitar_chord_detection_grid);
 			restore_tightly_labeled_minor_seventh_guitar_thirds_from_analysis(
+				snapshot.guitar_notes, snapshot.guitar_chord, guitar_chord_detection_grid);
+			restore_tightly_labeled_dominant_seventh_guitar_sevenths_from_analysis(
 				snapshot.guitar_notes, snapshot.guitar_chord, guitar_chord_detection_grid);
 		}
 		if (!mixed_source) {
