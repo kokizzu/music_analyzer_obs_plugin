@@ -21112,6 +21112,32 @@ void restore_tightly_labeled_minor_guitar_tones_from_analysis(
 	}
 }
 
+void restore_unambiguous_diminished_guitar_tones_from_analysis(
+	NoteGrid &display_grid, const InstrumentState &chord_state, const NoteGrid &analysis_grid)
+{
+	if (!chord_state.label[0] || chord_state.label[0] == '-' ||
+	    chord_label_component_count(chord_state.label) != 1 ||
+	    note_grid_active_pitch_class_count(display_grid) > 8 ||
+	    note_grid_active_pitch_class_count(analysis_grid) > 8)
+		return;
+
+	ParsedRootChord component;
+	const std::size_t len = std::strlen(chord_state.label);
+	if (!parse_root_chord_component(chord_state.label, len, component) ||
+	    component.quality != RootChordQuality::Diminished)
+		return;
+	for (const int interval : {0, 3, 6}) {
+		const int pitch = (component.root + interval) % 12;
+		if (!note_grid_pitch_active(display_grid, pitch) &&
+		    note_grid_pitch_active(analysis_grid, pitch) &&
+		    note_grid_pitch_level(analysis_grid, pitch) >= 0.50f) {
+			const NoteCell &source = analysis_grid.cells[static_cast<std::size_t>(pitch)];
+			if (source.active)
+				promote_note_grid_primary_midi(display_grid, source.midi, source.level);
+		}
+	}
+}
+
 void append_probe_supported_guitar_diminished_seventh_aliases_after_prune(
 	InstrumentState &state, const NoteGrid &display_grid, const NoteGrid &analysis_grid,
 	const std::array<float, kNoteProbeCount> &powers, int min_midi, int max_midi)
@@ -32498,6 +32524,8 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 			restore_tightly_labeled_major_seventh_guitar_tones_from_analysis(
 				snapshot.guitar_notes, snapshot.guitar_chord, guitar_chord_detection_grid);
 			restore_tightly_labeled_minor_guitar_tones_from_analysis(
+				snapshot.guitar_notes, snapshot.guitar_chord, guitar_chord_detection_grid);
+			restore_unambiguous_diminished_guitar_tones_from_analysis(
 				snapshot.guitar_notes, snapshot.guitar_chord, guitar_chord_detection_grid);
 		}
 		if (!mixed_source) {
