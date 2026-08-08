@@ -20986,18 +20986,19 @@ void restore_tightly_labeled_major_guitar_tones_from_analysis(
 	}
 }
 
-void restore_tightly_labeled_major_seventh_guitar_roots_from_analysis(
+void restore_tightly_labeled_major_seventh_guitar_tones_from_analysis(
 	NoteGrid &display_grid, const InstrumentState &chord_state, const NoteGrid &analysis_grid)
 {
+	const int label_components = chord_label_component_count(chord_state.label);
 	if (!chord_state.label[0] || chord_state.label[0] == '-' ||
-	    chord_label_component_count(chord_state.label) > 6 ||
+	    label_components > 6 ||
 	    note_grid_active_pitch_class_count(display_grid) > 8 ||
 	    note_grid_active_pitch_class_count(analysis_grid) > 8)
 		return;
 
 	// A high-confidence root in a compact major-seventh interpretation is a
-	// useful recovery candidate.  The high floor and small label bound keep
-	// this distinct from alternate roots in broad harmonic clouds.
+	// useful recovery candidate.  Its third is only admitted for two aliases,
+	// where a retained analysis note is not an alternate broad-chord color.
 	const char *cursor = chord_state.label;
 	while (cursor && *cursor) {
 		const char *end = std::strchr(cursor, '=');
@@ -21017,6 +21018,16 @@ void restore_tightly_labeled_major_seventh_guitar_roots_from_analysis(
 				const NoteCell &source = analysis_grid.cells[static_cast<std::size_t>(root)];
 				if (source.active)
 					promote_note_grid_primary_midi(display_grid, source.midi, source.level);
+			}
+			if (label_components <= 2) {
+				const int third = (component.root + 4) % 12;
+				if (!note_grid_pitch_active(display_grid, third) &&
+				    note_grid_pitch_active(analysis_grid, third) &&
+				    note_grid_pitch_level(analysis_grid, third) >= 0.48f) {
+					const NoteCell &source = analysis_grid.cells[static_cast<std::size_t>(third)];
+					if (source.active)
+						promote_note_grid_primary_midi(display_grid, source.midi, source.level);
+				}
 			}
 		}
 		if (!end)
@@ -32458,7 +32469,7 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 				snapshot.guitar_notes, snapshot.guitar_chord, guitar_chord_detection_grid);
 			restore_tightly_labeled_major_guitar_tones_from_analysis(
 				snapshot.guitar_notes, snapshot.guitar_chord, guitar_chord_detection_grid);
-			restore_tightly_labeled_major_seventh_guitar_roots_from_analysis(
+			restore_tightly_labeled_major_seventh_guitar_tones_from_analysis(
 				snapshot.guitar_notes, snapshot.guitar_chord, guitar_chord_detection_grid);
 			restore_tightly_labeled_minor_guitar_tones_from_analysis(
 				snapshot.guitar_notes, snapshot.guitar_chord, guitar_chord_detection_grid);
