@@ -993,7 +993,8 @@ NoteCandidateList note_peak_candidates(const std::array<float, kNoteProbeCount> 
 				       bool suppress_adjacent_neighbors = false,
 				       const std::array<bool, kNoteProbeCount> *allowed_midis = nullptr,
 				       float relative_floor = kNoteRelativeFloor,
-				       bool include_harmonic_support = false)
+				       bool include_harmonic_support = false,
+				       float adjacent_mask_score_ratio = 0.72f)
 {
 	std::array<float, kNoteProbeCount> scores = {};
 	float strongest_score = 0.0f;
@@ -1033,7 +1034,7 @@ NoteCandidateList note_peak_candidates(const std::array<float, kNoteProbeCount> 
 		for (const NoteCandidate &existing : selected) {
 			const bool adjacent_mask =
 				suppress_adjacent_neighbors && std::abs(existing.midi - candidate.midi) <= 1 &&
-				candidate.score < existing.score * 0.72f;
+				candidate.score < existing.score * std::clamp(adjacent_mask_score_ratio, 0.01f, 1.0f);
 			const bool harmonic_mask =
 				likely_selected_harmonic(existing, candidate) &&
 				probe_level(powers, candidate.midi) < probe_level(powers, existing.midi) * 0.35f;
@@ -9414,9 +9415,15 @@ FullMixOwnership build_full_mix_ownership(const std::array<float, kNoteProbeCoun
 	if (rms < kNoteRmsFloor)
 		return ownership;
 
-	const NoteCandidateList candidates =
+	NoteCandidateList candidates =
 		note_peak_candidates(detection_powers, kGuitarMinMidi, kLastMidi, 24, nullptr, nullptr, true,
 				     nullptr, kMixedNoteRelativeFloor);
+	// Sparse mixtures are the only context where near-equal adjacent peaks can
+	// safely be treated as aliases; dense music commonly contains real seconds.
+	if (candidates.size() <= 8) {
+		candidates = note_peak_candidates(detection_powers, kGuitarMinMidi, kLastMidi, 24, nullptr,
+							 nullptr, true, nullptr, kMixedNoteRelativeFloor, false, 0.90f);
+	}
 	std::array<float, kNoteProbeCount> candidate_scores = {};
 	float strongest_score = 0.0f;
 	for (const NoteCandidate &candidate : candidates) {
