@@ -1124,13 +1124,15 @@ void check_recall(Runner &runner, const mao::AnalysisSnapshot &snapshot, const C
 		const std::array<float, 12> detected_levels = detected_pitch_class_levels(snapshot);
 		std::fprintf(stderr,
 			     "%s: pitch mismatch expected pcs `%s`, detected pcs `%s`, missing `%s`, "
-			     "extra `%s`, active instrument:midi `%s`, detected levels `%s`, raw chroma `%s`\n",
+			     "extra `%s`, active instrument:midi `%s`, detected levels `%s`, raw chroma `%s`, "
+			     "candidates `%s`\n",
 			     context.c_str(), pitch_class_list(candidate.pitch_classes).c_str(),
 			     pitch_class_list(detected).c_str(),
 			     pitch_class_difference_list(candidate.pitch_classes, detected).c_str(),
 			     pitch_class_difference_list(detected, candidate.pitch_classes).c_str(),
 			     active_note_list(candidate).c_str(), pitch_class_level_list(detected_levels).c_str(),
-			     pitch_class_level_list(snapshot.global_chord_debug_chroma).c_str());
+			     pitch_class_level_list(snapshot.global_chord_debug_chroma).c_str(),
+			     full_mix_candidate_list(snapshot).c_str());
 	}
 
 	if (!candidate.chord_labels.empty()) {
