@@ -64,7 +64,9 @@ def report(path: pathlib.Path, quality: str, tone: str) -> None:
         print(
             f"  {'recover' if correct else 'false':7} a={analysis:.3f} probe={probe:.3f} "
             f"expected={row.get('expected_chords', '--')} guitar={row.get('guitar_chord', '--')} "
-            f"{row.get('recording_id', '--')}"
+            f"{row.get('recording_id', '--')}@{row.get('center_seconds', '--')} "
+            f"visible={row.get('guitar_pitch_classes', '--')} "
+            f"analysis={row.get('guitar_analysis_pitch_classes', '--')}"
         )
 
 
