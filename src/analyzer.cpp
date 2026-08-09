@@ -30841,6 +30841,16 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 			snare_kick_shape_score_ratio <= 0.789f;
 		if (final_one_shot_measured_hihat_rim_tom_from_snare_primary_recovery)
 			promote_drum_primary(Tom, 0.90f);
+		// Some measured toms match the crack-bleed suppressor but retain very
+		// little hi-hat/rim transient evidence.  Their tom shape is the actual
+		// one-shot source, so restore primary ownership after that conservative cap.
+		const bool final_one_shot_measured_low_hihat_rim_tom_from_snare_crack_recovery =
+			drum_detection_enabled && one_shot_drum_source && !generated_gm_drum_source &&
+			measured_snare_crack_tom_bleed && body_shape == Tom &&
+			drum_level_[Snare] >= 0.70f &&
+			hihat_rim_trigger_ratio <= 0.801f && drum_segment_bands[Rim] <= 10.334f;
+		if (final_one_shot_measured_low_hihat_rim_tom_from_snare_crack_recovery)
+			promote_drum_primary(Tom, 0.90f);
 
 		const bool final_one_shot_measured_upper_tom_snare_active_bleed =
 			drum_detection_enabled && one_shot_drum_source &&
