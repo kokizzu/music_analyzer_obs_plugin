@@ -30781,6 +30781,19 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 	if (final_one_shot_measured_crash_hihat_active_bleed)
 		cap_drum_level(HiHat, 0.28f);
 
+	// Some closed-hat one shots reach the final arbitration with the crash
+	// candidate numerically tied.  Their stronger crash-band total is the
+	// characteristic recovered from the measured corpus, rather than evidence
+	// of a separate crash hit, so retain the hat as the unambiguous primary.
+	const bool final_one_shot_measured_equal_crash_hihat_primary_recovery =
+		drum_detection_enabled && one_shot_drum_source &&
+		drum_level_[HiHat] > 0.30f &&
+		drum_level_[Crash] > 0.30f &&
+		std::abs(drum_level_[Crash] - drum_level_[HiHat]) <= 0.005f &&
+		crash_hihat_band_ratio >= 1.002f && drum_level_[Crash] <= 0.874f;
+	if (final_one_shot_measured_equal_crash_hihat_primary_recovery)
+		boost_drum_level(HiHat, 0.90f);
+
 	// Preserve a validated bright first-window crash candidate only after the
 	// normal cymbal arbitration has completed. This avoids perturbing the hat
 	// and ride decision with a transient crash co-candidate.
