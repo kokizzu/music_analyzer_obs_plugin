@@ -113,11 +113,41 @@ def write_manifest(output, manifest_rows):
     return manifest
 
 
-def prepare(output, splits=SPLITS, page_size=100, limit=0, retries=3):
+def existing_manifest_count(output):
+    manifest = Path(output) / "manifest.tsv"
+    if not manifest.is_file():
+        return 0
+    try:
+        with manifest.open("r", encoding="utf-8", newline="") as file:
+            rows = list(file)
+    except OSError:
+        return 0
+    if not rows or not rows[0].startswith("id\tfamily\t"):
+        return 0
+    count = 0
+    for line in rows[1:]:
+        fields = line.rstrip("\n").split("\t")
+        if len(fields) != 7 or not fields[6] or not (Path(output) / fields[6]).is_file():
+            return 0
+        count += 1
+    return count
+
+
+def prepare(output, splits=SPLITS, page_size=100, limit=0, retries=3, offline=False):
     output = Path(output)
     audio_root = output / "audio"
     output.mkdir(parents=True, exist_ok=True)
     audio_root.mkdir(parents=True, exist_ok=True)
+
+    cached_count = existing_manifest_count(output)
+    if cached_count and (limit <= 0 or cached_count >= limit):
+        print(f"prepare_guitar_fretboard_notes: keeping existing {output / 'manifest.tsv'} "
+              f"({cached_count} samples)")
+        return cached_count
+    if offline:
+        raise RuntimeError(
+            "offline cache miss: Guitar Fretboard manifest is missing or below the requested limit"
+        )
 
     manifest_rows = []
     for split, row_index, row in iter_rows(splits, page_size, limit, retries):
@@ -167,13 +197,16 @@ def main():
                                                                             "100")))
     parser.add_argument("--limit", type=int, default=int(os.environ.get("GUITAR_FRETBOARD_NOTES_LIMIT", "0")))
     parser.add_argument("--retries", type=int, default=int(os.environ.get("GUITAR_FRETBOARD_NOTES_RETRIES", "3")))
+    parser.add_argument("--offline", action="store_true",
+                        default=os.environ.get("GUITAR_FRETBOARD_NOTES_OFFLINE", "") not in ("", "0", "false", "FALSE"),
+                        help="Reuse only a complete cached manifest; never access the dataset service.")
     args = parser.parse_args()
 
     splits = tuple(split.strip() for split in args.splits.split(",") if split.strip())
     count = prepare(args.output, splits=splits, page_size=max(1, args.page_size),
-                    limit=max(0, args.limit), retries=max(1, args.retries))
+                    limit=max(0, args.limit), retries=max(1, args.retries), offline=args.offline)
     if count == 0:
-        raise SystemExit("prepare_guitar_fretboard_notes: no samples downloaded")
+        raise SystemExit("prepare_guitar_fretboard_notes: no samples prepared")
 
 
 if __name__ == "__main__":

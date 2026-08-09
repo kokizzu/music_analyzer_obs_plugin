@@ -601,6 +601,7 @@ REAL_NOTE_SAMPLE_DIR ?= $(BUILD_DIR)/real_note_samples
 REAL_NOTE_SAMPLE_LIMIT ?= 0
 GUITAR_FRETBOARD_NOTES_SAMPLE_DIR ?= $(BUILD_DIR)/guitar_fretboard_notes_samples
 GUITAR_FRETBOARD_NOTES_LIMIT ?= 0
+GUITAR_FRETBOARD_NOTES_OFFLINE ?= 1
 GUITAR_FRETBOARD_NOTES_MIN_GUITAR ?= 390
 GUITAR_FRETBOARD_NOTES_MAX_FAILURES ?= 1
 GUITAR_TECHS_SOURCE_DIR ?= $(REAL_SAMPLE_SOURCE_DIR)/guitar_techs
@@ -2555,7 +2556,7 @@ find-vocadito-full-mix-broad-vocal-ownership-patterns: $(VOCADITO_FULL_MIX_ATTRI
 	$(PYTHON) scripts/find_real_note_attribute_patterns.py "$(VOCADITO_FULL_MIX_ATTRIBUTE_TSV)" $(VOCADITO_PATTERN_EXTRA_PROTECTED_ARGS) --bucket "ownership_miss:vocals/*->*" --jobs "$(REAL_NOTE_PATTERN_JOBS)" $(or $(PATTERN_ARGS),$(MEASURE_REAL_NOTE_BROAD_VOCAL_PATTERN_ARGS))
 
 prepare-guitar-fretboard-note-samples: scripts/prepare_guitar_fretboard_notes.py | $(BUILD_DIR)
-	GUITAR_FRETBOARD_NOTES_SAMPLE_DIR="$(GUITAR_FRETBOARD_NOTES_SAMPLE_DIR)" GUITAR_FRETBOARD_NOTES_LIMIT="$(GUITAR_FRETBOARD_NOTES_LIMIT)" $(PYTHON) scripts/prepare_guitar_fretboard_notes.py --output "$(GUITAR_FRETBOARD_NOTES_SAMPLE_DIR)"
+	GUITAR_FRETBOARD_NOTES_SAMPLE_DIR="$(GUITAR_FRETBOARD_NOTES_SAMPLE_DIR)" GUITAR_FRETBOARD_NOTES_LIMIT="$(GUITAR_FRETBOARD_NOTES_LIMIT)" GUITAR_FRETBOARD_NOTES_OFFLINE="$(GUITAR_FRETBOARD_NOTES_OFFLINE)" $(PYTHON) scripts/prepare_guitar_fretboard_notes.py --output "$(GUITAR_FRETBOARD_NOTES_SAMPLE_DIR)"
 
 test-guitar-fretboard-note-samples test-guitar-fretboard-note-samples-parallel: REAL_NOTE_SAMPLE_TAG := guitar_fretboard
 test-guitar-fretboard-note-samples test-guitar-fretboard-note-samples-parallel: REAL_NOTE_SAMPLE_ROOT := $(GUITAR_FRETBOARD_NOTES_SAMPLE_DIR)
