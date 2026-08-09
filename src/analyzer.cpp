@@ -30911,6 +30911,16 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 			snapshot.mid_energy >= 0.76f && tom_body >= snare_body * 1.774f;
 		if (final_one_shot_measured_mid_body_tom_from_snare_primary_recovery)
 			promote_drum_primary(Tom, 0.90f);
+		// A small, independently sampled tom family retains a near-saturated kick
+		// candidate despite its pronounced snare-shell transient.  Its tom body is
+		// bounded below the broad kick bodies, so this final recovery does not
+		// overlap the protected kick or snare examples.
+		const bool final_one_shot_measured_snare_shape_tom_from_kick_primary_recovery =
+			drum_detection_enabled && one_shot_drum_source && !generated_gm_drum_source &&
+			drum_level_[Kick] > 0.30f && tom_kick_level_ratio <= 0.980f &&
+			body_shape_scores[Snare] >= 214.533f && tom_body <= 211.317f;
+		if (final_one_shot_measured_snare_shape_tom_from_kick_primary_recovery)
+			promote_drum_primary(Tom, 0.90f);
 	const bool final_one_shot_measured_hihat_rim_active_bleed =
 		drum_detection_enabled && one_shot_drum_source &&
 		!generated_gm_drum_source &&
