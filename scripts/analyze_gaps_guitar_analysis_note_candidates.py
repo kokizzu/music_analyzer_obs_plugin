@@ -25,11 +25,22 @@ def expected_pitch_classes(text):
     return {NOTE_TO_PC[note] for note in (text or "").split(",") if note in NOTE_TO_PC}
 
 
+def is_missing_major_triad_flat_seventh(display, pitch_class):
+    """Return whether pitch_class is the omitted b7 of a rendered major triad."""
+    return any(
+        pitch_class == (root + 10) % 12 and
+        all(display.get((root + interval) % 12, 0.0) > 0.0 for interval in (0, 4, 7))
+        for root in range(12)
+    )
+
+
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--analysis-floor", type=float, default=0.30)
     parser.add_argument("--display-ceiling", type=float, default=0.0)
     parser.add_argument("--min-visible-pitch-classes", type=int, default=0)
+    parser.add_argument("--max-visible-pitch-classes", type=int, default=12)
+    parser.add_argument("--missing-major-triad-flat-seventh", action="store_true")
     parser.add_argument("--limit", type=int, default=12)
     parser.add_argument("tsv", nargs="?", default="build/gaps_guitar_full_attributes.tsv")
     args = parser.parse_args()
@@ -45,10 +56,13 @@ def main():
             probe = cells(row.get("guitar_probe_pitch_class_levels"))
             melodic = cells(row.get("guitar_melodic_probe_pitch_class_levels"))
             expected = expected_pitch_classes(row.get("expected_pitch_classes"))
-            if len(display) < args.min_visible_pitch_classes:
+            if not args.min_visible_pitch_classes <= len(display) <= args.max_visible_pitch_classes:
                 continue
             for pitch_class, level in analysis.items():
                 if level < args.analysis_floor or display.get(pitch_class, 0.0) > args.display_ceiling:
+                    continue
+                if (args.missing_major_triad_flat_seventh and
+                        not is_missing_major_triad_flat_seventh(display, pitch_class)):
                     continue
                 item = (row, pitch_class, level, raw.get(pitch_class, 0.0),
                         probe.get(pitch_class, 0.0), melodic.get(pitch_class, 0.0))
