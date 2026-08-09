@@ -28762,6 +28762,17 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 	if (one_shot_measured_plain_hihat_ride_active_bleed) {
 		cap_drum_level(Ride, 0.28f);
 	}
+	// Very bright, low-body closed hats can retain a slightly stronger ride
+	// score despite sharing the same short high-frequency transient.  Their
+	// weak shell bands separate them from the genuine ride examples in the
+	// independent drum corpora, so settle this near-tie in favour of the hat.
+	const bool one_shot_measured_bright_hihat_ride_primary_recovery =
+		drum_detection_enabled && one_shot_drum_source &&
+		drum_level_[HiHat] >= 0.82f && drum_level_[Ride] >= 0.90f &&
+		snapshot.low_energy <= 0.09f && snapshot.mid_energy <= 0.07f &&
+		snapshot.high_energy >= 0.89f && snare_body <= 0.41f;
+	if (one_shot_measured_bright_hihat_ride_primary_recovery)
+		promote_drum_primary(HiHat, 0.90f);
 	const bool one_shot_measured_hot_hihat_ride_active_bleed =
 		drum_detection_enabled && one_shot_drum_source &&
 		drum_level_[HiHat] >= 0.96f &&
