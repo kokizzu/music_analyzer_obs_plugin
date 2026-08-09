@@ -30539,6 +30539,19 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 		    final_one_shot_measured_tie_ride_from_hihat_primary_recovery)
 			promote_drum_primary(Ride, 0.90f);
 
+		// Some measured closed-hat one shots retain a slightly stronger ride
+		// candidate at final arbitration.  A weak ride-band total together with
+		// a quiet tom-over-snare trigger profile distinguishes these from real
+		// ride hits across the protected drum fixtures.
+		const bool final_one_shot_measured_hihat_from_ride_primary_recovery =
+			drum_detection_enabled && one_shot_drum_source && !generated_gm_drum_source &&
+			drum_level_[HiHat] > 0.30f && drum_level_[Ride] > 0.30f &&
+			drum_level_[Ride] > drum_level_[Crash] &&
+			final_ride_hihat_level_ratio_for_primary >= 1.021f &&
+			ride_hihat_band_ratio <= 0.455f && final_tom_snare_trigger_ratio <= 0.957f;
+		if (final_one_shot_measured_hihat_from_ride_primary_recovery)
+			promote_drum_primary(HiHat, 0.90f);
+
 		const bool final_measured_shape_dominant_kick_from_tom_primary_recovery =
 			drum_detection_enabled && named_drum_source &&
 			!generated_gm_drum_source &&
