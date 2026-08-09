@@ -21268,11 +21268,12 @@ void restore_very_strong_guitar_analysis_note_after_chord_resolution(
 	// Keep the visual note set compact, but do not discard one nearly-certain
 	// analysis note solely because it lost the display-pruning tie-break. This
 	// runs after chord resolution so it cannot alter chord classification.
-	if (note_grid_active_pitch_class_count(display_grid) >= 8)
+	const int displayed_pitch_classes = note_grid_active_pitch_class_count(display_grid);
+	if (displayed_pitch_classes >= 8)
 		return;
 
 	int recovered_midi = -1;
-	float recovered_level = 0.95f;
+	float recovered_level = displayed_pitch_classes >= 6 ? 0.90f : 0.95f;
 	for (const auto &row : analysis_grid.rows) {
 		for (const NoteCell &cell : row) {
 			if (!cell.active || cell.midi < 0 || cell.level < recovered_level ||

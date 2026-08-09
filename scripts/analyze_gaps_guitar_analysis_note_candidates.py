@@ -29,6 +29,7 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--analysis-floor", type=float, default=0.30)
     parser.add_argument("--display-ceiling", type=float, default=0.0)
+    parser.add_argument("--min-visible-pitch-classes", type=int, default=0)
     parser.add_argument("--limit", type=int, default=12)
     parser.add_argument("tsv", nargs="?", default="build/gaps_guitar_full_attributes.tsv")
     args = parser.parse_args()
@@ -44,6 +45,8 @@ def main():
             probe = cells(row.get("guitar_probe_pitch_class_levels"))
             melodic = cells(row.get("guitar_melodic_probe_pitch_class_levels"))
             expected = expected_pitch_classes(row.get("expected_pitch_classes"))
+            if len(display) < args.min_visible_pitch_classes:
+                continue
             for pitch_class, level in analysis.items():
                 if level < args.analysis_floor or display.get(pitch_class, 0.0) > args.display_ceiling:
                     continue
@@ -63,7 +66,8 @@ def main():
             print(f"{tag} {row['recording_id']}@{row['center_seconds']} note={note} "
                   f"analysis={level:.2f} raw={raw_level:.2f} probe={probe_level:.2f} "
                   f"melodic={melodic_level:.2f} expected={row['expected_pitch_classes']} "
-                  f"visible={row['guitar_pitch_classes']} chord={row['guitar_chord']}")
+                  f"visible={row['guitar_pitch_classes']} visible_count={len(cells(row['guitar_cells']))} "
+                  f"chord={row['guitar_chord']}")
 
 
 if __name__ == "__main__":
