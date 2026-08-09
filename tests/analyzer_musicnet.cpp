@@ -729,6 +729,15 @@ std::string pitch_class_list(const std::array<bool, 12> &pitch_classes)
 	return joined.empty() ? "--" : joined;
 }
 
+std::string pitch_class_difference_list(const std::array<bool, 12> &left,
+						const std::array<bool, 12> &right)
+{
+	std::array<bool, 12> difference = {};
+	for (int pitch_class = 0; pitch_class < 12; ++pitch_class)
+		difference[pitch_class] = left[pitch_class] && !right[pitch_class];
+	return pitch_class_list(difference);
+}
+
 std::string pitch_class_level_list(const std::array<float, 12> &levels)
 {
 	std::string joined;
@@ -799,6 +808,17 @@ struct CandidateWindow {
 	int chord_tone_count = 0;
 	double score = 0.0;
 };
+
+std::string active_note_list(const CandidateWindow &candidate)
+{
+	std::string text;
+	for (const ActiveNote &active : candidate.active) {
+		if (!text.empty())
+			text += ',';
+		text += std::to_string(active.instrument) + ":" + std::to_string(active.midi);
+	}
+	return text.empty() ? "--" : text;
+}
 
 int active_instrument_count(const CandidateWindow &candidate)
 {
@@ -1080,7 +1100,7 @@ std::string simplified_chord_summary(const RecallStats &stats)
 
 void check_recall(Runner &runner, const mao::AnalysisSnapshot &snapshot, const CandidateWindow &candidate,
 		  const std::string &context, RecallStats &stats, int min_recall_percent,
-		  bool verbose_chord_misses)
+		  bool verbose_chord_misses, bool verbose_pitch_misses)
 {
 	const std::array<bool, 12> detected = detected_pitch_classes(snapshot);
 	int expected = 0;
@@ -1099,6 +1119,19 @@ void check_recall(Runner &runner, const mao::AnalysisSnapshot &snapshot, const C
 		      context + ": expected at least " + std::to_string(min_recall_percent) +
 			      "% pitch-class recall, got " + std::to_string(hits) + "/" +
 			      std::to_string(expected));
+
+	if (verbose_pitch_misses && candidate.pitch_classes != detected) {
+		const std::array<float, 12> detected_levels = detected_pitch_class_levels(snapshot);
+		std::fprintf(stderr,
+			     "%s: pitch mismatch expected pcs `%s`, detected pcs `%s`, missing `%s`, "
+			     "extra `%s`, active instrument:midi `%s`, detected levels `%s`, raw chroma `%s`\n",
+			     context.c_str(), pitch_class_list(candidate.pitch_classes).c_str(),
+			     pitch_class_list(detected).c_str(),
+			     pitch_class_difference_list(candidate.pitch_classes, detected).c_str(),
+			     pitch_class_difference_list(detected, candidate.pitch_classes).c_str(),
+			     active_note_list(candidate).c_str(), pitch_class_level_list(detected_levels).c_str(),
+			     pitch_class_level_list(snapshot.global_chord_debug_chroma).c_str());
+	}
 
 	if (!candidate.chord_labels.empty()) {
 		++stats.chord_checks;
@@ -1263,6 +1296,7 @@ int main()
 	const bool inspect_only = env_truthy("MUSIC_ANALYZER_MUSICNET_INSPECT_ONLY");
 	const bool verbose_chord_misses =
 		env_truthy("MUSIC_ANALYZER_MUSICNET_VERBOSE_CHORD_MISSES") || min_chord_recall_percent > 0;
+	const bool verbose_pitch_misses = env_truthy("MUSIC_ANALYZER_MUSICNET_VERBOSE_PITCH_MISSES");
 
 	Runner runner;
 	RecallStats recall;
@@ -1313,7 +1347,7 @@ int main()
 			check_recall(runner, snapshot, candidate,
 				     "MusicNet " + std::to_string(recording.id) + " at sample " +
 					     std::to_string(candidate.center_sample),
-				     recall, min_recall_percent, verbose_chord_misses);
+				     recall, min_recall_percent, verbose_chord_misses, verbose_pitch_misses);
 			add_pitch_precision_metrics(pitch_precision, snapshot, candidate);
 			add_global_chord_precision_metrics(global_chord_precision, snapshot, candidate);
 			add_global_simplified_chord_precision_metrics(global_simplified_chord_precision, snapshot,
