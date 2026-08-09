@@ -3690,16 +3690,17 @@ def main() -> int:
             "$(BUILD_DIR)/analyzer_guitarset",
             f'MUSIC_ANALYZER_GUITARSET_MANIFEST="{manifest}"',
             "MUSIC_ANALYZER_GUITARSET_ATTRIBUTE_TSV=\"$@\"",
-            "MUSIC_ANALYZER_GUITARSET_REQUIRED_EXCERPTS=1",
-            "MUSIC_ANALYZER_GUITARSET_REQUIRED_WINDOWS=1",
+            "$(GUITARSET_ATTRIBUTE_GATE_ENV)",
             "MUSIC_ANALYZER_GUITARSET_MIN_ACTIVE_NOTES=2",
             "MUSIC_ANALYZER_GUITARSET_MIN_PITCH_CLASSES=2",
-            "MUSIC_ANALYZER_GUITARSET_MIN_CHORD_CHECKS=0",
             f"MUSIC_ANALYZER_GUITARSET_SHARD_COUNT=\"{shards}\"",
             "MUSIC_ANALYZER_GUITARSET_SHARD_INDEX=\"$*\"",
             out_name,
         ]:
             assert text in shard_recipe, f"{label} attribute shard target must include {text}"
+        assert "$(GUITARSET_SHARD_GATE_ENV)" not in shard_recipe, (
+            f"{label} attribute shards must allow empty shards while gathering cached rows"
+        )
 
     assert "GAPS_GUITAR_ATTRIBUTE_MAKE_JOBS = $(if $(filter -j%,$(MAKEFLAGS)),,-j$(GAPS_GUITAR_SHARDS))" in makefile, (
         "GAPS guitar attribute shards must force -j only when the parent make has no jobserver"
