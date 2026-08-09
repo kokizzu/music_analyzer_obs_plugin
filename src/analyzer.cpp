@@ -32184,6 +32184,41 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 			set_instrument_note_set_from_candidates(snapshot.other_notes, snapshot.other,
 								other_display, note_root,
 								other_energy, rms, other_max_notes, 0.60f);
+			// A solitary displayed other note can hide a second, independently
+			// assigned body when the candidate is just below the normal display
+			// floor.  Restore at most one only if its pitch class is absent from
+			// every row, so it cannot duplicate an already-rendered harmonic.
+			if (note_grid_active_pitch_class_count(snapshot.other_notes) == 1) {
+				float strongest_other_candidate = 0.0f;
+				for (const NoteCandidate &candidate : other_display)
+					strongest_other_candidate = std::max(strongest_other_candidate, candidate.score);
+				const NoteCandidate *best = nullptr;
+				for (const NoteCandidate &candidate : other_display) {
+					if (candidate.midi < kOtherMinMidi || candidate.midi > kOtherMaxMidi ||
+					    candidate.score < strongest_other_candidate * 0.40f)
+						continue;
+					const int pitch_class = midi_pitch_class(candidate.midi);
+					if (note_grid_pitch_active(snapshot.other_notes, pitch_class) ||
+					    note_grid_pitch_active(snapshot.bass_notes, pitch_class) ||
+					    note_grid_pitch_active(snapshot.keyboard_notes, pitch_class) ||
+					    note_grid_pitch_active(snapshot.guitar_notes, pitch_class) ||
+					    note_grid_pitch_active(snapshot.vocal_notes, pitch_class) ||
+					    note_grid_pitch_active(snapshot.ambiguous_notes, pitch_class))
+						continue;
+					const FullMixDebugCandidate *debug =
+						full_mix_debug_for_midi(full_mix_ownership, candidate.midi);
+					if (!debug || debug->owner != InstrumentKind::Other ||
+					    debug->ownership_confidence < 0.70f || debug->spectral_level < 0.40f)
+						continue;
+					if (!best || candidate.score > best->score)
+						best = &candidate;
+				}
+				if (best) {
+					write_note_grid_cell(snapshot.other_notes, *best, strongest_other_candidate,
+							     note_visual_loudness(rms));
+					write_note_grid_label(snapshot.other, snapshot.other_notes, note_root);
+				}
+			}
 		} else {
 			const int min_midi = kOtherMinMidi;
 			set_instrument_note_set(snapshot.other_notes, snapshot.other, detection_note_powers,

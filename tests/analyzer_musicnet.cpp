@@ -513,6 +513,8 @@ void add_detected_pitch_classes(const mao::NoteGrid &grid, std::array<bool, 12> 
 	}
 }
 
+std::string pitch_class_list(const std::array<bool, 12> &pitch_classes);
+
 std::array<bool, 12> detected_pitch_classes(const mao::AnalysisSnapshot &snapshot)
 {
 	std::array<bool, 12> pitch_classes = {};
@@ -523,6 +525,31 @@ std::array<bool, 12> detected_pitch_classes(const mao::AnalysisSnapshot &snapsho
 	add_detected_pitch_classes(snapshot.other_notes, pitch_classes);
 	add_detected_pitch_classes(snapshot.ambiguous_notes, pitch_classes);
 	return pitch_classes;
+}
+
+std::string detected_pitch_classes_by_row(const mao::AnalysisSnapshot &snapshot)
+{
+	struct Row {
+		const char *name;
+		const mao::NoteGrid *grid;
+	};
+	const std::array<Row, 6> rows = {{
+		{"bass", &snapshot.bass_notes},
+		{"keys", &snapshot.keyboard_notes},
+		{"guitar", &snapshot.guitar_notes},
+		{"vocal", &snapshot.vocal_notes},
+		{"other", &snapshot.other_notes},
+		{"amb", &snapshot.ambiguous_notes},
+	}};
+	std::string text;
+	for (const Row &row : rows) {
+		std::array<bool, 12> pitch_classes = {};
+		add_detected_pitch_classes(*row.grid, pitch_classes);
+		if (!text.empty())
+			text += " ";
+		text += std::string(row.name) + "=" + pitch_class_list(pitch_classes);
+	}
+	return text;
 }
 
 float grid_pitch_class_level(const mao::NoteGrid &grid, int pitch_class)
@@ -1124,13 +1151,14 @@ void check_recall(Runner &runner, const mao::AnalysisSnapshot &snapshot, const C
 		const std::array<float, 12> detected_levels = detected_pitch_class_levels(snapshot);
 		std::fprintf(stderr,
 			     "%s: pitch mismatch expected pcs `%s`, detected pcs `%s`, missing `%s`, "
-			     "extra `%s`, active instrument:midi `%s`, detected levels `%s`, raw chroma `%s`, "
+			     "extra `%s`, active instrument:midi `%s`, detected by row `%s`, detected levels `%s`, raw chroma `%s`, "
 			     "candidates `%s`\n",
 			     context.c_str(), pitch_class_list(candidate.pitch_classes).c_str(),
 			     pitch_class_list(detected).c_str(),
 			     pitch_class_difference_list(candidate.pitch_classes, detected).c_str(),
 			     pitch_class_difference_list(detected, candidate.pitch_classes).c_str(),
-			     active_note_list(candidate).c_str(), pitch_class_level_list(detected_levels).c_str(),
+			     active_note_list(candidate).c_str(), detected_pitch_classes_by_row(snapshot).c_str(),
+			     pitch_class_level_list(detected_levels).c_str(),
 			     pitch_class_level_list(snapshot.global_chord_debug_chroma).c_str(),
 			     full_mix_candidate_list(snapshot).c_str());
 	}
