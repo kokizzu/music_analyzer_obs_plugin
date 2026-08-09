@@ -4587,3 +4587,11 @@ inspect-analyzer-symbol: scripts/inspect_analyzer_symbol.sh
 .PHONY: rebuild-analyzer-guitarset
 rebuild-analyzer-guitarset:
 	+$(MAKE) -B build/analyzer_guitarset
+
+.PHONY: analyze-gaps-guitar-display-restore-candidates
+analyze-gaps-guitar-display-restore-candidates: build/gaps_guitar_full_attributes.tsv scripts/analyze_gaps_guitar_display_restore_candidates.py
+	$(PYTHON) scripts/analyze_gaps_guitar_display_restore_candidates.py "$(GAPS_GUITAR_FULL_ATTRIBUTE_TSV)" $(DISPLAY_RESTORE_ARGS)
+
+.PHONY: analyze-gaps-guitar-major-seventh-candidates
+analyze-gaps-guitar-major-seventh-candidates: build/gaps_guitar_full_attributes.tsv scripts/analyze_gaps_guitar_major_seventh_candidates.py
+	$(PYTHON) scripts/analyze_gaps_guitar_major_seventh_candidates.py "$(GAPS_GUITAR_FULL_ATTRIBUTE_TSV)" $(MAJOR_SEVENTH_ARGS)
