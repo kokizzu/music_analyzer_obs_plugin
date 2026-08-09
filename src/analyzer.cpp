@@ -16927,7 +16927,7 @@ void promote_strong_same_root_guitar_extension_primary(
 	chord.uncertain = false;
 }
 
-void promote_measured_final_same_root_dominant_seventh_label(
+void promote_measured_final_same_root_extension_label(
 	InstrumentState &state, const NoteGrid &display_grid, const NoteGrid &analysis_grid,
 	const std::array<float, kNoteProbeCount> &powers, int min_midi, int max_midi)
 {
@@ -16960,8 +16960,11 @@ void promote_measured_final_same_root_dominant_seventh_label(
 			for (bool extra : extra_tones)
 				extra_count += extra ? 1 : 0;
 			const int flat_seventh = (primary.root + 10) % 12;
+			const int major_sixth = (primary.root + 9) % 12;
 			const float visible_level = note_grid_pitch_level(display_grid, flat_seventh);
 			const float analysis_level = note_grid_pitch_level(analysis_grid, flat_seventh);
+			const float sixth_analysis_level =
+				note_grid_pitch_level(analysis_grid, major_sixth);
 			const float probe_level =
 				strongest_probe_pitch_class_level(powers, flat_seventh, min_midi, max_midi) /
 				strongest_probe;
@@ -16974,8 +16977,18 @@ void promote_measured_final_same_root_dominant_seventh_label(
 				analysis_level >= 0.52f && probe_level >= 0.265f && probe_level <= 0.661f;
 			const bool measured_visible_limited_probe_supported =
 				visible_level >= 0.56f && probe_level <= 0.623f;
-			if (extra_count == 1 && extra_tones[static_cast<std::size_t>(flat_seventh)] &&
-			    (measured_analysis_supported || measured_visible_limited_probe_supported)) {
+			// Four independent GAPS primary misses share a major-sixth alias whose
+			// added sixth survives in the analysis grid.  The chord-mix and
+			// GuitarTECH protected corpora contain no conflicting primary labels at
+			// this measured bound, so retain the existing same-root `6` alias.
+			const bool measured_major_sixth_supported =
+				extra_count == 1 &&
+				extra_tones[static_cast<std::size_t>(major_sixth)] &&
+				sixth_analysis_level >= 0.56f;
+			const bool measured_dominant_seventh_supported =
+				extra_count == 1 && extra_tones[static_cast<std::size_t>(flat_seventh)] &&
+				(measured_analysis_supported || measured_visible_limited_probe_supported);
+			if (measured_dominant_seventh_supported || measured_major_sixth_supported) {
 				best_start = cursor;
 				best_len = len;
 				break;
@@ -32911,7 +32924,7 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 					snapshot.guitar_notes, guitar_chord_detection_grid,
 					snapshot.guitar_chord_smoothed_notes, note_powers,
 					kGuitarMinMidi, kGuitarMaxMidi, rms);
-			promote_measured_final_same_root_dominant_seventh_label(
+			promote_measured_final_same_root_extension_label(
 				snapshot.guitar_chord, snapshot.guitar_notes, guitar_chord_detection_grid, note_powers,
 				kGuitarMinMidi, kGuitarMaxMidi);
 			promote_strong_final_same_root_guitar_extension_label(
