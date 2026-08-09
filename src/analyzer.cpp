@@ -986,6 +986,34 @@ void add_or_replace_candidate(NoteCandidateList &candidates, const NoteCandidate
 		candidates[replace_index] = candidate;
 }
 
+void append_missing_raw_fundamental_candidates(NoteCandidateList &candidates,
+						      const std::array<float, kNoteProbeCount> &powers,
+						      int min_midi, int max_midi, int max_notes)
+{
+	std::array<float, 12> best_raw = {};
+	std::array<int, 12> best_midi = {};
+	best_midi.fill(-1);
+	float strongest_raw = 0.0f;
+	for (int midi = std::max(min_midi, kFirstMidi); midi <= std::min(max_midi, kLastMidi); ++midi) {
+		const float raw = probe_level(powers, midi);
+		strongest_raw = std::max(strongest_raw, raw);
+		const int pitch_class = midi_pitch_class(midi);
+		if (raw > best_raw[pitch_class]) {
+			best_raw[pitch_class] = raw;
+			best_midi[pitch_class] = midi;
+		}
+	}
+
+	const float raw_floor = strongest_raw * 0.18f;
+	for (int pitch_class = 0; pitch_class < 12; ++pitch_class) {
+		if (best_midi[pitch_class] < 0 || best_raw[pitch_class] < raw_floor ||
+		    candidate_list_has_pitch_class(candidates, pitch_class))
+			continue;
+		add_or_replace_candidate(candidates, NoteCandidate{best_midi[pitch_class], best_raw[pitch_class]},
+					 max_notes);
+	}
+}
+
 NoteCandidateList note_peak_candidates(const std::array<float, kNoteProbeCount> &powers, int min_midi,
 				       int max_midi, int max_notes,
 				       const std::array<bool, 12> *blocked_pitch_classes = nullptr,
@@ -9408,7 +9436,8 @@ FullMixOwnership build_full_mix_ownership(const std::array<float, kNoteProbeCoun
 					  float rms,
 					  const std::array<float, kNoteProbeCount> &previous_note_levels,
 					  std::array<float, kNoteProbeCount> &current_note_levels,
-					  AnalysisInputMode source_hint)
+					  AnalysisInputMode source_hint,
+					  bool preserve_raw_fundamental_candidates = false)
 {
 	FullMixOwnership ownership;
 	current_note_levels.fill(0.0f);
@@ -9424,6 +9453,9 @@ FullMixOwnership build_full_mix_ownership(const std::array<float, kNoteProbeCoun
 		candidates = note_peak_candidates(detection_powers, kGuitarMinMidi, kLastMidi, 24, nullptr,
 							 nullptr, true, nullptr, kMixedNoteRelativeFloor, false, 0.90f);
 	}
+	if (preserve_raw_fundamental_candidates)
+		append_missing_raw_fundamental_candidates(candidates, detection_powers, kGuitarMinMidi, kLastMidi,
+								 24);
 	std::array<float, kNoteProbeCount> candidate_scores = {};
 	float strongest_score = 0.0f;
 	for (const NoteCandidate &candidate : candidates) {
@@ -31330,10 +31362,13 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 	const int other_max_notes = monophonic_other_source ? 1 : (mixed_source ? 12 : 12);
 	if (mixed_source) {
 		std::array<float, kNoteProbeCount> current_full_mix_note_levels = {};
+		// A named single-family string/synth source can have a strong low fundamental
+		// that melodic peak selection suppresses. Preserve only absent pitch classes.
 		full_mix_ownership = build_full_mix_ownership(note_powers, detection_note_powers, rms,
 							      previous_full_mix_note_levels_,
 							      current_full_mix_note_levels,
-							      full_mix_source_hint_mode);
+							      full_mix_source_hint_mode,
+							      mixed_string_source_hint || mixed_synth_source_hint);
 		stabilize_full_mix_vocal_ownership(full_mix_ownership, tracked_vocal_midi_,
 						   pending_vocal_midi_, pending_vocal_hits_,
 						   tracked_vocal_misses_, tracked_vocal_score_);

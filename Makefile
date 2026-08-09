@@ -4551,3 +4551,16 @@ clean:
 
 clean-pycache:
 	find tests -type d -name '__pycache__' -prune -exec rm -rf {} +
+.PHONY: check-worktree
+check-worktree: scripts/check_worktree.sh
+	bash scripts/check_worktree.sh
+
+.PHONY: commit-verified
+commit-verified: scripts/commit_verified.sh
+	@test -n "$(COMMIT_MESSAGE)"
+	@test -n "$(COMMIT_PATHS)"
+	bash scripts/commit_verified.sh "$(COMMIT_MESSAGE)" $(COMMIT_PATHS)
+
+.PHONY: push-current-branch
+push-current-branch: scripts/push_current_branch.sh
+	bash scripts/push_current_branch.sh
