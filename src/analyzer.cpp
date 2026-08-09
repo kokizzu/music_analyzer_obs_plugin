@@ -21331,6 +21331,46 @@ void restore_tightly_labeled_minor_guitar_tones_from_analysis(
 	}
 }
 
+// Run after the final chord-label path so this display-only recovery cannot
+// change label selection or primary-label ordering.
+void restore_final_compact_minor_guitar_third_from_analysis(
+	NoteGrid &display_grid, const InstrumentState &chord_state, const NoteGrid &analysis_grid,
+	const std::array<float, kNoteProbeCount> &powers, int min_midi, int max_midi)
+{
+	if (chord_label_component_count(chord_state.label) != 1 ||
+	    note_grid_active_pitch_class_count(display_grid) > 8 ||
+	    note_grid_active_pitch_class_count(analysis_grid) > 8)
+		return;
+
+	ParsedRootChord component;
+	const std::size_t component_len = std::strlen(chord_state.label);
+	if (!parse_root_chord_component(chord_state.label, component_len, component) ||
+	    component.quality != RootChordQuality::Minor)
+		return;
+	std::size_t root_len = 1;
+	if (component_len > 1 && chord_state.label[1] == '#')
+		root_len = 2;
+	if (component_len != root_len + 1 || chord_state.label[root_len] != 'm')
+		return;
+
+	const float strongest_probe = strongest_probe_level(powers, min_midi, max_midi);
+	if (strongest_probe <= 1.0e-6f)
+		return;
+	const int third = (component.root + 3) % 12;
+	const int fifth = (component.root + 7) % 12;
+	const float third_probe =
+		strongest_probe_pitch_class_level(powers, third, min_midi, max_midi) / strongest_probe;
+	if (!note_grid_pitch_active(display_grid, third) &&
+	    note_grid_pitch_active(display_grid, component.root) &&
+	    note_grid_pitch_active(display_grid, fifth) &&
+	    note_grid_pitch_active(analysis_grid, third) &&
+	    note_grid_pitch_level(analysis_grid, third) >= 0.08f && third_probe >= 0.20f) {
+		const NoteCell &source = analysis_grid.cells[static_cast<std::size_t>(third)];
+		if (source.active)
+			promote_note_grid_primary_midi(display_grid, source.midi, source.level);
+	}
+}
+
 void restore_unambiguous_diminished_guitar_tones_from_analysis(
 	NoteGrid &display_grid, const InstrumentState &chord_state, const NoteGrid &analysis_grid)
 {
@@ -32958,6 +32998,9 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 						  final_analysis_complete_aliases.label);
 				}
 			}
+			restore_final_compact_minor_guitar_third_from_analysis(
+				snapshot.guitar_notes, snapshot.guitar_chord, guitar_chord_detection_grid,
+				note_powers, kGuitarMinMidi, kGuitarMaxMidi);
 		}
 	} else {
 		reset_note_grid_envelope(snapshot.guitar_notes, snapshot.guitar, guitar_note_tracking_);
