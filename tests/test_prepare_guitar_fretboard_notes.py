@@ -86,6 +86,19 @@ def main():
         assert (Path(tmp) / "audio/test_0000_deb_low_E_f0_E2.wav").is_file()
         assert (Path(tmp) / "audio/test_0001_ele_B_f1_C4.wav").is_file()
 
+        with mock.patch.object(prep.request, "urlopen") as urlopen:
+            cached_count = prep.prepare(Path(tmp), limit=2, offline=True)
+        assert cached_count == 2
+        urlopen.assert_not_called()
+
+        (Path(tmp) / "audio/test_0001_ele_B_f1_C4.wav").unlink()
+        try:
+            prep.prepare(Path(tmp), limit=2, offline=True)
+        except RuntimeError as exc:
+            assert "offline cache miss" in str(exc)
+        else:
+            raise AssertionError("offline preparation accepted an incomplete cached manifest")
+
 
 if __name__ == "__main__":
     main()
