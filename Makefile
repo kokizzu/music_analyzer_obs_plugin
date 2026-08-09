@@ -4564,3 +4564,26 @@ commit-verified: scripts/commit_verified.sh
 .PHONY: push-current-branch
 push-current-branch: scripts/push_current_branch.sh
 	bash scripts/push_current_branch.sh
+
+.PHONY: locate-gaps-guitar-sample
+locate-gaps-guitar-sample: scripts/locate_gaps_guitar_sample.sh
+	@test -n "$(SAMPLE_ID)"
+	bash scripts/locate_gaps_guitar_sample.sh "$(SAMPLE_ID)"
+
+.PHONY: inspect-gaps-guitar-full-rows
+inspect-gaps-guitar-full-rows: build/gaps_guitar_full_attributes.tsv scripts/inspect_gaps_guitar_full_rows.sh
+	@test -n "$(SAMPLE_ID)"
+	bash scripts/inspect_gaps_guitar_full_rows.sh "$(SAMPLE_ID)"
+
+.PHONY: analyze-gaps-guitar-power-alias-candidates
+analyze-gaps-guitar-power-alias-candidates: build/gaps_guitar_full_attributes.tsv scripts/analyze_gaps_guitar_power_alias_candidates.py
+	$(PYTHON) scripts/analyze_gaps_guitar_power_alias_candidates.py "$(GAPS_GUITAR_FULL_ATTRIBUTE_TSV)" $(POWER_ALIAS_ARGS)
+
+.PHONY: inspect-analyzer-symbol
+inspect-analyzer-symbol: scripts/inspect_analyzer_symbol.sh
+	@test -n "$(SYMBOL)"
+	bash scripts/inspect_analyzer_symbol.sh "$(SYMBOL)"
+
+.PHONY: rebuild-analyzer-guitarset
+rebuild-analyzer-guitarset:
+	+$(MAKE) -B build/analyzer_guitarset
