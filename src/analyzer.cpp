@@ -16928,7 +16928,7 @@ void promote_strong_same_root_guitar_extension_primary(
 }
 
 void promote_measured_final_same_root_dominant_seventh_label(
-	InstrumentState &state, const NoteGrid &analysis_grid,
+	InstrumentState &state, const NoteGrid &display_grid, const NoteGrid &analysis_grid,
 	const std::array<float, kNoteProbeCount> &powers, int min_midi, int max_midi)
 {
 	if (!state.label[0] || state.label[0] == '-' ||
@@ -16960,12 +16960,22 @@ void promote_measured_final_same_root_dominant_seventh_label(
 			for (bool extra : extra_tones)
 				extra_count += extra ? 1 : 0;
 			const int flat_seventh = (primary.root + 10) % 12;
+			const float visible_level = note_grid_pitch_level(display_grid, flat_seventh);
 			const float analysis_level = note_grid_pitch_level(analysis_grid, flat_seventh);
 			const float probe_level =
 				strongest_probe_pitch_class_level(powers, flat_seventh, min_midi, max_midi) /
 				strongest_probe;
+			// The independent chord corpora also contain a small set of real
+			// dominant sevenths whose seventh is clearly displayed but attenuated
+			// in the probe grid.  It is safe to retain their existing `7` alias
+			// ahead of the same-root triad while that probe contribution remains
+			// bounded; a strong probe is handled by the established branch below.
+			const bool measured_analysis_supported =
+				analysis_level >= 0.52f && probe_level >= 0.265f && probe_level <= 0.661f;
+			const bool measured_visible_limited_probe_supported =
+				visible_level >= 0.56f && probe_level <= 0.623f;
 			if (extra_count == 1 && extra_tones[static_cast<std::size_t>(flat_seventh)] &&
-			    analysis_level >= 0.52f && probe_level >= 0.265f && probe_level <= 0.661f) {
+			    (measured_analysis_supported || measured_visible_limited_probe_supported)) {
 				best_start = cursor;
 				best_len = len;
 				break;
@@ -32893,7 +32903,7 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 					snapshot.guitar_chord_smoothed_notes, note_powers,
 					kGuitarMinMidi, kGuitarMaxMidi, rms);
 			promote_measured_final_same_root_dominant_seventh_label(
-				snapshot.guitar_chord, guitar_chord_detection_grid, note_powers,
+				snapshot.guitar_chord, snapshot.guitar_notes, guitar_chord_detection_grid, note_powers,
 				kGuitarMinMidi, kGuitarMaxMidi);
 			promote_strong_final_same_root_guitar_extension_label(
 				snapshot.guitar_chord, guitar_chord_detection_grid);
