@@ -30875,6 +30875,16 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 			snapshot.drum_debug_rule_flags |= DrumDebugUpperTomFromSnareActiveBleed;
 		if (final_one_shot_measured_upper_tom_from_snare_active_bleed)
 			cap_drum_level(Tom, 0.28f);
+		// A compact family of hard low-band snares is shaped like kick/tom body
+		// material, but has no kick candidate and a strong snare crack transient.
+		// Run this after the tom bleed caps so final ownership is retained.
+		const bool final_one_shot_measured_low_band_snare_from_tom_primary_recovery =
+			drum_detection_enabled && one_shot_drum_source && !generated_gm_drum_source &&
+			drum_level_[Kick] <= 0.001f && drum_level_[Tom] >= 0.90f &&
+			drum_level_[Tom] <= 0.94f && snapshot.low_energy >= 0.627f &&
+			snare_crack >= 9.749f;
+		if (final_one_shot_measured_low_band_snare_from_tom_primary_recovery)
+			promote_drum_primary(Snare, 0.90f);
 	const bool final_one_shot_measured_hihat_rim_active_bleed =
 		drum_detection_enabled && one_shot_drum_source &&
 		!generated_gm_drum_source &&
