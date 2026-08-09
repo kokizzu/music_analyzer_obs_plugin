@@ -32830,6 +32830,25 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 				kGuitarMinMidi, kGuitarMaxMidi);
 			promote_strong_final_same_root_guitar_extension_label(
 				snapshot.guitar_chord, guitar_chord_detection_grid);
+			const int final_guitar_label_components =
+				chord_label_component_count(snapshot.guitar_chord.label);
+			if (final_guitar_label_components >= 2 && final_guitar_label_components <= 6 &&
+			    chord_label_has_guitar_extension_or_alteration(snapshot.guitar_chord.label)) {
+				ChordResult final_analysis_complete_aliases;
+				copy_text(final_analysis_complete_aliases.label,
+					  sizeof(final_analysis_complete_aliases.label), snapshot.guitar_chord.label);
+				ParsedRootChord final_analysis_complete_primary;
+				if (parse_root_chord_component(final_analysis_complete_aliases.label,
+								      std::strcspn(final_analysis_complete_aliases.label, "="),
+								      final_analysis_complete_primary)) {
+					final_analysis_complete_aliases.root = final_analysis_complete_primary.root;
+					append_analysis_complete_guitar_extension_aliases(
+						final_analysis_complete_aliases, snapshot.guitar_notes,
+						guitar_chord_detection_grid);
+					copy_text(snapshot.guitar_chord.label, sizeof(snapshot.guitar_chord.label),
+						  final_analysis_complete_aliases.label);
+				}
+			}
 		}
 	} else {
 		reset_note_grid_envelope(snapshot.guitar_notes, snapshot.guitar, guitar_note_tracking_);
