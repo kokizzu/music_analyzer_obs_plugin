@@ -26,7 +26,9 @@ def plain_quality(component: str, quality: str) -> bool:
     return bool(root) and suffix == ("m" if quality == "minor" else "")
 
 
-def collect(path: pathlib.Path, quality: str) -> list[tuple[bool, float, float, dict[str, str]]]:
+def collect(
+    path: pathlib.Path, quality: str, tone: str
+) -> list[tuple[bool, float, float, dict[str, str]]]:
     rows: list[tuple[bool, float, float, dict[str, str]]] = []
     for row in load_rows(path):
         labels = split_chord_components(row.get("guitar_chord", ""))
@@ -37,16 +39,18 @@ def collect(path: pathlib.Path, quality: str) -> list[tuple[bool, float, float, 
         fifth = (root + 7) % 12
         visible = parse_pitch_classes(row.get("guitar_pitch_classes", ""))
         analysis = parse_cell_levels(row.get("guitar_analysis_cells", ""))
-        if root not in visible or fifth not in visible or third in visible or third not in analysis:
+        target = third if tone == "third" else fifth
+        anchor = fifth if tone == "third" else third
+        if root not in visible or anchor not in visible or target in visible or target not in analysis:
             continue
         probe = parse_cell_levels(row.get("guitar_probe_pitch_class_levels", ""))
         expected = parse_pitch_classes(row.get("expected_pitch_classes", ""))
-        rows.append((third in expected, analysis[third], probe.get(third, 0.0), row))
+        rows.append((target in expected, analysis[target], probe.get(target, 0.0), row))
     return rows
 
 
-def report(path: pathlib.Path, quality: str) -> None:
-    rows = collect(path, quality)
+def report(path: pathlib.Path, quality: str, tone: str) -> None:
+    rows = collect(path, quality, tone)
     positive = sum(correct for correct, _, _, _ in rows)
     print(f"{path.name}: candidates={len(rows)} recoveries={positive} false={len(rows) - positive}")
     for analysis_floor in ANALYSIS_FLOORS:
@@ -67,10 +71,11 @@ def report(path: pathlib.Path, quality: str) -> None:
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--quality", choices=("minor", "major"), default="minor")
+    parser.add_argument("--tone", choices=("third", "fifth"), default="third")
     parser.add_argument("path", nargs="+", type=pathlib.Path)
     args = parser.parse_args()
     for path in args.path:
-        report(path, args.quality)
+        report(path, args.quality, args.tone)
     return 0
 
 
