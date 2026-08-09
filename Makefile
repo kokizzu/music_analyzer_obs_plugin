@@ -4604,3 +4604,6 @@ analyze-gaps-guitar-analysis-minor-alias-candidates:
 .PHONY: analyze-gaps-guitar-analysis-add9-alias-candidates
 analyze-gaps-guitar-analysis-add9-alias-candidates:
 	@python3 scripts/analyze_gaps_guitar_analysis_add9_alias_candidates.py build/gaps_guitar_full_attributes.tsv $(ANALYSIS_ADD9_ALIAS_ARGS)
+.PHONY: test-gaps-guitar-regressions
+test-gaps-guitar-regressions: build/gaps_guitar_full_attributes.tsv
+	@python3 scripts/check_gaps_guitar_regressions.py build/gaps_guitar_full_attributes.tsv
