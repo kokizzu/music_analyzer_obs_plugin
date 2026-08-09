@@ -378,6 +378,7 @@ def main() -> int:
             "focus_regressions=1 protected_candidates=1 protected_regressions=1"
             in protected_completed.stdout
         )
+        assert "same_root_extension_cross_corpus: protected_false=0" in protected_completed.stdout
     print("test_analyze_guitar_primary_order: ok")
     return 0
 

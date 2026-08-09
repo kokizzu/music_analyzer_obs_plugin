@@ -1264,6 +1264,23 @@ def main() -> int:
             else:
                 displayed_same_root_quality_neutral.append(quality_row)
 
+    extension_primary_cross_corpus_false = []
+    for row in protected_rows:
+        expected = expected_labels(row.get("expected_chords", ""))
+        displayed_primary = primary_component(row.get("guitar_chord", ""))
+        extension_candidate = same_root_extension_primary_candidate(
+            split_components(row.get("guitar_chord", ""))
+        )
+        if (
+            extension_candidate
+            and displayed_primary in expected
+            and extension_candidate not in expected
+        ):
+            extension_primary_cross_corpus_false.append((extension_candidate, row))
+    extension_primary_all_protected_false = (
+        extension_primary_protected_false + extension_primary_cross_corpus_false
+    )
+
     if relationship_buckets:
         print(
             "candidate primary relationships:",
@@ -1332,17 +1349,22 @@ def main() -> int:
             f"label={row.get('guitar_chord', '--')}",
             pathlib.Path(row.get("audio_path", "")).name,
         )
+    if protected_rows:
+        print(
+            "same_root_extension_cross_corpus:",
+            f"protected_false={len(extension_primary_cross_corpus_false)}",
+        )
     print_extension_safe_rules(
         "same_root_extension_primary_safe_rules:",
         extension_primary_rescues,
-        extension_primary_protected_false,
+        extension_primary_all_protected_false,
         extension_primary_neutral,
         args.examples,
     )
     print_extension_safe_rules(
         "same_root_extension_primary_runtime_safe_rules:",
         extension_primary_rescues,
-        extension_primary_protected_false,
+        extension_primary_all_protected_false,
         extension_primary_neutral,
         args.examples,
         (
