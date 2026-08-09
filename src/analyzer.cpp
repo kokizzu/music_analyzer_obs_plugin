@@ -2490,8 +2490,11 @@ bool electronic_keyboard_alias_display_supported(const FullMixDebugCandidate &de
 		debug.harmonic_fit_error <= 0.70f &&
 		debug.local_noise_level <= 0.12f &&
 		second >= 0.70f && third >= 0.20f && fourth >= 0.18f;
+	const bool measured_other_owned_electronic_keyboard =
+		debug.owner == InstrumentKind::Other && debug.other_score >= 0.862f &&
+		second <= 0.287f;
 	if (debug.keyboard_score < 0.30f && !rich_electronic_keyboard_alias)
-		return false;
+		return measured_other_owned_electronic_keyboard;
 	const bool neighboring_owner = (debug.owner == InstrumentKind::Other &&
 					(keyboard_score_hint || clean_sine_like_keyboard ||
 					 electronic_alias_shape)) ||
@@ -2500,7 +2503,7 @@ bool electronic_keyboard_alias_display_supported(const FullMixDebugCandidate &de
 					(clean_sine_like_keyboard || fourth >= 0.10f || fifth >= 0.050f)) ||
 				       (debug.owner == InstrumentKind::Ambiguous &&
 					debug.keyboard_score >= 0.30f);
-	return rich_electronic_keyboard_alias ||
+	return measured_other_owned_electronic_keyboard || rich_electronic_keyboard_alias ||
 	       (neighboring_owner && electronic_alias_shape &&
 		(keyboard_score_hint || octave_or_organ_stack || clean_sine_like_keyboard));
 }
