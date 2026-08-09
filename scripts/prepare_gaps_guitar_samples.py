@@ -53,10 +53,13 @@ def resource_url(base_url, path):
     return base_url.rstrip("/") + "/" + urllib.parse.quote(str(path).lstrip("/"), safe="/")
 
 
-def download_file(url, output_path, retries, timeout):
+def download_file(url, output_path, retries, timeout, offline=False):
     output_path = Path(output_path)
     if output_path.is_file() and output_path.stat().st_size > 0:
         return
+
+    if offline:
+        raise OSError(f"offline cache miss: {output_path}")
 
     output_path.parent.mkdir(parents=True, exist_ok=True)
     tmp = output_path.with_suffix(output_path.suffix + ".part")
@@ -93,7 +96,7 @@ def ensure_metadata(args):
     source_dir = Path(args.source_dir)
     source_dir.mkdir(parents=True, exist_ok=True)
     path = source_dir / "gaps_metadata_with_splits.csv"
-    download_file(args.metadata_url, path, args.retries, args.timeout)
+    download_file(args.metadata_url, path, args.retries, args.timeout, args.offline)
     return path
 
 
@@ -239,6 +242,7 @@ def signature_text(args):
         f"limit={args.limit}",
         f"min_note_duration={args.min_note_duration}",
         f"match_tree={args.match_tree_json or ('off' if args.no_match_tree else 'auto')}",
+        f"offline={args.offline}",
     ])
     return hashlib.sha256(payload.encode("utf-8")).hexdigest()[:16]
 
@@ -304,7 +308,17 @@ def prepare(args):
     if not rows:
         raise SystemExit("prepare_gaps_guitar_samples: no metadata rows selected")
 
-    available_matches = fetch_available_match_paths(args)
+    available_matches = None if args.offline else fetch_available_match_paths(args)
+    if args.offline:
+        rows = [
+            row for row in rows
+            if (audio_dir / Path(str(row.get("audio_path", "")).strip()).name).is_file()
+            and (match_dir / Path(match_path_for_row(row)).name).is_file()
+        ]
+        if not rows:
+            raise SystemExit(
+                "prepare_gaps_guitar_samples: offline cache has no complete audio/match pairs"
+            )
     skipped_unavailable_match = 0
     prepared = []
     for index, row in enumerate(rows, start=1):
@@ -318,8 +332,10 @@ def prepare(args):
         match_path = match_dir / Path(match_rel).name
 
         try:
-            download_file(resource_url(args.base_url, match_rel), match_path, args.retries, args.timeout)
-            download_file(resource_url(args.base_url, audio_rel), audio_path, args.retries, args.timeout)
+            download_file(resource_url(args.base_url, match_rel), match_path, args.retries,
+                          args.timeout, args.offline)
+            download_file(resource_url(args.base_url, audio_rel), audio_path, args.retries,
+                          args.timeout, args.offline)
         except OSError as exc:
             print(f"prepare_gaps_guitar_samples: skipping {sample_id}: {exc}", file=sys.stderr)
             continue
@@ -363,6 +379,9 @@ def main(argv=None):
     parser.add_argument("--match-tree-json", default=os.environ.get("GAPS_GUITAR_MATCH_TREE_JSON", ""))
     parser.add_argument("--no-match-tree", action="store_true",
                         default=os.environ.get("GAPS_GUITAR_NO_MATCH_TREE", "") not in ("", "0", "false", "FALSE"))
+    parser.add_argument("--offline", action="store_true",
+                        default=os.environ.get("GAPS_GUITAR_OFFLINE", "") not in ("", "0", "false", "FALSE"),
+                        help="Use only cached audio and match files; never fetch missing inputs.")
     parser.add_argument("--source-dir", default=os.environ.get("GAPS_GUITAR_SOURCE_DIR",
                                                               "build/real_sample_sources/gaps"))
     parser.add_argument("--output", default=os.environ.get("GAPS_GUITAR_SAMPLE_DIR",
