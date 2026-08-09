@@ -13,6 +13,11 @@ CASES = (
     ("100_Lf1wc", 9.34531, "Gadd9"),
     ("241_ly1wc", 33.3016, "Gpow"),
 )
+NOTE_CASES = (
+    ("004_JSswc", 84.5896, "G#"),
+    ("351_8k1wc", 65.3151, "G#"),
+    ("106_nf1wc", 27.3042, "E"),
+)
 TIME_TOLERANCE_SECONDS = 0.01
 
 
@@ -33,11 +38,25 @@ def main(path):
             failures.append(
                 f"{recording_id}@{center_seconds}: expected {expected_label}, got "
                 f"{matches[0]['guitar_chord']}")
+    for recording_id, center_seconds, expected_note in NOTE_CASES:
+        matches = [
+            row for row in rows
+            if row["recording_id"] == recording_id and
+            abs(float(row["center_seconds"]) - center_seconds) <= TIME_TOLERANCE_SECONDS
+        ]
+        if len(matches) != 1:
+            failures.append(f"{recording_id}@{center_seconds}: expected one note row, got {len(matches)}")
+            continue
+        visible_notes = set(part for part in matches[0]["guitar_pitch_classes"].split(",") if part)
+        if expected_note not in visible_notes:
+            failures.append(
+                f"{recording_id}@{center_seconds}: expected visible {expected_note}, got "
+                f"{matches[0]['guitar_pitch_classes']}")
     if failures:
         for failure in failures:
             print(f"check_gaps_guitar_regressions: {failure}", file=sys.stderr)
         return 1
-    print(f"check_gaps_guitar_regressions: ok ({len(CASES)} verified real-audio cases)")
+    print(f"check_gaps_guitar_regressions: ok ({len(CASES)} chord and {len(NOTE_CASES)} note real-audio cases)")
     return 0
 
 

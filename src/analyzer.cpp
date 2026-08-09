@@ -21262,6 +21262,34 @@ void append_compact_guitar_weak_fifth_power_alias_after_final_prune(
 	}
 }
 
+void restore_very_strong_guitar_analysis_note_after_chord_resolution(
+	NoteGrid &display_grid, InstrumentState &display_state, const NoteGrid &analysis_grid, float rms)
+{
+	// Keep the visual note set compact, but do not discard one nearly-certain
+	// analysis note solely because it lost the display-pruning tie-break. This
+	// runs after chord resolution so it cannot alter chord classification.
+	if (note_grid_active_pitch_class_count(display_grid) >= 8)
+		return;
+
+	int recovered_midi = -1;
+	float recovered_level = 0.98f;
+	for (const auto &row : analysis_grid.rows) {
+		for (const NoteCell &cell : row) {
+			if (!cell.active || cell.midi < 0 || cell.level < recovered_level ||
+			    note_grid_pitch_level(display_grid, cell.midi) > 0.0f)
+				continue;
+			recovered_midi = cell.midi;
+			recovered_level = cell.level;
+		}
+	}
+	if (recovered_midi < 0)
+		return;
+
+	write_note_grid_cell(display_grid, NoteCandidate{recovered_midi, recovered_level}, recovered_level,
+			     note_visual_loudness(rms));
+	write_note_grid_label(display_state, display_grid, -1);
+}
+
 void append_compact_guitar_analysis_minor_alias_after_final_prune(
 	InstrumentState &state, const NoteGrid &display_grid, const NoteGrid &analysis_grid)
 {
@@ -33449,6 +33477,10 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 			snapshot.guitar_chord, snapshot.guitar_notes, guitar_chord_detection_grid);
 		append_analysis_complete_guitar_add9_alias_after_final_prune(
 			snapshot.guitar_chord, guitar_chord_detection_grid);
+		if (!mixed_source) {
+			restore_very_strong_guitar_analysis_note_after_chord_resolution(
+				snapshot.guitar_notes, snapshot.guitar, guitar_chord_detection_grid, rms);
+		}
 	} else {
 		reset_note_grid_envelope(snapshot.guitar_notes, snapshot.guitar, guitar_note_tracking_);
 		reset_note_grid_envelope(guitar_chord_grid, guitar_chord_note_state, guitar_chord_note_tracking_);

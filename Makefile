@@ -4601,6 +4601,13 @@ analyze-gaps-guitar-analysis-fifth-power-candidates:
 .PHONY: analyze-gaps-guitar-low-root-power-candidates
 analyze-gaps-guitar-low-root-power-candidates:
 	@python3 scripts/analyze_gaps_guitar_low_root_power_candidates.py
+.PHONY: find-gaps-guitar-rows
+find-gaps-guitar-rows:
+	@test -n "$(EXPECTED)"
+	@python3 scripts/find_gaps_guitar_rows.py --expected "$(EXPECTED)" $(if $(MISSING),--missing "$(MISSING)") $(FIND_GAPS_GUITAR_ROWS_ARGS)
+.PHONY: analyze-gaps-guitar-analysis-note-candidates
+analyze-gaps-guitar-analysis-note-candidates:
+	@python3 scripts/analyze_gaps_guitar_analysis_note_candidates.py $(ANALYSIS_NOTE_ARGS)
 .PHONY: analyze-gaps-guitar-analysis-minor-alias-candidates
 analyze-gaps-guitar-analysis-minor-alias-candidates:
 	@python3 scripts/analyze_gaps_guitar_analysis_minor_alias_candidates.py build/gaps_guitar_full_attributes.tsv $(ANALYSIS_MINOR_ALIAS_ARGS)
