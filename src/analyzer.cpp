@@ -21272,7 +21272,7 @@ void restore_very_strong_guitar_analysis_note_after_chord_resolution(
 		return;
 
 	int recovered_midi = -1;
-	float recovered_level = 0.98f;
+	float recovered_level = 0.95f;
 	for (const auto &row : analysis_grid.rows) {
 		for (const NoteCell &cell : row) {
 			if (!cell.active || cell.midi < 0 || cell.level < recovered_level ||

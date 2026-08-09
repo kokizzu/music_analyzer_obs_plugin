@@ -17,6 +17,7 @@ NOTE_CASES = (
     ("004_JSswc", 84.5896, "G#"),
     ("351_8k1wc", 65.3151, "G#"),
     ("106_nf1wc", 27.3042, "E"),
+    ("047_xc1wc", 8.33437, "G"),
 )
 TIME_TOLERANCE_SECONDS = 0.01
 
