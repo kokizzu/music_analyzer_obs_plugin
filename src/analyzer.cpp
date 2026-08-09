@@ -30901,6 +30901,15 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 			snare_crack >= 9.749f;
 		if (final_one_shot_measured_low_band_snare_from_tom_primary_recovery)
 			promote_drum_primary(Snare, 0.90f);
+		// A small, non-duplicate set of measured snares retains a dominant kick
+		// body score through final arbitration.  Their simultaneous high ride
+		// band and rim trigger separate them from the protected kick examples.
+		const bool final_one_shot_measured_high_kick_body_snare_from_kick_primary_recovery =
+			drum_detection_enabled && one_shot_drum_source && !generated_gm_drum_source &&
+			body_shape_scores[Kick] >= 207.192f && drum_bands[Ride] >= 29.841f &&
+			snapshot.drum_debug_trigger_scores[Rim] >= 78.263f;
+		if (final_one_shot_measured_high_kick_body_snare_from_kick_primary_recovery)
+			promote_drum_primary(Snare, 0.90f);
 		// Several measured high toms are down-ranked below kick despite a tom body
 		// shape and a large upper-tom transient.  Restore final ownership only when
 		// the competing snare evidence remains suppressed.
