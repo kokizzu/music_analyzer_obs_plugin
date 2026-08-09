@@ -21785,7 +21785,7 @@ void restore_final_compact_major_guitar_fifth_from_analysis(
 	    note_grid_pitch_active(display_grid, component.root) &&
 	    note_grid_pitch_active(display_grid, third) &&
 	    note_grid_pitch_active(analysis_grid, fifth) &&
-	    note_grid_pitch_level(analysis_grid, fifth) >= 0.04f) {
+	    note_grid_pitch_level(analysis_grid, fifth) >= 0.02f) {
 		const NoteCell &source = analysis_grid.cells[static_cast<std::size_t>(fifth)];
 		if (source.active)
 			promote_note_grid_primary_midi(display_grid, source.midi, source.level);
