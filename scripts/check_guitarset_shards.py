@@ -37,8 +37,8 @@ CHORD_PRECISION_RE = re.compile(
 )
 
 
-def percent(hit: int, total: int) -> int:
-    return hit * 100 // total if total > 0 else 0
+def percent(hit: int, total: int) -> float:
+    return hit * 100.0 / total if total > 0 else 0.0
 
 
 def fail(message: str) -> None:
@@ -150,7 +150,7 @@ def add_summary(total: dict[str, float], part: dict[str, float]) -> None:
     )
 
 
-def require_min_pair(label: str, hit: int, total: int, min_percent: int) -> None:
+def require_min_pair(label: str, hit: int, total: int, min_percent: float) -> None:
     if min_percent <= 0:
         return
     actual = percent(hit, total)
@@ -248,7 +248,7 @@ def main() -> int:
     parser.add_argument("--max-contamination-percent", type=float, default=5.0)
     parser.add_argument("--max-false-vocal-percent", type=float, default=5.0)
     parser.add_argument("--min-chord-checks", type=int, default=5)
-    parser.add_argument("--min-chord-recall-percent", type=int, default=30)
+    parser.add_argument("--min-chord-recall-percent", type=float, default=30)
     parser.add_argument("--min-chord-hits", type=int, default=0)
     parser.add_argument("--min-primary-chord-hits", type=int, default=0)
     parser.add_argument("--min-chord-precision-percent", type=int, default=85)

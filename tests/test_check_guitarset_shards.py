@@ -158,12 +158,48 @@ def test_fails_primary_chord_hits() -> None:
             raise AssertionError(result.stderr)
 
 
+def test_accepts_fractional_chord_recall_threshold() -> None:
+    with tempfile.TemporaryDirectory() as temp:
+        root = pathlib.Path(temp)
+        only = root / "only.out"
+        write_log(only, 20, 80, 80, 80, 77, 80, 80, 0, 0, 77, 0, 3)
+        passing = run_checker(
+            [only],
+            "--required-excerpts", "20",
+            "--required-windows", "80",
+            "--min-recall-percent", "0",
+            "--min-precision-percent", "0",
+            "--min-guitar-recall-percent", "0",
+            "--min-chord-checks", "80",
+            "--min-chord-recall-percent", "96.2",
+            "--min-chord-precision-percent", "0",
+        )
+        if passing.returncode != 0:
+            raise AssertionError(passing.stderr)
+        failing = run_checker(
+            [only],
+            "--required-excerpts", "20",
+            "--required-windows", "80",
+            "--min-recall-percent", "0",
+            "--min-precision-percent", "0",
+            "--min-guitar-recall-percent", "0",
+            "--min-chord-checks", "80",
+            "--min-chord-recall-percent", "96.3",
+            "--min-chord-precision-percent", "0",
+        )
+        if failing.returncode == 0:
+            raise AssertionError("expected fractional chord recall failure")
+        if "chord recall" not in failing.stderr:
+            raise AssertionError(failing.stderr)
+
+
 def main() -> int:
     test_aggregates_shards_before_thresholds()
     test_fails_aggregate_precision()
     test_single_note_gate_skips_chord_recall()
     test_fails_single_note_chord_false_count()
     test_fails_primary_chord_hits()
+    test_accepts_fractional_chord_recall_threshold()
     print("test_check_guitarset_shards: ok")
     return 0
 

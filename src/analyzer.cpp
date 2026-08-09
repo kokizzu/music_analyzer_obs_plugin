@@ -20772,14 +20772,19 @@ bool probe_supported_guitar_omitted_third_major_seventh_alias(
 	    note_grid_pitch_active(display_grid, root + 4) ||
 	    note_grid_pitch_active(analysis_grid, root + 3) ||
 	    note_grid_pitch_active(analysis_grid, root + 4) ||
-	    note_grid_pitch_active(display_grid, root + 10) ||
-	    note_grid_pitch_active(analysis_grid, root + 10))
+	    note_grid_pitch_active(display_grid, root + 10))
 		return false;
+	const bool weak_flat_seventh_analysis_residue =
+		!note_grid_pitch_active(display_grid, root + 10) &&
+		note_grid_pitch_active(analysis_grid, root + 10) &&
+		note_grid_pitch_level(analysis_grid, root + 10) <= 0.10f;
 	for (int pitch_class = 0; pitch_class < 12; ++pitch_class) {
 		if (!note_grid_pitch_active(analysis_grid, pitch_class))
 			continue;
 		const int interval = (pitch_class - root + 12) % 12;
-		if (interval != 0 && interval != 7 && interval != 8 && interval != 11)
+		if (interval != 0 && interval != 7 && interval != 8 && interval != 10 && interval != 11)
+			return false;
+		if (interval == 10 && !weak_flat_seventh_analysis_residue)
 			return false;
 	}
 
@@ -20799,6 +20804,12 @@ bool probe_supported_guitar_omitted_third_major_seventh_alias(
 	if (core_anchor < 0.10f)
 		return false;
 	const float major_seventh = probe_norm(root + 11);
+	const float root_probe = probe_norm(root);
+	const float fifth_probe = probe_norm(root + 7);
+	if (weak_flat_seventh_analysis_residue &&
+	    (root_probe < 0.20f || root_probe > 0.27f || fifth_probe < 0.24f ||
+	     fifth_probe > 0.32f || major_seventh < 0.95f))
+		return false;
 	return major_seventh >= std::max(0.075f, core_anchor * 0.14f) &&
 	       major_seventh >= probe_norm(root + 10) * 1.35f;
 }
