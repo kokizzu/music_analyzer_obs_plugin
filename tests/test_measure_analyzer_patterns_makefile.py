@@ -4242,12 +4242,19 @@ def main() -> int:
     assert "$(GUITARSET_ANNOTATION_ARCHIVE)" in makefile and "$(GUITARSET_AUDIO_ARCHIVE)" in makefile, (
         "downloaded GuitarSet archives must be referenced through named variables"
     )
+    guitarset_download_recipe = target_recipe(makefile, "download-guitarset-samples")
+    assert "scripts/run_with_lock.sh" in guitarset_download_recipe.splitlines()[0], (
+        "downloaded GuitarSet target must use the shared download lock"
+    )
+    assert '"$(MAKE)" guitarset-download-samples-unlocked' in guitarset_download_recipe, (
+        "downloaded GuitarSet target must delegate archive work through the lock"
+    )
     assert re.search(
-        r"^download-guitarset-samples: .*\$\(GUITARSET_ANNOTATION_ARCHIVE\) \$\(GUITARSET_AUDIO_ARCHIVE\)",
+        r"^guitarset-download-samples-unlocked: .*\$\(GUITARSET_ANNOTATION_ARCHIVE\) \$\(GUITARSET_AUDIO_ARCHIVE\)",
         makefile,
         re.MULTILINE,
     ), (
-        "downloaded GuitarSet target must depend on validated archive targets"
+        "unlocked GuitarSet target must depend on validated archive targets"
     )
     assert 'curl -L -C - -o "$(GUITARSET_SOURCE_DIR)/annotation.zip"' not in makefile, (
         "downloaded GuitarSet target must not write directly to the final annotation archive"
@@ -4266,13 +4273,13 @@ def main() -> int:
         assert f'mv -f "$({var})" "$({var}).part"' in archive_recipe, (
             f"{target} must quarantine corrupt completed zips"
         )
-        assert f'zipfile -t "$({var}).part"' in archive_recipe, (
+        assert f'scripts/check_zip_archive.py "$({var}).part"' in archive_recipe, (
             f"{target} must validate partial zips before promotion"
         )
         assert f'curl -fL -C - -o "$({var}).part" "$({url})"' in archive_recipe, (
             f"{target} must resume downloads into a partial file"
         )
-        assert f'zipfile -t "$({var})"' in archive_recipe, (
+        assert f'scripts/check_zip_archive.py "$({var})"' in archive_recipe, (
             f"{target} must validate the final zip"
         )
     for target in ["prepare-downloaded-guitarset", "$(GUITARSET_MANIFEST)"]:
