@@ -11,6 +11,7 @@ CASES = (
     ("232_m41wc", 11.4057, "Gpow"),
     ("117_cD1wc", 101.8670, "Em"),
     ("100_Lf1wc", 9.34531, "Gadd9"),
+    ("241_ly1wc", 33.3016, "Gpow"),
 )
 TIME_TOLERANCE_SECONDS = 0.01
 

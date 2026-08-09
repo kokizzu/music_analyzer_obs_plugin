@@ -4598,6 +4598,9 @@ analyze-gaps-guitar-major-seventh-candidates: build/gaps_guitar_full_attributes.
 .PHONY: analyze-gaps-guitar-analysis-fifth-power-candidates
 analyze-gaps-guitar-analysis-fifth-power-candidates:
 	@python3 scripts/analyze_gaps_guitar_analysis_fifth_power_candidates.py build/gaps_guitar_full_attributes.tsv $(ANALYSIS_FIFTH_POWER_ARGS)
+.PHONY: analyze-gaps-guitar-low-root-power-candidates
+analyze-gaps-guitar-low-root-power-candidates:
+	@python3 scripts/analyze_gaps_guitar_low_root_power_candidates.py
 .PHONY: analyze-gaps-guitar-analysis-minor-alias-candidates
 analyze-gaps-guitar-analysis-minor-alias-candidates:
 	@python3 scripts/analyze_gaps_guitar_analysis_minor_alias_candidates.py build/gaps_guitar_full_attributes.tsv $(ANALYSIS_MINOR_ALIAS_ARGS)
@@ -4607,3 +4610,10 @@ analyze-gaps-guitar-analysis-add9-alias-candidates:
 .PHONY: test-gaps-guitar-regressions
 test-gaps-guitar-regressions: build/gaps_guitar_full_attributes.tsv
 	@python3 scripts/check_gaps_guitar_regressions.py build/gaps_guitar_full_attributes.tsv
+.PHONY: search-repo
+search-repo:
+	@sh scripts/search_repo.sh "$(QUERY)"
+
+.PHONY: show-repo-lines
+show-repo-lines:
+	@sh scripts/show_repo_lines.sh "$(FILE)" "$(START)" "$(END)"
