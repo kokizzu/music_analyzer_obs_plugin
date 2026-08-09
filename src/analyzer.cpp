@@ -21302,7 +21302,11 @@ void restore_very_strong_guitar_analysis_note_after_chord_resolution(
 		}
 	}
 	if (recovered_midi < 0) {
-		recovered_level = displayed_pitch_classes >= 6 ? 0.90f : 0.95f;
+		// Exactly six rendered pitch classes still leave a bounded dense-guitar
+		// case, where a clearly corroborated analysis note may fall below the
+		// usual dense-grid cutoff.  Seven or more retain that stricter cutoff.
+		recovered_level = displayed_pitch_classes == 6 ? 0.80f :
+			(displayed_pitch_classes >= 7 ? 0.90f : 0.95f);
 		for (const auto &row : analysis_grid.rows) {
 			for (const NoteCell &cell : row) {
 				if (!cell.active || cell.midi < 0 || cell.level < recovered_level ||
