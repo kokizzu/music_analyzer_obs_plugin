@@ -21134,6 +21134,49 @@ void append_compact_guitar_analysis_major_seventh_alias_after_final_prune(
 	}
 }
 
+void append_compact_guitar_analysis_fifth_power_alias_after_final_prune(
+	InstrumentState &state, const NoteGrid &display_grid, const NoteGrid &analysis_grid)
+{
+	// A close-miked power chord can retain only its root in the rendered grid,
+	// while its fifth remains at a narrow, stable level in analysis.  The two
+	// adjoining minor aliases corroborate the root/third/fifth family and keep
+	// this from relabeling ordinary major or seventh voicings as power chords.
+	if (!state.label[0] || state.label[0] == '-' || chord_label_component_count(state.label) > 24)
+		return;
+
+	char merged[sizeof(state.label)] = {};
+	copy_text(merged, sizeof(merged), state.label);
+	for (int root = 0; root < 12; ++root) {
+		const char *root_name = note_name(root);
+		char lower_minor[16] = {};
+		char upper_minor[16] = {};
+		char candidate[16] = {};
+		std::snprintf(lower_minor, sizeof(lower_minor), "%sm", note_name((root + 9) % 12));
+		std::snprintf(upper_minor, sizeof(upper_minor), "%sm", note_name((root + 4) % 12));
+		std::snprintf(candidate, sizeof(candidate), "%spow", root_name);
+		const std::size_t candidate_len = std::strlen(candidate);
+		if (!chord_label_has_exact_component(state.label, root_name) ||
+		    !chord_label_has_exact_component(state.label, lower_minor) ||
+		    !chord_label_has_exact_component(state.label, upper_minor) ||
+		    chord_label_has_component(merged, candidate, candidate_len))
+			continue;
+
+		const int fifth = root + 7;
+		const float display_root = note_grid_pitch_level(display_grid, root);
+		const float display_fifth = note_grid_pitch_level(display_grid, fifth);
+		const float analysis_root = note_grid_pitch_level(analysis_grid, root);
+		const float analysis_fifth = note_grid_pitch_level(analysis_grid, fifth);
+		if (display_root < 0.80f || display_fifth > 0.10f || analysis_root < 0.85f ||
+		    analysis_fifth < 0.18f || analysis_fifth > 0.22f)
+			continue;
+		append_chord_label_component(merged, sizeof(merged), candidate, candidate_len);
+	}
+	if (std::strcmp(merged, state.label) != 0) {
+		copy_text(state.label, sizeof(state.label), merged);
+		state.confidence = std::max(state.confidence, 0.58f);
+	}
+}
+
 void restore_tightly_labeled_minor_seventh_guitar_thirds_from_analysis(
 	NoteGrid &display_grid, const InstrumentState &chord_state, const NoteGrid &analysis_grid)
 {
@@ -33235,6 +33278,8 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 				snapshot.guitar_notes, snapshot.guitar_chord, guitar_chord_detection_grid);
 		}
 		append_compact_guitar_analysis_major_seventh_alias_after_final_prune(
+			snapshot.guitar_chord, snapshot.guitar_notes, guitar_chord_detection_grid);
+		append_compact_guitar_analysis_fifth_power_alias_after_final_prune(
 			snapshot.guitar_chord, snapshot.guitar_notes, guitar_chord_detection_grid);
 	} else {
 		reset_note_grid_envelope(snapshot.guitar_notes, snapshot.guitar, guitar_note_tracking_);
