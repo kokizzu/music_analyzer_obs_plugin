@@ -21257,6 +21257,41 @@ void append_compact_guitar_analysis_minor_alias_after_final_prune(
 	}
 }
 
+void append_analysis_complete_guitar_add9_alias_after_final_prune(
+	InstrumentState &state, const NoteGrid &analysis_grid)
+{
+	// A sparse rendered grid can hide all but fragments of a major add9, while
+	// the analysis grid retains a strong root, third, fifth, and ninth.  Keep
+	// this recovery to that complete four-tone analysis profile.
+	if (!state.label[0] || state.label[0] == '-' || chord_label_component_count(state.label) > 20)
+		return;
+
+	char merged[sizeof(state.label)] = {};
+	copy_text(merged, sizeof(merged), state.label);
+	for (int root = 0; root < 12; ++root) {
+		const char *root_name = note_name(root);
+		char candidate[16] = {};
+		std::snprintf(candidate, sizeof(candidate), "%sadd9", root_name);
+		const std::size_t candidate_len = std::strlen(candidate);
+		if (!chord_label_has_exact_component(state.label, root_name) ||
+		    chord_label_has_component(merged, candidate, candidate_len))
+			continue;
+
+		const float root_level = note_grid_pitch_level(analysis_grid, root);
+		const float third_level = note_grid_pitch_level(analysis_grid, root + 4);
+		const float fifth_level = note_grid_pitch_level(analysis_grid, root + 7);
+		const float ninth_level = note_grid_pitch_level(analysis_grid, root + 2);
+		if (root_level < 0.65f || third_level < 0.40f || fifth_level < 0.90f ||
+		    ninth_level < 0.80f)
+			continue;
+		append_chord_label_component(merged, sizeof(merged), candidate, candidate_len);
+	}
+	if (std::strcmp(merged, state.label) != 0) {
+		copy_text(state.label, sizeof(state.label), merged);
+		state.confidence = std::max(state.confidence, 0.58f);
+	}
+}
+
 void restore_tightly_labeled_minor_seventh_guitar_thirds_from_analysis(
 	NoteGrid &display_grid, const InstrumentState &chord_state, const NoteGrid &analysis_grid)
 {
@@ -33365,6 +33400,8 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 			snapshot.guitar_chord, snapshot.guitar_notes, guitar_chord_detection_grid);
 		append_compact_guitar_analysis_minor_alias_after_final_prune(
 			snapshot.guitar_chord, snapshot.guitar_notes, guitar_chord_detection_grid);
+		append_analysis_complete_guitar_add9_alias_after_final_prune(
+			snapshot.guitar_chord, guitar_chord_detection_grid);
 	} else {
 		reset_note_grid_envelope(snapshot.guitar_notes, snapshot.guitar, guitar_note_tracking_);
 		reset_note_grid_envelope(guitar_chord_grid, guitar_chord_note_state, guitar_chord_note_tracking_);
