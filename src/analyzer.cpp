@@ -30902,6 +30902,15 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 			upper_tom_body >= snare_crack * 11.285f;
 		if (final_one_shot_measured_upper_body_tom_from_kick_primary_recovery)
 			promote_drum_primary(Tom, 0.90f);
+		// Some measured toms carry a decisive shell body but never receive an
+		// initial tom level.  Their strong mid-band profile separates them from
+		// the snare-backed tom blends left to the normal arbitration path.
+		const bool final_one_shot_measured_mid_body_tom_from_snare_primary_recovery =
+			drum_detection_enabled && one_shot_drum_source && !generated_gm_drum_source &&
+			body_shape == Tom && drum_level_[Tom] <= 0.001f &&
+			snapshot.mid_energy >= 0.76f && tom_body >= snare_body * 1.774f;
+		if (final_one_shot_measured_mid_body_tom_from_snare_primary_recovery)
+			promote_drum_primary(Tom, 0.90f);
 	const bool final_one_shot_measured_hihat_rim_active_bleed =
 		drum_detection_enabled && one_shot_drum_source &&
 		!generated_gm_drum_source &&
