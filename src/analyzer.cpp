@@ -30689,8 +30689,19 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 			drum_level_[Ride] > drum_level_[Crash] &&
 			final_ride_hihat_level_ratio_for_primary >= 1.021f &&
 			ride_hihat_band_ratio <= 0.455f && final_tom_snare_trigger_ratio <= 0.957f;
-		if (final_one_shot_measured_hihat_from_ride_primary_recovery)
+		// A separate closed-hat cluster has a near-tied ride level but overwhelmingly
+		// more hi-hat than rim shape evidence.  The low snare crack guard keeps this
+		// from stealing primary ownership from shell-backed cymbal blends.
+		const bool final_one_shot_measured_hihat_shape_from_ride_primary_recovery =
+			drum_detection_enabled && one_shot_drum_source && !generated_gm_drum_source &&
+			drum_level_[HiHat] > 0.30f && drum_level_[Ride] > 0.30f &&
+			drum_level_[Ride] > drum_level_[Crash] &&
+			final_ride_hihat_level_ratio_for_primary >= 1.021f &&
+			hihat_rim_shape_score_ratio >= 21.137f && snare_crack <= 0.477f;
+		if (final_one_shot_measured_hihat_from_ride_primary_recovery ||
+			final_one_shot_measured_hihat_shape_from_ride_primary_recovery) {
 			promote_drum_primary(HiHat, 0.90f);
+		}
 
 		const bool final_measured_shape_dominant_kick_from_tom_primary_recovery =
 			drum_detection_enabled && named_drum_source &&
