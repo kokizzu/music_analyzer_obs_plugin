@@ -30891,6 +30891,17 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 			snare_crack >= 9.749f;
 		if (final_one_shot_measured_low_band_snare_from_tom_primary_recovery)
 			promote_drum_primary(Snare, 0.90f);
+		// Several measured high toms are down-ranked below kick despite a tom body
+		// shape and a large upper-tom transient.  Restore final ownership only when
+		// the competing snare evidence remains suppressed.
+		const bool final_one_shot_measured_upper_body_tom_from_kick_primary_recovery =
+			drum_detection_enabled && one_shot_drum_source && !generated_gm_drum_source &&
+			body_shape == Tom && drum_level_[Tom] > 0.30f &&
+			drum_level_[Snare] <= drum_level_[Kick] * 0.28f &&
+			tom_snare_shape_score_ratio <= 1.234f &&
+			upper_tom_body >= snare_crack * 11.285f;
+		if (final_one_shot_measured_upper_body_tom_from_kick_primary_recovery)
+			promote_drum_primary(Tom, 0.90f);
 	const bool final_one_shot_measured_hihat_rim_active_bleed =
 		drum_detection_enabled && one_shot_drum_source &&
 		!generated_gm_drum_source &&
