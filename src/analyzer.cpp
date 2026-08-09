@@ -30736,6 +30736,19 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 	if (final_one_shot_measured_hot_hihat_tom_active_bleed)
 		cap_drum_level(Tom, 0.28f);
 
+	// A narrow set of one-shot hats has enough low-mid body to retain a
+	// near-saturated tom candidate through the final arbitration.  The
+	// measured hat-to-rim balance, already-strong hat level, and absent snare
+	// competitor distinguish these from the genuine tom and snare examples in
+	// the independent drum corpus.
+	const bool final_one_shot_measured_hihat_tom_primary_recovery =
+		drum_detection_enabled && one_shot_drum_source &&
+		drum_level_[HiHat] >= 0.895f && drum_level_[Tom] >= 0.915f &&
+		drum_level_[Snare] <= 0.30f &&
+		drum_bands[HiHat] >= drum_bands[Rim] * 3.40f;
+	if (final_one_shot_measured_hihat_tom_primary_recovery)
+		boost_drum_level(HiHat, 1.0f);
+
 	const bool final_one_shot_measured_hot_hihat_crash_active_bleed =
 		drum_detection_enabled && one_shot_drum_source &&
 		!generated_gm_drum_source &&
