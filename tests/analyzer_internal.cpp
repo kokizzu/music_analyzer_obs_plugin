@@ -1333,9 +1333,9 @@ void check_displayed_guitar_single_note_probe_profile(Runner &runner)
 	set_probe_level(measured_am_probe, 61, 0.043f);
 	set_probe_level(measured_am_probe, 68, 0.220f);
 	runner.expect(recover_clean_smoothed_plain_guitar_display(
-			      blank_after_residue, smoothed_am_source, measured_am_display,
-			      measured_am_analysis, measured_am_smoothed, measured_am_probe,
-			      kGuitarMinMidi, kGuitarMaxMidi),
+		      blank_after_residue, smoothed_am_source, measured_am_display,
+		      measured_am_analysis, measured_am_smoothed, measured_am_probe,
+		      kGuitarMinMidi, kGuitarMaxMidi, 0.050f),
 		      "displayed guitar clean smoothed recovery: expected measured root/fifth Am to recover");
 	runner.expect(std::strcmp(blank_after_residue.label, "Am") == 0,
 		      std::string("displayed guitar clean smoothed recovery: expected Am label, got `") +
@@ -1348,9 +1348,9 @@ void check_displayed_guitar_single_note_probe_profile(Runner &runner)
 	std::array<float, kNoteProbeCount> opposite_third_probe = measured_am_probe;
 	set_probe_level(opposite_third_probe, 61, 0.40f);
 	runner.expect(!recover_clean_smoothed_plain_guitar_display(
-			      blocked_opposite_third, smoothed_am_source, measured_am_display,
-			      opposite_third_analysis, measured_am_smoothed, opposite_third_probe,
-			      kGuitarMinMidi, kGuitarMaxMidi),
+		      blocked_opposite_third, smoothed_am_source, measured_am_display,
+		      opposite_third_analysis, measured_am_smoothed, opposite_third_probe,
+		      kGuitarMinMidi, kGuitarMaxMidi, 0.050f),
 		      "displayed guitar clean smoothed recovery: expected opposite-third evidence to block");
 
 	InstrumentState incomplete_stronger_root_display = {};
