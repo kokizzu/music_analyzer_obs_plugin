@@ -34,6 +34,15 @@ def is_missing_major_triad_flat_seventh(display, pitch_class):
     )
 
 
+def is_missing_major_triad_sixth(display, pitch_class):
+    """Return whether pitch_class is the omitted sixth of a rendered major triad."""
+    return any(
+        pitch_class == (root + 9) % 12 and
+        all(display.get((root + interval) % 12, 0.0) > 0.0 for interval in (0, 4, 7))
+        for root in range(12)
+    )
+
+
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--analysis-floor", type=float, default=0.30)
@@ -41,6 +50,7 @@ def main():
     parser.add_argument("--min-visible-pitch-classes", type=int, default=0)
     parser.add_argument("--max-visible-pitch-classes", type=int, default=12)
     parser.add_argument("--missing-major-triad-flat-seventh", action="store_true")
+    parser.add_argument("--missing-major-triad-sixth", action="store_true")
     parser.add_argument("--limit", type=int, default=12)
     parser.add_argument("tsv", nargs="?", default="build/gaps_guitar_full_attributes.tsv")
     args = parser.parse_args()
@@ -63,6 +73,9 @@ def main():
                     continue
                 if (args.missing_major_triad_flat_seventh and
                         not is_missing_major_triad_flat_seventh(display, pitch_class)):
+                    continue
+                if (args.missing_major_triad_sixth and
+                        not is_missing_major_triad_sixth(display, pitch_class)):
                     continue
                 item = (row, pitch_class, level, raw.get(pitch_class, 0.0),
                         probe.get(pitch_class, 0.0), melodic.get(pitch_class, 0.0))

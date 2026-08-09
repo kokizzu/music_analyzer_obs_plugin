@@ -21275,15 +21275,17 @@ void restore_very_strong_guitar_analysis_note_after_chord_resolution(
 	int recovered_midi = -1;
 	float recovered_level = 0.0f;
 	if (displayed_pitch_classes == 3) {
-		// A complete rendered major triad with just its flat seventh omitted is
-		// a reliable real-guitar shape.  Let a corroborating analysis seventh
-		// through at a lower threshold than unrelated analysis-only notes.
+		// A complete rendered major triad with just its sixth or flat seventh
+		// omitted is a reliable real-guitar shape.  Let a corroborating analysis
+		// extension through at a lower threshold than unrelated analysis-only
+		// notes.
 		for (int root = 0; root < 12; ++root) {
 			if (note_grid_pitch_level(display_grid, root) <= 0.0f ||
 			    note_grid_pitch_level(display_grid, root + 4) <= 0.0f ||
 			    note_grid_pitch_level(display_grid, root + 7) <= 0.0f ||
 			    note_grid_pitch_level(display_grid, root + 10) > 0.0f)
 				continue;
+			const int sixth = (root + 9) % 12;
 			const int seventh = (root + 10) % 12;
 			for (const auto &row : analysis_grid.rows) {
 				for (const NoteCell &cell : row) {
@@ -21291,7 +21293,7 @@ void restore_very_strong_guitar_analysis_note_after_chord_resolution(
 					    cell.level <= recovered_level)
 						continue;
 					const int pitch_class = ((cell.midi % 12) + 12) % 12;
-					if (pitch_class != seventh)
+					if (pitch_class != sixth && pitch_class != seventh)
 						continue;
 					recovered_midi = cell.midi;
 					recovered_level = cell.level;
