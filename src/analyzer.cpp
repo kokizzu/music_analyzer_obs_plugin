@@ -21217,6 +21217,46 @@ void append_compact_guitar_weak_third_power_alias_after_final_prune(
 	}
 }
 
+void append_compact_guitar_analysis_minor_alias_after_final_prune(
+	InstrumentState &state, const NoteGrid &display_grid, const NoteGrid &analysis_grid)
+{
+	// Some compact minor triads lose their fifth only in the rendered grid,
+	// while analysis retains a moderate fifth and a clearly stronger minor than
+	// major third.  The narrow ceilings reject dense or genuinely major shapes.
+	if (!state.label[0] || state.label[0] == '-' || chord_label_component_count(state.label) > 10)
+		return;
+
+	char merged[sizeof(state.label)] = {};
+	copy_text(merged, sizeof(merged), state.label);
+	for (int root = 0; root < 12; ++root) {
+		char candidate[16] = {};
+		std::snprintf(candidate, sizeof(candidate), "%sm", note_name(root));
+		const std::size_t candidate_len = std::strlen(candidate);
+		if (chord_label_has_component(merged, candidate, candidate_len))
+			continue;
+
+		const int minor_third = root + 3;
+		const int major_third = root + 4;
+		const int fifth = root + 7;
+		const float display_root = note_grid_pitch_level(display_grid, root);
+		const float display_minor = note_grid_pitch_level(display_grid, minor_third);
+		const float display_fifth = note_grid_pitch_level(display_grid, fifth);
+		const float analysis_root = note_grid_pitch_level(analysis_grid, root);
+		const float analysis_minor = note_grid_pitch_level(analysis_grid, minor_third);
+		const float analysis_major = note_grid_pitch_level(analysis_grid, major_third);
+		const float analysis_fifth = note_grid_pitch_level(analysis_grid, fifth);
+		if (display_root < 0.95f || display_minor < 0.35f || display_fifth > 0.10f ||
+		    analysis_root < 0.95f || analysis_minor < 0.50f || analysis_major > 0.25f ||
+		    analysis_fifth < 0.35f || analysis_fifth > 0.45f)
+			continue;
+		append_chord_label_component(merged, sizeof(merged), candidate, candidate_len);
+	}
+	if (std::strcmp(merged, state.label) != 0) {
+		copy_text(state.label, sizeof(state.label), merged);
+		state.confidence = std::max(state.confidence, 0.58f);
+	}
+}
+
 void restore_tightly_labeled_minor_seventh_guitar_thirds_from_analysis(
 	NoteGrid &display_grid, const InstrumentState &chord_state, const NoteGrid &analysis_grid)
 {
@@ -33322,6 +33362,8 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 		append_compact_guitar_analysis_fifth_power_alias_after_final_prune(
 			snapshot.guitar_chord, snapshot.guitar_notes, guitar_chord_detection_grid);
 		append_compact_guitar_weak_third_power_alias_after_final_prune(
+			snapshot.guitar_chord, snapshot.guitar_notes, guitar_chord_detection_grid);
+		append_compact_guitar_analysis_minor_alias_after_final_prune(
 			snapshot.guitar_chord, snapshot.guitar_notes, guitar_chord_detection_grid);
 	} else {
 		reset_note_grid_envelope(snapshot.guitar_notes, snapshot.guitar, guitar_note_tracking_);

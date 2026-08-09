@@ -4598,3 +4598,6 @@ analyze-gaps-guitar-major-seventh-candidates: build/gaps_guitar_full_attributes.
 .PHONY: analyze-gaps-guitar-analysis-fifth-power-candidates
 analyze-gaps-guitar-analysis-fifth-power-candidates:
 	@python3 scripts/analyze_gaps_guitar_analysis_fifth_power_candidates.py build/gaps_guitar_full_attributes.tsv $(ANALYSIS_FIFTH_POWER_ARGS)
+.PHONY: analyze-gaps-guitar-analysis-minor-alias-candidates
+analyze-gaps-guitar-analysis-minor-alias-candidates:
+	@python3 scripts/analyze_gaps_guitar_analysis_minor_alias_candidates.py build/gaps_guitar_full_attributes.tsv $(ANALYSIS_MINOR_ALIAS_ARGS)
