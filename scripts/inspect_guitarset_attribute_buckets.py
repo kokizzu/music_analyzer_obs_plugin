@@ -133,6 +133,7 @@ CATEGORY_FIELDS = [
     "global_chord",
     "guitar_match_kind",
     "expected_pitch_classes",
+    "expected_raw_cells",
     "guitar_pitch_classes",
     "guitar_analysis_pitch_classes",
     "guitar_smoothed_pitch_classes",
