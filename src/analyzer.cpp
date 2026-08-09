@@ -20910,9 +20910,9 @@ void restore_tightly_labeled_dominant_seventh_guitar_tones_from_analysis(
 		return;
 
 	// In compact dominant-seventh labels, a retained flat seventh in the
-	// analysis grid is a reliable missing string fundamental.  The major third
-	// needs the still tighter three-alias bound, where its harmonic residue is
-	// distinguishable from a genuinely missing string fundamental.
+	// analysis grid is a reliable missing string fundamental. Five aliases use
+	// a stronger floor; the major third needs the still tighter three-alias
+	// bound, where its harmonic residue is distinguishable from a fundamental.
 	const char *cursor = chord_state.label;
 	while (cursor && *cursor) {
 		const char *end = std::strchr(cursor, '=');
@@ -20926,9 +20926,10 @@ void restore_tightly_labeled_dominant_seventh_guitar_tones_from_analysis(
 		if (parse_root_chord_component(cursor, len, component) &&
 		    component.quality == RootChordQuality::Major && suffix_is(suffix, suffix_len, "7")) {
 			const int seventh = (component.root + 10) % 12;
+			const float minimum_seventh_level = label_components <= 4 ? 0.60f : 0.50f;
 			if (!note_grid_pitch_active(display_grid, seventh) &&
 			    note_grid_pitch_active(analysis_grid, seventh) &&
-			    note_grid_pitch_level(analysis_grid, seventh) >= 0.60f) {
+			    note_grid_pitch_level(analysis_grid, seventh) >= minimum_seventh_level) {
 				const NoteCell &source = analysis_grid.cells[static_cast<std::size_t>(seventh)];
 				if (source.active)
 					promote_note_grid_primary_midi(display_grid, source.midi, source.level);
@@ -20955,7 +20956,7 @@ void restore_tightly_labeled_major_guitar_tones_from_analysis(
 {
 	const int label_components = chord_label_component_count(chord_state.label);
 	if (!chord_state.label[0] || chord_state.label[0] == '-' ||
-	    label_components > 4 ||
+	    label_components > 5 ||
 	    note_grid_active_pitch_class_count(display_grid) > 8 ||
 	    note_grid_active_pitch_class_count(analysis_grid) > 8)
 		return;
