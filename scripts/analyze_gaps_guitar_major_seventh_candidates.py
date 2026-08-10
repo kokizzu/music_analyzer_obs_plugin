@@ -35,8 +35,31 @@ def main():
     parser.add_argument("attributes")
     parser.add_argument("--seventh-floor", type=float, default=0.22)
     parser.add_argument("--seventh-ceiling", type=float, default=0.30)
+    parser.add_argument(
+        "--allow-analysis-absent",
+        action="store_true",
+        help="also measure raw-supported sevenths that final analysis pruning omitted",
+    )
+    parser.add_argument(
+        "--require-analysis-absent",
+        action="store_true",
+        help="only measure raw-supported sevenths that final analysis pruning omitted",
+    )
+    parser.add_argument(
+        "--require-single-component",
+        action="store_true",
+        help="only consider an unambiguous, single-component detected chord",
+    )
+    parser.add_argument(
+        "--detection-seventh-floor",
+        type=float,
+        default=0.0,
+        help="require direct pre-prune guitar detection support for the seventh",
+    )
     parser.add_argument("--limit", type=int, default=16)
     args = parser.parse_args()
+    if args.allow_analysis_absent and args.require_analysis_absent:
+        parser.error("--allow-analysis-absent and --require-analysis-absent are mutually exclusive")
 
     candidates = []
     false_qualities = Counter()
@@ -56,14 +79,23 @@ def main():
                 has_major7 = has_major7 or parsed[2] in {"maj7", "maj9"}
             if not plain_root or has_major7:
                 continue
+            if args.require_single_component and "=" in row["guitar_chord"]:
+                continue
             visible = classes(row["guitar_pitch_classes"])
             analysis = classes(row["guitar_analysis_pitch_classes"])
             required = {root_pc, (root_pc + 4) % 12, (root_pc + 7) % 12}
             seventh = (root_pc + 11) % 12
             raw = levels(row["raw_pitch_class_levels"])
-            if not required <= visible or seventh not in analysis or seventh in visible:
+            detection = levels(row["guitar_detection_pitch_class_levels"])
+            if not required <= visible or seventh in visible:
+                continue
+            if args.require_analysis_absent and seventh in analysis:
+                continue
+            if not args.allow_analysis_absent and not args.require_analysis_absent and seventh not in analysis:
                 continue
             if raw.get(seventh, 0.0) < args.seventh_floor or raw.get(seventh, 0.0) > args.seventh_ceiling:
+                continue
+            if detection.get(seventh, 0.0) < args.detection_seventh_floor:
                 continue
             positive = row["expected_chord_qualities"] == "maj7"
             if not positive:
@@ -80,7 +112,9 @@ def main():
             f"{'positive' if positive else 'false'} {row['recording_id']}@{row['center_seconds']} "
             f"expected={row['expected_chords']} got={row['guitar_chord']} root={root_name} "
             f"maj7={level:.3f} visible={row['guitar_pitch_classes']} "
-            f"analysis={row['guitar_analysis_pitch_classes']}"
+            f"analysis={row['guitar_analysis_pitch_classes']} "
+            f"analysis7={'yes' if (PITCH_CLASSES.get(root_name, -1) + 11) % 12 in classes(row['guitar_analysis_pitch_classes']) else 'no'} "
+            f"detection7={levels(row['guitar_detection_pitch_class_levels']).get((PITCH_CLASSES.get(root_name, -1) + 11) % 12, 0.0):.3f}"
         )
 
 

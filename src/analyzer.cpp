@@ -21160,6 +21160,59 @@ void append_compact_guitar_analysis_major_seventh_alias_after_final_prune(
 	}
 }
 
+void append_raw_probe_supported_compact_guitar_major_seventh_alias_after_final_prune(
+	InstrumentState &state, const NoteGrid &display_grid, const NoteGrid &analysis_grid,
+	const std::array<float, kNoteProbeCount> &powers,
+	const std::array<float, kNoteProbeCount> &detection_powers, int min_midi, int max_midi)
+{
+	// Some clean close-miked maj7 voicings retain a moderate fundamental for the
+	// leading tone in both probe paths, but final note pruning removes it from
+	// the compact display and analysis grids.  The exact three-tone core and
+	// narrow probe band distinguish this from ordinary-triad harmonics.
+	if (!state.label[0] || state.label[0] == '-' || chord_label_component_count(state.label) != 1 ||
+	    note_grid_active_pitch_class_count(display_grid) != 3 ||
+	    note_grid_active_pitch_class_count(analysis_grid) != 3)
+		return;
+
+	ParsedRootChord parsed;
+	if (!parse_root_chord_component(state.label, std::strlen(state.label), parsed) ||
+	    parsed.quality != RootChordQuality::Major)
+		return;
+	const int root = ((parsed.root % 12) + 12) % 12;
+	const char *root_name = note_name(root);
+	if (!chord_label_has_exact_component(state.label, root_name))
+		return;
+	for (int interval : {0, 4, 7}) {
+		if (!note_grid_pitch_active(display_grid, root + interval) ||
+		    !note_grid_pitch_active(analysis_grid, root + interval))
+			return;
+	}
+	if (note_grid_pitch_active(display_grid, root + 11) ||
+	    note_grid_pitch_active(analysis_grid, root + 11))
+		return;
+
+	const float strongest_probe = strongest_probe_level(powers, min_midi, max_midi);
+	const float strongest_detection = strongest_probe_level(detection_powers, min_midi, max_midi);
+	if (strongest_probe <= 1.0e-6f || strongest_detection <= 1.0e-6f)
+		return;
+	const float major_seventh_probe =
+		strongest_probe_pitch_class_level(powers, root + 11, min_midi, max_midi) / strongest_probe;
+	const float major_seventh_detection =
+		strongest_probe_pitch_class_level(detection_powers, root + 11, min_midi, max_midi) /
+		strongest_detection;
+	const float flat_seventh_probe =
+		strongest_probe_pitch_class_level(powers, root + 10, min_midi, max_midi) / strongest_probe;
+	if (major_seventh_probe < 0.15f || major_seventh_probe > 0.19f ||
+	    major_seventh_detection < 0.10f ||
+	    flat_seventh_probe >= std::max(0.05f, major_seventh_probe * 0.50f))
+		return;
+
+	char candidate[16] = {};
+	std::snprintf(candidate, sizeof(candidate), "%smaj7", root_name);
+	append_chord_label_component(state.label, sizeof(state.label), candidate, std::strlen(candidate));
+	state.confidence = std::max(state.confidence, 0.58f);
+}
+
 void append_compact_guitar_analysis_fifth_power_alias_after_final_prune(
 	InstrumentState &state, const NoteGrid &display_grid, const NoteGrid &analysis_grid)
 {
@@ -33973,6 +34026,9 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 				snapshot.guitar_notes, snapshot.guitar_chord, guitar_chord_detection_grid);
 			restore_final_compact_minor_guitar_fifth_from_analysis(
 				snapshot.guitar_notes, snapshot.guitar_chord, guitar_chord_detection_grid);
+			append_raw_probe_supported_compact_guitar_major_seventh_alias_after_final_prune(
+				snapshot.guitar_chord, snapshot.guitar_notes, guitar_chord_detection_grid,
+				note_powers, detection_note_powers, kGuitarMinMidi, kGuitarMaxMidi);
 		}
 		append_compact_guitar_analysis_major_seventh_alias_after_final_prune(
 			snapshot.guitar_chord, snapshot.guitar_notes, guitar_chord_detection_grid);
