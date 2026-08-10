@@ -369,6 +369,22 @@ def quiet_threshold_crash(event: DrumEvent) -> bool:
     )
 
 
+def treble_dense_crash(event: DrumEvent) -> bool:
+    crash_seg = value(event, "crash", "seg")
+    cymbal_max = strongest(event, ("hihat", "crash", "ride"), "seg")
+    return (
+        1.10 <= trigger_ratio(event, "crash") <= 1.15
+        and 2.0 <= value(event, "crash", "transient") <= 2.2
+        and 2.5 <= value(event, "crash", "onset") <= 3.0
+        and 0.065 <= value(event, "crash", "rms") <= 0.080
+        and 0.60 <= value(event, "crash", "low") <= 0.68
+        and 0.14 <= value(event, "crash", "mid") <= 0.18
+        and 0.18 <= value(event, "crash", "high") <= 0.22
+        and 1.0 <= crash_seg <= 1.2
+        and crash_seg >= cymbal_max * 0.24
+    )
+
+
 def embedded_crash(event: DrumEvent) -> bool:
     crash_seg = value(event, "crash", "seg")
     cymbal_max = strongest(event, ("hihat", "crash", "ride"), "seg")
@@ -403,6 +419,7 @@ RULES = (
     CandidateRule("short-mid-heavy-crash", "crash", short_mid_heavy_crash),
     CandidateRule("broad-low-ratio-crash", "crash", broad_low_ratio_crash),
     CandidateRule("quiet-threshold-crash", "crash", quiet_threshold_crash),
+    CandidateRule("treble-dense-crash", "crash", treble_dense_crash),
 )
 
 

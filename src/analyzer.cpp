@@ -28853,6 +28853,16 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 		drum_segment_bands[Crash] <= 0.25f && drum_segment_bands[Crash] >= strongest_cymbal_drum * 0.65f;
 	if (quiet_threshold_crash_recovery)
 		boost_drum_level(Crash, 0.34f);
+	const bool treble_dense_crash_recovery =
+		drum_detection_enabled && !one_shot_drum_source && drum_level_[Crash] <= 0.30f &&
+		crash_trigger_ratio_after_detection >= 1.10f && crash_trigger_ratio_after_detection <= 1.15f &&
+		drum_transient_ratio >= 2.0f && drum_transient_ratio <= 2.2f && onset >= 2.5f && onset <= 3.0f &&
+		rms >= 0.065f && rms <= 0.080f && snapshot.low_energy >= 0.60f && snapshot.low_energy <= 0.68f &&
+		snapshot.mid_energy >= 0.14f && snapshot.mid_energy <= 0.18f && snapshot.high_energy >= 0.18f &&
+		snapshot.high_energy <= 0.22f && drum_segment_bands[Crash] >= 1.0f && drum_segment_bands[Crash] <= 1.2f &&
+		drum_segment_bands[Crash] >= strongest_cymbal_drum * 0.24f;
+	if (treble_dense_crash_recovery)
+		boost_drum_level(Crash, 0.34f);
 	// The low-dominant bleed cap is normally correct, but a narrow real-kit
 	// overlap has independently corroborated tom energy and a sustained onset.
 	// Restore it only after that cap so the ordinary kick-bleed protections stay
