@@ -112,6 +112,28 @@ def kick_backed_snare(event: DrumEvent) -> bool:
     )
 
 
+def low_crack_kick_backed_snare(event: DrumEvent) -> bool:
+    """Real-track kick/snare overlaps whose low crack is still corroborated."""
+    snare_body = value(event, "snare", "snare_body")
+    crack = value(event, "snare", "snare_crack")
+    kick_body = value(event, "snare", "kick_body")
+    return (
+        low_kick_body(event)
+        and trigger_ratio(event, "snare") >= 7.5
+        and value(event, "snare", "transient") >= 1.55
+        and value(event, "snare", "onset") >= 15.0
+        and snare_body >= 18.0
+        and snare_body <= 34.0
+        and snare_body >= kick_body * 0.26
+        and crack >= 3.5
+        and crack < 6.0
+        and crack >= snare_body * 0.055
+        and crack >= kick_body * 0.018
+        and value(event, "snare", "mid") >= value(event, "snare", "low") * 0.08
+        and value(event, "snare", "high") <= 0.22
+    )
+
+
 def embedded_ride(event: DrumEvent) -> bool:
     ride_seg = value(event, "ride", "seg")
     cymbal_max = strongest(event, ("hihat", "crash", "ride"), "seg")
@@ -145,6 +167,7 @@ def embedded_crash(event: DrumEvent) -> bool:
 RULES = (
     CandidateRule("supported-low-snare", "snare", supported_low_snare),
     CandidateRule("kick-backed-snare", "snare", kick_backed_snare),
+    CandidateRule("low-crack-kick-backed-snare", "snare", low_crack_kick_backed_snare),
     CandidateRule("embedded-ride", "ride", embedded_ride),
     CandidateRule("strong-embedded-ride", "ride", strong_embedded_ride),
     CandidateRule("embedded-crash", "crash", embedded_crash),

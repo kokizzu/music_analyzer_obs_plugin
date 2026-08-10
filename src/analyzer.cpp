@@ -28301,6 +28301,20 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 		snapshot.mid_energy >= snapshot.low_energy * 0.08f &&
 		snapshot.high_energy <= 0.22f &&
 		(strongest_cymbal_drum <= 1.0e-6f || strongest_cymbal_drum <= strongest_body_drum * 0.16f);
+	// Some real-kit kick/snare overlaps have a quieter crack, while their sustained
+	// snare body, strong onset, and low-cymbal separation still corroborate the hit.
+	const bool low_crack_kick_backed_snare_transient =
+		!one_shot_drum_source && drum_transient && onset >= 15.0f &&
+		drum_segment_bands[Kick] >= strongest_shell_drum * 0.32f &&
+		drum_segment_bands[Snare] >= strongest_shell_drum * 0.12f &&
+		snare_body >= kick_body * 0.26f &&
+		snare_body >= 18.0f && snare_body <= 34.0f &&
+		snare_crack >= 3.5f && snare_crack < 6.0f &&
+		snare_crack >= snare_body * 0.055f &&
+		snare_crack >= kick_body * 0.018f &&
+		snapshot.mid_energy >= snapshot.low_energy * 0.08f &&
+		snapshot.high_energy <= 0.22f &&
+		(strongest_cymbal_drum <= 1.0e-6f || strongest_cymbal_drum <= strongest_body_drum * 0.16f);
 	const bool tom_low_kick_bleed_shape =
 		!one_shot_drum_source && body_shape == Kick &&
 		snapshot.low_energy >= 0.68f &&
@@ -28326,7 +28340,8 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 		body_shape_allowed && kick_body_shape_supported && kick_shape,
 		body_shape_allowed &&
 			(((body_shape == Snare || snare_side_shape) && snare_shape) ||
-			 embedded_snare_transient || kick_backed_snare_transient),
+			 embedded_snare_transient || kick_backed_snare_transient ||
+			 low_crack_kick_backed_snare_transient),
 		(cymbal_shape_allowed && (cymbal_shape == HiHat || hihat_family_shape)) ||
 			hihat_tom_body_backstop || hihat_mixed_backstop || real_drum_track_embedded_hihat ||
 			embedded_cymbal_transient,

@@ -191,8 +191,21 @@ def event_count(path: Path) -> int:
     return sum(1 for line in path.read_text(encoding="utf-8", errors="replace").splitlines() if EVENT_RE.match(line))
 
 
-def summarize(path: Path, top: int = 10, examples: int = 3) -> str:
+def summarize(
+    path: Path,
+    top: int = 10,
+    examples: int = 3,
+    recording: str = "",
+    status: str = "",
+    category: str = "",
+) -> str:
     rows = parse_rows(path)
+    if recording:
+        rows = [row for row in rows if row["recording"] == recording]
+    if status:
+        rows = [row for row in rows if row["status"] == status]
+    if category:
+        rows = [row for row in rows if row["category"] == category]
     groups: dict[str, list[dict[str, object]]] = collections.defaultdict(list)
     for row in rows:
         groups[row_key(row)].append(row)
@@ -220,8 +233,20 @@ def main() -> int:
     parser.add_argument("log", type=Path)
     parser.add_argument("--top", type=int, default=10)
     parser.add_argument("--examples", type=int, default=3)
+    parser.add_argument("--recording", default="")
+    parser.add_argument("--status", choices=("", "miss", "false_positive"), default="")
+    parser.add_argument("--category", choices=("", *LABEL_TO_CATEGORY.values()), default="")
     args = parser.parse_args()
-    print(summarize(args.log, top=args.top, examples=args.examples))
+    print(
+        summarize(
+            args.log,
+            top=args.top,
+            examples=args.examples,
+            recording=args.recording,
+            status=args.status,
+            category=args.category,
+        )
+    )
     return 0
 
 
