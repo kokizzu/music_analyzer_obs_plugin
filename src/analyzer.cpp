@@ -28712,6 +28712,24 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 		if (rim_is_kick_bleed)
 			cap_drum_level(Rim, 0.28f);
 	}
+	// Preserve a corroborated low-crack snare when the generic kick-bleed cap has
+	// removed it from a compact real-kit overlap.
+	const bool low_crack_kick_backed_snare_recovery =
+		drum_detection_enabled && !one_shot_drum_source && drum_transient &&
+		drum_level_[Kick] > 0.30f && drum_level_[Snare] <= 0.30f && onset >= 15.0f &&
+		drum_segment_bands[Kick] >= strongest_shell_drum * 0.32f &&
+		drum_segment_bands[Snare] >= strongest_shell_drum * 0.12f &&
+		snare_body >= kick_body * 0.26f &&
+		snare_body >= 18.0f && snare_body <= 34.0f &&
+		snare_crack >= 3.5f && snare_crack < 6.0f &&
+		snare_crack >= snare_body * 0.055f &&
+		snare_crack >= kick_body * 0.018f &&
+		snapshot.low_energy >= 0.78f &&
+		snapshot.mid_energy >= snapshot.low_energy * 0.08f &&
+		snapshot.high_energy <= 0.22f &&
+		(strongest_cymbal_drum <= 1.0e-6f || strongest_cymbal_drum <= strongest_body_drum * 0.16f);
+	if (low_crack_kick_backed_snare_recovery)
+		boost_drum_level(Snare, 0.34f);
 	// The low-dominant bleed cap is normally correct, but a narrow real-kit
 	// overlap has independently corroborated tom energy and a sustained onset.
 	// Restore it only after that cap so the ordinary kick-bleed protections stay
