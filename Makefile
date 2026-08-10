@@ -4614,6 +4614,9 @@ analyze-gaps-guitar-analysis-minor-alias-candidates:
 .PHONY: analyze-gaps-guitar-analysis-add9-alias-candidates
 analyze-gaps-guitar-analysis-add9-alias-candidates:
 	@python3 scripts/analyze_gaps_guitar_analysis_add9_alias_candidates.py build/gaps_guitar_full_attributes.tsv $(ANALYSIS_ADD9_ALIAS_ARGS)
+.PHONY: analyze-guitar-rootless-dim-candidates
+analyze-guitar-rootless-dim-candidates:
+	@python3 scripts/analyze_guitar_rootless_dim_candidates.py $(ROOTLESS_DIM_ARGS) build/gaps_guitar_full_attributes.tsv build/guitar_techs_chord_attributes.tsv build/guitar_chord_mix_attributes.tsv
 .PHONY: test-gaps-guitar-regressions
 test-gaps-guitar-regressions: build/gaps_guitar_full_attributes.tsv
 	@python3 scripts/check_gaps_guitar_regressions.py build/gaps_guitar_full_attributes.tsv
