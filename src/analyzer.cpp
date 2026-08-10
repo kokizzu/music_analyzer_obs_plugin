@@ -28893,7 +28893,20 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 		drum_segment_bands[HiHat] >= strongest_cymbal_drum * 0.38f;
 	if (compact_embedded_hihat_recovery)
 		boost_drum_level(HiHat, 0.34f);
-
+	// The opening real-kit crash can be loud yet land exactly at the crash
+	// trigger threshold when its spectrum is overwhelmingly low-band.
+	const float opening_low_band_crash_ratio =
+		snapshot.drum_debug_trigger_scores[Crash] /
+		(snapshot.drum_debug_trigger_thresholds[Crash] + 1.0e-6f);
+	const bool opening_low_band_crash_recovery =
+		drum_detection_enabled && !one_shot_drum_source && drum_transient_ratio >= 1.75f &&
+		drum_level_[Crash] <= 0.30f && opening_low_band_crash_ratio >= 1.0f &&
+		opening_low_band_crash_ratio <= 1.10f && onset >= 2.5f && onset <= 3.0f &&
+		rms >= 0.300f && rms <= 0.400f && snapshot.low_energy >= 0.85f &&
+		snapshot.mid_energy <= 0.12f && snapshot.high_energy <= 0.025f &&
+		drum_segment_bands[Crash] >= 1.50f;
+	if (opening_low_band_crash_recovery)
+		boost_drum_level(Crash, 0.34f);
 	const bool real_drum_track_hihat_crash_bleed =
 		drum_detection_enabled && real_drum_track_source &&
 		drum_level_[HiHat] > 0.30f &&
