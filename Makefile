@@ -9,6 +9,7 @@ BUILD_DIR ?= build
 INSTRUMENT_SAMPLE_STORE ?= /media/kyz/sshflashtor/InstrumentSamples
 INSTRUMENT_SAMPLE_STORE_LINK ?= $(BUILD_DIR)/InstrumentSamples
 REAL_DATASET_ROOT ?= $(INSTRUMENT_SAMPLE_STORE_LINK)
+DETECTION_ACCURACY_REPORT ?= docs/detection_accuracy_report.md
 ANDROID_SDK_ROOT ?= $(CURDIR)/$(BUILD_DIR)/android-sdk
 ANDROID_GRADLE_VERSION ?= 8.10.2
 ANDROID_EMULATOR_API ?= 35
@@ -2482,6 +2483,12 @@ test-real-note-visual-strength: $(BUILD_DIR)/real_note_full_mix_attributes.tsv s
 analyze-real-note-attributes: $(BUILD_DIR)/real_note_full_mix_attributes.tsv scripts/summarize_real_note_attributes.py
 	$(PYTHON) scripts/summarize_real_note_attributes.py "$(BUILD_DIR)/real_note_full_mix_attributes.tsv" $(REAL_NOTE_ATTRIBUTE_SUMMARY_ARGS)
 	@printf '%s\n' "attribute TSV: $(BUILD_DIR)/real_note_full_mix_attributes.tsv"
+
+update-detection-accuracy-report: $(BUILD_DIR)/real_note_full_mix_attributes.tsv scripts/write_detection_accuracy_report.py
+	$(PYTHON) scripts/write_detection_accuracy_report.py --input "$(BUILD_DIR)/real_note_full_mix_attributes.tsv" --output "$(DETECTION_ACCURACY_REPORT)"
+
+test-detection-accuracy-report: tests/test_write_detection_accuracy_report.py scripts/write_detection_accuracy_report.py
+	$(PYTHON) tests/test_write_detection_accuracy_report.py
 
 inspect-real-note-attribute-buckets: $(BUILD_DIR)/real_note_full_mix_attributes.tsv scripts/inspect_real_note_attribute_buckets.py
 	$(PYTHON) scripts/inspect_real_note_attribute_buckets.py "$(BUILD_DIR)/real_note_full_mix_attributes.tsv" $(if $(INSPECT_BUCKET),--bucket "$(INSPECT_BUCKET)") $(INSPECT_ARGS)

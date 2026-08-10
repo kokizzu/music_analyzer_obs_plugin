@@ -1,4 +1,4 @@
-# Music Analyzer Documentation
+# Audacious overlay integration
 
 ## Audacious Song Title in the OBS Overlay
 

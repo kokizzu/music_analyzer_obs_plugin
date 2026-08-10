@@ -39,8 +39,8 @@ def main():
     try:
         catalog = load_catalog()
         makefile = read_text("Makefile")
-        readme = read_text("README.md")
         docs = read_text("docs/real_audio_dataset_candidates.md")
+        readme = "\n".join((read_text("docs/development_and_testing.md"), docs))
         shared_docs = read_text("docs/shared_analyzer_investigation.md")
         completion_audit = read_text("docs/goal_completion_audit.md")
         analyzer_header = read_text("src/analyzer.hpp")

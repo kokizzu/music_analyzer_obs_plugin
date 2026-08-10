@@ -54,7 +54,7 @@ USB MIDI and BLE MIDI are supported. The scanner recognizes names containing `Ch
 
 The vendor's current download center lists `FootCtrlPlus` under the newer MidiSuite editor, while the older Chocolate remains listed under CubeSuite: <https://www.m-vave.com/download>.
 
-## BLE transport notes
+## LiteJam BLE transport
 
 LiteJam discovery recognizes the vendor prefix `Lite Jam RGB` plus `LiteJam` variants. It writes one complete packet without response to service `000000ee-0000-1000-8000-00805f9b34fb`, characteristic `0000ee04-0000-1000-8000-00805f9b34fb`:
 
@@ -69,7 +69,11 @@ segment count
 
 String bit 0 is string 1/high E and bit 5 is string 6/low E. The vendor references `NLJ-LED Control-210425-052233.pdf` and `NLJ-LED Perform mode-210425-052308.pdf` may be kept locally under `docs/`; both paths are intentionally git-ignored. The independent [litejam-alphajams implementation](https://github.com/jsmadja/litejam-alphajams) confirms the advertising prefix, UUIDs, packet terminator, and write-without-response behavior.
 
-Fret Zealot v1 uses service `6e400001-b5a3-f393-e0a9-e50e24dcca9e` and write characteristic `6e400002-b5a3-f393-e0a9-e50e24dcca9e`. Fret Zealot 2 uses service `fb1e4001-54ae-4a28-9f74-dfccb248601d` and write characteristic `fb1e4002-54ae-4a28-9f74-dfccb248601d`. The normal four-byte LED command is:
+## Fret Zealot (original and Fret Zealot 2)
+
+Fret Zealot is not driven through LiteJam's segment protocol. The shared native encoder, `build_fret_zealot_major_scale_packet`, converts the selected major scale into one four-byte LED command per lit string/fret cell. It covers the six standard-tuned strings and physical musical frets 1-15 only. Fret Zealot LED index 0 means musical fret 1, while index 14 means fret 15; open strings and frets above 15 have no Fret Zealot LED.
+
+The packet begins with a reset marker (`0x40 0x00 0x00 0x00`) and then uses these LED commands:
 
 ```text
 byte 0: command in high nibble, effect in low nibble
@@ -78,7 +82,22 @@ byte 2: blue in high nibble, green in low nibble
 byte 3: 1 << (zero-based string + 1); the default right-handed map is bit 1 low E through bit 6 high E
 ```
 
-The app shows a one-second rainbow `MUSIC` connection glyph, clears the board, then renders the selected scale. It also clears before each new scale. It drives LEDs through the documented `6e40...` endpoint used by the official app. Fret Zealot 2 also exposes an `fb1e...` UART service, but that service is for firmware transfer rather than LED control. On Fret Zealot 2, the adapter requests a 517-byte MTU, then sends each state update as one command batch of up to 500 bytes; first-generation hardware retains its documented 20-byte chunks. Android connects and writes through a focused, Android 15-compatible adaptation of Edge Tech Labs' official [`fz-android-sdk`](https://github.com/edgetechlabs/fz-android-sdk), based on SDK commit `6da6d1b`. The adapted module preserves the SDK's core `LEDBLELib` command API while omitting its obsolete UI and firmware-update dependencies. The shared native analyzer remains the source of fret/string colors; the Android controller translates its packet into the SDK's `clear`, `set`, and flush calls using the vendor `red, blue, green` argument order. Its intensity parameter is not serialized by the public SDK, so the app requests intensity `3` and uses the true minimum nonzero channel value, `1/15`.
+### Discovery and transport selection
+
+`ExternalDeviceManager` recognizes Fret Zealot advertising names and delegates the GATT lifecycle to the bundled Android-15-compatible adaptation of Edge Tech Labs' official [`fz-android-sdk`](https://github.com/edgetechlabs/fz-android-sdk), based on SDK commit `6da6d1b`. The manager itself does not write raw Fret Zealot characteristics.
+
+- Original Fret Zealot uses the LED service `6e400001-b5a3-f393-e0a9-e50e24dcca9e` and LED write characteristic `6e400002-b5a3-f393-e0a9-e50e24dcca9e`.
+- Fret Zealot 2 exposes `fb1e4001-54ae-4a28-9f74-dfccb248601d` / `fb1e4002-54ae-4a28-9f74-dfccb248601d`. The SDK detects that Fret Zealot 2 characteristic to select its modern transport sizing, but retains the documented `6e40...` LED endpoint for scale commands. The `fb1e...` endpoint is not used as a generic LED UART by this app.
+
+The SDK requests a 517-byte MTU and a high-priority connection before service discovery. When the Fret Zealot 2 characteristic is present, it sends a command batch of up to 500 bytes (or the negotiated GATT payload limit); original boards keep callback-paced 20-byte writes with a 20-ms settling delay. This difference is essential: applying Fret Zealot 2's large batches to an original board can leave only a prefix of a scale visible.
+
+### Scale-frame safety
+
+`FretZealotSdkController` translates the shared packet to the SDK's `set` and flush calls, reverses the native low-E-to-high-E string order to the SDK's physical high-E-to-low-E pixel order, and reduces shared RGB values to Fret Zealot's four-bit channel range. It uses a calibrated dim palette and SDK intensity 3 so degree hues remain distinguishable at low brightness.
+
+On connection, the first reset marker performs the one full-board clear. Manual changes are then deltas: new/recolored LEDs are written before obsolete LEDs are cleared, avoiding a visible black-board blink. AUTO-root changes wait 1.25 seconds for the root to stabilize. The controller reasserts all target LEDs, waits for the legacy frame to settle, and only then clears stale pixels. If an AUTO update arrives while a frame is in flight, only the newest request is retained. These precautions primarily protect first-generation hardware; Fret Zealot 2 still follows the same frame semantics, but completes its larger writes much faster.
+
+The app briefly shows a rainbow `MUSIC` connection glyph, then displays the selected scale. The SDK module intentionally preserves only the LED API and modern BLE lifecycle; obsolete upstream UI and firmware-update dependencies are not bundled.
 
 ## Hardware validation
 
