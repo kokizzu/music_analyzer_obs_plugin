@@ -28746,6 +28746,19 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 		drum_segment_bands[Ride] >= strongest_cymbal_drum * 0.42f;
 	if (mid_dominant_embedded_ride_recovery)
 		boost_drum_level(Ride, 0.34f);
+	// Sparse low-RMS ride strokes retain a compact cymbal envelope despite a
+	// dominant kick body; the bounded onset excludes long-decay bleed.
+	const bool low_rms_embedded_ride_recovery =
+		drum_detection_enabled && !one_shot_drum_source && drum_transient_ratio >= 1.75f &&
+		drum_level_[Ride] <= 0.30f && ride_trigger_ratio_after_detection >= 6.0f &&
+		rms >= 0.035f && rms <= 0.060f && onset >= 20.0f && onset <= 40.0f &&
+		snapshot.low_energy >= 0.84f && snapshot.low_energy <= 0.88f &&
+		snapshot.mid_energy >= 0.10f && snapshot.mid_energy <= 0.14f &&
+		snapshot.high_energy >= 0.01f && snapshot.high_energy <= 0.03f &&
+		drum_segment_bands[Ride] >= 0.95f &&
+		drum_segment_bands[Ride] >= strongest_cymbal_drum * 0.42f;
+	if (low_rms_embedded_ride_recovery)
+		boost_drum_level(Ride, 0.34f);
 	// The low-dominant bleed cap is normally correct, but a narrow real-kit
 	// overlap has independently corroborated tom energy and a sustained onset.
 	// Restore it only after that cap so the ordinary kick-bleed protections stay

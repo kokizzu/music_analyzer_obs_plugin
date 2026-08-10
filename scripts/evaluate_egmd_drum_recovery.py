@@ -198,6 +198,17 @@ def mid_dominant_embedded_ride(event: DrumEvent) -> bool:
     )
 
 
+def low_rms_embedded_ride(event: DrumEvent) -> bool:
+    return (
+        strong_embedded_ride(event)
+        and 0.84 <= value(event, "ride", "low") <= 0.88
+        and 0.10 <= value(event, "ride", "mid") <= 0.14
+        and 0.01 <= value(event, "ride", "high") <= 0.03
+        and 0.035 <= value(event, "ride", "rms") <= 0.06
+        and 20.0 <= value(event, "ride", "onset") <= 40.0
+    )
+
+
 def embedded_crash(event: DrumEvent) -> bool:
     crash_seg = value(event, "crash", "seg")
     cymbal_max = strongest(event, ("hihat", "crash", "ride"), "seg")
@@ -219,6 +230,7 @@ RULES = (
     CandidateRule("embedded-ride", "ride", embedded_ride),
     CandidateRule("strong-embedded-ride", "ride", strong_embedded_ride),
     CandidateRule("mid-dominant-embedded-ride", "ride", mid_dominant_embedded_ride),
+    CandidateRule("low-rms-embedded-ride", "ride", low_rms_embedded_ride),
     CandidateRule("embedded-crash", "crash", embedded_crash),
 )
 
