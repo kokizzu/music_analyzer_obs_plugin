@@ -31831,6 +31831,18 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 	if (final_one_shot_measured_hihat_rim_active_bleed)
 		cap_drum_level(Rim, 0.28f);
 
+	// In the low-band 80s-rock stem, simultaneous kick and snare transients can
+	// saturate the hat envelope even though there is effectively no treble hat
+	// energy.  Keep this below the genuine hat floor and require both competing
+	// bodies to already be decisive so isolated low-band hats are unaffected.
+	const bool final_one_shot_measured_low_band_hihat_kicksnare_active_bleed =
+		drum_detection_enabled && !generated_gm_drum_source &&
+		drum_level_[HiHat] >= 0.98f && drum_level_[Kick] >= 0.94f &&
+		drum_level_[Snare] >= 0.84f && snapshot.low_energy >= 0.84f &&
+		snapshot.high_energy <= 0.035f && drum_bands[HiHat] <= 3.0f;
+	if (final_one_shot_measured_low_band_hihat_kicksnare_active_bleed)
+		cap_drum_level(HiHat, 0.28f);
+
 	const bool final_one_shot_measured_hihat_crash_active_bleed =
 		drum_detection_enabled && one_shot_drum_source &&
 		!generated_gm_drum_source &&
