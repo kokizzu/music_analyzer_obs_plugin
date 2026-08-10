@@ -18228,6 +18228,31 @@ void append_visible_root_fifth_guitar_power_aliases_after_prune(InstrumentState 
 		}
 		return false;
 	};
+	// Some close-miked power chords leak a strong lower harmonic that makes the
+	// classifier enumerate the same root as minor, minor-sixth, minor-seventh,
+	// diminished, and diminished-seventh.  That is a contradictory family, not
+	// reliable evidence for a diminished chord.  Permit the existing visible
+	// root/fifth check to recover the power alias only for that dense shape.
+	auto label_has_dense_minor_diminished_family = [](const char *label, int root) {
+		if (chord_label_component_count(label) < 8 || chord_label_component_count(label) > 12)
+			return false;
+		char minor[16] = {};
+		char minor_sixth[16] = {};
+		char minor_seventh[16] = {};
+		char diminished[16] = {};
+		char diminished_seventh[16] = {};
+		const char *root_name = note_name(root);
+		std::snprintf(minor, sizeof(minor), "%sm", root_name);
+		std::snprintf(minor_sixth, sizeof(minor_sixth), "%sm6", root_name);
+		std::snprintf(minor_seventh, sizeof(minor_seventh), "%sm7", root_name);
+		std::snprintf(diminished, sizeof(diminished), "%sdim", root_name);
+		std::snprintf(diminished_seventh, sizeof(diminished_seventh), "%sdim7", root_name);
+		return chord_label_has_exact_component(label, minor) &&
+		       chord_label_has_exact_component(label, minor_sixth) &&
+		       chord_label_has_exact_component(label, minor_seventh) &&
+		       chord_label_has_exact_component(label, diminished) &&
+		       chord_label_has_exact_component(label, diminished_seventh);
+	};
 
 	bool label_has_power_component = false;
 	const char *power_scan = state.label;
@@ -18422,7 +18447,8 @@ void append_visible_root_fifth_guitar_power_aliases_after_prune(InstrumentState 
 				parsed.quality == RootChordQuality::Minor ||
 				parsed.quality == RootChordQuality::NoThird;
 			if (supported_quality && !considered[static_cast<std::size_t>(root)] &&
-			    !label_has_same_root_altered_component(state.label, root) &&
+			    (!label_has_same_root_altered_component(state.label, root) ||
+			     label_has_dense_minor_diminished_family(state.label, root)) &&
 			    !chord_label_has_root_power_component(merged, root) &&
 			    (label_has_power_component || probe_thirdless_power_shape(root) ||
 			     analysis_root_fifth_power_shape(root) ||

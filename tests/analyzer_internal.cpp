@@ -1752,6 +1752,20 @@ void check_visible_root_fifth_power_alias_survives_probe_third_leak(Runner &runn
 	runner.expect(chord_label_has_exact_component(smoothed_recovery.label, "Cpow"),
 		      std::string("visible root/fifth power alias: expected smoothed-grid Cpow recovery, got `") +
 			      smoothed_recovery.label + "`");
+
+	InstrumentState dense_minor_diminished = {};
+	std::snprintf(dense_minor_diminished.label, sizeof(dense_minor_diminished.label),
+		      "Am=Am7=Am6=Adim=Adim7=C6=Dpow=F#m7b5");
+	NoteGrid dense_display_grid = {};
+	set_midi(dense_display_grid, 45, 1.00f);
+	set_midi(dense_display_grid, 52, 1.00f);
+	set_midi(dense_display_grid, 60, 0.95f);
+	NoteGrid dense_analysis_grid = dense_display_grid;
+	append_visible_root_fifth_guitar_power_aliases_after_prune(
+		dense_minor_diminished, dense_display_grid, dense_analysis_grid);
+	runner.expect(chord_label_has_exact_component(dense_minor_diminished.label, "Apow"),
+		      std::string("visible root/fifth power alias: expected dense minor/diminished Apow recovery, got `") +
+			      dense_minor_diminished.label + "`");
 }
 
 void check_supported_guitar_display_extension_aliases(Runner &runner)
