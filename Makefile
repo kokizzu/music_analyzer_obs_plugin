@@ -10,7 +10,7 @@ INSTRUMENT_SAMPLE_STORE ?= /media/kyz/sshflashtor/InstrumentSamples
 INSTRUMENT_SAMPLE_STORE_LINK ?= $(BUILD_DIR)/InstrumentSamples
 REAL_DATASET_ROOT ?= $(INSTRUMENT_SAMPLE_STORE_LINK)
 DETECTION_ACCURACY_REPORT ?= docs/detection_accuracy_report.md
-DETECTION_ACCURACY_CHORD_TSVS ?= $(BUILD_DIR)/guitar_chord_mix_attributes.tsv $(GUITAR_TECHS_CHORD_ATTRIBUTE_TSV) $(GAPS_GUITAR_FULL_ATTRIBUTE_TSV)
+DETECTION_ACCURACY_CHORD_TSVS ?= $(BUILD_DIR)/guitar_chord_mix_attributes.tsv $(GUITAR_TECHS_CHORD_ATTRIBUTE_TSV) $(GAPS_GUITAR_FULL_ATTRIBUTE_TSV) $(GUITARSET_ATTRIBUTE_TSV)
 DETECTION_ACCURACY_CHORD_ARGS = $(foreach path,$(wildcard $(DETECTION_ACCURACY_CHORD_TSVS)),--chord-input "$(path)")
 ANDROID_SDK_ROOT ?= $(CURDIR)/$(BUILD_DIR)/android-sdk
 ANDROID_GRADLE_VERSION ?= 8.10.2
@@ -715,7 +715,10 @@ GAPS_GUITAR_FULL_MIN_WINDOWS ?= 500
 GAPS_GUITAR_FULL_MISS_LOG ?= $(BUILD_DIR)/gaps_guitar_full_misses.log
 GUITAR_ANALYSIS_NOTE_PATH ?= $(GAPS_GUITAR_FULL_ATTRIBUTE_TSV)
 GUITARSET_SOURCE_DIR ?= $(REAL_SAMPLE_SOURCE_DIR)/guitarset
-GUITARSET_ROOT ?= $(BUILD_DIR)/guitarset
+# Keep the downloaded archives and the extracted multi-gigabyte GuitarSet audio
+# in the external sample store.  build/InstrumentSamples is its stable project
+# symlink, so analyzer targets remain self-contained without filling the repo disk.
+GUITARSET_ROOT ?= $(INSTRUMENT_SAMPLE_STORE_LINK)/guitarset
 GUITARSET_MISS_LOG ?= $(BUILD_DIR)/guitarset_verbose.log
 GUITARSET_ATTRIBUTE_TSV ?= $(BUILD_DIR)/guitarset_attributes.tsv
 GUITARSET_DETECTED_ATTRIBUTE_ROWS ?= $(BUILD_DIR)/guitarset_detected_attribute_rows.tsv

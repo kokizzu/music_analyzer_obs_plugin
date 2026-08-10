@@ -83,6 +83,10 @@ int run_visualizer_renderer_tests()
 	NoteGrid grid;
 	set_note_cell(grid.rows[0][0], 40, 0.90f, 0.90f);
 	set_note_cell(grid.rows[0][1], 52, 0.80f, 0.80f);
+	char current_note[8] = {};
+	expect_true(current_note_label(grid, current_note, sizeof(current_note)) &&
+			    std::strcmp(current_note, "E") == 0,
+		    "bass and vocal chord fields should use the strongest current note label", &checks, &failures);
 	expect_true(near(guitar_note_grid_midi_level(grid, 52), 0.80f * kGuitarUpperPitchClassShadowScale),
 		    "guitar upper same-pitch marker should be softened but still visible", &checks, &failures);
 	expect_true(display_highlight_level(guitar_note_grid_midi_level(grid, 52)) >= 1.0f,

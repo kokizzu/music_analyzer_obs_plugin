@@ -649,6 +649,18 @@ StableCandidate stable_candidate_label(const NoteGrid &notes, const InstrumentSt
 	return candidate;
 }
 
+bool current_note_label(const NoteGrid &notes, char *dst, std::size_t dst_size)
+{
+	if (!dst || dst_size == 0)
+		return false;
+	dst[0] = '\0';
+	const NoteCell *note = strongest_note_cell(notes, 0.0f);
+	if (!note || note->midi < 0)
+		return false;
+	copy_label(dst, dst_size, pitch_class_name_from_midi(note->midi));
+	return has_display_label(dst);
+}
+
 void clear_stable_state(StableDisplayState &state)
 {
 	state.label[0] = '\0';
@@ -761,7 +773,7 @@ void draw_stable_label(VisualizerRenderer *visualizer, const VisualLayout &layou
 
 int draw_instrument_rows(VisualizerRenderer *visualizer, const VisualLayout &layout, int y, const char *name,
 			 const NoteGrid &notes, const InstrumentState *chord, const char *stable_label, Color accent,
-			 std::size_t row_count, bool draw_note_count = true)
+			 std::size_t row_count, bool draw_note_count = true, bool show_current_note_as_chord = false)
 {
 	const int cell_w = std::max(30, layout.note_w / 12);
 	const int cell_h = 17;
@@ -769,7 +781,11 @@ int draw_instrument_rows(VisualizerRenderer *visualizer, const VisualLayout &lay
 	const Color dim = kLabelColor;
 	const Color chord_text = kWhiteTextColor;
 	const Color count_text = kValueTextColor;
-	const char *chord_label = chord && chord->label[0] ? chord->label : "--";
+	char current_note[8] = {};
+	const bool has_current_note = show_current_note_as_chord &&
+				      current_note_label(notes, current_note, sizeof(current_note));
+	const char *chord_label = chord && chord->label[0] ? chord->label :
+				  (has_current_note ? current_note : "--");
 
 	draw_text(visualizer, layout.label_x, y + 2, name, 2, dim);
 	row_count = std::clamp<std::size_t>(row_count, 1, notes.rows.size());
@@ -779,7 +795,7 @@ int draw_instrument_rows(VisualizerRenderer *visualizer, const VisualLayout &lay
 				       cell_w - 2, cell_h, notes.rows[row][i], accent);
 		}
 	}
-	if (chord)
+	if (chord || show_current_note_as_chord)
 		draw_chord_text(visualizer, layout.chord_x, y + 2, chord_label, 2, chord_text);
 	draw_stable_label(visualizer, layout, y, stable_label, chord_text);
 	if (draw_note_count) {
@@ -1360,11 +1376,11 @@ void render_complete_pixels(VisualizerRenderer *visualizer, const AnalysisSnapsh
 	int row_y = 164 + y_shift;
 	row_y = draw_instrument_rows(visualizer, layout, row_y, "BASS", snapshot.bass_notes, nullptr,
 				     visualizer->stable_labels[StableBass].label,
-				     Color{255, 59, 48, 245}, 1);
+				     Color{255, 59, 48, 245}, 1, true, true);
 	row_y += 6;
 	row_y = draw_instrument_rows(visualizer, layout, row_y, "VOCAL", snapshot.vocal_notes, nullptr,
 				     visualizer->stable_labels[StableVocal].label,
-				     Color{10, 132, 255, 245}, kMatrixRowCount);
+				     Color{10, 132, 255, 245}, kMatrixRowCount, true, true);
 	row_y += 6;
 	row_y = draw_instrument_rows(visualizer, layout, row_y, "OTHERS", snapshot.other_notes, &snapshot.other_chord,
 				     visualizer->stable_labels[StableOther].label,
@@ -1395,7 +1411,7 @@ void render_bass_guitar_pixels(VisualizerRenderer *visualizer, const AnalysisSna
 
 	int row_y = 178 + y_shift;
 	row_y = draw_instrument_rows(visualizer, layout, row_y, "BASS", snapshot.bass_notes, nullptr,
-				     visualizer->stable_labels[StableBass].label, Color{255, 59, 48, 245}, 1, false);
+				     visualizer->stable_labels[StableBass].label, Color{255, 59, 48, 245}, 1, false, true);
 	const int degree_root_pitch_class = pitch_class_from_note_label(snapshot.root.label);
 	row_y = draw_piano_keyboard(visualizer, layout, row_y - 8, snapshot.keyboard_notes, snapshot.keyboard_chord,
 				    visualizer->stable_labels[StableKeyboard].label, degree_root_pitch_class,
