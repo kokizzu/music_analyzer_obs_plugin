@@ -33,6 +33,7 @@ def test_scores_candidate_recovery_rules() -> None:
             "E-GMD window SongK sample 1100 expected hihat,kick: levels BASS DRUM=0.74* HIHAT=0.00 BASS DRUM band=43.05 seg=13.89 shape=29.99 trig=2.44/0.45 supported=1 level=0.74* | HIHAT band=0.32 seg=0.41 shape=0.41 trig=1.45/1.42 supported=0 level=0.00 | CRASH band=0.52 seg=0.56 shape=0.56 trig=1.45/1.42 supported=0 level=0.00 | RIDE band=0.34 seg=0.42 shape=0.42 trig=1.45/1.42 supported=0 level=0.00 | rms=0.0328 energy=0.88/0.11/0.02 transient=1.49 onset=2.55 body=12.42/6.59/15.87 crack=0.68 upperTom=3.71 bodyShape=0",
             "E-GMD window SongL sample 1200 expected hihat,kick: levels BASS DRUM=0.98* SNARE=0.81* HIHAT=0.28 BASS DRUM band=807.61 seg=191.32 shape=407.64 trig=73.78/0.45 supported=1 level=0.98* | SNARE band=99.55 seg=113.11 shape=113.82 trig=16.37/1.42 supported=1 level=0.81* | HIHAT band=1.35 seg=3.19 shape=3.19 trig=19.64/1.42 supported=0 level=0.28 | CRASH band=0.40 seg=2.38 shape=2.38 trig=21.72/1.42 supported=0 level=0.00 | RIDE band=1.93 seg=3.26 shape=3.26 trig=16.43/1.42 supported=0 level=0.00 | rms=0.3258 energy=0.90/0.08/0.01 transient=1.97 onset=43.35 body=166.73/108.18/278.16 crack=9.59 upperTom=55.93 bodyShape=0",
             "E-GMD window SongM sample 1300 expected crash,kick,ride: levels BASS DRUM=0.99* HIHAT=0.92* CRASH=0.14 RIDE=0.34* BASS DRUM band=98.99 seg=51.13 shape=107.13 trig=185.72/0.45 supported=1 level=0.99* | HIHAT band=1.27 seg=1.66 shape=1.66 trig=10.56/0.37 supported=0 level=0.92* | CRASH band=1.18 seg=1.24 shape=1.24 trig=12.09/1.42 supported=0 level=0.14 | RIDE band=1.31 seg=1.81 shape=1.81 trig=10.46/1.42 supported=0 level=0.34* | rms=0.0531 energy=0.84/0.13/0.03 transient=1.91 onset=27.33 body=45.16/25.48/65.91 crack=1.68 upperTom=10.01 bodyShape=0",
+            "E-GMD window SongN sample 1400 expected crash,snare: levels BASS DRUM=0.75* SNARE=0.00 CRASH=0.00 BASS DRUM band=39.37 seg=56.14 shape=108.03 trig=2.70/0.45 supported=1 level=0.75* | SNARE band=21.14 seg=31.81 shape=35.49 trig=1.60/1.42 supported=0 level=0.00 | HIHAT band=0.72 seg=1.35 shape=1.35 trig=1.48/0.37 supported=0 level=0.69* | CRASH band=0.40 seg=1.10 shape=1.10 trig=1.48/1.42 supported=0 level=0.00 | RIDE band=0.75 seg=1.49 shape=1.49 trig=1.48/1.42 supported=0 level=0.00 | rms=0.0725 energy=0.69/0.25/0.06 transient=1.65 onset=2.55 body=49.46/30.66/74.92 crack=2.67 upperTom=14.04 bodyShape=0",
         ]
     )
     with tempfile.TemporaryDirectory() as tmp:
@@ -46,7 +47,7 @@ def test_scores_candidate_recovery_rules() -> None:
         )
 
     output = result.stdout
-    require(output, "evaluate_egmd_drum_recovery: events=13")
+    require(output, "evaluate_egmd_drum_recovery: events=14")
     require(output, "rule=supported-low-snare category=snare")
     require(output, "tp_gain=1 fp_gain=0 net=1")
     require(output, "rule=kick-backed-snare category=snare")
@@ -61,6 +62,7 @@ def test_scores_candidate_recovery_rules() -> None:
     require(output, "rule=threshold-low-band-hihat category=hihat matched=1")
     require(output, "rule=dense-low-high-hihat category=hihat matched=1")
     require(output, "rule=mid-onset-low-rms-crash category=crash matched=1")
+    require(output, "rule=short-balanced-crash category=crash matched=1")
 
 
 if __name__ == "__main__":
