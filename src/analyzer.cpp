@@ -28893,6 +28893,23 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 		drum_segment_bands[HiHat] >= strongest_cymbal_drum * 0.38f;
 	if (compact_embedded_hihat_recovery)
 		boost_drum_level(HiHat, 0.34f);
+	// A quiet low-band hi-hat tick can sit exactly at the trigger threshold
+	// while remaining distinct from the shorter percussive false positives.
+	const float threshold_low_band_hihat_ratio =
+		snapshot.drum_debug_trigger_scores[HiHat] /
+		(snapshot.drum_debug_trigger_thresholds[HiHat] + 1.0e-6f);
+	const bool threshold_low_band_hihat_recovery =
+		drum_detection_enabled && !one_shot_drum_source && drum_level_[HiHat] <= 0.30f &&
+		threshold_low_band_hihat_ratio >= 1.0f && threshold_low_band_hihat_ratio <= 1.10f &&
+		drum_transient_ratio >= 1.40f && drum_transient_ratio <= 1.60f &&
+		onset >= 2.5f && onset <= 3.0f && rms >= 0.020f && rms <= 0.050f &&
+		snapshot.low_energy >= 0.85f && snapshot.low_energy <= 0.92f &&
+		snapshot.mid_energy >= 0.08f && snapshot.mid_energy <= 0.14f &&
+		snapshot.high_energy >= 0.01f && snapshot.high_energy <= 0.03f &&
+		drum_segment_bands[HiHat] >= 0.35f && drum_segment_bands[HiHat] <= 0.60f &&
+		drum_segment_bands[HiHat] >= strongest_cymbal_drum * 0.70f;
+	if (threshold_low_band_hihat_recovery)
+		boost_drum_level(HiHat, 0.34f);
 	// The opening real-kit crash can be loud yet land exactly at the crash
 	// trigger threshold when its spectrum is overwhelmingly low-band.
 	const float opening_low_band_crash_ratio =
