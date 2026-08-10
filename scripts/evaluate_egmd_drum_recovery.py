@@ -449,6 +449,19 @@ def compact_long_onset_ride(event: DrumEvent) -> bool:
     )
 
 
+def low_rms_strong_snare(event: DrumEvent) -> bool:
+    return (
+        trigger_ratio(event, "snare") >= 20.0
+        and 1.60 <= value(event, "snare", "transient") <= 1.75
+        and 9.0 <= value(event, "snare", "onset") <= 11.0
+        and 0.015 <= value(event, "snare", "rms") <= 0.025
+        and 0.84 <= value(event, "snare", "low") <= 0.88
+        and 0.10 <= value(event, "snare", "mid") <= 0.14
+        and 0.02 <= value(event, "snare", "high") <= 0.04
+        and 9.0 <= value(event, "snare", "seg") <= 11.0
+    )
+
+
 def embedded_crash(event: DrumEvent) -> bool:
     crash_seg = value(event, "crash", "seg")
     cymbal_max = strongest(event, ("hihat", "crash", "ride"), "seg")
@@ -488,6 +501,7 @@ RULES = (
     CandidateRule("broad-low-dominant-ride", "ride", broad_low_dominant_ride),
     CandidateRule("mid-heavy-ride", "ride", mid_heavy_ride),
     CandidateRule("compact-long-onset-ride", "ride", compact_long_onset_ride),
+    CandidateRule("low-rms-strong-snare", "snare", low_rms_strong_snare),
 )
 
 
