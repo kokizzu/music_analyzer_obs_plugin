@@ -10449,6 +10449,42 @@ void boost_existing_reed_brass_other_visual_notes(NoteGrid &other_grid,
 	}
 }
 
+bool low_string_other_octave_visual_boost_supported(const FullMixDebugCandidate &debug)
+{
+	// A small, measured set of low acoustic strings leaves a real lower Other
+	// candidate while a strongly keyboard-owned octave wins the rendered row.
+	// Keep this at C3: the lower note must already be active, so this only
+	// changes display ownership rather than synthesizing a missing fundamental.
+	return debug.owner == InstrumentKind::Keyboard && debug.midi == 48 &&
+	       debug.keyboard_score >= 0.75f && debug.guitar_score <= 0.25f &&
+	       debug.spectral_slope <= 0.435f && debug.adjacent_upper_ratio >= 0.786f;
+}
+
+void boost_existing_low_string_other_octave_visual_notes(NoteGrid &other_grid,
+								 const NoteGrid &keyboard_grid,
+								 const FullMixOwnership &ownership)
+{
+	static constexpr float kMinExistingOtherLevel = 0.49f;
+	static constexpr float kMaximumVisualFloor = 0.72f;
+	static constexpr float kVisualLead = 0.015f;
+	const std::size_t debug_count =
+		std::min<std::size_t>(ownership.debug_candidate_count, ownership.debug_candidates.size());
+	for (std::size_t i = 0; i < debug_count; ++i) {
+		const FullMixDebugCandidate &debug = ownership.debug_candidates[i];
+		if (!low_string_other_octave_visual_boost_supported(debug))
+			continue;
+		const int lowered = debug.midi - 12;
+		const float other_level = note_grid_midi_level(other_grid, lowered);
+		if (other_level < kMinExistingOtherLevel)
+			continue;
+		const float keyboard_level = note_grid_midi_level(keyboard_grid, debug.midi);
+		if (keyboard_level <= other_level)
+			continue;
+		boost_note_grid_midi_visual_level(
+			other_grid, lowered, std::min(kMaximumVisualFloor, keyboard_level + kVisualLead));
+	}
+}
+
 void attenuate_ambiguous_note_cell_by_named_rows(NoteCell &cell, const NoteGrid &bass,
 						 const NoteGrid &keyboard, const NoteGrid &guitar,
 						 const NoteGrid &vocal, const NoteGrid &other)
@@ -34269,6 +34305,8 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 							      snapshot.other_notes, full_mix_ownership,
 							      InstrumentKind::Other, -1);
 		boost_existing_reed_brass_other_visual_notes(snapshot.other_notes, full_mix_ownership);
+		boost_existing_low_string_other_octave_visual_notes(snapshot.other_notes,
+								      snapshot.keyboard_notes, full_mix_ownership);
 		attenuate_ambiguous_note_grid_by_named_rows(snapshot.ambiguous_notes, snapshot.bass_notes,
 							    snapshot.keyboard_notes, snapshot.guitar_notes,
 							    snapshot.vocal_notes, snapshot.other_notes);
