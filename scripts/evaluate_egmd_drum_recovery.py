@@ -321,6 +321,22 @@ def short_low_dominant_crash(event: DrumEvent) -> bool:
     )
 
 
+def short_mid_heavy_crash(event: DrumEvent) -> bool:
+    crash_seg = value(event, "crash", "seg")
+    cymbal_max = strongest(event, ("hihat", "crash", "ride"), "seg")
+    return (
+        1.0 <= trigger_ratio(event, "crash") <= 1.10
+        and 1.90 <= value(event, "crash", "transient") <= 2.0
+        and 2.5 <= value(event, "crash", "onset") <= 3.0
+        and 0.050 <= value(event, "crash", "rms") <= 0.060
+        and 0.60 <= value(event, "crash", "low") <= 0.66
+        and 0.30 <= value(event, "crash", "mid") <= 0.34
+        and 0.04 <= value(event, "crash", "high") <= 0.06
+        and 0.45 <= crash_seg <= 0.55
+        and crash_seg >= cymbal_max * 0.40
+    )
+
+
 def embedded_crash(event: DrumEvent) -> bool:
     crash_seg = value(event, "crash", "seg")
     cymbal_max = strongest(event, ("hihat", "crash", "ride"), "seg")
@@ -352,6 +368,7 @@ RULES = (
     CandidateRule("mid-onset-low-rms-crash", "crash", mid_onset_low_rms_crash),
     CandidateRule("short-balanced-crash", "crash", short_balanced_crash),
     CandidateRule("short-low-dominant-crash", "crash", short_low_dominant_crash),
+    CandidateRule("short-mid-heavy-crash", "crash", short_mid_heavy_crash),
 )
 
 
