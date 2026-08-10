@@ -69,9 +69,11 @@ Large downloaded archives use the external store configured by:
 ```sh
 make configure-instrument-sample-store
 make inspect-instrument-sample-store
+make inspect-sample-build-migration
+make migrate-sample-build-directories
 ```
 
-This establishes `build/InstrumentSamples` as a safe link to `/media/kyz/sshflashtor/InstrumentSamples`; existing `build/real_sample_sources` contents are not moved or replaced. `MUSIC_ANALYZER_DATASET_ROOT` defaults to this store for real-data preflights.
+`build/InstrumentSamples` is a safe link to `/media/kyz/sshflashtor/InstrumentSamples`. The migration target moves every build-level sample/corpus and audio-fixture directory into `/media/kyz/sshflashtor/InstrumentSamples/build-cache/`, byte-verifies it, then replaces the old build directory with a symlink. Android, Gradle, dependencies, and generic build outputs stay local. `MUSIC_ANALYZER_DATASET_ROOT` defaults to the external store for real-data preflights.
 
 Use the combined dataset preflight after adding an official dataset:
 

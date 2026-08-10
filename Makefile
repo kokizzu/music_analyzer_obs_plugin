@@ -4546,14 +4546,25 @@ test-real-egmd-20: $(BUILD_DIR)/analyzer_egmd
 test-real-egmd-full: $(BUILD_DIR)/analyzer_egmd
 	MUSIC_ANALYZER_EGMD_REQUIRED=1 MUSIC_ANALYZER_EGMD_REQUIRED_RECORDINGS=45537 MUSIC_ANALYZER_EGMD_REQUIRED_WINDOWS=182148 $(BUILD_DIR)/analyzer_egmd
 
+.PHONY: inspect-instrument-sample-store configure-instrument-sample-store test-instrument-sample-store inspect-sample-build-migration migrate-sample-build-directories test-sample-build-migration
+
 inspect-instrument-sample-store: scripts/configure_instrument_sample_store.py
 	$(PYTHON) scripts/configure_instrument_sample_store.py --status --link "$(INSTRUMENT_SAMPLE_STORE_LINK)" --target "$(INSTRUMENT_SAMPLE_STORE)"
 
 configure-instrument-sample-store: scripts/configure_instrument_sample_store.py
 	$(PYTHON) scripts/configure_instrument_sample_store.py --link "$(INSTRUMENT_SAMPLE_STORE_LINK)" --target "$(INSTRUMENT_SAMPLE_STORE)"
 
+inspect-sample-build-migration: scripts/migrate_sample_build_directories.py
+	$(PYTHON) scripts/migrate_sample_build_directories.py --status --build "$(BUILD_DIR)" --store "$(INSTRUMENT_SAMPLE_STORE)"
+
+migrate-sample-build-directories: scripts/migrate_sample_build_directories.py
+	$(PYTHON) scripts/migrate_sample_build_directories.py --build "$(BUILD_DIR)" --store "$(INSTRUMENT_SAMPLE_STORE)"
+
 test-instrument-sample-store: tests/test_configure_instrument_sample_store.py scripts/configure_instrument_sample_store.py
 	$(PYTHON) tests/test_configure_instrument_sample_store.py
+
+test-sample-build-migration: tests/test_migrate_sample_build_directories.py scripts/migrate_sample_build_directories.py
+	$(PYTHON) tests/test_migrate_sample_build_directories.py
 
 inspect-real-urmp: tests/inspect_urmp_dataset.py
 	MUSIC_ANALYZER_DATASET_ROOT=$(REAL_DATASET_ROOT) $(PYTHON) tests/inspect_urmp_dataset.py
