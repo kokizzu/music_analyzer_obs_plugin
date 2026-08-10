@@ -2926,6 +2926,14 @@ analyze-gaps-guitar-misses-full: $(BUILD_DIR)/analyzer_guitarset prepare-gaps-gu
 
 .PHONY: guitarset-download-samples-unlocked
 
+.PHONY: inspect-guitarset-download
+
+inspect-guitarset-download: scripts/inspect_guitarset_download.py
+	$(PYTHON) scripts/inspect_guitarset_download.py --annotation "$(GUITARSET_ANNOTATION_ARCHIVE)" --audio "$(GUITARSET_AUDIO_ARCHIVE)"
+
+test-guitarset-download-inspector: tests/test_inspect_guitarset_download.py scripts/inspect_guitarset_download.py
+	$(PYTHON) tests/test_inspect_guitarset_download.py
+
 download-guitarset-samples: scripts/run_with_lock.sh
 	+$(SHELL) scripts/run_with_lock.sh "$(GUITARSET_DOWNLOAD_LOCK_DIR)" -- "$(MAKE)" guitarset-download-samples-unlocked
 
