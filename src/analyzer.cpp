@@ -10485,6 +10485,40 @@ void boost_existing_low_string_other_octave_visual_notes(NoteGrid &other_grid,
 	}
 }
 
+bool measured_organ_keyboard_visual_restore_supported(const FullMixDebugCandidate &debug)
+{
+	// Three electronic-organ fixtures retain a real keyboard note but route its
+	// rendered ownership to Other.  The high Other score plus weak second
+	// partial separates this compact organ profile from the wider keyboard set.
+	return debug.owner == InstrumentKind::Other && debug.other_score >= 0.863f &&
+	       debug.harmonic_ratios[1] <= 0.294f;
+}
+
+void boost_existing_measured_organ_keyboard_visual_notes(NoteGrid &keyboard_grid,
+								  const NoteGrid &other_grid,
+								  const FullMixOwnership &ownership)
+{
+	static constexpr float kMinExistingKeyboardLevel = 0.05f;
+	static constexpr float kVisualLead = 0.015f;
+	static constexpr float kMaximumVisualFloor = 0.91f;
+	const std::size_t debug_count =
+		std::min<std::size_t>(ownership.debug_candidate_count, ownership.debug_candidates.size());
+	for (std::size_t i = 0; i < debug_count; ++i) {
+		const FullMixDebugCandidate &debug = ownership.debug_candidates[i];
+		if (!measured_organ_keyboard_visual_restore_supported(debug))
+			continue;
+		if (note_grid_midi_level(keyboard_grid, debug.midi) < kMinExistingKeyboardLevel)
+			continue;
+		const float other_visual = note_grid_midi_visual_level(other_grid, debug.midi);
+		const float keyboard_visual = note_grid_midi_visual_level(keyboard_grid, debug.midi);
+		if (other_visual <= keyboard_visual)
+			continue;
+		boost_note_grid_midi_visual_level(
+			keyboard_grid, debug.midi,
+			std::min(kMaximumVisualFloor, other_visual + kVisualLead));
+	}
+}
+
 void attenuate_ambiguous_note_cell_by_named_rows(NoteCell &cell, const NoteGrid &bass,
 						 const NoteGrid &keyboard, const NoteGrid &guitar,
 						 const NoteGrid &vocal, const NoteGrid &other)
@@ -34305,6 +34339,8 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 							      snapshot.other_notes, full_mix_ownership,
 							      InstrumentKind::Other, -1);
 		boost_existing_reed_brass_other_visual_notes(snapshot.other_notes, full_mix_ownership);
+		boost_existing_measured_organ_keyboard_visual_notes(
+			snapshot.keyboard_notes, snapshot.other_notes, full_mix_ownership);
 		boost_existing_low_string_other_octave_visual_notes(snapshot.other_notes,
 								      snapshot.keyboard_notes, full_mix_ownership);
 		attenuate_ambiguous_note_grid_by_named_rows(snapshot.ambiguous_notes, snapshot.bass_notes,
