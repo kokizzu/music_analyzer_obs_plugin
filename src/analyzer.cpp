@@ -31925,6 +31925,20 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 	if (final_one_shot_measured_rim_snare_active_bleed)
 		cap_drum_level(Snare, 0.28f);
 
+	// A compact snare-only Beatles stem produces a second, near-saturated rim
+	// candidate through the same mid-band transient.  The low kick body and
+	// tightly bounded rim/snare bands distinguish it from genuine rim attacks.
+	const bool final_measured_snare_rim_active_bleed =
+		drum_detection_enabled && !generated_gm_drum_source &&
+		drum_level_[Snare] >= 0.95f && drum_level_[Rim] >= 0.95f &&
+		drum_bands[Kick] <= 12.0f && drum_bands[Snare] >= 35.0f &&
+		drum_bands[Snare] <= 60.0f && drum_bands[Rim] >= 14.0f &&
+		drum_bands[Rim] <= 30.0f && snapshot.low_energy <= 0.15f &&
+		snapshot.mid_energy >= 0.55f && snapshot.high_energy >= 0.24f &&
+		snapshot.high_energy <= 0.35f;
+	if (final_measured_snare_rim_active_bleed)
+		cap_drum_level(Rim, 0.28f);
+
 	const bool final_one_shot_measured_crash_hihat_active_bleed =
 		drum_detection_enabled && one_shot_drum_source &&
 		!generated_gm_drum_source &&
