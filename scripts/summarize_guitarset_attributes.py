@@ -25,6 +25,7 @@ NOTE_TO_PC = {
     "A#": 10,
     "B": 11,
 }
+PC_TO_NOTE = {pitch_class: note for note, pitch_class in NOTE_TO_PC.items()}
 
 QUALITY_INTERVALS = {
     "": (0, 4, 7),
@@ -314,6 +315,10 @@ def summarize(path: pathlib.Path) -> list[str]:
     visible_missing_raw_tone_levels: dict[str, list[float]] = collections.defaultdict(list)
     analysis_missing_raw_tone_levels: dict[str, list[float]] = collections.defaultdict(list)
     smooth_missing_raw_tone_levels: dict[str, list[float]] = collections.defaultdict(list)
+    missing_expected_pitch_classes: collections.Counter[str] = collections.Counter()
+    missing_expected_pitch_class_quality: collections.Counter[str] = collections.Counter()
+    missing_expected_raw_levels: dict[str, list[float]] = collections.defaultdict(list)
+    missing_expected_examples: list[str] = []
 
     expected_notes = sum(as_int(row, "expected_note_count") for row in rows)
     guitar_hits = sum(as_int(row, "guitar_note_hits") for row in rows)
@@ -340,6 +345,29 @@ def summarize(path: pathlib.Path) -> list[str]:
     visible_full_chord_misses = 0
     analysis_full_chord_misses = 0
     smooth_full_chord_misses = 0
+
+    # Note recall is evaluated by pitch class.  Preserve the missing classes
+    # and their source level so a weak raw fundamental is not mistaken for a
+    # display-only regression candidate.
+    for row in rows:
+        expected_pitch_classes = parse_pitch_classes(row.get("expected_pitch_classes", ""))
+        visible_pitch_classes = parse_pitch_classes(row.get("guitar_pitch_classes", ""))
+        raw_levels = parse_cell_levels(row.get("raw_pitch_class_levels", ""))
+        if not raw_levels:
+            raw_levels = parse_cell_levels(row.get("expected_raw_cells", ""))
+        missing_pitch_classes = expected_pitch_classes - visible_pitch_classes
+        for pitch_class in sorted(missing_pitch_classes):
+            note = PC_TO_NOTE[pitch_class]
+            missing_expected_pitch_classes[note] += 1
+            quality = row.get("expected_chord_qualities", "--") or "--"
+            missing_expected_pitch_class_quality[f"{quality}:{note}"] += 1
+            raw_level = raw_levels.get(pitch_class)
+            if raw_level is not None:
+                missing_expected_raw_levels[note].append(raw_level)
+        if missing_pitch_classes and len(missing_expected_examples) < 8:
+            notes = ",".join(PC_TO_NOTE[pitch_class] for pitch_class in sorted(missing_pitch_classes))
+            missing_expected_examples.append("  " + example_text(row) + f" missing_pc={notes}")
+
     for row in chord_rows:
         expected_label = best_expected_chord(
             row.get("expected_chords", ""), row.get("guitar_analysis_pitch_classes", "")
@@ -490,6 +518,10 @@ def summarize(path: pathlib.Path) -> list[str]:
         "quality/status " + compact_counter(quality_status, 16),
         "guitar note recall " + ratio_text(guitar_hits, expected_notes),
         "guitar false-positive pitch classes " + str(false_positives),
+        "missing expected pitch classes " + compact_counter(missing_expected_pitch_classes, 12),
+        "missing expected pitch classes by quality "
+        + compact_counter(missing_expected_pitch_class_quality, 12),
+        "missing expected raw levels " + compact_level_summary(missing_expected_raw_levels, 12),
         "cross-row expected hits " + str(contamination),
         "chord exact/global recall " + ratio_text(chord_hits, len(chord_rows)),
         "chord simplified recall " + ratio_text(simple_chord_hits, len(chord_rows)),
@@ -561,6 +593,10 @@ def summarize(path: pathlib.Path) -> list[str]:
         lines.append("weak guitar-note examples")
         for row in weak_notes[:12]:
             lines.append("  " + example_text(row))
+
+    if missing_expected_examples:
+        lines.append("missing expected pitch-class examples")
+        lines.extend(missing_expected_examples)
 
     return lines
 

@@ -176,6 +176,9 @@ def main() -> int:
     assert "summarize_guitarset_attributes: rows 4 recordings 4" in output
     assert "status chord_hit=2 chord_miss=1 no_chord=1" in output
     assert "guitar note recall 8/10 80.00%" in output
+    assert "missing expected pitch classes C=1 E=1 A=1" in output
+    assert "missing expected pitch classes by quality maj:C=1 maj:E=1 --:A=1" in output
+    assert "missing expected raw levels --" in output
     assert "chord exact/global recall 2/3 66.67%" in output
     assert "guitar primary chord recall 1/3 33.33%" in output
     assert "guitar expected chord later than primary 1" in output
@@ -211,6 +214,8 @@ def main() -> int:
     assert "rec1b@1.250s expected=C" in output
     assert "weak guitar-note examples" in output
     assert "rec3@1.250s expected=--" in output
+    assert "missing expected pitch-class examples" in output
+    assert "rec2@2.500s expected=G" in output
     print("test_summarize_guitarset_attributes: ok")
     return 0
 
