@@ -28879,6 +28879,20 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 		snapshot.high_energy <= 0.16f;
 	if (real_drum_track_weak_hihat_bleed)
 		cap_drum_level(HiHat, 0.28f);
+	// Compact high-frequency articulation remains a hi-hat when its transient
+	// envelope is bounded well below the broad cymbal-bleed population. Restore
+	// it only after the generic real-track weak-hat cap has run.
+	const float hihat_trigger_ratio_after_detection =
+		snapshot.drum_debug_trigger_scores[HiHat] /
+		(snapshot.drum_debug_trigger_thresholds[HiHat] + 1.0e-6f);
+	const bool compact_embedded_hihat_recovery =
+		drum_detection_enabled && !one_shot_drum_source && drum_transient_ratio >= 1.75f &&
+		drum_level_[HiHat] <= 0.30f && hihat_trigger_ratio_after_detection >= 3.0f &&
+		onset >= 2.5f && rms <= 0.080f && snapshot.high_energy >= 0.015f &&
+		drum_segment_bands[HiHat] >= 0.30f && drum_segment_bands[HiHat] <= 1.50f &&
+		drum_segment_bands[HiHat] >= strongest_cymbal_drum * 0.38f;
+	if (compact_embedded_hihat_recovery)
+		boost_drum_level(HiHat, 0.34f);
 
 	const bool real_drum_track_hihat_crash_bleed =
 		drum_detection_enabled && real_drum_track_source &&
