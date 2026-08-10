@@ -20944,7 +20944,7 @@ bool probe_supported_guitar_half_diminished_alias(int root, const NoteGrid &disp
 	    !note_grid_pitch_active(analysis_grid, root + 6) ||
 	    !note_grid_pitch_active(display_grid, root + 3) ||
 	    !note_grid_pitch_active(display_grid, root + 6) ||
-	    note_grid_pitch_supported_level(display_grid, root + 3, 0.0f) < 0.60f)
+	    note_grid_pitch_supported_level(display_grid, root + 3, 0.0f) < 0.55f)
 		return false;
 	for (int pitch_class = 0; pitch_class < 12; ++pitch_class) {
 		if (!note_grid_pitch_active(analysis_grid, pitch_class))
