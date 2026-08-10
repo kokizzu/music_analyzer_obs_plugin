@@ -165,6 +165,8 @@ REAL_NOTE_PATTERN_EXTRA_PROTECTED_PATHS ?=
 REAL_NOTE_PATTERN_EXTRA_PROTECTED_ARGS = $(foreach path,$(REAL_NOTE_PATTERN_EXTRA_PROTECTED_PATHS),--extra-protected-path "$(path)")
 VOCADITO_PATTERN_EXTRA_PROTECTED_PATHS ?= $(BUILD_DIR)/real_note_full_mix_attributes.tsv
 VOCADITO_PATTERN_EXTRA_PROTECTED_ARGS = $(foreach path,$(VOCADITO_PATTERN_EXTRA_PROTECTED_PATHS),--extra-protected-path "$(path)")
+VOCALSET_PATTERN_EXTRA_PROTECTED_PATHS ?= $(BUILD_DIR)/real_note_full_mix_attributes.tsv $(VOCADITO_FULL_MIX_ATTRIBUTE_TSV)
+VOCALSET_PATTERN_EXTRA_PROTECTED_ARGS = $(foreach path,$(VOCALSET_PATTERN_EXTRA_PROTECTED_PATHS),--extra-protected-path "$(path)")
 REAL_NOTE_RULE_CONDITIONS ?=
 REAL_NOTE_RULE_GROUP_BY ?=
 REAL_NOTE_RULE_CONDITION_ARGS = $(foreach condition,$(REAL_NOTE_RULE_CONDITIONS),--condition "$(condition)")
@@ -3504,7 +3506,7 @@ $(VOCALSET_FULL_MIX_ATTRIBUTE_TSV): $(BUILD_DIR)/analyzer_real_note_samples $(VO
 $(BUILD_DIR)/vocalset_full_mix_attributes.shard-%.tsv: $(BUILD_DIR)/analyzer_real_note_samples prepare-vocalset-samples | $(BUILD_DIR)
 	env MUSIC_ANALYZER_REAL_NOTE_SAMPLES_REQUIRED=1 MUSIC_ANALYZER_REAL_NOTE_FULL_MIX=1 MUSIC_ANALYZER_REAL_NOTE_SHARD_COUNT="$(VOCALSET_FULL_MIX_SHARDS)" MUSIC_ANALYZER_REAL_NOTE_SHARD_INDEX="$*" MUSIC_ANALYZER_REAL_NOTE_ATTRIBUTE_TSV="$@" MUSIC_ANALYZER_REAL_NOTE_SAMPLE_ROOT="$(VOCALSET_SAMPLE_DIR)" MUSIC_ANALYZER_REAL_NOTE_REQUIRED_SAMPLES="$(VOCALSET_MIN_VOCALS)" MUSIC_ANALYZER_REAL_NOTE_MIN_BASS=0 MUSIC_ANALYZER_REAL_NOTE_MIN_GUITAR=0 MUSIC_ANALYZER_REAL_NOTE_MIN_PIANO=0 MUSIC_ANALYZER_REAL_NOTE_MIN_VOCALS=0 MUSIC_ANALYZER_REAL_NOTE_MIN_OTHER=0 MUSIC_ANALYZER_REAL_NOTE_MIN_ANY_HIT_PERCENT=0 MUSIC_ANALYZER_REAL_NOTE_MIN_EXPECTED_ROW_PERCENT=0 MUSIC_ANALYZER_REAL_NOTE_MIN_FIRST_ROW_PERCENT=0 MUSIC_ANALYZER_REAL_NOTE_MIN_BASS_EXPECTED_ROW_PERCENT=0 MUSIC_ANALYZER_REAL_NOTE_MIN_GUITAR_EXPECTED_ROW_PERCENT=0 MUSIC_ANALYZER_REAL_NOTE_MIN_PIANO_EXPECTED_ROW_PERCENT=0 MUSIC_ANALYZER_REAL_NOTE_MIN_VOCALS_EXPECTED_ROW_PERCENT=0 MUSIC_ANALYZER_REAL_NOTE_MIN_OTHER_EXPECTED_ROW_PERCENT=0 MUSIC_ANALYZER_REAL_NOTE_MIN_BASS_FIRST_ROW_PERCENT=0 MUSIC_ANALYZER_REAL_NOTE_MIN_GUITAR_FIRST_ROW_PERCENT=0 MUSIC_ANALYZER_REAL_NOTE_MIN_PIANO_FIRST_ROW_PERCENT=0 MUSIC_ANALYZER_REAL_NOTE_MIN_VOCALS_FIRST_ROW_PERCENT=0 MUSIC_ANALYZER_REAL_NOTE_MIN_OTHER_FIRST_ROW_PERCENT=0 MUSIC_ANALYZER_REAL_NOTE_MAX_DRUM_ACTIVE_PERCENT=100 MUSIC_ANALYZER_REAL_NOTE_MAX_FAILURES=999999 MUSIC_ANALYZER_REAL_NOTE_MAX_FAILURE_LINES=20 $(BUILD_DIR)/analyzer_real_note_samples > "$(BUILD_DIR)/vocalset_full_mix_attributes.shard-$*.out"
 
-.PHONY: analyze-vocalset-full-mix-attributes analyze-vocalset-expanded-full-mix-attributes find-vocalset-full-mix-row-confusion-patterns
+.PHONY: analyze-vocalset-full-mix-attributes analyze-vocalset-expanded-full-mix-attributes find-vocalset-full-mix-row-confusion-patterns find-vocalset-full-mix-visual-row-confusion-patterns find-vocalset-full-mix-ownership-patterns find-vocalset-full-mix-broad-vocal-ownership-patterns
 
 analyze-vocalset-full-mix-attributes: $(VOCALSET_FULL_MIX_ATTRIBUTE_TSV) scripts/summarize_real_note_attributes.py
 	$(PYTHON) scripts/summarize_real_note_attributes.py "$(VOCALSET_FULL_MIX_ATTRIBUTE_TSV)" $(REAL_NOTE_ATTRIBUTE_SUMMARY_ARGS)
@@ -3514,8 +3516,17 @@ analyze-vocalset-expanded-full-mix-attributes: scripts/summarize_real_note_attri
 	$(PYTHON) scripts/summarize_real_note_attributes.py "$(VOCALSET_EXPANDED_FULL_MIX_ATTRIBUTE_TSV)" $(REAL_NOTE_ATTRIBUTE_SUMMARY_ARGS)
 	@printf '%s\n' "attribute TSV: $(VOCALSET_EXPANDED_FULL_MIX_ATTRIBUTE_TSV)"
 
-find-vocalset-full-mix-row-confusion-patterns: $(VOCALSET_FULL_MIX_ATTRIBUTE_TSV) scripts/find_real_note_attribute_patterns.py
-	$(PYTHON) scripts/find_real_note_attribute_patterns.py "$(VOCALSET_FULL_MIX_ATTRIBUTE_TSV)" $(if $(PATTERN_BUCKET),--bucket "$(PATTERN_BUCKET)") --bucket-status row_confusion $(REAL_NOTE_RUNTIME_ROW_CONFUSION_EXCLUDES) --jobs "$(REAL_NOTE_PATTERN_JOBS)" $(or $(PATTERN_ARGS),$(MEASURE_REAL_NOTE_FOCUSED_ROW_CONFUSION_PATTERN_ARGS))
+find-vocalset-full-mix-row-confusion-patterns: $(VOCALSET_FULL_MIX_ATTRIBUTE_TSV) $(VOCALSET_PATTERN_EXTRA_PROTECTED_PATHS) scripts/find_real_note_attribute_patterns.py
+	$(PYTHON) scripts/find_real_note_attribute_patterns.py "$(VOCALSET_FULL_MIX_ATTRIBUTE_TSV)" $(VOCALSET_PATTERN_EXTRA_PROTECTED_ARGS) $(if $(PATTERN_BUCKET),--bucket "$(PATTERN_BUCKET)") --bucket-status row_confusion $(REAL_NOTE_RUNTIME_ROW_CONFUSION_EXCLUDES) --jobs "$(REAL_NOTE_PATTERN_JOBS)" $(or $(PATTERN_ARGS),$(MEASURE_REAL_NOTE_FOCUSED_ROW_CONFUSION_PATTERN_ARGS))
+
+find-vocalset-full-mix-visual-row-confusion-patterns: $(VOCALSET_FULL_MIX_ATTRIBUTE_TSV) $(VOCALSET_PATTERN_EXTRA_PROTECTED_PATHS) scripts/find_real_note_attribute_patterns.py
+	$(PYTHON) scripts/find_real_note_attribute_patterns.py "$(VOCALSET_FULL_MIX_ATTRIBUTE_TSV)" $(VOCALSET_PATTERN_EXTRA_PROTECTED_ARGS) $(if $(PATTERN_BUCKET),--bucket "$(PATTERN_BUCKET)") --bucket-status visual_row_confusion $(REAL_NOTE_RUNTIME_ROW_CONFUSION_EXCLUDES) --jobs "$(REAL_NOTE_PATTERN_JOBS)" $(or $(PATTERN_ARGS),$(MEASURE_REAL_NOTE_FOCUSED_VISUAL_ROW_CONFUSION_PATTERN_ARGS))
+
+find-vocalset-full-mix-ownership-patterns: $(VOCALSET_FULL_MIX_ATTRIBUTE_TSV) $(VOCALSET_PATTERN_EXTRA_PROTECTED_PATHS) scripts/find_real_note_attribute_patterns.py
+	$(PYTHON) scripts/find_real_note_attribute_patterns.py "$(VOCALSET_FULL_MIX_ATTRIBUTE_TSV)" $(VOCALSET_PATTERN_EXTRA_PROTECTED_ARGS) $(if $(PATTERN_BUCKET),--bucket "$(PATTERN_BUCKET)") --bucket-status ownership_miss $(REAL_NOTE_RUNTIME_ROW_CONFUSION_EXCLUDES) --jobs "$(REAL_NOTE_PATTERN_JOBS)" $(or $(PATTERN_ARGS),$(MEASURE_REAL_NOTE_FOCUSED_ROW_CONFUSION_PATTERN_ARGS))
+
+find-vocalset-full-mix-broad-vocal-ownership-patterns: $(VOCALSET_FULL_MIX_ATTRIBUTE_TSV) $(VOCALSET_PATTERN_EXTRA_PROTECTED_PATHS) scripts/find_real_note_attribute_patterns.py
+	$(PYTHON) scripts/find_real_note_attribute_patterns.py "$(VOCALSET_FULL_MIX_ATTRIBUTE_TSV)" $(VOCALSET_PATTERN_EXTRA_PROTECTED_ARGS) --bucket "ownership_miss:vocals/*->*" --jobs "$(REAL_NOTE_PATTERN_JOBS)" $(or $(PATTERN_ARGS),$(MEASURE_REAL_NOTE_BROAD_VOCAL_PATTERN_ARGS))
 
 $(VOCALSET_ATTRIBUTE_TSV): $(BUILD_DIR)/analyzer_real_note_samples $(VOCALSET_SAMPLE_DIR)/manifest.tsv scripts/build_sharded_tsv.sh scripts/run_with_lock.sh | $(BUILD_DIR)
 	+$(SHELL) scripts/run_with_lock.sh "$(VOCALSET_ATTRIBUTE_LOCK_DIR)" -- "$(SHELL)" scripts/build_sharded_tsv.sh "$@" "$(MAKE)" "$(REAL_NOTE_SAMPLE_TEST_MAKE_JOBS)" $(VOCALSET_ATTRIBUTE_PARTS)
