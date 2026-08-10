@@ -4250,7 +4250,8 @@ bool measured_other_owned_electronic_keyboard_octave_up_supported(const FullMixD
 	const float third = debug.harmonic_ratios[2];
 	const float fourth = debug.harmonic_ratios[3];
 	const float fifth = debug.harmonic_ratios[4];
-	return debug.other_score >= 0.60f &&
+	const bool existing_electronic_octave_alias =
+		debug.other_score >= 0.60f &&
 	       debug.guitar_score <= 0.42f &&
 	       debug.keyboard_score <= 0.020f &&
 	       debug.vocal_score <= 0.020f &&
@@ -4268,6 +4269,16 @@ bool measured_other_owned_electronic_keyboard_octave_up_supported(const FullMixD
 	       fourth >= 8.10f &&
 	       fifth <= 0.50f &&
 	       debug.third_octave_ratio >= 0.985f;
+	// A clean sustained organ can put the detector one octave below the
+	// fundamental. This measured profile is deliberately narrow: no guitar
+	// score, dominant second partial, and a present fifth all agree with the
+	// electronic-keyboard octave above rather than an acoustic harmonic.
+	const bool clean_high_second_organ_octave_alias =
+		debug.owner == InstrumentKind::Other && debug.guitar_score <= 1.0e-6f &&
+		debug.pitch_confidence >= 0.36f && debug.periodicity >= 0.72f &&
+		debug.harmonic_fit_error <= 0.62f && debug.local_noise_level <= 0.18f &&
+		second >= 1.60f && fifth >= 0.040f;
+	return existing_electronic_octave_alias || clean_high_second_organ_octave_alias;
 }
 
 bool measured_clean_organ_keyboard_octave_up_supported(const FullMixDebugCandidate &debug)
