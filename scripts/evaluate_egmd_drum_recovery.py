@@ -246,6 +246,22 @@ def threshold_low_band_hihat(event: DrumEvent) -> bool:
     )
 
 
+def dense_low_high_hihat(event: DrumEvent) -> bool:
+    hihat_seg = value(event, "hihat", "seg")
+    cymbal_max = strongest(event, ("hihat", "crash", "ride"), "seg")
+    return (
+        trigger_ratio(event, "hihat") >= 10.0
+        and value(event, "hihat", "transient") >= 1.90
+        and value(event, "hihat", "onset") >= 40.0
+        and 0.30 <= value(event, "hihat", "rms") <= 0.36
+        and value(event, "hihat", "low") >= 0.85
+        and value(event, "hihat", "mid") <= 0.10
+        and value(event, "hihat", "high") <= 0.015
+        and 3.0 <= hihat_seg <= 3.5
+        and hihat_seg >= cymbal_max * 0.90
+    )
+
+
 def long_onset_low_rms_crash(event: DrumEvent) -> bool:
     return (
         embedded_crash(event)
@@ -283,6 +299,7 @@ RULES = (
     CandidateRule("embedded-hihat", "hihat", embedded_hihat),
     CandidateRule("compact-embedded-hihat", "hihat", compact_embedded_hihat),
     CandidateRule("threshold-low-band-hihat", "hihat", threshold_low_band_hihat),
+    CandidateRule("dense-low-high-hihat", "hihat", dense_low_high_hihat),
     CandidateRule("embedded-crash", "crash", embedded_crash),
     CandidateRule("long-onset-low-rms-crash", "crash", long_onset_low_rms_crash),
 )

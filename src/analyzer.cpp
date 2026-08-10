@@ -28910,6 +28910,20 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 		drum_segment_bands[HiHat] >= strongest_cymbal_drum * 0.70f;
 	if (threshold_low_band_hihat_recovery)
 		boost_drum_level(HiHat, 0.34f);
+	// Dense hi-hat articulation can be low in the high band when a loud kit
+	// transient is dominated by low-frequency body energy.
+	const float dense_low_high_hihat_ratio =
+		snapshot.drum_debug_trigger_scores[HiHat] /
+		(snapshot.drum_debug_trigger_thresholds[HiHat] + 1.0e-6f);
+	const bool dense_low_high_hihat_recovery =
+		drum_detection_enabled && !one_shot_drum_source && drum_level_[HiHat] <= 0.30f &&
+		dense_low_high_hihat_ratio >= 10.0f && drum_transient_ratio >= 1.90f && onset >= 40.0f &&
+		rms >= 0.300f && rms <= 0.360f && snapshot.low_energy >= 0.85f &&
+		snapshot.mid_energy <= 0.10f && snapshot.high_energy <= 0.015f &&
+		drum_segment_bands[HiHat] >= 3.0f && drum_segment_bands[HiHat] <= 3.5f &&
+		drum_segment_bands[HiHat] >= strongest_cymbal_drum * 0.90f;
+	if (dense_low_high_hihat_recovery)
+		boost_drum_level(HiHat, 0.34f);
 	// The opening real-kit crash can be loud yet land exactly at the crash
 	// trigger threshold when its spectrum is overwhelmingly low-band.
 	const float opening_low_band_crash_ratio =
