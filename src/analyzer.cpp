@@ -21513,6 +21513,42 @@ void restore_tightly_labeled_minor_seventh_guitar_thirds_from_analysis(
 	}
 }
 
+void restore_tightly_labeled_plain_major_guitar_third_from_analysis(
+	NoteGrid &display_grid, const InstrumentState &chord_state, const NoteGrid &analysis_grid,
+	const std::array<float, kNoteProbeCount> &powers, int min_midi, int max_midi)
+{
+	// A one-component major label with only root and fifth rendered admits its
+	// missing third only when both compact analysis and a separate probe retain
+	// it. This avoids the weak major-seventh harmonic residues common in open
+	// guitar voicings.
+	if (chord_label_component_count(chord_state.label) != 1 ||
+	    note_grid_active_pitch_class_count(display_grid) != 2 ||
+	    note_grid_active_pitch_class_count(analysis_grid) > 4)
+		return;
+
+	const std::size_t label_len = std::strlen(chord_state.label);
+	ParsedRootChord component;
+	if (!parse_root_chord_component(chord_state.label, label_len, component) ||
+	    component.quality != RootChordQuality::Major)
+		return;
+	const int third = (component.root + 4) % 12;
+	const int fifth = (component.root + 7) % 12;
+	const int opposite_third = (component.root + 3) % 12;
+	if (!note_grid_pitch_active(display_grid, component.root) ||
+	    !note_grid_pitch_active(display_grid, fifth) ||
+	    note_grid_pitch_active(display_grid, third) ||
+	    !note_grid_pitch_active(analysis_grid, third) ||
+	    note_grid_pitch_active(display_grid, opposite_third) ||
+	    note_grid_pitch_active(analysis_grid, opposite_third) ||
+	    note_grid_pitch_level(analysis_grid, third) < 0.08f ||
+	    strongest_probe_pitch_class_level(powers, third, min_midi, max_midi) < 0.10f)
+		return;
+
+	const NoteCell &source = analysis_grid.cells[static_cast<std::size_t>(third)];
+	if (source.active)
+		promote_note_grid_primary_midi(display_grid, source.midi, source.level);
+}
+
 void restore_tightly_labeled_dominant_seventh_guitar_tones_from_analysis(
 	NoteGrid &display_grid, const InstrumentState &chord_state, const NoteGrid &analysis_grid)
 {
@@ -33829,6 +33865,9 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 				snapshot.guitar_notes, snapshot.guitar_chord, guitar_chord_detection_grid);
 			restore_tightly_labeled_minor_seventh_guitar_thirds_from_analysis(
 				snapshot.guitar_notes, snapshot.guitar_chord, guitar_chord_detection_grid);
+			restore_tightly_labeled_plain_major_guitar_third_from_analysis(
+				snapshot.guitar_notes, snapshot.guitar_chord, guitar_chord_detection_grid,
+				note_powers, kGuitarMinMidi, kGuitarMaxMidi);
 			restore_tightly_labeled_dominant_seventh_guitar_tones_from_analysis(
 				snapshot.guitar_notes, snapshot.guitar_chord, guitar_chord_detection_grid);
 			restore_tightly_labeled_major_guitar_tones_from_analysis(

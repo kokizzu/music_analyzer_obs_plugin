@@ -313,6 +313,35 @@ void check_guitar_major_triad_analysis_flat_seventh_recovery(Runner &runner)
 		      "guitar minor-triad analysis recovery: expected 0.69 sixth rejected");
 }
 
+void check_tightly_labeled_plain_major_guitar_third_recovery(Runner &runner)
+{
+	InstrumentState state = {};
+	std::snprintf(state.label, sizeof(state.label), "F");
+	NoteGrid display_grid = {};
+	set_midi(display_grid, 53, 1.00f); // F3
+	set_midi(display_grid, 60, 0.72f); // C4
+	NoteGrid analysis_grid = display_grid;
+	set_midi(analysis_grid, 57, 0.08f); // A3
+	std::array<float, kNoteProbeCount> powers = {};
+	set_probe_level(powers, 57, 0.10f);
+	restore_tightly_labeled_plain_major_guitar_third_from_analysis(
+		display_grid, state, analysis_grid, powers, kGuitarMinMidi, kGuitarMaxMidi);
+	runner.expect(note_grid_pitch_level(display_grid, 9) >= 0.08f,
+		      "plain major guitar third recovery: expected A restored at analysis/probe boundary");
+
+	NoteGrid protected_grid = {};
+	set_midi(protected_grid, 53, 1.00f);
+	set_midi(protected_grid, 60, 0.72f);
+	NoteGrid protected_analysis = protected_grid;
+	set_midi(protected_analysis, 57, 0.08f);
+	std::array<float, kNoteProbeCount> weak_powers = {};
+	set_probe_level(weak_powers, 57, 0.09f);
+	restore_tightly_labeled_plain_major_guitar_third_from_analysis(
+		protected_grid, state, protected_analysis, weak_powers, kGuitarMinMidi, kGuitarMaxMidi);
+	runner.expect(note_grid_pitch_level(protected_grid, 9) == 0.0f,
+		      "plain major guitar third recovery: expected sub-threshold probe rejected");
+}
+
 void check_source_supported_plain_guitar_alias_recovery(Runner &runner)
 {
 	InstrumentState state = {};
@@ -4720,6 +4749,7 @@ int run()
 	check_crowded_guitar_prune_modes(runner);
 	check_displayed_same_root_plain_guitar_primary(runner);
 	check_displayed_supported_plain_guitar_primary(runner);
+	check_tightly_labeled_plain_major_guitar_third_recovery(runner);
 	check_guitar_major_triad_analysis_flat_seventh_recovery(runner);
 	check_source_supported_plain_guitar_alias_recovery(runner);
 	check_crowded_probe_supported_guitar_rootless_plain_alias(runner);
