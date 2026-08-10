@@ -28761,6 +28761,15 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 		snapshot.high_energy <= 0.08f && drum_segment_bands[Snare] >= 30.0f && drum_segment_bands[Snare] <= 33.0f;
 	if (threshold_mid_heavy_snare_recovery)
 		boost_drum_level(Snare, 0.34f);
+	const bool sustained_low_dominant_snare_recovery =
+		drum_detection_enabled && !one_shot_drum_source && drum_level_[Snare] <= 0.30f &&
+		strong_snare_trigger_ratio >= 14.0f && strong_snare_trigger_ratio <= 16.0f &&
+		drum_transient_ratio >= 1.75f && drum_transient_ratio <= 1.90f && onset >= 15.0f && onset <= 17.0f &&
+		rms >= 0.075f && rms <= 0.090f && snapshot.low_energy >= 0.84f && snapshot.low_energy <= 0.88f &&
+		snapshot.mid_energy >= 0.10f && snapshot.mid_energy <= 0.14f && snapshot.high_energy >= 0.02f &&
+		snapshot.high_energy <= 0.04f && drum_segment_bands[Snare] >= 18.0f && drum_segment_bands[Snare] <= 20.0f;
+	if (sustained_low_dominant_snare_recovery)
+		boost_drum_level(Snare, 0.34f);
 	// Mid-dominant ride articulation remains distinguishable under simultaneous
 	// snare and hi-hat energy, even when the cymbal family resolver stays below
 	// the display threshold.
