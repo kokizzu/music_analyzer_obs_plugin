@@ -287,6 +287,30 @@ void check_guitar_major_triad_analysis_flat_seventh_recovery(Runner &runner)
 		protected_grid, protected_state, weak_analysis, 0.10f);
 	runner.expect(note_grid_pitch_level(protected_grid, 7) == 0.0f,
 		      "guitar major-triad analysis recovery: expected 0.49 flat seventh rejected");
+
+	NoteGrid minor_grid = {};
+	set_midi(minor_grid, 51, 1.00f); // D#3
+	set_midi(minor_grid, 54, 0.78f); // F#3
+	set_midi(minor_grid, 58, 0.71f); // A#3
+	NoteGrid minor_analysis = minor_grid;
+	write_note_grid_cell(minor_analysis, NoteCandidate{60, 0.70f}, 1.00f, 1.00f); // C4, D#'s sixth
+	InstrumentState minor_state = {};
+	restore_very_strong_guitar_analysis_note_after_chord_resolution(
+		minor_grid, minor_state, minor_analysis, 0.10f);
+	runner.expect(note_grid_pitch_level(minor_grid, 0) >= 0.70f,
+		      "guitar minor-triad analysis recovery: expected C sixth restored at 0.70");
+
+	NoteGrid weak_minor_grid = {};
+	set_midi(weak_minor_grid, 51, 1.00f);
+	set_midi(weak_minor_grid, 54, 0.78f);
+	set_midi(weak_minor_grid, 58, 0.71f);
+	NoteGrid weak_minor_analysis = weak_minor_grid;
+	write_note_grid_cell(weak_minor_analysis, NoteCandidate{60, 0.69f}, 1.00f, 1.00f);
+	InstrumentState weak_minor_state = {};
+	restore_very_strong_guitar_analysis_note_after_chord_resolution(
+		weak_minor_grid, weak_minor_state, weak_minor_analysis, 0.10f);
+	runner.expect(note_grid_pitch_level(weak_minor_grid, 0) == 0.0f,
+		      "guitar minor-triad analysis recovery: expected 0.69 sixth rejected");
 }
 
 void check_source_supported_plain_guitar_alias_recovery(Runner &runner)

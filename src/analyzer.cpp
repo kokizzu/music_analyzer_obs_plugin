@@ -21326,6 +21326,30 @@ void restore_very_strong_guitar_analysis_note_after_chord_resolution(
 				}
 			}
 		}
+		if (recovered_midi < 0) {
+			// A compact minor triad can likewise lose its sixth in display pruning.
+			// Keep this variant stricter than the major-triad extensions: on real
+			// guitar it requires a clearly strong, analysis-only sixth.
+			for (int root = 0; root < 12; ++root) {
+				if (note_grid_pitch_level(display_grid, root) <= 0.0f ||
+				    note_grid_pitch_level(display_grid, root + 3) <= 0.0f ||
+				    note_grid_pitch_level(display_grid, root + 7) <= 0.0f)
+					continue;
+				const int sixth = (root + 9) % 12;
+				for (const auto &row : analysis_grid.rows) {
+					for (const NoteCell &cell : row) {
+						if (!cell.active || cell.midi < 0 || cell.level < 0.70f ||
+						    cell.level <= recovered_level)
+							continue;
+						const int pitch_class = ((cell.midi % 12) + 12) % 12;
+						if (pitch_class != sixth)
+							continue;
+						recovered_midi = cell.midi;
+						recovered_level = cell.level;
+					}
+				}
+			}
+		}
 	}
 	if (recovered_midi < 0) {
 		// Exactly six rendered pitch classes still leave a bounded dense-guitar
