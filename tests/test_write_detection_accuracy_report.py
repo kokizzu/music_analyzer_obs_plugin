@@ -34,13 +34,27 @@ class DetectionAccuracyReportTest(unittest.TestCase):
                 ) + "\n",
                 encoding="utf-8",
             )
-            report = REPORT.render(source)
+            chords = Path(temporary) / "guitar_chord_mix_attributes.tsv"
+            chords.write_text(
+                "\n".join(
+                    (
+                        "\t".join(("expected_chords", "chord_hit", "expected_pitch_class_count", "guitar_note_hits")),
+                        "C\t1\t3\t3",
+                        "Dm\t0\t3\t2",
+                    )
+                ) + "\n",
+                encoding="utf-8",
+            )
+            report = REPORT.render(source, [chords])
 
         self.assertIn("| Any detected note | 2 / 3 (66.7%) | 1 |", report)
         self.assertIn("| Expected instrument row | 2 / 3 (66.7%) | 1 |", report)
         self.assertIn("| Primary display row | 1 / 3 (33.3%) | 2 |", report)
         self.assertIn("| Visual primary row | 2 / 3 (66.7%) | 1 |", report)
         self.assertIn("| Guitar — Visual primary row | 1 / 2 (50.0%) | 1 |", report)
+        self.assertIn("## Cached isolated-guitar chord gates", report)
+        self.assertIn("| Guitar Chord Mix — exact chord windows | 1 / 2 (50.0%) | 1 |", report)
+        self.assertIn("| Guitar Chord Mix — expected guitar pitch classes | 5 / 6 (83.3%) | 1 |", report)
 
 
 if __name__ == "__main__":

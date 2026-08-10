@@ -31,4 +31,17 @@ Source: `build/real_note_full_mix_attributes.tsv`
 | Vocals — Primary display row | 6 / 22 (27.3%) | 16 |
 | Vocals — Visual primary row | 6 / 22 (27.3%) | 16 |
 
+## Cached isolated-guitar chord gates
+
+These rows count expected labeled chord-analysis windows (not full-mix samples). They are included only when the corresponding cached attribute TSV exists.
+
+| Metric | Accurate / total | Remaining |
+| --- | ---: | ---: |
+| Guitar Chord Mix — exact chord windows | 485 / 511 (94.9%) | 26 |
+| Guitar Chord Mix — expected guitar pitch classes | 1276 / 1533 (83.2%) | 257 |
+| Guitar Techs Chord — exact chord windows | 3973 / 4096 (97.0%) | 123 |
+| Guitar Techs Chord — expected guitar pitch classes | 13722 / 14570 (94.2%) | 848 |
+| Gaps Guitar Full — exact chord windows | 361 / 540 (66.9%) | 179 |
+| Gaps Guitar Full — expected guitar pitch classes | 1518 / 1957 (77.6%) | 439 |
+
 Refresh with `make update-detection-accuracy-report`. Whenever a verified detection metric changes, update this report in the same commit.

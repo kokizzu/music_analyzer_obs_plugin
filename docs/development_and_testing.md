@@ -31,6 +31,8 @@ Set `PARALLEL_TEST_JOBS=8` (or another appropriate value) to fan out compatible 
    make update-detection-accuracy-report
    ```
 
+   The report always includes the deterministic full-mix real-note sample metrics. When cached Guitar Chord Mix, Guitar-TECHS chord, or full GAPS guitar attribute TSVs are present, it also includes their exact chord-window and expected guitar pitch-class totals without rerunning audio.
+
 3. Print analyzer traits and mine candidate patterns without changing logic:
 
    ```sh
