@@ -4274,7 +4274,10 @@ def main() -> int:
             f"{target} must quarantine corrupt completed zips"
         )
         assert f'scripts/check_zip_archive.py "$({var}).part"' in archive_recipe, (
-            f"{target} must validate partial zips before promotion"
+            f"{target} must validate a complete partial zip before promotion"
+        )
+        assert f'mv -f "$({var}).part" "$({var}).corrupt"' not in archive_recipe, (
+            f"{target} must keep incomplete partial zips so curl can resume them"
         )
         assert f'curl -fL -C - -o "$({var}).part" "$({url})"' in archive_recipe, (
             f"{target} must resume downloads into a partial file"

@@ -1281,6 +1281,7 @@ GUITARSET_ATTRIBUTE_GATE_ENV ?= MUSIC_ANALYZER_GUITARSET_ATTRIBUTE_ONLY=1 MUSIC_
 .PHONY: test-build-sharded-tsv test-guitarset-shard-check test-instrument-family-shard-check test-musicnet-shard-check
 .PHONY: prepare-gaps-guitar-samples-full test-gaps-guitar-samples-full analyze-gaps-guitar-misses-full analyze-gaps-guitar-attributes inspect-gaps-guitar-attribute-buckets find-gaps-guitar-attribute-patterns analyze-gaps-guitar-full-attributes inspect-gaps-guitar-full-attribute-buckets find-gaps-guitar-full-attribute-patterns
 .PHONY: analyze-guitarset-attributes inspect-guitarset-attribute-buckets find-guitarset-attribute-patterns analyze-egfxset-guitar-attributes inspect-egfxset-guitar-attribute-buckets find-egfxset-guitar-attribute-patterns
+.PHONY: inspect-guitarset-download restore-guitarset-audio-partial test-guitarset-download-inspector
 .PHONY: test-fret-control android-lint icon-assets
 .PHONY: measure-analyzer-attributes measure-analyzer-attribute-rows measure-analyzer-attribute-rows-full require-cached-analyzer-attribute-rows refresh-analyzer-detected-attribute-rows print-analyzer-detected-attributes print-analyzer-detected-attributes-cached measure-analyzer-detected-attributes measure-analyzer-detected-attributes-full measure-analyzer-pattern-report-sections report-analyzer-patterns-from-rows report-analyzer-patterns-from-cached-rows report-analyzer-patterns-from-rows-full measure-analyzer-patterns measure-analyzer-patterns-cached measure-analyzer-patterns-cached-summary measure-analyzer-patterns-cached-coverage measure-analyzer-patterns-full measure-analyzer-pattern-report inspect-instrument-sample-owner-buckets find-instrument-owner-patterns find-instrument-status-patterns test-instrument-sample-owner-buckets test-filter-instrument-attribute-rows test-instrument-owner-patterns test-refresh-analyzer-detected-attribute-rows test-print-analyzer-detected-attributes test-analyzer-pattern-report test-detector-route-report-summary test-measure-analyzer-patterns-target analyze-drum-primary-attribute-rows find-drum-primary-attribute-patterns analyze-drum-spread-gate-matrix-serial analyze-drum-spread-gate-matrix-parallel analyze-drum-spread-gate-matrix-parallel-unlocked analyze-drum-tom-bleed-caps analyze-drum-tom-bleed-caps-cached
 .PHONY: analyze-drum-spread-gate-matrix analyze-drum-full-gate-matrix analyze-drum-full-gate-matrix-parallel analyze-drum-full-merged-expected-attribute-rows analyze-drum-active-false-rows analyze-drum-rule-flags compare-drum-gate-matrix compare-drum-primary-scores find-drum-active-false-patterns find-drum-active-false-patterns-full find-drum-spread-exact-attribute-patterns find-drum-full-exact-attribute-patterns find-drum-full-exact-attribute-patterns-cached find-protected-drum-full-exact-attribute-patterns test-drum-gate-matrix-summary test-compare-drum-gate-summaries test-drum-active-threshold-simulation test-drum-active-false-summary test-drum-rule-flag-summary test-drum-active-false-patterns test-inspect-drum-candidate-rows test-inspect-real-note-candidate-rows test-inspect-detector-coverage-candidates
@@ -2931,6 +2932,9 @@ analyze-gaps-guitar-misses-full: $(BUILD_DIR)/analyzer_guitarset prepare-gaps-gu
 inspect-guitarset-download: scripts/inspect_guitarset_download.py
 	$(PYTHON) scripts/inspect_guitarset_download.py --annotation "$(GUITARSET_ANNOTATION_ARCHIVE)" --audio "$(GUITARSET_AUDIO_ARCHIVE)"
 
+restore-guitarset-audio-partial: scripts/restore_largest_download_partial.py
+	$(PYTHON) scripts/restore_largest_download_partial.py "$(GUITARSET_AUDIO_ARCHIVE)"
+
 test-guitarset-download-inspector: tests/test_inspect_guitarset_download.py scripts/inspect_guitarset_download.py
 	$(PYTHON) tests/test_inspect_guitarset_download.py
 
@@ -2942,7 +2946,6 @@ guitarset-download-samples-unlocked: $(GUITARSET_ANNOTATION_ARCHIVE) $(GUITARSET
 $(GUITARSET_ANNOTATION_ARCHIVE): FORCE scripts/check_zip_archive.py | $(BUILD_DIR)
 	mkdir -p "$(GUITARSET_SOURCE_DIR)"
 	if [ -s "$(GUITARSET_ANNOTATION_ARCHIVE)" ] && ! $(PYTHON) scripts/check_zip_archive.py "$(GUITARSET_ANNOTATION_ARCHIVE)" >/dev/null 2>&1; then mv -f "$(GUITARSET_ANNOTATION_ARCHIVE)" "$(GUITARSET_ANNOTATION_ARCHIVE).part"; fi
-	if [ -s "$(GUITARSET_ANNOTATION_ARCHIVE).part" ] && ! $(PYTHON) scripts/check_zip_archive.py "$(GUITARSET_ANNOTATION_ARCHIVE).part" >/dev/null 2>&1; then mv -f "$(GUITARSET_ANNOTATION_ARCHIVE).part" "$(GUITARSET_ANNOTATION_ARCHIVE).corrupt"; fi
 	if [ ! -s "$(GUITARSET_ANNOTATION_ARCHIVE)" ] && [ -s "$(GUITARSET_ANNOTATION_ARCHIVE).part" ] && $(PYTHON) scripts/check_zip_archive.py "$(GUITARSET_ANNOTATION_ARCHIVE).part" >/dev/null 2>&1; then mv "$(GUITARSET_ANNOTATION_ARCHIVE).part" "$(GUITARSET_ANNOTATION_ARCHIVE)"; fi
 	if [ ! -s "$(GUITARSET_ANNOTATION_ARCHIVE)" ]; then curl -fL -C - -o "$(GUITARSET_ANNOTATION_ARCHIVE).part" "$(GUITARSET_ANNOTATION_URL)"; fi
 	if [ -s "$(GUITARSET_ANNOTATION_ARCHIVE).part" ]; then $(PYTHON) scripts/check_zip_archive.py "$(GUITARSET_ANNOTATION_ARCHIVE).part"; mv "$(GUITARSET_ANNOTATION_ARCHIVE).part" "$(GUITARSET_ANNOTATION_ARCHIVE)"; fi
@@ -2951,7 +2954,6 @@ $(GUITARSET_ANNOTATION_ARCHIVE): FORCE scripts/check_zip_archive.py | $(BUILD_DI
 $(GUITARSET_AUDIO_ARCHIVE): FORCE scripts/check_zip_archive.py | $(BUILD_DIR)
 	mkdir -p "$(GUITARSET_SOURCE_DIR)"
 	if [ -s "$(GUITARSET_AUDIO_ARCHIVE)" ] && ! $(PYTHON) scripts/check_zip_archive.py "$(GUITARSET_AUDIO_ARCHIVE)" >/dev/null 2>&1; then mv -f "$(GUITARSET_AUDIO_ARCHIVE)" "$(GUITARSET_AUDIO_ARCHIVE).part"; fi
-	if [ -s "$(GUITARSET_AUDIO_ARCHIVE).part" ] && ! $(PYTHON) scripts/check_zip_archive.py "$(GUITARSET_AUDIO_ARCHIVE).part" >/dev/null 2>&1; then mv -f "$(GUITARSET_AUDIO_ARCHIVE).part" "$(GUITARSET_AUDIO_ARCHIVE).corrupt"; fi
 	if [ ! -s "$(GUITARSET_AUDIO_ARCHIVE)" ] && [ -s "$(GUITARSET_AUDIO_ARCHIVE).part" ] && $(PYTHON) scripts/check_zip_archive.py "$(GUITARSET_AUDIO_ARCHIVE).part" >/dev/null 2>&1; then mv "$(GUITARSET_AUDIO_ARCHIVE).part" "$(GUITARSET_AUDIO_ARCHIVE)"; fi
 	if [ ! -s "$(GUITARSET_AUDIO_ARCHIVE)" ]; then curl -fL -C - -o "$(GUITARSET_AUDIO_ARCHIVE).part" "$(GUITARSET_AUDIO_URL)"; fi
 	if [ -s "$(GUITARSET_AUDIO_ARCHIVE).part" ]; then $(PYTHON) scripts/check_zip_archive.py "$(GUITARSET_AUDIO_ARCHIVE).part"; mv "$(GUITARSET_AUDIO_ARCHIVE).part" "$(GUITARSET_AUDIO_ARCHIVE)"; fi

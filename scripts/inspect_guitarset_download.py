@@ -32,8 +32,10 @@ def main() -> int:
     args = parser.parse_args()
     print(describe("annotation", args.annotation))
     print(describe("annotation_part", args.annotation.with_suffix(args.annotation.suffix + ".part")))
+    print(describe("annotation_preserved", args.annotation.with_suffix(args.annotation.suffix + ".corrupt")))
     print(describe("audio", args.audio))
     print(describe("audio_part", args.audio.with_suffix(args.audio.suffix + ".part")))
+    print(describe("audio_preserved", args.audio.with_suffix(args.audio.suffix + ".corrupt")))
     return 0
 
 
