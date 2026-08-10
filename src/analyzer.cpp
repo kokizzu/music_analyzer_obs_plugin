@@ -28712,6 +28712,23 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 		if (rim_is_kick_bleed)
 			cap_drum_level(Rim, 0.28f);
 	}
+	// The low-dominant bleed cap is normally correct, but a narrow real-kit
+	// overlap has independently corroborated tom energy and a sustained onset.
+	// Restore it only after that cap so the ordinary kick-bleed protections stay
+	// in force for every other window.
+	const bool low_treble_kick_backed_tom_recovery =
+		drum_detection_enabled && !one_shot_drum_source && drum_transient &&
+		drum_level_[Kick] > 0.30f && drum_level_[Tom] <= 0.30f && onset >= 15.0f &&
+		snapshot.low_energy >= 0.84f && snapshot.low_energy <= 0.90f &&
+		snapshot.mid_energy >= 0.08f && snapshot.mid_energy <= 0.14f &&
+		snapshot.high_energy <= 0.04f &&
+		drum_segment_bands[Tom] >= 50.0f &&
+		tom_body >= 48.0f && tom_body <= 56.0f &&
+		kick_body >= 40.0f && kick_body <= 52.0f &&
+		snare_body >= 17.0f && snare_body <= 22.0f &&
+		upper_tom_body >= 10.0f && upper_tom_body <= 13.0f;
+	if (low_treble_kick_backed_tom_recovery)
+		boost_drum_level(Tom, 0.34f);
 
 	const bool snare_supported_rim_saturation =
 		drum_detection_enabled && !one_shot_drum_source &&
