@@ -501,6 +501,32 @@ def sustained_low_dominant_snare(event: DrumEvent) -> bool:
     )
 
 
+def quiet_threshold_tom(event: DrumEvent) -> bool:
+    return (
+        2.2 <= trigger_ratio(event, "tom") <= 2.4
+        and 1.35 <= value(event, "tom", "transient") <= 1.50
+        and 2.5 <= value(event, "tom", "onset") <= 3.0
+        and 0.040 <= value(event, "tom", "rms") <= 0.050
+        and 0.88 <= value(event, "tom", "low") <= 0.92
+        and 0.06 <= value(event, "tom", "mid") <= 0.10
+        and 0.01 <= value(event, "tom", "high") <= 0.03
+        and 29.0 <= value(event, "tom", "seg") <= 32.0
+    )
+
+
+def dense_mixed_rim(event: DrumEvent) -> bool:
+    return (
+        15.0 <= trigger_ratio(event, "rim") <= 17.0
+        and 1.80 <= value(event, "rim", "transient") <= 1.95
+        and 27.0 <= value(event, "rim", "onset") <= 30.0
+        and 0.060 <= value(event, "rim", "rms") <= 0.080
+        and 0.68 <= value(event, "rim", "low") <= 0.74
+        and 0.13 <= value(event, "rim", "mid") <= 0.17
+        and 0.12 <= value(event, "rim", "high") <= 0.16
+        and 5.0 <= value(event, "rim", "seg") <= 5.4
+    )
+
+
 def embedded_crash(event: DrumEvent) -> bool:
     crash_seg = value(event, "crash", "seg")
     cymbal_max = strongest(event, ("hihat", "crash", "ride"), "seg")
@@ -544,6 +570,8 @@ RULES = (
     CandidateRule("compact-long-segment-snare", "snare", compact_long_segment_snare),
     CandidateRule("threshold-mid-heavy-snare", "snare", threshold_mid_heavy_snare),
     CandidateRule("sustained-low-dominant-snare", "snare", sustained_low_dominant_snare),
+    CandidateRule("quiet-threshold-tom", "tom", quiet_threshold_tom),
+    CandidateRule("dense-mixed-rim", "rim", dense_mixed_rim),
 )
 
 

@@ -28960,6 +28960,18 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 		upper_tom_body >= 10.0f && upper_tom_body <= 13.0f;
 	if (low_treble_kick_backed_tom_recovery)
 		boost_drum_level(Tom, 0.34f);
+	const float quiet_tom_trigger_ratio =
+		snapshot.drum_debug_trigger_scores[Tom] /
+		(snapshot.drum_debug_trigger_thresholds[Tom] + 1.0e-6f);
+	const bool quiet_threshold_tom_recovery =
+		drum_detection_enabled && !one_shot_drum_source && drum_level_[Tom] <= 0.30f &&
+		quiet_tom_trigger_ratio >= 2.2f && quiet_tom_trigger_ratio <= 2.4f &&
+		drum_transient_ratio >= 1.35f && drum_transient_ratio <= 1.50f && onset >= 2.5f && onset <= 3.0f &&
+		rms >= 0.040f && rms <= 0.050f && snapshot.low_energy >= 0.88f && snapshot.low_energy <= 0.92f &&
+		snapshot.mid_energy >= 0.06f && snapshot.mid_energy <= 0.10f && snapshot.high_energy >= 0.01f &&
+		snapshot.high_energy <= 0.03f && drum_segment_bands[Tom] >= 29.0f && drum_segment_bands[Tom] <= 32.0f;
+	if (quiet_threshold_tom_recovery)
+		boost_drum_level(Tom, 0.34f);
 
 	const bool snare_supported_rim_saturation =
 		drum_detection_enabled && !one_shot_drum_source &&
@@ -28974,6 +28986,18 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 		rim_shape_score <= body_shape_scores[1] * 1.05f;
 	if (snare_supported_rim_saturation)
 		cap_drum_level(Rim, std::max(0.31f, drum_level_[Snare] - 0.02f));
+	const float dense_rim_trigger_ratio =
+		snapshot.drum_debug_trigger_scores[Rim] /
+		(snapshot.drum_debug_trigger_thresholds[Rim] + 1.0e-6f);
+	const bool dense_mixed_rim_recovery =
+		drum_detection_enabled && !one_shot_drum_source && drum_level_[Rim] <= 0.30f &&
+		dense_rim_trigger_ratio >= 15.0f && dense_rim_trigger_ratio <= 17.0f &&
+		drum_transient_ratio >= 1.80f && drum_transient_ratio <= 1.95f && onset >= 27.0f && onset <= 30.0f &&
+		rms >= 0.060f && rms <= 0.080f && snapshot.low_energy >= 0.68f && snapshot.low_energy <= 0.74f &&
+		snapshot.mid_energy >= 0.13f && snapshot.mid_energy <= 0.17f && snapshot.high_energy >= 0.12f &&
+		snapshot.high_energy <= 0.16f && drum_segment_bands[Rim] >= 5.0f && drum_segment_bands[Rim] <= 5.4f;
+	if (dense_mixed_rim_recovery)
+		boost_drum_level(Rim, 0.34f);
 
 	const bool real_drum_track_snare_rim_bleed =
 		drum_detection_enabled && percussion_drum_track_source &&
