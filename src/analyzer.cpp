@@ -28759,6 +28759,21 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 		drum_segment_bands[Ride] >= strongest_cymbal_drum * 0.42f;
 	if (low_rms_embedded_ride_recovery)
 		boost_drum_level(Ride, 0.34f);
+	// A rare low-RMS crash onset is visibly isolated from the surrounding body
+	// energy once the abrupt attack exceeds the long-onset guard.
+	const float crash_trigger_ratio_after_detection =
+		snapshot.drum_debug_trigger_scores[Crash] /
+		(snapshot.drum_debug_trigger_thresholds[Crash] + 1.0e-6f);
+	const bool long_onset_low_rms_crash_recovery =
+		drum_detection_enabled && !one_shot_drum_source && drum_transient_ratio >= 1.75f &&
+		drum_level_[Crash] <= 0.30f && crash_trigger_ratio_after_detection >= 1.0f &&
+		onset >= 800.0f && rms <= 0.060f &&
+		snapshot.low_energy >= 0.84f && snapshot.mid_energy <= 0.14f &&
+		snapshot.high_energy <= 0.03f &&
+		drum_segment_bands[Crash] >= 1.50f &&
+		drum_segment_bands[Crash] >= strongest_cymbal_drum * 0.32f;
+	if (long_onset_low_rms_crash_recovery)
+		boost_drum_level(Crash, 0.34f);
 	// The low-dominant bleed cap is normally correct, but a narrow real-kit
 	// overlap has independently corroborated tom energy and a sustained onset.
 	// Restore it only after that cap so the ordinary kick-bleed protections stay
