@@ -134,6 +134,27 @@ def low_crack_kick_backed_snare(event: DrumEvent) -> bool:
     )
 
 
+def low_treble_kick_backed_tom(event: DrumEvent) -> bool:
+    """Low-treble real-kit kick/tom overlaps that remain distinctly tom-shaped."""
+    tom_body = value(event, "tom", "tom_body")
+    snare_body = value(event, "tom", "snare_body")
+    kick_body = value(event, "tom", "kick_body")
+    return (
+        low_kick_body(event)
+        and trigger_ratio(event, "tom") >= 20.0
+        and value(event, "tom", "transient") >= 1.75
+        and value(event, "tom", "onset") >= 15.0
+        and 0.84 <= value(event, "tom", "low") <= 0.90
+        and 0.08 <= value(event, "tom", "mid") <= 0.14
+        and value(event, "tom", "high") <= 0.04
+        and value(event, "tom", "seg") >= 50.0
+        and 48.0 <= tom_body <= 56.0
+        and 40.0 <= kick_body <= 52.0
+        and 17.0 <= snare_body <= 22.0
+        and 10.0 <= value(event, "tom", "upper_tom") <= 13.0
+    )
+
+
 def embedded_ride(event: DrumEvent) -> bool:
     ride_seg = value(event, "ride", "seg")
     cymbal_max = strongest(event, ("hihat", "crash", "ride"), "seg")
@@ -168,6 +189,7 @@ RULES = (
     CandidateRule("supported-low-snare", "snare", supported_low_snare),
     CandidateRule("kick-backed-snare", "snare", kick_backed_snare),
     CandidateRule("low-crack-kick-backed-snare", "snare", low_crack_kick_backed_snare),
+    CandidateRule("low-treble-kick-backed-tom", "tom", low_treble_kick_backed_tom),
     CandidateRule("embedded-ride", "ride", embedded_ride),
     CandidateRule("strong-embedded-ride", "ride", strong_embedded_ride),
     CandidateRule("embedded-crash", "crash", embedded_crash),
