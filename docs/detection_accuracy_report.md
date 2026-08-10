@@ -43,5 +43,7 @@ These rows count expected labeled chord-analysis windows (not full-mix samples).
 | Guitar Techs Chord — expected guitar pitch classes | 13722 / 14570 (94.2%) | 848 |
 | Gaps Guitar Full — exact chord windows | 361 / 540 (66.9%) | 179 |
 | Gaps Guitar Full — expected guitar pitch classes | 1518 / 1957 (77.6%) | 439 |
+| Guitarset — exact chord windows | 1140 / 1491 (76.5%) | 351 |
+| Guitarset — expected guitar pitch classes | 4357 / 5340 (81.6%) | 983 |
 
 Refresh with `make update-detection-accuracy-report`. Whenever a verified detection metric changes, update this report in the same commit.
