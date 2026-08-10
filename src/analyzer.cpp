@@ -28759,6 +28759,16 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 		drum_segment_bands[Ride] >= strongest_cymbal_drum * 0.42f;
 	if (low_rms_embedded_ride_recovery)
 		boost_drum_level(Ride, 0.34f);
+	const bool compact_low_rms_ride_recovery =
+		drum_detection_enabled && !one_shot_drum_source && drum_level_[Ride] <= 0.30f &&
+		ride_trigger_ratio_after_detection >= 3.0f && ride_trigger_ratio_after_detection <= 4.0f &&
+		drum_transient_ratio >= 2.0f && drum_transient_ratio <= 2.1f && onset >= 3.0f && onset <= 3.5f &&
+		rms >= 0.035f && rms <= 0.045f && snapshot.low_energy >= 0.84f && snapshot.low_energy <= 0.86f &&
+		snapshot.mid_energy >= 0.11f && snapshot.mid_energy <= 0.13f && snapshot.high_energy >= 0.02f &&
+		snapshot.high_energy <= 0.04f && drum_segment_bands[Ride] >= 1.4f && drum_segment_bands[Ride] <= 1.7f &&
+		drum_segment_bands[Ride] >= strongest_cymbal_drum * 0.95f;
+	if (compact_low_rms_ride_recovery)
+		boost_drum_level(Ride, 0.34f);
 	// A rare low-RMS crash onset is visibly isolated from the surrounding body
 	// energy once the abrupt attack exceeds the long-onset guard.
 	const float crash_trigger_ratio_after_detection =
