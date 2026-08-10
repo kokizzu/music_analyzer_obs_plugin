@@ -10519,6 +10519,40 @@ void boost_existing_measured_organ_keyboard_visual_notes(NoteGrid &keyboard_grid
 	}
 }
 
+bool measured_acoustic_string_other_visual_restore_supported(const FullMixDebugCandidate &debug)
+{
+	// Two clean acoustic-string E4 fixtures retain an Other note just below a
+	// guitar mirror.  Their guitar-over-vocal ownership split and absent third
+	// harmonic separate them from the broad string/guitar overlap.
+	return debug.owner == InstrumentKind::Guitar &&
+	       debug.guitar_score >= debug.vocal_score * 2.482f &&
+	       debug.harmonic_ratios[2] <= 0.011f;
+}
+
+void boost_existing_measured_acoustic_string_other_visual_notes(
+	NoteGrid &other_grid, const NoteGrid &guitar_grid, const FullMixOwnership &ownership)
+{
+	static constexpr float kMinExistingOtherLevel = 0.50f;
+	static constexpr float kVisualLead = 0.015f;
+	static constexpr float kMaximumVisualFloor = 0.91f;
+	const std::size_t debug_count =
+		std::min<std::size_t>(ownership.debug_candidate_count, ownership.debug_candidates.size());
+	for (std::size_t i = 0; i < debug_count; ++i) {
+		const FullMixDebugCandidate &debug = ownership.debug_candidates[i];
+		if (!measured_acoustic_string_other_visual_restore_supported(debug))
+			continue;
+		if (note_grid_midi_level(other_grid, debug.midi) < kMinExistingOtherLevel)
+			continue;
+		const float guitar_visual = note_grid_midi_visual_level(guitar_grid, debug.midi);
+		const float other_visual = note_grid_midi_visual_level(other_grid, debug.midi);
+		if (guitar_visual <= other_visual)
+			continue;
+		boost_note_grid_midi_visual_level(
+			other_grid, debug.midi,
+			std::min(kMaximumVisualFloor, guitar_visual + kVisualLead));
+	}
+}
+
 void attenuate_ambiguous_note_cell_by_named_rows(NoteCell &cell, const NoteGrid &bass,
 						 const NoteGrid &keyboard, const NoteGrid &guitar,
 						 const NoteGrid &vocal, const NoteGrid &other)
@@ -34341,6 +34375,8 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 		boost_existing_reed_brass_other_visual_notes(snapshot.other_notes, full_mix_ownership);
 		boost_existing_measured_organ_keyboard_visual_notes(
 			snapshot.keyboard_notes, snapshot.other_notes, full_mix_ownership);
+		boost_existing_measured_acoustic_string_other_visual_notes(
+			snapshot.other_notes, snapshot.guitar_notes, full_mix_ownership);
 		boost_existing_low_string_other_octave_visual_notes(snapshot.other_notes,
 								      snapshot.keyboard_notes, full_mix_ownership);
 		attenuate_ambiguous_note_grid_by_named_rows(snapshot.ambiguous_notes, snapshot.bass_notes,

@@ -170,6 +170,7 @@ ROW_FOR_FAMILY = {
     "other": "other",
 }
 WEAK_EXPECTED_BUCKET_STATUSES = {"weak_expected_row", "weak_visual_expected_row"}
+FIRST_ROW_CONFUSION_STATUSES = {"first_row_confusion", "visual_first_row_confusion"}
 LIT_THRESHOLD = 0.25
 
 
@@ -387,6 +388,20 @@ def rows_for_bucket(rows: list[dict[str, str]], bucket: tuple[str, str, str, str
             and row.get("buffer_visual_strongest_row") != expected_row
             and row.get("debug_note")
         ]
+    if status in FIRST_ROW_CONFUSION_STATUSES:
+        expected_row = ROW_FOR_FAMILY.get(family, family)
+        actual_field = "visual_first_row" if status == "visual_first_row_confusion" else "first_row"
+        return [
+            row
+            for row in rows
+            if row.get("status") == "hit"
+            and row.get("buffer") == "0"
+            and bucket_field_matches(row.get("family", ""), family)
+            and bucket_field_matches(row.get("source", ""), source)
+            and bucket_field_matches(row.get(actual_field, ""), target)
+            and row.get(actual_field) != expected_row
+            and row.get("debug_note")
+        ]
     if status in WEAK_EXPECTED_BUCKET_STATUSES:
         visual = status == "weak_visual_expected_row"
         return [
@@ -432,6 +447,10 @@ def protected_row_matches_scope(
         return row.get("buffer_visual_strongest_row", "") == expected_row
     if status == "row_confusion":
         return row.get("buffer_strongest_row", "") == expected_row
+    if status == "visual_first_row_confusion":
+        return row.get("buffer") == "0" and row.get("visual_first_row", "") == expected_row
+    if status == "first_row_confusion":
+        return row.get("buffer") == "0" and row.get("first_row", "") == expected_row
     if status == "ownership_miss":
         return row.get("detected_expected_row", "") == "1" or row.get("first_row", "") == expected_row
     if status == "octave_displacement":
@@ -503,6 +522,23 @@ def top_buckets(
             if row.get("status") != "hit" or strongest_row == expected_row or not strongest_row:
                 continue
             counts[("visual_row_confusion", family, row.get("source", ""), strongest_row)] += 1
+        elif bucket_status in FIRST_ROW_CONFUSION_STATUSES:
+            family = row.get("family", "")
+            expected_row = ROW_FOR_FAMILY.get(family, family)
+            actual_field = (
+                "visual_first_row"
+                if bucket_status == "visual_first_row_confusion"
+                else "first_row"
+            )
+            actual_row = row.get(actual_field, "")
+            if (
+                row.get("status") != "hit"
+                or row.get("buffer") != "0"
+                or actual_row == expected_row
+                or not actual_row
+            ):
+                continue
+            counts[(bucket_status, family, row.get("source", ""), actual_row)] += 1
         elif bucket_status in WEAK_EXPECTED_BUCKET_STATUSES:
             if row.get("status") != "hit":
                 continue
@@ -1641,6 +1677,8 @@ def main() -> int:
             "ownership_miss",
             "row_confusion",
             "visual_row_confusion",
+            "first_row_confusion",
+            "visual_first_row_confusion",
             "octave_displacement",
             "weak_expected_row",
             "weak_visual_expected_row",
@@ -1649,7 +1687,8 @@ def main() -> int:
         help=(
             "status used by --top-buckets; row_confusion means hit rows whose strongest "
             "raw row is wrong, visual_row_confusion means hit rows whose strongest UI row "
-            "is wrong, octave_displacement means hit rows shifted by octave, and weak_* "
+            "is wrong, first_row_confusion and visual_first_row_confusion inspect only "
+            "buffer zero, octave_displacement means hit rows shifted by octave, and weak_* "
             "statuses mean the expected row is present below the display threshold or absent"
         ),
     )
