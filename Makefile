@@ -6,6 +6,8 @@ FFMPEG ?= ffmpeg
 CURL ?= curl
 ARIA2C ?= aria2c
 BUILD_DIR ?= build
+INSTRUMENT_SAMPLE_STORE ?= /media/kyz/sshflashtor/InstrumentSamples
+INSTRUMENT_SAMPLE_STORE_LINK ?= $(BUILD_DIR)/InstrumentSamples
 ANDROID_SDK_ROOT ?= $(CURDIR)/$(BUILD_DIR)/android-sdk
 ANDROID_GRADLE_VERSION ?= 8.10.2
 ANDROID_EMULATOR_API ?= 35
@@ -596,7 +598,7 @@ INSTRUMENT_SAMPLE_JOBS ?= 4
 INSTRUMENT_ATTRIBUTE_ARGS ?= --top 12 --examples 5
 MEASURE_REAL_NOTE_ARGS ?= --detail-limit 12 --sample-limit 24
 MEASURE_GUITAR_BUCKET_ARGS ?= --top-misses 8
-REAL_SAMPLE_SOURCE_DIR ?= $(BUILD_DIR)/real_sample_sources
+REAL_SAMPLE_SOURCE_DIR ?= $(INSTRUMENT_SAMPLE_STORE_LINK)
 NSYNTH_SAMPLE_URL ?= http://download.magenta.tensorflow.org/datasets/nsynth/nsynth-test.jsonwav.tar.gz
 NSYNTH_SAMPLE_ARCHIVE ?= $(REAL_SAMPLE_SOURCE_DIR)/nsynth-test.jsonwav.tar.gz
 NSYNTH_SAMPLE_ROOT ?= $(REAL_SAMPLE_SOURCE_DIR)/nsynth-test
@@ -4520,6 +4522,15 @@ test-real-egmd-20: $(BUILD_DIR)/analyzer_egmd
 
 test-real-egmd-full: $(BUILD_DIR)/analyzer_egmd
 	MUSIC_ANALYZER_EGMD_REQUIRED=1 MUSIC_ANALYZER_EGMD_REQUIRED_RECORDINGS=45537 MUSIC_ANALYZER_EGMD_REQUIRED_WINDOWS=182148 $(BUILD_DIR)/analyzer_egmd
+
+inspect-instrument-sample-store: scripts/configure_instrument_sample_store.py
+	$(PYTHON) scripts/configure_instrument_sample_store.py --status --link "$(INSTRUMENT_SAMPLE_STORE_LINK)" --target "$(INSTRUMENT_SAMPLE_STORE)"
+
+configure-instrument-sample-store: scripts/configure_instrument_sample_store.py
+	$(PYTHON) scripts/configure_instrument_sample_store.py --link "$(INSTRUMENT_SAMPLE_STORE_LINK)" --target "$(INSTRUMENT_SAMPLE_STORE)"
+
+test-instrument-sample-store: tests/test_configure_instrument_sample_store.py scripts/configure_instrument_sample_store.py
+	$(PYTHON) tests/test_configure_instrument_sample_store.py
 
 inspect-real-urmp: tests/inspect_urmp_dataset.py
 	$(PYTHON) tests/inspect_urmp_dataset.py
