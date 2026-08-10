@@ -51,6 +51,18 @@ def main() -> int:
         assert audio_part.read_bytes() == b"larger interrupted download"
         assert audio.with_suffix(".zip.part.restart").read_bytes() == b"incomplete archive"
 
+        preserved.write_bytes(b"older")
+        second_restore = subprocess.run(
+            [sys.executable, str(RESTORE), str(audio)],
+            text=True,
+            capture_output=True,
+            check=False,
+        )
+        assert second_restore.returncode != 0
+        assert "refusing to overwrite" in second_restore.stderr
+        assert audio_part.read_bytes() == b"larger interrupted download"
+        assert preserved.read_bytes() == b"older"
+
     print("test_inspect_guitarset_download: ok")
     return 0
 
