@@ -8,6 +8,7 @@ ARIA2C ?= aria2c
 BUILD_DIR ?= build
 INSTRUMENT_SAMPLE_STORE ?= /media/kyz/sshflashtor/InstrumentSamples
 INSTRUMENT_SAMPLE_STORE_LINK ?= $(BUILD_DIR)/InstrumentSamples
+REAL_DATASET_ROOT ?= $(INSTRUMENT_SAMPLE_STORE_LINK)
 ANDROID_SDK_ROOT ?= $(CURDIR)/$(BUILD_DIR)/android-sdk
 ANDROID_GRADLE_VERSION ?= 8.10.2
 ANDROID_EMULATOR_API ?= 35
@@ -4420,26 +4421,26 @@ test-urmp-fixture: $(BUILD_DIR)/analyzer_urmp $(URMP_FIXTURE_ARCHIVE) | $(BUILD_
 	MUSIC_ANALYZER_URMP_ROOT=$(URMP_FIXTURE_DIR) MUSIC_ANALYZER_URMP_ALLOW_GENERATED_FIXTURE=1 $(BUILD_DIR)/analyzer_urmp
 
 test-real-urmp: $(BUILD_DIR)/analyzer_urmp
-	MUSIC_ANALYZER_URMP_REQUIRED=1 $(BUILD_DIR)/analyzer_urmp
+	MUSIC_ANALYZER_DATASET_ROOT=$(REAL_DATASET_ROOT) MUSIC_ANALYZER_URMP_REQUIRED=1 $(BUILD_DIR)/analyzer_urmp
 
 test-real-urmp-full: $(BUILD_DIR)/analyzer_urmp
-	MUSIC_ANALYZER_URMP_REQUIRED=1 MUSIC_ANALYZER_URMP_REQUIRED_PIECES=44 MUSIC_ANALYZER_URMP_REQUIRED_WINDOWS=176 $(BUILD_DIR)/analyzer_urmp
+	MUSIC_ANALYZER_DATASET_ROOT=$(REAL_DATASET_ROOT) MUSIC_ANALYZER_URMP_REQUIRED=1 MUSIC_ANALYZER_URMP_REQUIRED_PIECES=44 MUSIC_ANALYZER_URMP_REQUIRED_WINDOWS=176 $(BUILD_DIR)/analyzer_urmp
 
 test-real-multitrack-20: test-real-urmp
 
 test-real-multitrack-full: test-real-urmp-full
 
 test-real-goal-20: tests/run_real_goal_gate.py
-	+$(PYTHON) tests/run_real_goal_gate.py 20 "$(MAKE)" $(REAL_GOAL_MAKE_JOBS)
+	+MUSIC_ANALYZER_DATASET_ROOT=$(REAL_DATASET_ROOT) $(PYTHON) tests/run_real_goal_gate.py 20 "$(MAKE)" $(REAL_GOAL_MAKE_JOBS)
 
 test-real-goal-full: tests/run_real_goal_gate.py
-	+$(PYTHON) tests/run_real_goal_gate.py full "$(MAKE)" $(REAL_GOAL_MAKE_JOBS)
+	+MUSIC_ANALYZER_DATASET_ROOT=$(REAL_DATASET_ROOT) $(PYTHON) tests/run_real_goal_gate.py full "$(MAKE)" $(REAL_GOAL_MAKE_JOBS)
 
 inspect-real-goal-20: tests/run_real_goal_gate.py
-	+$(PYTHON) tests/run_real_goal_gate.py inspect-20 "$(MAKE)" $(REAL_GOAL_MAKE_JOBS)
+	+MUSIC_ANALYZER_DATASET_ROOT=$(REAL_DATASET_ROOT) $(PYTHON) tests/run_real_goal_gate.py inspect-20 "$(MAKE)" $(REAL_GOAL_MAKE_JOBS)
 
 inspect-real-goal-full: tests/run_real_goal_gate.py
-	+$(PYTHON) tests/run_real_goal_gate.py inspect-full "$(MAKE)" $(REAL_GOAL_MAKE_JOBS)
+	+MUSIC_ANALYZER_DATASET_ROOT=$(REAL_DATASET_ROOT) $(PYTHON) tests/run_real_goal_gate.py inspect-full "$(MAKE)" $(REAL_GOAL_MAKE_JOBS)
 
 test-real-musicnet-20: $(BUILD_DIR)/analyzer_musicnet
 	MUSIC_ANALYZER_MUSICNET_REQUIRED=1 $(BUILD_DIR)/analyzer_musicnet
@@ -4533,10 +4534,10 @@ test-instrument-sample-store: tests/test_configure_instrument_sample_store.py sc
 	$(PYTHON) tests/test_configure_instrument_sample_store.py
 
 inspect-real-urmp: tests/inspect_urmp_dataset.py
-	$(PYTHON) tests/inspect_urmp_dataset.py
+	MUSIC_ANALYZER_DATASET_ROOT=$(REAL_DATASET_ROOT) $(PYTHON) tests/inspect_urmp_dataset.py
 
 inspect-real-urmp-full: tests/inspect_urmp_dataset.py
-	MUSIC_ANALYZER_URMP_REQUIRED_PIECES=44 MUSIC_ANALYZER_URMP_REQUIRED_WINDOWS=176 $(PYTHON) tests/inspect_urmp_dataset.py
+	MUSIC_ANALYZER_DATASET_ROOT=$(REAL_DATASET_ROOT) MUSIC_ANALYZER_URMP_REQUIRED_PIECES=44 MUSIC_ANALYZER_URMP_REQUIRED_WINDOWS=176 $(PYTHON) tests/inspect_urmp_dataset.py
 
 inspect-real-multitrack-20: inspect-real-urmp
 
