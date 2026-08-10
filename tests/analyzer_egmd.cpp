@@ -1347,6 +1347,9 @@ int main()
 		resolve_positive_int_env("MUSIC_ANALYZER_EGMD_VERBOSE_FALSE_POSITIVE_LIMIT", 24);
 	const bool verbose_misses = env_truthy("MUSIC_ANALYZER_EGMD_VERBOSE_MISSES");
 	const int verbose_miss_limit = resolve_positive_int_env("MUSIC_ANALYZER_EGMD_VERBOSE_MISS_LIMIT", 24);
+	const bool verbose_windows = env_truthy("MUSIC_ANALYZER_EGMD_VERBOSE_WINDOWS");
+	const int verbose_window_limit =
+		resolve_positive_int_env("MUSIC_ANALYZER_EGMD_VERBOSE_WINDOW_LIMIT", 4000);
 	const bool verbose_tempo = env_truthy("MUSIC_ANALYZER_EGMD_VERBOSE_TEMPO");
 	const int verbose_tempo_limit =
 		resolve_positive_int_env("MUSIC_ANALYZER_EGMD_VERBOSE_TEMPO_LIMIT", 4000);
@@ -1380,6 +1383,7 @@ int main()
 	int no_candidate_recordings = 0;
 	int verbose_false_positive_lines = 0;
 	int verbose_miss_lines = 0;
+	int verbose_window_lines = 0;
 	int verbose_tempo_lines = 0;
 
 	std::size_t recording_ordinal = 0;
@@ -1455,6 +1459,16 @@ int main()
 				runner.expect(false, "E-GMD " + recording.id + " at sample " +
 							     std::to_string(candidate.center_sample) + ": " + error);
 				continue;
+			}
+			if (verbose_windows && verbose_window_lines < verbose_window_limit) {
+				std::fprintf(stderr,
+					     "E-GMD window %s sample %llu expected %s: %s %s\n",
+					     recording.id.c_str(),
+					     static_cast<unsigned long long>(candidate.center_sample),
+					     expected_categories_text(candidate).c_str(),
+					     drum_snapshot_details(snapshot).c_str(),
+					     drum_debug_details(snapshot).c_str());
+				++verbose_window_lines;
 			}
 
 			check_recall(runner, snapshot, candidate,

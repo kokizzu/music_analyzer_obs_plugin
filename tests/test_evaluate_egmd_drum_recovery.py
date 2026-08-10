@@ -27,6 +27,7 @@ def test_scores_candidate_recovery_rules() -> None:
             "E-GMD miss SongE sample 500 expected kick,snare missing snare: levels BASS DRUM=0.90* SNARE=0.00 BASS DRUM band=10.00 seg=9.00 shape=8.00 trig=8.00/1.00 supported=1 level=0.90* | SNARE band=4.00 seg=3.00 shape=2.00 trig=8.00/1.00 supported=0 level=0.00 | rms=0.1000 energy=0.80/0.10/0.05 transient=1.80 onset=16.00 body=50.00/30.00/40.00 crack=4.00 upperTom=2.00 bodyShape=0",
             "E-GMD miss SongF sample 600 expected kick missing kick: levels BASS DRUM=0.00 SNARE=0.00 BASS DRUM band=10.00 seg=9.00 shape=8.00 trig=8.00/1.00 supported=1 level=0.00 | SNARE band=4.00 seg=3.00 shape=2.00 trig=8.00/1.00 supported=0 level=0.00 | rms=0.1000 energy=0.80/0.10/0.05 transient=1.80 onset=16.00 body=50.00/35.00/40.00 crack=4.00 upperTom=2.00 bodyShape=0",
             "E-GMD miss SongG sample 700 expected kick,tom missing tom: levels BASS DRUM=0.90* TOMS=0.00 BASS DRUM band=10.00 seg=9.00 shape=8.00 trig=8.00/1.00 supported=1 level=0.90* | TOMS band=60.00 seg=52.00 shape=50.00 trig=14.00/0.62 supported=0 level=0.00 | rms=0.0800 energy=0.86/0.10/0.03 transient=1.80 onset=16.00 body=50.00/20.00/52.00 crack=3.00 upperTom=11.00 bodyShape=0",
+            "E-GMD window SongH sample 800 expected hihat,ride,snare: levels HIHAT=0.80* RIDE=0.00 SNARE=0.80* HIHAT band=2.00 seg=1.00 shape=1.00 trig=4.00/1.00 supported=1 level=0.80* | SNARE band=6.00 seg=4.00 shape=3.00 trig=4.00/1.00 supported=1 level=0.80* | CRASH band=0.80 seg=0.50 shape=0.50 trig=1.00/1.00 supported=0 level=0.00 | RIDE band=2.00 seg=1.20 shape=1.20 trig=8.00/1.00 supported=0 level=0.00 | rms=0.0500 energy=0.05/0.80/0.15 transient=1.90 onset=5.00 body=2.00/5.00/6.00 crack=1.00 upperTom=2.00 bodyShape=1",
         ]
     )
     with tempfile.TemporaryDirectory() as tmp:
@@ -40,7 +41,7 @@ def test_scores_candidate_recovery_rules() -> None:
         )
 
     output = result.stdout
-    require(output, "evaluate_egmd_drum_recovery: events=7")
+    require(output, "evaluate_egmd_drum_recovery: events=8")
     require(output, "rule=supported-low-snare category=snare")
     require(output, "tp_gain=1 fp_gain=0 net=1")
     require(output, "rule=kick-backed-snare category=snare")
@@ -49,6 +50,7 @@ def test_scores_candidate_recovery_rules() -> None:
     require(output, "tp_gain=1 fp_gain=0 net=1")
     require(output, "rule=low-crack-kick-backed-snare category=snare matched=1")
     require(output, "rule=low-treble-kick-backed-tom category=tom matched=1")
+    require(output, "rule=mid-dominant-embedded-ride category=ride matched=1")
 
 
 if __name__ == "__main__":

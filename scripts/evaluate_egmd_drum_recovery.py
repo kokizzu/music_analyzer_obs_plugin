@@ -7,6 +7,7 @@ import argparse
 from collections import defaultdict
 from dataclasses import dataclass
 from pathlib import Path
+import re
 from typing import Callable
 
 from summarize_egmd_drum_attributes import EVENT_RE
@@ -15,6 +16,10 @@ from summarize_egmd_drum_attributes import split_categories
 
 
 CATEGORIES = ("kick", "snare", "hihat", "crash", "tom", "ride", "rim")
+WINDOW_RE = re.compile(
+    r"^E-GMD window (?P<recording>\S+) sample (?P<sample>\d+) "
+    r"expected (?P<expected>[^: ]+): (?P<details>.*)$"
+)
 
 
 @dataclass(frozen=True)
@@ -38,23 +43,35 @@ def read_events(paths: list[Path]) -> list[DrumEvent]:
     for path in paths:
         for line in path.read_text(encoding="utf-8", errors="replace").splitlines():
             match = EVENT_RE.match(line)
-            if not match:
+            window = WINDOW_RE.match(line)
+            if not match and not window:
                 continue
-            expected = split_categories(match.group("expected"))
-            missing = split_categories(match.group("missing"))
-            metrics = parse_details(match.group("details"))
-            key = (match.group("recording"), int(match.group("sample")), tuple(sorted(expected)))
+            source = match or window
+            if source is None:
+                continue
+            expected = split_categories(source.group("expected"))
+            metrics = parse_details(source.group("details"))
+            missing = (
+                split_categories(match.group("missing"))
+                if match
+                else {category for category in expected if not active_metrics(metrics, category)}
+            )
+            key = (source.group("recording"), int(source.group("sample")), tuple(sorted(expected)))
             previous = events.get(key)
             if previous:
                 missing = set(previous.missing) | missing
             events[key] = DrumEvent(
-                recording=match.group("recording"),
-                sample=int(match.group("sample")),
+                recording=source.group("recording"),
+                sample=int(source.group("sample")),
                 expected=expected,
                 missing=missing,
                 metrics=metrics,
             )
     return list(events.values())
+
+
+def active_metrics(metrics: dict[str, dict[str, float]], category: str) -> bool:
+    return float(metrics.get(category, {}).get("active", 0.0)) > 0.0
 
 
 def value(event: DrumEvent, category: str, field: str) -> float:
@@ -172,6 +189,15 @@ def strong_embedded_ride(event: DrumEvent) -> bool:
     return embedded_ride(event) and trigger_ratio(event, "ride") >= 6.0
 
 
+def mid_dominant_embedded_ride(event: DrumEvent) -> bool:
+    return (
+        strong_embedded_ride(event)
+        and value(event, "ride", "low") <= 0.10
+        and value(event, "ride", "mid") >= 0.70
+        and value(event, "ride", "high") <= 0.20
+    )
+
+
 def embedded_crash(event: DrumEvent) -> bool:
     crash_seg = value(event, "crash", "seg")
     cymbal_max = strongest(event, ("hihat", "crash", "ride"), "seg")
@@ -192,6 +218,7 @@ RULES = (
     CandidateRule("low-treble-kick-backed-tom", "tom", low_treble_kick_backed_tom),
     CandidateRule("embedded-ride", "ride", embedded_ride),
     CandidateRule("strong-embedded-ride", "ride", strong_embedded_ride),
+    CandidateRule("mid-dominant-embedded-ride", "ride", mid_dominant_embedded_ride),
     CandidateRule("embedded-crash", "crash", embedded_crash),
 )
 
@@ -201,7 +228,19 @@ def event_label(event: DrumEvent) -> str:
     return f"{event.recording}@{event.sample} expected={expected}"
 
 
-def summarize_rule(events: list[DrumEvent], rule: CandidateRule, example_count: int) -> str:
+def event_traits(event: DrumEvent, category: str) -> str:
+    return (
+        f"level={value(event, category, 'level'):.2f} seg={value(event, category, 'seg'):.2f} "
+        f"ratio={trigger_ratio(event, category):.2f} rms={value(event, category, 'rms'):.3f} "
+        f"energy={value(event, category, 'low'):.2f}/{value(event, category, 'mid'):.2f}/"
+        f"{value(event, category, 'high'):.2f} transient={value(event, category, 'transient'):.2f} "
+        f"onset={value(event, category, 'onset'):.2f} body={value(event, category, 'kick_body'):.2f}/"
+        f"{value(event, category, 'snare_body'):.2f}/{value(event, category, 'tom_body'):.2f} "
+        f"crack={value(event, category, 'snare_crack'):.2f} upper_tom={value(event, category, 'upper_tom'):.2f}"
+    )
+
+
+def summarize_rule(events: list[DrumEvent], rule: CandidateRule, example_count: int, details: bool) -> str:
     tp: list[DrumEvent] = []
     fp: list[DrumEvent] = []
     already_active = 0
@@ -230,9 +269,11 @@ def summarize_rule(events: list[DrumEvent], rule: CandidateRule, example_count: 
         f"tp_gain={len(tp)} fp_gain={len(fp)} net={len(tp) - len(fp)} expected={expected_summary}"
     ]
     for event in tp[:example_count]:
-        lines.append(f"  tp {event_label(event)}")
+        suffix = f" {event_traits(event, rule.category)}" if details else ""
+        lines.append(f"  tp {event_label(event)}{suffix}")
     for event in fp[:example_count]:
-        lines.append(f"  fp {event_label(event)}")
+        suffix = f" {event_traits(event, rule.category)}" if details else ""
+        lines.append(f"  fp {event_label(event)}{suffix}")
     return "\n".join(lines)
 
 
@@ -241,13 +282,14 @@ def main() -> int:
     parser.add_argument("logs", nargs="+", type=Path)
     parser.add_argument("--examples", type=int, default=3)
     parser.add_argument("--rule", action="append", default=[])
+    parser.add_argument("--details", action="store_true")
     args = parser.parse_args()
 
     events = read_events(args.logs)
     print(f"evaluate_egmd_drum_recovery: events={len(events)}")
     selected = [rule for rule in RULES if not args.rule or rule.name in args.rule]
     for rule in selected:
-        print(summarize_rule(events, rule, args.examples))
+        print(summarize_rule(events, rule, args.examples, args.details))
     return 0
 
 

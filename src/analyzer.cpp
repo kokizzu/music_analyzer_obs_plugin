@@ -28730,6 +28730,22 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 		(strongest_cymbal_drum <= 1.0e-6f || strongest_cymbal_drum <= strongest_body_drum * 0.16f);
 	if (low_crack_kick_backed_snare_recovery)
 		boost_drum_level(Snare, 0.34f);
+	// Mid-dominant ride articulation remains distinguishable under simultaneous
+	// snare and hi-hat energy, even when the cymbal family resolver stays below
+	// the display threshold.
+	const float ride_trigger_ratio_after_detection =
+		snapshot.drum_debug_trigger_scores[Ride] /
+		(snapshot.drum_debug_trigger_thresholds[Ride] + 1.0e-6f);
+	const bool mid_dominant_embedded_ride_recovery =
+		drum_detection_enabled && !one_shot_drum_source && drum_transient_ratio >= 1.75f &&
+		drum_level_[Ride] <= 0.30f && onset >= 3.0f &&
+		ride_trigger_ratio_after_detection >= 6.0f &&
+		snapshot.low_energy <= 0.10f && snapshot.mid_energy >= 0.70f &&
+		snapshot.high_energy >= 0.01f && snapshot.high_energy <= 0.20f &&
+		drum_segment_bands[Ride] >= 0.95f &&
+		drum_segment_bands[Ride] >= strongest_cymbal_drum * 0.42f;
+	if (mid_dominant_embedded_ride_recovery)
+		boost_drum_level(Ride, 0.34f);
 	// The low-dominant bleed cap is normally correct, but a narrow real-kit
 	// overlap has independently corroborated tom energy and a sustained onset.
 	// Restore it only after that cap so the ordinary kick-bleed protections stay
