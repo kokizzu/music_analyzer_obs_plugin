@@ -262,6 +262,33 @@ void check_displayed_supported_plain_guitar_primary(Runner &runner)
 			      protected_state.label + "`");
 }
 
+void check_guitar_major_triad_analysis_flat_seventh_recovery(Runner &runner)
+{
+	NoteGrid display_grid = {};
+	set_midi(display_grid, 45, 1.00f); // A2
+	set_midi(display_grid, 49, 0.78f); // C#3
+	set_midi(display_grid, 52, 0.70f); // E3
+	NoteGrid recovered_analysis = display_grid;
+	write_note_grid_cell(recovered_analysis, NoteCandidate{55, 0.50f}, 1.00f, 1.00f); // G3, A's b7
+	InstrumentState recovered_state = {};
+	restore_very_strong_guitar_analysis_note_after_chord_resolution(
+		display_grid, recovered_state, recovered_analysis, 0.10f);
+	runner.expect(note_grid_pitch_level(display_grid, 7) >= 0.50f,
+		      "guitar major-triad analysis recovery: expected G flat seventh restored at 0.50");
+
+	NoteGrid protected_grid = {};
+	set_midi(protected_grid, 45, 1.00f);
+	set_midi(protected_grid, 49, 0.78f);
+	set_midi(protected_grid, 52, 0.70f);
+	NoteGrid weak_analysis = protected_grid;
+	write_note_grid_cell(weak_analysis, NoteCandidate{55, 0.49f}, 1.00f, 1.00f);
+	InstrumentState protected_state = {};
+	restore_very_strong_guitar_analysis_note_after_chord_resolution(
+		protected_grid, protected_state, weak_analysis, 0.10f);
+	runner.expect(note_grid_pitch_level(protected_grid, 7) == 0.0f,
+		      "guitar major-triad analysis recovery: expected 0.49 flat seventh rejected");
+}
+
 void check_source_supported_plain_guitar_alias_recovery(Runner &runner)
 {
 	InstrumentState state = {};
@@ -4669,6 +4696,7 @@ int run()
 	check_crowded_guitar_prune_modes(runner);
 	check_displayed_same_root_plain_guitar_primary(runner);
 	check_displayed_supported_plain_guitar_primary(runner);
+	check_guitar_major_triad_analysis_flat_seventh_recovery(runner);
 	check_source_supported_plain_guitar_alias_recovery(runner);
 	check_crowded_probe_supported_guitar_rootless_plain_alias(runner);
 	check_probe_supported_guitar_extension_base_alias_recovery(runner);

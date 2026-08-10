@@ -318,6 +318,9 @@ def summarize(path: pathlib.Path) -> list[str]:
     missing_expected_pitch_classes: collections.Counter[str] = collections.Counter()
     missing_expected_pitch_class_quality: collections.Counter[str] = collections.Counter()
     missing_expected_raw_levels: dict[str, list[float]] = collections.defaultdict(list)
+    strong_missing_expected_pitch_classes: collections.Counter[str] = collections.Counter()
+    strong_missing_expected_pitch_class_quality: collections.Counter[str] = collections.Counter()
+    strong_missing_expected_examples: list[str] = []
     missing_expected_examples: list[str] = []
 
     expected_notes = sum(as_int(row, "expected_note_count") for row in rows)
@@ -364,6 +367,15 @@ def summarize(path: pathlib.Path) -> list[str]:
             raw_level = raw_levels.get(pitch_class)
             if raw_level is not None:
                 missing_expected_raw_levels[note].append(raw_level)
+                if raw_level >= 0.30:
+                    strong_missing_expected_pitch_classes[note] += 1
+                    strong_missing_expected_pitch_class_quality[f"{quality}:{note}"] += 1
+                    if len(strong_missing_expected_examples) < 12:
+                        strong_missing_expected_examples.append(
+                            "  "
+                            + example_text(row)
+                            + f" missing_pc={note} raw_level={raw_level:.2f}"
+                        )
         if missing_pitch_classes and len(missing_expected_examples) < 8:
             notes = ",".join(PC_TO_NOTE[pitch_class] for pitch_class in sorted(missing_pitch_classes))
             missing_expected_examples.append("  " + example_text(row) + f" missing_pc={notes}")
@@ -522,6 +534,10 @@ def summarize(path: pathlib.Path) -> list[str]:
         "missing expected pitch classes by quality "
         + compact_counter(missing_expected_pitch_class_quality, 12),
         "missing expected raw levels " + compact_level_summary(missing_expected_raw_levels, 12),
+        "strong missing expected pitch classes "
+        + compact_counter(strong_missing_expected_pitch_classes, 12),
+        "strong missing expected pitch classes by quality "
+        + compact_counter(strong_missing_expected_pitch_class_quality, 12),
         "cross-row expected hits " + str(contamination),
         "chord exact/global recall " + ratio_text(chord_hits, len(chord_rows)),
         "chord simplified recall " + ratio_text(simple_chord_hits, len(chord_rows)),
@@ -597,6 +613,10 @@ def summarize(path: pathlib.Path) -> list[str]:
     if missing_expected_examples:
         lines.append("missing expected pitch-class examples")
         lines.extend(missing_expected_examples)
+
+    if strong_missing_expected_examples:
+        lines.append("strong missing expected pitch-class examples")
+        lines.extend(strong_missing_expected_examples)
 
     return lines
 

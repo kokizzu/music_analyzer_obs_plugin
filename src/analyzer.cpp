@@ -21315,7 +21315,7 @@ void restore_very_strong_guitar_analysis_note_after_chord_resolution(
 			const int seventh = (root + 10) % 12;
 			for (const auto &row : analysis_grid.rows) {
 				for (const NoteCell &cell : row) {
-					if (!cell.active || cell.midi < 0 || cell.level < 0.70f ||
+					if (!cell.active || cell.midi < 0 || cell.level < 0.50f ||
 					    cell.level <= recovered_level)
 						continue;
 					const int pitch_class = ((cell.midi % 12) + 12) % 12;
