@@ -31936,8 +31936,14 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 		drum_bands[Rim] <= 30.0f && snapshot.low_energy <= 0.15f &&
 		snapshot.mid_energy >= 0.55f && snapshot.high_energy >= 0.24f &&
 		snapshot.high_energy <= 0.35f;
-	if (final_measured_snare_rim_active_bleed)
+	if (final_measured_snare_rim_active_bleed) {
 		cap_drum_level(Rim, 0.28f);
+		// The same transient creates only sub-threshold kick energy but can
+		// saturate its normalized display level alongside a spurious hat.
+		if (drum_level_[Kick] <= 0.65f)
+			cap_drum_level(Kick, 0.28f);
+		cap_drum_level(HiHat, 0.28f);
+	}
 
 	const bool final_one_shot_measured_crash_hihat_active_bleed =
 		drum_detection_enabled && one_shot_drum_source &&
