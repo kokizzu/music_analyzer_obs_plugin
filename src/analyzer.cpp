@@ -31945,6 +31945,21 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 		cap_drum_level(HiHat, 0.28f);
 	}
 
+	// Two FusionJazz snare-led transients leave a modest kick level although
+	// their kick band stays below the broad kick bodies and the snare band is
+	// overwhelmingly dominant.  Do not alter the concurrent hat/ride decision.
+	const bool final_measured_snare_kick_active_bleed =
+		drum_detection_enabled && !generated_gm_drum_source &&
+		drum_level_[Snare] >= 0.95f && drum_level_[Kick] >= 0.40f &&
+		drum_level_[Kick] <= 0.50f && drum_bands[Kick] >= 35.0f &&
+		drum_bands[Kick] <= 50.0f && drum_bands[Snare] >= 140.0f &&
+		drum_bands[Snare] <= 170.0f && snapshot.low_energy >= 0.25f &&
+		snapshot.low_energy <= 0.35f && snapshot.mid_energy >= 0.50f &&
+		snapshot.mid_energy <= 0.65f && snapshot.high_energy >= 0.10f &&
+		snapshot.high_energy <= 0.16f;
+	if (final_measured_snare_kick_active_bleed)
+		cap_drum_level(Kick, 0.28f);
+
 	const bool final_one_shot_measured_crash_hihat_active_bleed =
 		drum_detection_enabled && one_shot_drum_source &&
 		!generated_gm_drum_source &&
