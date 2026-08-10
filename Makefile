@@ -705,6 +705,7 @@ GAPS_GUITAR_FULL_SAMPLE_LIMIT ?= 0
 GAPS_GUITAR_FULL_MIN_EXCERPTS ?= 90
 GAPS_GUITAR_FULL_MIN_WINDOWS ?= 500
 GAPS_GUITAR_FULL_MISS_LOG ?= $(BUILD_DIR)/gaps_guitar_full_misses.log
+GUITAR_ANALYSIS_NOTE_PATH ?= $(GAPS_GUITAR_FULL_ATTRIBUTE_TSV)
 GUITARSET_SOURCE_DIR ?= $(REAL_SAMPLE_SOURCE_DIR)/guitarset
 GUITARSET_ROOT ?= $(BUILD_DIR)/guitarset
 GUITARSET_MISS_LOG ?= $(BUILD_DIR)/guitarset_verbose.log
@@ -4624,7 +4625,7 @@ find-gaps-guitar-rows:
 	@python3 scripts/find_gaps_guitar_rows.py --expected "$(EXPECTED)" $(if $(MISSING),--missing "$(MISSING)") $(FIND_GAPS_GUITAR_ROWS_ARGS)
 .PHONY: analyze-gaps-guitar-analysis-note-candidates
 analyze-gaps-guitar-analysis-note-candidates:
-	@python3 scripts/analyze_gaps_guitar_analysis_note_candidates.py $(ANALYSIS_NOTE_ARGS)
+	@python3 scripts/analyze_gaps_guitar_analysis_note_candidates.py $(ANALYSIS_NOTE_ARGS) "$(GUITAR_ANALYSIS_NOTE_PATH)"
 .PHONY: analyze-gaps-guitar-analysis-minor-alias-candidates
 analyze-gaps-guitar-analysis-minor-alias-candidates:
 	@python3 scripts/analyze_gaps_guitar_analysis_minor_alias_candidates.py build/gaps_guitar_full_attributes.tsv $(ANALYSIS_MINOR_ALIAS_ARGS)

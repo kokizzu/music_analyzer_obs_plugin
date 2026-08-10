@@ -55,6 +55,9 @@ def is_missing_minor_triad_sixth(display, pitch_class):
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--analysis-floor", type=float, default=0.30)
+    parser.add_argument("--raw-floor", type=float, default=0.0)
+    parser.add_argument("--probe-floor", type=float, default=0.0)
+    parser.add_argument("--melodic-floor", type=float, default=0.0)
     parser.add_argument("--display-ceiling", type=float, default=0.0)
     parser.add_argument("--min-visible-pitch-classes", type=int, default=0)
     parser.add_argument("--max-visible-pitch-classes", type=int, default=12)
@@ -79,7 +82,12 @@ def main():
             if not args.min_visible_pitch_classes <= len(display) <= args.max_visible_pitch_classes:
                 continue
             for pitch_class, level in analysis.items():
-                if level < args.analysis_floor or display.get(pitch_class, 0.0) > args.display_ceiling:
+                raw_level = raw.get(pitch_class, 0.0)
+                probe_level = probe.get(pitch_class, 0.0)
+                melodic_level = melodic.get(pitch_class, 0.0)
+                if (level < args.analysis_floor or raw_level < args.raw_floor or
+                        probe_level < args.probe_floor or melodic_level < args.melodic_floor or
+                        display.get(pitch_class, 0.0) > args.display_ceiling):
                     continue
                 if (args.missing_major_triad_flat_seventh and
                         not is_missing_major_triad_flat_seventh(display, pitch_class)):
@@ -90,8 +98,7 @@ def main():
                 if (args.missing_minor_triad_sixth and
                         not is_missing_minor_triad_sixth(display, pitch_class)):
                     continue
-                item = (row, pitch_class, level, raw.get(pitch_class, 0.0),
-                        probe.get(pitch_class, 0.0), melodic.get(pitch_class, 0.0))
+                item = (row, pitch_class, level, raw_level, probe_level, melodic_level)
                 (true_rows if pitch_class in expected else false_rows).append(item)
                 by_level[round(level, 1)] += 1
 
