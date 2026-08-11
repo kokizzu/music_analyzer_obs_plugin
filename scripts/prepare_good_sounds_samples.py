@@ -418,13 +418,22 @@ def main(argv=None):
         conn.close()
         archive_names, exact_names, folded_names = normalized_names(archive)
 
-        samples = limited_samples(samples, args.limit)
+        # The catalogue can contain historical takes whose packed audio is no
+        # longer present.  Filter those rows before balancing by source; doing
+        # it after applying the limit can turn a requested 1,000-note fixture
+        # into a much smaller, biased subset.
+        available_samples = []
         for sample in samples:
             member = find_audio_member(archive_names, exact_names, folded_names,
                                        sample["filename"], sample["pack"])
             if member is None:
                 skipped_missing_audio += 1
                 continue
+            available_samples.append((sample, member))
+        selected = limited_samples([sample for sample, _ in available_samples], args.limit)
+        selected_members = {sample["id"]: member for sample, member in available_samples}
+        for sample in selected:
+            member = selected_members[sample["id"]]
             rel_path = f"{sample['family']}/{sample['source']}/{sanitize(sample['id'])}.wav"
             output_path = output_dir / rel_path
             if not output_path.is_file() or args.refresh:

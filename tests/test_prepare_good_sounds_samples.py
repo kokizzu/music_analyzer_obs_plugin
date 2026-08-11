@@ -64,12 +64,14 @@ def make_official_like_database(path):
           (1, 1, 'bass', 'C', 2, 'mf', 36, 'good-sound'),
           (2, 1, 'violin', 'Bb', 4, 'p', 70, 'bad'),
           (3, 2, 'clarinet', 'F#', 5, 'f', 78, 'good-sound'),
-          (4, 2, 'flute', 'C', 5, 'mf', 72, 'scale-good');
+          (4, 2, 'flute', 'C', 5, 'mf', 72, 'scale-good'),
+          (5, 1, 'accordion', 'C', 4, 'mf', 60, 'good-sound');
         INSERT INTO takes(id, sound_id, filename) VALUES
           (10, 1, 'bass_c2.flac'),
           (11, 2, 'violin_bb4.flac'),
           (12, 3, 'clarinet_fs5.flac'),
-          (13, 4, 'flute_scale.flac');
+          (13, 4, 'flute_scale.flac'),
+          (14, 5, 'accordion_c4_missing.flac');
         """
     )
     conn.commit()
@@ -110,7 +112,7 @@ def make_archive(root, generic=False):
     return archive
 
 
-def run_prepare(base, *, generic=False, min_samples=1):
+def run_prepare(base, *, generic=False, min_samples=1, limit=0):
     archive = make_archive(base, generic=generic)
     output = base / "out"
     ffmpeg = base / "fake-ffmpeg"
@@ -121,7 +123,7 @@ def run_prepare(base, *, generic=False, min_samples=1):
         "--output",
         str(output),
         "--limit",
-        "0",
+        str(limit),
         "--min-samples",
         str(min_samples),
         "--ffmpeg",
@@ -174,11 +176,20 @@ def test_minimum_failure_writes_partial_manifest():
             raise AssertionError("expected min-samples failure")
 
 
+def test_limit_balances_available_members_not_missing_catalogue_rows():
+    with tempfile.TemporaryDirectory() as temp:
+        output = run_prepare(Path(temp), limit=1)
+        rows = manifest_rows(output / "manifest.tsv")
+        if len(rows) != 1 or rows[0][3] != "bass":
+            raise AssertionError(f"expected first available source, got {rows}")
+
+
 def main():
     test_official_schema_manifest_mapping()
     test_generic_schema_fallback()
     test_minimum_failure_writes_partial_manifest()
-    print("test_prepare_good_sounds_samples: 3 checks passed")
+    test_limit_balances_available_members_not_missing_catalogue_rows()
+    print("test_prepare_good_sounds_samples: 4 checks passed")
     return 0
 
 
