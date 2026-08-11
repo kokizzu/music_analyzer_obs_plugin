@@ -44,6 +44,19 @@ Source: `build/vocadito_full_mix_attributes.tsv`
 | Vocadito vocals — Primary display row | 40 / 354 (11.3%) | 314 |
 | Vocadito vocals — Visual primary row | 21 / 354 (5.9%) | 333 |
 
+## VocalSet full-mix vocal routing
+
+This larger, varied real-vocal corpus measures whether the detected note remains on the vocal row when the analyzer also proposes instrumental rows.
+
+Source: `build/vocalset_full_mix_attributes.tsv`
+
+| Metric | Accurate / total | Remaining |
+| --- | ---: | ---: |
+| VocalSet vocals — Any detected note | 2371 / 2389 (99.2%) | 18 |
+| VocalSet vocals — Expected instrument row | 1296 / 2389 (54.2%) | 1093 |
+| VocalSet vocals — Primary display row | 199 / 2389 (8.3%) | 2190 |
+| VocalSet vocals — Visual primary row | 176 / 2389 (7.4%) | 2213 |
+
 ## Cached isolated-guitar chord gates
 
 These rows count expected labeled chord-analysis windows (not full-mix samples). They are included only when the corresponding cached attribute TSV exists.
@@ -67,9 +80,9 @@ This downloaded real chamber-music corpus measures the same performances as prov
 | --- | ---: | ---: |
 | URMP — real pieces loadable | 44 / 44 (100.0%) | 0 |
 | URMP — selected annotated windows | 528 / 528 (100.0%) | 0 |
-| URMP — isolated-track exact notes | 897 / 1788 (50.2%) | 891 |
-| URMP — isolated-track detected notes | 968 / 1788 (54.1%) | 820 |
-| URMP — isolated-track precision | 897 / 1072 (83.7%) | 175 false notes |
+| URMP — isolated-track exact notes | 955 / 1788 (53.4%) | 833 |
+| URMP — isolated-track detected notes | 1027 / 1788 (57.4%) | 761 |
+| URMP — isolated-track precision | 955 / 1138 (83.9%) | 183 false notes |
 | URMP — provided-mix exact chords | 190 / 527 (36.1%) | 337 |
 | URMP — provided stream chord windows | 224 / 527 (42.5%) | 303 |
 | URMP — provided sequence chord windows | 214 / 527 (40.6%) | 313 |

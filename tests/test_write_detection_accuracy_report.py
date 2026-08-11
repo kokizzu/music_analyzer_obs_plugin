@@ -57,6 +57,18 @@ class DetectionAccuracyReportTest(unittest.TestCase):
                 ) + "\n",
                 encoding="utf-8",
             )
+            vocalset_full_mix = Path(temporary) / "vocalset_full_mix_attributes.tsv"
+            vocalset_full_mix.write_text(
+                "\n".join(
+                    (
+                        HEADER,
+                        "vs1\tvocals\t1\t1\tvocals\tvocals",
+                        "vs2\tvocals\t1\t1\tpiano\tvocals",
+                        "vs3\tvocals\t0\t0\tpiano\tpiano",
+                    )
+                ) + "\n",
+                encoding="utf-8",
+            )
             bach10_0 = Path(temporary) / "bach10_0.out"
             bach10_0.write_text(
                 "analyzer_musicnet: 20 checks passed (recordings 3/10, windows 12, note hits "
@@ -96,7 +108,10 @@ class DetectionAccuracyReportTest(unittest.TestCase):
                 "analyzer_urmp: chord metrics: provided global chord precision 90.00%, recall 75.00%, F1 81.82%, tp/fp/fn 30/3/10; summed global chord precision 90.00%, recall 75.00%, F1 81.82%, tp/fp/fn 30/3/10; provided stream global chord precision 90.00%, recall 80.00%, F1 84.21%, tp/fp/fn 32/3/8; summed stream global chord precision 90.00%, recall 80.00%, F1 84.21%, tp/fp/fn 32/3/8; provided sequence global chord precision 90.00%, recall 70.00%, F1 78.26%, tp/fp/fn 28/3/12\n",
                 encoding="utf-8",
             )
-            report = REPORT.render(source, [chords], vocal_full_mix, [bach10_0, bach10_1], musicnet, drum, urmp)
+            report = REPORT.render(
+                source, [chords], vocal_full_mix, [bach10_0, bach10_1], musicnet, drum, urmp,
+                vocalset_full_mix,
+            )
 
         self.assertIn("| Any detected note | 2 / 3 (66.7%) | 1 |", report)
         self.assertIn("| Expected instrument row | 2 / 3 (66.7%) | 1 |", report)
@@ -109,6 +124,9 @@ class DetectionAccuracyReportTest(unittest.TestCase):
         self.assertIn("## Vocadito full-mix vocal routing", report)
         self.assertIn("| Vocadito vocals — Expected instrument row | 2 / 3 (66.7%) | 1 |", report)
         self.assertIn("| Vocadito vocals — Visual primary row | 2 / 3 (66.7%) | 1 |", report)
+        self.assertIn("## VocalSet full-mix vocal routing", report)
+        self.assertIn("| VocalSet vocals — Expected instrument row | 2 / 3 (66.7%) | 1 |", report)
+        self.assertIn("| VocalSet vocals — Visual primary row | 2 / 3 (66.7%) | 1 |", report)
         self.assertIn("## Bach10-mf0-synth multitrack stress gate", report)
         self.assertIn("| Bach10-mf0-synth — expected note slots | 74 / 80 (92.5%) | 6 |", report)
         self.assertIn("| Bach10-mf0-synth — exact chord windows | 14 / 20 (70.0%) | 6 |", report)

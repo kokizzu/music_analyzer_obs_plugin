@@ -240,6 +240,7 @@ def render(
     musicnet_gate_output: Path | None = None,
     drum_gate_output: Path | None = None,
     urmp_gate_output: Path | None = None,
+    vocalset_full_mix_input: Path | None = None,
 ) -> str:
     samples = load_samples(input_path)
     lines = [
@@ -277,6 +278,28 @@ def render(
             for label, accurate, total in vocal_rows:
                 lines.append(
                     f"| Vocadito vocals — {label} | {fraction(accurate, total)} | {total - accurate} |"
+                )
+    if vocalset_full_mix_input is not None:
+        vocalset_samples = load_samples(vocalset_full_mix_input)
+        vocalset_rows = family_metric_rows(vocalset_samples, "vocals")
+        if vocalset_rows:
+            lines.extend(
+                [
+                    "",
+                    "## VocalSet full-mix vocal routing",
+                    "",
+                    "This larger, varied real-vocal corpus measures whether the detected note remains "
+                    "on the vocal row when the analyzer also proposes instrumental rows.",
+                    "",
+                    f"Source: `{vocalset_full_mix_input.as_posix()}`",
+                    "",
+                    "| Metric | Accurate / total | Remaining |",
+                    "| --- | ---: | ---: |",
+                ]
+            )
+            for label, accurate, total in vocalset_rows:
+                lines.append(
+                    f"| VocalSet vocals — {label} | {fraction(accurate, total)} | {total - accurate} |"
                 )
     cached_chord_inputs = chord_inputs or []
     if cached_chord_inputs:
@@ -374,6 +397,7 @@ def main() -> int:
     parser.add_argument("--input", required=True, type=Path)
     parser.add_argument("--chord-input", action="append", type=Path, default=[])
     parser.add_argument("--vocal-full-mix-input", type=Path)
+    parser.add_argument("--vocalset-full-mix-input", type=Path)
     parser.add_argument("--bach10-gate-output", action="append", type=Path, default=[])
     parser.add_argument("--musicnet-gate-output", type=Path)
     parser.add_argument("--drum-gate-output", type=Path)
@@ -383,7 +407,8 @@ def main() -> int:
     try:
         rendered = render(
             args.input, args.chord_input, args.vocal_full_mix_input, args.bach10_gate_output,
-            args.musicnet_gate_output, args.drum_gate_output, args.urmp_gate_output
+            args.musicnet_gate_output, args.drum_gate_output, args.urmp_gate_output,
+            args.vocalset_full_mix_input,
         )
     except (OSError, ValueError) as error:
         parser.error(str(error))
