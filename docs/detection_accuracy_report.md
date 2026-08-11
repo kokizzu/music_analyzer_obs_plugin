@@ -31,6 +31,19 @@ Source: `build/real_note_full_mix_attributes.tsv`
 | Vocals — Primary display row | 6 / 22 (27.3%) | 16 |
 | Vocals — Visual primary row | 6 / 22 (27.3%) | 16 |
 
+## Vocadito full-mix vocal routing
+
+This separate real-vocal corpus measures how often the vocal row remains visible when the analyzer also proposes instrumental rows.
+
+Source: `build/vocadito_full_mix_attributes.tsv`
+
+| Metric | Accurate / total | Remaining |
+| --- | ---: | ---: |
+| Vocadito vocals — Any detected note | 354 / 354 (100.0%) | 0 |
+| Vocadito vocals — Expected instrument row | 285 / 354 (80.5%) | 69 |
+| Vocadito vocals — Primary display row | 40 / 354 (11.3%) | 314 |
+| Vocadito vocals — Visual primary row | 21 / 354 (5.9%) | 333 |
+
 ## Cached isolated-guitar chord gates
 
 These rows count expected labeled chord-analysis windows (not full-mix samples). They are included only when the corresponding cached attribute TSV exists.

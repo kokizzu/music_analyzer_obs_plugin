@@ -45,7 +45,19 @@ class DetectionAccuracyReportTest(unittest.TestCase):
                 ) + "\n",
                 encoding="utf-8",
             )
-            report = REPORT.render(source, [chords])
+            vocal_full_mix = Path(temporary) / "vocadito_full_mix_attributes.tsv"
+            vocal_full_mix.write_text(
+                "\n".join(
+                    (
+                        HEADER,
+                        "v1\tvocals\t1\t1\tvocals\tvocals",
+                        "v2\tvocals\t1\t1\tpiano\tvocals",
+                        "v3\tvocals\t1\t0\tpiano\tpiano",
+                    )
+                ) + "\n",
+                encoding="utf-8",
+            )
+            report = REPORT.render(source, [chords], vocal_full_mix)
 
         self.assertIn("| Any detected note | 2 / 3 (66.7%) | 1 |", report)
         self.assertIn("| Expected instrument row | 2 / 3 (66.7%) | 1 |", report)
@@ -55,6 +67,9 @@ class DetectionAccuracyReportTest(unittest.TestCase):
         self.assertIn("## Cached isolated-guitar chord gates", report)
         self.assertIn("| Guitar Chord Mix — exact chord windows | 1 / 2 (50.0%) | 1 |", report)
         self.assertIn("| Guitar Chord Mix — expected guitar pitch classes | 5 / 6 (83.3%) | 1 |", report)
+        self.assertIn("## Vocadito full-mix vocal routing", report)
+        self.assertIn("| Vocadito vocals — Expected instrument row | 2 / 3 (66.7%) | 1 |", report)
+        self.assertIn("| Vocadito vocals — Visual primary row | 2 / 3 (66.7%) | 1 |", report)
 
 
 if __name__ == "__main__":

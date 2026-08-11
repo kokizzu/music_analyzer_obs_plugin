@@ -72,6 +72,18 @@ def table_rows(samples: dict[str, list[dict[str, str]]]) -> list[tuple[str, int,
     return result
 
 
+def family_metric_rows(samples: dict[str, list[dict[str, str]]], family: str) -> list[tuple[str, int, int]]:
+    totals: dict[str, list[int]] = defaultdict(lambda: [0, 0])
+    expected = EXPECTED_ROW[family]
+    for sample_rows in samples.values():
+        if sample_rows[0]["family"] != family:
+            continue
+        for label, accurate in metric_values(sample_rows, expected).items():
+            totals[label][1] += 1
+            totals[label][0] += int(accurate)
+    return [(label, values[0], values[1]) for label, values in totals.items()]
+
+
 def integer(row: dict[str, str], field: str) -> int:
     try:
         return int(row[field])
@@ -97,7 +109,11 @@ def chord_gate_rows(path: Path) -> list[tuple[str, int, int]]:
     ]
 
 
-def render(input_path: Path, chord_inputs: list[Path] | None = None) -> str:
+def render(
+    input_path: Path,
+    chord_inputs: list[Path] | None = None,
+    vocal_full_mix_input: Path | None = None,
+) -> str:
     samples = load_samples(input_path)
     lines = [
         "# Real-audio detection accuracy",
@@ -113,6 +129,28 @@ def render(input_path: Path, chord_inputs: list[Path] | None = None) -> str:
     ]
     for label, accurate, total in table_rows(samples):
         lines.append(f"| {label} | {fraction(accurate, total)} | {total - accurate} |")
+    if vocal_full_mix_input is not None:
+        vocal_samples = load_samples(vocal_full_mix_input)
+        vocal_rows = family_metric_rows(vocal_samples, "vocals")
+        if vocal_rows:
+            lines.extend(
+                [
+                    "",
+                    "## Vocadito full-mix vocal routing",
+                    "",
+                    "This separate real-vocal corpus measures how often the vocal row remains visible "
+                    "when the analyzer also proposes instrumental rows.",
+                    "",
+                    f"Source: `{vocal_full_mix_input.as_posix()}`",
+                    "",
+                    "| Metric | Accurate / total | Remaining |",
+                    "| --- | ---: | ---: |",
+                ]
+            )
+            for label, accurate, total in vocal_rows:
+                lines.append(
+                    f"| Vocadito vocals — {label} | {fraction(accurate, total)} | {total - accurate} |"
+                )
     cached_chord_inputs = chord_inputs or []
     if cached_chord_inputs:
         lines.extend(
@@ -145,10 +183,11 @@ def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--input", required=True, type=Path)
     parser.add_argument("--chord-input", action="append", type=Path, default=[])
+    parser.add_argument("--vocal-full-mix-input", type=Path)
     parser.add_argument("--output", required=True, type=Path)
     args = parser.parse_args()
     try:
-        rendered = render(args.input, args.chord_input)
+        rendered = render(args.input, args.chord_input, args.vocal_full_mix_input)
     except (OSError, ValueError) as error:
         parser.error(str(error))
     args.output.parent.mkdir(parents=True, exist_ok=True)
