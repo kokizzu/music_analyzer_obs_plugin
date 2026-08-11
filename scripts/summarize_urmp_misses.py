@@ -94,6 +94,8 @@ def main() -> int:
     pre_envelope_exact_final_miss = 0
     pre_envelope_transitions: Counter[tuple[str, str]] = Counter()
     pre_envelope_exact_rms: list[float] = []
+    pre_envelope_traits: dict[str, list[tuple[float, float, float]]] = {}
+    quiet_pre_envelope_examples: list[tuple[str, str, str, float, float, float]] = []
     confirmed_trait_total = 0
     confirmed_trait_exact = 0
     for line in source.read_text(encoding="utf-8", errors="replace").splitlines():
@@ -102,7 +104,19 @@ def main() -> int:
             misses[(matched["instrument"], matched["pitch"])] += 1
             selected_by_trait[trait_key(matched)] = matched["detected"]
             pre_envelope = first_note(matched["pre_envelope"] or "")
-            pre_envelope_routes[note_route(matched["pitch"], pre_envelope)] += 1
+            pre_envelope_route = note_route(matched["pitch"], pre_envelope)
+            pre_envelope_routes[pre_envelope_route] += 1
+            if matched["rms"] is not None and pre_envelope is not None:
+                score = float(matched["pre_envelope_score"])
+                raw = float(matched["pre_envelope_raw"])
+                rms = float(matched["rms"])
+                pre_envelope_traits.setdefault(pre_envelope_route, []).append(
+                    (score, raw, rms)
+                )
+                if rms < 0.006:
+                    quiet_pre_envelope_examples.append(
+                        (pre_envelope_route, matched["instrument"], matched["pitch"], score, raw, rms)
+                    )
             final = first_note(matched["detected"])
             if pre_envelope is not None and pre_envelope == matched["pitch"]:
                 pre_envelope_exact_final_miss += 1
@@ -170,6 +184,22 @@ def main() -> int:
             print("count\tpre_envelope\tfinal_other")
             for (pre_envelope, final), count in pre_envelope_transitions.most_common(20):
                 print(f"{count}\t{pre_envelope}\t{final}")
+        if pre_envelope_traits:
+            print("route\tcount\tquiet_lt_0.006\tavg_raw_over_rms\tmin_raw_over_rms\tmax_raw_over_rms")
+            for route, traits in sorted(pre_envelope_traits.items()):
+                raw_over_rms = [raw / max(rms, 1.0e-6) for _, raw, rms in traits]
+                quiet = sum(rms < 0.006 for _, _, rms in traits)
+                print(
+                    f"{route}\t{len(traits)}\t{quiet}\t"
+                    f"{sum(raw_over_rms) / len(raw_over_rms):.2f}\t"
+                    f"{min(raw_over_rms):.2f}\t{max(raw_over_rms):.2f}"
+                )
+        if quiet_pre_envelope_examples:
+            print("route\tinstrument\texpected\traw_over_rms\traw\trms")
+            for route, instrument, pitch, _score, raw, rms in sorted(
+                quiet_pre_envelope_examples, key=lambda item: (item[0], item[4] / item[5])
+            ):
+                print(f"{route}\t{instrument}\t{pitch}\t{raw / rms:.2f}\t{raw:.6f}\t{rms:.6f}")
     if trait_total:
         percent = trait_expected_candidate * 100.0 / trait_total
         print(
