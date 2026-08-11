@@ -99,6 +99,23 @@ def main():
         reused = prep.prepare(args)
         assert reused == 2
 
+        linked_target = root / "external-output"
+        linked_output = root / "linked-output"
+        linked_output.symlink_to(linked_target, target_is_directory=True)
+        linked_args = type("Args", (), {
+            "archive": str(archive),
+            "source_root": "",
+            "output": str(linked_output),
+            "limit": 0,
+            "min_recordings": 2,
+            "refresh": True,
+        })()
+        linked = prep.prepare(linked_args)
+        assert linked == 2
+        assert linked_output.is_symlink()
+        assert (linked_output / "train_data" / "1.wav").is_file()
+        assert (linked_target / "train_labels" / "1.csv").is_file()
+
         too_many = type("Args", (), {
             "archive": str(archive),
             "source_root": "",

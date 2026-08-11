@@ -318,6 +318,10 @@ def prepare(args):
         raise SystemExit(f"prepare_bach10_mf0_synth_musicnet_fixture: `{args.source_root}` is not a directory")
 
     output = Path(args.output)
+    # The build path can be a stable link into InstrumentSamples.  Do not
+    # delete that link: clear its owned target so the generated audio remains
+    # external and subsequent Make targets keep the same path.
+    output_root = output.resolve() if output.is_symlink() else output
     signature = signature_text(args)
     min_recordings = max(1, args.min_recordings)
     if not args.refresh and cache_ok(output, signature, min_recordings):
@@ -335,17 +339,17 @@ def prepare(args):
             f"complete pieces, got {len(pieces)}"
         )
 
-    if output.exists():
-        shutil.rmtree(output)
-    (output / "train_data").mkdir(parents=True, exist_ok=True)
-    (output / "train_labels").mkdir(parents=True, exist_ok=True)
+    if output_root.exists():
+        shutil.rmtree(output_root)
+    (output_root / "train_data").mkdir(parents=True, exist_ok=True)
+    (output_root / "train_labels").mkdir(parents=True, exist_ok=True)
 
     failures = []
     prepared = 0
     if args.source_root:
         for piece in pieces:
             try:
-                prepare_piece_from_root(piece, output, output_id_for_key(piece["key"]))
+                prepare_piece_from_root(piece, output_root, output_id_for_key(piece["key"]))
                 prepared += 1
             except (OSError, ValueError, wave.Error) as exc:
                 failures.append(f"{piece['key']}: {exc}")
@@ -353,7 +357,7 @@ def prepare(args):
         with tarfile.open(args.archive, "r:*") as tar:
             for piece in pieces:
                 try:
-                    prepare_piece_from_archive(tar, piece, output, output_id_for_key(piece["key"]))
+                    prepare_piece_from_archive(tar, piece, output_root, output_id_for_key(piece["key"]))
                     prepared += 1
                 except (OSError, ValueError, wave.Error, tarfile.TarError) as exc:
                     failures.append(f"{piece['key']}: {exc}")
@@ -366,7 +370,7 @@ def prepare(args):
             f"pieces, prepared {prepared}"
         )
 
-    (output / ".bach10_mf0_synth_signature").write_text(signature, encoding="utf-8")
+    (output_root / ".bach10_mf0_synth_signature").write_text(signature, encoding="utf-8")
     print(f"prepare_bach10_mf0_synth_musicnet_fixture: wrote {prepared} recordings to {output}")
     return prepared
 

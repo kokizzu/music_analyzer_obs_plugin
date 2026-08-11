@@ -2114,10 +2114,9 @@ test-maps-piano-note-samples-shard-%: FORCE $(BUILD_DIR)/analyzer_maestro prepar
 
 download-bach10-mf0-synth-samples: $(BACH10_MF0_SYNTH_ARCHIVE)
 
-$(BACH10_MF0_SYNTH_ARCHIVE): | $(BUILD_DIR)
+$(BACH10_MF0_SYNTH_ARCHIVE): scripts/download_musicnet_archive.sh | $(BUILD_DIR)
 	mkdir -p "$(BACH10_MF0_SYNTH_SOURCE_DIR)"
-	curl -fL -C - -o "$(BACH10_MF0_SYNTH_ARCHIVE)" "$(BACH10_MF0_SYNTH_URL)"
-	$(TAR) -tzf "$(BACH10_MF0_SYNTH_ARCHIVE)" >/dev/null
+	$(SHELL) scripts/download_musicnet_archive.sh "$(BACH10_MF0_SYNTH_ARCHIVE)" "$(BACH10_MF0_SYNTH_URL)" "$(MUSICNET_DOWNLOAD_CONNECTIONS)" "$(ARIA2C)"
 
 prepare-bach10-mf0-synth-samples: scripts/prepare_bach10_mf0_synth_musicnet_fixture.py | $(BUILD_DIR)
 	+if [ -z "$(BACH10_MF0_SYNTH_SOURCE_ROOT)" ]; then $(MAKE) download-bach10-mf0-synth-samples; fi
