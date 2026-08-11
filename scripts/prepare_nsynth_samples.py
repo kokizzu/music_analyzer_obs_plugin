@@ -134,7 +134,6 @@ def main():
             skip("missing_audio")
             continue
 
-        rel_path = os.path.relpath(wav_path, args.output)
         rows.append((
             sample_id,
             analyzer_family,
@@ -142,7 +141,7 @@ def main():
             source,
             str(midi),
             note_name(midi),
-            rel_path,
+            os.path.relpath(wav_path.resolve(), Path(args.output).resolve()),
             ",".join(qualities),
         ))
         counts[analyzer_family] = counts.get(analyzer_family, 0) + 1

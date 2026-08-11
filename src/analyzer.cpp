@@ -12143,7 +12143,8 @@ int note_grid_strongest_active_midi_in_range(const NoteGrid &grid, int min_midi,
 
 void prefer_supported_lower_octave_display(NoteGrid &grid, InstrumentState &state,
 					   const std::array<float, kNoteProbeCount> &powers,
-					   int min_midi, int max_promoted_midi, int preferred_root)
+					   int min_midi, int max_promoted_midi, int preferred_root,
+					   bool allow_single_row_raw_octave_support = false)
 {
 	min_midi = std::max(min_midi, kFirstMidi);
 	max_promoted_midi = std::min(max_promoted_midi, kLastMidi);
@@ -12171,6 +12172,8 @@ void prefer_supported_lower_octave_display(NoteGrid &grid, InstrumentState &stat
 			const int octave_delta = primary.midi - midi;
 			if (octave_delta % 12 != 0)
 				continue;
+			if (allow_single_row_raw_octave_support && octave_delta != 12)
+				continue;
 
 			const float visible_level = note_grid_midi_level(grid, midi);
 			const float raw_level = probe_level(powers, midi);
@@ -12178,7 +12181,7 @@ void prefer_supported_lower_octave_display(NoteGrid &grid, InstrumentState &stat
 				visible_level >= std::max(0.045f, primary.level * 0.38f);
 			const bool raw_supported =
 				primary_raw > 1.0e-6f && raw_level >= primary_raw * 0.30f &&
-				active_cells.size() >= kNoteRowCount;
+				(active_cells.size() >= kNoteRowCount || allow_single_row_raw_octave_support);
 			if (!visible_supported && !raw_supported)
 				continue;
 
@@ -34648,7 +34651,7 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 					  mixed_source ? &mixed_other_display_candidates : nullptr);
 		if (!mixed_source)
 			prefer_supported_lower_octave_display(snapshot.other_notes, snapshot.other, note_powers,
-							      kOtherMinMidi, 52, -1);
+							      kOtherMinMidi, 52, -1, monophonic_other_source);
 		else {
 			prefer_visible_lower_octave_primary(snapshot.other_notes, snapshot.other, kOtherMinMidi,
 							   0.20f, -1, 0.08f, 52);
