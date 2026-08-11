@@ -108,6 +108,18 @@ This open CC-BY corpus measures real classical mixtures; unlike Bach10, it has n
 | MusicNet real mixes — exact chord windows | 561 / 1847 (30.4%) | 1286 |
 | MusicNet real mixes — simplified chord windows | 835 / 1847 (45.2%) | 1012 |
 
+## MAPS real-piano gate
+
+This real Disklavier corpus uses aligned MIDI annotations. The four stored shard summaries are combined here; rows remain visible even when the aggregate quality gate fails.
+
+| Metric | Accurate / total | Remaining |
+| --- | ---: | ---: |
+| MAPS real piano — recordings with eligible chord windows | 78 / 80 (97.5%) | 2 |
+| MAPS real piano — expected pitch classes | 419 / 604 (69.4%) | 185 |
+| MAPS real piano — keyboard detected-note precision | 419 / 615 (68.1%) | 196 false predictions |
+| MAPS real piano — exact chord windows | 10 / 135 (7.4%) | 125 |
+| MAPS real piano — keyboard chord precision | 10 / 51 (19.6%) | 41 false predictions |
+
 ## Full drum primary-classification gate
 
 These rows count one-shot samples by the instrument shown as the primary drum. The latest completed full gate is reported even when a threshold fails, so its remaining classifications remain visible.

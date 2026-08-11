@@ -943,8 +943,8 @@ def main() -> int:
         assert 'MUSIC_ANALYZER_MAESTRO_SHARD_INDEX="$$shard"' in shard_recipe, (
             f"{label} shard target must pass its concrete shard index"
         )
-        assert "MUSIC_ANALYZER_MAESTRO_MIN_RECALL_PERCENT" in shard_recipe, (
-            f"{label} shard target must preserve the pitch-class recall gate"
+        assert "MUSIC_ANALYZER_MAESTRO_MIN_RECALL_PERCENT=0" in shard_recipe, (
+            f"{label} shard target must defer pitch-class recall gating to the aggregate checker"
         )
         assert "MUSIC_ANALYZER_MAESTRO_SHARD_COUNT" not in serial_recipe, (
             f"{label} serial fallback must keep the original unsharded harness"

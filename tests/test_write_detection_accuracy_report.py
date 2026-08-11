@@ -87,6 +87,16 @@ class DetectionAccuracyReportTest(unittest.TestCase):
                 "210/300, chord hits 40/80, simple chord hits 52/80 65.00%)\n",
                 encoding="utf-8",
             )
+            maps = Path(temporary) / "maps.out"
+            maps.write_text(
+                "analyzer_maestro: 12 checks passed (recordings 2/80, windows 4, read failures 0, "
+                "no-candidate recordings 0, unusable 0, note hits 9/12, chord hits 2/4, "
+                "keyboard precision 75.00%, keyboard recall 75.00%, F1 75.00%, contamination 0.00% (0/12), "
+                "false non-keyboard windows 0.00% (0/4), ambiguous 0/12, row leaks bass/guitar/vocal/other 0/0/0/0, "
+                "tp/fp/fn 9/3/3, keyboard chord precision 50.00%, keyboard chord recall 50.00%, F1 50.00%, "
+                "tp/fp/fn 2/2/2, active notes min/avg/max 2/3.00/4, pitch classes min/avg/max 2/3.00/4)\n",
+                encoding="utf-8",
+            )
             drum = Path(temporary) / "drum_full_gate.out"
             drum.write_text(
                 "analyzer_drum_samples: primary matrix\n"
@@ -110,7 +120,7 @@ class DetectionAccuracyReportTest(unittest.TestCase):
             )
             report = REPORT.render(
                 source, [chords], vocal_full_mix, [bach10_0, bach10_1], musicnet, drum, urmp,
-                vocalset_full_mix,
+                vocalset_full_mix, [maps],
             )
 
         self.assertIn("| Any detected note | 2 / 3 (66.7%) | 1 |", report)
@@ -122,6 +132,8 @@ class DetectionAccuracyReportTest(unittest.TestCase):
         self.assertIn("| Guitar Chord Mix — exact chord windows | 1 / 2 (50.0%) | 1 |", report)
         self.assertIn("| Guitar Chord Mix — expected guitar pitch classes | 5 / 6 (83.3%) | 1 |", report)
         self.assertIn("## Vocadito full-mix vocal routing", report)
+        self.assertIn("## MAPS real-piano gate", report)
+        self.assertIn("| MAPS real piano — keyboard chord precision | 2 / 4 (50.0%) | 2 false predictions |", report)
         self.assertIn("| Vocadito vocals — Expected instrument row | 2 / 3 (66.7%) | 1 |", report)
         self.assertIn("| Vocadito vocals — Visual primary row | 2 / 3 (66.7%) | 1 |", report)
         self.assertIn("## VocalSet full-mix vocal routing", report)

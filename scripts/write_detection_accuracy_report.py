@@ -124,6 +124,21 @@ MUSICNET_GATE_RE = re.compile(
     r"(?P<simple_hits>\d+)/(?P<simple_total>\d+)"
 )
 
+MAPS_GATE_RE = re.compile(
+    r"analyzer_maestro: \d+ checks (?:passed|failed) \(recordings "
+    r"(?P<recordings_done>\d+)/(?P<recordings_total>\d+), windows (?P<windows>\d+), "
+    r".*?note hits (?P<note_hits>\d+)/(?P<note_total>\d+), chord hits "
+    r"(?P<chord_hits>\d+)/(?P<chord_total>\d+)"
+)
+MAPS_NOTE_COUNTS_RE = re.compile(
+    r"keyboard precision [\d.]+%, keyboard recall [\d.]+%, F1 [\d.]+%, .*?tp/fp/fn "
+    r"(?P<tp>\d+)/(?P<fp>\d+)/(?P<fn>\d+), keyboard chord precision"
+)
+MAPS_CHORD_COUNTS_RE = re.compile(
+    r"keyboard chord precision [\d.]+%, keyboard chord recall [\d.]+%, F1 [\d.]+%, "
+    r"tp/fp/fn (?P<tp>\d+)/(?P<fp>\d+)/(?P<fn>\d+)"
+)
+
 URMP_COVERAGE_RE = re.compile(
     r"analyzer_urmp: coverage: discovered (?P<discovered>\d+) piece dirs, loadable "
     r"(?P<loadable>\d+).*?selected (?P<windows>\d+) candidate windows"
@@ -189,6 +204,43 @@ def musicnet_gate_rows(path: Path) -> list[tuple[str, int, int]]:
     ]
 
 
+def maps_gate_rows(paths: list[Path]) -> list[tuple[str, int, int]]:
+    totals = {
+        "recordings_done": 0,
+        "recordings_total": 0,
+        "note_hits": 0,
+        "note_total": 0,
+        "chord_hits": 0,
+        "chord_total": 0,
+        "note_tp": 0,
+        "note_fp": 0,
+        "chord_tp": 0,
+        "chord_fp": 0,
+    }
+    for path in paths:
+        text = path.read_text(encoding="utf-8", errors="replace")
+        match = MAPS_GATE_RE.search(text)
+        note_counts = MAPS_NOTE_COUNTS_RE.search(text)
+        chord_counts = MAPS_CHORD_COUNTS_RE.search(text)
+        if match is None or note_counts is None or chord_counts is None:
+            raise ValueError(f"{path}: missing MAPS piano shard summary")
+        for key in totals:
+            if key in {"note_tp", "note_fp"}:
+                value = int(note_counts[key.removeprefix("note_")])
+            elif key in {"chord_tp", "chord_fp"}:
+                value = int(chord_counts[key.removeprefix("chord_")])
+            else:
+                value = int(match[key])
+            totals[key] = max(totals[key], value) if key == "recordings_total" else totals[key] + value
+    return [
+        ("MAPS real piano — recordings with eligible chord windows", totals["recordings_done"], totals["recordings_total"]),
+        ("MAPS real piano — expected pitch classes", totals["note_hits"], totals["note_total"]),
+        ("MAPS real piano — keyboard detected-note precision", totals["note_tp"], totals["note_tp"] + totals["note_fp"]),
+        ("MAPS real piano — exact chord windows", totals["chord_hits"], totals["chord_total"]),
+        ("MAPS real piano — keyboard chord precision", totals["chord_tp"], totals["chord_tp"] + totals["chord_fp"]),
+    ]
+
+
 def urmp_gate_rows(path: Path) -> list[tuple[str, int, int]]:
     text = path.read_text(encoding="utf-8", errors="replace")
     coverage = URMP_COVERAGE_RE.search(text)
@@ -245,6 +297,7 @@ def render(
     drum_gate_output: Path | None = None,
     urmp_gate_output: Path | None = None,
     vocalset_full_mix_input: Path | None = None,
+    maps_gate_outputs: list[Path] | None = None,
 ) -> str:
     samples = load_samples(input_path)
     lines = [
@@ -369,6 +422,22 @@ def render(
         )
         for label, accurate, total in musicnet_gate_rows(musicnet_gate_output):
             lines.append(f"| {label} | {fraction(accurate, total)} | {total - accurate} |")
+    if maps_gate_outputs:
+        lines.extend(
+            [
+                "",
+                "## MAPS real-piano gate",
+                "",
+                "This real Disklavier corpus uses aligned MIDI annotations. The four stored shard summaries "
+                "are combined here; rows remain visible even when the aggregate quality gate fails.",
+                "",
+                "| Metric | Accurate / total | Remaining |",
+                "| --- | ---: | ---: |",
+            ]
+        )
+        for label, accurate, total in maps_gate_rows(maps_gate_outputs):
+            remaining = f"{total - accurate} false predictions" if label.endswith("precision") else str(total - accurate)
+            lines.append(f"| {label} | {fraction(accurate, total)} | {remaining} |")
     if drum_gate_output is not None:
         lines.extend(
             [
@@ -406,6 +475,7 @@ def main() -> int:
     parser.add_argument("--vocalset-full-mix-input", type=Path)
     parser.add_argument("--bach10-gate-output", action="append", type=Path, default=[])
     parser.add_argument("--musicnet-gate-output", type=Path)
+    parser.add_argument("--maps-gate-output", action="append", type=Path, default=[])
     parser.add_argument("--drum-gate-output", type=Path)
     parser.add_argument("--urmp-gate-output", type=Path)
     parser.add_argument("--output", required=True, type=Path)
@@ -414,7 +484,7 @@ def main() -> int:
         rendered = render(
             args.input, args.chord_input, args.vocal_full_mix_input, args.bach10_gate_output,
             args.musicnet_gate_output, args.drum_gate_output, args.urmp_gate_output,
-            args.vocalset_full_mix_input,
+            args.vocalset_full_mix_input, args.maps_gate_output,
         )
     except (OSError, ValueError) as error:
         parser.error(str(error))
