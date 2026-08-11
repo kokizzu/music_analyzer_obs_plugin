@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import argparse
 import csv
+import re
 from collections import defaultdict
 from pathlib import Path
 
@@ -109,10 +110,34 @@ def chord_gate_rows(path: Path) -> list[tuple[str, int, int]]:
     ]
 
 
+BACH10_GATE_RE = re.compile(
+    r"note hits (?P<note_hits>\d+)/(?P<note_total>\d+), chord hits "
+    r"(?P<chord_hits>\d+)/(?P<chord_total>\d+).*?simple chord hits "
+    r"(?P<simple_hits>\d+)/(?P<simple_total>\d+)"
+)
+
+
+def bach10_gate_rows(paths: list[Path]) -> list[tuple[str, int, int]]:
+    totals = {name: [0, 0] for name in ("note", "chord", "simple")}
+    for path in paths:
+        match = BACH10_GATE_RE.search(path.read_text(encoding="utf-8", errors="replace"))
+        if match is None:
+            raise ValueError(f"{path}: missing Bach10 MusicNet gate summary")
+        for name in totals:
+            totals[name][0] += int(match[f"{name}_hits"])
+            totals[name][1] += int(match[f"{name}_total"])
+    return [
+        ("Bach10-mf0-synth — expected note slots", *totals["note"]),
+        ("Bach10-mf0-synth — exact chord windows", *totals["chord"]),
+        ("Bach10-mf0-synth — simplified chord windows", *totals["simple"]),
+    ]
+
+
 def render(
     input_path: Path,
     chord_inputs: list[Path] | None = None,
     vocal_full_mix_input: Path | None = None,
+    bach10_gate_outputs: list[Path] | None = None,
 ) -> str:
     samples = load_samples(input_path)
     lines = [
@@ -168,6 +193,21 @@ def render(
         for chord_input in cached_chord_inputs:
             for label, accurate, total in chord_gate_rows(chord_input):
                 lines.append(f"| {label} | {fraction(accurate, total)} | {total - accurate} |")
+    if bach10_gate_outputs:
+        lines.extend(
+            [
+                "",
+                "## Bach10-mf0-synth multitrack stress gate",
+                "",
+                "This F0-derived, resynthesized four-part corpus is reported separately from "
+                "real-recording metrics. It measures expected active note slots and global chord windows.",
+                "",
+                "| Metric | Accurate / total | Remaining |",
+                "| --- | ---: | ---: |",
+            ]
+        )
+        for label, accurate, total in bach10_gate_rows(bach10_gate_outputs):
+            lines.append(f"| {label} | {fraction(accurate, total)} | {total - accurate} |")
     lines.extend(
         [
             "",
@@ -184,10 +224,13 @@ def main() -> int:
     parser.add_argument("--input", required=True, type=Path)
     parser.add_argument("--chord-input", action="append", type=Path, default=[])
     parser.add_argument("--vocal-full-mix-input", type=Path)
+    parser.add_argument("--bach10-gate-output", action="append", type=Path, default=[])
     parser.add_argument("--output", required=True, type=Path)
     args = parser.parse_args()
     try:
-        rendered = render(args.input, args.chord_input, args.vocal_full_mix_input)
+        rendered = render(
+            args.input, args.chord_input, args.vocal_full_mix_input, args.bach10_gate_output
+        )
     except (OSError, ValueError) as error:
         parser.error(str(error))
     args.output.parent.mkdir(parents=True, exist_ok=True)

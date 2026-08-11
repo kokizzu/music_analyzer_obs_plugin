@@ -59,4 +59,14 @@ These rows count expected labeled chord-analysis windows (not full-mix samples).
 | Guitarset — exact chord windows | 1140 / 1491 (76.5%) | 351 |
 | Guitarset — expected guitar pitch classes | 4357 / 5340 (81.6%) | 983 |
 
+## Bach10-mf0-synth multitrack stress gate
+
+This F0-derived, resynthesized four-part corpus is reported separately from real-recording metrics. It measures expected active note slots and global chord windows.
+
+| Metric | Accurate / total | Remaining |
+| --- | ---: | ---: |
+| Bach10-mf0-synth — expected note slots | 146 / 160 (91.2%) | 14 |
+| Bach10-mf0-synth — exact chord windows | 28 / 40 (70.0%) | 12 |
+| Bach10-mf0-synth — simplified chord windows | 34 / 40 (85.0%) | 6 |
+
 Refresh with `make update-detection-accuracy-report`. Whenever a verified detection metric changes, update this report in the same commit.

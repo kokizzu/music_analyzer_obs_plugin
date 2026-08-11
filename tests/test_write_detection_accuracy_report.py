@@ -57,7 +57,19 @@ class DetectionAccuracyReportTest(unittest.TestCase):
                 ) + "\n",
                 encoding="utf-8",
             )
-            report = REPORT.render(source, [chords], vocal_full_mix)
+            bach10_0 = Path(temporary) / "bach10_0.out"
+            bach10_0.write_text(
+                "analyzer_musicnet: 20 checks passed (recordings 3/10, windows 12, note hits "
+                "45/48, chord hits 9/12, simple chord hits 9/12 75.00%)\n",
+                encoding="utf-8",
+            )
+            bach10_1 = Path(temporary) / "bach10_1.out"
+            bach10_1.write_text(
+                "analyzer_musicnet: 20 checks passed (recordings 2/10, windows 8, note hits "
+                "29/32, chord hits 5/8, simple chord hits 7/8 87.50%)\n",
+                encoding="utf-8",
+            )
+            report = REPORT.render(source, [chords], vocal_full_mix, [bach10_0, bach10_1])
 
         self.assertIn("| Any detected note | 2 / 3 (66.7%) | 1 |", report)
         self.assertIn("| Expected instrument row | 2 / 3 (66.7%) | 1 |", report)
@@ -70,6 +82,10 @@ class DetectionAccuracyReportTest(unittest.TestCase):
         self.assertIn("## Vocadito full-mix vocal routing", report)
         self.assertIn("| Vocadito vocals — Expected instrument row | 2 / 3 (66.7%) | 1 |", report)
         self.assertIn("| Vocadito vocals — Visual primary row | 2 / 3 (66.7%) | 1 |", report)
+        self.assertIn("## Bach10-mf0-synth multitrack stress gate", report)
+        self.assertIn("| Bach10-mf0-synth — expected note slots | 74 / 80 (92.5%) | 6 |", report)
+        self.assertIn("| Bach10-mf0-synth — exact chord windows | 14 / 20 (70.0%) | 6 |", report)
+        self.assertIn("| Bach10-mf0-synth — simplified chord windows | 16 / 20 (80.0%) | 4 |", report)
 
 
 if __name__ == "__main__":
