@@ -99,11 +99,11 @@ This F0-derived, resynthesized four-part corpus is reported separately from real
 
 ## MusicNet real-mixture gate
 
-This open CC-BY corpus measures real classical mixtures; unlike Bach10, it has no isolated stems.
+This open CC-BY corpus measures real classical mixtures; unlike Bach10, it has no isolated stems. A recording is eligible for its chord rows only when annotations provide a window with at least two active instruments and two pitch classes.
 
 | Metric | Accurate / total | Remaining |
 | --- | ---: | ---: |
-| MusicNet real mixes — recordings evaluated | 154 / 330 (46.7%) | 176 |
+| MusicNet real mixes — recordings with eligible chord windows | 154 / 330 (46.7%) | 176 |
 | MusicNet real mixes — expected pitch classes | 5690 / 7478 (76.1%) | 1788 |
 | MusicNet real mixes — exact chord windows | 561 / 1847 (30.4%) | 1286 |
 | MusicNet real mixes — simplified chord windows | 835 / 1847 (45.2%) | 1012 |

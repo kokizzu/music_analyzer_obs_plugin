@@ -178,7 +178,11 @@ def musicnet_gate_rows(path: Path) -> list[tuple[str, int, int]]:
     if match is None:
         raise ValueError(f"{path}: missing MusicNet gate summary")
     return [
-        ("MusicNet real mixes — recordings evaluated", int(match["recordings_done"]), int(match["recordings_total"])),
+        (
+            "MusicNet real mixes — recordings with eligible chord windows",
+            int(match["recordings_done"]),
+            int(match["recordings_total"]),
+        ),
         ("MusicNet real mixes — expected pitch classes", int(match["note_hits"]), int(match["note_total"])),
         ("MusicNet real mixes — exact chord windows", int(match["chord_hits"]), int(match["chord_total"])),
         ("MusicNet real mixes — simplified chord windows", int(match["simple_hits"]), int(match["simple_total"])),
@@ -355,7 +359,9 @@ def render(
                 "",
                 "## MusicNet real-mixture gate",
                 "",
-                "This open CC-BY corpus measures real classical mixtures; unlike Bach10, it has no isolated stems.",
+                "This open CC-BY corpus measures real classical mixtures; unlike Bach10, it has no isolated stems. "
+                "A recording is eligible for its chord rows only when annotations provide a window with at least "
+                "two active instruments and two pitch classes.",
                 "",
                 "| Metric | Accurate / total | Remaining |",
                 "| --- | ---: | ---: |",

@@ -132,7 +132,10 @@ class DetectionAccuracyReportTest(unittest.TestCase):
         self.assertIn("| Bach10-mf0-synth — exact chord windows | 14 / 20 (70.0%) | 6 |", report)
         self.assertIn("| Bach10-mf0-synth — simplified chord windows | 16 / 20 (80.0%) | 4 |", report)
         self.assertIn("## MusicNet real-mixture gate", report)
-        self.assertIn("| MusicNet real mixes — recordings evaluated | 20 / 330 (6.1%) | 310 |", report)
+        self.assertIn(
+            "| MusicNet real mixes — recordings with eligible chord windows | 20 / 330 (6.1%) | 310 |",
+            report,
+        )
         self.assertIn("| MusicNet real mixes — expected pitch classes | 210 / 300 (70.0%) | 90 |", report)
         self.assertIn("## URMP real multitrack gate", report)
         self.assertIn("| URMP — isolated-track exact notes | 90 / 120 (75.0%) | 30 |", report)
