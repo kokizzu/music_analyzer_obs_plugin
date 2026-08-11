@@ -31,15 +31,20 @@ def summarize(path: Path, limit: int) -> list[str]:
     chord_miss_predictions: collections.Counter[str] = collections.Counter()
     no_chord_detected_pc_counts: collections.Counter[int] = collections.Counter()
     no_chord_debug: collections.Counter[str] = collections.Counter()
+    note_routes: collections.Counter[str] = collections.Counter()
     no_keyboard_chord = 0
     complete_pitch_chord_misses = 0
     for row in rows:
         missing = labels(row["missing_pcs"])
         extra = labels(row["extra_pcs"])
+        expected = labels(row["expected_pcs"])
+        detected = labels(row["detected_keyboard_pcs"])
         missing_components.update(missing)
         extra_components.update(extra)
         if missing:
             missing_patterns[row["missing_pcs"]] += 1
+        if len(expected) == 1:
+            note_routes[f"{expected[0]}->{','.join(detected) if detected else '--'}"] += 1
         expected_chords = labels(row["expected_chords"])
         if expected_chords and row["chord_hit"] != "1":
             chord_misses[row["expected_chords"]] += 1
@@ -56,6 +61,7 @@ def summarize(path: Path, limit: int) -> list[str]:
         "missing pitch-class components " + top(missing_components, limit),
         "extra keyboard pitch-class components " + top(extra_components, limit),
         "top missing pitch-class patterns " + top(missing_patterns, limit),
+        "top expected-to-keyboard pitch routes " + top(note_routes, limit),
         f"chord misses={sum(chord_misses.values())}/{chord_windows} no_keyboard_chord={no_keyboard_chord}",
         "no-label missed windows by chord-grid pitch classes " + top(no_chord_detected_pc_counts, limit),
         "no-label chord detector paths " + top(no_chord_debug, limit),

@@ -43,6 +43,7 @@ DETECTION_ACCURACY_VOCALSET_FULL_MIX_ARG = $(if $(wildcard $(DETECTION_ACCURACY_
 DETECTION_ACCURACY_BACH10_GATE_ARGS = $(foreach path,$(wildcard $(BACH10_MF0_SYNTH_SHARD_OUTS)),--bach10-gate-output "$(path)")
 DETECTION_ACCURACY_MUSICNET_GATE_ARG = $(if $(wildcard $(MUSICNET_FULL_MEASUREMENT_OUTPUT)),--musicnet-gate-output "$(MUSICNET_FULL_MEASUREMENT_OUTPUT)",$(if $(wildcard $(MUSICNET_20_MEASUREMENT_OUTPUT)),--musicnet-gate-output "$(MUSICNET_20_MEASUREMENT_OUTPUT)"))
 DETECTION_ACCURACY_MAPS_GATE_ARGS = $(foreach path,$(wildcard $(MAPS_PIANO_SHARD_OUTS)),--maps-gate-output "$(path)")
+DETECTION_ACCURACY_MAPS_NOTE_GATE_ARGS = $(foreach path,$(wildcard $(MAPS_PIANO_NOTE_SHARD_OUTS)),--maps-note-gate-output "$(path)")
 DETECTION_ACCURACY_URMP_GATE_ARG = $(if $(wildcard $(URMP_MEASUREMENT_OUTPUT)),--urmp-gate-output "$(URMP_MEASUREMENT_OUTPUT)")
 DETECTION_ACCURACY_DRUM_GATE_ARG = $(if $(wildcard $(DRUM_FULL_GATE_OUT)),--drum-gate-output "$(DRUM_FULL_GATE_OUT)")
 ANDROID_SDK_ROOT ?= $(CURDIR)/$(BUILD_DIR)/android-sdk
@@ -625,6 +626,8 @@ MAPS_PIANO_NOTE_SHARDS ?= 4
 MAPS_PIANO_NOTE_SHARD_INDEXES := $(shell i=0; while [ $$i -lt $(MAPS_PIANO_NOTE_SHARDS) ]; do printf '%s ' $$i; i=$$((i + 1)); done)
 MAPS_PIANO_NOTE_SHARD_TARGETS := $(addprefix test-maps-piano-note-samples-shard-,$(MAPS_PIANO_NOTE_SHARD_INDEXES))
 MAPS_PIANO_NOTE_SHARD_OUTS := $(addprefix $(BUILD_DIR)/maps_piano_note_samples_shard_,$(addsuffix .out,$(MAPS_PIANO_NOTE_SHARD_INDEXES)))
+MAPS_PIANO_NOTE_ATTRIBUTE_TSV ?= $(BUILD_DIR)/maps_piano_note_attributes.tsv
+MAPS_PIANO_NOTE_ATTRIBUTE_PARTS := $(addprefix $(BUILD_DIR)/maps_piano_note_attributes.shard-,$(addsuffix .tsv,$(MAPS_PIANO_NOTE_SHARD_INDEXES)))
 MAPS_PIANO_NOTE_LOCK_DIR ?= $(BUILD_DIR)/maps_piano_note_samples.lock
 MAPS_PIANO_NOTE_TEST_MAKE_JOBS = $(if $(filter -j%,$(MAKEFLAGS)),,-j$(words $(MAPS_PIANO_NOTE_SHARD_INDEXES)))
 INSTRUMENT_SAMPLE_BUILD_ROOT ?= $(BUILD_DIR)
@@ -2132,6 +2135,9 @@ analyze-maps-piano-attributes: $(MAPS_PIANO_ATTRIBUTE_TSV)
 summarize-maps-piano-attributes: scripts/analyze_maps_piano_attributes.py
 	$(PYTHON) scripts/analyze_maps_piano_attributes.py "$(MAPS_PIANO_ATTRIBUTE_TSV)"
 
+summarize-maps-piano-note-attributes: scripts/analyze_maps_piano_attributes.py
+	$(PYTHON) scripts/analyze_maps_piano_attributes.py "$(MAPS_PIANO_NOTE_ATTRIBUTE_TSV)"
+
 prepare-maps-piano-note-samples: scripts/prepare_maps_piano_samples.py download-maps-piano-samples | $(BUILD_DIR)
 	MAPS_PIANO_ARCHIVE="$(MAPS_PIANO_ARCHIVE)" MAPS_PIANO_SAMPLE_DIR="$(MAPS_PIANO_NOTE_SAMPLE_DIR)" MAPS_PIANO_RECORDING_LIMIT="$(MAPS_PIANO_NOTE_RECORDING_LIMIT)" MAPS_PIANO_MIN_RECORDINGS="$(MAPS_PIANO_NOTE_MIN_RECORDINGS)" MAPS_PIANO_KINDS="ISOL" $(PYTHON) scripts/prepare_maps_piano_samples.py --archive "$(MAPS_PIANO_ARCHIVE)" --output "$(MAPS_PIANO_NOTE_SAMPLE_DIR)" --limit "$(MAPS_PIANO_NOTE_RECORDING_LIMIT)" --min-recordings "$(MAPS_PIANO_NOTE_MIN_RECORDINGS)" --kinds "ISOL"
 
@@ -2149,6 +2155,15 @@ test-maps-piano-note-samples-parallel-unlocked: $(BUILD_DIR)/analyzer_maestro pr
 
 test-maps-piano-note-samples-shard-%: FORCE $(BUILD_DIR)/analyzer_maestro prepare-maps-piano-note-samples scripts/run_with_duration.sh
 	@shard="$*"; $(RUN_WITH_DURATION) analyzer_maps_piano_note_samples_shard_$* env MUSIC_ANALYZER_MAESTRO_ROOT="$(MAPS_PIANO_NOTE_SAMPLE_DIR)" MUSIC_ANALYZER_MAESTRO_REQUIRED=1 MUSIC_ANALYZER_MAESTRO_REQUIRED_RECORDINGS=1 MUSIC_ANALYZER_MAESTRO_REQUIRED_WINDOWS=1 MUSIC_ANALYZER_MAESTRO_MAX_WINDOWS_PER_RECORDING="$(MAPS_PIANO_NOTE_MAX_WINDOWS_PER_RECORDING)" MUSIC_ANALYZER_MAESTRO_MIN_ACTIVE_NOTES_PER_WINDOW=1 MUSIC_ANALYZER_MAESTRO_MIN_PITCH_CLASSES_PER_WINDOW=1 MUSIC_ANALYZER_MAESTRO_MIN_RECALL_PERCENT=0 MUSIC_ANALYZER_MAESTRO_MIN_PRECISION_PERCENT=0 MUSIC_ANALYZER_MAESTRO_MIN_KEYBOARD_RECALL_PERCENT=0 MUSIC_ANALYZER_MAESTRO_MAX_CONTAMINATION_PERCENT=100 MUSIC_ANALYZER_MAESTRO_MAX_FALSE_NON_KEYBOARD_PERCENT=100 MUSIC_ANALYZER_MAESTRO_MIN_CHORD_CHECKS=100000 MUSIC_ANALYZER_MAESTRO_SHARD_COUNT="$(MAPS_PIANO_NOTE_SHARDS)" MUSIC_ANALYZER_MAESTRO_SHARD_INDEX="$$shard" $(BUILD_DIR)/analyzer_maestro > "$(BUILD_DIR)/maps_piano_note_samples_shard_$*.out" 2> "$(BUILD_DIR)/maps_piano_note_samples_shard_$*.err"
+
+$(MAPS_PIANO_NOTE_ATTRIBUTE_TSV): $(MAPS_PIANO_NOTE_ATTRIBUTE_PARTS) scripts/build_sharded_tsv.sh scripts/run_with_lock.sh | $(BUILD_DIR)
+	$(SHELL) scripts/run_with_lock.sh "$(BUILD_DIR)/maps_piano_note_attributes.lock" -- "$(SHELL)" scripts/build_sharded_tsv.sh "$@" "$(MAKE)" "$(MAPS_PIANO_NOTE_TEST_MAKE_JOBS)" $(MAPS_PIANO_NOTE_ATTRIBUTE_PARTS)
+
+$(BUILD_DIR)/maps_piano_note_attributes.shard-%.tsv: $(BUILD_DIR)/analyzer_maestro prepare-maps-piano-note-samples | $(BUILD_DIR)
+	env MUSIC_ANALYZER_MAESTRO_ROOT="$(MAPS_PIANO_NOTE_SAMPLE_DIR)" MUSIC_ANALYZER_MAESTRO_REQUIRED=1 MUSIC_ANALYZER_MAESTRO_REQUIRED_RECORDINGS=1 MUSIC_ANALYZER_MAESTRO_REQUIRED_WINDOWS=1 MUSIC_ANALYZER_MAESTRO_MAX_WINDOWS_PER_RECORDING="$(MAPS_PIANO_NOTE_MAX_WINDOWS_PER_RECORDING)" MUSIC_ANALYZER_MAESTRO_MIN_ACTIVE_NOTES_PER_WINDOW=1 MUSIC_ANALYZER_MAESTRO_MIN_PITCH_CLASSES_PER_WINDOW=1 MUSIC_ANALYZER_MAESTRO_MIN_RECALL_PERCENT=0 MUSIC_ANALYZER_MAESTRO_MIN_PRECISION_PERCENT=0 MUSIC_ANALYZER_MAESTRO_MIN_KEYBOARD_RECALL_PERCENT=0 MUSIC_ANALYZER_MAESTRO_MAX_CONTAMINATION_PERCENT=100 MUSIC_ANALYZER_MAESTRO_MAX_FALSE_NON_KEYBOARD_PERCENT=100 MUSIC_ANALYZER_MAESTRO_MIN_CHORD_CHECKS=100000 MUSIC_ANALYZER_MAESTRO_SHARD_COUNT="$(MAPS_PIANO_NOTE_SHARDS)" MUSIC_ANALYZER_MAESTRO_SHARD_INDEX="$*" MUSIC_ANALYZER_MAESTRO_ATTRIBUTE_TSV="$@" $(BUILD_DIR)/analyzer_maestro > "$(BUILD_DIR)/maps_piano_note_attributes.shard-$*.out"
+
+analyze-maps-piano-note-attributes: $(MAPS_PIANO_NOTE_ATTRIBUTE_TSV)
+	$(PYTHON) scripts/analyze_maps_piano_attributes.py "$(MAPS_PIANO_NOTE_ATTRIBUTE_TSV)"
 
 download-bach10-mf0-synth-samples: $(BACH10_MF0_SYNTH_ARCHIVE)
 
@@ -2550,7 +2565,7 @@ analyze-real-note-attributes: $(BUILD_DIR)/real_note_full_mix_attributes.tsv scr
 	@printf '%s\n' "attribute TSV: $(BUILD_DIR)/real_note_full_mix_attributes.tsv"
 
 update-detection-accuracy-report: $(BUILD_DIR)/real_note_full_mix_attributes.tsv scripts/write_detection_accuracy_report.py
-	$(PYTHON) scripts/write_detection_accuracy_report.py --input "$(BUILD_DIR)/real_note_full_mix_attributes.tsv" $(DETECTION_ACCURACY_CHORD_ARGS) $(DETECTION_ACCURACY_VOCAL_FULL_MIX_ARG) $(DETECTION_ACCURACY_VOCALSET_FULL_MIX_ARG) $(DETECTION_ACCURACY_URMP_GATE_ARG) $(DETECTION_ACCURACY_BACH10_GATE_ARGS) $(DETECTION_ACCURACY_MUSICNET_GATE_ARG) $(DETECTION_ACCURACY_MAPS_GATE_ARGS) $(DETECTION_ACCURACY_DRUM_GATE_ARG) --output "$(DETECTION_ACCURACY_REPORT)"
+	$(PYTHON) scripts/write_detection_accuracy_report.py --input "$(BUILD_DIR)/real_note_full_mix_attributes.tsv" $(DETECTION_ACCURACY_CHORD_ARGS) $(DETECTION_ACCURACY_VOCAL_FULL_MIX_ARG) $(DETECTION_ACCURACY_VOCALSET_FULL_MIX_ARG) $(DETECTION_ACCURACY_URMP_GATE_ARG) $(DETECTION_ACCURACY_BACH10_GATE_ARGS) $(DETECTION_ACCURACY_MUSICNET_GATE_ARG) $(DETECTION_ACCURACY_MAPS_GATE_ARGS) $(DETECTION_ACCURACY_MAPS_NOTE_GATE_ARGS) $(DETECTION_ACCURACY_DRUM_GATE_ARG) --output "$(DETECTION_ACCURACY_REPORT)"
 
 test-detection-accuracy-report: tests/test_write_detection_accuracy_report.py scripts/write_detection_accuracy_report.py
 	$(PYTHON) tests/test_write_detection_accuracy_report.py

@@ -241,6 +241,15 @@ def maps_gate_rows(paths: list[Path]) -> list[tuple[str, int, int]]:
     ]
 
 
+def maps_note_gate_rows(paths: list[Path]) -> list[tuple[str, int, int]]:
+    rows = maps_gate_rows(paths)
+    return [
+        ("MAPS isolated piano — recordings with annotated note windows", *rows[0][1:]),
+        ("MAPS isolated piano — expected pitch classes", *rows[1][1:]),
+        ("MAPS isolated piano — keyboard detected-note precision", *rows[2][1:]),
+    ]
+
+
 def urmp_gate_rows(path: Path) -> list[tuple[str, int, int]]:
     text = path.read_text(encoding="utf-8", errors="replace")
     coverage = URMP_COVERAGE_RE.search(text)
@@ -298,6 +307,7 @@ def render(
     urmp_gate_output: Path | None = None,
     vocalset_full_mix_input: Path | None = None,
     maps_gate_outputs: list[Path] | None = None,
+    maps_note_gate_outputs: list[Path] | None = None,
 ) -> str:
     samples = load_samples(input_path)
     lines = [
@@ -438,6 +448,11 @@ def render(
         for label, accurate, total in maps_gate_rows(maps_gate_outputs):
             remaining = f"{total - accurate} false predictions" if label.endswith("precision") else str(total - accurate)
             lines.append(f"| {label} | {fraction(accurate, total)} | {remaining} |")
+    if maps_note_gate_outputs:
+        lines.extend(["", "## MAPS isolated-piano note gate", "", "This separate Disklavier subset contains isolated notes with aligned MIDI annotations.", "", "| Metric | Accurate / total | Remaining |", "| --- | ---: | ---: |"])
+        for label, accurate, total in maps_note_gate_rows(maps_note_gate_outputs):
+            remaining = f"{total - accurate} false predictions" if label.endswith("precision") else str(total - accurate)
+            lines.append(f"| {label} | {fraction(accurate, total)} | {remaining} |")
     if drum_gate_output is not None:
         lines.extend(
             [
@@ -476,6 +491,7 @@ def main() -> int:
     parser.add_argument("--bach10-gate-output", action="append", type=Path, default=[])
     parser.add_argument("--musicnet-gate-output", type=Path)
     parser.add_argument("--maps-gate-output", action="append", type=Path, default=[])
+    parser.add_argument("--maps-note-gate-output", action="append", type=Path, default=[])
     parser.add_argument("--drum-gate-output", type=Path)
     parser.add_argument("--urmp-gate-output", type=Path)
     parser.add_argument("--output", required=True, type=Path)
@@ -484,7 +500,7 @@ def main() -> int:
         rendered = render(
             args.input, args.chord_input, args.vocal_full_mix_input, args.bach10_gate_output,
             args.musicnet_gate_output, args.drum_gate_output, args.urmp_gate_output,
-            args.vocalset_full_mix_input, args.maps_gate_output,
+            args.vocalset_full_mix_input, args.maps_gate_output, args.maps_note_gate_output,
         )
     except (OSError, ValueError) as error:
         parser.error(str(error))
