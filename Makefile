@@ -4163,6 +4163,7 @@ test-core-parallel: scripts/run_with_duration.sh
 
 ANALYSIS_SCRIPT_TEST_TARGETS := inspect-real-dataset-catalog inspect-real-goal-coverage test-musicnet-remote test-medleydb-inspector test-medleydb-prepare test-musdb-inspector test-slakh-inspector test-slakh-prepare test-choralsynth-inspector test-choralsynth-prepare test-cocochorales-inspector test-cocochorales-prepare test-synthsod-remote test-synthsod-archive-extract test-synthsod-inspector test-synthsod-prepare test-polyvocal-inspector test-polyvocal-prepare test-prepared-multitrack-inspector test-prepared-multitrack-prepare test-multtipop-inspector test-spheres-inspector test-guitarset-inspector test-urmp-inspector test-drum-sample-prepare test-hf-drum-kit-prepare test-idmt-drums-prepare test-mdb-drums-prepare test-star-drums-prepare test-medley-solos-prepare test-maps-piano-prepare test-bach10-mf0-synth-prepare test-instrument-sample-attribute-summary test-instrument-sample-owner-buckets test-filter-instrument-attribute-rows test-filter-drum-attribute-rows test-instrument-owner-patterns test-refresh-analyzer-detected-attribute-rows test-print-analyzer-detected-attributes test-analyzer-pattern-report test-measure-analyzer-patterns-target test-build-sharded-tsv test-drum-sample-shard-check test-egmd-shard-check test-maestro-shard-check test-instrument-family-shard-check test-musicnet-shard-check test-real-note-full-mix-shard-check test-real-note-sample-shard-check test-guitarset-shard-check test-philharmonia-prepare test-good-sounds-prepare test-iowa-piano-prepare test-iowa-zip-prepare test-idmt-bass-lines-prepare test-idmt-guitar-prepare test-tinysol-prepare test-vocadito-prepare test-vocalset-prepare test-guitar-fretboard-note-prepare test-guitar-techs-prepare test-guitar-techs-chord-prepare test-guitar-chord-mix-prepare test-gaps-guitar-prepare test-guitarset-miss-analysis test-guitarset-attribute-summary test-guitarset-attribute-buckets test-guitarset-attribute-patterns test-guitar-chord-recovery-analysis test-guitar-primary-order-analysis test-guitar-chord-extra-components-analysis test-real-note-miss-analysis test-real-note-attribute-summary test-real-note-attribute-buckets test-real-note-attribute-patterns test-real-note-attribute-rule test-real-note-display-shadow-eval test-egmd-miss-analysis test-egmd-drum-attribute-summary test-egmd-drum-recovery-eval test-drum-debug-row-analysis test-drum-primary-analysis test-drum-gate-matrix-summary test-drum-active-threshold-simulation test-drum-active-false-summary test-drum-active-false-patterns test-real-goal-script android-check
 ANALYSIS_SCRIPT_TEST_TARGETS += test-drum-rule-flag-summary
+ANALYSIS_SCRIPT_TEST_TARGETS += test-maps-piano-attribute-summary
 ANALYSIS_SCRIPT_TEST_TARGETS += test-compare-drum-gate-summaries
 ANALYSIS_SCRIPT_TEST_TARGETS += test-real-note-octave-display-aliases
 ANALYSIS_SCRIPT_TEST_TARGETS += test-real-note-vocal-display-fallback-eval
@@ -4175,6 +4176,9 @@ ANALYSIS_SCRIPT_TEST_TARGETS += test-inspect-detector-coverage-candidates test-c
 
 test-drum-sample-shard-check: tests/test_check_drum_sample_shards.py scripts/check_drum_sample_shards.py
 	$(PYTHON) tests/test_check_drum_sample_shards.py
+
+test-maps-piano-attribute-summary: tests/test_analyze_maps_piano_attributes.py scripts/analyze_maps_piano_attributes.py
+	$(PYTHON) tests/test_analyze_maps_piano_attributes.py
 
 test-inspect-drum-candidate-rows: tests/test_inspect_drum_candidate_rows.py scripts/inspect_drum_candidate_rows.py
 	$(PYTHON) tests/test_inspect_drum_candidate_rows.py

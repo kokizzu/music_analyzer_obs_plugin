@@ -50,6 +50,10 @@ def summarize(path: Path, limit: int) -> list[str]:
     chord_note_counts: dict[str, list[int]] = {"hit": [], "miss": []}
     no_keyboard_chord = 0
     complete_pitch_chord_misses = 0
+    complete_pitch_chord_labels: collections.Counter[str] = collections.Counter()
+    complete_pitch_chord_predictions: collections.Counter[str] = collections.Counter()
+    complete_pitch_chord_debug: collections.Counter[str] = collections.Counter()
+    complete_pitch_chord_examples: list[str] = []
     for row in rows:
         missing = labels(row["missing_pcs"])
         extra = labels(row["extra_pcs"])
@@ -93,7 +97,17 @@ def summarize(path: Path, limit: int) -> list[str]:
                 no_keyboard_chord += 1
                 no_chord_detected_pc_counts[len(labels(row["detected_chord_pcs"]))] += 1
                 no_chord_debug[row["chord_debug"]] += 1
-            complete_pitch_chord_misses += not labels(row["missing_pcs"])
+            if not labels(row["missing_pcs"]):
+                complete_pitch_chord_misses += 1
+                complete_pitch_chord_labels[row["expected_chords"]] += 1
+                complete_pitch_chord_predictions[row["keyboard_chord"]] += 1
+                complete_pitch_chord_debug[row["chord_debug"]] += 1
+                if len(complete_pitch_chord_examples) < limit:
+                    complete_pitch_chord_examples.append(
+                        f"{row['recording']}@{row['center_sample']} "
+                        f"expected={row['expected_chords']} keyboard={row['keyboard_chord']} "
+                        f"path={row['chord_debug']}"
+                    )
 
     chord_windows = sum(bool(labels(row["expected_chords"])) for row in rows)
     return [
@@ -127,6 +141,10 @@ def summarize(path: Path, limit: int) -> list[str]:
         "no-label missed windows by chord-grid pitch classes " + top(no_chord_detected_pc_counts, limit),
         "no-label chord detector paths " + top(no_chord_debug, limit),
         f"chord misses with every expected pitch class visible={complete_pitch_chord_misses}/{sum(chord_misses.values())}",
+        "complete-pitch missed expected chord labels " + top(complete_pitch_chord_labels, limit),
+        "keyboard labels on complete-pitch chord misses " + top(complete_pitch_chord_predictions, limit),
+        "complete-pitch chord detector paths " + top(complete_pitch_chord_debug, limit),
+        "complete-pitch chord miss examples " + " | ".join(complete_pitch_chord_examples),
         "top missed expected chord labels " + top(chord_misses, limit),
         "keyboard labels on chord misses " + top(chord_miss_predictions, limit),
     ]
