@@ -631,9 +631,14 @@ GUITAR_TECHS_MIN_GUITAR ?= 200
 GUITAR_TECHS_MAX_FAILURES ?= 0
 GUITAR_TECHS_CHORD_SAMPLE_DIR ?= $(BUILD_DIR)/guitar_techs_chord_samples
 GUITAR_TECHS_CHORD_MANIFEST ?= $(GUITAR_TECHS_CHORD_SAMPLE_DIR)/manifest.tsv
-GUITAR_TECHS_CHORD_ATTRIBUTE_TSV ?= $(BUILD_DIR)/guitar_techs_chord_attributes.tsv
+GUITAR_TECHS_CHORD_ATTRIBUTE_STEM ?= $(BUILD_DIR)/guitar_techs_chord_attributes
+GUITAR_TECHS_CHORD_ATTRIBUTE_TSV ?= $(GUITAR_TECHS_CHORD_ATTRIBUTE_STEM).tsv
 GUITAR_TECHS_CHORD_DETECTED_ATTRIBUTE_ROWS ?= $(BUILD_DIR)/guitar_techs_chord_detected_attribute_rows.tsv
 GUITAR_TECHS_CHORD_MISS_ATTRIBUTE_ROWS ?= $(BUILD_DIR)/guitar_techs_chord_miss_attribute_rows.tsv
+GUITAR_TECHS_CHORD_CASE_ID ?= guitar_techs_chords_P2_chords_micamp_set2_m7b5_0063_6149
+GUITAR_TECHS_CHORD_CASE_MANIFEST ?= $(BUILD_DIR)/guitar_techs_chord_case_manifest.tsv
+GUITAR_TECHS_CHORD_CASE_ATTRIBUTE_TSV ?= $(BUILD_DIR)/guitar_techs_chord_case_attributes.tsv
+GUITAR_TECHS_CHORD_CASE_OUT ?= $(BUILD_DIR)/guitar_techs_chord_case.out
 GUITAR_TECHS_CHORD_SAMPLE_LIMIT ?= 0
 # The current public P1/P2 archives provide 7,016 usable labelled chord excerpts.
 GUITAR_TECHS_CHORD_MIN_EXCERPTS ?= 3000
@@ -1238,8 +1243,8 @@ GUITAR_TECHS_CHORD_SHARDS ?= $(PARALLEL_TEST_JOBS)
 GUITAR_TECHS_CHORD_SHARD_INDEXES := $(shell i=0; while [ $$i -lt $(GUITAR_TECHS_CHORD_SHARDS) ]; do printf '%s ' $$i; i=$$((i + 1)); done)
 GUITAR_TECHS_CHORD_SHARD_TARGETS := $(addprefix test-guitar-techs-chord-samples-shard-,$(GUITAR_TECHS_CHORD_SHARD_INDEXES))
 GUITAR_TECHS_CHORD_SHARD_OUTS := $(addprefix $(BUILD_DIR)/guitar_techs_chord_samples_shard_,$(addsuffix .out,$(GUITAR_TECHS_CHORD_SHARD_INDEXES)))
-GUITAR_TECHS_CHORD_ATTRIBUTE_LOCK_DIR ?= $(BUILD_DIR)/guitar_techs_chord_attributes.lock
-GUITAR_TECHS_CHORD_ATTRIBUTE_PARTS := $(addprefix $(BUILD_DIR)/guitar_techs_chord_attributes.shard-,$(addsuffix .tsv,$(GUITAR_TECHS_CHORD_SHARD_INDEXES)))
+GUITAR_TECHS_CHORD_ATTRIBUTE_LOCK_DIR ?= $(GUITAR_TECHS_CHORD_ATTRIBUTE_STEM).lock
+GUITAR_TECHS_CHORD_ATTRIBUTE_PARTS := $(addprefix $(GUITAR_TECHS_CHORD_ATTRIBUTE_STEM).shard-,$(addsuffix .tsv,$(GUITAR_TECHS_CHORD_SHARD_INDEXES)))
 GUITAR_TECHS_CHORD_TEST_MAKE_JOBS = $(if $(filter -j%,$(MAKEFLAGS)),,-j$(GUITAR_TECHS_CHORD_SHARDS))
 GUITAR_TECHS_CHORD_ATTRIBUTE_MAKE_JOBS = $(if $(filter -j%,$(MAKEFLAGS)),,-j$(GUITAR_TECHS_CHORD_SHARDS))
 EGFXSET_GUITAR_SHARDS ?= $(PARALLEL_TEST_JOBS)
@@ -1281,6 +1286,7 @@ GUITARSET_ATTRIBUTE_GATE_ENV ?= MUSIC_ANALYZER_GUITARSET_ATTRIBUTE_ONLY=1 MUSIC_
 .PHONY: find-real-note-row-confusion-patterns find-real-note-practical-row-confusion-patterns find-real-note-focused-row-confusion-patterns find-real-note-coverage-row-confusion-patterns find-real-note-visual-row-confusion-patterns find-real-note-focused-visual-row-confusion-patterns find-real-note-coverage-visual-row-confusion-patterns find-real-note-ownership-patterns find-real-note-octave-displacement-patterns find-real-note-weak-expected-patterns find-real-note-weak-visual-expected-patterns inspect-real-note-candidate-rows inspect-detector-coverage-candidates measure-real-note-octave-display-aliases evaluate-real-note-display-shadow evaluate-real-note-vocal-shadow-safety evaluate-real-note-vocal-shadow-safety-nsynth evaluate-real-note-vocal-shadow-safety-vocadito evaluate-real-note-vocal-display-fallback measure-real-note-attribute-rule analyze-vocadito-attributes analyze-vocadito-full-mix-attributes find-vocadito-full-mix-row-confusion-patterns find-vocadito-full-mix-visual-row-confusion-patterns find-vocadito-full-mix-ownership-patterns find-vocadito-full-mix-broad-vocal-ownership-patterns analyze-idmt-bass-lines-attributes analyze-idmt-guitar-attributes analyze-guitar-techs-attributes analyze-tinysol-attributes analyze-vocalset-attributes analyze-iowa-piano-attributes analyze-iowa-strings-attributes analyze-philharmonia-attributes analyze-philharmonia-full-attributes analyze-iowa-orchestra-attributes analyze-iowa-orchestra-full-attributes
 .PHONY: filter-drum-primary-attribute-rows filter-drum-full-attribute-rows filter-drum-full-exact-attribute-rows test-filter-drum-attribute-rows
 .PHONY: test-build-sharded-tsv test-guitarset-shard-check test-instrument-family-shard-check test-musicnet-shard-check
+.PHONY: prepare-guitar-techs-chord-case inspect-guitar-techs-chord-case
 .PHONY: prepare-gaps-guitar-samples-full test-gaps-guitar-samples-full analyze-gaps-guitar-misses-full analyze-gaps-guitar-attributes inspect-gaps-guitar-attribute-buckets find-gaps-guitar-attribute-patterns analyze-gaps-guitar-full-attributes inspect-gaps-guitar-full-attribute-buckets find-gaps-guitar-full-attribute-patterns
 .PHONY: analyze-guitarset-attributes inspect-guitarset-attribute-buckets find-guitarset-attribute-patterns analyze-egfxset-guitar-attributes inspect-egfxset-guitar-attribute-buckets find-egfxset-guitar-attribute-patterns
 .PHONY: inspect-guitarset-download restore-guitarset-audio-partial test-guitarset-download-inspector
@@ -2706,8 +2712,8 @@ test-guitar-techs-chord-samples-shard-%: FORCE $(BUILD_DIR)/analyzer_guitarset $
 $(GUITAR_TECHS_CHORD_ATTRIBUTE_TSV): $(BUILD_DIR)/analyzer_guitarset $(GUITAR_TECHS_CHORD_MANIFEST) scripts/build_sharded_tsv.sh scripts/run_with_lock.sh | $(BUILD_DIR)
 	+$(SHELL) scripts/run_with_lock.sh "$(GUITAR_TECHS_CHORD_ATTRIBUTE_LOCK_DIR)" -- "$(SHELL)" scripts/build_sharded_tsv.sh "$@" "$(MAKE)" "$(GUITAR_TECHS_CHORD_ATTRIBUTE_MAKE_JOBS)" $(GUITAR_TECHS_CHORD_ATTRIBUTE_PARTS)
 
-$(BUILD_DIR)/guitar_techs_chord_attributes.shard-%.tsv: FORCE $(BUILD_DIR)/analyzer_guitarset $(GUITAR_TECHS_CHORD_MANIFEST) | $(BUILD_DIR)
-	@out="$(BUILD_DIR)/guitar_techs_chord_attributes.shard-$*.out"; env MUSIC_ANALYZER_GUITARSET_MANIFEST="$(GUITAR_TECHS_CHORD_MANIFEST)" MUSIC_ANALYZER_GUITARSET_REQUIRED=1 MUSIC_ANALYZER_GUITARSET_USE_ALL=1 MUSIC_ANALYZER_GUITARSET_REQUIRED_EXCERPTS=1 MUSIC_ANALYZER_GUITARSET_REQUIRED_WINDOWS=1 MUSIC_ANALYZER_GUITARSET_MAX_WINDOWS_PER_EXCERPT=4 MUSIC_ANALYZER_GUITARSET_MIN_ACTIVE_NOTES=3 MUSIC_ANALYZER_GUITARSET_MIN_PITCH_CLASSES=3 MUSIC_ANALYZER_GUITARSET_MIN_WINDOW_RECALL_PERCENT=0 MUSIC_ANALYZER_GUITARSET_MIN_RECALL_PERCENT=0 MUSIC_ANALYZER_GUITARSET_MIN_PRECISION_PERCENT=0 MUSIC_ANALYZER_GUITARSET_MIN_GUITAR_RECALL_PERCENT=0 MUSIC_ANALYZER_GUITARSET_MAX_CONTAMINATION_PERCENT=100 MUSIC_ANALYZER_GUITARSET_MAX_FALSE_VOCAL_PERCENT=100 MUSIC_ANALYZER_GUITARSET_MIN_CHORD_RECALL_PERCENT=0 MUSIC_ANALYZER_GUITARSET_MIN_CHORD_PRECISION_PERCENT=0 MUSIC_ANALYZER_GUITARSET_MIN_CHORD_CHECKS=0 MUSIC_ANALYZER_GUITARSET_MIN_CHORD_HITS=0 MUSIC_ANALYZER_GUITARSET_MAX_FAILURE_LINES=80 MUSIC_ANALYZER_GUITARSET_SHARD_COUNT="$(GUITAR_TECHS_CHORD_SHARDS)" MUSIC_ANALYZER_GUITARSET_SHARD_INDEX="$*" MUSIC_ANALYZER_GUITARSET_ATTRIBUTE_TSV="$@" $(BUILD_DIR)/analyzer_guitarset > "$$out"
+$(GUITAR_TECHS_CHORD_ATTRIBUTE_STEM).shard-%.tsv: FORCE $(BUILD_DIR)/analyzer_guitarset $(GUITAR_TECHS_CHORD_MANIFEST) | $(BUILD_DIR)
+	@out="$(GUITAR_TECHS_CHORD_ATTRIBUTE_STEM).shard-$*.out"; env MUSIC_ANALYZER_GUITARSET_MANIFEST="$(GUITAR_TECHS_CHORD_MANIFEST)" MUSIC_ANALYZER_GUITARSET_REQUIRED=1 MUSIC_ANALYZER_GUITARSET_USE_ALL=1 MUSIC_ANALYZER_GUITARSET_REQUIRED_EXCERPTS=1 MUSIC_ANALYZER_GUITARSET_REQUIRED_WINDOWS=1 MUSIC_ANALYZER_GUITARSET_MAX_WINDOWS_PER_EXCERPT=4 MUSIC_ANALYZER_GUITARSET_MIN_ACTIVE_NOTES=3 MUSIC_ANALYZER_GUITARSET_MIN_PITCH_CLASSES=3 MUSIC_ANALYZER_GUITARSET_MIN_WINDOW_RECALL_PERCENT=0 MUSIC_ANALYZER_GUITARSET_MIN_RECALL_PERCENT=0 MUSIC_ANALYZER_GUITARSET_MIN_PRECISION_PERCENT=0 MUSIC_ANALYZER_GUITARSET_MIN_GUITAR_RECALL_PERCENT=0 MUSIC_ANALYZER_GUITARSET_MAX_CONTAMINATION_PERCENT=100 MUSIC_ANALYZER_GUITARSET_MAX_FALSE_VOCAL_PERCENT=100 MUSIC_ANALYZER_GUITARSET_MIN_CHORD_RECALL_PERCENT=0 MUSIC_ANALYZER_GUITARSET_MIN_CHORD_PRECISION_PERCENT=0 MUSIC_ANALYZER_GUITARSET_MIN_CHORD_CHECKS=0 MUSIC_ANALYZER_GUITARSET_MIN_CHORD_HITS=0 MUSIC_ANALYZER_GUITARSET_MAX_FAILURE_LINES=80 MUSIC_ANALYZER_GUITARSET_SHARD_COUNT="$(GUITAR_TECHS_CHORD_SHARDS)" MUSIC_ANALYZER_GUITARSET_SHARD_INDEX="$*" MUSIC_ANALYZER_GUITARSET_ATTRIBUTE_TSV="$@" $(BUILD_DIR)/analyzer_guitarset > "$$out"
 
 $(GUITAR_TECHS_CHORD_DETECTED_ATTRIBUTE_ROWS): $(GUITAR_TECHS_CHORD_ATTRIBUTE_TSV) scripts/inspect_guitarset_attribute_buckets.py | $(BUILD_DIR)
 	$(PYTHON) scripts/inspect_guitarset_attribute_buckets.py "$(GUITAR_TECHS_CHORD_ATTRIBUTE_TSV)" --dump-rows > "$@"
@@ -2774,6 +2780,14 @@ analyze-gaps-guitar-full-primary-order: $(GAPS_GUITAR_FULL_DETECTED_ATTRIBUTE_RO
 
 analyze-guitar-minor-third-candidates: $(GAPS_GUITAR_FULL_ATTRIBUTE_TSV) $(BUILD_DIR)/guitar_chord_mix_attributes.tsv $(GUITAR_TECHS_CHORD_ATTRIBUTE_TSV) scripts/analyze_guitar_minor_third_candidates.py
 	$(PYTHON) scripts/analyze_guitar_minor_third_candidates.py "$(GAPS_GUITAR_FULL_ATTRIBUTE_TSV)" "$(BUILD_DIR)/guitar_chord_mix_attributes.tsv" "$(GUITAR_TECHS_CHORD_ATTRIBUTE_TSV)"
+
+prepare-guitar-techs-chord-case: $(GUITAR_TECHS_CHORD_MANIFEST) scripts/extract_guitarset_manifest_recording.py | $(BUILD_DIR)
+	$(PYTHON) scripts/extract_guitarset_manifest_recording.py "$(GUITAR_TECHS_CHORD_MANIFEST)" "$(GUITAR_TECHS_CHORD_CASE_MANIFEST)" --recording-id "$(GUITAR_TECHS_CHORD_CASE_ID)"
+
+inspect-guitar-techs-chord-case: $(BUILD_DIR)/analyzer_guitarset prepare-guitar-techs-chord-case scripts/inspect_guitarset_attribute_buckets.py
+	rm -f "$(GUITAR_TECHS_CHORD_CASE_ATTRIBUTE_TSV)" "$(GUITAR_TECHS_CHORD_CASE_OUT)"
+	env MUSIC_ANALYZER_GUITARSET_MANIFEST="$(GUITAR_TECHS_CHORD_CASE_MANIFEST)" MUSIC_ANALYZER_GUITARSET_REQUIRED=1 MUSIC_ANALYZER_GUITARSET_USE_ALL=1 MUSIC_ANALYZER_GUITARSET_REQUIRED_EXCERPTS=1 MUSIC_ANALYZER_GUITARSET_REQUIRED_WINDOWS=1 MUSIC_ANALYZER_GUITARSET_MAX_WINDOWS_PER_EXCERPT=4 MUSIC_ANALYZER_GUITARSET_MIN_ACTIVE_NOTES=3 MUSIC_ANALYZER_GUITARSET_MIN_PITCH_CLASSES=3 MUSIC_ANALYZER_GUITARSET_MIN_WINDOW_RECALL_PERCENT=0 MUSIC_ANALYZER_GUITARSET_MIN_RECALL_PERCENT=0 MUSIC_ANALYZER_GUITARSET_MIN_PRECISION_PERCENT=0 MUSIC_ANALYZER_GUITARSET_MIN_GUITAR_RECALL_PERCENT=0 MUSIC_ANALYZER_GUITARSET_MAX_CONTAMINATION_PERCENT=100 MUSIC_ANALYZER_GUITARSET_MAX_FALSE_VOCAL_PERCENT=100 MUSIC_ANALYZER_GUITARSET_MIN_CHORD_RECALL_PERCENT=0 MUSIC_ANALYZER_GUITARSET_MIN_CHORD_PRECISION_PERCENT=0 MUSIC_ANALYZER_GUITARSET_MIN_CHORD_CHECKS=0 MUSIC_ANALYZER_GUITARSET_MAX_FAILURE_LINES=80 MUSIC_ANALYZER_GUITARSET_ATTRIBUTE_TSV="$(GUITAR_TECHS_CHORD_CASE_ATTRIBUTE_TSV)" $(BUILD_DIR)/analyzer_guitarset > "$(GUITAR_TECHS_CHORD_CASE_OUT)"
+	$(PYTHON) scripts/inspect_guitarset_attribute_buckets.py "$(GUITAR_TECHS_CHORD_CASE_ATTRIBUTE_TSV)" --dump-rows
 
 analyze-guitar-major-third-candidates: $(GAPS_GUITAR_FULL_ATTRIBUTE_TSV) $(BUILD_DIR)/guitar_chord_mix_attributes.tsv $(GUITAR_TECHS_CHORD_ATTRIBUTE_TSV) scripts/analyze_guitar_minor_third_candidates.py
 	$(PYTHON) scripts/analyze_guitar_minor_third_candidates.py --quality major "$(GAPS_GUITAR_FULL_ATTRIBUTE_TSV)" "$(BUILD_DIR)/guitar_chord_mix_attributes.tsv" "$(GUITAR_TECHS_CHORD_ATTRIBUTE_TSV)"

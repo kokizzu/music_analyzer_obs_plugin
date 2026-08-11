@@ -21427,6 +21427,66 @@ void append_probe_supported_guitar_rootless_dominant_seventh_alias_after_final_p
 	}
 }
 
+void append_equivalent_guitar_major_seventh_minor_sixth_alias_after_final_prune(
+	InstrumentState &state)
+{
+	// Emaj7 (E-G#-B-D#) is exactly G#m6 (G#-B-D#-E).  Close-miked GuitarTECH
+	// recordings can retain the major-seventh spelling plus its relative-minor
+	// core after final pruning, but omit that equivalent minor-sixth spelling.
+	// Recover only that already-published equivalence; do not infer a sixth from
+	// a partial grid or an arbitrary minor triad.
+	if (!state.label[0] || state.label[0] == '-' || chord_label_component_count(state.label) > 3)
+		return;
+
+	auto has_plain_minor_component = [&](int root) {
+		const char *minor_cursor = state.label;
+		while (*minor_cursor) {
+			const char *end = std::strchr(minor_cursor, '=');
+			const std::size_t len =
+				end ? static_cast<std::size_t>(end - minor_cursor) : std::strlen(minor_cursor);
+			ParsedRootChord parsed;
+			if (parse_root_chord_component(minor_cursor, len, parsed) && parsed.root == root) {
+				const std::size_t root_len =
+					len > 1 && minor_cursor[1] == '#' ? 2 : 1;
+				if (suffix_is(minor_cursor + root_len, len - root_len, "m"))
+					return true;
+			}
+			if (!end)
+				break;
+			minor_cursor = end + 1;
+		}
+		return false;
+	};
+
+	const char *cursor = state.label;
+	while (*cursor) {
+			const char *end = std::strchr(cursor, '=');
+			const std::size_t len =
+				end ? static_cast<std::size_t>(end - cursor) : std::strlen(cursor);
+			ParsedRootChord parsed;
+		if (parse_root_chord_component(cursor, len, parsed)) {
+			const std::size_t root_len = len > 1 && cursor[1] == '#' ? 2 : 1;
+			if (suffix_is(cursor + root_len, len - root_len, "maj7")) {
+				const int minor_sixth_root = (parsed.root + 4) % 12;
+				if (has_plain_minor_component(minor_sixth_root)) {
+					char candidate[16] = {};
+					std::snprintf(candidate, sizeof(candidate), "%sm6",
+						      note_name(minor_sixth_root));
+					if (!chord_label_has_exact_component(state.label, candidate)) {
+						append_chord_label_component(state.label, sizeof(state.label),
+								     candidate, std::strlen(candidate));
+						state.confidence = std::max(state.confidence, 0.58f);
+					}
+					return;
+				}
+			}
+		}
+		if (!end)
+			break;
+		cursor = end + 1;
+	}
+}
+
 void append_compact_guitar_analysis_fifth_power_alias_after_final_prune(
 	InstrumentState &state, const NoteGrid &display_grid, const NoteGrid &analysis_grid)
 {
@@ -34249,6 +34309,8 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 			append_probe_supported_guitar_rootless_dominant_seventh_alias_after_final_prune(
 				snapshot.guitar_chord, snapshot.guitar_notes, guitar_chord_detection_grid,
 				note_powers, kGuitarMinMidi, kGuitarMaxMidi);
+			append_equivalent_guitar_major_seventh_minor_sixth_alias_after_final_prune(
+				snapshot.guitar_chord);
 		}
 		append_compact_guitar_analysis_major_seventh_alias_after_final_prune(
 			snapshot.guitar_chord, snapshot.guitar_notes, guitar_chord_detection_grid);
