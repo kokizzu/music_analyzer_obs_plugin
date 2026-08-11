@@ -2696,6 +2696,11 @@ find-good-sounds-full-mix-ownership-patterns: scripts/find_real_note_attribute_p
 	@test -f "$(GOOD_SOUNDS_FULL_MIX_ATTRIBUTE_TSV)" || { printf '%s\n' "missing $(GOOD_SOUNDS_FULL_MIX_ATTRIBUTE_TSV); run make analyze-good-sounds-full-mix-attributes first"; exit 2; }
 	$(PYTHON) scripts/find_real_note_attribute_patterns.py "$(GOOD_SOUNDS_FULL_MIX_ATTRIBUTE_TSV)" $(GOOD_SOUNDS_FULL_MIX_PATTERN_EXTRA_PROTECTED_ARGS) --bucket-status ownership_miss $(REAL_NOTE_RUNTIME_ROW_CONFUSION_EXCLUDES) --jobs "$(REAL_NOTE_PATTERN_JOBS)" $(or $(PATTERN_ARGS),$(GOOD_SOUNDS_FULL_MIX_OWNERSHIP_PATTERN_ARGS))
 
+.PHONY: inspect-good-sounds-full-mix-bass-misses
+inspect-good-sounds-full-mix-bass-misses: scripts/inspect_good_sounds_bass_misses.py
+	@test -f "$(GOOD_SOUNDS_FULL_MIX_ATTRIBUTE_TSV)" || { printf '%s\n' "missing $(GOOD_SOUNDS_FULL_MIX_ATTRIBUTE_TSV); run make analyze-good-sounds-full-mix-attributes first"; exit 2; }
+	$(PYTHON) scripts/inspect_good_sounds_bass_misses.py "$(GOOD_SOUNDS_FULL_MIX_ATTRIBUTE_TSV)"
+
 prepare-guitar-fretboard-note-samples: scripts/prepare_guitar_fretboard_notes.py | $(BUILD_DIR)
 	GUITAR_FRETBOARD_NOTES_SAMPLE_DIR="$(GUITAR_FRETBOARD_NOTES_SAMPLE_DIR)" GUITAR_FRETBOARD_NOTES_LIMIT="$(GUITAR_FRETBOARD_NOTES_LIMIT)" GUITAR_FRETBOARD_NOTES_OFFLINE="$(GUITAR_FRETBOARD_NOTES_OFFLINE)" $(PYTHON) scripts/prepare_guitar_fretboard_notes.py --output "$(GUITAR_FRETBOARD_NOTES_SAMPLE_DIR)"
 
@@ -4360,6 +4365,9 @@ test-real-note-miss-analysis: tests/test_analyze_real_note_misses.py scripts/ana
 
 test-real-note-attribute-summary: tests/test_summarize_real_note_attributes.py scripts/summarize_real_note_attributes.py
 	$(PYTHON) tests/test_summarize_real_note_attributes.py
+
+test-good-sounds-bass-miss-inspector: tests/test_inspect_good_sounds_bass_misses.py scripts/inspect_good_sounds_bass_misses.py
+	$(PYTHON) tests/test_inspect_good_sounds_bass_misses.py
 
 test-real-note-attribute-buckets: tests/test_inspect_real_note_attribute_buckets.py scripts/inspect_real_note_attribute_buckets.py
 	$(PYTHON) tests/test_inspect_real_note_attribute_buckets.py
