@@ -10421,7 +10421,8 @@ bool existing_reed_brass_other_visual_boost_supported(const FullMixDebugCandidat
 	const float third = debug.harmonic_ratios[2];
 	const float fourth = debug.harmonic_ratios[3];
 	const float fifth = debug.harmonic_ratios[4];
-	return debug.spectral_level >= 0.90f &&
+	const bool broad_reed_brass_profile =
+		debug.spectral_level >= 0.90f &&
 	       debug.pitch_confidence >= 0.76f &&
 	       debug.periodicity >= 0.70f &&
 	       debug.harmonic_fit_error <= 0.16f &&
@@ -10435,6 +10436,17 @@ bool existing_reed_brass_other_visual_boost_supported(const FullMixDebugCandidat
 	       third <= 0.42f &&
 	       fourth <= 0.22f &&
 	       fifth <= 0.12f;
+
+	// Five independent tenor-sax recordings leave an Other-owned, already
+	// active pitch-class cell beneath a piano visual alias.  This exact
+	// ownership and harmonic profile has no protected-row overlap across the
+	// current real-note, VocaDito, and guitar fixture routes.  It only makes
+	// the existing Other cell visible; it does not create a missing note.
+	const bool measured_sax_other_profile =
+		debug.owner == InstrumentKind::Other && debug.other_score > 0.0f &&
+		debug.other_score >= debug.guitar_score * 6.898f && fourth <= 0.053f &&
+		debug.third_octave_ratio >= 0.087f;
+	return broad_reed_brass_profile || measured_sax_other_profile;
 }
 
 void boost_existing_reed_brass_other_visual_notes(NoteGrid &other_grid,

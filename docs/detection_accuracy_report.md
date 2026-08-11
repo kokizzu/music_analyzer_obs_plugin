@@ -8,26 +8,32 @@ Source: `build/real_note_full_mix_attributes.tsv`
 | --- | ---: | ---: |
 | Any detected note | 2212 / 2212 (100.0%) | 0 |
 | Expected instrument row | 2212 / 2212 (100.0%) | 0 |
+| Lit expected pitch class | 2013 / 2212 (91.0%) | 199 |
 | Primary display row | 773 / 2212 (34.9%) | 1439 |
 | Visual primary row | 869 / 2212 (39.3%) | 1343 |
 | Bass — Any detected note | 137 / 137 (100.0%) | 0 |
 | Bass — Expected instrument row | 137 / 137 (100.0%) | 0 |
+| Bass — Lit expected pitch class | 137 / 137 (100.0%) | 0 |
 | Bass — Primary display row | 45 / 137 (32.8%) | 92 |
 | Bass — Visual primary row | 50 / 137 (36.5%) | 87 |
 | Guitar — Any detected note | 346 / 346 (100.0%) | 0 |
 | Guitar — Expected instrument row | 346 / 346 (100.0%) | 0 |
+| Guitar — Lit expected pitch class | 288 / 346 (83.2%) | 58 |
 | Guitar — Primary display row | 152 / 346 (43.9%) | 194 |
 | Guitar — Visual primary row | 60 / 346 (17.3%) | 286 |
 | Other — Any detected note | 590 / 590 (100.0%) | 0 |
 | Other — Expected instrument row | 590 / 590 (100.0%) | 0 |
+| Other — Lit expected pitch class | 517 / 590 (87.6%) | 73 |
 | Other — Primary display row | 118 / 590 (20.0%) | 472 |
 | Other — Visual primary row | 208 / 590 (35.3%) | 382 |
 | Piano — Any detected note | 1117 / 1117 (100.0%) | 0 |
 | Piano — Expected instrument row | 1117 / 1117 (100.0%) | 0 |
+| Piano — Lit expected pitch class | 1050 / 1117 (94.0%) | 67 |
 | Piano — Primary display row | 452 / 1117 (40.5%) | 665 |
 | Piano — Visual primary row | 545 / 1117 (48.8%) | 572 |
 | Vocals — Any detected note | 22 / 22 (100.0%) | 0 |
 | Vocals — Expected instrument row | 22 / 22 (100.0%) | 0 |
+| Vocals — Lit expected pitch class | 21 / 22 (95.5%) | 1 |
 | Vocals — Primary display row | 6 / 22 (27.3%) | 16 |
 | Vocals — Visual primary row | 6 / 22 (27.3%) | 16 |
 
@@ -52,6 +58,7 @@ Source: `build/vocadito_full_mix_attributes.tsv`
 | --- | ---: | ---: |
 | Vocadito vocals — Any detected note | 354 / 354 (100.0%) | 0 |
 | Vocadito vocals — Expected instrument row | 285 / 354 (80.5%) | 69 |
+| Vocadito vocals — Lit expected pitch class | 154 / 354 (43.5%) | 200 |
 | Vocadito vocals — Primary display row | 40 / 354 (11.3%) | 314 |
 | Vocadito vocals — Visual primary row | 21 / 354 (5.9%) | 333 |
 
@@ -65,6 +72,7 @@ Source: `build/vocalset_full_mix_attributes.tsv`
 | --- | ---: | ---: |
 | VocalSet vocals — Any detected note | 2371 / 2389 (99.2%) | 18 |
 | VocalSet vocals — Expected instrument row | 1295 / 2389 (54.2%) | 1094 |
+| VocalSet vocals — Lit expected pitch class | 777 / 2389 (32.5%) | 1612 |
 | VocalSet vocals — Primary display row | 199 / 2389 (8.3%) | 2190 |
 | VocalSet vocals — Visual primary row | 176 / 2389 (7.4%) | 2213 |
 
@@ -78,14 +86,17 @@ Source: `build/good_sounds_full_mix_attributes.tsv`
 | --- | ---: | ---: |
 | Good Sounds — Any detected note | 999 / 1000 (99.9%) | 1 |
 | Good Sounds — Expected instrument row | 948 / 1000 (94.8%) | 52 |
+| Good Sounds — Lit expected pitch class | 779 / 1000 (77.9%) | 221 |
 | Good Sounds — Primary display row | 119 / 1000 (11.9%) | 881 |
 | Good Sounds — Visual primary row | 241 / 1000 (24.1%) | 759 |
 | Good Sounds — Bass — Any detected note | 159 / 159 (100.0%) | 0 |
 | Good Sounds — Bass — Expected instrument row | 142 / 159 (89.3%) | 17 |
+| Good Sounds — Bass — Lit expected pitch class | 141 / 159 (88.7%) | 18 |
 | Good Sounds — Bass — Primary display row | 3 / 159 (1.9%) | 156 |
 | Good Sounds — Bass — Visual primary row | 6 / 159 (3.8%) | 153 |
 | Good Sounds — Other — Any detected note | 840 / 841 (99.9%) | 1 |
 | Good Sounds — Other — Expected instrument row | 806 / 841 (95.8%) | 35 |
+| Good Sounds — Other — Lit expected pitch class | 638 / 841 (75.9%) | 203 |
 | Good Sounds — Other — Primary display row | 116 / 841 (13.8%) | 725 |
 | Good Sounds — Other — Visual primary row | 235 / 841 (27.9%) | 606 |
 

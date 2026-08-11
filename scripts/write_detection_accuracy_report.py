@@ -18,9 +18,38 @@ EXPECTED_ROW = {
     "other": "other",
 }
 
+VISUAL_NOTE_FIELD = {
+    "bass": "bass_visual_notes",
+    "guitar": "guitar_visual_notes",
+    "piano": "piano_visual_notes",
+    "vocals": "vocal_visual_notes",
+    "other": "other_visual_notes",
+}
+
+NOTE_TOKEN_RE = re.compile(r"^([A-G])(#?)(-?\d+):([0-9.]+)$")
+NOTE_OFFSETS = {"C": 0, "D": 2, "E": 4, "F": 5, "G": 7, "A": 9, "B": 11}
+VISUAL_LIT_THRESHOLD = 0.25
+
 
 def truthy(value: str) -> bool:
     return value.strip().lower() not in {"", "0", "false", "no"}
+
+
+def visual_expected_pitch_lit(row: dict[str, str], expected_row: str) -> bool:
+    """Whether an expected-row pitch class is visibly lit in this window."""
+    try:
+        expected_midi = int(row.get("expected_midi", ""))
+    except ValueError:
+        return False
+    for token in row.get(VISUAL_NOTE_FIELD[expected_row], "").split(","):
+        match = NOTE_TOKEN_RE.fullmatch(token.strip())
+        if not match:
+            continue
+        letter, sharp, octave_text, level_text = match.groups()
+        observed_midi = (int(octave_text) + 1) * 12 + NOTE_OFFSETS[letter] + (1 if sharp else 0)
+        if observed_midi % 12 == expected_midi % 12 and float(level_text) >= VISUAL_LIT_THRESHOLD:
+            return True
+    return False
 
 
 def load_samples(path: Path) -> dict[str, list[dict[str, str]]]:
@@ -42,6 +71,9 @@ def metric_values(rows: list[dict[str, str]], expected_row: str) -> dict[str, bo
     return {
         "Any detected note": any(truthy(row["detected"]) for row in rows),
         "Expected instrument row": any(truthy(row["detected_expected_row"]) for row in rows),
+        "Lit expected pitch class": any(
+            visual_expected_pitch_lit(row, expected_row) for row in rows
+        ),
         "Primary display row": any(row["first_row"] == expected_row for row in rows),
         "Visual primary row": any(row["visual_first_row"] == expected_row for row in rows),
     }

@@ -20,6 +20,23 @@ HEADER = "\t".join(("sample_id", "family", "detected", "detected_expected_row", 
 
 
 class DetectionAccuracyReportTest(unittest.TestCase):
+    def test_visual_expected_pitch_lit_matches_pitch_class_at_threshold(self) -> None:
+        self.assertTrue(
+            REPORT.visual_expected_pitch_lit(
+                {"expected_midi": "44", "other_visual_notes": "G#3:0.25"}, "other"
+            )
+        )
+        self.assertFalse(
+            REPORT.visual_expected_pitch_lit(
+                {"expected_midi": "44", "other_visual_notes": "G#3:0.24"}, "other"
+            )
+        )
+        self.assertFalse(
+            REPORT.visual_expected_pitch_lit(
+                {"expected_midi": "44", "other_visual_notes": "A3:1.00"}, "other"
+            )
+        )
+
     def test_render_reports_global_and_family_counts(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
             source = Path(temporary) / "attributes.tsv"
