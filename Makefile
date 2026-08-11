@@ -25,6 +25,7 @@ MUSICNET_MIDI_ARCHIVE_URL ?= https://zenodo.org/api/records/5120004/files/musicn
 URMP_SOURCE_DIR ?= $(INSTRUMENT_SAMPLE_STORE_LINK)/urmp
 URMP_ARCHIVE ?= $(URMP_SOURCE_DIR)/urmp-kaggle.zip
 URMP_EXTRACT_DIR ?= $(URMP_SOURCE_DIR)/extracted
+URMP_MEASUREMENT_OUTPUT ?= $(URMP_SOURCE_DIR)/urmp_measurement.out
 URMP_DOWNLOAD_CONNECTIONS ?= 8
 URMP_ARCHIVE_URL ?= https://www.kaggle.com/api/v1/datasets/download/alonhaviv/multi-modal-music-performance-urmp
 DETECTION_ACCURACY_REPORT ?= docs/detection_accuracy_report.md
@@ -4530,7 +4531,7 @@ test-real-musicnet-20: $(BUILD_DIR)/analyzer_musicnet
 test-real-musicnet-full: $(BUILD_DIR)/analyzer_musicnet
 	MUSIC_ANALYZER_MUSICNET_REQUIRED=1 MUSIC_ANALYZER_MUSICNET_REQUIRED_RECORDINGS=330 MUSIC_ANALYZER_MUSICNET_REQUIRED_WINDOWS=1320 $(BUILD_DIR)/analyzer_musicnet
 
-.PHONY: download-real-urmp inspect-real-urmp-download prepare-real-urmp test-urmp-download-scripts test-urmp-archive-extract download-real-musicnet inspect-real-musicnet-download prepare-real-musicnet inspect-downloaded-real-musicnet analyze-downloaded-real-musicnet-20-traits test-downloaded-real-musicnet-20 test-downloaded-real-musicnet-full test-musicnet-archive-extract test-run-musicnet-gate test-summarize-musicnet-attributes
+.PHONY: download-real-urmp inspect-real-urmp-download prepare-real-urmp analyze-real-urmp-traits test-urmp-download-scripts test-urmp-archive-extract download-real-musicnet inspect-real-musicnet-download prepare-real-musicnet inspect-downloaded-real-musicnet-20-traits test-downloaded-real-musicnet-20 test-downloaded-real-musicnet-full test-musicnet-archive-extract test-run-musicnet-gate test-summarize-musicnet-attributes
 download-real-urmp: $(URMP_ARCHIVE)
 
 inspect-real-urmp-download: scripts/urmp_download_status.sh
@@ -4541,6 +4542,9 @@ test-urmp-download-scripts: scripts/download_urmp_archive.sh scripts/urmp_downlo
 
 prepare-real-urmp: $(URMP_ARCHIVE) scripts/extract_urmp_archive.sh | $(BUILD_DIR)
 	$(SHELL) scripts/extract_urmp_archive.sh "$(URMP_ARCHIVE)" "$(URMP_EXTRACT_DIR)"
+
+analyze-real-urmp-traits: $(BUILD_DIR)/analyzer_urmp prepare-real-urmp scripts/capture_urmp_measurement.sh
+	$(SHELL) scripts/capture_urmp_measurement.sh "$(BUILD_DIR)/analyzer_urmp" "$(URMP_EXTRACT_DIR)" "$(URMP_MEASUREMENT_OUTPUT)"
 
 test-urmp-archive-extract: scripts/extract_urmp_archive.sh tests/test_extract_urmp_archive.py
 	$(PYTHON) tests/test_extract_urmp_archive.py scripts/extract_urmp_archive.sh
