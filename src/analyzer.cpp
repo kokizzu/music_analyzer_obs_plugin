@@ -21328,6 +21328,54 @@ void append_raw_probe_supported_compact_guitar_major_seventh_alias_after_final_p
 	state.confidence = std::max(state.confidence, 0.58f);
 }
 
+void append_probe_supported_guitar_rootless_major_seventh_alias_after_final_prune(
+	InstrumentState &state, const NoteGrid &display_grid, const NoteGrid &analysis_grid,
+	const std::array<float, kNoteProbeCount> &powers, int min_midi, int max_midi)
+{
+	// The full GuitarTECH corpus contains close-miked maj7 voicings whose
+	// rendered and analysis grids retain exactly 3-5-7, while a strong melodic
+	// root probe is excluded by note-grid harmonic pruning.  The apparent
+	// relative-minor label is therefore a rootless maj7 inversion, not a broad
+	// invitation to infer roots from arbitrary triads.
+	if (!state.label[0] || state.label[0] == '-' || chord_label_component_count(state.label) != 1 ||
+	    note_grid_active_pitch_class_count(display_grid) != 3 ||
+	    note_grid_active_pitch_class_count(analysis_grid) != 3)
+		return;
+
+	const float strongest_melodic = strongest_melodic_probe_level(powers, min_midi, max_midi);
+	if (strongest_melodic <= 1.0e-6f)
+		return;
+
+	for (int root = 0; root < 12; ++root) {
+		const int third = root + 4;
+		const int fifth = root + 7;
+		const int major_seventh = root + 11;
+		if (!note_grid_pitch_active(display_grid, third) ||
+		    !note_grid_pitch_active(display_grid, fifth) ||
+		    !note_grid_pitch_active(display_grid, major_seventh) ||
+		    !note_grid_pitch_active(analysis_grid, third) ||
+		    !note_grid_pitch_active(analysis_grid, fifth) ||
+		    !note_grid_pitch_active(analysis_grid, major_seventh))
+			continue;
+
+		char relative_minor[16] = {};
+		std::snprintf(relative_minor, sizeof(relative_minor), "%sm", note_name(third));
+		if (!chord_label_has_exact_component(state.label, relative_minor))
+			continue;
+
+		const float melodic_root =
+			strongest_melodic_probe_pitch_class_level(powers, root, min_midi, max_midi);
+		if (melodic_root < strongest_melodic * 0.51f)
+			continue;
+
+		char candidate[16] = {};
+		std::snprintf(candidate, sizeof(candidate), "%smaj7", note_name(root));
+		append_chord_label_component(state.label, sizeof(state.label), candidate, std::strlen(candidate));
+		state.confidence = std::max(state.confidence, 0.58f);
+		return;
+	}
+}
+
 void append_compact_guitar_analysis_fifth_power_alias_after_final_prune(
 	InstrumentState &state, const NoteGrid &display_grid, const NoteGrid &analysis_grid)
 {
@@ -34144,6 +34192,9 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 			append_raw_probe_supported_compact_guitar_major_seventh_alias_after_final_prune(
 				snapshot.guitar_chord, snapshot.guitar_notes, guitar_chord_detection_grid,
 				note_powers, detection_note_powers, kGuitarMinMidi, kGuitarMaxMidi);
+			append_probe_supported_guitar_rootless_major_seventh_alias_after_final_prune(
+				snapshot.guitar_chord, snapshot.guitar_notes, guitar_chord_detection_grid,
+				note_powers, kGuitarMinMidi, kGuitarMaxMidi);
 		}
 		append_compact_guitar_analysis_major_seventh_alias_after_final_prune(
 			snapshot.guitar_chord, snapshot.guitar_notes, guitar_chord_detection_grid);
