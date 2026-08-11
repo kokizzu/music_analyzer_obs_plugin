@@ -31,6 +31,17 @@ Source: `build/real_note_full_mix_attributes.tsv`
 | Vocals — Primary display row | 6 / 22 (27.3%) | 16 |
 | Vocals — Visual primary row | 6 / 22 (27.3%) | 16 |
 
+## Detector-improvement route coverage
+
+This tracks the empirical candidate search. A route is actionable only when its measured gain has no protected-row regression; coverage-blocked routes need more independent positive fixture samples before any detector rule is considered.
+
+Source: `build/detector_improvement_route_summary.txt`
+
+| Metric | Routes / total | Other routes |
+| --- | ---: | ---: |
+| Routes with direct zero-regression support | 1 / 160 (0.6%) | 159 |
+| Routes awaiting additional fixture coverage | 34 / 160 (21.2%) | 126 |
+
 ## Vocadito full-mix vocal routing
 
 This separate real-vocal corpus measures how often the vocal row remains visible when the analyzer also proposes instrumental rows.

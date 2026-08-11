@@ -46,6 +46,7 @@ DETECTION_ACCURACY_MAPS_GATE_ARGS = $(foreach path,$(wildcard $(MAPS_PIANO_SHARD
 DETECTION_ACCURACY_MAPS_NOTE_GATE_ARGS = $(foreach path,$(wildcard $(MAPS_PIANO_NOTE_SHARD_OUTS)),--maps-note-gate-output "$(path)")
 DETECTION_ACCURACY_URMP_GATE_ARG = $(if $(wildcard $(URMP_MEASUREMENT_OUTPUT)),--urmp-gate-output "$(URMP_MEASUREMENT_OUTPUT)")
 DETECTION_ACCURACY_DRUM_GATE_ARG = $(if $(wildcard $(DRUM_FULL_GATE_OUT)),--drum-gate-output "$(DRUM_FULL_GATE_OUT)")
+DETECTION_ACCURACY_ROUTE_SUMMARY_ARG = $(if $(wildcard $(DETECTOR_IMPROVEMENT_ROUTE_SUMMARY)),--route-summary "$(DETECTOR_IMPROVEMENT_ROUTE_SUMMARY)")
 ANDROID_SDK_ROOT ?= $(CURDIR)/$(BUILD_DIR)/android-sdk
 ANDROID_GRADLE_VERSION ?= 8.10.2
 ANDROID_EMULATOR_API ?= 35
@@ -2566,7 +2567,7 @@ analyze-real-note-attributes: $(BUILD_DIR)/real_note_full_mix_attributes.tsv scr
 	@printf '%s\n' "attribute TSV: $(BUILD_DIR)/real_note_full_mix_attributes.tsv"
 
 update-detection-accuracy-report: $(BUILD_DIR)/real_note_full_mix_attributes.tsv scripts/write_detection_accuracy_report.py
-	$(PYTHON) scripts/write_detection_accuracy_report.py --input "$(BUILD_DIR)/real_note_full_mix_attributes.tsv" $(DETECTION_ACCURACY_CHORD_ARGS) $(DETECTION_ACCURACY_VOCAL_FULL_MIX_ARG) $(DETECTION_ACCURACY_VOCALSET_FULL_MIX_ARG) $(DETECTION_ACCURACY_URMP_GATE_ARG) $(DETECTION_ACCURACY_BACH10_GATE_ARGS) $(DETECTION_ACCURACY_MUSICNET_GATE_ARG) $(DETECTION_ACCURACY_MAPS_GATE_ARGS) $(DETECTION_ACCURACY_MAPS_NOTE_GATE_ARGS) $(DETECTION_ACCURACY_DRUM_GATE_ARG) --output "$(DETECTION_ACCURACY_REPORT)"
+	$(PYTHON) scripts/write_detection_accuracy_report.py --input "$(BUILD_DIR)/real_note_full_mix_attributes.tsv" $(DETECTION_ACCURACY_CHORD_ARGS) $(DETECTION_ACCURACY_VOCAL_FULL_MIX_ARG) $(DETECTION_ACCURACY_VOCALSET_FULL_MIX_ARG) $(DETECTION_ACCURACY_URMP_GATE_ARG) $(DETECTION_ACCURACY_BACH10_GATE_ARGS) $(DETECTION_ACCURACY_MUSICNET_GATE_ARG) $(DETECTION_ACCURACY_MAPS_GATE_ARGS) $(DETECTION_ACCURACY_MAPS_NOTE_GATE_ARGS) $(DETECTION_ACCURACY_DRUM_GATE_ARG) $(DETECTION_ACCURACY_ROUTE_SUMMARY_ARG) --output "$(DETECTION_ACCURACY_REPORT)"
 
 test-detection-accuracy-report: tests/test_write_detection_accuracy_report.py scripts/write_detection_accuracy_report.py
 	$(PYTHON) tests/test_write_detection_accuracy_report.py

@@ -118,9 +118,16 @@ class DetectionAccuracyReportTest(unittest.TestCase):
                 "analyzer_urmp: chord metrics: provided global chord precision 90.00%, recall 75.00%, F1 81.82%, tp/fp/fn 30/3/10; summed global chord precision 90.00%, recall 75.00%, F1 81.82%, tp/fp/fn 30/3/10; provided stream global chord precision 90.00%, recall 80.00%, F1 84.21%, tp/fp/fn 32/3/8; summed stream global chord precision 90.00%, recall 80.00%, F1 84.21%, tp/fp/fn 32/3/8; provided sequence global chord precision 90.00%, recall 70.00%, F1 78.26%, tp/fp/fn 28/3/12\n",
                 encoding="utf-8",
             )
+            route_summary = Path(temporary) / "routes.txt"
+            route_summary.write_text(
+                "detector_route_summary: candidates=160 low_false=48 shadow=1 near_miss=68 "
+                "guitar=35 drum=8 positive_net=78 gain_ge_1=78 source_safe_positive_net=68 "
+                "actionable=1 coverage_blocked=34\n",
+                encoding="utf-8",
+            )
             report = REPORT.render(
                 source, [chords], vocal_full_mix, [bach10_0, bach10_1], musicnet, drum, urmp,
-                vocalset_full_mix, [maps],
+                vocalset_full_mix, [maps], None, route_summary,
             )
 
         self.assertIn("| Any detected note | 2 / 3 (66.7%) | 1 |", report)
@@ -128,6 +135,9 @@ class DetectionAccuracyReportTest(unittest.TestCase):
         self.assertIn("| Primary display row | 1 / 3 (33.3%) | 2 |", report)
         self.assertIn("| Visual primary row | 2 / 3 (66.7%) | 1 |", report)
         self.assertIn("| Guitar — Visual primary row | 1 / 2 (50.0%) | 1 |", report)
+        self.assertIn("## Detector-improvement route coverage", report)
+        self.assertIn("| Routes with direct zero-regression support | 1 / 160 (0.6%) | 159 |", report)
+        self.assertIn("| Routes awaiting additional fixture coverage | 34 / 160 (21.2%) | 126 |", report)
         self.assertIn("## Cached isolated-guitar chord gates", report)
         self.assertIn("| Guitar Chord Mix — exact chord windows | 1 / 2 (50.0%) | 1 |", report)
         self.assertIn("| Guitar Chord Mix — primary displayed chord windows | 1 / 2 (50.0%) | 1 |", report)

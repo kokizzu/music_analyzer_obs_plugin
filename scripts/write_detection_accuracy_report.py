@@ -182,6 +182,10 @@ DRUM_PRIMARY_MATRIX_RE = re.compile(
 )
 DRUM_PRIMARY_ROW_RE = re.compile(r"^\s*expected (?P<expected>\w+)\s+(?P<counts>.+)$")
 DRUM_PRIMARY_COUNT_RE = re.compile(r"(?P<instrument>\w+)=(?P<count>\d+)")
+ROUTE_SUMMARY_RE = re.compile(
+    r"detector_route_summary: candidates=(?P<candidates>\d+).*?"
+    r"actionable=(?P<actionable>\d+) coverage_blocked=(?P<coverage_blocked>\d+)"
+)
 
 
 def bach10_gate_rows(paths: list[Path]) -> list[tuple[str, int, int]]:
@@ -309,6 +313,17 @@ def drum_primary_gate_rows(path: Path) -> list[tuple[str, int, int]]:
     return result
 
 
+def route_coverage_rows(path: Path) -> list[tuple[str, int, int]]:
+    match = ROUTE_SUMMARY_RE.search(path.read_text(encoding="utf-8", errors="replace"))
+    if match is None:
+        raise ValueError(f"{path}: missing detector route summary")
+    total = int(match["candidates"])
+    return [
+        ("Routes with direct zero-regression support", int(match["actionable"]), total),
+        ("Routes awaiting additional fixture coverage", int(match["coverage_blocked"]), total),
+    ]
+
+
 def render(
     input_path: Path,
     chord_inputs: list[Path] | None = None,
@@ -320,6 +335,7 @@ def render(
     vocalset_full_mix_input: Path | None = None,
     maps_gate_outputs: list[Path] | None = None,
     maps_note_gate_outputs: list[Path] | None = None,
+    route_summary: Path | None = None,
 ) -> str:
     samples = load_samples(input_path)
     lines = [
@@ -336,6 +352,24 @@ def render(
     ]
     for label, accurate, total in table_rows(samples):
         lines.append(f"| {label} | {fraction(accurate, total)} | {total - accurate} |")
+    if route_summary is not None:
+        lines.extend(
+            [
+                "",
+                "## Detector-improvement route coverage",
+                "",
+                "This tracks the empirical candidate search. A route is actionable only when its "
+                "measured gain has no protected-row regression; coverage-blocked routes need more "
+                "independent positive fixture samples before any detector rule is considered.",
+                "",
+                f"Source: `{route_summary.as_posix()}`",
+                "",
+                "| Metric | Routes / total | Other routes |",
+                "| --- | ---: | ---: |",
+            ]
+        )
+        for label, count, total in route_coverage_rows(route_summary):
+            lines.append(f"| {label} | {fraction(count, total)} | {total - count} |")
     if vocal_full_mix_input is not None:
         vocal_samples = load_samples(vocal_full_mix_input)
         vocal_rows = family_metric_rows(vocal_samples, "vocals")
@@ -506,6 +540,7 @@ def main() -> int:
     parser.add_argument("--maps-note-gate-output", action="append", type=Path, default=[])
     parser.add_argument("--drum-gate-output", type=Path)
     parser.add_argument("--urmp-gate-output", type=Path)
+    parser.add_argument("--route-summary", type=Path)
     parser.add_argument("--output", required=True, type=Path)
     args = parser.parse_args()
     try:
@@ -513,6 +548,7 @@ def main() -> int:
             args.input, args.chord_input, args.vocal_full_mix_input, args.bach10_gate_output,
             args.musicnet_gate_output, args.drum_gate_output, args.urmp_gate_output,
             args.vocalset_full_mix_input, args.maps_gate_output, args.maps_note_gate_output,
+            args.route_summary,
         )
     except (OSError, ValueError) as error:
         parser.error(str(error))
