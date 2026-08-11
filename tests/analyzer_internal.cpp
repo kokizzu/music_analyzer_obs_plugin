@@ -4780,6 +4780,47 @@ void check_probe_supported_guitar_rootless_major_seventh_with_analysis_residue(R
 			      root_present.label + "`");
 }
 
+void check_probe_supported_guitar_rootless_minor_sixth_alias(Runner &runner)
+{
+	InstrumentState state = {};
+	std::snprintf(state.label, sizeof(state.label), "E=C#m");
+	state.confidence = 0.534f;
+	NoteGrid display_grid = {};
+	set_pitch(display_grid, 4, 0.76f);
+	set_pitch(display_grid, 8, 0.70f);
+	set_pitch(display_grid, 10, 0.27f);
+	NoteGrid analysis_grid = display_grid;
+	set_pitch(analysis_grid, 5, 0.01f);
+	set_pitch(analysis_grid, 6, 0.03f);
+	std::array<float, kNoteProbeCount> powers = {};
+	set_probe_level(powers, 49, 0.166f);
+	set_probe_level(powers, 52, 1.000f);
+	set_probe_level(powers, 53, 0.012f);
+	set_probe_level(powers, 56, 0.920f);
+	set_probe_level(powers, 58, 0.358f);
+
+	append_probe_supported_guitar_rootless_minor_sixth_alias_after_final_prune(
+		state, display_grid, analysis_grid, powers, kGuitarMinMidi, kGuitarMaxMidi);
+	runner.expect(chord_label_has_exact_component(state.label, "C#m6"),
+		      std::string("rootless minor sixth: expected C#m6 recovered, got `") + state.label +
+			      "`");
+	runner.expect(chord_label_has_exact_component(state.label, "A#m7b5"),
+		      std::string("rootless minor sixth: expected equivalent A#m7b5 recovered, got `") +
+			      state.label + "`");
+
+	InstrumentState root_present = {};
+	std::snprintf(root_present.label, sizeof(root_present.label), "E=C#m");
+	root_present.confidence = 0.534f;
+	NoteGrid root_present_analysis = analysis_grid;
+	set_pitch(root_present_analysis, 1, 0.06f);
+	append_probe_supported_guitar_rootless_minor_sixth_alias_after_final_prune(
+		root_present, display_grid, root_present_analysis, powers, kGuitarMinMidi,
+		kGuitarMaxMidi);
+	runner.expect(!chord_label_has_exact_component(root_present.label, "C#m6"),
+		      std::string("rootless minor sixth: expected analysis root to block C#m6, got `") +
+			      root_present.label + "`");
+}
+
 int run()
 {
 	Runner runner;
@@ -4810,6 +4851,7 @@ int run()
 	check_analysis_complete_guitar_source_dominant_seventh_aliases_after_prune(runner);
 	check_probe_supported_guitar_source_dominant_seventh_aliases_after_prune(runner);
 	check_probe_supported_guitar_rootless_major_seventh_with_analysis_residue(runner);
+	check_probe_supported_guitar_rootless_minor_sixth_alias(runner);
 	check_ambiguous_guitar_power_quality_keeps_both_plain_aliases(runner);
 	check_display_guitar_power_opposite_quality_alias(runner);
 	check_compact_guitar_power_raw_profile_third_aliases(runner);

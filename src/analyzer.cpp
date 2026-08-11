@@ -21401,6 +21401,77 @@ void append_probe_supported_guitar_rootless_major_seventh_alias_after_final_prun
 	}
 }
 
+void append_probe_supported_guitar_rootless_minor_sixth_alias_after_final_prune(
+	InstrumentState &state, const NoteGrid &display_grid, const NoteGrid &analysis_grid,
+	const std::array<float, kNoteProbeCount> &powers, int min_midi, int max_midi)
+{
+	// Some close-miked GuitarTECH m6 voicings retain their 3-5-6 core while
+	// root pruning leaves a plain minor alias. A minor sixth and the equivalent
+	// half-diminished chord have the same pitch classes, so expose both only when
+	// the displayed core, analysis core, and raw root/sixth probes agree.
+	if (!state.label[0] || state.label[0] == '-' || chord_label_component_count(state.label) > 5 ||
+	    note_grid_active_pitch_class_count(display_grid) != 3 ||
+	    note_grid_active_pitch_class_count(analysis_grid) < 3 ||
+	    note_grid_active_pitch_class_count(analysis_grid) > 5)
+		return;
+
+	const float strongest_probe = strongest_probe_level(powers, min_midi, max_midi);
+	if (strongest_probe <= 1.0e-6f)
+		return;
+
+	char original[sizeof(state.label)] = {};
+	copy_text(original, sizeof(original), state.label);
+	for (int root = 0; root < 12; ++root) {
+		char minor_label[16] = {};
+		std::snprintf(minor_label, sizeof(minor_label), "%sm", note_name(root));
+		if (!chord_label_has_exact_component(original, minor_label))
+			continue;
+
+		const int third = root + 3;
+		const int fifth = root + 7;
+		const int sixth = root + 9;
+		if (note_grid_pitch_active(display_grid, root) ||
+		    note_grid_pitch_active(analysis_grid, root) ||
+		    !note_grid_pitch_active(display_grid, third) ||
+		    !note_grid_pitch_active(display_grid, fifth) ||
+		    !note_grid_pitch_active(display_grid, sixth) ||
+		    !note_grid_pitch_active(analysis_grid, third) ||
+		    !note_grid_pitch_active(analysis_grid, fifth) ||
+		    !note_grid_pitch_active(analysis_grid, sixth))
+			continue;
+
+		const float display_third = note_grid_pitch_level(display_grid, third);
+		const float display_fifth = note_grid_pitch_level(display_grid, fifth);
+		const float display_sixth = note_grid_pitch_level(display_grid, sixth);
+		if (display_third < 0.55f || display_fifth < 0.55f || display_sixth < 0.18f)
+			continue;
+
+		const float root_probe =
+			strongest_probe_pitch_class_level(powers, root, min_midi, max_midi) / strongest_probe;
+		const float sixth_probe =
+			strongest_probe_pitch_class_level(powers, sixth, min_midi, max_midi) / strongest_probe;
+		const float major_third_probe =
+			strongest_probe_pitch_class_level(powers, root + 4, min_midi, max_midi) /
+			strongest_probe;
+		if (root_probe < 0.15f || sixth_probe < 0.30f ||
+		    major_third_probe >= std::max(0.10f, root_probe * 0.60f))
+			continue;
+
+		char minor_sixth[16] = {};
+		std::snprintf(minor_sixth, sizeof(minor_sixth), "%sm6", note_name(root));
+		append_chord_label_component(state.label, sizeof(state.label), minor_sixth,
+					     std::strlen(minor_sixth));
+		const int half_diminished_root = (root + 9) % 12;
+		char half_diminished[16] = {};
+		std::snprintf(half_diminished, sizeof(half_diminished), "%sm7b5",
+			      note_name(half_diminished_root));
+		append_chord_label_component(state.label, sizeof(state.label), half_diminished,
+					     std::strlen(half_diminished));
+		state.confidence = std::max(state.confidence, 0.58f);
+		return;
+	}
+}
+
 void append_probe_supported_guitar_rootless_dominant_seventh_alias_after_final_prune(
 	InstrumentState &state, const NoteGrid &display_grid, const NoteGrid &analysis_grid,
 	const std::array<float, kNoteProbeCount> &powers, int min_midi, int max_midi)
@@ -34411,6 +34482,9 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 				snapshot.guitar_chord, snapshot.guitar_notes, guitar_chord_detection_grid,
 				note_powers, detection_note_powers, kGuitarMinMidi, kGuitarMaxMidi);
 			append_probe_supported_guitar_rootless_major_seventh_alias_after_final_prune(
+				snapshot.guitar_chord, snapshot.guitar_notes, guitar_chord_detection_grid,
+				note_powers, kGuitarMinMidi, kGuitarMaxMidi);
+			append_probe_supported_guitar_rootless_minor_sixth_alias_after_final_prune(
 				snapshot.guitar_chord, snapshot.guitar_notes, guitar_chord_detection_grid,
 				note_powers, kGuitarMinMidi, kGuitarMaxMidi);
 			append_probe_supported_guitar_rootless_dominant_seventh_alias_after_final_prune(
