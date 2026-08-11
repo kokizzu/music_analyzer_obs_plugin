@@ -21407,9 +21407,25 @@ void append_probe_supported_guitar_rootless_dominant_seventh_alias_after_final_p
 		    !note_grid_pitch_active(analysis_grid, fourth))
 			continue;
 
-		char diminished_third[16] = {};
-		std::snprintf(diminished_third, sizeof(diminished_third), "%sdim", note_name(third));
-		if (!chord_label_has_exact_component(state.label, diminished_third))
+		bool diminished_third_labeled = false;
+		const char *cursor = state.label;
+		while (*cursor) {
+			const char *end = std::strchr(cursor, '=');
+			const std::size_t len =
+				end ? static_cast<std::size_t>(end - cursor) : std::strlen(cursor);
+			ParsedRootChord parsed;
+			if (parse_root_chord_component(cursor, len, parsed) && parsed.root == (third % 12)) {
+				const std::size_t root_len = len > 1 && cursor[1] == '#' ? 2 : 1;
+				if (suffix_is(cursor + root_len, len - root_len, "dim")) {
+					diminished_third_labeled = true;
+					break;
+				}
+			}
+			if (!end)
+				break;
+			cursor = end + 1;
+		}
+		if (!diminished_third_labeled)
 			continue;
 
 		const float major_third_probe =
@@ -21423,6 +21439,72 @@ void append_probe_supported_guitar_rootless_dominant_seventh_alias_after_final_p
 		std::snprintf(candidate, sizeof(candidate), "%s7", note_name(root));
 		append_chord_label_component(state.label, sizeof(state.label), candidate, std::strlen(candidate));
 		state.confidence = std::max(state.confidence, 0.58f);
+		return;
+	}
+}
+
+void append_melodic_probe_supported_guitar_drop_three_dominant_alias_after_final_prune(
+	InstrumentState &state, const NoteGrid &display_grid, const NoteGrid &analysis_grid,
+	const std::array<float, kNoteProbeCount> &powers, int min_midi, int max_midi)
+{
+	// Close-miked drop-3 dominant voicings can keep only their 3-5-b7 core in
+	// both note grids.  A diminished triad on the third names that core, while
+	// the melodic probes retain the omitted root.  Keep this distinct from the
+	// compact dominant recovery above: it permits the measured 3-5 analysis
+	// residue, but requires all four dominant tones to be probe-strong.
+	if (!state.label[0] || state.label[0] == '-' || chord_label_component_count(state.label) < 2 ||
+	    chord_label_component_count(state.label) > 6 ||
+	    note_grid_active_pitch_class_count(display_grid) != 3 ||
+	    note_grid_active_pitch_class_count(analysis_grid) < 3 ||
+	    note_grid_active_pitch_class_count(analysis_grid) > 5)
+		return;
+
+	const float strongest_melodic = strongest_melodic_probe_level(powers, min_midi, max_midi);
+	if (strongest_melodic <= 1.0e-6f)
+		return;
+
+	for (int root = 0; root < 12; ++root) {
+		const int third = root + 4;
+		const int fifth = root + 7;
+		const int flat_seventh = root + 10;
+		if (note_grid_pitch_active(display_grid, root) ||
+		    note_grid_pitch_active(analysis_grid, root) ||
+		    !note_grid_pitch_active(display_grid, third) ||
+		    !note_grid_pitch_active(display_grid, fifth) ||
+		    !note_grid_pitch_active(display_grid, flat_seventh) ||
+		    !note_grid_pitch_active(analysis_grid, third) ||
+		    !note_grid_pitch_active(analysis_grid, fifth) ||
+		    !note_grid_pitch_active(analysis_grid, flat_seventh))
+			continue;
+
+		char diminished_third[16] = {};
+		std::snprintf(diminished_third, sizeof(diminished_third), "%sdim", note_name(third));
+		if (!chord_label_has_exact_component(state.label, diminished_third))
+			continue;
+
+		auto melodic = [&](int pitch_class) {
+			return strongest_melodic_probe_pitch_class_level(powers, pitch_class, min_midi,
+								  max_midi);
+		};
+		const float melodic_root = melodic(root);
+		const float melodic_third = melodic(third);
+		const float melodic_fifth = melodic(fifth);
+		const float melodic_flat_seventh = melodic(flat_seventh);
+		const float melodic_minor_third = melodic(root + 3);
+		if (melodic_root < strongest_melodic * 0.90f ||
+		    melodic_third < strongest_melodic * 0.85f ||
+		    melodic_fifth < strongest_melodic * 0.75f ||
+		    melodic_flat_seventh < strongest_melodic * 0.85f ||
+		    melodic_third < melodic_minor_third * 2.0f)
+			continue;
+
+		char candidate[16] = {};
+		std::snprintf(candidate, sizeof(candidate), "%s7", note_name(root));
+		if (!chord_label_has_exact_component(state.label, candidate)) {
+			append_chord_label_component(state.label, sizeof(state.label), candidate,
+						     std::strlen(candidate));
+			state.confidence = std::max(state.confidence, 0.58f);
+		}
 		return;
 	}
 }
@@ -34307,6 +34389,9 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 				snapshot.guitar_chord, snapshot.guitar_notes, guitar_chord_detection_grid,
 				note_powers, kGuitarMinMidi, kGuitarMaxMidi);
 			append_probe_supported_guitar_rootless_dominant_seventh_alias_after_final_prune(
+				snapshot.guitar_chord, snapshot.guitar_notes, guitar_chord_detection_grid,
+				note_powers, kGuitarMinMidi, kGuitarMaxMidi);
+			append_melodic_probe_supported_guitar_drop_three_dominant_alias_after_final_prune(
 				snapshot.guitar_chord, snapshot.guitar_notes, guitar_chord_detection_grid,
 				note_powers, kGuitarMinMidi, kGuitarMaxMidi);
 			append_equivalent_guitar_major_seventh_minor_sixth_alias_after_final_prune(
