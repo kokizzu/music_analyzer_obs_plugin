@@ -4706,7 +4706,7 @@ test-real-musicnet-20: $(BUILD_DIR)/analyzer_musicnet
 test-real-musicnet-full: $(BUILD_DIR)/analyzer_musicnet
 	MUSIC_ANALYZER_MUSICNET_REQUIRED=1 MUSIC_ANALYZER_MUSICNET_REQUIRED_RECORDINGS=330 MUSIC_ANALYZER_MUSICNET_REQUIRED_WINDOWS=1320 $(BUILD_DIR)/analyzer_musicnet
 
-.PHONY: download-real-urmp inspect-real-urmp-download prepare-real-urmp analyze-real-urmp-traits analyze-real-urmp-miss-traits summarize-real-urmp-miss-traits summarize-real-urmp-wrong-notes test-urmp-download-scripts test-urmp-archive-extract download-real-musicnet inspect-real-musicnet-download prepare-real-musicnet inspect-downloaded-real-musicnet-20-traits analyze-downloaded-real-musicnet-recording analyze-downloaded-real-musicnet-chord-misses test-downloaded-real-musicnet-20 test-downloaded-real-musicnet-full test-musicnet-archive-extract test-run-musicnet-gate test-summarize-musicnet-attributes
+.PHONY: download-real-urmp inspect-real-urmp-download prepare-real-urmp analyze-real-urmp-traits analyze-real-urmp-miss-traits summarize-real-urmp-miss-traits summarize-real-urmp-chord-miss-traits summarize-real-urmp-wrong-notes test-urmp-download-scripts test-urmp-archive-extract download-real-musicnet inspect-real-musicnet-download prepare-real-musicnet inspect-downloaded-real-musicnet-20-traits analyze-downloaded-real-musicnet-recording analyze-downloaded-real-musicnet-chord-misses test-downloaded-real-musicnet-20 test-downloaded-real-musicnet-full test-musicnet-archive-extract test-run-musicnet-gate test-summarize-musicnet-attributes
 download-real-urmp: $(URMP_ARCHIVE)
 
 inspect-real-urmp-download: scripts/urmp_download_status.sh
@@ -4729,6 +4729,9 @@ summarize-real-urmp-traits: scripts/summarize_urmp_misses.py
 
 summarize-real-urmp-miss-traits: scripts/summarize_urmp_misses.py
 	$(PYTHON) scripts/summarize_urmp_misses.py "$(URMP_TRAIT_SAMPLE_OUTPUT)"
+
+summarize-real-urmp-chord-miss-traits: scripts/summarize_urmp_chord_misses.py
+	$(PYTHON) scripts/summarize_urmp_chord_misses.py "$(URMP_TRAIT_SAMPLE_OUTPUT)"
 
 summarize-real-urmp-wrong-notes: scripts/summarize_urmp_wrong_notes.py
 	$(PYTHON) scripts/summarize_urmp_wrong_notes.py "$(URMP_TRAIT_SAMPLE_OUTPUT)"
