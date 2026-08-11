@@ -1195,6 +1195,37 @@ void check_recall(Runner &runner, const mao::AnalysisSnapshot &snapshot, const C
 	}
 }
 
+void print_musicnet_attribute_header(std::ostream &out)
+{
+	out << "recording\tcenter_sample\texpected_pcs\tdetected_pcs\tmissing_pcs\textra_pcs\t"
+	       "expected_chords\tchord_hit\tsimple_chord_hit\tactive_notes\tdetected_by_row\t"
+	       "detected_levels\traw_chroma\tglobal_chord\tkeyboard_chord\tguitar_chord\tother_chord\t"
+	       "candidates\n";
+}
+
+void append_musicnet_attribute_row(std::ostream &out, const Recording &recording,
+					   const CandidateWindow &candidate, const mao::AnalysisSnapshot &snapshot)
+{
+	const std::array<bool, 12> detected = detected_pitch_classes(snapshot);
+	const bool chord_hit = std::any_of(candidate.chord_labels.begin(), candidate.chord_labels.end(),
+					     [&](const std::string &label) { return snapshot_has_chord_label(snapshot, label); });
+	const bool simple_chord_hit =
+		std::any_of(candidate.chord_labels.begin(), candidate.chord_labels.end(), [&](const std::string &label) {
+			return snapshot_has_simplified_chord_label(snapshot, label);
+		});
+	const std::array<float, 12> detected_levels = detected_pitch_class_levels(snapshot);
+	out << recording.id << '\t' << candidate.center_sample << '\t'
+	    << pitch_class_list(candidate.pitch_classes) << '\t' << pitch_class_list(detected) << '\t'
+	    << pitch_class_difference_list(candidate.pitch_classes, detected) << '\t'
+	    << pitch_class_difference_list(detected, candidate.pitch_classes) << '\t'
+	    << join_labels(candidate.chord_labels) << '\t' << (chord_hit ? 1 : 0) << '\t'
+	    << (simple_chord_hit ? 1 : 0) << '\t' << active_note_list(candidate) << '\t'
+	    << detected_pitch_classes_by_row(snapshot) << '\t' << pitch_class_level_list(detected_levels) << '\t'
+	    << pitch_class_level_list(snapshot.global_chord_debug_chroma) << '\t' << snapshot.global_chord.label
+	    << '\t' << snapshot.keyboard_chord.label << '\t' << snapshot.guitar_chord.label << '\t'
+	    << snapshot.other_chord.label << '\t' << full_mix_candidate_list(snapshot) << '\n';
+}
+
 struct CompositionStats {
 	int windows = 0;
 	int active_note_sum = 0;
@@ -1329,6 +1360,16 @@ int main()
 	const bool verbose_chord_misses =
 		env_truthy("MUSIC_ANALYZER_MUSICNET_VERBOSE_CHORD_MISSES") || min_chord_recall_percent > 0;
 	const bool verbose_pitch_misses = env_truthy("MUSIC_ANALYZER_MUSICNET_VERBOSE_PITCH_MISSES");
+	const char *attribute_path_env = std::getenv("MUSIC_ANALYZER_MUSICNET_ATTRIBUTE_TSV");
+	std::ofstream attribute_file;
+	if (attribute_path_env && *attribute_path_env) {
+		attribute_file.open(attribute_path_env);
+		if (!attribute_file) {
+			std::fprintf(stderr, "analyzer_musicnet: failed to open attribute TSV `%s`\n", attribute_path_env);
+			return 1;
+		}
+		print_musicnet_attribute_header(attribute_file);
+	}
 
 	Runner runner;
 	RecallStats recall;
@@ -1378,6 +1419,8 @@ int main()
 			}
 
 			const mao::AnalysisSnapshot snapshot = analyze_confirmed_buffer(buffer, sample_rate);
+			if (attribute_file)
+				append_musicnet_attribute_row(attribute_file, recording, candidate, snapshot);
 			check_recall(runner, snapshot, candidate,
 				     "MusicNet " + std::to_string(recording.id) + " at sample " +
 					     std::to_string(candidate.center_sample),
