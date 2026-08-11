@@ -15,7 +15,8 @@ MISS = re.compile(
 )
 TRAIT = re.compile(
     r"^URMP traits .* #\d+ (?P<instrument>[a-z]+) at .* expected "
-    r"(?P<pitch>[A-G]#?\d+), candidates (?P<candidates>.*), grids "
+    r"(?P<pitch>[A-G]#?\d+), (?:isolated grids .*?, )?candidates "
+    r"(?P<candidates>.*), (?:full-mix )?grids "
 )
 
 
