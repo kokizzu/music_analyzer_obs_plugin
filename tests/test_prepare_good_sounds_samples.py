@@ -184,12 +184,27 @@ def test_limit_balances_available_members_not_missing_catalogue_rows():
             raise AssertionError(f"expected first available source, got {rows}")
 
 
+def test_audio_member_uses_basename_index_without_archive_rescan():
+    names = ["nested/a.flac", "sound_files/session/b.flac", "other/b.flac"]
+    exact = {name: name for name in names}
+    folded = {name.lower(): name for name in names}
+    by_basename = {}
+    for name in names:
+        by_basename.setdefault(name.rsplit("/", 1)[-1].lower(), []).append(name)
+    member = prepare_good_sounds_samples.find_audio_member(
+        exact, folded, by_basename, "b.flac", "session",
+    )
+    if member != "sound_files/session/b.flac":
+        raise AssertionError(f"expected indexed packed member, got {member}")
+
+
 def main():
     test_official_schema_manifest_mapping()
     test_generic_schema_fallback()
     test_minimum_failure_writes_partial_manifest()
     test_limit_balances_available_members_not_missing_catalogue_rows()
-    print("test_prepare_good_sounds_samples: 4 checks passed")
+    test_audio_member_uses_basename_index_without_archive_rescan()
+    print("test_prepare_good_sounds_samples: 5 checks passed")
     return 0
 
 

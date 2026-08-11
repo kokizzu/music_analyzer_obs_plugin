@@ -188,7 +188,10 @@ def normalized_names(archive):
     names = [name for name in archive.namelist() if not name.endswith("/")]
     exact = {name: name for name in names}
     folded = {name.lower(): name for name in names}
-    return names, exact, folded
+    by_basename = {}
+    for name in names:
+        by_basename.setdefault(name.rsplit("/", 1)[-1].lower(), []).append(name)
+    return exact, folded, by_basename
 
 
 def candidate_audio_names(filename, pack):
@@ -215,7 +218,7 @@ def candidate_audio_names(filename, pack):
     return result
 
 
-def find_audio_member(archive_names, exact, folded, filename, pack):
+def find_audio_member(exact, folded, by_basename, filename, pack):
     for candidate in candidate_audio_names(filename, pack):
         if candidate in exact:
             return exact[candidate]
@@ -228,7 +231,7 @@ def find_audio_member(archive_names, exact, folded, filename, pack):
         return None
     if not Path(basename).suffix:
         basename += ".flac"
-    matches = [name for name in archive_names if Path(name).name.lower() == basename]
+    matches = by_basename.get(basename, [])
     if len(matches) == 1:
         return matches[0]
     pack_text = str(pack or "").strip().replace("\\", "/").strip("/").lower()
@@ -416,7 +419,7 @@ def main(argv=None):
         conn.row_factory = sqlite3.Row
         samples, skipped_rows = prepare_rows(conn)
         conn.close()
-        archive_names, exact_names, folded_names = normalized_names(archive)
+        exact_names, folded_names, names_by_basename = normalized_names(archive)
 
         # The catalogue can contain historical takes whose packed audio is no
         # longer present.  Filter those rows before balancing by source; doing
@@ -424,7 +427,7 @@ def main(argv=None):
         # into a much smaller, biased subset.
         available_samples = []
         for sample in samples:
-            member = find_audio_member(archive_names, exact_names, folded_names,
+            member = find_audio_member(exact_names, folded_names, names_by_basename,
                                        sample["filename"], sample["pack"])
             if member is None:
                 skipped_missing_audio += 1

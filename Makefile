@@ -807,6 +807,7 @@ PHILHARMONIA_FULL_PROGRESS_EVERY ?= 250
 GOOD_SOUNDS_URL ?= https://zenodo.org/api/records/820937/files/good-sounds.zip/content
 GOOD_SOUNDS_SOURCE_DIR ?= $(REAL_SAMPLE_SOURCE_DIR)/good_sounds
 GOOD_SOUNDS_ARCHIVE ?= $(GOOD_SOUNDS_SOURCE_DIR)/good-sounds.zip
+GOOD_SOUNDS_ARCHIVE_VALIDATION_STAMP ?= $(GOOD_SOUNDS_ARCHIVE).validated
 GOOD_SOUNDS_SAMPLE_DIR ?= $(BUILD_DIR)/good_sounds_samples
 GOOD_SOUNDS_ATTRIBUTE_TSV ?= $(BUILD_DIR)/good_sounds_attributes.tsv
 GOOD_SOUNDS_DETECTED_ATTRIBUTE_ROWS ?= $(BUILD_DIR)/good_sounds_detected_attribute_rows.tsv
@@ -3177,15 +3178,17 @@ analyze-philharmonia-full-attributes: $(PHILHARMONIA_FULL_DETECTED_ATTRIBUTE_ROW
 	@printf '%s\n' "  $(PHILHARMONIA_FULL_DETECTED_ATTRIBUTE_ROWS)"
 	@printf '%s\n' "  $(PHILHARMONIA_FULL_MISS_ATTRIBUTE_ROWS)"
 
-download-good-sounds-samples: $(GOOD_SOUNDS_ARCHIVE)
+download-good-sounds-samples: $(GOOD_SOUNDS_ARCHIVE_VALIDATION_STAMP)
 
-$(GOOD_SOUNDS_ARCHIVE): FORCE | $(BUILD_DIR)
+$(GOOD_SOUNDS_ARCHIVE): | $(BUILD_DIR)
 	mkdir -p "$(GOOD_SOUNDS_SOURCE_DIR)"
-	if [ -s "$(GOOD_SOUNDS_ARCHIVE)" ] && ! $(PYTHON) -m zipfile -t "$(GOOD_SOUNDS_ARCHIVE)" >/dev/null 2>&1; then mv -f "$(GOOD_SOUNDS_ARCHIVE)" "$(GOOD_SOUNDS_ARCHIVE).part"; fi
 	if [ ! -s "$(GOOD_SOUNDS_ARCHIVE)" ] && [ -s "$(GOOD_SOUNDS_ARCHIVE).part" ] && $(PYTHON) -m zipfile -t "$(GOOD_SOUNDS_ARCHIVE).part" >/dev/null 2>&1; then mv "$(GOOD_SOUNDS_ARCHIVE).part" "$(GOOD_SOUNDS_ARCHIVE)"; fi
 	if [ ! -s "$(GOOD_SOUNDS_ARCHIVE)" ]; then if command -v "$(ARIA2C)" >/dev/null 2>&1; then "$(ARIA2C)" -c -x "$(GOOD_SOUNDS_DOWNLOAD_CONNECTIONS)" -s "$(GOOD_SOUNDS_DOWNLOAD_CONNECTIONS)" -k 1M --file-allocation=none --allow-overwrite=true --auto-file-renaming=false --dir "$(GOOD_SOUNDS_SOURCE_DIR)" --out "good-sounds.zip.part" "$(GOOD_SOUNDS_URL)"; else curl -fL -C - -o "$(GOOD_SOUNDS_ARCHIVE).part" "$(GOOD_SOUNDS_URL)"; fi; fi
 	if [ -s "$(GOOD_SOUNDS_ARCHIVE).part" ]; then $(PYTHON) -m zipfile -t "$(GOOD_SOUNDS_ARCHIVE).part" >/dev/null; mv "$(GOOD_SOUNDS_ARCHIVE).part" "$(GOOD_SOUNDS_ARCHIVE)"; fi
+
+$(GOOD_SOUNDS_ARCHIVE_VALIDATION_STAMP): $(GOOD_SOUNDS_ARCHIVE)
 	$(PYTHON) -m zipfile -t "$(GOOD_SOUNDS_ARCHIVE)" >/dev/null
+	touch "$@"
 
 prepare-good-sounds-samples: scripts/prepare_good_sounds_samples.py download-good-sounds-samples | $(BUILD_DIR)
 	GOOD_SOUNDS_ARCHIVE="$(GOOD_SOUNDS_ARCHIVE)" GOOD_SOUNDS_SAMPLE_DIR="$(GOOD_SOUNDS_SAMPLE_DIR)" GOOD_SOUNDS_SAMPLE_LIMIT="$(GOOD_SOUNDS_SAMPLE_LIMIT)" GOOD_SOUNDS_MIN_SAMPLES="$(GOOD_SOUNDS_MIN_SAMPLES)" FFMPEG="$(FFMPEG)" $(PYTHON) scripts/prepare_good_sounds_samples.py --archive "$(GOOD_SOUNDS_ARCHIVE)" --output "$(GOOD_SOUNDS_SAMPLE_DIR)" --limit "$(GOOD_SOUNDS_SAMPLE_LIMIT)" --min-samples "$(GOOD_SOUNDS_MIN_SAMPLES)" --ffmpeg "$(FFMPEG)"
