@@ -361,10 +361,15 @@ without additional annotation.
   Zenodo, extract balanced solo-vocal note clips from the corrected `extended 4`
   annotations, and run them through the shared isolated-vocal real-note gate.
   The default importer keeps sung techniques from `VOCALSET_ALLOWED_TECHNIQUES`,
-  requires `VOCALSET_MIN_VOCALS=800`, balances up to
-  `VOCALSET_SAMPLE_LIMIT=1200` clips, and accepts only near-chromatic segments
-  within `VOCALSET_MAX_CENTS=25`. This expands real vocal pitch coverage beyond
-  Vocadito while still remaining a single-instrument dataset.
+  requires `VOCALSET_MIN_VOCALS=2000`, balances up to
+  `VOCALSET_SAMPLE_LIMIT=2400` clips, and accepts only near-chromatic segments
+  within `VOCALSET_MAX_CENTS=25`. The downloader validates both the published
+  byte count and MD5 before promoting its temporary archive, and uses one
+  connection because the Zenodo content endpoint does not advertise range
+  support. An invalid `.part` archive is not detection coverage; refresh the
+  report only after a valid archive has been prepared and measured. This expands
+  real vocal pitch coverage beyond Vocadito while still remaining a
+  single-instrument dataset.
 - Use `make test-idmt-bass-lines-samples` to download the 20.5 MB
   IDMT-SMT-Bass-Single-Track ZIP from Zenodo, extract stable annotated
   expression-style `NO` electric-bass note clips from the 17 real bass lines,

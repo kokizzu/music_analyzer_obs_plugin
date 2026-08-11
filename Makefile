@@ -934,6 +934,8 @@ VOCADITO_FULL_MIX_MIN_VISUAL_ROW_PERCENT ?= 4
 VOCADITO_FULL_MIX_MIN_VOCALS_VISUAL_ROW_PERCENT ?= 4
 VOCADITO_FULL_MIX_MAX_DRUM_ACTIVE_PERCENT ?= 25
 VOCALSET_URL ?= https://zenodo.org/api/records/10200775/files/VocalSet.zip/content
+VOCALSET_ARCHIVE_BYTES ?= 2488206010
+VOCALSET_ARCHIVE_MD5 ?= 8d39344bbc775aa040840783ae73cfa4
 VOCALSET_SOURCE_DIR ?= $(REAL_SAMPLE_SOURCE_DIR)/vocalset
 VOCALSET_ARCHIVE ?= $(VOCALSET_SOURCE_DIR)/VocalSet.zip
 VOCALSET_SAMPLE_DIR ?= $(BUILD_DIR)/vocalset_samples
@@ -948,7 +950,9 @@ VOCALSET_MIN_VOCALS_HIT_PERCENT ?= 98
 VOCALSET_MAX_CENTS ?= 25
 VOCALSET_MIN_NOTE_DURATION ?= 0.22
 VOCALSET_ALLOWED_TECHNIQUES ?= belt,breathy,fast_forte,fast_piano,forte,lip_trill,messa,slow_forte,slow_piano,straight,trill,trillo,vibrato
-VOCALSET_DOWNLOAD_CONNECTIONS ?= 8
+# The Zenodo content endpoint does not advertise byte-range support.  Parallel
+# aria2 segments therefore produce a same-sized but corrupt archive.
+VOCALSET_DOWNLOAD_CONNECTIONS ?= 1
 VOCALSET_FULL_MIX_MIN_ANY_HIT_PERCENT ?= 99
 VOCALSET_FULL_MIX_MIN_EXPECTED_ROW_PERCENT ?= 52
 VOCALSET_FULL_MIX_MIN_VOCALS_EXPECTED_ROW_PERCENT ?= 50
@@ -3508,10 +3512,11 @@ vocalset-download-samples-unlocked: $(VOCALSET_ARCHIVE)
 
 $(VOCALSET_ARCHIVE): FORCE | $(BUILD_DIR)
 	mkdir -p "$(VOCALSET_SOURCE_DIR)"
-	if [ -s "$(VOCALSET_ARCHIVE)" ] && ! $(PYTHON) -m zipfile -t "$(VOCALSET_ARCHIVE)" >/dev/null 2>&1; then mv -f "$(VOCALSET_ARCHIVE)" "$(VOCALSET_ARCHIVE).part"; fi
+	if [ -s "$(VOCALSET_ARCHIVE)" ] && { ! $(PYTHON) -m zipfile -t "$(VOCALSET_ARCHIVE)" >/dev/null 2>&1 || ! printf '%s  %s\n' "$(VOCALSET_ARCHIVE_MD5)" "$(VOCALSET_ARCHIVE)" | md5sum -c - >/dev/null 2>&1; }; then mv -f "$(VOCALSET_ARCHIVE)" "$(VOCALSET_ARCHIVE).part"; fi
+	if [ -s "$(VOCALSET_ARCHIVE).part" ] && [ "$$(wc -c < "$(VOCALSET_ARCHIVE).part")" = "$(VOCALSET_ARCHIVE_BYTES)" ] && ! printf '%s  %s\n' "$(VOCALSET_ARCHIVE_MD5)" "$(VOCALSET_ARCHIVE).part" | md5sum -c - >/dev/null 2>&1; then rm -f "$(VOCALSET_ARCHIVE).part"; fi
 	if [ ! -s "$(VOCALSET_ARCHIVE)" ] && [ -s "$(VOCALSET_ARCHIVE).part" ] && $(PYTHON) -m zipfile -t "$(VOCALSET_ARCHIVE).part" >/dev/null 2>&1; then mv "$(VOCALSET_ARCHIVE).part" "$(VOCALSET_ARCHIVE)"; fi
 	if [ ! -s "$(VOCALSET_ARCHIVE)" ]; then if command -v aria2c >/dev/null 2>&1; then aria2c --continue=true --allow-overwrite=true --auto-file-renaming=false --max-tries=5 --retry-wait=5 --max-connection-per-server="$(VOCALSET_DOWNLOAD_CONNECTIONS)" --split="$(VOCALSET_DOWNLOAD_CONNECTIONS)" --min-split-size=1M --dir "$(VOCALSET_SOURCE_DIR)" --out "VocalSet.zip.part" "$(VOCALSET_URL)"; else curl -fL -C - -o "$(VOCALSET_ARCHIVE).part" "$(VOCALSET_URL)"; fi; fi
-	if [ -s "$(VOCALSET_ARCHIVE).part" ]; then $(PYTHON) -m zipfile -t "$(VOCALSET_ARCHIVE).part" >/dev/null; mv "$(VOCALSET_ARCHIVE).part" "$(VOCALSET_ARCHIVE)"; fi
+	if [ -s "$(VOCALSET_ARCHIVE).part" ]; then $(PYTHON) -m zipfile -t "$(VOCALSET_ARCHIVE).part" >/dev/null && printf '%s  %s\n' "$(VOCALSET_ARCHIVE_MD5)" "$(VOCALSET_ARCHIVE).part" | md5sum -c - >/dev/null && mv "$(VOCALSET_ARCHIVE).part" "$(VOCALSET_ARCHIVE)"; fi
 	$(PYTHON) -m zipfile -t "$(VOCALSET_ARCHIVE)" >/dev/null
 
 prepare-vocalset-samples: scripts/prepare_vocalset_samples.py download-vocalset-samples | $(BUILD_DIR)
