@@ -1036,6 +1036,28 @@ bool grid_has_any_active_pitch_class(const mao::NoteGrid &grid)
 	return false;
 }
 
+std::string pitch_class_list(const std::array<bool, 12> &pitch_classes)
+{
+	std::string result;
+	for (int pitch_class = 0; pitch_class < 12; ++pitch_class) {
+		if (!pitch_classes[pitch_class])
+			continue;
+		if (!result.empty())
+			result += ',';
+		result += mao_test::note_name(pitch_class);
+	}
+	return result.empty() ? "--" : result;
+}
+
+std::string pitch_class_difference_list(const std::array<bool, 12> &left,
+						 const std::array<bool, 12> &right)
+{
+	std::array<bool, 12> difference = {};
+	for (int pitch_class = 0; pitch_class < 12; ++pitch_class)
+		difference[pitch_class] = left[pitch_class] && !right[pitch_class];
+	return pitch_class_list(difference);
+}
+
 struct KeyboardPrecisionStats {
 	int windows = 0;
 	int expected_pitch_classes = 0;
@@ -1161,6 +1183,26 @@ void add_keyboard_chord_precision_metrics(ChordPrecisionStats &stats, const mao:
 		++stats.false_positives;
 	if (expected)
 		++stats.false_negatives;
+}
+
+void print_maestro_attribute_header(std::ostream &out)
+{
+	out << "recording\tcenter_sample\texpected_pcs\tdetected_keyboard_pcs\tmissing_pcs\textra_pcs\t"
+	       "expected_chords\tchord_hit\tglobal_chord\tkeyboard_chord\n";
+}
+
+void append_maestro_attribute_row(std::ostream &out, const Recording &recording,
+					  const CandidateWindow &candidate, const mao::AnalysisSnapshot &snapshot)
+{
+	const std::array<bool, 12> keyboard = grid_pitch_classes(snapshot.keyboard_notes);
+	const bool chord_hit = std::any_of(candidate.chord_labels.begin(), candidate.chord_labels.end(),
+					     [&](const std::string &label) { return snapshot_has_chord_label(snapshot, label); });
+	out << recording.id << '\t' << candidate.center_sample << '\t'
+	    << pitch_class_list(candidate.pitch_classes) << '\t' << pitch_class_list(keyboard) << '\t'
+	    << pitch_class_difference_list(candidate.pitch_classes, keyboard) << '\t'
+	    << pitch_class_difference_list(keyboard, candidate.pitch_classes) << '\t'
+	    << join_labels(candidate.chord_labels) << '\t' << (chord_hit ? 1 : 0) << '\t'
+	    << snapshot.global_chord.label << '\t' << snapshot.keyboard_chord.label << '\n';
 }
 
 int percentage_floor(int numerator, int denominator)
@@ -1369,6 +1411,16 @@ int main()
 		return 1;
 	}
 	const bool inspect_only = env_truthy("MUSIC_ANALYZER_MAESTRO_INSPECT_ONLY");
+	const char *attribute_path_env = std::getenv("MUSIC_ANALYZER_MAESTRO_ATTRIBUTE_TSV");
+	std::ofstream attribute_file;
+	if (attribute_path_env && *attribute_path_env) {
+		attribute_file.open(attribute_path_env);
+		if (!attribute_file) {
+			std::fprintf(stderr, "analyzer_maestro: failed to open attribute TSV `%s`\n", attribute_path_env);
+			return 1;
+		}
+		print_maestro_attribute_header(attribute_file);
+	}
 
 	Runner runner;
 	RecallStats recall;
@@ -1415,6 +1467,8 @@ int main()
 			}
 
 			const mao::AnalysisSnapshot snapshot = analyze_confirmed_buffer(buffer, sample_rate);
+			if (attribute_file)
+				append_maestro_attribute_row(attribute_file, recording, candidate, snapshot);
 			check_recall(runner, snapshot, candidate,
 				     "MAESTRO " + recording.id + " at sample " +
 					     std::to_string(candidate.center_sample),
