@@ -209,6 +209,9 @@ VOCADITO_PATTERN_EXTRA_PROTECTED_PATHS ?= $(BUILD_DIR)/real_note_full_mix_attrib
 VOCADITO_PATTERN_EXTRA_PROTECTED_ARGS = $(foreach path,$(VOCADITO_PATTERN_EXTRA_PROTECTED_PATHS),--extra-protected-path "$(path)")
 VOCALSET_PATTERN_EXTRA_PROTECTED_PATHS ?= $(BUILD_DIR)/real_note_full_mix_attributes.tsv $(VOCADITO_FULL_MIX_ATTRIBUTE_TSV)
 VOCALSET_PATTERN_EXTRA_PROTECTED_ARGS = $(foreach path,$(VOCALSET_PATTERN_EXTRA_PROTECTED_PATHS),--extra-protected-path "$(path)")
+GOOD_SOUNDS_FULL_MIX_PATTERN_EXTRA_PROTECTED_PATHS ?= $(BUILD_DIR)/real_note_full_mix_attributes.tsv $(VOCADITO_FULL_MIX_ATTRIBUTE_TSV) $(VOCALSET_FULL_MIX_ATTRIBUTE_TSV)
+GOOD_SOUNDS_FULL_MIX_PATTERN_EXTRA_PROTECTED_ARGS = $(foreach path,$(GOOD_SOUNDS_FULL_MIX_PATTERN_EXTRA_PROTECTED_PATHS),--extra-protected-path "$(path)")
+GOOD_SOUNDS_FULL_MIX_OWNERSHIP_PATTERN_ARGS ?= --top-buckets 16 --limit 12 --min-positive-samples 2 --max-negative-samples 0 --max-conditions 3 --beam-width 240 --show-examples 3 --show-near-misses 4 --protected-scope all --include-row-context --profile-fields 5
 REAL_NOTE_RULE_CONDITIONS ?=
 REAL_NOTE_RULE_GROUP_BY ?=
 REAL_NOTE_RULE_CONDITION_ARGS = $(foreach condition,$(REAL_NOTE_RULE_CONDITIONS),--condition "$(condition)")
@@ -2687,6 +2690,11 @@ find-vocadito-full-mix-ownership-patterns: $(VOCADITO_FULL_MIX_ATTRIBUTE_TSV) $(
 
 find-vocadito-full-mix-broad-vocal-ownership-patterns: $(VOCADITO_FULL_MIX_ATTRIBUTE_TSV) $(VOCADITO_PATTERN_EXTRA_PROTECTED_PATHS) scripts/find_real_note_attribute_patterns.py
 	$(PYTHON) scripts/find_real_note_attribute_patterns.py "$(VOCADITO_FULL_MIX_ATTRIBUTE_TSV)" $(VOCADITO_PATTERN_EXTRA_PROTECTED_ARGS) --bucket "ownership_miss:vocals/*->*" --jobs "$(REAL_NOTE_PATTERN_JOBS)" $(or $(PATTERN_ARGS),$(MEASURE_REAL_NOTE_BROAD_VOCAL_PATTERN_ARGS))
+
+.PHONY: find-good-sounds-full-mix-ownership-patterns
+find-good-sounds-full-mix-ownership-patterns: scripts/find_real_note_attribute_patterns.py
+	@test -f "$(GOOD_SOUNDS_FULL_MIX_ATTRIBUTE_TSV)" || { printf '%s\n' "missing $(GOOD_SOUNDS_FULL_MIX_ATTRIBUTE_TSV); run make analyze-good-sounds-full-mix-attributes first"; exit 2; }
+	$(PYTHON) scripts/find_real_note_attribute_patterns.py "$(GOOD_SOUNDS_FULL_MIX_ATTRIBUTE_TSV)" $(GOOD_SOUNDS_FULL_MIX_PATTERN_EXTRA_PROTECTED_ARGS) --bucket-status ownership_miss $(REAL_NOTE_RUNTIME_ROW_CONFUSION_EXCLUDES) --jobs "$(REAL_NOTE_PATTERN_JOBS)" $(or $(PATTERN_ARGS),$(GOOD_SOUNDS_FULL_MIX_OWNERSHIP_PATTERN_ARGS))
 
 prepare-guitar-fretboard-note-samples: scripts/prepare_guitar_fretboard_notes.py | $(BUILD_DIR)
 	GUITAR_FRETBOARD_NOTES_SAMPLE_DIR="$(GUITAR_FRETBOARD_NOTES_SAMPLE_DIR)" GUITAR_FRETBOARD_NOTES_LIMIT="$(GUITAR_FRETBOARD_NOTES_LIMIT)" GUITAR_FRETBOARD_NOTES_OFFLINE="$(GUITAR_FRETBOARD_NOTES_OFFLINE)" $(PYTHON) scripts/prepare_guitar_fretboard_notes.py --output "$(GUITAR_FRETBOARD_NOTES_SAMPLE_DIR)"
