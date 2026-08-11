@@ -14,6 +14,8 @@ MUSICNET_ARCHIVE ?= $(MUSICNET_SOURCE_DIR)/musicnet.tar.gz
 MUSICNET_METADATA ?= $(MUSICNET_SOURCE_DIR)/musicnet_metadata.csv
 MUSICNET_MIDI_ARCHIVE ?= $(MUSICNET_SOURCE_DIR)/musicnet_midis.tar.gz
 MUSICNET_EXTRACT_DIR ?= $(MUSICNET_SOURCE_DIR)/extracted
+MUSICNET_20_MEASUREMENT_OUTPUT ?= $(MUSICNET_SOURCE_DIR)/musicnet_20_measurement.out
+MUSICNET_FULL_MEASUREMENT_OUTPUT ?= $(MUSICNET_SOURCE_DIR)/musicnet_full_measurement.out
 MUSICNET_DOWNLOAD_CONNECTIONS ?= 8
 MUSICNET_ARCHIVE_URL ?= https://zenodo.org/api/records/5120004/files/musicnet.tar.gz/content
 MUSICNET_METADATA_URL ?= https://zenodo.org/api/records/5120004/files/musicnet_metadata.csv/content
@@ -24,6 +26,7 @@ DETECTION_ACCURACY_CHORD_ARGS = $(foreach path,$(wildcard $(DETECTION_ACCURACY_C
 DETECTION_ACCURACY_VOCAL_FULL_MIX_TSV ?= $(BUILD_DIR)/vocadito_full_mix_attributes.tsv
 DETECTION_ACCURACY_VOCAL_FULL_MIX_ARG = $(if $(wildcard $(DETECTION_ACCURACY_VOCAL_FULL_MIX_TSV)),--vocal-full-mix-input "$(DETECTION_ACCURACY_VOCAL_FULL_MIX_TSV)")
 DETECTION_ACCURACY_BACH10_GATE_ARGS = $(foreach path,$(wildcard $(BACH10_MF0_SYNTH_SHARD_OUTS)),--bach10-gate-output "$(path)")
+DETECTION_ACCURACY_MUSICNET_GATE_ARG = $(if $(wildcard $(MUSICNET_FULL_MEASUREMENT_OUTPUT)),--musicnet-gate-output "$(MUSICNET_FULL_MEASUREMENT_OUTPUT)",$(if $(wildcard $(MUSICNET_20_MEASUREMENT_OUTPUT)),--musicnet-gate-output "$(MUSICNET_20_MEASUREMENT_OUTPUT)"))
 ANDROID_SDK_ROOT ?= $(CURDIR)/$(BUILD_DIR)/android-sdk
 ANDROID_GRADLE_VERSION ?= 8.10.2
 ANDROID_EMULATOR_API ?= 35
@@ -2514,7 +2517,7 @@ analyze-real-note-attributes: $(BUILD_DIR)/real_note_full_mix_attributes.tsv scr
 	@printf '%s\n' "attribute TSV: $(BUILD_DIR)/real_note_full_mix_attributes.tsv"
 
 update-detection-accuracy-report: $(BUILD_DIR)/real_note_full_mix_attributes.tsv scripts/write_detection_accuracy_report.py
-	$(PYTHON) scripts/write_detection_accuracy_report.py --input "$(BUILD_DIR)/real_note_full_mix_attributes.tsv" $(DETECTION_ACCURACY_CHORD_ARGS) $(DETECTION_ACCURACY_VOCAL_FULL_MIX_ARG) $(DETECTION_ACCURACY_BACH10_GATE_ARGS) --output "$(DETECTION_ACCURACY_REPORT)"
+	$(PYTHON) scripts/write_detection_accuracy_report.py --input "$(BUILD_DIR)/real_note_full_mix_attributes.tsv" $(DETECTION_ACCURACY_CHORD_ARGS) $(DETECTION_ACCURACY_VOCAL_FULL_MIX_ARG) $(DETECTION_ACCURACY_BACH10_GATE_ARGS) $(DETECTION_ACCURACY_MUSICNET_GATE_ARG) --output "$(DETECTION_ACCURACY_REPORT)"
 
 test-detection-accuracy-report: tests/test_write_detection_accuracy_report.py scripts/write_detection_accuracy_report.py
 	$(PYTHON) tests/test_write_detection_accuracy_report.py
@@ -4516,7 +4519,7 @@ test-real-musicnet-20: $(BUILD_DIR)/analyzer_musicnet
 test-real-musicnet-full: $(BUILD_DIR)/analyzer_musicnet
 	MUSIC_ANALYZER_MUSICNET_REQUIRED=1 MUSIC_ANALYZER_MUSICNET_REQUIRED_RECORDINGS=330 MUSIC_ANALYZER_MUSICNET_REQUIRED_WINDOWS=1320 $(BUILD_DIR)/analyzer_musicnet
 
-.PHONY: download-real-musicnet inspect-real-musicnet-download prepare-real-musicnet inspect-downloaded-real-musicnet test-downloaded-real-musicnet-20 test-downloaded-real-musicnet-full test-musicnet-archive-extract
+.PHONY: download-real-musicnet inspect-real-musicnet-download prepare-real-musicnet inspect-downloaded-real-musicnet test-downloaded-real-musicnet-20 test-downloaded-real-musicnet-full test-musicnet-archive-extract test-run-musicnet-gate
 download-real-musicnet: $(MUSICNET_ARCHIVE) $(MUSICNET_METADATA) $(MUSICNET_MIDI_ARCHIVE)
 
 inspect-real-musicnet-download: scripts/musicnet_download_status.sh
@@ -4539,14 +4542,17 @@ prepare-real-musicnet: $(MUSICNET_ARCHIVE) scripts/extract_musicnet_archive.sh |
 test-musicnet-archive-extract: scripts/extract_musicnet_archive.sh tests/test_extract_musicnet_archive.py
 	$(PYTHON) tests/test_extract_musicnet_archive.py scripts/extract_musicnet_archive.sh
 
+test-run-musicnet-gate: scripts/run_musicnet_gate.sh tests/test_run_musicnet_gate.py
+	$(PYTHON) tests/test_run_musicnet_gate.py scripts/run_musicnet_gate.sh
+
 inspect-downloaded-real-musicnet: $(BUILD_DIR)/analyzer_musicnet prepare-real-musicnet
 	MUSIC_ANALYZER_MUSICNET_ROOT="$(MUSICNET_EXTRACT_DIR)" MUSIC_ANALYZER_MUSICNET_REQUIRED=1 MUSIC_ANALYZER_MUSICNET_INSPECT_ONLY=1 $(BUILD_DIR)/analyzer_musicnet
 
-test-downloaded-real-musicnet-20: $(BUILD_DIR)/analyzer_musicnet prepare-real-musicnet
-	MUSIC_ANALYZER_MUSICNET_ROOT="$(MUSICNET_EXTRACT_DIR)" MUSIC_ANALYZER_MUSICNET_REQUIRED=1 $(BUILD_DIR)/analyzer_musicnet
+test-downloaded-real-musicnet-20: $(BUILD_DIR)/analyzer_musicnet prepare-real-musicnet scripts/run_musicnet_gate.sh
+	$(SHELL) scripts/run_musicnet_gate.sh "$(BUILD_DIR)/analyzer_musicnet" "$(MUSICNET_EXTRACT_DIR)" "$(MUSICNET_20_MEASUREMENT_OUTPUT)"
 
-test-downloaded-real-musicnet-full: $(BUILD_DIR)/analyzer_musicnet prepare-real-musicnet
-	MUSIC_ANALYZER_MUSICNET_ROOT="$(MUSICNET_EXTRACT_DIR)" MUSIC_ANALYZER_MUSICNET_REQUIRED=1 MUSIC_ANALYZER_MUSICNET_REQUIRED_RECORDINGS=330 MUSIC_ANALYZER_MUSICNET_REQUIRED_WINDOWS=1320 $(BUILD_DIR)/analyzer_musicnet
+test-downloaded-real-musicnet-full: $(BUILD_DIR)/analyzer_musicnet prepare-real-musicnet scripts/run_musicnet_gate.sh
+	$(SHELL) scripts/run_musicnet_gate.sh "$(BUILD_DIR)/analyzer_musicnet" "$(MUSICNET_EXTRACT_DIR)" "$(MUSICNET_FULL_MEASUREMENT_OUTPUT)" 330 1320
 
 test-real-medleydb-20: $(BUILD_DIR)/analyzer_musicnet tests/prepare_medleydb_musicnet_fixture.py tests/inspect_medleydb_dataset.py | $(BUILD_DIR)
 	rm -rf $(MEDLEYDB_MUSICNET_FIXTURE_DIR)

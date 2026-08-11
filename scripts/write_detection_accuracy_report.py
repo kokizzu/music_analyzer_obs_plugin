@@ -116,6 +116,13 @@ BACH10_GATE_RE = re.compile(
     r"(?P<simple_hits>\d+)/(?P<simple_total>\d+)"
 )
 
+MUSICNET_GATE_RE = re.compile(
+    r"recordings (?P<recordings_done>\d+)/(?P<recordings_total>\d+), windows \d+, note hits "
+    r"(?P<note_hits>\d+)/(?P<note_total>\d+), chord hits "
+    r"(?P<chord_hits>\d+)/(?P<chord_total>\d+).*?simple chord hits "
+    r"(?P<simple_hits>\d+)/(?P<simple_total>\d+)"
+)
+
 
 def bach10_gate_rows(paths: list[Path]) -> list[tuple[str, int, int]]:
     totals = {name: [0, 0] for name in ("note", "chord", "simple")}
@@ -133,11 +140,24 @@ def bach10_gate_rows(paths: list[Path]) -> list[tuple[str, int, int]]:
     ]
 
 
+def musicnet_gate_rows(path: Path) -> list[tuple[str, int, int]]:
+    match = MUSICNET_GATE_RE.search(path.read_text(encoding="utf-8", errors="replace"))
+    if match is None:
+        raise ValueError(f"{path}: missing MusicNet gate summary")
+    return [
+        ("MusicNet real mixes — recordings evaluated", int(match["recordings_done"]), int(match["recordings_total"])),
+        ("MusicNet real mixes — expected pitch classes", int(match["note_hits"]), int(match["note_total"])),
+        ("MusicNet real mixes — exact chord windows", int(match["chord_hits"]), int(match["chord_total"])),
+        ("MusicNet real mixes — simplified chord windows", int(match["simple_hits"]), int(match["simple_total"])),
+    ]
+
+
 def render(
     input_path: Path,
     chord_inputs: list[Path] | None = None,
     vocal_full_mix_input: Path | None = None,
     bach10_gate_outputs: list[Path] | None = None,
+    musicnet_gate_output: Path | None = None,
 ) -> str:
     samples = load_samples(input_path)
     lines = [
@@ -208,6 +228,20 @@ def render(
         )
         for label, accurate, total in bach10_gate_rows(bach10_gate_outputs):
             lines.append(f"| {label} | {fraction(accurate, total)} | {total - accurate} |")
+    if musicnet_gate_output is not None:
+        lines.extend(
+            [
+                "",
+                "## MusicNet real-mixture gate",
+                "",
+                "This open CC-BY corpus measures real classical mixtures; unlike Bach10, it has no isolated stems.",
+                "",
+                "| Metric | Accurate / total | Remaining |",
+                "| --- | ---: | ---: |",
+            ]
+        )
+        for label, accurate, total in musicnet_gate_rows(musicnet_gate_output):
+            lines.append(f"| {label} | {fraction(accurate, total)} | {total - accurate} |")
     lines.extend(
         [
             "",
@@ -225,11 +259,13 @@ def main() -> int:
     parser.add_argument("--chord-input", action="append", type=Path, default=[])
     parser.add_argument("--vocal-full-mix-input", type=Path)
     parser.add_argument("--bach10-gate-output", action="append", type=Path, default=[])
+    parser.add_argument("--musicnet-gate-output", type=Path)
     parser.add_argument("--output", required=True, type=Path)
     args = parser.parse_args()
     try:
         rendered = render(
-            args.input, args.chord_input, args.vocal_full_mix_input, args.bach10_gate_output
+            args.input, args.chord_input, args.vocal_full_mix_input, args.bach10_gate_output,
+            args.musicnet_gate_output
         )
     except (OSError, ValueError) as error:
         parser.error(str(error))

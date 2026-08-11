@@ -69,7 +69,13 @@ class DetectionAccuracyReportTest(unittest.TestCase):
                 "29/32, chord hits 5/8, simple chord hits 7/8 87.50%)\n",
                 encoding="utf-8",
             )
-            report = REPORT.render(source, [chords], vocal_full_mix, [bach10_0, bach10_1])
+            musicnet = Path(temporary) / "musicnet.out"
+            musicnet.write_text(
+                "analyzer_musicnet: 20 checks passed (recordings 20/330, windows 80, note hits "
+                "210/300, chord hits 40/80, simple chord hits 52/80 65.00%)\n",
+                encoding="utf-8",
+            )
+            report = REPORT.render(source, [chords], vocal_full_mix, [bach10_0, bach10_1], musicnet)
 
         self.assertIn("| Any detected note | 2 / 3 (66.7%) | 1 |", report)
         self.assertIn("| Expected instrument row | 2 / 3 (66.7%) | 1 |", report)
@@ -86,6 +92,9 @@ class DetectionAccuracyReportTest(unittest.TestCase):
         self.assertIn("| Bach10-mf0-synth — expected note slots | 74 / 80 (92.5%) | 6 |", report)
         self.assertIn("| Bach10-mf0-synth — exact chord windows | 14 / 20 (70.0%) | 6 |", report)
         self.assertIn("| Bach10-mf0-synth — simplified chord windows | 16 / 20 (80.0%) | 4 |", report)
+        self.assertIn("## MusicNet real-mixture gate", report)
+        self.assertIn("| MusicNet real mixes — recordings evaluated | 20 / 330 (6.1%) | 310 |", report)
+        self.assertIn("| MusicNet real mixes — expected pitch classes | 210 / 300 (70.0%) | 90 |", report)
 
 
 if __name__ == "__main__":
