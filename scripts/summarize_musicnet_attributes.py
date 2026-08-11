@@ -51,6 +51,11 @@ def main() -> None:
     exact_pitch = sum(not tones(row["missing_pcs"]) and not tones(row["extra_pcs"]) for row in rows)
     exact_chords = sum(values[1] for values in chords.values())
     simple_chords = sum(values[2] for values in chords.values())
+    exact_pitch_chord_misses = Counter(
+        ((row["expected_chords"] or "--"), (row["global_chord"] or "--"))
+        for row in rows
+        if not tones(row["missing_pcs"]) and not tones(row["extra_pcs"]) and row["chord_hit"] != "1"
+    )
     print(f"MusicNet traits: windows {len(rows)}, exact pitch sets {exact_pitch}/{len(rows)}, "
           f"exact chords {exact_chords}/{len(rows)}, simplified chords {simple_chords}/{len(rows)}")
     print("missing pitch classes: " + " ".join(f"{tone}={count}" for tone, count in missing_tones.most_common()))
@@ -62,6 +67,9 @@ def main() -> None:
     for label, values in sorted(chords.items(), key=lambda item: (item[1][1], -item[1][0], item[0]))[:12]:
         total, hits, simple_hits = values
         print(f"  {label}: exact={hits}/{total} simple={simple_hits}/{total}")
+    print("exact-pitch chord-label misses:")
+    for (expected, detected), count in exact_pitch_chord_misses.most_common(16):
+        print(f"  {expected} -> {detected}: {count}")
 
 
 if __name__ == "__main__":
