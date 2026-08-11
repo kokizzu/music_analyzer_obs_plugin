@@ -90,10 +90,10 @@ This open CC-BY corpus measures real classical mixtures; unlike Bach10, it has n
 
 | Metric | Accurate / total | Remaining |
 | --- | ---: | ---: |
-| MusicNet real mixes — recordings evaluated | 20 / 330 (6.1%) | 310 |
-| MusicNet real mixes — expected pitch classes | 243 / 335 (72.5%) | 92 |
-| MusicNet real mixes — exact chord windows | 29 / 80 (36.2%) | 51 |
-| MusicNet real mixes — simplified chord windows | 40 / 80 (50.0%) | 40 |
+| MusicNet real mixes — recordings evaluated | 154 / 330 (46.7%) | 176 |
+| MusicNet real mixes — expected pitch classes | 5690 / 7478 (76.1%) | 1788 |
+| MusicNet real mixes — exact chord windows | 561 / 1847 (30.4%) | 1286 |
+| MusicNet real mixes — simplified chord windows | 835 / 1847 (45.2%) | 1012 |
 
 ## Full drum primary-classification gate
 

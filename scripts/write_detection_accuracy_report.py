@@ -124,6 +124,31 @@ MUSICNET_GATE_RE = re.compile(
     r"(?P<simple_hits>\d+)/(?P<simple_total>\d+)"
 )
 
+URMP_COVERAGE_RE = re.compile(
+    r"analyzer_urmp: coverage: discovered (?P<discovered>\d+) piece dirs, loadable "
+    r"(?P<loadable>\d+).*?selected (?P<windows>\d+) candidate windows"
+)
+URMP_PRECISION_RE = re.compile(
+    r"URMP separated-track precision: expected >=\d+%, got (?P<exact_hits>\d+)/"
+    r"(?P<detected_total>\d+)"
+)
+URMP_EXACT_RE = re.compile(
+    r"URMP separated-track exact recall: expected >=\d+%, got (?P<exact_hits>\d+)/"
+    r"(?P<note_total>\d+)"
+)
+URMP_SUMMARY_RE = re.compile(
+    r"analyzer_urmp: \d+/\d+ checks (?:passed|failed) \(\d+ pieces, \d+ windows, "
+    r"(?P<detected_hits>\d+) track hits/(?P<note_total>\d+)"
+)
+URMP_CHORD_RE = re.compile(
+    r"analyzer_urmp: chord metrics: provided global chord precision [\d.]+%, recall [\d.]+%, "
+    r"F1 [\d.]+%, tp/fp/fn (?P<provided_hits>\d+)/\d+/(?P<provided_total_miss>\d+); "
+    r".*?provided stream global chord precision [\d.]+%, recall [\d.]+%, F1 [\d.]+%, "
+    r"tp/fp/fn (?P<stream_hits>\d+)/\d+/(?P<stream_total_miss>\d+); "
+    r".*?provided sequence global chord precision [\d.]+%, recall [\d.]+%, F1 [\d.]+%, "
+    r"tp/fp/fn (?P<sequence_hits>\d+)/\d+/(?P<sequence_total_miss>\d+)"
+)
+
 DRUM_PRIMARY_MATRIX_RE = re.compile(
     r"analyzer_drum_samples: primary matrix\n(?P<rows>(?:\s+expected "
     r"(?:kick|snare|hihat|crash|tom|ride|rim)\s+[^\n]+\n)+)"
@@ -160,6 +185,31 @@ def musicnet_gate_rows(path: Path) -> list[tuple[str, int, int]]:
     ]
 
 
+def urmp_gate_rows(path: Path) -> list[tuple[str, int, int]]:
+    text = path.read_text(encoding="utf-8", errors="replace")
+    coverage = URMP_COVERAGE_RE.search(text)
+    precision = URMP_PRECISION_RE.search(text)
+    exact = URMP_EXACT_RE.search(text)
+    summary = URMP_SUMMARY_RE.search(text)
+    chords = URMP_CHORD_RE.search(text)
+    if None in {coverage, precision, exact, summary, chords}:
+        raise ValueError(f"{path}: missing URMP measurement summary")
+    assert coverage is not None and precision is not None and exact is not None and summary is not None and chords is not None
+    note_total = int(exact["note_total"])
+    if note_total != int(summary["note_total"]):
+        raise ValueError(f"{path}: inconsistent URMP note totals")
+    return [
+        ("URMP — real pieces loadable", int(coverage["loadable"]), int(coverage["discovered"])),
+        ("URMP — selected annotated windows", int(coverage["windows"]), int(coverage["windows"])),
+        ("URMP — isolated-track exact notes", int(exact["exact_hits"]), note_total),
+        ("URMP — isolated-track detected notes", int(summary["detected_hits"]), note_total),
+        ("URMP — isolated-track precision", int(precision["exact_hits"]), int(precision["detected_total"])),
+        ("URMP — provided-mix exact chords", int(chords["provided_hits"]), int(chords["provided_hits"]) + int(chords["provided_total_miss"])),
+        ("URMP — provided stream chord windows", int(chords["stream_hits"]), int(chords["stream_hits"]) + int(chords["stream_total_miss"])),
+        ("URMP — provided sequence chord windows", int(chords["sequence_hits"]), int(chords["sequence_hits"]) + int(chords["sequence_total_miss"])),
+    ]
+
+
 def drum_primary_gate_rows(path: Path) -> list[tuple[str, int, int]]:
     match = DRUM_PRIMARY_MATRIX_RE.search(path.read_text(encoding="utf-8", errors="replace"))
     if match is None:
@@ -189,6 +239,7 @@ def render(
     bach10_gate_outputs: list[Path] | None = None,
     musicnet_gate_output: Path | None = None,
     drum_gate_output: Path | None = None,
+    urmp_gate_output: Path | None = None,
 ) -> str:
     samples = load_samples(input_path)
     lines = [
@@ -244,6 +295,22 @@ def render(
         for chord_input in cached_chord_inputs:
             for label, accurate, total in chord_gate_rows(chord_input):
                 lines.append(f"| {label} | {fraction(accurate, total)} | {total - accurate} |")
+    if urmp_gate_output is not None:
+        lines.extend(
+            [
+                "",
+                "## URMP real multitrack gate",
+                "",
+                "This downloaded real chamber-music corpus measures the same performances as "
+                "provided mixes and as sums of their isolated tracks, with official note and MIDI annotations.",
+                "",
+                "| Metric | Accurate / total | Remaining |",
+                "| --- | ---: | ---: |",
+            ]
+        )
+        for label, accurate, total in urmp_gate_rows(urmp_gate_output):
+            remaining = f"{total - accurate} false notes" if label.endswith("precision") else str(total - accurate)
+            lines.append(f"| {label} | {fraction(accurate, total)} | {remaining} |")
     if bach10_gate_outputs:
         lines.extend(
             [
@@ -310,12 +377,13 @@ def main() -> int:
     parser.add_argument("--bach10-gate-output", action="append", type=Path, default=[])
     parser.add_argument("--musicnet-gate-output", type=Path)
     parser.add_argument("--drum-gate-output", type=Path)
+    parser.add_argument("--urmp-gate-output", type=Path)
     parser.add_argument("--output", required=True, type=Path)
     args = parser.parse_args()
     try:
         rendered = render(
             args.input, args.chord_input, args.vocal_full_mix_input, args.bach10_gate_output,
-            args.musicnet_gate_output, args.drum_gate_output
+            args.musicnet_gate_output, args.drum_gate_output, args.urmp_gate_output
         )
     except (OSError, ValueError) as error:
         parser.error(str(error))

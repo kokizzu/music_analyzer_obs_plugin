@@ -87,7 +87,16 @@ class DetectionAccuracyReportTest(unittest.TestCase):
                 "  expected rim   kick=0 snare=2 hihat=1 crash=0 tom=1 ride=0 rim=5 ambiguous=1 none=0\n",
                 encoding="utf-8",
             )
-            report = REPORT.render(source, [chords], vocal_full_mix, [bach10_0, bach10_1], musicnet, drum)
+            urmp = Path(temporary) / "urmp.out"
+            urmp.write_text(
+                "URMP separated-track precision: expected >=90%, got 90/100 (isolated precision 90.00%, recall 75.00%)\n"
+                "URMP separated-track exact recall: expected >=70%, got 90/120\n"
+                "analyzer_urmp: 0/300 checks passed (4 pieces, 48 windows, 100 track hits/120, 90 provided chord hits/100, 0 summed chord hits/100)\n"
+                "analyzer_urmp: coverage: discovered 4 piece dirs, loadable 4, unusable 0, no-candidate 0, selected 48 candidate windows\n"
+                "analyzer_urmp: chord metrics: provided global chord precision 90.00%, recall 75.00%, F1 81.82%, tp/fp/fn 30/3/10; summed global chord precision 90.00%, recall 75.00%, F1 81.82%, tp/fp/fn 30/3/10; provided stream global chord precision 90.00%, recall 80.00%, F1 84.21%, tp/fp/fn 32/3/8; summed stream global chord precision 90.00%, recall 80.00%, F1 84.21%, tp/fp/fn 32/3/8; provided sequence global chord precision 90.00%, recall 70.00%, F1 78.26%, tp/fp/fn 28/3/12\n",
+                encoding="utf-8",
+            )
+            report = REPORT.render(source, [chords], vocal_full_mix, [bach10_0, bach10_1], musicnet, drum, urmp)
 
         self.assertIn("| Any detected note | 2 / 3 (66.7%) | 1 |", report)
         self.assertIn("| Expected instrument row | 2 / 3 (66.7%) | 1 |", report)
@@ -107,6 +116,10 @@ class DetectionAccuracyReportTest(unittest.TestCase):
         self.assertIn("## MusicNet real-mixture gate", report)
         self.assertIn("| MusicNet real mixes — recordings evaluated | 20 / 330 (6.1%) | 310 |", report)
         self.assertIn("| MusicNet real mixes — expected pitch classes | 210 / 300 (70.0%) | 90 |", report)
+        self.assertIn("## URMP real multitrack gate", report)
+        self.assertIn("| URMP — isolated-track exact notes | 90 / 120 (75.0%) | 30 |", report)
+        self.assertIn("| URMP — isolated-track precision | 90 / 100 (90.0%) | 10 false notes |", report)
+        self.assertIn("| URMP — provided sequence chord windows | 28 / 40 (70.0%) | 12 |", report)
         self.assertIn("## Full drum primary-classification gate", report)
         self.assertIn("| Full drum gate — primary kick | 8 / 10 (80.0%) | 2 |", report)
         self.assertIn("| Full drum gate — primary hihat | 6 / 10 (60.0%) | 4 |", report)
