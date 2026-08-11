@@ -59,6 +59,21 @@ These rows count expected labeled chord-analysis windows (not full-mix samples).
 | Guitarset — exact chord windows | 1140 / 1491 (76.5%) | 351 |
 | Guitarset — expected guitar pitch classes | 4357 / 5340 (81.6%) | 983 |
 
+## URMP real multitrack gate
+
+This downloaded real chamber-music corpus measures the same performances as provided mixes and as sums of their isolated tracks, with official note and MIDI annotations.
+
+| Metric | Accurate / total | Remaining |
+| --- | ---: | ---: |
+| URMP — real pieces loadable | 44 / 44 (100.0%) | 0 |
+| URMP — selected annotated windows | 528 / 528 (100.0%) | 0 |
+| URMP — isolated-track exact notes | 846 / 1788 (47.3%) | 942 |
+| URMP — isolated-track detected notes | 922 / 1788 (51.6%) | 866 |
+| URMP — isolated-track precision | 846 / 1011 (83.7%) | 165 false notes |
+| URMP — provided-mix exact chords | 186 / 527 (35.3%) | 341 |
+| URMP — provided stream chord windows | 218 / 527 (41.4%) | 309 |
+| URMP — provided sequence chord windows | 205 / 527 (38.9%) | 322 |
+
 ## Bach10-mf0-synth multitrack stress gate
 
 This F0-derived, resynthesized four-part corpus is reported separately from real-recording metrics. It measures expected active note slots and global chord windows.
