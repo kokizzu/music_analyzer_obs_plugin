@@ -79,6 +79,26 @@ def main():
         reused = prep.prepare(args)
         assert reused == 1
 
+        linked_target = Path(tmp) / "external-star-output"
+        linked_target.mkdir()
+        (linked_target / "stale.txt").write_text("obsolete", encoding="utf-8")
+        linked_out = Path(tmp) / "linked-out"
+        linked_out.symlink_to(linked_target, target_is_directory=True)
+        linked_args = type("Args", (), {
+            "archive": str(archive),
+            "output": str(linked_out),
+            "audio_flavor": "mix",
+            "limit": 0,
+            "min_recordings": 1,
+            "ffmpeg": "ffmpeg",
+            "refresh": True,
+        })()
+        linked_count = prep.prepare(linked_args)
+        assert linked_count == 1
+        assert linked_out.is_symlink()
+        assert not (linked_target / "stale.txt").exists()
+        assert (linked_target / "e-gmd-v1.0.0.csv").is_file()
+
     print("test_prepare_star_drums_samples: ok")
 
 

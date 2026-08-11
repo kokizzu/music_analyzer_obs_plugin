@@ -211,6 +211,24 @@ def cached_manifest_ok(output, signature, min_recordings):
     return True
 
 
+def reset_output(output):
+    """Clear generated fixture contents while preserving a build-store symlink."""
+    if output.is_symlink():
+        target = output.resolve(strict=True)
+        if not target.is_dir():
+            raise SystemExit(
+                f"prepare_star_drums_samples: output symlink target is not a directory: {target}"
+            )
+        for child in target.iterdir():
+            if child.is_dir() and not child.is_symlink():
+                shutil.rmtree(child)
+            else:
+                child.unlink()
+        return
+    if output.exists():
+        shutil.rmtree(output)
+
+
 def prepare(args):
     archive = Path(args.archive)
     if not archive.is_file():
@@ -224,8 +242,7 @@ def prepare(args):
         print(f"prepare_star_drums_samples: reused {output / 'e-gmd-v1.0.0.csv'} ({len(rows)} recordings)")
         return len(rows)
 
-    if output.exists():
-        shutil.rmtree(output)
+    reset_output(output)
     (output / "audio").mkdir(parents=True, exist_ok=True)
     (output / "midi").mkdir(parents=True, exist_ok=True)
 

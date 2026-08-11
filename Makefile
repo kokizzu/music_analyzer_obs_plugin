@@ -2033,9 +2033,10 @@ analyze-mdb-drum-attributes: analyze-mdb-drums-misses scripts/summarize_egmd_dru
 
 download-star-drums-samples: $(STAR_DRUMS_ARCHIVE)
 
-$(STAR_DRUMS_ARCHIVE): | $(BUILD_DIR)
+$(STAR_DRUMS_ARCHIVE): FORCE | $(BUILD_DIR)
 	mkdir -p "$(STAR_DRUMS_SOURCE_DIR)"
-	curl -fL -C - -o "$(STAR_DRUMS_ARCHIVE)" "$(STAR_DRUMS_URL)"
+	@if [ -s "$(STAR_DRUMS_ARCHIVE)" ] && ! $(PYTHON) -m zipfile -t "$(STAR_DRUMS_ARCHIVE)" >/dev/null 2>&1; then mv -f "$(STAR_DRUMS_ARCHIVE)" "$(STAR_DRUMS_ARCHIVE).corrupt"; fi
+	@if [ ! -s "$(STAR_DRUMS_ARCHIVE)" ]; then curl -fL -C - -o "$(STAR_DRUMS_ARCHIVE)" "$(STAR_DRUMS_URL)"; fi
 	$(PYTHON) -m zipfile -t "$(STAR_DRUMS_ARCHIVE)" >/dev/null
 
 prepare-star-drums-samples: scripts/prepare_star_drums_samples.py download-star-drums-samples | $(BUILD_DIR)

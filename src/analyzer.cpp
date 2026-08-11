@@ -11761,6 +11761,7 @@ void suppress_named_owned_same_pitch_vocal_shadows(NoteGrid &vocal_grid, Instrum
 	static constexpr float kMinOwnerLevel = 0.20f;
 	static constexpr float kMaxVocalToOwnerLevelRatio = 0.72f;
 	static constexpr float kMeasuredOtherMaxVocalToOwnerLevelRatio = 0.48f;
+	static constexpr float kMeasuredKeyboardMaxVocalToOwnerLevelRatio = 0.48f;
 	static constexpr float kWeakKeyboardOwnedMaxVocalScore = 0.10f;
 	static constexpr float kWeakKeyboardOwnedMaxVocalLevel = 0.45f;
 	static constexpr float kWeakKeyboardOwnedMinOwnerScore = 0.18f;
@@ -11798,6 +11799,19 @@ void suppress_named_owned_same_pitch_vocal_shadows(NoteGrid &vocal_grid, Instrum
 		const bool owner_score_supported =
 			owner_score >= kMinOwnerScore &&
 			debug->vocal_score <= owner_score * kMaxVocalToOwnerScoreRatio;
+		// The full-mix corpus has a compact, zero-protected-collision group where
+		// a piano owns a same-pitch weak vocal display.  This stricter level ratio
+		// is safe to remove even when the generic vocal-preservation guards apply.
+		const bool measured_keyboard_clear_shadow =
+			owner_row == InstrumentKind::Keyboard &&
+			debug->owner == InstrumentKind::Keyboard &&
+			owner_score_supported &&
+			vocal_level <= owner_level * kMeasuredKeyboardMaxVocalToOwnerLevelRatio;
+		if (measured_keyboard_clear_shadow) {
+			clear_note_grid_midi(vocal_grid, midi);
+			changed = true;
+			continue;
+		}
 		const bool measured_other_owned_vocal_shadow =
 			owner_row == InstrumentKind::Other &&
 			debug->owner == InstrumentKind::Other &&
