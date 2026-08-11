@@ -22,6 +22,11 @@ MUSICNET_DOWNLOAD_CONNECTIONS ?= 8
 MUSICNET_ARCHIVE_URL ?= https://zenodo.org/api/records/5120004/files/musicnet.tar.gz/content
 MUSICNET_METADATA_URL ?= https://zenodo.org/api/records/5120004/files/musicnet_metadata.csv/content
 MUSICNET_MIDI_ARCHIVE_URL ?= https://zenodo.org/api/records/5120004/files/musicnet_midis.tar.gz/content
+URMP_SOURCE_DIR ?= $(INSTRUMENT_SAMPLE_STORE_LINK)/urmp
+URMP_ARCHIVE ?= $(URMP_SOURCE_DIR)/urmp-kaggle.zip
+URMP_EXTRACT_DIR ?= $(URMP_SOURCE_DIR)/extracted
+URMP_DOWNLOAD_CONNECTIONS ?= 8
+URMP_ARCHIVE_URL ?= https://www.kaggle.com/api/v1/datasets/download/alonhaviv/multi-modal-music-performance-urmp
 DETECTION_ACCURACY_REPORT ?= docs/detection_accuracy_report.md
 DETECTION_ACCURACY_CHORD_TSVS ?= $(BUILD_DIR)/guitar_chord_mix_attributes.tsv $(GUITAR_TECHS_CHORD_ATTRIBUTE_TSV) $(GAPS_GUITAR_FULL_ATTRIBUTE_TSV) $(GUITARSET_ATTRIBUTE_TSV)
 DETECTION_ACCURACY_CHORD_ARGS = $(foreach path,$(wildcard $(DETECTION_ACCURACY_CHORD_TSVS)),--chord-input "$(path)")
@@ -4525,7 +4530,24 @@ test-real-musicnet-20: $(BUILD_DIR)/analyzer_musicnet
 test-real-musicnet-full: $(BUILD_DIR)/analyzer_musicnet
 	MUSIC_ANALYZER_MUSICNET_REQUIRED=1 MUSIC_ANALYZER_MUSICNET_REQUIRED_RECORDINGS=330 MUSIC_ANALYZER_MUSICNET_REQUIRED_WINDOWS=1320 $(BUILD_DIR)/analyzer_musicnet
 
-.PHONY: download-real-musicnet inspect-real-musicnet-download prepare-real-musicnet inspect-downloaded-real-musicnet analyze-downloaded-real-musicnet-20-traits test-downloaded-real-musicnet-20 test-downloaded-real-musicnet-full test-musicnet-archive-extract test-run-musicnet-gate test-summarize-musicnet-attributes
+.PHONY: download-real-urmp inspect-real-urmp-download prepare-real-urmp test-urmp-download-scripts test-urmp-archive-extract download-real-musicnet inspect-real-musicnet-download prepare-real-musicnet inspect-downloaded-real-musicnet analyze-downloaded-real-musicnet-20-traits test-downloaded-real-musicnet-20 test-downloaded-real-musicnet-full test-musicnet-archive-extract test-run-musicnet-gate test-summarize-musicnet-attributes
+download-real-urmp: $(URMP_ARCHIVE)
+
+inspect-real-urmp-download: scripts/urmp_download_status.sh
+	$(SHELL) scripts/urmp_download_status.sh "$(URMP_ARCHIVE)"
+
+test-urmp-download-scripts: scripts/download_urmp_archive.sh scripts/urmp_download_status.sh tests/test_urmp_download_scripts.py
+	$(PYTHON) -m pytest -q tests/test_urmp_download_scripts.py
+
+prepare-real-urmp: $(URMP_ARCHIVE) scripts/extract_urmp_archive.sh | $(BUILD_DIR)
+	$(SHELL) scripts/extract_urmp_archive.sh "$(URMP_ARCHIVE)" "$(URMP_EXTRACT_DIR)"
+
+test-urmp-archive-extract: scripts/extract_urmp_archive.sh tests/test_extract_urmp_archive.py
+	$(PYTHON) tests/test_extract_urmp_archive.py scripts/extract_urmp_archive.sh
+
+$(URMP_ARCHIVE): FORCE scripts/download_urmp_archive.sh | $(BUILD_DIR)
+	$(SHELL) scripts/download_urmp_archive.sh "$@" "$(URMP_ARCHIVE_URL)" "$(URMP_DOWNLOAD_CONNECTIONS)" "$(ARIA2C)"
+
 download-real-musicnet: $(MUSICNET_ARCHIVE) $(MUSICNET_METADATA) $(MUSICNET_MIDI_ARCHIVE)
 
 inspect-real-musicnet-download: scripts/musicnet_download_status.sh
