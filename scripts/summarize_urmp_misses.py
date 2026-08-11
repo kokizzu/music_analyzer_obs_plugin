@@ -18,6 +18,10 @@ TRAIT = re.compile(
     r"(?P<pitch>[A-G]#?\d+), (?:isolated grids (?P<isolated>.*?), )?candidates "
     r"(?P<candidates>.*), (?:full-mix )?grids "
 )
+CONFIRMED_TRAIT = re.compile(
+    r"^URMP confirmed isolated .* #\d+ (?P<instrument>[a-z]+) at .* expected "
+    r"(?P<pitch>[A-G]#?\d+), exact (?P<exact>[01]), grids "
+)
 
 
 def main() -> int:
@@ -36,6 +40,8 @@ def main() -> int:
     trait_recoverable: Counter[tuple[str, str]] = Counter()
     trait_isolated_blank = 0
     trait_isolated_nonempty = 0
+    confirmed_trait_total = 0
+    confirmed_trait_exact = 0
     for line in source.read_text(encoding="utf-8", errors="replace").splitlines():
         matched = MISS.match(line)
         if matched:
@@ -55,6 +61,11 @@ def main() -> int:
             if re.search(rf"(?:^|\s){re.escape(trait['pitch'])}/", trait["candidates"]):
                 trait_expected_candidate += 1
                 trait_recoverable[(trait["instrument"], trait["pitch"])] += 1
+            continue
+        confirmed = CONFIRMED_TRAIT.match(line)
+        if confirmed:
+            confirmed_trait_total += 1
+            confirmed_trait_exact += int(confirmed["exact"])
 
     print(f"URMP isolated-note misses: {sum(misses.values())}")
     print("count\tinstrument\tpitch")
@@ -74,6 +85,12 @@ def main() -> int:
                 f"empty {trait_isolated_blank}/{trait_total}, "
                 f"nonempty {trait_isolated_nonempty}/{trait_total}"
             )
+    if confirmed_trait_total:
+        percent = confirmed_trait_exact * 100.0 / confirmed_trait_total
+        print(
+            "URMP sampled first-frame misses recovered after three confirmation frames: "
+            f"{confirmed_trait_exact}/{confirmed_trait_total} ({percent:.1f}%)"
+        )
         print("recoverable_count\tinstrument\tpitch")
         for (instrument, pitch), count in sorted(
             trait_recoverable.items(), key=lambda item: (-item[1], item[0])

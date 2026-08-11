@@ -2030,6 +2030,31 @@ int main()
 							     track_snapshot.other.label);
 					if (verbose_track_traits_enabled() && emitted_track_traits < 48) {
 						++emitted_track_traits;
+						bool confirmed_ok = false;
+						std::string confirmed_error;
+						const mao::AnalysisSnapshot confirmed_snapshot =
+							analyze_wav_confirmed_window(track.audio_path, candidate.time,
+										     source + " confirmed traits", confirmed_ok,
+										     confirmed_error, input_mode);
+						if (confirmed_ok) {
+							const EvalInstrument expected_instrument =
+								expected_instrument_for_urmp(track.instrument);
+							const bool confirmed_exact =
+								grid_has_midi(grid_for_eval_instrument(confirmed_snapshot, expected_instrument),
+									      active.midi);
+							std::fprintf(stderr,
+								     "URMP confirmed isolated %s #%d %s at %.3fs: expected %s, exact %d, grids %s\n",
+								     basename_of(piece_dir).c_str(), track.number,
+								     track.instrument.c_str(), candidate.time,
+								     mao_test::note_label(active.midi).c_str(), confirmed_exact ? 1 : 0,
+								     snapshot_grid_pitch_class_list(confirmed_snapshot).c_str());
+						} else {
+							std::fprintf(stderr,
+								     "URMP confirmed isolated %s #%d %s at %.3fs: unavailable: %s\n",
+								     basename_of(piece_dir).c_str(), track.number,
+								     track.instrument.c_str(), candidate.time,
+								     confirmed_error.c_str());
+						}
 						bool traits_ok = false;
 						std::string traits_error;
 						const mao::AnalysisSnapshot traits_snapshot = analyze_wav_window(
