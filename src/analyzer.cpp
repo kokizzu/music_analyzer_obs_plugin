@@ -21573,6 +21573,85 @@ void append_probe_supported_guitar_rootless_minor_sixth_alias_after_final_prune(
 	}
 }
 
+void append_measured_quiet_rootless_guitar_minor_sixth_alias_after_final_prune(
+	InstrumentState &state, const NoteGrid &display_grid, const NoteGrid &analysis_grid,
+	const std::array<float, kNoteProbeCount> &powers, int min_midi, int max_midi)
+{
+	// A separate close-miked GuitarTECH body keeps the 3-5-6 core below the
+	// broad rootless-m6 display floors, but its melodic root is decisive.  The
+	// narrow level envelope prevents treating an arbitrary quiet minor alias as
+	// a sixth extension.
+	const int label_components = chord_label_component_count(state.label);
+	if (!state.label[0] || state.label[0] == '-' || label_components < 2 ||
+	    label_components > 6 || note_grid_active_pitch_class_count(display_grid) != 3 ||
+	    note_grid_active_pitch_class_count(analysis_grid) < 3 ||
+	    note_grid_active_pitch_class_count(analysis_grid) > 4)
+		return;
+
+	const float strongest_probe = strongest_probe_level(powers, min_midi, max_midi);
+	const float strongest_melodic = strongest_melodic_probe_level(powers, min_midi, max_midi);
+	if (strongest_probe <= 1.0e-6f || strongest_melodic <= 1.0e-6f)
+		return;
+
+	char original[sizeof(state.label)] = {};
+	copy_text(original, sizeof(original), state.label);
+	for (int root = 0; root < 12; ++root) {
+		char minor_label[16] = {};
+		std::snprintf(minor_label, sizeof(minor_label), "%sm", note_name(root));
+		if (!chord_label_has_exact_component(original, minor_label))
+			continue;
+
+		const int third = root + 3;
+		const int fifth = root + 7;
+		const int sixth = root + 9;
+		if (note_grid_pitch_active(display_grid, root) ||
+		    note_grid_pitch_active(analysis_grid, root) ||
+		    !note_grid_pitch_active(display_grid, third) ||
+		    !note_grid_pitch_active(display_grid, fifth) ||
+		    !note_grid_pitch_active(display_grid, sixth) ||
+		    !note_grid_pitch_active(analysis_grid, third) ||
+		    !note_grid_pitch_active(analysis_grid, fifth) ||
+		    !note_grid_pitch_active(analysis_grid, sixth))
+			continue;
+
+		const float display_third = note_grid_pitch_level(display_grid, third);
+		const float display_fifth = note_grid_pitch_level(display_grid, fifth);
+		const float display_sixth = note_grid_pitch_level(display_grid, sixth);
+		if (display_third < 0.20f || display_third > 0.32f ||
+		    display_fifth < 0.55f || display_fifth > 0.75f ||
+		    display_sixth < 0.10f || display_sixth > 0.20f)
+			continue;
+
+		const float root_probe =
+			strongest_probe_pitch_class_level(powers, root, min_midi, max_midi) / strongest_probe;
+		const float sixth_probe =
+			strongest_probe_pitch_class_level(powers, sixth, min_midi, max_midi) / strongest_probe;
+		const float major_third_probe =
+			strongest_probe_pitch_class_level(powers, root + 4, min_midi, max_midi) /
+			strongest_probe;
+		const float melodic_root =
+			strongest_melodic_probe_pitch_class_level(powers, root, min_midi, max_midi) /
+			strongest_melodic;
+		if (root_probe < 0.10f || root_probe > 0.18f || sixth_probe < 0.18f ||
+		    sixth_probe > 0.31f || melodic_root < 0.65f ||
+		    major_third_probe >= std::max(0.10f, root_probe * 0.60f))
+			continue;
+
+		char minor_sixth[16] = {};
+		std::snprintf(minor_sixth, sizeof(minor_sixth), "%sm6", note_name(root));
+		append_chord_label_component(state.label, sizeof(state.label), minor_sixth,
+					     std::strlen(minor_sixth));
+		const int half_diminished_root = (root + 9) % 12;
+		char half_diminished[16] = {};
+		std::snprintf(half_diminished, sizeof(half_diminished), "%sm7b5",
+			      note_name(half_diminished_root));
+		append_chord_label_component(state.label, sizeof(state.label), half_diminished,
+					     std::strlen(half_diminished));
+		state.confidence = std::max(state.confidence, 0.58f);
+		return;
+	}
+}
+
 void append_probe_supported_guitar_rootless_dominant_seventh_alias_after_final_prune(
 	InstrumentState &state, const NoteGrid &display_grid, const NoteGrid &analysis_grid,
 	const std::array<float, kNoteProbeCount> &powers, int min_midi, int max_midi)
@@ -34690,6 +34769,9 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 				snapshot.guitar_chord, snapshot.guitar_notes, guitar_chord_detection_grid,
 				note_powers, kGuitarMinMidi, kGuitarMaxMidi);
 			append_probe_supported_guitar_rootless_minor_sixth_alias_after_final_prune(
+				snapshot.guitar_chord, snapshot.guitar_notes, guitar_chord_detection_grid,
+				note_powers, kGuitarMinMidi, kGuitarMaxMidi);
+			append_measured_quiet_rootless_guitar_minor_sixth_alias_after_final_prune(
 				snapshot.guitar_chord, snapshot.guitar_notes, guitar_chord_detection_grid,
 				note_powers, kGuitarMinMidi, kGuitarMaxMidi);
 			append_probe_supported_guitar_rootless_dominant_seventh_alias_after_final_prune(
