@@ -127,6 +127,18 @@ class DetectionAccuracyReportTest(unittest.TestCase):
                 "tp/fp/fn 2/2/2, active notes min/avg/max 2/3.00/4, pitch classes min/avg/max 2/3.00/4)\n",
                 encoding="utf-8",
             )
+            maps_attributes = Path(temporary) / "maps_attributes.tsv"
+            maps_attributes.write_text(
+                "\n".join(
+                    (
+                        "expected_chords\tchord_hit\tmissing_pcs\tkeyboard_chord",
+                        "C\t0\t\t--",
+                        "Dm\t0\tF\tD",
+                        "E\t1\t\tE",
+                    )
+                ) + "\n",
+                encoding="utf-8",
+            )
             drum = Path(temporary) / "drum_full_gate.out"
             drum.write_text(
                 "analyzer_drum_samples: primary matrix\n"
@@ -168,6 +180,7 @@ class DetectionAccuracyReportTest(unittest.TestCase):
             report = REPORT.render(
                 source, [chords], vocal_full_mix, [bach10_0, bach10_1], musicnet, drum, urmp,
                 vocalset_full_mix, [maps], None, route_summary, good_sounds_full_mix, hf_drum_outputs,
+                maps_attributes,
             )
 
         self.assertIn("| Any detected note | 2 / 3 (66.7%) | 1 |", report)
@@ -186,6 +199,9 @@ class DetectionAccuracyReportTest(unittest.TestCase):
         self.assertIn("## Vocadito full-mix vocal routing", report)
         self.assertIn("## MAPS real-piano gate", report)
         self.assertIn("| MAPS real piano — keyboard chord precision | 2 / 4 (50.0%) | 2 false predictions |", report)
+        self.assertIn("## MAPS chord-miss evidence", report)
+        self.assertIn("| Expected pitch classes are all present | 1 / 2 (50.0%) | 1 |", report)
+        self.assertIn("| No keyboard chord label | 1 / 2 (50.0%) | 1 |", report)
         self.assertIn("| Vocadito vocals — Expected instrument row | 2 / 3 (66.7%) | 1 |", report)
         self.assertIn("| Vocadito vocals — Visual primary row | 2 / 3 (66.7%) | 1 |", report)
         self.assertIn("## VocalSet full-mix vocal routing", report)

@@ -308,6 +308,26 @@ def maps_note_gate_rows(paths: list[Path]) -> list[tuple[str, int, int]]:
     ]
 
 
+def maps_chord_miss_rows(path: Path) -> list[tuple[str, int, int]]:
+    with path.open(encoding="utf-8", newline="") as source:
+        rows = list(csv.DictReader(source, delimiter="\t"))
+    required = {"expected_chords", "chord_hit", "missing_pcs", "keyboard_chord"}
+    if not rows or not required.issubset(rows[0]):
+        raise ValueError(f"{path}: missing MAPS chord-miss columns")
+    misses = [
+        row for row in rows
+        if row["expected_chords"] not in {"", "--"} and not truthy(row["chord_hit"])
+    ]
+    return [
+        (
+            "Expected pitch classes are all present",
+            sum(row["missing_pcs"] in {"", "--"} for row in misses),
+            len(misses),
+        ),
+        ("No keyboard chord label", sum(row["keyboard_chord"] in {"", "--"} for row in misses), len(misses)),
+    ]
+
+
 def urmp_gate_rows(path: Path) -> list[tuple[str, int, int]]:
     text = path.read_text(encoding="utf-8", errors="replace")
     coverage = URMP_COVERAGE_RE.search(text)
@@ -393,6 +413,7 @@ def render(
     route_summary: Path | None = None,
     good_sounds_full_mix_input: Path | None = None,
     hf_drum_gate_outputs: list[Path] | None = None,
+    maps_attribute_input: Path | None = None,
 ) -> str:
     samples = load_samples(input_path)
     lines = [
@@ -570,6 +591,20 @@ def render(
         for label, accurate, total in maps_gate_rows(maps_gate_outputs):
             remaining = f"{total - accurate} false predictions" if label.endswith("precision") else str(total - accurate)
             lines.append(f"| {label} | {fraction(accurate, total)} | {remaining} |")
+    if maps_attribute_input is not None:
+        lines.extend(
+            [
+                "",
+                "## MAPS chord-miss evidence",
+                "",
+                "This isolates misses where note evidence is already present from misses that still lack a keyboard chord label.",
+                "",
+                "| Metric | Affected / chord misses | Other misses |",
+                "| --- | ---: | ---: |",
+            ]
+        )
+        for label, affected, total in maps_chord_miss_rows(maps_attribute_input):
+            lines.append(f"| {label} | {fraction(affected, total)} | {total - affected} |")
     if maps_note_gate_outputs:
         lines.extend(["", "## MAPS isolated-piano note gate", "", "This separate Disklavier subset contains isolated notes with aligned MIDI annotations.", "", "| Metric | Accurate / total | Remaining |", "| --- | ---: | ---: |"])
         for label, accurate, total in maps_note_gate_rows(maps_note_gate_outputs):
@@ -629,6 +664,7 @@ def main() -> int:
     parser.add_argument("--musicnet-gate-output", type=Path)
     parser.add_argument("--maps-gate-output", action="append", type=Path, default=[])
     parser.add_argument("--maps-note-gate-output", action="append", type=Path, default=[])
+    parser.add_argument("--maps-attribute-input", type=Path)
     parser.add_argument("--drum-gate-output", type=Path)
     parser.add_argument("--hf-drum-gate-output", action="append", type=Path, default=[])
     parser.add_argument("--urmp-gate-output", type=Path)
@@ -642,6 +678,7 @@ def main() -> int:
             args.musicnet_gate_output, args.drum_gate_output, args.urmp_gate_output,
             args.vocalset_full_mix_input, args.maps_gate_output, args.maps_note_gate_output,
             args.route_summary, args.good_sounds_full_mix_input, args.hf_drum_gate_output,
+            args.maps_attribute_input,
         )
     except (OSError, ValueError) as error:
         parser.error(str(error))
