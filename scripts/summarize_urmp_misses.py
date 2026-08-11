@@ -15,7 +15,7 @@ MISS = re.compile(
 )
 TRAIT = re.compile(
     r"^URMP traits .* #\d+ (?P<instrument>[a-z]+) at .* expected "
-    r"(?P<pitch>[A-G]#?\d+), (?:isolated grids .*?, )?candidates "
+    r"(?P<pitch>[A-G]#?\d+), (?:isolated grids (?P<isolated>.*?), )?candidates "
     r"(?P<candidates>.*), (?:full-mix )?grids "
 )
 
@@ -34,6 +34,8 @@ def main() -> int:
     trait_total = 0
     trait_expected_candidate = 0
     trait_recoverable: Counter[tuple[str, str]] = Counter()
+    trait_isolated_blank = 0
+    trait_isolated_nonempty = 0
     for line in source.read_text(encoding="utf-8", errors="replace").splitlines():
         matched = MISS.match(line)
         if matched:
@@ -42,6 +44,14 @@ def main() -> int:
         trait = TRAIT.match(line)
         if trait:
             trait_total += 1
+            isolated = trait["isolated"]
+            if isolated:
+                other = re.search(r"\bother\[(?P<pitches>[^]]*)\]", isolated)
+                if other:
+                    if other["pitches"] == "--":
+                        trait_isolated_blank += 1
+                    else:
+                        trait_isolated_nonempty += 1
             if re.search(rf"(?:^|\s){re.escape(trait['pitch'])}/", trait["candidates"]):
                 trait_expected_candidate += 1
                 trait_recoverable[(trait["instrument"], trait["pitch"])] += 1
@@ -58,6 +68,12 @@ def main() -> int:
             "URMP missed tracks whose full-mix candidate pass includes the expected exact pitch: "
             f"{trait_expected_candidate}/{trait_total} ({percent:.1f}%)"
         )
+        if trait_isolated_blank or trait_isolated_nonempty:
+            print(
+                "URMP missed-track isolated other row: "
+                f"empty {trait_isolated_blank}/{trait_total}, "
+                f"nonempty {trait_isolated_nonempty}/{trait_total}"
+            )
         print("recoverable_count\tinstrument\tpitch")
         for (instrument, pitch), count in sorted(
             trait_recoverable.items(), key=lambda item: (-item[1], item[0])
