@@ -17,6 +17,10 @@ def top(counter: collections.Counter[str], limit: int) -> str:
     return " ".join(f"{name}={count}" for name, count in counter.most_common(limit)) or "none"
 
 
+def ratio(numerator: int, denominator: int) -> str:
+    return f"{numerator}/{denominator} ({numerator / denominator * 100.0:.1f}%)" if denominator else "--"
+
+
 def summarize(path: Path, limit: int) -> list[str]:
     with path.open(encoding="utf-8", newline="") as source:
         rows = list(csv.DictReader(source, delimiter="\t"))
@@ -32,6 +36,15 @@ def summarize(path: Path, limit: int) -> list[str]:
     no_chord_detected_pc_counts: collections.Counter[int] = collections.Counter()
     no_chord_debug: collections.Counter[str] = collections.Counter()
     note_routes: collections.Counter[str] = collections.Counter()
+    midi_offsets: collections.Counter[int] = collections.Counter()
+    detected_midi_counts: collections.Counter[int] = collections.Counter()
+    expected_note_hits = 0
+    expected_note_total = 0
+    detected_pitch_total = 0
+    harmonic_only_predictions = 0
+    harmonic_only_hits = 0
+    harmonic_only_extras = 0
+    harmonic_only_misses = 0
     rms_by_detection: dict[str, list[float]] = {"hit": [], "miss": []}
     no_keyboard_chord = 0
     complete_pitch_chord_misses = 0
@@ -45,9 +58,27 @@ def summarize(path: Path, limit: int) -> list[str]:
         if missing:
             missing_patterns[row["missing_pcs"]] += 1
         if len(expected) == 1:
+            expected_note_total += 1
+            expected_note_hits += expected[0] in detected
+            detected_pitch_total += len(detected)
             note_routes[f"{expected[0]}->{','.join(detected) if detected else '--'}"] += 1
             bucket = "hit" if expected[0] in detected else "miss"
             rms_by_detection[bucket].append(float(row["audio_rms"]))
+        expected_midis = [int(value) for value in labels(row["expected_midis"])]
+        detected_midis = [int(value) for value in labels(row["detected_keyboard_midis"])]
+        if len(expected_midis) == 1:
+            detected_midi_counts[len(detected_midis)] += 1
+            midi_offsets.update(midi - expected_midis[0] for midi in detected_midis if midi != expected_midis[0])
+            harmonic_intervals = {12, 19, 24, 28, 31, 36, 38, 40, 43, 45, 47, 48}
+            has_harmonic_base = any(
+                all(midi == base or midi - base in harmonic_intervals for midi in detected_midis)
+                for base in detected_midis
+            )
+            if len(detected_midis) > 1 and has_harmonic_base:
+                harmonic_only_predictions += 1
+                harmonic_only_hits += expected_midis[0] in detected_midis
+                harmonic_only_extras += sum(midi != expected_midis[0] for midi in detected_midis)
+                harmonic_only_misses += expected_midis[0] not in detected_midis
         expected_chords = labels(row["expected_chords"])
         if expected_chords and row["chord_hit"] != "1":
             chord_misses[row["expected_chords"]] += 1
@@ -65,6 +96,15 @@ def summarize(path: Path, limit: int) -> list[str]:
         "extra keyboard pitch-class components " + top(extra_components, limit),
         "top missing pitch-class patterns " + top(missing_patterns, limit),
         "top expected-to-keyboard pitch routes " + top(note_routes, limit),
+        "top detected MIDI offsets from expected " + top(midi_offsets, limit),
+        "isolated-note pitch recall/precision "
+        f"{ratio(expected_note_hits, expected_note_total)}/"
+        f"{ratio(expected_note_hits, detected_pitch_total)} "
+        f"false_predictions={detected_pitch_total - expected_note_hits}",
+        "detected MIDI count distribution " + top(detected_midi_counts, limit),
+        "single-series harmonic predictions "
+        f"windows={harmonic_only_predictions} hits={harmonic_only_hits} "
+        f"extras={harmonic_only_extras} misses={harmonic_only_misses}",
         "audio RMS median hit/miss " + "/".join(
             f"{sorted(values)[len(values) // 2]:.5f}" if values else "--"
             for values in (rms_by_detection["hit"], rms_by_detection["miss"])
