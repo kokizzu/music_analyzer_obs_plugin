@@ -10,18 +10,50 @@ import sys
 
 
 MISS = re.compile(
-    r"^URMP track .* #\d+ (?P<instrument>[a-z]+) at .* expected "
-    r"(?P<pitch>[A-G]#?\d+),"
+    r"^URMP track (?P<recording>.+) #(?P<track>\d+) (?P<instrument>[a-z]+) "
+    r"at (?P<time>[\d.]+)s: expected (?P<pitch>[A-G]#?\d+), detected "
+    r"bass `[^`]*`, key `[^`]*`, guitar `[^`]*`, vocal `[^`]*`, "
+    r"other `(?P<detected>[^`]*)`$"
 )
 TRAIT = re.compile(
-    r"^URMP traits .* #\d+ (?P<instrument>[a-z]+) at .* expected "
-    r"(?P<pitch>[A-G]#?\d+), (?:isolated grids (?P<isolated>.*?), )?candidates "
+    r"^URMP traits (?P<recording>.+) #(?P<track>\d+) (?P<instrument>[a-z]+) "
+    r"at (?P<time>[\d.]+)s: expected (?P<pitch>[A-G]#?\d+), "
+    r"(?:isolated grids (?P<isolated>.*?), )?candidates "
     r"(?P<candidates>.*), (?:full-mix )?grids "
 )
 CONFIRMED_TRAIT = re.compile(
     r"^URMP confirmed isolated .* #\d+ (?P<instrument>[a-z]+) at .* expected "
     r"(?P<pitch>[A-G]#?\d+), exact (?P<exact>[01]), grids "
 )
+NOTE = re.compile(r"^(?P<pitch_class>[A-G]#?)(?P<octave>\d+)$")
+CANDIDATE = re.compile(
+    r"^(?P<pitch>[A-G]#?\d+)/(?P<owner>[a-z]+):(?P<power>\d+)%@(?P<score>\d+)$"
+)
+
+
+def trait_key(match: re.Match[str]) -> tuple[str, str, str, str, str]:
+    return (
+        match["recording"],
+        match["track"],
+        match["instrument"],
+        match["time"],
+        match["pitch"],
+    )
+
+
+def first_note(label: str) -> str | None:
+    for token in label.split():
+        if NOTE.fullmatch(token):
+            return token
+    return None
+
+
+def candidate_details(expected: str, candidates: str) -> tuple[int, int, int] | None:
+    for index, token in enumerate(candidates.split(), start=1):
+        match = CANDIDATE.fullmatch(token)
+        if match is not None and match["pitch"] == expected:
+            return index, int(match["power"]), int(match["score"])
+    return None
 
 
 def main() -> int:
@@ -40,12 +72,16 @@ def main() -> int:
     trait_recoverable: Counter[tuple[str, str]] = Counter()
     trait_isolated_blank = 0
     trait_isolated_nonempty = 0
+    selected_by_trait: dict[tuple[str, str, str, str, str], str] = {}
+    candidate_ranks: Counter[int] = Counter()
+    candidate_present_details: list[tuple[int, int, int, str, str, str]] = []
     confirmed_trait_total = 0
     confirmed_trait_exact = 0
     for line in source.read_text(encoding="utf-8", errors="replace").splitlines():
         matched = MISS.match(line)
         if matched:
             misses[(matched["instrument"], matched["pitch"])] += 1
+            selected_by_trait[trait_key(matched)] = matched["detected"]
             continue
         trait = TRAIT.match(line)
         if trait:
@@ -58,9 +94,16 @@ def main() -> int:
                         trait_isolated_blank += 1
                     else:
                         trait_isolated_nonempty += 1
-            if re.search(rf"(?:^|\s){re.escape(trait['pitch'])}/", trait["candidates"]):
+            details = candidate_details(trait["pitch"], trait["candidates"])
+            if details is not None:
+                rank, power, score = details
                 trait_expected_candidate += 1
                 trait_recoverable[(trait["instrument"], trait["pitch"])] += 1
+                candidate_ranks[rank] += 1
+                selected = first_note(selected_by_trait.get(trait_key(trait), ""))
+                candidate_present_details.append(
+                    (rank, -score, -power, trait["instrument"], trait["pitch"], selected or "--")
+                )
             continue
         confirmed = CONFIRMED_TRAIT.match(line)
         if confirmed:
@@ -76,7 +119,7 @@ def main() -> int:
     if trait_total:
         percent = trait_expected_candidate * 100.0 / trait_total
         print(
-            "URMP missed tracks whose full-mix candidate pass includes the expected exact pitch: "
+            "URMP missed tracks whose independent full-mix candidate pass includes the expected exact pitch: "
             f"{trait_expected_candidate}/{trait_total} ({percent:.1f}%)"
         )
         if trait_isolated_blank or trait_isolated_nonempty:
@@ -85,6 +128,27 @@ def main() -> int:
                 f"empty {trait_isolated_blank}/{trait_total}, "
                 f"nonempty {trait_isolated_nonempty}/{trait_total}"
             )
+        if candidate_ranks:
+            top_one = candidate_ranks[1]
+            top_three = sum(count for rank, count in candidate_ranks.items() if rank <= 3)
+            print(
+                "URMP independent full-mix expected candidate rank among sampled misses: "
+                f"top-1 {top_one}/{trait_total}, top-3 {top_three}/{trait_total}, "
+                f"any {trait_expected_candidate}/{trait_total}"
+            )
+            print("count\tcandidate_rank")
+            for rank, count in sorted(candidate_ranks.items()):
+                print(f"{count}\t{rank}")
+            print(
+                "rank\tfull_mix_expected_score\tfull_mix_expected_power\t"
+                "instrument\texpected\tisolated_other"
+            )
+            for rank, negative_score, negative_power, instrument, pitch, selected in sorted(
+                candidate_present_details
+            ):
+                print(
+                    f"{rank}\t{-negative_score}\t{-negative_power}\t{instrument}\t{pitch}\t{selected}"
+                )
     if confirmed_trait_total:
         percent = confirmed_trait_exact * 100.0 / confirmed_trait_total
         print(
