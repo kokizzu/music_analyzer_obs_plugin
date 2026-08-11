@@ -486,9 +486,10 @@ without additional annotation.
   `musicnet.tar.gz` WAV/CSV audio-label archive, `musicnet_metadata.csv`,
   `musicnet_midis.tar.gz`, direct content URLs, and description text promising
   note timing and instrument-label semantics.
-- Use `make inspect-real-musicnet` and `make test-real-musicnet-20` with
-  `MUSIC_ANALYZER_MUSICNET_ROOT=/path/to/musicnet` after extracting the open
-  Zenodo MusicNet archive. The target expects `train_data`/`test_data` WAV
+- Use `make prepare-real-musicnet`, then `make inspect-downloaded-real-musicnet`
+  or `make test-downloaded-real-musicnet-20` after downloading the open Zenodo
+  MusicNet archive. The extraction stays in the external InstrumentSamples
+  store and expects `train_data`/`test_data` WAV
   folders and matching `train_labels`/`test_labels` CSV folders, selects windows
   with at least two active notes, two labeled instruments, and two pitch classes
   by default, then checks real-mix pitch-class recall/precision/F1 and global
