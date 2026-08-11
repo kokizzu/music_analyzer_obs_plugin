@@ -29,8 +29,10 @@ MUSICNET_MIDI_ARCHIVE_URL ?= https://zenodo.org/api/records/5120004/files/musicn
 URMP_SOURCE_DIR ?= $(INSTRUMENT_SAMPLE_STORE_LINK)/urmp
 URMP_ARCHIVE ?= $(URMP_SOURCE_DIR)/urmp-kaggle.zip
 URMP_EXTRACT_DIR ?= $(URMP_SOURCE_DIR)/extracted
-URMP_MEASUREMENT_OUTPUT ?= $(URMP_SOURCE_DIR)/urmp_measurement.out
-URMP_TRAIT_SAMPLE_OUTPUT ?= $(URMP_SOURCE_DIR)/urmp_trait_sample.out
+# The dataset itself belongs in the external sample store.  Analyzer reports
+# are regenerable build artifacts and must remain writable in the workspace.
+URMP_MEASUREMENT_OUTPUT ?= $(BUILD_DIR)/urmp_measurement.out
+URMP_TRAIT_SAMPLE_OUTPUT ?= $(BUILD_DIR)/urmp_trait_sample.out
 URMP_DOWNLOAD_CONNECTIONS ?= 8
 URMP_ARCHIVE_URL ?= https://www.kaggle.com/api/v1/datasets/download/alonhaviv/multi-modal-music-performance-urmp
 DETECTION_ACCURACY_REPORT ?= docs/detection_accuracy_report.md

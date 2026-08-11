@@ -32,6 +32,10 @@ constexpr int kOtherMaxMidi = 108;
 constexpr float kSilenceRms = 0.0025f;
 constexpr float kNoteRmsFloor = 0.006f;
 constexpr float kPolyphonicNoteRmsFloor = 0.0030f;
+// The narrow quiet tail of real isolated winds/strings remains tonal well
+// below the generic display floor, but the noisier tail becomes unreliable.
+// Keep this close to the usual floor so the recovery stays source-specific.
+constexpr float kMonophonicOtherLowRmsFloor = 0.0055f;
 constexpr float kFullNoteRms = 0.035f;
 constexpr float kNoteRelativeFloor = 0.36f;
 constexpr float kMixedNoteRelativeFloor = 0.08f;
@@ -20763,7 +20767,13 @@ void set_instrument_note_set(NoteGrid &grid, InstrumentState &state, const std::
 		state.confidence = 0.0f;
 		return;
 	}
-	if (rms_floor < kNoteRmsFloor && rms < kNoteRmsFloor && candidates.size() < 2) {
+	// A lower RMS floor is normally reserved for genuinely polyphonic displays,
+	// where one weak peak is too easy to mistake for noise.  Named monophonic
+	// sources use the same helper with max_notes == 1 and already select their
+	// direct fundamental; keep that one verified route eligible down to the
+	// explicit lower floor instead of discarding it solely for being singular.
+	if (rms_floor < kNoteRmsFloor && rms < kNoteRmsFloor && candidates.size() < 2 &&
+	    max_notes > 1) {
 		copy_text(state.label, sizeof(state.label), "--");
 		state.confidence = 0.0f;
 		return;
@@ -34028,7 +34038,8 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 			set_instrument_note_set(snapshot.other_notes, snapshot.other, other_note_powers,
 						min_midi, kOtherMaxMidi, note_root, other_energy, rms,
 						other_max_notes, nullptr, nullptr, false, nullptr,
-						0.30f, false, true);
+						0.30f, false, true,
+						monophonic_other_source ? kMonophonicOtherLowRmsFloor : kNoteRmsFloor);
 			// A named monophonic track already has a direct peak-selection route.
 			// Reconstructing a low fundamental from its upper partials can replace
 			// that note with a distant harmonic (for example a viola D4 as G1).
