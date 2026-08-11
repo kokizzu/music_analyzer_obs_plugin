@@ -3,12 +3,22 @@
 
 import argparse
 import csv
+import re
 from collections import Counter, defaultdict
 from pathlib import Path
 
 
 def tones(value: str) -> list[str]:
     return [] if value in {"", "--"} else value.split()
+
+
+def rows_by_tone(value: str) -> dict[str, set[str]]:
+    result: dict[str, set[str]] = defaultdict(set)
+    for match in re.finditer(r"(\w+)=((?:(?!\s\w+=).)*)", value):
+        name, values = match.groups()
+        for tone in tones(values.strip()):
+            result[tone].add(name)
+    return result
 
 
 def main() -> None:
@@ -25,6 +35,12 @@ def main() -> None:
 
     missing_tones = Counter(tone for row in rows for tone in tones(row["missing_pcs"]))
     extra_tones = Counter(tone for row in rows for tone in tones(row["extra_pcs"]))
+    owned_extras = Counter(
+        (row_name, tone)
+        for row in rows
+        for tone in tones(row["extra_pcs"])
+        for row_name in rows_by_tone(row["detected_by_row"]).get(tone, set())
+    )
     chords: dict[str, list[int]] = defaultdict(lambda: [0, 0, 0])
     for row in rows:
         label = row["expected_chords"] or "--"
@@ -39,6 +55,9 @@ def main() -> None:
           f"exact chords {exact_chords}/{len(rows)}, simplified chords {simple_chords}/{len(rows)}")
     print("missing pitch classes: " + " ".join(f"{tone}={count}" for tone, count in missing_tones.most_common()))
     print("extra pitch classes: " + " ".join(f"{tone}={count}" for tone, count in extra_tones.most_common()))
+    print("extra pitch classes by row: " + " ".join(
+        f"{row_name}:{tone}={count}" for (row_name, tone), count in owned_extras.most_common(16)
+    ))
     print("hard expected chords:")
     for label, values in sorted(chords.items(), key=lambda item: (item[1][1], -item[1][0], item[0]))[:12]:
         total, hits, simple_hits = values
