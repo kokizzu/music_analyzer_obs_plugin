@@ -32307,6 +32307,17 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 			hihat_rim_trigger_ratio <= 0.801f && drum_segment_bands[Rim] <= 10.334f;
 		if (final_one_shot_measured_low_hihat_rim_tom_from_snare_crack_recovery)
 			promote_drum_primary(Tom, 0.90f);
+		// The compact 606HT tom family retains a saturated snare candidate despite
+		// a decisive tom body.  Its absent kick, very quiet hi-hat segment, and
+		// unusually large snare-to-kick band ratio separate it from snare-led tom
+		// blends in the independent drum corpus.
+		const bool final_one_shot_measured_compact_606ht_tom_snare_active_bleed =
+			drum_detection_enabled && one_shot_drum_source && !generated_gm_drum_source &&
+			body_shape == Tom && drum_level_[Tom] >= 0.98f && drum_level_[Snare] >= 0.999f &&
+			drum_level_[Kick] <= 0.001f && drum_segment_bands[HiHat] <= 2.032f &&
+			snare_kick_band_ratio >= 19.368f && tom_kick_trigger_ratio <= 0.832f;
+		if (final_one_shot_measured_compact_606ht_tom_snare_active_bleed)
+			cap_drum_level(Snare, 0.28f);
 
 		const bool final_one_shot_measured_upper_tom_snare_active_bleed =
 			drum_detection_enabled && one_shot_drum_source &&
