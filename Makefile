@@ -587,6 +587,7 @@ MEDLEY_SOLOS_TEST_MAKE_JOBS = $(if $(filter -j%,$(MAKEFLAGS)),,-j$(words $(MEDLE
 MAPS_PIANO_URL ?= https://zenodo.org/api/records/18160555/files/ENSTDkCl.zip/content
 MAPS_PIANO_SOURCE_DIR ?= $(REAL_SAMPLE_SOURCE_DIR)/maps_piano
 MAPS_PIANO_ARCHIVE ?= $(MAPS_PIANO_SOURCE_DIR)/ENSTDkCl.zip
+MAPS_PIANO_DOWNLOAD_CONNECTIONS ?= 8
 MAPS_PIANO_SAMPLE_DIR ?= $(BUILD_DIR)/maps_piano_samples
 MAPS_PIANO_NOTE_SAMPLE_DIR ?= $(BUILD_DIR)/maps_piano_note_samples
 MAPS_PIANO_RECORDING_LIMIT ?= 80
@@ -2094,7 +2095,7 @@ $(MAPS_PIANO_ARCHIVE): FORCE | $(BUILD_DIR)
 	mkdir -p "$(MAPS_PIANO_SOURCE_DIR)"
 	if [ -s "$(MAPS_PIANO_ARCHIVE)" ] && ! $(PYTHON) -m zipfile -t "$(MAPS_PIANO_ARCHIVE)" >/dev/null 2>&1; then mv -f "$(MAPS_PIANO_ARCHIVE)" "$(MAPS_PIANO_ARCHIVE).part"; fi
 	if [ ! -s "$(MAPS_PIANO_ARCHIVE)" ] && [ -s "$(MAPS_PIANO_ARCHIVE).part" ] && $(PYTHON) -m zipfile -t "$(MAPS_PIANO_ARCHIVE).part" >/dev/null 2>&1; then mv "$(MAPS_PIANO_ARCHIVE).part" "$(MAPS_PIANO_ARCHIVE)"; fi
-	if [ ! -s "$(MAPS_PIANO_ARCHIVE)" ]; then curl -fL -C - -o "$(MAPS_PIANO_ARCHIVE).part" "$(MAPS_PIANO_URL)"; fi
+	if [ ! -s "$(MAPS_PIANO_ARCHIVE)" ]; then if command -v "$(ARIA2C)" >/dev/null 2>&1; then "$(ARIA2C)" -c -x "$(MAPS_PIANO_DOWNLOAD_CONNECTIONS)" -s "$(MAPS_PIANO_DOWNLOAD_CONNECTIONS)" -k 1M --file-allocation=none --allow-overwrite=true --auto-file-renaming=false --dir "$(MAPS_PIANO_SOURCE_DIR)" --out "ENSTDkCl.zip.part" "$(MAPS_PIANO_URL)"; else curl -fL -C - -o "$(MAPS_PIANO_ARCHIVE).part" "$(MAPS_PIANO_URL)"; fi; fi
 	if [ -s "$(MAPS_PIANO_ARCHIVE).part" ]; then $(PYTHON) -m zipfile -t "$(MAPS_PIANO_ARCHIVE).part" >/dev/null; mv "$(MAPS_PIANO_ARCHIVE).part" "$(MAPS_PIANO_ARCHIVE)"; fi
 	$(PYTHON) -m zipfile -t "$(MAPS_PIANO_ARCHIVE)" >/dev/null
 
