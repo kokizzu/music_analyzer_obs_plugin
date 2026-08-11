@@ -13,6 +13,7 @@ MUSICNET_SOURCE_DIR ?= $(INSTRUMENT_SAMPLE_STORE_LINK)/musicnet
 MUSICNET_ARCHIVE ?= $(MUSICNET_SOURCE_DIR)/musicnet.tar.gz
 MUSICNET_METADATA ?= $(MUSICNET_SOURCE_DIR)/musicnet_metadata.csv
 MUSICNET_MIDI_ARCHIVE ?= $(MUSICNET_SOURCE_DIR)/musicnet_midis.tar.gz
+MUSICNET_DOWNLOAD_CONNECTIONS ?= 8
 MUSICNET_ARCHIVE_URL ?= https://zenodo.org/api/records/5120004/files/musicnet.tar.gz/content
 MUSICNET_METADATA_URL ?= https://zenodo.org/api/records/5120004/files/musicnet_metadata.csv/content
 MUSICNET_MIDI_ARCHIVE_URL ?= https://zenodo.org/api/records/5120004/files/musicnet_midis.tar.gz/content
@@ -4518,7 +4519,7 @@ test-real-musicnet-full: $(BUILD_DIR)/analyzer_musicnet
 download-real-musicnet: $(MUSICNET_ARCHIVE) $(MUSICNET_METADATA) $(MUSICNET_MIDI_ARCHIVE)
 
 $(MUSICNET_ARCHIVE): FORCE scripts/download_musicnet_archive.sh | $(BUILD_DIR)
-	$(SHELL) scripts/download_musicnet_archive.sh "$@" "$(MUSICNET_ARCHIVE_URL)"
+	$(SHELL) scripts/download_musicnet_archive.sh "$@" "$(MUSICNET_ARCHIVE_URL)" "$(MUSICNET_DOWNLOAD_CONNECTIONS)" "$(ARIA2C)"
 
 $(MUSICNET_METADATA): FORCE | $(BUILD_DIR)
 	mkdir -p "$(MUSICNET_SOURCE_DIR)"
@@ -4526,7 +4527,7 @@ $(MUSICNET_METADATA): FORCE | $(BUILD_DIR)
 	mv -f "$@.part" "$@"
 
 $(MUSICNET_MIDI_ARCHIVE): FORCE scripts/download_musicnet_archive.sh | $(BUILD_DIR)
-	$(SHELL) scripts/download_musicnet_archive.sh "$@" "$(MUSICNET_MIDI_ARCHIVE_URL)"
+	$(SHELL) scripts/download_musicnet_archive.sh "$@" "$(MUSICNET_MIDI_ARCHIVE_URL)" "$(MUSICNET_DOWNLOAD_CONNECTIONS)" "$(ARIA2C)"
 
 test-real-medleydb-20: $(BUILD_DIR)/analyzer_musicnet tests/prepare_medleydb_musicnet_fixture.py tests/inspect_medleydb_dataset.py | $(BUILD_DIR)
 	rm -rf $(MEDLEYDB_MUSICNET_FIXTURE_DIR)
