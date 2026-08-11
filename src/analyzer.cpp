@@ -33943,7 +33943,10 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 						min_midi, kOtherMaxMidi, note_root, other_energy, rms,
 						other_max_notes, nullptr, nullptr, false, nullptr,
 						0.30f, false, true);
-			if (note_grid_active_pitch_class_count(snapshot.other_notes) <= 4) {
+			// A named monophonic track already has a direct peak-selection route.
+			// Reconstructing a low fundamental from its upper partials can replace
+			// that note with a distant harmonic (for example a viola D4 as G1).
+			if (!monophonic_other_source && note_grid_active_pitch_class_count(snapshot.other_notes) <= 4) {
 				std::array<float, kNoteProbeCount> low_fundamental_votes = {};
 				std::array<int, kNoteProbeCount> low_fundamental_support = {};
 				static constexpr int kOtherHarmonicIntervals[] = {12, 19, 24, 28, 31, 36};
