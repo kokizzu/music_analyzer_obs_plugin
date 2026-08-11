@@ -46,6 +46,8 @@ def summarize(path: Path, limit: int) -> list[str]:
     harmonic_only_extras = 0
     harmonic_only_misses = 0
     rms_by_detection: dict[str, list[float]] = {"hit": [], "miss": []}
+    chord_rms_by_detection: dict[str, list[float]] = {"hit": [], "miss": []}
+    chord_note_counts: dict[str, list[int]] = {"hit": [], "miss": []}
     no_keyboard_chord = 0
     complete_pitch_chord_misses = 0
     for row in rows:
@@ -80,6 +82,10 @@ def summarize(path: Path, limit: int) -> list[str]:
                 harmonic_only_extras += sum(midi != expected_midis[0] for midi in detected_midis)
                 harmonic_only_misses += expected_midis[0] not in detected_midis
         expected_chords = labels(row["expected_chords"])
+        if expected_chords:
+            chord_bucket = "hit" if row["chord_hit"] == "1" else "miss"
+            chord_rms_by_detection[chord_bucket].append(float(row["audio_rms"]))
+            chord_note_counts[chord_bucket].append(len(expected_midis))
         if expected_chords and row["chord_hit"] != "1":
             chord_misses[row["expected_chords"]] += 1
             chord_miss_predictions[row["keyboard_chord"]] += 1
@@ -108,6 +114,14 @@ def summarize(path: Path, limit: int) -> list[str]:
         "audio RMS median hit/miss " + "/".join(
             f"{sorted(values)[len(values) // 2]:.5f}" if values else "--"
             for values in (rms_by_detection["hit"], rms_by_detection["miss"])
+        ),
+        "chord RMS median hit/miss " + "/".join(
+            f"{sorted(values)[len(values) // 2]:.5f}" if values else "--"
+            for values in (chord_rms_by_detection["hit"], chord_rms_by_detection["miss"])
+        ),
+        "chord expected-note median hit/miss " + "/".join(
+            str(sorted(values)[len(values) // 2]) if values else "--"
+            for values in (chord_note_counts["hit"], chord_note_counts["miss"])
         ),
         f"chord misses={sum(chord_misses.values())}/{chord_windows} no_keyboard_chord={no_keyboard_chord}",
         "no-label missed windows by chord-grid pitch classes " + top(no_chord_detected_pc_counts, limit),
