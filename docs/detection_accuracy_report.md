@@ -70,9 +70,9 @@ This downloaded real chamber-music corpus measures the same performances as prov
 | URMP — isolated-track exact notes | 850 / 1788 (47.5%) | 938 |
 | URMP — isolated-track detected notes | 923 / 1788 (51.6%) | 865 |
 | URMP — isolated-track precision | 850 / 1011 (84.1%) | 161 false notes |
-| URMP — provided-mix exact chords | 186 / 527 (35.3%) | 341 |
-| URMP — provided stream chord windows | 218 / 527 (41.4%) | 309 |
-| URMP — provided sequence chord windows | 205 / 527 (38.9%) | 322 |
+| URMP — provided-mix exact chords | 190 / 527 (36.1%) | 337 |
+| URMP — provided stream chord windows | 224 / 527 (42.5%) | 303 |
+| URMP — provided sequence chord windows | 214 / 527 (40.6%) | 313 |
 
 ## Bach10-mf0-synth multitrack stress gate
 

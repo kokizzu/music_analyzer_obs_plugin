@@ -16574,7 +16574,46 @@ void append_mixed_global_extension_aliases(InstrumentState &state, const std::ar
 	}
 
 	if (std::strcmp(merged, state.label) != 0)
-		copy_text(state.label, sizeof(state.label), merged);
+	copy_text(state.label, sizeof(state.label), merged);
+}
+
+void append_sparse_mixed_global_power_alias(InstrumentState &state,
+						    const std::array<float, 12> &chroma)
+{
+	if (!state.label[0] || state.label[0] == '-' || state.confidence < 0.36f)
+		return;
+
+	const std::size_t primary_len = std::strcspn(state.label, "=");
+	ParsedRootChord primary;
+	if (!parse_root_chord_component(state.label, primary_len, primary) ||
+	    primary.quality != RootChordQuality::Major)
+		return;
+	const std::size_t root_len =
+		primary_len > 1 && state.label[1] == '#' ? 2 : 1;
+	if (primary_len != root_len)
+		return;
+
+	const float root = chroma[static_cast<std::size_t>(primary.root)];
+	const float fifth = chroma[static_cast<std::size_t>((primary.root + 7) % 12)];
+	const float anchor = std::min(root, fifth);
+	if (anchor < 0.22f)
+		return;
+	const float third_ceiling = std::max(0.12f, anchor * 0.48f);
+	if (chroma[static_cast<std::size_t>((primary.root + 3) % 12)] >= third_ceiling ||
+	    chroma[static_cast<std::size_t>((primary.root + 4) % 12)] >= third_ceiling)
+		return;
+
+	int supported_tones = 0;
+	const float support_floor = std::max(0.12f, anchor * 0.38f);
+	for (float level : chroma) {
+		if (level >= support_floor)
+			++supported_tones;
+	}
+	if (supported_tones > 3)
+		return;
+	char alias[16] = {};
+	std::snprintf(alias, sizeof(alias), "%spow", note_name(primary.root));
+	append_chord_label_component(state.label, sizeof(state.label), alias, std::strlen(alias));
 }
 
 bool guitar_candidate_alias_supported_for_display(const char *start, std::size_t len,
@@ -34695,6 +34734,8 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 				-1;
 		append_mixed_global_extension_aliases(snapshot.global_chord, full_mix_ownership.global_chroma,
 						    global_extension_root_hint);
+		append_sparse_mixed_global_power_alias(snapshot.global_chord,
+						    full_mix_ownership.global_chroma);
 		attenuate_note_grid_display_by_candidates(snapshot.keyboard_notes, mixed_keyboard_display_candidates);
 		attenuate_note_grid_display_by_candidates(snapshot.guitar_notes, mixed_guitar_display_candidates);
 		attenuate_note_grid_display_by_candidates(snapshot.vocal_notes, mixed_vocal_display_candidates);
