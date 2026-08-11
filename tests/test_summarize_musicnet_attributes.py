@@ -6,7 +6,7 @@ import tempfile
 from pathlib import Path
 
 
-HEADER = "recording\texpected_pcs\tdetected_pcs\tmissing_pcs\textra_pcs\texpected_chords\tchord_hit\tsimple_chord_hit\tdetected_by_row\tglobal_chord\n"
+HEADER = "recording\texpected_pcs\tdetected_pcs\tmissing_pcs\textra_pcs\texpected_chords\tchord_hit\tsimple_chord_hit\tdetected_by_row\tglobal_chord\traw_chroma\n"
 
 
 def main() -> None:
@@ -14,9 +14,9 @@ def main() -> None:
         path = Path(temporary) / "traits.tsv"
         path.write_text(
             HEADER
-            + "1\tC E G\tC E G\t--\t--\tC\t1\t1\tkeys=C E G\tC\n"
-            + "2\tC E G\tC D G\tE\tD\tC\t0\t1\tkeys=C D G\tC\n"
-            + "3\tD F# A\tC# D A\tF#\tC#\tD\t0\t0\tother=C# D A\tD\n",
+            + "1\tC E G\tC E G\t--\t--\tC\t1\t1\tkeys=C E G\tC\tC:100 E:100 G:100\n"
+            + "2\tC E G\tC D G\tE\tD\tC\t0\t1\tkeys=C D G\tC\tC:100 D:100 G:100\n"
+            + "3\tD F# A\tC# D A\tF#\tC#\tD\t0\t0\tother=C# D A\tD\tC#:100 D:100 A:100\n",
             encoding="utf-8",
         )
         result = subprocess.run(

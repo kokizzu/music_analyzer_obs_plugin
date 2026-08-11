@@ -40,6 +40,15 @@ def expected_has_dominant_seventh(value: str, root: int) -> bool:
     return f"{root_name}7" in value.split("/")
 
 
+def pitch_class_levels(value: str) -> dict[str, float]:
+    result: dict[str, float] = {}
+    for item in value.split():
+        name, separator, level = item.partition(":")
+        if separator:
+            result[name] = float(level)
+    return result
+
+
 def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("attributes", type=Path)
@@ -49,7 +58,7 @@ def main() -> None:
         rows = list(csv.DictReader(source, delimiter="\t"))
     required = {
         "recording", "expected_pcs", "detected_pcs", "missing_pcs", "extra_pcs",
-        "expected_chords", "chord_hit", "simple_chord_hit", "global_chord",
+        "expected_chords", "chord_hit", "simple_chord_hit", "global_chord", "raw_chroma",
     }
     missing = required - set(rows[0] if rows else ())
     if missing:
@@ -87,9 +96,11 @@ def main() -> None:
         expected_tones = {root, (root + 4) % 12, (root + 7) % 12, (root + 10) % 12}
         if detected != expected_tones:
             continue
-        exact_display_dominant_seventh.append(
-            (expected_has_dominant_seventh(row["expected_chords"], root), row)
-        )
+        extension = next(name for name, pitch_class in NOTE_PITCH_CLASSES.items() if pitch_class == (root + 10) % 12)
+        exact_display_dominant_seventh.append((
+            expected_has_dominant_seventh(row["expected_chords"], root),
+            pitch_class_levels(row["raw_chroma"]).get(extension, 0.0), row,
+        ))
     print(f"MusicNet traits: windows {len(rows)}, exact pitch sets {exact_pitch}/{len(rows)}, "
           f"exact chords {exact_chords}/{len(rows)}, simplified chords {simple_chords}/{len(rows)}")
     print("missing pitch classes: " + " ".join(f"{tone}={count}" for tone, count in missing_tones.most_common()))
@@ -104,16 +115,21 @@ def main() -> None:
     print("exact-pitch chord-label misses:")
     for (expected, detected), count in exact_pitch_chord_misses.most_common(16):
         print(f"  {expected} -> {detected}: {count}")
-    dominant_hits = sum(hit for hit, _ in exact_display_dominant_seventh)
+    dominant_hits = sum(hit for hit, _, _ in exact_display_dominant_seventh)
     print(
         "complete-display dominant-seventh candidates: "
         f"{dominant_hits}/{len(exact_display_dominant_seventh)} expected labels"
     )
-    for hit, row in exact_display_dominant_seventh[:8]:
+    for hit, raw_extension, row in exact_display_dominant_seventh[:8]:
         print(
             f"  {'+' if hit else '-'} recording={row['recording']} expected={row['expected_chords']} "
-            f"global={row['global_chord']} pcs={row['detected_pcs']}"
+            f"global={row['global_chord']} pcs={row['detected_pcs']} extension_raw={raw_extension:.0f}"
         )
+    print("complete-display dominant-seventh floor sweep:")
+    for floor in (10, 12, 14, 16, 18, 20, 25):
+        supported = [(hit, row) for hit, extension, row in exact_display_dominant_seventh if extension >= floor]
+        hits = sum(hit for hit, _ in supported)
+        print(f"  raw>={floor}: expected={hits}/{len(supported)} false={len(supported) - hits}")
 
 
 if __name__ == "__main__":
