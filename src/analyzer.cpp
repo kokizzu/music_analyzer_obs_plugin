@@ -21333,13 +21333,25 @@ void append_probe_supported_guitar_rootless_major_seventh_alias_after_final_prun
 	const std::array<float, kNoteProbeCount> &powers, int min_midi, int max_midi)
 {
 	// The full GuitarTECH corpus contains close-miked maj7 voicings whose
-	// rendered and analysis grids retain exactly 3-5-7, while a strong melodic
-	// root probe is excluded by note-grid harmonic pruning.  The apparent
-	// relative-minor label is therefore a rootless maj7 inversion, not a broad
-	// invitation to infer roots from arbitrary triads.
-	if (!state.label[0] || state.label[0] == '-' || chord_label_component_count(state.label) != 1 ||
-	    note_grid_active_pitch_class_count(display_grid) != 3 ||
-	    note_grid_active_pitch_class_count(analysis_grid) != 3)
+	// rendered grid retains exactly 3-5-7 while a strong melodic root probe is
+	// excluded by note-grid harmonic pruning.  A few harmless analysis residues
+	// may remain, but the root itself must stay absent from both grids.  The
+	// apparent relative-minor label is therefore a rootless maj7 inversion, not
+	// a broad invitation to infer roots from arbitrary triads.
+	if (!state.label[0] || state.label[0] == '-' || chord_label_component_count(state.label) > 5 ||
+	    state.confidence < 0.95f || note_grid_active_pitch_class_count(analysis_grid) < 3 ||
+	    note_grid_active_pitch_class_count(analysis_grid) > 6)
+		return;
+	// Final display attenuation can leave the three retained tones just below the
+	// generic active cutoff. This recovery has much stronger independent guards,
+	// so retain a small local floor rather than treating those tones as absent.
+	static constexpr float kDisplayCoreFloor = 0.015f;
+	int display_pitch_classes = 0;
+	for (int pitch_class = 0; pitch_class < 12; ++pitch_class) {
+		if (note_grid_pitch_level(display_grid, pitch_class) >= kDisplayCoreFloor)
+			++display_pitch_classes;
+	}
+	if (display_pitch_classes != 3)
 		return;
 
 	const float strongest_melodic = strongest_melodic_probe_level(powers, min_midi, max_midi);
@@ -21350,9 +21362,13 @@ void append_probe_supported_guitar_rootless_major_seventh_alias_after_final_prun
 		const int third = root + 4;
 		const int fifth = root + 7;
 		const int major_seventh = root + 11;
-		if (!note_grid_pitch_active(display_grid, third) ||
-		    !note_grid_pitch_active(display_grid, fifth) ||
-		    !note_grid_pitch_active(display_grid, major_seventh) ||
+		const int minor_third = root + 3;
+		if (note_grid_pitch_level(display_grid, root) >= kDisplayCoreFloor ||
+		    note_grid_pitch_active(analysis_grid, root))
+			continue;
+		if (note_grid_pitch_level(display_grid, third) < kDisplayCoreFloor ||
+		    note_grid_pitch_level(display_grid, fifth) < kDisplayCoreFloor ||
+		    note_grid_pitch_level(display_grid, major_seventh) < kDisplayCoreFloor ||
 		    !note_grid_pitch_active(analysis_grid, third) ||
 		    !note_grid_pitch_active(analysis_grid, fifth) ||
 		    !note_grid_pitch_active(analysis_grid, major_seventh))
@@ -21365,7 +21381,16 @@ void append_probe_supported_guitar_rootless_major_seventh_alias_after_final_prun
 
 		const float melodic_root =
 			strongest_melodic_probe_pitch_class_level(powers, root, min_midi, max_midi);
-		if (melodic_root < strongest_melodic * 0.51f)
+		if (melodic_root < strongest_melodic * 0.70f)
+			continue;
+
+		const float major_core_anchor = std::min(
+			note_grid_pitch_level(analysis_grid, third),
+			note_grid_pitch_level(analysis_grid, fifth));
+		const float competing_minor_third = std::max(
+			note_grid_pitch_level(display_grid, minor_third),
+			note_grid_pitch_level(analysis_grid, minor_third));
+		if (competing_minor_third >= std::max(0.12f, major_core_anchor * 0.45f))
 			continue;
 
 		char candidate[16] = {};
