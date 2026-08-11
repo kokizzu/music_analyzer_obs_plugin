@@ -1324,6 +1324,13 @@ bool verbose_chord_misses_enabled()
 	       std::strcmp(value, "FALSE") != 0;
 }
 
+bool verbose_track_traits_enabled()
+{
+	const char *value = std::getenv("MUSIC_ANALYZER_URMP_VERBOSE_TRACK_TRAITS");
+	return value && *value && std::strcmp(value, "0") != 0 && std::strcmp(value, "false") != 0 &&
+	       std::strcmp(value, "FALSE") != 0;
+}
+
 void check_mix_recall(Runner &runner, const mao::AnalysisSnapshot &snapshot, const CandidateWindow &candidate,
 		      const std::string &context, MixRecallStats &stats, int min_recall_percent)
 {
@@ -1825,6 +1832,7 @@ int main()
 	int tested_pieces = 0;
 	int track_hits = 0;
 	int track_checks = 0;
+	int emitted_track_traits = 0;
 	MixRecallStats provided_mix_stats;
 	MixRecallStats summed_mix_stats;
 	MixRecallStats provided_stream_stats;
@@ -1994,11 +2002,33 @@ int main()
 						     "URMP track %s #%d %s at %.3fs: expected %s, detected bass `%s`, "
 						     "key `%s`, guitar `%s`, vocal `%s`, other `%s`\n",
 						     basename_of(piece_dir).c_str(), track.number,
-						     track.instrument.c_str(), candidate.time,
-						     mao_test::note_label(active.midi).c_str(),
-						     track_snapshot.bass.label, track_snapshot.keyboard.label,
-						     track_snapshot.guitar.label, track_snapshot.vocal.label,
-						     track_snapshot.other.label);
+							     track.instrument.c_str(), candidate.time,
+							     mao_test::note_label(active.midi).c_str(),
+							     track_snapshot.bass.label, track_snapshot.keyboard.label,
+							     track_snapshot.guitar.label, track_snapshot.vocal.label,
+							     track_snapshot.other.label);
+					if (verbose_track_traits_enabled() && emitted_track_traits < 48) {
+						++emitted_track_traits;
+						bool traits_ok = false;
+						std::string traits_error;
+						const mao::AnalysisSnapshot traits_snapshot = analyze_wav_window(
+							track.audio_path, candidate.time, source + " traits", traits_ok,
+							traits_error, mao::AnalysisInputMode::FullMix);
+						if (traits_ok) {
+							std::fprintf(stderr,
+								     "URMP traits %s #%d %s at %.3fs: expected %s, candidates %s, grids %s\n",
+								     basename_of(piece_dir).c_str(), track.number,
+								     track.instrument.c_str(), candidate.time,
+								     mao_test::note_label(active.midi).c_str(),
+								     full_mix_candidate_list(traits_snapshot).c_str(),
+								     snapshot_grid_pitch_class_list(traits_snapshot).c_str());
+						} else {
+							std::fprintf(stderr,
+								     "URMP traits %s #%d %s at %.3fs: unavailable: %s\n",
+								     basename_of(piece_dir).c_str(), track.number,
+								     track.instrument.c_str(), candidate.time, traits_error.c_str());
+						}
+					}
 				}
 			}
 		}

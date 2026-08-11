@@ -67,9 +67,9 @@ This downloaded real chamber-music corpus measures the same performances as prov
 | --- | ---: | ---: |
 | URMP — real pieces loadable | 44 / 44 (100.0%) | 0 |
 | URMP — selected annotated windows | 528 / 528 (100.0%) | 0 |
-| URMP — isolated-track exact notes | 846 / 1788 (47.3%) | 942 |
-| URMP — isolated-track detected notes | 922 / 1788 (51.6%) | 866 |
-| URMP — isolated-track precision | 846 / 1011 (83.7%) | 165 false notes |
+| URMP — isolated-track exact notes | 850 / 1788 (47.5%) | 938 |
+| URMP — isolated-track detected notes | 923 / 1788 (51.6%) | 865 |
+| URMP — isolated-track precision | 850 / 1011 (84.1%) | 161 false notes |
 | URMP — provided-mix exact chords | 186 / 527 (35.3%) | 341 |
 | URMP — provided stream chord windows | 218 / 527 (41.4%) | 309 |
 | URMP — provided sequence chord windows | 205 / 527 (38.9%) | 322 |
@@ -103,7 +103,7 @@ Source: `build/drum_samples_full_gate.out`
 
 | Metric | Accurate / total | Remaining |
 | --- | ---: | ---: |
-| Full drum gate — primary kick | 6212 / 6505 (95.5%) | 293 |
+| Full drum gate — primary kick | 6213 / 6505 (95.5%) | 292 |
 | Full drum gate — primary snare | 4003 / 5390 (74.3%) | 1387 |
 | Full drum gate — primary hihat | 1990 / 2358 (84.4%) | 368 |
 | Full drum gate — primary crash | 558 / 788 (70.8%) | 230 |

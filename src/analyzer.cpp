@@ -33693,7 +33693,9 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 			}
 		} else {
 			const int min_midi = kOtherMinMidi;
-			set_instrument_note_set(snapshot.other_notes, snapshot.other, detection_note_powers,
+			const std::array<float, kNoteProbeCount> &other_note_powers =
+				monophonic_other_source ? note_powers : detection_note_powers;
+			set_instrument_note_set(snapshot.other_notes, snapshot.other, other_note_powers,
 						min_midi, kOtherMaxMidi, note_root, other_energy, rms,
 						other_max_notes, nullptr, nullptr, false, nullptr,
 						0.30f, false, true);
