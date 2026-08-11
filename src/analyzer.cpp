@@ -10520,6 +10520,52 @@ void boost_existing_measured_organ_keyboard_visual_notes(NoteGrid &keyboard_grid
 	}
 }
 
+bool guitar_owned_clean_electronic_keyboard_visual_restore_supported(
+	const FullMixDebugCandidate &debug)
+{
+	// A clean electronic C#4-like body can retain both same-pitch rows while
+	// the guitar mirror receives the visible strength.  The narrow harmonic
+	// and ownership profile separates it from acoustic plucks: this only
+	// rebalances two already-active rows for the rendered display.
+	const float second = debug.harmonic_ratios[1];
+	const float third = debug.harmonic_ratios[2];
+	const float fourth = debug.harmonic_ratios[3];
+	const float fifth = debug.harmonic_ratios[4];
+	return debug.owner == InstrumentKind::Guitar && debug.midi >= 56 && debug.midi <= 68 &&
+	       debug.keyboard_score >= 0.23f && debug.guitar_score >= 0.64f &&
+	       debug.other_score <= 0.08f && debug.spectral_level >= 0.98f &&
+	       debug.pitch_confidence >= 0.92f && debug.periodicity >= 0.80f &&
+	       debug.harmonic_fit_error <= 0.050f && debug.spectral_centroid >= 0.17f &&
+	       debug.spectral_centroid <= 0.21f && debug.spectral_slope >= 0.10f &&
+	       debug.spectral_slope <= 0.15f && debug.local_noise_level <= 0.070f &&
+	       second >= 0.32f && second <= 0.38f && third <= 0.085f &&
+	       fourth >= 0.075f && fourth <= 0.105f && fifth <= 0.010f;
+}
+
+void boost_existing_clean_electronic_keyboard_visual_notes(
+	NoteGrid &keyboard_grid, const NoteGrid &guitar_grid, const FullMixOwnership &ownership)
+{
+	static constexpr float kMinExistingKeyboardLevel = 0.18f;
+	static constexpr float kVisualLead = 0.015f;
+	static constexpr float kMaximumVisualFloor = 0.91f;
+	const std::size_t debug_count =
+		std::min<std::size_t>(ownership.debug_candidate_count, ownership.debug_candidates.size());
+	for (std::size_t i = 0; i < debug_count; ++i) {
+		const FullMixDebugCandidate &debug = ownership.debug_candidates[i];
+		if (!guitar_owned_clean_electronic_keyboard_visual_restore_supported(debug))
+			continue;
+		if (note_grid_midi_level(keyboard_grid, debug.midi) < kMinExistingKeyboardLevel)
+			continue;
+		const float guitar_visual = note_grid_midi_visual_level(guitar_grid, debug.midi);
+		const float keyboard_visual = note_grid_midi_visual_level(keyboard_grid, debug.midi);
+		if (guitar_visual <= keyboard_visual)
+			continue;
+		boost_note_grid_midi_visual_level(
+			keyboard_grid, debug.midi,
+			std::min(kMaximumVisualFloor, guitar_visual + kVisualLead));
+	}
+}
+
 bool measured_acoustic_string_other_visual_restore_supported(const FullMixDebugCandidate &debug)
 {
 	// Two clean acoustic-string E4 fixtures retain an Other note just below a
@@ -34841,6 +34887,8 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 		boost_existing_reed_brass_other_visual_notes(snapshot.other_notes, full_mix_ownership);
 		boost_existing_measured_organ_keyboard_visual_notes(
 			snapshot.keyboard_notes, snapshot.other_notes, full_mix_ownership);
+		boost_existing_clean_electronic_keyboard_visual_notes(
+			snapshot.keyboard_notes, snapshot.guitar_notes, full_mix_ownership);
 		boost_existing_measured_acoustic_string_other_visual_notes(
 			snapshot.other_notes, snapshot.guitar_notes, full_mix_ownership);
 		boost_existing_low_string_other_octave_visual_notes(snapshot.other_notes,

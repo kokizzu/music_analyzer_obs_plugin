@@ -9,7 +9,7 @@ Source: `build/real_note_full_mix_attributes.tsv`
 | Any detected note | 2212 / 2212 (100.0%) | 0 |
 | Expected instrument row | 2212 / 2212 (100.0%) | 0 |
 | Primary display row | 773 / 2212 (34.9%) | 1439 |
-| Visual primary row | 865 / 2212 (39.1%) | 1347 |
+| Visual primary row | 869 / 2212 (39.3%) | 1343 |
 | Bass — Any detected note | 137 / 137 (100.0%) | 0 |
 | Bass — Expected instrument row | 137 / 137 (100.0%) | 0 |
 | Bass — Primary display row | 45 / 137 (32.8%) | 92 |
@@ -25,7 +25,7 @@ Source: `build/real_note_full_mix_attributes.tsv`
 | Piano — Any detected note | 1117 / 1117 (100.0%) | 0 |
 | Piano — Expected instrument row | 1117 / 1117 (100.0%) | 0 |
 | Piano — Primary display row | 452 / 1117 (40.5%) | 665 |
-| Piano — Visual primary row | 541 / 1117 (48.4%) | 576 |
+| Piano — Visual primary row | 545 / 1117 (48.8%) | 572 |
 | Vocals — Any detected note | 22 / 22 (100.0%) | 0 |
 | Vocals — Expected instrument row | 22 / 22 (100.0%) | 0 |
 | Vocals — Primary display row | 6 / 22 (27.3%) | 16 |
