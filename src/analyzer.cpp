@@ -12727,7 +12727,8 @@ ChordResult simplify_weak_keyboard_ninth(const std::array<float, 12> &chroma, co
 	return chord;
 }
 
-ChordResult detect_keyboard_chord_from_grid(const NoteGrid &grid, bool allow_extensions, int preferred_root = -1)
+ChordResult detect_keyboard_chord_from_grid(const NoteGrid &grid, bool allow_extensions, int preferred_root = -1,
+						    char *debug_reason = nullptr, std::size_t debug_reason_size = 0)
 {
 	static constexpr int kKeyboardHandSpanSemitones = 16;
 	const NoteCandidateList notes =
@@ -12735,6 +12736,9 @@ ChordResult detect_keyboard_chord_from_grid(const NoteGrid &grid, bool allow_ext
 				   prune_adjacent_keyboard_candidates(note_grid_candidates(grid));
 	ChordResult best;
 	float best_score = 0.0f;
+	int viable_clusters = 0;
+	int template_misses = 0;
+	int lower_conflicts = 0;
 
 	for (std::size_t start = 0; start < notes.size(); ++start) {
 		std::size_t last = start;
@@ -12774,6 +12778,7 @@ ChordResult detect_keyboard_chord_from_grid(const NoteGrid &grid, bool allow_ext
 
 		if (distinct_pitch_classes < 2 && extension_distinct_pitch_classes < 2)
 			continue;
+		++viable_clusters;
 
 		const int cluster_root = preferred_root >= 0 && chroma[preferred_root % 12] > 0.0f ?
 						 preferred_root :
@@ -12801,8 +12806,10 @@ ChordResult detect_keyboard_chord_from_grid(const NoteGrid &grid, bool allow_ext
 				distinct_pitch_classes = extension_distinct_pitch_classes;
 			}
 		}
-		if (chord.root < 0)
+		if (chord.root < 0) {
+			++template_misses;
 			continue;
+		}
 		bool lower_conflict = false;
 		for (std::size_t i = 0; i < start; ++i) {
 			if (notes[start].midi - notes[i].midi > kKeyboardHandSpanSemitones)
@@ -12815,8 +12822,10 @@ ChordResult detect_keyboard_chord_from_grid(const NoteGrid &grid, bool allow_ext
 				break;
 			}
 		}
-		if (lower_conflict)
+		if (lower_conflict) {
+			++lower_conflicts;
 			continue;
+		}
 
 		const float preferred_bonus =
 			preferred_root >= 0 && chord.root == preferred_root % 12 && chroma[chord.root] > 0.0f ? 0.35f :
@@ -12832,6 +12841,9 @@ ChordResult detect_keyboard_chord_from_grid(const NoteGrid &grid, bool allow_ext
 
 	if (best.root < 0)
 		copy_text(best.label, sizeof(best.label), "--");
+	if (debug_reason && debug_reason_size > 0)
+		std::snprintf(debug_reason, debug_reason_size, "clusters=%d templates=%d conflicts=%d selected=%d",
+			      viable_clusters, template_misses, lower_conflicts, best.root >= 0 ? 1 : 0);
 	return best;
 }
 
@@ -33928,8 +33940,9 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 							 kNoteEnvelopeImmediateConfirmFloor,
 					  kAnalyticalChordNoteReleaseSeconds, kAnalyticalChordNoteVisibleFloor);
 		snapshot.keyboard_chord_smoothed_notes = keyboard_chord_grid;
-		ChordResult smoothed_keyboard_chord =
-			detect_keyboard_chord_from_grid(keyboard_chord_grid, allow_smoothed_extensions);
+		ChordResult smoothed_keyboard_chord = detect_keyboard_chord_from_grid(
+			keyboard_chord_grid, allow_smoothed_extensions, -1,
+			snapshot.keyboard_chord_debug_reason, sizeof(snapshot.keyboard_chord_debug_reason));
 		if (mixed_source && !valid_chord_result(smoothed_keyboard_chord))
 			smoothed_keyboard_chord =
 				detect_mixed_chord_from_grid(keyboard_chord_grid,

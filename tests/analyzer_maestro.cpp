@@ -1187,7 +1187,7 @@ void add_keyboard_chord_precision_metrics(ChordPrecisionStats &stats, const mao:
 
 void print_maestro_attribute_header(std::ostream &out)
 {
-	out << "recording\tcenter_sample\texpected_pcs\tdetected_keyboard_pcs\tdetected_chord_pcs\tmissing_pcs\textra_pcs\t"
+	out << "recording\tcenter_sample\texpected_pcs\tdetected_keyboard_pcs\tdetected_chord_pcs\tchord_debug\tmissing_pcs\textra_pcs\t"
 	       "expected_chords\tchord_hit\tglobal_chord\tkeyboard_chord\n";
 }
 
@@ -1201,6 +1201,7 @@ void append_maestro_attribute_row(std::ostream &out, const Recording &recording,
 	out << recording.id << '\t' << candidate.center_sample << '\t'
 	    << pitch_class_list(candidate.pitch_classes) << '\t' << pitch_class_list(keyboard) << '\t'
 	    << pitch_class_list(chord_keyboard) << '\t'
+	    << snapshot.keyboard_chord_debug_reason << '\t'
 	    << pitch_class_difference_list(candidate.pitch_classes, keyboard) << '\t'
 	    << pitch_class_difference_list(keyboard, candidate.pitch_classes) << '\t'
 	    << join_labels(candidate.chord_labels) << '\t' << (chord_hit ? 1 : 0) << '\t'
