@@ -143,7 +143,7 @@ Source: `build/drum_samples_full_gate.out`
 | Metric | Accurate / total | Remaining |
 | --- | ---: | ---: |
 | Full drum gate — primary kick | 6213 / 6505 (95.5%) | 292 |
-| Full drum gate — primary snare | 4003 / 5390 (74.3%) | 1387 |
+| Full drum gate — primary snare | 4015 / 5390 (74.5%) | 1375 |
 | Full drum gate — primary hihat | 1990 / 2358 (84.4%) | 368 |
 | Full drum gate — primary crash | 562 / 788 (71.3%) | 226 |
 | Full drum gate — primary tom | 1941 / 2861 (67.8%) | 920 |

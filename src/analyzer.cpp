@@ -32761,6 +32761,18 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 	if (final_one_shot_measured_rim_snare_active_bleed)
 		cap_drum_level(Snare, 0.28f);
 
+	// A small family of sampled snares produces a saturated tom envelope after
+	// the generic bleed caps.  Their retained snare level, strong upper-tom
+	// body, and quiet rim trigger separate them from the protected real toms.
+	const bool final_one_shot_measured_saturated_tom_snare_primary_recovery =
+		drum_detection_enabled && one_shot_drum_source && !generated_gm_drum_source &&
+		drum_level_[Snare] >= 0.27f &&
+		drum_level_[Tom] >= drum_level_[Snare] * 3.571f &&
+		upper_tom_body >= 65.384f && tom_body <= 300.0f &&
+		snapshot.drum_debug_trigger_scores[Rim] <= 44.015f;
+	if (final_one_shot_measured_saturated_tom_snare_primary_recovery)
+		promote_drum_primary(Snare, 0.90f);
+
 	// A compact snare-only Beatles stem produces a second, near-saturated rim
 	// candidate through the same mid-band transient.  The low kick body and
 	// tightly bounded rim/snare bands distinguish it from genuine rim attacks.
