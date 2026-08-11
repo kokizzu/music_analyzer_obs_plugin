@@ -69,6 +69,17 @@ This F0-derived, resynthesized four-part corpus is reported separately from real
 | Bach10-mf0-synth — exact chord windows | 28 / 40 (70.0%) | 12 |
 | Bach10-mf0-synth — simplified chord windows | 34 / 40 (85.0%) | 6 |
 
+## MusicNet real-mixture gate
+
+This open CC-BY corpus measures real classical mixtures; unlike Bach10, it has no isolated stems.
+
+| Metric | Accurate / total | Remaining |
+| --- | ---: | ---: |
+| MusicNet real mixes — recordings evaluated | 20 / 330 (6.1%) | 310 |
+| MusicNet real mixes — expected pitch classes | 243 / 335 (72.5%) | 92 |
+| MusicNet real mixes — exact chord windows | 29 / 80 (36.2%) | 51 |
+| MusicNet real mixes — simplified chord windows | 40 / 80 (50.0%) | 40 |
+
 ## Full drum primary-classification gate
 
 These rows count one-shot samples by the instrument shown as the primary drum. The latest completed full gate is reported even when a threshold fails, so its remaining classifications remain visible.

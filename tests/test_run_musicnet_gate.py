@@ -16,15 +16,19 @@ def main() -> None:
         root = Path(temporary)
         binary = root / "analyzer"
         output = root / "external-store" / "measurement.out"
-        binary.write_text("#!/bin/sh\nprintf 'recordings 20/330, windows 80, note hits 210/300, chord hits 40/80, simple chord hits 52/80\\n'\n", encoding="utf-8")
+        binary.write_text(
+            "#!/bin/sh\n"
+            "printf '%s\\n' \"recording cap $MUSIC_ANALYZER_MUSICNET_MAX_RECORDINGS, required recordings $MUSIC_ANALYZER_MUSICNET_REQUIRED_RECORDINGS, windows $MUSIC_ANALYZER_MUSICNET_REQUIRED_WINDOWS, max windows $MUSIC_ANALYZER_MUSICNET_MAX_WINDOWS_PER_RECORDING\"\n",
+            encoding="utf-8",
+        )
         binary.chmod(0o755)
         completed = subprocess.run(
-            ["sh", str(args.script), str(binary), str(root / "musicnet"), str(output)],
+            ["sh", str(args.script), str(binary), str(root / "musicnet"), str(output), "20", "80"],
             check=True,
             text=True,
             capture_output=True,
         )
-        assert "recordings 20/330" in completed.stdout
+        assert "recording cap 20, required recordings 20, windows 80, max windows 4" in completed.stdout
         assert output.read_text(encoding="utf-8") == completed.stdout
 
     print("run_musicnet_gate: ok")

@@ -1289,6 +1289,8 @@ int main()
 	});
 
 	const int required_recordings = resolve_positive_int_env("MUSIC_ANALYZER_MUSICNET_REQUIRED_RECORDINGS", 20);
+	const int max_recordings =
+		resolve_nonnegative_int_env("MUSIC_ANALYZER_MUSICNET_MAX_RECORDINGS", 0);
 	const int max_windows_per_recording =
 		resolve_positive_int_env("MUSIC_ANALYZER_MUSICNET_MAX_WINDOWS_PER_RECORDING", 12);
 	const int default_required_windows = std::min(required_recordings * 4,
@@ -1354,6 +1356,8 @@ int main()
 			++no_candidate_recordings;
 			continue;
 		}
+		if (max_recordings > 0 && recordings_with_windows >= max_recordings)
+			break;
 
 		int recording_windows = 0;
 		for (const CandidateWindow &candidate : candidates) {

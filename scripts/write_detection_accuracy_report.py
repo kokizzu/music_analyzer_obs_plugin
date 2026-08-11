@@ -117,7 +117,8 @@ BACH10_GATE_RE = re.compile(
 )
 
 MUSICNET_GATE_RE = re.compile(
-    r"recordings (?P<recordings_done>\d+)/(?P<recordings_total>\d+), windows \d+, note hits "
+	r"analyzer_musicnet: \d+/\d+ checks (?:passed|failed) \(recordings "
+	r"(?P<recordings_done>\d+)/(?P<recordings_total>\d+), windows \d+.*?note hits "
     r"(?P<note_hits>\d+)/(?P<note_total>\d+), chord hits "
     r"(?P<chord_hits>\d+)/(?P<chord_total>\d+).*?simple chord hits "
     r"(?P<simple_hits>\d+)/(?P<simple_total>\d+)"

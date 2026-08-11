@@ -71,7 +71,7 @@ class DetectionAccuracyReportTest(unittest.TestCase):
             )
             musicnet = Path(temporary) / "musicnet.out"
             musicnet.write_text(
-                "analyzer_musicnet: 20 checks passed (recordings 20/330, windows 80, note hits "
+                "analyzer_musicnet: 5/20 checks failed (recordings 20/330, windows 80, note hits "
                 "210/300, chord hits 40/80, simple chord hits 52/80 65.00%)\n",
                 encoding="utf-8",
             )
