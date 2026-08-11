@@ -4697,6 +4697,17 @@ bool guitar_owned_measured_string_other_display_supported(const FullMixDebugCand
 	       measured_guitar_string_other_priority_supported(debug);
 }
 
+bool keyboard_owned_measured_violin_other_display_supported(const FullMixDebugCandidate &debug)
+{
+	// Five independent violin recordings are initially keyboard-owned, yet
+	// retain an Other display candidate at the same pitch class. The strong
+	// keyboard-over-guitar split, confident pitch estimate, and third-octave
+	// energy have zero protected-row overlap in the route scan.
+	return debug.owner == InstrumentKind::Keyboard && debug.keyboard_score > 0.0f &&
+	       (debug.guitar_score <= 0.0f || debug.keyboard_score >= debug.guitar_score * 5.933f) &&
+	       debug.pitch_confidence >= 0.938f && debug.third_octave_ratio >= 0.044f;
+}
+
 bool low_acoustic_string_other_display_supported(const FullMixDebugCandidate &debug)
 {
 	if (debug.owner != InstrumentKind::Guitar && debug.owner != InstrumentKind::Ambiguous)
@@ -10463,6 +10474,31 @@ void boost_existing_reed_brass_other_visual_notes(NoteGrid &other_grid,
 		if (note_grid_midi_level(other_grid, debug.midi) < kMinExistingOtherLevel)
 			continue;
 		boost_note_grid_midi_visual_level(other_grid, debug.midi, kBrightVisualFloor);
+	}
+}
+
+void boost_existing_measured_violin_other_visual_notes(
+	NoteGrid &other_grid, const NoteGrid &keyboard_grid, const FullMixOwnership &ownership)
+{
+	static constexpr float kMinExistingOtherLevel = 0.18f;
+	static constexpr float kVisualLead = 0.015f;
+	static constexpr float kMaximumVisualFloor = 0.91f;
+	const std::size_t debug_count =
+		std::min<std::size_t>(ownership.debug_candidate_count, ownership.debug_candidates.size());
+	for (std::size_t i = 0; i < debug_count; ++i) {
+		const FullMixDebugCandidate &debug = ownership.debug_candidates[i];
+		if (!keyboard_owned_measured_violin_other_display_supported(debug))
+			continue;
+		const float other_level = note_grid_midi_level(other_grid, debug.midi);
+		if (other_level < kMinExistingOtherLevel)
+			continue;
+		const float keyboard_visual = note_grid_midi_visual_level(keyboard_grid, debug.midi);
+		const float other_visual = note_grid_midi_visual_level(other_grid, debug.midi);
+		if (keyboard_visual <= other_visual)
+			continue;
+		boost_note_grid_midi_visual_level(
+			other_grid, debug.midi,
+			std::min(kMaximumVisualFloor, keyboard_visual + kVisualLead));
 	}
 }
 
@@ -35075,6 +35111,8 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 							      snapshot.other_notes, full_mix_ownership,
 							      InstrumentKind::Other, -1);
 		boost_existing_reed_brass_other_visual_notes(snapshot.other_notes, full_mix_ownership);
+		boost_existing_measured_violin_other_visual_notes(
+			snapshot.other_notes, snapshot.keyboard_notes, full_mix_ownership);
 		boost_existing_measured_organ_keyboard_visual_notes(
 			snapshot.keyboard_notes, snapshot.other_notes, full_mix_ownership);
 		boost_existing_clean_electronic_keyboard_visual_notes(

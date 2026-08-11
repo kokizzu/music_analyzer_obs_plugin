@@ -86,7 +86,7 @@ Source: `build/good_sounds_full_mix_attributes.tsv`
 | --- | ---: | ---: |
 | Good Sounds — Any detected note | 999 / 1000 (99.9%) | 1 |
 | Good Sounds — Expected instrument row | 948 / 1000 (94.8%) | 52 |
-| Good Sounds — Lit expected pitch class | 779 / 1000 (77.9%) | 221 |
+| Good Sounds — Lit expected pitch class | 783 / 1000 (78.3%) | 217 |
 | Good Sounds — Primary display row | 119 / 1000 (11.9%) | 881 |
 | Good Sounds — Visual primary row | 241 / 1000 (24.1%) | 759 |
 | Good Sounds — Bass — Any detected note | 159 / 159 (100.0%) | 0 |
@@ -96,7 +96,7 @@ Source: `build/good_sounds_full_mix_attributes.tsv`
 | Good Sounds — Bass — Visual primary row | 6 / 159 (3.8%) | 153 |
 | Good Sounds — Other — Any detected note | 840 / 841 (99.9%) | 1 |
 | Good Sounds — Other — Expected instrument row | 806 / 841 (95.8%) | 35 |
-| Good Sounds — Other — Lit expected pitch class | 638 / 841 (75.9%) | 203 |
+| Good Sounds — Other — Lit expected pitch class | 642 / 841 (76.3%) | 199 |
 | Good Sounds — Other — Primary display row | 116 / 841 (13.8%) | 725 |
 | Good Sounds — Other — Visual primary row | 235 / 841 (27.9%) | 606 |
 
