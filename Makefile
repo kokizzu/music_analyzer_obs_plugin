@@ -3810,6 +3810,17 @@ test-maps-piano-note-samples-max:
 test-real-world-samples-max-parallel: scripts/run_with_duration.sh
 	+$(RUN_WITH_DURATION) real_world_samples_max $(MAKE) $(PARALLEL_TEST_MAKE_JOBS) $(REAL_WORLD_SAMPLE_MAX_TARGETS)
 
+.PHONY: audit-build-sample-storage relocate-build-sample-storage
+
+# Keep downloaded and generated audio sample corpora off the workspace disk.
+# The apply target refuses collisions so an existing external corpus is never
+# overwritten or merged implicitly.
+audit-build-sample-storage: scripts/relocate_build_sample_directories.sh
+	bash scripts/relocate_build_sample_directories.sh --dry-run
+
+relocate-build-sample-storage: scripts/relocate_build_sample_directories.sh
+	bash scripts/relocate_build_sample_directories.sh --apply
+
 test-real-world-samples-max: scripts/run_with_duration.sh
 	+$(MAKE) test-real-world-samples-max-parallel
 
