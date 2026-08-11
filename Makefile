@@ -4543,7 +4543,7 @@ test-real-musicnet-20: $(BUILD_DIR)/analyzer_musicnet
 test-real-musicnet-full: $(BUILD_DIR)/analyzer_musicnet
 	MUSIC_ANALYZER_MUSICNET_REQUIRED=1 MUSIC_ANALYZER_MUSICNET_REQUIRED_RECORDINGS=330 MUSIC_ANALYZER_MUSICNET_REQUIRED_WINDOWS=1320 $(BUILD_DIR)/analyzer_musicnet
 
-.PHONY: download-real-urmp inspect-real-urmp-download prepare-real-urmp analyze-real-urmp-traits analyze-real-urmp-miss-traits summarize-real-urmp-miss-traits test-urmp-download-scripts test-urmp-archive-extract download-real-musicnet inspect-real-musicnet-download prepare-real-musicnet inspect-downloaded-real-musicnet-20-traits analyze-downloaded-real-musicnet-recording test-downloaded-real-musicnet-20 test-downloaded-real-musicnet-full test-musicnet-archive-extract test-run-musicnet-gate test-summarize-musicnet-attributes
+.PHONY: download-real-urmp inspect-real-urmp-download prepare-real-urmp analyze-real-urmp-traits analyze-real-urmp-miss-traits summarize-real-urmp-miss-traits test-urmp-download-scripts test-urmp-archive-extract download-real-musicnet inspect-real-musicnet-download prepare-real-musicnet inspect-downloaded-real-musicnet-20-traits analyze-downloaded-real-musicnet-recording analyze-downloaded-real-musicnet-chord-misses test-downloaded-real-musicnet-20 test-downloaded-real-musicnet-full test-musicnet-archive-extract test-run-musicnet-gate test-summarize-musicnet-attributes
 download-real-urmp: $(URMP_ARCHIVE)
 
 inspect-real-urmp-download: scripts/urmp_download_status.sh
@@ -4606,6 +4606,9 @@ inspect-downloaded-real-musicnet: $(BUILD_DIR)/analyzer_musicnet prepare-real-mu
 
 analyze-downloaded-real-musicnet-20-traits: scripts/summarize_musicnet_attributes.py
 	$(PYTHON) scripts/summarize_musicnet_attributes.py "$(MUSICNET_20_ATTRIBUTE_OUTPUT)"
+
+analyze-downloaded-real-musicnet-chord-misses: scripts/analyze_musicnet_chord_misses.py
+	$(PYTHON) scripts/analyze_musicnet_chord_misses.py "$(MUSICNET_FULL_ATTRIBUTE_OUTPUT)"
 
 analyze-downloaded-real-musicnet-recording: $(BUILD_DIR)/analyzer_musicnet prepare-real-musicnet scripts/run_musicnet_gate.sh
 	@test -n "$(MUSICNET_ANALYSIS_RECORDING_IDS)" || { printf '%s\n' "set MUSICNET_ANALYSIS_RECORDING_IDS=<MusicNet id>" >&2; exit 2; }
