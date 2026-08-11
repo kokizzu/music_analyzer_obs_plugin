@@ -65,7 +65,8 @@ while IFS= read -r -d '' path; do
   [[ -d "$path" ]] || continue
   name="${path##*/}"
   # Android tooling is a build dependency, not corpus data.
-  [[ "$name" == "InstrumentSamples" || "$name" == "android-sdk" ]] && continue
+  # Lock directories are short-lived build coordination state, not corpus data.
+  [[ "$name" == "InstrumentSamples" || "$name" == "android-sdk" || "$name" == *.lock ]] && continue
   normalized="${name,,}"
   if [[ "$normalized" =~ (^|_)(sample|samples|corpus|dataset)(_|$) ]] || \
       find -L "$path" -type f \( -iname '*.wav' -o -iname '*.flac' -o -iname '*.mp3' -o -iname '*.ogg' -o -iname '*.opus' -o -iname '*.aif' -o -iname '*.aiff' -o -iname '*.m4a' \) -print -quit | grep -q .; then

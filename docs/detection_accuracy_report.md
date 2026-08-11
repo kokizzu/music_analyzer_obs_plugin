@@ -68,6 +68,27 @@ Source: `build/vocalset_full_mix_attributes.tsv`
 | VocalSet vocals — Primary display row | 199 / 2389 (8.3%) | 2190 |
 | VocalSet vocals — Visual primary row | 176 / 2389 (7.4%) | 2213 |
 
+## Good Sounds full-mix acoustic routing
+
+This independent acoustic-instrument corpus is measured in full-mix mode. It is a coverage benchmark, not a release threshold, and includes bass plus woodwind, brass, and violin samples.
+
+Source: `build/good_sounds_full_mix_attributes.tsv`
+
+| Metric | Accurate / total | Remaining |
+| --- | ---: | ---: |
+| Good Sounds — Any detected note | 999 / 1000 (99.9%) | 1 |
+| Good Sounds — Expected instrument row | 948 / 1000 (94.8%) | 52 |
+| Good Sounds — Primary display row | 119 / 1000 (11.9%) | 881 |
+| Good Sounds — Visual primary row | 241 / 1000 (24.1%) | 759 |
+| Good Sounds — Bass — Any detected note | 159 / 159 (100.0%) | 0 |
+| Good Sounds — Bass — Expected instrument row | 142 / 159 (89.3%) | 17 |
+| Good Sounds — Bass — Primary display row | 3 / 159 (1.9%) | 156 |
+| Good Sounds — Bass — Visual primary row | 6 / 159 (3.8%) | 153 |
+| Good Sounds — Other — Any detected note | 840 / 841 (99.9%) | 1 |
+| Good Sounds — Other — Expected instrument row | 806 / 841 (95.8%) | 35 |
+| Good Sounds — Other — Primary display row | 116 / 841 (13.8%) | 725 |
+| Good Sounds — Other — Visual primary row | 235 / 841 (27.9%) | 606 |
+
 ## Cached isolated-guitar chord gates
 
 These rows count expected labeled chord-analysis windows (not full-mix samples). They are included only when the corresponding cached attribute TSV exists.

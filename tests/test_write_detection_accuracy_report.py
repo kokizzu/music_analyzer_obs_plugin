@@ -69,6 +69,18 @@ class DetectionAccuracyReportTest(unittest.TestCase):
                 ) + "\n",
                 encoding="utf-8",
             )
+            good_sounds_full_mix = Path(temporary) / "good_sounds_full_mix_attributes.tsv"
+            good_sounds_full_mix.write_text(
+                "\n".join(
+                    (
+                        HEADER,
+                        "gs1\tbass\t1\t1\tbass\tbass",
+                        "gs2\tother\t1\t1\tpiano\tother",
+                        "gs3\tother\t0\t0\tpiano\tpiano",
+                    )
+                ) + "\n",
+                encoding="utf-8",
+            )
             bach10_0 = Path(temporary) / "bach10_0.out"
             bach10_0.write_text(
                 "analyzer_musicnet: 20 checks passed (recordings 3/10, windows 12, note hits "
@@ -127,7 +139,7 @@ class DetectionAccuracyReportTest(unittest.TestCase):
             )
             report = REPORT.render(
                 source, [chords], vocal_full_mix, [bach10_0, bach10_1], musicnet, drum, urmp,
-                vocalset_full_mix, [maps], None, route_summary,
+                vocalset_full_mix, [maps], None, route_summary, good_sounds_full_mix,
             )
 
         self.assertIn("| Any detected note | 2 / 3 (66.7%) | 1 |", report)
@@ -150,6 +162,9 @@ class DetectionAccuracyReportTest(unittest.TestCase):
         self.assertIn("## VocalSet full-mix vocal routing", report)
         self.assertIn("| VocalSet vocals — Expected instrument row | 2 / 3 (66.7%) | 1 |", report)
         self.assertIn("| VocalSet vocals — Visual primary row | 2 / 3 (66.7%) | 1 |", report)
+        self.assertIn("## Good Sounds full-mix acoustic routing", report)
+        self.assertIn("| Good Sounds — Any detected note | 2 / 3 (66.7%) | 1 |", report)
+        self.assertIn("| Good Sounds — Other — Expected instrument row | 1 / 2 (50.0%) | 1 |", report)
         self.assertIn("## Bach10-mf0-synth multitrack stress gate", report)
         self.assertIn("| Bach10-mf0-synth — expected note slots | 74 / 80 (92.5%) | 6 |", report)
         self.assertIn("| Bach10-mf0-synth — exact chord windows | 14 / 20 (70.0%) | 6 |", report)

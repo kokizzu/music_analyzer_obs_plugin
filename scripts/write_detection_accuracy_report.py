@@ -336,6 +336,7 @@ def render(
     maps_gate_outputs: list[Path] | None = None,
     maps_note_gate_outputs: list[Path] | None = None,
     route_summary: Path | None = None,
+    good_sounds_full_mix_input: Path | None = None,
 ) -> str:
     samples = load_samples(input_path)
     lines = [
@@ -414,6 +415,25 @@ def render(
                 lines.append(
                     f"| VocalSet vocals — {label} | {fraction(accurate, total)} | {total - accurate} |"
                 )
+    if good_sounds_full_mix_input is not None:
+        good_sounds_samples = load_samples(good_sounds_full_mix_input)
+        lines.extend(
+            [
+                "",
+                "## Good Sounds full-mix acoustic routing",
+                "",
+                "This independent acoustic-instrument corpus is measured in full-mix mode. "
+                "It is a coverage benchmark, not a release threshold, and includes bass plus "
+                "woodwind, brass, and violin samples.",
+                "",
+                f"Source: `{good_sounds_full_mix_input.as_posix()}`",
+                "",
+                "| Metric | Accurate / total | Remaining |",
+                "| --- | ---: | ---: |",
+            ]
+        )
+        for label, accurate, total in table_rows(good_sounds_samples):
+            lines.append(f"| Good Sounds — {label} | {fraction(accurate, total)} | {total - accurate} |")
     cached_chord_inputs = chord_inputs or []
     if cached_chord_inputs:
         lines.extend(
@@ -541,6 +561,7 @@ def main() -> int:
     parser.add_argument("--drum-gate-output", type=Path)
     parser.add_argument("--urmp-gate-output", type=Path)
     parser.add_argument("--route-summary", type=Path)
+    parser.add_argument("--good-sounds-full-mix-input", type=Path)
     parser.add_argument("--output", required=True, type=Path)
     args = parser.parse_args()
     try:
@@ -548,7 +569,7 @@ def main() -> int:
             args.input, args.chord_input, args.vocal_full_mix_input, args.bach10_gate_output,
             args.musicnet_gate_output, args.drum_gate_output, args.urmp_gate_output,
             args.vocalset_full_mix_input, args.maps_gate_output, args.maps_note_gate_output,
-            args.route_summary,
+            args.route_summary, args.good_sounds_full_mix_input,
         )
     except (OSError, ValueError) as error:
         parser.error(str(error))
