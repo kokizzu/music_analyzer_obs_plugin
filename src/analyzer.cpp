@@ -32403,6 +32403,18 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 			snapshot.mid_energy >= 0.76f && tom_body >= snare_body * 1.774f;
 		if (final_one_shot_measured_mid_body_tom_from_snare_primary_recovery)
 			promote_drum_primary(Tom, 0.90f);
+		// A compact group of measured toms has its weak tom activation capped by
+		// snare-bleed handling, despite a decisive shell body relative to kick.
+		// The quiet ride band and bounded tom trigger keep this separate from the
+		// snare-led blends retained by the normal final arbitration.
+		const bool final_one_shot_measured_compact_tom_from_snare_primary_recovery =
+			drum_detection_enabled && one_shot_drum_source && !generated_gm_drum_source &&
+			body_shape == Tom && drum_level_[Tom] <= 0.30f &&
+			drum_level_[Snare] >= 0.98f && drum_bands[Ride] <= 0.944f &&
+			tom_kick_body_ratio >= 2.716f &&
+			snapshot.drum_debug_trigger_scores[Tom] <= 52.702f;
+		if (final_one_shot_measured_compact_tom_from_snare_primary_recovery)
+			promote_drum_primary(Tom, 0.90f);
 		// A small, independently sampled tom family retains a near-saturated kick
 		// candidate despite its pronounced snare-shell transient.  Its tom body is
 		// bounded below the broad kick bodies, so this final recovery does not
