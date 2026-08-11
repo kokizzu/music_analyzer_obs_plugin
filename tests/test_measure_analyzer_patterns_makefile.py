@@ -4211,8 +4211,8 @@ def main() -> int:
     )
 
     vocalset_archive_recipe = target_recipe(makefile, "$(VOCALSET_ARCHIVE)")
-    assert "VOCALSET_DOWNLOAD_CONNECTIONS ?= 8" in makefile, (
-        "VocalSet download parallelism must be configurable"
+    assert "VOCALSET_DOWNLOAD_CONNECTIONS ?= 1" in makefile, (
+        "VocalSet download concurrency must remain configurable and range-safe"
     )
     assert 'mv -f "$(VOCALSET_ARCHIVE)" "$(VOCALSET_ARCHIVE).part"' in vocalset_archive_recipe, (
         "VocalSet archive target must quarantine corrupt completed zips"
@@ -4428,6 +4428,18 @@ def main() -> int:
     )
     assert "--include-row-context" not in row_confusion_recipe, (
         "row-confusion auto-search must not use display-row fields as candidate rules"
+    )
+    runtime_octave_recipe = target_recipe(
+        makefile, "find-real-note-octave-displacement-runtime-patterns"
+    )
+    assert "--bucket-status octave_displacement" in runtime_octave_recipe, (
+        "runtime octave mining must select the octave-displacement bucket"
+    )
+    assert "$(REAL_NOTE_RUNTIME_ROW_CONFUSION_EXCLUDES)" in runtime_octave_recipe, (
+        "runtime octave mining must exclude expected-label-derived attributes"
+    )
+    assert "--include-row-context" not in runtime_octave_recipe, (
+        "runtime octave mining must not reintroduce label-derived row context"
     )
     ownership_recipe = target_recipe(makefile, "find-real-note-ownership-patterns")
     assert "--bucket-status ownership_miss" in ownership_recipe, (
