@@ -117,8 +117,8 @@ This real Disklavier corpus uses aligned MIDI annotations. The four stored shard
 | MAPS real piano — recordings with eligible chord windows | 78 / 80 (97.5%) | 2 |
 | MAPS real piano — expected pitch classes | 419 / 604 (69.4%) | 185 |
 | MAPS real piano — keyboard detected-note precision | 419 / 615 (68.1%) | 196 false predictions |
-| MAPS real piano — exact chord windows | 10 / 135 (7.4%) | 125 |
-| MAPS real piano — keyboard chord precision | 10 / 54 (18.5%) | 44 false predictions |
+| MAPS real piano — exact chord windows | 15 / 135 (11.1%) | 120 |
+| MAPS real piano — keyboard chord precision | 15 / 54 (27.8%) | 39 false predictions |
 
 ## MAPS isolated-piano note gate
 

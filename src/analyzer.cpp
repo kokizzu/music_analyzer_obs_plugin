@@ -12730,7 +12730,7 @@ ChordResult simplify_weak_keyboard_ninth(const std::array<float, 12> &chroma, co
 ChordResult detect_keyboard_chord_from_grid(const NoteGrid &grid, bool allow_extensions, int preferred_root = -1,
 						    char *debug_reason = nullptr, std::size_t debug_reason_size = 0)
 {
-	static constexpr int kKeyboardHandSpanSemitones = 16;
+	static constexpr int kKeyboardHandSpanSemitones = 24;
 	const NoteCandidateList notes =
 		allow_extensions ? note_grid_candidates(grid) :
 				   prune_adjacent_keyboard_candidates(note_grid_candidates(grid));
