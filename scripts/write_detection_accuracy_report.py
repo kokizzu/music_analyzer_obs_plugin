@@ -123,6 +123,13 @@ MUSICNET_GATE_RE = re.compile(
     r"(?P<simple_hits>\d+)/(?P<simple_total>\d+)"
 )
 
+DRUM_PRIMARY_MATRIX_RE = re.compile(
+    r"analyzer_drum_samples: primary matrix\n(?P<rows>(?:\s+expected "
+    r"(?:kick|snare|hihat|crash|tom|ride|rim)\s+[^\n]+\n)+)"
+)
+DRUM_PRIMARY_ROW_RE = re.compile(r"^\s*expected (?P<expected>\w+)\s+(?P<counts>.+)$")
+DRUM_PRIMARY_COUNT_RE = re.compile(r"(?P<instrument>\w+)=(?P<count>\d+)")
+
 
 def bach10_gate_rows(paths: list[Path]) -> list[tuple[str, int, int]]:
     totals = {name: [0, 0] for name in ("note", "chord", "simple")}
@@ -152,12 +159,35 @@ def musicnet_gate_rows(path: Path) -> list[tuple[str, int, int]]:
     ]
 
 
+def drum_primary_gate_rows(path: Path) -> list[tuple[str, int, int]]:
+    match = DRUM_PRIMARY_MATRIX_RE.search(path.read_text(encoding="utf-8", errors="replace"))
+    if match is None:
+        raise ValueError(f"{path}: missing full-drum primary matrix")
+    result: list[tuple[str, int, int]] = []
+    for line in match["rows"].splitlines():
+        row = DRUM_PRIMARY_ROW_RE.match(line)
+        if row is None:
+            continue
+        counts = {
+            count["instrument"]: int(count["count"])
+            for count in DRUM_PRIMARY_COUNT_RE.finditer(row["counts"])
+        }
+        expected = row["expected"]
+        if expected not in counts:
+            raise ValueError(f"{path}: missing primary count for {expected}")
+        result.append((f"Full drum gate — primary {expected}", counts[expected], sum(counts.values())))
+    if len(result) != 7:
+        raise ValueError(f"{path}: expected seven full-drum primary rows, got {len(result)}")
+    return result
+
+
 def render(
     input_path: Path,
     chord_inputs: list[Path] | None = None,
     vocal_full_mix_input: Path | None = None,
     bach10_gate_outputs: list[Path] | None = None,
     musicnet_gate_output: Path | None = None,
+    drum_gate_output: Path | None = None,
 ) -> str:
     samples = load_samples(input_path)
     lines = [
@@ -242,6 +272,24 @@ def render(
         )
         for label, accurate, total in musicnet_gate_rows(musicnet_gate_output):
             lines.append(f"| {label} | {fraction(accurate, total)} | {total - accurate} |")
+    if drum_gate_output is not None:
+        lines.extend(
+            [
+                "",
+                "## Full drum primary-classification gate",
+                "",
+                "These rows count one-shot samples by the instrument shown as the primary drum. "
+                "The latest completed full gate is reported even when a threshold fails, so its "
+                "remaining classifications remain visible.",
+                "",
+                f"Source: `{drum_gate_output.as_posix()}`",
+                "",
+                "| Metric | Accurate / total | Remaining |",
+                "| --- | ---: | ---: |",
+            ]
+        )
+        for label, accurate, total in drum_primary_gate_rows(drum_gate_output):
+            lines.append(f"| {label} | {fraction(accurate, total)} | {total - accurate} |")
     lines.extend(
         [
             "",
@@ -260,12 +308,13 @@ def main() -> int:
     parser.add_argument("--vocal-full-mix-input", type=Path)
     parser.add_argument("--bach10-gate-output", action="append", type=Path, default=[])
     parser.add_argument("--musicnet-gate-output", type=Path)
+    parser.add_argument("--drum-gate-output", type=Path)
     parser.add_argument("--output", required=True, type=Path)
     args = parser.parse_args()
     try:
         rendered = render(
             args.input, args.chord_input, args.vocal_full_mix_input, args.bach10_gate_output,
-            args.musicnet_gate_output
+            args.musicnet_gate_output, args.drum_gate_output
         )
     except (OSError, ValueError) as error:
         parser.error(str(error))

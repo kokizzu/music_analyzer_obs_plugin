@@ -75,7 +75,19 @@ class DetectionAccuracyReportTest(unittest.TestCase):
                 "210/300, chord hits 40/80, simple chord hits 52/80 65.00%)\n",
                 encoding="utf-8",
             )
-            report = REPORT.render(source, [chords], vocal_full_mix, [bach10_0, bach10_1], musicnet)
+            drum = Path(temporary) / "drum_full_gate.out"
+            drum.write_text(
+                "analyzer_drum_samples: primary matrix\n"
+                "  expected kick  kick=8 snare=1 hihat=0 crash=0 tom=1 ride=0 rim=0 ambiguous=0 none=0\n"
+                "  expected snare kick=1 snare=7 hihat=0 crash=0 tom=2 ride=0 rim=0 ambiguous=0 none=0\n"
+                "  expected hihat kick=0 snare=1 hihat=6 crash=1 tom=0 ride=1 rim=0 ambiguous=0 none=1\n"
+                "  expected crash kick=0 snare=0 hihat=1 crash=5 tom=0 ride=2 rim=0 ambiguous=1 none=1\n"
+                "  expected tom   kick=2 snare=1 hihat=0 crash=0 tom=7 ride=0 rim=0 ambiguous=0 none=0\n"
+                "  expected ride  kick=0 snare=0 hihat=2 crash=1 tom=0 ride=6 rim=0 ambiguous=0 none=1\n"
+                "  expected rim   kick=0 snare=2 hihat=1 crash=0 tom=1 ride=0 rim=5 ambiguous=1 none=0\n",
+                encoding="utf-8",
+            )
+            report = REPORT.render(source, [chords], vocal_full_mix, [bach10_0, bach10_1], musicnet, drum)
 
         self.assertIn("| Any detected note | 2 / 3 (66.7%) | 1 |", report)
         self.assertIn("| Expected instrument row | 2 / 3 (66.7%) | 1 |", report)
@@ -95,6 +107,9 @@ class DetectionAccuracyReportTest(unittest.TestCase):
         self.assertIn("## MusicNet real-mixture gate", report)
         self.assertIn("| MusicNet real mixes — recordings evaluated | 20 / 330 (6.1%) | 310 |", report)
         self.assertIn("| MusicNet real mixes — expected pitch classes | 210 / 300 (70.0%) | 90 |", report)
+        self.assertIn("## Full drum primary-classification gate", report)
+        self.assertIn("| Full drum gate — primary kick | 8 / 10 (80.0%) | 2 |", report)
+        self.assertIn("| Full drum gate — primary hihat | 6 / 10 (60.0%) | 4 |", report)
 
 
 if __name__ == "__main__":

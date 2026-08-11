@@ -69,4 +69,20 @@ This F0-derived, resynthesized four-part corpus is reported separately from real
 | Bach10-mf0-synth — exact chord windows | 28 / 40 (70.0%) | 12 |
 | Bach10-mf0-synth — simplified chord windows | 34 / 40 (85.0%) | 6 |
 
+## Full drum primary-classification gate
+
+These rows count one-shot samples by the instrument shown as the primary drum. The latest completed full gate is reported even when a threshold fails, so its remaining classifications remain visible.
+
+Source: `build/drum_samples_full_gate.out`
+
+| Metric | Accurate / total | Remaining |
+| --- | ---: | ---: |
+| Full drum gate — primary kick | 6212 / 6505 (95.5%) | 293 |
+| Full drum gate — primary snare | 4003 / 5390 (74.3%) | 1387 |
+| Full drum gate — primary hihat | 1990 / 2358 (84.4%) | 368 |
+| Full drum gate — primary crash | 558 / 788 (70.8%) | 230 |
+| Full drum gate — primary tom | 1896 / 2861 (66.3%) | 965 |
+| Full drum gate — primary ride | 241 / 352 (68.5%) | 111 |
+| Full drum gate — primary rim | 333 / 504 (66.1%) | 171 |
+
 Refresh with `make update-detection-accuracy-report`. Whenever a verified detection metric changes, update this report in the same commit.
