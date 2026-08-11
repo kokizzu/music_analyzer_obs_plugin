@@ -2033,10 +2033,12 @@ int main()
 							traits_error, mao::AnalysisInputMode::FullMix);
 						if (traits_ok) {
 							std::fprintf(stderr,
-								     "URMP traits %s #%d %s at %.3fs: expected %s, candidates %s, grids %s\n",
+								     "URMP traits %s #%d %s at %.3fs: expected %s, isolated grids %s, "
+								     "candidates %s, full-mix grids %s\n",
 								     basename_of(piece_dir).c_str(), track.number,
 								     track.instrument.c_str(), candidate.time,
 								     mao_test::note_label(active.midi).c_str(),
+								     snapshot_grid_pitch_class_list(track_snapshot).c_str(),
 								     full_mix_candidate_list(traits_snapshot).c_str(),
 								     snapshot_grid_pitch_class_list(traits_snapshot).c_str());
 						} else {

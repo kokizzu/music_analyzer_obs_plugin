@@ -61,6 +61,7 @@ constexpr float kNoteEnvelopeVisibleFloor = 0.015f;
 constexpr float kNoteEnvelopeNewNoteFloor = 0.010f;
 constexpr float kNoteEnvelopeImmediateConfirmFloor = 0.40f;
 constexpr float kMixedNoteEnvelopeImmediateConfirmFloor = 0.24f;
+constexpr float kMonophonicOtherImmediateConfirmFloor = 0.36f;
 constexpr float kMixedVocalConfirmedImmediateFloor = 0.18f;
 constexpr float kAnalyticalChordNoteReleaseSeconds = 0.22f;
 constexpr float kAnalyticalChordNoteVisibleFloor = 0.06f;
@@ -34635,11 +34636,14 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 	}
 
 	if (other_enabled) {
+		const float other_immediate_confirm_floor =
+			mixed_source ? kMixedNoteEnvelopeImmediateConfirmFloor :
+			(monophonic_other_source ? kMonophonicOtherImmediateConfirmFloor :
+						 kNoteEnvelopeImmediateConfirmFloor);
 		smooth_note_grid_envelope(snapshot.other_notes, snapshot.other, other_note_tracking_, -1,
 					  interval_seconds, other_max_notes, other_new_notes,
 					  kNoteAttackConfirmFrames,
-					  mixed_source ? kMixedNoteEnvelopeImmediateConfirmFloor :
-							 kNoteEnvelopeImmediateConfirmFloor,
+					  other_immediate_confirm_floor,
 					  kNoteEnvelopeReleaseSeconds, kNoteEnvelopeVisibleFloor,
 					  mixed_source ? &mixed_other_display_candidates : nullptr);
 		if (!mixed_source)
@@ -34699,8 +34703,7 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 		smooth_note_grid_envelope(other_chord_grid, other_chord_note_state, other_chord_note_tracking_,
 					  -1, interval_seconds, other_max_notes, other_new_notes,
 					  kNoteAttackConfirmFrames,
-					  mixed_source ? kMixedNoteEnvelopeImmediateConfirmFloor :
-							 kNoteEnvelopeImmediateConfirmFloor,
+					  other_immediate_confirm_floor,
 					  kAnalyticalChordNoteReleaseSeconds, kAnalyticalChordNoteVisibleFloor);
 		const ChordResult smoothed_other_chord =
 			monophonic_other_source ?
