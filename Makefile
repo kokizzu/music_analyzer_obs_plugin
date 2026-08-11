@@ -833,8 +833,9 @@ GOOD_SOUNDS_DETECTED_ATTRIBUTE_ROWS ?= $(BUILD_DIR)/good_sounds_detected_attribu
 GOOD_SOUNDS_MISS_ATTRIBUTE_ROWS ?= $(BUILD_DIR)/good_sounds_miss_attribute_rows.tsv
 GOOD_SOUNDS_FULL_MIX_ATTRIBUTE_TSV ?= $(BUILD_DIR)/good_sounds_full_mix_attributes.tsv
 GOOD_SOUNDS_FULL_MIX_ATTRIBUTE_LOCK_DIR ?= $(BUILD_DIR)/good_sounds_full_mix_attributes.lock
-GOOD_SOUNDS_SAMPLE_LIMIT ?= 1000
+GOOD_SOUNDS_SAMPLE_LIMIT ?= 1500
 GOOD_SOUNDS_MIN_SAMPLES ?= 500
+GOOD_SOUNDS_REFRESH ?= 0
 GOOD_SOUNDS_MIN_BASS ?= 50
 GOOD_SOUNDS_MIN_OTHER ?= 450
 GOOD_SOUNDS_MAX_FAILURES ?= 20
@@ -3281,7 +3282,7 @@ $(GOOD_SOUNDS_ARCHIVE_VALIDATION_STAMP): $(GOOD_SOUNDS_ARCHIVE)
 	touch "$@"
 
 prepare-good-sounds-samples: scripts/prepare_good_sounds_samples.py download-good-sounds-samples | $(BUILD_DIR)
-	GOOD_SOUNDS_ARCHIVE="$(GOOD_SOUNDS_ARCHIVE)" GOOD_SOUNDS_SAMPLE_DIR="$(GOOD_SOUNDS_SAMPLE_DIR)" GOOD_SOUNDS_SAMPLE_LIMIT="$(GOOD_SOUNDS_SAMPLE_LIMIT)" GOOD_SOUNDS_MIN_SAMPLES="$(GOOD_SOUNDS_MIN_SAMPLES)" FFMPEG="$(FFMPEG)" $(PYTHON) scripts/prepare_good_sounds_samples.py --archive "$(GOOD_SOUNDS_ARCHIVE)" --output "$(GOOD_SOUNDS_SAMPLE_DIR)" --limit "$(GOOD_SOUNDS_SAMPLE_LIMIT)" --min-samples "$(GOOD_SOUNDS_MIN_SAMPLES)" --ffmpeg "$(FFMPEG)"
+	GOOD_SOUNDS_ARCHIVE="$(GOOD_SOUNDS_ARCHIVE)" GOOD_SOUNDS_SAMPLE_DIR="$(GOOD_SOUNDS_SAMPLE_DIR)" GOOD_SOUNDS_SAMPLE_LIMIT="$(GOOD_SOUNDS_SAMPLE_LIMIT)" GOOD_SOUNDS_MIN_SAMPLES="$(GOOD_SOUNDS_MIN_SAMPLES)" FFMPEG="$(FFMPEG)" $(PYTHON) scripts/prepare_good_sounds_samples.py --archive "$(GOOD_SOUNDS_ARCHIVE)" --output "$(GOOD_SOUNDS_SAMPLE_DIR)" --limit "$(GOOD_SOUNDS_SAMPLE_LIMIT)" --min-samples "$(GOOD_SOUNDS_MIN_SAMPLES)" --ffmpeg "$(FFMPEG)" $(if $(filter 1 true yes,$(GOOD_SOUNDS_REFRESH)),--refresh)
 
 test-good-sounds-samples test-good-sounds-samples-parallel: REAL_NOTE_SAMPLE_TAG := good_sounds
 test-good-sounds-samples test-good-sounds-samples-parallel: REAL_NOTE_SAMPLE_ROOT := $(GOOD_SOUNDS_SAMPLE_DIR)

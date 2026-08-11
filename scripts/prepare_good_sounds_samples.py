@@ -287,7 +287,7 @@ def row_to_sample(row):
     }
 
 
-def manifest_complete(path, min_rows):
+def manifest_complete(path, min_rows, requested_limit):
     if not path.is_file():
         return False
     root = path.parent
@@ -303,7 +303,13 @@ def manifest_complete(path, min_rows):
             if not (root / fields[6]).is_file():
                 return False
             rows += 1
-    return rows >= max(1, min_rows)
+    if rows < max(1, min_rows):
+        return False
+    selection_path = path.with_name(path.name + ".selection")
+    try:
+        return selection_path.read_text(encoding="utf-8").strip() == f"limit={requested_limit}"
+    except OSError:
+        return False
 
 
 def convert_audio(ffmpeg, input_path, output_path):
@@ -402,7 +408,7 @@ def main(argv=None):
     archive_path = Path(args.archive)
     output_dir = Path(args.output)
     manifest_path = output_dir / "manifest.tsv"
-    if not args.refresh and manifest_complete(manifest_path, args.min_samples):
+    if not args.refresh and manifest_complete(manifest_path, args.min_samples, args.limit):
         print(f"prepare_good_sounds_samples: keeping existing {manifest_path}")
         return 0
     if not archive_path.is_file():
@@ -463,6 +469,9 @@ def main(argv=None):
             f"{args.min_samples} ({count_text}, skipped rows={skipped_rows}, missing audio={skipped_missing_audio})"
         )
     partial_path.replace(manifest_path)
+    (manifest_path.with_name(manifest_path.name + ".selection")).write_text(
+        f"limit={args.limit}\n", encoding="utf-8"
+    )
     print(
         f"prepare_good_sounds_samples: wrote {len(prepared)} rows to {manifest_path} "
         f"({count_text}, skipped rows={skipped_rows}, missing audio={skipped_missing_audio})"

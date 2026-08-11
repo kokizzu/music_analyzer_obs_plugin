@@ -84,21 +84,21 @@ Source: `build/good_sounds_full_mix_attributes.tsv`
 
 | Metric | Accurate / total | Remaining |
 | --- | ---: | ---: |
-| Good Sounds — Any detected note | 999 / 1000 (99.9%) | 1 |
-| Good Sounds — Expected instrument row | 948 / 1000 (94.8%) | 52 |
-| Good Sounds — Lit expected pitch class | 783 / 1000 (78.3%) | 217 |
-| Good Sounds — Primary display row | 119 / 1000 (11.9%) | 881 |
-| Good Sounds — Visual primary row | 241 / 1000 (24.1%) | 759 |
+| Good Sounds — Any detected note | 1317 / 1318 (99.9%) | 1 |
+| Good Sounds — Expected instrument row | 1200 / 1318 (91.0%) | 118 |
+| Good Sounds — Lit expected pitch class | 955 / 1318 (72.5%) | 363 |
+| Good Sounds — Primary display row | 156 / 1318 (11.8%) | 1162 |
+| Good Sounds — Visual primary row | 316 / 1318 (24.0%) | 1002 |
 | Good Sounds — Bass — Any detected note | 159 / 159 (100.0%) | 0 |
 | Good Sounds — Bass — Expected instrument row | 142 / 159 (89.3%) | 17 |
 | Good Sounds — Bass — Lit expected pitch class | 141 / 159 (88.7%) | 18 |
 | Good Sounds — Bass — Primary display row | 3 / 159 (1.9%) | 156 |
 | Good Sounds — Bass — Visual primary row | 6 / 159 (3.8%) | 153 |
-| Good Sounds — Other — Any detected note | 840 / 841 (99.9%) | 1 |
-| Good Sounds — Other — Expected instrument row | 806 / 841 (95.8%) | 35 |
-| Good Sounds — Other — Lit expected pitch class | 642 / 841 (76.3%) | 199 |
-| Good Sounds — Other — Primary display row | 116 / 841 (13.8%) | 725 |
-| Good Sounds — Other — Visual primary row | 235 / 841 (27.9%) | 606 |
+| Good Sounds — Other — Any detected note | 1158 / 1159 (99.9%) | 1 |
+| Good Sounds — Other — Expected instrument row | 1058 / 1159 (91.3%) | 101 |
+| Good Sounds — Other — Lit expected pitch class | 814 / 1159 (70.2%) | 345 |
+| Good Sounds — Other — Primary display row | 153 / 1159 (13.2%) | 1006 |
+| Good Sounds — Other — Visual primary row | 310 / 1159 (26.7%) | 849 |
 
 ## Cached isolated-guitar chord gates
 
