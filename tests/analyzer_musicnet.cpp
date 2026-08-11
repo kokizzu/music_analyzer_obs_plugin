@@ -1232,7 +1232,7 @@ void print_musicnet_attribute_header(std::ostream &out)
 {
 	out << "recording\tcenter_sample\texpected_pcs\tdetected_pcs\tmissing_pcs\textra_pcs\t"
 	       "expected_chords\tchord_hit\tsimple_chord_hit\tactive_notes\tdetected_by_row\t"
-	       "detected_levels\traw_chroma\tglobal_chord\tkeyboard_chord\tguitar_chord\tother_chord\t"
+	       "detected_levels\traw_chroma\tglobal_chord\tglobal_chord_confidence\tkeyboard_chord\tguitar_chord\tother_chord\t"
 	       "candidates\n";
 }
 
@@ -1255,7 +1255,7 @@ void append_musicnet_attribute_row(std::ostream &out, const Recording &recording
 	    << (simple_chord_hit ? 1 : 0) << '\t' << active_note_list(candidate) << '\t'
 	    << detected_pitch_classes_by_row(snapshot) << '\t' << pitch_class_level_list(detected_levels) << '\t'
 	    << pitch_class_level_list(snapshot.global_chord_debug_chroma) << '\t' << snapshot.global_chord.label
-	    << '\t' << snapshot.keyboard_chord.label << '\t' << snapshot.guitar_chord.label << '\t'
+	    << '\t' << snapshot.global_chord.confidence << '\t' << snapshot.keyboard_chord.label << '\t' << snapshot.guitar_chord.label << '\t'
 	    << snapshot.other_chord.label << '\t' << full_mix_candidate_list(snapshot) << '\n';
 }
 
