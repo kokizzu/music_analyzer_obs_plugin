@@ -84,6 +84,8 @@ make test-real-goal-20
 
 URMP remains the required real same-song stem/mix/MIDI gate. It expects an official dataset root containing the 44 piece folders and `AuMix`, `AuSep`, `Notes`, and `Sco` files. The official site currently routes its advertised 12.5-GB package through a registration form, so it is not an unattended archive download. See [real-audio dataset candidates](real_audio_dataset_candidates.md) for the source catalogue and the scope/limitations of optional MusicNet, GuitarSet, MedleyDB, MUSDB, Slakh, and other fixtures.
 
+For the open CC-BY MusicNet release, run `make inspect-real-musicnet-remote` to check the current Zenodo metadata, then `make download-real-musicnet`. The resumable archive, metadata, and MIDI download are stored at `build/InstrumentSamples/musicnet` (the external sample store); the archive is validated before being accepted. After extraction, set `MUSIC_ANALYZER_MUSICNET_ROOT` to its MusicNet layout and run `make test-real-musicnet-20` or `make test-real-musicnet-full`.
+
 ## Fixture-specific commands
 
 The common data-backed checks are:

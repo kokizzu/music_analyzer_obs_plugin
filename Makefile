@@ -9,6 +9,13 @@ BUILD_DIR ?= build
 INSTRUMENT_SAMPLE_STORE ?= /media/kyz/sshflashtor/InstrumentSamples
 INSTRUMENT_SAMPLE_STORE_LINK ?= $(BUILD_DIR)/InstrumentSamples
 REAL_DATASET_ROOT ?= $(INSTRUMENT_SAMPLE_STORE_LINK)
+MUSICNET_SOURCE_DIR ?= $(INSTRUMENT_SAMPLE_STORE_LINK)/musicnet
+MUSICNET_ARCHIVE ?= $(MUSICNET_SOURCE_DIR)/musicnet.tar.gz
+MUSICNET_METADATA ?= $(MUSICNET_SOURCE_DIR)/musicnet_metadata.csv
+MUSICNET_MIDI_ARCHIVE ?= $(MUSICNET_SOURCE_DIR)/musicnet_midis.tar.gz
+MUSICNET_ARCHIVE_URL ?= https://zenodo.org/api/records/5120004/files/musicnet.tar.gz/content
+MUSICNET_METADATA_URL ?= https://zenodo.org/api/records/5120004/files/musicnet_metadata.csv/content
+MUSICNET_MIDI_ARCHIVE_URL ?= https://zenodo.org/api/records/5120004/files/musicnet_midis.tar.gz/content
 DETECTION_ACCURACY_REPORT ?= docs/detection_accuracy_report.md
 DETECTION_ACCURACY_CHORD_TSVS ?= $(BUILD_DIR)/guitar_chord_mix_attributes.tsv $(GUITAR_TECHS_CHORD_ATTRIBUTE_TSV) $(GAPS_GUITAR_FULL_ATTRIBUTE_TSV) $(GUITARSET_ATTRIBUTE_TSV)
 DETECTION_ACCURACY_CHORD_ARGS = $(foreach path,$(wildcard $(DETECTION_ACCURACY_CHORD_TSVS)),--chord-input "$(path)")
@@ -4506,6 +4513,20 @@ test-real-musicnet-20: $(BUILD_DIR)/analyzer_musicnet
 
 test-real-musicnet-full: $(BUILD_DIR)/analyzer_musicnet
 	MUSIC_ANALYZER_MUSICNET_REQUIRED=1 MUSIC_ANALYZER_MUSICNET_REQUIRED_RECORDINGS=330 MUSIC_ANALYZER_MUSICNET_REQUIRED_WINDOWS=1320 $(BUILD_DIR)/analyzer_musicnet
+
+.PHONY: download-real-musicnet
+download-real-musicnet: $(MUSICNET_ARCHIVE) $(MUSICNET_METADATA) $(MUSICNET_MIDI_ARCHIVE)
+
+$(MUSICNET_ARCHIVE): FORCE scripts/download_musicnet_archive.sh | $(BUILD_DIR)
+	$(SHELL) scripts/download_musicnet_archive.sh "$@" "$(MUSICNET_ARCHIVE_URL)"
+
+$(MUSICNET_METADATA): FORCE | $(BUILD_DIR)
+	mkdir -p "$(MUSICNET_SOURCE_DIR)"
+	$(CURL) -fL -C - -o "$@.part" "$(MUSICNET_METADATA_URL)"
+	mv -f "$@.part" "$@"
+
+$(MUSICNET_MIDI_ARCHIVE): FORCE scripts/download_musicnet_archive.sh | $(BUILD_DIR)
+	$(SHELL) scripts/download_musicnet_archive.sh "$@" "$(MUSICNET_MIDI_ARCHIVE_URL)"
 
 test-real-medleydb-20: $(BUILD_DIR)/analyzer_musicnet tests/prepare_medleydb_musicnet_fixture.py tests/inspect_medleydb_dataset.py | $(BUILD_DIR)
 	rm -rf $(MEDLEYDB_MUSICNET_FIXTURE_DIR)
