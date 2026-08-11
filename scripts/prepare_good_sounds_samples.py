@@ -274,7 +274,10 @@ def row_to_sample(row):
     return {
         "id": f"good_sounds_{sanitize(instrument)}_{sanitize(row_id)}",
         "family": family,
-        "nsynth_family": "good-sounds",
+        # Good-sounds contains recorded acoustic instruments; retain the
+        # concrete instrument in `source` and use the shared acoustic bucket
+        # so cross-corpus detector audits can compare like-for-like timbres.
+        "nsynth_family": "acoustic",
         "source": source_name(instrument),
         "midi": midi_value,
         "note": note_name_from_midi(midi_value),

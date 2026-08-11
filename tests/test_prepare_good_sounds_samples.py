@@ -137,6 +137,7 @@ def test_official_schema_manifest_mapping():
         output = run_prepare(Path(temp))
         rows = manifest_rows(output / "manifest.tsv")
         families = [row[1] for row in rows]
+        provenance = [row[2] for row in rows]
         notes = [row[5] for row in rows]
         sources = [row[3] for row in rows]
         if families != ["bass", "other", "other"]:
@@ -145,6 +146,8 @@ def test_official_schema_manifest_mapping():
             raise AssertionError(f"unexpected note mapping: {notes}")
         if sources != ["bass", "violin", "clarinet"]:
             raise AssertionError(f"unexpected source mapping: {sources}")
+        if provenance != ["acoustic", "acoustic", "acoustic"]:
+            raise AssertionError(f"unexpected acoustic provenance: {provenance}")
         if any("flute" in row[3] for row in rows):
             raise AssertionError("scale rows should be excluded from one-note fixtures")
         for row in rows:
