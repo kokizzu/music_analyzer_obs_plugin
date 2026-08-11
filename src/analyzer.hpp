@@ -226,6 +226,7 @@ struct AnalysisSnapshot {
 	InstrumentState keyboard = {};
 	NoteGrid keyboard_notes = {};
 	InstrumentState keyboard_chord = {};
+	NoteGrid keyboard_chord_smoothed_notes = {};
 	InstrumentState vocal = {};
 	NoteGrid vocal_notes = {};
 	InstrumentState other = {};

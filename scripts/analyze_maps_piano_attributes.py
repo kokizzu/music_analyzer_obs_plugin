@@ -45,7 +45,7 @@ def summarize(path: Path, limit: int) -> list[str]:
             chord_miss_predictions[row["keyboard_chord"]] += 1
             if row["keyboard_chord"] == "--":
                 no_keyboard_chord += 1
-                no_chord_detected_pc_counts[len(labels(row["detected_keyboard_pcs"]))] += 1
+                no_chord_detected_pc_counts[len(labels(row["detected_chord_pcs"]))] += 1
             complete_pitch_chord_misses += not labels(row["missing_pcs"])
 
     chord_windows = sum(bool(labels(row["expected_chords"])) for row in rows)
@@ -55,7 +55,7 @@ def summarize(path: Path, limit: int) -> list[str]:
         "extra keyboard pitch-class components " + top(extra_components, limit),
         "top missing pitch-class patterns " + top(missing_patterns, limit),
         f"chord misses={sum(chord_misses.values())}/{chord_windows} no_keyboard_chord={no_keyboard_chord}",
-        "no-label missed windows by detected keyboard pitch classes " + top(no_chord_detected_pc_counts, limit),
+        "no-label missed windows by chord-grid pitch classes " + top(no_chord_detected_pc_counts, limit),
         f"chord misses with every expected pitch class visible={complete_pitch_chord_misses}/{sum(chord_misses.values())}",
         "top missed expected chord labels " + top(chord_misses, limit),
         "keyboard labels on chord misses " + top(chord_miss_predictions, limit),

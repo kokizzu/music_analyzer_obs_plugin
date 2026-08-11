@@ -33927,6 +33927,7 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 					  mixed_source ? kMixedNoteEnvelopeImmediateConfirmFloor :
 							 kNoteEnvelopeImmediateConfirmFloor,
 					  kAnalyticalChordNoteReleaseSeconds, kAnalyticalChordNoteVisibleFloor);
+		snapshot.keyboard_chord_smoothed_notes = keyboard_chord_grid;
 		ChordResult smoothed_keyboard_chord =
 			detect_keyboard_chord_from_grid(keyboard_chord_grid, allow_smoothed_extensions);
 		if (mixed_source && !valid_chord_result(smoothed_keyboard_chord))
@@ -33939,6 +33940,7 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 	} else {
 		reset_note_grid_envelope(snapshot.keyboard_notes, snapshot.keyboard, keyboard_note_tracking_);
 		reset_note_grid_envelope(keyboard_chord_grid, keyboard_chord_note_state, keyboard_chord_note_tracking_);
+		snapshot.keyboard_chord_smoothed_notes = keyboard_chord_grid;
 		reset_chord_tracking(keyboard_chord_tracking_, snapshot.keyboard_chord);
 	}
 
