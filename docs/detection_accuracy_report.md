@@ -64,12 +64,16 @@ These rows count expected labeled chord-analysis windows (not full-mix samples).
 | Metric | Accurate / total | Remaining |
 | --- | ---: | ---: |
 | Guitar Chord Mix — exact chord windows | 485 / 511 (94.9%) | 26 |
+| Guitar Chord Mix — primary displayed chord windows | 400 / 511 (78.3%) | 111 |
 | Guitar Chord Mix — expected guitar pitch classes | 1276 / 1533 (83.2%) | 257 |
 | Guitar Techs Chord — exact chord windows | 7224 / 7484 (96.5%) | 260 |
+| Guitar Techs Chord — primary displayed chord windows | 3577 / 7484 (47.8%) | 3907 |
 | Guitar Techs Chord — expected guitar pitch classes | 24409 / 26738 (91.3%) | 2329 |
 | Gaps Guitar Full — exact chord windows | 361 / 540 (66.9%) | 179 |
+| Gaps Guitar Full — primary displayed chord windows | 176 / 540 (32.6%) | 364 |
 | Gaps Guitar Full — expected guitar pitch classes | 1518 / 1957 (77.6%) | 439 |
 | Guitarset — exact chord windows | 1140 / 1491 (76.5%) | 351 |
+| Guitarset — primary displayed chord windows | 622 / 1491 (41.7%) | 869 |
 | Guitarset — expected guitar pitch classes | 4357 / 5340 (81.6%) | 983 |
 
 ## URMP real multitrack gate

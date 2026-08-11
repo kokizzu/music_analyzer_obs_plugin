@@ -38,9 +38,9 @@ class DetectionAccuracyReportTest(unittest.TestCase):
             chords.write_text(
                 "\n".join(
                     (
-                        "\t".join(("expected_chords", "chord_hit", "expected_pitch_class_count", "guitar_note_hits")),
-                        "C\t1\t3\t3",
-                        "Dm\t0\t3\t2",
+                        "\t".join(("expected_chords", "chord_hit", "guitar_chord", "expected_pitch_class_count", "guitar_note_hits")),
+                        "C\t1\tC\t3\t3",
+                        "Dm\t0\tD\t3\t2",
                     )
                 ) + "\n",
                 encoding="utf-8",
@@ -130,6 +130,7 @@ class DetectionAccuracyReportTest(unittest.TestCase):
         self.assertIn("| Guitar — Visual primary row | 1 / 2 (50.0%) | 1 |", report)
         self.assertIn("## Cached isolated-guitar chord gates", report)
         self.assertIn("| Guitar Chord Mix — exact chord windows | 1 / 2 (50.0%) | 1 |", report)
+        self.assertIn("| Guitar Chord Mix — primary displayed chord windows | 1 / 2 (50.0%) | 1 |", report)
         self.assertIn("| Guitar Chord Mix — expected guitar pitch classes | 5 / 6 (83.3%) | 1 |", report)
         self.assertIn("## Vocadito full-mix vocal routing", report)
         self.assertIn("## MAPS real-piano gate", report)
