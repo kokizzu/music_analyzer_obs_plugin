@@ -16,3 +16,4 @@ def test_status_script_reports_partial_or_verified_archive() -> None:
     text = Path("scripts/urmp_download_status.sh").read_text(encoding="utf-8")
     assert "URMP archive ready" in text
     assert "URMP download in progress" in text
+    assert "not transfer progress" in text
