@@ -30061,6 +30061,18 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 		measured_one_shot_tom_shape &&
 		drum_segment_bands[Crash] <= 0.090f &&
 		drum_segment_bands[Ride] >= 1.040f;
+	// PB300-style resonant tom one-shots can carry a broad snare-band response,
+	// but their low kick body, large tom body, and Tom-shaped segment profile
+	// remain distinct. Restore Tom only inside that measured envelope.
+	const bool one_shot_measured_resonant_tom_snare_steal =
+		drum_detection_enabled && one_shot_drum_source &&
+		body_shape == Tom &&
+		drum_level_[Snare] > 0.30f &&
+		measured_one_shot_tom_shape &&
+		body_shape_scores[Kick] <= 94.049f &&
+		snare_body >= 149.765f &&
+		snare_kick_body_ratio <= 2.631f &&
+		tom_snare_band_ratio >= 1.067f;
 	const bool one_shot_tom_snare_inactive_kick_steal =
 		drum_detection_enabled && one_shot_drum_source &&
 		body_shape == Tom &&
@@ -30118,6 +30130,10 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 		cap_drum_level(Snare, std::max(0.31f, drum_level_[Tom] - 0.02f));
 	}
 	if (one_shot_measured_spread_tom_snare_steal) {
+		boost_drum_level(Tom, std::max(0.90f, drum_level_[Snare] + 0.02f));
+		cap_drum_level(Snare, std::max(0.31f, drum_level_[Tom] - 0.02f));
+	}
+	if (one_shot_measured_resonant_tom_snare_steal) {
 		boost_drum_level(Tom, std::max(0.90f, drum_level_[Snare] + 0.02f));
 		cap_drum_level(Snare, std::max(0.31f, drum_level_[Tom] - 0.02f));
 	}
