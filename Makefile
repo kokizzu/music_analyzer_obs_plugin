@@ -4522,7 +4522,7 @@ test-real-musicnet-20: $(BUILD_DIR)/analyzer_musicnet
 test-real-musicnet-full: $(BUILD_DIR)/analyzer_musicnet
 	MUSIC_ANALYZER_MUSICNET_REQUIRED=1 MUSIC_ANALYZER_MUSICNET_REQUIRED_RECORDINGS=330 MUSIC_ANALYZER_MUSICNET_REQUIRED_WINDOWS=1320 $(BUILD_DIR)/analyzer_musicnet
 
-.PHONY: download-real-musicnet inspect-real-musicnet-download prepare-real-musicnet inspect-downloaded-real-musicnet test-downloaded-real-musicnet-20 test-downloaded-real-musicnet-full test-musicnet-archive-extract test-run-musicnet-gate
+.PHONY: download-real-musicnet inspect-real-musicnet-download prepare-real-musicnet inspect-downloaded-real-musicnet analyze-downloaded-real-musicnet-20-traits test-downloaded-real-musicnet-20 test-downloaded-real-musicnet-full test-musicnet-archive-extract test-run-musicnet-gate test-summarize-musicnet-attributes
 download-real-musicnet: $(MUSICNET_ARCHIVE) $(MUSICNET_METADATA) $(MUSICNET_MIDI_ARCHIVE)
 
 inspect-real-musicnet-download: scripts/musicnet_download_status.sh
@@ -4548,8 +4548,14 @@ test-musicnet-archive-extract: scripts/extract_musicnet_archive.sh tests/test_ex
 test-run-musicnet-gate: scripts/run_musicnet_gate.sh tests/test_run_musicnet_gate.py
 	$(PYTHON) tests/test_run_musicnet_gate.py scripts/run_musicnet_gate.sh
 
+test-summarize-musicnet-attributes: scripts/summarize_musicnet_attributes.py tests/test_summarize_musicnet_attributes.py
+	$(PYTHON) tests/test_summarize_musicnet_attributes.py
+
 inspect-downloaded-real-musicnet: $(BUILD_DIR)/analyzer_musicnet prepare-real-musicnet
 	MUSIC_ANALYZER_MUSICNET_ROOT="$(MUSICNET_EXTRACT_DIR)" MUSIC_ANALYZER_MUSICNET_REQUIRED=1 MUSIC_ANALYZER_MUSICNET_INSPECT_ONLY=1 $(BUILD_DIR)/analyzer_musicnet
+
+analyze-downloaded-real-musicnet-20-traits: scripts/summarize_musicnet_attributes.py
+	$(PYTHON) scripts/summarize_musicnet_attributes.py "$(MUSICNET_20_ATTRIBUTE_OUTPUT)"
 
 test-downloaded-real-musicnet-20: $(BUILD_DIR)/analyzer_musicnet prepare-real-musicnet scripts/run_musicnet_gate.sh
 	$(SHELL) scripts/run_musicnet_gate.sh "$(BUILD_DIR)/analyzer_musicnet" "$(MUSICNET_EXTRACT_DIR)" "$(MUSICNET_20_MEASUREMENT_OUTPUT)" 20 80 "$(MUSICNET_20_ATTRIBUTE_OUTPUT)"
