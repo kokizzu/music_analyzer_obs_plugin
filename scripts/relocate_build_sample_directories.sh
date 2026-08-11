@@ -4,10 +4,18 @@
 set -euo pipefail
 
 mode="${1:---dry-run}"
+link_name=""
 case "$mode" in
   --dry-run|--apply) ;;
+  --ensure-link)
+    link_name="${2:-}"
+    if [[ -z "$link_name" || "$link_name" == */* || "$link_name" == "." || "$link_name" == ".." ]]; then
+      echo "usage: $0 --ensure-link <build-directory-name>" >&2
+      exit 2
+    fi
+    ;;
   *)
-    echo "usage: $0 [--dry-run|--apply]" >&2
+    echo "usage: $0 [--dry-run|--apply|--ensure-link <build-directory-name>]" >&2
     exit 2
     ;;
 esac
@@ -24,6 +32,32 @@ fi
 if [[ -e "$build_dir/InstrumentSamples" && ! -L "$build_dir/InstrumentSamples" ]]; then
   echo "error: build/InstrumentSamples must be a symlink before relocation" >&2
   exit 1
+fi
+
+# Prepare a single future output directory before a fixture generator runs.
+# This keeps all generated audio outside the workspace from its first write,
+# rather than briefly creating a local build/*_samples directory and moving it
+# afterwards.
+if [[ "$mode" == "--ensure-link" ]]; then
+  source="$build_dir/$link_name"
+  destination="$storage_root/$link_name"
+  if [[ -L "$source" ]]; then
+    resolved="$(readlink -f "$source")"
+    if [[ "$resolved" != "$destination" ]]; then
+      echo "error: build/$link_name points at $resolved (expected $destination)" >&2
+      exit 1
+    fi
+    echo "LINKED    build/$link_name -> $resolved"
+    exit 0
+  fi
+  if [[ -e "$source" ]]; then
+    echo "error: build/$link_name already exists and is not a symlink" >&2
+    exit 1
+  fi
+  mkdir -p "$destination"
+  ln -s "$destination" "$source"
+  echo "LINKED    build/$link_name -> $destination"
+  exit 0
 fi
 
 matches=()
