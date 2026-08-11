@@ -86,6 +86,21 @@ def main():
         assert len(list((note_out / "maps").rglob("*.wav"))) == 1
         assert len(list((note_out / "maps").rglob("*.mid"))) == 1
 
+        linked_target = root / "external_maps"
+        linked_out = root / "linked_out"
+        linked_out.symlink_to(linked_target, target_is_directory=True)
+        linked_args = type("Args", (), {
+            "archive": str(archive),
+            "output": str(linked_out),
+            "limit": 1,
+            "min_recordings": 1,
+            "kinds": "ISOL",
+            "refresh": False,
+        })()
+        assert prep.prepare(linked_args) == 1
+        assert linked_out.is_symlink()
+        assert len(list((linked_target / "maps").rglob("*.wav"))) == 1
+
     print("test_prepare_maps_piano_samples: ok")
 
 

@@ -178,6 +178,10 @@ def prepare(args):
         raise SystemExit(f"prepare_maps_piano_samples: missing archive {archive}")
 
     output = Path(args.output)
+    # Corpus fixtures live outside build; build/<fixture> is intentionally a symlink.
+    # Refresh the target contents without replacing that required link.
+    if output.is_symlink():
+        output = output.resolve()
     min_recordings = max(0, args.min_recordings)
     signature = signature_text(args)
     if not args.refresh and cache_ok(output, signature, min_recordings):
