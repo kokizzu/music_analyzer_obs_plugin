@@ -61,11 +61,11 @@ constexpr float kNoteEnvelopeVisibleFloor = 0.015f;
 constexpr float kNoteEnvelopeNewNoteFloor = 0.010f;
 constexpr float kNoteEnvelopeImmediateConfirmFloor = 0.40f;
 constexpr float kMixedNoteEnvelopeImmediateConfirmFloor = 0.24f;
-// Isolated acoustic strings and winds frequently establish a stable, correctly
-// owned fundamental just below the general one-frame threshold.  Their
-// monophonic route has no competing-note expansion, so admit that measured
-// band immediately instead of making the UI wait for a second callback.
-constexpr float kMonophonicOtherImmediateConfirmFloor = 0.24f;
+// Isolated acoustic strings and winds frequently establish an eligible,
+// correctly owned fundamental before a second callback arrives.  Their
+// monophonic route can show that current note immediately; the shared raw
+// new-note floor still rejects sub-threshold noise.
+constexpr float kMonophonicOtherImmediateConfirmFloor = kNoteEnvelopeNewNoteFloor;
 constexpr float kMixedVocalConfirmedImmediateFloor = 0.18f;
 constexpr float kAnalyticalChordNoteReleaseSeconds = 0.22f;
 constexpr float kAnalyticalChordNoteVisibleFloor = 0.06f;

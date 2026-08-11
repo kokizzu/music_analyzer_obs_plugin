@@ -2118,10 +2118,15 @@ int main()
 		      "URMP window composition: expected every tested window to contain at least " +
 			      std::to_string(min_pitch_classes_per_window) + " pitch classes, got min " +
 			      std::to_string(composition_stats.min_pitch_classes));
+	// Persist the aggregates on both passing and failing gates.  The accuracy
+	// report consumes this output, and a successful threshold must not make a
+	// verified measurement disappear.
+	std::fprintf(stderr, "URMP separated-track recall: expected >=%d%%, got %d/%d\n",
+		     min_track_recall_percent, track_hits, track_checks);
 	runner.expect(track_checks > 0 && track_hits * 100 >= track_checks * min_track_recall_percent,
 		      "URMP separated-track recall: expected >=" + std::to_string(min_track_recall_percent) +
-			      "%, got " + std::to_string(track_hits) + "/" +
-			      std::to_string(track_checks));
+		      "%, got " + std::to_string(track_hits) + "/" +
+		      std::to_string(track_checks));
 	const int track_metric_tp = array_sum(isolated_track_metrics.true_positives);
 	const int track_metric_fp = array_sum(isolated_track_metrics.false_positives);
 	const int track_metric_fn = array_sum(isolated_track_metrics.false_negatives);
@@ -2130,14 +2135,20 @@ int main()
 		      "URMP separated-track metrics: expected one metric row for every track check, got " +
 			      std::to_string(isolated_track_metrics.evaluated_notes) + "/" +
 			      std::to_string(track_checks));
+	std::fprintf(stderr, "URMP separated-track precision: expected >=%d%%, got %d/%d (%s)\n",
+		     min_track_precision_percent, track_metric_tp, track_metric_tp + track_metric_fp,
+		     instrument_precision_summary(isolated_track_metrics).c_str());
 	runner.expect(track_metric_tp > 0 &&
-			      percentage_floor(track_metric_tp, track_metric_tp + track_metric_fp) >=
+		      percentage_floor(track_metric_tp, track_metric_tp + track_metric_fp) >=
 				      min_track_precision_percent,
 		      "URMP separated-track precision: expected >=" +
 			      std::to_string(min_track_precision_percent) + "%, got " +
 			      std::to_string(track_metric_tp) + "/" +
 			      std::to_string(track_metric_tp + track_metric_fp) + " (" +
 			      instrument_precision_summary(isolated_track_metrics) + ")");
+	std::fprintf(stderr, "URMP separated-track exact recall: expected >=%d%%, got %d/%d (%s)\n",
+		     min_track_recall_percent, track_metric_tp, track_metric_tp + track_metric_fn,
+		     instrument_precision_summary(isolated_track_metrics).c_str());
 	runner.expect(track_metric_tp > 0 &&
 			      percentage_floor(track_metric_tp, track_metric_tp + track_metric_fn) >=
 				      min_track_recall_percent,
