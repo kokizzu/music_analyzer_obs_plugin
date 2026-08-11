@@ -32,6 +32,7 @@ def summarize(path: Path, limit: int) -> list[str]:
     no_chord_detected_pc_counts: collections.Counter[int] = collections.Counter()
     no_chord_debug: collections.Counter[str] = collections.Counter()
     note_routes: collections.Counter[str] = collections.Counter()
+    rms_by_detection: dict[str, list[float]] = {"hit": [], "miss": []}
     no_keyboard_chord = 0
     complete_pitch_chord_misses = 0
     for row in rows:
@@ -45,6 +46,8 @@ def summarize(path: Path, limit: int) -> list[str]:
             missing_patterns[row["missing_pcs"]] += 1
         if len(expected) == 1:
             note_routes[f"{expected[0]}->{','.join(detected) if detected else '--'}"] += 1
+            bucket = "hit" if expected[0] in detected else "miss"
+            rms_by_detection[bucket].append(float(row["audio_rms"]))
         expected_chords = labels(row["expected_chords"])
         if expected_chords and row["chord_hit"] != "1":
             chord_misses[row["expected_chords"]] += 1
@@ -62,6 +65,10 @@ def summarize(path: Path, limit: int) -> list[str]:
         "extra keyboard pitch-class components " + top(extra_components, limit),
         "top missing pitch-class patterns " + top(missing_patterns, limit),
         "top expected-to-keyboard pitch routes " + top(note_routes, limit),
+        "audio RMS median hit/miss " + "/".join(
+            f"{sorted(values)[len(values) // 2]:.5f}" if values else "--"
+            for values in (rms_by_detection["hit"], rms_by_detection["miss"])
+        ),
         f"chord misses={sum(chord_misses.values())}/{chord_windows} no_keyboard_chord={no_keyboard_chord}",
         "no-label missed windows by chord-grid pitch classes " + top(no_chord_detected_pc_counts, limit),
         "no-label chord detector paths " + top(no_chord_debug, limit),

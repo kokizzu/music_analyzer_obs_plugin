@@ -955,9 +955,16 @@ std::vector<CandidateWindow> select_candidate_windows(const Recording &recording
 						      int min_active_notes, int min_pitch_classes)
 {
 	std::vector<CandidateWindow> candidates;
+	const bool prefer_note_onset = min_active_notes == 1 && min_pitch_classes == 1;
 
 	for (const NoteAnnotation &note : recording.notes) {
-		const double seconds = note.start_seconds + (note.end_seconds - note.start_seconds) * 0.5;
+		const double duration = note.end_seconds - note.start_seconds;
+		// A piano note's annotated sustain can be almost silent by its midpoint.
+		// For the dedicated monophonic gate, sample a settled onset instead; chord
+		// fixtures retain midpoint selection to assess simultaneous harmony.
+		const double seconds = prefer_note_onset ?
+				       note.start_seconds + std::min(0.08, duration * 0.20) :
+				       note.start_seconds + duration * 0.5;
 		CandidateWindow candidate = candidate_window_at(recording, seconds);
 		if (static_cast<int>(candidate.active_midis.size()) < min_active_notes)
 			continue;
@@ -1188,23 +1195,31 @@ void add_keyboard_chord_precision_metrics(ChordPrecisionStats &stats, const mao:
 void print_maestro_attribute_header(std::ostream &out)
 {
 	out << "recording\tcenter_sample\texpected_pcs\tdetected_keyboard_pcs\tdetected_chord_pcs\tchord_debug\tmissing_pcs\textra_pcs\t"
-	       "expected_chords\tchord_hit\tglobal_chord\tkeyboard_chord\n";
+	       "expected_chords\tchord_hit\taudio_rms\taudio_peak\tglobal_chord\tkeyboard_chord\n";
 }
 
 void append_maestro_attribute_row(std::ostream &out, const Recording &recording,
-					  const CandidateWindow &candidate, const mao::AnalysisSnapshot &snapshot)
+					  const CandidateWindow &candidate, const mao::AnalysisSnapshot &snapshot,
+					  const mao_test::Buffer &buffer)
 {
 	const std::array<bool, 12> keyboard = grid_pitch_classes(snapshot.keyboard_notes);
 	const std::array<bool, 12> chord_keyboard = grid_pitch_classes(snapshot.keyboard_chord_smoothed_notes);
 	const bool chord_hit = std::any_of(candidate.chord_labels.begin(), candidate.chord_labels.end(),
 					     [&](const std::string &label) { return snapshot_has_chord_label(snapshot, label); });
+	double energy = 0.0;
+	float peak = 0.0f;
+	for (float sample : buffer) {
+		energy += static_cast<double>(sample) * sample;
+		peak = std::max(peak, std::fabs(sample));
+	}
+	const double rms = buffer.empty() ? 0.0 : std::sqrt(energy / static_cast<double>(buffer.size()));
 	out << recording.id << '\t' << candidate.center_sample << '\t'
 	    << pitch_class_list(candidate.pitch_classes) << '\t' << pitch_class_list(keyboard) << '\t'
 	    << pitch_class_list(chord_keyboard) << '\t'
 	    << snapshot.keyboard_chord_debug_reason << '\t'
 	    << pitch_class_difference_list(candidate.pitch_classes, keyboard) << '\t'
 	    << pitch_class_difference_list(keyboard, candidate.pitch_classes) << '\t'
-	    << join_labels(candidate.chord_labels) << '\t' << (chord_hit ? 1 : 0) << '\t'
+	    << join_labels(candidate.chord_labels) << '\t' << (chord_hit ? 1 : 0) << '\t' << rms << '\t' << peak << '\t'
 	    << snapshot.global_chord.label << '\t' << snapshot.keyboard_chord.label << '\n';
 }
 
@@ -1471,7 +1486,7 @@ int main()
 
 			const mao::AnalysisSnapshot snapshot = analyze_confirmed_buffer(buffer, sample_rate);
 			if (attribute_file)
-				append_maestro_attribute_row(attribute_file, recording, candidate, snapshot);
+				append_maestro_attribute_row(attribute_file, recording, candidate, snapshot, buffer);
 			check_recall(runner, snapshot, candidate,
 				     "MAESTRO " + recording.id + " at sample " +
 					     std::to_string(candidate.center_sample),
