@@ -1857,6 +1857,7 @@ int main()
 	MixRecallStats provided_sequence_stats;
 	MixRecallStats summed_sequence_stats;
 	InstrumentPrecisionStats isolated_track_metrics;
+	std::map<std::string, InstrumentPrecisionStats> isolated_track_metrics_by_instrument;
 	WindowCompositionStats composition_stats;
 	RangeStats source_track_stats;
 	int tested_windows = 0;
@@ -2009,6 +2010,9 @@ int main()
 				const int pitch_class = ((active.midi % 12) + 12) % 12;
 				const bool hit = has_pitch_class(detected_pitch_classes(track_snapshot), pitch_class);
 				add_isolated_track_metrics(isolated_track_metrics,
+							   expected_instrument_for_urmp(track.instrument),
+							   active.midi, track_snapshot);
+				add_isolated_track_metrics(isolated_track_metrics_by_instrument[track.instrument],
 							   expected_instrument_for_urmp(track.instrument),
 							   active.midi, track_snapshot);
 				++track_checks;
@@ -2202,6 +2206,12 @@ int main()
 				     "URMP stateful summed separated-track mix", min_chord_checks,
 				     min_global_chord_precision_percent, min_global_chord_recall_percent);
 
+	auto print_isolated_metrics_by_instrument = [&](FILE *out) {
+		for (const auto &[instrument, stats] : isolated_track_metrics_by_instrument)
+			std::fprintf(out, "analyzer_urmp: %s isolated metrics: %s\n", instrument.c_str(),
+				     instrument_precision_summary(stats).c_str());
+	};
+
 	if (runner.failures != 0) {
 		std::fprintf(stderr,
 			     "analyzer_urmp: %d/%d checks failed (%d pieces, %d windows, %d track hits/%d, "
@@ -2227,6 +2237,7 @@ int main()
 				     .c_str());
 		std::fprintf(stderr, "analyzer_urmp: metrics: %s\n",
 			     instrument_precision_summary(isolated_track_metrics).c_str());
+		print_isolated_metrics_by_instrument(stderr);
 		std::fprintf(stderr, "analyzer_urmp: chord metrics: %s\n",
 			     chord_metrics_summary(provided_mix_stats, summed_mix_stats, provided_stream_stats,
 						   summed_stream_stats, provided_sequence_stats,
@@ -2257,6 +2268,7 @@ int main()
 			    .c_str());
 	std::printf("analyzer_urmp: metrics: %s\n",
 		    instrument_precision_summary(isolated_track_metrics).c_str());
+	print_isolated_metrics_by_instrument(stdout);
 	std::printf("analyzer_urmp: chord metrics: %s\n",
 		    chord_metrics_summary(provided_mix_stats, summed_mix_stats, provided_stream_stats,
 					  summed_stream_stats, provided_sequence_stats,
