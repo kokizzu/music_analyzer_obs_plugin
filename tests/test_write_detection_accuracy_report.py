@@ -41,6 +41,7 @@ class DetectionAccuracyReportTest(unittest.TestCase):
                         "\t".join(("expected_chords", "chord_hit", "guitar_chord", "expected_pitch_class_count", "guitar_note_hits")),
                         "C\t1\tC\t3\t3",
                         "Dm\t0\tD\t3\t2",
+                        "Apow\t0\tA\t2\t1",
                     )
                 ) + "\n",
                 encoding="utf-8",
@@ -151,9 +152,10 @@ class DetectionAccuracyReportTest(unittest.TestCase):
         self.assertIn("| Routes with direct zero-regression support | 1 / 160 (0.6%) | 159 |", report)
         self.assertIn("| Routes awaiting additional fixture coverage | 34 / 160 (21.2%) | 126 |", report)
         self.assertIn("## Cached isolated-guitar chord gates", report)
-        self.assertIn("| Guitar Chord Mix — exact chord windows | 1 / 2 (50.0%) | 1 |", report)
-        self.assertIn("| Guitar Chord Mix — primary displayed chord windows | 1 / 2 (50.0%) | 1 |", report)
-        self.assertIn("| Guitar Chord Mix — expected guitar pitch classes | 5 / 6 (83.3%) | 1 |", report)
+        self.assertIn("| Guitar Chord Mix — exact chord windows | 1 / 3 (33.3%) | 2 |", report)
+        self.assertIn("| Guitar Chord Mix — primary displayed chord windows | 1 / 3 (33.3%) | 2 |", report)
+        self.assertIn("| Guitar Chord Mix — expected guitar pitch classes | 6 / 8 (75.0%) | 2 |", report)
+        self.assertIn("| Guitar Chord Mix — power-chord exact windows | 0 / 1 (0.0%) | 1 |", report)
         self.assertIn("## Vocadito full-mix vocal routing", report)
         self.assertIn("## MAPS real-piano gate", report)
         self.assertIn("| MAPS real piano — keyboard chord precision | 2 / 4 (50.0%) | 2 false predictions |", report)

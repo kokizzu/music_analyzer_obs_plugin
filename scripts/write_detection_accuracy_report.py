@@ -115,11 +115,21 @@ def chord_gate_rows(path: Path) -> list[tuple[str, int, int]]:
     expected_pitch_classes = sum(integer(row, "expected_pitch_class_count") for row in expected)
     pitch_hits = sum(min(integer(row, "guitar_note_hits"), integer(row, "expected_pitch_class_count")) for row in expected)
     name = path.stem.replace("_attributes", "").replace("_", " ").title()
-    return [
+    result = [
         (f"{name} — exact chord windows", chord_hits, len(expected)),
         (f"{name} — primary displayed chord windows", primary_chord_hits, len(expected)),
         (f"{name} — expected guitar pitch classes", pitch_hits, expected_pitch_classes),
     ]
+    power = [
+        row
+        for row in expected
+        if any(label.endswith("pow") for label in re.split(r"[=/]", row["expected_chords"]) if label)
+    ]
+    if power:
+        result.append(
+            (f"{name} — power-chord exact windows", sum(truthy(row["chord_hit"]) for row in power), len(power))
+        )
+    return result
 
 
 BACH10_GATE_RE = re.compile(
