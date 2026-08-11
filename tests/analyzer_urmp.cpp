@@ -2021,13 +2021,18 @@ int main()
 				} else {
 					std::fprintf(stderr,
 						     "URMP track %s #%d %s at %.3fs: expected %s, detected bass `%s`, "
-						     "key `%s`, guitar `%s`, vocal `%s`, other `%s`\n",
+						     "key `%s`, guitar `%s`, vocal `%s`, other `%s`, pre-envelope other `%s` "
+						     "score %.6f raw %.6f rms %.6f\n",
 						     basename_of(piece_dir).c_str(), track.number,
 							     track.instrument.c_str(), candidate.time,
 							     mao_test::note_label(active.midi).c_str(),
 							     track_snapshot.bass.label, track_snapshot.keyboard.label,
 							     track_snapshot.guitar.label, track_snapshot.vocal.label,
-							     track_snapshot.other.label);
+							     track_snapshot.other.label,
+							     track_snapshot.other_debug_pre_envelope_midi >= 0 ?
+							     mao_test::note_label(track_snapshot.other_debug_pre_envelope_midi).c_str() : "--",
+							     track_snapshot.other_debug_pre_envelope_score,
+							     track_snapshot.other_debug_pre_envelope_raw_level, track_snapshot.rms);
 					if (verbose_track_traits_enabled() && emitted_track_traits < 48) {
 						++emitted_track_traits;
 						bool confirmed_ok = false;

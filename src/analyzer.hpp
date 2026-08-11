@@ -232,6 +232,12 @@ struct AnalysisSnapshot {
 	NoteGrid vocal_notes = {};
 	InstrumentState other = {};
 	NoteGrid other_notes = {};
+	// Read-only diagnostic of the exact monophonic Other candidate selected before
+	// envelope smoothing and octave-display preference.  It is intentionally not
+	// consumed by any detection or rendering path.
+	int other_debug_pre_envelope_midi = -1;
+	float other_debug_pre_envelope_score = 0.0f;
+	float other_debug_pre_envelope_raw_level = 0.0f;
 	InstrumentState other_chord = {};
 };
 

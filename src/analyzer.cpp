@@ -17221,15 +17221,15 @@ void promote_measured_final_same_root_extension_label(
 			int extra_count = 0;
 			for (bool extra : extra_tones)
 				extra_count += extra ? 1 : 0;
-			const int flat_seventh = (primary.root + 10) % 12;
-			const int major_sixth = (primary.root + 9) % 12;
-			const float visible_level = note_grid_pitch_level(display_grid, flat_seventh);
-			const float analysis_level = note_grid_pitch_level(analysis_grid, flat_seventh);
-			const float sixth_analysis_level =
-				note_grid_pitch_level(analysis_grid, major_sixth);
-			const float probe_level =
-				strongest_probe_pitch_class_level(powers, flat_seventh, min_midi, max_midi) /
-				strongest_probe;
+		const int flat_seventh = (primary.root + 10) % 12;
+		const int major_sixth = (primary.root + 9) % 12;
+		const float visible_level = note_grid_pitch_level(display_grid, flat_seventh);
+		const float analysis_level = note_grid_pitch_level(analysis_grid, flat_seventh);
+		const float sixth_analysis_level =
+			note_grid_pitch_level(analysis_grid, major_sixth);
+		const float probe_level =
+			strongest_probe_pitch_class_level(powers, flat_seventh, min_midi, max_midi) /
+			strongest_probe;
 			// The independent chord corpora also contain a small set of real
 			// dominant sevenths whose seventh is clearly displayed but attenuated
 			// in the probe grid.  It is safe to retain their existing `7` alias
@@ -17247,10 +17247,10 @@ void promote_measured_final_same_root_extension_label(
 				extra_count == 1 &&
 				extra_tones[static_cast<std::size_t>(major_sixth)] &&
 				sixth_analysis_level >= 0.56f;
-			const bool measured_dominant_seventh_supported =
-				extra_count == 1 && extra_tones[static_cast<std::size_t>(flat_seventh)] &&
-				(measured_analysis_supported || measured_visible_limited_probe_supported);
-			if (measured_dominant_seventh_supported || measured_major_sixth_supported) {
+		const bool measured_dominant_seventh_supported =
+			extra_count == 1 && extra_tones[static_cast<std::size_t>(flat_seventh)] &&
+			(measured_analysis_supported || measured_visible_limited_probe_supported);
+		if (measured_dominant_seventh_supported || measured_major_sixth_supported) {
 				best_start = cursor;
 				best_len = len;
 				break;
@@ -33939,6 +33939,18 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 			const int min_midi = kOtherMinMidi;
 			const std::array<float, kNoteProbeCount> &other_note_powers =
 				monophonic_other_source ? note_powers : detection_note_powers;
+			if (monophonic_other_source) {
+				const NoteCandidateList pre_envelope_candidates =
+					note_peak_candidates(other_note_powers, min_midi, kOtherMaxMidi, 1,
+							     nullptr, nullptr, false, nullptr, 0.30f, true);
+				if (!pre_envelope_candidates.empty()) {
+					const NoteCandidate &candidate = pre_envelope_candidates[0];
+					snapshot.other_debug_pre_envelope_midi = candidate.midi;
+					snapshot.other_debug_pre_envelope_score = candidate.score;
+					snapshot.other_debug_pre_envelope_raw_level =
+						probe_level(other_note_powers, candidate.midi);
+				}
+			}
 			set_instrument_note_set(snapshot.other_notes, snapshot.other, other_note_powers,
 						min_midi, kOtherMaxMidi, note_root, other_energy, rms,
 						other_max_notes, nullptr, nullptr, false, nullptr,

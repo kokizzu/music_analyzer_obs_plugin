@@ -13,7 +13,9 @@ MISS = re.compile(
     r"^URMP track (?P<recording>.+) #(?P<track>\d+) (?P<instrument>[a-z]+) "
     r"at (?P<time>[\d.]+)s: expected (?P<pitch>[A-G]#?\d+), detected "
     r"bass `[^`]*`, key `[^`]*`, guitar `[^`]*`, vocal `[^`]*`, "
-    r"other `(?P<detected>[^`]*)`$"
+    r"other `(?P<detected>[^`]*)`(?:, pre-envelope other `(?P<pre_envelope>[^`]*)` "
+    r"score (?P<pre_envelope_score>[\d.]+) raw (?P<pre_envelope_raw>[\d.]+) "
+    r"rms (?P<rms>[\d.]+))?$"
 )
 TRAIT = re.compile(
     r"^URMP traits (?P<recording>.+) #(?P<track>\d+) (?P<instrument>[a-z]+) "
@@ -48,6 +50,19 @@ def first_note(label: str) -> str | None:
     return None
 
 
+def note_route(expected: str, selected: str | None) -> str:
+    if selected is None:
+        return "unavailable"
+    if selected == expected:
+        return "exact"
+    expected_match = NOTE.fullmatch(expected)
+    selected_match = NOTE.fullmatch(selected)
+    assert expected_match is not None and selected_match is not None
+    if expected_match["pitch_class"] == selected_match["pitch_class"]:
+        return "same pitch class, wrong octave"
+    return "different pitch class"
+
+
 def candidate_details(expected: str, candidates: str) -> tuple[int, int, int] | None:
     for index, token in enumerate(candidates.split(), start=1):
         match = CANDIDATE.fullmatch(token)
@@ -75,6 +90,10 @@ def main() -> int:
     selected_by_trait: dict[tuple[str, str, str, str, str], str] = {}
     candidate_ranks: Counter[int] = Counter()
     candidate_present_details: list[tuple[int, int, int, str, str, str]] = []
+    pre_envelope_routes: Counter[str] = Counter()
+    pre_envelope_exact_final_miss = 0
+    pre_envelope_transitions: Counter[tuple[str, str]] = Counter()
+    pre_envelope_exact_rms: list[float] = []
     confirmed_trait_total = 0
     confirmed_trait_exact = 0
     for line in source.read_text(encoding="utf-8", errors="replace").splitlines():
@@ -82,6 +101,15 @@ def main() -> int:
         if matched:
             misses[(matched["instrument"], matched["pitch"])] += 1
             selected_by_trait[trait_key(matched)] = matched["detected"]
+            pre_envelope = first_note(matched["pre_envelope"] or "")
+            pre_envelope_routes[note_route(matched["pitch"], pre_envelope)] += 1
+            final = first_note(matched["detected"])
+            if pre_envelope is not None and pre_envelope == matched["pitch"]:
+                pre_envelope_exact_final_miss += 1
+                if matched["rms"] is not None:
+                    pre_envelope_exact_rms.append(float(matched["rms"]))
+            if pre_envelope is not None and final is not None and pre_envelope != final:
+                pre_envelope_transitions[(pre_envelope, final)] += 1
             continue
         trait = TRAIT.match(line)
         if trait:
@@ -116,6 +144,32 @@ def main() -> int:
         misses.items(), key=lambda item: (-item[1], item[0])
     ):
         print(f"{count}\t{instrument}\t{pitch}")
+    if pre_envelope_routes:
+        total_pre_envelope = sum(pre_envelope_routes.values())
+        print(f"URMP pre-envelope monophonic Other candidate routes: {total_pre_envelope}")
+        print("count\tpercent\troute")
+        for route, count in pre_envelope_routes.most_common():
+            print(f"{count}\t{count * 100.0 / total_pre_envelope:.1f}%\t{route}")
+        print(
+            "URMP misses whose pre-envelope candidate was exact: "
+            f"{pre_envelope_exact_final_miss}/{total_pre_envelope}"
+        )
+        if pre_envelope_exact_rms:
+            below_note_floor = sum(rms < 0.006 for rms in pre_envelope_exact_rms)
+            below_polyphonic_floor = sum(rms < 0.003 for rms in pre_envelope_exact_rms)
+            below_silence_floor = sum(rms < 0.0025 for rms in pre_envelope_exact_rms)
+            print(
+                "URMP exact pre-envelope candidate RMS: "
+                f"min {min(pre_envelope_exact_rms):.6f}, "
+                f"max {max(pre_envelope_exact_rms):.6f}, "
+                f"below 0.006 {below_note_floor}/{len(pre_envelope_exact_rms)}, "
+                f"below 0.003 {below_polyphonic_floor}/{len(pre_envelope_exact_rms)}, "
+                f"below 0.0025 {below_silence_floor}/{len(pre_envelope_exact_rms)}"
+            )
+        if pre_envelope_transitions:
+            print("count\tpre_envelope\tfinal_other")
+            for (pre_envelope, final), count in pre_envelope_transitions.most_common(20):
+                print(f"{count}\t{pre_envelope}\t{final}")
     if trait_total:
         percent = trait_expected_candidate * 100.0 / trait_total
         print(
