@@ -945,6 +945,22 @@ std::string full_mix_candidate_list(const mao::AnalysisSnapshot &snapshot)
 	return text.empty() ? "--" : text;
 }
 
+std::string chord_chroma_list(const std::array<float, 12> &chroma)
+{
+	std::string text;
+	for (int pitch_class = 0; pitch_class < 12; ++pitch_class) {
+		const float level = chroma[static_cast<std::size_t>(pitch_class)];
+		if (level < 0.06f)
+			continue;
+		if (!text.empty())
+			text += " ";
+		text += mao_test::note_name(pitch_class);
+		text += ":";
+		text += std::to_string(static_cast<int>(level * 100.0f + 0.5f));
+	}
+	return text.empty() ? "--" : text;
+}
+
 std::string grid_pitch_class_list(const mao::NoteGrid &grid)
 {
 	std::array<bool, 12> pitch_classes = {};
@@ -1368,10 +1384,11 @@ void check_mix_recall(Runner &runner, const mao::AnalysisSnapshot &snapshot, con
 		} else if (verbose_chord_misses_enabled()) {
 			std::fprintf(stderr,
 				     "%s: chord opportunity `%s`, detected global `%s`, key `%s`, guitar `%s`, "
-				     "other `%s`\n",
+				     "other `%s`, chroma `%s`\n",
 				     context.c_str(), join_labels(candidate.chord_labels).c_str(),
 				     snapshot.global_chord.label, snapshot.keyboard_chord.label,
-				     snapshot.guitar_chord.label, snapshot.other_chord.label);
+				     snapshot.guitar_chord.label, snapshot.other_chord.label,
+				     chord_chroma_list(snapshot.global_chord_debug_chroma).c_str());
 		}
 	}
 }
