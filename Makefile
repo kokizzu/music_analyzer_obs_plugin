@@ -18,6 +18,9 @@ MUSICNET_20_MEASUREMENT_OUTPUT ?= $(MUSICNET_SOURCE_DIR)/musicnet_20_measurement
 MUSICNET_FULL_MEASUREMENT_OUTPUT ?= $(MUSICNET_SOURCE_DIR)/musicnet_full_measurement.out
 MUSICNET_20_ATTRIBUTE_OUTPUT ?= $(MUSICNET_SOURCE_DIR)/musicnet_20_attributes.tsv
 MUSICNET_FULL_ATTRIBUTE_OUTPUT ?= $(MUSICNET_SOURCE_DIR)/musicnet_full_attributes.tsv
+MUSICNET_RECORDING_MEASUREMENT_OUTPUT ?= $(MUSICNET_SOURCE_DIR)/musicnet_recording_measurement.out
+MUSICNET_RECORDING_ATTRIBUTE_OUTPUT ?= $(MUSICNET_SOURCE_DIR)/musicnet_recording_attributes.tsv
+MUSICNET_ANALYSIS_RECORDING_IDS ?=
 MUSICNET_DOWNLOAD_CONNECTIONS ?= 8
 MUSICNET_ARCHIVE_URL ?= https://zenodo.org/api/records/5120004/files/musicnet.tar.gz/content
 MUSICNET_METADATA_URL ?= https://zenodo.org/api/records/5120004/files/musicnet_metadata.csv/content
@@ -4533,7 +4536,7 @@ test-real-musicnet-20: $(BUILD_DIR)/analyzer_musicnet
 test-real-musicnet-full: $(BUILD_DIR)/analyzer_musicnet
 	MUSIC_ANALYZER_MUSICNET_REQUIRED=1 MUSIC_ANALYZER_MUSICNET_REQUIRED_RECORDINGS=330 MUSIC_ANALYZER_MUSICNET_REQUIRED_WINDOWS=1320 $(BUILD_DIR)/analyzer_musicnet
 
-.PHONY: download-real-urmp inspect-real-urmp-download prepare-real-urmp analyze-real-urmp-traits analyze-real-urmp-miss-traits summarize-real-urmp-miss-traits test-urmp-download-scripts test-urmp-archive-extract download-real-musicnet inspect-real-musicnet-download prepare-real-musicnet inspect-downloaded-real-musicnet-20-traits test-downloaded-real-musicnet-20 test-downloaded-real-musicnet-full test-musicnet-archive-extract test-run-musicnet-gate test-summarize-musicnet-attributes
+.PHONY: download-real-urmp inspect-real-urmp-download prepare-real-urmp analyze-real-urmp-traits analyze-real-urmp-miss-traits summarize-real-urmp-miss-traits test-urmp-download-scripts test-urmp-archive-extract download-real-musicnet inspect-real-musicnet-download prepare-real-musicnet inspect-downloaded-real-musicnet-20-traits analyze-downloaded-real-musicnet-recording test-downloaded-real-musicnet-20 test-downloaded-real-musicnet-full test-musicnet-archive-extract test-run-musicnet-gate test-summarize-musicnet-attributes
 download-real-urmp: $(URMP_ARCHIVE)
 
 inspect-real-urmp-download: scripts/urmp_download_status.sh
@@ -4596,6 +4599,10 @@ inspect-downloaded-real-musicnet: $(BUILD_DIR)/analyzer_musicnet prepare-real-mu
 
 analyze-downloaded-real-musicnet-20-traits: scripts/summarize_musicnet_attributes.py
 	$(PYTHON) scripts/summarize_musicnet_attributes.py "$(MUSICNET_20_ATTRIBUTE_OUTPUT)"
+
+analyze-downloaded-real-musicnet-recording: $(BUILD_DIR)/analyzer_musicnet prepare-real-musicnet scripts/run_musicnet_gate.sh
+	@test -n "$(MUSICNET_ANALYSIS_RECORDING_IDS)" || { printf '%s\n' "set MUSICNET_ANALYSIS_RECORDING_IDS=<MusicNet id>" >&2; exit 2; }
+	MUSIC_ANALYZER_MUSICNET_RECORDING_IDS="$(MUSICNET_ANALYSIS_RECORDING_IDS)" MUSIC_ANALYZER_MUSICNET_REQUIRED=1 MUSIC_ANALYZER_MUSICNET_REQUIRED_RECORDINGS=1 MUSIC_ANALYZER_MUSICNET_REQUIRED_WINDOWS=1 MUSIC_ANALYZER_MUSICNET_MAX_RECORDINGS=1 MUSIC_ANALYZER_MUSICNET_MAX_WINDOWS_PER_RECORDING=12 MUSIC_ANALYZER_MUSICNET_MIN_RECALL_PERCENT=0 MUSIC_ANALYZER_MUSICNET_MIN_PRECISION_PERCENT=0 MUSIC_ANALYZER_MUSICNET_MIN_CHORD_RECALL_PERCENT=0 MUSIC_ANALYZER_MUSICNET_MIN_SIMPLE_CHORD_RECALL_PERCENT=0 MUSIC_ANALYZER_MUSICNET_MIN_GLOBAL_CHORD_PRECISION_PERCENT=0 MUSIC_ANALYZER_MUSICNET_MIN_GLOBAL_SIMPLE_CHORD_PRECISION_PERCENT=0 MUSIC_ANALYZER_MUSICNET_MIN_GLOBAL_SIMPLE_CHORD_RECALL_PERCENT=0 MUSIC_ANALYZER_MUSICNET_MIN_CHORD_CHECKS=1 $(SHELL) scripts/run_musicnet_gate.sh "$(BUILD_DIR)/analyzer_musicnet" "$(MUSICNET_EXTRACT_DIR)" "$(MUSICNET_RECORDING_MEASUREMENT_OUTPUT)" "" "" "$(MUSICNET_RECORDING_ATTRIBUTE_OUTPUT)"
 
 test-downloaded-real-musicnet-20: $(BUILD_DIR)/analyzer_musicnet prepare-real-musicnet scripts/run_musicnet_gate.sh
 	$(SHELL) scripts/run_musicnet_gate.sh "$(BUILD_DIR)/analyzer_musicnet" "$(MUSICNET_EXTRACT_DIR)" "$(MUSICNET_20_MEASUREMENT_OUTPUT)" 20 80 "$(MUSICNET_20_ATTRIBUTE_OUTPUT)"

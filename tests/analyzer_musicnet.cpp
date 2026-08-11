@@ -479,6 +479,39 @@ int resolve_percent_env(const char *name, int fallback)
 	return parsed >= 0 && parsed <= 100 ? parsed : fallback;
 }
 
+std::set<int> resolve_recording_id_filter()
+{
+	std::set<int> ids;
+	const char *value = std::getenv("MUSIC_ANALYZER_MUSICNET_RECORDING_IDS");
+	if (!value || !*value)
+		return ids;
+
+	const char *cursor = value;
+	while (*cursor) {
+		while (*cursor && (*cursor == ',' || std::isspace(static_cast<unsigned char>(*cursor))))
+			++cursor;
+		if (!*cursor)
+			break;
+		char *end = nullptr;
+		const long id = std::strtol(cursor, &end, 10);
+		if (end == cursor || id <= 0 || id > 1000000000L) {
+			std::fprintf(stderr,
+				     "analyzer_musicnet: invalid MUSIC_ANALYZER_MUSICNET_RECORDING_IDS `%s`\n",
+				     value);
+			return {};
+		}
+		ids.insert(static_cast<int>(id));
+		cursor = end;
+		if (*cursor && *cursor != ',' && !std::isspace(static_cast<unsigned char>(*cursor))) {
+			std::fprintf(stderr,
+				     "analyzer_musicnet: invalid MUSIC_ANALYZER_MUSICNET_RECORDING_IDS `%s`\n",
+				     value);
+			return {};
+		}
+	}
+	return ids;
+}
+
 bool has_pitch_class(const std::array<bool, 12> &pitch_classes, int pitch_class)
 {
 	return pitch_classes[((pitch_class % 12) + 12) % 12];
@@ -1349,6 +1382,10 @@ int main()
 	const int min_global_simple_chord_recall_percent =
 		resolve_percent_env("MUSIC_ANALYZER_MUSICNET_MIN_GLOBAL_SIMPLE_CHORD_RECALL_PERCENT", 0);
 	const int min_chord_checks = resolve_positive_int_env("MUSIC_ANALYZER_MUSICNET_MIN_CHORD_CHECKS", 5);
+	const char *recording_id_filter_env = std::getenv("MUSIC_ANALYZER_MUSICNET_RECORDING_IDS");
+	const std::set<int> recording_id_filter = resolve_recording_id_filter();
+	if (recording_id_filter_env && *recording_id_filter_env && recording_id_filter.empty())
+		return 1;
 	const int shard_count = resolve_positive_int_env("MUSIC_ANALYZER_MUSICNET_SHARD_COUNT", 1);
 	const int shard_index = resolve_nonnegative_int_env("MUSIC_ANALYZER_MUSICNET_SHARD_INDEX", 0);
 	if (shard_index >= shard_count) {
@@ -1384,6 +1421,9 @@ int main()
 
 	std::size_t recording_ordinal = 0;
 	for (const Recording &recording : recordings) {
+		if (!recording_id_filter.empty() &&
+		    recording_id_filter.find(recording.id) == recording_id_filter.end())
+			continue;
 		const std::size_t current_recording_ordinal = recording_ordinal++;
 		if (shard_count > 1 &&
 		    current_recording_ordinal % static_cast<std::size_t>(shard_count) !=
