@@ -32631,6 +32631,18 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 	if (final_one_shot_measured_crash_hihat_active_bleed)
 		cap_drum_level(HiHat, 0.28f);
 
+	// Very bright crash one-shots can retain a slightly stronger hi-hat
+	// co-candidate even though there is virtually no low-body evidence.  The
+	// weak tom-vs-kick band ratio and tom trigger distinguish this compact
+	// crash family from the protected hat-led cymbal hits.
+	const bool final_one_shot_measured_bright_crash_from_hihat_primary_recovery =
+		drum_detection_enabled && one_shot_drum_source && !generated_gm_drum_source &&
+		drum_level_[Crash] > 0.30f && drum_level_[HiHat] > 0.30f &&
+		snapshot.low_energy <= 0.079f && tom_kick_band_ratio <= 0.592f &&
+		snapshot.drum_debug_trigger_scores[Tom] <= 20.986f;
+	if (final_one_shot_measured_bright_crash_from_hihat_primary_recovery)
+		promote_drum_primary(Crash, 0.90f);
+
 	// Some closed-hat one shots reach the final arbitration with the crash
 	// candidate numerically tied.  Their stronger crash-band total is the
 	// characteristic recovered from the measured corpus, rather than evidence
