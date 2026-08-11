@@ -32917,6 +32917,18 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 	if (final_one_shot_measured_equal_crash_hihat_primary_recovery)
 		boost_drum_level(HiHat, 0.90f);
 
+	// A repeated high-fidelity rim-shot family carries a saturated tom envelope
+	// through final arbitration even though the already-active rim transient is
+	// the intended primary.  The strong snare-over-kick band split and sustained
+	// tom segment separate these rim shots from the protected tom one-shots.
+	// This is display arbitration only: Rim must already be near-saturated.
+	const bool final_one_shot_measured_rim_from_tom_primary_recovery =
+		drum_detection_enabled && one_shot_drum_source && !generated_gm_drum_source &&
+		drum_level_[Rim] >= 0.97f && drum_level_[Tom] >= 0.999f &&
+		snare_kick_band_ratio >= 2.072f && drum_segment_bands[Tom] >= 19.728f;
+	if (final_one_shot_measured_rim_from_tom_primary_recovery)
+		promote_drum_primary(Rim, 1.0f);
+
 	// Preserve a validated bright first-window crash candidate only after the
 	// normal cymbal arbitration has completed. This avoids perturbing the hat
 	// and ride decision with a transient crash co-candidate.

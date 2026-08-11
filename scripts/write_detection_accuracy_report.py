@@ -333,26 +333,39 @@ def urmp_gate_rows(path: Path) -> list[tuple[str, int, int]]:
     ]
 
 
-def drum_primary_gate_rows(path: Path) -> list[tuple[str, int, int]]:
-    match = DRUM_PRIMARY_MATRIX_RE.search(path.read_text(encoding="utf-8", errors="replace"))
-    if match is None:
-        raise ValueError(f"{path}: missing full-drum primary matrix")
-    result: list[tuple[str, int, int]] = []
-    for line in match["rows"].splitlines():
-        row = DRUM_PRIMARY_ROW_RE.match(line)
-        if row is None:
-            continue
-        counts = {
-            count["instrument"]: int(count["count"])
-            for count in DRUM_PRIMARY_COUNT_RE.finditer(row["counts"])
-        }
-        expected = row["expected"]
-        if expected not in counts:
-            raise ValueError(f"{path}: missing primary count for {expected}")
-        result.append((f"Full drum gate — primary {expected}", counts[expected], sum(counts.values())))
-    if len(result) != 7:
-        raise ValueError(f"{path}: expected seven full-drum primary rows, got {len(result)}")
-    return result
+def drum_primary_gate_rows(paths: list[Path], label_prefix: str) -> list[tuple[str, int, int]]:
+    rows_by_expected: dict[str, tuple[int, int]] = {}
+    for path in paths:
+        match = DRUM_PRIMARY_MATRIX_RE.search(path.read_text(encoding="utf-8", errors="replace"))
+        if match is None:
+            raise ValueError(f"{path}: missing drum primary matrix")
+        for line in match["rows"].splitlines():
+            row = DRUM_PRIMARY_ROW_RE.match(line)
+            if row is None:
+                continue
+            counts = {
+                count["instrument"]: int(count["count"])
+                for count in DRUM_PRIMARY_COUNT_RE.finditer(row["counts"])
+            }
+            expected = row["expected"]
+            if expected not in counts:
+                raise ValueError(f"{path}: missing primary count for {expected}")
+            total = sum(counts.values())
+            # Sharded high-fidelity outputs include the six unprocessed
+            # categories as all-zero placeholder rows.  They are not a
+            # second observation and must not collide with the shard that
+            # actually evaluated that expected instrument.
+            if total == 0:
+                continue
+            if expected in rows_by_expected:
+                raise ValueError(f"{path}: duplicate primary row for {expected}")
+            rows_by_expected[expected] = (counts[expected], total)
+    if len(rows_by_expected) != 7:
+        raise ValueError(f"{label_prefix}: expected seven drum primary rows, got {len(rows_by_expected)}")
+    return [
+        (f"{label_prefix} — primary {expected}", *rows_by_expected[expected])
+        for expected in ("kick", "snare", "hihat", "crash", "tom", "ride", "rim")
+    ]
 
 
 def route_coverage_rows(path: Path) -> list[tuple[str, int, int]]:
@@ -379,6 +392,7 @@ def render(
     maps_note_gate_outputs: list[Path] | None = None,
     route_summary: Path | None = None,
     good_sounds_full_mix_input: Path | None = None,
+    hf_drum_gate_outputs: list[Path] | None = None,
 ) -> str:
     samples = load_samples(input_path)
     lines = [
@@ -577,7 +591,22 @@ def render(
                 "| --- | ---: | ---: |",
             ]
         )
-        for label, accurate, total in drum_primary_gate_rows(drum_gate_output):
+        for label, accurate, total in drum_primary_gate_rows([drum_gate_output], "Full drum gate"):
+            lines.append(f"| {label} | {fraction(accurate, total)} | {total - accurate} |")
+    if hf_drum_gate_outputs:
+        lines.extend(
+            [
+                "",
+                "## High-fidelity drum-kit primary-classification gate",
+                "",
+                "These independent one-shot samples are sharded by expected instrument; the seven "
+                "shard matrices are combined here so primary-label changes remain visible.",
+                "",
+                "| Metric | Accurate / total | Remaining |",
+                "| --- | ---: | ---: |",
+            ]
+        )
+        for label, accurate, total in drum_primary_gate_rows(hf_drum_gate_outputs, "High-fidelity drum kit"):
             lines.append(f"| {label} | {fraction(accurate, total)} | {total - accurate} |")
     lines.extend(
         [
@@ -601,6 +630,7 @@ def main() -> int:
     parser.add_argument("--maps-gate-output", action="append", type=Path, default=[])
     parser.add_argument("--maps-note-gate-output", action="append", type=Path, default=[])
     parser.add_argument("--drum-gate-output", type=Path)
+    parser.add_argument("--hf-drum-gate-output", action="append", type=Path, default=[])
     parser.add_argument("--urmp-gate-output", type=Path)
     parser.add_argument("--route-summary", type=Path)
     parser.add_argument("--good-sounds-full-mix-input", type=Path)
@@ -611,7 +641,7 @@ def main() -> int:
             args.input, args.chord_input, args.vocal_full_mix_input, args.bach10_gate_output,
             args.musicnet_gate_output, args.drum_gate_output, args.urmp_gate_output,
             args.vocalset_full_mix_input, args.maps_gate_output, args.maps_note_gate_output,
-            args.route_summary, args.good_sounds_full_mix_input,
+            args.route_summary, args.good_sounds_full_mix_input, args.hf_drum_gate_output,
         )
     except (OSError, ValueError) as error:
         parser.error(str(error))

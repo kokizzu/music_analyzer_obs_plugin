@@ -199,4 +199,18 @@ Source: `build/drum_samples_full_gate.out`
 | Full drum gate — primary ride | 241 / 352 (68.5%) | 111 |
 | Full drum gate — primary rim | 333 / 504 (66.1%) | 171 |
 
+## High-fidelity drum-kit primary-classification gate
+
+These independent one-shot samples are sharded by expected instrument; the seven shard matrices are combined here so primary-label changes remain visible.
+
+| Metric | Accurate / total | Remaining |
+| --- | ---: | ---: |
+| High-fidelity drum kit — primary kick | 286 / 300 (95.3%) | 14 |
+| High-fidelity drum kit — primary snare | 295 / 300 (98.3%) | 5 |
+| High-fidelity drum kit — primary hihat | 299 / 300 (99.7%) | 1 |
+| High-fidelity drum kit — primary crash | 273 / 300 (91.0%) | 27 |
+| High-fidelity drum kit — primary tom | 283 / 300 (94.3%) | 17 |
+| High-fidelity drum kit — primary ride | 295 / 300 (98.3%) | 5 |
+| High-fidelity drum kit — primary rim | 283 / 300 (94.3%) | 17 |
+
 Refresh with `make update-detection-accuracy-report`. Whenever a verified detection metric changes, update this report in the same commit.

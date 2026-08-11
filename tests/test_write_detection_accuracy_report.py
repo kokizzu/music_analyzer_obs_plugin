@@ -139,6 +139,16 @@ class DetectionAccuracyReportTest(unittest.TestCase):
                 "  expected rim   kick=0 snare=2 hihat=1 crash=0 tom=1 ride=0 rim=5 ambiguous=1 none=0\n",
                 encoding="utf-8",
             )
+            hf_drum_outputs = []
+            for expected in ("kick", "snare", "hihat", "crash", "tom", "ride", "rim"):
+                shard = Path(temporary) / f"hf_{expected}.out"
+                competing = "snare" if expected != "snare" else "kick"
+                shard.write_text(
+                    "analyzer_drum_samples: primary matrix\n"
+                    f"  expected {expected}  {expected}=8 {competing}=1 ambiguous=1 none=0\n",
+                    encoding="utf-8",
+                )
+                hf_drum_outputs.append(shard)
             urmp = Path(temporary) / "urmp.out"
             urmp.write_text(
                 "URMP separated-track precision: expected >=90%, got 90/100 (isolated precision 90.00%, recall 75.00%)\n"
@@ -157,7 +167,7 @@ class DetectionAccuracyReportTest(unittest.TestCase):
             )
             report = REPORT.render(
                 source, [chords], vocal_full_mix, [bach10_0, bach10_1], musicnet, drum, urmp,
-                vocalset_full_mix, [maps], None, route_summary, good_sounds_full_mix,
+                vocalset_full_mix, [maps], None, route_summary, good_sounds_full_mix, hf_drum_outputs,
             )
 
         self.assertIn("| Any detected note | 2 / 3 (66.7%) | 1 |", report)
@@ -201,6 +211,8 @@ class DetectionAccuracyReportTest(unittest.TestCase):
         self.assertIn("## Full drum primary-classification gate", report)
         self.assertIn("| Full drum gate — primary kick | 8 / 10 (80.0%) | 2 |", report)
         self.assertIn("| Full drum gate — primary hihat | 6 / 10 (60.0%) | 4 |", report)
+        self.assertIn("## High-fidelity drum-kit primary-classification gate", report)
+        self.assertIn("| High-fidelity drum kit — primary rim | 8 / 10 (80.0%) | 2 |", report)
 
 
 if __name__ == "__main__":
