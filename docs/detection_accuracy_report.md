@@ -78,7 +78,10 @@ Source: `build/vocalset_full_mix_attributes.tsv`
 
 ### Focused clean-vowel regression
 
-This cached VocalSet C5 fixture exercises the measured clean high-vowel profile; it is intentionally reported separately from the corpus-wide TSV until that export is regenerated.
+This cached VocalSet C5 fixture exercises the measured clean high-vowel profile
+and is regenerated from its one-fixture attribute TSV.
+
+Source: `build/vocalset_clean_vowel_attributes.tsv`
 
 | Metric | Accurate / total | Remaining |
 | --- | ---: | ---: |
@@ -116,14 +119,14 @@ Source: `build/medley_solos_attributes.tsv`
 
 | Metric | Accurate / total | Remaining |
 | --- | ---: | ---: |
-| Medley Solos — Expected instrument row | 950 / 960 (99.0%) | 10 |
-| Medley Solos — Family Other expected row | 595 / 600 (99.2%) | 5 |
+| Medley Solos — Expected instrument row | 953 / 960 (99.3%) | 7 |
+| Medley Solos — Family Other expected row | 598 / 600 (99.7%) | 2 |
 | Medley Solos — Instrument Clarinet expected row | 119 / 120 (99.2%) | 1 |
 | Medley Solos — Family Guitar expected row | 120 / 120 (100.0%) | 0 |
 | Medley Solos — Instrument Distorted Electric Guitar expected row | 120 / 120 (100.0%) | 0 |
 | Medley Solos — Family Vocals expected row | 115 / 120 (95.8%) | 5 |
 | Medley Solos — Instrument Female Singer expected row | 115 / 120 (95.8%) | 5 |
-| Medley Solos — Instrument Flute expected row | 117 / 120 (97.5%) | 3 |
+| Medley Solos — Instrument Flute expected row | 120 / 120 (100.0%) | 0 |
 | Medley Solos — Family Piano expected row | 120 / 120 (100.0%) | 0 |
 | Medley Solos — Instrument Piano expected row | 120 / 120 (100.0%) | 0 |
 | Medley Solos — Instrument Tenor Saxophone expected row | 120 / 120 (100.0%) | 0 |

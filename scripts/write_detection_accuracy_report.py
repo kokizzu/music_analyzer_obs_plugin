@@ -454,6 +454,7 @@ def render(
     hf_drum_gate_outputs: list[Path] | None = None,
     maps_attribute_input: Path | None = None,
     medley_solos_attribute_input: Path | None = None,
+    focused_vocalset_clean_vowel_input: Path | None = None,
 ) -> str:
     samples = load_samples(input_path)
     lines = [
@@ -531,6 +532,28 @@ def render(
             for label, accurate, total in vocalset_rows:
                 lines.append(
                     f"| VocalSet vocals — {label} | {fraction(accurate, total)} | {total - accurate} |"
+                )
+    if focused_vocalset_clean_vowel_input is not None:
+        focused_rows = family_metric_rows(load_samples(focused_vocalset_clean_vowel_input), "vocals")
+        expected_rows = [row for row in focused_rows if row[0] == "Expected instrument row"]
+        if expected_rows:
+            lines.extend(
+                [
+                    "",
+                    "### Focused clean-vowel regression",
+                    "",
+                    "This cached VocalSet C5 fixture exercises the measured clean high-vowel profile",
+                    "and is regenerated from its one-fixture attribute TSV.",
+                    "",
+                    f"Source: `{focused_vocalset_clean_vowel_input.as_posix()}`",
+                    "",
+                    "| Metric | Accurate / total | Remaining |",
+                    "| --- | ---: | ---: |",
+                ]
+            )
+            for label, accurate, total in expected_rows:
+                lines.append(
+                    f"| VocalSet clean C5 vowel — {label} | {fraction(accurate, total)} | {total - accurate} |"
                 )
     if good_sounds_full_mix_input is not None:
         good_sounds_samples = load_samples(good_sounds_full_mix_input)
@@ -730,6 +753,7 @@ def main() -> int:
     parser.add_argument("--route-summary", type=Path)
     parser.add_argument("--good-sounds-full-mix-input", type=Path)
     parser.add_argument("--medley-solos-attribute-input", type=Path)
+    parser.add_argument("--focused-vocalset-clean-vowel-input", type=Path)
     parser.add_argument("--output", required=True, type=Path)
     args = parser.parse_args()
     try:
@@ -739,6 +763,7 @@ def main() -> int:
             args.vocalset_full_mix_input, args.maps_gate_output, args.maps_note_gate_output,
             args.route_summary, args.good_sounds_full_mix_input, args.hf_drum_gate_output,
             args.maps_attribute_input, args.medley_solos_attribute_input,
+            args.focused_vocalset_clean_vowel_input,
         )
     except (OSError, ValueError) as error:
         parser.error(str(error))

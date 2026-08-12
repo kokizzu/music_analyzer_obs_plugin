@@ -111,6 +111,16 @@ class DetectionAccuracyReportTest(unittest.TestCase):
                 ) + "\n",
                 encoding="utf-8",
             )
+            focused_vocalset_clean_vowel = Path(temporary) / "vocalset_clean_vowel_attributes.tsv"
+            focused_vocalset_clean_vowel.write_text(
+                "\n".join(
+                    (
+                        HEADER,
+                        "c5\tvocals\t1\t1\tvocals\tvocals",
+                    )
+                ) + "\n",
+                encoding="utf-8",
+            )
             bach10_0 = Path(temporary) / "bach10_0.out"
             bach10_0.write_text(
                 "analyzer_musicnet: 20 checks passed (recordings 3/10, windows 12, note hits "
@@ -192,7 +202,7 @@ class DetectionAccuracyReportTest(unittest.TestCase):
             report = REPORT.render(
                 source, [chords], vocal_full_mix, [bach10_0, bach10_1], musicnet, drum, urmp,
                 vocalset_full_mix, [maps], None, route_summary, good_sounds_full_mix, hf_drum_outputs,
-                maps_attributes, medley_solos_attributes,
+                maps_attributes, medley_solos_attributes, focused_vocalset_clean_vowel,
             )
 
         self.assertIn("| Any detected note | 2 / 3 (66.7%) | 1 |", report)
@@ -219,6 +229,8 @@ class DetectionAccuracyReportTest(unittest.TestCase):
         self.assertIn("## VocalSet full-mix vocal routing", report)
         self.assertIn("| VocalSet vocals — Expected instrument row | 2 / 3 (66.7%) | 1 |", report)
         self.assertIn("| VocalSet vocals — Visual primary row | 2 / 3 (66.7%) | 1 |", report)
+        self.assertIn("### Focused clean-vowel regression", report)
+        self.assertIn("| VocalSet clean C5 vowel — Expected instrument row | 1 / 1 (100.0%) | 0 |", report)
         self.assertIn("## Good Sounds full-mix acoustic routing", report)
         self.assertIn("| Good Sounds — Any detected note | 2 / 3 (66.7%) | 1 |", report)
         self.assertIn("| Good Sounds — Other — Expected instrument row | 1 / 2 (50.0%) | 1 |", report)

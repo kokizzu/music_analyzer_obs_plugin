@@ -9162,6 +9162,19 @@ InstrumentKind choose_full_mix_owner(const std::array<float, kNoteProbeCount> &p
 		second <= 0.025f &&
 		third >= 0.10f && third <= 0.13f &&
 		fourth >= 0.06f && fourth <= 0.18f;
+	// Isolated MedleyDB flute stems at G4/G#4 have a deceptively vocal-like
+	// fundamental, but their measured clean, sparse-partial envelope is
+	// distinct from the higher /i/-vowel recovery above.  Keep the range and
+	// harmonic bounds exact so this only resolves that documented ownership
+	// ambiguity.
+	const bool measured_high_flute_other_profile =
+		candidate.midi >= 67 && candidate.midi <= 68 &&
+		evidence.pitch_confidence >= 0.88f &&
+		evidence.periodicity >= 0.70f && evidence.periodicity <= 0.80f &&
+		evidence.harmonic_fit_error <= 0.045f &&
+		evidence.local_noise_level <= 0.18f &&
+		evidence.spectral_centroid >= 0.05f && evidence.spectral_centroid <= 0.12f &&
+		second <= 0.18f && third >= 0.015f && third <= 0.10f && fourth <= 0.050f && fifth <= 0.015f;
 	const bool low_other_candidate = candidate.midi >= kGuitarMinMidi && candidate.midi < 55;
 	const bool lower_mid_other_candidate = candidate.midi >= 55 && candidate.midi < 60;
 	const bool lower_mid_bright_other_candidate =
@@ -9362,6 +9375,10 @@ InstrumentKind choose_full_mix_owner(const std::array<float, kNoteProbeCount> &p
 				scores[2] *= 0.36f;
 		}
 	}
+	if (measured_high_flute_other_profile && scores[2] > 0.0f) {
+		scores[2] *= 0.40f;
+		scores[3] = std::max(scores[3], scores[2] * 2.75f);
+	}
 	const bool normal_other_profile_supported =
 		candidate.midi >= 60 && candidate.midi <= kOtherMaxMidi && second >= 0.24f &&
 		(fourth >= 0.06f || fifth >= 0.035f);
@@ -9442,6 +9459,7 @@ InstrumentKind choose_full_mix_owner(const std::array<float, kNoteProbeCount> &p
 		best == 1 && distorted_harmonic_guitar_profile;
 	const bool supported_lower_mid_bright_other_winner = best == 3 && lower_mid_bright_other_candidate;
 	const bool supported_midrange_brass_other_winner = best == 3 && measured_midrange_brass_other_profile;
+	const bool supported_high_flute_other_winner = best == 3 && measured_high_flute_other_profile;
 	const bool supported_low_other_winner = best == 3 && low_other_profile_supported;
 	const bool blended_non_vocal = (competing_timbres || blended_partials) && !supported_vocal_winner;
 	const float probability_floor =
@@ -9451,7 +9469,8 @@ InstrumentKind choose_full_mix_owner(const std::array<float, kNoteProbeCount> &p
 		 supported_upper_clean_guitar_winner ||
 		 supported_upper_harmonic_guitar_winner ||
 		 supported_distorted_harmonic_guitar_winner) ? 0.38f :
-		(supported_lower_mid_bright_other_winner || supported_midrange_brass_other_winner) ? 0.34f :
+		(supported_lower_mid_bright_other_winner || supported_midrange_brass_other_winner ||
+		 supported_high_flute_other_winner) ? 0.34f :
 		(supported_vocal_winner || supported_low_other_winner) ? 0.44f :
 		blended_non_vocal ? 0.68f :
 				     0.65f;
@@ -9462,7 +9481,8 @@ InstrumentKind choose_full_mix_owner(const std::array<float, kNoteProbeCount> &p
 		 supported_upper_clean_guitar_winner ||
 		 supported_upper_harmonic_guitar_winner ||
 		 supported_distorted_harmonic_guitar_winner) ? 0.08f :
-		(supported_lower_mid_bright_other_winner || supported_midrange_brass_other_winner) ? 0.04f :
+		(supported_lower_mid_bright_other_winner || supported_midrange_brass_other_winner ||
+		 supported_high_flute_other_winner) ? 0.04f :
 		(supported_vocal_winner || supported_low_other_winner) ? 0.12f :
 		blended_non_vocal ? 0.24f :
 				     0.20f;
