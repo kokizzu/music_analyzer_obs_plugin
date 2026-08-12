@@ -2122,7 +2122,8 @@ test-medley-solos-samples: test-medley-solos-samples-parallel
 $(MEDLEY_SOLOS_ATTRIBUTE_TSV): $(BUILD_DIR)/analyzer_instrument_family_samples prepare-medley-solos-samples | $(BUILD_DIR)
 	env MUSIC_ANALYZER_INSTRUMENT_FAMILY_SAMPLE_ROOT="$(MEDLEY_SOLOS_SAMPLE_DIR)" MUSIC_ANALYZER_INSTRUMENT_FAMILY_SAMPLES_REQUIRED=1 MUSIC_ANALYZER_INSTRUMENT_FAMILY_REQUIRED_SAMPLES="$(MEDLEY_SOLOS_MIN_SAMPLES)" MUSIC_ANALYZER_INSTRUMENT_FAMILY_MIN_RECALL_PERCENT=0 MUSIC_ANALYZER_INSTRUMENT_FAMILY_ATTRIBUTE_TSV="$@" $(BUILD_DIR)/analyzer_instrument_family_samples > "$@.out"
 
-analyze-medley-solos-attributes: $(MEDLEY_SOLOS_ATTRIBUTE_TSV)
+analyze-medley-solos-attributes: $(MEDLEY_SOLOS_ATTRIBUTE_TSV) scripts/summarize_instrument_family_attributes.py
+	$(PYTHON) scripts/summarize_instrument_family_attributes.py "$(MEDLEY_SOLOS_ATTRIBUTE_TSV)"
 	@printf '%s\n' "Medley Solos attribute TSV: $(MEDLEY_SOLOS_ATTRIBUTE_TSV)"
 
 test-medley-solos-samples-serial: $(BUILD_DIR)/analyzer_instrument_family_samples prepare-medley-solos-samples scripts/run_with_duration.sh
@@ -4186,6 +4187,9 @@ test-drum-sample-shard-check: tests/test_check_drum_sample_shards.py scripts/che
 
 test-maps-piano-attribute-summary: tests/test_analyze_maps_piano_attributes.py scripts/analyze_maps_piano_attributes.py
 	$(PYTHON) tests/test_analyze_maps_piano_attributes.py
+
+test-instrument-family-attribute-summary: tests/test_summarize_instrument_family_attributes.py scripts/summarize_instrument_family_attributes.py
+	$(PYTHON) tests/test_summarize_instrument_family_attributes.py
 
 test-inspect-drum-candidate-rows: tests/test_inspect_drum_candidate_rows.py scripts/inspect_drum_candidate_rows.py
 	$(PYTHON) tests/test_inspect_drum_candidate_rows.py
