@@ -133,9 +133,9 @@ Source: `build/philharmonia_full_attributes.tsv`
 
 | Metric | Accurate / total | Remaining |
 | --- | ---: | ---: |
-| Philharmonia — Exact expected MIDI note | 7034 / 7285 (96.6%) | 251 |
+| Philharmonia — Exact expected MIDI note | 7065 / 7285 (97.0%) | 220 |
 | Philharmonia — Guitar — exact expected MIDI note | 144 / 146 (98.6%) | 2 |
-| Philharmonia — Other — exact expected MIDI note | 6421 / 6668 (96.3%) | 247 |
+| Philharmonia — Other — exact expected MIDI note | 6452 / 6668 (96.8%) | 216 |
 | Philharmonia — Bass — exact expected MIDI note | 469 / 471 (99.6%) | 2 |
 
 ## Iowa orchestra isolated-note coverage
@@ -199,7 +199,7 @@ These rows count expected labeled chord-analysis windows (not full-mix samples).
 | Guitar Techs Chord — exact chord windows | 7233 / 7484 (96.6%) | 251 |
 | Guitar Techs Chord — primary displayed chord windows | 3577 / 7484 (47.8%) | 3907 |
 | Guitar Techs Chord — expected guitar pitch classes | 24409 / 26738 (91.3%) | 2329 |
-| Guitar Techs Music — exact chord windows | 383 / 500 (76.6%) | 117 |
+| Guitar Techs Music — exact chord windows | 388 / 500 (77.6%) | 112 |
 | Guitar Techs Music — primary displayed chord windows | 221 / 500 (44.2%) | 279 |
 | Guitar Techs Music — expected guitar pitch classes | 1609 / 1838 (87.5%) | 229 |
 | Guitar Techs Music — power-chord exact windows | 6 / 26 (23.1%) | 20 |
@@ -209,7 +209,7 @@ These rows count expected labeled chord-analysis windows (not full-mix samples).
 | Gaps Guitar Full — power-chord exact windows | 22 / 39 (56.4%) | 17 |
 | Guitarset — exact chord windows | 1140 / 1491 (76.5%) | 351 |
 | Guitarset — primary displayed chord windows | 622 / 1491 (41.7%) | 869 |
-| Guitarset — expected guitar pitch classes | 4356 / 5340 (81.6%) | 984 |
+| Guitarset — expected guitar pitch classes | 4357 / 5340 (81.6%) | 983 |
 | Guitarset — power-chord exact windows | 1 / 2 (50.0%) | 1 |
 
 ## URMP real multitrack gate
