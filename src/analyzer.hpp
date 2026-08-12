@@ -239,10 +239,18 @@ struct AnalysisSnapshot {
 	float other_debug_pre_envelope_score = 0.0f;
 	float other_debug_pre_envelope_raw_level = 0.0f;
 	int other_debug_pre_envelope_recovered_midi = -1;
+	int other_debug_pre_envelope_recovery_lower_midi = -1;
+	float other_debug_pre_envelope_recovery_fundamental_ratio = 0.0f;
+	float other_debug_pre_envelope_recovery_octave_ratio = 0.0f;
+	float other_debug_pre_envelope_recovery_fifth_ratio = 0.0f;
 	int other_debug_raw_candidate_midi = -1;
 	float other_debug_raw_candidate_score = 0.0f;
 	float other_debug_raw_candidate_level = 0.0f;
 	int other_debug_raw_recovered_midi = -1;
+	int other_debug_raw_recovery_lower_midi = -1;
+	float other_debug_raw_recovery_fundamental_ratio = 0.0f;
+	float other_debug_raw_recovery_octave_ratio = 0.0f;
+	float other_debug_raw_recovery_fifth_ratio = 0.0f;
 	InstrumentState other_chord = {};
 };
 

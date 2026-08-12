@@ -124,6 +124,20 @@ void check_supported_low_monophonic_other_fundamental(Runner &runner)
 	set_probe_level(powers, 74, 0.15f);
 	runner.expect(supported_low_monophonic_other_fundamental(powers, 83) < 0,
 		      "low monophonic other recovery: expected unsupported sparse fifth partial to stay rejected");
+	powers.fill(0.0f);
+	set_probe_level(powers, 67, 0.16f); // G4 direct fundamental
+	set_probe_level(powers, 79, 1.00f); // G5 selected octave
+	set_probe_level(powers, 86, 0.10f); // D6 weak fifth
+	runner.expect(supported_low_monophonic_other_fundamental(powers, 79) == 67,
+		      "low monophonic other recovery: expected G4 from bounded octave-only wind profile");
+	set_probe_level(powers, 67, 0.12f);
+	runner.expect(supported_low_monophonic_other_fundamental(powers, 79) < 0,
+		      "low monophonic other recovery: expected weak G4 octave body to stay rejected");
+	powers.fill(0.0f);
+	set_probe_level(powers, 72, 0.22f); // C5 lies above the bounded recovery range
+	set_probe_level(powers, 84, 1.00f); // C6 selected octave
+	runner.expect(supported_low_monophonic_other_fundamental(powers, 84) < 0,
+		      "low monophonic other recovery: expected C5 octave-only profile to stay out of range");
 }
 
 void check_direct_upper_other_octave_primary(Runner &runner)

@@ -273,7 +273,7 @@ int supported_low_monophonic_other_fundamental(const std::array<float, kNoteProb
 	if (peak_level <= 1.0e-6f)
 		return -1;
 
-	for (int lower = 36; lower <= 60; ++lower) {
+	for (int lower = 36; lower <= 71; ++lower) {
 		const int octave = lower + 12;
 		const int fifth = lower + 19;
 		const int second_octave = lower + 24;
@@ -293,13 +293,59 @@ int supported_low_monophonic_other_fundamental(const std::array<float, kNoteProb
 		// evidence above.
 		const bool mid_wind_fifth_partial = lower >= 55 && lower <= 59 &&
 			peak_midi == upper_major_third && fifth_level >= std::max(fundamental_level * 0.75f,
-									   peak_level * 0.18f);
+								   peak_level * 0.18f);
+		// Isolated cor anglais recordings at C4--B4 can put nearly all energy in
+		// the octave while retaining a modest, direct fundamental and almost no
+		// fifth. This bounded octave-only shape is distinct from the normal
+		// octave/fifth stack and from the quiet G4 tail measured below the floor.
+		const bool upper_wind_octave_only = lower >= 60 && lower <= 71 &&
+			peak_midi == octave && fundamental_level >= peak_level * 0.13f &&
+			fifth_level <= peak_level * 0.15f;
 		if (fundamental_level < peak_level * 0.12f ||
-		    (!octave_fifth_stack && !mid_wind_fifth_partial))
+		    (!octave_fifth_stack && !mid_wind_fifth_partial && !upper_wind_octave_only))
 			continue;
 		return lower;
 	}
 	return -1;
+}
+
+struct LowMonophonicOtherRecoveryTraits {
+	int lower_midi = -1;
+	float fundamental_ratio = 0.0f;
+	float octave_ratio = 0.0f;
+	float fifth_ratio = 0.0f;
+};
+
+LowMonophonicOtherRecoveryTraits low_monophonic_other_recovery_traits(
+	const std::array<float, kNoteProbeCount> &powers, int peak_midi)
+{
+	LowMonophonicOtherRecoveryTraits traits;
+	if (peak_midi < kOtherMinMidi || peak_midi > kOtherMaxMidi)
+		return traits;
+	const float peak_level = probe_level(powers, peak_midi);
+	if (peak_level <= 1.0e-6f)
+		return traits;
+
+	// Diagnostics inspect the adjacent octave through C5; runtime recovery stays
+	// separately bounded at B4 and does not consume that C5 candidate.
+	for (int lower = 36; lower <= 72; ++lower) {
+		const int octave = lower + 12;
+		const int fifth = lower + 19;
+		const int second_octave = lower + 24;
+		const int upper_major_third = lower + 28;
+		const int upper_fifth = lower + 31;
+		if (peak_midi != octave && peak_midi != fifth && peak_midi != second_octave &&
+		    peak_midi != upper_major_third && peak_midi != upper_fifth)
+			continue;
+		const float fundamental_ratio = probe_level(powers, lower) / peak_level;
+		if (traits.lower_midi >= 0 && fundamental_ratio <= traits.fundamental_ratio)
+			continue;
+		traits.lower_midi = lower;
+		traits.fundamental_ratio = fundamental_ratio;
+		traits.octave_ratio = probe_level(powers, octave) / peak_level;
+		traits.fifth_ratio = probe_level(powers, fifth) / peak_level;
+	}
+	return traits;
 }
 
 float bass_candidate_score(const std::array<float, kNoteProbeCount> &powers, int midi, bool include_harmonics,
@@ -34245,6 +34291,16 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 					snapshot.other_debug_pre_envelope_score = candidate.score;
 					snapshot.other_debug_pre_envelope_raw_level =
 						probe_level(other_note_powers, candidate.midi);
+					const LowMonophonicOtherRecoveryTraits pre_recovery_traits =
+						low_monophonic_other_recovery_traits(other_note_powers, candidate.midi);
+					snapshot.other_debug_pre_envelope_recovery_lower_midi =
+						pre_recovery_traits.lower_midi;
+					snapshot.other_debug_pre_envelope_recovery_fundamental_ratio =
+						pre_recovery_traits.fundamental_ratio;
+					snapshot.other_debug_pre_envelope_recovery_octave_ratio =
+						pre_recovery_traits.octave_ratio;
+					snapshot.other_debug_pre_envelope_recovery_fifth_ratio =
+						pre_recovery_traits.fifth_ratio;
 					if (monophonic_other_source || input_mode == AnalysisInputMode::IsolatedOther) {
 					const int recovered_fundamental =
 						supported_low_monophonic_other_fundamental(other_note_powers, candidate.midi);
@@ -34277,6 +34333,15 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 						snapshot.other_debug_raw_candidate_score = raw_candidate.score;
 						snapshot.other_debug_raw_candidate_level =
 							probe_level(note_powers, raw_candidate.midi);
+						const LowMonophonicOtherRecoveryTraits raw_recovery_traits =
+							low_monophonic_other_recovery_traits(note_powers, raw_candidate.midi);
+						snapshot.other_debug_raw_recovery_lower_midi = raw_recovery_traits.lower_midi;
+						snapshot.other_debug_raw_recovery_fundamental_ratio =
+							raw_recovery_traits.fundamental_ratio;
+						snapshot.other_debug_raw_recovery_octave_ratio =
+							raw_recovery_traits.octave_ratio;
+						snapshot.other_debug_raw_recovery_fifth_ratio =
+							raw_recovery_traits.fifth_ratio;
 						const int recovered =
 							supported_low_monophonic_other_fundamental(note_powers,
 									       raw_candidate.midi);
