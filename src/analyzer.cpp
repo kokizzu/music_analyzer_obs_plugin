@@ -678,6 +678,15 @@ int supported_low_monophonic_other_fundamental(const std::array<float, kNoteProb
 			second_octave_level >= peak_level * 0.33f && second_octave_level <= peak_level * 0.48f &&
 			upper_major_third_level >= peak_level * 0.034f && upper_major_third_level <= peak_level * 0.056f &&
 			upper_fifth_level >= peak_level * 0.029f && upper_fifth_level <= peak_level * 0.045f;
+		// Three URMP trombone D3 sustains also select A4 (the +19 fifth), but
+		// their much stronger D3 body and rich D5/F#5/A5 ladder are distinct from
+		// the compact bassoon profile. Keep the 25--28% octave boundary exact.
+		const bool trombone_d3_rich_fifth_stack = lower == 50 && peak_midi == fifth &&
+			fundamental_level >= peak_level * 0.28f && fundamental_level <= peak_level * 0.33f &&
+			octave_level >= peak_level * 0.25f && octave_level <= peak_level * 0.29f &&
+			second_octave_level >= peak_level * 0.55f && second_octave_level <= peak_level * 0.76f &&
+			upper_major_third_level >= peak_level * 0.65f && upper_major_third_level <= peak_level * 0.80f &&
+			upper_fifth_level >= peak_level * 0.61f && upper_fifth_level <= peak_level * 0.71f;
 		// Repeated URMP trombone A#2 sustains select A#4 two octaves up. Their
 		// low root, nearly absent octave, modest fifth, and rich upper ladder are
 		// all bounded here so an ordinary A#4 peak cannot become a subharmonic.
@@ -735,7 +744,8 @@ int supported_low_monophonic_other_fundamental(const std::array<float, kNoteProb
 		     !bassoon_fs3_boundary_stack &&
 		     !bassoon_fs3_bright_third_stack && !bassoon_a4_sparse_octave_stack && !bassoon_b3_compact_octave_stack &&
 		     !bassoon_g3_boundary_stack && !violin_g3_rich_fifth_stack && !violin_g3_ultraweak_octave_stack &&
-		     !bassoon_d3_compact_fifth_stack && !trombone_as2_second_octave_stack &&
+		     !bassoon_d3_compact_fifth_stack && !trombone_d3_rich_fifth_stack &&
+		     !trombone_as2_second_octave_stack &&
 		     !violin_g3_forte_fifth_ladder && !violin_g3_even_forte_ladder &&
 		     !violin_g3_mezzoforte_low_third_ladder &&
 		     !violin_g3_fortissimo_rich_ladder &&
