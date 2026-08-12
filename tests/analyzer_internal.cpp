@@ -231,6 +231,18 @@ void check_supported_low_monophonic_other_fundamental(Runner &runner)
 	set_probe_level(powers, 93, 0.012f);
 	runner.expect(supported_low_monophonic_other_fundamental(powers, 81) != 69,
 		      "low monophonic other recovery: expected bright A4 second octave to stay rejected");
+	powers.fill(0.0f);
+	set_probe_level(powers, 59, 0.18f); // B3 compact bassoon body
+	set_probe_level(powers, 71, 1.00f); // B4 selected octave
+	set_probe_level(powers, 78, 0.19f); // F#5 compact fifth
+	set_probe_level(powers, 83, 0.10f); // B5 compact second octave
+	set_probe_level(powers, 87, 0.04f); // D#6 quiet upper major third
+	set_probe_level(powers, 90, 0.01f); // F#6 quiet upper fifth
+	runner.expect(supported_low_monophonic_other_fundamental(powers, 71) == 59,
+		      "low monophonic other recovery: expected bounded compact B3 bassoon octave stack");
+	set_probe_level(powers, 78, 0.23f);
+	runner.expect(supported_low_monophonic_other_fundamental(powers, 71) != 59,
+		      "low monophonic other recovery: expected over-bright B3 fifth to stay rejected");
 	set_probe_level(powers, 55, 0.14f); // G3 direct fundamental
 	set_probe_level(powers, 67, 1.00f); // G4 selected octave
 	set_probe_level(powers, 74, 0.10f); // D5 weak fifth
