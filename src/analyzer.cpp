@@ -281,9 +281,9 @@ int supported_low_monophonic_other_fundamental(const std::array<float, kNoteProb
 		const float fundamental_level = probe_level(powers, 60);
 		const float octave_level = probe_level(powers, 72);
 		const float upper_fifth_level = probe_level(powers, 79);
-		if (fundamental_level >= peak_level * 0.075f && fundamental_level <= peak_level * 0.11f &&
-		    octave_level >= peak_level * 0.35f && octave_level <= peak_level * 0.52f &&
-		    upper_fifth_level >= peak_level * 0.18f && upper_fifth_level <= peak_level * 0.42f)
+		if (fundamental_level >= peak_level * 0.075f && fundamental_level <= peak_level * 0.27f &&
+		    octave_level >= peak_level * 0.34f && octave_level <= peak_level * 0.52f &&
+		    upper_fifth_level >= peak_level * 0.18f && upper_fifth_level <= peak_level * 0.50f)
 			return 60;
 	}
 

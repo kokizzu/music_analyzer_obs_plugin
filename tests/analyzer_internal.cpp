@@ -174,6 +174,16 @@ void check_supported_low_monophonic_other_fundamental(Runner &runner)
 	runner.expect(supported_low_monophonic_other_fundamental(powers, 67) != 60,
 		      "low monophonic other recovery: expected over-bright C4 octave to stay outside trombone bridge");
 	powers.fill(0.0f);
+	set_probe_level(powers, 60, 0.20f); // C4 rich trombone body
+	set_probe_level(powers, 67, 1.00f); // G4 selected third harmonic
+	set_probe_level(powers, 72, 0.37f); // C5 octave
+	set_probe_level(powers, 79, 0.45f); // G5 rich upper fifth
+	runner.expect(supported_low_monophonic_other_fundamental(powers, 67) == 60,
+		      "low monophonic other recovery: expected rich C4 trombone third harmonic to outrank C3 alias");
+	set_probe_level(powers, 60, 0.28f);
+	runner.expect(supported_low_monophonic_other_fundamental(powers, 67) != 60,
+		      "low monophonic other recovery: expected over-strong C4 body to stay outside trombone bridge");
+	powers.fill(0.0f);
 	set_probe_level(powers, 57, 0.04f); // A3 weak bassoon body
 	set_probe_level(powers, 69, 1.00f); // A4 selected octave
 	set_probe_level(powers, 76, 0.38f); // E5 fifth
