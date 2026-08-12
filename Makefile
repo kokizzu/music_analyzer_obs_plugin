@@ -4175,7 +4175,7 @@ test-maps-piano-note-samples-max:
 test-real-world-samples-max-parallel: scripts/run_with_duration.sh
 	+$(RUN_WITH_DURATION) real_world_samples_max $(MAKE) $(PARALLEL_TEST_MAKE_JOBS) $(REAL_WORLD_SAMPLE_MAX_TARGETS)
 
-.PHONY: audit-build-sample-storage relocate-build-sample-storage ensure-build-sample-storage-link
+.PHONY: audit-build-sample-storage relocate-build-sample-storage deduplicate-build-sample-storage ensure-build-sample-storage-link
 .PHONY: prepare-pitch-shifted-violin-samples test-pitch-shifted-violin-samples test-pitch-shifted-violin-samples-parallel analyze-pitch-shifted-violin-attributes test-pitch-shifted-violin-prepare
 
 # Keep downloaded and generated audio sample corpora off the workspace disk.
@@ -4186,6 +4186,9 @@ audit-build-sample-storage: scripts/relocate_build_sample_directories.sh
 
 relocate-build-sample-storage: scripts/relocate_build_sample_directories.sh
 	bash scripts/relocate_build_sample_directories.sh --apply
+
+deduplicate-build-sample-storage: scripts/relocate_build_sample_directories.sh
+	bash scripts/relocate_build_sample_directories.sh --deduplicate-identical
 
 # Usage: make ensure-build-sample-storage-link BUILD_SAMPLE_STORAGE_DIR=good_sounds_samples
 ensure-build-sample-storage-link: scripts/relocate_build_sample_directories.sh

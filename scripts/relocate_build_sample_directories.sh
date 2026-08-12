@@ -6,7 +6,7 @@ set -euo pipefail
 mode="${1:---dry-run}"
 link_name=""
 case "$mode" in
-  --dry-run|--apply) ;;
+  --dry-run|--apply|--deduplicate-identical) ;;
   --ensure-link)
     link_name="${2:-}"
     if [[ -z "$link_name" || "$link_name" == */* || "$link_name" == "." || "$link_name" == ".." ]]; then
@@ -15,7 +15,7 @@ case "$mode" in
     fi
     ;;
   *)
-    echo "usage: $0 [--dry-run|--apply|--ensure-link <build-directory-name>]" >&2
+    echo "usage: $0 [--dry-run|--apply|--deduplicate-identical|--ensure-link <build-directory-name>]" >&2
     exit 2
     ;;
 esac
@@ -98,6 +98,13 @@ for source in "${matches[@]}"; do
     continue
   fi
   if [[ -e "$destination" || -L "$destination" ]]; then
+    if [[ "$mode" == "--deduplicate-identical" && -d "$destination" && ! -L "$source" ]] && \
+       diff -qr "$source" "$destination" >/dev/null; then
+      rm -rf -- "$source"
+      ln -s "$destination" "$source"
+      echo "DEDUPED   build/$name -> $destination"
+      continue
+    fi
     echo "CONFLICT  build/$name -> $destination (destination already exists)"
     continue
   fi
