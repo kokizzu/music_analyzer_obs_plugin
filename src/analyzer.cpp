@@ -9027,6 +9027,21 @@ bool full_mix_vocal_tone_profile_supported(const NoteEvidence &evidence, int mid
 		fourth <= (high_register ? 0.050f : 0.085f);
 	const bool near_pure_tone_voice =
 		second <= 0.045f && third <= 0.025f && fourth <= 0.018f && evidence.spectral_slope <= 0.10f;
+	// A clean high /i/-like vowel can have a nearly absent second partial while
+	// its third and fourth partials remain audible.  The bounded C5-region
+	// profile was measured on VocalSet and has no matching protected rows in
+	// the cached NSynth or Vocadito full-mix exports.
+	const bool measured_clean_high_vowel_voice =
+		high_register && midi >= 70 && midi <= 74 &&
+		evidence.spectral_level >= 0.90f &&
+		evidence.pitch_confidence >= 0.88f &&
+		evidence.periodicity >= 0.72f &&
+		evidence.harmonic_fit_error <= 0.09f &&
+		evidence.spectral_centroid >= 0.10f && evidence.spectral_centroid <= 0.20f &&
+		evidence.local_noise_level <= 0.01f &&
+		second <= 0.025f &&
+		third >= 0.10f && third <= 0.13f &&
+		fourth >= 0.06f && fourth <= 0.18f;
 	const bool midrange_sustained_voice =
 		!high_register && second <= 0.22f && third <= 0.13f && fourth <= 0.095f &&
 		evidence.pitch_stability >= 0.34f && evidence.spectral_slope <= 0.30f;
@@ -9035,7 +9050,8 @@ bool full_mix_vocal_tone_profile_supported(const NoteEvidence &evidence, int mid
 		fourth <= 0.145f && fifth <= 0.085f && evidence.spectral_slope <= 0.42f;
 	const bool measured_sustained_voice =
 		measured_full_mix_sustained_voice_profile(evidence, midi, second, third, fourth, fifth);
-	return clean_sustained_like_partials || near_pure_tone_voice || midrange_sustained_voice ||
+	return clean_sustained_like_partials || near_pure_tone_voice || measured_clean_high_vowel_voice ||
+	       midrange_sustained_voice ||
 	       rich_sustained_voice || measured_sustained_voice;
 }
 
@@ -9135,6 +9151,17 @@ InstrumentKind choose_full_mix_owner(const std::array<float, kNoteProbeCount> &p
 	const bool measured_sustained_voice =
 		vocal_supported &&
 		measured_full_mix_sustained_voice_profile(evidence, candidate.midi, second, third, fourth, fifth);
+	const bool measured_clean_high_vowel_voice =
+		candidate.midi >= 72 && candidate.midi <= 74 &&
+		evidence.spectral_level >= 0.90f &&
+		evidence.pitch_confidence >= 0.88f &&
+		evidence.periodicity >= 0.72f &&
+		evidence.harmonic_fit_error <= 0.09f &&
+		evidence.spectral_centroid >= 0.10f && evidence.spectral_centroid <= 0.20f &&
+		evidence.local_noise_level <= 0.01f &&
+		second <= 0.025f &&
+		third >= 0.10f && third <= 0.13f &&
+		fourth >= 0.06f && fourth <= 0.18f;
 	const bool low_other_candidate = candidate.midi >= kGuitarMinMidi && candidate.midi < 55;
 	const bool lower_mid_other_candidate = candidate.midi >= 55 && candidate.midi < 60;
 	const bool lower_mid_bright_other_candidate =
@@ -9318,6 +9345,8 @@ InstrumentKind choose_full_mix_owner(const std::array<float, kNoteProbeCount> &p
 			scores[2] *= 0.82f;
 		if (measured_sustained_voice)
 			scores[2] += 0.46f;
+		if (measured_clean_high_vowel_voice)
+			scores[2] = std::max(scores[2], scores[0] * 4.2f);
 		if (!high_register) {
 			scores[0] *= 0.28f;
 			if (second < 0.20f)

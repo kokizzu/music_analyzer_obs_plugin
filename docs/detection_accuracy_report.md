@@ -76,6 +76,14 @@ Source: `build/vocalset_full_mix_attributes.tsv`
 | VocalSet vocals — Primary display row | 199 / 2389 (8.3%) | 2190 |
 | VocalSet vocals — Visual primary row | 176 / 2389 (7.4%) | 2213 |
 
+### Focused clean-vowel regression
+
+This cached VocalSet C5 fixture exercises the measured clean high-vowel profile; it is intentionally reported separately from the corpus-wide TSV until that export is regenerated.
+
+| Metric | Accurate / total | Remaining |
+| --- | ---: | ---: |
+| VocalSet clean C5 vowel — Expected instrument row | 1 / 1 (100.0%) | 0 |
+
 ## Good Sounds full-mix acoustic routing
 
 This independent acoustic-instrument corpus is measured in full-mix mode. It is a coverage benchmark, not a release threshold, and includes bass plus woodwind, brass, and violin samples.

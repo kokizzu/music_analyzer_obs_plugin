@@ -1009,6 +1009,7 @@ VOCALSET_ARCHIVE_MD5 ?= 8d39344bbc775aa040840783ae73cfa4
 VOCALSET_SOURCE_DIR ?= $(REAL_SAMPLE_SOURCE_DIR)/vocalset
 VOCALSET_ARCHIVE ?= $(VOCALSET_SOURCE_DIR)/VocalSet.zip
 VOCALSET_SAMPLE_DIR ?= $(BUILD_DIR)/vocalset_samples
+VOCALSET_CLEAN_VOWEL_SAMPLE_ID ?= vocalset_f1_scales_straight_i_9_C5
 VOCALSET_DOWNLOAD_LOCK_DIR ?= $(BUILD_DIR)/vocalset_download.lock
 VOCALSET_ATTRIBUTE_TSV ?= $(BUILD_DIR)/vocalset_attributes.tsv
 VOCALSET_DETECTED_ATTRIBUTE_ROWS ?= $(BUILD_DIR)/vocalset_detected_attribute_rows.tsv
@@ -3775,7 +3776,7 @@ $(VOCALSET_FULL_MIX_ATTRIBUTE_TSV): $(BUILD_DIR)/analyzer_real_note_samples $(VO
 $(BUILD_DIR)/vocalset_full_mix_attributes.shard-%.tsv: $(BUILD_DIR)/analyzer_real_note_samples prepare-vocalset-samples | $(BUILD_DIR)
 	env MUSIC_ANALYZER_REAL_NOTE_SAMPLES_REQUIRED=1 MUSIC_ANALYZER_REAL_NOTE_FULL_MIX=1 MUSIC_ANALYZER_REAL_NOTE_SHARD_COUNT="$(VOCALSET_FULL_MIX_SHARDS)" MUSIC_ANALYZER_REAL_NOTE_SHARD_INDEX="$*" MUSIC_ANALYZER_REAL_NOTE_ATTRIBUTE_TSV="$@" MUSIC_ANALYZER_REAL_NOTE_SAMPLE_ROOT="$(VOCALSET_SAMPLE_DIR)" MUSIC_ANALYZER_REAL_NOTE_REQUIRED_SAMPLES="$(VOCALSET_MIN_VOCALS)" MUSIC_ANALYZER_REAL_NOTE_MIN_BASS=0 MUSIC_ANALYZER_REAL_NOTE_MIN_GUITAR=0 MUSIC_ANALYZER_REAL_NOTE_MIN_PIANO=0 MUSIC_ANALYZER_REAL_NOTE_MIN_VOCALS=0 MUSIC_ANALYZER_REAL_NOTE_MIN_OTHER=0 MUSIC_ANALYZER_REAL_NOTE_MIN_ANY_HIT_PERCENT=0 MUSIC_ANALYZER_REAL_NOTE_MIN_EXPECTED_ROW_PERCENT=0 MUSIC_ANALYZER_REAL_NOTE_MIN_FIRST_ROW_PERCENT=0 MUSIC_ANALYZER_REAL_NOTE_MIN_BASS_EXPECTED_ROW_PERCENT=0 MUSIC_ANALYZER_REAL_NOTE_MIN_GUITAR_EXPECTED_ROW_PERCENT=0 MUSIC_ANALYZER_REAL_NOTE_MIN_PIANO_EXPECTED_ROW_PERCENT=0 MUSIC_ANALYZER_REAL_NOTE_MIN_VOCALS_EXPECTED_ROW_PERCENT=0 MUSIC_ANALYZER_REAL_NOTE_MIN_OTHER_EXPECTED_ROW_PERCENT=0 MUSIC_ANALYZER_REAL_NOTE_MIN_BASS_FIRST_ROW_PERCENT=0 MUSIC_ANALYZER_REAL_NOTE_MIN_GUITAR_FIRST_ROW_PERCENT=0 MUSIC_ANALYZER_REAL_NOTE_MIN_PIANO_FIRST_ROW_PERCENT=0 MUSIC_ANALYZER_REAL_NOTE_MIN_VOCALS_FIRST_ROW_PERCENT=0 MUSIC_ANALYZER_REAL_NOTE_MIN_OTHER_FIRST_ROW_PERCENT=0 MUSIC_ANALYZER_REAL_NOTE_MAX_DRUM_ACTIVE_PERCENT=100 MUSIC_ANALYZER_REAL_NOTE_MAX_FAILURES=999999 MUSIC_ANALYZER_REAL_NOTE_MAX_FAILURE_LINES=20 $(BUILD_DIR)/analyzer_real_note_samples > "$(BUILD_DIR)/vocalset_full_mix_attributes.shard-$*.out"
 
-.PHONY: analyze-vocalset-full-mix-attributes analyze-vocalset-expanded-full-mix-attributes find-vocalset-full-mix-row-confusion-patterns find-vocalset-full-mix-visual-row-confusion-patterns find-vocalset-full-mix-ownership-patterns find-vocalset-full-mix-broad-vocal-ownership-patterns find-vocalset-full-mix-cached-ownership-patterns inspect-vocalset-full-mix-debug-cached
+.PHONY: analyze-vocalset-full-mix-attributes analyze-vocalset-expanded-full-mix-attributes find-vocalset-full-mix-row-confusion-patterns find-vocalset-full-mix-visual-row-confusion-patterns find-vocalset-full-mix-ownership-patterns find-vocalset-full-mix-broad-vocal-ownership-patterns find-vocalset-full-mix-cached-ownership-patterns inspect-vocalset-full-mix-debug-cached test-vocalset-clean-vowel-cached
 
 analyze-vocalset-full-mix-attributes: $(VOCALSET_FULL_MIX_ATTRIBUTE_TSV) scripts/summarize_real_note_attributes.py
 	$(PYTHON) scripts/summarize_real_note_attributes.py "$(VOCALSET_FULL_MIX_ATTRIBUTE_TSV)" $(REAL_NOTE_ATTRIBUTE_SUMMARY_ARGS)
@@ -3807,6 +3808,12 @@ inspect-vocalset-full-mix-debug-cached: $(BUILD_DIR)/analyzer_real_note_samples
 	@test -n "$(VOCALSET_DEBUG_SAMPLE_ID)" || { printf '%s\n' "set VOCALSET_DEBUG_SAMPLE_ID to a manifest sample id"; exit 2; }
 	@test -s "$(VOCALSET_SAMPLE_DIR)/manifest.tsv" || { printf '%s\n' "missing $(VOCALSET_SAMPLE_DIR)/manifest.tsv; run make prepare-vocalset-samples first"; exit 2; }
 	env MUSIC_ANALYZER_REAL_NOTE_SAMPLES_REQUIRED=1 MUSIC_ANALYZER_REAL_NOTE_FULL_MIX=1 MUSIC_ANALYZER_REAL_NOTE_SAMPLE_ROOT="$(VOCALSET_SAMPLE_DIR)" MUSIC_ANALYZER_REAL_NOTE_REQUIRED_SAMPLES=1 MUSIC_ANALYZER_REAL_NOTE_MIN_ANY_HIT_PERCENT=0 MUSIC_ANALYZER_REAL_NOTE_MIN_EXPECTED_ROW_PERCENT=0 MUSIC_ANALYZER_REAL_NOTE_MIN_FIRST_ROW_PERCENT=0 MUSIC_ANALYZER_REAL_NOTE_MAX_DRUM_ACTIVE_PERCENT=100 MUSIC_ANALYZER_REAL_NOTE_MAX_FAILURES=999999 MUSIC_ANALYZER_REAL_NOTE_DEBUG_SAMPLE_ID="$(VOCALSET_DEBUG_SAMPLE_ID)" $(BUILD_DIR)/analyzer_real_note_samples
+
+# Regression gate for the measured C5 clean-vowel recovery. It reads the
+# existing fixture only, so it neither prepares nor downloads VocalSet.
+test-vocalset-clean-vowel-cached: $(BUILD_DIR)/analyzer_real_note_samples
+	@test -s "$(VOCALSET_SAMPLE_DIR)/manifest.tsv" || { printf '%s\n' "missing $(VOCALSET_SAMPLE_DIR)/manifest.tsv; run make prepare-vocalset-samples first"; exit 2; }
+	env MUSIC_ANALYZER_REAL_NOTE_SAMPLES_REQUIRED=1 MUSIC_ANALYZER_REAL_NOTE_FULL_MIX=1 MUSIC_ANALYZER_REAL_NOTE_SAMPLE_ROOT="$(VOCALSET_SAMPLE_DIR)" MUSIC_ANALYZER_REAL_NOTE_REQUIRED_SAMPLES=1 MUSIC_ANALYZER_REAL_NOTE_MIN_ANY_HIT_PERCENT=0 MUSIC_ANALYZER_REAL_NOTE_MIN_EXPECTED_ROW_PERCENT=0 MUSIC_ANALYZER_REAL_NOTE_MIN_FIRST_ROW_PERCENT=0 MUSIC_ANALYZER_REAL_NOTE_MIN_VOCALS_EXPECTED_ROW_PERCENT=100 MUSIC_ANALYZER_REAL_NOTE_MAX_DRUM_ACTIVE_PERCENT=100 MUSIC_ANALYZER_REAL_NOTE_MAX_FAILURES=0 MUSIC_ANALYZER_REAL_NOTE_DEBUG_SAMPLE_ID="$(VOCALSET_CLEAN_VOWEL_SAMPLE_ID)" $(BUILD_DIR)/analyzer_real_note_samples
 
 $(VOCALSET_ATTRIBUTE_TSV): $(BUILD_DIR)/analyzer_real_note_samples $(VOCALSET_SAMPLE_DIR)/manifest.tsv scripts/build_sharded_tsv.sh scripts/run_with_lock.sh | $(BUILD_DIR)
 	+$(SHELL) scripts/run_with_lock.sh "$(VOCALSET_ATTRIBUTE_LOCK_DIR)" -- "$(SHELL)" scripts/build_sharded_tsv.sh "$@" "$(MAKE)" "$(REAL_NOTE_SAMPLE_TEST_MAKE_JOBS)" $(VOCALSET_ATTRIBUTE_PARTS)

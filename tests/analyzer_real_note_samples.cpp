@@ -1351,7 +1351,7 @@ int main()
 			if ((!full_mix && (label_ok || grid_ok)) ||
 			    (full_mix && detected_expected_row)) {
 				detected = true;
-				if (!attribute_export)
+				if (!attribute_export && debug_sample_id.empty())
 					break;
 			}
 			if (full_mix && any_grid_ok)
