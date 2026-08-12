@@ -138,7 +138,7 @@ void check_direct_upper_other_octave_primary(Runner &runner)
 	runner.expect(recovered.cells[midi_pitch_class(63)].midi == 63,
 		      "direct upper other octave: expected substantial D#4 body to replace D#3 alias");
 
-	set_probe_level(powers, 63, 0.54f);
+	set_probe_level(powers, 63, 0.29f);
 	NoteGrid guarded = {};
 	write_note_grid_cell(guarded, NoteCandidate{51, 1.00f}, 1.00f, 1.00f);
 	InstrumentState guarded_state = {};
