@@ -325,8 +325,21 @@ void check_supported_low_monophonic_other_fundamental(Runner &runner)
 	runner.expect(supported_low_monophonic_other_fundamental(powers, 67) == 55,
 		      "low monophonic other recovery: expected bounded even forte G3 violin ladder");
 	set_probe_level(powers, 79, 0.17f);
+	set_probe_level(powers, 83, 0.44f);
 	runner.expect(supported_low_monophonic_other_fundamental(powers, 67) != 55,
-		      "low monophonic other recovery: expected bright even forte G3 second octave to stay rejected");
+		      "low monophonic other recovery: expected out-of-range even forte G3 ladder to stay rejected");
+	powers.fill(0.0f);
+	set_probe_level(powers, 55, 0.024f); // G3 mezzo-forte violin body
+	set_probe_level(powers, 67, 1.00f); // G4 selected octave
+	set_probe_level(powers, 74, 0.55f); // D5 bounded fifth
+	set_probe_level(powers, 79, 0.13f); // G5 compact second octave
+	set_probe_level(powers, 83, 0.24f); // B5 low upper major third
+	set_probe_level(powers, 86, 0.06f); // D6 bounded upper fifth
+	runner.expect(supported_low_monophonic_other_fundamental(powers, 67) == 55,
+		      "low monophonic other recovery: expected bounded mezzo-forte G3 violin ladder");
+	set_probe_level(powers, 79, 0.19f);
+	runner.expect(supported_low_monophonic_other_fundamental(powers, 67) != 55,
+		      "low monophonic other recovery: expected bright mezzo-forte G3 second octave to stay rejected");
 	powers.fill(0.0f);
 	set_probe_level(powers, 58, 0.09f);  // A#3 sparse violin body
 	set_probe_level(powers, 70, 1.00f);  // A#4 selected octave

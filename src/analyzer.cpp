@@ -415,6 +415,15 @@ int supported_low_monophonic_other_fundamental(const std::array<float, kNoteProb
 			second_octave_level >= peak_level * 0.10f && second_octave_level <= peak_level * 0.16f &&
 			upper_major_third_level >= peak_level * 0.39f && upper_major_third_level <= peak_level * 0.49f &&
 			upper_fifth_level >= peak_level * 0.04f && upper_fifth_level <= peak_level * 0.10f;
+		// Mezzo-forte G3 violin carries a smaller upper-third ladder despite its
+		// similarly weak body.  Bound every measured partial at G3 rather than
+		// widening the neighboring forte or ultra-weak octave recoveries.
+		const bool violin_g3_mezzoforte_low_third_ladder = lower == 55 && peak_midi == octave &&
+			fundamental_level >= peak_level * 0.018f && fundamental_level <= peak_level * 0.032f &&
+			fifth_level >= peak_level * 0.44f && fifth_level <= peak_level * 0.72f &&
+			second_octave_level >= peak_level * 0.09f && second_octave_level <= peak_level * 0.18f &&
+			upper_major_third_level >= peak_level * 0.19f && upper_major_third_level <= peak_level * 0.29f &&
+			upper_fifth_level >= peak_level * 0.015f && upper_fifth_level <= peak_level * 0.11f;
 		// The measured A#3 violin octave alias is a separate, much sparser
 		// profile: its A#4 selected octave has a low but continuous direct body,
 		// small fifth, and compact second-octave/third ladder.  The tight A#3
@@ -553,6 +562,7 @@ int supported_low_monophonic_other_fundamental(const std::array<float, kNoteProb
 		     !bassoon_b3_compact_octave_stack && !bassoon_g3_boundary_stack && !violin_g3_rich_fifth_stack &&
 			     !violin_g3_ultraweak_octave_stack && !violin_g3_forte_fifth_ladder &&
 			     !violin_g3_even_forte_ladder &&
+			     !violin_g3_mezzoforte_low_third_ladder &&
 			     !violin_as3_sparse_octave_stack && !violin_as3_mezzoforte_octave_stack &&
 			     !violin_gs3_rich_octave_stack &&
 			     !violin_gs3_compact_upper_ladder_stack &&
@@ -566,6 +576,7 @@ int supported_low_monophonic_other_fundamental(const std::array<float, kNoteProb
 		     !bassoon_fs3_bright_third_stack && !bassoon_a4_sparse_octave_stack && !bassoon_b3_compact_octave_stack &&
 		     !bassoon_g3_boundary_stack && !violin_g3_rich_fifth_stack && !violin_g3_ultraweak_octave_stack &&
 		     !violin_g3_forte_fifth_ladder && !violin_g3_even_forte_ladder &&
+		     !violin_g3_mezzoforte_low_third_ladder &&
 		     !violin_as3_sparse_octave_stack && !violin_as3_mezzoforte_octave_stack &&
 		     !violin_gs3_rich_octave_stack && !violin_gs3_compact_upper_ladder_stack &&
 		     !violin_a3_compact_octave_stack &&
