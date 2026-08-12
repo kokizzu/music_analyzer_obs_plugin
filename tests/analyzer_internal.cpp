@@ -271,6 +271,22 @@ void check_supported_low_monophonic_other_fundamental(Runner &runner)
 	runner.expect(supported_low_monophonic_other_fundamental(powers, 69) != 57,
 		      "low monophonic other recovery: expected gap between A3 bassoon stack bands to stay rejected");
 	powers.fill(0.0f);
+	set_probe_level(powers, 57, 0.04f);  // A3 measured bassoon body
+	set_probe_level(powers, 69, 1.00f);  // A4 selected octave
+	set_probe_level(powers, 76, 0.40f);  // E5 breath-supported fifth
+	set_probe_level(powers, 81, 0.145f); // A5 compact second octave
+	set_probe_level(powers, 85, 0.06f);  // C#6 restrained upper major third
+	set_probe_level(powers, 88, 0.05f);  // E6 restrained upper fifth
+	runner.expect(supported_low_monophonic_other_fundamental(powers, 69) == 57,
+		      "low monophonic other recovery: expected bounded A3 bassoon breath ladder");
+	set_probe_level(powers, 76, 0.48f);
+	runner.expect(supported_low_monophonic_other_fundamental(powers, 69) != 57,
+		      "low monophonic other recovery: expected over-rich A3 bassoon fifth to stay rejected");
+	set_probe_level(powers, 76, 0.40f);
+	set_probe_level(powers, 85, 0.08f);
+	runner.expect(supported_low_monophonic_other_fundamental(powers, 69) != 57,
+		      "low monophonic other recovery: expected bright A3 bassoon upper third to stay rejected");
+	powers.fill(0.0f);
 	set_probe_level(powers, 54, 0.11f); // F#3 boundary bassoon body
 	set_probe_level(powers, 66, 1.00f); // F#4 selected octave
 	set_probe_level(powers, 73, 0.39f); // C#5 fifth
