@@ -261,9 +261,9 @@ float probe_level(const std::array<float, kNoteProbeCount> &powers, int midi)
 	return std::sqrt(std::max(powers[midi - kFirstMidi], 0.0f));
 }
 
-// Low acoustic winds/brass can put more energy in the octave and fifth than
-// in the fundamental.  Recover the low note only when the selected peak is
-// itself one of that octave/fifth pair, so unrelated rich spectra stay out.
+// Low acoustic winds/brass can put more energy in a selected octave or upper
+// partial than in the fundamental. Recover the low note only from a compact,
+// independently supported harmonic stack, not from an arbitrary subharmonic.
 int supported_low_monophonic_other_fundamental(const std::array<float, kNoteProbeCount> &powers,
 							 int peak_midi)
 {
@@ -273,15 +273,19 @@ int supported_low_monophonic_other_fundamental(const std::array<float, kNoteProb
 	if (peak_level <= 1.0e-6f)
 		return -1;
 
-	for (int lower = 40; lower <= 55; ++lower) {
+	for (int lower = 36; lower <= 60; ++lower) {
 		const int octave = lower + 12;
 		const int fifth = lower + 19;
-		if (peak_midi != octave && peak_midi != fifth)
+		const int second_octave = lower + 24;
+		const int upper_major_third = lower + 28;
+		const int upper_fifth = lower + 31;
+		if (peak_midi != octave && peak_midi != fifth && peak_midi != second_octave &&
+		    peak_midi != upper_major_third && peak_midi != upper_fifth)
 			continue;
 		const float fundamental_level = probe_level(powers, lower);
 		if (fundamental_level < peak_level * 0.12f ||
 		    probe_level(powers, octave) < peak_level * 0.30f ||
-		    probe_level(powers, fifth) < peak_level * 0.65f)
+		    probe_level(powers, fifth) < peak_level * 0.30f)
 			continue;
 		return lower;
 	}
@@ -34191,7 +34195,7 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 				monophonic_other_source ? note_powers : detection_note_powers;
 			std::array<bool, kNoteProbeCount> quiet_monophonic_allowed_midis = {};
 			const std::array<bool, kNoteProbeCount> *other_allowed_midis = nullptr;
-			if (monophonic_other_source) {
+			if (input_mode == AnalysisInputMode::IsolatedOther) {
 				const NoteCandidateList pre_envelope_candidates =
 					note_peak_candidates(other_note_powers, min_midi, kOtherMaxMidi, 1,
 							     nullptr, nullptr, false, nullptr, 0.30f, true);
@@ -34201,6 +34205,7 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 					snapshot.other_debug_pre_envelope_score = candidate.score;
 					snapshot.other_debug_pre_envelope_raw_level =
 						probe_level(other_note_powers, candidate.midi);
+					if (monophonic_other_source || input_mode == AnalysisInputMode::IsolatedOther) {
 					const int recovered_fundamental =
 						supported_low_monophonic_other_fundamental(other_note_powers, candidate.midi);
 					if (recovered_fundamental >= 0) {
@@ -34213,6 +34218,7 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 							quiet_monophonic_allowed_midis[
 								static_cast<std::size_t>(candidate.midi - kFirstMidi)] = true;
 						other_allowed_midis = &quiet_monophonic_allowed_midis;
+					}
 					}
 				}
 			}

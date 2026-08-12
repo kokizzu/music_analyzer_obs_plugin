@@ -963,6 +963,7 @@ void print_attribute_header(std::ostream &out)
 	    << "\traw_prev_ratio\traw_next_ratio\traw_octave_down_ratio\traw_octave_up_ratio"
 	    << "\traw_fifth_up_ratio\traw_second_octave_up_ratio\traw_upper_major_third_ratio"
 	    << "\traw_upper_fifth_ratio\traw_third_octave_up_ratio"
+	    << "\tother_pre_envelope_midi\tother_pre_envelope_score\tother_pre_envelope_raw_level"
 	    << "\trms\tlow\tmid\thigh\tkick\tsnare\thihat\tcrash\ttom\tride\trim"
 	    << "\tdebug_note\tdebug_midi\tdebug_owner\tdebug_conf"
 	    << "\tonset_strength\tdecay_rate\tpitch_stability\tsimultaneous_onset"
@@ -1078,6 +1079,9 @@ void append_attribute_row(std::vector<std::string> &lines, const SampleRow &row,
 	append_tsv(line, raw.upper_major_third_ratio);
 	append_tsv(line, raw.upper_fifth_ratio);
 	append_tsv(line, raw.third_octave_up_ratio);
+	append_tsv(line, snapshot.other_debug_pre_envelope_midi);
+	append_tsv(line, snapshot.other_debug_pre_envelope_score);
+	append_tsv(line, snapshot.other_debug_pre_envelope_raw_level);
 	append_tsv(line, snapshot.rms);
 	append_tsv(line, snapshot.low_energy);
 	append_tsv(line, snapshot.mid_energy);

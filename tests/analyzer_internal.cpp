@@ -105,9 +105,16 @@ void check_supported_low_monophonic_other_fundamental(Runner &runner)
 		      "low monophonic other recovery: expected D3 from octave/fifth pair");
 	runner.expect(supported_low_monophonic_other_fundamental(powers, 62) == 50,
 		      "low monophonic other recovery: expected D3 when octave is the selected peak");
-	powers[static_cast<std::size_t>(62 - kFirstMidi)] = 0.29f;
+	powers[static_cast<std::size_t>(62 - kFirstMidi)] = 0.04f;
 	runner.expect(supported_low_monophonic_other_fundamental(powers, 69) < 0,
 		      "low monophonic other recovery: expected weak octave pair to stay rejected");
+	powers.fill(0.0f);
+	powers[static_cast<std::size_t>(55 - kFirstMidi)] = 0.20f; // G3 fundamental
+	powers[static_cast<std::size_t>(67 - kFirstMidi)] = 0.55f; // G4 octave
+	powers[static_cast<std::size_t>(74 - kFirstMidi)] = 0.24f; // D5 fifth
+	powers[static_cast<std::size_t>(79 - kFirstMidi)] = 1.00f; // G5 selected octave
+	runner.expect(supported_low_monophonic_other_fundamental(powers, 79) == 55,
+		      "low monophonic other recovery: expected G3 from second-octave stack");
 }
 
 void check_crowded_guitar_prune_modes(Runner &runner)
