@@ -8,9 +8,9 @@ Source: `build/real_note_full_mix_attributes.tsv`
 | --- | ---: | ---: |
 | Any detected note | 2212 / 2212 (100.0%) | 0 |
 | Expected instrument row | 2212 / 2212 (100.0%) | 0 |
-| Lit expected pitch class | 2013 / 2212 (91.0%) | 199 |
-| Primary display row | 773 / 2212 (34.9%) | 1439 |
-| Visual primary row | 869 / 2212 (39.3%) | 1343 |
+| Lit expected pitch class | 2015 / 2212 (91.1%) | 197 |
+| Primary display row | 774 / 2212 (35.0%) | 1438 |
+| Visual primary row | 870 / 2212 (39.3%) | 1342 |
 | Bass — Any detected note | 137 / 137 (100.0%) | 0 |
 | Bass — Expected instrument row | 137 / 137 (100.0%) | 0 |
 | Bass — Lit expected pitch class | 137 / 137 (100.0%) | 0 |
@@ -23,9 +23,9 @@ Source: `build/real_note_full_mix_attributes.tsv`
 | Guitar — Visual primary row | 60 / 346 (17.3%) | 286 |
 | Other — Any detected note | 590 / 590 (100.0%) | 0 |
 | Other — Expected instrument row | 590 / 590 (100.0%) | 0 |
-| Other — Lit expected pitch class | 517 / 590 (87.6%) | 73 |
-| Other — Primary display row | 118 / 590 (20.0%) | 472 |
-| Other — Visual primary row | 208 / 590 (35.3%) | 382 |
+| Other — Lit expected pitch class | 519 / 590 (88.0%) | 71 |
+| Other — Primary display row | 119 / 590 (20.2%) | 471 |
+| Other — Visual primary row | 209 / 590 (35.4%) | 381 |
 | Piano — Any detected note | 1117 / 1117 (100.0%) | 0 |
 | Piano — Expected instrument row | 1117 / 1117 (100.0%) | 0 |
 | Piano — Lit expected pitch class | 1050 / 1117 (94.0%) | 67 |
@@ -57,10 +57,10 @@ Source: `build/vocadito_full_mix_attributes.tsv`
 | Metric | Accurate / total | Remaining |
 | --- | ---: | ---: |
 | Vocadito vocals — Any detected note | 354 / 354 (100.0%) | 0 |
-| Vocadito vocals — Expected instrument row | 285 / 354 (80.5%) | 69 |
-| Vocadito vocals — Lit expected pitch class | 154 / 354 (43.5%) | 200 |
-| Vocadito vocals — Primary display row | 40 / 354 (11.3%) | 314 |
-| Vocadito vocals — Visual primary row | 21 / 354 (5.9%) | 333 |
+| Vocadito vocals — Expected instrument row | 284 / 354 (80.2%) | 70 |
+| Vocadito vocals — Lit expected pitch class | 153 / 354 (43.2%) | 201 |
+| Vocadito vocals — Primary display row | 39 / 354 (11.0%) | 315 |
+| Vocadito vocals — Visual primary row | 20 / 354 (5.6%) | 334 |
 
 ## VocalSet full-mix vocal routing
 
