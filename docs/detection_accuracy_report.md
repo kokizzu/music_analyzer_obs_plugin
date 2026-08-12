@@ -125,6 +125,19 @@ Source: `build/pitch_shifted_violin_attributes.tsv`
 | Pitch-shifted violin — Primary display row | 20 / 20 (100.0%) | 0 |
 | Pitch-shifted violin — Visual primary row | 20 / 20 (100.0%) | 0 |
 
+## Philharmonia isolated exact-note coverage
+
+This independent real acoustic corpus requires the annotated MIDI octave, not merely the pitch class, to appear in its expected instrument row.
+
+Source: `build/philharmonia_full_attributes.tsv`
+
+| Metric | Accurate / total | Remaining |
+| --- | ---: | ---: |
+| Philharmonia — Exact expected MIDI note | 6856 / 7285 (94.1%) | 429 |
+| Philharmonia — Guitar — exact expected MIDI note | 144 / 146 (98.6%) | 2 |
+| Philharmonia — Other — exact expected MIDI note | 6243 / 6668 (93.6%) | 425 |
+| Philharmonia — Bass — exact expected MIDI note | 469 / 471 (99.6%) | 2 |
+
 ## Medley Solos instrument routing
 
 This independent corpus contains three-second isolated performances from eight instruments. It is measured in full-mix mode; a sample is accurate when any analyzed buffer activates its expected instrument row. It supplies routing coverage, not pitch or chord ground truth.
@@ -180,9 +193,9 @@ This downloaded real chamber-music corpus measures the same performances as prov
 | --- | ---: | ---: |
 | URMP — real pieces loadable | 44 / 44 (100.0%) | 0 |
 | URMP — selected annotated windows | 528 / 528 (100.0%) | 0 |
-| URMP — isolated-track exact notes | 1523 / 1788 (85.2%) | 265 |
-| URMP — isolated-track detected notes | 1625 / 1788 (90.9%) | 163 |
-| URMP — isolated-track precision | 1523 / 1756 (86.7%) | 233 false notes |
+| URMP — isolated-track exact notes | 1531 / 1788 (85.6%) | 257 |
+| URMP — isolated-track detected notes | 1631 / 1788 (91.2%) | 157 |
+| URMP — isolated-track precision | 1531 / 1756 (87.2%) | 225 false notes |
 | URMP — provided-mix exact chords | 190 / 527 (36.1%) | 337 |
 | URMP — provided stream chord windows | 224 / 527 (42.5%) | 303 |
 | URMP — provided sequence chord windows | 214 / 527 (40.6%) | 313 |

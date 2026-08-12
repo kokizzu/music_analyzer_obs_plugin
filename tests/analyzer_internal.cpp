@@ -95,6 +95,21 @@ void check_quiet_monophonic_other_recovery_bounds(Runner &runner)
 		      "quiet monophonic other recovery: expected normal-level peak to use the regular route");
 }
 
+void check_supported_low_monophonic_other_fundamental(Runner &runner)
+{
+	std::array<float, kNoteProbeCount> powers = {};
+	powers[static_cast<std::size_t>(50 - kFirstMidi)] = 0.155f; // D3 fundamental
+	powers[static_cast<std::size_t>(62 - kFirstMidi)] = 0.77f;  // D4 octave
+	powers[static_cast<std::size_t>(69 - kFirstMidi)] = 1.0f;   // A4 fifth / selected peak
+	runner.expect(supported_low_monophonic_other_fundamental(powers, 69) == 50,
+		      "low monophonic other recovery: expected D3 from octave/fifth pair");
+	runner.expect(supported_low_monophonic_other_fundamental(powers, 62) == 50,
+		      "low monophonic other recovery: expected D3 when octave is the selected peak");
+	powers[static_cast<std::size_t>(62 - kFirstMidi)] = 0.29f;
+	runner.expect(supported_low_monophonic_other_fundamental(powers, 69) < 0,
+		      "low monophonic other recovery: expected weak octave pair to stay rejected");
+}
+
 void check_crowded_guitar_prune_modes(Runner &runner)
 {
 	static constexpr const char *kCrowdedLabel = "Csus2=Gsus4=C=Cm=Cmaj7=Cpow=Caug";
@@ -4876,6 +4891,7 @@ int run()
 	Runner runner;
 	check_auto_source_mode_resolution(runner);
 	check_quiet_monophonic_other_recovery_bounds(runner);
+	check_supported_low_monophonic_other_fundamental(runner);
 	check_crowded_guitar_prune_modes(runner);
 	check_displayed_same_root_plain_guitar_primary(runner);
 	check_displayed_supported_plain_guitar_primary(runner);

@@ -261,6 +261,33 @@ float probe_level(const std::array<float, kNoteProbeCount> &powers, int midi)
 	return std::sqrt(std::max(powers[midi - kFirstMidi], 0.0f));
 }
 
+// Low acoustic winds/brass can put more energy in the octave and fifth than
+// in the fundamental.  Recover the low note only when the selected peak is
+// itself one of that octave/fifth pair, so unrelated rich spectra stay out.
+int supported_low_monophonic_other_fundamental(const std::array<float, kNoteProbeCount> &powers,
+							 int peak_midi)
+{
+	if (peak_midi < kOtherMinMidi || peak_midi > kOtherMaxMidi)
+		return -1;
+	const float peak_level = probe_level(powers, peak_midi);
+	if (peak_level <= 1.0e-6f)
+		return -1;
+
+	for (int lower = 40; lower <= 55; ++lower) {
+		const int octave = lower + 12;
+		const int fifth = lower + 19;
+		if (peak_midi != octave && peak_midi != fifth)
+			continue;
+		const float fundamental_level = probe_level(powers, lower);
+		if (fundamental_level < peak_level * 0.12f ||
+		    probe_level(powers, octave) < peak_level * 0.30f ||
+		    probe_level(powers, fifth) < peak_level * 0.65f)
+			continue;
+		return lower;
+	}
+	return -1;
+}
+
 float bass_candidate_score(const std::array<float, kNoteProbeCount> &powers, int midi, bool include_harmonics,
 			   bool isolated_harmonic_support = false)
 {
@@ -34174,7 +34201,14 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 					snapshot.other_debug_pre_envelope_score = candidate.score;
 					snapshot.other_debug_pre_envelope_raw_level =
 						probe_level(other_note_powers, candidate.midi);
-					if (rms < kMonophonicOtherLowRmsFloor) {
+					const int recovered_fundamental =
+						supported_low_monophonic_other_fundamental(other_note_powers, candidate.midi);
+					if (recovered_fundamental >= 0) {
+						quiet_monophonic_allowed_midis.fill(false);
+						quiet_monophonic_allowed_midis[static_cast<std::size_t>(
+							recovered_fundamental - kFirstMidi)] = true;
+						other_allowed_midis = &quiet_monophonic_allowed_midis;
+					} else if (rms < kMonophonicOtherLowRmsFloor) {
 						if (is_quiet_monophonic_other_recovery_candidate(candidate.midi, rms))
 							quiet_monophonic_allowed_midis[
 								static_cast<std::size_t>(candidate.midi - kFirstMidi)] = true;
@@ -34237,12 +34271,18 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 						recovered_midi = midi;
 					}
 				}
-				if (recovered_midi >= 0 &&
-				    !snapshot.other_notes.cells[midi_pitch_class(recovered_midi)].active) {
-					write_note_grid_cell(snapshot.other_notes,
-							     NoteCandidate{recovered_midi, recovered_score},
-							     recovered_score, note_visual_loudness(rms));
-					write_note_grid_label(snapshot.other, snapshot.other_notes, note_root);
+				if (recovered_midi >= 0) {
+					const NoteCell &existing_recovered_pitch =
+						snapshot.other_notes.cells[midi_pitch_class(recovered_midi)];
+					// A supported low fundamental may share a pitch class with its
+					// octave. Keep the lower physical note rather than silently
+					// discarding it because the octave was emitted first.
+					if (!existing_recovered_pitch.active || recovered_midi < existing_recovered_pitch.midi) {
+						write_note_grid_cell(snapshot.other_notes,
+								     NoteCandidate{recovered_midi, recovered_score},
+								     recovered_score, note_visual_loudness(rms));
+						write_note_grid_label(snapshot.other, snapshot.other_notes, note_root);
+					}
 				}
 			}
 		}

@@ -26,6 +26,14 @@ VISUAL_NOTE_FIELD = {
     "other": "other_visual_notes",
 }
 
+NOTE_FIELD = {
+    "bass": "bass_notes",
+    "guitar": "guitar_notes",
+    "piano": "piano_notes",
+    "vocals": "vocal_notes",
+    "other": "other_notes",
+}
+
 NOTE_TOKEN_RE = re.compile(r"^([A-G])(#?)(-?\d+):([0-9.]+)$")
 NOTE_OFFSETS = {"C": 0, "D": 2, "E": 4, "F": 5, "G": 7, "A": 9, "B": 11}
 VISUAL_LIT_THRESHOLD = 0.25
@@ -49,6 +57,24 @@ def visual_expected_pitch_lit(row: dict[str, str], expected_row: str) -> bool:
         observed_midi = (int(octave_text) + 1) * 12 + NOTE_OFFSETS[letter] + (1 if sharp else 0)
         if observed_midi % 12 == expected_midi % 12 and float(level_text) >= VISUAL_LIT_THRESHOLD:
             return True
+    return False
+
+
+def expected_exact_note_detected(rows: list[dict[str, str]], expected_row: str) -> bool:
+    """Whether an expected-row grid contains the annotated MIDI note exactly."""
+    try:
+        expected_midi = int(rows[0].get("expected_midi", ""))
+    except (IndexError, ValueError):
+        return False
+    for row in rows:
+        for token in row.get(NOTE_FIELD[expected_row], "").split(","):
+            match = NOTE_TOKEN_RE.fullmatch(token.strip())
+            if not match:
+                continue
+            letter, sharp, octave_text, _level_text = match.groups()
+            observed_midi = (int(octave_text) + 1) * 12 + NOTE_OFFSETS[letter] + (1 if sharp else 0)
+            if observed_midi == expected_midi:
+                return True
     return False
 
 
@@ -114,6 +140,22 @@ def family_metric_rows(samples: dict[str, list[dict[str, str]]], family: str) ->
         for label, accurate in metric_values(sample_rows, expected).items():
             totals[label][1] += 1
             totals[label][0] += int(accurate)
+    return [(label, values[0], values[1]) for label, values in totals.items()]
+
+
+def exact_note_rows(samples: dict[str, list[dict[str, str]]]) -> list[tuple[str, int, int]]:
+    """Return per-sample exact-MIDI detection across isolated rows."""
+    totals: dict[str, list[int]] = defaultdict(lambda: [0, 0])
+    for sample_rows in samples.values():
+        family = sample_rows[0]["family"]
+        expected_row = EXPECTED_ROW.get(family)
+        if expected_row is None:
+            continue
+        totals["Exact expected MIDI note"][1] += 1
+        totals[f"{family.title()} — exact expected MIDI note"][1] += 1
+        if expected_exact_note_detected(sample_rows, expected_row):
+            totals["Exact expected MIDI note"][0] += 1
+            totals[f"{family.title()} — exact expected MIDI note"][0] += 1
     return [(label, values[0], values[1]) for label, values in totals.items()]
 
 
@@ -456,6 +498,7 @@ def render(
     medley_solos_attribute_input: Path | None = None,
     focused_vocalset_clean_vowel_input: Path | None = None,
     pitch_shifted_violin_input: Path | None = None,
+    philharmonia_full_input: Path | None = None,
 ) -> str:
     samples = load_samples(input_path)
     lines = [
@@ -594,6 +637,23 @@ def render(
         )
         for label, accurate, total in fixture_rows:
             lines.append(f"| Pitch-shifted violin — {label} | {fraction(accurate, total)} | {total - accurate} |")
+    if philharmonia_full_input is not None:
+        lines.extend(
+            [
+                "",
+                "## Philharmonia isolated exact-note coverage",
+                "",
+                "This independent real acoustic corpus requires the annotated MIDI octave, not merely "
+                "the pitch class, to appear in its expected instrument row.",
+                "",
+                f"Source: `{philharmonia_full_input.as_posix()}`",
+                "",
+                "| Metric | Accurate / total | Remaining |",
+                "| --- | ---: | ---: |",
+            ]
+        )
+        for label, accurate, total in exact_note_rows(load_samples(philharmonia_full_input)):
+            lines.append(f"| Philharmonia — {label} | {fraction(accurate, total)} | {total - accurate} |")
     if medley_solos_attribute_input is not None:
         lines.extend(
             [
@@ -775,6 +835,7 @@ def main() -> int:
     parser.add_argument("--pitch-shifted-violin-input", type=Path)
     parser.add_argument("--medley-solos-attribute-input", type=Path)
     parser.add_argument("--focused-vocalset-clean-vowel-input", type=Path)
+    parser.add_argument("--philharmonia-full-input", type=Path)
     parser.add_argument("--output", required=True, type=Path)
     args = parser.parse_args()
     try:
@@ -785,6 +846,7 @@ def main() -> int:
             args.route_summary, args.good_sounds_full_mix_input, args.hf_drum_gate_output,
             args.maps_attribute_input, args.medley_solos_attribute_input,
             args.focused_vocalset_clean_vowel_input, args.pitch_shifted_violin_input,
+            args.philharmonia_full_input,
         )
     except (OSError, ValueError) as error:
         parser.error(str(error))

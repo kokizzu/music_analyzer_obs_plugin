@@ -31,6 +31,12 @@ class DetectionAccuracyReportTest(unittest.TestCase):
                 {"expected_midi": "44", "other_visual_notes": "G#3:0.24"}, "other"
             )
         )
+
+    def test_expected_exact_note_detected_requires_the_annotated_octave(self) -> None:
+        rows = [{"expected_midi": "50", "other_notes": "D4:1.00,A4:1.00"}]
+        self.assertFalse(REPORT.expected_exact_note_detected(rows, "other"))
+        rows[0]["other_notes"] = "D3:0.20,D4:1.00,A4:1.00"
+        self.assertTrue(REPORT.expected_exact_note_detected(rows, "other"))
         self.assertFalse(
             REPORT.visual_expected_pitch_lit(
                 {"expected_midi": "44", "other_visual_notes": "A3:1.00"}, "other"
