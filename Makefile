@@ -133,6 +133,7 @@ MEASURE_ANALYZER_PATTERN_FULL_DRUM_EXACT_REPORT := $(BUILD_DIR)/measure_analyzer
 MEASURE_ANALYZER_PATTERN_DRUM_PROTECTED_ROWS_STAMP := $(BUILD_DIR)/measure_analyzer_pattern_drum_protected_rows.stamp
 DETECTOR_IMPROVEMENT_ROUTE_REPORT ?= $(BUILD_DIR)/detector_improvement_route_scan.txt
 DETECTOR_IMPROVEMENT_ROUTE_SUMMARY ?= $(BUILD_DIR)/detector_improvement_route_summary.txt
+DETECTOR_IMPROVEMENT_ROUTE_SUMMARY_ARGS ?=
 DETECTOR_IMPROVEMENT_AUDIT_REPORT ?= $(BUILD_DIR)/detector_improvement_audit.txt
 DETECTOR_IMPROVEMENT_AUDIT_TAIL_LINES ?= 60
 DETECTOR_IMPROVEMENT_AUDIT_TARGETS ?= detector-improvement-route-summary-refresh find-protected-drum-primary-attribute-patterns find-protected-drum-full-exact-attribute-patterns find-drum-active-false-patterns-full
@@ -1386,7 +1387,7 @@ GUITARSET_ATTRIBUTE_GATE_ENV ?= MUSIC_ANALYZER_GUITARSET_ATTRIBUTE_ONLY=1 MUSIC_
 .PHONY: test-drum-real-world-samples-parallel test-drum-real-world-samples-full-parallel test-real-world-samples-parallel test-real-world-samples-full-parallel test-real-world-samples-max-parallel test-drum-samples-optional test-drum-samples-spread-optional test-drum-machine-samples-optional test-drum-samples-full-optional test-idmt-bass-lines-samples-optional test-idmt-guitar-samples-optional test-good-sounds-samples-optional test-medley-solos-samples-optional test-medley-solos-samples-serial test-medley-solos-samples-parallel test-medley-solos-samples-parallel-unlocked test-medley-solos-samples-shard-% test-maps-piano-samples-optional test-maps-piano-note-samples-optional test-bach10-mf0-synth-samples-optional test-bach10-mf0-synth-samples-serial test-bach10-mf0-synth-samples-parallel test-bach10-mf0-synth-samples-parallel-unlocked test-bach10-mf0-synth-samples-shard-% analyze-bach10-mf0-synth-chord-misses analyze-bach10-mf0-synth-pitch-misses test-vocalset-samples-optional test-vocalset-samples-full-mix-optional
 .PHONY: test-drum-samples-full-serial test-drum-samples-full-parallel test-drum-samples-full-parallel-unlocked test-drum-samples-full-shard-% test-drum-machine-samples-serial test-drum-machine-samples-parallel test-drum-machine-samples-parallel-unlocked test-drum-machine-samples-shard-% test-hf-drum-kit-samples-serial test-hf-drum-kit-samples-parallel test-hf-drum-kit-samples-parallel-unlocked test-hf-drum-kit-samples-shard-% test-idmt-drums-samples-serial test-idmt-drums-samples-parallel test-idmt-drums-samples-parallel-unlocked test-idmt-drums-samples-shard-% test-drum-samples-full-parallel-optional test-drum-sample-shard-check
 .PHONY: test-iowa-piano-samples-max test-iowa-orchestra-full-samples-max test-good-sounds-samples-max test-medley-solos-samples-max test-maps-piano-samples-max test-maps-piano-note-samples-max
-.PHONY: detector-improvement-samples detector-improvement-patterns detector-improvement-patterns-cached detector-improvement-patterns-cached-summary detector-improvement-routes detector-improvement-route-report detector-improvement-route-report-refresh detector-improvement-route-summary detector-improvement-route-summary-cached detector-improvement-route-summary-refresh detector-improvement-coverage-cached detector-improvement-status-cached detector-improvement-samples-full detector-improvement-patterns-full detector-improvement-audit detector-improvement-audit-cached detector-improvement-audit-report detector-improvement-audit-report-cached analyze-detector-improvements analyze-detector-improvement-routes analyze-detector-improvements-full
+.PHONY: detector-improvement-samples detector-improvement-patterns detector-improvement-patterns-cached detector-improvement-patterns-cached-summary detector-improvement-routes detector-improvement-route-report detector-improvement-route-report-refresh detector-improvement-route-summary detector-improvement-route-summary-cached detector-improvement-route-summary-from-cached-report detector-improvement-route-summary-refresh detector-improvement-coverage-cached detector-improvement-status-cached detector-improvement-samples-full detector-improvement-patterns-full detector-improvement-audit detector-improvement-audit-cached detector-improvement-audit-report detector-improvement-audit-report-cached analyze-detector-improvements analyze-detector-improvement-routes analyze-detector-improvements-full
 
 .PRECIOUS: $(NSYNTH_SAMPLE_ARCHIVE) $(TINYSOL_ARCHIVE) $(GOOD_SOUNDS_ARCHIVE) $(GUITAR_TECHS_P1_SINGLENOTES_ARCHIVE) $(GUITAR_TECHS_P2_SINGLENOTES_ARCHIVE) $(GUITAR_TECHS_P1_CHORDS_ARCHIVE) $(GUITAR_TECHS_P2_CHORDS_ARCHIVE) $(GUITARSET_ANNOTATION_ARCHIVE) $(GUITARSET_AUDIO_ARCHIVE) $(IDMT_DRUMS_ARCHIVE) $(IDMT_GUITAR_ARCHIVE) $(STAR_DRUMS_ARCHIVE) $(MEDLEY_SOLOS_ARCHIVE) $(MAPS_PIANO_ARCHIVE) $(BACH10_MF0_SYNTH_ARCHIVE) $(VOCALSET_ARCHIVE)
 
@@ -4093,12 +4094,17 @@ detector-improvement-route-summary-cached:
 	@test -f "$(DETECTOR_IMPROVEMENT_ROUTE_SUMMARY)" || { printf '%s\n' "missing $(DETECTOR_IMPROVEMENT_ROUTE_SUMMARY); run make detector-improvement-route-summary-refresh"; exit 2; }
 	@cat "$(DETECTOR_IMPROVEMENT_ROUTE_SUMMARY)"
 
+# Reformat an already measured scan without rebuilding its expensive audio-analysis prerequisites.
+detector-improvement-route-summary-from-cached-report: scripts/summarize_detector_route_report.py
+	@test -s "$(DETECTOR_IMPROVEMENT_ROUTE_REPORT)" || { printf '%s\n' "missing $(DETECTOR_IMPROVEMENT_ROUTE_REPORT); run make detector-improvement-route-report first"; exit 2; }
+	@tmp="$(DETECTOR_IMPROVEMENT_ROUTE_SUMMARY).$$$$.tmp"; $(PYTHON) scripts/summarize_detector_route_report.py "$(DETECTOR_IMPROVEMENT_ROUTE_REPORT)" $(DETECTOR_IMPROVEMENT_ROUTE_SUMMARY_ARGS) > "$$tmp" && mv "$$tmp" "$(DETECTOR_IMPROVEMENT_ROUTE_SUMMARY)" && cat "$(DETECTOR_IMPROVEMENT_ROUTE_SUMMARY)"
+
 detector-improvement-route-summary-refresh: FORCE
 	+$(MAKE) --always-make $(DETECTOR_IMPROVEMENT_ROUTE_SUMMARY)
 	@printf '%s\n' "detector improvement route summary: $(DETECTOR_IMPROVEMENT_ROUTE_SUMMARY)"
 
 $(DETECTOR_IMPROVEMENT_ROUTE_SUMMARY): $(DETECTOR_IMPROVEMENT_ROUTE_REPORT) scripts/summarize_detector_route_report.py | $(BUILD_DIR)
-	@tmp="$@.$$$$.tmp"; $(PYTHON) scripts/summarize_detector_route_report.py "$(DETECTOR_IMPROVEMENT_ROUTE_REPORT)" > "$$tmp" && mv "$$tmp" "$@" && cat "$@"
+	@tmp="$@.$$$$.tmp"; $(PYTHON) scripts/summarize_detector_route_report.py "$(DETECTOR_IMPROVEMENT_ROUTE_REPORT)" $(DETECTOR_IMPROVEMENT_ROUTE_SUMMARY_ARGS) > "$$tmp" && mv "$$tmp" "$@" && cat "$@"
 
 analyze-detector-improvements-full: scripts/run_with_duration.sh
 	+$(RUN_WITH_DURATION) detector_improvements_full_parallel $(MAKE) $(PARALLEL_TEST_MAKE_JOBS) detector-improvement-samples-full detector-improvement-patterns-full
