@@ -307,9 +307,17 @@ int supported_low_monophonic_other_fundamental(const std::array<float, kNoteProb
 		const bool low_wind_second_octave_stack = lower >= 48 && lower <= 59 &&
 			peak_midi == second_octave && fundamental_level >= peak_level * 0.09f &&
 			octave_level >= peak_level * 0.13f && fifth_level >= peak_level * 0.13f;
+		// A low trombone E2 fixture peaks at its B3 fifth while its direct E2
+		// body and E3 octave remain just below the general octave/fifth cutoff.
+		// Keep this bridge confined to C2--B2 and the 29--30% octave boundary:
+		// a broader fifth-partial subharmonic rule produced false low notes.
+		const bool low_brass_boundary_fifth_stack = lower >= 36 && lower <= 47 &&
+			peak_midi == fifth && fundamental_level >= peak_level * 0.13f &&
+			fundamental_level <= peak_level * 0.23f && octave_level >= peak_level * 0.29f &&
+			octave_level < peak_level * 0.30f;
 		if ((fundamental_level < peak_level * 0.12f && !low_wind_second_octave_stack) ||
 		    (!octave_fifth_stack && !mid_wind_fifth_partial && !upper_wind_octave_only &&
-		     !low_wind_second_octave_stack))
+		     !low_wind_second_octave_stack && !low_brass_boundary_fifth_stack))
 			continue;
 		return lower;
 	}

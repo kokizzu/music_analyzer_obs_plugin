@@ -144,6 +144,15 @@ void check_supported_low_monophonic_other_fundamental(Runner &runner)
 	runner.expect(supported_low_monophonic_other_fundamental(powers, 79) != 55,
 		      "low monophonic other recovery: expected weak G3 second-octave root to stay rejected");
 	powers.fill(0.0f);
+	set_probe_level(powers, 40, 0.172f); // E2 direct low-brass body
+	set_probe_level(powers, 52, 0.295f); // E3 octave, narrowly below the general floor
+	set_probe_level(powers, 59, 1.00f);  // B3 selected fifth partial
+	runner.expect(supported_low_monophonic_other_fundamental(powers, 59) == 40,
+		      "low monophonic other recovery: expected bounded E2 brass fifth stack");
+	set_probe_level(powers, 52, 0.289f);
+	runner.expect(supported_low_monophonic_other_fundamental(powers, 59) != 40,
+		      "low monophonic other recovery: expected sub-boundary E2 brass octave to stay rejected");
+	powers.fill(0.0f);
 	set_probe_level(powers, 72, 0.22f); // C5 lies above the bounded recovery range
 	set_probe_level(powers, 84, 1.00f); // C6 selected octave
 	runner.expect(supported_low_monophonic_other_fundamental(powers, 84) < 0,
