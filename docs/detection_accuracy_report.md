@@ -248,9 +248,9 @@ This downloaded real chamber-music corpus measures the same performances as prov
 | --- | ---: | ---: |
 | URMP — real pieces loadable | 44 / 44 (100.0%) | 0 |
 | URMP — selected annotated windows | 528 / 528 (100.0%) | 0 |
-| URMP — isolated-track exact notes | 1672 / 1788 (93.5%) | 116 |
-| URMP — isolated-track detected notes | 1702 / 1788 (95.2%) | 86 |
-| URMP — isolated-track precision | 1672 / 1771 (94.4%) | 99 false notes |
+| URMP — isolated-track exact notes | 1676 / 1788 (93.7%) | 112 |
+| URMP — isolated-track detected notes | 1706 / 1788 (95.4%) | 82 |
+| URMP — isolated-track precision | 1676 / 1775 (94.4%) | 99 false notes |
 | URMP — provided-mix exact chords | 190 / 527 (36.1%) | 337 |
 | URMP — provided stream chord windows | 224 / 527 (42.5%) | 303 |
 | URMP — provided sequence chord windows | 214 / 527 (40.6%) | 313 |
