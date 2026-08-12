@@ -134,6 +134,15 @@ void check_supported_low_monophonic_other_fundamental(Runner &runner)
 	runner.expect(supported_low_monophonic_other_fundamental(powers, 79) < 0,
 		      "low monophonic other recovery: expected weak G4 octave body to stay rejected");
 	powers.fill(0.0f);
+	set_probe_level(powers, 67, 0.07f); // G4 weak upper-wind body
+	set_probe_level(powers, 79, 1.00f); // G5 selected octave
+	set_probe_level(powers, 86, 0.20f); // D6 bounded fifth
+	runner.expect(supported_low_monophonic_other_fundamental(powers, 79) == 67,
+		      "low monophonic other recovery: expected bounded weak G4 wind fifth stack");
+	set_probe_level(powers, 86, 0.25f);
+	runner.expect(supported_low_monophonic_other_fundamental(powers, 79) != 67,
+		      "low monophonic other recovery: expected over-rich G4 fifth stack to stay rejected");
+	powers.fill(0.0f);
 	set_probe_level(powers, 55, 0.14f); // G3 direct fundamental
 	set_probe_level(powers, 67, 1.00f); // G4 selected octave
 	set_probe_level(powers, 74, 0.10f); // D5 weak fifth

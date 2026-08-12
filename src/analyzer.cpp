@@ -301,6 +301,15 @@ int supported_low_monophonic_other_fundamental(const std::array<float, kNoteProb
 		const bool upper_wind_octave_only = lower >= 48 && lower <= 71 &&
 			peak_midi == octave && fundamental_level >= peak_level * 0.13f &&
 			fifth_level <= peak_level * 0.15f;
+		// Upper cor anglais fixtures at G4--B4 have an unusually suppressed
+		// direct body beneath their selected octave, but retain a narrow fifth
+		// band.  Keep this separate from the octave-only wind route: below 5%
+		// the root is too weak to trust, while a fifth outside this band is a
+		// common arbitrary subharmonic shape rather than this measured stack.
+		const bool upper_wind_weak_body_fifth_stack = lower >= 67 && lower <= 71 &&
+			peak_midi == octave && fundamental_level >= peak_level * 0.05f &&
+			fundamental_level <= peak_level * 0.11f &&
+			fifth_level >= peak_level * 0.15f && fifth_level <= peak_level * 0.24f;
 		// Low winds can peak two octaves over C3--B3 while retaining their root,
 		// octave, and fifth.  All three lower partials are required so this is not
 		// an arbitrary subharmonic inferred from a single high peak.
@@ -315,9 +324,11 @@ int supported_low_monophonic_other_fundamental(const std::array<float, kNoteProb
 			peak_midi == fifth && fundamental_level >= peak_level * 0.13f &&
 			fundamental_level <= peak_level * 0.23f && octave_level >= peak_level * 0.29f &&
 			octave_level < peak_level * 0.30f;
-		if ((fundamental_level < peak_level * 0.12f && !low_wind_second_octave_stack) ||
+		if ((fundamental_level < peak_level * 0.12f && !low_wind_second_octave_stack &&
+		     !upper_wind_weak_body_fifth_stack) ||
 		    (!octave_fifth_stack && !mid_wind_fifth_partial && !upper_wind_octave_only &&
-		     !low_wind_second_octave_stack && !low_brass_boundary_fifth_stack))
+		     !upper_wind_weak_body_fifth_stack && !low_wind_second_octave_stack &&
+		     !low_brass_boundary_fifth_stack))
 			continue;
 		return lower;
 	}
