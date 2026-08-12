@@ -133,9 +133,9 @@ Source: `build/philharmonia_full_attributes.tsv`
 
 | Metric | Accurate / total | Remaining |
 | --- | ---: | ---: |
-| Philharmonia — Exact expected MIDI note | 7065 / 7285 (97.0%) | 220 |
+| Philharmonia — Exact expected MIDI note | 7034 / 7285 (96.6%) | 251 |
 | Philharmonia — Guitar — exact expected MIDI note | 144 / 146 (98.6%) | 2 |
-| Philharmonia — Other — exact expected MIDI note | 6452 / 6668 (96.8%) | 216 |
+| Philharmonia — Other — exact expected MIDI note | 6421 / 6668 (96.3%) | 247 |
 | Philharmonia — Bass — exact expected MIDI note | 469 / 471 (99.6%) | 2 |
 
 ## Iowa orchestra isolated-note coverage
