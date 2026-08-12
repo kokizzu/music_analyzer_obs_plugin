@@ -501,6 +501,7 @@ def render(
     philharmonia_full_input: Path | None = None,
     iowa_orchestra_full_input: Path | None = None,
     iowa_sax_full_mix_input: Path | None = None,
+    tinysol_sax_full_mix_input: Path | None = None,
 ) -> str:
     samples = load_samples(input_path)
     lines = [
@@ -696,6 +697,25 @@ def render(
         )
         for label, accurate, total in sax_rows:
             lines.append(f"| Iowa saxophones — {label} | {fraction(accurate, total)} | {total - accurate} |")
+    if tinysol_sax_full_mix_input is not None:
+        sax_rows = family_metric_rows(load_samples(tinysol_sax_full_mix_input), "other")
+        lines.extend(
+            [
+                "",
+                "## TinySOL alto-saxophone full-mix routing",
+                "",
+                "This independent 98-recording alto-saxophone subset is symlinked from TinySOL and "
+                "measured in full-mix mode. Together with Iowa saxophones, it distinguishes a "
+                "general saxophone routing failure from a single-library artifact.",
+                "",
+                f"Source: `{tinysol_sax_full_mix_input.as_posix()}`",
+                "",
+                "| Metric | Accurate / total | Remaining |",
+                "| --- | ---: | ---: |",
+            ]
+        )
+        for label, accurate, total in sax_rows:
+            lines.append(f"| TinySOL alto saxophone — {label} | {fraction(accurate, total)} | {total - accurate} |")
     if medley_solos_attribute_input is not None:
         lines.extend(
             [
@@ -880,6 +900,7 @@ def main() -> int:
     parser.add_argument("--philharmonia-full-input", type=Path)
     parser.add_argument("--iowa-orchestra-full-input", type=Path)
     parser.add_argument("--iowa-sax-full-mix-input", type=Path)
+    parser.add_argument("--tinysol-sax-full-mix-input", type=Path)
     parser.add_argument("--output", required=True, type=Path)
     args = parser.parse_args()
     try:
@@ -893,6 +914,7 @@ def main() -> int:
             args.philharmonia_full_input,
             args.iowa_orchestra_full_input,
             args.iowa_sax_full_mix_input,
+            args.tinysol_sax_full_mix_input,
         )
     except (OSError, ValueError) as error:
         parser.error(str(error))

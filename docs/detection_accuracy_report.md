@@ -179,6 +179,20 @@ Source: `build/iowa_sax_full_mix_attributes.tsv`
 | Iowa saxophones — Primary display row | 8 / 60 (13.3%) | 52 |
 | Iowa saxophones — Visual primary row | 18 / 60 (30.0%) | 42 |
 
+## TinySOL alto-saxophone full-mix routing
+
+This independent 98-recording alto-saxophone subset is symlinked from TinySOL and measured in full-mix mode. Together with Iowa saxophones, it distinguishes a general saxophone routing failure from a single-library artifact.
+
+Source: `build/tinysol_sax_full_mix_attributes.tsv`
+
+| Metric | Accurate / total | Remaining |
+| --- | ---: | ---: |
+| TinySOL alto saxophone — Any detected note | 98 / 98 (100.0%) | 0 |
+| TinySOL alto saxophone — Expected instrument row | 95 / 98 (96.9%) | 3 |
+| TinySOL alto saxophone — Lit expected pitch class | 46 / 98 (46.9%) | 52 |
+| TinySOL alto saxophone — Primary display row | 8 / 98 (8.2%) | 90 |
+| TinySOL alto saxophone — Visual primary row | 11 / 98 (11.2%) | 87 |
+
 ## Medley Solos instrument routing
 
 This independent corpus contains three-second isolated performances from eight instruments. It is measured in full-mix mode; a sample is accurate when any analyzed buffer activates its expected instrument row. It supplies routing coverage, not pitch or chord ground truth.

@@ -167,6 +167,17 @@ class DetectionAccuracyReportTest(unittest.TestCase):
                 ) + "\n",
                 encoding="utf-8",
             )
+            tinysol_sax_full_mix = Path(temporary) / "tinysol_sax_full_mix_attributes.tsv"
+            tinysol_sax_full_mix.write_text(
+                "\n".join(
+                    (
+                        HEADER,
+                        "ts1\tother\t1\t1\tother\tother",
+                        "ts2\tother\t1\t1\tpiano\tpiano",
+                    )
+                ) + "\n",
+                encoding="utf-8",
+            )
             bach10_0 = Path(temporary) / "bach10_0.out"
             bach10_0.write_text(
                 "analyzer_musicnet: 20 checks passed (recordings 3/10, windows 12, note hits "
@@ -252,6 +263,7 @@ class DetectionAccuracyReportTest(unittest.TestCase):
                 pitch_shifted_violin,
                 iowa_orchestra_full_input=iowa_orchestra_full,
                 iowa_sax_full_mix_input=iowa_sax_full_mix,
+                tinysol_sax_full_mix_input=tinysol_sax_full_mix,
             )
 
         self.assertIn("| Any detected note | 2 / 3 (66.7%) | 1 |", report)
@@ -290,6 +302,8 @@ class DetectionAccuracyReportTest(unittest.TestCase):
         self.assertIn("| Iowa orchestra — Bass — exact expected MIDI note | 1 / 1 (100.0%) | 0 |", report)
         self.assertIn("## Iowa saxophone full-mix routing", report)
         self.assertIn("| Iowa saxophones — Primary display row | 1 / 3 (33.3%) | 2 |", report)
+        self.assertIn("## TinySOL alto-saxophone full-mix routing", report)
+        self.assertIn("| TinySOL alto saxophone — Primary display row | 1 / 2 (50.0%) | 1 |", report)
         self.assertIn("## Medley Solos instrument routing", report)
         self.assertIn("| Medley Solos — Expected instrument row | 1 / 2 (50.0%) | 1 |", report)
         self.assertIn("| Medley Solos — Instrument Clarinet expected row | 1 / 1 (100.0%) | 0 |", report)
