@@ -71,10 +71,10 @@ Source: `build/vocalset_full_mix_attributes.tsv`
 | Metric | Accurate / total | Remaining |
 | --- | ---: | ---: |
 | VocalSet vocals — Any detected note | 2371 / 2389 (99.2%) | 18 |
-| VocalSet vocals — Expected instrument row | 1295 / 2389 (54.2%) | 1094 |
-| VocalSet vocals — Lit expected pitch class | 777 / 2389 (32.5%) | 1612 |
-| VocalSet vocals — Primary display row | 199 / 2389 (8.3%) | 2190 |
-| VocalSet vocals — Visual primary row | 176 / 2389 (7.4%) | 2213 |
+| VocalSet vocals — Expected instrument row | 1292 / 2389 (54.1%) | 1097 |
+| VocalSet vocals — Lit expected pitch class | 772 / 2389 (32.3%) | 1617 |
+| VocalSet vocals — Primary display row | 196 / 2389 (8.2%) | 2193 |
+| VocalSet vocals — Visual primary row | 173 / 2389 (7.2%) | 2216 |
 
 ### Focused clean-vowel regression
 
