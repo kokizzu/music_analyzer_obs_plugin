@@ -208,6 +208,18 @@ void check_supported_low_monophonic_other_fundamental(Runner &runner)
 	runner.expect(supported_low_monophonic_other_fundamental(powers, 69) != 50,
 		      "low monophonic other recovery: expected bright D3 bassoon upper third to stay rejected");
 	powers.fill(0.0f);
+	set_probe_level(powers, 46, 0.142f); // A#2 direct trombone body
+	set_probe_level(powers, 58, 0.038f); // A#3 faint octave
+	set_probe_level(powers, 65, 0.210f); // F4 fifth
+	set_probe_level(powers, 70, 1.00f);  // A#4 selected second octave
+	set_probe_level(powers, 74, 0.52f);  // D5 upper major third
+	set_probe_level(powers, 77, 0.36f);  // F5 upper fifth
+	runner.expect(supported_low_monophonic_other_fundamental(powers, 70) == 46,
+		      "low monophonic other recovery: expected bounded A#2 trombone second-octave stack");
+	set_probe_level(powers, 46, 0.134f);
+	runner.expect(supported_low_monophonic_other_fundamental(powers, 70) != 46,
+		      "low monophonic other recovery: expected sub-boundary A#2 trombone body to stay rejected");
+	powers.fill(0.0f);
 	set_probe_level(powers, 58, 0.35f); // A#3 clarinet body
 	set_probe_level(powers, 70, 0.05f); // A#4 weak octave
 	set_probe_level(powers, 77, 1.00f); // F5 selected fifth

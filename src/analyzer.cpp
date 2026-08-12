@@ -669,6 +669,15 @@ int supported_low_monophonic_other_fundamental(const std::array<float, kNoteProb
 			second_octave_level >= peak_level * 0.33f && second_octave_level <= peak_level * 0.48f &&
 			upper_major_third_level >= peak_level * 0.034f && upper_major_third_level <= peak_level * 0.056f &&
 			upper_fifth_level >= peak_level * 0.029f && upper_fifth_level <= peak_level * 0.045f;
+		// Repeated URMP trombone A#2 sustains select A#4 two octaves up. Their
+		// low root, nearly absent octave, modest fifth, and rich upper ladder are
+		// all bounded here so an ordinary A#4 peak cannot become a subharmonic.
+		const bool trombone_as2_second_octave_stack = lower == 46 && peak_midi == second_octave &&
+			fundamental_level >= peak_level * 0.135f && fundamental_level <= peak_level * 0.150f &&
+			octave_level >= peak_level * 0.025f && octave_level <= peak_level * 0.050f &&
+			fifth_level >= peak_level * 0.15f && fifth_level <= peak_level * 0.26f &&
+			upper_major_third_level >= peak_level * 0.38f && upper_major_third_level <= peak_level * 0.66f &&
+			upper_fifth_level >= peak_level * 0.22f && upper_fifth_level <= peak_level * 0.52f;
 		// The repeated Rejouissance B3 trombone sustains are octave-led with a
 		// distinctly stronger F#5 fifth than the existing B3 wind profiles.
 		// Keep this one note-wide and bound the entire upper ladder so it cannot
@@ -717,7 +726,7 @@ int supported_low_monophonic_other_fundamental(const std::array<float, kNoteProb
 		     !bassoon_fs3_boundary_stack &&
 		     !bassoon_fs3_bright_third_stack && !bassoon_a4_sparse_octave_stack && !bassoon_b3_compact_octave_stack &&
 		     !bassoon_g3_boundary_stack && !violin_g3_rich_fifth_stack && !violin_g3_ultraweak_octave_stack &&
-		     !bassoon_d3_compact_fifth_stack &&
+		     !bassoon_d3_compact_fifth_stack && !trombone_as2_second_octave_stack &&
 		     !violin_g3_forte_fifth_ladder && !violin_g3_even_forte_ladder &&
 		     !violin_g3_mezzoforte_low_third_ladder &&
 		     !violin_g3_fortissimo_rich_ladder &&
