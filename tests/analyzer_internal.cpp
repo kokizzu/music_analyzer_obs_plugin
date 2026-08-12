@@ -143,6 +143,18 @@ void check_supported_low_monophonic_other_fundamental(Runner &runner)
 	runner.expect(supported_low_monophonic_other_fundamental(powers, 79) != 67,
 		      "low monophonic other recovery: expected over-rich G4 fifth stack to stay rejected");
 	powers.fill(0.0f);
+	set_probe_level(powers, 67, 0.045f); // G4 sparse cor-anglais body
+	set_probe_level(powers, 79, 1.00f);  // G5 selected octave
+	set_probe_level(powers, 86, 0.16f);  // D6 compact fifth
+	set_probe_level(powers, 91, 0.01f);  // G6 quiet second octave
+	set_probe_level(powers, 95, 0.008f); // B6 quiet upper major third
+	set_probe_level(powers, 98, 0.006f); // D7 quiet upper fifth
+	runner.expect(supported_low_monophonic_other_fundamental(powers, 79) == 67,
+		      "low monophonic other recovery: expected bounded sparse G4 cor-anglais octave stack");
+	set_probe_level(powers, 91, 0.021f);
+	runner.expect(supported_low_monophonic_other_fundamental(powers, 79) != 67,
+		      "low monophonic other recovery: expected bright sparse G4 second octave to stay rejected");
+	powers.fill(0.0f);
 	set_probe_level(powers, 34, 0.16f); // A#1 direct low-bassoon body
 	set_probe_level(powers, 46, 1.00f); // A#2 selected octave
 	set_probe_level(powers, 53, 0.72f); // F3 fifth
