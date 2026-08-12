@@ -12436,6 +12436,33 @@ void prefer_supported_lower_octave_display(NoteGrid &grid, InstrumentState &stat
 		write_note_grid_label(state, grid, preferred_root);
 }
 
+// A harmonic score can prefer a lower octave even where the direct upper
+// probe remains substantial. Restrict this correction to the mid/high
+// isolated Other range so low acoustic-fundamental recovery stays unchanged.
+void prefer_direct_upper_other_octave_primary(NoteGrid &grid, InstrumentState &state,
+					      const std::array<float, kNoteProbeCount> &powers,
+					      int preferred_root)
+{
+	bool changed = false;
+	for (int pitch_class = 0; pitch_class < 12; ++pitch_class) {
+		const NoteCell &primary = grid.cells[pitch_class];
+		if (!primary.active || primary.midi < 51 || primary.midi > 83)
+			continue;
+		const int upper_midi = primary.midi + 12;
+		if (upper_midi > kOtherMaxMidi)
+			continue;
+		const float lower_raw = probe_level(powers, primary.midi);
+		const float upper_raw = probe_level(powers, upper_midi);
+		if (lower_raw <= 1.0e-6f || upper_raw < lower_raw * 0.55f)
+			continue;
+		changed = promote_note_grid_primary_midi(
+				  grid, upper_midi, std::max(primary.level, upper_raw)) ||
+		  changed;
+	}
+	if (changed)
+		write_note_grid_label(state, grid, preferred_root);
+}
+
 void prefer_visible_lower_octave_primary(NoteGrid &grid, InstrumentState &state, int min_midi,
 					 float relative_floor, int preferred_root,
 					 float absolute_floor = 0.24f,
@@ -35188,10 +35215,13 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 					  other_immediate_confirm_floor,
 					  kNoteEnvelopeReleaseSeconds, kNoteEnvelopeVisibleFloor,
 					  mixed_source ? &mixed_other_display_candidates : nullptr);
-		if (!mixed_source)
+		if (!mixed_source) {
 			prefer_supported_lower_octave_display(snapshot.other_notes, snapshot.other, note_powers,
 							      kOtherMinMidi, 52, -1, monophonic_other_source);
-		else {
+			if (!monophonic_other_source)
+				prefer_direct_upper_other_octave_primary(snapshot.other_notes, snapshot.other,
+									     note_powers, -1);
+		} else {
 			prefer_visible_lower_octave_primary(snapshot.other_notes, snapshot.other, kOtherMinMidi,
 							   0.20f, -1, 0.08f, 52);
 			prefer_debug_supported_lower_other_octave_primary(snapshot.other_notes, snapshot.other,

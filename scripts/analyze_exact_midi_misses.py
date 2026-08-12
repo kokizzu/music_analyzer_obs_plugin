@@ -55,7 +55,7 @@ def trait_text(first: dict[str, str], rows: list[dict[str, str]]) -> str:
     fields = (
 		"buffer", "expected_note", "expected_midi", "debug_note", "debug_midi", "debug_owner",
 		"debug_conf", "raw_local_best_midi", "raw_expected_peak", "raw_expected_rank", "raw_expected_ratio",
-		"raw_octave_up_ratio", "raw_fifth_up_ratio", "raw_second_octave_up_ratio",
+		"raw_octave_down_ratio", "raw_octave_up_ratio", "raw_fifth_up_ratio", "raw_second_octave_up_ratio",
 		"raw_upper_major_third_ratio", "raw_upper_fifth_ratio", "raw_third_octave_up_ratio",
 		"other_pre_envelope_midi", "other_pre_envelope_score", "other_pre_envelope_raw_level",
         "other_score", "bass_score", "guitar_score", "keyboard_score", "vocal_score",
@@ -73,7 +73,23 @@ def trait_text(first: dict[str, str], rows: list[dict[str, str]]) -> str:
     return "\n".join(lines)
 
 
-def analyze(path: Path, examples: int, sample_id: str = "", pre_offset: int | None = None) -> str:
+def same_pitch_class_offset(first: dict[str, str], rows: list[dict[str, str]]) -> int | None:
+    try:
+        expected = int(first["expected_midi"])
+    except ValueError:
+        return None
+    field = ROW_FIELD.get(first["family"])
+    if field is None:
+        return None
+    candidates = [midi for row in rows for midi in notes(row.get(field, ""))
+                  if midi % 12 == expected % 12]
+    if not candidates:
+        return None
+    return min(candidates, key=lambda midi: abs(midi - expected)) - expected
+
+
+def analyze(path: Path, examples: int, sample_id: str = "", pre_offset: int | None = None,
+            same_pc_offset: int | None = None) -> str:
     misses = sample_misses(path)
     if sample_id:
         selected = [(first, rows) for first, rows in misses if first["sample_id"] == sample_id]
@@ -91,6 +107,14 @@ def analyze(path: Path, examples: int, sample_id: str = "", pre_offset: int | No
         return "\n".join(trait_text(first, rows) for first, rows in selected[:examples]) or (
             f"exact-midi misses with pre-envelope offset {pre_offset:+d}: none"
         )
+    if same_pc_offset is not None:
+        selected = [
+            (first, rows) for first, rows in misses
+            if same_pitch_class_offset(first, rows) == same_pc_offset
+        ]
+        return "\n".join(trait_text(first, rows) for first, rows in selected[:examples]) or (
+            f"exact-midi misses with displayed pitch-class offset {same_pc_offset:+d}: none"
+        )
     by_family: collections.Counter[str] = collections.Counter()
     by_source: collections.Counter[str] = collections.Counter()
     by_expected_octave: collections.Counter[int] = collections.Counter()
@@ -107,12 +131,9 @@ def analyze(path: Path, examples: int, sample_id: str = "", pre_offset: int | No
         by_source[f"{family}/{first['source']}"] += 1
         by_expected_octave[(expected // 12) - 1] += 1
 
-        field = ROW_FIELD[family]
-        candidates = [midi for row in rows for midi in notes(row.get(field, ""))
-                      if midi % 12 == expected % 12]
-        if candidates:
-            closest = min(candidates, key=lambda midi: abs(midi - expected))
-            same_pc_offset[f"{closest - expected:+d}"] += 1
+        offset = same_pitch_class_offset(first, rows)
+        if offset is not None:
+            same_pc_offset[f"{offset:+d}"] += 1
         else:
             same_pc_offset["none"] += 1
 
@@ -135,7 +156,7 @@ def analyze(path: Path, examples: int, sample_id: str = "", pre_offset: int | No
                 "raw_expected_ratio={ratio}".format(
                     sample=first["sample_id"], note=first["expected_note"], midi=expected,
                     family=family, source=first["source"],
-                    same_pc=(closest - expected if candidates else "none"),
+                    same_pc=(offset if offset is not None else "none"),
                     best=first.get("raw_local_best_midi", "none"),
                     rank=first.get("raw_expected_rank", "none"),
                     ratio=first.get("raw_expected_ratio", "none"),
@@ -163,8 +184,9 @@ def main() -> None:
     parser.add_argument("--examples", type=int, default=12)
     parser.add_argument("--sample-id", default="")
     parser.add_argument("--pre-offset", type=int)
+    parser.add_argument("--same-pc-offset", type=int)
     args = parser.parse_args()
-    print(analyze(args.input, args.examples, args.sample_id, args.pre_offset))
+    print(analyze(args.input, args.examples, args.sample_id, args.pre_offset, args.same_pc_offset))
 
 
 if __name__ == "__main__":

@@ -117,6 +117,27 @@ void check_supported_low_monophonic_other_fundamental(Runner &runner)
 		      "low monophonic other recovery: expected G3 from second-octave stack");
 }
 
+void check_direct_upper_other_octave_primary(Runner &runner)
+{
+	std::array<float, kNoteProbeCount> powers = {};
+	set_probe_level(powers, 51, 1.00f); // D#3 harmonic-score primary
+	set_probe_level(powers, 63, 0.60f); // D#4 direct body
+	NoteGrid recovered = {};
+	write_note_grid_cell(recovered, NoteCandidate{51, 1.00f}, 1.00f, 1.00f);
+	InstrumentState recovered_state = {};
+	prefer_direct_upper_other_octave_primary(recovered, recovered_state, powers, -1);
+	runner.expect(recovered.cells[midi_pitch_class(63)].midi == 63,
+		      "direct upper other octave: expected substantial D#4 body to replace D#3 alias");
+
+	set_probe_level(powers, 63, 0.54f);
+	NoteGrid guarded = {};
+	write_note_grid_cell(guarded, NoteCandidate{51, 1.00f}, 1.00f, 1.00f);
+	InstrumentState guarded_state = {};
+	prefer_direct_upper_other_octave_primary(guarded, guarded_state, powers, -1);
+	runner.expect(guarded.cells[midi_pitch_class(51)].midi == 51,
+		      "direct upper other octave: expected weak D#4 harmonic to stay unpromoted");
+}
+
 void check_crowded_guitar_prune_modes(Runner &runner)
 {
 	static constexpr const char *kCrowdedLabel = "Csus2=Gsus4=C=Cm=Cmaj7=Cpow=Caug";
@@ -4899,6 +4920,7 @@ int run()
 	check_auto_source_mode_resolution(runner);
 	check_quiet_monophonic_other_recovery_bounds(runner);
 	check_supported_low_monophonic_other_fundamental(runner);
+	check_direct_upper_other_octave_primary(runner);
 	check_crowded_guitar_prune_modes(runner);
 	check_displayed_same_root_plain_guitar_primary(runner);
 	check_displayed_supported_plain_guitar_primary(runner);

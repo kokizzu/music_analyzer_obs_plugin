@@ -29,6 +29,14 @@ def test_reports_sample_level_octave_misses() -> None:
     assert "expected-row same-pitch-class MIDI offset +12=1 -12=1" in output
     assert "raw local-best MIDI offset +12=2" in output
     assert "flute-a expected=C4/60" in output
+    with tempfile.TemporaryDirectory() as tmp:
+        path = pathlib.Path(tmp) / "attributes.tsv"
+        path.write_text("\n".join((header, *rows, "")))
+        filtered = subprocess.check_output(
+            [sys.executable, str(SCRIPT), str(path), "--same-pc-offset", "-12"], text=True
+        )
+    assert "traits bass-b expected=A2/45" in filtered
+    assert "traits flute-a" not in filtered
 
 
 if __name__ == "__main__":
