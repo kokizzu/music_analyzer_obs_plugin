@@ -273,7 +273,7 @@ int supported_low_monophonic_other_fundamental(const std::array<float, kNoteProb
 	if (peak_level <= 1.0e-6f)
 		return -1;
 
-	for (int lower = 36; lower <= 71; ++lower) {
+	for (int lower = 34; lower <= 71; ++lower) {
 		const int octave = lower + 12;
 		const int fifth = lower + 19;
 		const int second_octave = lower + 24;
@@ -285,8 +285,19 @@ int supported_low_monophonic_other_fundamental(const std::array<float, kNoteProb
 		const float fundamental_level = probe_level(powers, lower);
 		const float octave_level = probe_level(powers, octave);
 		const float fifth_level = probe_level(powers, fifth);
+		const float second_octave_level = probe_level(powers, second_octave);
+		const float upper_major_third_level = probe_level(powers, upper_major_third);
+		const bool within_general_recovery_range = lower >= 36;
 		const bool octave_fifth_stack = octave_level >= peak_level * 0.30f &&
 			fifth_level >= peak_level * 0.30f;
+		// The lowest Philharmonia bassoon notes A#1--B1 have an exceptionally
+		// rich, stable harmonic ladder.  They sit just below the generic C2
+		// floor, so require the direct body plus three independent upper partials
+		// before allowing this otherwise excluded low range.
+		const bool low_bassoon_harmonic_ladder = lower >= 34 && lower <= 35 &&
+			peak_midi == octave && fundamental_level >= peak_level * 0.14f &&
+			fifth_level >= peak_level * 0.60f && second_octave_level >= peak_level * 0.90f &&
+			upper_major_third_level >= peak_level * 0.50f;
 		// A few mid-register acoustic winds emphasize their fifth partial enough
 		// to suppress the octave.  This is intentionally limited to G3--B3 and
 		// a selected +28 partial: arbitrary lower subharmonics still need octave
@@ -326,7 +337,8 @@ int supported_low_monophonic_other_fundamental(const std::array<float, kNoteProb
 			octave_level < peak_level * 0.30f;
 		if ((fundamental_level < peak_level * 0.12f && !low_wind_second_octave_stack &&
 		     !upper_wind_weak_body_fifth_stack) ||
-		    (!octave_fifth_stack && !mid_wind_fifth_partial && !upper_wind_octave_only &&
+		    ((!within_general_recovery_range || !octave_fifth_stack) &&
+		     !low_bassoon_harmonic_ladder && !mid_wind_fifth_partial && !upper_wind_octave_only &&
 		     !upper_wind_weak_body_fifth_stack && !low_wind_second_octave_stack &&
 		     !low_brass_boundary_fifth_stack))
 			continue;

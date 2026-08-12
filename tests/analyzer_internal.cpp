@@ -143,6 +143,16 @@ void check_supported_low_monophonic_other_fundamental(Runner &runner)
 	runner.expect(supported_low_monophonic_other_fundamental(powers, 79) != 67,
 		      "low monophonic other recovery: expected over-rich G4 fifth stack to stay rejected");
 	powers.fill(0.0f);
+	set_probe_level(powers, 34, 0.16f); // A#1 direct low-bassoon body
+	set_probe_level(powers, 46, 1.00f); // A#2 selected octave
+	set_probe_level(powers, 53, 0.72f); // F3 fifth
+	set_probe_level(powers, 58, 0.94f); // A#3 second octave
+	set_probe_level(powers, 62, 0.58f); // D4 upper major third
+	runner.expect(supported_low_monophonic_other_fundamental(powers, 46) == 34,
+		      "low monophonic other recovery: expected bounded A#1 bassoon harmonic ladder");
+	set_probe_level(powers, 62, 0.49f);
+	runner.expect(supported_low_monophonic_other_fundamental(powers, 46) != 34,
+		      "low monophonic other recovery: expected incomplete A#1 ladder to stay rejected");
 	set_probe_level(powers, 55, 0.14f); // G3 direct fundamental
 	set_probe_level(powers, 67, 1.00f); // G4 selected octave
 	set_probe_level(powers, 74, 0.10f); // D5 weak fifth
