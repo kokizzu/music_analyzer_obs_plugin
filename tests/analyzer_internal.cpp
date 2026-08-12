@@ -124,6 +124,14 @@ void check_quiet_monophonic_other_recovery_bounds(Runner &runner)
 		      "quiet named brass D4 recovery: expected neighboring pitch to stay rejected");
 	runner.expect(!is_quiet_named_brass_d4_recovery_candidate("brass track", 62, 0.0021f, 0.69f),
 		      "quiet named brass D4 recovery: expected weak direct body to stay rejected");
+	runner.expect(is_quiet_named_string_d3_recovery_candidate("string track", 50, 0.0018f, 0.81f),
+		      "quiet named string D3 recovery: expected measured direct D3 tail to remain eligible");
+	runner.expect(!is_quiet_named_string_d3_recovery_candidate("brass track", 50, 0.0018f, 0.81f),
+		      "quiet named string D3 recovery: expected non-string tail to stay rejected");
+	runner.expect(!is_quiet_named_string_d3_recovery_candidate("string track", 50, 0.0017f, 0.81f),
+		      "quiet named string D3 recovery: expected sub-floor tail to stay rejected");
+	runner.expect(!is_quiet_named_string_d3_recovery_candidate("string track", 50, 0.0018f, 0.79f),
+		      "quiet named string D3 recovery: expected weak direct body to stay rejected");
 }
 
 void check_supported_low_monophonic_other_fundamental(Runner &runner)

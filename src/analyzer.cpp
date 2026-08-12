@@ -58,6 +58,13 @@ bool is_quiet_named_brass_d4_recovery_candidate(const char *source_name, int mid
 	return source_name && std::strstr(source_name, "brass") && midi == 62 &&
 	       rms >= 0.0020f && rms < kMonophonicOtherQuietRecoveryFloor && raw_level >= 0.70f;
 }
+
+bool is_quiet_named_string_d3_recovery_candidate(const char *source_name, int midi, float rms,
+								  float raw_level)
+{
+	return source_name && std::strstr(source_name, "string") && midi == 50 &&
+	       rms >= 0.0018f && rms < kMonophonicOtherQuietRecoveryFloor && raw_level >= 0.80f;
+}
 constexpr float kFullNoteRms = 0.035f;
 constexpr float kNoteRelativeFloor = 0.36f;
 constexpr float kMixedNoteRelativeFloor = 0.08f;
@@ -34799,6 +34806,7 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 			std::array<bool, kNoteProbeCount> quiet_monophonic_allowed_midis = {};
 			const std::array<bool, kNoteProbeCount> *other_allowed_midis = nullptr;
 			bool quiet_named_brass_d4_recovery = false;
+			bool quiet_named_string_d3_recovery = false;
 			int raw_supported_low_fundamental = -1;
 			float raw_supported_low_fundamental_score = 0.0f;
 			if (input_mode == AnalysisInputMode::IsolatedOther) {
@@ -34856,7 +34864,13 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 						quiet_named_brass_d4_recovery =
 							is_quiet_named_brass_d4_recovery_candidate(resolved_source_name, candidate.midi,
 													   rms, snapshot.other_debug_pre_envelope_raw_level);
+						quiet_named_string_d3_recovery =
+							is_quiet_named_string_d3_recovery_candidate(resolved_source_name, candidate.midi,
+													    rms, snapshot.other_debug_pre_envelope_raw_level);
 						if (quiet_named_brass_d4_recovery)
+							quiet_monophonic_allowed_midis[
+								static_cast<std::size_t>(candidate.midi - kFirstMidi)] = true;
+						if (quiet_named_string_d3_recovery)
 							quiet_monophonic_allowed_midis[
 								static_cast<std::size_t>(candidate.midi - kFirstMidi)] = true;
 						other_allowed_midis = &quiet_monophonic_allowed_midis;
@@ -34917,7 +34931,8 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 						other_max_notes, nullptr, nullptr, false, other_allowed_midis,
 						0.30f, false, true,
 						monophonic_other_source ?
-							(quiet_named_brass_d4_recovery ? 0.0020f : kMonophonicOtherQuietRecoveryFloor) :
+							(quiet_named_string_d3_recovery ? 0.0018f :
+							 (quiet_named_brass_d4_recovery ? 0.0020f : kMonophonicOtherQuietRecoveryFloor)) :
 							kNoteRmsFloor);
 			if (raw_supported_low_fundamental >= 0) {
 				const NoteCell &existing =
