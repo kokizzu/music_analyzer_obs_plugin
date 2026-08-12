@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Summarize the reproducible URMP missed-isolated-note diagnostics."""
+"""Summarize reproducible URMP isolated exact-MIDI miss diagnostics."""
 
 from __future__ import annotations
 
@@ -26,6 +26,14 @@ TRAIT = re.compile(
 CONFIRMED_TRAIT = re.compile(
     r"^URMP confirmed isolated .* #\d+ (?P<instrument>[a-z]+) at .* expected "
     r"(?P<pitch>[A-G]#?\d+), exact (?P<exact>[01]), grids "
+)
+RECOVERY = re.compile(
+    r"^URMP recovery traits (?P<recording>.+) #(?P<track>\d+) "
+    r"(?P<instrument>[a-z]+) at (?P<time>[\d.]+)s: expected "
+    r"(?P<pitch>[A-G]#?\d+), .*; bass spectral "
+    r"(?P<spectral>[A-G]#?\d+|--)/[\d.]+/[\d.]+ periodic "
+    r"(?P<periodic>[A-G]#?\d+|--)/[\d.]+/[\d.]+ displayed "
+    r"(?P<displayed>[A-G]#?\d+|--)/[\d.]+/[\d.]+$"
 )
 NOTE = re.compile(r"^(?P<pitch_class>[A-G]#?)(?P<octave>\d+)$")
 CANDIDATE = re.compile(
@@ -98,6 +106,8 @@ def main() -> int:
     quiet_pre_envelope_examples: list[tuple[str, str, str, float, float, float]] = []
     confirmed_trait_total = 0
     confirmed_trait_exact = 0
+    bass_conflicts: Counter[tuple[str, str, str, str, str]] = Counter()
+    bass_conflict_pieces: dict[tuple[str, str, str, str, str], set[str]] = {}
     for line in source.read_text(encoding="utf-8", errors="replace").splitlines():
         matched = MISS.match(line)
         if matched:
@@ -151,8 +161,20 @@ def main() -> int:
         if confirmed:
             confirmed_trait_total += 1
             confirmed_trait_exact += int(confirmed["exact"])
+            continue
+        recovery = RECOVERY.match(line)
+        if recovery and recovery["spectral"] != "--" and recovery["periodic"] != "--":
+            key = (
+                recovery["instrument"],
+                recovery["pitch"],
+                recovery["spectral"],
+                recovery["periodic"],
+                recovery["displayed"],
+            )
+            bass_conflicts[key] += 1
+            bass_conflict_pieces.setdefault(key, set()).add(recovery["recording"])
 
-    print(f"URMP isolated-note misses: {sum(misses.values())}")
+    print(f"URMP isolated exact-MIDI misses: {sum(misses.values())}")
     print("count\tinstrument\tpitch")
     for (instrument, pitch), count in sorted(
         misses.items(), key=lambda item: (-item[1], item[0])
@@ -244,6 +266,15 @@ def main() -> int:
             trait_recoverable.items(), key=lambda item: (-item[1], item[0])
         )[:40]:
             print(f"{count}\t{instrument}\t{pitch}")
+    if bass_conflicts:
+        print("URMP sampled isolated-bass spectral/periodic conflicts:")
+        print("piece_windows\tpiece_folders\tinstrument\texpected\tspectral\tperiodic\tdisplayed")
+        for key, count in sorted(bass_conflicts.items(), key=lambda item: (-item[1], item[0])):
+            instrument, expected, spectral, periodic, displayed = key
+            print(
+                f"{count}\t{len(bass_conflict_pieces[key])}\t{instrument}\t{expected}\t"
+                f"{spectral}\t{periodic}\t{displayed}"
+            )
     return 0
 
 

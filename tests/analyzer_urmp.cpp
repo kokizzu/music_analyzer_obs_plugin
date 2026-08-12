@@ -2009,16 +2009,20 @@ int main()
 
 				const int pitch_class = ((active.midi % 12) + 12) % 12;
 				const bool hit = has_pitch_class(detected_pitch_classes(track_snapshot), pitch_class);
+				const EvalInstrument expected_instrument = expected_instrument_for_urmp(track.instrument);
+				const bool exact_midi =
+					grid_has_midi(grid_for_eval_instrument(track_snapshot, expected_instrument), active.midi);
 				add_isolated_track_metrics(isolated_track_metrics,
-							   expected_instrument_for_urmp(track.instrument),
+							   expected_instrument,
 							   active.midi, track_snapshot);
 				add_isolated_track_metrics(isolated_track_metrics_by_instrument[track.instrument],
-							   expected_instrument_for_urmp(track.instrument),
+							   expected_instrument,
 							   active.midi, track_snapshot);
 				++track_checks;
 				if (hit) {
 					++track_hits;
-				} else {
+				}
+				if (!exact_midi) {
 					std::fprintf(stderr,
 						     "URMP track %s #%d %s at %.3fs: expected %s, detected bass `%s`, "
 						     "key `%s`, guitar `%s`, vocal `%s`, other `%s`, pre-envelope other `%s` "
@@ -2035,6 +2039,50 @@ int main()
 							     track_snapshot.other_debug_pre_envelope_raw_level, track_snapshot.rms);
 					if (verbose_track_traits_enabled() && emitted_track_traits < 48) {
 						++emitted_track_traits;
+						std::fprintf(
+							stderr, "URMP recovery traits %s #%d %s at %.3fs: expected %s, pre lower %s ratios "
+							"root %.6f octave %.6f fifth %.6f octave2 %.6f third %.6f fifth2 %.6f "
+							"recovered %s; raw lower %s ratios root %.6f octave %.6f fifth %.6f "
+							"octave2 %.6f third %.6f fifth2 %.6f recovered %s; bass spectral %s/%.6f/%.6f "
+							"periodic %s/%.6f/%.6f displayed %s/%.6f/%.6f\n",
+							basename_of(piece_dir).c_str(), track.number, track.instrument.c_str(),
+							candidate.time, mao_test::note_label(active.midi).c_str(),
+							track_snapshot.other_debug_pre_envelope_recovery_lower_midi >= 0 ?
+								mao_test::note_label(
+									track_snapshot.other_debug_pre_envelope_recovery_lower_midi)
+									.c_str() : "--",
+							track_snapshot.other_debug_pre_envelope_recovery_fundamental_ratio,
+							track_snapshot.other_debug_pre_envelope_recovery_octave_ratio,
+							track_snapshot.other_debug_pre_envelope_recovery_fifth_ratio,
+							track_snapshot.other_debug_pre_envelope_recovery_second_octave_ratio,
+							track_snapshot.other_debug_pre_envelope_recovery_upper_major_third_ratio,
+							track_snapshot.other_debug_pre_envelope_recovery_upper_fifth_ratio,
+							track_snapshot.other_debug_pre_envelope_recovered_midi >= 0 ?
+								mao_test::note_label(track_snapshot.other_debug_pre_envelope_recovered_midi)
+									.c_str() : "--",
+							track_snapshot.other_debug_raw_recovery_lower_midi >= 0 ?
+								mao_test::note_label(track_snapshot.other_debug_raw_recovery_lower_midi)
+									.c_str() : "--",
+							track_snapshot.other_debug_raw_recovery_fundamental_ratio,
+							track_snapshot.other_debug_raw_recovery_octave_ratio,
+							track_snapshot.other_debug_raw_recovery_fifth_ratio,
+							track_snapshot.other_debug_raw_recovery_second_octave_ratio,
+							track_snapshot.other_debug_raw_recovery_upper_major_third_ratio,
+							track_snapshot.other_debug_raw_recovery_upper_fifth_ratio,
+							track_snapshot.other_debug_raw_recovered_midi >= 0 ?
+								mao_test::note_label(track_snapshot.other_debug_raw_recovered_midi).c_str() : "--",
+							track_snapshot.bass_debug_spectral_midi >= 0 ?
+								mao_test::note_label(track_snapshot.bass_debug_spectral_midi).c_str() : "--",
+							track_snapshot.bass_debug_spectral_confidence,
+							track_snapshot.bass_debug_spectral_score,
+							track_snapshot.bass_debug_periodic_midi >= 0 ?
+								mao_test::note_label(track_snapshot.bass_debug_periodic_midi).c_str() : "--",
+							track_snapshot.bass_debug_periodic_confidence,
+							track_snapshot.bass_debug_periodic_score,
+							track_snapshot.bass_debug_displayed_midi >= 0 ?
+								mao_test::note_label(track_snapshot.bass_debug_displayed_midi).c_str() : "--",
+							track_snapshot.bass_debug_displayed_confidence,
+							track_snapshot.bass_debug_displayed_score);
 						bool confirmed_ok = false;
 						std::string confirmed_error;
 						const mao::AnalysisSnapshot confirmed_snapshot =
