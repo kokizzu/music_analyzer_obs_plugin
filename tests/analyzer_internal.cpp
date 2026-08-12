@@ -83,6 +83,29 @@ void check_auto_source_mode_resolution(Runner &runner)
 		      "explicit source mode: expected configured full mix to override source name");
 }
 
+void check_low_acoustic_bass_suboctave_display(Runner &runner)
+{
+	NoteGrid grid = {};
+	InstrumentState state = {};
+	std::array<float, kNoteProbeCount> powers = {};
+	set_midi(grid, 40, 0.96f); // E2 selected octave
+	set_probe_level(powers, 28, 0.08f); // E1 acoustic body
+	set_probe_level(powers, 40, 1.00f);
+	prefer_low_acoustic_bass_suboctave_primary(grid, state, powers, -1);
+	runner.expect(grid.cells[4].midi == 28,
+		      "low acoustic bass suboctave: expected E1 beneath bounded E2 octave alias");
+
+	grid = {};
+	state = {};
+	powers.fill(0.0f);
+	set_midi(grid, 40, 0.96f);
+	set_probe_level(powers, 28, 0.03f); // too weak for the measured profile
+	set_probe_level(powers, 40, 1.00f);
+	prefer_low_acoustic_bass_suboctave_primary(grid, state, powers, -1);
+	runner.expect(grid.cells[4].midi == 40,
+		      "low acoustic bass suboctave: expected sub-floor body to stay at E2");
+}
+
 void check_quiet_monophonic_other_recovery_bounds(Runner &runner)
 {
 	runner.expect(is_quiet_monophonic_other_recovery_candidate(36, 0.0030f),
@@ -5327,6 +5350,7 @@ int run()
 {
 	Runner runner;
 	check_auto_source_mode_resolution(runner);
+	check_low_acoustic_bass_suboctave_display(runner);
 	check_quiet_monophonic_other_recovery_bounds(runner);
 	check_supported_low_monophonic_other_fundamental(runner);
 	check_direct_upper_other_octave_primary(runner);

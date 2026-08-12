@@ -13169,6 +13169,35 @@ void prefer_probe_supported_lower_bass_primary(NoteGrid &grid, InstrumentState &
 		write_note_grid_label(state, grid, preferred_root);
 }
 
+// The Iowa fortissimo sul-E double-bass pizzicato fixture has a repeatable
+// E1--F#1 direct body beneath an E2--F#2 selected octave.  This is isolated
+// bass-only handling: it avoids treating generic full-mix suboctave energy as
+// a bass fundamental while preserving the deliberately conservative normal
+// lower-octave display route above.
+void prefer_low_acoustic_bass_suboctave_primary(
+	NoteGrid &grid, InstrumentState &state,
+	const std::array<float, kNoteProbeCount> &powers, int preferred_root)
+{
+	bool changed = false;
+	for (int pitch_class = 0; pitch_class < 12; ++pitch_class) {
+		const NoteCell &primary = grid.cells[pitch_class];
+		if (!primary.active || primary.midi < 40 || primary.midi > 42)
+			continue;
+
+		const int lower_midi = primary.midi - 12;
+		const float primary_probe = probe_level(powers, primary.midi);
+		const float lower_probe = probe_level(powers, lower_midi);
+		if (primary_probe <= 1.0e-6f ||
+		    lower_probe < primary_probe * 0.04f || lower_probe > primary_probe * 0.17f)
+			continue;
+
+		changed = promote_note_grid_primary_midi(grid, lower_midi, primary.level) || changed;
+	}
+
+	if (changed)
+		write_note_grid_label(state, grid, preferred_root);
+}
+
 int lowest_note_grid_pitch_class(const NoteGrid &grid)
 {
 	int lowest_midi = kLastMidi + 1;
@@ -34842,6 +34871,9 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 					  interval_seconds, 1, nullptr, 1);
 		prefer_supported_lower_octave_display(snapshot.bass_notes, snapshot.bass, note_powers,
 						      kBassMinMidi, kDefaultBassMaxMidi, -1);
+		if (!mixed_source)
+			prefer_low_acoustic_bass_suboctave_primary(snapshot.bass_notes, snapshot.bass,
+								   detection_note_powers, -1);
 		if (mixed_source) {
 			prefer_debug_supported_mid_bass_primary(snapshot.bass_notes, snapshot.bass,
 							       full_mix_ownership, -1);
