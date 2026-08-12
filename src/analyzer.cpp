@@ -305,6 +305,13 @@ int supported_low_monophonic_other_fundamental(const std::array<float, kNoteProb
 		const bool mid_wind_fifth_partial = lower >= 55 && lower <= 59 &&
 			peak_midi == upper_major_third && fifth_level >= std::max(fundamental_level * 0.75f,
 								   peak_level * 0.18f);
+		// Cor anglais G3--B3 can select its +28 partial despite a clear, but
+		// weaker, direct root.  Its almost absent octave and substantial fifth
+		// distinguish this rich-third stack from a generic high subharmonic.
+		const bool mid_wind_weak_root_rich_third_stack = lower >= 55 && lower <= 59 &&
+			peak_midi == upper_major_third && fundamental_level >= peak_level * 0.08f &&
+			fundamental_level <= peak_level * 0.12f && octave_level <= peak_level * 0.10f &&
+			fifth_level >= peak_level * 0.30f;
 		// Isolated winds at C3--B4 can put nearly all energy in the octave while
 		// retaining a modest, direct fundamental and almost no fifth. This bounded
 		// octave-only shape is distinct from the normal octave/fifth stack and
@@ -336,10 +343,11 @@ int supported_low_monophonic_other_fundamental(const std::array<float, kNoteProb
 			fundamental_level <= peak_level * 0.23f && octave_level >= peak_level * 0.29f &&
 			octave_level < peak_level * 0.30f;
 		if ((fundamental_level < peak_level * 0.12f && !low_wind_second_octave_stack &&
-		     !upper_wind_weak_body_fifth_stack) ||
+		     !upper_wind_weak_body_fifth_stack && !mid_wind_weak_root_rich_third_stack) ||
 		    ((!within_general_recovery_range || !octave_fifth_stack) &&
 		     !low_bassoon_harmonic_ladder && !mid_wind_fifth_partial && !upper_wind_octave_only &&
-		     !upper_wind_weak_body_fifth_stack && !low_wind_second_octave_stack &&
+		     !upper_wind_weak_body_fifth_stack && !mid_wind_weak_root_rich_third_stack &&
+		     !low_wind_second_octave_stack &&
 		     !low_brass_boundary_fifth_stack))
 			continue;
 		return lower;

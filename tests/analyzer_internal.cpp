@@ -153,6 +153,16 @@ void check_supported_low_monophonic_other_fundamental(Runner &runner)
 	set_probe_level(powers, 62, 0.49f);
 	runner.expect(supported_low_monophonic_other_fundamental(powers, 46) != 34,
 		      "low monophonic other recovery: expected incomplete A#1 ladder to stay rejected");
+	powers.fill(0.0f);
+	set_probe_level(powers, 55, 0.09f); // G3 weak cor-anglais root
+	set_probe_level(powers, 67, 0.07f); // G4 almost absent octave
+	set_probe_level(powers, 74, 0.33f); // D5 substantial fifth
+	set_probe_level(powers, 83, 1.00f); // B5 selected upper major third
+	runner.expect(supported_low_monophonic_other_fundamental(powers, 83) == 55,
+		      "low monophonic other recovery: expected bounded weak G3 rich-third wind stack");
+	set_probe_level(powers, 67, 0.11f);
+	runner.expect(supported_low_monophonic_other_fundamental(powers, 83) != 55,
+		      "low monophonic other recovery: expected visible G3 octave to stay rejected");
 	set_probe_level(powers, 55, 0.14f); // G3 direct fundamental
 	set_probe_level(powers, 67, 1.00f); // G4 selected octave
 	set_probe_level(powers, 74, 0.10f); // D5 weak fifth
