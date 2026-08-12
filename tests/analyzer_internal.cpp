@@ -170,6 +170,18 @@ void check_supported_low_monophonic_other_fundamental(Runner &runner)
 	runner.expect(supported_named_brass_rich_octave_fundamental("brass track", powers, 70) < 0,
 		      "named brass octave recovery: expected over-bright compact A#3 fifth to stay rejected");
 	powers.fill(0.0f);
+	set_probe_level(powers, 58, 0.047f); // A#3 tiny-ladder bassoon body
+	set_probe_level(powers, 70, 1.00f); // A#4 selected octave
+	set_probe_level(powers, 77, 0.020f); // F5 quiet fifth
+	set_probe_level(powers, 82, 0.024f); // A#5 second octave
+	set_probe_level(powers, 86, 0.030f); // C6 upper major third
+	set_probe_level(powers, 89, 0.001f); // F6 upper fifth
+	runner.expect(supported_low_monophonic_other_fundamental(powers, 70) == 58,
+		      "low monophonic other recovery: expected bounded A#3 bassoon tiny ladder");
+	set_probe_level(powers, 77, 0.035f);
+	runner.expect(supported_low_monophonic_other_fundamental(powers, 70) != 58,
+		      "low monophonic other recovery: expected bright A#3 bassoon fifth to stay rejected");
+	powers.fill(0.0f);
 	set_probe_level(powers, 50, 0.112f); // D3 direct bassoon body
 	set_probe_level(powers, 62, 0.300f); // D4 octave
 	set_probe_level(powers, 69, 1.00f); // A4 selected fifth

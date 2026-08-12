@@ -387,6 +387,15 @@ int supported_low_monophonic_other_fundamental(const std::array<float, kNoteProb
 			fifth_level >= peak_level * 0.32f && fifth_level <= peak_level * 0.47f &&
 			second_octave_level >= peak_level * 0.12f && second_octave_level <= peak_level * 0.165f &&
 			upper_major_third_level <= peak_level * 0.07f && upper_fifth_level <= peak_level * 0.075f;
+		// The duplicated Miserere A#3 bassoon onset is octave-led with an
+		// exceptionally quiet F5 fifth and upper ladder. Keep the recovery
+		// exact-pitch and bound every weak partial.
+		const bool bassoon_as3_tiny_ladder_stack = lower == 58 && peak_midi == octave &&
+			fundamental_level >= peak_level * 0.042f && fundamental_level <= peak_level * 0.053f &&
+			fifth_level >= peak_level * 0.010f && fifth_level <= peak_level * 0.034f &&
+			second_octave_level >= peak_level * 0.017f && second_octave_level <= peak_level * 0.032f &&
+			upper_major_third_level >= peak_level * 0.023f && upper_major_third_level <= peak_level * 0.043f &&
+			upper_fifth_level >= peak_level * 0.0005f && upper_fifth_level <= peak_level * 0.002f;
 		// Bassoon F#3 is narrowly below the regular root floor but, unlike a
 		// generic octave alias, retains a stable fifth and a quiet second octave.
 		// Keep this C#-family bridge note-specific and bounded on both sides.
@@ -681,6 +690,7 @@ int supported_low_monophonic_other_fundamental(const std::array<float, kNoteProb
 			     !cor_anglais_g4_sparse_octave_stack && !cor_anglais_g4_mezzopiano_octave_stack &&
 			     !cor_anglais_b4_ultraweak_octave_stack &&
 			     !bassoon_a3_weak_body_stack && !bassoon_a3_sparse_fifth_stack && !bassoon_a3_breath_ladder &&
+			     !bassoon_as3_tiny_ladder_stack &&
 		     !bassoon_fs3_boundary_stack && !bassoon_fs3_bright_third_stack && !bassoon_a4_sparse_octave_stack &&
 		     !bassoon_b3_compact_octave_stack && !bassoon_g3_boundary_stack && !violin_g3_rich_fifth_stack &&
 			     !violin_g3_ultraweak_octave_stack && !violin_g3_forte_fifth_ladder &&
@@ -699,6 +709,7 @@ int supported_low_monophonic_other_fundamental(const std::array<float, kNoteProb
 			     !cor_anglais_g4_sparse_octave_stack && !cor_anglais_g4_mezzopiano_octave_stack &&
 			     !cor_anglais_b4_ultraweak_octave_stack &&
 		     !bassoon_a3_weak_body_stack && !bassoon_a3_sparse_fifth_stack && !bassoon_a3_breath_ladder &&
+		     !bassoon_as3_tiny_ladder_stack &&
 		     !bassoon_fs3_boundary_stack &&
 		     !bassoon_fs3_bright_third_stack && !bassoon_a4_sparse_octave_stack && !bassoon_b3_compact_octave_stack &&
 		     !bassoon_g3_boundary_stack && !violin_g3_rich_fifth_stack && !violin_g3_ultraweak_octave_stack &&
