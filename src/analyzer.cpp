@@ -434,6 +434,7 @@ struct LowMonophonicOtherRecoveryTraits {
 	float fundamental_ratio = 0.0f;
 	float octave_ratio = 0.0f;
 	float fifth_ratio = 0.0f;
+	float second_octave_ratio = 0.0f;
 	float upper_major_third_ratio = 0.0f;
 	float upper_fifth_ratio = 0.0f;
 	int second_octave_lower_midi = -1;
@@ -481,6 +482,7 @@ LowMonophonicOtherRecoveryTraits low_monophonic_other_recovery_traits(
 		traits.fundamental_ratio = fundamental_ratio;
 		traits.octave_ratio = probe_level(powers, octave) / peak_level;
 		traits.fifth_ratio = probe_level(powers, fifth) / peak_level;
+		traits.second_octave_ratio = probe_level(powers, second_octave) / peak_level;
 		traits.upper_major_third_ratio = probe_level(powers, upper_major_third) / peak_level;
 		traits.upper_fifth_ratio = probe_level(powers, upper_fifth) / peak_level;
 	}
@@ -34440,6 +34442,8 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 						pre_recovery_traits.octave_ratio;
 					snapshot.other_debug_pre_envelope_recovery_fifth_ratio =
 						pre_recovery_traits.fifth_ratio;
+					snapshot.other_debug_pre_envelope_recovery_second_octave_ratio =
+						pre_recovery_traits.second_octave_ratio;
 					snapshot.other_debug_pre_envelope_recovery_upper_major_third_ratio =
 						pre_recovery_traits.upper_major_third_ratio;
 					snapshot.other_debug_pre_envelope_recovery_upper_fifth_ratio =
@@ -34493,6 +34497,8 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 							raw_recovery_traits.octave_ratio;
 						snapshot.other_debug_raw_recovery_fifth_ratio =
 							raw_recovery_traits.fifth_ratio;
+						snapshot.other_debug_raw_recovery_second_octave_ratio =
+							raw_recovery_traits.second_octave_ratio;
 						snapshot.other_debug_raw_recovery_upper_major_third_ratio =
 							raw_recovery_traits.upper_major_third_ratio;
 						snapshot.other_debug_raw_recovery_upper_fifth_ratio =
