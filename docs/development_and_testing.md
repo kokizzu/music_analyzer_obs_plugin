@@ -103,3 +103,5 @@ make test-real-egmd-20
 ```
 
 Some targets download public fixture archives; inspect their source and storage variables in the Makefile first. Local external-data paths and optional datasets are skipped when unavailable rather than treated as a passing quality result.
+
+`make analyze-medley-solos-attributes` writes `build/medley_solos_attributes.tsv` after the real Medley-solos archive is available. Each row records the expected family, source instrument, analysis-buffer position, detected family rows, row confidences, and rendered labels. Use it to mine independent sax, violin, woodwind, piano, guitar, and vocal ownership evidence; it does not play audio.

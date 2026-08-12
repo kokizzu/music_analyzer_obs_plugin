@@ -354,6 +354,32 @@ bool family_detected(const mao::AnalysisSnapshot &snapshot, const std::string &f
 	return family_state(snapshot, family).confidence > 0.0f || grid_has_any_active(family_grid(snapshot, family));
 }
 
+void print_attribute_header(std::ostream &out)
+{
+	out << "sample_id\tfamily\tinstrument\tsubset\tbuffer_index\texpected_row_hit"
+
+	       "\tguitar_active\tpiano_active\tvocals_active\tother_active"
+
+	       "\tguitar_confidence\tpiano_confidence\tvocals_confidence\tother_confidence"
+
+	       "\tguitar_label\tpiano_label\tvocals_label\tother_label\n";
+}
+
+void append_attribute_row(std::ostream &out, const SampleRow &row, std::size_t buffer_index,
+			  const mao::AnalysisSnapshot &snapshot)
+{
+	const std::array<const char *, 4> families = {"guitar", "piano", "vocals", "other"};
+	out << row.id << '\t' << row.family << '\t' << row.instrument << '\t' << row.subset << '\t'
+	    << buffer_index << '\t' << (family_detected(snapshot, row.family) ? 1 : 0);
+	for (const char *family : families)
+		out << '\t' << (family_detected(snapshot, family) ? 1 : 0);
+	for (const char *family : families)
+		out << '\t' << family_state(snapshot, family).confidence;
+	for (const char *family : families)
+		out << '\t' << family_state(snapshot, family).label;
+	out << '\n';
+}
+
 int family_index(const std::string &family)
 {
 	if (family == "guitar")
@@ -422,6 +448,18 @@ int main()
 	const int min_recall_percent = percent_env("MUSIC_ANALYZER_INSTRUMENT_FAMILY_MIN_RECALL_PERCENT", 20);
 	const int shard_count = positive_int_env("MUSIC_ANALYZER_INSTRUMENT_FAMILY_SHARD_COUNT", 1);
 	const int shard_index = nonnegative_int_env("MUSIC_ANALYZER_INSTRUMENT_FAMILY_SHARD_INDEX", 0);
+	const char *attribute_path_env = std::getenv("MUSIC_ANALYZER_INSTRUMENT_FAMILY_ATTRIBUTE_TSV");
+	std::ofstream attribute_file;
+	if (attribute_path_env && *attribute_path_env) {
+		attribute_file.open(attribute_path_env);
+		if (!attribute_file) {
+			std::fprintf(stderr,
+				     "analyzer_instrument_family_samples: failed to open attribute TSV `%s`\n",
+				     attribute_path_env);
+			return 1;
+		}
+		print_attribute_header(attribute_file);
+	}
 	if (shard_index >= shard_count) {
 		std::fprintf(stderr,
 			     "analyzer_instrument_family_samples: shard index %d outside shard count %d\n",
@@ -476,8 +514,11 @@ int main()
 
 		bool detected = false;
 		std::array<bool, 4> cross_seen = {};
-		for (const mao_test::Buffer &buffer : buffers) {
+		for (std::size_t buffer_index = 0; buffer_index < buffers.size(); ++buffer_index) {
+			const mao_test::Buffer &buffer = buffers[buffer_index];
 			const mao::AnalysisSnapshot snapshot = analyze_buffer(buffer, sample_rate);
+			if (attribute_file)
+				append_attribute_row(attribute_file, row, buffer_index, snapshot);
 			for (int i = 0; i < 4; ++i) {
 				if (family_detected(snapshot, family_name(i)))
 					cross_seen[static_cast<std::size_t>(i)] = true;
