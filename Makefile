@@ -2888,7 +2888,7 @@ prepare-guitar-techs-samples: scripts/prepare_guitar_techs_samples.py download-g
 
 $(GUITAR_TECHS_SAMPLE_DIR)/manifest.tsv: scripts/prepare_guitar_techs_samples.py $(GUITAR_TECHS_P1_SINGLENOTES_ARCHIVE) $(GUITAR_TECHS_P2_SINGLENOTES_ARCHIVE) | $(BUILD_DIR)
 	+$(MAKE) prepare-guitar-techs-samples
-	@touch "$(GUITAR_TECHS_SAMPLE_DIR)/manifest.tsv"
+	@test -f "$(GUITAR_TECHS_SAMPLE_DIR)/manifest.tsv"
 
 test-guitar-techs-samples test-guitar-techs-samples-parallel: REAL_NOTE_SAMPLE_TAG := guitar_techs
 test-guitar-techs-samples test-guitar-techs-samples-parallel: REAL_NOTE_SAMPLE_ROOT := $(GUITAR_TECHS_SAMPLE_DIR)
@@ -3343,7 +3343,7 @@ prepare-philharmonia-samples: scripts/prepare_philharmonia_samples.py download-p
 
 $(PHILHARMONIA_SAMPLE_DIR)/manifest.tsv: scripts/prepare_philharmonia_samples.py download-philharmonia-samples | $(BUILD_DIR)
 	+$(MAKE) prepare-philharmonia-samples
-	@touch "$(PHILHARMONIA_SAMPLE_DIR)/manifest.tsv"
+	@test -f "$(PHILHARMONIA_SAMPLE_DIR)/manifest.tsv"
 
 test-philharmonia-samples test-philharmonia-samples-parallel: REAL_NOTE_SAMPLE_TAG := philharmonia
 test-philharmonia-samples test-philharmonia-samples-parallel: REAL_NOTE_SAMPLE_ROOT := $(PHILHARMONIA_SAMPLE_DIR)
@@ -3378,7 +3378,7 @@ prepare-philharmonia-samples-full: scripts/prepare_philharmonia_samples.py downl
 
 $(PHILHARMONIA_FULL_SAMPLE_DIR)/manifest.tsv: scripts/prepare_philharmonia_samples.py download-philharmonia-samples | $(BUILD_DIR)
 	+$(MAKE) prepare-philharmonia-samples-full
-	@touch "$(PHILHARMONIA_FULL_SAMPLE_DIR)/manifest.tsv"
+	@test -f "$(PHILHARMONIA_FULL_SAMPLE_DIR)/manifest.tsv"
 
 test-philharmonia-samples-full test-philharmonia-samples-full-parallel: REAL_NOTE_SAMPLE_TAG := philharmonia_full
 test-philharmonia-samples-full test-philharmonia-samples-full-parallel: REAL_NOTE_SAMPLE_ROOT := $(PHILHARMONIA_FULL_SAMPLE_DIR)
@@ -3537,7 +3537,7 @@ prepare-iowa-piano-samples: scripts/prepare_iowa_piano_samples.py | $(BUILD_DIR)
 
 $(IOWA_PIANO_SAMPLE_DIR)/manifest.tsv: scripts/prepare_iowa_piano_samples.py | $(BUILD_DIR)
 	+$(MAKE) prepare-iowa-piano-samples
-	@touch "$(IOWA_PIANO_SAMPLE_DIR)/manifest.tsv"
+	@test -f "$(IOWA_PIANO_SAMPLE_DIR)/manifest.tsv"
 
 test-iowa-piano-samples test-iowa-piano-samples-parallel: REAL_NOTE_SAMPLE_TAG := iowa_piano
 test-iowa-piano-samples test-iowa-piano-samples-parallel: REAL_NOTE_SAMPLE_ROOT := $(IOWA_PIANO_SAMPLE_DIR)
@@ -3593,7 +3593,7 @@ test-iowa-strings-samples-parallel: $(BUILD_DIR)/analyzer_real_note_samples prep
 
 $(IOWA_STRINGS_SAMPLE_DIR)/manifest.tsv: scripts/prepare_iowa_zip_samples.py | $(BUILD_DIR)
 	+$(MAKE) prepare-iowa-strings-samples
-	@touch "$(IOWA_STRINGS_SAMPLE_DIR)/manifest.tsv"
+	@test -f "$(IOWA_STRINGS_SAMPLE_DIR)/manifest.tsv"
 
 $(IOWA_STRINGS_ATTRIBUTE_TSV): $(BUILD_DIR)/analyzer_real_note_samples $(IOWA_STRINGS_SAMPLE_DIR)/manifest.tsv scripts/build_sharded_tsv.sh scripts/run_with_lock.sh | $(BUILD_DIR)
 	+$(SHELL) scripts/run_with_lock.sh "$(IOWA_STRINGS_ATTRIBUTE_LOCK_DIR)" -- "$(SHELL)" scripts/build_sharded_tsv.sh "$@" "$(MAKE)" "$(REAL_NOTE_SAMPLE_TEST_MAKE_JOBS)" $(IOWA_STRINGS_ATTRIBUTE_PARTS)
@@ -3617,7 +3617,7 @@ prepare-iowa-orchestra-samples: scripts/prepare_iowa_zip_samples.py | $(BUILD_DI
 
 $(IOWA_ORCHESTRA_SAMPLE_DIR)/manifest.tsv: scripts/prepare_iowa_zip_samples.py | $(BUILD_DIR)
 	+$(MAKE) prepare-iowa-orchestra-samples
-	@touch "$(IOWA_ORCHESTRA_SAMPLE_DIR)/manifest.tsv"
+	@test -f "$(IOWA_ORCHESTRA_SAMPLE_DIR)/manifest.tsv"
 
 test-iowa-orchestra-samples test-iowa-orchestra-samples-parallel: REAL_NOTE_SAMPLE_TAG := iowa_orchestra
 test-iowa-orchestra-samples test-iowa-orchestra-samples-parallel: REAL_NOTE_SAMPLE_ROOT := $(IOWA_ORCHESTRA_SAMPLE_DIR)
@@ -3652,7 +3652,7 @@ prepare-iowa-orchestra-full-samples: scripts/prepare_iowa_zip_samples.py | $(BUI
 
 $(IOWA_ORCHESTRA_FULL_SAMPLE_DIR)/manifest.tsv: scripts/prepare_iowa_zip_samples.py | $(BUILD_DIR)
 	+$(MAKE) prepare-iowa-orchestra-full-samples
-	@touch "$(IOWA_ORCHESTRA_FULL_SAMPLE_DIR)/manifest.tsv"
+	@test -f "$(IOWA_ORCHESTRA_FULL_SAMPLE_DIR)/manifest.tsv"
 
 test-iowa-orchestra-full-samples test-iowa-orchestra-full-samples-parallel: REAL_NOTE_SAMPLE_TAG := iowa_orchestra_full
 test-iowa-orchestra-full-samples test-iowa-orchestra-full-samples-parallel: REAL_NOTE_SAMPLE_ROOT := $(IOWA_ORCHESTRA_FULL_SAMPLE_DIR)
@@ -3711,7 +3711,7 @@ prepare-idmt-bass-lines-samples: scripts/prepare_idmt_bass_lines_samples.py down
 
 $(IDMT_BASS_LINES_SAMPLE_DIR)/manifest.tsv: scripts/prepare_idmt_bass_lines_samples.py $(IDMT_BASS_LINES_ARCHIVE) | $(BUILD_DIR)
 	+$(MAKE) prepare-idmt-bass-lines-samples
-	@touch "$(IDMT_BASS_LINES_SAMPLE_DIR)/manifest.tsv"
+	@test -f "$(IDMT_BASS_LINES_SAMPLE_DIR)/manifest.tsv"
 
 test-idmt-bass-lines-samples test-idmt-bass-lines-samples-parallel: REAL_NOTE_SAMPLE_TAG := idmt_bass_lines
 test-idmt-bass-lines-samples test-idmt-bass-lines-samples-parallel: REAL_NOTE_SAMPLE_ROOT := $(IDMT_BASS_LINES_SAMPLE_DIR)
@@ -3755,7 +3755,7 @@ prepare-idmt-guitar-samples: scripts/prepare_idmt_guitar_samples.py download-idm
 
 $(IDMT_GUITAR_SAMPLE_DIR)/manifest.tsv: scripts/prepare_idmt_guitar_samples.py $(IDMT_GUITAR_ARCHIVE) | $(BUILD_DIR)
 	+$(MAKE) prepare-idmt-guitar-samples
-	@touch "$(IDMT_GUITAR_SAMPLE_DIR)/manifest.tsv"
+	@test -f "$(IDMT_GUITAR_SAMPLE_DIR)/manifest.tsv"
 
 test-idmt-guitar-samples test-idmt-guitar-samples-parallel: REAL_NOTE_SAMPLE_TAG := idmt_guitar
 test-idmt-guitar-samples test-idmt-guitar-samples-parallel: REAL_NOTE_SAMPLE_ROOT := $(IDMT_GUITAR_SAMPLE_DIR)
@@ -3805,7 +3805,7 @@ prepare-tinysol-samples: scripts/prepare_tinysol_samples.py download-tinysol-sam
 
 $(TINYSOL_SAMPLE_DIR)/manifest.tsv: scripts/prepare_tinysol_samples.py $(TINYSOL_METADATA_PATH) $(TINYSOL_ARCHIVE) | $(BUILD_DIR)
 	+$(MAKE) prepare-tinysol-samples
-	@touch "$(TINYSOL_SAMPLE_DIR)/manifest.tsv"
+	@test -f "$(TINYSOL_SAMPLE_DIR)/manifest.tsv"
 
 test-tinysol-samples test-tinysol-samples-parallel: REAL_NOTE_SAMPLE_TAG := tinysol
 test-tinysol-samples test-tinysol-samples-parallel: REAL_NOTE_SAMPLE_ROOT := $(TINYSOL_SAMPLE_DIR)
@@ -3852,7 +3852,7 @@ prepare-vocadito-samples: scripts/prepare_vocadito_samples.py download-vocadito-
 
 $(VOCADITO_SAMPLE_DIR)/manifest.tsv: scripts/prepare_vocadito_samples.py $(VOCADITO_ARCHIVE) | $(BUILD_DIR)
 	+$(MAKE) prepare-vocadito-samples
-	@touch "$(VOCADITO_SAMPLE_DIR)/manifest.tsv"
+	@test -f "$(VOCADITO_SAMPLE_DIR)/manifest.tsv"
 
 test-vocadito-samples test-vocadito-samples-parallel: REAL_NOTE_SAMPLE_TAG := vocadito
 test-vocadito-samples test-vocadito-samples-parallel: REAL_NOTE_SAMPLE_ROOT := $(VOCADITO_SAMPLE_DIR)
@@ -3915,7 +3915,7 @@ prepare-vocalset-samples: scripts/prepare_vocalset_samples.py download-vocalset-
 
 $(VOCALSET_SAMPLE_DIR)/manifest.tsv: scripts/prepare_vocalset_samples.py $(VOCALSET_ARCHIVE) | $(BUILD_DIR)
 	+$(MAKE) prepare-vocalset-samples
-	@touch "$(VOCALSET_SAMPLE_DIR)/manifest.tsv"
+	@test -f "$(VOCALSET_SAMPLE_DIR)/manifest.tsv"
 
 test-vocalset-samples test-vocalset-samples-parallel: REAL_NOTE_SAMPLE_TAG := vocalset
 test-vocalset-samples test-vocalset-samples-parallel: REAL_NOTE_SAMPLE_ROOT := $(VOCALSET_SAMPLE_DIR)
