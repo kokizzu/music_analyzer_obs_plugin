@@ -592,6 +592,7 @@ MEDLEY_SOLOS_LIMIT_PER_INSTRUMENT ?= 120
 MEDLEY_SOLOS_MIN_SAMPLES ?= 600
 MEDLEY_SOLOS_MIN_COUNTS ?= guitar=100,piano=100,vocals=100,other=300
 MEDLEY_SOLOS_MIN_RECALL_PERCENT ?= 20
+MEDLEY_SOLOS_DEBUG_SAMPLE_ID ?=
 MEDLEY_SOLOS_SHARDS ?= 4
 MEDLEY_SOLOS_SHARD_INDEXES := $(shell i=0; while [ $$i -lt $(MEDLEY_SOLOS_SHARDS) ]; do printf '%s ' $$i; i=$$((i + 1)); done)
 MEDLEY_SOLOS_SHARD_TARGETS := $(addprefix test-medley-solos-samples-shard-,$(MEDLEY_SOLOS_SHARD_INDEXES))
@@ -1375,7 +1376,7 @@ GUITARSET_ATTRIBUTE_GATE_ENV ?= MUSIC_ANALYZER_GUITARSET_ATTRIBUTE_ONLY=1 MUSIC_
 .PHONY: measure-analyzer-attributes measure-analyzer-attribute-rows measure-analyzer-attribute-rows-full require-cached-analyzer-attribute-rows refresh-analyzer-detected-attribute-rows print-analyzer-detected-attributes print-analyzer-detected-attributes-cached measure-analyzer-detected-attributes measure-analyzer-detected-attributes-full measure-analyzer-pattern-report-sections report-analyzer-patterns-from-rows report-analyzer-patterns-from-cached-rows report-analyzer-patterns-from-rows-full measure-analyzer-patterns measure-analyzer-patterns-cached measure-analyzer-patterns-cached-summary measure-analyzer-patterns-cached-coverage measure-analyzer-patterns-full measure-analyzer-pattern-report inspect-instrument-sample-owner-buckets find-instrument-owner-patterns find-instrument-status-patterns test-instrument-sample-owner-buckets test-filter-instrument-attribute-rows test-instrument-owner-patterns test-refresh-analyzer-detected-attribute-rows test-print-analyzer-detected-attributes test-analyzer-pattern-report test-detector-route-report-summary test-measure-analyzer-patterns-target analyze-drum-primary-attribute-rows find-drum-primary-attribute-patterns analyze-drum-spread-gate-matrix-serial analyze-drum-spread-gate-matrix-parallel analyze-drum-spread-gate-matrix-parallel-unlocked analyze-drum-tom-bleed-caps analyze-drum-tom-bleed-caps-cached
 .PHONY: analyze-drum-spread-gate-matrix analyze-drum-full-gate-matrix analyze-drum-full-gate-matrix-parallel analyze-drum-full-merged-expected-attribute-rows analyze-drum-active-false-rows analyze-drum-rule-flags compare-drum-gate-matrix compare-drum-primary-scores find-drum-active-false-patterns find-drum-active-false-patterns-full find-drum-spread-exact-attribute-patterns find-drum-full-exact-attribute-patterns find-drum-full-exact-attribute-patterns-cached find-protected-drum-full-exact-attribute-patterns test-drum-gate-matrix-summary test-compare-drum-gate-summaries test-drum-active-threshold-simulation test-drum-active-false-summary test-drum-rule-flag-summary test-drum-active-false-patterns test-inspect-drum-candidate-rows test-inspect-real-note-candidate-rows test-inspect-detector-coverage-candidates
 .PHONY: analyze-hf-drum-primary-attribute-rows analyze-hf-drum-primary-attribute-rows-serial analyze-hf-drum-primary-attribute-rows-parallel find-hf-drum-primary-attribute-patterns analyze-idmt-drum-primary-attribute-rows analyze-idmt-drum-primary-attribute-rows-serial analyze-idmt-drum-primary-attribute-rows-parallel find-idmt-drum-primary-attribute-patterns analyze-protected-drum-primary-attribute-rows find-protected-drum-primary-attribute-patterns
-.PHONY: analyze-guitar-chord-mix-recovery analyze-guitar-chord-primary-order analyze-gaps-guitar-full-primary-order analyze-guitar-chord-mix-extra-components analyze-guitar-minor-third-candidates analyze-guitar-major-third-candidates analyze-guitar-minor-fifth-candidates analyze-guitar-major-fifth-candidates inspect-guitar-techs-chord-attribute-buckets find-guitar-techs-chord-attribute-patterns find-guitar-techs-chord-route-patterns find-guitar-chord-mix-route-patterns find-egfxset-guitar-route-patterns find-gaps-guitar-route-patterns find-gaps-guitar-full-route-patterns find-guitarset-route-patterns test-guitar-chord-recovery-analysis test-guitar-primary-order-analysis test-guitar-chord-extra-components-analysis test-guitar-techs-chord-samples-parallel test-guitar-chord-mix-samples-serial test-guitar-chord-mix-samples-parallel test-egfxset-guitar-samples-parallel test-gaps-guitar-samples-parallel test-gaps-guitar-samples-full-parallel test-downloaded-guitarset-parallel
+.PHONY: analyze-guitar-chord-mix-recovery analyze-guitar-chord-primary-order analyze-gaps-guitar-full-primary-order analyze-guitar-chord-mix-extra-components analyze-guitar-minor-third-candidates analyze-guitar-major-third-candidates analyze-guitar-minor-fifth-candidates analyze-guitar-major-fifth-candidates inspect-guitar-techs-chord-attribute-buckets find-guitar-techs-chord-attribute-patterns find-guitar-techs-chord-route-patterns find-guitar-chord-mix-route-patterns find-egfxset-guitar-route-patterns find-gaps-guitar-route-patterns find-gaps-guitar-full-route-patterns find-guitarset-route-patterns inspect-medley-solos-misses inspect-medley-solos-misses-cached inspect-medley-solos-debug-cached test-guitar-chord-recovery-analysis test-guitar-primary-order-analysis test-guitar-chord-extra-components-analysis test-guitar-techs-chord-samples-parallel test-guitar-chord-mix-samples-serial test-guitar-chord-mix-samples-parallel test-egfxset-guitar-samples-parallel test-gaps-guitar-samples-parallel test-gaps-guitar-samples-full-parallel test-downloaded-guitarset-parallel
 .PHONY: audition-sample
 .PHONY: find-real-note-first-row-confusion-patterns find-real-note-first-visual-row-confusion-patterns
 .PHONY: analyze-real-note-misses-serial analyze-real-note-misses-parallel analyze-real-note-misses-shard-%
@@ -2128,6 +2129,18 @@ $(MEDLEY_SOLOS_ATTRIBUTE_TSV): $(BUILD_DIR)/analyzer_instrument_family_samples p
 analyze-medley-solos-attributes: $(MEDLEY_SOLOS_ATTRIBUTE_TSV) scripts/summarize_instrument_family_attributes.py
 	$(PYTHON) scripts/summarize_instrument_family_attributes.py "$(MEDLEY_SOLOS_ATTRIBUTE_TSV)"
 	@printf '%s\n' "Medley Solos attribute TSV: $(MEDLEY_SOLOS_ATTRIBUTE_TSV)"
+
+inspect-medley-solos-misses: $(MEDLEY_SOLOS_ATTRIBUTE_TSV) scripts/inspect_instrument_family_misses.py
+	$(PYTHON) scripts/inspect_instrument_family_misses.py "$(MEDLEY_SOLOS_ATTRIBUTE_TSV)"
+
+inspect-medley-solos-misses-cached: scripts/inspect_instrument_family_misses.py
+	@test -s "$(MEDLEY_SOLOS_ATTRIBUTE_TSV)" || { printf '%s\n' "missing $(MEDLEY_SOLOS_ATTRIBUTE_TSV); run make inspect-medley-solos-misses first"; exit 2; }
+	$(PYTHON) scripts/inspect_instrument_family_misses.py "$(MEDLEY_SOLOS_ATTRIBUTE_TSV)"
+
+inspect-medley-solos-debug-cached: $(BUILD_DIR)/analyzer_instrument_family_samples
+	@test -n "$(MEDLEY_SOLOS_DEBUG_SAMPLE_ID)" || { printf '%s\n' "set MEDLEY_SOLOS_DEBUG_SAMPLE_ID to a manifest sample id"; exit 2; }
+	@test -s "$(MEDLEY_SOLOS_SAMPLE_DIR)/manifest.tsv" || { printf '%s\n' "missing $(MEDLEY_SOLOS_SAMPLE_DIR)/manifest.tsv; run make prepare-medley-solos-samples first"; exit 2; }
+	env MUSIC_ANALYZER_INSTRUMENT_FAMILY_SAMPLE_ROOT="$(MEDLEY_SOLOS_SAMPLE_DIR)" MUSIC_ANALYZER_INSTRUMENT_FAMILY_SAMPLES_REQUIRED=1 MUSIC_ANALYZER_INSTRUMENT_FAMILY_REQUIRED_SAMPLES=1 MUSIC_ANALYZER_INSTRUMENT_FAMILY_MIN_RECALL_PERCENT=0 MUSIC_ANALYZER_INSTRUMENT_FAMILY_SAMPLE_ID="$(MEDLEY_SOLOS_DEBUG_SAMPLE_ID)" MUSIC_ANALYZER_INSTRUMENT_FAMILY_DEBUG_SAMPLE_ID="$(MEDLEY_SOLOS_DEBUG_SAMPLE_ID)" $(BUILD_DIR)/analyzer_instrument_family_samples
 
 test-medley-solos-samples-serial: $(BUILD_DIR)/analyzer_instrument_family_samples prepare-medley-solos-samples scripts/run_with_duration.sh
 	$(RUN_WITH_DURATION) analyzer_medley_solos_samples env MUSIC_ANALYZER_INSTRUMENT_FAMILY_SAMPLES_REQUIRED=1 MUSIC_ANALYZER_INSTRUMENT_FAMILY_REQUIRED_SAMPLES="$(MEDLEY_SOLOS_MIN_SAMPLES)" MUSIC_ANALYZER_INSTRUMENT_FAMILY_SAMPLE_ROOT="$(MEDLEY_SOLOS_SAMPLE_DIR)" MUSIC_ANALYZER_INSTRUMENT_FAMILY_MIN_RECALL_PERCENT="$(MEDLEY_SOLOS_MIN_RECALL_PERCENT)" $(BUILD_DIR)/analyzer_instrument_family_samples
@@ -4885,7 +4898,7 @@ test-real-egmd-20: $(BUILD_DIR)/analyzer_egmd
 test-real-egmd-full: $(BUILD_DIR)/analyzer_egmd
 	MUSIC_ANALYZER_EGMD_REQUIRED=1 MUSIC_ANALYZER_EGMD_REQUIRED_RECORDINGS=45537 MUSIC_ANALYZER_EGMD_REQUIRED_WINDOWS=182148 $(BUILD_DIR)/analyzer_egmd
 
-.PHONY: inspect-instrument-sample-store configure-instrument-sample-store test-instrument-sample-store inspect-sample-build-migration migrate-sample-build-directories test-sample-build-migration
+.PHONY: inspect-instrument-sample-store configure-instrument-sample-store test-instrument-sample-store inspect-sample-build-migration migrate-sample-build-directories test-sample-build-migration test-instrument-family-miss-inspector
 
 inspect-instrument-sample-store: scripts/configure_instrument_sample_store.py
 	$(PYTHON) scripts/configure_instrument_sample_store.py --status --link "$(INSTRUMENT_SAMPLE_STORE_LINK)" --target "$(INSTRUMENT_SAMPLE_STORE)"
@@ -4904,6 +4917,9 @@ test-instrument-sample-store: tests/test_configure_instrument_sample_store.py sc
 
 test-sample-build-migration: tests/test_migrate_sample_build_directories.py scripts/migrate_sample_build_directories.py
 	$(PYTHON) tests/test_migrate_sample_build_directories.py
+
+test-instrument-family-miss-inspector: tests/test_inspect_instrument_family_misses.py scripts/inspect_instrument_family_misses.py
+	$(PYTHON) tests/test_inspect_instrument_family_misses.py
 
 inspect-real-urmp: tests/inspect_urmp_dataset.py
 	MUSIC_ANALYZER_DATASET_ROOT=$(REAL_DATASET_ROOT) $(PYTHON) tests/inspect_urmp_dataset.py

@@ -401,6 +401,51 @@ const char *family_name(int index)
 	return index >= 0 && index < 4 ? kNames[index] : "unknown";
 }
 
+const char *instrument_name(mao::InstrumentKind instrument)
+{
+	switch (instrument) {
+	case mao::InstrumentKind::Bass:
+		return "bass";
+	case mao::InstrumentKind::Guitar:
+		return "guitar";
+	case mao::InstrumentKind::Keyboard:
+		return "piano";
+	case mao::InstrumentKind::Vocal:
+		return "vocals";
+	case mao::InstrumentKind::Other:
+		return "other";
+	case mao::InstrumentKind::Ambiguous:
+		return "ambiguous";
+	}
+	return "unknown";
+}
+
+void print_full_mix_debug(const SampleRow &row, std::size_t buffer_index,
+			  const mao::AnalysisSnapshot &snapshot)
+{
+	std::fprintf(stderr,
+		     "instrument_family_debug sample=%s expected=%s/%s buffer=%zu rows="
+		     "guitar:%s piano:%s vocals:%s other:%s candidates=%zu\n",
+		     row.id.c_str(), row.family.c_str(), row.instrument.c_str(), buffer_index,
+		     snapshot.guitar.label, snapshot.keyboard.label, snapshot.vocal.label,
+		     snapshot.other.label, snapshot.full_mix_debug_candidate_count);
+	const std::size_t count = std::min(snapshot.full_mix_debug_candidate_count,
+					   snapshot.full_mix_debug_candidates.size());
+	for (std::size_t index = 0; index < count; ++index) {
+		const mao::FullMixDebugCandidate &debug = snapshot.full_mix_debug_candidates[index];
+		std::fprintf(stderr,
+			     "  candidate midi=%d owner=%s own=%.3f scores=k%.3f g%.3f v%.3f o%.3f "
+			     "level=%.3f pitch=%.3f periodic=%.3f fit=%.3f noise=%.3f centroid=%.3f "
+			     "harmonics=%.3f,%.3f,%.3f,%.3f\n",
+			     debug.midi, instrument_name(debug.owner), debug.ownership_confidence,
+			     debug.keyboard_score, debug.guitar_score, debug.vocal_score, debug.other_score,
+			     debug.spectral_level, debug.pitch_confidence, debug.periodicity,
+			     debug.harmonic_fit_error, debug.local_noise_level, debug.spectral_centroid,
+			     debug.harmonic_ratios[1], debug.harmonic_ratios[2], debug.harmonic_ratios[3],
+			     debug.harmonic_ratios[4]);
+	}
+}
+
 mao::AnalysisSnapshot analyze_buffer(const mao_test::Buffer &buffer, uint32_t sample_rate, int frames = 4)
 {
 	mao::AnalysisEngine engine;
@@ -450,6 +495,8 @@ int main()
 	const bool required = std::getenv("MUSIC_ANALYZER_INSTRUMENT_FAMILY_SAMPLES_REQUIRED") != nullptr;
 	const bool strict_sample_recall =
 		std::getenv("MUSIC_ANALYZER_INSTRUMENT_FAMILY_STRICT_SAMPLE_RECALL") != nullptr;
+	const char *sample_filter = std::getenv("MUSIC_ANALYZER_INSTRUMENT_FAMILY_SAMPLE_ID");
+	const char *debug_sample_id = std::getenv("MUSIC_ANALYZER_INSTRUMENT_FAMILY_DEBUG_SAMPLE_ID");
 	const int required_samples = positive_int_env("MUSIC_ANALYZER_INSTRUMENT_FAMILY_REQUIRED_SAMPLES", 600);
 	const int min_recall_percent = percent_env("MUSIC_ANALYZER_INSTRUMENT_FAMILY_MIN_RECALL_PERCENT", 20);
 	const int shard_count = positive_int_env("MUSIC_ANALYZER_INSTRUMENT_FAMILY_SHARD_COUNT", 1);
@@ -495,6 +542,7 @@ int main()
 	std::array<FamilyStats, 4> stats = {};
 	std::map<std::string, FamilyStats> instrument_stats;
 	int usable = 0;
+	int selected = 0;
 	std::size_t row_ordinal = 0;
 	for (const SampleRow &row : rows) {
 		const std::size_t current_row_ordinal = row_ordinal++;
@@ -502,6 +550,9 @@ int main()
 		    current_row_ordinal % static_cast<std::size_t>(shard_count) !=
 			    static_cast<std::size_t>(shard_index))
 			continue;
+		if (sample_filter && *sample_filter && row.id != sample_filter)
+			continue;
+		++selected;
 
 		std::vector<float> samples;
 		uint32_t sample_rate = 0;
@@ -523,6 +574,8 @@ int main()
 		for (std::size_t buffer_index = 0; buffer_index < buffers.size(); ++buffer_index) {
 			const mao_test::Buffer &buffer = buffers[buffer_index];
 			const mao::AnalysisSnapshot snapshot = analyze_buffer(buffer, sample_rate);
+			if (debug_sample_id && *debug_sample_id && row.id == debug_sample_id)
+				print_full_mix_debug(row, buffer_index, snapshot);
 			if (attribute_file)
 				append_attribute_row(attribute_file, row, buffer_index, snapshot);
 			for (int i = 0; i < 4; ++i) {
@@ -554,6 +607,7 @@ int main()
 				      ": expected " + row.family + " row activity in full-mix mode");
 		}
 	}
+	runner.expect(selected > 0, "no manifest sample matched MUSIC_ANALYZER_INSTRUMENT_FAMILY_SAMPLE_ID");
 
 	for (int i = 0; i < 4; ++i) {
 		const int total = stats[static_cast<std::size_t>(i)].total;
