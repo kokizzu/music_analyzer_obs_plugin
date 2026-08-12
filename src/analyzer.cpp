@@ -283,9 +283,19 @@ int supported_low_monophonic_other_fundamental(const std::array<float, kNoteProb
 		    peak_midi != upper_major_third && peak_midi != upper_fifth)
 			continue;
 		const float fundamental_level = probe_level(powers, lower);
+		const float octave_level = probe_level(powers, octave);
+		const float fifth_level = probe_level(powers, fifth);
+		const bool octave_fifth_stack = octave_level >= peak_level * 0.30f &&
+			fifth_level >= peak_level * 0.30f;
+		// A few mid-register acoustic winds emphasize their fifth partial enough
+		// to suppress the octave.  This is intentionally limited to G3--B3 and
+		// a selected +28 partial: arbitrary lower subharmonics still need octave
+		// evidence above.
+		const bool mid_wind_fifth_partial = lower >= 55 && lower <= 59 &&
+			peak_midi == upper_major_third && fifth_level >= std::max(fundamental_level * 0.75f,
+									   peak_level * 0.18f);
 		if (fundamental_level < peak_level * 0.12f ||
-		    probe_level(powers, octave) < peak_level * 0.30f ||
-		    probe_level(powers, fifth) < peak_level * 0.30f)
+		    (!octave_fifth_stack && !mid_wind_fifth_partial))
 			continue;
 		return lower;
 	}
@@ -34261,6 +34271,10 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 								     nullptr, nullptr, false, nullptr, 0.30f, true);
 					if (!raw_candidates.empty()) {
 						const NoteCandidate &raw_candidate = raw_candidates[0];
+						snapshot.other_debug_raw_candidate_midi = raw_candidate.midi;
+						snapshot.other_debug_raw_candidate_score = raw_candidate.score;
+						snapshot.other_debug_raw_candidate_level =
+							probe_level(note_powers, raw_candidate.midi);
 						const int recovered =
 							supported_low_monophonic_other_fundamental(note_powers,
 										       raw_candidate.midi);

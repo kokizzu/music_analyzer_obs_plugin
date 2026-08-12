@@ -58,6 +58,7 @@ def trait_text(first: dict[str, str], rows: list[dict[str, str]]) -> str:
 		"raw_octave_down_ratio", "raw_octave_up_ratio", "raw_fifth_up_ratio", "raw_second_octave_up_ratio",
 		"raw_upper_major_third_ratio", "raw_upper_fifth_ratio", "raw_third_octave_up_ratio",
 		"other_pre_envelope_midi", "other_pre_envelope_score", "other_pre_envelope_raw_level",
+		"other_raw_candidate_midi", "other_raw_candidate_score", "other_raw_candidate_level",
         "other_score", "bass_score", "guitar_score", "keyboard_score", "vocal_score",
         "spectral_level", "pitch_confidence", "periodicity", "harmonicity", "fit_error",
         "centroid", "slope", "noise", "partial1", "partial2", "partial3", "partial4", "partial5",
@@ -88,9 +89,18 @@ def same_pitch_class_offset(first: dict[str, str], rows: list[dict[str, str]]) -
     return min(candidates, key=lambda midi: abs(midi - expected)) - expected
 
 
+def raw_local_offset(first: dict[str, str]) -> int | None:
+    try:
+        return int(first["raw_local_best_midi"]) - int(first["expected_midi"])
+    except ValueError:
+        return None
+
+
 def analyze(path: Path, examples: int, sample_id: str = "", pre_offset: int | None = None,
-            same_pc_offset: int | None = None) -> str:
+            same_pc_offset: int | None = None, source: str = "", raw_offset: int | None = None) -> str:
     misses = sample_misses(path)
+    if source:
+        misses = [(first, rows) for first, rows in misses if first["source"] == source]
     if sample_id:
         selected = [(first, rows) for first, rows in misses if first["sample_id"] == sample_id]
         if not selected:
@@ -115,11 +125,16 @@ def analyze(path: Path, examples: int, sample_id: str = "", pre_offset: int | No
         return "\n".join(trait_text(first, rows) for first, rows in selected[:examples]) or (
             f"exact-midi misses with displayed pitch-class offset {same_pc_offset:+d}: none"
         )
+    if raw_offset is not None:
+        selected = [(first, rows) for first, rows in misses if raw_local_offset(first) == raw_offset]
+        return "\n".join(trait_text(first, rows) for first, rows in selected[:examples]) or (
+            f"exact-midi misses with raw local-best offset {raw_offset:+d}: none"
+        )
     by_family: collections.Counter[str] = collections.Counter()
     by_source: collections.Counter[str] = collections.Counter()
     by_expected_octave: collections.Counter[int] = collections.Counter()
     same_pc_offset: collections.Counter[str] = collections.Counter()
-    raw_local_offset: collections.Counter[str] = collections.Counter()
+    raw_local_offsets: collections.Counter[str] = collections.Counter()
     pre_envelope_offset: collections.Counter[str] = collections.Counter()
     raw_rank: collections.Counter[str] = collections.Counter()
     example_rows: list[str] = []
@@ -137,11 +152,11 @@ def analyze(path: Path, examples: int, sample_id: str = "", pre_offset: int | No
         else:
             same_pc_offset["none"] += 1
 
-        try:
-            local_best = int(first.get("raw_local_best_midi", ""))
-            raw_local_offset[f"{local_best - expected:+d}"] += 1
-        except ValueError:
-            raw_local_offset["none"] += 1
+        local_offset = raw_local_offset(first)
+        if local_offset is not None:
+            raw_local_offsets[f"{local_offset:+d}"] += 1
+        else:
+            raw_local_offsets["none"] += 1
         try:
             pre_envelope = int(first.get("other_pre_envelope_midi", ""))
             pre_envelope_offset[f"{pre_envelope - expected:+d}"] += 1
@@ -169,7 +184,7 @@ def analyze(path: Path, examples: int, sample_id: str = "", pre_offset: int | No
         f"by source {counter_text(by_source)}",
         f"by expected octave {counter_text(by_expected_octave)}",
         f"expected-row same-pitch-class MIDI offset {counter_text(same_pc_offset)}",
-        f"raw local-best MIDI offset {counter_text(raw_local_offset)}",
+        f"raw local-best MIDI offset {counter_text(raw_local_offsets)}",
         f"other pre-envelope MIDI offset {counter_text(pre_envelope_offset)}",
         f"raw expected rank {counter_text(raw_rank)}",
         "examples:",
@@ -185,8 +200,11 @@ def main() -> None:
     parser.add_argument("--sample-id", default="")
     parser.add_argument("--pre-offset", type=int)
     parser.add_argument("--same-pc-offset", type=int)
+    parser.add_argument("--source", default="")
+    parser.add_argument("--raw-offset", type=int)
     args = parser.parse_args()
-    print(analyze(args.input, args.examples, args.sample_id, args.pre_offset, args.same_pc_offset))
+    print(analyze(args.input, args.examples, args.sample_id, args.pre_offset, args.same_pc_offset,
+                  args.source, args.raw_offset))
 
 
 if __name__ == "__main__":

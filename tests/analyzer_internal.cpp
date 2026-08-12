@@ -115,6 +115,15 @@ void check_supported_low_monophonic_other_fundamental(Runner &runner)
 	powers[static_cast<std::size_t>(79 - kFirstMidi)] = 1.00f; // G5 selected octave
 	runner.expect(supported_low_monophonic_other_fundamental(powers, 79) == 55,
 		      "low monophonic other recovery: expected G3 from second-octave stack");
+	powers.fill(0.0f);
+	set_probe_level(powers, 55, 0.22f); // G3 fundamental
+	set_probe_level(powers, 74, 0.24f); // D5 fifth
+	set_probe_level(powers, 83, 1.00f); // B5 fifth partial / selected peak
+	runner.expect(supported_low_monophonic_other_fundamental(powers, 83) == 55,
+		      "low monophonic other recovery: expected G3 from sparse fifth-partial stack");
+	set_probe_level(powers, 74, 0.15f);
+	runner.expect(supported_low_monophonic_other_fundamental(powers, 83) < 0,
+		      "low monophonic other recovery: expected unsupported sparse fifth partial to stay rejected");
 }
 
 void check_direct_upper_other_octave_primary(Runner &runner)

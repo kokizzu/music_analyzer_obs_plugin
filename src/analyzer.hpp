@@ -238,6 +238,9 @@ struct AnalysisSnapshot {
 	int other_debug_pre_envelope_midi = -1;
 	float other_debug_pre_envelope_score = 0.0f;
 	float other_debug_pre_envelope_raw_level = 0.0f;
+	int other_debug_raw_candidate_midi = -1;
+	float other_debug_raw_candidate_score = 0.0f;
+	float other_debug_raw_candidate_level = 0.0f;
 	InstrumentState other_chord = {};
 };
 

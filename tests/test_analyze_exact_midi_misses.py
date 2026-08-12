@@ -37,6 +37,23 @@ def test_reports_sample_level_octave_misses() -> None:
         )
     assert "traits bass-b expected=A2/45" in filtered
     assert "traits flute-a" not in filtered
+    with tempfile.TemporaryDirectory() as tmp:
+        path = pathlib.Path(tmp) / "attributes.tsv"
+        path.write_text("\n".join((header, *rows, "")))
+        source_filtered = subprocess.check_output(
+            [sys.executable, str(SCRIPT), str(path), "--source", "flute", "--same-pc-offset", "12"],
+            text=True,
+        )
+    assert "traits flute-a expected=C4/60" in source_filtered
+    assert "bass-b" not in source_filtered
+    with tempfile.TemporaryDirectory() as tmp:
+        path = pathlib.Path(tmp) / "attributes.tsv"
+        path.write_text("\n".join((header, *rows, "")))
+        raw_filtered = subprocess.check_output(
+            [sys.executable, str(SCRIPT), str(path), "--raw-offset", "12"], text=True
+        )
+    assert "traits flute-a expected=C4/60" in raw_filtered
+    assert "traits bass-b expected=A2/45" in raw_filtered
 
 
 if __name__ == "__main__":

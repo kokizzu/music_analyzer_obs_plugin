@@ -133,9 +133,9 @@ Source: `build/philharmonia_full_attributes.tsv`
 
 | Metric | Accurate / total | Remaining |
 | --- | ---: | ---: |
-| Philharmonia — Exact expected MIDI note | 6995 / 7285 (96.0%) | 290 |
+| Philharmonia — Exact expected MIDI note | 7015 / 7285 (96.3%) | 270 |
 | Philharmonia — Guitar — exact expected MIDI note | 144 / 146 (98.6%) | 2 |
-| Philharmonia — Other — exact expected MIDI note | 6382 / 6668 (95.7%) | 286 |
+| Philharmonia — Other — exact expected MIDI note | 6402 / 6668 (96.0%) | 266 |
 | Philharmonia — Bass — exact expected MIDI note | 469 / 471 (99.6%) | 2 |
 
 ## Medley Solos instrument routing

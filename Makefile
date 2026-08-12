@@ -3378,7 +3378,10 @@ test-philharmonia-samples-full: test-philharmonia-samples-full-parallel
 test-philharmonia-samples-full-parallel: $(BUILD_DIR)/analyzer_real_note_samples prepare-philharmonia-samples-full scripts/run_with_duration.sh scripts/check_real_note_sample_shards.py
 	+$(RUN_REAL_NOTE_SAMPLE_SHARDS)
 
-$(PHILHARMONIA_FULL_ATTRIBUTE_TSV): $(BUILD_DIR)/analyzer_real_note_samples $(PHILHARMONIA_FULL_SAMPLE_DIR)/manifest.tsv scripts/build_sharded_tsv.sh scripts/run_with_lock.sh | $(BUILD_DIR)
+$(PHILHARMONIA_FULL_ATTRIBUTE_TSV): FORCE $(BUILD_DIR)/analyzer_real_note_samples $(PHILHARMONIA_FULL_SAMPLE_DIR)/manifest.tsv scripts/build_sharded_tsv.sh scripts/run_with_lock.sh | $(BUILD_DIR)
+	# The sample drive can retain objects with future timestamps; force the
+	# analyzer link before measuring so this report always reflects source.
+	+$(MAKE) -B $(BUILD_DIR)/analyzer_real_note_samples
 	+$(SHELL) scripts/run_with_lock.sh "$(PHILHARMONIA_FULL_ATTRIBUTE_LOCK_DIR)" -- "$(SHELL)" scripts/build_sharded_tsv.sh "$@" "$(MAKE)" "$(REAL_NOTE_SAMPLE_TEST_MAKE_JOBS)" $(PHILHARMONIA_FULL_ATTRIBUTE_PARTS)
 
 $(BUILD_DIR)/philharmonia_full_attributes.shard-%.tsv: FORCE $(BUILD_DIR)/analyzer_real_note_samples $(PHILHARMONIA_FULL_SAMPLE_DIR)/manifest.tsv scripts/run_with_duration.sh | $(BUILD_DIR)
@@ -3397,7 +3400,7 @@ analyze-philharmonia-full-attributes: $(PHILHARMONIA_FULL_DETECTED_ATTRIBUTE_ROW
 
 analyze-philharmonia-full-exact-midi-misses: scripts/analyze_exact_midi_misses.py
 	@test -f "$(PHILHARMONIA_FULL_ATTRIBUTE_TSV)" || { printf '%s\n' "missing $(PHILHARMONIA_FULL_ATTRIBUTE_TSV); run make test-philharmonia-samples-full first"; exit 2; }
-	$(PYTHON) scripts/analyze_exact_midi_misses.py "$(PHILHARMONIA_FULL_ATTRIBUTE_TSV)" $(if $(EXACT_MIDI_SAMPLE_ID),--sample-id "$(EXACT_MIDI_SAMPLE_ID)") $(if $(EXACT_MIDI_PRE_OFFSET),--pre-offset "$(EXACT_MIDI_PRE_OFFSET)") $(if $(EXACT_MIDI_SAME_PC_OFFSET),--same-pc-offset "$(EXACT_MIDI_SAME_PC_OFFSET)")
+	$(PYTHON) scripts/analyze_exact_midi_misses.py "$(PHILHARMONIA_FULL_ATTRIBUTE_TSV)" $(if $(EXACT_MIDI_SAMPLE_ID),--sample-id "$(EXACT_MIDI_SAMPLE_ID)") $(if $(EXACT_MIDI_PRE_OFFSET),--pre-offset "$(EXACT_MIDI_PRE_OFFSET)") $(if $(EXACT_MIDI_SAME_PC_OFFSET),--same-pc-offset "$(EXACT_MIDI_SAME_PC_OFFSET)") $(if $(EXACT_MIDI_SOURCE),--source "$(EXACT_MIDI_SOURCE)") $(if $(EXACT_MIDI_RAW_OFFSET),--raw-offset "$(EXACT_MIDI_RAW_OFFSET)")
 
 test-analyze-exact-midi-misses: tests/test_analyze_exact_midi_misses.py scripts/analyze_exact_midi_misses.py
 	$(PYTHON) tests/test_analyze_exact_midi_misses.py
