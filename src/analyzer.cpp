@@ -301,8 +301,15 @@ int supported_low_monophonic_other_fundamental(const std::array<float, kNoteProb
 		const bool upper_wind_octave_only = lower >= 60 && lower <= 71 &&
 			peak_midi == octave && fundamental_level >= peak_level * 0.13f &&
 			fifth_level <= peak_level * 0.15f;
-		if (fundamental_level < peak_level * 0.12f ||
-		    (!octave_fifth_stack && !mid_wind_fifth_partial && !upper_wind_octave_only))
+		// Low winds can peak two octaves over C3--B3 while retaining their root,
+		// octave, and fifth.  All three lower partials are required so this is not
+		// an arbitrary subharmonic inferred from a single high peak.
+		const bool low_wind_second_octave_stack = lower >= 48 && lower <= 59 &&
+			peak_midi == second_octave && fundamental_level >= peak_level * 0.09f &&
+			octave_level >= peak_level * 0.13f && fifth_level >= peak_level * 0.13f;
+		if ((fundamental_level < peak_level * 0.12f && !low_wind_second_octave_stack) ||
+		    (!octave_fifth_stack && !mid_wind_fifth_partial && !upper_wind_octave_only &&
+		     !low_wind_second_octave_stack))
 			continue;
 		return lower;
 	}
@@ -314,6 +321,10 @@ struct LowMonophonicOtherRecoveryTraits {
 	float fundamental_ratio = 0.0f;
 	float octave_ratio = 0.0f;
 	float fifth_ratio = 0.0f;
+	int second_octave_lower_midi = -1;
+	float second_octave_fundamental_ratio = 0.0f;
+	float second_octave_octave_ratio = 0.0f;
+	float second_octave_fifth_ratio = 0.0f;
 };
 
 LowMonophonicOtherRecoveryTraits low_monophonic_other_recovery_traits(
@@ -334,6 +345,17 @@ LowMonophonicOtherRecoveryTraits low_monophonic_other_recovery_traits(
 		const int second_octave = lower + 24;
 		const int upper_major_third = lower + 28;
 		const int upper_fifth = lower + 31;
+		if (peak_midi == second_octave) {
+			const float fundamental_ratio = probe_level(powers, lower) / peak_level;
+			if (traits.second_octave_lower_midi < 0 ||
+			    fundamental_ratio > traits.second_octave_fundamental_ratio) {
+				traits.second_octave_lower_midi = lower;
+				traits.second_octave_fundamental_ratio = fundamental_ratio;
+				traits.second_octave_octave_ratio =
+					probe_level(powers, octave) / peak_level;
+				traits.second_octave_fifth_ratio = probe_level(powers, fifth) / peak_level;
+			}
+		}
 		if (peak_midi != octave && peak_midi != fifth && peak_midi != second_octave &&
 		    peak_midi != upper_major_third && peak_midi != upper_fifth)
 			continue;
@@ -34301,6 +34323,14 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 						pre_recovery_traits.octave_ratio;
 					snapshot.other_debug_pre_envelope_recovery_fifth_ratio =
 						pre_recovery_traits.fifth_ratio;
+					snapshot.other_debug_pre_envelope_second_octave_lower_midi =
+						pre_recovery_traits.second_octave_lower_midi;
+					snapshot.other_debug_pre_envelope_second_octave_fundamental_ratio =
+						pre_recovery_traits.second_octave_fundamental_ratio;
+					snapshot.other_debug_pre_envelope_second_octave_octave_ratio =
+						pre_recovery_traits.second_octave_octave_ratio;
+					snapshot.other_debug_pre_envelope_second_octave_fifth_ratio =
+						pre_recovery_traits.second_octave_fifth_ratio;
 					if (monophonic_other_source || input_mode == AnalysisInputMode::IsolatedOther) {
 					const int recovered_fundamental =
 						supported_low_monophonic_other_fundamental(other_note_powers, candidate.midi);
@@ -34342,6 +34372,14 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 							raw_recovery_traits.octave_ratio;
 						snapshot.other_debug_raw_recovery_fifth_ratio =
 							raw_recovery_traits.fifth_ratio;
+						snapshot.other_debug_raw_second_octave_lower_midi =
+							raw_recovery_traits.second_octave_lower_midi;
+						snapshot.other_debug_raw_second_octave_fundamental_ratio =
+							raw_recovery_traits.second_octave_fundamental_ratio;
+						snapshot.other_debug_raw_second_octave_octave_ratio =
+							raw_recovery_traits.second_octave_octave_ratio;
+						snapshot.other_debug_raw_second_octave_fifth_ratio =
+							raw_recovery_traits.second_octave_fifth_ratio;
 						const int recovered =
 							supported_low_monophonic_other_fundamental(note_powers,
 									       raw_candidate.midi);

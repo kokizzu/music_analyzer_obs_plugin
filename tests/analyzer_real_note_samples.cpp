@@ -967,10 +967,18 @@ void print_attribute_header(std::ostream &out)
 	    << "\tother_pre_envelope_recovered_midi"
 	    << "\tother_pre_envelope_recovery_lower_midi\tother_pre_envelope_recovery_fundamental_ratio"
 	    << "\tother_pre_envelope_recovery_octave_ratio\tother_pre_envelope_recovery_fifth_ratio"
+	    << "\tother_pre_envelope_second_octave_lower_midi"
+	    << "\tother_pre_envelope_second_octave_fundamental_ratio"
+	    << "\tother_pre_envelope_second_octave_octave_ratio"
+	    << "\tother_pre_envelope_second_octave_fifth_ratio"
 	    << "\tother_raw_candidate_midi\tother_raw_candidate_score\tother_raw_candidate_level"
 	    << "\tother_raw_recovered_midi"
 	    << "\tother_raw_recovery_lower_midi\tother_raw_recovery_fundamental_ratio"
 	    << "\tother_raw_recovery_octave_ratio\tother_raw_recovery_fifth_ratio"
+	    << "\tother_raw_second_octave_lower_midi"
+	    << "\tother_raw_second_octave_fundamental_ratio"
+	    << "\tother_raw_second_octave_octave_ratio"
+	    << "\tother_raw_second_octave_fifth_ratio"
 	    << "\trms\tlow\tmid\thigh\tkick\tsnare\thihat\tcrash\ttom\tride\trim"
 	    << "\tdebug_note\tdebug_midi\tdebug_owner\tdebug_conf"
 	    << "\tonset_strength\tdecay_rate\tpitch_stability\tsimultaneous_onset"
@@ -1094,6 +1102,10 @@ void append_attribute_row(std::vector<std::string> &lines, const SampleRow &row,
 	append_tsv(line, snapshot.other_debug_pre_envelope_recovery_fundamental_ratio);
 	append_tsv(line, snapshot.other_debug_pre_envelope_recovery_octave_ratio);
 	append_tsv(line, snapshot.other_debug_pre_envelope_recovery_fifth_ratio);
+	append_tsv(line, snapshot.other_debug_pre_envelope_second_octave_lower_midi);
+	append_tsv(line, snapshot.other_debug_pre_envelope_second_octave_fundamental_ratio);
+	append_tsv(line, snapshot.other_debug_pre_envelope_second_octave_octave_ratio);
+	append_tsv(line, snapshot.other_debug_pre_envelope_second_octave_fifth_ratio);
 	append_tsv(line, snapshot.other_debug_raw_candidate_midi);
 	append_tsv(line, snapshot.other_debug_raw_candidate_score);
 	append_tsv(line, snapshot.other_debug_raw_candidate_level);
@@ -1102,6 +1114,10 @@ void append_attribute_row(std::vector<std::string> &lines, const SampleRow &row,
 	append_tsv(line, snapshot.other_debug_raw_recovery_fundamental_ratio);
 	append_tsv(line, snapshot.other_debug_raw_recovery_octave_ratio);
 	append_tsv(line, snapshot.other_debug_raw_recovery_fifth_ratio);
+	append_tsv(line, snapshot.other_debug_raw_second_octave_lower_midi);
+	append_tsv(line, snapshot.other_debug_raw_second_octave_fundamental_ratio);
+	append_tsv(line, snapshot.other_debug_raw_second_octave_octave_ratio);
+	append_tsv(line, snapshot.other_debug_raw_second_octave_fifth_ratio);
 	append_tsv(line, snapshot.rms);
 	append_tsv(line, snapshot.low_energy);
 	append_tsv(line, snapshot.mid_energy);
