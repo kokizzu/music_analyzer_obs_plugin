@@ -143,6 +143,18 @@ void check_supported_low_monophonic_other_fundamental(Runner &runner)
 	runner.expect(supported_named_brass_rich_octave_fundamental("brass track", powers, 70) < 0,
 		      "named brass octave recovery: expected weak A#3 fifth to stay rejected");
 	powers.fill(0.0f);
+	set_probe_level(powers, 50, 0.112f); // D3 direct bassoon body
+	set_probe_level(powers, 62, 0.300f); // D4 octave
+	set_probe_level(powers, 69, 1.00f); // A4 selected fifth
+	set_probe_level(powers, 74, 0.41f); // D5 second octave
+	set_probe_level(powers, 78, 0.045f); // F#5 upper major third
+	set_probe_level(powers, 81, 0.037f); // A5 upper fifth
+	runner.expect(supported_low_monophonic_other_fundamental(powers, 69) == 50,
+		      "low monophonic other recovery: expected bounded D3 bassoon fifth stack");
+	set_probe_level(powers, 78, 0.060f);
+	runner.expect(supported_low_monophonic_other_fundamental(powers, 69) != 50,
+		      "low monophonic other recovery: expected bright D3 bassoon upper third to stay rejected");
+	powers.fill(0.0f);
 	powers[static_cast<std::size_t>(50 - kFirstMidi)] = 0.155f; // D3 fundamental
 	powers[static_cast<std::size_t>(62 - kFirstMidi)] = 0.77f;  // D4 octave
 	powers[static_cast<std::size_t>(69 - kFirstMidi)] = 1.0f;   // A4 fifth / selected peak

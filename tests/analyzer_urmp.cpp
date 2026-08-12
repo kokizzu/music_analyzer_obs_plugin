@@ -1850,6 +1850,8 @@ int main()
 	int track_hits = 0;
 	int track_checks = 0;
 	int emitted_track_traits = 0;
+	const int max_emitted_track_traits =
+		resolve_positive_int_env("MUSIC_ANALYZER_URMP_VERBOSE_TRACK_TRAIT_LIMIT", 48);
 	MixRecallStats provided_mix_stats;
 	MixRecallStats summed_mix_stats;
 	MixRecallStats provided_stream_stats;
@@ -2037,7 +2039,7 @@ int main()
 							     mao_test::note_label(track_snapshot.other_debug_pre_envelope_midi).c_str() : "--",
 							     track_snapshot.other_debug_pre_envelope_score,
 							     track_snapshot.other_debug_pre_envelope_raw_level, track_snapshot.rms);
-					if (verbose_track_traits_enabled() && emitted_track_traits < 48) {
+					if (verbose_track_traits_enabled() && emitted_track_traits < max_emitted_track_traits) {
 						++emitted_track_traits;
 						std::fprintf(
 							stderr, "URMP recovery traits %s #%d %s at %.3fs: expected %s, pre lower %s ratios "
