@@ -134,6 +134,31 @@ void check_quiet_monophonic_other_recovery_bounds(Runner &runner)
 		      "quiet named string D3 recovery: expected weak direct body to stay rejected");
 }
 
+void check_quiet_monophonic_other_visual_floor(Runner &runner)
+{
+	std::array<float, kNoteProbeCount> powers = {};
+	set_probe_level(powers, 55, 1.00f); // G3 direct monophonic peak
+	NoteGrid grid = {};
+	InstrumentState state = {};
+	constexpr float rms = 0.0034f;
+	set_instrument_note_set(grid, state, powers, kMonophonicOtherMinMidi, kOtherMaxMidi,
+						-1, 1.0f, rms, 1, nullptr, nullptr, false, nullptr, 0.30f,
+						false, true, kMonophonicOtherQuietRecoveryFloor,
+						note_visual_loudness(rms, kMonophonicOtherQuietRecoveryFloor));
+	const NoteCell &g3 = grid.cells[midi_pitch_class(55)];
+	runner.expect(g3.active && g3.midi == 55,
+		      "quiet monophonic other visual floor: expected admitted G3 peak to retain a visible cell");
+	runner.expect(g3.level >= kNoteEnvelopeNewNoteFloor,
+		      "quiet monophonic other visual floor: expected admitted G3 peak to clear immediate confirmation");
+	std::array<NoteTrackingState, kNoteProbeCount> tracking = {};
+	smooth_note_grid_envelope(grid, state, tracking, -1, 0.10f, 1, nullptr,
+					 kNoteAttackConfirmFrames, kMonophonicOtherImmediateConfirmFloor,
+					 kNoteEnvelopeReleaseSeconds, kMonophonicOtherImmediateConfirmFloor);
+	const NoteCell &smoothed_g3 = grid.cells[midi_pitch_class(55)];
+	runner.expect(smoothed_g3.active && smoothed_g3.midi == 55,
+		      "quiet monophonic other visual floor: expected immediately confirmed G3 to remain visible");
+}
+
 void check_supported_low_monophonic_other_fundamental(Runner &runner)
 {
 	RangeResult spectral = {55, 0.265f, 40.0f};
@@ -5676,6 +5701,7 @@ int run()
 	check_auto_source_mode_resolution(runner);
 	check_low_acoustic_bass_suboctave_display(runner);
 	check_quiet_monophonic_other_recovery_bounds(runner);
+	check_quiet_monophonic_other_visual_floor(runner);
 	check_supported_low_monophonic_other_fundamental(runner);
 	check_direct_upper_other_octave_primary(runner);
 	check_crowded_guitar_prune_modes(runner);

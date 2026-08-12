@@ -35020,14 +35020,21 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 					}
 				}
 			}
+			const float other_rms_floor = monophonic_other_source ?
+				(quiet_named_string_d3_recovery ? 0.0018f :
+				 (quiet_named_brass_d4_recovery ? 0.0020f : kMonophonicOtherQuietRecoveryFloor)) :
+				kNoteRmsFloor;
+			// The same lower floor that admits a verified quiet monophonic note
+			// must also drive its visual level. Using the normal floor here turns
+			// every 0.003--0.0055 RMS candidate into a zero-level cell before the
+			// envelope can confirm it.
+			const float other_visual_loudness = monophonic_other_source ?
+				note_visual_loudness(rms, other_rms_floor) : -1.0f;
 			set_instrument_note_set(snapshot.other_notes, snapshot.other, other_note_powers,
 						min_midi, kOtherMaxMidi, note_root, other_energy, rms,
 						other_max_notes, nullptr, nullptr, false, other_allowed_midis,
 						0.30f, false, true,
-						monophonic_other_source ?
-							(quiet_named_string_d3_recovery ? 0.0018f :
-							 (quiet_named_brass_d4_recovery ? 0.0020f : kMonophonicOtherQuietRecoveryFloor)) :
-							kNoteRmsFloor);
+						other_rms_floor, other_visual_loudness);
 			if (raw_supported_low_fundamental >= 0) {
 				const NoteCell &existing =
 					snapshot.other_notes.cells[midi_pitch_class(raw_supported_low_fundamental)];
@@ -35964,11 +35971,13 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 			mixed_source ? kMixedNoteEnvelopeImmediateConfirmFloor :
 			(monophonic_other_source ? kMonophonicOtherImmediateConfirmFloor :
 						 kNoteEnvelopeImmediateConfirmFloor);
+		const float other_visible_floor = monophonic_other_source ?
+			kMonophonicOtherImmediateConfirmFloor : kNoteEnvelopeVisibleFloor;
 		smooth_note_grid_envelope(snapshot.other_notes, snapshot.other, other_note_tracking_, -1,
 					  interval_seconds, other_max_notes, other_new_notes,
 					  kNoteAttackConfirmFrames,
 					  other_immediate_confirm_floor,
-					  kNoteEnvelopeReleaseSeconds, kNoteEnvelopeVisibleFloor,
+					  kNoteEnvelopeReleaseSeconds, other_visible_floor,
 					  mixed_source ? &mixed_other_display_candidates : nullptr);
 		if (!mixed_source) {
 			prefer_supported_lower_octave_display(snapshot.other_notes, snapshot.other, note_powers,
