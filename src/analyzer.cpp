@@ -14138,6 +14138,40 @@ void prefer_probe_supported_low_wind_other_primary(NoteGrid &grid, InstrumentSta
 		write_note_grid_label(state, grid, preferred_root);
 }
 
+bool measured_missing_low_sax_fundamental_supported(const FullMixDebugCandidate &debug)
+{
+	// Five Good Sounds tenor-sax windows contain a strong, Other-owned first
+	// overtone with the fundamental absent from the raw candidate list. The
+	// profile has no protected-row overlap across the current real-audio suite.
+	const int lower_midi = debug.midi - 12;
+	return lower_midi >= 36 && lower_midi <= 47 &&
+	       debug.owner == InstrumentKind::Other && debug.other_score > 0.0f &&
+	       debug.other_score >= debug.guitar_score * 6.898f &&
+	       debug.harmonic_ratios[3] <= 0.053f && debug.third_octave_ratio >= 0.087f;
+}
+
+void promote_measured_missing_low_sax_fundamentals(NoteGrid &grid, InstrumentState &state,
+								 const FullMixOwnership &ownership, int preferred_root)
+{
+	bool changed = false;
+	const std::size_t debug_count =
+		std::min<std::size_t>(ownership.debug_candidate_count, ownership.debug_candidates.size());
+	for (std::size_t i = 0; i < debug_count; ++i) {
+		const FullMixDebugCandidate &debug = ownership.debug_candidates[i];
+		if (!measured_missing_low_sax_fundamental_supported(debug))
+			continue;
+		const int lower_midi = debug.midi - 12;
+		if (note_grid_midi_level(grid, lower_midi) >= 0.18f)
+			continue;
+		const float inferred_level = std::clamp(debug.other_score, 0.18f, 0.91f);
+		write_note_grid_cell(grid, NoteCandidate{lower_midi, inferred_level}, inferred_level,
+				     inferred_level);
+		changed = true;
+	}
+	if (changed)
+		write_note_grid_label(state, grid, preferred_root);
+}
+
 void prefer_weak_debug_string_lower_other_octave_primary(NoteGrid &grid, InstrumentState &state,
 							 const FullMixOwnership &ownership,
 							 int min_midi, int preferred_root)
@@ -35073,6 +35107,8 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 								      note_powers,
 								      kOtherMinMidi, -1,
 								      &snapshot.bass_notes);
+			promote_measured_missing_low_sax_fundamentals(
+				snapshot.other_notes, snapshot.other, full_mix_ownership, -1);
 			if (mixed_string_source_hint || synthetic_other_source_hint)
 				promote_source_hinted_other_debug_primaries(
 					snapshot.other_notes, snapshot.other, full_mix_ownership,

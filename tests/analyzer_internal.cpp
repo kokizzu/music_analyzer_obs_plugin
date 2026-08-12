@@ -4742,6 +4742,44 @@ void check_low_wind_other_octave_alias_requires_upper_stack(Runner &runner)
 		      "low wind other alias guard: expected weak upper stack to keep original primary");
 }
 
+void check_measured_missing_low_sax_fundamental_is_promoted(Runner &runner)
+{
+	static constexpr int kLowerMidi = 44;
+	static constexpr int kOvertoneMidi = kLowerMidi + 12;
+	NoteGrid grid = {};
+	set_midi(grid, kOvertoneMidi, 0.88f);
+	InstrumentState state = {};
+	write_note_grid_label(state, grid, -1);
+	FullMixOwnership ownership = {};
+	ownership.debug_candidate_count = 1;
+	FullMixDebugCandidate &debug = ownership.debug_candidates[0];
+	debug.midi = kOvertoneMidi;
+	debug.owner = InstrumentKind::Other;
+	debug.other_score = 0.88f;
+	debug.guitar_score = 0.12f;
+	debug.harmonic_ratios[3] = 0.05f;
+	debug.third_octave_ratio = 0.09f;
+
+	promote_measured_missing_low_sax_fundamentals(grid, state, ownership, -1);
+	const NoteCell primary = note_grid_primary_cell_for_pitch_class(grid, midi_pitch_class(kLowerMidi));
+	runner.expect(primary.active && primary.midi == kLowerMidi,
+		      "missing low sax fundamental: expected overtone remapped to supported lower primary");
+	runner.expect(note_grid_midi_level(grid, kLowerMidi) >= 0.87f,
+		      "missing low sax fundamental: expected lower primary to retain overtone strength");
+
+	NoteGrid protected_grid = {};
+	set_midi(protected_grid, kOvertoneMidi, 0.88f);
+	InstrumentState protected_state = {};
+	FullMixOwnership protected_ownership = ownership;
+	protected_ownership.debug_candidates[0].third_octave_ratio = 0.08f;
+	promote_measured_missing_low_sax_fundamentals(
+		protected_grid, protected_state, protected_ownership, -1);
+	const NoteCell protected_primary =
+		note_grid_primary_cell_for_pitch_class(protected_grid, midi_pitch_class(kLowerMidi));
+	runner.expect(protected_primary.active && protected_primary.midi == kOvertoneMidi,
+		      "missing low sax fundamental: expected unsupported profile to keep overtone");
+}
+
 void check_probe_supported_guitar_rootless_major_seventh_with_analysis_residue(Runner &runner)
 {
 	InstrumentState state = {};
@@ -4891,6 +4929,7 @@ int run()
 	check_visible_lower_octave_primary_preserves_visual_strength(runner);
 	check_low_wind_other_octave_alias_promotes_raw_fundamental(runner);
 	check_low_wind_other_octave_alias_requires_upper_stack(runner);
+	check_measured_missing_low_sax_fundamental_is_promoted(runner);
 	if (runner.failures) {
 		std::fprintf(stderr, "analyzer_internal: %d/%d checks failed\n", runner.failures,
 			     runner.checks);

@@ -1374,7 +1374,7 @@ GUITARSET_ATTRIBUTE_GATE_ENV ?= MUSIC_ANALYZER_GUITARSET_ATTRIBUTE_ONLY=1 MUSIC_
 .PHONY: filter-drum-primary-attribute-rows filter-drum-full-attribute-rows filter-drum-full-exact-attribute-rows test-filter-drum-attribute-rows
 .PHONY: test-build-sharded-tsv test-guitarset-shard-check test-instrument-family-shard-check test-musicnet-shard-check
 .PHONY: prepare-guitar-techs-chord-case inspect-guitar-techs-chord-case refresh-guitar-techs-chord-attributes
-.PHONY: prepare-gaps-guitar-samples-full test-gaps-guitar-samples-full analyze-gaps-guitar-misses-full analyze-gaps-guitar-attributes inspect-gaps-guitar-attribute-buckets find-gaps-guitar-attribute-patterns analyze-gaps-guitar-full-attributes inspect-gaps-guitar-full-attribute-buckets find-gaps-guitar-full-attribute-patterns test-good-sounds-full-mix test-good-sounds-full-mix-parallel analyze-good-sounds-full-mix-attributes
+.PHONY: prepare-gaps-guitar-samples-full test-gaps-guitar-samples-full analyze-gaps-guitar-misses-full analyze-gaps-guitar-attributes inspect-gaps-guitar-attribute-buckets find-gaps-guitar-attribute-patterns analyze-gaps-guitar-full-attributes inspect-gaps-guitar-full-attribute-buckets find-gaps-guitar-full-attribute-patterns test-good-sounds-full-mix test-good-sounds-full-mix-parallel analyze-good-sounds-full-mix-attributes refresh-good-sounds-full-mix-attributes-cached
 .PHONY: analyze-guitarset-attributes inspect-guitarset-attribute-buckets find-guitarset-attribute-patterns analyze-egfxset-guitar-attributes inspect-egfxset-guitar-attribute-buckets find-egfxset-guitar-attribute-patterns
 .PHONY: inspect-guitarset-download restore-guitarset-audio-partial test-guitarset-download-inspector
 .PHONY: test-fret-control android-lint icon-assets
@@ -3443,6 +3443,13 @@ $(BUILD_DIR)/good_sounds_full_mix_attributes.shard-%.tsv: FORCE $(BUILD_DIR)/ana
 analyze-good-sounds-full-mix-attributes: $(GOOD_SOUNDS_FULL_MIX_ATTRIBUTE_TSV) scripts/summarize_real_note_attributes.py
 	$(PYTHON) scripts/summarize_real_note_attributes.py "$(GOOD_SOUNDS_FULL_MIX_ATTRIBUTE_TSV)" $(REAL_NOTE_ATTRIBUTE_SUMMARY_ARGS)
 	@printf '%s\n' "attribute TSV: $(GOOD_SOUNDS_FULL_MIX_ATTRIBUTE_TSV)"
+
+# Rebuild attributes from the already prepared external corpus; never invokes
+# the sample preparation/download target during normal detector iteration.
+refresh-good-sounds-full-mix-attributes-cached: $(BUILD_DIR)/analyzer_real_note_samples scripts/build_sharded_tsv.sh scripts/run_with_lock.sh | $(BUILD_DIR)
+	@test -s "$(GOOD_SOUNDS_SAMPLE_DIR)/manifest.tsv" || { printf '%s\n' "missing $(GOOD_SOUNDS_SAMPLE_DIR)/manifest.tsv; prepare samples separately before measuring"; exit 2; }
+	@rm -f "$(GOOD_SOUNDS_FULL_MIX_ATTRIBUTE_TSV)"
+	+$(SHELL) scripts/run_with_lock.sh "$(GOOD_SOUNDS_FULL_MIX_ATTRIBUTE_LOCK_DIR)" -- "$(SHELL)" scripts/build_sharded_tsv.sh "$(GOOD_SOUNDS_FULL_MIX_ATTRIBUTE_TSV)" "$(MAKE)" "$(GOOD_SOUNDS_FULL_MIX_ATTRIBUTE_MAKE_JOBS)" $(GOOD_SOUNDS_FULL_MIX_ATTRIBUTE_PARTS)
 
 prepare-iowa-piano-samples: scripts/prepare_iowa_piano_samples.py | $(BUILD_DIR)
 	IOWA_PIANO_PAGE_URL="$(IOWA_PIANO_PAGE_URL)" IOWA_PIANO_FILE_BASE_URL="$(IOWA_PIANO_FILE_BASE_URL)" IOWA_PIANO_SOURCE_DIR="$(IOWA_PIANO_SOURCE_DIR)" IOWA_PIANO_SAMPLE_DIR="$(IOWA_PIANO_SAMPLE_DIR)" IOWA_PIANO_SAMPLE_LIMIT="$(IOWA_PIANO_SAMPLE_LIMIT)" IOWA_PIANO_MIN_SAMPLES="$(IOWA_PIANO_MIN_PIANO)" IOWA_PIANO_DOWNLOAD_RETRIES="$(IOWA_PIANO_DOWNLOAD_RETRIES)" FFMPEG="$(FFMPEG)" CURL="$(CURL)" $(PYTHON) scripts/prepare_iowa_piano_samples.py --page-url "$(IOWA_PIANO_PAGE_URL)" --file-base-url "$(IOWA_PIANO_FILE_BASE_URL)" --source-dir "$(IOWA_PIANO_SOURCE_DIR)" --output "$(IOWA_PIANO_SAMPLE_DIR)" --limit "$(IOWA_PIANO_SAMPLE_LIMIT)" --min-samples "$(IOWA_PIANO_MIN_PIANO)" --download-retries "$(IOWA_PIANO_DOWNLOAD_RETRIES)" --ffmpeg "$(FFMPEG)" --curl "$(CURL)"
