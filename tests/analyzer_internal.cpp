@@ -128,6 +128,13 @@ void check_quiet_monophonic_other_recovery_bounds(Runner &runner)
 
 void check_supported_low_monophonic_other_fundamental(Runner &runner)
 {
+	RangeResult spectral = {55, 0.265f, 40.0f};
+	RangeResult periodic = {43, 0.805f, 62.0f};
+	runner.expect(choose_isolated_bass_note(spectral, periodic, kBassMaxMidi).midi == 55,
+		      "isolated bass arbitration: expected bounded tuba G3 suboctave alias to retain spectral G3");
+	periodic.score = 65.0f;
+	runner.expect(choose_isolated_bass_note(spectral, periodic, kBassMaxMidi).midi == 43,
+		      "isolated bass arbitration: expected out-of-band tuba periodic score to retain normal periodic G2");
 	std::array<float, kNoteProbeCount> powers = {};
 	set_probe_level(powers, 58, 0.09f); // A#3 direct brass body
 	set_probe_level(powers, 70, 1.00f); // A#4 selected octave
