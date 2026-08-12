@@ -406,6 +406,15 @@ int supported_low_monophonic_other_fundamental(const std::array<float, kNoteProb
 			second_octave_level >= peak_level * 0.05f && second_octave_level <= peak_level * 0.06f &&
 			upper_major_third_level >= peak_level * 0.004f && upper_major_third_level <= peak_level * 0.012f &&
 			upper_fifth_level >= peak_level * 0.002f && upper_fifth_level <= peak_level * 0.005f;
+		// Trumpet A#3 can be octave-led while retaining a measured fifth and a
+		// broad but continuous A#5 second-octave body.  Its direct A#3 body stays
+		// within a narrow 7--12% range, keeping this recovery note-specific.
+		const bool trumpet_as3_octave_ladder = lower == 58 && peak_midi == octave &&
+			fundamental_level >= peak_level * 0.075f && fundamental_level <= peak_level * 0.12f &&
+			fifth_level >= peak_level * 0.10f && fifth_level <= peak_level * 0.19f &&
+			second_octave_level >= peak_level * 0.23f && second_octave_level <= peak_level * 0.65f &&
+			upper_major_third_level >= peak_level * 0.02f && upper_major_third_level <= peak_level * 0.10f &&
+			upper_fifth_level >= peak_level * 0.04f && upper_fifth_level <= peak_level * 0.60f;
 		// A few mid-register acoustic winds emphasize their fifth partial enough
 		// to suppress the octave.  This is intentionally limited to G3--B3 and
 		// a selected +28 partial: arbitrary lower subharmonics still need octave
@@ -455,14 +464,14 @@ int supported_low_monophonic_other_fundamental(const std::array<float, kNoteProb
 		     !bassoon_a3_weak_body_stack && !bassoon_a3_sparse_fifth_stack &&
 		     !bassoon_fs3_boundary_stack && !bassoon_fs3_bright_third_stack && !bassoon_a4_sparse_octave_stack &&
 		     !bassoon_b3_compact_octave_stack && !bassoon_g3_boundary_stack && !violin_g3_rich_fifth_stack &&
-		     !violin_as3_sparse_octave_stack && !oboe_as4_sparse_fifth_stack) ||
+		     !violin_as3_sparse_octave_stack && !oboe_as4_sparse_fifth_stack && !trumpet_as3_octave_ladder) ||
 		    ((!within_general_recovery_range || !octave_fifth_stack) &&
 		     !low_bassoon_harmonic_ladder && !mid_wind_fifth_partial && !upper_wind_octave_only &&
 		     !upper_wind_weak_body_fifth_stack && !mid_wind_weak_root_rich_third_stack &&
 		     !bassoon_a3_weak_body_stack && !bassoon_a3_sparse_fifth_stack && !bassoon_fs3_boundary_stack &&
 		     !bassoon_fs3_bright_third_stack && !bassoon_a4_sparse_octave_stack && !bassoon_b3_compact_octave_stack &&
 		     !bassoon_g3_boundary_stack && !violin_g3_rich_fifth_stack && !violin_as3_sparse_octave_stack &&
-		     !oboe_as4_sparse_fifth_stack && !low_wind_second_octave_stack &&
+		     !oboe_as4_sparse_fifth_stack && !trumpet_as3_octave_ladder && !low_wind_second_octave_stack &&
 		     !low_brass_boundary_fifth_stack))
 			continue;
 		return lower;

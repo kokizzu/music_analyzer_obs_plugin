@@ -303,6 +303,18 @@ void check_supported_low_monophonic_other_fundamental(Runner &runner)
 	set_probe_level(powers, 98, 0.013f);
 	runner.expect(supported_low_monophonic_other_fundamental(powers, 89) != 70,
 		      "low monophonic other recovery: expected bright A#4 oboe upper third to stay rejected");
+	powers.fill(0.0f);
+	set_probe_level(powers, 58, 0.09f); // A#3 trumpet body
+	set_probe_level(powers, 70, 1.00f); // A#4 selected octave
+	set_probe_level(powers, 77, 0.14f); // F5 fifth
+	set_probe_level(powers, 82, 0.50f); // A#5 second octave
+	set_probe_level(powers, 86, 0.06f); // C6 upper major third
+	set_probe_level(powers, 89, 0.33f); // F6 upper fifth
+	runner.expect(supported_low_monophonic_other_fundamental(powers, 70) == 58,
+		      "low monophonic other recovery: expected bounded A#3 trumpet octave ladder");
+	set_probe_level(powers, 58, 0.07f);
+	runner.expect(supported_low_monophonic_other_fundamental(powers, 70) != 58,
+		      "low monophonic other recovery: expected weak A#3 trumpet body to stay rejected");
 	set_probe_level(powers, 55, 0.14f); // G3 direct fundamental
 	set_probe_level(powers, 67, 1.00f); // G4 selected octave
 	set_probe_level(powers, 74, 0.10f); // D5 weak fifth
