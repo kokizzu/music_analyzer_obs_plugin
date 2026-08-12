@@ -1157,6 +1157,9 @@ int main()
 	const bool required = std::getenv("MUSIC_ANALYZER_REAL_NOTE_SAMPLES_REQUIRED") != nullptr;
 	const bool verbose_misses = std::getenv("MUSIC_ANALYZER_REAL_NOTE_VERBOSE_MISSES") != nullptr;
 	const bool verbose_drums = std::getenv("MUSIC_ANALYZER_REAL_NOTE_VERBOSE_DRUMS") != nullptr;
+	const char *debug_sample_id_env = std::getenv("MUSIC_ANALYZER_REAL_NOTE_DEBUG_SAMPLE_ID");
+	const std::string debug_sample_id =
+		debug_sample_id_env && *debug_sample_id_env ? debug_sample_id_env : "";
 	const char *attribute_path_env = std::getenv("MUSIC_ANALYZER_REAL_NOTE_ATTRIBUTE_TSV");
 	const bool attribute_export = attribute_path_env && *attribute_path_env;
 	const int required_samples = positive_int_env("MUSIC_ANALYZER_REAL_NOTE_REQUIRED_SAMPLES", 1000);
@@ -1256,6 +1259,7 @@ int main()
 	int active_drum_windows = 0;
 	std::array<int, mao::kDrumCount> active_drum_by_class = {};
 	int analyzed_windows = 0;
+	bool found_debug_sample = debug_sample_id.empty();
 	int verbose_drum_lines = 0;
 	const int verbose_drum_limit = positive_int_env("MUSIC_ANALYZER_REAL_NOTE_VERBOSE_DRUM_LIMIT", 24);
 	int usable = 0;
@@ -1264,6 +1268,9 @@ int main()
 		if (shard_count > 1 && row_shard != shard_index)
 			continue;
 		const SampleRow &row = rows[row_index];
+		if (!debug_sample_id.empty() && row.id != debug_sample_id)
+			continue;
+		found_debug_sample = true;
 		std::vector<float> samples;
 		uint32_t sample_rate = 0;
 		std::string error;
@@ -1370,6 +1377,14 @@ int main()
 				}
 				debug_lines.push_back(line.str());
 			}
+			if (!debug_sample_id.empty()) {
+				std::printf("debug sample=%s family=%s/%s expected=%s buffer=%d row_label=%s row_conf=%.3f row_grid=%s any_grid=%s %s\n",
+					    row.id.c_str(), row.family.c_str(), row.source.c_str(), expected.c_str(),
+					    buffer_index, family_state(snapshot, row.family).label,
+					    family_state(snapshot, row.family).confidence, grid_ok ? "yes" : "no",
+					    any_grid_ok ? "yes" : "no",
+					    snapshot_note_debug_line(snapshot, row.midi).c_str());
+			}
 			++buffer_index;
 		}
 		const bool ownership_miss = full_mix && detected_anywhere && !detected_expected_row;
@@ -1431,6 +1446,8 @@ int main()
 					 first_visual_detected_row);
 		}
 	}
+	if (!debug_sample_id.empty())
+		runner.expect(found_debug_sample, "debug sample id not found in manifest: " + debug_sample_id);
 
 	const std::array<int, kFamilyCount> minimum_family_counts = {
 		nonnegative_int_env("MUSIC_ANALYZER_REAL_NOTE_MIN_BASS", 0),
