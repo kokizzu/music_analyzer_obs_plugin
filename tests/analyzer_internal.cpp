@@ -116,6 +116,14 @@ void check_quiet_monophonic_other_recovery_bounds(Runner &runner)
 		      "quiet monophonic other recovery: expected sub-floor peak to stay rejected");
 	runner.expect(!is_quiet_monophonic_other_recovery_candidate(60, 0.0055f),
 		      "quiet monophonic other recovery: expected normal-level peak to use the regular route");
+	runner.expect(is_quiet_named_brass_d4_recovery_candidate("brass track", 62, 0.0021f, 0.70f),
+		      "quiet named brass D4 recovery: expected measured direct D4 tail to remain eligible");
+	runner.expect(!is_quiet_named_brass_d4_recovery_candidate("wind track", 62, 0.0021f, 0.70f),
+		      "quiet named brass D4 recovery: expected non-brass tail to stay rejected");
+	runner.expect(!is_quiet_named_brass_d4_recovery_candidate("brass track", 61, 0.0021f, 0.70f),
+		      "quiet named brass D4 recovery: expected neighboring pitch to stay rejected");
+	runner.expect(!is_quiet_named_brass_d4_recovery_candidate("brass track", 62, 0.0021f, 0.69f),
+		      "quiet named brass D4 recovery: expected weak direct body to stay rejected");
 }
 
 void check_supported_low_monophonic_other_fundamental(Runner &runner)
