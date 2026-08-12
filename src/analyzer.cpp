@@ -322,6 +322,14 @@ int supported_low_monophonic_other_fundamental(const std::array<float, kNoteProb
 			fifth_level >= peak_level * 0.29f && fifth_level <= peak_level * 0.45f &&
 			second_octave_level >= peak_level * 0.10f && second_octave_level <= peak_level * 0.16f &&
 			upper_major_third_level <= peak_level * 0.05f && upper_fifth_level <= peak_level * 0.05f;
+		// A quieter A3 bassoon articulation has the same suppressed body but a
+		// separate, sparse upper stack.  Preserve it as its own interval rather
+		// than merging the gap between the two measured fifth/second-octave bands.
+		const bool bassoon_a3_sparse_fifth_stack = lower == 57 && peak_midi == octave &&
+			fundamental_level >= peak_level * 0.025f && fundamental_level <= peak_level * 0.055f &&
+			fifth_level >= peak_level * 0.18f && fifth_level <= peak_level * 0.24f &&
+			second_octave_level >= peak_level * 0.15f && second_octave_level <= peak_level * 0.30f &&
+			upper_major_third_level <= peak_level * 0.04f && upper_fifth_level <= peak_level * 0.03f;
 		// A few mid-register acoustic winds emphasize their fifth partial enough
 		// to suppress the octave.  This is intentionally limited to G3--B3 and
 		// a selected +28 partial: arbitrary lower subharmonics still need octave
@@ -368,11 +376,12 @@ int supported_low_monophonic_other_fundamental(const std::array<float, kNoteProb
 			octave_level < peak_level * 0.30f;
 		if ((fundamental_level < peak_level * 0.12f && !low_wind_second_octave_stack &&
 		     !upper_wind_weak_body_fifth_stack && !mid_wind_weak_root_rich_third_stack &&
-		     !bassoon_a3_weak_body_stack) ||
+		     !bassoon_a3_weak_body_stack && !bassoon_a3_sparse_fifth_stack) ||
 		    ((!within_general_recovery_range || !octave_fifth_stack) &&
 		     !low_bassoon_harmonic_ladder && !mid_wind_fifth_partial && !upper_wind_octave_only &&
 		     !upper_wind_weak_body_fifth_stack && !mid_wind_weak_root_rich_third_stack &&
-		     !bassoon_a3_weak_body_stack && !low_wind_second_octave_stack &&
+		     !bassoon_a3_weak_body_stack && !bassoon_a3_sparse_fifth_stack &&
+		     !low_wind_second_octave_stack &&
 		     !low_brass_boundary_fifth_stack))
 			continue;
 		return lower;
