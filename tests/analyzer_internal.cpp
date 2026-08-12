@@ -291,6 +291,18 @@ void check_supported_low_monophonic_other_fundamental(Runner &runner)
 	set_probe_level(powers, 89, 0.012f);
 	runner.expect(supported_low_monophonic_other_fundamental(powers, 70) != 58,
 		      "low monophonic other recovery: expected over-bright A#3 violin upper fifth to stay rejected");
+	powers.fill(0.0f);
+	set_probe_level(powers, 70, 0.11f);  // A#4 oboe body
+	set_probe_level(powers, 82, 0.15f);  // A#5 modest octave
+	set_probe_level(powers, 89, 1.00f);  // F6 selected fifth
+	set_probe_level(powers, 94, 0.055f); // A#6 compact second octave
+	set_probe_level(powers, 98, 0.008f); // C7 upper major third
+	set_probe_level(powers, 101, 0.004f); // F7 upper fifth
+	runner.expect(supported_low_monophonic_other_fundamental(powers, 89) == 70,
+		      "low monophonic other recovery: expected bounded sparse A#4 oboe fifth stack");
+	set_probe_level(powers, 98, 0.013f);
+	runner.expect(supported_low_monophonic_other_fundamental(powers, 89) != 70,
+		      "low monophonic other recovery: expected bright A#4 oboe upper third to stay rejected");
 	set_probe_level(powers, 55, 0.14f); // G3 direct fundamental
 	set_probe_level(powers, 67, 1.00f); // G4 selected octave
 	set_probe_level(powers, 74, 0.10f); // D5 weak fifth
