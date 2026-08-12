@@ -2,6 +2,7 @@
 
 import csv
 import io
+import shutil
 import sys
 import tarfile
 import tempfile
@@ -21,6 +22,14 @@ def wav_bytes():
         wav.setframerate(44100)
         wav.writeframes(b"\x00\x00" * 4410)
     return buffer.getvalue()
+
+
+def float_wav_bytes():
+    frames = b"\x00\x00\x00\x00" * 441
+    fmt = (3).to_bytes(2, "little") + (1).to_bytes(2, "little") + (44100).to_bytes(4, "little") + \
+        (176400).to_bytes(4, "little") + (4).to_bytes(2, "little") + (32).to_bytes(2, "little")
+    return b"RIFF" + (36 + len(frames)).to_bytes(4, "little") + b"WAVEfmt " + \
+        (16).to_bytes(4, "little") + fmt + b"data" + len(frames).to_bytes(4, "little") + frames
 
 
 def add_tar_file(tar, name, data):
@@ -49,7 +58,8 @@ def main():
         with tarfile.open(archive, "w:gz") as tar:
             for subset, instrument, instrument_id, _song_id, uuid4 in rows[:4]:
                 basename = f"Medley-solos-DB_{subset}-{instrument_id}_{uuid4}.wav"
-                add_tar_file(tar, f"Medley-solos-DB/audio/{basename}", wav_bytes())
+                data = float_wav_bytes() if instrument == "piano" else wav_bytes()
+                add_tar_file(tar, f"Medley-solos-DB/audio/{basename}", data)
 
         out = root / "out"
         args = type("Args", (), {
@@ -61,6 +71,7 @@ def main():
             "min_counts": "guitar=1,piano=1,vocals=1,other=1",
             "subsets": "test",
             "refresh": False,
+            "ffmpeg": shutil.which("ffmpeg") or "ffmpeg",
         })()
 
         count = prep.prepare(args)
@@ -73,9 +84,23 @@ def main():
         assert "\tother\t" in manifest
         assert "unknown" not in manifest
         assert len(list((out / "audio").rglob("*.wav"))) == 4
+        piano = next((out / "audio" / "piano").glob("*.wav"))
+        assert prep.wav_format_tag(piano) == 1
 
         reused = prep.prepare(args)
         assert reused == 4
+
+        external_output = root / "external-out"
+        external_output.mkdir()
+        linked_output = root / "linked-out"
+        linked_output.symlink_to(external_output, target_is_directory=True)
+        args.output = str(linked_output)
+        args.refresh = True
+        linked_count = prep.prepare(args)
+        assert linked_count == 4
+        assert linked_output.is_symlink()
+        assert (external_output / "manifest.tsv").is_file()
+        assert len(list((external_output / "audio").rglob("*.wav"))) == 4
 
     print("test_prepare_medley_solos_samples: ok")
 

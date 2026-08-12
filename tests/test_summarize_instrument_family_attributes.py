@@ -39,8 +39,8 @@ with tempfile.TemporaryDirectory() as temporary:
     )
     output = MODULE.summarize(path)
 
-assert output[0] == "instrument_family_attribute_summary: windows=3", output
-assert "other=1/3 (33.3%)" in output[1], output
-assert "other->piano=1" in output[2], output
+assert output[0] == "instrument_family_attribute_summary: samples=2 windows=3", output
+assert "other=1/2 (50.0%)" in output[1], output
 assert "other->guitar=1" in output[2], output
-assert "other/tenor sax=1/2 (50.0%)" in output[3], output
+assert "other->piano" not in output[2], output
+assert "other/tenor sax=1/1 (100.0%)" in output[3], output

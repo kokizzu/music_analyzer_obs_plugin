@@ -117,6 +117,45 @@ def family_metric_rows(samples: dict[str, list[dict[str, str]]], family: str) ->
     return [(label, values[0], values[1]) for label, values in totals.items()]
 
 
+def medley_solos_rows(path: Path) -> list[tuple[str, int, int]]:
+    """Return sample-level expected-row recall from Medley Solos attributes."""
+    with path.open(encoding="utf-8", newline="") as source:
+        rows = csv.DictReader(source, delimiter="\t")
+        required = {"sample_id", "family", "instrument", "expected_row_hit"}
+        missing = required - set(rows.fieldnames or ())
+        if missing:
+            raise ValueError(f"{path}: missing required Medley Solos columns: {', '.join(sorted(missing))}")
+        samples: dict[str, dict[str, object]] = {}
+        for row in rows:
+            sample_id = row["sample_id"]
+            family = row["family"]
+            instrument = row["instrument"]
+            if family not in EXPECTED_ROW:
+                raise ValueError(f"{path}: unknown Medley Solos family `{family}`")
+            sample = samples.setdefault(
+                sample_id,
+                {"family": family, "instrument": instrument, "hit": False},
+            )
+            if sample["family"] != family or sample["instrument"] != instrument:
+                raise ValueError(f"{path}: inconsistent family or instrument for `{sample_id}`")
+            sample["hit"] = bool(sample["hit"]) or truthy(row["expected_row_hit"])
+    if not samples:
+        raise ValueError(f"{path}: no Medley Solos attribute rows")
+
+    totals: dict[str, list[int]] = defaultdict(lambda: [0, 0])
+    for sample in samples.values():
+        family = str(sample["family"])
+        instrument = str(sample["instrument"])
+        totals["Expected instrument row"][1] += 1
+        totals[f"Family {family.title()} expected row"][1] += 1
+        totals[f"Instrument {instrument.title()} expected row"][1] += 1
+        if bool(sample["hit"]):
+            totals["Expected instrument row"][0] += 1
+            totals[f"Family {family.title()} expected row"][0] += 1
+            totals[f"Instrument {instrument.title()} expected row"][0] += 1
+    return [(label, values[0], values[1]) for label, values in totals.items()]
+
+
 def integer(row: dict[str, str], field: str) -> int:
     try:
         return int(row[field])
@@ -414,6 +453,7 @@ def render(
     good_sounds_full_mix_input: Path | None = None,
     hf_drum_gate_outputs: list[Path] | None = None,
     maps_attribute_input: Path | None = None,
+    medley_solos_attribute_input: Path | None = None,
 ) -> str:
     samples = load_samples(input_path)
     lines = [
@@ -511,6 +551,25 @@ def render(
         )
         for label, accurate, total in table_rows(good_sounds_samples):
             lines.append(f"| Good Sounds — {label} | {fraction(accurate, total)} | {total - accurate} |")
+    if medley_solos_attribute_input is not None:
+        lines.extend(
+            [
+                "",
+                "## Medley Solos instrument routing",
+                "",
+                "This independent corpus contains three-second isolated performances from eight "
+                "instruments. It is measured in full-mix mode; a sample is accurate when any "
+                "analyzed buffer activates its expected instrument row. It supplies routing coverage, "
+                "not pitch or chord ground truth.",
+                "",
+                f"Source: `{medley_solos_attribute_input.as_posix()}`",
+                "",
+                "| Metric | Accurate / total | Remaining |",
+                "| --- | ---: | ---: |",
+            ]
+        )
+        for label, accurate, total in medley_solos_rows(medley_solos_attribute_input):
+            lines.append(f"| Medley Solos — {label} | {fraction(accurate, total)} | {total - accurate} |")
     cached_chord_inputs = chord_inputs or []
     if cached_chord_inputs:
         lines.extend(
@@ -670,6 +729,7 @@ def main() -> int:
     parser.add_argument("--urmp-gate-output", type=Path)
     parser.add_argument("--route-summary", type=Path)
     parser.add_argument("--good-sounds-full-mix-input", type=Path)
+    parser.add_argument("--medley-solos-attribute-input", type=Path)
     parser.add_argument("--output", required=True, type=Path)
     args = parser.parse_args()
     try:
@@ -678,7 +738,7 @@ def main() -> int:
             args.musicnet_gate_output, args.drum_gate_output, args.urmp_gate_output,
             args.vocalset_full_mix_input, args.maps_gate_output, args.maps_note_gate_output,
             args.route_summary, args.good_sounds_full_mix_input, args.hf_drum_gate_output,
-            args.maps_attribute_input,
+            args.maps_attribute_input, args.medley_solos_attribute_input,
         )
     except (OSError, ValueError) as error:
         parser.error(str(error))

@@ -100,6 +100,28 @@ Source: `build/good_sounds_full_mix_attributes.tsv`
 | Good Sounds — Other — Primary display row | 153 / 1159 (13.2%) | 1006 |
 | Good Sounds — Other — Visual primary row | 310 / 1159 (26.7%) | 849 |
 
+## Medley Solos instrument routing
+
+This independent corpus contains three-second isolated performances from eight instruments. It is measured in full-mix mode; a sample is accurate when any analyzed buffer activates its expected instrument row. It supplies routing coverage, not pitch or chord ground truth.
+
+Source: `build/medley_solos_attributes.tsv`
+
+| Metric | Accurate / total | Remaining |
+| --- | ---: | ---: |
+| Medley Solos — Expected instrument row | 950 / 960 (99.0%) | 10 |
+| Medley Solos — Family Other expected row | 595 / 600 (99.2%) | 5 |
+| Medley Solos — Instrument Clarinet expected row | 119 / 120 (99.2%) | 1 |
+| Medley Solos — Family Guitar expected row | 120 / 120 (100.0%) | 0 |
+| Medley Solos — Instrument Distorted Electric Guitar expected row | 120 / 120 (100.0%) | 0 |
+| Medley Solos — Family Vocals expected row | 115 / 120 (95.8%) | 5 |
+| Medley Solos — Instrument Female Singer expected row | 115 / 120 (95.8%) | 5 |
+| Medley Solos — Instrument Flute expected row | 117 / 120 (97.5%) | 3 |
+| Medley Solos — Family Piano expected row | 120 / 120 (100.0%) | 0 |
+| Medley Solos — Instrument Piano expected row | 120 / 120 (100.0%) | 0 |
+| Medley Solos — Instrument Tenor Saxophone expected row | 120 / 120 (100.0%) | 0 |
+| Medley Solos — Instrument Trumpet expected row | 119 / 120 (99.2%) | 1 |
+| Medley Solos — Instrument Violin expected row | 120 / 120 (100.0%) | 0 |
+
 ## Cached isolated-guitar chord gates
 
 These rows count expected labeled chord-analysis windows (not full-mix samples). They are included only when the corresponding cached attribute TSV exists.

@@ -99,6 +99,18 @@ class DetectionAccuracyReportTest(unittest.TestCase):
                 ) + "\n",
                 encoding="utf-8",
             )
+            medley_solos_attributes = Path(temporary) / "medley_solos_attributes.tsv"
+            medley_solos_attributes.write_text(
+                "\n".join(
+                    (
+                        "\t".join(("sample_id", "family", "instrument", "expected_row_hit")),
+                        "m1\tother\tclarinet\t0",
+                        "m1\tother\tclarinet\t1",
+                        "m2\tvocals\tfemale singer\t0",
+                    )
+                ) + "\n",
+                encoding="utf-8",
+            )
             bach10_0 = Path(temporary) / "bach10_0.out"
             bach10_0.write_text(
                 "analyzer_musicnet: 20 checks passed (recordings 3/10, windows 12, note hits "
@@ -180,7 +192,7 @@ class DetectionAccuracyReportTest(unittest.TestCase):
             report = REPORT.render(
                 source, [chords], vocal_full_mix, [bach10_0, bach10_1], musicnet, drum, urmp,
                 vocalset_full_mix, [maps], None, route_summary, good_sounds_full_mix, hf_drum_outputs,
-                maps_attributes,
+                maps_attributes, medley_solos_attributes,
             )
 
         self.assertIn("| Any detected note | 2 / 3 (66.7%) | 1 |", report)
@@ -210,6 +222,10 @@ class DetectionAccuracyReportTest(unittest.TestCase):
         self.assertIn("## Good Sounds full-mix acoustic routing", report)
         self.assertIn("| Good Sounds — Any detected note | 2 / 3 (66.7%) | 1 |", report)
         self.assertIn("| Good Sounds — Other — Expected instrument row | 1 / 2 (50.0%) | 1 |", report)
+        self.assertIn("## Medley Solos instrument routing", report)
+        self.assertIn("| Medley Solos — Expected instrument row | 1 / 2 (50.0%) | 1 |", report)
+        self.assertIn("| Medley Solos — Instrument Clarinet expected row | 1 / 1 (100.0%) | 0 |", report)
+        self.assertIn("| Medley Solos — Instrument Female Singer expected row | 0 / 1 (0.0%) | 1 |", report)
         self.assertIn("## Bach10-mf0-synth multitrack stress gate", report)
         self.assertIn("| Bach10-mf0-synth — expected note slots | 74 / 80 (92.5%) | 6 |", report)
         self.assertIn("| Bach10-mf0-synth — exact chord windows | 14 / 20 (70.0%) | 6 |", report)

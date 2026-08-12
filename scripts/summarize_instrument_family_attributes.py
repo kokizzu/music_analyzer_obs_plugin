@@ -31,28 +31,51 @@ def summarize(path: Path, limit: int = 12) -> list[str]:
     if not rows:
         return ["instrument_family_attribute_summary: windows=0"]
 
+    samples: dict[str, dict[str, object]] = {}
+    for row in rows:
+        sample_id = required(row, "sample_id")
+        family = required(row, "family")
+        if family not in FAMILIES:
+            raise ValueError(f"unknown expected family `{family}`")
+        instrument = required(row, "instrument")
+        sample = samples.setdefault(sample_id, {
+            "family": family,
+            "instrument": instrument,
+            "hit": False,
+            "active": set(),
+        })
+        if sample["family"] != family or sample["instrument"] != instrument:
+            raise ValueError(f"inconsistent family or instrument for sample `{sample_id}`")
+        sample["hit"] = bool(sample["hit"]) or required(row, "expected_row_hit") == "1"
+        active = sample["active"]
+        assert isinstance(active, set)
+        for actual in FAMILIES:
+            if required(row, f"{actual}_active") == "1":
+                active.add(actual)
+
     expected_total: Counter[str] = Counter()
     expected_hits: Counter[str] = Counter()
     routes: Counter[tuple[str, str]] = Counter()
     instruments: Counter[tuple[str, str]] = Counter()
     instrument_hits: Counter[tuple[str, str]] = Counter()
-    for row in rows:
-        family = required(row, "family")
-        if family not in FAMILIES:
-            raise ValueError(f"unknown expected family `{family}`")
-        hit = required(row, "expected_row_hit") == "1"
+    for sample in samples.values():
+        family = sample["family"]
+        instrument = sample["instrument"]
+        hit = bool(sample["hit"])
+        active = sample["active"]
+        assert isinstance(family, str) and isinstance(instrument, str) and isinstance(active, set)
         expected_total[family] += 1
-        instruments[(family, required(row, "instrument"))] += 1
+        instruments[(family, instrument)] += 1
         if hit:
             expected_hits[family] += 1
-            instrument_hits[(family, required(row, "instrument"))] += 1
+            instrument_hits[(family, instrument)] += 1
             continue
         for actual in FAMILIES:
-            if actual != family and required(row, f"{actual}_active") == "1":
+            if actual != family and actual in active:
                 routes[(family, actual)] += 1
 
     output = [
-        f"instrument_family_attribute_summary: windows={len(rows)}",
+        f"instrument_family_attribute_summary: samples={len(samples)} windows={len(rows)}",
         "expected family active "
         + " ".join(f"{family}={ratio(expected_hits[family], expected_total[family])}" for family in FAMILIES),
     ]

@@ -6,11 +6,12 @@ import os
 from pathlib import Path
 import re
 import shutil
+import subprocess
 import tarfile
 import tempfile
 
 
-FIXTURE_VERSION = "medley-solos-family-v1"
+FIXTURE_VERSION = "medley-solos-family-v2-pcm"
 
 FAMILY_BY_INSTRUMENT = {
     "clarinet": "other",
@@ -136,30 +137,60 @@ def tar_members_by_basename(archive, basenames):
     return members
 
 
-def extract_selected(archive, selected, output):
-    by_filename = {medley_filename(row): row for row in selected}
-    members = tar_members_by_basename(archive, by_filename)
-    missing = sorted(set(by_filename) - set(members))
-    if missing:
-        preview = ", ".join(missing[:5])
-        raise SystemExit(
-            f"prepare_medley_solos_samples: archive missing {len(missing)} selected WAV files: {preview}"
-        )
+def wav_format_tag(path):
+    with Path(path).open("rb") as file:
+        header = file.read(22)
+    if len(header) < 22 or header[:4] != b"RIFF" or header[8:12] != b"WAVE" or header[12:16] != b"fmt ":
+        return None
+    return int.from_bytes(header[20:22], "little")
 
-    rows = []
-    with tarfile.open(archive, "r:*") as tar:
-        for source_name, row in by_filename.items():
-            member_name = members[source_name]
-            extracted = tar.extractfile(member_name)
+
+def normalize_wav_for_analyzer(path, ffmpeg):
+    # analyzer_instrument_family_samples accepts PCM WAV, while Medley Solos
+    # distributes IEEE-float WAV.  Convert only that source format and retain
+    # the source sample rate/channels; no audio is played during this step.
+    if wav_format_tag(path) != 3:
+        return
+    source = path.with_suffix(".source.wav")
+    path.replace(source)
+    converted = path.with_suffix(".pcm.wav")
+    command = [ffmpeg, "-nostdin", "-hide_banner", "-loglevel", "error", "-y", "-i", str(source),
+               "-c:a", "pcm_s16le", str(converted)]
+    try:
+        subprocess.check_call(command)
+        if wav_format_tag(converted) != 1:
+            raise SystemExit(f"prepare_medley_solos_samples: PCM conversion failed for {path}")
+        converted.replace(path)
+    finally:
+        source.unlink(missing_ok=True)
+        converted.unlink(missing_ok=True)
+
+
+def extract_selected(archive, selected, output, ffmpeg):
+    by_filename = {medley_filename(row): row for row in selected}
+    # The public corpus is a multi-gigabyte gzip stream.  Looking up members
+    # first and then extracting them makes gzip seek and decompress it twice.
+    # Stream once instead, copying each selected member as it appears.
+    rows_by_filename = {}
+    with tarfile.open(archive, "r|*") as tar:
+        for member in tar:
+            if not member.isfile():
+                continue
+            source_name = Path(member.name).name
+            row = by_filename.get(source_name)
+            if row is None or source_name in rows_by_filename:
+                continue
+            extracted = tar.extractfile(member)
             if extracted is None:
-                raise SystemExit(f"prepare_medley_solos_samples: cannot extract {member_name}")
+                raise SystemExit(f"prepare_medley_solos_samples: cannot extract {member.name}")
             track_id = sanitize(f"{row['subset']}_{row['instrument']}_{row['uuid4']}")
             rel_path = Path("audio") / row["family"] / f"{track_id}.wav"
             dest = output / rel_path
             dest.parent.mkdir(parents=True, exist_ok=True)
             with dest.open("wb") as file:
                 shutil.copyfileobj(extracted, file)
-            rows.append({
+            normalize_wav_for_analyzer(dest, ffmpeg)
+            rows_by_filename[source_name] = {
                 "id": track_id,
                 "family": row["family"],
                 "instrument": row["instrument"],
@@ -167,8 +198,16 @@ def extract_selected(archive, selected, output):
                 "song_id": row["song_id"],
                 "uuid4": row["uuid4"],
                 "path": str(rel_path),
-            })
-    return rows
+            }
+            if len(rows_by_filename) == len(by_filename):
+                break
+    missing = sorted(set(by_filename) - set(rows_by_filename))
+    if missing:
+        preview = ", ".join(missing[:5])
+        raise SystemExit(
+            f"prepare_medley_solos_samples: archive missing {len(missing)} selected WAV files: {preview}"
+        )
+    return [rows_by_filename[medley_filename(row)] for row in selected]
 
 
 def write_manifest(output, rows):
@@ -208,6 +247,20 @@ def parse_min_counts(text):
     return counts
 
 
+def clear_output_directory(output):
+    # Corpus paths under build are stable symlinks into InstrumentSamples.  Do
+    # not remove that link: clear only its external target so the preparation
+    # remains repeatable without ever placing generated WAVs in the workspace.
+    if output.is_symlink():
+        target = output.resolve()
+        if target.exists():
+            shutil.rmtree(target)
+        target.mkdir(parents=True, exist_ok=True)
+        return
+    if output.exists():
+        shutil.rmtree(output)
+
+
 def prepare(args):
     metadata = Path(args.metadata)
     archive = Path(args.archive)
@@ -231,11 +284,10 @@ def prepare(args):
     if not selected:
         raise SystemExit("prepare_medley_solos_samples: no selected metadata rows")
 
-    if output.exists():
-        shutil.rmtree(output)
+    clear_output_directory(output)
     (output / "audio").mkdir(parents=True, exist_ok=True)
 
-    manifest_rows = extract_selected(archive, selected, output)
+    manifest_rows = extract_selected(archive, selected, output, args.ffmpeg)
     manifest = write_manifest(output, manifest_rows)
     (output / ".medley_solos_signature").write_text(signature, encoding="utf-8")
 
@@ -280,6 +332,7 @@ def main():
         "guitar=100,piano=100,vocals=100,other=300",
     ))
     parser.add_argument("--subsets", default=os.environ.get("MEDLEY_SOLOS_SUBSETS", "test,validation,training"))
+    parser.add_argument("--ffmpeg", default=os.environ.get("FFMPEG", "ffmpeg"))
     parser.add_argument("--refresh", action="store_true",
                         default=os.environ.get("MEDLEY_SOLOS_REFRESH") == "1")
     args = parser.parse_args()
