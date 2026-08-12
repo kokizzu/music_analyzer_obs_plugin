@@ -21392,7 +21392,11 @@ bool supported_guitar_diminished_triad_alias(int root, const NoteGrid &display_g
 	const float minor_third = note_grid_pitch_level(analysis_grid, root + 3);
 	const float diminished_fifth = note_grid_pitch_level(analysis_grid, root + 6);
 	const float anchor = std::min({root_level, minor_third, diminished_fifth});
-	if (anchor < std::max(0.07f, strongest_analysis * 0.025f))
+	// A compact recorded guitar voicing can retain its flat fifth in the
+	// analysis grid just below the normal active-cell floor.  Keep it usable
+	// for an alias only when the other two diminished tones remain visible and
+	// the conflicting major/natural fifth checks below are clear.
+	if (anchor < std::max(0.045f, strongest_analysis * 0.025f))
 		return false;
 
 	const float major_third =
@@ -21445,6 +21449,19 @@ bool chord_label_supports_diminished_triad_alias(const char *label, int root)
 		cursor = end + 1;
 	}
 	return false;
+}
+
+bool analysis_complete_guitar_diminished_triad_alias(int root, const NoteGrid &display_grid,
+						     const NoteGrid &analysis_grid)
+{
+	root = ((root % 12) + 12) % 12;
+	const int visible_tones =
+		static_cast<int>(note_grid_pitch_active(display_grid, root)) +
+		static_cast<int>(note_grid_pitch_active(display_grid, root + 3)) +
+		static_cast<int>(note_grid_pitch_active(display_grid, root + 6));
+	return visible_tones >= 2 && note_grid_pitch_active(analysis_grid, root) &&
+	       note_grid_pitch_active(analysis_grid, root + 3) &&
+	       note_grid_pitch_active(analysis_grid, root + 6);
 }
 
 bool complete_visible_guitar_diminished_triad_alias(int root, const NoteGrid &display_grid,
@@ -21586,7 +21603,7 @@ void append_supported_guitar_diminished_triad_display_aliases(InstrumentState &s
 
 	for (int root = 0; root < 12; ++root) {
 		if (!chord_label_supports_diminished_triad_alias(state.label, root) &&
-		    !complete_visible_guitar_diminished_triad_alias(root, display_grid, analysis_grid))
+		    !analysis_complete_guitar_diminished_triad_alias(root, display_grid, analysis_grid))
 			continue;
 		if (!supported_guitar_diminished_triad_alias(root, display_grid, analysis_grid))
 			continue;

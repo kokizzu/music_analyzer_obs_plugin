@@ -1159,6 +1159,38 @@ void check_visible_diminished_guitar_alias_recovery(Runner &runner)
 		      std::string("visible diminished guitar alias recovery: expected natural fifth to block Edim, got `") +
 			      protected_state.label + "`");
 
+	// Guitar Techs music has recorded Bdim voicings where B and D remain
+	// visible while the weak F only survives in the analysis grid.  Recover the
+	// alias from that complete analysis shape, but retain the natural-fifth
+	// conflict guard.
+	InstrumentState analysis_dropout_state = {};
+	std::snprintf(analysis_dropout_state.label, sizeof(analysis_dropout_state.label),
+		      "E=Epow=Em");
+	analysis_dropout_state.confidence = 0.53f;
+	NoteGrid analysis_dropout_display = {};
+	set_pitch(analysis_dropout_display, 11, 0.98f);
+	set_pitch(analysis_dropout_display, 2, 0.77f);
+	set_pitch(analysis_dropout_display, 4, 1.00f);
+	NoteGrid analysis_dropout_analysis = analysis_dropout_display;
+	set_pitch(analysis_dropout_analysis, 5, 0.05f);
+	append_supported_guitar_diminished_triad_display_aliases(
+		analysis_dropout_state, analysis_dropout_display, analysis_dropout_analysis);
+	runner.expect(chord_label_has_exact_component(analysis_dropout_state.label, "Bdim"),
+		      std::string("analysis-complete diminished guitar alias recovery: expected Bdim, got `") +
+			      analysis_dropout_state.label + "`");
+
+	InstrumentState analysis_dropout_conflict = {};
+	std::snprintf(analysis_dropout_conflict.label, sizeof(analysis_dropout_conflict.label),
+		      "E=Epow=Em");
+	analysis_dropout_conflict.confidence = 0.53f;
+	NoteGrid analysis_dropout_natural_fifth = analysis_dropout_analysis;
+	set_pitch(analysis_dropout_natural_fifth, 6, 0.16f);
+	append_supported_guitar_diminished_triad_display_aliases(
+		analysis_dropout_conflict, analysis_dropout_display, analysis_dropout_natural_fifth);
+	runner.expect(!chord_label_has_exact_component(analysis_dropout_conflict.label, "Bdim"),
+		      std::string("analysis-complete diminished guitar alias recovery: expected natural fifth to block Bdim, got `") +
+			      analysis_dropout_conflict.label + "`");
+
 	InstrumentState rootless_state = {};
 	std::snprintf(rootless_state.label, sizeof(rootless_state.label), "G#=Cm");
 	rootless_state.confidence = 0.54f;
