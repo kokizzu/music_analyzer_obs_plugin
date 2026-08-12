@@ -2242,6 +2242,32 @@ void check_supported_guitar_display_extension_aliases(Runner &runner)
 			      small + "`");
 }
 
+void check_measured_final_guitar_dominant_seventh_promotion(Runner &runner)
+{
+	InstrumentState state = {};
+	std::snprintf(state.label, sizeof(state.label), "C=C7");
+	NoteGrid display_grid = {};
+	NoteGrid analysis_grid = {};
+	set_pitch(analysis_grid, 10, 0.52f); // C7 flat seventh
+	std::array<float, kNoteProbeCount> powers = {};
+	set_probe_level(powers, 52, 1.00f);
+	set_probe_level(powers, 58, 0.263f); // A#3 flat seventh, just inside bound
+	promote_measured_final_same_root_extension_label(
+		state, display_grid, analysis_grid, powers, kGuitarMinMidi, kGuitarMaxMidi);
+	runner.expect(std::strcmp(state.label, "C7=C") == 0,
+		      std::string("measured final guitar seventh: expected C7 promoted at raw boundary, got `") +
+			      state.label + "`");
+
+	InstrumentState protected_state = {};
+	std::snprintf(protected_state.label, sizeof(protected_state.label), "C=C7");
+	set_probe_level(powers, 58, 0.261f); // just below the measured floor
+	promote_measured_final_same_root_extension_label(
+		protected_state, display_grid, analysis_grid, powers, kGuitarMinMidi, kGuitarMaxMidi);
+	runner.expect(std::strcmp(protected_state.label, "C=C7") == 0,
+		      std::string("measured final guitar seventh: expected sub-boundary C7 protected, got `") +
+			      protected_state.label + "`");
+}
+
 void check_analysis_complete_guitar_display_major_seventh_aliases(Runner &runner)
 {
 	InstrumentState state = {};
@@ -5241,6 +5267,7 @@ int run()
 	check_supported_guitar_candidate_alias_merge(runner);
 	check_visible_root_fifth_power_alias_survives_probe_third_leak(runner);
 	check_supported_guitar_display_extension_aliases(runner);
+	check_measured_final_guitar_dominant_seventh_promotion(runner);
 	check_analysis_complete_guitar_display_major_seventh_aliases(runner);
 	check_analysis_complete_guitar_source_dominant_seventh_aliases_after_prune(runner);
 	check_probe_supported_guitar_source_dominant_seventh_aliases_after_prune(runner);

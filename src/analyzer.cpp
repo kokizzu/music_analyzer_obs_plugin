@@ -17750,7 +17750,7 @@ void promote_measured_final_same_root_extension_label(
 			// ahead of the same-root triad while that probe contribution remains
 			// bounded; a strong probe is handled by the established branch below.
 			const bool measured_analysis_supported =
-				analysis_level >= 0.52f && probe_level >= 0.265f && probe_level <= 0.661f;
+				analysis_level >= 0.52f && probe_level >= 0.262f && probe_level <= 0.661f;
 			const bool measured_visible_limited_probe_supported =
 				visible_level >= 0.56f && probe_level <= 0.623f;
 			// Four independent GAPS primary misses share a major-sixth alias whose
