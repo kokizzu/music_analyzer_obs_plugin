@@ -287,6 +287,18 @@ void check_supported_low_monophonic_other_fundamental(Runner &runner)
 	runner.expect(supported_low_monophonic_other_fundamental(powers, 70) != 58,
 		      "low monophonic other recovery: expected bright A#3 trumpet upper third to stay rejected");
 	powers.fill(0.0f);
+	set_probe_level(powers, 62, 0.218f); // D4 direct viola body
+	set_probe_level(powers, 74, 0.100f); // D5 octave
+	set_probe_level(powers, 81, 0.122f); // A5 fifth
+	set_probe_level(powers, 86, 1.00f); // D6 selected second octave
+	set_probe_level(powers, 90, 0.049f); // F#6 upper major third
+	set_probe_level(powers, 93, 0.171f); // A6 upper fifth
+	runner.expect(supported_low_monophonic_other_fundamental(powers, 86) == 62,
+		      "low monophonic other recovery: expected bounded D4 viola compact second-octave stack");
+	set_probe_level(powers, 81, 0.14f);
+	runner.expect(supported_low_monophonic_other_fundamental(powers, 86) != 62,
+		      "low monophonic other recovery: expected bright D4 viola fifth to stay rejected");
+	powers.fill(0.0f);
 	set_probe_level(powers, 21, 1.00f); // A0 leakage, outside monophonic Other range
 	set_probe_level(powers, 64, 0.62f); // E4 musical peak
 	const NoteCandidateList monophonic_range_candidates =
