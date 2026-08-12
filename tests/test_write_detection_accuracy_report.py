@@ -139,6 +139,22 @@ class DetectionAccuracyReportTest(unittest.TestCase):
                 ) + "\n",
                 encoding="utf-8",
             )
+            iowa_orchestra_full = Path(temporary) / "iowa_orchestra_full_attributes.tsv"
+            iowa_orchestra_full.write_text(
+                "\n".join(
+                    (
+                        "\t".join((
+                            "sample_id", "family", "detected", "detected_expected_row",
+                            "first_row", "visual_first_row", "expected_midi", "bass_notes",
+                            "guitar_notes", "piano_notes", "vocal_notes", "other_notes",
+                        )),
+                        "io1\tother\t1\t1\tother\tother\t60\t\t\t\t\tC4:1.00",
+                        "io2\tbass\t1\t1\tbass\tbass\t36\tC2:1.00\t\t\t\t",
+                        "io3\tother\t1\t1\tother\tother\t50\t\t\t\t\tD4:1.00",
+                    )
+                ) + "\n",
+                encoding="utf-8",
+            )
             bach10_0 = Path(temporary) / "bach10_0.out"
             bach10_0.write_text(
                 "analyzer_musicnet: 20 checks passed (recordings 3/10, windows 12, note hits "
@@ -222,6 +238,7 @@ class DetectionAccuracyReportTest(unittest.TestCase):
                 vocalset_full_mix, [maps], None, route_summary, good_sounds_full_mix, hf_drum_outputs,
                 maps_attributes, medley_solos_attributes, focused_vocalset_clean_vowel,
                 pitch_shifted_violin,
+                iowa_orchestra_full_input=iowa_orchestra_full,
             )
 
         self.assertIn("| Any detected note | 2 / 3 (66.7%) | 1 |", report)
@@ -255,6 +272,9 @@ class DetectionAccuracyReportTest(unittest.TestCase):
         self.assertIn("| Good Sounds — Other — Expected instrument row | 1 / 2 (50.0%) | 1 |", report)
         self.assertIn("## Controlled octave-down violin fixture", report)
         self.assertIn("| Pitch-shifted violin — Expected instrument row | 2 / 3 (66.7%) | 1 |", report)
+        self.assertIn("## Iowa orchestra isolated-note coverage", report)
+        self.assertIn("| Iowa orchestra — Exact expected MIDI note | 2 / 3 (66.7%) | 1 |", report)
+        self.assertIn("| Iowa orchestra — Bass — exact expected MIDI note | 1 / 1 (100.0%) | 0 |", report)
         self.assertIn("## Medley Solos instrument routing", report)
         self.assertIn("| Medley Solos — Expected instrument row | 1 / 2 (50.0%) | 1 |", report)
         self.assertIn("| Medley Solos — Instrument Clarinet expected row | 1 / 1 (100.0%) | 0 |", report)

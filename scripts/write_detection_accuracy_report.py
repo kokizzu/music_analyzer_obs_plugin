@@ -499,6 +499,7 @@ def render(
     focused_vocalset_clean_vowel_input: Path | None = None,
     pitch_shifted_violin_input: Path | None = None,
     philharmonia_full_input: Path | None = None,
+    iowa_orchestra_full_input: Path | None = None,
 ) -> str:
     samples = load_samples(input_path)
     lines = [
@@ -654,6 +655,27 @@ def render(
         )
         for label, accurate, total in exact_note_rows(load_samples(philharmonia_full_input)):
             lines.append(f"| Philharmonia — {label} | {fraction(accurate, total)} | {total - accurate} |")
+    if iowa_orchestra_full_input is not None:
+        iowa_samples = load_samples(iowa_orchestra_full_input)
+        lines.extend(
+            [
+                "",
+                "## Iowa orchestra isolated-note coverage",
+                "",
+                "This independent real acoustic corpus includes brass, woodwind, strings, pitched "
+                "percussion, and double bass. The strict rows require the annotated MIDI octave, "
+                "while the routing rows distinguish octave errors from absent or misrouted notes.",
+                "",
+                f"Source: `{iowa_orchestra_full_input.as_posix()}`",
+                "",
+                "| Metric | Accurate / total | Remaining |",
+                "| --- | ---: | ---: |",
+            ]
+        )
+        for label, accurate, total in table_rows(iowa_samples):
+            lines.append(f"| Iowa orchestra — {label} | {fraction(accurate, total)} | {total - accurate} |")
+        for label, accurate, total in exact_note_rows(iowa_samples):
+            lines.append(f"| Iowa orchestra — {label} | {fraction(accurate, total)} | {total - accurate} |")
     if medley_solos_attribute_input is not None:
         lines.extend(
             [
@@ -836,6 +858,7 @@ def main() -> int:
     parser.add_argument("--medley-solos-attribute-input", type=Path)
     parser.add_argument("--focused-vocalset-clean-vowel-input", type=Path)
     parser.add_argument("--philharmonia-full-input", type=Path)
+    parser.add_argument("--iowa-orchestra-full-input", type=Path)
     parser.add_argument("--output", required=True, type=Path)
     args = parser.parse_args()
     try:
@@ -847,6 +870,7 @@ def main() -> int:
             args.maps_attribute_input, args.medley_solos_attribute_input,
             args.focused_vocalset_clean_vowel_input, args.pitch_shifted_violin_input,
             args.philharmonia_full_input,
+            args.iowa_orchestra_full_input,
         )
     except (OSError, ValueError) as error:
         parser.error(str(error))

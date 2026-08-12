@@ -45,8 +45,8 @@ Source: `build/detector_improvement_route_summary.txt`
 
 | Metric | Routes / total | Other routes |
 | --- | ---: | ---: |
-| Routes with direct zero-regression support | 3 / 225 (1.3%) | 222 |
-| Routes awaiting additional fixture coverage | 100 / 225 (44.4%) | 125 |
+| Routes with direct zero-regression support | 7 / 236 (3.0%) | 229 |
+| Routes awaiting additional fixture coverage | 92 / 236 (39.0%) | 144 |
 
 ## Vocadito full-mix vocal routing
 
@@ -133,10 +133,37 @@ Source: `build/philharmonia_full_attributes.tsv`
 
 | Metric | Accurate / total | Remaining |
 | --- | ---: | ---: |
-| Philharmonia — Exact expected MIDI note | 7041 / 7285 (96.7%) | 244 |
+| Philharmonia — Exact expected MIDI note | 7034 / 7285 (96.6%) | 251 |
 | Philharmonia — Guitar — exact expected MIDI note | 144 / 146 (98.6%) | 2 |
-| Philharmonia — Other — exact expected MIDI note | 6428 / 6668 (96.4%) | 240 |
+| Philharmonia — Other — exact expected MIDI note | 6421 / 6668 (96.3%) | 247 |
 | Philharmonia — Bass — exact expected MIDI note | 469 / 471 (99.6%) | 2 |
+
+## Iowa orchestra isolated-note coverage
+
+This independent real acoustic corpus includes brass, woodwind, strings, pitched percussion, and double bass. The strict rows require the annotated MIDI octave, while the routing rows distinguish octave errors from absent or misrouted notes.
+
+Source: `build/iowa_orchestra_full_attributes.tsv`
+
+| Metric | Accurate / total | Remaining |
+| --- | ---: | ---: |
+| Iowa orchestra — Any detected note | 681 / 682 (99.9%) | 1 |
+| Iowa orchestra — Expected instrument row | 681 / 682 (99.9%) | 1 |
+| Iowa orchestra — Lit expected pitch class | 681 / 682 (99.9%) | 1 |
+| Iowa orchestra — Primary display row | 681 / 682 (99.9%) | 1 |
+| Iowa orchestra — Visual primary row | 681 / 682 (99.9%) | 1 |
+| Iowa orchestra — Bass — Any detected note | 25 / 25 (100.0%) | 0 |
+| Iowa orchestra — Bass — Expected instrument row | 25 / 25 (100.0%) | 0 |
+| Iowa orchestra — Bass — Lit expected pitch class | 25 / 25 (100.0%) | 0 |
+| Iowa orchestra — Bass — Primary display row | 25 / 25 (100.0%) | 0 |
+| Iowa orchestra — Bass — Visual primary row | 25 / 25 (100.0%) | 0 |
+| Iowa orchestra — Other — Any detected note | 656 / 657 (99.8%) | 1 |
+| Iowa orchestra — Other — Expected instrument row | 656 / 657 (99.8%) | 1 |
+| Iowa orchestra — Other — Lit expected pitch class | 656 / 657 (99.8%) | 1 |
+| Iowa orchestra — Other — Primary display row | 656 / 657 (99.8%) | 1 |
+| Iowa orchestra — Other — Visual primary row | 656 / 657 (99.8%) | 1 |
+| Iowa orchestra — Exact expected MIDI note | 652 / 682 (95.6%) | 30 |
+| Iowa orchestra — Other — exact expected MIDI note | 637 / 657 (97.0%) | 20 |
+| Iowa orchestra — Bass — exact expected MIDI note | 15 / 25 (60.0%) | 10 |
 
 ## Medley Solos instrument routing
 
