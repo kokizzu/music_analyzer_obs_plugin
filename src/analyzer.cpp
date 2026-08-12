@@ -36,6 +36,17 @@ constexpr float kPolyphonicNoteRmsFloor = 0.0030f;
 // below the generic display floor, but the noisier tail becomes unreliable.
 // Keep this close to the usual floor so the recovery stays source-specific.
 constexpr float kMonophonicOtherLowRmsFloor = 0.0055f;
+// A named monophonic acoustic track can preserve one direct, musical peak in
+// the quiet tail.  Keep it at the proven polyphonic floor and reject sub-C2
+// artifacts, which otherwise occur as low-frequency leakage in violin takes.
+constexpr float kMonophonicOtherQuietRecoveryFloor = kPolyphonicNoteRmsFloor;
+constexpr int kMonophonicOtherQuietRecoveryMinMidi = 36;
+
+bool is_quiet_monophonic_other_recovery_candidate(int midi, float rms)
+{
+	return rms >= kMonophonicOtherQuietRecoveryFloor && rms < kMonophonicOtherLowRmsFloor &&
+	       midi >= kMonophonicOtherQuietRecoveryMinMidi;
+}
 constexpr float kFullNoteRms = 0.035f;
 constexpr float kNoteRelativeFloor = 0.36f;
 constexpr float kMixedNoteRelativeFloor = 0.08f;
@@ -34151,6 +34162,8 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 			const int min_midi = kOtherMinMidi;
 			const std::array<float, kNoteProbeCount> &other_note_powers =
 				monophonic_other_source ? note_powers : detection_note_powers;
+			std::array<bool, kNoteProbeCount> quiet_monophonic_allowed_midis = {};
+			const std::array<bool, kNoteProbeCount> *other_allowed_midis = nullptr;
 			if (monophonic_other_source) {
 				const NoteCandidateList pre_envelope_candidates =
 					note_peak_candidates(other_note_powers, min_midi, kOtherMaxMidi, 1,
@@ -34161,13 +34174,19 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 					snapshot.other_debug_pre_envelope_score = candidate.score;
 					snapshot.other_debug_pre_envelope_raw_level =
 						probe_level(other_note_powers, candidate.midi);
+					if (rms < kMonophonicOtherLowRmsFloor) {
+						if (is_quiet_monophonic_other_recovery_candidate(candidate.midi, rms))
+							quiet_monophonic_allowed_midis[
+								static_cast<std::size_t>(candidate.midi - kFirstMidi)] = true;
+						other_allowed_midis = &quiet_monophonic_allowed_midis;
+					}
 				}
 			}
 			set_instrument_note_set(snapshot.other_notes, snapshot.other, other_note_powers,
 						min_midi, kOtherMaxMidi, note_root, other_energy, rms,
-						other_max_notes, nullptr, nullptr, false, nullptr,
+						other_max_notes, nullptr, nullptr, false, other_allowed_midis,
 						0.30f, false, true,
-						monophonic_other_source ? kMonophonicOtherLowRmsFloor : kNoteRmsFloor);
+						monophonic_other_source ? kMonophonicOtherQuietRecoveryFloor : kNoteRmsFloor);
 			// A named monophonic track already has a direct peak-selection route.
 			// Reconstructing a low fundamental from its upper partials can replace
 			// that note with a distant harmonic (for example a viola D4 as G1).

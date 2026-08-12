@@ -83,6 +83,18 @@ void check_auto_source_mode_resolution(Runner &runner)
 		      "explicit source mode: expected configured full mix to override source name");
 }
 
+void check_quiet_monophonic_other_recovery_bounds(Runner &runner)
+{
+	runner.expect(is_quiet_monophonic_other_recovery_candidate(36, 0.0030f),
+		      "quiet monophonic other recovery: expected direct C2 peak at the lower RMS floor");
+	runner.expect(!is_quiet_monophonic_other_recovery_candidate(35, 0.0040f),
+		      "quiet monophonic other recovery: expected sub-C2 leakage to stay rejected");
+	runner.expect(!is_quiet_monophonic_other_recovery_candidate(60, 0.0029f),
+		      "quiet monophonic other recovery: expected sub-floor peak to stay rejected");
+	runner.expect(!is_quiet_monophonic_other_recovery_candidate(60, 0.0055f),
+		      "quiet monophonic other recovery: expected normal-level peak to use the regular route");
+}
+
 void check_crowded_guitar_prune_modes(Runner &runner)
 {
 	static constexpr const char *kCrowdedLabel = "Csus2=Gsus4=C=Cm=Cmaj7=Cpow=Caug";
@@ -4863,6 +4875,7 @@ int run()
 {
 	Runner runner;
 	check_auto_source_mode_resolution(runner);
+	check_quiet_monophonic_other_recovery_bounds(runner);
 	check_crowded_guitar_prune_modes(runner);
 	check_displayed_same_root_plain_guitar_primary(runner);
 	check_displayed_supported_plain_guitar_primary(runner);
