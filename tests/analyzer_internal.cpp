@@ -129,6 +129,20 @@ void check_quiet_monophonic_other_recovery_bounds(Runner &runner)
 void check_supported_low_monophonic_other_fundamental(Runner &runner)
 {
 	std::array<float, kNoteProbeCount> powers = {};
+	set_probe_level(powers, 58, 0.09f); // A#3 direct brass body
+	set_probe_level(powers, 70, 1.00f); // A#4 selected octave
+	set_probe_level(powers, 77, 1.10f); // F5 rich fifth
+	set_probe_level(powers, 82, 0.55f); // A#5 second octave
+	set_probe_level(powers, 86, 0.45f); // C6 upper major third
+	set_probe_level(powers, 89, 0.60f); // F6 upper fifth
+	runner.expect(supported_named_brass_rich_octave_fundamental("brass track", powers, 70) == 58,
+		      "named brass octave recovery: expected bounded rich A#3 ladder");
+	runner.expect(supported_named_brass_rich_octave_fundamental("wind track", powers, 70) < 0,
+		      "named brass octave recovery: expected non-brass A#4 peak to stay rejected");
+	set_probe_level(powers, 77, 0.70f);
+	runner.expect(supported_named_brass_rich_octave_fundamental("brass track", powers, 70) < 0,
+		      "named brass octave recovery: expected weak A#3 fifth to stay rejected");
+	powers.fill(0.0f);
 	powers[static_cast<std::size_t>(50 - kFirstMidi)] = 0.155f; // D3 fundamental
 	powers[static_cast<std::size_t>(62 - kFirstMidi)] = 0.77f;  // D4 octave
 	powers[static_cast<std::size_t>(69 - kFirstMidi)] = 1.0f;   // A4 fifth / selected peak
