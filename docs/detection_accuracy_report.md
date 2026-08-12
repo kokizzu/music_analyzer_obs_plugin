@@ -133,9 +133,9 @@ Source: `build/philharmonia_full_attributes.tsv`
 
 | Metric | Accurate / total | Remaining |
 | --- | ---: | ---: |
-| Philharmonia — Exact expected MIDI note | 7107 / 7285 (97.5%) | 178 |
+| Philharmonia — Exact expected MIDI note | 7136 / 7285 (98.0%) | 149 |
 | Philharmonia — Guitar — exact expected MIDI note | 144 / 146 (98.6%) | 2 |
-| Philharmonia — Other — exact expected MIDI note | 6494 / 6668 (97.4%) | 174 |
+| Philharmonia — Other — exact expected MIDI note | 6523 / 6668 (97.8%) | 145 |
 | Philharmonia — Bass — exact expected MIDI note | 469 / 471 (99.6%) | 2 |
 
 ## Iowa orchestra isolated-note coverage
@@ -161,8 +161,8 @@ Source: `build/iowa_orchestra_full_attributes.tsv`
 | Iowa orchestra — Other — Lit expected pitch class | 656 / 657 (99.8%) | 1 |
 | Iowa orchestra — Other — Primary display row | 656 / 657 (99.8%) | 1 |
 | Iowa orchestra — Other — Visual primary row | 656 / 657 (99.8%) | 1 |
-| Iowa orchestra — Exact expected MIDI note | 657 / 682 (96.3%) | 25 |
-| Iowa orchestra — Other — exact expected MIDI note | 642 / 657 (97.7%) | 15 |
+| Iowa orchestra — Exact expected MIDI note | 659 / 682 (96.6%) | 23 |
+| Iowa orchestra — Other — exact expected MIDI note | 644 / 657 (98.0%) | 13 |
 | Iowa orchestra — Bass — exact expected MIDI note | 15 / 25 (60.0%) | 10 |
 
 ## Medley Solos instrument routing

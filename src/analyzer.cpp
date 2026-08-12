@@ -294,11 +294,11 @@ int supported_low_monophonic_other_fundamental(const std::array<float, kNoteProb
 		const bool mid_wind_fifth_partial = lower >= 55 && lower <= 59 &&
 			peak_midi == upper_major_third && fifth_level >= std::max(fundamental_level * 0.75f,
 								   peak_level * 0.18f);
-		// Isolated cor anglais recordings at C4--B4 can put nearly all energy in
-		// the octave while retaining a modest, direct fundamental and almost no
-		// fifth. This bounded octave-only shape is distinct from the normal
-		// octave/fifth stack and from the quiet G4 tail measured below the floor.
-		const bool upper_wind_octave_only = lower >= 60 && lower <= 71 &&
+		// Isolated winds at C3--B4 can put nearly all energy in the octave while
+		// retaining a modest, direct fundamental and almost no fifth. This bounded
+		// octave-only shape is distinct from the normal octave/fifth stack and
+		// from the quiet G4 tail measured below the floor.
+		const bool upper_wind_octave_only = lower >= 48 && lower <= 71 &&
 			peak_midi == octave && fundamental_level >= peak_level * 0.13f &&
 			fifth_level <= peak_level * 0.15f;
 		// Low winds can peak two octaves over C3--B3 while retaining their root,
