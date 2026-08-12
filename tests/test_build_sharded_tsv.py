@@ -10,6 +10,7 @@ import tempfile
 
 ROOT = pathlib.Path(__file__).resolve().parents[1]
 SCRIPT = ROOT / "scripts" / "build_sharded_tsv.sh"
+LOCK_SCRIPT = ROOT / "scripts" / "run_with_lock.sh"
 
 
 def main() -> int:
@@ -66,6 +67,34 @@ def main() -> int:
         leftovers = list(tmp.glob("combined.tsv.*.tmp"))
         if leftovers:
             raise AssertionError(f"temporary files were not cleaned up: {leftovers}")
+
+        outer_target = tmp / "outer-lock-combined.tsv"
+        outer_part_a = tmp / "outer-lock-part-a.tsv"
+        outer_part_b = tmp / "outer-lock-part-b.tsv"
+        outer_command = [
+            "sh",
+            str(LOCK_SCRIPT),
+            str(outer_target) + ".lock",
+            "--",
+            "sh",
+            str(SCRIPT),
+            str(outer_target),
+            str(fake_make),
+            "-j2",
+            str(outer_part_a),
+            str(outer_part_b),
+        ]
+        outer = subprocess.run(outer_command, cwd=ROOT, text=True, capture_output=True, timeout=10)
+        if outer.returncode != 0:
+            raise AssertionError(
+                "outer lock did not allow its sharded builder to complete:\n"
+                f"stdout={outer.stdout}\nstderr={outer.stderr}"
+            )
+        outer_combined = outer_target.read_text(encoding="utf-8").splitlines()
+        if outer_combined != ["name", "alpha", "beta"]:
+            raise AssertionError(f"unexpected outer-lock TSV: {outer_combined!r}")
+        if (tmp / "outer-lock-combined.tsv.lock").exists():
+            raise AssertionError("outer lock directory was not cleaned up")
 
         stale_target = tmp / "stale-combined.tsv"
         stale_part_a = tmp / "stale-part-a.tsv"

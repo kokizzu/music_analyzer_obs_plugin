@@ -55,4 +55,8 @@ cleanup() {
 trap cleanup EXIT INT TERM HUP
 
 printf '%s\n' "$$" > "$lock_dir/pid"
-"$@"
+# Let a cooperative child use this lock rather than attempting to acquire the
+# same directory again.  In particular, build_sharded_tsv.sh is also safe for
+# direct concurrent use, but its Makefile recipes intentionally wrap it in
+# this stale-lock-aware guard.
+MUSIC_ANALYZER_HELD_LOCK_DIR="$lock_dir" "$@"

@@ -13,14 +13,23 @@ shift 3
 
 lock="${target}.lock"
 tmp="${target}.$$.tmp"
+owns_lock=0
 
-while ! mkdir "$lock" 2>/dev/null; do
-	sleep 0.1
-done
+# A Make recipe may already hold this exact lock through run_with_lock.sh.
+# Keep the standalone path synchronized as before, but do not self-deadlock
+# when the parent explicitly transfers lock ownership to this invocation.
+if [ "${MUSIC_ANALYZER_HELD_LOCK_DIR:-}" != "$lock" ]; then
+	while ! mkdir "$lock" 2>/dev/null; do
+		sleep 0.1
+	done
+	owns_lock=1
+fi
 
 cleanup() {
 	rm -f "$tmp"
-	rmdir "$lock" 2>/dev/null || true
+	if [ "$owns_lock" -eq 1 ]; then
+		rmdir "$lock" 2>/dev/null || true
+	fi
 }
 trap cleanup EXIT INT TERM
 
