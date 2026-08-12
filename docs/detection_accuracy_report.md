@@ -45,8 +45,8 @@ Source: `build/detector_improvement_route_summary.txt`
 
 | Metric | Routes / total | Other routes |
 | --- | ---: | ---: |
-| Routes with direct zero-regression support | 7 / 236 (3.0%) | 229 |
-| Routes awaiting additional fixture coverage | 92 / 236 (39.0%) | 144 |
+| Routes with direct zero-regression support | 9 / 236 (3.8%) | 227 |
+| Routes awaiting additional fixture coverage | 93 / 236 (39.4%) | 143 |
 
 ## Vocadito full-mix vocal routing
 
@@ -97,7 +97,7 @@ Source: `build/good_sounds_full_mix_attributes.tsv`
 | --- | ---: | ---: |
 | Good Sounds — Any detected note | 1317 / 1318 (99.9%) | 1 |
 | Good Sounds — Expected instrument row | 1201 / 1318 (91.1%) | 117 |
-| Good Sounds — Lit expected pitch class | 957 / 1318 (72.6%) | 361 |
+| Good Sounds — Lit expected pitch class | 958 / 1318 (72.7%) | 360 |
 | Good Sounds — Primary display row | 160 / 1318 (12.1%) | 1158 |
 | Good Sounds — Visual primary row | 320 / 1318 (24.3%) | 998 |
 | Good Sounds — Bass — Any detected note | 159 / 159 (100.0%) | 0 |
@@ -107,7 +107,7 @@ Source: `build/good_sounds_full_mix_attributes.tsv`
 | Good Sounds — Bass — Visual primary row | 6 / 159 (3.8%) | 153 |
 | Good Sounds — Other — Any detected note | 1158 / 1159 (99.9%) | 1 |
 | Good Sounds — Other — Expected instrument row | 1059 / 1159 (91.4%) | 100 |
-| Good Sounds — Other — Lit expected pitch class | 816 / 1159 (70.4%) | 343 |
+| Good Sounds — Other — Lit expected pitch class | 817 / 1159 (70.5%) | 342 |
 | Good Sounds — Other — Primary display row | 157 / 1159 (13.5%) | 1002 |
 | Good Sounds — Other — Visual primary row | 314 / 1159 (27.1%) | 845 |
 
@@ -165,6 +165,20 @@ Source: `build/iowa_orchestra_full_attributes.tsv`
 | Iowa orchestra — Other — exact expected MIDI note | 645 / 657 (98.2%) | 12 |
 | Iowa orchestra — Bass — exact expected MIDI note | 18 / 25 (72.0%) | 7 |
 
+## Iowa saxophone full-mix routing
+
+This symlink-only 60-sample subset of the independent Iowa orchestra corpus covers alto and soprano saxophones in full-mix mode. It is a focused routing benchmark for woodwinds whose pitch is detected but can be assigned to another row.
+
+Source: `build/iowa_sax_full_mix_attributes.tsv`
+
+| Metric | Accurate / total | Remaining |
+| --- | ---: | ---: |
+| Iowa saxophones — Any detected note | 60 / 60 (100.0%) | 0 |
+| Iowa saxophones — Expected instrument row | 60 / 60 (100.0%) | 0 |
+| Iowa saxophones — Lit expected pitch class | 38 / 60 (63.3%) | 22 |
+| Iowa saxophones — Primary display row | 8 / 60 (13.3%) | 52 |
+| Iowa saxophones — Visual primary row | 18 / 60 (30.0%) | 42 |
+
 ## Medley Solos instrument routing
 
 This independent corpus contains three-second isolated performances from eight instruments. It is measured in full-mix mode; a sample is accurate when any analyzed buffer activates its expected instrument row. It supplies routing coverage, not pitch or chord ground truth.
@@ -203,13 +217,13 @@ These rows count expected labeled chord-analysis windows (not full-mix samples).
 | Guitar Techs Music — primary displayed chord windows | 221 / 500 (44.2%) | 279 |
 | Guitar Techs Music — expected guitar pitch classes | 1609 / 1838 (87.5%) | 229 |
 | Guitar Techs Music — power-chord exact windows | 6 / 26 (23.1%) | 20 |
-| Gaps Guitar Full — exact chord windows | 361 / 540 (66.9%) | 179 |
+| Gaps Guitar Full — exact chord windows | 362 / 540 (67.0%) | 178 |
 | Gaps Guitar Full — primary displayed chord windows | 176 / 540 (32.6%) | 364 |
 | Gaps Guitar Full — expected guitar pitch classes | 1518 / 1957 (77.6%) | 439 |
 | Gaps Guitar Full — power-chord exact windows | 22 / 39 (56.4%) | 17 |
-| Guitarset — exact chord windows | 1140 / 1491 (76.5%) | 351 |
+| Guitarset — exact chord windows | 1141 / 1491 (76.5%) | 350 |
 | Guitarset — primary displayed chord windows | 622 / 1491 (41.7%) | 869 |
-| Guitarset — expected guitar pitch classes | 4357 / 5340 (81.6%) | 983 |
+| Guitarset — expected guitar pitch classes | 4356 / 5340 (81.6%) | 984 |
 | Guitarset — power-chord exact windows | 1 / 2 (50.0%) | 1 |
 
 ## URMP real multitrack gate
@@ -220,9 +234,9 @@ This downloaded real chamber-music corpus measures the same performances as prov
 | --- | ---: | ---: |
 | URMP — real pieces loadable | 44 / 44 (100.0%) | 0 |
 | URMP — selected annotated windows | 528 / 528 (100.0%) | 0 |
-| URMP — isolated-track exact notes | 1577 / 1788 (88.2%) | 211 |
-| URMP — isolated-track detected notes | 1634 / 1788 (91.4%) | 154 |
-| URMP — isolated-track precision | 1577 / 1756 (89.8%) | 179 false notes |
+| URMP — isolated-track exact notes | 833 / 1788 (46.6%) | 955 |
+| URMP — isolated-track detected notes | 1468 / 1788 (82.1%) | 320 |
+| URMP — isolated-track precision | 833 / 2865 (29.1%) | 2032 false notes |
 | URMP — provided-mix exact chords | 190 / 527 (36.1%) | 337 |
 | URMP — provided stream chord windows | 224 / 527 (42.5%) | 303 |
 | URMP — provided sequence chord windows | 214 / 527 (40.6%) | 313 |

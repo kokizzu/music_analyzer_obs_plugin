@@ -500,6 +500,7 @@ def render(
     pitch_shifted_violin_input: Path | None = None,
     philharmonia_full_input: Path | None = None,
     iowa_orchestra_full_input: Path | None = None,
+    iowa_sax_full_mix_input: Path | None = None,
 ) -> str:
     samples = load_samples(input_path)
     lines = [
@@ -676,6 +677,25 @@ def render(
             lines.append(f"| Iowa orchestra — {label} | {fraction(accurate, total)} | {total - accurate} |")
         for label, accurate, total in exact_note_rows(iowa_samples):
             lines.append(f"| Iowa orchestra — {label} | {fraction(accurate, total)} | {total - accurate} |")
+    if iowa_sax_full_mix_input is not None:
+        sax_rows = family_metric_rows(load_samples(iowa_sax_full_mix_input), "other")
+        lines.extend(
+            [
+                "",
+                "## Iowa saxophone full-mix routing",
+                "",
+                "This symlink-only 60-sample subset of the independent Iowa orchestra corpus "
+                "covers alto and soprano saxophones in full-mix mode. It is a focused routing "
+                "benchmark for woodwinds whose pitch is detected but can be assigned to another row.",
+                "",
+                f"Source: `{iowa_sax_full_mix_input.as_posix()}`",
+                "",
+                "| Metric | Accurate / total | Remaining |",
+                "| --- | ---: | ---: |",
+            ]
+        )
+        for label, accurate, total in sax_rows:
+            lines.append(f"| Iowa saxophones — {label} | {fraction(accurate, total)} | {total - accurate} |")
     if medley_solos_attribute_input is not None:
         lines.extend(
             [
@@ -859,6 +879,7 @@ def main() -> int:
     parser.add_argument("--focused-vocalset-clean-vowel-input", type=Path)
     parser.add_argument("--philharmonia-full-input", type=Path)
     parser.add_argument("--iowa-orchestra-full-input", type=Path)
+    parser.add_argument("--iowa-sax-full-mix-input", type=Path)
     parser.add_argument("--output", required=True, type=Path)
     args = parser.parse_args()
     try:
@@ -871,6 +892,7 @@ def main() -> int:
             args.focused_vocalset_clean_vowel_input, args.pitch_shifted_violin_input,
             args.philharmonia_full_input,
             args.iowa_orchestra_full_input,
+            args.iowa_sax_full_mix_input,
         )
     except (OSError, ValueError) as error:
         parser.error(str(error))
