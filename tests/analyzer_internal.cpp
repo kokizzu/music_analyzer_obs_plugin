@@ -178,6 +178,34 @@ void check_supported_low_monophonic_other_fundamental(Runner &runner)
 	runner.expect(supported_low_monophonic_other_fundamental(powers, 79) != 67,
 		      "low monophonic other recovery: expected bright sparse G4 second octave to stay rejected");
 	powers.fill(0.0f);
+	set_probe_level(powers, 67, 0.04f);  // G4 direct cor-anglais body
+	set_probe_level(powers, 79, 1.00f);  // G5 selected octave
+	set_probe_level(powers, 86, 0.22f);  // D6 rich measured fifth
+	set_probe_level(powers, 91, 0.01f);  // G6 quiet second octave
+	set_probe_level(powers, 95, 0.01f);  // B6 restrained upper major third
+	set_probe_level(powers, 98, 0.01f);  // D7 restrained upper fifth
+	runner.expect(supported_low_monophonic_other_fundamental(powers, 79) == 67,
+		      "low monophonic other recovery: expected bounded mezzo-piano G4 cor-anglais octave stack");
+	set_probe_level(powers, 86, 0.27f);
+	runner.expect(supported_low_monophonic_other_fundamental(powers, 79) != 67,
+		      "low monophonic other recovery: expected over-rich mezzo-piano G4 fifth to stay rejected");
+	powers.fill(0.0f);
+	set_probe_level(powers, 71, 0.015f); // B4 ultraweak cor-anglais body
+	set_probe_level(powers, 83, 1.00f);  // B5 selected octave
+	set_probe_level(powers, 90, 0.035f); // F#6 narrow fifth
+	set_probe_level(powers, 95, 0.028f); // B6 bounded second octave
+	set_probe_level(powers, 99, 0.001f); // D#7 almost absent upper major third
+	set_probe_level(powers, 102, 0.001f); // F#7 almost absent upper fifth
+	runner.expect(supported_low_monophonic_other_fundamental(powers, 83) == 71,
+		      "low monophonic other recovery: expected bounded ultraweak B4 cor-anglais octave stack");
+	set_probe_level(powers, 95, 0.031f);
+	runner.expect(supported_low_monophonic_other_fundamental(powers, 83) != 71,
+		      "low monophonic other recovery: expected bright B4 second octave to stay rejected");
+	set_probe_level(powers, 95, 0.028f);
+	set_probe_level(powers, 99, 0.003f);
+	runner.expect(supported_low_monophonic_other_fundamental(powers, 83) != 71,
+		      "low monophonic other recovery: expected bright B4 upper ladder to stay rejected");
+	powers.fill(0.0f);
 	set_probe_level(powers, 34, 0.16f); // A#1 direct low-bassoon body
 	set_probe_level(powers, 46, 1.00f); // A#2 selected octave
 	set_probe_level(powers, 53, 0.72f); // F3 fifth

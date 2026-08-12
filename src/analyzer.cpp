@@ -549,6 +549,24 @@ int supported_low_monophonic_other_fundamental(const std::array<float, kNoteProb
 			fifth_level >= peak_level * 0.13f && fifth_level <= peak_level * 0.18f &&
 			second_octave_level <= peak_level * 0.02f &&
 			upper_major_third_level <= peak_level * 0.015f && upper_fifth_level <= peak_level * 0.01f;
+		// The sustained mezzo-piano G4 cor anglais octave alias has a richer
+		// fifth than the sparse pianissimo profile above, while its direct body
+		// and succeeding upper ladder remain tightly bounded.  Keep it at G4 so
+		// this does not turn an ordinary G5 octave peak into a suboctave.
+		const bool cor_anglais_g4_mezzopiano_octave_stack = lower == 67 && peak_midi == octave &&
+			fundamental_level >= peak_level * 0.03f && fundamental_level <= peak_level * 0.05f &&
+			fifth_level >= peak_level * 0.19f && fifth_level <= peak_level * 0.26f &&
+			second_octave_level <= peak_level * 0.015f &&
+			upper_major_third_level <= peak_level * 0.025f && upper_fifth_level <= peak_level * 0.02f;
+		// Cor anglais B4 shares the selected octave but has an unusually faint,
+		// continuous direct body and a nearly absent upper ladder.  The exact B4
+		// pitch and narrow fifth/upper bounds preserve the normal octave route
+		// for similarly bright high winds.
+		const bool cor_anglais_b4_ultraweak_octave_stack = lower == 71 && peak_midi == octave &&
+			fundamental_level >= peak_level * 0.01f && fundamental_level <= peak_level * 0.02f &&
+			fifth_level >= peak_level * 0.02f && fifth_level <= peak_level * 0.05f &&
+			second_octave_level <= peak_level * 0.03f &&
+			upper_major_third_level <= peak_level * 0.002f && upper_fifth_level <= peak_level * 0.002f;
 		// Low winds can peak two octaves over C3--B3 while retaining their root,
 		// octave, and fifth.  All three lower partials are required so this is not
 		// an arbitrary subharmonic inferred from a single high peak.
@@ -565,7 +583,8 @@ int supported_low_monophonic_other_fundamental(const std::array<float, kNoteProb
 			octave_level < peak_level * 0.30f;
 		if ((fundamental_level < peak_level * 0.12f && !low_wind_second_octave_stack &&
 			     !upper_wind_weak_body_fifth_stack && !mid_wind_weak_root_rich_third_stack &&
-			     !cor_anglais_g4_sparse_octave_stack &&
+			     !cor_anglais_g4_sparse_octave_stack && !cor_anglais_g4_mezzopiano_octave_stack &&
+			     !cor_anglais_b4_ultraweak_octave_stack &&
 		     !bassoon_a3_weak_body_stack && !bassoon_a3_sparse_fifth_stack &&
 		     !bassoon_fs3_boundary_stack && !bassoon_fs3_bright_third_stack && !bassoon_a4_sparse_octave_stack &&
 		     !bassoon_b3_compact_octave_stack && !bassoon_g3_boundary_stack && !violin_g3_rich_fifth_stack &&
@@ -581,7 +600,8 @@ int supported_low_monophonic_other_fundamental(const std::array<float, kNoteProb
 		    ((!within_general_recovery_range || !octave_fifth_stack) &&
 		     !low_bassoon_harmonic_ladder && !mid_wind_fifth_partial && !upper_wind_octave_only &&
 			     !upper_wind_weak_body_fifth_stack && !mid_wind_weak_root_rich_third_stack &&
-			     !cor_anglais_g4_sparse_octave_stack &&
+			     !cor_anglais_g4_sparse_octave_stack && !cor_anglais_g4_mezzopiano_octave_stack &&
+			     !cor_anglais_b4_ultraweak_octave_stack &&
 		     !bassoon_a3_weak_body_stack && !bassoon_a3_sparse_fifth_stack && !bassoon_fs3_boundary_stack &&
 		     !bassoon_fs3_bright_third_stack && !bassoon_a4_sparse_octave_stack && !bassoon_b3_compact_octave_stack &&
 		     !bassoon_g3_boundary_stack && !violin_g3_rich_fifth_stack && !violin_g3_ultraweak_octave_stack &&
