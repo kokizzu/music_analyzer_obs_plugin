@@ -12759,6 +12759,38 @@ void prefer_direct_upper_other_octave_primary(NoteGrid &grid, InstrumentState &s
 		write_note_grid_label(state, grid, preferred_root);
 }
 
+// The generic monophonic Other lower-octave bridge deliberately stops at E3
+// to avoid broad late-stage reassignment.  A3 bassoon fortissimo is a measured
+// exception: a selected A4 retains a 3--4% direct body, dense E5/A5 support,
+// and a small, bounded upper ladder.  Apply this only after smoothing so the
+// displayed octave can reflect that complete acoustic profile.
+void prefer_measured_bassoon_a3_fortissimo_primary(
+	NoteGrid &grid, InstrumentState &state, const std::array<float, kNoteProbeCount> &powers,
+	int preferred_root)
+{
+	const int lower_midi = 57;
+	const int octave_midi = 69;
+	const NoteCell &primary = grid.cells[static_cast<std::size_t>(midi_pitch_class(lower_midi))];
+	if (!primary.active || primary.midi != octave_midi)
+		return;
+	const float octave_level = probe_level(powers, octave_midi);
+	if (octave_level <= 1.0e-6f)
+		return;
+	const float fundamental_ratio = probe_level(powers, lower_midi) / octave_level;
+	const float fifth_ratio = probe_level(powers, 76) / octave_level;
+	const float second_octave_ratio = probe_level(powers, 81) / octave_level;
+	const float upper_major_third_ratio = probe_level(powers, 85) / octave_level;
+	const float upper_fifth_ratio = probe_level(powers, 88) / octave_level;
+	if (fundamental_ratio < 0.03f || fundamental_ratio > 0.04f ||
+	    fifth_ratio < 0.40f || fifth_ratio > 0.47f ||
+	    second_octave_ratio < 0.13f || second_octave_ratio > 0.18f ||
+	    upper_major_third_ratio < 0.045f || upper_major_third_ratio > 0.065f ||
+	    upper_fifth_ratio < 0.05f || upper_fifth_ratio > 0.08f)
+		return;
+	if (promote_note_grid_primary_midi(grid, lower_midi, primary.level))
+		write_note_grid_label(state, grid, preferred_root);
+}
+
 void prefer_visible_lower_octave_primary(NoteGrid &grid, InstrumentState &state, int min_midi,
 					 float relative_floor, int preferred_root,
 					 float absolute_floor = 0.24f,
@@ -35567,6 +35599,9 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 		if (!mixed_source) {
 			prefer_supported_lower_octave_display(snapshot.other_notes, snapshot.other, note_powers,
 							      kOtherMinMidi, 52, -1, monophonic_other_source);
+			if (monophonic_other_source)
+				prefer_measured_bassoon_a3_fortissimo_primary(
+					snapshot.other_notes, snapshot.other, note_powers, -1);
 			if (!monophonic_other_source)
 				prefer_direct_upper_other_octave_primary(snapshot.other_notes, snapshot.other,
 									     note_powers, -1);
