@@ -2110,7 +2110,7 @@ $(MEDLEY_SOLOS_ARCHIVE): FORCE | $(BUILD_DIR)
 	mkdir -p "$(MEDLEY_SOLOS_SOURCE_DIR)"
 	if [ -s "$(MEDLEY_SOLOS_ARCHIVE)" ] && ! $(TAR) -tzf "$(MEDLEY_SOLOS_ARCHIVE)" >/dev/null 2>&1; then mv -f "$(MEDLEY_SOLOS_ARCHIVE)" "$(MEDLEY_SOLOS_ARCHIVE).part"; fi
 	if [ ! -s "$(MEDLEY_SOLOS_ARCHIVE)" ] && [ -s "$(MEDLEY_SOLOS_ARCHIVE).part" ] && $(TAR) -tzf "$(MEDLEY_SOLOS_ARCHIVE).part" >/dev/null 2>&1; then mv "$(MEDLEY_SOLOS_ARCHIVE).part" "$(MEDLEY_SOLOS_ARCHIVE)"; fi
-	if [ ! -s "$(MEDLEY_SOLOS_ARCHIVE)" ]; then curl -fL -C - -o "$(MEDLEY_SOLOS_ARCHIVE).part" "$(MEDLEY_SOLOS_URL)"; fi
+	if [ ! -s "$(MEDLEY_SOLOS_ARCHIVE)" ]; then if command -v "$(ARIA2C)" >/dev/null 2>&1; then "$(ARIA2C)" -c -x 8 -s 8 -k 1M --file-allocation=none --allow-overwrite=true --auto-file-renaming=false --dir "$(MEDLEY_SOLOS_SOURCE_DIR)" --out "Medley-solos-DB.tar.gz.part" "$(MEDLEY_SOLOS_URL)"; else curl -fL -C - -o "$(MEDLEY_SOLOS_ARCHIVE).part" "$(MEDLEY_SOLOS_URL)"; fi; fi
 	if [ -s "$(MEDLEY_SOLOS_ARCHIVE).part" ]; then $(TAR) -tzf "$(MEDLEY_SOLOS_ARCHIVE).part" >/dev/null; mv "$(MEDLEY_SOLOS_ARCHIVE).part" "$(MEDLEY_SOLOS_ARCHIVE)"; fi
 	$(TAR) -tzf "$(MEDLEY_SOLOS_ARCHIVE)" >/dev/null
 
