@@ -29,6 +29,10 @@ constexpr int kFullMixVocalMinMidi = 50;
 constexpr int kFullMixVocalPolyphonicContextMinMidi = 53;
 constexpr int kOtherMinMidi = 21;
 constexpr int kOtherMaxMidi = 108;
+// Named monophonic wind/string/brass tracks have their low instruments routed
+// through the bass path. Their remaining range starts at bassoon A#1; A0--A1
+// only contributes leakage peaks in these source-hinted isolated tracks.
+constexpr int kMonophonicOtherMinMidi = 34;
 constexpr float kSilenceRms = 0.0025f;
 constexpr float kNoteRmsFloor = 0.006f;
 constexpr float kPolyphonicNoteRmsFloor = 0.0030f;
@@ -34820,7 +34824,7 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 				}
 			}
 		} else {
-			const int min_midi = kOtherMinMidi;
+			const int min_midi = monophonic_other_source ? kMonophonicOtherMinMidi : kOtherMinMidi;
 			const std::array<float, kNoteProbeCount> &other_note_powers =
 				monophonic_other_source ? note_powers : detection_note_powers;
 			std::array<bool, kNoteProbeCount> quiet_monophonic_allowed_midis = {};

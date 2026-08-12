@@ -182,6 +182,13 @@ void check_supported_low_monophonic_other_fundamental(Runner &runner)
 	runner.expect(supported_low_monophonic_other_fundamental(powers, 70) != 58,
 		      "low monophonic other recovery: expected bright A#3 bassoon fifth to stay rejected");
 	powers.fill(0.0f);
+	set_probe_level(powers, 21, 1.00f); // A0 leakage, outside monophonic Other range
+	set_probe_level(powers, 64, 0.62f); // E4 musical peak
+	const NoteCandidateList monophonic_range_candidates =
+		note_peak_candidates(powers, kMonophonicOtherMinMidi, kOtherMaxMidi, 1);
+	runner.expect(!monophonic_range_candidates.empty() && monophonic_range_candidates.front().midi == 64,
+	      "low monophonic other recovery: expected A0 leakage excluded before peak selection");
+	powers.fill(0.0f);
 	set_probe_level(powers, 50, 0.112f); // D3 direct bassoon body
 	set_probe_level(powers, 62, 0.300f); // D4 octave
 	set_probe_level(powers, 69, 1.00f); // A4 selected fifth
