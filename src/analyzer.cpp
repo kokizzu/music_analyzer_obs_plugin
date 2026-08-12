@@ -24076,7 +24076,8 @@ ChordResult stronger_chord(const ChordResult &lhs, const ChordResult &rhs)
 	return rhs.margin > lhs.margin ? rhs : lhs;
 }
 
-ChordResult detect_strict_symmetric_dim7_chord(const std::array<float, 12> &chroma)
+ChordResult detect_strict_symmetric_dim7_chord(const std::array<float, 12> &chroma,
+							float relative_tone_floor = 0.30f)
 {
 	ChordResult best;
 	const float strongest = *std::max_element(chroma.begin(), chroma.end());
@@ -24085,7 +24086,7 @@ ChordResult detect_strict_symmetric_dim7_chord(const std::array<float, 12> &chro
 
 	static constexpr int kDim7ToneCount = 4;
 	static constexpr float kToneFloor = 0.24f;
-	const float tone_floor = std::max(kToneFloor, strongest * 0.30f);
+	const float tone_floor = std::max(kToneFloor, strongest * relative_tone_floor);
 
 	float best_score = 0.0f;
 	int best_root = -1;
@@ -24236,10 +24237,33 @@ ChordResult detect_strict_weak_root_dominant_chord(const std::array<float, 12> &
 	return best;
 }
 
-ChordResult prefer_strict_symmetric_dim7_global_chord(const ChordResult &current,
-						      const std::array<float, 12> &chroma)
+void append_strict_symmetric_dim7_aliases(InstrumentState &state,
+						   const std::array<float, 12> &chroma, float relative_tone_floor)
 {
-	const ChordResult diminished = detect_strict_symmetric_dim7_chord(chroma);
+	if (!state.label[0] || state.label[0] == '-')
+		return;
+	const std::size_t primary_len = std::strcspn(state.label, "=");
+	ParsedRootChord primary;
+	if (!parse_root_chord_component(state.label, primary_len, primary) ||
+	    primary.quality != RootChordQuality::Diminished)
+		return;
+	const ChordResult diminished = detect_strict_symmetric_dim7_chord(chroma, relative_tone_floor);
+	if (!valid_chord_result(diminished))
+		return;
+	ChordResult current;
+	current.root = primary.root;
+	current.confidence = state.confidence;
+	copy_text(current.label, sizeof(current.label), state.label);
+	for (int offset = 0; offset < 12; offset += 3)
+		append_chord_alias(current, diminished.root + offset, "dim7");
+	copy_text(state.label, sizeof(state.label), current.label);
+}
+
+ChordResult prefer_strict_symmetric_dim7_global_chord(const ChordResult &current,
+						      const std::array<float, 12> &chroma,
+						      float relative_tone_floor = 0.30f)
+{
+	const ChordResult diminished = detect_strict_symmetric_dim7_chord(chroma, relative_tone_floor);
 	if (!valid_chord_result(diminished))
 		return current;
 	if (!valid_chord_result(current))
@@ -34251,6 +34275,9 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 							     allow_smoothed_extensions);
 		stabilize_chord(snapshot.keyboard_chord, keyboard_chord_tracking_, raw_keyboard_chord,
 				smoothed_keyboard_chord, true, interval_seconds);
+		if (!mixed_source)
+			append_strict_symmetric_dim7_aliases(snapshot.keyboard_chord,
+						      note_grid_chroma(snapshot.keyboard_notes), 0.26f);
 	} else {
 		reset_note_grid_envelope(snapshot.keyboard_notes, snapshot.keyboard, keyboard_note_tracking_);
 		reset_note_grid_envelope(keyboard_chord_grid, keyboard_chord_note_state, keyboard_chord_note_tracking_);

@@ -1091,6 +1091,34 @@ std::string grid_midi_list(const mao::NoteGrid &grid)
 	return midi_list(midis);
 }
 
+std::string grid_pitch_level_list(const mao::NoteGrid &grid)
+{
+	std::array<float, 12> levels = {};
+	auto collect = [&](const mao::NoteCell &cell) {
+		if (cell.active && cell.midi >= 0)
+			levels[static_cast<std::size_t>(cell.midi % 12)] =
+				std::max(levels[static_cast<std::size_t>(cell.midi % 12)], cell.level);
+	};
+	for (const auto &row : grid.rows)
+		for (const auto &cell : row)
+			collect(cell);
+	for (const auto &cell : grid.cells)
+		collect(cell);
+
+	std::string result;
+	for (int pitch_class = 0; pitch_class < 12; ++pitch_class) {
+		if (levels[static_cast<std::size_t>(pitch_class)] <= 0.0f)
+			continue;
+		if (!result.empty())
+			result += ',';
+		char level[16] = {};
+		std::snprintf(level, sizeof(level), ":%.3f", levels[static_cast<std::size_t>(pitch_class)]);
+		result += mao_test::note_name(pitch_class);
+		result += level;
+	}
+	return result.empty() ? "--" : result;
+}
+
 struct KeyboardPrecisionStats {
 	int windows = 0;
 	int expected_pitch_classes = 0;
@@ -1220,7 +1248,7 @@ void add_keyboard_chord_precision_metrics(ChordPrecisionStats &stats, const mao:
 
 void print_maestro_attribute_header(std::ostream &out)
 {
-	out << "recording\tcenter_sample\texpected_midis\tdetected_keyboard_midis\texpected_pcs\tdetected_keyboard_pcs\tdetected_chord_pcs\tchord_debug\tmissing_pcs\textra_pcs\t"
+	out << "recording\tcenter_sample\texpected_midis\tdetected_keyboard_midis\texpected_pcs\tdetected_keyboard_pcs\tdetected_chord_pcs\tkeyboard_levels\tkeyboard_chord_levels\tchord_debug\tmissing_pcs\textra_pcs\t"
 	       "expected_chords\tchord_hit\taudio_rms\taudio_peak\tglobal_chord\tkeyboard_chord\n";
 }
 
@@ -1243,6 +1271,8 @@ void append_maestro_attribute_row(std::ostream &out, const Recording &recording,
 	    << grid_midi_list(snapshot.keyboard_notes) << '\t'
 	    << pitch_class_list(candidate.pitch_classes) << '\t' << pitch_class_list(keyboard) << '\t'
 	    << pitch_class_list(chord_keyboard) << '\t'
+	    << grid_pitch_level_list(snapshot.keyboard_notes) << '\t'
+	    << grid_pitch_level_list(snapshot.keyboard_chord_smoothed_notes) << '\t'
 	    << snapshot.keyboard_chord_debug_reason << '\t'
 	    << pitch_class_difference_list(candidate.pitch_classes, keyboard) << '\t'
 	    << pitch_class_difference_list(keyboard, candidate.pitch_classes) << '\t'

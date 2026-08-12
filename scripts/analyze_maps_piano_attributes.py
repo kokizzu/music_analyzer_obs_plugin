@@ -106,6 +106,7 @@ def summarize(path: Path, limit: int) -> list[str]:
                     complete_pitch_chord_examples.append(
                         f"{row['recording']}@{row['center_sample']} "
                         f"expected={row['expected_chords']} keyboard={row['keyboard_chord']} "
+                        f"chord_levels={row.get('keyboard_chord_levels', '--')} "
                         f"path={row['chord_debug']}"
                     )
 
