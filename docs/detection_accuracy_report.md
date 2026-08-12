@@ -209,7 +209,7 @@ These rows count expected labeled chord-analysis windows (not full-mix samples).
 | Gaps Guitar Full — power-chord exact windows | 22 / 39 (56.4%) | 17 |
 | Guitarset — exact chord windows | 1140 / 1491 (76.5%) | 351 |
 | Guitarset — primary displayed chord windows | 622 / 1491 (41.7%) | 869 |
-| Guitarset — expected guitar pitch classes | 4357 / 5340 (81.6%) | 983 |
+| Guitarset — expected guitar pitch classes | 4356 / 5340 (81.6%) | 984 |
 | Guitarset — power-chord exact windows | 1 / 2 (50.0%) | 1 |
 
 ## URMP real multitrack gate
