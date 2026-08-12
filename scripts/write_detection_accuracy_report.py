@@ -455,6 +455,7 @@ def render(
     maps_attribute_input: Path | None = None,
     medley_solos_attribute_input: Path | None = None,
     focused_vocalset_clean_vowel_input: Path | None = None,
+    pitch_shifted_violin_input: Path | None = None,
 ) -> str:
     samples = load_samples(input_path)
     lines = [
@@ -574,6 +575,25 @@ def render(
         )
         for label, accurate, total in table_rows(good_sounds_samples):
             lines.append(f"| Good Sounds — {label} | {fraction(accurate, total)} | {total - accurate} |")
+    if pitch_shifted_violin_input is not None:
+        fixture_rows = family_metric_rows(load_samples(pitch_shifted_violin_input), "other")
+        lines.extend(
+            [
+                "",
+                "## Controlled octave-down violin fixture",
+                "",
+                "Twenty real Philharmonia G3–B3 violin recordings are shifted down one octave. "
+                "This explicitly derived fixture covers pitch-shifted/sample-playback violin below "
+                "the acoustic violin range; it is kept separate from real-acoustic aggregate accuracy.",
+                "",
+                f"Source: `{pitch_shifted_violin_input.as_posix()}`",
+                "",
+                "| Metric | Accurate / total | Remaining |",
+                "| --- | ---: | ---: |",
+            ]
+        )
+        for label, accurate, total in fixture_rows:
+            lines.append(f"| Pitch-shifted violin — {label} | {fraction(accurate, total)} | {total - accurate} |")
     if medley_solos_attribute_input is not None:
         lines.extend(
             [
@@ -752,6 +772,7 @@ def main() -> int:
     parser.add_argument("--urmp-gate-output", type=Path)
     parser.add_argument("--route-summary", type=Path)
     parser.add_argument("--good-sounds-full-mix-input", type=Path)
+    parser.add_argument("--pitch-shifted-violin-input", type=Path)
     parser.add_argument("--medley-solos-attribute-input", type=Path)
     parser.add_argument("--focused-vocalset-clean-vowel-input", type=Path)
     parser.add_argument("--output", required=True, type=Path)
@@ -763,7 +784,7 @@ def main() -> int:
             args.vocalset_full_mix_input, args.maps_gate_output, args.maps_note_gate_output,
             args.route_summary, args.good_sounds_full_mix_input, args.hf_drum_gate_output,
             args.maps_attribute_input, args.medley_solos_attribute_input,
-            args.focused_vocalset_clean_vowel_input,
+            args.focused_vocalset_clean_vowel_input, args.pitch_shifted_violin_input,
         )
     except (OSError, ValueError) as error:
         parser.error(str(error))

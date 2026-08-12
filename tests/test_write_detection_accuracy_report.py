@@ -121,6 +121,18 @@ class DetectionAccuracyReportTest(unittest.TestCase):
                 ) + "\n",
                 encoding="utf-8",
             )
+            pitch_shifted_violin = Path(temporary) / "pitch_shifted_violin_attributes.tsv"
+            pitch_shifted_violin.write_text(
+                "\n".join(
+                    (
+                        HEADER,
+                        "pv1\tother\t1\t1\tother\tother",
+                        "pv2\tother\t1\t1\tpiano\tother",
+                        "pv3\tother\t0\t0\tpiano\tpiano",
+                    )
+                ) + "\n",
+                encoding="utf-8",
+            )
             bach10_0 = Path(temporary) / "bach10_0.out"
             bach10_0.write_text(
                 "analyzer_musicnet: 20 checks passed (recordings 3/10, windows 12, note hits "
@@ -203,6 +215,7 @@ class DetectionAccuracyReportTest(unittest.TestCase):
                 source, [chords], vocal_full_mix, [bach10_0, bach10_1], musicnet, drum, urmp,
                 vocalset_full_mix, [maps], None, route_summary, good_sounds_full_mix, hf_drum_outputs,
                 maps_attributes, medley_solos_attributes, focused_vocalset_clean_vowel,
+                pitch_shifted_violin,
             )
 
         self.assertIn("| Any detected note | 2 / 3 (66.7%) | 1 |", report)
@@ -234,6 +247,8 @@ class DetectionAccuracyReportTest(unittest.TestCase):
         self.assertIn("## Good Sounds full-mix acoustic routing", report)
         self.assertIn("| Good Sounds — Any detected note | 2 / 3 (66.7%) | 1 |", report)
         self.assertIn("| Good Sounds — Other — Expected instrument row | 1 / 2 (50.0%) | 1 |", report)
+        self.assertIn("## Controlled octave-down violin fixture", report)
+        self.assertIn("| Pitch-shifted violin — Expected instrument row | 2 / 3 (66.7%) | 1 |", report)
         self.assertIn("## Medley Solos instrument routing", report)
         self.assertIn("| Medley Solos — Expected instrument row | 1 / 2 (50.0%) | 1 |", report)
         self.assertIn("| Medley Solos — Instrument Clarinet expected row | 1 / 1 (100.0%) | 0 |", report)

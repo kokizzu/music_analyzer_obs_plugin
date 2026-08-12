@@ -54,6 +54,7 @@ DETECTION_ACCURACY_DRUM_GATE_ARG = $(if $(wildcard $(DRUM_FULL_GATE_OUT)),--drum
 DETECTION_ACCURACY_HF_DRUM_GATE_ARGS = $(foreach path,$(wildcard $(HF_DRUM_KIT_SHARD_OUTS)),--hf-drum-gate-output "$(path)")
 DETECTION_ACCURACY_ROUTE_SUMMARY_ARG = $(if $(wildcard $(DETECTOR_IMPROVEMENT_ROUTE_SUMMARY)),--route-summary "$(DETECTOR_IMPROVEMENT_ROUTE_SUMMARY)")
 DETECTION_ACCURACY_GOOD_SOUNDS_FULL_MIX_ARG = $(if $(wildcard $(GOOD_SOUNDS_FULL_MIX_ATTRIBUTE_TSV)),--good-sounds-full-mix-input "$(GOOD_SOUNDS_FULL_MIX_ATTRIBUTE_TSV)")
+DETECTION_ACCURACY_PITCH_SHIFTED_VIOLIN_ARG = $(if $(wildcard $(PITCH_SHIFTED_VIOLIN_ATTRIBUTE_TSV)),--pitch-shifted-violin-input "$(PITCH_SHIFTED_VIOLIN_ATTRIBUTE_TSV)")
 DETECTION_ACCURACY_MEDLEY_SOLOS_ATTRIBUTE_TSV ?= $(BUILD_DIR)/medley_solos_attributes.tsv
 DETECTION_ACCURACY_MEDLEY_SOLOS_ATTRIBUTE_ARG = $(if $(wildcard $(DETECTION_ACCURACY_MEDLEY_SOLOS_ATTRIBUTE_TSV)),--medley-solos-attribute-input "$(DETECTION_ACCURACY_MEDLEY_SOLOS_ATTRIBUTE_TSV)")
 ANDROID_SDK_ROOT ?= $(CURDIR)/$(BUILD_DIR)/android-sdk
@@ -834,6 +835,13 @@ PHILHARMONIA_FULL_MIN_GUITAR ?= 140
 PHILHARMONIA_FULL_MIN_OTHER ?= 2200
 PHILHARMONIA_FULL_MAX_FAILURES ?= 25
 PHILHARMONIA_FULL_PROGRESS_EVERY ?= 250
+PITCH_SHIFTED_VIOLIN_SAMPLE_DIR ?= $(BUILD_DIR)/pitch_shifted_violin_samples
+PITCH_SHIFTED_VIOLIN_SOURCE_MANIFEST ?= $(PHILHARMONIA_FULL_SAMPLE_DIR)/manifest.tsv
+PITCH_SHIFTED_VIOLIN_ATTRIBUTE_TSV ?= $(BUILD_DIR)/pitch_shifted_violin_attributes.tsv
+PITCH_SHIFTED_VIOLIN_ATTRIBUTE_LOCK_DIR ?= $(BUILD_DIR)/pitch_shifted_violin_attributes.lock
+PITCH_SHIFTED_VIOLIN_PER_MIDI ?= 4
+PITCH_SHIFTED_VIOLIN_MIN_SAMPLES ?= 20
+PITCH_SHIFTED_VIOLIN_MAX_FAILURES ?= 20
 GOOD_SOUNDS_URL ?= https://zenodo.org/api/records/820937/files/good-sounds.zip/content
 GOOD_SOUNDS_SOURCE_DIR ?= $(REAL_SAMPLE_SOURCE_DIR)/good_sounds
 GOOD_SOUNDS_ARCHIVE ?= $(GOOD_SOUNDS_SOURCE_DIR)/good-sounds.zip
@@ -2679,12 +2687,12 @@ analyze-real-note-attributes: $(BUILD_DIR)/real_note_full_mix_attributes.tsv scr
 	@printf '%s\n' "attribute TSV: $(BUILD_DIR)/real_note_full_mix_attributes.tsv"
 
 update-detection-accuracy-report: $(BUILD_DIR)/real_note_full_mix_attributes.tsv scripts/write_detection_accuracy_report.py
-	$(PYTHON) scripts/write_detection_accuracy_report.py --input "$(BUILD_DIR)/real_note_full_mix_attributes.tsv" $(DETECTION_ACCURACY_CHORD_ARGS) $(DETECTION_ACCURACY_VOCAL_FULL_MIX_ARG) $(DETECTION_ACCURACY_VOCALSET_FULL_MIX_ARG) $(DETECTION_ACCURACY_VOCALSET_CLEAN_VOWEL_ARG) $(DETECTION_ACCURACY_URMP_GATE_ARG) $(DETECTION_ACCURACY_BACH10_GATE_ARGS) $(DETECTION_ACCURACY_MUSICNET_GATE_ARG) $(DETECTION_ACCURACY_MAPS_GATE_ARGS) $(DETECTION_ACCURACY_MAPS_NOTE_GATE_ARGS) $(DETECTION_ACCURACY_MAPS_ATTRIBUTE_ARG) $(DETECTION_ACCURACY_DRUM_GATE_ARG) $(DETECTION_ACCURACY_HF_DRUM_GATE_ARGS) $(DETECTION_ACCURACY_ROUTE_SUMMARY_ARG) $(DETECTION_ACCURACY_GOOD_SOUNDS_FULL_MIX_ARG) $(DETECTION_ACCURACY_MEDLEY_SOLOS_ATTRIBUTE_ARG) --output "$(DETECTION_ACCURACY_REPORT)"
+	$(PYTHON) scripts/write_detection_accuracy_report.py --input "$(BUILD_DIR)/real_note_full_mix_attributes.tsv" $(DETECTION_ACCURACY_CHORD_ARGS) $(DETECTION_ACCURACY_VOCAL_FULL_MIX_ARG) $(DETECTION_ACCURACY_VOCALSET_FULL_MIX_ARG) $(DETECTION_ACCURACY_VOCALSET_CLEAN_VOWEL_ARG) $(DETECTION_ACCURACY_URMP_GATE_ARG) $(DETECTION_ACCURACY_BACH10_GATE_ARGS) $(DETECTION_ACCURACY_MUSICNET_GATE_ARG) $(DETECTION_ACCURACY_MAPS_GATE_ARGS) $(DETECTION_ACCURACY_MAPS_NOTE_GATE_ARGS) $(DETECTION_ACCURACY_MAPS_ATTRIBUTE_ARG) $(DETECTION_ACCURACY_DRUM_GATE_ARG) $(DETECTION_ACCURACY_HF_DRUM_GATE_ARGS) $(DETECTION_ACCURACY_ROUTE_SUMMARY_ARG) $(DETECTION_ACCURACY_GOOD_SOUNDS_FULL_MIX_ARG) $(DETECTION_ACCURACY_PITCH_SHIFTED_VIOLIN_ARG) $(DETECTION_ACCURACY_MEDLEY_SOLOS_ATTRIBUTE_ARG) --output "$(DETECTION_ACCURACY_REPORT)"
 
 .PHONY: update-detection-accuracy-report-cached
 update-detection-accuracy-report-cached: scripts/write_detection_accuracy_report.py
 	@test -f "$(BUILD_DIR)/real_note_full_mix_attributes.tsv" || { printf '%s\n' "missing build/real_note_full_mix_attributes.tsv; run make update-detection-accuracy-report first"; exit 2; }
-	$(PYTHON) scripts/write_detection_accuracy_report.py --input "$(BUILD_DIR)/real_note_full_mix_attributes.tsv" $(DETECTION_ACCURACY_CHORD_ARGS) $(DETECTION_ACCURACY_VOCAL_FULL_MIX_ARG) $(DETECTION_ACCURACY_VOCALSET_FULL_MIX_ARG) $(DETECTION_ACCURACY_VOCALSET_CLEAN_VOWEL_ARG) $(DETECTION_ACCURACY_URMP_GATE_ARG) $(DETECTION_ACCURACY_BACH10_GATE_ARGS) $(DETECTION_ACCURACY_MUSICNET_GATE_ARG) $(DETECTION_ACCURACY_MAPS_GATE_ARGS) $(DETECTION_ACCURACY_MAPS_NOTE_GATE_ARGS) $(DETECTION_ACCURACY_MAPS_ATTRIBUTE_ARG) $(DETECTION_ACCURACY_DRUM_GATE_ARG) $(DETECTION_ACCURACY_HF_DRUM_GATE_ARGS) $(DETECTION_ACCURACY_ROUTE_SUMMARY_ARG) $(DETECTION_ACCURACY_GOOD_SOUNDS_FULL_MIX_ARG) $(DETECTION_ACCURACY_MEDLEY_SOLOS_ATTRIBUTE_ARG) --output "$(DETECTION_ACCURACY_REPORT)"
+	$(PYTHON) scripts/write_detection_accuracy_report.py --input "$(BUILD_DIR)/real_note_full_mix_attributes.tsv" $(DETECTION_ACCURACY_CHORD_ARGS) $(DETECTION_ACCURACY_VOCAL_FULL_MIX_ARG) $(DETECTION_ACCURACY_VOCALSET_FULL_MIX_ARG) $(DETECTION_ACCURACY_VOCALSET_CLEAN_VOWEL_ARG) $(DETECTION_ACCURACY_URMP_GATE_ARG) $(DETECTION_ACCURACY_BACH10_GATE_ARGS) $(DETECTION_ACCURACY_MUSICNET_GATE_ARG) $(DETECTION_ACCURACY_MAPS_GATE_ARGS) $(DETECTION_ACCURACY_MAPS_NOTE_GATE_ARGS) $(DETECTION_ACCURACY_MAPS_ATTRIBUTE_ARG) $(DETECTION_ACCURACY_DRUM_GATE_ARG) $(DETECTION_ACCURACY_HF_DRUM_GATE_ARGS) $(DETECTION_ACCURACY_ROUTE_SUMMARY_ARG) $(DETECTION_ACCURACY_GOOD_SOUNDS_FULL_MIX_ARG) $(DETECTION_ACCURACY_PITCH_SHIFTED_VIOLIN_ARG) $(DETECTION_ACCURACY_MEDLEY_SOLOS_ATTRIBUTE_ARG) --output "$(DETECTION_ACCURACY_REPORT)"
 
 test-detection-accuracy-report: tests/test_write_detection_accuracy_report.py scripts/write_detection_accuracy_report.py
 	$(PYTHON) tests/test_write_detection_accuracy_report.py
@@ -3374,6 +3382,35 @@ analyze-philharmonia-full-attributes: $(PHILHARMONIA_FULL_DETECTED_ATTRIBUTE_ROW
 	@printf '%s\n' "Philharmonia full attribute rows:"
 	@printf '%s\n' "  $(PHILHARMONIA_FULL_DETECTED_ATTRIBUTE_ROWS)"
 	@printf '%s\n' "  $(PHILHARMONIA_FULL_MISS_ATTRIBUTE_ROWS)"
+
+# These are explicitly derived samples: real Philharmonia violin recordings
+# shifted down one octave for coverage of sample-playback/pitch-shifted timbres.
+# They are intentionally kept out of aggregate real-world accuracy dashboards.
+prepare-pitch-shifted-violin-samples: scripts/prepare_pitch_shifted_violin_samples.py $(PITCH_SHIFTED_VIOLIN_SOURCE_MANIFEST) | $(BUILD_DIR)
+	+$(MAKE) ensure-build-sample-storage-link BUILD_SAMPLE_STORAGE_DIR="$(notdir $(PITCH_SHIFTED_VIOLIN_SAMPLE_DIR))"
+	$(PYTHON) scripts/prepare_pitch_shifted_violin_samples.py --source-manifest "$(PITCH_SHIFTED_VIOLIN_SOURCE_MANIFEST)" --output "$(PITCH_SHIFTED_VIOLIN_SAMPLE_DIR)" --per-midi "$(PITCH_SHIFTED_VIOLIN_PER_MIDI)" --ffmpeg "$(FFMPEG)"
+
+$(PITCH_SHIFTED_VIOLIN_SAMPLE_DIR)/manifest.tsv: scripts/prepare_pitch_shifted_violin_samples.py $(PITCH_SHIFTED_VIOLIN_SOURCE_MANIFEST) | $(BUILD_DIR)
+	+$(MAKE) prepare-pitch-shifted-violin-samples
+
+test-pitch-shifted-violin-samples test-pitch-shifted-violin-samples-parallel: REAL_NOTE_SAMPLE_TAG := pitchshifted_violin
+test-pitch-shifted-violin-samples test-pitch-shifted-violin-samples-parallel: REAL_NOTE_SAMPLE_ROOT := $(PITCH_SHIFTED_VIOLIN_SAMPLE_DIR)
+test-pitch-shifted-violin-samples test-pitch-shifted-violin-samples-parallel: REAL_NOTE_SAMPLE_REQUIRED_SAMPLES := $(PITCH_SHIFTED_VIOLIN_MIN_SAMPLES)
+test-pitch-shifted-violin-samples test-pitch-shifted-violin-samples-parallel: REAL_NOTE_SAMPLE_MIN_OTHER := $(PITCH_SHIFTED_VIOLIN_MIN_SAMPLES)
+test-pitch-shifted-violin-samples test-pitch-shifted-violin-samples-parallel: REAL_NOTE_SAMPLE_MAX_FAILURES := $(PITCH_SHIFTED_VIOLIN_MAX_FAILURES)
+test-pitch-shifted-violin-samples: test-pitch-shifted-violin-samples-parallel
+
+test-pitch-shifted-violin-samples-parallel: $(BUILD_DIR)/analyzer_real_note_samples prepare-pitch-shifted-violin-samples scripts/run_with_duration.sh scripts/check_real_note_sample_shards.py
+	+$(RUN_REAL_NOTE_SAMPLE_SHARDS)
+
+$(PITCH_SHIFTED_VIOLIN_ATTRIBUTE_TSV): $(BUILD_DIR)/analyzer_real_note_samples $(PITCH_SHIFTED_VIOLIN_SAMPLE_DIR)/manifest.tsv scripts/build_sharded_tsv.sh scripts/run_with_lock.sh | $(BUILD_DIR)
+	+$(SHELL) scripts/run_with_lock.sh "$(PITCH_SHIFTED_VIOLIN_ATTRIBUTE_LOCK_DIR)" -- "$(SHELL)" scripts/build_sharded_tsv.sh "$@" "$(MAKE)" "$(REAL_NOTE_SAMPLE_TEST_MAKE_JOBS)" $(addprefix $(BUILD_DIR)/pitch_shifted_violin_attributes.shard-,$(addsuffix .tsv,$(REAL_NOTE_SAMPLE_SHARD_INDEXES)))
+
+$(BUILD_DIR)/pitch_shifted_violin_attributes.shard-%.tsv: FORCE $(BUILD_DIR)/analyzer_real_note_samples $(PITCH_SHIFTED_VIOLIN_SAMPLE_DIR)/manifest.tsv scripts/run_with_duration.sh | $(BUILD_DIR)
+	$(RUN_WITH_DURATION) analyzer_pitch_shifted_violin_attributes_shard_$* env MUSIC_ANALYZER_REAL_NOTE_SAMPLES_REQUIRED=1 MUSIC_ANALYZER_REAL_NOTE_REQUIRED_SAMPLES="$(PITCH_SHIFTED_VIOLIN_MIN_SAMPLES)" MUSIC_ANALYZER_REAL_NOTE_SAMPLE_ROOT="$(PITCH_SHIFTED_VIOLIN_SAMPLE_DIR)" MUSIC_ANALYZER_REAL_NOTE_MIN_BASS=0 MUSIC_ANALYZER_REAL_NOTE_MIN_GUITAR=0 MUSIC_ANALYZER_REAL_NOTE_MIN_PIANO=0 MUSIC_ANALYZER_REAL_NOTE_MIN_VOCALS=0 MUSIC_ANALYZER_REAL_NOTE_MIN_OTHER=0 MUSIC_ANALYZER_REAL_NOTE_MAX_FAILURES=999999 MUSIC_ANALYZER_REAL_NOTE_MAX_FAILURE_LINES=120 MUSIC_ANALYZER_REAL_NOTE_SHARD_COUNT="$(REAL_NOTE_SAMPLE_SHARDS)" MUSIC_ANALYZER_REAL_NOTE_SHARD_INDEX="$*" MUSIC_ANALYZER_REAL_NOTE_ATTRIBUTE_TSV="$@" $(BUILD_DIR)/analyzer_real_note_samples > "$(BUILD_DIR)/pitch_shifted_violin_attributes.shard-$*.out" 2> "$(BUILD_DIR)/pitch_shifted_violin_attributes.shard-$*.err"
+
+analyze-pitch-shifted-violin-attributes: $(PITCH_SHIFTED_VIOLIN_ATTRIBUTE_TSV)
+	@printf '%s\n' "Pitch-shifted violin attribute TSV: $(PITCH_SHIFTED_VIOLIN_ATTRIBUTE_TSV)"
 
 download-good-sounds-samples: $(GOOD_SOUNDS_ARCHIVE_VALIDATION_STAMP)
 
@@ -4139,6 +4176,7 @@ test-real-world-samples-max-parallel: scripts/run_with_duration.sh
 	+$(RUN_WITH_DURATION) real_world_samples_max $(MAKE) $(PARALLEL_TEST_MAKE_JOBS) $(REAL_WORLD_SAMPLE_MAX_TARGETS)
 
 .PHONY: audit-build-sample-storage relocate-build-sample-storage ensure-build-sample-storage-link
+.PHONY: prepare-pitch-shifted-violin-samples test-pitch-shifted-violin-samples test-pitch-shifted-violin-samples-parallel analyze-pitch-shifted-violin-attributes test-pitch-shifted-violin-prepare
 
 # Keep downloaded and generated audio sample corpora off the workspace disk.
 # The apply target refuses collisions so an existing external corpus is never
@@ -4515,6 +4553,9 @@ test-bach10-mf0-synth-prepare: tests/test_prepare_bach10_mf0_synth_musicnet_fixt
 
 test-philharmonia-prepare: tests/test_prepare_philharmonia_samples.py scripts/prepare_philharmonia_samples.py
 	$(PYTHON) tests/test_prepare_philharmonia_samples.py
+
+test-pitch-shifted-violin-prepare: tests/test_prepare_pitch_shifted_violin_samples.py scripts/prepare_pitch_shifted_violin_samples.py
+	$(PYTHON) tests/test_prepare_pitch_shifted_violin_samples.py
 
 test-good-sounds-prepare: tests/test_prepare_good_sounds_samples.py scripts/prepare_good_sounds_samples.py
 	$(PYTHON) tests/test_prepare_good_sounds_samples.py

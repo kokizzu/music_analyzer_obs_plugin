@@ -111,6 +111,20 @@ Source: `build/good_sounds_full_mix_attributes.tsv`
 | Good Sounds — Other — Primary display row | 154 / 1159 (13.3%) | 1005 |
 | Good Sounds — Other — Visual primary row | 311 / 1159 (26.8%) | 848 |
 
+## Controlled octave-down violin fixture
+
+Twenty real Philharmonia G3–B3 violin recordings are shifted down one octave. This explicitly derived fixture covers pitch-shifted/sample-playback violin below the acoustic violin range; it is kept separate from real-acoustic aggregate accuracy.
+
+Source: `build/pitch_shifted_violin_attributes.tsv`
+
+| Metric | Accurate / total | Remaining |
+| --- | ---: | ---: |
+| Pitch-shifted violin — Any detected note | 20 / 20 (100.0%) | 0 |
+| Pitch-shifted violin — Expected instrument row | 20 / 20 (100.0%) | 0 |
+| Pitch-shifted violin — Lit expected pitch class | 20 / 20 (100.0%) | 0 |
+| Pitch-shifted violin — Primary display row | 20 / 20 (100.0%) | 0 |
+| Pitch-shifted violin — Visual primary row | 20 / 20 (100.0%) | 0 |
+
 ## Medley Solos instrument routing
 
 This independent corpus contains three-second isolated performances from eight instruments. It is measured in full-mix mode; a sample is accurate when any analyzed buffer activates its expected instrument row. It supplies routing coverage, not pitch or chord ground truth.
