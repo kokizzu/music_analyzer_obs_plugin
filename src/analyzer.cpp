@@ -12709,8 +12709,9 @@ void prefer_supported_lower_octave_display(NoteGrid &grid, InstrumentState &stat
 
 // A harmonic score can prefer a lower octave even where the direct upper
 // probe remains substantial. A 30% direct-probe floor recovers the measured
-// isolated brass upper-octave cases while keeping low acoustic-fundamental
-// recovery unchanged.
+// isolated brass upper-octave cases. Below D#3 the upper pitch must instead
+// be at least 70% as strong, preventing normal low acoustic fundamentals from
+// being promoted while retaining the measured muted-tuba G2/G3 alias.
 void prefer_direct_upper_other_octave_primary(NoteGrid &grid, InstrumentState &state,
 					      const std::array<float, kNoteProbeCount> &powers,
 					      int preferred_root)
@@ -12718,14 +12719,15 @@ void prefer_direct_upper_other_octave_primary(NoteGrid &grid, InstrumentState &s
 	bool changed = false;
 	for (int pitch_class = 0; pitch_class < 12; ++pitch_class) {
 		const NoteCell &primary = grid.cells[pitch_class];
-		if (!primary.active || primary.midi < 51 || primary.midi > 83)
+		if (!primary.active || primary.midi < 43 || primary.midi > 83)
 			continue;
 		const int upper_midi = primary.midi + 12;
 		if (upper_midi > kOtherMaxMidi)
 			continue;
 		const float lower_raw = probe_level(powers, primary.midi);
 		const float upper_raw = probe_level(powers, upper_midi);
-		if (lower_raw <= 1.0e-6f || upper_raw < lower_raw * 0.30f)
+		const float relative_floor = primary.midi < 51 ? 0.70f : 0.30f;
+		if (lower_raw <= 1.0e-6f || upper_raw < lower_raw * relative_floor)
 			continue;
 		changed = promote_note_grid_primary_midi(
 				  grid, upper_midi, std::max(primary.level, upper_raw)) ||

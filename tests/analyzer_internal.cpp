@@ -392,6 +392,24 @@ void check_direct_upper_other_octave_primary(Runner &runner)
 	prefer_direct_upper_other_octave_primary(guarded, guarded_state, powers, -1);
 	runner.expect(guarded.cells[midi_pitch_class(51)].midi == 51,
 		      "direct upper other octave: expected weak D#4 harmonic to stay unpromoted");
+
+	powers.fill(0.0f);
+	set_probe_level(powers, 43, 1.00f); // G2 selected low alias
+	set_probe_level(powers, 55, 0.80f); // G3 direct muted-brass body
+	NoteGrid low_recovered = {};
+	write_note_grid_cell(low_recovered, NoteCandidate{43, 1.00f}, 1.00f, 1.00f);
+	InstrumentState low_recovered_state = {};
+	prefer_direct_upper_other_octave_primary(low_recovered, low_recovered_state, powers, -1);
+	runner.expect(low_recovered.cells[midi_pitch_class(55)].midi == 55,
+		      "direct upper other octave: expected strong G3 body to replace G2 low alias");
+
+	set_probe_level(powers, 55, 0.69f);
+	NoteGrid low_guarded = {};
+	write_note_grid_cell(low_guarded, NoteCandidate{43, 1.00f}, 1.00f, 1.00f);
+	InstrumentState low_guarded_state = {};
+	prefer_direct_upper_other_octave_primary(low_guarded, low_guarded_state, powers, -1);
+	runner.expect(low_guarded.cells[midi_pitch_class(43)].midi == 43,
+		      "direct upper other octave: expected weak low upper octave to stay unpromoted");
 }
 
 void check_crowded_guitar_prune_modes(Runner &runner)
