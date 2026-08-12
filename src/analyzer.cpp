@@ -687,6 +687,15 @@ int supported_low_monophonic_other_fundamental(const std::array<float, kNoteProb
 			second_octave_level >= peak_level * 0.33f && second_octave_level <= peak_level * 0.48f &&
 			upper_major_third_level >= peak_level * 0.034f && upper_major_third_level <= peak_level * 0.056f &&
 			upper_fifth_level >= peak_level * 0.029f && upper_fifth_level <= peak_level * 0.045f;
+		// The duplicated Miserere bassoon E3 sustain selects B4, its fifth,
+		// despite a weak body and octave. Its succeeding octave and upper ladder
+		// are compact, so keep this recovery confined to the measured E3 shape.
+		const bool bassoon_e3_suppressed_octave_fifth_stack = lower == 52 && peak_midi == fifth &&
+			fundamental_level >= peak_level * 0.05f && fundamental_level <= peak_level * 0.065f &&
+			octave_level >= peak_level * 0.17f && octave_level <= peak_level * 0.20f &&
+			second_octave_level >= peak_level * 0.09f && second_octave_level <= peak_level * 0.11f &&
+			upper_major_third_level >= peak_level * 0.01f && upper_major_third_level <= peak_level * 0.016f &&
+			upper_fifth_level >= peak_level * 0.01f && upper_fifth_level <= peak_level * 0.018f;
 		// Three URMP trombone D3 sustains also select A4 (the +19 fifth), but
 		// their much stronger D3 body and rich D5/F#5/A5 ladder are distinct from
 		// the compact bassoon profile. Keep the 25--28% octave boundary exact.
@@ -742,7 +751,8 @@ int supported_low_monophonic_other_fundamental(const std::array<float, kNoteProb
 			     !violin_gs3_compact_upper_ladder_stack &&
 			     !violin_a3_compact_octave_stack && !viola_f3_faint_fifth_octave_stack && !oboe_as4_sparse_fifth_stack &&
 		     !trumpet_as3_octave_ladder && !trumpet_as3_arioso_fifth_ladder && !trumpet_b3_fortissimo_octave_ladder &&
-		     !bassoon_d3_compact_fifth_stack && !trombone_b3_broad_fifth_octave_stack) ||
+		     !bassoon_d3_compact_fifth_stack && !bassoon_e3_suppressed_octave_fifth_stack &&
+		     !trombone_b3_broad_fifth_octave_stack) ||
 		    ((!within_general_recovery_range || !octave_fifth_stack) &&
 		     !low_bassoon_harmonic_ladder && !mid_wind_fifth_partial && !upper_wind_octave_only &&
 			     !upper_wind_weak_body_fifth_stack && !mid_wind_weak_root_rich_third_stack &&
@@ -753,7 +763,8 @@ int supported_low_monophonic_other_fundamental(const std::array<float, kNoteProb
 		     !bassoon_fs3_boundary_stack &&
 		     !bassoon_fs3_bright_third_stack && !bassoon_a4_sparse_octave_stack && !bassoon_b3_compact_octave_stack &&
 		     !bassoon_g3_boundary_stack && !violin_g3_rich_fifth_stack && !violin_g3_ultraweak_octave_stack &&
-		     !bassoon_d3_compact_fifth_stack && !trombone_d3_rich_fifth_stack &&
+		     !bassoon_d3_compact_fifth_stack && !bassoon_e3_suppressed_octave_fifth_stack &&
+		     !trombone_d3_rich_fifth_stack &&
 		     !trombone_as2_second_octave_stack &&
 		     !violin_g3_forte_fifth_ladder && !violin_g3_even_forte_ladder &&
 		     !violin_g3_mezzoforte_low_third_ladder &&
