@@ -650,6 +650,16 @@ int supported_low_monophonic_other_fundamental(const std::array<float, kNoteProb
 			second_octave_level >= peak_level * 0.12f && second_octave_level <= peak_level * 0.34f &&
 			upper_major_third_level >= peak_level * 0.019f && upper_major_third_level <= peak_level * 0.054f &&
 			upper_fifth_level >= peak_level * 0.03f && upper_fifth_level <= peak_level * 0.104f;
+		// Repeated clarinet A#3 sustains select their F5 fifth despite a clear
+		// direct body and unusually weak octave. Bind this rare fifth-led shape
+		// to its exact pitch and all measured partials rather than relaxing the
+		// general octave/fifth recovery requirement.
+		const bool clarinet_as3_weak_octave_fifth_stack = lower == 58 && peak_midi == fifth &&
+			fundamental_level >= peak_level * 0.24f && fundamental_level <= peak_level * 0.54f &&
+			octave_level >= peak_level * 0.02f && octave_level <= peak_level * 0.07f &&
+			second_octave_level >= peak_level * 0.04f && second_octave_level <= peak_level * 0.10f &&
+			upper_major_third_level >= peak_level * 0.04f && upper_major_third_level <= peak_level * 0.38f &&
+			upper_fifth_level >= peak_level * 0.17f && upper_fifth_level <= peak_level * 0.70f;
 		if ((fundamental_level < peak_level * 0.12f && !low_wind_second_octave_stack &&
 			     !upper_wind_weak_body_fifth_stack && !mid_wind_weak_root_rich_third_stack &&
 			     !cor_anglais_g4_sparse_octave_stack && !cor_anglais_g4_mezzopiano_octave_stack &&
@@ -683,6 +693,7 @@ int supported_low_monophonic_other_fundamental(const std::array<float, kNoteProb
 		     !violin_gs3_rich_octave_stack && !violin_gs3_compact_upper_ladder_stack &&
 		     !violin_a3_compact_octave_stack &&
 		     !oboe_as4_sparse_fifth_stack && !trumpet_as3_octave_ladder && !trumpet_b3_fortissimo_octave_ladder &&
+		     !clarinet_as3_weak_octave_fifth_stack &&
 		     !low_wind_second_octave_stack &&
 		     !low_brass_boundary_fifth_stack))
 			continue;
