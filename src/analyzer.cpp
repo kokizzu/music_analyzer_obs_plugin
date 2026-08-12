@@ -285,16 +285,21 @@ int supported_named_brass_rich_octave_fundamental(const char *source_name,
 	const float second_octave_ratio = probe_level(powers, 82) / peak_level;
 	const float upper_major_third_ratio = probe_level(powers, 86) / peak_level;
 	const float upper_fifth_ratio = probe_level(powers, 89) / peak_level;
-	// Four independently recorded URMP trumpet A#3 windows share this rich
-	// octave-led shape. Require every measured partial and the named source so
-	// generic A#4 peaks retain their regular interpretation.
-	if (fundamental_ratio < 0.070f || fundamental_ratio > 0.110f ||
-	    fifth_ratio < 0.75f || fifth_ratio > 1.60f ||
-	    second_octave_ratio < 0.30f || second_octave_ratio > 0.85f ||
-	    upper_major_third_ratio < 0.35f || upper_major_third_ratio > 0.60f ||
-	    upper_fifth_ratio < 0.29f || upper_fifth_ratio > 0.95f)
-		return -1;
-	return 58;
+	// Two separately measured trumpet A#3 articulation families peak an octave
+	// above their direct body. Both require the named brass source and every
+	// bounded partial, so arbitrary A#4 peaks retain their regular reading.
+	const bool rich_octave_ladder = fundamental_ratio >= 0.070f && fundamental_ratio <= 0.110f &&
+		fifth_ratio >= 0.75f && fifth_ratio <= 1.60f && second_octave_ratio >= 0.30f &&
+		second_octave_ratio <= 0.85f && upper_major_third_ratio >= 0.35f &&
+		upper_major_third_ratio <= 0.60f && upper_fifth_ratio >= 0.29f && upper_fifth_ratio <= 0.95f;
+	// The Surprise trumpet A#3 sustains have a weaker but continuous fifth and
+	// upper ladder. Keep this interval separate from the rich family rather
+	// than filling the unmeasured gap between them.
+	const bool compact_surprise_octave_ladder = fundamental_ratio >= 0.047f && fundamental_ratio <= 0.103f &&
+		fifth_ratio >= 0.41f && fifth_ratio <= 0.69f && second_octave_ratio >= 0.15f &&
+		second_octave_ratio <= 0.39f && upper_major_third_ratio >= 0.06f &&
+		upper_major_third_ratio <= 0.21f && upper_fifth_ratio >= 0.019f && upper_fifth_ratio <= 0.062f;
+	return rich_octave_ladder || compact_surprise_octave_ladder ? 58 : -1;
 }
 
 // Low acoustic winds/brass can put more energy in a selected octave or upper
