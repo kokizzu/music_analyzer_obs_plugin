@@ -192,7 +192,19 @@ void check_supported_low_monophonic_other_fundamental(Runner &runner)
 		      "low monophonic other recovery: expected bounded G4 oboe broad octave stack");
 	set_probe_level(powers, 95, 0.80f);
 	runner.expect(supported_low_monophonic_other_fundamental(powers, 79) != 67,
-	      "low monophonic other recovery: expected over-bright G4 oboe upper third to stay rejected");
+		      "low monophonic other recovery: expected over-bright G4 oboe upper third to stay rejected");
+	powers.fill(0.0f);
+	set_probe_level(powers, 62, 0.295f); // D4 violin partial
+	set_probe_level(powers, 74, 1.00f); // D5 selected octave
+	set_probe_level(powers, 81, 0.018f); // A5 quiet fifth
+	set_probe_level(powers, 86, 0.158f); // D6 second octave
+	set_probe_level(powers, 90, 0.009f); // F#6 upper major third
+	set_probe_level(powers, 93, 0.018f); // A6 upper fifth
+	runner.expect(supported_low_monophonic_other_fundamental(powers, 74) != 62,
+		      "low monophonic other recovery: expected bounded D5 violin octave profile not to fabricate D4");
+	set_probe_level(powers, 81, 0.030f);
+	runner.expect(supported_low_monophonic_other_fundamental(powers, 74) == 62,
+		      "low monophonic other recovery: expected outside D5 profile to retain regular D4 octave recovery");
 	powers.fill(0.0f);
 	set_probe_level(powers, 21, 1.00f); // A0 leakage, outside monophonic Other range
 	set_probe_level(powers, 64, 0.62f); // E4 musical peak

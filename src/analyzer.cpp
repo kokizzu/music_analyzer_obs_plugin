@@ -612,13 +612,23 @@ int supported_low_monophonic_other_fundamental(const std::array<float, kNoteProb
 			peak_midi == upper_major_third && fundamental_level >= peak_level * 0.08f &&
 			fundamental_level <= peak_level * 0.12f && octave_level <= peak_level * 0.10f &&
 			fifth_level >= peak_level * 0.30f;
+		// The duplicated Pavane violin D5 sustain has a D4 partial but is not a
+		// D4 octave alias: its selected D5, very quiet fifth, and modest second
+		// octave form a narrow measured D5 profile. Do not let the broader wind
+		// octave-only rule replace this intended upper note with D4.
+		const bool violin_d5_selected_octave_profile = lower == 62 && peak_midi == octave &&
+			fundamental_level >= peak_level * 0.28f && fundamental_level <= peak_level * 0.31f &&
+			fifth_level >= peak_level * 0.015f && fifth_level <= peak_level * 0.022f &&
+			second_octave_level >= peak_level * 0.14f && second_octave_level <= peak_level * 0.18f &&
+			upper_major_third_level >= peak_level * 0.007f && upper_major_third_level <= peak_level * 0.011f &&
+			upper_fifth_level >= peak_level * 0.015f && upper_fifth_level <= peak_level * 0.022f;
 		// Isolated winds at C3--B4 can put nearly all energy in the octave while
 		// retaining a modest, direct fundamental and almost no fifth. This bounded
 		// octave-only shape is distinct from the normal octave/fifth stack and
 		// from the quiet G4 tail measured below the floor.
 		const bool upper_wind_octave_only = lower >= 48 && lower <= 71 &&
 			peak_midi == octave && fundamental_level >= peak_level * 0.13f &&
-			fifth_level <= peak_level * 0.15f;
+			fifth_level <= peak_level * 0.15f && !violin_d5_selected_octave_profile;
 		// Upper cor anglais fixtures at G4--B4 have an unusually suppressed
 		// direct body beneath their selected octave, but retain a narrow fifth
 		// band.  Keep this separate from the octave-only wind route: below 5%
