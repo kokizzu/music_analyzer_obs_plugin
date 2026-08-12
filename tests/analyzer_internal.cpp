@@ -220,6 +220,18 @@ void check_supported_low_monophonic_other_fundamental(Runner &runner)
 	runner.expect(supported_low_monophonic_other_fundamental(powers, 70) != 46,
 		      "low monophonic other recovery: expected sub-boundary A#2 trombone body to stay rejected");
 	powers.fill(0.0f);
+	set_probe_level(powers, 58, 0.088f); // A#3 direct Arioso trumpet body
+	set_probe_level(powers, 70, 0.280f); // A#4 octave
+	set_probe_level(powers, 77, 1.00f);  // F5 selected fifth
+	set_probe_level(powers, 82, 0.89f);  // A#5 second octave
+	set_probe_level(powers, 86, 0.29f);  // D6 upper major third
+	set_probe_level(powers, 89, 0.42f);  // F6 upper fifth
+	runner.expect(supported_low_monophonic_other_fundamental(powers, 77) == 58,
+		      "low monophonic other recovery: expected bounded A#3 Arioso trumpet fifth ladder");
+	set_probe_level(powers, 89, 0.50f);
+	runner.expect(supported_low_monophonic_other_fundamental(powers, 77) != 58,
+		      "low monophonic other recovery: expected over-bright A#3 Arioso upper fifth to stay rejected");
+	powers.fill(0.0f);
 	set_probe_level(powers, 58, 0.35f); // A#3 clarinet body
 	set_probe_level(powers, 70, 0.05f); // A#4 weak octave
 	set_probe_level(powers, 77, 1.00f); // F5 selected fifth
