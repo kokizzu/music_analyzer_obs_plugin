@@ -13,6 +13,39 @@ def labels(value: str) -> list[str]:
     return [] if value in {"", "--"} else value.split(",")
 
 
+def midi_levels(value: str) -> dict[int, float]:
+    result: dict[int, float] = {}
+    for item in labels(value):
+        midi, separator, level = item.partition(":")
+        if not separator:
+            continue
+        try:
+            result[int(midi)] = float(level)
+        except ValueError:
+            continue
+    return result
+
+
+def pitch_class(midi: int) -> int:
+    return midi % 12
+
+
+def harmonic_aliases(midis: list[int], levels: dict[int, float], minimum_ratio: float) -> set[int]:
+    intervals = (12, 19, 24, 28, 31, 36, 38, 40, 43, 45, 47, 48)
+    removed: set[int] = set()
+    for upper in midis:
+        upper_level = levels.get(upper, 0.0)
+        if upper_level <= 0.0:
+            continue
+        for interval in intervals:
+            lower = upper - interval
+            if lower not in levels or levels[lower] < upper_level * minimum_ratio:
+                continue
+            removed.add(upper)
+            break
+    return removed
+
+
 def top(counter: collections.Counter[str], limit: int) -> str:
     return " ".join(f"{name}={count}" for name, count in counter.most_common(limit)) or "none"
 
@@ -45,6 +78,14 @@ def summarize(path: Path, limit: int) -> list[str]:
     harmonic_only_hits = 0
     harmonic_only_extras = 0
     harmonic_only_misses = 0
+    harmonic_prune_stats = {
+        ratio: {"removed": 0, "hits": 0, "predicted": 0}
+        for ratio in (0.25, 0.50, 0.75, 1.00)
+    }
+    candidate_floor_stats = {
+        floor: {"hits": 0, "predicted": 0}
+        for floor in (0.15, 0.18, 0.20, 0.25, 0.30)
+    }
     rms_by_detection: dict[str, list[float]] = {"hit": [], "miss": []}
     chord_rms_by_detection: dict[str, list[float]] = {"hit": [], "miss": []}
     chord_note_counts: dict[str, list[int]] = {"hit": [], "miss": []}
@@ -54,6 +95,7 @@ def summarize(path: Path, limit: int) -> list[str]:
     complete_pitch_chord_predictions: collections.Counter[str] = collections.Counter()
     complete_pitch_chord_debug: collections.Counter[str] = collections.Counter()
     complete_pitch_chord_examples: list[str] = []
+    isolated_note_miss_examples: list[str] = []
     for row in rows:
         missing = labels(row["missing_pcs"])
         extra = labels(row["extra_pcs"])
@@ -70,6 +112,14 @@ def summarize(path: Path, limit: int) -> list[str]:
             note_routes[f"{expected[0]}->{','.join(detected) if detected else '--'}"] += 1
             bucket = "hit" if expected[0] in detected else "miss"
             rms_by_detection[bucket].append(float(row["audio_rms"]))
+            if bucket == "miss" and len(isolated_note_miss_examples) < limit:
+                isolated_note_miss_examples.append(
+                    f"{row['recording']}@{row['center_sample']} expected={expected[0]} "
+                    f"detected={','.join(detected) if detected else '--'} "
+                    f"midis={row['detected_keyboard_midis'] or '--'} "
+                    f"levels={row.get('keyboard_levels', '') or '--'} "
+                    f"rms={row['audio_rms']} peak={row['audio_peak']}"
+                )
         expected_midis = [int(value) for value in labels(row["expected_midis"])]
         detected_midis = [int(value) for value in labels(row["detected_keyboard_midis"])]
         if len(expected_midis) == 1:
@@ -85,6 +135,23 @@ def summarize(path: Path, limit: int) -> list[str]:
                 harmonic_only_hits += expected_midis[0] in detected_midis
                 harmonic_only_extras += sum(midi != expected_midis[0] for midi in detected_midis)
                 harmonic_only_misses += expected_midis[0] not in detected_midis
+            levels = midi_levels(row.get("keyboard_midi_levels", ""))
+            if levels:
+                strongest_level = max(levels.values())
+                for floor, stats in candidate_floor_stats.items():
+                    retained_pcs = {
+                        pitch_class(midi)
+                        for midi, level in levels.items()
+                        if level >= strongest_level * floor
+                    }
+                    stats["hits"] += pitch_class(expected_midis[0]) in retained_pcs
+                    stats["predicted"] += len(retained_pcs)
+                for minimum_ratio, stats in harmonic_prune_stats.items():
+                    removed = harmonic_aliases(detected_midis, levels, minimum_ratio)
+                    retained_pcs = {pitch_class(midi) for midi in detected_midis if midi not in removed}
+                    stats["removed"] += len(removed)
+                    stats["hits"] += pitch_class(expected_midis[0]) in retained_pcs
+                    stats["predicted"] += len(retained_pcs)
         expected_chords = labels(row["expected_chords"])
         if expected_chords:
             chord_bucket = "hit" if row["chord_hit"] == "1" else "miss"
@@ -122,10 +189,22 @@ def summarize(path: Path, limit: int) -> list[str]:
         f"{ratio(expected_note_hits, expected_note_total)}/"
         f"{ratio(expected_note_hits, detected_pitch_total)} "
         f"false_predictions={detected_pitch_total - expected_note_hits}",
+        "isolated-note miss examples " + " | ".join(isolated_note_miss_examples),
         "detected MIDI count distribution " + top(detected_midi_counts, limit),
         "single-series harmonic predictions "
         f"windows={harmonic_only_predictions} hits={harmonic_only_hits} "
         f"extras={harmonic_only_extras} misses={harmonic_only_misses}",
+        "isolated harmonic-alias pruning simulation " + "; ".join(
+            f"lower/upper>={minimum_ratio:.2f}: removed={stats['removed']} "
+            f"recall={ratio(stats['hits'], expected_note_total)} "
+            f"precision={ratio(stats['hits'], stats['predicted'])}"
+            for minimum_ratio, stats in harmonic_prune_stats.items()
+        ),
+        "isolated candidate-floor simulation " + "; ".join(
+            f"floor>={floor:.2f}: recall={ratio(stats['hits'], expected_note_total)} "
+            f"precision={ratio(stats['hits'], stats['predicted'])}"
+            for floor, stats in candidate_floor_stats.items()
+        ),
         "audio RMS median hit/miss " + "/".join(
             f"{sorted(values)[len(values) // 2]:.5f}" if values else "--"
             for values in (rms_by_detection["hit"], rms_by_detection["miss"])
