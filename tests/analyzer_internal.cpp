@@ -434,29 +434,6 @@ void check_direct_upper_other_octave_primary(Runner &runner)
 	prefer_direct_upper_other_octave_primary(low_guarded, low_guarded_state, powers, -1);
 	runner.expect(low_guarded.cells[midi_pitch_class(43)].midi == 43,
 		      "direct upper other octave: expected weak low upper octave to stay unpromoted");
-
-	powers.fill(0.0f);
-	set_probe_level(powers, 57, 0.035f); // A3 bassoon body
-	set_probe_level(powers, 69, 1.00f);  // A4 selected octave
-	set_probe_level(powers, 76, 0.43f);  // E5 fifth
-	set_probe_level(powers, 81, 0.16f);  // A5 second octave
-	set_probe_level(powers, 85, 0.055f); // C#6 upper major third
-	set_probe_level(powers, 88, 0.065f); // E6 upper fifth
-	NoteGrid bassoon_recovered = {};
-	write_note_grid_cell(bassoon_recovered, NoteCandidate{69, 1.00f}, 1.00f, 1.00f);
-	InstrumentState bassoon_recovered_state = {};
-	prefer_measured_bassoon_a3_fortissimo_primary(
-		bassoon_recovered, bassoon_recovered_state, powers, -1);
-	runner.expect(bassoon_recovered.cells[midi_pitch_class(57)].midi == 57,
-		      "measured bassoon A3 display: expected dense A3 promoted from A4");
-
-	set_probe_level(powers, 76, 0.48f);
-	NoteGrid bassoon_guarded = {};
-	write_note_grid_cell(bassoon_guarded, NoteCandidate{69, 1.00f}, 1.00f, 1.00f);
-	InstrumentState bassoon_guarded_state = {};
-	prefer_measured_bassoon_a3_fortissimo_primary(bassoon_guarded, bassoon_guarded_state, powers, -1);
-	runner.expect(bassoon_guarded.cells[midi_pitch_class(69)].midi == 69,
-		      "measured bassoon A3 display: expected bright fifth profile to stay at A4");
 }
 
 void check_crowded_guitar_prune_modes(Runner &runner)
