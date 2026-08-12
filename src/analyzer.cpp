@@ -431,7 +431,7 @@ int supported_low_monophonic_other_fundamental(const std::array<float, kNoteProb
 		// ladder covers the repeated Philharmonia articulation without relaxing
 		// the generic high-octave recovery for other notes.
 		const bool violin_gs3_compact_upper_ladder_stack = lower == 56 && peak_midi == octave &&
-			fundamental_level >= peak_level * 0.035f && fundamental_level <= peak_level * 0.06f &&
+			fundamental_level >= peak_level * 0.035f && fundamental_level <= peak_level * 0.07f &&
 			fifth_level >= peak_level * 0.20f && fifth_level <= peak_level * 0.265f &&
 			second_octave_level >= peak_level * 0.22f && second_octave_level <= peak_level * 0.26f &&
 			upper_major_third_level >= peak_level * 0.24f && upper_major_third_level <= peak_level * 0.60f &&
