@@ -96,9 +96,9 @@ Source: `build/good_sounds_full_mix_attributes.tsv`
 | Metric | Accurate / total | Remaining |
 | --- | ---: | ---: |
 | Good Sounds — Any detected note | 1317 / 1318 (99.9%) | 1 |
-| Good Sounds — Expected instrument row | 1200 / 1318 (91.0%) | 118 |
-| Good Sounds — Lit expected pitch class | 955 / 1318 (72.5%) | 363 |
-| Good Sounds — Primary display row | 156 / 1318 (11.8%) | 1162 |
+| Good Sounds — Expected instrument row | 1201 / 1318 (91.1%) | 117 |
+| Good Sounds — Lit expected pitch class | 957 / 1318 (72.6%) | 361 |
+| Good Sounds — Primary display row | 157 / 1318 (11.9%) | 1161 |
 | Good Sounds — Visual primary row | 316 / 1318 (24.0%) | 1002 |
 | Good Sounds — Bass — Any detected note | 159 / 159 (100.0%) | 0 |
 | Good Sounds — Bass — Expected instrument row | 142 / 159 (89.3%) | 17 |
@@ -106,9 +106,9 @@ Source: `build/good_sounds_full_mix_attributes.tsv`
 | Good Sounds — Bass — Primary display row | 3 / 159 (1.9%) | 156 |
 | Good Sounds — Bass — Visual primary row | 6 / 159 (3.8%) | 153 |
 | Good Sounds — Other — Any detected note | 1158 / 1159 (99.9%) | 1 |
-| Good Sounds — Other — Expected instrument row | 1058 / 1159 (91.3%) | 101 |
-| Good Sounds — Other — Lit expected pitch class | 814 / 1159 (70.2%) | 345 |
-| Good Sounds — Other — Primary display row | 153 / 1159 (13.2%) | 1006 |
+| Good Sounds — Other — Expected instrument row | 1059 / 1159 (91.4%) | 100 |
+| Good Sounds — Other — Lit expected pitch class | 816 / 1159 (70.4%) | 343 |
+| Good Sounds — Other — Primary display row | 154 / 1159 (13.3%) | 1005 |
 | Good Sounds — Other — Visual primary row | 310 / 1159 (26.7%) | 849 |
 
 ## Medley Solos instrument routing
