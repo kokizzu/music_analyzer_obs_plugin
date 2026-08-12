@@ -406,6 +406,15 @@ int supported_low_monophonic_other_fundamental(const std::array<float, kNoteProb
 			second_octave_level >= peak_level * 0.13f && second_octave_level <= peak_level * 0.29f &&
 			upper_major_third_level >= peak_level * 0.33f && upper_major_third_level <= peak_level * 0.43f &&
 			upper_fifth_level >= peak_level * 0.06f && upper_fifth_level <= peak_level * 0.28f;
+		// A stronger forte G3 articulation keeps the same octave peak but has a
+		// more even fifth ladder and a lower upper third than the preceding
+		// profile.  Its tight body and G3-only range prevent broad octave aliasing.
+		const bool violin_g3_even_forte_ladder = lower == 55 && peak_midi == octave &&
+			fundamental_level >= peak_level * 0.021f && fundamental_level <= peak_level * 0.028f &&
+			fifth_level >= peak_level * 0.45f && fifth_level <= peak_level * 0.82f &&
+			second_octave_level >= peak_level * 0.10f && second_octave_level <= peak_level * 0.16f &&
+			upper_major_third_level >= peak_level * 0.39f && upper_major_third_level <= peak_level * 0.49f &&
+			upper_fifth_level >= peak_level * 0.04f && upper_fifth_level <= peak_level * 0.10f;
 		// The measured A#3 violin octave alias is a separate, much sparser
 		// profile: its A#4 selected octave has a low but continuous direct body,
 		// small fifth, and compact second-octave/third ladder.  The tight A#3
@@ -543,6 +552,7 @@ int supported_low_monophonic_other_fundamental(const std::array<float, kNoteProb
 		     !bassoon_fs3_boundary_stack && !bassoon_fs3_bright_third_stack && !bassoon_a4_sparse_octave_stack &&
 		     !bassoon_b3_compact_octave_stack && !bassoon_g3_boundary_stack && !violin_g3_rich_fifth_stack &&
 			     !violin_g3_ultraweak_octave_stack && !violin_g3_forte_fifth_ladder &&
+			     !violin_g3_even_forte_ladder &&
 			     !violin_as3_sparse_octave_stack && !violin_as3_mezzoforte_octave_stack &&
 			     !violin_gs3_rich_octave_stack &&
 			     !violin_gs3_compact_upper_ladder_stack &&
@@ -555,7 +565,7 @@ int supported_low_monophonic_other_fundamental(const std::array<float, kNoteProb
 		     !bassoon_a3_weak_body_stack && !bassoon_a3_sparse_fifth_stack && !bassoon_fs3_boundary_stack &&
 		     !bassoon_fs3_bright_third_stack && !bassoon_a4_sparse_octave_stack && !bassoon_b3_compact_octave_stack &&
 		     !bassoon_g3_boundary_stack && !violin_g3_rich_fifth_stack && !violin_g3_ultraweak_octave_stack &&
-		     !violin_g3_forte_fifth_ladder &&
+		     !violin_g3_forte_fifth_ladder && !violin_g3_even_forte_ladder &&
 		     !violin_as3_sparse_octave_stack && !violin_as3_mezzoforte_octave_stack &&
 		     !violin_gs3_rich_octave_stack && !violin_gs3_compact_upper_ladder_stack &&
 		     !violin_a3_compact_octave_stack &&
