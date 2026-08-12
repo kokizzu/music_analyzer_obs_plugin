@@ -2992,6 +2992,17 @@ analyze-guitar-chord-mix-attributes: $(BUILD_DIR)/guitar_chord_mix_attributes.ts
 analyze-guitar-chord-mix-recovery: $(BUILD_DIR)/guitar_chord_mix_attributes.tsv scripts/analyze_guitar_chord_recovery.py
 	$(PYTHON) scripts/analyze_guitar_chord_recovery.py "$(BUILD_DIR)/guitar_chord_mix_attributes.tsv" $(RECOVERY_ARGS)
 
+# Inspect an existing real-audio chord export without re-preparing its corpus.
+analyze-guitar-chord-mix-recovery-cached: scripts/analyze_guitar_chord_recovery.py
+	@test -s "$(BUILD_DIR)/guitar_chord_mix_attributes.tsv" || { printf '%s\n' "missing build/guitar_chord_mix_attributes.tsv; run make analyze-guitar-chord-mix-attributes first"; exit 2; }
+	$(PYTHON) scripts/analyze_guitar_chord_recovery.py "$(BUILD_DIR)/guitar_chord_mix_attributes.tsv" $(RECOVERY_ARGS)
+
+# Recompute controlled real-audio chord metrics from an existing manifest only.
+refresh-guitar-chord-mix-attributes-cached: $(BUILD_DIR)/analyzer_guitarset scripts/build_sharded_tsv.sh scripts/run_with_lock.sh | $(BUILD_DIR)
+	@test -s "$(GUITAR_CHORD_MIX_MANIFEST)" || { printf '%s\n' "missing $(GUITAR_CHORD_MIX_MANIFEST); run make prepare-guitar-chord-mix-samples first"; exit 2; }
+	@rm -f "$(BUILD_DIR)/guitar_chord_mix_attributes.tsv"
+	+$(SHELL) scripts/run_with_lock.sh "$(GUITAR_CHORD_MIX_ATTRIBUTE_LOCK_DIR)" -- "$(SHELL)" scripts/build_sharded_tsv.sh "$(BUILD_DIR)/guitar_chord_mix_attributes.tsv" "$(MAKE)" "$(GUITAR_CHORD_MIX_ATTRIBUTE_MAKE_JOBS)" $(GUITAR_CHORD_MIX_ATTRIBUTE_PARTS)
+
 analyze-guitar-chord-primary-order: $(GUITAR_CHORD_DETECTED_ATTRIBUTE_ROWS) scripts/analyze_guitar_primary_order.py
 	$(PYTHON) scripts/analyze_guitar_primary_order.py "$(GUITAR_CHORD_DETECTED_ATTRIBUTE_ROWS)" $(PRIMARY_ORDER_ARGS)
 
