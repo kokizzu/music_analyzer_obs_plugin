@@ -7519,6 +7519,7 @@ bool full_mix_display_mirror_supported(FullMixDisplayRow row, const FullMixDebug
 			debug.harmonic_ratios[1] >= 0.036f;
 		const bool measured_string_other =
 			keyboard_owned_string_other_display_supported(debug) ||
+			keyboard_owned_measured_violin_other_display_supported(debug) ||
 			keyboard_owned_bowed_string_other ||
 			keyboard_owned_contrabass_other ||
 			ambiguous_viola_other ||
@@ -7997,6 +7998,7 @@ void add_full_mix_display_mirror(NoteCandidateList &candidates, const FullMixOwn
 	    debug.ownership_confidence >= 0.58f &&
 	    (measured_keyboard_synth_other_priority_supported(debug) ||
 	     measured_low_brass_fundamental_other_supported(debug) ||
+	     keyboard_owned_measured_violin_other_display_supported(debug) ||
 	     guitar_owned_measured_string_other_display_supported(debug) ||
 	     low_acoustic_string_other_display_supported(debug) ||
 	     measured_vocal_synth_other_priority_supported(debug) ||
