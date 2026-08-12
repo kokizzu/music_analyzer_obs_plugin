@@ -133,9 +133,9 @@ Source: `build/philharmonia_full_attributes.tsv`
 
 | Metric | Accurate / total | Remaining |
 | --- | ---: | ---: |
-| Philharmonia — Exact expected MIDI note | 7172 / 7285 (98.4%) | 113 |
+| Philharmonia — Exact expected MIDI note | 7174 / 7285 (98.5%) | 111 |
 | Philharmonia — Guitar — exact expected MIDI note | 144 / 146 (98.6%) | 2 |
-| Philharmonia — Other — exact expected MIDI note | 6559 / 6668 (98.4%) | 109 |
+| Philharmonia — Other — exact expected MIDI note | 6561 / 6668 (98.4%) | 107 |
 | Philharmonia — Bass — exact expected MIDI note | 469 / 471 (99.6%) | 2 |
 
 ## Iowa orchestra isolated-note coverage
@@ -220,9 +220,9 @@ This downloaded real chamber-music corpus measures the same performances as prov
 | --- | ---: | ---: |
 | URMP — real pieces loadable | 44 / 44 (100.0%) | 0 |
 | URMP — selected annotated windows | 528 / 528 (100.0%) | 0 |
-| URMP — isolated-track exact notes | 1531 / 1788 (85.6%) | 257 |
-| URMP — isolated-track detected notes | 1631 / 1788 (91.2%) | 157 |
-| URMP — isolated-track precision | 1531 / 1756 (87.2%) | 225 false notes |
+| URMP — isolated-track exact notes | 1552 / 1788 (86.8%) | 236 |
+| URMP — isolated-track detected notes | 1633 / 1788 (91.3%) | 155 |
+| URMP — isolated-track precision | 1552 / 1756 (88.4%) | 204 false notes |
 | URMP — provided-mix exact chords | 190 / 527 (36.1%) | 337 |
 | URMP — provided stream chord windows | 224 / 527 (42.5%) | 303 |
 | URMP — provided sequence chord windows | 214 / 527 (40.6%) | 313 |

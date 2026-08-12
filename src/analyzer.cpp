@@ -339,6 +339,16 @@ int supported_low_monophonic_other_fundamental(const std::array<float, kNoteProb
 			second_octave_level >= peak_level * 0.02f && second_octave_level <= peak_level * 0.08f &&
 			upper_major_third_level >= peak_level * 0.05f && upper_major_third_level <= peak_level * 0.13f &&
 			upper_fifth_level <= peak_level * 0.06f;
+		// The remaining F#3 bassoon pair has a brighter upper third and fifth
+		// than the quieter boundary profile above.  Its direct body and selected
+		// octave are still stable, so retain a separate, note-wide measured box
+		// instead of widening the generic low-root recovery rule.
+		const bool bassoon_fs3_bright_third_stack = lower == 54 && peak_midi == octave &&
+			fundamental_level >= peak_level * 0.09f && fundamental_level <= peak_level * 0.105f &&
+			fifth_level >= peak_level * 0.34f && fifth_level <= peak_level * 0.41f &&
+			second_octave_level >= peak_level * 0.027f && second_octave_level <= peak_level * 0.06f &&
+			upper_major_third_level >= peak_level * 0.14f && upper_major_third_level <= peak_level * 0.24f &&
+			upper_fifth_level >= peak_level * 0.04f && upper_fifth_level <= peak_level * 0.10f;
 		// Bassoon A4 is another octave-dominant but unusually sparse profile:
 		// the A5 peak has a modest direct body, small E6 fifth, and virtually no
 		// further partials.  Its tight upper limits keep this from weakening the
@@ -414,13 +424,13 @@ int supported_low_monophonic_other_fundamental(const std::array<float, kNoteProb
 		if ((fundamental_level < peak_level * 0.12f && !low_wind_second_octave_stack &&
 		     !upper_wind_weak_body_fifth_stack && !mid_wind_weak_root_rich_third_stack &&
 		     !bassoon_a3_weak_body_stack && !bassoon_a3_sparse_fifth_stack &&
-		     !bassoon_fs3_boundary_stack && !bassoon_a4_sparse_octave_stack &&
+		     !bassoon_fs3_boundary_stack && !bassoon_fs3_bright_third_stack && !bassoon_a4_sparse_octave_stack &&
 		     !bassoon_b3_compact_octave_stack && !bassoon_g3_boundary_stack) ||
 		    ((!within_general_recovery_range || !octave_fifth_stack) &&
 		     !low_bassoon_harmonic_ladder && !mid_wind_fifth_partial && !upper_wind_octave_only &&
 		     !upper_wind_weak_body_fifth_stack && !mid_wind_weak_root_rich_third_stack &&
 		     !bassoon_a3_weak_body_stack && !bassoon_a3_sparse_fifth_stack && !bassoon_fs3_boundary_stack &&
-		     !bassoon_a4_sparse_octave_stack && !bassoon_b3_compact_octave_stack &&
+		     !bassoon_fs3_bright_third_stack && !bassoon_a4_sparse_octave_stack && !bassoon_b3_compact_octave_stack &&
 		     !bassoon_g3_boundary_stack && !low_wind_second_octave_stack &&
 		     !low_brass_boundary_fifth_stack))
 			continue;
