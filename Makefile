@@ -830,6 +830,8 @@ PHILHARMONIA_FULL_SAMPLE_DIR ?= $(BUILD_DIR)/philharmonia_samples_full
 PHILHARMONIA_FULL_ATTRIBUTE_TSV ?= $(BUILD_DIR)/philharmonia_full_attributes.tsv
 PHILHARMONIA_FULL_DETECTED_ATTRIBUTE_ROWS ?= $(BUILD_DIR)/philharmonia_full_detected_attribute_rows.tsv
 PHILHARMONIA_FULL_MISS_ATTRIBUTE_ROWS ?= $(BUILD_DIR)/philharmonia_full_miss_attribute_rows.tsv
+PHILHARMONIA_FULL_DEBUG_SAMPLE_ID ?=
+PHILHARMONIA_FULL_DEBUG_ATTRIBUTE_TSV ?= $(BUILD_DIR)/philharmonia_full_debug_attributes.tsv
 PHILHARMONIA_FULL_SAMPLE_LIMIT ?= 0
 PHILHARMONIA_FULL_MIN_SAMPLES ?= 2500
 PHILHARMONIA_FULL_MIN_BASS ?= 80
@@ -3404,6 +3406,14 @@ analyze-philharmonia-full-attributes: $(PHILHARMONIA_FULL_DETECTED_ATTRIBUTE_ROW
 analyze-philharmonia-full-exact-midi-misses: scripts/analyze_exact_midi_misses.py
 	@test -f "$(PHILHARMONIA_FULL_ATTRIBUTE_TSV)" || { printf '%s\n' "missing $(PHILHARMONIA_FULL_ATTRIBUTE_TSV); run make test-philharmonia-samples-full first"; exit 2; }
 	$(PYTHON) scripts/analyze_exact_midi_misses.py "$(PHILHARMONIA_FULL_ATTRIBUTE_TSV)" $(if $(EXACT_MIDI_SAMPLE_ID),--sample-id "$(EXACT_MIDI_SAMPLE_ID)") $(if $(EXACT_MIDI_PRE_OFFSET),--pre-offset "$(EXACT_MIDI_PRE_OFFSET)") $(if $(EXACT_MIDI_SAME_PC_OFFSET),--same-pc-offset "$(EXACT_MIDI_SAME_PC_OFFSET)") $(if $(EXACT_MIDI_SOURCE),--source "$(EXACT_MIDI_SOURCE)") $(if $(EXACT_MIDI_RAW_OFFSET),--raw-offset "$(EXACT_MIDI_RAW_OFFSET)")
+
+# Silent one-sample runtime trace for measured Philharmonia octave/error clusters.
+inspect-philharmonia-full-debug-cached: $(BUILD_DIR)/analyzer_real_note_samples
+	@test -n "$(PHILHARMONIA_FULL_DEBUG_SAMPLE_ID)" || { printf '%s\n' "set PHILHARMONIA_FULL_DEBUG_SAMPLE_ID to a manifest sample id"; exit 2; }
+	@test -s "$(PHILHARMONIA_FULL_SAMPLE_DIR)/manifest.tsv" || { printf '%s\n' "missing $(PHILHARMONIA_FULL_SAMPLE_DIR)/manifest.tsv; prepare samples separately before inspecting"; exit 2; }
+	@rm -f "$(PHILHARMONIA_FULL_DEBUG_ATTRIBUTE_TSV)"
+	env MUSIC_ANALYZER_REAL_NOTE_SAMPLES_REQUIRED=1 MUSIC_ANALYZER_REAL_NOTE_SAMPLE_ROOT="$(PHILHARMONIA_FULL_SAMPLE_DIR)" MUSIC_ANALYZER_REAL_NOTE_REQUIRED_SAMPLES=1 MUSIC_ANALYZER_REAL_NOTE_MIN_ANY_HIT_PERCENT=0 MUSIC_ANALYZER_REAL_NOTE_MIN_EXPECTED_ROW_PERCENT=0 MUSIC_ANALYZER_REAL_NOTE_MIN_FIRST_ROW_PERCENT=0 MUSIC_ANALYZER_REAL_NOTE_MIN_BASS_EXPECTED_ROW_PERCENT=0 MUSIC_ANALYZER_REAL_NOTE_MIN_GUITAR_EXPECTED_ROW_PERCENT=0 MUSIC_ANALYZER_REAL_NOTE_MIN_PIANO_EXPECTED_ROW_PERCENT=0 MUSIC_ANALYZER_REAL_NOTE_MIN_VOCALS_EXPECTED_ROW_PERCENT=0 MUSIC_ANALYZER_REAL_NOTE_MIN_OTHER_EXPECTED_ROW_PERCENT=0 MUSIC_ANALYZER_REAL_NOTE_MAX_DRUM_ACTIVE_PERCENT=100 MUSIC_ANALYZER_REAL_NOTE_MAX_FAILURES=999999 MUSIC_ANALYZER_REAL_NOTE_DEBUG_SAMPLE_ID="$(PHILHARMONIA_FULL_DEBUG_SAMPLE_ID)" MUSIC_ANALYZER_REAL_NOTE_ATTRIBUTE_TSV="$(PHILHARMONIA_FULL_DEBUG_ATTRIBUTE_TSV)" $(BUILD_DIR)/analyzer_real_note_samples
+	$(PYTHON) scripts/inspect_real_note_attribute_buckets.py "$(PHILHARMONIA_FULL_DEBUG_ATTRIBUTE_TSV)" --sample-id "$(PHILHARMONIA_FULL_DEBUG_SAMPLE_ID)" $(REAL_NOTE_ATTRIBUTE_SUMMARY_ARGS)
 
 test-analyze-exact-midi-misses: tests/test_analyze_exact_midi_misses.py scripts/analyze_exact_midi_misses.py
 	$(PYTHON) tests/test_analyze_exact_midi_misses.py
