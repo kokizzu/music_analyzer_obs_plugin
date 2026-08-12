@@ -339,6 +339,15 @@ int supported_low_monophonic_other_fundamental(const std::array<float, kNoteProb
 			second_octave_level >= peak_level * 0.02f && second_octave_level <= peak_level * 0.08f &&
 			upper_major_third_level >= peak_level * 0.05f && upper_major_third_level <= peak_level * 0.13f &&
 			upper_fifth_level <= peak_level * 0.06f;
+		// Bassoon A4 is another octave-dominant but unusually sparse profile:
+		// the A5 peak has a modest direct body, small E6 fifth, and virtually no
+		// further partials.  Its tight upper limits keep this from weakening the
+		// general upper-wind octave-only guard.
+		const bool bassoon_a4_sparse_octave_stack = lower == 69 && peak_midi == octave &&
+			fundamental_level >= peak_level * 0.085f && fundamental_level <= peak_level * 0.115f &&
+			fifth_level >= peak_level * 0.04f && fifth_level <= peak_level * 0.10f &&
+			second_octave_level <= peak_level * 0.011f &&
+			upper_major_third_level <= peak_level * 0.004f && upper_fifth_level <= peak_level * 0.001f;
 		// A few mid-register acoustic winds emphasize their fifth partial enough
 		// to suppress the octave.  This is intentionally limited to G3--B3 and
 		// a selected +28 partial: arbitrary lower subharmonics still need octave
@@ -386,12 +395,12 @@ int supported_low_monophonic_other_fundamental(const std::array<float, kNoteProb
 		if ((fundamental_level < peak_level * 0.12f && !low_wind_second_octave_stack &&
 		     !upper_wind_weak_body_fifth_stack && !mid_wind_weak_root_rich_third_stack &&
 		     !bassoon_a3_weak_body_stack && !bassoon_a3_sparse_fifth_stack &&
-		     !bassoon_fs3_boundary_stack) ||
+		     !bassoon_fs3_boundary_stack && !bassoon_a4_sparse_octave_stack) ||
 		    ((!within_general_recovery_range || !octave_fifth_stack) &&
 		     !low_bassoon_harmonic_ladder && !mid_wind_fifth_partial && !upper_wind_octave_only &&
 		     !upper_wind_weak_body_fifth_stack && !mid_wind_weak_root_rich_third_stack &&
 		     !bassoon_a3_weak_body_stack && !bassoon_a3_sparse_fifth_stack && !bassoon_fs3_boundary_stack &&
-		     !low_wind_second_octave_stack &&
+		     !bassoon_a4_sparse_octave_stack && !low_wind_second_octave_stack &&
 		     !low_brass_boundary_fifth_stack))
 			continue;
 		return lower;
