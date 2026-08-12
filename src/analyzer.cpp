@@ -622,13 +622,23 @@ int supported_low_monophonic_other_fundamental(const std::array<float, kNoteProb
 			second_octave_level >= peak_level * 0.14f && second_octave_level <= peak_level * 0.18f &&
 			upper_major_third_level >= peak_level * 0.007f && upper_major_third_level <= peak_level * 0.011f &&
 			upper_fifth_level >= peak_level * 0.015f && upper_fifth_level <= peak_level * 0.022f;
+		// The measured Allegro flute F5 has a small F4 partial, but its selected
+		// F5 is the intended pitch rather than an octave alias. Its nearly absent
+		// fifth and upper ladder distinguish this sparse shape from true F4 winds.
+		const bool flute_f5_selected_octave_profile = lower == 65 && peak_midi == octave &&
+			fundamental_level >= peak_level * 0.18f && fundamental_level <= peak_level * 0.20f &&
+			fifth_level >= peak_level * 0.005f && fifth_level <= peak_level * 0.010f &&
+			second_octave_level >= peak_level * 0.03f && second_octave_level <= peak_level * 0.04f &&
+			upper_major_third_level >= peak_level * 0.004f && upper_major_third_level <= peak_level * 0.007f &&
+			upper_fifth_level >= peak_level * 0.001f && upper_fifth_level <= peak_level * 0.004f;
 		// Isolated winds at C3--B4 can put nearly all energy in the octave while
 		// retaining a modest, direct fundamental and almost no fifth. This bounded
 		// octave-only shape is distinct from the normal octave/fifth stack and
 		// from the quiet G4 tail measured below the floor.
 		const bool upper_wind_octave_only = lower >= 48 && lower <= 71 &&
 			peak_midi == octave && fundamental_level >= peak_level * 0.13f &&
-			fifth_level <= peak_level * 0.15f && !violin_d5_selected_octave_profile;
+			fifth_level <= peak_level * 0.15f && !violin_d5_selected_octave_profile &&
+			!flute_f5_selected_octave_profile;
 		// Upper cor anglais fixtures at G4--B4 have an unusually suppressed
 		// direct body beneath their selected octave, but retain a narrow fifth
 		// band.  Keep this separate from the octave-only wind route: below 5%

@@ -206,6 +206,18 @@ void check_supported_low_monophonic_other_fundamental(Runner &runner)
 	runner.expect(supported_low_monophonic_other_fundamental(powers, 74) == 62,
 		      "low monophonic other recovery: expected outside D5 profile to retain regular D4 octave recovery");
 	powers.fill(0.0f);
+	set_probe_level(powers, 65, 0.192f); // F4 flute partial
+	set_probe_level(powers, 77, 1.00f); // F5 selected octave
+	set_probe_level(powers, 84, 0.007f); // C6 quiet fifth
+	set_probe_level(powers, 89, 0.036f); // F6 second octave
+	set_probe_level(powers, 93, 0.006f); // A6 upper major third
+	set_probe_level(powers, 96, 0.002f); // C7 upper fifth
+	runner.expect(supported_low_monophonic_other_fundamental(powers, 77) != 65,
+		      "low monophonic other recovery: expected bounded F5 flute octave profile not to fabricate F4");
+	set_probe_level(powers, 84, 0.020f);
+	runner.expect(supported_low_monophonic_other_fundamental(powers, 77) == 65,
+		      "low monophonic other recovery: expected outside F5 profile to retain regular F4 octave recovery");
+	powers.fill(0.0f);
 	set_probe_level(powers, 21, 1.00f); // A0 leakage, outside monophonic Other range
 	set_probe_level(powers, 64, 0.62f); // E4 musical peak
 	const NoteCandidateList monophonic_range_candidates =
