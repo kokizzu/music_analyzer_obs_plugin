@@ -263,6 +263,18 @@ void check_supported_low_monophonic_other_fundamental(Runner &runner)
 	runner.expect(supported_low_monophonic_other_fundamental(powers, 77) == 65,
 		      "low monophonic other recovery: expected outside F5 profile to retain regular F4 octave recovery");
 	powers.fill(0.0f);
+	set_probe_level(powers, 63, 0.036f); // D#4 direct trumpet body
+	set_probe_level(powers, 75, 1.00f); // D#5 selected octave
+	set_probe_level(powers, 82, 0.38f); // A#5 fifth
+	set_probe_level(powers, 87, 0.18f); // D#6 second octave
+	set_probe_level(powers, 91, 0.09f); // G6 upper major third
+	set_probe_level(powers, 94, 0.009f); // A#6 upper fifth
+	runner.expect(supported_low_monophonic_other_fundamental(powers, 75) == 63,
+		      "low monophonic other recovery: expected bounded D#4 trumpet weak-body octave stack");
+	set_probe_level(powers, 82, 0.42f);
+	runner.expect(supported_low_monophonic_other_fundamental(powers, 75) != 63,
+		      "low monophonic other recovery: expected over-bright D#4 trumpet fifth to stay rejected");
+	powers.fill(0.0f);
 	set_probe_level(powers, 21, 1.00f); // A0 leakage, outside monophonic Other range
 	set_probe_level(powers, 64, 0.62f); // E4 musical peak
 	const NoteCandidateList monophonic_range_candidates =

@@ -652,6 +652,16 @@ int supported_low_monophonic_other_fundamental(const std::array<float, kNoteProb
 			second_octave_level >= peak_level * 0.03f && second_octave_level <= peak_level * 0.04f &&
 			upper_major_third_level >= peak_level * 0.004f && upper_major_third_level <= peak_level * 0.007f &&
 			upper_fifth_level >= peak_level * 0.001f && upper_fifth_level <= peak_level * 0.004f;
+		// The duplicated Surprise trumpet D#4 sustains select D#5 but retain a
+		// compact fifth/second-octave ladder. This exact pitch has a substantially
+		// weaker direct body than the general octave route, so bind every partial
+		// rather than lowering the root floor for upper brass or strings broadly.
+		const bool trumpet_ds4_weak_body_octave_stack = lower == 63 && peak_midi == octave &&
+			fundamental_level >= peak_level * 0.03f && fundamental_level <= peak_level * 0.04f &&
+			fifth_level >= peak_level * 0.35f && fifth_level <= peak_level * 0.41f &&
+			second_octave_level >= peak_level * 0.16f && second_octave_level <= peak_level * 0.20f &&
+			upper_major_third_level >= peak_level * 0.08f && upper_major_third_level <= peak_level * 0.10f &&
+			upper_fifth_level >= peak_level * 0.006f && upper_fifth_level <= peak_level * 0.012f;
 		// Isolated winds at C3--B4 can put nearly all energy in the octave while
 		// retaining a modest, direct fundamental and almost no fifth. This bounded
 		// octave-only shape is distinct from the normal octave/fifth stack and
@@ -792,6 +802,7 @@ int supported_low_monophonic_other_fundamental(const std::array<float, kNoteProb
 			     !violin_gs3_compact_upper_ladder_stack &&
 			     !violin_a3_compact_octave_stack && !viola_f3_faint_fifth_octave_stack && !oboe_as4_sparse_fifth_stack &&
 		     !trumpet_as3_octave_ladder && !trumpet_as3_arioso_fifth_ladder && !trumpet_b3_fortissimo_octave_ladder &&
+		     !trumpet_ds4_weak_body_octave_stack &&
 		     !bassoon_d3_compact_fifth_stack && !bassoon_e3_suppressed_octave_fifth_stack &&
 		     !trombone_b3_broad_fifth_octave_stack) ||
 		    ((!within_general_recovery_range || !octave_fifth_stack) &&
@@ -814,7 +825,7 @@ int supported_low_monophonic_other_fundamental(const std::array<float, kNoteProb
 		     !violin_gs3_rich_octave_stack && !violin_gs3_compact_upper_ladder_stack &&
 		     !violin_a3_compact_octave_stack && !viola_f3_faint_fifth_octave_stack &&
 		     !oboe_as4_sparse_fifth_stack && !trumpet_as3_octave_ladder && !trumpet_as3_arioso_fifth_ladder &&
-		     !trumpet_b3_fortissimo_octave_ladder &&
+		     !trumpet_b3_fortissimo_octave_ladder && !trumpet_ds4_weak_body_octave_stack &&
 		     !clarinet_as3_weak_octave_fifth_stack &&
 		     !low_wind_second_octave_stack &&
 		     !low_brass_boundary_fifth_stack))
