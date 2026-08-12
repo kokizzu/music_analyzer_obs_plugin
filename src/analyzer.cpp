@@ -34195,6 +34195,8 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 				monophonic_other_source ? note_powers : detection_note_powers;
 			std::array<bool, kNoteProbeCount> quiet_monophonic_allowed_midis = {};
 			const std::array<bool, kNoteProbeCount> *other_allowed_midis = nullptr;
+			int raw_supported_low_fundamental = -1;
+			float raw_supported_low_fundamental_score = 0.0f;
 			if (input_mode == AnalysisInputMode::IsolatedOther) {
 				const NoteCandidateList pre_envelope_candidates =
 					note_peak_candidates(other_note_powers, min_midi, kOtherMaxMidi, 1,
@@ -34221,12 +34223,43 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 					}
 					}
 				}
+				// The isolated non-track route deliberately uses the filtered detector
+				// envelope for ordinary peaks. Some acoustic winds retain a compact
+				// octave/fifth stack only in the raw spectrum, however, so recover that
+				// lower note through the same strict predicate without changing normal
+				// peak selection.
+				if (!monophonic_other_source) {
+					const NoteCandidateList raw_candidates =
+						note_peak_candidates(note_powers, min_midi, kOtherMaxMidi, 1,
+								     nullptr, nullptr, false, nullptr, 0.30f, true);
+					if (!raw_candidates.empty()) {
+						const NoteCandidate &raw_candidate = raw_candidates[0];
+						const int recovered =
+							supported_low_monophonic_other_fundamental(note_powers,
+										       raw_candidate.midi);
+						if (recovered >= 0) {
+							raw_supported_low_fundamental = recovered;
+							raw_supported_low_fundamental_score = raw_candidate.score;
+						}
+					}
+				}
 			}
 			set_instrument_note_set(snapshot.other_notes, snapshot.other, other_note_powers,
 						min_midi, kOtherMaxMidi, note_root, other_energy, rms,
 						other_max_notes, nullptr, nullptr, false, other_allowed_midis,
 						0.30f, false, true,
 						monophonic_other_source ? kMonophonicOtherQuietRecoveryFloor : kNoteRmsFloor);
+			if (raw_supported_low_fundamental >= 0) {
+				const NoteCell &existing =
+					snapshot.other_notes.cells[midi_pitch_class(raw_supported_low_fundamental)];
+				if (!existing.active || raw_supported_low_fundamental < existing.midi) {
+					write_note_grid_cell(snapshot.other_notes,
+							     NoteCandidate{raw_supported_low_fundamental,
+									   raw_supported_low_fundamental_score},
+							     raw_supported_low_fundamental_score, note_visual_loudness(rms));
+					write_note_grid_label(snapshot.other, snapshot.other_notes, note_root);
+				}
+			}
 			// A named monophonic track already has a direct peak-selection route.
 			// Reconstructing a low fundamental from its upper partials can replace
 			// that note with a distant harmonic (for example a viola D4 as G1).

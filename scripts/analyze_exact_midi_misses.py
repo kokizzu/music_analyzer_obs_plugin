@@ -73,18 +73,30 @@ def trait_text(first: dict[str, str], rows: list[dict[str, str]]) -> str:
     return "\n".join(lines)
 
 
-def analyze(path: Path, examples: int, sample_id: str = "") -> str:
+def analyze(path: Path, examples: int, sample_id: str = "", pre_offset: int | None = None) -> str:
     misses = sample_misses(path)
     if sample_id:
         selected = [(first, rows) for first, rows in misses if first["sample_id"] == sample_id]
         if not selected:
             return f"exact-midi miss not found for sample_id={sample_id}"
         return "\n".join(trait_text(first, rows) for first, rows in selected)
+    if pre_offset is not None:
+        selected = []
+        for first, rows in misses:
+            try:
+                if int(first["other_pre_envelope_midi"]) - int(first["expected_midi"]) == pre_offset:
+                    selected.append((first, rows))
+            except ValueError:
+                continue
+        return "\n".join(trait_text(first, rows) for first, rows in selected[:examples]) or (
+            f"exact-midi misses with pre-envelope offset {pre_offset:+d}: none"
+        )
     by_family: collections.Counter[str] = collections.Counter()
     by_source: collections.Counter[str] = collections.Counter()
     by_expected_octave: collections.Counter[int] = collections.Counter()
     same_pc_offset: collections.Counter[str] = collections.Counter()
     raw_local_offset: collections.Counter[str] = collections.Counter()
+    pre_envelope_offset: collections.Counter[str] = collections.Counter()
     raw_rank: collections.Counter[str] = collections.Counter()
     example_rows: list[str] = []
 
@@ -109,6 +121,11 @@ def analyze(path: Path, examples: int, sample_id: str = "") -> str:
             raw_local_offset[f"{local_best - expected:+d}"] += 1
         except ValueError:
             raw_local_offset["none"] += 1
+        try:
+            pre_envelope = int(first.get("other_pre_envelope_midi", ""))
+            pre_envelope_offset[f"{pre_envelope - expected:+d}"] += 1
+        except ValueError:
+            pre_envelope_offset["none"] += 1
         raw_rank[first.get("raw_expected_rank", "none") or "none"] += 1
 
         if len(example_rows) < examples:
@@ -132,6 +149,7 @@ def analyze(path: Path, examples: int, sample_id: str = "") -> str:
         f"by expected octave {counter_text(by_expected_octave)}",
         f"expected-row same-pitch-class MIDI offset {counter_text(same_pc_offset)}",
         f"raw local-best MIDI offset {counter_text(raw_local_offset)}",
+        f"other pre-envelope MIDI offset {counter_text(pre_envelope_offset)}",
         f"raw expected rank {counter_text(raw_rank)}",
         "examples:",
         *example_rows,
@@ -144,8 +162,9 @@ def main() -> None:
     parser.add_argument("input", type=Path)
     parser.add_argument("--examples", type=int, default=12)
     parser.add_argument("--sample-id", default="")
+    parser.add_argument("--pre-offset", type=int)
     args = parser.parse_args()
-    print(analyze(args.input, args.examples, args.sample_id))
+    print(analyze(args.input, args.examples, args.sample_id, args.pre_offset))
 
 
 if __name__ == "__main__":

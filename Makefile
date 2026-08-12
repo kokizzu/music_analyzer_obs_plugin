@@ -853,6 +853,9 @@ GOOD_SOUNDS_DETECTED_ATTRIBUTE_ROWS ?= $(BUILD_DIR)/good_sounds_detected_attribu
 GOOD_SOUNDS_MISS_ATTRIBUTE_ROWS ?= $(BUILD_DIR)/good_sounds_miss_attribute_rows.tsv
 GOOD_SOUNDS_FULL_MIX_ATTRIBUTE_TSV ?= $(BUILD_DIR)/good_sounds_full_mix_attributes.tsv
 GOOD_SOUNDS_FULL_MIX_ATTRIBUTE_LOCK_DIR ?= $(BUILD_DIR)/good_sounds_full_mix_attributes.lock
+GOOD_SOUNDS_DEBUG_SAMPLE_ID ?=
+GOOD_SOUNDS_DEBUG_ATTRIBUTE_TSV ?= $(BUILD_DIR)/good_sounds_debug_attributes.tsv
+GOOD_SOUNDS_DEBUG_INSPECT_ARGS ?= --dump-rows --include-empty-debug
 GOOD_SOUNDS_SAMPLE_LIMIT ?= 1500
 GOOD_SOUNDS_MIN_SAMPLES ?= 500
 GOOD_SOUNDS_REFRESH ?= 0
@@ -2815,10 +2818,18 @@ find-vocadito-full-mix-ownership-patterns: $(VOCADITO_FULL_MIX_ATTRIBUTE_TSV) $(
 find-vocadito-full-mix-broad-vocal-ownership-patterns: $(VOCADITO_FULL_MIX_ATTRIBUTE_TSV) $(VOCADITO_PATTERN_EXTRA_PROTECTED_PATHS) scripts/find_real_note_attribute_patterns.py
 	$(PYTHON) scripts/find_real_note_attribute_patterns.py "$(VOCADITO_FULL_MIX_ATTRIBUTE_TSV)" $(VOCADITO_PATTERN_EXTRA_PROTECTED_ARGS) --bucket "ownership_miss:vocals/*->*" --jobs "$(REAL_NOTE_PATTERN_JOBS)" $(or $(PATTERN_ARGS),$(MEASURE_REAL_NOTE_BROAD_VOCAL_PATTERN_ARGS))
 
-.PHONY: find-good-sounds-full-mix-ownership-patterns
+.PHONY: find-good-sounds-full-mix-ownership-patterns inspect-good-sounds-full-mix-debug-cached
 find-good-sounds-full-mix-ownership-patterns: scripts/find_real_note_attribute_patterns.py
 	@test -f "$(GOOD_SOUNDS_FULL_MIX_ATTRIBUTE_TSV)" || { printf '%s\n' "missing $(GOOD_SOUNDS_FULL_MIX_ATTRIBUTE_TSV); run make analyze-good-sounds-full-mix-attributes first"; exit 2; }
 	$(PYTHON) scripts/find_real_note_attribute_patterns.py "$(GOOD_SOUNDS_FULL_MIX_ATTRIBUTE_TSV)" $(GOOD_SOUNDS_FULL_MIX_PATTERN_EXTRA_PROTECTED_ARGS) --bucket-status ownership_miss $(REAL_NOTE_RUNTIME_ROW_CONFUSION_EXCLUDES) --jobs "$(REAL_NOTE_PATTERN_JOBS)" $(or $(PATTERN_ARGS),$(GOOD_SOUNDS_FULL_MIX_OWNERSHIP_PATTERN_ARGS))
+
+.PHONY: inspect-good-sounds-full-mix-debug-cached
+inspect-good-sounds-full-mix-debug-cached: $(BUILD_DIR)/analyzer_real_note_samples
+	@test -n "$(GOOD_SOUNDS_DEBUG_SAMPLE_ID)" || { printf '%s\n' "set GOOD_SOUNDS_DEBUG_SAMPLE_ID to a manifest sample id"; exit 2; }
+	@test -s "$(GOOD_SOUNDS_SAMPLE_DIR)/manifest.tsv" || { printf '%s\n' "missing $(GOOD_SOUNDS_SAMPLE_DIR)/manifest.tsv; prepare samples separately before inspecting"; exit 2; }
+	@rm -f "$(GOOD_SOUNDS_DEBUG_ATTRIBUTE_TSV)"
+	env MUSIC_ANALYZER_REAL_NOTE_SAMPLES_REQUIRED=1 MUSIC_ANALYZER_REAL_NOTE_FULL_MIX=1 MUSIC_ANALYZER_REAL_NOTE_SAMPLE_ROOT="$(GOOD_SOUNDS_SAMPLE_DIR)" MUSIC_ANALYZER_REAL_NOTE_REQUIRED_SAMPLES=1 MUSIC_ANALYZER_REAL_NOTE_MIN_ANY_HIT_PERCENT=0 MUSIC_ANALYZER_REAL_NOTE_MIN_EXPECTED_ROW_PERCENT=0 MUSIC_ANALYZER_REAL_NOTE_MIN_FIRST_ROW_PERCENT=0 MUSIC_ANALYZER_REAL_NOTE_MIN_BASS_EXPECTED_ROW_PERCENT=0 MUSIC_ANALYZER_REAL_NOTE_MIN_GUITAR_EXPECTED_ROW_PERCENT=0 MUSIC_ANALYZER_REAL_NOTE_MIN_PIANO_EXPECTED_ROW_PERCENT=0 MUSIC_ANALYZER_REAL_NOTE_MIN_VOCALS_EXPECTED_ROW_PERCENT=0 MUSIC_ANALYZER_REAL_NOTE_MIN_OTHER_EXPECTED_ROW_PERCENT=0 MUSIC_ANALYZER_REAL_NOTE_MAX_DRUM_ACTIVE_PERCENT=100 MUSIC_ANALYZER_REAL_NOTE_MAX_FAILURES=999999 MUSIC_ANALYZER_REAL_NOTE_DEBUG_SAMPLE_ID="$(GOOD_SOUNDS_DEBUG_SAMPLE_ID)" MUSIC_ANALYZER_REAL_NOTE_ATTRIBUTE_TSV="$(GOOD_SOUNDS_DEBUG_ATTRIBUTE_TSV)" $(BUILD_DIR)/analyzer_real_note_samples
+	$(PYTHON) scripts/inspect_real_note_attribute_buckets.py "$(GOOD_SOUNDS_DEBUG_ATTRIBUTE_TSV)" --sample-id "$(GOOD_SOUNDS_DEBUG_SAMPLE_ID)" $(GOOD_SOUNDS_DEBUG_INSPECT_ARGS)
 
 .PHONY: inspect-good-sounds-full-mix-bass-misses
 inspect-good-sounds-full-mix-bass-misses: scripts/inspect_good_sounds_bass_misses.py
@@ -3386,7 +3397,7 @@ analyze-philharmonia-full-attributes: $(PHILHARMONIA_FULL_DETECTED_ATTRIBUTE_ROW
 
 analyze-philharmonia-full-exact-midi-misses: scripts/analyze_exact_midi_misses.py
 	@test -f "$(PHILHARMONIA_FULL_ATTRIBUTE_TSV)" || { printf '%s\n' "missing $(PHILHARMONIA_FULL_ATTRIBUTE_TSV); run make test-philharmonia-samples-full first"; exit 2; }
-	$(PYTHON) scripts/analyze_exact_midi_misses.py "$(PHILHARMONIA_FULL_ATTRIBUTE_TSV)" $(if $(EXACT_MIDI_SAMPLE_ID),--sample-id "$(EXACT_MIDI_SAMPLE_ID)")
+	$(PYTHON) scripts/analyze_exact_midi_misses.py "$(PHILHARMONIA_FULL_ATTRIBUTE_TSV)" $(if $(EXACT_MIDI_SAMPLE_ID),--sample-id "$(EXACT_MIDI_SAMPLE_ID)") $(if $(EXACT_MIDI_PRE_OFFSET),--pre-offset "$(EXACT_MIDI_PRE_OFFSET)")
 
 test-analyze-exact-midi-misses: tests/test_analyze_exact_midi_misses.py scripts/analyze_exact_midi_misses.py
 	$(PYTHON) tests/test_analyze_exact_midi_misses.py
