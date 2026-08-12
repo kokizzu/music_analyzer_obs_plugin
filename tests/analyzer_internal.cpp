@@ -155,6 +155,18 @@ void check_supported_low_monophonic_other_fundamental(Runner &runner)
 	runner.expect(supported_low_monophonic_other_fundamental(powers, 69) != 50,
 		      "low monophonic other recovery: expected bright D3 bassoon upper third to stay rejected");
 	powers.fill(0.0f);
+	set_probe_level(powers, 59, 0.095f); // B3 direct trombone body
+	set_probe_level(powers, 71, 1.00f); // B4 selected octave
+	set_probe_level(powers, 78, 0.60f); // F#5 broad fifth
+	set_probe_level(powers, 83, 0.20f); // B5 second octave
+	set_probe_level(powers, 87, 0.040f); // D#6 upper major third
+	set_probe_level(powers, 90, 0.060f); // F#6 upper fifth
+	runner.expect(supported_low_monophonic_other_fundamental(powers, 71) == 59,
+		      "low monophonic other recovery: expected bounded B3 trombone octave stack");
+	set_probe_level(powers, 78, 0.75f);
+	runner.expect(supported_low_monophonic_other_fundamental(powers, 71) != 59,
+		      "low monophonic other recovery: expected over-bright B3 trombone fifth to stay rejected");
+	powers.fill(0.0f);
 	powers[static_cast<std::size_t>(50 - kFirstMidi)] = 0.155f; // D3 fundamental
 	powers[static_cast<std::size_t>(62 - kFirstMidi)] = 0.77f;  // D4 octave
 	powers[static_cast<std::size_t>(69 - kFirstMidi)] = 1.0f;   // A4 fifth / selected peak
