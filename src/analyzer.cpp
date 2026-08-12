@@ -646,6 +646,15 @@ int supported_low_monophonic_other_fundamental(const std::array<float, kNoteProb
 			fifth_level >= peak_level * 0.19f && fifth_level <= peak_level * 0.26f &&
 			second_octave_level <= peak_level * 0.015f &&
 			upper_major_third_level <= peak_level * 0.025f && upper_fifth_level <= peak_level * 0.02f;
+		// Three URMP oboe G4 sustains select G5, with a stronger G4 body and
+		// richer upper ladder than the cor anglais profiles. Keep all partials
+		// bounded at this exact note rather than lowering the generic fifth floor.
+		const bool oboe_g4_broad_octave_stack = lower == 67 && peak_midi == octave &&
+			fundamental_level >= peak_level * 0.14f && fundamental_level <= peak_level * 0.18f &&
+			fifth_level >= peak_level * 0.21f && fifth_level <= peak_level * 0.29f &&
+			second_octave_level >= peak_level * 0.05f && second_octave_level <= peak_level * 0.17f &&
+			upper_major_third_level >= peak_level * 0.59f && upper_major_third_level <= peak_level * 0.79f &&
+			upper_fifth_level >= peak_level * 0.007f && upper_fifth_level <= peak_level * 0.022f;
 		// Cor anglais B4 shares the selected octave but has an unusually faint,
 		// continuous direct body and a nearly absent upper ladder.  The exact B4
 		// pitch and narrow fifth/upper bounds preserve the normal octave route
@@ -718,7 +727,7 @@ int supported_low_monophonic_other_fundamental(const std::array<float, kNoteProb
 			upper_fifth_level >= peak_level * 0.17f && upper_fifth_level <= peak_level * 0.70f;
 		if ((fundamental_level < peak_level * 0.12f && !low_wind_second_octave_stack &&
 			     !upper_wind_weak_body_fifth_stack && !mid_wind_weak_root_rich_third_stack &&
-			     !cor_anglais_g4_sparse_octave_stack && !cor_anglais_g4_mezzopiano_octave_stack &&
+			     !cor_anglais_g4_sparse_octave_stack && !cor_anglais_g4_mezzopiano_octave_stack && !oboe_g4_broad_octave_stack &&
 			     !cor_anglais_b4_ultraweak_octave_stack &&
 			     !bassoon_a3_weak_body_stack && !bassoon_a3_sparse_fifth_stack && !bassoon_a3_breath_ladder &&
 			     !bassoon_as3_tiny_ladder_stack &&
@@ -737,7 +746,7 @@ int supported_low_monophonic_other_fundamental(const std::array<float, kNoteProb
 		    ((!within_general_recovery_range || !octave_fifth_stack) &&
 		     !low_bassoon_harmonic_ladder && !mid_wind_fifth_partial && !upper_wind_octave_only &&
 			     !upper_wind_weak_body_fifth_stack && !mid_wind_weak_root_rich_third_stack &&
-			     !cor_anglais_g4_sparse_octave_stack && !cor_anglais_g4_mezzopiano_octave_stack &&
+			     !cor_anglais_g4_sparse_octave_stack && !cor_anglais_g4_mezzopiano_octave_stack && !oboe_g4_broad_octave_stack &&
 			     !cor_anglais_b4_ultraweak_octave_stack &&
 		     !bassoon_a3_weak_body_stack && !bassoon_a3_sparse_fifth_stack && !bassoon_a3_breath_ladder &&
 		     !bassoon_as3_tiny_ladder_stack &&

@@ -182,6 +182,18 @@ void check_supported_low_monophonic_other_fundamental(Runner &runner)
 	runner.expect(supported_low_monophonic_other_fundamental(powers, 70) != 58,
 		      "low monophonic other recovery: expected bright A#3 bassoon fifth to stay rejected");
 	powers.fill(0.0f);
+	set_probe_level(powers, 67, 0.160f); // G4 direct oboe body
+	set_probe_level(powers, 79, 1.00f); // G5 selected octave
+	set_probe_level(powers, 86, 0.240f); // D6 fifth
+	set_probe_level(powers, 91, 0.10f); // G6 second octave
+	set_probe_level(powers, 95, 0.70f); // B6 upper major third
+	set_probe_level(powers, 98, 0.015f); // D7 upper fifth
+	runner.expect(supported_low_monophonic_other_fundamental(powers, 79) == 67,
+		      "low monophonic other recovery: expected bounded G4 oboe broad octave stack");
+	set_probe_level(powers, 95, 0.80f);
+	runner.expect(supported_low_monophonic_other_fundamental(powers, 79) != 67,
+	      "low monophonic other recovery: expected over-bright G4 oboe upper third to stay rejected");
+	powers.fill(0.0f);
 	set_probe_level(powers, 21, 1.00f); // A0 leakage, outside monophonic Other range
 	set_probe_level(powers, 64, 0.62f); // E4 musical peak
 	const NoteCandidateList monophonic_range_candidates =
