@@ -142,6 +142,16 @@ void check_quiet_monophonic_other_recovery_bounds(Runner &runner)
 		      "quiet named wind A#3 recovery: expected sub-floor tail to stay rejected");
 	runner.expect(!is_quiet_named_wind_as3_recovery_candidate("wind track", 58, 0.0027f, 0.89f),
 		      "quiet named wind A#3 recovery: expected weak direct body to stay rejected");
+	runner.expect(is_quiet_named_string_g4_recovery_candidate("string track", 67, 0.0027f, 2.05f),
+		      "quiet named string G4 recovery: expected measured direct tail to remain eligible");
+	runner.expect(!is_quiet_named_string_g4_recovery_candidate("wind track", 67, 0.0027f, 2.05f),
+		      "quiet named string G4 recovery: expected non-string tail to stay rejected");
+	runner.expect(!is_quiet_named_string_g4_recovery_candidate("string track", 66, 0.0027f, 2.05f),
+		      "quiet named string G4 recovery: expected neighboring pitch to stay rejected");
+	runner.expect(!is_quiet_named_string_g4_recovery_candidate("string track", 67, 0.0025f, 2.05f),
+		      "quiet named string G4 recovery: expected sub-floor tail to stay rejected");
+	runner.expect(!is_quiet_named_string_g4_recovery_candidate("string track", 67, 0.0027f, 1.99f),
+		      "quiet named string G4 recovery: expected weak direct body to stay rejected");
 }
 
 void check_quiet_monophonic_other_visual_floor(Runner &runner)

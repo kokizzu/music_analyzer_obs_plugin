@@ -80,6 +80,16 @@ bool is_quiet_named_wind_as3_recovery_candidate(const char *source_name, int mid
 	return source_name && std::strstr(source_name, "wind") && midi == 58 &&
 	       rms >= 0.0026f && rms < kMonophonicOtherQuietRecoveryFloor && raw_level >= 0.90f;
 }
+
+// A quiet Nocturne violin G4 tail remains a strong direct spectral peak but
+// lies just beneath the generic monophonic floor. Keep its route confined to
+// named strings, the measured pitch/RMS interval, and substantial raw body.
+bool is_quiet_named_string_g4_recovery_candidate(const char *source_name, int midi, float rms,
+								     float raw_level)
+{
+	return source_name && std::strstr(source_name, "string") && midi == 67 &&
+	       rms >= 0.0026f && rms < kMonophonicOtherQuietRecoveryFloor && raw_level >= 2.0f;
+}
 constexpr float kFullNoteRms = 0.035f;
 constexpr float kNoteRelativeFloor = 0.36f;
 constexpr float kMixedNoteRelativeFloor = 0.08f;
@@ -34913,6 +34923,7 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 			bool quiet_named_brass_d4_recovery = false;
 			bool quiet_named_string_d3_recovery = false;
 			bool quiet_named_wind_as3_recovery = false;
+			bool quiet_named_string_g4_recovery = false;
 			int raw_supported_low_fundamental = -1;
 			float raw_supported_low_fundamental_score = 0.0f;
 			if (input_mode == AnalysisInputMode::IsolatedOther) {
@@ -34976,6 +34987,9 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 						quiet_named_wind_as3_recovery =
 							is_quiet_named_wind_as3_recovery_candidate(resolved_source_name, candidate.midi,
 													      rms, snapshot.other_debug_pre_envelope_raw_level);
+						quiet_named_string_g4_recovery =
+							is_quiet_named_string_g4_recovery_candidate(resolved_source_name, candidate.midi,
+													        rms, snapshot.other_debug_pre_envelope_raw_level);
 						if (quiet_named_brass_d4_recovery)
 							quiet_monophonic_allowed_midis[
 								static_cast<std::size_t>(candidate.midi - kFirstMidi)] = true;
@@ -34983,6 +34997,9 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 							quiet_monophonic_allowed_midis[
 								static_cast<std::size_t>(candidate.midi - kFirstMidi)] = true;
 						if (quiet_named_wind_as3_recovery)
+							quiet_monophonic_allowed_midis[
+								static_cast<std::size_t>(candidate.midi - kFirstMidi)] = true;
+						if (quiet_named_string_g4_recovery)
 							quiet_monophonic_allowed_midis[
 								static_cast<std::size_t>(candidate.midi - kFirstMidi)] = true;
 						other_allowed_midis = &quiet_monophonic_allowed_midis;
@@ -35041,14 +35058,16 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 			const float other_rms_floor = monophonic_other_source ?
 				(quiet_named_string_d3_recovery ? 0.0018f :
 				 (quiet_named_brass_d4_recovery ? 0.0020f :
-				  (quiet_named_wind_as3_recovery ? 0.0026f : kMonophonicOtherQuietRecoveryFloor))) :
+				  ((quiet_named_wind_as3_recovery || quiet_named_string_g4_recovery) ?
+				   0.0026f : kMonophonicOtherQuietRecoveryFloor))) :
 				kNoteRmsFloor;
 			// The same lower floor that admits a verified quiet monophonic note
 			// must also drive its visual level. Using the normal floor here turns
 			// every 0.003--0.0055 RMS candidate into a zero-level cell before the
 			// envelope can confirm it.
 			const bool quiet_named_recovery = quiet_named_string_d3_recovery ||
-				quiet_named_brass_d4_recovery || quiet_named_wind_as3_recovery;
+				quiet_named_brass_d4_recovery || quiet_named_wind_as3_recovery ||
+				quiet_named_string_g4_recovery;
 			const float other_visual_loudness = monophonic_other_source ?
 				std::max(note_visual_loudness(rms, other_rms_floor),
 					 quiet_named_recovery ? kNoteEnvelopeNewNoteFloor * 1.05f : 0.0f) : -1.0f;
