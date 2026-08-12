@@ -273,6 +273,20 @@ int supported_low_monophonic_other_fundamental(const std::array<float, kNoteProb
 	if (peak_level <= 1.0e-6f)
 		return -1;
 
+	// Philharmonia trombone C4 can peak at its G4 third harmonic.  The generic
+	// +19 search would otherwise interpret that same peak as a C3 fifth before
+	// considering C4.  Require the measured C4 body and octave relationship,
+	// and give it precedence over that lower unrelated interpretation.
+	if (peak_midi == 67) {
+		const float fundamental_level = probe_level(powers, 60);
+		const float octave_level = probe_level(powers, 72);
+		const float upper_fifth_level = probe_level(powers, 79);
+		if (fundamental_level >= peak_level * 0.075f && fundamental_level <= peak_level * 0.11f &&
+		    octave_level >= peak_level * 0.35f && octave_level <= peak_level * 0.52f &&
+		    upper_fifth_level >= peak_level * 0.18f && upper_fifth_level <= peak_level * 0.42f)
+			return 60;
+	}
+
 	for (int lower = 34; lower <= 71; ++lower) {
 		const int octave = lower + 12;
 		const int fifth = lower + 19;

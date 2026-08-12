@@ -163,6 +163,16 @@ void check_supported_low_monophonic_other_fundamental(Runner &runner)
 	set_probe_level(powers, 67, 0.11f);
 	runner.expect(supported_low_monophonic_other_fundamental(powers, 83) != 55,
 		      "low monophonic other recovery: expected visible G3 octave to stay rejected");
+	powers.fill(0.0f);
+	set_probe_level(powers, 60, 0.09f); // C4 trombone body
+	set_probe_level(powers, 67, 1.00f); // G4 selected third harmonic
+	set_probe_level(powers, 72, 0.42f); // C5 octave
+	set_probe_level(powers, 79, 0.30f); // G5 upper fifth
+	runner.expect(supported_low_monophonic_other_fundamental(powers, 67) == 60,
+		      "low monophonic other recovery: expected bounded C4 trombone third harmonic to outrank C3 alias");
+	set_probe_level(powers, 72, 0.53f);
+	runner.expect(supported_low_monophonic_other_fundamental(powers, 67) != 60,
+		      "low monophonic other recovery: expected over-bright C4 octave to stay outside trombone bridge");
 	set_probe_level(powers, 55, 0.14f); // G3 direct fundamental
 	set_probe_level(powers, 67, 1.00f); // G4 selected octave
 	set_probe_level(powers, 74, 0.10f); // D5 weak fifth
