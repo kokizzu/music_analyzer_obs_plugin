@@ -1398,7 +1398,7 @@ GUITARSET_ATTRIBUTE_GATE_ENV ?= MUSIC_ANALYZER_GUITARSET_ATTRIBUTE_ONLY=1 MUSIC_
 .PHONY: filter-drum-primary-attribute-rows filter-drum-full-attribute-rows filter-drum-full-exact-attribute-rows test-filter-drum-attribute-rows
 .PHONY: test-build-sharded-tsv test-guitarset-shard-check test-instrument-family-shard-check test-musicnet-shard-check test-analyze-exact-midi-misses
 .PHONY: prepare-guitar-techs-chord-case inspect-guitar-techs-chord-case refresh-guitar-techs-chord-attributes
-.PHONY: prepare-gaps-guitar-samples-full test-gaps-guitar-samples-full analyze-gaps-guitar-misses-full analyze-gaps-guitar-attributes inspect-gaps-guitar-attribute-buckets find-gaps-guitar-attribute-patterns analyze-gaps-guitar-full-attributes inspect-gaps-guitar-full-attribute-buckets find-gaps-guitar-full-attribute-patterns test-good-sounds-full-mix test-good-sounds-full-mix-parallel analyze-good-sounds-full-mix-attributes refresh-good-sounds-full-mix-attributes-cached prepare-iowa-sax-full-mix-fixture measure-iowa-sax-full-mix find-iowa-sax-full-mix-row-confusion-patterns
+.PHONY: prepare-gaps-guitar-samples-full test-gaps-guitar-samples-full analyze-gaps-guitar-misses-full analyze-gaps-guitar-attributes inspect-gaps-guitar-attribute-buckets find-gaps-guitar-attribute-patterns analyze-gaps-guitar-full-attributes inspect-gaps-guitar-full-attribute-buckets find-gaps-guitar-full-attribute-patterns test-good-sounds-full-mix test-good-sounds-full-mix-parallel analyze-good-sounds-full-mix-attributes refresh-good-sounds-full-mix-attributes-cached prepare-iowa-sax-full-mix-fixture measure-iowa-sax-full-mix find-iowa-sax-full-mix-row-confusion-patterns find-iowa-sax-full-mix-first-row-confusion-patterns
 .PHONY: analyze-guitarset-attributes inspect-guitarset-attribute-buckets find-guitarset-attribute-patterns analyze-egfxset-guitar-attributes inspect-egfxset-guitar-attribute-buckets find-egfxset-guitar-attribute-patterns
 .PHONY: inspect-guitarset-download restore-guitarset-audio-partial test-guitarset-download-inspector
 .PHONY: test-fret-control android-lint icon-assets
@@ -3669,6 +3669,9 @@ measure-iowa-sax-full-mix: $(BUILD_DIR)/analyzer_real_note_samples prepare-iowa-
 
 find-iowa-sax-full-mix-row-confusion-patterns: $(IOWA_SAX_FULL_MIX_ATTRIBUTE_TSV) scripts/find_real_note_attribute_patterns.py
 	$(PYTHON) scripts/find_real_note_attribute_patterns.py "$(IOWA_SAX_FULL_MIX_ATTRIBUTE_TSV)" --bucket-status row_confusion --jobs "$(REAL_NOTE_PATTERN_JOBS)" --top-buckets 8 --limit 8 --min-positive-samples 5 --max-negative-samples 0 --max-conditions 3 --beam-width 240 --show-examples 3 --profile-fields 5
+
+find-iowa-sax-full-mix-first-row-confusion-patterns: $(IOWA_SAX_FULL_MIX_ATTRIBUTE_TSV) scripts/find_real_note_attribute_patterns.py
+	$(PYTHON) scripts/find_real_note_attribute_patterns.py "$(IOWA_SAX_FULL_MIX_ATTRIBUTE_TSV)" --bucket-status first_row_confusion --jobs "$(REAL_NOTE_PATTERN_JOBS)" --top-buckets 8 --limit 8 --min-positive-samples 5 --max-negative-samples 0 --max-conditions 3 --beam-width 240 --show-examples 3 --profile-fields 5
 
 test-iowa-orchestra-full-samples test-iowa-orchestra-full-samples-parallel: REAL_NOTE_SAMPLE_TAG := iowa_orchestra_full
 test-iowa-orchestra-full-samples test-iowa-orchestra-full-samples-parallel: REAL_NOTE_SAMPLE_ROOT := $(IOWA_ORCHESTRA_FULL_SAMPLE_DIR)
