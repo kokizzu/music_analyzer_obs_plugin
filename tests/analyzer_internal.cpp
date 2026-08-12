@@ -197,6 +197,13 @@ void check_supported_low_monophonic_other_fundamental(Runner &runner)
 	set_probe_level(powers, 81, 0.037f); // A5 upper fifth
 	runner.expect(supported_low_monophonic_other_fundamental(powers, 69) == 50,
 		      "low monophonic other recovery: expected bounded D3 bassoon fifth stack");
+	set_probe_level(powers, 62, 0.295f); // D4 just below the generic octave floor
+	runner.expect(supported_low_monophonic_other_fundamental(powers, 69) == 50,
+		      "low monophonic other recovery: expected bounded D3 bassoon boundary octave stack");
+	set_probe_level(powers, 62, 0.288f);
+	runner.expect(supported_low_monophonic_other_fundamental(powers, 69) != 50,
+		      "low monophonic other recovery: expected sub-boundary D3 octave to stay rejected");
+	set_probe_level(powers, 62, 0.300f);
 	set_probe_level(powers, 78, 0.060f);
 	runner.expect(supported_low_monophonic_other_fundamental(powers, 69) != 50,
 		      "low monophonic other recovery: expected bright D3 bassoon upper third to stay rejected");

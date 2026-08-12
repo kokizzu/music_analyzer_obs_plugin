@@ -717,6 +717,7 @@ int supported_low_monophonic_other_fundamental(const std::array<float, kNoteProb
 		     !bassoon_fs3_boundary_stack &&
 		     !bassoon_fs3_bright_third_stack && !bassoon_a4_sparse_octave_stack && !bassoon_b3_compact_octave_stack &&
 		     !bassoon_g3_boundary_stack && !violin_g3_rich_fifth_stack && !violin_g3_ultraweak_octave_stack &&
+		     !bassoon_d3_compact_fifth_stack &&
 		     !violin_g3_forte_fifth_ladder && !violin_g3_even_forte_ladder &&
 		     !violin_g3_mezzoforte_low_third_ladder &&
 		     !violin_g3_fortissimo_rich_ladder &&
