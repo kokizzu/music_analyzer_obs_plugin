@@ -12447,8 +12447,9 @@ void prefer_supported_lower_octave_display(NoteGrid &grid, InstrumentState &stat
 }
 
 // A harmonic score can prefer a lower octave even where the direct upper
-// probe remains substantial. Restrict this correction to the mid/high
-// isolated Other range so low acoustic-fundamental recovery stays unchanged.
+// probe remains substantial. A 30% direct-probe floor recovers the measured
+// isolated brass upper-octave cases while keeping low acoustic-fundamental
+// recovery unchanged.
 void prefer_direct_upper_other_octave_primary(NoteGrid &grid, InstrumentState &state,
 					      const std::array<float, kNoteProbeCount> &powers,
 					      int preferred_root)
@@ -12463,7 +12464,7 @@ void prefer_direct_upper_other_octave_primary(NoteGrid &grid, InstrumentState &s
 			continue;
 		const float lower_raw = probe_level(powers, primary.midi);
 		const float upper_raw = probe_level(powers, upper_midi);
-		if (lower_raw <= 1.0e-6f || upper_raw < lower_raw * 0.55f)
+		if (lower_raw <= 1.0e-6f || upper_raw < lower_raw * 0.30f)
 			continue;
 		changed = promote_note_grid_primary_midi(
 				  grid, upper_midi, std::max(primary.level, upper_raw)) ||
