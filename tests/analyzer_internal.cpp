@@ -363,6 +363,18 @@ void check_supported_low_monophonic_other_fundamental(Runner &runner)
 	set_probe_level(powers, 87, 0.10f);
 	runner.expect(supported_low_monophonic_other_fundamental(powers, 68) != 56,
 		      "low monophonic other recovery: expected bright G#3 violin upper fifth to stay rejected");
+	powers.fill(0.0f);
+	set_probe_level(powers, 57, 0.08f); // A3 compact violin body
+	set_probe_level(powers, 69, 1.00f); // A4 selected octave
+	set_probe_level(powers, 76, 0.15f); // E5 restrained fifth
+	set_probe_level(powers, 81, 0.20f); // A5 compact second octave
+	set_probe_level(powers, 85, 0.10f); // C#6 bounded upper major third
+	set_probe_level(powers, 88, 0.05f); // E6 bounded upper fifth
+	runner.expect(supported_low_monophonic_other_fundamental(powers, 69) == 57,
+		      "low monophonic other recovery: expected bounded compact A3 violin octave stack");
+	set_probe_level(powers, 76, 0.25f);
+	runner.expect(supported_low_monophonic_other_fundamental(powers, 69) != 57,
+		      "low monophonic other recovery: expected rich A3 violin fifth to stay rejected");
 	set_probe_level(powers, 55, 0.14f); // G3 direct fundamental
 	set_probe_level(powers, 67, 1.00f); // G4 selected octave
 	set_probe_level(powers, 74, 0.10f); // D5 weak fifth
