@@ -173,6 +173,18 @@ void check_supported_low_monophonic_other_fundamental(Runner &runner)
 	set_probe_level(powers, 72, 0.53f);
 	runner.expect(supported_low_monophonic_other_fundamental(powers, 67) != 60,
 		      "low monophonic other recovery: expected over-bright C4 octave to stay outside trombone bridge");
+	powers.fill(0.0f);
+	set_probe_level(powers, 57, 0.04f); // A3 weak bassoon body
+	set_probe_level(powers, 69, 1.00f); // A4 selected octave
+	set_probe_level(powers, 76, 0.38f); // E5 fifth
+	set_probe_level(powers, 81, 0.14f); // A5 second octave
+	set_probe_level(powers, 85, 0.03f); // C#6 upper major third
+	set_probe_level(powers, 88, 0.03f); // E6 upper fifth
+	runner.expect(supported_low_monophonic_other_fundamental(powers, 69) == 57,
+		      "low monophonic other recovery: expected bounded weak A3 bassoon stack");
+	set_probe_level(powers, 81, 0.17f);
+	runner.expect(supported_low_monophonic_other_fundamental(powers, 69) != 57,
+		      "low monophonic other recovery: expected over-bright A3 second octave to stay rejected");
 	set_probe_level(powers, 55, 0.14f); // G3 direct fundamental
 	set_probe_level(powers, 67, 1.00f); // G4 selected octave
 	set_probe_level(powers, 74, 0.10f); // D5 weak fifth
