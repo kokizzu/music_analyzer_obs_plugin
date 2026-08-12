@@ -5430,6 +5430,8 @@ bool measured_other_owned_low_wind_octave_alias_supported(const FullMixDebugCand
 	       fifth >= 0.20f;
 }
 
+bool measured_ambiguous_smooth_violin_octave_supported(const FullMixDebugCandidate &debug);
+
 bool measured_other_octave_alias_supported(const FullMixDebugCandidate &debug)
 {
 	if (debug.midi - 12 < kOtherMinMidi || debug.midi - 12 > kOtherMaxMidi)
@@ -5491,6 +5493,7 @@ bool measured_other_octave_alias_supported(const FullMixDebugCandidate &debug)
 	return low_keyboard_synth_octave || low_keyboard_string_octave ||
 	       ambiguous_high_string_octave || low_ambiguous_string_octave ||
 	       measured_ambiguous_contrabass_octave || measured_ambiguous_cello_octave ||
+	       measured_ambiguous_smooth_violin_octave_supported(debug) ||
 	       measured_low_acoustic_string_other_octave_supported(debug) ||
 	       measured_other_owned_low_wind_octave_alias_supported(debug);
 }
@@ -5508,6 +5511,34 @@ bool measured_other_weak_octave_alias_supported(const FullMixDebugCandidate &deb
 	       second >= 0.084f &&
 	       fourth >= 0.247f &&
 	       debug.periodicity <= 0.773f;
+}
+
+bool measured_ambiguous_smooth_violin_octave_supported(const FullMixDebugCandidate &debug)
+{
+	if (debug.midi - 12 < kOtherMinMidi || debug.midi - 12 > kOtherMaxMidi)
+		return false;
+	if (debug.owner != InstrumentKind::Ambiguous || debug.midi < 72 || debug.midi > 84)
+		return false;
+
+	const float second = debug.harmonic_ratios[1];
+	const float third = debug.harmonic_ratios[2];
+	const float fourth = debug.harmonic_ratios[3];
+	const float fifth = debug.harmonic_ratios[4];
+	return debug.keyboard_score >= 0.60f && debug.keyboard_score <= 0.66f &&
+	       debug.guitar_score <= 0.001f &&
+	       debug.vocal_score >= 0.34f && debug.vocal_score <= 0.40f &&
+	       debug.other_score <= 0.001f &&
+	       debug.spectral_level >= 0.98f &&
+	       debug.pitch_confidence >= 0.88f && debug.pitch_confidence <= 0.94f &&
+	       debug.periodicity >= 0.68f && debug.periodicity <= 0.76f &&
+	       debug.harmonic_fit_error <= 0.045f &&
+	       debug.local_noise_level >= 0.050f && debug.local_noise_level <= 0.14f &&
+	       debug.spectral_centroid >= 0.050f && debug.spectral_centroid <= 0.12f &&
+	       debug.spectral_slope >= 0.040f && debug.spectral_slope <= 0.12f &&
+	       debug.adjacent_lower_ratio >= 0.262f &&
+	       second >= 0.020f && second <= 0.105f &&
+	       third >= 0.020f && third <= 0.060f &&
+	       fourth <= 0.040f && fifth <= 0.040f;
 }
 
 bool sustained_other_display_supported(const FullMixDebugCandidate &debug)
@@ -5785,6 +5816,10 @@ int full_mix_display_mirror_midi(FullMixDisplayRow row, const FullMixDebugCandid
 	    measured_keyboard_synth_other_priority_supported(debug) &&
 	    debug.midi >= 60)
 		return debug.midi;
+	if (row == FullMixDisplayRow::Other &&
+	    measured_ambiguous_smooth_violin_octave_supported(debug)) {
+		return debug.midi - 12;
+	}
 	if (row == FullMixDisplayRow::Other && measured_other_octave_alias_supported(debug)) {
 		const int lowered = debug.midi - 12;
 		if (ownership_global_note_level(ownership, lowered) >= 0.14f)
@@ -7496,6 +7531,7 @@ bool full_mix_display_mirror_supported(FullMixDisplayRow row, const FullMixDebug
 			ambiguous_pizzicato_string_other ||
 			ambiguous_contrabass_string_other ||
 			ambiguous_cello_string_other ||
+			measured_ambiguous_smooth_violin_octave_supported(debug) ||
 			low_acoustic_string_octave_other ||
 			guitar_owned_measured_synth_strings_other ||
 			guitar_owned_low_contrabass_other ||
@@ -7833,6 +7869,9 @@ void add_full_mix_display_mirror(NoteCandidateList &candidates, const FullMixOwn
 		row == FullMixDisplayRow::Guitar &&
 		display_midi == debug.midi &&
 		measured_high_clean_acoustic_guitar_display_floor_supported(debug);
+	const bool measured_ambiguous_smooth_violin_display =
+		row == FullMixDisplayRow::Other &&
+		measured_ambiguous_smooth_violin_octave_supported(debug);
 	if (measured_low_organ_keyboard_alias || measured_low_electronic_keyboard_alias ||
 	    measured_pure_electronic_keyboard_octave_alias ||
 	    measured_other_owned_electronic_keyboard_octave_up ||
@@ -7947,6 +7986,10 @@ void add_full_mix_display_mirror(NoteCandidateList &candidates, const FullMixOwn
 	    debug.ownership_confidence >= 0.82f) {
 		candidate_score = std::max(candidate_score, base_score * 1.24f);
 		candidate_confidence = std::max(candidate_confidence, 0.88f);
+	}
+	if (measured_ambiguous_smooth_violin_display) {
+		candidate_score = std::max(candidate_score, base_score * 0.82f);
+		candidate_confidence = std::max(candidate_confidence, debug.ownership_confidence);
 	}
 	if (row == FullMixDisplayRow::Other &&
 	    !ownership.ambiguous[index] &&

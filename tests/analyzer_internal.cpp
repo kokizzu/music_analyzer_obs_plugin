@@ -5141,6 +5141,47 @@ void check_other_owned_low_wind_alias_maps_to_lower_octave(Runner &runner)
 		      "other low wind octave alias: expected bass-shaped alias not to map down");
 }
 
+void check_ambiguous_smooth_violin_alias_maps_to_lower_octave(Runner &runner)
+{
+	static constexpr int kLowerMidi = 63;
+	static constexpr int kAliasMidi = kLowerMidi + 12;
+
+	FullMixOwnership ownership = {};
+	ownership.global_note_levels[static_cast<std::size_t>(kLowerMidi - kFirstMidi)] = 0.08f;
+	ownership.global_note_levels[static_cast<std::size_t>(kAliasMidi - kFirstMidi)] = 0.88f;
+	FullMixDebugCandidate debug = {};
+	debug.midi = kAliasMidi;
+	debug.owner = InstrumentKind::Ambiguous;
+	debug.keyboard_score = 0.63f;
+	debug.vocal_score = 0.37f;
+	debug.spectral_level = 1.0f;
+	debug.pitch_confidence = 0.90f;
+	debug.periodicity = 0.72f;
+	debug.harmonic_fit_error = 0.020f;
+	debug.local_noise_level = 0.11f;
+	debug.spectral_centroid = 0.075f;
+	debug.spectral_slope = 0.075f;
+	debug.adjacent_lower_ratio = 0.30f;
+	debug.harmonic_ratios[1] = 0.08f;
+	debug.harmonic_ratios[2] = 0.04f;
+	debug.harmonic_ratios[3] = 0.025f;
+	debug.harmonic_ratios[4] = 0.010f;
+
+	NoteCandidateList candidates;
+	add_full_mix_display_mirror(candidates, ownership, debug, FullMixDisplayRow::Other);
+	runner.expect(candidate_list_has_midi(candidates, kLowerMidi),
+		      "ambiguous smooth violin alias: expected raw-supported lower octave to be emitted");
+	runner.expect(candidates.size() == 1 && candidates[0].score >= 0.81f,
+		      "ambiguous smooth violin alias: expected lower octave to receive visible priority");
+
+	FullMixDebugCandidate rejected = debug;
+	rejected.harmonic_ratios[3] = 0.045f;
+	NoteCandidateList rejected_candidates;
+	add_full_mix_display_mirror(rejected_candidates, ownership, rejected, FullMixDisplayRow::Other);
+	runner.expect(!candidate_list_has_midi(rejected_candidates, kLowerMidi),
+		      "ambiguous smooth violin alias: expected richer upper partial to keep original octave");
+}
+
 void check_vocal_owned_upper_alias_promotes_supported_lower_primary(Runner &runner)
 {
 	static constexpr int kLowerMidi = 50;
@@ -5493,6 +5534,7 @@ int run()
 	check_existing_upper_clean_guitar_visual_note_is_brightened(runner);
 	check_existing_reed_brass_other_visual_note_is_brightened(runner);
 	check_other_owned_low_wind_alias_maps_to_lower_octave(runner);
+	check_ambiguous_smooth_violin_alias_maps_to_lower_octave(runner);
 	check_vocal_owned_upper_alias_promotes_supported_lower_primary(runner);
 	check_visible_lower_octave_primary_preserves_visual_strength(runner);
 	check_low_wind_other_octave_alias_promotes_raw_fundamental(runner);
