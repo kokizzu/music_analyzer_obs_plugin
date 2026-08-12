@@ -424,6 +424,15 @@ int supported_low_monophonic_other_fundamental(const std::array<float, kNoteProb
 			second_octave_level >= peak_level * 0.09f && second_octave_level <= peak_level * 0.18f &&
 			upper_major_third_level >= peak_level * 0.19f && upper_major_third_level <= peak_level * 0.29f &&
 			upper_fifth_level >= peak_level * 0.015f && upper_fifth_level <= peak_level * 0.11f;
+		// Fortissimo G3 violin has a fuller body and a rich, sustained upper
+		// ladder after its noisy attack.  Keep its high fifth and upper-third
+		// ranges narrowly bounded to the exact G3 octave alias.
+		const bool violin_g3_fortissimo_rich_ladder = lower == 55 && peak_midi == octave &&
+			fundamental_level >= peak_level * 0.035f && fundamental_level <= peak_level * 0.041f &&
+			fifth_level >= peak_level * 0.48f && fifth_level <= peak_level * 0.90f &&
+			second_octave_level >= peak_level * 0.12f && second_octave_level <= peak_level * 0.24f &&
+			upper_major_third_level >= peak_level * 0.48f && upper_major_third_level <= peak_level * 0.70f &&
+			upper_fifth_level >= peak_level * 0.07f && upper_fifth_level <= peak_level * 0.19f;
 		// The measured A#3 violin octave alias is a separate, much sparser
 		// profile: its A#4 selected octave has a low but continuous direct body,
 		// small fifth, and compact second-octave/third ladder.  The tight A#3
@@ -563,6 +572,7 @@ int supported_low_monophonic_other_fundamental(const std::array<float, kNoteProb
 			     !violin_g3_ultraweak_octave_stack && !violin_g3_forte_fifth_ladder &&
 			     !violin_g3_even_forte_ladder &&
 			     !violin_g3_mezzoforte_low_third_ladder &&
+			     !violin_g3_fortissimo_rich_ladder &&
 			     !violin_as3_sparse_octave_stack && !violin_as3_mezzoforte_octave_stack &&
 			     !violin_gs3_rich_octave_stack &&
 			     !violin_gs3_compact_upper_ladder_stack &&
@@ -577,6 +587,7 @@ int supported_low_monophonic_other_fundamental(const std::array<float, kNoteProb
 		     !bassoon_g3_boundary_stack && !violin_g3_rich_fifth_stack && !violin_g3_ultraweak_octave_stack &&
 		     !violin_g3_forte_fifth_ladder && !violin_g3_even_forte_ladder &&
 		     !violin_g3_mezzoforte_low_third_ladder &&
+		     !violin_g3_fortissimo_rich_ladder &&
 		     !violin_as3_sparse_octave_stack && !violin_as3_mezzoforte_octave_stack &&
 		     !violin_gs3_rich_octave_stack && !violin_gs3_compact_upper_ladder_stack &&
 		     !violin_a3_compact_octave_stack &&
