@@ -58,6 +58,10 @@ class MapsPianoAttributeSummaryTest(unittest.TestCase):
             "isolated-note miss examples 4@40 expected=A detected=-- midis=-- levels=-- rms=0.01 peak=0.2",
             lines,
         )
+        self.assertIn(
+            "loudest isolated-note miss examples 4@40 expected=A detected=-- midis=-- levels=-- rms=0.01 peak=0.2",
+            lines,
+        )
         self.assertTrue(any(
             line.startswith(
                 "isolated harmonic-alias pruning simulation lower/upper>=0.25: "

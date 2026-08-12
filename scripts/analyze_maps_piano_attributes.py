@@ -96,6 +96,7 @@ def summarize(path: Path, limit: int) -> list[str]:
     complete_pitch_chord_debug: collections.Counter[str] = collections.Counter()
     complete_pitch_chord_examples: list[str] = []
     isolated_note_miss_examples: list[str] = []
+    audible_isolated_note_misses: list[tuple[float, str]] = []
     for row in rows:
         missing = labels(row["missing_pcs"])
         extra = labels(row["extra_pcs"])
@@ -119,6 +120,17 @@ def summarize(path: Path, limit: int) -> list[str]:
                     f"midis={row['detected_keyboard_midis'] or '--'} "
                     f"levels={row.get('keyboard_levels', '') or '--'} "
                     f"rms={row['audio_rms']} peak={row['audio_peak']}"
+                )
+            if bucket == "miss":
+                audible_isolated_note_misses.append(
+                    (
+                        float(row["audio_rms"]),
+                        f"{row['recording']}@{row['center_sample']} expected={expected[0]} "
+                        f"detected={','.join(detected) if detected else '--'} "
+                        f"midis={row['detected_keyboard_midis'] or '--'} "
+                        f"levels={row.get('keyboard_levels', '') or '--'} "
+                        f"rms={row['audio_rms']} peak={row['audio_peak']}",
+                    )
                 )
         expected_midis = [int(value) for value in labels(row["expected_midis"])]
         detected_midis = [int(value) for value in labels(row["detected_keyboard_midis"])]
@@ -190,6 +202,9 @@ def summarize(path: Path, limit: int) -> list[str]:
         f"{ratio(expected_note_hits, detected_pitch_total)} "
         f"false_predictions={detected_pitch_total - expected_note_hits}",
         "isolated-note miss examples " + " | ".join(isolated_note_miss_examples),
+        "loudest isolated-note miss examples " + " | ".join(
+            example for _, example in sorted(audible_isolated_note_misses, reverse=True)[:limit]
+        ),
         "detected MIDI count distribution " + top(detected_midi_counts, limit),
         "single-series harmonic predictions "
         f"windows={harmonic_only_predictions} hits={harmonic_only_hits} "
