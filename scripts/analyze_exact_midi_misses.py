@@ -54,7 +54,8 @@ def counter_text(counter: collections.Counter, limit: int = 16) -> str:
 def trait_text(first: dict[str, str], rows: list[dict[str, str]]) -> str:
     fields = (
 		"buffer", "expected_note", "expected_midi", "debug_note", "debug_midi", "debug_owner",
-		"debug_conf", "raw_local_best_midi", "raw_expected_peak", "raw_expected_rank", "raw_expected_ratio",
+		"debug_conf", "raw_local_best_midi", "raw_local_best_peak", "raw_expected_peak",
+		"raw_expected_rank", "raw_expected_ratio",
 		"raw_octave_down_ratio", "raw_octave_up_ratio", "raw_fifth_up_ratio", "raw_second_octave_up_ratio",
 		"raw_upper_major_third_ratio", "raw_upper_fifth_ratio", "raw_third_octave_up_ratio",
 		"other_pre_envelope_midi", "other_pre_envelope_score", "other_pre_envelope_raw_level",
