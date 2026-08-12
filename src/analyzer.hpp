@@ -243,6 +243,8 @@ struct AnalysisSnapshot {
 	float other_debug_pre_envelope_recovery_fundamental_ratio = 0.0f;
 	float other_debug_pre_envelope_recovery_octave_ratio = 0.0f;
 	float other_debug_pre_envelope_recovery_fifth_ratio = 0.0f;
+	float other_debug_pre_envelope_recovery_upper_major_third_ratio = 0.0f;
+	float other_debug_pre_envelope_recovery_upper_fifth_ratio = 0.0f;
 	int other_debug_pre_envelope_second_octave_lower_midi = -1;
 	float other_debug_pre_envelope_second_octave_fundamental_ratio = 0.0f;
 	float other_debug_pre_envelope_second_octave_octave_ratio = 0.0f;
@@ -255,6 +257,8 @@ struct AnalysisSnapshot {
 	float other_debug_raw_recovery_fundamental_ratio = 0.0f;
 	float other_debug_raw_recovery_octave_ratio = 0.0f;
 	float other_debug_raw_recovery_fifth_ratio = 0.0f;
+	float other_debug_raw_recovery_upper_major_third_ratio = 0.0f;
+	float other_debug_raw_recovery_upper_fifth_ratio = 0.0f;
 	int other_debug_raw_second_octave_lower_midi = -1;
 	float other_debug_raw_second_octave_fundamental_ratio = 0.0f;
 	float other_debug_raw_second_octave_octave_ratio = 0.0f;

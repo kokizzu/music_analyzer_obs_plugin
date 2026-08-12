@@ -357,6 +357,16 @@ int supported_low_monophonic_other_fundamental(const std::array<float, kNoteProb
 			fifth_level >= peak_level * 0.17f && fifth_level <= peak_level * 0.22f &&
 			second_octave_level >= peak_level * 0.09f && second_octave_level <= peak_level * 0.11f &&
 			upper_major_third_level <= peak_level * 0.05f && upper_fifth_level <= peak_level * 0.02f;
+		// The remaining G3 bassoon profiles have a direct 15--17% body and
+		// 27--29% fifth, narrowly below the general fifth floor.  Their B5 and
+		// D6 upper probes are compact and stable across both measured
+		// articulations, so keep this bridge confined to that exact stack.
+		const bool bassoon_g3_boundary_stack = lower == 55 && peak_midi == octave &&
+			fundamental_level >= peak_level * 0.15f && fundamental_level <= peak_level * 0.18f &&
+			fifth_level >= peak_level * 0.27f && fifth_level <= peak_level * 0.30f &&
+			second_octave_level >= peak_level * 0.015f && second_octave_level <= peak_level * 0.04f &&
+			upper_major_third_level >= peak_level * 0.20f && upper_major_third_level <= peak_level * 0.24f &&
+			upper_fifth_level >= peak_level * 0.06f && upper_fifth_level <= peak_level * 0.08f;
 		// A few mid-register acoustic winds emphasize their fifth partial enough
 		// to suppress the octave.  This is intentionally limited to G3--B3 and
 		// a selected +28 partial: arbitrary lower subharmonics still need octave
@@ -405,13 +415,13 @@ int supported_low_monophonic_other_fundamental(const std::array<float, kNoteProb
 		     !upper_wind_weak_body_fifth_stack && !mid_wind_weak_root_rich_third_stack &&
 		     !bassoon_a3_weak_body_stack && !bassoon_a3_sparse_fifth_stack &&
 		     !bassoon_fs3_boundary_stack && !bassoon_a4_sparse_octave_stack &&
-		     !bassoon_b3_compact_octave_stack) ||
+		     !bassoon_b3_compact_octave_stack && !bassoon_g3_boundary_stack) ||
 		    ((!within_general_recovery_range || !octave_fifth_stack) &&
 		     !low_bassoon_harmonic_ladder && !mid_wind_fifth_partial && !upper_wind_octave_only &&
 		     !upper_wind_weak_body_fifth_stack && !mid_wind_weak_root_rich_third_stack &&
 		     !bassoon_a3_weak_body_stack && !bassoon_a3_sparse_fifth_stack && !bassoon_fs3_boundary_stack &&
 		     !bassoon_a4_sparse_octave_stack && !bassoon_b3_compact_octave_stack &&
-		     !low_wind_second_octave_stack &&
+		     !bassoon_g3_boundary_stack && !low_wind_second_octave_stack &&
 		     !low_brass_boundary_fifth_stack))
 			continue;
 		return lower;
@@ -424,6 +434,8 @@ struct LowMonophonicOtherRecoveryTraits {
 	float fundamental_ratio = 0.0f;
 	float octave_ratio = 0.0f;
 	float fifth_ratio = 0.0f;
+	float upper_major_third_ratio = 0.0f;
+	float upper_fifth_ratio = 0.0f;
 	int second_octave_lower_midi = -1;
 	float second_octave_fundamental_ratio = 0.0f;
 	float second_octave_octave_ratio = 0.0f;
@@ -469,6 +481,8 @@ LowMonophonicOtherRecoveryTraits low_monophonic_other_recovery_traits(
 		traits.fundamental_ratio = fundamental_ratio;
 		traits.octave_ratio = probe_level(powers, octave) / peak_level;
 		traits.fifth_ratio = probe_level(powers, fifth) / peak_level;
+		traits.upper_major_third_ratio = probe_level(powers, upper_major_third) / peak_level;
+		traits.upper_fifth_ratio = probe_level(powers, upper_fifth) / peak_level;
 	}
 	return traits;
 }
@@ -34426,6 +34440,10 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 						pre_recovery_traits.octave_ratio;
 					snapshot.other_debug_pre_envelope_recovery_fifth_ratio =
 						pre_recovery_traits.fifth_ratio;
+					snapshot.other_debug_pre_envelope_recovery_upper_major_third_ratio =
+						pre_recovery_traits.upper_major_third_ratio;
+					snapshot.other_debug_pre_envelope_recovery_upper_fifth_ratio =
+						pre_recovery_traits.upper_fifth_ratio;
 					snapshot.other_debug_pre_envelope_second_octave_lower_midi =
 						pre_recovery_traits.second_octave_lower_midi;
 					snapshot.other_debug_pre_envelope_second_octave_fundamental_ratio =
@@ -34475,6 +34493,10 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 							raw_recovery_traits.octave_ratio;
 						snapshot.other_debug_raw_recovery_fifth_ratio =
 							raw_recovery_traits.fifth_ratio;
+						snapshot.other_debug_raw_recovery_upper_major_third_ratio =
+							raw_recovery_traits.upper_major_third_ratio;
+						snapshot.other_debug_raw_recovery_upper_fifth_ratio =
+							raw_recovery_traits.upper_fifth_ratio;
 						snapshot.other_debug_raw_second_octave_lower_midi =
 							raw_recovery_traits.second_octave_lower_midi;
 						snapshot.other_debug_raw_second_octave_fundamental_ratio =

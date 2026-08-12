@@ -967,6 +967,8 @@ void print_attribute_header(std::ostream &out)
 	    << "\tother_pre_envelope_recovered_midi"
 	    << "\tother_pre_envelope_recovery_lower_midi\tother_pre_envelope_recovery_fundamental_ratio"
 	    << "\tother_pre_envelope_recovery_octave_ratio\tother_pre_envelope_recovery_fifth_ratio"
+	    << "\tother_pre_envelope_recovery_upper_major_third_ratio"
+	    << "\tother_pre_envelope_recovery_upper_fifth_ratio"
 	    << "\tother_pre_envelope_second_octave_lower_midi"
 	    << "\tother_pre_envelope_second_octave_fundamental_ratio"
 	    << "\tother_pre_envelope_second_octave_octave_ratio"
@@ -975,6 +977,8 @@ void print_attribute_header(std::ostream &out)
 	    << "\tother_raw_recovered_midi"
 	    << "\tother_raw_recovery_lower_midi\tother_raw_recovery_fundamental_ratio"
 	    << "\tother_raw_recovery_octave_ratio\tother_raw_recovery_fifth_ratio"
+	    << "\tother_raw_recovery_upper_major_third_ratio"
+	    << "\tother_raw_recovery_upper_fifth_ratio"
 	    << "\tother_raw_second_octave_lower_midi"
 	    << "\tother_raw_second_octave_fundamental_ratio"
 	    << "\tother_raw_second_octave_octave_ratio"
@@ -1102,6 +1106,8 @@ void append_attribute_row(std::vector<std::string> &lines, const SampleRow &row,
 	append_tsv(line, snapshot.other_debug_pre_envelope_recovery_fundamental_ratio);
 	append_tsv(line, snapshot.other_debug_pre_envelope_recovery_octave_ratio);
 	append_tsv(line, snapshot.other_debug_pre_envelope_recovery_fifth_ratio);
+	append_tsv(line, snapshot.other_debug_pre_envelope_recovery_upper_major_third_ratio);
+	append_tsv(line, snapshot.other_debug_pre_envelope_recovery_upper_fifth_ratio);
 	append_tsv(line, snapshot.other_debug_pre_envelope_second_octave_lower_midi);
 	append_tsv(line, snapshot.other_debug_pre_envelope_second_octave_fundamental_ratio);
 	append_tsv(line, snapshot.other_debug_pre_envelope_second_octave_octave_ratio);
@@ -1114,6 +1120,8 @@ void append_attribute_row(std::vector<std::string> &lines, const SampleRow &row,
 	append_tsv(line, snapshot.other_debug_raw_recovery_fundamental_ratio);
 	append_tsv(line, snapshot.other_debug_raw_recovery_octave_ratio);
 	append_tsv(line, snapshot.other_debug_raw_recovery_fifth_ratio);
+	append_tsv(line, snapshot.other_debug_raw_recovery_upper_major_third_ratio);
+	append_tsv(line, snapshot.other_debug_raw_recovery_upper_fifth_ratio);
 	append_tsv(line, snapshot.other_debug_raw_second_octave_lower_midi);
 	append_tsv(line, snapshot.other_debug_raw_second_octave_fundamental_ratio);
 	append_tsv(line, snapshot.other_debug_raw_second_octave_octave_ratio);
