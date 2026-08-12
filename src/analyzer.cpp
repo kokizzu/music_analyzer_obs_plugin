@@ -34248,6 +34248,7 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 					if (monophonic_other_source || input_mode == AnalysisInputMode::IsolatedOther) {
 					const int recovered_fundamental =
 						supported_low_monophonic_other_fundamental(other_note_powers, candidate.midi);
+					snapshot.other_debug_pre_envelope_recovered_midi = recovered_fundamental;
 					if (recovered_fundamental >= 0) {
 						quiet_monophonic_allowed_midis.fill(false);
 						quiet_monophonic_allowed_midis[static_cast<std::size_t>(
@@ -34278,7 +34279,8 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 							probe_level(note_powers, raw_candidate.midi);
 						const int recovered =
 							supported_low_monophonic_other_fundamental(note_powers,
-										       raw_candidate.midi);
+									       raw_candidate.midi);
+						snapshot.other_debug_raw_recovered_midi = recovered;
 						if (recovered >= 0) {
 							raw_supported_low_fundamental = recovered;
 							raw_supported_low_fundamental_score = raw_candidate.score;
