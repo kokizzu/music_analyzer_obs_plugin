@@ -86,6 +86,8 @@ def summarize(path: Path, limit: int) -> list[str]:
         floor: {"hits": 0, "predicted": 0}
         for floor in (0.15, 0.18, 0.20, 0.25, 0.30)
     }
+    low_midi_miss_partial_routes: collections.Counter[str] = collections.Counter()
+    low_midi_miss_partial_examples: list[str] = []
     rms_by_detection: dict[str, list[float]] = {"hit": [], "miss": []}
     chord_rms_by_detection: dict[str, list[float]] = {"hit": [], "miss": []}
     chord_note_counts: dict[str, list[int]] = {"hit": [], "miss": []}
@@ -137,6 +139,17 @@ def summarize(path: Path, limit: int) -> list[str]:
         if len(expected_midis) == 1:
             detected_midi_counts[len(detected_midis)] += 1
             midi_offsets.update(midi - expected_midis[0] for midi in detected_midis if midi != expected_midis[0])
+            expected_midi = expected_midis[0]
+            if expected_midi < 40 and expected and expected[0] not in detected:
+                partial_offsets = [midi - expected_midi for midi in detected_midis if midi > expected_midi]
+                partial_route = ",".join(str(offset) for offset in partial_offsets) or "--"
+                low_midi_miss_partial_routes[f"{expected_midi}->{partial_route}"] += 1
+                if len(low_midi_miss_partial_examples) < limit:
+                    low_midi_miss_partial_examples.append(
+                        f"{row['recording']}@{row['center_sample']} expected_midi={expected_midi} "
+                        f"upper_offsets={partial_route} detected={row['detected_keyboard_midis'] or '--'} "
+                        f"rms={row['audio_rms']}"
+                    )
             harmonic_intervals = {12, 19, 24, 28, 31, 36, 38, 40, 43, 45, 47, 48}
             has_harmonic_base = any(
                 all(midi == base or midi - base in harmonic_intervals for midi in detected_midis)
@@ -205,6 +218,8 @@ def summarize(path: Path, limit: int) -> list[str]:
         "loudest isolated-note miss examples " + " | ".join(
             example for _, example in sorted(audible_isolated_note_misses, reverse=True)[:limit]
         ),
+        "low-MIDI miss upper-partial routes " + top(low_midi_miss_partial_routes, limit),
+        "low-MIDI miss upper-partial examples " + " | ".join(low_midi_miss_partial_examples),
         "detected MIDI count distribution " + top(detected_midi_counts, limit),
         "single-series harmonic predictions "
         f"windows={harmonic_only_predictions} hits={harmonic_only_hits} "
