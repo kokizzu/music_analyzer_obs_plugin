@@ -25808,7 +25808,7 @@ bool guitar_probe_supported_same_root_extension_component(
 	if (major_seventh_component) {
 		const float major_seventh_support = support(component.root + 11);
 		const float flat_seventh_support = support(component.root + 10);
-		if (major_seventh_support < std::max(0.110f, core_anchor * 0.24f))
+		if (major_seventh_support < std::max(0.095f, core_anchor * 0.20f))
 			return false;
 		if (flat_seventh_support >= std::max(0.100f, major_seventh_support * 0.82f) &&
 		    flat_seventh_support >= core_anchor * 0.18f)
@@ -34478,7 +34478,7 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 				input_mode == AnalysisInputMode::IsolatedKeyboard &&
 				contains_case_insensitive(resolved_source_name, "piano");
 			// Real piano chords regularly have several independently tuned notes;
-			// retain their permissive display floor.  Sparse piano windows instead
+			// retain their permissive display floor. Sparse piano windows instead
 			// benefit from hiding weak upper partials that otherwise read as notes.
 			const bool sparse_isolated_real_piano =
 				isolated_real_piano_source && strict_tuned_note_count <= 1;
