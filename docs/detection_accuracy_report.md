@@ -45,8 +45,8 @@ Source: `build/detector_improvement_route_summary.txt`
 
 | Metric | Routes / total | Other routes |
 | --- | ---: | ---: |
-| Routes with direct zero-regression support | 9 / 226 (4.0%) | 217 |
-| Routes awaiting additional fixture coverage | 86 / 226 (38.1%) | 140 |
+| Routes with direct zero-regression support | 7 / 223 (3.1%) | 216 |
+| Routes awaiting additional fixture coverage | 88 / 223 (39.5%) | 135 |
 
 ## Vocadito full-mix vocal routing
 
@@ -245,20 +245,20 @@ These rows count expected labeled chord-analysis windows (not full-mix samples).
 | Guitar Chord Mix — exact chord windows | 485 / 511 (94.9%) | 26 |
 | Guitar Chord Mix — primary displayed chord windows | 400 / 511 (78.3%) | 111 |
 | Guitar Chord Mix — expected guitar pitch classes | 1276 / 1533 (83.2%) | 257 |
-| Guitar Techs Chord — exact chord windows | 7249 / 7484 (96.9%) | 235 |
+| Guitar Techs Chord — exact chord windows | 7254 / 7484 (96.9%) | 230 |
 | Guitar Techs Chord — primary displayed chord windows | 3577 / 7484 (47.8%) | 3907 |
 | Guitar Techs Chord — expected guitar pitch classes | 24403 / 26738 (91.3%) | 2335 |
-| Guitar Techs Music — exact chord windows | 412 / 500 (82.4%) | 88 |
+| Guitar Techs Music — exact chord windows | 415 / 500 (83.0%) | 85 |
 | Guitar Techs Music — primary displayed chord windows | 242 / 500 (48.4%) | 258 |
 | Guitar Techs Music — expected guitar pitch classes | 1609 / 1838 (87.5%) | 229 |
 | Guitar Techs Music — power-chord exact windows | 6 / 26 (23.1%) | 20 |
-| Gaps Guitar Full — exact chord windows | 361 / 540 (66.9%) | 179 |
+| Gaps Guitar Full — exact chord windows | 362 / 540 (67.0%) | 178 |
 | Gaps Guitar Full — primary displayed chord windows | 176 / 540 (32.6%) | 364 |
 | Gaps Guitar Full — expected guitar pitch classes | 1518 / 1957 (77.6%) | 439 |
 | Gaps Guitar Full — power-chord exact windows | 22 / 39 (56.4%) | 17 |
-| Guitarset — exact chord windows | 1141 / 1491 (76.5%) | 350 |
+| Guitarset — exact chord windows | 1139 / 1491 (76.4%) | 352 |
 | Guitarset — primary displayed chord windows | 622 / 1491 (41.7%) | 869 |
-| Guitarset — expected guitar pitch classes | 4356 / 5340 (81.6%) | 984 |
+| Guitarset — expected guitar pitch classes | 4355 / 5340 (81.6%) | 985 |
 | Guitarset — power-chord exact windows | 1 / 2 (50.0%) | 1 |
 
 ## URMP real multitrack gate
