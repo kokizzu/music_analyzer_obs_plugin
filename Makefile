@@ -957,7 +957,10 @@ REAL_A2S_SAX_PROBE_DIR ?= $(REAL_A2S_SAX_SOURCE_DIR)/probe
 REAL_A2S_SAX_SCALE_FIXTURE_DIR ?= $(BUILD_DIR)/real_a2s_tenor_scale_fixture
 REAL_A2S_SAX_SCALE_ATTRIBUTE_TSV ?= $(BUILD_DIR)/real_a2s_tenor_scale_attributes.tsv
 REAL_A2S_SAX_SCALE_MIDI_OFFSET ?= -12
-REAL_A2S_SAX_SCALE_MIN_SAMPLES ?= 156
+REAL_A2S_SAX_TENOR_MAJOR_SCALE_PROBES ?= BbMajScale BMajScale CMajScale C\#MajScale DMajScale EbMajScale FMajScale F\#MajScale GMajScale
+REAL_A2S_SAX_TENOR_SCALE_INPUTS = $(foreach recording,$(REAL_A2S_SAX_TENOR_MAJOR_SCALE_PROBES),--input "$(REAL_A2S_SAX_PROBE_DIR)/real_a2s_sax_dataset/real/tenor/$(recording).wav" "$(REAL_A2S_SAX_METADATA_DIR)/real_a2s_sax_dataset/krn/tenor/$(recording).krn" 80 0.50)
+REAL_A2S_SAX_TENOR_EXERCISE_INPUTS = --input "$(REAL_A2S_SAX_PROBE_DIR)/real_a2s_sax_dataset/real/tenor/Ex1.wav" "$(REAL_A2S_SAX_METADATA_DIR)/real_a2s_sax_dataset/krn/tenor/Ex1.krn" 80 0.34 --input "$(REAL_A2S_SAX_PROBE_DIR)/real_a2s_sax_dataset/real/tenor/Ex2.wav" "$(REAL_A2S_SAX_METADATA_DIR)/real_a2s_sax_dataset/krn/tenor/Ex2.krn" 80 0.50 --input "$(REAL_A2S_SAX_PROBE_DIR)/real_a2s_sax_dataset/real/tenor/Ex3.wav" "$(REAL_A2S_SAX_METADATA_DIR)/real_a2s_sax_dataset/krn/tenor/Ex3.krn" 80 0.40
+REAL_A2S_SAX_SCALE_MIN_SAMPLES ?= 360
 IOWA_ORCHESTRA_FULL_SPEC_ARGS = \
 	--spec "bass|bass|iowa-double-bass-pizz-ff-sule|$(IOWA_BASS_ZIP_URL)"
 IOWA_ORCHESTRA_FULL_PAGE_ARGS = \
@@ -2192,7 +2195,7 @@ inspect-real-a2s-sax-score-members: download-real-a2s-sax-samples
 .PHONY: extract-real-a2s-sax-scale-probes
 extract-real-a2s-sax-scale-probes: download-real-a2s-sax-samples
 	mkdir -p "$(REAL_A2S_SAX_PROBE_DIR)"
-	$(TAR) -xzf "$(REAL_A2S_SAX_ARCHIVE)" -C "$(REAL_A2S_SAX_PROBE_DIR)" real_a2s_sax_dataset/real/tenor/GMajScale.wav real_a2s_sax_dataset/real/tenor/FMajScale.wav real_a2s_sax_dataset/real/tenor/CMajScale.wav
+	$(TAR) -xzf "$(REAL_A2S_SAX_ARCHIVE)" -C "$(REAL_A2S_SAX_PROBE_DIR)" $(foreach recording,$(REAL_A2S_SAX_TENOR_MAJOR_SCALE_PROBES),real_a2s_sax_dataset/real/tenor/$(recording).wav)
 
 .PHONY: extract-real-a2s-sax-exercise-probes
 extract-real-a2s-sax-exercise-probes: download-real-a2s-sax-samples
@@ -2224,20 +2227,16 @@ test-inspect-real-a2s-sax-scale: tests/test_inspect_real_a2s_sax_scale.py script
 .PHONY: prepare-real-a2s-tenor-scale-probes prepare-real-a2s-tenor-scale-probes-cached test-prepare-real-a2s-tenor-scale-probes measure-real-a2s-tenor-scale-probes analyze-real-a2s-tenor-scale-probes find-real-a2s-tenor-scale-routing-patterns
 prepare-real-a2s-tenor-scale-probes: extract-real-a2s-sax-scale-probes extract-real-a2s-sax-metadata scripts/prepare_real_a2s_sax_scale_fixture.py
 	+$(MAKE) ensure-build-sample-storage-link BUILD_SAMPLE_STORAGE_DIR=real_a2s_tenor_scale_fixture
-	$(PYTHON) scripts/prepare_real_a2s_sax_scale_fixture.py --input "$(REAL_A2S_SAX_PROBE_DIR)/real_a2s_sax_dataset/real/tenor/CMajScale.wav" "$(REAL_A2S_SAX_METADATA_DIR)/real_a2s_sax_dataset/krn/tenor/CMajScale.krn" 80 0.50 --input "$(REAL_A2S_SAX_PROBE_DIR)/real_a2s_sax_dataset/real/tenor/FMajScale.wav" "$(REAL_A2S_SAX_METADATA_DIR)/real_a2s_sax_dataset/krn/tenor/FMajScale.krn" 80 0.50 --input "$(REAL_A2S_SAX_PROBE_DIR)/real_a2s_sax_dataset/real/tenor/GMajScale.wav" "$(REAL_A2S_SAX_METADATA_DIR)/real_a2s_sax_dataset/krn/tenor/GMajScale.krn" 80 0.50 --input "$(REAL_A2S_SAX_PROBE_DIR)/real_a2s_sax_dataset/real/tenor/Ex1.wav" "$(REAL_A2S_SAX_METADATA_DIR)/real_a2s_sax_dataset/krn/tenor/Ex1.krn" 80 0.34 --input "$(REAL_A2S_SAX_PROBE_DIR)/real_a2s_sax_dataset/real/tenor/Ex2.wav" "$(REAL_A2S_SAX_METADATA_DIR)/real_a2s_sax_dataset/krn/tenor/Ex2.krn" 80 0.50 --input "$(REAL_A2S_SAX_PROBE_DIR)/real_a2s_sax_dataset/real/tenor/Ex3.wav" "$(REAL_A2S_SAX_METADATA_DIR)/real_a2s_sax_dataset/krn/tenor/Ex3.krn" 80 0.40 --output "$(REAL_A2S_SAX_SCALE_FIXTURE_DIR)" --ffmpeg "$(FFMPEG)" --midi-offset "$(REAL_A2S_SAX_SCALE_MIDI_OFFSET)"
+	$(PYTHON) scripts/prepare_real_a2s_sax_scale_fixture.py $(REAL_A2S_SAX_TENOR_SCALE_INPUTS) $(REAL_A2S_SAX_TENOR_EXERCISE_INPUTS) --output "$(REAL_A2S_SAX_SCALE_FIXTURE_DIR)" --ffmpeg "$(FFMPEG)" --midi-offset "$(REAL_A2S_SAX_SCALE_MIDI_OFFSET)"
 
 prepare-real-a2s-tenor-scale-probes-cached: scripts/prepare_real_a2s_sax_scale_fixture.py
-	@test -s "$(REAL_A2S_SAX_PROBE_DIR)/real_a2s_sax_dataset/real/tenor/GMajScale.wav" || { printf '%s\n' "missing scale probe; run make extract-real-a2s-sax-scale-probes first"; exit 2; }
-	@test -s "$(REAL_A2S_SAX_PROBE_DIR)/real_a2s_sax_dataset/real/tenor/CMajScale.wav" || { printf '%s\n' "missing scale probe; run make extract-real-a2s-sax-scale-probes first"; exit 2; }
-	@test -s "$(REAL_A2S_SAX_PROBE_DIR)/real_a2s_sax_dataset/real/tenor/FMajScale.wav" || { printf '%s\n' "missing scale probe; run make extract-real-a2s-sax-scale-probes first"; exit 2; }
+	@for recording in $(REAL_A2S_SAX_TENOR_MAJOR_SCALE_PROBES); do test -s "$(REAL_A2S_SAX_PROBE_DIR)/real_a2s_sax_dataset/real/tenor/$$recording.wav" || { printf '%s\n' "missing scale probe; run make extract-real-a2s-sax-scale-probes first"; exit 2; }; done
 	@test -s "$(REAL_A2S_SAX_PROBE_DIR)/real_a2s_sax_dataset/real/tenor/Ex1.wav" || { printf '%s\n' "missing exercise probe; run make extract-real-a2s-sax-exercise-probes first"; exit 2; }
 	@test -s "$(REAL_A2S_SAX_PROBE_DIR)/real_a2s_sax_dataset/real/tenor/Ex2.wav" || { printf '%s\n' "missing exercise probe; run make extract-real-a2s-sax-exercise-probes first"; exit 2; }
 	@test -s "$(REAL_A2S_SAX_PROBE_DIR)/real_a2s_sax_dataset/real/tenor/Ex3.wav" || { printf '%s\n' "missing exercise probe; run make extract-real-a2s-sax-exercise-probes first"; exit 2; }
-	@test -s "$(REAL_A2S_SAX_METADATA_DIR)/real_a2s_sax_dataset/krn/tenor/GMajScale.krn" || { printf '%s\n' "missing tenor score; run make extract-real-a2s-sax-metadata first"; exit 2; }
-	@test -s "$(REAL_A2S_SAX_METADATA_DIR)/real_a2s_sax_dataset/krn/tenor/CMajScale.krn" || { printf '%s\n' "missing tenor score; run make extract-real-a2s-sax-metadata first"; exit 2; }
-	@test -s "$(REAL_A2S_SAX_METADATA_DIR)/real_a2s_sax_dataset/krn/tenor/FMajScale.krn" || { printf '%s\n' "missing tenor score; run make extract-real-a2s-sax-metadata first"; exit 2; }
+	@for recording in $(REAL_A2S_SAX_TENOR_MAJOR_SCALE_PROBES); do test -s "$(REAL_A2S_SAX_METADATA_DIR)/real_a2s_sax_dataset/krn/tenor/$$recording.krn" || { printf '%s\n' "missing tenor score; run make extract-real-a2s-sax-metadata first"; exit 2; }; done
 	+$(MAKE) ensure-build-sample-storage-link BUILD_SAMPLE_STORAGE_DIR=real_a2s_tenor_scale_fixture
-	$(PYTHON) scripts/prepare_real_a2s_sax_scale_fixture.py --input "$(REAL_A2S_SAX_PROBE_DIR)/real_a2s_sax_dataset/real/tenor/CMajScale.wav" "$(REAL_A2S_SAX_METADATA_DIR)/real_a2s_sax_dataset/krn/tenor/CMajScale.krn" 80 0.50 --input "$(REAL_A2S_SAX_PROBE_DIR)/real_a2s_sax_dataset/real/tenor/FMajScale.wav" "$(REAL_A2S_SAX_METADATA_DIR)/real_a2s_sax_dataset/krn/tenor/FMajScale.krn" 80 0.50 --input "$(REAL_A2S_SAX_PROBE_DIR)/real_a2s_sax_dataset/real/tenor/GMajScale.wav" "$(REAL_A2S_SAX_METADATA_DIR)/real_a2s_sax_dataset/krn/tenor/GMajScale.krn" 80 0.50 --input "$(REAL_A2S_SAX_PROBE_DIR)/real_a2s_sax_dataset/real/tenor/Ex1.wav" "$(REAL_A2S_SAX_METADATA_DIR)/real_a2s_sax_dataset/krn/tenor/Ex1.krn" 80 0.34 --input "$(REAL_A2S_SAX_PROBE_DIR)/real_a2s_sax_dataset/real/tenor/Ex2.wav" "$(REAL_A2S_SAX_METADATA_DIR)/real_a2s_sax_dataset/krn/tenor/Ex2.krn" 80 0.50 --input "$(REAL_A2S_SAX_PROBE_DIR)/real_a2s_sax_dataset/real/tenor/Ex3.wav" "$(REAL_A2S_SAX_METADATA_DIR)/real_a2s_sax_dataset/krn/tenor/Ex3.krn" 80 0.40 --output "$(REAL_A2S_SAX_SCALE_FIXTURE_DIR)" --ffmpeg "$(FFMPEG)" --midi-offset "$(REAL_A2S_SAX_SCALE_MIDI_OFFSET)"
+	$(PYTHON) scripts/prepare_real_a2s_sax_scale_fixture.py $(REAL_A2S_SAX_TENOR_SCALE_INPUTS) $(REAL_A2S_SAX_TENOR_EXERCISE_INPUTS) --output "$(REAL_A2S_SAX_SCALE_FIXTURE_DIR)" --ffmpeg "$(FFMPEG)" --midi-offset "$(REAL_A2S_SAX_SCALE_MIDI_OFFSET)"
 
 test-prepare-real-a2s-tenor-scale-probes: tests/test_prepare_real_a2s_sax_scale_fixture.py scripts/prepare_real_a2s_sax_scale_fixture.py
 	$(PYTHON) tests/test_prepare_real_a2s_sax_scale_fixture.py
