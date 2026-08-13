@@ -2938,6 +2938,11 @@ inspect-guitar-fretboard-note-failure: $(BUILD_DIR)/analyzer_real_note_samples p
 	$(PYTHON) scripts/inspect_real_note_shard_errors.py --path "$(BUILD_DIR)/real_note_guitar_fretboard_verbose.err"
 	$(PYTHON) scripts/analyze_real_note_misses.py "$(BUILD_DIR)/real_note_guitar_fretboard_verbose.err"
 
+inspect-vocalset-note-failures: $(BUILD_DIR)/analyzer_real_note_samples prepare-vocalset-samples scripts/analyze_real_note_misses.py scripts/inspect_real_note_shard_errors.py scripts/run_with_duration.sh
+	$(RUN_WITH_DURATION) vocalset_verbose_misses env MUSIC_ANALYZER_REAL_NOTE_SAMPLES_REQUIRED=1 MUSIC_ANALYZER_REAL_NOTE_REQUIRED_SAMPLES="$(VOCALSET_MIN_VOCALS)" MUSIC_ANALYZER_REAL_NOTE_SAMPLE_ROOT="$(VOCALSET_SAMPLE_DIR)" MUSIC_ANALYZER_REAL_NOTE_MIN_BASS=0 MUSIC_ANALYZER_REAL_NOTE_MIN_GUITAR=0 MUSIC_ANALYZER_REAL_NOTE_MIN_PIANO=0 MUSIC_ANALYZER_REAL_NOTE_MIN_VOCALS="$(VOCALSET_MIN_VOCALS)" MUSIC_ANALYZER_REAL_NOTE_MIN_OTHER=0 MUSIC_ANALYZER_REAL_NOTE_MAX_FAILURES=999999 MUSIC_ANALYZER_REAL_NOTE_MAX_FAILURE_LINES=128 MUSIC_ANALYZER_REAL_NOTE_VERBOSE_MISSES=1 $(BUILD_DIR)/analyzer_real_note_samples > "$(BUILD_DIR)/real_note_vocalset_verbose.out" 2> "$(BUILD_DIR)/real_note_vocalset_verbose.err"
+	$(PYTHON) scripts/inspect_real_note_shard_errors.py --path "$(BUILD_DIR)/real_note_vocalset_verbose.err" --limit 0
+	$(PYTHON) scripts/analyze_real_note_misses.py "$(BUILD_DIR)/real_note_vocalset_verbose.err"
+
 # Read only existing exports.  This is suitable for trait investigation when
 # a corpus archive is absent or intentionally must not be revalidated.
 inspect-real-note-candidate-rows-cached: scripts/inspect_real_note_candidate_rows.py
