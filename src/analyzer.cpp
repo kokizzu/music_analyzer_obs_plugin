@@ -22008,8 +22008,12 @@ bool rootless_analysis_complete_guitar_diminished_triad_alias(int root,
 	root = ((root % 12) + 12) % 12;
 	const int display_pitch_classes = note_grid_active_pitch_class_count(display_grid);
 	const int analysis_pitch_classes = note_grid_active_pitch_class_count(analysis_grid);
-	if (display_pitch_classes < 2 || display_pitch_classes > 3 ||
-	    analysis_pitch_classes < 3 || analysis_pitch_classes > 4)
+	// GuitarTECH's recorded rootless diminished voicings retain a small
+	// major-third/fourth residue around the otherwise complete dim triad.
+	// The explicit tone and competing-major/fifth checks below still decide
+	// eligibility, so permit that measured compact residue.
+	if (display_pitch_classes < 2 || display_pitch_classes > 4 ||
+	    analysis_pitch_classes < 3 || analysis_pitch_classes > 7)
 		return false;
 
 	if (note_grid_pitch_active(display_grid, root))
