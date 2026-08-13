@@ -98,7 +98,7 @@ Source: `build/good_sounds_full_mix_attributes.tsv`
 | Good Sounds — Any detected note | 1317 / 1318 (99.9%) | 1 |
 | Good Sounds — Expected instrument row | 1201 / 1318 (91.1%) | 117 |
 | Good Sounds — Lit expected pitch class | 960 / 1318 (72.8%) | 358 |
-| Good Sounds — Primary display row | 160 / 1318 (12.1%) | 1158 |
+| Good Sounds — Primary display row | 157 / 1318 (11.9%) | 1161 |
 | Good Sounds — Visual primary row | 320 / 1318 (24.3%) | 998 |
 | Good Sounds — Bass — Any detected note | 159 / 159 (100.0%) | 0 |
 | Good Sounds — Bass — Expected instrument row | 142 / 159 (89.3%) | 17 |
@@ -108,7 +108,7 @@ Source: `build/good_sounds_full_mix_attributes.tsv`
 | Good Sounds — Other — Any detected note | 1158 / 1159 (99.9%) | 1 |
 | Good Sounds — Other — Expected instrument row | 1059 / 1159 (91.4%) | 100 |
 | Good Sounds — Other — Lit expected pitch class | 819 / 1159 (70.7%) | 340 |
-| Good Sounds — Other — Primary display row | 157 / 1159 (13.5%) | 1002 |
+| Good Sounds — Other — Primary display row | 154 / 1159 (13.3%) | 1005 |
 | Good Sounds — Other — Visual primary row | 314 / 1159 (27.1%) | 845 |
 
 ## Controlled octave-down violin fixture
