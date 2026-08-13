@@ -245,7 +245,7 @@ These rows count expected labeled chord-analysis windows (not full-mix samples).
 | Guitar Chord Mix — exact chord windows | 485 / 511 (94.9%) | 26 |
 | Guitar Chord Mix — primary displayed chord windows | 400 / 511 (78.3%) | 111 |
 | Guitar Chord Mix — expected guitar pitch classes | 1276 / 1533 (83.2%) | 257 |
-| Guitar Techs Chord — exact chord windows | 7244 / 7484 (96.8%) | 240 |
+| Guitar Techs Chord — exact chord windows | 7249 / 7484 (96.9%) | 235 |
 | Guitar Techs Chord — primary displayed chord windows | 3577 / 7484 (47.8%) | 3907 |
 | Guitar Techs Chord — expected guitar pitch classes | 24404 / 26738 (91.3%) | 2334 |
 | Guitar Techs Music — exact chord windows | 390 / 500 (78.0%) | 110 |

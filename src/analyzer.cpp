@@ -35947,6 +35947,13 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 				guitar_chord_detection_grid);
 			prune_crowded_guitar_display_label(snapshot.guitar_chord, snapshot.guitar_notes,
 							   guitar_chord_detection_grid);
+			// A rootless diminished triad can be fully supported by the analysis
+			// grid while its hidden root makes the first display pass look sparse.
+			// Reapply the same strict check after crowded-label pruning so a valid
+			// recovered label is not immediately discarded.
+			append_rootless_analysis_complete_guitar_diminished_triad_display_aliases(
+				snapshot.guitar_chord, snapshot.guitar_notes,
+				guitar_chord_detection_grid);
 			append_source_supported_plain_guitar_aliases_after_prune(
 				snapshot.guitar_chord, raw_guitar_chord, snapshot.guitar_notes,
 				guitar_chord_detection_grid, &note_powers, kGuitarMinMidi,
