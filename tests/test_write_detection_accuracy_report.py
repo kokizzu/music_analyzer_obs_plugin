@@ -260,6 +260,7 @@ class DetectionAccuracyReportTest(unittest.TestCase):
                 "URMP separated-track exact recall: expected >=70%, got 90/120\n"
                 "analyzer_urmp: 0/300 checks passed (4 pieces, 48 windows, 100 track hits/120, 90 provided chord hits/100, 0 summed chord hits/100)\n"
                 "analyzer_urmp: coverage: discovered 4 piece dirs, loadable 4, unusable 0, no-candidate 0, selected 48 candidate windows\n"
+                "analyzer_urmp: sax isolated metrics: isolated precision 90.00%, recall 75.00%, F1 81.82%, contamination 0.00%, octave-error 0.00%, ambiguous 0/12, by-row other tp/fp/fn 9/1/3, confusion none\n"
                 "analyzer_urmp: chord metrics: provided global chord precision 90.00%, recall 75.00%, F1 81.82%, tp/fp/fn 30/3/10; summed global chord precision 90.00%, recall 75.00%, F1 81.82%, tp/fp/fn 30/3/10; provided stream global chord precision 90.00%, recall 80.00%, F1 84.21%, tp/fp/fn 32/3/8; summed stream global chord precision 90.00%, recall 80.00%, F1 84.21%, tp/fp/fn 32/3/8; provided sequence global chord precision 90.00%, recall 70.00%, F1 78.26%, tp/fp/fn 28/3/12\n",
                 encoding="utf-8",
             )
@@ -338,6 +339,7 @@ class DetectionAccuracyReportTest(unittest.TestCase):
         self.assertIn("## URMP real multitrack gate", report)
         self.assertIn("| URMP — isolated-track exact notes | 90 / 120 (75.0%) | 30 |", report)
         self.assertIn("| URMP — isolated-track precision | 90 / 100 (90.0%) | 10 false notes |", report)
+        self.assertIn("| URMP — saxophone isolated exact notes | 9 / 12 (75.0%) | 3 |", report)
         self.assertIn("| URMP — provided sequence chord windows | 28 / 40 (70.0%) | 12 |", report)
         self.assertIn("## Full drum primary-classification gate", report)
         self.assertIn("| Full drum gate — primary kick | 8 / 10 (80.0%) | 2 |", report)

@@ -247,12 +247,12 @@ These rows count expected labeled chord-analysis windows (not full-mix samples).
 | Guitar Chord Mix — expected guitar pitch classes | 1276 / 1533 (83.2%) | 257 |
 | Guitar Techs Chord — exact chord windows | 7249 / 7484 (96.9%) | 235 |
 | Guitar Techs Chord — primary displayed chord windows | 3577 / 7484 (47.8%) | 3907 |
-| Guitar Techs Chord — expected guitar pitch classes | 24404 / 26738 (91.3%) | 2334 |
+| Guitar Techs Chord — expected guitar pitch classes | 24403 / 26738 (91.3%) | 2335 |
 | Guitar Techs Music — exact chord windows | 397 / 500 (79.4%) | 103 |
 | Guitar Techs Music — primary displayed chord windows | 230 / 500 (46.0%) | 270 |
 | Guitar Techs Music — expected guitar pitch classes | 1609 / 1838 (87.5%) | 229 |
 | Guitar Techs Music — power-chord exact windows | 6 / 26 (23.1%) | 20 |
-| Gaps Guitar Full — exact chord windows | 362 / 540 (67.0%) | 178 |
+| Gaps Guitar Full — exact chord windows | 361 / 540 (66.9%) | 179 |
 | Gaps Guitar Full — primary displayed chord windows | 176 / 540 (32.6%) | 364 |
 | Gaps Guitar Full — expected guitar pitch classes | 1518 / 1957 (77.6%) | 439 |
 | Gaps Guitar Full — power-chord exact windows | 22 / 39 (56.4%) | 17 |
@@ -264,6 +264,7 @@ These rows count expected labeled chord-analysis windows (not full-mix samples).
 ## URMP real multitrack gate
 
 This downloaded real chamber-music corpus measures the same performances as provided mixes and as sums of their isolated tracks, with official note and MIDI annotations.
+Instrument rows below show exact isolated-note recall for each measured instrument.
 
 | Metric | Accurate / total | Remaining |
 | --- | ---: | ---: |
@@ -275,6 +276,19 @@ This downloaded real chamber-music corpus measures the same performances as prov
 | URMP — provided-mix exact chords | 190 / 527 (36.1%) | 337 |
 | URMP — provided stream chord windows | 224 / 527 (42.5%) | 303 |
 | URMP — provided sequence chord windows | 214 / 527 (40.6%) | 313 |
+| URMP — bassoon isolated exact notes | 35 / 36 (97.2%) | 1 |
+| URMP — clarinet isolated exact notes | 120 / 120 (100.0%) | 0 |
+| URMP — double bass isolated exact notes | 31 / 36 (86.1%) | 5 |
+| URMP — flute isolated exact notes | 202 / 216 (93.5%) | 14 |
+| URMP — horn isolated exact notes | 59 / 60 (98.3%) | 1 |
+| URMP — oboe isolated exact notes | 69 / 72 (95.8%) | 3 |
+| URMP — saxophone isolated exact notes | 128 / 132 (97.0%) | 4 |
+| URMP — tuba isolated exact notes | 57 / 60 (95.0%) | 3 |
+| URMP — trombone isolated exact notes | 83 / 96 (86.5%) | 13 |
+| URMP — trumpet isolated exact notes | 250 / 264 (94.7%) | 14 |
+| URMP — viola isolated exact notes | 145 / 156 (92.9%) | 11 |
+| URMP — cello isolated exact notes | 120 / 132 (90.9%) | 12 |
+| URMP — violin isolated exact notes | 383 / 408 (93.9%) | 25 |
 
 ## Bach10-mf0-synth multitrack stress gate
 

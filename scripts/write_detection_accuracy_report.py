@@ -298,6 +298,26 @@ URMP_CHORD_RE = re.compile(
     r".*?provided sequence global chord precision [\d.]+%, recall [\d.]+%, F1 [\d.]+%, "
     r"tp/fp/fn (?P<sequence_hits>\d+)/\d+/(?P<sequence_total_miss>\d+)"
 )
+URMP_INSTRUMENT_EXACT_RE = re.compile(
+    r"^analyzer_urmp: (?P<instrument>[a-z]+) isolated metrics: .*?"
+    r"by-row (?:bass|other) tp/fp/fn (?P<exact_hits>\d+)/\d+/(?P<exact_misses>\d+),",
+    re.MULTILINE,
+)
+URMP_INSTRUMENT_NAMES = {
+    "bn": "bassoon",
+    "cl": "clarinet",
+    "db": "double bass",
+    "fl": "flute",
+    "hn": "horn",
+    "ob": "oboe",
+    "sax": "saxophone",
+    "tba": "tuba",
+    "tbn": "trombone",
+    "tpt": "trumpet",
+    "va": "viola",
+    "vc": "cello",
+    "vn": "violin",
+}
 
 DRUM_PRIMARY_MATRIX_RE = re.compile(
     r"analyzer_drum_samples: primary matrix\n(?P<rows>(?:\s+expected "
@@ -444,7 +464,7 @@ def urmp_gate_rows(path: Path) -> list[tuple[str, int, int]]:
     note_total = int(exact["note_total"])
     if note_total != int(summary["note_total"]):
         raise ValueError(f"{path}: inconsistent URMP note totals")
-    return [
+    rows = [
         ("URMP — real pieces loadable", int(coverage["loadable"]), int(coverage["discovered"])),
         ("URMP — selected annotated windows", int(coverage["windows"]), int(coverage["windows"])),
         ("URMP — isolated-track exact notes", int(exact["exact_hits"]), note_total),
@@ -454,6 +474,17 @@ def urmp_gate_rows(path: Path) -> list[tuple[str, int, int]]:
         ("URMP — provided stream chord windows", int(chords["stream_hits"]), int(chords["stream_hits"]) + int(chords["stream_total_miss"])),
         ("URMP — provided sequence chord windows", int(chords["sequence_hits"]), int(chords["sequence_hits"]) + int(chords["sequence_total_miss"])),
     ]
+    for match in sorted(URMP_INSTRUMENT_EXACT_RE.finditer(text), key=lambda value: value["instrument"]):
+        exact_hits = int(match["exact_hits"])
+        instrument = match["instrument"]
+        rows.append(
+            (
+                f"URMP — {URMP_INSTRUMENT_NAMES.get(instrument, instrument)} isolated exact notes",
+                exact_hits,
+                exact_hits + int(match["exact_misses"]),
+            )
+        )
+    return rows
 
 
 def drum_primary_gate_rows(paths: list[Path], label_prefix: str) -> list[tuple[str, int, int]]:
@@ -809,6 +840,7 @@ def render(
                 "",
                 "This downloaded real chamber-music corpus measures the same performances as "
                 "provided mixes and as sums of their isolated tracks, with official note and MIDI annotations.",
+                "Instrument rows below show exact isolated-note recall for each measured instrument.",
                 "",
                 "| Metric | Accurate / total | Remaining |",
                 "| --- | ---: | ---: |",
