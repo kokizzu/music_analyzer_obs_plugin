@@ -33956,6 +33956,16 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 		snapshot.drum_debug_trigger_scores[Crash] <= 4.30f;
 	if (final_one_shot_measured_compact_crash_from_hihat_primary_recovery)
 		promote_drum_primary(Crash, 0.90f);
+	// A small cross-kit crash family reaches final arbitration with a marginally
+	// stronger ride co-candidate.  Its ride-to-hat split and quiet tom-versus-
+	// kick shape/trigger ratios are bounded away from protected ride hits.
+	const bool final_one_shot_measured_crash_from_ride_primary_recovery =
+		drum_detection_enabled && one_shot_drum_source && !generated_gm_drum_source &&
+		drum_level_[Crash] > 0.30f && drum_level_[Ride] > 0.30f &&
+		ride_hihat_level_ratio >= 1.022f && tom_kick_shape_score_ratio <= 0.872f &&
+		tom_kick_trigger_ratio <= 0.736f;
+	if (final_one_shot_measured_crash_from_ride_primary_recovery)
+		promote_drum_primary(Crash, 0.90f);
 
 	// Some closed-hat one shots reach the final arbitration with the crash
 	// candidate numerically tied.  Their stronger crash-band total is the
