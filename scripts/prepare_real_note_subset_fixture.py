@@ -12,10 +12,15 @@ def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--source-manifest", required=True, type=Path)
     parser.add_argument("--output", required=True, type=Path)
-    parser.add_argument("--source-token", required=True)
+    parser.add_argument(
+        "--source-token",
+        action="append",
+        required=True,
+        help="case-insensitive source or id token; repeat to union several instruments",
+    )
     args = parser.parse_args()
 
-    token = args.source_token.casefold()
+    tokens = tuple(token.casefold() for token in args.source_token)
     source_root = args.source_manifest.parent.resolve()
     output = args.output
     audio_output = output / "audio"
@@ -27,7 +32,9 @@ def main() -> int:
         reader = csv.DictReader(handle, delimiter="\t")
         fields = reader.fieldnames or []
         for row in reader:
-            if token in row.get("source", "").casefold() or token in row.get("id", "").casefold():
+            source = row.get("source", "").casefold()
+            sample_id = row.get("id", "").casefold()
+            if any(token in source or token in sample_id for token in tokens):
                 selected.append(row)
 
     if not selected:

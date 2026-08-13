@@ -167,6 +167,17 @@ Source: `build/iowa_orchestra_full_attributes.tsv`
 | Iowa orchestra — Other — exact expected MIDI note | 651 / 657 (99.1%) | 6 |
 | Iowa orchestra — Bass — exact expected MIDI note | 22 / 25 (88.0%) | 3 |
 
+## TinySOL isolated wind and brass exact-note coverage
+
+This fresh symlink-only independent fixture checks whether the unresolved Philharmonia oboe and trombone octave aliases recur in a second library. Its exact-MIDI rows are measured in isolated-note mode before any recovery rule is considered.
+
+Source: `build/tinysol_wind_exact_attributes.tsv`
+
+| Metric | Accurate / total | Remaining |
+| --- | ---: | ---: |
+| TinySOL — Oboe — exact expected MIDI note | 102 / 102 (100.0%) | 0 |
+| TinySOL — Trombone — exact expected MIDI note | 116 / 117 (99.1%) | 1 |
+
 ## Iowa saxophone full-mix routing
 
 This symlink-only 60-sample subset of the independent Iowa orchestra corpus covers alto and soprano saxophones in full-mix mode. It is a focused routing benchmark for woodwinds whose pitch is detected but can be assigned to another row.

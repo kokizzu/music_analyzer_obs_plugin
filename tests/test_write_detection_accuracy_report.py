@@ -167,6 +167,21 @@ class DetectionAccuracyReportTest(unittest.TestCase):
                 ) + "\n",
                 encoding="utf-8",
             )
+            tinysol_wind_exact = Path(temporary) / "tinysol_wind_exact_attributes.tsv"
+            tinysol_wind_exact.write_text(
+                "\n".join(
+                    (
+                        "\t".join((
+                            "sample_id", "family", "source", "detected", "detected_expected_row",
+                            "first_row", "visual_first_row", "expected_midi", "other_notes",
+                        )),
+                        "two1\tother\toboe\t1\t1\tother\tother\t72\tC5:1.00",
+                        "tt1\tother\ttrombone\t1\t1\tother\tother\t40\tE2:1.00",
+                        "tt2\tother\ttrombone\t1\t1\tother\tother\t53\tF2:1.00",
+                    )
+                ) + "\n",
+                encoding="utf-8",
+            )
             tinysol_sax_full_mix = Path(temporary) / "tinysol_sax_full_mix_attributes.tsv"
             tinysol_sax_full_mix.write_text(
                 "\n".join(
@@ -277,6 +292,7 @@ class DetectionAccuracyReportTest(unittest.TestCase):
                 maps_attributes, medley_solos_attributes, focused_vocalset_clean_vowel,
                 pitch_shifted_violin,
                 iowa_orchestra_full_input=iowa_orchestra_full,
+                tinysol_wind_exact_input=tinysol_wind_exact,
                 iowa_sax_full_mix_input=iowa_sax_full_mix,
                 tinysol_sax_full_mix_input=tinysol_sax_full_mix,
                 real_a2s_tenor_scale_input=real_a2s_tenor_scale,
@@ -291,6 +307,9 @@ class DetectionAccuracyReportTest(unittest.TestCase):
         self.assertIn("| Routes with direct zero-regression support | 1 / 160 (0.6%) | 159 |", report)
         self.assertIn("| Routes awaiting additional fixture coverage | 34 / 160 (21.2%) | 126 |", report)
         self.assertIn("## Cached isolated-guitar chord gates", report)
+        self.assertIn("## TinySOL isolated wind and brass exact-note coverage", report)
+        self.assertIn("| TinySOL — Oboe — exact expected MIDI note | 1 / 1 (100.0%) | 0 |", report)
+        self.assertIn("| TinySOL — Trombone — exact expected MIDI note | 1 / 2 (50.0%) | 1 |", report)
         self.assertIn("| Guitar Chord Mix — exact chord windows | 1 / 3 (33.3%) | 2 |", report)
         self.assertIn("| Guitar Chord Mix — primary displayed chord windows | 1 / 3 (33.3%) | 2 |", report)
         self.assertIn("| Guitar Chord Mix — expected guitar pitch classes | 6 / 8 (75.0%) | 2 |", report)

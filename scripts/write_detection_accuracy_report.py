@@ -159,6 +159,30 @@ def exact_note_rows(samples: dict[str, list[dict[str, str]]]) -> list[tuple[str,
     return [(label, values[0], values[1]) for label, values in totals.items()]
 
 
+def exact_note_source_rows(
+    samples: dict[str, list[dict[str, str]]], sources: tuple[str, ...]
+) -> list[tuple[str, int, int]]:
+    """Return exact-MIDI rows for explicitly selected isolated-note sources."""
+    wanted = {source.casefold() for source in sources}
+    totals: dict[str, list[int]] = defaultdict(lambda: [0, 0])
+    for sample_rows in samples.values():
+        source = sample_rows[0].get("source", "").casefold()
+        if source not in wanted:
+            continue
+        family = sample_rows[0]["family"]
+        expected_row = EXPECTED_ROW.get(family)
+        if expected_row is None:
+            continue
+        label = f"{source.replace('-', ' ').title()} — exact expected MIDI note"
+        totals[label][1] += 1
+        if expected_exact_note_detected(sample_rows, expected_row):
+            totals[label][0] += 1
+    missing = wanted - {sample_rows[0].get("source", "").casefold() for sample_rows in samples.values()}
+    if missing:
+        raise ValueError(f"missing expected TinySOL source rows: {', '.join(sorted(missing))}")
+    return [(label, values[0], values[1]) for label, values in sorted(totals.items())]
+
+
 def medley_solos_rows(path: Path) -> list[tuple[str, int, int]]:
     """Return sample-level expected-row recall from Medley Solos attributes."""
     with path.open(encoding="utf-8", newline="") as source:
@@ -557,6 +581,7 @@ def render(
     pitch_shifted_violin_input: Path | None = None,
     philharmonia_full_input: Path | None = None,
     iowa_orchestra_full_input: Path | None = None,
+    tinysol_wind_exact_input: Path | None = None,
     iowa_sax_full_mix_input: Path | None = None,
     tinysol_sax_full_mix_input: Path | None = None,
     real_a2s_tenor_scale_input: Path | None = None,
@@ -741,6 +766,25 @@ def render(
             lines.append(f"| Iowa orchestra — {label} | {fraction(accurate, total)} | {total - accurate} |")
         for label, accurate, total in exact_note_rows(iowa_samples):
             lines.append(f"| Iowa orchestra — {label} | {fraction(accurate, total)} | {total - accurate} |")
+    if tinysol_wind_exact_input is not None:
+        wind_rows = exact_note_source_rows(load_samples(tinysol_wind_exact_input), ("oboe", "trombone"))
+        lines.extend(
+            [
+                "",
+                "## TinySOL isolated wind and brass exact-note coverage",
+                "",
+                "This fresh symlink-only independent fixture checks whether the unresolved Philharmonia "
+                "oboe and trombone octave aliases recur in a second library. Its exact-MIDI rows are "
+                "measured in isolated-note mode before any recovery rule is considered.",
+                "",
+                f"Source: `{tinysol_wind_exact_input.as_posix()}`",
+                "",
+                "| Metric | Accurate / total | Remaining |",
+                "| --- | ---: | ---: |",
+            ]
+        )
+        for label, accurate, total in wind_rows:
+            lines.append(f"| TinySOL — {label} | {fraction(accurate, total)} | {total - accurate} |")
     if iowa_sax_full_mix_input is not None:
         sax_rows = family_metric_rows(load_samples(iowa_sax_full_mix_input), "other")
         lines.extend(
@@ -989,6 +1033,7 @@ def main() -> int:
     parser.add_argument("--focused-vocalset-clean-vowel-input", type=Path)
     parser.add_argument("--philharmonia-full-input", type=Path)
     parser.add_argument("--iowa-orchestra-full-input", type=Path)
+    parser.add_argument("--tinysol-wind-exact-input", type=Path)
     parser.add_argument("--iowa-sax-full-mix-input", type=Path)
     parser.add_argument("--tinysol-sax-full-mix-input", type=Path)
     parser.add_argument("--real-a2s-tenor-scale-input", type=Path)
@@ -1004,6 +1049,7 @@ def main() -> int:
             args.focused_vocalset_clean_vowel_input, args.pitch_shifted_violin_input,
             args.philharmonia_full_input,
             args.iowa_orchestra_full_input,
+            args.tinysol_wind_exact_input,
             args.iowa_sax_full_mix_input,
             args.tinysol_sax_full_mix_input,
             args.real_a2s_tenor_scale_input,
