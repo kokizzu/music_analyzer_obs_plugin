@@ -71,9 +71,9 @@ Source: `build/vocalset_full_mix_attributes.tsv`
 | Metric | Accurate / total | Remaining |
 | --- | ---: | ---: |
 | VocalSet vocals — Any detected note | 2371 / 2389 (99.2%) | 18 |
-| VocalSet vocals — Expected instrument row | 1292 / 2389 (54.1%) | 1097 |
-| VocalSet vocals — Lit expected pitch class | 772 / 2389 (32.3%) | 1617 |
-| VocalSet vocals — Primary display row | 196 / 2389 (8.2%) | 2193 |
+| VocalSet vocals — Expected instrument row | 1301 / 2389 (54.5%) | 1088 |
+| VocalSet vocals — Lit expected pitch class | 781 / 2389 (32.7%) | 1608 |
+| VocalSet vocals — Primary display row | 199 / 2389 (8.3%) | 2190 |
 | VocalSet vocals — Visual primary row | 173 / 2389 (7.2%) | 2216 |
 
 ### Focused clean-vowel regression
@@ -416,5 +416,17 @@ These independent one-shot samples are sharded by expected instrument; the seven
 | High-fidelity drum kit — primary tom | 283 / 300 (94.3%) | 17 |
 | High-fidelity drum kit — primary ride | 295 / 300 (98.3%) | 5 |
 | High-fidelity drum kit — primary rim | 283 / 300 (94.3%) | 17 |
+
+## STAR Drums preview multitrack gate
+
+This independent real-music preview measures annotated drum-event recall and false activations across mixed recordings.
+
+Source: `build/star_drums_misses.log.summary`
+
+| Metric | Accurate / total | Remaining |
+| --- | ---: | ---: |
+| STAR Drums preview — annotated drum events detected | 39 / 56 (69.6%) | 17 |
+| STAR Drums preview — detected-drum precision | 39 / 51 (76.5%) | 12 false predictions |
+| STAR Drums preview — windows without a false drum | 6 / 16 (37.5%) | 10 false-positive windows |
 
 Refresh with `make update-detection-accuracy-report`. Whenever a verified detection metric changes, update this report in the same commit.

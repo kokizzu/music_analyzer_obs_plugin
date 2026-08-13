@@ -297,6 +297,14 @@ class DetectionAccuracyReportTest(unittest.TestCase):
                     encoding="utf-8",
                 )
                 hf_drum_outputs.append(shard)
+            star_drums = Path(temporary) / "star_drums_misses.log.summary"
+            star_drums.write_text(
+                "analyzer_egmd: 23 checks passed (recordings 4/4, windows 16, read failures 0, "
+                "no-candidate recordings 0, unusable 0, drum hits 39/56, drum precision 76.47%, "
+                "drum recall 69.64%, F1 72.90%, false-positive windows 62.50% (10/16), "
+                "recall by category kick:12/12-0, tp/fp/fn 39/12/17, hits min/avg/max 3/3.75/5)\n",
+                encoding="utf-8",
+            )
             urmp = Path(temporary) / "urmp.out"
             urmp.write_text(
                 "URMP separated-track precision: expected >=90%, got 90/100 (isolated precision 90.00%, recall 75.00%)\n"
@@ -326,6 +334,7 @@ class DetectionAccuracyReportTest(unittest.TestCase):
                 real_a2s_tenor_scale_input=real_a2s_tenor_scale,
                 urmp_sax_exact_input=urmp_sax_exact,
                 urmp_sax_full_mix_input=urmp_sax_full_mix,
+                star_drums_gate_output=star_drums,
             )
 
         self.assertIn("| Any detected note | 2 / 3 (66.7%) | 1 |", report)
@@ -400,6 +409,10 @@ class DetectionAccuracyReportTest(unittest.TestCase):
         self.assertIn("| Full drum gate — primary hihat | 6 / 10 (60.0%) | 4 |", report)
         self.assertIn("## High-fidelity drum-kit primary-classification gate", report)
         self.assertIn("| High-fidelity drum kit — primary rim | 8 / 10 (80.0%) | 2 |", report)
+        self.assertIn("## STAR Drums preview multitrack gate", report)
+        self.assertIn("| STAR Drums preview — annotated drum events detected | 39 / 56 (69.6%) | 17 |", report)
+        self.assertIn("| STAR Drums preview — detected-drum precision | 39 / 51 (76.5%) | 12 false predictions |", report)
+        self.assertIn("| STAR Drums preview — windows without a false drum | 6 / 16 (37.5%) | 10 false-positive windows |", report)
 
 
 if __name__ == "__main__":

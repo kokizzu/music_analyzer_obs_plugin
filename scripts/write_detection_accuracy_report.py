@@ -349,6 +349,12 @@ DRUM_PRIMARY_MATRIX_RE = re.compile(
 )
 DRUM_PRIMARY_ROW_RE = re.compile(r"^\s*expected (?P<expected>\w+)\s+(?P<counts>.+)$")
 DRUM_PRIMARY_COUNT_RE = re.compile(r"(?P<instrument>\w+)=(?P<count>\d+)")
+EGMD_DRUM_SUMMARY_RE = re.compile(
+    r"analyzer_egmd: .*?windows (?P<windows>\d+),.*?drum hits "
+    r"(?P<hits>\d+)/(?P<total>\d+), drum precision [\d.]+%, drum recall [\d.]+%,"
+    r".*?false-positive windows [\d.]+% \((?P<false_windows>\d+)/(?P<window_total>\d+)\),"
+    r".*?tp/fp/fn (?P<true_positive>\d+)/(?P<false_positive>\d+)/(?P<false_negative>\d+),"
+)
 ROUTE_SUMMARY_RE = re.compile(
     r"detector_route_summary: candidates=(?P<candidates>\d+).*?"
     r"actionable=(?P<actionable>\d+) coverage_blocked=(?P<coverage_blocked>\d+)"
@@ -550,6 +556,26 @@ def drum_primary_gate_rows(paths: list[Path], label_prefix: str) -> list[tuple[s
     ]
 
 
+def egmd_drum_rows(path: Path, label_prefix: str) -> list[tuple[str, int, int, str]]:
+    """Return event recall and precision from an EGMD-compatible multitrack summary."""
+    match = EGMD_DRUM_SUMMARY_RE.search(path.read_text(encoding="utf-8", errors="replace"))
+    if match is None:
+        raise ValueError(f"{path}: missing EGMD drum summary")
+    true_positive = int(match["true_positive"])
+    false_positive = int(match["false_positive"])
+    false_windows = int(match["false_windows"])
+    window_total = int(match["window_total"])
+    if int(match["windows"]) != window_total:
+        raise ValueError(f"{path}: inconsistent EGMD window totals")
+    return [
+        (f"{label_prefix} — annotated drum events detected", int(match["hits"]), int(match["total"]), ""),
+        (f"{label_prefix} — detected-drum precision", true_positive, true_positive + false_positive,
+         "false predictions"),
+        (f"{label_prefix} — windows without a false drum", window_total - false_windows, window_total,
+         "false-positive windows"),
+    ]
+
+
 def route_coverage_rows(path: Path) -> list[tuple[str, int, int]]:
     match = ROUTE_SUMMARY_RE.search(path.read_text(encoding="utf-8", errors="replace"))
     if match is None:
@@ -587,6 +613,7 @@ def render(
     real_a2s_tenor_scale_input: Path | None = None,
     urmp_sax_exact_input: Path | None = None,
     urmp_sax_full_mix_input: Path | None = None,
+    star_drums_gate_output: Path | None = None,
 ) -> str:
     samples = load_samples(input_path)
     lines = [
@@ -1042,6 +1069,24 @@ def render(
         )
         for label, accurate, total in drum_primary_gate_rows(hf_drum_gate_outputs, "High-fidelity drum kit"):
             lines.append(f"| {label} | {fraction(accurate, total)} | {total - accurate} |")
+    if star_drums_gate_output is not None:
+        lines.extend(
+            [
+                "",
+                "## STAR Drums preview multitrack gate",
+                "",
+                "This independent real-music preview measures annotated drum-event recall and "
+                "false activations across mixed recordings.",
+                "",
+                f"Source: `{star_drums_gate_output.as_posix()}`",
+                "",
+                "| Metric | Accurate / total | Remaining |",
+                "| --- | ---: | ---: |",
+            ]
+        )
+        for label, accurate, total, remainder_unit in egmd_drum_rows(star_drums_gate_output, "STAR Drums preview"):
+            remainder = f"{total - accurate} {remainder_unit}" if remainder_unit else str(total - accurate)
+            lines.append(f"| {label} | {fraction(accurate, total)} | {remainder} |")
     lines.extend(
         [
             "",
@@ -1080,6 +1125,7 @@ def main() -> int:
     parser.add_argument("--real-a2s-tenor-scale-input", type=Path)
     parser.add_argument("--urmp-sax-exact-input", type=Path)
     parser.add_argument("--urmp-sax-full-mix-input", type=Path)
+    parser.add_argument("--star-drums-gate-output", type=Path)
     parser.add_argument("--output", required=True, type=Path)
     args = parser.parse_args()
     try:
@@ -1098,6 +1144,7 @@ def main() -> int:
             args.real_a2s_tenor_scale_input,
             args.urmp_sax_exact_input,
             args.urmp_sax_full_mix_input,
+            args.star_drums_gate_output,
         )
     except (OSError, ValueError) as error:
         parser.error(str(error))
