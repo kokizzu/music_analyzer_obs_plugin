@@ -906,6 +906,42 @@ def load_rows(path: pathlib.Path) -> list[dict[str, str]]:
         return list(csv.DictReader(handle, delimiter="\t"))
 
 
+def parse_numeric_filter(spec: str, *, option: str) -> tuple[str, float]:
+    field, separator, value = spec.partition("=")
+    if not separator or not field:
+        raise argparse.ArgumentTypeError(
+            f"{option} must use FIELD=VALUE, got {spec!r}"
+        )
+    try:
+        return field, float(value)
+    except ValueError as error:
+        raise argparse.ArgumentTypeError(
+            f"{option} needs a numeric value, got {spec!r}"
+        ) from error
+
+
+def filter_numeric_rows(
+    rows: list[dict[str, str]],
+    *,
+    minimums: list[tuple[str, float]],
+    maximums: list[tuple[str, float]],
+) -> list[dict[str, str]]:
+    filtered: list[dict[str, str]] = []
+    for row in rows:
+        if any(
+            (value := as_float(row, field)) is None or value < threshold
+            for field, threshold in minimums
+        ):
+            continue
+        if any(
+            (value := as_float(row, field)) is None or value > threshold
+            for field, threshold in maximums
+        ):
+            continue
+        filtered.append(row)
+    return filtered
+
+
 def top_bucket_keys(
     rows: list[dict[str, str]],
     top_misses: int,
@@ -1063,6 +1099,22 @@ def main() -> int:
         default=[],
         help="include only this derived miss reason in --dump-rows or bucket summaries; repeatable",
     )
+    parser.add_argument(
+        "--min-field",
+        action="append",
+        type=lambda spec: parse_numeric_filter(spec, option="--min-field"),
+        default=[],
+        metavar="FIELD=VALUE",
+        help="retain rows with FIELD at or above VALUE; repeatable",
+    )
+    parser.add_argument(
+        "--max-field",
+        action="append",
+        type=lambda spec: parse_numeric_filter(spec, option="--max-field"),
+        default=[],
+        metavar="FIELD=VALUE",
+        help="retain rows with FIELD at or below VALUE; repeatable",
+    )
     args = parser.parse_args()
 
     path = pathlib.Path(args.path)
@@ -1075,6 +1127,11 @@ def main() -> int:
         visual_first_rows=set(args.visual_first_row),
         row_labels=set(args.row_label),
         miss_reasons=set(args.miss_reason),
+    )
+    rows = filter_numeric_rows(
+        rows,
+        minimums=args.min_field,
+        maximums=args.max_field,
     )
     explicit_buckets = [parse_bucket_spec(spec) for spec in args.bucket]
     if args.dump_rows:
