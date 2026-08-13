@@ -17641,7 +17641,7 @@ void append_mixed_global_extension_aliases(InstrumentState &state, const std::ar
 	}
 
 	if (std::strcmp(merged, state.label) != 0)
-	copy_text(state.label, sizeof(state.label), merged);
+		copy_text(state.label, sizeof(state.label), merged);
 }
 
 void append_sparse_mixed_global_power_alias(InstrumentState &state,
@@ -29821,8 +29821,8 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 			if (real_piano_low_fundamental) {
 				const float boosted_level =
 					std::max(raw_note_level,
-						 std::min(strongest_note_level * 0.82f,
-							  harmonic_supported_level * 0.55f));
+					 std::min(strongest_note_level * 0.82f,
+						  harmonic_supported_level * 0.55f));
 				keyboard_detection_note_powers[index] =
 					std::max(keyboard_detection_note_powers[index],
 						 boosted_level * boosted_level);
@@ -34482,7 +34482,7 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 			// benefit from hiding weak upper partials that otherwise read as notes.
 			const bool sparse_isolated_real_piano =
 				isolated_real_piano_source && strict_tuned_note_count <= 1;
-    const float keyboard_relative_floor = sparse_isolated_real_piano ? 0.30f : 0.15f;
+			const float keyboard_relative_floor = sparse_isolated_real_piano ? 0.31f : 0.15f;
 			set_instrument_note_set(snapshot.keyboard_notes, snapshot.keyboard, keyboard_detection_note_powers,
 					min_midi, max_midi, preferred_root, keyboard_energy, rms,
 					max_notes, nullptr, nullptr, false, nullptr, keyboard_relative_floor);
