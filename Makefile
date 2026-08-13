@@ -4490,6 +4490,7 @@ detector-improvement-route-summary-from-cached-report: scripts/summarize_detecto
 	@tmp="$(DETECTOR_IMPROVEMENT_ROUTE_SUMMARY).$$$$.tmp"; $(PYTHON) scripts/summarize_detector_route_report.py "$(DETECTOR_IMPROVEMENT_ROUTE_REPORT)" $(DETECTOR_IMPROVEMENT_ROUTE_SUMMARY_ARGS) > "$$tmp" && mv "$$tmp" "$(DETECTOR_IMPROVEMENT_ROUTE_SUMMARY)" && cat "$(DETECTOR_IMPROVEMENT_ROUTE_SUMMARY)"
 
 detector-improvement-route-summary-refresh: FORCE
+	+$(MAKE) --always-make $(DETECTOR_IMPROVEMENT_ROUTE_REPORT)
 	+$(MAKE) --always-make $(DETECTOR_IMPROVEMENT_ROUTE_SUMMARY)
 	@printf '%s\n' "detector improvement route summary: $(DETECTOR_IMPROVEMENT_ROUTE_SUMMARY)"
 

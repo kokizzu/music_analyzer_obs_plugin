@@ -1148,8 +1148,8 @@ def main() -> int:
     assert "DETECTOR_REAL_NOTE_PATTERN_OPTIONAL_CANDIDATE_PATHS += $(GUITAR_TECHS_DETECTED_ATTRIBUTE_ROWS)" in makefile, (
         "detector route scans should mine candidates from available GuitarTechs electric-guitar rows"
     )
-    assert "DETECTOR_REAL_NOTE_PATTERN_OPTIONAL_CANDIDATE_PATHS += $(GOOD_SOUNDS_DETECTED_ATTRIBUTE_ROWS)" in makefile, (
-        "detector route scans should mine candidates from available Good Sounds real-instrument rows"
+    assert "DETECTOR_REAL_NOTE_PATTERN_OPTIONAL_CANDIDATE_PATHS += $(GOOD_SOUNDS_FULL_MIX_ATTRIBUTE_TSV)" in makefile, (
+        "detector route scans should mine candidates from the available Good Sounds full-mix rows"
     )
     assert "DETECTOR_REAL_NOTE_PATTERN_OPTIONAL_CANDIDATE_PATHS += $(TINYSOL_DETECTED_ATTRIBUTE_ROWS)" in makefile, (
         "detector route scans should mine candidates from available TinySOL acoustic instrument rows"
@@ -1279,6 +1279,9 @@ def main() -> int:
         "detector improvement route summary helper must depend on the file-backed summary"
     )
     route_summary_refresh_recipe = target_recipe(makefile, "detector-improvement-route-summary-refresh")
+    assert "$(MAKE) --always-make $(DETECTOR_IMPROVEMENT_ROUTE_REPORT)" in route_summary_refresh_recipe, (
+        "detector improvement route summary refresh helper must rebuild the saved route report first"
+    )
     assert "$(MAKE) --always-make $(DETECTOR_IMPROVEMENT_ROUTE_SUMMARY)" in route_summary_refresh_recipe, (
         "detector improvement route summary refresh helper must force a fresh route report and summary"
     )
