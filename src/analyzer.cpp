@@ -22121,6 +22121,75 @@ void append_source_supported_guitar_diminished_triad_aliases_after_prune(
 	}
 }
 
+bool probe_supported_guitar_weak_diminished_triad_alias(
+	int root, const NoteGrid &display_grid, const NoteGrid &analysis_grid,
+	const std::array<float, kNoteProbeCount> &powers, int min_midi, int max_midi)
+{
+	root = ((root % 12) + 12) % 12;
+	// Retain this only for a compact minor dyad.  The flat fifth is deliberately
+	// allowed to live below the note-grid floor, but it must still be present in
+	// the raw guitar probes and neither a natural fifth nor a major-third may
+	// contradict the diminished interpretation.
+	const int display_count = note_grid_active_pitch_class_count(display_grid);
+	const int analysis_count = note_grid_active_pitch_class_count(analysis_grid);
+	if (display_count < 2 || display_count > 3 || analysis_count < 2 || analysis_count > 4)
+		return false;
+	if (!note_grid_pitch_active(display_grid, root) ||
+	    !note_grid_pitch_active(display_grid, root + 3))
+		return false;
+
+	const float strongest_probe = strongest_probe_level(powers, min_midi, max_midi);
+	if (strongest_probe <= 1.0e-6f)
+		return false;
+	auto probe_ratio = [&](int pitch_class) {
+		return strongest_probe_pitch_class_level(powers, pitch_class, min_midi, max_midi) /
+		       strongest_probe;
+	};
+	const float root_probe = probe_ratio(root);
+	const float minor_third_probe = probe_ratio(root + 3);
+	const float diminished_fifth_probe = probe_ratio(root + 6);
+	const float major_third_probe = probe_ratio(root + 4);
+	const float natural_fifth_probe = probe_ratio(root + 7);
+	if (root_probe < 0.68f || minor_third_probe < 0.38f ||
+	    diminished_fifth_probe < 0.16f || diminished_fifth_probe >= 0.24f ||
+	    major_third_probe > 0.08f || natural_fifth_probe > 0.10f)
+		return false;
+
+	const float major_third_grid =
+		strongest_grid_pitch_level(display_grid, analysis_grid, root + 4);
+	const float natural_fifth_grid =
+		strongest_grid_pitch_level(display_grid, analysis_grid, root + 7);
+	return major_third_grid <= 0.08f && natural_fifth_grid <= 0.10f;
+}
+
+void append_probe_supported_guitar_weak_diminished_triad_alias_after_prune(
+	InstrumentState &state, const NoteGrid &display_grid, const NoteGrid &analysis_grid,
+	const std::array<float, kNoteProbeCount> &powers, int min_midi, int max_midi)
+{
+	if (!state.label[0] || state.label[0] == '-' || chord_label_component_count(state.label) != 1)
+		return;
+
+	ParsedRootChord parsed;
+	const std::size_t label_len = std::strlen(state.label);
+	if (!parse_root_chord_component(state.label, label_len, parsed) ||
+	    parsed.quality != RootChordQuality::Minor)
+		return;
+	std::size_t root_len = 1;
+	if (label_len > 1 && state.label[1] == '#')
+		root_len = 2;
+	if (!suffix_is(state.label + root_len, label_len - root_len, "m") ||
+	    !probe_supported_guitar_weak_diminished_triad_alias(
+		parsed.root, display_grid, analysis_grid, powers, min_midi, max_midi))
+		return;
+
+	char alias[16] = {};
+	std::snprintf(alias, sizeof(alias), "%sdim", note_name(parsed.root));
+	if (state.label[0])
+		append_text(state.label, sizeof(state.label), "=");
+	append_text(state.label, sizeof(state.label), alias);
+	state.confidence = std::max(state.confidence, 0.58f);
+}
+
 bool probe_supported_guitar_diminished_seventh_alias(int root, const NoteGrid &display_grid,
 						     const NoteGrid &analysis_grid,
 						     const std::array<float, kNoteProbeCount> &powers,
@@ -35861,6 +35930,9 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 			append_source_supported_guitar_diminished_triad_aliases_after_prune(
 				snapshot.guitar_chord, smoothed_guitar_chord, snapshot.guitar_notes,
 				guitar_chord_detection_grid);
+			append_probe_supported_guitar_weak_diminished_triad_alias_after_prune(
+				snapshot.guitar_chord, snapshot.guitar_notes, guitar_chord_detection_grid,
+				note_powers, kGuitarMinMidi, kGuitarMaxMidi);
 			append_analysis_complete_guitar_source_dominant_seventh_aliases_after_prune(
 				snapshot.guitar_chord, raw_guitar_chord, snapshot.guitar_notes,
 				guitar_chord_detection_grid);

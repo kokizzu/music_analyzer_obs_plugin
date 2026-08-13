@@ -1677,6 +1677,48 @@ void check_visible_diminished_guitar_alias_recovery(Runner &runner)
 		      std::string("source-backed post-prune diminished recovery: expected crowded label protected, got `") +
 			      crowded_post_prune_state.label + "`");
 
+	InstrumentState weak_probe_dim_state = {};
+	std::snprintf(weak_probe_dim_state.label, sizeof(weak_probe_dim_state.label), "D#m");
+	weak_probe_dim_state.confidence = 0.58f;
+	NoteGrid weak_probe_dim_display = {};
+	set_pitch(weak_probe_dim_display, 3, 0.19f);
+	set_pitch(weak_probe_dim_display, 6, 0.12f);
+	NoteGrid weak_probe_dim_analysis = weak_probe_dim_display;
+	set_pitch(weak_probe_dim_analysis, 7, 0.02f);
+	std::array<float, kNoteProbeCount> weak_probe_dim_powers = {};
+	set_probe_level(weak_probe_dim_powers, 51, 1.00f);
+	set_probe_level(weak_probe_dim_powers, 54, 0.61f);
+	set_probe_level(weak_probe_dim_powers, 57, 0.18f);
+	append_probe_supported_guitar_weak_diminished_triad_alias_after_prune(
+		weak_probe_dim_state, weak_probe_dim_display, weak_probe_dim_analysis,
+		weak_probe_dim_powers, kGuitarMinMidi, kGuitarMaxMidi);
+	runner.expect(chord_label_has_exact_component(weak_probe_dim_state.label, "D#dim"),
+		      std::string("weak probe diminished triad: expected D#dim, got `") +
+			      weak_probe_dim_state.label + "`");
+
+	InstrumentState weak_probe_dim_natural_fifth = {};
+	std::snprintf(weak_probe_dim_natural_fifth.label,
+		      sizeof(weak_probe_dim_natural_fifth.label), "D#m");
+	NoteGrid weak_probe_dim_natural_grid = weak_probe_dim_analysis;
+	set_pitch(weak_probe_dim_natural_grid, 10, 0.14f);
+	append_probe_supported_guitar_weak_diminished_triad_alias_after_prune(
+		weak_probe_dim_natural_fifth, weak_probe_dim_display, weak_probe_dim_natural_grid,
+		weak_probe_dim_powers, kGuitarMinMidi, kGuitarMaxMidi);
+	runner.expect(!chord_label_has_exact_component(weak_probe_dim_natural_fifth.label, "D#dim"),
+		      std::string("weak probe diminished triad: expected natural fifth to block D#dim, got `") +
+			      weak_probe_dim_natural_fifth.label + "`");
+
+	InstrumentState weak_probe_dim_major_third = {};
+	std::snprintf(weak_probe_dim_major_third.label, sizeof(weak_probe_dim_major_third.label), "D#m");
+	NoteGrid weak_probe_dim_major_grid = weak_probe_dim_analysis;
+	set_pitch(weak_probe_dim_major_grid, 7, 0.12f);
+	append_probe_supported_guitar_weak_diminished_triad_alias_after_prune(
+		weak_probe_dim_major_third, weak_probe_dim_display, weak_probe_dim_major_grid,
+		weak_probe_dim_powers, kGuitarMinMidi, kGuitarMaxMidi);
+	runner.expect(!chord_label_has_exact_component(weak_probe_dim_major_third.label, "D#dim"),
+		      std::string("weak probe diminished triad: expected major third to block D#dim, got `") +
+			      weak_probe_dim_major_third.label + "`");
+
 	InstrumentState diminished_seventh_state = {};
 	std::snprintf(diminished_seventh_state.label, sizeof(diminished_seventh_state.label), "Adim=Am");
 	diminished_seventh_state.confidence = 1.00f;
