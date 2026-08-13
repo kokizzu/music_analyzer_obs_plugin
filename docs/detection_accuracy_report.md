@@ -93,6 +93,11 @@ This independent acoustic-instrument corpus is measured in full-mix mode. It is 
 
 Source: `build/good_sounds_full_mix_attributes.tsv`
 
+The cached Good Sounds archive has been inventoried without extraction: all 1,318 usable
+labelled recordings are already in this fixture (661 violin, 453 tenor sax, 159 bass, and
+45 other winds/brass). The remaining catalogue rows have no matching packed audio, so this
+corpus cannot supply independent additional examples for coverage-blocked route rules.
+
 | Metric | Accurate / total | Remaining |
 | --- | ---: | ---: |
 | Good Sounds — Any detected note | 1317 / 1318 (99.9%) | 1 |

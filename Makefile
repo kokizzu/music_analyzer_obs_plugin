@@ -3616,6 +3616,11 @@ analyze-pitch-shifted-violin-attributes: $(PITCH_SHIFTED_VIOLIN_ATTRIBUTE_TSV)
 
 download-good-sounds-samples: $(GOOD_SOUNDS_ARCHIVE_VALIDATION_STAMP)
 
+.PHONY: inspect-good-sounds-archive-coverage
+inspect-good-sounds-archive-coverage: scripts/inspect_good_sounds_archive_coverage.py scripts/prepare_good_sounds_samples.py
+	@test -s "$(GOOD_SOUNDS_ARCHIVE)" || { printf '%s\n' "missing $(GOOD_SOUNDS_ARCHIVE)"; exit 2; }
+	$(PYTHON) scripts/inspect_good_sounds_archive_coverage.py "$(GOOD_SOUNDS_ARCHIVE)" $(GOOD_SOUNDS_ARCHIVE_COVERAGE_ARGS)
+
 $(GOOD_SOUNDS_ARCHIVE): | $(BUILD_DIR)
 	mkdir -p "$(GOOD_SOUNDS_SOURCE_DIR)"
 	if [ ! -s "$(GOOD_SOUNDS_ARCHIVE)" ] && [ -s "$(GOOD_SOUNDS_ARCHIVE).part" ] && $(PYTHON) -m zipfile -t "$(GOOD_SOUNDS_ARCHIVE).part" >/dev/null 2>&1; then mv "$(GOOD_SOUNDS_ARCHIVE).part" "$(GOOD_SOUNDS_ARCHIVE)"; fi
@@ -4596,6 +4601,7 @@ ANALYSIS_SCRIPT_TEST_TARGETS += test-sample-manifest-summary
 ANALYSIS_SCRIPT_TEST_TARGETS += test-inspect-drum-candidate-rows
 ANALYSIS_SCRIPT_TEST_TARGETS += test-inspect-real-note-candidate-rows
 ANALYSIS_SCRIPT_TEST_TARGETS += test-inspect-detector-coverage-candidates test-compare-drum-primary-scores
+ANALYSIS_SCRIPT_TEST_TARGETS += test-inspect-good-sounds-archive-coverage
 
 test-drum-sample-shard-check: tests/test_check_drum_sample_shards.py scripts/check_drum_sample_shards.py
 	$(PYTHON) tests/test_check_drum_sample_shards.py
@@ -4614,6 +4620,9 @@ test-inspect-real-note-candidate-rows: tests/test_inspect_real_note_candidate_ro
 
 test-inspect-detector-coverage-candidates: tests/test_inspect_detector_coverage_candidates.py scripts/inspect_detector_coverage_candidates.py scripts/inspect_real_note_candidate_rows.py
 	$(PYTHON) tests/test_inspect_detector_coverage_candidates.py
+
+test-inspect-good-sounds-archive-coverage: tests/test_inspect_good_sounds_archive_coverage.py scripts/inspect_good_sounds_archive_coverage.py scripts/prepare_good_sounds_samples.py
+	$(PYTHON) tests/test_inspect_good_sounds_archive_coverage.py
 
 test-egmd-shard-check: tests/test_check_egmd_shards.py scripts/check_egmd_shards.py
 	$(PYTHON) tests/test_check_egmd_shards.py
