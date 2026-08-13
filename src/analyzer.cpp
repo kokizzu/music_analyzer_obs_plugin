@@ -34482,7 +34482,7 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 			// benefit from hiding weak upper partials that otherwise read as notes.
 			const bool sparse_isolated_real_piano =
 				isolated_real_piano_source && strict_tuned_note_count <= 1;
-			const float keyboard_relative_floor = sparse_isolated_real_piano ? 0.20f : 0.15f;
+    const float keyboard_relative_floor = sparse_isolated_real_piano ? 0.30f : 0.15f;
 			set_instrument_note_set(snapshot.keyboard_notes, snapshot.keyboard, keyboard_detection_note_powers,
 					min_midi, max_midi, preferred_root, keyboard_energy, rms,
 					max_notes, nullptr, nullptr, false, nullptr, keyboard_relative_floor);
