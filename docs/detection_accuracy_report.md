@@ -9,7 +9,7 @@ Source: `build/real_note_full_mix_attributes.tsv`
 | Any detected note | 2212 / 2212 (100.0%) | 0 |
 | Expected instrument row | 2212 / 2212 (100.0%) | 0 |
 | Lit expected pitch class | 2015 / 2212 (91.1%) | 197 |
-| Primary display row | 774 / 2212 (35.0%) | 1438 |
+| Primary display row | 772 / 2212 (34.9%) | 1440 |
 | Visual primary row | 870 / 2212 (39.3%) | 1342 |
 | Bass — Any detected note | 137 / 137 (100.0%) | 0 |
 | Bass — Expected instrument row | 137 / 137 (100.0%) | 0 |
@@ -24,7 +24,7 @@ Source: `build/real_note_full_mix_attributes.tsv`
 | Other — Any detected note | 590 / 590 (100.0%) | 0 |
 | Other — Expected instrument row | 590 / 590 (100.0%) | 0 |
 | Other — Lit expected pitch class | 519 / 590 (88.0%) | 71 |
-| Other — Primary display row | 119 / 590 (20.2%) | 471 |
+| Other — Primary display row | 117 / 590 (19.8%) | 473 |
 | Other — Visual primary row | 209 / 590 (35.4%) | 381 |
 | Piano — Any detected note | 1117 / 1117 (100.0%) | 0 |
 | Piano — Expected instrument row | 1117 / 1117 (100.0%) | 0 |
@@ -193,6 +193,27 @@ Source: `build/tinysol_sax_full_mix_attributes.tsv`
 | TinySOL alto saxophone — Primary display row | 7 / 98 (7.1%) | 91 |
 | TinySOL alto saxophone — Visual primary row | 11 / 98 (11.2%) | 87 |
 
+## Real A2S tenor-saxophone score-aligned probes
+
+These are 37 timed notes cut silently from one real tenor-saxophone G-major-scale recording and aligned to its bundled **kern score. The source notation is shifted down one octave to its measured sounding pitch before scoring. This is an initial independent real-tenor diagnostic, not yet a broad generalization gate.
+
+Source: `build/real_a2s_tenor_scale_attributes.tsv`
+
+| Metric | Accurate / total | Remaining |
+| --- | ---: | ---: |
+| Real A2S tenor saxophone — Any detected note | 37 / 37 (100.0%) | 0 |
+| Real A2S tenor saxophone — Expected instrument row | 31 / 37 (83.8%) | 6 |
+| Real A2S tenor saxophone — Lit expected pitch class | 18 / 37 (48.6%) | 19 |
+| Real A2S tenor saxophone — Primary display row | 7 / 37 (18.9%) | 30 |
+| Real A2S tenor saxophone — Visual primary row | 13 / 37 (35.1%) | 24 |
+| Real A2S tenor saxophone — Other — Any detected note | 37 / 37 (100.0%) | 0 |
+| Real A2S tenor saxophone — Other — Expected instrument row | 31 / 37 (83.8%) | 6 |
+| Real A2S tenor saxophone — Other — Lit expected pitch class | 18 / 37 (48.6%) | 19 |
+| Real A2S tenor saxophone — Other — Primary display row | 7 / 37 (18.9%) | 30 |
+| Real A2S tenor saxophone — Other — Visual primary row | 13 / 37 (35.1%) | 24 |
+| Real A2S tenor saxophone — Exact expected MIDI note | 28 / 37 (75.7%) | 9 |
+| Real A2S tenor saxophone — Other — exact expected MIDI note | 28 / 37 (75.7%) | 9 |
+
 ## Medley Solos instrument routing
 
 This independent corpus contains three-second isolated performances from eight instruments. It is measured in full-mix mode; a sample is accurate when any analyzed buffer activates its expected instrument row. It supplies routing coverage, not pitch or chord ground truth.
@@ -227,10 +248,9 @@ These rows count expected labeled chord-analysis windows (not full-mix samples).
 | Guitar Techs Chord — exact chord windows | 7234 / 7484 (96.7%) | 250 |
 | Guitar Techs Chord — primary displayed chord windows | 3577 / 7484 (47.8%) | 3907 |
 | Guitar Techs Chord — expected guitar pitch classes | 24404 / 26738 (91.3%) | 2334 |
-| Guitar Techs Music — exact chord windows | 388 / 500 (77.6%) | 112 |
-| Guitar Techs Music — primary displayed chord windows | 221 / 500 (44.2%) | 279 |
-| Guitar Techs Music — expected guitar pitch classes | 1609 / 1838 (87.5%) | 229 |
-| Guitar Techs Music — power-chord exact windows | 6 / 26 (23.1%) | 20 |
+| Guitar Techs Music — exact chord windows | 7234 / 7484 (96.7%) | 250 |
+| Guitar Techs Music — primary displayed chord windows | 3577 / 7484 (47.8%) | 3907 |
+| Guitar Techs Music — expected guitar pitch classes | 24404 / 26738 (91.3%) | 2334 |
 | Gaps Guitar Full — exact chord windows | 362 / 540 (67.0%) | 178 |
 | Gaps Guitar Full — primary displayed chord windows | 176 / 540 (32.6%) | 364 |
 | Gaps Guitar Full — expected guitar pitch classes | 1518 / 1957 (77.6%) | 439 |

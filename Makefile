@@ -40,6 +40,7 @@ DETECTION_ACCURACY_PHILHARMONIA_FULL_ARG = $(if $(wildcard $(PHILHARMONIA_FULL_A
 DETECTION_ACCURACY_IOWA_ORCHESTRA_FULL_ARG = $(if $(wildcard $(IOWA_ORCHESTRA_FULL_ATTRIBUTE_TSV)),--iowa-orchestra-full-input "$(IOWA_ORCHESTRA_FULL_ATTRIBUTE_TSV)")
 DETECTION_ACCURACY_IOWA_SAX_FULL_MIX_ARG = $(if $(wildcard $(IOWA_SAX_FULL_MIX_ATTRIBUTE_TSV)),--iowa-sax-full-mix-input "$(IOWA_SAX_FULL_MIX_ATTRIBUTE_TSV)")
 DETECTION_ACCURACY_TINYSOL_SAX_FULL_MIX_ARG = $(if $(wildcard $(TINYSOL_SAX_FULL_MIX_ATTRIBUTE_TSV)),--tinysol-sax-full-mix-input "$(TINYSOL_SAX_FULL_MIX_ATTRIBUTE_TSV)")
+DETECTION_ACCURACY_REAL_A2S_TENOR_SCALE_ARG = $(if $(wildcard $(REAL_A2S_SAX_SCALE_ATTRIBUTE_TSV)),--real-a2s-tenor-scale-input "$(REAL_A2S_SAX_SCALE_ATTRIBUTE_TSV)")
 DETECTION_ACCURACY_CHORD_TSVS ?= $(BUILD_DIR)/guitar_chord_mix_attributes.tsv $(GUITAR_TECHS_CHORD_ATTRIBUTE_TSV) $(GUITAR_TECHS_MUSIC_ATTRIBUTE_TSV) $(GAPS_GUITAR_FULL_ATTRIBUTE_TSV) $(GUITARSET_ATTRIBUTE_TSV)
 DETECTION_ACCURACY_CHORD_ARGS = $(foreach path,$(wildcard $(DETECTION_ACCURACY_CHORD_TSVS)),--chord-input "$(path)")
 DETECTION_ACCURACY_VOCAL_FULL_MIX_TSV ?= $(BUILD_DIR)/vocadito_full_mix_attributes.tsv
@@ -946,6 +947,14 @@ TINYSOL_SAX_FULL_MIX_FIXTURE_DIR ?= $(BUILD_DIR)/tinysol_sax_full_mix_fixture
 TINYSOL_SAX_FULL_MIX_ATTRIBUTE_TSV ?= $(BUILD_DIR)/tinysol_sax_full_mix_attributes.tsv
 TINYSOL_SAX_FULL_MIX_OUTPUT ?= $(BUILD_DIR)/tinysol_sax_full_mix.out
 TINYSOL_SAX_FULL_MIX_MIN_SAMPLES ?= 98
+REAL_A2S_SAX_SOURCE_DIR ?= $(INSTRUMENT_SAMPLE_STORE_LINK)/real_a2s_sax
+REAL_A2S_SAX_ARCHIVE ?= $(REAL_A2S_SAX_SOURCE_DIR)/real_a2s_sax_dataset.tgz
+REAL_A2S_SAX_ARCHIVE_URL ?= https://grfia.dlsi.ua.es/audio-to-score/real_a2s_sax_dataset.tgz
+REAL_A2S_SAX_METADATA_DIR ?= $(REAL_A2S_SAX_SOURCE_DIR)/metadata
+REAL_A2S_SAX_PROBE_DIR ?= $(REAL_A2S_SAX_SOURCE_DIR)/probe
+REAL_A2S_SAX_SCALE_FIXTURE_DIR ?= $(BUILD_DIR)/real_a2s_tenor_scale_fixture
+REAL_A2S_SAX_SCALE_ATTRIBUTE_TSV ?= $(BUILD_DIR)/real_a2s_tenor_scale_attributes.tsv
+REAL_A2S_SAX_SCALE_MIDI_OFFSET ?= -12
 IOWA_ORCHESTRA_FULL_SPEC_ARGS = \
 	--spec "bass|bass|iowa-double-bass-pizz-ff-sule|$(IOWA_BASS_ZIP_URL)"
 IOWA_ORCHESTRA_FULL_PAGE_ARGS = \
@@ -2141,6 +2150,72 @@ analyze-star-drum-attributes: analyze-star-drums-misses scripts/summarize_egmd_d
 
 download-medley-solos-samples: $(MEDLEY_SOLOS_METADATA) $(MEDLEY_SOLOS_ARCHIVE)
 
+.PHONY: download-real-a2s-sax-samples
+download-real-a2s-sax-samples: $(REAL_A2S_SAX_ARCHIVE)
+
+.PHONY: inspect-real-a2s-sax-archive
+inspect-real-a2s-sax-archive: download-real-a2s-sax-samples
+	$(TAR) -tzf "$(REAL_A2S_SAX_ARCHIVE)"
+
+.PHONY: extract-real-a2s-sax-metadata
+extract-real-a2s-sax-metadata: download-real-a2s-sax-samples
+	mkdir -p "$(REAL_A2S_SAX_METADATA_DIR)"
+	$(TAR) -xzf "$(REAL_A2S_SAX_ARCHIVE)" -C "$(REAL_A2S_SAX_METADATA_DIR)" --wildcards '*/Tenor_Sax_Index.csv' '*/Dataset_Index.xlsx' '*/krn/tenor/*'
+
+.PHONY: print-real-a2s-tenor-index inspect-real-a2s-sax-score-members
+print-real-a2s-tenor-index: download-real-a2s-sax-samples
+	$(TAR) -xOzf "$(REAL_A2S_SAX_ARCHIVE)" real_a2s_sax_dataset/Tenor_Sax_Index.csv
+
+inspect-real-a2s-sax-score-members: download-real-a2s-sax-samples
+	$(TAR) -tzf "$(REAL_A2S_SAX_ARCHIVE)" --wildcards '*.krn'
+
+.PHONY: extract-real-a2s-sax-scale-probes
+extract-real-a2s-sax-scale-probes: download-real-a2s-sax-samples
+	mkdir -p "$(REAL_A2S_SAX_PROBE_DIR)"
+	$(TAR) -xzf "$(REAL_A2S_SAX_ARCHIVE)" -C "$(REAL_A2S_SAX_PROBE_DIR)" real_a2s_sax_dataset/real/tenor/GMajScale.wav real_a2s_sax_dataset/real/tenor/FMajScale.wav real_a2s_sax_dataset/real/tenor/CMajScale.wav
+
+.PHONY: inspect-real-a2s-sax-scale-probes
+inspect-real-a2s-sax-scale-probes: extract-real-a2s-sax-scale-probes scripts/inspect_real_a2s_sax_scale.py
+	$(PYTHON) scripts/inspect_real_a2s_sax_scale.py --wav "$(REAL_A2S_SAX_PROBE_DIR)/real_a2s_sax_dataset/real/tenor/GMajScale.wav" --kern "$(REAL_A2S_SAX_METADATA_DIR)/real_a2s_sax_dataset/krn/tenor/GMajScale.krn"
+
+.PHONY: inspect-real-a2s-sax-scale-probes-cached
+inspect-real-a2s-sax-scale-probes-cached: scripts/inspect_real_a2s_sax_scale.py
+	@test -s "$(REAL_A2S_SAX_PROBE_DIR)/real_a2s_sax_dataset/real/tenor/GMajScale.wav" || { printf '%s\n' "missing scale probe; run make extract-real-a2s-sax-scale-probes first"; exit 2; }
+	@test -s "$(REAL_A2S_SAX_METADATA_DIR)/real_a2s_sax_dataset/krn/tenor/GMajScale.krn" || { printf '%s\n' "missing tenor score; run make extract-real-a2s-sax-metadata first"; exit 2; }
+	$(PYTHON) scripts/inspect_real_a2s_sax_scale.py --wav "$(REAL_A2S_SAX_PROBE_DIR)/real_a2s_sax_dataset/real/tenor/GMajScale.wav" --kern "$(REAL_A2S_SAX_METADATA_DIR)/real_a2s_sax_dataset/krn/tenor/GMajScale.krn"
+
+.PHONY: test-inspect-real-a2s-sax-scale
+test-inspect-real-a2s-sax-scale: tests/test_inspect_real_a2s_sax_scale.py scripts/inspect_real_a2s_sax_scale.py
+	$(PYTHON) tests/test_inspect_real_a2s_sax_scale.py
+
+.PHONY: prepare-real-a2s-tenor-scale-probes prepare-real-a2s-tenor-scale-probes-cached test-prepare-real-a2s-tenor-scale-probes measure-real-a2s-tenor-scale-probes analyze-real-a2s-tenor-scale-probes
+prepare-real-a2s-tenor-scale-probes: extract-real-a2s-sax-scale-probes extract-real-a2s-sax-metadata scripts/prepare_real_a2s_sax_scale_fixture.py
+	+$(MAKE) ensure-build-sample-storage-link BUILD_SAMPLE_STORAGE_DIR=real_a2s_tenor_scale_fixture
+	$(PYTHON) scripts/prepare_real_a2s_sax_scale_fixture.py --wav "$(REAL_A2S_SAX_PROBE_DIR)/real_a2s_sax_dataset/real/tenor/GMajScale.wav" --kern "$(REAL_A2S_SAX_METADATA_DIR)/real_a2s_sax_dataset/krn/tenor/GMajScale.krn" --output "$(REAL_A2S_SAX_SCALE_FIXTURE_DIR)" --ffmpeg "$(FFMPEG)" --tempo 80 --midi-offset "$(REAL_A2S_SAX_SCALE_MIDI_OFFSET)"
+
+prepare-real-a2s-tenor-scale-probes-cached: scripts/prepare_real_a2s_sax_scale_fixture.py
+	@test -s "$(REAL_A2S_SAX_PROBE_DIR)/real_a2s_sax_dataset/real/tenor/GMajScale.wav" || { printf '%s\n' "missing scale probe; run make extract-real-a2s-sax-scale-probes first"; exit 2; }
+	@test -s "$(REAL_A2S_SAX_METADATA_DIR)/real_a2s_sax_dataset/krn/tenor/GMajScale.krn" || { printf '%s\n' "missing tenor score; run make extract-real-a2s-sax-metadata first"; exit 2; }
+	+$(MAKE) ensure-build-sample-storage-link BUILD_SAMPLE_STORAGE_DIR=real_a2s_tenor_scale_fixture
+	$(PYTHON) scripts/prepare_real_a2s_sax_scale_fixture.py --wav "$(REAL_A2S_SAX_PROBE_DIR)/real_a2s_sax_dataset/real/tenor/GMajScale.wav" --kern "$(REAL_A2S_SAX_METADATA_DIR)/real_a2s_sax_dataset/krn/tenor/GMajScale.krn" --output "$(REAL_A2S_SAX_SCALE_FIXTURE_DIR)" --ffmpeg "$(FFMPEG)" --tempo 80 --midi-offset "$(REAL_A2S_SAX_SCALE_MIDI_OFFSET)"
+
+test-prepare-real-a2s-tenor-scale-probes: tests/test_prepare_real_a2s_sax_scale_fixture.py scripts/prepare_real_a2s_sax_scale_fixture.py
+	$(PYTHON) tests/test_prepare_real_a2s_sax_scale_fixture.py
+
+measure-real-a2s-tenor-scale-probes: $(BUILD_DIR)/analyzer_real_note_samples prepare-real-a2s-tenor-scale-probes-cached | $(BUILD_DIR)
+	env MUSIC_ANALYZER_REAL_NOTE_SAMPLES_REQUIRED=1 MUSIC_ANALYZER_REAL_NOTE_REQUIRED_SAMPLES=37 MUSIC_ANALYZER_REAL_NOTE_SAMPLE_ROOT="$(REAL_A2S_SAX_SCALE_FIXTURE_DIR)" MUSIC_ANALYZER_REAL_NOTE_FULL_MIX=1 MUSIC_ANALYZER_REAL_NOTE_MIN_BASS=0 MUSIC_ANALYZER_REAL_NOTE_MIN_GUITAR=0 MUSIC_ANALYZER_REAL_NOTE_MIN_PIANO=0 MUSIC_ANALYZER_REAL_NOTE_MIN_VOCALS=0 MUSIC_ANALYZER_REAL_NOTE_MIN_OTHER=0 MUSIC_ANALYZER_REAL_NOTE_MIN_ANY_HIT_PERCENT=0 MUSIC_ANALYZER_REAL_NOTE_MIN_EXPECTED_ROW_PERCENT=0 MUSIC_ANALYZER_REAL_NOTE_MIN_FIRST_ROW_PERCENT=0 MUSIC_ANALYZER_REAL_NOTE_MAX_DRUM_ACTIVE_PERCENT=100 MUSIC_ANALYZER_REAL_NOTE_MAX_FAILURES=999999 MUSIC_ANALYZER_REAL_NOTE_ATTRIBUTE_TSV="$(REAL_A2S_SAX_SCALE_ATTRIBUTE_TSV)" $(BUILD_DIR)/analyzer_real_note_samples
+
+analyze-real-a2s-tenor-scale-probes: $(REAL_A2S_SAX_SCALE_ATTRIBUTE_TSV) scripts/analyze_exact_midi_misses.py
+	$(PYTHON) scripts/analyze_exact_midi_misses.py "$(REAL_A2S_SAX_SCALE_ATTRIBUTE_TSV)"
+
+$(REAL_A2S_SAX_ARCHIVE): FORCE | $(BUILD_DIR)
+	mkdir -p "$(REAL_A2S_SAX_SOURCE_DIR)"
+	if [ -s "$(REAL_A2S_SAX_ARCHIVE)" ] && ! $(TAR) -tzf "$(REAL_A2S_SAX_ARCHIVE)" >/dev/null 2>&1; then mv -f "$(REAL_A2S_SAX_ARCHIVE)" "$(REAL_A2S_SAX_ARCHIVE).part"; fi
+	if [ ! -s "$(REAL_A2S_SAX_ARCHIVE)" ] && [ -s "$(REAL_A2S_SAX_ARCHIVE).part" ] && $(TAR) -tzf "$(REAL_A2S_SAX_ARCHIVE).part" >/dev/null 2>&1; then mv "$(REAL_A2S_SAX_ARCHIVE).part" "$(REAL_A2S_SAX_ARCHIVE)"; fi
+	if [ ! -s "$(REAL_A2S_SAX_ARCHIVE)" ]; then if command -v "$(ARIA2C)" >/dev/null 2>&1; then "$(ARIA2C)" -c -x 8 -s 8 -k 1M --file-allocation=none --allow-overwrite=true --auto-file-renaming=false --dir "$(REAL_A2S_SAX_SOURCE_DIR)" --out "real_a2s_sax_dataset.tgz.part" "$(REAL_A2S_SAX_ARCHIVE_URL)"; else curl -fL -C - -o "$(REAL_A2S_SAX_ARCHIVE).part" "$(REAL_A2S_SAX_ARCHIVE_URL)"; fi; fi
+	if [ -s "$(REAL_A2S_SAX_ARCHIVE).part" ]; then $(TAR) -tzf "$(REAL_A2S_SAX_ARCHIVE).part" >/dev/null; mv "$(REAL_A2S_SAX_ARCHIVE).part" "$(REAL_A2S_SAX_ARCHIVE)"; fi
+	$(TAR) -tzf "$(REAL_A2S_SAX_ARCHIVE)" >/dev/null
+
 $(MEDLEY_SOLOS_METADATA): | $(BUILD_DIR)
 	mkdir -p "$(MEDLEY_SOLOS_SOURCE_DIR)"
 	curl -fL -C - -o "$(MEDLEY_SOLOS_METADATA)" "$(MEDLEY_SOLOS_METADATA_URL)"
@@ -2708,12 +2783,12 @@ analyze-real-note-attributes: $(BUILD_DIR)/real_note_full_mix_attributes.tsv scr
 	@printf '%s\n' "attribute TSV: $(BUILD_DIR)/real_note_full_mix_attributes.tsv"
 
 update-detection-accuracy-report: $(BUILD_DIR)/real_note_full_mix_attributes.tsv scripts/write_detection_accuracy_report.py
-	$(PYTHON) scripts/write_detection_accuracy_report.py --input "$(BUILD_DIR)/real_note_full_mix_attributes.tsv" $(DETECTION_ACCURACY_CHORD_ARGS) $(DETECTION_ACCURACY_VOCAL_FULL_MIX_ARG) $(DETECTION_ACCURACY_VOCALSET_FULL_MIX_ARG) $(DETECTION_ACCURACY_VOCALSET_CLEAN_VOWEL_ARG) $(DETECTION_ACCURACY_URMP_GATE_ARG) $(DETECTION_ACCURACY_BACH10_GATE_ARGS) $(DETECTION_ACCURACY_MUSICNET_GATE_ARG) $(DETECTION_ACCURACY_MAPS_GATE_ARGS) $(DETECTION_ACCURACY_MAPS_NOTE_GATE_ARGS) $(DETECTION_ACCURACY_MAPS_ATTRIBUTE_ARG) $(DETECTION_ACCURACY_DRUM_GATE_ARG) $(DETECTION_ACCURACY_HF_DRUM_GATE_ARGS) $(DETECTION_ACCURACY_ROUTE_SUMMARY_ARG) $(DETECTION_ACCURACY_GOOD_SOUNDS_FULL_MIX_ARG) $(DETECTION_ACCURACY_PITCH_SHIFTED_VIOLIN_ARG) $(DETECTION_ACCURACY_MEDLEY_SOLOS_ATTRIBUTE_ARG) $(DETECTION_ACCURACY_PHILHARMONIA_FULL_ARG) $(DETECTION_ACCURACY_IOWA_ORCHESTRA_FULL_ARG) $(DETECTION_ACCURACY_IOWA_SAX_FULL_MIX_ARG) $(DETECTION_ACCURACY_TINYSOL_SAX_FULL_MIX_ARG) --output "$(DETECTION_ACCURACY_REPORT)"
+	$(PYTHON) scripts/write_detection_accuracy_report.py --input "$(BUILD_DIR)/real_note_full_mix_attributes.tsv" $(DETECTION_ACCURACY_CHORD_ARGS) $(DETECTION_ACCURACY_VOCAL_FULL_MIX_ARG) $(DETECTION_ACCURACY_VOCALSET_FULL_MIX_ARG) $(DETECTION_ACCURACY_VOCALSET_CLEAN_VOWEL_ARG) $(DETECTION_ACCURACY_URMP_GATE_ARG) $(DETECTION_ACCURACY_BACH10_GATE_ARGS) $(DETECTION_ACCURACY_MUSICNET_GATE_ARG) $(DETECTION_ACCURACY_MAPS_GATE_ARGS) $(DETECTION_ACCURACY_MAPS_NOTE_GATE_ARGS) $(DETECTION_ACCURACY_MAPS_ATTRIBUTE_ARG) $(DETECTION_ACCURACY_DRUM_GATE_ARG) $(DETECTION_ACCURACY_HF_DRUM_GATE_ARGS) $(DETECTION_ACCURACY_ROUTE_SUMMARY_ARG) $(DETECTION_ACCURACY_GOOD_SOUNDS_FULL_MIX_ARG) $(DETECTION_ACCURACY_PITCH_SHIFTED_VIOLIN_ARG) $(DETECTION_ACCURACY_MEDLEY_SOLOS_ATTRIBUTE_ARG) $(DETECTION_ACCURACY_PHILHARMONIA_FULL_ARG) $(DETECTION_ACCURACY_IOWA_ORCHESTRA_FULL_ARG) $(DETECTION_ACCURACY_IOWA_SAX_FULL_MIX_ARG) $(DETECTION_ACCURACY_TINYSOL_SAX_FULL_MIX_ARG) $(DETECTION_ACCURACY_REAL_A2S_TENOR_SCALE_ARG) --output "$(DETECTION_ACCURACY_REPORT)"
 
 .PHONY: update-detection-accuracy-report-cached
 update-detection-accuracy-report-cached: scripts/write_detection_accuracy_report.py
 	@test -f "$(BUILD_DIR)/real_note_full_mix_attributes.tsv" || { printf '%s\n' "missing build/real_note_full_mix_attributes.tsv; run make update-detection-accuracy-report first"; exit 2; }
-	$(PYTHON) scripts/write_detection_accuracy_report.py --input "$(BUILD_DIR)/real_note_full_mix_attributes.tsv" $(DETECTION_ACCURACY_CHORD_ARGS) $(DETECTION_ACCURACY_VOCAL_FULL_MIX_ARG) $(DETECTION_ACCURACY_VOCALSET_FULL_MIX_ARG) $(DETECTION_ACCURACY_VOCALSET_CLEAN_VOWEL_ARG) $(DETECTION_ACCURACY_URMP_GATE_ARG) $(DETECTION_ACCURACY_BACH10_GATE_ARGS) $(DETECTION_ACCURACY_MUSICNET_GATE_ARG) $(DETECTION_ACCURACY_MAPS_GATE_ARGS) $(DETECTION_ACCURACY_MAPS_NOTE_GATE_ARGS) $(DETECTION_ACCURACY_MAPS_ATTRIBUTE_ARG) $(DETECTION_ACCURACY_DRUM_GATE_ARG) $(DETECTION_ACCURACY_HF_DRUM_GATE_ARGS) $(DETECTION_ACCURACY_ROUTE_SUMMARY_ARG) $(DETECTION_ACCURACY_GOOD_SOUNDS_FULL_MIX_ARG) $(DETECTION_ACCURACY_PITCH_SHIFTED_VIOLIN_ARG) $(DETECTION_ACCURACY_MEDLEY_SOLOS_ATTRIBUTE_ARG) $(DETECTION_ACCURACY_PHILHARMONIA_FULL_ARG) $(DETECTION_ACCURACY_IOWA_ORCHESTRA_FULL_ARG) $(DETECTION_ACCURACY_IOWA_SAX_FULL_MIX_ARG) $(DETECTION_ACCURACY_TINYSOL_SAX_FULL_MIX_ARG) --output "$(DETECTION_ACCURACY_REPORT)"
+	$(PYTHON) scripts/write_detection_accuracy_report.py --input "$(BUILD_DIR)/real_note_full_mix_attributes.tsv" $(DETECTION_ACCURACY_CHORD_ARGS) $(DETECTION_ACCURACY_VOCAL_FULL_MIX_ARG) $(DETECTION_ACCURACY_VOCALSET_FULL_MIX_ARG) $(DETECTION_ACCURACY_VOCALSET_CLEAN_VOWEL_ARG) $(DETECTION_ACCURACY_URMP_GATE_ARG) $(DETECTION_ACCURACY_BACH10_GATE_ARGS) $(DETECTION_ACCURACY_MUSICNET_GATE_ARG) $(DETECTION_ACCURACY_MAPS_GATE_ARGS) $(DETECTION_ACCURACY_MAPS_NOTE_GATE_ARGS) $(DETECTION_ACCURACY_MAPS_ATTRIBUTE_ARG) $(DETECTION_ACCURACY_DRUM_GATE_ARG) $(DETECTION_ACCURACY_HF_DRUM_GATE_ARGS) $(DETECTION_ACCURACY_ROUTE_SUMMARY_ARG) $(DETECTION_ACCURACY_GOOD_SOUNDS_FULL_MIX_ARG) $(DETECTION_ACCURACY_PITCH_SHIFTED_VIOLIN_ARG) $(DETECTION_ACCURACY_MEDLEY_SOLOS_ATTRIBUTE_ARG) $(DETECTION_ACCURACY_PHILHARMONIA_FULL_ARG) $(DETECTION_ACCURACY_IOWA_ORCHESTRA_FULL_ARG) $(DETECTION_ACCURACY_IOWA_SAX_FULL_MIX_ARG) $(DETECTION_ACCURACY_TINYSOL_SAX_FULL_MIX_ARG) $(DETECTION_ACCURACY_REAL_A2S_TENOR_SCALE_ARG) --output "$(DETECTION_ACCURACY_REPORT)"
 
 test-detection-accuracy-report: tests/test_write_detection_accuracy_report.py scripts/write_detection_accuracy_report.py
 	$(PYTHON) tests/test_write_detection_accuracy_report.py

@@ -426,6 +426,22 @@
       "evidence": "Zenodo describes STAR Drums as annotated synthesized drum sounds mixed with real melodic/vocal recordings, with 18 drum classes, audio stems, and MIDI files under train/validation/test splits; the full release is split into about 181.2 GB of files and the preview ZIP is 96.7 MB."
     },
     {
+      "id": "real_a2s_sax",
+      "name": "Real Saxophone Recordings for Audio-to-Score Music Transcription",
+      "category": "single_instrument_truth",
+      "piece_count": 513,
+      "real_audio": true,
+      "isolated_sources": true,
+      "assembled_mix": false,
+      "aligned_symbolic_truth": true,
+      "truth": "matched tenor/alto **kern score, tempo, metre, and performance-technique metadata for each real saxophone recording",
+      "automation_target": "measure-real-a2s-tenor-scale-probes",
+      "source_url": "https://grfia.dlsi.ua.es/audio-to-score/",
+      "download_url": "https://grfia.dlsi.ua.es/audio-to-score/real_a2s_sax_dataset.tgz",
+      "download_note": "make download-real-a2s-sax-samples downloads and validates the resumable archive through build/InstrumentSamples/real_a2s_sax. The initial tenor G-major scale probe is prepared as silent score-timed WAV snippets under build/real_a2s_tenor_scale_fixture and measures row routing plus exact MIDI after the verified one-octave notation offset.",
+      "evidence": "The official University of Alicante Audio-to-Score page publishes real tenor and alto saxophone recordings alongside per-recording **kern scores and index CSV metadata. The downloaded archive contains 513 tenor score/audio name pairs; the initial GMajScale probe has a 0.5-second lead-in and score-consistent duration, while its measured raw local-best pitches validate the one-octave sounding offset used by the fixture."
+    },
+    {
       "id": "medley_solos_db",
       "name": "Medley-solos-DB",
       "category": "real_stems_weak_truth",

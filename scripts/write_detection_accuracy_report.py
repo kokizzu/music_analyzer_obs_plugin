@@ -502,6 +502,7 @@ def render(
     iowa_orchestra_full_input: Path | None = None,
     iowa_sax_full_mix_input: Path | None = None,
     tinysol_sax_full_mix_input: Path | None = None,
+    real_a2s_tenor_scale_input: Path | None = None,
 ) -> str:
     samples = load_samples(input_path)
     lines = [
@@ -716,6 +717,28 @@ def render(
         )
         for label, accurate, total in sax_rows:
             lines.append(f"| TinySOL alto saxophone — {label} | {fraction(accurate, total)} | {total - accurate} |")
+    if real_a2s_tenor_scale_input is not None:
+        tenor_samples = load_samples(real_a2s_tenor_scale_input)
+        lines.extend(
+            [
+                "",
+                "## Real A2S tenor-saxophone score-aligned probes",
+                "",
+                "These are 37 timed notes cut silently from one real tenor-saxophone G-major-scale "
+                "recording and aligned to its bundled **kern score. The source notation is shifted "
+                "down one octave to its measured sounding pitch before scoring. This is an initial "
+                "independent real-tenor diagnostic, not yet a broad generalization gate.",
+                "",
+                f"Source: `{real_a2s_tenor_scale_input.as_posix()}`",
+                "",
+                "| Metric | Accurate / total | Remaining |",
+                "| --- | ---: | ---: |",
+            ]
+        )
+        for label, accurate, total in table_rows(tenor_samples):
+            lines.append(f"| Real A2S tenor saxophone — {label} | {fraction(accurate, total)} | {total - accurate} |")
+        for label, accurate, total in exact_note_rows(tenor_samples):
+            lines.append(f"| Real A2S tenor saxophone — {label} | {fraction(accurate, total)} | {total - accurate} |")
     if medley_solos_attribute_input is not None:
         lines.extend(
             [
@@ -901,6 +924,7 @@ def main() -> int:
     parser.add_argument("--iowa-orchestra-full-input", type=Path)
     parser.add_argument("--iowa-sax-full-mix-input", type=Path)
     parser.add_argument("--tinysol-sax-full-mix-input", type=Path)
+    parser.add_argument("--real-a2s-tenor-scale-input", type=Path)
     parser.add_argument("--output", required=True, type=Path)
     args = parser.parse_args()
     try:
@@ -915,6 +939,7 @@ def main() -> int:
             args.iowa_orchestra_full_input,
             args.iowa_sax_full_mix_input,
             args.tinysol_sax_full_mix_input,
+            args.real_a2s_tenor_scale_input,
         )
     except (OSError, ValueError) as error:
         parser.error(str(error))
