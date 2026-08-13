@@ -227,6 +227,17 @@ Source: `build/real_a2s_tenor_scale_attributes.tsv`
 | Real A2S tenor saxophone — Exact expected MIDI note | 317 / 378 (83.9%) | 61 |
 | Real A2S tenor saxophone — Other — exact expected MIDI note | 317 / 378 (83.9%) | 61 |
 
+## URMP isolated saxophone exact-note coverage
+
+This independent real multitrack fixture uses stable center-of-note clips cut silently from official URMP saxophone stems with timestamp, frequency, and duration annotations. It measures exact sounding MIDI octave separately from the score-aligned A2S probes.
+
+Source: `build/urmp_sax_exact_attributes.tsv`
+
+| Metric | Accurate / total | Remaining |
+| --- | ---: | ---: |
+| URMP saxophones — Exact expected MIDI note | 393 / 395 (99.5%) | 2 |
+| URMP saxophones — Other — exact expected MIDI note | 393 / 395 (99.5%) | 2 |
+
 ## Medley Solos instrument routing
 
 This independent corpus contains three-second isolated performances from eight instruments. It is measured in full-mix mode; a sample is accurate when any analyzed buffer activates its expected instrument row. It supplies routing coverage, not pitch or chord ground truth.
@@ -283,9 +294,9 @@ Instrument rows below show exact isolated-note recall for each measured instrume
 | --- | ---: | ---: |
 | URMP — real pieces loadable | 44 / 44 (100.0%) | 0 |
 | URMP — selected annotated windows | 528 / 528 (100.0%) | 0 |
-| URMP — isolated-track exact notes | 1682 / 1788 (94.1%) | 106 |
-| URMP — isolated-track detected notes | 1707 / 1788 (95.5%) | 81 |
-| URMP — isolated-track precision | 1682 / 1776 (94.7%) | 94 false notes |
+| URMP — isolated-track exact notes | 1689 / 1788 (94.5%) | 99 |
+| URMP — isolated-track detected notes | 1715 / 1788 (95.9%) | 73 |
+| URMP — isolated-track precision | 1689 / 1783 (94.7%) | 94 false notes |
 | URMP — provided-mix exact chords | 190 / 527 (36.1%) | 337 |
 | URMP — provided stream chord windows | 224 / 527 (42.5%) | 303 |
 | URMP — provided sequence chord windows | 214 / 527 (40.6%) | 313 |
@@ -295,13 +306,13 @@ Instrument rows below show exact isolated-note recall for each measured instrume
 | URMP — flute isolated exact notes | 202 / 216 (93.5%) | 14 |
 | URMP — horn isolated exact notes | 59 / 60 (98.3%) | 1 |
 | URMP — oboe isolated exact notes | 69 / 72 (95.8%) | 3 |
-| URMP — saxophone isolated exact notes | 128 / 132 (97.0%) | 4 |
+| URMP — saxophone isolated exact notes | 129 / 132 (97.7%) | 3 |
 | URMP — tuba isolated exact notes | 57 / 60 (95.0%) | 3 |
 | URMP — trombone isolated exact notes | 83 / 96 (86.5%) | 13 |
-| URMP — trumpet isolated exact notes | 250 / 264 (94.7%) | 14 |
+| URMP — trumpet isolated exact notes | 253 / 264 (95.8%) | 11 |
 | URMP — viola isolated exact notes | 145 / 156 (92.9%) | 11 |
-| URMP — cello isolated exact notes | 120 / 132 (90.9%) | 12 |
-| URMP — violin isolated exact notes | 383 / 408 (93.9%) | 25 |
+| URMP — cello isolated exact notes | 121 / 132 (91.7%) | 11 |
+| URMP — violin isolated exact notes | 385 / 408 (94.4%) | 23 |
 
 ## Bach10-mf0-synth multitrack stress gate
 

@@ -207,6 +207,20 @@ class DetectionAccuracyReportTest(unittest.TestCase):
                 ) + "\n",
                 encoding="utf-8",
             )
+            urmp_sax_exact = Path(temporary) / "urmp_sax_exact_attributes.tsv"
+            urmp_sax_exact.write_text(
+                "\n".join(
+                    (
+                        "\t".join((
+                            "sample_id", "family", "detected", "detected_expected_row",
+                            "first_row", "visual_first_row", "expected_midi", "other_notes",
+                        )),
+                        "urmp1\tother\t1\t1\tother\tother\t60\tC4:1.00",
+                        "urmp2\tother\t1\t1\tother\tother\t62\tC4:1.00",
+                    )
+                ) + "\n",
+                encoding="utf-8",
+            )
             bach10_0 = Path(temporary) / "bach10_0.out"
             bach10_0.write_text(
                 "analyzer_musicnet: 20 checks passed (recordings 3/10, windows 12, note hits "
@@ -296,6 +310,7 @@ class DetectionAccuracyReportTest(unittest.TestCase):
                 iowa_sax_full_mix_input=iowa_sax_full_mix,
                 tinysol_sax_full_mix_input=tinysol_sax_full_mix,
                 real_a2s_tenor_scale_input=real_a2s_tenor_scale,
+                urmp_sax_exact_input=urmp_sax_exact,
             )
 
         self.assertIn("| Any detected note | 2 / 3 (66.7%) | 1 |", report)
@@ -342,6 +357,8 @@ class DetectionAccuracyReportTest(unittest.TestCase):
         self.assertIn("| TinySOL alto saxophone — Primary display row | 1 / 2 (50.0%) | 1 |", report)
         self.assertIn("## Real A2S tenor-saxophone score-aligned probes", report)
         self.assertIn("| Real A2S tenor saxophone — Exact expected MIDI note | 1 / 2 (50.0%) | 1 |", report)
+        self.assertIn("## URMP isolated saxophone exact-note coverage", report)
+        self.assertIn("| URMP saxophones — Exact expected MIDI note | 1 / 2 (50.0%) | 1 |", report)
         self.assertIn("## Medley Solos instrument routing", report)
         self.assertIn("| Medley Solos — Expected instrument row | 1 / 2 (50.0%) | 1 |", report)
         self.assertIn("| Medley Solos — Instrument Clarinet expected row | 1 / 1 (100.0%) | 0 |", report)

@@ -585,6 +585,7 @@ def render(
     iowa_sax_full_mix_input: Path | None = None,
     tinysol_sax_full_mix_input: Path | None = None,
     real_a2s_tenor_scale_input: Path | None = None,
+    urmp_sax_exact_input: Path | None = None,
 ) -> str:
     samples = load_samples(input_path)
     lines = [
@@ -845,6 +846,25 @@ def render(
             lines.append(f"| Real A2S tenor saxophone — {label} | {fraction(accurate, total)} | {total - accurate} |")
         for label, accurate, total in exact_note_rows(tenor_samples):
             lines.append(f"| Real A2S tenor saxophone — {label} | {fraction(accurate, total)} | {total - accurate} |")
+    if urmp_sax_exact_input is not None:
+        urmp_sax_samples = load_samples(urmp_sax_exact_input)
+        lines.extend(
+            [
+                "",
+                "## URMP isolated saxophone exact-note coverage",
+                "",
+                "This independent real multitrack fixture uses stable center-of-note clips cut silently "
+                "from official URMP saxophone stems with timestamp, frequency, and duration annotations. "
+                "It measures exact sounding MIDI octave separately from the score-aligned A2S probes.",
+                "",
+                f"Source: `{urmp_sax_exact_input.as_posix()}`",
+                "",
+                "| Metric | Accurate / total | Remaining |",
+                "| --- | ---: | ---: |",
+            ]
+        )
+        for label, accurate, total in exact_note_rows(urmp_sax_samples):
+            lines.append(f"| URMP saxophones — {label} | {fraction(accurate, total)} | {total - accurate} |")
     if medley_solos_attribute_input is not None:
         lines.extend(
             [
@@ -1037,6 +1057,7 @@ def main() -> int:
     parser.add_argument("--iowa-sax-full-mix-input", type=Path)
     parser.add_argument("--tinysol-sax-full-mix-input", type=Path)
     parser.add_argument("--real-a2s-tenor-scale-input", type=Path)
+    parser.add_argument("--urmp-sax-exact-input", type=Path)
     parser.add_argument("--output", required=True, type=Path)
     args = parser.parse_args()
     try:
@@ -1053,6 +1074,7 @@ def main() -> int:
             args.iowa_sax_full_mix_input,
             args.tinysol_sax_full_mix_input,
             args.real_a2s_tenor_scale_input,
+            args.urmp_sax_exact_input,
         )
     except (OSError, ValueError) as error:
         parser.error(str(error))
