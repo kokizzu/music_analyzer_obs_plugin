@@ -22049,10 +22049,11 @@ bool rootless_analysis_complete_guitar_diminished_triad_alias(int root,
 		return false;
 
 	const float strongest_dim_tone = std::max({root_level, minor_third, diminished_fifth});
-	const float major_third =
-		strongest_grid_pitch_level(display_grid, analysis_grid, root + 4);
-	const float natural_fifth =
-		strongest_grid_pitch_level(display_grid, analysis_grid, root + 7);
+	// The display grid intentionally preserves prominent melodic residues.  For
+	// this rootless case, all three diminished tones have already been required
+	// in the analysis grid, so judge contradictory tones there as well.
+	const float major_third = note_grid_pitch_level(analysis_grid, root + 4);
+	const float natural_fifth = note_grid_pitch_level(analysis_grid, root + 7);
 	// GuitarTECH's compact rootless Bdim voicing can retain a weaker major-third
 	// residue beside its much stronger minor third.  Compare that competing
 	// third to the actual diminished-third evidence rather than the weakest
