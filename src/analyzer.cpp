@@ -360,7 +360,7 @@ int supported_low_monophonic_other_fundamental(const std::array<float, kNoteProb
 			return 60;
 	}
 
-	for (int lower = 34; lower <= 71; ++lower) {
+	for (int lower = 28; lower <= 71; ++lower) {
 		const int octave = lower + 12;
 		const int fifth = lower + 19;
 		const int second_octave = lower + 24;
@@ -730,6 +730,14 @@ int supported_low_monophonic_other_fundamental(const std::array<float, kNoteProb
 		const bool low_wind_second_octave_stack = lower >= 48 && lower <= 59 &&
 			peak_midi == second_octave && fundamental_level >= peak_level * 0.09f &&
 			octave_level >= peak_level * 0.13f && fifth_level >= peak_level * 0.13f;
+		// The fortissimo low-tuba F1 body can select F3 while retaining a faint
+		// but continuous F1/F2 chain. Its compact 5% direct body and 46--47%
+		// octave distinguish it from an arbitrary F3 subharmonic, so admit only
+		// this measured C#-register second-octave profile.
+		const bool low_tuba_f1_second_octave_stack = lower == 29 && peak_midi == second_octave &&
+			fundamental_level >= peak_level * 0.050f && fundamental_level <= peak_level * 0.055f &&
+			octave_level >= peak_level * 0.45f && octave_level <= peak_level * 0.48f &&
+			fifth_level <= peak_level * 0.82f;
 		// The Rondeau viola D4 sustains select D6 but retain a direct D4 body
 		// and compact D5/A5 ladder just below the general low-wind thresholds.
 		// This exact D4 second-octave box keeps other distant D6 subharmonics
@@ -804,7 +812,7 @@ int supported_low_monophonic_other_fundamental(const std::array<float, kNoteProb
 			second_octave_level >= peak_level * 0.04f && second_octave_level <= peak_level * 0.10f &&
 			upper_major_third_level >= peak_level * 0.04f && upper_major_third_level <= peak_level * 0.38f &&
 			upper_fifth_level >= peak_level * 0.17f && upper_fifth_level <= peak_level * 0.70f;
-		if ((fundamental_level < peak_level * 0.12f && !low_wind_second_octave_stack &&
+		if ((fundamental_level < peak_level * 0.12f && !low_wind_second_octave_stack && !low_tuba_f1_second_octave_stack &&
 			     !upper_wind_weak_body_fifth_stack && !mid_wind_weak_root_rich_third_stack &&
 			     !cor_anglais_g4_sparse_octave_stack && !cor_anglais_g4_mezzopiano_octave_stack && !oboe_g4_broad_octave_stack &&
 			     !cor_anglais_b4_ultraweak_octave_stack &&
@@ -826,7 +834,7 @@ int supported_low_monophonic_other_fundamental(const std::array<float, kNoteProb
 		     !bassoon_d3_compact_fifth_stack && !bassoon_e3_suppressed_octave_fifth_stack &&
 		     !trombone_b3_broad_fifth_octave_stack) ||
 		    ((!within_general_recovery_range || !octave_fifth_stack) &&
-		     !low_bassoon_harmonic_ladder && !low_wind_second_octave_stack &&
+		     !low_bassoon_harmonic_ladder && !low_wind_second_octave_stack && !low_tuba_f1_second_octave_stack &&
 		     !viola_d4_compact_second_octave_stack && !mid_wind_fifth_partial && !upper_wind_octave_only &&
 			     !upper_wind_weak_body_fifth_stack && !mid_wind_weak_root_rich_third_stack &&
 			     !cor_anglais_g4_sparse_octave_stack && !cor_anglais_g4_mezzopiano_octave_stack && !oboe_g4_broad_octave_stack &&
@@ -880,9 +888,10 @@ LowMonophonicOtherRecoveryTraits low_monophonic_other_recovery_traits(
 	if (peak_level <= 1.0e-6f)
 		return traits;
 
-	// Diagnostics inspect the adjacent octave through C5; runtime recovery stays
-	// separately bounded at B4 and does not consume that C5 candidate.
-	for (int lower = 36; lower <= 72; ++lower) {
+	// Diagnostics include the acoustic tuba register through the adjacent octave
+	// at C5; runtime recovery remains separately bounded and does not consume
+	// any diagnostic candidate by itself.
+	for (int lower = 28; lower <= 72; ++lower) {
 		const int octave = lower + 12;
 		const int fifth = lower + 19;
 		const int second_octave = lower + 24;

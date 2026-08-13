@@ -845,6 +845,15 @@ void check_supported_low_monophonic_other_fundamental(Runner &runner)
 	runner.expect(supported_low_monophonic_other_fundamental(powers, 79) != 55,
 		      "low monophonic other recovery: expected weak G3 second-octave root to stay rejected");
 	powers.fill(0.0f);
+	set_probe_level(powers, 29, 0.052f); // F1 faint tuba body
+	set_probe_level(powers, 41, 0.465f); // F2 compact direct octave
+	set_probe_level(powers, 53, 1.00f); // F3 selected second octave
+	runner.expect(supported_low_monophonic_other_fundamental(powers, 53) == 29,
+		      "low monophonic other recovery: expected bounded F1 tuba second-octave stack");
+	set_probe_level(powers, 29, 0.056f);
+	runner.expect(supported_low_monophonic_other_fundamental(powers, 53) != 29,
+		      "low monophonic other recovery: expected over-body F1 second-octave stack to stay rejected");
+	powers.fill(0.0f);
 	set_probe_level(powers, 40, 0.172f); // E2 direct low-brass body
 	set_probe_level(powers, 52, 0.295f); // E3 octave, narrowly below the general floor
 	set_probe_level(powers, 59, 1.00f);  // B3 selected fifth partial
