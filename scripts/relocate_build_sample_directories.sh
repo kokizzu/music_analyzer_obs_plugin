@@ -6,7 +6,7 @@ set -euo pipefail
 mode="${1:---dry-run}"
 link_name=""
 case "$mode" in
-  --dry-run|--apply|--deduplicate-identical) ;;
+  --dry-run|--apply|--deduplicate-identical|--compare-conflicts|--merge-nonconflicting) ;;
   --ensure-link)
     link_name="${2:-}"
     if [[ -z "$link_name" || "$link_name" == */* || "$link_name" == "." || "$link_name" == ".." ]]; then
@@ -15,7 +15,7 @@ case "$mode" in
     fi
     ;;
   *)
-    echo "usage: $0 [--dry-run|--apply|--deduplicate-identical|--ensure-link <build-directory-name>]" >&2
+    echo "usage: $0 [--dry-run|--apply|--deduplicate-identical|--compare-conflicts|--merge-nonconflicting|--ensure-link <build-directory-name>]" >&2
     exit 2
     ;;
 esac
@@ -104,6 +104,27 @@ for source in "${matches[@]}"; do
       ln -s "$destination" "$source"
       echo "DEDUPED   build/$name -> $destination"
       continue
+    fi
+    if [[ "$mode" == "--merge-nonconflicting" && -d "$destination" && ! -L "$source" ]]; then
+      differences="$(diff -qr "$source" "$destination" || true)"
+      if grep -Eq '^Files .* differ$' <<<"$differences"; then
+        echo "CONFLICT  build/$name -> $destination (at least one shared file differs)"
+        continue
+      fi
+      cp -a "$source"/. "$destination"/
+      if diff -qr "$source" "$destination" | grep -Eq '^Files .* differ$|^Only in .*/home/kyz/go/src/music_analyzer_obs_plugin/build/'; then
+        echo "error: merge verification failed for build/$name" >&2
+        exit 1
+      fi
+      rm -rf -- "$source"
+      ln -s "$destination" "$source"
+      echo "MERGED    build/$name -> $destination"
+      continue
+    fi
+    if [[ "$mode" == "--compare-conflicts" && -d "$destination" && ! -L "$source" ]]; then
+      while IFS= read -r difference; do
+        echo "DIFFERENT build/$name: $difference"
+      done < <(diff -qr "$source" "$destination" || true)
     fi
     echo "CONFLICT  build/$name -> $destination (destination already exists)"
     continue
