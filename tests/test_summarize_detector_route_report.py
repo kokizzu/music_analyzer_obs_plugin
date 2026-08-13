@@ -218,6 +218,9 @@ bucket chord_miss:m6/m7b5:visible3_analysis3_smooth3_rootvis1 positives=12 posit
 bucket chord_miss:m:visible0_analysis0_smooth0_rootvis0 positives=36 positive_rows=44 protected_hits=0
   +36 rows=44 -0 rows=0 :: analysis_pc_count<=0
     guitar_techs_chords_P1_chords_directinput_drop3_maj7_0027_0214@0.750s expected=C#m guitar=-- support=visible0_analysis0_smooth0_rootvis0 raw(root/third/fifth)=0.13/1.00/0.38 analysis=-- visible=--
+bucket chord_miss:dim:visible2_analysis3_smooth2_rootvis1 positives=12 positive_rows=15 protected_hits=0
+  +12 rows=15 -0 rows=0 :: melodic_probe_opposite_third>=0.326 AND smooth_tones<=2
+    guitar_techs_chords_P3_music_directinput_09_0017_0508@0.956s expected=Bdim guitar=E=Epow=Em support=visible2_analysis3_smooth2_rootvis1 raw(root/third/fifth)=0.94/0.76/0.00 analysis=D,E,F,B visible=D,E,B
 """
     with tempfile.TemporaryDirectory() as tmpdir:
         path = pathlib.Path(tmpdir) / "route_report.txt"
@@ -231,16 +234,17 @@ bucket chord_miss:m:visible0_analysis0_smooth0_rootvis0 positives=36 positive_ro
     extended_quality_output = result.stdout
     require(
         extended_quality_output,
-        "detector_route_summary: candidates=3 low_false=0 shadow=0 near_miss=0 guitar=3 drum=0 positive_net=3 gain_ge_1=3 source_safe_positive_net=3 actionable=0 coverage_blocked=0",
+        "detector_route_summary: candidates=4 low_false=0 shadow=0 near_miss=0 guitar=4 drum=0 positive_net=4 gain_ge_1=4 source_safe_positive_net=4 actionable=0 coverage_blocked=0",
     )
     require(
         extended_quality_output,
-        "blocked-reason summary missing_quality_tone=2 missing_note_evidence=1",
+        "blocked-reason summary missing_quality_tone=3 missing_note_evidence=1",
     )
     require(extended_quality_output, "chord_miss:maj7")
     require(extended_quality_output, "blocked_by=missing_quality_tone")
     require(extended_quality_output, "chord_miss:m6/m7b5")
     require(extended_quality_output, "chord_miss:m:visible0")
+    require(extended_quality_output, "chord_miss:dim")
     require(extended_quality_output, "blocked_by=missing_note_evidence")
 
     power_note_evidence_report = """bucket chord_miss:pow:visible1_analysis1_smooth1_rootvis0 positives=4 positive_rows=7 protected_hits=0

@@ -132,6 +132,11 @@ GUITAR_WEAK_QUALITY_TONE_RULE_MARKERS = (
     "display_primary_probe_third<=",
 )
 GUITAR_EXAMPLE_THIRD_EVIDENCE_FLOOR = 0.06
+# A diminished triad is not actionable merely because a post-processed
+# analysis label contains its flat fifth.  The raw fifth must still carry a
+# small direct signal; otherwise strong major/minor material can fabricate a
+# label-only diminished candidate.
+GUITAR_EXAMPLE_DIMINISHED_FIFTH_EVIDENCE_FLOOR = 0.06
 
 
 @dataclasses.dataclass(frozen=True)
@@ -568,6 +573,19 @@ def guitar_examples_have_weak_third(candidate: Candidate) -> bool:
     return bool(third_levels) and max(third_levels) < GUITAR_EXAMPLE_THIRD_EVIDENCE_FLOOR
 
 
+def guitar_quality_requires_diminished_fifth(quality: str) -> bool:
+    return "dim" in {name for name in quality.split("/") if name}
+
+
+def guitar_examples_have_weak_diminished_fifth(candidate: Candidate) -> bool:
+    fifth_levels: list[float] = []
+    for example in candidate.examples:
+        match = RAW_ROOT_THIRD_FIFTH_RE.search(example)
+        if match:
+            fifth_levels.append(float(match.group(3)))
+    return bool(fifth_levels) and max(fifth_levels) < GUITAR_EXAMPLE_DIMINISHED_FIFTH_EVIDENCE_FLOOR
+
+
 def split_expected_label(label: str) -> tuple[int, str] | None:
     label = label.split("/", 1)[0].split("=", 1)[0]
     if not label or label == "--":
@@ -636,6 +654,9 @@ def guitar_quality_tone_missing(candidate: Candidate) -> bool:
     quality = guitar_chord_miss_quality(candidate)
     if not guitar_quality_requires_third(quality):
         return False
+
+    if guitar_quality_requires_diminished_fifth(quality) and guitar_examples_have_weak_diminished_fifth(candidate):
+        return True
 
     compact_rule = candidate.rule.replace(" ", "")
     if any(

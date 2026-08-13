@@ -45,8 +45,8 @@ Source: `build/detector_improvement_route_summary.txt`
 
 | Metric | Routes / total | Other routes |
 | --- | ---: | ---: |
-| Routes with direct zero-regression support | 7 / 226 (3.1%) | 219 |
-| Routes awaiting additional fixture coverage | 88 / 226 (38.9%) | 138 |
+| Routes with direct zero-regression support | 2 / 226 (0.9%) | 224 |
+| Routes awaiting additional fixture coverage | 86 / 226 (38.1%) | 140 |
 
 ## Vocadito full-mix vocal routing
 
