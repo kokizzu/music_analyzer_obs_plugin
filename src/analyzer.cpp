@@ -582,6 +582,16 @@ int supported_low_monophonic_other_fundamental(const std::array<float, kNoteProb
 			second_octave_level >= peak_level * 0.027f && second_octave_level <= peak_level * 0.155f &&
 			upper_major_third_level >= peak_level * 0.008f && upper_major_third_level <= peak_level * 0.045f &&
 			upper_fifth_level >= peak_level * 0.007f && upper_fifth_level <= peak_level * 0.05f;
+		// The Iowa sul-C forte F3 viola sustains select F4 with the same direct
+		// body, but a fuller C4/F5 ladder than the faint profile above. Bind the
+		// measured upper bands at this exact pitch rather than loosening the
+		// general F3 octave route.
+		const bool viola_f3_full_fifth_octave_stack = lower == 53 && peak_midi == octave &&
+			fundamental_level >= peak_level * 0.09f && fundamental_level <= peak_level * 0.115f &&
+			fifth_level >= peak_level * 0.18f && fifth_level <= peak_level * 0.24f &&
+			second_octave_level >= peak_level * 0.30f && second_octave_level <= peak_level * 0.35f &&
+			upper_major_third_level >= peak_level * 0.025f && upper_major_third_level <= peak_level * 0.085f &&
+			upper_fifth_level >= peak_level * 0.04f && upper_fifth_level <= peak_level * 0.075f;
 		// Fortissimo oboe A#4 selects its F6 fifth while retaining a modest body
 		// and octave.  The succeeding probes are nearly absent, producing a
 		// sparse, stable profile unlike the rich violin/fifth stacks above.
@@ -827,7 +837,7 @@ int supported_low_monophonic_other_fundamental(const std::array<float, kNoteProb
 			     !violin_as3_sparse_octave_stack && !violin_as3_mezzoforte_octave_stack &&
 			     !violin_gs3_rich_octave_stack &&
 			     !violin_gs3_compact_upper_ladder_stack &&
-			     !violin_a3_compact_octave_stack && !viola_f3_faint_fifth_octave_stack && !oboe_as4_sparse_fifth_stack &&
+			     !violin_a3_compact_octave_stack && !viola_f3_faint_fifth_octave_stack && !viola_f3_full_fifth_octave_stack && !oboe_as4_sparse_fifth_stack &&
 		     !trumpet_as3_octave_ladder && !trumpet_as3_tiny_body_octave_stack &&
 		     !trumpet_as3_arioso_fifth_ladder && !trumpet_b3_fortissimo_octave_ladder &&
 		     !trumpet_ds4_weak_body_octave_stack &&
@@ -852,7 +862,7 @@ int supported_low_monophonic_other_fundamental(const std::array<float, kNoteProb
 		     !violin_g3_fortissimo_rich_ladder &&
 		     !violin_as3_sparse_octave_stack && !violin_as3_mezzoforte_octave_stack &&
 		     !violin_gs3_rich_octave_stack && !violin_gs3_compact_upper_ladder_stack &&
-		     !violin_a3_compact_octave_stack && !viola_f3_faint_fifth_octave_stack &&
+		     !violin_a3_compact_octave_stack && !viola_f3_faint_fifth_octave_stack && !viola_f3_full_fifth_octave_stack &&
 		     !oboe_as4_sparse_fifth_stack && !trumpet_as3_octave_ladder &&
 		     !trumpet_as3_tiny_body_octave_stack && !trumpet_as3_arioso_fifth_ladder &&
 		     !trumpet_b3_fortissimo_octave_ladder && !trumpet_ds4_weak_body_octave_stack &&
