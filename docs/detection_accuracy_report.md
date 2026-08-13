@@ -429,4 +429,16 @@ Source: `build/star_drums_misses.log.summary`
 | STAR Drums preview — detected-drum precision | 39 / 51 (76.5%) | 12 false predictions |
 | STAR Drums preview — windows without a false drum | 6 / 16 (37.5%) | 10 false-positive windows |
 
+## MDB Drums multitrack gate
+
+This independent real-music fixture measures annotated drum-event recall and false activations across a larger variety of mixed recordings.
+
+Source: `build/mdb_drums_misses.log.summary`
+
+| Metric | Accurate / total | Remaining |
+| --- | ---: | ---: |
+| MDB Drums — annotated drum events detected | 192 / 192 (100.0%) | 0 |
+| MDB Drums — detected-drum precision | 192 / 271 (70.8%) | 79 false predictions |
+| MDB Drums — windows without a false drum | 41 / 92 (44.6%) | 51 false-positive windows |
+
 Refresh with `make update-detection-accuracy-report`. Whenever a verified detection metric changes, update this report in the same commit.

@@ -305,6 +305,14 @@ class DetectionAccuracyReportTest(unittest.TestCase):
                 "recall by category kick:12/12-0, tp/fp/fn 39/12/17, hits min/avg/max 3/3.75/5)\n",
                 encoding="utf-8",
             )
+            mdb_drums = Path(temporary) / "mdb_drums_misses.log.summary"
+            mdb_drums.write_text(
+                "analyzer_egmd: 99 checks passed (recordings 23/23, windows 92, read failures 0, "
+                "no-candidate recordings 0, unusable 0, drum hits 192/192, drum precision 70.85%, "
+                "drum recall 100.00%, F1 82.94%, false-positive windows 55.43% (51/92), "
+                "recall by category kick:55/55-0, tp/fp/fn 192/79/0, hits min/avg/max 1/2.14/3)\n",
+                encoding="utf-8",
+            )
             urmp = Path(temporary) / "urmp.out"
             urmp.write_text(
                 "URMP separated-track precision: expected >=90%, got 90/100 (isolated precision 90.00%, recall 75.00%)\n"
@@ -335,6 +343,7 @@ class DetectionAccuracyReportTest(unittest.TestCase):
                 urmp_sax_exact_input=urmp_sax_exact,
                 urmp_sax_full_mix_input=urmp_sax_full_mix,
                 star_drums_gate_output=star_drums,
+                mdb_drums_gate_output=mdb_drums,
             )
 
         self.assertIn("| Any detected note | 2 / 3 (66.7%) | 1 |", report)
@@ -413,6 +422,10 @@ class DetectionAccuracyReportTest(unittest.TestCase):
         self.assertIn("| STAR Drums preview — annotated drum events detected | 39 / 56 (69.6%) | 17 |", report)
         self.assertIn("| STAR Drums preview — detected-drum precision | 39 / 51 (76.5%) | 12 false predictions |", report)
         self.assertIn("| STAR Drums preview — windows without a false drum | 6 / 16 (37.5%) | 10 false-positive windows |", report)
+        self.assertIn("## MDB Drums multitrack gate", report)
+        self.assertIn("| MDB Drums — annotated drum events detected | 192 / 192 (100.0%) | 0 |", report)
+        self.assertIn("| MDB Drums — detected-drum precision | 192 / 271 (70.8%) | 79 false predictions |", report)
+        self.assertIn("| MDB Drums — windows without a false drum | 41 / 92 (44.6%) | 51 false-positive windows |", report)
 
 
 if __name__ == "__main__":
