@@ -438,8 +438,8 @@
       "automation_target": "measure-real-a2s-tenor-scale-probes",
       "source_url": "https://grfia.dlsi.ua.es/audio-to-score/",
       "download_url": "https://grfia.dlsi.ua.es/audio-to-score/real_a2s_sax_dataset.tgz",
-      "download_note": "make download-real-a2s-sax-samples downloads and validates the resumable archive through build/InstrumentSamples/real_a2s_sax. The initial tenor C-, F-, and G-major scale probe is prepared as 111 silent score-timed WAV snippets under build/real_a2s_tenor_scale_fixture and measures row routing plus exact MIDI after the verified one-octave notation offset.",
-      "evidence": "The official University of Alicante Audio-to-Score page publishes real tenor and alto saxophone recordings alongside per-recording **kern scores and index CSV metadata. The downloaded archive contains 513 tenor score/audio name pairs; the initial C-, F-, and G-major probes have a 0.5-second lead-in and score-consistent duration, while their measured raw local-best pitches validate the one-octave sounding offset used by the fixture."
+      "download_note": "make download-real-a2s-sax-samples downloads and validates the resumable archive through build/InstrumentSamples/real_a2s_sax. The initial tenor C-, F-, and G-major scales plus Exercises 1-3 are prepared as 156 silent score-timed WAV snippets under build/real_a2s_tenor_scale_fixture and measure row routing plus exact MIDI after the verified one-octave notation offset.",
+      "evidence": "The official University of Alicante Audio-to-Score page publishes real tenor and alto saxophone recordings alongside per-recording **kern scores and index CSV metadata. The downloaded archive contains 513 tenor score/audio name pairs; the initial C-, F-, and G-major probes and Exercises 1-3 have short measured lead-ins and score-consistent durations, while their measured raw local-best pitches validate the one-octave sounding offset used by the fixture."
     },
     {
       "id": "medley_solos_db",

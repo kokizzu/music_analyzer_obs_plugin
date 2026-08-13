@@ -724,8 +724,8 @@ def render(
                 "",
                 "## Real A2S tenor-saxophone score-aligned probes",
                 "",
-                "These are 111 timed notes cut silently from three real tenor-saxophone scale "
-                "recordings and aligned to their bundled **kern scores. The source notation is shifted "
+                "These are 156 timed notes cut silently from three real tenor-saxophone scale "
+                "recordings and three exercises, aligned to their bundled **kern scores. The source notation is shifted "
                 "down one octave to its measured sounding pitch before scoring. This is an initial "
                 "independent real-tenor diagnostic, not yet a broad generalization gate.",
                 "",
