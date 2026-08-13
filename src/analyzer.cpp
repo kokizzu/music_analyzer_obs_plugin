@@ -13669,6 +13669,69 @@ NoteCandidateList note_grid_candidates(const NoteGrid &grid)
 	return candidates;
 }
 
+float strongest_probe_pitch_class_level(const std::array<float, kNoteProbeCount> &powers,
+						int pitch_class, int min_midi, int max_midi);
+float strongest_probe_level(const std::array<float, kNoteProbeCount> &powers, int min_midi,
+				  int max_midi);
+bool note_grid_pitch_active(const NoteGrid &grid, int pitch_class);
+float note_grid_pitch_level(const NoteGrid &grid, int pitch_class);
+
+bool restore_supported_guitar_major_sixth_display_note(
+	NoteGrid &display_grid, InstrumentState &display_state, const NoteGrid &analysis_grid,
+	const std::array<float, kNoteProbeCount> &probe_powers,
+	const std::array<float, kNoteProbeCount> &detection_powers, int min_midi, int max_midi,
+	float rms, int preferred_root)
+{
+	// Real GAPS and GuitarTECH chords sometimes retain a clearly voiced major
+	// triad while the display cap drops its sixth.  Restore only that one tone
+	// when the wider analysis grid and both independent analyzer probes agree.
+	const float strongest_probe = strongest_probe_level(probe_powers, min_midi, max_midi);
+	const float strongest_detection =
+		strongest_probe_level(detection_powers, min_midi, max_midi);
+	if (strongest_probe <= 1.0e-6f || strongest_detection <= 1.0e-6f)
+		return false;
+
+	const NoteCandidateList analysis_candidates = note_grid_candidates(analysis_grid);
+	for (int root = 0; root < 12; ++root) {
+		const int third = (root + 4) % 12;
+		const int fifth = (root + 7) % 12;
+		const int sixth = (root + 9) % 12;
+		if (!note_grid_pitch_active(display_grid, root) ||
+		    !note_grid_pitch_active(display_grid, third) ||
+		    !note_grid_pitch_active(display_grid, fifth) ||
+		    note_grid_pitch_active(display_grid, sixth) ||
+		    note_grid_pitch_level(analysis_grid, sixth) < 0.30f)
+			continue;
+
+		const float probe_level =
+			strongest_probe_pitch_class_level(probe_powers, sixth, min_midi, max_midi) /
+			strongest_probe;
+		const float detection_level =
+			strongest_probe_pitch_class_level(detection_powers, sixth, min_midi, max_midi) /
+			strongest_detection;
+		if (probe_level < 0.50f || detection_level < 0.60f)
+			continue;
+
+		const NoteCandidate *best = nullptr;
+		for (const NoteCandidate &candidate : analysis_candidates) {
+			if (midi_pitch_class(candidate.midi) != sixth)
+				continue;
+			if (!best || candidate.score > best->score)
+				best = &candidate;
+		}
+		if (!best)
+			continue;
+
+		const float recovered_level =
+			std::max({best->score, probe_level, detection_level});
+		write_note_grid_cell(display_grid, NoteCandidate{best->midi, recovered_level}, 1.0f,
+				     note_visual_loudness(rms));
+		write_note_grid_label(display_state, display_grid, preferred_root);
+		return true;
+	}
+	return false;
+}
+
 void prune_note_grid_to_chord_tones(NoteGrid &grid, InstrumentState &state, const ChordResult &chord,
 				    int max_notes, int preferred_root)
 {
@@ -34567,15 +34630,7 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 			const int detected_root =
 				lowest_peak_pitch_class(keyboard_detection_note_powers, min_midi, max_midi);
 			preferred_root = detected_root;
-			const bool isolated_real_piano_source =
-				input_mode == AnalysisInputMode::IsolatedKeyboard &&
-				contains_case_insensitive(resolved_source_name, "piano");
-			// Real piano chords regularly have several independently tuned notes;
-			// retain their permissive display floor. Sparse piano windows instead
-			// benefit from hiding weak upper partials that otherwise read as notes.
-			const bool sparse_isolated_real_piano =
-				isolated_real_piano_source && strict_tuned_note_count <= 1;
-			const float keyboard_relative_floor = sparse_isolated_real_piano ? 0.31f : 0.15f;
+			const float keyboard_relative_floor = 0.15f;
 			set_instrument_note_set(snapshot.keyboard_notes, snapshot.keyboard, keyboard_detection_note_powers,
 					min_midi, max_midi, preferred_root, keyboard_energy, rms,
 					max_notes, nullptr, nullptr, false, nullptr, keyboard_relative_floor);
@@ -36238,6 +36293,10 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 		if (!mixed_source) {
 			restore_very_strong_guitar_analysis_note_after_chord_resolution(
 				snapshot.guitar_notes, snapshot.guitar, guitar_chord_detection_grid, rms);
+			restore_supported_guitar_major_sixth_display_note(
+				snapshot.guitar_notes, snapshot.guitar, guitar_chord_detection_grid,
+				note_powers, detection_note_powers, kGuitarMinMidi, kGuitarMaxMidi, rms,
+				lowest_note_grid_pitch_class(snapshot.guitar_notes));
 		}
 	} else {
 		reset_note_grid_envelope(snapshot.guitar_notes, snapshot.guitar, guitar_note_tracking_);

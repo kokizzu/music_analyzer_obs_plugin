@@ -292,14 +292,14 @@ These rows count expected labeled chord-analysis windows (not full-mix samples).
 | Guitar Chord Mix — expected guitar pitch classes | 1276 / 1533 (83.2%) | 257 |
 | Guitar Techs Chord — exact chord windows | 7249 / 7484 (96.9%) | 235 |
 | Guitar Techs Chord — primary displayed chord windows | 3577 / 7484 (47.8%) | 3907 |
-| Guitar Techs Chord — expected guitar pitch classes | 24403 / 26738 (91.3%) | 2335 |
+| Guitar Techs Chord — expected guitar pitch classes | 24406 / 26738 (91.3%) | 2332 |
 | Guitar Techs Music — exact chord windows | 412 / 500 (82.4%) | 88 |
 | Guitar Techs Music — primary displayed chord windows | 242 / 500 (48.4%) | 258 |
 | Guitar Techs Music — expected guitar pitch classes | 1609 / 1838 (87.5%) | 229 |
 | Guitar Techs Music — power-chord exact windows | 6 / 26 (23.1%) | 20 |
 | Gaps Guitar Full — exact chord windows | 361 / 540 (66.9%) | 179 |
 | Gaps Guitar Full — primary displayed chord windows | 176 / 540 (32.6%) | 364 |
-| Gaps Guitar Full — expected guitar pitch classes | 1518 / 1957 (77.6%) | 439 |
+| Gaps Guitar Full — expected guitar pitch classes | 1519 / 1957 (77.6%) | 438 |
 | Gaps Guitar Full — power-chord exact windows | 22 / 39 (56.4%) | 17 |
 | Guitarset — exact chord windows | 1141 / 1491 (76.5%) | 350 |
 | Guitarset — primary displayed chord windows | 622 / 1491 (41.7%) | 869 |
@@ -363,8 +363,8 @@ This real Disklavier corpus uses aligned MIDI annotations. The four stored shard
 | Metric | Accurate / total | Remaining |
 | --- | ---: | ---: |
 | MAPS real piano — recordings with eligible chord windows | 78 / 80 (97.5%) | 2 |
-| MAPS real piano — expected pitch classes | 417 / 604 (69.0%) | 187 |
-| MAPS real piano — keyboard detected-note precision | 417 / 609 (68.5%) | 192 false predictions |
+| MAPS real piano — expected pitch classes | 419 / 604 (69.4%) | 185 |
+| MAPS real piano — keyboard detected-note precision | 419 / 615 (68.1%) | 196 false predictions |
 | MAPS real piano — exact chord windows | 17 / 135 (12.6%) | 118 |
 | MAPS real piano — keyboard chord precision | 17 / 54 (31.5%) | 37 false predictions |
 

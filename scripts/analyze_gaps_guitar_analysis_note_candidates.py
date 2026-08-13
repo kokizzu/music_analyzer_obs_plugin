@@ -56,6 +56,7 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--analysis-floor", type=float, default=0.30)
     parser.add_argument("--raw-floor", type=float, default=0.0)
+    parser.add_argument("--detection-floor", type=float, default=0.0)
     parser.add_argument("--probe-floor", type=float, default=0.0)
     parser.add_argument("--melodic-floor", type=float, default=0.0)
     parser.add_argument("--display-ceiling", type=float, default=0.0)
@@ -76,6 +77,7 @@ def main():
             display = cells(row.get("guitar_cells"))
             analysis = cells(row.get("guitar_analysis_cells"))
             raw = cells(row.get("raw_pitch_class_levels"))
+            detection = cells(row.get("guitar_detection_pitch_class_levels"))
             probe = cells(row.get("guitar_probe_pitch_class_levels"))
             melodic = cells(row.get("guitar_melodic_probe_pitch_class_levels"))
             expected = expected_pitch_classes(row.get("expected_pitch_classes"))
@@ -83,9 +85,11 @@ def main():
                 continue
             for pitch_class, level in analysis.items():
                 raw_level = raw.get(pitch_class, 0.0)
+                detection_level = detection.get(pitch_class, 0.0)
                 probe_level = probe.get(pitch_class, 0.0)
                 melodic_level = melodic.get(pitch_class, 0.0)
                 if (level < args.analysis_floor or raw_level < args.raw_floor or
+                        detection_level < args.detection_floor or
                         probe_level < args.probe_floor or melodic_level < args.melodic_floor or
                         display.get(pitch_class, 0.0) > args.display_ceiling):
                     continue
@@ -98,7 +102,7 @@ def main():
                 if (args.missing_minor_triad_sixth and
                         not is_missing_minor_triad_sixth(display, pitch_class)):
                     continue
-                item = (row, pitch_class, level, raw_level, probe_level, melodic_level)
+                item = (row, pitch_class, level, raw_level, detection_level, probe_level, melodic_level)
                 (true_rows if pitch_class in expected else false_rows).append(item)
                 by_level[round(level, 1)] += 1
 
@@ -108,10 +112,10 @@ def main():
     print("analysis-level buckets " + " ".join(
         f"{level:.1f}={count}" for level, count in sorted(by_level.items())))
     for tag, rows in (("expected", true_rows), ("false", false_rows)):
-        for row, pitch_class, level, raw_level, probe_level, melodic_level in rows[:args.limit]:
+        for row, pitch_class, level, raw_level, detection_level, probe_level, melodic_level in rows[:args.limit]:
             note = next(name for name, value in NOTE_TO_PC.items() if value == pitch_class)
             print(f"{tag} {row['recording_id']}@{row['center_seconds']} note={note} "
-                  f"analysis={level:.2f} raw={raw_level:.2f} probe={probe_level:.2f} "
+                  f"analysis={level:.2f} raw={raw_level:.2f} detection={detection_level:.2f} probe={probe_level:.2f} "
                   f"melodic={melodic_level:.2f} expected={row['expected_pitch_classes']} "
                   f"visible={row['guitar_pitch_classes']} visible_count={len(cells(row['guitar_cells']))} "
                   f"chord={row['guitar_chord']}")
