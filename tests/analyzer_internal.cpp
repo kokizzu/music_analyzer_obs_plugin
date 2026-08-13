@@ -211,6 +211,15 @@ void check_supported_low_monophonic_other_fundamental(Runner &runner)
 	periodic.score = 65.0f;
 	runner.expect(choose_isolated_bass_note(spectral, periodic, kBassMaxMidi).midi == 43,
 		      "isolated bass arbitration: expected out-of-band tuba periodic score to retain normal periodic G2");
+	spectral = {37, 0.24f, 160.0f};
+	periodic = {49, 0.51f, 334.0f};
+	runner.expect(choose_isolated_bass_note(spectral, periodic,
+						  kIsolatedBassPeriodicReplacementMaxMidi).midi == 49,
+		      "isolated bass arbitration: expected strong upright octave periodic candidate to replace low spectral lobe");
+	periodic.score = 166.0f;
+	runner.expect(choose_isolated_bass_note(spectral, periodic,
+						  kIsolatedBassPeriodicReplacementMaxMidi).midi == 37,
+		      "isolated bass arbitration: expected non-decisive upright octave periodic candidate to stay rejected");
 	std::array<float, kNoteProbeCount> powers = {};
 	set_probe_level(powers, 58, 0.09f); // A#3 direct brass body
 	set_probe_level(powers, 70, 1.00f); // A#4 selected octave

@@ -1163,6 +1163,15 @@ RangeResult choose_isolated_bass_note(const RangeResult &spectral_note, const Ra
 		periodic_above_spectral > 2 && periodic_note.midi <= periodic_replacement_max_midi &&
 		periodic_note.confidence >= 0.50f && periodic_note.score >= spectral_note.score * 0.82f &&
 		(spectral_note.confidence < 0.30f || periodic_note.score >= spectral_note.score * 1.08f);
+	// A plucked upright bass can leave a weak octave-low spectral lobe while
+	// autocorrelation identifies the direct pitch an octave above it. Preserve
+	// the upright cap for arbitrary upward candidates, but admit this measured
+	// same-pitch octave case when the periodic evidence is decisively stronger.
+	const bool upright_exact_octave_periodic_replacement =
+		periodic_replacement_max_midi == kIsolatedBassPeriodicReplacementMaxMidi &&
+		periodic_above_spectral == 12 && spectral_note.midi >= 34 && spectral_note.midi <= 43 &&
+		periodic_note.confidence >= 0.50f && spectral_note.confidence <= 0.30f &&
+		periodic_note.score >= spectral_note.score * 1.05f;
 	const bool upward_low_lobe = periodic_above_spectral > 2 && periodic_above_spectral <= 5 &&
 				     !upward_harmonic && score_close && periodic_note.confidence >= 0.68f;
 	// Three independently recorded URMP tuba G3 sustains form a measured
@@ -1177,7 +1186,8 @@ RangeResult choose_isolated_bass_note(const RangeResult &spectral_note, const Ra
 		periodic_note.score >= 60.0f && periodic_note.score <= 64.0f;
 	if (tuba_g3_periodic_suboctave_alias)
 		return spectral_note;
-	if (periodic_above_spectral > 2 && !upward_low_lobe && !strong_periodic_replacement)
+	if (periodic_above_spectral > 2 && !upward_low_lobe && !strong_periodic_replacement &&
+	    !upright_exact_octave_periodic_replacement)
 		return spectral_note;
 	if (!same_note && !related_partial && !neighboring_low_lobe && !upward_low_lobe && !score_close)
 		return spectral_note;

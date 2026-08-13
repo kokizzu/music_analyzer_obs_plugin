@@ -1430,12 +1430,22 @@ int main()
 				debug_lines.push_back(line.str());
 			}
 			if (!debug_sample_id.empty()) {
-				std::printf("debug sample=%s family=%s/%s expected=%s buffer=%d row_label=%s row_conf=%.3f row_grid=%s any_grid=%s %s\n",
+				std::printf("debug sample=%s family=%s/%s expected=%s buffer=%d row_label=%s row_conf=%.3f row_grid=%s any_grid=%s %s",
 					    row.id.c_str(), row.family.c_str(), row.source.c_str(), expected.c_str(),
 					    buffer_index, family_state(snapshot, row.family).label,
 					    family_state(snapshot, row.family).confidence, grid_ok ? "yes" : "no",
 					    any_grid_ok ? "yes" : "no",
 					    snapshot_note_debug_line(snapshot, row.midi).c_str());
+				if (row.family == "bass") {
+					std::printf(" spectral=%s/%.3f/%.3f periodic=%s/%.3f/%.3f displayed=%s/%.3f/%.3f",
+						    debug_note_label(snapshot.bass_debug_spectral_midi).c_str(),
+						    snapshot.bass_debug_spectral_confidence, snapshot.bass_debug_spectral_score,
+						    debug_note_label(snapshot.bass_debug_periodic_midi).c_str(),
+						    snapshot.bass_debug_periodic_confidence, snapshot.bass_debug_periodic_score,
+						    debug_note_label(snapshot.bass_debug_displayed_midi).c_str(),
+						    snapshot.bass_debug_displayed_confidence, snapshot.bass_debug_displayed_score);
+				}
+				std::printf("\n");
 			}
 			++buffer_index;
 		}
