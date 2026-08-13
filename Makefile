@@ -955,6 +955,7 @@ REAL_A2S_SAX_PROBE_DIR ?= $(REAL_A2S_SAX_SOURCE_DIR)/probe
 REAL_A2S_SAX_SCALE_FIXTURE_DIR ?= $(BUILD_DIR)/real_a2s_tenor_scale_fixture
 REAL_A2S_SAX_SCALE_ATTRIBUTE_TSV ?= $(BUILD_DIR)/real_a2s_tenor_scale_attributes.tsv
 REAL_A2S_SAX_SCALE_MIDI_OFFSET ?= -12
+REAL_A2S_SAX_SCALE_MIN_SAMPLES ?= 111
 IOWA_ORCHESTRA_FULL_SPEC_ARGS = \
 	--spec "bass|bass|iowa-double-bass-pizz-ff-sule|$(IOWA_BASS_ZIP_URL)"
 IOWA_ORCHESTRA_FULL_PAGE_ARGS = \
@@ -2188,25 +2189,32 @@ inspect-real-a2s-sax-scale-probes-cached: scripts/inspect_real_a2s_sax_scale.py
 test-inspect-real-a2s-sax-scale: tests/test_inspect_real_a2s_sax_scale.py scripts/inspect_real_a2s_sax_scale.py
 	$(PYTHON) tests/test_inspect_real_a2s_sax_scale.py
 
-.PHONY: prepare-real-a2s-tenor-scale-probes prepare-real-a2s-tenor-scale-probes-cached test-prepare-real-a2s-tenor-scale-probes measure-real-a2s-tenor-scale-probes analyze-real-a2s-tenor-scale-probes
+.PHONY: prepare-real-a2s-tenor-scale-probes prepare-real-a2s-tenor-scale-probes-cached test-prepare-real-a2s-tenor-scale-probes measure-real-a2s-tenor-scale-probes analyze-real-a2s-tenor-scale-probes find-real-a2s-tenor-scale-routing-patterns
 prepare-real-a2s-tenor-scale-probes: extract-real-a2s-sax-scale-probes extract-real-a2s-sax-metadata scripts/prepare_real_a2s_sax_scale_fixture.py
 	+$(MAKE) ensure-build-sample-storage-link BUILD_SAMPLE_STORAGE_DIR=real_a2s_tenor_scale_fixture
-	$(PYTHON) scripts/prepare_real_a2s_sax_scale_fixture.py --wav "$(REAL_A2S_SAX_PROBE_DIR)/real_a2s_sax_dataset/real/tenor/GMajScale.wav" --kern "$(REAL_A2S_SAX_METADATA_DIR)/real_a2s_sax_dataset/krn/tenor/GMajScale.krn" --output "$(REAL_A2S_SAX_SCALE_FIXTURE_DIR)" --ffmpeg "$(FFMPEG)" --tempo 80 --midi-offset "$(REAL_A2S_SAX_SCALE_MIDI_OFFSET)"
+	$(PYTHON) scripts/prepare_real_a2s_sax_scale_fixture.py --input "$(REAL_A2S_SAX_PROBE_DIR)/real_a2s_sax_dataset/real/tenor/CMajScale.wav" "$(REAL_A2S_SAX_METADATA_DIR)/real_a2s_sax_dataset/krn/tenor/CMajScale.krn" 80 --input "$(REAL_A2S_SAX_PROBE_DIR)/real_a2s_sax_dataset/real/tenor/FMajScale.wav" "$(REAL_A2S_SAX_METADATA_DIR)/real_a2s_sax_dataset/krn/tenor/FMajScale.krn" 80 --input "$(REAL_A2S_SAX_PROBE_DIR)/real_a2s_sax_dataset/real/tenor/GMajScale.wav" "$(REAL_A2S_SAX_METADATA_DIR)/real_a2s_sax_dataset/krn/tenor/GMajScale.krn" 80 --output "$(REAL_A2S_SAX_SCALE_FIXTURE_DIR)" --ffmpeg "$(FFMPEG)" --midi-offset "$(REAL_A2S_SAX_SCALE_MIDI_OFFSET)"
 
 prepare-real-a2s-tenor-scale-probes-cached: scripts/prepare_real_a2s_sax_scale_fixture.py
 	@test -s "$(REAL_A2S_SAX_PROBE_DIR)/real_a2s_sax_dataset/real/tenor/GMajScale.wav" || { printf '%s\n' "missing scale probe; run make extract-real-a2s-sax-scale-probes first"; exit 2; }
+	@test -s "$(REAL_A2S_SAX_PROBE_DIR)/real_a2s_sax_dataset/real/tenor/CMajScale.wav" || { printf '%s\n' "missing scale probe; run make extract-real-a2s-sax-scale-probes first"; exit 2; }
+	@test -s "$(REAL_A2S_SAX_PROBE_DIR)/real_a2s_sax_dataset/real/tenor/FMajScale.wav" || { printf '%s\n' "missing scale probe; run make extract-real-a2s-sax-scale-probes first"; exit 2; }
 	@test -s "$(REAL_A2S_SAX_METADATA_DIR)/real_a2s_sax_dataset/krn/tenor/GMajScale.krn" || { printf '%s\n' "missing tenor score; run make extract-real-a2s-sax-metadata first"; exit 2; }
+	@test -s "$(REAL_A2S_SAX_METADATA_DIR)/real_a2s_sax_dataset/krn/tenor/CMajScale.krn" || { printf '%s\n' "missing tenor score; run make extract-real-a2s-sax-metadata first"; exit 2; }
+	@test -s "$(REAL_A2S_SAX_METADATA_DIR)/real_a2s_sax_dataset/krn/tenor/FMajScale.krn" || { printf '%s\n' "missing tenor score; run make extract-real-a2s-sax-metadata first"; exit 2; }
 	+$(MAKE) ensure-build-sample-storage-link BUILD_SAMPLE_STORAGE_DIR=real_a2s_tenor_scale_fixture
-	$(PYTHON) scripts/prepare_real_a2s_sax_scale_fixture.py --wav "$(REAL_A2S_SAX_PROBE_DIR)/real_a2s_sax_dataset/real/tenor/GMajScale.wav" --kern "$(REAL_A2S_SAX_METADATA_DIR)/real_a2s_sax_dataset/krn/tenor/GMajScale.krn" --output "$(REAL_A2S_SAX_SCALE_FIXTURE_DIR)" --ffmpeg "$(FFMPEG)" --tempo 80 --midi-offset "$(REAL_A2S_SAX_SCALE_MIDI_OFFSET)"
+	$(PYTHON) scripts/prepare_real_a2s_sax_scale_fixture.py --input "$(REAL_A2S_SAX_PROBE_DIR)/real_a2s_sax_dataset/real/tenor/CMajScale.wav" "$(REAL_A2S_SAX_METADATA_DIR)/real_a2s_sax_dataset/krn/tenor/CMajScale.krn" 80 --input "$(REAL_A2S_SAX_PROBE_DIR)/real_a2s_sax_dataset/real/tenor/FMajScale.wav" "$(REAL_A2S_SAX_METADATA_DIR)/real_a2s_sax_dataset/krn/tenor/FMajScale.krn" 80 --input "$(REAL_A2S_SAX_PROBE_DIR)/real_a2s_sax_dataset/real/tenor/GMajScale.wav" "$(REAL_A2S_SAX_METADATA_DIR)/real_a2s_sax_dataset/krn/tenor/GMajScale.krn" 80 --output "$(REAL_A2S_SAX_SCALE_FIXTURE_DIR)" --ffmpeg "$(FFMPEG)" --midi-offset "$(REAL_A2S_SAX_SCALE_MIDI_OFFSET)"
 
 test-prepare-real-a2s-tenor-scale-probes: tests/test_prepare_real_a2s_sax_scale_fixture.py scripts/prepare_real_a2s_sax_scale_fixture.py
 	$(PYTHON) tests/test_prepare_real_a2s_sax_scale_fixture.py
 
 measure-real-a2s-tenor-scale-probes: $(BUILD_DIR)/analyzer_real_note_samples prepare-real-a2s-tenor-scale-probes-cached | $(BUILD_DIR)
-	env MUSIC_ANALYZER_REAL_NOTE_SAMPLES_REQUIRED=1 MUSIC_ANALYZER_REAL_NOTE_REQUIRED_SAMPLES=37 MUSIC_ANALYZER_REAL_NOTE_SAMPLE_ROOT="$(REAL_A2S_SAX_SCALE_FIXTURE_DIR)" MUSIC_ANALYZER_REAL_NOTE_FULL_MIX=1 MUSIC_ANALYZER_REAL_NOTE_MIN_BASS=0 MUSIC_ANALYZER_REAL_NOTE_MIN_GUITAR=0 MUSIC_ANALYZER_REAL_NOTE_MIN_PIANO=0 MUSIC_ANALYZER_REAL_NOTE_MIN_VOCALS=0 MUSIC_ANALYZER_REAL_NOTE_MIN_OTHER=0 MUSIC_ANALYZER_REAL_NOTE_MIN_ANY_HIT_PERCENT=0 MUSIC_ANALYZER_REAL_NOTE_MIN_EXPECTED_ROW_PERCENT=0 MUSIC_ANALYZER_REAL_NOTE_MIN_FIRST_ROW_PERCENT=0 MUSIC_ANALYZER_REAL_NOTE_MAX_DRUM_ACTIVE_PERCENT=100 MUSIC_ANALYZER_REAL_NOTE_MAX_FAILURES=999999 MUSIC_ANALYZER_REAL_NOTE_ATTRIBUTE_TSV="$(REAL_A2S_SAX_SCALE_ATTRIBUTE_TSV)" $(BUILD_DIR)/analyzer_real_note_samples
+	env MUSIC_ANALYZER_REAL_NOTE_SAMPLES_REQUIRED=1 MUSIC_ANALYZER_REAL_NOTE_REQUIRED_SAMPLES="$(REAL_A2S_SAX_SCALE_MIN_SAMPLES)" MUSIC_ANALYZER_REAL_NOTE_SAMPLE_ROOT="$(REAL_A2S_SAX_SCALE_FIXTURE_DIR)" MUSIC_ANALYZER_REAL_NOTE_FULL_MIX=1 MUSIC_ANALYZER_REAL_NOTE_MIN_BASS=0 MUSIC_ANALYZER_REAL_NOTE_MIN_GUITAR=0 MUSIC_ANALYZER_REAL_NOTE_MIN_PIANO=0 MUSIC_ANALYZER_REAL_NOTE_MIN_VOCALS=0 MUSIC_ANALYZER_REAL_NOTE_MIN_OTHER=0 MUSIC_ANALYZER_REAL_NOTE_MIN_ANY_HIT_PERCENT=0 MUSIC_ANALYZER_REAL_NOTE_MIN_EXPECTED_ROW_PERCENT=0 MUSIC_ANALYZER_REAL_NOTE_MIN_FIRST_ROW_PERCENT=0 MUSIC_ANALYZER_REAL_NOTE_MAX_DRUM_ACTIVE_PERCENT=100 MUSIC_ANALYZER_REAL_NOTE_MAX_FAILURES=999999 MUSIC_ANALYZER_REAL_NOTE_ATTRIBUTE_TSV="$(REAL_A2S_SAX_SCALE_ATTRIBUTE_TSV)" $(BUILD_DIR)/analyzer_real_note_samples
 
 analyze-real-a2s-tenor-scale-probes: $(REAL_A2S_SAX_SCALE_ATTRIBUTE_TSV) scripts/analyze_exact_midi_misses.py
 	$(PYTHON) scripts/analyze_exact_midi_misses.py "$(REAL_A2S_SAX_SCALE_ATTRIBUTE_TSV)"
+
+find-real-a2s-tenor-scale-routing-patterns: $(REAL_A2S_SAX_SCALE_ATTRIBUTE_TSV) scripts/find_real_note_attribute_patterns.py
+	$(PYTHON) scripts/find_real_note_attribute_patterns.py "$(REAL_A2S_SAX_SCALE_ATTRIBUTE_TSV)" --bucket-status first_row_confusion --top-buckets 6 --min-positive-samples 3 --max-negative-samples 0 --include-row-context --profile-fields 10 --show-examples 2
 
 $(REAL_A2S_SAX_ARCHIVE): FORCE | $(BUILD_DIR)
 	mkdir -p "$(REAL_A2S_SAX_SOURCE_DIR)"

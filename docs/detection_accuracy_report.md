@@ -195,24 +195,24 @@ Source: `build/tinysol_sax_full_mix_attributes.tsv`
 
 ## Real A2S tenor-saxophone score-aligned probes
 
-These are 37 timed notes cut silently from one real tenor-saxophone G-major-scale recording and aligned to its bundled **kern score. The source notation is shifted down one octave to its measured sounding pitch before scoring. This is an initial independent real-tenor diagnostic, not yet a broad generalization gate.
+These are 111 timed notes cut silently from three real tenor-saxophone scale recordings and aligned to their bundled **kern scores. The source notation is shifted down one octave to its measured sounding pitch before scoring. This is an initial independent real-tenor diagnostic, not yet a broad generalization gate.
 
 Source: `build/real_a2s_tenor_scale_attributes.tsv`
 
 | Metric | Accurate / total | Remaining |
 | --- | ---: | ---: |
-| Real A2S tenor saxophone — Any detected note | 37 / 37 (100.0%) | 0 |
-| Real A2S tenor saxophone — Expected instrument row | 31 / 37 (83.8%) | 6 |
-| Real A2S tenor saxophone — Lit expected pitch class | 18 / 37 (48.6%) | 19 |
-| Real A2S tenor saxophone — Primary display row | 7 / 37 (18.9%) | 30 |
-| Real A2S tenor saxophone — Visual primary row | 13 / 37 (35.1%) | 24 |
-| Real A2S tenor saxophone — Other — Any detected note | 37 / 37 (100.0%) | 0 |
-| Real A2S tenor saxophone — Other — Expected instrument row | 31 / 37 (83.8%) | 6 |
-| Real A2S tenor saxophone — Other — Lit expected pitch class | 18 / 37 (48.6%) | 19 |
-| Real A2S tenor saxophone — Other — Primary display row | 7 / 37 (18.9%) | 30 |
-| Real A2S tenor saxophone — Other — Visual primary row | 13 / 37 (35.1%) | 24 |
-| Real A2S tenor saxophone — Exact expected MIDI note | 28 / 37 (75.7%) | 9 |
-| Real A2S tenor saxophone — Other — exact expected MIDI note | 28 / 37 (75.7%) | 9 |
+| Real A2S tenor saxophone — Any detected note | 111 / 111 (100.0%) | 0 |
+| Real A2S tenor saxophone — Expected instrument row | 92 / 111 (82.9%) | 19 |
+| Real A2S tenor saxophone — Lit expected pitch class | 68 / 111 (61.3%) | 43 |
+| Real A2S tenor saxophone — Primary display row | 18 / 111 (16.2%) | 93 |
+| Real A2S tenor saxophone — Visual primary row | 32 / 111 (28.8%) | 79 |
+| Real A2S tenor saxophone — Other — Any detected note | 111 / 111 (100.0%) | 0 |
+| Real A2S tenor saxophone — Other — Expected instrument row | 92 / 111 (82.9%) | 19 |
+| Real A2S tenor saxophone — Other — Lit expected pitch class | 68 / 111 (61.3%) | 43 |
+| Real A2S tenor saxophone — Other — Primary display row | 18 / 111 (16.2%) | 93 |
+| Real A2S tenor saxophone — Other — Visual primary row | 32 / 111 (28.8%) | 79 |
+| Real A2S tenor saxophone — Exact expected MIDI note | 88 / 111 (79.3%) | 23 |
+| Real A2S tenor saxophone — Other — exact expected MIDI note | 88 / 111 (79.3%) | 23 |
 
 ## Medley Solos instrument routing
 

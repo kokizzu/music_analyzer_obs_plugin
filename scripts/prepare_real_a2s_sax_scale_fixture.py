@@ -52,66 +52,82 @@ def note_name(midi: int) -> str:
 
 def main() -> int:
     parser = argparse.ArgumentParser()
-    parser.add_argument("--wav", required=True, type=Path)
-    parser.add_argument("--kern", required=True, type=Path)
+    parser.add_argument("--wav", type=Path)
+    parser.add_argument("--kern", type=Path)
+    parser.add_argument(
+        "--input",
+        action="append",
+        nargs=3,
+        metavar=("WAV", "KERN", "TEMPO"),
+        help="repeatable score/audio/tempo triplet; replaces --wav/--kern/--tempo",
+    )
     parser.add_argument("--output", required=True, type=Path)
     parser.add_argument("--ffmpeg", default="ffmpeg")
     parser.add_argument("--lead-in-seconds", type=float, default=0.5)
-    parser.add_argument("--tempo", type=float, required=True)
+    parser.add_argument("--tempo", type=float)
     parser.add_argument("--midi-offset", type=int, default=0)
     parser.add_argument("--tail-seconds", type=float, default=0.08)
     args = parser.parse_args()
 
-    if args.tempo <= 0.0 or args.lead_in_seconds < 0.0 or args.tail_seconds < 0.0:
+    inputs: list[tuple[Path, Path, float]] = []
+    if args.input:
+        for wav_text, kern_text, tempo_text in args.input:
+            inputs.append((Path(wav_text), Path(kern_text), float(tempo_text)))
+    elif args.wav is not None and args.kern is not None and args.tempo is not None:
+        inputs.append((args.wav, args.kern, args.tempo))
+    else:
+        raise SystemExit("provide either --input WAV KERN TEMPO or --wav --kern --tempo")
+    if args.lead_in_seconds < 0.0 or args.tail_seconds < 0.0 or any(tempo <= 0.0 for _, _, tempo in inputs):
         raise SystemExit("tempo, lead-in, and tail must be non-negative (tempo positive)")
-    if not args.wav.is_file() or not args.kern.is_file():
-        raise SystemExit("both --wav and --kern must exist")
+    if any(not wav.is_file() or not kern.is_file() for wav, kern, _ in inputs):
+        raise SystemExit("every WAV and **kern input must exist")
     if shutil.which(args.ffmpeg) is None:
         raise SystemExit(f"ffmpeg not found: {args.ffmpeg}")
 
     output = args.output
     audio = output / "audio"
     audio.mkdir(parents=True, exist_ok=True)
-    events = score_events(args.kern)
-    seconds_per_beat = 60.0 / args.tempo
-    start = args.lead_in_seconds
     rows: list[dict[str, str]] = []
-    for index, (beats, written_midi) in enumerate(events):
-        duration = beats * seconds_per_beat
-        midi = written_midi + args.midi_offset
-        relative = Path("audio") / f"{index:02d}_{note_name(midi)}.wav"
-        destination = output / relative
-        command = [
-            args.ffmpeg,
-            "-hide_banner",
-            "-loglevel",
-            "error",
-            "-y",
-            "-ss",
-            f"{start:.6f}",
-            "-t",
-            f"{duration + args.tail_seconds:.6f}",
-            "-i",
-            str(args.wav),
-            "-ac",
-            "1",
-            "-ar",
-            "44100",
-            str(destination),
-        ]
-        subprocess.run(command, check=True)
-        rows.append(
-            {
-                "id": f"real-a2s-tenor-{args.kern.stem}-{index:02d}",
-                "family": "other",
-                "nsynth_family": "reed",
-                "source": "real-a2s-tenor-score-probe",
-                "midi": str(midi),
-                "note": note_name(midi),
-                "path": str(relative),
-            }
-        )
-        start += duration
+    for wav, kern, tempo in inputs:
+        events = score_events(kern)
+        seconds_per_beat = 60.0 / tempo
+        start = args.lead_in_seconds
+        for index, (beats, written_midi) in enumerate(events):
+            duration = beats * seconds_per_beat
+            midi = written_midi + args.midi_offset
+            relative = Path("audio") / f"{kern.stem}_{index:02d}_{note_name(midi)}.wav"
+            destination = output / relative
+            command = [
+                args.ffmpeg,
+                "-hide_banner",
+                "-loglevel",
+                "error",
+                "-y",
+                "-ss",
+                f"{start:.6f}",
+                "-t",
+                f"{duration + args.tail_seconds:.6f}",
+                "-i",
+                str(wav),
+                "-ac",
+                "1",
+                "-ar",
+                "44100",
+                str(destination),
+            ]
+            subprocess.run(command, check=True)
+            rows.append(
+                {
+                    "id": f"real-a2s-tenor-{kern.stem}-{index:02d}",
+                    "family": "other",
+                    "nsynth_family": "reed",
+                    "source": "real-a2s-tenor-score-probe",
+                    "midi": str(midi),
+                    "note": note_name(midi),
+                    "path": str(relative),
+                }
+            )
+            start += duration
 
     with (output / "manifest.tsv").open("w", newline="") as handle:
         writer = csv.DictWriter(handle, fieldnames=list(rows[0]), delimiter="\t", lineterminator="\n")
