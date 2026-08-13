@@ -360,7 +360,7 @@ int supported_low_monophonic_other_fundamental(const std::array<float, kNoteProb
 			return 60;
 	}
 
-	for (int lower = 28; lower <= 71; ++lower) {
+	for (int lower = 28; lower <= 77; ++lower) {
 		const int octave = lower + 12;
 		const int fifth = lower + 19;
 		const int second_octave = lower + 24;
@@ -734,6 +734,16 @@ int supported_low_monophonic_other_fundamental(const std::array<float, kNoteProb
 			fifth_level >= peak_level * 0.02f && fifth_level <= peak_level * 0.05f &&
 			second_octave_level <= peak_level * 0.03f &&
 			upper_major_third_level <= peak_level * 0.002f && upper_fifth_level <= peak_level * 0.002f;
+		// Iowa fortissimo oboe F5 selects F6 throughout the sustained fixture,
+		// yet retains a 12--22% direct F5 body and a sparse upper ladder.  This
+		// exact-note box extends the otherwise lower-register recovery scan only
+		// far enough for that measured octave alias.
+		const bool oboe_f5_direct_octave_stack = lower == 77 && peak_midi == octave &&
+			fundamental_level >= peak_level * 0.12f && fundamental_level <= peak_level * 0.22f &&
+			fifth_level >= peak_level * 0.008f && fifth_level <= peak_level * 0.015f &&
+			second_octave_level >= peak_level * 0.004f && second_octave_level <= peak_level * 0.06f &&
+			upper_major_third_level <= peak_level * 0.002f &&
+			upper_fifth_level >= peak_level * 0.003f && upper_fifth_level <= peak_level * 0.03f;
 		// Low winds can peak two octaves over C3--B3 while retaining their root,
 		// octave, and fifth.  All three lower partials are required so this is not
 		// an arbitrary subharmonic inferred from a single high peak.
@@ -834,7 +844,7 @@ int supported_low_monophonic_other_fundamental(const std::array<float, kNoteProb
 		if ((fundamental_level < peak_level * 0.12f && !low_wind_second_octave_stack && !low_tuba_f1_second_octave_stack &&
 			     !upper_wind_weak_body_fifth_stack && !mid_wind_weak_root_rich_third_stack &&
 			     !cor_anglais_g4_sparse_octave_stack && !cor_anglais_g4_mezzopiano_octave_stack && !oboe_g4_broad_octave_stack &&
-			     !cor_anglais_b4_ultraweak_octave_stack &&
+		     !cor_anglais_b4_ultraweak_octave_stack && !oboe_f5_direct_octave_stack &&
 			     !bassoon_a3_weak_body_stack && !bassoon_a3_sparse_fifth_stack && !bassoon_a3_breath_ladder &&
 			     !bassoon_as3_tiny_ladder_stack &&
 		     !bassoon_fs3_boundary_stack && !bassoon_fs3_bright_third_stack && !bassoon_a4_sparse_octave_stack &&
@@ -857,7 +867,7 @@ int supported_low_monophonic_other_fundamental(const std::array<float, kNoteProb
 		     !viola_d4_compact_second_octave_stack && !oboe_f4_direct_second_octave_stack && !mid_wind_fifth_partial && !upper_wind_octave_only &&
 			     !upper_wind_weak_body_fifth_stack && !mid_wind_weak_root_rich_third_stack &&
 			     !cor_anglais_g4_sparse_octave_stack && !cor_anglais_g4_mezzopiano_octave_stack && !oboe_g4_broad_octave_stack &&
-			     !cor_anglais_b4_ultraweak_octave_stack &&
+		     !cor_anglais_b4_ultraweak_octave_stack && !oboe_f5_direct_octave_stack &&
 		     !bassoon_a3_weak_body_stack && !bassoon_a3_sparse_fifth_stack && !bassoon_a3_breath_ladder &&
 		     !bassoon_as3_tiny_ladder_stack &&
 		     !bassoon_fs3_boundary_stack &&

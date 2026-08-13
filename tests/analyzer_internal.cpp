@@ -941,6 +941,18 @@ void check_supported_low_monophonic_other_fundamental(Runner &runner)
 	runner.expect(supported_low_monophonic_other_fundamental(powers, 89) != 65,
 		      "low monophonic other recovery: expected over-bright F4 oboe fifth to stay rejected");
 	powers.fill(0.0f);
+	set_probe_level(powers, 77, 0.13f);  // F5 direct oboe body
+	set_probe_level(powers, 89, 1.00f);  // F6 selected octave
+	set_probe_level(powers, 96, 0.011f); // C6 restrained fifth
+	set_probe_level(powers, 101, 0.05f); // F7 compact second octave
+	set_probe_level(powers, 105, 0.001f); // A7 quiet upper major third
+	set_probe_level(powers, 108, 0.02f); // C8 bounded upper fifth
+	runner.expect(supported_low_monophonic_other_fundamental(powers, 89) == 77,
+		      "low monophonic other recovery: expected bounded direct F5 oboe octave stack");
+	set_probe_level(powers, 108, 0.032f);
+	runner.expect(supported_low_monophonic_other_fundamental(powers, 89) != 77,
+		      "low monophonic other recovery: expected over-bright F5 oboe upper fifth to stay rejected");
+	powers.fill(0.0f);
 	set_probe_level(powers, 29, 0.052f); // F1 faint tuba body
 	set_probe_level(powers, 41, 0.465f); // F2 compact direct octave
 	set_probe_level(powers, 53, 1.00f); // F3 selected second octave
