@@ -758,6 +758,15 @@ int supported_low_monophonic_other_fundamental(const std::array<float, kNoteProb
 			fifth_level >= peak_level * 0.11f && fifth_level <= peak_level * 0.13f &&
 			upper_major_third_level >= peak_level * 0.04f && upper_major_third_level <= peak_level * 0.06f &&
 			upper_fifth_level >= peak_level * 0.16f && upper_fifth_level <= peak_level * 0.18f;
+		// Iowa forte oboe F4 keeps a dominant direct F4 probe, a restrained F5,
+		// and a compact C6 fifth while harmonic scoring selects F6.  Bind this
+		// second-octave correction to the complete measured F4 stack rather than
+		// changing ordinary upper-wind scoring.
+		const bool oboe_f4_direct_second_octave_stack = lower == 65 && peak_midi == second_octave &&
+			fundamental_level >= peak_level * 0.15f && fundamental_level <= peak_level * 0.17f &&
+			octave_level >= peak_level * 0.12f && octave_level <= peak_level * 0.14f &&
+			fifth_level >= peak_level * 0.28f && fifth_level <= peak_level * 0.31f &&
+			upper_major_third_level <= peak_level * 0.09f && upper_fifth_level <= peak_level * 0.011f;
 		// A low trombone E2 fixture peaks at its B3 fifth while its direct E2
 		// body and E3 octave remain just below the general octave/fifth cutoff.
 		// Keep this bridge confined to C2--B2 and the 29--30% octave boundary:
@@ -845,7 +854,7 @@ int supported_low_monophonic_other_fundamental(const std::array<float, kNoteProb
 		     !trombone_b3_broad_fifth_octave_stack) ||
 		    ((!within_general_recovery_range || !octave_fifth_stack) &&
 		     !low_bassoon_harmonic_ladder && !low_wind_second_octave_stack && !low_tuba_f1_second_octave_stack &&
-		     !viola_d4_compact_second_octave_stack && !mid_wind_fifth_partial && !upper_wind_octave_only &&
+		     !viola_d4_compact_second_octave_stack && !oboe_f4_direct_second_octave_stack && !mid_wind_fifth_partial && !upper_wind_octave_only &&
 			     !upper_wind_weak_body_fifth_stack && !mid_wind_weak_root_rich_third_stack &&
 			     !cor_anglais_g4_sparse_octave_stack && !cor_anglais_g4_mezzopiano_octave_stack && !oboe_g4_broad_octave_stack &&
 			     !cor_anglais_b4_ultraweak_octave_stack &&
