@@ -179,6 +179,29 @@ void check_quiet_monophonic_other_visual_floor(Runner &runner)
 		      "quiet monophonic other visual floor: expected immediately confirmed G3 to remain visible");
 }
 
+void check_recovered_monophonic_fundamental_blocks_lower_repromotion(Runner &runner)
+{
+	std::array<float, kNoteProbeCount> powers = {};
+	set_probe_level(powers, 45, 0.60f); // A2 raw subharmonic
+	set_probe_level(powers, 57, 1.00f); // A3 recovered physical fundamental
+	NoteGrid recovered_grid = {};
+	InstrumentState recovered_state = {};
+	write_note_grid_cell(recovered_grid, NoteCandidate{57, 1.00f}, 1.00f, 1.00f);
+	prefer_supported_lower_octave_display(recovered_grid, recovered_state, powers,
+							      kOtherMinMidi, 52, -1, false);
+	const NoteCell &recovered_a = recovered_grid.cells[midi_pitch_class(57)];
+	runner.expect(recovered_a.active && recovered_a.midi == 57,
+		      "recovered monophonic fundamental: expected A3 to resist raw A2 re-promotion");
+	NoteGrid ordinary_grid = {};
+	InstrumentState ordinary_state = {};
+	write_note_grid_cell(ordinary_grid, NoteCandidate{57, 1.00f}, 1.00f, 1.00f);
+	prefer_supported_lower_octave_display(ordinary_grid, ordinary_state, powers,
+							      kOtherMinMidi, 52, -1, true);
+	const NoteCell &ordinary_a = ordinary_grid.cells[midi_pitch_class(57)];
+	runner.expect(ordinary_a.active && ordinary_a.midi == 45,
+		      "ordinary monophonic octave support: expected raw A2 promotion to remain available");
+}
+
 void check_supported_low_monophonic_other_fundamental(Runner &runner)
 {
 	RangeResult spectral = {55, 0.265f, 40.0f};
@@ -5758,6 +5781,7 @@ int run()
 	check_low_acoustic_bass_suboctave_display(runner);
 	check_quiet_monophonic_other_recovery_bounds(runner);
 	check_quiet_monophonic_other_visual_floor(runner);
+	check_recovered_monophonic_fundamental_blocks_lower_repromotion(runner);
 	check_supported_low_monophonic_other_fundamental(runner);
 	check_direct_upper_other_octave_primary(runner);
 	check_crowded_guitar_prune_modes(runner);

@@ -36053,8 +36053,13 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 					  kNoteEnvelopeReleaseSeconds, other_visible_floor,
 					  mixed_source ? &mixed_other_display_candidates : nullptr);
 		if (!mixed_source) {
+			// An explicit low-harmonic recovery has already selected the physical
+			// fundamental. Do not immediately re-promote that verified note to a
+			// raw lower octave merely because a neighboring subharmonic is present.
+			const bool allow_single_row_raw_octave_support =
+				monophonic_other_source && snapshot.other_debug_pre_envelope_recovered_midi < 0;
 			prefer_supported_lower_octave_display(snapshot.other_notes, snapshot.other, note_powers,
-							      kOtherMinMidi, 52, -1, monophonic_other_source);
+							      kOtherMinMidi, 52, -1, allow_single_row_raw_octave_support);
 			if (!monophonic_other_source)
 				prefer_direct_upper_other_octave_primary(snapshot.other_notes, snapshot.other,
 									     note_powers, -1);
