@@ -42,6 +42,11 @@ def expected_has_dominant_seventh(value: str, root: int) -> bool:
     return f"{root_name}7" in value.split("/")
 
 
+def plain_major_label(value: str, root: int) -> bool:
+    root_name = next(name for name, pitch_class in NOTE_PITCH_CLASSES.items() if pitch_class == root)
+    return value == root_name
+
+
 def pitch_class_levels(value: str) -> dict[str, float]:
     result: dict[str, float] = {}
     for item in value.split():
@@ -102,6 +107,7 @@ def main() -> None:
         exact_display_dominant_seventh.append((
             expected_has_dominant_seventh(row["expected_chords"], root),
             row["chord_hit"] == "1",
+            plain_major_label(row["global_chord"], root),
             pitch_class_levels(row["raw_chroma"]).get(extension, 0.0),
             float(row.get("global_chord_confidence") or 0.0), row,
         ))
@@ -119,23 +125,23 @@ def main() -> None:
     print("exact-pitch chord-label misses:")
     for (expected, detected), count in exact_pitch_chord_misses.most_common(16):
         print(f"  {expected} -> {detected}: {count}")
-    dominant_hits = sum(expected for expected, _, _, _, _ in exact_display_dominant_seventh)
+    dominant_hits = sum(expected for expected, _, _, _, _, _ in exact_display_dominant_seventh)
     unresolved_dominant_hits = sum(
-        expected and not chord_hit for expected, chord_hit, _, _, _ in exact_display_dominant_seventh
+        expected and not chord_hit for expected, chord_hit, _, _, _, _ in exact_display_dominant_seventh
     )
     print(
         "complete-display dominant-seventh candidates: "
         f"{dominant_hits}/{len(exact_display_dominant_seventh)} expected labels, "
         f"{unresolved_dominant_hits} unresolved"
     )
-    for expected, chord_hit, raw_extension, confidence, row in exact_display_dominant_seventh[:8]:
+    for expected, chord_hit, _, raw_extension, confidence, row in exact_display_dominant_seventh[:8]:
         print(
             f"  {'+' if expected else '-'} {'=' if chord_hit else '!'} "
             f"recording={row['recording']} expected={row['expected_chords']} global={row['global_chord']} "
             f"pcs={row['detected_pcs']} extension_raw={raw_extension:.0f} confidence={confidence:.3f}"
         )
     print("unresolved complete-display dominant-seventh candidates:")
-    for expected, chord_hit, raw_extension, confidence, row in exact_display_dominant_seventh:
+    for expected, chord_hit, _, raw_extension, confidence, row in exact_display_dominant_seventh:
         if not expected or chord_hit:
             continue
         print(
@@ -147,7 +153,7 @@ def main() -> None:
     for floor in (10, 12, 14, 16, 18, 20, 25):
         supported = [
             (expected, chord_hit)
-            for expected, chord_hit, extension, _, _ in exact_display_dominant_seventh
+            for expected, chord_hit, _, extension, _, _ in exact_display_dominant_seventh
             if extension >= floor
         ]
         expected = sum(expected for expected, _ in supported)
@@ -160,7 +166,7 @@ def main() -> None:
     for floor in (0.36, 0.40, 0.45, 0.50, 0.55, 0.60):
         supported = [
             (expected, chord_hit)
-            for expected, chord_hit, _, confidence, _ in exact_display_dominant_seventh
+            for expected, chord_hit, _, _, confidence, _ in exact_display_dominant_seventh
             if confidence >= floor
         ]
         expected = sum(expected for expected, _ in supported)
@@ -168,6 +174,30 @@ def main() -> None:
         print(
             f"  confidence>={floor:.2f}: expected={expected}/{len(supported)} "
             f"unresolved={unresolved} false={len(supported) - expected}"
+        )
+    print("plain-triad dominant-seventh replacement sweep:")
+    for floor in (10, 12, 14, 16, 18, 20, 25):
+        supported = [
+            (expected, chord_hit)
+            for expected, chord_hit, plain, extension, _, _ in exact_display_dominant_seventh
+            if plain and extension >= floor
+        ]
+        gains = sum(expected and not chord_hit for expected, chord_hit in supported)
+        regressions = sum(not expected and chord_hit for expected, chord_hit in supported)
+        new_false = sum(not expected and not chord_hit for expected, chord_hit in supported)
+        print(
+            f"  raw>={floor}: candidates={len(supported)} gain={gains} "
+            f"regression={regressions} already_false={new_false}"
+        )
+    print("plain-triad dominant-seventh candidates at raw>=25:")
+    for expected, chord_hit, plain, extension, _, row in exact_display_dominant_seventh:
+        if not plain or extension < 25:
+            continue
+        print(
+            f"  {'+' if expected else '-'} {'=' if chord_hit else '!'} "
+            f"recording={row['recording']} expected={row['expected_chords']} "
+            f"global={row['global_chord']} extension_raw={extension:.0f} "
+            f"raw={row['raw_chroma']} rows={row['detected_by_row']}"
         )
 
 

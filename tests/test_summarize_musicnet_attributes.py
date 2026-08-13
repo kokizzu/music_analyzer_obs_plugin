@@ -30,6 +30,8 @@ def main() -> None:
     assert "extra pitch classes: D=1 C#=1" in result.stdout
     assert "extra pitch classes by row: keys:D=1 other:C#=1" in result.stdout
     assert "C: exact=1/2 simple=2/2" in result.stdout
+    assert "plain-triad dominant-seventh replacement sweep:" in result.stdout
+    assert "plain-triad dominant-seventh candidates at raw>=25:" in result.stdout
     print("summarize_musicnet_attributes: ok")
 
 
