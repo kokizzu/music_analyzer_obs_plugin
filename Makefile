@@ -5146,7 +5146,7 @@ test-real-egmd-20: $(BUILD_DIR)/analyzer_egmd
 test-real-egmd-full: $(BUILD_DIR)/analyzer_egmd
 	MUSIC_ANALYZER_EGMD_REQUIRED=1 MUSIC_ANALYZER_EGMD_REQUIRED_RECORDINGS=45537 MUSIC_ANALYZER_EGMD_REQUIRED_WINDOWS=182148 $(BUILD_DIR)/analyzer_egmd
 
-.PHONY: inspect-instrument-sample-store configure-instrument-sample-store test-instrument-sample-store inspect-sample-build-migration migrate-sample-build-directories test-sample-build-migration test-instrument-family-miss-inspector
+.PHONY: inspect-instrument-sample-store configure-instrument-sample-store test-instrument-sample-store inspect-sample-build-migration migrate-sample-build-directories inspect-build-sample-relocation relocate-build-sample-directories test-sample-build-migration test-instrument-family-miss-inspector
 
 inspect-instrument-sample-store: scripts/configure_instrument_sample_store.py
 	$(PYTHON) scripts/configure_instrument_sample_store.py --status --link "$(INSTRUMENT_SAMPLE_STORE_LINK)" --target "$(INSTRUMENT_SAMPLE_STORE)"
@@ -5159,6 +5159,12 @@ inspect-sample-build-migration: scripts/migrate_sample_build_directories.py
 
 migrate-sample-build-directories: scripts/migrate_sample_build_directories.py
 	$(PYTHON) scripts/migrate_sample_build_directories.py --build "$(BUILD_DIR)" --store "$(INSTRUMENT_SAMPLE_STORE)"
+
+inspect-build-sample-relocation: scripts/relocate_build_sample_directories.sh
+	bash scripts/relocate_build_sample_directories.sh --dry-run
+
+relocate-build-sample-directories: scripts/relocate_build_sample_directories.sh
+	bash scripts/relocate_build_sample_directories.sh --apply
 
 test-instrument-sample-store: tests/test_configure_instrument_sample_store.py scripts/configure_instrument_sample_store.py
 	$(PYTHON) tests/test_configure_instrument_sample_store.py
