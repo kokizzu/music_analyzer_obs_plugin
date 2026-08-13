@@ -238,6 +238,27 @@ Source: `build/urmp_sax_exact_attributes.tsv`
 | URMP saxophones — Exact expected MIDI note | 393 / 395 (99.5%) | 2 |
 | URMP saxophones — Other — exact expected MIDI note | 393 / 395 (99.5%) | 2 |
 
+## URMP saxophone full-mix-mode routing
+
+The same independent, annotated URMP saxophone clips are analyzed in full-mix mode. This isolates row-routing behavior from the exact-octave isolated-note benchmark.
+
+Source: `build/urmp_sax_full_mix_attributes.tsv`
+
+| Metric | Accurate / total | Remaining |
+| --- | ---: | ---: |
+| URMP saxophones — Any detected note | 393 / 395 (99.5%) | 2 |
+| URMP saxophones — Expected instrument row | 277 / 395 (70.1%) | 118 |
+| URMP saxophones — Lit expected pitch class | 162 / 395 (41.0%) | 233 |
+| URMP saxophones — Primary display row | 33 / 395 (8.4%) | 362 |
+| URMP saxophones — Visual primary row | 57 / 395 (14.4%) | 338 |
+| URMP saxophones — Other — Any detected note | 393 / 395 (99.5%) | 2 |
+| URMP saxophones — Other — Expected instrument row | 277 / 395 (70.1%) | 118 |
+| URMP saxophones — Other — Lit expected pitch class | 162 / 395 (41.0%) | 233 |
+| URMP saxophones — Other — Primary display row | 33 / 395 (8.4%) | 362 |
+| URMP saxophones — Other — Visual primary row | 57 / 395 (14.4%) | 338 |
+| URMP saxophones — Exact expected MIDI note | 237 / 395 (60.0%) | 158 |
+| URMP saxophones — Other — exact expected MIDI note | 237 / 395 (60.0%) | 158 |
+
 ## Medley Solos instrument routing
 
 This independent corpus contains three-second isolated performances from eight instruments. It is measured in full-mix mode; a sample is accurate when any analyzed buffer activates its expected instrument row. It supplies routing coverage, not pitch or chord ground truth.
