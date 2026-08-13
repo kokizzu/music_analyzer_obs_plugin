@@ -2163,7 +2163,13 @@ extract-real-a2s-sax-metadata: download-real-a2s-sax-samples
 	mkdir -p "$(REAL_A2S_SAX_METADATA_DIR)"
 	$(TAR) -xzf "$(REAL_A2S_SAX_ARCHIVE)" -C "$(REAL_A2S_SAX_METADATA_DIR)" --wildcards '*/Tenor_Sax_Index.csv' '*/Dataset_Index.xlsx' '*/krn/tenor/*'
 
-.PHONY: print-real-a2s-tenor-index inspect-real-a2s-tenor-index-cached inspect-real-a2s-sax-score-members
+.PHONY: print-real-a2s-tenor-index inspect-real-a2s-tenor-index-cached inspect-real-a2s-sax-score-members list-detection-make-targets inspect-detection-make-target
+
+list-detection-make-targets: scripts/list_detection_make_targets.py
+	$(PYTHON) scripts/list_detection_make_targets.py
+
+inspect-detection-make-target: scripts/list_detection_make_targets.py
+	$(PYTHON) scripts/list_detection_make_targets.py "$(MAKE_TARGET_NAME)"
 
 print-real-a2s-tenor-index: download-real-a2s-sax-samples
 	$(TAR) -xOzf "$(REAL_A2S_SAX_ARCHIVE)" real_a2s_sax_dataset/Tenor_Sax_Index.csv
