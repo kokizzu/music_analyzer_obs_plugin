@@ -28,6 +28,8 @@ def rows_by_tone(value: str) -> dict[str, set[str]]:
 
 
 def plain_major_root(label: str) -> int | None:
+    if not label:
+        return None
     component = label.split("=", 1)[0]
     for name, pitch_class in sorted(NOTE_PITCH_CLASSES.items(), key=lambda item: -len(item[0])):
         if component == name:
@@ -99,6 +101,7 @@ def main() -> None:
         extension = next(name for name, pitch_class in NOTE_PITCH_CLASSES.items() if pitch_class == (root + 10) % 12)
         exact_display_dominant_seventh.append((
             expected_has_dominant_seventh(row["expected_chords"], root),
+            row["chord_hit"] == "1",
             pitch_class_levels(row["raw_chroma"]).get(extension, 0.0), row,
         ))
     print(f"MusicNet traits: windows {len(rows)}, exact pitch sets {exact_pitch}/{len(rows)}, "
@@ -115,21 +118,43 @@ def main() -> None:
     print("exact-pitch chord-label misses:")
     for (expected, detected), count in exact_pitch_chord_misses.most_common(16):
         print(f"  {expected} -> {detected}: {count}")
-    dominant_hits = sum(hit for hit, _, _ in exact_display_dominant_seventh)
+    dominant_hits = sum(expected for expected, _, _, _ in exact_display_dominant_seventh)
+    unresolved_dominant_hits = sum(
+        expected and not chord_hit for expected, chord_hit, _, _ in exact_display_dominant_seventh
+    )
     print(
         "complete-display dominant-seventh candidates: "
-        f"{dominant_hits}/{len(exact_display_dominant_seventh)} expected labels"
+        f"{dominant_hits}/{len(exact_display_dominant_seventh)} expected labels, "
+        f"{unresolved_dominant_hits} unresolved"
     )
-    for hit, raw_extension, row in exact_display_dominant_seventh[:8]:
+    for expected, chord_hit, raw_extension, row in exact_display_dominant_seventh[:8]:
         print(
-            f"  {'+' if hit else '-'} recording={row['recording']} expected={row['expected_chords']} "
-            f"global={row['global_chord']} pcs={row['detected_pcs']} extension_raw={raw_extension:.0f}"
+            f"  {'+' if expected else '-'} {'=' if chord_hit else '!'} "
+            f"recording={row['recording']} expected={row['expected_chords']} global={row['global_chord']} "
+            f"pcs={row['detected_pcs']} extension_raw={raw_extension:.0f}"
+        )
+    print("unresolved complete-display dominant-seventh candidates:")
+    for expected, chord_hit, raw_extension, row in exact_display_dominant_seventh:
+        if not expected or chord_hit:
+            continue
+        print(
+            f"  recording={row['recording']} expected={row['expected_chords']} global={row['global_chord']} "
+            f"pcs={row['detected_pcs']} extension_raw={raw_extension:.0f} "
+            f"raw={row['raw_chroma']} rows={row['detected_by_row']}"
         )
     print("complete-display dominant-seventh floor sweep:")
     for floor in (10, 12, 14, 16, 18, 20, 25):
-        supported = [(hit, row) for hit, extension, row in exact_display_dominant_seventh if extension >= floor]
-        hits = sum(hit for hit, _ in supported)
-        print(f"  raw>={floor}: expected={hits}/{len(supported)} false={len(supported) - hits}")
+        supported = [
+            (expected, chord_hit)
+            for expected, chord_hit, extension, _ in exact_display_dominant_seventh
+            if extension >= floor
+        ]
+        expected = sum(expected for expected, _ in supported)
+        unresolved = sum(expected and not chord_hit for expected, chord_hit in supported)
+        print(
+            f"  raw>={floor}: expected={expected}/{len(supported)} "
+            f"unresolved={unresolved} false={len(supported) - expected}"
+        )
 
 
 if __name__ == "__main__":

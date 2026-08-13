@@ -2174,6 +2174,10 @@ inspect-detection-make-target: scripts/list_detection_make_targets.py
 inspect-detector-source: scripts/inspect_detector_source.py
 	$(PYTHON) scripts/inspect_detector_source.py "$(DETECTOR_SOURCE_TERM)" --context "$(or $(DETECTOR_SOURCE_CONTEXT),3)"
 
+.PHONY: inspect-project-source
+inspect-project-source: scripts/inspect_project_source.py
+	$(PYTHON) scripts/inspect_project_source.py "$(PROJECT_SOURCE_TERM)" --context "$(or $(PROJECT_SOURCE_CONTEXT),3)"
+
 print-real-a2s-tenor-index: download-real-a2s-sax-samples
 	$(TAR) -xOzf "$(REAL_A2S_SAX_ARCHIVE)" real_a2s_sax_dataset/Tenor_Sax_Index.csv
 
@@ -5178,6 +5182,10 @@ analyze-downloaded-real-musicnet-20-traits: scripts/summarize_musicnet_attribute
 
 analyze-downloaded-real-musicnet-chord-misses: scripts/analyze_musicnet_chord_misses.py
 	$(PYTHON) scripts/analyze_musicnet_chord_misses.py "$(MUSICNET_FULL_ATTRIBUTE_OUTPUT)"
+
+.PHONY: summarize-downloaded-real-musicnet-attributes
+summarize-downloaded-real-musicnet-attributes: scripts/summarize_musicnet_attributes.py
+	$(PYTHON) scripts/summarize_musicnet_attributes.py "$(MUSICNET_FULL_ATTRIBUTE_OUTPUT)"
 
 .PHONY: inspect-downloaded-real-musicnet-chord-traits
 inspect-downloaded-real-musicnet-chord-traits: scripts/inspect_musicnet_chord_traits.py
