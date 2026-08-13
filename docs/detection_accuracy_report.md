@@ -45,8 +45,8 @@ Source: `build/detector_improvement_route_summary.txt`
 
 | Metric | Routes / total | Other routes |
 | --- | ---: | ---: |
-| Routes with direct zero-regression support | 9 / 236 (3.8%) | 227 |
-| Routes awaiting additional fixture coverage | 93 / 236 (39.4%) | 143 |
+| Routes with direct zero-regression support | 9 / 226 (4.0%) | 217 |
+| Routes awaiting additional fixture coverage | 86 / 226 (38.1%) | 140 |
 
 ## Vocadito full-mix vocal routing
 
@@ -57,9 +57,9 @@ Source: `build/vocadito_full_mix_attributes.tsv`
 | Metric | Accurate / total | Remaining |
 | --- | ---: | ---: |
 | Vocadito vocals — Any detected note | 354 / 354 (100.0%) | 0 |
-| Vocadito vocals — Expected instrument row | 284 / 354 (80.2%) | 70 |
-| Vocadito vocals — Lit expected pitch class | 153 / 354 (43.2%) | 201 |
-| Vocadito vocals — Primary display row | 39 / 354 (11.0%) | 315 |
+| Vocadito vocals — Expected instrument row | 288 / 354 (81.4%) | 66 |
+| Vocadito vocals — Lit expected pitch class | 166 / 354 (46.9%) | 188 |
+| Vocadito vocals — Primary display row | 45 / 354 (12.7%) | 309 |
 | Vocadito vocals — Visual primary row | 20 / 354 (5.6%) | 334 |
 
 ## VocalSet full-mix vocal routing
@@ -248,9 +248,10 @@ These rows count expected labeled chord-analysis windows (not full-mix samples).
 | Guitar Techs Chord — exact chord windows | 7234 / 7484 (96.7%) | 250 |
 | Guitar Techs Chord — primary displayed chord windows | 3577 / 7484 (47.8%) | 3907 |
 | Guitar Techs Chord — expected guitar pitch classes | 24404 / 26738 (91.3%) | 2334 |
-| Guitar Techs Music — exact chord windows | 7234 / 7484 (96.7%) | 250 |
-| Guitar Techs Music — primary displayed chord windows | 3577 / 7484 (47.8%) | 3907 |
-| Guitar Techs Music — expected guitar pitch classes | 24404 / 26738 (91.3%) | 2334 |
+| Guitar Techs Music — exact chord windows | 388 / 500 (77.6%) | 112 |
+| Guitar Techs Music — primary displayed chord windows | 221 / 500 (44.2%) | 279 |
+| Guitar Techs Music — expected guitar pitch classes | 1609 / 1838 (87.5%) | 229 |
+| Guitar Techs Music — power-chord exact windows | 6 / 26 (23.1%) | 20 |
 | Gaps Guitar Full — exact chord windows | 362 / 540 (67.0%) | 178 |
 | Gaps Guitar Full — primary displayed chord windows | 176 / 540 (32.6%) | 364 |
 | Gaps Guitar Full — expected guitar pitch classes | 1518 / 1957 (77.6%) | 439 |
