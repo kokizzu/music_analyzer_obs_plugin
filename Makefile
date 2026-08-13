@@ -2926,6 +2926,15 @@ measure-real-note-attribute-rule: $(BUILD_DIR)/real_note_full_mix_attributes.tsv
 inspect-real-note-candidate-rows: $(REAL_NOTE_CANDIDATE_ROW_PATHS) scripts/inspect_real_note_candidate_rows.py
 	$(PYTHON) scripts/inspect_real_note_candidate_rows.py $(if $(REAL_NOTE_CANDIDATE_RULE),--rule "$(REAL_NOTE_CANDIDATE_RULE)") $(REAL_NOTE_CANDIDATE_ARGS) $(REAL_NOTE_CANDIDATE_ROW_PATHS)
 
+inspect-real-note-shard-errors: scripts/inspect_real_note_shard_errors.py
+	@test -n "$(REAL_NOTE_SHARD_ERROR_TAG)" || { printf '%s\n' "set REAL_NOTE_SHARD_ERROR_TAG"; exit 2; }
+	$(PYTHON) scripts/inspect_real_note_shard_errors.py --tag "$(REAL_NOTE_SHARD_ERROR_TAG)" $(REAL_NOTE_SHARD_ERROR_ARGS)
+
+inspect-guitar-fretboard-note-failure: $(BUILD_DIR)/analyzer_real_note_samples prepare-guitar-fretboard-note-samples scripts/analyze_real_note_misses.py scripts/inspect_real_note_shard_errors.py scripts/run_with_duration.sh
+	$(RUN_WITH_DURATION) guitar_fretboard_verbose_shard env MUSIC_ANALYZER_REAL_NOTE_SAMPLES_REQUIRED=1 MUSIC_ANALYZER_REAL_NOTE_REQUIRED_SAMPLES="$(GUITAR_FRETBOARD_NOTES_MIN_SAMPLES)" MUSIC_ANALYZER_REAL_NOTE_SAMPLE_ROOT="$(GUITAR_FRETBOARD_NOTES_SAMPLE_DIR)" MUSIC_ANALYZER_REAL_NOTE_MIN_BASS=0 MUSIC_ANALYZER_REAL_NOTE_MIN_GUITAR=0 MUSIC_ANALYZER_REAL_NOTE_MIN_PIANO=0 MUSIC_ANALYZER_REAL_NOTE_MIN_VOCALS=0 MUSIC_ANALYZER_REAL_NOTE_MIN_OTHER=0 MUSIC_ANALYZER_REAL_NOTE_MAX_FAILURES=999999 MUSIC_ANALYZER_REAL_NOTE_MAX_FAILURE_LINES=80 MUSIC_ANALYZER_REAL_NOTE_VERBOSE_MISSES=1 MUSIC_ANALYZER_REAL_NOTE_SHARD_COUNT="$(REAL_NOTE_SAMPLE_SHARDS)" MUSIC_ANALYZER_REAL_NOTE_SHARD_INDEX=9 $(BUILD_DIR)/analyzer_real_note_samples > "$(BUILD_DIR)/real_note_guitar_fretboard_verbose.out" 2> "$(BUILD_DIR)/real_note_guitar_fretboard_verbose.err"
+	$(PYTHON) scripts/inspect_real_note_shard_errors.py --path "$(BUILD_DIR)/real_note_guitar_fretboard_verbose.err"
+	$(PYTHON) scripts/analyze_real_note_misses.py "$(BUILD_DIR)/real_note_guitar_fretboard_verbose.err"
+
 # Read only existing exports.  This is suitable for trait investigation when
 # a corpus archive is absent or intentionally must not be revalidated.
 inspect-real-note-candidate-rows-cached: scripts/inspect_real_note_candidate_rows.py
