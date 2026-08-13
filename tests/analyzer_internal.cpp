@@ -138,6 +138,39 @@ void check_low_acoustic_bass_suboctave_display(Runner &runner)
 		      "low acoustic bass suboctave: expected fifth-free C2 to stay at C2");
 }
 
+void check_low_brass_suboctave_display(Runner &runner)
+{
+	NoteGrid grid = {};
+	InstrumentState state = {};
+	std::array<float, kNoteProbeCount> powers = {};
+	set_midi(grid, 38, 0.96f); // D2 selected octave
+	set_probe_level(powers, 26, 0.72f); // D1 direct brass body
+	set_probe_level(powers, 38, 1.00f);
+	prefer_low_brass_suboctave_primary(grid, state, powers, -1);
+	runner.expect(grid.cells[2].midi == 26,
+		      "low brass suboctave: expected bounded D1 body beneath D2 octave alias");
+
+	grid = {};
+	state = {};
+	powers.fill(0.0f);
+	set_midi(grid, 38, 0.96f);
+	set_probe_level(powers, 26, 0.40f); // below the direct-body floor
+	set_probe_level(powers, 38, 1.00f);
+	prefer_low_brass_suboctave_primary(grid, state, powers, -1);
+	runner.expect(grid.cells[2].midi == 38,
+		      "low brass suboctave: expected weak D1 body to stay at D2");
+
+	grid = {};
+	state = {};
+	powers.fill(0.0f);
+	set_midi(grid, 40, 0.96f); // E2 is intentionally outside this profile
+	set_probe_level(powers, 28, 0.72f);
+	set_probe_level(powers, 40, 1.00f);
+	prefer_low_brass_suboctave_primary(grid, state, powers, -1);
+	runner.expect(grid.cells[4].midi == 40,
+		      "low brass suboctave: expected E2 outside D2--D#2 profile to stay at E2");
+}
+
 void check_quiet_monophonic_other_recovery_bounds(Runner &runner)
 {
 	runner.expect(is_quiet_monophonic_other_recovery_candidate(36, 0.0030f),
@@ -5918,6 +5951,7 @@ int run()
 	Runner runner;
 	check_auto_source_mode_resolution(runner);
 	check_low_acoustic_bass_suboctave_display(runner);
+	check_low_brass_suboctave_display(runner);
 	check_quiet_monophonic_other_recovery_bounds(runner);
 	check_quiet_monophonic_other_visual_floor(runner);
 	check_recovered_monophonic_fundamental_blocks_lower_repromotion(runner);

@@ -163,8 +163,8 @@ Source: `build/iowa_orchestra_full_attributes.tsv`
 | Iowa orchestra — Other — Lit expected pitch class | 656 / 657 (99.8%) | 1 |
 | Iowa orchestra — Other — Primary display row | 656 / 657 (99.8%) | 1 |
 | Iowa orchestra — Other — Visual primary row | 656 / 657 (99.8%) | 1 |
-| Iowa orchestra — Exact expected MIDI note | 670 / 682 (98.2%) | 12 |
-| Iowa orchestra — Other — exact expected MIDI note | 648 / 657 (98.6%) | 9 |
+| Iowa orchestra — Exact expected MIDI note | 672 / 682 (98.5%) | 10 |
+| Iowa orchestra — Other — exact expected MIDI note | 650 / 657 (98.9%) | 7 |
 | Iowa orchestra — Bass — exact expected MIDI note | 22 / 25 (88.0%) | 3 |
 
 ## Iowa saxophone full-mix routing

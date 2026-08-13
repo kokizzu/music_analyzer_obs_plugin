@@ -13595,6 +13595,33 @@ void prefer_low_acoustic_bass_suboctave_primary(
 		write_note_grid_label(state, grid, preferred_root);
 }
 
+// Iowa fortissimo bass trombone D1--D#1 retains an unusually strong direct
+// body beneath a displayed D2--D#2. The two-note range and high 60--90% body
+// requirement prevent ordinary low partials from becoming brass fundamentals.
+void prefer_low_brass_suboctave_primary(NoteGrid &grid, InstrumentState &state,
+					const std::array<float, kNoteProbeCount> &powers,
+					int preferred_root)
+{
+	bool changed = false;
+	for (int pitch_class = 0; pitch_class < 12; ++pitch_class) {
+		const NoteCell &primary = grid.cells[pitch_class];
+		if (!primary.active || primary.midi < 38 || primary.midi > 39)
+			continue;
+
+		const int lower_midi = primary.midi - 12;
+		const float primary_probe = probe_level(powers, primary.midi);
+		const float lower_probe = probe_level(powers, lower_midi);
+		if (primary_probe <= 1.0e-6f || lower_probe < primary_probe * 0.60f ||
+		    lower_probe > primary_probe * 0.90f)
+			continue;
+
+		changed = promote_note_grid_primary_midi(grid, lower_midi, primary.level) || changed;
+	}
+
+	if (changed)
+		write_note_grid_label(state, grid, preferred_root);
+}
+
 int lowest_note_grid_pitch_class(const NoteGrid &grid)
 {
 	int lowest_midi = kLastMidi + 1;
@@ -36268,6 +36295,9 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 			if (!monophonic_other_source)
 				prefer_direct_upper_other_octave_primary(snapshot.other_notes, snapshot.other,
 									     note_powers, -1);
+			if (!monophonic_other_source)
+				prefer_low_brass_suboctave_primary(snapshot.other_notes, snapshot.other,
+									  note_powers, -1);
 		} else {
 			prefer_visible_lower_octave_primary(snapshot.other_notes, snapshot.other, kOtherMinMidi,
 							   0.20f, -1, 0.08f, 52);
