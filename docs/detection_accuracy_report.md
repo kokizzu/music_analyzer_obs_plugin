@@ -190,7 +190,7 @@ Source: `build/tinysol_sax_full_mix_attributes.tsv`
 | TinySOL alto saxophone — Any detected note | 98 / 98 (100.0%) | 0 |
 | TinySOL alto saxophone — Expected instrument row | 95 / 98 (96.9%) | 3 |
 | TinySOL alto saxophone — Lit expected pitch class | 46 / 98 (46.9%) | 52 |
-| TinySOL alto saxophone — Primary display row | 8 / 98 (8.2%) | 90 |
+| TinySOL alto saxophone — Primary display row | 7 / 98 (7.1%) | 91 |
 | TinySOL alto saxophone — Visual primary row | 11 / 98 (11.2%) | 87 |
 
 ## Medley Solos instrument routing
