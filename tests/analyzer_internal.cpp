@@ -104,6 +104,38 @@ void check_low_acoustic_bass_suboctave_display(Runner &runner)
 	prefer_low_acoustic_bass_suboctave_primary(grid, state, powers, -1);
 	runner.expect(grid.cells[4].midi == 40,
 		      "low acoustic bass suboctave: expected sub-floor body to stay at E2");
+
+	grid = {};
+	state = {};
+	powers.fill(0.0f);
+	set_midi(grid, 36, 0.96f); // C2 selected octave
+	set_probe_level(powers, 24, 0.025f); // C1 bowed-acoustic body
+	set_probe_level(powers, 36, 1.00f);
+	set_probe_level(powers, 43, 0.20f); // G2 fifth from the bowed harmonic stack
+	prefer_low_acoustic_bass_suboctave_primary(grid, state, powers, -1);
+	runner.expect(grid.cells[0].midi == 24,
+		      "low acoustic bass suboctave: expected bounded bowed C1 body beneath C2 octave alias");
+
+	grid = {};
+	state = {};
+	powers.fill(0.0f);
+	set_midi(grid, 36, 0.96f);
+	set_probe_level(powers, 24, 0.006f); // below the bowed-acoustic body floor
+	set_probe_level(powers, 36, 1.00f);
+	set_probe_level(powers, 43, 0.20f);
+	prefer_low_acoustic_bass_suboctave_primary(grid, state, powers, -1);
+	runner.expect(grid.cells[0].midi == 36,
+		      "low acoustic bass suboctave: expected sub-floor C1 body to stay at C2");
+
+	grid = {};
+	state = {};
+	powers.fill(0.0f);
+	set_midi(grid, 36, 0.96f);
+	set_probe_level(powers, 24, 0.025f);
+	set_probe_level(powers, 36, 1.00f);
+	prefer_low_acoustic_bass_suboctave_primary(grid, state, powers, -1);
+	runner.expect(grid.cells[0].midi == 36,
+		      "low acoustic bass suboctave: expected fifth-free C2 to stay at C2");
 }
 
 void check_quiet_monophonic_other_recovery_bounds(Runner &runner)

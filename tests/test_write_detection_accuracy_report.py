@@ -309,6 +309,7 @@ class DetectionAccuracyReportTest(unittest.TestCase):
         self.assertIn("### Focused clean-vowel regression", report)
         self.assertIn("| VocalSet clean C5 vowel — Expected instrument row | 1 / 1 (100.0%) | 0 |", report)
         self.assertIn("## Good Sounds full-mix acoustic routing", report)
+        self.assertIn("all 1,318 usable labelled recordings are already in this fixture", report)
         self.assertIn("| Good Sounds — Any detected note | 2 / 3 (66.7%) | 1 |", report)
         self.assertIn("| Good Sounds — Other — Expected instrument row | 1 / 2 (50.0%) | 1 |", report)
         self.assertIn("## Controlled octave-down violin fixture", report)

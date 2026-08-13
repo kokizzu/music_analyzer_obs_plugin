@@ -13564,14 +13564,28 @@ void prefer_low_acoustic_bass_suboctave_primary(
 	bool changed = false;
 	for (int pitch_class = 0; pitch_class < 12; ++pitch_class) {
 		const NoteCell &primary = grid.cells[pitch_class];
-		if (!primary.active || primary.midi < 40 || primary.midi > 42)
+		if (!primary.active || primary.midi < 36 || primary.midi > 42)
 			continue;
 
 		const int lower_midi = primary.midi - 12;
 		const float primary_probe = probe_level(powers, primary.midi);
 		const float lower_probe = probe_level(powers, lower_midi);
-		if (primary_probe <= 1.0e-6f ||
-		    lower_probe < primary_probe * 0.04f || lower_probe > primary_probe * 0.17f)
+		const float upper_fifth_probe = probe_level(powers, primary.midi + 7);
+		if (primary_probe <= 1.0e-6f)
+			continue;
+
+		// Bowed acoustic bass C1--D#1 can retain only a 1--4% direct body
+		// beneath the displayed C2--D#2 octave.  Keep this separate from the
+		// fuller E1--F#1 plucked profile below: the narrow lower register and
+		// bounded body prevent ordinary C2--D#2 notes from becoming suboctaves.
+		const bool low_bowed_profile =
+			primary.midi >= 36 && primary.midi <= 39 &&
+			lower_probe >= primary_probe * 0.01f && lower_probe <= primary_probe * 0.04f &&
+			upper_fifth_probe >= primary_probe * 0.10f;
+		const bool low_plucked_profile =
+			primary.midi >= 40 && primary.midi <= 42 &&
+			lower_probe >= primary_probe * 0.04f && lower_probe <= primary_probe * 0.17f;
+		if (!low_bowed_profile && !low_plucked_profile)
 			continue;
 
 		changed = promote_note_grid_primary_midi(grid, lower_midi, primary.level) || changed;

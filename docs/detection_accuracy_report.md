@@ -93,10 +93,7 @@ This independent acoustic-instrument corpus is measured in full-mix mode. It is 
 
 Source: `build/good_sounds_full_mix_attributes.tsv`
 
-The cached Good Sounds archive has been inventoried without extraction: all 1,318 usable
-labelled recordings are already in this fixture (661 violin, 453 tenor sax, 159 bass, and
-45 other winds/brass). The remaining catalogue rows have no matching packed audio, so this
-corpus cannot supply independent additional examples for coverage-blocked route rules.
+The cached Good Sounds archive has been inventoried without extraction: all 1,318 usable labelled recordings are already in this fixture (661 violin, 453 tenor sax, 159 bass, and 45 other winds/brass). The remaining catalogue rows have no matching packed audio, so this corpus cannot supply independent additional examples for coverage-blocked route rules.
 
 | Metric | Accurate / total | Remaining |
 | --- | ---: | ---: |
@@ -166,9 +163,9 @@ Source: `build/iowa_orchestra_full_attributes.tsv`
 | Iowa orchestra — Other — Lit expected pitch class | 656 / 657 (99.8%) | 1 |
 | Iowa orchestra — Other — Primary display row | 656 / 657 (99.8%) | 1 |
 | Iowa orchestra — Other — Visual primary row | 656 / 657 (99.8%) | 1 |
-| Iowa orchestra — Exact expected MIDI note | 667 / 682 (97.8%) | 15 |
+| Iowa orchestra — Exact expected MIDI note | 670 / 682 (98.2%) | 12 |
 | Iowa orchestra — Other — exact expected MIDI note | 648 / 657 (98.6%) | 9 |
-| Iowa orchestra — Bass — exact expected MIDI note | 19 / 25 (76.0%) | 6 |
+| Iowa orchestra — Bass — exact expected MIDI note | 22 / 25 (88.0%) | 3 |
 
 ## Iowa saxophone full-mix routing
 

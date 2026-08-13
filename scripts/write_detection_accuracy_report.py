@@ -673,6 +673,11 @@ def render(
                 "",
                 f"Source: `{good_sounds_full_mix_input.as_posix()}`",
                 "",
+                "The cached Good Sounds archive has been inventoried without extraction: all 1,318 usable "
+                "labelled recordings are already in this fixture (661 violin, 453 tenor sax, 159 bass, and "
+                "45 other winds/brass). The remaining catalogue rows have no matching packed audio, so this "
+                "corpus cannot supply independent additional examples for coverage-blocked route rules.",
+                "",
                 "| Metric | Accurate / total | Remaining |",
                 "| --- | ---: | ---: |",
             ]
