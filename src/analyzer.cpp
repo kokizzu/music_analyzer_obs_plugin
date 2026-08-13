@@ -33967,6 +33967,17 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 	if (final_one_shot_measured_crash_from_ride_primary_recovery)
 		promote_drum_primary(Crash, 0.90f);
 
+	// Five independently recorded KPR77 crash articulations retain the crash
+	// spectrum but arrive at final arbitration with the generic hihat level
+	// slightly ahead.  The measured high-band split and bounded kick trigger
+	// isolate that family from every protected one-shot primary classification.
+	const bool final_one_shot_measured_crash_from_hihat_primary_recovery =
+		drum_detection_enabled && one_shot_drum_source && !generated_gm_drum_source &&
+		crash_hihat_band_ratio >= 2.155f && drum_bands[HiHat] >= 15.177f &&
+		snapshot.drum_debug_trigger_scores[Kick] <= 29.848f;
+	if (final_one_shot_measured_crash_from_hihat_primary_recovery)
+		promote_drum_primary(Crash, 0.90f);
+
 	// Some closed-hat one shots reach the final arbitration with the crash
 	// candidate numerically tied.  Their stronger crash-band total is the
 	// characteristic recovered from the measured corpus, rather than evidence

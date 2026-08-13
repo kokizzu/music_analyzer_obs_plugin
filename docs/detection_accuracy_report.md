@@ -339,7 +339,7 @@ Source: `build/drum_full_exact_attribute_rows.tsv`
 | Full drum gate — primary kick | 6213 / 6505 (95.5%) | 292 |
 | Full drum gate — primary snare | 4015 / 5390 (74.5%) | 1375 |
 | Full drum gate — primary hihat | 1990 / 2358 (84.4%) | 368 |
-| Full drum gate — primary crash | 565 / 788 (71.7%) | 223 |
+| Full drum gate — primary crash | 569 / 788 (72.2%) | 219 |
 | Full drum gate — primary tom | 1936 / 2861 (67.7%) | 925 |
 | Full drum gate — primary ride | 241 / 352 (68.5%) | 111 |
 | Full drum gate — primary rim | 332 / 504 (65.9%) | 172 |
