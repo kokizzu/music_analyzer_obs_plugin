@@ -3695,6 +3695,31 @@ void check_other_owned_same_pitch_vocal_shadow_uses_measured_threshold(Runner &r
 						      InstrumentKind::Other, -1);
 	runner.expect(note_grid_midi_visual_level(dense_vocal_grid, kDenseVocalBodyMidi) > 0.0f,
 		      "same-pitch other vocal shadow: expected dense vocal body to stay visible");
+
+	FullMixDebugCandidate low_harmonic_vocal_body =
+		make_adjacent_other_vocal_shadow_debug(55);
+	low_harmonic_vocal_body.other_score = 0.79f;
+	low_harmonic_vocal_body.guitar_score = 0.11f;
+	low_harmonic_vocal_body.spectral_level = 1.00f;
+	low_harmonic_vocal_body.pitch_confidence = 0.89f;
+	low_harmonic_vocal_body.periodicity = 0.91f;
+	low_harmonic_vocal_body.harmonicity = 1.38f;
+	low_harmonic_vocal_body.harmonic_fit_error = 0.05f;
+	low_harmonic_vocal_body.spectral_centroid = 0.35f;
+	low_harmonic_vocal_body.spectral_slope = 0.42f;
+	low_harmonic_vocal_body.local_noise_level = 0.16f;
+	low_harmonic_vocal_body.harmonic_ratios[1] = 0.68f;
+	low_harmonic_vocal_body.harmonic_ratios[2] = 0.40f;
+	low_harmonic_vocal_body.harmonic_ratios[3] = 0.19f;
+	low_harmonic_vocal_body.harmonic_ratios[4] = 0.11f;
+	runner.expect(measured_other_owned_low_harmonic_vocal_body_supported(low_harmonic_vocal_body),
+		      "same-pitch other vocal shadow: expected measured low-harmonic vocal body to stay visible");
+
+	FullMixDebugCandidate high_harmonic_control = low_harmonic_vocal_body;
+	high_harmonic_control.harmonicity = 3.20f;
+	high_harmonic_control.spectral_slope = 1.10f;
+	runner.expect(!measured_other_owned_low_harmonic_vocal_body_supported(high_harmonic_control),
+		      "same-pitch other vocal shadow: expected high-harmonic other control to remain excluded");
 }
 
 FullMixDebugCandidate make_vocal_bass_shadow_debug(int midi)

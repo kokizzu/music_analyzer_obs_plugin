@@ -3832,6 +3832,34 @@ bool measured_other_owned_low_d_sharp_vocal_body_supported(const FullMixDebugCan
 	       fifth >= 0.05f && fifth <= 0.28f;
 }
 
+bool measured_other_owned_low_harmonic_vocal_body_supported(const FullMixDebugCandidate &debug)
+{
+	// Some sustained female-vocal fundamentals have a compact mid-band envelope
+	// that the ownership classifier assigns to Other.  Unlike the nearby reed
+	// and string profiles, these have a clean, low-harmonicity fit and a
+	// moderate spectral slope.  Keep this span narrow: it is only a display
+	// exception, not an ownership reclassification.
+	if (debug.owner != InstrumentKind::Other || debug.midi < 54 || debug.midi > 64)
+		return false;
+
+	const float second = debug.harmonic_ratios[1];
+	const float third = debug.harmonic_ratios[2];
+	const float fourth = debug.harmonic_ratios[3];
+	const float fifth = debug.harmonic_ratios[4];
+	return debug.other_score >= 0.65f && debug.other_score <= 0.95f &&
+	       debug.keyboard_score <= 0.25f && debug.guitar_score <= 0.28f &&
+	       debug.vocal_score <= 0.020f && debug.spectral_level >= 0.86f &&
+	       debug.pitch_confidence >= 0.80f && debug.pitch_confidence <= 0.93f &&
+	       debug.periodicity >= 0.82f && debug.periodicity <= 0.95f &&
+	       debug.harmonicity >= 0.85f && debug.harmonicity <= 1.80f &&
+	       debug.harmonic_fit_error >= 0.04f && debug.harmonic_fit_error <= 0.22f &&
+	       debug.spectral_centroid >= 0.30f && debug.spectral_centroid <= 0.47f &&
+	       debug.spectral_slope >= 0.30f && debug.spectral_slope <= 0.80f &&
+	       debug.local_noise_level >= 0.020f && debug.local_noise_level <= 0.40f &&
+	       second >= 0.40f && second <= 0.75f && third >= 0.15f && third <= 0.70f &&
+	       fourth >= 0.04f && fourth <= 0.60f && fifth >= 0.02f && fifth <= 0.40f;
+}
+
 bool measured_other_owned_vocal_shadow_suppression_supported(const FullMixDebugCandidate &debug,
 							     float vocal_level, float owner_level)
 {
@@ -3978,6 +4006,8 @@ bool shared_vocal_pitch_display_supported(const FullMixDebugCandidate &debug)
 	if (measured_other_owned_rounded_vocal_body_supported(debug))
 		return true;
 	if (measured_other_owned_low_d_sharp_vocal_body_supported(debug))
+		return true;
+	if (measured_other_owned_low_harmonic_vocal_body_supported(debug))
 		return true;
 	const bool keyboard_owned_pure_choir =
 		debug.owner == InstrumentKind::Keyboard &&
@@ -8091,7 +8121,8 @@ void add_full_mix_display_mirror(NoteCandidateList &candidates, const FullMixOwn
 		 measured_other_owned_harmonic_vocal_body_supported(debug) ||
 		 measured_other_owned_dense_vocal_body_supported(debug) ||
 		 measured_other_owned_rounded_vocal_body_supported(debug) ||
-		 measured_other_owned_low_d_sharp_vocal_body_supported(debug));
+		 measured_other_owned_low_d_sharp_vocal_body_supported(debug) ||
+		 measured_other_owned_low_harmonic_vocal_body_supported(debug));
 	const bool measured_keyboard_vocal_display =
 		row == FullMixDisplayRow::Vocal &&
 		measured_keyboard_owned_vocal_body_supported(debug) &&
@@ -12649,10 +12680,11 @@ void suppress_named_owned_same_pitch_vocal_shadows(NoteGrid &vocal_grid, Instrum
 		    (measured_owned_formant_vocal_partial_supported(*debug) ||
 		     measured_other_owned_low_confidence_vocal_partial_supported(*debug) ||
 		     measured_keyboard_owned_vocal_body_supported(*debug) ||
-		     measured_other_owned_harmonic_vocal_body_supported(*debug) ||
-		     measured_other_owned_dense_vocal_body_supported(*debug) ||
-		     measured_other_owned_rounded_vocal_body_supported(*debug) ||
-		     measured_other_owned_low_d_sharp_vocal_body_supported(*debug)))
+	     measured_other_owned_harmonic_vocal_body_supported(*debug) ||
+	     measured_other_owned_dense_vocal_body_supported(*debug) ||
+	     measured_other_owned_rounded_vocal_body_supported(*debug) ||
+	     measured_other_owned_low_d_sharp_vocal_body_supported(*debug) ||
+	     measured_other_owned_low_harmonic_vocal_body_supported(*debug)))
 			continue;
 		if (measured_adjacent_vocal_display_supported(*debug) &&
 		    !measured_other_owned_vocal_shadow)

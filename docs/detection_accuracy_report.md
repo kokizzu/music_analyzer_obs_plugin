@@ -201,13 +201,13 @@ Source: `build/medley_solos_attributes.tsv`
 
 | Metric | Accurate / total | Remaining |
 | --- | ---: | ---: |
-| Medley Solos — Expected instrument row | 953 / 960 (99.3%) | 7 |
+| Medley Solos — Expected instrument row | 958 / 960 (99.8%) | 2 |
 | Medley Solos — Family Other expected row | 598 / 600 (99.7%) | 2 |
 | Medley Solos — Instrument Clarinet expected row | 119 / 120 (99.2%) | 1 |
 | Medley Solos — Family Guitar expected row | 120 / 120 (100.0%) | 0 |
 | Medley Solos — Instrument Distorted Electric Guitar expected row | 120 / 120 (100.0%) | 0 |
-| Medley Solos — Family Vocals expected row | 115 / 120 (95.8%) | 5 |
-| Medley Solos — Instrument Female Singer expected row | 115 / 120 (95.8%) | 5 |
+| Medley Solos — Family Vocals expected row | 120 / 120 (100.0%) | 0 |
+| Medley Solos — Instrument Female Singer expected row | 120 / 120 (100.0%) | 0 |
 | Medley Solos — Instrument Flute expected row | 120 / 120 (100.0%) | 0 |
 | Medley Solos — Family Piano expected row | 120 / 120 (100.0%) | 0 |
 | Medley Solos — Instrument Piano expected row | 120 / 120 (100.0%) | 0 |

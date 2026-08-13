@@ -435,12 +435,14 @@ void print_full_mix_debug(const SampleRow &row, std::size_t buffer_index,
 		const mao::FullMixDebugCandidate &debug = snapshot.full_mix_debug_candidates[index];
 		std::fprintf(stderr,
 			     "  candidate midi=%d owner=%s own=%.3f scores=k%.3f g%.3f v%.3f o%.3f "
-			     "level=%.3f pitch=%.3f periodic=%.3f fit=%.3f noise=%.3f centroid=%.3f "
+			     "level=%.3f pitch=%.3f periodic=%.3f harmonicity=%.3f fit=%.3f noise=%.3f "
+			     "centroid=%.3f slope=%.3f "
 			     "harmonics=%.3f,%.3f,%.3f,%.3f\n",
 			     debug.midi, instrument_name(debug.owner), debug.ownership_confidence,
 			     debug.keyboard_score, debug.guitar_score, debug.vocal_score, debug.other_score,
 			     debug.spectral_level, debug.pitch_confidence, debug.periodicity,
-			     debug.harmonic_fit_error, debug.local_noise_level, debug.spectral_centroid,
+			     debug.harmonicity, debug.harmonic_fit_error, debug.local_noise_level,
+			     debug.spectral_centroid, debug.spectral_slope,
 			     debug.harmonic_ratios[1], debug.harmonic_ratios[2], debug.harmonic_ratios[3],
 			     debug.harmonic_ratios[4]);
 	}
