@@ -21775,12 +21775,11 @@ bool supported_guitar_diminished_triad_alias(int root, const NoteGrid &display_g
 	const float minor_third = note_grid_pitch_level(analysis_grid, root + 3);
 	const float diminished_fifth = note_grid_pitch_level(analysis_grid, root + 6);
 	const float anchor = std::min({root_level, minor_third, diminished_fifth});
-	// GuitarTECH's recorded Bdim voicings can leave the flat fifth as a
-	// deliberately weak analysis-only tone (about 3% of the local peak), while
-	// the displayed root and minor third remain clear.  The alias still needs
-	// two displayed tones, all three analysis tones, and the conflict checks
-	// below, so retain that measured flat-fifth evidence down to 1.5%.
-	if (anchor < std::max(0.015f, strongest_analysis * 0.015f))
+	// A compact recorded guitar voicing can retain its flat fifth in the
+	// analysis grid just below the normal active-cell floor.  Keep it usable
+	// for an alias only when the other two diminished tones remain visible and
+	// the conflicting major/natural fifth checks below are clear.
+	if (anchor < std::max(0.045f, strongest_analysis * 0.025f))
 		return false;
 
 	const float major_third =
@@ -35959,11 +35958,6 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 				guitar_chord_detection_grid);
 			prune_crowded_guitar_display_label(snapshot.guitar_chord, snapshot.guitar_notes,
 							   guitar_chord_detection_grid);
-			// A compact visible-root diminished triad can be appended before the
-			// crowded-label pass and then be the component it prunes.  Reapply the
-			// same measured analysis-complete check to the compact label that remains.
-			append_supported_guitar_diminished_triad_display_aliases(
-				snapshot.guitar_chord, snapshot.guitar_notes, guitar_chord_detection_grid);
 			// A rootless diminished triad can be fully supported by the analysis
 			// grid while its hidden root makes the first display pass look sparse.
 			// Reapply the same strict check after crowded-label pruning so a valid

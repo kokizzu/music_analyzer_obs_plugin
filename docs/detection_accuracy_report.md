@@ -45,8 +45,8 @@ Source: `build/detector_improvement_route_summary.txt`
 
 | Metric | Routes / total | Other routes |
 | --- | ---: | ---: |
-| Routes with direct zero-regression support | 7 / 226 (3.1%) | 219 |
-| Routes awaiting additional fixture coverage | 88 / 226 (38.9%) | 138 |
+| Routes with direct zero-regression support | 9 / 226 (4.0%) | 217 |
+| Routes awaiting additional fixture coverage | 86 / 226 (38.1%) | 140 |
 
 ## Vocadito full-mix vocal routing
 
@@ -248,7 +248,7 @@ These rows count expected labeled chord-analysis windows (not full-mix samples).
 | Guitar Techs Chord — exact chord windows | 7249 / 7484 (96.9%) | 235 |
 | Guitar Techs Chord — primary displayed chord windows | 3577 / 7484 (47.8%) | 3907 |
 | Guitar Techs Chord — expected guitar pitch classes | 24403 / 26738 (91.3%) | 2335 |
-| Guitar Techs Music — exact chord windows | 421 / 500 (84.2%) | 79 |
+| Guitar Techs Music — exact chord windows | 412 / 500 (82.4%) | 88 |
 | Guitar Techs Music — primary displayed chord windows | 242 / 500 (48.4%) | 258 |
 | Guitar Techs Music — expected guitar pitch classes | 1609 / 1838 (87.5%) | 229 |
 | Guitar Techs Music — power-chord exact windows | 6 / 26 (23.1%) | 20 |
