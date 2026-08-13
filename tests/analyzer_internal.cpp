@@ -1567,7 +1567,7 @@ void check_visible_diminished_guitar_alias_recovery(Runner &runner)
 	set_pitch(analysis_dropout_display, 2, 0.77f);
 	set_pitch(analysis_dropout_display, 4, 1.00f);
 	NoteGrid analysis_dropout_analysis = analysis_dropout_display;
-	set_pitch(analysis_dropout_analysis, 5, 0.05f);
+	set_pitch(analysis_dropout_analysis, 5, 0.02f);
 	append_supported_guitar_diminished_triad_display_aliases(
 		analysis_dropout_state, analysis_dropout_display, analysis_dropout_analysis);
 	runner.expect(chord_label_has_exact_component(analysis_dropout_state.label, "Bdim"),
