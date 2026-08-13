@@ -22060,9 +22060,8 @@ bool rootless_analysis_complete_guitar_diminished_triad_alias(int root,
 void append_rootless_analysis_complete_guitar_diminished_triad_display_aliases(
 	InstrumentState &state, const NoteGrid &display_grid, const NoteGrid &analysis_grid)
 {
-	if (!state.label[0] || state.label[0] == '-')
-		return;
-	if (chord_label_component_count(state.label) >= 6)
+	const bool has_display_label = state.label[0] && state.label[0] != '-';
+	if (has_display_label && chord_label_component_count(state.label) >= 6)
 		return;
 
 	for (int root = 0; root < 12; ++root) {
@@ -22073,9 +22072,12 @@ void append_rootless_analysis_complete_guitar_diminished_triad_display_aliases(
 		std::snprintf(alias, sizeof(alias), "%sdim", note_name(root));
 		if (chord_label_has_exact_component(state.label, alias))
 			continue;
-		if (state.label[0])
+		if (has_display_label)
 			append_text(state.label, sizeof(state.label), "=");
-		append_text(state.label, sizeof(state.label), alias);
+		if (has_display_label)
+			append_text(state.label, sizeof(state.label), alias);
+		else
+			copy_text(state.label, sizeof(state.label), alias);
 		state.confidence = std::max(state.confidence, 0.58f);
 	}
 }
