@@ -286,6 +286,54 @@ bucket chord_miss:pow:visible2_analysis2_smooth2_rootvis1 positives=4 positive_r
         "bucket chord_miss:pow:visible1_analysis1_smooth1_rootvis0 +recordings=4 +rows=7 -recordings=0 -rows=0 side_rows=0 net_rows=7 gain_per_side=inf blocked_by=missing_note_evidence,low_samples<5 :: analysis_root<=0",
     )
 
+    visual_octave_report = """visual_row_confusion:other/violin->piano positives=5 samples/440 rows protected_hits=3803 samples/3803 rows foreign_misses=0 samples/136 rows
+  low-false candidate rules:
+    keyboard_score>=0.79 AND periodicity>=0.917 AND third_octave_ratio<=0: pos=5/440 rows=5 neg=0/3803 rows=0 foreign_miss=0/136 rows=0 side_rows=0 net_rows=5 gain_per_side=inf pos_groups=good_sounds_violin=5 pos_sources=other/violin=5 neg_same_source_rows=0 neg_cross_source_rows=0 foreign_cross_source_rows=0
+      positive examples:
+        good_sounds_violin_10663 expected=D#3/51 debug=D#5/75 owner=piano delta=24 reason=hit first_row=vocals strongest=piano raw=0/0 raw_best=D#4/434.861 raw_rank=24
+"""
+    with tempfile.TemporaryDirectory() as tmpdir:
+        path = pathlib.Path(tmpdir) / "route_report.txt"
+        path.write_text(visual_octave_report, encoding="utf-8")
+        result = subprocess.run(
+            [sys.executable, str(SCRIPT), str(path), "--limit", "8"],
+            check=True,
+            text=True,
+            stdout=subprocess.PIPE,
+        )
+    visual_octave_output = result.stdout
+    require(
+        visual_octave_output,
+        "detector_route_summary: candidates=1 low_false=1 shadow=0 near_miss=0 guitar=0 drum=0 positive_net=1 gain_ge_1=1 source_safe_positive_net=1 actionable=0 coverage_blocked=0",
+    )
+    require(visual_octave_output, "blocked_by=missing_note_evidence")
+    if "coverage_need low-false visual_row_confusion:other/violin->piano" in visual_octave_output:
+        raise AssertionError(
+            "visual octave aliases without expected raw evidence must not be coverage candidates:\n"
+            + visual_octave_output
+        )
+
+    implemented_shadow_report = """compact route summary
+  routes=1 routes_with_extras=1 safe_simulation_routes=1 safe_simulation_extra_hits=1
+  safe_threshold_routes=0 no_safe_threshold_routes=1 safe_threshold_extra_hits=0 safe_threshold_protected_hits=0
+  other->same-pitch bass extras=1732/477 protected=302/77 simulation=runtime_other_bass_measured:1/0 threshold=none simulation_net_hits=1 simulation_gain_per_protected=inf
+"""
+    with tempfile.TemporaryDirectory() as tmpdir:
+        path = pathlib.Path(tmpdir) / "route_report.txt"
+        path.write_text(implemented_shadow_report, encoding="utf-8")
+        result = subprocess.run(
+            [sys.executable, str(SCRIPT), str(path), "--limit", "8"],
+            check=True,
+            text=True,
+            stdout=subprocess.PIPE,
+        )
+    implemented_shadow_output = result.stdout
+    require(
+        implemented_shadow_output,
+        "detector_route_summary: candidates=1 low_false=0 shadow=1 near_miss=0 guitar=0 drum=0 positive_net=1 gain_ge_1=1 source_safe_positive_net=1 actionable=0 coverage_blocked=0",
+    )
+    require(implemented_shadow_output, "blocked_by=already_runtime_guarded")
+
     veto_report = """compact route summary
   routes=1 routes_with_extras=1 safe_simulation_routes=0 safe_simulation_extra_hits=0
   safe_threshold_routes=1 no_safe_threshold_routes=0 safe_threshold_extra_hits=3 safe_threshold_protected_hits=0

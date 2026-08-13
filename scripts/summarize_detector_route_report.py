@@ -65,6 +65,9 @@ GUITAR_CHORD_MISS_RE = re.compile(r"^bucket chord_miss:(?P<quality>[^:]+):")
 RAW_ROOT_THIRD_FIFTH_RE = re.compile(
     r"raw\(root/third/fifth\)=(-?\d+(?:\.\d+)?)/(-?\d+(?:\.\d+)?)/(-?\d+(?:\.\d+)?)"
 )
+RAW_EXPECTED_RATIOS_RE = re.compile(
+    r"(?:^|\s)raw=(?P<expected>-?\d+(?:\.\d+)?)/(?P<tuned>-?\d+(?:\.\d+)?)"
+)
 EXAMPLE_EXPECTED_RE = re.compile(r"(?:^|\s)expected=(?P<label>\S+)")
 EXAMPLE_ANALYSIS_RE = re.compile(r"(?:^|\s)analysis=(?P<pitch_classes>\S+)")
 NOTE_PITCH_CLASSES = {
@@ -137,6 +140,14 @@ GUITAR_EXAMPLE_THIRD_EVIDENCE_FLOOR = 0.06
 # small direct signal; otherwise strong major/minor material can fabricate a
 # label-only diminished candidate.
 GUITAR_EXAMPLE_DIMINISHED_FIFTH_EVIDENCE_FLOOR = 0.06
+# A visual-row recovery may move a detected note between instrument rows, but
+# cannot recover an absent expected pitch. Do not promote an octave-miss
+# cluster into a routing candidate just because its wrong octave is confidently
+# assigned to a visual owner.
+VISUAL_ROUTE_EXPECTED_RAW_EVIDENCE_FLOOR = 0.01
+IMPLEMENTED_SHADOW_SIMULATIONS = {
+    "runtime_other_bass_measured",
+}
 
 
 @dataclasses.dataclass(frozen=True)
@@ -492,6 +503,10 @@ def candidate_block_reasons(
         reasons.append("missing_note_evidence")
     elif guitar_quality_tone_missing(candidate):
         reasons.append("missing_quality_tone")
+    elif visual_route_lacks_expected_raw_evidence(candidate):
+        reasons.append("missing_note_evidence")
+    elif shadow_candidate_is_already_runtime_guarded(candidate):
+        reasons.append("already_runtime_guarded")
     if candidate.kind in SAMPLE_SENSITIVE_KINDS:
         if 0 < candidate.pos_samples < min_actionable_samples:
             reasons.append(f"low_samples<{min_actionable_samples}")
@@ -674,6 +689,28 @@ def guitar_quality_tone_missing(candidate: Candidate) -> bool:
         return True
 
     return guitar_examples_have_weak_third(candidate)
+
+
+def visual_route_lacks_expected_raw_evidence(candidate: Candidate) -> bool:
+    if candidate.kind not in {"low-false", "near-miss"}:
+        return False
+    if not candidate.section.startswith("visual_row_confusion:"):
+        return False
+    ratios: list[float] = []
+    for example in candidate.examples:
+        match = RAW_EXPECTED_RATIOS_RE.search(example)
+        if match:
+            ratios.append(float(match.group("expected")))
+    return bool(ratios) and max(ratios) < VISUAL_ROUTE_EXPECTED_RAW_EVIDENCE_FLOOR
+
+
+def shadow_candidate_is_already_runtime_guarded(candidate: Candidate) -> bool:
+    if candidate.kind != "shadow":
+        return False
+    return any(
+        f"simulation {simulation}" in candidate.rule
+        for simulation in IMPLEMENTED_SHADOW_SIMULATIONS
+    )
 
 
 def candidate_additional_samples_needed(
