@@ -294,7 +294,7 @@ This open CC-BY corpus measures real classical mixtures; unlike Bach10, it has n
 | --- | ---: | ---: |
 | MusicNet real mixes — recordings with eligible chord windows | 154 / 330 (46.7%) | 176 |
 | MusicNet real mixes — expected pitch classes | 5690 / 7478 (76.1%) | 1788 |
-| MusicNet real mixes — exact chord windows | 561 / 1847 (30.4%) | 1286 |
+| MusicNet real mixes — exact chord windows | 568 / 1847 (30.8%) | 1279 |
 | MusicNet real mixes — simplified chord windows | 835 / 1847 (45.2%) | 1012 |
 
 ## MAPS real-piano gate
