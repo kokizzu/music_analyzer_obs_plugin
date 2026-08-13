@@ -33948,6 +33948,14 @@ AnalysisSnapshot AnalysisEngine::analyze(const float *samples, std::size_t count
 		snapshot.drum_debug_trigger_scores[Tom] <= 20.986f;
 	if (final_one_shot_measured_bright_crash_from_hihat_primary_recovery)
 		promote_drum_primary(Crash, 0.90f);
+	const bool final_one_shot_measured_compact_crash_from_hihat_primary_recovery =
+		drum_detection_enabled && one_shot_drum_source && !generated_gm_drum_source &&
+		drum_level_[Crash] > 0.30f && drum_level_[Crash] <= 0.53f &&
+		drum_level_[HiHat] >= 0.899f &&
+		snapshot.drum_debug_trigger_scores[Crash] >= 1.80f &&
+		snapshot.drum_debug_trigger_scores[Crash] <= 4.30f;
+	if (final_one_shot_measured_compact_crash_from_hihat_primary_recovery)
+		promote_drum_primary(Crash, 0.90f);
 
 	// Some closed-hat one shots reach the final arbitration with the crash
 	// candidate numerically tied.  Their stronger crash-band total is the

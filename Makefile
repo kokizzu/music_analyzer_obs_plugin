@@ -2502,6 +2502,9 @@ filter-instrument-attribute-rows: $(BUILD_DIR)/instrument_sample_attributes.tsv 
 filter-drum-primary-attribute-rows: $(BUILD_DIR)/drum_primary_miss_attribute_rows.tsv scripts/filter_drum_attribute_rows.py
 	$(PYTHON) scripts/filter_drum_attribute_rows.py "$(BUILD_DIR)/drum_primary_miss_attribute_rows.tsv" $(FILTER_DRUM_ATTRIBUTE_ARGS)
 
+filter-hf-drum-primary-attribute-rows: $(HF_DRUM_KIT_PRIMARY_ATTRIBUTE_ROWS) scripts/filter_drum_attribute_rows.py
+	$(PYTHON) scripts/filter_drum_attribute_rows.py "$(HF_DRUM_KIT_PRIMARY_ATTRIBUTE_ROWS)" $(FILTER_DRUM_ATTRIBUTE_ARGS)
+
 filter-drum-full-attribute-rows: $(BUILD_DIR)/drum_full_attribute_rows.tsv scripts/filter_drum_attribute_rows.py
 	$(PYTHON) scripts/filter_drum_attribute_rows.py "$(BUILD_DIR)/drum_full_attribute_rows.tsv" $(FILTER_DRUM_ATTRIBUTE_ARGS)
 
