@@ -2197,6 +2197,7 @@ extract-real-a2s-sax-exercise-probes: download-real-a2s-sax-samples
 inspect-real-a2s-sax-scale-probes: extract-real-a2s-sax-scale-probes scripts/inspect_real_a2s_sax_scale.py
 	$(PYTHON) scripts/inspect_real_a2s_sax_scale.py --wav "$(REAL_A2S_SAX_PROBE_DIR)/real_a2s_sax_dataset/real/tenor/GMajScale.wav" --kern "$(REAL_A2S_SAX_METADATA_DIR)/real_a2s_sax_dataset/krn/tenor/GMajScale.krn"
 
+
 .PHONY: inspect-real-a2s-sax-scale-probes-cached
 inspect-real-a2s-sax-scale-probes-cached: scripts/inspect_real_a2s_sax_scale.py
 	@test -s "$(REAL_A2S_SAX_PROBE_DIR)/real_a2s_sax_dataset/real/tenor/GMajScale.wav" || { printf '%s\n' "missing scale probe; run make extract-real-a2s-sax-scale-probes first"; exit 2; }
@@ -2370,6 +2371,10 @@ summarize-maps-piano-attributes: scripts/analyze_maps_piano_attributes.py
 
 summarize-maps-piano-note-attributes: scripts/analyze_maps_piano_attributes.py
 	$(PYTHON) scripts/analyze_maps_piano_attributes.py "$(MAPS_PIANO_NOTE_ATTRIBUTE_TSV)"
+
+.PHONY: inspect-maps-piano-low-miss-rows
+inspect-maps-piano-low-miss-rows: scripts/inspect_maps_piano_low_miss_rows.py
+	$(PYTHON) scripts/inspect_maps_piano_low_miss_rows.py "$(MAPS_PIANO_NOTE_ATTRIBUTE_TSV)"
 
 prepare-maps-piano-note-samples: scripts/prepare_maps_piano_samples.py download-maps-piano-samples | $(BUILD_DIR)
 	MAPS_PIANO_ARCHIVE="$(MAPS_PIANO_ARCHIVE)" MAPS_PIANO_SAMPLE_DIR="$(MAPS_PIANO_NOTE_SAMPLE_DIR)" MAPS_PIANO_RECORDING_LIMIT="$(MAPS_PIANO_NOTE_RECORDING_LIMIT)" MAPS_PIANO_MIN_RECORDINGS="$(MAPS_PIANO_NOTE_MIN_RECORDINGS)" MAPS_PIANO_KINDS="ISOL" $(PYTHON) scripts/prepare_maps_piano_samples.py --archive "$(MAPS_PIANO_ARCHIVE)" --output "$(MAPS_PIANO_NOTE_SAMPLE_DIR)" --limit "$(MAPS_PIANO_NOTE_RECORDING_LIMIT)" --min-recordings "$(MAPS_PIANO_NOTE_MIN_RECORDINGS)" --kinds "ISOL"
