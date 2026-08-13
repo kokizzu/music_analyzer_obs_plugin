@@ -409,6 +409,28 @@ def maps_chord_miss_rows(path: Path) -> list[tuple[str, int, int]]:
     ]
 
 
+def drum_primary_attribute_rows(path: Path, name: str) -> list[tuple[str, int, int]]:
+    """Return exact one-shot primary-label accuracy from the full attribute matrix."""
+    instruments = ("kick", "snare", "hihat", "crash", "tom", "ride", "rim")
+    totals = {instrument: [0, 0] for instrument in instruments}
+    with path.open(encoding="utf-8", newline="") as source:
+        rows = csv.DictReader(source, delimiter="\t")
+        required = {"expected", "got"}
+        missing = required - set(rows.fieldnames or ())
+        if missing:
+            raise ValueError(f"{path}: missing full drum attribute columns: {', '.join(sorted(missing))}")
+        for row in rows:
+            expected = row["expected"]
+            if expected not in totals:
+                raise ValueError(f"{path}: unknown expected drum `{expected}`")
+            totals[expected][1] += 1
+            totals[expected][0] += int(row["got"] == expected)
+    return [
+        (f"{name} — primary {instrument}", totals[instrument][0], totals[instrument][1])
+        for instrument in instruments
+    ]
+
+
 def urmp_gate_rows(path: Path) -> list[tuple[str, int, int]]:
     text = path.read_text(encoding="utf-8", errors="replace")
     coverage = URMP_COVERAGE_RE.search(text)
@@ -435,6 +457,10 @@ def urmp_gate_rows(path: Path) -> list[tuple[str, int, int]]:
 
 
 def drum_primary_gate_rows(paths: list[Path], label_prefix: str) -> list[tuple[str, int, int]]:
+    if label_prefix == "Full drum gate" and len(paths) == 1:
+        exact_attribute_path = paths[0].with_name("drum_full_exact_attribute_rows.tsv")
+        if exact_attribute_path.is_file():
+            return drum_primary_attribute_rows(exact_attribute_path, label_prefix)
     rows_by_expected: dict[str, tuple[int, int]] = {}
     for path in paths:
         match = DRUM_PRIMARY_MATRIX_RE.search(path.read_text(encoding="utf-8", errors="replace"))
@@ -858,6 +884,10 @@ def render(
             remaining = f"{total - accurate} false predictions" if label.endswith("precision") else str(total - accurate)
             lines.append(f"| {label} | {fraction(accurate, total)} | {remaining} |")
     if drum_gate_output is not None:
+        full_drum_source = drum_gate_output
+        exact_attribute_path = drum_gate_output.with_name("drum_full_exact_attribute_rows.tsv")
+        if exact_attribute_path.is_file():
+            full_drum_source = exact_attribute_path
         lines.extend(
             [
                 "",
@@ -867,7 +897,7 @@ def render(
                 "The latest completed full gate is reported even when a threshold fails, so its "
                 "remaining classifications remain visible.",
                 "",
-                f"Source: `{drum_gate_output.as_posix()}`",
+                f"Source: `{full_drum_source.as_posix()}`",
                 "",
                 "| Metric | Accurate / total | Remaining |",
                 "| --- | ---: | ---: |",

@@ -332,17 +332,17 @@ This separate Disklavier subset contains isolated notes with aligned MIDI annota
 
 These rows count one-shot samples by the instrument shown as the primary drum. The latest completed full gate is reported even when a threshold fails, so its remaining classifications remain visible.
 
-Source: `build/drum_samples_full_gate.out`
+Source: `build/drum_full_exact_attribute_rows.tsv`
 
 | Metric | Accurate / total | Remaining |
 | --- | ---: | ---: |
 | Full drum gate — primary kick | 6213 / 6505 (95.5%) | 292 |
 | Full drum gate — primary snare | 4015 / 5390 (74.5%) | 1375 |
 | Full drum gate — primary hihat | 1990 / 2358 (84.4%) | 368 |
-| Full drum gate — primary crash | 562 / 788 (71.3%) | 226 |
-| Full drum gate — primary tom | 1941 / 2861 (67.8%) | 920 |
+| Full drum gate — primary crash | 565 / 788 (71.7%) | 223 |
+| Full drum gate — primary tom | 1936 / 2861 (67.7%) | 925 |
 | Full drum gate — primary ride | 241 / 352 (68.5%) | 111 |
-| Full drum gate — primary rim | 333 / 504 (66.1%) | 171 |
+| Full drum gate — primary rim | 332 / 504 (65.9%) | 172 |
 
 ## High-fidelity drum-kit primary-classification gate
 
