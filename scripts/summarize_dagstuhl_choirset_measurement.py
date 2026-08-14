@@ -85,14 +85,31 @@ def summarize(attributes: Path, manifest: Path) -> list[tuple[str, str, int, int
                 "bass_notes", "keys_notes", "guitar_notes", "vocal_notes", "other_notes", "amb_notes")))
             vocal_notes = parse_notes(row["vocal_notes"])
             vocal_visual_notes = parse_visual_notes(row["vocal_visual_notes"])
-            for program, midi in parse_active_notes(row["active_notes"]):
+            active_notes = parse_active_notes(row["active_notes"])
+            expected_pitch_classes = {midi % 12 for _program, midi in active_notes}
+            vocal_pitch_classes = {note % 12 for note in vocal_notes}
+            visual_vocal_pitch_classes = {note % 12 for note in vocal_visual_notes}
+
+            # The vocal UI intentionally shows one current note, not every
+            # simultaneous SATB part. Keep the stricter per-part accounting
+            # below, but also measure whether that one display can represent
+            # any score-active singer in this analysis window.
+            for metric, hit in (
+                ("Current-note vocal ownership", bool(expected_pitch_classes & vocal_pitch_classes)),
+                ("Visible current-note vocal routing",
+                 bool(expected_pitch_classes & visual_vocal_pitch_classes)),
+            ):
+                add(totals, "All DCS vocal windows", metric, hit)
+                add(totals, f"Configuration — {config}", metric, hit)
+
+            for program, midi in active_notes:
                 role = ROLE_FOR_PROGRAM.get(program, f"Program {program}")
                 groups = ("All SATB notes", f"SATB range — {role}", f"Configuration — {config}")
                 metrics = {
                     "Pitch-class recall": midi % 12 in detected_pcs,
                     "Exact-MIDI recall": midi in all_notes,
-                    "Vocal ownership": midi % 12 in {note % 12 for note in vocal_notes},
-                    "Visible vocal routing": midi % 12 in {note % 12 for note in vocal_visual_notes},
+                    "Vocal ownership": midi % 12 in vocal_pitch_classes,
+                    "Visible vocal routing": midi % 12 in visual_vocal_pitch_classes,
                 }
                 for group in groups:
                     for metric, hit in metrics.items():

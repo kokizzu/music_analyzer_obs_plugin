@@ -38,8 +38,11 @@ def main() -> int:
         assert rows[("All SATB notes", "Exact-MIDI recall")] == (1, 2)
         assert rows[("SATB range — Soprano", "Vocal ownership")] == (1, 1)
         assert rows[("SATB range — Bass", "Visible vocal routing")] == (0, 1)
+        assert rows[("All DCS vocal windows", "Current-note vocal ownership")] == (1, 1)
+        assert rows[("All DCS vocal windows", "Visible current-note vocal routing")] == (1, 1)
+        assert rows[("Configuration — DCS_Test_Take01", "Current-note vocal ownership")] == (1, 1)
         assert rows[("All DCS chord windows", "Exact chord accuracy")] == (1, 1)
-    print("test_summarize_dagstuhl_choirset_measurement: 5 checks passed")
+    print("test_summarize_dagstuhl_choirset_measurement: 8 checks passed")
     return 0
 
 

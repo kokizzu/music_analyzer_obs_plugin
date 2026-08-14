@@ -702,9 +702,12 @@ def render(
                 "",
                 "## Dagstuhl ChoirSet (DCS) real-audio measurement",
                 "",
-                "Each row is a score-active SATB note at a stable center-of-note window in a real, "
-                "summed four-singer recording. Vocal ownership and routing require the expected pitch "
-                "class in the vocal row; visible routing additionally requires visual level at least 0.25.",
+                "The SATB rows count every score-active singer at a stable center-of-note window in a "
+                "real, summed four-singer recording. Vocal ownership and routing require the expected "
+                "pitch class in the vocal row; visible routing additionally requires visual level at least "
+                "0.25. Current-note vocal rows are separate window-level metrics: because the UI is "
+                "monophonic, they count success when its one displayed note matches any concurrent SATB "
+                "score pitch.",
                 "",
                 f"Source: `{dagstuhl_choirset_input.as_posix()}`",
                 "",
@@ -713,7 +716,7 @@ def render(
             ]
         )
         for group, metric, accurate, total in dcs_rows:
-            if group in {"All SATB notes", "All DCS chord windows"}:
+            if group in {"All SATB notes", "All DCS chord windows", "All DCS vocal windows"}:
                 lines.append(f"| DCS {group} — {metric} | {fraction(accurate, total)} | {total - accurate} |")
         lines.extend(["", "### DCS SATB range breakdown", "", "| Metric | Accurate / total | Remaining |", "| --- | ---: | ---: |"])
         for group, metric, accurate, total in dcs_rows:

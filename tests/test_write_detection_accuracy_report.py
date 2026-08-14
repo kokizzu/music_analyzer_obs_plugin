@@ -330,6 +330,19 @@ class DetectionAccuracyReportTest(unittest.TestCase):
                 "actionable=1 coverage_blocked=34\n",
                 encoding="utf-8",
             )
+            dcs_measurement = Path(temporary) / "dagstuhl_choirset_measurement.tsv"
+            dcs_measurement.write_text(
+                "\n".join((
+                    "group\tmetric\taccurate\ttotal",
+                    "All DCS chord windows\tExact chord accuracy\t1\t2",
+                    "All DCS vocal windows\tCurrent-note vocal ownership\t1\t2",
+                    "All DCS vocal windows\tVisible current-note vocal routing\t0\t2",
+                    "All SATB notes\tPitch-class recall\t3\t4",
+                    "SATB range — Soprano\tVocal ownership\t1\t1",
+                    "Configuration — DCS_Test\tCurrent-note vocal ownership\t1\t2",
+                )) + "\n",
+                encoding="utf-8",
+            )
             report = REPORT.render(
                 source, [chords], vocal_full_mix, [bach10_0, bach10_1], musicnet, drum, urmp,
                 vocalset_full_mix, [maps], None, route_summary, good_sounds_full_mix, hf_drum_outputs,
@@ -344,6 +357,7 @@ class DetectionAccuracyReportTest(unittest.TestCase):
                 urmp_sax_full_mix_input=urmp_sax_full_mix,
                 star_drums_gate_output=star_drums,
                 mdb_drums_gate_output=mdb_drums,
+                dagstuhl_choirset_input=dcs_measurement,
             )
 
         self.assertIn("| Any detected note | 2 / 3 (66.7%) | 1 |", report)
@@ -352,6 +366,11 @@ class DetectionAccuracyReportTest(unittest.TestCase):
         self.assertIn("| Visual primary row | 2 / 3 (66.7%) | 1 |", report)
         self.assertIn("| Guitar — Visual primary row | 1 / 2 (50.0%) | 1 |", report)
         self.assertIn("## Detector-improvement route coverage", report)
+        self.assertIn("## Dagstuhl ChoirSet (DCS) real-audio measurement", report)
+        self.assertIn("| DCS All DCS vocal windows — Current-note vocal ownership | 1 / 2 (50.0%) | 1 |", report)
+        self.assertIn("| DCS All DCS vocal windows — Visible current-note vocal routing | 0 / 2 (0.0%) | 2 |", report)
+        self.assertIn("| DCS SATB range — Soprano — Vocal ownership | 1 / 1 (100.0%) | 0 |", report)
+        self.assertIn("| DCS Configuration — DCS_Test — Current-note vocal ownership | 1 / 2 (50.0%) | 1 |", report)
         self.assertIn("| Routes with direct zero-regression support | 1 / 160 (0.6%) | 159 |", report)
         self.assertIn("| Routes awaiting additional fixture coverage | 34 / 160 (21.2%) | 126 |", report)
         self.assertIn("## Cached isolated-guitar chord gates", report)
