@@ -682,6 +682,8 @@ def render(
     mir1k_dataset_archive: Path | None = None,
     mir1k_dataset_extraction: Path | None = None,
     mir1k_full_mix_input: Path | None = None,
+    scms_dataset_archive: Path | None = None,
+    scms_dataset_inspection: Path | None = None,
     vocal_exact_note_cross_corpus_input: Path | None = None,
 ) -> str:
     samples = load_samples(input_path)
@@ -898,6 +900,28 @@ def render(
         for label, accurate, total in mir1k_exact_rows:
             if label == "Vocals — exact expected MIDI note":
                 lines.append(f"| MIR-1K vocals — {label} | {fraction(accurate, total)} | {total - accurate} |")
+    scms_archive_ready = int(scms_dataset_archive is not None and scms_dataset_archive.is_file())
+    scms_inspection_ready = int(scms_dataset_inspection is not None and scms_dataset_inspection.is_file())
+    lines.extend(
+        [
+            "",
+            "## Saraga-Carnatic-Melody-Synth (SCMS) coverage-gap checklist",
+            "",
+            "SCMS supplies real 30-second vocal-plus-accompaniment mixtures with time-aligned continuous "
+            "vocal-melody annotations. Its archive stays in InstrumentSamples; the layout must be inspected "
+            "before a traversal-safe extractor or labelled measurement importer is added.",
+            "",
+            "| Work item | Complete / total | Remaining | Evidence required |",
+            "| --- | ---: | ---: | --- |",
+            f"| Store validated SCMS archive in InstrumentSamples | {fraction(scms_archive_ready, 1)} | {1 - scms_archive_ready} | official Zenodo MD5 |",
+            f"| Inspect SCMS audio and CSV/LAB annotation inventory | {fraction(scms_inspection_ready, 1)} | {1 - scms_inspection_ready} | non-extracting ZIP inventory |",
+            "| Extract SCMS safely in InstrumentSamples | 0 / 1 (0.0%) | 1 | traversal-safe extraction marker |",
+            "| Prepare labelled vocal-plus-accompaniment windows | 0 / 1 (0.0%) | 1 | tested measurement manifest |",
+            "| Measure current-note exact-MIDI and pitch-class recall | 0 / 1 (0.0%) | 1 | real SCMS x/total results |",
+            "| Measure vocal ownership and visible current-note routing | 0 / 1 (0.0%) | 1 | real SCMS routing x/total results |",
+            "| Re-audit protected routes with SCMS and existing vocal corpora | 0 / 1 (0.0%) | 1 | zero-regression cross-corpus report |",
+        ]
+    )
     if exact_note_cross_rows:
         lines.extend([
             "",
@@ -1478,6 +1502,8 @@ def main() -> int:
     parser.add_argument("--mir1k-dataset-archive", type=Path)
     parser.add_argument("--mir1k-dataset-extraction", type=Path)
     parser.add_argument("--mir1k-full-mix-input", type=Path)
+    parser.add_argument("--scms-dataset-archive", type=Path)
+    parser.add_argument("--scms-dataset-inspection", type=Path)
     parser.add_argument("--vocal-exact-note-cross-corpus-input", type=Path)
     parser.add_argument("--output", required=True, type=Path)
     args = parser.parse_args()
@@ -1514,6 +1540,8 @@ def main() -> int:
             args.mir1k_dataset_archive,
             args.mir1k_dataset_extraction,
             args.mir1k_full_mix_input,
+            args.scms_dataset_archive,
+            args.scms_dataset_inspection,
             args.vocal_exact_note_cross_corpus_input,
         )
     except (OSError, ValueError) as error:

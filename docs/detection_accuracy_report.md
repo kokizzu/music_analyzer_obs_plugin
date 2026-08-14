@@ -463,6 +463,20 @@ Source: `build/mir1k_vocal_mix_attributes.tsv`
 | MIR-1K vocals — Visual primary row | 42 / 300 (14.0%) | 258 |
 | MIR-1K vocals — Vocals — exact expected MIDI note | 173 / 300 (57.7%) | 127 |
 
+## Saraga-Carnatic-Melody-Synth (SCMS) coverage-gap checklist
+
+SCMS supplies real 30-second vocal-plus-accompaniment mixtures with time-aligned continuous vocal-melody annotations. Its archive stays in InstrumentSamples; the layout must be inspected before a traversal-safe extractor or labelled measurement importer is added.
+
+| Work item | Complete / total | Remaining | Evidence required |
+| --- | ---: | ---: | --- |
+| Store validated SCMS archive in InstrumentSamples | 0 / 1 (0.0%) | 1 | official Zenodo MD5 |
+| Inspect SCMS audio and CSV/LAB annotation inventory | 0 / 1 (0.0%) | 1 | non-extracting ZIP inventory |
+| Extract SCMS safely in InstrumentSamples | 0 / 1 (0.0%) | 1 | traversal-safe extraction marker |
+| Prepare labelled vocal-plus-accompaniment windows | 0 / 1 (0.0%) | 1 | tested measurement manifest |
+| Measure current-note exact-MIDI and pitch-class recall | 0 / 1 (0.0%) | 1 | real SCMS x/total results |
+| Measure vocal ownership and visible current-note routing | 0 / 1 (0.0%) | 1 | real SCMS routing x/total results |
+| Re-audit protected routes with SCMS and existing vocal corpora | 0 / 1 (0.0%) | 1 | zero-regression cross-corpus report |
+
 ## Cross-corpus vocal exact-MIDI evidence
 
 Exact vocal means the annotated MIDI pitch is present in the vocal row. Foreign-route means the exact pitch is present only in another row; pitch-class-only means the pitch class is detected in the wrong octave.

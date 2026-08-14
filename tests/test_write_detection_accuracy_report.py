@@ -379,6 +379,8 @@ class DetectionAccuracyReportTest(unittest.TestCase):
         self.assertIn("## Choral Singing Dataset (CSD) coverage-gap checklist", report)
         self.assertIn("## MIR-1K vocal-with-accompaniment coverage-gap checklist", report)
         self.assertIn("Store validated MIR-1K archive in InstrumentSamples | 0 / 1 (0.0%)", report)
+        self.assertIn("## Saraga-Carnatic-Melody-Synth (SCMS) coverage-gap checklist", report)
+        self.assertIn("Store validated SCMS archive in InstrumentSamples | 0 / 1 (0.0%)", report)
         self.assertIn("Run DCS/CSD/ESMUC/MIR-1K/cached-vocal ownership audit", report)
         self.assertIn("Audit exact-MIDI vocal failures across all six corpora | 1 / 1 (100.0%)", report)
         self.assertIn(
