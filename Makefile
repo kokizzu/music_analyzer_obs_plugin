@@ -778,6 +778,12 @@ MAPS_PIANO_NOTE_ATTRIBUTE_TSV ?= $(BUILD_DIR)/maps_piano_note_attributes.tsv
 MAPS_PIANO_NOTE_ATTRIBUTE_PARTS := $(addprefix $(BUILD_DIR)/maps_piano_note_attributes.shard-,$(addsuffix .tsv,$(MAPS_PIANO_NOTE_SHARD_INDEXES)))
 MAPS_PIANO_NOTE_LOCK_DIR ?= $(BUILD_DIR)/maps_piano_note_samples.lock
 MAPS_PIANO_NOTE_TEST_MAKE_JOBS = $(if $(filter -j%,$(MAKEFLAGS)),,-j$(words $(MAPS_PIANO_NOTE_SHARD_INDEXES)))
+MAESTRO_REAL_URL ?= https://storage.googleapis.com/magentadata/datasets/maestro/v3.0.0/maestro-v3.0.0.zip
+MAESTRO_REAL_SOURCE_DIR ?= $(REAL_SAMPLE_SOURCE_DIR)/maestro_real
+MAESTRO_REAL_ARCHIVE ?= $(MAESTRO_REAL_SOURCE_DIR)/maestro-v3.0.0.zip
+MAESTRO_REAL_SAMPLE_DIR ?= $(BUILD_DIR)/maestro_real_samples
+MAESTRO_REAL_SAMPLE_LIMIT ?= 80
+MAESTRO_REAL_MIN_RECORDINGS ?= 40
 INSTRUMENT_SAMPLE_BUILD_ROOT ?= $(BUILD_DIR)
 INSTRUMENT_SAMPLE_SOURCE_DIR ?= $(BUILD_DIR)/instrument_sample_sources
 INSTRUMENT_SAMPLE_SOUNDFONT ?=
@@ -2469,6 +2475,19 @@ $(MAPS_PIANO_ARCHIVE): FORCE | $(BUILD_DIR)
 
 prepare-maps-piano-samples: scripts/prepare_maps_piano_samples.py download-maps-piano-samples | $(BUILD_DIR)
 	MAPS_PIANO_ARCHIVE="$(MAPS_PIANO_ARCHIVE)" MAPS_PIANO_SAMPLE_DIR="$(MAPS_PIANO_SAMPLE_DIR)" MAPS_PIANO_RECORDING_LIMIT="$(MAPS_PIANO_RECORDING_LIMIT)" MAPS_PIANO_MIN_RECORDINGS="$(MAPS_PIANO_MIN_RECORDINGS)" MAPS_PIANO_KINDS="$(MAPS_PIANO_KINDS)" $(PYTHON) scripts/prepare_maps_piano_samples.py --archive "$(MAPS_PIANO_ARCHIVE)" --output "$(MAPS_PIANO_SAMPLE_DIR)" --limit "$(MAPS_PIANO_RECORDING_LIMIT)" --min-recordings "$(MAPS_PIANO_MIN_RECORDINGS)" --kinds "$(MAPS_PIANO_KINDS)"
+
+# MAESTRO is a second independently recorded Disklavier corpus.  Its archive
+# and the selected WAV/MIDI fixture remain under InstrumentSamples; build only
+# retains the stable symlink used by analyzer targets.
+download-maestro-real-samples: | $(BUILD_DIR)
+	mkdir -p "$(MAESTRO_REAL_SOURCE_DIR)"
+	test -s "$(MAESTRO_REAL_ARCHIVE)" || curl -fL -C - -o "$(MAESTRO_REAL_ARCHIVE).part" "$(MAESTRO_REAL_URL)"
+	@test ! -s "$(MAESTRO_REAL_ARCHIVE).part" || mv "$(MAESTRO_REAL_ARCHIVE).part" "$(MAESTRO_REAL_ARCHIVE)"
+	$(PYTHON) -m zipfile -t "$(MAESTRO_REAL_ARCHIVE)" >/dev/null
+
+prepare-maestro-real-samples: scripts/prepare_maps_piano_samples.py download-maestro-real-samples | $(BUILD_DIR)
+	+$(MAKE) BUILD_SAMPLE_STORAGE_DIR=maestro_real_samples ensure-build-sample-storage-link
+	MAPS_PIANO_ARCHIVE="$(MAESTRO_REAL_ARCHIVE)" MAPS_PIANO_SAMPLE_DIR="$(MAESTRO_REAL_SAMPLE_DIR)" MAPS_PIANO_RECORDING_LIMIT="$(MAESTRO_REAL_SAMPLE_LIMIT)" MAPS_PIANO_MIN_RECORDINGS="$(MAESTRO_REAL_MIN_RECORDINGS)" MAPS_PIANO_KINDS=OTHER $(PYTHON) scripts/prepare_maps_piano_samples.py --archive "$(MAESTRO_REAL_ARCHIVE)" --output "$(MAESTRO_REAL_SAMPLE_DIR)" --limit "$(MAESTRO_REAL_SAMPLE_LIMIT)" --min-recordings "$(MAESTRO_REAL_MIN_RECORDINGS)" --kinds OTHER
 
 test-maps-piano-samples: test-maps-piano-samples-parallel
 
