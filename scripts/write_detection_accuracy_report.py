@@ -684,6 +684,7 @@ def render(
     mir1k_full_mix_input: Path | None = None,
     scms_dataset_archive: Path | None = None,
     scms_dataset_inspection: Path | None = None,
+    scms_full_mix_input: Path | None = None,
     vocal_exact_note_cross_corpus_input: Path | None = None,
 ) -> str:
     samples = load_samples(input_path)
@@ -902,6 +903,9 @@ def render(
                 lines.append(f"| MIR-1K vocals — {label} | {fraction(accurate, total)} | {total - accurate} |")
     scms_archive_ready = int(scms_dataset_archive is not None and scms_dataset_archive.is_file())
     scms_inspection_ready = int(scms_dataset_inspection is not None and scms_dataset_inspection.is_file())
+    scms_samples = load_samples(scms_full_mix_input) if scms_full_mix_input else {}
+    scms_rows = family_metric_rows(scms_samples, "vocals") if scms_samples else []
+    scms_exact_rows = exact_note_rows(scms_samples) if scms_samples else []
     lines.extend(
         [
             "",
@@ -922,6 +926,24 @@ def render(
             "| Re-audit protected routes with SCMS and existing vocal corpora | 0 / 1 (0.0%) | 1 | zero-regression cross-corpus report |",
         ]
     )
+    if scms_rows:
+        lines.extend([
+            "",
+            "## SCMS full-mix vocal routing",
+            "",
+            "Each probe is measured from its labelled vocal-plus-accompaniment mixture; annotations are "
+            "used only as ground truth, never as analyzer input.",
+            "",
+            f"Source: `{scms_full_mix_input.as_posix()}`",
+            "",
+            "| Metric | Accurate / total | Remaining |",
+            "| --- | ---: | ---: |",
+        ])
+        for label, accurate, total in scms_rows:
+            lines.append(f"| SCMS vocals — {label} | {fraction(accurate, total)} | {total - accurate} |")
+        for label, accurate, total in scms_exact_rows:
+            if label == "Vocals — exact expected MIDI note":
+                lines.append(f"| SCMS vocals — {label} | {fraction(accurate, total)} | {total - accurate} |")
     if exact_note_cross_rows:
         lines.extend([
             "",
@@ -1504,6 +1526,7 @@ def main() -> int:
     parser.add_argument("--mir1k-full-mix-input", type=Path)
     parser.add_argument("--scms-dataset-archive", type=Path)
     parser.add_argument("--scms-dataset-inspection", type=Path)
+    parser.add_argument("--scms-full-mix-input", type=Path)
     parser.add_argument("--vocal-exact-note-cross-corpus-input", type=Path)
     parser.add_argument("--output", required=True, type=Path)
     args = parser.parse_args()
@@ -1542,6 +1565,7 @@ def main() -> int:
             args.mir1k_full_mix_input,
             args.scms_dataset_archive,
             args.scms_dataset_inspection,
+            args.scms_full_mix_input,
             args.vocal_exact_note_cross_corpus_input,
         )
     except (OSError, ValueError) as error:

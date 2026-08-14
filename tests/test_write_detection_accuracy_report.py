@@ -367,6 +367,7 @@ class DetectionAccuracyReportTest(unittest.TestCase):
                 mir1k_dataset_archive=Path(temporary) / "missing-mir1k.tar.gz",
                 mir1k_dataset_extraction=Path(temporary) / "missing-mir1k-extraction",
                 mir1k_full_mix_input=vocal_full_mix,
+                scms_full_mix_input=vocal_full_mix,
                 vocal_exact_note_cross_corpus_input=exact_note_cross_corpus,
             )
 
@@ -381,6 +382,8 @@ class DetectionAccuracyReportTest(unittest.TestCase):
         self.assertIn("Store validated MIR-1K archive in InstrumentSamples | 0 / 1 (0.0%)", report)
         self.assertIn("## Saraga-Carnatic-Melody-Synth (SCMS) coverage-gap checklist", report)
         self.assertIn("Store validated SCMS archive in InstrumentSamples | 0 / 1 (0.0%)", report)
+        self.assertIn("## SCMS full-mix vocal routing", report)
+        self.assertIn("| SCMS vocals — Expected instrument row | 2 / 3 (66.7%) | 1 |", report)
         self.assertIn("Run DCS/CSD/ESMUC/MIR-1K/cached-vocal ownership audit", report)
         self.assertIn("Audit exact-MIDI vocal failures across all six corpora | 1 / 1 (100.0%)", report)
         self.assertIn(
