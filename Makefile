@@ -3653,7 +3653,9 @@ $(GOOD_SOUNDS_ARCHIVE): FORCE | $(BUILD_DIR)
 	if [ -s "$(GOOD_SOUNDS_ARCHIVE).part" ]; then $(PYTHON) -m zipfile -t "$(GOOD_SOUNDS_ARCHIVE).part" >/dev/null; mv "$(GOOD_SOUNDS_ARCHIVE).part" "$(GOOD_SOUNDS_ARCHIVE)"; fi
 
 $(GOOD_SOUNDS_ARCHIVE_VALIDATION_STAMP): $(GOOD_SOUNDS_ARCHIVE)
-	$(PYTHON) -m zipfile -t "$(GOOD_SOUNDS_ARCHIVE)" >/dev/null
+	# $(GOOD_SOUNDS_ARCHIVE) is a FORCE prerequisite and validates the ZIP before
+	# reaching this stamp.  Avoid walking the 14-GB archive a second time.
+	test -s "$(GOOD_SOUNDS_ARCHIVE)"
 	touch "$@"
 
 prepare-good-sounds-samples: scripts/prepare_good_sounds_samples.py download-good-sounds-samples | $(BUILD_DIR)
