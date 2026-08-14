@@ -647,6 +647,7 @@ def render(
     esmuc_choir_dataset_extraction: Path | None = None,
     esmuc_choir_dataset_manifest: Path | None = None,
     esmuc_choir_dataset_measurement: Path | None = None,
+    esmuc_choir_dataset_pattern_report: Path | None = None,
 ) -> str:
     samples = load_samples(input_path)
     dcs_rows = dagstuhl_choirset_rows(dagstuhl_choirset_input) if dagstuhl_choirset_input else []
@@ -762,6 +763,7 @@ def render(
     esmuc_archive_ready = int(esmuc_choir_dataset_archive is not None and esmuc_choir_dataset_archive.is_file())
     esmuc_extraction_ready = int(esmuc_choir_dataset_extraction is not None and esmuc_choir_dataset_extraction.is_file())
     esmuc_manifest_ready = int(esmuc_choir_dataset_manifest is not None and esmuc_choir_dataset_manifest.is_file())
+    esmuc_pattern_audit_ready = int(esmuc_choir_dataset_pattern_report is not None and esmuc_choir_dataset_pattern_report.is_file())
     lines.extend(
         [
             "",
@@ -781,7 +783,8 @@ def render(
             f"| Measure ESMUC vocal ownership and current-note routing | {fraction(int(bool(esmuc_rows)), 1)} | {int(not esmuc_rows)} | real ESMUC routing x/total results |",
             f"| Measure ESMUC chord accuracy | {fraction(int(bool(esmuc_rows)), 1)} | {int(not esmuc_rows)} | real ESMUC chord x/total results |",
             f"| Break down ESMUC results by SATB and configuration | {fraction(int(bool(esmuc_rows)), 1)} | {int(not esmuc_rows)} | S/A/T/B and FT/IS/SE x/total rows |",
-            "| Recheck candidates across DCS, CSD, ESMUC, and cached vocal corpora | 0 / 1 (0.0%) | 1 | zero-regression cross-corpus evidence |",
+            f"| Run DCS/CSD/ESMUC/cached-vocal ownership audit | {fraction(esmuc_pattern_audit_ready, 1)} | {1 - esmuc_pattern_audit_ready} | ESMUC-inclusive zero-regression pattern report |",
+            "| Verify a safe cross-corpus detector improvement | 0 / 1 (0.0%) | 1 | audit recovers 289 zero-protected keys rows, but has no Vocadito/VocalSet positive support; rule rejected |",
         ]
     )
     if esmuc_rows:
@@ -1367,6 +1370,7 @@ def main() -> int:
     parser.add_argument("--esmuc-choir-dataset-extraction", type=Path)
     parser.add_argument("--esmuc-choir-dataset-manifest", type=Path)
     parser.add_argument("--esmuc-choir-dataset-measurement", type=Path)
+    parser.add_argument("--esmuc-choir-dataset-pattern-report", type=Path)
     parser.add_argument("--output", required=True, type=Path)
     args = parser.parse_args()
     try:
@@ -1398,6 +1402,7 @@ def main() -> int:
             args.esmuc_choir_dataset_extraction,
             args.esmuc_choir_dataset_manifest,
             args.esmuc_choir_dataset_measurement,
+            args.esmuc_choir_dataset_pattern_report,
         )
     except (OSError, ValueError) as error:
         parser.error(str(error))

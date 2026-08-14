@@ -234,7 +234,8 @@ ESMUC adds independently labelled, synchronised SATB choir recordings with full 
 | Measure ESMUC vocal ownership and current-note routing | 1 / 1 (100.0%) | 0 | real ESMUC routing x/total results |
 | Measure ESMUC chord accuracy | 1 / 1 (100.0%) | 0 | real ESMUC chord x/total results |
 | Break down ESMUC results by SATB and configuration | 1 / 1 (100.0%) | 0 | S/A/T/B and FT/IS/SE x/total rows |
-| Recheck candidates across DCS, CSD, ESMUC, and cached vocal corpora | 0 / 1 (0.0%) | 1 | zero-regression cross-corpus evidence |
+| Run DCS/CSD/ESMUC/cached-vocal ownership audit | 1 / 1 (100.0%) | 0 | ESMUC-inclusive zero-regression pattern report |
+| Verify a safe cross-corpus detector improvement | 0 / 1 (0.0%) | 1 | audit recovers 289 zero-protected keys rows, but has no Vocadito/VocalSet positive support; rule rejected |
 
 ## ESMUC Choir Dataset real-audio measurement
 
