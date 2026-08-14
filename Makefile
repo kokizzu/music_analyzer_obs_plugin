@@ -62,6 +62,7 @@ ESMUC_CHOIR_DATASET_ARCHIVE_URL ?= https://zenodo.org/records/5848990/files/Esmu
 ESMUC_CHOIR_DATASET_ARCHIVE_MD5 ?= ba2b4b5c4326dbe0a6d391167fa30574
 ESMUC_CHOIR_DATASET_DOWNLOAD_CONNECTIONS ?= 8
 ESMUC_CHOIR_DATASET_DOWNLOAD_LOCK_DIR ?= $(BUILD_DIR)/locks/esmuc_choir_dataset_download.lock
+ESMUC_CHOIR_DATASET_INSPECT_ARGS ?=
 URMP_SOURCE_DIR ?= $(INSTRUMENT_SAMPLE_STORE_LINK)/urmp
 URMP_ARCHIVE ?= $(URMP_SOURCE_DIR)/urmp-kaggle.zip
 URMP_EXTRACT_DIR ?= $(URMP_SOURCE_DIR)/extracted
@@ -4183,7 +4184,7 @@ test-vocadito-samples-full-mix-shard-%: FORCE $(BUILD_DIR)/analyzer_real_note_sa
 download-vocalset-samples: scripts/run_with_lock.sh
 	+$(SHELL) scripts/run_with_lock.sh "$(VOCALSET_DOWNLOAD_LOCK_DIR)" -- "$(MAKE)" vocalset-download-samples-unlocked
 
-.PHONY: download-dagstuhl-choirset validate-dagstuhl-choirset-archive extract-dagstuhl-choirset prepare-dagstuhl-choirset inspect-dagstuhl-choirset measure-dagstuhl-choirset export-dagstuhl-choirset-pattern-rows inspect-dagstuhl-cross-corpus-ownership find-dagstuhl-shared-vocal-ownership-patterns find-dagstuhl-choirset-ownership-patterns inspect-dagstuhl-vocal-evidence test-dagstuhl-choirset-20 inspect-dagstuhl-choirset-archive test-dagstuhl-choirset-archive test-extract-dagstuhl-choirset test-prepare-dagstuhl-choirset test-summarize-dagstuhl-choirset test-export-dagstuhl-choirset-pattern-rows test-inspect-vocal-ownership-cross-corpus test-inspect-dagstuhl-vocal-evidence download-choral-singing-dataset download-choral-singing-dataset-unlocked validate-choral-singing-dataset-archive extract-choral-singing-dataset prepare-choral-singing-dataset inspect-choral-singing-dataset measure-choral-singing-dataset summarize-choral-singing-dataset export-choral-singing-dataset-pattern-rows inspect-choral-singing-dataset-cross-corpus-ownership find-choral-singing-dataset-shared-vocal-ownership-patterns inspect-choral-singing-dataset-archive test-validate-choral-singing-dataset test-extract-choral-singing-dataset test-prepare-choral-singing-dataset test-inspect-choral-singing-dataset-archive download-esmuc-choir-dataset download-esmuc-choir-dataset-unlocked validate-esmuc-choir-dataset-archive test-validate-esmuc-choir-dataset
+.PHONY: download-dagstuhl-choirset validate-dagstuhl-choirset-archive extract-dagstuhl-choirset prepare-dagstuhl-choirset inspect-dagstuhl-choirset measure-dagstuhl-choirset export-dagstuhl-choirset-pattern-rows inspect-dagstuhl-cross-corpus-ownership find-dagstuhl-shared-vocal-ownership-patterns find-dagstuhl-choirset-ownership-patterns inspect-dagstuhl-vocal-evidence test-dagstuhl-choirset-20 inspect-dagstuhl-choirset-archive test-dagstuhl-choirset-archive test-extract-dagstuhl-choirset test-prepare-dagstuhl-choirset test-summarize-dagstuhl-choirset test-export-dagstuhl-choirset-pattern-rows test-inspect-vocal-ownership-cross-corpus test-inspect-dagstuhl-vocal-evidence download-choral-singing-dataset download-choral-singing-dataset-unlocked validate-choral-singing-dataset-archive extract-choral-singing-dataset prepare-choral-singing-dataset inspect-choral-singing-dataset measure-choral-singing-dataset summarize-choral-singing-dataset export-choral-singing-dataset-pattern-rows inspect-choral-singing-dataset-cross-corpus-ownership find-choral-singing-dataset-shared-vocal-ownership-patterns inspect-choral-singing-dataset-archive test-validate-choral-singing-dataset test-extract-choral-singing-dataset test-prepare-choral-singing-dataset test-inspect-choral-singing-dataset-archive download-esmuc-choir-dataset download-esmuc-choir-dataset-unlocked validate-esmuc-choir-dataset-archive inspect-esmuc-choir-dataset-archive test-validate-esmuc-choir-dataset test-inspect-esmuc-choir-dataset-archive
 
 download-dagstuhl-choirset: configure-instrument-sample-store $(DAGSTUHL_CHOIRSET_ARCHIVE) validate-dagstuhl-choirset-archive
 
@@ -4199,6 +4200,9 @@ download-esmuc-choir-dataset-unlocked: configure-instrument-sample-store $(ESMUC
 
 validate-esmuc-choir-dataset-archive: $(ESMUC_CHOIR_DATASET_ARCHIVE) scripts/validate_esmuc_choir_dataset.py
 	$(PYTHON) scripts/validate_esmuc_choir_dataset.py --archive "$(ESMUC_CHOIR_DATASET_ARCHIVE)" --expected-md5 "$(ESMUC_CHOIR_DATASET_ARCHIVE_MD5)"
+
+inspect-esmuc-choir-dataset-archive: validate-esmuc-choir-dataset-archive scripts/inspect_esmuc_choir_dataset_archive.py
+	$(PYTHON) scripts/inspect_esmuc_choir_dataset_archive.py --archive "$(ESMUC_CHOIR_DATASET_ARCHIVE)" $(ESMUC_CHOIR_DATASET_INSPECT_ARGS)
 
 validate-choral-singing-dataset-archive: $(CHORAL_SINGING_DATASET_ARCHIVE) scripts/validate_choral_singing_dataset.py
 	$(PYTHON) scripts/validate_choral_singing_dataset.py --archive "$(CHORAL_SINGING_DATASET_ARCHIVE)" --expected-md5 "$(CHORAL_SINGING_DATASET_ARCHIVE_MD5)"
@@ -4296,6 +4300,9 @@ test-validate-choral-singing-dataset: tests/test_validate_choral_singing_dataset
 
 test-validate-esmuc-choir-dataset: tests/test_validate_esmuc_choir_dataset.py scripts/validate_esmuc_choir_dataset.py
 	$(PYTHON) tests/test_validate_esmuc_choir_dataset.py
+
+test-inspect-esmuc-choir-dataset-archive: tests/test_inspect_esmuc_choir_dataset_archive.py scripts/inspect_esmuc_choir_dataset_archive.py
+	$(PYTHON) tests/test_inspect_esmuc_choir_dataset_archive.py
 
 test-extract-choral-singing-dataset: tests/test_extract_choral_singing_dataset.py scripts/extract_choral_singing_dataset.py scripts/validate_choral_singing_dataset.py
 	$(PYTHON) tests/test_extract_choral_singing_dataset.py
