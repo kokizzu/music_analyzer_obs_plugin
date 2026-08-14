@@ -366,6 +366,7 @@ class DetectionAccuracyReportTest(unittest.TestCase):
         self.assertIn("| Visual primary row | 2 / 3 (66.7%) | 1 |", report)
         self.assertIn("| Guitar — Visual primary row | 1 / 2 (50.0%) | 1 |", report)
         self.assertIn("## Detector-improvement route coverage", report)
+        self.assertIn("## Choral Singing Dataset (CSD) coverage-gap checklist", report)
         self.assertIn("## Dagstuhl ChoirSet (DCS) real-audio measurement", report)
         self.assertIn("| DCS All DCS vocal windows — Current-note vocal ownership | 1 / 2 (50.0%) | 1 |", report)
         self.assertIn("| DCS All DCS vocal windows — Visible current-note vocal routing | 0 / 2 (0.0%) | 2 |", report)

@@ -638,6 +638,7 @@ def render(
     star_drums_gate_output: Path | None = None,
     mdb_drums_gate_output: Path | None = None,
     dagstuhl_choirset_input: Path | None = None,
+    choral_singing_dataset_archive: Path | None = None,
 ) -> str:
     samples = load_samples(input_path)
     dcs_rows = dagstuhl_choirset_rows(dagstuhl_choirset_input) if dagstuhl_choirset_input else []
@@ -694,6 +695,28 @@ def render(
             f"| Break down results by SATB range | {fraction(int(bool(dcs_rows)), 1)} | {int(not dcs_rows)} | S/A/T/B x/total rows |",
             f"| Break down results by recording configuration | {fraction(int(bool(dcs_rows)), 1)} | {int(not dcs_rows)} | setting/take/microphone x/total rows |",
             "| Verify a safe cross-corpus detector improvement | 0 / 1 (0.0%) | 1 | DCS and protected-corpus regression evidence |",
+        ]
+    )
+    csd_archive_ready = int(choral_singing_dataset_archive is not None and choral_singing_dataset_archive.is_file())
+    lines.extend(
+        [
+            "",
+            "## Choral Singing Dataset (CSD) coverage-gap checklist",
+            "",
+            "CSD is the next independent labelled SATB corpus. It contains isolated singers and "
+            "synchronised MIDI; every step below must remain external to the repository through "
+            "`build/InstrumentSamples`.",
+            "",
+            "| Work item | Complete / total | Remaining | Evidence required |",
+            "| --- | ---: | ---: | --- |",
+            f"| Store current CSD archive in InstrumentSamples | {fraction(csd_archive_ready, 1)} | {1 - csd_archive_ready} | validated official archive and checksum |",
+            "| Extract CSD safely in InstrumentSamples | 0 / 1 (0.0%) | 1 | traversal-safe extraction record |",
+            "| Inspect CSD audio, stems, and MIDI | 0 / 1 (0.0%) | 1 | corpus inventory by work and section |",
+            "| Import CSD sources and labels | 0 / 1 (0.0%) | 1 | tested prepared-multitrack manifest |",
+            "| Measure CSD note, octave, and pitch-class recall | 0 / 1 (0.0%) | 1 | real CSD x/total results |",
+            "| Measure CSD vocal ownership and current-note routing | 0 / 1 (0.0%) | 1 | real CSD routing x/total results |",
+            "| Measure CSD chord accuracy | 0 / 1 (0.0%) | 1 | real CSD chord x/total results |",
+            "| Recheck any candidate across DCS, CSD, and cached vocal corpora | 0 / 1 (0.0%) | 1 | no protected-row regressions |",
         ]
     )
     if dcs_rows:
@@ -1244,6 +1267,7 @@ def main() -> int:
     parser.add_argument("--star-drums-gate-output", type=Path)
     parser.add_argument("--mdb-drums-gate-output", type=Path)
     parser.add_argument("--dagstuhl-choirset-input", type=Path)
+    parser.add_argument("--choral-singing-dataset-archive", type=Path)
     parser.add_argument("--output", required=True, type=Path)
     args = parser.parse_args()
     try:
@@ -1266,6 +1290,7 @@ def main() -> int:
             args.star_drums_gate_output,
             args.mdb_drums_gate_output,
             args.dagstuhl_choirset_input,
+            args.choral_singing_dataset_archive,
         )
     except (OSError, ValueError) as error:
         parser.error(str(error))

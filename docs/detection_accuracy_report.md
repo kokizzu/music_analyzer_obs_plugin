@@ -66,6 +66,21 @@ DCS is an independent real vocal-ensemble corpus. Generated fixtures never count
 | Break down results by recording configuration | 1 / 1 (100.0%) | 0 | setting/take/microphone x/total rows |
 | Verify a safe cross-corpus detector improvement | 0 / 1 (0.0%) | 1 | DCS and protected-corpus regression evidence |
 
+## Choral Singing Dataset (CSD) coverage-gap checklist
+
+CSD is the next independent labelled SATB corpus. It contains isolated singers and synchronised MIDI; every step below must remain external to the repository through `build/InstrumentSamples`.
+
+| Work item | Complete / total | Remaining | Evidence required |
+| --- | ---: | ---: | --- |
+| Store current CSD archive in InstrumentSamples | 0 / 1 (0.0%) | 1 | validated official archive and checksum |
+| Extract CSD safely in InstrumentSamples | 0 / 1 (0.0%) | 1 | traversal-safe extraction record |
+| Inspect CSD audio, stems, and MIDI | 0 / 1 (0.0%) | 1 | corpus inventory by work and section |
+| Import CSD sources and labels | 0 / 1 (0.0%) | 1 | tested prepared-multitrack manifest |
+| Measure CSD note, octave, and pitch-class recall | 0 / 1 (0.0%) | 1 | real CSD x/total results |
+| Measure CSD vocal ownership and current-note routing | 0 / 1 (0.0%) | 1 | real CSD routing x/total results |
+| Measure CSD chord accuracy | 0 / 1 (0.0%) | 1 | real CSD chord x/total results |
+| Recheck any candidate across DCS, CSD, and cached vocal corpora | 0 / 1 (0.0%) | 1 | no protected-row regressions |
+
 ## Dagstuhl ChoirSet (DCS) real-audio measurement
 
 The SATB rows count every score-active singer at a stable center-of-note window in a real, summed four-singer recording. Vocal ownership and routing require the expected pitch class in the vocal row; visible routing additionally requires visual level at least 0.25. Current-note vocal rows are separate window-level metrics: because the UI is monophonic, they count success when its one displayed note matches any concurrent SATB score pitch.
