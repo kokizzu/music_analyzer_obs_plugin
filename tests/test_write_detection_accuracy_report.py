@@ -343,6 +343,12 @@ class DetectionAccuracyReportTest(unittest.TestCase):
                 )) + "\n",
                 encoding="utf-8",
             )
+            exact_note_cross_corpus = Path(temporary) / "vocal_exact_note_cross_corpus.tsv"
+            exact_note_cross_corpus.write_text(
+                "corpus\texact_vocal\texact_foreign\tpitch_class_only\tno_pitch_class\ttotal\n"
+                "fixture\t1\t2\t3\t4\t10\n",
+                encoding="utf-8",
+            )
             report = REPORT.render(
                 source, [chords], vocal_full_mix, [bach10_0, bach10_1], musicnet, drum, urmp,
                 vocalset_full_mix, [maps], None, route_summary, good_sounds_full_mix, hf_drum_outputs,
@@ -361,6 +367,7 @@ class DetectionAccuracyReportTest(unittest.TestCase):
                 mir1k_dataset_archive=Path(temporary) / "missing-mir1k.tar.gz",
                 mir1k_dataset_extraction=Path(temporary) / "missing-mir1k-extraction",
                 mir1k_full_mix_input=vocal_full_mix,
+                vocal_exact_note_cross_corpus_input=exact_note_cross_corpus,
             )
 
         self.assertIn("| Any detected note | 2 / 3 (66.7%) | 1 |", report)
@@ -373,11 +380,14 @@ class DetectionAccuracyReportTest(unittest.TestCase):
         self.assertIn("## MIR-1K vocal-with-accompaniment coverage-gap checklist", report)
         self.assertIn("Store validated MIR-1K archive in InstrumentSamples | 0 / 1 (0.0%)", report)
         self.assertIn("Run DCS/CSD/ESMUC/MIR-1K/cached-vocal ownership audit", report)
+        self.assertIn("Audit exact-MIDI vocal failures across all six corpora | 1 / 1 (100.0%)", report)
         self.assertIn(
             "Re-audit ownership rules across choir, solo-vocal, and MIR-1K corpora | 0 / 1 (0.0%)",
             report,
         )
         self.assertIn("## MIR-1K full-mix vocal routing", report)
+        self.assertIn("## Cross-corpus vocal exact-MIDI evidence", report)
+        self.assertIn("| fixture — pitch class only (wrong octave) | 3 / 10 (30.0%) | 7 |", report)
         self.assertIn("| MIR-1K vocals — Expected instrument row | 2 / 3 (66.7%) | 1 |", report)
         self.assertIn("## Dagstuhl ChoirSet (DCS) real-audio measurement", report)
         self.assertIn("| DCS All DCS vocal windows — Current-note vocal ownership | 1 / 2 (50.0%) | 1 |", report)

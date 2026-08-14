@@ -235,6 +235,7 @@ ESMUC adds independently labelled, synchronised SATB choir recordings with full 
 | Measure ESMUC chord accuracy | 1 / 1 (100.0%) | 0 | real ESMUC chord x/total results |
 | Break down ESMUC results by SATB and configuration | 1 / 1 (100.0%) | 0 | S/A/T/B and FT/IS/SE x/total rows |
 | Run DCS/CSD/ESMUC/MIR-1K/cached-vocal ownership audit | 1 / 1 (100.0%) | 0 | MIR-1K-inclusive zero-regression pattern report |
+| Audit exact-MIDI vocal failures across all six corpora | 1 / 1 (100.0%) | 0 | exact-vocal, foreign-route, octave-alias, and absent evidence x/total |
 | Verify a safe cross-corpus detector improvement | 0 / 1 (0.0%) | 1 | zero-protected keyboard candidates remain choir-only; MIR-1K/solo-vocal-supported candidates regress protected vocal rows, so every rule is rejected |
 
 ## ESMUC Choir Dataset real-audio measurement
@@ -460,6 +461,39 @@ Source: `build/mir1k_vocal_mix_attributes.tsv`
 | MIR-1K vocals — Primary display row | 46 / 300 (15.3%) | 254 |
 | MIR-1K vocals — Visual primary row | 42 / 300 (14.0%) | 258 |
 | MIR-1K vocals — Vocals — exact expected MIDI note | 173 / 300 (57.7%) | 127 |
+
+## Cross-corpus vocal exact-MIDI evidence
+
+Exact vocal means the annotated MIDI pitch is present in the vocal row. Foreign-route means the exact pitch is present only in another row; pitch-class-only means the pitch class is detected in the wrong octave.
+
+Source: `build/vocal_exact_note_cross_corpus.tsv`
+
+| Corpus / outcome | Accurate / total | Remaining |
+| --- | ---: | ---: |
+| CSD — exact MIDI in vocal row | 50 / 576 (8.7%) | 526 |
+| CSD — exact MIDI only in foreign row | 368 / 576 (63.9%) | 208 |
+| CSD — pitch class only (wrong octave) | 45 / 576 (7.8%) | 531 |
+| CSD — no expected pitch class | 113 / 576 (19.6%) | 463 |
+| DCS — exact MIDI in vocal row | 73 / 984 (7.4%) | 911 |
+| DCS — exact MIDI only in foreign row | 495 / 984 (50.3%) | 489 |
+| DCS — pitch class only (wrong octave) | 140 / 984 (14.2%) | 844 |
+| DCS — no expected pitch class | 276 / 984 (28.0%) | 708 |
+| ESMUC — exact MIDI in vocal row | 76 / 902 (8.4%) | 826 |
+| ESMUC — exact MIDI only in foreign row | 570 / 902 (63.2%) | 332 |
+| ESMUC — pitch class only (wrong octave) | 76 / 902 (8.4%) | 826 |
+| ESMUC — no expected pitch class | 180 / 902 (20.0%) | 722 |
+| MIR1K — exact MIDI in vocal row | 501 / 2280 (22.0%) | 1779 |
+| MIR1K — exact MIDI only in foreign row | 1408 / 2280 (61.8%) | 872 |
+| MIR1K — pitch class only (wrong octave) | 233 / 2280 (10.2%) | 2047 |
+| MIR1K — no expected pitch class | 138 / 2280 (6.1%) | 2142 |
+| Vocadito — exact MIDI in vocal row | 545 / 2284 (23.9%) | 1739 |
+| Vocadito — exact MIDI only in foreign row | 1274 / 2284 (55.8%) | 1010 |
+| Vocadito — pitch class only (wrong octave) | 137 / 2284 (6.0%) | 2147 |
+| Vocadito — no expected pitch class | 328 / 2284 (14.4%) | 1956 |
+| VocalSet — exact MIDI in vocal row | 2660 / 17344 (15.3%) | 14684 |
+| VocalSet — exact MIDI only in foreign row | 9396 / 17344 (54.2%) | 7948 |
+| VocalSet — pitch class only (wrong octave) | 1130 / 17344 (6.5%) | 16214 |
+| VocalSet — no expected pitch class | 4158 / 17344 (24.0%) | 13186 |
 
 ## Dagstuhl ChoirSet (DCS) real-audio measurement
 

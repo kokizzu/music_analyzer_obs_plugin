@@ -608,6 +608,27 @@ def dagstuhl_choirset_rows(path: Path) -> list[tuple[str, str, int, int]]:
     return result
 
 
+def vocal_exact_note_cross_corpus_rows(path: Path) -> list[tuple[str, int, int, int, int, int]]:
+    with path.open(encoding="utf-8", newline="") as source:
+        reader = csv.DictReader(source, delimiter="\t")
+        fields = ("corpus", "exact_vocal", "exact_foreign", "pitch_class_only", "no_pitch_class", "total")
+        missing = set(fields) - set(reader.fieldnames or ())
+        if missing:
+            raise ValueError(f"{path}: missing vocal exact-note columns: {', '.join(sorted(missing))}")
+        result: list[tuple[str, int, int, int, int, int]] = []
+        for row in reader:
+            try:
+                values = tuple(int(row[field]) for field in fields[1:])
+            except ValueError as error:
+                raise ValueError(f"{path}: invalid vocal exact-note count") from error
+            if values[-1] <= 0 or any(value < 0 for value in values[:-1]) or sum(values[:-1]) != values[-1]:
+                raise ValueError(f"{path}: invalid vocal exact-note fraction")
+            result.append((row["corpus"], *values))
+    if not result:
+        raise ValueError(f"{path}: no vocal exact-note rows")
+    return result
+
+
 def render(
     input_path: Path,
     chord_inputs: list[Path] | None = None,
@@ -651,11 +672,17 @@ def render(
     mir1k_dataset_archive: Path | None = None,
     mir1k_dataset_extraction: Path | None = None,
     mir1k_full_mix_input: Path | None = None,
+    vocal_exact_note_cross_corpus_input: Path | None = None,
 ) -> str:
     samples = load_samples(input_path)
     dcs_rows = dagstuhl_choirset_rows(dagstuhl_choirset_input) if dagstuhl_choirset_input else []
     csd_rows = dagstuhl_choirset_rows(choral_singing_dataset_measurement) if choral_singing_dataset_measurement else []
     esmuc_rows = dagstuhl_choirset_rows(esmuc_choir_dataset_measurement) if esmuc_choir_dataset_measurement else []
+    exact_note_cross_rows = (
+        vocal_exact_note_cross_corpus_rows(vocal_exact_note_cross_corpus_input)
+        if vocal_exact_note_cross_corpus_input
+        else []
+    )
     lines = [
         "# Real-audio detection accuracy",
         "",
@@ -787,6 +814,7 @@ def render(
             f"| Measure ESMUC chord accuracy | {fraction(int(bool(esmuc_rows)), 1)} | {int(not esmuc_rows)} | real ESMUC chord x/total results |",
             f"| Break down ESMUC results by SATB and configuration | {fraction(int(bool(esmuc_rows)), 1)} | {int(not esmuc_rows)} | S/A/T/B and FT/IS/SE x/total rows |",
             f"| Run DCS/CSD/ESMUC/MIR-1K/cached-vocal ownership audit | {fraction(esmuc_pattern_audit_ready, 1)} | {1 - esmuc_pattern_audit_ready} | MIR-1K-inclusive zero-regression pattern report |",
+            f"| Audit exact-MIDI vocal failures across all six corpora | {fraction(int(bool(exact_note_cross_rows)), 1)} | {int(not exact_note_cross_rows)} | exact-vocal, foreign-route, octave-alias, and absent evidence x/total |",
             "| Verify a safe cross-corpus detector improvement | 0 / 1 (0.0%) | 1 | zero-protected keyboard candidates remain choir-only; MIR-1K/solo-vocal-supported candidates regress protected vocal rows, so every rule is rejected |",
         ]
     )
@@ -860,6 +888,25 @@ def render(
         for label, accurate, total in mir1k_exact_rows:
             if label == "Vocals — exact expected MIDI note":
                 lines.append(f"| MIR-1K vocals — {label} | {fraction(accurate, total)} | {total - accurate} |")
+    if exact_note_cross_rows:
+        lines.extend([
+            "",
+            "## Cross-corpus vocal exact-MIDI evidence",
+            "",
+            "Exact vocal means the annotated MIDI pitch is present in the vocal row. Foreign-route "
+            "means the exact pitch is present only in another row; pitch-class-only means the pitch class "
+            "is detected in the wrong octave.",
+            "",
+            f"Source: `{vocal_exact_note_cross_corpus_input.as_posix()}`",
+            "",
+            "| Corpus / outcome | Accurate / total | Remaining |",
+            "| --- | ---: | ---: |",
+        ])
+        for corpus, exact_vocal, exact_foreign, pitch_class_only, no_pitch_class, total in exact_note_cross_rows:
+            lines.append(f"| {corpus} — exact MIDI in vocal row | {fraction(exact_vocal, total)} | {total - exact_vocal} |")
+            lines.append(f"| {corpus} — exact MIDI only in foreign row | {fraction(exact_foreign, total)} | {total - exact_foreign} |")
+            lines.append(f"| {corpus} — pitch class only (wrong octave) | {fraction(pitch_class_only, total)} | {total - pitch_class_only} |")
+            lines.append(f"| {corpus} — no expected pitch class | {fraction(no_pitch_class, total)} | {total - no_pitch_class} |")
     if dcs_rows:
         lines.extend(
             [
@@ -1421,6 +1468,7 @@ def main() -> int:
     parser.add_argument("--mir1k-dataset-archive", type=Path)
     parser.add_argument("--mir1k-dataset-extraction", type=Path)
     parser.add_argument("--mir1k-full-mix-input", type=Path)
+    parser.add_argument("--vocal-exact-note-cross-corpus-input", type=Path)
     parser.add_argument("--output", required=True, type=Path)
     args = parser.parse_args()
     try:
@@ -1456,6 +1504,7 @@ def main() -> int:
             args.mir1k_dataset_archive,
             args.mir1k_dataset_extraction,
             args.mir1k_full_mix_input,
+            args.vocal_exact_note_cross_corpus_input,
         )
     except (OSError, ValueError) as error:
         parser.error(str(error))
