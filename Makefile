@@ -99,6 +99,8 @@ SCMS_DATASET_INSPECTION_OUTPUT ?= $(BUILD_DIR)/scms_dataset_inventory.txt
 SCMS_DATASET_VALIDATION_OUTPUT ?= $(BUILD_DIR)/scms_dataset_validation.txt
 SCMS_DATASET_DOWNLOAD_LOG ?= $(BUILD_DIR)/scms_dataset_download.log
 SCMS_DATASET_DOWNLOAD_PID ?= $(BUILD_DIR)/scms_dataset_download.pid
+SCMS_VOCAL_MEASUREMENT_LOG ?= $(BUILD_DIR)/scms_vocal_measurement.log
+SCMS_VOCAL_MEASUREMENT_PID ?= $(BUILD_DIR)/scms_vocal_measurement.pid
 SCMS_DATASET_ATTRIBUTE_OUTPUT ?= $(BUILD_DIR)/scms_vocal_mix_attributes.tsv
 SCMS_DATASET_MEASUREMENT_OUTPUT ?= $(BUILD_DIR)/scms_vocal_mix_measurement.out
 SCMS_DATASET_DEBUG_WAV ?= $(SCMS_DATASET_SAMPLE_DIR)/audio/scms_Athirum_Kazhal_3_F3.wav
@@ -4448,6 +4450,9 @@ test-prepare-scms-vocal-mix-samples: tests/test_prepare_scms_vocal_mix_samples.p
 test-start-scms-dataset-download: tests/test_start_scms_dataset_download.py scripts/start_scms_dataset_download.sh
 	$(PYTHON) tests/test_start_scms_dataset_download.py
 
+test-start-scms-vocal-measurement: tests/test_start_scms_vocal_measurement.py scripts/start_scms_vocal_measurement.sh
+	$(PYTHON) tests/test_start_scms_vocal_measurement.py
+
 test-extract-mir1k-dataset: tests/test_extract_mir1k_dataset.py scripts/extract_mir1k_dataset.py scripts/validate_mir1k_dataset.py
 	$(PYTHON) tests/test_extract_mir1k_dataset.py
 
@@ -4520,7 +4525,7 @@ $(MIR1K_DATASET_ARCHIVE): scripts/validate_mir1k_dataset.py
 	if [ -s "$@.part" ]; then $(PYTHON) scripts/validate_mir1k_dataset.py --archive "$@.part" --expected-md5 "$(MIR1K_DATASET_ARCHIVE_MD5)"; mv -f "$@.part" "$@"; fi
 	test -s "$@"
 
-.PHONY: download-scms-dataset start-scms-dataset-download scms-dataset-download-status validate-scms-dataset-archive inspect-scms-dataset extract-scms-dataset prepare-scms-vocal-mix-samples measure-scms-vocal-mix inspect-scms-prepared-wav clean-scms-dataset-staging test-validate-scms-dataset test-inspect-scms-dataset test-start-scms-dataset-download test-extract-scms-dataset test-prepare-scms-vocal-mix-samples
+.PHONY: download-scms-dataset start-scms-dataset-download scms-dataset-download-status start-scms-vocal-measurement scms-vocal-measurement-status validate-scms-dataset-archive inspect-scms-dataset extract-scms-dataset prepare-scms-vocal-mix-samples refresh-scms-vocal-mix-samples measure-scms-vocal-mix measure-scms-vocal-mix-refresh inspect-scms-prepared-wav clean-scms-dataset-staging test-validate-scms-dataset test-inspect-scms-dataset test-start-scms-dataset-download test-start-scms-vocal-measurement test-extract-scms-dataset test-prepare-scms-vocal-mix-samples
 
 download-scms-dataset: configure-instrument-sample-store $(SCMS_DATASET_ARCHIVE) validate-scms-dataset-archive
 
@@ -4533,6 +4538,12 @@ start-scms-dataset-download: configure-instrument-sample-store scripts/start_scm
 
 scms-dataset-download-status:
 	$(SHELL) scripts/start_scms_dataset_download.sh --status --pid-file "$(SCMS_DATASET_DOWNLOAD_PID)" --log-file "$(SCMS_DATASET_DOWNLOAD_LOG)" --archive "$(SCMS_DATASET_ARCHIVE)" --archive-part "$(SCMS_DATASET_ARCHIVE).part"
+
+start-scms-vocal-measurement: scripts/start_scms_vocal_measurement.sh | $(BUILD_DIR)
+	$(SHELL) scripts/start_scms_vocal_measurement.sh --pid-file "$(SCMS_VOCAL_MEASUREMENT_PID)" --log-file "$(SCMS_VOCAL_MEASUREMENT_LOG)" --workdir "$(CURDIR)" --limit "$(SCMS_DATASET_SAMPLE_LIMIT)" --minimum-samples "$(SCMS_DATASET_MIN_SAMPLES)"
+
+scms-vocal-measurement-status:
+	$(SHELL) scripts/start_scms_vocal_measurement.sh --status --pid-file "$(SCMS_VOCAL_MEASUREMENT_PID)" --log-file "$(SCMS_VOCAL_MEASUREMENT_LOG)"
 
 validate-scms-dataset-archive: $(SCMS_DATASET_VALIDATION_OUTPUT)
 	@cat "$(SCMS_DATASET_VALIDATION_OUTPUT)"
@@ -4561,8 +4572,17 @@ prepare-scms-vocal-mix-samples: $(SCMS_DATASET_SAMPLE_DIR)/manifest.tsv
 $(SCMS_DATASET_SAMPLE_DIR)/manifest.tsv: $(SCMS_DATASET_EXTRACT_DIR)/.scms-extraction-complete scripts/prepare_scms_vocal_mix_samples.py
 	$(PYTHON) scripts/prepare_scms_vocal_mix_samples.py --root "$(SCMS_DATASET_EXTRACT_DIR)" --output "$(SCMS_DATASET_SAMPLE_DIR)" --limit "$(SCMS_DATASET_SAMPLE_LIMIT)" --minimum-samples "$(SCMS_DATASET_MIN_SAMPLES)" --ffmpeg "$(FFMPEG)"
 
+# Explicitly rebuild the manifest when the requested sample limits change.
+# The normal target is cached for routine measurements; this refresh variant
+# makes an evidence-expansion run visible and reproducible.
+refresh-scms-vocal-mix-samples: $(SCMS_DATASET_EXTRACT_DIR)/.scms-extraction-complete scripts/prepare_scms_vocal_mix_samples.py
+	$(PYTHON) scripts/prepare_scms_vocal_mix_samples.py --root "$(SCMS_DATASET_EXTRACT_DIR)" --output "$(SCMS_DATASET_SAMPLE_DIR)" --limit "$(SCMS_DATASET_SAMPLE_LIMIT)" --minimum-samples "$(SCMS_DATASET_MIN_SAMPLES)" --ffmpeg "$(FFMPEG)"
+
 measure-scms-vocal-mix: $(BUILD_DIR)/analyzer_real_note_samples prepare-scms-vocal-mix-samples scripts/run_with_duration.sh | $(BUILD_DIR)
 	$(RUN_WITH_DURATION) analyzer_scms_vocal_mix env MUSIC_ANALYZER_REAL_NOTE_SAMPLES_REQUIRED=1 MUSIC_ANALYZER_REAL_NOTE_FULL_MIX=1 MUSIC_ANALYZER_REAL_NOTE_SAMPLE_ROOT="$(SCMS_DATASET_SAMPLE_DIR)" MUSIC_ANALYZER_REAL_NOTE_REQUIRED_SAMPLES="$(SCMS_DATASET_MIN_SAMPLES)" MUSIC_ANALYZER_REAL_NOTE_MIN_BASS=0 MUSIC_ANALYZER_REAL_NOTE_MIN_GUITAR=0 MUSIC_ANALYZER_REAL_NOTE_MIN_PIANO=0 MUSIC_ANALYZER_REAL_NOTE_MIN_VOCALS=0 MUSIC_ANALYZER_REAL_NOTE_MIN_OTHER=0 MUSIC_ANALYZER_REAL_NOTE_MIN_ANY_HIT_PERCENT=0 MUSIC_ANALYZER_REAL_NOTE_MIN_EXPECTED_ROW_PERCENT=0 MUSIC_ANALYZER_REAL_NOTE_MIN_FIRST_ROW_PERCENT=0 MUSIC_ANALYZER_REAL_NOTE_MIN_BASS_EXPECTED_ROW_PERCENT=0 MUSIC_ANALYZER_REAL_NOTE_MIN_GUITAR_EXPECTED_ROW_PERCENT=0 MUSIC_ANALYZER_REAL_NOTE_MIN_PIANO_EXPECTED_ROW_PERCENT=0 MUSIC_ANALYZER_REAL_NOTE_MIN_VOCALS_EXPECTED_ROW_PERCENT=0 MUSIC_ANALYZER_REAL_NOTE_MIN_OTHER_EXPECTED_ROW_PERCENT=0 MUSIC_ANALYZER_REAL_NOTE_MIN_BASS_FIRST_ROW_PERCENT=0 MUSIC_ANALYZER_REAL_NOTE_MIN_GUITAR_FIRST_ROW_PERCENT=0 MUSIC_ANALYZER_REAL_NOTE_MIN_PIANO_FIRST_ROW_PERCENT=0 MUSIC_ANALYZER_REAL_NOTE_MIN_VOCALS_FIRST_ROW_PERCENT=0 MUSIC_ANALYZER_REAL_NOTE_MIN_OTHER_FIRST_ROW_PERCENT=0 MUSIC_ANALYZER_REAL_NOTE_MAX_DRUM_ACTIVE_PERCENT=100 MUSIC_ANALYZER_REAL_NOTE_MAX_FAILURES=999999 MUSIC_ANALYZER_REAL_NOTE_ATTRIBUTE_TSV="$(SCMS_DATASET_ATTRIBUTE_OUTPUT)" $(BUILD_DIR)/analyzer_real_note_samples > "$(SCMS_DATASET_MEASUREMENT_OUTPUT)"
+
+measure-scms-vocal-mix-refresh: refresh-scms-vocal-mix-samples
+	+$(MAKE) measure-scms-vocal-mix
 
 inspect-scms-prepared-wav:
 	$(PYTHON) scripts/inspect_wav_for_analyzer.py --wav "$(SCMS_DATASET_DEBUG_WAV)"
