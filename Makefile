@@ -4150,7 +4150,7 @@ test-vocadito-samples-full-mix-shard-%: FORCE $(BUILD_DIR)/analyzer_real_note_sa
 download-vocalset-samples: scripts/run_with_lock.sh
 	+$(SHELL) scripts/run_with_lock.sh "$(VOCALSET_DOWNLOAD_LOCK_DIR)" -- "$(MAKE)" vocalset-download-samples-unlocked
 
-.PHONY: download-dagstuhl-choirset validate-dagstuhl-choirset-archive extract-dagstuhl-choirset prepare-dagstuhl-choirset inspect-dagstuhl-choirset measure-dagstuhl-choirset test-dagstuhl-choirset-20 inspect-dagstuhl-choirset-archive test-dagstuhl-choirset-archive test-extract-dagstuhl-choirset test-prepare-dagstuhl-choirset test-summarize-dagstuhl-choirset
+.PHONY: download-dagstuhl-choirset validate-dagstuhl-choirset-archive extract-dagstuhl-choirset prepare-dagstuhl-choirset inspect-dagstuhl-choirset measure-dagstuhl-choirset inspect-dagstuhl-vocal-evidence test-dagstuhl-choirset-20 inspect-dagstuhl-choirset-archive test-dagstuhl-choirset-archive test-extract-dagstuhl-choirset test-prepare-dagstuhl-choirset test-summarize-dagstuhl-choirset test-inspect-dagstuhl-vocal-evidence
 
 download-dagstuhl-choirset: configure-instrument-sample-store $(DAGSTUHL_CHOIRSET_ARCHIVE) validate-dagstuhl-choirset-archive
 
@@ -4173,6 +4173,9 @@ measure-dagstuhl-choirset: $(BUILD_DIR)/analyzer_musicnet prepare-dagstuhl-choir
 
 test-dagstuhl-choirset-20: measure-dagstuhl-choirset
 
+inspect-dagstuhl-vocal-evidence: measure-dagstuhl-choirset scripts/inspect_dagstuhl_vocal_evidence.py
+	$(PYTHON) scripts/inspect_dagstuhl_vocal_evidence.py --attributes "$(DAGSTUHL_CHOIRSET_ATTRIBUTE_OUTPUT)"
+
 inspect-dagstuhl-choirset-archive: validate-dagstuhl-choirset-archive scripts/inspect_dagstuhl_choirset_archive.py
 	$(PYTHON) scripts/inspect_dagstuhl_choirset_archive.py --archive "$(DAGSTUHL_CHOIRSET_ARCHIVE)"
 
@@ -4187,6 +4190,9 @@ test-prepare-dagstuhl-choirset: tests/test_prepare_dagstuhl_choirset_manifest.py
 
 test-summarize-dagstuhl-choirset: tests/test_summarize_dagstuhl_choirset_measurement.py scripts/summarize_dagstuhl_choirset_measurement.py
 	$(PYTHON) tests/test_summarize_dagstuhl_choirset_measurement.py
+
+test-inspect-dagstuhl-vocal-evidence: tests/test_inspect_dagstuhl_vocal_evidence.py scripts/inspect_dagstuhl_vocal_evidence.py
+	$(PYTHON) tests/test_inspect_dagstuhl_vocal_evidence.py
 
 $(DAGSTUHL_CHOIRSET_ARCHIVE): scripts/validate_dagstuhl_choirset.py
 	mkdir -p "$(DAGSTUHL_CHOIRSET_SOURCE_DIR)"

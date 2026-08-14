@@ -889,6 +889,30 @@ std::string full_mix_candidate_list(const mao::AnalysisSnapshot &snapshot)
 	return text.empty() ? "--" : text;
 }
 
+std::string full_mix_candidate_evidence(const mao::AnalysisSnapshot &snapshot)
+{
+	std::string text;
+	const std::size_t count =
+		std::min<std::size_t>(snapshot.full_mix_debug_candidate_count,
+				      snapshot.full_mix_debug_candidates.size());
+	for (std::size_t i = 0; i < count; ++i) {
+		const mao::FullMixDebugCandidate &candidate = snapshot.full_mix_debug_candidates[i];
+		if (candidate.midi < 0)
+			continue;
+		if (!text.empty())
+			text += ";";
+		char item[256] = {};
+		std::snprintf(item, sizeof(item), "%d,%s,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%d,%d",
+			      candidate.midi, owner_name(candidate.owner), candidate.ownership_confidence,
+			      candidate.bass_score, candidate.keyboard_score, candidate.guitar_score,
+			      candidate.vocal_score, candidate.other_score, candidate.pitch_confidence,
+			      candidate.periodicity, candidate.vocal_tone_profile_supported ? 1 : 0,
+			      candidate.vocal_rejected_for_polyphony ? 1 : 0);
+		text += item;
+	}
+	return text.empty() ? "--" : text;
+}
+
 struct ActiveNote {
 	int instrument = 0;
 	int midi = 0;
@@ -1267,7 +1291,7 @@ void print_musicnet_attribute_header(std::ostream &out)
 	out << "recording\tcenter_sample\texpected_pcs\tdetected_pcs\tmissing_pcs\textra_pcs\t"
 	       "expected_chords\tchord_hit\tsimple_chord_hit\tactive_notes\tdetected_by_row\t"
 	       "detected_levels\traw_chroma\tglobal_chord\tglobal_chord_confidence\tkeyboard_chord\tguitar_chord\tother_chord\t"
-	       "candidates\tbass_notes\tkeys_notes\tguitar_notes\tvocal_notes\tother_notes\tamb_notes\t"
+	       "candidates\tcandidate_evidence\tbass_notes\tkeys_notes\tguitar_notes\tvocal_notes\tother_notes\tamb_notes\t"
 	       "bass_visual_notes\tkeys_visual_notes\tguitar_visual_notes\tvocal_visual_notes\tother_visual_notes\tamb_visual_notes\n";
 }
 
@@ -1292,6 +1316,7 @@ void append_musicnet_attribute_row(std::ostream &out, const Recording &recording
 	    << pitch_class_level_list(snapshot.global_chord_debug_chroma) << '\t' << snapshot.global_chord.label
 	    << '\t' << snapshot.global_chord.confidence << '\t' << snapshot.keyboard_chord.label << '\t' << snapshot.guitar_chord.label << '\t'
 	    << snapshot.other_chord.label << '\t' << full_mix_candidate_list(snapshot) << '\t'
+	    << full_mix_candidate_evidence(snapshot) << '\t'
 	    << grid_note_list(snapshot.bass_notes) << '\t' << grid_note_list(snapshot.keyboard_notes) << '\t'
 	    << grid_note_list(snapshot.guitar_notes) << '\t' << grid_note_list(snapshot.vocal_notes) << '\t'
 	    << grid_note_list(snapshot.other_notes) << '\t' << grid_note_list(snapshot.ambiguous_notes) << '\t'
