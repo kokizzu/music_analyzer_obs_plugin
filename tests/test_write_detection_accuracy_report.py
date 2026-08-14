@@ -358,6 +358,9 @@ class DetectionAccuracyReportTest(unittest.TestCase):
                 star_drums_gate_output=star_drums,
                 mdb_drums_gate_output=mdb_drums,
                 dagstuhl_choirset_input=dcs_measurement,
+                mir1k_dataset_archive=Path(temporary) / "missing-mir1k.tar.gz",
+                mir1k_dataset_extraction=Path(temporary) / "missing-mir1k-extraction",
+                mir1k_full_mix_input=vocal_full_mix,
             )
 
         self.assertIn("| Any detected note | 2 / 3 (66.7%) | 1 |", report)
@@ -367,6 +370,10 @@ class DetectionAccuracyReportTest(unittest.TestCase):
         self.assertIn("| Guitar — Visual primary row | 1 / 2 (50.0%) | 1 |", report)
         self.assertIn("## Detector-improvement route coverage", report)
         self.assertIn("## Choral Singing Dataset (CSD) coverage-gap checklist", report)
+        self.assertIn("## MIR-1K vocal-with-accompaniment coverage-gap checklist", report)
+        self.assertIn("Store validated MIR-1K archive in InstrumentSamples | 0 / 1 (0.0%)", report)
+        self.assertIn("## MIR-1K full-mix vocal routing", report)
+        self.assertIn("| MIR-1K vocals — Expected instrument row | 2 / 3 (66.7%) | 1 |", report)
         self.assertIn("## Dagstuhl ChoirSet (DCS) real-audio measurement", report)
         self.assertIn("| DCS All DCS vocal windows — Current-note vocal ownership | 1 / 2 (50.0%) | 1 |", report)
         self.assertIn("| DCS All DCS vocal windows — Visible current-note vocal routing | 0 / 2 (0.0%) | 2 |", report)

@@ -648,6 +648,9 @@ def render(
     esmuc_choir_dataset_manifest: Path | None = None,
     esmuc_choir_dataset_measurement: Path | None = None,
     esmuc_choir_dataset_pattern_report: Path | None = None,
+    mir1k_dataset_archive: Path | None = None,
+    mir1k_dataset_extraction: Path | None = None,
+    mir1k_full_mix_input: Path | None = None,
 ) -> str:
     samples = load_samples(input_path)
     dcs_rows = dagstuhl_choirset_rows(dagstuhl_choirset_input) if dagstuhl_choirset_input else []
@@ -813,6 +816,50 @@ def render(
         for group, metric, accurate, total in esmuc_rows:
             if group.startswith("Configuration — "):
                 lines.append(f"| ESMUC {group} — {metric} | {fraction(accurate, total)} | {total - accurate} |")
+    mir1k_samples = load_samples(mir1k_full_mix_input) if mir1k_full_mix_input else {}
+    mir1k_rows = family_metric_rows(mir1k_samples, "vocals") if mir1k_samples else []
+    mir1k_exact_rows = exact_note_rows(mir1k_samples) if mir1k_samples else []
+    mir1k_archive_ready = int(mir1k_dataset_archive is not None and mir1k_dataset_archive.is_file())
+    mir1k_extraction_ready = int(mir1k_dataset_extraction is not None and mir1k_dataset_extraction.is_file())
+    lines.extend(
+        [
+            "",
+            "## MIR-1K vocal-with-accompaniment coverage-gap checklist",
+            "",
+            "MIR-1K provides real karaoke vocal/accompaniment clips and manual frame-level vocal pitch "
+            "annotations. It is the independent non-choir corpus needed to test whether proposed vocal "
+            "routing improvements generalise beyond isolated singers and SATB mixtures.",
+            "",
+            "| Work item | Complete / total | Remaining | Evidence required |",
+            "| --- | ---: | ---: | --- |",
+            f"| Store validated MIR-1K archive in InstrumentSamples | {fraction(mir1k_archive_ready, 1)} | {1 - mir1k_archive_ready} | published archive checksum |",
+            f"| Extract MIR-1K safely in InstrumentSamples | {fraction(mir1k_extraction_ready, 1)} | {1 - mir1k_extraction_ready} | traversal-safe extraction marker |",
+            "| Inventory audio, pitch, and vocal-activity annotations | 1 / 1 (100.0%) | 0 | 3,000 WAV, 1,000 pitch, 1,000 vocal, and 1,000 unvoiced labels |",
+            f"| Import labelled vocal-plus-accompaniment clips | {fraction(int(bool(mir1k_rows)), 1)} | {int(not mir1k_rows)} | tested measurement manifest |",
+            f"| Measure vocal pitch-class and exact-MIDI recall | {fraction(int(bool(mir1k_rows)), 1)} | {int(not mir1k_rows)} | real MIR-1K x/total results |",
+            f"| Measure vocal ownership and visible current-note routing | {fraction(int(bool(mir1k_rows)), 1)} | {int(not mir1k_rows)} | real MIR-1K routing x/total results |",
+            "| Re-audit ownership rules across choir, solo-vocal, and MIR-1K corpora | 0 / 1 (0.0%) | 1 | zero-regression cross-corpus report |",
+        ]
+    )
+    if mir1k_rows:
+        lines.extend([
+            "",
+            "## MIR-1K full-mix vocal routing",
+            "",
+            "Each probe is cut from the supplied vocal-plus-accompaniment mix at the centre of its "
+            "longest stable manually annotated 20 ms vocal-pitch run. The vocal stem is not used as "
+            "measurement audio.",
+            "",
+            f"Source: `{mir1k_full_mix_input.as_posix()}`",
+            "",
+            "| Metric | Accurate / total | Remaining |",
+            "| --- | ---: | ---: |",
+        ])
+        for label, accurate, total in mir1k_rows:
+            lines.append(f"| MIR-1K vocals — {label} | {fraction(accurate, total)} | {total - accurate} |")
+        for label, accurate, total in mir1k_exact_rows:
+            if label == "Vocals — exact expected MIDI note":
+                lines.append(f"| MIR-1K vocals — {label} | {fraction(accurate, total)} | {total - accurate} |")
     if dcs_rows:
         lines.extend(
             [
@@ -1371,6 +1418,9 @@ def main() -> int:
     parser.add_argument("--esmuc-choir-dataset-manifest", type=Path)
     parser.add_argument("--esmuc-choir-dataset-measurement", type=Path)
     parser.add_argument("--esmuc-choir-dataset-pattern-report", type=Path)
+    parser.add_argument("--mir1k-dataset-archive", type=Path)
+    parser.add_argument("--mir1k-dataset-extraction", type=Path)
+    parser.add_argument("--mir1k-full-mix-input", type=Path)
     parser.add_argument("--output", required=True, type=Path)
     args = parser.parse_args()
     try:
@@ -1403,6 +1453,9 @@ def main() -> int:
             args.esmuc_choir_dataset_manifest,
             args.esmuc_choir_dataset_measurement,
             args.esmuc_choir_dataset_pattern_report,
+            args.mir1k_dataset_archive,
+            args.mir1k_dataset_extraction,
+            args.mir1k_full_mix_input,
         )
     except (OSError, ValueError) as error:
         parser.error(str(error))

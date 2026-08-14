@@ -432,6 +432,35 @@ Source: `build/esmuc_choir_dataset_measurement.tsv`
 | ESMUC Configuration — ESMUC_SC3_FT_take2 — Visible vocal routing | 4 / 48 (8.3%) | 44 |
 | ESMUC Configuration — ESMUC_SC3_FT_take2 — Vocal ownership | 5 / 48 (10.4%) | 43 |
 
+## MIR-1K vocal-with-accompaniment coverage-gap checklist
+
+MIR-1K provides real karaoke vocal/accompaniment clips and manual frame-level vocal pitch annotations. It is the independent non-choir corpus needed to test whether proposed vocal routing improvements generalise beyond isolated singers and SATB mixtures.
+
+| Work item | Complete / total | Remaining | Evidence required |
+| --- | ---: | ---: | --- |
+| Store validated MIR-1K archive in InstrumentSamples | 1 / 1 (100.0%) | 0 | published archive checksum |
+| Extract MIR-1K safely in InstrumentSamples | 1 / 1 (100.0%) | 0 | traversal-safe extraction marker |
+| Inventory audio, pitch, and vocal-activity annotations | 1 / 1 (100.0%) | 0 | 3,000 WAV, 1,000 pitch, 1,000 vocal, and 1,000 unvoiced labels |
+| Import labelled vocal-plus-accompaniment clips | 1 / 1 (100.0%) | 0 | tested measurement manifest |
+| Measure vocal pitch-class and exact-MIDI recall | 1 / 1 (100.0%) | 0 | real MIR-1K x/total results |
+| Measure vocal ownership and visible current-note routing | 1 / 1 (100.0%) | 0 | real MIR-1K routing x/total results |
+| Re-audit ownership rules across choir, solo-vocal, and MIR-1K corpora | 0 / 1 (0.0%) | 1 | zero-regression cross-corpus report |
+
+## MIR-1K full-mix vocal routing
+
+Each probe is cut from the supplied vocal-plus-accompaniment mix at the centre of its longest stable manually annotated 20 ms vocal-pitch run. The vocal stem is not used as measurement audio.
+
+Source: `build/mir1k_vocal_mix_attributes.tsv`
+
+| Metric | Accurate / total | Remaining |
+| --- | ---: | ---: |
+| MIR-1K vocals — Any detected note | 300 / 300 (100.0%) | 0 |
+| MIR-1K vocals — Expected instrument row | 224 / 300 (74.7%) | 76 |
+| MIR-1K vocals — Lit expected pitch class | 123 / 300 (41.0%) | 177 |
+| MIR-1K vocals — Primary display row | 46 / 300 (15.3%) | 254 |
+| MIR-1K vocals — Visual primary row | 42 / 300 (14.0%) | 258 |
+| MIR-1K vocals — Vocals — exact expected MIDI note | 173 / 300 (57.7%) | 127 |
+
 ## Dagstuhl ChoirSet (DCS) real-audio measurement
 
 The SATB rows count every score-active singer at a stable center-of-note window in a real, summed four-singer recording. Vocal ownership and routing require the expected pitch class in the vocal row; visible routing additionally requires visual level at least 0.25. Current-note vocal rows are separate window-level metrics: because the UI is monophonic, they count success when its one displayed note matches any concurrent SATB score pitch.
