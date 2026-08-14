@@ -206,6 +206,20 @@ Source: `build/tinysol_sax_full_mix_attributes.tsv`
 | TinySOL alto saxophone — Primary display row | 7 / 98 (7.1%) | 91 |
 | TinySOL alto saxophone — Visual primary row | 11 / 98 (11.2%) | 87 |
 
+## TinySOL flute full-mix routing
+
+This independent 118-recording flute subset is symlinked from TinySOL and measured in full-mix mode. It expands woodwind ownership coverage before any flute recovery rule is allowed to change the detector.
+
+Source: `build/tinysol_flute_full_mix_attributes.tsv`
+
+| Metric | Accurate / total | Remaining |
+| --- | ---: | ---: |
+| TinySOL flute — Any detected note | 118 / 118 (100.0%) | 0 |
+| TinySOL flute — Expected instrument row | 75 / 118 (63.6%) | 43 |
+| TinySOL flute — Lit expected pitch class | 35 / 118 (29.7%) | 83 |
+| TinySOL flute — Primary display row | 10 / 118 (8.5%) | 108 |
+| TinySOL flute — Visual primary row | 15 / 118 (12.7%) | 103 |
+
 ## Real A2S tenor-saxophone score-aligned probes
 
 These are 489 timed notes cut silently from twelve real tenor-saxophone major-scale recordings and three exercises, aligned to their bundled **kern scores. The source notation is shifted down one octave to its measured sounding pitch before scoring. This is an independent real-tenor diagnostic, not yet a broad generalization gate.

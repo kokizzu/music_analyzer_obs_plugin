@@ -610,6 +610,7 @@ def render(
     tinysol_wind_exact_input: Path | None = None,
     iowa_sax_full_mix_input: Path | None = None,
     tinysol_sax_full_mix_input: Path | None = None,
+    tinysol_flute_full_mix_input: Path | None = None,
     real_a2s_tenor_scale_input: Path | None = None,
     urmp_sax_exact_input: Path | None = None,
     urmp_sax_full_mix_input: Path | None = None,
@@ -853,6 +854,25 @@ def render(
         )
         for label, accurate, total in sax_rows:
             lines.append(f"| TinySOL alto saxophone — {label} | {fraction(accurate, total)} | {total - accurate} |")
+    if tinysol_flute_full_mix_input is not None:
+        flute_rows = family_metric_rows(load_samples(tinysol_flute_full_mix_input), "other")
+        lines.extend(
+            [
+                "",
+                "## TinySOL flute full-mix routing",
+                "",
+                "This independent 118-recording flute subset is symlinked from TinySOL and measured "
+                "in full-mix mode. It expands woodwind ownership coverage before any flute recovery "
+                "rule is allowed to change the detector.",
+                "",
+                f"Source: `{tinysol_flute_full_mix_input.as_posix()}`",
+                "",
+                "| Metric | Accurate / total | Remaining |",
+                "| --- | ---: | ---: |",
+            ]
+        )
+        for label, accurate, total in flute_rows:
+            lines.append(f"| TinySOL flute — {label} | {fraction(accurate, total)} | {total - accurate} |")
     if real_a2s_tenor_scale_input is not None:
         tenor_samples = load_samples(real_a2s_tenor_scale_input)
         lines.extend(
@@ -1141,6 +1161,7 @@ def main() -> int:
     parser.add_argument("--tinysol-wind-exact-input", type=Path)
     parser.add_argument("--iowa-sax-full-mix-input", type=Path)
     parser.add_argument("--tinysol-sax-full-mix-input", type=Path)
+    parser.add_argument("--tinysol-flute-full-mix-input", type=Path)
     parser.add_argument("--real-a2s-tenor-scale-input", type=Path)
     parser.add_argument("--urmp-sax-exact-input", type=Path)
     parser.add_argument("--urmp-sax-full-mix-input", type=Path)
@@ -1161,6 +1182,7 @@ def main() -> int:
             args.tinysol_wind_exact_input,
             args.iowa_sax_full_mix_input,
             args.tinysol_sax_full_mix_input,
+            args.tinysol_flute_full_mix_input,
             args.real_a2s_tenor_scale_input,
             args.urmp_sax_exact_input,
             args.urmp_sax_full_mix_input,
