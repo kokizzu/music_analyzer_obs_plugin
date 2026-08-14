@@ -56,6 +56,12 @@ CHORAL_SINGING_DATASET_ARCHIVE_MD5 ?= 7a9643609a1c3902b5255d78dbba3303
 CHORAL_SINGING_DATASET_DOWNLOAD_CONNECTIONS ?= 8
 CHORAL_SINGING_DATASET_DOWNLOAD_LOCK_DIR ?= $(BUILD_DIR)/locks/choral_singing_dataset_download.lock
 CHORAL_SINGING_DATASET_INSPECT_ARGS ?=
+ESMUC_CHOIR_DATASET_SOURCE_DIR ?= $(INSTRUMENT_SAMPLE_STORE_LINK)/esmuc_choir_dataset
+ESMUC_CHOIR_DATASET_ARCHIVE ?= $(ESMUC_CHOIR_DATASET_SOURCE_DIR)/EsmucChoirDataset_v1.0.0.zip
+ESMUC_CHOIR_DATASET_ARCHIVE_URL ?= https://zenodo.org/records/5848990/files/EsmucChoirDataset_v1.0.0.zip?download=1
+ESMUC_CHOIR_DATASET_ARCHIVE_MD5 ?= ba2b4b5c4326dbe0a6d391167fa30574
+ESMUC_CHOIR_DATASET_DOWNLOAD_CONNECTIONS ?= 8
+ESMUC_CHOIR_DATASET_DOWNLOAD_LOCK_DIR ?= $(BUILD_DIR)/locks/esmuc_choir_dataset_download.lock
 URMP_SOURCE_DIR ?= $(INSTRUMENT_SAMPLE_STORE_LINK)/urmp
 URMP_ARCHIVE ?= $(URMP_SOURCE_DIR)/urmp-kaggle.zip
 URMP_EXTRACT_DIR ?= $(URMP_SOURCE_DIR)/extracted
@@ -4177,7 +4183,7 @@ test-vocadito-samples-full-mix-shard-%: FORCE $(BUILD_DIR)/analyzer_real_note_sa
 download-vocalset-samples: scripts/run_with_lock.sh
 	+$(SHELL) scripts/run_with_lock.sh "$(VOCALSET_DOWNLOAD_LOCK_DIR)" -- "$(MAKE)" vocalset-download-samples-unlocked
 
-.PHONY: download-dagstuhl-choirset validate-dagstuhl-choirset-archive extract-dagstuhl-choirset prepare-dagstuhl-choirset inspect-dagstuhl-choirset measure-dagstuhl-choirset export-dagstuhl-choirset-pattern-rows inspect-dagstuhl-cross-corpus-ownership find-dagstuhl-shared-vocal-ownership-patterns find-dagstuhl-choirset-ownership-patterns inspect-dagstuhl-vocal-evidence test-dagstuhl-choirset-20 inspect-dagstuhl-choirset-archive test-dagstuhl-choirset-archive test-extract-dagstuhl-choirset test-prepare-dagstuhl-choirset test-summarize-dagstuhl-choirset test-export-dagstuhl-choirset-pattern-rows test-inspect-vocal-ownership-cross-corpus test-inspect-dagstuhl-vocal-evidence download-choral-singing-dataset download-choral-singing-dataset-unlocked validate-choral-singing-dataset-archive extract-choral-singing-dataset prepare-choral-singing-dataset inspect-choral-singing-dataset measure-choral-singing-dataset summarize-choral-singing-dataset export-choral-singing-dataset-pattern-rows inspect-choral-singing-dataset-cross-corpus-ownership find-choral-singing-dataset-shared-vocal-ownership-patterns inspect-choral-singing-dataset-archive test-validate-choral-singing-dataset test-extract-choral-singing-dataset test-prepare-choral-singing-dataset test-inspect-choral-singing-dataset-archive
+.PHONY: download-dagstuhl-choirset validate-dagstuhl-choirset-archive extract-dagstuhl-choirset prepare-dagstuhl-choirset inspect-dagstuhl-choirset measure-dagstuhl-choirset export-dagstuhl-choirset-pattern-rows inspect-dagstuhl-cross-corpus-ownership find-dagstuhl-shared-vocal-ownership-patterns find-dagstuhl-choirset-ownership-patterns inspect-dagstuhl-vocal-evidence test-dagstuhl-choirset-20 inspect-dagstuhl-choirset-archive test-dagstuhl-choirset-archive test-extract-dagstuhl-choirset test-prepare-dagstuhl-choirset test-summarize-dagstuhl-choirset test-export-dagstuhl-choirset-pattern-rows test-inspect-vocal-ownership-cross-corpus test-inspect-dagstuhl-vocal-evidence download-choral-singing-dataset download-choral-singing-dataset-unlocked validate-choral-singing-dataset-archive extract-choral-singing-dataset prepare-choral-singing-dataset inspect-choral-singing-dataset measure-choral-singing-dataset summarize-choral-singing-dataset export-choral-singing-dataset-pattern-rows inspect-choral-singing-dataset-cross-corpus-ownership find-choral-singing-dataset-shared-vocal-ownership-patterns inspect-choral-singing-dataset-archive test-validate-choral-singing-dataset test-extract-choral-singing-dataset test-prepare-choral-singing-dataset test-inspect-choral-singing-dataset-archive download-esmuc-choir-dataset download-esmuc-choir-dataset-unlocked validate-esmuc-choir-dataset-archive test-validate-esmuc-choir-dataset
 
 download-dagstuhl-choirset: configure-instrument-sample-store $(DAGSTUHL_CHOIRSET_ARCHIVE) validate-dagstuhl-choirset-archive
 
@@ -4185,6 +4191,14 @@ download-choral-singing-dataset: scripts/run_with_lock.sh
 	+$(SHELL) scripts/run_with_lock.sh "$(CHORAL_SINGING_DATASET_DOWNLOAD_LOCK_DIR)" -- "$(MAKE)" download-choral-singing-dataset-unlocked
 
 download-choral-singing-dataset-unlocked: configure-instrument-sample-store $(CHORAL_SINGING_DATASET_ARCHIVE) validate-choral-singing-dataset-archive
+
+download-esmuc-choir-dataset: scripts/run_with_lock.sh
+	+$(SHELL) scripts/run_with_lock.sh "$(ESMUC_CHOIR_DATASET_DOWNLOAD_LOCK_DIR)" -- "$(MAKE)" download-esmuc-choir-dataset-unlocked
+
+download-esmuc-choir-dataset-unlocked: configure-instrument-sample-store $(ESMUC_CHOIR_DATASET_ARCHIVE) validate-esmuc-choir-dataset-archive
+
+validate-esmuc-choir-dataset-archive: $(ESMUC_CHOIR_DATASET_ARCHIVE) scripts/validate_esmuc_choir_dataset.py
+	$(PYTHON) scripts/validate_esmuc_choir_dataset.py --archive "$(ESMUC_CHOIR_DATASET_ARCHIVE)" --expected-md5 "$(ESMUC_CHOIR_DATASET_ARCHIVE_MD5)"
 
 validate-choral-singing-dataset-archive: $(CHORAL_SINGING_DATASET_ARCHIVE) scripts/validate_choral_singing_dataset.py
 	$(PYTHON) scripts/validate_choral_singing_dataset.py --archive "$(CHORAL_SINGING_DATASET_ARCHIVE)" --expected-md5 "$(CHORAL_SINGING_DATASET_ARCHIVE_MD5)"
@@ -4280,6 +4294,9 @@ test-dagstuhl-choirset-archive: tests/test_validate_dagstuhl_choirset.py scripts
 test-validate-choral-singing-dataset: tests/test_validate_choral_singing_dataset.py scripts/validate_choral_singing_dataset.py
 	$(PYTHON) tests/test_validate_choral_singing_dataset.py
 
+test-validate-esmuc-choir-dataset: tests/test_validate_esmuc_choir_dataset.py scripts/validate_esmuc_choir_dataset.py
+	$(PYTHON) tests/test_validate_esmuc_choir_dataset.py
+
 test-extract-choral-singing-dataset: tests/test_extract_choral_singing_dataset.py scripts/extract_choral_singing_dataset.py scripts/validate_choral_singing_dataset.py
 	$(PYTHON) tests/test_extract_choral_singing_dataset.py
 
@@ -4319,6 +4336,13 @@ $(CHORAL_SINGING_DATASET_ARCHIVE): scripts/validate_choral_singing_dataset.py
 	if [ -s "$@" ] && ! $(PYTHON) scripts/validate_choral_singing_dataset.py --archive "$@" --expected-md5 "$(CHORAL_SINGING_DATASET_ARCHIVE_MD5)" >/dev/null 2>&1; then mv -f "$@" "$@.part"; fi
 	if [ ! -s "$@" ]; then if command -v "$(ARIA2C)" >/dev/null 2>&1; then "$(ARIA2C)" --continue=true --allow-overwrite=true --auto-file-renaming=false --max-tries=5 --retry-wait=5 --max-connection-per-server="$(CHORAL_SINGING_DATASET_DOWNLOAD_CONNECTIONS)" --split="$(CHORAL_SINGING_DATASET_DOWNLOAD_CONNECTIONS)" --min-split-size=8M --file-allocation=none --dir "$(CHORAL_SINGING_DATASET_SOURCE_DIR)" --out "ChoralSingingDataset.zip.part" "$(CHORAL_SINGING_DATASET_ARCHIVE_URL)"; else $(CURL) -fL --continue-at - --output "$@.part" "$(CHORAL_SINGING_DATASET_ARCHIVE_URL)"; fi; fi
 	if [ -s "$@.part" ]; then $(PYTHON) scripts/validate_choral_singing_dataset.py --archive "$@.part" --expected-md5 "$(CHORAL_SINGING_DATASET_ARCHIVE_MD5)"; mv -f "$@.part" "$@"; fi
+	test -s "$@"
+
+$(ESMUC_CHOIR_DATASET_ARCHIVE): scripts/validate_esmuc_choir_dataset.py
+	mkdir -p "$(ESMUC_CHOIR_DATASET_SOURCE_DIR)"
+	if [ -s "$@" ] && ! $(PYTHON) scripts/validate_esmuc_choir_dataset.py --archive "$@" --expected-md5 "$(ESMUC_CHOIR_DATASET_ARCHIVE_MD5)" >/dev/null 2>&1; then mv -f "$@" "$@.part"; fi
+	if [ ! -s "$@" ]; then if command -v "$(ARIA2C)" >/dev/null 2>&1; then "$(ARIA2C)" --continue=true --allow-overwrite=true --auto-file-renaming=false --max-tries=5 --retry-wait=5 --max-connection-per-server="$(ESMUC_CHOIR_DATASET_DOWNLOAD_CONNECTIONS)" --split="$(ESMUC_CHOIR_DATASET_DOWNLOAD_CONNECTIONS)" --min-split-size=8M --file-allocation=none --dir "$(ESMUC_CHOIR_DATASET_SOURCE_DIR)" --out "EsmucChoirDataset_v1.0.0.zip.part" "$(ESMUC_CHOIR_DATASET_ARCHIVE_URL)"; else $(CURL) -fL --continue-at - --output "$@.part" "$(ESMUC_CHOIR_DATASET_ARCHIVE_URL)"; fi; fi
+	if [ -s "$@.part" ]; then $(PYTHON) scripts/validate_esmuc_choir_dataset.py --archive "$@.part" --expected-md5 "$(ESMUC_CHOIR_DATASET_ARCHIVE_MD5)"; mv -f "$@.part" "$@"; fi
 	test -s "$@"
 
 vocalset-download-samples-unlocked: $(VOCALSET_ARCHIVE)
