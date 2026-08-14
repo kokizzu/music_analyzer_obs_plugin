@@ -6,7 +6,6 @@ from __future__ import annotations
 import argparse
 import csv
 import math
-import statistics
 import subprocess
 import sys
 import wave
@@ -59,6 +58,39 @@ def longest_stable_run(points: list[tuple[float, float]], minimum_frames: int) -
         start = index
         current = midi
     return best
+
+
+def first_stable_run(path: Path, minimum_frames: int, clip_seconds: float) -> tuple[float, float, int] | None:
+    """Return the first long-enough voiced MIDI run without loading a whole CSV.
+
+    SCMS pitch CSVs collectively occupy nearly a gigabyte.  A labelled probe
+    only needs one stable half-second from each recording, so streaming to the
+    first qualifying run keeps sample-limit expansion practical while retaining
+    deterministic, annotation-only ground truth selection.
+    """
+    current: int | None = None
+    start_time = 0.0
+    frames = 0
+    with path.open(newline="", encoding="utf-8", errors="replace") as source:
+        for number, row in enumerate(csv.reader(source), start=1):
+            if len(row) < 2:
+                raise ValueError(f"{path}:{number}: expected timestamp,Hz")
+            try:
+                timestamp, frequency = float(row[0]), float(row[1])
+            except ValueError as error:
+                raise ValueError(f"{path}:{number}: invalid timestamp or Hz") from error
+            if not math.isfinite(timestamp) or not math.isfinite(frequency) or timestamp < 0.0:
+                raise ValueError(f"{path}:{number}: invalid timestamp or Hz")
+            midi = midi_from_hz(frequency)
+            if midi != current:
+                current = midi
+                start_time = timestamp
+                frames = 1
+            else:
+                frames += 1
+            if current is not None and frames >= minimum_frames and timestamp - start_time >= clip_seconds:
+                return start_time, timestamp, current
+    return None
 
 
 def clip_wav(source_path: Path, destination_path: Path, start_seconds: float, duration_seconds: float, ffmpeg: str) -> bool:
@@ -132,7 +164,7 @@ def audio_by_track(root: Path) -> dict[str, Path]:
     return result
 
 
-def candidates(root: Path, minimum_frames: int, clip_seconds: float) -> list[dict[str, object]]:
+def candidates(root: Path, minimum_frames: int, clip_seconds: float, limit: int) -> list[dict[str, object]]:
     audio = audio_by_track(root)
     result: list[dict[str, object]] = []
     for pitch_path in sorted(root.rglob("*.csv")):
@@ -140,30 +172,24 @@ def candidates(root: Path, minimum_frames: int, clip_seconds: float) -> list[dic
         source_path = audio.get(track.casefold())
         if source_path is None:
             continue
-        points = pitch_points(pitch_path)
-        run = longest_stable_run(points, minimum_frames)
+        run = first_stable_run(pitch_path, minimum_frames, clip_seconds)
         if run is None:
             continue
-        start, end, midi = run
-        first_time = points[start][0]
-        last_time = points[end - 1][0]
-        available = max(0.001, last_time - first_time)
-        duration = min(clip_seconds, available)
+        first_time, last_time, midi = run
+        duration = min(clip_seconds, max(0.001, last_time - first_time))
         center = (first_time + last_time) / 2.0
         clip_start = max(0.0, center - duration / 2.0)
-        frequencies = [frequency for _, frequency in points[start:end] if frequency > 0.0]
-        median_midi = midi_from_hz(statistics.median(frequencies))
-        if median_midi is None:
-            continue
         result.append({
-            "id": f"scms_{track}_{note_name(median_midi)}",
+            "id": f"scms_{track}_{note_name(midi)}",
             "track": track,
-            "midi": median_midi,
+            "midi": midi,
             "source_path": source_path,
             "start": clip_start,
             "duration": duration,
-            "frames": end - start,
+            "frames": minimum_frames,
         })
+        if limit > 0 and len(result) >= limit:
+            break
     return result
 
 
@@ -185,7 +211,7 @@ def balanced_limit(rows: list[dict[str, object]], limit: int) -> list[dict[str, 
 
 def prepare(root: Path, output: Path, minimum_frames: int, clip_seconds: float, limit: int, minimum_samples: int,
             ffmpeg: str) -> int:
-    selected = balanced_limit(candidates(root, minimum_frames, clip_seconds), limit)
+    selected = balanced_limit(candidates(root, minimum_frames, clip_seconds, limit), limit)
     if len(selected) < minimum_samples:
         raise ValueError(f"expected at least {minimum_samples} stable SCMS clips, found {len(selected)}")
     output.mkdir(parents=True, exist_ok=True)

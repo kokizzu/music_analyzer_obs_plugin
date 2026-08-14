@@ -47,7 +47,7 @@ def main() -> int:
         arguments = captured.read_text(encoding="utf-8")
         assert "SCMS_DATASET_SAMPLE_LIMIT=1000" in arguments
         assert "SCMS_DATASET_MIN_SAMPLES=800" in arguments
-        assert "measure-scms-vocal-mix-refresh" in arguments
+        assert "measure-scms-vocal-mix" in arguments
     print("test_start_scms_vocal_measurement: 6 checks passed")
     return 0
 

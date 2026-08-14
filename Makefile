@@ -104,6 +104,10 @@ SCMS_VOCAL_MEASUREMENT_PID ?= $(BUILD_DIR)/scms_vocal_measurement.pid
 SCMS_DATASET_ATTRIBUTE_OUTPUT ?= $(BUILD_DIR)/scms_vocal_mix_attributes.tsv
 SCMS_DATASET_MEASUREMENT_OUTPUT ?= $(BUILD_DIR)/scms_vocal_mix_measurement.out
 SCMS_DATASET_DEBUG_WAV ?= $(SCMS_DATASET_SAMPLE_DIR)/audio/scms_Athirum_Kazhal_3_F3.wav
+SCMS_VOCAL_MIX_SHARDS ?= 8
+SCMS_VOCAL_MIX_SHARD_INDEXES := $(shell i=0; while [ $$i -lt $(SCMS_VOCAL_MIX_SHARDS) ]; do printf '%s ' $$i; i=$$((i + 1)); done)
+SCMS_VOCAL_MIX_ATTRIBUTE_PARTS := $(addprefix $(BUILD_DIR)/scms_vocal_mix_attributes.shard-,$(addsuffix .tsv,$(SCMS_VOCAL_MIX_SHARD_INDEXES)))
+SCMS_VOCAL_MIX_ATTRIBUTE_MAKE_JOBS = $(if $(filter -j%,$(MAKEFLAGS)),,-j$(SCMS_VOCAL_MIX_SHARDS))
 URMP_SOURCE_DIR ?= $(INSTRUMENT_SAMPLE_STORE_LINK)/urmp
 URMP_ARCHIVE ?= $(URMP_SOURCE_DIR)/urmp-kaggle.zip
 URMP_EXTRACT_DIR ?= $(URMP_SOURCE_DIR)/extracted
@@ -4525,7 +4529,7 @@ $(MIR1K_DATASET_ARCHIVE): scripts/validate_mir1k_dataset.py
 	if [ -s "$@.part" ]; then $(PYTHON) scripts/validate_mir1k_dataset.py --archive "$@.part" --expected-md5 "$(MIR1K_DATASET_ARCHIVE_MD5)"; mv -f "$@.part" "$@"; fi
 	test -s "$@"
 
-.PHONY: download-scms-dataset start-scms-dataset-download scms-dataset-download-status start-scms-vocal-measurement scms-vocal-measurement-status validate-scms-dataset-archive inspect-scms-dataset extract-scms-dataset prepare-scms-vocal-mix-samples refresh-scms-vocal-mix-samples measure-scms-vocal-mix measure-scms-vocal-mix-refresh inspect-scms-prepared-wav clean-scms-dataset-staging test-validate-scms-dataset test-inspect-scms-dataset test-start-scms-dataset-download test-start-scms-vocal-measurement test-extract-scms-dataset test-prepare-scms-vocal-mix-samples
+.PHONY: download-scms-dataset start-scms-dataset-download scms-dataset-download-status start-scms-vocal-measurement start-scms-vocal-measurement-refresh scms-vocal-measurement-status validate-scms-dataset-archive inspect-scms-dataset extract-scms-dataset prepare-scms-vocal-mix-samples refresh-scms-vocal-mix-samples measure-scms-vocal-mix measure-scms-vocal-mix-refresh measure-scms-vocal-mix-sharded measure-scms-vocal-mix-shard-% inspect-scms-prepared-wav clean-scms-dataset-staging test-validate-scms-dataset test-inspect-scms-dataset test-start-scms-dataset-download test-start-scms-vocal-measurement test-extract-scms-dataset test-prepare-scms-vocal-mix-samples
 
 download-scms-dataset: configure-instrument-sample-store $(SCMS_DATASET_ARCHIVE) validate-scms-dataset-archive
 
@@ -4541,6 +4545,9 @@ scms-dataset-download-status:
 
 start-scms-vocal-measurement: scripts/start_scms_vocal_measurement.sh | $(BUILD_DIR)
 	$(SHELL) scripts/start_scms_vocal_measurement.sh --pid-file "$(SCMS_VOCAL_MEASUREMENT_PID)" --log-file "$(SCMS_VOCAL_MEASUREMENT_LOG)" --workdir "$(CURDIR)" --limit "$(SCMS_DATASET_SAMPLE_LIMIT)" --minimum-samples "$(SCMS_DATASET_MIN_SAMPLES)"
+
+start-scms-vocal-measurement-refresh: scripts/start_scms_vocal_measurement.sh | $(BUILD_DIR)
+	$(SHELL) scripts/start_scms_vocal_measurement.sh --pid-file "$(SCMS_VOCAL_MEASUREMENT_PID)" --log-file "$(SCMS_VOCAL_MEASUREMENT_LOG)" --workdir "$(CURDIR)" --limit "$(SCMS_DATASET_SAMPLE_LIMIT)" --minimum-samples "$(SCMS_DATASET_MIN_SAMPLES)" --target measure-scms-vocal-mix-refresh
 
 scms-vocal-measurement-status:
 	$(SHELL) scripts/start_scms_vocal_measurement.sh --status --pid-file "$(SCMS_VOCAL_MEASUREMENT_PID)" --log-file "$(SCMS_VOCAL_MEASUREMENT_LOG)"
@@ -4583,6 +4590,14 @@ measure-scms-vocal-mix: $(BUILD_DIR)/analyzer_real_note_samples prepare-scms-voc
 
 measure-scms-vocal-mix-refresh: refresh-scms-vocal-mix-samples
 	+$(MAKE) measure-scms-vocal-mix
+
+# Shards keep the 999-clip full-mix evidence pass inside short command windows.
+# Each worker owns a part TSV; the merge is atomic and cannot interleave rows.
+measure-scms-vocal-mix-sharded: $(SCMS_VOCAL_MIX_ATTRIBUTE_PARTS) | $(BUILD_DIR)
+	@tmp="$(SCMS_DATASET_ATTRIBUTE_OUTPUT).$$$$.tmp"; awk 'FNR == 1 && NR != 1 { next } { print }' $(SCMS_VOCAL_MIX_ATTRIBUTE_PARTS) > "$$tmp" && mv "$$tmp" "$(SCMS_DATASET_ATTRIBUTE_OUTPUT)"
+
+$(BUILD_DIR)/scms_vocal_mix_attributes.shard-%.tsv: $(BUILD_DIR)/analyzer_real_note_samples prepare-scms-vocal-mix-samples | $(BUILD_DIR)
+	@shard="$*"; env MUSIC_ANALYZER_REAL_NOTE_SAMPLES_REQUIRED=1 MUSIC_ANALYZER_REAL_NOTE_FULL_MIX=1 MUSIC_ANALYZER_REAL_NOTE_SHARD_COUNT="$(SCMS_VOCAL_MIX_SHARDS)" MUSIC_ANALYZER_REAL_NOTE_SHARD_INDEX="$$shard" MUSIC_ANALYZER_REAL_NOTE_SAMPLE_ROOT="$(SCMS_DATASET_SAMPLE_DIR)" MUSIC_ANALYZER_REAL_NOTE_REQUIRED_SAMPLES=1 MUSIC_ANALYZER_REAL_NOTE_MIN_BASS=0 MUSIC_ANALYZER_REAL_NOTE_MIN_GUITAR=0 MUSIC_ANALYZER_REAL_NOTE_MIN_PIANO=0 MUSIC_ANALYZER_REAL_NOTE_MIN_VOCALS=0 MUSIC_ANALYZER_REAL_NOTE_MIN_OTHER=0 MUSIC_ANALYZER_REAL_NOTE_MIN_ANY_HIT_PERCENT=0 MUSIC_ANALYZER_REAL_NOTE_MIN_EXPECTED_ROW_PERCENT=0 MUSIC_ANALYZER_REAL_NOTE_MIN_FIRST_ROW_PERCENT=0 MUSIC_ANALYZER_REAL_NOTE_MAX_DRUM_ACTIVE_PERCENT=100 MUSIC_ANALYZER_REAL_NOTE_MAX_FAILURES=999999 MUSIC_ANALYZER_REAL_NOTE_ATTRIBUTE_TSV="$@" $(BUILD_DIR)/analyzer_real_note_samples > "$(BUILD_DIR)/scms_vocal_mix_shard_$$shard.out"
 
 inspect-scms-prepared-wav:
 	$(PYTHON) scripts/inspect_wav_for_analyzer.py --wav "$(SCMS_DATASET_DEBUG_WAV)"

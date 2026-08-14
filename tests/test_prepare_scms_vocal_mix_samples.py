@@ -50,9 +50,13 @@ def main() -> int:
         write_wav(root / "audio" / "Artist_01.wav")
         pitch = root / "pitch" / "Artist_01.csv"
         pitch.parent.mkdir(parents=True)
-        pitch.write_text("0.000,0\n" + "0.029,440\n" * 12, encoding="utf-8")
+        pitch.write_text(
+            "0.000,0\n" + "\n".join(f"{0.029 * index:.3f},440" for index in range(1, 21)) + "\n",
+            encoding="utf-8",
+        )
         points = prepare.pitch_points(pitch)
-        assert prepare.longest_stable_run(points, 8) == (1, 13, 69)
+        assert prepare.longest_stable_run(points, 8) == (1, 21, 69)
+        assert prepare.first_stable_run(pitch, 8, 0.5) == (0.029, 0.551, 69)
         output = Path(temporary) / "prepared"
         ffmpeg = Path(temporary) / "fake-ffmpeg"
         write_fake_ffmpeg(ffmpeg)
@@ -74,7 +78,7 @@ def main() -> int:
         empty_ffmpeg = Path(temporary) / "empty-ffmpeg"
         write_empty_ffmpeg(empty_ffmpeg)
         assert not prepare.clip_wav(root / "audio" / "Artist_01.wav", clip, 0, 0.5, str(empty_ffmpeg))
-    print("test_prepare_scms_vocal_mix_samples: 9 checks passed")
+    print("test_prepare_scms_vocal_mix_samples: 10 checks passed")
     return 0
 
 

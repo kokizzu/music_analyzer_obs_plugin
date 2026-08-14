@@ -28,7 +28,14 @@ def main() -> int:
             encoding="utf-8",
         )
         assert INSPECT.summarize([("fixture", path)]) == [("fixture", 1, 1, 1, 1, 4)]
-    print("test_inspect_vocal_exact_note_cross_corpus: 5 checks passed")
+        oversized = Path(temporary) / "oversized.tsv"
+        oversized.write_text(
+            "family\texpected_midi\tbass_notes\tpiano_notes\tvocal_notes\n"
+            f"vocals\t60\t\t\tC4:1.00,{',' * 140000}\n",
+            encoding="utf-8",
+        )
+        assert INSPECT.summarize([("oversized", oversized)]) == [("oversized", 1, 0, 0, 0, 1)]
+    print("test_inspect_vocal_exact_note_cross_corpus: 6 checks passed")
     return 0
 
 

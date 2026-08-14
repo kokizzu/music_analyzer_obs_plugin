@@ -8,6 +8,7 @@ log_file=
 workdir=
 limit=
 minimum_samples=
+target=measure-scms-vocal-mix
 while [ "$#" -gt 0 ]; do
     case "$1" in
         --status) status=1 ;;
@@ -16,6 +17,7 @@ while [ "$#" -gt 0 ]; do
         --workdir) workdir=$2; shift ;;
         --limit) limit=$2; shift ;;
         --minimum-samples) minimum_samples=$2; shift ;;
+        --target) target=$2; shift ;;
         *) echo "unknown argument: $1" >&2; exit 2 ;;
     esac
     shift
@@ -40,9 +42,13 @@ fi
     echo "workdir, limit, and minimum-samples are required to start measurement" >&2
     exit 2
 }
+[ "$target" = measure-scms-vocal-mix ] || [ "$target" = measure-scms-vocal-mix-refresh ] || {
+    echo "target must be measure-scms-vocal-mix or measure-scms-vocal-mix-refresh" >&2
+    exit 2
+}
 mkdir -p "$(dirname "$pid_file")" "$(dirname "$log_file")"
 nohup setsid make -C "$workdir" SCMS_DATASET_SAMPLE_LIMIT="$limit" \
-    SCMS_DATASET_MIN_SAMPLES="$minimum_samples" measure-scms-vocal-mix-refresh \
+    SCMS_DATASET_MIN_SAMPLES="$minimum_samples" "$target" \
     >> "$log_file" 2>&1 < /dev/null &
 echo "$!" > "$pid_file"
-echo "scms_vocal_measurement: started pid=$(cat "$pid_file") limit=$limit minimum_samples=$minimum_samples log=$log_file"
+echo "scms_vocal_measurement: started pid=$(cat "$pid_file") target=$target limit=$limit minimum_samples=$minimum_samples log=$log_file"

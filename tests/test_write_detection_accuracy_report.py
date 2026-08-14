@@ -43,6 +43,15 @@ class DetectionAccuracyReportTest(unittest.TestCase):
             )
         )
 
+    def test_load_samples_accepts_long_generated_evidence_fields(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            source = Path(temporary) / "attributes.tsv"
+            source.write_text(
+                HEADER + "\n" + f"{'s' * 140000}\tvocals\t1\t1\tvocals\tvocals\n",
+                encoding="utf-8",
+            )
+            self.assertEqual(len(REPORT.load_samples(source)), 1)
+
     def test_render_reports_global_and_family_counts(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
             source = Path(temporary) / "attributes.tsv"

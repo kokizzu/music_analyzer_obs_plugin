@@ -6,6 +6,7 @@ from __future__ import annotations
 import argparse
 import csv
 import re
+import sys
 from collections import Counter, defaultdict
 from pathlib import Path
 
@@ -15,6 +16,11 @@ NOTE_OFFSETS = {"C": 0, "D": 2, "E": 4, "F": 5, "G": 7, "A": 9, "B": 11}
 NOTE_FIELDS = (
     "bass_notes", "guitar_notes", "piano_notes", "keys_notes", "vocal_notes", "other_notes", "amb_notes"
 )
+
+# Analyzer attribute rows include comma-separated note evidence.  A long
+# evidence history is valid generated data, so retain it rather than failing at
+# Python csv's small default field cap while keeping a finite safety bound.
+csv.field_size_limit(8 * 1024 * 1024)
 
 
 def parsed_midis(value: str) -> set[int]:
@@ -77,11 +83,11 @@ def main(argv: list[str] | None = None) -> int:
         inputs.append((corpus, Path(text_path)))
     try:
         rows = summarize(inputs)
-    except (OSError, ValueError) as error:
+    except (OSError, ValueError, csv.Error) as error:
         parser.error(str(error))
     header = ("corpus", "exact_vocal", "exact_foreign", "pitch_class_only", "no_pitch_class", "total")
     if args.output is None:
-        writer = csv.writer(__import__("sys").stdout, delimiter="\t", lineterminator="\n")
+        writer = csv.writer(sys.stdout, delimiter="\t", lineterminator="\n")
         writer.writerow(header)
         writer.writerows(rows)
     else:

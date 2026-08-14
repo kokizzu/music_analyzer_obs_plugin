@@ -485,12 +485,12 @@ Source: `build/scms_vocal_mix_attributes.tsv`
 
 | Metric | Accurate / total | Remaining |
 | --- | ---: | ---: |
-| SCMS vocals — Any detected note | 299 / 299 (100.0%) | 0 |
-| SCMS vocals — Expected instrument row | 206 / 299 (68.9%) | 93 |
-| SCMS vocals — Lit expected pitch class | 132 / 299 (44.1%) | 167 |
-| SCMS vocals — Primary display row | 29 / 299 (9.7%) | 270 |
-| SCMS vocals — Visual primary row | 23 / 299 (7.7%) | 276 |
-| SCMS vocals — Vocals — exact expected MIDI note | 150 / 299 (50.2%) | 149 |
+| SCMS vocals — Any detected note | 998 / 999 (99.9%) | 1 |
+| SCMS vocals — Expected instrument row | 755 / 999 (75.6%) | 244 |
+| SCMS vocals — Lit expected pitch class | 491 / 999 (49.1%) | 508 |
+| SCMS vocals — Primary display row | 121 / 999 (12.1%) | 878 |
+| SCMS vocals — Visual primary row | 90 / 999 (9.0%) | 909 |
+| SCMS vocals — Vocals — exact expected MIDI note | 647 / 999 (64.8%) | 352 |
 
 ## Cross-corpus vocal exact-MIDI evidence
 
@@ -516,10 +516,10 @@ Source: `build/vocal_exact_note_cross_corpus.tsv`
 | MIR1K — exact MIDI only in foreign row | 1408 / 2280 (61.8%) | 872 |
 | MIR1K — pitch class only (wrong octave) | 233 / 2280 (10.2%) | 2047 |
 | MIR1K — no expected pitch class | 138 / 2280 (6.1%) | 2142 |
-| SCMS — exact MIDI in vocal row | 407 / 2149 (18.9%) | 1742 |
-| SCMS — exact MIDI only in foreign row | 1302 / 2149 (60.6%) | 847 |
-| SCMS — pitch class only (wrong octave) | 237 / 2149 (11.0%) | 1912 |
-| SCMS — no expected pitch class | 203 / 2149 (9.4%) | 1946 |
+| SCMS — exact MIDI in vocal row | 1712 / 7095 (24.1%) | 5383 |
+| SCMS — exact MIDI only in foreign row | 4040 / 7095 (56.9%) | 3055 |
+| SCMS — pitch class only (wrong octave) | 673 / 7095 (9.5%) | 6422 |
+| SCMS — no expected pitch class | 670 / 7095 (9.4%) | 6425 |
 | Vocadito — exact MIDI in vocal row | 545 / 2284 (23.9%) | 1739 |
 | Vocadito — exact MIDI only in foreign row | 1274 / 2284 (55.8%) | 1010 |
 | Vocadito — pitch class only (wrong octave) | 137 / 2284 (6.0%) | 2147 |

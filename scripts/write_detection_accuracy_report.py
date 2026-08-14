@@ -38,6 +38,10 @@ NOTE_TOKEN_RE = re.compile(r"^([A-G])(#?)(-?\d+):([0-9.]+)$")
 NOTE_OFFSETS = {"C": 0, "D": 2, "E": 4, "F": 5, "G": 7, "A": 9, "B": 11}
 VISUAL_LIT_THRESHOLD = 0.25
 
+# Analyzer TSV evidence can legitimately retain long comma-separated note
+# histories.  Keep a finite but practical cap instead of csv's 128 KiB default.
+csv.field_size_limit(8 * 1024 * 1024)
+
 
 def truthy(value: str) -> bool:
     return value.strip().lower() not in {"", "0", "false", "no"}
