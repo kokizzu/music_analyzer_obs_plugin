@@ -32,7 +32,20 @@ def main() -> int:
         )
         assert "not running" in result.stdout
         assert not pid_file.exists()
-    print("test_start_scms_dataset_download: 4 checks passed")
+        archive_part = root / "Saraga-Carnatic-Melody-Synth.zip.part"
+        archive_part.write_bytes(b"fixture")
+        result = subprocess.run(
+            [
+                "sh", str(SCRIPT), "--status", "--pid-file", str(pid_file),
+                "--log-file", str(log_file), "--archive-part", str(archive_part),
+            ],
+            check=True,
+            text=True,
+            stdout=subprocess.PIPE,
+        )
+        assert "archive_part logical_bytes=7" in result.stdout
+        assert "allocated_bytes=" in result.stdout
+    print("test_start_scms_dataset_download: 6 checks passed")
     return 0
 
 

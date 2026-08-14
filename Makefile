@@ -4513,10 +4513,10 @@ download-scms-dataset: configure-instrument-sample-store $(SCMS_DATASET_ARCHIVE)
 # own resume metadata and the checksum gate above; this launcher only records
 # its detached PID and log in regenerable build state.
 start-scms-dataset-download: configure-instrument-sample-store scripts/start_scms_dataset_download.sh | $(BUILD_DIR)
-	$(SHELL) scripts/start_scms_dataset_download.sh --pid-file "$(SCMS_DATASET_DOWNLOAD_PID)" --log-file "$(SCMS_DATASET_DOWNLOAD_LOG)" --workdir "$(CURDIR)"
+	$(SHELL) scripts/start_scms_dataset_download.sh --pid-file "$(SCMS_DATASET_DOWNLOAD_PID)" --log-file "$(SCMS_DATASET_DOWNLOAD_LOG)" --archive-part "$(SCMS_DATASET_ARCHIVE).part" --workdir "$(CURDIR)"
 
 scms-dataset-download-status:
-	$(SHELL) scripts/start_scms_dataset_download.sh --status --pid-file "$(SCMS_DATASET_DOWNLOAD_PID)" --log-file "$(SCMS_DATASET_DOWNLOAD_LOG)"
+	$(SHELL) scripts/start_scms_dataset_download.sh --status --pid-file "$(SCMS_DATASET_DOWNLOAD_PID)" --log-file "$(SCMS_DATASET_DOWNLOAD_LOG)" --archive-part "$(SCMS_DATASET_ARCHIVE).part"
 
 validate-scms-dataset-archive: $(SCMS_DATASET_ARCHIVE) scripts/validate_scms_dataset.py
 	$(PYTHON) scripts/validate_scms_dataset.py --archive "$(SCMS_DATASET_ARCHIVE)" --expected-md5 "$(SCMS_DATASET_ARCHIVE_MD5)"
