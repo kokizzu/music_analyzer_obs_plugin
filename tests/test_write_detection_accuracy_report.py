@@ -176,6 +176,18 @@ class DetectionAccuracyReportTest(unittest.TestCase):
                 ) + "\n",
                 encoding="utf-8",
             )
+            iowa_piano_full_mix = Path(temporary) / "iowa_piano_full_mix_attributes.tsv"
+            iowa_piano_full_mix.write_text(
+                "\n".join(
+                    (
+                        HEADER,
+                        "ip1\tpiano\t1\t1\tpiano\tpiano",
+                        "ip2\tpiano\t1\t1\tguitar\tpiano",
+                        "ip3\tpiano\t1\t1\tguitar\tguitar",
+                    )
+                ) + "\n",
+                encoding="utf-8",
+            )
             tinysol_wind_exact = Path(temporary) / "tinysol_wind_exact_attributes.tsv"
             tinysol_wind_exact.write_text(
                 "\n".join(
@@ -371,6 +383,7 @@ class DetectionAccuracyReportTest(unittest.TestCase):
                 iowa_orchestra_full_input=iowa_orchestra_full,
                 tinysol_wind_exact_input=tinysol_wind_exact,
                 iowa_sax_full_mix_input=iowa_sax_full_mix,
+                iowa_piano_full_mix_input=iowa_piano_full_mix,
                 tinysol_sax_full_mix_input=tinysol_sax_full_mix,
                 real_a2s_tenor_scale_input=real_a2s_tenor_scale,
                 urmp_sax_exact_input=urmp_sax_exact,
@@ -453,6 +466,8 @@ class DetectionAccuracyReportTest(unittest.TestCase):
         self.assertIn("| Iowa orchestra — Bass — exact expected MIDI note | 1 / 1 (100.0%) | 0 |", report)
         self.assertIn("## Iowa saxophone full-mix routing", report)
         self.assertIn("| Iowa saxophones — Primary display row | 1 / 3 (33.3%) | 2 |", report)
+        self.assertIn("## Iowa piano full-mix routing", report)
+        self.assertIn("| Iowa piano — Primary display row | 1 / 3 (33.3%) | 2 |", report)
         self.assertIn("## TinySOL alto-saxophone full-mix routing", report)
         self.assertIn("| TinySOL alto saxophone — Primary display row | 1 / 2 (50.0%) | 1 |", report)
         self.assertIn("## Real A2S tenor-saxophone score-aligned probes", report)

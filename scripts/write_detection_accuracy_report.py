@@ -693,6 +693,7 @@ def render(
     scms_dataset_measurement: Path | None = None,
     scms_full_mix_input: Path | None = None,
     vocal_exact_note_cross_corpus_input: Path | None = None,
+    iowa_piano_full_mix_input: Path | None = None,
 ) -> str:
     samples = load_samples(input_path)
     dcs_rows = dagstuhl_choirset_rows(dagstuhl_choirset_input) if dagstuhl_choirset_input else []
@@ -1189,6 +1190,25 @@ def render(
         )
         for label, accurate, total in sax_rows:
             lines.append(f"| Iowa saxophones — {label} | {fraction(accurate, total)} | {total - accurate} |")
+    if iowa_piano_full_mix_input is not None:
+        piano_rows = family_metric_rows(load_samples(iowa_piano_full_mix_input), "piano")
+        lines.extend(
+            [
+                "",
+                "## Iowa piano full-mix routing",
+                "",
+                "This independently labelled real-piano library is measured in the same full-mix "
+                "routing mode as the detector audit. It supplies independent evidence before a "
+                "piano-to-guitar routing rule can be accepted.",
+                "",
+                f"Source: `{iowa_piano_full_mix_input.as_posix()}`",
+                "",
+                "| Metric | Accurate / total | Remaining |",
+                "| --- | ---: | ---: |",
+            ]
+        )
+        for label, accurate, total in piano_rows:
+            lines.append(f"| Iowa piano — {label} | {fraction(accurate, total)} | {total - accurate} |")
     if tinysol_sax_full_mix_input is not None:
         sax_rows = family_metric_rows(load_samples(tinysol_sax_full_mix_input), "other")
         lines.extend(
@@ -1514,6 +1534,7 @@ def main() -> int:
     parser.add_argument("--iowa-orchestra-full-input", type=Path)
     parser.add_argument("--tinysol-wind-exact-input", type=Path)
     parser.add_argument("--iowa-sax-full-mix-input", type=Path)
+    parser.add_argument("--iowa-piano-full-mix-input", type=Path)
     parser.add_argument("--tinysol-sax-full-mix-input", type=Path)
     parser.add_argument("--tinysol-flute-full-mix-input", type=Path)
     parser.add_argument("--real-a2s-tenor-scale-input", type=Path)
@@ -1584,6 +1605,7 @@ def main() -> int:
             args.scms_dataset_measurement,
             args.scms_full_mix_input,
             args.vocal_exact_note_cross_corpus_input,
+            args.iowa_piano_full_mix_input,
         )
     except (OSError, ValueError) as error:
         parser.error(str(error))

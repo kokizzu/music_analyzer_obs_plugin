@@ -45,9 +45,9 @@ Source: `build/detector_improvement_route_summary.txt`
 
 | Metric | Routes / total | Other routes |
 | --- | ---: | ---: |
-| Routes meeting protected and cross-corpus gates | 0 / 228 (0.0%) | 228 |
-| Routes awaiting additional fixture coverage | 0 / 228 (0.0%) | 228 |
-| Routes lacking independent-corpus replication | 97 / 228 (42.5%) | 131 |
+| Routes meeting protected and cross-corpus gates | 0 / 252 (0.0%) | 252 |
+| Routes awaiting additional fixture coverage | 0 / 252 (0.0%) | 252 |
+| Routes lacking independent-corpus replication | 123 / 252 (48.8%) | 129 |
 
 ## Dagstuhl ChoirSet (DCS) coverage-gap checklist
 
@@ -875,6 +875,20 @@ Source: `build/iowa_sax_full_mix_attributes.tsv`
 | Iowa saxophones — Lit expected pitch class | 38 / 60 (63.3%) | 22 |
 | Iowa saxophones — Primary display row | 8 / 60 (13.3%) | 52 |
 | Iowa saxophones — Visual primary row | 18 / 60 (30.0%) | 42 |
+
+## Iowa piano full-mix routing
+
+This independently labelled real-piano library is measured in the same full-mix routing mode as the detector audit. It supplies independent evidence before a piano-to-guitar routing rule can be accepted.
+
+Source: `build/iowa_piano_full_mix_attributes.tsv`
+
+| Metric | Accurate / total | Remaining |
+| --- | ---: | ---: |
+| Iowa piano — Any detected note | 85 / 85 (100.0%) | 0 |
+| Iowa piano — Expected instrument row | 80 / 85 (94.1%) | 5 |
+| Iowa piano — Lit expected pitch class | 73 / 85 (85.9%) | 12 |
+| Iowa piano — Primary display row | 20 / 85 (23.5%) | 65 |
+| Iowa piano — Visual primary row | 25 / 85 (29.4%) | 60 |
 
 ## TinySOL alto-saxophone full-mix routing
 
