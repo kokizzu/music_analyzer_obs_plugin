@@ -684,6 +684,9 @@ def render(
     mir1k_full_mix_input: Path | None = None,
     scms_dataset_archive: Path | None = None,
     scms_dataset_inspection: Path | None = None,
+    scms_dataset_extraction: Path | None = None,
+    scms_dataset_manifest: Path | None = None,
+    scms_dataset_measurement: Path | None = None,
     scms_full_mix_input: Path | None = None,
     vocal_exact_note_cross_corpus_input: Path | None = None,
 ) -> str:
@@ -903,6 +906,9 @@ def render(
                 lines.append(f"| MIR-1K vocals — {label} | {fraction(accurate, total)} | {total - accurate} |")
     scms_archive_ready = int(scms_dataset_archive is not None and scms_dataset_archive.is_file())
     scms_inspection_ready = int(scms_dataset_inspection is not None and scms_dataset_inspection.is_file())
+    scms_extraction_ready = int(scms_dataset_extraction is not None and scms_dataset_extraction.is_file())
+    scms_manifest_ready = int(scms_dataset_manifest is not None and scms_dataset_manifest.is_file())
+    scms_measurement_ready = int(scms_dataset_measurement is not None and scms_dataset_measurement.is_file())
     scms_samples = load_samples(scms_full_mix_input) if scms_full_mix_input else {}
     scms_rows = family_metric_rows(scms_samples, "vocals") if scms_samples else []
     scms_exact_rows = exact_note_rows(scms_samples) if scms_samples else []
@@ -919,10 +925,10 @@ def render(
             "| --- | ---: | ---: | --- |",
             f"| Store validated SCMS archive in InstrumentSamples | {fraction(scms_archive_ready, 1)} | {1 - scms_archive_ready} | official Zenodo MD5 |",
             f"| Inspect SCMS audio and CSV/LAB annotation inventory | {fraction(scms_inspection_ready, 1)} | {1 - scms_inspection_ready} | non-extracting ZIP inventory |",
-            "| Extract SCMS safely in InstrumentSamples | 0 / 1 (0.0%) | 1 | traversal-safe extraction marker |",
-            "| Prepare labelled vocal-plus-accompaniment windows | 0 / 1 (0.0%) | 1 | tested measurement manifest |",
-            "| Measure current-note exact-MIDI and pitch-class recall | 0 / 1 (0.0%) | 1 | real SCMS x/total results |",
-            "| Measure vocal ownership and visible current-note routing | 0 / 1 (0.0%) | 1 | real SCMS routing x/total results |",
+            f"| Extract SCMS safely in InstrumentSamples | {fraction(scms_extraction_ready, 1)} | {1 - scms_extraction_ready} | traversal-safe extraction marker |",
+            f"| Prepare labelled vocal-plus-accompaniment windows | {fraction(scms_manifest_ready, 1)} | {1 - scms_manifest_ready} | tested measurement manifest |",
+            f"| Measure current-note exact-MIDI and pitch-class recall | {fraction(scms_measurement_ready, 1)} | {1 - scms_measurement_ready} | real SCMS x/total results |",
+            f"| Measure vocal ownership and visible current-note routing | {fraction(scms_measurement_ready, 1)} | {1 - scms_measurement_ready} | real SCMS routing x/total results |",
             "| Re-audit protected routes with SCMS and existing vocal corpora | 0 / 1 (0.0%) | 1 | zero-regression cross-corpus report |",
         ]
     )
@@ -1526,6 +1532,9 @@ def main() -> int:
     parser.add_argument("--mir1k-full-mix-input", type=Path)
     parser.add_argument("--scms-dataset-archive", type=Path)
     parser.add_argument("--scms-dataset-inspection", type=Path)
+    parser.add_argument("--scms-dataset-extraction", type=Path)
+    parser.add_argument("--scms-dataset-manifest", type=Path)
+    parser.add_argument("--scms-dataset-measurement", type=Path)
     parser.add_argument("--scms-full-mix-input", type=Path)
     parser.add_argument("--vocal-exact-note-cross-corpus-input", type=Path)
     parser.add_argument("--output", required=True, type=Path)
@@ -1565,6 +1574,9 @@ def main() -> int:
             args.mir1k_full_mix_input,
             args.scms_dataset_archive,
             args.scms_dataset_inspection,
+            args.scms_dataset_extraction,
+            args.scms_dataset_manifest,
+            args.scms_dataset_measurement,
             args.scms_full_mix_input,
             args.vocal_exact_note_cross_corpus_input,
         )
