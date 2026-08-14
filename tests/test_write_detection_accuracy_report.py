@@ -372,6 +372,11 @@ class DetectionAccuracyReportTest(unittest.TestCase):
         self.assertIn("## Choral Singing Dataset (CSD) coverage-gap checklist", report)
         self.assertIn("## MIR-1K vocal-with-accompaniment coverage-gap checklist", report)
         self.assertIn("Store validated MIR-1K archive in InstrumentSamples | 0 / 1 (0.0%)", report)
+        self.assertIn("Run DCS/CSD/ESMUC/MIR-1K/cached-vocal ownership audit", report)
+        self.assertIn(
+            "Re-audit ownership rules across choir, solo-vocal, and MIR-1K corpora | 0 / 1 (0.0%)",
+            report,
+        )
         self.assertIn("## MIR-1K full-mix vocal routing", report)
         self.assertIn("| MIR-1K vocals — Expected instrument row | 2 / 3 (66.7%) | 1 |", report)
         self.assertIn("## Dagstuhl ChoirSet (DCS) real-audio measurement", report)

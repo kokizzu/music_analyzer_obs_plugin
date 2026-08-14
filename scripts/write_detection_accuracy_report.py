@@ -786,8 +786,8 @@ def render(
             f"| Measure ESMUC vocal ownership and current-note routing | {fraction(int(bool(esmuc_rows)), 1)} | {int(not esmuc_rows)} | real ESMUC routing x/total results |",
             f"| Measure ESMUC chord accuracy | {fraction(int(bool(esmuc_rows)), 1)} | {int(not esmuc_rows)} | real ESMUC chord x/total results |",
             f"| Break down ESMUC results by SATB and configuration | {fraction(int(bool(esmuc_rows)), 1)} | {int(not esmuc_rows)} | S/A/T/B and FT/IS/SE x/total rows |",
-            f"| Run DCS/CSD/ESMUC/cached-vocal ownership audit | {fraction(esmuc_pattern_audit_ready, 1)} | {1 - esmuc_pattern_audit_ready} | ESMUC-inclusive zero-regression pattern report |",
-            "| Verify a safe cross-corpus detector improvement | 0 / 1 (0.0%) | 1 | audit recovers 289 zero-protected keys rows, but has no Vocadito/VocalSet positive support; rule rejected |",
+            f"| Run DCS/CSD/ESMUC/MIR-1K/cached-vocal ownership audit | {fraction(esmuc_pattern_audit_ready, 1)} | {1 - esmuc_pattern_audit_ready} | MIR-1K-inclusive zero-regression pattern report |",
+            "| Verify a safe cross-corpus detector improvement | 0 / 1 (0.0%) | 1 | zero-protected keyboard candidates remain choir-only; MIR-1K/solo-vocal-supported candidates regress protected vocal rows, so every rule is rejected |",
         ]
     )
     if esmuc_rows:
@@ -838,7 +838,7 @@ def render(
             f"| Import labelled vocal-plus-accompaniment clips | {fraction(int(bool(mir1k_rows)), 1)} | {int(not mir1k_rows)} | tested measurement manifest |",
             f"| Measure vocal pitch-class and exact-MIDI recall | {fraction(int(bool(mir1k_rows)), 1)} | {int(not mir1k_rows)} | real MIR-1K x/total results |",
             f"| Measure vocal ownership and visible current-note routing | {fraction(int(bool(mir1k_rows)), 1)} | {int(not mir1k_rows)} | real MIR-1K routing x/total results |",
-            "| Re-audit ownership rules across choir, solo-vocal, and MIR-1K corpora | 0 / 1 (0.0%) | 1 | zero-regression cross-corpus report |",
+            f"| Re-audit ownership rules across choir, solo-vocal, and MIR-1K corpora | {fraction(esmuc_pattern_audit_ready, 1)} | {1 - esmuc_pattern_audit_ready} | zero-regression cross-corpus report |",
         ]
     )
     if mir1k_rows:

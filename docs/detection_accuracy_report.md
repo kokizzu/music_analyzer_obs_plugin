@@ -234,8 +234,8 @@ ESMUC adds independently labelled, synchronised SATB choir recordings with full 
 | Measure ESMUC vocal ownership and current-note routing | 1 / 1 (100.0%) | 0 | real ESMUC routing x/total results |
 | Measure ESMUC chord accuracy | 1 / 1 (100.0%) | 0 | real ESMUC chord x/total results |
 | Break down ESMUC results by SATB and configuration | 1 / 1 (100.0%) | 0 | S/A/T/B and FT/IS/SE x/total rows |
-| Run DCS/CSD/ESMUC/cached-vocal ownership audit | 1 / 1 (100.0%) | 0 | ESMUC-inclusive zero-regression pattern report |
-| Verify a safe cross-corpus detector improvement | 0 / 1 (0.0%) | 1 | audit recovers 289 zero-protected keys rows, but has no Vocadito/VocalSet positive support; rule rejected |
+| Run DCS/CSD/ESMUC/MIR-1K/cached-vocal ownership audit | 1 / 1 (100.0%) | 0 | MIR-1K-inclusive zero-regression pattern report |
+| Verify a safe cross-corpus detector improvement | 0 / 1 (0.0%) | 1 | zero-protected keyboard candidates remain choir-only; MIR-1K/solo-vocal-supported candidates regress protected vocal rows, so every rule is rejected |
 
 ## ESMUC Choir Dataset real-audio measurement
 
@@ -444,7 +444,7 @@ MIR-1K provides real karaoke vocal/accompaniment clips and manual frame-level vo
 | Import labelled vocal-plus-accompaniment clips | 1 / 1 (100.0%) | 0 | tested measurement manifest |
 | Measure vocal pitch-class and exact-MIDI recall | 1 / 1 (100.0%) | 0 | real MIR-1K x/total results |
 | Measure vocal ownership and visible current-note routing | 1 / 1 (100.0%) | 0 | real MIR-1K routing x/total results |
-| Re-audit ownership rules across choir, solo-vocal, and MIR-1K corpora | 0 / 1 (0.0%) | 1 | zero-regression cross-corpus report |
+| Re-audit ownership rules across choir, solo-vocal, and MIR-1K corpora | 1 / 1 (100.0%) | 0 | zero-regression cross-corpus report |
 
 ## MIR-1K full-mix vocal routing
 
