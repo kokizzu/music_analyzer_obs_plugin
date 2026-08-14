@@ -33,6 +33,8 @@ DAGSTUHL_CHOIRSET_PREPARED_DIR ?= $(DAGSTUHL_CHOIRSET_SOURCE_DIR)/prepared-multi
 DAGSTUHL_CHOIRSET_MUSICNET_DIR ?= $(DAGSTUHL_CHOIRSET_SOURCE_DIR)/musicnet-fixture
 DAGSTUHL_CHOIRSET_ATTRIBUTE_OUTPUT ?= $(BUILD_DIR)/dagstuhl_choirset_attributes.tsv
 DAGSTUHL_CHOIRSET_MEASUREMENT_OUTPUT ?= $(BUILD_DIR)/dagstuhl_choirset_measurement.tsv
+DAGSTUHL_CHOIRSET_PATTERN_OUTPUT ?= $(BUILD_DIR)/dagstuhl_choirset_pattern_rows.tsv
+DAGSTUHL_CHOIRSET_OWNERSHIP_PATTERN_REPORT ?= $(BUILD_DIR)/dagstuhl_choirset_ownership_pattern_report.txt
 DAGSTUHL_CHOIRSET_ARCHIVE_URL ?= https://zenodo.org/api/records/3897182/files/DagstuhlChoirSet.zip/content
 DAGSTUHL_CHOIRSET_ARCHIVE_MD5 ?= 6d7ccdd5e3f43e54981b0f12d19987f9
 DAGSTUHL_CHOIRSET_DOWNLOAD_CONNECTIONS ?= 8
@@ -257,6 +259,8 @@ VOCADITO_PATTERN_EXTRA_PROTECTED_PATHS ?= $(BUILD_DIR)/real_note_full_mix_attrib
 VOCADITO_PATTERN_EXTRA_PROTECTED_ARGS = $(foreach path,$(VOCADITO_PATTERN_EXTRA_PROTECTED_PATHS),--extra-protected-path "$(path)")
 VOCALSET_PATTERN_EXTRA_PROTECTED_PATHS ?= $(BUILD_DIR)/real_note_full_mix_attributes.tsv $(VOCADITO_FULL_MIX_ATTRIBUTE_TSV)
 VOCALSET_PATTERN_EXTRA_PROTECTED_ARGS = $(foreach path,$(VOCALSET_PATTERN_EXTRA_PROTECTED_PATHS),--extra-protected-path "$(path)")
+DAGSTUHL_CHOIRSET_PATTERN_EXTRA_PROTECTED_PATHS ?= $(BUILD_DIR)/real_note_full_mix_attributes.tsv $(VOCADITO_FULL_MIX_ATTRIBUTE_TSV) $(VOCALSET_FULL_MIX_ATTRIBUTE_TSV)
+DAGSTUHL_CHOIRSET_PATTERN_EXTRA_PROTECTED_ARGS = $(foreach path,$(DAGSTUHL_CHOIRSET_PATTERN_EXTRA_PROTECTED_PATHS),--extra-protected-path "$(path)")
 GOOD_SOUNDS_FULL_MIX_PATTERN_EXTRA_PROTECTED_PATHS ?= $(BUILD_DIR)/real_note_full_mix_attributes.tsv $(VOCADITO_FULL_MIX_ATTRIBUTE_TSV) $(VOCALSET_FULL_MIX_ATTRIBUTE_TSV)
 GOOD_SOUNDS_FULL_MIX_PATTERN_EXTRA_PROTECTED_ARGS = $(foreach path,$(GOOD_SOUNDS_FULL_MIX_PATTERN_EXTRA_PROTECTED_PATHS),--extra-protected-path "$(path)")
 GOOD_SOUNDS_FULL_MIX_OWNERSHIP_PATTERN_ARGS ?= --top-buckets 16 --limit 12 --min-positive-samples 2 --max-negative-samples 0 --max-conditions 3 --beam-width 240 --show-examples 3 --show-near-misses 4 --protected-scope all --include-row-context --profile-fields 5
@@ -4150,7 +4154,7 @@ test-vocadito-samples-full-mix-shard-%: FORCE $(BUILD_DIR)/analyzer_real_note_sa
 download-vocalset-samples: scripts/run_with_lock.sh
 	+$(SHELL) scripts/run_with_lock.sh "$(VOCALSET_DOWNLOAD_LOCK_DIR)" -- "$(MAKE)" vocalset-download-samples-unlocked
 
-.PHONY: download-dagstuhl-choirset validate-dagstuhl-choirset-archive extract-dagstuhl-choirset prepare-dagstuhl-choirset inspect-dagstuhl-choirset measure-dagstuhl-choirset inspect-dagstuhl-vocal-evidence test-dagstuhl-choirset-20 inspect-dagstuhl-choirset-archive test-dagstuhl-choirset-archive test-extract-dagstuhl-choirset test-prepare-dagstuhl-choirset test-summarize-dagstuhl-choirset test-inspect-dagstuhl-vocal-evidence
+.PHONY: download-dagstuhl-choirset validate-dagstuhl-choirset-archive extract-dagstuhl-choirset prepare-dagstuhl-choirset inspect-dagstuhl-choirset measure-dagstuhl-choirset export-dagstuhl-choirset-pattern-rows find-dagstuhl-choirset-ownership-patterns inspect-dagstuhl-vocal-evidence test-dagstuhl-choirset-20 inspect-dagstuhl-choirset-archive test-dagstuhl-choirset-archive test-extract-dagstuhl-choirset test-prepare-dagstuhl-choirset test-summarize-dagstuhl-choirset test-export-dagstuhl-choirset-pattern-rows test-inspect-dagstuhl-vocal-evidence
 
 download-dagstuhl-choirset: configure-instrument-sample-store $(DAGSTUHL_CHOIRSET_ARCHIVE) validate-dagstuhl-choirset-archive
 
@@ -4173,6 +4177,16 @@ measure-dagstuhl-choirset: $(BUILD_DIR)/analyzer_musicnet prepare-dagstuhl-choir
 
 test-dagstuhl-choirset-20: measure-dagstuhl-choirset
 
+export-dagstuhl-choirset-pattern-rows: measure-dagstuhl-choirset scripts/export_dagstuhl_choirset_pattern_rows.py | $(BUILD_DIR)
+	$(PYTHON) scripts/export_dagstuhl_choirset_pattern_rows.py --attributes "$(DAGSTUHL_CHOIRSET_ATTRIBUTE_OUTPUT)" --manifest "$(DAGSTUHL_CHOIRSET_PREPARED_DIR)/manifest.json" --output "$(DAGSTUHL_CHOIRSET_PATTERN_OUTPUT)"
+
+find-dagstuhl-choirset-ownership-patterns: $(DAGSTUHL_CHOIRSET_OWNERSHIP_PATTERN_REPORT)
+	@cat "$(DAGSTUHL_CHOIRSET_OWNERSHIP_PATTERN_REPORT)"
+
+$(DAGSTUHL_CHOIRSET_OWNERSHIP_PATTERN_REPORT): export-dagstuhl-choirset-pattern-rows scripts/find_real_note_attribute_patterns.py | $(BUILD_DIR)
+	@for path in $(DAGSTUHL_CHOIRSET_PATTERN_EXTRA_PROTECTED_PATHS); do test -s "$$path" || { printf '%s\n' "missing cached protected DCS pattern input: $$path"; exit 2; }; done
+	@tmp="$@.$$$$.tmp"; $(PYTHON) scripts/find_real_note_attribute_patterns.py "$(DAGSTUHL_CHOIRSET_PATTERN_OUTPUT)" $(DAGSTUHL_CHOIRSET_PATTERN_EXTRA_PROTECTED_ARGS) --bucket "ownership_miss:vocals/*->*" --jobs "$(REAL_NOTE_PATTERN_JOBS)" $(or $(PATTERN_ARGS),$(MEASURE_REAL_NOTE_BROAD_VOCAL_PATTERN_ARGS)) > "$$tmp" 2>&1; status="$$?"; mv "$$tmp" "$@"; exit "$$status"
+
 inspect-dagstuhl-vocal-evidence: measure-dagstuhl-choirset scripts/inspect_dagstuhl_vocal_evidence.py
 	$(PYTHON) scripts/inspect_dagstuhl_vocal_evidence.py --attributes "$(DAGSTUHL_CHOIRSET_ATTRIBUTE_OUTPUT)"
 
@@ -4190,6 +4204,9 @@ test-prepare-dagstuhl-choirset: tests/test_prepare_dagstuhl_choirset_manifest.py
 
 test-summarize-dagstuhl-choirset: tests/test_summarize_dagstuhl_choirset_measurement.py scripts/summarize_dagstuhl_choirset_measurement.py
 	$(PYTHON) tests/test_summarize_dagstuhl_choirset_measurement.py
+
+test-export-dagstuhl-choirset-pattern-rows: tests/test_export_dagstuhl_choirset_pattern_rows.py scripts/export_dagstuhl_choirset_pattern_rows.py
+	$(PYTHON) tests/test_export_dagstuhl_choirset_pattern_rows.py
 
 test-inspect-dagstuhl-vocal-evidence: tests/test_inspect_dagstuhl_vocal_evidence.py scripts/inspect_dagstuhl_vocal_evidence.py
 	$(PYTHON) tests/test_inspect_dagstuhl_vocal_evidence.py
