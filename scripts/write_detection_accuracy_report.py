@@ -641,6 +641,7 @@ def render(
     choral_singing_dataset_archive: Path | None = None,
     choral_singing_dataset_extraction: Path | None = None,
     choral_singing_dataset_inspection: Path | None = None,
+    choral_singing_dataset_manifest: Path | None = None,
 ) -> str:
     samples = load_samples(input_path)
     dcs_rows = dagstuhl_choirset_rows(dagstuhl_choirset_input) if dagstuhl_choirset_input else []
@@ -702,6 +703,7 @@ def render(
     csd_archive_ready = int(choral_singing_dataset_archive is not None and choral_singing_dataset_archive.is_file())
     csd_extraction_ready = int(choral_singing_dataset_extraction is not None and choral_singing_dataset_extraction.is_file())
     csd_inspection_ready = int(choral_singing_dataset_inspection is not None and choral_singing_dataset_inspection.is_file())
+    csd_manifest_ready = int(choral_singing_dataset_manifest is not None and choral_singing_dataset_manifest.is_file())
     lines.extend(
         [
             "",
@@ -716,7 +718,7 @@ def render(
             f"| Store current CSD archive in InstrumentSamples | {fraction(csd_archive_ready, 1)} | {1 - csd_archive_ready} | validated official archive and checksum |",
             f"| Extract CSD safely in InstrumentSamples | {fraction(csd_extraction_ready, 1)} | {1 - csd_extraction_ready} | traversal-safe extraction record |",
             f"| Inspect CSD audio, stems, and MIDI | {fraction(csd_inspection_ready, 1)} | {1 - csd_inspection_ready} | corpus inventory by work and section |",
-            "| Import CSD sources and labels | 0 / 1 (0.0%) | 1 | tested prepared-multitrack manifest |",
+            f"| Import CSD sources and labels | {fraction(csd_manifest_ready, 1)} | {1 - csd_manifest_ready} | tested prepared-multitrack manifest |",
             "| Measure CSD note, octave, and pitch-class recall | 0 / 1 (0.0%) | 1 | real CSD x/total results |",
             "| Measure CSD vocal ownership and current-note routing | 0 / 1 (0.0%) | 1 | real CSD routing x/total results |",
             "| Measure CSD chord accuracy | 0 / 1 (0.0%) | 1 | real CSD chord x/total results |",
@@ -1274,6 +1276,7 @@ def main() -> int:
     parser.add_argument("--choral-singing-dataset-archive", type=Path)
     parser.add_argument("--choral-singing-dataset-extraction", type=Path)
     parser.add_argument("--choral-singing-dataset-inspection", type=Path)
+    parser.add_argument("--choral-singing-dataset-manifest", type=Path)
     parser.add_argument("--output", required=True, type=Path)
     args = parser.parse_args()
     try:
@@ -1299,6 +1302,7 @@ def main() -> int:
             args.choral_singing_dataset_archive,
             args.choral_singing_dataset_extraction,
             args.choral_singing_dataset_inspection,
+            args.choral_singing_dataset_manifest,
         )
     except (OSError, ValueError) as error:
         parser.error(str(error))
