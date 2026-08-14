@@ -220,6 +220,22 @@ Source: `build/choral_singing_dataset_measurement.tsv`
 | CSD Configuration — CSD_ND_Singer4 — Visible vocal routing | 4 / 48 (8.3%) | 44 |
 | CSD Configuration — CSD_ND_Singer4 — Vocal ownership | 8 / 48 (16.7%) | 40 |
 
+## ESMUC Choir Dataset coverage-gap checklist
+
+ESMUC adds independently labelled, synchronised SATB choir recordings with full takes, isolated sections, and short excerpts. The archive and extracted corpus remain in InstrumentSamples; only prepared measurement fixtures may be produced under `build/`.
+
+| Work item | Complete / total | Remaining | Evidence required |
+| --- | ---: | ---: | --- |
+| Store validated ESMUC archive in InstrumentSamples | 1 / 1 (100.0%) | 0 | official archive checksum |
+| Extract ESMUC safely in InstrumentSamples | 1 / 1 (100.0%) | 0 | traversal-safe extraction marker |
+| Inventory ESMUC stems and corrected labels | 1 / 1 (100.0%) | 0 | 495 WAV, 276 note labels, 300 F0 files; FT/IS/SE configurations |
+| Import ESMUC sources and labels | 0 / 1 (0.0%) | 1 | tested prepared-multitrack manifest |
+| Measure ESMUC note, octave, and pitch-class recall | 0 / 1 (0.0%) | 1 | real ESMUC x/total results |
+| Measure ESMUC vocal ownership and current-note routing | 0 / 1 (0.0%) | 1 | real ESMUC routing x/total results |
+| Measure ESMUC chord accuracy | 0 / 1 (0.0%) | 1 | real ESMUC chord x/total results |
+| Break down ESMUC results by SATB and configuration | 0 / 1 (0.0%) | 1 | S/A/T/B and FT/IS/SE x/total rows |
+| Recheck candidates across DCS, CSD, ESMUC, and cached vocal corpora | 0 / 1 (0.0%) | 1 | zero-regression cross-corpus evidence |
+
 ## Dagstuhl ChoirSet (DCS) real-audio measurement
 
 The SATB rows count every score-active singer at a stable center-of-note window in a real, summed four-singer recording. Vocal ownership and routing require the expected pitch class in the vocal row; visible routing additionally requires visual level at least 0.25. Current-note vocal rows are separate window-level metrics: because the UI is monophonic, they count success when its one displayed note matches any concurrent SATB score pitch.
