@@ -877,7 +877,6 @@ PITCH_SHIFTED_VIOLIN_MAX_FAILURES ?= 20
 GOOD_SOUNDS_URL ?= https://zenodo.org/api/records/820937/files/good-sounds.zip/content
 GOOD_SOUNDS_SOURCE_DIR ?= $(REAL_SAMPLE_SOURCE_DIR)/good_sounds
 GOOD_SOUNDS_ARCHIVE ?= $(GOOD_SOUNDS_SOURCE_DIR)/good-sounds.zip
-GOOD_SOUNDS_ARCHIVE_VALIDATION_STAMP ?= $(GOOD_SOUNDS_ARCHIVE).validated
 GOOD_SOUNDS_SAMPLE_DIR ?= $(BUILD_DIR)/good_sounds_samples
 GOOD_SOUNDS_ATTRIBUTE_TSV ?= $(BUILD_DIR)/good_sounds_attributes.tsv
 GOOD_SOUNDS_DETECTED_ATTRIBUTE_ROWS ?= $(BUILD_DIR)/good_sounds_detected_attribute_rows.tsv
@@ -3005,7 +3004,7 @@ find-vocadito-full-mix-ownership-patterns: $(VOCADITO_FULL_MIX_ATTRIBUTE_TSV) $(
 find-vocadito-full-mix-broad-vocal-ownership-patterns: $(VOCADITO_FULL_MIX_ATTRIBUTE_TSV) $(VOCADITO_PATTERN_EXTRA_PROTECTED_PATHS) scripts/find_real_note_attribute_patterns.py
 	$(PYTHON) scripts/find_real_note_attribute_patterns.py "$(VOCADITO_FULL_MIX_ATTRIBUTE_TSV)" $(VOCADITO_PATTERN_EXTRA_PROTECTED_ARGS) --bucket "ownership_miss:vocals/*->*" --jobs "$(REAL_NOTE_PATTERN_JOBS)" $(or $(PATTERN_ARGS),$(MEASURE_REAL_NOTE_BROAD_VOCAL_PATTERN_ARGS))
 
-.PHONY: find-good-sounds-full-mix-ownership-patterns inspect-good-sounds-full-mix-debug-cached
+.PHONY: find-good-sounds-full-mix-ownership-patterns inspect-good-sounds-full-mix-debug-cached validate-good-sounds-archive
 find-good-sounds-full-mix-ownership-patterns: scripts/find_real_note_attribute_patterns.py
 	@test -f "$(GOOD_SOUNDS_FULL_MIX_ATTRIBUTE_TSV)" || { printf '%s\n' "missing $(GOOD_SOUNDS_FULL_MIX_ATTRIBUTE_TSV); run make analyze-good-sounds-full-mix-attributes first"; exit 2; }
 	$(PYTHON) scripts/find_real_note_attribute_patterns.py "$(GOOD_SOUNDS_FULL_MIX_ATTRIBUTE_TSV)" $(GOOD_SOUNDS_FULL_MIX_PATTERN_EXTRA_PROTECTED_ARGS) --bucket-status ownership_miss $(REAL_NOTE_RUNTIME_ROW_CONFUSION_EXCLUDES) --jobs "$(REAL_NOTE_PATTERN_JOBS)" $(or $(PATTERN_ARGS),$(GOOD_SOUNDS_FULL_MIX_OWNERSHIP_PATTERN_ARGS))
@@ -3638,25 +3637,22 @@ $(BUILD_DIR)/pitch_shifted_violin_attributes.shard-%.tsv: FORCE $(BUILD_DIR)/ana
 analyze-pitch-shifted-violin-attributes: $(PITCH_SHIFTED_VIOLIN_ATTRIBUTE_TSV)
 	@printf '%s\n' "Pitch-shifted violin attribute TSV: $(PITCH_SHIFTED_VIOLIN_ATTRIBUTE_TSV)"
 
-download-good-sounds-samples: $(GOOD_SOUNDS_ARCHIVE_VALIDATION_STAMP)
+download-good-sounds-samples: validate-good-sounds-archive
 
 .PHONY: inspect-good-sounds-archive-coverage
 inspect-good-sounds-archive-coverage: scripts/inspect_good_sounds_archive_coverage.py scripts/prepare_good_sounds_samples.py
 	@test -s "$(GOOD_SOUNDS_ARCHIVE)" || { printf '%s\n' "missing $(GOOD_SOUNDS_ARCHIVE)"; exit 2; }
 	$(PYTHON) scripts/inspect_good_sounds_archive_coverage.py "$(GOOD_SOUNDS_ARCHIVE)" $(GOOD_SOUNDS_ARCHIVE_COVERAGE_ARGS)
 
-$(GOOD_SOUNDS_ARCHIVE): FORCE | $(BUILD_DIR)
+$(GOOD_SOUNDS_ARCHIVE): | $(BUILD_DIR)
 	mkdir -p "$(GOOD_SOUNDS_SOURCE_DIR)"
 	if [ -s "$(GOOD_SOUNDS_ARCHIVE)" ] && ! $(PYTHON) -m zipfile -t "$(GOOD_SOUNDS_ARCHIVE)" >/dev/null 2>&1; then mv -f "$(GOOD_SOUNDS_ARCHIVE)" "$(GOOD_SOUNDS_ARCHIVE).part"; fi
 	if [ ! -s "$(GOOD_SOUNDS_ARCHIVE)" ] && [ -s "$(GOOD_SOUNDS_ARCHIVE).part" ] && $(PYTHON) -m zipfile -t "$(GOOD_SOUNDS_ARCHIVE).part" >/dev/null 2>&1; then mv "$(GOOD_SOUNDS_ARCHIVE).part" "$(GOOD_SOUNDS_ARCHIVE)"; fi
 	if [ ! -s "$(GOOD_SOUNDS_ARCHIVE)" ]; then if command -v "$(ARIA2C)" >/dev/null 2>&1; then "$(ARIA2C)" -c -x "$(GOOD_SOUNDS_DOWNLOAD_CONNECTIONS)" -s "$(GOOD_SOUNDS_DOWNLOAD_CONNECTIONS)" -k 1M --file-allocation=none --allow-overwrite=true --auto-file-renaming=false --dir "$(GOOD_SOUNDS_SOURCE_DIR)" --out "good-sounds.zip.part" "$(GOOD_SOUNDS_URL)"; else curl -fL -C - -o "$(GOOD_SOUNDS_ARCHIVE).part" "$(GOOD_SOUNDS_URL)"; fi; fi
 	if [ -s "$(GOOD_SOUNDS_ARCHIVE).part" ]; then $(PYTHON) -m zipfile -t "$(GOOD_SOUNDS_ARCHIVE).part" >/dev/null; mv "$(GOOD_SOUNDS_ARCHIVE).part" "$(GOOD_SOUNDS_ARCHIVE)"; fi
 
-$(GOOD_SOUNDS_ARCHIVE_VALIDATION_STAMP): $(GOOD_SOUNDS_ARCHIVE)
-	# $(GOOD_SOUNDS_ARCHIVE) is a FORCE prerequisite and validates the ZIP before
-	# reaching this stamp.  Avoid walking the 14-GB archive a second time.
-	test -s "$(GOOD_SOUNDS_ARCHIVE)"
-	touch "$@"
+validate-good-sounds-archive: FORCE $(GOOD_SOUNDS_ARCHIVE)
+	if ! $(PYTHON) -m zipfile -t "$(GOOD_SOUNDS_ARCHIVE)" >/dev/null 2>&1; then if [ -s "$(GOOD_SOUNDS_ARCHIVE)" ]; then mv -f "$(GOOD_SOUNDS_ARCHIVE)" "$(GOOD_SOUNDS_ARCHIVE).part"; fi; $(MAKE) "$(GOOD_SOUNDS_ARCHIVE)"; fi
 
 prepare-good-sounds-samples: scripts/prepare_good_sounds_samples.py download-good-sounds-samples | $(BUILD_DIR)
 	GOOD_SOUNDS_ARCHIVE="$(GOOD_SOUNDS_ARCHIVE)" GOOD_SOUNDS_SAMPLE_DIR="$(GOOD_SOUNDS_SAMPLE_DIR)" GOOD_SOUNDS_SAMPLE_LIMIT="$(GOOD_SOUNDS_SAMPLE_LIMIT)" GOOD_SOUNDS_MIN_SAMPLES="$(GOOD_SOUNDS_MIN_SAMPLES)" FFMPEG="$(FFMPEG)" $(PYTHON) scripts/prepare_good_sounds_samples.py --archive "$(GOOD_SOUNDS_ARCHIVE)" --output "$(GOOD_SOUNDS_SAMPLE_DIR)" --limit "$(GOOD_SOUNDS_SAMPLE_LIMIT)" --min-samples "$(GOOD_SOUNDS_MIN_SAMPLES)" --ffmpeg "$(FFMPEG)" $(if $(filter 1 true yes,$(GOOD_SOUNDS_REFRESH)),--refresh)
@@ -3698,14 +3694,14 @@ analyze-good-sounds-attributes: $(GOOD_SOUNDS_DETECTED_ATTRIBUTE_ROWS) $(GOOD_SO
 # corpus can add route coverage without changing the baseline NSynth ledger.
 test-good-sounds-full-mix: test-good-sounds-full-mix-parallel
 
-test-good-sounds-full-mix-parallel: $(BUILD_DIR)/analyzer_real_note_samples $(GOOD_SOUNDS_SAMPLE_DIR)/manifest.tsv scripts/run_with_duration.sh scripts/check_real_note_full_mix_shards.py
+test-good-sounds-full-mix-parallel: $(BUILD_DIR)/analyzer_real_note_samples validate-good-sounds-archive $(GOOD_SOUNDS_SAMPLE_DIR)/manifest.tsv scripts/run_with_duration.sh scripts/check_real_note_full_mix_shards.py
 	+$(RUN_WITH_DURATION) analyzer_good_sounds_full_mix_parallel $(MAKE) $(GOOD_SOUNDS_FULL_MIX_TEST_MAKE_JOBS) $(GOOD_SOUNDS_FULL_MIX_SHARD_TARGETS)
 	$(RUN_WITH_DURATION) check_good_sounds_full_mix_shards $(PYTHON) scripts/check_real_note_full_mix_shards.py --min-any-hit-percent 0 --min-expected-row-percent 0 --min-first-row-percent 0 --min-visual-row-percent 0 --bass-min-expected-row-percent 0 --guitar-min-expected-row-percent 0 --piano-min-expected-row-percent 0 --vocals-min-expected-row-percent 0 --other-min-expected-row-percent 0 --bass-min-first-row-percent 0 --guitar-min-first-row-percent 0 --piano-min-first-row-percent 0 --vocals-min-first-row-percent 0 --other-min-first-row-percent 0 --bass-min-visual-row-percent 0 --guitar-min-visual-row-percent 0 --piano-min-visual-row-percent 0 --vocals-min-visual-row-percent 0 --other-min-visual-row-percent 0 --max-drum-active-percent 100 $(GOOD_SOUNDS_FULL_MIX_SHARD_OUTS)
 
 test-good-sounds-full-mix-shard-%: FORCE $(BUILD_DIR)/analyzer_real_note_samples $(GOOD_SOUNDS_SAMPLE_DIR)/manifest.tsv scripts/run_with_duration.sh
 	$(RUN_WITH_DURATION) analyzer_good_sounds_full_mix_shard_$* env MUSIC_ANALYZER_REAL_NOTE_SAMPLES_REQUIRED=1 MUSIC_ANALYZER_REAL_NOTE_FULL_MIX=1 MUSIC_ANALYZER_REAL_NOTE_SHARD_COUNT="$(GOOD_SOUNDS_FULL_MIX_SHARDS)" MUSIC_ANALYZER_REAL_NOTE_SHARD_INDEX="$*" MUSIC_ANALYZER_REAL_NOTE_SAMPLE_ROOT="$(GOOD_SOUNDS_SAMPLE_DIR)" MUSIC_ANALYZER_REAL_NOTE_REQUIRED_SAMPLES="$(GOOD_SOUNDS_MIN_SAMPLES)" MUSIC_ANALYZER_REAL_NOTE_MIN_BASS=0 MUSIC_ANALYZER_REAL_NOTE_MIN_GUITAR=0 MUSIC_ANALYZER_REAL_NOTE_MIN_PIANO=0 MUSIC_ANALYZER_REAL_NOTE_MIN_VOCALS=0 MUSIC_ANALYZER_REAL_NOTE_MIN_OTHER=0 MUSIC_ANALYZER_REAL_NOTE_MIN_ANY_HIT_PERCENT=0 MUSIC_ANALYZER_REAL_NOTE_MIN_EXPECTED_ROW_PERCENT=0 MUSIC_ANALYZER_REAL_NOTE_MIN_FIRST_ROW_PERCENT=0 MUSIC_ANALYZER_REAL_NOTE_MIN_BASS_EXPECTED_ROW_PERCENT=0 MUSIC_ANALYZER_REAL_NOTE_MIN_GUITAR_EXPECTED_ROW_PERCENT=0 MUSIC_ANALYZER_REAL_NOTE_MIN_PIANO_EXPECTED_ROW_PERCENT=0 MUSIC_ANALYZER_REAL_NOTE_MIN_VOCALS_EXPECTED_ROW_PERCENT=0 MUSIC_ANALYZER_REAL_NOTE_MIN_OTHER_EXPECTED_ROW_PERCENT=0 MUSIC_ANALYZER_REAL_NOTE_MIN_BASS_FIRST_ROW_PERCENT=0 MUSIC_ANALYZER_REAL_NOTE_MIN_GUITAR_FIRST_ROW_PERCENT=0 MUSIC_ANALYZER_REAL_NOTE_MIN_PIANO_FIRST_ROW_PERCENT=0 MUSIC_ANALYZER_REAL_NOTE_MIN_VOCALS_FIRST_ROW_PERCENT=0 MUSIC_ANALYZER_REAL_NOTE_MIN_OTHER_FIRST_ROW_PERCENT=0 MUSIC_ANALYZER_REAL_NOTE_MAX_DRUM_ACTIVE_PERCENT=100 MUSIC_ANALYZER_REAL_NOTE_MAX_FAILURES=999999 MUSIC_ANALYZER_REAL_NOTE_MAX_FAILURE_LINES=80 $(BUILD_DIR)/analyzer_real_note_samples > "$(BUILD_DIR)/good_sounds_full_mix_shard_$*.out" 2> "$(BUILD_DIR)/good_sounds_full_mix_shard_$*.err"
 
-$(GOOD_SOUNDS_FULL_MIX_ATTRIBUTE_TSV): $(BUILD_DIR)/analyzer_real_note_samples $(GOOD_SOUNDS_SAMPLE_DIR)/manifest.tsv scripts/build_sharded_tsv.sh scripts/run_with_lock.sh | $(BUILD_DIR)
+$(GOOD_SOUNDS_FULL_MIX_ATTRIBUTE_TSV): $(BUILD_DIR)/analyzer_real_note_samples validate-good-sounds-archive $(GOOD_SOUNDS_SAMPLE_DIR)/manifest.tsv scripts/build_sharded_tsv.sh scripts/run_with_lock.sh | $(BUILD_DIR)
 	+$(SHELL) scripts/run_with_lock.sh "$(GOOD_SOUNDS_FULL_MIX_ATTRIBUTE_LOCK_DIR)" -- "$(SHELL)" scripts/build_sharded_tsv.sh "$@" "$(MAKE)" "$(GOOD_SOUNDS_FULL_MIX_ATTRIBUTE_MAKE_JOBS)" $(GOOD_SOUNDS_FULL_MIX_ATTRIBUTE_PARTS)
 
 $(BUILD_DIR)/good_sounds_full_mix_attributes.shard-%.tsv: FORCE $(BUILD_DIR)/analyzer_real_note_samples $(GOOD_SOUNDS_SAMPLE_DIR)/manifest.tsv | $(BUILD_DIR)

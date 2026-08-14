@@ -4190,11 +4190,19 @@ def main() -> int:
     )
 
     good_sounds_archive_recipe = target_recipe(makefile, "$(GOOD_SOUNDS_ARCHIVE)")
+    good_sounds_validation_recipe = target_recipe(makefile, "validate-good-sounds-archive")
     assert "GOOD_SOUNDS_DOWNLOAD_CONNECTIONS ?= 8" in makefile, (
         "Good Sounds download parallelism must be configurable"
     )
-    assert "$(GOOD_SOUNDS_ARCHIVE): FORCE" in good_sounds_archive_recipe.splitlines()[0], (
-        "Good Sounds archive target must revalidate existing downloads"
+    assert "validate-good-sounds-archive: FORCE $(GOOD_SOUNDS_ARCHIVE)" in good_sounds_validation_recipe.splitlines()[0], (
+        "Good Sounds validation must revalidate existing downloads before preparation"
+    )
+    assert good_sounds_validation_recipe.count('zipfile -t "$(GOOD_SOUNDS_ARCHIVE)"') == 1, (
+        "Good Sounds validation must scan the completed archive once per top-level invocation"
+    )
+    good_sounds_full_mix_recipe = target_recipe(makefile, "test-good-sounds-full-mix-parallel")
+    assert "validate-good-sounds-archive" in good_sounds_full_mix_recipe.splitlines()[0], (
+        "the top-level Good Sounds full-mix gate must validate its archive once before sharding"
     )
     assert 'mv -f "$(GOOD_SOUNDS_ARCHIVE)" "$(GOOD_SOUNDS_ARCHIVE).part"' in good_sounds_archive_recipe, (
         "Good Sounds archive target must quarantine corrupt completed zips"
