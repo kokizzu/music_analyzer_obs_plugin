@@ -85,6 +85,11 @@ MIR1K_DATASET_DOWNLOAD_LOCK_DIR ?= $(BUILD_DIR)/locks/mir1k_dataset_download.loc
 MIR1K_DATASET_INSPECT_ARGS ?=
 MIR1K_DATASET_SAMPLE_LIMIT ?= 300
 MIR1K_DATASET_MIN_SAMPLES ?= 250
+SCMS_DATASET_SOURCE_DIR ?= $(INSTRUMENT_SAMPLE_STORE_LINK)/saraga_carnatic_melody_synth
+SCMS_DATASET_ARCHIVE ?= $(SCMS_DATASET_SOURCE_DIR)/Saraga-Carnatic-Melody-Synth.zip
+SCMS_DATASET_ARCHIVE_URL ?= https://zenodo.org/records/5553925/files/Saraga-Carnatic-Melody-Synth.zip?download=1
+SCMS_DATASET_ARCHIVE_MD5 ?= 08322351d024f206e21abca962e495ab
+SCMS_DATASET_DOWNLOAD_CONNECTIONS ?= 8
 URMP_SOURCE_DIR ?= $(INSTRUMENT_SAMPLE_STORE_LINK)/urmp
 URMP_ARCHIVE ?= $(URMP_SOURCE_DIR)/urmp-kaggle.zip
 URMP_EXTRACT_DIR ?= $(URMP_SOURCE_DIR)/extracted
@@ -4413,6 +4418,9 @@ test-inspect-esmuc-choir-dataset-archive: tests/test_inspect_esmuc_choir_dataset
 test-validate-mir1k-dataset: tests/test_validate_mir1k_dataset.py scripts/validate_mir1k_dataset.py
 	$(PYTHON) tests/test_validate_mir1k_dataset.py
 
+test-validate-scms-dataset: tests/test_validate_scms_dataset.py scripts/validate_scms_dataset.py
+	$(PYTHON) tests/test_validate_scms_dataset.py
+
 test-extract-mir1k-dataset: tests/test_extract_mir1k_dataset.py scripts/extract_mir1k_dataset.py scripts/validate_mir1k_dataset.py
 	$(PYTHON) tests/test_extract_mir1k_dataset.py
 
@@ -4483,6 +4491,20 @@ $(MIR1K_DATASET_ARCHIVE): scripts/validate_mir1k_dataset.py
 	if [ -s "$@" ] && ! $(PYTHON) scripts/validate_mir1k_dataset.py --archive "$@" --expected-md5 "$(MIR1K_DATASET_ARCHIVE_MD5)" >/dev/null 2>&1; then mv -f "$@" "$@.part"; fi
 	if [ ! -s "$@" ]; then if command -v "$(ARIA2C)" >/dev/null 2>&1; then "$(ARIA2C)" --continue=true --allow-overwrite=true --auto-file-renaming=false --max-tries=5 --retry-wait=5 --max-connection-per-server="$(MIR1K_DATASET_DOWNLOAD_CONNECTIONS)" --split="$(MIR1K_DATASET_DOWNLOAD_CONNECTIONS)" --min-split-size=8M --file-allocation=none --dir "$(MIR1K_DATASET_SOURCE_DIR)" --out "mir1k_yourmt3_16k.tar.gz.part" "$(MIR1K_DATASET_ARCHIVE_URL)"; else $(CURL) -fL --continue-at - --output "$@.part" "$(MIR1K_DATASET_ARCHIVE_URL)"; fi; fi
 	if [ -s "$@.part" ]; then $(PYTHON) scripts/validate_mir1k_dataset.py --archive "$@.part" --expected-md5 "$(MIR1K_DATASET_ARCHIVE_MD5)"; mv -f "$@.part" "$@"; fi
+	test -s "$@"
+
+.PHONY: download-scms-dataset validate-scms-dataset-archive test-validate-scms-dataset
+
+download-scms-dataset: configure-instrument-sample-store $(SCMS_DATASET_ARCHIVE) validate-scms-dataset-archive
+
+validate-scms-dataset-archive: $(SCMS_DATASET_ARCHIVE) scripts/validate_scms_dataset.py
+	$(PYTHON) scripts/validate_scms_dataset.py --archive "$(SCMS_DATASET_ARCHIVE)" --expected-md5 "$(SCMS_DATASET_ARCHIVE_MD5)"
+
+$(SCMS_DATASET_ARCHIVE): scripts/validate_scms_dataset.py
+	mkdir -p "$(SCMS_DATASET_SOURCE_DIR)"
+	if [ -s "$@" ] && ! $(PYTHON) scripts/validate_scms_dataset.py --archive "$@" --expected-md5 "$(SCMS_DATASET_ARCHIVE_MD5)" >/dev/null 2>&1; then mv -f "$@" "$@.part"; fi
+	if [ ! -s "$@" ]; then if command -v "$(ARIA2C)" >/dev/null 2>&1; then "$(ARIA2C)" --continue=true --allow-overwrite=true --auto-file-renaming=false --max-tries=5 --retry-wait=5 --max-connection-per-server="$(SCMS_DATASET_DOWNLOAD_CONNECTIONS)" --split="$(SCMS_DATASET_DOWNLOAD_CONNECTIONS)" --min-split-size=8M --file-allocation=none --dir "$(SCMS_DATASET_SOURCE_DIR)" --out "Saraga-Carnatic-Melody-Synth.zip.part" "$(SCMS_DATASET_ARCHIVE_URL)"; else $(CURL) -fL --continue-at - --output "$@.part" "$(SCMS_DATASET_ARCHIVE_URL)"; fi; fi
+	if [ -s "$@.part" ]; then $(PYTHON) scripts/validate_scms_dataset.py --archive "$@.part" --expected-md5 "$(SCMS_DATASET_ARCHIVE_MD5)"; mv -f "$@.part" "$@"; fi
 	test -s "$@"
 
 vocalset-download-samples-unlocked: $(VOCALSET_ARCHIVE)
