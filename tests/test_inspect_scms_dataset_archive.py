@@ -27,10 +27,13 @@ def main() -> int:
         assert result["members"] == 3
         assert result["extensions"][".wav"] == 1
         assert result["extensions"][".csv"] == 1
+        assert result["examples"][".wav"] == "SCMS/audio/example.wav"
+        assert result["annotation_previews"][".csv"] == "SCMS/annotations/example.csv: time,f0"
         output = INSPECT.summary(archive_path)
         assert "members: 3" in output
         assert ".wav: 1 files 5 bytes" in output
-    print("test_inspect_scms_dataset_archive: 5 checks passed")
+        assert "annotation_previews:" in output
+    print("test_inspect_scms_dataset_archive: 8 checks passed")
     return 0
 
 
