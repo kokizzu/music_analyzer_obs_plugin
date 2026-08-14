@@ -928,13 +928,18 @@ def filter_numeric_rows(
 ) -> list[dict[str, str]]:
     filtered: list[dict[str, str]] = []
     for row in rows:
+        # Numeric filters are documented against the same fields shown by
+        # --dump-rows.  Several score ratios are derived at inspection time,
+        # so evaluate the enriched row rather than silently treating them as
+        # missing raw TSV columns.
+        evaluated = derive_row(row)
         if any(
-            (value := as_float(row, field)) is None or value < threshold
+            (value := as_float(evaluated, field)) is None or value < threshold
             for field, threshold in minimums
         ):
             continue
         if any(
-            (value := as_float(row, field)) is None or value > threshold
+            (value := as_float(evaluated, field)) is None or value > threshold
             for field, threshold in maximums
         ):
             continue

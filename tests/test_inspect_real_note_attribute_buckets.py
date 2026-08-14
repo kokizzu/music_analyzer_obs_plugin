@@ -220,16 +220,16 @@ def main() -> int:
             "0.82",
             "0.00",
             "0.62",
-            "0.78",
+            "0.80",
             "0.00",
-            "0.00",
+            "0.20",
             "1.00",
             "0.82",
             "0.78",
             "0.04",
             "0.24",
             "0.08",
-            "0.02",
+            "0.03",
             "1.00",
             "0.52",
             "0.22",
@@ -541,6 +541,22 @@ def main() -> int:
             stderr=subprocess.PIPE,
             check=True,
         )
+        derived_field_filtered = subprocess.run(
+            [
+                sys.executable,
+                str(ROOT / "scripts" / "inspect_real_note_attribute_buckets.py"),
+                str(path),
+                "--dump-rows",
+                "--min-field",
+                "guitar_other_score_ratio=3.0",
+                "--min-field",
+                "noise=0.02",
+            ],
+            text=True,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            check=True,
+        )
         row_filtered = subprocess.run(
             [
                 sys.executable,
@@ -806,6 +822,8 @@ def main() -> int:
     assert "keyboard_1" not in family_filtered.stdout
     assert "\nkeyboard_1\townership_miss\tpiano\telectronic\tC4" in miss_reason_filtered.stdout
     assert "reed_1" not in miss_reason_filtered.stdout
+    assert "\nkeyboard_visual_1\thit\tpiano\telectronic\tE4" in derived_field_filtered.stdout
+    assert "\nreed_1\thit\tother\tacoustic\tA4" not in derived_field_filtered.stdout
     assert "hit:other/acoustic->other rows=2 samples=2" in row_filtered.stdout
     assert "ownership_miss:piano/electronic->guitar" not in row_filtered.stdout
     assert "row_confusion:piano/electronic->guitar rows=1 samples=1" in row_confusion.stdout
