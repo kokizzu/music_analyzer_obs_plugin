@@ -90,6 +90,7 @@ SCMS_DATASET_ARCHIVE ?= $(SCMS_DATASET_SOURCE_DIR)/Saraga-Carnatic-Melody-Synth.
 SCMS_DATASET_ARCHIVE_URL ?= https://zenodo.org/records/5553925/files/Saraga-Carnatic-Melody-Synth.zip?download=1
 SCMS_DATASET_ARCHIVE_MD5 ?= 08322351d024f206e21abca962e495ab
 SCMS_DATASET_DOWNLOAD_CONNECTIONS ?= 8
+SCMS_DATASET_INSPECTION_OUTPUT ?= $(BUILD_DIR)/scms_dataset_inventory.txt
 URMP_SOURCE_DIR ?= $(INSTRUMENT_SAMPLE_STORE_LINK)/urmp
 URMP_ARCHIVE ?= $(URMP_SOURCE_DIR)/urmp-kaggle.zip
 URMP_EXTRACT_DIR ?= $(URMP_SOURCE_DIR)/extracted
@@ -4421,6 +4422,9 @@ test-validate-mir1k-dataset: tests/test_validate_mir1k_dataset.py scripts/valida
 test-validate-scms-dataset: tests/test_validate_scms_dataset.py scripts/validate_scms_dataset.py
 	$(PYTHON) tests/test_validate_scms_dataset.py
 
+test-inspect-scms-dataset: tests/test_inspect_scms_dataset_archive.py scripts/inspect_scms_dataset_archive.py
+	$(PYTHON) tests/test_inspect_scms_dataset_archive.py
+
 test-extract-mir1k-dataset: tests/test_extract_mir1k_dataset.py scripts/extract_mir1k_dataset.py scripts/validate_mir1k_dataset.py
 	$(PYTHON) tests/test_extract_mir1k_dataset.py
 
@@ -4493,12 +4497,18 @@ $(MIR1K_DATASET_ARCHIVE): scripts/validate_mir1k_dataset.py
 	if [ -s "$@.part" ]; then $(PYTHON) scripts/validate_mir1k_dataset.py --archive "$@.part" --expected-md5 "$(MIR1K_DATASET_ARCHIVE_MD5)"; mv -f "$@.part" "$@"; fi
 	test -s "$@"
 
-.PHONY: download-scms-dataset validate-scms-dataset-archive test-validate-scms-dataset
+.PHONY: download-scms-dataset validate-scms-dataset-archive inspect-scms-dataset test-validate-scms-dataset test-inspect-scms-dataset
 
 download-scms-dataset: configure-instrument-sample-store $(SCMS_DATASET_ARCHIVE) validate-scms-dataset-archive
 
 validate-scms-dataset-archive: $(SCMS_DATASET_ARCHIVE) scripts/validate_scms_dataset.py
 	$(PYTHON) scripts/validate_scms_dataset.py --archive "$(SCMS_DATASET_ARCHIVE)" --expected-md5 "$(SCMS_DATASET_ARCHIVE_MD5)"
+
+inspect-scms-dataset: $(SCMS_DATASET_INSPECTION_OUTPUT)
+	@cat "$(SCMS_DATASET_INSPECTION_OUTPUT)"
+
+$(SCMS_DATASET_INSPECTION_OUTPUT): validate-scms-dataset-archive scripts/inspect_scms_dataset_archive.py | $(BUILD_DIR)
+	$(PYTHON) scripts/inspect_scms_dataset_archive.py --archive "$(SCMS_DATASET_ARCHIVE)" > "$@"
 
 $(SCMS_DATASET_ARCHIVE): scripts/validate_scms_dataset.py
 	mkdir -p "$(SCMS_DATASET_SOURCE_DIR)"
