@@ -99,9 +99,9 @@ The cached Good Sounds archive has been inventoried without extraction: all 1,31
 | --- | ---: | ---: |
 | Good Sounds — Any detected note | 1317 / 1318 (99.9%) | 1 |
 | Good Sounds — Expected instrument row | 1201 / 1318 (91.1%) | 117 |
-| Good Sounds — Lit expected pitch class | 960 / 1318 (72.8%) | 358 |
-| Good Sounds — Primary display row | 157 / 1318 (11.9%) | 1161 |
-| Good Sounds — Visual primary row | 320 / 1318 (24.3%) | 998 |
+| Good Sounds — Lit expected pitch class | 962 / 1318 (73.0%) | 356 |
+| Good Sounds — Primary display row | 158 / 1318 (12.0%) | 1160 |
+| Good Sounds — Visual primary row | 321 / 1318 (24.4%) | 997 |
 | Good Sounds — Bass — Any detected note | 159 / 159 (100.0%) | 0 |
 | Good Sounds — Bass — Expected instrument row | 142 / 159 (89.3%) | 17 |
 | Good Sounds — Bass — Lit expected pitch class | 141 / 159 (88.7%) | 18 |
@@ -109,9 +109,9 @@ The cached Good Sounds archive has been inventoried without extraction: all 1,31
 | Good Sounds — Bass — Visual primary row | 6 / 159 (3.8%) | 153 |
 | Good Sounds — Other — Any detected note | 1158 / 1159 (99.9%) | 1 |
 | Good Sounds — Other — Expected instrument row | 1059 / 1159 (91.4%) | 100 |
-| Good Sounds — Other — Lit expected pitch class | 819 / 1159 (70.7%) | 340 |
-| Good Sounds — Other — Primary display row | 154 / 1159 (13.3%) | 1005 |
-| Good Sounds — Other — Visual primary row | 314 / 1159 (27.1%) | 845 |
+| Good Sounds — Other — Lit expected pitch class | 821 / 1159 (70.8%) | 338 |
+| Good Sounds — Other — Primary display row | 155 / 1159 (13.4%) | 1004 |
+| Good Sounds — Other — Visual primary row | 315 / 1159 (27.2%) | 844 |
 
 ## Controlled octave-down violin fixture
 
@@ -202,7 +202,7 @@ Source: `build/tinysol_sax_full_mix_attributes.tsv`
 | --- | ---: | ---: |
 | TinySOL alto saxophone — Any detected note | 98 / 98 (100.0%) | 0 |
 | TinySOL alto saxophone — Expected instrument row | 95 / 98 (96.9%) | 3 |
-| TinySOL alto saxophone — Lit expected pitch class | 46 / 98 (46.9%) | 52 |
+| TinySOL alto saxophone — Lit expected pitch class | 47 / 98 (48.0%) | 51 |
 | TinySOL alto saxophone — Primary display row | 7 / 98 (7.1%) | 91 |
 | TinySOL alto saxophone — Visual primary row | 11 / 98 (11.2%) | 87 |
 
