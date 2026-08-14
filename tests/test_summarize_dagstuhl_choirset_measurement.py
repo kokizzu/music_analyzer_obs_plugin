@@ -42,6 +42,9 @@ def main() -> int:
         assert rows[("All DCS vocal windows", "Visible current-note vocal routing")] == (1, 1)
         assert rows[("Configuration — DCS_Test_Take01", "Current-note vocal ownership")] == (1, 1)
         assert rows[("All DCS chord windows", "Exact chord accuracy")] == (1, 1)
+        csd_rows = {(group, metric): (hit, total) for group, metric, hit, total in SUMMARY.summarize(attributes, manifest, "CSD")}
+        assert csd_rows[("All CSD vocal windows", "Current-note vocal ownership")] == (1, 1)
+        assert csd_rows[("All CSD chord windows", "Exact chord accuracy")] == (1, 1)
     print("test_summarize_dagstuhl_choirset_measurement: 8 checks passed")
     return 0
 

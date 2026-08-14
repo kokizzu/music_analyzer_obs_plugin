@@ -62,7 +62,7 @@ def manifest_configs(path: Path) -> dict[int, str]:
     return {index: str(piece["id"]) for index, piece in enumerate(pieces, start=1)}
 
 
-def summarize(attributes: Path, manifest: Path) -> list[tuple[str, str, int, int]]:
+def summarize(attributes: Path, manifest: Path, corpus_label: str = "DCS") -> list[tuple[str, str, int, int]]:
     configs = manifest_configs(manifest)
     totals: dict[tuple[str, str], list[int]] = defaultdict(lambda: [0, 0])
     with attributes.open(encoding="utf-8", newline="") as source:
@@ -99,7 +99,7 @@ def summarize(attributes: Path, manifest: Path) -> list[tuple[str, str, int, int
                 ("Visible current-note vocal routing",
                  bool(expected_pitch_classes & visual_vocal_pitch_classes)),
             ):
-                add(totals, "All DCS vocal windows", metric, hit)
+                add(totals, f"All {corpus_label} vocal windows", metric, hit)
                 add(totals, f"Configuration — {config}", metric, hit)
 
             for program, midi in active_notes:
@@ -117,7 +117,7 @@ def summarize(attributes: Path, manifest: Path) -> list[tuple[str, str, int, int
             if row["expected_chords"]:
                 for metric, hit in (("Exact chord accuracy", row["chord_hit"] == "1"),
                                     ("Simplified chord accuracy", row["simple_chord_hit"] == "1")):
-                    add(totals, "All DCS chord windows", metric, hit)
+                    add(totals, f"All {corpus_label} chord windows", metric, hit)
                     add(totals, f"Configuration — {config}", metric, hit)
     return [(group, metric, hit, total) for (group, metric), (hit, total) in sorted(totals.items())]
 
@@ -127,9 +127,10 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--attributes", required=True, type=Path)
     parser.add_argument("--manifest", required=True, type=Path)
     parser.add_argument("--output", required=True, type=Path)
+    parser.add_argument("--corpus-label", default="DCS")
     args = parser.parse_args(argv)
     try:
-        rows = summarize(args.attributes, args.manifest)
+        rows = summarize(args.attributes, args.manifest, args.corpus_label)
     except (OSError, ValueError, json.JSONDecodeError) as error:
         parser.error(str(error))
     args.output.parent.mkdir(parents=True, exist_ok=True)

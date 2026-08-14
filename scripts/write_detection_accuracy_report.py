@@ -642,9 +642,11 @@ def render(
     choral_singing_dataset_extraction: Path | None = None,
     choral_singing_dataset_inspection: Path | None = None,
     choral_singing_dataset_manifest: Path | None = None,
+    choral_singing_dataset_measurement: Path | None = None,
 ) -> str:
     samples = load_samples(input_path)
     dcs_rows = dagstuhl_choirset_rows(dagstuhl_choirset_input) if dagstuhl_choirset_input else []
+    csd_rows = dagstuhl_choirset_rows(choral_singing_dataset_measurement) if choral_singing_dataset_measurement else []
     lines = [
         "# Real-audio detection accuracy",
         "",
@@ -719,12 +721,39 @@ def render(
             f"| Extract CSD safely in InstrumentSamples | {fraction(csd_extraction_ready, 1)} | {1 - csd_extraction_ready} | traversal-safe extraction record |",
             f"| Inspect CSD audio, stems, and MIDI | {fraction(csd_inspection_ready, 1)} | {1 - csd_inspection_ready} | corpus inventory by work and section |",
             f"| Import CSD sources and labels | {fraction(csd_manifest_ready, 1)} | {1 - csd_manifest_ready} | tested prepared-multitrack manifest |",
-            "| Measure CSD note, octave, and pitch-class recall | 0 / 1 (0.0%) | 1 | real CSD x/total results |",
-            "| Measure CSD vocal ownership and current-note routing | 0 / 1 (0.0%) | 1 | real CSD routing x/total results |",
-            "| Measure CSD chord accuracy | 0 / 1 (0.0%) | 1 | real CSD chord x/total results |",
+            f"| Measure CSD note, octave, and pitch-class recall | {fraction(int(bool(csd_rows)), 1)} | {int(not csd_rows)} | real CSD x/total results |",
+            f"| Measure CSD vocal ownership and current-note routing | {fraction(int(bool(csd_rows)), 1)} | {int(not csd_rows)} | real CSD routing x/total results |",
+            f"| Measure CSD chord accuracy | {fraction(int(bool(csd_rows)), 1)} | {int(not csd_rows)} | real CSD chord x/total results |",
             "| Recheck any candidate across DCS, CSD, and cached vocal corpora | 0 / 1 (0.0%) | 1 | no protected-row regressions |",
         ]
     )
+    if csd_rows:
+        lines.extend(
+            [
+                "",
+                "## Choral Singing Dataset (CSD) real-audio measurement",
+                "",
+                "Each CSD recording is a sum of four synchronised, individually recorded SATB stems. "
+                "Per-part ownership is strict; current-note routing credits the monophonic vocal display "
+                "when it matches any active SATB score pitch.",
+                "",
+                f"Source: `{choral_singing_dataset_measurement.as_posix()}`",
+                "",
+                "| Metric | Accurate / total | Remaining |",
+                "| --- | ---: | ---: |",
+            ]
+        )
+        for group, metric, accurate, total in csd_rows:
+            if group in {"All SATB notes", "All CSD chord windows", "All CSD vocal windows"}:
+                lines.append(f"| CSD {group} — {metric} | {fraction(accurate, total)} | {total - accurate} |")
+        lines.extend(["", "### CSD SATB range breakdown", "", "| Metric | Accurate / total | Remaining |", "| --- | ---: | ---: |"])
+        for group, metric, accurate, total in csd_rows:
+            if group.startswith("SATB range — "):
+                lines.append(f"| CSD {group} — {metric} | {fraction(accurate, total)} | {total - accurate} |")
+        lines.extend(["", "### CSD recording-configuration breakdown", "", "| Metric | Accurate / total | Remaining |", "| --- | ---: | ---: |"])
+        for group, metric, accurate, total in csd_rows:
+            if group.startswith("Configuration — "):
+                lines.append(f"| CSD {group} — {metric} | {fraction(accurate, total)} | {total - accurate} |")
     if dcs_rows:
         lines.extend(
             [
@@ -1277,6 +1306,7 @@ def main() -> int:
     parser.add_argument("--choral-singing-dataset-extraction", type=Path)
     parser.add_argument("--choral-singing-dataset-inspection", type=Path)
     parser.add_argument("--choral-singing-dataset-manifest", type=Path)
+    parser.add_argument("--choral-singing-dataset-measurement", type=Path)
     parser.add_argument("--output", required=True, type=Path)
     args = parser.parse_args()
     try:
@@ -1303,6 +1333,7 @@ def main() -> int:
             args.choral_singing_dataset_extraction,
             args.choral_singing_dataset_inspection,
             args.choral_singing_dataset_manifest,
+            args.choral_singing_dataset_measurement,
         )
     except (OSError, ValueError) as error:
         parser.error(str(error))

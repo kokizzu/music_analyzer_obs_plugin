@@ -76,10 +76,149 @@ CSD is the next independent labelled SATB corpus. It contains isolated singers a
 | Extract CSD safely in InstrumentSamples | 1 / 1 (100.0%) | 0 | traversal-safe extraction record |
 | Inspect CSD audio, stems, and MIDI | 1 / 1 (100.0%) | 0 | corpus inventory by work and section |
 | Import CSD sources and labels | 1 / 1 (100.0%) | 0 | tested prepared-multitrack manifest |
-| Measure CSD note, octave, and pitch-class recall | 0 / 1 (0.0%) | 1 | real CSD x/total results |
-| Measure CSD vocal ownership and current-note routing | 0 / 1 (0.0%) | 1 | real CSD routing x/total results |
-| Measure CSD chord accuracy | 0 / 1 (0.0%) | 1 | real CSD chord x/total results |
+| Measure CSD note, octave, and pitch-class recall | 1 / 1 (100.0%) | 0 | real CSD x/total results |
+| Measure CSD vocal ownership and current-note routing | 1 / 1 (100.0%) | 0 | real CSD routing x/total results |
+| Measure CSD chord accuracy | 1 / 1 (100.0%) | 0 | real CSD chord x/total results |
 | Recheck any candidate across DCS, CSD, and cached vocal corpora | 0 / 1 (0.0%) | 1 | no protected-row regressions |
+
+## Choral Singing Dataset (CSD) real-audio measurement
+
+Each CSD recording is a sum of four synchronised, individually recorded SATB stems. Per-part ownership is strict; current-note routing credits the monophonic vocal display when it matches any active SATB score pitch.
+
+Source: `build/choral_singing_dataset_measurement.tsv`
+
+| Metric | Accurate / total | Remaining |
+| --- | ---: | ---: |
+| CSD All CSD chord windows — Exact chord accuracy | 43 / 144 (29.9%) | 101 |
+| CSD All CSD chord windows — Simplified chord accuracy | 72 / 144 (50.0%) | 72 |
+| CSD All CSD vocal windows — Current-note vocal ownership | 53 / 144 (36.8%) | 91 |
+| CSD All CSD vocal windows — Visible current-note vocal routing | 30 / 144 (20.8%) | 114 |
+| CSD All SATB notes — Exact-MIDI recall | 418 / 576 (72.6%) | 158 |
+| CSD All SATB notes — Pitch-class recall | 463 / 576 (80.4%) | 113 |
+| CSD All SATB notes — Visible vocal routing | 31 / 576 (5.4%) | 545 |
+| CSD All SATB notes — Vocal ownership | 61 / 576 (10.6%) | 515 |
+
+### CSD SATB range breakdown
+
+| Metric | Accurate / total | Remaining |
+| --- | ---: | ---: |
+| CSD SATB range — Alto — Exact-MIDI recall | 113 / 144 (78.5%) | 31 |
+| CSD SATB range — Alto — Pitch-class recall | 120 / 144 (83.3%) | 24 |
+| CSD SATB range — Alto — Visible vocal routing | 14 / 144 (9.7%) | 130 |
+| CSD SATB range — Alto — Vocal ownership | 28 / 144 (19.4%) | 116 |
+| CSD SATB range — Bass — Exact-MIDI recall | 97 / 144 (67.4%) | 47 |
+| CSD SATB range — Bass — Pitch-class recall | 111 / 144 (77.1%) | 33 |
+| CSD SATB range — Bass — Visible vocal routing | 4 / 144 (2.8%) | 140 |
+| CSD SATB range — Bass — Vocal ownership | 7 / 144 (4.9%) | 137 |
+| CSD SATB range — Soprano — Exact-MIDI recall | 104 / 144 (72.2%) | 40 |
+| CSD SATB range — Soprano — Pitch-class recall | 115 / 144 (79.9%) | 29 |
+| CSD SATB range — Soprano — Visible vocal routing | 8 / 144 (5.6%) | 136 |
+| CSD SATB range — Soprano — Vocal ownership | 13 / 144 (9.0%) | 131 |
+| CSD SATB range — Tenor — Exact-MIDI recall | 104 / 144 (72.2%) | 40 |
+| CSD SATB range — Tenor — Pitch-class recall | 117 / 144 (81.2%) | 27 |
+| CSD SATB range — Tenor — Visible vocal routing | 5 / 144 (3.5%) | 139 |
+| CSD SATB range — Tenor — Vocal ownership | 13 / 144 (9.0%) | 131 |
+
+### CSD recording-configuration breakdown
+
+| Metric | Accurate / total | Remaining |
+| --- | ---: | ---: |
+| CSD Configuration — CSD_ER_Singer1 — Current-note vocal ownership | 6 / 12 (50.0%) | 6 |
+| CSD Configuration — CSD_ER_Singer1 — Exact chord accuracy | 3 / 12 (25.0%) | 9 |
+| CSD Configuration — CSD_ER_Singer1 — Exact-MIDI recall | 35 / 48 (72.9%) | 13 |
+| CSD Configuration — CSD_ER_Singer1 — Pitch-class recall | 36 / 48 (75.0%) | 12 |
+| CSD Configuration — CSD_ER_Singer1 — Simplified chord accuracy | 5 / 12 (41.7%) | 7 |
+| CSD Configuration — CSD_ER_Singer1 — Visible current-note vocal routing | 3 / 12 (25.0%) | 9 |
+| CSD Configuration — CSD_ER_Singer1 — Visible vocal routing | 3 / 48 (6.2%) | 45 |
+| CSD Configuration — CSD_ER_Singer1 — Vocal ownership | 6 / 48 (12.5%) | 42 |
+| CSD Configuration — CSD_ER_Singer2 — Current-note vocal ownership | 3 / 12 (25.0%) | 9 |
+| CSD Configuration — CSD_ER_Singer2 — Exact chord accuracy | 2 / 12 (16.7%) | 10 |
+| CSD Configuration — CSD_ER_Singer2 — Exact-MIDI recall | 36 / 48 (75.0%) | 12 |
+| CSD Configuration — CSD_ER_Singer2 — Pitch-class recall | 38 / 48 (79.2%) | 10 |
+| CSD Configuration — CSD_ER_Singer2 — Simplified chord accuracy | 3 / 12 (25.0%) | 9 |
+| CSD Configuration — CSD_ER_Singer2 — Visible current-note vocal routing | 2 / 12 (16.7%) | 10 |
+| CSD Configuration — CSD_ER_Singer2 — Visible vocal routing | 2 / 48 (4.2%) | 46 |
+| CSD Configuration — CSD_ER_Singer2 — Vocal ownership | 3 / 48 (6.2%) | 45 |
+| CSD Configuration — CSD_ER_Singer3 — Current-note vocal ownership | 4 / 12 (33.3%) | 8 |
+| CSD Configuration — CSD_ER_Singer3 — Exact chord accuracy | 4 / 12 (33.3%) | 8 |
+| CSD Configuration — CSD_ER_Singer3 — Exact-MIDI recall | 38 / 48 (79.2%) | 10 |
+| CSD Configuration — CSD_ER_Singer3 — Pitch-class recall | 41 / 48 (85.4%) | 7 |
+| CSD Configuration — CSD_ER_Singer3 — Simplified chord accuracy | 6 / 12 (50.0%) | 6 |
+| CSD Configuration — CSD_ER_Singer3 — Visible current-note vocal routing | 2 / 12 (16.7%) | 10 |
+| CSD Configuration — CSD_ER_Singer3 — Visible vocal routing | 2 / 48 (4.2%) | 46 |
+| CSD Configuration — CSD_ER_Singer3 — Vocal ownership | 4 / 48 (8.3%) | 44 |
+| CSD Configuration — CSD_ER_Singer4 — Current-note vocal ownership | 7 / 12 (58.3%) | 5 |
+| CSD Configuration — CSD_ER_Singer4 — Exact chord accuracy | 4 / 12 (33.3%) | 8 |
+| CSD Configuration — CSD_ER_Singer4 — Exact-MIDI recall | 34 / 48 (70.8%) | 14 |
+| CSD Configuration — CSD_ER_Singer4 — Pitch-class recall | 40 / 48 (83.3%) | 8 |
+| CSD Configuration — CSD_ER_Singer4 — Simplified chord accuracy | 5 / 12 (41.7%) | 7 |
+| CSD Configuration — CSD_ER_Singer4 — Visible current-note vocal routing | 3 / 12 (25.0%) | 9 |
+| CSD Configuration — CSD_ER_Singer4 — Visible vocal routing | 3 / 48 (6.2%) | 45 |
+| CSD Configuration — CSD_ER_Singer4 — Vocal ownership | 9 / 48 (18.8%) | 39 |
+| CSD Configuration — CSD_LI_Singer1 — Current-note vocal ownership | 2 / 12 (16.7%) | 10 |
+| CSD Configuration — CSD_LI_Singer1 — Exact chord accuracy | 5 / 12 (41.7%) | 7 |
+| CSD Configuration — CSD_LI_Singer1 — Exact-MIDI recall | 40 / 48 (83.3%) | 8 |
+| CSD Configuration — CSD_LI_Singer1 — Pitch-class recall | 42 / 48 (87.5%) | 6 |
+| CSD Configuration — CSD_LI_Singer1 — Simplified chord accuracy | 9 / 12 (75.0%) | 3 |
+| CSD Configuration — CSD_LI_Singer1 — Visible current-note vocal routing | 2 / 12 (16.7%) | 10 |
+| CSD Configuration — CSD_LI_Singer1 — Visible vocal routing | 2 / 48 (4.2%) | 46 |
+| CSD Configuration — CSD_LI_Singer1 — Vocal ownership | 2 / 48 (4.2%) | 46 |
+| CSD Configuration — CSD_LI_Singer2 — Current-note vocal ownership | 6 / 12 (50.0%) | 6 |
+| CSD Configuration — CSD_LI_Singer2 — Exact chord accuracy | 2 / 12 (16.7%) | 10 |
+| CSD Configuration — CSD_LI_Singer2 — Exact-MIDI recall | 40 / 48 (83.3%) | 8 |
+| CSD Configuration — CSD_LI_Singer2 — Pitch-class recall | 42 / 48 (87.5%) | 6 |
+| CSD Configuration — CSD_LI_Singer2 — Simplified chord accuracy | 8 / 12 (66.7%) | 4 |
+| CSD Configuration — CSD_LI_Singer2 — Visible current-note vocal routing | 3 / 12 (25.0%) | 9 |
+| CSD Configuration — CSD_LI_Singer2 — Visible vocal routing | 3 / 48 (6.2%) | 45 |
+| CSD Configuration — CSD_LI_Singer2 — Vocal ownership | 7 / 48 (14.6%) | 41 |
+| CSD Configuration — CSD_LI_Singer3 — Current-note vocal ownership | 4 / 12 (33.3%) | 8 |
+| CSD Configuration — CSD_LI_Singer3 — Exact chord accuracy | 4 / 12 (33.3%) | 8 |
+| CSD Configuration — CSD_LI_Singer3 — Exact-MIDI recall | 40 / 48 (83.3%) | 8 |
+| CSD Configuration — CSD_LI_Singer3 — Pitch-class recall | 43 / 48 (89.6%) | 5 |
+| CSD Configuration — CSD_LI_Singer3 — Simplified chord accuracy | 10 / 12 (83.3%) | 2 |
+| CSD Configuration — CSD_LI_Singer3 — Visible current-note vocal routing | 1 / 12 (8.3%) | 11 |
+| CSD Configuration — CSD_LI_Singer3 — Visible vocal routing | 1 / 48 (2.1%) | 47 |
+| CSD Configuration — CSD_LI_Singer3 — Vocal ownership | 5 / 48 (10.4%) | 43 |
+| CSD Configuration — CSD_LI_Singer4 — Current-note vocal ownership | 5 / 12 (41.7%) | 7 |
+| CSD Configuration — CSD_LI_Singer4 — Exact chord accuracy | 4 / 12 (33.3%) | 8 |
+| CSD Configuration — CSD_LI_Singer4 — Exact-MIDI recall | 38 / 48 (79.2%) | 10 |
+| CSD Configuration — CSD_LI_Singer4 — Pitch-class recall | 40 / 48 (83.3%) | 8 |
+| CSD Configuration — CSD_LI_Singer4 — Simplified chord accuracy | 6 / 12 (50.0%) | 6 |
+| CSD Configuration — CSD_LI_Singer4 — Visible current-note vocal routing | 4 / 12 (33.3%) | 8 |
+| CSD Configuration — CSD_LI_Singer4 — Visible vocal routing | 4 / 48 (8.3%) | 44 |
+| CSD Configuration — CSD_LI_Singer4 — Vocal ownership | 6 / 48 (12.5%) | 42 |
+| CSD Configuration — CSD_ND_Singer1 — Current-note vocal ownership | 4 / 12 (33.3%) | 8 |
+| CSD Configuration — CSD_ND_Singer1 — Exact chord accuracy | 4 / 12 (33.3%) | 8 |
+| CSD Configuration — CSD_ND_Singer1 — Exact-MIDI recall | 36 / 48 (75.0%) | 12 |
+| CSD Configuration — CSD_ND_Singer1 — Pitch-class recall | 43 / 48 (89.6%) | 5 |
+| CSD Configuration — CSD_ND_Singer1 — Simplified chord accuracy | 6 / 12 (50.0%) | 6 |
+| CSD Configuration — CSD_ND_Singer1 — Visible current-note vocal routing | 3 / 12 (25.0%) | 9 |
+| CSD Configuration — CSD_ND_Singer1 — Visible vocal routing | 4 / 48 (8.3%) | 44 |
+| CSD Configuration — CSD_ND_Singer1 — Vocal ownership | 5 / 48 (10.4%) | 43 |
+| CSD Configuration — CSD_ND_Singer2 — Current-note vocal ownership | 3 / 12 (25.0%) | 9 |
+| CSD Configuration — CSD_ND_Singer2 — Exact chord accuracy | 4 / 12 (33.3%) | 8 |
+| CSD Configuration — CSD_ND_Singer2 — Exact-MIDI recall | 26 / 48 (54.2%) | 22 |
+| CSD Configuration — CSD_ND_Singer2 — Pitch-class recall | 32 / 48 (66.7%) | 16 |
+| CSD Configuration — CSD_ND_Singer2 — Simplified chord accuracy | 5 / 12 (41.7%) | 7 |
+| CSD Configuration — CSD_ND_Singer2 — Visible current-note vocal routing | 2 / 12 (16.7%) | 10 |
+| CSD Configuration — CSD_ND_Singer2 — Visible vocal routing | 2 / 48 (4.2%) | 46 |
+| CSD Configuration — CSD_ND_Singer2 — Vocal ownership | 4 / 48 (8.3%) | 44 |
+| CSD Configuration — CSD_ND_Singer3 — Current-note vocal ownership | 2 / 12 (16.7%) | 10 |
+| CSD Configuration — CSD_ND_Singer3 — Exact chord accuracy | 2 / 12 (16.7%) | 10 |
+| CSD Configuration — CSD_ND_Singer3 — Exact-MIDI recall | 27 / 48 (56.2%) | 21 |
+| CSD Configuration — CSD_ND_Singer3 — Pitch-class recall | 33 / 48 (68.8%) | 15 |
+| CSD Configuration — CSD_ND_Singer3 — Simplified chord accuracy | 3 / 12 (25.0%) | 9 |
+| CSD Configuration — CSD_ND_Singer3 — Visible current-note vocal routing | 1 / 12 (8.3%) | 11 |
+| CSD Configuration — CSD_ND_Singer3 — Visible vocal routing | 1 / 48 (2.1%) | 47 |
+| CSD Configuration — CSD_ND_Singer3 — Vocal ownership | 2 / 48 (4.2%) | 46 |
+| CSD Configuration — CSD_ND_Singer4 — Current-note vocal ownership | 7 / 12 (58.3%) | 5 |
+| CSD Configuration — CSD_ND_Singer4 — Exact chord accuracy | 5 / 12 (41.7%) | 7 |
+| CSD Configuration — CSD_ND_Singer4 — Exact-MIDI recall | 28 / 48 (58.3%) | 20 |
+| CSD Configuration — CSD_ND_Singer4 — Pitch-class recall | 33 / 48 (68.8%) | 15 |
+| CSD Configuration — CSD_ND_Singer4 — Simplified chord accuracy | 6 / 12 (50.0%) | 6 |
+| CSD Configuration — CSD_ND_Singer4 — Visible current-note vocal routing | 4 / 12 (33.3%) | 8 |
+| CSD Configuration — CSD_ND_Singer4 — Visible vocal routing | 4 / 48 (8.3%) | 44 |
+| CSD Configuration — CSD_ND_Singer4 — Vocal ownership | 8 / 48 (16.7%) | 40 |
 
 ## Dagstuhl ChoirSet (DCS) real-audio measurement
 
