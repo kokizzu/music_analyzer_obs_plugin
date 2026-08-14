@@ -1080,6 +1080,16 @@ This real Disklavier corpus uses aligned MIDI annotations. The four stored shard
 | MAPS real piano — exact chord windows | 17 / 135 (12.6%) | 118 |
 | MAPS real piano — keyboard chord precision | 17 / 54 (31.5%) | 37 false predictions |
 
+## Independent piano cross-corpus coverage checklist
+
+MAESTRO is being acquired as external paired WAV/MIDI evidence; it is kept separate from MAPS until both a prepared subset and measured outcomes exist.
+
+| Task | Complete / total | Remaining |
+| --- | ---: | ---: |
+| Prepare external MAESTRO paired-audio subset | 0 / 1 (0.0%) | 1 |
+| Measure MAESTRO note and chord outcomes | 0 / 1 (0.0%) | 1 |
+| Mine a protected cross-piano detector rule | 0 / 1 (0.0%) | 1 |
+
 ## MAPS chord-miss evidence
 
 This isolates misses where note evidence is already present from misses that still lack a keyboard chord label.

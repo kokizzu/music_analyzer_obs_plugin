@@ -1408,6 +1408,20 @@ def render(
         for label, accurate, total in maps_gate_rows(maps_gate_outputs):
             remaining = f"{total - accurate} false predictions" if label.endswith("precision") else str(total - accurate)
             lines.append(f"| {label} | {fraction(accurate, total)} | {remaining} |")
+        lines.extend(
+            [
+                "",
+                "## Independent piano cross-corpus coverage checklist",
+                "",
+                "MAESTRO is being acquired as external paired WAV/MIDI evidence; it is kept separate from MAPS until both a prepared subset and measured outcomes exist.",
+                "",
+                "| Task | Complete / total | Remaining |",
+                "| --- | ---: | ---: |",
+                "| Prepare external MAESTRO paired-audio subset | 0 / 1 (0.0%) | 1 |",
+                "| Measure MAESTRO note and chord outcomes | 0 / 1 (0.0%) | 1 |",
+                "| Mine a protected cross-piano detector rule | 0 / 1 (0.0%) | 1 |",
+            ]
+        )
     if maps_attribute_input is not None:
         lines.extend(
             [
