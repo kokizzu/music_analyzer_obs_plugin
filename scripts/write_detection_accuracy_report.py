@@ -639,6 +639,8 @@ def render(
     mdb_drums_gate_output: Path | None = None,
     dagstuhl_choirset_input: Path | None = None,
     choral_singing_dataset_archive: Path | None = None,
+    choral_singing_dataset_extraction: Path | None = None,
+    choral_singing_dataset_inspection: Path | None = None,
 ) -> str:
     samples = load_samples(input_path)
     dcs_rows = dagstuhl_choirset_rows(dagstuhl_choirset_input) if dagstuhl_choirset_input else []
@@ -698,6 +700,8 @@ def render(
         ]
     )
     csd_archive_ready = int(choral_singing_dataset_archive is not None and choral_singing_dataset_archive.is_file())
+    csd_extraction_ready = int(choral_singing_dataset_extraction is not None and choral_singing_dataset_extraction.is_file())
+    csd_inspection_ready = int(choral_singing_dataset_inspection is not None and choral_singing_dataset_inspection.is_file())
     lines.extend(
         [
             "",
@@ -710,8 +714,8 @@ def render(
             "| Work item | Complete / total | Remaining | Evidence required |",
             "| --- | ---: | ---: | --- |",
             f"| Store current CSD archive in InstrumentSamples | {fraction(csd_archive_ready, 1)} | {1 - csd_archive_ready} | validated official archive and checksum |",
-            "| Extract CSD safely in InstrumentSamples | 0 / 1 (0.0%) | 1 | traversal-safe extraction record |",
-            "| Inspect CSD audio, stems, and MIDI | 0 / 1 (0.0%) | 1 | corpus inventory by work and section |",
+            f"| Extract CSD safely in InstrumentSamples | {fraction(csd_extraction_ready, 1)} | {1 - csd_extraction_ready} | traversal-safe extraction record |",
+            f"| Inspect CSD audio, stems, and MIDI | {fraction(csd_inspection_ready, 1)} | {1 - csd_inspection_ready} | corpus inventory by work and section |",
             "| Import CSD sources and labels | 0 / 1 (0.0%) | 1 | tested prepared-multitrack manifest |",
             "| Measure CSD note, octave, and pitch-class recall | 0 / 1 (0.0%) | 1 | real CSD x/total results |",
             "| Measure CSD vocal ownership and current-note routing | 0 / 1 (0.0%) | 1 | real CSD routing x/total results |",
@@ -1268,6 +1272,8 @@ def main() -> int:
     parser.add_argument("--mdb-drums-gate-output", type=Path)
     parser.add_argument("--dagstuhl-choirset-input", type=Path)
     parser.add_argument("--choral-singing-dataset-archive", type=Path)
+    parser.add_argument("--choral-singing-dataset-extraction", type=Path)
+    parser.add_argument("--choral-singing-dataset-inspection", type=Path)
     parser.add_argument("--output", required=True, type=Path)
     args = parser.parse_args()
     try:
@@ -1291,6 +1297,8 @@ def main() -> int:
             args.mdb_drums_gate_output,
             args.dagstuhl_choirset_input,
             args.choral_singing_dataset_archive,
+            args.choral_singing_dataset_extraction,
+            args.choral_singing_dataset_inspection,
         )
     except (OSError, ValueError) as error:
         parser.error(str(error))

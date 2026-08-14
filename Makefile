@@ -42,10 +42,13 @@ DAGSTUHL_CHOIRSET_ARCHIVE_MD5 ?= 6d7ccdd5e3f43e54981b0f12d19987f9
 DAGSTUHL_CHOIRSET_DOWNLOAD_CONNECTIONS ?= 8
 CHORAL_SINGING_DATASET_SOURCE_DIR ?= $(INSTRUMENT_SAMPLE_STORE_LINK)/choral_singing_dataset
 CHORAL_SINGING_DATASET_ARCHIVE ?= $(CHORAL_SINGING_DATASET_SOURCE_DIR)/ChoralSingingDataset.zip
+CHORAL_SINGING_DATASET_EXTRACT_DIR ?= $(CHORAL_SINGING_DATASET_SOURCE_DIR)/extracted
+CHORAL_SINGING_DATASET_INSPECTION_OUTPUT ?= $(BUILD_DIR)/choral_singing_dataset_inventory.txt
 CHORAL_SINGING_DATASET_ARCHIVE_URL ?= https://zenodo.org/records/2649950/files/ChoralSingingDataset.zip?download=1
 CHORAL_SINGING_DATASET_ARCHIVE_MD5 ?= 7a9643609a1c3902b5255d78dbba3303
 CHORAL_SINGING_DATASET_DOWNLOAD_CONNECTIONS ?= 8
 CHORAL_SINGING_DATASET_DOWNLOAD_LOCK_DIR ?= $(BUILD_DIR)/locks/choral_singing_dataset_download.lock
+CHORAL_SINGING_DATASET_INSPECT_ARGS ?=
 URMP_SOURCE_DIR ?= $(INSTRUMENT_SAMPLE_STORE_LINK)/urmp
 URMP_ARCHIVE ?= $(URMP_SOURCE_DIR)/urmp-kaggle.zip
 URMP_EXTRACT_DIR ?= $(URMP_SOURCE_DIR)/extracted
@@ -66,6 +69,8 @@ URMP_SAX_FULL_MIX_MIN_SAMPLES ?= $(URMP_SAX_EXACT_MIN_SAMPLES)
 DETECTION_ACCURACY_REPORT ?= docs/detection_accuracy_report.md
 DETECTION_ACCURACY_DAGSTUHL_CHOIRSET_ARG = $(if $(wildcard $(DAGSTUHL_CHOIRSET_MEASUREMENT_OUTPUT)),--dagstuhl-choirset-input "$(DAGSTUHL_CHOIRSET_MEASUREMENT_OUTPUT)")
 DETECTION_ACCURACY_CHORAL_SINGING_DATASET_ARG = $(if $(wildcard $(CHORAL_SINGING_DATASET_ARCHIVE)),--choral-singing-dataset-archive "$(CHORAL_SINGING_DATASET_ARCHIVE)")
+DETECTION_ACCURACY_CHORAL_SINGING_DATASET_EXTRACT_ARG = $(if $(wildcard $(CHORAL_SINGING_DATASET_EXTRACT_DIR)/ChoralSingingDataset/README.txt),--choral-singing-dataset-extraction "$(CHORAL_SINGING_DATASET_EXTRACT_DIR)/ChoralSingingDataset/README.txt")
+DETECTION_ACCURACY_CHORAL_SINGING_DATASET_INSPECTION_ARG = $(if $(wildcard $(CHORAL_SINGING_DATASET_INSPECTION_OUTPUT)),--choral-singing-dataset-inspection "$(CHORAL_SINGING_DATASET_INSPECTION_OUTPUT)")
 DETECTION_ACCURACY_PHILHARMONIA_FULL_ARG = $(if $(wildcard $(PHILHARMONIA_FULL_ATTRIBUTE_TSV)),--philharmonia-full-input "$(PHILHARMONIA_FULL_ATTRIBUTE_TSV)")
 DETECTION_ACCURACY_IOWA_ORCHESTRA_FULL_ARG = $(if $(wildcard $(IOWA_ORCHESTRA_FULL_ATTRIBUTE_TSV)),--iowa-orchestra-full-input "$(IOWA_ORCHESTRA_FULL_ATTRIBUTE_TSV)")
 DETECTION_ACCURACY_TINYSOL_WIND_EXACT_ARG = $(if $(wildcard $(TINYSOL_WIND_EXACT_ATTRIBUTE_TSV)),--tinysol-wind-exact-input "$(TINYSOL_WIND_EXACT_ATTRIBUTE_TSV)")
@@ -2885,12 +2890,12 @@ analyze-real-note-attributes: $(BUILD_DIR)/real_note_full_mix_attributes.tsv scr
 	@printf '%s\n' "attribute TSV: $(BUILD_DIR)/real_note_full_mix_attributes.tsv"
 
 update-detection-accuracy-report: $(BUILD_DIR)/real_note_full_mix_attributes.tsv scripts/write_detection_accuracy_report.py
-	$(PYTHON) scripts/write_detection_accuracy_report.py --input "$(BUILD_DIR)/real_note_full_mix_attributes.tsv" $(DETECTION_ACCURACY_CHORD_ARGS) $(DETECTION_ACCURACY_VOCAL_FULL_MIX_ARG) $(DETECTION_ACCURACY_VOCALSET_FULL_MIX_ARG) $(DETECTION_ACCURACY_VOCALSET_CLEAN_VOWEL_ARG) $(DETECTION_ACCURACY_URMP_GATE_ARG) $(DETECTION_ACCURACY_BACH10_GATE_ARGS) $(DETECTION_ACCURACY_MUSICNET_GATE_ARG) $(DETECTION_ACCURACY_MAPS_GATE_ARGS) $(DETECTION_ACCURACY_MAPS_NOTE_GATE_ARGS) $(DETECTION_ACCURACY_MAPS_ATTRIBUTE_ARG) $(DETECTION_ACCURACY_DRUM_GATE_ARG) $(DETECTION_ACCURACY_HF_DRUM_GATE_ARGS) $(DETECTION_ACCURACY_STAR_DRUMS_GATE_ARG) $(DETECTION_ACCURACY_MDB_DRUMS_GATE_ARG) $(DETECTION_ACCURACY_ROUTE_SUMMARY_ARG) $(DETECTION_ACCURACY_GOOD_SOUNDS_FULL_MIX_ARG) $(DETECTION_ACCURACY_PITCH_SHIFTED_VIOLIN_ARG) $(DETECTION_ACCURACY_MEDLEY_SOLOS_ATTRIBUTE_ARG) $(DETECTION_ACCURACY_PHILHARMONIA_FULL_ARG) $(DETECTION_ACCURACY_IOWA_ORCHESTRA_FULL_ARG) $(DETECTION_ACCURACY_TINYSOL_WIND_EXACT_ARG) $(DETECTION_ACCURACY_IOWA_SAX_FULL_MIX_ARG) $(DETECTION_ACCURACY_TINYSOL_SAX_FULL_MIX_ARG) $(DETECTION_ACCURACY_TINYSOL_FLUTE_FULL_MIX_ARG) $(DETECTION_ACCURACY_REAL_A2S_TENOR_SCALE_ARG) $(DETECTION_ACCURACY_URMP_SAX_EXACT_ARG) $(DETECTION_ACCURACY_URMP_SAX_FULL_MIX_ARG) $(DETECTION_ACCURACY_DAGSTUHL_CHOIRSET_ARG) $(DETECTION_ACCURACY_CHORAL_SINGING_DATASET_ARG) --output "$(DETECTION_ACCURACY_REPORT)"
+	$(PYTHON) scripts/write_detection_accuracy_report.py --input "$(BUILD_DIR)/real_note_full_mix_attributes.tsv" $(DETECTION_ACCURACY_CHORD_ARGS) $(DETECTION_ACCURACY_VOCAL_FULL_MIX_ARG) $(DETECTION_ACCURACY_VOCALSET_FULL_MIX_ARG) $(DETECTION_ACCURACY_VOCALSET_CLEAN_VOWEL_ARG) $(DETECTION_ACCURACY_URMP_GATE_ARG) $(DETECTION_ACCURACY_BACH10_GATE_ARGS) $(DETECTION_ACCURACY_MUSICNET_GATE_ARG) $(DETECTION_ACCURACY_MAPS_GATE_ARGS) $(DETECTION_ACCURACY_MAPS_NOTE_GATE_ARGS) $(DETECTION_ACCURACY_MAPS_ATTRIBUTE_ARG) $(DETECTION_ACCURACY_DRUM_GATE_ARG) $(DETECTION_ACCURACY_HF_DRUM_GATE_ARGS) $(DETECTION_ACCURACY_STAR_DRUMS_GATE_ARG) $(DETECTION_ACCURACY_MDB_DRUMS_GATE_ARG) $(DETECTION_ACCURACY_ROUTE_SUMMARY_ARG) $(DETECTION_ACCURACY_GOOD_SOUNDS_FULL_MIX_ARG) $(DETECTION_ACCURACY_PITCH_SHIFTED_VIOLIN_ARG) $(DETECTION_ACCURACY_MEDLEY_SOLOS_ATTRIBUTE_ARG) $(DETECTION_ACCURACY_PHILHARMONIA_FULL_ARG) $(DETECTION_ACCURACY_IOWA_ORCHESTRA_FULL_ARG) $(DETECTION_ACCURACY_TINYSOL_WIND_EXACT_ARG) $(DETECTION_ACCURACY_IOWA_SAX_FULL_MIX_ARG) $(DETECTION_ACCURACY_TINYSOL_SAX_FULL_MIX_ARG) $(DETECTION_ACCURACY_TINYSOL_FLUTE_FULL_MIX_ARG) $(DETECTION_ACCURACY_REAL_A2S_TENOR_SCALE_ARG) $(DETECTION_ACCURACY_URMP_SAX_EXACT_ARG) $(DETECTION_ACCURACY_URMP_SAX_FULL_MIX_ARG) $(DETECTION_ACCURACY_DAGSTUHL_CHOIRSET_ARG) $(DETECTION_ACCURACY_CHORAL_SINGING_DATASET_ARG) $(DETECTION_ACCURACY_CHORAL_SINGING_DATASET_EXTRACT_ARG) $(DETECTION_ACCURACY_CHORAL_SINGING_DATASET_INSPECTION_ARG) --output "$(DETECTION_ACCURACY_REPORT)"
 
 .PHONY: update-detection-accuracy-report-cached
 update-detection-accuracy-report-cached: scripts/write_detection_accuracy_report.py
 	@test -f "$(BUILD_DIR)/real_note_full_mix_attributes.tsv" || { printf '%s\n' "missing build/real_note_full_mix_attributes.tsv; run make update-detection-accuracy-report first"; exit 2; }
-	$(PYTHON) scripts/write_detection_accuracy_report.py --input "$(BUILD_DIR)/real_note_full_mix_attributes.tsv" $(DETECTION_ACCURACY_CHORD_ARGS) $(DETECTION_ACCURACY_VOCAL_FULL_MIX_ARG) $(DETECTION_ACCURACY_VOCALSET_FULL_MIX_ARG) $(DETECTION_ACCURACY_VOCALSET_CLEAN_VOWEL_ARG) $(DETECTION_ACCURACY_URMP_GATE_ARG) $(DETECTION_ACCURACY_BACH10_GATE_ARGS) $(DETECTION_ACCURACY_MUSICNET_GATE_ARG) $(DETECTION_ACCURACY_MAPS_GATE_ARGS) $(DETECTION_ACCURACY_MAPS_NOTE_GATE_ARGS) $(DETECTION_ACCURACY_MAPS_ATTRIBUTE_ARG) $(DETECTION_ACCURACY_DRUM_GATE_ARG) $(DETECTION_ACCURACY_HF_DRUM_GATE_ARGS) $(DETECTION_ACCURACY_STAR_DRUMS_GATE_ARG) $(DETECTION_ACCURACY_MDB_DRUMS_GATE_ARG) $(DETECTION_ACCURACY_ROUTE_SUMMARY_ARG) $(DETECTION_ACCURACY_GOOD_SOUNDS_FULL_MIX_ARG) $(DETECTION_ACCURACY_PITCH_SHIFTED_VIOLIN_ARG) $(DETECTION_ACCURACY_MEDLEY_SOLOS_ATTRIBUTE_ARG) $(DETECTION_ACCURACY_PHILHARMONIA_FULL_ARG) $(DETECTION_ACCURACY_IOWA_ORCHESTRA_FULL_ARG) $(DETECTION_ACCURACY_TINYSOL_WIND_EXACT_ARG) $(DETECTION_ACCURACY_IOWA_SAX_FULL_MIX_ARG) $(DETECTION_ACCURACY_TINYSOL_SAX_FULL_MIX_ARG) $(DETECTION_ACCURACY_TINYSOL_FLUTE_FULL_MIX_ARG) $(DETECTION_ACCURACY_REAL_A2S_TENOR_SCALE_ARG) $(DETECTION_ACCURACY_URMP_SAX_EXACT_ARG) $(DETECTION_ACCURACY_URMP_SAX_FULL_MIX_ARG) $(DETECTION_ACCURACY_DAGSTUHL_CHOIRSET_ARG) $(DETECTION_ACCURACY_CHORAL_SINGING_DATASET_ARG) --output "$(DETECTION_ACCURACY_REPORT)"
+	$(PYTHON) scripts/write_detection_accuracy_report.py --input "$(BUILD_DIR)/real_note_full_mix_attributes.tsv" $(DETECTION_ACCURACY_CHORD_ARGS) $(DETECTION_ACCURACY_VOCAL_FULL_MIX_ARG) $(DETECTION_ACCURACY_VOCALSET_FULL_MIX_ARG) $(DETECTION_ACCURACY_VOCALSET_CLEAN_VOWEL_ARG) $(DETECTION_ACCURACY_URMP_GATE_ARG) $(DETECTION_ACCURACY_BACH10_GATE_ARGS) $(DETECTION_ACCURACY_MUSICNET_GATE_ARG) $(DETECTION_ACCURACY_MAPS_GATE_ARGS) $(DETECTION_ACCURACY_MAPS_NOTE_GATE_ARGS) $(DETECTION_ACCURACY_MAPS_ATTRIBUTE_ARG) $(DETECTION_ACCURACY_DRUM_GATE_ARG) $(DETECTION_ACCURACY_HF_DRUM_GATE_ARGS) $(DETECTION_ACCURACY_STAR_DRUMS_GATE_ARG) $(DETECTION_ACCURACY_MDB_DRUMS_GATE_ARG) $(DETECTION_ACCURACY_ROUTE_SUMMARY_ARG) $(DETECTION_ACCURACY_GOOD_SOUNDS_FULL_MIX_ARG) $(DETECTION_ACCURACY_PITCH_SHIFTED_VIOLIN_ARG) $(DETECTION_ACCURACY_MEDLEY_SOLOS_ATTRIBUTE_ARG) $(DETECTION_ACCURACY_PHILHARMONIA_FULL_ARG) $(DETECTION_ACCURACY_IOWA_ORCHESTRA_FULL_ARG) $(DETECTION_ACCURACY_TINYSOL_WIND_EXACT_ARG) $(DETECTION_ACCURACY_IOWA_SAX_FULL_MIX_ARG) $(DETECTION_ACCURACY_TINYSOL_SAX_FULL_MIX_ARG) $(DETECTION_ACCURACY_TINYSOL_FLUTE_FULL_MIX_ARG) $(DETECTION_ACCURACY_REAL_A2S_TENOR_SCALE_ARG) $(DETECTION_ACCURACY_URMP_SAX_EXACT_ARG) $(DETECTION_ACCURACY_URMP_SAX_FULL_MIX_ARG) $(DETECTION_ACCURACY_DAGSTUHL_CHOIRSET_ARG) $(DETECTION_ACCURACY_CHORAL_SINGING_DATASET_ARG) $(DETECTION_ACCURACY_CHORAL_SINGING_DATASET_EXTRACT_ARG) $(DETECTION_ACCURACY_CHORAL_SINGING_DATASET_INSPECTION_ARG) --output "$(DETECTION_ACCURACY_REPORT)"
 
 test-detection-accuracy-report: tests/test_write_detection_accuracy_report.py scripts/write_detection_accuracy_report.py
 	$(PYTHON) tests/test_write_detection_accuracy_report.py
@@ -4163,7 +4168,7 @@ test-vocadito-samples-full-mix-shard-%: FORCE $(BUILD_DIR)/analyzer_real_note_sa
 download-vocalset-samples: scripts/run_with_lock.sh
 	+$(SHELL) scripts/run_with_lock.sh "$(VOCALSET_DOWNLOAD_LOCK_DIR)" -- "$(MAKE)" vocalset-download-samples-unlocked
 
-.PHONY: download-dagstuhl-choirset validate-dagstuhl-choirset-archive extract-dagstuhl-choirset prepare-dagstuhl-choirset inspect-dagstuhl-choirset measure-dagstuhl-choirset export-dagstuhl-choirset-pattern-rows inspect-dagstuhl-cross-corpus-ownership find-dagstuhl-shared-vocal-ownership-patterns find-dagstuhl-choirset-ownership-patterns inspect-dagstuhl-vocal-evidence test-dagstuhl-choirset-20 inspect-dagstuhl-choirset-archive test-dagstuhl-choirset-archive test-extract-dagstuhl-choirset test-prepare-dagstuhl-choirset test-summarize-dagstuhl-choirset test-export-dagstuhl-choirset-pattern-rows test-inspect-vocal-ownership-cross-corpus test-inspect-dagstuhl-vocal-evidence download-choral-singing-dataset download-choral-singing-dataset-unlocked validate-choral-singing-dataset-archive inspect-choral-singing-dataset-archive test-validate-choral-singing-dataset test-inspect-choral-singing-dataset-archive
+.PHONY: download-dagstuhl-choirset validate-dagstuhl-choirset-archive extract-dagstuhl-choirset prepare-dagstuhl-choirset inspect-dagstuhl-choirset measure-dagstuhl-choirset export-dagstuhl-choirset-pattern-rows inspect-dagstuhl-cross-corpus-ownership find-dagstuhl-shared-vocal-ownership-patterns find-dagstuhl-choirset-ownership-patterns inspect-dagstuhl-vocal-evidence test-dagstuhl-choirset-20 inspect-dagstuhl-choirset-archive test-dagstuhl-choirset-archive test-extract-dagstuhl-choirset test-prepare-dagstuhl-choirset test-summarize-dagstuhl-choirset test-export-dagstuhl-choirset-pattern-rows test-inspect-vocal-ownership-cross-corpus test-inspect-dagstuhl-vocal-evidence download-choral-singing-dataset download-choral-singing-dataset-unlocked validate-choral-singing-dataset-archive extract-choral-singing-dataset inspect-choral-singing-dataset-archive test-validate-choral-singing-dataset test-extract-choral-singing-dataset test-inspect-choral-singing-dataset-archive
 
 download-dagstuhl-choirset: configure-instrument-sample-store $(DAGSTUHL_CHOIRSET_ARCHIVE) validate-dagstuhl-choirset-archive
 
@@ -4175,8 +4180,14 @@ download-choral-singing-dataset-unlocked: configure-instrument-sample-store $(CH
 validate-choral-singing-dataset-archive: $(CHORAL_SINGING_DATASET_ARCHIVE) scripts/validate_choral_singing_dataset.py
 	$(PYTHON) scripts/validate_choral_singing_dataset.py --archive "$(CHORAL_SINGING_DATASET_ARCHIVE)" --expected-md5 "$(CHORAL_SINGING_DATASET_ARCHIVE_MD5)"
 
-inspect-choral-singing-dataset-archive: validate-choral-singing-dataset-archive scripts/inspect_choral_singing_dataset_archive.py
-	$(PYTHON) scripts/inspect_choral_singing_dataset_archive.py --archive "$(CHORAL_SINGING_DATASET_ARCHIVE)"
+extract-choral-singing-dataset: validate-choral-singing-dataset-archive scripts/extract_choral_singing_dataset.py
+	$(PYTHON) scripts/extract_choral_singing_dataset.py --archive "$(CHORAL_SINGING_DATASET_ARCHIVE)" --output "$(CHORAL_SINGING_DATASET_EXTRACT_DIR)"
+
+inspect-choral-singing-dataset-archive: $(CHORAL_SINGING_DATASET_INSPECTION_OUTPUT)
+	@cat "$(CHORAL_SINGING_DATASET_INSPECTION_OUTPUT)"
+
+$(CHORAL_SINGING_DATASET_INSPECTION_OUTPUT): validate-choral-singing-dataset-archive scripts/inspect_choral_singing_dataset_archive.py | $(BUILD_DIR)
+	$(PYTHON) scripts/inspect_choral_singing_dataset_archive.py --archive "$(CHORAL_SINGING_DATASET_ARCHIVE)" $(CHORAL_SINGING_DATASET_INSPECT_ARGS) > "$@"
 
 validate-dagstuhl-choirset-archive: $(DAGSTUHL_CHOIRSET_ARCHIVE) scripts/validate_dagstuhl_choirset.py
 	$(PYTHON) scripts/validate_dagstuhl_choirset.py --archive "$(DAGSTUHL_CHOIRSET_ARCHIVE)" --expected-md5 "$(DAGSTUHL_CHOIRSET_ARCHIVE_MD5)"
@@ -4231,6 +4242,9 @@ test-dagstuhl-choirset-archive: tests/test_validate_dagstuhl_choirset.py scripts
 test-validate-choral-singing-dataset: tests/test_validate_choral_singing_dataset.py scripts/validate_choral_singing_dataset.py
 	$(PYTHON) tests/test_validate_choral_singing_dataset.py
 
+test-extract-choral-singing-dataset: tests/test_extract_choral_singing_dataset.py scripts/extract_choral_singing_dataset.py scripts/validate_choral_singing_dataset.py
+	$(PYTHON) tests/test_extract_choral_singing_dataset.py
+
 test-inspect-choral-singing-dataset-archive: tests/test_inspect_choral_singing_dataset_archive.py scripts/inspect_choral_singing_dataset_archive.py
 	$(PYTHON) tests/test_inspect_choral_singing_dataset_archive.py
 
@@ -4263,8 +4277,8 @@ $(CHORAL_SINGING_DATASET_ARCHIVE): scripts/validate_choral_singing_dataset.py
 	mkdir -p "$(CHORAL_SINGING_DATASET_SOURCE_DIR)"
 	if [ -s "$@" ] && ! $(PYTHON) scripts/validate_choral_singing_dataset.py --archive "$@" --expected-md5 "$(CHORAL_SINGING_DATASET_ARCHIVE_MD5)" >/dev/null 2>&1; then mv -f "$@" "$@.part"; fi
 	if [ ! -s "$@" ]; then if command -v "$(ARIA2C)" >/dev/null 2>&1; then "$(ARIA2C)" --continue=true --allow-overwrite=true --auto-file-renaming=false --max-tries=5 --retry-wait=5 --max-connection-per-server="$(CHORAL_SINGING_DATASET_DOWNLOAD_CONNECTIONS)" --split="$(CHORAL_SINGING_DATASET_DOWNLOAD_CONNECTIONS)" --min-split-size=8M --file-allocation=none --dir "$(CHORAL_SINGING_DATASET_SOURCE_DIR)" --out "ChoralSingingDataset.zip.part" "$(CHORAL_SINGING_DATASET_ARCHIVE_URL)"; else $(CURL) -fL --continue-at - --output "$@.part" "$(CHORAL_SINGING_DATASET_ARCHIVE_URL)"; fi; fi
-	$(PYTHON) scripts/validate_choral_singing_dataset.py --archive "$@.part" --expected-md5 "$(CHORAL_SINGING_DATASET_ARCHIVE_MD5)"
-	mv -f "$@.part" "$@"
+	if [ -s "$@.part" ]; then $(PYTHON) scripts/validate_choral_singing_dataset.py --archive "$@.part" --expected-md5 "$(CHORAL_SINGING_DATASET_ARCHIVE_MD5)"; mv -f "$@.part" "$@"; fi
+	test -s "$@"
 
 vocalset-download-samples-unlocked: $(VOCALSET_ARCHIVE)
 

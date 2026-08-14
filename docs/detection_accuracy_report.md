@@ -72,9 +72,9 @@ CSD is the next independent labelled SATB corpus. It contains isolated singers a
 
 | Work item | Complete / total | Remaining | Evidence required |
 | --- | ---: | ---: | --- |
-| Store current CSD archive in InstrumentSamples | 0 / 1 (0.0%) | 1 | validated official archive and checksum |
-| Extract CSD safely in InstrumentSamples | 0 / 1 (0.0%) | 1 | traversal-safe extraction record |
-| Inspect CSD audio, stems, and MIDI | 0 / 1 (0.0%) | 1 | corpus inventory by work and section |
+| Store current CSD archive in InstrumentSamples | 1 / 1 (100.0%) | 0 | validated official archive and checksum |
+| Extract CSD safely in InstrumentSamples | 1 / 1 (100.0%) | 0 | traversal-safe extraction record |
+| Inspect CSD audio, stems, and MIDI | 1 / 1 (100.0%) | 0 | corpus inventory by work and section |
 | Import CSD sources and labels | 0 / 1 (0.0%) | 1 | tested prepared-multitrack manifest |
 | Measure CSD note, octave, and pitch-class recall | 0 / 1 (0.0%) | 1 | real CSD x/total results |
 | Measure CSD vocal ownership and current-note routing | 0 / 1 (0.0%) | 1 | real CSD routing x/total results |

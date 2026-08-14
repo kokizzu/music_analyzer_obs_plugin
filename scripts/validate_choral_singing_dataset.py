@@ -17,6 +17,11 @@ def digest(path: Path) -> str:
     return hasher.hexdigest()
 
 
+def safe_member(name: str) -> bool:
+    member = Path(name)
+    return not member.is_absolute() and ".." not in member.parts
+
+
 def validate(path: Path, expected_md5: str) -> int:
     if not path.is_file() or path.stat().st_size <= 0:
         raise ValueError(f"missing or empty archive: {path}")
@@ -24,7 +29,7 @@ def validate(path: Path, expected_md5: str) -> int:
     if actual_md5.lower() != expected_md5.lower():
         raise ValueError(f"checksum mismatch: expected {expected_md5}, got {actual_md5}")
     with zipfile.ZipFile(path) as archive:
-        bad = [entry.filename for entry in archive.infolist() if Path(entry.filename).is_absolute() or ".." in Path(entry.filename).parts]
+        bad = [entry.filename for entry in archive.infolist() if not safe_member(entry.filename)]
         if bad:
             raise ValueError(f"unsafe archive member: {bad[0]}")
         if not archive.infolist():
