@@ -32,6 +32,7 @@ NOTE_CANDIDATE_RE = re.compile(
     r"(?: foreign_cross_source_rows=(?P<foreign_cross_source_rows>\d+))?"
     r"(?: neg_sources=(?P<neg_sources>\S+))?"
     r"(?: foreign_sources=(?P<foreign_sources>\S+))?"
+    r"(?: pos_corpora=(?P<pos_corpora>\S+))?"
 )
 DRUM_CANDIDATE_RE = re.compile(
     r"^\+(?P<pos_rows>\d+) rows=\d+ -(?P<neg_rows>\d+) rows=\d+ "
@@ -170,6 +171,7 @@ class Candidate:
     foreign_sources: str = ""
     rule_groups: str = dataclasses.field(default="", compare=False)
     rule_sources: str = dataclasses.field(default="", compare=False)
+    rule_corpora: str = dataclasses.field(default="", compare=False)
     profile_groups: str = dataclasses.field(default="", compare=False)
     profile_sources: str = dataclasses.field(default="", compare=False)
     examples: tuple[str, ...] = dataclasses.field(default_factory=tuple, compare=False)
@@ -207,6 +209,12 @@ class Candidate:
         if self.side_effect_rows == 0:
             return True
         return self.source_rows_reported and self.source_conflict_rows == 0
+
+    @property
+    def positive_corpus_count(self) -> int:
+        if not self.rule_corpora or self.rule_corpora == "--":
+            return 0
+        return len(self.rule_corpora.split(","))
 
 
 def parse_report(path: pathlib.Path) -> list[Candidate]:
@@ -367,6 +375,7 @@ def parse_report(path: pathlib.Path) -> list[Candidate]:
                         foreign_sources=match.group("foreign_sources") or "",
                         rule_groups=match.group("pos_groups") or "",
                         rule_sources=match.group("pos_sources") or "",
+                        rule_corpora=match.group("pos_corpora") or "",
                         profile_groups=section_profile_groups,
                         profile_sources=section_profile_sources,
                     )
@@ -455,9 +464,11 @@ def actionable_sort_key(candidate: Candidate) -> tuple[int, int, float, int, int
 
 
 def blocked_candidate_sort_key(
-    candidate: Candidate, min_actionable_samples: int
+    candidate: Candidate, min_actionable_samples: int, min_actionable_corpora: int = 1
 ) -> tuple[int, int, int, float, int, int, str]:
-    reasons = candidate_block_reasons(candidate, min_actionable_samples)
+    reasons = candidate_block_reasons(
+        candidate, min_actionable_samples, min_actionable_corpora
+    )
     has_diagnostic = "diagnostic_octave_displacement" in reasons
     has_negative = "negative_net" in reasons
     has_cross_source = any(reason.startswith("cross_source_rows=") for reason in reasons)
@@ -492,7 +503,7 @@ def format_gain_ratio(candidate: Candidate) -> str:
 
 
 def candidate_block_reasons(
-    candidate: Candidate, min_actionable_samples: int
+    candidate: Candidate, min_actionable_samples: int, min_actionable_corpora: int = 1
 ) -> list[str]:
     reasons: list[str] = []
     if candidate.section.startswith("octave_displacement:"):
@@ -519,6 +530,11 @@ def candidate_block_reasons(
                 reasons.append(f"cross_source_rows={candidate.source_conflict_rows}")
             else:
                 reasons.append("unknown_source_side_effects")
+        if (
+            min_actionable_corpora > 1
+            and candidate.positive_corpus_count < min_actionable_corpora
+        ):
+            reasons.append(f"independent_corpora<{min_actionable_corpora}")
     return reasons
 
 
@@ -737,11 +753,13 @@ def candidate_coverage_unit(candidate: Candidate) -> str:
 
 
 def block_reason_summary(
-    candidates: list[Candidate], min_actionable_samples: int
+    candidates: list[Candidate], min_actionable_samples: int, min_actionable_corpora: int = 1
 ) -> list[tuple[str, int]]:
     counts: dict[str, int] = {}
     for candidate in candidates:
-        for reason in candidate_block_reasons(candidate, min_actionable_samples):
+        for reason in candidate_block_reasons(
+            candidate, min_actionable_samples, min_actionable_corpora
+        ):
             if reason.startswith("cross_source_rows="):
                 reason = "cross_source_rows"
             counts[reason] = counts.get(reason, 0) + 1
@@ -749,16 +767,20 @@ def block_reason_summary(
 
 
 def candidate_non_sample_block_reasons(
-    candidate: Candidate, min_actionable_samples: int
+    candidate: Candidate, min_actionable_samples: int, min_actionable_corpora: int = 1
 ) -> list[str]:
     return [
         reason
-        for reason in candidate_block_reasons(candidate, min_actionable_samples)
+        for reason in candidate_block_reasons(
+            candidate, min_actionable_samples, min_actionable_corpora
+        )
         if not reason.startswith("low_samples<") and not reason.startswith("low_rows<")
     ]
 
 
-def format_candidate(candidate: Candidate, min_actionable_samples: int) -> str:
+def format_candidate(
+    candidate: Candidate, min_actionable_samples: int, min_actionable_corpora: int = 1
+) -> str:
     utility = (
         f"side_rows={candidate.side_effect_rows} "
         f"net_rows={candidate.net_rows} "
@@ -770,6 +792,8 @@ def format_candidate(candidate: Candidate, min_actionable_samples: int) -> str:
         positive_utility += f" pos_groups={candidate.rule_groups}"
     if candidate.rule_sources:
         positive_utility += f" pos_sources={candidate.rule_sources}"
+    if candidate.rule_corpora:
+        positive_utility += f" pos_corpora={candidate.rule_corpora}"
     if candidate.neg_sources:
         source_utility += f" neg_sources={candidate.neg_sources}"
     if candidate.foreign_sources:
@@ -781,7 +805,9 @@ def format_candidate(candidate: Candidate, min_actionable_samples: int) -> str:
             f" neg_cross_source_rows={candidate.neg_cross_source_rows}"
             f" foreign_cross_source_rows={candidate.foreign_cross_source_rows}"
         )
-    block_reasons = candidate_block_reasons(candidate, min_actionable_samples)
+    block_reasons = candidate_block_reasons(
+        candidate, min_actionable_samples, min_actionable_corpora
+    )
     block_utility = f" blocked_by={','.join(block_reasons)}" if block_reasons else ""
     if candidate.kind == "drum":
         return (
@@ -952,6 +978,12 @@ def main() -> int:
     parser.add_argument("--coverage-route-limit", type=int, default=8)
     parser.add_argument("--coverage-group-limit", type=int, default=4)
     parser.add_argument("--min-actionable-samples", type=int, default=5)
+    parser.add_argument(
+        "--min-actionable-corpora",
+        type=int,
+        default=1,
+        help="minimum independent prepared-corpus origins required for a real-note route",
+    )
     args = parser.parse_args()
 
     candidates = sorted(parse_report(args.report), key=candidate_sort_key)
@@ -970,14 +1002,33 @@ def main() -> int:
     actionable = [
         candidate
         for candidate in source_safe_positive_net
-        if not candidate_block_reasons(candidate, args.min_actionable_samples)
+        if not candidate_block_reasons(
+            candidate, args.min_actionable_samples, args.min_actionable_corpora
+        )
     ]
     coverage_blocked = [
         candidate
         for candidate in source_safe_positive_net
         if candidate_additional_samples_needed(candidate, args.min_actionable_samples) > 0
-        and not candidate_non_sample_block_reasons(candidate, args.min_actionable_samples)
+        and not candidate_non_sample_block_reasons(
+            candidate, args.min_actionable_samples, args.min_actionable_corpora
+        )
     ]
+    independent_corpus_blocked = [
+        candidate
+        for candidate in source_safe_positive_net
+        if any(
+            reason.startswith("independent_corpora<")
+            for reason in candidate_block_reasons(
+                candidate, args.min_actionable_samples, args.min_actionable_corpora
+            )
+        )
+    ]
+    independent_corpus_summary = (
+        f" independent_corpus_blocked={len(independent_corpus_blocked)}"
+        if args.min_actionable_corpora > 1
+        else ""
+    )
 
     print(
         "detector_route_summary: "
@@ -987,6 +1038,7 @@ def main() -> int:
         f"positive_net={len(positive_net)} gain_ge_1={len(gain_ge_1)} "
         f"source_safe_positive_net={len(source_safe_positive_net)} "
         f"actionable={len(actionable)} coverage_blocked={len(coverage_blocked)}"
+        f"{independent_corpus_summary}"
     )
     if not candidates:
         print("  --")
@@ -996,7 +1048,9 @@ def main() -> int:
             "  no actionable candidates "
             f"(min_actionable_samples={args.min_actionable_samples}); showing diagnostics"
         )
-    blocked_reasons = block_reason_summary(candidates, args.min_actionable_samples)
+    blocked_reasons = block_reason_summary(
+        candidates, args.min_actionable_samples, args.min_actionable_corpora
+    )
     if blocked_reasons:
         print(
             "  blocked-reason summary "
@@ -1080,14 +1134,19 @@ def main() -> int:
         + sorted(
             blocked_positive,
             key=lambda candidate: blocked_candidate_sort_key(
-                candidate, args.min_actionable_samples
+                candidate, args.min_actionable_samples, args.min_actionable_corpora
             ),
         )
         + [candidate for candidate in candidates if candidate.net_rows <= 0]
     )
 
     for candidate in ranked_candidates[: max(0, args.limit)]:
-        print("  " + format_candidate(candidate, args.min_actionable_samples))
+        print(
+            "  "
+            + format_candidate(
+                candidate, args.min_actionable_samples, args.min_actionable_corpora
+            )
+        )
         if candidate in actionable_set:
             for example in candidate.examples[: max(0, args.ranked_example_limit)]:
                 print(f"    example {compact_example(example)}")

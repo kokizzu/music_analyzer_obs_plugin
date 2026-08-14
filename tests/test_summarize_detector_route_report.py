@@ -359,6 +359,34 @@ compact route summary
     )
     require(veto_output, "  --")
 
+    single_corpus_report = """row_confusion:piano/electronic->guitar positives=6 samples/504 rows protected_hits=0 samples/300 rows foreign_misses=0 samples/20 rows
+  low-false candidate rules:
+    guitar_keyboard_score_ratio>=2.147 AND noise<=0.001 AND slope>=0.086: pos=6/504 rows=6 neg=0/300 rows=0 foreign_miss=0/20 rows=0 side_rows=0 net_rows=6 gain_per_side=inf pos_groups=keyboard_electronic=6 pos_sources=piano/electronic=6 neg_same_source_rows=0 neg_cross_source_rows=0 foreign_cross_source_rows=0 pos_corpora=legacy_keyboard_fixture=6
+"""
+    with tempfile.TemporaryDirectory() as tmpdir:
+        path = pathlib.Path(tmpdir) / "route_report.txt"
+        path.write_text(single_corpus_report, encoding="utf-8")
+        result = subprocess.run(
+            [
+                sys.executable,
+                str(SCRIPT),
+                str(path),
+                "--min-actionable-corpora",
+                "2",
+                "--limit",
+                "8",
+            ],
+            check=True,
+            text=True,
+            stdout=subprocess.PIPE,
+        )
+    single_corpus_output = result.stdout
+    require(
+        single_corpus_output,
+        "actionable=0 coverage_blocked=0 independent_corpus_blocked=1",
+    )
+    require(single_corpus_output, "blocked_by=independent_corpora<2")
+
     print("test_summarize_detector_route_report: ok")
     return 0
 

@@ -305,11 +305,21 @@ def bucket_field_matches(actual: str, expected: str) -> bool:
 
 def load_rows(path: pathlib.Path) -> list[dict[str, str]]:
     with path.open(newline="", errors="replace") as handle:
-        return [derive_real_note_row(row) for row in csv.DictReader(handle, delimiter="\t")]
+        rows = [derive_real_note_row(row) for row in csv.DictReader(handle, delimiter="\t")]
+    # Keep measurement provenance through the mined report.  A sample name can
+    # describe a recording family, but only its input TSV identifies which
+    # independently prepared corpus supplied the evidence.
+    for row in rows:
+        row["measurement_origin"] = path.stem
+    return rows
 
 
 def source_key(row: dict[str, str]) -> str:
     return f"{row.get('family', 'unknown')}/{row.get('source', 'unknown')}"
+
+
+def measurement_origin_key(row: dict[str, str]) -> str:
+    return row.get("measurement_origin", "unknown")
 
 
 def octave_displacement_label(row: dict[str, str]) -> str:
@@ -587,9 +597,10 @@ def counter_summary(counter: collections.Counter[str], limit: int = 6) -> str:
 
 def positive_sample_profile_from_mask(
     rows: list[dict[str, str]], row_mask: int, limit: int = 6
-) -> tuple[str, str]:
+) -> tuple[str, str, str]:
     sample_groups: collections.Counter[str] = collections.Counter()
     sources: collections.Counter[str] = collections.Counter()
+    origins: collections.Counter[str] = collections.Counter()
     seen_samples: set[str] = set()
     while row_mask:
         bit = row_mask & -row_mask
@@ -600,8 +611,13 @@ def positive_sample_profile_from_mask(
             seen_samples.add(sample_id)
             sample_groups[sample_group(sample_id)] += 1
             sources[source_key(row)] += 1
+            origins[measurement_origin_key(row)] += 1
         row_mask ^= bit
-    return counter_summary(sample_groups, limit), counter_summary(sources, limit)
+    return (
+        counter_summary(sample_groups, limit),
+        counter_summary(sources, limit),
+        counter_summary(origins, limit),
+    )
 
 
 def print_positive_sample_profile(rows: list[dict[str, str]], limit: int = 6) -> None:
@@ -1564,7 +1580,7 @@ def print_results(
         _foreign_same_source_rows, foreign_cross_source_rows = source_side_effect_rows(
             foreign_rows, result.foreign_row_mask, positive_sources
         )
-        positive_groups, positive_source_summary = positive_sample_profile_from_mask(
+        positive_groups, positive_source_summary, positive_origin_summary = positive_sample_profile_from_mask(
             positive_rows, result.positive_row_mask
         )
         print(
@@ -1588,6 +1604,7 @@ def print_results(
             + f" foreign_cross_source_rows={foreign_cross_source_rows}"
             + (f" neg_sources={negative_sources}" if negative_sources else "")
             + (f" foreign_sources={foreign_sources}" if foreign_sources else "")
+            + f" pos_corpora={positive_origin_summary}"
         )
         if show_examples <= 0:
             continue

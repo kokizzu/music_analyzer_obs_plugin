@@ -39,14 +39,15 @@ Source: `build/real_note_full_mix_attributes.tsv`
 
 ## Detector-improvement route coverage
 
-This tracks the empirical candidate search. A route is actionable only when its measured gain has no protected-row regression; coverage-blocked routes need more independent positive fixture samples before any detector rule is considered.
+This tracks the empirical candidate search. A route is actionable only when its measured gain has no protected-row regression and positive evidence from two independently prepared corpora.
 
 Source: `build/detector_improvement_route_summary.txt`
 
 | Metric | Routes / total | Other routes |
 | --- | ---: | ---: |
-| Routes with direct zero-regression support | 0 / 226 (0.0%) | 226 |
-| Routes awaiting additional fixture coverage | 80 / 226 (35.4%) | 146 |
+| Routes meeting protected and cross-corpus gates | 0 / 228 (0.0%) | 228 |
+| Routes awaiting additional fixture coverage | 0 / 228 (0.0%) | 228 |
+| Routes lacking independent-corpus replication | 97 / 228 (42.5%) | 131 |
 
 ## Dagstuhl ChoirSet (DCS) coverage-gap checklist
 

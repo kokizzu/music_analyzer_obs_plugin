@@ -394,7 +394,7 @@ class DetectionAccuracyReportTest(unittest.TestCase):
         self.assertIn("| DCS All DCS vocal windows — Visible current-note vocal routing | 0 / 2 (0.0%) | 2 |", report)
         self.assertIn("| DCS SATB range — Soprano — Vocal ownership | 1 / 1 (100.0%) | 0 |", report)
         self.assertIn("| DCS Configuration — DCS_Test — Current-note vocal ownership | 1 / 2 (50.0%) | 1 |", report)
-        self.assertIn("| Routes with direct zero-regression support | 1 / 160 (0.6%) | 159 |", report)
+        self.assertIn("| Routes meeting protected and cross-corpus gates | 1 / 160 (0.6%) | 159 |", report)
         self.assertIn("| Routes awaiting additional fixture coverage | 34 / 160 (21.2%) | 126 |", report)
         self.assertIn("## Cached isolated-guitar chord gates", report)
         self.assertIn("## TinySOL isolated wind and brass exact-note coverage", report)

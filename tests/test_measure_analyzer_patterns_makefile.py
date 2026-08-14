@@ -1172,6 +1172,12 @@ def main() -> int:
     assert "DETECTOR_REAL_NOTE_PATTERN_OPTIONAL_CANDIDATE_PATHS += $(IOWA_ORCHESTRA_FULL_DETECTED_ATTRIBUTE_ROWS)" in makefile, (
         "detector route scans should mine candidates from available Iowa orchestra full rows"
     )
+    assert "DETECTOR_REAL_NOTE_PATTERN_OPTIONAL_CANDIDATE_PATHS += $(URMP_SAX_FULL_MIX_ATTRIBUTE_TSV)" in makefile, (
+        "detector route scans should mine candidates from available URMP saxophone full-mix rows"
+    )
+    assert "DETECTOR_REAL_NOTE_PATTERN_OPTIONAL_CANDIDATE_PATHS += $(MIR1K_DATASET_ATTRIBUTE_OUTPUT)" in makefile, (
+        "detector route scans should mine candidates from available MIR-1K vocal full-mix rows"
+    )
     assert "--show-examples 4 --protected-scope all" in continuation_variable_body(
         makefile, "MEASURE_REAL_NOTE_COVERAGE_ROW_CONFUSION_PATTERN_ARGS"
     ), (

@@ -358,6 +358,7 @@ EGMD_DRUM_SUMMARY_RE = re.compile(
 ROUTE_SUMMARY_RE = re.compile(
     r"detector_route_summary: candidates=(?P<candidates>\d+).*?"
     r"actionable=(?P<actionable>\d+) coverage_blocked=(?P<coverage_blocked>\d+)"
+    r"(?: independent_corpus_blocked=(?P<independent_corpus_blocked>\d+))?"
 )
 
 
@@ -581,10 +582,19 @@ def route_coverage_rows(path: Path) -> list[tuple[str, int, int]]:
     if match is None:
         raise ValueError(f"{path}: missing detector route summary")
     total = int(match["candidates"])
-    return [
-        ("Routes with direct zero-regression support", int(match["actionable"]), total),
+    rows = [
+        ("Routes meeting protected and cross-corpus gates", int(match["actionable"]), total),
         ("Routes awaiting additional fixture coverage", int(match["coverage_blocked"]), total),
     ]
+    if match["independent_corpus_blocked"] is not None:
+        rows.append(
+            (
+                "Routes lacking independent-corpus replication",
+                int(match["independent_corpus_blocked"]),
+                total,
+            )
+        )
+    return rows
 
 
 def dagstuhl_choirset_rows(path: Path) -> list[tuple[str, str, int, int]]:
@@ -704,8 +714,8 @@ def render(
                 "## Detector-improvement route coverage",
                 "",
                 "This tracks the empirical candidate search. A route is actionable only when its "
-                "measured gain has no protected-row regression; coverage-blocked routes need more "
-                "independent positive fixture samples before any detector rule is considered.",
+                "measured gain has no protected-row regression and positive evidence from two "
+                "independently prepared corpora.",
                 "",
                 f"Source: `{route_summary.as_posix()}`",
                 "",
