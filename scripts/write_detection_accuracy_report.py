@@ -646,10 +646,12 @@ def render(
     esmuc_choir_dataset_archive: Path | None = None,
     esmuc_choir_dataset_extraction: Path | None = None,
     esmuc_choir_dataset_manifest: Path | None = None,
+    esmuc_choir_dataset_measurement: Path | None = None,
 ) -> str:
     samples = load_samples(input_path)
     dcs_rows = dagstuhl_choirset_rows(dagstuhl_choirset_input) if dagstuhl_choirset_input else []
     csd_rows = dagstuhl_choirset_rows(choral_singing_dataset_measurement) if choral_singing_dataset_measurement else []
+    esmuc_rows = dagstuhl_choirset_rows(esmuc_choir_dataset_measurement) if esmuc_choir_dataset_measurement else []
     lines = [
         "# Real-audio detection accuracy",
         "",
@@ -775,13 +777,39 @@ def render(
             f"| Extract ESMUC safely in InstrumentSamples | {fraction(esmuc_extraction_ready, 1)} | {1 - esmuc_extraction_ready} | traversal-safe extraction marker |",
             "| Inventory ESMUC stems and corrected labels | 1 / 1 (100.0%) | 0 | 495 WAV, 276 note labels, 300 F0 files; FT/IS/SE configurations |",
             f"| Import ESMUC sources and labels | {fraction(esmuc_manifest_ready, 1)} | {1 - esmuc_manifest_ready} | tested prepared-multitrack manifest (19 complete SATB recordings) |",
-            "| Measure ESMUC note, octave, and pitch-class recall | 0 / 1 (0.0%) | 1 | real ESMUC x/total results |",
-            "| Measure ESMUC vocal ownership and current-note routing | 0 / 1 (0.0%) | 1 | real ESMUC routing x/total results |",
-            "| Measure ESMUC chord accuracy | 0 / 1 (0.0%) | 1 | real ESMUC chord x/total results |",
-            "| Break down ESMUC results by SATB and configuration | 0 / 1 (0.0%) | 1 | S/A/T/B and FT/IS/SE x/total rows |",
+            f"| Measure ESMUC note, octave, and pitch-class recall | {fraction(int(bool(esmuc_rows)), 1)} | {int(not esmuc_rows)} | real ESMUC x/total results |",
+            f"| Measure ESMUC vocal ownership and current-note routing | {fraction(int(bool(esmuc_rows)), 1)} | {int(not esmuc_rows)} | real ESMUC routing x/total results |",
+            f"| Measure ESMUC chord accuracy | {fraction(int(bool(esmuc_rows)), 1)} | {int(not esmuc_rows)} | real ESMUC chord x/total results |",
+            f"| Break down ESMUC results by SATB and configuration | {fraction(int(bool(esmuc_rows)), 1)} | {int(not esmuc_rows)} | S/A/T/B and FT/IS/SE x/total rows |",
             "| Recheck candidates across DCS, CSD, ESMUC, and cached vocal corpora | 0 / 1 (0.0%) | 1 | zero-regression cross-corpus evidence |",
         ]
     )
+    if esmuc_rows:
+        lines.extend(
+            [
+                "",
+                "## ESMUC Choir Dataset real-audio measurement",
+                "",
+                "Each recording is a real synchronised four-source SATB mix. Current-note routing is "
+                "credited when the monophonic vocal display matches any concurrent SATB score pitch.",
+                "",
+                f"Source: `{esmuc_choir_dataset_measurement.as_posix()}`",
+                "",
+                "| Metric | Accurate / total | Remaining |",
+                "| --- | ---: | ---: |",
+            ]
+        )
+        for group, metric, accurate, total in esmuc_rows:
+            if group in {"All SATB notes", "All ESMUC chord windows", "All ESMUC vocal windows"}:
+                lines.append(f"| ESMUC {group} — {metric} | {fraction(accurate, total)} | {total - accurate} |")
+        lines.extend(["", "### ESMUC SATB range breakdown", "", "| Metric | Accurate / total | Remaining |", "| --- | ---: | ---: |"])
+        for group, metric, accurate, total in esmuc_rows:
+            if group.startswith("SATB range — "):
+                lines.append(f"| ESMUC {group} — {metric} | {fraction(accurate, total)} | {total - accurate} |")
+        lines.extend(["", "### ESMUC recording-configuration breakdown", "", "| Metric | Accurate / total | Remaining |", "| --- | ---: | ---: |"])
+        for group, metric, accurate, total in esmuc_rows:
+            if group.startswith("Configuration — "):
+                lines.append(f"| ESMUC {group} — {metric} | {fraction(accurate, total)} | {total - accurate} |")
     if dcs_rows:
         lines.extend(
             [
@@ -1338,6 +1366,7 @@ def main() -> int:
     parser.add_argument("--esmuc-choir-dataset-archive", type=Path)
     parser.add_argument("--esmuc-choir-dataset-extraction", type=Path)
     parser.add_argument("--esmuc-choir-dataset-manifest", type=Path)
+    parser.add_argument("--esmuc-choir-dataset-measurement", type=Path)
     parser.add_argument("--output", required=True, type=Path)
     args = parser.parse_args()
     try:
@@ -1368,6 +1397,7 @@ def main() -> int:
             args.esmuc_choir_dataset_archive,
             args.esmuc_choir_dataset_extraction,
             args.esmuc_choir_dataset_manifest,
+            args.esmuc_choir_dataset_measurement,
         )
     except (OSError, ValueError) as error:
         parser.error(str(error))
