@@ -93,6 +93,20 @@ int run_visualizer_renderer_tests()
 		    "strong guitar upper same-pitch marker should still render at full brightness", &checks,
 		    &failures);
 
+	NoteGrid malformed_grid;
+	NoteCell &malformed_cell = malformed_grid.rows[0][0];
+	std::memset(malformed_cell.label, 'X', sizeof(malformed_cell.label));
+	malformed_cell.midi = 60;
+	malformed_cell.level = 1.0f;
+	malformed_cell.visual_level = 1.0f;
+	malformed_cell.active = true;
+	set_note_cell(malformed_grid.rows[0][1], 62, 0.70f, 0.70f);
+	current_note[0] = '\0';
+	expect_true(current_note_label(malformed_grid, current_note, sizeof(current_note)) &&
+			    std::strcmp(current_note, "D") == 0,
+		    "unterminated note-cell labels must not be selected or read past their fixed buffer", &checks,
+		    &failures);
+
 	NoteGrid piano_grid;
 	set_note_cell(piano_grid.rows[0][0], 60, 0.90f, 0.90f);
 	set_note_cell(piano_grid.rows[0][1], 72, 0.80f, 0.80f);

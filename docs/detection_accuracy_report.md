@@ -50,21 +50,182 @@ Source: `build/detector_improvement_route_summary.txt`
 
 ## Dagstuhl ChoirSet (DCS) coverage-gap checklist
 
-DCS is the next independent real vocal-ensemble corpus. These rows track the reproducible integration work separately from detection accuracy: generated fixtures never count as DCS measurements. A completed measurement row will be added only after the public archive is validated and its real audio/annotations are prepared.
+DCS is an independent real vocal-ensemble corpus. Generated fixtures never count as DCS measurements; completion requires validated public audio plus score-aligned results.
 
 | Work item | Complete / total | Remaining | Evidence required |
 | --- | ---: | ---: | --- |
-| Store DCS archive in InstrumentSamples | 0 / 1 (0.0%) | 1 | validated archive and checksum |
-| Extract DCS safely in InstrumentSamples | 0 / 1 (0.0%) | 1 | traversal-safe extraction record |
-| Inspect real DCS audio and annotations | 0 / 1 (0.0%) | 1 | corpus inventory by song/take/microphone |
-| Import DCS sources and labels | 0 / 1 (0.0%) | 1 | tested prepared-multitrack manifest |
-| Measure note and pitch-class recall | 0 / 1 (0.0%) | 1 | real DCS x/total results |
-| Measure octave accuracy | 0 / 1 (0.0%) | 1 | real DCS exact-MIDI x/total results |
-| Measure vocal ownership and display routing | 0 / 1 (0.0%) | 1 | real DCS row-routing x/total results |
-| Measure chord accuracy | 0 / 1 (0.0%) | 1 | real DCS chord x/total results |
-| Break down results by SATB range | 0 / 1 (0.0%) | 1 | S/A/T/B x/total rows |
-| Break down results by recording configuration | 0 / 1 (0.0%) | 1 | setting/take/microphone x/total rows |
+| Store DCS archive in InstrumentSamples | 1 / 1 (100.0%) | 0 | validated archive and checksum |
+| Extract DCS safely in InstrumentSamples | 1 / 1 (100.0%) | 0 | traversal-safe extraction record |
+| Inspect real DCS audio and annotations | 1 / 1 (100.0%) | 0 | corpus inventory by song/take/microphone |
+| Import DCS sources and labels | 1 / 1 (100.0%) | 0 | tested prepared-multitrack manifest |
+| Measure note and pitch-class recall | 1 / 1 (100.0%) | 0 | real DCS x/total results |
+| Measure octave accuracy | 1 / 1 (100.0%) | 0 | real DCS exact-MIDI x/total results |
+| Measure vocal ownership and display routing | 1 / 1 (100.0%) | 0 | real DCS row-routing x/total results |
+| Measure chord accuracy | 1 / 1 (100.0%) | 0 | real DCS chord x/total results |
+| Break down results by SATB range | 1 / 1 (100.0%) | 0 | S/A/T/B x/total rows |
+| Break down results by recording configuration | 1 / 1 (100.0%) | 0 | setting/take/microphone x/total rows |
 | Verify a safe cross-corpus detector improvement | 0 / 1 (0.0%) | 1 | DCS and protected-corpus regression evidence |
+
+## Dagstuhl ChoirSet (DCS) real-audio measurement
+
+Each row is a score-active SATB note at a stable center-of-note window in a real, summed four-singer recording. Vocal ownership and routing require the expected pitch class in the vocal row; visible routing additionally requires visual level at least 0.25.
+
+Source: `build/dagstuhl_choirset_measurement.tsv`
+
+| Metric | Accurate / total | Remaining |
+| --- | ---: | ---: |
+| DCS All DCS chord windows — Exact chord accuracy | 49 / 240 (20.4%) | 191 |
+| DCS All DCS chord windows — Simplified chord accuracy | 82 / 240 (34.2%) | 158 |
+| DCS All SATB notes — Exact-MIDI recall | 568 / 984 (57.7%) | 416 |
+| DCS All SATB notes — Pitch-class recall | 708 / 984 (72.0%) | 276 |
+| DCS All SATB notes — Visible vocal routing | 58 / 984 (5.9%) | 926 |
+| DCS All SATB notes — Vocal ownership | 109 / 984 (11.1%) | 875 |
+
+### DCS SATB range breakdown
+
+| Metric | Accurate / total | Remaining |
+| --- | ---: | ---: |
+| DCS SATB range — Alto — Exact-MIDI recall | 162 / 240 (67.5%) | 78 |
+| DCS SATB range — Alto — Pitch-class recall | 178 / 240 (74.2%) | 62 |
+| DCS SATB range — Alto — Visible vocal routing | 20 / 240 (8.3%) | 220 |
+| DCS SATB range — Alto — Vocal ownership | 36 / 240 (15.0%) | 204 |
+| DCS SATB range — Bass — Exact-MIDI recall | 95 / 264 (36.0%) | 169 |
+| DCS SATB range — Bass — Pitch-class recall | 185 / 264 (70.1%) | 79 |
+| DCS SATB range — Bass — Visible vocal routing | 8 / 264 (3.0%) | 256 |
+| DCS SATB range — Bass — Vocal ownership | 21 / 264 (8.0%) | 243 |
+| DCS SATB range — Soprano — Exact-MIDI recall | 129 / 240 (53.8%) | 111 |
+| DCS SATB range — Soprano — Pitch-class recall | 151 / 240 (62.9%) | 89 |
+| DCS SATB range — Soprano — Visible vocal routing | 8 / 240 (3.3%) | 232 |
+| DCS SATB range — Soprano — Vocal ownership | 18 / 240 (7.5%) | 222 |
+| DCS SATB range — Tenor — Exact-MIDI recall | 182 / 240 (75.8%) | 58 |
+| DCS SATB range — Tenor — Pitch-class recall | 194 / 240 (80.8%) | 46 |
+| DCS SATB range — Tenor — Visible vocal routing | 22 / 240 (9.2%) | 218 |
+| DCS SATB range — Tenor — Vocal ownership | 34 / 240 (14.2%) | 206 |
+
+### DCS recording-configuration breakdown
+
+| Metric | Accurate / total | Remaining |
+| --- | ---: | ---: |
+| DCS Configuration — DCS_LI_FullChoir_Take01 — Exact chord accuracy | 1 / 12 (8.3%) | 11 |
+| DCS Configuration — DCS_LI_FullChoir_Take01 — Exact-MIDI recall | 28 / 48 (58.3%) | 20 |
+| DCS Configuration — DCS_LI_FullChoir_Take01 — Pitch-class recall | 37 / 48 (77.1%) | 11 |
+| DCS Configuration — DCS_LI_FullChoir_Take01 — Simplified chord accuracy | 5 / 12 (41.7%) | 7 |
+| DCS Configuration — DCS_LI_FullChoir_Take01 — Visible vocal routing | 3 / 48 (6.2%) | 45 |
+| DCS Configuration — DCS_LI_FullChoir_Take01 — Vocal ownership | 3 / 48 (6.2%) | 45 |
+| DCS Configuration — DCS_LI_FullChoir_Take02 — Exact chord accuracy | 1 / 12 (8.3%) | 11 |
+| DCS Configuration — DCS_LI_FullChoir_Take02 — Exact-MIDI recall | 31 / 48 (64.6%) | 17 |
+| DCS Configuration — DCS_LI_FullChoir_Take02 — Pitch-class recall | 35 / 48 (72.9%) | 13 |
+| DCS Configuration — DCS_LI_FullChoir_Take02 — Simplified chord accuracy | 3 / 12 (25.0%) | 9 |
+| DCS Configuration — DCS_LI_FullChoir_Take02 — Visible vocal routing | 3 / 48 (6.2%) | 45 |
+| DCS Configuration — DCS_LI_FullChoir_Take02 — Vocal ownership | 4 / 48 (8.3%) | 44 |
+| DCS Configuration — DCS_LI_FullChoir_Take03 — Exact chord accuracy | 1 / 12 (8.3%) | 11 |
+| DCS Configuration — DCS_LI_FullChoir_Take03 — Exact-MIDI recall | 32 / 48 (66.7%) | 16 |
+| DCS Configuration — DCS_LI_FullChoir_Take03 — Pitch-class recall | 40 / 48 (83.3%) | 8 |
+| DCS Configuration — DCS_LI_FullChoir_Take03 — Simplified chord accuracy | 4 / 12 (33.3%) | 8 |
+| DCS Configuration — DCS_LI_FullChoir_Take03 — Visible vocal routing | 1 / 48 (2.1%) | 47 |
+| DCS Configuration — DCS_LI_FullChoir_Take03 — Vocal ownership | 2 / 48 (4.2%) | 46 |
+| DCS Configuration — DCS_LI_QuartetA_Take01 — Exact chord accuracy | 1 / 12 (8.3%) | 11 |
+| DCS Configuration — DCS_LI_QuartetA_Take01 — Exact-MIDI recall | 28 / 48 (58.3%) | 20 |
+| DCS Configuration — DCS_LI_QuartetA_Take01 — Pitch-class recall | 37 / 48 (77.1%) | 11 |
+| DCS Configuration — DCS_LI_QuartetA_Take01 — Simplified chord accuracy | 4 / 12 (33.3%) | 8 |
+| DCS Configuration — DCS_LI_QuartetA_Take01 — Visible vocal routing | 1 / 48 (2.1%) | 47 |
+| DCS Configuration — DCS_LI_QuartetA_Take01 — Vocal ownership | 4 / 48 (8.3%) | 44 |
+| DCS Configuration — DCS_LI_QuartetA_Take02 — Exact chord accuracy | 4 / 12 (33.3%) | 8 |
+| DCS Configuration — DCS_LI_QuartetA_Take02 — Exact-MIDI recall | 30 / 48 (62.5%) | 18 |
+| DCS Configuration — DCS_LI_QuartetA_Take02 — Pitch-class recall | 37 / 48 (77.1%) | 11 |
+| DCS Configuration — DCS_LI_QuartetA_Take02 — Simplified chord accuracy | 5 / 12 (41.7%) | 7 |
+| DCS Configuration — DCS_LI_QuartetA_Take02 — Visible vocal routing | 2 / 48 (4.2%) | 46 |
+| DCS Configuration — DCS_LI_QuartetA_Take02 — Vocal ownership | 4 / 48 (8.3%) | 44 |
+| DCS Configuration — DCS_LI_QuartetA_Take03 — Exact chord accuracy | 0 / 12 (0.0%) | 12 |
+| DCS Configuration — DCS_LI_QuartetA_Take03 — Exact-MIDI recall | 23 / 48 (47.9%) | 25 |
+| DCS Configuration — DCS_LI_QuartetA_Take03 — Pitch-class recall | 29 / 48 (60.4%) | 19 |
+| DCS Configuration — DCS_LI_QuartetA_Take03 — Simplified chord accuracy | 4 / 12 (33.3%) | 8 |
+| DCS Configuration — DCS_LI_QuartetA_Take03 — Visible vocal routing | 6 / 48 (12.5%) | 42 |
+| DCS Configuration — DCS_LI_QuartetA_Take03 — Vocal ownership | 9 / 48 (18.8%) | 39 |
+| DCS Configuration — DCS_LI_QuartetA_Take04 — Exact chord accuracy | 3 / 12 (25.0%) | 9 |
+| DCS Configuration — DCS_LI_QuartetA_Take04 — Exact-MIDI recall | 29 / 48 (60.4%) | 19 |
+| DCS Configuration — DCS_LI_QuartetA_Take04 — Pitch-class recall | 35 / 48 (72.9%) | 13 |
+| DCS Configuration — DCS_LI_QuartetA_Take04 — Simplified chord accuracy | 4 / 12 (33.3%) | 8 |
+| DCS Configuration — DCS_LI_QuartetA_Take04 — Visible vocal routing | 4 / 48 (8.3%) | 44 |
+| DCS Configuration — DCS_LI_QuartetA_Take04 — Vocal ownership | 5 / 48 (10.4%) | 43 |
+| DCS Configuration — DCS_LI_QuartetA_Take05 — Exact chord accuracy | 2 / 12 (16.7%) | 10 |
+| DCS Configuration — DCS_LI_QuartetA_Take05 — Exact-MIDI recall | 30 / 48 (62.5%) | 18 |
+| DCS Configuration — DCS_LI_QuartetA_Take05 — Pitch-class recall | 35 / 48 (72.9%) | 13 |
+| DCS Configuration — DCS_LI_QuartetA_Take05 — Simplified chord accuracy | 4 / 12 (33.3%) | 8 |
+| DCS Configuration — DCS_LI_QuartetA_Take05 — Visible vocal routing | 3 / 48 (6.2%) | 45 |
+| DCS Configuration — DCS_LI_QuartetA_Take05 — Vocal ownership | 3 / 48 (6.2%) | 45 |
+| DCS Configuration — DCS_LI_QuartetA_Take06 — Exact chord accuracy | 3 / 12 (25.0%) | 9 |
+| DCS Configuration — DCS_LI_QuartetA_Take06 — Exact-MIDI recall | 29 / 48 (60.4%) | 19 |
+| DCS Configuration — DCS_LI_QuartetA_Take06 — Pitch-class recall | 33 / 48 (68.8%) | 15 |
+| DCS Configuration — DCS_LI_QuartetA_Take06 — Simplified chord accuracy | 7 / 12 (58.3%) | 5 |
+| DCS Configuration — DCS_LI_QuartetA_Take06 — Visible vocal routing | 2 / 48 (4.2%) | 46 |
+| DCS Configuration — DCS_LI_QuartetA_Take06 — Vocal ownership | 6 / 48 (12.5%) | 42 |
+| DCS Configuration — DCS_LI_QuartetB_Take01 — Exact chord accuracy | 4 / 12 (33.3%) | 8 |
+| DCS Configuration — DCS_LI_QuartetB_Take01 — Exact-MIDI recall | 35 / 48 (72.9%) | 13 |
+| DCS Configuration — DCS_LI_QuartetB_Take01 — Pitch-class recall | 37 / 48 (77.1%) | 11 |
+| DCS Configuration — DCS_LI_QuartetB_Take01 — Simplified chord accuracy | 4 / 12 (33.3%) | 8 |
+| DCS Configuration — DCS_LI_QuartetB_Take01 — Visible vocal routing | 0 / 48 (0.0%) | 48 |
+| DCS Configuration — DCS_LI_QuartetB_Take01 — Vocal ownership | 1 / 48 (2.1%) | 47 |
+| DCS Configuration — DCS_LI_QuartetB_Take02 — Exact chord accuracy | 1 / 12 (8.3%) | 11 |
+| DCS Configuration — DCS_LI_QuartetB_Take02 — Exact-MIDI recall | 29 / 48 (60.4%) | 19 |
+| DCS Configuration — DCS_LI_QuartetB_Take02 — Pitch-class recall | 33 / 48 (68.8%) | 15 |
+| DCS Configuration — DCS_LI_QuartetB_Take02 — Simplified chord accuracy | 1 / 12 (8.3%) | 11 |
+| DCS Configuration — DCS_LI_QuartetB_Take02 — Visible vocal routing | 2 / 48 (4.2%) | 46 |
+| DCS Configuration — DCS_LI_QuartetB_Take02 — Vocal ownership | 6 / 48 (12.5%) | 42 |
+| DCS Configuration — DCS_LI_QuartetB_Take03 — Exact chord accuracy | 2 / 12 (16.7%) | 10 |
+| DCS Configuration — DCS_LI_QuartetB_Take03 — Exact-MIDI recall | 27 / 48 (56.2%) | 21 |
+| DCS Configuration — DCS_LI_QuartetB_Take03 — Pitch-class recall | 32 / 48 (66.7%) | 16 |
+| DCS Configuration — DCS_LI_QuartetB_Take03 — Simplified chord accuracy | 3 / 12 (25.0%) | 9 |
+| DCS Configuration — DCS_LI_QuartetB_Take03 — Visible vocal routing | 3 / 48 (6.2%) | 45 |
+| DCS Configuration — DCS_LI_QuartetB_Take03 — Vocal ownership | 4 / 48 (8.3%) | 44 |
+| DCS Configuration — DCS_LI_QuartetB_Take04 — Exact chord accuracy | 1 / 12 (8.3%) | 11 |
+| DCS Configuration — DCS_LI_QuartetB_Take04 — Exact-MIDI recall | 15 / 48 (31.2%) | 33 |
+| DCS Configuration — DCS_LI_QuartetB_Take04 — Pitch-class recall | 23 / 48 (47.9%) | 25 |
+| DCS Configuration — DCS_LI_QuartetB_Take04 — Simplified chord accuracy | 2 / 12 (16.7%) | 10 |
+| DCS Configuration — DCS_LI_QuartetB_Take04 — Visible vocal routing | 1 / 48 (2.1%) | 47 |
+| DCS Configuration — DCS_LI_QuartetB_Take04 — Vocal ownership | 5 / 48 (10.4%) | 43 |
+| DCS Configuration — DCS_LI_QuartetB_Take05 — Exact chord accuracy | 1 / 12 (8.3%) | 11 |
+| DCS Configuration — DCS_LI_QuartetB_Take05 — Exact-MIDI recall | 29 / 48 (60.4%) | 19 |
+| DCS Configuration — DCS_LI_QuartetB_Take05 — Pitch-class recall | 31 / 48 (64.6%) | 17 |
+| DCS Configuration — DCS_LI_QuartetB_Take05 — Simplified chord accuracy | 3 / 12 (25.0%) | 9 |
+| DCS Configuration — DCS_LI_QuartetB_Take05 — Visible vocal routing | 3 / 48 (6.2%) | 45 |
+| DCS Configuration — DCS_LI_QuartetB_Take05 — Vocal ownership | 4 / 48 (8.3%) | 44 |
+| DCS Configuration — DCS_TP_FullChoir_Take01 — Exact chord accuracy | 5 / 12 (41.7%) | 7 |
+| DCS Configuration — DCS_TP_FullChoir_Take01 — Exact-MIDI recall | 30 / 52 (57.7%) | 22 |
+| DCS Configuration — DCS_TP_FullChoir_Take01 — Pitch-class recall | 43 / 52 (82.7%) | 9 |
+| DCS Configuration — DCS_TP_FullChoir_Take01 — Simplified chord accuracy | 6 / 12 (50.0%) | 6 |
+| DCS Configuration — DCS_TP_FullChoir_Take01 — Visible vocal routing | 4 / 52 (7.7%) | 48 |
+| DCS Configuration — DCS_TP_FullChoir_Take01 — Vocal ownership | 9 / 52 (17.3%) | 43 |
+| DCS Configuration — DCS_TP_FullChoir_Take02 — Exact chord accuracy | 4 / 12 (33.3%) | 8 |
+| DCS Configuration — DCS_TP_FullChoir_Take02 — Exact-MIDI recall | 28 / 52 (53.8%) | 24 |
+| DCS Configuration — DCS_TP_FullChoir_Take02 — Pitch-class recall | 39 / 52 (75.0%) | 13 |
+| DCS Configuration — DCS_TP_FullChoir_Take02 — Simplified chord accuracy | 5 / 12 (41.7%) | 7 |
+| DCS Configuration — DCS_TP_FullChoir_Take02 — Visible vocal routing | 0 / 52 (0.0%) | 52 |
+| DCS Configuration — DCS_TP_FullChoir_Take02 — Vocal ownership | 3 / 52 (5.8%) | 49 |
+| DCS Configuration — DCS_TP_FullChoir_Take03 — Exact chord accuracy | 2 / 12 (16.7%) | 10 |
+| DCS Configuration — DCS_TP_FullChoir_Take03 — Exact-MIDI recall | 20 / 52 (38.5%) | 32 |
+| DCS Configuration — DCS_TP_FullChoir_Take03 — Pitch-class recall | 30 / 52 (57.7%) | 22 |
+| DCS Configuration — DCS_TP_FullChoir_Take03 — Simplified chord accuracy | 2 / 12 (16.7%) | 10 |
+| DCS Configuration — DCS_TP_FullChoir_Take03 — Visible vocal routing | 2 / 52 (3.8%) | 50 |
+| DCS Configuration — DCS_TP_FullChoir_Take03 — Vocal ownership | 8 / 52 (15.4%) | 44 |
+| DCS Configuration — DCS_TP_FullChoir_Take04 — Exact chord accuracy | 2 / 12 (16.7%) | 10 |
+| DCS Configuration — DCS_TP_FullChoir_Take04 — Exact-MIDI recall | 18 / 52 (34.6%) | 34 |
+| DCS Configuration — DCS_TP_FullChoir_Take04 — Pitch-class recall | 26 / 52 (50.0%) | 26 |
+| DCS Configuration — DCS_TP_FullChoir_Take04 — Simplified chord accuracy | 2 / 12 (16.7%) | 10 |
+| DCS Configuration — DCS_TP_FullChoir_Take04 — Visible vocal routing | 1 / 52 (1.9%) | 51 |
+| DCS Configuration — DCS_TP_FullChoir_Take04 — Vocal ownership | 4 / 52 (7.7%) | 48 |
+| DCS Configuration — DCS_TP_QuartetA_Take01 — Exact chord accuracy | 8 / 12 (66.7%) | 4 |
+| DCS Configuration — DCS_TP_QuartetA_Take01 — Exact-MIDI recall | 38 / 52 (73.1%) | 14 |
+| DCS Configuration — DCS_TP_QuartetA_Take01 — Pitch-class recall | 50 / 52 (96.2%) | 2 |
+| DCS Configuration — DCS_TP_QuartetA_Take01 — Simplified chord accuracy | 9 / 12 (75.0%) | 3 |
+| DCS Configuration — DCS_TP_QuartetA_Take01 — Visible vocal routing | 6 / 52 (11.5%) | 46 |
+| DCS Configuration — DCS_TP_QuartetA_Take01 — Vocal ownership | 9 / 52 (17.3%) | 43 |
+| DCS Configuration — DCS_TP_QuartetA_Take02 — Exact chord accuracy | 3 / 12 (25.0%) | 9 |
+| DCS Configuration — DCS_TP_QuartetA_Take02 — Exact-MIDI recall | 39 / 52 (75.0%) | 13 |
+| DCS Configuration — DCS_TP_QuartetA_Take02 — Pitch-class recall | 46 / 52 (88.5%) | 6 |
+| DCS Configuration — DCS_TP_QuartetA_Take02 — Simplified chord accuracy | 5 / 12 (41.7%) | 7 |
+| DCS Configuration — DCS_TP_QuartetA_Take02 — Visible vocal routing | 11 / 52 (21.2%) | 41 |
+| DCS Configuration — DCS_TP_QuartetA_Take02 — Vocal ownership | 16 / 52 (30.8%) | 36 |
 
 ## Vocadito full-mix vocal routing
 

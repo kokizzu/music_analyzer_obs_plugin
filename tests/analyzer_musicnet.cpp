@@ -613,6 +613,40 @@ std::array<float, 12> detected_pitch_class_levels(const mao::AnalysisSnapshot &s
 	return levels;
 }
 
+float note_cell_visual_level(const mao::NoteCell &cell)
+{
+	return cell.visual_level >= 0.0f ? cell.visual_level : cell.level;
+}
+
+std::string grid_note_list(const mao::NoteGrid &grid, bool visual = false)
+{
+	std::array<float, mao::kNoteProbeCount> levels = {};
+	auto add_cell = [&](const mao::NoteCell &cell) {
+		if (!cell.active || cell.midi < mao::kFirstAnalyzedMidi || cell.midi > mao::kLastAnalyzedMidi)
+			return;
+		const std::size_t index = static_cast<std::size_t>(cell.midi - mao::kFirstAnalyzedMidi);
+		levels[index] = std::max(levels[index], visual ? note_cell_visual_level(cell) : cell.level);
+	};
+	for (const mao::NoteCell &cell : grid.cells)
+		add_cell(cell);
+	for (const auto &row : grid.rows) {
+		for (const mao::NoteCell &cell : row)
+			add_cell(cell);
+	}
+
+	std::string text;
+	for (int midi = mao::kFirstAnalyzedMidi; midi <= mao::kLastAnalyzedMidi; ++midi) {
+		const float level = levels[static_cast<std::size_t>(midi - mao::kFirstAnalyzedMidi)];
+		if (level <= 0.0f)
+			continue;
+		char part[32] = {};
+		std::snprintf(part, sizeof(part), "%s%s%d:%.2f", text.empty() ? "" : ",",
+			      mao_test::note_name(midi), midi / 12 - 1, level);
+		text += part;
+	}
+	return text.empty() ? "--" : text;
+}
+
 bool has_chord_label(const char *actual, const std::string &expected)
 {
 	if (!actual)
@@ -1233,7 +1267,8 @@ void print_musicnet_attribute_header(std::ostream &out)
 	out << "recording\tcenter_sample\texpected_pcs\tdetected_pcs\tmissing_pcs\textra_pcs\t"
 	       "expected_chords\tchord_hit\tsimple_chord_hit\tactive_notes\tdetected_by_row\t"
 	       "detected_levels\traw_chroma\tglobal_chord\tglobal_chord_confidence\tkeyboard_chord\tguitar_chord\tother_chord\t"
-	       "candidates\n";
+	       "candidates\tbass_notes\tkeys_notes\tguitar_notes\tvocal_notes\tother_notes\tamb_notes\t"
+	       "bass_visual_notes\tkeys_visual_notes\tguitar_visual_notes\tvocal_visual_notes\tother_visual_notes\tamb_visual_notes\n";
 }
 
 void append_musicnet_attribute_row(std::ostream &out, const Recording &recording,
@@ -1256,7 +1291,13 @@ void append_musicnet_attribute_row(std::ostream &out, const Recording &recording
 	    << detected_pitch_classes_by_row(snapshot) << '\t' << pitch_class_level_list(detected_levels) << '\t'
 	    << pitch_class_level_list(snapshot.global_chord_debug_chroma) << '\t' << snapshot.global_chord.label
 	    << '\t' << snapshot.global_chord.confidence << '\t' << snapshot.keyboard_chord.label << '\t' << snapshot.guitar_chord.label << '\t'
-	    << snapshot.other_chord.label << '\t' << full_mix_candidate_list(snapshot) << '\n';
+	    << snapshot.other_chord.label << '\t' << full_mix_candidate_list(snapshot) << '\t'
+	    << grid_note_list(snapshot.bass_notes) << '\t' << grid_note_list(snapshot.keyboard_notes) << '\t'
+	    << grid_note_list(snapshot.guitar_notes) << '\t' << grid_note_list(snapshot.vocal_notes) << '\t'
+	    << grid_note_list(snapshot.other_notes) << '\t' << grid_note_list(snapshot.ambiguous_notes) << '\t'
+	    << grid_note_list(snapshot.bass_notes, true) << '\t' << grid_note_list(snapshot.keyboard_notes, true) << '\t'
+	    << grid_note_list(snapshot.guitar_notes, true) << '\t' << grid_note_list(snapshot.vocal_notes, true) << '\t'
+	    << grid_note_list(snapshot.other_notes, true) << '\t' << grid_note_list(snapshot.ambiguous_notes, true) << '\n';
 }
 
 struct CompositionStats {

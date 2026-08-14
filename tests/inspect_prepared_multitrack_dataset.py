@@ -3,6 +3,7 @@ import csv
 import json
 import math
 import os
+import struct
 import sys
 import wave
 
@@ -101,7 +102,33 @@ def wav_summary(path):
                 return None
             return {"duration": frames / float(rate), "channels": channels, "sample_rate": rate}
     except (OSError, EOFError, wave.Error):
-        return None
+        pass
+    try:
+        with open(path, "rb") as audio:
+            if audio.read(4) != b"RIFF":
+                return None
+            audio.read(4)
+            if audio.read(4) != b"WAVE":
+                return None
+            channels = rate = block_align = frames = 0
+            while True:
+                chunk = audio.read(8)
+                if len(chunk) != 8:
+                    break
+                kind, size = struct.unpack("<4sI", chunk)
+                data = audio.read(size)
+                if size % 2:
+                    audio.read(1)
+                if kind == b"fmt " and len(data) >= 16:
+                    _, channels, rate, _, block_align, _ = struct.unpack("<HHIIHH", data[:16])
+                elif kind == b"data" and block_align:
+                    frames = size // block_align
+                    break
+            if rate > 0 and frames > 0 and channels > 0:
+                return {"duration": frames / float(rate), "channels": channels, "sample_rate": rate}
+    except OSError:
+        pass
+    return None
 
 
 def read_note_rows(path):

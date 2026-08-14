@@ -519,10 +519,11 @@ void draw_note_cell(VisualizerRenderer *visualizer, int x, int y, int w, int h, 
 	fill_rect(visualizer, x, y + h - 1, w, 1, stroke);
 	fill_rect(visualizer, x, y, 1, h, stroke);
 	fill_rect(visualizer, x + w - 1, y, 1, h, stroke);
-	if (!cell.label[0])
+	const char *terminator = static_cast<const char *>(std::memchr(cell.label, '\0', sizeof(cell.label)));
+	if (!cell.label[0] || !terminator)
 		return;
 
-	const int text_width = static_cast<int>(std::strlen(cell.label)) * 12;
+	const int text_width = static_cast<int>(terminator - cell.label) * 12;
 	const Color active_text = blend_color(active_color, Color{255, 255, 255, 255}, 0.20f + level * 0.18f);
 	draw_text(visualizer, x + std::max(2, (w - text_width) / 2), y + std::max(2, (h - 14) / 2),
 		  cell.label, 2, cell.active ? active_text : idle_text);
@@ -541,6 +542,12 @@ enum StableSlot : std::size_t {
 bool has_display_label(const char *label)
 {
 	return label && label[0] && std::strcmp(label, "--") != 0;
+}
+
+bool has_display_label(const NoteCell &cell)
+{
+	return cell.label[0] && std::memchr(cell.label, '\0', sizeof(cell.label)) &&
+	       std::strcmp(cell.label, "--") != 0;
 }
 
 void copy_label(char *dst, std::size_t dst_size, const char *src)
@@ -618,7 +625,7 @@ const NoteCell *strongest_note_cell(const NoteGrid &notes, float min_level)
 	for (const auto &row : notes.rows) {
 		for (const NoteCell &cell : row) {
 			const float render_level = note_cell_render_level(cell);
-			if (!cell.active || !has_display_label(cell.label) || render_level < min_level)
+			if (!cell.active || !has_display_label(cell) || render_level < min_level)
 				continue;
 			if (!best || render_level > best_level) {
 				best = &cell;

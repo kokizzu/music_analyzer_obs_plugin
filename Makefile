@@ -28,6 +28,11 @@ MUSICNET_METADATA_URL ?= https://zenodo.org/api/records/5120004/files/musicnet_m
 MUSICNET_MIDI_ARCHIVE_URL ?= https://zenodo.org/api/records/5120004/files/musicnet_midis.tar.gz/content
 DAGSTUHL_CHOIRSET_SOURCE_DIR ?= $(INSTRUMENT_SAMPLE_STORE_LINK)/dagstuhl_choirset
 DAGSTUHL_CHOIRSET_ARCHIVE ?= $(DAGSTUHL_CHOIRSET_SOURCE_DIR)/DagstuhlChoirSet.zip
+DAGSTUHL_CHOIRSET_EXTRACT_DIR ?= $(DAGSTUHL_CHOIRSET_SOURCE_DIR)/extracted
+DAGSTUHL_CHOIRSET_PREPARED_DIR ?= $(DAGSTUHL_CHOIRSET_SOURCE_DIR)/prepared-multitrack
+DAGSTUHL_CHOIRSET_MUSICNET_DIR ?= $(DAGSTUHL_CHOIRSET_SOURCE_DIR)/musicnet-fixture
+DAGSTUHL_CHOIRSET_ATTRIBUTE_OUTPUT ?= $(BUILD_DIR)/dagstuhl_choirset_attributes.tsv
+DAGSTUHL_CHOIRSET_MEASUREMENT_OUTPUT ?= $(BUILD_DIR)/dagstuhl_choirset_measurement.tsv
 DAGSTUHL_CHOIRSET_ARCHIVE_URL ?= https://zenodo.org/api/records/3897182/files/DagstuhlChoirSet.zip/content
 DAGSTUHL_CHOIRSET_ARCHIVE_MD5 ?= 6d7ccdd5e3f43e54981b0f12d19987f9
 DAGSTUHL_CHOIRSET_DOWNLOAD_CONNECTIONS ?= 8
@@ -49,6 +54,7 @@ URMP_SAX_FULL_MIX_ATTRIBUTE_TSV ?= $(BUILD_DIR)/urmp_sax_full_mix_attributes.tsv
 URMP_SAX_FULL_MIX_OUTPUT ?= $(BUILD_DIR)/urmp_sax_full_mix.out
 URMP_SAX_FULL_MIX_MIN_SAMPLES ?= $(URMP_SAX_EXACT_MIN_SAMPLES)
 DETECTION_ACCURACY_REPORT ?= docs/detection_accuracy_report.md
+DETECTION_ACCURACY_DAGSTUHL_CHOIRSET_ARG = $(if $(wildcard $(DAGSTUHL_CHOIRSET_MEASUREMENT_OUTPUT)),--dagstuhl-choirset-input "$(DAGSTUHL_CHOIRSET_MEASUREMENT_OUTPUT)")
 DETECTION_ACCURACY_PHILHARMONIA_FULL_ARG = $(if $(wildcard $(PHILHARMONIA_FULL_ATTRIBUTE_TSV)),--philharmonia-full-input "$(PHILHARMONIA_FULL_ATTRIBUTE_TSV)")
 DETECTION_ACCURACY_IOWA_ORCHESTRA_FULL_ARG = $(if $(wildcard $(IOWA_ORCHESTRA_FULL_ATTRIBUTE_TSV)),--iowa-orchestra-full-input "$(IOWA_ORCHESTRA_FULL_ATTRIBUTE_TSV)")
 DETECTION_ACCURACY_TINYSOL_WIND_EXACT_ARG = $(if $(wildcard $(TINYSOL_WIND_EXACT_ATTRIBUTE_TSV)),--tinysol-wind-exact-input "$(TINYSOL_WIND_EXACT_ATTRIBUTE_TSV)")
@@ -2866,12 +2872,12 @@ analyze-real-note-attributes: $(BUILD_DIR)/real_note_full_mix_attributes.tsv scr
 	@printf '%s\n' "attribute TSV: $(BUILD_DIR)/real_note_full_mix_attributes.tsv"
 
 update-detection-accuracy-report: $(BUILD_DIR)/real_note_full_mix_attributes.tsv scripts/write_detection_accuracy_report.py
-	$(PYTHON) scripts/write_detection_accuracy_report.py --input "$(BUILD_DIR)/real_note_full_mix_attributes.tsv" $(DETECTION_ACCURACY_CHORD_ARGS) $(DETECTION_ACCURACY_VOCAL_FULL_MIX_ARG) $(DETECTION_ACCURACY_VOCALSET_FULL_MIX_ARG) $(DETECTION_ACCURACY_VOCALSET_CLEAN_VOWEL_ARG) $(DETECTION_ACCURACY_URMP_GATE_ARG) $(DETECTION_ACCURACY_BACH10_GATE_ARGS) $(DETECTION_ACCURACY_MUSICNET_GATE_ARG) $(DETECTION_ACCURACY_MAPS_GATE_ARGS) $(DETECTION_ACCURACY_MAPS_NOTE_GATE_ARGS) $(DETECTION_ACCURACY_MAPS_ATTRIBUTE_ARG) $(DETECTION_ACCURACY_DRUM_GATE_ARG) $(DETECTION_ACCURACY_HF_DRUM_GATE_ARGS) $(DETECTION_ACCURACY_STAR_DRUMS_GATE_ARG) $(DETECTION_ACCURACY_MDB_DRUMS_GATE_ARG) $(DETECTION_ACCURACY_ROUTE_SUMMARY_ARG) $(DETECTION_ACCURACY_GOOD_SOUNDS_FULL_MIX_ARG) $(DETECTION_ACCURACY_PITCH_SHIFTED_VIOLIN_ARG) $(DETECTION_ACCURACY_MEDLEY_SOLOS_ATTRIBUTE_ARG) $(DETECTION_ACCURACY_PHILHARMONIA_FULL_ARG) $(DETECTION_ACCURACY_IOWA_ORCHESTRA_FULL_ARG) $(DETECTION_ACCURACY_TINYSOL_WIND_EXACT_ARG) $(DETECTION_ACCURACY_IOWA_SAX_FULL_MIX_ARG) $(DETECTION_ACCURACY_TINYSOL_SAX_FULL_MIX_ARG) $(DETECTION_ACCURACY_TINYSOL_FLUTE_FULL_MIX_ARG) $(DETECTION_ACCURACY_REAL_A2S_TENOR_SCALE_ARG) $(DETECTION_ACCURACY_URMP_SAX_EXACT_ARG) $(DETECTION_ACCURACY_URMP_SAX_FULL_MIX_ARG) --output "$(DETECTION_ACCURACY_REPORT)"
+	$(PYTHON) scripts/write_detection_accuracy_report.py --input "$(BUILD_DIR)/real_note_full_mix_attributes.tsv" $(DETECTION_ACCURACY_CHORD_ARGS) $(DETECTION_ACCURACY_VOCAL_FULL_MIX_ARG) $(DETECTION_ACCURACY_VOCALSET_FULL_MIX_ARG) $(DETECTION_ACCURACY_VOCALSET_CLEAN_VOWEL_ARG) $(DETECTION_ACCURACY_URMP_GATE_ARG) $(DETECTION_ACCURACY_BACH10_GATE_ARGS) $(DETECTION_ACCURACY_MUSICNET_GATE_ARG) $(DETECTION_ACCURACY_MAPS_GATE_ARGS) $(DETECTION_ACCURACY_MAPS_NOTE_GATE_ARGS) $(DETECTION_ACCURACY_MAPS_ATTRIBUTE_ARG) $(DETECTION_ACCURACY_DRUM_GATE_ARG) $(DETECTION_ACCURACY_HF_DRUM_GATE_ARGS) $(DETECTION_ACCURACY_STAR_DRUMS_GATE_ARG) $(DETECTION_ACCURACY_MDB_DRUMS_GATE_ARG) $(DETECTION_ACCURACY_ROUTE_SUMMARY_ARG) $(DETECTION_ACCURACY_GOOD_SOUNDS_FULL_MIX_ARG) $(DETECTION_ACCURACY_PITCH_SHIFTED_VIOLIN_ARG) $(DETECTION_ACCURACY_MEDLEY_SOLOS_ATTRIBUTE_ARG) $(DETECTION_ACCURACY_PHILHARMONIA_FULL_ARG) $(DETECTION_ACCURACY_IOWA_ORCHESTRA_FULL_ARG) $(DETECTION_ACCURACY_TINYSOL_WIND_EXACT_ARG) $(DETECTION_ACCURACY_IOWA_SAX_FULL_MIX_ARG) $(DETECTION_ACCURACY_TINYSOL_SAX_FULL_MIX_ARG) $(DETECTION_ACCURACY_TINYSOL_FLUTE_FULL_MIX_ARG) $(DETECTION_ACCURACY_REAL_A2S_TENOR_SCALE_ARG) $(DETECTION_ACCURACY_URMP_SAX_EXACT_ARG) $(DETECTION_ACCURACY_URMP_SAX_FULL_MIX_ARG) $(DETECTION_ACCURACY_DAGSTUHL_CHOIRSET_ARG) --output "$(DETECTION_ACCURACY_REPORT)"
 
 .PHONY: update-detection-accuracy-report-cached
 update-detection-accuracy-report-cached: scripts/write_detection_accuracy_report.py
 	@test -f "$(BUILD_DIR)/real_note_full_mix_attributes.tsv" || { printf '%s\n' "missing build/real_note_full_mix_attributes.tsv; run make update-detection-accuracy-report first"; exit 2; }
-	$(PYTHON) scripts/write_detection_accuracy_report.py --input "$(BUILD_DIR)/real_note_full_mix_attributes.tsv" $(DETECTION_ACCURACY_CHORD_ARGS) $(DETECTION_ACCURACY_VOCAL_FULL_MIX_ARG) $(DETECTION_ACCURACY_VOCALSET_FULL_MIX_ARG) $(DETECTION_ACCURACY_VOCALSET_CLEAN_VOWEL_ARG) $(DETECTION_ACCURACY_URMP_GATE_ARG) $(DETECTION_ACCURACY_BACH10_GATE_ARGS) $(DETECTION_ACCURACY_MUSICNET_GATE_ARG) $(DETECTION_ACCURACY_MAPS_GATE_ARGS) $(DETECTION_ACCURACY_MAPS_NOTE_GATE_ARGS) $(DETECTION_ACCURACY_MAPS_ATTRIBUTE_ARG) $(DETECTION_ACCURACY_DRUM_GATE_ARG) $(DETECTION_ACCURACY_HF_DRUM_GATE_ARGS) $(DETECTION_ACCURACY_STAR_DRUMS_GATE_ARG) $(DETECTION_ACCURACY_MDB_DRUMS_GATE_ARG) $(DETECTION_ACCURACY_ROUTE_SUMMARY_ARG) $(DETECTION_ACCURACY_GOOD_SOUNDS_FULL_MIX_ARG) $(DETECTION_ACCURACY_PITCH_SHIFTED_VIOLIN_ARG) $(DETECTION_ACCURACY_MEDLEY_SOLOS_ATTRIBUTE_ARG) $(DETECTION_ACCURACY_PHILHARMONIA_FULL_ARG) $(DETECTION_ACCURACY_IOWA_ORCHESTRA_FULL_ARG) $(DETECTION_ACCURACY_TINYSOL_WIND_EXACT_ARG) $(DETECTION_ACCURACY_IOWA_SAX_FULL_MIX_ARG) $(DETECTION_ACCURACY_TINYSOL_SAX_FULL_MIX_ARG) $(DETECTION_ACCURACY_TINYSOL_FLUTE_FULL_MIX_ARG) $(DETECTION_ACCURACY_REAL_A2S_TENOR_SCALE_ARG) $(DETECTION_ACCURACY_URMP_SAX_EXACT_ARG) $(DETECTION_ACCURACY_URMP_SAX_FULL_MIX_ARG) --output "$(DETECTION_ACCURACY_REPORT)"
+	$(PYTHON) scripts/write_detection_accuracy_report.py --input "$(BUILD_DIR)/real_note_full_mix_attributes.tsv" $(DETECTION_ACCURACY_CHORD_ARGS) $(DETECTION_ACCURACY_VOCAL_FULL_MIX_ARG) $(DETECTION_ACCURACY_VOCALSET_FULL_MIX_ARG) $(DETECTION_ACCURACY_VOCALSET_CLEAN_VOWEL_ARG) $(DETECTION_ACCURACY_URMP_GATE_ARG) $(DETECTION_ACCURACY_BACH10_GATE_ARGS) $(DETECTION_ACCURACY_MUSICNET_GATE_ARG) $(DETECTION_ACCURACY_MAPS_GATE_ARGS) $(DETECTION_ACCURACY_MAPS_NOTE_GATE_ARGS) $(DETECTION_ACCURACY_MAPS_ATTRIBUTE_ARG) $(DETECTION_ACCURACY_DRUM_GATE_ARG) $(DETECTION_ACCURACY_HF_DRUM_GATE_ARGS) $(DETECTION_ACCURACY_STAR_DRUMS_GATE_ARG) $(DETECTION_ACCURACY_MDB_DRUMS_GATE_ARG) $(DETECTION_ACCURACY_ROUTE_SUMMARY_ARG) $(DETECTION_ACCURACY_GOOD_SOUNDS_FULL_MIX_ARG) $(DETECTION_ACCURACY_PITCH_SHIFTED_VIOLIN_ARG) $(DETECTION_ACCURACY_MEDLEY_SOLOS_ATTRIBUTE_ARG) $(DETECTION_ACCURACY_PHILHARMONIA_FULL_ARG) $(DETECTION_ACCURACY_IOWA_ORCHESTRA_FULL_ARG) $(DETECTION_ACCURACY_TINYSOL_WIND_EXACT_ARG) $(DETECTION_ACCURACY_IOWA_SAX_FULL_MIX_ARG) $(DETECTION_ACCURACY_TINYSOL_SAX_FULL_MIX_ARG) $(DETECTION_ACCURACY_TINYSOL_FLUTE_FULL_MIX_ARG) $(DETECTION_ACCURACY_REAL_A2S_TENOR_SCALE_ARG) $(DETECTION_ACCURACY_URMP_SAX_EXACT_ARG) $(DETECTION_ACCURACY_URMP_SAX_FULL_MIX_ARG) $(DETECTION_ACCURACY_DAGSTUHL_CHOIRSET_ARG) --output "$(DETECTION_ACCURACY_REPORT)"
 
 test-detection-accuracy-report: tests/test_write_detection_accuracy_report.py scripts/write_detection_accuracy_report.py
 	$(PYTHON) tests/test_write_detection_accuracy_report.py
@@ -4144,17 +4150,45 @@ test-vocadito-samples-full-mix-shard-%: FORCE $(BUILD_DIR)/analyzer_real_note_sa
 download-vocalset-samples: scripts/run_with_lock.sh
 	+$(SHELL) scripts/run_with_lock.sh "$(VOCALSET_DOWNLOAD_LOCK_DIR)" -- "$(MAKE)" vocalset-download-samples-unlocked
 
-.PHONY: download-dagstuhl-choirset validate-dagstuhl-choirset-archive test-dagstuhl-choirset-archive
+.PHONY: download-dagstuhl-choirset validate-dagstuhl-choirset-archive extract-dagstuhl-choirset prepare-dagstuhl-choirset inspect-dagstuhl-choirset measure-dagstuhl-choirset test-dagstuhl-choirset-20 inspect-dagstuhl-choirset-archive test-dagstuhl-choirset-archive test-extract-dagstuhl-choirset test-prepare-dagstuhl-choirset test-summarize-dagstuhl-choirset
 
-download-dagstuhl-choirset: configure-instrument-sample-store $(DAGSTUHL_CHOIRSET_ARCHIVE)
+download-dagstuhl-choirset: configure-instrument-sample-store $(DAGSTUHL_CHOIRSET_ARCHIVE) validate-dagstuhl-choirset-archive
 
 validate-dagstuhl-choirset-archive: $(DAGSTUHL_CHOIRSET_ARCHIVE) scripts/validate_dagstuhl_choirset.py
 	$(PYTHON) scripts/validate_dagstuhl_choirset.py --archive "$(DAGSTUHL_CHOIRSET_ARCHIVE)" --expected-md5 "$(DAGSTUHL_CHOIRSET_ARCHIVE_MD5)"
 
+extract-dagstuhl-choirset: validate-dagstuhl-choirset-archive scripts/extract_dagstuhl_choirset.py
+	$(PYTHON) scripts/extract_dagstuhl_choirset.py --archive "$(DAGSTUHL_CHOIRSET_ARCHIVE)" --output "$(DAGSTUHL_CHOIRSET_EXTRACT_DIR)"
+
+prepare-dagstuhl-choirset: extract-dagstuhl-choirset scripts/prepare_dagstuhl_choirset_manifest.py
+	$(PYTHON) scripts/prepare_dagstuhl_choirset_manifest.py --root "$(DAGSTUHL_CHOIRSET_EXTRACT_DIR)/DagstuhlChoirSet" --output "$(DAGSTUHL_CHOIRSET_PREPARED_DIR)"
+
+inspect-dagstuhl-choirset: prepare-dagstuhl-choirset
+	MUSIC_ANALYZER_PREPARED_MULTITRACK_ROOT="$(DAGSTUHL_CHOIRSET_PREPARED_DIR)" $(MAKE) -s inspect-real-prepared-multitrack
+
+measure-dagstuhl-choirset: $(BUILD_DIR)/analyzer_musicnet prepare-dagstuhl-choirset tests/prepare_prepared_multitrack_musicnet_fixture.py scripts/summarize_dagstuhl_choirset_measurement.py | $(BUILD_DIR)
+	MUSIC_ANALYZER_PREPARED_MULTITRACK_ROOT="$(DAGSTUHL_CHOIRSET_PREPARED_DIR)" MUSIC_ANALYZER_PREPARED_MULTITRACK_REQUIRED_PIECES=20 MUSIC_ANALYZER_PREPARED_MULTITRACK_PREPARE_PIECES=20 $(PYTHON) tests/prepare_prepared_multitrack_musicnet_fixture.py "$(DAGSTUHL_CHOIRSET_MUSICNET_DIR)"
+	MUSIC_ANALYZER_MUSICNET_ROOT="$(DAGSTUHL_CHOIRSET_MUSICNET_DIR)" MUSIC_ANALYZER_MUSICNET_REQUIRED=1 MUSIC_ANALYZER_MUSICNET_MIN_RECALL_PERCENT=0 MUSIC_ANALYZER_MUSICNET_MIN_PRECISION_PERCENT=0 MUSIC_ANALYZER_MUSICNET_MIN_CHORD_RECALL_PERCENT=0 MUSIC_ANALYZER_MUSICNET_MIN_GLOBAL_CHORD_PRECISION_PERCENT=0 MUSIC_ANALYZER_MUSICNET_ATTRIBUTE_TSV="$(DAGSTUHL_CHOIRSET_ATTRIBUTE_OUTPUT)" $(BUILD_DIR)/analyzer_musicnet
+	$(PYTHON) scripts/summarize_dagstuhl_choirset_measurement.py --attributes "$(DAGSTUHL_CHOIRSET_ATTRIBUTE_OUTPUT)" --manifest "$(DAGSTUHL_CHOIRSET_PREPARED_DIR)/manifest.json" --output "$(DAGSTUHL_CHOIRSET_MEASUREMENT_OUTPUT)"
+
+test-dagstuhl-choirset-20: measure-dagstuhl-choirset
+
+inspect-dagstuhl-choirset-archive: validate-dagstuhl-choirset-archive scripts/inspect_dagstuhl_choirset_archive.py
+	$(PYTHON) scripts/inspect_dagstuhl_choirset_archive.py --archive "$(DAGSTUHL_CHOIRSET_ARCHIVE)"
+
 test-dagstuhl-choirset-archive: tests/test_validate_dagstuhl_choirset.py scripts/validate_dagstuhl_choirset.py
 	$(PYTHON) tests/test_validate_dagstuhl_choirset.py
 
-$(DAGSTUHL_CHOIRSET_ARCHIVE): FORCE scripts/validate_dagstuhl_choirset.py
+test-extract-dagstuhl-choirset: tests/test_extract_dagstuhl_choirset.py scripts/extract_dagstuhl_choirset.py scripts/validate_dagstuhl_choirset.py
+	$(PYTHON) tests/test_extract_dagstuhl_choirset.py
+
+test-prepare-dagstuhl-choirset: tests/test_prepare_dagstuhl_choirset_manifest.py scripts/prepare_dagstuhl_choirset_manifest.py
+	$(PYTHON) tests/test_prepare_dagstuhl_choirset_manifest.py
+
+test-summarize-dagstuhl-choirset: tests/test_summarize_dagstuhl_choirset_measurement.py scripts/summarize_dagstuhl_choirset_measurement.py
+	$(PYTHON) tests/test_summarize_dagstuhl_choirset_measurement.py
+
+$(DAGSTUHL_CHOIRSET_ARCHIVE): scripts/validate_dagstuhl_choirset.py
 	mkdir -p "$(DAGSTUHL_CHOIRSET_SOURCE_DIR)"
 	if [ -s "$@" ] && ! $(PYTHON) scripts/validate_dagstuhl_choirset.py --archive "$@" --expected-md5 "$(DAGSTUHL_CHOIRSET_ARCHIVE_MD5)" >/dev/null 2>&1; then mv -f "$@" "$@.part"; fi
 	if [ ! -s "$@" ]; then if command -v "$(ARIA2C)" >/dev/null 2>&1; then "$(ARIA2C)" --continue=true --allow-overwrite=true --auto-file-renaming=false --max-tries=5 --retry-wait=5 --max-connection-per-server="$(DAGSTUHL_CHOIRSET_DOWNLOAD_CONNECTIONS)" --split="$(DAGSTUHL_CHOIRSET_DOWNLOAD_CONNECTIONS)" --min-split-size=8M --file-allocation=none --dir "$(DAGSTUHL_CHOIRSET_SOURCE_DIR)" --out "DagstuhlChoirSet.zip.part" "$(DAGSTUHL_CHOIRSET_ARCHIVE_URL)"; else $(CURL) -fL --continue-at - --output "$@.part" "$(DAGSTUHL_CHOIRSET_ARCHIVE_URL)"; fi; fi

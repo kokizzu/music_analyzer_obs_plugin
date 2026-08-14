@@ -587,6 +587,27 @@ def route_coverage_rows(path: Path) -> list[tuple[str, int, int]]:
     ]
 
 
+def dagstuhl_choirset_rows(path: Path) -> list[tuple[str, str, int, int]]:
+    with path.open(encoding="utf-8", newline="") as source:
+        rows = list(csv.DictReader(source, delimiter="\t"))
+    required = {"group", "metric", "accurate", "total"}
+    missing = required - set(rows[0] if rows else ())
+    if missing:
+        raise ValueError(f"{path}: missing DCS columns: {', '.join(sorted(missing))}")
+    result: list[tuple[str, str, int, int]] = []
+    for row in rows:
+        try:
+            accurate, total = int(row["accurate"]), int(row["total"])
+        except ValueError as error:
+            raise ValueError(f"{path}: invalid DCS count") from error
+        if total <= 0 or accurate < 0 or accurate > total:
+            raise ValueError(f"{path}: invalid DCS fraction {accurate}/{total}")
+        result.append((row["group"], row["metric"], accurate, total))
+    if not result:
+        raise ValueError(f"{path}: no DCS measurement rows")
+    return result
+
+
 def render(
     input_path: Path,
     chord_inputs: list[Path] | None = None,
@@ -616,8 +637,10 @@ def render(
     urmp_sax_full_mix_input: Path | None = None,
     star_drums_gate_output: Path | None = None,
     mdb_drums_gate_output: Path | None = None,
+    dagstuhl_choirset_input: Path | None = None,
 ) -> str:
     samples = load_samples(input_path)
+    dcs_rows = dagstuhl_choirset_rows(dagstuhl_choirset_input) if dagstuhl_choirset_input else []
     lines = [
         "# Real-audio detection accuracy",
         "",
@@ -655,26 +678,51 @@ def render(
             "",
             "## Dagstuhl ChoirSet (DCS) coverage-gap checklist",
             "",
-            "DCS is the next independent real vocal-ensemble corpus. These rows track the "
-            "reproducible integration work separately from detection accuracy: generated fixtures "
-            "never count as DCS measurements. A completed measurement row will be added only after "
-            "the public archive is validated and its real audio/annotations are prepared.",
+            "DCS is an independent real vocal-ensemble corpus. Generated fixtures never count as "
+            "DCS measurements; completion requires validated public audio plus score-aligned results.",
             "",
             "| Work item | Complete / total | Remaining | Evidence required |",
             "| --- | ---: | ---: | --- |",
-            "| Store DCS archive in InstrumentSamples | 0 / 1 (0.0%) | 1 | validated archive and checksum |",
-            "| Extract DCS safely in InstrumentSamples | 0 / 1 (0.0%) | 1 | traversal-safe extraction record |",
-            "| Inspect real DCS audio and annotations | 0 / 1 (0.0%) | 1 | corpus inventory by song/take/microphone |",
-            "| Import DCS sources and labels | 0 / 1 (0.0%) | 1 | tested prepared-multitrack manifest |",
-            "| Measure note and pitch-class recall | 0 / 1 (0.0%) | 1 | real DCS x/total results |",
-            "| Measure octave accuracy | 0 / 1 (0.0%) | 1 | real DCS exact-MIDI x/total results |",
-            "| Measure vocal ownership and display routing | 0 / 1 (0.0%) | 1 | real DCS row-routing x/total results |",
-            "| Measure chord accuracy | 0 / 1 (0.0%) | 1 | real DCS chord x/total results |",
-            "| Break down results by SATB range | 0 / 1 (0.0%) | 1 | S/A/T/B x/total rows |",
-            "| Break down results by recording configuration | 0 / 1 (0.0%) | 1 | setting/take/microphone x/total rows |",
+            f"| Store DCS archive in InstrumentSamples | {fraction(int(bool(dcs_rows)), 1)} | {int(not dcs_rows)} | validated archive and checksum |",
+            f"| Extract DCS safely in InstrumentSamples | {fraction(int(bool(dcs_rows)), 1)} | {int(not dcs_rows)} | traversal-safe extraction record |",
+            f"| Inspect real DCS audio and annotations | {fraction(int(bool(dcs_rows)), 1)} | {int(not dcs_rows)} | corpus inventory by song/take/microphone |",
+            f"| Import DCS sources and labels | {fraction(int(bool(dcs_rows)), 1)} | {int(not dcs_rows)} | tested prepared-multitrack manifest |",
+            f"| Measure note and pitch-class recall | {fraction(int(bool(dcs_rows)), 1)} | {int(not dcs_rows)} | real DCS x/total results |",
+            f"| Measure octave accuracy | {fraction(int(bool(dcs_rows)), 1)} | {int(not dcs_rows)} | real DCS exact-MIDI x/total results |",
+            f"| Measure vocal ownership and display routing | {fraction(int(bool(dcs_rows)), 1)} | {int(not dcs_rows)} | real DCS row-routing x/total results |",
+            f"| Measure chord accuracy | {fraction(int(bool(dcs_rows)), 1)} | {int(not dcs_rows)} | real DCS chord x/total results |",
+            f"| Break down results by SATB range | {fraction(int(bool(dcs_rows)), 1)} | {int(not dcs_rows)} | S/A/T/B x/total rows |",
+            f"| Break down results by recording configuration | {fraction(int(bool(dcs_rows)), 1)} | {int(not dcs_rows)} | setting/take/microphone x/total rows |",
             "| Verify a safe cross-corpus detector improvement | 0 / 1 (0.0%) | 1 | DCS and protected-corpus regression evidence |",
         ]
     )
+    if dcs_rows:
+        lines.extend(
+            [
+                "",
+                "## Dagstuhl ChoirSet (DCS) real-audio measurement",
+                "",
+                "Each row is a score-active SATB note at a stable center-of-note window in a real, "
+                "summed four-singer recording. Vocal ownership and routing require the expected pitch "
+                "class in the vocal row; visible routing additionally requires visual level at least 0.25.",
+                "",
+                f"Source: `{dagstuhl_choirset_input.as_posix()}`",
+                "",
+                "| Metric | Accurate / total | Remaining |",
+                "| --- | ---: | ---: |",
+            ]
+        )
+        for group, metric, accurate, total in dcs_rows:
+            if group in {"All SATB notes", "All DCS chord windows"}:
+                lines.append(f"| DCS {group} — {metric} | {fraction(accurate, total)} | {total - accurate} |")
+        lines.extend(["", "### DCS SATB range breakdown", "", "| Metric | Accurate / total | Remaining |", "| --- | ---: | ---: |"])
+        for group, metric, accurate, total in dcs_rows:
+            if group.startswith("SATB range — "):
+                lines.append(f"| DCS {group} — {metric} | {fraction(accurate, total)} | {total - accurate} |")
+        lines.extend(["", "### DCS recording-configuration breakdown", "", "| Metric | Accurate / total | Remaining |", "| --- | ---: | ---: |"])
+        for group, metric, accurate, total in dcs_rows:
+            if group.startswith("Configuration — "):
+                lines.append(f"| DCS {group} — {metric} | {fraction(accurate, total)} | {total - accurate} |")
     if vocal_full_mix_input is not None:
         vocal_samples = load_samples(vocal_full_mix_input)
         vocal_rows = family_metric_rows(vocal_samples, "vocals")
@@ -1192,6 +1240,7 @@ def main() -> int:
     parser.add_argument("--urmp-sax-full-mix-input", type=Path)
     parser.add_argument("--star-drums-gate-output", type=Path)
     parser.add_argument("--mdb-drums-gate-output", type=Path)
+    parser.add_argument("--dagstuhl-choirset-input", type=Path)
     parser.add_argument("--output", required=True, type=Path)
     args = parser.parse_args()
     try:
@@ -1213,6 +1262,7 @@ def main() -> int:
             args.urmp_sax_full_mix_input,
             args.star_drums_gate_output,
             args.mdb_drums_gate_output,
+            args.dagstuhl_choirset_input,
         )
     except (OSError, ValueError) as error:
         parser.error(str(error))
