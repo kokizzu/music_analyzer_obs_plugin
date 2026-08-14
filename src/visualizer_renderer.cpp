@@ -308,6 +308,37 @@ void draw_chord_text(VisualizerRenderer *visualizer, int x, int y, const char *t
 	}
 }
 
+void compact_instrument_chord_label(char *output, std::size_t output_size, const char *label,
+				    std::size_t label_size)
+{
+	if (!output || output_size == 0)
+		return;
+	output[0] = '\0';
+	if (!label || label_size == 0)
+		return;
+
+	// The chord column is exactly six glyphs wide at scale 2.  Analyzer labels
+	// may contain an arbitrarily long chain of equivalent candidates separated
+	// by '='; show only the first candidate and never read beyond its fixed
+	// InstrumentState buffer.
+	const char *end = static_cast<const char *>(std::memchr(label, '\0', label_size));
+	if (!end)
+		return;
+	const char *component_end = std::find(label, end, '=');
+	const std::size_t component_size = static_cast<std::size_t>(component_end - label);
+	const std::size_t copied = std::min({output_size - 1, component_size, std::size_t{6}});
+	std::memcpy(output, label, copied);
+	output[copied] = '\0';
+}
+
+void draw_instrument_chord_text(VisualizerRenderer *visualizer, int x, int y, const InstrumentState &chord,
+				uint32_t scale, Color color)
+{
+	char compact_label[7] = {};
+	compact_instrument_chord_label(compact_label, sizeof(compact_label), chord.label, sizeof(chord.label));
+	draw_chord_text(visualizer, x, y, compact_label[0] ? compact_label : "--", scale, color);
+}
+
 int text_width(const char *text, uint32_t scale)
 {
 	return text ? static_cast<int>(std::strlen(text)) * static_cast<int>(scale) * 6 : 0;
@@ -808,8 +839,7 @@ int draw_instrument_rows(VisualizerRenderer *visualizer, const VisualLayout &lay
 	char current_note[8] = {};
 	const bool has_current_note = show_current_note_as_chord &&
 				      current_note_label(notes, current_note, sizeof(current_note));
-	const char *chord_label = chord && chord->label[0] ? chord->label :
-				  (has_current_note ? current_note : "--");
+	const char *chord_label = chord ? nullptr : (has_current_note ? current_note : "--");
 
 	draw_text(visualizer, layout.label_x, y + 2, name, 2, dim);
 	row_count = std::clamp<std::size_t>(row_count, 1, notes.rows.size());
@@ -819,7 +849,9 @@ int draw_instrument_rows(VisualizerRenderer *visualizer, const VisualLayout &lay
 				       cell_w - 2, cell_h, notes.rows[row][i], accent);
 		}
 	}
-	if (chord || show_current_note_as_chord)
+	if (chord)
+		draw_instrument_chord_text(visualizer, layout.chord_x, y + 2, *chord, 2, chord_text);
+	else if (show_current_note_as_chord)
 		draw_chord_text(visualizer, layout.chord_x, y + 2, chord_label, 2, chord_text);
 	draw_stable_label(visualizer, layout, y, stable_label, chord_text);
 	if (draw_note_count) {
@@ -1024,7 +1056,10 @@ int draw_piano_keyboard(VisualizerRenderer *visualizer, const VisualLayout &layo
 	const Color chord_text = kWhiteTextColor;
 	const Color count_text = kValueTextColor;
 	const Color active_text{10, 15, 22, 255};
-	const char *chord_label = chord.label[0] ? chord.label : "--";
+	char compact_chord_label[7] = {};
+	compact_instrument_chord_label(compact_chord_label, sizeof(compact_chord_label), chord.label,
+				       sizeof(chord.label));
+	const char *chord_label = compact_chord_label[0] ? compact_chord_label : "--";
 	first_row = std::clamp(first_row, 0, kTotalRowCount - 1);
 	row_count = std::clamp(row_count, 1, kTotalRowCount - first_row);
 	if (degree_root_pitch_class < 0)
@@ -1120,7 +1155,10 @@ int draw_guitar_fretboard(VisualizerRenderer *visualizer, const VisualLayout &la
 	const Color chord_text = kWhiteTextColor;
 	const Color count_text = kValueTextColor;
 	const Color active_text{10, 15, 22, 255};
-	const char *chord_label = chord.label[0] ? chord.label : "--";
+	char compact_chord_label[7] = {};
+	compact_instrument_chord_label(compact_chord_label, sizeof(compact_chord_label), chord.label,
+				       sizeof(chord.label));
+	const char *chord_label = compact_chord_label[0] ? compact_chord_label : "--";
 	if (degree_root_pitch_class < 0)
 		degree_root_pitch_class = pitch_class_from_note_label(chord_label);
 

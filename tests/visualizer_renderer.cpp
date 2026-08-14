@@ -121,6 +121,20 @@ int run_visualizer_renderer_tests()
 	expect_true(std::strcmp(drum_display_label(bass_drum), "BASS") == 0,
 		    "the kick drum display label should be shortened to BASS", &checks, &failures);
 
+	InstrumentState crowded_chord = {};
+	std::snprintf(crowded_chord.label, sizeof(crowded_chord.label), "Cmaj7=C6=Cadd9=unwanted-long-alias");
+	char compact_chord[7] = {};
+	compact_instrument_chord_label(compact_chord, sizeof(compact_chord), crowded_chord.label,
+				       sizeof(crowded_chord.label));
+	expect_true(std::strcmp(compact_chord, "Cmaj7") == 0,
+		    "instrument chord display must show only its first six-character candidate", &checks, &failures);
+	std::memset(crowded_chord.label, 'X', sizeof(crowded_chord.label));
+	compact_instrument_chord_label(compact_chord, sizeof(compact_chord), crowded_chord.label,
+				       sizeof(crowded_chord.label));
+	expect_true(compact_chord[0] == '\0',
+		    "unterminated instrument chord labels must not be rendered or read past their fixed buffer", &checks,
+		    &failures);
+
 	NoteGrid piano_grid;
 	set_note_cell(piano_grid.rows[0][0], 60, 0.90f, 0.90f);
 	set_note_cell(piano_grid.rows[0][1], 72, 0.80f, 0.80f);
