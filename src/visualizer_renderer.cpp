@@ -458,6 +458,11 @@ void draw_muted_mic_indicator(VisualizerRenderer *visualizer)
 		fill_rect(visualizer, x + 7 + i, y + 25 - i, 3, 3, slash);
 }
 
+const char *drum_display_label(const DrumState &drum)
+{
+	return std::strcmp(drum.label, "BASS DRUM") == 0 ? "BASS" : drum.label;
+}
+
 void draw_drum_chart(VisualizerRenderer *visualizer, int x, int y, int w, const DrumState &drum,
 		     const std::vector<DrumBar> &history, uint32_t label_scale = 2)
 {
@@ -475,7 +480,7 @@ void draw_drum_chart(VisualizerRenderer *visualizer, int x, int y, int w, const 
 		fill_rect(visualizer, x, y, label_bar_w, label_h, active_bg);
 	fill_rect(visualizer, x, y, w, 1, border);
 	fill_rect(visualizer, x, y + label_h - 1, w, 1, border);
-	draw_text(visualizer, x + 5, y + (label_scale == 1 ? 5 : 3), drum.label, label_scale, text);
+	draw_text(visualizer, x + 5, y + (label_scale == 1 ? 5 : 3), drum_display_label(drum), label_scale, text);
 
 	fill_rect(visualizer, x, chart_y, w, chart_h, bg);
 	fill_rect(visualizer, x, chart_y, w, 1, border);
@@ -504,11 +509,21 @@ Color octave_color_from_midi(int midi, Color fallback)
 	return kOctaveColors[octave];
 }
 
+bool note_cell_octave_label(const NoteCell &cell, char *output, std::size_t output_size)
+{
+	if (!output || output_size < 2 || !cell.active || cell.midi < kFirstAnalyzedMidi ||
+	    cell.midi > kLastAnalyzedMidi)
+		return false;
+
+	output[0] = static_cast<char>('0' + std::clamp(cell.midi / 12 - 1, 0, 9));
+	output[1] = '\0';
+	return true;
+}
+
 void draw_note_cell(VisualizerRenderer *visualizer, int x, int y, int w, int h, const NoteCell &cell, Color accent)
 {
 	const Color idle_bg{24, 30, 38, 210};
 	const Color border{58, 68, 82, 220};
-	const Color idle_text{91, 106, 124, 255};
 	const Color active_color = octave_color_from_midi(cell.midi, accent);
 	const float level = display_highlight_level(note_cell_render_level(cell));
 	const Color bg = cell.active ? blend_color(idle_bg, active_color, level * 0.42f) : idle_bg;
@@ -519,14 +534,16 @@ void draw_note_cell(VisualizerRenderer *visualizer, int x, int y, int w, int h, 
 	fill_rect(visualizer, x, y + h - 1, w, 1, stroke);
 	fill_rect(visualizer, x, y, 1, h, stroke);
 	fill_rect(visualizer, x + w - 1, y, 1, h, stroke);
-	const char *terminator = static_cast<const char *>(std::memchr(cell.label, '\0', sizeof(cell.label)));
-	if (!cell.label[0] || !terminator)
+	char octave_label[2] = {};
+	if (!note_cell_octave_label(cell, octave_label, sizeof(octave_label)))
 		return;
 
-	const int text_width = static_cast<int>(terminator - cell.label) * 12;
+	// A note cell represents a MIDI octave, not arbitrary text. Deriving the
+	// label here prevents malformed data from overflowing the cell and drawing
+	// across the summary columns.
 	const Color active_text = blend_color(active_color, Color{255, 255, 255, 255}, 0.20f + level * 0.18f);
-	draw_text(visualizer, x + std::max(2, (w - text_width) / 2), y + std::max(2, (h - 14) / 2),
-		  cell.label, 2, cell.active ? active_text : idle_text);
+	draw_text(visualizer, x + std::max(2, (w - 12) / 2), y + std::max(2, (h - 14) / 2), octave_label, 2,
+		  active_text);
 }
 
 int note_grid_active_count(const NoteGrid &notes);

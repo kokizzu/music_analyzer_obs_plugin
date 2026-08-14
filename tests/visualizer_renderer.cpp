@@ -107,6 +107,20 @@ int run_visualizer_renderer_tests()
 		    "unterminated note-cell labels must not be selected or read past their fixed buffer", &checks,
 		    &failures);
 
+	NoteCell stray_label_cell = {};
+	std::snprintf(stray_label_cell.label, sizeof(stray_label_cell.label), "SNARE");
+	stray_label_cell.midi = 71;
+	stray_label_cell.active = true;
+	char octave_label[2] = {};
+	expect_true(note_cell_octave_label(stray_label_cell, octave_label, sizeof(octave_label)) &&
+			    std::strcmp(octave_label, "4") == 0,
+		    "note cells should render their MIDI octave instead of stray text", &checks, &failures);
+
+	DrumState bass_drum = {};
+	std::snprintf(bass_drum.label, sizeof(bass_drum.label), "BASS DRUM");
+	expect_true(std::strcmp(drum_display_label(bass_drum), "BASS") == 0,
+		    "the kick drum display label should be shortened to BASS", &checks, &failures);
+
 	NoteGrid piano_grid;
 	set_note_cell(piano_grid.rows[0][0], 60, 0.90f, 0.90f);
 	set_note_cell(piano_grid.rows[0][1], 72, 0.80f, 0.80f);
