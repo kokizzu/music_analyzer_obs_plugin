@@ -4163,7 +4163,7 @@ test-vocadito-samples-full-mix-shard-%: FORCE $(BUILD_DIR)/analyzer_real_note_sa
 download-vocalset-samples: scripts/run_with_lock.sh
 	+$(SHELL) scripts/run_with_lock.sh "$(VOCALSET_DOWNLOAD_LOCK_DIR)" -- "$(MAKE)" vocalset-download-samples-unlocked
 
-.PHONY: download-dagstuhl-choirset validate-dagstuhl-choirset-archive extract-dagstuhl-choirset prepare-dagstuhl-choirset inspect-dagstuhl-choirset measure-dagstuhl-choirset export-dagstuhl-choirset-pattern-rows inspect-dagstuhl-cross-corpus-ownership find-dagstuhl-shared-vocal-ownership-patterns find-dagstuhl-choirset-ownership-patterns inspect-dagstuhl-vocal-evidence test-dagstuhl-choirset-20 inspect-dagstuhl-choirset-archive test-dagstuhl-choirset-archive test-extract-dagstuhl-choirset test-prepare-dagstuhl-choirset test-summarize-dagstuhl-choirset test-export-dagstuhl-choirset-pattern-rows test-inspect-vocal-ownership-cross-corpus test-inspect-dagstuhl-vocal-evidence download-choral-singing-dataset download-choral-singing-dataset-unlocked validate-choral-singing-dataset-archive test-validate-choral-singing-dataset
+.PHONY: download-dagstuhl-choirset validate-dagstuhl-choirset-archive extract-dagstuhl-choirset prepare-dagstuhl-choirset inspect-dagstuhl-choirset measure-dagstuhl-choirset export-dagstuhl-choirset-pattern-rows inspect-dagstuhl-cross-corpus-ownership find-dagstuhl-shared-vocal-ownership-patterns find-dagstuhl-choirset-ownership-patterns inspect-dagstuhl-vocal-evidence test-dagstuhl-choirset-20 inspect-dagstuhl-choirset-archive test-dagstuhl-choirset-archive test-extract-dagstuhl-choirset test-prepare-dagstuhl-choirset test-summarize-dagstuhl-choirset test-export-dagstuhl-choirset-pattern-rows test-inspect-vocal-ownership-cross-corpus test-inspect-dagstuhl-vocal-evidence download-choral-singing-dataset download-choral-singing-dataset-unlocked validate-choral-singing-dataset-archive inspect-choral-singing-dataset-archive test-validate-choral-singing-dataset test-inspect-choral-singing-dataset-archive
 
 download-dagstuhl-choirset: configure-instrument-sample-store $(DAGSTUHL_CHOIRSET_ARCHIVE) validate-dagstuhl-choirset-archive
 
@@ -4174,6 +4174,9 @@ download-choral-singing-dataset-unlocked: configure-instrument-sample-store $(CH
 
 validate-choral-singing-dataset-archive: $(CHORAL_SINGING_DATASET_ARCHIVE) scripts/validate_choral_singing_dataset.py
 	$(PYTHON) scripts/validate_choral_singing_dataset.py --archive "$(CHORAL_SINGING_DATASET_ARCHIVE)" --expected-md5 "$(CHORAL_SINGING_DATASET_ARCHIVE_MD5)"
+
+inspect-choral-singing-dataset-archive: validate-choral-singing-dataset-archive scripts/inspect_choral_singing_dataset_archive.py
+	$(PYTHON) scripts/inspect_choral_singing_dataset_archive.py --archive "$(CHORAL_SINGING_DATASET_ARCHIVE)"
 
 validate-dagstuhl-choirset-archive: $(DAGSTUHL_CHOIRSET_ARCHIVE) scripts/validate_dagstuhl_choirset.py
 	$(PYTHON) scripts/validate_dagstuhl_choirset.py --archive "$(DAGSTUHL_CHOIRSET_ARCHIVE)" --expected-md5 "$(DAGSTUHL_CHOIRSET_ARCHIVE_MD5)"
@@ -4227,6 +4230,9 @@ test-dagstuhl-choirset-archive: tests/test_validate_dagstuhl_choirset.py scripts
 
 test-validate-choral-singing-dataset: tests/test_validate_choral_singing_dataset.py scripts/validate_choral_singing_dataset.py
 	$(PYTHON) tests/test_validate_choral_singing_dataset.py
+
+test-inspect-choral-singing-dataset-archive: tests/test_inspect_choral_singing_dataset_archive.py scripts/inspect_choral_singing_dataset_archive.py
+	$(PYTHON) tests/test_inspect_choral_singing_dataset_archive.py
 
 test-extract-dagstuhl-choirset: tests/test_extract_dagstuhl_choirset.py scripts/extract_dagstuhl_choirset.py scripts/validate_dagstuhl_choirset.py
 	$(PYTHON) tests/test_extract_dagstuhl_choirset.py
