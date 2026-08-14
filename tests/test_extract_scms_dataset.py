@@ -30,7 +30,17 @@ def main() -> int:
         (stale / "partial.wav").write_text("partial", encoding="utf-8")
         assert extractor.discard_stale_staging(root / "retry") == 1
         assert not stale.exists()
-    print("test_extract_scms_dataset: 5 checks passed")
+
+        unsafe_archive = root / "unsafe.zip"
+        with zipfile.ZipFile(unsafe_archive, "w") as packed:
+            packed.writestr("../outside.wav", b"unsafe")
+        try:
+            extractor.extract(unsafe_archive, root / "unsafe-extracted")
+        except ValueError as error:
+            assert "unsafe archive member" in str(error)
+        else:
+            raise AssertionError("unsafe ZIP member should be rejected")
+    print("test_extract_scms_dataset: 7 checks passed")
     return 0
 
 
