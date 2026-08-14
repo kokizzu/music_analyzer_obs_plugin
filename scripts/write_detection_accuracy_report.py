@@ -920,8 +920,8 @@ def render(
                 "",
                 "## Medley Solos instrument routing",
                 "",
-                "This independent corpus contains three-second isolated performances from eight "
-                "instruments. It is measured in full-mix mode; a sample is accurate when any "
+                "This independent corpus contains 300 three-second isolated performances from each "
+                "of eight instruments. It is measured in full-mix mode; a sample is accurate when any "
                 "analyzed buffer activates its expected instrument row. It supplies routing coverage, "
                 "not pitch or chord ground truth.",
                 "",

@@ -618,7 +618,7 @@ MEDLEY_SOLOS_ARCHIVE ?= $(MEDLEY_SOLOS_SOURCE_DIR)/Medley-solos-DB.tar.gz
 MEDLEY_SOLOS_METADATA ?= $(MEDLEY_SOLOS_SOURCE_DIR)/Medley-solos-DB_metadata.csv
 MEDLEY_SOLOS_SAMPLE_DIR ?= $(BUILD_DIR)/medley_solos_samples
 MEDLEY_SOLOS_ATTRIBUTE_TSV ?= $(BUILD_DIR)/medley_solos_attributes.tsv
-MEDLEY_SOLOS_LIMIT_PER_INSTRUMENT ?= 120
+MEDLEY_SOLOS_LIMIT_PER_INSTRUMENT ?= 300
 MEDLEY_SOLOS_MIN_SAMPLES ?= 600
 MEDLEY_SOLOS_MIN_COUNTS ?= guitar=100,piano=100,vocals=100,other=300
 MEDLEY_SOLOS_MIN_RECALL_PERCENT ?= 20
@@ -3645,8 +3645,9 @@ inspect-good-sounds-archive-coverage: scripts/inspect_good_sounds_archive_covera
 	@test -s "$(GOOD_SOUNDS_ARCHIVE)" || { printf '%s\n' "missing $(GOOD_SOUNDS_ARCHIVE)"; exit 2; }
 	$(PYTHON) scripts/inspect_good_sounds_archive_coverage.py "$(GOOD_SOUNDS_ARCHIVE)" $(GOOD_SOUNDS_ARCHIVE_COVERAGE_ARGS)
 
-$(GOOD_SOUNDS_ARCHIVE): | $(BUILD_DIR)
+$(GOOD_SOUNDS_ARCHIVE): FORCE | $(BUILD_DIR)
 	mkdir -p "$(GOOD_SOUNDS_SOURCE_DIR)"
+	if [ -s "$(GOOD_SOUNDS_ARCHIVE)" ] && ! $(PYTHON) -m zipfile -t "$(GOOD_SOUNDS_ARCHIVE)" >/dev/null 2>&1; then mv -f "$(GOOD_SOUNDS_ARCHIVE)" "$(GOOD_SOUNDS_ARCHIVE).part"; fi
 	if [ ! -s "$(GOOD_SOUNDS_ARCHIVE)" ] && [ -s "$(GOOD_SOUNDS_ARCHIVE).part" ] && $(PYTHON) -m zipfile -t "$(GOOD_SOUNDS_ARCHIVE).part" >/dev/null 2>&1; then mv "$(GOOD_SOUNDS_ARCHIVE).part" "$(GOOD_SOUNDS_ARCHIVE)"; fi
 	if [ ! -s "$(GOOD_SOUNDS_ARCHIVE)" ]; then if command -v "$(ARIA2C)" >/dev/null 2>&1; then "$(ARIA2C)" -c -x "$(GOOD_SOUNDS_DOWNLOAD_CONNECTIONS)" -s "$(GOOD_SOUNDS_DOWNLOAD_CONNECTIONS)" -k 1M --file-allocation=none --allow-overwrite=true --auto-file-renaming=false --dir "$(GOOD_SOUNDS_SOURCE_DIR)" --out "good-sounds.zip.part" "$(GOOD_SOUNDS_URL)"; else curl -fL -C - -o "$(GOOD_SOUNDS_ARCHIVE).part" "$(GOOD_SOUNDS_URL)"; fi; fi
 	if [ -s "$(GOOD_SOUNDS_ARCHIVE).part" ]; then $(PYTHON) -m zipfile -t "$(GOOD_SOUNDS_ARCHIVE).part" >/dev/null; mv "$(GOOD_SOUNDS_ARCHIVE).part" "$(GOOD_SOUNDS_ARCHIVE)"; fi

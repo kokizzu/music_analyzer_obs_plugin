@@ -324,7 +324,7 @@ def main():
     parser.add_argument("--output", default=os.environ.get("MEDLEY_SOLOS_SAMPLE_DIR",
                                                           "build/medley_solos_samples"))
     parser.add_argument("--limit-per-instrument", type=int,
-                        default=int(os.environ.get("MEDLEY_SOLOS_LIMIT_PER_INSTRUMENT", "120")))
+                        default=int(os.environ.get("MEDLEY_SOLOS_LIMIT_PER_INSTRUMENT", "300")))
     parser.add_argument("--min-samples", type=int,
                         default=int(os.environ.get("MEDLEY_SOLOS_MIN_SAMPLES", "600")))
     parser.add_argument("--min-counts", default=os.environ.get(
