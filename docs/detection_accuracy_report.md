@@ -229,7 +229,7 @@ ESMUC adds independently labelled, synchronised SATB choir recordings with full 
 | Store validated ESMUC archive in InstrumentSamples | 1 / 1 (100.0%) | 0 | official archive checksum |
 | Extract ESMUC safely in InstrumentSamples | 1 / 1 (100.0%) | 0 | traversal-safe extraction marker |
 | Inventory ESMUC stems and corrected labels | 1 / 1 (100.0%) | 0 | 495 WAV, 276 note labels, 300 F0 files; FT/IS/SE configurations |
-| Import ESMUC sources and labels | 0 / 1 (0.0%) | 1 | tested prepared-multitrack manifest |
+| Import ESMUC sources and labels | 1 / 1 (100.0%) | 0 | tested prepared-multitrack manifest (19 complete SATB recordings) |
 | Measure ESMUC note, octave, and pitch-class recall | 0 / 1 (0.0%) | 1 | real ESMUC x/total results |
 | Measure ESMUC vocal ownership and current-note routing | 0 / 1 (0.0%) | 1 | real ESMUC routing x/total results |
 | Measure ESMUC chord accuracy | 0 / 1 (0.0%) | 1 | real ESMUC chord x/total results |
