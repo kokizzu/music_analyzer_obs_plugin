@@ -79,7 +79,7 @@ CSD is the next independent labelled SATB corpus. It contains isolated singers a
 | Measure CSD note, octave, and pitch-class recall | 1 / 1 (100.0%) | 0 | real CSD x/total results |
 | Measure CSD vocal ownership and current-note routing | 1 / 1 (100.0%) | 0 | real CSD routing x/total results |
 | Measure CSD chord accuracy | 1 / 1 (100.0%) | 0 | real CSD chord x/total results |
-| Recheck any candidate across DCS, CSD, and cached vocal corpora | 0 / 1 (0.0%) | 1 | no protected-row regressions |
+| Recheck any candidate across DCS, CSD, and cached vocal corpora | 0 / 1 (0.0%) | 1 | latest scan rejects DCS/CSD-only key rules: no cached-corpus support without regressions |
 
 ## Choral Singing Dataset (CSD) real-audio measurement
 

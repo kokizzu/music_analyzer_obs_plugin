@@ -47,6 +47,9 @@ CHORAL_SINGING_DATASET_PREPARED_DIR ?= $(CHORAL_SINGING_DATASET_SOURCE_DIR)/prep
 CHORAL_SINGING_DATASET_MUSICNET_DIR ?= $(CHORAL_SINGING_DATASET_SOURCE_DIR)/musicnet-fixture
 CHORAL_SINGING_DATASET_ATTRIBUTE_OUTPUT ?= $(BUILD_DIR)/choral_singing_dataset_attributes.tsv
 CHORAL_SINGING_DATASET_MEASUREMENT_OUTPUT ?= $(BUILD_DIR)/choral_singing_dataset_measurement.tsv
+CHORAL_SINGING_DATASET_PATTERN_OUTPUT ?= $(BUILD_DIR)/choral_singing_dataset_pattern_rows.tsv
+CHORAL_SINGING_DATASET_CROSS_CORPUS_OWNERSHIP_OUTPUT ?= $(BUILD_DIR)/choral_singing_dataset_cross_corpus_ownership.tsv
+CHORAL_SINGING_DATASET_SHARED_OWNERSHIP_PATTERN_REPORT ?= $(BUILD_DIR)/choral_singing_dataset_shared_ownership_pattern_report.txt
 CHORAL_SINGING_DATASET_INSPECTION_OUTPUT ?= $(BUILD_DIR)/choral_singing_dataset_inventory.txt
 CHORAL_SINGING_DATASET_ARCHIVE_URL ?= https://zenodo.org/records/2649950/files/ChoralSingingDataset.zip?download=1
 CHORAL_SINGING_DATASET_ARCHIVE_MD5 ?= 7a9643609a1c3902b5255d78dbba3303
@@ -4174,7 +4177,7 @@ test-vocadito-samples-full-mix-shard-%: FORCE $(BUILD_DIR)/analyzer_real_note_sa
 download-vocalset-samples: scripts/run_with_lock.sh
 	+$(SHELL) scripts/run_with_lock.sh "$(VOCALSET_DOWNLOAD_LOCK_DIR)" -- "$(MAKE)" vocalset-download-samples-unlocked
 
-.PHONY: download-dagstuhl-choirset validate-dagstuhl-choirset-archive extract-dagstuhl-choirset prepare-dagstuhl-choirset inspect-dagstuhl-choirset measure-dagstuhl-choirset export-dagstuhl-choirset-pattern-rows inspect-dagstuhl-cross-corpus-ownership find-dagstuhl-shared-vocal-ownership-patterns find-dagstuhl-choirset-ownership-patterns inspect-dagstuhl-vocal-evidence test-dagstuhl-choirset-20 inspect-dagstuhl-choirset-archive test-dagstuhl-choirset-archive test-extract-dagstuhl-choirset test-prepare-dagstuhl-choirset test-summarize-dagstuhl-choirset test-export-dagstuhl-choirset-pattern-rows test-inspect-vocal-ownership-cross-corpus test-inspect-dagstuhl-vocal-evidence download-choral-singing-dataset download-choral-singing-dataset-unlocked validate-choral-singing-dataset-archive extract-choral-singing-dataset prepare-choral-singing-dataset inspect-choral-singing-dataset measure-choral-singing-dataset summarize-choral-singing-dataset inspect-choral-singing-dataset-archive test-validate-choral-singing-dataset test-extract-choral-singing-dataset test-prepare-choral-singing-dataset test-inspect-choral-singing-dataset-archive
+.PHONY: download-dagstuhl-choirset validate-dagstuhl-choirset-archive extract-dagstuhl-choirset prepare-dagstuhl-choirset inspect-dagstuhl-choirset measure-dagstuhl-choirset export-dagstuhl-choirset-pattern-rows inspect-dagstuhl-cross-corpus-ownership find-dagstuhl-shared-vocal-ownership-patterns find-dagstuhl-choirset-ownership-patterns inspect-dagstuhl-vocal-evidence test-dagstuhl-choirset-20 inspect-dagstuhl-choirset-archive test-dagstuhl-choirset-archive test-extract-dagstuhl-choirset test-prepare-dagstuhl-choirset test-summarize-dagstuhl-choirset test-export-dagstuhl-choirset-pattern-rows test-inspect-vocal-ownership-cross-corpus test-inspect-dagstuhl-vocal-evidence download-choral-singing-dataset download-choral-singing-dataset-unlocked validate-choral-singing-dataset-archive extract-choral-singing-dataset prepare-choral-singing-dataset inspect-choral-singing-dataset measure-choral-singing-dataset summarize-choral-singing-dataset export-choral-singing-dataset-pattern-rows inspect-choral-singing-dataset-cross-corpus-ownership find-choral-singing-dataset-shared-vocal-ownership-patterns inspect-choral-singing-dataset-archive test-validate-choral-singing-dataset test-extract-choral-singing-dataset test-prepare-choral-singing-dataset test-inspect-choral-singing-dataset-archive
 
 download-dagstuhl-choirset: configure-instrument-sample-store $(DAGSTUHL_CHOIRSET_ARCHIVE) validate-dagstuhl-choirset-archive
 
@@ -4202,6 +4205,21 @@ measure-choral-singing-dataset: $(BUILD_DIR)/analyzer_musicnet prepare-choral-si
 
 summarize-choral-singing-dataset: $(CHORAL_SINGING_DATASET_ATTRIBUTE_OUTPUT) prepare-choral-singing-dataset scripts/summarize_dagstuhl_choirset_measurement.py
 	$(PYTHON) scripts/summarize_dagstuhl_choirset_measurement.py --corpus-label CSD --attributes "$(CHORAL_SINGING_DATASET_ATTRIBUTE_OUTPUT)" --manifest "$(CHORAL_SINGING_DATASET_PREPARED_DIR)/manifest.json" --output "$(CHORAL_SINGING_DATASET_MEASUREMENT_OUTPUT)"
+
+export-choral-singing-dataset-pattern-rows: $(CHORAL_SINGING_DATASET_ATTRIBUTE_OUTPUT) prepare-choral-singing-dataset scripts/export_dagstuhl_choirset_pattern_rows.py | $(BUILD_DIR)
+	$(PYTHON) scripts/export_dagstuhl_choirset_pattern_rows.py --attributes "$(CHORAL_SINGING_DATASET_ATTRIBUTE_OUTPUT)" --manifest "$(CHORAL_SINGING_DATASET_PREPARED_DIR)/manifest.json" --output "$(CHORAL_SINGING_DATASET_PATTERN_OUTPUT)"
+
+inspect-choral-singing-dataset-cross-corpus-ownership: export-choral-singing-dataset-pattern-rows scripts/inspect_vocal_ownership_cross_corpus.py | $(BUILD_DIR)
+	@for path in "$(DAGSTUHL_CHOIRSET_PATTERN_OUTPUT)" "$(VOCADITO_FULL_MIX_ATTRIBUTE_TSV)" "$(VOCALSET_FULL_MIX_ATTRIBUTE_TSV)"; do test -s "$$path" || { printf '%s\n' "missing cached cross-corpus vocal input: $$path"; exit 2; }; done
+	$(PYTHON) scripts/inspect_vocal_ownership_cross_corpus.py --input "DCS=$(DAGSTUHL_CHOIRSET_PATTERN_OUTPUT)" --input "CSD=$(CHORAL_SINGING_DATASET_PATTERN_OUTPUT)" --input "Vocadito=$(VOCADITO_FULL_MIX_ATTRIBUTE_TSV)" --input "VocalSet=$(VOCALSET_FULL_MIX_ATTRIBUTE_TSV)" --output "$(CHORAL_SINGING_DATASET_CROSS_CORPUS_OWNERSHIP_OUTPUT)"
+	@cat "$(CHORAL_SINGING_DATASET_CROSS_CORPUS_OWNERSHIP_OUTPUT)"
+
+find-choral-singing-dataset-shared-vocal-ownership-patterns: $(CHORAL_SINGING_DATASET_SHARED_OWNERSHIP_PATTERN_REPORT)
+	@cat "$(CHORAL_SINGING_DATASET_SHARED_OWNERSHIP_PATTERN_REPORT)"
+
+$(CHORAL_SINGING_DATASET_SHARED_OWNERSHIP_PATTERN_REPORT): export-choral-singing-dataset-pattern-rows scripts/find_real_note_attribute_patterns.py | $(BUILD_DIR)
+	@for path in "$(DAGSTUHL_CHOIRSET_PATTERN_OUTPUT)" "$(BUILD_DIR)/real_note_full_mix_attributes.tsv" "$(VOCADITO_FULL_MIX_ATTRIBUTE_TSV)" "$(VOCALSET_FULL_MIX_ATTRIBUTE_TSV)"; do test -s "$$path" || { printf '%s\n' "missing cached shared-vocal pattern input: $$path"; exit 2; }; done
+	@tmp="$@.$$$$.tmp"; $(PYTHON) scripts/find_real_note_attribute_patterns.py "$(DAGSTUHL_CHOIRSET_PATTERN_OUTPUT)" --extra-candidate-path "$(CHORAL_SINGING_DATASET_PATTERN_OUTPUT)" --extra-candidate-path "$(VOCADITO_FULL_MIX_ATTRIBUTE_TSV)" --extra-candidate-path "$(VOCALSET_FULL_MIX_ATTRIBUTE_TSV)" --extra-protected-path "$(BUILD_DIR)/real_note_full_mix_attributes.tsv" --bucket "ownership_miss:vocals/*->*" --jobs "$(REAL_NOTE_PATTERN_JOBS)" --limit 16 --min-positive-samples 3 --max-negative-samples 0 --max-conditions 2 --show-examples 1 --show-near-misses 8 --protected-scope all --profile-fields 6 > "$$tmp" 2>&1; status="$$?"; mv "$$tmp" "$@"; exit "$$status"
 
 inspect-choral-singing-dataset-archive: $(CHORAL_SINGING_DATASET_INSPECTION_OUTPUT)
 	@cat "$(CHORAL_SINGING_DATASET_INSPECTION_OUTPUT)"

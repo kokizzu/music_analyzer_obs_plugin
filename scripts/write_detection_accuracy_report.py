@@ -724,7 +724,7 @@ def render(
             f"| Measure CSD note, octave, and pitch-class recall | {fraction(int(bool(csd_rows)), 1)} | {int(not csd_rows)} | real CSD x/total results |",
             f"| Measure CSD vocal ownership and current-note routing | {fraction(int(bool(csd_rows)), 1)} | {int(not csd_rows)} | real CSD routing x/total results |",
             f"| Measure CSD chord accuracy | {fraction(int(bool(csd_rows)), 1)} | {int(not csd_rows)} | real CSD chord x/total results |",
-            "| Recheck any candidate across DCS, CSD, and cached vocal corpora | 0 / 1 (0.0%) | 1 | no protected-row regressions |",
+            "| Recheck any candidate across DCS, CSD, and cached vocal corpora | 0 / 1 (0.0%) | 1 | latest scan rejects DCS/CSD-only key rules: no cached-corpus support without regressions |",
         ]
     )
     if csd_rows:
