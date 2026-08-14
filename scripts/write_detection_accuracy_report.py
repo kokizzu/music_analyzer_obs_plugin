@@ -650,6 +650,31 @@ def render(
         )
         for label, count, total in route_coverage_rows(route_summary):
             lines.append(f"| {label} | {fraction(count, total)} | {total - count} |")
+    lines.extend(
+        [
+            "",
+            "## Dagstuhl ChoirSet (DCS) coverage-gap checklist",
+            "",
+            "DCS is the next independent real vocal-ensemble corpus. These rows track the "
+            "reproducible integration work separately from detection accuracy: generated fixtures "
+            "never count as DCS measurements. A completed measurement row will be added only after "
+            "the public archive is validated and its real audio/annotations are prepared.",
+            "",
+            "| Work item | Complete / total | Remaining | Evidence required |",
+            "| --- | ---: | ---: | --- |",
+            "| Store DCS archive in InstrumentSamples | 0 / 1 (0.0%) | 1 | validated archive and checksum |",
+            "| Extract DCS safely in InstrumentSamples | 0 / 1 (0.0%) | 1 | traversal-safe extraction record |",
+            "| Inspect real DCS audio and annotations | 0 / 1 (0.0%) | 1 | corpus inventory by song/take/microphone |",
+            "| Import DCS sources and labels | 0 / 1 (0.0%) | 1 | tested prepared-multitrack manifest |",
+            "| Measure note and pitch-class recall | 0 / 1 (0.0%) | 1 | real DCS x/total results |",
+            "| Measure octave accuracy | 0 / 1 (0.0%) | 1 | real DCS exact-MIDI x/total results |",
+            "| Measure vocal ownership and display routing | 0 / 1 (0.0%) | 1 | real DCS row-routing x/total results |",
+            "| Measure chord accuracy | 0 / 1 (0.0%) | 1 | real DCS chord x/total results |",
+            "| Break down results by SATB range | 0 / 1 (0.0%) | 1 | S/A/T/B x/total rows |",
+            "| Break down results by recording configuration | 0 / 1 (0.0%) | 1 | setting/take/microphone x/total rows |",
+            "| Verify a safe cross-corpus detector improvement | 0 / 1 (0.0%) | 1 | DCS and protected-corpus regression evidence |",
+        ]
+    )
     if vocal_full_mix_input is not None:
         vocal_samples = load_samples(vocal_full_mix_input)
         vocal_rows = family_metric_rows(vocal_samples, "vocals")

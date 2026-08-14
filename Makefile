@@ -26,6 +26,11 @@ MUSICNET_DOWNLOAD_CONNECTIONS ?= 8
 MUSICNET_ARCHIVE_URL ?= https://zenodo.org/api/records/5120004/files/musicnet.tar.gz/content
 MUSICNET_METADATA_URL ?= https://zenodo.org/api/records/5120004/files/musicnet_metadata.csv/content
 MUSICNET_MIDI_ARCHIVE_URL ?= https://zenodo.org/api/records/5120004/files/musicnet_midis.tar.gz/content
+DAGSTUHL_CHOIRSET_SOURCE_DIR ?= $(INSTRUMENT_SAMPLE_STORE_LINK)/dagstuhl_choirset
+DAGSTUHL_CHOIRSET_ARCHIVE ?= $(DAGSTUHL_CHOIRSET_SOURCE_DIR)/DagstuhlChoirSet.zip
+DAGSTUHL_CHOIRSET_ARCHIVE_URL ?= https://zenodo.org/api/records/3897182/files/DagstuhlChoirSet.zip/content
+DAGSTUHL_CHOIRSET_ARCHIVE_MD5 ?= 6d7ccdd5e3f43e54981b0f12d19987f9
+DAGSTUHL_CHOIRSET_DOWNLOAD_CONNECTIONS ?= 8
 URMP_SOURCE_DIR ?= $(INSTRUMENT_SAMPLE_STORE_LINK)/urmp
 URMP_ARCHIVE ?= $(URMP_SOURCE_DIR)/urmp-kaggle.zip
 URMP_EXTRACT_DIR ?= $(URMP_SOURCE_DIR)/extracted
@@ -4138,6 +4143,23 @@ test-vocadito-samples-full-mix-shard-%: FORCE $(BUILD_DIR)/analyzer_real_note_sa
 
 download-vocalset-samples: scripts/run_with_lock.sh
 	+$(SHELL) scripts/run_with_lock.sh "$(VOCALSET_DOWNLOAD_LOCK_DIR)" -- "$(MAKE)" vocalset-download-samples-unlocked
+
+.PHONY: download-dagstuhl-choirset validate-dagstuhl-choirset-archive test-dagstuhl-choirset-archive
+
+download-dagstuhl-choirset: configure-instrument-sample-store $(DAGSTUHL_CHOIRSET_ARCHIVE)
+
+validate-dagstuhl-choirset-archive: $(DAGSTUHL_CHOIRSET_ARCHIVE) scripts/validate_dagstuhl_choirset.py
+	$(PYTHON) scripts/validate_dagstuhl_choirset.py --archive "$(DAGSTUHL_CHOIRSET_ARCHIVE)" --expected-md5 "$(DAGSTUHL_CHOIRSET_ARCHIVE_MD5)"
+
+test-dagstuhl-choirset-archive: tests/test_validate_dagstuhl_choirset.py scripts/validate_dagstuhl_choirset.py
+	$(PYTHON) tests/test_validate_dagstuhl_choirset.py
+
+$(DAGSTUHL_CHOIRSET_ARCHIVE): FORCE scripts/validate_dagstuhl_choirset.py
+	mkdir -p "$(DAGSTUHL_CHOIRSET_SOURCE_DIR)"
+	if [ -s "$@" ] && ! $(PYTHON) scripts/validate_dagstuhl_choirset.py --archive "$@" --expected-md5 "$(DAGSTUHL_CHOIRSET_ARCHIVE_MD5)" >/dev/null 2>&1; then mv -f "$@" "$@.part"; fi
+	if [ ! -s "$@" ]; then if command -v "$(ARIA2C)" >/dev/null 2>&1; then "$(ARIA2C)" --continue=true --allow-overwrite=true --auto-file-renaming=false --max-tries=5 --retry-wait=5 --max-connection-per-server="$(DAGSTUHL_CHOIRSET_DOWNLOAD_CONNECTIONS)" --split="$(DAGSTUHL_CHOIRSET_DOWNLOAD_CONNECTIONS)" --min-split-size=8M --file-allocation=none --dir "$(DAGSTUHL_CHOIRSET_SOURCE_DIR)" --out "DagstuhlChoirSet.zip.part" "$(DAGSTUHL_CHOIRSET_ARCHIVE_URL)"; else $(CURL) -fL --continue-at - --output "$@.part" "$(DAGSTUHL_CHOIRSET_ARCHIVE_URL)"; fi; fi
+	$(PYTHON) scripts/validate_dagstuhl_choirset.py --archive "$@.part" --expected-md5 "$(DAGSTUHL_CHOIRSET_ARCHIVE_MD5)"
+	mv -f "$@.part" "$@"
 
 vocalset-download-samples-unlocked: $(VOCALSET_ARCHIVE)
 
