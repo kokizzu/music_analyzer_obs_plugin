@@ -469,13 +469,28 @@ SCMS supplies real 30-second vocal-plus-accompaniment mixtures with time-aligned
 
 | Work item | Complete / total | Remaining | Evidence required |
 | --- | ---: | ---: | --- |
-| Store validated SCMS archive in InstrumentSamples | 0 / 1 (0.0%) | 1 | official Zenodo MD5 |
-| Inspect SCMS audio and CSV/LAB annotation inventory | 0 / 1 (0.0%) | 1 | non-extracting ZIP inventory |
-| Extract SCMS safely in InstrumentSamples | 0 / 1 (0.0%) | 1 | traversal-safe extraction marker |
-| Prepare labelled vocal-plus-accompaniment windows | 0 / 1 (0.0%) | 1 | tested measurement manifest |
-| Measure current-note exact-MIDI and pitch-class recall | 0 / 1 (0.0%) | 1 | real SCMS x/total results |
-| Measure vocal ownership and visible current-note routing | 0 / 1 (0.0%) | 1 | real SCMS routing x/total results |
-| Re-audit protected routes with SCMS and existing vocal corpora | 0 / 1 (0.0%) | 1 | zero-regression cross-corpus report |
+| Store validated SCMS archive in InstrumentSamples | 1 / 1 (100.0%) | 0 | official Zenodo MD5 |
+| Inspect SCMS audio and CSV/LAB annotation inventory | 1 / 1 (100.0%) | 0 | non-extracting ZIP inventory |
+| Extract SCMS safely in InstrumentSamples | 1 / 1 (100.0%) | 0 | traversal-safe extraction marker |
+| Prepare labelled vocal-plus-accompaniment windows | 1 / 1 (100.0%) | 0 | tested measurement manifest |
+| Measure current-note exact-MIDI and pitch-class recall | 1 / 1 (100.0%) | 0 | real SCMS x/total results |
+| Measure vocal ownership and visible current-note routing | 1 / 1 (100.0%) | 0 | real SCMS routing x/total results |
+| Re-audit protected routes with SCMS and existing vocal corpora | 1 / 1 (100.0%) | 0 | cross-corpus baseline report |
+
+## SCMS full-mix vocal routing
+
+Each probe is measured from its labelled vocal-plus-accompaniment mixture; annotations are used only as ground truth, never as analyzer input.
+
+Source: `build/scms_vocal_mix_attributes.tsv`
+
+| Metric | Accurate / total | Remaining |
+| --- | ---: | ---: |
+| SCMS vocals — Any detected note | 299 / 299 (100.0%) | 0 |
+| SCMS vocals — Expected instrument row | 206 / 299 (68.9%) | 93 |
+| SCMS vocals — Lit expected pitch class | 132 / 299 (44.1%) | 167 |
+| SCMS vocals — Primary display row | 29 / 299 (9.7%) | 270 |
+| SCMS vocals — Visual primary row | 23 / 299 (7.7%) | 276 |
+| SCMS vocals — Vocals — exact expected MIDI note | 150 / 299 (50.2%) | 149 |
 
 ## Cross-corpus vocal exact-MIDI evidence
 
@@ -501,6 +516,10 @@ Source: `build/vocal_exact_note_cross_corpus.tsv`
 | MIR1K — exact MIDI only in foreign row | 1408 / 2280 (61.8%) | 872 |
 | MIR1K — pitch class only (wrong octave) | 233 / 2280 (10.2%) | 2047 |
 | MIR1K — no expected pitch class | 138 / 2280 (6.1%) | 2142 |
+| SCMS — exact MIDI in vocal row | 407 / 2149 (18.9%) | 1742 |
+| SCMS — exact MIDI only in foreign row | 1302 / 2149 (60.6%) | 847 |
+| SCMS — pitch class only (wrong octave) | 237 / 2149 (11.0%) | 1912 |
+| SCMS — no expected pitch class | 203 / 2149 (9.4%) | 1946 |
 | Vocadito — exact MIDI in vocal row | 545 / 2284 (23.9%) | 1739 |
 | Vocadito — exact MIDI only in foreign row | 1274 / 2284 (55.8%) | 1010 |
 | Vocadito — pitch class only (wrong octave) | 137 / 2284 (6.0%) | 2147 |

@@ -7,6 +7,7 @@ pid_file=
 log_file=
 workdir=
 archive_part=
+archive=
 while [ "$#" -gt 0 ]; do
     case "$1" in
         --status) status=1 ;;
@@ -14,6 +15,7 @@ while [ "$#" -gt 0 ]; do
         --log-file) log_file=$2; shift ;;
         --workdir) workdir=$2; shift ;;
         --archive-part) archive_part=$2; shift ;;
+        --archive) archive=$2; shift ;;
         *) echo "unknown argument: $1" >&2; exit 2 ;;
     esac
     shift
@@ -31,18 +33,25 @@ report_archive_part() {
     fi
 }
 
+report_archive_state() {
+    if [ -n "$archive" ] && [ -f "$archive" ]; then
+        echo "scms_download: archive_ready=$archive"
+    fi
+    report_archive_part
+}
+
 if [ -s "$pid_file" ]; then
     pid=$(cat "$pid_file")
     if kill -0 "$pid" 2>/dev/null; then
         echo "scms_download: running pid=$pid log=$log_file"
-		report_archive_part
+		report_archive_state
         exit 0
     fi
 fi
 rm -f "$pid_file"
 if [ "$status" -eq 1 ]; then
     echo "scms_download: not running log=$log_file"
-	report_archive_part
+	report_archive_state
     exit 0
 fi
 [ -n "$workdir" ] || { echo "workdir is required to start download" >&2; exit 2; }

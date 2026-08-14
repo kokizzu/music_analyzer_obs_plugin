@@ -7,6 +7,8 @@ import argparse
 import csv
 import math
 import statistics
+import subprocess
+import sys
 import wave
 from pathlib import Path
 
@@ -59,22 +61,65 @@ def longest_stable_run(points: list[tuple[float, float]], minimum_frames: int) -
     return best
 
 
-def clip_wav(source_path: Path, destination_path: Path, start_seconds: float, duration_seconds: float) -> bool:
-    with wave.open(str(source_path), "rb") as source:
-        start_frame = max(0, int(round(start_seconds * source.getframerate())))
-        frames = max(1, int(round(duration_seconds * source.getframerate())))
-        if start_frame >= source.getnframes():
-            return False
-        source.setpos(start_frame)
-        audio = source.readframes(min(frames, source.getnframes() - start_frame))
-        params = source.getparams()
+def clip_wav(source_path: Path, destination_path: Path, start_seconds: float, duration_seconds: float, ffmpeg: str) -> bool:
+    """Clip SCMS WAVE audio without playing it, normalising IEEE-float input to PCM."""
     destination_path.parent.mkdir(parents=True, exist_ok=True)
-    temporary = destination_path.with_suffix(destination_path.suffix + ".tmp")
-    with wave.open(str(temporary), "wb") as destination:
-        destination.setparams(params)
-        destination.writeframes(audio)
+    temporary = destination_path.with_name(destination_path.name + ".tmp.wav")
+    try:
+        subprocess.run(
+            [
+                ffmpeg, "-nostdin", "-hide_banner", "-loglevel", "error", "-y",
+                "-ss", f"{start_seconds:.6f}", "-t", f"{duration_seconds:.6f}",
+                "-i", str(source_path), "-acodec", "pcm_s16le", str(temporary),
+            ],
+            check=True,
+        )
+    except (OSError, subprocess.CalledProcessError) as error:
+        temporary.unlink(missing_ok=True)
+        print(f"prepare_scms_vocal_mix_samples: skipped {source_path}: {error}", file=sys.stderr)
+        return False
     temporary.replace(destination_path)
-    return True
+    return valid_analyzer_wav(destination_path)
+
+
+def valid_analyzer_wav(path: Path) -> bool:
+    """Match the lightweight RIFF/fmt/data requirements of analyzer_real_note_samples."""
+    try:
+        size = path.stat().st_size
+        with path.open("rb") as source:
+            if size < 20 or source.read(4) != b"RIFF":
+                return False
+            source.read(4)
+            if source.read(4) != b"WAVE":
+                return False
+            fmt_ok = False
+            data_ok = False
+            offset = 12
+            while offset + 8 <= size:
+                source.seek(offset)
+                chunk_id = source.read(4)
+                chunk_size_data = source.read(4)
+                if len(chunk_size_data) != 4:
+                    return False
+                chunk_size = int.from_bytes(chunk_size_data, "little")
+                data_offset = offset + 8
+                if data_offset + chunk_size > size:
+                    return False
+                if chunk_id == b"fmt " and chunk_size >= 16:
+                    source.seek(data_offset)
+                    fields = source.read(16)
+                    audio_format = int.from_bytes(fields[0:2], "little")
+                    channels = int.from_bytes(fields[2:4], "little")
+                    sample_rate = int.from_bytes(fields[4:8], "little")
+                    block_align = int.from_bytes(fields[12:14], "little")
+                    bits_per_sample = int.from_bytes(fields[14:16], "little")
+                    fmt_ok = audio_format in (1, 3) and channels > 0 and sample_rate > 0 and block_align > 0 and bits_per_sample > 0
+                elif chunk_id == b"data" and chunk_size > 0:
+                    data_ok = True
+                offset = data_offset + chunk_size + (chunk_size & 1)
+            return fmt_ok and data_ok
+    except OSError:
+        return False
 
 
 def audio_by_track(root: Path) -> dict[str, Path]:
@@ -138,7 +183,8 @@ def balanced_limit(rows: list[dict[str, object]], limit: int) -> list[dict[str, 
     return sorted(selected, key=lambda row: str(row["track"]))
 
 
-def prepare(root: Path, output: Path, minimum_frames: int, clip_seconds: float, limit: int, minimum_samples: int) -> int:
+def prepare(root: Path, output: Path, minimum_frames: int, clip_seconds: float, limit: int, minimum_samples: int,
+            ffmpeg: str) -> int:
     selected = balanced_limit(candidates(root, minimum_frames, clip_seconds), limit)
     if len(selected) < minimum_samples:
         raise ValueError(f"expected at least {minimum_samples} stable SCMS clips, found {len(selected)}")
@@ -147,7 +193,7 @@ def prepare(root: Path, output: Path, minimum_frames: int, clip_seconds: float, 
     for row in selected:
         relative = Path("audio") / f"{row['id']}.wav"
         destination = output / relative
-        if not destination.is_file() and not clip_wav(row["source_path"], destination, float(row["start"]), float(row["duration"])):
+        if not valid_analyzer_wav(destination) and not clip_wav(row["source_path"], destination, float(row["start"]), float(row["duration"]), ffmpeg):
             continue
         rows.append("\t".join((
             str(row["id"]), "vocals", "vocal", "scms", str(row["midi"]), note_name(int(row["midi"])),
@@ -172,10 +218,11 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--clip-seconds", type=float, default=0.50)
     parser.add_argument("--limit", type=int, default=300)
     parser.add_argument("--minimum-samples", type=int, default=250)
+    parser.add_argument("--ffmpeg", default="ffmpeg")
     args = parser.parse_args(argv)
     try:
-        prepare(args.root, args.output, args.minimum_stable_frames, args.clip_seconds, args.limit, args.minimum_samples)
-    except (OSError, ValueError, wave.Error) as error:
+        prepare(args.root, args.output, args.minimum_stable_frames, args.clip_seconds, args.limit, args.minimum_samples, args.ffmpeg)
+    except (OSError, ValueError, subprocess.CalledProcessError, wave.Error) as error:
         parser.error(str(error))
     return 0
 

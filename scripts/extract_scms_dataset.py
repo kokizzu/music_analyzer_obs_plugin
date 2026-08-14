@@ -34,6 +34,10 @@ def discard_stale_staging(output: Path) -> int:
 
 def extract(archive_path: Path, output: Path) -> int:
     if (output / READY_FILE).is_file():
+        # Keep the extraction marker fresh when Make rechecks a validated,
+        # already-complete corpus.  This avoids needlessly re-running the
+        # archive extraction just because a report artifact is newer.
+        os.utime(output / READY_FILE, None)
         return sum(1 for path in output.rglob("*") if path.is_file() and path.name != READY_FILE)
     if output.exists():
         raise ValueError(f"refusing to replace incomplete extraction: {output}")

@@ -34,10 +34,12 @@ def main() -> int:
         assert not pid_file.exists()
         archive_part = root / "Saraga-Carnatic-Melody-Synth.zip.part"
         archive_part.write_bytes(b"fixture")
+        archive = root / "Saraga-Carnatic-Melody-Synth.zip"
+        archive.write_bytes(b"complete")
         result = subprocess.run(
             [
                 "sh", str(SCRIPT), "--status", "--pid-file", str(pid_file),
-                "--log-file", str(log_file), "--archive-part", str(archive_part),
+                "--log-file", str(log_file), "--archive", str(archive), "--archive-part", str(archive_part),
             ],
             check=True,
             text=True,
@@ -45,7 +47,8 @@ def main() -> int:
         )
         assert "archive_part logical_bytes=7" in result.stdout
         assert "allocated_bytes=" in result.stdout
-    print("test_start_scms_dataset_download: 6 checks passed")
+        assert f"archive_ready={archive}" in result.stdout
+    print("test_start_scms_dataset_download: 7 checks passed")
     return 0
 
 

@@ -912,6 +912,7 @@ def render(
     scms_samples = load_samples(scms_full_mix_input) if scms_full_mix_input else {}
     scms_rows = family_metric_rows(scms_samples, "vocals") if scms_samples else []
     scms_exact_rows = exact_note_rows(scms_samples) if scms_samples else []
+    scms_cross_corpus_ready = int(any(row[0] == "SCMS" for row in exact_note_cross_rows))
     lines.extend(
         [
             "",
@@ -929,7 +930,7 @@ def render(
             f"| Prepare labelled vocal-plus-accompaniment windows | {fraction(scms_manifest_ready, 1)} | {1 - scms_manifest_ready} | tested measurement manifest |",
             f"| Measure current-note exact-MIDI and pitch-class recall | {fraction(scms_measurement_ready, 1)} | {1 - scms_measurement_ready} | real SCMS x/total results |",
             f"| Measure vocal ownership and visible current-note routing | {fraction(scms_measurement_ready, 1)} | {1 - scms_measurement_ready} | real SCMS routing x/total results |",
-            "| Re-audit protected routes with SCMS and existing vocal corpora | 0 / 1 (0.0%) | 1 | zero-regression cross-corpus report |",
+            f"| Re-audit protected routes with SCMS and existing vocal corpora | {fraction(scms_cross_corpus_ready, 1)} | {1 - scms_cross_corpus_ready} | cross-corpus baseline report |",
         ]
     )
     if scms_rows:

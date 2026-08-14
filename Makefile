@@ -78,6 +78,7 @@ MIR1K_DATASET_SAMPLE_DIR ?= $(MIR1K_DATASET_SOURCE_DIR)/prepared-vocal-mix
 MIR1K_DATASET_ATTRIBUTE_OUTPUT ?= $(BUILD_DIR)/mir1k_vocal_mix_attributes.tsv
 MIR1K_DATASET_MEASUREMENT_OUTPUT ?= $(BUILD_DIR)/mir1k_vocal_mix_measurement.out
 VOCAL_EXACT_NOTE_CROSS_CORPUS_OUTPUT ?= $(BUILD_DIR)/vocal_exact_note_cross_corpus.tsv
+SCMS_VOCAL_CROSS_CORPUS_ARG = $(if $(wildcard $(SCMS_DATASET_ATTRIBUTE_OUTPUT)),--input "SCMS=$(SCMS_DATASET_ATTRIBUTE_OUTPUT)")
 MIR1K_DATASET_ARCHIVE_URL ?= https://zenodo.org/record/7955481/files/mir1k_yourmt3_16k.tar.gz?download=1
 MIR1K_DATASET_ARCHIVE_MD5 ?= 4cbac56a4e971432ca807efd5cb76d67
 MIR1K_DATASET_DOWNLOAD_CONNECTIONS ?= 8
@@ -95,10 +96,12 @@ SCMS_DATASET_DOWNLOAD_CONNECTIONS ?= 8
 SCMS_DATASET_SAMPLE_LIMIT ?= 300
 SCMS_DATASET_MIN_SAMPLES ?= 250
 SCMS_DATASET_INSPECTION_OUTPUT ?= $(BUILD_DIR)/scms_dataset_inventory.txt
+SCMS_DATASET_VALIDATION_OUTPUT ?= $(BUILD_DIR)/scms_dataset_validation.txt
 SCMS_DATASET_DOWNLOAD_LOG ?= $(BUILD_DIR)/scms_dataset_download.log
 SCMS_DATASET_DOWNLOAD_PID ?= $(BUILD_DIR)/scms_dataset_download.pid
 SCMS_DATASET_ATTRIBUTE_OUTPUT ?= $(BUILD_DIR)/scms_vocal_mix_attributes.tsv
 SCMS_DATASET_MEASUREMENT_OUTPUT ?= $(BUILD_DIR)/scms_vocal_mix_measurement.out
+SCMS_DATASET_DEBUG_WAV ?= $(SCMS_DATASET_SAMPLE_DIR)/audio/scms_Athirum_Kazhal_3_F3.wav
 URMP_SOURCE_DIR ?= $(INSTRUMENT_SAMPLE_STORE_LINK)/urmp
 URMP_ARCHIVE ?= $(URMP_SOURCE_DIR)/urmp-kaggle.zip
 URMP_EXTRACT_DIR ?= $(URMP_SOURCE_DIR)/extracted
@@ -131,7 +134,7 @@ DETECTION_ACCURACY_ESMUC_CHOIR_DATASET_PATTERN_REPORT_ARG = $(if $(wildcard $(ES
 DETECTION_ACCURACY_MIR1K_DATASET_ARCHIVE_ARG = $(if $(wildcard $(MIR1K_DATASET_ARCHIVE)),--mir1k-dataset-archive "$(MIR1K_DATASET_ARCHIVE)")
 DETECTION_ACCURACY_MIR1K_DATASET_EXTRACT_ARG = $(if $(wildcard $(MIR1K_DATASET_EXTRACT_DIR)/.mir1k-extraction-complete),--mir1k-dataset-extraction "$(MIR1K_DATASET_EXTRACT_DIR)/.mir1k-extraction-complete")
 DETECTION_ACCURACY_MIR1K_FULL_MIX_ARG = $(if $(wildcard $(MIR1K_DATASET_ATTRIBUTE_OUTPUT)),--mir1k-full-mix-input "$(MIR1K_DATASET_ATTRIBUTE_OUTPUT)")
-DETECTION_ACCURACY_SCMS_ARCHIVE_ARG = $(if $(wildcard $(SCMS_DATASET_ARCHIVE)),--scms-dataset-archive "$(SCMS_DATASET_ARCHIVE)")
+DETECTION_ACCURACY_SCMS_ARCHIVE_ARG = $(if $(wildcard $(SCMS_DATASET_VALIDATION_OUTPUT)),--scms-dataset-archive "$(SCMS_DATASET_ARCHIVE)")
 DETECTION_ACCURACY_SCMS_INSPECTION_ARG = $(if $(wildcard $(SCMS_DATASET_INSPECTION_OUTPUT)),--scms-dataset-inspection "$(SCMS_DATASET_INSPECTION_OUTPUT)")
 DETECTION_ACCURACY_SCMS_FULL_MIX_ARG = $(if $(wildcard $(SCMS_DATASET_EXTRACT_DIR)/.scms-extraction-complete),--scms-dataset-extraction "$(SCMS_DATASET_EXTRACT_DIR)/.scms-extraction-complete") $(if $(wildcard $(SCMS_DATASET_SAMPLE_DIR)/manifest.tsv),--scms-dataset-manifest "$(SCMS_DATASET_SAMPLE_DIR)/manifest.tsv") $(if $(wildcard $(SCMS_DATASET_MEASUREMENT_OUTPUT)),--scms-dataset-measurement "$(SCMS_DATASET_MEASUREMENT_OUTPUT)") $(if $(wildcard $(SCMS_DATASET_ATTRIBUTE_OUTPUT)),--scms-full-mix-input "$(SCMS_DATASET_ATTRIBUTE_OUTPUT)")
 DETECTION_ACCURACY_VOCAL_EXACT_NOTE_CROSS_CORPUS_ARG = $(if $(wildcard $(VOCAL_EXACT_NOTE_CROSS_CORPUS_OUTPUT)),--vocal-exact-note-cross-corpus-input "$(VOCAL_EXACT_NOTE_CROSS_CORPUS_OUTPUT)")
@@ -4303,12 +4306,12 @@ export-esmuc-choir-dataset-pattern-rows: $(ESMUC_CHOIR_DATASET_ATTRIBUTE_OUTPUT)
 
 inspect-esmuc-choir-dataset-cross-corpus-ownership: export-esmuc-choir-dataset-pattern-rows scripts/inspect_vocal_ownership_cross_corpus.py | $(BUILD_DIR)
 	@for path in "$(DAGSTUHL_CHOIRSET_PATTERN_OUTPUT)" "$(CHORAL_SINGING_DATASET_PATTERN_OUTPUT)" "$(VOCADITO_FULL_MIX_ATTRIBUTE_TSV)" "$(VOCALSET_FULL_MIX_ATTRIBUTE_TSV)" "$(MIR1K_DATASET_ATTRIBUTE_OUTPUT)"; do test -s "$$path" || { printf '%s\n' "missing cached cross-corpus vocal input: $$path"; exit 2; }; done
-	$(PYTHON) scripts/inspect_vocal_ownership_cross_corpus.py --input "DCS=$(DAGSTUHL_CHOIRSET_PATTERN_OUTPUT)" --input "CSD=$(CHORAL_SINGING_DATASET_PATTERN_OUTPUT)" --input "ESMUC=$(ESMUC_CHOIR_DATASET_PATTERN_OUTPUT)" --input "Vocadito=$(VOCADITO_FULL_MIX_ATTRIBUTE_TSV)" --input "VocalSet=$(VOCALSET_FULL_MIX_ATTRIBUTE_TSV)" --input "MIR1K=$(MIR1K_DATASET_ATTRIBUTE_OUTPUT)" --output "$(ESMUC_CHOIR_DATASET_CROSS_CORPUS_OWNERSHIP_OUTPUT)"
+	$(PYTHON) scripts/inspect_vocal_ownership_cross_corpus.py --input "DCS=$(DAGSTUHL_CHOIRSET_PATTERN_OUTPUT)" --input "CSD=$(CHORAL_SINGING_DATASET_PATTERN_OUTPUT)" --input "ESMUC=$(ESMUC_CHOIR_DATASET_PATTERN_OUTPUT)" --input "Vocadito=$(VOCADITO_FULL_MIX_ATTRIBUTE_TSV)" --input "VocalSet=$(VOCALSET_FULL_MIX_ATTRIBUTE_TSV)" --input "MIR1K=$(MIR1K_DATASET_ATTRIBUTE_OUTPUT)" $(SCMS_VOCAL_CROSS_CORPUS_ARG) --output "$(ESMUC_CHOIR_DATASET_CROSS_CORPUS_OWNERSHIP_OUTPUT)"
 	@cat "$(ESMUC_CHOIR_DATASET_CROSS_CORPUS_OWNERSHIP_OUTPUT)"
 
 inspect-vocal-exact-note-cross-corpus: export-esmuc-choir-dataset-pattern-rows scripts/inspect_vocal_exact_note_cross_corpus.py | $(BUILD_DIR)
 	@for path in "$(DAGSTUHL_CHOIRSET_PATTERN_OUTPUT)" "$(CHORAL_SINGING_DATASET_PATTERN_OUTPUT)" "$(VOCADITO_FULL_MIX_ATTRIBUTE_TSV)" "$(VOCALSET_FULL_MIX_ATTRIBUTE_TSV)" "$(MIR1K_DATASET_ATTRIBUTE_OUTPUT)"; do test -s "$$path" || { printf '%s\n' "missing cached cross-corpus vocal input: $$path"; exit 2; }; done
-	$(PYTHON) scripts/inspect_vocal_exact_note_cross_corpus.py --input "DCS=$(DAGSTUHL_CHOIRSET_PATTERN_OUTPUT)" --input "CSD=$(CHORAL_SINGING_DATASET_PATTERN_OUTPUT)" --input "ESMUC=$(ESMUC_CHOIR_DATASET_PATTERN_OUTPUT)" --input "Vocadito=$(VOCADITO_FULL_MIX_ATTRIBUTE_TSV)" --input "VocalSet=$(VOCALSET_FULL_MIX_ATTRIBUTE_TSV)" --input "MIR1K=$(MIR1K_DATASET_ATTRIBUTE_OUTPUT)" --output "$(VOCAL_EXACT_NOTE_CROSS_CORPUS_OUTPUT)"
+	$(PYTHON) scripts/inspect_vocal_exact_note_cross_corpus.py --input "DCS=$(DAGSTUHL_CHOIRSET_PATTERN_OUTPUT)" --input "CSD=$(CHORAL_SINGING_DATASET_PATTERN_OUTPUT)" --input "ESMUC=$(ESMUC_CHOIR_DATASET_PATTERN_OUTPUT)" --input "Vocadito=$(VOCADITO_FULL_MIX_ATTRIBUTE_TSV)" --input "VocalSet=$(VOCALSET_FULL_MIX_ATTRIBUTE_TSV)" --input "MIR1K=$(MIR1K_DATASET_ATTRIBUTE_OUTPUT)" $(SCMS_VOCAL_CROSS_CORPUS_ARG) --output "$(VOCAL_EXACT_NOTE_CROSS_CORPUS_OUTPUT)"
 	@cat "$(VOCAL_EXACT_NOTE_CROSS_CORPUS_OUTPUT)"
 
 find-esmuc-choir-dataset-shared-vocal-ownership-patterns: $(ESMUC_CHOIR_DATASET_SHARED_OWNERSHIP_PATTERN_REPORT)
@@ -4517,7 +4520,7 @@ $(MIR1K_DATASET_ARCHIVE): scripts/validate_mir1k_dataset.py
 	if [ -s "$@.part" ]; then $(PYTHON) scripts/validate_mir1k_dataset.py --archive "$@.part" --expected-md5 "$(MIR1K_DATASET_ARCHIVE_MD5)"; mv -f "$@.part" "$@"; fi
 	test -s "$@"
 
-.PHONY: download-scms-dataset start-scms-dataset-download scms-dataset-download-status validate-scms-dataset-archive inspect-scms-dataset extract-scms-dataset prepare-scms-vocal-mix-samples measure-scms-vocal-mix clean-scms-dataset-staging test-validate-scms-dataset test-inspect-scms-dataset test-start-scms-dataset-download test-extract-scms-dataset test-prepare-scms-vocal-mix-samples
+.PHONY: download-scms-dataset start-scms-dataset-download scms-dataset-download-status validate-scms-dataset-archive inspect-scms-dataset extract-scms-dataset prepare-scms-vocal-mix-samples measure-scms-vocal-mix inspect-scms-prepared-wav clean-scms-dataset-staging test-validate-scms-dataset test-inspect-scms-dataset test-start-scms-dataset-download test-extract-scms-dataset test-prepare-scms-vocal-mix-samples
 
 download-scms-dataset: configure-instrument-sample-store $(SCMS_DATASET_ARCHIVE) validate-scms-dataset-archive
 
@@ -4526,33 +4529,43 @@ download-scms-dataset: configure-instrument-sample-store $(SCMS_DATASET_ARCHIVE)
 # own resume metadata and the checksum gate above; this launcher only records
 # its detached PID and log in regenerable build state.
 start-scms-dataset-download: configure-instrument-sample-store scripts/start_scms_dataset_download.sh | $(BUILD_DIR)
-	$(SHELL) scripts/start_scms_dataset_download.sh --pid-file "$(SCMS_DATASET_DOWNLOAD_PID)" --log-file "$(SCMS_DATASET_DOWNLOAD_LOG)" --archive-part "$(SCMS_DATASET_ARCHIVE).part" --workdir "$(CURDIR)"
+	$(SHELL) scripts/start_scms_dataset_download.sh --pid-file "$(SCMS_DATASET_DOWNLOAD_PID)" --log-file "$(SCMS_DATASET_DOWNLOAD_LOG)" --archive "$(SCMS_DATASET_ARCHIVE)" --archive-part "$(SCMS_DATASET_ARCHIVE).part" --workdir "$(CURDIR)"
 
 scms-dataset-download-status:
-	$(SHELL) scripts/start_scms_dataset_download.sh --status --pid-file "$(SCMS_DATASET_DOWNLOAD_PID)" --log-file "$(SCMS_DATASET_DOWNLOAD_LOG)" --archive-part "$(SCMS_DATASET_ARCHIVE).part"
+	$(SHELL) scripts/start_scms_dataset_download.sh --status --pid-file "$(SCMS_DATASET_DOWNLOAD_PID)" --log-file "$(SCMS_DATASET_DOWNLOAD_LOG)" --archive "$(SCMS_DATASET_ARCHIVE)" --archive-part "$(SCMS_DATASET_ARCHIVE).part"
 
-validate-scms-dataset-archive: $(SCMS_DATASET_ARCHIVE) scripts/validate_scms_dataset.py
-	$(PYTHON) scripts/validate_scms_dataset.py --archive "$(SCMS_DATASET_ARCHIVE)" --expected-md5 "$(SCMS_DATASET_ARCHIVE_MD5)"
+validate-scms-dataset-archive: $(SCMS_DATASET_VALIDATION_OUTPUT)
+	@cat "$(SCMS_DATASET_VALIDATION_OUTPUT)"
+
+$(SCMS_DATASET_VALIDATION_OUTPUT): $(SCMS_DATASET_ARCHIVE) scripts/validate_scms_dataset.py | $(BUILD_DIR)
+	@tmp="$@.$$$$.tmp"; $(PYTHON) scripts/validate_scms_dataset.py --archive "$(SCMS_DATASET_ARCHIVE)" --expected-md5 "$(SCMS_DATASET_ARCHIVE_MD5)" > "$$tmp" && mv "$$tmp" "$@"
 
 inspect-scms-dataset: $(SCMS_DATASET_INSPECTION_OUTPUT)
 	@cat "$(SCMS_DATASET_INSPECTION_OUTPUT)"
 
-$(SCMS_DATASET_INSPECTION_OUTPUT): validate-scms-dataset-archive scripts/inspect_scms_dataset_archive.py | $(BUILD_DIR)
+$(SCMS_DATASET_INSPECTION_OUTPUT): $(SCMS_DATASET_VALIDATION_OUTPUT) scripts/inspect_scms_dataset_archive.py | $(BUILD_DIR)
 	$(PYTHON) scripts/inspect_scms_dataset_archive.py --archive "$(SCMS_DATASET_ARCHIVE)" > "$@"
 
 # Inspect before extraction: the archive inventory records the published
 # audio/annotation layout used by the importer below.
-extract-scms-dataset: inspect-scms-dataset scripts/extract_scms_dataset.py
+extract-scms-dataset: $(SCMS_DATASET_EXTRACT_DIR)/.scms-extraction-complete
+
+$(SCMS_DATASET_EXTRACT_DIR)/.scms-extraction-complete: $(SCMS_DATASET_INSPECTION_OUTPUT) scripts/extract_scms_dataset.py
 	$(PYTHON) scripts/extract_scms_dataset.py --archive "$(SCMS_DATASET_ARCHIVE)" --output "$(SCMS_DATASET_EXTRACT_DIR)"
 
 clean-scms-dataset-staging: scripts/extract_scms_dataset.py
 	$(PYTHON) scripts/extract_scms_dataset.py --archive "$(SCMS_DATASET_ARCHIVE)" --output "$(SCMS_DATASET_EXTRACT_DIR)" --discard-stale-staging
 
-prepare-scms-vocal-mix-samples: extract-scms-dataset scripts/prepare_scms_vocal_mix_samples.py
-	$(PYTHON) scripts/prepare_scms_vocal_mix_samples.py --root "$(SCMS_DATASET_EXTRACT_DIR)" --output "$(SCMS_DATASET_SAMPLE_DIR)" --limit "$(SCMS_DATASET_SAMPLE_LIMIT)" --minimum-samples "$(SCMS_DATASET_MIN_SAMPLES)"
+prepare-scms-vocal-mix-samples: $(SCMS_DATASET_SAMPLE_DIR)/manifest.tsv
+
+$(SCMS_DATASET_SAMPLE_DIR)/manifest.tsv: $(SCMS_DATASET_EXTRACT_DIR)/.scms-extraction-complete scripts/prepare_scms_vocal_mix_samples.py
+	$(PYTHON) scripts/prepare_scms_vocal_mix_samples.py --root "$(SCMS_DATASET_EXTRACT_DIR)" --output "$(SCMS_DATASET_SAMPLE_DIR)" --limit "$(SCMS_DATASET_SAMPLE_LIMIT)" --minimum-samples "$(SCMS_DATASET_MIN_SAMPLES)" --ffmpeg "$(FFMPEG)"
 
 measure-scms-vocal-mix: $(BUILD_DIR)/analyzer_real_note_samples prepare-scms-vocal-mix-samples scripts/run_with_duration.sh | $(BUILD_DIR)
 	$(RUN_WITH_DURATION) analyzer_scms_vocal_mix env MUSIC_ANALYZER_REAL_NOTE_SAMPLES_REQUIRED=1 MUSIC_ANALYZER_REAL_NOTE_FULL_MIX=1 MUSIC_ANALYZER_REAL_NOTE_SAMPLE_ROOT="$(SCMS_DATASET_SAMPLE_DIR)" MUSIC_ANALYZER_REAL_NOTE_REQUIRED_SAMPLES="$(SCMS_DATASET_MIN_SAMPLES)" MUSIC_ANALYZER_REAL_NOTE_MIN_BASS=0 MUSIC_ANALYZER_REAL_NOTE_MIN_GUITAR=0 MUSIC_ANALYZER_REAL_NOTE_MIN_PIANO=0 MUSIC_ANALYZER_REAL_NOTE_MIN_VOCALS=0 MUSIC_ANALYZER_REAL_NOTE_MIN_OTHER=0 MUSIC_ANALYZER_REAL_NOTE_MIN_ANY_HIT_PERCENT=0 MUSIC_ANALYZER_REAL_NOTE_MIN_EXPECTED_ROW_PERCENT=0 MUSIC_ANALYZER_REAL_NOTE_MIN_FIRST_ROW_PERCENT=0 MUSIC_ANALYZER_REAL_NOTE_MIN_BASS_EXPECTED_ROW_PERCENT=0 MUSIC_ANALYZER_REAL_NOTE_MIN_GUITAR_EXPECTED_ROW_PERCENT=0 MUSIC_ANALYZER_REAL_NOTE_MIN_PIANO_EXPECTED_ROW_PERCENT=0 MUSIC_ANALYZER_REAL_NOTE_MIN_VOCALS_EXPECTED_ROW_PERCENT=0 MUSIC_ANALYZER_REAL_NOTE_MIN_OTHER_EXPECTED_ROW_PERCENT=0 MUSIC_ANALYZER_REAL_NOTE_MIN_BASS_FIRST_ROW_PERCENT=0 MUSIC_ANALYZER_REAL_NOTE_MIN_GUITAR_FIRST_ROW_PERCENT=0 MUSIC_ANALYZER_REAL_NOTE_MIN_PIANO_FIRST_ROW_PERCENT=0 MUSIC_ANALYZER_REAL_NOTE_MIN_VOCALS_FIRST_ROW_PERCENT=0 MUSIC_ANALYZER_REAL_NOTE_MIN_OTHER_FIRST_ROW_PERCENT=0 MUSIC_ANALYZER_REAL_NOTE_MAX_DRUM_ACTIVE_PERCENT=100 MUSIC_ANALYZER_REAL_NOTE_MAX_FAILURES=999999 MUSIC_ANALYZER_REAL_NOTE_ATTRIBUTE_TSV="$(SCMS_DATASET_ATTRIBUTE_OUTPUT)" $(BUILD_DIR)/analyzer_real_note_samples > "$(SCMS_DATASET_MEASUREMENT_OUTPUT)"
+
+inspect-scms-prepared-wav:
+	$(PYTHON) scripts/inspect_wav_for_analyzer.py --wav "$(SCMS_DATASET_DEBUG_WAV)"
 
 $(SCMS_DATASET_ARCHIVE): scripts/validate_scms_dataset.py
 	mkdir -p "$(SCMS_DATASET_SOURCE_DIR)"
