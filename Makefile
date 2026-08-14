@@ -35,6 +35,8 @@ DAGSTUHL_CHOIRSET_ATTRIBUTE_OUTPUT ?= $(BUILD_DIR)/dagstuhl_choirset_attributes.
 DAGSTUHL_CHOIRSET_MEASUREMENT_OUTPUT ?= $(BUILD_DIR)/dagstuhl_choirset_measurement.tsv
 DAGSTUHL_CHOIRSET_PATTERN_OUTPUT ?= $(BUILD_DIR)/dagstuhl_choirset_pattern_rows.tsv
 DAGSTUHL_CHOIRSET_OWNERSHIP_PATTERN_REPORT ?= $(BUILD_DIR)/dagstuhl_choirset_ownership_pattern_report.txt
+DAGSTUHL_CHOIRSET_CROSS_CORPUS_OWNERSHIP_OUTPUT ?= $(BUILD_DIR)/dagstuhl_choirset_cross_corpus_ownership.tsv
+DAGSTUHL_CHOIRSET_SHARED_OWNERSHIP_PATTERN_REPORT ?= $(BUILD_DIR)/dagstuhl_choirset_shared_ownership_pattern_report.txt
 DAGSTUHL_CHOIRSET_ARCHIVE_URL ?= https://zenodo.org/api/records/3897182/files/DagstuhlChoirSet.zip/content
 DAGSTUHL_CHOIRSET_ARCHIVE_MD5 ?= 6d7ccdd5e3f43e54981b0f12d19987f9
 DAGSTUHL_CHOIRSET_DOWNLOAD_CONNECTIONS ?= 8
@@ -4154,7 +4156,7 @@ test-vocadito-samples-full-mix-shard-%: FORCE $(BUILD_DIR)/analyzer_real_note_sa
 download-vocalset-samples: scripts/run_with_lock.sh
 	+$(SHELL) scripts/run_with_lock.sh "$(VOCALSET_DOWNLOAD_LOCK_DIR)" -- "$(MAKE)" vocalset-download-samples-unlocked
 
-.PHONY: download-dagstuhl-choirset validate-dagstuhl-choirset-archive extract-dagstuhl-choirset prepare-dagstuhl-choirset inspect-dagstuhl-choirset measure-dagstuhl-choirset export-dagstuhl-choirset-pattern-rows find-dagstuhl-choirset-ownership-patterns inspect-dagstuhl-vocal-evidence test-dagstuhl-choirset-20 inspect-dagstuhl-choirset-archive test-dagstuhl-choirset-archive test-extract-dagstuhl-choirset test-prepare-dagstuhl-choirset test-summarize-dagstuhl-choirset test-export-dagstuhl-choirset-pattern-rows test-inspect-dagstuhl-vocal-evidence
+.PHONY: download-dagstuhl-choirset validate-dagstuhl-choirset-archive extract-dagstuhl-choirset prepare-dagstuhl-choirset inspect-dagstuhl-choirset measure-dagstuhl-choirset export-dagstuhl-choirset-pattern-rows inspect-dagstuhl-cross-corpus-ownership find-dagstuhl-shared-vocal-ownership-patterns find-dagstuhl-choirset-ownership-patterns inspect-dagstuhl-vocal-evidence test-dagstuhl-choirset-20 inspect-dagstuhl-choirset-archive test-dagstuhl-choirset-archive test-extract-dagstuhl-choirset test-prepare-dagstuhl-choirset test-summarize-dagstuhl-choirset test-export-dagstuhl-choirset-pattern-rows test-inspect-vocal-ownership-cross-corpus test-inspect-dagstuhl-vocal-evidence
 
 download-dagstuhl-choirset: configure-instrument-sample-store $(DAGSTUHL_CHOIRSET_ARCHIVE) validate-dagstuhl-choirset-archive
 
@@ -4179,6 +4181,18 @@ test-dagstuhl-choirset-20: measure-dagstuhl-choirset
 
 export-dagstuhl-choirset-pattern-rows: measure-dagstuhl-choirset scripts/export_dagstuhl_choirset_pattern_rows.py | $(BUILD_DIR)
 	$(PYTHON) scripts/export_dagstuhl_choirset_pattern_rows.py --attributes "$(DAGSTUHL_CHOIRSET_ATTRIBUTE_OUTPUT)" --manifest "$(DAGSTUHL_CHOIRSET_PREPARED_DIR)/manifest.json" --output "$(DAGSTUHL_CHOIRSET_PATTERN_OUTPUT)"
+
+inspect-dagstuhl-cross-corpus-ownership: export-dagstuhl-choirset-pattern-rows scripts/inspect_vocal_ownership_cross_corpus.py | $(BUILD_DIR)
+	@for path in "$(VOCADITO_FULL_MIX_ATTRIBUTE_TSV)" "$(VOCALSET_FULL_MIX_ATTRIBUTE_TSV)"; do test -s "$$path" || { printf '%s\n' "missing cached cross-corpus vocal input: $$path"; exit 2; }; done
+	$(PYTHON) scripts/inspect_vocal_ownership_cross_corpus.py --input "DCS=$(DAGSTUHL_CHOIRSET_PATTERN_OUTPUT)" --input "Vocadito=$(VOCADITO_FULL_MIX_ATTRIBUTE_TSV)" --input "VocalSet=$(VOCALSET_FULL_MIX_ATTRIBUTE_TSV)" --output "$(DAGSTUHL_CHOIRSET_CROSS_CORPUS_OWNERSHIP_OUTPUT)"
+	@cat "$(DAGSTUHL_CHOIRSET_CROSS_CORPUS_OWNERSHIP_OUTPUT)"
+
+find-dagstuhl-shared-vocal-ownership-patterns: $(DAGSTUHL_CHOIRSET_SHARED_OWNERSHIP_PATTERN_REPORT)
+	@cat "$(DAGSTUHL_CHOIRSET_SHARED_OWNERSHIP_PATTERN_REPORT)"
+
+$(DAGSTUHL_CHOIRSET_SHARED_OWNERSHIP_PATTERN_REPORT): export-dagstuhl-choirset-pattern-rows scripts/find_real_note_attribute_patterns.py | $(BUILD_DIR)
+	@for path in "$(BUILD_DIR)/real_note_full_mix_attributes.tsv" "$(VOCADITO_FULL_MIX_ATTRIBUTE_TSV)" "$(VOCALSET_FULL_MIX_ATTRIBUTE_TSV)"; do test -s "$$path" || { printf '%s\n' "missing cached shared-vocal pattern input: $$path"; exit 2; }; done
+	@tmp="$@.$$$$.tmp"; $(PYTHON) scripts/find_real_note_attribute_patterns.py "$(DAGSTUHL_CHOIRSET_PATTERN_OUTPUT)" --extra-candidate-path "$(VOCADITO_FULL_MIX_ATTRIBUTE_TSV)" --extra-candidate-path "$(VOCALSET_FULL_MIX_ATTRIBUTE_TSV)" --extra-protected-path "$(BUILD_DIR)/real_note_full_mix_attributes.tsv" --bucket "ownership_miss:vocals/*->*" --jobs "$(REAL_NOTE_PATTERN_JOBS)" --limit 16 --min-positive-samples 3 --max-negative-samples 0 --max-conditions 2 --show-examples 1 --show-near-misses 8 --protected-scope all --profile-fields 6 > "$$tmp" 2>&1; status="$$?"; mv "$$tmp" "$@"; exit "$$status"
 
 find-dagstuhl-choirset-ownership-patterns: $(DAGSTUHL_CHOIRSET_OWNERSHIP_PATTERN_REPORT)
 	@cat "$(DAGSTUHL_CHOIRSET_OWNERSHIP_PATTERN_REPORT)"
@@ -4207,6 +4221,9 @@ test-summarize-dagstuhl-choirset: tests/test_summarize_dagstuhl_choirset_measure
 
 test-export-dagstuhl-choirset-pattern-rows: tests/test_export_dagstuhl_choirset_pattern_rows.py scripts/export_dagstuhl_choirset_pattern_rows.py
 	$(PYTHON) tests/test_export_dagstuhl_choirset_pattern_rows.py
+
+test-inspect-vocal-ownership-cross-corpus: tests/test_inspect_vocal_ownership_cross_corpus.py scripts/inspect_vocal_ownership_cross_corpus.py
+	$(PYTHON) tests/test_inspect_vocal_ownership_cross_corpus.py
 
 test-inspect-dagstuhl-vocal-evidence: tests/test_inspect_dagstuhl_vocal_evidence.py scripts/inspect_dagstuhl_vocal_evidence.py
 	$(PYTHON) tests/test_inspect_dagstuhl_vocal_evidence.py
