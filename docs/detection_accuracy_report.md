@@ -75,6 +75,19 @@ Source: `build/scms_vocal_other_route_audit.txt`
 
 The originating SCMS corpus has 5 matching vocal samples. Only one independent corpus reproduces the profile, so the rule is rejected.
 
+## Tenor-saxophone-to-Piano safety audit
+
+The leading Good Sounds tenor-saxophone routing profile is audited against independent Iowa, TinySOL, and real tenor-saxophone fixtures before any reroute.
+
+Source: `build/tenor_sax_piano_route_audit.txt`
+
+| Metric | Accurate / total | Remaining |
+| --- | ---: | ---: |
+| Independent saxophone corpora reproducing the profile | 0 / 3 (0.0%) | 3 |
+| Runtime routing change eligible | 0 / 1 (0.0%) | 1 |
+
+The originating Good Sounds corpus has 3 matching tenor-saxophone samples; no independent saxophone fixture reproduces the profile, so the rule is rejected.
+
 ## High-soprano octave safety audit
 
 A high F5/F#5 vocal recovery is only eligible if it improves at least two independent choir corpora with no protected-instrument reroutes. The lower-octave gate selects protected keyboard candidates; all tested zero-overlap multi-signal profiles reduced protected visual accuracy, so no behavior change is permitted.
@@ -603,8 +616,8 @@ Source: `build/dagstuhl_choirset_measurement.tsv`
 | DCS All DCS vocal windows — Visible current-note vocal routing | 52 / 240 (21.7%) | 188 |
 | DCS All SATB notes — Exact-MIDI recall | 568 / 984 (57.7%) | 416 |
 | DCS All SATB notes — Pitch-class recall | 708 / 984 (72.0%) | 276 |
-| DCS All SATB notes — Visible vocal routing | 58 / 984 (5.9%) | 926 |
-| DCS All SATB notes — Vocal ownership | 109 / 984 (11.1%) | 875 |
+| DCS All SATB notes — Visible vocal routing | 59 / 984 (6.0%) | 925 |
+| DCS All SATB notes — Vocal ownership | 110 / 984 (11.2%) | 874 |
 
 ### DCS SATB range breakdown
 
@@ -624,8 +637,8 @@ Source: `build/dagstuhl_choirset_measurement.tsv`
 | DCS SATB range — Soprano — Vocal ownership | 18 / 240 (7.5%) | 222 |
 | DCS SATB range — Tenor — Exact-MIDI recall | 182 / 240 (75.8%) | 58 |
 | DCS SATB range — Tenor — Pitch-class recall | 194 / 240 (80.8%) | 46 |
-| DCS SATB range — Tenor — Visible vocal routing | 22 / 240 (9.2%) | 218 |
-| DCS SATB range — Tenor — Vocal ownership | 34 / 240 (14.2%) | 206 |
+| DCS SATB range — Tenor — Visible vocal routing | 23 / 240 (9.6%) | 217 |
+| DCS SATB range — Tenor — Vocal ownership | 35 / 240 (14.6%) | 205 |
 
 ### DCS recording-configuration breakdown
 
@@ -733,8 +746,8 @@ Source: `build/dagstuhl_choirset_measurement.tsv`
 | DCS Configuration — DCS_LI_QuartetB_Take04 — Pitch-class recall | 23 / 48 (47.9%) | 25 |
 | DCS Configuration — DCS_LI_QuartetB_Take04 — Simplified chord accuracy | 2 / 12 (16.7%) | 10 |
 | DCS Configuration — DCS_LI_QuartetB_Take04 — Visible current-note vocal routing | 1 / 12 (8.3%) | 11 |
-| DCS Configuration — DCS_LI_QuartetB_Take04 — Visible vocal routing | 1 / 48 (2.1%) | 47 |
-| DCS Configuration — DCS_LI_QuartetB_Take04 — Vocal ownership | 5 / 48 (10.4%) | 43 |
+| DCS Configuration — DCS_LI_QuartetB_Take04 — Visible vocal routing | 2 / 48 (4.2%) | 46 |
+| DCS Configuration — DCS_LI_QuartetB_Take04 — Vocal ownership | 6 / 48 (12.5%) | 42 |
 | DCS Configuration — DCS_LI_QuartetB_Take05 — Current-note vocal ownership | 4 / 12 (33.3%) | 8 |
 | DCS Configuration — DCS_LI_QuartetB_Take05 — Exact chord accuracy | 1 / 12 (8.3%) | 11 |
 | DCS Configuration — DCS_LI_QuartetB_Take05 — Exact-MIDI recall | 29 / 48 (60.4%) | 19 |

@@ -85,6 +85,23 @@ class DetectionAccuracyReportTest(unittest.TestCase):
             )
             self.assertEqual(REPORT.scms_vocal_other_route_audit(audit), (5, 1, 3))
 
+    def test_tenor_sax_piano_audit_requires_independent_recurrence(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            audit = Path(temporary) / "tenor_sax_piano_route_audit.txt"
+            audit.write_text(
+                "\n".join(
+                    (
+                        "matched rows=5 samples=3",
+                        "compare rows=0 samples=0 path=iowa.tsv",
+                        "compare rows=0 samples=0 path=tinysol.tsv",
+                        "compare rows=0 samples=0 path=real-a2s.tsv",
+                    )
+                )
+                + "\n",
+                encoding="utf-8",
+            )
+            self.assertEqual(REPORT.tenor_sax_piano_route_audit(audit), (3, 0, 3))
+
     def test_render_reports_global_and_family_counts(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
             source = Path(temporary) / "attributes.tsv"

@@ -712,6 +712,10 @@ def scms_vocal_other_route_audit(path: Path) -> tuple[int, int, int]:
     return route_profile_audit(path, 3)
 
 
+def tenor_sax_piano_route_audit(path: Path) -> tuple[int, int, int]:
+    return route_profile_audit(path, 3)
+
+
 def dagstuhl_choirset_rows(path: Path) -> list[tuple[str, str, int, int]]:
     with path.open(encoding="utf-8", newline="") as source:
         rows = list(csv.DictReader(source, delimiter="\t"))
@@ -822,6 +826,7 @@ def render(
     high_vocal_octave_audit: Path | None = None,
     electronic_piano_guitar_route_audit_input: Path | None = None,
     scms_vocal_other_route_audit_input: Path | None = None,
+    tenor_sax_piano_route_audit_input: Path | None = None,
 ) -> str:
     samples = load_samples(input_path)
     dcs_rows = dagstuhl_choirset_rows(dagstuhl_choirset_input) if dagstuhl_choirset_input else []
@@ -851,6 +856,12 @@ def render(
         scms_vocal_other_route_audit(scms_vocal_other_route_audit_input)
         if scms_vocal_other_route_audit_input is not None
         and scms_vocal_other_route_audit_input.is_file()
+        else None
+    )
+    tenor_sax_piano_audit = (
+        tenor_sax_piano_route_audit(tenor_sax_piano_route_audit_input)
+        if tenor_sax_piano_route_audit_input is not None
+        and tenor_sax_piano_route_audit_input.is_file()
         else None
     )
     csd_rows = dagstuhl_choirset_rows(choral_singing_dataset_measurement) if choral_singing_dataset_measurement else []
@@ -930,6 +941,26 @@ def render(
                 f"| Runtime display change eligible | {fraction(int(recurring_corpora >= 2), 1)} | {int(recurring_corpora < 2)} |",
                 "",
                 f"The originating SCMS corpus has {source_samples} matching vocal samples. Only one independent corpus reproduces the profile, so the rule is rejected.",
+            ]
+        )
+    if tenor_sax_piano_audit is not None:
+        source_samples, recurring_corpora, corpus_total = tenor_sax_piano_audit
+        lines.extend(
+            [
+                "",
+                "## Tenor-saxophone-to-Piano safety audit",
+                "",
+                "The leading Good Sounds tenor-saxophone routing profile is audited against "
+                "independent Iowa, TinySOL, and real tenor-saxophone fixtures before any reroute.",
+                "",
+                f"Source: `{tenor_sax_piano_route_audit_input.as_posix()}`",
+                "",
+                "| Metric | Accurate / total | Remaining |",
+                "| --- | ---: | ---: |",
+                f"| Independent saxophone corpora reproducing the profile | {fraction(recurring_corpora, corpus_total)} | {corpus_total - recurring_corpora} |",
+                f"| Runtime routing change eligible | {fraction(int(recurring_corpora >= 2), 1)} | {int(recurring_corpora < 2)} |",
+                "",
+                f"The originating Good Sounds corpus has {source_samples} matching tenor-saxophone samples; no independent saxophone fixture reproduces the profile, so the rule is rejected.",
             ]
         )
     if high_vocal_octave_audit is not None and high_vocal_octave_audit.is_file():
@@ -1924,6 +1955,7 @@ def main() -> int:
     parser.add_argument("--high-vocal-octave-audit", type=Path)
     parser.add_argument("--electronic-piano-guitar-route-audit", type=Path)
     parser.add_argument("--scms-vocal-other-route-audit", type=Path)
+    parser.add_argument("--tenor-sax-piano-route-audit", type=Path)
     parser.add_argument("--output", required=True, type=Path)
     args = parser.parse_args()
     try:
@@ -1984,6 +2016,7 @@ def main() -> int:
             args.high_vocal_octave_audit,
             args.electronic_piano_guitar_route_audit,
             args.scms_vocal_other_route_audit,
+            args.tenor_sax_piano_route_audit,
         )
     except (OSError, ValueError) as error:
         parser.error(str(error))
