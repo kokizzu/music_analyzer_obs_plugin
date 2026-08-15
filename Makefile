@@ -2533,6 +2533,9 @@ prepare-maestro-real-samples: scripts/prepare_maps_piano_samples.py download-mae
 
 measure-maestro-real-samples: $(BUILD_DIR)/analyzer_maestro prepare-maestro-real-samples scripts/run_with_duration.sh | $(BUILD_DIR)
 	$(RUN_WITH_DURATION) maestro_real_measurement env MUSIC_ANALYZER_MAESTRO_ROOT="$(MAESTRO_REAL_SAMPLE_DIR)" MUSIC_ANALYZER_MAESTRO_REQUIRED=1 MUSIC_ANALYZER_MAESTRO_REQUIRED_RECORDINGS="$(MAESTRO_REAL_MIN_RECORDINGS)" MUSIC_ANALYZER_MAESTRO_REQUIRED_WINDOWS=1 MUSIC_ANALYZER_MAESTRO_MAX_WINDOWS_PER_RECORDING="$(MAPS_PIANO_MAX_WINDOWS_PER_RECORDING)" MUSIC_ANALYZER_MAESTRO_MIN_RECALL_PERCENT=0 MUSIC_ANALYZER_MAESTRO_MIN_PRECISION_PERCENT=0 MUSIC_ANALYZER_MAESTRO_MIN_KEYBOARD_RECALL_PERCENT=0 MUSIC_ANALYZER_MAESTRO_MAX_CONTAMINATION_PERCENT=100 MUSIC_ANALYZER_MAESTRO_MAX_FALSE_NON_KEYBOARD_PERCENT=100 MUSIC_ANALYZER_MAESTRO_MIN_CHORD_RECALL_PERCENT=0 MUSIC_ANALYZER_MAESTRO_MIN_CHORD_PRECISION_PERCENT=0 MUSIC_ANALYZER_MAESTRO_MIN_CHORD_CHECKS=100000 MUSIC_ANALYZER_MAESTRO_ATTRIBUTE_TSV="$(MAESTRO_REAL_ATTRIBUTE_TSV)" $(BUILD_DIR)/analyzer_maestro > "$(MAESTRO_REAL_MEASUREMENT_OUTPUT)"
+	@# Keep the committed accuracy dashboard synchronized with a new real result.
+	@if test -s "$(MAPS_PIANO_ATTRIBUTE_TSV)"; then $(MAKE) analyze-independent-piano-chord-evidence analyze-independent-piano-chord-states; else printf '%s\n' "independent piano comparison skipped: missing $(MAPS_PIANO_ATTRIBUTE_TSV)"; fi
+	@if test -s "$(BUILD_DIR)/real_note_full_mix_attributes.tsv"; then $(MAKE) update-detection-accuracy-report-cached; else printf '%s\n' "accuracy dashboard refresh skipped: missing $(BUILD_DIR)/real_note_full_mix_attributes.tsv"; fi
 
 test-maps-piano-samples: test-maps-piano-samples-parallel
 
