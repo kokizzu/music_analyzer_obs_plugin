@@ -52,6 +52,22 @@ class DetectionAccuracyReportTest(unittest.TestCase):
             )
             self.assertEqual(len(REPORT.load_samples(source)), 1)
 
+    def test_electronic_piano_guitar_audit_requires_two_independent_corpora(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            audit = Path(temporary) / "electronic_piano_guitar_route_audit.txt"
+            audit.write_text(
+                "\n".join(
+                    (
+                        "matched rows=15 samples=10",
+                        "compare rows=0 samples=0 path=maps.tsv",
+                        "compare rows=2 samples=2 path=maestro.tsv",
+                    )
+                )
+                + "\n",
+                encoding="utf-8",
+            )
+            self.assertEqual(REPORT.electronic_piano_guitar_route_audit(audit), (10, 1, 2))
+
     def test_render_reports_global_and_family_counts(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
             source = Path(temporary) / "attributes.tsv"

@@ -332,6 +332,12 @@ MAPS_CHORD_COUNTS_RE = re.compile(
     r"keyboard chord precision [\d.]+%, keyboard chord recall [\d.]+%, F1 [\d.]+%, "
     r"tp/fp/fn (?P<tp>\d+)/(?P<fp>\d+)/(?P<fn>\d+)"
 )
+ELECTRONIC_PIANO_GUITAR_MATCH_RE = re.compile(
+    r"^matched rows=(?P<rows>\d+) samples=(?P<samples>\d+)$", re.MULTILINE
+)
+ELECTRONIC_PIANO_GUITAR_COMPARE_RE = re.compile(
+    r"^compare rows=(?P<rows>\d+) samples=(?P<samples>\d+) path=.+$", re.MULTILINE
+)
 INDEPENDENT_PIANO_STATE_RE = re.compile(
     r"independent_piano_chord_states: corpora=(?P<corpora>\d+) "
     r"shared_no_label_states=(?P<states>\d+) "
@@ -684,6 +690,20 @@ def route_coverage_rows(path: Path) -> list[tuple[str, int, int]]:
     return rows
 
 
+def electronic_piano_guitar_route_audit(path: Path) -> tuple[int, int, int]:
+    """Return source samples and independent-profile recurrence counts."""
+    text = path.read_text(encoding="utf-8", errors="replace")
+    source = ELECTRONIC_PIANO_GUITAR_MATCH_RE.search(text)
+    comparisons = list(ELECTRONIC_PIANO_GUITAR_COMPARE_RE.finditer(text))
+    if source is None or len(comparisons) != 2:
+        raise ValueError(f"{path}: missing electronic-piano Guitar route audit")
+    return (
+        int(source["samples"]),
+        sum(int(match["samples"]) > 0 for match in comparisons),
+        len(comparisons),
+    )
+
+
 def dagstuhl_choirset_rows(path: Path) -> list[tuple[str, str, int, int]]:
     with path.open(encoding="utf-8", newline="") as source:
         rows = list(csv.DictReader(source, delimiter="\t"))
@@ -792,6 +812,7 @@ def render(
     kraisler_measurement: Path | None = None,
     musicnet_routing_input: Path | None = None,
     high_vocal_octave_audit: Path | None = None,
+    electronic_piano_guitar_route_audit_input: Path | None = None,
 ) -> str:
     samples = load_samples(input_path)
     dcs_rows = dagstuhl_choirset_rows(dagstuhl_choirset_input) if dagstuhl_choirset_input else []
@@ -809,6 +830,12 @@ def render(
     piano_state_evidence = (
         independent_piano_state_evidence(independent_piano_chord_state_evidence_input)
         if independent_piano_chord_state_evidence_input
+        else None
+    )
+    electronic_piano_guitar_audit = (
+        electronic_piano_guitar_route_audit(electronic_piano_guitar_route_audit_input)
+        if electronic_piano_guitar_route_audit_input is not None
+        and electronic_piano_guitar_route_audit_input.is_file()
         else None
     )
     csd_rows = dagstuhl_choirset_rows(choral_singing_dataset_measurement) if choral_singing_dataset_measurement else []
@@ -850,6 +877,26 @@ def render(
         )
         for label, count, total in route_coverage_rows(route_summary):
             lines.append(f"| {label} | {fraction(count, total)} | {total - count} |")
+    if electronic_piano_guitar_audit is not None:
+        source_samples, recurring_corpora, corpus_total = electronic_piano_guitar_audit
+        lines.extend(
+            [
+                "",
+                "## Electronic-piano-to-Guitar safety audit",
+                "",
+                "The leading three-signal electronic-piano display profile is audited against "
+                "the independent MAPS and MAESTRO piano corpora before any routing change.",
+                "",
+                f"Source: `{electronic_piano_guitar_route_audit_input.as_posix()}`",
+                "",
+                "| Metric | Accurate / total | Remaining |",
+                "| --- | ---: | ---: |",
+                f"| Independent piano corpora reproducing the profile | {fraction(recurring_corpora, corpus_total)} | {corpus_total - recurring_corpora} |",
+                f"| Runtime routing change eligible | {fraction(int(recurring_corpora == corpus_total), 1)} | {int(recurring_corpora != corpus_total)} |",
+                "",
+                f"The originating cached corpus has {source_samples} matching electronic-piano samples; neither independent corpus reproduces the profile, so the rule is rejected.",
+            ]
+        )
     if high_vocal_octave_audit is not None and high_vocal_octave_audit.is_file():
         lines.extend(
             [
@@ -1820,6 +1867,7 @@ def main() -> int:
     parser.add_argument("--kraisler-manifest", type=Path)
     parser.add_argument("--kraisler-measurement", type=Path)
     parser.add_argument("--high-vocal-octave-audit", type=Path)
+    parser.add_argument("--electronic-piano-guitar-route-audit", type=Path)
     parser.add_argument("--output", required=True, type=Path)
     args = parser.parse_args()
     try:
@@ -1878,6 +1926,7 @@ def main() -> int:
             args.kraisler_measurement,
             args.musicnet_routing_input,
             args.high_vocal_octave_audit,
+            args.electronic_piano_guitar_route_audit,
         )
     except (OSError, ValueError) as error:
         parser.error(str(error))

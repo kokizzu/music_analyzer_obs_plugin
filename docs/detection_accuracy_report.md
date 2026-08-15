@@ -49,6 +49,19 @@ Source: `build/detector_improvement_route_summary.txt`
 | Routes awaiting additional fixture coverage | 0 / 252 (0.0%) | 252 |
 | Routes lacking independent-corpus replication | 123 / 252 (48.8%) | 129 |
 
+## Electronic-piano-to-Guitar safety audit
+
+The leading three-signal electronic-piano display profile is audited against the independent MAPS and MAESTRO piano corpora before any routing change.
+
+Source: `build/electronic_piano_guitar_route_audit.txt`
+
+| Metric | Accurate / total | Remaining |
+| --- | ---: | ---: |
+| Independent piano corpora reproducing the profile | 0 / 2 (0.0%) | 2 |
+| Runtime routing change eligible | 0 / 1 (0.0%) | 1 |
+
+The originating cached corpus has 10 matching electronic-piano samples; neither independent corpus reproduces the profile, so the rule is rejected.
+
 ## High-soprano octave safety audit
 
 A high F5/F#5 vocal recovery is only eligible if it improves at least two independent choir corpora with no protected-instrument reroutes. The lower-octave gate selects protected keyboard candidates; all tested zero-overlap multi-signal profiles reduced protected visual accuracy, so no behavior change is permitted.
