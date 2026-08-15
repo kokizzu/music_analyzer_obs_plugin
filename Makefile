@@ -845,6 +845,12 @@ MAESTRO_REAL_MEASUREMENT_OUTPUT ?= $(BUILD_DIR)/maestro_real_measurement.out
 MAESTRO_REAL_ATTRIBUTE_TSV ?= $(BUILD_DIR)/maestro_real_attributes.tsv
 MAESTRO_REAL_CHORD_EVIDENCE_OUTPUT ?= $(BUILD_DIR)/independent_piano_chord_evidence.txt
 MAESTRO_REAL_CHORD_STATE_OUTPUT ?= $(BUILD_DIR)/independent_piano_chord_states.txt
+KRAISLER_SOURCE_DIR ?= $(INSTRUMENT_SAMPLE_STORE_LINK)/kraisler
+KRAISLER_ARCHIVE ?= $(KRAISLER_SOURCE_DIR)/KRAISLER.zip
+KRAISLER_EXTRACT_DIR ?= $(KRAISLER_SOURCE_DIR)/extracted
+KRAISLER_ARCHIVE_URL ?= https://zenodo.org/api/records/21082251/files/KRAISLER.zip/content
+KRAISLER_ARCHIVE_MD5 ?= 22f6f51e9c356c1ea8f591d85603fd73
+KRAISLER_MIN_TRACKS ?= 20
 INSTRUMENT_SAMPLE_BUILD_ROOT ?= $(BUILD_DIR)
 INSTRUMENT_SAMPLE_SOURCE_DIR ?= $(BUILD_DIR)/instrument_sample_sources
 INSTRUMENT_SAMPLE_SOUNDFONT ?=
@@ -2545,6 +2551,25 @@ download-maestro-real-samples: scripts/validate_maestro_subset_archive.py script
 	test -s "$(MAESTRO_REAL_ARCHIVE)" || curl -fL -C - -o "$(MAESTRO_REAL_ARCHIVE).part" "$(MAESTRO_REAL_URL)"
 	@test ! -s "$(MAESTRO_REAL_ARCHIVE).part" || mv "$(MAESTRO_REAL_ARCHIVE).part" "$(MAESTRO_REAL_ARCHIVE)"
 	$(PYTHON) scripts/validate_maestro_subset_archive.py --archive "$(MAESTRO_REAL_ARCHIVE)" --kinds OTHER --min-pairs "$(MAESTRO_REAL_MIN_RECORDINGS)"
+
+.PHONY: download-kraisler validate-kraisler-archive extract-kraisler test-validate-kraisler-archive test-extract-kraisler
+download-kraisler: configure-instrument-sample-store $(KRAISLER_ARCHIVE) validate-kraisler-archive
+
+$(KRAISLER_ARCHIVE): scripts/validate_kraisler_archive.py
+	mkdir -p "$(KRAISLER_SOURCE_DIR)"
+	if test -s "$@"; then $(PYTHON) scripts/validate_kraisler_archive.py --archive "$@" --expected-md5 "$(KRAISLER_ARCHIVE_MD5)" --minimum-tracks "$(KRAISLER_MIN_TRACKS)"; elif command -v aria2c >/dev/null 2>&1; then aria2c --continue=true --allow-overwrite=true --auto-file-renaming=false --max-tries=5 --retry-wait=5 --max-connection-per-server=8 --split=8 --min-split-size=1M --dir "$(KRAISLER_SOURCE_DIR)" --out "KRAISLER.zip.part" "$(KRAISLER_ARCHIVE_URL)" && mv "$@.part" "$@"; else curl -fL -C - -o "$@.part" "$(KRAISLER_ARCHIVE_URL)" && mv "$@.part" "$@"; fi
+
+validate-kraisler-archive: $(KRAISLER_ARCHIVE) scripts/validate_kraisler_archive.py
+	$(PYTHON) scripts/validate_kraisler_archive.py --archive "$(KRAISLER_ARCHIVE)" --expected-md5 "$(KRAISLER_ARCHIVE_MD5)" --minimum-tracks "$(KRAISLER_MIN_TRACKS)"
+
+extract-kraisler: validate-kraisler-archive scripts/extract_kraisler.py
+	$(PYTHON) scripts/extract_kraisler.py --archive "$(KRAISLER_ARCHIVE)" --output "$(KRAISLER_EXTRACT_DIR)" --expected-md5 "$(KRAISLER_ARCHIVE_MD5)" --minimum-tracks "$(KRAISLER_MIN_TRACKS)"
+
+test-validate-kraisler-archive: tests/test_validate_kraisler_archive.py scripts/validate_kraisler_archive.py
+	$(PYTHON) tests/test_validate_kraisler_archive.py
+
+test-extract-kraisler: tests/test_extract_kraisler.py scripts/extract_kraisler.py scripts/validate_kraisler_archive.py
+	$(PYTHON) tests/test_extract_kraisler.py
 
 prepare-maestro-real-samples: scripts/prepare_maps_piano_samples.py download-maestro-real-samples | $(BUILD_DIR)
 	+$(MAKE) BUILD_SAMPLE_STORAGE_DIR=maestro_real_samples ensure-build-sample-storage-link
