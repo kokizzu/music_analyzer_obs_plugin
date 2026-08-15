@@ -75,6 +75,16 @@ make migrate-sample-build-directories
 
 `build/InstrumentSamples` is a safe link to `/media/kyz/sshflashtor/InstrumentSamples`. The migration target moves every build-level sample/corpus and audio-fixture directory into `/media/kyz/sshflashtor/InstrumentSamples/build-cache/`, byte-verifies it, then replaces the old build directory with a symlink. Android, Gradle, dependencies, and generic build outputs stay local. `MUSIC_ANALYZER_DATASET_ROOT` defaults to the external store for real-data preflights.
 
+For an approved long-running corpus pipeline, launch it independently of the interactive session and inspect its bounded Make log with:
+
+```sh
+make start-approved-corpus-downloads
+make report-approved-corpus-downloads
+make show-approved-corpus-download-log
+```
+
+The registry is deliberately limited to the active coverage gap. At present it runs the external MAESTRO prepare-and-measure pipeline; it remains resumable, writes only through `build/InstrumentSamples`, and never plays audio or installs/reloads the OBS plugin.
+
 Use the combined dataset preflight after adding an official dataset:
 
 ```sh
