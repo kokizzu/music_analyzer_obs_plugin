@@ -83,7 +83,7 @@ make report-approved-corpus-downloads
 make show-approved-corpus-download-log
 ```
 
-The registry is deliberately limited to the active coverage gap. At present it runs the external MAESTRO prepare-and-measure pipeline; it remains resumable, writes only through `build/InstrumentSamples`, and never plays audio or installs/reloads the OBS plugin.
+The registry is deliberately limited to the active coverage gap. At present it runs the external MAESTRO prepare-and-measure pipeline; it remains resumable, writes only through `build/InstrumentSamples`, and never plays audio or installs/reloads the OBS plugin. MAESTRO first verifies the ZIP central directory and paired-member inventory, then `prepare_maps_piano_samples.py` CRC-checks every selected WAV/MIDI stream during extraction; this avoids a redundant full scan of the 101-GB archive before the labelled subset can be measured.
 
 Use the combined dataset preflight after adding an official dataset:
 

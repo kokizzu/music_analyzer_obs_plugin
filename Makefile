@@ -14,9 +14,12 @@ BUILD_DIR ?= build
 INSTRUMENT_SAMPLE_STORE ?= /media/kyz/sshflashtor/InstrumentSamples
 INSTRUMENT_SAMPLE_STORE_LINK ?= $(BUILD_DIR)/InstrumentSamples
 
-.PHONY: start-approved-corpus-downloads report-approved-corpus-downloads show-approved-corpus-download-log test-approved-corpus-download-manager
+.PHONY: start-approved-corpus-downloads stop-approved-corpus-downloads report-approved-corpus-downloads show-approved-corpus-download-log test-approved-corpus-download-manager test-validate-maestro-subset-archive
 start-approved-corpus-downloads: scripts/start_approved_corpus_downloads.sh
 	$(SHELL) scripts/start_approved_corpus_downloads.sh "$(MAKE)" "$(BUILD_DIR)" $(APPROVED_CORPUS_DOWNLOAD_TARGETS)
+
+stop-approved-corpus-downloads: scripts/stop_approved_corpus_downloads.sh
+	$(SHELL) scripts/stop_approved_corpus_downloads.sh "$(BUILD_DIR)" $(APPROVED_CORPUS_DOWNLOAD_TARGETS)
 
 report-approved-corpus-downloads: scripts/report_approved_corpus_downloads.sh
 	$(SHELL) scripts/report_approved_corpus_downloads.sh "$(BUILD_DIR)" $(APPROVED_CORPUS_DOWNLOAD_TARGETS)
@@ -24,10 +27,14 @@ report-approved-corpus-downloads: scripts/report_approved_corpus_downloads.sh
 show-approved-corpus-download-log: scripts/show_approved_corpus_download_log.sh
 	$(SHELL) scripts/show_approved_corpus_download_log.sh "$(BUILD_DIR)" "$(word 1,$(APPROVED_CORPUS_DOWNLOAD_TARGETS))"
 
-test-approved-corpus-download-manager: scripts/start_approved_corpus_downloads.sh scripts/report_approved_corpus_downloads.sh scripts/show_approved_corpus_download_log.sh
+test-approved-corpus-download-manager: scripts/start_approved_corpus_downloads.sh scripts/stop_approved_corpus_downloads.sh scripts/report_approved_corpus_downloads.sh scripts/show_approved_corpus_download_log.sh
 	$(SHELL) -n scripts/start_approved_corpus_downloads.sh
+	$(SHELL) -n scripts/stop_approved_corpus_downloads.sh
 	$(SHELL) -n scripts/report_approved_corpus_downloads.sh
 	$(SHELL) -n scripts/show_approved_corpus_download_log.sh
+
+test-validate-maestro-subset-archive: tests/test_validate_maestro_subset_archive.py scripts/validate_maestro_subset_archive.py scripts/prepare_maps_piano_samples.py
+	$(PYTHON) tests/test_validate_maestro_subset_archive.py
 
 REAL_DATASET_ROOT ?= $(INSTRUMENT_SAMPLE_STORE_LINK)
 MUSICNET_SOURCE_DIR ?= $(INSTRUMENT_SAMPLE_STORE_LINK)/musicnet
@@ -2508,11 +2515,11 @@ prepare-maps-piano-samples: scripts/prepare_maps_piano_samples.py download-maps-
 # MAESTRO is a second independently recorded Disklavier corpus.  Its archive
 # and the selected WAV/MIDI fixture remain under InstrumentSamples; build only
 # retains the stable symlink used by analyzer targets.
-download-maestro-real-samples: | $(BUILD_DIR)
+download-maestro-real-samples: scripts/validate_maestro_subset_archive.py scripts/prepare_maps_piano_samples.py | $(BUILD_DIR)
 	mkdir -p "$(MAESTRO_REAL_SOURCE_DIR)"
 	test -s "$(MAESTRO_REAL_ARCHIVE)" || curl -fL -C - -o "$(MAESTRO_REAL_ARCHIVE).part" "$(MAESTRO_REAL_URL)"
 	@test ! -s "$(MAESTRO_REAL_ARCHIVE).part" || mv "$(MAESTRO_REAL_ARCHIVE).part" "$(MAESTRO_REAL_ARCHIVE)"
-	$(PYTHON) -m zipfile -t "$(MAESTRO_REAL_ARCHIVE)" >/dev/null
+	$(PYTHON) scripts/validate_maestro_subset_archive.py --archive "$(MAESTRO_REAL_ARCHIVE)" --kinds OTHER --min-pairs "$(MAESTRO_REAL_MIN_RECORDINGS)"
 
 prepare-maestro-real-samples: scripts/prepare_maps_piano_samples.py download-maestro-real-samples | $(BUILD_DIR)
 	+$(MAKE) BUILD_SAMPLE_STORAGE_DIR=maestro_real_samples ensure-build-sample-storage-link
