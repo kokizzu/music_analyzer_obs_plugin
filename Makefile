@@ -1,5 +1,10 @@
 CXX ?= g++
 PYTHON ?= python3
+
+# Explicitly approved, resumable external corpus acquisitions. This registry
+# is task-scoped: a target belongs here only while it is an active accuracy
+# coverage gap, rather than merely being supported by the project.
+APPROVED_CORPUS_DOWNLOAD_TARGETS ?= measure-maestro-real-samples
 PKG_CONFIG ?= pkg-config
 TAR ?= tar
 FFMPEG ?= ffmpeg
@@ -8,6 +13,22 @@ ARIA2C ?= aria2c
 BUILD_DIR ?= build
 INSTRUMENT_SAMPLE_STORE ?= /media/kyz/sshflashtor/InstrumentSamples
 INSTRUMENT_SAMPLE_STORE_LINK ?= $(BUILD_DIR)/InstrumentSamples
+
+.PHONY: start-approved-corpus-downloads report-approved-corpus-downloads show-approved-corpus-download-log test-approved-corpus-download-manager
+start-approved-corpus-downloads: scripts/start_approved_corpus_downloads.sh
+	$(SHELL) scripts/start_approved_corpus_downloads.sh "$(MAKE)" "$(BUILD_DIR)" $(APPROVED_CORPUS_DOWNLOAD_TARGETS)
+
+report-approved-corpus-downloads: scripts/report_approved_corpus_downloads.sh
+	$(SHELL) scripts/report_approved_corpus_downloads.sh "$(BUILD_DIR)" $(APPROVED_CORPUS_DOWNLOAD_TARGETS)
+
+show-approved-corpus-download-log: scripts/show_approved_corpus_download_log.sh
+	$(SHELL) scripts/show_approved_corpus_download_log.sh "$(BUILD_DIR)" "$(word 1,$(APPROVED_CORPUS_DOWNLOAD_TARGETS))"
+
+test-approved-corpus-download-manager: scripts/start_approved_corpus_downloads.sh scripts/report_approved_corpus_downloads.sh scripts/show_approved_corpus_download_log.sh
+	$(SHELL) -n scripts/start_approved_corpus_downloads.sh
+	$(SHELL) -n scripts/report_approved_corpus_downloads.sh
+	$(SHELL) -n scripts/show_approved_corpus_download_log.sh
+
 REAL_DATASET_ROOT ?= $(INSTRUMENT_SAMPLE_STORE_LINK)
 MUSICNET_SOURCE_DIR ?= $(INSTRUMENT_SAMPLE_STORE_LINK)/musicnet
 MUSICNET_ARCHIVE ?= $(MUSICNET_SOURCE_DIR)/musicnet.tar.gz
