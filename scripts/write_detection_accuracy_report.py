@@ -750,6 +750,10 @@ def render(
     maestro_real_manifest: Path | None = None,
     maestro_real_attribute_input: Path | None = None,
     independent_piano_chord_state_evidence_input: Path | None = None,
+    kraisler_archive: Path | None = None,
+    kraisler_extraction: Path | None = None,
+    kraisler_manifest: Path | None = None,
+    kraisler_measurement: Path | None = None,
 ) -> str:
     samples = load_samples(input_path)
     dcs_rows = dagstuhl_choirset_rows(dagstuhl_choirset_input) if dagstuhl_choirset_input else []
@@ -759,6 +763,10 @@ def render(
     dcs_manifest_ready = int(dagstuhl_choirset_manifest is not None and dagstuhl_choirset_manifest.is_file())
     maestro_real_rows = maestro_real_gate_rows(maestro_real_measurement) if maestro_real_measurement else []
     maestro_real_manifest_ready = int(maestro_real_manifest is not None and maestro_real_manifest.is_file())
+    kraisler_rows = dagstuhl_choirset_rows(kraisler_measurement) if kraisler_measurement else []
+    kraisler_archive_ready = int(kraisler_archive is not None and kraisler_archive.is_file())
+    kraisler_extraction_ready = int(kraisler_extraction is not None and kraisler_extraction.is_dir())
+    kraisler_manifest_ready = int(kraisler_manifest is not None and kraisler_manifest.is_file())
     piano_state_evidence = (
         independent_piano_state_evidence(independent_piano_chord_state_evidence_input)
         if independent_piano_chord_state_evidence_input
@@ -1518,6 +1526,38 @@ def render(
                     f"| No-label states with complete pitch-class recovery in every corpus | {fraction(candidates, states)} | {states - candidates} |",
                 ]
             )
+    if kraisler_archive is not None or kraisler_rows:
+        lines.extend(
+            [
+                "",
+                "## KRAISLER independent piano–violin coverage checklist",
+                "",
+                "KRAISLER is an independent real piano–violin duet corpus with separately recorded stems, "
+                "summed mixtures, Disklavier piano MIDI, and reviewed violin note labels.",
+                "",
+                "| Task | Complete / total | Remaining |",
+                "| --- | ---: | ---: |",
+                f"| Validate external KRAISLER archive | {fraction(kraisler_archive_ready, 1)} | {1 - kraisler_archive_ready} |",
+                f"| Extract KRAISLER safely in InstrumentSamples | {fraction(kraisler_extraction_ready, 1)} | {1 - kraisler_extraction_ready} |",
+                f"| Import dry piano/violin stems and labels | {fraction(kraisler_manifest_ready, 1)} | {1 - kraisler_manifest_ready} |",
+                f"| Measure real KRAISLER note and chord outcomes | {fraction(int(bool(kraisler_rows)), 1)} | {int(not kraisler_rows)} |",
+                "| Mine a protected KRAISLER cross-corpus detector rule | 0 / 1 (0.0%) | 1 |",
+            ]
+        )
+        if kraisler_rows:
+            lines.extend(
+                [
+                    "",
+                    "### KRAISLER real piano–violin measurement",
+                    "",
+                    f"Source: `{kraisler_measurement.as_posix()}`",
+                    "",
+                    "| Metric | Accurate / total | Remaining |",
+                    "| --- | ---: | ---: |",
+                ]
+            )
+            for group, metric, accurate, total in kraisler_rows:
+                lines.append(f"| KRAISLER {group} — {metric} | {fraction(accurate, total)} | {total - accurate} |")
     if maps_attribute_input is not None:
         lines.extend(
             [
@@ -1698,6 +1738,10 @@ def main() -> int:
     parser.add_argument("--maestro-real-manifest", type=Path)
     parser.add_argument("--maestro-real-attribute-input", type=Path)
     parser.add_argument("--independent-piano-chord-state-evidence", type=Path)
+    parser.add_argument("--kraisler-archive", type=Path)
+    parser.add_argument("--kraisler-extraction", type=Path)
+    parser.add_argument("--kraisler-manifest", type=Path)
+    parser.add_argument("--kraisler-measurement", type=Path)
     parser.add_argument("--output", required=True, type=Path)
     args = parser.parse_args()
     try:
@@ -1749,6 +1793,10 @@ def main() -> int:
             args.maestro_real_manifest,
             args.maestro_real_attribute_input,
             args.independent_piano_chord_state_evidence,
+            args.kraisler_archive,
+            args.kraisler_extraction,
+            args.kraisler_manifest,
+            args.kraisler_measurement,
         )
     except (OSError, ValueError) as error:
         parser.error(str(error))

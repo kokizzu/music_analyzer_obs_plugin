@@ -387,6 +387,12 @@ class DetectionAccuracyReportTest(unittest.TestCase):
             scms_measurement = Path(temporary) / "scms_measurement.out"
             for path in (scms_extraction, scms_manifest, scms_measurement):
                 path.write_text("fixture\n", encoding="utf-8")
+            kraisler_archive = Path(temporary) / "KRAISLER.zip"
+            kraisler_archive.write_text("fixture\n", encoding="utf-8")
+            kraisler_extraction = Path(temporary) / "kraisler-extracted"
+            kraisler_extraction.mkdir()
+            kraisler_manifest = Path(temporary) / "kraisler-manifest.json"
+            kraisler_manifest.write_text("fixture\n", encoding="utf-8")
             report = REPORT.render(
                 source, [chords], vocal_full_mix, [bach10_0, bach10_1], musicnet, drum, urmp,
                 vocalset_full_mix, [maps], None, route_summary, good_sounds_full_mix, hf_drum_outputs,
@@ -419,6 +425,10 @@ class DetectionAccuracyReportTest(unittest.TestCase):
                 maestro_real_manifest=source,
                 maestro_real_attribute_input=maps_attributes,
                 independent_piano_chord_state_evidence_input=piano_state_evidence,
+                kraisler_archive=kraisler_archive,
+                kraisler_extraction=kraisler_extraction,
+                kraisler_manifest=kraisler_manifest,
+                kraisler_measurement=dcs_measurement,
             )
 
         self.assertIn("| Any detected note | 2 / 3 (66.7%) | 1 |", report)
@@ -459,6 +469,9 @@ class DetectionAccuracyReportTest(unittest.TestCase):
         self.assertIn("| No-label states with complete pitch-class recovery in every corpus | 1 / 5 (20.0%) | 4 |", report)
         self.assertIn("| MAPS |", report)
         self.assertIn("| MAESTRO |", report)
+        self.assertIn("## KRAISLER independent piano–violin coverage checklist", report)
+        self.assertIn("| Validate external KRAISLER archive | 1 / 1 (100.0%) | 0 |", report)
+        self.assertIn("### KRAISLER real piano–violin measurement", report)
         self.assertIn("| DCS All DCS vocal windows — Current-note vocal ownership | 1 / 2 (50.0%) | 1 |", report)
         self.assertIn("| DCS All DCS vocal windows — Visible current-note vocal routing | 0 / 2 (0.0%) | 2 |", report)
         self.assertIn("| DCS SATB range — Soprano — Vocal ownership | 1 / 1 (100.0%) | 0 |", report)
