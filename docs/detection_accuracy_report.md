@@ -51,7 +51,7 @@ Source: `build/detector_improvement_route_summary.txt`
 
 ## High-soprano octave safety audit
 
-A high F5/F#5 vocal recovery is only eligible if it improves at least two independent choir corpora with no protected-instrument reroutes. The current lower-octave gate still selects protected keyboard candidates, so no behavior change is permitted.
+A high F5/F#5 vocal recovery is only eligible if it improves at least two independent choir corpora with no protected-instrument reroutes. The lower-octave gate selects protected keyboard candidates; the only zero-overlap multi-signal profile improved one protected primary row but reduced one protected visual row, so no behavior change is permitted.
 
 Source: `build/high_vocal_octave_evidence.txt`
 
@@ -65,6 +65,10 @@ high-vocal octave safety audit: midi=77,78
 | <= 0.50 | 15 / 15 | 0 / 0 | 7 / 7 | 2 / 3 | 228 / 229 |
 | <= 0.75 | 15 / 15 | 0 / 0 | 7 / 7 | 2 / 3 | 228 / 229 |
 | <= 1.00 | 15 / 15 | 0 / 0 | 7 / 7 | 2 / 3 | 229 / 229 |
+
+| Multi-signal route profile | DCS candidates | CSD candidates | ESMUC candidates | Corpora with candidates | Protected risks |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| upper-adjacent >= 0.053; centroid 0.013..0.116 | 8 / 15 | 0 / 0 | 1 / 7 | 2 / 3 | 0 / 229 |
 
 ## Dagstuhl ChoirSet (DCS) coverage-gap checklist
 

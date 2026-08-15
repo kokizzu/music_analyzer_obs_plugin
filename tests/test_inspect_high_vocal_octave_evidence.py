@@ -19,7 +19,7 @@ SPEC.loader.exec_module(AUDIT)
 
 def write_rows(path: Path, rows: list[str]) -> None:
     path.write_text(
-        "status\tfamily\tdebug_midi\tdebug_owner\traw_octave_down_ratio\n" + "\n".join(rows) + "\n",
+        "status\tfamily\tdebug_midi\tdebug_owner\traw_octave_down_ratio\tadjacent_upper_ratio\tcentroid\n" + "\n".join(rows) + "\n",
         encoding="utf-8",
     )
 
@@ -30,13 +30,13 @@ def main() -> int:
         candidates = root / "candidates.tsv"
         protected = root / "protected.tsv"
         write_rows(candidates, [
-            "ownership_miss\tvocals\t77\tpiano\t0.10",
-            "ownership_miss\tvocals\t78\tpiano\t0.60",
-            "hit\tvocals\t77\tpiano\t0.01",
+            "ownership_miss\tvocals\t77\tpiano\t0.10\t0.06\t0.08",
+            "ownership_miss\tvocals\t78\tpiano\t0.60\t0.02\t0.08",
+            "hit\tvocals\t77\tpiano\t0.01\t0.06\t0.08",
         ])
         write_rows(protected, [
-            "hit\tguitar\t77\tpiano\t0.20",
-            "hit\tguitar\t78\tpiano\t0.80",
+            "hit\tguitar\t77\tpiano\t0.20\t0.06\t0.08",
+            "hit\tguitar\t78\tpiano\t0.80\t0.06\t0.18",
         ])
         rows = AUDIT.load_rows(candidates)
         protected_rows = AUDIT.load_rows(protected)
@@ -44,7 +44,9 @@ def main() -> int:
         assert sum(AUDIT.is_vocal_miss(row, midi_values) for row in rows) == 2
         assert AUDIT.count_at_threshold(rows, lambda row: AUDIT.is_vocal_miss(row, midi_values), 0.20) == 1
         assert AUDIT.count_at_threshold(protected_rows, lambda row: AUDIT.is_protected_risk(row, midi_values), 0.20) == 1
-    print("test_inspect_high_vocal_octave_evidence: 3 checks passed")
+        assert sum(AUDIT.is_multisignal_candidate(row, midi_values) for row in rows) == 2
+        assert sum(AUDIT.is_multisignal_candidate(row, midi_values) for row in protected_rows) == 1
+    print("test_inspect_high_vocal_octave_evidence: 5 checks passed")
     return 0
 
 

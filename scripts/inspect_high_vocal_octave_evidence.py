@@ -62,6 +62,18 @@ def is_protected_risk(row: dict[str, str], midi_values: set[int]) -> bool:
     return row.get("status") == "hit" and row.get("family") != "vocals" and high_keyboard_candidate(row, midi_values)
 
 
+def is_multisignal_candidate(row: dict[str, str], midi_values: set[int]) -> bool:
+    adjacent_upper = number(row, "adjacent_upper_ratio")
+    centroid = number(row, "centroid")
+    return (
+        high_keyboard_candidate(row, midi_values)
+        and adjacent_upper is not None
+        and adjacent_upper >= 0.053
+        and centroid is not None
+        and 0.013 <= centroid <= 0.116
+    )
+
+
 def count_at_threshold(rows: list[dict[str, str]], predicate, threshold: float) -> int:
     return sum(
         predicate(row) and (ratio := number(row, "raw_octave_down_ratio")) is not None and ratio <= threshold
@@ -105,6 +117,34 @@ def main(argv: list[str] | None = None) -> int:
             + " | ".join(cells)
             + f" | {corpora} / {len(candidates)} | {risk} / {protected_total} |"
         )
+    multisignal_counts = {
+        label: sum(
+            is_vocal_miss(row, midi_values) and is_multisignal_candidate(row, midi_values)
+            for row in rows
+        )
+        for label, rows in candidates
+    }
+    multisignal_risk = sum(
+        is_protected_risk(row, midi_values) and is_multisignal_candidate(row, midi_values)
+        for row in protected
+    )
+    multisignal_corpora = sum(count > 0 for count in multisignal_counts.values())
+    lines.extend(
+        [
+            "",
+            "| Multi-signal route profile | "
+            + " | ".join(f"{label} candidates" for label, _rows in candidates)
+            + " | Corpora with candidates | Protected risks |",
+            "| --- | " + " | ".join("---:" for _label, _rows in candidates)
+            + " | ---: | ---: |",
+            "| upper-adjacent >= 0.053; centroid 0.013..0.116 | "
+            + " | ".join(
+                f"{multisignal_counts[label]} / {candidate_totals[label]}"
+                for label, _rows in candidates
+            )
+            + f" | {multisignal_corpora} / {len(candidates)} | {multisignal_risk} / {protected_total} |",
+        ]
+    )
     text = "\n".join(lines) + "\n"
     if args.output:
         args.output.parent.mkdir(parents=True, exist_ok=True)

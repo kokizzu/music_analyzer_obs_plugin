@@ -23,6 +23,7 @@ ROW_FIELDS = {
 VISUAL_ROW_FIELDS = {name: field.replace("_notes", "_visual_notes") for name, field in ROW_FIELDS.items()}
 NOTE_RE = re.compile(r"^([A-G])(#?)(-?\d+):([0-9.]+)$")
 NOTE_OFFSETS = {"C": 0, "D": 2, "E": 4, "F": 5, "G": 7, "A": 9, "B": 11}
+DEBUG_OWNER_NAMES = {"keys": "piano"}
 OUTPUT_FIELDS = (
     "status", "detected", "detected_anywhere", "detected_expected_row", "first_row", "visual_first_row",
     "sample_id", "family", "nsynth_family", "source", "expected_note", "expected_midi", "buffer", "mode",
@@ -30,7 +31,9 @@ OUTPUT_FIELDS = (
     "bass_visual_notes", "guitar_visual_notes", "piano_visual_notes", "vocal_visual_notes", "other_visual_notes", "amb_visual_notes",
     "raw_octave_down_ratio",
     "debug_note", "debug_midi", "debug_owner", "debug_conf", "bass_score", "keyboard_score", "guitar_score",
-    "vocal_score", "other_score", "pitch_confidence", "periodicity", "vocal_tone_profile", "vocal_rejected_polyphony",
+    "vocal_score", "other_score", "spectral_level", "pitch_confidence", "periodicity", "harmonicity", "fit_error",
+    "centroid", "slope", "noise", "adjacent_lower_ratio", "adjacent_upper_ratio", "third_octave_ratio",
+    "partial1", "partial2", "partial3", "partial4", "partial5", "vocal_tone_profile", "vocal_rejected_polyphony",
 )
 
 
@@ -132,12 +135,21 @@ def export_rows(attributes: Path, manifest: Path) -> list[dict[str, str]]:
                     row[f"{output_name}_visual_notes"] = source_row.get(VISUAL_ROW_FIELDS[name], "")
                 if candidate:
                     row.update({
-                        "debug_note": midi_name(midi), "debug_midi": str(midi), "debug_owner": candidate[1],
+                        "debug_note": midi_name(midi), "debug_midi": str(midi),
+                        "debug_owner": DEBUG_OWNER_NAMES.get(candidate[1], candidate[1]),
                         "debug_conf": candidate[2], "bass_score": candidate[3], "keyboard_score": candidate[4],
                         "guitar_score": candidate[5], "vocal_score": candidate[6], "other_score": candidate[7],
                         "pitch_confidence": candidate[8], "periodicity": candidate[9],
                         "vocal_tone_profile": candidate[10], "vocal_rejected_polyphony": candidate[11],
                     })
+                    if len(candidate) >= 27:
+                        row.update({
+                            "spectral_level": candidate[13], "harmonicity": candidate[14], "fit_error": candidate[15],
+                            "centroid": candidate[16], "slope": candidate[17], "noise": candidate[18],
+                            "adjacent_lower_ratio": candidate[19], "adjacent_upper_ratio": candidate[20],
+                            "third_octave_ratio": candidate[21], "partial1": candidate[22], "partial2": candidate[23],
+                            "partial3": candidate[24], "partial4": candidate[25], "partial5": candidate[26],
+                        })
                 result.append(row)
     return result
 

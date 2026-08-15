@@ -526,6 +526,25 @@ def main() -> int:
             stderr=subprocess.PIPE,
             check=True,
         )
+        filter_result = subprocess.run(
+            [
+                sys.executable,
+                str(ROOT / "scripts" / "find_real_note_attribute_patterns.py"),
+                str(path),
+                "--bucket",
+                "ownership_miss:guitar/acoustic->piano",
+                "--limit",
+                "1",
+                "--max-negative-samples",
+                "0",
+                "--filter-condition",
+                "debug_midi>=69",
+            ],
+            text=True,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            check=True,
+        )
         multi_path = pathlib.Path(tmp) / "multi_attributes.tsv"
         multi_rows = [
             row(
@@ -1652,6 +1671,8 @@ def main() -> int:
     assert "partial2 <=" in profile_result.stdout
     assert "category attribute profile:" in profile_result.stdout
     assert "debug_owner=piano enrich=0.500 pos=2/2 protected=1/2" in profile_result.stdout
+    assert "positives=1 samples/1 rows protected_hits=1 samples/1 rows" in filter_result.stdout
+    assert "mining filter: debug_midi>=69" in filter_result.stdout
     assert "expected_first_score_ratio<=0: pos=2/2 rows=2 neg=0/3 rows=0" in (
         multi_result.stdout
     ), multi_result.stdout + multi_result.stderr

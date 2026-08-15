@@ -29,7 +29,7 @@ def main() -> int:
         )
         attributes.write_text(
             header
-            + "1\t100\t52:60,55:52\t60,vocal,0.90,0.00,0.00,0.00,0.90,0.00,0.95,0.80,1,0,0.37;52,other,0.80,0.00,0.00,0.00,0.10,0.90,0.80,0.70,0,0,0.91\t\t\t\tC4:1.00\tE3:0.90\t\t\t\t\tC4:0.25\tE3:0.24\t\t0.42\n",
+            + "1\t100\t52:60,55:52\t60,vocal,0.90,0.00,0.00,0.00,0.90,0.00,0.95,0.80,1,0,0.37,0.88,0.21,0.07,0.18,0.09,0.02,0.03,0.04,0.05,1.00,0.20,0.10,0.08,0.04;52,other,0.80,0.00,0.00,0.00,0.10,0.90,0.80,0.70,0,0,0.91,0.40,0.50,0.60,0.70,0.80,0.90,0.11,0.12,0.13,1.00,0.14,0.15,0.16,0.17\t\t\t\tC4:1.00\tE3:0.90\t\t\t\t\tC4:0.25\tE3:0.24\t\t0.42\n",
             encoding="utf-8",
         )
         rows = EXPORT.export_rows(attributes, manifest)
@@ -40,6 +40,8 @@ def main() -> int:
         assert soprano["visual_first_row"] == "vocals"
         assert soprano["debug_owner"] == "vocal"
         assert soprano["raw_octave_down_ratio"] == "0.37"
+        assert soprano["spectral_level"] == "0.88"
+        assert soprano["partial5"] == "0.04"
         assert bass["status"] == "ownership_miss"
         assert bass["first_row"] == "other"
         assert bass["visual_first_row"] == ""

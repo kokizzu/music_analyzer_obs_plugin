@@ -245,6 +245,7 @@ class PatternSearchSettings:
     include_intervals: bool
     include_row_context: bool
     condition_specs: tuple[str, ...]
+    filter_condition_specs: tuple[str, ...]
     show_examples: int
     show_near_misses: int
     max_conditions: int
@@ -1326,6 +1327,7 @@ def print_bucket_patterns(
     exclude_fields: set[str],
     protected_scope: str,
     profile_fields: int,
+    filter_patterns: list[Pattern],
 ) -> None:
     positive_rows = rows_for_bucket(rows, bucket)
     negatives = protected_hit_rows(rows, positive_rows, bucket, protected_scope)
@@ -1337,6 +1339,13 @@ def print_bucket_patterns(
             if id(row) not in positive_ids and row.get("status") == "hit" and row.get("debug_note")
         )
     foreign_rows = foreign_miss_rows(rows, positive_rows)
+    if filter_patterns:
+        def matches_filters(row: dict[str, str]) -> bool:
+            return all(pattern.predicate(row) for pattern in filter_patterns)
+
+        positive_rows = [row for row in positive_rows if matches_filters(row)]
+        negatives = [row for row in negatives if matches_filters(row)]
+        foreign_rows = [row for row in foreign_rows if matches_filters(row)]
     positive_samples = sample_count(positive_rows)
     negative_samples = sample_count(negatives)
     foreign_samples = sample_count(foreign_rows)
@@ -1346,6 +1355,8 @@ def print_bucket_patterns(
         f"protected_hits={negative_samples} samples/{len(negatives)} rows "
         f"foreign_misses={foreign_samples} samples/{len(foreign_rows)} rows"
     )
+    if filter_patterns:
+        print("  mining filter: " + " AND ".join(pattern.label for pattern in filter_patterns))
     if not positive_rows:
         return
 
@@ -1640,6 +1651,9 @@ def bucket_patterns_text(
     explicit_patterns = [
         condition_pattern(spec) for spec in settings.condition_specs
     ]
+    filter_patterns = [
+        condition_pattern(spec) for spec in settings.filter_condition_specs
+    ]
     extra_protected_rows: list[dict[str, str]] = []
     for path in settings.extra_protected_paths:
         extra_protected_rows.extend(load_rows(pathlib.Path(path)))
@@ -1661,6 +1675,7 @@ def bucket_patterns_text(
             set(settings.exclude_fields),
             settings.protected_scope,
             settings.profile_fields,
+            filter_patterns,
         )
     return output.getvalue()
 
@@ -1738,6 +1753,15 @@ def main() -> int:
         action="append",
         default=[],
         help="explicit ANDed condition to measure, such as debug_owner=guitar or pitch_confidence>=0.8",
+    )
+    parser.add_argument(
+        "--filter-condition",
+        action="append",
+        default=[],
+        help=(
+            "restrict positive, protected, and foreign rows before automatic mining; "
+            "candidate rules extend these ANDed conditions"
+        ),
     )
     parser.add_argument(
         "--extra-protected-path",
@@ -1821,6 +1845,7 @@ def main() -> int:
         include_intervals=args.include_intervals,
         include_row_context=args.include_row_context,
         condition_specs=tuple(args.condition),
+        filter_condition_specs=tuple(args.filter_condition),
         show_examples=max(0, args.show_examples),
         show_near_misses=max(0, args.show_near_misses),
         max_conditions=max(1, args.max_conditions),
