@@ -479,6 +479,11 @@ class DetectionAccuracyReportTest(unittest.TestCase):
         self.assertIn("| Visual primary row | 2 / 3 (66.7%) | 1 |", report)
         self.assertIn("| Guitar — Visual primary row | 1 / 2 (50.0%) | 1 |", report)
         self.assertIn("## Detector-improvement route coverage", report)
+        self.assertIn("## Rejected three-corpus keys-to-vocal routing trial", report)
+        self.assertIn(
+            "| Protected full-mix first-row accuracy during trial | 771 / 2212 (34.9%) | 1441 |",
+            report,
+        )
         self.assertIn("## Choral Singing Dataset (CSD) coverage-gap checklist", report)
         self.assertIn("## MIR-1K vocal-with-accompaniment coverage-gap checklist", report)
         self.assertIn("Store validated MIR-1K archive in InstrumentSamples | 0 / 1 (0.0%)", report)

@@ -96,6 +96,19 @@ high-vocal octave safety audit: midi=77,78
 | --- | ---: | ---: | ---: | ---: | ---: |
 | upper-adjacent >= 0.053; centroid 0.013..0.116 | 8 / 15 | 0 / 0 | 1 / 7 | 2 / 3 | 0 / 229 |
 
+## Rejected three-corpus keys-to-vocal routing trial
+
+A zero-static-risk `keys`-owned vocal subset spanning DCS, CSD, and ESMUC was trialled as a Vocal route. It did not improve DCS and reduced protected first-row accuracy, so the runtime change was removed.
+
+| Metric | Accurate / total | Remaining |
+| --- | ---: | ---: |
+| DCS note hits during trial | 659 / 925 (71.2%) | 266 |
+| DCS exact chord hits during trial | 49 / 240 (20.4%) | 191 |
+| Protected full-mix first-row accuracy during trial | 771 / 2212 (34.9%) | 1441 |
+| Protected full-mix first-row baseline | 772 / 2212 (34.9%) | 1440 |
+
+The one protected-row regression violates the zero-regression gate despite the cross-corpus static evidence.
+
 ## Dagstuhl ChoirSet (DCS) coverage-gap checklist
 
 DCS is an independent real vocal-ensemble corpus. Generated fixtures never count as DCS measurements; completion requires validated public audio plus score-aligned results.

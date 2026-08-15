@@ -948,6 +948,26 @@ def render(
     lines.extend(
         [
             "",
+            "## Rejected three-corpus keys-to-vocal routing trial",
+            "",
+            "A zero-static-risk `keys`-owned vocal subset spanning DCS, CSD, and ESMUC was "
+            "trialled as a Vocal route. It did not improve DCS and reduced protected first-row "
+            "accuracy, so the runtime change was removed.",
+            "",
+            "| Metric | Accurate / total | Remaining |",
+            "| --- | ---: | ---: |",
+            f"| DCS note hits during trial | {fraction(659, 925)} | {925 - 659} |",
+            f"| DCS exact chord hits during trial | {fraction(49, 240)} | {240 - 49} |",
+            f"| Protected full-mix first-row accuracy during trial | {fraction(771, 2212)} | {2212 - 771} |",
+            f"| Protected full-mix first-row baseline | {fraction(772, 2212)} | {2212 - 772} |",
+            "",
+            "The one protected-row regression violates the zero-regression gate despite the "
+            "cross-corpus static evidence.",
+        ]
+    )
+    lines.extend(
+        [
+            "",
             "## Dagstuhl ChoirSet (DCS) coverage-gap checklist",
             "",
             "DCS is an independent real vocal-ensemble corpus. Generated fixtures never count as "
