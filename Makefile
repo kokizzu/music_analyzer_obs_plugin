@@ -64,6 +64,7 @@ MUSICNET_20_ATTRIBUTE_OUTPUT ?= $(MUSICNET_SOURCE_DIR)/musicnet_20_attributes.ts
 MUSICNET_FULL_ATTRIBUTE_OUTPUT ?= $(MUSICNET_SOURCE_DIR)/musicnet_full_attributes.tsv
 MUSICNET_RECORDING_MEASUREMENT_OUTPUT ?= $(MUSICNET_SOURCE_DIR)/musicnet_recording_measurement.out
 MUSICNET_RECORDING_ATTRIBUTE_OUTPUT ?= $(MUSICNET_SOURCE_DIR)/musicnet_recording_attributes.tsv
+MUSICNET_ROUTING_OUTPUT ?= $(BUILD_DIR)/musicnet_routing.tsv
 MUSICNET_ANALYSIS_RECORDING_IDS ?=
 MUSICNET_ANALYSIS_MAX_RECORDINGS ?= 1
 MUSICNET_DOWNLOAD_CONNECTIONS ?= 8
@@ -173,6 +174,7 @@ URMP_SAX_FULL_MIX_OUTPUT ?= $(BUILD_DIR)/urmp_sax_full_mix.out
 URMP_SAX_FULL_MIX_MIN_SAMPLES ?= $(URMP_SAX_EXACT_MIN_SAMPLES)
 DETECTION_ACCURACY_REPORT ?= docs/detection_accuracy_report.md
 DETECTION_ACCURACY_IRMAS_LABELLED_ARG = $(if $(wildcard $(IRMAS_ATTRIBUTE_OUTPUT)),--irmas-labelled-input "$(IRMAS_ATTRIBUTE_OUTPUT)")
+DETECTION_ACCURACY_MUSICNET_ROUTING_ARG = $(if $(wildcard $(MUSICNET_ROUTING_OUTPUT)),--musicnet-routing-input "$(MUSICNET_ROUTING_OUTPUT)")
 DETECTION_ACCURACY_DAGSTUHL_CHOIRSET_ARG = $(if $(wildcard $(DAGSTUHL_CHOIRSET_MEASUREMENT_OUTPUT)),--dagstuhl-choirset-input "$(DAGSTUHL_CHOIRSET_MEASUREMENT_OUTPUT)")
 DETECTION_ACCURACY_DAGSTUHL_CHOIRSET_VALIDATION_ARG = $(if $(wildcard $(DAGSTUHL_CHOIRSET_VALIDATION_OUTPUT)),--dagstuhl-choirset-validation "$(DAGSTUHL_CHOIRSET_VALIDATION_OUTPUT)")
 DETECTION_ACCURACY_DAGSTUHL_CHOIRSET_INSPECTION_ARG = $(if $(wildcard $(DAGSTUHL_CHOIRSET_INSPECTION_OUTPUT)),--dagstuhl-choirset-inspection "$(DAGSTUHL_CHOIRSET_INSPECTION_OUTPUT)")
@@ -233,6 +235,7 @@ DETECTION_ACCURACY_MDB_DRUMS_GATE_OUTPUT ?= $(MDB_DRUMS_MISS_LOG).summary
 DETECTION_ACCURACY_MDB_DRUMS_GATE_ARG = $(if $(wildcard $(DETECTION_ACCURACY_MDB_DRUMS_GATE_OUTPUT)),--mdb-drums-gate-output "$(DETECTION_ACCURACY_MDB_DRUMS_GATE_OUTPUT)")
 DETECTION_ACCURACY_BACH10_GATE_ARGS = $(foreach path,$(wildcard $(BACH10_MF0_SYNTH_SHARD_OUTS)),--bach10-gate-output "$(path)")
 DETECTION_ACCURACY_MUSICNET_GATE_ARG = $(if $(wildcard $(MUSICNET_FULL_MEASUREMENT_OUTPUT)),--musicnet-gate-output "$(MUSICNET_FULL_MEASUREMENT_OUTPUT)",$(if $(wildcard $(MUSICNET_20_MEASUREMENT_OUTPUT)),--musicnet-gate-output "$(MUSICNET_20_MEASUREMENT_OUTPUT)"))
+DETECTION_ACCURACY_MUSICNET_GATE_ARG += $(DETECTION_ACCURACY_MUSICNET_ROUTING_ARG)
 DETECTION_ACCURACY_MAPS_GATE_ARGS = $(foreach path,$(wildcard $(MAPS_PIANO_SHARD_OUTS)),--maps-gate-output "$(path)")
 DETECTION_ACCURACY_MAPS_NOTE_GATE_ARGS = $(foreach path,$(wildcard $(MAPS_PIANO_NOTE_SHARD_OUTS)),--maps-note-gate-output "$(path)")
 DETECTION_ACCURACY_MAPS_ATTRIBUTE_ARG = $(if $(wildcard $(MAPS_PIANO_ATTRIBUTE_TSV)),--maps-attribute-input "$(MAPS_PIANO_ATTRIBUTE_TSV)")
@@ -6047,9 +6050,15 @@ analyze-downloaded-real-musicnet-20-traits: scripts/summarize_musicnet_attribute
 analyze-downloaded-real-musicnet-chord-misses: scripts/analyze_musicnet_chord_misses.py
 	$(PYTHON) scripts/analyze_musicnet_chord_misses.py "$(MUSICNET_FULL_ATTRIBUTE_OUTPUT)"
 
-.PHONY: summarize-downloaded-real-musicnet-attributes
+.PHONY: summarize-downloaded-real-musicnet-attributes summarize-downloaded-real-musicnet-routing test-summarize-musicnet-routing
 summarize-downloaded-real-musicnet-attributes: scripts/summarize_musicnet_attributes.py
 	$(PYTHON) scripts/summarize_musicnet_attributes.py "$(MUSICNET_FULL_ATTRIBUTE_OUTPUT)"
+
+summarize-downloaded-real-musicnet-routing: $(MUSICNET_FULL_ATTRIBUTE_OUTPUT) scripts/summarize_musicnet_routing.py
+	$(PYTHON) scripts/summarize_musicnet_routing.py "$(MUSICNET_FULL_ATTRIBUTE_OUTPUT)" --output "$(MUSICNET_ROUTING_OUTPUT)"
+
+test-summarize-musicnet-routing: tests/test_summarize_musicnet_routing.py scripts/summarize_musicnet_routing.py
+	$(PYTHON) tests/test_summarize_musicnet_routing.py
 
 .PHONY: inspect-downloaded-real-musicnet-chord-traits
 inspect-downloaded-real-musicnet-chord-traits: scripts/inspect_musicnet_chord_traits.py

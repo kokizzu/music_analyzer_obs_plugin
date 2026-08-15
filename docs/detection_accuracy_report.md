@@ -1097,6 +1097,27 @@ This open CC-BY corpus measures real classical mixtures; unlike Bach10, it has n
 | MusicNet real mixes — exact chord windows | 561 / 1847 (30.4%) | 1286 |
 | MusicNet real mixes — simplified chord windows | 835 / 1847 (45.2%) | 1012 |
 
+### MusicNet annotated instrument-routing
+
+Each active annotated note is checked against its General-MIDI family row. These are real-mixture routing measurements, separate from the global chord gate.
+
+Source: `build/musicnet_routing.tsv`
+
+| Metric | Accurate / total | Remaining |
+| --- | ---: | ---: |
+| MusicNet All — Exact note in expected row | 3229 / 13079 (24.7%) | 9850 |
+| MusicNet All — Pitch class in expected row | 6583 / 13079 (50.3%) | 6496 |
+| MusicNet All — Visible exact note in expected row | 3229 / 13079 (24.7%) | 9850 |
+| MusicNet All — Visible pitch class in expected row | 6583 / 13079 (50.3%) | 6496 |
+| MusicNet Other — Exact note in expected row | 2069 / 8566 (24.2%) | 6497 |
+| MusicNet Other — Pitch class in expected row | 3797 / 8566 (44.3%) | 4769 |
+| MusicNet Other — Visible exact note in expected row | 2069 / 8566 (24.2%) | 6497 |
+| MusicNet Other — Visible pitch class in expected row | 3797 / 8566 (44.3%) | 4769 |
+| MusicNet Piano — Exact note in expected row | 1160 / 4513 (25.7%) | 3353 |
+| MusicNet Piano — Pitch class in expected row | 2786 / 4513 (61.7%) | 1727 |
+| MusicNet Piano — Visible exact note in expected row | 1160 / 4513 (25.7%) | 3353 |
+| MusicNet Piano — Visible pitch class in expected row | 2786 / 4513 (61.7%) | 1727 |
+
 ## MAPS real-piano gate
 
 This real Disklavier corpus uses aligned MIDI annotations. The four stored shard summaries are combined here; rows remain visible even when the aggregate quality gate fails.

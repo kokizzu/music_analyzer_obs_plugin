@@ -434,6 +434,14 @@ def musicnet_gate_rows(path: Path) -> list[tuple[str, int, int]]:
     ]
 
 
+def musicnet_routing_rows(path: Path) -> list[tuple[str, int, int]]:
+    with path.open(encoding="utf-8", newline="") as handle:
+        return [
+            (f"MusicNet {row['scope']} — {row['metric']}", int(row["accurate"]), int(row["total"]))
+            for row in csv.DictReader(handle, delimiter="\t")
+        ]
+
+
 def maps_gate_rows(paths: list[Path]) -> list[tuple[str, int, int]]:
     totals = {
         "recordings_done": 0,
@@ -782,6 +790,7 @@ def render(
     kraisler_extraction: Path | None = None,
     kraisler_manifest: Path | None = None,
     kraisler_measurement: Path | None = None,
+    musicnet_routing_input: Path | None = None,
 ) -> str:
     samples = load_samples(input_path)
     dcs_rows = dagstuhl_choirset_rows(dagstuhl_choirset_input) if dagstuhl_choirset_input else []
@@ -1515,6 +1524,10 @@ def render(
         )
         for label, accurate, total in musicnet_gate_rows(musicnet_gate_output):
             lines.append(f"| {label} | {fraction(accurate, total)} | {total - accurate} |")
+    if musicnet_routing_input is not None:
+        lines.extend(["", "### MusicNet annotated instrument-routing", "", "Each active annotated note is checked against its General-MIDI family row. These are real-mixture routing measurements, separate from the global chord gate.", "", f"Source: `{musicnet_routing_input.as_posix()}`", "", "| Metric | Accurate / total | Remaining |", "| --- | ---: | ---: |"])
+        for label, accurate, total in musicnet_routing_rows(musicnet_routing_input):
+            lines.append(f"| {label} | {fraction(accurate, total)} | {total - accurate} |")
     if maps_gate_outputs:
         lines.extend(
             [
@@ -1734,6 +1747,7 @@ def main() -> int:
     parser.add_argument("--vocalset-full-mix-input", type=Path)
     parser.add_argument("--bach10-gate-output", action="append", type=Path, default=[])
     parser.add_argument("--musicnet-gate-output", type=Path)
+    parser.add_argument("--musicnet-routing-input", type=Path)
     parser.add_argument("--maps-gate-output", action="append", type=Path, default=[])
     parser.add_argument("--maps-note-gate-output", action="append", type=Path, default=[])
     parser.add_argument("--maps-attribute-input", type=Path)
@@ -1847,6 +1861,7 @@ def main() -> int:
             args.kraisler_extraction,
             args.kraisler_manifest,
             args.kraisler_measurement,
+            args.musicnet_routing_input,
         )
     except (OSError, ValueError) as error:
         parser.error(str(error))
