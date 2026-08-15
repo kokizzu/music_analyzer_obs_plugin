@@ -69,6 +69,16 @@ def main():
         reused = prep.prepare(args)
         assert reused == 3
 
+        # A changed reproducible subset must not recursively erase a large
+        # external fixture before a replacement has been prepared.
+        args.limit = 2
+        args.min_recordings = 2
+        assert prep.prepare(args) == 2
+        preserved = root / "out.incomplete-1"
+        assert preserved.is_dir()
+        assert len(list((preserved / "maps").rglob("*.wav"))) == 3
+        assert len(list((out / "maps").rglob("*.wav"))) == 2
+
         note_out = root / "note_out"
         note_args = type("Args", (), {
             "archive": str(archive),

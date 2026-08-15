@@ -36,6 +36,22 @@ test-approved-corpus-download-manager: scripts/start_approved_corpus_downloads.s
 test-validate-maestro-subset-archive: tests/test_validate_maestro_subset_archive.py scripts/validate_maestro_subset_archive.py scripts/prepare_maps_piano_samples.py
 	$(PYTHON) tests/test_validate_maestro_subset_archive.py
 
+.PHONY: inspect-maestro-audit-capacity
+inspect-maestro-audit-capacity: scripts/inspect_storage_capacity.py
+	$(PYTHON) scripts/inspect_storage_capacity.py "$(INSTRUMENT_SAMPLE_STORE)"
+
+.PHONY: inspect-maestro-real-subset
+inspect-maestro-real-subset: scripts/inspect_maestro_real_subset.py
+	$(PYTHON) scripts/inspect_maestro_real_subset.py "$(MAESTRO_REAL_SAMPLE_DIR)"
+
+.PHONY: test-inspect-maestro-real-subset
+test-inspect-maestro-real-subset: tests/test_inspect_maestro_real_subset.py scripts/inspect_maestro_real_subset.py
+	$(PYTHON) tests/test_inspect_maestro_real_subset.py
+
+.PHONY: stop-maestro-real-subset-writers
+stop-maestro-real-subset-writers: scripts/stop_maestro_real_subset_writers.py
+	$(PYTHON) scripts/stop_maestro_real_subset_writers.py
+
 REAL_DATASET_ROOT ?= $(INSTRUMENT_SAMPLE_STORE_LINK)
 MUSICNET_SOURCE_DIR ?= $(INSTRUMENT_SAMPLE_STORE_LINK)/musicnet
 MUSICNET_ARCHIVE ?= $(MUSICNET_SOURCE_DIR)/musicnet.tar.gz
@@ -820,8 +836,11 @@ MAESTRO_REAL_URL ?= https://storage.googleapis.com/magentadata/datasets/maestro/
 MAESTRO_REAL_SOURCE_DIR ?= $(REAL_SAMPLE_SOURCE_DIR)/maestro_real
 MAESTRO_REAL_ARCHIVE ?= $(MAESTRO_REAL_SOURCE_DIR)/maestro-v3.0.0.zip
 MAESTRO_REAL_SAMPLE_DIR ?= $(BUILD_DIR)/maestro_real_samples
-MAESTRO_REAL_SAMPLE_LIMIT ?= 80
-MAESTRO_REAL_MIN_RECORDINGS ?= 40
+# Keep the configured audit size aligned with the extracted external subset.  A
+# smaller default makes the dashboard incorrectly report that a valid larger
+# subset is unprepared on the next refresh.
+MAESTRO_REAL_SAMPLE_LIMIT ?= 320
+MAESTRO_REAL_MIN_RECORDINGS ?= 160
 MAESTRO_REAL_MEASUREMENT_OUTPUT ?= $(BUILD_DIR)/maestro_real_measurement.out
 MAESTRO_REAL_ATTRIBUTE_TSV ?= $(BUILD_DIR)/maestro_real_attributes.tsv
 MAESTRO_REAL_CHORD_EVIDENCE_OUTPUT ?= $(BUILD_DIR)/independent_piano_chord_evidence.txt

@@ -2,6 +2,7 @@
 
 import argparse
 import csv
+import fcntl
 import os
 from pathlib import Path
 import re
@@ -172,6 +173,18 @@ def write_metadata(output, rows):
     return metadata
 
 
+def preserve_previous_output(output):
+    """Move an incomplete external subset aside without a slow recursive delete."""
+    if not output.exists():
+        return None
+    index = 1
+    while True:
+        backup = output.with_name(f"{output.name}.incomplete-{index}")
+        if not backup.exists():
+            output.replace(backup)
+            return backup
+
+
 def prepare(args):
     archive = Path(args.archive)
     if not archive.is_file():
@@ -182,57 +195,64 @@ def prepare(args):
     # Refresh the target contents without replacing that required link.
     if output.is_symlink():
         output = output.resolve()
-    min_recordings = max(0, args.min_recordings)
-    signature = signature_text(args)
-    if not args.refresh and cache_ok(output, signature, min_recordings):
-        rows = read_existing_metadata(output / "maestro-v3.0.0.csv")
-        print(f"prepare_maps_piano_samples: reused {output / 'maestro-v3.0.0.csv'} ({len(rows)} recordings)")
-        return len(rows)
+    lock_path = output.parent / f".{output.name}.prepare.lock"
+    lock_path.parent.mkdir(parents=True, exist_ok=True)
+    with lock_path.open("w", encoding="utf-8") as lock_file:
+        try:
+            fcntl.flock(lock_file, fcntl.LOCK_EX | fcntl.LOCK_NB)
+        except BlockingIOError as exc:
+            raise SystemExit(f"prepare_maps_piano_samples: preparation already active for {output}") from exc
+        min_recordings = max(0, args.min_recordings)
+        signature = signature_text(args)
+        if not args.refresh and cache_ok(output, signature, min_recordings):
+            rows = read_existing_metadata(output / "maestro-v3.0.0.csv")
+            print(f"prepare_maps_piano_samples: reused {output / 'maestro-v3.0.0.csv'} ({len(rows)} recordings)")
+            return len(rows)
 
-    allowed_kinds = normalized_kind_set(args.kinds)
-    pairs = collect_pairs(archive, allowed_kinds)
-    selected = select_pairs(pairs, max(0, args.limit))
-    if not selected:
-        raise SystemExit(
-            "prepare_maps_piano_samples: no MAPS WAV/MIDI pairs found for kinds "
-            + ",".join(sorted(allowed_kinds))
-        )
+        allowed_kinds = normalized_kind_set(args.kinds)
+        pairs = collect_pairs(archive, allowed_kinds)
+        selected = select_pairs(pairs, max(0, args.limit))
+        if not selected:
+            raise SystemExit(
+                "prepare_maps_piano_samples: no MAPS WAV/MIDI pairs found for kinds "
+                + ",".join(sorted(allowed_kinds))
+            )
 
-    if output.exists():
-        shutil.rmtree(output)
-    output.mkdir(parents=True, exist_ok=True)
+        preserved = preserve_previous_output(output)
+        output.mkdir(parents=True, exist_ok=True)
 
-    rows = []
-    kind_counts = {}
-    with zipfile.ZipFile(archive) as zf:
-        for index, pair in enumerate(selected, start=1):
-            kind = pair["kind"].lower()
-            stem = sanitize(Path(pair["stem"]).name)
-            row_stem = f"{index:04d}_{kind}_{stem}"
-            audio_rel = Path("maps") / kind / f"{row_stem}.wav"
-            midi_rel = Path("maps") / kind / f"{row_stem}.mid"
-            extract_member(zf, pair["audio_member"], output / audio_rel)
-            extract_member(zf, pair["midi_member"], output / midi_rel)
-            kind_counts[pair["kind"]] = kind_counts.get(pair["kind"], 0) + 1
-            rows.append({
-                "canonical_composer": "MAPS",
-                "canonical_title": row_stem,
-                "split": "test",
-                "year": "2006",
-                "midi_filename": str(midi_rel),
-                "audio_filename": str(audio_rel),
-                "duration": "",
-            })
+        rows = []
+        kind_counts = {}
+        with zipfile.ZipFile(archive) as zf:
+            for index, pair in enumerate(selected, start=1):
+                kind = pair["kind"].lower()
+                stem = sanitize(Path(pair["stem"]).name)
+                row_stem = f"{index:04d}_{kind}_{stem}"
+                audio_rel = Path("maps") / kind / f"{row_stem}.wav"
+                midi_rel = Path("maps") / kind / f"{row_stem}.mid"
+                extract_member(zf, pair["audio_member"], output / audio_rel)
+                extract_member(zf, pair["midi_member"], output / midi_rel)
+                kind_counts[pair["kind"]] = kind_counts.get(pair["kind"], 0) + 1
+                rows.append({
+                    "canonical_composer": "MAPS",
+                    "canonical_title": row_stem,
+                    "split": "test",
+                    "year": "2006",
+                    "midi_filename": str(midi_rel),
+                    "audio_filename": str(audio_rel),
+                    "duration": "",
+                })
 
-    metadata = write_metadata(output, rows)
-    (output / ".maps_piano_signature").write_text(signature, encoding="utf-8")
+        metadata = write_metadata(output, rows)
+        (output / ".maps_piano_signature").write_text(signature, encoding="utf-8")
     if len(rows) < min_recordings:
         raise SystemExit(
             f"prepare_maps_piano_samples: expected at least {min_recordings} recordings, got {len(rows)}"
         )
 
     kind_text = " ".join(f"{kind}={kind_counts[kind]}" for kind in sorted(kind_counts))
-    print(f"prepare_maps_piano_samples: wrote {metadata} ({len(rows)} recordings; {kind_text})")
+    preserved_text = f"; preserved incomplete subset at {preserved}" if preserved else ""
+    print(f"prepare_maps_piano_samples: wrote {metadata} ({len(rows)} recordings; {kind_text}){preserved_text}")
     return len(rows)
 
 
