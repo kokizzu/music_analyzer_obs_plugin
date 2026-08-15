@@ -51,7 +51,7 @@ Source: `build/detector_improvement_route_summary.txt`
 
 ## High-soprano octave safety audit
 
-A high F5/F#5 vocal recovery is only eligible if it improves at least two independent choir corpora with no protected-instrument reroutes. The lower-octave gate selects protected keyboard candidates; the only zero-overlap multi-signal profile improved one protected primary row but reduced one protected visual row, so no behavior change is permitted.
+A high F5/F#5 vocal recovery is only eligible if it improves at least two independent choir corpora with no protected-instrument reroutes. The lower-octave gate selects protected keyboard candidates; all tested zero-overlap multi-signal profiles reduced protected visual accuracy, so no behavior change is permitted.
 
 Source: `build/high_vocal_octave_evidence.txt`
 
