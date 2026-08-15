@@ -410,6 +410,9 @@ class DetectionAccuracyReportTest(unittest.TestCase):
                 scms_dataset_measurement=scms_measurement,
                 scms_full_mix_input=vocal_full_mix,
                 vocal_exact_note_cross_corpus_input=exact_note_cross_corpus,
+                maestro_real_measurement=maps,
+                maestro_real_manifest=source,
+                maestro_real_attribute_input=maps_attributes,
             )
 
         self.assertIn("| Any detected note | 2 / 3 (66.7%) | 1 |", report)
@@ -443,6 +446,12 @@ class DetectionAccuracyReportTest(unittest.TestCase):
         self.assertIn("| Extract DCS safely in InstrumentSamples | 1 / 1 (100.0%) | 0 |", report)
         self.assertIn("| Inspect real DCS audio and annotations | 1 / 1 (100.0%) | 0 |", report)
         self.assertIn("| Import DCS sources and labels | 1 / 1 (100.0%) | 0 |", report)
+        self.assertIn("| Prepare external MAESTRO paired-audio subset | 1 / 1 (100.0%) | 0 |", report)
+        self.assertIn("| Measure MAESTRO note and chord outcomes | 1 / 1 (100.0%) | 0 |", report)
+        self.assertIn("| MAESTRO external piano — expected pitch classes |", report)
+        self.assertIn("## Independent piano chord-outcome evidence", report)
+        self.assertIn("| MAPS |", report)
+        self.assertIn("| MAESTRO |", report)
         self.assertIn("| DCS All DCS vocal windows — Current-note vocal ownership | 1 / 2 (50.0%) | 1 |", report)
         self.assertIn("| DCS All DCS vocal windows — Visible current-note vocal routing | 0 / 2 (0.0%) | 2 |", report)
         self.assertIn("| DCS SATB range — Soprano — Vocal ownership | 1 / 1 (100.0%) | 0 |", report)

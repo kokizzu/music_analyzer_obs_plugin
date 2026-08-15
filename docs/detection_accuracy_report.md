@@ -1082,13 +1082,25 @@ This real Disklavier corpus uses aligned MIDI annotations. The four stored shard
 
 ## Independent piano cross-corpus coverage checklist
 
-MAESTRO is being acquired as external paired WAV/MIDI evidence; it is kept separate from MAPS until both a prepared subset and measured outcomes exist.
+MAESTRO is independent external paired WAV/MIDI evidence. It remains separate from MAPS until a protected cross-piano rule is verified.
 
 | Task | Complete / total | Remaining |
 | --- | ---: | ---: |
-| Prepare external MAESTRO paired-audio subset | 0 / 1 (0.0%) | 1 |
-| Measure MAESTRO note and chord outcomes | 0 / 1 (0.0%) | 1 |
+| Prepare external MAESTRO paired-audio subset | 1 / 1 (100.0%) | 0 |
+| Measure MAESTRO note and chord outcomes | 1 / 1 (100.0%) | 0 |
 | Mine a protected cross-piano detector rule | 0 / 1 (0.0%) | 1 |
+
+### MAESTRO external-piano measurement
+
+Source: `build/maestro_real_measurement.out`
+
+| Metric | Accurate / total | Remaining |
+| --- | ---: | ---: |
+| MAESTRO external piano — recordings with eligible chord windows | 80 / 80 (100.0%) | 0 |
+| MAESTRO external piano — expected pitch classes | 1117 / 1434 (77.9%) | 317 |
+| MAESTRO external piano — keyboard detected-note precision | 1117 / 1671 (66.8%) | 554 false predictions |
+| MAESTRO external piano — exact chord windows | 32 / 320 (10.0%) | 288 |
+| MAESTRO external piano — keyboard chord precision | 32 / 165 (19.4%) | 133 false predictions |
 
 ## MAPS chord-miss evidence
 
@@ -1098,6 +1110,15 @@ This isolates misses where note evidence is already present from misses that sti
 | --- | ---: | ---: |
 | Expected pitch classes are all present | 33 / 118 (28.0%) | 85 |
 | No keyboard chord label | 85 / 118 (72.0%) | 33 |
+
+## Independent piano chord-outcome evidence
+
+These compatible MAPS and MAESTRO labels establish shared failure outcomes, not a detector rule by themselves.
+
+| Corpus | Exact chord hit | Missing chord label | Wrong chord label |
+| --- | ---: | ---: | ---: |
+| MAPS | 17 / 135 (12.6%) | 85 / 135 (63.0%) | 33 / 135 (24.4%) |
+| MAESTRO | 32 / 320 (10.0%) | 155 / 320 (48.4%) | 133 / 320 (41.6%) |
 
 ## MAPS isolated-piano note gate
 

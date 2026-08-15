@@ -47,6 +47,10 @@ def truthy(value: str) -> bool:
     return value.strip().lower() not in {"", "0", "false", "no"}
 
 
+def labels(value: str) -> set[str]:
+    return {item for item in value.replace("=", ",").split(",") if item and item != "--"}
+
+
 def visual_expected_pitch_lit(row: dict[str, str], expected_row: str) -> bool:
     """Whether an expected-row pitch class is visibly lit in this window."""
     try:
@@ -444,6 +448,13 @@ def maps_note_gate_rows(paths: list[Path]) -> list[tuple[str, int, int]]:
     ]
 
 
+def maestro_real_gate_rows(path: Path) -> list[tuple[str, int, int]]:
+    return [
+        (label.replace("MAPS real piano", "MAESTRO external piano"), accurate, total)
+        for label, accurate, total in maps_gate_rows([path])
+    ]
+
+
 def maps_chord_miss_rows(path: Path) -> list[tuple[str, int, int]]:
     with path.open(encoding="utf-8", newline="") as source:
         rows = list(csv.DictReader(source, delimiter="\t"))
@@ -462,6 +473,27 @@ def maps_chord_miss_rows(path: Path) -> list[tuple[str, int, int]]:
         ),
         ("No keyboard chord label", sum(row["keyboard_chord"] in {"", "--"} for row in misses), len(misses)),
     ]
+
+
+def chord_outcome_counts(path: Path) -> tuple[int, int, int, int]:
+    with path.open(encoding="utf-8", newline="") as source:
+        rows = list(csv.DictReader(source, delimiter="\t"))
+    required = {"expected_chords", "chord_hit"}
+    if not rows or not required.issubset(rows[0]):
+        raise ValueError(f"{path}: missing chord outcome columns")
+    chord_column = "keyboard_chord" if "keyboard_chord" in rows[0] else "guitar_chord" if "guitar_chord" in rows[0] else None
+    if chord_column is None:
+        raise ValueError(f"{path}: missing detected chord column")
+    eligible = [row for row in rows if labels(row["expected_chords"])]
+    if not eligible:
+        raise ValueError(f"{path}: no eligible chord rows")
+    hits = sum(truthy(row["chord_hit"]) for row in eligible)
+    no_label = sum(
+        not truthy(row["chord_hit"]) and not labels(row[chord_column])
+        for row in eligible
+    )
+    wrong_label = len(eligible) - hits - no_label
+    return hits, no_label, wrong_label, len(eligible)
 
 
 def drum_primary_attribute_rows(path: Path, name: str) -> list[tuple[str, int, int]]:
@@ -698,6 +730,9 @@ def render(
     scms_full_mix_input: Path | None = None,
     vocal_exact_note_cross_corpus_input: Path | None = None,
     iowa_piano_full_mix_input: Path | None = None,
+    maestro_real_measurement: Path | None = None,
+    maestro_real_manifest: Path | None = None,
+    maestro_real_attribute_input: Path | None = None,
 ) -> str:
     samples = load_samples(input_path)
     dcs_rows = dagstuhl_choirset_rows(dagstuhl_choirset_input) if dagstuhl_choirset_input else []
@@ -705,6 +740,8 @@ def render(
     dcs_inspection_ready = int(dagstuhl_choirset_inspection is not None and dagstuhl_choirset_inspection.is_file())
     dcs_extraction_ready = int(dagstuhl_choirset_extraction is not None and dagstuhl_choirset_extraction.is_file())
     dcs_manifest_ready = int(dagstuhl_choirset_manifest is not None and dagstuhl_choirset_manifest.is_file())
+    maestro_real_rows = maestro_real_gate_rows(maestro_real_measurement) if maestro_real_measurement else []
+    maestro_real_manifest_ready = int(maestro_real_manifest is not None and maestro_real_manifest.is_file())
     csd_rows = dagstuhl_choirset_rows(choral_singing_dataset_measurement) if choral_singing_dataset_measurement else []
     esmuc_rows = dagstuhl_choirset_rows(esmuc_choir_dataset_measurement) if esmuc_choir_dataset_measurement else []
     exact_note_cross_rows = (
@@ -1421,15 +1458,30 @@ def render(
                 "",
                 "## Independent piano cross-corpus coverage checklist",
                 "",
-                "MAESTRO is being acquired as external paired WAV/MIDI evidence; it is kept separate from MAPS until both a prepared subset and measured outcomes exist.",
+                "MAESTRO is independent external paired WAV/MIDI evidence. It remains separate from MAPS until a protected cross-piano rule is verified.",
                 "",
                 "| Task | Complete / total | Remaining |",
                 "| --- | ---: | ---: |",
-                "| Prepare external MAESTRO paired-audio subset | 0 / 1 (0.0%) | 1 |",
-                "| Measure MAESTRO note and chord outcomes | 0 / 1 (0.0%) | 1 |",
+                f"| Prepare external MAESTRO paired-audio subset | {fraction(maestro_real_manifest_ready, 1)} | {1 - maestro_real_manifest_ready} |",
+                f"| Measure MAESTRO note and chord outcomes | {fraction(int(bool(maestro_real_rows)), 1)} | {int(not maestro_real_rows)} |",
                 "| Mine a protected cross-piano detector rule | 0 / 1 (0.0%) | 1 |",
             ]
         )
+        if maestro_real_rows:
+            lines.extend(
+                [
+                    "",
+                    "### MAESTRO external-piano measurement",
+                    "",
+                    f"Source: `{maestro_real_measurement.as_posix()}`",
+                    "",
+                    "| Metric | Accurate / total | Remaining |",
+                    "| --- | ---: | ---: |",
+                ]
+            )
+            for label, accurate, total in maestro_real_rows:
+                remaining = f"{total - accurate} false predictions" if label.endswith("precision") else str(total - accurate)
+                lines.append(f"| {label} | {fraction(accurate, total)} | {remaining} |")
     if maps_attribute_input is not None:
         lines.extend(
             [
@@ -1444,6 +1496,23 @@ def render(
         )
         for label, affected, total in maps_chord_miss_rows(maps_attribute_input):
             lines.append(f"| {label} | {fraction(affected, total)} | {total - affected} |")
+    if maps_attribute_input is not None and maestro_real_attribute_input is not None:
+        lines.extend(
+            [
+                "",
+                "## Independent piano chord-outcome evidence",
+                "",
+                "These compatible MAPS and MAESTRO labels establish shared failure outcomes, not a detector rule by themselves.",
+                "",
+                "| Corpus | Exact chord hit | Missing chord label | Wrong chord label |",
+                "| --- | ---: | ---: | ---: |",
+            ]
+        )
+        for name, path in (("MAPS", maps_attribute_input), ("MAESTRO", maestro_real_attribute_input)):
+            hits, no_label, wrong_label, total = chord_outcome_counts(path)
+            lines.append(
+                f"| {name} | {fraction(hits, total)} | {fraction(no_label, total)} | {fraction(wrong_label, total)} |"
+            )
     if maps_note_gate_outputs:
         lines.extend(["", "## MAPS isolated-piano note gate", "", "This separate Disklavier subset contains isolated notes with aligned MIDI annotations.", "", "| Metric | Accurate / total | Remaining |", "| --- | ---: | ---: |"])
         for label, accurate, total in maps_note_gate_rows(maps_note_gate_outputs):
@@ -1589,6 +1658,9 @@ def main() -> int:
     parser.add_argument("--scms-dataset-measurement", type=Path)
     parser.add_argument("--scms-full-mix-input", type=Path)
     parser.add_argument("--vocal-exact-note-cross-corpus-input", type=Path)
+    parser.add_argument("--maestro-real-measurement", type=Path)
+    parser.add_argument("--maestro-real-manifest", type=Path)
+    parser.add_argument("--maestro-real-attribute-input", type=Path)
     parser.add_argument("--output", required=True, type=Path)
     args = parser.parse_args()
     try:
@@ -1636,6 +1708,9 @@ def main() -> int:
             args.scms_full_mix_input,
             args.vocal_exact_note_cross_corpus_input,
             args.iowa_piano_full_mix_input,
+            args.maestro_real_measurement,
+            args.maestro_real_manifest,
+            args.maestro_real_attribute_input,
         )
     except (OSError, ValueError) as error:
         parser.error(str(error))
