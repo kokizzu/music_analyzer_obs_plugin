@@ -767,6 +767,7 @@ def render(
     kraisler_archive_ready = int(kraisler_archive is not None and kraisler_archive.is_file())
     kraisler_extraction_ready = int(kraisler_extraction is not None and kraisler_extraction.is_dir())
     kraisler_manifest_ready = int(kraisler_manifest is not None and kraisler_manifest.is_file())
+    kraisler_audit_ready = int(bool(kraisler_rows) and route_summary is not None and route_summary.is_file())
     piano_state_evidence = (
         independent_piano_state_evidence(independent_piano_chord_state_evidence_input)
         if independent_piano_chord_state_evidence_input
@@ -1541,7 +1542,7 @@ def render(
                 f"| Extract KRAISLER safely in InstrumentSamples | {fraction(kraisler_extraction_ready, 1)} | {1 - kraisler_extraction_ready} |",
                 f"| Import dry piano/violin stems and labels | {fraction(kraisler_manifest_ready, 1)} | {1 - kraisler_manifest_ready} |",
                 f"| Measure real KRAISLER note and chord outcomes | {fraction(int(bool(kraisler_rows)), 1)} | {int(not kraisler_rows)} |",
-                "| Mine a protected KRAISLER cross-corpus detector rule | 0 / 1 (0.0%) | 1 |",
+                f"| Complete protected KRAISLER cross-corpus rule audit | {fraction(kraisler_audit_ready, 1)} | {1 - kraisler_audit_ready} |",
             ]
         )
         if kraisler_rows:

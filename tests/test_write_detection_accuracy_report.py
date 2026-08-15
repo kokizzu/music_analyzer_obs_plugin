@@ -471,6 +471,7 @@ class DetectionAccuracyReportTest(unittest.TestCase):
         self.assertIn("| MAESTRO |", report)
         self.assertIn("## KRAISLER independent piano–violin coverage checklist", report)
         self.assertIn("| Validate external KRAISLER archive | 1 / 1 (100.0%) | 0 |", report)
+        self.assertIn("| Complete protected KRAISLER cross-corpus rule audit | 1 / 1 (100.0%) | 0 |", report)
         self.assertIn("### KRAISLER real piano–violin measurement", report)
         self.assertIn("| DCS All DCS vocal windows — Current-note vocal ownership | 1 / 2 (50.0%) | 1 |", report)
         self.assertIn("| DCS All DCS vocal windows — Visible current-note vocal routing | 0 / 2 (0.0%) | 2 |", report)

@@ -1119,8 +1119,35 @@ KRAISLER is an independent real piano–violin duet corpus with separately recor
 | Validate external KRAISLER archive | 1 / 1 (100.0%) | 0 |
 | Extract KRAISLER safely in InstrumentSamples | 1 / 1 (100.0%) | 0 |
 | Import dry piano/violin stems and labels | 1 / 1 (100.0%) | 0 |
-| Measure real KRAISLER note and chord outcomes | 0 / 1 (0.0%) | 1 |
-| Mine a protected KRAISLER cross-corpus detector rule | 0 / 1 (0.0%) | 1 |
+| Measure real KRAISLER note and chord outcomes | 1 / 1 (100.0%) | 0 |
+| Complete protected KRAISLER cross-corpus rule audit | 1 / 1 (100.0%) | 0 |
+
+### KRAISLER real piano–violin measurement
+
+Source: `build/kraisler_measurement.tsv`
+
+| Metric | Accurate / total | Remaining |
+| --- | ---: | ---: |
+| KRAISLER All KRAISLER chord windows — Exact chord accuracy | 99 / 240 (41.2%) | 141 |
+| KRAISLER All KRAISLER chord windows — Simplified chord accuracy | 121 / 240 (50.4%) | 119 |
+| KRAISLER All KRAISLER notes — Exact-MIDI recall | 874 / 1414 (61.8%) | 540 |
+| KRAISLER All KRAISLER notes — Expected instrument row | 801 / 1414 (56.6%) | 613 |
+| KRAISLER All KRAISLER notes — Pitch-class recall | 1231 / 1414 (87.1%) | 183 |
+| KRAISLER All KRAISLER notes — Visible expected instrument row | 609 / 1414 (43.1%) | 805 |
+| KRAISLER Configuration — dry — Exact chord accuracy | 99 / 240 (41.2%) | 141 |
+| KRAISLER Configuration — dry — Exact-MIDI recall | 874 / 1414 (61.8%) | 540 |
+| KRAISLER Configuration — dry — Expected instrument row | 801 / 1414 (56.6%) | 613 |
+| KRAISLER Configuration — dry — Pitch-class recall | 1231 / 1414 (87.1%) | 183 |
+| KRAISLER Configuration — dry — Simplified chord accuracy | 121 / 240 (50.4%) | 119 |
+| KRAISLER Configuration — dry — Visible expected instrument row | 609 / 1414 (43.1%) | 805 |
+| KRAISLER KRAISLER Piano notes — Exact-MIDI recall | 698 / 1113 (62.7%) | 415 |
+| KRAISLER KRAISLER Piano notes — Expected instrument row | 646 / 1113 (58.0%) | 467 |
+| KRAISLER KRAISLER Piano notes — Pitch-class recall | 959 / 1113 (86.2%) | 154 |
+| KRAISLER KRAISLER Piano notes — Visible expected instrument row | 480 / 1113 (43.1%) | 633 |
+| KRAISLER KRAISLER Violin notes — Exact-MIDI recall | 176 / 301 (58.5%) | 125 |
+| KRAISLER KRAISLER Violin notes — Expected instrument row | 155 / 301 (51.5%) | 146 |
+| KRAISLER KRAISLER Violin notes — Pitch-class recall | 272 / 301 (90.4%) | 29 |
+| KRAISLER KRAISLER Violin notes — Visible expected instrument row | 129 / 301 (42.9%) | 172 |
 
 ## MAPS chord-miss evidence
 
