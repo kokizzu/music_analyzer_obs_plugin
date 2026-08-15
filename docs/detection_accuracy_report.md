@@ -1074,11 +1074,11 @@ This real Disklavier corpus uses aligned MIDI annotations. The four stored shard
 
 | Metric | Accurate / total | Remaining |
 | --- | ---: | ---: |
-| MAPS real piano — recordings with eligible chord windows | 78 / 80 (97.5%) | 2 |
-| MAPS real piano — expected pitch classes | 419 / 604 (69.4%) | 185 |
-| MAPS real piano — keyboard detected-note precision | 419 / 615 (68.1%) | 196 false predictions |
-| MAPS real piano — exact chord windows | 17 / 135 (12.6%) | 118 |
-| MAPS real piano — keyboard chord precision | 17 / 54 (31.5%) | 37 false predictions |
+| MAPS real piano — recordings with eligible chord windows | 2924 / 3000 (97.5%) | 76 |
+| MAPS real piano — expected pitch classes | 8052 / 11662 (69.0%) | 3610 |
+| MAPS real piano — keyboard detected-note precision | 8052 / 11975 (67.2%) | 3923 false predictions |
+| MAPS real piano — exact chord windows | 144 / 2231 (6.5%) | 2087 |
+| MAPS real piano — keyboard chord precision | 144 / 884 (16.3%) | 740 false predictions |
 
 ## Independent piano cross-corpus coverage checklist
 
@@ -1110,6 +1110,18 @@ Source: `build/independent_piano_chord_states.txt`
 | --- | ---: | ---: |
 | No-label states with complete pitch-class recovery in every corpus | 0 / 15 (0.0%) | 15 |
 
+## KRAISLER independent piano–violin coverage checklist
+
+KRAISLER is an independent real piano–violin duet corpus with separately recorded stems, summed mixtures, Disklavier piano MIDI, and reviewed violin note labels.
+
+| Task | Complete / total | Remaining |
+| --- | ---: | ---: |
+| Validate external KRAISLER archive | 1 / 1 (100.0%) | 0 |
+| Extract KRAISLER safely in InstrumentSamples | 1 / 1 (100.0%) | 0 |
+| Import dry piano/violin stems and labels | 1 / 1 (100.0%) | 0 |
+| Measure real KRAISLER note and chord outcomes | 0 / 1 (0.0%) | 1 |
+| Mine a protected KRAISLER cross-corpus detector rule | 0 / 1 (0.0%) | 1 |
+
 ## MAPS chord-miss evidence
 
 This isolates misses where note evidence is already present from misses that still lack a keyboard chord label.
@@ -1134,9 +1146,9 @@ This separate Disklavier subset contains isolated notes with aligned MIDI annota
 
 | Metric | Accurate / total | Remaining |
 | --- | ---: | ---: |
-| MAPS isolated piano — recordings with annotated note windows | 240 / 240 (100.0%) | 0 |
-| MAPS isolated piano — expected pitch classes | 196 / 249 (78.7%) | 53 |
-| MAPS isolated piano — keyboard detected-note precision | 196 / 725 (27.0%) | 529 false predictions |
+| MAPS isolated piano — recordings with annotated note windows | 735 / 735 (100.0%) | 0 |
+| MAPS isolated piano — expected pitch classes | 725 / 942 (77.0%) | 217 |
+| MAPS isolated piano — keyboard detected-note precision | 725 / 2603 (27.9%) | 1878 false predictions |
 
 ## Full drum primary-classification gate
 
