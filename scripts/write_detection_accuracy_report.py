@@ -37,6 +37,15 @@ NOTE_FIELD = {
 NOTE_TOKEN_RE = re.compile(r"^([A-G])(#?)(-?\d+):([0-9.]+)$")
 NOTE_OFFSETS = {"C": 0, "D": 2, "E": 4, "F": 5, "G": 7, "A": 9, "B": 11}
 VISUAL_LIT_THRESHOLD = 0.25
+GUITAR_PRIMARY_AUDIT_RE = re.compile(
+    r"^guitar_chord: primary=(?P<primary>\d+)/(?P<total>\d+) "
+    r"later=(?P<later>\d+) miss=(?P<miss>\d+)$",
+    re.MULTILINE,
+)
+GUITAR_PRIMARY_RUNTIME_SAFE_RE = re.compile(
+    r"^same_root_extension_primary_runtime_safe_rules:\n(?P<body>(?:^  .*\n?)*)",
+    re.MULTILINE,
+)
 
 # Analyzer TSV evidence can legitimately retain long comma-separated note
 # histories.  Keep a finite but practical cap instead of csv's 128 KiB default.
@@ -720,6 +729,33 @@ def violin_guitar_route_audit(path: Path) -> tuple[int, int, int]:
     return route_profile_audit(path, 2)
 
 
+def guitar_chord_primary_display_audit(
+    path: Path,
+) -> tuple[tuple[int, int, int], tuple[int, int, int], int, int]:
+    """Return primary-display totals and zero-regression rule counts for two guitar corpora."""
+    text = path.read_text(encoding="utf-8", errors="replace")
+    primary_rows = list(GUITAR_PRIMARY_AUDIT_RE.finditer(text))
+    safe_sections = list(GUITAR_PRIMARY_RUNTIME_SAFE_RE.finditer(text))
+    if len(primary_rows) != 2 or len(safe_sections) != 2:
+        raise ValueError(f"{path}: missing two-corpus guitar primary display audit")
+
+    def primary(match: re.Match[str]) -> tuple[int, int, int]:
+        return int(match["primary"]), int(match["total"]), int(match["miss"])
+
+    def safe_rule_count(match: re.Match[str]) -> int:
+        return sum(
+            line.lstrip().startswith("+") and "protected_false=0" in line
+            for line in match["body"].splitlines()
+        )
+
+    return (
+        primary(primary_rows[0]),
+        primary(primary_rows[1]),
+        safe_rule_count(safe_sections[0]),
+        safe_rule_count(safe_sections[1]),
+    )
+
+
 def dagstuhl_choirset_rows(path: Path) -> list[tuple[str, str, int, int]]:
     with path.open(encoding="utf-8", newline="") as source:
         rows = list(csv.DictReader(source, delimiter="\t"))
@@ -832,6 +868,7 @@ def render(
     scms_vocal_other_route_audit_input: Path | None = None,
     tenor_sax_piano_route_audit_input: Path | None = None,
     violin_guitar_route_audit_input: Path | None = None,
+    guitar_chord_primary_display_audit_input: Path | None = None,
 ) -> str:
     samples = load_samples(input_path)
     dcs_rows = dagstuhl_choirset_rows(dagstuhl_choirset_input) if dagstuhl_choirset_input else []
@@ -873,6 +910,12 @@ def render(
         violin_guitar_route_audit(violin_guitar_route_audit_input)
         if violin_guitar_route_audit_input is not None
         and violin_guitar_route_audit_input.is_file()
+        else None
+    )
+    guitar_chord_primary_audit = (
+        guitar_chord_primary_display_audit(guitar_chord_primary_display_audit_input)
+        if guitar_chord_primary_display_audit_input is not None
+        and guitar_chord_primary_display_audit_input.is_file()
         else None
     )
     csd_rows = dagstuhl_choirset_rows(choral_singing_dataset_measurement) if choral_singing_dataset_measurement else []
@@ -992,6 +1035,32 @@ def render(
                 f"| Runtime routing change eligible | {fraction(int(recurring_corpora >= 2), 1)} | {int(recurring_corpora < 2)} |",
                 "",
                 f"The originating Good Sounds corpus has {source_samples} matching violin samples; neither independent violin corpus reproduces the profile, so the rule is rejected.",
+            ]
+        )
+    if guitar_chord_primary_audit is not None:
+        source_primary, comparison_primary, source_safe_rules, comparison_safe_rules = (
+            guitar_chord_primary_audit
+        )
+        supporting_corpora = int(source_safe_rules > 0) + int(comparison_safe_rules > 0)
+        lines.extend(
+            [
+                "",
+                "## Guitar chord primary-display safety audit",
+                "",
+                "The primary label may only be reordered when the same runtime-safe predicate "
+                "is supported by both the isolated Guitar Chord Mix and full-performance GAPS "
+                "corpora.",
+                "",
+                f"Source: `{guitar_chord_primary_display_audit_input.as_posix()}`",
+                "",
+                "| Metric | Accurate / total | Remaining |",
+                "| --- | ---: | ---: |",
+                f"| Guitar Chord Mix primary displayed chord | {fraction(source_primary[0], source_primary[1])} | {source_primary[1] - source_primary[0]} |",
+                f"| GAPS full-performance primary displayed chord | {fraction(comparison_primary[0], comparison_primary[1])} | {comparison_primary[1] - comparison_primary[0]} |",
+                f"| Corpora with any zero-regression local reorder rule | {fraction(supporting_corpora, 2)} | {2 - supporting_corpora} |",
+                f"| Shared runtime display change eligible | {fraction(int(source_safe_rules > 0 and comparison_safe_rules > 0), 1)} | {int(not (source_safe_rules > 0 and comparison_safe_rules > 0))} |",
+                "",
+                f"GAPS has {comparison_safe_rules} local zero-regression rule candidates, but Guitar Chord Mix has {source_safe_rules}; no shared rule exists, so no runtime reorder is permitted.",
             ]
         )
     if high_vocal_octave_audit is not None and high_vocal_octave_audit.is_file():
@@ -1988,6 +2057,7 @@ def main() -> int:
     parser.add_argument("--scms-vocal-other-route-audit", type=Path)
     parser.add_argument("--tenor-sax-piano-route-audit", type=Path)
     parser.add_argument("--violin-guitar-route-audit", type=Path)
+    parser.add_argument("--guitar-chord-primary-display-audit", type=Path)
     parser.add_argument("--output", required=True, type=Path)
     args = parser.parse_args()
     try:
@@ -2050,6 +2120,7 @@ def main() -> int:
             args.scms_vocal_other_route_audit,
             args.tenor_sax_piano_route_audit,
             args.violin_guitar_route_audit,
+            args.guitar_chord_primary_display_audit,
         )
     except (OSError, ValueError) as error:
         parser.error(str(error))

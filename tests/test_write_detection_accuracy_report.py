@@ -118,6 +118,30 @@ class DetectionAccuracyReportTest(unittest.TestCase):
             )
             self.assertEqual(REPORT.violin_guitar_route_audit(audit), (4, 0, 2))
 
+    def test_guitar_primary_display_audit_requires_both_corpora(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            audit = Path(temporary) / "guitar_chord_primary_display_audit.txt"
+            audit.write_text(
+                "\n".join(
+                    (
+                        "source=Guitar_Chord_Mix",
+                        "guitar_chord: primary=400/511 later=85 miss=26",
+                        "same_root_extension_primary_runtime_safe_rules:",
+                        "  --",
+                        "comparison=GAPS_full",
+                        "guitar_chord: primary=176/540 later=185 miss=179",
+                        "same_root_extension_primary_runtime_safe_rules:",
+                        "  +12 protected_false=0 neutral=5 :: suffix=7",
+                        "  +8 protected_false=0 neutral=3 :: suffix=7",
+                    )
+                ) + "\n",
+                encoding="utf-8",
+            )
+            self.assertEqual(
+                REPORT.guitar_chord_primary_display_audit(audit),
+                ((400, 511, 26), (176, 540, 179), 0, 2),
+            )
+
     def test_render_reports_global_and_family_counts(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
             source = Path(temporary) / "attributes.tsv"

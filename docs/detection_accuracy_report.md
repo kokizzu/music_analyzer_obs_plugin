@@ -101,6 +101,21 @@ Source: `build/violin_guitar_route_audit.txt`
 
 The originating Good Sounds corpus has 4 matching violin samples; neither independent violin corpus reproduces the profile, so the rule is rejected.
 
+## Guitar chord primary-display safety audit
+
+The primary label may only be reordered when the same runtime-safe predicate is supported by both the isolated Guitar Chord Mix and full-performance GAPS corpora.
+
+Source: `build/guitar_chord_primary_display_audit.txt`
+
+| Metric | Accurate / total | Remaining |
+| --- | ---: | ---: |
+| Guitar Chord Mix primary displayed chord | 400 / 511 (78.3%) | 111 |
+| GAPS full-performance primary displayed chord | 176 / 540 (32.6%) | 364 |
+| Corpora with any zero-regression local reorder rule | 1 / 2 (50.0%) | 1 |
+| Shared runtime display change eligible | 0 / 1 (0.0%) | 1 |
+
+GAPS has 12 local zero-regression rule candidates, but Guitar Chord Mix has 0; no shared rule exists, so no runtime reorder is permitted.
+
 ## High-soprano octave safety audit
 
 A high F5/F#5 vocal recovery is only eligible if it improves at least two independent choir corpora with no protected-instrument reroutes. The lower-octave gate selects protected keyboard candidates; all tested zero-overlap multi-signal profiles reduced protected visual accuracy, so no behavior change is permitted.
