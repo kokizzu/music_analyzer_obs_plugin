@@ -95,12 +95,13 @@ class DetectionAccuracyReportTest(unittest.TestCase):
                         "compare rows=0 samples=0 path=iowa.tsv",
                         "compare rows=0 samples=0 path=tinysol.tsv",
                         "compare rows=0 samples=0 path=real-a2s.tsv",
+                        "compare rows=0 samples=0 path=urmp.tsv",
                     )
                 )
                 + "\n",
                 encoding="utf-8",
             )
-            self.assertEqual(REPORT.tenor_sax_piano_route_audit(audit), (3, 0, 3))
+            self.assertEqual(REPORT.tenor_sax_piano_route_audit(audit), (3, 0, 4))
 
     def test_violin_guitar_audit_requires_two_independent_corpora(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:

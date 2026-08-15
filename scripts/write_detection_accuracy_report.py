@@ -727,7 +727,7 @@ def scms_vocal_other_route_audit(path: Path) -> tuple[int, int, int]:
 
 
 def tenor_sax_piano_route_audit(path: Path) -> tuple[int, int, int]:
-    return route_profile_audit(path, 3)
+    return route_profile_audit(path, 4)
 
 
 def violin_guitar_route_audit(path: Path) -> tuple[int, int, int]:
@@ -1036,7 +1036,8 @@ def render(
                 "## Tenor-saxophone-to-Piano safety audit",
                 "",
                 "The leading Good Sounds tenor-saxophone routing profile is audited against "
-                "independent Iowa, TinySOL, and real tenor-saxophone fixtures before any reroute.",
+                "independent Iowa, TinySOL, real tenor-saxophone, and URMP saxophone fixtures "
+                "before any reroute.",
                 "",
                 f"Source: `{tenor_sax_piano_route_audit_input.as_posix()}`",
                 "",
@@ -1045,7 +1046,7 @@ def render(
                 f"| Independent saxophone corpora reproducing the profile | {fraction(recurring_corpora, corpus_total)} | {corpus_total - recurring_corpora} |",
                 f"| Runtime routing change eligible | {fraction(int(recurring_corpora >= 2), 1)} | {int(recurring_corpora < 2)} |",
                 "",
-                f"The originating Good Sounds corpus has {source_samples} matching tenor-saxophone samples; no independent saxophone fixture reproduces the profile, so the rule is rejected.",
+                f"The originating Good Sounds corpus has {source_samples} matching tenor-saxophone samples; none of the {corpus_total} independent saxophone fixtures reproduces the profile, so the rule is rejected.",
             ]
         )
     if violin_guitar_audit is not None:
