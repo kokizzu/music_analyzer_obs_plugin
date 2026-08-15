@@ -4,6 +4,7 @@ import csv
 import os
 import tempfile
 import wave
+import json
 from pathlib import Path
 
 import generate_prepared_multitrack_fixture
@@ -95,10 +96,32 @@ def test_prepare_prepared_multitrack_fixture_requires_sources():
             raise AssertionError("preparation should fail when a selected piece has missing source audio")
 
 
+def test_prepare_prepared_multitrack_fixture_uses_real_mixture_when_present():
+    with tempfile.TemporaryDirectory() as temp:
+        root = Path(temp) / "prepared"
+        output = Path(temp) / "musicnet"
+        write_fixture(root)
+        mixture = root / "audio" / "PMT001" / "real_mix.wav"
+        with wave.open(str(mixture), "wb") as audio:
+            audio.setnchannels(1)
+            audio.setsampwidth(2)
+            audio.setframerate(44100)
+            audio.writeframes(b"\0\0" * 44100)
+        manifest = root / "manifest.json"
+        data = json.loads(manifest.read_text(encoding="utf-8"))
+        data["pieces"][0]["mixture_audio"] = "audio/PMT001/real_mix.wav"
+        manifest.write_text(json.dumps(data), encoding="utf-8")
+        if run_prepare(root, output) != 0:
+            raise AssertionError("preparation should accept a real mixture audio path")
+        if wav_peak(output / "train_data" / "1.wav") != 0:
+            raise AssertionError("prepared audio should use the declared mixture instead of summing the stems")
+
+
 def main():
     test_prepare_prepared_multitrack_fixture_writes_musicnet_shape()
     test_prepare_prepared_multitrack_fixture_requires_sources()
-    print("test_prepare_prepared_multitrack_musicnet_fixture: 2 checks passed")
+    test_prepare_prepared_multitrack_fixture_uses_real_mixture_when_present()
+    print("test_prepare_prepared_multitrack_musicnet_fixture: 3 checks passed")
     return 0
 
 

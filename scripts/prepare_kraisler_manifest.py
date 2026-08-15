@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Import KRAISLER dry piano/violin stems and aligned note truth."""
+"""Import KRAISLER piano/violin stems, real mixes, and aligned note truth."""
 
 import argparse
 import csv
@@ -16,6 +16,7 @@ from prepare_slakh_musicnet_fixture import parse_midi_notes  # noqa: E402
 
 PIANO_PROGRAM = 0
 VIOLIN_PROGRAM = 40
+CONFIGURATIONS = ("dry", "studio", "hall")
 
 
 def note_rows(path: Path) -> list[tuple[float, float, int]]:
@@ -52,35 +53,42 @@ def prepare(root: Path, output: Path, minimum_tracks: int) -> int:
     midi_root = find_dir(root, "performance_midi")
     annotation_root = find_dir(root, "annotation_csv")
     pieces = []
-    staged: list[tuple[str, Path, Path, list[tuple[float, float, int]], list[tuple[float, float, int]]]] = []
-    for piano_audio in sorted(wav_root.glob("??_PF_dry.wav")):
-        track_id = piano_audio.name[:2]
-        violin_audio = wav_root / f"{track_id}_VN_dry.wav"
-        piano_midi = midi_root / f"{track_id}_PF.mid"
-        violin_notes = annotation_root / f"{track_id}_notes_VN.csv"
-        if not violin_audio.is_file() or not piano_midi.is_file() or not violin_notes.is_file():
-            continue
-        try:
-            piano_rows = [(start, end, midi) for start, end, _, midi in parse_midi_notes(piano_midi, PIANO_PROGRAM)]
-            violin_rows = note_rows(violin_notes)
-        except (OSError, ValueError, csv.Error, UnicodeDecodeError):
-            continue
-        if piano_rows and violin_rows:
-            staged.append((track_id, piano_audio, violin_audio, piano_rows, violin_rows))
-    if len(staged) < minimum_tracks:
-        raise ValueError(f"expected at least {minimum_tracks} complete dry KRAISLER tracks, found {len(staged)}")
+    staged: list[tuple[str, str, Path, Path, Path, list[tuple[float, float, int]], list[tuple[float, float, int]]]] = []
+    for configuration in CONFIGURATIONS:
+        complete = 0
+        for piano_audio in sorted(wav_root.glob(f"??_PF_{configuration}.wav")):
+            track_id = piano_audio.name[:2]
+            violin_audio = wav_root / f"{track_id}_VN_{configuration}.wav"
+            mixture_audio = wav_root / f"{track_id}_mix_{configuration}.wav"
+            piano_midi = midi_root / f"{track_id}_PF.mid"
+            violin_notes = annotation_root / f"{track_id}_notes_VN.csv"
+            if not violin_audio.is_file() or not mixture_audio.is_file() or not piano_midi.is_file() or not violin_notes.is_file():
+                continue
+            try:
+                piano_rows = [(start, end, midi) for start, end, _, midi in parse_midi_notes(piano_midi, PIANO_PROGRAM)]
+                violin_rows = note_rows(violin_notes)
+            except (OSError, ValueError, csv.Error, UnicodeDecodeError):
+                continue
+            if piano_rows and violin_rows:
+                staged.append((track_id, configuration, piano_audio, violin_audio, mixture_audio, piano_rows, violin_rows))
+                complete += 1
+        if complete < minimum_tracks:
+            raise ValueError(
+                f"expected at least {minimum_tracks} complete {configuration} KRAISLER tracks, found {complete}"
+            )
     shutil.rmtree(output, ignore_errors=True)
     notes_root = output / "scores"
     notes_root.mkdir(parents=True)
-    for track_id, piano_audio, violin_audio, piano_rows, violin_rows in staged:
-        piano_path = notes_root / f"{track_id}_PF.csv"
-        violin_path = notes_root / f"{track_id}_VN.csv"
+    for track_id, configuration, piano_audio, violin_audio, mixture_audio, piano_rows, violin_rows in staged:
+        piano_path = notes_root / f"{track_id}_{configuration}_PF.csv"
+        violin_path = notes_root / f"{track_id}_{configuration}_VN.csv"
         write_notes(piano_path, piano_rows)
         write_notes(violin_path, violin_rows)
         pieces.append(
             {
-                "id": f"kraisler_{track_id}_dry",
-                "configuration": "dry",
+                "id": f"kraisler_{track_id}_{configuration}",
+                "configuration": configuration,
+                "mixture_audio": str(mixture_audio.resolve()),
                 "sources": [
                     {"audio": str(piano_audio.resolve()), "notes": str(piano_path.resolve()), "instrument": PIANO_PROGRAM},
                     {"audio": str(violin_audio.resolve()), "notes": str(violin_path.resolve()), "instrument": VIOLIN_PROGRAM},

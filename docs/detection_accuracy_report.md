@@ -832,23 +832,23 @@ Source: `build/iowa_orchestra_full_attributes.tsv`
 
 | Metric | Accurate / total | Remaining |
 | --- | ---: | ---: |
-| Iowa orchestra — Any detected note | 681 / 682 (99.9%) | 1 |
-| Iowa orchestra — Expected instrument row | 681 / 682 (99.9%) | 1 |
-| Iowa orchestra — Lit expected pitch class | 681 / 682 (99.9%) | 1 |
-| Iowa orchestra — Primary display row | 681 / 682 (99.9%) | 1 |
-| Iowa orchestra — Visual primary row | 681 / 682 (99.9%) | 1 |
+| Iowa orchestra — Any detected note | 672 / 673 (99.9%) | 1 |
+| Iowa orchestra — Expected instrument row | 672 / 673 (99.9%) | 1 |
+| Iowa orchestra — Lit expected pitch class | 672 / 673 (99.9%) | 1 |
+| Iowa orchestra — Primary display row | 672 / 673 (99.9%) | 1 |
+| Iowa orchestra — Visual primary row | 672 / 673 (99.9%) | 1 |
 | Iowa orchestra — Bass — Any detected note | 25 / 25 (100.0%) | 0 |
 | Iowa orchestra — Bass — Expected instrument row | 25 / 25 (100.0%) | 0 |
 | Iowa orchestra — Bass — Lit expected pitch class | 25 / 25 (100.0%) | 0 |
 | Iowa orchestra — Bass — Primary display row | 25 / 25 (100.0%) | 0 |
 | Iowa orchestra — Bass — Visual primary row | 25 / 25 (100.0%) | 0 |
-| Iowa orchestra — Other — Any detected note | 656 / 657 (99.8%) | 1 |
-| Iowa orchestra — Other — Expected instrument row | 656 / 657 (99.8%) | 1 |
-| Iowa orchestra — Other — Lit expected pitch class | 656 / 657 (99.8%) | 1 |
-| Iowa orchestra — Other — Primary display row | 656 / 657 (99.8%) | 1 |
-| Iowa orchestra — Other — Visual primary row | 656 / 657 (99.8%) | 1 |
-| Iowa orchestra — Exact expected MIDI note | 673 / 682 (98.7%) | 9 |
-| Iowa orchestra — Other — exact expected MIDI note | 651 / 657 (99.1%) | 6 |
+| Iowa orchestra — Other — Any detected note | 647 / 648 (99.8%) | 1 |
+| Iowa orchestra — Other — Expected instrument row | 647 / 648 (99.8%) | 1 |
+| Iowa orchestra — Other — Lit expected pitch class | 647 / 648 (99.8%) | 1 |
+| Iowa orchestra — Other — Primary display row | 647 / 648 (99.8%) | 1 |
+| Iowa orchestra — Other — Visual primary row | 647 / 648 (99.8%) | 1 |
+| Iowa orchestra — Exact expected MIDI note | 664 / 673 (98.7%) | 9 |
+| Iowa orchestra — Other — exact expected MIDI note | 642 / 648 (99.1%) | 6 |
 | Iowa orchestra — Bass — exact expected MIDI note | 22 / 25 (88.0%) | 3 |
 
 ## TinySOL isolated wind and brass exact-note coverage
@@ -1128,26 +1128,38 @@ Source: `build/kraisler_measurement.tsv`
 
 | Metric | Accurate / total | Remaining |
 | --- | ---: | ---: |
-| KRAISLER All KRAISLER chord windows — Exact chord accuracy | 99 / 240 (41.2%) | 141 |
-| KRAISLER All KRAISLER chord windows — Simplified chord accuracy | 121 / 240 (50.4%) | 119 |
-| KRAISLER All KRAISLER notes — Exact-MIDI recall | 874 / 1414 (61.8%) | 540 |
-| KRAISLER All KRAISLER notes — Expected instrument row | 801 / 1414 (56.6%) | 613 |
-| KRAISLER All KRAISLER notes — Pitch-class recall | 1231 / 1414 (87.1%) | 183 |
-| KRAISLER All KRAISLER notes — Visible expected instrument row | 609 / 1414 (43.1%) | 805 |
-| KRAISLER Configuration — dry — Exact chord accuracy | 99 / 240 (41.2%) | 141 |
-| KRAISLER Configuration — dry — Exact-MIDI recall | 874 / 1414 (61.8%) | 540 |
-| KRAISLER Configuration — dry — Expected instrument row | 801 / 1414 (56.6%) | 613 |
-| KRAISLER Configuration — dry — Pitch-class recall | 1231 / 1414 (87.1%) | 183 |
-| KRAISLER Configuration — dry — Simplified chord accuracy | 121 / 240 (50.4%) | 119 |
-| KRAISLER Configuration — dry — Visible expected instrument row | 609 / 1414 (43.1%) | 805 |
-| KRAISLER KRAISLER Piano notes — Exact-MIDI recall | 698 / 1113 (62.7%) | 415 |
-| KRAISLER KRAISLER Piano notes — Expected instrument row | 646 / 1113 (58.0%) | 467 |
-| KRAISLER KRAISLER Piano notes — Pitch-class recall | 959 / 1113 (86.2%) | 154 |
-| KRAISLER KRAISLER Piano notes — Visible expected instrument row | 480 / 1113 (43.1%) | 633 |
-| KRAISLER KRAISLER Violin notes — Exact-MIDI recall | 176 / 301 (58.5%) | 125 |
-| KRAISLER KRAISLER Violin notes — Expected instrument row | 155 / 301 (51.5%) | 146 |
-| KRAISLER KRAISLER Violin notes — Pitch-class recall | 272 / 301 (90.4%) | 29 |
-| KRAISLER KRAISLER Violin notes — Visible expected instrument row | 129 / 301 (42.9%) | 172 |
+| KRAISLER All KRAISLER chord windows — Exact chord accuracy | 280 / 720 (38.9%) | 440 |
+| KRAISLER All KRAISLER chord windows — Simplified chord accuracy | 349 / 720 (48.5%) | 371 |
+| KRAISLER All KRAISLER notes — Exact-MIDI recall | 2562 / 4242 (60.4%) | 1680 |
+| KRAISLER All KRAISLER notes — Expected instrument row | 2425 / 4242 (57.2%) | 1817 |
+| KRAISLER All KRAISLER notes — Pitch-class recall | 3700 / 4242 (87.2%) | 542 |
+| KRAISLER All KRAISLER notes — Visible expected instrument row | 2026 / 4242 (47.8%) | 2216 |
+| KRAISLER Configuration — dry — Exact chord accuracy | 98 / 240 (40.8%) | 142 |
+| KRAISLER Configuration — dry — Exact-MIDI recall | 872 / 1414 (61.7%) | 542 |
+| KRAISLER Configuration — dry — Expected instrument row | 817 / 1414 (57.8%) | 597 |
+| KRAISLER Configuration — dry — Pitch-class recall | 1237 / 1414 (87.5%) | 177 |
+| KRAISLER Configuration — dry — Simplified chord accuracy | 118 / 240 (49.2%) | 122 |
+| KRAISLER Configuration — dry — Visible expected instrument row | 670 / 1414 (47.4%) | 744 |
+| KRAISLER Configuration — hall — Exact chord accuracy | 85 / 240 (35.4%) | 155 |
+| KRAISLER Configuration — hall — Exact-MIDI recall | 837 / 1414 (59.2%) | 577 |
+| KRAISLER Configuration — hall — Expected instrument row | 794 / 1414 (56.2%) | 620 |
+| KRAISLER Configuration — hall — Pitch-class recall | 1226 / 1414 (86.7%) | 188 |
+| KRAISLER Configuration — hall — Simplified chord accuracy | 106 / 240 (44.2%) | 134 |
+| KRAISLER Configuration — hall — Visible expected instrument row | 666 / 1414 (47.1%) | 748 |
+| KRAISLER Configuration — studio — Exact chord accuracy | 97 / 240 (40.4%) | 143 |
+| KRAISLER Configuration — studio — Exact-MIDI recall | 853 / 1414 (60.3%) | 561 |
+| KRAISLER Configuration — studio — Expected instrument row | 814 / 1414 (57.6%) | 600 |
+| KRAISLER Configuration — studio — Pitch-class recall | 1237 / 1414 (87.5%) | 177 |
+| KRAISLER Configuration — studio — Simplified chord accuracy | 125 / 240 (52.1%) | 115 |
+| KRAISLER Configuration — studio — Visible expected instrument row | 690 / 1414 (48.8%) | 724 |
+| KRAISLER KRAISLER Piano notes — Exact-MIDI recall | 2046 / 3339 (61.3%) | 1293 |
+| KRAISLER KRAISLER Piano notes — Expected instrument row | 1939 / 3339 (58.1%) | 1400 |
+| KRAISLER KRAISLER Piano notes — Pitch-class recall | 2894 / 3339 (86.7%) | 445 |
+| KRAISLER KRAISLER Piano notes — Visible expected instrument row | 1608 / 3339 (48.2%) | 1731 |
+| KRAISLER KRAISLER Violin notes — Exact-MIDI recall | 516 / 903 (57.1%) | 387 |
+| KRAISLER KRAISLER Violin notes — Expected instrument row | 486 / 903 (53.8%) | 417 |
+| KRAISLER KRAISLER Violin notes — Pitch-class recall | 806 / 903 (89.3%) | 97 |
+| KRAISLER KRAISLER Violin notes — Visible expected instrument row | 418 / 903 (46.3%) | 485 |
 
 ## MAPS chord-miss evidence
 

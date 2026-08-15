@@ -51,9 +51,13 @@ def prepare_piece(root, manifest_dir, piece, output_root, output_id, ffmpeg):
     if not notes:
         return False, "no usable note rows"
 
+    mixture_audio = inspector.resolve_path(root, manifest_dir, str(piece.get("mixture_audio", "")))
+    if mixture_audio and not os.path.isfile(mixture_audio):
+        return False, "missing mixture audio"
+
     audio_out = os.path.join(output_root, "train_data", f"{output_id}.wav")
     label_out = os.path.join(output_root, "train_labels", f"{output_id}.csv")
-    sample_rate = prepare_summed_stem_audio(audio_paths, audio_out, ffmpeg)
+    sample_rate = prepare_summed_stem_audio([mixture_audio] if mixture_audio else audio_paths, audio_out, ffmpeg)
     write_labels(label_out, notes, sample_rate)
     return True, ""
 
