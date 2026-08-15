@@ -92,12 +92,12 @@ Source: `build/choral_singing_dataset_measurement.tsv`
 | --- | ---: | ---: |
 | CSD All CSD chord windows — Exact chord accuracy | 43 / 144 (29.9%) | 101 |
 | CSD All CSD chord windows — Simplified chord accuracy | 72 / 144 (50.0%) | 72 |
-| CSD All CSD vocal windows — Current-note vocal ownership | 55 / 144 (38.2%) | 89 |
-| CSD All CSD vocal windows — Visible current-note vocal routing | 31 / 144 (21.5%) | 113 |
+| CSD All CSD vocal windows — Current-note vocal ownership | 53 / 144 (36.8%) | 91 |
+| CSD All CSD vocal windows — Visible current-note vocal routing | 30 / 144 (20.8%) | 114 |
 | CSD All SATB notes — Exact-MIDI recall | 418 / 576 (72.6%) | 158 |
-| CSD All SATB notes — Pitch-class recall | 464 / 576 (80.6%) | 112 |
-| CSD All SATB notes — Visible vocal routing | 33 / 576 (5.7%) | 543 |
-| CSD All SATB notes — Vocal ownership | 63 / 576 (10.9%) | 513 |
+| CSD All SATB notes — Pitch-class recall | 463 / 576 (80.4%) | 113 |
+| CSD All SATB notes — Visible vocal routing | 31 / 576 (5.4%) | 545 |
+| CSD All SATB notes — Vocal ownership | 61 / 576 (10.6%) | 515 |
 
 ### CSD SATB range breakdown
 
@@ -105,16 +105,16 @@ Source: `build/choral_singing_dataset_measurement.tsv`
 | --- | ---: | ---: |
 | CSD SATB range — Alto — Exact-MIDI recall | 113 / 144 (78.5%) | 31 |
 | CSD SATB range — Alto — Pitch-class recall | 120 / 144 (83.3%) | 24 |
-| CSD SATB range — Alto — Visible vocal routing | 15 / 144 (10.4%) | 129 |
-| CSD SATB range — Alto — Vocal ownership | 29 / 144 (20.1%) | 115 |
+| CSD SATB range — Alto — Visible vocal routing | 14 / 144 (9.7%) | 130 |
+| CSD SATB range — Alto — Vocal ownership | 28 / 144 (19.4%) | 116 |
 | CSD SATB range — Bass — Exact-MIDI recall | 97 / 144 (67.4%) | 47 |
 | CSD SATB range — Bass — Pitch-class recall | 111 / 144 (77.1%) | 33 |
 | CSD SATB range — Bass — Visible vocal routing | 4 / 144 (2.8%) | 140 |
 | CSD SATB range — Bass — Vocal ownership | 7 / 144 (4.9%) | 137 |
 | CSD SATB range — Soprano — Exact-MIDI recall | 104 / 144 (72.2%) | 40 |
-| CSD SATB range — Soprano — Pitch-class recall | 116 / 144 (80.6%) | 28 |
-| CSD SATB range — Soprano — Visible vocal routing | 9 / 144 (6.2%) | 135 |
-| CSD SATB range — Soprano — Vocal ownership | 14 / 144 (9.7%) | 130 |
+| CSD SATB range — Soprano — Pitch-class recall | 115 / 144 (79.9%) | 29 |
+| CSD SATB range — Soprano — Visible vocal routing | 8 / 144 (5.6%) | 136 |
+| CSD SATB range — Soprano — Vocal ownership | 13 / 144 (9.0%) | 131 |
 | CSD SATB range — Tenor — Exact-MIDI recall | 104 / 144 (72.2%) | 40 |
 | CSD SATB range — Tenor — Pitch-class recall | 117 / 144 (81.2%) | 27 |
 | CSD SATB range — Tenor — Visible vocal routing | 5 / 144 (3.5%) | 139 |
@@ -148,14 +148,14 @@ Source: `build/choral_singing_dataset_measurement.tsv`
 | CSD Configuration — CSD_ER_Singer3 — Visible current-note vocal routing | 2 / 12 (16.7%) | 10 |
 | CSD Configuration — CSD_ER_Singer3 — Visible vocal routing | 2 / 48 (4.2%) | 46 |
 | CSD Configuration — CSD_ER_Singer3 — Vocal ownership | 4 / 48 (8.3%) | 44 |
-| CSD Configuration — CSD_ER_Singer4 — Current-note vocal ownership | 8 / 12 (66.7%) | 4 |
+| CSD Configuration — CSD_ER_Singer4 — Current-note vocal ownership | 7 / 12 (58.3%) | 5 |
 | CSD Configuration — CSD_ER_Singer4 — Exact chord accuracy | 4 / 12 (33.3%) | 8 |
 | CSD Configuration — CSD_ER_Singer4 — Exact-MIDI recall | 34 / 48 (70.8%) | 14 |
 | CSD Configuration — CSD_ER_Singer4 — Pitch-class recall | 40 / 48 (83.3%) | 8 |
 | CSD Configuration — CSD_ER_Singer4 — Simplified chord accuracy | 5 / 12 (41.7%) | 7 |
-| CSD Configuration — CSD_ER_Singer4 — Visible current-note vocal routing | 4 / 12 (33.3%) | 8 |
-| CSD Configuration — CSD_ER_Singer4 — Visible vocal routing | 4 / 48 (8.3%) | 44 |
-| CSD Configuration — CSD_ER_Singer4 — Vocal ownership | 10 / 48 (20.8%) | 38 |
+| CSD Configuration — CSD_ER_Singer4 — Visible current-note vocal routing | 3 / 12 (25.0%) | 9 |
+| CSD Configuration — CSD_ER_Singer4 — Visible vocal routing | 3 / 48 (6.2%) | 45 |
+| CSD Configuration — CSD_ER_Singer4 — Vocal ownership | 9 / 48 (18.8%) | 39 |
 | CSD Configuration — CSD_LI_Singer1 — Current-note vocal ownership | 2 / 12 (16.7%) | 10 |
 | CSD Configuration — CSD_LI_Singer1 — Exact chord accuracy | 5 / 12 (41.7%) | 7 |
 | CSD Configuration — CSD_LI_Singer1 — Exact-MIDI recall | 40 / 48 (83.3%) | 8 |
@@ -169,9 +169,9 @@ Source: `build/choral_singing_dataset_measurement.tsv`
 | CSD Configuration — CSD_LI_Singer2 — Exact-MIDI recall | 40 / 48 (83.3%) | 8 |
 | CSD Configuration — CSD_LI_Singer2 — Pitch-class recall | 42 / 48 (87.5%) | 6 |
 | CSD Configuration — CSD_LI_Singer2 — Simplified chord accuracy | 8 / 12 (66.7%) | 4 |
-| CSD Configuration — CSD_LI_Singer2 — Visible current-note vocal routing | 2 / 12 (16.7%) | 10 |
-| CSD Configuration — CSD_LI_Singer2 — Visible vocal routing | 2 / 48 (4.2%) | 46 |
-| CSD Configuration — CSD_LI_Singer2 — Vocal ownership | 6 / 48 (12.5%) | 42 |
+| CSD Configuration — CSD_LI_Singer2 — Visible current-note vocal routing | 3 / 12 (25.0%) | 9 |
+| CSD Configuration — CSD_LI_Singer2 — Visible vocal routing | 3 / 48 (6.2%) | 45 |
+| CSD Configuration — CSD_LI_Singer2 — Vocal ownership | 7 / 48 (14.6%) | 41 |
 | CSD Configuration — CSD_LI_Singer3 — Current-note vocal ownership | 4 / 12 (33.3%) | 8 |
 | CSD Configuration — CSD_LI_Singer3 — Exact chord accuracy | 4 / 12 (33.3%) | 8 |
 | CSD Configuration — CSD_LI_Singer3 — Exact-MIDI recall | 40 / 48 (83.3%) | 8 |
@@ -194,8 +194,8 @@ Source: `build/choral_singing_dataset_measurement.tsv`
 | CSD Configuration — CSD_ND_Singer1 — Pitch-class recall | 43 / 48 (89.6%) | 5 |
 | CSD Configuration — CSD_ND_Singer1 — Simplified chord accuracy | 6 / 12 (50.0%) | 6 |
 | CSD Configuration — CSD_ND_Singer1 — Visible current-note vocal routing | 3 / 12 (25.0%) | 9 |
-| CSD Configuration — CSD_ND_Singer1 — Visible vocal routing | 5 / 48 (10.4%) | 43 |
-| CSD Configuration — CSD_ND_Singer1 — Vocal ownership | 6 / 48 (12.5%) | 42 |
+| CSD Configuration — CSD_ND_Singer1 — Visible vocal routing | 4 / 48 (8.3%) | 44 |
+| CSD Configuration — CSD_ND_Singer1 — Vocal ownership | 5 / 48 (10.4%) | 43 |
 | CSD Configuration — CSD_ND_Singer2 — Current-note vocal ownership | 3 / 12 (25.0%) | 9 |
 | CSD Configuration — CSD_ND_Singer2 — Exact chord accuracy | 4 / 12 (33.3%) | 8 |
 | CSD Configuration — CSD_ND_Singer2 — Exact-MIDI recall | 26 / 48 (54.2%) | 22 |
@@ -204,14 +204,14 @@ Source: `build/choral_singing_dataset_measurement.tsv`
 | CSD Configuration — CSD_ND_Singer2 — Visible current-note vocal routing | 2 / 12 (16.7%) | 10 |
 | CSD Configuration — CSD_ND_Singer2 — Visible vocal routing | 2 / 48 (4.2%) | 46 |
 | CSD Configuration — CSD_ND_Singer2 — Vocal ownership | 4 / 48 (8.3%) | 44 |
-| CSD Configuration — CSD_ND_Singer3 — Current-note vocal ownership | 3 / 12 (25.0%) | 9 |
+| CSD Configuration — CSD_ND_Singer3 — Current-note vocal ownership | 2 / 12 (16.7%) | 10 |
 | CSD Configuration — CSD_ND_Singer3 — Exact chord accuracy | 2 / 12 (16.7%) | 10 |
 | CSD Configuration — CSD_ND_Singer3 — Exact-MIDI recall | 27 / 48 (56.2%) | 21 |
-| CSD Configuration — CSD_ND_Singer3 — Pitch-class recall | 34 / 48 (70.8%) | 14 |
+| CSD Configuration — CSD_ND_Singer3 — Pitch-class recall | 33 / 48 (68.8%) | 15 |
 | CSD Configuration — CSD_ND_Singer3 — Simplified chord accuracy | 3 / 12 (25.0%) | 9 |
-| CSD Configuration — CSD_ND_Singer3 — Visible current-note vocal routing | 2 / 12 (16.7%) | 10 |
-| CSD Configuration — CSD_ND_Singer3 — Visible vocal routing | 2 / 48 (4.2%) | 46 |
-| CSD Configuration — CSD_ND_Singer3 — Vocal ownership | 3 / 48 (6.2%) | 45 |
+| CSD Configuration — CSD_ND_Singer3 — Visible current-note vocal routing | 1 / 12 (8.3%) | 11 |
+| CSD Configuration — CSD_ND_Singer3 — Visible vocal routing | 1 / 48 (2.1%) | 47 |
+| CSD Configuration — CSD_ND_Singer3 — Vocal ownership | 2 / 48 (4.2%) | 46 |
 | CSD Configuration — CSD_ND_Singer4 — Current-note vocal ownership | 7 / 12 (58.3%) | 5 |
 | CSD Configuration — CSD_ND_Singer4 — Exact chord accuracy | 5 / 12 (41.7%) | 7 |
 | CSD Configuration — CSD_ND_Singer4 — Exact-MIDI recall | 28 / 48 (58.3%) | 20 |
@@ -249,12 +249,12 @@ Source: `build/esmuc_choir_dataset_measurement.tsv`
 | --- | ---: | ---: |
 | ESMUC All ESMUC chord windows — Exact chord accuracy | 68 / 218 (31.2%) | 150 |
 | ESMUC All ESMUC chord windows — Simplified chord accuracy | 88 / 218 (40.4%) | 130 |
-| ESMUC All ESMUC vocal windows — Current-note vocal ownership | 104 / 228 (45.6%) | 124 |
-| ESMUC All ESMUC vocal windows — Visible current-note vocal routing | 53 / 228 (23.2%) | 175 |
+| ESMUC All ESMUC vocal windows — Current-note vocal ownership | 106 / 228 (46.5%) | 122 |
+| ESMUC All ESMUC vocal windows — Visible current-note vocal routing | 55 / 228 (24.1%) | 173 |
 | ESMUC All SATB notes — Exact-MIDI recall | 646 / 902 (71.6%) | 256 |
 | ESMUC All SATB notes — Pitch-class recall | 722 / 902 (80.0%) | 180 |
-| ESMUC All SATB notes — Visible vocal routing | 59 / 902 (6.5%) | 843 |
-| ESMUC All SATB notes — Vocal ownership | 118 / 902 (13.1%) | 784 |
+| ESMUC All SATB notes — Visible vocal routing | 63 / 902 (7.0%) | 839 |
+| ESMUC All SATB notes — Vocal ownership | 122 / 902 (13.5%) | 780 |
 
 ### ESMUC SATB range breakdown
 
@@ -266,16 +266,16 @@ Source: `build/esmuc_choir_dataset_measurement.tsv`
 | ESMUC SATB range — Alto — Vocal ownership | 35 / 228 (15.4%) | 193 |
 | ESMUC SATB range — Bass — Exact-MIDI recall | 182 / 228 (79.8%) | 46 |
 | ESMUC SATB range — Bass — Pitch-class recall | 196 / 228 (86.0%) | 32 |
-| ESMUC SATB range — Bass — Visible vocal routing | 15 / 228 (6.6%) | 213 |
-| ESMUC SATB range — Bass — Vocal ownership | 37 / 228 (16.2%) | 191 |
+| ESMUC SATB range — Bass — Visible vocal routing | 16 / 228 (7.0%) | 212 |
+| ESMUC SATB range — Bass — Vocal ownership | 38 / 228 (16.7%) | 190 |
 | ESMUC SATB range — Soprano — Exact-MIDI recall | 136 / 218 (62.4%) | 82 |
 | ESMUC SATB range — Soprano — Pitch-class recall | 161 / 218 (73.9%) | 57 |
 | ESMUC SATB range — Soprano — Visible vocal routing | 7 / 218 (3.2%) | 211 |
 | ESMUC SATB range — Soprano — Vocal ownership | 15 / 218 (6.9%) | 203 |
 | ESMUC SATB range — Tenor — Exact-MIDI recall | 164 / 228 (71.9%) | 64 |
 | ESMUC SATB range — Tenor — Pitch-class recall | 185 / 228 (81.1%) | 43 |
-| ESMUC SATB range — Tenor — Visible vocal routing | 9 / 228 (3.9%) | 219 |
-| ESMUC SATB range — Tenor — Vocal ownership | 31 / 228 (13.6%) | 197 |
+| ESMUC SATB range — Tenor — Visible vocal routing | 12 / 228 (5.3%) | 216 |
+| ESMUC SATB range — Tenor — Vocal ownership | 34 / 228 (14.9%) | 194 |
 
 ### ESMUC recording-configuration breakdown
 
@@ -289,14 +289,14 @@ Source: `build/esmuc_choir_dataset_measurement.tsv`
 | ESMUC Configuration — ESMUC_DG_FT_take1 — Visible current-note vocal routing | 3 / 12 (25.0%) | 9 |
 | ESMUC Configuration — ESMUC_DG_FT_take1 — Visible vocal routing | 4 / 48 (8.3%) | 44 |
 | ESMUC Configuration — ESMUC_DG_FT_take1 — Vocal ownership | 7 / 48 (14.6%) | 41 |
-| ESMUC Configuration — ESMUC_DG_FT_take2 — Current-note vocal ownership | 7 / 12 (58.3%) | 5 |
+| ESMUC Configuration — ESMUC_DG_FT_take2 — Current-note vocal ownership | 8 / 12 (66.7%) | 4 |
 | ESMUC Configuration — ESMUC_DG_FT_take2 — Exact chord accuracy | 4 / 12 (33.3%) | 8 |
 | ESMUC Configuration — ESMUC_DG_FT_take2 — Exact-MIDI recall | 39 / 48 (81.2%) | 9 |
 | ESMUC Configuration — ESMUC_DG_FT_take2 — Pitch-class recall | 44 / 48 (91.7%) | 4 |
 | ESMUC Configuration — ESMUC_DG_FT_take2 — Simplified chord accuracy | 7 / 12 (58.3%) | 5 |
-| ESMUC Configuration — ESMUC_DG_FT_take2 — Visible current-note vocal routing | 4 / 12 (33.3%) | 8 |
-| ESMUC Configuration — ESMUC_DG_FT_take2 — Visible vocal routing | 4 / 48 (8.3%) | 44 |
-| ESMUC Configuration — ESMUC_DG_FT_take2 — Vocal ownership | 8 / 48 (16.7%) | 40 |
+| ESMUC Configuration — ESMUC_DG_FT_take2 — Visible current-note vocal routing | 5 / 12 (41.7%) | 7 |
+| ESMUC Configuration — ESMUC_DG_FT_take2 — Visible vocal routing | 5 / 48 (10.4%) | 43 |
+| ESMUC Configuration — ESMUC_DG_FT_take2 — Vocal ownership | 9 / 48 (18.8%) | 39 |
 | ESMUC Configuration — ESMUC_DG_FT_take3 — Current-note vocal ownership | 4 / 12 (33.3%) | 8 |
 | ESMUC Configuration — ESMUC_DG_FT_take3 — Exact chord accuracy | 5 / 12 (41.7%) | 7 |
 | ESMUC Configuration — ESMUC_DG_FT_take3 — Exact-MIDI recall | 33 / 48 (68.8%) | 15 |
@@ -319,16 +319,16 @@ Source: `build/esmuc_choir_dataset_measurement.tsv`
 | ESMUC Configuration — ESMUC_DG_SE_short2 — Pitch-class recall | 44 / 48 (91.7%) | 4 |
 | ESMUC Configuration — ESMUC_DG_SE_short2 — Simplified chord accuracy | 5 / 10 (50.0%) | 5 |
 | ESMUC Configuration — ESMUC_DG_SE_short2 — Visible current-note vocal routing | 4 / 12 (33.3%) | 8 |
-| ESMUC Configuration — ESMUC_DG_SE_short2 — Visible vocal routing | 4 / 48 (8.3%) | 44 |
-| ESMUC Configuration — ESMUC_DG_SE_short2 — Vocal ownership | 9 / 48 (18.8%) | 39 |
-| ESMUC Configuration — ESMUC_DG_SE_short3 — Current-note vocal ownership | 3 / 12 (25.0%) | 9 |
+| ESMUC Configuration — ESMUC_DG_SE_short2 — Visible vocal routing | 5 / 48 (10.4%) | 43 |
+| ESMUC Configuration — ESMUC_DG_SE_short2 — Vocal ownership | 10 / 48 (20.8%) | 38 |
+| ESMUC Configuration — ESMUC_DG_SE_short3 — Current-note vocal ownership | 4 / 12 (33.3%) | 8 |
 | ESMUC Configuration — ESMUC_DG_SE_short3 — Exact chord accuracy | 4 / 12 (33.3%) | 8 |
 | ESMUC Configuration — ESMUC_DG_SE_short3 — Exact-MIDI recall | 38 / 48 (79.2%) | 10 |
 | ESMUC Configuration — ESMUC_DG_SE_short3 — Pitch-class recall | 40 / 48 (83.3%) | 8 |
 | ESMUC Configuration — ESMUC_DG_SE_short3 — Simplified chord accuracy | 5 / 12 (41.7%) | 7 |
-| ESMUC Configuration — ESMUC_DG_SE_short3 — Visible current-note vocal routing | 2 / 12 (16.7%) | 10 |
-| ESMUC Configuration — ESMUC_DG_SE_short3 — Visible vocal routing | 4 / 48 (8.3%) | 44 |
-| ESMUC Configuration — ESMUC_DG_SE_short3 — Vocal ownership | 5 / 48 (10.4%) | 43 |
+| ESMUC Configuration — ESMUC_DG_SE_short3 — Visible current-note vocal routing | 3 / 12 (25.0%) | 9 |
+| ESMUC Configuration — ESMUC_DG_SE_short3 — Visible vocal routing | 5 / 48 (10.4%) | 43 |
+| ESMUC Configuration — ESMUC_DG_SE_short3 — Vocal ownership | 6 / 48 (12.5%) | 42 |
 | ESMUC Configuration — ESMUC_DG_SE_short4 — Current-note vocal ownership | 6 / 12 (50.0%) | 6 |
 | ESMUC Configuration — ESMUC_DG_SE_short4 — Exact chord accuracy | 2 / 12 (16.7%) | 10 |
 | ESMUC Configuration — ESMUC_DG_SE_short4 — Exact-MIDI recall | 31 / 48 (64.6%) | 17 |
@@ -375,8 +375,8 @@ Source: `build/esmuc_choir_dataset_measurement.tsv`
 | ESMUC Configuration — ESMUC_SC1_FT_take1 — Pitch-class recall | 37 / 48 (77.1%) | 11 |
 | ESMUC Configuration — ESMUC_SC1_FT_take1 — Simplified chord accuracy | 3 / 12 (25.0%) | 9 |
 | ESMUC Configuration — ESMUC_SC1_FT_take1 — Visible current-note vocal routing | 4 / 12 (33.3%) | 8 |
-| ESMUC Configuration — ESMUC_SC1_FT_take1 — Visible vocal routing | 4 / 48 (8.3%) | 44 |
-| ESMUC Configuration — ESMUC_SC1_FT_take1 — Vocal ownership | 7 / 48 (14.6%) | 41 |
+| ESMUC Configuration — ESMUC_SC1_FT_take1 — Visible vocal routing | 5 / 48 (10.4%) | 43 |
+| ESMUC Configuration — ESMUC_SC1_FT_take1 — Vocal ownership | 8 / 48 (16.7%) | 40 |
 | ESMUC Configuration — ESMUC_SC1_FT_take2 — Current-note vocal ownership | 8 / 12 (66.7%) | 4 |
 | ESMUC Configuration — ESMUC_SC1_FT_take2 — Exact chord accuracy | 3 / 12 (25.0%) | 9 |
 | ESMUC Configuration — ESMUC_SC1_FT_take2 — Exact-MIDI recall | 36 / 48 (75.0%) | 12 |
