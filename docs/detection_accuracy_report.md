@@ -805,26 +805,26 @@ Source: `build/irmas_labelled_attributes.tsv`
 
 | Metric | Accurate / total | Remaining |
 | --- | ---: | ---: |
-| IRMAS — Any runtime pitch candidate | 528 / 528 (100.0%) | 0 |
-| IRMAS — Labelled instrument pitch-class row | 521 / 528 (98.7%) | 7 |
-| IRMAS — Strongest raw routing row | 506 / 528 (95.8%) | 22 |
-| IRMAS — Strongest visible routing row | 507 / 528 (96.0%) | 21 |
-| IRMAS — Guitar — Any runtime pitch candidate | 96 / 96 (100.0%) | 0 |
-| IRMAS — Guitar — Labelled instrument pitch-class row | 96 / 96 (100.0%) | 0 |
-| IRMAS — Guitar — Strongest raw routing row | 96 / 96 (100.0%) | 0 |
-| IRMAS — Guitar — Strongest visible routing row | 96 / 96 (100.0%) | 0 |
-| IRMAS — Other — Any runtime pitch candidate | 288 / 288 (100.0%) | 0 |
-| IRMAS — Other — Labelled instrument pitch-class row | 288 / 288 (100.0%) | 0 |
-| IRMAS — Other — Strongest raw routing row | 283 / 288 (98.3%) | 5 |
-| IRMAS — Other — Strongest visible routing row | 286 / 288 (99.3%) | 2 |
-| IRMAS — Piano — Any runtime pitch candidate | 96 / 96 (100.0%) | 0 |
-| IRMAS — Piano — Labelled instrument pitch-class row | 96 / 96 (100.0%) | 0 |
-| IRMAS — Piano — Strongest raw routing row | 96 / 96 (100.0%) | 0 |
-| IRMAS — Piano — Strongest visible routing row | 96 / 96 (100.0%) | 0 |
-| IRMAS — Vocals — Any runtime pitch candidate | 48 / 48 (100.0%) | 0 |
-| IRMAS — Vocals — Labelled instrument pitch-class row | 41 / 48 (85.4%) | 7 |
-| IRMAS — Vocals — Strongest raw routing row | 31 / 48 (64.6%) | 17 |
-| IRMAS — Vocals — Strongest visible routing row | 29 / 48 (60.4%) | 19 |
+| IRMAS — Any runtime pitch candidate | 1847 / 1847 (100.0%) | 0 |
+| IRMAS — Labelled instrument pitch-class row | 1830 / 1847 (99.1%) | 17 |
+| IRMAS — Strongest raw routing row | 1771 / 1847 (95.9%) | 76 |
+| IRMAS — Strongest visible routing row | 1774 / 1847 (96.0%) | 73 |
+| IRMAS — Guitar — Any runtime pitch candidate | 384 / 384 (100.0%) | 0 |
+| IRMAS — Guitar — Labelled instrument pitch-class row | 383 / 384 (99.7%) | 1 |
+| IRMAS — Guitar — Strongest raw routing row | 381 / 384 (99.2%) | 3 |
+| IRMAS — Guitar — Strongest visible routing row | 382 / 384 (99.5%) | 2 |
+| IRMAS — Other — Any runtime pitch candidate | 887 / 887 (100.0%) | 0 |
+| IRMAS — Other — Labelled instrument pitch-class row | 887 / 887 (100.0%) | 0 |
+| IRMAS — Other — Strongest raw routing row | 872 / 887 (98.3%) | 15 |
+| IRMAS — Other — Strongest visible routing row | 883 / 887 (99.5%) | 4 |
+| IRMAS — Piano — Any runtime pitch candidate | 384 / 384 (100.0%) | 0 |
+| IRMAS — Piano — Labelled instrument pitch-class row | 384 / 384 (100.0%) | 0 |
+| IRMAS — Piano — Strongest raw routing row | 384 / 384 (100.0%) | 0 |
+| IRMAS — Piano — Strongest visible routing row | 384 / 384 (100.0%) | 0 |
+| IRMAS — Vocals — Any runtime pitch candidate | 192 / 192 (100.0%) | 0 |
+| IRMAS — Vocals — Labelled instrument pitch-class row | 176 / 192 (91.7%) | 16 |
+| IRMAS — Vocals — Strongest raw routing row | 134 / 192 (69.8%) | 58 |
+| IRMAS — Vocals — Strongest visible routing row | 125 / 192 (65.1%) | 67 |
 
 ## Controlled octave-down violin fixture
 
