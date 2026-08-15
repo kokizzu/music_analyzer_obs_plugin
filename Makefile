@@ -163,7 +163,8 @@ DETECTION_ACCURACY_DAGSTUHL_CHOIRSET_EXTRACT_ARG = $(if $(wildcard $(DAGSTUHL_CH
 DETECTION_ACCURACY_DAGSTUHL_CHOIRSET_MANIFEST_ARG = $(if $(wildcard $(DAGSTUHL_CHOIRSET_PREPARED_DIR)/manifest.json),--dagstuhl-choirset-manifest "$(DAGSTUHL_CHOIRSET_PREPARED_DIR)/manifest.json")
 DETECTION_ACCURACY_MAESTRO_REAL_MEASUREMENT_ARG = $(if $(wildcard $(MAESTRO_REAL_MEASUREMENT_OUTPUT)),--maestro-real-measurement "$(MAESTRO_REAL_MEASUREMENT_OUTPUT)")
 DETECTION_ACCURACY_MAESTRO_REAL_ATTRIBUTE_ARG = $(if $(wildcard $(MAESTRO_REAL_ATTRIBUTE_TSV)),--maestro-real-attribute-input "$(MAESTRO_REAL_ATTRIBUTE_TSV)")
-DETECTION_ACCURACY_MAESTRO_REAL_MANIFEST_ARG = $(if $(wildcard $(MAESTRO_REAL_SAMPLE_DIR)/maestro-v3.0.0.csv),--maestro-real-manifest "$(MAESTRO_REAL_SAMPLE_DIR)/maestro-v3.0.0.csv") $(DETECTION_ACCURACY_MAESTRO_REAL_ATTRIBUTE_ARG)
+DETECTION_ACCURACY_INDEPENDENT_PIANO_STATE_ARG = $(if $(wildcard $(MAESTRO_REAL_CHORD_STATE_OUTPUT)),--independent-piano-chord-state-evidence "$(MAESTRO_REAL_CHORD_STATE_OUTPUT)")
+DETECTION_ACCURACY_MAESTRO_REAL_MANIFEST_ARG = $(if $(wildcard $(MAESTRO_REAL_SAMPLE_DIR)/maestro-v3.0.0.csv),--maestro-real-manifest "$(MAESTRO_REAL_SAMPLE_DIR)/maestro-v3.0.0.csv") $(DETECTION_ACCURACY_MAESTRO_REAL_ATTRIBUTE_ARG) $(DETECTION_ACCURACY_INDEPENDENT_PIANO_STATE_ARG)
 DETECTION_ACCURACY_CHORAL_SINGING_DATASET_ARG = $(if $(wildcard $(CHORAL_SINGING_DATASET_ARCHIVE)),--choral-singing-dataset-archive "$(CHORAL_SINGING_DATASET_ARCHIVE)")
 DETECTION_ACCURACY_CHORAL_SINGING_DATASET_EXTRACT_ARG = $(if $(wildcard $(CHORAL_SINGING_DATASET_EXTRACT_DIR)/ChoralSingingDataset/README.txt),--choral-singing-dataset-extraction "$(CHORAL_SINGING_DATASET_EXTRACT_DIR)/ChoralSingingDataset/README.txt")
 DETECTION_ACCURACY_CHORAL_SINGING_DATASET_INSPECTION_ARG = $(if $(wildcard $(CHORAL_SINGING_DATASET_INSPECTION_OUTPUT)),--choral-singing-dataset-inspection "$(CHORAL_SINGING_DATASET_INSPECTION_OUTPUT)")
@@ -824,6 +825,7 @@ MAESTRO_REAL_MIN_RECORDINGS ?= 40
 MAESTRO_REAL_MEASUREMENT_OUTPUT ?= $(BUILD_DIR)/maestro_real_measurement.out
 MAESTRO_REAL_ATTRIBUTE_TSV ?= $(BUILD_DIR)/maestro_real_attributes.tsv
 MAESTRO_REAL_CHORD_EVIDENCE_OUTPUT ?= $(BUILD_DIR)/independent_piano_chord_evidence.txt
+MAESTRO_REAL_CHORD_STATE_OUTPUT ?= $(BUILD_DIR)/independent_piano_chord_states.txt
 INSTRUMENT_SAMPLE_BUILD_ROOT ?= $(BUILD_DIR)
 INSTRUMENT_SAMPLE_SOURCE_DIR ?= $(BUILD_DIR)/instrument_sample_sources
 INSTRUMENT_SAMPLE_SOUNDFONT ?=
@@ -5094,6 +5096,16 @@ analyze-independent-piano-chord-evidence: scripts/summarize_cross_corpus_chord_e
 	@test -s "$(MAESTRO_REAL_ATTRIBUTE_TSV)" || { printf '%s\n' "missing $(MAESTRO_REAL_ATTRIBUTE_TSV); run make measure-maestro-real-samples first"; exit 2; }
 	$(PYTHON) scripts/summarize_cross_corpus_chord_evidence.py "$(MAPS_PIANO_ATTRIBUTE_TSV)" "$(MAESTRO_REAL_ATTRIBUTE_TSV)" > "$(MAESTRO_REAL_CHORD_EVIDENCE_OUTPUT)"
 	@cat "$(MAESTRO_REAL_CHORD_EVIDENCE_OUTPUT)"
+
+.PHONY: analyze-independent-piano-chord-states test-independent-piano-chord-states
+analyze-independent-piano-chord-states: scripts/summarize_independent_piano_chord_states.py
+	@test -s "$(MAPS_PIANO_ATTRIBUTE_TSV)" || { printf '%s\n' "missing $(MAPS_PIANO_ATTRIBUTE_TSV); run make analyze-maps-piano-attributes first"; exit 2; }
+	@test -s "$(MAESTRO_REAL_ATTRIBUTE_TSV)" || { printf '%s\n' "missing $(MAESTRO_REAL_ATTRIBUTE_TSV); run make measure-maestro-real-samples first"; exit 2; }
+	$(PYTHON) scripts/summarize_independent_piano_chord_states.py "$(MAPS_PIANO_ATTRIBUTE_TSV)" "$(MAESTRO_REAL_ATTRIBUTE_TSV)" > "$(MAESTRO_REAL_CHORD_STATE_OUTPUT)"
+	@cat "$(MAESTRO_REAL_CHORD_STATE_OUTPUT)"
+
+test-independent-piano-chord-states: tests/test_summarize_independent_piano_chord_states.py scripts/summarize_independent_piano_chord_states.py
+	$(PYTHON) tests/test_summarize_independent_piano_chord_states.py
 
 test-cross-corpus-chord-evidence: tests/test_summarize_cross_corpus_chord_evidence.py scripts/summarize_cross_corpus_chord_evidence.py
 	$(PYTHON) tests/test_summarize_cross_corpus_chord_evidence.py

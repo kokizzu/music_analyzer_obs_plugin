@@ -371,6 +371,11 @@ class DetectionAccuracyReportTest(unittest.TestCase):
             dcs_extraction.parent.mkdir()
             for path in (dcs_validation, dcs_inspection, dcs_extraction, dcs_manifest):
                 path.write_text("fixture\n", encoding="utf-8")
+            piano_state_evidence = Path(temporary) / "independent_piano_states.txt"
+            piano_state_evidence.write_text(
+                "independent_piano_chord_states: corpora=2 shared_no_label_states=5 complete_pcs_recovery_candidates=1\n",
+                encoding="utf-8",
+            )
             exact_note_cross_corpus = Path(temporary) / "vocal_exact_note_cross_corpus.tsv"
             exact_note_cross_corpus.write_text(
                 "corpus\texact_vocal\texact_foreign\tpitch_class_only\tno_pitch_class\ttotal\n"
@@ -413,6 +418,7 @@ class DetectionAccuracyReportTest(unittest.TestCase):
                 maestro_real_measurement=maps,
                 maestro_real_manifest=source,
                 maestro_real_attribute_input=maps_attributes,
+                independent_piano_chord_state_evidence_input=piano_state_evidence,
             )
 
         self.assertIn("| Any detected note | 2 / 3 (66.7%) | 1 |", report)
@@ -450,6 +456,7 @@ class DetectionAccuracyReportTest(unittest.TestCase):
         self.assertIn("| Measure MAESTRO note and chord outcomes | 1 / 1 (100.0%) | 0 |", report)
         self.assertIn("| MAESTRO external piano — expected pitch classes |", report)
         self.assertIn("## Independent piano chord-outcome evidence", report)
+        self.assertIn("| No-label states with complete pitch-class recovery in every corpus | 1 / 5 (20.0%) | 4 |", report)
         self.assertIn("| MAPS |", report)
         self.assertIn("| MAESTRO |", report)
         self.assertIn("| DCS All DCS vocal windows — Current-note vocal ownership | 1 / 2 (50.0%) | 1 |", report)

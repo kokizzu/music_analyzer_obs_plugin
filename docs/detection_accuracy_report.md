@@ -1102,6 +1102,14 @@ Source: `build/maestro_real_measurement.out`
 | MAESTRO external piano — exact chord windows | 32 / 320 (10.0%) | 288 |
 | MAESTRO external piano — keyboard chord precision | 32 / 165 (19.4%) | 133 false predictions |
 
+### Independent-piano runtime-state mining
+
+Source: `build/independent_piano_chord_states.txt`
+
+| Metric | Candidate states / shared states | Remaining |
+| --- | ---: | ---: |
+| No-label states with complete pitch-class recovery in every corpus | 0 / 14 (0.0%) | 14 |
+
 ## MAPS chord-miss evidence
 
 This isolates misses where note evidence is already present from misses that still lack a keyboard chord label.

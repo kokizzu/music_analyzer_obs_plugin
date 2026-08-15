@@ -305,6 +305,11 @@ MAPS_CHORD_COUNTS_RE = re.compile(
     r"keyboard chord precision [\d.]+%, keyboard chord recall [\d.]+%, F1 [\d.]+%, "
     r"tp/fp/fn (?P<tp>\d+)/(?P<fp>\d+)/(?P<fn>\d+)"
 )
+INDEPENDENT_PIANO_STATE_RE = re.compile(
+    r"independent_piano_chord_states: corpora=(?P<corpora>\d+) "
+    r"shared_no_label_states=(?P<states>\d+) "
+    r"complete_pcs_recovery_candidates=(?P<candidates>\d+)"
+)
 
 URMP_COVERAGE_RE = re.compile(
     r"analyzer_urmp: coverage: discovered (?P<discovered>\d+) piece dirs, loadable "
@@ -453,6 +458,17 @@ def maestro_real_gate_rows(path: Path) -> list[tuple[str, int, int]]:
         (label.replace("MAPS real piano", "MAESTRO external piano"), accurate, total)
         for label, accurate, total in maps_gate_rows([path])
     ]
+
+
+def independent_piano_state_evidence(path: Path) -> tuple[int, int]:
+    match = INDEPENDENT_PIANO_STATE_RE.search(path.read_text(encoding="utf-8", errors="replace"))
+    if match is None or int(match["corpora"]) < 2:
+        raise ValueError(f"{path}: missing independent piano runtime-state summary")
+    candidates = int(match["candidates"])
+    states = int(match["states"])
+    if candidates < 0 or candidates > states:
+        raise ValueError(f"{path}: invalid independent piano runtime-state counts")
+    return candidates, states
 
 
 def maps_chord_miss_rows(path: Path) -> list[tuple[str, int, int]]:
@@ -733,6 +749,7 @@ def render(
     maestro_real_measurement: Path | None = None,
     maestro_real_manifest: Path | None = None,
     maestro_real_attribute_input: Path | None = None,
+    independent_piano_chord_state_evidence_input: Path | None = None,
 ) -> str:
     samples = load_samples(input_path)
     dcs_rows = dagstuhl_choirset_rows(dagstuhl_choirset_input) if dagstuhl_choirset_input else []
@@ -742,6 +759,11 @@ def render(
     dcs_manifest_ready = int(dagstuhl_choirset_manifest is not None and dagstuhl_choirset_manifest.is_file())
     maestro_real_rows = maestro_real_gate_rows(maestro_real_measurement) if maestro_real_measurement else []
     maestro_real_manifest_ready = int(maestro_real_manifest is not None and maestro_real_manifest.is_file())
+    piano_state_evidence = (
+        independent_piano_state_evidence(independent_piano_chord_state_evidence_input)
+        if independent_piano_chord_state_evidence_input
+        else None
+    )
     csd_rows = dagstuhl_choirset_rows(choral_singing_dataset_measurement) if choral_singing_dataset_measurement else []
     esmuc_rows = dagstuhl_choirset_rows(esmuc_choir_dataset_measurement) if esmuc_choir_dataset_measurement else []
     exact_note_cross_rows = (
@@ -1482,6 +1504,20 @@ def render(
             for label, accurate, total in maestro_real_rows:
                 remaining = f"{total - accurate} false predictions" if label.endswith("precision") else str(total - accurate)
                 lines.append(f"| {label} | {fraction(accurate, total)} | {remaining} |")
+        if piano_state_evidence is not None:
+            candidates, states = piano_state_evidence
+            lines.extend(
+                [
+                    "",
+                    "### Independent-piano runtime-state mining",
+                    "",
+                    f"Source: `{independent_piano_chord_state_evidence_input.as_posix()}`",
+                    "",
+                    "| Metric | Candidate states / shared states | Remaining |",
+                    "| --- | ---: | ---: |",
+                    f"| No-label states with complete pitch-class recovery in every corpus | {fraction(candidates, states)} | {states - candidates} |",
+                ]
+            )
     if maps_attribute_input is not None:
         lines.extend(
             [
@@ -1661,6 +1697,7 @@ def main() -> int:
     parser.add_argument("--maestro-real-measurement", type=Path)
     parser.add_argument("--maestro-real-manifest", type=Path)
     parser.add_argument("--maestro-real-attribute-input", type=Path)
+    parser.add_argument("--independent-piano-chord-state-evidence", type=Path)
     parser.add_argument("--output", required=True, type=Path)
     args = parser.parse_args()
     try:
@@ -1711,6 +1748,7 @@ def main() -> int:
             args.maestro_real_measurement,
             args.maestro_real_manifest,
             args.maestro_real_attribute_input,
+            args.independent_piano_chord_state_evidence,
         )
     except (OSError, ValueError) as error:
         parser.error(str(error))
