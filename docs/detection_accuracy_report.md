@@ -88,6 +88,18 @@ Source: `build/tenor_sax_piano_route_audit.txt`
 
 The originating Good Sounds corpus has 3 matching tenor-saxophone samples; none of the 4 independent saxophone fixtures reproduces the profile, so the rule is rejected.
 
+## URMP/Good Sounds saxophone shared-routing audit
+
+URMP other-to-Piano routing failures are mined jointly with Good Sounds and protected against the general real-note, Iowa, TinySOL, and real A2S saxophone fixtures before any runtime reroute.
+
+Source: `build/urmp_good_sounds_sax_shared_patterns.txt`
+
+| Metric | Accurate / total | Remaining |
+| --- | ---: | ---: |
+| Shared protected zero-regression routing selector found | 0 / 1 (0.0%) | 1 |
+
+No shared zero-regression selector was found, so no saxophone routing change is permitted.
+
 ## Violin-to-Guitar safety audit
 
 The leading Good Sounds violin routing profile is audited against independent Iowa strings and KRAISLER piano--violin mixture evidence before any reroute.
