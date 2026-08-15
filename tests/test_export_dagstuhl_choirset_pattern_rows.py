@@ -25,11 +25,11 @@ def main() -> int:
         header = (
             "recording\tcenter_sample\tactive_notes\tcandidate_evidence\tbass_notes\tkeys_notes\tguitar_notes\t"
             "vocal_notes\tother_notes\tamb_notes\tbass_visual_notes\tkeys_visual_notes\tguitar_visual_notes\t"
-            "vocal_visual_notes\tother_visual_notes\tamb_visual_notes\n"
+            "vocal_visual_notes\tother_visual_notes\tamb_visual_notes\traw_octave_down_ratio\n"
         )
         attributes.write_text(
             header
-            + "1\t100\t52:60,55:52\t60,vocal,0.90,0.00,0.00,0.00,0.90,0.00,0.95,0.80,1,0;52,other,0.80,0.00,0.00,0.00,0.10,0.90,0.80,0.70,0,0\t\t\t\tC4:1.00\tE3:0.90\t\t\t\t\tC4:0.25\tE3:0.24\t\n",
+            + "1\t100\t52:60,55:52\t60,vocal,0.90,0.00,0.00,0.00,0.90,0.00,0.95,0.80,1,0,0.37;52,other,0.80,0.00,0.00,0.00,0.10,0.90,0.80,0.70,0,0,0.91\t\t\t\tC4:1.00\tE3:0.90\t\t\t\t\tC4:0.25\tE3:0.24\t\t0.42\n",
             encoding="utf-8",
         )
         rows = EXPORT.export_rows(attributes, manifest)
@@ -39,6 +39,7 @@ def main() -> int:
         assert soprano["first_row"] == "vocals"
         assert soprano["visual_first_row"] == "vocals"
         assert soprano["debug_owner"] == "vocal"
+        assert soprano["raw_octave_down_ratio"] == "0.37"
         assert bass["status"] == "ownership_miss"
         assert bass["first_row"] == "other"
         assert bass["visual_first_row"] == ""

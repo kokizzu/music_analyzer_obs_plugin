@@ -1300,6 +1300,7 @@ struct NoteEvidence {
 	float spectral_centroid = 0.0f;
 	float spectral_slope = 0.0f;
 	float local_noise_level = 0.0f;
+	float lower_octave_ratio = 0.0f;
 	float adjacent_lower_ratio = 0.0f;
 	float adjacent_upper_ratio = 0.0f;
 	float third_octave_ratio = 0.0f;
@@ -1614,6 +1615,11 @@ NoteEvidence build_note_evidence(const std::array<float, kNoteProbeCount> &power
 	const float high_partials = mix.bands[2] + mix.bands[3] + mix.bands[4];
 	evidence.spectral_slope = high_partials / std::max(low_partials, 1.0e-6f);
 	evidence.local_noise_level = local_spectral_noise_ratio(powers, candidate.midi, fundamental);
+	if (candidate.midi - 12 >= kFirstMidi) {
+		const float lower_octave =
+			std::sqrt(std::max(powers[candidate.midi - 12 - kFirstMidi], 0.0f));
+		evidence.lower_octave_ratio = std::clamp(lower_octave / fundamental, 0.0f, 1.0f);
+	}
 	if (candidate.midi - 1 >= kFirstMidi) {
 		const float lower = std::sqrt(std::max(powers[candidate.midi - 1 - kFirstMidi], 0.0f));
 		evidence.adjacent_lower_ratio = std::clamp(lower / fundamental, 0.0f, 1.0f);
@@ -2103,6 +2109,7 @@ void append_full_mix_debug_candidate(FullMixOwnership &ownership, const NoteCand
 	debug.spectral_centroid = evidence.spectral_centroid;
 	debug.spectral_slope = evidence.spectral_slope;
 	debug.local_noise_level = evidence.local_noise_level;
+	debug.lower_octave_ratio = evidence.lower_octave_ratio;
 	debug.adjacent_lower_ratio = evidence.adjacent_lower_ratio;
 	debug.adjacent_upper_ratio = evidence.adjacent_upper_ratio;
 	debug.third_octave_ratio = evidence.third_octave_ratio;

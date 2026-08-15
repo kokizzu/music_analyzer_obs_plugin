@@ -13,7 +13,7 @@ def candidates(value: str) -> dict[int, list[str]]:
     result: dict[int, list[str]] = {}
     for item in value.split(";"):
         fields = item.split(",")
-        if len(fields) != 12:
+        if len(fields) < 12:
             continue
         try:
             result[int(fields[0])] = fields

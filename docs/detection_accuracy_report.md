@@ -49,6 +49,23 @@ Source: `build/detector_improvement_route_summary.txt`
 | Routes awaiting additional fixture coverage | 0 / 252 (0.0%) | 252 |
 | Routes lacking independent-corpus replication | 123 / 252 (48.8%) | 129 |
 
+## High-soprano octave safety audit
+
+A high F5/F#5 vocal recovery is only eligible if it improves at least two independent choir corpora with no protected-instrument reroutes. The current lower-octave gate still selects protected keyboard candidates, so no behavior change is permitted.
+
+Source: `build/high_vocal_octave_evidence.txt`
+
+high-vocal octave safety audit: midi=77,78
+| Lower-octave ratio cap | DCS candidates | CSD candidates | ESMUC candidates | Corpora with candidates | Protected risks |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| <= 0.05 | 13 / 15 | 0 / 0 | 6 / 7 | 2 / 3 | 220 / 229 |
+| <= 0.10 | 14 / 15 | 0 / 0 | 6 / 7 | 2 / 3 | 220 / 229 |
+| <= 0.20 | 14 / 15 | 0 / 0 | 6 / 7 | 2 / 3 | 227 / 229 |
+| <= 0.35 | 15 / 15 | 0 / 0 | 7 / 7 | 2 / 3 | 228 / 229 |
+| <= 0.50 | 15 / 15 | 0 / 0 | 7 / 7 | 2 / 3 | 228 / 229 |
+| <= 0.75 | 15 / 15 | 0 / 0 | 7 / 7 | 2 / 3 | 228 / 229 |
+| <= 1.00 | 15 / 15 | 0 / 0 | 7 / 7 | 2 / 3 | 229 / 229 |
+
 ## Dagstuhl ChoirSet (DCS) coverage-gap checklist
 
 DCS is an independent real vocal-ensemble corpus. Generated fixtures never count as DCS measurements; completion requires validated public audio plus score-aligned results.
@@ -249,12 +266,12 @@ Source: `build/esmuc_choir_dataset_measurement.tsv`
 | --- | ---: | ---: |
 | ESMUC All ESMUC chord windows — Exact chord accuracy | 68 / 218 (31.2%) | 150 |
 | ESMUC All ESMUC chord windows — Simplified chord accuracy | 88 / 218 (40.4%) | 130 |
-| ESMUC All ESMUC vocal windows — Current-note vocal ownership | 106 / 228 (46.5%) | 122 |
-| ESMUC All ESMUC vocal windows — Visible current-note vocal routing | 55 / 228 (24.1%) | 173 |
+| ESMUC All ESMUC vocal windows — Current-note vocal ownership | 104 / 228 (45.6%) | 124 |
+| ESMUC All ESMUC vocal windows — Visible current-note vocal routing | 53 / 228 (23.2%) | 175 |
 | ESMUC All SATB notes — Exact-MIDI recall | 646 / 902 (71.6%) | 256 |
 | ESMUC All SATB notes — Pitch-class recall | 722 / 902 (80.0%) | 180 |
-| ESMUC All SATB notes — Visible vocal routing | 63 / 902 (7.0%) | 839 |
-| ESMUC All SATB notes — Vocal ownership | 122 / 902 (13.5%) | 780 |
+| ESMUC All SATB notes — Visible vocal routing | 59 / 902 (6.5%) | 843 |
+| ESMUC All SATB notes — Vocal ownership | 118 / 902 (13.1%) | 784 |
 
 ### ESMUC SATB range breakdown
 
@@ -266,16 +283,16 @@ Source: `build/esmuc_choir_dataset_measurement.tsv`
 | ESMUC SATB range — Alto — Vocal ownership | 35 / 228 (15.4%) | 193 |
 | ESMUC SATB range — Bass — Exact-MIDI recall | 182 / 228 (79.8%) | 46 |
 | ESMUC SATB range — Bass — Pitch-class recall | 196 / 228 (86.0%) | 32 |
-| ESMUC SATB range — Bass — Visible vocal routing | 16 / 228 (7.0%) | 212 |
-| ESMUC SATB range — Bass — Vocal ownership | 38 / 228 (16.7%) | 190 |
+| ESMUC SATB range — Bass — Visible vocal routing | 15 / 228 (6.6%) | 213 |
+| ESMUC SATB range — Bass — Vocal ownership | 37 / 228 (16.2%) | 191 |
 | ESMUC SATB range — Soprano — Exact-MIDI recall | 136 / 218 (62.4%) | 82 |
 | ESMUC SATB range — Soprano — Pitch-class recall | 161 / 218 (73.9%) | 57 |
 | ESMUC SATB range — Soprano — Visible vocal routing | 7 / 218 (3.2%) | 211 |
 | ESMUC SATB range — Soprano — Vocal ownership | 15 / 218 (6.9%) | 203 |
 | ESMUC SATB range — Tenor — Exact-MIDI recall | 164 / 228 (71.9%) | 64 |
 | ESMUC SATB range — Tenor — Pitch-class recall | 185 / 228 (81.1%) | 43 |
-| ESMUC SATB range — Tenor — Visible vocal routing | 12 / 228 (5.3%) | 216 |
-| ESMUC SATB range — Tenor — Vocal ownership | 34 / 228 (14.9%) | 194 |
+| ESMUC SATB range — Tenor — Visible vocal routing | 9 / 228 (3.9%) | 219 |
+| ESMUC SATB range — Tenor — Vocal ownership | 31 / 228 (13.6%) | 197 |
 
 ### ESMUC recording-configuration breakdown
 
@@ -289,14 +306,14 @@ Source: `build/esmuc_choir_dataset_measurement.tsv`
 | ESMUC Configuration — ESMUC_DG_FT_take1 — Visible current-note vocal routing | 3 / 12 (25.0%) | 9 |
 | ESMUC Configuration — ESMUC_DG_FT_take1 — Visible vocal routing | 4 / 48 (8.3%) | 44 |
 | ESMUC Configuration — ESMUC_DG_FT_take1 — Vocal ownership | 7 / 48 (14.6%) | 41 |
-| ESMUC Configuration — ESMUC_DG_FT_take2 — Current-note vocal ownership | 8 / 12 (66.7%) | 4 |
+| ESMUC Configuration — ESMUC_DG_FT_take2 — Current-note vocal ownership | 7 / 12 (58.3%) | 5 |
 | ESMUC Configuration — ESMUC_DG_FT_take2 — Exact chord accuracy | 4 / 12 (33.3%) | 8 |
 | ESMUC Configuration — ESMUC_DG_FT_take2 — Exact-MIDI recall | 39 / 48 (81.2%) | 9 |
 | ESMUC Configuration — ESMUC_DG_FT_take2 — Pitch-class recall | 44 / 48 (91.7%) | 4 |
 | ESMUC Configuration — ESMUC_DG_FT_take2 — Simplified chord accuracy | 7 / 12 (58.3%) | 5 |
-| ESMUC Configuration — ESMUC_DG_FT_take2 — Visible current-note vocal routing | 5 / 12 (41.7%) | 7 |
-| ESMUC Configuration — ESMUC_DG_FT_take2 — Visible vocal routing | 5 / 48 (10.4%) | 43 |
-| ESMUC Configuration — ESMUC_DG_FT_take2 — Vocal ownership | 9 / 48 (18.8%) | 39 |
+| ESMUC Configuration — ESMUC_DG_FT_take2 — Visible current-note vocal routing | 4 / 12 (33.3%) | 8 |
+| ESMUC Configuration — ESMUC_DG_FT_take2 — Visible vocal routing | 4 / 48 (8.3%) | 44 |
+| ESMUC Configuration — ESMUC_DG_FT_take2 — Vocal ownership | 8 / 48 (16.7%) | 40 |
 | ESMUC Configuration — ESMUC_DG_FT_take3 — Current-note vocal ownership | 4 / 12 (33.3%) | 8 |
 | ESMUC Configuration — ESMUC_DG_FT_take3 — Exact chord accuracy | 5 / 12 (41.7%) | 7 |
 | ESMUC Configuration — ESMUC_DG_FT_take3 — Exact-MIDI recall | 33 / 48 (68.8%) | 15 |
@@ -319,16 +336,16 @@ Source: `build/esmuc_choir_dataset_measurement.tsv`
 | ESMUC Configuration — ESMUC_DG_SE_short2 — Pitch-class recall | 44 / 48 (91.7%) | 4 |
 | ESMUC Configuration — ESMUC_DG_SE_short2 — Simplified chord accuracy | 5 / 10 (50.0%) | 5 |
 | ESMUC Configuration — ESMUC_DG_SE_short2 — Visible current-note vocal routing | 4 / 12 (33.3%) | 8 |
-| ESMUC Configuration — ESMUC_DG_SE_short2 — Visible vocal routing | 5 / 48 (10.4%) | 43 |
-| ESMUC Configuration — ESMUC_DG_SE_short2 — Vocal ownership | 10 / 48 (20.8%) | 38 |
-| ESMUC Configuration — ESMUC_DG_SE_short3 — Current-note vocal ownership | 4 / 12 (33.3%) | 8 |
+| ESMUC Configuration — ESMUC_DG_SE_short2 — Visible vocal routing | 4 / 48 (8.3%) | 44 |
+| ESMUC Configuration — ESMUC_DG_SE_short2 — Vocal ownership | 9 / 48 (18.8%) | 39 |
+| ESMUC Configuration — ESMUC_DG_SE_short3 — Current-note vocal ownership | 3 / 12 (25.0%) | 9 |
 | ESMUC Configuration — ESMUC_DG_SE_short3 — Exact chord accuracy | 4 / 12 (33.3%) | 8 |
 | ESMUC Configuration — ESMUC_DG_SE_short3 — Exact-MIDI recall | 38 / 48 (79.2%) | 10 |
 | ESMUC Configuration — ESMUC_DG_SE_short3 — Pitch-class recall | 40 / 48 (83.3%) | 8 |
 | ESMUC Configuration — ESMUC_DG_SE_short3 — Simplified chord accuracy | 5 / 12 (41.7%) | 7 |
-| ESMUC Configuration — ESMUC_DG_SE_short3 — Visible current-note vocal routing | 3 / 12 (25.0%) | 9 |
-| ESMUC Configuration — ESMUC_DG_SE_short3 — Visible vocal routing | 5 / 48 (10.4%) | 43 |
-| ESMUC Configuration — ESMUC_DG_SE_short3 — Vocal ownership | 6 / 48 (12.5%) | 42 |
+| ESMUC Configuration — ESMUC_DG_SE_short3 — Visible current-note vocal routing | 2 / 12 (16.7%) | 10 |
+| ESMUC Configuration — ESMUC_DG_SE_short3 — Visible vocal routing | 4 / 48 (8.3%) | 44 |
+| ESMUC Configuration — ESMUC_DG_SE_short3 — Vocal ownership | 5 / 48 (10.4%) | 43 |
 | ESMUC Configuration — ESMUC_DG_SE_short4 — Current-note vocal ownership | 6 / 12 (50.0%) | 6 |
 | ESMUC Configuration — ESMUC_DG_SE_short4 — Exact chord accuracy | 2 / 12 (16.7%) | 10 |
 | ESMUC Configuration — ESMUC_DG_SE_short4 — Exact-MIDI recall | 31 / 48 (64.6%) | 17 |
@@ -375,8 +392,8 @@ Source: `build/esmuc_choir_dataset_measurement.tsv`
 | ESMUC Configuration — ESMUC_SC1_FT_take1 — Pitch-class recall | 37 / 48 (77.1%) | 11 |
 | ESMUC Configuration — ESMUC_SC1_FT_take1 — Simplified chord accuracy | 3 / 12 (25.0%) | 9 |
 | ESMUC Configuration — ESMUC_SC1_FT_take1 — Visible current-note vocal routing | 4 / 12 (33.3%) | 8 |
-| ESMUC Configuration — ESMUC_SC1_FT_take1 — Visible vocal routing | 5 / 48 (10.4%) | 43 |
-| ESMUC Configuration — ESMUC_SC1_FT_take1 — Vocal ownership | 8 / 48 (16.7%) | 40 |
+| ESMUC Configuration — ESMUC_SC1_FT_take1 — Visible vocal routing | 4 / 48 (8.3%) | 44 |
+| ESMUC Configuration — ESMUC_SC1_FT_take1 — Vocal ownership | 7 / 48 (14.6%) | 41 |
 | ESMUC Configuration — ESMUC_SC1_FT_take2 — Current-note vocal ownership | 8 / 12 (66.7%) | 4 |
 | ESMUC Configuration — ESMUC_SC1_FT_take2 — Exact chord accuracy | 3 / 12 (25.0%) | 9 |
 | ESMUC Configuration — ESMUC_SC1_FT_take2 — Exact-MIDI recall | 36 / 48 (75.0%) | 12 |

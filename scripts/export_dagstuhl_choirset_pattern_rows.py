@@ -28,6 +28,7 @@ OUTPUT_FIELDS = (
     "sample_id", "family", "nsynth_family", "source", "expected_note", "expected_midi", "buffer", "mode",
     "bass_notes", "guitar_notes", "piano_notes", "vocal_notes", "other_notes", "amb_notes",
     "bass_visual_notes", "guitar_visual_notes", "piano_visual_notes", "vocal_visual_notes", "other_visual_notes", "amb_visual_notes",
+    "raw_octave_down_ratio",
     "debug_note", "debug_midi", "debug_owner", "debug_conf", "bass_score", "keyboard_score", "guitar_score",
     "vocal_score", "other_score", "pitch_confidence", "periodicity", "vocal_tone_profile", "vocal_rejected_polyphony",
 )
@@ -119,6 +120,11 @@ def export_rows(attributes: Path, manifest: Path) -> list[dict[str, str]]:
                     "family": "vocals", "nsynth_family": "vocal", "source": source_name,
                     "expected_note": midi_name(midi), "expected_midi": str(midi), "buffer": source_row["center_sample"],
                     "mode": "full_mix",
+                    # This ratio is derived entirely from the analyzed audio at
+                    # the candidate pitch.  It lets a later ownership audit
+                    # distinguish a physical high voice from a lower-octave
+                    # fundamental whose upper harmonic was selected.
+                    "raw_octave_down_ratio": candidate[12] if len(candidate) >= 13 else "",
                 })
                 for name, field in ROW_FIELDS.items():
                     output_name = "vocal" if name == "vocals" else name

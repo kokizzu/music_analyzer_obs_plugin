@@ -791,6 +791,7 @@ def render(
     kraisler_manifest: Path | None = None,
     kraisler_measurement: Path | None = None,
     musicnet_routing_input: Path | None = None,
+    high_vocal_octave_audit: Path | None = None,
 ) -> str:
     samples = load_samples(input_path)
     dcs_rows = dagstuhl_choirset_rows(dagstuhl_choirset_input) if dagstuhl_choirset_input else []
@@ -849,6 +850,19 @@ def render(
         )
         for label, count, total in route_coverage_rows(route_summary):
             lines.append(f"| {label} | {fraction(count, total)} | {total - count} |")
+    if high_vocal_octave_audit is not None and high_vocal_octave_audit.is_file():
+        lines.extend(
+            [
+                "",
+                "## High-soprano octave safety audit",
+                "",
+                "A high F5/F#5 vocal recovery is only eligible if it improves at least two independent choir corpora with no protected-instrument reroutes. The current lower-octave gate still selects protected keyboard candidates, so no behavior change is permitted.",
+                "",
+                f"Source: `{high_vocal_octave_audit.as_posix()}`",
+                "",
+            ]
+        )
+        lines.extend(high_vocal_octave_audit.read_text(encoding="utf-8").strip().splitlines())
     lines.extend(
         [
             "",
@@ -1805,6 +1819,7 @@ def main() -> int:
     parser.add_argument("--kraisler-extraction", type=Path)
     parser.add_argument("--kraisler-manifest", type=Path)
     parser.add_argument("--kraisler-measurement", type=Path)
+    parser.add_argument("--high-vocal-octave-audit", type=Path)
     parser.add_argument("--output", required=True, type=Path)
     args = parser.parse_args()
     try:
@@ -1862,6 +1877,7 @@ def main() -> int:
             args.kraisler_manifest,
             args.kraisler_measurement,
             args.musicnet_routing_input,
+            args.high_vocal_octave_audit,
         )
     except (OSError, ValueError) as error:
         parser.error(str(error))

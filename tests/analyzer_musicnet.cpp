@@ -902,12 +902,12 @@ std::string full_mix_candidate_evidence(const mao::AnalysisSnapshot &snapshot)
 		if (!text.empty())
 			text += ";";
 		char item[256] = {};
-		std::snprintf(item, sizeof(item), "%d,%s,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%d,%d",
+		std::snprintf(item, sizeof(item), "%d,%s,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%d,%d,%.3f",
 			      candidate.midi, owner_name(candidate.owner), candidate.ownership_confidence,
 			      candidate.bass_score, candidate.keyboard_score, candidate.guitar_score,
 			      candidate.vocal_score, candidate.other_score, candidate.pitch_confidence,
 			      candidate.periodicity, candidate.vocal_tone_profile_supported ? 1 : 0,
-			      candidate.vocal_rejected_for_polyphony ? 1 : 0);
+			      candidate.vocal_rejected_for_polyphony ? 1 : 0, candidate.lower_octave_ratio);
 		text += item;
 	}
 	return text.empty() ? "--" : text;
