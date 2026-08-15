@@ -25,6 +25,7 @@ def main(argv: list[str]) -> int:
         for row in rows
     )
     writers = []
+    measurements = []
     for proc in Path("/proc").iterdir():
         if not proc.name.isdigit():
             continue
@@ -34,10 +35,13 @@ def main(argv: list[str]) -> int:
             continue
         if "scripts/prepare_maps_piano_samples.py" in command and "maestro_real_samples" in command:
             writers.append(proc.name)
+        if "analyzer_maestro" in command and "MUSIC_ANALYZER_MAESTRO_ROOT" in command:
+            measurements.append(proc.name)
     print(
         "maestro_real_subset: "
         f"path={resolved} metadata_rows={len(rows)} paired_files={complete}/{len(rows)} "
-        f"signature={'present' if signature.is_file() else 'missing'} active_writers={','.join(writers) or '0'}"
+        f"signature={'present' if signature.is_file() else 'missing'} "
+        f"active_writers={','.join(writers) or '0'} active_measurements={','.join(measurements) or '0'}"
     )
     return 0
 

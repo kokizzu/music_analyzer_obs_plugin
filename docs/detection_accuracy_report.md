@@ -1096,11 +1096,11 @@ Source: `build/maestro_real_measurement.out`
 
 | Metric | Accurate / total | Remaining |
 | --- | ---: | ---: |
-| MAESTRO external piano — recordings with eligible chord windows | 80 / 80 (100.0%) | 0 |
-| MAESTRO external piano — expected pitch classes | 1117 / 1434 (77.9%) | 317 |
-| MAESTRO external piano — keyboard detected-note precision | 1117 / 1671 (66.8%) | 554 false predictions |
-| MAESTRO external piano — exact chord windows | 32 / 320 (10.0%) | 288 |
-| MAESTRO external piano — keyboard chord precision | 32 / 165 (19.4%) | 133 false predictions |
+| MAESTRO external piano — recordings with eligible chord windows | 320 / 320 (100.0%) | 0 |
+| MAESTRO external piano — expected pitch classes | 4450 / 5726 (77.7%) | 1276 |
+| MAESTRO external piano — keyboard detected-note precision | 4450 / 6664 (66.8%) | 2214 false predictions |
+| MAESTRO external piano — exact chord windows | 137 / 1280 (10.7%) | 1143 |
+| MAESTRO external piano — keyboard chord precision | 137 / 651 (21.0%) | 514 false predictions |
 
 ### Independent-piano runtime-state mining
 
@@ -1108,7 +1108,7 @@ Source: `build/independent_piano_chord_states.txt`
 
 | Metric | Candidate states / shared states | Remaining |
 | --- | ---: | ---: |
-| No-label states with complete pitch-class recovery in every corpus | 0 / 14 (0.0%) | 14 |
+| No-label states with complete pitch-class recovery in every corpus | 0 / 15 (0.0%) | 15 |
 
 ## MAPS chord-miss evidence
 
@@ -1126,7 +1126,7 @@ These compatible MAPS and MAESTRO labels establish shared failure outcomes, not 
 | Corpus | Exact chord hit | Missing chord label | Wrong chord label |
 | --- | ---: | ---: | ---: |
 | MAPS | 17 / 135 (12.6%) | 85 / 135 (63.0%) | 33 / 135 (24.4%) |
-| MAESTRO | 32 / 320 (10.0%) | 155 / 320 (48.4%) | 133 / 320 (41.6%) |
+| MAESTRO | 137 / 1280 (10.7%) | 629 / 1280 (49.1%) | 514 / 1280 (40.2%) |
 
 ## MAPS isolated-piano note gate
 
