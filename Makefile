@@ -848,6 +848,7 @@ MAESTRO_REAL_CHORD_STATE_OUTPUT ?= $(BUILD_DIR)/independent_piano_chord_states.t
 KRAISLER_SOURCE_DIR ?= $(INSTRUMENT_SAMPLE_STORE_LINK)/kraisler
 KRAISLER_ARCHIVE ?= $(KRAISLER_SOURCE_DIR)/KRAISLER.zip
 KRAISLER_EXTRACT_DIR ?= $(KRAISLER_SOURCE_DIR)/extracted
+KRAISLER_PREPARED_DIR ?= $(KRAISLER_SOURCE_DIR)/prepared-multitrack
 KRAISLER_ARCHIVE_URL ?= https://zenodo.org/api/records/21082251/files/KRAISLER.zip/content
 KRAISLER_ARCHIVE_MD5 ?= 22f6f51e9c356c1ea8f591d85603fd73
 KRAISLER_MIN_TRACKS ?= 20
@@ -2552,7 +2553,7 @@ download-maestro-real-samples: scripts/validate_maestro_subset_archive.py script
 	@test ! -s "$(MAESTRO_REAL_ARCHIVE).part" || mv "$(MAESTRO_REAL_ARCHIVE).part" "$(MAESTRO_REAL_ARCHIVE)"
 	$(PYTHON) scripts/validate_maestro_subset_archive.py --archive "$(MAESTRO_REAL_ARCHIVE)" --kinds OTHER --min-pairs "$(MAESTRO_REAL_MIN_RECORDINGS)"
 
-.PHONY: download-kraisler validate-kraisler-archive extract-kraisler test-validate-kraisler-archive test-extract-kraisler
+.PHONY: download-kraisler validate-kraisler-archive extract-kraisler prepare-kraisler test-validate-kraisler-archive test-extract-kraisler test-prepare-kraisler
 download-kraisler: configure-instrument-sample-store $(KRAISLER_ARCHIVE) validate-kraisler-archive
 
 $(KRAISLER_ARCHIVE): scripts/validate_kraisler_archive.py
@@ -2565,11 +2566,17 @@ validate-kraisler-archive: $(KRAISLER_ARCHIVE) scripts/validate_kraisler_archive
 extract-kraisler: validate-kraisler-archive scripts/extract_kraisler.py
 	$(PYTHON) scripts/extract_kraisler.py --archive "$(KRAISLER_ARCHIVE)" --output "$(KRAISLER_EXTRACT_DIR)" --expected-md5 "$(KRAISLER_ARCHIVE_MD5)" --minimum-tracks "$(KRAISLER_MIN_TRACKS)"
 
+prepare-kraisler: extract-kraisler scripts/prepare_kraisler_manifest.py
+	$(PYTHON) scripts/prepare_kraisler_manifest.py --root "$(KRAISLER_EXTRACT_DIR)" --output "$(KRAISLER_PREPARED_DIR)" --minimum-tracks "$(KRAISLER_MIN_TRACKS)"
+
 test-validate-kraisler-archive: tests/test_validate_kraisler_archive.py scripts/validate_kraisler_archive.py
 	$(PYTHON) tests/test_validate_kraisler_archive.py
 
 test-extract-kraisler: tests/test_extract_kraisler.py scripts/extract_kraisler.py scripts/validate_kraisler_archive.py
 	$(PYTHON) tests/test_extract_kraisler.py
+
+test-prepare-kraisler: tests/test_prepare_kraisler_manifest.py scripts/prepare_kraisler_manifest.py
+	$(PYTHON) tests/test_prepare_kraisler_manifest.py
 
 prepare-maestro-real-samples: scripts/prepare_maps_piano_samples.py download-maestro-real-samples | $(BUILD_DIR)
 	+$(MAKE) BUILD_SAMPLE_STORAGE_DIR=maestro_real_samples ensure-build-sample-storage-link
