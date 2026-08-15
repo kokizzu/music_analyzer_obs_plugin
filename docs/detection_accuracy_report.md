@@ -797,6 +797,35 @@ The cached Good Sounds archive has been inventoried without extraction: all 1,31
 | Good Sounds — Other — Primary display row | 155 / 1159 (13.4%) | 1004 |
 | Good Sounds — Other — Visual primary row | 315 / 1159 (27.2%) | 844 |
 
+## IRMAS independent instrument-routing coverage
+
+IRMAS supplies real musical excerpts labelled for their predominant instrument. It has no time-aligned pitch truth, so these rows measure only runtime candidate availability and instrument/display routing; they are never used as note- or chord-accuracy claims.
+
+Source: `build/irmas_labelled_attributes.tsv`
+
+| Metric | Accurate / total | Remaining |
+| --- | ---: | ---: |
+| IRMAS — Any runtime pitch candidate | 528 / 528 (100.0%) | 0 |
+| IRMAS — Labelled instrument pitch-class row | 521 / 528 (98.7%) | 7 |
+| IRMAS — Strongest raw routing row | 506 / 528 (95.8%) | 22 |
+| IRMAS — Strongest visible routing row | 507 / 528 (96.0%) | 21 |
+| IRMAS — Guitar — Any runtime pitch candidate | 96 / 96 (100.0%) | 0 |
+| IRMAS — Guitar — Labelled instrument pitch-class row | 96 / 96 (100.0%) | 0 |
+| IRMAS — Guitar — Strongest raw routing row | 96 / 96 (100.0%) | 0 |
+| IRMAS — Guitar — Strongest visible routing row | 96 / 96 (100.0%) | 0 |
+| IRMAS — Other — Any runtime pitch candidate | 288 / 288 (100.0%) | 0 |
+| IRMAS — Other — Labelled instrument pitch-class row | 288 / 288 (100.0%) | 0 |
+| IRMAS — Other — Strongest raw routing row | 283 / 288 (98.3%) | 5 |
+| IRMAS — Other — Strongest visible routing row | 286 / 288 (99.3%) | 2 |
+| IRMAS — Piano — Any runtime pitch candidate | 96 / 96 (100.0%) | 0 |
+| IRMAS — Piano — Labelled instrument pitch-class row | 96 / 96 (100.0%) | 0 |
+| IRMAS — Piano — Strongest raw routing row | 96 / 96 (100.0%) | 0 |
+| IRMAS — Piano — Strongest visible routing row | 96 / 96 (100.0%) | 0 |
+| IRMAS — Vocals — Any runtime pitch candidate | 48 / 48 (100.0%) | 0 |
+| IRMAS — Vocals — Labelled instrument pitch-class row | 41 / 48 (85.4%) | 7 |
+| IRMAS — Vocals — Strongest raw routing row | 31 / 48 (64.6%) | 17 |
+| IRMAS — Vocals — Strongest visible routing row | 29 / 48 (60.4%) | 19 |
+
 ## Controlled octave-down violin fixture
 
 Twenty real Philharmonia G3–B3 violin recordings are shifted down one octave. This explicitly derived fixture covers pitch-shifted/sample-playback violin below the acoustic violin range; it is kept separate from real-acoustic aggregate accuracy.
