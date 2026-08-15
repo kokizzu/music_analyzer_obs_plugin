@@ -364,6 +364,13 @@ class DetectionAccuracyReportTest(unittest.TestCase):
                 )) + "\n",
                 encoding="utf-8",
             )
+            dcs_validation = Path(temporary) / "dagstuhl_validation.txt"
+            dcs_inspection = Path(temporary) / "dagstuhl_inventory.txt"
+            dcs_extraction = Path(temporary) / "DagstuhlChoirSet" / "README.md"
+            dcs_manifest = Path(temporary) / "dagstuhl_manifest.json"
+            dcs_extraction.parent.mkdir()
+            for path in (dcs_validation, dcs_inspection, dcs_extraction, dcs_manifest):
+                path.write_text("fixture\n", encoding="utf-8")
             exact_note_cross_corpus = Path(temporary) / "vocal_exact_note_cross_corpus.tsv"
             exact_note_cross_corpus.write_text(
                 "corpus\texact_vocal\texact_foreign\tpitch_class_only\tno_pitch_class\ttotal\n"
@@ -391,6 +398,10 @@ class DetectionAccuracyReportTest(unittest.TestCase):
                 star_drums_gate_output=star_drums,
                 mdb_drums_gate_output=mdb_drums,
                 dagstuhl_choirset_input=dcs_measurement,
+                dagstuhl_choirset_validation=dcs_validation,
+                dagstuhl_choirset_inspection=dcs_inspection,
+                dagstuhl_choirset_extraction=dcs_extraction,
+                dagstuhl_choirset_manifest=dcs_manifest,
                 mir1k_dataset_archive=Path(temporary) / "missing-mir1k.tar.gz",
                 mir1k_dataset_extraction=Path(temporary) / "missing-mir1k-extraction",
                 mir1k_full_mix_input=vocal_full_mix,
@@ -428,6 +439,10 @@ class DetectionAccuracyReportTest(unittest.TestCase):
         self.assertIn("| fixture — pitch class only (wrong octave) | 3 / 10 (30.0%) | 7 |", report)
         self.assertIn("| MIR-1K vocals — Expected instrument row | 2 / 3 (66.7%) | 1 |", report)
         self.assertIn("## Dagstuhl ChoirSet (DCS) real-audio measurement", report)
+        self.assertIn("| Store DCS archive in InstrumentSamples | 1 / 1 (100.0%) | 0 |", report)
+        self.assertIn("| Extract DCS safely in InstrumentSamples | 1 / 1 (100.0%) | 0 |", report)
+        self.assertIn("| Inspect real DCS audio and annotations | 1 / 1 (100.0%) | 0 |", report)
+        self.assertIn("| Import DCS sources and labels | 1 / 1 (100.0%) | 0 |", report)
         self.assertIn("| DCS All DCS vocal windows — Current-note vocal ownership | 1 / 2 (50.0%) | 1 |", report)
         self.assertIn("| DCS All DCS vocal windows — Visible current-note vocal routing | 0 / 2 (0.0%) | 2 |", report)
         self.assertIn("| DCS SATB range — Soprano — Vocal ownership | 1 / 1 (100.0%) | 0 |", report)

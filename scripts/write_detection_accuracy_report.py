@@ -673,6 +673,10 @@ def render(
     star_drums_gate_output: Path | None = None,
     mdb_drums_gate_output: Path | None = None,
     dagstuhl_choirset_input: Path | None = None,
+    dagstuhl_choirset_validation: Path | None = None,
+    dagstuhl_choirset_inspection: Path | None = None,
+    dagstuhl_choirset_extraction: Path | None = None,
+    dagstuhl_choirset_manifest: Path | None = None,
     choral_singing_dataset_archive: Path | None = None,
     choral_singing_dataset_extraction: Path | None = None,
     choral_singing_dataset_inspection: Path | None = None,
@@ -697,6 +701,10 @@ def render(
 ) -> str:
     samples = load_samples(input_path)
     dcs_rows = dagstuhl_choirset_rows(dagstuhl_choirset_input) if dagstuhl_choirset_input else []
+    dcs_validation_ready = int(dagstuhl_choirset_validation is not None and dagstuhl_choirset_validation.is_file())
+    dcs_inspection_ready = int(dagstuhl_choirset_inspection is not None and dagstuhl_choirset_inspection.is_file())
+    dcs_extraction_ready = int(dagstuhl_choirset_extraction is not None and dagstuhl_choirset_extraction.is_file())
+    dcs_manifest_ready = int(dagstuhl_choirset_manifest is not None and dagstuhl_choirset_manifest.is_file())
     csd_rows = dagstuhl_choirset_rows(choral_singing_dataset_measurement) if choral_singing_dataset_measurement else []
     esmuc_rows = dagstuhl_choirset_rows(esmuc_choir_dataset_measurement) if esmuc_choir_dataset_measurement else []
     exact_note_cross_rows = (
@@ -746,10 +754,10 @@ def render(
             "",
             "| Work item | Complete / total | Remaining | Evidence required |",
             "| --- | ---: | ---: | --- |",
-            f"| Store DCS archive in InstrumentSamples | {fraction(int(bool(dcs_rows)), 1)} | {int(not dcs_rows)} | validated archive and checksum |",
-            f"| Extract DCS safely in InstrumentSamples | {fraction(int(bool(dcs_rows)), 1)} | {int(not dcs_rows)} | traversal-safe extraction record |",
-            f"| Inspect real DCS audio and annotations | {fraction(int(bool(dcs_rows)), 1)} | {int(not dcs_rows)} | corpus inventory by song/take/microphone |",
-            f"| Import DCS sources and labels | {fraction(int(bool(dcs_rows)), 1)} | {int(not dcs_rows)} | tested prepared-multitrack manifest |",
+            f"| Store DCS archive in InstrumentSamples | {fraction(dcs_validation_ready, 1)} | {1 - dcs_validation_ready} | validated archive and checksum |",
+            f"| Extract DCS safely in InstrumentSamples | {fraction(dcs_extraction_ready, 1)} | {1 - dcs_extraction_ready} | traversal-safe extraction record |",
+            f"| Inspect real DCS audio and annotations | {fraction(dcs_inspection_ready, 1)} | {1 - dcs_inspection_ready} | corpus inventory by song/take/microphone |",
+            f"| Import DCS sources and labels | {fraction(dcs_manifest_ready, 1)} | {1 - dcs_manifest_ready} | tested prepared-multitrack manifest |",
             f"| Measure note and pitch-class recall | {fraction(int(bool(dcs_rows)), 1)} | {int(not dcs_rows)} | real DCS x/total results |",
             f"| Measure octave accuracy | {fraction(int(bool(dcs_rows)), 1)} | {int(not dcs_rows)} | real DCS exact-MIDI x/total results |",
             f"| Measure vocal ownership and display routing | {fraction(int(bool(dcs_rows)), 1)} | {int(not dcs_rows)} | real DCS row-routing x/total results |",
@@ -1557,6 +1565,10 @@ def main() -> int:
     parser.add_argument("--star-drums-gate-output", type=Path)
     parser.add_argument("--mdb-drums-gate-output", type=Path)
     parser.add_argument("--dagstuhl-choirset-input", type=Path)
+    parser.add_argument("--dagstuhl-choirset-validation", type=Path)
+    parser.add_argument("--dagstuhl-choirset-inspection", type=Path)
+    parser.add_argument("--dagstuhl-choirset-extraction", type=Path)
+    parser.add_argument("--dagstuhl-choirset-manifest", type=Path)
     parser.add_argument("--choral-singing-dataset-archive", type=Path)
     parser.add_argument("--choral-singing-dataset-extraction", type=Path)
     parser.add_argument("--choral-singing-dataset-inspection", type=Path)
@@ -1599,6 +1611,10 @@ def main() -> int:
             args.star_drums_gate_output,
             args.mdb_drums_gate_output,
             args.dagstuhl_choirset_input,
+            args.dagstuhl_choirset_validation,
+            args.dagstuhl_choirset_inspection,
+            args.dagstuhl_choirset_extraction,
+            args.dagstuhl_choirset_manifest,
             args.choral_singing_dataset_archive,
             args.choral_singing_dataset_extraction,
             args.choral_singing_dataset_inspection,
