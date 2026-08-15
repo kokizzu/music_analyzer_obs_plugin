@@ -1143,8 +1143,30 @@ void append_attribute_row(std::vector<std::string> &lines, const SampleRow &row,
 void append_attribute_rows(std::vector<std::string> &lines, const SampleRow &row, const std::string &expected,
 			   int buffer_index, bool full_mix, const mao::AnalysisSnapshot &snapshot,
 			   const mao::InstrumentState &expected_state, bool grid_ok, bool any_grid_ok,
-			   const RawNoteAttributes &raw)
+			   const RawNoteAttributes &raw, const mao_test::Buffer *buffer = nullptr,
+			   uint32_t sample_rate = 0, bool label_only = false)
 {
+	if (label_only) {
+		const std::size_t count = std::min<std::size_t>(snapshot.full_mix_debug_candidate_count,
+								snapshot.full_mix_debug_candidates.size());
+		for (std::size_t i = 0; i < count; ++i) {
+			const mao::FullMixDebugCandidate &debug = snapshot.full_mix_debug_candidates[i];
+			if (debug.midi < mao::kFirstAnalyzedMidi || debug.midi > mao::kLastAnalyzedMidi ||
+			    buffer == nullptr || sample_rate == 0)
+				continue;
+			SampleRow candidate_row = row;
+			candidate_row.midi = debug.midi;
+			candidate_row.note = mao_test::note_label(debug.midi);
+			const RawNoteAttributes candidate_raw =
+				measure_raw_note_attributes(*buffer, sample_rate, debug.midi);
+			const bool candidate_grid_ok =
+				grid_has_pitch_class(family_grid(snapshot, row.family), debug.midi);
+			append_attribute_row(lines, candidate_row, candidate_row.note, buffer_index, full_mix,
+					     snapshot, expected_state, candidate_grid_ok, true,
+					     candidate_raw, &debug);
+		}
+		return;
+	}
 	const int expected_pitch = ((row.midi % 12) + 12) % 12;
 	bool wrote = false;
 	const std::size_t count =
@@ -1217,6 +1239,12 @@ int main()
 	const int required_samples = positive_int_env("MUSIC_ANALYZER_REAL_NOTE_REQUIRED_SAMPLES", 1000);
 	const int max_failures = nonnegative_int_env("MUSIC_ANALYZER_REAL_NOTE_MAX_FAILURES", 0);
 	const bool full_mix = std::getenv("MUSIC_ANALYZER_REAL_NOTE_FULL_MIX") != nullptr;
+	const bool label_only = std::getenv("MUSIC_ANALYZER_REAL_NOTE_LABEL_ONLY") != nullptr;
+	if (label_only && !full_mix) {
+		std::fprintf(stderr,
+				"analyzer_real_note_samples: MUSIC_ANALYZER_REAL_NOTE_LABEL_ONLY requires full-mix mode\n");
+		return 1;
+	}
 	const int shard_count = positive_int_env("MUSIC_ANALYZER_REAL_NOTE_SHARD_COUNT", 1);
 	const int shard_index = nonnegative_int_env("MUSIC_ANALYZER_REAL_NOTE_SHARD_INDEX", 0);
 	if (shard_index >= shard_count) {
@@ -1368,7 +1396,7 @@ int main()
 			if (attribute_export) {
 				append_attribute_rows(attribute_lines, row, expected, buffer_index, full_mix, snapshot,
 						      family_state(snapshot, row.family), grid_ok, any_grid_ok,
-						      raw);
+						      raw, &buffer, sample_rate, label_only);
 			}
 			for (const mao::DrumState &drum : snapshot.drums) {
 				if (drum.active) {
@@ -1392,6 +1420,10 @@ int main()
 			++analyzed_windows;
 			if (label_ok || grid_ok)
 				detected_expected_row = true;
+			if (label_only && !attribute_lines.empty()) {
+				detected = true;
+				detected_anywhere = true;
+			}
 			if (any_grid_ok) {
 				detected_anywhere = true;
 				if (first_detected_row == kObservedNone)
@@ -1449,7 +1481,7 @@ int main()
 			}
 			++buffer_index;
 		}
-		const bool ownership_miss = full_mix && detected_anywhere && !detected_expected_row;
+		const bool ownership_miss = full_mix && !label_only && detected_anywhere && !detected_expected_row;
 		if (attribute_export && attribute_out.good()) {
 			const char *status = !detected ? "miss" : (ownership_miss ? "ownership_miss" : "hit");
 			for (const std::string &line : attribute_lines) {

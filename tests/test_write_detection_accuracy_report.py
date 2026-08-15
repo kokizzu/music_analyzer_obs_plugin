@@ -114,6 +114,14 @@ class DetectionAccuracyReportTest(unittest.TestCase):
                 ) + "\n",
                 encoding="utf-8",
             )
+            irmas_labelled = Path(temporary) / "irmas_labelled_attributes.tsv"
+            irmas_labelled.write_text(
+                "sample_id\tfamily\tdetected\tdetected_expected_row\tfirst_row\tvisual_first_row"
+                "\trow_grid\tbuffer_strongest_row\tbuffer_visual_strongest_row\n"
+                "irmas-piano\tpiano\t1\t1\tpiano\tpiano\t1\tpiano\tpiano\n"
+                "irmas-guitar\tguitar\t1\t0\tpiano\tguitar\t0\tpiano\tguitar\n",
+                encoding="utf-8",
+            )
             medley_solos_attributes = Path(temporary) / "medley_solos_attributes.tsv"
             medley_solos_attributes.write_text(
                 "\n".join(
@@ -395,7 +403,8 @@ class DetectionAccuracyReportTest(unittest.TestCase):
             kraisler_manifest.write_text("fixture\n", encoding="utf-8")
             report = REPORT.render(
                 source, [chords], vocal_full_mix, [bach10_0, bach10_1], musicnet, drum, urmp,
-                vocalset_full_mix, [maps], None, route_summary, good_sounds_full_mix, hf_drum_outputs,
+                vocalset_full_mix, [maps], None, route_summary, good_sounds_full_mix, irmas_labelled,
+                hf_drum_outputs,
                 maps_attributes, medley_solos_attributes, focused_vocalset_clean_vowel,
                 pitch_shifted_violin,
                 iowa_orchestra_full_input=iowa_orchestra_full,
@@ -480,6 +489,8 @@ class DetectionAccuracyReportTest(unittest.TestCase):
         self.assertIn("| Routes meeting protected and cross-corpus gates | 1 / 160 (0.6%) | 159 |", report)
         self.assertIn("| Routes awaiting additional fixture coverage | 34 / 160 (21.2%) | 126 |", report)
         self.assertIn("| Routes lacking independent-corpus replication | 82 / 160 (51.2%) | 78 |", report)
+        self.assertIn("## IRMAS independent instrument-routing coverage", report)
+        self.assertIn("| IRMAS — Strongest raw routing row | 1 / 2 (50.0%) | 1 |", report)
         self.assertIn("## Cached isolated-guitar chord gates", report)
         self.assertIn("## TinySOL isolated wind and brass exact-note coverage", report)
         self.assertIn("| TinySOL — Oboe — exact expected MIDI note | 1 / 1 (100.0%) | 0 |", report)

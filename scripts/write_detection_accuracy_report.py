@@ -139,6 +139,33 @@ def table_rows(samples: dict[str, list[dict[str, str]]]) -> list[tuple[str, int,
     return result
 
 
+def label_only_routing_rows(samples: dict[str, list[dict[str, str]]]) -> list[tuple[str, int, int]]:
+    """Summarize row routing where the corpus supplies an instrument label but no pitch truth."""
+    totals: dict[str, list[int]] = defaultdict(lambda: [0, 0])
+    per_family: dict[str, dict[str, list[int]]] = defaultdict(lambda: defaultdict(lambda: [0, 0]))
+    for sample_rows in samples.values():
+        family = sample_rows[0].get("family", "")
+        expected = EXPECTED_ROW.get(family)
+        if expected is None:
+            continue
+        values = {
+            "Any runtime pitch candidate": any(truthy(row.get("detected", "")) for row in sample_rows),
+            "Labelled instrument pitch-class row": any(truthy(row.get("row_grid", "")) for row in sample_rows),
+            "Strongest raw routing row": any(row.get("buffer_strongest_row", "") == expected for row in sample_rows),
+            "Strongest visible routing row": any(row.get("buffer_visual_strongest_row", "") == expected for row in sample_rows),
+        }
+        for label, accurate in values.items():
+            totals[label][1] += 1
+            totals[label][0] += int(accurate)
+            per_family[family][label][1] += 1
+            per_family[family][label][0] += int(accurate)
+    result = [(label, values[0], values[1]) for label, values in totals.items()]
+    for family in sorted(per_family):
+        for label, values in per_family[family].items():
+            result.append((f"{family.title()} — {label}", values[0], values[1]))
+    return result
+
+
 def family_metric_rows(samples: dict[str, list[dict[str, str]]], family: str) -> list[tuple[str, int, int]]:
     totals: dict[str, list[int]] = defaultdict(lambda: [0, 0])
     expected = EXPECTED_ROW[family]
@@ -704,6 +731,7 @@ def render(
     maps_note_gate_outputs: list[Path] | None = None,
     route_summary: Path | None = None,
     good_sounds_full_mix_input: Path | None = None,
+    irmas_labelled_input: Path | None = None,
     hf_drum_gate_outputs: list[Path] | None = None,
     maps_attribute_input: Path | None = None,
     medley_solos_attribute_input: Path | None = None,
@@ -1171,6 +1199,25 @@ def render(
         )
         for label, accurate, total in table_rows(good_sounds_samples):
             lines.append(f"| Good Sounds — {label} | {fraction(accurate, total)} | {total - accurate} |")
+    if irmas_labelled_input is not None:
+        irmas_samples = load_samples(irmas_labelled_input)
+        lines.extend(
+            [
+                "",
+                "## IRMAS independent instrument-routing coverage",
+                "",
+                "IRMAS supplies real musical excerpts labelled for their predominant instrument. It has no "
+                "time-aligned pitch truth, so these rows measure only runtime candidate availability and "
+                "instrument/display routing; they are never used as note- or chord-accuracy claims.",
+                "",
+                f"Source: `{irmas_labelled_input.as_posix()}`",
+                "",
+                "| Metric | Accurate / total | Remaining |",
+                "| --- | ---: | ---: |",
+            ]
+        )
+        for label, accurate, total in label_only_routing_rows(irmas_samples):
+            lines.append(f"| IRMAS — {label} | {fraction(accurate, total)} | {total - accurate} |")
     if pitch_shifted_violin_input is not None:
         fixture_rows = family_metric_rows(load_samples(pitch_shifted_violin_input), "other")
         lines.extend(
@@ -1695,6 +1742,7 @@ def main() -> int:
     parser.add_argument("--urmp-gate-output", type=Path)
     parser.add_argument("--route-summary", type=Path)
     parser.add_argument("--good-sounds-full-mix-input", type=Path)
+    parser.add_argument("--irmas-labelled-input", type=Path)
     parser.add_argument("--pitch-shifted-violin-input", type=Path)
     parser.add_argument("--medley-solos-attribute-input", type=Path)
     parser.add_argument("--focused-vocalset-clean-vowel-input", type=Path)
@@ -1750,7 +1798,8 @@ def main() -> int:
             args.input, args.chord_input, args.vocal_full_mix_input, args.bach10_gate_output,
             args.musicnet_gate_output, args.drum_gate_output, args.urmp_gate_output,
             args.vocalset_full_mix_input, args.maps_gate_output, args.maps_note_gate_output,
-            args.route_summary, args.good_sounds_full_mix_input, args.hf_drum_gate_output,
+            args.route_summary, args.good_sounds_full_mix_input, args.irmas_labelled_input,
+            args.hf_drum_gate_output,
             args.maps_attribute_input, args.medley_solos_attribute_input,
             args.focused_vocalset_clean_vowel_input, args.pitch_shifted_violin_input,
             args.philharmonia_full_input,

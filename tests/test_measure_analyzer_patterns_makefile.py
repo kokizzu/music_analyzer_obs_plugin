@@ -1181,8 +1181,14 @@ def main() -> int:
     assert "DETECTOR_REAL_NOTE_PATTERN_OPTIONAL_CANDIDATE_PATHS += $(KRAISLER_ATTRIBUTE_OUTPUT)" in makefile, (
         "detector route scans should mine candidates from available KRAISLER piano-violin rows"
     )
+    assert "DETECTOR_REAL_NOTE_PATTERN_OPTIONAL_CANDIDATE_PATHS += $(IRMAS_ATTRIBUTE_OUTPUT)" in makefile, (
+        "detector route scans should mine candidates from independent IRMAS routing rows"
+    )
     assert "DETECTOR_REAL_NOTE_PATTERN_OPTIONAL_PROTECTED_PATHS += $(KRAISLER_ATTRIBUTE_OUTPUT)" in makefile, (
         "detector route scans must also protect the independent KRAISLER piano-violin rows"
+    )
+    assert "DETECTOR_REAL_NOTE_PATTERN_OPTIONAL_PROTECTED_PATHS += $(IRMAS_ATTRIBUTE_OUTPUT)" in makefile, (
+        "detector route scans must also protect the independent IRMAS routing rows"
     )
     assert "--show-examples 4 --protected-scope all" in continuation_variable_body(
         makefile, "MEASURE_REAL_NOTE_COVERAGE_ROW_CONFUSION_PATTERN_ARGS"
@@ -4563,6 +4569,7 @@ def main() -> int:
     for text in [
         "DETECTOR_REAL_NOTE_PATTERN_OPTIONAL_PROTECTED_PATHS := $(VOCADITO_FULL_MIX_ATTRIBUTE_TSV)",
         "DETECTOR_REAL_NOTE_PATTERN_OPTIONAL_PROTECTED_PATHS += $(KRAISLER_ATTRIBUTE_OUTPUT)",
+        "DETECTOR_REAL_NOTE_PATTERN_OPTIONAL_PROTECTED_PATHS += $(IRMAS_ATTRIBUTE_OUTPUT)",
         "DETECTOR_REAL_NOTE_PATTERN_OPTIONAL_PROTECTED_PATHS += $(VOCALSET_DETECTED_ATTRIBUTE_ROWS)",
         "DETECTOR_REAL_NOTE_PATTERN_OPTIONAL_PROTECTED_PATHS += $(INSTRUMENT_DETECTED_ATTRIBUTE_ROWS)",
         "DETECTOR_REAL_NOTE_PATTERN_EXTRA_PROTECTED_PATHS ?= $(DETECTOR_REAL_NOTE_PATTERN_OPTIONAL_PROTECTED_PATHS)",
