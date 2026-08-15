@@ -4,7 +4,7 @@ PYTHON ?= python3
 # Explicitly approved, resumable external corpus acquisitions. This registry
 # is task-scoped: a target belongs here only while it is an active accuracy
 # coverage gap, rather than merely being supported by the project.
-APPROVED_CORPUS_DOWNLOAD_TARGETS ?= measure-maestro-real-samples
+APPROVED_CORPUS_DOWNLOAD_TARGETS ?= measure-maestro-real-samples measure-kraisler
 PKG_CONFIG ?= pkg-config
 TAR ?= tar
 FFMPEG ?= ffmpeg
@@ -2565,7 +2565,7 @@ download-kraisler: configure-instrument-sample-store $(KRAISLER_ARCHIVE) validat
 
 $(KRAISLER_ARCHIVE): scripts/validate_kraisler_archive.py
 	mkdir -p "$(KRAISLER_SOURCE_DIR)"
-	if test -s "$@"; then $(PYTHON) scripts/validate_kraisler_archive.py --archive "$@" --expected-md5 "$(KRAISLER_ARCHIVE_MD5)" --minimum-tracks "$(KRAISLER_MIN_TRACKS)"; elif command -v aria2c >/dev/null 2>&1; then aria2c --continue=true --allow-overwrite=true --auto-file-renaming=false --max-tries=5 --retry-wait=5 --max-connection-per-server=8 --split=8 --min-split-size=1M --dir "$(KRAISLER_SOURCE_DIR)" --out "KRAISLER.zip.part" "$(KRAISLER_ARCHIVE_URL)" && mv "$@.part" "$@"; else curl -fL -C - -o "$@.part" "$(KRAISLER_ARCHIVE_URL)" && mv "$@.part" "$@"; fi
+	if test -s "$@"; then $(PYTHON) scripts/validate_kraisler_archive.py --archive "$@" --expected-md5 "$(KRAISLER_ARCHIVE_MD5)" --minimum-tracks "$(KRAISLER_MIN_TRACKS)"; elif command -v aria2c >/dev/null 2>&1; then aria2c --continue=true --allow-overwrite=true --auto-file-renaming=false --file-allocation=none --max-tries=5 --retry-wait=5 --max-connection-per-server=8 --split=8 --min-split-size=1M --dir "$(KRAISLER_SOURCE_DIR)" --out "KRAISLER.zip.part" "$(KRAISLER_ARCHIVE_URL)" && mv "$@.part" "$@"; else curl -fL -C - -o "$@.part" "$(KRAISLER_ARCHIVE_URL)" && mv "$@.part" "$@"; fi
 
 validate-kraisler-archive: $(KRAISLER_ARCHIVE) scripts/validate_kraisler_archive.py
 	$(PYTHON) scripts/validate_kraisler_archive.py --archive "$(KRAISLER_ARCHIVE)" --expected-md5 "$(KRAISLER_ARCHIVE_MD5)" --minimum-tracks "$(KRAISLER_MIN_TRACKS)"
