@@ -348,7 +348,7 @@ class DetectionAccuracyReportTest(unittest.TestCase):
             route_summary.write_text(
                 "detector_route_summary: candidates=160 low_false=48 shadow=1 near_miss=68 "
                 "guitar=35 drum=8 positive_net=78 gain_ge_1=78 source_safe_positive_net=68 "
-                "actionable=1 coverage_blocked=34\n",
+                "actionable=1 coverage_blocked=34 independent_corpus_blocked=82\n",
                 encoding="utf-8",
             )
             dcs_measurement = Path(temporary) / "dagstuhl_choirset_measurement.tsv"
@@ -479,6 +479,7 @@ class DetectionAccuracyReportTest(unittest.TestCase):
         self.assertIn("| DCS Configuration — DCS_Test — Current-note vocal ownership | 1 / 2 (50.0%) | 1 |", report)
         self.assertIn("| Routes meeting protected and cross-corpus gates | 1 / 160 (0.6%) | 159 |", report)
         self.assertIn("| Routes awaiting additional fixture coverage | 34 / 160 (21.2%) | 126 |", report)
+        self.assertIn("| Routes lacking independent-corpus replication | 82 / 160 (51.2%) | 78 |", report)
         self.assertIn("## Cached isolated-guitar chord gates", report)
         self.assertIn("## TinySOL isolated wind and brass exact-note coverage", report)
         self.assertIn("| TinySOL — Oboe — exact expected MIDI note | 1 / 1 (100.0%) | 0 |", report)
