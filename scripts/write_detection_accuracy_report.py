@@ -46,6 +46,11 @@ GUITAR_PRIMARY_RUNTIME_SAFE_RE = re.compile(
     r"^same_root_extension_primary_runtime_safe_rules:\n(?P<body>(?:^  .*\n?)*)",
     re.MULTILINE,
 )
+GUITAR_TONE_AUDIT_RE = re.compile(
+    r"^(?P<corpus>[^\n:]+): candidates=(?P<candidates>\d+) "
+    r"recoveries=(?P<recoveries>\d+) false=(?P<false>\d+)$",
+    re.MULTILINE,
+)
 
 # Analyzer TSV evidence can legitimately retain long comma-separated note
 # histories.  Keep a finite but practical cap instead of csv's 128 KiB default.
@@ -756,6 +761,25 @@ def guitar_chord_primary_display_audit(
     )
 
 
+def guitar_chord_tone_recovery_audit(path: Path) -> dict[str, tuple[int, int, int]]:
+    """Return per-tone corpus recovery and false-promotion counts from the tri-corpus audit."""
+    sections = re.split(r"^tone=(?P<tone>[a-z-]+)$", path.read_text(encoding="utf-8", errors="replace"), flags=re.MULTILINE)
+    result: dict[str, tuple[int, int, int]] = {}
+    for index in range(1, len(sections), 2):
+        tone = sections[index]
+        rows = list(GUITAR_TONE_AUDIT_RE.finditer(sections[index + 1]))
+        if len(rows) != 3:
+            raise ValueError(f"{path}: expected three corpus rows for {tone}")
+        result[tone] = (
+            sum(int(row["recoveries"]) > 0 for row in rows),
+            sum(int(row["false"]) for row in rows),
+            len(rows),
+        )
+    if set(result) != {"minor-third", "major-third", "minor-fifth", "major-fifth"}:
+        raise ValueError(f"{path}: missing guitar tone audit sections")
+    return result
+
+
 def dagstuhl_choirset_rows(path: Path) -> list[tuple[str, str, int, int]]:
     with path.open(encoding="utf-8", newline="") as source:
         rows = list(csv.DictReader(source, delimiter="\t"))
@@ -869,6 +893,7 @@ def render(
     tenor_sax_piano_route_audit_input: Path | None = None,
     violin_guitar_route_audit_input: Path | None = None,
     guitar_chord_primary_display_audit_input: Path | None = None,
+    guitar_chord_tone_recovery_audit_input: Path | None = None,
 ) -> str:
     samples = load_samples(input_path)
     dcs_rows = dagstuhl_choirset_rows(dagstuhl_choirset_input) if dagstuhl_choirset_input else []
@@ -916,6 +941,12 @@ def render(
         guitar_chord_primary_display_audit(guitar_chord_primary_display_audit_input)
         if guitar_chord_primary_display_audit_input is not None
         and guitar_chord_primary_display_audit_input.is_file()
+        else None
+    )
+    guitar_chord_tone_audit = (
+        guitar_chord_tone_recovery_audit(guitar_chord_tone_recovery_audit_input)
+        if guitar_chord_tone_recovery_audit_input is not None
+        and guitar_chord_tone_recovery_audit_input.is_file()
         else None
     )
     csd_rows = dagstuhl_choirset_rows(choral_singing_dataset_measurement) if choral_singing_dataset_measurement else []
@@ -1040,6 +1071,36 @@ def render(
     if guitar_chord_primary_audit is not None:
         source_primary, comparison_primary, source_safe_rules, comparison_safe_rules = (
             guitar_chord_primary_audit
+        )
+    if guitar_chord_tone_audit is not None:
+        minor_third = guitar_chord_tone_audit["minor-third"]
+        major_third = guitar_chord_tone_audit["major-third"]
+        minor_fifth = guitar_chord_tone_audit["minor-fifth"]
+        major_fifth = guitar_chord_tone_audit["major-fifth"]
+        eligible = int(
+            minor_third[0] >= 2 and minor_third[1] == 0
+        ) + int(major_third[0] >= 2 and major_third[1] == 0)
+        lines.extend(
+            [
+                "",
+                "## Guitar chord tone-recovery safety audit",
+                "",
+                "Third and fifth recovery rules are checked against the independent GAPS, Guitar "
+                "Chord Mix, and Guitar-TECHS corpora before changing chord construction.",
+                "",
+                f"Source: `{guitar_chord_tone_recovery_audit_input.as_posix()}`",
+                "",
+                "| Metric | Accurate / total | Remaining |",
+                "| --- | ---: | ---: |",
+                f"| Minor-third recovery corpora | {fraction(minor_third[0], minor_third[2])} | {minor_third[2] - minor_third[0]} |",
+                f"| Major-third recovery corpora | {fraction(major_third[0], major_third[2])} | {major_third[2] - major_third[0]} |",
+                f"| Major-third protected false promotions avoided | {fraction(int(major_third[1] == 0), 1)} | {int(major_third[1] != 0)} |",
+                f"| Minor-fifth recovery corpora | {fraction(minor_fifth[0], minor_fifth[2])} | {minor_fifth[2] - minor_fifth[0]} |",
+                f"| Major-fifth recovery corpora | {fraction(major_fifth[0], major_fifth[2])} | {major_fifth[2] - major_fifth[0]} |",
+                f"| Runtime tone-recovery change eligible | {fraction(eligible, 2)} | {2 - eligible} |",
+                "",
+                f"Minor third is source-local; major third has {major_third[1]} protected false promotions; neither fifth route has candidates. No tone-recovery rule is permitted.",
+            ]
         )
         supporting_corpora = int(source_safe_rules > 0) + int(comparison_safe_rules > 0)
         lines.extend(
@@ -2058,6 +2119,7 @@ def main() -> int:
     parser.add_argument("--tenor-sax-piano-route-audit", type=Path)
     parser.add_argument("--violin-guitar-route-audit", type=Path)
     parser.add_argument("--guitar-chord-primary-display-audit", type=Path)
+    parser.add_argument("--guitar-chord-tone-recovery-audit", type=Path)
     parser.add_argument("--output", required=True, type=Path)
     args = parser.parse_args()
     try:
@@ -2121,6 +2183,7 @@ def main() -> int:
             args.tenor_sax_piano_route_audit,
             args.violin_guitar_route_audit,
             args.guitar_chord_primary_display_audit,
+            args.guitar_chord_tone_recovery_audit,
         )
     except (OSError, ValueError) as error:
         parser.error(str(error))

@@ -142,6 +142,42 @@ class DetectionAccuracyReportTest(unittest.TestCase):
                 ((400, 511, 26), (176, 540, 179), 0, 2),
             )
 
+    def test_guitar_tone_recovery_audit_tracks_all_three_corpora(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            audit = Path(temporary) / "guitar_chord_tone_recovery_audit.txt"
+            audit.write_text(
+                "\n".join(
+                    (
+                        "tone=minor-third",
+                        "gaps.tsv: candidates=0 recoveries=0 false=0",
+                        "mix.tsv: candidates=1 recoveries=1 false=0",
+                        "techs.tsv: candidates=0 recoveries=0 false=0",
+                        "tone=major-third",
+                        "gaps.tsv: candidates=1 recoveries=1 false=0",
+                        "mix.tsv: candidates=2 recoveries=2 false=0",
+                        "techs.tsv: candidates=6 recoveries=0 false=6",
+                        "tone=minor-fifth",
+                        "gaps.tsv: candidates=0 recoveries=0 false=0",
+                        "mix.tsv: candidates=0 recoveries=0 false=0",
+                        "techs.tsv: candidates=0 recoveries=0 false=0",
+                        "tone=major-fifth",
+                        "gaps.tsv: candidates=0 recoveries=0 false=0",
+                        "mix.tsv: candidates=0 recoveries=0 false=0",
+                        "techs.tsv: candidates=0 recoveries=0 false=0",
+                    )
+                ) + "\n",
+                encoding="utf-8",
+            )
+            self.assertEqual(
+                REPORT.guitar_chord_tone_recovery_audit(audit),
+                {
+                    "minor-third": (1, 0, 3),
+                    "major-third": (2, 6, 3),
+                    "minor-fifth": (0, 0, 3),
+                    "major-fifth": (0, 0, 3),
+                },
+            )
+
     def test_render_reports_global_and_family_counts(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
             source = Path(temporary) / "attributes.tsv"

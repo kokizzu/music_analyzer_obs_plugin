@@ -101,6 +101,23 @@ Source: `build/violin_guitar_route_audit.txt`
 
 The originating Good Sounds corpus has 4 matching violin samples; neither independent violin corpus reproduces the profile, so the rule is rejected.
 
+## Guitar chord tone-recovery safety audit
+
+Third and fifth recovery rules are checked against the independent GAPS, Guitar Chord Mix, and Guitar-TECHS corpora before changing chord construction.
+
+Source: `build/guitar_chord_tone_recovery_audit.txt`
+
+| Metric | Accurate / total | Remaining |
+| --- | ---: | ---: |
+| Minor-third recovery corpora | 1 / 3 (33.3%) | 2 |
+| Major-third recovery corpora | 2 / 3 (66.7%) | 1 |
+| Major-third protected false promotions avoided | 0 / 1 (0.0%) | 1 |
+| Minor-fifth recovery corpora | 0 / 3 (0.0%) | 3 |
+| Major-fifth recovery corpora | 0 / 3 (0.0%) | 3 |
+| Runtime tone-recovery change eligible | 0 / 2 (0.0%) | 2 |
+
+Minor third is source-local; major third has 6 protected false promotions; neither fifth route has candidates. No tone-recovery rule is permitted.
+
 ## Guitar chord primary-display safety audit
 
 The primary label may only be reordered when the same runtime-safe predicate is supported by both the isolated Guitar Chord Mix and full-performance GAPS corpora.
