@@ -4549,6 +4549,27 @@ def main() -> int:
     assert "--include-row-context" not in focused_visual_row_confusion_recipe, (
         "focused row-context diagnostics should be controlled by the default args variable"
     )
+    for target in [
+        "$(DAGSTUHL_CHOIRSET_SHARED_OWNERSHIP_PATTERN_REPORT)",
+        "$(CHORAL_SINGING_DATASET_SHARED_OWNERSHIP_PATTERN_REPORT)",
+        "$(ESMUC_CHOIR_DATASET_SHARED_OWNERSHIP_PATTERN_REPORT)",
+    ]:
+        assert "$(REAL_NOTE_RUNTIME_ROW_CONFUSION_EXCLUDES)" in target_recipe(makefile, target), (
+            f"{target} must exclude label-derived fields from shared choir ownership mining"
+        )
+        assert f"{target}: Makefile" in makefile, (
+            f"{target} must refresh when its runtime-only mining policy changes"
+        )
+    assert "$(ESMUC_CHOIR_DATASET_SHARED_OWNERSHIP_PATTERN_REPORT): Makefile export-esmuc-choir-dataset-pattern-rows $(DAGSTUHL_CHOIRSET_PATTERN_OUTPUT) $(CHORAL_SINGING_DATASET_PATTERN_OUTPUT)" in makefile, (
+        "the ESMUC shared audit must refresh when either external choir candidate corpus changes"
+    )
+    assert "$(CHORAL_SINGING_DATASET_SHARED_OWNERSHIP_PATTERN_REPORT): Makefile export-choral-singing-dataset-pattern-rows $(DAGSTUHL_CHOIRSET_PATTERN_OUTPUT)" in makefile, (
+        "the CSD shared audit must refresh when the DCS candidate corpus changes"
+    )
+    choral_measurement_recipe = target_recipe(makefile, "measure-choral-singing-dataset")
+    assert "MUSIC_ANALYZER_MUSICNET_REQUIRED_RECORDINGS=12" in choral_measurement_recipe, (
+        "the 12-piece Choral Singing Dataset measurement must not inherit MusicNet's 20-recording gate"
+    )
     assert "REAL_NOTE_PATTERN_EXTRA_PROTECTED_PATHS ?=" in makefile, (
         "real-note pattern mining must keep optional protected TSV inputs default-empty for ad hoc reports"
     )
