@@ -88,6 +88,19 @@ Source: `build/tenor_sax_piano_route_audit.txt`
 
 The originating Good Sounds corpus has 3 matching tenor-saxophone samples; no independent saxophone fixture reproduces the profile, so the rule is rejected.
 
+## Violin-to-Guitar safety audit
+
+The leading Good Sounds violin routing profile is audited against independent Iowa strings and KRAISLER piano--violin mixture evidence before any reroute.
+
+Source: `build/violin_guitar_route_audit.txt`
+
+| Metric | Accurate / total | Remaining |
+| --- | ---: | ---: |
+| Independent violin corpora reproducing the profile | 0 / 2 (0.0%) | 2 |
+| Runtime routing change eligible | 0 / 1 (0.0%) | 1 |
+
+The originating Good Sounds corpus has 4 matching violin samples; neither independent violin corpus reproduces the profile, so the rule is rejected.
+
 ## High-soprano octave safety audit
 
 A high F5/F#5 vocal recovery is only eligible if it improves at least two independent choir corpora with no protected-instrument reroutes. The lower-octave gate selects protected keyboard candidates; all tested zero-overlap multi-signal profiles reduced protected visual accuracy, so no behavior change is permitted.

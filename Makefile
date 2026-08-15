@@ -247,7 +247,7 @@ DETECTION_ACCURACY_URMP_GATE_ARG = $(if $(wildcard $(URMP_MEASUREMENT_OUTPUT)),-
 DETECTION_ACCURACY_DRUM_GATE_ARG = $(if $(wildcard $(DRUM_FULL_GATE_OUT)),--drum-gate-output "$(DRUM_FULL_GATE_OUT)")
 DETECTION_ACCURACY_HF_DRUM_GATE_ARGS = $(foreach path,$(wildcard $(HF_DRUM_KIT_SHARD_OUTS)),--hf-drum-gate-output "$(path)")
 DETECTION_ACCURACY_ROUTE_SUMMARY_ARG = $(if $(wildcard $(DETECTOR_IMPROVEMENT_ROUTE_SUMMARY)),--route-summary "$(DETECTOR_IMPROVEMENT_ROUTE_SUMMARY)")
-DETECTION_ACCURACY_GOOD_SOUNDS_FULL_MIX_ARG = $(if $(wildcard $(GOOD_SOUNDS_FULL_MIX_ATTRIBUTE_TSV)),--good-sounds-full-mix-input "$(GOOD_SOUNDS_FULL_MIX_ATTRIBUTE_TSV)") $(if $(wildcard $(TENOR_SAX_PIANO_ROUTE_AUDIT)),--tenor-sax-piano-route-audit "$(TENOR_SAX_PIANO_ROUTE_AUDIT)")
+DETECTION_ACCURACY_GOOD_SOUNDS_FULL_MIX_ARG = $(if $(wildcard $(GOOD_SOUNDS_FULL_MIX_ATTRIBUTE_TSV)),--good-sounds-full-mix-input "$(GOOD_SOUNDS_FULL_MIX_ATTRIBUTE_TSV)") $(if $(wildcard $(TENOR_SAX_PIANO_ROUTE_AUDIT)),--tenor-sax-piano-route-audit "$(TENOR_SAX_PIANO_ROUTE_AUDIT)") $(if $(wildcard $(VIOLIN_GUITAR_ROUTE_AUDIT)),--violin-guitar-route-audit "$(VIOLIN_GUITAR_ROUTE_AUDIT)")
 DETECTION_ACCURACY_PITCH_SHIFTED_VIOLIN_ARG = $(if $(wildcard $(PITCH_SHIFTED_VIOLIN_ATTRIBUTE_TSV)),--pitch-shifted-violin-input "$(PITCH_SHIFTED_VIOLIN_ATTRIBUTE_TSV)")
 DETECTION_ACCURACY_MEDLEY_SOLOS_ATTRIBUTE_TSV ?= $(BUILD_DIR)/medley_solos_attributes.tsv
 DETECTION_ACCURACY_MEDLEY_SOLOS_ATTRIBUTE_ARG = $(if $(wildcard $(DETECTION_ACCURACY_MEDLEY_SOLOS_ATTRIBUTE_TSV)),--medley-solos-attribute-input "$(DETECTION_ACCURACY_MEDLEY_SOLOS_ATTRIBUTE_TSV)")
@@ -1096,6 +1096,7 @@ GOOD_SOUNDS_DETECTED_ATTRIBUTE_ROWS ?= $(BUILD_DIR)/good_sounds_detected_attribu
 GOOD_SOUNDS_MISS_ATTRIBUTE_ROWS ?= $(BUILD_DIR)/good_sounds_miss_attribute_rows.tsv
 GOOD_SOUNDS_FULL_MIX_ATTRIBUTE_TSV ?= $(BUILD_DIR)/good_sounds_full_mix_attributes.tsv
 TENOR_SAX_PIANO_ROUTE_AUDIT ?= $(BUILD_DIR)/tenor_sax_piano_route_audit.txt
+VIOLIN_GUITAR_ROUTE_AUDIT ?= $(BUILD_DIR)/violin_guitar_route_audit.txt
 GOOD_SOUNDS_FULL_MIX_ATTRIBUTE_LOCK_DIR ?= $(BUILD_DIR)/good_sounds_full_mix_attributes.lock
 GOOD_SOUNDS_DEBUG_SAMPLE_ID ?=
 GOOD_SOUNDS_DEBUG_ATTRIBUTE_TSV ?= $(BUILD_DIR)/good_sounds_debug_attributes.tsv
@@ -3289,6 +3290,14 @@ measure-tenor-sax-piano-route-cached: scripts/measure_real_note_attribute_rule.p
 	@for path in "$(GOOD_SOUNDS_FULL_MIX_ATTRIBUTE_TSV)" "$(IOWA_SAX_FULL_MIX_ATTRIBUTE_TSV)" "$(TINYSOL_SAX_FULL_MIX_ATTRIBUTE_TSV)" "$(REAL_A2S_SAX_SCALE_ATTRIBUTE_TSV)"; do test -s "$$path" || { printf '%s\n' "missing cached tenor-sax route input: $$path"; exit 2; }; done
 	@tmp="$(TENOR_SAX_PIANO_ROUTE_AUDIT).tmp"; $(PYTHON) scripts/measure_real_note_attribute_rule.py "$(GOOD_SOUNDS_FULL_MIX_ATTRIBUTE_TSV)" --condition "status=hit" --condition "family=other" --condition "buffer_strongest_row=piano" --condition "adjacent_upper_ratio<=0.007" --condition "debug_midi<=66" --condition "keyboard_guitar_score_ratio>=5.238" --primary-condition "source=sax-tenor" --compare-path "$(IOWA_SAX_FULL_MIX_ATTRIBUTE_TSV)" --compare-path "$(TINYSOL_SAX_FULL_MIX_ATTRIBUTE_TSV)" --compare-path "$(REAL_A2S_SAX_SCALE_ATTRIBUTE_TSV)" --group-by source --group-by buffer_strongest_row --examples 12 > "$$tmp" && mv "$$tmp" "$(TENOR_SAX_PIANO_ROUTE_AUDIT)"
 	@cat "$(TENOR_SAX_PIANO_ROUTE_AUDIT)"
+
+.PHONY: measure-violin-guitar-route-cached
+# Audit the leading Good Sounds violin-to-Guitar route on independent Iowa
+# strings and KRAISLER piano--violin mixture evidence.
+measure-violin-guitar-route-cached: scripts/measure_real_note_attribute_rule.py
+	@for path in "$(GOOD_SOUNDS_FULL_MIX_ATTRIBUTE_TSV)" "$(IOWA_STRINGS_DETECTED_ATTRIBUTE_ROWS)" "$(KRAISLER_ATTRIBUTE_OUTPUT)"; do test -s "$$path" || { printf '%s\n' "missing cached violin route input: $$path"; exit 2; }; done
+	@tmp="$(VIOLIN_GUITAR_ROUTE_AUDIT).tmp"; $(PYTHON) scripts/measure_real_note_attribute_rule.py "$(GOOD_SOUNDS_FULL_MIX_ATTRIBUTE_TSV)" --condition "status=hit" --condition "family=other" --condition "buffer_strongest_row=guitar" --condition "adjacent_lower_ratio<=0.002" --condition "keyboard_other_score_ratio>=1.325" --condition "pitch_confidence>=0.956" --primary-condition "source=violin" --compare-path "$(IOWA_STRINGS_DETECTED_ATTRIBUTE_ROWS)" --compare-path "$(KRAISLER_ATTRIBUTE_OUTPUT)" --group-by source --group-by buffer_strongest_row --examples 12 > "$$tmp" && mv "$$tmp" "$(VIOLIN_GUITAR_ROUTE_AUDIT)"
+	@cat "$(VIOLIN_GUITAR_ROUTE_AUDIT)"
 
 inspect-real-note-candidate-rows: $(REAL_NOTE_CANDIDATE_ROW_PATHS) scripts/inspect_real_note_candidate_rows.py
 	$(PYTHON) scripts/inspect_real_note_candidate_rows.py $(if $(REAL_NOTE_CANDIDATE_RULE),--rule "$(REAL_NOTE_CANDIDATE_RULE)") $(REAL_NOTE_CANDIDATE_ARGS) $(REAL_NOTE_CANDIDATE_ROW_PATHS)
