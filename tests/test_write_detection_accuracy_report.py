@@ -68,6 +68,23 @@ class DetectionAccuracyReportTest(unittest.TestCase):
             )
             self.assertEqual(REPORT.electronic_piano_guitar_route_audit(audit), (10, 1, 2))
 
+    def test_scms_vocal_other_audit_counts_three_independent_corpora(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            audit = Path(temporary) / "scms_vocal_other_route_audit.txt"
+            audit.write_text(
+                "\n".join(
+                    (
+                        "matched rows=6 samples=5",
+                        "compare rows=0 samples=0 path=vocadito.tsv",
+                        "compare rows=2 samples=1 path=vocalset.tsv",
+                        "compare rows=0 samples=0 path=mir1k.tsv",
+                    )
+                )
+                + "\n",
+                encoding="utf-8",
+            )
+            self.assertEqual(REPORT.scms_vocal_other_route_audit(audit), (5, 1, 3))
+
     def test_render_reports_global_and_family_counts(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
             source = Path(temporary) / "attributes.tsv"

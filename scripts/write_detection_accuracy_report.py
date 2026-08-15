@@ -690,18 +690,26 @@ def route_coverage_rows(path: Path) -> list[tuple[str, int, int]]:
     return rows
 
 
-def electronic_piano_guitar_route_audit(path: Path) -> tuple[int, int, int]:
+def route_profile_audit(path: Path, expected_comparisons: int) -> tuple[int, int, int]:
     """Return source samples and independent-profile recurrence counts."""
     text = path.read_text(encoding="utf-8", errors="replace")
     source = ELECTRONIC_PIANO_GUITAR_MATCH_RE.search(text)
     comparisons = list(ELECTRONIC_PIANO_GUITAR_COMPARE_RE.finditer(text))
-    if source is None or len(comparisons) != 2:
-        raise ValueError(f"{path}: missing electronic-piano Guitar route audit")
+    if source is None or len(comparisons) != expected_comparisons:
+        raise ValueError(f"{path}: missing cached route audit")
     return (
         int(source["samples"]),
         sum(int(match["samples"]) > 0 for match in comparisons),
         len(comparisons),
     )
+
+
+def electronic_piano_guitar_route_audit(path: Path) -> tuple[int, int, int]:
+    return route_profile_audit(path, 2)
+
+
+def scms_vocal_other_route_audit(path: Path) -> tuple[int, int, int]:
+    return route_profile_audit(path, 3)
 
 
 def dagstuhl_choirset_rows(path: Path) -> list[tuple[str, str, int, int]]:
@@ -813,6 +821,7 @@ def render(
     musicnet_routing_input: Path | None = None,
     high_vocal_octave_audit: Path | None = None,
     electronic_piano_guitar_route_audit_input: Path | None = None,
+    scms_vocal_other_route_audit_input: Path | None = None,
 ) -> str:
     samples = load_samples(input_path)
     dcs_rows = dagstuhl_choirset_rows(dagstuhl_choirset_input) if dagstuhl_choirset_input else []
@@ -836,6 +845,12 @@ def render(
         electronic_piano_guitar_route_audit(electronic_piano_guitar_route_audit_input)
         if electronic_piano_guitar_route_audit_input is not None
         and electronic_piano_guitar_route_audit_input.is_file()
+        else None
+    )
+    scms_vocal_other_audit = (
+        scms_vocal_other_route_audit(scms_vocal_other_route_audit_input)
+        if scms_vocal_other_route_audit_input is not None
+        and scms_vocal_other_route_audit_input.is_file()
         else None
     )
     csd_rows = dagstuhl_choirset_rows(choral_singing_dataset_measurement) if choral_singing_dataset_measurement else []
@@ -895,6 +910,26 @@ def render(
                 f"| Runtime routing change eligible | {fraction(int(recurring_corpora == corpus_total), 1)} | {int(recurring_corpora != corpus_total)} |",
                 "",
                 f"The originating cached corpus has {source_samples} matching electronic-piano samples; neither independent corpus reproduces the profile, so the rule is rejected.",
+            ]
+        )
+    if scms_vocal_other_audit is not None:
+        source_samples, recurring_corpora, corpus_total = scms_vocal_other_audit
+        lines.extend(
+            [
+                "",
+                "## SCMS vocal-to-Other safety audit",
+                "",
+                "The leading SCMS visual vocal-route profile is audited against independent "
+                "Vocadito, VocalSet, and MIR-1K vocal corpora before any display change.",
+                "",
+                f"Source: `{scms_vocal_other_route_audit_input.as_posix()}`",
+                "",
+                "| Metric | Accurate / total | Remaining |",
+                "| --- | ---: | ---: |",
+                f"| Independent vocal corpora reproducing the profile | {fraction(recurring_corpora, corpus_total)} | {corpus_total - recurring_corpora} |",
+                f"| Runtime display change eligible | {fraction(int(recurring_corpora >= 2), 1)} | {int(recurring_corpora < 2)} |",
+                "",
+                f"The originating SCMS corpus has {source_samples} matching vocal samples. Only one independent corpus reproduces the profile, so the rule is rejected.",
             ]
         )
     if high_vocal_octave_audit is not None and high_vocal_octave_audit.is_file():
@@ -1868,6 +1903,7 @@ def main() -> int:
     parser.add_argument("--kraisler-measurement", type=Path)
     parser.add_argument("--high-vocal-octave-audit", type=Path)
     parser.add_argument("--electronic-piano-guitar-route-audit", type=Path)
+    parser.add_argument("--scms-vocal-other-route-audit", type=Path)
     parser.add_argument("--output", required=True, type=Path)
     args = parser.parse_args()
     try:
@@ -1927,6 +1963,7 @@ def main() -> int:
             args.musicnet_routing_input,
             args.high_vocal_octave_audit,
             args.electronic_piano_guitar_route_audit,
+            args.scms_vocal_other_route_audit,
         )
     except (OSError, ValueError) as error:
         parser.error(str(error))

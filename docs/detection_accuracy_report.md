@@ -62,6 +62,19 @@ Source: `build/electronic_piano_guitar_route_audit.txt`
 
 The originating cached corpus has 10 matching electronic-piano samples; neither independent corpus reproduces the profile, so the rule is rejected.
 
+## SCMS vocal-to-Other safety audit
+
+The leading SCMS visual vocal-route profile is audited against independent Vocadito, VocalSet, and MIR-1K vocal corpora before any display change.
+
+Source: `build/scms_vocal_other_route_audit.txt`
+
+| Metric | Accurate / total | Remaining |
+| --- | ---: | ---: |
+| Independent vocal corpora reproducing the profile | 1 / 3 (33.3%) | 2 |
+| Runtime display change eligible | 0 / 1 (0.0%) | 1 |
+
+The originating SCMS corpus has 5 matching vocal samples. Only one independent corpus reproduces the profile, so the rule is rejected.
+
 ## High-soprano octave safety audit
 
 A high F5/F#5 vocal recovery is only eligible if it improves at least two independent choir corpora with no protected-instrument reroutes. The lower-octave gate selects protected keyboard candidates; all tested zero-overlap multi-signal profiles reduced protected visual accuracy, so no behavior change is permitted.
